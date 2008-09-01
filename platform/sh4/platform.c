@@ -20,47 +20,31 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __SYS_TYPES_H
-#define __SYS_TYPES_H
+#include <err.h>
+#include <debug.h>
+#include <platform.h>
+#include "platform_p.h"
+//#include <arch/arm/mmu.h>
 
-#ifndef __cplusplus
-#define false 0
-#define true 1
-typedef int bool;
+void platform_early_init(void)
+{
+#if 0
+	/* do some memory map initialization */
+	addr_t addr;
+	arm_mmu_map_section(SDRAM_BASE, 0, MMU_FLAG_CACHED|MMU_FLAG_BUFFERED);
+	for (addr = SDRAM_BASE; addr < SDRAM_BASE + SDRAM_SIZE; addr += (1024*1024)) {
+		arm_mmu_map_section(addr, addr, MMU_FLAG_CACHED|MMU_FLAG_BUFFERED|MMU_FLAG_READWRITE);
+	}
 #endif
 
-#include <stddef.h>
-#include <limits.h>
-#include <stdint.h>
+	/* initialize the interrupt controller */
+	platform_init_interrupts();
 
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef unsigned int uint;
-typedef unsigned long ulong;
-typedef unsigned char u_char;
-typedef unsigned short u_short;
-typedef unsigned int u_int;
-typedef unsigned long u_long;
+	/* initialize the timer block */
+	platform_init_timer();
+}
 
-//typedef unsigned long size_t;
-typedef long          ssize_t;
-typedef long long     off_t;
+void platform_init(void)
+{
+}
 
-typedef int status_t;
-
-typedef uintptr_t addr_t;
-typedef uintptr_t vaddr_t;
-typedef uintptr_t paddr_t;
-
-typedef int kobj_id;
-
-typedef unsigned long time_t;
-typedef unsigned long long bigtime_t;
-#define INFINITE_TIME ULONG_MAX
-
-enum handler_return {
-	INT_NO_RESCHEDULE = 0,
-	INT_RESCHEDULE,
-};
-
-#endif

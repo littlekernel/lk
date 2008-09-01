@@ -20,47 +20,24 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __SYS_TYPES_H
-#define __SYS_TYPES_H
+#include <arch.h>
+#include <arch/ops.h>
 
-#ifndef __cplusplus
-#define false 0
-#define true 1
-typedef int bool;
+void arch_early_init(void)
+{
+#if 0
+	/* turn off the cache */
+	arch_disable_cache();
+
+#if ARM_WITH_MMU
+	arm_mmu_init();
 #endif
 
-#include <stddef.h>
-#include <limits.h>
-#include <stdint.h>
-
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef unsigned int uint;
-typedef unsigned long ulong;
-typedef unsigned char u_char;
-typedef unsigned short u_short;
-typedef unsigned int u_int;
-typedef unsigned long u_long;
-
-//typedef unsigned long size_t;
-typedef long          ssize_t;
-typedef long long     off_t;
-
-typedef int status_t;
-
-typedef uintptr_t addr_t;
-typedef uintptr_t vaddr_t;
-typedef uintptr_t paddr_t;
-
-typedef int kobj_id;
-
-typedef unsigned long time_t;
-typedef unsigned long long bigtime_t;
-#define INFINITE_TIME ULONG_MAX
-
-enum handler_return {
-	INT_NO_RESCHEDULE = 0,
-	INT_RESCHEDULE,
-};
-
+	arch_enable_cache();
 #endif
+}
+
+void arch_init(void)
+{
+}
+

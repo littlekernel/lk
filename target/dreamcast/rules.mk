@@ -1,0 +1,4 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+PLATFORM := sh4
+
