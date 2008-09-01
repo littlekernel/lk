@@ -1,0 +1,6 @@
+#!/bin/sh
+
+export DEBUG=true
+export PROJECT=sam7ex256-test
+
+make

@@ -1,0 +1,15 @@
+
+Platform support for the ATMEL AT91SAM7[XS] ARM7 microcontrollers.
+
+This is a base platform -- it needs to be specialized for a particular
+board (see sam7ex256 as an example of this) to be useful.  In particular
+it does not provide the platform/board.h (which must include the 
+correct at91sam7*h file and mux config).
+
+TODO:
+- support clock rates other than (and above) 18MHz
+- compute uart divisor, PIT interval, etc from MCK
+- timer hook should honor the requested interval
+- current_time() should return a meaningful value
+- actually pass argument to interrupt handlers?
+

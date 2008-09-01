@@ -1,0 +1,7 @@
+#!/bin/sh
+
+FILES=`find . -type f -regex ".*\.[chS]\|.*\.cpp"`
+
+echo running ctags
+exuberant-ctags $FILES
+

@@ -1,0 +1,7 @@
+#!/bin/sh
+
+export PROJECT=armemu-lwip
+
+make -C ../armemu && 
+make && 
+(cd build-$PROJECT; sudo ../../armemu/build-generic/armemu)

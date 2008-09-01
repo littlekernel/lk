@@ -1,0 +1,109 @@
+/*
+ * Copyright (c) 2008 Travis Geiselbrecht
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files
+ * (the "Software"), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge,
+ * publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+#ifndef __COMPILER_H
+#define __COMPILER_H
+
+#ifndef __ASSEMBLY__
+
+#if __GNUC__
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+#define __UNUSED __attribute__((__unused__))
+#define __PACKED __attribute__((packed))
+#define __ALIGNED(x) __attribute__((aligned(x)))
+#define __PRINTFLIKE(__fmt,__varargs) __attribute__((__format__ (__printf__, __fmt, __varargs)))
+#define __SCANFLIKE(__fmt,__varargs) __attribute__((__format__ (__scanf__, __fmt, __varargs)))
+#define __SECTION(x) __attribute((section(x)))
+#define __PURE __attribute((pure))
+#define __CONST __attribute((const))
+#define __NO_RETURN __attribute__((noreturn)) 
+#define __MALLOC __attribute__((malloc))
+#define __WEAK __attribute__((weak))
+#define __GNU_INLINE __attribute__((gnu_inline))
+#define __GET_CALLER(x) __builtin_return_address(0)
+
+/* look for gcc 3.0 and above */
+#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 0)
+#define __ALWAYS_INLINE __attribute__((always_inline))
+#else
+#define __ALWAYS_INLINE
+#endif
+
+/* look for gcc 3.1 and above */
+#if !defined(__DEPRECATED) // seems to be built in in some versions of the compiler
+#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1)
+#define __DEPRECATED __attribute((deprecated))
+#else
+#define __DEPRECATED
+#endif
+#endif
+
+/* look for gcc 3.3 and above */
+#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)
+/* the may_alias attribute was introduced in gcc 3.3; before that, there
+ * was no way to specify aliasiang rules on a type-by-type basis */
+#define __MAY_ALIAS __attribute__((may_alias)) 
+
+/* nonnull was added in gcc 3.3 as well */
+#define __NONNULL(x) __attribute((nonnull x))
+#else
+#define __MAY_ALIAS
+#define __NONNULL(x)
+#endif
+
+/* look for gcc 3.4 and above */
+#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
+#define __WARN_UNUSED_RESULT __attribute((warn_unused_result))
+#else
+#define __WARN_UNUSED_RESULT
+#endif
+
+#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1)
+#define __EXTERNALLY_VISIBLE __attribute__((externally_visible))
+#else
+#define __EXTERNALLY_VISIBLE
+#endif
+
+#else
+
+#define likely(x)       (x)
+#define unlikely(x)     (x)
+#define __UNUSED 
+#define __PACKED 
+#define __ALIGNED(x)
+#define __PRINTFLIKE(__fmt,__varargs)
+#define __SCANFLIKE(__fmt,__varargs)
+#define __SECTION(x)
+#define __PURE
+#define __CONST
+#define __NONNULL(x)
+#define __DEPRECATED
+#define __WARN_UNUSED_RESULT
+#define __ALWAYS_INLINE
+#define __MAY_ALIAS
+#define __NO_RETURN
+#endif
+
+#endif
+
+#endif

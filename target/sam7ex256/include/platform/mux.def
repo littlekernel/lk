@@ -1,0 +1,9 @@
+# debug uart
+#
+PA27 DRXD
+PA28 DTXD
+
+# CAN 
+#
+PA19 CANRX
+PA20 CANTX

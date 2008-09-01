@@ -1,0 +1,3 @@
+#!/bin/sh
+
+qemu-system-arm -serial stdio -nographic -kernel build-qemu-arm-test/lk.bin

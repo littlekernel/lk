@@ -1,0 +1,7 @@
+#!/bin/sh
+
+PROJECTS="armemu-test armemu-lwip sam7ex256-test osk5912-test qemu-arm-test beagle-test"
+
+for p in $PROJECTS; do
+	PROJECT=$p make -j2
+done

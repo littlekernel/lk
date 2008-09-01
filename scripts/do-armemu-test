@@ -1,0 +1,7 @@
+#!/bin/sh
+
+export PROJECT=armemu-test
+
+make -C ../armemu && 
+make && 
+(cd build-$PROJECT; ../../armemu/build-generic/armemu)

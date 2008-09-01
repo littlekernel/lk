@@ -1,0 +1,10 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+AT91CHIP := sam7x256
+
+PLATFORM := at91sam7
+
+INCLUDES += -I$(LOCAL_DIR)/include
+
+OBJS += 
+
