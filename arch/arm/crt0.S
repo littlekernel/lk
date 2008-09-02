@@ -45,6 +45,12 @@ reset:
 	mcr		p15, 0, r0, c1, c0, 0
 #endif
 
+#if PLATFORM_OMAP3
+	/* do an omap3 specific setup of the L2 */	
+	mov 	r12, #1
+	.word 0xe1600070
+#endif
+
 	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
 	mrs     r0, cpsr
 	bic     r0, r0, #0x1f

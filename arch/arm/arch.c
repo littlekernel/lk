@@ -50,11 +50,6 @@ void arch_early_init(void)
 	platform_init_mmu_mappings();
 #endif
 
-#if PLATFORM_OMAP3
-	/* do an omap3 specific setup of the L2 */	
-	__asm__ volatile("mov r12, #1; .word 0xe1600070" ::: "r12");
-#endif
-
 	/* turn the cache back on */
 	arch_enable_cache(UCACHE);
 
