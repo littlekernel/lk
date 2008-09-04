@@ -4,6 +4,13 @@ ARCH := arm
 ARM_CPU := cortex-a8
 CPU := generic
 
+DEVS += usb
+
+# provides a few devices
+DEFINES += \
+	WITH_DEV_USBC=1 \
+	WITH_DEV_UART=1
+
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
@@ -14,7 +21,8 @@ OBJS += \
 	$(LOCAL_DIR)/interrupts.o \
 	$(LOCAL_DIR)/platform.o \
 	$(LOCAL_DIR)/timer.o \
-	$(LOCAL_DIR)/uart.o
+	$(LOCAL_DIR)/uart.o \
+	$(LOCAL_DIR)/usbc.o
 
 MEMBASE := 0x80000000
 

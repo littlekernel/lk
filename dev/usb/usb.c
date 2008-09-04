@@ -20,46 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
 #include <debug.h>
-#include <arch/arm/mmu.h>
-#include <platform.h>
-#include "platform_p.h"
-#include <platform/omap3.h>
-#include <dev/i2c.h>
-#include <dev/uart.h>
+#include <dev/usb.h>
 #include <dev/usbc.h>
+#include <hw/usb.h>
 
-void platform_init_mmu_mappings(void)
+void usb_init(void)
 {
-	/* do some memory map initialization */
-	addr_t addr;
-	arm_mmu_map_section(SDRAM_BASE, 0, MMU_FLAG_CACHED|MMU_FLAG_BUFFERED);
-	for (addr = SDRAM_BASE; addr < SDRAM_BASE + SDRAM_SIZE; addr += (1024*1024)) {
-		arm_mmu_map_section(addr, addr, MMU_FLAG_CACHED|MMU_FLAG_BUFFERED|MMU_FLAG_READWRITE);
-	}
-}
-
-void platform_early_init(void)
-{
-	/* initialize the interrupt controller */
-	platform_init_interrupts();
-
-	/* initialize the timer block */
-	platform_init_timer();
-
-	/* initialize the uart */
-	uart_init_early();
-
-	i2c_init_early();
-}
-
-void platform_init(void)
-{
-	i2c_init();
-
-	uart_init();
-
-	usbc_init();
 }
 

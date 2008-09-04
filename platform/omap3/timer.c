@@ -104,6 +104,11 @@ static enum handler_return os_timer_tick(void *arg)
 
 void platform_init_timer(void)
 {
+	/* GPT2 */
+	RMWREG32(CM_CLKSEL_PER, 0, 1, 1);
+	RMWREG32(CM_ICLKEN_PER, 3, 1, 1);
+	RMWREG32(CM_FCLKEN_PER, 3, 1, 1);
+
 	// reset the GP timer 
 	TIMER_REG(TIOCP_CFG) = 0x2;
 	while ((TIMER_REG(TISTAT) & 1) == 0)

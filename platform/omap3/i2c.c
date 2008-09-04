@@ -230,6 +230,10 @@ void i2c_init_early(void)
 {
 	LTRACE_ENTRY;
 
+	/* enable clocks on i2c 0-2 */
+	RMWREG32(CM_FCLKEN1_CORE, 15, 3, 0x7),
+	RMWREG32(CM_ICLKEN1_CORE, 15, 3, 0x7),
+
 	i2c_reset_bus(0);
 	i2c_reset_bus(1);
 	i2c_reset_bus(2);

@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <reg.h>
 #include <dev/uart.h>
 #include <platform/omap3.h>
 #include <target/debugconfig.h>
@@ -105,6 +106,18 @@ void uart_init_port(int port, uint baud)
 
 void uart_init_early(void)
 {
+	/* UART1 */
+	RMWREG32(CM_FCLKEN1_CORE, 13, 1, 1),
+	RMWREG32(CM_ICLKEN1_CORE, 13, 1, 1),
+
+	/* UART2 */
+	RMWREG32(CM_FCLKEN1_CORE, 14, 1, 1),
+	RMWREG32(CM_ICLKEN1_CORE, 14, 1, 1),
+
+	/* UART3 */
+	RMWREG32(CM_FCLKEN_PER, 11, 1, 1),
+	RMWREG32(CM_ICLKEN_PER, 11, 1, 1),
+
 	uart_init_port(DEBUG_UART, 115200);
 }
 

@@ -39,6 +39,47 @@
 /* clocks */
 #define CM_CLKSEL_PER		(L4_BASE + 0x5040)
 
+/* PRCM */
+#define CM_FCLKEN_IVA2      (L4_BASE + 0x4000)
+#define CM_CLKEN_PLL_IVA2   (L4_BASE + 0x4004)
+#define CM_IDLEST_PLL_IVA2  (L4_BASE + 0x4024)
+#define CM_CLKSEL1_PLL_IVA2 (L4_BASE + 0x4040)
+#define CM_CLKSEL2_PLL_IVA2 (L4_BASE + 0x4044)
+#define CM_CLKEN_PLL_MPU    (L4_BASE + 0x4904)
+#define CM_IDLEST_PLL_MPU   (L4_BASE + 0x4924)
+#define CM_CLKSEL1_PLL_MPU  (L4_BASE + 0x4940)
+#define CM_CLKSEL2_PLL_MPU  (L4_BASE + 0x4944)
+#define CM_FCLKEN1_CORE     (L4_BASE + 0x4a00)
+#define CM_ICLKEN1_CORE     (L4_BASE + 0x4a10)
+#define CM_ICLKEN2_CORE     (L4_BASE + 0x4a14)
+#define CM_CLKSEL_CORE      (L4_BASE + 0x4a40)
+#define CM_FCLKEN_GFX       (L4_BASE + 0x4b00)
+#define CM_ICLKEN_GFX       (L4_BASE + 0x4b10)
+#define CM_CLKSEL_GFX       (L4_BASE + 0x4b40)
+#define CM_FCLKEN_WKUP      (L4_BASE + 0x4c00)
+#define CM_ICLKEN_WKUP      (L4_BASE + 0x4c10)
+#define CM_CLKSEL_WKUP      (L4_BASE + 0x4c40)
+#define CM_IDLEST_WKUP      (L4_BASE + 0x4c20)
+#define CM_CLKEN_PLL        (L4_BASE + 0x4d00)
+#define CM_IDLEST_CKGEN     (L4_BASE + 0x4d20)
+#define CM_CLKSEL1_PLL      (L4_BASE + 0x4d40)
+#define CM_CLKSEL2_PLL      (L4_BASE + 0x4d44)
+#define CM_CLKSEL3_PLL      (L4_BASE + 0x4d48)
+#define CM_FCLKEN_DSS       (L4_BASE + 0x4e00)
+#define CM_ICLKEN_DSS       (L4_BASE + 0x4e10)
+#define CM_CLKSEL_DSS       (L4_BASE + 0x4e40)
+#define CM_FCLKEN_CAM       (L4_BASE + 0x4f00)
+#define CM_ICLKEN_CAM       (L4_BASE + 0x4f10)
+#define CM_CLKSEL_CAM       (L4_BASE + 0x4F40)
+#define CM_FCLKEN_PER       (L4_BASE + 0x5000)
+#define CM_ICLKEN_PER       (L4_BASE + 0x5010)
+#define CM_CLKSEL_PER       (L4_BASE + 0x5040)
+#define CM_CLKSEL1_EMU      (L4_BASE + 0x5140)
+
+#define PRM_CLKSEL			(L4_BASE + 0x306d40)
+#define PRM_RSTCTRL			(L4_BASE + 0x307250)
+#define PRM_CLKSRC_CTRL		(L4_BASE + 0x307270)
+
 /* General Purpose Timers */
 #define OMAP34XX_GPT1           (L4_BASE + 0x318000)
 #define OMAP34XX_GPT2           (L4_BASE + 0x1032000)
@@ -170,6 +211,19 @@
 /* interrupts */
 #define INT_VECTORS 		96
 #define GPT2_IRQ			38
+
+/* HS USB */
+#define USB_HS_BASE			(L4_BASE + 0xab000)
+
+/* USB OTG */
+#define OTG_BASE			(L4_BASE + 0xab400)
+
+#define OTG_REVISION		(OTG_BASE + 0x00)
+#define OTG_SYSCONFIG		(OTG_BASE + 0x04)
+#define OTG_SYSSTATUS		(OTG_BASE + 0x08)
+#define OTG_INTERFSEL		(OTG_BASE + 0x0C)
+#define OTG_SIMENABLE		(OTG_BASE + 0x10)
+#define OTG_FORCESTDBY		(OTG_BASE + 0x14)
 
 /* I2C */
 #define I2C1_BASE		(L4_BASE + 0x70000)
