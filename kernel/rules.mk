@@ -1,8 +1,11 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-LIBS += debug heap
+MODULES += \
+	lib/libc \
+	lib/debug \
+	lib/heap
 
-KOBJS += \
+OBJS += \
 	$(LOCAL_DIR)/debug.o \
 	$(LOCAL_DIR)/dpc.o \
 	$(LOCAL_DIR)/event.o \

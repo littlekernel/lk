@@ -2,7 +2,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 PLATFORM := omap5912
 
-DEVS := net/smc91c96
+MODULES += \
+	dev/net/smc91c96
 
 OBJS += \
 	$(LOCAL_DIR)/init.o

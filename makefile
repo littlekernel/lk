@@ -1,15 +1,15 @@
 -include local.mk
 include macros.mk
 
-PROJECT ?= armemu-test
-DEBUG ?= false
+PROJECT ?= beagle-test
+DEBUG ?= 1
 
 BUILDDIR := build-$(PROJECT)
 OUTBIN := $(BUILDDIR)/lk.bin
 OUTELF := $(BUILDDIR)/lk
 CONFIGHEADER := $(BUILDDIR)/config.h
 
-INCLUDES := -Iinclude
+INCLUDES := -I$(BUILDDIR) -Iinclude
 CFLAGS := -O2 -g -fno-builtin -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -include $(CONFIGHEADER)
 #CFLAGS += -Werror
 CPPFLAGS := -fno-exceptions -fno-rtti -fno-threadsafe-statics
@@ -21,12 +21,11 @@ CFLAGS += -ffunction-sections -fdata-sections
 LDFLAGS += -gc-sections
 
 # top level rule
-all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym
+all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).size
 
 # the following three object lists are identical except for the ordering
 # which is bootobjs, kobjs, objs
 BOOTOBJS :=	
-KOBJS :=
 OBJS :=
 
 # a linker script needs to be declared in one of the project/target/platform files
@@ -46,15 +45,14 @@ SRCDEPS := $(CONFIGHEADER)
 TARGET :=
 PLATFORM :=
 ARCH :=
-LIBS := libc
-APPS :=
-DEVS :=
+ALLMODULES :=
+MODULES :=
 
 # any rules you put here will also be built by the system before considered being complete
-EXTRA_BUILDDEPS :=
+EXTRA_BUILDDEPS := 
 
 # any rules you put here will be depended on in clean builds
-EXTRA_CLEANDEPS :=
+EXTRA_CLEANDEPS := 
 
 include project/$(PROJECT)/rules.mk
 include target/$(TARGET)/rules.mk
@@ -65,20 +63,15 @@ include target/rules.mk
 include kernel/rules.mk
 include dev/rules.mk
 
-DEVS := $(sort $(DEVS))
-LIBS := $(sort $(LIBS))
-APPS := $(sort $(APPS))
-
-include $(addsuffix /rules.mk,$(addprefix dev/,$(DEVS)))
-include $(addsuffix /rules.mk,$(addprefix lib/,$(LIBS)))
-include $(addsuffix /rules.mk,$(addprefix app/,$(APPS)))
+# recursively include any modules in the MODULE variable, leaving a trail of included
+# modules in the ALLMODULES list
+include module.mk
 
 # any extra top level build dependencies that someone declared
 all:: $(EXTRA_BUILDDEPS)
 
 ALLOBJS := \
 	$(BOOTOBJS) \
-	$(KOBJS) \
 	$(OBJS)
 
 # add some automatic configuration defines
@@ -87,21 +80,21 @@ DEFINES += \
 	TARGET_$(TARGET)=1 \
 	PLATFORM_$(PLATFORM)=1 \
 	ARCH_$(ARCH)=1 \
-	$(addsuffix =1,$(addprefix WITH_DEV_,$(DEVS))) \
-	$(addsuffix =1,$(addprefix WITH_LIB_,$(LIBS))) \
-	$(addsuffix =1,$(addprefix WITH_APP_,$(APPS)))
+	$(addsuffix =1,$(addprefix WITH_,$(ALLMODULES)))
 
 # debug build?
-ifeq ($(DEBUG),true)
+ifneq ($(DEBUG),)
 DEFINES += \
-	DEBUG=1
+	DEBUG=$(DEBUG)
 endif
 
 ALLOBJS := $(addprefix $(BUILDDIR)/,$(ALLOBJS))
 
 DEPS := $(ALLOBJS:%o=%d)
 
-CC := $(TOOLCHAIN_PREFIX)gcc
+# default to no ccache
+CCACHE ?= 
+CC := $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
 LD := $(TOOLCHAIN_PREFIX)ld
 OBJDUMP := $(TOOLCHAIN_PREFIX)objdump
 OBJCOPY := $(TOOLCHAIN_PREFIX)objcopy
@@ -109,6 +102,10 @@ CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
 SIZE := $(TOOLCHAIN_PREFIX)size
 NM := $(TOOLCHAIN_PREFIX)nm
 
+# comment out or override if you want to see the full output of each command
+NOECHO ?= @
+
+# the logic to compile and link stuff is in here
 include build.mk
 
 clean: $(EXTRA_CLEANDEPS)
@@ -152,4 +149,3 @@ ifeq ($(filter $(MAKECMDGOALS), clean), )
 endif
 
 .PHONY: configheader
-

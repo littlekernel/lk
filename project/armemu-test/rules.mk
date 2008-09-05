@@ -3,8 +3,9 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 TARGET := armemu
-APPS := tests \
-	console
+MODULES += \
+	app/tests \
+	app/console
 
 OBJS += \
 	$(LOCAL_DIR)/init.o

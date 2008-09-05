@@ -3,7 +3,9 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 TARGET := osk5912
-APPS := tests console
+MODULES += \
+	app/tests \
+	app/console
 
 OBJS += \
 	$(LOCAL_DIR)/init.o

@@ -3,8 +3,11 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 TARGET := beagle
-APPS := tests console stringtests
-DEVS := 
+
+MODULES += \
+	app/tests \
+	app/console \
+	app/stringtests
 
 OBJS += \
 	$(LOCAL_DIR)/init.o

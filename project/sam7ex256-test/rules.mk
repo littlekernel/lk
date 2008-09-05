@@ -3,7 +3,8 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 TARGET := sam7ex256
-APPS := tests
+MODULES += \
+	app/tests
 
 OBJS += \
 	$(LOCAL_DIR)/init.o

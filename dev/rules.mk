@@ -1,5 +1,5 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-KOBJS += \
+OBJS += \
 	$(LOCAL_DIR)/dev.o
 
