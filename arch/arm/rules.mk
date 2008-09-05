@@ -89,9 +89,7 @@ OBJS += \
 # set the default toolchain to arm elf and set a #define
 TOOLCHAIN_PREFIX ?= arm-elf-
 ifeq ($(TOOLCHAIN_PREFIX),arm-none-linux-gnueabi-)
-DEFINES += \
-	WITH_LINUX_EABI_TOOLCHAIN=1
-
+# XXX test for EABI better than this
 # eabi compilers dont need this
 THUMBINTERWORK:=
 else

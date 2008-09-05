@@ -21,9 +21,9 @@
  */
 
 /* some cruft we have to define when using the linux toolchain */
-#if WITH_LINUX_EABI_TOOLCHAIN
-
 #include <unwind.h>
+
+#if defined(__ARM_EABI_UNWINDER__) && __ARM_EABI_UNWINDER__
 
 /* Our toolchain has eabi functionality built in, but they're not really used.
  * so we stub them out here. */
@@ -42,8 +42,10 @@ _Unwind_Reason_Code __aeabi_unwind_cpp_pr2(_Unwind_State state, _Unwind_Control_
         return _URC_FAILURE;
 }
 
+#endif
+
+/* needed by some piece of EABI */
 void raise(void)
 {
 }
 
-#endif
