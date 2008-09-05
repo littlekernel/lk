@@ -42,7 +42,9 @@ typedef unsigned short u_short;
 typedef unsigned int u_int;
 typedef unsigned long u_long;
 
+#ifndef _SIZE_T_DEFINED_
 typedef unsigned long size_t;
+#endif
 typedef long          ssize_t;
 typedef long long     off_t;
 
