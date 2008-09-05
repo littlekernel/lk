@@ -1,10 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-TOOLCHAIN_PREFIX ?= arm-elf-
-
-ENABLE_THUMB ?= true
-
-CFLAGS += -finline
+# can override this in local.mk
+ENABLE_THUMB?=true
 
 DEFINES += \
 	ARM_CPU_$(ARM_CPU)=1
@@ -22,8 +19,8 @@ DEFINES += \
 	ARM_WITH_THUMB2=1 \
 	ARM_WITH_CACHE=1 \
 	ARM_WITH_L2=1
-#CFLAGS += -mcpu=$(ARM_CPU)
-CFLAGS += -mcpu=arm1136jf-s # compiler doesn't understand cortex yet
+CFLAGS += -mcpu=$(ARM_CPU)
+#CFLAGS += -mcpu=arm1136jf-s # compiler doesn't understand cortex yet
 HANDLED_CORE := true
 #CFLAGS += -mfpu=vfp -mfloat-abi=softfp
 endif
@@ -72,8 +69,6 @@ THUMBCFLAGS := -mthumb -D__thumb__
 THUMBINTERWORK := -mthumb-interwork
 endif
 
-CFLAGS += $(THUMBINTERWORK)
-
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
@@ -90,6 +85,22 @@ OBJS += \
 	$(LOCAL_DIR)/faults.o \
 	$(LOCAL_DIR)/mmu.o \
 	$(LOCAL_DIR)/thread.o
+
+# set the default toolchain to arm elf and set a #define
+TOOLCHAIN_PREFIX ?= arm-elf-
+ifeq ($(TOOLCHAIN_PREFIX),arm-none-linux-gnueabi-)
+DEFINES += \
+	WITH_LINUX_EABI_TOOLCHAIN=1
+
+# eabi compilers dont need this
+THUMBINTERWORK:=
+else
+
+# XXX hack to work around lack of cortex support in regular compilers
+CFLAGS := $(subst cortex-a8,arm1136jf-s,$(CFLAGS))
+endif
+
+CFLAGS += $(THUMBINTERWORK)
 
 # make sure some bits were set up
 MEMVARS_SET := 0
