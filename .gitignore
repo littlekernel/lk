@@ -2,3 +2,4 @@ build-*
 *.swp
 tags
 TAGS
+local.mk
