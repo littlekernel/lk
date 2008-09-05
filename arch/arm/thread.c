@@ -56,7 +56,7 @@ static void initial_thread_func(void)
 
 	ret = current_thread->entry(current_thread->arg);
 
-	dprintf("initial_thread_func: thread %p exiting with %d\n", current_thread, ret);
+//	dprintf("initial_thread_func: thread %p exiting with %d\n", current_thread, ret);
 
 	thread_exit(ret);
 }

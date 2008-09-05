@@ -51,6 +51,30 @@ reset:
 	.word 0xe1600070
 #endif
 
+	/* see if we need to relocate */
+	mov		r0, pc
+	sub		r0, r0, #(.Laddr - _start)
+.Laddr:
+	ldr		r1, =_start
+	cmp		r0, r1
+	beq		.Lstack_setup
+
+	/* we need to relocate ourselves to the proper spot */
+	ldr		r2, =__data_end	
+
+.Lrelocate_loop:
+	ldr		r3, [r0], #4
+	str		r3, [r1], #4
+	cmp		r1, r2
+	bne		.Lrelocate_loop
+
+	/* we're relocated, jump to the right address */
+	ldr		r0, =.Lstack_setup
+	bx		r0
+
+.ltorg
+
+.Lstack_setup:
 	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
 	mrs     r0, cpsr
 	bic     r0, r0, #0x1f
@@ -86,23 +110,23 @@ reset:
 	ldr		r2, =__data_end
 
 	cmp		r0, r1
-	beq		__do_bss
+	beq		.L__do_bss
 
-__copy_loop:
+.L__copy_loop:
 	cmp		r1, r2
 	ldrlt	r3, [r0], #4
 	strlt	r3, [r1], #4
-	blt		__copy_loop
+	blt		.L__copy_loop
 
-__do_bss:
+.L__do_bss:
 	/* clear out the bss */
 	ldr		r0, =__bss_start
 	ldr		r1, =_end
 	mov		r2, #0
-__bss_loop:
+.L__bss_loop:
 	cmp		r0, r1
 	strlt	r2, [r0], #4
-	blt		__bss_loop
+	blt		.L__bss_loop
 
 	bl		kmain
 	b		.

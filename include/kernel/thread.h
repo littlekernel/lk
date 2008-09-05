@@ -52,7 +52,7 @@ typedef struct thread {
 	enum thread_state state;	
 	int saved_critical_section_count;
 	int remaining_quantum;
-	
+
 	/* if blocked, a pointer to the wait queue */
 	struct wait_queue *blocking_wait_queue;
 	status_t wait_queue_block_ret;
@@ -117,21 +117,21 @@ extern thread_t *idle_thread;
 /* critical sections */
 extern int critical_section_count;
 
-static inline void enter_critical_section(void)
+static inline __ALWAYS_INLINE void enter_critical_section(void)
 {
 	critical_section_count++;
 	if (critical_section_count == 1)
 		arch_disable_ints();
 }
 
-static inline void exit_critical_section(void)
+static inline __ALWAYS_INLINE void exit_critical_section(void)
 {
 	critical_section_count--;
 	if (critical_section_count == 0)
 		arch_enable_ints();
 }
 
-static inline bool in_critical_section(void)
+static inline __ALWAYS_INLINE bool in_critical_section(void)
 {
 	return critical_section_count > 0;
 }

@@ -40,14 +40,31 @@ static void dump_fault_frame(struct arm_fault_frame *frame)
 	dprintf("%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_SVC) ? '*' : ' ', "svc", regs.svc_r13, regs.svc_r14);
 	dprintf("%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_UND) ? '*' : ' ', "und", regs.und_r13, regs.und_r14);
 	dprintf("%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_SYS) ? '*' : ' ', "sys", regs.sys_r13, regs.sys_r14);
+
+	// dump the bottom of the current stack
+	addr_t stack;
+	switch (frame->spsr & MODE_MASK) {
+		case MODE_FIQ: stack = regs.fiq_r13; break;
+		case MODE_IRQ: stack = regs.irq_r13; break;
+		case MODE_SVC: stack = regs.svc_r13; break;
+		case MODE_UND: stack = regs.und_r13; break;
+		case MODE_SYS: stack = regs.sys_r13; break;
+		default:
+			stack = 0;
+	}
+
+	if (stack != 0) {
+		dprintf("bottom of stack at 0x%08x:\n", (unsigned int)stack);
+		hexdump((void *)stack, 128);
+	}
 }
 
 static void exception_die(struct arm_fault_frame *frame, int pc_off, const char *msg)
 {
 	inc_critical_section();
 	frame->pc += pc_off;
-	dump_fault_frame(frame);
 	dprintf(msg);
+	dump_fault_frame(frame);
 	debug_halt();
 	for(;;);
 }

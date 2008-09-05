@@ -81,6 +81,8 @@ static int dpc_thread_routine(void *arg)
 			free(dpc);
 		}
 	}
+
+	return 0;
 }
 
 

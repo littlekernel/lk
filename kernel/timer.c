@@ -58,6 +58,8 @@ void timer_set_oneshot(timer_t *timer, time_t delay, timer_callback callback, vo
 {
 	time_t now;
 
+//	TRACEF("delay %d, callback %p, arg %p\n", delay, callback, arg);
+
 	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);	
 
 	if (list_in_list(&timer->node)) {
@@ -69,6 +71,8 @@ void timer_set_oneshot(timer_t *timer, time_t delay, timer_callback callback, vo
 	timer->periodic_time = 0;
 	timer->callback = callback;
 	timer->arg = arg;
+
+//	TRACEF("scheduled time %u\n", timer->scheduled_time);
 
 	enter_critical_section();
 
@@ -115,6 +119,7 @@ static enum handler_return timer_tick(void *arg, time_t now)
 		thread_stats.timers++;
 #endif
 
+//		TRACEF("firing callback %p, arg %p\n", timer->callback, timer->arg);
 		if (timer->callback(timer, now, timer->arg) == INT_RESCHEDULE)
 			ret = INT_RESCHEDULE;
 	}

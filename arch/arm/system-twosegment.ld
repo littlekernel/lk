@@ -38,7 +38,7 @@ SECTIONS
 
 	.rodata : { 
 		*(.rodata .rodata.* .gnu.linkonce.r.*) 
-		. = ALIGN(4); 
+		. = ALIGN(4);
 		__commands_start = .;
 		KEEP (*(.commands))
 		__commands_end = .;
