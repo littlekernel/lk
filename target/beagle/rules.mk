@@ -5,6 +5,9 @@ INCLUDES += \
 
 PLATFORM := omap3
 
+MODULES += \
+	dev/pmic/twl4030
+
 MEMSIZE := 0x08000000	# 128MB
 
 DEFINES += \
