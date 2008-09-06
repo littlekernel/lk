@@ -20,41 +20,20 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <arch/arm/mmu.h>
-#include <platform.h>
-#include "platform_p.h"
-#include <platform/omap3.h>
-#include <dev/i2c.h>
-#include <dev/uart.h>
+#ifndef __DEV_I2C_H
+#define __DEV_I2C_H
 
-void platform_init_mmu_mappings(void)
-{
-	/* do some memory map initialization */
-	addr_t addr;
-	arm_mmu_map_section(SDRAM_BASE, 0, MMU_FLAG_CACHED|MMU_FLAG_BUFFERED);
-	for (addr = SDRAM_BASE; addr < SDRAM_BASE + SDRAM_SIZE; addr += (1024*1024)) {
-		arm_mmu_map_section(addr, addr, MMU_FLAG_CACHED|MMU_FLAG_BUFFERED|MMU_FLAG_READWRITE);
-	}
-}
+void i2c_init(void);
+void i2c_init_early(void);
 
-void platform_early_init(void)
-{
-	/* initialize the interrupt controller */
-	platform_init_interrupts();
+/* send and receive blocks of data */
+int i2c_transmit(int bus, uint8_t address, const void *buf, size_t count);
+int i2c_receive(int bus, uint8_t address, void *buf, size_t count);
 
-	/* initialize the timer block */
-	platform_init_timer();
+/* a few convenience routines based on the usual way of accessing 8 byte registers on i2c slave devices */
+int i2c_write_reg(int bus, uint8_t address, uint8_t reg, uint8_t val);
+int i2c_read_reg(int bus, uint8_t address, uint8_t reg, uint8_t *val);
+	
 
-	/* initialize the uart */
-	uart_init_early();
-
-	i2c_init_early();
-}
-
-void platform_init(void)
-{
-	i2c_init();
-}
+#endif
 

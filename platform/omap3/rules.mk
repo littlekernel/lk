@@ -10,6 +10,7 @@ INCLUDES += \
 OBJS += \
 	$(LOCAL_DIR)/cpu_early_init.Ao \
 	$(LOCAL_DIR)/debug.o \
+	$(LOCAL_DIR)/i2c.o \
 	$(LOCAL_DIR)/interrupts.o \
 	$(LOCAL_DIR)/platform.o \
 	$(LOCAL_DIR)/timer.o \
