@@ -42,10 +42,6 @@ static uint32_t *tt = (void *)MMU_TRANSLATION_TABLE_ADDR;
 static uint32_t tt[4096] __ALIGNED(16384);
 #endif
 
-#define MMU_FLAG_CACHED 0x1
-#define MMU_FLAG_BUFFERED 0x2
-#define MMU_FLAG_READWRITE 0x4
-
 void arm_mmu_map_section(addr_t paddr, addr_t vaddr, uint flags)
 {
 	int index;
