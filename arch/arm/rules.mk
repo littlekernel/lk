@@ -24,6 +24,17 @@ CFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 #CFLAGS += -mfpu=vfp -mfloat-abi=softfp
 endif
+ifeq ($(ARM_CPU),arm1136j-s)
+DEFINES += \
+	ARM_WITH_CP15=1 \
+	ARM_WITH_MMU=1 \
+	ARM_ISA_ARMv6=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_CACHE=1 \
+	ARM_CPU_ARM1136=1
+CFLAGS += -mcpu=$(ARM_CPU)
+HANDLED_CORE := true
+endif
 ifeq ($(ARM_CPU),arm1176jzf-s)
 DEFINES += \
 	ARM_WITH_CP15=1 \
