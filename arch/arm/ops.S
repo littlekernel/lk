@@ -149,6 +149,8 @@ FUNCTION(atomic_or)
 FUNCTION(arch_idle)
 #if ARM_CPU_CORTEX_A8
 	.word 0xe320f003 /* wfi */
+#elif PLATFORM_MSM7K
+	/* TODO: safely handle wfi */
 #elif ARM_CPU_ARM1136 || ARM_CPU_ARM926
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, #4
