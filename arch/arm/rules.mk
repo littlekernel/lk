@@ -95,7 +95,8 @@ OBJS += \
 	$(LOCAL_DIR)/exceptions.o \
 	$(LOCAL_DIR)/faults.o \
 	$(LOCAL_DIR)/mmu.o \
-	$(LOCAL_DIR)/thread.o
+	$(LOCAL_DIR)/thread.o \
+	$(LOCAL_DIR)/dcc.o
 
 # set the default toolchain to arm elf and set a #define
 TOOLCHAIN_PREFIX ?= arm-elf-
