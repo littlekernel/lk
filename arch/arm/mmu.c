@@ -47,12 +47,24 @@ void arm_mmu_map_section(addr_t paddr, addr_t vaddr, uint flags)
 	int index;
 	uint AP;
 	uint CB;
+	uint TEX = 0;
+
+#if defined(PLATFORM_MSM7K)
+	if ((paddr >= 0x88000000) && (paddr < 0xD0000000)) {
+            /* peripherals in the 0x88000000 - 0xD0000000 range must
+             * be mapped as DEVICE NON-SHARED: TEX=2, C=0, B=0
+             */
+		TEX = 2;
+		flags &= (~(MMU_FLAG_CACHED | MMU_FLAG_BUFFERED));
+	}
+#endif
 
 	AP = (flags & MMU_FLAG_READWRITE) ? 0x3 : 0x2;
 	CB = ((flags & MMU_FLAG_CACHED) ? 0x2 : 0) | ((flags & MMU_FLAG_BUFFERED) ? 0x1 : 0);
 
 	index = vaddr / MB;
-	tt[index] = (paddr & ~(MB-1)) | (AP << 10) | (0<<5) | (CB << 2) | (2<<0); // section mapping
+	// section mapping
+	tt[index] = (paddr & ~(MB-1)) | (TEX << 12) | (AP << 10) | (0<<5) | (CB << 2) | (2<<0);
 
 	arm_invalidate_tlb();
 }
