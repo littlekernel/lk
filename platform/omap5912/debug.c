@@ -87,7 +87,7 @@ static int uart_getc(int port, bool wait)  /* returns -1 if no data available */
 	return read_uart_reg(port, UART_RHR);
 }
 
-void dputc(char c)
+void _dputc(char c)
 {
 	if (c == '\n')
 		uart_putc(0, '\r');
@@ -110,9 +110,9 @@ void debug_dump_regs(void)
 	PANIC_UNIMPLEMENTED;
 }
 
-void debug_halt(void)
+void platform_halt(void)
 {
-	dprintf("HALT: spinning forever...\n");
+	dprintf(ALWAYS, "HALT: spinning forever...\n");
 	for(;;);
 }
 

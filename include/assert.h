@@ -24,14 +24,14 @@
 #define __ASSERT_H
 
 #include <compiler.h>
-#include <platform/debug.h>
+#include <debug.h>
 
 #define ASSERT(x) \
-	do { if (unlikely(!(x))) { dprintf("ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); debug_halt(); } } while (0)
+	do { if (unlikely(!(x))) { panic("ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
 
-#if DEBUG
+#if DEBUGLEVEL > 1
 #define DEBUG_ASSERT(x) \
-	do { if (unlikely(!(x))) { dprintf("DEBUG ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); debug_halt(); } } while (0)
+	do { if (unlikely(!(x))) { panic("DEBUG ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
 #else
 #define DEBUG_ASSERT(x) \
 	do { } while(0)

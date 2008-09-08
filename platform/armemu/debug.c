@@ -27,7 +27,7 @@
 #include <platform/armemu/memmap.h>
 #include <platform/debug.h>
 
-void dputc(char c)
+void _dputc(char c)
 {
 	*REG8(DEBUG_STDOUT) = c;
 }
@@ -48,7 +48,7 @@ void debug_dump_regs(void)
 	*REG32(DEBUG_REGDUMP) = 1;
 }
 
-void debug_halt(void)
+void platform_halt(void)
 {
 	*REG32(DEBUG_HALT) = 1;
 	for(;;);

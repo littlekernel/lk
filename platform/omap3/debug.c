@@ -30,7 +30,7 @@
 #include <dev/uart.h>
 #include <target/debugconfig.h>
 
-void dputc(char c)
+void _dputc(char c)
 {
 	if (c == '\n')
 		uart_putc(DEBUG_UART, '\r');
@@ -53,9 +53,9 @@ void debug_dump_regs(void)
 	PANIC_UNIMPLEMENTED;
 }
 
-void debug_halt(void)
+void platform_halt(void)
 {
-	dprintf("HALT: spinning forever...\n");
+	dprintf(ALWAYS, "HALT: spinning forever...\n");
 	for(;;);
 }
 

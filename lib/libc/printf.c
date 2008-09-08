@@ -20,11 +20,27 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <debug.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <sys/types.h>
 #include <printf.h>
 #include <string.h>
+
+void putc(char c)
+{
+	return _dputc(c);
+}
+
+int puts(const char *str)
+{
+	return _dputs(str);
+}
+
+int getc(char *c)
+{
+	return dgetc(c);
+}
 
 int printf(const char *fmt, ...)
 {
@@ -32,7 +48,7 @@ int printf(const char *fmt, ...)
 
 	va_list ap;
 	va_start(ap, fmt);
-	err = dvprintf(fmt, ap);
+	err = _dvprintf(fmt, ap);
 	va_end(ap);
 
 	return err;

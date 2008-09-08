@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <err.h>
+#include <debug.h>
 #include <sys/types.h>
 
 #include <kernel/thread.h>
@@ -76,7 +77,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback,
     AT91PIT *pit = AT91PIT_ADDR;
 
     n = AT91_MCK_MHZ / 16 / 1000;
-    dprintf("timer: MCK=%dKHz, n=%d\n", AT91_MCK_MHZ / 1000, n);
+    dprintf(INFO, "timer: MCK=%dKHz, n=%d\n", AT91_MCK_MHZ / 1000, n);
 
     enter_critical_section();
     

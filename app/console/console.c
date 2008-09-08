@@ -25,6 +25,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 static cmd_block *command_list = NULL;
 
@@ -81,7 +82,7 @@ static int read_line(char *buffer, int len)
 		char c;
 
 		/* loop until we get a char */
-		if (dgetc(&c) < 0)
+		if (getc(&c) < 0)
 			continue;
 
 //		printf("c = 0x%hhx\n", c); 
@@ -90,16 +91,16 @@ static int read_line(char *buffer, int len)
 			switch (c) {
 				case '\r':
 				case '\n':
-					dputc(c);
+					putc(c);
 					goto done;
 
 				case 0x7f: // backspace or delete
 				case 0x8:
 					if (pos > 0) {
 						pos--;
-						dputs("\x1b[1D"); // move to the left one
-						dputc(' ');
-						dputs("\x1b[1D"); // move to the left one
+						puts("\x1b[1D"); // move to the left one
+						putc(' ');
+						puts("\x1b[1D"); // move to the left one
 					}
 					break;
 
@@ -109,7 +110,7 @@ static int read_line(char *buffer, int len)
 
 				default:
 					buffer[pos++] = c;
-					dputc(c);
+					putc(c);
 			}
 		} else if (escape_level == 1) {
 			// inside an escape, look for '['
@@ -123,14 +124,14 @@ static int read_line(char *buffer, int len)
 			switch (c) {
 				case 67: // right arrow
 					buffer[pos++] = ' ';
-					dputc(' ');
+					putc(' ');
 					break;
 				case 68: // left arrow
 					if (pos > 0) {
 						pos--;
-						dputs("\x1b[1D"); // move to the left one
-						dputc(' ');
-						dputs("\x1b[1D"); // move to the left one
+						puts("\x1b[1D"); // move to the left one
+						putc(' ');
+						puts("\x1b[1D"); // move to the left one
 					}
 					break;
 				case 65: // up arrow
@@ -145,7 +146,7 @@ static int read_line(char *buffer, int len)
 
 		/* end of line. */
 		if (pos == (len - 1)) {
-			dputs("\nerror: line too long\n");
+			puts("\nerror: line too long\n");
 			pos = 0;
 			goto done;
 		}
@@ -240,7 +241,7 @@ static void console_loop(void)
 	printf("entering main console loop\n");
 
 	for (;;) {
-		dputs("] ");
+		puts("] ");
 
 		int len = read_line(buffer, sizeof(buffer));
 		if (len == 0)

@@ -29,6 +29,7 @@
 #include <string.h>
 #include <arch/ops.h>
 #include <platform.h>
+#include <platform/debug.h>
 #include <kernel/thread.h>
 
 void spin(uint32_t usecs)
@@ -42,31 +43,31 @@ void spin(uint32_t usecs)
 void halt(void)
 {
 	enter_critical_section(); // disable ints
-	for(;;);
+	platform_halt();
 }
 
 void _panic(void *caller, const char *fmt, ...)
 {
-	dprintf("panic (caller %p): ", caller);
+	dprintf(ALWAYS, "panic (caller %p): ", caller);
 
 	va_list ap;
 	va_start(ap, fmt);
-	dvprintf(fmt, ap);
+	_dvprintf(fmt, ap);
 	va_end(ap);
 
 	halt();
 }
 
-int dputs(const char *str)
+int _dputs(const char *str)
 {
 	while(*str != 0) {
-		dputc(*str++);
+		_dputc(*str++);
 	}
 
 	return 0;
 }
 
-int dprintf(const char *fmt, ...)
+int _dprintf(const char *fmt, ...)
 {
 	char buf[256];
 	int err;
@@ -76,19 +77,19 @@ int dprintf(const char *fmt, ...)
 	err = vsprintf(buf, fmt, ap);
 	va_end(ap);
 
-	dputs(buf);
+	dputs(ALWAYS, buf);
 
 	return err;
 }
 
-int dvprintf(const char *fmt, va_list ap)
+int _dvprintf(const char *fmt, va_list ap)
 {
 	char buf[256];
 	int err;
 
 	err = vsprintf(buf, fmt, ap);
 
-	dputs(buf);
+	dputs(ALWAYS, buf);
 
 	return err;
 }

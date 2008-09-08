@@ -30,7 +30,7 @@
 static int sleep_thread(void *arg)
 {
 	for(;;) {
-		dprintf("sleeper %p\n", current_thread);
+		printf("sleeper %p\n", current_thread);
 		thread_sleep(rand() % 500);
 	}
 	return 0;
@@ -55,7 +55,7 @@ static int mutex_thread(void *arg)
 
 	atomic_add(&mutex_thread_count, 1);
 
-	dprintf("mutex tester thread %p starting up, will go for %d iterations\n", current_thread, iterations);
+	printf("mutex tester thread %p starting up, will go for %d iterations\n", current_thread, iterations);
 
 	for (i = 0; i < iterations; i++) {
 		mutex_acquire(&m);
@@ -80,9 +80,9 @@ static int mutex_timeout_thread(void *arg)
 	mutex_t *timeout_mutex = (mutex_t *)arg;
 	status_t err;
 
-	dprintf("mutex_timeout_thread acquiring mutex %p with 1 second timeout\n", timeout_mutex);
+	printf("mutex_timeout_thread acquiring mutex %p with 1 second timeout\n", timeout_mutex);
 	err = mutex_acquire_timeout(timeout_mutex, 1000);
-	dprintf("mutex_acquire_timeout returns %d\n", err);
+	printf("mutex_acquire_timeout returns %d\n", err);
 
 	return err;
 }
@@ -92,9 +92,9 @@ static int mutex_zerotimeout_thread(void *arg)
 	mutex_t *timeout_mutex = (mutex_t *)arg;
 	status_t err;
 
-	dprintf("mutex_zerotimeout_thread acquiring mutex %p with zero second timeout\n", timeout_mutex);
+	printf("mutex_zerotimeout_thread acquiring mutex %p with zero second timeout\n", timeout_mutex);
 	err = mutex_acquire_timeout(timeout_mutex, 0);
-	dprintf("mutex_acquire_timeout returns %d\n", err);
+	printf("mutex_acquire_timeout returns %d\n", err);
 
 	return err;
 }
@@ -112,9 +112,9 @@ int mutex_test(void)
 	while (mutex_thread_count > 0)
 		thread_yield();
 
-	dprintf("done with simple mutex tests\n");
+	printf("done with simple mutex tests\n");
 
-	dprintf("testing mutex timeout\n");
+	printf("testing mutex timeout\n");
 
 	mutex_t timeout_mutex;
 
@@ -129,7 +129,7 @@ int mutex_test(void)
 	thread_sleep(5000);
 	mutex_release(&timeout_mutex);
 
-	dprintf("done with mutex tests\n");
+	printf("done with mutex tests\n");
 
 	mutex_destroy(&timeout_mutex);
 
@@ -140,13 +140,13 @@ static event_t e;
 
 static int event_signaller(void *arg)
 {
-	dprintf("event signaller pausing\n");
+	printf("event signaller pausing\n");
 	thread_sleep(1000);
 
 //	for (;;) {
-		dprintf("signalling event\n");
+		printf("signalling event\n");
 		event_signal(&e, true);
-		dprintf("done signalling event\n");
+		printf("done signalling event\n");
 		thread_yield();
 //	}
 
@@ -155,15 +155,15 @@ static int event_signaller(void *arg)
 
 static int event_waiter(void *arg)
 {
-	dprintf("event waiter starting\n");
+	printf("event waiter starting\n");
 
 	for (;;) {
-		dprintf("%p: waiting on event...\n", current_thread);
+		printf("%p: waiting on event...\n", current_thread);
 		if (event_wait(&e) < 0) {
-			dprintf("%p: event_wait() returned error\n", current_thread);
+			printf("%p: event_wait() returned error\n", current_thread);
 			return -1;
 		}
-		dprintf("%p: done waiting on event...\n", current_thread);
+		printf("%p: done waiting on event...\n", current_thread);
 		thread_yield();
 	}
 
@@ -196,7 +196,7 @@ void event_test(void)
 static int quantum_tester(void *arg)
 {
 	for (;;) {
-		dprintf("%p: in this thread. rq %d\n", current_thread, current_thread->remaining_quantum);
+		printf("%p: in this thread. rq %d\n", current_thread, current_thread->remaining_quantum);
 	}
 	return 0;
 }
@@ -227,7 +227,7 @@ static int context_switch_tester(void *arg)
 	}
 	total_count += debug_cycle_count() - count;
 	thread_sleep(1000);
-	dprintf("took %u cycles to yield %d times, %u per yield, %u per yield per thread\n", 
+	printf("took %u cycles to yield %d times, %u per yield, %u per yield per thread\n", 
 		total_count, iter, total_count / iter, total_count / iter / thread_count);
 
 	event_signal(&context_switch_done_event, true);

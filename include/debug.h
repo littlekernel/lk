@@ -24,6 +24,8 @@
 #define __DEBUG_H
 
 #include <assert.h>
+#include <stdarg.h>
+#include <compiler.h>
 #include <platform/debug.h>
 #include <printf.h>
 
@@ -36,6 +38,26 @@ extern "C" {
 #else
 #define DEBUGLEVEL 2
 #endif
+
+/* debug levels */
+#define CRITICAL 0
+#define ALWAYS 0
+#define INFO 1
+#define SPEW 2
+
+/* output */
+void _dputc(char c); // XXX for now, platform implements
+int _dputs(const char *str);
+int _dprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);
+int _dvprintf(const char *fmt, va_list ap);
+
+#define dputc(level, str) do { if ((level) <= DEBUGLEVEL) { _dputc(str); } } while (0)
+#define dputs(level, str) do { if ((level) <= DEBUGLEVEL) { _dputs(str); } } while (0)
+#define dprintf(level, x...) do { if ((level) <= DEBUGLEVEL) { _dprintf(x); } } while (0)
+#define dvprintf(level, x...) do { if ((level) <= DEBUGLEVEL) { _dvprintf(x); } } while (0)
+
+/* input */
+int dgetc(char *c);
 
 /* systemwide halts */
 void halt(void) __NO_RETURN;

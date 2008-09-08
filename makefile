@@ -2,7 +2,7 @@
 include macros.mk
 
 PROJECT ?= beagle-test
-DEBUG ?= 1
+DEBUG ?= 2
 
 BUILDDIR := build-$(PROJECT)
 OUTBIN := $(BUILDDIR)/lk.bin

@@ -25,66 +25,66 @@
 
 void printf_tests(void)
 {
-	dprintf("printf tests\n");
+	printf("printf tests\n");
 
-	dprintf("numbers:\n");
-	dprintf("int8:  %hhd %hhd %hhd\n", -12, 0, 254);
-	dprintf("uint8: %hhu %hhu %hhu\n", -12, 0, 254);
-	dprintf("int16: %hd %hd %hd\n", -1234, 0, 1234);
-	dprintf("uint16:%hu %hu %hu\n", -1234, 0, 1234);
-	dprintf("int:   %d %d %d\n", -12345678, 0, 12345678);
-	dprintf("uint:  %u %u %u\n", -12345678, 0, 12345678);
-	dprintf("long:  %ld %ld %ld\n", -12345678, 0, 12345678);
-	dprintf("ulong: %lu %lu %lu\n", -12345678, 0, 12345678);
-	dprintf("long:  %D %D %D\n", -12345678, 0, 12345678);
-	dprintf("ulong: %U %U %U\n", -12345678, 0, 12345678);
-	dprintf("longlong: %lli %lli %lli\n", -12345678LL, 0LL, 12345678LL);
-	dprintf("ulonglong: %llu %llu %llu\n", -12345678LL, 0LL, 12345678LL);
-	dprintf("size_t: %zd %zd %zd\n", -12345678, 0, 12345678);
-	dprintf("usize_t: %zu %zu %zu\n", -12345678, 0, 12345678);
+	printf("numbers:\n");
+	printf("int8:  %hhd %hhd %hhd\n", -12, 0, 254);
+	printf("uint8: %hhu %hhu %hhu\n", -12, 0, 254);
+	printf("int16: %hd %hd %hd\n", -1234, 0, 1234);
+	printf("uint16:%hu %hu %hu\n", -1234, 0, 1234);
+	printf("int:   %d %d %d\n", -12345678, 0, 12345678);
+	printf("uint:  %u %u %u\n", -12345678, 0, 12345678);
+	printf("long:  %ld %ld %ld\n", -12345678, 0, 12345678);
+	printf("ulong: %lu %lu %lu\n", -12345678, 0, 12345678);
+	printf("long:  %D %D %D\n", -12345678, 0, 12345678);
+	printf("ulong: %U %U %U\n", -12345678, 0, 12345678);
+	printf("longlong: %lli %lli %lli\n", -12345678LL, 0LL, 12345678LL);
+	printf("ulonglong: %llu %llu %llu\n", -12345678LL, 0LL, 12345678LL);
+	printf("size_t: %zd %zd %zd\n", -12345678, 0, 12345678);
+	printf("usize_t: %zu %zu %zu\n", -12345678, 0, 12345678);
 
-	dprintf("hex:\n");
-	dprintf("uint8: %hhx %hhx %hhx\n", -12, 0, 254);
-	dprintf("uint16:%hx %hx %hx\n", -1234, 0, 1234);
-	dprintf("uint:  %x %x %x\n", -12345678, 0, 12345678);
-	dprintf("ulong: %lx %lx %lx\n", -12345678, 0, 12345678);
-	dprintf("ulong: %X %X %X\n", -12345678, 0, 12345678);
-	dprintf("ulonglong: %llx %llx %llx\n", -12345678LL, 0LL, 12345678LL);
-	dprintf("usize_t: %zx %zx %zx\n", -12345678, 0, 12345678);
+	printf("hex:\n");
+	printf("uint8: %hhx %hhx %hhx\n", -12, 0, 254);
+	printf("uint16:%hx %hx %hx\n", -1234, 0, 1234);
+	printf("uint:  %x %x %x\n", -12345678, 0, 12345678);
+	printf("ulong: %lx %lx %lx\n", -12345678, 0, 12345678);
+	printf("ulong: %X %X %X\n", -12345678, 0, 12345678);
+	printf("ulonglong: %llx %llx %llx\n", -12345678LL, 0LL, 12345678LL);
+	printf("usize_t: %zx %zx %zx\n", -12345678, 0, 12345678);
 
-	dprintf("alt/sign:\n");
-	dprintf("uint: %#x %#X\n", 0xabcdef, 0xabcdef);
-	dprintf("int: %+d %+d\n", 12345678, -12345678);
+	printf("alt/sign:\n");
+	printf("uint: %#x %#X\n", 0xabcdef, 0xabcdef);
+	printf("int: %+d %+d\n", 12345678, -12345678);
 
-	dprintf("formatting\n");
-	dprintf("int: a%8da\n", 12345678);
-	dprintf("int: a%9da\n", 12345678);
-	dprintf("int: a%-9da\n", 12345678);
-	dprintf("int: a%10da\n", 12345678);
-	dprintf("int: a%-10da\n", 12345678);
-	dprintf("int: a%09da\n", 12345678);
-	dprintf("int: a%010da\n", 12345678);
-	dprintf("int: a%6da\n", 12345678);
+	printf("formatting\n");
+	printf("int: a%8da\n", 12345678);
+	printf("int: a%9da\n", 12345678);
+	printf("int: a%-9da\n", 12345678);
+	printf("int: a%10da\n", 12345678);
+	printf("int: a%-10da\n", 12345678);
+	printf("int: a%09da\n", 12345678);
+	printf("int: a%010da\n", 12345678);
+	printf("int: a%6da\n", 12345678);
 
-	dprintf("a%1sa\n", "b");
-	dprintf("a%9sa\n", "b");
-	dprintf("a%-9sa\n", "b");
-	dprintf("a%5sa\n", "thisisatest");
+	printf("a%1sa\n", "b");
+	printf("a%9sa\n", "b");
+	printf("a%-9sa\n", "b");
+	printf("a%5sa\n", "thisisatest");
 
 	int err;
 
-	err = dprintf("a");
-	dprintf(" returned %d\n", err);
-	err = dprintf("ab");
-	dprintf(" returned %d\n", err);
-	err = dprintf("abc");
-	dprintf(" returned %d\n", err);
-	err = dprintf("abcd");
-	dprintf(" returned %d\n", err);
-	err = dprintf("abcde");
-	dprintf(" returned %d\n", err);
-	err = dprintf("abcdef");
-	dprintf(" returned %d\n", err);
+	err = printf("a");
+	printf(" returned %d\n", err);
+	err = printf("ab");
+	printf(" returned %d\n", err);
+	err = printf("abc");
+	printf(" returned %d\n", err);
+	err = printf("abcd");
+	printf(" returned %d\n", err);
+	err = printf("abcde");
+	printf(" returned %d\n", err);
+	err = printf("abcdef");
+	printf(" returned %d\n", err);
 }
 
 

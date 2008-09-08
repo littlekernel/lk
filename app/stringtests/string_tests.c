@@ -60,7 +60,7 @@ static void bench_memcpy(void)
 	time_t null, libc, mine;
 	size_t srcalign, dstalign;
 	
-	dprintf("memcpy speed test\n");
+	printf("memcpy speed test\n");
 	thread_sleep(200); // let the debug string clear the serial port
 
 	for (srcalign = 0; srcalign < 64; ) {
@@ -70,10 +70,10 @@ static void bench_memcpy(void)
 			libc = bench_memcpy_routine(&memcpy, srcalign, dstalign);
 			mine = bench_memcpy_routine(&mymemcpy, srcalign, dstalign);
 
-			dprintf("srcalign %lu, dstalign %lu\n", srcalign, dstalign);
-			dprintf("   null memcpy %u msecs\n", null);
-			dprintf("   libc memcpy %u msecs, %llu bytes/sec\n", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
-			dprintf("   my   memcpy %u msecs, %llu bytes/sec\n", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
+			printf("srcalign %lu, dstalign %lu\n", srcalign, dstalign);
+			printf("   null memcpy %u msecs\n", null);
+			printf("   libc memcpy %u msecs, %llu bytes/sec\n", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
+			printf("   my   memcpy %u msecs, %llu bytes/sec\n", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
 
 			if (dstalign == 0)
 				dstalign = 1;
@@ -102,7 +102,7 @@ static void validate_memcpy(void)
 	size_t srcalign, dstalign, size;
 	const size_t maxsize = 256;
 
-	dprintf("testing memcpy for correctness\n");
+	printf("testing memcpy for correctness\n");
 
 	/*
 	 * do the simple tests to make sure that memcpy doesn't color outside
@@ -110,10 +110,10 @@ static void validate_memcpy(void)
 	 */
 	for (srcalign = 0; srcalign < 64; srcalign++) {
 		for (dstalign = 0; dstalign < 64; dstalign++) {
-//			dprintf("srcalign %zu, dstalign %zu\n", srcalign, dstalign);
+//			printf("srcalign %zu, dstalign %zu\n", srcalign, dstalign);
 			for (size = 0; size < maxsize; size++) {
 
-//				dprintf("srcalign %zu, dstalign %zu, size %zu\n", srcalign, dstalign, size);
+//				printf("srcalign %zu, dstalign %zu, size %zu\n", srcalign, dstalign, size);
 
 				fillbuf(src, maxsize * 2, 567);
 				fillbuf(src2, maxsize * 2, 567);
@@ -125,7 +125,7 @@ static void validate_memcpy(void)
 
 				int comp = memcmp(dst, dst2, maxsize * 2);
 				if (comp != 0) {
-					dprintf("error! srcalign %zu, dstalign %zu, size %zu\n", srcalign, dstalign, size);
+					printf("error! srcalign %zu, dstalign %zu, size %zu\n", srcalign, dstalign, size);
 				}
 			}
 		}
@@ -149,7 +149,7 @@ static void bench_memset(void)
 	time_t libc, mine;
 	size_t dstalign;
 	
-	dprintf("memset speed test\n");
+	printf("memset speed test\n");
 	thread_sleep(200); // let the debug string clear the serial port
 
 	for (dstalign = 0; dstalign < 64; dstalign++) {
@@ -157,9 +157,9 @@ static void bench_memset(void)
 		libc = bench_memset_routine(&memset, dstalign);
 		mine = bench_memset_routine(&mymemset, dstalign);
 
-		dprintf("dstalign %lu\n", dstalign);
-		dprintf("   libc memset %u msecs, %llu bytes/sec\n", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
-		dprintf("   my   memset %u msecs, %llu bytes/sec\n", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
+		printf("dstalign %lu\n", dstalign);
+		printf("   libc memset %u msecs, %llu bytes/sec\n", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
+		printf("   my   memset %u msecs, %llu bytes/sec\n", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
 	}
 }
 
@@ -169,10 +169,10 @@ static void validate_memset(void)
 	int c;
 	const size_t maxsize = 256;
 
-	dprintf("testing memset for correctness\n");
+	printf("testing memset for correctness\n");
 
 	for (dstalign = 0; dstalign < 64; dstalign++) {
-		dprintf("align %zd\n", dstalign);
+		printf("align %zd\n", dstalign);
 		for (size = 0; size < maxsize; size++) {
 			for (c = 0; c < 256; c++) {
 
@@ -184,7 +184,7 @@ static void validate_memset(void)
 
 				int comp = memcmp(dst, dst2, maxsize * 2);
 				if (comp != 0) {
-					dprintf("error! align %zu, c %d, size %zu\n", dstalign, c, size);
+					printf("error! align %zu, c %d, size %zu\n", dstalign, c, size);
 				}
 			}
 		}
@@ -201,14 +201,14 @@ static int string_tests(int argc, cmd_args *argv)
 	src2 = memalign(64, BUFFER_SIZE + 256);
 	dst2 = memalign(64, BUFFER_SIZE + 256);
 
-	dprintf("src %p, dst %p\n", src, dst);
-	dprintf("src2 %p, dst2 %p\n", src2, dst2);
+	printf("src %p, dst %p\n", src, dst);
+	printf("src2 %p, dst2 %p\n", src2, dst2);
 
 	if (argc < 3) {
-		dprintf("not enough arguments:\n");
+		printf("not enough arguments:\n");
 usage:
-		dprintf("%s validate <routine>\n", argv[0].str);
-		dprintf("%s bench <routine>\n", argv[0].str);
+		printf("%s validate <routine>\n", argv[0].str);
+		printf("%s bench <routine>\n", argv[0].str);
 		goto out;
 	}
 

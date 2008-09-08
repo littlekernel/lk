@@ -20,6 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <debug.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <platform/at91sam7.h>
@@ -98,7 +99,7 @@ int emac_init(void)
     AT91PMC *pmc = AT91PMC_ADDR;
     AT91RSTC *rstc = AT91RSTC_ADDR;
 
-    dprintf("emac_init()\n");
+    dprintf(INFO, "emac_init()\n");
     
         /* enable clock to EMAC */
     pmc->PCER = (1 << PID_EMAC);
@@ -119,7 +120,7 @@ int emac_init(void)
 
     thread_sleep(30);
     
-    dprintf("emac_init() - reset phy\n");
+    dprintf(INFO, "emac_init() - reset phy\n");
 
         /* assert the RST line and wait until the it deasserts */
     rstc->CR = RSTC_KEY | RSTC_EXTRST;
@@ -135,14 +136,14 @@ int emac_init(void)
     
     thread_sleep(1000);
     
-    dprintf("emac_init() - read state\n");
+    dprintf(INFO, "emac_init() - read state\n");
     
     emac->NCR = NCR_MPE;
     emac->NCFG = NCFG_CLK_d64;
 
-    dprintf("bcr = %x\n", mi_rd(emac, MII_REG_BCR));
-    dprintf("id1 = %x\n", mi_rd(emac, MII_REG_PHY_ID1));
-    dprintf("id2 = %x\n", mi_rd(emac, MII_REG_PHY_ID2));
+    dprintf(INFO, "bcr = %x\n", mi_rd(emac, MII_REG_BCR));
+    dprintf(INFO, "id1 = %x\n", mi_rd(emac, MII_REG_PHY_ID1));
+    dprintf(INFO, "id2 = %x\n", mi_rd(emac, MII_REG_PHY_ID2));
 
 #if 0
     unsigned state, last;
@@ -175,7 +176,7 @@ int emac_init(void)
             default:
                 name = "unknown";
             }
-            dprintf("link state: %s\n", name);
+            dprintf(INFO, "link state: %s\n", name);
         }
         thread_sleep(100);
     } 
@@ -225,7 +226,7 @@ int ethernet_send(void *data, unsigned len)
         waited++;
     }
 
-    if(waited) dprintf("W%d\n",waited);
+    if(waited) dprintf(INFO, "W%d\n",waited);
     
     if(xe->addr != 0) {
         free((void*) xe->addr);

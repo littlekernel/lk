@@ -64,12 +64,12 @@ void ser_puts(const char *s)
     }
 }
 
-void dputc(char c)
+void _dputc(char c)
 {
 	ser_putc(c);
 }
 
-void debug_halt()
+void platform_halt()
 {
 	arch_disable_ints();
     for(;;);

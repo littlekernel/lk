@@ -24,18 +24,32 @@
 #include <err.h>
 #include <list.h>
 #include <rand.h>
-#include <lib/heap.h>
+#include <string.h>
 #include <kernel/thread.h>
+#include <lib/heap.h>
+
+#define LOCAL_TRACE 0
 
 #define ROUNDUP(a, b) (((a) + ((b)-1)) & ~((b)-1))
 
 #define HEAP_MAGIC 'HEAP'
 
+#if WITH_STATIC_HEAP
+
+#if !defined(HEAP_START) || !defined(HEAP_LEN)
+#error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
+#endif
+
+#else
 // end of the binary
 extern int _end;
 
 // end of memory
 extern int _end_of_ram;
+
+#define HEAP_START ((unsigned long)&_end)
+#define HEAP_LEN ((size_t)&_end_of_ram - (size_t)&_end)
+#endif
 
 struct free_heap_chunk {
 	struct list_node node;
@@ -60,14 +74,14 @@ struct alloc_struct_begin {
 
 static void dump_free_chunk(struct free_heap_chunk *chunk)
 {
-	dprintf("\t\tbase %p, end 0x%lx, len 0x%lx\n", chunk, (vaddr_t)chunk + chunk->len, chunk->len);
+	dprintf(INFO, "\t\tbase %p, end 0x%lx, len 0x%zx\n", chunk, (vaddr_t)chunk + chunk->len, chunk->len);
 }
 
 static void heap_dump(void)
 {
-	dprintf("Heap dump:\n");
-	dprintf("\tbase %p, len 0x%lx\n", theheap.base, theheap.len);
-	dprintf("\tfree list:\n");
+	dprintf(INFO, "Heap dump:\n");
+	dprintf(INFO, "\tbase %p, len 0x%zx\n", theheap.base, theheap.len);
+	dprintf(INFO, "\tfree list:\n");
 
 	struct free_heap_chunk *chunk;
 	list_for_every_entry(&theheap.free_list, chunk, struct free_heap_chunk, node) {
@@ -103,17 +117,17 @@ static void heap_test(void)
 		unsigned int index = (unsigned int)rand() % 16;
 		
 		if ((i % (16*1024)) == 0)
-			dprintf("pass %d\n", i);
+			printf("pass %d\n", i);
 
-//		dprintf("index 0x%x\n", index);
+//		printf("index 0x%x\n", index);
 		if (ptr[index]) {
-//			dprintf("freeing ptr[0x%x] = %p\n", index, ptr[index]);
+//			printf("freeing ptr[0x%x] = %p\n", index, ptr[index]);
 			heap_free(ptr[index]);
 			ptr[index] = 0;
 		}
 		unsigned int align = 1 << ((unsigned int)rand() % 8);
 		ptr[index] = heap_alloc((unsigned int)rand() % 32768, align);
-//		dprintf("ptr[0x%x] = %p, align 0x%x\n", index, ptr[index], align);
+//		printf("ptr[0x%x] = %p, align 0x%x\n", index, ptr[index], align);
 
 		DEBUG_ASSERT(((addr_t)ptr[index] % align) == 0);
 //		heap_dump();
@@ -131,7 +145,7 @@ static void heap_test(void)
 // nearby ones if possible. Returns base of whatever chunk it became in the list.
 static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *chunk)
 {
-#if DEBUG
+#if DEBUGLEVEL > INFO
 	vaddr_t chunk_end = (vaddr_t)chunk + chunk->len;
 #endif
 
@@ -199,7 +213,7 @@ void *heap_alloc(size_t size, unsigned int alignment)
 {
 	void *ptr;
 	
-//	dprintf("%s: size %zd, align %d\n", __PRETTY_FUNCTION__, size, alignment);
+	LTRACEF("size %zd, align %d\n", size, alignment);
 
 	// alignment must be power of 2
 	if (alignment & (alignment - 1))
@@ -278,7 +292,7 @@ void *heap_alloc(size_t size, unsigned int alignment)
 		}
 	}
 
-//	dprintf("%s: returning ptr %p\n", __PRETTY_FUNCTION__, ptr);
+	LTRACEF("returning ptr %p\n", ptr);
 
 //	heap_dump();
 
@@ -292,7 +306,7 @@ void heap_free(void *ptr)
 	if (ptr == 0)
 		return;
 
-//	dprintf("%s: ptr %p\n", __PRETTY_FUNCTION__, ptr);
+	LTRACEF("ptr %p\n", ptr);
 
 	// check for the old allocation structure
 	struct alloc_struct_begin *as = (struct alloc_struct_begin *)ptr;
@@ -300,7 +314,7 @@ void heap_free(void *ptr)
 	
 	DEBUG_ASSERT(as->magic == HEAP_MAGIC);
 
-//	dprintf("%s: allocation was %d bytes long at ptr %p\n", __FUNCTION__, as->size, as->ptr);
+	LTRACEF("allocation was %zd bytes long at ptr %p\n", as->size, as->ptr);
 
 	// looks good, create a free chunk and add it to the pool
 	enter_critical_section();
@@ -312,13 +326,13 @@ void heap_free(void *ptr)
 
 void heap_init(void)
 {
-	dprintf("%s: entry\n", __PRETTY_FUNCTION__);
+	LTRACE_ENTRY;
 
 	// set the heap range
-	theheap.base = (void *)&_end;
-	theheap.len = ((unsigned) &_end_of_ram) - ((unsigned) &_end);
+	theheap.base = (void *)HEAP_START;
+	theheap.len = HEAP_LEN;
 
-	dprintf("%s: heap size %ld bytes\n", __PRETTY_FUNCTION__, theheap.len);
+	LTRACEF("base %p size %zd bytes\n", theheap.base, theheap.len);
 
 	// initialize the free list
 	list_initialize(&theheap.free_list);
@@ -327,10 +341,40 @@ void heap_init(void)
 	heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len));
 
 	// dump heap info
-	// heap_dump();
+//	heap_dump();
 
-//	dprintf("running heap tests\n");
+//	dprintf(INFO, "running heap tests\n");
 //	heap_test();
 }
 
+#if DEBUGLEVEL > 1
+#if WITH_APP_CONSOLE
+
+#include <app/console.h>
+
+static int cmd_heap(int argc, const cmd_args *argv);
+
+STATIC_COMMAND_START
+	{ "heap", "heap debug commands", &cmd_heap },
+STATIC_COMMAND_END(heap);
+
+static int cmd_heap(int argc, const cmd_args *argv)
+{
+	if (argc < 2) {
+		printf("not enough arguments\n");
+		return -1;
+	}
+
+	if (strcmp(argv[1].str, "info") == 0) {
+		heap_dump();
+	} else {
+		printf("unrecognized command\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+#endif
+#endif
 

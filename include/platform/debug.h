@@ -31,11 +31,6 @@
 extern "C" {
 #endif
 
-void dputc(char c);
-int dgetc(char *c);
-int dputs(const char *str);
-int dprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);
-int dvprintf(const char *fmt, va_list ap);
 void debug_dump_regs(void);
 uint32_t debug_cycle_count(void);
 
@@ -45,7 +40,7 @@ void debug_dump_memory_words(void *mem, int len);
 
 void debug_set_trace_level(int trace_type, int level);
 
-void debug_halt(void) __NO_RETURN;
+void platform_halt(void) __NO_RETURN;
 
 #if defined(__cplusplus)
 }
