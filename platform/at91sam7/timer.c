@@ -93,7 +93,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback,
     pit->MR = PIT_PITEN | PIT_PITIEN | (n & 0xfffff);
     
     register_int_handler(PID_SYSIRQ, pit_irq_handler, 0);
-    unmask_interrupt(PID_SYSIRQ, 0);
+    unmask_interrupt(PID_SYSIRQ);
 
     exit_critical_section();
     

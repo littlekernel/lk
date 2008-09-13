@@ -73,7 +73,7 @@ void platform_init_interrupts(void)
 	*REG32(INTC_CONTROL) = 3; // reset and enable the controller
 }
 
-status_t mask_interrupt(unsigned int vector, bool *oldstate)
+status_t mask_interrupt(unsigned int vector)
 {
 	if (vector >= INT_VECTORS)
 		return ERR_INVALID_ARGS;
@@ -81,9 +81,6 @@ status_t mask_interrupt(unsigned int vector, bool *oldstate)
 //	dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
 	enter_critical_section();
-
-	if (oldstate)
-		*oldstate = false;
 
 	*REG32(INTC_MIR_SET(vectorToController(vector))) = 1 << (vector % 32);
 
@@ -97,10 +94,10 @@ void platform_mask_irqs(void)
 {
 	int i;
 	for (i=0; i<INT_VECTORS; i++)
-		mask_interrupt(i, NULL);
+		mask_interrupt(i);
 }
 
-status_t unmask_interrupt(unsigned int vector, bool *oldstate)
+status_t unmask_interrupt(unsigned int vector)
 {
 	if (vector >= INT_VECTORS)
 		return ERR_INVALID_ARGS;
@@ -108,9 +105,6 @@ status_t unmask_interrupt(unsigned int vector, bool *oldstate)
 //	dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
 	enter_critical_section();
-
-	if (oldstate)
-		*oldstate = false;
 
 	*REG32(INTC_MIR_CLEAR(vectorToController(vector))) = 1 << (vector % 32);
 

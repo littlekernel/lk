@@ -128,7 +128,7 @@ void platform_init_interrupts(void)
 #endif
 }
 
-status_t mask_interrupt(unsigned int vector, bool *oldstate)
+status_t mask_interrupt(unsigned int vector)
 {
 #if 0
 	if (vector >= INT_VECTORS)
@@ -150,7 +150,7 @@ status_t mask_interrupt(unsigned int vector, bool *oldstate)
 	return NO_ERROR;
 }
 
-status_t unmask_interrupt(unsigned int vector, bool *oldstate)
+status_t unmask_interrupt(unsigned int vector)
 {
 #if 0
 	if (vector >= INT_VECTORS)

@@ -41,7 +41,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	*REG(PIT_INTERVAL) = interval;
 	*REG(PIT_START_PERIODIC) = 1;
 
-	unmask_interrupt(INT_PIT, NULL);
+	unmask_interrupt(INT_PIT);
 
 	exit_critical_section();
 

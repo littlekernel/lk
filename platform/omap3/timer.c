@@ -57,7 +57,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	TIMER_REG(TIER) = 0x2;
 	TIMER_REG(TCLR) = 0x3; // autoreload, start
 
-	unmask_interrupt(GPT2_IRQ, NULL);
+	unmask_interrupt(GPT2_IRQ);
 
 	exit_critical_section();
 

@@ -45,37 +45,23 @@ void platform_init_interrupts(void)
 }
 
 
-status_t mask_interrupt(unsigned int vector, bool *oldstate)
+status_t mask_interrupt(unsigned int vector)
 {
     AT91AIC *aic = AT91AIC_ADDR;
     
     if(vector > 31) return ERR_INVALID_ARGS;
     
-    if(oldstate) {
-        enter_critical_section();
-        *oldstate = aic->IMR & (1 << vector) ? 1 : 0;
-        aic->IDCR = (1 << vector);
-        exit_critical_section();
-    } else {
-        aic->IDCR = (1 << vector);
-    }
+	aic->IDCR = (1 << vector);
     
     return NO_ERROR;
 }
 
-status_t unmask_interrupt(unsigned int vector, bool *oldstate)
+status_t unmask_interrupt(unsigned int vector)
 {
     AT91AIC *aic = AT91AIC_ADDR;
     if(vector > 31) return ERR_INVALID_ARGS;
 
-    if(oldstate) {
-        enter_critical_section();
-        *oldstate = aic->IMR & (1 << vector) ? 1 : 0;
-        aic->IECR = (1 << vector);
-        exit_critical_section();
-    } else {
-        aic->IECR = (1 << vector);
-    }
+	aic->IECR = (1 << vector);
     
     return NO_ERROR;
 }

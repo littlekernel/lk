@@ -44,7 +44,7 @@ void platform_init_interrupts(void)
 	*REG32(PIC_MASK_LATCH) = 0xffffffff;
 }
 
-status_t mask_interrupt(unsigned int vector, bool *oldstate)
+status_t mask_interrupt(unsigned int vector)
 {
 	if (vector >= PIC_MAX_INT)
 		return ERR_INVALID_ARGS;
@@ -53,8 +53,6 @@ status_t mask_interrupt(unsigned int vector, bool *oldstate)
 
 	enter_critical_section();
 
-	if (oldstate)
-		*oldstate = *REG32(PIC_MASK) & (1<<vector);
 	*REG32(PIC_MASK_LATCH) = 1 << vector;
 
 	exit_critical_section();
@@ -62,7 +60,7 @@ status_t mask_interrupt(unsigned int vector, bool *oldstate)
 	return NO_ERROR;
 }
 
-status_t unmask_interrupt(unsigned int vector, bool *oldstate)
+status_t unmask_interrupt(unsigned int vector)
 {
 	if (vector >= PIC_MAX_INT)
 		return ERR_INVALID_ARGS;
@@ -71,8 +69,6 @@ status_t unmask_interrupt(unsigned int vector, bool *oldstate)
 
 	enter_critical_section();
 
-	if (oldstate)
-		*oldstate = *REG32(PIC_MASK) & (1<<vector);
 	*REG32(PIC_UNMASK_LATCH) = 1 << vector;
 
 	exit_critical_section();

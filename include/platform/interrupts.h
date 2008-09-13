@@ -25,8 +25,8 @@
 
 #include <sys/types.h>
 
-status_t mask_interrupt(unsigned int vector, bool *oldstate);
-status_t unmask_interrupt(unsigned int vector, bool *oldstate);
+status_t mask_interrupt(unsigned int vector);
+status_t unmask_interrupt(unsigned int vector);
 
 typedef enum handler_return (*int_handler)(void *arg);
 

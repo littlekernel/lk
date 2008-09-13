@@ -105,6 +105,6 @@ void platform_init_timer(void)
 	OS_TIMER_CTRL_REG = 0; // stop the timer if it's already running
 
 	register_int_handler(IRQ_OS_TIMER, &os_timer_tick, NULL);
-	unmask_interrupt(IRQ_OS_TIMER, NULL);
+	unmask_interrupt(IRQ_OS_TIMER);
 }
 

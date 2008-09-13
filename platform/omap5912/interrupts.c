@@ -99,7 +99,7 @@ void platform_init_interrupts(void)
 	*ICReg(0, INTCON_GMR) = 0;
 }
 
-status_t mask_interrupt(unsigned int vector, bool *oldstate)
+status_t mask_interrupt(unsigned int vector)
 {
 	if (vector >= INT_VECTORS)
 		return ERR_INVALID_ARGS;
@@ -107,9 +107,6 @@ status_t mask_interrupt(unsigned int vector, bool *oldstate)
 //	dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
 	enter_critical_section();
-
-	if (oldstate)
-		*oldstate = false;
 
 	volatile uint32_t *mir = ICReg(vectorToController(vector), INTCON_MIR);
 	*mir = *mir | (1<<(vector % 32));
@@ -119,7 +116,7 @@ status_t mask_interrupt(unsigned int vector, bool *oldstate)
 	return NO_ERROR;
 }
 
-status_t unmask_interrupt(unsigned int vector, bool *oldstate)
+status_t unmask_interrupt(unsigned int vector)
 {
 	if (vector >= INT_VECTORS)
 		return ERR_INVALID_ARGS;
@@ -127,9 +124,6 @@ status_t unmask_interrupt(unsigned int vector, bool *oldstate)
 //	dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
 	enter_critical_section();
-
-	if (oldstate)
-		*oldstate = false;
 
 	volatile uint32_t *mir = ICReg(vectorToController(vector), INTCON_MIR);
 	*mir = *mir & ~(1<<(vector % 32));
