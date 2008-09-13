@@ -129,11 +129,11 @@ static void hsusb_init(void)
 	LTRACE_ENTRY;
 
 	// select endpoint 0
-	dprintf("hwvers 0x%hx\n", hsusb_reg16(HWVERS)); 
-	dprintf("epinfo 0x%hhx\n", hsusb_reg8(EPINFO)); 
-	dprintf("raminfo 0x%hhx\n", hsusb_reg8(RAMINFO)); 
+	dprintf(INFO, "hwvers 0x%hx\n", hsusb_reg16(HWVERS)); 
+	dprintf(INFO, "epinfo 0x%hhx\n", hsusb_reg8(EPINFO)); 
+	dprintf(INFO, "raminfo 0x%hhx\n", hsusb_reg8(RAMINFO)); 
 	hsusb_reg8(INDEX) = 0;
-	dprintf("config 0x%hhx\n", hsusb_reg8(IDX_CONFIGDATA));
+	dprintf(INFO, "config 0x%hhx\n", hsusb_reg8(IDX_CONFIGDATA));
 
 	// assert that we have dynamic fifo sizing
 	DEBUG_ASSERT(hsusb_reg8(IDX_CONFIGDATA) & (1<<2));
@@ -166,8 +166,8 @@ void usbc_init(void)
 	otg_reset();
 	hsusb_init();
 
-	unmask_interrupt(92, NULL);
-//	unmask_interrupt(93, NULL);
+	unmask_interrupt(92);
+//	unmask_interrupt(93);
 
 	usbc_set_active(true);
 }
