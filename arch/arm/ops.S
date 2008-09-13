@@ -45,6 +45,19 @@ FUNCTION(atomic_swap)
 
 /* int atomic_add(int *ptr, int val); */
 FUNCTION(atomic_add)
+#if ARM_ISA_ARMV6 || ARM_ISA_ARMV7
+	/* use load/store exclusive */
+.L_loop_add:
+	ldrex 	r12, [r0]
+	add		r2, r12, r1
+	strex 	r3, r2, [r0]
+	cmp		r3, #0
+	bne 	.L_loop_add
+	
+	/* save old value */
+	mov		r0, r12
+	bx		lr
+#else
 	/* disable interrupts, do the add, and reenable */
 	mrs	r2, cpsr
 	mov	r12, r2
@@ -62,9 +75,23 @@ FUNCTION(atomic_add)
 	/* restore interrupts and exit */
 	msr	cpsr_c, r12
 	bx	lr
+#endif
 	
 /* int atomic_and(int *ptr, int val); */
 FUNCTION(atomic_and)
+#if ARM_ISA_ARMV6 || ARM_ISA_ARMV7
+	/* use load/store exclusive */
+.L_loop_and:
+	ldrex 	r12, [r0]
+	and		r2, r12, r1
+	strex 	r3, r2, [r0]
+	cmp		r3, #0
+	bne 	.L_loop_and
+	
+	/* save old value */
+	mov		r0, r12
+	bx		lr
+#else
 	/* disable interrupts, do the and, and reenable */
 	mrs	r2, cpsr
 	mov	r12, r2
@@ -82,9 +109,23 @@ FUNCTION(atomic_and)
 	/* restore interrupts and exit */
 	msr	cpsr_c, r12
 	bx	lr
+#endif
 	
 /* int atomic_or(int *ptr, int val); */
 FUNCTION(atomic_or)
+#if ARM_ISA_ARMV6 || ARM_ISA_ARMV7
+	/* use load/store exclusive */
+.L_loop_or:
+	ldrex 	r12, [r0]
+	orr		r2, r12, r1
+	strex 	r3, r2, [r0]
+	cmp		r3, #0
+	bne 	.L_loop_or
+	
+	/* save old value */
+	mov		r0, r12
+	bx		lr
+#else
 	/* disable interrupts, do the or, and reenable */
 	mrs	r2, cpsr
 	mov	r12, r2
@@ -102,6 +143,7 @@ FUNCTION(atomic_or)
 	/* restore interrupts and exit */
 	msr	cpsr_c, r12
 	bx	lr
+#endif
 
 /* void arch_idle(); */
 FUNCTION(arch_idle)

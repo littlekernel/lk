@@ -267,13 +267,56 @@ void context_switch_test(void)
 	thread_sleep(100);
 }
 
+static volatile int atomic;
+static volatile int atomic_count;
+
+static int atomic_tester(void *arg)
+{
+	int add = (int)arg;
+	int i;
+
+	TRACEF("add %d\n", add);
+
+	for (i=0; i < 1000000; i++) {
+		atomic_add(&atomic, add);
+	}
+
+	int old = atomic_add(&atomic_count, -1);
+	TRACEF("exiting, old count %d\n", old);
+
+	return 0;
+}
+
+static void atomic_test(void)
+{
+	atomic = 0;
+	atomic_count = 8;
+
+	thread_resume(thread_create("atomic tester 1", &atomic_tester, (void *)1, LOW_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_resume(thread_create("atomic tester 1", &atomic_tester, (void *)1, LOW_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_resume(thread_create("atomic tester 1", &atomic_tester, (void *)1, LOW_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_resume(thread_create("atomic tester 1", &atomic_tester, (void *)1, LOW_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_resume(thread_create("atomic tester 2", &atomic_tester, (void *)-1, LOW_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_resume(thread_create("atomic tester 2", &atomic_tester, (void *)-1, LOW_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_resume(thread_create("atomic tester 2", &atomic_tester, (void *)-1, LOW_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_resume(thread_create("atomic tester 2", &atomic_tester, (void *)-1, LOW_PRIORITY, DEFAULT_STACK_SIZE));
+
+	while (atomic_count > 0) {
+		thread_sleep(1);
+	}
+
+	printf("atomic count == %d (should be zero)\n", atomic);
+}
+
 int thread_tests(void) 
 {
 	mutex_test();
-//	event_test();
+	event_test();
 
 	thread_sleep(200);
 	context_switch_test();
+
+	atomic_test();
 	
 	return 0;
 }

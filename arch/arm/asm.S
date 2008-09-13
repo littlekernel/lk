@@ -47,11 +47,23 @@ FUNCTION(arm_context_switch)
 	/* save old sp */
 	str		r3, [r0] 
 
+	/* clear any exlusive locks that the old thread holds */
+#if ARM_ISA_ARMV7
+	/* can clear it directly */
+	.word	0xf57ff01f // clrex
+#elif ARM_ISA_ARMV6
+	/* have to do a fake strex to clear it */
+	ldr		r0, =strex_spot
+	strex	r3, r2, [r0]
+#endif
+
 	/* load new regs */
 	ldmia	r1, { r4-r11, r12, r13, r14 }^
 	mov		lr, r12				/* restore lr */
 	add		sp, r1, #(11*4)     /* restore sp */
 	bx		lr
+
+.ltorg
 
 FUNCTION(arm_save_mode_regs)
 	mrs		r1, cpsr
@@ -84,5 +96,8 @@ FUNCTION(arm_save_mode_regs)
 
 	bx		lr
 
+.data
+strex_spot:
+	.word	0
 	
 
