@@ -101,11 +101,11 @@ status_t event_signal(event_t *e, bool reschedule)
 	if (!e->signalled) {
 		e->signalled = true;
 		if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
-			/* release one thread and unsignal again */
-			wait_queue_wake_one(&e->wait, reschedule, NO_ERROR);
-			e->signalled = false;
+			/* try to release one thread and unsignal again if successful */
+			if (wait_queue_wake_one(&e->wait, reschedule, NO_ERROR) > 0)
+				e->signalled = false;
 		} else {
-			/* relase all threads and remain signalled */
+			/* release all threads and remain signalled */
 			wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
 		}
 	}
