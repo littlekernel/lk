@@ -11,6 +11,9 @@ DEFINES += \
 	WITH_DEV_USBC=1 \
 	WITH_DEV_UART=1
 
+MODULES += \
+	dev/usb
+
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
