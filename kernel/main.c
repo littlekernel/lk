@@ -116,7 +116,7 @@ static int bootstrap2(void *arg)
 	dprintf(SPEW, "initializing target\n");
 	target_init();
 
-	dprintf(SPEW, "calling sys_init()\n");
+	dprintf(SPEW, "calling project_init()\n");
 	project_init();
 
 	return 0;
