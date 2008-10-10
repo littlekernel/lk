@@ -23,9 +23,39 @@
 #ifndef __DEV_USB_H
 #define __DEV_USB_H
 
-/* device side usb stack api */
+#include <sys/types.h>
+#include <compiler.h>
+
+/* top level initialization for usb client, abstracts away the interfaces */
+typedef struct {
+	void *desc;
+	size_t len;
+} usb_descriptor __ALIGNED(2);
+
+/* complete usb config struct, passed in to usb_setup() */
+typedef struct {
+	struct usb_descriptor_speed {
+		usb_descriptor device;
+		usb_descriptor device_qual;
+		usb_descriptor config;
+	} lowspeed, highspeed;
+	usb_descriptor device_string;
+	usb_descriptor mfg_string;
+	usb_descriptor serial_string;
+	usb_descriptor langid;
+} usb_config;
 
 void usb_init(void);
+
+/* external code needs to set up the usb stack via the following calls */
+void usb_setup(usb_config *config);
+
+/* apped new interface descriptors to the existing config if desired */
+int usb_append_interface_highspeed(const uint8_t *int_descr, size_t len);
+int usb_append_interface_lowspeed(const uint8_t *int_descr, size_t len);
+
+void usb_start(void);
+void usb_stop(void);
 
 #endif
 
