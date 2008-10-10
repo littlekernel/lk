@@ -24,6 +24,26 @@
 #include <arch/arm.h>
 #include <app/console.h>
 #include <app/tests.h>
+#include <dev/usb.h>
+
+#include "usb_descriptors.h"
+
+static usb_config config = { 
+	.lowspeed = {
+		.device = { dev_descr, sizeof(dev_descr) },
+		.device_qual = { devqual_descr, sizeof(devqual_descr) },
+		.config = { cfg_descr_lowspeed, sizeof(cfg_descr_lowspeed) },
+	},
+	.highspeed = {
+		.device = { dev_descr, sizeof(dev_descr) },
+		.device_qual = { devqual_descr, sizeof(devqual_descr) },
+		.config = { cfg_descr_highspeed, sizeof(cfg_descr_highspeed) },
+	},
+	.device_string = { dstring, sizeof(dstring) },
+	.mfg_string = { mstring, sizeof(mstring) },
+	.serial_string = { NULL, 0 },
+	.langid = { langid, sizeof(langid) }
+};
 
 extern int string_tests(void);
 extern int thread_tests(void);
@@ -33,6 +53,10 @@ void project_init(void)
 	console_init();
 	tests_init();
 	
+	usb_init();
+	usb_setup(&config);
+	usb_start();
+
 	console_start();
 }
 
