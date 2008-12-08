@@ -31,4 +31,7 @@
 #define REG16(addr) ((volatile uint16_t *)(addr))
 #define REG8(addr) ((volatile uint8_t *)(addr))
 
+#define writel(v, a) (*REG32(a) = (v))
+#define readl(a) (*REG32(a))
+
 #endif
