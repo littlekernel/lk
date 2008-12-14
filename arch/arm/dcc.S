@@ -24,7 +24,7 @@
 .global dcc_putc
 .global dcc_getc
 
-#if defined(ARM_CPU_ARM1136)
+#if defined(ARM_ISA_ARMV6) || defined(ARM_ISA_ARMV7)
 dcc_getc:
 	mrc 14, 0, r0, c0, c1, 0 
 	tst r0, #(1 << 30)
