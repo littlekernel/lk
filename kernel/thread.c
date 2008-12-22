@@ -122,6 +122,11 @@ thread_t *thread_create(const char *name, thread_start_routine entry, void *arg,
 
 	t->stack_size = stack_size;
 
+	/* inheirit thread local storage from the parent */
+	int i;
+	for (i=0; i < MAX_TLS_ENTRY; i++)
+		t->tls[i] = current_thread->tls[i];
+
 	/* set up the initial stack frame */
 	arch_thread_initialize(t);
 
@@ -456,6 +461,12 @@ void dump_thread(thread_t *t)
 	dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
 	dprintf(INFO, "\tentry %p, arg %p\n", t->entry, t->arg);
 	dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
+	dprintf(INFO, "\ttls:");
+	int i;
+	for (i=0; i < MAX_TLS_ENTRY; i++) {
+		dprintf(INFO, " 0x%x", t->tls[i]);
+	}
+	dprintf(INFO, "\n");
 }
 
 void dump_all_threads(void)

@@ -40,6 +40,11 @@ enum thread_state {
 
 typedef int (*thread_start_routine)(void *arg);
 
+/* thread local storage */
+enum thread_tls_list {
+	MAX_TLS_ENTRY
+};
+
 #define THREAD_MAGIC 'thrd'
 
 typedef struct thread {
@@ -70,6 +75,9 @@ typedef struct thread {
 
 	/* return code */
 	int retcode;
+
+	/* thread local storage */
+	uint32_t tls[MAX_TLS_ENTRY];
 
 	char name[32];
 } thread_t;
@@ -139,6 +147,19 @@ static inline __ALWAYS_INLINE bool in_critical_section(void)
 /* only used by interrupt glue */
 static inline void inc_critical_section(void) { critical_section_count++; }
 static inline void dec_critical_section(void) { critical_section_count--; }
+
+/* thread local storage */
+static inline __ALWAYS_INLINE uint32_t tls_get(uint entry)
+{
+	return current_thread->tls[entry];
+}
+
+static inline __ALWAYS_INLINE uint32_t tls_set(uint entry, uint32_t val)
+{
+	uint32_t oldval = current_thread->tls[entry];
+	current_thread->tls[entry] = val;
+	return oldval;
+}
 
 /* wait queue stuff */
 #define WAIT_QUEUE_MAGIC 'wait'
