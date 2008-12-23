@@ -58,6 +58,9 @@ static void call_constructors(void)
 void kmain(void) __NO_RETURN __EXTERNALLY_VISIBLE;
 void kmain(void)
 {
+	// get us into some sort of thread context
+	thread_init_early();
+
 	// early arch stuff
 	arch_early_init();
 

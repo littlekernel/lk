@@ -96,6 +96,7 @@ typedef struct thread {
 #define DEFAULT_STACK_SIZE 8192
 
 /* functions */
+void thread_init_early(void);
 void thread_init(void);
 void thread_become_idle(void) __NO_RETURN;
 void thread_set_name(const char *name);

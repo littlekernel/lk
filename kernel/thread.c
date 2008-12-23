@@ -409,7 +409,7 @@ void thread_sleep(time_t delay)
 	exit_critical_section();
 }
 
-void thread_init(void)
+void thread_init_early(void)
 {
 	int i;
 
@@ -430,6 +430,10 @@ void thread_init(void)
 	t->saved_critical_section_count = 1;
 	list_add_head(&thread_list, &t->thread_list_node);
 	current_thread = t;
+}
+
+void thread_init(void)
+{
 }
 
 void thread_set_name(const char *name)
