@@ -66,6 +66,18 @@ int sprintf(char *str, const char *fmt, ...)
 	return err;
 }
 
+int snprintf(char *str, size_t len, const char *fmt, ...)
+{
+	int err;
+
+	va_list ap;
+	va_start(ap, fmt);
+	err = vsnprintf(str, len, fmt, ap);
+	va_end(ap);
+
+	return err;
+}
+
 
 #define LONGFLAG     0x00000001
 #define LONGLONGFLAG 0x00000002
@@ -134,6 +146,11 @@ static char *longlong_to_hexstring(char *buf, unsigned long long u, int len, uin
 
 int vsprintf(char *str, const char *fmt, va_list ap)
 {
+	return vsnprintf(str, INT_MAX, fmt, ap);
+}
+
+int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
+{
 	char c;
 	unsigned char uc;
 	const char *s;
@@ -141,10 +158,11 @@ int vsprintf(char *str, const char *fmt, va_list ap)
 	void *ptr;
 	int flags;
 	unsigned int format_num;
-	int chars_written = 0;
+	size_t chars_written = 0;
 	char num_buffer[32];
 
-#define OUTPUT_CHAR(c) do { (*str++ = c); chars_written++; } while(0)
+#define OUTPUT_CHAR(c) do { (*str++ = c); chars_written++; if (chars_written + 1 == len) goto done; } while(0)
+#define OUTPUT_CHAR_NOLENCHECK(c) do { (*str++ = c); chars_written++; } while(0)
 
 	for(;;) {	
 		/* handle regular chars that aren't format related */
@@ -309,11 +327,13 @@ _output_string:
 		continue;
 	}
 
+done:
 	/* null terminate */
-	OUTPUT_CHAR('\0');
+	OUTPUT_CHAR_NOLENCHECK('\0');
 	chars_written--; /* don't count the null */
 
 #undef OUTPUT_CHAR
+#undef OUTPUT_CHAR_NOLENCHECK
 
 	return chars_written;
 }
