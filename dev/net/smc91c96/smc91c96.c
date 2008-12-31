@@ -65,8 +65,22 @@ static int smc91c96_read_packet(uint8_t *data, size_t *len)
 	uint16_t status = *SMC_REG16(SMC_DATA0);
 	TRACEF("status 0x%hx\n", status);
 
-	uint16_t count = *SMC_REG16(SMC_DATA0) & 0x7f;
+	uint16_t count = *SMC_REG16(SMC_DATA0) & 0x7ff;
 	TRACEF("count %d\n", count);
+
+	// bad status?
+	if (status & (0xbc00)) {
+		TRACEF("bad status\n");
+		*len = 0;
+		return -1;
+	}
+
+	// malformed count
+	if (count <= 6 || count & 1) {
+		TRACEF("bad count\n");
+		*len = 0;
+		return -1;
+	}
 
 	int i;
 	for (i = 0; i < (count >> 1) - 3; i++) {
@@ -76,7 +90,7 @@ static int smc91c96_read_packet(uint8_t *data, size_t *len)
 	uint16_t control_last = *SMC_REG16(SMC_DATA0);
 	TRACEF("control_last 0x%hx\n", control_last);
 
-	if (control_last & (1<<5)) {
+	if (control_last & (1<<13)) {
 		// odd size, stuff the other byte
 		data[count - 6] = control_last & 0xff;
 		count++;
@@ -84,6 +98,52 @@ static int smc91c96_read_packet(uint8_t *data, size_t *len)
 
 	*len = count - 6;
 	TRACEF("total len %d\n", *len);
+
+	// parse the header
+	TRACEF("ethernet type 0x%x\n", ((uint16_t *)data)[6]);
+
+	return 0;
+}
+
+static int smc91c96_tx_packet(const uint8_t *data, size_t len)
+{
+	smc_bank(2);
+
+	len += 6; // for our packet overhead
+
+	// send alloc tx buffer command
+	*SMC_REG16(SMC_MMUCR) = (2 << 4) | (len / 256);
+
+	// wait for alloc
+	while ((*SMC_REG8(SMC_IST) & (1<<3)) == 0)
+		;
+
+	uint8_t arr = *SMC_REG8(SMC_ARR);
+	TRACEF("ARR 0x%x\n", arr);
+
+	// load the packet number register
+	*SMC_REG8(SMC_PNR) = (arr & 0xf);
+
+	// load our allocated fifo into the pointer register
+	*SMC_REG16(SMC_PTR) = (1<<14) | (arr & 0xf);
+	
+	*SMC_REG16(SMC_DATA0) = 0; // status word
+	*SMC_REG16(SMC_DATA0) = len & 0x7fe; // make sure it's even
+
+	int i;
+	for (i = 0; i < (len >> 1) - 3; i++) {
+		*SMC_REG16(SMC_DATA0) = ((uint16_t *)data)[i];
+	}
+
+	uint16_t control_last = (1<<12); // do crc
+	if (len & 1) {
+		control_last |= (1<<13); // odd sized
+		control_last |= data[len - 6];
+	}
+
+	*SMC_REG16(SMC_DATA0) = control_last;
+
+	*SMC_REG16(SMC_MMUCR) = (0xc << 4); // queue tx packet
 
 	return 0;
 }
@@ -104,6 +164,30 @@ static int smc91c96_interrupt(void)
 		*SMC_REG8(SMC_MMUCR) = (8 << 4); // remove frame from rx fifo
 	}
 
+	if (ist & (1<<1)) {
+		// TX INT
+		TRACEF("TX\n");
+
+		uint16_t fifo = *SMC_REG16(SMC_FIFO);
+		TRACEF("fifo 0x%x\n", fifo);
+
+		// write the packet number out
+		*SMC_REG8(SMC_PNR) = fifo & 0xf;
+
+		smc_bank(0);
+		uint16_t ephsr = *SMC_REG16(SMC_EPHSR);
+		TRACEF("ephsr 0x%x\n", ephsr);
+
+		smc_bank(2);
+		*SMC_REG16(SMC_MMUCR) = (0xa << 4); // release specific packet
+
+		*SMC_REG8(SMC_ACK) = (1<<1); // TX ACK
+	}
+
+	if (ist & (1<<4)) {
+		// allocation result
+
+	}
 }
 
 void smc91c96_init(void)
@@ -145,7 +229,17 @@ void smc91c96_init(void)
 	smc_bank(0);
 	*SMC_REG16(SMC_RCR) = (1<<8) | (1<<1); // RXEN, PRMS (promiscuous)
 
+	// enable tx
+	*SMC_REG16(SMC_TCR) = (1<<0); // TXEN
+
 #if 0
+	char buf[818];
+	memset(buf, 0, sizeof(buf));
+//	for (;;)
+	smc91c96_tx_packet(buf, sizeof(buf));
+	smc91c96_tx_packet(buf, sizeof(buf));
+	smc91c96_tx_packet(buf, sizeof(buf));
+
 	for(;;) {
 		smc91c96_interrupt();
 	}
