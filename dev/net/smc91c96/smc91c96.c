@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <debug.h>
 #include <printf.h>
+#include <kernel/thread.h>
 #include <dev/net/smc91c96.h>
 #include "smc91c96_p.h"
 
@@ -41,6 +42,70 @@ static inline void smc_bank(int bank)
 	*SMC_REG16(SMC_BSR) = bank;
 }
 
+static void smc91c96_reset(void)
+{
+	TRACE;
+
+	smc_bank(0);
+
+	*SMC_REG16(SMC_RCR) = (1<<16);
+	thread_sleep(10);
+	*SMC_REG16(SMC_RCR) = 0;
+}
+
+static int smc91c96_read_packet(uint8_t *data, size_t *len)
+{
+	int rx_fifo = (*SMC_REG16(SMC_FIFO) >> 8) & 0xf;
+
+	TRACEF("RCV_INT: fifo port %d\n", rx_fifo);
+
+	// load it into the pointer register
+	*SMC_REG16(SMC_PTR) = (1<<15) | (1<<14) | (1<<13) | rx_fifo;	
+
+	uint16_t status = *SMC_REG16(SMC_DATA0);
+	TRACEF("status 0x%hx\n", status);
+
+	uint16_t count = *SMC_REG16(SMC_DATA0) & 0x7f;
+	TRACEF("count %d\n", count);
+
+	int i;
+	for (i = 0; i < (count >> 1) - 3; i++) {
+		((uint16_t *)data)[i] = *SMC_REG16(SMC_DATA0);
+	}
+
+	uint16_t control_last = *SMC_REG16(SMC_DATA0);
+	TRACEF("control_last 0x%hx\n", control_last);
+
+	if (control_last & (1<<5)) {
+		// odd size, stuff the other byte
+		data[count - 6] = control_last & 0xff;
+		count++;
+	}
+
+	*len = count - 6;
+	TRACEF("total len %d\n", *len);
+
+	return 0;
+}
+
+static int smc91c96_interrupt(void)
+{
+	smc_bank(2);
+	uint8_t ist = *SMC_REG8(SMC_IST);
+
+	if (ist & (1<<0)) {
+		// RCV INT
+		uint8_t buf[1600];
+		size_t len;
+		smc91c96_read_packet(buf, &len);
+
+		hexdump8(buf, len);	
+
+		*SMC_REG8(SMC_MMUCR) = (8 << 4); // remove frame from rx fifo
+	}
+
+}
+
 void smc91c96_init(void)
 {
 	int i;
@@ -50,11 +115,20 @@ void smc91c96_init(void)
 	// try to detect it
 	if ((*SMC_REG16(SMC_BSR) & 0xff00) != 0x3300) {
 		TRACEF("didn't see smc91c96 chip at 0x%x\n", (unsigned int)smc91c96_base);
+		return;
 	}
+
+	smc91c96_reset();
 
 	// read revision
 	smc_bank(3);
 	TRACEF("detected, revision 0x%x\n", *SMC_REG16(SMC_REV));
+
+	// memory config
+	smc_bank(0);
+	uint16_t mir = *SMC_REG16(SMC_MIR);
+	uint16_t mcr = *SMC_REG16(SMC_MCR);
+	TRACEF("mir 0x%x, mcr 0x%x\n", mir, mcr);
 
 	// read in the mac address
 	smc_bank(1);
@@ -66,5 +140,15 @@ void smc91c96_init(void)
 		mac_addr[3], mac_addr[4], mac_addr[5]);
 
 	smc_bank(0);
+
+	// start the receiver
+	smc_bank(0);
+	*SMC_REG16(SMC_RCR) = (1<<8) | (1<<1); // RXEN, PRMS (promiscuous)
+
+#if 0
+	for(;;) {
+		smc91c96_interrupt();
+	}
+#endif
 }
 
