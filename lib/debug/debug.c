@@ -74,7 +74,7 @@ int _dprintf(const char *fmt, ...)
 
 	va_list ap;
 	va_start(ap, fmt);
-	err = vsprintf(buf, fmt, ap);
+	err = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
 	dputs(ALWAYS, buf);
@@ -87,7 +87,7 @@ int _dvprintf(const char *fmt, va_list ap)
 	char buf[256];
 	int err;
 
-	err = vsprintf(buf, fmt, ap);
+	err = vsnprintf(buf, sizeof(buf), fmt, ap);
 
 	dputs(ALWAYS, buf);
 
