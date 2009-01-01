@@ -32,6 +32,11 @@ typedef struct {
 	size_t len;
 } usb_descriptor __ALIGNED(2);
 
+typedef struct {
+	usb_descriptor string;
+	uint8_t id;
+} usb_string;
+
 /* complete usb config struct, passed in to usb_setup() */
 typedef struct {
 	struct usb_descriptor_speed {
@@ -39,9 +44,6 @@ typedef struct {
 		usb_descriptor device_qual;
 		usb_descriptor config;
 	} lowspeed, highspeed;
-	usb_descriptor device_string;
-	usb_descriptor mfg_string;
-	usb_descriptor serial_string;
 	usb_descriptor langid;
 } usb_config;
 
@@ -53,6 +55,8 @@ void usb_setup(usb_config *config);
 /* apped new interface descriptors to the existing config if desired */
 int usb_append_interface_highspeed(const uint8_t *int_descr, size_t len);
 int usb_append_interface_lowspeed(const uint8_t *int_descr, size_t len);
+
+void usb_add_string(const char *string, uint8_t id);
 
 void usb_start(void);
 void usb_stop(void);

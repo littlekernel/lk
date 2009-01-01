@@ -39,9 +39,6 @@ static usb_config config = {
 		.device_qual = { devqual_descr, sizeof(devqual_descr) },
 		.config = { cfg_descr_highspeed, sizeof(cfg_descr_highspeed) },
 	},
-	.device_string = { dstring, sizeof(dstring) },
-	.mfg_string = { mstring, sizeof(mstring) },
-	.serial_string = { NULL, 0 },
 	.langid = { langid, sizeof(langid) }
 };
 
@@ -55,6 +52,8 @@ void project_init(void)
 	
 	usb_init();
 	usb_setup(&config);
+	usb_add_string("lk, Inc.", 0x1); // manufacturer id
+	usb_add_string("lk", 0x2); // device string
 	usb_start();
 
 	console_start();

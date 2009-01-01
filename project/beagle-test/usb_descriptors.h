@@ -81,16 +81,6 @@ static uint8_t cfg_descr_highspeed[] = {
     0,              /* Power Consumption - none */
 };
 
-static ushort dstring[] = {
-    0x0306, /* numchars * 2 + 2 */
-    'l', 'k'
-};
-
-static ushort mstring[] = {
-    0x0310, /* numchars * 2 + 2 */
-    'l', 'k', ',', 'i', 'n', 'c', '.'
-};
-
 static uchar langid[] __ALIGNED(2) = { 0x04, 0x03, 0x09, 0x04 };
 
 #endif

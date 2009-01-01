@@ -27,12 +27,10 @@
 #include <dev/usbc.h>
 #include <dev/usb.h>
 
-//#include <lib/pmux.h>
-//#include <lib/usbmass.h>
-//#include <lib/dfu.h>
-//#include <target/usbconfig.h>
+#define LOCAL_TRACE 0
 
-#define LOCAL_TRACE 1
+#define MAX_STRINGS 8
+static usb_string strings[MAX_STRINGS];
 
 static usb_config *config;
 
@@ -118,6 +116,29 @@ static void set_usb_id(uint16_t vendor, uint16_t product)
 	((uint16_t *)config->highspeed.device.desc)[5] = product;
 }
 
+void usb_add_string(const char *string, uint8_t id) 
+{
+	uint i;
+	size_t len = strlen(string);
+	uint16_t *strbuf = malloc(len * 2 + 2);
+
+	/* build the usb string descriptor */
+	strbuf[0] = 0x300 | (len * 2 + 2);
+	for (i = 0; i < len; i++) {
+		strbuf[i + 1] = (uint16_t)string[i];
+	}
+
+	/* find a slot to put it */
+	for (i = 0; i < MAX_STRINGS; i++) {
+		if (strings[i].id == 0) {
+			strings[i].string.desc = strbuf;
+			strings[i].string.len = len * 2 + 2;
+			strings[i].id = id;
+			break;
+		}
+	}
+}
+
 static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_args *args)
 {
 	LTRACEF("op %d, args %p\n", op, args);
@@ -170,29 +191,26 @@ static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_
 								usbc_ep0_send(config->langid.desc,
 										config->langid.len, setup->length);
 								break;
-							case 0x301:    /* Manufacturer string */
-								LTRACEF("got GET_DESCRIPTOR, mfg string\n");
-								usbc_ep0_send(config->mfg_string.desc,
-										config->mfg_string.len, 
-										setup->length);
-								break;
-							case 0x302:    /* Device string */
-								LTRACEF("got GET_DESCRIPTOR, device string\n");
-								usbc_ep0_send(config->device_string.desc,
-										config->device_string.len,
-										setup->length);
-								break;
-							case 0x303:    /* Serial number string */
-								LTRACEF("got GET_DESCRIPTOR, serial number string\n");
-								if (config->serial_string.desc) {
-									usbc_ep0_send(config->serial_string.desc,
-											config->serial_string.len,
+							case (0x301)...(0x3ff): {
+								/* string descriptor, search our list for a match */
+								uint i;
+								bool found = false;
+								uint8_t id = setup->value & 0xff;
+								for (i = 0; i < MAX_STRINGS; i++) {
+									if (strings[i].id == id) {
+										usbc_ep0_send(strings[i].string.desc,
+											strings[i].string.len, 
 											setup->length);
-								} else {
-									/* stall */
+										found = true;
+										break;
+									}
+								}
+								if (!found) {
+									/* couldn't find one, stall */
 									usbc_ep0_stall();
 								}
 								break;
+							}
 							case 0x600:    /* DEVICE QUALIFIER */
 								LTRACEF("got GET_DESCRIPTOR, device qualifier\n");
 								usbc_ep0_send(speed->device_qual.desc, 
