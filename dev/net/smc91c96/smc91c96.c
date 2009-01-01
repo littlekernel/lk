@@ -24,6 +24,7 @@
 #include <debug.h>
 #include <printf.h>
 #include <kernel/thread.h>
+#include <kernel/timer.h>
 #include <dev/net/smc91c96.h>
 #include "smc91c96_p.h"
 
@@ -33,6 +34,8 @@
 
 static addr_t smc91c96_base = SMC91C96_BASE_ADDR;
 static uint8_t mac_addr[6];
+
+static timer_t int_timer;
 
 #define SMC_REG16(reg) ((volatile uint16_t *)(smc91c96_base + (reg)))
 #define SMC_REG8(reg) ((volatile uint8_t *)(smc91c96_base + (reg)))
@@ -148,8 +151,10 @@ static int smc91c96_tx_packet(const uint8_t *data, size_t len)
 	return 0;
 }
 
-static int smc91c96_interrupt(void)
+static enum handler_return smc91c96_interrupt(void)
 {
+	enum handler_return ret = INT_NO_RESCHEDULE;
+
 	smc_bank(2);
 	uint8_t ist = *SMC_REG8(SMC_IST);
 
@@ -162,6 +167,8 @@ static int smc91c96_interrupt(void)
 		hexdump8(buf, len);	
 
 		*SMC_REG8(SMC_MMUCR) = (8 << 4); // remove frame from rx fifo
+
+		ret = INT_RESCHEDULE;
 	}
 
 	if (ist & (1<<1)) {
@@ -182,12 +189,16 @@ static int smc91c96_interrupt(void)
 		*SMC_REG16(SMC_MMUCR) = (0xa << 4); // release specific packet
 
 		*SMC_REG8(SMC_ACK) = (1<<1); // TX ACK
+
+		ret = INT_RESCHEDULE;
 	}
 
 	if (ist & (1<<4)) {
 		// allocation result
 
 	}
+
+	return ret;
 }
 
 void smc91c96_init(void)
@@ -225,13 +236,6 @@ void smc91c96_init(void)
 
 	smc_bank(0);
 
-	// start the receiver
-	smc_bank(0);
-	*SMC_REG16(SMC_RCR) = (1<<8) | (1<<1); // RXEN, PRMS (promiscuous)
-
-	// enable tx
-	*SMC_REG16(SMC_TCR) = (1<<0); // TXEN
-
 #if 0
 	char buf[818];
 	memset(buf, 0, sizeof(buf));
@@ -244,5 +248,27 @@ void smc91c96_init(void)
 		smc91c96_interrupt();
 	}
 #endif
+}
+
+static enum handler_return smc91c96_timer(struct timer *t, time_t now, void *arg)
+{
+	enum handler_return ret = smc91c96_interrupt();
+	
+	timer_set_oneshot(t, 10, smc91c96_timer, NULL);
+
+	return ret;
+}
+
+void smc91c96_start(void)
+{
+	// start the receiver
+	smc_bank(0);
+	*SMC_REG16(SMC_RCR) = (1<<8) | (1<<1); // RXEN, PRMS (promiscuous)
+
+	// enable tx
+	*SMC_REG16(SMC_TCR) = (1<<0); // TXEN
+
+	timer_initialize(&int_timer);
+	timer_set_oneshot(&int_timer, 10, smc91c96_timer, NULL);
 }
 

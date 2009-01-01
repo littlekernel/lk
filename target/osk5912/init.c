@@ -29,5 +29,6 @@
 void target_init(void)
 {
 	smc91c96_init();
+	smc91c96_start();
 }
 
