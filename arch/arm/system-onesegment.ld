@@ -49,7 +49,7 @@ SECTIONS
 	/* writable data  */
 	__data_start_rom = .;	/* in one segment binaries, the rom data address is on top of the ram data address */
 	__data_start = .;
-	.data : { *(.data .data.* .gnu.linkonce.d.*) }
+	.data : SUBALIGN(4) { *(.data .data.* .gnu.linkonce.d.*) }
 
 	__ctor_list = .;
 	.ctors : { *(.ctors) }
