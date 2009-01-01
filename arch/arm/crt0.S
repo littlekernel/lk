@@ -45,10 +45,9 @@ reset:
 	mcr		p15, 0, r0, c1, c0, 0
 #endif
 
-#if PLATFORM_OMAP3
-	/* do an omap3 specific setup of the L2 */	
-	mov 	r12, #1
-	.word 0xe1600070
+#if WITH_CPU_EARLY_INIT
+	/* call platform/arch/etc specific init code */
+	bl __cpu_early_init
 #endif
 
 	/* see if we need to relocate */

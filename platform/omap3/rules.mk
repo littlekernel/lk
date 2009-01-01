@@ -8,6 +8,7 @@ INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
 OBJS += \
+	$(LOCAL_DIR)/cpu_early_init.Ao \
 	$(LOCAL_DIR)/debug.o \
 	$(LOCAL_DIR)/interrupts.o \
 	$(LOCAL_DIR)/platform.o \
@@ -16,7 +17,8 @@ OBJS += \
 
 MEMBASE := 0x80000000
 
-DEFINES += MEMBASE=$(MEMBASE)
+DEFINES += MEMBASE=$(MEMBASE) \
+	WITH_CPU_EARLY_INIT=1
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
