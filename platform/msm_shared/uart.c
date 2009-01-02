@@ -29,6 +29,8 @@
  * SUCH DAMAGE.
  */
 
+#include <debug.h>
+
 #include <platform/iomap.h>
 #include <dev/uart.h>
 #include <reg.h>
@@ -177,11 +179,9 @@ int uart_putc(int port, char c)
 
 int uart_getc(int port, bool wait)
 {
-	for (;;) {
-		while (!(urd(UART_SR) & UART_SR_RX_READY)) ;	
+	while (!(urd(UART_SR) & UART_SR_RX_READY))
 		if (!wait)
 			return -1;
-	}
 
 	return urd(UART_RF);
 }

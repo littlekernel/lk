@@ -35,6 +35,7 @@
 #include <dev/uart.h>
 
 #define DCC_DEBUG 0
+#define DEBUG_UART 3
 
 void _dputc(char c)
 {
@@ -44,23 +45,24 @@ void _dputc(char c)
 	}
 	while (dcc_putc(c) < 0);
 #else
-	uart_putc(0, c);
+	uart_putc(DEBUG_UART, c);
 #endif
 }
 
 int dgetc(char *c)
 {
+	int n;
 #if DCC_DEBUG
-	int n = dcc_getc();
+	n = dcc_getc();
+#else
+	n = uart_getc(DEBUG_UART, 0);
+#endif
 	if (n < 0) {
 		return -1;
 	} else {
 		*c = n;
 		return 0;
 	}
-#else
-	return uart_getc(0, 1);
-#endif
 }
 
 void platform_halt(void)
@@ -71,5 +73,5 @@ void platform_halt(void)
 
 uint32_t debug_cycle_count(void)
 {
-    return 0;
+	return 0;
 }
