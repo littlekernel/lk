@@ -214,3 +214,9 @@ void uart3_clock_init(void)
 	clock_enable(UART3_CLK);
 	clock_set_rate(UART3_CLK, 19200000 / 4);
 }
+
+void hsusb_clock_init(void)
+{
+	clock_enable(USB_HS_CLK);
+	clock_enable(USB_HS_PCLK);
+}
