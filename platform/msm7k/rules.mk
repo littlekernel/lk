@@ -9,6 +9,7 @@ INCLUDES += -I$(LOCAL_DIR)/include
 OBJS += \
 	$(LOCAL_DIR)/platform.o \
 	$(LOCAL_DIR)/interrupts.o \
+	$(LOCAL_DIR)/gpio.o \
 	$(LOCAL_DIR)/debug.o
 
 LINKER_SCRIPT += $(BUILDDIR)/system-onesegment.ld
