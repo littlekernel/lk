@@ -45,5 +45,7 @@ status_t mutex_acquire(mutex_t *);
 status_t mutex_acquire_timeout(mutex_t *, time_t); /* try to acquire the mutex with a timeout value */
 status_t mutex_release(mutex_t *);
 
+#define ASSERT_LOCKED_MUTEX(m) do { ASSERT((m)->count > 0); } while (0)
+
 #endif
 

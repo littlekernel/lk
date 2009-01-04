@@ -24,12 +24,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _NEWOS_KERNEL_NET_ICMP_H
-#define _NEWOS_KERNEL_NET_ICMP_H
+#ifndef _LIB_NET_ICMP_H
+#define _LIB_NET_ICMP_H
 
-#include <kernel/net/if.h>
-#include <kernel/net/ipv4.h>
-#include <kernel/cbuf.h>
+#include <lib/net/if.h>
+#include <lib/net/ipv4.h>
+#include <lib/net/cbuf.h>
 
 int icmp_input(cbuf *buf, ifnet *i, ipv4_addr source_ipaddr);
 

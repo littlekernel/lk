@@ -24,20 +24,16 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/heap.h>
-#include <kernel/sem.h>
-#include <kernel/lock.h>
-#include <kernel/smp.h>
-#include <kernel/int.h>
-#include <kernel/debug.h>
-#include <kernel/cbuf.h>
-#include <kernel/vm.h>
-#include <kernel/net/misc.h> // for cksum16
-#include <kernel/arch/cpu.h>
-#include <newos/errors.h>
-
+#include <debug.h>
+#include <stdlib.h>
+#include <err.h>
 #include <string.h>
+#include <kernel/thread.h>
+#include <kernel/mutex.h>
+#include <lib/net/cbuf.h>
+#include <lib/net/misc.h> // for cksum16
+
+#define LOCAL_TRACE 0 
 
 #if DEBUG > 1
 #define VALIDATE_CBUFS 1
@@ -50,15 +46,11 @@
 #define CBUF_BITMAP_SIZE (CBUF_REGION_SIZE / CBUF_LEN)
 
 static cbuf *cbuf_free_list;
-static mutex cbuf_free_list_lock;
+static mutex_t cbuf_free_list_lock;
 static cbuf *cbuf_free_noblock_list;
-static spinlock_t noblock_spin;
 
-static spinlock_t cbuf_lowlevel_spinlock;
-static region_id cbuf_region_id;
 static cbuf *cbuf_region;
-static region_id cbuf_bitmap_region_id;
-static uint8 *cbuf_bitmap;
+static uint8_t *cbuf_bitmap;
 
 /* initialize most of the cbuf structure */
 /* does not initialize the next pointer, because it may already be in a chain */
@@ -130,10 +122,9 @@ static void *_cbuf_alloc(size_t *size)
 	int start;
 	size_t len_found = 0;
 
-//	dprintf("cbuf_alloc: asked to allocate size %d\n", *size);
+//	LTRACEF("asked to allocate size %d\n", *size);
 
-	int_disable_interrupts();
-	acquire_spinlock(&cbuf_lowlevel_spinlock);
+	enter_critical_section();
 
 	// scan through the allocation bitmap, looking for the first free block
 	// XXX not optimal
@@ -169,8 +160,7 @@ static void *_cbuf_alloc(size_t *size)
 		*size = len_found;
 	}
 
-	release_spinlock(&cbuf_lowlevel_spinlock);
-	int_restore_interrupts();
+	exit_critical_section();
 
 	return buf;
 }
@@ -197,7 +187,7 @@ static cbuf *allocate_cbuf_mem(size_t size)
 		}
 		
 		size -= found_size;
-//		dprintf("allocate_cbuf_mem: returned %d of memory, %d left\n", found_size, size);
+//		LTRACEF("returned %d of memory, %d left\n", found_size, size);
 
 		ASSERT(found_size % CBUF_LEN == 0);
 		for (; found_size > 0; found_size -= CBUF_LEN) {
@@ -243,14 +233,12 @@ void cbuf_free_chain_noblock(cbuf *buf)
 	head = buf;
 	_clear_chain(head, &last);
 
-	int_disable_interrupts();
-	acquire_spinlock(&noblock_spin);
+	enter_critical_section();
 
 	last->next = cbuf_free_noblock_list;
 	cbuf_free_noblock_list = head;
 
-	release_spinlock(&noblock_spin);
-	int_restore_interrupts();
+	exit_critical_section();
 }
 
 void cbuf_free_chain(cbuf *buf)
@@ -263,12 +251,12 @@ void cbuf_free_chain(cbuf *buf)
 	head = buf;
 	_clear_chain(head, &last);
 
-	mutex_lock(&cbuf_free_list_lock);
+	mutex_acquire(&cbuf_free_list_lock);
 
 	last->next = cbuf_free_list;
 	cbuf_free_list = head;
 
-	mutex_unlock(&cbuf_free_list_lock);
+	mutex_release(&cbuf_free_list_lock);
 }
 
 cbuf *cbuf_get_chain(size_t len)
@@ -281,22 +269,22 @@ cbuf *cbuf_get_chain(size_t len)
 	if(len == 0)
 		panic("cbuf_get_chain: passed size 0\n");
 
-	mutex_lock(&cbuf_free_list_lock);
+	mutex_acquire(&cbuf_free_list_lock);
 
 	while(chain_len < len) {
 		if(cbuf_free_list == NULL) {
 			// we need to allocate some more cbufs
-			mutex_unlock(&cbuf_free_list_lock);
+			mutex_release(&cbuf_free_list_lock);
 			temp = allocate_cbuf_mem(ALLOCATE_CHUNK);
 			if(!temp) {
 				// no more ram
 				if(chain)
 					cbuf_free_chain(chain);
-				dprintf("cbuf_get_chain: asked to allocate %ld bytes but out of memory\n", len);
+				TRACEF("asked to allocate %ld bytes but out of memory\n", len);
 				return NULL;
 			}
 			cbuf_free_chain(temp);
-			mutex_lock(&cbuf_free_list_lock);
+			mutex_acquire(&cbuf_free_list_lock);
 			continue;
 		}
 
@@ -310,7 +298,7 @@ cbuf *cbuf_get_chain(size_t len)
 
 		chain_len += chain->len;
 	}
-	mutex_unlock(&cbuf_free_list_lock);
+	mutex_release(&cbuf_free_list_lock);
 
 	// now we have a chain, fixup the first and last entry
 	chain->total_len = len;
@@ -330,14 +318,12 @@ cbuf *cbuf_get_chain_noblock(size_t len)
 	cbuf *temp;
 	size_t chain_len = 0;
 
-	int_disable_interrupts();
-	acquire_spinlock(&noblock_spin);
+	enter_critical_section();
 
 	while(chain_len < len) {
 		if(cbuf_free_noblock_list == NULL) {
-			dprintf("cbuf_get_chain_noblock: not enough cbufs\n");
-			release_spinlock(&noblock_spin);
-			int_restore_interrupts();
+			TRACEF("not enough cbufs\n");
+			exit_critical_section();
 
 			if(chain != NULL)
 				cbuf_free_chain_noblock(chain);
@@ -354,8 +340,7 @@ cbuf *cbuf_get_chain_noblock(size_t len)
 
 		chain_len += chain->len;
 	}
-	release_spinlock(&noblock_spin);
-	int_restore_interrupts();
+	exit_critical_section();
 
 	// now we have a chain, fixup the first and last entry
 	chain->total_len = len;
@@ -403,7 +388,7 @@ int cbuf_memcpy_to_chain(cbuf *chain, size_t offset, const void *_src, size_t le
 			panic("cbuf_memcpy_to_chain: end of chain reached too early!\n");
 			return ERR_GENERAL;
 		}
-		to_copy = min(len, buf->len - buf_offset);
+		to_copy = MIN(len, buf->len - buf_offset);
 		memcpy((char *)buf->data + buf_offset, src, to_copy);
 
 		buf_offset = 0;
@@ -415,6 +400,7 @@ int cbuf_memcpy_to_chain(cbuf *chain, size_t offset, const void *_src, size_t le
 	return NO_ERROR;
 }
 
+#if 0
 int cbuf_user_memcpy_to_chain(cbuf *chain, size_t offset, const void *_src, size_t len)
 {
 	cbuf *buf;
@@ -425,7 +411,7 @@ int cbuf_user_memcpy_to_chain(cbuf *chain, size_t offset, const void *_src, size
 	validate_cbuf(chain);
 
 	if(len + offset > chain->total_len) {
-		dprintf("cbuf_memcpy_to_chain: len + offset > size of cbuf chain\n");
+		TRACEF("len + offset > size of cbuf chain\n");
 		return ERR_INVALID_ARGS;
 	}
 
@@ -434,7 +420,7 @@ int cbuf_user_memcpy_to_chain(cbuf *chain, size_t offset, const void *_src, size
 	buf_offset = 0;
 	while(offset > 0) {
 		if(buf == NULL) {
-			dprintf("cbuf_memcpy_to_chain: end of chain reached too early!\n");
+			TRACEF("end of chain reached too early!\n");
 			return ERR_GENERAL;
 		}
 		if(offset < buf->len) {
@@ -451,10 +437,10 @@ int cbuf_user_memcpy_to_chain(cbuf *chain, size_t offset, const void *_src, size
 		int to_copy;
 
 		if(buf == NULL) {
-			dprintf("cbuf_memcpy_to_chain: end of chain reached too early!\n");
+			TRACEF("end of chain reached too early!\n");
 			return ERR_GENERAL;
 		}
-		to_copy = min(len, buf->len - buf_offset);
+		to_copy = MIN(len, buf->len - buf_offset);
 		if ((err = user_memcpy((char *)buf->data + buf_offset, src, to_copy) < 0))
 			break; // memory exception
 
@@ -466,7 +452,7 @@ int cbuf_user_memcpy_to_chain(cbuf *chain, size_t offset, const void *_src, size
 
 	return err;
 }
-
+#endif
 
 int cbuf_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t len)
 {
@@ -477,7 +463,7 @@ int cbuf_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t len)
 	validate_cbuf(chain);
 
 	if(len + offset > chain->total_len) {
-		dprintf("cbuf_memcpy_from_chain: len + offset > size of cbuf chain\n");
+		TRACEF("len + offset > size of cbuf chain\n");
 		return ERR_INVALID_ARGS;
 	}
 
@@ -486,7 +472,7 @@ int cbuf_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t len)
 	buf_offset = 0;
 	while(offset > 0) {
 		if(buf == NULL) {
-			dprintf("cbuf_memcpy_from_chain: end of chain reached too early!\n");
+			TRACEF("end of chain reached too early!\n");
 			return ERR_GENERAL;
 		}
 		if(offset < buf->len) {
@@ -502,11 +488,11 @@ int cbuf_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t len)
 		int to_copy;
 
 		if(buf == NULL) {
-			dprintf("cbuf_memcpy_from_chain: end of chain reached too early!\n");
+			TRACEF("end of chain reached too early!\n");
 			return ERR_GENERAL;
 		}
 
-		to_copy = min(len, buf->len - buf_offset);
+		to_copy = MIN(len, buf->len - buf_offset);
 		memcpy(dest, (char *)buf->data + buf_offset, to_copy);
 
 		buf_offset = 0;
@@ -518,6 +504,7 @@ int cbuf_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t len)
 	return NO_ERROR;
 }
 
+#if 0
 int cbuf_user_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t len)
 {
 	cbuf *buf;
@@ -528,7 +515,7 @@ int cbuf_user_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t 
 	validate_cbuf(chain);
 
 	if(len + offset > chain->total_len) {
-		dprintf("cbuf_memcpy_from_chain: len + offset > size of cbuf chain\n");
+		TRACEF("len + offset > size of cbuf chain\n");
 		return ERR_INVALID_ARGS;
 	}
 
@@ -537,7 +524,7 @@ int cbuf_user_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t 
 	buf_offset = 0;
 	while(offset > 0) {
 		if(buf == NULL) {
-			dprintf("cbuf_memcpy_from_chain: end of chain reached too early!\n");
+			TRACEF("end of chain reached too early!\n");
 			return ERR_GENERAL;
 		}
 		if(offset < buf->len) {
@@ -554,11 +541,11 @@ int cbuf_user_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t 
 		int to_copy;
 
 		if(buf == NULL) {
-			dprintf("cbuf_memcpy_from_chain: end of chain reached too early!\n");
+			TRACEF("end of chain reached too early!\n");
 			return ERR_GENERAL;
 		}
 
-		to_copy = min(len, buf->len - buf_offset);
+		to_copy = MIN(len, buf->len - buf_offset);
 		if ((err = user_memcpy(dest, (char *)buf->data + buf_offset, to_copy) < 0))
 			break;
 
@@ -570,6 +557,7 @@ int cbuf_user_memcpy_from_chain(void *_dest, cbuf *chain, size_t offset, size_t 
 
 	return err;
 }
+#endif
 
 cbuf *cbuf_duplicate_chain(cbuf *chain, size_t offset, size_t len, size_t leading_space)
 {
@@ -586,7 +574,7 @@ cbuf *cbuf_duplicate_chain(cbuf *chain, size_t offset, size_t len, size_t leadin
 
 	if(offset >= chain->total_len)
 		return NULL;
-	len = min(len, chain->total_len - offset);
+	len = MIN(len, chain->total_len - offset);
 
 	newbuf = cbuf_get_chain(len + leading_space);
 	if(!newbuf)
@@ -602,7 +590,7 @@ cbuf *cbuf_duplicate_chain(cbuf *chain, size_t offset, size_t len, size_t leadin
 	while(offset > 0) {
 		if(buf == NULL) {
 			cbuf_free_chain(newbuf);
-			dprintf("cbuf_duplicate_chain: end of chain reached too early!\n");
+			TRACEF("end of chain reached too early!\n");
 			return NULL;
 		}
 		if(offset < buf->len) {
@@ -621,17 +609,17 @@ cbuf *cbuf_duplicate_chain(cbuf *chain, size_t offset, size_t len, size_t leadin
 
 		if(buf == NULL) {
 			cbuf_free_chain(newbuf);
-			dprintf("cbuf_duplicate_chain: end of source chain reached too early!\n");
+			TRACEF("end of source chain reached too early!\n");
 			return NULL;
 		}
 		if(destbuf == NULL) {
 			cbuf_free_chain(newbuf);
-			dprintf("cbuf_duplicate_chain: end of destination chain reached too early!\n");
+			TRACEF("end of destination chain reached too early!\n");
 			return NULL;
 		}
 
-		to_copy = min(destbuf->len - dest_buf_offset, buf->len - buf_offset);
-		to_copy = min(to_copy, len);
+		to_copy = MIN(destbuf->len - dest_buf_offset, buf->len - buf_offset);
+		to_copy = MIN(to_copy, len);
 		memcpy((char *)destbuf->data + dest_buf_offset, (char *)buf->data + buf_offset, to_copy);
 
 		len -= to_copy;
@@ -736,7 +724,7 @@ int cbuf_is_contig_region(cbuf *buf, size_t start, size_t end)
 	return 0;
 }
 
-static uint16 _cbuf_ones_cksum16(cbuf *buf, size_t offset, size_t len, uint16 sum)
+static uint16_t _cbuf_ones_cksum16(cbuf *buf, size_t offset, size_t len, uint16_t sum)
 {
 	int swapped = 0;
 
@@ -758,7 +746,7 @@ static uint16 _cbuf_ones_cksum16(cbuf *buf, size_t offset, size_t len, uint16 su
 	// start checksumming
 	while(buf && len > 0) {
 		void *ptr = (void *)((addr_t)buf->data + offset);
-		size_t plen = min(len, buf->len - offset);
+		size_t plen = MIN(len, buf->len - offset);
 
 		sum = ones_sum16(sum, ptr, plen);
 
@@ -780,14 +768,14 @@ static uint16 _cbuf_ones_cksum16(cbuf *buf, size_t offset, size_t len, uint16 su
 	return sum;
 }
 
-uint16 cbuf_ones_cksum16(cbuf *chain, size_t offset, size_t len)
+uint16_t cbuf_ones_cksum16(cbuf *chain, size_t offset, size_t len)
 {
 	return ~_cbuf_ones_cksum16(chain, offset, len, 0);
 }
 
-uint16 cbuf_ones_cksum16_2(cbuf *chain, size_t offset, size_t len, void *buf, size_t buf_len)
+uint16_t cbuf_ones_cksum16_2(cbuf *chain, size_t offset, size_t len, void *buf, size_t buf_len)
 {
-	uint16 sum = ones_sum16(0, buf, buf_len);
+	uint16_t sum = ones_sum16(0, buf, buf_len);
 	return ~_cbuf_ones_cksum16(chain, offset, len, sum);
 }
 
@@ -799,13 +787,13 @@ cbuf *cbuf_truncate_head(cbuf *buf, size_t trunc_bytes, bool free_unused)
 	if(!buf)
 		return head;
 
-	//dprintf("cbuf_truncate_head - buf: total_len: %d, len: %d\n", buf->total_len, buf->len);
+	//LTRACEF("buf: total_len: %d, len: %d\n", buf->total_len, buf->len);
 	validate_cbuf(buf);
 
 	while(buf && trunc_bytes > 0) {
 		int to_trunc;
 
-		to_trunc = min(trunc_bytes, buf->len);
+		to_trunc = MIN(trunc_bytes, buf->len);
 
 		buf->len -= to_trunc;
 		buf->data = (void *)((int)buf->data + to_trunc);
@@ -833,7 +821,7 @@ cbuf *cbuf_truncate_head(cbuf *buf, size_t trunc_bytes, bool free_unused)
 		buf->total_len = head->total_len;
 		buf->flags |= CBUF_FLAG_CHAIN_HEAD;
 		buf->packet_next = head->packet_next;
-		//dprintf("cbuf_truncate_head - new buf: total_len: %d, len: %d\n", buf->total_len, buf->len);
+		//LTRACEF("new buf: total_len: %d, len: %d\n", buf->total_len, buf->len);
 	}
 	
 	cbuf_free_chain(head);
@@ -915,7 +903,7 @@ int cbuf_extend_head(cbuf **_buf, size_t extend_bytes)
 		ASSERT((addr_t)buf->data - (addr_t)buf->dat < sizeof(buf->dat));
 
 		available = (addr_t)buf->data - (addr_t)buf->dat;
-		to_extend = min(available, extend_bytes);
+		to_extend = MIN(available, extend_bytes);
 
 		buf->len += to_extend;
 		buf->data = (void *)((addr_t)buf->data - to_extend);
@@ -974,7 +962,7 @@ int cbuf_extend_tail(cbuf *head, size_t extend_bytes)
 	available = sizeof(temp->dat) - (temp->len + ((addr_t)temp->data - (addr_t)temp->dat));
 	if(available > 0) {
 		// we can extend by adding
-		size_t extend_by = min(available, extend_bytes);
+		size_t extend_by = MIN(available, extend_bytes);
 
 		temp->len += extend_by;
 		head->total_len += extend_by;
@@ -1002,15 +990,15 @@ static void dbg_dump_cbuf_freelists(int argc, char **argv)
 {
 	cbuf *buf;
 
-	dprintf("cbuf_free_list:\n");
+	printf("cbuf_free_list:\n");
 	for(buf = cbuf_free_list; buf; buf = buf->next)
-		dprintf("%p ", buf);
-	dprintf("\n");
+		printf("%p ", buf);
+	printf("\n");
 
-	dprintf("cbuf_free_noblock_list:\n");
+	printf("cbuf_free_noblock_list:\n");
 	for(buf = cbuf_free_noblock_list; buf; buf = buf->next)
-		dprintf("%p ", buf);
-	dprintf("\n");
+		printf("%p ", buf);
+	printf("\n");
 }
 
 void cbuf_test()
@@ -1019,7 +1007,7 @@ void cbuf_test()
 	char temp[1024];
 	unsigned int i;
 
-	dprintf("starting cbuffer test\n");
+	printf("starting cbuffer test\n");
 
 	buf = cbuf_get_chain(32);
 	if(!buf)
@@ -1033,13 +1021,13 @@ void cbuf_test()
 
 	cbuf_free_chain(buf);
 
-	dprintf("allocating too much...\n");
+	printf("allocating too much...\n");
 
 	buf = cbuf_get_chain(128*1024*1024);
 	if(buf)
 		panic("cbuf_test: should have failed to allocate 128mb\n");
 
-	dprintf("touching memory allocated by cbuf\n");
+	printf("touching memory allocated by cbuf\n");
 
 	buf = cbuf_get_chain(7*1024*1024);
 	if(!buf)
@@ -1048,48 +1036,29 @@ void cbuf_test()
 	for(i=0; i < sizeof(temp); i++)
 		temp[i] = i;
 	for(i=0; i<7*1024*1024 / sizeof(temp); i++) {
-		if(i % 128 == 0) dprintf("%Lud\n", (long long)(i*sizeof(temp)));
+		if(i % 128 == 0) printf("%Lud\n", (long long)(i*sizeof(temp)));
 		cbuf_memcpy_to_chain(buf, i*sizeof(temp), temp, sizeof(temp));
 	}
 	cbuf_free_chain(buf);
 
-	dprintf("finished cbuffer test\n");
+	printf("finished cbuffer test\n");
 }
 
 int cbuf_init()
 {
 	cbuf *buf;
 	int i;
-	int err;
 
 	cbuf_free_list = NULL;
 	cbuf_free_noblock_list = NULL;
-	noblock_spin = 0;
-	cbuf_lowlevel_spinlock = 0;
 
 	// add the debug command
-	dbg_add_command(&dbg_dump_cbuf_freelists, "cbuf_freelist", "Dumps the cbuf free lists");
+//	dbg_add_command(&dbg_dump_cbuf_freelists, "cbuf_freelist", "Dumps the cbuf free lists");
 
-	err = mutex_init(&cbuf_free_list_lock, "cbuf_free_list_lock");
-	if(err < 0) {
-		panic("cbuf_init: error creating cbuf_free_list_lock\n");
-		return ERR_NO_MEMORY;
-	}
+	mutex_init(&cbuf_free_list_lock);
 
-	cbuf_region_id = vm_create_anonymous_region(vm_get_kernel_aspace_id(), "cbuf region",
-		(void **)&cbuf_region, REGION_ADDR_ANY_ADDRESS, CBUF_REGION_SIZE, REGION_WIRING_LAZY, LOCK_RW|LOCK_KERNEL);
-	if(cbuf_region_id < 0) {
-		panic("cbuf_init: error creating cbuf region\n");
-		return ERR_NO_MEMORY;
-	}
-
-	cbuf_bitmap_region_id = vm_create_anonymous_region(vm_get_kernel_aspace_id(), "cbuf bitmap region",
-		(void **)&cbuf_bitmap, REGION_ADDR_ANY_ADDRESS,
-		CBUF_BITMAP_SIZE / 8, REGION_WIRING_WIRED, LOCK_RW|LOCK_KERNEL);
-	if(cbuf_region_id < 0) {
-		panic("cbuf_init: error creating cbuf bitmap region\n");
-		return ERR_NO_MEMORY;
-	}
+	cbuf_region = malloc(CBUF_REGION_SIZE);
+	cbuf_bitmap = malloc(CBUF_BITMAP_SIZE / 8);
 
 	// initialize the bitmap
 	for(i=0; i<CBUF_BITMAP_SIZE/8; i++)

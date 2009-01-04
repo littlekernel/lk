@@ -24,13 +24,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _NEWOS_KERNEL_NET_SOCKET_H
-#define _NEWOS_KERNEL_NET_SOCKET_H
+#ifndef _LIB_NET_SOCKET_H
+#define _LIB_NET_SOCKET_H
 
-#include <kernel/net/net.h>
-#include <newos/net.h>
+#include <stdint.h>
+#include <lib/net.h>
 
-typedef int32 sock_id;
+typedef int32_t sock_id;
 
 int socket_init(void);
 sock_id socket_create(int type, int flags);

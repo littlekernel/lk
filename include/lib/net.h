@@ -24,16 +24,54 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _NEWOS_KERNEL_NET_NET_H
-#define _NEWOS_KERNEL_NET_NET_H
+#ifndef _LIB_NET_NET_H
+#define _LIB_NET_NET_H
 
-#include <boot/stage2.h>
-#include <newos/net.h>
+#include <stdint.h>
 
-int net_init(kernel_args *ka);
-int net_init_postdev(kernel_args *ka);
+int net_init(void);
+int net_init_postdev(void);
 
 #define NET_CHATTY 0
+
+/* common net stuff */
+typedef struct netaddr {
+	uint8_t len;
+	uint8_t type;
+	uint8_t pad0;
+	uint8_t pad1;
+	uint8_t addr[12];
+} netaddr;
+
+enum {
+	SOCK_PROTO_NULL = 0,
+	SOCK_PROTO_UDP,
+	SOCK_PROTO_TCP
+};
+
+enum {
+	ADDR_TYPE_NULL = 0,
+	ADDR_TYPE_ETHERNET,
+	ADDR_TYPE_IP
+};
+
+#define SOCK_FLAG_TIMEOUT 1
+
+typedef struct sockaddr {
+	netaddr addr;
+	int port;
+} sockaddr;
+
+enum {
+	IP_PROT_ICMP = 1,
+	IP_PROT_TCP = 6,
+	IP_PROT_UDP = 17,
+};
+
+typedef uint32_t ipv4_addr;
+#define NETADDR_TO_IPV4(naddr) (*(ipv4_addr *)(&((&(naddr))->addr[0])))
+#define IPV4_DOTADDR_TO_ADDR(a, b, c, d) \
+	(((ipv4_addr)(a) << 24) | (((ipv4_addr)(b) & 0xff) << 16) | (((ipv4_addr)(c) & 0xff) << 8) | ((ipv4_addr)(d) & 0xff))
 
 #endif
 

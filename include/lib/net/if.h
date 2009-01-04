@@ -24,15 +24,16 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _NEWOS_KERNEL_NET_IF_H
-#define _NEWOS_KERNEL_NET_IF_H
+#ifndef _LIB_NET_IF_H
+#define _LIB_NET_IF_H
 
-#include <newos/types.h>
-#include <kernel/cbuf.h>
-#include <kernel/queue.h>
-#include <kernel/lock.h>
-#include <kernel/net/net.h>
-#include <newos/defines.h>
+#include <sys/types.h>
+#include <lib/net.h>
+#include <lib/net/cbuf.h>
+#include <lib/net/queue.h>
+#include <kernel/thread.h>
+#include <kernel/mutex.h>
+#include <kernel/event.h>
 
 typedef struct ifaddr {
 	struct ifaddr *next;
@@ -53,21 +54,21 @@ typedef int if_id;
 typedef struct ifnet {
 	struct ifnet *next;
 	if_id id;
-	char path[SYS_MAX_PATH_LEN];
+//	char path[SYS_MAX_PATH_LEN];
 	int type;
 	int fd;
-	thread_id rx_thread;
-	thread_id tx_thread;
+	thread_t *rx_thread;
+	thread_t *tx_thread;
 	ifaddr *addr_list;
 	ifaddr *link_addr;
 	size_t mtu;
 	int (*link_input)(cbuf *buf, struct ifnet *i);
 	int (*link_output)(cbuf *buf, struct ifnet *i, netaddr *target, int protocol_type);
-	sem_id tx_queue_sem;
-	mutex tx_queue_lock;
+	event_t tx_queue_event;
+	mutex_t tx_queue_lock;
 	fixed_queue tx_queue;
-	uint8 tx_buf[2048];
-	uint8 rx_buf[2048];
+	uint8_t tx_buf[2048];
+	uint8_t rx_buf[2048];
 } ifnet;
 
 int if_init(void);

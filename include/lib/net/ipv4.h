@@ -24,18 +24,19 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _NEWOS_KERNEL_NET_IPV4_H
-#define _NEWOS_KERNEL_NET_IPV4_H
+#ifndef _LIB_NET_IPV4_H
+#define _LIB_NET_IPV4_H
 
-#include <kernel/net/if.h>
-#include <kernel/cbuf.h>
-#include <newos/net.h>
+#include <stdint.h>
+#include <lib/net.h>
+#include <lib/net/if.h>
+#include <lib/net/cbuf.h>
 
 int ipv4_route_add(ipv4_addr network_addr, ipv4_addr netmask, ipv4_addr if_addr, if_id interface_num);
 int ipv4_route_add_gateway(ipv4_addr network_addr, ipv4_addr netmask, ipv4_addr if_addr, if_id interface_num, ipv4_addr gw_addr);
 
 int ipv4_lookup_srcaddr_for_dest(ipv4_addr dest_addr, ipv4_addr *src_addr);
-int ipv4_get_mss_for_dest(ipv4_addr dest_addr, uint32 *mss);
+int ipv4_get_mss_for_dest(ipv4_addr dest_addr, uint32_t *mss);
 
 int ipv4_input(cbuf *buf, ifnet *i);
 int ipv4_output(cbuf *buf, ipv4_addr target_addr, int protocol);

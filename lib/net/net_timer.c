@@ -24,73 +24,53 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/thread.h>
-#include <kernel/sem.h>
-#include <kernel/lock.h>
-#include <kernel/time.h>
-#include <kernel/net/net_timer.h>
+#include <debug.h>
 #include <string.h>
+#include <err.h>
+#include <list.h>
+#include <kernel/thread.h>
+#include <kernel/mutex.h>
+#include <kernel/event.h>
+#include <lib/net/net_timer.h>
+#include <platform.h>
 
-#define NET_TIMER_INTERVAL 200000 // 200 ms
+#define NET_TIMER_INTERVAL 200 // 200 ms
 
 typedef struct {
-	net_timer_event *next;
-	net_timer_event *prev;
+	struct list_node list;
 
-	mutex  lock;
-	sem_id wait_sem;
+	mutex_t lock;
 
-	thread_id runner_thread;
+	thread_t *runner_thread;
 } net_timer_queue;
 
 static net_timer_queue net_q;
 
 static void add_to_queue(net_timer_event *e)
 {
-	net_timer_event *tmp = (net_timer_event *)net_q.next;
-	net_timer_event *last = (net_timer_event *)&net_q;
+	net_timer_event *tmp;
 
-	while(tmp != (net_timer_event *)&net_q) {
-		if(tmp->sched_time > e->sched_time)
-			break;
-		last = tmp;
-		tmp = tmp->next;
+	list_for_every_entry(&net_q.list, tmp, net_timer_event, node) {
+		if(tmp->sched_time > e->sched_time) {
+			// put it here
+			list_add_before(&e->node, &tmp->node);
+			return;
+		}
 	}
 
-	// add it to the list here
-	e->next = tmp;
-	e->prev = last;
-	last->next = e;
-	tmp->prev = e;
-}
-
-static void remove_from_queue(net_timer_event *e)
-{
-	e->prev->next = e->next;
-	e->next->prev = e->prev;
-	e->prev = e->next = NULL;
-}
-
-static net_timer_event *peek_queue_head(void)
-{
-	net_timer_event *e = NULL;
-
-	if(net_q.next != (net_timer_event *)&net_q)
-		e = net_q.next;
-
-	return e;
+	// walked off the end of the list
+	list_add_tail(&net_q.list, &e->node);
 }
 
 int set_net_timer(net_timer_event *e, unsigned int delay_ms, net_timer_callback callback, void *args, int flags)
 {
 	int err = NO_ERROR;
 
-	mutex_lock(&net_q.lock);
+	mutex_acquire(&net_q.lock);
 
 	if(e->pending) {
 		if(flags & NET_TIMER_PENDING_IGNORE) {
-			err = ERR_GENERAL;
+			err = ERROR;
 			goto out;
 		}
 		cancel_net_timer(e);
@@ -99,13 +79,13 @@ int set_net_timer(net_timer_event *e, unsigned int delay_ms, net_timer_callback 
 	// set up the timer
 	e->func = callback;
 	e->args = args;
-	e->sched_time = system_time() + delay_ms * 1000;
+	e->sched_time = current_time() + delay_ms;
 	e->pending = true;
 
 	add_to_queue(e);
 
 out:
-	mutex_unlock(&net_q.lock);
+	mutex_release(&net_q.lock);
 
 	return err;
 }
@@ -114,18 +94,18 @@ int cancel_net_timer(net_timer_event *e)
 {
 	int err = NO_ERROR;
 
-	mutex_lock(&net_q.lock);
+	mutex_acquire(&net_q.lock);
 
 	if(!e->pending) {
-		err = ERR_GENERAL;
+		err = ERROR;
 		goto out;
 	}
 
-	remove_from_queue(e);
+	list_delete(&e->node);
 	e->pending = false;
 
 out:
-	mutex_unlock(&net_q.lock);
+	mutex_release(&net_q.lock);
 
 	return err;
 }
@@ -136,20 +116,20 @@ static int net_timer_runner(void *arg)
 	bigtime_t now;
 
 	for(;;) {
-		sem_acquire_etc(net_q.wait_sem, 1, SEM_FLAG_TIMEOUT, NET_TIMER_INTERVAL, NULL);
+		thread_sleep(NET_TIMER_INTERVAL);
 
-		now = system_time();
+		now = current_time();
 
 retry:
-		mutex_lock(&net_q.lock);
+		mutex_acquire(&net_q.lock);
 
 		// pull off the head of the list and run it, if it timed out
-		if((e = peek_queue_head()) != NULL && e->sched_time <= now) {
+		if((e = list_peek_head_type(&net_q.list, net_timer_event, node)) != NULL && e->sched_time <= now) {
 
-			remove_from_queue(e);
+			list_delete(&e->node);
 			e->pending = false;
 
-			mutex_unlock(&net_q.lock);
+			mutex_release(&net_q.lock);
 
 			e->func(e->args);
 
@@ -159,7 +139,7 @@ retry:
 			goto retry;
 			
 		} else {
-			mutex_unlock(&net_q.lock);
+			mutex_release(&net_q.lock);
 		}
 	}
 
@@ -168,27 +148,12 @@ retry:
 
 int net_timer_init(void)
 {
-	int err;
+	list_initialize(&net_q.list);
 
-	net_q.next = net_q.prev = (net_timer_event *)&net_q;
+	mutex_init(&net_q.lock);
 
-	err = mutex_init(&net_q.lock, "net timer mutex");
-	if(err < 0)
-		return err;
-
-	net_q.wait_sem = sem_create(0, "net timer wait sem");
-	if(net_q.wait_sem < 0) {
-		mutex_destroy(&net_q.lock);
-		return net_q.wait_sem;
-	}
-
-	net_q.runner_thread = thread_create_kernel_thread("net timer runner", &net_timer_runner, NULL);
-	if(net_q.runner_thread < 0) {
-		sem_delete(net_q.wait_sem);
-		mutex_destroy(&net_q.lock);
-		return net_q.runner_thread;
-	}
-	thread_resume_thread(net_q.runner_thread);
+	net_q.runner_thread = thread_create("net timer runner", &net_timer_runner, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	thread_resume(net_q.runner_thread);
 
 	return 0;
 }

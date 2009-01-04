@@ -2,14 +2,34 @@
 ** Copyright 2001, Travis Geiselbrecht. All rights reserved.
 ** Distributed under the terms of the NewOS License.
 */
-#include <kernel/heap.h>
-#include <kernel/khash.h>
-#include <kernel/debug.h>
-#include <newos/errors.h>
+/*
+ * Copyright (c) 2008 Travis Geiselbrecht
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files
+ * (the "Software"), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge,
+ * publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include <debug.h>
+#include <stdlib.h>
 #include <string.h>
-
-#define malloc kmalloc
-#define free kfree
+#include <err.h>
+#include <compiler.h>
+#include <lib/net/hash.h>
 
 #define VERIFY_TABLE 0
 
@@ -276,15 +296,15 @@ void hash_dump(void *_hash_table)
 	struct hash_table *t = _hash_table;
 	unsigned int i;
 
-	dprintf("hash table dump of table at %p\n", t);
-	dprintf("\tnext_ptr_offset %d\n", t->next_ptr_offset);
-	dprintf("\ttable_size %d\n", t->table_size);
-	dprintf("\tnum_elems %d\n", t->num_elems);
-	dprintf("\tflags 0x%x\n", t->flags);
-	dprintf("\tcompare %p hash %p\n", t->compare_func, t->hash_func);
-	dprintf("\ttable %p:\n", t->table);
+	printf("hash table dump of table at %p\n", t);
+	printf("\tnext_ptr_offset %d\n", t->next_ptr_offset);
+	printf("\ttable_size %d\n", t->table_size);
+	printf("\tnum_elems %d\n", t->num_elems);
+	printf("\tflags 0x%x\n", t->flags);
+	printf("\tcompare %p hash %p\n", t->compare_func, t->hash_func);
+	printf("\ttable %p:\n", t->table);
 	for(i = 0; i < t->table_size; i++) {
-		dprintf("\t\t%p\n", t->table[i]);
+		printf("\t\t%p\n", t->table[i]);
 	}
 }
 

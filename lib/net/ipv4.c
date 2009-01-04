@@ -24,35 +24,33 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/debug.h>
-#include <kernel/lock.h>
-#include <kernel/heap.h>
-#include <kernel/khash.h>
-#include <kernel/time.h>
-#include <kernel/arch/cpu.h>
-#include <kernel/net/misc.h>
-#include <kernel/net/ethernet.h>
-#include <kernel/net/ipv4.h>
-#include <kernel/net/icmp.h>
-#include <kernel/net/udp.h>
-#include <kernel/net/tcp.h>
-#include <kernel/net/arp.h>
-#include <kernel/net/net_timer.h>
+#include <debug.h>
+#include <stdlib.h>
 #include <string.h>
+#include <err.h>
+#include <compiler.h>
+#include <lib/net/misc.h>
+#include <lib/net/ethernet.h>
+#include <lib/net/ipv4.h>
+#include <lib/net/icmp.h>
+#include <lib/net/udp.h>
+#include <lib/net/tcp.h>
+#include <lib/net/arp.h>
+#include <lib/net/net_timer.h>
+#include <lib/net/hash.h>
 
 typedef struct ipv4_header {
-	uint8 version_length;
-	uint8 tos;
-	uint16 total_length;
-	uint16 identification;
-	uint16 flags_frag_offset;
-	uint8 ttl;
-	uint8 protocol;
-	uint16 header_checksum;
+	uint8_t version_length;
+	uint8_t tos;
+	uint16_t total_length;
+	uint16_t identification;
+	uint16_t flags_frag_offset;
+	uint8_t ttl;
+	uint8_t protocol;
+	uint16_t header_checksum;
 	ipv4_addr src;
 	ipv4_addr dest;
-} _PACKED ipv4_header;
+} __PACKED ipv4_header;
 
 #define IPV4_FLAG_MORE_FRAGS   0x2000
 #define IPV4_FLAG_MAY_NOT_FRAG 0x4000
@@ -72,40 +70,40 @@ typedef struct ipv4_routing_entry {
 
 // routing table
 static ipv4_routing_entry *route_table;
-static mutex route_table_mutex;
+static mutex_t route_table_mutex;
 
 typedef struct ipv4_fragment {
 	struct ipv4_fragment *hash_next;
 	struct ipv4_fragment *frag_next;
 	cbuf *buf;
-	uint16 offset;
-	uint16 len;
-	bigtime_t entry_time;
-	uint16 total_len;
+	uint16_t offset;
+	uint16_t len;
+	time_t entry_time;
+	uint16_t total_len;
 	// copied from the header, enough data to uniquely identify the frag
 	ipv4_addr src;
 	ipv4_addr dest;
-	uint16 identification;
-	uint8 protocol;
+	uint16_t identification;
+	uint8_t protocol;
 } ipv4_fragment;
 
 typedef struct ipv4_fragment_key {
 	ipv4_addr src;
 	ipv4_addr dest;
-	uint16 identification;
-	uint8 protocol;
+	uint16_t identification;
+	uint8_t protocol;
 } ipv4_fragment_key;
 
 // current ip identification number
-static uint32 curr_identification;
+static uint32_t curr_identification;
 
 // fragment hash table
 static void *frag_table;
-static mutex frag_table_mutex;
+static mutex_t frag_table_mutex;
 static net_timer_event frag_killer_event;
 
 #define FRAG_KILLER_QUANTUM 5000 /* 5 secs */
-#define MAX_FRAG_AGE 60000000 /* 1 min */
+#define MAX_FRAG_AGE 60000 /* 1 min */
 
 static int frag_compare_func(void *_frag, const void *_key)
 {
@@ -135,19 +133,19 @@ static unsigned int frag_hash_func(void *_frag, const void *_key, unsigned int r
 // expects hosts order
 void dump_ipv4_addr(ipv4_addr addr)
 {
-	uint8 *nuaddr = (uint8 *)&addr;
+	uint8_t *nuaddr = (uint8_t *)&addr;
 
-	dprintf("%d.%d.%d.%d", nuaddr[3], nuaddr[2], nuaddr[1], nuaddr[0]);
+	printf("%d.%d.%d.%d", nuaddr[3], nuaddr[2], nuaddr[1], nuaddr[0]);
 }
 
 static void dump_ipv4_header(ipv4_header *head)
 {
 #if NET_CHATTY
-	dprintf("ipv4 header: src ");
+	printf("ipv4 header: src ");
 	dump_ipv4_addr(ntohl(head->src));
-	dprintf(" dest ");
+	printf(" dest ");
 	dump_ipv4_addr(ntohl(head->dest));
-	dprintf(" prot %d, cksum 0x%x, len 0x%x, ident 0x%x, frag offset 0x%x\n",
+	printf(" prot %d, cksum 0x%x, len 0x%x, ident 0x%x, frag offset 0x%x\n",
 		head->protocol, ntohs(head->header_checksum), ntohs(head->total_length), ntohs(head->identification), ntohs(head->flags_frag_offset) & 0x1fff);
 #endif
 }
@@ -157,11 +155,11 @@ static void ipv4_frag_killer(void *unused)
 	struct hash_iterator i;
 	ipv4_fragment *frag, *last;
 	ipv4_fragment *free_list = NULL;
-	bigtime_t now = system_time();
+	time_t now = current_time();
 
 	set_net_timer(&frag_killer_event, FRAG_KILLER_QUANTUM, &ipv4_frag_killer, NULL, 0);
 
-	mutex_lock(&frag_table_mutex);
+	mutex_acquire(&frag_table_mutex);
 
 	// cycle through the list, searching for a chain that's older than the max age
 	hash_open(frag_table, &i);
@@ -178,7 +176,7 @@ static void ipv4_frag_killer(void *unused)
 		}
 	}
 
-	mutex_unlock(&frag_table_mutex);
+	mutex_release(&frag_table_mutex);
 
 	// erase the frags we scheduled to be killed
 	while(free_list) {
@@ -192,7 +190,7 @@ static void ipv4_frag_killer(void *unused)
 
 			// kill last
 			cbuf_free_chain(last->buf);
-			kfree(last);
+			free(last);
 		}
 	}
 }
@@ -208,7 +206,7 @@ static int ipv4_route_add_etc(ipv4_addr network_addr, ipv4_addr netmask, ipv4_ad
 		return ERR_INVALID_ARGS;
 	}
 
-	e = kmalloc(sizeof(ipv4_routing_entry));
+	e = malloc(sizeof(ipv4_routing_entry));
 	if(!e)
 		return ERR_NO_MEMORY;
 
@@ -219,7 +217,7 @@ static int ipv4_route_add_etc(ipv4_addr network_addr, ipv4_addr netmask, ipv4_ad
 	e->interface_id = interface_num;
 	e->flags = flags;
 
-	mutex_lock(&route_table_mutex);
+	mutex_acquire(&route_table_mutex);
 
 	// add it to the list, sorted by netmask 'completeness'
 	last = NULL;
@@ -236,7 +234,7 @@ static int ipv4_route_add_etc(ipv4_addr network_addr, ipv4_addr netmask, ipv4_ad
 		route_table = e;
 	e->next = temp;
 
-	mutex_unlock(&route_table_mutex);
+	mutex_release(&route_table_mutex);
 
 	return NO_ERROR;
 }
@@ -258,7 +256,7 @@ static int ipv4_route_match(ipv4_addr ip_addr, if_id *interface_num, ipv4_addr *
 	int err;
 
 	// walk through the routing table, finding the last entry to match
-	mutex_lock(&route_table_mutex);
+	mutex_acquire(&route_table_mutex);
 	for(e = route_table; e; e = e->next) {
 		ipv4_addr masked_addr = ip_addr & e->netmask;
 		if(masked_addr == e->network_addr)
@@ -280,7 +278,7 @@ static int ipv4_route_match(ipv4_addr ip_addr, if_id *interface_num, ipv4_addr *
 		*if_addr = 0;
 		err = ERR_NET_NO_ROUTE;
 	}
-	mutex_unlock(&route_table_mutex);
+	mutex_release(&route_table_mutex);
 
 	return err;
 }
@@ -293,7 +291,7 @@ int ipv4_lookup_srcaddr_for_dest(ipv4_addr dest_addr, ipv4_addr *src_addr)
 	return ipv4_route_match(dest_addr, &id, &target_addr, src_addr);
 }
 
-int ipv4_get_mss_for_dest(ipv4_addr dest_addr, uint32 *mss)
+int ipv4_get_mss_for_dest(ipv4_addr dest_addr, uint32_t *mss)
 {
 	if_id id;
 	ifnet *i;
@@ -340,15 +338,15 @@ int ipv4_output(cbuf *buf, ipv4_addr target_addr, int protocol)
 	ipv4_addr transmit_addr;
 	ipv4_addr if_addr;
 	int err;
-	uint16 len;
-	uint16 curr_offset;
-	uint16 identification;
+	uint16_t len;
+	uint16_t curr_offset;
+	uint16_t identification;
 	bool must_frag = false;
 
 #if NET_CHATTY
-	dprintf("ipv4_output: buf %p, target_addr ", buf);
+	printf("ipv4_output: buf %p, target_addr ", buf);
 	dump_ipv4_addr(target_addr);
-	dprintf(", protocol %d, len %d\n", protocol, cbuf_get_len(buf));
+	printf(", protocol %d, len %d\n", protocol, cbuf_get_len(buf));
 #endif
 
 	// figure out what interface we will send this over
@@ -368,15 +366,15 @@ int ipv4_output(cbuf *buf, ipv4_addr target_addr, int protocol)
 	if(len + sizeof(ipv4_header) > i->mtu)
 		must_frag = true;
 
-//	dprintf("did route match, result iid %d, i 0x%x, transmit_addr 0x%x, if_addr 0x%x\n", iid, i, transmit_addr, if_addr);
+//	LTRACEF("did route match, result iid %d, i 0x%x, transmit_addr 0x%x, if_addr 0x%x\n", iid, i, transmit_addr, if_addr);
 
 	identification = atomic_add(&curr_identification, 1);
 	identification = htons(identification);
 
 	curr_offset = 0;
 	while(len > 0) {
-		uint16 packet_len;
-		uint16 header_len;
+		uint16_t packet_len;
+		uint16_t header_len;
 		cbuf *send_buf;
 
 		header_len = sizeof(ipv4_header);
@@ -387,9 +385,9 @@ int ipv4_output(cbuf *buf, ipv4_addr target_addr, int protocol)
 		}
 		header = cbuf_get_ptr(header_buf, 0);
 
-		packet_len = min(i->mtu, (unsigned)(len + header_len));
+		packet_len = MIN(i->mtu, (unsigned)(len + header_len));
 		if(packet_len == i->mtu)
-			packet_len = ROUNDOWN(packet_len - header_len, 8) + header_len;
+			packet_len = ROUNDDOWN(packet_len - header_len, 8) + header_len;
 
 		header->version_length = 0x4 << 4 | 5;
 		header->tos = 0;
@@ -426,7 +424,7 @@ int ipv4_output(cbuf *buf, ipv4_addr target_addr, int protocol)
 			// and the rest of the work will be done via the arp callback
 		} else if(err < 0) {
 	#if NET_CHATTY
-			dprintf("ipv4_output: failed arp lookup\n");
+			TRACEF("failed arp lookup\n");
 	#endif
 			cbuf_free_chain(send_buf);
 		} else {
@@ -445,12 +443,12 @@ int ipv4_output(cbuf *buf, ipv4_addr target_addr, int protocol)
 	return err;
 }
 
-static ipv4_fragment *ipv4_create_frag_struct(ipv4_fragment_key *key, cbuf *buf, uint16 offset, uint16 len, bool last_frag)
+static ipv4_fragment *ipv4_create_frag_struct(ipv4_fragment_key *key, cbuf *buf, uint16_t offset, uint16_t len, bool last_frag)
 {
 	ipv4_fragment *frag;
 
 	// create a new frag
-	frag = kmalloc(sizeof(ipv4_fragment));
+	frag = malloc(sizeof(ipv4_fragment));
 	if(!frag)
 		return NULL;
 
@@ -459,7 +457,7 @@ static ipv4_fragment *ipv4_create_frag_struct(ipv4_fragment_key *key, cbuf *buf,
 	frag->buf = buf;
 	frag->offset = offset;
 	frag->len = len;
-	frag->entry_time = system_time();
+	frag->entry_time = current_time();
 	frag->src = key->src;
 	frag->dest = key->dest;
 	frag->identification = key->identification;
@@ -482,14 +480,14 @@ static int ipv4_process_frag(cbuf *inbuf, ifnet *i, cbuf **outbuf)
 	ipv4_fragment *frag;
 	ipv4_fragment *temp;
 	ipv4_fragment *last;
-	uint16 offset;
-	uint16 len;
+	uint16_t offset;
+	uint16_t len;
 	bool last_frag;
 
 	*outbuf = NULL;
 
 #if NET_CHATTY
-	dprintf("ipv4_process_frag: inbuf %p, i %p, outbuf %p\n", inbuf, i, outbuf);
+	TRACEF("inbuf %p, i %p, outbuf %p\n", inbuf, i, outbuf);
 #endif
 	header = (ipv4_header *)cbuf_get_ptr(inbuf, 0);
 	offset = (ntohs(header->flags_frag_offset) & IPV4_FRAG_OFFSET_MASK) * 8;
@@ -503,11 +501,11 @@ static int ipv4_process_frag(cbuf *inbuf, ifnet *i, cbuf **outbuf)
 	key.protocol = header->protocol;
 
 #if NET_CHATTY
-	dprintf("ipv4_process_frag frag: src 0x%x dest 0x%x ident %d prot %d offset %d len %d last_frag %d\n",
+	TRACEF("src 0x%x dest 0x%x ident %d prot %d offset %d len %d last_frag %d\n",
 		key.src, key.dest, key.identification, key.protocol, offset, len, last_frag);
 #endif
 
-	mutex_lock(&frag_table_mutex);
+	mutex_acquire(&frag_table_mutex);
 
 	frag = hash_lookup(frag_table, &key);
 	if(frag) {
@@ -519,8 +517,8 @@ static int ipv4_process_frag(cbuf *inbuf, ifnet *i, cbuf **outbuf)
 		for(last = NULL, temp = frag; temp; last = temp, temp = temp->frag_next) {
 
 #if NET_CHATTY
-			dprintf("last %p, temp %p\n", last, temp);
-			dprintf("bad_frag %d, found_spot %d\n", bad_frag, found_spot);
+			TRACEF("last %p, temp %p\n", last, temp);
+			TRACEF("bad_frag %d, found_spot %d\n", bad_frag, found_spot);
 #endif
 
 			// if we haven't already found a spot, look for it, and make sure
@@ -550,7 +548,7 @@ static int ipv4_process_frag(cbuf *inbuf, ifnet *i, cbuf **outbuf)
 		// if we still hadn't found a spot, do a last check to see if it'll tack on
 		// to the end of the frag list properly
 #if NET_CHATTY
-		dprintf("out of loop: last %p, temp %p, found_spot %d, bad_frag %d\n", last, temp, found_spot, bad_frag);
+		TRACEF("out of loop: last %p, temp %p, found_spot %d, bad_frag %d\n", last, temp, found_spot, bad_frag);
 #endif
 		if(!found_spot) {
 			if(offset < last->offset + last->len) {
@@ -575,7 +573,7 @@ static int ipv4_process_frag(cbuf *inbuf, ifnet *i, cbuf **outbuf)
 
 done_frag_spot_search:
 		if(bad_frag) {
-			dprintf("ipv4_process_frag: received fragment is bad\n");
+			TRACEF("received fragment is bad\n");
 			cbuf_free_chain(inbuf);
 			err = ERR_NET_BAD_PACKET;
 			goto out;
@@ -631,7 +629,7 @@ done_frag_spot_search:
 
 				// delete the next frag structure
 				last->frag_next = temp->frag_next;
-				kfree(temp);
+				free(temp);
 			}
 		}
 
@@ -667,7 +665,7 @@ done_frag_spot_search:
 				*outbuf = frag->buf;
 				if(frag->frag_next)
 					panic("ipv4_process_frag: found completed frag but still has a chain! frag %p\n", frag);
-				kfree(frag);
+				free(frag);
 			}
 		}
 	} else {
@@ -686,7 +684,7 @@ done_frag_spot_search:
 	err= NO_ERROR;
 
 out:
-	mutex_unlock(&frag_table_mutex);
+	mutex_release(&frag_table_mutex);
 
 	return err;
 
@@ -697,7 +695,7 @@ int ipv4_input(cbuf *buf, ifnet *i)
 	int err;
 	ipv4_header *header;
 	ipv4_addr src, dest;
-	uint8 protocol;
+	uint8_t protocol;
 
 	header = (ipv4_header *)cbuf_get_ptr(buf, 0);
 
@@ -709,7 +707,7 @@ int ipv4_input(cbuf *buf, ifnet *i)
 	dump_ipv4_header(header);
 
 	if(((header->version_length >> 4) & 0xf) != 4) {
-		dprintf("ipv4 packet has bad version\n");
+		TRACEF("ipv4 packet has bad version\n");
 		err = ERR_NET_BAD_PACKET;
 		goto ditch_packet;
 	}
@@ -720,7 +718,7 @@ int ipv4_input(cbuf *buf, ifnet *i)
 	}
 
 	if(cksum16(header, (header->version_length & 0xf) * 4) != 0) {
-		dprintf("ipv4 packet failed cksum\n");
+		TRACEF("ipv4 packet failed cksum\n");
 		err = ERR_NET_BAD_PACKET;
 		goto ditch_packet;
 	}
@@ -741,7 +739,7 @@ int ipv4_input(cbuf *buf, ifnet *i)
 			}
 		}
 		if(!iaddr) {
-			dprintf("ipv4 packet for someone else\n");
+			TRACEF("ipv4 packet for someone else\n");
 			err = NO_ERROR;
 			goto ditch_packet;
 		}
@@ -750,11 +748,11 @@ int ipv4_input(cbuf *buf, ifnet *i)
 	// do some sanity checks and buffer trimming
 	{
 		size_t buf_len = cbuf_get_len(buf);
-		uint16 packet_len = ntohs(header->total_length);
+		uint16_t packet_len = ntohs(header->total_length);
 
 		// see if the packet is too short
 		if(buf_len < packet_len) {
-			dprintf("ipv4 packet too short (buf_len %ld, packet len %d)\n", buf_len, packet_len);
+			TRACEF("ipv4 packet too short (buf_len %ld, packet len %d)\n", buf_len, packet_len);
 			err = ERR_NET_BAD_PACKET;
 			goto ditch_packet;
 		}
@@ -801,7 +799,7 @@ int ipv4_input(cbuf *buf, ifnet *i)
 		case IP_PROT_UDP:
 			return udp_input(buf, i, src, dest);
 		default:
-			dprintf("ipv4_receive: packet with unknown protocol (%d)\n", protocol);
+			TRACEF("packet with unknown protocol (%d)\n", protocol);
 			err = ERR_NET_BAD_PACKET;
 			goto ditch_packet;
 	}
@@ -816,11 +814,11 @@ out:
 
 int ipv4_init(void)
 {
-	mutex_init(&route_table_mutex, "ipv4 routing table mutex");
-	mutex_init(&frag_table_mutex, "ipv4 fragment table mutex");
+	mutex_init(&route_table_mutex);
+	mutex_init(&frag_table_mutex);
 
 	route_table = NULL;
-	curr_identification = system_time();
+	curr_identification = current_time();
 
 	frag_table = hash_init(256, offsetof(ipv4_fragment, hash_next),
 		&frag_compare_func, &frag_hash_func);

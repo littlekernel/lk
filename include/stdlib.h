@@ -41,6 +41,13 @@ unsigned long atoul(const char *num);
 #define ROUNDUP(a, b) (((a) + ((b)-1)) & ~((b)-1))
 #define ROUNDDOWN(a, b) ((a) & ~((b)-1))
 
+#define ALIGN(a, x) ROUNDUP(a, x)
+#define PAGE_ALIGN(a) ROUNDUP(a, PAGE_SIZE)
+
+#define CHECK_BIT(a, b) ((a) & (1 << (b)))
+#define SET_BIT(a, b) ((a) | (1 << (b)))
+#define CLEAR_BIT(a, b) ((a) & (~(1 << (b))))
+
 /* allocate a buffer on the stack aligned and padded to the cpu's cache line size */
 #define STACKBUF_DMA_ALIGN(var, size) \
 	uint8_t __##var[(size) + CACHE_LINE]; uint8_t *var = (uint8_t *)(ROUNDUP((addr_t)__##var, CACHE_LINE))

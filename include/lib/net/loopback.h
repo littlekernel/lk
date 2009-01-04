@@ -24,11 +24,11 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _NEWOS_KERNEL_NET_LOOPBACK_H
-#define _NEWOS_KERNEL_NET_LOOPBACK_H
+#ifndef _LIB_NET_LOOPBACK_H
+#define _LIB_NET_LOOPBACK_H
 
-#include <kernel/net/if.h>
-#include <kernel/cbuf.h>
+#include <lib/net/if.h>
+#include <lib/net/cbuf.h>
 
 // not to be called directly, use the ifnet.link_output and link_input
 int loopback_input(cbuf *buf, ifnet *i);

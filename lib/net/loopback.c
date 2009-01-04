@@ -24,14 +24,16 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/debug.h>
-#include <kernel/cbuf.h>
-#include <kernel/heap.h>
-#include <kernel/net/loopback.h>
-#include <kernel/net/ethernet.h>
-#include <kernel/net/ipv4.h>
-#include <kernel/net/arp.h>
+#include <debug.h>
+#include <stdlib.h>
+#include <rand.h>
+#include <string.h>
+#include <err.h>
+#include <compiler.h>
+#include <lib/net/loopback.h>
+#include <lib/net/ethernet.h>
+#include <lib/net/ipv4.h>
+#include <lib/net/arp.h>
 
 static int _loopback_input(cbuf *buf, ifnet *i, int protocol_type)
 {
@@ -71,19 +73,21 @@ int loopback_init(void)
 	ifaddr *address;
 	int err;
 
+	return 0;
+
 	// set up an initial device
 	err = if_register_interface("loopback", &i);
 	if(err < 0)
 		return err;
 
-	address = kmalloc(sizeof(ifaddr));
+	address = malloc(sizeof(ifaddr));
 	address->addr.type = ADDR_TYPE_NULL;
 	address->broadcast.type = ADDR_TYPE_NULL;
 	address->netmask.type = ADDR_TYPE_NULL;
 	if_bind_link_address(i, address);
 
 	// set the ip address for this net interface
-	address = kmalloc(sizeof(ifaddr));
+	address = malloc(sizeof(ifaddr));
 	address->addr.len = 4;
 	address->addr.type = ADDR_TYPE_IP;
 	NETADDR_TO_IPV4(address->addr) = 0x7f000001; // 127.0.0.1

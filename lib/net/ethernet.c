@@ -24,27 +24,28 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/debug.h>
-#include <kernel/cbuf.h>
-#include <kernel/net/misc.h>
-#include <kernel/net/ethernet.h>
-#include <kernel/net/ipv4.h>
-#include <kernel/net/arp.h>
+#include <debug.h>
+#include <stdlib.h>
 #include <string.h>
+#include <err.h>
+#include <lib/net/cbuf.h>
+#include <lib/net/misc.h>
+#include <lib/net/ethernet.h>
+#include <lib/net/ipv4.h>
+#include <lib/net/arp.h>
 
 #define MIN_ETHERNET2_LEN 46
 
 typedef struct ethernet2_header {
 	ethernet_addr dest;
 	ethernet_addr src;
-	uint16 type;
+	uint16_t type;
 } ethernet2_header;
 
 void dump_ethernet_addr(ethernet_addr addr)
 {
 #if NET_CHATTY
-	dprintf("%x:%x:%x:%x:%x:%x",
+	printf("%x:%x:%x:%x:%x:%x",
 		addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
 #endif
 }
@@ -52,11 +53,11 @@ void dump_ethernet_addr(ethernet_addr addr)
 static void dump_ethernet_header(ethernet2_header *head)
 {
 #if NET_CHATTY
-	dprintf("ethernet 2 header: dest ");
+	printf("ethernet 2 header: dest ");
 	dump_ethernet_addr(head->dest);
-	dprintf(" src ");
+	printf(" src ");
 	dump_ethernet_addr(head->src);
-	dprintf(" type 0x%x\n", ntohs(head->type));
+	printf(" type 0x%x\n", ntohs(head->type));
 #endif
 }
 
@@ -64,7 +65,7 @@ int ethernet_input(cbuf *buf, ifnet *i)
 {
 	int err;
 	ethernet2_header *e2_head;
-	uint16 type;
+	uint16_t type;
 
 	if(cbuf_get_len(buf) < MIN_ETHERNET2_LEN)
 		return -1;
@@ -85,7 +86,7 @@ int ethernet_input(cbuf *buf, ifnet *i)
 			err = arp_input(buf, i);
 			break;
 		default:
-			dprintf("ethernet_receive: unknown ethernet type 0x%x\n", type);
+			TRACEF("unknown ethernet type 0x%x\n", type);
 			err = -1;
 	}
 
@@ -104,7 +105,7 @@ int ethernet_output(cbuf *buf, ifnet *i, netaddr *target, int protocol_type)
 
 	eheader_buf = cbuf_get_chain(sizeof(ethernet2_header));
 	if(!eheader_buf) {
-		dprintf("ethernet_output: error allocating cbuf for eheader\n");
+		TRACEF("error allocating cbuf for eheader\n");
 		cbuf_free_chain(buf);
 		return ERR_NO_MEMORY;
 	}

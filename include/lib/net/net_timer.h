@@ -24,22 +24,21 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _NEWOS_KERNEL_NET_NET_TIMER_H
-#define _NEWOS_KERNEL_NET_NET_TIMER_H
+#ifndef _LIB_NET_NET_TIMER_H
+#define _LIB_NET_NET_TIMER_H
 
-#include <kernel/kernel.h>
-#include <kernel/lock.h>
+#include <list.h>
+#include <kernel/thread.h>
 
 typedef void (*net_timer_callback)(void *);
 
 typedef struct net_timer_event {
-	struct net_timer_event *next;
-	struct net_timer_event *prev;
+	struct list_node node;
 
 	net_timer_callback func;
 	void *args;
 
-	bigtime_t sched_time;
+	time_t sched_time;
 
 	bool pending;
 } net_timer_event;
@@ -51,10 +50,9 @@ int net_timer_init(void);
 int set_net_timer(net_timer_event *e, unsigned int delay_ms, net_timer_callback callback, void *args, int flags);
 int cancel_net_timer(net_timer_event *e);
 
-void clear_net_timer(net_timer_event *e);
-extern inline void clear_net_timer(net_timer_event *e)
+static inline void clear_net_timer(net_timer_event *e)
 {
-	e->prev = e->next = NULL;
+	list_clear_node(&e->node);
 	e->pending = false;
 }
 

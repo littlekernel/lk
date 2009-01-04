@@ -24,22 +24,18 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/debug.h>
-#include <kernel/khash.h>
-#include <kernel/heap.h>
-#include <kernel/cbuf.h>
-#include <kernel/lock.h>
-#include <kernel/sem.h>
-#include <kernel/vfs.h>
-#include <kernel/thread.h>
-#include <kernel/queue.h>
-#include <kernel/arch/cpu.h>
-#include <kernel/net/loopback.h>
-#include <kernel/net/ethernet.h>
-#include <kernel/net/if.h>
-#include <string.h>
+#include <debug.h>
 #include <stdlib.h>
+#include <rand.h>
+#include <string.h>
+#include <err.h>
+#include <compiler.h>
+#include <lib/net/loopback.h>
+#include <lib/net/ethernet.h>
+#include <lib/net/if.h>
+#include <lib/net/hash.h>
+#include <lib/net/queue.h>
+#include <platform.h>
 
 #define TX_QUEUE_SIZE 64
 
@@ -50,7 +46,7 @@
 #define LOSE_TX_PERCENTAGE 5
 
 static void *ifhash;
-static mutex ifhash_lock;
+static mutex_t ifhash_lock;
 static if_id next_id;
 
 static int if_compare_func(void *_i, const void *_key)
@@ -77,26 +73,27 @@ ifnet *if_id_to_ifnet(if_id id)
 {
 	ifnet *i;
 
-	mutex_lock(&ifhash_lock);
+	mutex_acquire(&ifhash_lock);
 	i = hash_lookup(ifhash, &id);
-	mutex_unlock(&ifhash_lock);
+	mutex_release(&ifhash_lock);
 
 	return i;
 }
 
+#if 0
 ifnet *if_path_to_ifnet(const char *path)
 {
 	ifnet *i;
 	struct hash_iterator iter;
 
-	mutex_lock(&ifhash_lock);
+	mutex_acquire(&ifhash_lock);
 	hash_open(ifhash, &iter);
 	while((i = hash_next(ifhash, &iter)) != NULL) {
 		if(!strcmp(path, i->path))
 			break;
 	}
 	hash_close(ifhash, &iter, false);
-	mutex_unlock(&ifhash_lock);
+	mutex_release(&ifhash_lock);
 
 	return i;
 }
@@ -108,7 +105,7 @@ int if_register_interface(const char *path, ifnet **_i)
 	int err;
 	ifaddr *address;
 
-	i = kmalloc(sizeof(ifnet));
+	i = malloc(sizeof(ifnet));
 	if(!i) {
 		err = ERR_NO_MEMORY;
 		goto err;
@@ -146,12 +143,12 @@ int if_register_interface(const char *path, ifnet **_i)
 			i->mtu = ETHERNET_MAX_SIZE - ETHERNET_HEADER_SIZE;
 
 			/* bind the ethernet link address */
-			address = kmalloc(sizeof(ifaddr));
+			address = malloc(sizeof(ifaddr));
 			address->addr.len = 6;
 			address->addr.type = ADDR_TYPE_ETHERNET;
 			err = sys_ioctl(i->fd, IOCTL_NET_IF_GET_ADDR, &address->addr.addr[0], 6);
 			if(err < 0) {
-				kfree(address);
+				free(address);
 				goto err2;
 			}
 			address->broadcast.len = 6;
@@ -171,12 +168,12 @@ int if_register_interface(const char *path, ifnet **_i)
 	i->rx_thread = -1;
 	i->tx_thread = -1;
 	i->tx_queue_sem = sem_create(0, "tx_queue_sem");
-	mutex_init(&i->tx_queue_lock, "tx_queue_lock");
+	mutex_init(&i->tx_queue_lock);
 	fixed_queue_init(&i->tx_queue, TX_QUEUE_SIZE);
 
-	mutex_lock(&ifhash_lock);
+	mutex_acquire(&ifhash_lock);
 	hash_insert(ifhash, i);
-	mutex_unlock(&ifhash_lock);
+	mutex_release(&ifhash_lock);
 
 	/* start the rx and tx threads on this interface */
 	err = if_boot_interface(i);
@@ -190,10 +187,11 @@ int if_register_interface(const char *path, ifnet **_i)
 err2:
 	sys_close(i->fd);
 err1:
-	kfree(i);
+	free(i);
 err:
 	return err;
 }
+#endif
 
 void if_bind_address(ifnet *i, ifaddr *addr)
 {
@@ -209,24 +207,24 @@ void if_bind_link_address(ifnet *i, ifaddr *addr)
 
 int if_output(cbuf *b, ifnet *i)
 {
-	bool release_sem = false;
+	bool signal_event = false;
 	bool enqueue_failed = false;
 
 	// stick the buffer on a transmit queue
-	mutex_lock(&i->tx_queue_lock);
+	mutex_acquire(&i->tx_queue_lock);
 	if(fixed_queue_enqueue(&i->tx_queue, b) < 0)
 		enqueue_failed = true;
 	if(i->tx_queue.count == 1)
-		release_sem = true;
-	mutex_unlock(&i->tx_queue_lock);
+		signal_event = true;
+	mutex_release(&i->tx_queue_lock);
 
 	if(enqueue_failed) {
 		cbuf_free_chain(b);
 		return ERR_NO_MEMORY;
 	}
 
-	if(release_sem)
-		sem_release(i->tx_queue_sem, 1);
+	if(signal_event)
+		event_signal(&i->tx_queue_event, true);
 
 	return NO_ERROR;
 }
@@ -241,13 +239,13 @@ static int if_tx_thread(void *args)
 		return -1;
 
 	for(;;) {
- 		sem_acquire(i->tx_queue_sem, 1);
+		event_wait(&i->tx_queue_event);
 
 		for(;;) {
 	 		// pull a packet out of the queue
-			mutex_lock(&i->tx_queue_lock);
+			mutex_acquire(&i->tx_queue_lock);
 			buf = fixed_queue_dequeue(&i->tx_queue);
-			mutex_unlock(&i->tx_queue_lock);
+			mutex_release(&i->tx_queue_lock);
 			if(!buf)
 				break;
 
@@ -265,9 +263,10 @@ static int if_tx_thread(void *args)
 			cbuf_free_chain(buf);
 
 #if NET_CHATTY
-		dprintf("if_tx_thread: sending packet size %Ld\n", (long long)len);
+		TRACEF("sending packet size %Ld\n", (long long)len);
 #endif
-			sys_write(i->fd, i->tx_buf, 0, len);
+			// XXX fix
+//			sys_write(i->fd, i->tx_buf, 0, len);
 		}
 	}
 }
@@ -283,12 +282,13 @@ static int if_rx_thread(void *args)
 	for(;;) {
 		ssize_t len;
 
-		len = sys_read(i->fd, i->rx_buf, 0, sizeof(i->rx_buf));
+//		len = sys_read(i->fd, i->rx_buf, 0, sizeof(i->rx_buf));
+		len  = -1; // XXX fix
 #if NET_CHATTY
-		dprintf("if_rx_thread: got ethernet packet, size %Ld\n", (long long)len);
+		TRACEF("got ethernet packet, size %Ld\n", (long long)len);
 #endif
 		if(len < 0) {
-			thread_snooze(10000);
+			thread_sleep(10);
 			continue;
 		}
 		if(len == 0)
@@ -296,7 +296,7 @@ static int if_rx_thread(void *args)
 
 #if LOSE_RX_PACKETS
 		if(rand() % 100 < LOSE_RX_PERCENTAGE) {
-			dprintf("if_rx_thread: purposely lost packet, size %d\n", len);
+			TRACEF("purposely lost packet, size %d\n", len);
 			continue;
 		}
 #endif
@@ -304,7 +304,7 @@ static int if_rx_thread(void *args)
 		// check to see if we have a link layer address attached to us
 		if(!i->link_addr) {
 #if NET_CHATTY
-			dprintf("if_rx_thread: dumping packet because of no link address (%p)\n", i);
+			TRACEF("dumping packet because of no link address (%p)\n", i);
 #endif
 			continue;
 		}
@@ -312,7 +312,7 @@ static int if_rx_thread(void *args)
 		// for now just move it over into a cbuf
 		b = cbuf_get_chain(len);
 		if(!b) {
-			dprintf("if_rx_thread: could not allocate cbuf to hold ethernet packet\n");
+			TRACEF("could not allocate cbuf to hold ethernet packet\n");
 			continue;
 		}
 		cbuf_memcpy_to_chain(b, 0, i->rx_buf, len);
@@ -325,48 +325,27 @@ static int if_rx_thread(void *args)
 
 int if_boot_interface(ifnet *i)
 {
-	int err;
-
 	// create the receive thread
-	i->rx_thread = thread_create_kernel_thread("net_rx_thread", &if_rx_thread, i);
-	if(i->rx_thread < 0) {
-		err = i->rx_thread;
-		goto err1;
-	}
-	thread_set_priority(i->rx_thread, THREAD_MAX_RT_PRIORITY - 2);
+	i->rx_thread = thread_create("net_rx_thread", &if_rx_thread, i, HIGHEST_PRIORITY - 2, DEFAULT_STACK_SIZE);
 
 	// create the transmit thread
-	i->tx_thread = thread_create_kernel_thread("net_tx_thread", &if_tx_thread, i);
-	if(i->tx_thread < 0) {
-		err = i->tx_thread;
-		goto err2;
-	}
-	thread_set_priority(i->tx_thread, THREAD_MAX_RT_PRIORITY - 2);
+	i->tx_thread = thread_create("net_tx_thread", &if_tx_thread, i, HIGHEST_PRIORITY - 2, DEFAULT_STACK_SIZE);
 
 	// start the threads
-	thread_resume_thread(i->rx_thread);
-	thread_resume_thread(i->tx_thread);
+	thread_resume(i->rx_thread);
+	thread_resume(i->tx_thread);
 
 	return NO_ERROR;
-
-err2:
-	thread_kill_thread_nowait(i->rx_thread);
-err1:
-	return err;
 }
 
 int if_init(void)
 {
-	int err;
-
 	next_id = 0;
 
 	// create a hash table to store the interface list
 	ifhash = hash_init(16, offsetof(ifnet, next),
 		&if_compare_func, &if_hash_func);
-	err = mutex_init(&ifhash_lock, "if list lock");
-	if(err < 0)
-		return err;
+	mutex_init(&ifhash_lock);
 
 	return NO_ERROR;
 }

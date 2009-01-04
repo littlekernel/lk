@@ -24,41 +24,41 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/cbuf.h>
-#include <kernel/lock.h>
-#include <kernel/debug.h>
-#include <kernel/heap.h>
-#include <kernel/khash.h>
-#include <kernel/sem.h>
-#include <kernel/arch/cpu.h>
-#include <kernel/net/udp.h>
-#include <kernel/net/ipv4.h>
-#include <kernel/net/misc.h>
+#include <debug.h>
 #include <stdlib.h>
+#include <rand.h>
+#include <string.h>
+#include <err.h>
+#include <compiler.h>
+#include <lib/net/hash.h>
+#include <lib/net/udp.h>
+#include <lib/net/ipv4.h>
+#include <lib/net/misc.h>
+#include <kernel/mutex.h>
+#include <kernel/event.h>
 
 typedef struct udp_header {
-	uint16 source_port;
-	uint16 dest_port;
-	uint16 length;
-	uint16 checksum;
-} _PACKED udp_header;
+	uint16_t source_port;
+	uint16_t dest_port;
+	uint16_t length;
+	uint16_t checksum;
+} __PACKED udp_header;
 
 typedef struct udp_pseudo_header {
 	ipv4_addr source_addr;
 	ipv4_addr dest_addr;
-	uint8 zero;
-	uint8 protocol;
-	uint16 udp_length;
-} _PACKED udp_pseudo_header;
+	uint8_t zero;
+	uint8_t protocol;
+	uint16_t udp_length;
+} __PACKED udp_pseudo_header;
 
 typedef struct udp_queue_elem {
 	struct udp_queue_elem *next;
 	struct udp_queue_elem *prev;
 	ipv4_addr src_address;
 	ipv4_addr target_address;
-	uint16 src_port;
-	uint16 target_port;
+	uint16_t src_port;
+	uint16_t target_port;
 	int len;
 	cbuf *buf;
 } udp_queue_elem;
@@ -71,21 +71,21 @@ typedef struct udp_queue {
 
 typedef struct udp_endpoint {
 	struct udp_endpoint *next;
-	mutex lock;
-	sem_id blocking_sem;
-	uint16 port;
+	mutex_t lock;
+	event_t blocking_event;
+	uint16_t port;
 	udp_queue q;
 	int ref_count;
 } udp_endpoint;
 
 static udp_endpoint *endpoints;
-static mutex endpoints_lock;
+static mutex_t endpoints_lock;
 static int next_ephemeral_port;
 
 static int udp_endpoint_compare_func(void *_e, const void *_key)
 {
 	udp_endpoint *e = _e;
-	const uint16 *port = _key;
+	const uint16_t *port = _key;
 
 	if(e->port == *port)
 		return 0;
@@ -96,7 +96,7 @@ static int udp_endpoint_compare_func(void *_e, const void *_key)
 static unsigned int udp_endpoint_hash_func(void *_e, const void *_key, unsigned int range)
 {
 	udp_endpoint *e = _e;
-	const uint16 *port = _key;
+	const uint16_t *port = _key;
 
 	if(e)
 		return e->port % range;
@@ -145,13 +145,13 @@ static void udp_endpoint_release_ref(udp_endpoint *e)
 		udp_queue_elem *qe;
 
 		mutex_destroy(&e->lock);
-		sem_delete(e->blocking_sem);
+		event_destroy(&e->blocking_event);
 
 		// clear out the queue of packets
 		for(qe = udp_queue_pop(&e->q); qe; qe = udp_queue_pop(&e->q)) {
 			if(qe->buf)
 				cbuf_free_chain(qe->buf);
-			kfree(qe);
+			free(qe);
 		}
 	}
 }
@@ -166,16 +166,16 @@ int udp_input(cbuf *buf, ifnet *i, ipv4_addr source_address, ipv4_addr target_ad
 	udp_header *header;
 	udp_endpoint *e;
 	udp_queue_elem *qe;
-	uint16 port;
+	uint16_t port;
 	int err;
 
 	header = cbuf_get_ptr(buf, 0);
 
 #if NET_CHATTY
-	dprintf("udp_input: src port %d, dest port %d, len %d, buf len %d, checksum 0x%x\n",
+	TRACEF("src port %d, dest port %d, len %d, buf len %d, checksum 0x%x\n",
 		ntohs(header->source_port), ntohs(header->dest_port), ntohs(header->length), (int)cbuf_get_len(buf), ntohs(header->checksum));
 #endif
-	if(ntohs(header->length) > (uint16)cbuf_get_len(buf)) {
+	if(ntohs(header->length) > (uint16_t)cbuf_get_len(buf)) {
 		err = ERR_NET_BAD_PACKET;
 		goto ditch_packet;
 	}
@@ -183,7 +183,7 @@ int udp_input(cbuf *buf, ifnet *i, ipv4_addr source_address, ipv4_addr target_ad
 	// deal with the checksum check
 	if(header->checksum) {
 		udp_pseudo_header pheader;
-		uint16 checksum;
+		uint16_t checksum;
 
 		// set up the pseudo header for checksum purposes
 		pheader.source_addr = htonl(source_address);
@@ -195,7 +195,7 @@ int udp_input(cbuf *buf, ifnet *i, ipv4_addr source_address, ipv4_addr target_ad
 		checksum = cbuf_ones_cksum16_2(buf, 0, ntohs(header->length), &pheader, sizeof(pheader));
 		if(checksum != 0) {
 #if NET_CHATTY
-			dprintf("udp_receive: packet failed checksum\n");
+			TRACEF("packet failed checksum\n");
 #endif
 			err = ERR_NET_BAD_PACKET;
 			goto ditch_packet;
@@ -204,11 +204,11 @@ int udp_input(cbuf *buf, ifnet *i, ipv4_addr source_address, ipv4_addr target_ad
 
 	// see if we have an endpoint
 	port = ntohs(header->dest_port);
-	mutex_lock(&endpoints_lock);
+	mutex_acquire(&endpoints_lock);
 	e = hash_lookup(endpoints, &port);
 	if(e)
 		udp_endpoint_acquire_ref(e);
-	mutex_unlock(&endpoints_lock);
+	mutex_release(&endpoints_lock);
 
 	if(!e) {
 		err = NO_ERROR;
@@ -216,7 +216,7 @@ int udp_input(cbuf *buf, ifnet *i, ipv4_addr source_address, ipv4_addr target_ad
 	}
 
 	// okay, we have an endpoint, lets queue our stuff up and move on
-	qe = kmalloc(sizeof(udp_queue_elem));
+	qe = malloc(sizeof(udp_queue_elem));
 	if(!qe) {
 		udp_endpoint_release_ref(e);
 		err = ERR_NO_MEMORY;
@@ -232,11 +232,11 @@ int udp_input(cbuf *buf, ifnet *i, ipv4_addr source_address, ipv4_addr target_ad
 	buf = cbuf_truncate_head(buf, sizeof(udp_header), true);
 	qe->buf = buf;
 
-	mutex_lock(&e->lock);
+	mutex_acquire(&e->lock);
 	udp_queue_push(&e->q, qe);
-	mutex_unlock(&e->lock);
+	mutex_release(&e->lock);
 
-	sem_release(e->blocking_sem, 1);
+	event_signal(&e->blocking_event, true);
 
 	udp_endpoint_release_ref(e);
 
@@ -253,19 +253,19 @@ int udp_open(void **prot_data)
 {
 	udp_endpoint *e;
 
-	e = kmalloc(sizeof(udp_endpoint));
+	e = malloc(sizeof(udp_endpoint));
 	if(!e)
 		return ERR_NO_MEMORY;
 
-	mutex_init(&e->lock, "udp endpoint lock");
-	e->blocking_sem = sem_create(0, "udp endpoint sem");
+	mutex_init(&e->lock);
+	event_init(&e->blocking_event, false, EVENT_FLAG_AUTOUNSIGNAL);
 	e->port = 0;
 	e->ref_count = 1;
 	udp_init_queue(&e->q);
 
-	mutex_lock(&endpoints_lock);
+	mutex_acquire(&endpoints_lock);
 	hash_insert(endpoints, e);
-	mutex_unlock(&endpoints_lock);
+	mutex_release(&endpoints_lock);
 
 	*prot_data = e;
 
@@ -276,7 +276,7 @@ static int _udp_bind(udp_endpoint *e, int port)
 {
 	int err;
 
-	mutex_lock(&e->lock);
+	mutex_acquire(&e->lock);
 
 	if(e->port == 0) {
 
@@ -284,25 +284,25 @@ static int _udp_bind(udp_endpoint *e, int port)
 		if (port == 0)
 			port = udp_allocate_ephemeral_port();
 
-		dprintf("_udp_bind: setting endprint %p to port %d\n", e, port);
+		TRACEF("setting endprint %p to port %d\n", e, port);
 
 		if(port != e->port) {
 
 			// XXX search to make sure this port isn't used already
 
 			// remove it from the hashtable, stick it back with the new port
-			mutex_lock(&endpoints_lock);
+			mutex_acquire(&endpoints_lock);
 			hash_remove(endpoints, e);
 			e->port = port;
 			hash_insert(endpoints, e);
-			mutex_unlock(&endpoints_lock);
+			mutex_release(&endpoints_lock);
 		}
 		err = NO_ERROR;
 	} else {
 		err = ERR_NET_SOCKET_ALREADY_BOUND;
 	}
 
-	mutex_unlock(&e->lock);
+	mutex_release(&e->lock);
 
 	return err;
 }
@@ -334,16 +334,16 @@ int udp_close(void *prot_data)
 {
 	udp_endpoint *e = prot_data;
 
-	mutex_lock(&endpoints_lock);
+	mutex_acquire(&endpoints_lock);
 	hash_remove(endpoints, e);
- 	mutex_unlock(&endpoints_lock);
+ 	mutex_release(&endpoints_lock);
 
 	udp_endpoint_release_ref(e);
 
 	return 0;
 }
 
-ssize_t udp_recvfrom(void *prot_data, void *buf, ssize_t len, sockaddr *saddr, int flags, bigtime_t timeout)
+ssize_t udp_recvfrom(void *prot_data, void *buf, ssize_t len, sockaddr *saddr, int flags, time_t timeout)
 {
 	udp_endpoint *e = prot_data;
 	udp_queue_elem *qe;
@@ -352,22 +352,22 @@ ssize_t udp_recvfrom(void *prot_data, void *buf, ssize_t len, sockaddr *saddr, i
 
 retry:
 	if(flags & SOCK_FLAG_TIMEOUT)
-		err = sem_acquire_etc(e->blocking_sem, 1, SEM_FLAG_TIMEOUT, timeout, NULL);
+		err = event_wait_timeout(&e->blocking_event, timeout);
 	else
-		err = sem_acquire(e->blocking_sem, 1);
+		err = event_wait(&e->blocking_event);
 	if(err < 0)
 		return err;
 
 	// pop an item off the list, if there are any
-	mutex_lock(&e->lock);
+	mutex_acquire(&e->lock);
 	qe = udp_queue_pop(&e->q);
-	mutex_unlock(&e->lock);
+	mutex_release(&e->lock);
 
 	if(!qe)
 		goto retry;
 
 	// we have the data, copy it out
-	err = cbuf_user_memcpy_from_chain(buf, qe->buf, 0, min(qe->len, len));
+	err = cbuf_memcpy_from_chain(buf, qe->buf, 0, MIN(qe->len, len));
 	if(err < 0) {
 		ret = err;
 		goto out;
@@ -385,7 +385,7 @@ retry:
 out:
 	// free this queue entry
 	cbuf_free_chain(qe->buf);
-	kfree(qe);
+	free(qe);
 
 	return ret;
 }
@@ -417,10 +417,10 @@ ssize_t udp_sendto(void *prot_data, const void *inbuf, ssize_t len, sockaddr *to
 		return ERR_NO_MEMORY;
 
 	// copy the data to this new buffer
-	err = cbuf_user_memcpy_to_chain(buf, sizeof(udp_header), inbuf, len);
+	err = cbuf_memcpy_to_chain(buf, sizeof(udp_header), inbuf, len);
 	if(err < 0) {
 		cbuf_free_chain(buf);
-		return ERR_VM_BAD_USER_MEMORY;
+		return err;
 	}
 
 	// set up the udp pseudo header
@@ -457,7 +457,7 @@ ssize_t udp_sendto(void *prot_data, const void *inbuf, ssize_t len, sockaddr *to
 
 int udp_init(void)
 {
-	mutex_init(&endpoints_lock, "udp_endpoints lock");
+	mutex_init(&endpoints_lock);
 
 	next_ephemeral_port = rand() % 32000 + 1024;
 

@@ -24,12 +24,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _NEWOS_KERNEL_NET_ARP_H
-#define _NEWOS_KERNEL_NET_ARP_H
+#ifndef _LIB_NET_ARP_H
+#define _LIB_NET_ARP_H
 
-#include <kernel/net/if.h>
-#include <kernel/net/ipv4.h>
-#include <kernel/cbuf.h>
+#include <lib/net/if.h>
+#include <lib/net/ipv4.h>
+#include <lib/net/cbuf.h>
 
 enum {
 	ARP_CALLBACK_CODE_OK = 0,

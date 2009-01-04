@@ -24,11 +24,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _NEWOS_KERNEL_NET_ETHERNET_H
-#define _NEWOS_KERNEL_NET_ETHERNET_H
+#ifndef _LIB_NET_ETHERNET_H
+#define _LIB_NET_ETHERNET_H
 
-#include <kernel/net/if.h>
-#include <kernel/cbuf.h>
+#include <stdint.h>
+#include <lib/net/if.h>
+#include <lib/net/cbuf.h>
 
 #define PROT_TYPE_IPV4 0x0800
 #define PROT_TYPE_ARP  0x0806
@@ -37,7 +38,7 @@
 #define ETHERNET_MAX_SIZE (ETHERNET_HEADER_SIZE+1500)
 #define ETHERNET_MIN_SIZE (ETHERNET_HEADER_SIZE+46)
 
-typedef uint8 ethernet_addr[6];
+typedef uint8_t ethernet_addr[6];
 
 // not to be called directly, use the ifnet.link_output and link_input
 int ethernet_input(cbuf *buf, ifnet *i);

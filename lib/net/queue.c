@@ -24,9 +24,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/queue.h>
-#include <kernel/heap.h>
+#include <stdlib.h>
+#include <err.h>
+#include <lib/net/queue.h>
 
 typedef struct queue_typed {
 	queue_element *head;
@@ -113,7 +113,7 @@ int fixed_queue_init(fixed_queue *q, int size)
 	if(size <= 0)
 		return ERR_INVALID_ARGS;
 
-	q->table = kmalloc(size * sizeof(void *));
+	q->table = malloc(size * sizeof(void *));
 	if(!q->table)
 		return ERR_NO_MEMORY;
 	q->head = 0;
@@ -127,7 +127,7 @@ int fixed_queue_init(fixed_queue *q, int size)
 void fixed_queue_destroy(fixed_queue *q)
 {
 	if(q->table)
-		kfree(q->table);
+		free(q->table);
 }
 
 int fixed_queue_enqueue(fixed_queue *q, void *e)

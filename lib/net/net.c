@@ -24,34 +24,33 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/debug.h>
-#include <kernel/thread.h>
-#include <kernel/vfs.h>
-#include <kernel/cbuf.h>
-#include <kernel/heap.h>
-#include <kernel/net/net.h>
-#include <kernel/net/net_control.h>
-#include <kernel/net/net_timer.h>
-#include <kernel/net/if.h>
-#include <kernel/net/ethernet.h>
-#include <kernel/net/loopback.h>
-#include <kernel/net/arp.h>
-#include <kernel/net/ipv4.h>
-#include <kernel/net/udp.h>
-#include <kernel/net/tcp.h>
-#include <kernel/net/socket.h>
-#include <kernel/net/misc.h>
-#include <boot/stage2.h>
+//#include <kernel/kernel.h>
+#include <debug.h>
+//#include <kernel/thread.h>
+//#include <kernel/vfs.h>
+#include <stdlib.h>
 #include <string.h>
-
-thread_id rx_thread_id;
-int net_fd;
+#include <lib/net.h>
+#include <lib/net/cbuf.h>
+#include <lib/net/net_control.h>
+#include <lib/net/net_timer.h>
+#include <lib/net/if.h>
+#include <lib/net/ethernet.h>
+#include <lib/net/loopback.h>
+#include <lib/net/arp.h>
+#include <lib/net/ipv4.h>
+#include <lib/net/udp.h>
+#include <lib/net/tcp.h>
+#include <lib/net/socket.h>
+#include <lib/net/misc.h>
+#include <lib/net/cbuf.h>
 
 #define NET_TEST1 0
 #define NET_TEST2 0
 #define NET_TEST3 0
 #define NET_TEST4 0
+
+#define LOCAL_TRACE 1
 
 #if NET_TEST2
 static int net_test_thread2(void *unused)
@@ -218,10 +217,11 @@ static int net_test_thread(void *unused)
 }
 #endif
 
-int net_init(kernel_args *ka)
+int net_init(void)
 {
-	dprintf("net_init: entry\n");
+	LTRACEF("entry\n");
 
+	cbuf_init();
 	net_timer_init();
 	if_init();
 	ethernet_init();
@@ -230,15 +230,15 @@ int net_init(kernel_args *ka)
 	loopback_init();
 	udp_init();
 	tcp_init();
-	socket_init();
-	net_control_init();
+//	socket_init();
+//	net_control_init();
 
 	return 0;
 }
 
-int net_init_postdev(kernel_args *ka)
+int net_init_postdev(void)
 {
-	dprintf("net_init_postdev: entry\n");
+	LTRACEF("entry\n");
 
 #if NET_TEST
 	// start the test thread
