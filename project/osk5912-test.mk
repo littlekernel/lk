@@ -6,5 +6,6 @@ TARGET := osk5912
 MODULES += \
 	app/tests \
 	app/stringtests \
-	app/shell
+	app/shell \
+	lib/net
 
