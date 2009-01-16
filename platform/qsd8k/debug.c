@@ -32,6 +32,7 @@
 #include <debug.h>
 #include <printf.h>
 #include <arch/arm/dcc.h>
+#include <dev/fbcon.h>
 #include <dev/uart.h>
 
 #define DCC_DEBUG 1
@@ -46,6 +47,10 @@ void _dputc(char c)
 	while (dcc_putc(c) < 0);
 #else
 	uart_putc(DEBUG_UART, c);
+#endif
+
+#if WITH_DEV_FBCON
+	fbcon_putc(c);
 #endif
 }
 

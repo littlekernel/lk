@@ -30,14 +30,9 @@
 #include <stdlib.h>
 #include <reg.h>
 #include <platform/iomap.h>
+#include <dev/fbcon.h>
 
 #define MSM_MDP_BASE1 0xAA200000
-
-unsigned fb_width  = 0;
-unsigned fb_height = 0;
-
-static unsigned short *FB;
-
 
 #define LCDC_PIXCLK_IN_PS 26
 #define LCDC_FB_PHYS      0x16600000
@@ -88,36 +83,44 @@ static unsigned short *FB;
 #define DMA_OUT_SEL_LCDC                    BIT(20)
 #define DMA_IBUF_FORMAT_RGB565              BIT(25)
 
+static struct fbcon_config fb_cfg = {
+	.height		= LCDC_FB_HEIGHT,
+	.width		= LCDC_FB_WIDTH,
+	.stride		= LCDC_FB_WIDTH,
+	.format		= FB_FORMAT_RGB565,
+	.bpp		= LCDC_FB_BPP,
+	.update_start	= NULL,
+	.update_done	= NULL,
+};
+
 void lcdc_clock_init(unsigned rate);
 
-void lcdc_init(void)
+struct fbcon_config *lcdc_init(void)
 {
 	unsigned n;
 
 	dprintf(INFO, "lcdc_init()\n");
 
-	fb_width  = LCDC_FB_WIDTH;
-	fb_height = LCDC_FB_HEIGHT;
-	dprintf(INFO, "panel is %d x %d\n", fb_width, fb_height);
+	dprintf(INFO, "panel is %d x %d\n", fb_cfg.width, fb_cfg.height);
 
-	FB = LCDC_FB_PHYS; //alloc(2 * fb_width * fb_height);
-
-	FB = memalign(4096, 2 * fb_width * fb_height);
-	dprintf(INFO, "FB %p\n", FB);
+	fb_cfg.base =
+		memalign(4096, fb_cfg.width * fb_cfg.height * (fb_cfg.bpp / 8));
+	dprintf(INFO, "FB %p\n", fb_cfg.base);
 
 	lcdc_clock_init(1000000000 / LCDC_PIXCLK_IN_PS);
 
-	writel(FB, MSM_MDP_BASE1 + 0x90008);
-	writel((LCDC_FB_HEIGHT << 16) | LCDC_FB_WIDTH, MSM_MDP_BASE1 + 0x90004);
-	writel(LCDC_FB_WIDTH * LCDC_FB_BPP / 8, MSM_MDP_BASE1 + 0x9000c);
+	writel(fb_cfg.base, MSM_MDP_BASE1 + 0x90008);
+
+	writel((fb_cfg.height << 16) | fb_cfg.width, MSM_MDP_BASE1 + 0x90004);
+	writel(fb_cfg.width * fb_cfg.bpp / 8, MSM_MDP_BASE1 + 0x9000c);
 	writel(0, MSM_MDP_BASE1 + 0x90010);
 
 	writel(DMA_PACK_ALIGN_LSB|DMA_PACK_PATTERN_RGB|DMA_DITHER_EN|DMA_OUT_SEL_LCDC|
 	       DMA_IBUF_FORMAT_RGB565|DMA_DSTC0G_8BITS|DMA_DSTC1B_8BITS|DMA_DSTC2R_8BITS,
 	       MSM_MDP_BASE1 + 0x90000);
 
-	int hsync_period  = LCDC_HSYNC_PULSE_WIDTH_DCLK + LCDC_HSYNC_BACK_PORCH_DCLK + LCDC_FB_WIDTH + LCDC_HSYNC_FRONT_PORCH_DCLK;
-	int vsync_period  = (LCDC_VSYNC_PULSE_WIDTH_LINES + LCDC_VSYNC_BACK_PORCH_LINES + LCDC_FB_HEIGHT + LCDC_VSYNC_FRONT_PORCH_LINES) * hsync_period;
+	int hsync_period  = LCDC_HSYNC_PULSE_WIDTH_DCLK + LCDC_HSYNC_BACK_PORCH_DCLK + fb_cfg.width + LCDC_HSYNC_FRONT_PORCH_DCLK;
+	int vsync_period  = (LCDC_VSYNC_PULSE_WIDTH_LINES + LCDC_VSYNC_BACK_PORCH_LINES + fb_cfg.height + LCDC_VSYNC_FRONT_PORCH_LINES) * hsync_period;
 	int hsync_ctrl    = (hsync_period << 16) | LCDC_HSYNC_PULSE_WIDTH_DCLK;
 	int hsync_start_x = LCDC_HSYNC_PULSE_WIDTH_DCLK + LCDC_HSYNC_BACK_PORCH_DCLK;
 	int hsync_end_x   = hsync_period - LCDC_HSYNC_FRONT_PORCH_DCLK - 1;
@@ -141,11 +144,5 @@ void lcdc_init(void)
 
 	writel(1, MSM_MDP_BASE1 + 0xe0000);
 
-	for(n = 0; n < (fb_width * fb_height); n++) FB[n] = 0x01f0;
+	return &fb_cfg;
 }
-
-void *mddi_framebuffer(void)
-{
-	return FB;
-}
-

@@ -9,6 +9,9 @@ DEFINES += WITH_CPU_EARLY_INIT=1 MEMBASE=0
 
 INCLUDES += -I$(LOCAL_DIR)/include
 
+DEVS += fbcon
+MODULES += dev/fbcon
+
 OBJS += \
 	$(LOCAL_DIR)/arch_init.o \
 	$(LOCAL_DIR)/platform.o \

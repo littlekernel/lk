@@ -31,6 +31,7 @@
 
 #include <debug.h>
 
+#include <dev/fbcon.h>
 #include <kernel/thread.h>
 #include <platform/debug.h>
 
@@ -40,7 +41,7 @@ void platform_init_timer();
 void uart3_clock_init(void);
 void uart_init(void);
 
-void lcdc_init(void);
+struct fbcon_config *lcdc_init(void);
 
 void platform_early_init(void)
 {
@@ -53,6 +54,9 @@ void platform_early_init(void)
 
 void platform_init(void)
 {
+	struct fbcon_config *fb_cfg;
+
 	dprintf(INFO, "platform_init()\n");
-	lcdc_init();
+	fb_cfg = lcdc_init();
+	fbcon_setup(fb_cfg);
 }
