@@ -107,7 +107,7 @@ FUNCTION(arm_irq)
 
 	/* restore spsr */
 	ldmfd	sp!, { r0 }
-	msr	spsr, r0
+	msr     spsr_cxsf, r0
 
 	/* restore back to where we came from */
 	ldmfd	sp!, { r0-r3, r12, lr, pc }^
