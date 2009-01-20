@@ -92,7 +92,7 @@ FUNCTION(arm_save_mode_regs)
 	b		.
 #endif
 	
-	msr		cpsr, r1
+	msr		cpsr_c, r1
 
 	bx		lr
 
