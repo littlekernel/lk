@@ -99,13 +99,19 @@ status_t event_signal(event_t *e, bool reschedule)
 #endif
 
 	if (!e->signalled) {
-		e->signalled = true;
 		if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
-			/* try to release one thread and unsignal again if successful */
-			if (wait_queue_wake_one(&e->wait, reschedule, NO_ERROR) > 0)
-				e->signalled = false;
+			/* try to release one thread and leave unsignalled if successful */
+			if (wait_queue_wake_one(&e->wait, reschedule, NO_ERROR) <= 0) {
+				/*
+				 * if we didn't actually find a thread to wake up, go to
+				 * signalled state and let the next call to event_wait
+				 * unsignal the event.
+				 */
+				e->signalled = true;
+			}
 		} else {
 			/* release all threads and remain signalled */
+			e->signalled = true;
 			wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
 		}
 	}
