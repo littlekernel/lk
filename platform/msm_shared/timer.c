@@ -55,6 +55,7 @@
 #define DGT_ENABLE_EN                     1
 #define DGT_CLEAR            GPT_REG(0x001C)
 
+#define SPSS_TIMER_STATUS    GPT_REG(0x0034)
 
 static platform_timer_callback timer_callback;
 static void *timer_arg;
@@ -100,3 +101,17 @@ void platform_init_timer(void)
 	writel(0, DGT_ENABLE);
 }
 
+static void wait_for_timer_op(void)
+{
+#if PLATFORM_QSD8K
+	while(readl(SPSS_TIMER_STATUS)) ;
+#endif
+}
+
+void platform_uninit_timer(void)
+{
+	writel(0, DGT_ENABLE);
+	wait_for_timer_op();
+	writel(0, DGT_CLEAR);
+	wait_for_timer_op();
+}
