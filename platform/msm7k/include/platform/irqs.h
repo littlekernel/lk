@@ -80,10 +80,16 @@
 #define INT_TSIF_IRQ         (32 + 12)
 #define INT_UART1DM_IRQ      (32 + 13)
 #define INT_UART1DM_RX       (32 + 14)
-#define INT_SPARE0           (32 + 15)
+#define INT_USB_HS           (32 + 15)
+#define INT_SDC3_0           (32 + 16)
+#define INT_SDC3_1           (32 + 17)
+#define INT_SDC4_0           (32 + 18)
+#define INT_SDC4_1           (32 + 19)
+#define INT_UART2DM_RX       (32 + 20)
+#define INT_UART2DM_IRQ      (32 + 21)
 
 #define MSM_IRQ_BIT(irq)     (1 << ((irq) & 31))
 
-#define NR_IRQS 48
+#define NR_IRQS 54
 
 #endif
