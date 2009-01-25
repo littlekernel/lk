@@ -2,13 +2,13 @@
 #
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-TARGET := beagle
+ifeq ($(PROJECT_TARGET),)
+TARGET := surf-msm7k
+else
+TARGET := $(PROJECT_TARGET)
+endif
 
 MODULES += \
 	app/tests \
-	app/stringtests \
-	lib/console
-
-OBJS += \
-	$(LOCAL_DIR)/init.o
+	app/shell
 

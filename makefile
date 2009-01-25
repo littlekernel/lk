@@ -54,7 +54,7 @@ EXTRA_BUILDDEPS :=
 # any rules you put here will be depended on in clean builds
 EXTRA_CLEANDEPS := 
 
-include project/$(PROJECT)/rules.mk
+include project/$(PROJECT).mk
 include target/$(TARGET)/rules.mk
 include platform/$(PLATFORM)/rules.mk
 include arch/$(ARCH)/rules.mk

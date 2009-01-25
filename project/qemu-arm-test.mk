@@ -4,8 +4,6 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 TARGET := qemu-arm
 MODULES += \
-	app/tests
-
-OBJS += \
-	$(LOCAL_DIR)/init.o
-
+	app/tests \
+	app/shell
+ 

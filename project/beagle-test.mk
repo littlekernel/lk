@@ -2,11 +2,10 @@
 #
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-TARGET := osk5912
+TARGET := beagle
+
 MODULES += \
 	app/tests \
-	lib/console
-
-OBJS += \
-	$(LOCAL_DIR)/init.o
+	app/stringtests \
+	app/shell
 
