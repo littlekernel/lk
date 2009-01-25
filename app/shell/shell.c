@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,11 +20,18 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __APP_TESTS_H
-#define __APP_TESTS_H
+#include <app.h>
+#include <debug.h>
+#include <lib/console.h>
 
-int thread_tests(void);
-void printf_tests(void);
+static void shell_init(const struct _app_descriptor *app, void *args)
+{
+	console_init();
+	console_start();
+}
 
-#endif
+APP_START(shell)
+	.entry = shell_init,
+	.flags = APP_FLAG_BOOT_START | APP_FLAG_THREAD,
+APP_END
 

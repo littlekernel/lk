@@ -20,6 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <app.h>
+#include <debug.h>
 #include <app/tests.h>
 #include <compiler.h>
 
@@ -33,7 +35,12 @@ STATIC_COMMAND_END(tests);
 
 #endif
 
-void tests_init(void)
+static void tests_init(const struct _app_descriptor *app, void *args)
 {
 }
+
+APP_START(tests)
+	.entry = tests_init,
+	.flags = APP_FLAG_BOOT_START,
+APP_END
 

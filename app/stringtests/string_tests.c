@@ -23,6 +23,7 @@
 #include <debug.h>
 #include <string.h>
 #include <malloc.h>
+#include <app.h>
 #include <platform.h>
 #include <kernel/thread.h>
 
@@ -242,4 +243,9 @@ STATIC_COMMAND_START
 STATIC_COMMAND_END(stringtests);
 
 #endif
+
+APP_START(stringtests)
+	.entry = 0,
+	.flags = 0,
+APP_END
 
