@@ -20,8 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __APP_CONSOLE_H
-#define __APP_CONSOLE_H
+#ifndef __LIB_CONSOLE_H
+#define __LIB_CONSOLE_H
 
 #include <sys/types.h>
 #include <compiler.h>
