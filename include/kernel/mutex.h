@@ -34,6 +34,11 @@ typedef struct mutex {
 	wait_queue_t wait;
 } mutex_t;
 
+/* Rules for Mutexes:
+ * - Mutexes are only safe to use from thread context.
+ * - Mutexes are non-recursive.
+*/
+
 void mutex_init(mutex_t *);
 void mutex_destroy(mutex_t *);
 status_t mutex_acquire(mutex_t *);

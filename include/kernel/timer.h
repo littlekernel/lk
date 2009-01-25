@@ -44,6 +44,12 @@ typedef struct timer {
 	void *arg;
 } timer_t;
 
+/* Rules for Timers:
+ * - Timer callbacks occur from interrupt context
+ * - Timers may be programmed or canceled from interrupt or thread context
+ * - Timers may be canceled or reprogrammed from within their callback
+ * - Timers currently are dispatched from a 10ms periodic tick
+*/
 void timer_initialize(timer_t *);
 void timer_set_oneshot(timer_t *, time_t delay, timer_callback, void *arg);
 void timer_set_periodic(timer_t *, time_t period, timer_callback, void *arg);

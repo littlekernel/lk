@@ -36,6 +36,22 @@ typedef struct event {
 
 #define EVENT_FLAG_AUTOUNSIGNAL 1
 
+/* Rules for Events:
+ * - Events may be signaled from interrupt context *but* the reschedule
+ *   parameter must be false in that case.
+ * - Events may not be waited upon from interrupt context.
+ * - Events without FLAG_AUTOUNSIGNAL:
+ *   - Wake up any waiting threads when signaled.
+ *   - Continue to do so (no threads will wait) until unsignaled.
+ * - Events with FLAG_AUTOUNSIGNAL:
+ *   - If one or more threads are waiting when signaled, one thread will
+ *     be woken up and return.  The signaled state will not be set.
+ *   - If no threads are waiting when signaled, the Event will remain
+ *     in the signaled state until a thread attempts to wait (at which
+ *     time it will unsignal atomicly and return immediately) or
+ *     event_unsignal() is called.
+*/
+
 void event_init(event_t *, bool initial, uint flags);
 void event_destroy(event_t *);
 status_t event_wait(event_t *);
