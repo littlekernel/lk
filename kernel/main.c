@@ -23,6 +23,7 @@
 #include <compiler.h>
 #include <debug.h>
 #include <string.h>
+#include <app.h>
 #include <arch.h>
 #include <platform.h>
 #include <target.h>
@@ -118,6 +119,9 @@ static int bootstrap2(void *arg)
 	// initialize the target
 	dprintf(SPEW, "initializing target\n");
 	target_init();
+
+	dprintf(SPEW, "calling apps_init()\n");
+	apps_init();
 
 	dprintf(SPEW, "calling project_init()\n");
 	project_init();

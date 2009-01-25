@@ -42,6 +42,10 @@ SECTIONS
 		__commands_start = .;
 		KEEP (*(.commands))
 		__commands_end = .;
+		. = ALIGN(4);
+		__apps_start = .;
+		KEEP (*(.apps))
+		__apps_end = .;
 		. = ALIGN(4); 
 		__rodata_end = . ;		
 	}
