@@ -1,5 +1,5 @@
 -include local.mk
-include macros.mk
+include make/macros.mk
 
 PROJECT ?= beagle-test
 DEBUG ?= 2
@@ -65,7 +65,7 @@ include dev/rules.mk
 
 # recursively include any modules in the MODULE variable, leaving a trail of included
 # modules in the ALLMODULES list
-include module.mk
+include make/module.mk
 
 # any extra top level build dependencies that someone declared
 all:: $(EXTRA_BUILDDEPS)
@@ -106,7 +106,7 @@ NM := $(TOOLCHAIN_PREFIX)nm
 NOECHO ?= @
 
 # the logic to compile and link stuff is in here
-include build.mk
+include make/build.mk
 
 clean: $(EXTRA_CLEANDEPS)
 	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst
