@@ -1,7 +1,27 @@
 -include local.mk
 include make/macros.mk
 
-PROJECT ?= beagle-test
+# If one of our goals (from the commandline) happens to have a
+# matching project/goal.mk, then we should re-invoke make with
+# that project name specified...
+
+project-name := $(firstword $(MAKECMDGOALS))
+
+ifneq ($(project-name),)
+ifneq ($(wildcard project/$(project-name).mk),)
+do-nothing := 1
+$(MAKECMDGOALS) _all: make-make
+make-make:
+	@PROJECT=$(project-name) $(MAKE) $(filter-out $(project-name), $(MAKECMDGOALS))
+endif
+endif
+
+ifeq ($(do-nothing),)
+
+ifeq ($(PROJECT),)
+$(error No project specified.  Use "make projectname" or put "PROJECT := projectname" in local.mk)
+endif
+
 DEBUG ?= 2
 
 BUILDDIR := build-$(PROJECT)
@@ -150,3 +170,4 @@ ifeq ($(filter $(MAKECMDGOALS), clean), )
 endif
 
 .PHONY: configheader
+endif
