@@ -125,22 +125,25 @@ static unsigned uart_base = MSM_UART3_BASE;
 
 void uart_init(void)
 {
-#if 0
-	mdelay(100);
-
 	uwr(0x0A, UART_CR);  /* disable TX and RX */
 	
 	uwr(0x30, UART_CR);  /* reset error status */
 	uwr(0x10, UART_CR);  /* reset receiver */
 	uwr(0x20, UART_CR);  /* reset transmitter */
 	
-	mdelay(100);
-	
-        /* configuration for 19.2MHz TCXO */
+#if PLATFORM_QSD8K
+	/* TCXO */
+	uwr(0x06, UART_MREG);
+	uwr(0xF1, UART_NREG);
+	uwr(0x0F, UART_DREG);
+	uwr(0x1A, UART_MNDREG);
+#else
+	/* TCXO/4 */
 	uwr(0xC0, UART_MREG);
 	uwr(0xAF, UART_NREG);
 	uwr(0x80, UART_DREG);
 	uwr(0x19, UART_MNDREG);    
+#endif
 	
 	uwr(0x10, UART_CR);  /* reset RX */
 	uwr(0x20, UART_CR);  /* reset TX */
@@ -159,15 +162,11 @@ void uart_init(void)
 	uwr(UART_CSR_115200, UART_CSR);
 	uwr(0, UART_IRDA);
 	uwr(0x1E, UART_HCR);
-//    uwr(0x7F4, UART_MR1); /* RFS/ CTS/ 500chr RFR */
+//	uwr(0x7F4, UART_MR1); /* RFS/ CTS/ 500chr RFR */
 	uwr(16, UART_MR1);
 	uwr(0x34, UART_MR2); /* 8N1 */
 	
-	mdelay(100);
-	
 	uwr(0x05, UART_CR); /* enable TX & RX */
-	mdelay(100);
-#endif
 }
 
 int uart_putc(int port, char c)
