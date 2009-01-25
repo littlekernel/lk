@@ -24,19 +24,25 @@
 #include <app.h>
 #include <kernel/thread.h>
 
-extern const struct _app_descriptor __apps_start;
-extern const struct _app_descriptor __apps_end;
+extern const struct app_descriptor __apps_start;
+extern const struct app_descriptor __apps_end;
 
-static void start_app(const struct _app_descriptor *app);
+static void start_app(const struct app_descriptor *app);
 
 /* one time setup */
 void apps_init(void)
 {
-	const struct _app_descriptor *app;
-	for (app = &__apps_start; app != &__apps_end; app++) {
-//		printf("app '%s'\n", app->name);
+	const struct app_descriptor *app;
 
-		if (app->entry && app->flags & APP_FLAG_BOOT_START) {
+	/* call all the init routines */
+	for (app = &__apps_start; app != &__apps_end; app++) {
+		if (app->init)
+			app->init(app);
+	}
+
+	/* start any that want to start on boot */
+	for (app = &__apps_start; app != &__apps_end; app++) {
+		if (app->entry && (app->flags & APP_FLAG_DONT_START_ON_BOOT) == 0) {
 			start_app(app);
 		}
 	}
@@ -44,20 +50,17 @@ void apps_init(void)
 
 static int app_thread_entry(void *arg)
 {
-	const struct _app_descriptor *app = (const struct _app_descriptor *)arg;
+	const struct app_descriptor *app = (const struct app_descriptor *)arg;
 
 	app->entry(app, NULL);
 
 	return 0;
 }
 
-static void start_app(const struct _app_descriptor *app)
+static void start_app(const struct app_descriptor *app)
 {
 	printf("starting app %s\n", app->name);
-	if (app->flags & APP_FLAG_THREAD) {
-		thread_resume(thread_create(app->name, &app_thread_entry, (void *)app, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
-	} else {
-		app->entry(app, NULL);
-	}
+
+	thread_resume(thread_create(app->name, &app_thread_entry, (void *)app, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));	
 }
 

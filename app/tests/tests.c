@@ -35,12 +35,12 @@ STATIC_COMMAND_END(tests);
 
 #endif
 
-static void tests_init(const struct _app_descriptor *app, void *args)
+static void tests_init(const struct app_descriptor *app)
 {
 }
 
 APP_START(tests)
-	.entry = tests_init,
-	.flags = APP_FLAG_BOOT_START,
+	.init = tests_init,
+	.flags = 0,
 APP_END
 

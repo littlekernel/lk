@@ -27,21 +27,22 @@
 void apps_init(void); /* one time setup */
 
 /* app entry point */
-struct _app_descriptor;
-typedef void (*app_entry)(const struct _app_descriptor *, void *args);
+struct app_descriptor;
+typedef void (*app_init)(const struct app_descriptor *);
+typedef void (*app_entry)(const struct app_descriptor *, void *args);
 
 /* app startup flags */
-#define APP_FLAG_BOOT_START 0x1
-#define APP_FLAG_THREAD     0x2
+#define APP_FLAG_DONT_START_ON_BOOT 0x1
 
 /* each app needs to define one of these to define its startup conditions */
-struct _app_descriptor {
+struct app_descriptor {
 	const char *name;
+	app_init  init;
 	app_entry entry;
 	unsigned int flags;
 };
 
-#define APP_START(appname) struct _app_descriptor _app_##appname __SECTION(".apps") = { .name = #appname,
+#define APP_START(appname) struct app_descriptor _app_##appname __SECTION(".apps") = { .name = #appname,
 #define APP_END };
 
 #endif

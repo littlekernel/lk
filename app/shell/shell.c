@@ -24,14 +24,18 @@
 #include <debug.h>
 #include <lib/console.h>
 
-static void shell_init(const struct _app_descriptor *app, void *args)
+static void shell_init(const struct app_descriptor *app)
 {
 	console_init();
+}
+
+static void shell_entry(const struct app_descriptor *app, void *args)
+{
 	console_start();
 }
 
 APP_START(shell)
-	.entry = shell_init,
-	.flags = APP_FLAG_BOOT_START | APP_FLAG_THREAD,
+	.init = shell_init,
+	.entry = shell_entry,
 APP_END
 

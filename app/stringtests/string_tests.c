@@ -245,7 +245,5 @@ STATIC_COMMAND_END(stringtests);
 #endif
 
 APP_START(stringtests)
-	.entry = 0,
-	.flags = 0,
 APP_END
 
