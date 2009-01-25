@@ -27,7 +27,6 @@
 #include <arch.h>
 #include <platform.h>
 #include <target.h>
-#include <project.h>
 #include <lib/heap.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
@@ -122,9 +121,6 @@ static int bootstrap2(void *arg)
 
 	dprintf(SPEW, "calling apps_init()\n");
 	apps_init();
-
-	dprintf(SPEW, "calling project_init()\n");
-	project_init();
 
 	return 0;
 }
