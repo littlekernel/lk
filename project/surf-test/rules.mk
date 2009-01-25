@@ -10,7 +10,7 @@ endif
 
 MODULES += \
 	app/tests \
-	app/console
+	lib/console
 
 OBJS += \
 	$(LOCAL_DIR)/init.o

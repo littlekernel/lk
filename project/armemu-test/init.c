@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app/tests.h>
-#include <app/console.h>
+#include <lib/console.h>
 
 void project_init(void)
 {

@@ -23,8 +23,8 @@
 #include <app/tests.h>
 #include <compiler.h>
 
-#if defined(WITH_APP_CONSOLE)
-#include <app/console.h>
+#if defined(WITH_LIB_CONSOLE)
+#include <lib/console.h>
 
 STATIC_COMMAND_START
 		{ "printf_tests", NULL, (console_cmd)&printf_tests },

@@ -191,8 +191,8 @@ static void validate_memset(void)
 	}
 }
 
-#if defined(WITH_APP_CONSOLE)
-#include <app/console.h>
+#if defined(WITH_LIB_CONSOLE)
+#include <lib/console.h>
 
 static int string_tests(int argc, cmd_args *argv)
 {

@@ -26,8 +26,8 @@
 #include <kernel/timer.h>
 #include <platform.h>
 
-#if defined(WITH_APP_CONSOLE)
-#include <app/console.h>
+#if defined(WITH_LIB_CONSOLE)
+#include <lib/console.h>
 
 static int cmd_threads(int argc, const cmd_args *argv);
 static int cmd_threadstats(int argc, const cmd_args *argv);

@@ -348,9 +348,9 @@ void heap_init(void)
 }
 
 #if DEBUGLEVEL > 1
-#if WITH_APP_CONSOLE
+#if WITH_LIB_CONSOLE
 
-#include <app/console.h>
+#include <lib/console.h>
 
 static int cmd_heap(int argc, const cmd_args *argv);
 

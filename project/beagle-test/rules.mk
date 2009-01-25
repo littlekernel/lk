@@ -6,8 +6,8 @@ TARGET := beagle
 
 MODULES += \
 	app/tests \
-	app/console \
-	app/stringtests
+	app/stringtests \
+	lib/console
 
 OBJS += \
 	$(LOCAL_DIR)/init.o

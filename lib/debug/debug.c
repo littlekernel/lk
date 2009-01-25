@@ -132,8 +132,8 @@ void hexdump8(const void *ptr, size_t len)
 	}	
 }
 
-#ifdef WITH_APP_CONSOLE
-#include <app/console.h>
+#ifdef WITH_LIB_CONSOLE
+#include <lib/console.h>
 
 static int cmd_display_mem(int argc, const cmd_args *argv);
 static int cmd_modify_mem(int argc, const cmd_args *argv);

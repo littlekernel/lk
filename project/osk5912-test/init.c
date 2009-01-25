@@ -22,7 +22,7 @@
  */
 #include <debug.h>
 #include <arch/arm.h>
-#include <app/console.h>
+#include <lib/console.h>
 #include <app/tests.h>
 
 extern int string_tests(void);

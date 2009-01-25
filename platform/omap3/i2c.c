@@ -266,9 +266,9 @@ void i2c_init(void)
 {
 }
 
-#if WITH_APP_CONSOLE
+#if WITH_LIB_CONSOLE
 
-#include <app/console.h>
+#include <lib/console.h>
 
 static int cmd_i2c(int argc, const cmd_args *argv);
 
