@@ -1,0 +1,10 @@
+sys.down
+
+do config_scorpion.cmm
+
+sys.mode attach
+
+if state.run() 
+(
+  break
+)

@@ -1,0 +1,39 @@
+
+global &KERNEL_SRC
+global &KERNEL_ELF
+
+&KERNEL_SRC="../"
+&KERNEL_ELF="../build-aboot/lk"
+
+sys.down
+
+do config_scorpion.cmm
+
+sys.mode attach
+
+if state.run() 
+(
+  break
+)
+
+data.load.ELF &KERNEL_ELF /RELPATH /PATH &KERNEL_SRC
+
+register.set pc 0
+register.set r0 0
+;register.set r1 &MACHINE_ID
+;register.set r2 &TAGS_ADDR
+
+;tronchip.set dabort off
+;tronchip.set pabort off
+
+term.reset
+term.size 70 100
+term.scroll.on
+term
+
+break.select program onchip
+break.delete
+;break.set platform_early_init
+
+go
+

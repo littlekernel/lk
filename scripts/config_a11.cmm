@@ -1,0 +1,16 @@
+; MSM7200 ARM11 in JTAG Direct Mode
+
+system.option.TRST ON
+system.option.CFLUSH ON
+system.option.ResBreak ON
+system.option.EnReset ON
+system.option.WaitReset ON
+system.jtagclock RTCK
+
+sys.cpu arm1136j
+system.multicore irpre 0.
+system.multicore drpre 0.
+system.multicore irpost 0.
+system.multicore drpost 0.
+sys.mode attach
+

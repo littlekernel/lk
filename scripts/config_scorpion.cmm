@@ -1,0 +1,14 @@
+
+system.option.TRST ON
+system.option.CFLUSH ON
+system.option.ResBreak ON
+system.option.EnReset ON
+system.option.WaitReset ON
+system.jtagclock 5.0mhz
+
+sys.cpu scorpion
+system.multicore irpre 0.
+system.multicore drpre 0.
+system.multicore irpost 0.
+system.multicore drpost 0.
+
