@@ -37,12 +37,16 @@
 #include <kernel/thread.h>
 #include <arch/ops.h>
 
+#include <dev/flash.h>
+#include <lib/ptable.h>
+
 #include "bootimg.h"
 #include "fastboot.h"
 
 #define TAGS_ADDR	0x10000100
 #define KERNEL_ADDR	0x10800000
 #define RAMDISK_ADDR	0x11000000
+#define DEFAULT_CMDLINE	"mem=50M console=null";
 
 static struct udc_device surf_udc_device = {
 	.vendor_id	= 0x18d1,
@@ -69,7 +73,7 @@ void boot_linux(void *kernel, unsigned *tags,
 	if (ramdisk_size) {
 		*ptr++ = 4;
 		*ptr++ = 0x54420005;
-		*ptr++ = RAMDISK_ADDR;
+		*ptr++ = (unsigned)ramdisk;
 		*ptr++ = ramdisk_size;
 	}
 
@@ -105,6 +109,75 @@ void boot_linux(void *kernel, unsigned *tags,
 
 #define ROUND_TO_PAGE(x) (((x) + PAGE_MASK) & (~PAGE_MASK))
 
+static unsigned char buf[2048];
+
+int boot_linux_from_flash(void)
+{
+	struct boot_img_hdr *hdr = (void*) buf;
+	unsigned n;
+	struct ptentry *ptn;
+	struct ptable *ptable;
+	unsigned offset = 0;
+	const char *cmdline;
+
+	ptable = flash_get_ptable();
+	if (ptable == NULL) {
+		dprintf(CRITICAL, "ERROR: Partition table not found\n");
+		return -1;
+	}
+
+	ptn = ptable_find(ptable, "boot");
+	if (ptn == NULL) {
+		dprintf(CRITICAL, "ERROR: No boot partition found\n");
+		return -1;
+	}
+
+	if (flash_read(ptn, offset, buf, 2048)) {
+		dprintf(CRITICAL, "ERROR: Cannot read boot image header\n");
+		return -1;
+	}
+	offset += 2048;
+
+	if (memcmp(hdr->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE)) {
+		dprintf(CRITICAL, "ERROR: Invaled boot image heador\n");
+		return -1;
+	}
+
+	n = ROUND_TO_PAGE(hdr->kernel_size);
+	if (flash_read(ptn, offset, (void *)hdr->kernel_addr, n)) {
+		dprintf(CRITICAL, "ERROR: Cannot read kernel image\n");
+		return -1;
+	}
+	offset += n;
+
+	n = ROUND_TO_PAGE(hdr->ramdisk_size);
+	if (flash_read(ptn, offset, (void *)hdr->ramdisk_addr, n)) {
+		dprintf(CRITICAL, "ERROR: Cannot read ramdisk image\n");
+		return -1;
+	}
+	offset += n;
+
+	dprintf(INFO, "\nkernel  @ %x (%d bytes)\n", hdr->kernel_addr,
+		hdr->kernel_size);
+	dprintf(INFO, "ramdisk @ %x (%d bytes)\n", hdr->ramdisk_addr,
+		hdr->ramdisk_size);
+
+	if(hdr->cmdline[0]) {
+		cmdline = (char*) hdr->cmdline;
+	} else {
+		cmdline = DEFAULT_CMDLINE;
+	}
+	dprintf(INFO, "cmdline = '%s'\n", cmdline);
+
+	/* TODO: create/pass atags to kernel */
+
+	dprintf(INFO, "\nBooting Linux\n");
+	boot_linux((void *)hdr->kernel_addr, (void *)TAGS_ADDR,
+		   (const char *)cmdline, 1008000,
+		   (void *)hdr->ramdisk_addr, hdr->ramdisk_size);
+
+	return 0;
+}
 
 void cmd_boot(const char *arg, void *data, unsigned sz)
 {
@@ -143,11 +216,85 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 		   (void*) RAMDISK_ADDR, hdr.ramdisk_size);
 }
 
+void cmd_erase(const char *arg, void *data, unsigned sz)
+{
+	struct ptentry *ptn;
+	struct ptable *ptable;
+
+	ptable = flash_get_ptable();
+	if (ptable == NULL) {
+		fastboot_fail("partition table doesn't exist");
+		return;
+	}
+
+	ptn = ptable_find(ptable, arg);
+	if (ptn == NULL) {
+		fastboot_fail("unknown partition name");
+		return;
+	}
+
+	if (flash_erase(ptn)) {
+		fastboot_fail("failed to erase partition");
+		return;
+	}
+	fastboot_okay("");
+}
+
+void cmd_flash(const char *arg, void *data, unsigned sz)
+{
+	struct ptentry *ptn;
+	struct ptable *ptable;
+	unsigned extra = 0;
+
+	ptable = flash_get_ptable();
+	if (ptable == NULL) {
+		fastboot_fail("partition table doesn't exist");
+		return;
+	}
+
+	ptn = ptable_find(ptable, arg);
+	if (ptn == NULL) {
+		fastboot_fail("unknown partition name");
+		return;
+	}
+
+	if (!strcmp(ptn->name, "boot") || !strcmp(ptn->name, "recovery")) {
+		if (memcmp((void *)data, BOOT_MAGIC, BOOT_MAGIC_SIZE)) {
+			fastboot_fail("image is not a boot image");
+			return;
+		}
+	}
+
+	if (!strcmp(ptn->name, "system") || !strcmp(ptn->name, "userdata"))
+		extra = 64;
+	else
+		sz = ROUND_TO_PAGE(sz);
+
+	dprintf(INFO, "writing %d bytes to '%s'\n", sz, ptn->name);
+	if (flash_write(ptn, extra, data, sz)) {
+		fastboot_fail("flash write failure");
+		return;
+	}
+	dprintf(INFO, "partition '%s' updated\n", ptn->name);
+	fastboot_okay("");
+}
+
+void cmd_continue(const char *arg, void *data, unsigned sz)
+{
+	fastboot_okay("");
+	udc_stop();
+
+	boot_linux_from_flash();
+}
+
 void aboot_init(const struct app_descriptor *app)
 {
 	udc_init(&surf_udc_device);
 
 	fastboot_register("boot", cmd_boot);
+	fastboot_register("erase:", cmd_erase);
+	fastboot_register("flash:", cmd_flash);
+	fastboot_register("continue", cmd_continue);
 	fastboot_publish("product", "swordfish");
 	fastboot_publish("kernel", "lk");
 
