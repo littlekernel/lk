@@ -39,6 +39,7 @@
 
 #include <dev/flash.h>
 #include <lib/ptable.h>
+#include <dev/keys.h>
 
 #include "bootimg.h"
 #include "fastboot.h"
@@ -289,6 +290,14 @@ void cmd_continue(const char *arg, void *data, unsigned sz)
 
 void aboot_init(const struct app_descriptor *app)
 {
+	if (keys_get_state(KEY_BACK) != 0)
+		goto fastboot;
+
+	boot_linux_from_flash();
+	dprintf(CRITICAL, "ERROR: Could not do normal boot. Reverting "
+		"to fastboot mode.\n");
+
+fastboot:
 	udc_init(&surf_udc_device);
 
 	fastboot_register("boot", cmd_boot);
