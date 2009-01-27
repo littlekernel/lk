@@ -3,7 +3,7 @@ global &KERNEL_SRC
 global &KERNEL_ELF
 
 &KERNEL_SRC="../"
-&KERNEL_ELF="../build-aboot/lk"
+&KERNEL_ELF="../build-aboot-surf8k/lk"
 
 sys.down
 
