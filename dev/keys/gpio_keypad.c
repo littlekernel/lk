@@ -36,11 +36,13 @@
 #include <dev/keys.h>
 #include <dev/gpio.h>
 #include <dev/gpio_keypad.h>
+#include <kernel/event.h>
 #include <kernel/timer.h>
 
 struct gpio_kp {
 	struct gpio_keypad_info *keypad_info;
 	struct timer timer;
+	event_t full_scan;
 	int current_output;
 	unsigned int some_keys_pressed:2;
 	unsigned long keys_pressed[0];
@@ -113,6 +115,7 @@ gpio_keypad_timer_func(struct timer *timer, time_t now, void *arg)
 	}
 
 	if (/*!kp->use_irq*/ 1 || kp->some_keys_pressed) {
+		event_signal(&kp->full_scan, false);
 		timer_set_oneshot(timer, kpinfo->poll_time,
 				  gpio_keypad_timer_func, NULL);
 		goto done;
@@ -166,6 +169,10 @@ void gpio_keypad_init(struct gpio_keypad_info *kpinfo)
 
 	keypad->current_output = kpinfo->noutputs;
 
+	event_init(&keypad->full_scan, false, EVENT_FLAG_AUTOUNSIGNAL);
 	timer_initialize(&keypad->timer);
 	timer_set_oneshot(&keypad->timer, 0, gpio_keypad_timer_func, NULL);
+
+	/* wait for the keypad to complete one full scan */
+	event_wait(&keypad->full_scan);
 }
