@@ -8,3 +8,13 @@ MEMBASE := 0x00000000 # SMI
 MEMSIZE := 0x00800000 # 8MB
 
 DEFINES += SDRAM_SIZE=$(MEMSIZE) MEMBASE=$(MEMBASE)
+
+KEYS_USE_GPIO_KEYPAD := 1
+
+MODULES += \
+	dev/keys \
+	lib/ptable
+
+OBJS += \
+	$(LOCAL_DIR)/init.o \
+	$(LOCAL_DIR)/keypad.o
