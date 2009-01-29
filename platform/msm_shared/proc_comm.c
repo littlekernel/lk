@@ -220,3 +220,16 @@ void hsusb_clock_init(void)
 	clock_enable(USB_HS_CLK);
 	clock_enable(USB_HS_PCLK);
 }
+
+void mddi_clock_init(unsigned num, unsigned rate)
+{
+	unsigned clock_id;
+
+	if (num == 0)
+		clock_id = PMDH_CLK;
+	else
+		clock_id = EMDH_CLK;
+
+	clock_enable(clock_id);
+	clock_set_rate(clock_id, rate);
+}

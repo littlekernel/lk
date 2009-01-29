@@ -30,15 +30,20 @@
  */
 
 #include <debug.h>
-
 #include <kernel/thread.h>
 #include <platform/debug.h>
+#include <platform/mddi.h>
+#include <dev/fbcon.h>
+
+static struct fbcon_config *fb_config;
 
 void platform_init_interrupts(void);
 void platform_init_timer();
 
 void uart3_clock_init(void);
 void uart_init(void);
+
+void mddi_clock_init(unsigned num, unsigned rate);
 
 void platform_early_init(void)
 {
@@ -52,4 +57,9 @@ void platform_early_init(void)
 void platform_init(void)
 {
 	dprintf(INFO, "platform_init()\n");
+
+	mddi_clock_init(0, 122880000);
+	fb_config = mddi_init();
+	ASSERT(fb_config);
+	fbcon_setup(fb_config);
 }
