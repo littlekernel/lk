@@ -174,7 +174,7 @@ int boot_linux_from_flash(void)
 
 	dprintf(INFO, "\nBooting Linux\n");
 	boot_linux((void *)hdr->kernel_addr, (void *)TAGS_ADDR,
-		   (const char *)cmdline, 1008000,
+		   (const char *)cmdline, LINUX_MACHTYPE,
 		   (void *)hdr->ramdisk_addr, hdr->ramdisk_size);
 
 	return 0;
@@ -213,7 +213,7 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 
 
 	boot_linux((void*) KERNEL_ADDR, (void*) TAGS_ADDR,
-		   (const char*) hdr.cmdline, 1008000,
+		   (const char*) hdr.cmdline, LINUX_MACHTYPE,
 		   (void*) RAMDISK_ADDR, hdr.ramdisk_size);
 }
 
