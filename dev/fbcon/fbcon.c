@@ -81,6 +81,14 @@ static void fbcon_drawglyph(uint16_t *pixels, uint16_t paint, unsigned stride,
 	}
 }
 
+static void fbcon_flush(void)
+{
+	if (config->update_start)
+		config->update_start();
+	if (config->update_done)
+		while (!config->update_done());
+}
+
 /* TODO: Take stride into account */
 static void fbcon_scroll_up(void)
 {
@@ -96,6 +104,8 @@ static void fbcon_scroll_up(void)
 	while(count--) {
 		*dst++ = BGCOLOR;
 	}
+
+	fbcon_flush();
 }
 
 /* TODO: take stride into account */
@@ -111,13 +121,6 @@ static void fbcon_clear(void)
 		*dst++ = BGCOLOR;
 }
 
-static void fbcon_flush(void)
-{
-	if (config->update_start)
-		config->update_start();
-	if (config->update_done)
-		while (!config->update_done());
-}
 
 static void fbcon_set_colors(unsigned bg, unsigned fg)
 {
@@ -159,7 +162,8 @@ newline:
 	if(cur_pos.y >= max_pos.y) {
 		cur_pos.y = max_pos.y - 1;
 		fbcon_scroll_up();
-	}
+	} else
+		fbcon_flush();
 }
 
 void fbcon_setup(struct fbcon_config *_config)
