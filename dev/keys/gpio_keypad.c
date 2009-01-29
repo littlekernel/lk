@@ -31,6 +31,8 @@
 
 #include <assert.h>
 #include <bits.h>
+#include <stdlib.h>
+#include <string.h>
 #include <dev/keys.h>
 #include <dev/gpio.h>
 #include <dev/gpio_keypad.h>
@@ -86,8 +88,7 @@ gpio_keypad_timer_func(struct timer *timer, time_t now, void *arg)
 	struct gpio_kp *kp = keypad;
 	struct gpio_keypad_info *kpinfo = kp->keypad_info;
 	int polarity = !!(kpinfo->flags & GPIOKPF_ACTIVE_HIGH);
-	int out, in;
-	int key_index;
+	int out;
 	int gpio;
 
 	out = kp->current_output;
@@ -136,7 +137,6 @@ done:
 
 void gpio_keypad_init(struct gpio_keypad_info *kpinfo)
 {
-	struct gpio_kp *kp;
 	int key_count;
 	int output_val;
 	int output_cfg;
