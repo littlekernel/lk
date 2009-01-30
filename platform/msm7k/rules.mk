@@ -12,8 +12,7 @@ OBJS += \
 	$(LOCAL_DIR)/platform.o \
 	$(LOCAL_DIR)/interrupts.o \
 	$(LOCAL_DIR)/mddi.o \
-	$(LOCAL_DIR)/gpio.o \
-	$(LOCAL_DIR)/debug.o
+	$(LOCAL_DIR)/gpio.o 
 
 LINKER_SCRIPT += $(BUILDDIR)/system-onesegment.ld
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, Google Inc.
+ * Copyright (c) 2009, Google Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,15 +35,6 @@
 #include <dev/fbcon.h>
 #include <dev/uart.h>
 
-#ifndef WITH_DEBUG_UART3
-#define WITH_DEBUG_UART3 1
-#define DEBUG_UART 2
-#endif
-
-#ifndef WITH_DEBUG_DCC
-#define WITH_DEBUG_DCC 0
-#endif
-
 void _dputc(char c)
 {
 #if WITH_DEBUG_DCC
@@ -52,10 +43,10 @@ void _dputc(char c)
 	}
 	while (dcc_putc(c) < 0);
 #endif
-#if WITH_DEBUG_UART3
-	uart_putc(DEBUG_UART, c);
+#if WITH_DEBUG_UART
+	uart_putc(0, c);
 #endif
-#if WITH_DEV_FBCON
+#if WITH_DEBUG_FBCON && WITH_DEV_FBCON
 	fbcon_putc(c);
 #endif
 }
@@ -65,8 +56,8 @@ int dgetc(char *c)
 	int n;
 #if WITH_DEBUG_DCC
 	n = dcc_getc();
-#elif WITH_DEBUG_UART3
-	n = uart_getc(DEBUG_UART, 0);
+#elif WITH_DEBUG_UART
+	n = uart_getc(0, 0);
 #else
 	n = -1;
 #endif
@@ -84,7 +75,3 @@ void platform_halt(void)
 	for(;;);
 }
 
-uint32_t debug_cycle_count(void)
-{
-	return 0;
-}

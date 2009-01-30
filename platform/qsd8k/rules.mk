@@ -16,7 +16,6 @@ OBJS += \
 	$(LOCAL_DIR)/arch_init.o \
 	$(LOCAL_DIR)/platform.o \
 	$(LOCAL_DIR)/interrupts.o \
-	$(LOCAL_DIR)/debug.o \
 	$(LOCAL_DIR)/gpio.o \
 	$(LOCAL_DIR)/lcdc.o
 
