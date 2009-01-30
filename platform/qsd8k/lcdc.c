@@ -97,19 +97,14 @@ void lcdc_clock_init(unsigned rate);
 
 struct fbcon_config *lcdc_init(void)
 {
-	unsigned n;
-
-	dprintf(INFO, "lcdc_init()\n");
-
-	dprintf(INFO, "panel is %d x %d\n", fb_cfg.width, fb_cfg.height);
+	dprintf(INFO, "lcdc_init(): panel is %d x %d\n", fb_cfg.width, fb_cfg.height);
 
 	fb_cfg.base =
 		memalign(4096, fb_cfg.width * fb_cfg.height * (fb_cfg.bpp / 8));
-	dprintf(INFO, "FB %p\n", fb_cfg.base);
 
 	lcdc_clock_init(1000000000 / LCDC_PIXCLK_IN_PS);
 
-	writel(fb_cfg.base, MSM_MDP_BASE1 + 0x90008);
+	writel((unsigned) fb_cfg.base, MSM_MDP_BASE1 + 0x90008);
 
 	writel((fb_cfg.height << 16) | fb_cfg.width, MSM_MDP_BASE1 + 0x90004);
 	writel(fb_cfg.width * fb_cfg.bpp / 8, MSM_MDP_BASE1 + 0x9000c);
@@ -121,7 +116,6 @@ struct fbcon_config *lcdc_init(void)
 
 	int hsync_period  = LCDC_HSYNC_PULSE_WIDTH_DCLK + LCDC_HSYNC_BACK_PORCH_DCLK + fb_cfg.width + LCDC_HSYNC_FRONT_PORCH_DCLK;
 	int vsync_period  = (LCDC_VSYNC_PULSE_WIDTH_LINES + LCDC_VSYNC_BACK_PORCH_LINES + fb_cfg.height + LCDC_VSYNC_FRONT_PORCH_LINES) * hsync_period;
-	int hsync_ctrl    = (hsync_period << 16) | LCDC_HSYNC_PULSE_WIDTH_DCLK;
 	int hsync_start_x = LCDC_HSYNC_PULSE_WIDTH_DCLK + LCDC_HSYNC_BACK_PORCH_DCLK;
 	int hsync_end_x   = hsync_period - LCDC_HSYNC_FRONT_PORCH_DCLK - 1;
 	int display_hctl  = (hsync_end_x << 16) | hsync_start_x;
