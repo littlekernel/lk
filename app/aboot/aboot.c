@@ -95,7 +95,6 @@ void boot_linux(void *kernel, unsigned *tags,
 	enter_critical_section();
 	platform_uninit_timer();
 	arch_disable_cache(UCACHE);
-	arch_enable_cache(ICACHE);
 	arch_disable_mmu();
 
 	entry(0, machtype, tags);
