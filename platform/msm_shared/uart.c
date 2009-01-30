@@ -118,6 +118,7 @@
 #define UART_ISR         0x0014
 
 
+static unsigned uart_ready = 0;
 static unsigned uart_base = MSM_UART3_BASE;
 
 #define uwr(v,a) writel(v, uart_base + (a))
@@ -167,10 +168,14 @@ void uart_init(void)
 	uwr(0x34, UART_MR2); /* 8N1 */
 	
 	uwr(0x05, UART_CR); /* enable TX & RX */
+
+	uart_ready = 1;
 }
 
 int uart_putc(int port, char c)
 {
+	if (!uart_ready)
+		return -1;
 	while (!(urd(UART_SR) & UART_SR_TX_READY)) ;
 	uwr(c, UART_TF);
 	return 0;
@@ -178,6 +183,8 @@ int uart_putc(int port, char c)
 
 int uart_getc(int port, bool wait)
 {
+	if (!uart_ready)
+		return -1;
 	while (!(urd(UART_SR) & UART_SR_RX_READY))
 		if (!wait)
 			return -1;
