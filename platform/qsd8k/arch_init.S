@@ -206,7 +206,6 @@ WRITE_SA:
 
 .globl __cpu_early_init
 __cpu_early_init:
-        
         //; Zero out r0 for use throughout this code. All other GPRs 
         //; (r1-r3) are set throughout this code to help establish
         //; a consistent startup state for any code that follows.
@@ -428,7 +427,7 @@ SEQ8:
         MOV   r3, #0x04
 
         //; keep d-cache disabled on Raptor Rev 1.0 silicon
-        orr   r3, r3, #0x4000 //;disable dcache
+        //; orr   r3, r3, #0x4000 //;disable dcache
         MCR   p15, 0, r3, c1, c0, 1      //; WCP15_ACTLR  r3
 
 //;End of error and control setting
