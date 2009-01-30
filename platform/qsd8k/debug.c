@@ -35,20 +35,26 @@
 #include <dev/fbcon.h>
 #include <dev/uart.h>
 
-#define DCC_DEBUG 1
-#define DEBUG_UART 3
+#ifndef WITH_DEBUG_UART3
+#define WITH_DEBUG_UART3 1
+#define DEBUG_UART 2
+#endif
+
+#ifndef WITH_DEBUG_DCC
+#define WITH_DEBUG_DCC 0
+#endif
 
 void _dputc(char c)
 {
-#if DCC_DEBUG
+#if WITH_DEBUG_DCC
 	if (c == '\n') {
 		while (dcc_putc('\r') < 0);
 	}
 	while (dcc_putc(c) < 0);
-#else
+#endif
+#if WITH_DEBUG_UART3
 	uart_putc(DEBUG_UART, c);
 #endif
-
 #if WITH_DEV_FBCON
 	fbcon_putc(c);
 #endif
@@ -57,10 +63,12 @@ void _dputc(char c)
 int dgetc(char *c)
 {
 	int n;
-#if DCC_DEBUG
+#if WITH_DEBUG_DCC
 	n = dcc_getc();
-#else
+#elif WITH_DEBUG_UART3
 	n = uart_getc(DEBUG_UART, 0);
+#else
+	n = -1;
 #endif
 	if (n < 0) {
 		return -1;
