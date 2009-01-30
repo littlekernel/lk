@@ -196,6 +196,7 @@ int gpio_config(unsigned n, unsigned flags)
 	} else {
 		writel(v & (~b), r->oe);
 	}
+	return 0;
 }
 
 void gpio_set(unsigned n, unsigned on)
