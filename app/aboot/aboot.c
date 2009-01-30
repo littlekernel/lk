@@ -57,8 +57,28 @@ static struct udc_device surf_udc_device = {
 	.product	= "Android",
 };
 
+struct atag_ptbl_entry
+{
+	char name[16];
+	unsigned offset;
+	unsigned size;
+	unsigned flags;
+};
+
 void platform_uninit_timer(void);
 
+static void ptentry_to_tag(unsigned **ptr, struct ptentry *ptn)
+{
+	struct atag_ptbl_entry atag_ptn;
+
+	memcpy(atag_ptn.name, ptn->name, 16);
+	atag_ptn.name[15] = '\0';
+	atag_ptn.offset = ptn->start;
+	atag_ptn.size = ptn->length;
+	atag_ptn.flags = ptn->flags;
+	memcpy(*ptr, &atag_ptn, sizeof(struct atag_ptbl_entry));
+	*ptr += sizeof(struct atag_ptbl_entry) / sizeof(unsigned);
+}
 
 void boot_linux(void *kernel, unsigned *tags, 
 		const char *cmdline, unsigned machtype,
@@ -66,6 +86,7 @@ void boot_linux(void *kernel, unsigned *tags,
 {
 	unsigned *ptr = tags;
 	void (*entry)(unsigned,unsigned,unsigned*) = kernel;
+	struct ptable *ptable;
 
 	/* CORE */
 	*ptr++ = 2;
@@ -76,6 +97,15 @@ void boot_linux(void *kernel, unsigned *tags,
 		*ptr++ = 0x54420005;
 		*ptr++ = (unsigned)ramdisk;
 		*ptr++ = ramdisk_size;
+	}
+
+	if ((ptable = flash_get_ptable()) && (ptable->count != 0)) {
+		int i;
+		*ptr++ = 2 + (ptable->count * (sizeof(struct atag_ptbl_entry) /
+					       sizeof(unsigned)));
+		*ptr++ = 0x4d534d70;
+		for (i = 0; i < ptable->count; ++i)
+			ptentry_to_tag(&ptr, ptable_get(ptable, i));
 	}
 
 	if (cmdline && cmdline[0]) {
