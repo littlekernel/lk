@@ -40,6 +40,10 @@
 #define BYTE_ORDER LITTLE_ENDIAN
 #endif
 
+#if defined(__i386__) || defined(_X86_)
+#define BYTE_ORDER LITTLE_ENDIAN
+#endif
+
 #ifndef BYTE_ORDER
 #error "need to get the BYTE_ORDER define from somewhere"
 #endif

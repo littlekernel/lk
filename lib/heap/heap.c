@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2009 Corey Tabaka
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -45,10 +46,10 @@
 extern int _end;
 
 // end of memory
-extern int _end_of_ram;
+extern int _heap_end;
 
 #define HEAP_START ((unsigned long)&_end)
-#define HEAP_LEN ((size_t)&_end_of_ram - (size_t)&_end)
+#define HEAP_LEN ((size_t)_heap_end - (size_t)&_end)
 #endif
 
 struct free_heap_chunk {

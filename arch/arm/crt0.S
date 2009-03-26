@@ -142,3 +142,14 @@ reset:
 abort_stack:
 	.skip 1024
 abort_stack_top:
+
+.rodata:
+.align 2
+
+/* define the heap end as read-only data containing the end defined in the
+ * linker script. other archs that use dynamic memory length discovery can make
+ * this read-write and update it during init.
+ */
+.global _heap_end
+_heap_end:
+	.int _end_of_ram
