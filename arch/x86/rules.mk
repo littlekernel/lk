@@ -18,10 +18,16 @@ OBJS += \
 	$(LOCAL_DIR)/descriptor.o
 
 # set the default toolchain to x86 elf and set a #define
-TOOLCHAIN_PREFIX ?= #x86-elf-
+TOOLCHAIN_PREFIX ?= i386-elf-
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(CFLAGS) -print-libgcc-file-name)
 #$(info LIBGCC = $(LIBGCC))
+
+cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
+	then echo "$(2)"; else echo "$(3)"; fi ;)
+
+# disable SSP if the compiler supports it; it will break stuff
+CFLAGS += $(call cc-option,$(CC),-fno-stack-protector,)
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
