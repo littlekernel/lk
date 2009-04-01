@@ -20,58 +20,48 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <stdarg.h>
-#include <reg.h>
-#include <printf.h>
-#include <kernel/thread.h>
-#include <arch/x86.h>
-#include <platform/x86/memmap.h>
-#include <platform/console.h>
-#include <platform/keyboard.h>
-#include <platform/debug.h>
+#ifndef __PLATFORM_PC_H
+#define __PLATFORM_PC_H
 
-void _dputc(char c)
-{
-	cputc(c);
-}
+#include <platform/pc/memmap.h>
+#include <platform/pc/iomap.h>
 
-int dgetc(char *c)
-{
-	return platform_read_key(c);
-}
+/* NOTE: keep arch/x86/crt0.S in sync with these definitions */
 
-void debug_dump_regs(void)
-{
-}
+/* interrupts */
+#define INT_VECTORS 0x31
 
-void platform_halt(void)
-{
-	for(;;) {
-		x86_cli();
-		x86_hlt();
-	}
-}
+/* defined interrupts */
+#define INT_BASE			0x20
+#define INT_PIT				0x20
+#define INT_KEYBOARD		0x21
+#define INT_PIC2			0x22
 
-void debug_dump_memory_bytes(void *mem, int len)
-{
-}
+#define INT_BASE2			0x28
+#define INT_CMOSRTC			0x28
+#define INT_PS2MOUSE		0x2c
+#define INT_IDE0			0x2e
+#define INT_IDE1			0x2f
 
-void debug_dump_memory_halfwords(void *mem, int len)
-{
-}
+/* exceptions */
+#define INT_DIVIDE_0		0x00
+#define INT_DEBUG_EX		0x01
+#define INT_INVALID_OP		0x06
+#define INT_DEV_NA_EX		0x07
 
-void debug_dump_memory_words(void *mem, int len)
-{
-}
+/* faults */
+#define INT_STACK_FAULT		0x0c
+#define INT_GP_FAULT		0x0d
+#define INT_PAGE_FAULT		0x0e
 
-void debug_set_trace_level(int trace_type, int level)
-{
-}
+/* APIC vectors */
+#define INT_APIC_TIMER		0x22
 
-uint32_t debug_cycle_count()
-{
-	uint32_t timestamp;
-	rdtscl(timestamp);
-	
-	return timestamp;
-}
+#define INT_SYSCALL			0x30
+
+/* PIC remap bases */
+#define PIC1_BASE 0x20
+#define PIC2_BASE 0x28
+
+#endif
+

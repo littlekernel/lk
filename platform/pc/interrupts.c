@@ -29,7 +29,7 @@
 #include <arch/ops.h>
 #include <arch/x86.h>
 #include "platform_p.h"
-#include <platform/x86.h>
+#include <platform/pc.h>
 
 void x86_gpf_handler(struct x86_iframe *frame);
 void x86_invop_handler(struct x86_iframe *frame);

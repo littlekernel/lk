@@ -29,7 +29,7 @@
 #include <platform/interrupts.h>
 #include <platform/console.h>
 #include <platform/timer.h>
-#include <platform/x86.h>
+#include <platform/pc.h>
 #include "platform_p.h"
 #include <arch/x86.h>
 

@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <arch/x86.h>
-#include <platform/x86.h>
+#include <platform/pc.h>
 #include <platform/console.h>
 #include <string.h>
 #include <stdlib.h>

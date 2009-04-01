@@ -25,7 +25,7 @@
 #include <arch/x86/mmu.h>
 #include <platform.h>
 #include "platform_p.h"
-#include <platform/x86.h>
+#include <platform/pc.h>
 #include <platform/multiboot.h>
 #include <platform/console.h>
 #include <platform/keyboard.h>
