@@ -22,21 +22,3 @@
  */
 #include <asm.h>
 
-
-	/* context switch frame is as follows:
-	 * ulr
-	 * usp
-	 * lr
-	 * r11
-	 * r10
-	 * r9
-	 * r8
-	 * r7
-	 * r6
-	 * r5
-	 * r4
-	 */
-/* x86_context_switch(addr_t *old_sp, addr_t new_sp) */
-FUNCTION(x86_context_switch)
-	/* TODO */
-	ret

@@ -93,7 +93,7 @@ error:
 }
 
 /*
- * a somewhat fugly pci config space examin/modify command. this should probably
+ * a somewhat fugly pci config space examine/modify command. this should probably
  * be broken up a bit.
  */
 static int pci_config(int argc, const cmd_args *argv)

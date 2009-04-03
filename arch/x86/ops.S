@@ -80,7 +80,13 @@ movl 4(%esp), %edx
 
 /* void arch_idle(); */
 FUNCTION(arch_idle)
+	pushf
+	popl %eax
+	andl $0x200, %eax
+	test %eax, %eax
+	je 1f					/* don't halt if local interrupts are disabled */
 	hlt
+1:
 	ret
 
 /* void arch_switch_stacks_and_call(addr_t call, addr_t stack) */

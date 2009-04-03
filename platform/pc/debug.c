@@ -37,7 +37,11 @@ void _dputc(char c)
 
 int dgetc(char *c)
 {
-	return platform_read_key(c);
+	int ret =  platform_read_key(c);
+	if (ret < 0)
+		arch_idle();
+	
+	return ret;
 }
 
 void debug_dump_regs(void)
