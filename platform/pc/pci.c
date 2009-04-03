@@ -539,7 +539,7 @@ static int pci_bios_detect(void) {
 			  "=c"(busses),
 			  "=d"(signature)
 			: "0"(PCIBIOS_PRESENT),
-			  "S"(&bios32_entry)
+			  "D"(&bios32_entry)
 		);
 		
 		if (present & 0xff00) {
