@@ -12,10 +12,8 @@ OBJS += \
 	$(LOCAL_DIR)/timer.o \
 	$(LOCAL_DIR)/debug.o \
 	$(LOCAL_DIR)/console.o \
-	$(LOCAL_DIR)/keyboard.o
-
-MEMBASE := 0x0
-MEMSIZE := 0x400000	# 4MB
+	$(LOCAL_DIR)/keyboard.o \
+	$(LOCAL_DIR)/pci.o
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/kernel.ld

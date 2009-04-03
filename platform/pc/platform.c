@@ -29,6 +29,7 @@
 #include <platform/multiboot.h>
 #include <platform/console.h>
 #include <platform/keyboard.h>
+#include <dev/pci.h>
 
 extern multiboot_info_t *_multiboot_info;
 extern unsigned int _heap_end;
@@ -91,5 +92,6 @@ void platform_init(void)
 {
 	platform_init_keyboard();
 	
+	pci_init();
 }
 
