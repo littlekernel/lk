@@ -29,6 +29,8 @@
 #ifndef __DEV_GPIO_H
 #define __DEV_GPIO_H
 
+#include <platform/interrupts.h>
+
 #define GPIO_INPUT	0x0000
 #define GPIO_OUTPUT	0x0001
 
@@ -47,5 +49,7 @@
 int gpio_config(unsigned nr, unsigned flags);
 void gpio_set(unsigned nr, unsigned on);
 int gpio_get(unsigned nr);
+
+int gpio_set_interrupt(unsigned int nr, unsigned flags, int_handler handler, void *arg);
 
 #endif
