@@ -20,11 +20,16 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <debug.h>
 #include <printf.h>
 #include <kernel/thread.h>
+#include <kernel/event.h>
 #include <kernel/timer.h>
+#include <lib/net/if.h>
+#include <lib/net/ethernet.h>
 #include <dev/net/smc91c96.h>
 #include "smc91c96_p.h"
 #include <dev/gpio.h>
@@ -37,6 +42,9 @@
 
 static addr_t smc91c96_base = SMC91C96_BASE_ADDR;
 static uint8_t mac_addr[6];
+static event_t rx_event;
+static void *rx_buffer;
+static size_t rx_buffer_len;
 
 #define SMC_REG16(reg) ((volatile uint16_t *)(smc91c96_base + (reg)))
 #define SMC_REG8(reg) ((volatile uint8_t *)(smc91c96_base + (reg)))
@@ -111,6 +119,8 @@ static int smc91c96_read_packet(uint8_t *data, size_t *len)
 
 static int smc91c96_tx_packet(const uint8_t *data, size_t len)
 {
+	enter_critical_section();
+
 	smc_bank(2);
 
 	len += 6; // for our packet overhead
@@ -149,6 +159,8 @@ static int smc91c96_tx_packet(const uint8_t *data, size_t len)
 
 	*SMC_REG16(SMC_MMUCR) = (0xc << 4); // queue tx packet
 
+	exit_critical_section();
+
 	return 0;
 }
 
@@ -167,17 +179,28 @@ static enum handler_return smc91c96_interrupt(void *arg)
 
 	if (ist & SMC_RCV_INT) {
 		// RCV INT
-		uint8_t buf[1600];
-		size_t len;
-		smc91c96_read_packet(buf, &len);
+
+		if (rx_buffer != 0 && rx_buffer_len > 0) {
+			size_t len;
+			
+			LTRACEF("reading packet into buffer at %p\n", rx_buffer);
+
+			smc91c96_read_packet(rx_buffer, &len);
+
+			rx_buffer_len = len;
+			event_signal(&rx_event, false);
 
 #if LOCAL_TRACE
-		hexdump8(buf, len);	
+			hexdump8(rx_buffer, len);	
 #endif
+			ret = INT_RESCHEDULE;
+
+			/* dont reenable the rx interrupt at the end */
+			msk &= ~SMC_RCV_INT;
+		}
 
 		*SMC_REG8(SMC_MMUCR) = (8 << 4); // remove frame from rx fifo
 
-		ret = INT_RESCHEDULE;
 	}
 
 	if (ist & SMC_TX_INT) {
@@ -256,6 +279,9 @@ void smc91c96_init(void)
 
 	smc_bank(0);
 
+	/* initialize the rx engine */
+	event_init(&rx_event, false, 0);
+
 #if 0
 	char buf[818];
 	memset(buf, 0, sizeof(buf));
@@ -273,8 +299,45 @@ void smc91c96_init(void)
 	gpio_set_interrupt(0, GPIO_EDGE | GPIO_RISING, &smc91c96_interrupt, NULL);
 }
 
+int smc91c96_input(void *cookie, void *buf, size_t len)
+{
+	int ret;
+
+	LTRACEF("buf %p, len %d\n", buf, len);
+
+	enter_critical_section();
+
+	event_unsignal(&rx_event);
+
+	rx_buffer = buf;
+	rx_buffer_len = len;
+
+	/* enable the rx interrupt */
+	smc_bank(2);
+	*SMC_REG8(SMC_MSK) = SMC_RCV_INT;
+
+	event_wait(&rx_event);
+
+	ret = rx_buffer_len;
+
+	exit_critical_section();
+
+	return ret;
+}
+
+int smc91c96_output(void *cookie, const void *buf, size_t len)
+{
+	LTRACEF("buf %p, len %d\n", buf, len);
+
+	return smc91c96_tx_packet(buf, len);
+}
+
 void smc91c96_start(void)
 {
+	LTRACE_ENTRY;
+
+	enter_critical_section();
+
 	// start the receiver
 	smc_bank(0);
 	*SMC_REG16(SMC_RCR) = (1<<8) | (1<<1); // RXEN, PRMS (promiscuous)
@@ -282,10 +345,29 @@ void smc91c96_start(void)
 	// enable tx
 	*SMC_REG16(SMC_TCR) = (1<<0); // TXEN
 
-	// enable rx interrupt
+	// clear interrupts
 	smc_bank(2);
 	*SMC_REG8(SMC_MSK) = 0;
 	*SMC_REG8(SMC_ACK) = 0xff;
-	*SMC_REG8(SMC_MSK) = SMC_RCV_INT;
+	*SMC_REG8(SMC_MSK) = 0;
+
+	exit_critical_section();
+
+	/* register ourselves with the net stack */
+	ifhook *hook = malloc(sizeof(ifhook));
+	hook->type = IF_TYPE_ETHERNET;
+	hook->mtu = ETHERNET_MAX_SIZE - ETHERNET_HEADER_SIZE;
+	hook->linkaddr.len = 6;
+	hook->linkaddr.type = ADDR_TYPE_ETHERNET;
+	memcpy(hook->linkaddr.addr, mac_addr, 6);
+	hook->cookie = 0;
+	hook->if_input = smc91c96_input;
+	hook->if_output = smc91c96_output;
+
+	/* start the interface */
+	ifnet *i;
+	if_register_interface(hook, &i);
+
+	LTRACE_EXIT;
 }
 
