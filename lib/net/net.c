@@ -3,7 +3,7 @@
 ** Distributed under the terms of the NewOS License.
 */
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,10 +24,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-//#include <kernel/kernel.h>
 #include <debug.h>
-//#include <kernel/thread.h>
-//#include <kernel/vfs.h>
 #include <stdlib.h>
 #include <string.h>
 #include <lib/net.h>

@@ -80,7 +80,6 @@ typedef struct ifnet {
 
 int if_init(void);
 ifnet *if_id_to_ifnet(if_id id);
-ifnet *if_path_to_ifnet(const char *path);
 int if_register_interface(const ifhook *hook, ifnet **i);
 void if_bind_address(ifnet *i, ifaddr *addr);
 void if_bind_link_address(ifnet *i, ifaddr *addr);

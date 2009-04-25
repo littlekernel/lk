@@ -129,7 +129,6 @@ int if_register_interface(const ifhook *hook, ifnet **_i)
 		case IF_TYPE_ETHERNET:
 			i->link_input = &ethernet_input;
 			i->link_output = &ethernet_output;
-//			i->mtu = ETHERNET_MAX_SIZE - ETHERNET_HEADER_SIZE;
 
 			/* bind the link address */
 			address = malloc(sizeof(ifaddr));
