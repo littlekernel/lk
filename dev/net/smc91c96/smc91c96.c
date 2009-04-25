@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -27,6 +27,9 @@
 #include <kernel/timer.h>
 #include <dev/net/smc91c96.h>
 #include "smc91c96_p.h"
+#include <dev/gpio.h>
+
+#define LOCAL_TRACE 0
 
 #if !defined(SMC91C96_BASE_ADDR) || !defined(SMC91C96_IRQ)
 #error need to define SMC91C96_BASE_ADDR and SMC91C96_IRQ in project
@@ -34,8 +37,6 @@
 
 static addr_t smc91c96_base = SMC91C96_BASE_ADDR;
 static uint8_t mac_addr[6];
-
-static timer_t int_timer;
 
 #define SMC_REG16(reg) ((volatile uint16_t *)(smc91c96_base + (reg)))
 #define SMC_REG8(reg) ((volatile uint8_t *)(smc91c96_base + (reg)))
@@ -51,7 +52,7 @@ static void smc91c96_reset(void)
 
 	smc_bank(0);
 
-	*SMC_REG16(SMC_RCR) = (1<<16);
+	*SMC_REG16(SMC_RCR) = (1<<15);
 	thread_sleep(10);
 	*SMC_REG16(SMC_RCR) = 0;
 }
@@ -60,27 +61,27 @@ static int smc91c96_read_packet(uint8_t *data, size_t *len)
 {
 	int rx_fifo = (*SMC_REG16(SMC_FIFO) >> 8) & 0xf;
 
-	TRACEF("RCV_INT: fifo port %d\n", rx_fifo);
+	LTRACEF("RCV_INT: fifo port %d\n", rx_fifo);
 
 	// load it into the pointer register
 	*SMC_REG16(SMC_PTR) = (1<<15) | (1<<14) | (1<<13) | rx_fifo;	
 
 	uint16_t status = *SMC_REG16(SMC_DATA0);
-	TRACEF("status 0x%hx\n", status);
+	LTRACEF("status 0x%hx\n", status);
 
 	uint16_t count = *SMC_REG16(SMC_DATA0) & 0x7ff;
-	TRACEF("count %d\n", count);
+	LTRACEF("count %d\n", count);
 
 	// bad status?
 	if (status & (0xbc00)) {
-		TRACEF("bad status\n");
+		LTRACEF("bad status\n");
 		*len = 0;
 		return -1;
 	}
 
 	// malformed count
 	if (count <= 6 || count & 1) {
-		TRACEF("bad count\n");
+		LTRACEF("bad count\n");
 		*len = 0;
 		return -1;
 	}
@@ -91,7 +92,7 @@ static int smc91c96_read_packet(uint8_t *data, size_t *len)
 	}
 
 	uint16_t control_last = *SMC_REG16(SMC_DATA0);
-	TRACEF("control_last 0x%hx\n", control_last);
+	LTRACEF("control_last 0x%hx\n", control_last);
 
 	if (control_last & (1<<13)) {
 		// odd size, stuff the other byte
@@ -100,10 +101,10 @@ static int smc91c96_read_packet(uint8_t *data, size_t *len)
 	}
 
 	*len = count - 6;
-	TRACEF("total len %d\n", *len);
+	LTRACEF("total len %d\n", *len);
 
 	// parse the header
-	TRACEF("ethernet type 0x%x\n", ((uint16_t *)data)[6]);
+	LTRACEF("ethernet type 0x%x\n", ((uint16_t *)data)[6]);
 
 	return 0;
 }
@@ -122,7 +123,7 @@ static int smc91c96_tx_packet(const uint8_t *data, size_t len)
 		;
 
 	uint8_t arr = *SMC_REG8(SMC_ARR);
-	TRACEF("ARR 0x%x\n", arr);
+	LTRACEF("ARR 0x%x\n", arr);
 
 	// load the packet number register
 	*SMC_REG8(SMC_PNR) = (arr & 0xf);
@@ -133,7 +134,7 @@ static int smc91c96_tx_packet(const uint8_t *data, size_t len)
 	*SMC_REG16(SMC_DATA0) = 0; // status word
 	*SMC_REG16(SMC_DATA0) = len & 0x7fe; // make sure it's even
 
-	int i;
+	unsigned int i;
 	for (i = 0; i < (len >> 1) - 3; i++) {
 		*SMC_REG16(SMC_DATA0) = ((uint16_t *)data)[i];
 	}
@@ -151,52 +152,63 @@ static int smc91c96_tx_packet(const uint8_t *data, size_t len)
 	return 0;
 }
 
-static enum handler_return smc91c96_interrupt(void)
+static enum handler_return smc91c96_interrupt(void *arg)
 {
 	enum handler_return ret = INT_NO_RESCHEDULE;
 
 	smc_bank(2);
 	uint8_t ist = *SMC_REG8(SMC_IST);
+	uint8_t msk = *SMC_REG8(SMC_MSK);
 
-	if (ist & (1<<0)) {
+	LTRACEF("ist 0x%x MSK 0x%x\n", ist, msk);
+
+	// wipe out the int mask to guarantee the interrupt assert drops low
+	*SMC_REG8(SMC_MSK) = 0;
+
+	if (ist & SMC_RCV_INT) {
 		// RCV INT
 		uint8_t buf[1600];
 		size_t len;
 		smc91c96_read_packet(buf, &len);
 
+#if LOCAL_TRACE
 		hexdump8(buf, len);	
+#endif
 
 		*SMC_REG8(SMC_MMUCR) = (8 << 4); // remove frame from rx fifo
 
 		ret = INT_RESCHEDULE;
 	}
 
-	if (ist & (1<<1)) {
+	if (ist & SMC_TX_INT) {
 		// TX INT
-		TRACEF("TX\n");
+		LTRACEF("TX\n");
 
 		uint16_t fifo = *SMC_REG16(SMC_FIFO);
-		TRACEF("fifo 0x%x\n", fifo);
+		LTRACEF("fifo 0x%x\n", fifo);
 
 		// write the packet number out
 		*SMC_REG8(SMC_PNR) = fifo & 0xf;
 
 		smc_bank(0);
 		uint16_t ephsr = *SMC_REG16(SMC_EPHSR);
-		TRACEF("ephsr 0x%x\n", ephsr);
+		LTRACEF("ephsr 0x%x\n", ephsr);
 
 		smc_bank(2);
 		*SMC_REG16(SMC_MMUCR) = (0xa << 4); // release specific packet
 
-		*SMC_REG8(SMC_ACK) = (1<<1); // TX ACK
+		*SMC_REG8(SMC_ACK) = SMC_TX_INT; // TX ACK
 
 		ret = INT_RESCHEDULE;
 	}
 
-	if (ist & (1<<4)) {
+	if (ist & SMC_ALLOC_INT) {
 		// allocation result
 
 	}
+
+	// put the old mask back, which should guarantee a new edge if we're edge triggered
+	*SMC_REG8(SMC_MSK) = msk;
 
 	return ret;
 }
@@ -209,7 +221,7 @@ void smc91c96_init(void)
 
 	// try to detect it
 	if ((*SMC_REG16(SMC_BSR) & 0xff00) != 0x3300) {
-		TRACEF("didn't see smc91c96 chip at 0x%x\n", (unsigned int)smc91c96_base);
+		LTRACEF("didn't see smc91c96 chip at 0x%x\n", (unsigned int)smc91c96_base);
 		return;
 	}
 
@@ -223,7 +235,7 @@ void smc91c96_init(void)
 	smc_bank(0);
 	uint16_t mir = *SMC_REG16(SMC_MIR);
 	uint16_t mcr = *SMC_REG16(SMC_MCR);
-	TRACEF("mir 0x%x, mcr 0x%x\n", mir, mcr);
+	LTRACEF("mir 0x%x, mcr 0x%x\n", mir, mcr);
 
 	// read in the mac address
 	smc_bank(1);
@@ -233,6 +245,14 @@ void smc91c96_init(void)
 	TRACEF("mac address %02x:%02x:%02x:%02x:%02x:%02x\n", 
 		mac_addr[0], mac_addr[1], mac_addr[2],
 		mac_addr[3], mac_addr[4], mac_addr[5]);
+
+	// set up the interrupt pin
+	smc_bank(1);
+	*SMC_REG16(SMC_CR) = *SMC_REG16(SMC_CR) & ~(3<<1); // clear bits 1 and 2
+
+	// set up interrupt masks
+	smc_bank(2);
+	*SMC_REG8(SMC_MSK) = 0;
 
 	smc_bank(0);
 
@@ -248,15 +268,9 @@ void smc91c96_init(void)
 		smc91c96_interrupt();
 	}
 #endif
-}
 
-static enum handler_return smc91c96_timer(struct timer *t, time_t now, void *arg)
-{
-	enum handler_return ret = smc91c96_interrupt();
-	
-	timer_set_oneshot(t, 10, smc91c96_timer, NULL);
-
-	return ret;
+	gpio_config(0, GPIO_INPUT);
+	gpio_set_interrupt(0, GPIO_EDGE | GPIO_RISING, &smc91c96_interrupt, NULL);
 }
 
 void smc91c96_start(void)
@@ -268,7 +282,10 @@ void smc91c96_start(void)
 	// enable tx
 	*SMC_REG16(SMC_TCR) = (1<<0); // TXEN
 
-	timer_initialize(&int_timer);
-	timer_set_oneshot(&int_timer, 10, smc91c96_timer, NULL);
+	// enable rx interrupt
+	smc_bank(2);
+	*SMC_REG8(SMC_MSK) = 0;
+	*SMC_REG8(SMC_ACK) = 0xff;
+	*SMC_REG8(SMC_MSK) = SMC_RCV_INT;
 }
 

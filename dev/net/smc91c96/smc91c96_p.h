@@ -75,6 +75,16 @@
 #define SMC_REV   10
 #define SMC_ERCV  12
 
+/* interrupt bits */
+#define SMC_RCV_INT      (1<<0)
+#define SMC_TX_INT       (1<<1)
+#define SMC_TX_EMPTY_INT (1<<2)
+#define SMC_ALLOC_INT    (1<<3)
+#define SMC_RX_OVRN_INT  (1<<4)
+#define SMC_EPH_INT      (1<<5)
+#define SMC_ERCV_INT     (1<<6)
+#define SMC_TX_IDLE_INT  (1<<7)
+
 
 #endif
 
