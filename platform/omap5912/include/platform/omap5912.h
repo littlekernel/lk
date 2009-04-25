@@ -99,6 +99,33 @@
 #define OS_TIMER_TICK_COUNTER_REG 	(*(volatile unsigned int *)(OS_TIMER_BASE + 0x04))
 #define OS_TIMER_CTRL_REG		(*(volatile unsigned int *)(OS_TIMER_BASE + 0x08))
 
+/* gpio */
+#define NUM_GPIOS			64
+#define GPIO0_BASE			0xfffbe400
+#define GPIO1_BASE			0xfffbec00
+#define GPIO2_BASE			0xfffbb400
+#define GPIO3_BASE			0xfffbbc00
+#define GPIO_REVISION		(0x00)
+#define GPIO_SYSCONFIG		(0x10)
+#define GPIO_SYSSTATUS		(0x14)
+#define GPIO_IRQSTATUS1		(0x18)
+#define GPIO_IRQENABLE1		(0x1c)
+#define GPIO_IRQSTATUS2		(0x20)
+#define GPIO_IRQENABLE2		(0x24)
+#define GPIO_WAKEUPENABLE	(0x28)
+#define GPIO_DATAIN			(0x2c)
+#define GPIO_DATAOUT		(0x30)
+#define GPIO_DIRECTION		(0x34)
+#define GPIO_EDGE_CTRL1		(0x38)
+#define GPIO_EDGE_CTRL2		(0x3c)
+#define GPIO_CLEAR_IRQENABLE1	(0x9c)
+#define GPIO_CLEAR_IRQENABLE2	(0xa4)
+#define GPIO_CLEAR_WAKEUPENA	(0xa8)
+#define GPIO_CLEAR_DATAOUT	(0xb0)
+#define GPIO_SET_IRQENABLE1	(0xdc)
+#define GPIO_SET_IRQENABLE2	(0xe4)
+#define GPIO_SET_WAKEUPENA	(0xe8)
+#define GPIO_SET_DATAOUT	(0xf0)
 
 /* interrupt controller */
 #define INT_VECTORS			(32 + 128)
@@ -121,6 +148,7 @@
 #define INTCON_INTH_REV		0xa8
 
 /* interrupts */
+#define IRQ_GPIO1			14
 #define IRQ_TIMER3			16
 #define IRQ_GPTIMER1		17
 #define IRQ_GPTIMER2		18
@@ -134,6 +162,9 @@
 #define IRQ_GPTIMER6		(32 + 37)
 #define IRQ_GPTIMER7		(32 + 38)
 #define IRQ_GPTIMER8		(32 + 39)
+#define IRQ_GPIO2			(32 + 40)
+#define IRQ_GPIO3			(32 + 41)
+#define IRQ_GPIO4			(32 + 48)
 
 #endif
 

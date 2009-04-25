@@ -26,6 +26,7 @@
 void platform_init_interrupts(void);
 void platform_init_timer(void);
 void platform_init_debug(void);
+void platform_init_gpio(void);
 
 #endif
 

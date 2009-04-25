@@ -49,5 +49,6 @@ void platform_early_init(void)
 void platform_init(void)
 {
 	platform_init_debug();
+	platform_init_gpio();
 }
 
