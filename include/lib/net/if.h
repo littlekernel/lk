@@ -49,19 +49,26 @@ enum {
 	IF_TYPE_ETHERNET
 };
 
+typedef struct ifhook {
+	int type;
+	size_t mtu;
+	netaddr linkaddr;
+	void *cookie;
+	int (*if_input)(void *cookie, void *buf, size_t len);
+	int (*if_output)(void *cookie, const void *buf, size_t len);
+} ifhook;
+
 typedef int if_id;
 
 typedef struct ifnet {
 	struct ifnet *next;
+	const ifhook *hook;
 	if_id id;
-//	char path[SYS_MAX_PATH_LEN];
 	int type;
-	int fd;
 	thread_t *rx_thread;
 	thread_t *tx_thread;
 	ifaddr *addr_list;
 	ifaddr *link_addr;
-	size_t mtu;
 	int (*link_input)(cbuf *buf, struct ifnet *i);
 	int (*link_output)(cbuf *buf, struct ifnet *i, netaddr *target, int protocol_type);
 	event_t tx_queue_event;
@@ -74,7 +81,7 @@ typedef struct ifnet {
 int if_init(void);
 ifnet *if_id_to_ifnet(if_id id);
 ifnet *if_path_to_ifnet(const char *path);
-int if_register_interface(const char *path, ifnet **i);
+int if_register_interface(const ifhook *hook, ifnet **i);
 void if_bind_address(ifnet *i, ifaddr *addr);
 void if_bind_link_address(ifnet *i, ifaddr *addr);
 int if_boot_interface(ifnet *i);

@@ -24,23 +24,24 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/kernel.h>
-#include <kernel/cbuf.h>
-#include <kernel/debug.h>
-#include <kernel/net/icmp.h>
-#include <kernel/net/misc.h>
+#include <debug.h>
+#include <err.h>
+#include <compiler.h>
+#include <sys/types.h>
+#include <lib/net/icmp.h>
+#include <lib/net/misc.h>
 
 typedef struct icmp_header {
-	uint8 type;
-	uint8 code;
-	uint16 checksum;
-} _PACKED icmp_header;
+	uint8_t type;
+	uint8_t code;
+	uint16_t checksum;
+} __PACKED icmp_header;
 
 typedef struct icmp_echo_header {
 	icmp_header preheader;
-	uint16 identifier;
-	uint16 sequence;
-} _PACKED icmp_echo_header;
+	uint16_t identifier;
+	uint16_t sequence;
+} __PACKED icmp_echo_header;
 
 int icmp_input(cbuf *buf, ifnet *i, ipv4_addr source_ipaddr)
 {
@@ -50,23 +51,23 @@ int icmp_input(cbuf *buf, ifnet *i, ipv4_addr source_ipaddr)
 	header = (icmp_header *)cbuf_get_ptr(buf, 0);
 
 #if NET_CHATTY
-	dprintf("icmp_message: header type %d, code %d, checksum 0x%x, length %Ld\n", header->type, header->code, header->checksum, (long long)cbuf_get_len(buf));
-	dprintf(" buffer len %d\n", cbuf_get_len(buf));
+	printf("icmp_message: header type %d, code %d, checksum 0x%x, length %Ld\n", header->type, header->code, header->checksum, (long long)cbuf_get_len(buf));
+	printf(" buffer len %d\n", cbuf_get_len(buf));
 #endif
 
 	// calculate the checksum on the whole thing
 	if(cbuf_ones_cksum16(buf, 0, 0xffff) != 0) {
-		dprintf("icmp message fails cksum\n");
+		printf("icmp message fails cksum\n");
 #if NET_CHATTY
 	{
 		int i;
 		for(i=0; i<cbuf_get_len(buf); i++) {
 			if((i % 8) == 0) {
-				dprintf("\n0x%x: ", i);
+				printf("\n0x%x: ", i);
 			}
-			dprintf("0x%x ", *(unsigned char *)cbuf_get_ptr(buf, i));
+			printf("0x%x ", *(unsigned char *)cbuf_get_ptr(buf, i));
 		}
-		dprintf("\n");
+		printf("\n");
 	}
 #endif
 		err = ERR_NET_BAD_PACKET;
@@ -88,7 +89,7 @@ int icmp_input(cbuf *buf, ifnet *i, ipv4_addr source_ipaddr)
 		}
 #if NET_CHATTY
 		default:
-			dprintf("unhandled icmp message\n");
+			printf("unhandled icmp message\n");
 #endif
 	}
 

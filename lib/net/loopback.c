@@ -35,6 +35,8 @@
 #include <lib/net/ipv4.h>
 #include <lib/net/arp.h>
 
+static ifhook loopback_hook;
+
 static int _loopback_input(cbuf *buf, ifnet *i, int protocol_type)
 {
 	int err;
@@ -73,10 +75,15 @@ int loopback_init(void)
 	ifaddr *address;
 	int err;
 
-	return 0;
+	loopback_hook.type = IF_TYPE_LOOPBACK;
+	loopback_hook.mtu = 65536;
+	loopback_hook.linkaddr.type = ADDR_TYPE_NULL;
+	loopback_hook.cookie = NULL;
+	loopback_hook.if_input = NULL;
+	loopback_hook.if_output = NULL;
 
 	// set up an initial device
-	err = if_register_interface("loopback", &i);
+	err = if_register_interface(&loopback_hook, &i);
 	if(err < 0)
 		return err;
 

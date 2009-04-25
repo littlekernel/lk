@@ -32,7 +32,7 @@
 int net_init(void);
 int net_init_postdev(void);
 
-#define NET_CHATTY 0
+#define NET_CHATTY 1
 
 /* common net stuff */
 typedef struct netaddr {

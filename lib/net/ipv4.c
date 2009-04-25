@@ -307,7 +307,7 @@ int ipv4_get_mss_for_dest(ipv4_addr dest_addr, uint32_t *mss)
 	if(i == NULL)
 		return ERR_NET_NO_ROUTE;
 
-	*mss = i->mtu - sizeof(ipv4_header);
+	*mss = i->hook->mtu - sizeof(ipv4_header);
 
 	return NO_ERROR;
 }
@@ -363,7 +363,7 @@ int ipv4_output(cbuf *buf, ipv4_addr target_addr, int protocol)
 
 	// figure out the total len
 	len = cbuf_get_len(buf);
-	if(len + sizeof(ipv4_header) > i->mtu)
+	if(len + sizeof(ipv4_header) > i->hook->mtu)
 		must_frag = true;
 
 //	LTRACEF("did route match, result iid %d, i 0x%x, transmit_addr 0x%x, if_addr 0x%x\n", iid, i, transmit_addr, if_addr);
@@ -385,8 +385,8 @@ int ipv4_output(cbuf *buf, ipv4_addr target_addr, int protocol)
 		}
 		header = cbuf_get_ptr(header_buf, 0);
 
-		packet_len = MIN(i->mtu, (unsigned)(len + header_len));
-		if(packet_len == i->mtu)
+		packet_len = MIN(i->hook->mtu, (unsigned)(len + header_len));
+		if(packet_len == i->hook->mtu)
 			packet_len = ROUNDDOWN(packet_len - header_len, 8) + header_len;
 
 		header->version_length = 0x4 << 4 | 5;

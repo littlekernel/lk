@@ -37,6 +37,12 @@
 #include <lib/net/queue.h>
 #include <platform.h>
 
+#if NET_CHATTY
+#define LOCAL_TRACE 1
+#else
+#define LOCAL_TRACE 0
+#endif
+
 #define TX_QUEUE_SIZE 64
 
 #define LOSE_RX_PACKETS 0
@@ -97,11 +103,11 @@ ifnet *if_path_to_ifnet(const char *path)
 
 	return i;
 }
+#endif
 
-int if_register_interface(const char *path, ifnet **_i)
+int if_register_interface(const ifhook *hook, ifnet **_i)
 {
 	ifnet *i;
-	int type;
 	int err;
 	ifaddr *address;
 
@@ -112,45 +118,24 @@ int if_register_interface(const char *path, ifnet **_i)
 	}
 	memset(i, 0, sizeof(ifnet));
 
-	/* open the device */
-	if(!strcmp(path, "loopback")) {
-		// the 'loopback' device is special
-		type = IF_TYPE_LOOPBACK;
-		i->fd = -1;
-	} else {
-		i->fd = sys_open(path, 0);
-		if(i->fd < 0) {
-			err = i->fd;
-			goto err1;
-		}
-		/* find the device's type */
-		err = sys_ioctl(i->fd, IOCTL_NET_IF_GET_TYPE, &type, sizeof(type));
-		if(err < 0) {
-			goto err2;
-		}
-	}
+	i->hook = hook;	
 
 	// find the appropriate function calls to the link layer drivers
-	switch(type) {
+	switch (hook->type) {
 		case IF_TYPE_LOOPBACK:
 			i->link_input = &loopback_input;
 			i->link_output = &loopback_output;
-			i->mtu = 65535;
 			break;
 		case IF_TYPE_ETHERNET:
 			i->link_input = &ethernet_input;
 			i->link_output = &ethernet_output;
-			i->mtu = ETHERNET_MAX_SIZE - ETHERNET_HEADER_SIZE;
+//			i->mtu = ETHERNET_MAX_SIZE - ETHERNET_HEADER_SIZE;
 
-			/* bind the ethernet link address */
+			/* bind the link address */
 			address = malloc(sizeof(ifaddr));
-			address->addr.len = 6;
-			address->addr.type = ADDR_TYPE_ETHERNET;
-			err = sys_ioctl(i->fd, IOCTL_NET_IF_GET_ADDR, &address->addr.addr[0], 6);
-			if(err < 0) {
-				free(address);
-				goto err2;
-			}
+
+			memcpy(&address->addr, &hook->linkaddr, sizeof(netaddr));
+
 			address->broadcast.len = 6;
 			address->broadcast.type = ADDR_TYPE_ETHERNET;
 			memset(&address->broadcast.addr[0], 0xff, 6);
@@ -158,16 +143,15 @@ int if_register_interface(const char *path, ifnet **_i)
 			if_bind_link_address(i, address);
 			break;
 		default:
-			err = ERR_NET_GENERAL;
+			err = ERR_INVALID_ARGS;
 			goto err1;
 	}
 
 	i->id = atomic_add(&next_id, 1);
-	strlcpy(i->path, path, sizeof(i->path));
-	i->type = type;
-	i->rx_thread = -1;
-	i->tx_thread = -1;
-	i->tx_queue_sem = sem_create(0, "tx_queue_sem");
+	i->type = hook->type;
+	i->rx_thread = NULL;
+	i->tx_thread = NULL;
+	event_init(&i->tx_queue_event, false, 0);
 	mutex_init(&i->tx_queue_lock);
 	fixed_queue_init(&i->tx_queue, TX_QUEUE_SIZE);
 
@@ -185,13 +169,13 @@ int if_register_interface(const char *path, ifnet **_i)
 	return NO_ERROR;
 
 err2:
-	sys_close(i->fd);
+	event_destroy(&i->tx_queue_event);
+	mutex_destroy(&i->tx_queue_lock);
 err1:
 	free(i);
 err:
 	return err;
 }
-#endif
 
 void if_bind_address(ifnet *i, ifaddr *addr)
 {
@@ -235,9 +219,6 @@ static int if_tx_thread(void *args)
 	cbuf *buf;
 	ssize_t len;
 
-	if(i->fd < 0)
-		return -1;
-
 	for(;;) {
 		event_wait(&i->tx_queue_event);
 
@@ -262,13 +243,12 @@ static int if_tx_thread(void *args)
 
 			cbuf_free_chain(buf);
 
-#if NET_CHATTY
-		TRACEF("sending packet size %Ld\n", (long long)len);
-#endif
-			// XXX fix
-//			sys_write(i->fd, i->tx_buf, 0, len);
+			LTRACEF("sending packet size %Ld\n", (long long)len);
+			i->hook->if_output(i->hook->cookie, i->tx_buf, len);
 		}
 	}
+
+	return 0;
 }
 
 static int if_rx_thread(void *args)
@@ -276,17 +256,13 @@ static int if_rx_thread(void *args)
 	ifnet *i = args;
 	cbuf *b;
 
-	if(i->fd < 0)
-		return -1;
-
 	for(;;) {
 		ssize_t len;
 
-//		len = sys_read(i->fd, i->rx_buf, 0, sizeof(i->rx_buf));
-		len  = -1; // XXX fix
-#if NET_CHATTY
-		TRACEF("got ethernet packet, size %Ld\n", (long long)len);
-#endif
+		len = i->hook->if_input(i->hook->cookie, i->rx_buf, sizeof(i->rx_buf));
+
+		LTRACEF("got packet, size %d\n", len);
+
 		if(len < 0) {
 			thread_sleep(10);
 			continue;
@@ -303,9 +279,7 @@ static int if_rx_thread(void *args)
 
 		// check to see if we have a link layer address attached to us
 		if(!i->link_addr) {
-#if NET_CHATTY
-			TRACEF("dumping packet because of no link address (%p)\n", i);
-#endif
+			LTRACEF("dumping packet because of no link address (%p)\n", i);
 			continue;
 		}
 
@@ -326,14 +300,16 @@ static int if_rx_thread(void *args)
 int if_boot_interface(ifnet *i)
 {
 	// create the receive thread
-	i->rx_thread = thread_create("net_rx_thread", &if_rx_thread, i, HIGHEST_PRIORITY - 2, DEFAULT_STACK_SIZE);
+	if (i->hook->if_input) {
+		i->rx_thread = thread_create("net_rx_thread", &if_rx_thread, i, HIGHEST_PRIORITY - 2, DEFAULT_STACK_SIZE);
+		thread_resume(i->rx_thread);
+	}
 
 	// create the transmit thread
-	i->tx_thread = thread_create("net_tx_thread", &if_tx_thread, i, HIGHEST_PRIORITY - 2, DEFAULT_STACK_SIZE);
-
-	// start the threads
-	thread_resume(i->rx_thread);
-	thread_resume(i->tx_thread);
+	if (i->hook->if_output) {
+		i->tx_thread = thread_create("net_tx_thread", &if_tx_thread, i, HIGHEST_PRIORITY - 2, DEFAULT_STACK_SIZE);
+		thread_resume(i->tx_thread);
+	}
 
 	return NO_ERROR;
 }
