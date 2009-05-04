@@ -23,12 +23,41 @@
 #include <err.h>
 #include <debug.h>
 #include <target.h>
+#include <stdlib.h>
 #include <compiler.h>
 #include <dev/net/smc91c96.h>
+#include <lib/net.h>
+#include <lib/net/ipv4.h>
+#include <lib/net/if.h>
 
 void target_init(void)
 {
+	// XXX find a better place to init this
+	net_init();
+
 	smc91c96_init();
 	smc91c96_start();
+
+	// more net stuff that we need to put somewhere else
+	// set the ip address for this net interface
+	ifaddr *address = malloc(sizeof(ifaddr));
+	address->addr.len = 4;
+	address->addr.type = ADDR_TYPE_IP;
+	NETADDR_TO_IPV4(address->addr) = IPV4_DOTADDR_TO_ADDR(192,168,0,99);
+	address->netmask.len = 4;
+	address->netmask.type = ADDR_TYPE_IP;
+	NETADDR_TO_IPV4(address->netmask) = 0xffffff00; // 255.255.255.0
+	address->broadcast.len = 4;
+	address->broadcast.type = ADDR_TYPE_IP;
+	NETADDR_TO_IPV4(address->broadcast) = IPV4_DOTADDR_TO_ADDR(192,168,0,255);
+	ifnet *i = if_id_to_ifnet(1); // XXX total hack
+	ASSERT(i);
+	if_bind_address(i, address);
+
+	// set up an initial routing table
+	ipv4_route_add(IPV4_DOTADDR_TO_ADDR(192,168,0,0), 
+		0xffffff00, 
+		NETADDR_TO_IPV4(address->addr), i->id);
+
 }
 
