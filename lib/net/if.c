@@ -242,7 +242,7 @@ static int if_tx_thread(void *args)
 
 			cbuf_free_chain(buf);
 
-			LTRACEF("sending packet size %Ld\n", (long long)len);
+			LTRACEF("sending packet size %u\n", len);
 			i->hook->if_output(i->hook->cookie, i->tx_buf, len);
 		}
 	}
