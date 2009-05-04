@@ -40,7 +40,7 @@ typedef struct ethernet2_header {
 	ethernet_addr dest;
 	ethernet_addr src;
 	uint16_t type;
-} ethernet2_header;
+} __PACKED ethernet2_header;
 
 void dump_ethernet_addr(ethernet_addr addr)
 {
