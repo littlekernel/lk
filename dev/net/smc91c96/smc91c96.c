@@ -67,12 +67,23 @@ static void smc91c96_reset(void)
 
 static int smc91c96_read_packet(uint8_t *data, size_t *len)
 {
-	int rx_fifo = (*SMC_REG16(SMC_FIFO) >> 8) & 0xf;
+	smc_bank(2);
 
-	LTRACEF("RCV_INT: fifo port %d\n", rx_fifo);
+	int rx_fifo = *SMC_REG16(SMC_FIFO);
+	rx_fifo = (rx_fifo >> 8) & 0xff;
+	if (rx_fifo & 0x80) {
+		// rx fifo empty
+		LTRACEF("rx fifo empty\n");
+		*len = 0;
+		return -1;
+	}
+
+	LTRACEF("fifo port %d\n", rx_fifo);
 
 	// load it into the pointer register
-	*SMC_REG16(SMC_PTR) = (1<<15) | (1<<14) | (1<<13) | rx_fifo;	
+	*SMC_REG8(SMC_PTR) = rx_fifo;
+	*SMC_REG8(SMC_PTR+1) = ((1<<15) | (1<<14) | (1<<13)) >> 8;
+	LTRACEF("PTR 0x%x\n", *SMC_REG16(SMC_PTR));
 
 	uint16_t status = *SMC_REG16(SMC_DATA0);
 	LTRACEF("status 0x%hx\n", status);
@@ -81,7 +92,7 @@ static int smc91c96_read_packet(uint8_t *data, size_t *len)
 	LTRACEF("count %d\n", count);
 
 	// bad status?
-	if (status & (0xbc00)) {
+	if (status & (0xac00)) {
 		LTRACEF("bad status\n");
 		*len = 0;
 		return -1;
@@ -117,9 +128,15 @@ static int smc91c96_read_packet(uint8_t *data, size_t *len)
 	return 0;
 }
 
-static int smc91c96_tx_packet(const uint8_t *data, size_t len)
+static int smc91c96_tx_packet(const uint8_t *data, size_t data_len)
 {
+	size_t len;
+
 	enter_critical_section();
+	LTRACE_ENTRY;
+
+	// round up the transfer len to be a minimum of 64
+	len = MAX(data_len, 64);
 
 	smc_bank(2);
 
@@ -139,26 +156,32 @@ static int smc91c96_tx_packet(const uint8_t *data, size_t len)
 	*SMC_REG8(SMC_PNR) = (arr & 0xf);
 
 	// load our allocated fifo into the pointer register
-	*SMC_REG16(SMC_PTR) = (1<<14) | (arr & 0xf);
+	*SMC_REG8(SMC_PTR) = arr & 0x0f;
+	*SMC_REG8(SMC_PTR+1) = (1<<14) >> 8;
+//	*SMC_REG16(SMC_PTR) = (1<<14) | (arr & 0xf); // can't use 16 bit access with this register
 	
 	*SMC_REG16(SMC_DATA0) = 0; // status word
 	*SMC_REG16(SMC_DATA0) = len & 0x7fe; // make sure it's even
 
 	unsigned int i;
-	for (i = 0; i < (len >> 1) - 3; i++) {
+	for (i = 0; i < data_len / 2; i++) {
 		*SMC_REG16(SMC_DATA0) = ((uint16_t *)data)[i];
+	}
+	for (i = data_len / 2; i < (len >> 1) - 3; i++) {
+		*SMC_REG16(SMC_DATA0) = 0;
 	}
 
 	uint16_t control_last = (1<<12); // do crc
 	if (len & 1) {
 		control_last |= (1<<13); // odd sized
-		control_last |= data[len - 6];
+		control_last |= data[len - 6 - 1];
 	}
 
 	*SMC_REG16(SMC_DATA0) = control_last;
 
 	*SMC_REG16(SMC_MMUCR) = (0xc << 4); // queue tx packet
 
+	LTRACE_EXIT;
 	exit_critical_section();
 
 	return 0;
@@ -191,7 +214,7 @@ static enum handler_return smc91c96_interrupt(void *arg)
 			event_signal(&rx_event, false);
 
 #if LOCAL_TRACE
-			hexdump8(rx_buffer, len);	
+			hexdump8(rx_buffer, MIN(len, 64));	
 #endif
 			ret = INT_RESCHEDULE;
 
