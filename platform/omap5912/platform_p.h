@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,6 +25,7 @@
 
 void platform_init_interrupts(void);
 void platform_init_timer(void);
+void platform_init_debug(void);
 
 #endif
 

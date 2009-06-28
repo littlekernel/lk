@@ -25,9 +25,14 @@
 #include <debug.h>
 #include <printf.h>
 #include <kernel/thread.h>
+#include <kernel/timer.h>
 #include <platform/debug.h>
 #include <arch/ops.h>
 #include <platform/omap5912.h>
+#include <lib/cbuf.h>
+
+static cbuf_t debug_buf;
+static timer_t debug_timer;
 
 static void write_uart_reg(int uart, int reg, unsigned char data)
 {
@@ -94,18 +99,24 @@ void _dputc(char c)
 	uart_putc(0, c);
 }
 
+static enum handler_return debug_timer_callback(timer_t *t, time_t now, void *arg)
+{
+	signed char c;
+	c = uart_getc(0, false);
+	if (c > 0) {
+		cbuf_write(&debug_buf, &c, 1, false);
+		return INT_RESCHEDULE;
+	} else {
+		return INT_NO_RESCHEDULE;
+	}
+}
+
 int dgetc(char *c, bool wait)
 {
-	int _c;
+	ssize_t len;
 
-	while ((_c = uart_getc(0, false)) < 0) {
-		if (!wait) {
-			return -1;
-		}
-	}
-
-	*c = _c;
-	return 0;
+	len = cbuf_read(&debug_buf, c, 1, wait);
+	return len;
 }
 
 void debug_dump_regs(void)
@@ -143,4 +154,10 @@ uint32_t debug_cycle_count(void)
 {
 //	PANIC_UNIMPLEMENTED;
 	return 0;
+}
+
+void platform_init_debug(void)
+{
+	cbuf_initialize(&debug_buf, 512);
+	timer_set_periodic(&debug_timer, 10, &debug_timer_callback, NULL);
 }

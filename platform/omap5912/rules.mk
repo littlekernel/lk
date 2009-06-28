@@ -4,6 +4,9 @@ ARCH := arm
 ARM_CPU := arm926ej-s
 CPU := generic
 
+MODULES += \
+	lib/cbuf
+
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
