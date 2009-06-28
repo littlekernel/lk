@@ -26,7 +26,6 @@
 /* XXX unimplemented for now */
 int iscntrl(int c);
 int isgraph(int c);
-int isprint(int c);
 int ispunct(int c);
 #endif
 
@@ -68,6 +67,11 @@ int isalnum(int c)
 int isxdigit(int c)
 {
 	return isdigit(c) || ((c >= 'a') && (c <= 'f')) || ((c >= 'A') && (c <= 'F'));
+}
+
+int isprint(int c)
+{
+	return ((c >= 0x20) && (c < 0x7f));
 }
 
 int tolower(int c)
