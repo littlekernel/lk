@@ -94,12 +94,15 @@ void _dputc(char c)
 	uart_putc(0, c);
 }
 
-int dgetc(char *c)
+int dgetc(char *c, bool wait)
 {
 	int _c;
 
-	if ((_c = uart_getc(0, false)) < 0)
-		return -1;
+	while ((_c = uart_getc(0, false)) < 0) {
+		if (!wait) {
+			return -1;
+		}
+	}
 
 	*c = _c;
 	return 0;

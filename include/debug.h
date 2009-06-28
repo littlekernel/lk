@@ -57,7 +57,7 @@ int _dvprintf(const char *fmt, va_list ap);
 #define dvprintf(level, x...) do { if ((level) <= DEBUGLEVEL) { _dvprintf(x); } } while (0)
 
 /* input */
-int dgetc(char *c);
+int dgetc(char *c, bool wait);
 
 /* systemwide halts */
 void halt(void) __NO_RETURN;

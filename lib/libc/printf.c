@@ -39,7 +39,7 @@ int puts(const char *str)
 
 int getc(char *c)
 {
-	return dgetc(c);
+	return dgetc(c, true);
 }
 
 int printf(const char *fmt, ...)

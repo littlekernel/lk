@@ -216,7 +216,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 		char c;
 
 		/* loop until we get a char */
-		if (dgetc(&c) < 0)
+		if (getc(&c) < 0)
 			continue;
 
 //		TRACEF("c = 0x%hhx\n", c); 
