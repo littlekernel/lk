@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -205,7 +205,11 @@ int wait_queue_wake_all(wait_queue_t *, bool reschedule, status_t wait_queue_err
 status_t thread_unblock_from_wait_queue(thread_t *t, bool reschedule, status_t wait_queue_error);
 
 /* thread level statistics */
+#if DEBUGLEVEL > 1
+#define THREAD_STATS 1
+#else
 #define THREAD_STATS 0
+#endif
 #if THREAD_STATS
 struct thread_stats {
 	bigtime_t idle_time;

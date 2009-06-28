@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -60,6 +60,11 @@ thread_t *idle_thread;
 /* local routines */
 static void thread_resched(void);
 static void idle_thread_routine(void) __NO_RETURN;
+
+#if PLATFORM_HAS_DYNAMIC_TIMER
+/* preemption timer */
+static timer_t preempt_timer;
+#endif
 
 /* run queue manipulation */
 static void insert_in_run_queue_head(thread_t *t)
@@ -294,6 +299,17 @@ void thread_resched(void)
 	ASSERT(newthread->saved_critical_section_count > 0);
 #endif
 
+#if PLATFORM_HAS_DYNAMIC_TIMER
+	/* if we're switching from idle to a real thread, set up a periodic
+	 * timer to run our preemption tick.
+	 */
+	if (oldthread == idle_thread) {
+		timer_set_periodic(&preempt_timer, 10, (timer_callback)thread_timer_tick, NULL);
+	} else if (newthread == idle_thread) {
+		timer_cancel(&preempt_timer);
+	}
+#endif
+
 	/* do the switch */
 	oldthread->saved_critical_section_count = critical_section_count;
 	current_thread = newthread;
@@ -391,6 +407,7 @@ static enum handler_return thread_sleep_handler(timer_t *timer, time_t now, void
 	return INT_RESCHEDULE;
 }
 
+/* Put thread to sleep; delay specified in ms */
 void thread_sleep(time_t delay)
 {
 	timer_t timer;
@@ -434,6 +451,9 @@ void thread_init_early(void)
 
 void thread_init(void)
 {
+#if PLATFORM_HAS_DYNAMIC_TIMER
+	timer_initialize(&preempt_timer);
+#endif
 }
 
 void thread_set_name(const char *name)
