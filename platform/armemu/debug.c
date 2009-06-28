@@ -32,15 +32,21 @@ void _dputc(char c)
 	*REG8(DEBUG_STDOUT) = c;
 }
 
-int dgetc(char *c)
+int dgetc(char *c, bool wait)
 {
-	int8_t result = (int8_t)*REG8(DEBUG_STDIN);
+	for (;;) {
+		int8_t result = (int8_t)*REG8(DEBUG_STDIN);
 
-	if (result == -1)
-		return -1;
+		if (result == -1) {
+			if (wait)
+				continue;
+			else
+				return -1;
+		}
 
-	*c = (char)result;
-	return 0;
+		*c = (char)result;
+		return 0;
+	}
 }
 
 void debug_dump_regs(void)

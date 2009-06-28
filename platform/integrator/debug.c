@@ -98,7 +98,7 @@ void _dputc(char c)
 	uart_putc(0, c);
 }
 
-int dgetc(char *c)
+int dgetc(char *c, bool wait)
 {
 	int result = uart_getc(0, false);
 

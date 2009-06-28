@@ -37,7 +37,7 @@ void _dputc(char c)
 	uart_putc(DEBUG_UART, c);
 }
 
-int dgetc(char *c)
+int dgetc(char *c, bool wait)
 {
 	int _c;
 

@@ -51,7 +51,7 @@ void _dputc(char c)
 #endif
 }
 
-int dgetc(char *c)
+int dgetc(char *c, bool wait)
 {
 	int n;
 #if WITH_DEBUG_DCC
