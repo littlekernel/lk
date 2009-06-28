@@ -32,7 +32,6 @@ extern "C" {
 #endif
 
 void debug_dump_regs(void);
-uint32_t debug_cycle_count(void);
 
 void debug_dump_memory_bytes(void *mem, int len);
 void debug_dump_memory_halfwords(void *mem, int len);

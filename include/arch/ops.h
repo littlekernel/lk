@@ -58,6 +58,8 @@ void arch_disable_mmu(void);
 
 void arch_switch_stacks_and_call(addr_t call, addr_t stack) __NO_RETURN;
 
+uint32_t arch_cycle_count(void);
+
 #if defined(__cplusplus)
 }
 #endif

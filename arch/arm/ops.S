@@ -203,8 +203,12 @@ FUNCTION(arch_switch_stacks_and_call)
 	mov		sp, r1
 	bx		r0	
 
-/* uint32_t arm_read_cycle_count(void); */
-FUNCTION(arm_read_cycle_count)
+/* uint32_t arch_cycle_count(void); */
+FUNCTION(arch_cycle_count)
+#if ARM_CPU_CORTEX_A8
 	mrc		p15, 0, r0, c9, c13, 0
+#else
+	mov		r0, #0
+#endif
 	bx		lr
 

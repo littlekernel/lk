@@ -76,7 +76,6 @@ void arch_early_init(void)
 	/* enable cycle counter */
 	en = (1<<31);
 	__asm__ volatile("mcr	p15, 0, %0, c9, c12, 1" :: "r" (en));
-
 #endif
 }
 

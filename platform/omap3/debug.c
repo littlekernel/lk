@@ -79,8 +79,3 @@ void debug_set_trace_level(int trace_type, int level)
 	PANIC_UNIMPLEMENTED;
 }
 
-uint32_t debug_cycle_count(void)
-{
-//	PANIC_UNIMPLEMENTED;
-	return 0;
-}

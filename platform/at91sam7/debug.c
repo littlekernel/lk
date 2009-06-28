@@ -75,7 +75,3 @@ void platform_halt()
     for(;;);
 }
 
-uint32_t debug_cycle_count()
-{
-	PANIC_UNIMPLEMENTED;
-}

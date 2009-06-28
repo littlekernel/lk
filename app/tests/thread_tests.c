@@ -221,11 +221,11 @@ static int context_switch_tester(void *arg)
 
 	event_wait(&context_switch_event);
 
-	uint count = debug_cycle_count();
+	uint count = arch_cycle_count();
 	for (i = 0; i < iter; i++) {
 		thread_yield();
 	}
-	total_count += debug_cycle_count() - count;
+	total_count += arch_cycle_count() - count;
 	thread_sleep(1000);
 	printf("took %u cycles to yield %d times, %u per yield, %u per yield per thread\n", 
 		total_count, iter, total_count / iter, total_count / iter / thread_count);

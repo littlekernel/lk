@@ -35,7 +35,7 @@ void _dputc(char c)
 	cputc(c);
 }
 
-int dgetc(char *c)
+int dgetc(char *c, bool wait)
 {
 	int ret =  platform_read_key(c);
 	if (ret < 0)
@@ -72,10 +72,3 @@ void debug_set_trace_level(int trace_type, int level)
 {
 }
 
-uint32_t debug_cycle_count()
-{
-	uint32_t timestamp;
-	rdtscl(timestamp);
-	
-	return timestamp;
-}

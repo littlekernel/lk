@@ -60,3 +60,11 @@ void arch_init(void)
 {
 }
 
+uint32_t arch_cycle_count(void)
+{
+	uint32_t timestamp;
+	rdtscl(timestamp);
+	
+	return timestamp;
+}
+
