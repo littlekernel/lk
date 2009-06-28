@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  * Copyright (c) 2009 Corey Tabaka
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -30,6 +30,12 @@
 #include <lib/heap.h>
 
 #define LOCAL_TRACE 0
+
+#define DEBUG_HEAP 0
+#define ALLOC_FILL 0x99
+#define FREE_FILL 0x77
+#define PADDING_FILL 0x55
+#define PADDING_SIZE 64
 
 #define ROUNDUP(a, b) (((a) + ((b)-1)) & ~((b)-1))
 
@@ -71,6 +77,10 @@ struct alloc_struct_begin {
 	unsigned int magic;
 	void *ptr;
 	size_t size;
+#if DEBUG_HEAP
+	void *padding_start;
+	size_t padding_size;
+#endif
 };
 
 static void dump_free_chunk(struct free_heap_chunk *chunk)
@@ -204,6 +214,10 @@ struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len)
 {
 	DEBUG_ASSERT((len % sizeof(void *)) == 0); // size must be aligned on pointer boundary
 
+#if DEBUG_HEAP
+	memset(ptr, FREE_FILL, len);
+#endif
+
 	struct free_heap_chunk *chunk = (struct free_heap_chunk *)ptr;
 	chunk->len = len;
 
@@ -213,6 +227,9 @@ struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len)
 void *heap_alloc(size_t size, unsigned int alignment)
 {
 	void *ptr;
+#if DEBUG_HEAP
+	size_t original_size = size;
+#endif
 	
 	LTRACEF("size %zd, align %d\n", size, alignment);
 
@@ -222,7 +239,10 @@ void *heap_alloc(size_t size, unsigned int alignment)
 
 	// we always put a size field + base pointer + magic in front of the allocation
 	size += sizeof(struct alloc_struct_begin);
-	
+#if DEBUG_HEAP
+	size += PADDING_SIZE;
+#endif
+
 	// make sure we allocate at least the size of a struct free_heap_chunk so that
 	// when we free it, we can create a struct free_heap_chunk struct and stick it
 	// in the spot
@@ -276,6 +296,10 @@ void *heap_alloc(size_t size, unsigned int alignment)
 			DEBUG_ASSERT(chunk->len >= size);
 			size = chunk->len;
 
+#if DEBUG_HEAP
+			memset(ptr, ALLOC_FILL, size);
+#endif
+
 			ptr = (void *)((addr_t)ptr + sizeof(struct alloc_struct_begin));
 
 			// align the output if requested
@@ -288,6 +312,13 @@ void *heap_alloc(size_t size, unsigned int alignment)
 			as->magic = HEAP_MAGIC;
 			as->ptr = (void *)chunk;
 			as->size = size;
+#if DEBUG_HEAP
+			as->padding_start = ((uint8_t *)ptr + original_size);
+			as->padding_size = (((addr_t)chunk + size) - ((addr_t)ptr + original_size));
+//			printf("padding start %p, size %u, chunk %p, size %u\n", as->padding_start, as->padding_size, chunk, size);
+
+			memset(as->padding_start, PADDING_FILL, as->padding_size);
+#endif
 
 			break;
 		}
@@ -314,6 +345,21 @@ void heap_free(void *ptr)
 	as--;
 	
 	DEBUG_ASSERT(as->magic == HEAP_MAGIC);
+
+#if DEBUG_HEAP
+	{
+		uint i;
+		uint8_t *pad = (uint8_t *)as->padding_start;
+
+		for (i = 0; i < as->padding_size; i++) {
+			if (pad[i] != PADDING_FILL) {
+				printf("free at %p scribbled outside the lines:\n", ptr);
+				hexdump(pad, as->padding_size);
+				panic("die\n");
+			}
+		}
+	}
+#endif
 
 	LTRACEF("allocation was %zd bytes long at ptr %p\n", as->size, as->ptr);
 
@@ -356,7 +402,7 @@ void heap_init(void)
 static int cmd_heap(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
-	{ "heap", "heap debug commands", &cmd_heap },
+STATIC_COMMAND("heap", "heap debug commands", &cmd_heap)
 STATIC_COMMAND_END(heap);
 
 static int cmd_heap(int argc, const cmd_args *argv)
