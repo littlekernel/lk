@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -26,7 +26,7 @@
 #include <kernel/timer.h>
 #include <platform.h>
 
-#if defined(WITH_LIB_CONSOLE)
+#if WITH_LIB_CONSOLE
 #include <lib/console.h>
 
 static int cmd_threads(int argc, const cmd_args *argv);
@@ -35,11 +35,11 @@ static int cmd_threadload(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if DEBUGLEVEL > 1
-	{ "threads", "list kernel threads", &cmd_threads },
+STATIC_COMMAND("threads", "list kernel threads", &cmd_threads)
 #endif
 #if THREAD_STATS
-	{ "threadstats", "thread level statistics", &cmd_threadstats },
-	{ "threadload", "toggle thread load display", &cmd_threadload },
+STATIC_COMMAND("threadstats", "thread level statistics", &cmd_threadstats)
+STATIC_COMMAND("threadload", "toggle thread load display", &cmd_threadload)
 #endif
 STATIC_COMMAND_END(kernel);
 
@@ -75,8 +75,6 @@ static enum handler_return threadload(struct timer *t, time_t now, void *arg)
 	static struct thread_stats old_stats;
 	static bigtime_t last_idle_time;
 
-	timer_set_oneshot(t, 1000, &threadload, NULL);
-
 	bigtime_t idle_time = thread_stats.idle_time;
 	if (current_thread == idle_thread) {
 		idle_time += current_time_hires() - thread_stats.last_idle_timestamp;
@@ -108,7 +106,7 @@ static int cmd_threadload(int argc, const cmd_args *argv)
 	if (showthreadload == false) {
 		// start the display
 		timer_initialize(&tltimer);
-		timer_set_oneshot(&tltimer, 1000, &threadload, NULL);
+		timer_set_periodic(&tltimer, 1000, &threadload, NULL);
 		showthreadload = true;
 	} else {
 		timer_cancel(&tltimer);
