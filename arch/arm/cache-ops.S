@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -319,32 +319,53 @@ invalidate_cache_v7:
 
 	/* void arch_flush_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_clean_cache_range)
+#if ARM_WITH_CP15
+	add		r2, r0, r1					// calculate the end address
+	bic		r0, #(CACHE_LINE-1)			// align the start with a cache line
 0:
 	mcr		p15, 0, r0, c7, c10, 1		// clean cache to PoC by MVA
 	add		r0, r0, #CACHE_LINE
-	subs	r1, r1, #CACHE_LINE
-	bhs		0b
+	cmp		r0, r2
+	blo		0b
 	
 	mov		r0, #0
-	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier (formerly drain write buffer)
-
+	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier
+#endif
 	bx		lr
 
 	/* void arch_flush_invalidate_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_clean_invalidate_cache_range)
+#if ARM_WITH_CP15
+	add		r2, r0, r1					// calculate the end address
+	bic		r0, #(CACHE_LINE-1)			// align the start with a cache line
 0:
-	mcr		p15, 0, r0, c7, c14, 1		// clean & invalidate cache to PoC by MVA
+	mcr		p15, 0, r0, c7, c14, 1		// clean & invalidate dcache to PoC by MVA
 	add		r0, r0, #CACHE_LINE
-	subs	r1, r1, #CACHE_LINE
-	bhs		0b
+	cmp		r0, r2
+	blo		0b
 
 	mov		r0, #0
-	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier (formerly drain write buffer)
-
-	bx		lr
-#else
-#error unhandled cpu
+	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier
 #endif
+	bx		lr
+
+	/* void arch_invalidate_cache_range(addr_t start, size_t len); */
+FUNCTION(arch_invalidate_cache_range)
+#if ARM_WITH_CP15
+	add		r2, r0, r1					// calculate the end address
+	bic		r0, #(CACHE_LINE-1)			// align the start with a cache line
+0:
+	mcr		p15, 0, r0, c7, c6, 1		// invalidate dcache to PoC by MVA
+	add		r0, r0, #CACHE_LINE
+	cmp		r0, r2
+	blo		0b
+
+	mov		r0, #0
+	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier
+#endif
+	bx		lr
+
+#endif // ARM_CPU_...
 
 #else
 

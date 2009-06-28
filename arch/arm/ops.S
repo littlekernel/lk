@@ -40,7 +40,8 @@ FUNCTION(arch_disable_ints)
 
 /* int atomic_swap(int *ptr, int val); */
 FUNCTION(atomic_swap)
-	swp	r0, r2, [r1]
+	swp	r2, r1, [r0]
+	mov	r0, r2
 	bx	lr
 
 /* int atomic_add(int *ptr, int val); */
@@ -148,7 +149,7 @@ FUNCTION(atomic_or)
 /* void arch_idle(); */
 FUNCTION(arch_idle)
 #if ARM_CPU_CORTEX_A8
-	.word 0xe320f003 /* wfi */
+	wfi
 #elif PLATFORM_MSM7K
 	/* TODO: safely handle wfi */
 #elif ARM_CPU_ARM1136 || ARM_CPU_ARM926
@@ -201,3 +202,9 @@ FUNCTION(arm_invalidate_tlb)
 FUNCTION(arch_switch_stacks_and_call)
 	mov		sp, r1
 	bx		r0	
+
+/* uint32_t arm_read_cycle_count(void); */
+FUNCTION(arm_read_cycle_count)
+	mrc		p15, 0, r0, c9, c13, 0
+	bx		lr
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -29,9 +29,13 @@ extern "C" {
 
 void arch_early_init(void);
 void arch_init(void);
+void arch_quiesce(void);
 
 #if defined(__cplusplus)
 }
 #endif
+
+/* arch specific bits */
+#include <arch/defines.h>
 
 #endif

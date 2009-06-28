@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -42,11 +42,15 @@ static uint32_t *tt = (void *)MMU_TRANSLATION_TABLE_ADDR;
 static uint32_t tt[4096] __ALIGNED(16384);
 #endif
 
+#define MMU_FLAG_CACHED 0x1
+#define MMU_FLAG_BUFFERED 0x2
+#define MMU_FLAG_READWRITE 0x4
+
 void arm_mmu_map_section(addr_t paddr, addr_t vaddr, uint flags)
 {
 	int index;
 	uint AP;
-	uint CB;
+	uint CB = 0;
 	uint TEX = 0;
 
 #if defined(PLATFORM_MSM7K)
@@ -60,11 +64,33 @@ void arm_mmu_map_section(addr_t paddr, addr_t vaddr, uint flags)
 #endif
 
 	AP = (flags & MMU_FLAG_READWRITE) ? 0x3 : 0x2;
+#if 1
 	CB = ((flags & MMU_FLAG_CACHED) ? 0x2 : 0) | ((flags & MMU_FLAG_BUFFERED) ? 0x1 : 0);
+#elif 0
+	CB = ((flags & MMU_FLAG_CACHED) ? 0x2 : 0) | ((flags & MMU_FLAG_BUFFERED) ? 0x1 : 0);
+	if (CB) {
+		TEX = 1; // full write allocate on all levels
+	}
+#elif 0
+	// try out some of the extended TEX options
+	if (flags & MMU_FLAG_CACHED) {
+		TEX = 6;
+		CB = 3;
+	}
+#endif
 
 	index = vaddr / MB;
+
 	// section mapping
 	tt[index] = (paddr & ~(MB-1)) | (TEX << 12) | (AP << 10) | (0<<5) | (CB << 2) | (2<<0);
+
+	arm_invalidate_tlb();
+}
+
+void arm_mmu_unmap_section(addr_t vaddr)
+{
+	uint index = vaddr / MB;
+	tt[index] = 0;
 
 	arm_invalidate_tlb();
 }
