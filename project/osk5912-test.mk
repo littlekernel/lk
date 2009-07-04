@@ -7,5 +7,6 @@ MODULES += \
 	app/tests \
 	app/stringtests \
 	app/shell \
+	app/nettests \
 	lib/net
 
