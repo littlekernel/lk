@@ -927,12 +927,16 @@ retry:
 
 	// pull something from the head of the accept queue
 	new_socket = queue_dequeue(&s->accept_queue);
-	ASSERT(new_socket != NULL);
-	ASSERT(new_socket->ref_count > 0);
 
 	// see if that was the last accepted socket and unsignal the event
 	if (s->accept_queue.count == 0)
 		event_unsignal(&s->accept_event);
+
+	// see if we may have raced another thread into here and ended up with an empty queue
+	if (!new_socket)
+		goto retry;
+
+	ASSERT(new_socket->ref_count > 0);
 
 	// we have the new socket, make sure it's ready to go
 	mutex_release(&s->lock);

@@ -227,7 +227,7 @@ int net_init(void)
 	loopback_init();
 	udp_init();
 	tcp_init();
-//	socket_init();
+	socket_init();
 //	net_control_init();
 
 	return 0;
