@@ -90,8 +90,10 @@ status_t event_wait(event_t *e)
 	return event_wait_timeout(e, INFINITE_TIME);
 }
 
-status_t event_signal(event_t *e, bool reschedule)
+int event_signal(event_t *e, bool reschedule)
 {
+	int ret = 0;
+
 	enter_critical_section();
 
 #if EVENT_CHECK
@@ -101,7 +103,8 @@ status_t event_signal(event_t *e, bool reschedule)
 	if (!e->signalled) {
 		if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
 			/* try to release one thread and leave unsignalled if successful */
-			if (wait_queue_wake_one(&e->wait, reschedule, NO_ERROR) <= 0) {
+			ret = wait_queue_wake_one(&e->wait, reschedule, NO_ERROR);
+			if (ret <= 0) {
 				/*
 				 * if we didn't actually find a thread to wake up, go to
 				 * signalled state and let the next call to event_wait
@@ -112,13 +115,14 @@ status_t event_signal(event_t *e, bool reschedule)
 		} else {
 			/* release all threads and remain signalled */
 			e->signalled = true;
-			wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
+			ret = wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
 		}
 	}
 
 	exit_critical_section();
 
-	return NO_ERROR;
+	/* return number of threads we released */
+	return ret;
 }
 
 status_t event_unsignal(event_t *e)
