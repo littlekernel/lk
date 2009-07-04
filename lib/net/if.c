@@ -3,7 +3,7 @@
 ** Distributed under the terms of the NewOS License.
 */
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -190,24 +190,24 @@ void if_bind_link_address(ifnet *i, ifaddr *addr)
 
 int if_output(cbuf *b, ifnet *i)
 {
-	bool signal_event = false;
+	int threads_released = 0;
 	bool enqueue_failed = false;
 
 	// stick the buffer on a transmit queue
 	mutex_acquire(&i->tx_queue_lock);
-	if(fixed_queue_enqueue(&i->tx_queue, b) < 0)
+	if (fixed_queue_enqueue(&i->tx_queue, b) < 0)
 		enqueue_failed = true;
-	if(i->tx_queue.count == 1)
-		signal_event = true;
+	if (i->tx_queue.count == 1)
+		threads_released = event_signal(&i->tx_queue_event, false);
 	mutex_release(&i->tx_queue_lock);
 
-	if(enqueue_failed) {
+	if (enqueue_failed) {
 		cbuf_free_chain(b);
 		return ERR_NO_MEMORY;
 	}
 
-	if(signal_event)
-		event_signal(&i->tx_queue_event, true);
+	if (threads_released > 0)
+		thread_yield();
 
 	return NO_ERROR;
 }
@@ -221,30 +221,30 @@ static int if_tx_thread(void *args)
 	for(;;) {
 		event_wait(&i->tx_queue_event);
 
-		for(;;) {
-	 		// pull a packet out of the queue
-			mutex_acquire(&i->tx_queue_lock);
-			buf = fixed_queue_dequeue(&i->tx_queue);
-			mutex_release(&i->tx_queue_lock);
-			if(!buf)
-				break;
+		// pull a packet out of the queue
+		mutex_acquire(&i->tx_queue_lock);
+		buf = fixed_queue_dequeue(&i->tx_queue);
+		if (i->tx_queue.count == 0)
+			event_unsignal(&i->tx_queue_event);
+		mutex_release(&i->tx_queue_lock);
+
+		ASSERT(buf);
 
 #if LOSE_TX_PACKETS
-			if(rand() % 100 < LOSE_TX_PERCENTAGE) {
-				cbuf_free_chain(buf);
-				continue;
-			}
+		if(rand() % 100 < LOSE_TX_PERCENTAGE) {
+			cbuf_free_chain(buf);
+			continue;
+		}
 #endif
 
-			// put the cbuf chain into a flat buffer
-			len = cbuf_get_len(buf);
-			cbuf_memcpy_from_chain(i->tx_buf, buf, 0, len);
+		// put the cbuf chain into a flat buffer
+		len = cbuf_get_len(buf);
+		cbuf_memcpy_from_chain(i->tx_buf, buf, 0, len);
 
-			cbuf_free_chain(buf);
+		cbuf_free_chain(buf);
 
-			LTRACEF("sending packet size %u\n", len);
-			i->hook->if_output(i->hook->cookie, i->tx_buf, len);
-		}
+		LTRACEF("sending packet size %u\n", len);
+		i->hook->if_output(i->hook->cookie, i->tx_buf, len);
 	}
 
 	return 0;
