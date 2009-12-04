@@ -1,8 +1,5 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-# can override this in local.mk
-ENABLE_THUMB?=true
-
 DEFINES += \
 	AVR32_CPU_$(AVR32_CPU)=1
 
@@ -13,20 +10,20 @@ BOOTOBJS += \
 	$(LOCAL_DIR)/crt0.o
 
 OBJS += \
+	$(LOCAL_DIR)/ops.o \
 
 #	$(LOCAL_DIR)/arch.Ao \
 	$(LOCAL_DIR)/asm.o \
 	$(LOCAL_DIR)/cache.o \
 	$(LOCAL_DIR)/cache-ops.o \
-	$(LOCAL_DIR)/ops.o \
 	$(LOCAL_DIR)/exceptions.o \
 	$(LOCAL_DIR)/faults.o \
 	$(LOCAL_DIR)/mmu.o \
 	$(LOCAL_DIR)/thread.o \
 	$(LOCAL_DIR)/dcc.o
 
-# set the default toolchain to arm elf and set a #define
-TOOLCHAIN_PREFIX ?= avr32-elf-
+# set the default toolchain and set a #define
+TOOLCHAIN_PREFIX ?= avr32-
 
 # make sure some bits were set up
 MEMVARS_SET := 0
@@ -40,7 +37,7 @@ ifeq ($(MEMVARS_SET),0)
 $(error missing MEMBASE or MEMSIZE variable, please set in target rules.mk)
 endif
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(CFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(CFLAGS) -print-libgcc-file-name)
 #$(info LIBGCC = $(LIBGCC))
 
 # potentially generated files that should be cleaned out with clean make rule

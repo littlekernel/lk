@@ -1,5 +1,5 @@
-OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
-OUTPUT_ARCH(arm)
+OUTPUT_FORMAT("elf32-avr32", "elf32-avr32", "elf32-avr32")
+OUTPUT_ARCH(avr32)
 
 ENTRY(_start)
 SECTIONS
