@@ -40,6 +40,10 @@
 #define BYTE_ORDER LITTLE_ENDIAN
 #endif
 
+#if defined(ARCH_AVR32)
+#define BYTE_ORDER BIG_ENDIAN
+#endif
+
 #if defined(__i386__) || defined(_X86_)
 #define BYTE_ORDER LITTLE_ENDIAN
 #endif

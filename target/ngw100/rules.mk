@@ -1,0 +1,14 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+PLATFORM := at32ap7
+
+MODULES += 
+
+OBJS += \
+	$(LOCAL_DIR)/init.o
+
+MEMSIZE := 0x02000000	# 32MB
+
+DEFINES += \
+	SDRAM_SIZE=$(MEMSIZE)
+
