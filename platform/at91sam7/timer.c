@@ -48,6 +48,11 @@ time_t current_time(void)
 	return ticks;
 }
 
+bigtime_t current_time_hires(void)
+{
+	return ticks * 1000ULL;
+}
+
 static enum handler_return pit_irq_handler(void *arg)
 {
     AT91PIT *pit = AT91PIT_ADDR;

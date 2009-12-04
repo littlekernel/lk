@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export DEBUG=true
+export DEBUG=2
 export PROJECT=sam7ex256-test
 
 make

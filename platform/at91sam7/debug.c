@@ -64,6 +64,12 @@ void ser_puts(const char *s)
     }
 }
 
+int dgetc(char *c, bool wait)
+{
+	return -1;
+}
+
+
 void _dputc(char c)
 {
 	ser_putc(c);
