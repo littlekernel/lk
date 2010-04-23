@@ -23,7 +23,7 @@ OBJS += \
 	$(LOCAL_DIR)/dcc.o
 
 # set the default toolchain and set a #define
-TOOLCHAIN_PREFIX ?= avr32-
+TOOLCHAIN_PREFIX ?= avr32-unknown-none-
 
 # make sure some bits were set up
 MEMVARS_SET := 0
