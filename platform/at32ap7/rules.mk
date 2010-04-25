@@ -18,8 +18,8 @@ OBJS += \
 
 #	$(LOCAL_DIR)/console.o \
 
-MEMBASE := 0x00000000
-#MEMSIZE := 0x02000000	# 32MB
+MEMBASE := 0x80000000
+MEMSIZE := 0x02000000	# 32MB
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld

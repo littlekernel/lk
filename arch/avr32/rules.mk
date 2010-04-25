@@ -11,6 +11,7 @@ BOOTOBJS += \
 
 OBJS += \
 	$(LOCAL_DIR)/ops.o \
+	$(LOCAL_DIR)/thread.o \
 
 #	$(LOCAL_DIR)/arch.Ao \
 	$(LOCAL_DIR)/asm.o \
@@ -19,11 +20,13 @@ OBJS += \
 	$(LOCAL_DIR)/exceptions.o \
 	$(LOCAL_DIR)/faults.o \
 	$(LOCAL_DIR)/mmu.o \
-	$(LOCAL_DIR)/thread.o \
 	$(LOCAL_DIR)/dcc.o
 
 # set the default toolchain and set a #define
 TOOLCHAIN_PREFIX ?= avr32-unknown-none-
+
+CFLAGS += -mcpu=ap7000
+LDFLAGS += --relax
 
 # make sure some bits were set up
 MEMVARS_SET := 0

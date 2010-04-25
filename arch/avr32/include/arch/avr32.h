@@ -20,13 +20,19 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-.section ".text.boot"
-.globl _start
-_start:
-	mov		r12, 4
-	mov		r12, r11
-	rjmp	.
+#ifndef __ARCH_AVR32_H
+#define __ARCH_AVR32_H
 
-.text
-test:
-	.word 99
+#include <sys/types.h>
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+void avr32_context_switch(vaddr_t *old_sp, vaddr_t new_sp);
+
+#if defined(__cplusplus)
+}
+#endif
+
+#endif
