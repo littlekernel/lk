@@ -49,14 +49,15 @@ GENERATED += \
 	$(BUILDDIR)/system-twosegment.ld
 
 # rules for generating the linker scripts
+PROGBASE ?= $(MEMBASE)
 
 $(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
+	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%PROGBASE%/$(PROGBASE)/" < $< > $@
 
 $(BUILDDIR)/system-twosegment.ld: $(LOCAL_DIR)/system-twosegment.ld
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
+	$(NOECHO)sed "s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%PROGBASE%/$(PROGBASE)/" < $< > $@
 

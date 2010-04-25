@@ -4,7 +4,7 @@ OUTPUT_ARCH(avr32)
 ENTRY(_start)
 SECTIONS
 {
-	. = %MEMBASE%;
+	. = %PROGBASE%;
 
 	/* text/read-only data */
 	.text.boot : { *(.text.boot) }
