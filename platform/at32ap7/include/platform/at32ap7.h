@@ -112,5 +112,22 @@
 #define INT_USBA					INT_VECTOR(31, 0)
 #define INT_EBI						INT_VECTOR(32, 0)
 
+/* UART */
+#define UART_CR						(0)
+#define UART_MR						(1)
+#define UART_IER					(2)
+#define UART_IDR					(3)
+#define UART_IMR					(4)
+#define UART_CSR					(5)
+#define UART_RHR					(6)
+#define UART_THR					(7)
+#define UART_BRGR					(8)
+#define UART_RTOR					(9)
+#define UART_TTGR					(10)
+#define UART_FIDI					(16)
+#define UART_NER					(17)
+#define UART_IFR					(19)
+#define UART_MAN					(20)
+
 #endif
 

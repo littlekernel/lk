@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 Travis Geiselbrecht
+ * Copyright (c) 2009 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,48 +20,18 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <platform/at32ap7.h>
+#include <debug.h>
+#include <arch.h>
 
-.section ".text.boot"
-.globl _start
-_start:
-	lddpc	sp, .Linit_stack_top_addr
+void arch_early_init(void)
+{
+}
 
-	/* print a char */
-	lddpc	r0, .Luart_base
-	mov		r1, 'a'
-	st.w	r0[0x1c],r1
+void arch_init(void)
+{
+}
 
-0:
-	mov		r12, 1
-	mov		r11, 'a'
-	rcall	uart_putc	
-	rjmp	0b
-
-	rcall	kmain
-	rjmp	.
-
-.align 2
-.Luart_base:
-	.long	USART1_BASE
-
-.Linit_stack_top_addr:
-	.long	init_stack_top
-
-.section ".bss"
-.align 2
-init_stack:
-    .skip 1024
-init_stack_top:
-
-.section ".rodata"
-.align 2
-
-/* define the heap end as read-only data containing the end defined in the
- * linker script. other archs that use dynamic memory length discovery can make
- * this read-write and update it during init.
- */
-.global _heap_end
-_heap_end:
-	.int _end_of_ram
+void arch_quiesce(void)
+{
+}
 

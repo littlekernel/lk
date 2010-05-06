@@ -29,77 +29,79 @@
 #include <platform/debug.h>
 #include <arch/ops.h>
 #include <lib/cbuf.h>
+#include <platform/at32ap7.h>
 
 #if 0
 static cbuf_t debug_buf;
 static timer_t debug_timer;
+#endif
 
-static void write_uart_reg(int uart, int reg, unsigned char data)
+void write_uart_reg(int uart, int reg, unsigned char data)
 {
 	unsigned long base;
 	int mul = 4;
 
 	switch(uart) {
-		case 0: base = UART0_BASE; break;
-		case 1: base = UART1_BASE; break;
-		case 2: base = UART2_BASE; break;
+		case 0: base = USART0_BASE; break;
+		case 1: base = USART1_BASE; break;
+		case 2: base = USART2_BASE; break;
+		case 3: base = USART3_BASE; break;
 		default: return;
 	}
 
-	*(volatile unsigned char *)(base + reg * mul) = data;
+	*REG32(base + reg * mul) = data;
 }
 
-static unsigned char read_uart_reg(int uart, int reg)
+unsigned char read_uart_reg(int uart, int reg)
 {
 	unsigned long base;
 	int mul = 4;
 
 	switch(uart) {
-		case 0: base = UART0_BASE; break;
-		case 1: base = UART1_BASE; break;
-		case 2: base = UART2_BASE; break;
+		case 0: base = USART0_BASE; break;
+		case 1: base = USART1_BASE; break;
+		case 2: base = USART2_BASE; break;
+		case 3: base = USART3_BASE; break;
 		default: return 0;
 	}
 
-	return *(volatile unsigned char *)(base + reg * mul);
+	return *REG32(base + reg * mul);
 }
 
 static int uart_init(void)
 {
 	/* clear the tx & rx fifo and disable */
-	write_uart_reg(0, UART_FCR, 0x6);
+//	write_uart_reg(0, UART_FCR, 0x6);
 
 	return 0;
 }
 
-static int uart_putc(int port, char c )
+int uart_putc(int port, char c )
 {
-	while (!(read_uart_reg(port, UART_LSR) & (1<<6))) // wait for the shift register to empty
-		;
+//	while (!(read_uart_reg(port, UART_CSR) & (1<<9))) // wait for the shift register to empty
+//		;
   	write_uart_reg(port, UART_THR, c);
+//	*REG32(USART1_BASE + 0x1c) = c;
 	return 0;
 }
 
 static int uart_getc(int port, bool wait)  /* returns -1 if no data available */
 {
 	if (wait) {
-		while (!(read_uart_reg(port, UART_LSR) & (1<<0))) // wait for data to show up in the rx fifo
+		while (!(read_uart_reg(port, UART_CSR) & (1<<0))) // wait for data to show up in the rx fifo
 			;
 	} else {
-		if (!(read_uart_reg(port, UART_LSR) & (1<<0)))
+		if (!(read_uart_reg(port, UART_CSR) & (1<<0)))
 			return -1;
 	}
 	return read_uart_reg(port, UART_RHR);
 }
-#endif
 
 void _dputc(char c)
 {
-#if 0
 	if (c == '\n')
-		uart_putc(0, '\r');
-	uart_putc(0, c);
-#endif
+		uart_putc(1, '\r');
+	uart_putc(1, c);
 }
 
 #if 0
@@ -124,6 +126,7 @@ int dgetc(char *c, bool wait)
 	len = cbuf_read(&debug_buf, c, 1, wait);
 	return len;
 #endif
+	return 0;
 }
 
 void debug_dump_regs(void)

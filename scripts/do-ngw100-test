@@ -1,0 +1,6 @@
+#!/bin/sh
+
+export PROJECT=ngw100-test
+
+make && 
+cp build-ngw100-test/lk.bin /tftproot/6300A8C0.img

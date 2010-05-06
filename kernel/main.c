@@ -58,6 +58,8 @@ static void call_constructors(void)
 void kmain(void) __NO_RETURN __EXTERNALLY_VISIBLE;
 void kmain(void)
 {
+	puts("top of kmain\n");
+
 	// get us into some sort of thread context
 	thread_init_early();
 
