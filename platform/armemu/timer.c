@@ -48,13 +48,23 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	return NO_ERROR;
 }
 
+bigtime_t current_time_hires(void)
+{
+	bigtime_t time;
+	*REG(SYSINFO_TIME_LATCH) = 1;
+	time = *REG(SYSINFO_TIME_SECS) * 1000000ULL;
+	time += *REG(SYSINFO_TIME_USECS);
+
+	return time;
+}
+
 time_t current_time(void)
 {
 	time_t time;
 	*REG(SYSINFO_TIME_LATCH) = 1;
 	time = *REG(SYSINFO_TIME_SECS) * 1000;
 	time += *REG(SYSINFO_TIME_USECS) / 1000;
-			
+
 	return time;
 }
 
