@@ -20,6 +20,15 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+/**
+ * @file
+ * @brief  Mutex functions
+ *
+ * @defgroup mutex Mutex
+ * @{
+ */
+
 #include <debug.h>
 #include <err.h>
 #include <kernel/mutex.h>
@@ -29,6 +38,9 @@
 #define MUTEX_CHECK 1
 #endif
 
+/**
+ * @brief  Initialize a mutex_t
+ */
 void mutex_init(mutex_t *m)
 {
 #if MUTEX_CHECK
@@ -41,6 +53,12 @@ void mutex_init(mutex_t *m)
 	wait_queue_init(&m->wait);
 }
 
+/**
+ * @brief  Destroy a mutex_t
+ *
+ * This function frees any resources that were allocated
+ * in mutex_init().  The mutex_t object itself is not freed.
+ */
 void mutex_destroy(mutex_t *m)
 {
 	enter_critical_section();
@@ -59,6 +77,14 @@ void mutex_destroy(mutex_t *m)
 	exit_critical_section();
 }
 
+/**
+ * @brief  Acquire a mutex; wait if needed.
+ *
+ * This function waits for a mutex to become available.  It
+ * may wait forever if the mutex never becomes free.
+ *
+ * @return  NO_ERROR on success, other values on error
+ */
 status_t mutex_acquire(mutex_t *m)
 {
 	status_t ret = NO_ERROR;
@@ -94,6 +120,16 @@ err:
 	return ret;
 }
 
+/**
+ * @brief  Mutex wait with timeout
+ *
+ * This function waits up to \a timeout ms for the mutex to become available.
+ * Timeout may be zero, in which case this function returns immediately if
+ * the mutex is not free.
+ *
+ * @return  NO_ERROR on success, ERR_TIMED_OUT on timeout,
+ * other values on error
+ */
 status_t mutex_acquire_timeout(mutex_t *m, time_t timeout)
 {
 	status_t ret = NO_ERROR;
@@ -140,6 +176,9 @@ err:
 	return ret;
 }
 
+/**
+ * @brief  Release mutex
+ */
 status_t mutex_release(mutex_t *m)
 {
 	if (current_thread != m->holder)

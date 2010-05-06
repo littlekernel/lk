@@ -20,6 +20,20 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+/**
+ * @file
+ * @brief  Kernel timer subsystem
+ * @defgroup timer Timers
+ *
+ * The timer subsystem allows functions to be scheduled for later
+ * execution.  Each timer object is used to cause one function to
+ * be executed at a later time.
+ *
+ * Timer callback functions are called in interrupt context.
+ *
+ * @{
+ */
 #include <debug.h>
 #include <list.h>
 #include <kernel/thread.h>
@@ -31,6 +45,9 @@ static struct list_node timer_queue;
 
 static enum handler_return timer_tick(void *arg, time_t now);
 
+/**
+ * @brief  Initialize a timer object
+ */
 void timer_initialize(timer_t *timer)
 {
 	timer->magic = TIMER_MAGIC;
@@ -93,6 +110,20 @@ static void timer_set(timer_t *timer, time_t delay, time_t period, timer_callbac
 	exit_critical_section();
 }
 
+/**
+ * @brief  Set up a timer that executes once
+ *
+ * This function specifies a callback function to be called after a specified
+ * delay.  The function will be called one time.
+ *
+ * @param  timer The timer to use
+ * @param  delay The delay, in ms, before the timer is executed
+ * @param  callback  The function to call when the timer expires
+ * @param  arg  The argument to pass to the callback
+ *
+ * The timer function is declared as:
+ *   enum handler_return callback(struct timer *, time_t now, void *arg) { ... }
+ */
 void timer_set_oneshot(timer_t *timer, time_t delay, timer_callback callback, void *arg)
 {
 	if (delay == 0)
@@ -100,6 +131,20 @@ void timer_set_oneshot(timer_t *timer, time_t delay, timer_callback callback, vo
 	timer_set(timer, delay, 0, callback, arg);
 }
 
+/**
+ * @brief  Set up a timer that executes repeatedly
+ *
+ * This function specifies a callback function to be called after a specified
+ * delay.  The function will be called repeatedly.
+ *
+ * @param  timer The timer to use
+ * @param  delay The delay, in ms, before the timer is executed
+ * @param  callback  The function to call when the timer expires
+ * @param  arg  The argument to pass to the callback
+ *
+ * The timer function is declared as:
+ *   enum handler_return callback(struct timer *, time_t now, void *arg) { ... }
+ */
 void timer_set_periodic(timer_t *timer, time_t period, timer_callback callback, void *arg)
 {
 	if (period == 0)
@@ -107,6 +152,9 @@ void timer_set_periodic(timer_t *timer, time_t period, timer_callback callback, 
 	timer_set(timer, period, period, callback, arg);
 }
 
+/**
+ * @brief  Cancel a pending timer
+ */
 void timer_cancel(timer_t *timer)
 {
 	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);

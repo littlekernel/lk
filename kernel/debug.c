@@ -21,6 +21,16 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/**
+ * @defgroup debug  Debug
+ * @{
+ */
+
+/**
+ * @file
+ * @brief  Debug console functions.
+ */
+
 #include <debug.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>

@@ -58,6 +58,7 @@ status_t event_wait(event_t *);
 status_t event_wait_timeout(event_t *, time_t); /* wait on the event with a timeout */
 status_t event_signal(event_t *, bool reschedule);
 status_t event_unsignal(event_t *);
+#define event_initialized(e)	((e)->magic == EVENT_MAGIC)
 
 #endif
 
