@@ -23,6 +23,8 @@
 #ifndef __ERR_H
 #define __ERR_H
 
+#include <sys/types.h> // for status_t
+
 #define NO_ERROR 0
 #define ERROR -1
 #define ERR_NOT_FOUND -2
@@ -37,5 +39,17 @@
 #define ERR_OBJECT_DESTROYED -11
 #define ERR_NOT_BLOCKED -12
 #define ERR_TIMED_OUT -13
+#define ERR_ALREADY_EXISTS -14
+#define ERR_CHANNEL_CLOSED -15
+#define ERR_OFFLINE -16
+#define ERR_NOT_ALLOWED -17
+#define ERR_BAD_PATH -18
+#define ERR_ALREADY_MOUNTED -19
+#define ERR_IO -20
+#define ERR_NOT_DIR -21
+#define ERR_NOT_FILE -22
+#define ERR_RECURSE_TOO_DEEP -23
+#define ERR_NOT_SUPPORTED -24
+#define ERR_TOO_BIG -25
 
 #endif
