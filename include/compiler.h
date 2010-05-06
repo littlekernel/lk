@@ -41,6 +41,19 @@
 #define __WEAK __attribute__((weak))
 #define __GNU_INLINE __attribute__((gnu_inline))
 #define __GET_CALLER(x) __builtin_return_address(0)
+#define __GET_FRAME(x) __builtin_frame_address(0)
+
+#define INCBIN(symname, sizename, filename, section)					\
+	__asm__ (".section " section "; .align 4; .globl "#symname);		\
+	__asm__ (""#symname ":\n.incbin \"" filename "\"");					\
+	__asm__ (".section " section "; .align 1;");						\
+	__asm__ (""#symname "_end:");										\
+	__asm__ (".section " section "; .align 4; .globl "#sizename);		\
+	__asm__ (""#sizename ": .long "#symname "_end - "#symname " - 1");	\
+	extern unsigned char symname[];										\
+	extern unsigned int sizename
+
+#define INCFILE(symname, sizename, filename) INCBIN(symname, sizename, filename, ".rodata")
 
 /* look for gcc 3.0 and above */
 #if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 0)
@@ -105,5 +118,8 @@
 #endif
 
 #endif
+
+/* TODO: add type check */
+#define countof(a) (sizeof(a) / sizeof((a)[0]))
 
 #endif
