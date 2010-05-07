@@ -4,6 +4,11 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 TARGET := armemu
 MODULES += \
+	lib/bio \
+	lib/partition \
+	lib/bcache \
+	lib/fs \
+	lib/fs/ext2 \
 	app/tests \
 	app/shell
 
