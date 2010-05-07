@@ -25,6 +25,7 @@
 
 void platform_init_interrupts(void);
 void platform_init_timer(void);
+void platform_init_blkdev(void);
 
 #endif
 

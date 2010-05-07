@@ -15,6 +15,7 @@ OBJS += \
 	$(LOCAL_DIR)/interrupts.o \
 	$(LOCAL_DIR)/platform.o \
 	$(LOCAL_DIR)/timer.o \
+	$(LOCAL_DIR)/blkdev.o \
 
 
 #	$(LOCAL_DIR)/console.o \
