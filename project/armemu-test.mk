@@ -9,6 +9,10 @@ MODULES += \
 	lib/bcache \
 	lib/fs \
 	lib/fs/ext2 \
+	lib/gfx \
+	lib/gfxconsole \
+	lib/text \
+	lib/tga \
 	app/tests \
 	app/shell
 
