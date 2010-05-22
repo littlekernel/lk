@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2010 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,23 +24,41 @@
 #include <debug.h>
 #include <platform.h>
 #include "platform_p.h"
+#include <platform/armemu.h>
+#include <dev/display.h>
+#include <lib/gfx.h>
+#include <reg.h>
 
-void platform_init_mmu_mappings(void)
+static int display_w, display_h;
+static void *display_fb;
+
+inline static int has_display(void)
 {
+	return *REG32(SYSINFO_FEATURES) & SYSINFO_FEATURE_DISPLAY;
 }
 
-void platform_early_init(void)
+void platform_init_display(void)
 {
-	/* initialize the interrupt controller */
-	platform_init_interrupts();
+	if (!has_display())
+		return;
 
-	/* initialize the timer block */
-	platform_init_timer();
+	display_fb = (void *)DISPLAY_FRAMEBUFFER;
+	display_w = 640;
+	display_h = 480;
+
+	gfx_draw_pattern();
 }
 
-void platform_init(void)
+void display_get_info(struct display_info *info)
 {
-	platform_init_blkdev();
-	platform_init_display();
+	if (!has_display())
+		return;
+
+	info->framebuffer = display_fb;
+	info->format = GFX_FORMAT_RGB_x888;
+	info->width = display_w;
+	info->height = display_h;
+	info->stride = display_w;
+	info->flush = NULL;
 }
 

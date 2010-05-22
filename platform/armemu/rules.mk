@@ -16,10 +16,18 @@ OBJS += \
 	$(LOCAL_DIR)/platform.o \
 	$(LOCAL_DIR)/timer.o \
 	$(LOCAL_DIR)/blkdev.o \
+	$(LOCAL_DIR)/display.o \
 
 
 #	$(LOCAL_DIR)/console.o \
 	$(LOCAL_DIR)/net.o \
+
+DEFINES += \
+	WITH_DEV_DISPLAY=1
+
+MODULES += \
+	lib/gfx
+
 
 MEMBASE := 0x0
 MEMSIZE := 0x400000	# 4MB
