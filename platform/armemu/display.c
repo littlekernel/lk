@@ -43,8 +43,8 @@ void platform_init_display(void)
 		return;
 
 	display_fb = (void *)DISPLAY_FRAMEBUFFER;
-	display_w = 640;
-	display_h = 480;
+	display_w = *REG32(DISPLAY_WIDTH);
+	display_h = *REG32(DISPLAY_HEIGHT);
 
 	gfx_draw_pattern();
 }

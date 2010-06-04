@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2006 Travis Geiselbrecht
+ * Copyright (c) 2005-2010 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -59,7 +59,10 @@
 #define DISPLAY_FRAMEBUFFER DISPLAY_BASE
 #define DISPLAY_REGS_BASE (DISPLAY_BASE + DISPLAY_SIZE)
 #define DISPLAY_REGS_SIZE MEMBANK_SIZE
-	/* no display regs for now */
+
+#define DISPLAY_WIDTH     (DISPLAY_REGS_BASE + 0) // pixels width/height read/only
+#define DISPLAY_HEIGHT    (DISPLAY_REGS_BASE + 4)
+#define DISPLAY_BPP       (DISPLAY_REGS_BASE + 8) // bits per pixel (16/32)
 
 /* console (keyboard controller */
 #define CONSOLE_REGS_BASE (DISPLAY_REGS_BASE + DISPLAY_REGS_SIZE)
