@@ -104,10 +104,6 @@ ifeq ($(TOOLCHAIN_PREFIX),arm-none-linux-gnueabi-)
 # XXX test for EABI better than this
 # eabi compilers dont need this
 THUMBINTERWORK:=
-else
-
-# XXX hack to work around lack of cortex support in regular compilers
-CFLAGS := $(subst cortex-a8,arm1136jf-s,$(CFLAGS))
 endif
 
 CFLAGS += $(THUMBINTERWORK)
