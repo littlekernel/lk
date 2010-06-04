@@ -1,7 +1,14 @@
 #!/bin/sh
 
 PROJECTS="armemu-test sam7ex256-test osk5912-test qemu-arm-test beagle-test surf-test"
+FAILED=""
 
 for p in $PROJECTS; do
-	PROJECT=$p make -j2
+	PROJECT=$p make -j2 || FAILED="$FAILED $p"
 done
+
+if [ "$FAILED" != "" ]; then
+	echo
+	echo some projects have failed to build:
+	echo $FAILED
+fi
