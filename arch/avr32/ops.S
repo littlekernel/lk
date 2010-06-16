@@ -26,22 +26,18 @@
 
 /* void arch_enable_ints(void); */
 FUNCTION(arch_enable_ints)
-#if 0
-	mrs	r0, cpsr
-	bic	r0, r0, #(1<<7)		/* clear the I bit */
-	msr	cpsr_c, r0
-	bx	lr
-#endif
+	mfsr	r8, 0 /* sr */
+	cbr		r8, 16
+	mtsr	0, r8 /* sr */
+
 	retal	r12
 
 /* void arch_disable_ints(void); */
 FUNCTION(arch_disable_ints)
-#if 0
-	mrs	r0, cpsr
-	orr	r0, r0, #(1<<7)
-	msr	cpsr_c, r0
-	bx	lr
-#endif
+	mfsr	r8, 0 /* sr */
+	sbr		r8, 16
+	mtsr	0, r8 /* sr */
+
 	retal	r12
 
 /* int atomic_swap(int *ptr, int val); */
@@ -166,21 +162,7 @@ FUNCTION(atomic_or)
 
 /* void arch_idle(); */
 FUNCTION(arch_idle)
-#if 0
-#if ARM_CPU_CORTEX_A8
-	wfi
-#elif PLATFORM_MSM7K
-	/* TODO: safely handle wfi */
-#elif ARM_CPU_ARM1136 || ARM_CPU_ARM926
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c0, #4
-#elif ARM_CPU_ARM7
-	/* nothing to do here */
-#else
-#error unknown cpu
-#endif
-	bx	lr
-#endif
+	sleep	0
 	retal	r12
 
 /* void arch_switch_stacks_and_call(addr_t call, addr_t stack) */

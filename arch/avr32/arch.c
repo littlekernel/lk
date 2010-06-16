@@ -24,8 +24,18 @@
 #include <arch.h>
 #include <arch/avr32.h>
 
+extern uint32_t avr32_exception_base;
+
 void arch_early_init(void)
 {
+	TRACE_ENTRY;
+	printf("sr 0x%x\n", avr32_get_sr());
+	printf("mmucr 0x%x\n", avr32_get_mmucr());
+
+	/* set the exception base */
+	avr32_set_evba((uint32_t)&avr32_exception_base);
+
+	TRACE_EXIT;
 }
 
 void arch_init(void)

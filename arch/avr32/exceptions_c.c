@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2010 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,13 +20,21 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ASM_H
-#define __ASM_H
+#include <debug.h>
+#include <arch.h>
+#include <arch/avr32.h>
 
-//#define FUNCTION(x) .global x; .type x,@function; x:
-#define FUNCTION(x) .global x; x:
+void avr32_syscall(void)
+{
+	printf("syscall entry\n");
+	printf("sr 0x%x\n", avr32_get_sr());
+	printf("rar_sup 0x%x\n", avr32_get_rar_sup());
+	printf("rsr_sup 0x%x\n", avr32_get_rsr_sup());
+	panic("unhandled syscall\n");
+}
 
-#define DATA(x) .global x; x:
-
-#endif
-
+void avr32_unhandled(void)
+{
+	printf("unhandled exception %d\n", avr32_get_ecr());
+	panic("unhandled\n");
+}

@@ -15,9 +15,10 @@ OBJS += \
 	$(LOCAL_DIR)/arch.o \
 	$(LOCAL_DIR)/cache.o \
 	$(LOCAL_DIR)/asm.o \
+	$(LOCAL_DIR)/exceptions.o \
+	$(LOCAL_DIR)/exceptions_c.o \
 
 #	$(LOCAL_DIR)/cache-ops.o \
-	$(LOCAL_DIR)/exceptions.o \
 	$(LOCAL_DIR)/faults.o \
 	$(LOCAL_DIR)/mmu.o \
 	$(LOCAL_DIR)/dcc.o

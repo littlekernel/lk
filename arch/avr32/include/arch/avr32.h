@@ -95,6 +95,61 @@ static inline void avr32_dcache_clean_invalidate_line(void *addr)
 	__asm__ volatile("cache %0[0], 0xd" :: "r"(addr) : "memory");
 }
 
+/* system registers */
+#define SR_GETPUT(name, regnum) \
+	static inline uint32_t avr32_get_##name(void) \
+	{ \
+		uint32_t ret; \
+		__asm__ volatile("mfsr	%0," #regnum : "=r"(ret)); \
+		return ret; \
+	} \
+\
+	static inline void avr32_set_##name(uint32_t val) \
+	{ \
+		__asm__ volatile("mtsr	" #regnum ", %0" :: "r"(val)); \
+	}
+
+SR_GETPUT(sr, 0)
+SR_GETPUT(evba, 4)
+SR_GETPUT(acba, 8)
+SR_GETPUT(cpucr, 12)
+SR_GETPUT(ecr, 16)
+SR_GETPUT(rsr_sup, 20)
+SR_GETPUT(rsr_int0, 24)
+SR_GETPUT(rsr_int1, 28)
+SR_GETPUT(rsr_int2, 32)
+SR_GETPUT(rsr_int3, 36)
+SR_GETPUT(rsr_ex, 40)
+SR_GETPUT(rsr_nmi, 44)
+SR_GETPUT(rsr_dbg, 48)
+SR_GETPUT(rar_sup, 52)
+SR_GETPUT(rar_int0, 56)
+SR_GETPUT(rar_int1, 60)
+SR_GETPUT(rar_int2, 64)
+SR_GETPUT(rar_int3, 68)
+SR_GETPUT(rar_ex, 72)
+SR_GETPUT(rar_nmi, 76)
+SR_GETPUT(rar_dbg, 80)
+SR_GETPUT(config0, 256)
+SR_GETPUT(config1, 260)
+SR_GETPUT(count, 264)
+SR_GETPUT(compare, 268)
+SR_GETPUT(tlbehi, 272)
+SR_GETPUT(tlbelo, 276)
+SR_GETPUT(ptbr, 280)
+SR_GETPUT(tlbear, 284)
+SR_GETPUT(mmucr, 288)
+SR_GETPUT(tlbarlo, 292)
+SR_GETPUT(tlbarhi, 296)
+SR_GETPUT(pccnt, 300)
+SR_GETPUT(pcnt0, 304)
+SR_GETPUT(pcnt1, 308)
+SR_GETPUT(pccr, 312)
+SR_GETPUT(bear, 316)
+SR_GETPUT(sabal, 768)
+SR_GETPUT(sabah, 772)
+SR_GETPUT(sabd, 776)
+
 #if defined(__cplusplus)
 }
 #endif
