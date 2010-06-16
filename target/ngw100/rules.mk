@@ -8,7 +8,7 @@ OBJS += \
 	$(LOCAL_DIR)/init.o
 
 MEMSIZE := 0x02000000	# 32MB
-PROGBASE := 0x12000000	# u-boot loads us here
+PROGBASE := 0x10200000	# u-boot loads us here
 
 DEFINES += \
 	SDRAM_SIZE=$(MEMSIZE)
