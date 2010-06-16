@@ -365,6 +365,16 @@ FUNCTION(arch_invalidate_cache_range)
 #endif
 	bx		lr
 
+	/* void arch_sync_cache_range(addr_t start, size_t len); */
+FUNCTION(arch_sync_cache_range)
+	push    { r14 }
+	bl      arch_clean_cache_range
+
+	mov     r0, #0
+	mcr     p15, 0, r0, c7, c5, 0       // invalidate icache to PoU
+
+	pop     { pc }
+
 #endif // ARM_CPU_...
 
 #else
@@ -381,6 +391,9 @@ FUNCTION(arch_clean_cache_range)
 	bx		lr
 
 FUNCTION(arch_clean_invalidate_cache_range)
+	bx		lr
+
+FUNCTION(arch_sync_cache_range)
 	bx		lr
 
 #endif // ARM_WITH_CACHE
