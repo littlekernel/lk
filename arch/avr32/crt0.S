@@ -20,31 +20,16 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <platform/at32ap7.h>
 
 .section ".text.boot"
 .globl _start
 _start:
 	lddpc	sp, .Linit_stack_top_addr
 
-	/* print a char */
-	lddpc	r0, .Luart_base
-	mov		r1, 'a'
-	st.w	r0[0x1c],r1
-
-0:
-	mov		r12, 1
-	mov		r11, 'a'
-	rcall	uart_putc	
-	rjmp	0b
-
 	rcall	kmain
 	rjmp	.
 
 .align 2
-.Luart_base:
-	.long	USART1_BASE
-
 .Linit_stack_top_addr:
 	.long	init_stack_top
 
