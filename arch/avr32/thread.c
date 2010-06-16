@@ -28,22 +28,28 @@
 #include <arch/avr32.h>
 
 struct context_switch_frame {
-	vaddr_t r4;
-	vaddr_t r5;
-	vaddr_t r6;
-	vaddr_t r7;
-	vaddr_t r8;
-	vaddr_t r9;
-	vaddr_t r10;
-	vaddr_t r11;
+	vaddr_t lr;
 	vaddr_t r12;
+	vaddr_t r11;
+	vaddr_t r10;
+	vaddr_t r9;
+	vaddr_t r8;
+	vaddr_t r7;
+	vaddr_t r6;
+	vaddr_t r5;
+	vaddr_t r4;
+	vaddr_t r3;
+	vaddr_t r2;
+	vaddr_t r1;
+	vaddr_t r0;
 };
 
-extern void arm_context_switch(addr_t *old_sp, addr_t new_sp);
+extern void avr32_context_switch(addr_t *old_sp, addr_t new_sp);
 
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void)
 {
+	PANIC_UNIMPLEMENTED;
 #if 0
 	int ret;
 
@@ -63,12 +69,8 @@ static void initial_thread_func(void)
 
 void arch_thread_initialize(thread_t *t)
 {
-#if 0
 	// create a default stack frame on the stack
 	vaddr_t stack_top = (vaddr_t)t->stack + t->stack_size;
-
-	// make sure the top of the stack is 8 byte aligned for EABI compliance
-	stack_top = ROUNDDOWN(stack_top, 8);
 
 	struct context_switch_frame *frame = (struct context_switch_frame *)(stack_top);
 	frame--;
@@ -79,12 +81,15 @@ void arch_thread_initialize(thread_t *t)
 	
 	// set the stack pointer
 	t->arch.sp = (vaddr_t)frame;
-#endif
+
+	printf("finished initializing thread stack: thread %p, sp 0x%x\n", t, t->arch.sp);
+	hexdump(t->arch.sp, 64);
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
-//	dprintf("arch_context_switch: old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
-//	arm_context_switch(&oldthread->arch.sp, newthread->arch.sp);
+	printf("arch_context_switch: old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
+	hexdump(newthread->arch.sp, 64);
+	avr32_context_switch(&oldthread->arch.sp, newthread->arch.sp);
 }
 

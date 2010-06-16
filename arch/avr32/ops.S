@@ -32,6 +32,7 @@ FUNCTION(arch_enable_ints)
 	msr	cpsr_c, r0
 	bx	lr
 #endif
+	retal	r12
 
 /* void arch_disable_ints(void); */
 FUNCTION(arch_disable_ints)
@@ -41,6 +42,7 @@ FUNCTION(arch_disable_ints)
 	msr	cpsr_c, r0
 	bx	lr
 #endif
+	retal	r12
 
 /* int atomic_swap(int *ptr, int val); */
 FUNCTION(atomic_swap)
@@ -49,6 +51,7 @@ FUNCTION(atomic_swap)
 	mov	r0, r2
 	bx	lr
 #endif
+	retal	r12
 
 /* int atomic_add(int *ptr, int val); */
 FUNCTION(atomic_add)
@@ -85,6 +88,7 @@ FUNCTION(atomic_add)
 	bx	lr
 #endif
 #endif
+	retal	r12
 	
 /* int atomic_and(int *ptr, int val); */
 FUNCTION(atomic_and)
@@ -121,6 +125,7 @@ FUNCTION(atomic_and)
 	bx	lr
 #endif
 #endif
+	retal	r12
 	
 /* int atomic_or(int *ptr, int val); */
 FUNCTION(atomic_or)
@@ -157,6 +162,7 @@ FUNCTION(atomic_or)
 	bx	lr
 #endif
 #endif
+	retal	r12
 
 /* void arch_idle(); */
 FUNCTION(arch_idle)
@@ -175,22 +181,14 @@ FUNCTION(arch_idle)
 #endif
 	bx	lr
 #endif
+	retal	r12
 
 /* void arch_switch_stacks_and_call(addr_t call, addr_t stack) */
 FUNCTION(arch_switch_stacks_and_call)
-#if 0
-	mov		sp, r1
-	bx		r0	
-#endif
+	mov		sp, r11
+	icall	r12
 
 /* uint32_t arch_cycle_count(void); */
 FUNCTION(arch_cycle_count)
-#if 0
-#if ARM_CPU_CORTEX_A8
-	mrc		p15, 0, r0, c9, c13, 0
-#else
-	mov		r0, #0
-#endif
-	bx		lr
-#endif
+	retal	0
 

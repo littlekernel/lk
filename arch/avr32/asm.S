@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 Travis Geiselbrecht
+ * Copyright (c) 2010 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,19 +20,37 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
-#include <arch.h>
-#include <arch/avr32.h>
+#include <asm.h>
 
-void arch_early_init(void)
-{
-}
+/* context switch frame:
+	vaddr_t r0;
+	vaddr_t r1;
+	vaddr_t r2;
+	vaddr_t r3;
+	vaddr_t r4;
+	vaddr_t r5;
+	vaddr_t r6;
+	vaddr_t r7;
+	vaddr_t r8;
+	vaddr_t r9;
+	vaddr_t r10;
+	vaddr_t r11;
+	vaddr_t r12;
+	vaddr_t lr;
+*/
 
-void arch_init(void)
-{
-}
+/* void avr32_context_switch(addr_t *old_sp, addr_t new_sp); */
+FUNCTION(avr32_context_switch)
+	/* save old state */
+	pushm	r0-r12,lr
 
-void arch_quiesce(void)
-{
-}
+	/* save old sp */
+	st.w	r12[0], sp
+
+	/* load new one */
+	mov		sp, r11
+
+	/* restore state and exit */
+	popm	r0-r12,lr
+	icall	lr
 
