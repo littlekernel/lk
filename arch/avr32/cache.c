@@ -20,13 +20,35 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ARCH_CPU_H
-#define __ARCH_CPU_H
+#include <debug.h>
+#include <arch.h>
+#include <arch/ops.h>
+#include <arch/avr32.h>
+#include <arch/defines.h>
 
-/* avr32 specific stuff */
-#define PAGE_SIZE 4096
+void arch_disable_cache(uint flags)
+{
+	PANIC_UNIMPLEMENTED;
+}
 
-#define CACHE_LINE 32
+void arch_enable_cache(uint flags)
+{
+	PANIC_UNIMPLEMENTED;
+}
 
-#endif
+void arch_clean_cache_range(addr_t start, size_t len)
+{
+	addr_t end = start + len;	
+
+	for (start = start & ~(CACHE_LINE - 1); start < end; start += CACHE_LINE)
+		avr32_dcache_clean_line((void *)start);
+}
+
+void arch_clean_invalidate_cache_range(addr_t start, size_t len)
+{
+	addr_t end = start + len;	
+
+	for (start = start & ~(CACHE_LINE - 1); start < end; start += CACHE_LINE)
+		avr32_dcache_clean_invalidate_line((void *)start);
+}
 
