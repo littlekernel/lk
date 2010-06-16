@@ -36,34 +36,33 @@ static cbuf_t debug_buf;
 static timer_t debug_timer;
 #endif
 
-void write_uart_reg(int uart, int reg, unsigned char data)
+static inline uint32_t uart_reg_base(int uart)
+{
+	switch(uart) {
+		default:
+		case 0: return USART0_BASE;
+		case 1: return USART1_BASE;
+		case 2: return USART2_BASE;
+		case 3: return USART3_BASE;
+	}
+}
+
+static void write_uart_reg(int uart, int reg, unsigned char data)
 {
 	unsigned long base;
 	int mul = 4;
 
-	switch(uart) {
-		case 0: base = USART0_BASE; break;
-		case 1: base = USART1_BASE; break;
-		case 2: base = USART2_BASE; break;
-		case 3: base = USART3_BASE; break;
-		default: return;
-	}
+	base = uart_reg_base(uart);
 
 	*REG32(base + reg * mul) = data;
 }
 
-unsigned char read_uart_reg(int uart, int reg)
+static unsigned int read_uart_reg(int uart, int reg)
 {
 	unsigned long base;
 	int mul = 4;
 
-	switch(uart) {
-		case 0: base = USART0_BASE; break;
-		case 1: base = USART1_BASE; break;
-		case 2: base = USART2_BASE; break;
-		case 3: base = USART3_BASE; break;
-		default: return 0;
-	}
+	base = uart_reg_base(uart);
 
 	return *REG32(base + reg * mul);
 }
@@ -78,10 +77,9 @@ static int uart_init(void)
 
 int uart_putc(int port, char c )
 {
-//	while (!(read_uart_reg(port, UART_CSR) & (1<<9))) // wait for the shift register to empty
-//		;
+	while (!(read_uart_reg(port, UART_CSR) & (1<<9))) // wait for the shift register to empty
+		;
   	write_uart_reg(port, UART_THR, c);
-//	*REG32(USART1_BASE + 0x1c) = c;
 	return 0;
 }
 
