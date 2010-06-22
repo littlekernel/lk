@@ -150,6 +150,15 @@ SR_GETPUT(sabal, 768)
 SR_GETPUT(sabah, 772)
 SR_GETPUT(sabd, 776)
 
+// helpers
+extern void avr32_interrupt_base;
+extern void avr32_exception_base;
+
+static inline uint32_t avr32_get_interrupt_autovector_offset(void)
+{
+	return (uint32_t)&avr32_interrupt_base - (uint32_t)&avr32_exception_base;
+}
+
 #if defined(__cplusplus)
 }
 #endif

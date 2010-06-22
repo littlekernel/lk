@@ -24,8 +24,6 @@
 #include <arch.h>
 #include <arch/avr32.h>
 
-extern uint32_t avr32_exception_base;
-
 void arch_early_init(void)
 {
 	TRACE_ENTRY;
@@ -34,6 +32,7 @@ void arch_early_init(void)
 
 	/* set the exception base */
 	avr32_set_evba((uint32_t)&avr32_exception_base);
+	printf("autovector offset 0x%x\n", avr32_get_interrupt_autovector_offset());
 
 	TRACE_EXIT;
 }

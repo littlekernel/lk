@@ -61,6 +61,10 @@ DATA(avr32_exception_base)
 	rcall	avr32_syscall
 	rets
 
+	// 0x110 interrupt
+DATA(avr32_interrupt_base)
+	rjmp	unhandled_exception
+
 .align 2
 FUNCTION(unhandled_exception)
 	rjmp	avr32_unhandled
