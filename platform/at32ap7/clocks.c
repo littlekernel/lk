@@ -22,24 +22,33 @@
  */
 #include <debug.h>
 #include <reg.h>
-#include <arch/avr32.h>
 #include <platform/at32ap7.h>
 #include "platform_p.h"
 
-void platform_init_interrupts(void)
+void platform_init_clocks(void)
 {
-	int i;
-
 	TRACE_ENTRY;
 
-	// enable the clock
-	platform_set_clock_enable(CLOCK_INTC, true);
-
-	// set the interrupt vectors to the proper offset, INT0
-	for (i = 0; i < INT_GROUP_COUNT; i++) {
-		*REG32(INTC_IPR(i)) = (0 << 30) | avr32_get_interrupt_autovector_offset();
-//		printf("0x%x\n", *REG32(INTC_IPR(i)));
-	}
-	
 	TRACE_EXIT;
 }
+
+void platform_set_clock_enable(uint clock, bool enable)
+{
+	uint32_t reg;
+
+	switch (CLOCK_TO_GROUP(clock)) {
+		case CLOCK_GROUP_CPU: reg = PM_CPUMASK; break;
+		case CLOCK_GROUP_HSB: reg = PM_HSBMASK; break;
+		case CLOCK_GROUP_PBA: reg = PM_PBAMASK; break;
+		case CLOCK_GROUP_PBB: reg = PM_PBBMASK; break;
+		default:
+			panic("platform_set_clock_enable: bad clock input 0x%x\n", clock);
+	}
+
+	if (enable) {
+		*REG32(reg) |= 1 << CLOCK_IN_GROUP(clock);
+	} else {
+		*REG32(reg) &= ~(1 << CLOCK_IN_GROUP(clock));
+	}
+}
+

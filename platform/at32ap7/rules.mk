@@ -10,6 +10,7 @@ INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
 OBJS += \
+	$(LOCAL_DIR)/clocks.o \
 	$(LOCAL_DIR)/debug.o \
 	$(LOCAL_DIR)/interrupts.o \
 	$(LOCAL_DIR)/platform.o \
