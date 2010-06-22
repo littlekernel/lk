@@ -129,5 +129,10 @@
 #define UART_IFR					(19)
 #define UART_MAN					(20)
 
+/* interrupt controller */
+#define INTC_IPR(x)					(INTC_BASE + 0x000 + ((x) * 4))
+#define INTC_IRR(x)					(INTC_BASE + 0x100 + ((x) * 4))
+#define INTC_ICR(x)					(INTC_BASE + 0x200 + ((x) * 4))
+
 #endif
 
