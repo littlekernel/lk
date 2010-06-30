@@ -165,6 +165,8 @@ FUNCTION(memcpy)
 	// do a bytewise reverse copy for now
 	add		r1, r1, r2
 	add		r0, r0, r2
+	sub		r1, r1, #1
+	sub		r0, r0, #1
 
 .L_bytewisereverse:
 	// simple bytewise reverse copy
