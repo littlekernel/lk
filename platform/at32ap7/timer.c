@@ -31,6 +31,8 @@
 #include <platform/at32ap7.h>
 #include "platform_p.h"
 
+#define LOCAL_TRACE 0
+
 #define NUM_TMR 6
 #define TMR_FREQ (32768)
 
@@ -66,7 +68,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 {
 	enter_critical_section();
 
-	TRACEF("callback %p, arg %p, interval %d\n", callback, arg, interval);
+	LTRACEF("callback %p, arg %p, interval %d\n", callback, arg, interval);
 
 	t_callback = callback;
 	callback_arg = arg;
