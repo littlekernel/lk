@@ -80,13 +80,24 @@ status_t unmask_interrupt(unsigned int vector)
 	return NO_ERROR;
 }
 
-enum handler_return platform_irq()
+int platform_irq(struct avr32_iframe *iframe)
 {
-	printf("platform_irq\n");
+	uint group = *REG32(INTC_ICR(0)) & 0x3f;
+	uint linebits = *REG32(INTC_IRR(group));
+	if (unlikely(linebits == 0)) {
+		// nothing is set, must be spurious
+		return INT_NO_RESCHEDULE;
+	}
 
-	panic("blah\n");
+	uint line = __builtin_ctz(linebits);
+	uint vector = INT_VECTOR(group, line);
 
-	return INT_NO_RESCHEDULE;
+	int ret = INT_NO_RESCHEDULE;
+	if (likely(int_handler_table[vector].handler != NULL)) {
+		ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
+	}
+
+	return ret;
 
 }
 

@@ -50,8 +50,11 @@ static inline addr_t TMR_REG_ADDR(unsigned int tmr, unsigned int reg)
 
 static enum handler_return os_timer_tick(void *arg)
 {
+	uint32_t hole = TMR_REG(0, TC_SR); // gotta read the status register to clear the state
+	hole = hole;
+
 	system_time += tick_interval;
-	printf("os_timer_tick %d\n", system_time);
+//	printf("os_timer_tick %d\n", system_time);
 
 	if (!t_callback)
 		return INT_NO_RESCHEDULE;
