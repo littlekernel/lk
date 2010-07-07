@@ -49,11 +49,9 @@ extern void avr32_context_switch(addr_t *old_sp, addr_t new_sp);
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void)
 {
-	PANIC_UNIMPLEMENTED;
-#if 0
 	int ret;
 
-//	dprintf("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
+	printf("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
 //	dump_thread(current_thread);
 
 	/* exit the implicit critical section we're within */
@@ -61,10 +59,9 @@ static void initial_thread_func(void)
 
 	ret = current_thread->entry(current_thread->arg);
 
-//	dprintf("initial_thread_func: thread %p exiting with %d\n", current_thread, ret);
+	printf("initial_thread_func: thread %p exiting with %d\n", current_thread, ret);
 
 	thread_exit(ret);
-#endif
 }
 
 void arch_thread_initialize(thread_t *t)
@@ -83,7 +80,7 @@ void arch_thread_initialize(thread_t *t)
 	t->arch.sp = (vaddr_t)frame;
 
 	printf("finished initializing thread stack: thread %p, sp 0x%x\n", t, t->arch.sp);
-	hexdump(t->arch.sp, 64);
+	hexdump((void *)t->arch.sp, 64);
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
