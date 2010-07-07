@@ -34,8 +34,8 @@
 
 extern void *__ctor_list;
 extern void *__ctor_end;
-extern int __bss_start;
-extern int _end;
+extern char __bss_start;
+extern char _end;
 
 static int bootstrap2(void *arg);
 
@@ -54,11 +54,16 @@ static void call_constructors(void)
 	}
 }
 
+static void clear_bss(void)
+{
+	memset(&__bss_start, 0, &_end - &__bss_start);
+}
+
 /* called from crt0.S */
 void kmain(void) __NO_RETURN __EXTERNALLY_VISIBLE;
 void kmain(void)
 {
-	puts("top of kmain\n");
+	clear_bss();
 
 	// get us into some sort of thread context
 	thread_init_early();

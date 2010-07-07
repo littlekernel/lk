@@ -117,6 +117,7 @@ reset:
 	strlt	r3, [r1], #4
 	blt		.L__copy_loop
 
+#if 0 /* XXX do bss in kmain */
 .L__do_bss:
 	/* clear out the bss */
 	ldr		r0, =__bss_start
@@ -126,6 +127,7 @@ reset:
 	cmp		r0, r1
 	strlt	r2, [r0], #4
 	blt		.L__bss_loop
+#endif
 
 	bl		kmain
 	b		.
