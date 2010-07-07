@@ -63,7 +63,19 @@ DATA(avr32_exception_base)
 
 	// 0x110 interrupt
 DATA(avr32_interrupt_base)
-	rjmp	unhandled_exception
+	stmts	--sp,r0-lr
+
+	mfsr	r11, 56			// rar_int0
+	mfsr	r12, 24			// rsr_int0
+	pushm	r11,r12
+
+	mov		r12, sp
+	call	avr32_irq
+
+	sub		sp, -8
+
+	ldmts	sp++,r0-lr
+	rete
 
 .align 2
 FUNCTION(unhandled_exception)
