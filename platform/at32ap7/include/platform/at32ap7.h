@@ -57,7 +57,7 @@
 
 /* interrupt vectors */
 #define INT_GROUP_COUNT		64
-#define INT_GROUP_SHIFT 	6
+#define INT_GROUP_SHIFT 	5
 #define INT_GROUP_MASK		(0x3f << INT_GROUP_SHIFT)	
 #define INT_LINE_MASK		(0x1f)	
 #define INT_VECTOR(group, line)	(((group) << INT_GROUP_SHIFT) | (line))
@@ -212,6 +212,32 @@
 #define INTC_IPR(x)					(INTC_BASE + 0x000 + ((x) * 4))
 #define INTC_IRR(x)					(INTC_BASE + 0x100 + ((x) * 4))
 #define INTC_ICR(x)					(INTC_BASE + 0x200 + ((x) * 4))
+
+/* timer */
+#define TC_CCR						(0x00)
+#define TC_CMR						(0x04)
+#define TC_CV						(0x10)
+#define TC_RA						(0x14)
+#define TC_RB						(0x18)
+#define TC_RC						(0x1c)
+#define TC_SR						(0x20)
+#define TC_IER						(0x24)
+#define TC_IDR						(0x28)
+#define TC_IMR						(0x2c)
+
+#define TC_CCRn(n)					(TC_CCR + 0x40 * (n))
+#define TC_CMRn(n)					(TC_CMR + 0x40 * (n))
+#define TC_CVn(n)					(TC_CV + 0x40 * (n))
+#define TC_RAn(n)					(TC_RA + 0x40 * (n))
+#define TC_RBn(n)					(TC_RB + 0x40 * (n))
+#define TC_RCn(n)					(TC_RC + 0x40 * (n))
+#define TC_SRn(n)					(TC_SR + 0x40 * (n))
+#define TC_IERn(n)					(TC_IER + 0x40 * (n))
+#define TC_IDRn(n)					(TC_IDR + 0x40 * (n))
+#define TC_IMRn(n)					(TC_IMR + 0x40 * (n))
+
+#define TC_BCR						(0xc0)
+#define TC_BMR						(0xc4)
 
 #endif
 

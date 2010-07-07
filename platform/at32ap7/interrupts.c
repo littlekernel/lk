@@ -21,10 +21,24 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <err.h>
 #include <reg.h>
+#include <arch.h>
 #include <arch/avr32.h>
+#include <kernel/thread.h>
+#include <platform/interrupts.h>
 #include <platform/at32ap7.h>
 #include "platform_p.h"
+
+// XXX make this more efficient
+#define INT_VECTORS (INT_GROUP_COUNT << INT_GROUP_SHIFT)
+
+struct int_handler_struct {
+	int_handler handler;
+	void *arg;
+};
+
+static struct int_handler_struct int_handler_table[INT_VECTORS];
 
 void platform_init_interrupts(void)
 {
@@ -43,3 +57,36 @@ void platform_init_interrupts(void)
 	
 	TRACE_EXIT;
 }
+
+void register_int_handler(unsigned int vector, int_handler handler, void *arg)
+{
+	enter_critical_section();
+
+	int_handler_table[vector].arg = arg;
+	int_handler_table[vector].handler = handler;
+
+	exit_critical_section();
+}
+
+status_t mask_interrupt(unsigned int vector)
+{
+	// XXX can't actually mask
+	return NO_ERROR;
+}
+
+status_t unmask_interrupt(unsigned int vector)
+{
+	// XXX can't actually mask
+	return NO_ERROR;
+}
+
+enum handler_return platform_irq()
+{
+	printf("platform_irq\n");
+
+	panic("blah\n");
+
+	return INT_NO_RESCHEDULE;
+
+}
+

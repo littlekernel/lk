@@ -29,7 +29,7 @@ void platform_early_init(void)
 	TRACE_ENTRY;
 	platform_init_clocks();
 	platform_init_interrupts();
-	// platform_init_timer();
+	platform_init_timer();
 	TRACE_EXIT;
 }
 
