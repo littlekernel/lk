@@ -170,6 +170,8 @@ static bool key_rshift;
 static uint8_t key_buffer[KEY_BUFFER_LEN];
 static int key_buffer_in_ptr, key_buffer_out_ptr;
 
+static wait_queue_t key_buffer_wq;
+
 static int inq(uint8_t data) {
 	int temp;
 
@@ -238,7 +240,11 @@ static void i8042_process_scode(uint8_t scode, unsigned int flags)
 		key_rshift ? 'R' : ' ');*/
 	
 	if (keyCode != -1 && !keyUpBit) {
-		inq(keyCode);
+		if (!inq(keyCode)) {
+			enter_critical_section();
+			wait_queue_wake_one(&key_buffer_wq, 1, 0);
+			exit_critical_section();
+		}
 	}
 	
 	// update the last received code
@@ -346,15 +352,21 @@ int platform_read_key(char *c)
 {
 	int data;
 	
-	enter_critical_section();
-	data = deq();
+	do {
+		enter_critical_section();
+		data = deq();
+
+		if (data != -1) {
+			*c = (char) data;
+		} else {
+			wait_queue_block(&key_buffer_wq, INFINITE_TIME);
+			exit_critical_section();
+			continue;
+		}
+		exit_critical_section();
+	} while(0);
 	
-	if (data != -1) {
-		*c = (char) data;
-	}
-	exit_critical_section();
-	
-	return data == -1 ? -1 : 0;
+	return data; //data == -1 ? -1 : 0;
 }
 
 void platform_init_keyboard(void)
@@ -363,6 +375,8 @@ void platform_init_keyboard(void)
 	
 	// clear in case of reinit
 	key_buffer_in_ptr = key_buffer_out_ptr = 0;
+
+	wait_queue_init(&key_buffer_wq);
 	
 	i8042_flush();
 	

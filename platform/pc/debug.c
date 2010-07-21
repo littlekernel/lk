@@ -38,8 +38,8 @@ void _dputc(char c)
 int dgetc(char *c, bool wait)
 {
 	int ret =  platform_read_key(c);
-	if (ret < 0)
-		arch_idle();
+	//if (ret < 0)
+	//	arch_idle();
 	
 	return ret;
 }
