@@ -32,6 +32,7 @@
 #include <platform/pc.h>
 #include "platform_p.h"
 #include <arch/x86.h>
+#include <lib/cbuf.h>
 
 static inline int i8042_read_data(void)
 {
@@ -162,52 +163,7 @@ static const int KeyCodeMultiUpper[] = {
 static bool key_lshift;
 static bool key_rshift;
 
-/*
- * key buffer
- */
-#define KEY_BUFFER_LEN 10
-
-static uint8_t key_buffer[KEY_BUFFER_LEN];
-static int key_buffer_in_ptr, key_buffer_out_ptr;
-
-static wait_queue_t key_buffer_wq;
-
-static int inq(uint8_t data) {
-	int temp;
-
-	temp = key_buffer_in_ptr + 1;
-	if (temp >= KEY_BUFFER_LEN) {
-		temp = 0;
-	}
-	
-	// if in_ptr reaches out_ptr, the queue is full
-	if (temp == key_buffer_out_ptr) {
-		return -1;
-	}
-	
-	key_buffer[key_buffer_in_ptr] = data;
-	key_buffer_in_ptr = temp;
-	
-	return 0;
-}
-
-static int deq(void) {
-	int rv;
-	
-	// if out_ptr reaches in_ptr, the queue is empty
-	if (key_buffer_out_ptr == key_buffer_in_ptr) {
-		return -1;
-	}
-	
-	rv = key_buffer[key_buffer_out_ptr];
-	key_buffer_out_ptr++;
-	
-	if (key_buffer_out_ptr >= KEY_BUFFER_LEN) {
-		key_buffer_out_ptr = 0;
-	}
-	
-	return rv;
-}
+static cbuf_t key_buf;
 
 static void i8042_process_scode(uint8_t scode, unsigned int flags)
 {
@@ -240,11 +196,8 @@ static void i8042_process_scode(uint8_t scode, unsigned int flags)
 		key_rshift ? 'R' : ' ');*/
 	
 	if (keyCode != -1 && !keyUpBit) {
-		if (!inq(keyCode)) {
-			enter_critical_section();
-			wait_queue_wake_one(&key_buffer_wq, 1, 0);
-			exit_critical_section();
-		}
+		char c = (char) keyCode;
+		cbuf_write(&key_buf, &c, 1, false);
 	}
 	
 	// update the last received code
@@ -350,34 +303,18 @@ static enum handler_return i8042_interrupt(void *arg)
 
 int platform_read_key(char *c)
 {
-	int data;
-	
-	do {
-		enter_critical_section();
-		data = deq();
+	ssize_t len;
 
-		if (data != -1) {
-			*c = (char) data;
-		} else {
-			wait_queue_block(&key_buffer_wq, INFINITE_TIME);
-			exit_critical_section();
-			continue;
-		}
-		exit_critical_section();
-	} while(0);
-	
-	return data; //data == -1 ? -1 : 0;
+	len = cbuf_read(&key_buf, c, 1, true);
+	return len;
 }
 
 void platform_init_keyboard(void)
 {
 	uint8_t ctr;
 	
-	// clear in case of reinit
-	key_buffer_in_ptr = key_buffer_out_ptr = 0;
+	cbuf_initialize(&key_buf, 32);
 
-	wait_queue_init(&key_buffer_wq);
-	
 	i8042_flush();
 	
 	if (i8042_command(&ctr, I8042_CMD_CTL_RCTR)) {

@@ -3,6 +3,9 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 ARCH := x86
 CPU := generic
 
+MODULES += \
+	lib/cbuf
+
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
