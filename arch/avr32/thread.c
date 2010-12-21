@@ -23,15 +23,14 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
+#include <compiler.h>
 #include <debug.h>
 #include <kernel/thread.h>
 #include <arch/avr32.h>
 
 struct context_switch_frame {
 	vaddr_t lr;
-	vaddr_t r12;
-	vaddr_t r11;
-	vaddr_t r10;
+	vaddr_t sr;
 	vaddr_t r9;
 	vaddr_t r8;
 	vaddr_t r7;
@@ -52,11 +51,13 @@ static void initial_thread_func(void)
 	int ret;
 
 	printf("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
+	printf("initial mode 0x%x\n", avr32_get_mode());
 //	dump_thread(current_thread);
 
 	/* exit the implicit critical section we're within */
 	exit_critical_section();
 
+	printf("actually calling\n");
 	ret = current_thread->entry(current_thread->arg);
 
 	printf("initial_thread_func: thread %p exiting with %d\n", current_thread, ret);
@@ -75,18 +76,28 @@ void arch_thread_initialize(thread_t *t)
 	// fill it in
 	memset(frame, 0, sizeof(*frame));
 	frame->lr = (vaddr_t)&initial_thread_func;
+
+	// set the initial SR for supervisor mode, global interrupt mask
+	frame->sr = (1<<22)|(1<<16);
 	
 	// set the stack pointer
 	t->arch.sp = (vaddr_t)frame;
 
-	printf("finished initializing thread stack: thread %p, sp 0x%x\n", t, t->arch.sp);
+	printf("finished initializing thread stack: thread %p, sp 0x%x. stack 0x%x-0x%x\n", t, t->arch.sp, t->stack, stack_top);
 	hexdump((void *)t->arch.sp, 64);
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
-	printf("arch_context_switch: old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
-	hexdump(newthread->arch.sp, 64);
+	printf("arch_context_switch: old %p (%s) sp %p, new %p (%s) sp %p\n", 
+		oldthread, oldthread->name, (void *)oldthread->arch.sp, 
+		newthread, newthread->name, (void *)newthread->arch.sp);
+//	printf("sr 0x%x\n", avr32_get_sr());
+	hexdump(newthread->arch.sp, 128);
+//	hexdump(__GET_FRAME(0), 128);
+//	printf("before mode 0x%x\n", avr32_get_mode());
 	avr32_context_switch(&oldthread->arch.sp, newthread->arch.sp);
+//	printf("after mode 0x%x\n", avr32_get_mode());
+//	printf("after sr 0x%x\n", avr32_get_sr());
 }
 

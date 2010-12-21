@@ -67,17 +67,30 @@ DATA(avr32_interrupt_base)
 
 	mfsr	r11, 56			// rar_int0
 	mfsr	r12, 24			// rsr_int0
-	pushm	r11,r12
+	pushm	r11-r12
+
+	// convert the int0 mask to a global mask
+	ssrf	16
+	csrf	17
 
 	mov		r12, sp
 	call	avr32_irq
 
-	sub		sp, -8
+	popm	r11-r12
+	mtsr	24, r12			// rsr_int0
+	mtsr	56, r11			// rar_int0
 
 	ldmts	sp++,r0-lr
 	rete
 
 .align 2
 FUNCTION(unhandled_exception)
+	stmts	--sp,r0-lr
+
+	mfsr	r11, 72			// rar_int0
+	mfsr	r12, 40			// rsr_int0
+	pushm	r11-r12
+
+	mov		r12, sp
 	rjmp	avr32_unhandled
 

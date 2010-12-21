@@ -39,17 +39,28 @@ static void dump_iframe(struct avr32_iframe *iframe)
 
 void avr32_syscall(void)
 {
+	inc_critical_section();
 	printf("syscall entry\n");
 	printf("sr 0x%x\n", avr32_get_sr());
 	printf("rar_sup 0x%x\n", avr32_get_rar_sup());
 	printf("rsr_sup 0x%x\n", avr32_get_rsr_sup());
 	panic("unhandled syscall\n");
+	dec_critical_section();
 }
 
-void avr32_unhandled(void)
+void avr32_unhandled(struct avr32_iframe *iframe)
 {
+	inc_critical_section();
+	printf("rar_sup 0x%x\n", avr32_get_rar_sup());
+	printf("rsr_sup 0x%x\n", avr32_get_rsr_sup());
+	printf("rar_ex 0x%x\n", avr32_get_rar_ex());
+	printf("rsr_ex 0x%x\n", avr32_get_rsr_ex());
+	printf("sr 0x%x\n", avr32_get_sr());
+	printf("mode 0x%x (%s)\n", avr32_get_mode(), avr32_mode_to_string(avr32_get_mode()));
 	printf("unhandled exception %d\n", avr32_get_ecr());
+	dump_iframe(iframe);
 	panic("unhandled\n");
+	dec_critical_section();
 }
 
 void avr32_irq(struct avr32_iframe *iframe)

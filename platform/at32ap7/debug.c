@@ -124,7 +124,11 @@ int dgetc(char *c, bool wait)
 	len = cbuf_read(&debug_buf, c, 1, wait);
 	return len;
 #endif
-	return 0;
+
+	if (wait)
+		thread_sleep(100);
+
+	return -1;
 }
 
 void debug_dump_regs(void)

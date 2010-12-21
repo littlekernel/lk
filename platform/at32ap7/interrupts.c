@@ -82,6 +82,8 @@ status_t unmask_interrupt(unsigned int vector)
 
 int platform_irq(struct avr32_iframe *iframe)
 {
+//	printf("int sr 0x%x\n", avr32_get_sr());
+
 	uint group = *REG32(INTC_ICR(0)) & 0x3f;
 	uint linebits = *REG32(INTC_IRR(group));
 	if (unlikely(linebits == 0)) {

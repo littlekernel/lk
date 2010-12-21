@@ -26,18 +26,12 @@
 
 /* void arch_enable_ints(void); */
 FUNCTION(arch_enable_ints)
-	mfsr	r8, 0 /* sr */
-	cbr		r8, 16
-	mtsr	0, r8 /* sr */
-
+	csrf	16
 	retal	r12
 
 /* void arch_disable_ints(void); */
 FUNCTION(arch_disable_ints)
-	mfsr	r8, 0 /* sr */
-	sbr		r8, 16
-	mtsr	0, r8 /* sr */
-
+	ssrf	16
 	retal	r12
 
 /* int atomic_swap(int *ptr, int val); */

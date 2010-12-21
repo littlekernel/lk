@@ -182,7 +182,7 @@ static enum handler_return timer_tick(void *arg, time_t now)
 
 		bool periodic = timer->periodic_time > 0;
 
-//		TRACEF("timer %p firing callback %p, arg %p\n", timer, timer->callback, timer->arg);
+		TRACEF("timer %p firing callback %p, arg %p\n", timer, timer->callback, timer->arg);
 		if (timer->callback(timer, now, timer->arg) == INT_RESCHEDULE)
 			ret = INT_RESCHEDULE;
 

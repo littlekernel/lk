@@ -74,6 +74,7 @@ static void insert_in_run_queue_head(thread_t *t)
 	ASSERT(t->state == THREAD_READY);
 	ASSERT(!list_in_list(&t->queue_node));
 	ASSERT(in_critical_section());
+	ASSERT(t->priority >= LOWEST_PRIORITY && t->priority <= HIGHEST_PRIORITY);
 #endif
 
 	list_add_head(&run_queue[t->priority], &t->queue_node);
@@ -87,6 +88,7 @@ static void insert_in_run_queue_tail(thread_t *t)
 	ASSERT(t->state == THREAD_READY);
 	ASSERT(!list_in_list(&t->queue_node));
 	ASSERT(in_critical_section());
+	ASSERT(t->priority >= LOWEST_PRIORITY && t->priority <= HIGHEST_PRIORITY);
 #endif
 
 	list_add_tail(&run_queue[t->priority], &t->queue_node);
@@ -120,6 +122,7 @@ thread_t *thread_create(const char *name, thread_start_routine entry, void *arg,
 
 	/* create the stack */
 	t->stack = malloc(stack_size);
+
 	if (!t->stack) {
 		free(t);
 		return NULL;
@@ -226,7 +229,7 @@ void thread_resched(void)
 	thread_t *oldthread;
 	thread_t *newthread;
 
-//	dprintf("thread_resched: current %p: ", current_thread);
+//	printf("thread_resched: current %p: \n", current_thread);
 //	dump_thread(current_thread);
 
 #if THREAD_CHECKS
@@ -248,11 +251,14 @@ void thread_resched(void)
 #endif
 
 	int next_queue = HIGHEST_PRIORITY - __builtin_clz(run_queue_bitmap) - (32 - NUM_PRIORITIES);
-	//dprintf(SPEW, "bitmap 0x%x, next %d\n", run_queue_bitmap, next_queue);
+//	dprintf(SPEW, "bitmap 0x%x, next %d\n", run_queue_bitmap, next_queue);
 
 	newthread = list_remove_head_type(&run_queue[next_queue], thread_t, queue_node);
 
 #if THREAD_CHECKS
+	if (newthread == 0) {
+		printf("about to be fucked: run_queue_bitmap 0x%x, next_queue %d\n", run_queue_bitmap, next_queue);
+	}
 	ASSERT(newthread);
 #endif
 
@@ -269,7 +275,7 @@ void thread_resched(void)
 	}
 #endif
 
-//	dprintf("newthread: ");
+//	printf("newthread: %p\n", newthread);
 //	dump_thread(newthread);
 
 	newthread->state = THREAD_RUNNING;

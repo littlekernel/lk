@@ -181,6 +181,25 @@ static inline uint32_t avr32_get_interrupt_autovector_offset(void)
 	return (uint32_t)&avr32_interrupt_base - (uint32_t)&avr32_exception_base;
 }
 
+static inline uint avr32_get_mode(void)
+{
+	return ((uint)avr32_get_sr() >> 22) & 0x7;
+}
+
+static const char *avr32_mode_to_string(uint mode)
+{
+	switch (mode & 0x7) {
+		case 0: return "app";
+		case 1: return "sup";
+		case 2: return "int0";
+		case 3: return "int1";
+		case 4: return "int2";
+		case 5: return "int3";
+		case 6: return "exc";
+		case 7: return "nmi";
+	}
+}
+
 #if defined(__cplusplus)
 }
 #endif

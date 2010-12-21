@@ -26,12 +26,16 @@
 
 static void shell_init(const struct app_descriptor *app)
 {
+	TRACE_ENTRY;
 	console_init();
+	TRACE_EXIT;
 }
 
 static void shell_entry(const struct app_descriptor *app, void *args)
 {
+	TRACE_ENTRY;
 	console_start();
+	TRACE_EXIT;
 }
 
 APP_START(shell)

@@ -33,16 +33,15 @@
 	vaddr_t r7;
 	vaddr_t r8;
 	vaddr_t r9;
-	vaddr_t r10;
-	vaddr_t r11;
-	vaddr_t r12;
+	vaddr_t sr;
 	vaddr_t lr;
 */
 
 /* void avr32_context_switch(addr_t *old_sp, addr_t new_sp); */
 FUNCTION(avr32_context_switch)
-	/* save old state */
-	pushm	r0-r12,lr
+	/* save old state, including SR */
+	mfsr	r10, 0
+	pushm	r0-r10,lr
 
 	/* save old sp */
 	st.w	r12[0], sp
@@ -51,6 +50,7 @@ FUNCTION(avr32_context_switch)
 	mov		sp, r11
 
 	/* restore state and exit */
-	popm	r0-r12,lr
-	icall	lr
+	popm	r0-r10,lr
+	mtsr	0, r10
+	ret		r12
 

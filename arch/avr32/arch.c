@@ -34,6 +34,8 @@ void arch_early_init(void)
 	avr32_set_evba((uint32_t)&avr32_exception_base);
 	printf("autovector offset 0x%x\n", avr32_get_interrupt_autovector_offset());
 
+	printf("mode 0x%x (%s)\n", avr32_get_mode(), avr32_mode_to_string(avr32_get_mode()));
+
 	TRACE_EXIT;
 }
 

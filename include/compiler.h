@@ -41,6 +41,7 @@
 #define __WEAK __attribute__((weak))
 #define __GNU_INLINE __attribute__((gnu_inline))
 #define __GET_CALLER(x) __builtin_return_address(0)
+#define __GET_FRAME(x) __builtin_frame_address(0)
 
 /* look for gcc 3.0 and above */
 #if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 0)
