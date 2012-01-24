@@ -93,7 +93,7 @@ INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
 BOOTOBJS += \
-	$(LOCAL_DIR)/crt0.o
+	$(LOCAL_DIR)/start.o
 
 OBJS += \
 	$(LOCAL_DIR)/arch.Ao \
