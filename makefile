@@ -48,9 +48,7 @@ LDFLAGS += -gc-sections
 # top level rule
 all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).size
 
-# the following three object lists are identical except for the ordering
-# which is bootobjs, kobjs, objs
-BOOTOBJS :=	
+# master object list
 OBJS :=
 
 # a linker script needs to be declared in one of the project/target/platform files

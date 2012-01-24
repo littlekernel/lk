@@ -92,10 +92,8 @@ endif
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
-BOOTOBJS += \
-	$(LOCAL_DIR)/start.o
-
 OBJS += \
+	$(LOCAL_DIR)/start.o \
 	$(LOCAL_DIR)/arch.Ao \
 	$(LOCAL_DIR)/asm.o \
 	$(LOCAL_DIR)/cache.o \

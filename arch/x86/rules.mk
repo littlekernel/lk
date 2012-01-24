@@ -3,10 +3,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
-BOOTOBJS += \
-	$(LOCAL_DIR)/crt0.o
-
 OBJS += \
+	$(LOCAL_DIR)/crt0.o \
 	$(LOCAL_DIR)/arch.o \
 	$(LOCAL_DIR)/asm.o \
 	$(LOCAL_DIR)/cache.o \
