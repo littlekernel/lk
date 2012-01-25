@@ -97,6 +97,17 @@
 #define __EXTERNALLY_VISIBLE
 #endif
 
+/* compiler fence */
+#define CF do { __asm__ volatile("" ::: "memory"); } while(0)
+
+#define __WEAK_ALIAS(x) __attribute__((weak, alias(x)))
+#define __ALIAS(x) __attribute__((alias(x)))
+
+#define __EXPORT __attribute__ ((visibility("default")))
+#define __LOCAL  __attribute__ ((visibility("hidden")))
+
+#define __THREAD __thread
+
 #else
 
 #define likely(x)       (x)
@@ -121,5 +132,14 @@
 
 /* TODO: add type check */
 #define countof(a) (sizeof(a) / sizeof((a)[0]))
+
+/* CPP header guards */
+#ifdef __cplusplus
+#define __BEGIN_CDECLS  extern "C" {
+#define __END_CDECLS    }
+#else
+#define __BEGIN_CDECLS
+#define __END_CDECLS
+#endif
 
 #endif

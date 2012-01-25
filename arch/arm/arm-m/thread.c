@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,26 +20,21 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ARCH_CPU_H
-#define __ARCH_CPU_H
+#include <sys/types.h>
+#include <string.h>
+#include <stdlib.h>
+#include <debug.h>
+#include <kernel/thread.h>
+#include <arch/arm.h>
 
-/* arm specific stuff */
-#define PAGE_SIZE 4096
 
-#if ARM_CPU_ARM7
-/* irrelevant, no consistent cache */
-#define CACHE_LINE 32
-#elif ARM_CPU_ARM926
-#define CACHE_LINE 32
-#elif ARM_CPU_ARM1136
-#define CACHE_LINE 32
-#elif ARM_CPU_CORTEX_A8
-#define CACHE_LINE 64
-#elif ARM_CPU_CORTEX_M3
-#define CACHE_LINE 32 /* doesn't actually matter */
-#else
-#error unknown cpu
-#endif
+void arch_thread_initialize(struct thread *t)
+{
+	PANIC_UNIMPLEMENTED;
+}
 
-#endif
+void arch_context_switch(struct thread *oldthread, struct thread *newthread)
+{
+	PANIC_UNIMPLEMENTED;
+}
 

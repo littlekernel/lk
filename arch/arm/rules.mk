@@ -3,6 +3,9 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 # can override this in local.mk
 ENABLE_THUMB?=true
 
+# default to the regular arm subarch
+SUBARCH := arm
+
 DEFINES += \
 	ARM_CPU_$(ARM_CPU)=1
 
@@ -12,17 +15,21 @@ ifeq ($(ARM_CPU),cortex-m3)
 DEFINES += \
 	ARM_WITH_CP15=1 \
 	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7M=1 \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_THUMB2=1
 CFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 ENABLE_THUMB := true
+ONLY_THUMB := true
+SUBARCH := arm-m
 endif
 ifeq ($(ARM_CPU),cortex-a8)
 DEFINES += \
 	ARM_WITH_CP15=1 \
 	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7A=1 \
 	ARM_WITH_VFP=1 \
 	ARM_WITH_NEON=1 \
 	ARM_WITH_THUMB=1 \
@@ -93,17 +100,26 @@ INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
 OBJS += \
-	$(LOCAL_DIR)/start.o \
-	$(LOCAL_DIR)/arch.Ao \
-	$(LOCAL_DIR)/asm.o \
-	$(LOCAL_DIR)/cache.o \
-	$(LOCAL_DIR)/cache-ops.o \
-	$(LOCAL_DIR)/ops.o \
-	$(LOCAL_DIR)/exceptions.o \
-	$(LOCAL_DIR)/faults.o \
-	$(LOCAL_DIR)/mmu.o \
-	$(LOCAL_DIR)/thread.o \
-	$(LOCAL_DIR)/dcc.o
+
+ifeq ($(SUBARCH),arm)
+OBJS += \
+	$(LOCAL_DIR)/arm/start.o \
+	$(LOCAL_DIR)/arm/arch.Ao \
+	$(LOCAL_DIR)/arm/asm.o \
+	$(LOCAL_DIR)/arm/cache-ops.o \
+	$(LOCAL_DIR)/arm/cache.o \
+	$(LOCAL_DIR)/arm/ops.o \
+	$(LOCAL_DIR)/arm/exceptions.o \
+	$(LOCAL_DIR)/arm/faults.o \
+	$(LOCAL_DIR)/arm/mmu.o \
+	$(LOCAL_DIR)/arm/thread.o \
+	$(LOCAL_DIR)/arm/dcc.o
+endif
+ifeq ($(SUBARCH),arm-m)
+OBJS += \
+	$(LOCAL_DIR)/arm-m/start.o \
+	$(LOCAL_DIR)/arm-m/thread.o
+endif
 
 # set the default toolchain to arm elf and set a #define
 TOOLCHAIN_PREFIX ?= arm-elf-

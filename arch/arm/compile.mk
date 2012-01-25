@@ -9,6 +9,12 @@ $(BUILDDIR)/%.o: %.cpp $(SRCDEPS)
 	@echo compiling $<
 	$(NOECHO)$(CC) $(CFLAGS) $(CPPFLAGS) $(THUMBCFLAGS) $(INCLUDES) -c $< -MD -MT $@ -MF $(@:%o=%d) -o $@
 
+$(BUILDDIR)/%.o: %.S $(SRCDEPS)
+	@$(MKDIR)
+	@echo compiling $<
+	$(NOECHO)$(CC) $(CFLAGS) $(ASMFLAGS) $(INCLUDES) -c $< -MD -MT $@ -MF $(@:%o=%d) -o $@
+
+ifneq ($(THUMB_ONLY),true)
 # to override thumb setting, mark the .o file as .Ao
 $(BUILDDIR)/%.Ao: %.c $(SRCDEPS)
 	@$(MKDIR)
@@ -25,9 +31,5 @@ $(BUILDDIR)/%.Ao: %.S $(SRCDEPS)
 	@$(MKDIR)
 	@echo compiling $<
 	$(NOECHO)$(CC) $(CFLAGS) $(ASMFLAGS) $(INCLUDES) -c $< -MD -MT $@ -MF $(@:%o=%d) -o $@
-
-$(BUILDDIR)/%.o: %.S $(SRCDEPS)
-	@$(MKDIR)
-	@echo compiling $<
-	$(NOECHO)$(CC) $(CFLAGS) $(ASMFLAGS) $(INCLUDES) -c $< -MD -MT $@ -MF $(@:%o=%d) -o $@
+endif
 

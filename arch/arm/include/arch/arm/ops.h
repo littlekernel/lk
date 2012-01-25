@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,7 +23,6 @@
 #ifndef __ARCH_ARM_OPS_H
 #define __ARHC_ARM_OPS_H
 
-#if 0
 #include <compiler.h>
 
 #ifndef ASSEMBLY
@@ -33,15 +32,127 @@
 __GNU_INLINE __ALWAYS_INLINE extern inline void arch_enable_ints(void)
 {
 	__asm__("cpsie i");
+	CF;
 }
 
 __GNU_INLINE __ALWAYS_INLINE extern inline void arch_disable_ints(void)
 {
 	__asm__("cpsid i");
+	CF;
 }
+
+__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_add(volatile int *ptr, int val)
+{
+	int old;
+	int temp;
+	int test;
+
+	do {
+		__asm__ volatile(
+		    "ldrex	%[old], [%[ptr]]\n"
+		    "add	%[temp], %[old], %[val]\n"
+		    "strex	%[test], %[temp], [%[ptr]]\n"
+		    : [old]"=&r" (old), [temp]"=&r" (temp), [test]"=&r" (test)
+		    : [ptr]"r" (ptr), [val]"r" (val)
+		    : "memory");
+
+	} while (test != 0);
+
+	return old;
+}
+
+__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_or(volatile int *ptr, int val)
+{
+	int old;
+	int temp;
+	int test;
+
+	do {
+		__asm__ volatile(
+		    "ldrex	%[old], [%[ptr]]\n"
+		    "orr	%[temp], %[old], %[val]\n"
+		    "strex	%[test], %[temp], [%[ptr]]\n"
+		    : [old]"=&r" (old), [temp]"=&r" (temp), [test]"=&r" (test)
+		    : [ptr]"r" (ptr), [val]"r" (val)
+		    : "memory");
+
+	} while (test != 0);
+
+	return old;
+}
+
+__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_and(volatile int *ptr, int val)
+{
+	int old;
+	int temp;
+	int test;
+
+	do {
+		__asm__ volatile(
+		    "ldrex	%[old], [%[ptr]]\n"
+		    "and	%[temp], %[old], %[val]\n"
+		    "strex	%[test], %[temp], [%[ptr]]\n"
+		    : [old]"=&r" (old), [temp]"=&r" (temp), [test]"=&r" (test)
+		    : [ptr]"r" (ptr), [val]"r" (val)
+		    : "memory");
+
+	} while (test != 0);
+
+	return old;
+}
+
+__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_swap(volatile int *ptr, int val)
+{
+	int old;
+	int test;
+
+	do {
+		__asm__ volatile(
+		    "ldrex	%[old], [%[ptr]]\n"
+		    "strex	%[test], %[val], [%[ptr]]\n"
+		    : [old]"=&r" (old), [test]"=&r" (test)
+		    : [ptr]"r" (ptr), [val]"r" (val)
+		    : "memory");
+
+	} while (test != 0);
+
+	return old;
+}
+
+__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_cmpxhg(volatile int *ptr, int oldval, int newval)
+{
+	int old;
+	int test;
+
+	do {
+		__asm__ volatile(
+		    "ldrex	%[old], [%[ptr]]\n"
+		    "mov	%[test], #0\n"
+		    "teq	%[old], %[oldval]\n"
+#if ARM_ISA_ARMV7M
+		    "bne	0f\n"
+		    "strex	%[test], %[newval], [%[ptr]]\n"
+		    "0:\n"
+#else
+		    "strexeq %[test], %[newval], [%[ptr]]\n"
 #endif
+		    : [old]"=&r" (old), [test]"=&r" (test)
+		    : [ptr]"r" (ptr), [oldval]"Ir" (oldval), [newval]"r" (newval)
+		    : "cc");
+
+	} while (test != 0);
+
+	return old;
+}
+
+__GNU_INLINE __ALWAYS_INLINE extern inline uint32_t arch_cycle_count(void)
+{
+	return 0;
+}
+
 
 #endif
+
 #endif
 
 #endif
