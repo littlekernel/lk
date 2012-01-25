@@ -96,6 +96,11 @@ time_t current_time(void)
 	return ticks;
 }
 
+bigtime_t current_time_hires(void)
+{
+	return (bigtime_t)ticks * 1000;
+}
+
 void platform_init_timer(void)
 {
 	writel(0, DGT_ENABLE);

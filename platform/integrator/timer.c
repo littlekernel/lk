@@ -81,6 +81,11 @@ retry:
 
 }
 
+bigtime_t current_time_hires(void)
+{
+	return (bigtime_t)current_time() * 1000;
+}
+
 static enum handler_return os_timer_tick(void *arg)
 {
 	system_time += tick_interval;
