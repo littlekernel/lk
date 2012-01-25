@@ -27,7 +27,7 @@
 
 #ifndef ASSEMBLY
 
-#if ARM_ISA_ARMV7 || ARM_ISA_ARMV6
+#if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
 // override of some routines
 __GNU_INLINE __ALWAYS_INLINE extern inline void arch_enable_ints(void)
 {
