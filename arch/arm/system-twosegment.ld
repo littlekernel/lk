@@ -7,7 +7,7 @@ SECTIONS
 	. = %ROMBASE%;
 
 	/* text/read-only data */
-	.text.boot : { *(.text.boot) }
+	.text.boot : { KEEP(*(.text.boot)) }
 	.text :	{ *(.text .text.* .glue_7* .gnu.linkonce.t.*) } =0x9090
 
 	.interp : { *(.interp) }
@@ -76,6 +76,7 @@ SECTIONS
 	.bss : { *(.bss .bss.*) }
 
 	. = ALIGN(4); 
+	__bss_end = .;
 	_end = . ;
 
 	. = %MEMBASE% + %MEMSIZE%;
