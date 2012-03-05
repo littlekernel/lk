@@ -119,6 +119,7 @@ ifeq ($(SUBARCH),arm-m)
 OBJS += \
 	$(LOCAL_DIR)/arm-m/vectab.o \
 	$(LOCAL_DIR)/arm-m/start.o \
+	$(LOCAL_DIR)/arm-m/exceptions.o \
 	$(LOCAL_DIR)/arm-m/thread.o
 endif
 
