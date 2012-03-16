@@ -120,7 +120,11 @@ OBJS += \
 	$(LOCAL_DIR)/arm-m/vectab.o \
 	$(LOCAL_DIR)/arm-m/start.o \
 	$(LOCAL_DIR)/arm-m/exceptions.o \
-	$(LOCAL_DIR)/arm-m/thread.o
+	$(LOCAL_DIR)/arm-m/thread.o \
+	$(LOCAL_DIR)/arm-m/CMSIS/CM3/CoreSupport/core_cm3.o
+
+INCLUDES += \
+	-I$(LOCAL_DIR)/arm-m/CMSIS/CM3/CoreSupport
 endif
 
 # set the default toolchain to arm elf and set a #define
