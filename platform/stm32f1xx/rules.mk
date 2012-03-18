@@ -18,6 +18,7 @@ INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
 OBJS += \
+	$(LOCAL_DIR)/init.o \
 	$(LOCAL_DIR)/debug.o \
 	$(LOCAL_DIR)/timer.o \
 

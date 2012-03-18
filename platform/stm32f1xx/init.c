@@ -20,25 +20,15 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <err.h>
 #include <debug.h>
-#include <sys/types.h>
 #include <platform.h>
-#include <platform/timer.h>
 
-time_t current_time(void)
+void platform_early_init(void)
 {
-	PANIC_UNIMPLEMENTED;
-	return 0;
 }
 
-bigtime_t current_time_hires(void)
+void platform_init(void)
 {
-	PANIC_UNIMPLEMENTED;
-	return 0;
-}
-
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, time_t interval)
-{
-	PANIC_UNIMPLEMENTED;
 }
 
