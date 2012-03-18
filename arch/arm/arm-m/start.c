@@ -6,6 +6,8 @@
 extern unsigned int __data_start_rom, __data_start, __data_end;
 extern unsigned int __bss_start, __bss_end;
 
+extern void kmain(void) __NO_RETURN __EXTERNALLY_VISIBLE;
+
 void _start(void)
 {
 	/* copy data from rom */
@@ -22,6 +24,5 @@ void _start(void)
 	while (bss != &__bss_end)
 		*bss++ = 0;
 
-	for (;;)
-		;
+	kmain();
 }

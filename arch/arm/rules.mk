@@ -117,6 +117,7 @@ OBJS += \
 endif
 ifeq ($(SUBARCH),arm-m)
 OBJS += \
+	$(LOCAL_DIR)/arm-m/arch.o \
 	$(LOCAL_DIR)/arm-m/vectab.o \
 	$(LOCAL_DIR)/arm-m/start.o \
 	$(LOCAL_DIR)/arm-m/exceptions.o \
