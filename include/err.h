@@ -26,7 +26,7 @@
 #include <sys/types.h> // for status_t
 
 #define NO_ERROR 0
-#define ERROR -1
+#define ERR_GENERIC -1
 #define ERR_NOT_FOUND -2
 #define ERR_NOT_READY -3
 #define ERR_NO_MSG -4
