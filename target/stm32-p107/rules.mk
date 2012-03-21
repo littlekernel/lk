@@ -6,5 +6,6 @@ PLATFORM := stm32f1xx
 
 INCLUDES += -I$(LOCAL_DIR)/include
 
-OBJS += 
+OBJS += \
+	$(LOCAL_DIR)/init.o
 
