@@ -36,6 +36,7 @@ CONFIGHEADER := $(BUILDDIR)/config.h
 
 INCLUDES := -I$(BUILDDIR) -Iinclude
 CFLAGS := -O2 -g -fno-builtin -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -include $(CONFIGHEADER)
+CFLAGS += -Werror-implicit-function-declaration
 #CFLAGS += -Werror
 CPPFLAGS := -fno-exceptions -fno-rtti -fno-threadsafe-statics
 #CPPFLAGS += -Weffc++
