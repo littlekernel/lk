@@ -56,7 +56,7 @@ static struct list_node thread_list;
 thread_t *current_thread;
 
 /* the global critical section count */
-int critical_section_count = 1;
+int critical_section_count;
 
 /* the run queue */
 static struct list_node run_queue[NUM_PRIORITIES];
@@ -286,7 +286,7 @@ void thread_resched(void)
 	thread_t *oldthread;
 	thread_t *newthread;
 
-//	dprintf("thread_resched: current %p: ", current_thread);
+//	printf("thread_resched: current %p: ", current_thread);
 //	dump_thread(current_thread);
 
 #if THREAD_CHECKS
@@ -329,7 +329,7 @@ void thread_resched(void)
 	}
 #endif
 
-//	dprintf("newthread: ");
+//	printf("newthread: ");
 //	dump_thread(newthread);
 
 	newthread->state = THREAD_RUNNING;
@@ -603,6 +603,15 @@ void thread_become_idle(void)
 	thread_set_name("idle");
 	thread_set_priority(IDLE_PRIORITY);
 	idle_thread = current_thread;
+
+
+	/* release the implicit boot critical section and yield to the scheduler */
+	TRACEF("releasing critical section\n");
+	exit_critical_section();
+	TRACEF("yielding\n");
+	thread_yield();
+
+	TRACEF("idle\n");
 	idle_thread_routine();
 }
 

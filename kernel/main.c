@@ -60,6 +60,8 @@ static void call_constructors(void)
 void kmain(void) __NO_RETURN __EXTERNALLY_VISIBLE;
 void kmain(void)
 {
+	inc_critical_section();
+
 	// get us into some sort of thread context
 	thread_init_early();
 
@@ -98,10 +100,7 @@ void kmain(void)
 	dprintf(SPEW, "creating bootstrap completion thread\n");
 	thread_resume(thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 
-	// enable interrupts
-	exit_critical_section();
-
-	// become the idle thread
+	// become the idle thread and enable interrupts to start the scheduler
 	thread_become_idle();
 }
 
