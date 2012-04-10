@@ -50,10 +50,15 @@ void target_early_init(void)
 	init.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 	GPIO_Init(GPIOD, &init);
 
-	stm32_debug_init();
+	stm32_debug_early_init();
 }
 
 void target_init(void)
 {
+	TRACE_ENTRY;
+
+	stm32_debug_init();
+
+	TRACE_EXIT;
 }
 

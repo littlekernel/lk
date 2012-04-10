@@ -21,6 +21,7 @@ OBJS += \
 	$(LOCAL_DIR)/init.o \
 	$(LOCAL_DIR)/debug.o \
 	$(LOCAL_DIR)/timer.o \
+	$(LOCAL_DIR)/vectab.o \
 
 #	$(LOCAL_DIR)/debug.o \
 	$(LOCAL_DIR)/interrupts.o \
@@ -39,5 +40,8 @@ OBJS += \
 #
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
+
+MODULES += \
+	lib/cbuf
 
 include $(LOCAL_DIR)/STM32F10x_StdPeriph_Driver/rules.mk $(LOCAL_DIR)/CMSIS/rules.mk

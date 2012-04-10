@@ -23,12 +23,15 @@
 #include <err.h>
 #include <debug.h>
 #include <platform.h>
+#include <platform/stm32.h>
 
 void platform_early_init(void)
 {
+	stm32_timer_early_init();
 }
 
 void platform_init(void)
 {
+	stm32_timer_init();
 }
 

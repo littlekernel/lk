@@ -24,6 +24,7 @@
 #include <reg.h>
 #include <debug.h>
 #include <printf.h>
+#include <lib/cbuf.h>
 #include <kernel/thread.h>
 #include <platform/debug.h>
 #include <arch/ops.h>
@@ -32,7 +33,9 @@
 #include <stm32f10x_rcc.h>
 #include <stm32f10x_usart.h>
 
-void stm32_debug_init(void)
+static cbuf_t debug_rx_buf;
+
+void stm32_debug_early_init(void)
 {
 	// XXX move this into usart driver
 	if (DEBUG_UART == USART1) {
@@ -49,13 +52,39 @@ void stm32_debug_init(void)
 	init.USART_WordLength = USART_WordLength_8b;
 	init.USART_StopBits = USART_StopBits_1;
 	init.USART_Parity = USART_Parity_No;
-	init.USART_Mode = USART_Mode_Tx;
+	init.USART_Mode = USART_Mode_Tx|USART_Mode_Rx;
 	init.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
 
 	USART_Init(DEBUG_UART, &init);
 
 	USART_ITConfig(DEBUG_UART, USART_IT_RXNE, DISABLE);
+	NVIC_DisableIRQ(DEBUG_UART_IRQ);	
+
 	USART_Cmd(DEBUG_UART, ENABLE);
+}
+
+/* later in the init process */
+void stm32_debug_init(void)
+{
+	cbuf_initialize(&debug_rx_buf, 16);
+
+	USART_ITConfig(DEBUG_UART, USART_IT_RXNE, ENABLE);
+	NVIC_EnableIRQ(DEBUG_UART_IRQ);	
+}
+
+void stm32_debug_rx_irq(void)
+{
+	inc_critical_section();
+
+	while (USART_GetFlagStatus(DEBUG_UART, USART_FLAG_RXNE)) {
+		char c = USART_ReceiveData(DEBUG_UART);
+		cbuf_write(&debug_rx_buf, &c, 1, false);
+	}
+
+	USART_ClearFlag(DEBUG_UART, USART_IT_RXNE);
+
+	dec_critical_section();
+	thread_preempt();
 }
 
 void _dputc(char c)
@@ -72,7 +101,7 @@ void _dputc(char c)
 
 int dgetc(char *c, bool wait)
 {
-	return -1;
+	return cbuf_read(&debug_rx_buf, c, 1, wait);
 }
 
 void debug_dump_regs(void)

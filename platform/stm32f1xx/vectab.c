@@ -20,12 +20,56 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __TARGET_DEBUGCONFIG_H
-#define __TARGET_DEBUGCONFIG_H
+#include <debug.h>
+#include <compiler.h>
+#include <stm32f10x.h>
+#include <platform/stm32.h>
+#include <target/debugconfig.h>
 
-#include <stm32f10x_usart.h>
+extern void stm32_tim2_irq(void);
+extern void stm32_tim3_irq(void);
+extern void stm32_tim4_irq(void);
+extern void stm32_tim5_irq(void);
+extern void stm32_tim6_irq(void);
+extern void stm32_tim7_irq(void);
 
-#define DEBUG_UART USART3
-#define DEBUG_UART_IRQ USART3_IRQn
+void stm32_USART1_IRQ(void)
+{
+	if (DEBUG_UART == USART1)
+		stm32_debug_rx_irq();
+	else
+		PANIC_UNIMPLEMENTED;
+}
 
-#endif
+void stm32_USART2_IRQ(void)
+{
+	if (DEBUG_UART == USART2)
+		stm32_debug_rx_irq();
+	else
+		PANIC_UNIMPLEMENTED;
+}
+
+void stm32_USART3_IRQ(void)
+{
+	if (DEBUG_UART == USART3)
+		stm32_debug_rx_irq();
+	else
+		PANIC_UNIMPLEMENTED;
+}
+
+/* appended to the end of the main vector table */
+const void * const __SECTION(".text.boot.vectab2") vectab2[] =
+{
+    [TIM2_IRQn] = stm32_tim2_irq,
+    [TIM3_IRQn] = stm32_tim3_irq,
+    [TIM4_IRQn] = stm32_tim4_irq,
+    [TIM5_IRQn] = stm32_tim5_irq,
+    [TIM6_IRQn] = stm32_tim6_irq,
+    [TIM7_IRQn] = stm32_tim7_irq,
+
+    [USART1_IRQn] = stm32_USART1_IRQ,
+    [USART2_IRQn] = stm32_USART2_IRQ,
+    [USART3_IRQn] = stm32_USART3_IRQ,
+    [NUM_IRQn] = 0,
+};
+
