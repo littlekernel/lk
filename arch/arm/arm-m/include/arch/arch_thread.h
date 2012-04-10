@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2008-2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,42 +20,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <compiler.h>
-#include <stdint.h>
+#ifndef __ARM_M_ARCH_THREAD_H
+#define __ARM_M_ARCH_THREAD_H
 
-static uint8_t initial_stack[1024] __SECTION(".bss.initial_stack");
-
-extern void _start(void);
-extern void _nmi(void);
-extern void _hardfault(void);
-extern void _memmanage(void);
-extern void _busfault(void);
-extern void _usagefault(void);
-extern void _svc(void);
-extern void _pendsv(void);
-extern void _pendsv(void);
-extern void _systick(void);
-
-const void * const __SECTION(".text.boot.vectab1") vectab[] =
-{
-	/* arm exceptions */
-	initial_stack + sizeof(initial_stack),
-	_start,
-	_nmi, // nmi
-	_hardfault, // hard fault
-	_memmanage, // mem manage
-	_busfault, // bus fault
-	_usagefault, // usage fault
-	0, // reserved
-	0, // reserved
-	0, // reserved
-	0, // reserved
-	_svc, // svcall
-	0, // debug monitor
-	0, // reserved
-	_pendsv, // pendsv
-	_systick, // systick
+struct arch_thread {
+	vaddr_t sp;
+	bool was_preempted;
 };
 
-
+#endif
 

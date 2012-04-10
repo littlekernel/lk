@@ -97,7 +97,8 @@ THUMBINTERWORK := -mthumb-interwork
 endif
 
 INCLUDES += \
-	-I$(LOCAL_DIR)/include
+	-I$(LOCAL_DIR)/include \
+	-I$(LOCAL_DIR)/$(SUBARCH)/include
 
 OBJS += \
 

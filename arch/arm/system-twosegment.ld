@@ -7,6 +7,8 @@ SECTIONS
 	. = %ROMBASE%;
 
 	/* text/read-only data */
+	.text.boot.vectab1 : { KEEP(*(.text.boot.vectab1)) }
+	.text.boot.vectab2 : { KEEP(*(.text.boot.vectab2)) }
 	.text.boot : { KEEP(*(.text.boot)) }
 	.text :	{ *(.text .text.* .glue_7* .gnu.linkonce.t.*) } =0x9090
 
@@ -40,14 +42,6 @@ SECTIONS
 	.rodata : { 
 		*(.rodata .rodata.* .gnu.linkonce.r.*) 
 		. = ALIGN(4);
-		__commands_start = .;
-		KEEP (*(.commands))
-		__commands_end = .;
-		. = ALIGN(4);
-		__apps_start = .;
-		KEEP (*(.apps))
-		__apps_end = .;
-		. = ALIGN(4); 
 		__rodata_end = . ;
 	}
 
@@ -55,9 +49,17 @@ SECTIONS
 	__data_start_rom = .;
 	. = %MEMBASE%;
 	__data_start = .;
-	.data : 
-		AT ( ADDR (.rodata) + SIZEOF (.rodata) )
-		{ *(.data .data.* .gnu.linkonce.d.*) }
+	.data : AT ( ADDR (.rodata) + SIZEOF (.rodata) ) {
+		*(.data .data.* .gnu.linkonce.d.*)
+		. = ALIGN(4);
+		__commands_start = .;
+		KEEP (*(.commands))
+		__commands_end = .;
+		. = ALIGN(4);
+		__apps_start = .;
+		KEEP (*(.apps))
+		__apps_end = .;
+	}
 
 	__ctor_list = .;
 	.ctors : { *(.ctors) }
@@ -72,6 +74,7 @@ SECTIONS
 	
 	/* unintialized data (in same segment as writable data) */
 	. = ALIGN(4);
+	.bss.initial_stack : { KEEP(*(.bss.initial_stack)) }
 	__bss_start = .;
 	.bss : { *(.bss .bss.*) }
 
