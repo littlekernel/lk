@@ -42,6 +42,8 @@
 #define __GNU_INLINE __attribute__((gnu_inline))
 #define __GET_CALLER(x) __builtin_return_address(0)
 #define __GET_FRAME(x) __builtin_frame_address(0)
+#define __NAKED __attribute__((naked))
+#define __UNREACHABLE __builtin_unreachable()
 
 #define INCBIN(symname, sizename, filename, section)					\
 	__asm__ (".section " section "; .align 4; .globl "#symname);		\
