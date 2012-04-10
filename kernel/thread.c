@@ -31,6 +31,7 @@
  * @{
  */
 #include <debug.h>
+#include <assert.h>
 #include <list.h>
 #include <malloc.h>
 #include <string.h>

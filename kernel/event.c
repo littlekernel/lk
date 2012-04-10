@@ -41,6 +41,7 @@
  */
 
 #include <debug.h>
+#include <assert.h>
 #include <err.h>
 #include <kernel/event.h>
 

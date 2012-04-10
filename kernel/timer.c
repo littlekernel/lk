@@ -35,6 +35,7 @@
  * @{
  */
 #include <debug.h>
+#include <assert.h>
 #include <list.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>

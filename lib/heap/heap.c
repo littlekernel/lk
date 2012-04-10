@@ -22,6 +22,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <assert.h>
 #include <err.h>
 #include <list.h>
 #include <rand.h>

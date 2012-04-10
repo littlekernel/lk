@@ -30,6 +30,7 @@
  */
 
 #include <debug.h>
+#include <assert.h>
 #include <err.h>
 #include <kernel/mutex.h>
 #include <kernel/thread.h>

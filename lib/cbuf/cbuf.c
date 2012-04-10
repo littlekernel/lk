@@ -24,6 +24,7 @@
 #include <debug.h>
 #include <pow2.h>
 #include <string.h>
+#include <assert.h>
 #include <lib/cbuf.h>
 #include <kernel/event.h>
 

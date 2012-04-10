@@ -23,7 +23,6 @@
 #ifndef __DEBUG_H
 #define __DEBUG_H
 
-#include <assert.h>
 #include <stdarg.h>
 #include <compiler.h>
 #include <platform/debug.h>
