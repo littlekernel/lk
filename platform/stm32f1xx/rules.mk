@@ -13,6 +13,10 @@ ifeq ($(STM32_CHIP),stm32f107)
 DEFINES += \
 	STM32F10X_CL=1	
 endif
+ifeq ($(STM32_CHIP),stm32f103)
+DEFINES += \
+	STM32F10X_HD=1
+endif
 
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
