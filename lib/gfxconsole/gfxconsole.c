@@ -137,7 +137,7 @@ void gfxconsole_start(gfx_surface *surface)
 	gfxconsole.back_color = 0;
 
 	// register for debug callbacks
-	register_debug_output(&gfxconsole_putc);
+	//register_debug_output(&gfxconsole_putc);
 }
 
 /**
