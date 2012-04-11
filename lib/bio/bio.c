@@ -24,6 +24,7 @@
 #include <debug.h>
 #include <err.h>
 #include <string.h>
+#include <assert.h>
 #include <list.h>
 #include <lib/bio.h>
 #include <kernel/mutex.h>

@@ -30,6 +30,7 @@
  */
 
 #include <debug.h>
+#include <assert.h>
 #include <kernel/thread.h>
 #include <platform/debug.h>
 #include <platform/mddi.h>

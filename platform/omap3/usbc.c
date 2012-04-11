@@ -23,6 +23,7 @@
 #include <debug.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <kernel/thread.h>
 #include <dev/usbc.h>
 #include <dev/twl4030.h>

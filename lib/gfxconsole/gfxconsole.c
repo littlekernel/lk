@@ -31,6 +31,7 @@
  */
 
 #include <debug.h>
+#include <assert.h>
 #include <lib/gfx.h>
 #include <lib/gfxconsole.h>
 #include <lib/font.h>

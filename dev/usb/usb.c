@@ -24,6 +24,7 @@
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <dev/usbc.h>
 #include <dev/usb.h>
 

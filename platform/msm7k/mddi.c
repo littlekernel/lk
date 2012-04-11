@@ -30,6 +30,7 @@
 #include <reg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <dev/fbcon.h>
 #include <kernel/thread.h>
 #include <platform/iomap.h>

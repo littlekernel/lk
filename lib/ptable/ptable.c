@@ -29,6 +29,7 @@
 #include <list.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <lib/ptable.h>
 
 void ptable_init(struct ptable *ptable)

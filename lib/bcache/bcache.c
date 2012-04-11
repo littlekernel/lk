@@ -22,6 +22,7 @@
  */
 #include <list.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <debug.h>

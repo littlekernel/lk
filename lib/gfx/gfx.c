@@ -35,6 +35,7 @@
 #include <debug.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <arch/ops.h>
 #include <sys/types.h>
 #include <lib/gfx.h>

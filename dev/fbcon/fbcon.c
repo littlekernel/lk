@@ -29,6 +29,7 @@
 #include <debug.h>
 #include <err.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <dev/fbcon.h>
 
 #include "font5x12.h"

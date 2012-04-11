@@ -30,6 +30,7 @@
 #include <reg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <dev/flash.h>
 #include <lib/ptable.h>
 
