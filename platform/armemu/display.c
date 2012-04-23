@@ -29,6 +29,8 @@
 #include <lib/gfx.h>
 #include <reg.h>
 
+#define DRAW_TEST_PATTERN 0
+
 static int display_w, display_h;
 static void *display_fb;
 
@@ -46,7 +48,9 @@ void platform_init_display(void)
 	display_w = *REG32(DISPLAY_WIDTH);
 	display_h = *REG32(DISPLAY_HEIGHT);
 
+#if DRAW_TEST_PATTERN
 	gfx_draw_pattern();
+#endif
 }
 
 void display_get_info(struct display_info *info)
