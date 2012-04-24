@@ -207,9 +207,7 @@ static enum handler_return timer_tick(void *arg, time_t now)
 	timer_t *timer;
 	enum handler_return ret = INT_NO_RESCHEDULE;
 
-#if THREAD_STATS
-	thread_stats.timer_ints++;
-#endif
+	THREAD_STATS_INC(timer_ints);
 
 	LTRACEF("now %d, sp 0x%x\n", now, __GET_FRAME());
 
@@ -229,9 +227,7 @@ static enum handler_return timer_tick(void *arg, time_t now)
 
 		LTRACEF("dequeued timer %p, scheduled %d periodic %d\n", timer, timer->scheduled_time, timer->periodic_time);
 
-#if THREAD_STATS
-		thread_stats.timers++;
-#endif
+		THREAD_STATS_INC(timers);
 
 		bool periodic = timer->periodic_time > 0;
 

@@ -123,9 +123,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 
 //	TRACEF("spsr 0x%x, pc 0x%x, currthread %p, vector %d, handler %p\n", frame->spsr, frame->pc, current_thread, vector, int_handler_table[vector].handler);
 
-#if THREAD_STATS
-	thread_stats.interrupts++;
-#endif
+	THREAD_STATS_INC(interrupts);
 
 	// deliver the interrupt
 	enum handler_return ret; 

@@ -83,9 +83,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 	if (vector == 0xffffffff)
 		return INT_NO_RESCHEDULE;
 
-#if THREAD_STATS
-	thread_stats.interrupts++;
-#endif
+	THREAD_STATS_INC(interrupts);
 
 //	printf("platform_irq: spsr 0x%x, pc 0x%x, currthread %p, vector %d\n", frame->spsr, frame->pc, current_thread, vector);
 

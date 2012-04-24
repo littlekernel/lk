@@ -201,13 +201,11 @@ enum handler_return platform_irq(struct x86_iframe *frame)
 	// get the current vector
 	unsigned int vector = frame->vector;
 
-#if THREAD_STATS
-	thread_stats.interrupts++;
-#endif
-	
+	THREAD_STATS_INC(interrupts);
+
 	// deliver the interrupt	
 	enum handler_return ret = INT_NO_RESCHEDULE;
-	
+
 	switch (vector) {
 		case INT_GP_FAULT:
 			x86_gpf_handler(frame);

@@ -138,9 +138,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 	// get the current vector
 	unsigned int vector;
    
-#if THREAD_STATS
-	thread_stats.interrupts++;
-#endif
+	THREAD_STATS_INC(interrupts);
 
 	// read from the first level int handler
 	vector = *ICReg(0, INTCON_SIR_IRQ);

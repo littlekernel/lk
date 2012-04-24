@@ -293,9 +293,7 @@ void thread_resched(void)
 	ASSERT(in_critical_section());
 #endif
 
-#if THREAD_STATS
-	thread_stats.reschedules++;
-#endif
+	THREAD_STATS_INC(reschedules);
 
 	oldthread = current_thread;
 
@@ -343,7 +341,7 @@ void thread_resched(void)
 	}
 
 #if THREAD_STATS
-	thread_stats.context_switches++;
+	THREAD_STATS_INC(context_switches);
 
 	if (oldthread == idle_thread) {
 		bigtime_t now = current_time_hires();
@@ -395,9 +393,7 @@ void thread_yield(void)
 
 	enter_critical_section();
 
-#if THREAD_STATS
-	thread_stats.yields++;
-#endif
+	THREAD_STATS_INC(yields);
 
 	/* we are yielding the cpu, so stick ourselves into the tail of the run queue and reschedule */
 	current_thread->state = THREAD_READY;
@@ -434,7 +430,7 @@ void thread_preempt(void)
 
 #if THREAD_STATS
 	if (current_thread != idle_thread)
-		thread_stats.preempts++; /* only track when a meaningful preempt happens */
+		THREAD_STATS_INC(preempts); /* only track when a meaningful preempt happens */
 #endif
 
 	/* we are being preempted, so we get to go back into the front of the run queue if we have quantum left */

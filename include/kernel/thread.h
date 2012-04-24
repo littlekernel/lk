@@ -225,6 +225,12 @@ struct thread_stats {
 
 extern struct thread_stats thread_stats;
 
+#define THREAD_STATS_INC(name) do { thread_stats.name++; } while(0)
+
+#else
+
+#define THREAD_STATS_INC(name) do { } while (0)
+
 #endif
 
 #endif
