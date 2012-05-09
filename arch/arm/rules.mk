@@ -127,6 +127,10 @@ OBJS += \
 
 INCLUDES += \
 	-I$(LOCAL_DIR)/arm-m/CMSIS/CM3/CoreSupport
+
+# set a much smaller stack size
+DEFINES += \
+	DEFAULT_STACK_SIZE=1024
 endif
 
 # set the default toolchain to arm elf and set a #define
