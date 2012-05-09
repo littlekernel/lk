@@ -43,7 +43,6 @@
 #define __GET_CALLER(x) __builtin_return_address(0)
 #define __GET_FRAME(x) __builtin_frame_address(0)
 #define __NAKED __attribute__((naked))
-#define __UNREACHABLE __builtin_unreachable()
 
 #define INCBIN(symname, sizename, filename, section)					\
 	__asm__ (".section " section "; .align 4; .globl "#symname);		\
@@ -97,6 +96,12 @@
 #define __EXTERNALLY_VISIBLE __attribute__((externally_visible))
 #else
 #define __EXTERNALLY_VISIBLE
+#endif
+
+#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)
+#define __UNREACHABLE __builtin_unreachable()
+#else
+#define __UNREACHABLE
 #endif
 
 /* compiler fence */
