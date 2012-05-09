@@ -44,8 +44,8 @@ SECTIONS
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
 	__exidx_end = .;
 
-	.rodata : { 
-		*(.rodata .rodata.* .gnu.linkonce.r.*) 
+	.rodata : {
+		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		. = ALIGN(4);
 		__rodata_end = . ;
 	}
@@ -76,19 +76,20 @@ SECTIONS
 	.dynamic : { *(.dynamic) }
 
 	__data_end = .;
-	
-	/* unintialized data (in same segment as writable data) */
-	. = ALIGN(4);
-	.bss.initial_stack : { KEEP(*(.bss.initial_stack)) }
-	__bss_start = .;
-	.bss : { *(.bss .bss.*) }
 
-	. = ALIGN(4); 
+	/* unintialized data (in same segment as writable data) */
+	.bss.initial_stack : SUBALIGN(4) { KEEP(*(.bss.initial_stack)) }
+	.bss : SUBALIGN(4) {
+		__bss_start = .;
+		*(.bss .bss.*)
+	}
+	. = ALIGN(4);
 	__bss_end = .;
-	_end = . ;
+
+	_end = .;
 
 	. = %MEMBASE% + %MEMSIZE%;
-	_end_of_ram = . ;
+	_end_of_ram = .;
 
 	/* Strip unnecessary stuff */
 	/DISCARD/ : { *(.comment .note .eh_frame) }

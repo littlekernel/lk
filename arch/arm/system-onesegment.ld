@@ -44,8 +44,18 @@ SECTIONS
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
 	__exidx_end = .;
 
-	.rodata : { 
+	.rodata : {
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
+		. = ALIGN(4);
+		__rodata_end = . ;
+	}
+
+	/* writable data  */
+	__data_start_rom = .;
+	/* in one segment binaries, the rom data address is on top of the ram data address */
+	__data_start = .;
+	.data : SUBALIGN(4) {
+		*(.data .data.* .gnu.linkonce.d.*)
 		. = ALIGN(4);
 		__commands_start = .;
 		KEEP (*(.commands))
@@ -54,14 +64,7 @@ SECTIONS
 		__apps_start = .;
 		KEEP (*(.apps))
 		__apps_end = .;
-		. = ALIGN(4);
-		__rodata_end = . ;
 	}
-
-	/* writable data  */
-	__data_start_rom = .;	/* in one segment binaries, the rom data address is on top of the ram data address */
-	__data_start = .;
-	.data : SUBALIGN(4) { *(.data .data.* .gnu.linkonce.d.*) }
 
 	__ctor_list = .;
 	.ctors : { *(.ctors) }
@@ -75,13 +78,14 @@ SECTIONS
 	__data_end = .;
 
 	/* unintialized data (in same segment as writable data) */
+	.bss.initial_stack : SUBALIGN(4) { KEEP(*(.bss.initial_stack)) }
+	.bss : SUBALIGN(4) {
+		__bss_start = .;
+		*(.bss .bss.*)
+	}
 	. = ALIGN(4);
-	.bss.initial_stack : { KEEP(*(.bss.initial_stack)) }
-	__bss_start = .;
-	.bss : { *(.bss .bss.*) }
-
-	. = ALIGN(4); 
 	__bss_end = .;
+
 	_end = .;
 
 	. = %MEMBASE% + %MEMSIZE%;
