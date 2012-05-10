@@ -115,6 +115,9 @@ OBJS += \
 	$(LOCAL_DIR)/arm/mmu.o \
 	$(LOCAL_DIR)/arm/thread.o \
 	$(LOCAL_DIR)/arm/dcc.o
+
+DEFINES += \
+	ARCH_DEFAULT_STACK_SIZE=4096
 endif
 ifeq ($(SUBARCH),arm-m)
 OBJS += \
@@ -128,9 +131,8 @@ OBJS += \
 INCLUDES += \
 	-I$(LOCAL_DIR)/arm-m/CMSIS/CM3/CoreSupport
 
-# set a much smaller stack size
 DEFINES += \
-	DEFAULT_STACK_SIZE=1024
+	ARCH_DEFAULT_STACK_SIZE=1024
 endif
 
 # set the default toolchain to arm elf and set a #define

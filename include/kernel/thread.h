@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Travis Geiselbrecht
+ * Copyright (c) 2008-2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <list.h>
 #include <compiler.h>
+#include <arch/defines.h>
 #include <arch/ops.h>
 #include <arch/thread.h>
 
@@ -93,8 +94,10 @@ typedef struct thread {
 #define HIGH_PRIORITY ((NUM_PRIORITIES / 4) * 3)
 
 /* stack size */
-#ifndef DEFAULT_STACK_SIZE
-#define DEFAULT_STACK_SIZE 8192
+#ifdef CUSTOM_DEFAULT_STACK_SIZE
+#define DEFAULT_STACK_SIZE CUSTOM_DEFAULT_STACK_SIZE
+#else
+#define DEFAULT_STACK_SIZE ARCH_DEFAULT_STACK_SIZE
 #endif
 
 /* functions */

@@ -28,5 +28,7 @@
 // TODO: define to resolve to platform setup discovered value
 #define CACHE_LINE 32
 
+#define ARCH_DEFAULT_STACK_SIZE 8192
+
 #endif
 
