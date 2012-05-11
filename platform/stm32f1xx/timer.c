@@ -31,6 +31,8 @@
 #include <misc.h>
 #include <arch/arm/cm3.h>
 
+#define LOCAL_TRACE 0
+
 #define TIME_BASE_COUNT 0xffff
 #define TICK_RATE 1000000
 
@@ -39,18 +41,10 @@ static volatile uint64_t ticks = 0;
 static platform_timer_callback cb;
 static void *cb_args;
 
-void stm32_tim2_irq(void)
-{
-	/* time base */
-	ticks += TIME_BASE_COUNT;
-	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-}
-
-void stm32_tim3_irq(void)
+/* use systick as the kernel tick */
+void _systick(void)
 {
 	inc_critical_section();
-
-	TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
 
 	bool resched = false;
 	if (cb) {
@@ -67,10 +61,30 @@ void stm32_tim3_irq(void)
 	dec_critical_section();
 }
 
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, time_t interval)
+{
+	LTRACEF("callback %p, arg %p, interval %d\n", callback, arg, interval);
+
+	cb = callback;
+	cb_args = arg;
+
+    RCC_ClocksTypeDef clocks;
+    RCC_GetClocksFreq(&clocks);
+
+	cm3_systick_set_periodic(clocks.SYSCLK_Frequency, interval);
+
+	return NO_ERROR;
+}
+
 static void stm32_tim_irq(uint num)
 {
-	printf("tim irq %d\n", num);
+	TRACEF("tim irq %d\n", num);
 	PANIC_UNIMPLEMENTED;
+}
+
+void stm32_tim3_irq(void)
+{
+	stm32_tim_irq(3);
 }
 
 void stm32_tim4_irq(void)
@@ -91,6 +105,14 @@ void stm32_tim6_irq(void)
 void stm32_tim7_irq(void)
 {
 	stm32_tim_irq(7);
+}
+
+/* time base */
+void stm32_tim2_irq(void)
+{
+	/* time base */
+	ticks += TIME_BASE_COUNT;
+	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
 }
 
 time_t current_time(void)
@@ -114,27 +136,6 @@ bigtime_t current_time_hires(void)
 	return res;
 }
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, time_t interval)
-{
-	TRACEF("callback %p, arg %p, interval %d\n", callback, arg, interval);
-
-	cb = callback;
-	cb_args = arg;
-
-	TIM_Cmd(TIM3, DISABLE);
-
-	TIM_SetCounter(TIM3, interval);
-	TIM_SetAutoreload(TIM3, interval);
-	
-	TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
-	TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
-	NVIC_EnableIRQ(TIM3_IRQn);	
-
-	TIM_Cmd(TIM3, ENABLE);
-
-	return NO_ERROR;
-}
-
 void stm32_timer_early_init(void)
 {
 	/* start the time base unit */
@@ -154,17 +155,10 @@ void stm32_timer_early_init(void)
 
 	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
 	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-	NVIC_SetPriority(TIM2_IRQn, cm3_highest_priority());
+	NVIC_SetPriority(TIM2_IRQn, cm3_medium_priority());
 	NVIC_EnableIRQ(TIM2_IRQn);
 
 	TIM_Cmd(TIM2, ENABLE);
-
-	/* for dynamic ticks, use TIM3 */
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
-
-	/* run the tick at ms resolution */
-	TIM_PrescalerConfig(TIM3, (clocks.PCLK1_Frequency / 1000) * 2 - 1, TIM_PSCReloadMode_Immediate);
-	TIM_CounterModeConfig(TIM3, TIM_CounterMode_Down);
 }
 
 void stm32_timer_init(void)
