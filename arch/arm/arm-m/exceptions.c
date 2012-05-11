@@ -48,6 +48,14 @@ static void hardfault(struct cm3_exception_frame *frame)
 	halt();
 }
 
+static void busfault(struct cm3_exception_frame *frame)
+{
+	printf("busfault: ");
+	dump_frame(frame);
+
+	halt();
+}
+
 /* raw exception vectors */
 
 void _nmi(void)
@@ -75,8 +83,13 @@ void _memmanage(void)
 
 void _busfault(void)
 {
-	printf("busfault\n");
-	halt();
+	__asm__ volatile(
+		"push	{r4-r11};"
+		"mov	r0, sp;"
+		"b		%0;"
+		:: "i" (busfault)
+	);
+	__UNREACHABLE;
 }
 
 void _usagefault(void)
