@@ -85,7 +85,8 @@ void _usagefault(void)
 	halt();
 }
 
-void _systick(void)
+/* systick handler */
+void __WEAK _systick(void)
 {
 	printf("systick\n");
 	halt();

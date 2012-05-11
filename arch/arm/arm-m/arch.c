@@ -75,6 +75,9 @@ void arch_early_init(void)
 	/* set the svc and pendsv priority level to pretty low */
 	SCB->SHP[11-4] = cm3_lowest_priority();
 	SCB->SHP[14-4] = cm3_lowest_priority();
+
+	/* initialize the systick mechanism */
+	cm3_systick_init();
 }
 
 void arch_init(void)

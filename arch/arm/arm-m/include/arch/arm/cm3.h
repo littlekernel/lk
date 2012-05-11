@@ -106,5 +106,11 @@ static __ALWAYS_INLINE inline void cm3_trigger_preempt(void)
 	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
+/* systick */
+void cm3_systick_init(void);
+void cm3_systick_set_periodic(uint32_t systick_clk_freq, time_t period);
+void cm3_systick_cancel_periodic(void);
+/* extern void _systick(void); // override this */
+
 #endif
 
