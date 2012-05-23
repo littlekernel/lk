@@ -37,7 +37,7 @@
 #define CONSOLE_ENABLE_HISTORY 1
 #endif
 
-#define LINE_LEN 512
+#define LINE_LEN 128
 
 #define HISTORY_LEN 16
 
