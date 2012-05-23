@@ -33,6 +33,10 @@
 #include <lib/env.h>
 #endif
 
+#ifndef CONSOLE_ENABLE_HISTORY
+#define CONSOLE_ENABLE_HISTORY 1
+#endif
+
 #define LINE_LEN 512
 
 #define HISTORY_LEN 16
@@ -47,6 +51,7 @@ static mutex_t *command_lock;
 int lastresult;
 static bool abort_script;
 
+#if CONSOLE_ENABLE_HISTORY
 /* command history stuff */
 static char *history; // HISTORY_LEN rows of LINE_LEN chars a piece
 static uint history_next;
@@ -57,6 +62,7 @@ static uint start_history_cursor(void);
 static const char *next_history(uint *cursor);
 static const char *prev_history(uint *cursor);
 static void dump_history(void);
+#endif
 
 /* list of installed commands */
 static cmd_block *command_list = NULL;
@@ -69,13 +75,17 @@ extern cmd_block __commands_end;
 
 static int cmd_help(int argc, const cmd_args *argv);
 static int cmd_test(int argc, const cmd_args *argv);
+#if CONSOLE_ENABLE_HISTORY
 static int cmd_history(int argc, const cmd_args *argv);
+#endif
 
 STATIC_COMMAND_START
 STATIC_COMMAND("help", "this list", &cmd_help)
 #if DEBUGLEVEL > 1
 STATIC_COMMAND("test", "test the command processor", &cmd_test)
+#if CONSOLE_ENABLE_HISTORY
 STATIC_COMMAND("history", "command history", &cmd_history)
+#endif
 #endif
 STATIC_COMMAND_END(help); 
 
@@ -92,11 +102,14 @@ int console_init(void)
 		console_register_commands(block);
 	}
 
+#if CONSOLE_ENABLE_HISTORY
 	init_history();
+#endif
 
 	return 0;
 }
 
+#if CONSOLE_ENABLE_HISTORY
 static int cmd_history(int argc, const cmd_args *argv)
 {
 	dump_history();
@@ -187,6 +200,7 @@ static const char *prev_history(uint *cursor)
 	*cursor = i;
 	return str;
 }
+#endif
 
 static const cmd *match_command(const char *command)
 {
@@ -209,7 +223,9 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 {
 	int pos = 0;
 	int escape_level = 0;
+#if CONSOLE_ENABLE_HISTORY
 	uint history_cursor = start_history_cursor();
+#endif
 
 	char *buffer = debug_buffer;
 
@@ -269,6 +285,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 						puts("\x1b[1D"); // move to the left one
 					}
 					break;
+#if CONSOLE_ENABLE_HISTORY
 				case 65: // up arrow -- previous history
 				case 66: // down arrow -- next history
 					// wipe out the current line
@@ -286,6 +303,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 					pos = strlen(buffer);
 					puts(buffer);
 					break;
+#endif
 				default:
 					break;
 			}
@@ -306,8 +324,10 @@ done:
 	// null terminate
 	buffer[pos] = 0;
 
+#if CONSOLE_ENABLE_HISTORY
 	// add to history
 	add_history(buffer);
+#endif
 
 	// return a pointer to our buffer
 	*outbuffer = buffer;
