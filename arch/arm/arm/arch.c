@@ -61,7 +61,8 @@ void arch_early_init(void)
 	__asm__ volatile("mcr	p15, 0, %0, c1, c0, 2" :: "r" (val));
 
 	/* set enable bit in fpexc */
-	val = (1<<30);
+	__asm__ volatile("mrc  p10, 7, %0, c8, c0, 0" : "=r" (val));
+	val |= (1<<30);
 	__asm__ volatile("mcr  p10, 7, %0, c8, c0, 0" :: "r" (val));
 #endif
 
