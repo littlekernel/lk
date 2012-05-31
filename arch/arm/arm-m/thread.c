@@ -48,7 +48,9 @@ static void initial_thread_func(void)
 	int ret;
 
 	LTRACEF("thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
+#if LOCAL_TRACE
 	dump_thread(current_thread);
+#endif
 
 	/* exit the implicit critical section we're within */
 	exit_critical_section();
@@ -190,7 +192,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 			frame->r0 = frame->r1 =  frame->r2 = frame->r3 = frame->r12 = frame->lr = 99;
 
 			LTRACEF("iretting to user space\n");
-			hexdump(frame, sizeof(*frame) + 64);
+			//hexdump(frame, sizeof(*frame) + 64);
 
 			__asm__ volatile(
 			    "clrex;"
