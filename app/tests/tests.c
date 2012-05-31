@@ -29,8 +29,8 @@
 #include <lib/console.h>
 
 STATIC_COMMAND_START
-STATIC_COMMAND("printf_tests", NULL, (console_cmd)&printf_tests)
-STATIC_COMMAND("thread_tests", NULL, (console_cmd)&thread_tests)
+STATIC_COMMAND("printf_tests", "test printf", (console_cmd)&printf_tests)
+STATIC_COMMAND("thread_tests", "test the scheduler", (console_cmd)&thread_tests)
 STATIC_COMMAND_END(tests);
 
 #endif
