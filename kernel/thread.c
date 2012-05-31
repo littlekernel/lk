@@ -602,12 +602,9 @@ void thread_become_idle(void)
 
 
 	/* release the implicit boot critical section and yield to the scheduler */
-	TRACEF("releasing critical section\n");
 	exit_critical_section();
-	TRACEF("yielding\n");
 	thread_yield();
 
-	TRACEF("idle\n");
 	idle_thread_routine();
 }
 
