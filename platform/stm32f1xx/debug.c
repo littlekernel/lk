@@ -32,6 +32,7 @@
 #include <target/debugconfig.h>
 #include <stm32f10x_rcc.h>
 #include <stm32f10x_usart.h>
+#include <arch/arm/cm3.h>
 
 static cbuf_t debug_rx_buf;
 
@@ -83,8 +84,9 @@ void stm32_debug_rx_irq(void)
 
 	USART_ClearFlag(DEBUG_UART, USART_IT_RXNE);
 
+	cm3_trigger_preempt();
+
 	dec_critical_section();
-	thread_preempt();
 }
 
 void _dputc(char c)
