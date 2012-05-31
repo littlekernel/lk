@@ -24,6 +24,7 @@
 #define __ARHC_ARM_OPS_H
 
 #include <compiler.h>
+#include <reg.h>
 
 #ifndef ASSEMBLY
 
@@ -147,7 +148,12 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_cmpxhg(volatile int *ptr, 
 
 __GNU_INLINE __ALWAYS_INLINE extern inline uint32_t arch_cycle_count(void)
 {
+#if ARM_CPU_CORTEX_M3
+#define DWT_CYCCNT (0xE0001004)
+    return *REG32(DWT_CYCCNT);
+#else
 	return 0;
+#endif
 }
 
 

@@ -27,6 +27,8 @@
 #include <platform.h>
 #include <arch/arm/cm3.h>
 
+#define ENABLE_CYCLE_COUNTER 1
+
 extern void *vectab;
 
 extern int _end_of_ram;
@@ -82,6 +84,11 @@ void arch_early_init(void)
 
 void arch_init(void)
 {
+#if ENABLE_CYCLE_COUNTER
+	*REG32(SCB_DEMCR) |= 0x01000000; // global trace enable
+	*REG32(DWT_CYCCNT) = 0;
+	*REG32(DWT_CTRL) |= 1; // enable cycle counter
+#endif
 }
 
 void arch_quiesce(void)

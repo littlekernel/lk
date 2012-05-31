@@ -26,6 +26,11 @@
 #include <platform/platform_cm3.h>
 #include <core_cm3.h>
 
+/* registers dealing with the cycle counter */
+#define DWT_CTRL (0xE0001000)
+#define DWT_CYCCNT (0xE0001004)
+#define SCB_DEMCR (0xE000EDFC)
+
 struct cm3_exception_frame {
 	uint32_t r4;
 	uint32_t r5;
