@@ -22,6 +22,7 @@
  */
 #include <app/tests.h>
 #include <debug.h>
+#include <string.h>
 
 void printf_tests(void)
 {
@@ -85,6 +86,20 @@ void printf_tests(void)
 	printf(" returned %d\n", err);
 	err = printf("abcdef");
 	printf(" returned %d\n", err);
+
+	/* make sure snprintf terminates at the right spot */
+	char buf[32];
+
+	memset(buf, 0, sizeof(buf));
+	err = sprintf(buf, "0123456789abcdef012345678");
+	printf("sprintf returns %d\n", err);
+	hexdump8(buf, sizeof(buf));
+
+	memset(buf, 0, sizeof(buf));
+	err = snprintf(buf, 15, "0123456789abcdef012345678");
+	printf("snprintf returns %d\n", err);
+	hexdump8(buf, sizeof(buf));
+
 }
 
 
