@@ -23,10 +23,10 @@
 #ifndef __ARCH_ARM_OPS_H
 #define __ARHC_ARM_OPS_H
 
+#ifndef ASSEMBLY
+
 #include <compiler.h>
 #include <reg.h>
-
-#ifndef ASSEMBLY
 
 #if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
 // override of some routines
