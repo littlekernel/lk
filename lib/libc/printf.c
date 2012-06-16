@@ -149,7 +149,36 @@ int vsprintf(char *str, const char *fmt, va_list ap)
 	return vsnprintf(str, INT_MAX, fmt, ap);
 }
 
+struct _output_args {
+	char *outstr;
+	size_t len;
+	size_t pos;
+};
+
+static int _vsnprintf_output(char c, void *state)
+{
+	struct _output_args *args = state;
+
+	if (args->pos >= args->len)
+		return 0;
+
+	args->outstr[args->pos++] = c;
+
+	return args->len - args->pos;
+}
+
 int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
+{
+	struct _output_args args;
+
+	args.outstr = str;
+	args.len = len;
+	args.pos = 0;
+
+	return _printf_engine(&_vsnprintf_output, (void *)&args, fmt, ap);
+}
+
+int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap)
 {
 	char c;
 	unsigned char uc;
@@ -161,8 +190,8 @@ int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
 	size_t chars_written = 0;
 	char num_buffer[32];
 
-#define OUTPUT_CHAR(c) do { (*str++ = c); chars_written++; if (chars_written + 1 == len) goto done; } while(0)
-#define OUTPUT_CHAR_NOLENCHECK(c) do { (*str++ = c); chars_written++; } while(0)
+#define OUTPUT_CHAR(c) do { chars_written++; if (out(c, state) <= 1) goto done; } while(0)
+#define OUTPUT_CHAR_NOLENCHECK(c) do { out(c, state); } while(0)
 
 	for(;;) {	
 		/* handle regular chars that aren't format related */
@@ -330,7 +359,6 @@ _output_string:
 done:
 	/* null terminate */
 	OUTPUT_CHAR_NOLENCHECK('\0');
-	chars_written--; /* don't count the null */
 
 #undef OUTPUT_CHAR
 #undef OUTPUT_CHAR_NOLENCHECK
