@@ -44,31 +44,11 @@ int dgetc(char *c, bool wait)
 	return ret;
 }
 
-void debug_dump_regs(void)
-{
-}
-
 void platform_halt(void)
 {
 	for(;;) {
 		x86_cli();
 		x86_hlt();
 	}
-}
-
-void debug_dump_memory_bytes(void *mem, int len)
-{
-}
-
-void debug_dump_memory_halfwords(void *mem, int len)
-{
-}
-
-void debug_dump_memory_words(void *mem, int len)
-{
-}
-
-void debug_set_trace_level(int trace_type, int level)
-{
 }
 

@@ -119,35 +119,10 @@ int dgetc(char *c, bool wait)
 	return len;
 }
 
-void debug_dump_regs(void)
-{
-	PANIC_UNIMPLEMENTED;
-}
-
 void platform_halt(void)
 {
 	dprintf(ALWAYS, "HALT: spinning forever...\n");
 	for(;;);
-}
-
-void debug_dump_memory_bytes(void *mem, int len)
-{
-	PANIC_UNIMPLEMENTED;
-}
-
-void debug_dump_memory_halfwords(void *mem, int len)
-{
-	PANIC_UNIMPLEMENTED;
-}
-
-void debug_dump_memory_words(void *mem, int len)
-{
-	PANIC_UNIMPLEMENTED;
-}
-
-void debug_set_trace_level(int trace_type, int level)
-{
-	PANIC_UNIMPLEMENTED;
 }
 
 void platform_init_debug(void)
