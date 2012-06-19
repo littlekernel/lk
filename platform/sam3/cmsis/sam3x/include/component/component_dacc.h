@@ -66,13 +66,10 @@ typedef struct {
   RoReg Reserved4[19];
   RwReg DACC_WPMR;     /**< \brief (Dacc Offset: 0xE4) Write Protect Mode register */
   RoReg DACC_WPSR;     /**< \brief (Dacc Offset: 0xE8) Write Protect Status register */
-  RoReg Reserved5[5];
-  RwReg DACC_RPR;      /**< \brief (Dacc Offset: 0x100) Receive Pointer Register */
-  RwReg DACC_RCR;      /**< \brief (Dacc Offset: 0x104) Receive Counter Register */
+  RoReg Reserved5[7];
   RwReg DACC_TPR;      /**< \brief (Dacc Offset: 0x108) Transmit Pointer Register */
   RwReg DACC_TCR;      /**< \brief (Dacc Offset: 0x10C) Transmit Counter Register */
-  RwReg DACC_RNPR;     /**< \brief (Dacc Offset: 0x110) Receive Next Pointer Register */
-  RwReg DACC_RNCR;     /**< \brief (Dacc Offset: 0x114) Receive Next Counter Register */
+  RoReg Reserved6[2];
   RwReg DACC_TNPR;     /**< \brief (Dacc Offset: 0x118) Transmit Next Pointer Register */
   RwReg DACC_TNCR;     /**< \brief (Dacc Offset: 0x11C) Transmit Next Counter Register */
   WoReg DACC_PTCR;     /**< \brief (Dacc Offset: 0x120) Transfer Control Register */
@@ -192,14 +189,6 @@ typedef struct {
 #define DACC_WPSR_WPROTERR (0x1u << 0) /**< \brief (DACC_WPSR) Write protection error */
 #define DACC_WPSR_WPROTADDR_Pos 8
 #define DACC_WPSR_WPROTADDR_Msk (0xffu << DACC_WPSR_WPROTADDR_Pos) /**< \brief (DACC_WPSR) Write protection error address */
-/* -------- DACC_RPR : (DACC Offset: 0x100) Receive Pointer Register -------- */
-#define DACC_RPR_RXPTR_Pos 0
-#define DACC_RPR_RXPTR_Msk (0xffffffffu << DACC_RPR_RXPTR_Pos) /**< \brief (DACC_RPR) Receive Pointer Register */
-#define DACC_RPR_RXPTR(value) ((DACC_RPR_RXPTR_Msk & ((value) << DACC_RPR_RXPTR_Pos)))
-/* -------- DACC_RCR : (DACC Offset: 0x104) Receive Counter Register -------- */
-#define DACC_RCR_RXCTR_Pos 0
-#define DACC_RCR_RXCTR_Msk (0xffffu << DACC_RCR_RXCTR_Pos) /**< \brief (DACC_RCR) Receive Counter Register */
-#define DACC_RCR_RXCTR(value) ((DACC_RCR_RXCTR_Msk & ((value) << DACC_RCR_RXCTR_Pos)))
 /* -------- DACC_TPR : (DACC Offset: 0x108) Transmit Pointer Register -------- */
 #define DACC_TPR_TXPTR_Pos 0
 #define DACC_TPR_TXPTR_Msk (0xffffffffu << DACC_TPR_TXPTR_Pos) /**< \brief (DACC_TPR) Transmit Counter Register */
@@ -208,14 +197,6 @@ typedef struct {
 #define DACC_TCR_TXCTR_Pos 0
 #define DACC_TCR_TXCTR_Msk (0xffffu << DACC_TCR_TXCTR_Pos) /**< \brief (DACC_TCR) Transmit Counter Register */
 #define DACC_TCR_TXCTR(value) ((DACC_TCR_TXCTR_Msk & ((value) << DACC_TCR_TXCTR_Pos)))
-/* -------- DACC_RNPR : (DACC Offset: 0x110) Receive Next Pointer Register -------- */
-#define DACC_RNPR_RXNPTR_Pos 0
-#define DACC_RNPR_RXNPTR_Msk (0xffffffffu << DACC_RNPR_RXNPTR_Pos) /**< \brief (DACC_RNPR) Receive Next Pointer */
-#define DACC_RNPR_RXNPTR(value) ((DACC_RNPR_RXNPTR_Msk & ((value) << DACC_RNPR_RXNPTR_Pos)))
-/* -------- DACC_RNCR : (DACC Offset: 0x114) Receive Next Counter Register -------- */
-#define DACC_RNCR_RXNCTR_Pos 0
-#define DACC_RNCR_RXNCTR_Msk (0xffffu << DACC_RNCR_RXNCTR_Pos) /**< \brief (DACC_RNCR) Receive Next Counter */
-#define DACC_RNCR_RXNCTR(value) ((DACC_RNCR_RXNCTR_Msk & ((value) << DACC_RNCR_RXNCTR_Pos)))
 /* -------- DACC_TNPR : (DACC Offset: 0x118) Transmit Next Pointer Register -------- */
 #define DACC_TNPR_TXNPTR_Pos 0
 #define DACC_TNPR_TXNPTR_Msk (0xffffffffu << DACC_TNPR_TXNPTR_Pos) /**< \brief (DACC_TNPR) Transmit Next Pointer */

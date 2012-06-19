@@ -105,20 +105,17 @@ typedef struct {
   RoReg      Reserved4[12];
   WoReg      PWM_WPCR;      /**< \brief (Pwm Offset: 0xE4) PWM Write Protect Control Register */
   RoReg      PWM_WPSR;      /**< \brief (Pwm Offset: 0xE8) PWM Write Protect Status Register */
-  RoReg      Reserved5[5];
-  RwReg      PWM_RPR;       /**< \brief (Pwm Offset: 0x100) Receive Pointer Register */
-  RwReg      PWM_RCR;       /**< \brief (Pwm Offset: 0x104) Receive Counter Register */
+  RoReg      Reserved5[7];
   RwReg      PWM_TPR;       /**< \brief (Pwm Offset: 0x108) Transmit Pointer Register */
   RwReg      PWM_TCR;       /**< \brief (Pwm Offset: 0x10C) Transmit Counter Register */
-  RwReg      PWM_RNPR;      /**< \brief (Pwm Offset: 0x110) Receive Next Pointer Register */
-  RwReg      PWM_RNCR;      /**< \brief (Pwm Offset: 0x114) Receive Next Counter Register */
+  RoReg      Reserved6[2];
   RwReg      PWM_TNPR;      /**< \brief (Pwm Offset: 0x118) Transmit Next Pointer Register */
   RwReg      PWM_TNCR;      /**< \brief (Pwm Offset: 0x11C) Transmit Next Counter Register */
   WoReg      PWM_PTCR;      /**< \brief (Pwm Offset: 0x120) Transfer Control Register */
   RoReg      PWM_PTSR;      /**< \brief (Pwm Offset: 0x124) Transfer Status Register */
-  RoReg      Reserved6[2];
+  RoReg      Reserved7[2];
   PwmCmp     PWM_CMP[PWMCMP_NUMBER]; /**< \brief (Pwm Offset: 0x130) 0 .. 7 */
-  RoReg      Reserved7[20];
+  RoReg      Reserved8[20];
   PwmCh_num  PWM_CH_NUM[PWMCH_NUM_NUMBER]; /**< \brief (Pwm Offset: 0x200) ch_num = 0 .. 7 */
 } Pwm;
 #endif /* !(defined(__ASSEMBLY__) || defined(__IAR_SYSTEMS_ASM__)) */
@@ -556,14 +553,6 @@ typedef struct {
 #define PWM_WPSR_WPHWS5 (0x1u << 13) /**< \brief (PWM_WPSR) Write Protect HW Status */
 #define PWM_WPSR_WPVSRC_Pos 16
 #define PWM_WPSR_WPVSRC_Msk (0xffffu << PWM_WPSR_WPVSRC_Pos) /**< \brief (PWM_WPSR) Write Protect Violation Source */
-/* -------- PWM_RPR : (PWM Offset: 0x100) Receive Pointer Register -------- */
-#define PWM_RPR_RXPTR_Pos 0
-#define PWM_RPR_RXPTR_Msk (0xffffffffu << PWM_RPR_RXPTR_Pos) /**< \brief (PWM_RPR) Receive Pointer Register */
-#define PWM_RPR_RXPTR(value) ((PWM_RPR_RXPTR_Msk & ((value) << PWM_RPR_RXPTR_Pos)))
-/* -------- PWM_RCR : (PWM Offset: 0x104) Receive Counter Register -------- */
-#define PWM_RCR_RXCTR_Pos 0
-#define PWM_RCR_RXCTR_Msk (0xffffu << PWM_RCR_RXCTR_Pos) /**< \brief (PWM_RCR) Receive Counter Register */
-#define PWM_RCR_RXCTR(value) ((PWM_RCR_RXCTR_Msk & ((value) << PWM_RCR_RXCTR_Pos)))
 /* -------- PWM_TPR : (PWM Offset: 0x108) Transmit Pointer Register -------- */
 #define PWM_TPR_TXPTR_Pos 0
 #define PWM_TPR_TXPTR_Msk (0xffffffffu << PWM_TPR_TXPTR_Pos) /**< \brief (PWM_TPR) Transmit Counter Register */
@@ -572,14 +561,6 @@ typedef struct {
 #define PWM_TCR_TXCTR_Pos 0
 #define PWM_TCR_TXCTR_Msk (0xffffu << PWM_TCR_TXCTR_Pos) /**< \brief (PWM_TCR) Transmit Counter Register */
 #define PWM_TCR_TXCTR(value) ((PWM_TCR_TXCTR_Msk & ((value) << PWM_TCR_TXCTR_Pos)))
-/* -------- PWM_RNPR : (PWM Offset: 0x110) Receive Next Pointer Register -------- */
-#define PWM_RNPR_RXNPTR_Pos 0
-#define PWM_RNPR_RXNPTR_Msk (0xffffffffu << PWM_RNPR_RXNPTR_Pos) /**< \brief (PWM_RNPR) Receive Next Pointer */
-#define PWM_RNPR_RXNPTR(value) ((PWM_RNPR_RXNPTR_Msk & ((value) << PWM_RNPR_RXNPTR_Pos)))
-/* -------- PWM_RNCR : (PWM Offset: 0x114) Receive Next Counter Register -------- */
-#define PWM_RNCR_RXNCTR_Pos 0
-#define PWM_RNCR_RXNCTR_Msk (0xffffu << PWM_RNCR_RXNCTR_Pos) /**< \brief (PWM_RNCR) Receive Next Counter */
-#define PWM_RNCR_RXNCTR(value) ((PWM_RNCR_RXNCTR_Msk & ((value) << PWM_RNCR_RXNCTR_Pos)))
 /* -------- PWM_TNPR : (PWM Offset: 0x118) Transmit Next Pointer Register -------- */
 #define PWM_TNPR_TXNPTR_Pos 0
 #define PWM_TNPR_TXNPTR_Msk (0xffffffffu << PWM_TNPR_TXNPTR_Pos) /**< \brief (PWM_TNPR) Transmit Next Pointer */

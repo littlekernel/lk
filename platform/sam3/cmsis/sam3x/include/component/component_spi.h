@@ -154,15 +154,16 @@ typedef struct {
 #define SPI_CSR_DLYBCT_Msk (0xffu << SPI_CSR_DLYBCT_Pos) /**< \brief (SPI_CSR[4]) Delay Between Consecutive Transfers */
 #define SPI_CSR_DLYBCT(value) ((SPI_CSR_DLYBCT_Msk & ((value) << SPI_CSR_DLYBCT_Pos)))
 /* -------- SPI_WPMR : (SPI Offset: 0xE4) Write Protection Control Register -------- */
-#define SPI_WPMR_SPIWPEN (0x1u << 0) /**< \brief (SPI_WPMR) SPI Write Protection Enable */
-#define SPI_WPMR_SPIWPKEY_Pos 8
-#define SPI_WPMR_SPIWPKEY_Msk (0xffffffu << SPI_WPMR_SPIWPKEY_Pos) /**< \brief (SPI_WPMR) SPI Write Protection Key Password */
-#define SPI_WPMR_SPIWPKEY(value) ((SPI_WPMR_SPIWPKEY_Msk & ((value) << SPI_WPMR_SPIWPKEY_Pos)))
+#define SPI_WPMR_WPEN (0x1u << 0) /**< \brief (SPI_WPMR) Write Protection Enable */
+#define SPI_WPMR_WPKEY_Pos 8
+#define SPI_WPMR_WPKEY_Msk (0xffffffu << SPI_WPMR_WPKEY_Pos) /**< \brief (SPI_WPMR) Write Protection Key Password */
+#define SPI_WPMR_WPKEY(value) ((SPI_WPMR_WPKEY_Msk & ((value) << SPI_WPMR_WPKEY_Pos)))
 /* -------- SPI_WPSR : (SPI Offset: 0xE8) Write Protection Status Register -------- */
-#define SPI_WPSR_SPIWPVS_Pos 0
-#define SPI_WPSR_SPIWPVS_Msk (0x7u << SPI_WPSR_SPIWPVS_Pos) /**< \brief (SPI_WPSR) SPI Write Protection Violation Status */
-#define SPI_WPSR_SPIWPVSRC_Pos 8
-#define SPI_WPSR_SPIWPVSRC_Msk (0xffu << SPI_WPSR_SPIWPVSRC_Pos) /**< \brief (SPI_WPSR) SPI Write Protection Violation Source */
+#define SPI_WPSR_WPVS (0x7u << 0) /**< \brief (SPI_WPSR) Write Protection Violation Status */
+#define SPI_WPSR_WPVS_Pos 0
+#define SPI_WPSR_WPVS_Msk (0x1u << SPI_WPSR_WPVS_Pos) /**< \brief (SPI_WPSR) Write Protection Violation Status */
+#define SPI_WPSR_WPVSRC_Pos 8
+#define SPI_WPSR_WPVSRC_Msk (0xffu << SPI_WPSR_WPVSRC_Pos) /**< \brief (SPI_WPSR) Write Protection Violation Source */
 
 /*@}*/
 

@@ -77,12 +77,10 @@ typedef struct {
   RoReg Reserved5[5];
   RwReg ADC_RPR;       /**< \brief (Adc Offset: 0x100) Receive Pointer Register */
   RwReg ADC_RCR;       /**< \brief (Adc Offset: 0x104) Receive Counter Register */
-  RwReg ADC_TPR;       /**< \brief (Adc Offset: 0x108) Transmit Pointer Register */
-  RwReg ADC_TCR;       /**< \brief (Adc Offset: 0x10C) Transmit Counter Register */
+  RoReg Reserved6[2];
   RwReg ADC_RNPR;      /**< \brief (Adc Offset: 0x110) Receive Next Pointer Register */
   RwReg ADC_RNCR;      /**< \brief (Adc Offset: 0x114) Receive Next Counter Register */
-  RwReg ADC_TNPR;      /**< \brief (Adc Offset: 0x118) Transmit Next Pointer Register */
-  RwReg ADC_TNCR;      /**< \brief (Adc Offset: 0x11C) Transmit Next Counter Register */
+  RoReg Reserved7[2];
   WoReg ADC_PTCR;      /**< \brief (Adc Offset: 0x120) Transfer Control Register */
   RoReg ADC_PTSR;      /**< \brief (Adc Offset: 0x124) Transfer Status Register */
 } Adc;
@@ -493,14 +491,6 @@ typedef struct {
 #define ADC_RCR_RXCTR_Pos 0
 #define ADC_RCR_RXCTR_Msk (0xffffu << ADC_RCR_RXCTR_Pos) /**< \brief (ADC_RCR) Receive Counter Register */
 #define ADC_RCR_RXCTR(value) ((ADC_RCR_RXCTR_Msk & ((value) << ADC_RCR_RXCTR_Pos)))
-/* -------- ADC_TPR : (ADC Offset: 0x108) Transmit Pointer Register -------- */
-#define ADC_TPR_TXPTR_Pos 0
-#define ADC_TPR_TXPTR_Msk (0xffffffffu << ADC_TPR_TXPTR_Pos) /**< \brief (ADC_TPR) Transmit Counter Register */
-#define ADC_TPR_TXPTR(value) ((ADC_TPR_TXPTR_Msk & ((value) << ADC_TPR_TXPTR_Pos)))
-/* -------- ADC_TCR : (ADC Offset: 0x10C) Transmit Counter Register -------- */
-#define ADC_TCR_TXCTR_Pos 0
-#define ADC_TCR_TXCTR_Msk (0xffffu << ADC_TCR_TXCTR_Pos) /**< \brief (ADC_TCR) Transmit Counter Register */
-#define ADC_TCR_TXCTR(value) ((ADC_TCR_TXCTR_Msk & ((value) << ADC_TCR_TXCTR_Pos)))
 /* -------- ADC_RNPR : (ADC Offset: 0x110) Receive Next Pointer Register -------- */
 #define ADC_RNPR_RXNPTR_Pos 0
 #define ADC_RNPR_RXNPTR_Msk (0xffffffffu << ADC_RNPR_RXNPTR_Pos) /**< \brief (ADC_RNPR) Receive Next Pointer */
@@ -509,14 +499,6 @@ typedef struct {
 #define ADC_RNCR_RXNCTR_Pos 0
 #define ADC_RNCR_RXNCTR_Msk (0xffffu << ADC_RNCR_RXNCTR_Pos) /**< \brief (ADC_RNCR) Receive Next Counter */
 #define ADC_RNCR_RXNCTR(value) ((ADC_RNCR_RXNCTR_Msk & ((value) << ADC_RNCR_RXNCTR_Pos)))
-/* -------- ADC_TNPR : (ADC Offset: 0x118) Transmit Next Pointer Register -------- */
-#define ADC_TNPR_TXNPTR_Pos 0
-#define ADC_TNPR_TXNPTR_Msk (0xffffffffu << ADC_TNPR_TXNPTR_Pos) /**< \brief (ADC_TNPR) Transmit Next Pointer */
-#define ADC_TNPR_TXNPTR(value) ((ADC_TNPR_TXNPTR_Msk & ((value) << ADC_TNPR_TXNPTR_Pos)))
-/* -------- ADC_TNCR : (ADC Offset: 0x11C) Transmit Next Counter Register -------- */
-#define ADC_TNCR_TXNCTR_Pos 0
-#define ADC_TNCR_TXNCTR_Msk (0xffffu << ADC_TNCR_TXNCTR_Pos) /**< \brief (ADC_TNCR) Transmit Counter Next */
-#define ADC_TNCR_TXNCTR(value) ((ADC_TNCR_TXNCTR_Msk & ((value) << ADC_TNCR_TXNCTR_Pos)))
 /* -------- ADC_PTCR : (ADC Offset: 0x120) Transfer Control Register -------- */
 #define ADC_PTCR_RXTEN (0x1u << 0) /**< \brief (ADC_PTCR) Receiver Transfer Enable */
 #define ADC_PTCR_RXTDIS (0x1u << 1) /**< \brief (ADC_PTCR) Receiver Transfer Disable */

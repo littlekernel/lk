@@ -49,30 +49,33 @@
 #if !(defined(__ASSEMBLY__) || defined(__IAR_SYSTEMS_ASM__))
 /** \brief CanMb hardware registers */
 typedef struct {
-  RwReg  CAN_MMR;        /**< \brief (CanMb Offset: 0x0) Mailbox Mode Register */
-  RwReg  CAN_MAM;        /**< \brief (CanMb Offset: 0x4) Mailbox Acceptance Mask Register */
-  RwReg  CAN_MID;        /**< \brief (CanMb Offset: 0x8) Mailbox ID Register */
-  RwReg  CAN_MFID;       /**< \brief (CanMb Offset: 0xC) Mailbox Family ID Register */
-  RwReg  CAN_MSR;        /**< \brief (CanMb Offset: 0x10) Mailbox Status Register */
-  RwReg  CAN_MDL;        /**< \brief (CanMb Offset: 0x14) Mailbox Data Low Register */
-  RwReg  CAN_MDH;        /**< \brief (CanMb Offset: 0x18) Mailbox Data High Register */
-  RwReg  CAN_MCR;        /**< \brief (CanMb Offset: 0x1C) Mailbox Control Register */
+  RwReg  CAN_MMR;       /**< \brief (CanMb Offset: 0x0) Mailbox Mode Register */
+  RwReg  CAN_MAM;       /**< \brief (CanMb Offset: 0x4) Mailbox Acceptance Mask Register */
+  RwReg  CAN_MID;       /**< \brief (CanMb Offset: 0x8) Mailbox ID Register */
+  RwReg  CAN_MFID;      /**< \brief (CanMb Offset: 0xC) Mailbox Family ID Register */
+  RwReg  CAN_MSR;       /**< \brief (CanMb Offset: 0x10) Mailbox Status Register */
+  RwReg  CAN_MDL;       /**< \brief (CanMb Offset: 0x14) Mailbox Data Low Register */
+  RwReg  CAN_MDH;       /**< \brief (CanMb Offset: 0x18) Mailbox Data High Register */
+  RwReg  CAN_MCR;       /**< \brief (CanMb Offset: 0x1C) Mailbox Control Register */
 } CanMb;
 /** \brief Can hardware registers */
 #define CANMB_NUMBER 8
 typedef struct {
-  RwReg  CAN_MR;         /**< \brief (Can Offset: 0x0000) Mode Register */
-  WoReg  CAN_IER;        /**< \brief (Can Offset: 0x0004) Interrupt Enable Register */
-  WoReg  CAN_IDR;        /**< \brief (Can Offset: 0x0008) Interrupt Disable Register */
-  RoReg  CAN_IMR;        /**< \brief (Can Offset: 0x000C) Interrupt Mask Register */
-  RoReg  CAN_SR;         /**< \brief (Can Offset: 0x0010) Status Register */
-  RwReg  CAN_BR;         /**< \brief (Can Offset: 0x0014) Baudrate Register */
-  RoReg  CAN_TIM;        /**< \brief (Can Offset: 0x0018) Timer Register */
-  RoReg  CAN_TIMESTP;    /**< \brief (Can Offset: 0x001C) Timestamp Register */
-  RoReg  CAN_ECR;        /**< \brief (Can Offset: 0x0020) Error Counter Register */
-  WoReg  CAN_TCR;        /**< \brief (Can Offset: 0x0024) Transfer Command Register */
-  WoReg  CAN_ACR;        /**< \brief (Can Offset: 0x0028) Abort Command Register */
-  RoReg  Reserved1[117];
+  RwReg  CAN_MR;        /**< \brief (Can Offset: 0x0000) Mode Register */
+  WoReg  CAN_IER;       /**< \brief (Can Offset: 0x0004) Interrupt Enable Register */
+  WoReg  CAN_IDR;       /**< \brief (Can Offset: 0x0008) Interrupt Disable Register */
+  RoReg  CAN_IMR;       /**< \brief (Can Offset: 0x000C) Interrupt Mask Register */
+  RoReg  CAN_SR;        /**< \brief (Can Offset: 0x0010) Status Register */
+  RwReg  CAN_BR;        /**< \brief (Can Offset: 0x0014) Baudrate Register */
+  RoReg  CAN_TIM;       /**< \brief (Can Offset: 0x0018) Timer Register */
+  RoReg  CAN_TIMESTP;   /**< \brief (Can Offset: 0x001C) Timestamp Register */
+  RoReg  CAN_ECR;       /**< \brief (Can Offset: 0x0020) Error Counter Register */
+  WoReg  CAN_TCR;       /**< \brief (Can Offset: 0x0024) Transfer Command Register */
+  WoReg  CAN_ACR;       /**< \brief (Can Offset: 0x0028) Abort Command Register */
+  RoReg  Reserved1[46];
+  RwReg  CAN_WPMR;      /**< \brief (Can Offset: 0x00E4) Write Protect Mode Register */
+  RoReg  CAN_WPSR;      /**< \brief (Can Offset: 0x00E8) Write Protect Status Register */
+  RoReg  Reserved2[69];
   CanMb  CAN_MB[CANMB_NUMBER]; /**< \brief (Can Offset: 0x200) MB = 0 .. 7 */
 } Can;
 #endif /* !(defined(__ASSEMBLY__) || defined(__IAR_SYSTEMS_ASM__)) */
@@ -202,23 +205,11 @@ typedef struct {
 #define   CAN_BR_SMP_ONCE (0x0u << 24) /**< \brief (CAN_BR) The incoming bit stream is sampled once at sample point. */
 #define   CAN_BR_SMP_THREE (0x1u << 24) /**< \brief (CAN_BR) The incoming bit stream is sampled three times with a period of a MCK clock period, centered on sample point. */
 /* -------- CAN_TIM : (CAN Offset: 0x0018) Timer Register -------- */
-#define CAN_TIM_TIMER0 (0x1u << 0) /**< \brief (CAN_TIM) Timer */
-#define CAN_TIM_TIMER1 (0x1u << 1) /**< \brief (CAN_TIM) Timer */
-#define CAN_TIM_TIMER2 (0x1u << 2) /**< \brief (CAN_TIM) Timer */
-#define CAN_TIM_TIMER3 (0x1u << 3) /**< \brief (CAN_TIM) Timer */
-#define CAN_TIM_TIMER4 (0x1u << 4) /**< \brief (CAN_TIM) Timer */
-#define CAN_TIM_TIMER5 (0x1u << 5) /**< \brief (CAN_TIM) Timer */
-#define CAN_TIM_TIMER6 (0x1u << 6) /**< \brief (CAN_TIM) Timer */
-#define CAN_TIM_TIMER7 (0x1u << 7) /**< \brief (CAN_TIM) Timer */
+#define CAN_TIM_TIMER_Pos 0
+#define CAN_TIM_TIMER_Msk (0xffffu << CAN_TIM_TIMER_Pos) /**< \brief (CAN_TIM) Timer */
 /* -------- CAN_TIMESTP : (CAN Offset: 0x001C) Timestamp Register -------- */
-#define CAN_TIMESTP_MTIMESTAMP0 (0x1u << 0) /**< \brief (CAN_TIMESTP) Timestamp */
-#define CAN_TIMESTP_MTIMESTAMP1 (0x1u << 1) /**< \brief (CAN_TIMESTP) Timestamp */
-#define CAN_TIMESTP_MTIMESTAMP2 (0x1u << 2) /**< \brief (CAN_TIMESTP) Timestamp */
-#define CAN_TIMESTP_MTIMESTAMP3 (0x1u << 3) /**< \brief (CAN_TIMESTP) Timestamp */
-#define CAN_TIMESTP_MTIMESTAMP4 (0x1u << 4) /**< \brief (CAN_TIMESTP) Timestamp */
-#define CAN_TIMESTP_MTIMESTAMP5 (0x1u << 5) /**< \brief (CAN_TIMESTP) Timestamp */
-#define CAN_TIMESTP_MTIMESTAMP6 (0x1u << 6) /**< \brief (CAN_TIMESTP) Timestamp */
-#define CAN_TIMESTP_MTIMESTAMP7 (0x1u << 7) /**< \brief (CAN_TIMESTP) Timestamp */
+#define CAN_TIMESTP_MTIMESTAMP_Pos 0
+#define CAN_TIMESTP_MTIMESTAMP_Msk (0xffffu << CAN_TIMESTP_MTIMESTAMP_Pos) /**< \brief (CAN_TIMESTP) Timestamp */
 /* -------- CAN_ECR : (CAN Offset: 0x0020) Error Counter Register -------- */
 #define CAN_ECR_REC_Pos 0
 #define CAN_ECR_REC_Msk (0xffu << CAN_ECR_REC_Pos) /**< \brief (CAN_ECR) Receive Error Counter */
@@ -243,15 +234,19 @@ typedef struct {
 #define CAN_ACR_MB5 (0x1u << 5) /**< \brief (CAN_ACR) Abort Request for Mailbox 5 */
 #define CAN_ACR_MB6 (0x1u << 6) /**< \brief (CAN_ACR) Abort Request for Mailbox 6 */
 #define CAN_ACR_MB7 (0x1u << 7) /**< \brief (CAN_ACR) Abort Request for Mailbox 7 */
+/* -------- CAN_WPMR : (CAN Offset: 0x00E4) Write Protect Mode Register -------- */
+#define CAN_WPMR_WPEN (0x1u << 0) /**< \brief (CAN_WPMR) Write Protection Enable */
+#define CAN_WPMR_WPKEY_Pos 8
+#define CAN_WPMR_WPKEY_Msk (0xffffffu << CAN_WPMR_WPKEY_Pos) /**< \brief (CAN_WPMR) SPI Write Protection Key Password */
+#define CAN_WPMR_WPKEY(value) ((CAN_WPMR_WPKEY_Msk & ((value) << CAN_WPMR_WPKEY_Pos)))
+/* -------- CAN_WPSR : (CAN Offset: 0x00E8) Write Protect Status Register -------- */
+#define CAN_WPSR_WPVS (0x1u << 0) /**< \brief (CAN_WPSR) Write Protection Violation Status */
+#define CAN_WPSR_WPVSRC_Pos 8
+#define CAN_WPSR_WPVSRC_Msk (0xffu << CAN_WPSR_WPVSRC_Pos) /**< \brief (CAN_WPSR) Write Protection Violation Source */
 /* -------- CAN_MMR : (CAN Offset: N/A) Mailbox Mode Register -------- */
-#define CAN_MMR_MTIMEMARK0 (0x1u << 0) /**< \brief (CAN_MMR) Mailbox Timemark */
-#define CAN_MMR_MTIMEMARK1 (0x1u << 1) /**< \brief (CAN_MMR) Mailbox Timemark */
-#define CAN_MMR_MTIMEMARK2 (0x1u << 2) /**< \brief (CAN_MMR) Mailbox Timemark */
-#define CAN_MMR_MTIMEMARK3 (0x1u << 3) /**< \brief (CAN_MMR) Mailbox Timemark */
-#define CAN_MMR_MTIMEMARK4 (0x1u << 4) /**< \brief (CAN_MMR) Mailbox Timemark */
-#define CAN_MMR_MTIMEMARK5 (0x1u << 5) /**< \brief (CAN_MMR) Mailbox Timemark */
-#define CAN_MMR_MTIMEMARK6 (0x1u << 6) /**< \brief (CAN_MMR) Mailbox Timemark */
-#define CAN_MMR_MTIMEMARK7 (0x1u << 7) /**< \brief (CAN_MMR) Mailbox Timemark */
+#define CAN_MMR_MTIMEMARK_Pos 0
+#define CAN_MMR_MTIMEMARK_Msk (0xffffu << CAN_MMR_MTIMEMARK_Pos) /**< \brief (CAN_MMR) Mailbox Timemark */
+#define CAN_MMR_MTIMEMARK(value) ((CAN_MMR_MTIMEMARK_Msk & ((value) << CAN_MMR_MTIMEMARK_Pos)))
 #define CAN_MMR_PRIOR_Pos 16
 #define CAN_MMR_PRIOR_Msk (0xfu << CAN_MMR_PRIOR_Pos) /**< \brief (CAN_MMR) Mailbox Priority */
 #define CAN_MMR_PRIOR(value) ((CAN_MMR_PRIOR_Msk & ((value) << CAN_MMR_PRIOR_Pos)))
@@ -283,14 +278,8 @@ typedef struct {
 #define CAN_MFID_MFID_Pos 0
 #define CAN_MFID_MFID_Msk (0x1fffffffu << CAN_MFID_MFID_Pos) /**< \brief (CAN_MFID) Family ID */
 /* -------- CAN_MSR : (CAN Offset: N/A) Mailbox Status Register -------- */
-#define CAN_MSR_MTIMESTAMP0 (0x1u << 0) /**< \brief (CAN_MSR) Timer value */
-#define CAN_MSR_MTIMESTAMP1 (0x1u << 1) /**< \brief (CAN_MSR) Timer value */
-#define CAN_MSR_MTIMESTAMP2 (0x1u << 2) /**< \brief (CAN_MSR) Timer value */
-#define CAN_MSR_MTIMESTAMP3 (0x1u << 3) /**< \brief (CAN_MSR) Timer value */
-#define CAN_MSR_MTIMESTAMP4 (0x1u << 4) /**< \brief (CAN_MSR) Timer value */
-#define CAN_MSR_MTIMESTAMP5 (0x1u << 5) /**< \brief (CAN_MSR) Timer value */
-#define CAN_MSR_MTIMESTAMP6 (0x1u << 6) /**< \brief (CAN_MSR) Timer value */
-#define CAN_MSR_MTIMESTAMP7 (0x1u << 7) /**< \brief (CAN_MSR) Timer value */
+#define CAN_MSR_MTIMESTAMP_Pos 0
+#define CAN_MSR_MTIMESTAMP_Msk (0xffffu << CAN_MSR_MTIMESTAMP_Pos) /**< \brief (CAN_MSR) Timer value */
 #define CAN_MSR_MDLC_Pos 16
 #define CAN_MSR_MDLC_Msk (0xfu << CAN_MSR_MDLC_Pos) /**< \brief (CAN_MSR) Mailbox Data Length Code */
 #define CAN_MSR_MRTR (0x1u << 20) /**< \brief (CAN_MSR) Mailbox Remote Transmission Request */

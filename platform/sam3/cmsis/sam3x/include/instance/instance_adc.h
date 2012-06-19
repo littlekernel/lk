@@ -65,12 +65,8 @@
 #define REG_ADC_WPSR             (0x400C00E8U) /**< \brief (ADC) Write Protect Status Register */
 #define REG_ADC_RPR              (0x400C0100U) /**< \brief (ADC) Receive Pointer Register */
 #define REG_ADC_RCR              (0x400C0104U) /**< \brief (ADC) Receive Counter Register */
-#define REG_ADC_TPR              (0x400C0108U) /**< \brief (ADC) Transmit Pointer Register */
-#define REG_ADC_TCR              (0x400C010CU) /**< \brief (ADC) Transmit Counter Register */
 #define REG_ADC_RNPR             (0x400C0110U) /**< \brief (ADC) Receive Next Pointer Register */
 #define REG_ADC_RNCR             (0x400C0114U) /**< \brief (ADC) Receive Next Counter Register */
-#define REG_ADC_TNPR             (0x400C0118U) /**< \brief (ADC) Transmit Next Pointer Register */
-#define REG_ADC_TNCR             (0x400C011CU) /**< \brief (ADC) Transmit Next Counter Register */
 #define REG_ADC_PTCR             (0x400C0120U) /**< \brief (ADC) Transfer Control Register */
 #define REG_ADC_PTSR             (0x400C0124U) /**< \brief (ADC) Transfer Status Register */
 #else
@@ -97,12 +93,8 @@
 #define REG_ADC_WPSR    (*(RoReg*)0x400C00E8U) /**< \brief (ADC) Write Protect Status Register */
 #define REG_ADC_RPR     (*(RwReg*)0x400C0100U) /**< \brief (ADC) Receive Pointer Register */
 #define REG_ADC_RCR     (*(RwReg*)0x400C0104U) /**< \brief (ADC) Receive Counter Register */
-#define REG_ADC_TPR     (*(RwReg*)0x400C0108U) /**< \brief (ADC) Transmit Pointer Register */
-#define REG_ADC_TCR     (*(RwReg*)0x400C010CU) /**< \brief (ADC) Transmit Counter Register */
 #define REG_ADC_RNPR    (*(RwReg*)0x400C0110U) /**< \brief (ADC) Receive Next Pointer Register */
 #define REG_ADC_RNCR    (*(RwReg*)0x400C0114U) /**< \brief (ADC) Receive Next Counter Register */
-#define REG_ADC_TNPR    (*(RwReg*)0x400C0118U) /**< \brief (ADC) Transmit Next Pointer Register */
-#define REG_ADC_TNCR    (*(RwReg*)0x400C011CU) /**< \brief (ADC) Transmit Next Counter Register */
 #define REG_ADC_PTCR    (*(WoReg*)0x400C0120U) /**< \brief (ADC) Transfer Control Register */
 #define REG_ADC_PTSR    (*(RoReg*)0x400C0124U) /**< \brief (ADC) Transfer Status Register */
 #endif /* (defined(__ASSEMBLY__) || defined(__IAR_SYSTEMS_ASM__)) */

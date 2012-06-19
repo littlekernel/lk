@@ -251,7 +251,7 @@ void WDT_Handler        ( void );
 
 #include <core_cm3.h>
 #if !defined DONT_USE_CMSIS_INIT
-#include "system_sam3a.h"
+#include "system_sam3x.h"
 #endif /* DONT_USE_CMSIS_INIT */
 
 /*@}*/
@@ -513,13 +513,13 @@ void WDT_Handler        ( void );
 /* ************************************************************************** */
 
 /* Device characteristics */
-#define CHIP_FREQ_SLCK_RC_MIN           (20000U)
-#define CHIP_FREQ_SLCK_RC               (32000U)
-#define CHIP_FREQ_SLCK_RC_MAX           (44000U)
-#define CHIP_FREQ_MAINCK_RC_4MHZ        (4000000U)
-#define CHIP_FREQ_MAINCK_RC_8MHZ        (8000000U)
-#define CHIP_FREQ_MAINCK_RC_12MHZ       (12000000U)
-#define CHIP_FREQ_CPU_MAX               (84000000U)
+#define CHIP_FREQ_SLCK_RC_MIN           (20000UL)
+#define CHIP_FREQ_SLCK_RC               (32000UL)
+#define CHIP_FREQ_SLCK_RC_MAX           (44000UL)
+#define CHIP_FREQ_MAINCK_RC_4MHZ        (4000000UL)
+#define CHIP_FREQ_MAINCK_RC_8MHZ        (8000000UL)
+#define CHIP_FREQ_MAINCK_RC_12MHZ       (12000000UL)
+#define CHIP_FREQ_CPU_MAX               (84000000UL)
 #define CHIP_FREQ_XTAL_32K              (32768UL)
 #define CHIP_FREQ_XTAL_12M              (12000000UL)
 

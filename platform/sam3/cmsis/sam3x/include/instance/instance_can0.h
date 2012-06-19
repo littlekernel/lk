@@ -53,6 +53,8 @@
 #define REG_CAN0_ECR              (0x400B4020U) /**< \brief (CAN0) Error Counter Register */
 #define REG_CAN0_TCR              (0x400B4024U) /**< \brief (CAN0) Transfer Command Register */
 #define REG_CAN0_ACR              (0x400B4028U) /**< \brief (CAN0) Abort Command Register */
+#define REG_CAN0_WPMR             (0x400B40E4U) /**< \brief (CAN0) Write Protect Mode Register */
+#define REG_CAN0_WPSR             (0x400B40E8U) /**< \brief (CAN0) Write Protect Status Register */
 #define REG_CAN0_MMR0             (0x400B4200U) /**< \brief (CAN0) Mailbox Mode Register (MB = 0) */
 #define REG_CAN0_MAM0             (0x400B4204U) /**< \brief (CAN0) Mailbox Acceptance Mask Register (MB = 0) */
 #define REG_CAN0_MID0             (0x400B4208U) /**< \brief (CAN0) Mailbox ID Register (MB = 0) */
@@ -129,6 +131,8 @@
 #define REG_CAN0_ECR     (*(RoReg*)0x400B4020U) /**< \brief (CAN0) Error Counter Register */
 #define REG_CAN0_TCR     (*(WoReg*)0x400B4024U) /**< \brief (CAN0) Transfer Command Register */
 #define REG_CAN0_ACR     (*(WoReg*)0x400B4028U) /**< \brief (CAN0) Abort Command Register */
+#define REG_CAN0_WPMR    (*(RwReg*)0x400B40E4U) /**< \brief (CAN0) Write Protect Mode Register */
+#define REG_CAN0_WPSR    (*(RoReg*)0x400B40E8U) /**< \brief (CAN0) Write Protect Status Register */
 #define REG_CAN0_MMR0    (*(RwReg*)0x400B4200U) /**< \brief (CAN0) Mailbox Mode Register (MB = 0) */
 #define REG_CAN0_MAM0    (*(RwReg*)0x400B4204U) /**< \brief (CAN0) Mailbox Acceptance Mask Register (MB = 0) */
 #define REG_CAN0_MID0    (*(RwReg*)0x400B4208U) /**< \brief (CAN0) Mailbox ID Register (MB = 0) */

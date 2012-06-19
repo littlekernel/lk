@@ -4,7 +4,7 @@
  * \brief Provides the low-level initialization functions that called 
  * on chip startup.
  *
- * Copyright (c) 2011 Atmel Corporation. All rights reserved.
+ * Copyright (c) 2011-2012 Atmel Corporation. All rights reserved.
  *
  * \asf_license_start
  *
@@ -70,7 +70,7 @@ void SystemCoreClockUpdate(void);
 /** 
  * Initialize flash.
  */
-void system_init_flash(uint32_t dw_clk);
+void system_init_flash(uint32_t ul_clk);
 
 /* @cond 0 */
 /**INDENT-OFF**/

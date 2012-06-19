@@ -74,12 +74,8 @@
 #define REG_PWM_SMMR              (0x400940B0U) /**< \brief (PWM) PWM Stepper Motor Mode Register */
 #define REG_PWM_WPCR              (0x400940E4U) /**< \brief (PWM) PWM Write Protect Control Register */
 #define REG_PWM_WPSR              (0x400940E8U) /**< \brief (PWM) PWM Write Protect Status Register */
-#define REG_PWM_RPR               (0x40094100U) /**< \brief (PWM) Receive Pointer Register */
-#define REG_PWM_RCR               (0x40094104U) /**< \brief (PWM) Receive Counter Register */
 #define REG_PWM_TPR               (0x40094108U) /**< \brief (PWM) Transmit Pointer Register */
 #define REG_PWM_TCR               (0x4009410CU) /**< \brief (PWM) Transmit Counter Register */
-#define REG_PWM_RNPR              (0x40094110U) /**< \brief (PWM) Receive Next Pointer Register */
-#define REG_PWM_RNCR              (0x40094114U) /**< \brief (PWM) Receive Next Counter Register */
 #define REG_PWM_TNPR              (0x40094118U) /**< \brief (PWM) Transmit Next Pointer Register */
 #define REG_PWM_TNCR              (0x4009411CU) /**< \brief (PWM) Transmit Next Counter Register */
 #define REG_PWM_PTCR              (0x40094120U) /**< \brief (PWM) Transfer Control Register */
@@ -213,12 +209,8 @@
 #define REG_PWM_SMMR     (*(RwReg*)0x400940B0U) /**< \brief (PWM) PWM Stepper Motor Mode Register */
 #define REG_PWM_WPCR     (*(WoReg*)0x400940E4U) /**< \brief (PWM) PWM Write Protect Control Register */
 #define REG_PWM_WPSR     (*(RoReg*)0x400940E8U) /**< \brief (PWM) PWM Write Protect Status Register */
-#define REG_PWM_RPR      (*(RwReg*)0x40094100U) /**< \brief (PWM) Receive Pointer Register */
-#define REG_PWM_RCR      (*(RwReg*)0x40094104U) /**< \brief (PWM) Receive Counter Register */
 #define REG_PWM_TPR      (*(RwReg*)0x40094108U) /**< \brief (PWM) Transmit Pointer Register */
 #define REG_PWM_TCR      (*(RwReg*)0x4009410CU) /**< \brief (PWM) Transmit Counter Register */
-#define REG_PWM_RNPR     (*(RwReg*)0x40094110U) /**< \brief (PWM) Receive Next Pointer Register */
-#define REG_PWM_RNCR     (*(RwReg*)0x40094114U) /**< \brief (PWM) Receive Next Counter Register */
 #define REG_PWM_TNPR     (*(RwReg*)0x40094118U) /**< \brief (PWM) Transmit Next Pointer Register */
 #define REG_PWM_TNCR     (*(RwReg*)0x4009411CU) /**< \brief (PWM) Transmit Next Counter Register */
 #define REG_PWM_PTCR     (*(WoReg*)0x40094120U) /**< \brief (PWM) Transfer Control Register */
