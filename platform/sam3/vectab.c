@@ -22,10 +22,14 @@
  */
 #include <debug.h>
 #include <compiler.h>
+#include <sam3x8h.h>
+
+extern void sam3_uart_irq(void);
 
 /* appended to the end of the main vector table */
 const void * const __SECTION(".text.boot.vectab2") vectab2[] =
 {
+	[UART_IRQn] = sam3_uart_irq,
 #if 0
     [TIM2_IRQn] = stm32_tim2_irq,
     [TIM3_IRQn] = stm32_tim3_irq,
@@ -37,7 +41,7 @@ const void * const __SECTION(".text.boot.vectab2") vectab2[] =
     [USART1_IRQn] = stm32_USART1_IRQ,
     [USART2_IRQn] = stm32_USART2_IRQ,
     [USART3_IRQn] = stm32_USART3_IRQ,
-    [NUM_IRQn] = 0,
 #endif
+    [NUM_IRQn] = 0,
 };
 

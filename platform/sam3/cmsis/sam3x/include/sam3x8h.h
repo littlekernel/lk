@@ -128,7 +128,9 @@ typedef enum IRQn
   TRNG_IRQn            = 41, /**< 41 SAM3X8H True Random Number Generator (TRNG) */
   EMAC_IRQn            = 42, /**< 42 SAM3X8H Ethernet MAC (EMAC) */
   CAN0_IRQn            = 43, /**< 43 SAM3X8H CAN Controller 0 (CAN0) */
-  CAN1_IRQn            = 44  /**< 44 SAM3X8H CAN Controller 1 (CAN1) */
+  CAN1_IRQn            = 44, /**< 44 SAM3X8H CAN Controller 1 (CAN1) */
+
+  NUM_IRQn /* number of irqs */
 } IRQn_Type;
 
 typedef struct _DeviceVectors

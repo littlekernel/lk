@@ -23,12 +23,30 @@
 #include <err.h>
 #include <debug.h>
 #include <platform.h>
+#include <system_sam3x.h>
+#include <sam3x8h.h>
+#include <uart/uart.h>
+#include <pmc/pmc.h>
+#include <pio/pio.h>
+#include <wdt/wdt.h>
+
+void sam_debug_early_init(void);
+void sam_debug_init(void);
 
 void platform_early_init(void)
 {
+	SystemInit();
+
+	wdt_disable(WDT);
+
+	pmc_enable_periph_clk(ID_PIOC);
+	pio_set_output(PIOC, PIO_PC9, 0, 0, 1);
+
+	sam_debug_early_init();
 }
 
 void platform_init(void)
 {
+	sam_debug_init();
 }
 

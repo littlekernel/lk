@@ -1,7 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 # ROMBASE, MEMBASE, and MEMSIZE are required for the linker script
-ROMBASE := 0x0
+ROMBASE := 0x80000
 MEMBASE := 0x20000000
 
 ARCH := arm
@@ -9,7 +9,8 @@ ARM_CPU := cortex-m3
 
 ifeq ($(SAM_CHIP),sam3x8h)
 DEFINES += \
-	__SAM3X8H__=1
+	__SAM3X8H__=1 \
+	SAM3XA=1
 MEMSIZE ?= 98304 
 endif
 
@@ -47,4 +48,4 @@ LINKER_SCRIPT += \
 MODULES += \
 	lib/cbuf
 
-include $(LOCAL_DIR)/cmsis/sam3x/rules.mk
+include $(LOCAL_DIR)/cmsis/sam3x/rules.mk $(LOCAL_DIR)/drivers/rules.mk

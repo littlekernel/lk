@@ -28,77 +28,65 @@
 #include <kernel/thread.h>
 #include <platform/debug.h>
 #include <arch/ops.h>
-#include <dev/uart.h>
 #include <target/debugconfig.h>
+#include <arch/arm/cm3.h>
+
+#include <uart/uart.h>
+#include <pmc/pmc.h>
+#include <pio/pio.h>
 
 static cbuf_t debug_rx_buf;
 
-#if 0
-void stm32_debug_early_init(void)
-{
-	// XXX move this into usart driver
-	if (DEBUG_UART == USART1) {
-		RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
-	} else if (DEBUG_UART == USART2) {
-		RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
-	} else if (DEBUG_UART == USART3) {
-		RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
-	}
-
-	USART_InitTypeDef init;
-
-	init.USART_BaudRate = 115200;
-	init.USART_WordLength = USART_WordLength_8b;
-	init.USART_StopBits = USART_StopBits_1;
-	init.USART_Parity = USART_Parity_No;
-	init.USART_Mode = USART_Mode_Tx|USART_Mode_Rx;
-	init.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-
-	USART_Init(DEBUG_UART, &init);
-
-	USART_ITConfig(DEBUG_UART, USART_IT_RXNE, DISABLE);
-	NVIC_DisableIRQ(DEBUG_UART_IRQ);	
-
-	USART_Cmd(DEBUG_UART, ENABLE);
-}
-
-/* later in the init process */
-void stm32_debug_init(void)
-{
-	cbuf_initialize(&debug_rx_buf, 16);
-
-	USART_ITConfig(DEBUG_UART, USART_IT_RXNE, ENABLE);
-	NVIC_EnableIRQ(DEBUG_UART_IRQ);	
-}
-
-void stm32_debug_rx_irq(void)
+void sam3_uart_irq(void)
 {
 	inc_critical_section();
 
-	while (USART_GetFlagStatus(DEBUG_UART, USART_FLAG_RXNE)) {
-		char c = USART_ReceiveData(DEBUG_UART);
+	unsigned char c;
+	if (uart_read(UART, &c) == 0) {
 		cbuf_write(&debug_rx_buf, &c, 1, false);
+		cm3_trigger_preempt();
 	}
 
-	USART_ClearFlag(DEBUG_UART, USART_IT_RXNE);
-
 	dec_critical_section();
-	thread_preempt();
 }
-#endif
+
+void sam_debug_early_init(void)
+{
+	pmc_enable_periph_clk(ID_UART);
+	pmc_enable_periph_clk(ID_PIOA);
+
+	pio_set_peripheral(PIOA, PIO_PERIPH_A, PIO_PA8);
+	pio_set_peripheral(PIOA, PIO_PERIPH_A, PIO_PA9);
+
+	sam_uart_opt_t opt;
+
+	opt.ul_mck = 84000000;
+	opt.ul_baudrate = 115200;
+	opt.ul_mode = UART_MR_PAR_NO | UART_MR_CHMODE_NORMAL;
+
+	NVIC_DisableIRQ(UART_IRQn);	
+
+	uart_init(UART, &opt);
+
+	uart_enable(UART);
+}
+
+void sam_debug_init(void)
+{
+	cbuf_initialize(&debug_rx_buf, 16);
+	NVIC_EnableIRQ(UART_IRQn);	
+	uart_enable_interrupt(UART, UART_IER_RXRDY);
+}
 
 void _dputc(char c)
 {
-#if 0
 	if (c == '\n') {
 		_dputc('\r');
 	}
-	while (USART_GetFlagStatus(DEBUG_UART, USART_FLAG_TXE) == 0)
+
+	while (!uart_is_tx_ready(UART))
 		;
-	USART_SendData(DEBUG_UART, c);
-	while (USART_GetFlagStatus(DEBUG_UART, USART_FLAG_TC) == 0)
-		;
-#endif
+	uart_write(UART, c);
 }
 
 int dgetc(char *c, bool wait)
