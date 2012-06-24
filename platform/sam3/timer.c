@@ -28,27 +28,23 @@
 #include <platform/timer.h>
 #include <arch/arm/cm3.h>
 
-#define TIME_BASE_COUNT 0xffff
-#define TICK_RATE 1000000
+#include <pmc/pmc.h>
+#include <tc/tc.h>
+
+#define MCLK 84000000 /* XXX read this */
+#define TICK_RATE (MCLK / 2)
+
+#define LOCAL_TRACE 0
 
 static volatile uint64_t ticks = 0;
 
 static platform_timer_callback cb;
 static void *cb_args;
 
-#if 0
-void stm32_tim2_irq(void)
-{
-	/* time base */
-	ticks += TIME_BASE_COUNT;
-	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-}
-
-void stm32_tim3_irq(void)
+/* use systick as the kernel tick */
+void _systick(void)
 {
 	inc_critical_section();
-
-	TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
 
 	bool resched = false;
 	if (cb) {
@@ -65,32 +61,24 @@ void stm32_tim3_irq(void)
 	dec_critical_section();
 }
 
-static void stm32_tim_irq(uint num)
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, time_t interval)
 {
-	printf("tim irq %d\n", num);
-	PANIC_UNIMPLEMENTED;
+	LTRACEF("callback %p, arg %p, interval %d\n", callback, arg, interval);
+
+	cb = callback;
+	cb_args = arg;
+
+	cm3_systick_set_periodic(/* XXX */ MCLK, interval);
+
+	return NO_ERROR;
 }
 
-void stm32_tim4_irq(void)
+void sam3_tc0_irq(void)
 {
-	stm32_tim_irq(4);
-}
+	tc_get_status(TC0, 0);
 
-void stm32_tim5_irq(void)
-{
-	stm32_tim_irq(5);
+	ticks += 0xffff;
 }
-
-void stm32_tim6_irq(void)
-{
-	stm32_tim_irq(6);
-}
-
-void stm32_tim7_irq(void)
-{
-	stm32_tim_irq(7);
-}
-#endif
 
 time_t current_time(void)
 {
@@ -99,81 +87,53 @@ time_t current_time(void)
 
 bigtime_t current_time_hires(void)
 {
-#if 0
-	bigtime_t res = 0;
+	uint64_t t;
 	do {
-		uint64_t t = ticks;
-		uint16_t delta = TIM_GetCounter(TIM2);
+		t = ticks;
+		uint16_t delta = tc_get_cv(TC0, 0);
 
 		if (ticks != t)
 			continue;
 
-		res = t + delta;
+		t += delta;
 	} while (0);
 
+	/* convert ticks to usec */
+	bigtime_t res = t / (TICK_RATE / 1000000);
+
 	return res;
-#endif
-	return 0;
 }
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, time_t interval)
+void sam_timer_early_init(void)
 {
-	TRACEF("callback %p, arg %p, interval %d\n", callback, arg, interval);
+	pmc_enable_periph_clk(ID_TC0);
 
-	cb = callback;
-	cb_args = arg;
+
+	uint32_t ul_div;
+	uint32_t ul_tcclks;
+	uint32_t ul_sysclk = MCLK; // sysclk_get_cpu_hz();
 
 #if 0
-	TIM_Cmd(TIM3, DISABLE);
-
-	TIM_SetCounter(TIM3, interval);
-	TIM_SetAutoreload(TIM3, interval);
-	
-	TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
-	TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
-	NVIC_EnableIRQ(TIM3_IRQn);	
-
-	TIM_Cmd(TIM3, ENABLE);
+	tc_find_mck_divisor(100, ul_sysclk, &ul_div, &ul_tcclks, ul_sysclk);
+	tc_init(TC0, 0, TC_CMR_TCCLKS_TIMER_CLOCK1 | TC_CMR_CPCTRG);
+	tc_write_rc(TC0, 0, (ul_sysclk / ul_div) / 4);
 #endif
 
-	return NO_ERROR;
+	tc_find_mck_divisor(100, ul_sysclk, &ul_div, &ul_tcclks, ul_sysclk);
+	tc_init(TC0, 0, TC_CMR_TCCLKS_TIMER_CLOCK1 | TC_CMR_CPCTRG);
+	tc_write_rc(TC0, 0, 0xffff); // slowest we can run
+
+	/* Configure and enable interrupt on RC compare */
+	NVIC_SetPriority(ID_TC0, cm3_highest_priority());
+	NVIC_EnableIRQ((IRQn_Type) ID_TC0);
+	tc_enable_interrupt(TC0, 0, TC_IER_CPCS);
+
+	tc_start(TC0, 0);
+
 }
 
-#if 0
-void stm32_timer_early_init(void)
-{
-	/* start the time base unit */
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
-
-	TIM_TimeBaseInitTypeDef tbase;
-	TIM_TimeBaseStructInit(&tbase);
-
-	/* try to run the clock at 1Mhz */
-    RCC_ClocksTypeDef clocks;
-    RCC_GetClocksFreq(&clocks);
-
-	// XXX why do we need a *2 here?
-	tbase.TIM_Prescaler = (clocks.PCLK1_Frequency / 1000000) * 2 - 1;
-
-	TIM_TimeBaseInit(TIM2, &tbase);
-
-	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-	NVIC_SetPriority(TIM2_IRQn, cm3_highest_priority());
-	NVIC_EnableIRQ(TIM2_IRQn);
-
-	TIM_Cmd(TIM2, ENABLE);
-
-	/* for dynamic ticks, use TIM3 */
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
-
-	/* run the tick at ms resolution */
-	TIM_PrescalerConfig(TIM3, (clocks.PCLK1_Frequency / 1000) * 2 - 1, TIM_PSCReloadMode_Immediate);
-	TIM_CounterModeConfig(TIM3, TIM_CounterMode_Down);
-}
-
-void stm32_timer_init(void)
+void sam_timer_init(void)
 {
 }
-#endif
+
 

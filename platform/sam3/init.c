@@ -33,9 +33,14 @@
 void sam_debug_early_init(void);
 void sam_debug_init(void);
 
+void sam_timer_early_init(void);
+void sam_timer_init(void);
+
 void platform_early_init(void)
 {
 	SystemInit();
+
+	sam_timer_early_init();
 
 	wdt_disable(WDT);
 
@@ -47,6 +52,7 @@ void platform_early_init(void)
 
 void platform_init(void)
 {
+	sam_timer_init();
 	sam_debug_init();
 }
 
