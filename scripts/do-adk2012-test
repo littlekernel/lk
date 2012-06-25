@@ -1,0 +1,10 @@
+#!/bin/sh
+
+export PROJECT=adk2012-test
+UART=cu.usbserial-AE015ZNM
+
+tagit
+make &&
+adk2tool /dev/$UART erase &&
+bossac -p $UART -b -w build-sam3x-ek-test/lk.bin &&
+adk2tool /dev/$UART console
