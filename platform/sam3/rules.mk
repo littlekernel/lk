@@ -12,6 +12,7 @@ DEFINES += \
 	__SAM3X8H__=1 \
 	SAM3XA=1
 MEMSIZE ?= 98304 
+MEMBASE := 0x20070000
 endif
 
 ifeq ($(MEMSIZE),)
