@@ -48,6 +48,14 @@ static void hardfault(struct cm3_exception_frame *frame)
 	halt();
 }
 
+static void usagefault(struct cm3_exception_frame *frame)
+{
+	printf("usagefault: ");
+	dump_frame(frame);
+
+	halt();
+}
+
 static void busfault(struct cm3_exception_frame *frame)
 {
 	printf("busfault: ");
@@ -94,8 +102,13 @@ void _busfault(void)
 
 void _usagefault(void)
 {
-	printf("usagefault\n");
-	halt();
+	__asm__ volatile(
+		"push	{r4-r11};"
+		"mov	r0, sp;"
+		"b		%0;"
+		:: "i" (usagefault)
+	);
+	__UNREACHABLE;
 }
 
 /* systick handler */
