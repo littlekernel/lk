@@ -133,9 +133,9 @@ extern int critical_section_count;
 
 static inline __ALWAYS_INLINE void enter_critical_section(void)
 {
-	critical_section_count++;
-	if (critical_section_count == 1)
+	if (critical_section_count == 0)
 		arch_disable_ints();
+	critical_section_count++;
 }
 
 static inline __ALWAYS_INLINE void exit_critical_section(void)
