@@ -27,6 +27,7 @@
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <kernel/event.h>
+#include <platform.h>
 
 static int sleep_thread(void *arg)
 {
@@ -326,6 +327,40 @@ static void atomic_test(void)
 	printf("atomic count == %d (should be zero)\n", atomic);
 }
 
+static volatile int preempt_count;
+
+static int preempt_tester(void *arg)
+{
+#define COUNT (8*1024*1024)
+
+	int i;
+	for (i = 0; i < COUNT; i++)
+		__asm__ volatile("nop");
+
+	printf("exiting ts %lld\n", current_time_hires());
+
+	atomic_add(&preempt_count, -1);
+
+	return 0;
+}
+
+static void preempt_test(void)
+{
+	printf("testing preemption\n");
+
+	preempt_count = 5;
+
+	int i;
+	for (i = 0; i < preempt_count; i++)
+		thread_resume(thread_create("preempt tester", &preempt_tester, NULL, LOW_PRIORITY, DEFAULT_STACK_SIZE));
+
+	while (preempt_count > 0) {
+		thread_sleep(1000);
+	}
+
+	printf("done with preempt test, above time stamps should be very close\n");
+}
+
 int thread_tests(void) 
 {
 	mutex_test();
@@ -335,6 +370,8 @@ int thread_tests(void)
 
 	thread_sleep(200);
 	context_switch_test();
+
+	preempt_test();
 
 	return 0;
 }
