@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <debug.h>
+#include <assert.h>
 #include <kernel/thread.h>
 #include <arch/arm.h>
 #include <arch/arm/cm3.h>
@@ -85,6 +86,8 @@ static void pendsv(struct cm3_exception_frame_long *frame)
 {
 	arch_disable_ints();
 	inc_critical_section();
+
+	ASSERT(critical_section_count == 1);
 
 	LTRACEF("preempting thread %p (%s)\n", current_thread, current_thread->name);
 
@@ -172,6 +175,13 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 {
 	LTRACE_ENTRY;
 
+	if (newthread->arch.was_preempted) {
+		/* we're about to return directly to a thread that was preempted (in user space),
+		 * so push its critical section count back down to zero
+		 */
+		critical_section_count = newthread->saved_critical_section_count = 0;
+	}
+
 	/* if preempt_frame is set, we are being preempted */
 	if (preempt_frame) {
 		oldthread->arch.was_preempted = true;
@@ -180,7 +190,16 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 
 		LTRACEF("we're preempted, new %d\n", newthread->arch.was_preempted);
 		if (newthread->arch.was_preempted) {
-			PANIC_UNIMPLEMENTED;
+			/* return directly to the preempted thread's iframe */
+			__asm__ volatile(
+			    "mov	sp, %0;"
+			    "cpsie	i;"
+			    "pop	{ r4-r11, lr };"
+			    "clrex;"
+			    "bx		lr;"
+			    :: "r"(newthread->arch.sp)
+			);
+			__UNREACHABLE;
 		} else {
 			/* we're inside a pendsv, switching to a user mode thread */
 			/* set up a fake frame to exception return to */
