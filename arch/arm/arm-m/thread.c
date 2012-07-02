@@ -123,14 +123,15 @@ __NAKED void _pendsv(void)
 
 /* 
  * svc handler, used to hard switch the cpu into exception mode to return
- * to preempted cpu.
+ * to preempted thread.
  */
 __NAKED void _svc(void)
 {
 	__asm__ volatile(
-	    "mov	sp, r4;"
-	    "pop	{ r4-r11, lr };"
-	    "bx		lr;"
+		/* load the pointer to the original exception frame we want to restore */
+		"mov	sp, r4;"
+		"pop	{ r4-r11, lr };"
+		"bx		lr;"
 	);
 }
 
@@ -140,6 +141,9 @@ __NAKED static void _half_save_and_svc(vaddr_t *fromsp, vaddr_t tosp)
 		"push	{ r4-r11, lr };"
 		"str	sp, [r0];"
 
+		/* make sure we load the destination sp here before we reenable interrupts */
+		"mov	sp, r1;"
+
 		"clrex;"
 		"cpsie 	i;"
 
@@ -148,7 +152,7 @@ __NAKED static void _half_save_and_svc(vaddr_t *fromsp, vaddr_t tosp)
 	);	
 }
 
-/* simple scenario where the two and from thread yielded */
+/* simple scenario where the to and from thread yielded */
 __NAKED static void _arch_non_preempt_context_switch(vaddr_t *fromsp, vaddr_t tosp)
 {
 	__asm__ volatile(
@@ -171,6 +175,13 @@ __NAKED static void _thread_mode_bounce(void)
 	__UNREACHABLE;
 }
 
+/*
+ * The raw context switch routine. Called by the scheduler when it decides to switch.
+ * Called either in the context of a thread yielding or blocking (interrupts disabled,
+ * on the system stack), or inside the pendsv handler on a thread that is being preempted
+ * (interrupts disabled, in handler mode). If preempt_frame is set the thread
+ * is being preempted.
+ */
 void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 {
 	LTRACE_ENTRY;
