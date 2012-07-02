@@ -4,7 +4,6 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 ROMBASE := 0x0
 MEMBASE := 0x20000000
 # can be overridden by target
-MEMSIZE ?= 65536 
 
 ARCH := arm
 ARM_CPU := cortex-m3
@@ -12,11 +11,21 @@ ARM_CPU := cortex-m3
 ifeq ($(STM32_CHIP),stm32f107)
 DEFINES += \
 	STM32F10X_CL=1	
+MEMSIZE ?= 65536
 endif
-ifeq ($(STM32_CHIP),stm32f103)
+ifeq ($(STM32_CHIP),stm32f103_hd)
 DEFINES += \
 	STM32F10X_HD=1
+MEMSIZE ?= 65536
 endif
+ifeq ($(STM32_CHIP),stm32f103_md)
+DEFINES += \
+	STM32F10X_MD=1
+MEMSIZE ?= 20480
+endif
+
+DEFINES += \
+	MEMSIZE=$(MEMSIZE)
 
 INCLUDES += \
 	-I$(LOCAL_DIR)/include

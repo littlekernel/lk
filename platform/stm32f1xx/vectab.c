@@ -63,9 +63,12 @@ const void * const __SECTION(".text.boot.vectab2") vectab2[] =
     [TIM2_IRQn] = stm32_tim2_irq,
     [TIM3_IRQn] = stm32_tim3_irq,
     [TIM4_IRQn] = stm32_tim4_irq,
+
+#if defined(STM32F10X_HD) || defined(STM32F10X_HD_VL) || defined(STM32F10X_XL) || defined(STM32F10X_CL)
     [TIM5_IRQn] = stm32_tim5_irq,
     [TIM6_IRQn] = stm32_tim6_irq,
     [TIM7_IRQn] = stm32_tim7_irq,
+#endif
 
     [USART1_IRQn] = stm32_USART1_IRQ,
     [USART2_IRQn] = stm32_USART2_IRQ,
