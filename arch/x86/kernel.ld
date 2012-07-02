@@ -25,6 +25,7 @@ ENTRY(_start)
 SECTIONS
 {
 	.text 0x0200000 : {
+		*(.text.boot)
 		*(.text)
 		*(SORT(.text$*))
 		*(.gnu.linkonce.t.*)

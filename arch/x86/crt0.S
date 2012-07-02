@@ -37,7 +37,7 @@
 #define NUM_INT 0x31
 #define NUM_EXC 0x14
 
-.text.boot
+.section ".text.boot"
 .global _start
 _start:
 	jmp real_start
