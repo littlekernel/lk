@@ -6,3 +6,4 @@ TAGS
 cscope.out
 local.mk
 *.orig
+cscope.*
