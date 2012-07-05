@@ -25,4 +25,5 @@ OBJS += \
 	$(LOCAL_DIR)/src/stm32f10x_spi.o \
 	$(LOCAL_DIR)/src/stm32f10x_tim.o \
 	$(LOCAL_DIR)/src/stm32f10x_usart.o \
-	$(LOCAL_DIR)/src/stm32f10x_wwdg.o
+	$(LOCAL_DIR)/src/stm32f10x_wwdg.o \
+	$(LOCAL_DIR)/src/system_stm32f10x.o

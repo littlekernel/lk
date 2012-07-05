@@ -24,9 +24,13 @@
 #include <debug.h>
 #include <platform.h>
 #include <platform/stm32.h>
+#include "system_stm32f10x.h"
 
 void platform_early_init(void)
 {
+	// Crank up the clock before initing timers.
+	SystemInit();
+
 	stm32_timer_early_init();
 }
 
