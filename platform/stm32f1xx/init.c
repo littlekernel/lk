@@ -22,6 +22,7 @@
  */
 #include <err.h>
 #include <debug.h>
+#include <dev/uart.h>
 #include <platform.h>
 #include <platform/stm32.h>
 #include "system_stm32f10x.h"
@@ -36,6 +37,7 @@ void platform_early_init(void)
 
 void platform_init(void)
 {
+	uart_init();
 	stm32_timer_init();
 }
 
