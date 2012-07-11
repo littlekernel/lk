@@ -38,72 +38,21 @@ static cbuf_t debug_rx_buf;
 
 void stm32_debug_early_init(void)
 {
-	// XXX move this into usart driver
-	if (DEBUG_UART == USART1) {
-		RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
-	} else if (DEBUG_UART == USART2) {
-		RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
-	} else if (DEBUG_UART == USART3) {
-		RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
-	}
-
-	USART_InitTypeDef init;
-
-	init.USART_BaudRate = 115200;
-	init.USART_WordLength = USART_WordLength_8b;
-	init.USART_StopBits = USART_StopBits_1;
-	init.USART_Parity = USART_Parity_No;
-	init.USART_Mode = USART_Mode_Tx|USART_Mode_Rx;
-	init.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-
-	USART_Init(DEBUG_UART, &init);
-
-	USART_ITConfig(DEBUG_UART, USART_IT_RXNE, DISABLE);
-	NVIC_DisableIRQ(DEBUG_UART_IRQ);	
-
-	USART_Cmd(DEBUG_UART, ENABLE);
+	uart_init_early();
 }
 
 /* later in the init process */
 void stm32_debug_init(void)
 {
-	cbuf_initialize(&debug_rx_buf, 16);
-
-	USART_ITConfig(DEBUG_UART, USART_IT_RXNE, ENABLE);
-	NVIC_EnableIRQ(DEBUG_UART_IRQ);	
-}
-
-void DEBUG_UART_IRQ_HANDLER(void)
-{
-	inc_critical_section();
-
-	while (USART_GetFlagStatus(DEBUG_UART, USART_FLAG_RXNE)) {
-		char c = USART_ReceiveData(DEBUG_UART);
-		cbuf_write(&debug_rx_buf, &c, 1, false);
-	}
-
-	USART_ClearFlag(DEBUG_UART, USART_IT_RXNE);
-
-	cm3_trigger_preempt();
-
-	dec_critical_section();
+	uart_init();
 }
 
 void _dputc(char c)
 {
-	if (c == '\n') {
-		_dputc('\r');
-	}
-	while (USART_GetFlagStatus(DEBUG_UART, USART_FLAG_TXE) == 0)
-		;
-	USART_SendData(DEBUG_UART, c);
-	while (USART_GetFlagStatus(DEBUG_UART, USART_FLAG_TC) == 0)
-		;
 }
 
 int dgetc(char *c, bool wait)
 {
-	return cbuf_read(&debug_rx_buf, c, 1, wait);
 }
 
 void platform_halt(void)
@@ -111,4 +60,3 @@ void platform_halt(void)
 	dprintf(ALWAYS, "HALT: spinning forever...\n");
 	for(;;);
 }
-

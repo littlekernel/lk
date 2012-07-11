@@ -4,6 +4,8 @@ STM32_CHIP := stm32f103_md
 
 PLATFORM := stm32f1xx
 
+DEFINES += ENABLE_UART1=1
+
 INCLUDES += -I$(LOCAL_DIR)/include
 
 OBJS += \

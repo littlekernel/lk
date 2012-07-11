@@ -52,7 +52,7 @@ cbuf_t uart3_rx_buf;
 #ifdef ENABLE_UART3
 #endif
 
-static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf)
+static void usart_init1_early(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf)
 {
 	USART_InitTypeDef init;
 
@@ -63,17 +63,22 @@ static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf)
 	init.USART_Mode = USART_Mode_Tx|USART_Mode_Rx;
 	init.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
 
-	cbuf_initialize(rxbuf, 16);
-
 	USART_Init(usart, &init);
-	USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
-	NVIC_EnableIRQ(irqn);	
+	USART_ITConfig(usart, USART_IT_RXNE, DISABLE);
+	NVIC_DisableIRQ(irqn);	
 	USART_Cmd(usart, ENABLE);
 }
 
-void uart_init(void)
+static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf)
 {
+	cbuf_initialize(rxbuf, 16);
+	USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
+	NVIC_EnableIRQ(irqn);
+	USART_Cmd(usart, ENABLE);
+}
 
+void uart_init_early(void)
+{
 #ifdef ENABLE_UART1
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 #endif
@@ -84,17 +89,19 @@ void uart_init(void)
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
 #endif
 
-#if (ENABLE_UART1 | ENABLE_UART2 | ENABLE_UART3)
-	USART_InitTypeDef init;
-
-	init.USART_BaudRate = 115200;
-	init.USART_WordLength = USART_WordLength_8b;
-	init.USART_StopBits = USART_StopBits_1;
-	init.USART_Parity = USART_Parity_No;
-	init.USART_Mode = USART_Mode_Tx|USART_Mode_Rx;
-	init.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+#ifdef ENABLE_UART1
+	usart_init1_early(USART1, USART1_IRQn, &uart1_rx_buf);
 #endif
+#ifdef ENABLE_UART2
+	usart_init1_early(USART2, USART2_IRQn, &uart2_rx_buf);
+#endif
+#ifdef ENABLE_UART3
+	usart_init1_early(USART3, USART3_IRQn, &uart3_rx_buf);
+#endif
+}
 
+void uart_init(void)
+{
 #ifdef ENABLE_UART1
 	usart_init1(USART1, USART1_IRQn, &uart1_rx_buf);
 #endif

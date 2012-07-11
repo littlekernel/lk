@@ -37,7 +37,5 @@ void platform_early_init(void)
 
 void platform_init(void)
 {
-	uart_init();
 	stm32_timer_init();
 }
-
