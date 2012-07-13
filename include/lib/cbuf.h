@@ -37,6 +37,7 @@ typedef struct cbuf {
 void cbuf_initialize(cbuf_t *cbuf, size_t len);
 size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block);
 size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule);
+size_t cbuf_space_avail(cbuf_t *cbuf);
 
 #endif
 
