@@ -47,9 +47,9 @@ void _systick(void)
 	inc_critical_section();
 
 	bool resched = false;
+	ticks += 10;
 	if (cb) {
-		time_t now = current_time();
-		if (cb(cb_args, now) == INT_RESCHEDULE)
+		if (cb(cb_args, ticks) == INT_RESCHEDULE)
 			resched = true;
 	}
 
@@ -110,58 +110,45 @@ void stm32_TIM7_IRQ(void)
 /* time base */
 void stm32_TIM2_IRQ(void)
 {
-	/* time base */
-	ticks += TIME_BASE_COUNT;
-	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+	stm32_tim_irq(2);
 }
 
 time_t current_time(void)
 {
-	return current_time_hires() / 1000;
+	return ticks;
 }
 
 bigtime_t current_time_hires(void)
 {
-	bigtime_t res = 0;
+	uint64_t tusec;
+	uint32_t count1, count2;
+	uint32_t reload = SysTick->LOAD  & SysTick_LOAD_RELOAD_Msk;
+
+	// The tick count can roll over while we read the counter,
+	// so try to prevent that.
 	do {
-		uint64_t t = ticks;
-		uint16_t delta = TIM_GetCounter(TIM2);
+		count1 = (volatile uint32_t)SysTick->VAL;
+		enter_critical_section();
+		count2 = (volatile uint32_t)SysTick->VAL;
+		tusec = (volatile uint64_t)ticks;
+		exit_critical_section();
+	} while (count2 > count1);
 
-		if (ticks != t)
-			continue;
+	tusec = tusec * 1000;
 
-		res = t + delta;
-	} while (0);
+	RCC_ClocksTypeDef clocks;
+	RCC_GetClocksFreq(&clocks);
+	uint32_t clk_mhz = clocks.SYSCLK_Frequency / 1000000;
+	count1 = reload - count1;
+	count1 /= clk_mhz;
 
-	return res;
+	return tusec + count1;
 }
 
 void stm32_timer_early_init(void)
 {
-	/* start the time base unit */
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
-
-	TIM_TimeBaseInitTypeDef tbase;
-	TIM_TimeBaseStructInit(&tbase);
-
-	/* try to run the clock at 1Mhz */
-    RCC_ClocksTypeDef clocks;
-    RCC_GetClocksFreq(&clocks);
-
-	// XXX why do we need a *2 here?
-	tbase.TIM_Prescaler = (clocks.PCLK1_Frequency / 1000000) * 2 - 1;
-
-	TIM_TimeBaseInit(TIM2, &tbase);
-
-	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-	NVIC_SetPriority(TIM2_IRQn, cm3_medium_priority());
-	NVIC_EnableIRQ(TIM2_IRQn);
-
-	TIM_Cmd(TIM2, ENABLE);
 }
 
 void stm32_timer_init(void)
 {
 }
-
