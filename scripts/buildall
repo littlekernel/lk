@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PROJECTS="armemu-test sam7ex256-test osk5912-test qemu-arm-test beagle-test surf-test stm3210e-test stm32-p107-test sam3x-ek-test"
+PROJECTS="armemu-test sam7ex256-test osk5912-test qemu-arm-test beagle-test surf-test stm3210e-test stm32-h103-test stm32-p107-test sam3x-ek-test"
 FAILED=""
 
 for p in $PROJECTS; do
