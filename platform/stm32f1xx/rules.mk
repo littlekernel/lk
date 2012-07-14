@@ -13,6 +13,11 @@ DEFINES += \
 	STM32F10X_CL=1	
 MEMSIZE ?= 65536
 endif
+ifeq ($(STM32_CHIP),stm32f103_xl)
+DEFINES += \
+	STM32F10X_XL=1
+MEMSIZE ?= 65536
+endif
 ifeq ($(STM32_CHIP),stm32f103_hd)
 DEFINES += \
 	STM32F10X_HD=1
@@ -21,6 +26,11 @@ endif
 ifeq ($(STM32_CHIP),stm32f103_md)
 DEFINES += \
 	STM32F10X_MD=1
+MEMSIZE ?= 20480
+endif
+ifeq ($(STM32_CHIP),stm32f103_ld)
+DEFINES += \
+	STM32F10X_LD=1
 MEMSIZE ?= 20480
 endif
 

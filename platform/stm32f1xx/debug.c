@@ -73,7 +73,7 @@ void stm32_debug_init(void)
 	NVIC_EnableIRQ(DEBUG_UART_IRQ);	
 }
 
-void stm32_debug_rx_irq(void)
+void DEBUG_UART_IRQ_HANDLER(void)
 {
 	inc_critical_section();
 

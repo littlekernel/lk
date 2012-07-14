@@ -28,5 +28,6 @@
 // XXX may not be correct
 #define DEBUG_UART USART3
 #define DEBUG_UART_IRQ USART3_IRQn
+#define DEBUG_UART_IRQ_HANDLER stm32_USART3_IRQ
 
 #endif

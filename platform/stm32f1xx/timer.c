@@ -82,27 +82,27 @@ static void stm32_tim_irq(uint num)
 	PANIC_UNIMPLEMENTED;
 }
 
-void stm32_tim3_irq(void)
+void stm32_TIM3_IRQ(void)
 {
 	stm32_tim_irq(3);
 }
 
-void stm32_tim4_irq(void)
+void stm32_TIM4_IRQ(void)
 {
 	stm32_tim_irq(4);
 }
 
-void stm32_tim5_irq(void)
+void stm32_TIM5_IRQ(void)
 {
 	stm32_tim_irq(5);
 }
 
-void stm32_tim6_irq(void)
+void stm32_TIM6_IRQ(void)
 {
 	stm32_tim_irq(6);
 }
 
-void stm32_tim7_irq(void)
+void stm32_TIM7_IRQ(void)
 {
 	stm32_tim_irq(7);
 }
