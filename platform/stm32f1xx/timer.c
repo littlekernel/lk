@@ -108,7 +108,7 @@ void stm32_TIM7_IRQ(void)
 }
 
 /* time base */
-void stm32_tim2_irq(void)
+void stm32_TIM2_IRQ(void)
 {
 	/* time base */
 	ticks += TIME_BASE_COUNT;
