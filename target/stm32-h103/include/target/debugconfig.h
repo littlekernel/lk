@@ -23,10 +23,6 @@
 #ifndef __TARGET_DEBUGCONFIG_H
 #define __TARGET_DEBUGCONFIG_H
 
-#include <stm32f10x_usart.h>
-
-#define DEBUG_UART USART1
-#define DEBUG_UART_IRQ USART1_IRQn
-#define DEBUG_UART_IRQ_HANDLER stm32_USART1_IRQ
+#define DEBUG_UART 1
 
 #endif
