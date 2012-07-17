@@ -147,6 +147,28 @@ void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
 	dec_critical_section();
 }
 
+#ifdef ENABLE_UART1
+void stm32_USART1_IRQ(void)
+{
+	uart_rx_irq(USART1, &uart1_rx_buf);
+}
+#endif
+
+#ifdef ENABLE_UART2
+void stm32_USART2_IRQ(void)
+{
+	uart_rx_irq(USART2, &uart2_rx_buf);
+}
+#endif
+
+#ifdef ENABLE_UART3
+void stm32_USART3_IRQ(void)
+{
+	uart_rx_irq(USART3, &uart3_rx_buf);
+}
+#endif
+
+
 static void usart_putc(USART_TypeDef *usart, char c)
 {
 	while (USART_GetFlagStatus(usart, USART_FLAG_TXE) == 0);
