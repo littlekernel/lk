@@ -39,7 +39,7 @@ void cm3_systick_set_periodic(uint32_t systick_clk_freq, time_t period)
 {
 	LTRACEF("clk_freq %u, period %u\n", systick_clk_freq, period);
 
-	uint32_t ticks = ((uint64_t)systick_clk_freq) / (1000 / period);
+	uint32_t ticks = systick_clk_freq / (1000 / period);
 	LTRACEF("ticks %d\n", ticks);
 
 	SysTick->LOAD = (ticks & SysTick_LOAD_RELOAD_Msk) - 1;
