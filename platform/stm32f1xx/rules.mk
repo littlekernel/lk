@@ -46,6 +46,7 @@ OBJS += \
 	$(LOCAL_DIR)/uart.o \
 	$(LOCAL_DIR)/timer.o \
 	$(LOCAL_DIR)/vectab.o \
+	$(LOCAL_DIR)/gpio.o \
 
 #	$(LOCAL_DIR)/debug.o \
 	$(LOCAL_DIR)/interrupts.o \

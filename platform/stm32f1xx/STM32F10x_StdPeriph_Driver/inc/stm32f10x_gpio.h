@@ -347,7 +347,7 @@ typedef enum
 
 void GPIO_DeInit(GPIO_TypeDef* GPIOx);
 void GPIO_AFIODeInit(void);
-void GPIO_Init(GPIO_TypeDef* GPIOx, GPIO_InitTypeDef* GPIO_InitStruct);
+void GPIO_Init(GPIO_TypeDef* GPIOx, const GPIO_InitTypeDef* GPIO_InitStruct);
 void GPIO_StructInit(GPIO_InitTypeDef* GPIO_InitStruct);
 uint8_t GPIO_ReadInputDataBit(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 uint16_t GPIO_ReadInputData(GPIO_TypeDef* GPIOx);

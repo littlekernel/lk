@@ -27,9 +27,7 @@ void stm32_debug_early_init(void);
 void stm32_debug_init(void);
 void stm32_timer_early_init(void);
 void stm32_timer_init(void);
-
-// XXX refactor this into a proper usart driver
-void stm32_debug_rx_irq(void);
+void stm32_gpio_early_init(void);
 
 #endif
 

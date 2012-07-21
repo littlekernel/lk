@@ -33,6 +33,7 @@ void platform_early_init(void)
 	SystemInit();
 
 	stm32_timer_early_init();
+	stm32_gpio_early_init();
 }
 
 void platform_init(void)
