@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008, Google Inc.
+ * Copyright (c) 2012, Travis Geiselbrecht
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +44,9 @@
 
 #define GPIO_PULLUP	0x0100
 #define GPIO_PULLDOWN	0x0200
+
+/* top 16 bits of the gpio flags are platform specific */
+#define GPIO_PLATFORM_MASK 0xffff0000
 
 int gpio_config(unsigned nr, unsigned flags);
 void gpio_set(unsigned nr, unsigned on);
