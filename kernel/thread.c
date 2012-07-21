@@ -40,6 +40,7 @@
 #include <kernel/timer.h>
 #include <kernel/dpc.h>
 #include <platform.h>
+#include <target.h>
 
 #if DEBUGLEVEL > 1
 #define THREAD_CHECKS 1
@@ -367,6 +368,9 @@ void thread_resched(void)
 		timer_cancel(&preempt_timer);
 	}
 #endif
+
+	/* set some optional target debug leds */
+	target_set_debug_led(0, newthread != idle_thread);
 
 	/* do the switch */
 	oldthread->saved_critical_section_count = critical_section_count;
