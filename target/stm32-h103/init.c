@@ -50,11 +50,7 @@ void target_early_init(void)
 
 void target_init(void)
 {
-	TRACE_ENTRY;
-
 	stm32_debug_init();
-
-	TRACE_EXIT;
 }
 
 void target_set_debug_led(unsigned int led, bool on)
