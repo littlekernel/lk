@@ -90,7 +90,7 @@ include app/rules.mk
 
 # recursively include any modules in the MODULE variable, leaving a trail of included
 # modules in the ALLMODULES list
-include make/module.mk
+include make/recurse.mk
 
 # any extra top level build dependencies that someone declared
 all:: $(EXTRA_BUILDDEPS)
