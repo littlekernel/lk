@@ -35,22 +35,26 @@ OUTELF := $(BUILDDIR)/lk
 CONFIGHEADER := $(BUILDDIR)/config.h
 
 INCLUDES := -I$(BUILDDIR) -Iinclude
-CFLAGS := -O2 -g -fno-builtin -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -include $(CONFIGHEADER)
-CFLAGS += -Werror-implicit-function-declaration
-#CFLAGS += -Werror
-CPPFLAGS := -fno-exceptions -fno-rtti -fno-threadsafe-statics
-#CPPFLAGS += -Weffc++
-ASMFLAGS := -DASSEMBLY
-LDFLAGS := 
+GLOBAL_OPTFLAGS ?= -Os
+GLOBAL_COMPILEFLAGS := -g -fno-builtin -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -include $(CONFIGHEADER)
+GLOBAL_CFLAGS := --std=c99 -Werror-implicit-function-declaration
+#GLOBAL_CFLAGS += -Werror
+GLOBAL_CPPFLAGS := -fno-exceptions -fno-rtti -fno-threadsafe-statics
+#GLOBAL_CPPFLAGS += -Weffc++
+GLOBAL_ASMFLAGS := -DASSEMBLY
+GLOBAL_LDFLAGS := 
 
-CFLAGS += -ffunction-sections -fdata-sections
-LDFLAGS += -gc-sections
+GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
+GLOBAL_LDFLAGS += -gc-sections
 
 # top level rule
 all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).size
 
-# master object list
-OBJS :=
+# master module object list
+ALLOBJS_MODULE :=
+
+# master object list (for dep generation)
+ALLOBJS :=
 
 # a linker script needs to be declared in one of the project/target/platform files
 LINKER_SCRIPT := 			
@@ -95,10 +99,6 @@ include make/recurse.mk
 # any extra top level build dependencies that someone declared
 all:: $(EXTRA_BUILDDEPS)
 
-ALLOBJS := \
-	$(BOOTOBJS) \
-	$(OBJS)
-
 # add some automatic configuration defines
 DEFINES += \
 	PROJECT_$(PROJECT)=1 \
@@ -113,9 +113,9 @@ DEFINES += \
 	DEBUG=$(DEBUG)
 endif
 
-ALLOBJS := $(addprefix $(BUILDDIR)/,$(ALLOBJS))
-
 DEPS := $(ALLOBJS:%o=%d)
+
+#$(warning DEPS=$(DEPS))
 
 # default to no ccache
 CCACHE ?= 
@@ -130,6 +130,25 @@ NM := $(TOOLCHAIN_PREFIX)nm
 # comment out or override if you want to see the full output of each command
 NOECHO ?= @
 
+#$(warning ALLMODULE_OBJS=$(ALLMODULE_OBJS))
+
+ifneq ($(OBJS),)
+$(warning OBJS=$(OBJS))
+$(error OBJS is not empty, please convert to new module format)
+endif
+ifneq ($(OPTFLAGS),)
+$(warning OPTFLAGS=$(OPTFLAGS))
+$(error OPTFLAGS is not empty, please use GLOBAL_OPTFLAGS or MODULE_OPTFLAGS)
+endif
+ifneq ($(CFLAGS),)
+$(warning CFLAGS=$(CFLAGS))
+$(error CFLAGS is not empty, please use GLOBAL_CFLAGS or MODULE_CFLAGS)
+endif
+ifneq ($(CPPFLAGS),)
+$(warning CPPFLAGS=$(CPPFLAGS))
+$(error CPPFLAGS is not empty, please use GLOBAL_CPPFLAGS or MODULE_CPPFLAGS)
+endif
+
 # the logic to compile and link stuff is in here
 include make/build.mk
 
@@ -143,24 +162,7 @@ install: all
 configheader:
 
 $(CONFIGHEADER): configheader
-	@$(MKDIR)
-	@echo generating $@
-	@rm -f $(CONFIGHEADER).tmp; \
-	echo \#ifndef __CONFIG_H > $(CONFIGHEADER).tmp; \
-	echo \#define __CONFIG_H >> $(CONFIGHEADER).tmp; \
-	for d in `echo $(DEFINES) | tr [:lower:] [:upper:]`; do \
-		echo "#define $$d" | sed "s/=/\ /g;s/-/_/g;s/\//_/g" >> $(CONFIGHEADER).tmp; \
-	done; \
-	echo \#endif >> $(CONFIGHEADER).tmp; \
-	if [ -f "$(CONFIGHEADER)" ]; then \
-		if cmp "$(CONFIGHEADER).tmp" "$(CONFIGHEADER)"; then \
-			rm -f $(CONFIGHEADER).tmp; \
-		else \
-			mv $(CONFIGHEADER).tmp $(CONFIGHEADER); \
-		fi \
-	else \
-		mv $(CONFIGHEADER).tmp $(CONFIGHEADER); \
-	fi
+	$(call MAKECONFIGHEADER,$@,DEFINES)
 
 # Empty rule for the .d files. The above rules will build .d files as a side
 # effect. Only works on gcc 3.x and above, however.

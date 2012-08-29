@@ -6,9 +6,10 @@ $(OUTBIN): $(OUTELF)
 	$(NOECHO)$(SIZE) $<
 	$(NOCOPY)$(OBJCOPY) -O binary $< $@
 
-$(OUTELF): $(ALLOBJS) $(LINKER_SCRIPT)
+$(OUTELF): $(ALLMODULE_OBJS) $(LINKER_SCRIPT)
 	@echo linking $@
-	$(NOECHO)$(LD) $(LDFLAGS) -T $(LINKER_SCRIPT) $(ALLOBJS) $(LIBGCC) -o $@
+	$(NOECHO)$(SIZE) -t $(ALLMODULE_OBJS)
+	$(NOECHO)$(LD) $(GLOBAL_LDFLAGS) -T $(LINKER_SCRIPT) $(ALLMODULE_OBJS) $(LIBGCC) -o $@
 
 $(OUTELF).sym: $(OUTELF)
 	@echo generating symbols: $@
@@ -26,5 +27,5 @@ $(OUTELF).size: $(OUTELF)
 	@echo generating size map: $@
 	$(NOECHO)$(NM) -S --size-sort $< > $@
 
-include arch/$(ARCH)/compile.mk
+#include arch/$(ARCH)/compile.mk
 
