@@ -1,7 +1,10 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 INCLUDES += -I$(LOCAL_DIR)/include
 
-OBJS += \
-	$(LOCAL_DIR)/twl4030.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/twl4030.c
 
+include make/module.mk

@@ -7,13 +7,13 @@ MODULE_DEPS := \
 	lib/debug \
 	lib/heap
 
-MODULE_OBJS := \
-	debug.o \
-	dpc.o \
-	event.o \
-	main.o \
-	mutex.o \
-	thread.o \
-	timer.o
+MODULE_SRCS := \
+	$(LOCAL_DIR)/debug.c \
+	$(LOCAL_DIR)/dpc.c \
+	$(LOCAL_DIR)/event.c \
+	$(LOCAL_DIR)/main.c \
+	$(LOCAL_DIR)/mutex.c \
+	$(LOCAL_DIR)/thread.c \
+	$(LOCAL_DIR)/timer.c
 
 include make/module.mk

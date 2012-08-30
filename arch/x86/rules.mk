@@ -1,19 +1,21 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
-OBJS += \
-	$(LOCAL_DIR)/crt0.o \
-	$(LOCAL_DIR)/arch.o \
-	$(LOCAL_DIR)/asm.o \
-	$(LOCAL_DIR)/cache.o \
-	$(LOCAL_DIR)/cache-ops.o \
-	$(LOCAL_DIR)/ops.o \
-	$(LOCAL_DIR)/thread.o \
-	$(LOCAL_DIR)/mmu.o \
-	$(LOCAL_DIR)/faults.o \
-	$(LOCAL_DIR)/descriptor.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/crt0.S \
+	$(LOCAL_DIR)/arch.S \
+	$(LOCAL_DIR)/asm.S \
+	$(LOCAL_DIR)/cache.c \
+	$(LOCAL_DIR)/cache-ops.S \
+	$(LOCAL_DIR)/ops.S \
+	$(LOCAL_DIR)/thread.c \
+	$(LOCAL_DIR)/mmu.c \
+	$(LOCAL_DIR)/faults.c \
+	$(LOCAL_DIR)/descriptor.c
 
 # set the default toolchain to x86 elf and set a #define
 TOOLCHAIN_PREFIX ?= i386-elf-
@@ -37,3 +39,5 @@ $(BUILDDIR)/kernel.ld: $(LOCAL_DIR)/kernel.ld
 	@echo generating $@
 	@$(MKDIR)
 	$(NOECHO)cp $< $@
+
+include make/module.mk

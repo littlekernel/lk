@@ -1,9 +1,11 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-MODULES +=
+MODULE := $(LOCAL_DIR)
 
-OBJS += \
-	$(LOCAL_DIR)/bio.o \
-	$(LOCAL_DIR)/debug.o \
-	$(LOCAL_DIR)/mem.o \
-	$(LOCAL_DIR)/subdev.o 
+MODULE_SRCS += \
+	$(LOCAL_DIR)/bio.c \
+	$(LOCAL_DIR)/debug.c \
+	$(LOCAL_DIR)/mem.c \
+	$(LOCAL_DIR)/subdev.c 
+
+include make/module.mk

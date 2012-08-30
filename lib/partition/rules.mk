@@ -1,6 +1,10 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-MODULES += lib/bio
+MODULE := $(LOCAL_DIR)
 
-OBJS += \
-	$(LOCAL_DIR)/partition.o
+MODULE_DEPS += lib/bio
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/partition.c
+
+include make/module.mk

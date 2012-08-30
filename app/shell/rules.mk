@@ -1,7 +1,11 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-MODULES += \
+MODULE := $(LOCAL_DIR)
+
+MODULE_DEPS += \
 	lib/console
 
-OBJS += \
-	$(LOCAL_DIR)/shell.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/shell.c
+
+include make/module.mk

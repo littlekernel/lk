@@ -1,8 +1,12 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-MODULES += \
+MODULE := $(LOCAL_DIR)
+
+MODULE_DEPS += \
 	lib/debug \
 	lib/console
 
-OBJS += \
-	$(LOCAL_DIR)/debugcommands.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/debugcommands.c
+
+include make/module.mk

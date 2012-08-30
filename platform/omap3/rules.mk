@@ -1,5 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 ARCH := arm
 ARM_CPU := cortex-a8
 CPU := generic
@@ -11,21 +13,21 @@ DEFINES += \
 	WITH_DEV_USBC=1 \
 	WITH_DEV_UART=1
 
-MODULES += \
+MODULE_DEPS += \
 	dev/usb
 
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
-OBJS += \
-	$(LOCAL_DIR)/cpu_early_init.Ao \
-	$(LOCAL_DIR)/debug.o \
-	$(LOCAL_DIR)/i2c.o \
-	$(LOCAL_DIR)/interrupts.o \
-	$(LOCAL_DIR)/platform.o \
-	$(LOCAL_DIR)/timer.o \
-	$(LOCAL_DIR)/uart.o \
-	$(LOCAL_DIR)/usbc.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/cpu_early_init.S \
+	$(LOCAL_DIR)/debug.c \
+	$(LOCAL_DIR)/i2c.c \
+	$(LOCAL_DIR)/interrupts.c \
+	$(LOCAL_DIR)/platform.c \
+	$(LOCAL_DIR)/timer.c \
+	$(LOCAL_DIR)/uart.c \
+	$(LOCAL_DIR)/usbc.c
 
 MEMBASE := 0x80000000
 
@@ -35,3 +37,4 @@ DEFINES += MEMBASE=$(MEMBASE) \
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
 
+include make/module.mk

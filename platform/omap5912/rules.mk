@@ -1,23 +1,25 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 ARCH := arm
 ARM_CPU := arm926ej-s
 CPU := generic
 
-MODULES += \
+MODULE_DEPS += \
 	lib/cbuf
 
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
-OBJS += \
-	$(LOCAL_DIR)/debug.o \
-	$(LOCAL_DIR)/interrupts.o \
-	$(LOCAL_DIR)/platform.o \
-	$(LOCAL_DIR)/timer.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/debug.c \
+	$(LOCAL_DIR)/interrupts.c \
+	$(LOCAL_DIR)/platform.c \
+	$(LOCAL_DIR)/timer.c
 
 
-#	$(LOCAL_DIR)/console.o \
+#	$(LOCAL_DIR)/console.c \
 
 MEMBASE := 0x10000000
 #MEMSIZE := 0x02000000	# 32MB
@@ -25,3 +27,4 @@ MEMBASE := 0x10000000
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
 
+include make/module.mk

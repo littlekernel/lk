@@ -1,12 +1,14 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 PLATFORM := omap5912
 
-MODULES += \
+MODULE_DEPS += \
 	dev/net/smc91c96
 
-OBJS += \
-	$(LOCAL_DIR)/init.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c
 
 MEMSIZE := 0x02000000	# 32MB
 
@@ -15,3 +17,4 @@ DEFINES += \
 	SMC91C96_BASE_ADDR=0x04800300 \
 	SMC91C96_IRQ=0
 
+include make/module.mk

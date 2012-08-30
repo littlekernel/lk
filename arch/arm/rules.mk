@@ -1,5 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 # can override this in local.mk
 ENABLE_THUMB?=true
 
@@ -18,7 +20,7 @@ DEFINES += \
 	ARM_ISA_ARMv7M=1 \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_THUMB2=1
-CFLAGS += -mcpu=$(ARM_CPU)
+GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 ENABLE_THUMB := true
 ONLY_THUMB := true
@@ -36,7 +38,7 @@ DEFINES += \
 	ARM_WITH_THUMB2=1 \
 	ARM_WITH_CACHE=1 \
 	ARM_WITH_L2=1
-CFLAGS += -mcpu=$(ARM_CPU)
+GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 #CFLAGS += -mfpu=neon -mfloat-abi=softfp
 endif
@@ -48,7 +50,7 @@ DEFINES += \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_CACHE=1 \
 	ARM_CPU_ARM1136=1
-CFLAGS += -mcpu=$(ARM_CPU)
+GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 ifeq ($(ARM_CPU),arm1176jzf-s)
@@ -60,7 +62,7 @@ DEFINES += \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_CACHE=1 \
 	ARM_CPU_ARM1136=1
-CFLAGS += -mcpu=$(ARM_CPU)
+GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 ifeq ($(ARM_CPU),arm926ej-s)
@@ -72,7 +74,7 @@ DEFINES += \
 	ARM_WITH_CACHE=1 \
 	ARM_CPU_ARM9=1 \
 	ARM_CPU_ARM926=1
-CFLAGS += -mcpu=$(ARM_CPU)
+GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 ifeq ($(ARM_CPU),arm7tdmi)
@@ -80,7 +82,7 @@ DEFINES += \
 	ARM_ISA_ARMv4=1 \
 	ARM_WITH_THUMB=1 \
 	ARM_CPU_ARM7=1
-CFLAGS += -mcpu=$(ARM_CPU)
+GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 
@@ -100,34 +102,34 @@ INCLUDES += \
 	-I$(LOCAL_DIR)/include \
 	-I$(LOCAL_DIR)/$(SUBARCH)/include
 
-OBJS += \
-
 ifeq ($(SUBARCH),arm)
-OBJS += \
-	$(LOCAL_DIR)/arm/start.o \
-	$(LOCAL_DIR)/arm/arch.Ao \
-	$(LOCAL_DIR)/arm/asm.o \
-	$(LOCAL_DIR)/arm/cache-ops.o \
-	$(LOCAL_DIR)/arm/cache.o \
-	$(LOCAL_DIR)/arm/ops.o \
-	$(LOCAL_DIR)/arm/exceptions.o \
-	$(LOCAL_DIR)/arm/faults.o \
-	$(LOCAL_DIR)/arm/mmu.o \
-	$(LOCAL_DIR)/arm/thread.o \
-	$(LOCAL_DIR)/arm/dcc.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/arm/start.S \
+	$(LOCAL_DIR)/arm/asm.S \
+	$(LOCAL_DIR)/arm/cache-ops.S \
+	$(LOCAL_DIR)/arm/cache.c \
+	$(LOCAL_DIR)/arm/ops.S \
+	$(LOCAL_DIR)/arm/exceptions.S \
+	$(LOCAL_DIR)/arm/faults.c \
+	$(LOCAL_DIR)/arm/mmu.c \
+	$(LOCAL_DIR)/arm/thread.c \
+	$(LOCAL_DIR)/arm/dcc.S
+
+MODULE_ARM_OVERRIDE_SRCS := \
+	$(LOCAL_DIR)/arm/arch.c
 
 DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=4096
 endif
 ifeq ($(SUBARCH),arm-m)
-OBJS += \
-	$(LOCAL_DIR)/arm-m/arch.o \
-	$(LOCAL_DIR)/arm-m/vectab.o \
-	$(LOCAL_DIR)/arm-m/start.o \
-	$(LOCAL_DIR)/arm-m/exceptions.o \
-	$(LOCAL_DIR)/arm-m/thread.o \
-	$(LOCAL_DIR)/arm-m/systick.o \
-	$(LOCAL_DIR)/arm-m/CMSIS/CM3/CoreSupport/core_cm3.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/arm-m/arch.c \
+	$(LOCAL_DIR)/arm-m/vectab.c \
+	$(LOCAL_DIR)/arm-m/start.c \
+	$(LOCAL_DIR)/arm-m/exceptions.c \
+	$(LOCAL_DIR)/arm-m/thread.c \
+	$(LOCAL_DIR)/arm-m/systick.c \
+	$(LOCAL_DIR)/arm-m/CMSIS/CM3/CoreSupport/core_cm3.c
 
 INCLUDES += \
 	-I$(LOCAL_DIR)/arm-m/CMSIS/CM3/CoreSupport
@@ -144,7 +146,7 @@ ifeq ($(TOOLCHAIN_PREFIX),arm-none-linux-gnueabi-)
 THUMBINTERWORK:=
 endif
 
-CFLAGS += $(THUMBINTERWORK)
+GLOBAL_COMPILEFLAGS += $(THUMBINTERWORK)
 
 # make sure some bits were set up
 MEMVARS_SET := 0
@@ -158,10 +160,10 @@ ifeq ($(MEMVARS_SET),0)
 $(error missing MEMBASE or MEMSIZE variable, please set in target rules.mk)
 endif
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(CFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))
 
-$(info CFLAGS = $(CFLAGS) $(THUMBCFLAGS))
+$(info GLOBAL_COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS) $(THUMBCFLAGS))
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
@@ -180,3 +182,4 @@ $(BUILDDIR)/system-twosegment.ld: $(LOCAL_DIR)/system-twosegment.ld
 	@$(MKDIR)
 	$(NOECHO)sed "s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
 
+include make/module.mk

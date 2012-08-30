@@ -1,7 +1,12 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-MODULES += lib/gfx \
-			lib/font
+MODULE := $(LOCAL_DIR)
 
-OBJS += \
-	$(LOCAL_DIR)/gfxconsole.o
+MODULE_DEPS += \
+	lib/gfx \
+	lib/font
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/gfxconsole.c
+
+include make/module.mk

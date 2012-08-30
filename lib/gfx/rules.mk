@@ -1,4 +1,8 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-OBJS += \
-	$(LOCAL_DIR)/gfx.o
+MODULE := $(LOCAL_DIR)
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/gfx.c
+
+include make/module.mk

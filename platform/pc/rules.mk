@@ -1,23 +1,27 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 ARCH := x86
 CPU := generic
 
-MODULES += \
+MODULE_DEPS += \
 	lib/cbuf
 
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
-OBJS += \
-	$(LOCAL_DIR)/interrupts.o \
-	$(LOCAL_DIR)/platform.o \
-	$(LOCAL_DIR)/timer.o \
-	$(LOCAL_DIR)/debug.o \
-	$(LOCAL_DIR)/console.o \
-	$(LOCAL_DIR)/keyboard.o \
-	$(LOCAL_DIR)/pci.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/interrupts.c \
+	$(LOCAL_DIR)/platform.c \
+	$(LOCAL_DIR)/timer.c \
+	$(LOCAL_DIR)/debug.c \
+	$(LOCAL_DIR)/console.c \
+	$(LOCAL_DIR)/keyboard.c \
+	$(LOCAL_DIR)/pci.c
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/kernel.ld
+
+include make/module.mk
 

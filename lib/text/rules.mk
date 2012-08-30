@@ -1,6 +1,10 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-MODULES += lib/font
+MODULE := $(LOCAL_DIR)
 
-OBJS += \
-	$(LOCAL_DIR)/text.o
+MODULE_DEPS += lib/font
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/text.c
+
+include make/module.mk

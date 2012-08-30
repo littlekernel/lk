@@ -1,12 +1,16 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-MODULES += \
+MODULE := $(LOCAL_DIR)
+
+MODULE_DEPS += \
 	lib/fs \
 	lib/bcache \
 	lib/bio
 
-OBJS += \
-	$(LOCAL_DIR)/ext2.o \
-	$(LOCAL_DIR)/dir.o \
-	$(LOCAL_DIR)/io.o \
-	$(LOCAL_DIR)/file.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/ext2.c \
+	$(LOCAL_DIR)/dir.c \
+	$(LOCAL_DIR)/io.c \
+	$(LOCAL_DIR)/file.c
+
+include make/module.mk

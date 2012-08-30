@@ -1,5 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 INCLUDES += -I$(LOCAL_DIR)/include
 
 PLATFORM := qsd8k
@@ -11,7 +13,7 @@ LINUX_MACHTYPE := 0x00000811
 
 KEYS_USE_GPIO_KEYPAD := 1
 
-MODULES += \
+MODULE_DEPS += \
 	dev/keys \
 	lib/ptable
 
@@ -19,6 +21,8 @@ DEFINES += \
 	SDRAM_SIZE=$(MEMSIZE) \
 	LINUX_MACHTYPE=$(LINUX_MACHTYPE)
 
-OBJS += \
-	$(LOCAL_DIR)/init.o \
-	$(LOCAL_DIR)/keypad.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/keypad.c
+
+include make/module.mk

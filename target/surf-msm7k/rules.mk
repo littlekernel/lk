@@ -1,5 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 INCLUDES += -I$(LOCAL_DIR)/include
 
 PLATFORM := msm7k
@@ -11,7 +13,7 @@ LINUX_MACHTYPE := 0x0000059F
 
 KEYS_USE_GPIO_KEYPAD := 1
 
-MODULES += \
+MODULE_DEPS += \
 	dev/keys \
 	lib/ptable
 
@@ -20,7 +22,9 @@ DEFINES += \
 	MEMBASE=$(MEMBASE) \
 	LINUX_MACHTYPE=$(LINUX_MACHTYPE)
 
-OBJS += \
-	$(LOCAL_DIR)/init.o \
-	$(LOCAL_DIR)/keypad.o \
-	$(LOCAL_DIR)/panel.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/keypad.c \
+	$(LOCAL_DIR)/panel.c
+
+include make/module.mk

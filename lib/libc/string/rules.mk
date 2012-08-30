@@ -37,6 +37,6 @@ LIBC_STRING_C_DIR := $(LOCAL_DIR)
 # the makefile may filter out implemented versions from the C_STRING_OPS variable
 include $(LOCAL_DIR)/arch/$(ARCH)/rules.mk
 
-OBJS += \
-	$(addprefix $(LIBC_STRING_C_DIR)/,$(addsuffix .o,$(C_STRING_OPS)))
+MODULE_SRCS += \
+	$(addprefix $(LIBC_STRING_C_DIR)/,$(addsuffix .c,$(C_STRING_OPS)))
 

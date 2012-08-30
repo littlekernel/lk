@@ -1,5 +1,8 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-OBJS += \
-	$(LOCAL_DIR)/dev.o
+MODULE := $(LOCAL_DIR)
 
+MODULE_SRCS += \
+	$(LOCAL_DIR)/dev.c
+
+include make/module.mk

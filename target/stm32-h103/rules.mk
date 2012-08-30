@@ -1,5 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 STM32_CHIP := stm32f103_md
 
 PLATFORM := stm32f1xx
@@ -10,6 +12,8 @@ DEFINES += \
 
 INCLUDES += -I$(LOCAL_DIR)/include
 
-OBJS += \
-	$(LOCAL_DIR)/init.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c
+
+include make/module.mk
 

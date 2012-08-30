@@ -6,5 +6,5 @@ PLATFORM := at91sam7
 
 INCLUDES += -I$(LOCAL_DIR)/include
 
-OBJS += 
+#OBJS += 
 

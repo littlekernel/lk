@@ -1,6 +1,10 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-MODULES += lib/bio
+MODULE := $(LOCAL_DIR)
 
-OBJS += \
-	$(LOCAL_DIR)/bcache.o
+MODULE_DEPS += lib/bio
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/bcache.c
+
+include make/module.mk

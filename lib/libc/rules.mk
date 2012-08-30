@@ -1,20 +1,23 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-OBJS += \
-	$(LOCAL_DIR)/atoi.o \
-	$(LOCAL_DIR)/ctype.o \
-	$(LOCAL_DIR)/printf.o \
-	$(LOCAL_DIR)/malloc.o \
-	$(LOCAL_DIR)/rand.o \
-	$(LOCAL_DIR)/eabi.o
+MODULE := $(LOCAL_DIR)
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/atoi.c \
+	$(LOCAL_DIR)/ctype.c \
+	$(LOCAL_DIR)/printf.c \
+	$(LOCAL_DIR)/malloc.c \
+	$(LOCAL_DIR)/rand.c \
+	$(LOCAL_DIR)/eabi.c
 
 
 include $(LOCAL_DIR)/string/rules.mk
 
 ifeq ($(WITH_CPP_SUPPORT),true)
-OBJS += \
-	$(LOCAL_DIR)/new.o \
-	$(LOCAL_DIR)/atexit.o \
-	$(LOCAL_DIR)/pure_virtual.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/new.c \
+	$(LOCAL_DIR)/atexit.c \
+	$(LOCAL_DIR)/pure_virtual.cpp
 endif
 
+include make/module.mk

@@ -1,6 +1,9 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-OBJS += \
-	$(LOCAL_DIR)/init.o
+MODULE := $(LOCAL_DIR)
 
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c
+
+include make/module.mk
 

@@ -41,6 +41,8 @@ endif
 
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 ARCH := arm
 ARM_CPU := arm7tdmi
 
@@ -49,16 +51,16 @@ DEFINES += AT91_MCK_MHZ=48000000
 INCLUDES += \
 	-I$(LOCAL_DIR)/include
 
-OBJS += \
-	$(LOCAL_DIR)/debug.o \
-	$(LOCAL_DIR)/interrupts.o \
-	$(LOCAL_DIR)/platform_early.o \
-	$(LOCAL_DIR)/platform.o \
-	$(LOCAL_DIR)/timer.o \
-	$(LOCAL_DIR)/init_clock.o \
-	$(LOCAL_DIR)/init_clock_48mhz.o \
-	$(LOCAL_DIR)/mux.o \
-	$(LOCAL_DIR)/emac_dev.o
+MODULE_SRCS += \
+	$(LOCAL_DIR)/debug.c \
+	$(LOCAL_DIR)/interrupts.c \
+	$(LOCAL_DIR)/platform_early.S \
+	$(LOCAL_DIR)/platform.c \
+	$(LOCAL_DIR)/timer.c \
+	$(LOCAL_DIR)/init_clock.S \
+	$(LOCAL_DIR)/init_clock_48mhz.S \
+	$(LOCAL_DIR)/mux.c \
+	$(LOCAL_DIR)/emac_dev.c
 
 # use a two segment memory layout, where all of the read-only sections 
 # of the binary reside in rom, and the read/write are in memory. The 
@@ -68,3 +70,4 @@ OBJS += \
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
+include make/module.mk
