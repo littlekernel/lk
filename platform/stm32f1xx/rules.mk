@@ -49,6 +49,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/vectab.c \
 	$(LOCAL_DIR)/gpio.c \
+	$(LOCAL_DIR)/flash_nor.c \
 
 #	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/interrupts.c \

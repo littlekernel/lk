@@ -20,25 +20,19 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <dev/uart.h>
-#include <platform.h>
-#include <platform/stm32.h>
-#include "system_stm32f10x.h"
+#ifndef __DEV_FLASH_NOR_H
+#define __DEV_FLASH_NOR_H
 
-void platform_early_init(void)
-{
-	// Crank up the clock before initing timers.
-	SystemInit();
+struct flash_nor_bank {
+	addr_t base;
+	size_t len;
+	size_t page_size;
+	uint flags;
+};
 
-	stm32_timer_early_init();
-	stm32_gpio_early_init();
-	stm32_flash_nor_early_init();
-}
+#define FLASH_NOR_FLAG_NONE	0
 
-void platform_init(void)
-{
-	stm32_timer_init();
-	stm32_flash_nor_init();
-}
+const struct flash_nor_bank *flash_nor_get_bank(unsigned int bank);
+
+#endif
+
