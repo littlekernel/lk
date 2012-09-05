@@ -75,6 +75,9 @@ $(MODULE_OBJECT): $(MODULE_OBJS)
 # track all the objects built
 ALLOBJS += $(MODULE_OBJS)
 
+# track the module object for make clean
+GENERATED += $(MODULE_OBJECT)
+
 # make the rest of the build depend on our output
 ALLMODULE_OBJS := $(ALLMODULE_OBJS) $(MODULE_OBJECT)
 
