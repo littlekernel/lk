@@ -3,4 +3,5 @@ build-*
 *~
 tags
 TAGS
+cscope.out
 local.mk
