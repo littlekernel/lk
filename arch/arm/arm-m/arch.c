@@ -46,7 +46,7 @@ void arch_early_init(void)
 
 	/* clear any pending interrupts and set all the vectors to medium priority */
 	int i;
-	int groups = InterruptType->ICTR & 0xf;
+	int groups = SCnSCB->ICTR & 0xf;
 	for (i = 0; i < groups; i++) {
 		NVIC->ICER[i] = 0xffffffff;
 		NVIC->ICPR[i] = 0xffffffff;

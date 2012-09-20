@@ -128,11 +128,10 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm-m/start.c \
 	$(LOCAL_DIR)/arm-m/exceptions.c \
 	$(LOCAL_DIR)/arm-m/thread.c \
-	$(LOCAL_DIR)/arm-m/systick.c \
-	$(LOCAL_DIR)/arm-m/CMSIS/CM3/CoreSupport/core_cm3.c
+	$(LOCAL_DIR)/arm-m/systick.c
 
 INCLUDES += \
-	-I$(LOCAL_DIR)/arm-m/CMSIS/CM3/CoreSupport
+	-I$(LOCAL_DIR)/arm-m/CMSIS/Include
 
 DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=1024
