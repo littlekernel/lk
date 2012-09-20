@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -79,7 +79,7 @@ void hexdump8(const void *ptr, size_t len);
 #define TRACE_ENTRY_OBJ printf("%s: entry obj %p\n", __PRETTY_FUNCTION__, this)
 #define TRACE_EXIT_OBJ printf("%s: exit obj %p\n", __PRETTY_FUNCTION__, this)
 #define TRACE printf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__)
-#define TRACEF(x...) do { printf("%s:%d: ", __PRETTY_FUNCTION__, __LINE__); printf(x); } while (0)
+#define TRACEF(str, x...) do { printf("%s:%d: " str, __PRETTY_FUNCTION__, __LINE__, ## x); } while (0)
 
 /* trace routines that work if LOCAL_TRACE is set */
 #define LTRACE_ENTRY do { if (LOCAL_TRACE) { TRACE_ENTRY; } } while (0)
