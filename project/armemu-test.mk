@@ -13,6 +13,7 @@ MODULES += \
 	lib/gfxconsole \
 	lib/text \
 	lib/tga \
+	lib/debugcommands \
 	app/tests \
 	app/shell
 
