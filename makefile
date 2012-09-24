@@ -63,7 +63,7 @@ LINKER_SCRIPT :=
 GENERATED := $(CONFIGHEADER)
 
 # anything added to DEFINES will be put into $(BUILDDIR)/config.h
-DEFINES := LK=1				
+DEFINES := LK=1
 
 # Anything added to SRCDEPS will become a dependency of every source file in the system.
 # Useful for header files that may be included by one or more source files.
@@ -85,6 +85,11 @@ EXTRA_CLEANDEPS :=
 include project/$(PROJECT).mk
 include target/$(TARGET)/rules.mk
 include platform/$(PLATFORM)/rules.mk
+
+$(info PROJECT = $(PROJECT))
+$(info PLATFORM = $(PLATFORM))
+$(info TARGET = $(TARGET))
+
 include arch/$(ARCH)/rules.mk
 include platform/rules.mk
 include target/rules.mk
@@ -111,6 +116,12 @@ DEFINES += \
 ifneq ($(DEBUG),)
 DEFINES += \
 	DEBUG=$(DEBUG)
+endif
+
+# allow additional defines from outside the build system
+ifneq ($(EXTERNAL_DEFINES),)
+DEFINES += $(EXTERNAL_DEFINES)
+$(info EXTERNAL_DEFINES = $(EXTERNAL_DEFINES))
 endif
 
 DEPS := $(ALLOBJS:%o=%d)
