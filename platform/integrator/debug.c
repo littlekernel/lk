@@ -93,12 +93,12 @@ static int uart_getc(int port, bool wait)  /* returns -1 if no data available */
 	return -1;
 }
 
-void _dputc(char c)
+void platform_dputc(char c)
 {
 	uart_putc(0, c);
 }
 
-int dgetc(char *c, bool wait)
+int platform_dgetc(char *c, bool wait)
 {
 	int result = uart_getc(0, false);
 

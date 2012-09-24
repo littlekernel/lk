@@ -87,7 +87,7 @@ int uart_getc(char *c, bool wait)
 	return cbuf_read(&uart_rx_buf, c, 1, wait);
 }
 
-void _dputc(char c)
+void platform_dputc(char c)
 {
 #if WITH_CGA_CONSOLE
 	cputc(c);
@@ -96,7 +96,7 @@ void _dputc(char c)
 #endif
 }
 
-int dgetc(char *c, bool wait)
+int platform_dgetc(char *c, bool wait)
 {
 #if WITH_CGA_CONSOLE
 	int ret =  platform_read_key(c);

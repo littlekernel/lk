@@ -78,7 +78,7 @@ void sam_debug_init(void)
 	uart_enable_interrupt(UART, UART_IER_RXRDY);
 }
 
-void _dputc(char c)
+void platform_dputc(char c)
 {
 	if (c == '\n') {
 		_dputc('\r');
@@ -89,7 +89,7 @@ void _dputc(char c)
 	uart_write(UART, c);
 }
 
-int dgetc(char *c, bool wait)
+int platform_dgetc(char *c, bool wait)
 {
 	return cbuf_read(&debug_rx_buf, c, 1, wait);
 }

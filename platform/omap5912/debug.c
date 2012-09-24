@@ -92,7 +92,7 @@ static int uart_getc(int port, bool wait)  /* returns -1 if no data available */
 	return read_uart_reg(port, UART_RHR);
 }
 
-void _dputc(char c)
+void platform_dputc(char c)
 {
 	if (c == '\n')
 		uart_putc(0, '\r');
@@ -111,7 +111,7 @@ static enum handler_return debug_timer_callback(timer_t *t, time_t now, void *ar
 	}
 }
 
-int dgetc(char *c, bool wait)
+int platform_dgetc(char *c, bool wait)
 {
 	ssize_t len;
 

@@ -27,12 +27,12 @@
 #include <platform/armemu/memmap.h>
 #include <platform/debug.h>
 
-void _dputc(char c)
+void platform_dputc(char c)
 {
 	*REG8(DEBUG_STDOUT) = c;
 }
 
-int dgetc(char *c, bool wait)
+int platform_dgetc(char *c, bool wait)
 {
 	for (;;) {
 		int8_t result = (int8_t)*REG8(DEBUG_STDIN);

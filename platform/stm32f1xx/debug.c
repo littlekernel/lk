@@ -44,14 +44,14 @@ void stm32_debug_init(void)
 	uart_init();
 }
 
-void _dputc(char c)
+void platform_dputc(char c)
 {
 	if (c == '\n')
 		uart_putc(DEBUG_UART, '\r');
 	uart_putc(DEBUG_UART, c);
 }
 
-int dgetc(char *c, bool wait)
+int platform_dgetc(char *c, bool wait)
 {
 	int ret = uart_getc(DEBUG_UART, wait);
 	if (ret == -1)
