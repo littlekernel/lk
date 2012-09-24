@@ -7,6 +7,10 @@ MKDIR = if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
 # prepends the BUILD_DIR var to each item in the list
 TOBUILDDIR = $(addprefix $(BUILDDIR)/,$(1))
 
+COMMA := ,
+SPACE :=
+SPACE +=
+
 # generate a header file at $1 with an expanded variable in $2
 define MAKECONFIGHEADER
 	@$(MKDIR)
