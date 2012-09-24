@@ -27,16 +27,14 @@
 #include <stdarg.h>
 #include <compiler.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 void platform_halt(void) __NO_RETURN;
 
-#if defined(__cplusplus)
-}
-#endif
+void platform_dputc(char c);
+int platform_dgetc(char *c, bool wait);
 
+__END_CDECLS
 
 #endif
 

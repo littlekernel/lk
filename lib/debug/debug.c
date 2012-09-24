@@ -58,6 +58,8 @@ void _panic(void *caller, const char *fmt, ...)
 	halt();
 }
 
+#if !DISABLE_DEBUG_OUTPUT
+
 int _dputs(const char *str)
 {
 	while(*str != 0) {
@@ -132,4 +134,6 @@ void hexdump8(const void *ptr, size_t len)
 		address += 16;
 	}	
 }
+
+#endif // !DISABLE_DEBUG_OUTPUT
 

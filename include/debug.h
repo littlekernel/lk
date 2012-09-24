@@ -28,9 +28,7 @@
 #include <platform/debug.h>
 #include <printf.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 #if defined(DEBUG)
 #define DEBUGLEVEL DEBUG
@@ -44,34 +42,36 @@ extern "C" {
 #define INFO 1
 #define SPEW 2
 
-/* output */
-void _dputc(char c); // XXX for now, platform implements
+#if !DISABLE_DEBUG_OUTPUT
+
+/* input/output */
+#define _dputc(c) platform_dputc(c)
 int _dputs(const char *str);
 int _dprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);
 int _dvprintf(const char *fmt, va_list ap);
+
+/* dump memory */
+void hexdump(const void *ptr, size_t len);
+void hexdump8(const void *ptr, size_t len);
+
+#else
+
+/* input/output */
+static inline void _dputc(char c) { }
+static inline int _dputs(const char *str) { return 0; }
+static inline int __PRINTFLIKE(1, 2) _dprintf(const char *fmt, ...) { return 0; }
+static inline int _dvprintf(const char *fmt, va_list ap) { return 0; }
+
+/* dump memory */
+static inline void hexdump(const void *ptr, size_t len) { }
+static inline void hexdump8(const void *ptr, size_t len) { }
+
+#endif /* DISABLE_DEBUG_OUTPUT */
 
 #define dputc(level, str) do { if ((level) <= DEBUGLEVEL) { _dputc(str); } } while (0)
 #define dputs(level, str) do { if ((level) <= DEBUGLEVEL) { _dputs(str); } } while (0)
 #define dprintf(level, x...) do { if ((level) <= DEBUGLEVEL) { _dprintf(x); } } while (0)
 #define dvprintf(level, x...) do { if ((level) <= DEBUGLEVEL) { _dvprintf(x); } } while (0)
-
-/* input */
-int dgetc(char *c, bool wait);
-
-/* systemwide halts */
-void halt(void) __NO_RETURN;
-
-void _panic(void *caller, const char *fmt, ...) __PRINTFLIKE(2, 3) __NO_RETURN;
-#define panic(x...) _panic(__GET_CALLER(), x)
-
-#define PANIC_UNIMPLEMENTED panic("%s unimplemented\n", __PRETTY_FUNCTION__)
-
-/* spin the cpu for a period of (short) time */
-void spin(uint32_t usecs);
-
-/* dump memory */
-void hexdump(const void *ptr, size_t len);
-void hexdump8(const void *ptr, size_t len);
 
 /* trace routines */
 #define TRACE_ENTRY printf("%s: entry\n", __PRETTY_FUNCTION__)
@@ -87,8 +87,17 @@ void hexdump8(const void *ptr, size_t len);
 #define LTRACE do { if (LOCAL_TRACE) { TRACE; } } while (0)
 #define LTRACEF(x...) do { if (LOCAL_TRACE) { TRACEF(x); } } while (0)
 
-#if defined(__cplusplus)
-}
-#endif
+/* systemwide halts */
+void halt(void) __NO_RETURN;
+
+void _panic(void *caller, const char *fmt, ...) __PRINTFLIKE(2, 3) __NO_RETURN;
+#define panic(x...) _panic(__GET_CALLER(), x)
+
+#define PANIC_UNIMPLEMENTED panic("%s unimplemented\n", __PRETTY_FUNCTION__)
+
+/* spin the cpu for a period of (short) time */
+void spin(uint32_t usecs);
+
+__END_CDECLS
 
 #endif

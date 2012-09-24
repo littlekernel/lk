@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <printf.h>
 #include <string.h>
+#include <platform/debug.h>
 
 void putc(char c)
 {
@@ -39,10 +40,10 @@ int puts(const char *str)
 
 int getc(char *c)
 {
-	return dgetc(c, true);
+	return platform_dgetc(c, true);
 }
 
-int printf(const char *fmt, ...)
+int _printf(const char *fmt, ...)
 {
 	int err;
 
