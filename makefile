@@ -82,6 +82,9 @@ EXTRA_BUILDDEPS :=
 # any rules you put here will be depended on in clean builds
 EXTRA_CLEANDEPS := 
 
+# any objects you put here get linked with the final image
+EXTRA_OBJS :=
+
 include project/$(PROJECT).mk
 include target/$(TARGET)/rules.mk
 include platform/$(PLATFORM)/rules.mk

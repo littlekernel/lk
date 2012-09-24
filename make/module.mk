@@ -12,6 +12,7 @@
 # MODULE_CPPFLAGS : CPPFLAGS local to this module
 # MODULE_ASMFLAGS : ASMFLAGS local to this module
 # MODULE_SRCDEPS : extra dependencies that all of this module's files depend on
+# MODULE_EXTRA_OBJS : extra .o files that should be linked with the module
 
 # MODULE_ARM_OVERRIDE_SRCS : list of source files, local path that should be force compiled with ARM (if applicable)
 
@@ -67,7 +68,7 @@ include make/compile.mk
 
 # build a ld -r style combined object
 MODULE_OBJECT := $(call TOBUILDDIR,$(MODULE_SRCDIR).mod.o)
-$(MODULE_OBJECT): $(MODULE_OBJS)
+$(MODULE_OBJECT): $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
 	@$(MKDIR)
 	@echo linking $@
 	$(NOECHO)$(LD) -r $^ -o $@
@@ -95,6 +96,7 @@ MODULE_CFLAGS :=
 MODULE_CPPFLAGS :=
 MODULE_ASMFLAGS :=
 MODULE_SRCDEPS :=
+MODULE_EXTRA_OBJS :=
 MODULE_CONFIG :=
 MODULE_OBJECT :=
 MODULE_ARM_OVERRIDE_SRCS :=
