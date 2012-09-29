@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2012 Shantanu Gupta
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,12 +26,19 @@
 
 #include <kernel/thread.h>
 
+#if DEBUGLEVEL > 1
+#define MUTEX_CHECK 1
 #define MUTEX_MAGIC 'mutx'
+#else
+#define MUTEX_CHECK 0
+#endif
 
 typedef struct mutex {
+#if MUTEX_CHECK
 	int magic;
-	int count;
 	thread_t *holder;
+#endif
+	int count;
 	wait_queue_t wait;
 } mutex_t;
 
