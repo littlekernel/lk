@@ -7,7 +7,7 @@ INCLUDES += \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/crt0.S \
-	$(LOCAL_DIR)/arch.S \
+	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/asm.S \
 	$(LOCAL_DIR)/cache.c \
 	$(LOCAL_DIR)/cache-ops.S \
@@ -27,7 +27,10 @@ cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`";
 	then echo "$(2)"; else echo "$(3)"; fi ;)
 
 # disable SSP if the compiler supports it; it will break stuff
-CFLAGS += $(call cc-option,$(CC),-fno-stack-protector,)
+GLOBAL_CFLAGS += $(call cc-option,$(CC),-fno-stack-protector,)
+
+GLOBAL_COMPILEFLAGS += -fasynchronous-unwind-tables
+GLOBAL_COMPILEFLAGS += -gdwarf-2
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
