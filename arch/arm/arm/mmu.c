@@ -39,7 +39,7 @@
 static uint32_t *tt = (void *)MMU_TRANSLATION_TABLE_ADDR;
 #else
 /* the main translation table */
-static uint32_t tt[4096] __ALIGNED(16384);
+static uint32_t tt[4096] __ALIGNED(16384) __SECTION(".bss.prebss.translation_table");
 #endif
 
 #define MMU_FLAG_CACHED 0x1

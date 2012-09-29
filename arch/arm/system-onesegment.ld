@@ -78,6 +78,7 @@ SECTIONS
 	__data_end = .;
 
 	/* unintialized data (in same segment as writable data) */
+	.prebss : SUBALIGN(4) { KEEP(*(.bss.prebss.*)) }
 	.bss.initial_stack : SUBALIGN(4) { KEEP(*(.bss.initial_stack)) }
 	.bss : SUBALIGN(4) {
 		__bss_start = .;
