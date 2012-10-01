@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <stddef.h>
 #include <list.h>
 #include <malloc.h>
 #include <err.h>
