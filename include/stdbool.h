@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2012 Travis Geiselbrecht
+ * Copyright (c) 2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,49 +20,17 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __SYS_TYPES_H
-#define __SYS_TYPES_H
+#ifndef __STDBOOL_H
+#define __STDBOOL_H
 
-#include <stddef.h>
-#include <limits.h>
-#include <stdint.h>
-#include <stdbool.h>
+#ifndef __cplusplus
 
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef unsigned int uint;
-typedef unsigned long ulong;
-typedef unsigned char u_char;
-typedef unsigned short u_short;
-typedef unsigned int u_int;
-typedef unsigned long u_long;
+#define bool _Bool
+#define true 1
+#define false 0
 
-#ifndef _SIZE_T_DEFINED_
-typedef unsigned long size_t;
 #endif
-typedef long          ssize_t;
-typedef long long     off_t;
 
-typedef int status_t;
-
-typedef uintptr_t addr_t;
-typedef uintptr_t vaddr_t;
-typedef uintptr_t paddr_t;
-
-typedef int kobj_id;
-
-typedef unsigned long time_t;
-typedef unsigned long long bigtime_t;
-#define INFINITE_TIME ULONG_MAX
-
-#define TIME_GTE(a, b) ((long)((a) - (b)) >= 0)
-#define TIME_LTE(a, b) ((long)((a) - (b)) <= 0)
-#define TIME_GT(a, b) ((long)((a) - (b)) > 0)
-#define TIME_LT(a, b) ((long)((a) - (b)) < 0)
-
-enum handler_return {
-	INT_NO_RESCHEDULE = 0,
-	INT_RESCHEDULE,
-};
+#define __bool_true_false_are_defined 1
 
 #endif
