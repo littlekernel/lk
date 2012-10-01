@@ -127,7 +127,7 @@ err:
  * @return  NO_ERROR on success, ERR_TIMED_OUT on timeout,
  * other values on error
  */
-status_t mutex_acquire_timeout(mutex_t *m, time_t timeout)
+status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 {
 	status_t ret = NO_ERROR;
 

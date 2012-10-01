@@ -109,7 +109,7 @@ void thread_set_priority(int priority);
 thread_t *thread_create(const char *name, thread_start_routine entry, void *arg, int priority, size_t stack_size);
 status_t thread_resume(thread_t *);
 void thread_exit(int retcode) __NO_RETURN;
-void thread_sleep(time_t delay);
+void thread_sleep(lk_time_t delay);
 
 void dump_thread(thread_t *t);
 void dump_all_threads(void);
@@ -193,7 +193,7 @@ void wait_queue_destroy(wait_queue_t *, bool reschedule);
  * a timeout other than INFINITE_TIME will set abort after the specified time
  * and return ERR_TIMED_OUT. a timeout of 0 will immediately return.
  */
-status_t wait_queue_block(wait_queue_t *, time_t timeout);
+status_t wait_queue_block(wait_queue_t *, lk_time_t timeout);
 
 /* 
  * release one or more threads from the wait queue.
@@ -217,8 +217,8 @@ status_t thread_unblock_from_wait_queue(thread_t *t, bool reschedule, status_t w
 #endif
 #if THREAD_STATS
 struct thread_stats {
-	bigtime_t idle_time;
-	bigtime_t last_idle_timestamp;
+	lk_bigtime_t idle_time;
+	lk_bigtime_t last_idle_timestamp;
 	int reschedules;
 	int context_switches;
 	int preempts;

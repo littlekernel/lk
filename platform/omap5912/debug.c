@@ -99,7 +99,7 @@ void platform_dputc(char c)
 	uart_putc(0, c);
 }
 
-static enum handler_return debug_timer_callback(timer_t *t, time_t now, void *arg)
+static enum handler_return debug_timer_callback(timer_t *t, lk_time_t now, void *arg)
 {
 	signed char c;
 	c = uart_getc(0, false);

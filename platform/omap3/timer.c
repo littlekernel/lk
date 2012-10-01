@@ -31,7 +31,7 @@
 #include <platform/omap3.h>
 #include "platform_p.h"
 
-static time_t tick_interval;
+static lk_time_t tick_interval;
 static platform_timer_callback t_callback;
 static void *callback_arg;
 
@@ -42,7 +42,7 @@ static const ulong timer_base = OMAP34XX_GPT2;
 
 #define TIMER_REG(reg) *REG32(timer_base + (reg))
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, time_t interval)
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
 	enter_critical_section();
 
@@ -64,7 +64,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	return NO_ERROR;
 }
 
-time_t current_time(void)
+lk_time_t current_time(void)
 {
 	uint32_t delta_ticks;
 	uint32_t delta_ticks2;
@@ -77,10 +77,10 @@ retry:
 
 	uint64_t longtime = delta_ticks * 1000ULL / 32768ULL;
 
-	return (time_t)longtime;
+	return (lk_time_t)longtime;
 }
 
-bigtime_t current_time_hires(void)
+lk_bigtime_t current_time_hires(void)
 {
 	uint32_t delta_ticks;
 	uint32_t delta_ticks2;
@@ -93,7 +93,7 @@ retry:
 
 	uint64_t longtime = delta_ticks * 1000000ULL / 32768ULL;
 
-	return (bigtime_t)longtime;
+	return (lk_bigtime_t)longtime;
 }
 static enum handler_return os_timer_tick(void *arg)
 {

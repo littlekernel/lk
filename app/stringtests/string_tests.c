@@ -44,10 +44,10 @@ static void *null_memcpy(void *dst, const void *src, size_t len)
 	return dst;
 }
 
-static time_t bench_memcpy_routine(void *memcpy_routine(void *, const void *, size_t), size_t srcalign, size_t dstalign)
+static lk_time_t bench_memcpy_routine(void *memcpy_routine(void *, const void *, size_t), size_t srcalign, size_t dstalign)
 {
 	int i;
-	time_t t0;
+	lk_time_t t0;
 
 	t0 = current_time();
 	for (i=0; i < ITERATIONS; i++) {
@@ -58,7 +58,7 @@ static time_t bench_memcpy_routine(void *memcpy_routine(void *, const void *, si
 
 static void bench_memcpy(void)
 {
-	time_t null, libc, mine;
+	lk_time_t null, libc, mine;
 	size_t srcalign, dstalign;
 	
 	printf("memcpy speed test\n");
@@ -133,10 +133,10 @@ static void validate_memcpy(void)
 	}
 }
 
-static time_t bench_memset_routine(void *memset_routine(void *, int, size_t), size_t dstalign)
+static lk_time_t bench_memset_routine(void *memset_routine(void *, int, size_t), size_t dstalign)
 {
 	int i;
-	time_t t0;
+	lk_time_t t0;
 
 	t0 = current_time();
 	for (i=0; i < ITERATIONS; i++) {
@@ -147,7 +147,7 @@ static time_t bench_memset_routine(void *memset_routine(void *, int, size_t), si
 
 static void bench_memset(void)
 {
-	time_t libc, mine;
+	lk_time_t libc, mine;
 	size_t dstalign;
 	
 	printf("memset speed test\n");

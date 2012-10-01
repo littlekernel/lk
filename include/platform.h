@@ -23,8 +23,10 @@
 #ifndef __PLATFORM_H
 #define __PLATFORM_H
 
-time_t current_time(void);
-bigtime_t current_time_hires(void);
+#include <sys/types.h>
+
+lk_time_t current_time(void);
+lk_bigtime_t current_time_hires(void);
 
 /* super early platform initialization, before almost everything */
 void platform_early_init(void);

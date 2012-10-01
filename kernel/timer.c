@@ -46,7 +46,7 @@
 
 static struct list_node timer_queue;
 
-static enum handler_return timer_tick(void *arg, time_t now);
+static enum handler_return timer_tick(void *arg, lk_time_t now);
 
 /**
  * @brief  Initialize a timer object
@@ -78,9 +78,9 @@ static void insert_timer_in_queue(timer_t *timer)
 	list_add_tail(&timer_queue, &timer->node);
 }
 
-static void timer_set(timer_t *timer, time_t delay, time_t period, timer_callback callback, void *arg)
+static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_callback callback, void *arg)
 {
-	time_t now;
+	lk_time_t now;
 
 	LTRACEF("timer %p, delay %d, period %d, callback %p, arg %p, now %d\n", timer, delay, period, callback, arg);
 
@@ -125,9 +125,9 @@ static void timer_set(timer_t *timer, time_t delay, time_t period, timer_callbac
  * @param  arg  The argument to pass to the callback
  *
  * The timer function is declared as:
- *   enum handler_return callback(struct timer *, time_t now, void *arg) { ... }
+ *   enum handler_return callback(struct timer *, lk_time_t now, void *arg) { ... }
  */
-void timer_set_oneshot(timer_t *timer, time_t delay, timer_callback callback, void *arg)
+void timer_set_oneshot(timer_t *timer, lk_time_t delay, timer_callback callback, void *arg)
 {
 	if (delay == 0)
 		delay = 1;
@@ -146,9 +146,9 @@ void timer_set_oneshot(timer_t *timer, time_t delay, timer_callback callback, vo
  * @param  arg  The argument to pass to the callback
  *
  * The timer function is declared as:
- *   enum handler_return callback(struct timer *, time_t now, void *arg) { ... }
+ *   enum handler_return callback(struct timer *, lk_time_t now, void *arg) { ... }
  */
-void timer_set_periodic(timer_t *timer, time_t period, timer_callback callback, void *arg)
+void timer_set_periodic(timer_t *timer, lk_time_t period, timer_callback callback, void *arg)
 {
 	if (period == 0)
 		period = 1;
@@ -185,8 +185,8 @@ void timer_cancel(timer_t *timer)
 		LTRACEF("clearing old hw timer, nothing in the queue\n");
 		platform_stop_timer();
 	} else if (newhead != oldhead) {
-		time_t delay;
-		time_t now = current_time();
+		lk_time_t delay;
+		lk_time_t now = current_time();
 
 		if (TIME_LT(newhead->scheduled_time, now))
 			delay = 0;
@@ -202,7 +202,7 @@ void timer_cancel(timer_t *timer)
 }
 
 /* called at interrupt time to process any pending timers */
-static enum handler_return timer_tick(void *arg, time_t now)
+static enum handler_return timer_tick(void *arg, lk_time_t now)
 {
 	timer_t *timer;
 	enum handler_return ret = INT_NO_RESCHEDULE;
@@ -252,7 +252,7 @@ static enum handler_return timer_tick(void *arg, time_t now)
 		/* has to be the case or it would have fired already */
 		ASSERT(TIME_GT(timer->scheduled_time, now));
 
-		time_t delay = timer->scheduled_time - now;
+		lk_time_t delay = timer->scheduled_time - now;
 
 		LTRACEF("setting new timer for %u msecs for event %p\n", (uint)delay, timer);
 		platform_set_oneshot_timer(timer_tick, NULL, delay);

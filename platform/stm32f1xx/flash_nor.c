@@ -48,8 +48,8 @@ void stm32_flash_nor_early_init(void)
 
 void stm32_flash_nor_init(void)
 {
-	TRACEF("flash size %d\n", FLASH_SIZE);
-	TRACEF("page size %d\n", FLASH_PAGE_SIZE);
+	TRACEF("flash size %zu\n", FLASH_SIZE);
+	TRACEF("page size %zu\n", FLASH_PAGE_SIZE);
 }
 
 const struct flash_nor_bank *flash_nor_get_bank(unsigned int bank)

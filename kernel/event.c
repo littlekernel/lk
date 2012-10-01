@@ -108,7 +108,7 @@ void event_destroy(event_t *e)
  * @return  0 on success, ERR_TIMED_OUT on timeout,
  *         other values on other errors.
  */
-status_t event_wait_timeout(event_t *e, time_t timeout)
+status_t event_wait_timeout(event_t *e, lk_time_t timeout)
 {
 	status_t ret = NO_ERROR;
 

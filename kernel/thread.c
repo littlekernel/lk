@@ -345,7 +345,7 @@ void thread_resched(void)
 	THREAD_STATS_INC(context_switches);
 
 	if (oldthread == idle_thread) {
-		bigtime_t now = current_time_hires();
+		lk_bigtime_t now = current_time_hires();
 		thread_stats.idle_time += now - thread_stats.last_idle_timestamp;
 	}
 	if (newthread == idle_thread) {
@@ -486,7 +486,7 @@ enum handler_return thread_timer_tick(void)
 }
 
 /* timer callback to wake up a sleeping thread */
-static enum handler_return thread_sleep_handler(timer_t *timer, time_t now, void *arg)
+static enum handler_return thread_sleep_handler(timer_t *timer, lk_time_t now, void *arg)
 {
 	thread_t *t = (thread_t *)arg;
 
@@ -511,7 +511,7 @@ static enum handler_return thread_sleep_handler(timer_t *timer, time_t now, void
  * other threads are running.  When the timer expires, this thread will
  * be placed at the head of the run queue.
  */
-void thread_sleep(time_t delay)
+void thread_sleep(lk_time_t delay)
 {
 	timer_t timer;
 
@@ -662,7 +662,7 @@ void wait_queue_init(wait_queue_t *wait)
 	wait->count = 0;
 }
 
-static enum handler_return wait_queue_timeout_handler(timer_t *timer, time_t now, void *arg)
+static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t now, void *arg)
 {
 	thread_t *thread = (thread_t *)arg;
 
@@ -694,7 +694,7 @@ static enum handler_return wait_queue_timeout_handler(timer_t *timer, time_t now
  * @return ERR_TIMED_OUT on timeout, else returns the return
  * value specified when the queue was woken by wait_queue_wake_one().
  */
-status_t wait_queue_block(wait_queue_t *wait, time_t timeout)
+status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout)
 {
 	timer_t timer;
 

@@ -98,7 +98,7 @@ int i2c_transmit(int bus, uint8_t address, const void *buf, size_t count)
 	I2C_REG(bus, I2C_CNT) = count;
 	I2C_REG(bus, I2C_CON) = (1<<15)|(1<<10)|(1<<9)|(1<<1)|(1<<0); // enable, master, transmit, STP, STT
 
-	time_t t = current_time();
+	lk_time_t t = current_time();
 
 	const uint8_t *ptr = (const uint8_t *)buf;
 	for(;;) {
@@ -158,7 +158,7 @@ int i2c_receive(int bus, uint8_t address, void *buf, size_t count)
 	I2C_REG(bus, I2C_CNT) = count;
 	I2C_REG(bus, I2C_CON) = (1<<15)|(1<<10)|(1<<1)|(1<<0); // enable, master, STP, STT
 
-	time_t t = current_time();
+	lk_time_t t = current_time();
 
 	uint8_t *ptr = (uint8_t *)buf;
 	for(;;) {

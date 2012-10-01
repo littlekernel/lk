@@ -34,7 +34,7 @@
 
 void spin(uint32_t usecs)
 {
-	bigtime_t start = current_time_hires();
+	lk_bigtime_t start = current_time_hires();
 
 	while ((current_time_hires() - start) < usecs)
 		;	

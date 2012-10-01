@@ -48,7 +48,7 @@ void _systick(void)
 
 	bool resched = false;
 	if (cb) {
-		time_t now = current_time();
+		lk_time_t now = current_time();
 		if (cb(cb_args, now) == INT_RESCHEDULE)
 			resched = true;
 	}
@@ -61,7 +61,7 @@ void _systick(void)
 	dec_critical_section();
 }
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, time_t interval)
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
 	LTRACEF("callback %p, arg %p, interval %d\n", callback, arg, interval);
 
@@ -80,12 +80,12 @@ void sam3_tc0_irq(void)
 	ticks += 0xffff;
 }
 
-time_t current_time(void)
+lk_time_t current_time(void)
 {
 	return current_time_hires() / 1000;
 }
 
-bigtime_t current_time_hires(void)
+lk_bigtime_t current_time_hires(void)
 {
 	uint64_t t;
 	do {
@@ -99,7 +99,7 @@ bigtime_t current_time_hires(void)
 	} while (0);
 
 	/* convert ticks to usec */
-	bigtime_t res = t / (TICK_RATE / 1000000);
+	lk_bigtime_t res = t / (TICK_RATE / 1000000);
 
 	return res;
 }

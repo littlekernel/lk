@@ -35,7 +35,7 @@ void cm3_systick_init(void)
 	NVIC_SetPriority(SysTick_IRQn, cm3_medium_priority());
 }
 
-void cm3_systick_set_periodic(uint32_t systick_clk_freq, time_t period)
+void cm3_systick_set_periodic(uint32_t systick_clk_freq, lk_time_t period)
 {
 	LTRACEF("clk_freq %u, period %u\n", systick_clk_freq, (uint)period);
 

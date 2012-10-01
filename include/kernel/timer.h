@@ -29,7 +29,7 @@
 void timer_init(void);
 
 struct timer;
-typedef enum handler_return (*timer_callback)(struct timer *, time_t now, void *arg);
+typedef enum handler_return (*timer_callback)(struct timer *, lk_time_t now, void *arg);
 
 #define TIMER_MAGIC 'timr'
 
@@ -37,8 +37,8 @@ typedef struct timer {
 	int magic;
 	struct list_node node;
 
-	time_t scheduled_time;
-	time_t periodic_time;
+	lk_time_t scheduled_time;
+	lk_time_t periodic_time;
 
 	timer_callback callback;
 	void *arg;
@@ -51,8 +51,8 @@ typedef struct timer {
  * - Timers currently are dispatched from a 10ms periodic tick
 */
 void timer_initialize(timer_t *);
-void timer_set_oneshot(timer_t *, time_t delay, timer_callback, void *arg);
-void timer_set_periodic(timer_t *, time_t period, timer_callback, void *arg);
+void timer_set_oneshot(timer_t *, lk_time_t delay, timer_callback, void *arg);
+void timer_set_periodic(timer_t *, lk_time_t period, timer_callback, void *arg);
 void timer_cancel(timer_t *);
 
 #endif

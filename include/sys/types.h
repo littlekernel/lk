@@ -45,8 +45,8 @@ typedef uintptr_t paddr_t;
 
 typedef int kobj_id;
 
-typedef unsigned long time_t;
-typedef unsigned long long bigtime_t;
+typedef unsigned long lk_time_t;
+typedef unsigned long long lk_bigtime_t;
 #define INFINITE_TIME ULONG_MAX
 
 #define TIME_GTE(a, b) ((long)((a) - (b)) >= 0)

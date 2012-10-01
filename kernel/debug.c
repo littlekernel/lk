@@ -80,16 +80,16 @@ static int cmd_threadstats(int argc, const cmd_args *argv)
 	return 0;
 }
 
-static enum handler_return threadload(struct timer *t, time_t now, void *arg)
+static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
 {
 	static struct thread_stats old_stats;
-	static bigtime_t last_idle_time;
+	static lk_bigtime_t last_idle_time;
 
-	bigtime_t idle_time = thread_stats.idle_time;
+	lk_bigtime_t idle_time = thread_stats.idle_time;
 	if (current_thread == idle_thread) {
 		idle_time += current_time_hires() - thread_stats.last_idle_timestamp;
 	}
-	bigtime_t busy_time = 1000000ULL - (idle_time - last_idle_time);
+	lk_bigtime_t busy_time = 1000000ULL - (idle_time - last_idle_time);
 
 	uint busypercent = (busy_time * 10000) / (1000000);
 

@@ -34,7 +34,7 @@
 
 static platform_timer_callback timer_func;
 
-static volatile time_t ticks = 0;
+static volatile lk_time_t ticks = 0;
 
 #if FIXED_1KHZ_TIMER
 static volatile int timer_interval;
@@ -43,12 +43,12 @@ static volatile int timer_downcount;
 static int timer_ms_per_tick;
 #endif
 
-time_t current_time(void)
+lk_time_t current_time(void)
 {
 	return ticks;
 }
 
-bigtime_t current_time_hires(void)
+lk_bigtime_t current_time_hires(void)
 {
 	return ticks * 1000ULL;
 }
@@ -75,7 +75,7 @@ static enum handler_return pit_irq_handler(void *arg)
 }
 
 status_t platform_set_periodic_timer(platform_timer_callback callback,
-                                     void *arg, time_t interval)
+                                     void *arg, lk_time_t interval)
 {
     unsigned n;
     

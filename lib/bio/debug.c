@@ -74,7 +74,7 @@ usage:
 			return -1;
 		}
 
-		time_t t = current_time();
+		lk_time_t t = current_time();
 		ssize_t err = bio_read(dev, (void *)address, offset, len);
 		t = current_time() - t;
 		dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err, (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
@@ -98,7 +98,7 @@ usage:
 			return -1;
 		}
 
-		time_t t = current_time();
+		lk_time_t t = current_time();
 		ssize_t err = bio_write(dev, (void *)address, offset, len);
 		t = current_time() - t;
 		dprintf(INFO, "bio_write returns %d, took %u msecs (%d bytes/sec)\n", (int)err, (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
@@ -121,7 +121,7 @@ usage:
 			return -1;
 		}
 
-		time_t t = current_time();
+		lk_time_t t = current_time();
 		ssize_t err = bio_erase(dev, offset, len);
 		t = current_time() - t;
 		dprintf(INFO, "bio_erase returns %d, took %u msecs (%d bytes/sec)\n", (int)err, (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
