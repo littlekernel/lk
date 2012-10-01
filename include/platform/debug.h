@@ -24,6 +24,7 @@
 #define __PLATFORM_DEBUG_H
 
 #include <sys/types.h>
+#include <stdbool.h>
 #include <stdarg.h>
 #include <compiler.h>
 

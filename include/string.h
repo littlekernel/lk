@@ -23,7 +23,7 @@
 #ifndef __LIB_STRING_H
 #define __LIB_STRING_H
 
-#include <sys/types.h>
+#include <stddef.h>
 #include <compiler.h>
 
 #ifdef __cplusplus

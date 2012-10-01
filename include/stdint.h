@@ -23,6 +23,8 @@
 #ifndef __STDINT_H
 #define __STDINT_H
 
+#include <limits.h> // for ULONG_MAX
+
 typedef unsigned char      uint8_t;
 typedef unsigned short     uint16_t;
 typedef unsigned int       uint32_t;
@@ -55,6 +57,8 @@ typedef unsigned long uintptr_t;
 
 typedef long long intmax_t;
 typedef unsigned long long uintmax_t;
+
+#define SIZE_MAX ULONG_MAX
 
 #endif
 

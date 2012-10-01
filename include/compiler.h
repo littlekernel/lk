@@ -115,6 +115,8 @@
 
 #define __THREAD __thread
 
+#define __offsetof(type, field) __builtin_offsetof(type, field)
+
 #else
 
 #define likely(x)       (x)

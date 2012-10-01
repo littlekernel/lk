@@ -24,6 +24,7 @@
 #define __DEBUG_H
 
 #include <stdarg.h>
+#include <stddef.h>
 #include <compiler.h>
 #include <platform/debug.h>
 #include <printf.h>
