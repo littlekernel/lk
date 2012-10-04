@@ -52,12 +52,12 @@ static void enable_port(unsigned int port)
 
 void stm32_gpio_early_init(void)
 {
-	//RCC_APB2PeriphClockCmd(RCC_APB1Periph_AFIO, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
 }
 
 int gpio_config(unsigned nr, unsigned flags)
 {
-	/*
+	
 	uint port = GPIO_PORT(nr);
 	uint pin = GPIO_PIN(nr);
 
@@ -66,8 +66,27 @@ int gpio_config(unsigned nr, unsigned flags)
 	GPIO_InitTypeDef init;
 	init.GPIO_Speed = GPIO_Speed_50MHz;
 	init.GPIO_Pin = (1 << pin);
+	init.GPIO_PuPd = GPIO_PuPd_NOPULL;
 
-	if (flags & GPIO_STM32_AF) {
+	if (flags & GPIO_INPUT) {
+		init.GPIO_Mode = GPIO_Mode_IN;
+	} else if  (flags & GPIO_OUTPUT) {
+		init.GPIO_Mode = GPIO_Mode_OUT;
+		if (flags & GPIO_STM32_OD) {
+			init.GPIO_OType = GPIO_OType_OD;
+		} else {
+			init.GPIO_OType = GPIO_OType_PP;
+		}
+	}
+
+	if (flags & GPIO_PULLUP) {
+		init.GPIO_PuPd = GPIO_PuPd_UP;
+	} else if (flags & GPIO_PULLDOWN) {
+		init.GPIO_PuPd = GPIO_PuPd_DOWN;
+	}
+
+#if 0
+	if (flags & GPIO_STM32_AF) 	{
 		if (flags & GPIO_STM32_OD)
 			init.GPIO_Mode = GPIO_OType_OD;
 		else
@@ -86,9 +105,9 @@ int gpio_config(unsigned nr, unsigned flags)
 			init.GPIO_Mode = GPIO_Mode_IN_FLOATING;
 		}
 	}
-
+#endif
 	GPIO_Init(port_to_pointer(port), &init);
-	*/
+	
 	return 0;
 }
 
