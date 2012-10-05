@@ -34,11 +34,9 @@ void platform_early_init(void)
 
 	stm32_timer_early_init();
 	stm32_gpio_early_init();
-	stm32_flash_nor_early_init();
 }
 
 void platform_init(void)
 {
 	stm32_timer_init();
-	stm32_flash_nor_init();
 }

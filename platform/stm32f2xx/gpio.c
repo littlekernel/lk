@@ -39,20 +39,21 @@ static GPIO_TypeDef *port_to_pointer(unsigned int port)
 		case GPIO_PORT_E: return GPIOE;
 		case GPIO_PORT_F: return GPIOF;
 		case GPIO_PORT_G: return GPIOG;
+		case GPIO_PORT_H: return GPIOH;
+		case GPIO_PORT_I: return GPIOI;
 	}
 }
 
 static void enable_port(unsigned int port)
 {
-	DEBUG_ASSERT(port <= GPIO_PORT_G);
+	DEBUG_ASSERT(port <= GPIO_PORT_I);
 
 	/* happens to be the RCC ids are sequential bits, so we can start from A and shift */
-	RCC_APB2PeriphClockCmd(RCC_AHB1Periph_GPIOA << port, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA << port, ENABLE);
 }
 
 void stm32_gpio_early_init(void)
 {
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
 }
 
 int gpio_config(unsigned nr, unsigned flags)
@@ -72,11 +73,8 @@ int gpio_config(unsigned nr, unsigned flags)
 		init.GPIO_Mode = GPIO_Mode_IN;
 	} else if  (flags & GPIO_OUTPUT) {
 		init.GPIO_Mode = GPIO_Mode_OUT;
-		if (flags & GPIO_STM32_OD) {
-			init.GPIO_OType = GPIO_OType_OD;
-		} else {
-			init.GPIO_OType = GPIO_OType_PP;
-		}
+	} else if  (flags & GPIO_STM32_AF) {
+		init.GPIO_Mode = GPIO_Mode_AF;
 	}
 
 	if (flags & GPIO_PULLUP) {
@@ -85,27 +83,12 @@ int gpio_config(unsigned nr, unsigned flags)
 		init.GPIO_PuPd = GPIO_PuPd_DOWN;
 	}
 
-#if 0
-	if (flags & GPIO_STM32_AF) 	{
-		if (flags & GPIO_STM32_OD)
-			init.GPIO_Mode = GPIO_OType_OD;
-		else
-			init.GPIO_Mode = GPIO_Mode_AF_PP;
-	} else if (flags & GPIO_OUTPUT) {
-		if (flags & GPIO_STM32_OD)
-			init.GPIO_Mode = GPIO_OType_OD;
-		else
-			init.GPIO_Mode = GPIO_Mode_Out_PP;
-	} else { // GPIO_INPUT
-		if (flags & GPIO_PULLUP) {
-			init.GPIO_Mode = GPIO_Mode_IPU;
-		} else if (flags & GPIO_PULLDOWN) {
-			init.GPIO_Mode = GPIO_Mode_IPD;
-		} else {
-			init.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-		}
+	if (flags & GPIO_STM32_OD) {
+		init.GPIO_OType = GPIO_OType_OD;
+	} else {
+		init.GPIO_OType = GPIO_OType_PP;
 	}
-#endif
+
 	GPIO_Init(port_to_pointer(port), &init);
 	
 	return 0;

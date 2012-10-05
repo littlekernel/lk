@@ -29,8 +29,8 @@
 #include <arch/ops.h>
 #include <dev/uart.h>
 #include <target/debugconfig.h>
-//#include <stm32f2xx_rcc.h>
-//#include <stm32f2xx_usart.h>
+#include <stm32f2xx_rcc.h>
+#include <stm32f2xx_usart.h>
 #include <arch/arm/cm3.h>
 
 void stm32_debug_early_init(void)

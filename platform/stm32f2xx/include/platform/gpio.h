@@ -20,6 +20,8 @@
 #define GPIO_PORT_E 4
 #define GPIO_PORT_F 5
 #define GPIO_PORT_G 6
+#define GPIO_PORT_H 7
+#define GPIO_PORT_I 8
 
 #endif
 

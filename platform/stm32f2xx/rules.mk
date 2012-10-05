@@ -10,32 +10,6 @@ MEMBASE := 0x20000000
 ARCH := arm
 ARM_CPU := cortex-m3
 
-#ifeq ($(STM32_CHIP),stm32f107)
-#DEFINES += \
-#	STM32F10X_CL=1	
-#MEMSIZE ?= 65536
-#endif
-#ifeq ($(STM32_CHIP),stm32f103_xl)
-#DEFINES += \
-#	STM32F10X_XL=1
-#MEMSIZE ?= 65536
-#endif
-#ifeq ($(STM32_CHIP),stm32f103_hd)
-#DEFINES += \
-#	STM32F10X_HD=1
-#MEMSIZE ?= 65536
-#endif
-#ifeq ($(STM32_CHIP),stm32f103_md)
-#DEFINES += \
-#	STM32F10X_MD=1
-#MEMSIZE ?= 20480
-#endif
-#ifeq ($(STM32_CHIP),stm32f103_ld)
-#DEFINES += \
-#	STM32F10X_LD=1
-#MEMSIZE ?= 20480
-#endif
-
 DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 
@@ -44,14 +18,13 @@ INCLUDES += \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
-	$(LOCAL_DIR)/debug.c \
-	$(LOCAL_DIR)/uart.c \
-	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/vectab.c \
 	$(LOCAL_DIR)/gpio.c \
-	$(LOCAL_DIR)/flash_nor.c \
+	$(LOCAL_DIR)/timer.c \
+	$(LOCAL_DIR)/debug.c \
+	$(LOCAL_DIR)/uart.c \
 
-#	$(LOCAL_DIR)/debug.c \
+#	$(LOCAL_DIR)/flash_nor.c \
 	$(LOCAL_DIR)/interrupts.c \
 	$(LOCAL_DIR)/platform_early.c \
 	$(LOCAL_DIR)/platform.c \
