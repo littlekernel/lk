@@ -26,6 +26,7 @@
 #ifndef ASSEMBLY
 
 #include <sys/types.h>
+#include <stddef.h>
 #include <compiler.h>
 
 #if defined(__cplusplus)
