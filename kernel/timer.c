@@ -65,7 +65,7 @@ static void insert_timer_in_queue(timer_t *timer)
 {
 	timer_t *entry;
 
-	LTRACEF("timer %p, scheduled %d, periodic %d\n", timer, timer->scheduled_time, timer->periodic_time);
+	LTRACEF("timer %p, scheduled %lu, periodic %lu\n", timer, timer->scheduled_time, timer->periodic_time);
 
 	list_for_every_entry(&timer_queue, entry, timer_t, node) {
 		if (TIME_GT(entry->scheduled_time, timer->scheduled_time)) {
@@ -82,7 +82,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 {
 	lk_time_t now;
 
-	LTRACEF("timer %p, delay %d, period %d, callback %p, arg %p, now %d\n", timer, delay, period, callback, arg);
+	LTRACEF("timer %p, delay %lu, period %lu, callback %p, arg %p, now %lu\n", timer, delay, period, callback, arg, now);
 
 	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);	
 
@@ -96,7 +96,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 	timer->callback = callback;
 	timer->arg = arg;
 
-	LTRACEF("scheduled time %u\n", timer->scheduled_time);
+	LTRACEF("scheduled time %lu\n", timer->scheduled_time);
 
 	enter_critical_section();
 
@@ -209,14 +209,14 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 
 	THREAD_STATS_INC(timer_ints);
 
-	LTRACEF("now %d, sp 0x%x\n", now, __GET_FRAME());
+	LTRACEF("now %lu, sp %p\n", now, __GET_FRAME());
 
 	for (;;) {
 		/* see if there's an event to process */
 		timer = list_peek_head_type(&timer_queue, timer_t, node);
 		if (likely(timer == 0))
 			break;
-		LTRACEF("next item on timer queue %p at %d now %d (%p, arg %p)\n", timer, timer->scheduled_time, now, timer->callback, timer->arg);
+		LTRACEF("next item on timer queue %p at %lu now %lu (%p, arg %p)\n", timer, timer->scheduled_time, now, timer->callback, timer->arg);
 		if (likely(TIME_LT(now, timer->scheduled_time)))
 			break;
 
@@ -225,7 +225,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		DEBUG_ASSERT(timer && timer->magic == TIMER_MAGIC);
 		list_delete(&timer->node);
 
-		LTRACEF("dequeued timer %p, scheduled %d periodic %d\n", timer, timer->scheduled_time, timer->periodic_time);
+		LTRACEF("dequeued timer %p, scheduled %lu periodic %lu\n", timer, timer->scheduled_time, timer->periodic_time);
 
 		THREAD_STATS_INC(timers);
 
