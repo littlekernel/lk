@@ -42,7 +42,6 @@
 void mutex_init(mutex_t *m)
 {
 #if MUTEX_CHECK
-	ASSERT(m->magic != MUTEX_MAGIC);
 	m->magic = MUTEX_MAGIC;
 	m->holder = 0; // In good code, release is only called if acquire was successful	
 #endif
