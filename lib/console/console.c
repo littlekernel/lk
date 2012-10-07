@@ -93,7 +93,7 @@ int console_init(void)
 {
 	LTRACE_ENTRY;
 
-	command_lock = malloc(sizeof(mutex_t));
+	command_lock = calloc(sizeof(mutex_t), 1);
 	mutex_init(command_lock);
 
 	/* add all the statically defined commands to the list */
