@@ -175,8 +175,6 @@ void timer_cancel(timer_t *timer)
 	 * periodic timer callback.
 	 */
 	timer->periodic_time = 0;
-	timer->callback = NULL;
-	timer->arg = NULL;
 
 #if PLATFORM_HAS_DYNAMIC_TIMER
 	/* see if we've just modified the head of the timer queue */
@@ -229,8 +227,6 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 
 		THREAD_STATS_INC(timers);
 
-		bool periodic = timer->periodic_time > 0;
-
 		LTRACEF("timer %p firing callback %p, arg %p\n", timer, timer->callback, timer->arg);
 		if (timer->callback(timer, now, timer->arg) == INT_RESCHEDULE)
 			ret = INT_RESCHEDULE;
@@ -238,7 +234,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		/* if it was a periodic timer and it hasn't been requeued
 		 * by the callback put it back in the list
 		 */
-		if (periodic && !list_in_list(&timer->node) && timer->periodic_time > 0) {
+		if (!list_in_list(&timer->node) && timer->periodic_time > 0) {
 			LTRACEF("periodic timer, period %u\n", (uint)timer->periodic_time);
 			timer->scheduled_time = now + timer->periodic_time;
 			insert_timer_in_queue(timer);
