@@ -75,6 +75,7 @@ int gpio_config(unsigned nr, unsigned flags)
 		init.GPIO_Mode = GPIO_Mode_OUT;
 	} else if  (flags & GPIO_STM32_AF) {
 		init.GPIO_Mode = GPIO_Mode_AF;
+		GPIO_PinAFConfig(port_to_pointer(port), pin, GPIO_AFNUM(flags));
 	}
 
 	if (flags & GPIO_PULLUP) {
