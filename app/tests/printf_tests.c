@@ -35,23 +35,26 @@ void printf_tests(void)
 	printf("uint16:%hu %hu %hu\n", -1234, 0, 1234);
 	printf("int:   %d %d %d\n", -12345678, 0, 12345678);
 	printf("uint:  %u %u %u\n", -12345678, 0, 12345678);
-	printf("long:  %ld %ld %ld\n", -12345678, 0, 12345678);
-	printf("ulong: %lu %lu %lu\n", -12345678, 0, 12345678);
-	printf("long:  %D %D %D\n", -12345678, 0, 12345678);
-	printf("ulong: %U %U %U\n", -12345678, 0, 12345678);
+	printf("long:  %ld %ld %ld\n", -12345678L, 0L, 12345678L);
+	printf("ulong: %lu %lu %lu\n", -12345678UL, 0UL, 12345678UL);
+
+	// GCC has a problem with the next two lines
+	printf("long:  %D %D %D\n", -12345678L, 0L, 12345678L);
+	printf("ulong: %U %U %U\n", -12345678UL, 0UL, 12345678UL);
+
 	printf("longlong: %lli %lli %lli\n", -12345678LL, 0LL, 12345678LL);
 	printf("ulonglong: %llu %llu %llu\n", -12345678LL, 0LL, 12345678LL);
-	printf("size_t: %zd %zd %zd\n", -12345678, 0, 12345678);
-	printf("usize_t: %zu %zu %zu\n", -12345678, 0, 12345678);
+	printf("ssize_t: %zd %zd %zd\n", (ssize_t)-12345678, (ssize_t)0, (ssize_t)12345678);
+	printf("usize_t: %zu %zu %zu\n", (size_t)-12345678, (size_t)0, (size_t)12345678);
 
 	printf("hex:\n");
 	printf("uint8: %hhx %hhx %hhx\n", -12, 0, 254);
 	printf("uint16:%hx %hx %hx\n", -1234, 0, 1234);
 	printf("uint:  %x %x %x\n", -12345678, 0, 12345678);
-	printf("ulong: %lx %lx %lx\n", -12345678, 0, 12345678);
+	printf("ulong: %lx %lx %lx\n", -12345678UL, 0UL, 12345678UL);
 	printf("ulong: %X %X %X\n", -12345678, 0, 12345678);
 	printf("ulonglong: %llx %llx %llx\n", -12345678LL, 0LL, 12345678LL);
-	printf("usize_t: %zx %zx %zx\n", -12345678, 0, 12345678);
+	printf("usize_t: %zx %zx %zx\n", (size_t)-12345678, (size_t)0, (size_t)12345678);
 
 	printf("alt/sign:\n");
 	printf("uint: %#x %#X\n", 0xabcdef, 0xabcdef);
