@@ -3,12 +3,32 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 # ROMBASE, MEMBASE, and MEMSIZE are required for the linker script
-ROMBASE := 0x0
+ROMBASE := 0x08000000
 MEMBASE := 0x20000000
-# can be overridden by target
+# default memsize, specific STM32_CHIP may override this
+# and target/project may have already overridden
+MEMSIZE ?= 131072
 
 ARCH := arm
 ARM_CPU := cortex-m3
+
+ifeq ($(STM32_CHIP),stm32f207)
+DEFINES += \
+	STM32F207=1	\
+	STM32F2XX=1
+FOUND_CHIP := true
+endif
+ifeq ($(STM32_CHIP),stm32f407)
+DEFINES += \
+	STM32F407=1	\
+	STM32F4XX=1
+FOUND_CHIP := true
+#ARM_CPU := cortex-m4f
+endif
+
+ifeq ($(FOUND_CHIP),)
+$(error unknown STM32F2xx chip $(STM32_CHIP))
+endif
 
 DEFINES += \
 	MEMSIZE=$(MEMSIZE)
