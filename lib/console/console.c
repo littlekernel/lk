@@ -472,6 +472,7 @@ static int tokenize_command(const char *inbuffer, const char **continuebuffer, c
 #if WITH_LIB_ENV
 					int rc = env_get(varname, &buffer[outpos], buflen - outpos);
 #else
+					(void)varname[0]; // nuke a warning
 					int rc = -1;
 #endif
 					if (rc < 0) {
@@ -528,7 +529,6 @@ static void convert_args(int argc, cmd_args *argv)
 static void command_loop(int (*get_line)(const char **, void *), void *get_line_cookie, bool showprompt, bool locked)
 {
 	bool exit;
-	bool report_result;
 	cmd_args args[16];
 	const char *buffer;
 	const char *continuebuffer;
@@ -588,9 +588,9 @@ static void command_loop(int (*get_line)(const char **, void *), void *get_line_
 		lastresult = command->cmd_callback(argc, args);
 
 #if WITH_LIB_ENV
-		if ((env_get_bool("reportresult", &report_result, false) >= 0) &&
-			(report_result))
-		{
+		bool report_result;
+		env_get_bool("reportresult", &report_result, false);
+		if (report_result) {
 			if (lastresult < 0)
 				printf("FAIL %d\n", lastresult);
 			else
