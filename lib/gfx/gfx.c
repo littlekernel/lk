@@ -580,7 +580,6 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 {
 	if (argc < 2) {
 		printf("not enough arguments:\n");
-usage:
 		printf("%s rgb_bars		: Fill frame buffer with rgb bars\n", argv[0].str);
 		printf("%s fill r g b	: Fill frame buffer with RGB565 value and force update\n", argv[0].str);
 

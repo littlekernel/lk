@@ -121,7 +121,7 @@ int ext2_stat_file(fsfilecookie fcookie, struct file_stat *stat)
 
 int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len)
 {
-	LTRACEF("inode %p, str %p, len %d\n", inode, str, len);
+	LTRACEF("inode %p, str %p, len %zu\n", inode, str, len);
 
 	off_t linklen = ext2_file_len(ext2, inode);
 
