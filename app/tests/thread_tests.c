@@ -26,6 +26,7 @@
 #include <app/tests.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
+#include <kernel/semaphore.h>
 #include <kernel/event.h>
 #include <platform.h>
 
@@ -45,6 +46,82 @@ int sleep_test(void)
 		thread_resume(thread_create("sleeper", &sleep_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 	return 0;
 }
+
+static semaphore_t sem;
+static const int sem_total_its = 10000;
+static const int sem_thread_max_its = 1000;
+static const int sem_start_value = 10;
+static int sem_remaining_its = 0;
+static int sem_threads = 0;
+static mutex_t sem_test_mutex;
+
+static int semaphore_producer()
+{
+	printf("semaphore producer %p starting up, running for %d iterations\n", current_thread, sem_total_its);
+
+	for (int x = 0; x < sem_total_its; x++) {
+		sem_post(&sem);
+	}
+
+	return 0;
+}
+
+static int semaphore_consumer()
+{
+	unsigned int iterations = 0;
+	
+	mutex_acquire(&sem_test_mutex);
+	if (sem_remaining_its >= sem_thread_max_its) {
+		iterations = rand();
+		iterations %= sem_thread_max_its;
+	} else {
+		iterations = sem_remaining_its;
+	}
+	sem_remaining_its -= iterations;
+	mutex_release(&sem_test_mutex);
+
+	printf("semaphore consumer %p starting up, running for %u iterations\n", current_thread, iterations);
+	for (unsigned int x = 0; x < iterations; x++)
+		sem_wait(&sem);
+	printf("semaphore consumer %p done\n", current_thread);
+	atomic_add(&sem_threads, -1);
+	return 0;
+}
+
+static int semaphore_test()
+{
+	sem_init(&sem, sem_start_value);
+	mutex_init(&sem_test_mutex);
+
+	sem_remaining_its = sem_total_its;
+	while (1) {
+		mutex_acquire(&sem_test_mutex);
+		if (sem_remaining_its) {
+			thread_resume(thread_create("semaphore consumer", &semaphore_consumer, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+			atomic_add(&sem_threads, 1);
+		} else {
+			mutex_release(&sem_test_mutex);
+			break;
+		}
+		mutex_release(&sem_test_mutex);
+	}
+	
+	thread_resume(thread_create("semaphore producer", &semaphore_producer, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+
+	while (sem_threads)
+		thread_yield();
+		
+	if (sem.count == sem_start_value)
+		printf("semaphore tests successfully complete\n");
+	else
+		printf("semaphore tests failed: %d != %d\n", sem.count, sem_start_value);
+
+	sem_destroy(&sem);
+	mutex_destroy(&sem_test_mutex);
+
+	return 0;
+}
+
 
 static volatile int shared = 0;
 static mutex_t m;
@@ -364,6 +441,7 @@ static void preempt_test(void)
 int thread_tests(void) 
 {
 	mutex_test();
+	semaphore_test();
 	event_test();
 
 	atomic_test();
