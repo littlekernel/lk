@@ -868,6 +868,8 @@ void wait_queue_destroy(wait_queue_t *wait, bool reschedule)
  */
 status_t thread_unblock_from_wait_queue(thread_t *t, bool reschedule, status_t wait_queue_error)
 {
+	status_t ret = NO_ERROR;
+
 	enter_critical_section();
 
 #if THREAD_CHECKS
@@ -875,7 +877,10 @@ status_t thread_unblock_from_wait_queue(thread_t *t, bool reschedule, status_t w
 #endif
 
 	if (t->state != THREAD_BLOCKED)
-		return ERR_NOT_BLOCKED;
+	{
+		ret = ERR_NOT_BLOCKED;
+		goto exit;
+	}
 
 #if THREAD_CHECKS
 	ASSERT(t->blocking_wait_queue != NULL);
@@ -895,7 +900,8 @@ status_t thread_unblock_from_wait_queue(thread_t *t, bool reschedule, status_t w
 
 	exit_critical_section();
 
-	return NO_ERROR;
+exit:
+	return ret;
 }
 
 
