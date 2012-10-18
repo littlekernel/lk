@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -36,7 +36,13 @@
 #define RMWREG16(addr, startbit, width, val) *REG16(addr) = (*REG16(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
 #define RMWREG8(addr, startbit, width, val) *REG8(addr) = (*REG8(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
 
-#define writel(v, a) (*REG32(a) = (v))
 #define readl(a) (*REG32(a))
+#define writel(v, a) (*REG32(a) = (v))
+
+#define readw(a) (*REG16(a))
+#define writew(v, a) (*REG16(a) = (v))
+
+#define readb(a) (*REG8(a))
+#define writeb(v, a) (*REG8(a) = (v))
 
 #endif

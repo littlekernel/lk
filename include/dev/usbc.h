@@ -24,6 +24,7 @@
 #define __DEV_USBC_H
 
 #include <sys/types.h>
+#include <stddef.h>
 #include <debug.h>
 #include <hw/usb.h>
 
@@ -86,12 +87,13 @@ void usbc_ep0_ack(void);
 void usbc_ep0_stall(void);
 void usbc_ep0_send(const void *buf, size_t len, size_t maxlen);
 void usbc_ep0_recv(void *buf, size_t len, ep_callback);
+void usbc_set_address(uint8_t addr);
 
 bool usbc_is_highspeed(void);
 
 static inline void usbc_dump_transfer(const usbc_transfer *t)
 {
-	printf("usb transfer %p: buf %p, buflen %zd, bufpos %u, result %d\n", t, t->buf, t->buflen, t->bufpos, t->result);
+	printf("usb transfer %p: buf %p, buflen %zu, bufpos %u, result %d\n", t, t->buf, (size_t)t->buflen, (size_t)t->bufpos, t->result);
 }
 
 #endif

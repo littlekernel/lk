@@ -27,4 +27,7 @@
 
 #define GPIO_LED0 GPIO(GPIO_PORT_C, 12)
 
+#define GPIO_USB_PR GPIO(GPIO_PORT_C, 4)
+#define GPIO_USB_DISC GPIO(GPIO_PORT_C, 11)
+
 #endif

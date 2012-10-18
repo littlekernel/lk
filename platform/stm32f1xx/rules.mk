@@ -19,21 +19,25 @@ ifeq ($(STM32_CHIP),stm32f103_xl)
 DEFINES += \
 	STM32F10X_XL=1
 MEMSIZE ?= 65536
+HAS_USB_FS:=true
 endif
 ifeq ($(STM32_CHIP),stm32f103_hd)
 DEFINES += \
 	STM32F10X_HD=1
 MEMSIZE ?= 65536
+HAS_USB_FS:=true
 endif
 ifeq ($(STM32_CHIP),stm32f103_md)
 DEFINES += \
 	STM32F10X_MD=1
 MEMSIZE ?= 20480
+HAS_USB_FS:=true
 endif
 ifeq ($(STM32_CHIP),stm32f103_ld)
 DEFINES += \
 	STM32F10X_LD=1
 MEMSIZE ?= 20480
+HAS_USB_FS:=true
 endif
 
 DEFINES += \
@@ -60,6 +64,12 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/init_clock_48mhz.c \
 	$(LOCAL_DIR)/mux.c \
 	$(LOCAL_DIR)/emac_dev.c
+
+ifeq ($(HAS_USB_FS),true)
+MODULE_SRCS += \
+	$(LOCAL_DIR)/usb_fs.c
+MODULE_DEPS += dev/usb
+endif
 
 # use a two segment memory layout, where all of the read-only sections 
 # of the binary reside in rom, and the read/write are in memory. The 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -51,5 +51,6 @@
 #define ERR_RECURSE_TOO_DEEP -23
 #define ERR_NOT_SUPPORTED -24
 #define ERR_TOO_BIG -25
+#define ERR_BUSY -26
 
 #endif

@@ -14,41 +14,133 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Portions copyright 2012 Travis Geiselbrecht <geist@foobox.com>
+ */
 
-#include <fw/types.h>
-#include <fw/lib.h>
-#include <fw/io.h>
+#include <sys/types.h>
+#include <debug.h>
+#include <err.h>
+#include <kernel/thread.h>
 
-#include <arch/hardware.h>
-#include <protocol/usb.h>
+#include <dev/usb.h>
+#include <dev/usbc.h>
+#include <hw/usb.h>
 
-void usb_handle_irq(void);
+#include <dev/gpio.h>
+#include <platform/gpio.h>
+#include <target/gpioconfig.h>
 
-void irq_usb_lp(void) {
-	printx("IRQ USB LP\n");
-	for (;;) ;
-}
-void irq_usb_hp(void) {
-	printx("IRQ USB HP\n");
-	for (;;) ;
-}
+#include <stm32f10x.h>
+#include <stm32f10x_rcc.h>
+
+//#include <fw/lib.h>
+//#include <fw/io.h>
+
+//#include <arch/hardware.h>
+//#include <protocol/usb.h>
+
+/* from m3dev */
+#define printx printf
+
+#define LOCAL_TRACE 0
+
+#define USB_SRAM_BASE (APB1PERIPH_BASE + 0x6000)
+#define USB_BASE      (APB1PERIPH_BASE + 0x5C00)
+#define USB_EPR(n)		(USB_BASE + (n * 4))
+#define USB_CR			(USB_BASE + 0x40)
+#define USB_ISR			(USB_BASE + 0x44)
+#define USB_FNR			(USB_BASE + 0x48)
+#define USB_DADDR		(USB_BASE + 0x4C)
+#define USB_BTABLE		(USB_BASE + 0x50)
+
+/* the *M bits apply to both CR (to enable) and ISR (to read) */
+#define USB_CTRM		(1 << 15)
+#define USB_PMAOVRM		(1 << 14)
+#define USB_ERRM		(1 << 13)
+#define USB_WKUPM		(1 << 12)
+#define USB_SUSPM		(1 << 11)
+#define USB_RESETM		(1 << 10)
+#define USB_SOFM		(1 << 9)
+#define USB_ESOFM		(1 << 8)
+
+#define USB_CR_RESUME		(1 << 4)
+#define USB_CR_FSUSP		(1 << 3)
+#define USB_CR_LP_MODE		(1 << 2)
+#define USB_CR_PDWN		(1 << 1)
+#define USB_CR_FRES		(1 << 0)
+
+#define USB_ISR_DIR		(1 << 4)
+#define USB_ISR_EP_MASK		0xF
+
+#define USB_DADDR_ENABLE	(1 << 7)
+
+#define USB_EPR_CTR_RX		(1 << 15) // R+W0C
+#define USB_EPR_DTOG_RX		(1 << 14) // T
+#define USB_EPR_RX_DISABLE	(0 << 12) // T
+#define USB_EPR_RX_STALL	(1 << 12) // T
+#define USB_EPR_RX_NAK		(2 << 12) // T
+#define USB_EPR_RX_VALID	(3 << 12) // T
+#define USB_EPR_SETUP		(1 << 11) // RO
+#define USB_EPR_TYPE_BULK	(0 << 9)  // RW
+#define USB_EPR_TYPE_CONTROL	(1 << 9)  // RW
+#define USB_EPR_TYPE_ISO	(2 << 9)  // RW
+#define USB_EPR_TYPE_INTERRRUPT	(3 << 9)  // RW
+#define USB_EPR_TYPE_MASK	(3 << 9)
+#define USB_EPR_DBL_BUF		(1 << 8)  // RW (for BULK)
+#define USB_EPR_STATUS_OUT	(1 << 8)  // RW (for CONTROL)
+#define USB_EPR_CTR_TX		(1 << 7)  // R+W0C
+#define USB_EPR_DTOG_TX		(1 << 6)  // T
+#define USB_EPR_TX_DISABLED	(0 << 4)  // T
+#define USB_EPR_TX_STALL	(1 << 4)  // T
+#define USB_EPR_TX_NAK		(2 << 4)  // T
+#define USB_EPR_TX_VALID	(3 << 4)  // T
+#define USB_EPR_ADDR_MASK	(0x0F)    // RW
+
+#define USB_ADDR_TX(n)		(USB_SRAM_BASE + ((n) * 16) + 0x00)
+#define USB_COUNT_TX(n)		(USB_SRAM_BASE + ((n) * 16) + 0x04)
+#define USB_ADDR_RX(n)		(USB_SRAM_BASE + ((n) * 16) + 0x08)
+#define USB_COUNT_RX(n)		(USB_SRAM_BASE + ((n) * 16) + 0x0C)
+
+#define USB_RX_SZ_8		((0 << 15) | (4 << 10))
+#define USB_RX_SZ_16		((0 << 15) | (8 << 10))
+#define USB_RX_SZ_32		((1 << 15) | (0 << 10))
+#define USB_RX_SZ_64		((1 << 15) | (1 << 10))
+#define USB_RX_SZ_128		((1 << 15) | (3 << 10))
+#define USB_RX_SZ_256		((1 << 15) | (7 << 10))
+
+extern void target_set_usb_active(bool on);
+
+static void usb_handle_irq(void);
 
 static volatile int _usb_online = 0;
 static void *ep1_rx_data;
 static volatile int ep1_rx_status;
 static volatile int ep1_tx_busy;
+static usb_callback usb_cb;
 
-static unsigned ep0rxb = USB_SRAM_BASE + 0x0040; /* 64 bytes */
-static unsigned ep0txb = USB_SRAM_BASE + 0x00c0; /* 64 bytes */
-static unsigned ep1rxb = USB_SRAM_BASE + 0x0140; /* 64 bytes */
-static unsigned ep1txb = USB_SRAM_BASE + 0x01c0; /* 64 bytes */
+#define EP0_TX_ACK_ADDR	0 /* sending ACK, then changing address */
+#define EP0_TX_ACK	1 /* sending ACK */
+#define EP0_RX_ACK	2 /* receiving ACK */
+#define EP0_TX		3 /* sending data */
+#define EP0_RX		4 /* receiving data */
+#define EP0_IDLE	5 /* waiting for SETUP */
+
+static unsigned int current_epr;
+static u8 ep0state = EP0_IDLE;
+static u8 newaddr;
+
+static unsigned int ep0rxb = USB_SRAM_BASE + 0x0040; /* 64 bytes */
+static unsigned int ep0txb = USB_SRAM_BASE + 0x00c0; /* 64 bytes */
+static unsigned int ep1rxb = USB_SRAM_BASE + 0x0140; /* 64 bytes */
+static unsigned int ep1txb = USB_SRAM_BASE + 0x01c0; /* 64 bytes */
 
 #define ADDR2USB(n) (((n) & 0x3FF) >> 1)
 
 void usb_handle_reset(void) {
 	_usb_online = 0;
 	ep1_tx_busy = 0;
-	ep1_rx_status = -ENODEV;
+	ep1_rx_status = ERR_BUSY;
 
 	writel(0, USB_BTABLE);
 	writel(ADDR2USB(ep0txb), USB_ADDR_TX(0));
@@ -72,127 +164,42 @@ void usb_handle_reset(void) {
 	writel(0x00 | USB_DADDR_ENABLE, USB_DADDR);
 }
 
-static u8 _dev00[] = {
-	18,		/* size */
-	DSC_DEVICE,
-	0x00, 0x01,	/* version */
-	0xFF,		/* class */
-	0x00,		/* subclass */
-	0x00,		/* protocol */
-	0x40,		/* maxpacket0 */
-	0xd1, 0x18,	/* VID */
-	0x02, 0x65,	/* PID */
-	0x00, 0x01,	/* version */
-	0x00,		/* manufacturer string */
-	0x00,		/* product string */
-	0x00,		/* serialno string */
-	0x01,		/* configurations */
-};
-
-static u8 _cfg00[] = {
-	9,
-	DSC_CONFIG,
-	0x20, 0x00,	/* total length */
-	0x01,		/* ifc count */
-	0x01,		/* configuration value */
-	0x00,		/* configuration string */
-	0x80,		/* attributes */
-	50,		/* mA/2 */
-
-	9,
-	DSC_INTERFACE,
-	0x00,		/* interface number */
-	0x00,		/* alt setting */
-	0x02,		/* ept count */
-	0xFF,		/* class */
-	0x00,		/* subclass */
-	0x00,		/* protocol */
-	0x00,		/* interface string */
-
-	7,
-	DSC_ENDPOINT,
-	0x81,		/* address */
-	0x02,		/* bulk */
-	0x40, 0x00,	/* max packet size */
-	0x00,		/* interval */
-
-	7,
-	DSC_ENDPOINT,
-	0x01,		/* address */
-	0x02,		/* bulk */
-	0x40, 0x00,	/* max packet size */
-	0x00,		/* interval */
-
-};
-
-static struct {
-	u16 id;
-	u16 len;
-	u8 *desc;
-} dtable[] = {
-	{ 0x0100, sizeof(_dev00), _dev00 },
-	{ 0x0200, sizeof(_cfg00), _cfg00 },
-};
-
-unsigned load_desc(unsigned id) {
-	unsigned n, len;
-	for (n = 0; n < (sizeof(dtable)/sizeof(dtable[0])); n++) {
-		if (id == dtable[n].id) {
-			u16 *src = (u16*) dtable[n].desc;
-			u32 *dst = (void*) ep0txb;
-			len = dtable[n].len;
-			n = (len & 1) + (len >> 1);
-			while (n--)
-				*dst++ = *src++;
-			return len;
-		}
-	}
-	printx("? %h\n", id);
-	return 0;
-}
-
-
 /* exclude T and W0C bits */
 #define EPMASK (USB_EPR_TYPE_MASK | USB_EPR_DBL_BUF | USB_EPR_ADDR_MASK)
 
-#define EP0_TX_ACK_ADDR	0 /* sending ACK, then changing address */
-#define EP0_TX_ACK	1 /* sending ACK */
-#define EP0_RX_ACK	2 /* receiving ACK */
-#define EP0_TX		3 /* sending data */
-#define EP0_RX		4 /* receiving data */
-#define EP0_IDLE	5 /* waiting for SETUP */
-
-static void ep0_recv_ack(unsigned n) {
-	writel((n & EPMASK) | USB_EPR_RX_STALL | USB_EPR_STATUS_OUT, USB_EPR(0));
+static void ep0_recv_ack(void) {
+	writel((current_epr & EPMASK) | USB_EPR_RX_STALL | USB_EPR_STATUS_OUT, USB_EPR(0));
 }
-static void ep0_send_ack(unsigned n) {
+static void ep0_send_ack(void) {
+	ep0state = EP0_TX_ACK;
 	writel(0, USB_COUNT_TX(0));
-	writel((n & EPMASK) | USB_EPR_TX_STALL, USB_EPR(0));
+	writel((current_epr & EPMASK) | USB_EPR_TX_STALL, USB_EPR(0));
 }
 
-static u8 ep0state = EP0_IDLE;
-static u8 newaddr;
-
-void usb_handle_ep0_tx(unsigned n) {
+static void usb_handle_ep0_tx(void)
+{
+	LTRACEF("ep0state %d\n", ep0state);
 	switch (ep0state) {
 	case EP0_TX_ACK_ADDR:
 		writel(newaddr | USB_DADDR_ENABLE, USB_DADDR);
 	case EP0_TX_ACK:
 		ep0state = EP0_IDLE;
-		writel((n & EPMASK), USB_EPR(0));
+		writel((current_epr & EPMASK), USB_EPR(0));
 		break;
 	case EP0_TX:
 		ep0state = EP0_RX_ACK;
-		ep0_recv_ack(n);
+		ep0_recv_ack();
 		break;
 	}
 }
 
-void usb_handle_ep0_rx(unsigned n) {
+static void usb_handle_ep0_rx(void)
+{
+	LTRACEF("ep0state %d\n", ep0state);
 	switch (ep0state) {
 	case EP0_RX_ACK:
 		/* ack txn and make sure STATUS_OUT is cleared */
-		writel(((n & EPMASK) & (~USB_EPR_STATUS_OUT)) |
+		writel(((current_epr & EPMASK) & (~USB_EPR_STATUS_OUT)) |
 			USB_EPR_CTR_TX, USB_EPR(0));
 		ep0state = EP0_IDLE;
 		break;
@@ -201,62 +208,117 @@ void usb_handle_ep0_rx(unsigned n) {
 	}
 }
 
-void usb_handle_ep0_setup(unsigned n) {
+void usb_handle_ep0_setup(void)
+{
+	LTRACE;
 	u16 req, val, idx, len, x;
 
 	req = readl(ep0rxb + 0x00);
 	val = readl(ep0rxb + 0x04);
 	idx = readl(ep0rxb + 0x08);
 	len = readl(ep0rxb + 0x0C);
-	x = readl(USB_COUNT_RX(0));
+	x = readl(USB_COUNT_RX(0)) & 0x3ff;
+
+	struct usb_setup setup;
+	setup.request_type = req & 0xff;
+	setup.request = (req >> 8) & 0xff;
+	setup.value = val;
+	setup.index = idx;
+	setup.length = len;
 
 	/* release SETUP latch by acking RX */
-	writel((n & EPMASK), USB_EPR(0));
+	writel((current_epr & EPMASK), USB_EPR(0));
 
-	switch (req) {
-	case GET_DESCRIPTOR:
-		x = load_desc(val);
-		if (x == 0)
-			goto error;
-		if (x > len)
-			x = len;
-		ep0state = EP0_TX;
-		writel(x, USB_COUNT_TX(0));
-		writel((n & EPMASK) | USB_EPR_TX_STALL, USB_EPR(0));
-		return;
-	case SET_ADDRESS:
-		ep0state = EP0_TX_ACK_ADDR;
-		newaddr = val & 0x7F;
-		ep0_send_ack(n);
-		return;
-	case SET_CONFIGURATION:
-		ep0state = EP0_TX_ACK;
-		ep0_send_ack(n);
-		_usb_online = 1; /* TODO: check value */
-		return;	
-	}
+	if (usb_cb) {
+		union usb_callback_args args;
 
-	/* unknown request */
-	printx("? %b %b %h %h %h\n", req, req >> 8, val, idx, len);
+		args.setup = &setup;
 
-error:
-	/* error, stall TX */
-	writel((n & EPMASK) | USB_EPR_TX_NAK | USB_EPR_TX_STALL, USB_EPR(0));
-}
-
-void usb_handle_ep0(void) {
-	unsigned n = readl(USB_EPR(0));
-	if (n & USB_EPR_SETUP) {
-		usb_handle_ep0_setup(n);
-	} else if (n & USB_EPR_CTR_TX) {
-		usb_handle_ep0_tx(n);
-	} else if (n & USB_EPR_CTR_RX) {
-		usb_handle_ep0_rx(n);
+		usb_cb(CB_SETUP_MSG, &args);
 	}
 }
 
-void usb_handle_ep1(void) {
-	unsigned n;
+void usbc_set_address(uint8_t addr)
+{
+	LTRACEF("addr %d\n", addr);
+	ep0state = EP0_TX_ACK_ADDR;
+	newaddr = addr & 0x7F;
+}
+
+void usbc_ep0_ack(void)
+{
+	LTRACE;
+	ep0_send_ack();
+}
+
+void usbc_ep0_stall(void)
+{
+	LTRACE;
+	ep0state = EP0_IDLE;
+	writel((current_epr & EPMASK) | USB_EPR_TX_NAK | USB_EPR_TX_STALL, USB_EPR(0));
+}
+
+void usbc_ep0_send(const void *buf, size_t len, size_t maxlen)
+{
+	LTRACEF("buf %p, len %u, maxlen %u\n", buf, len, maxlen);
+
+	ep0state = EP0_TX;
+
+	u16 *src = (u16*)buf;
+	u32 *dst = (void*)ep0txb;
+
+	if (len > maxlen)
+		len = maxlen;
+
+	size_t n = (len & 1) + (len >> 1);
+	while (n--)
+		*dst++ = *src++;
+
+	writel(len, USB_COUNT_TX(0));
+	writel((current_epr & EPMASK) | USB_EPR_TX_STALL, USB_EPR(0));
+}
+
+void usbc_ep0_recv(void *buf, size_t len, ep_callback cb)
+{
+	PANIC_UNIMPLEMENTED;
+}
+
+bool usbc_is_highspeed(void)
+{
+	return false;
+}
+
+int usbc_set_callback(usb_callback cb)
+{
+	LTRACEF("cb %p\n", cb);
+
+	usb_cb = cb;
+
+	return 0;
+}
+
+int usbc_set_active(bool active)
+{
+	LTRACEF("active %d\n", active);
+
+	target_set_usb_active(active);
+
+	return 0;
+}
+
+static void usb_handle_ep0(void) {
+	current_epr = readl(USB_EPR(0));
+	if (current_epr & USB_EPR_SETUP) {
+		usb_handle_ep0_setup();
+	} else if (current_epr & USB_EPR_CTR_TX) {
+		usb_handle_ep0_tx();
+	} else if (current_epr & USB_EPR_CTR_RX) {
+		usb_handle_ep0_rx();
+	}
+}
+
+static void usb_handle_ep1(void) {
+	unsigned int n;
 	int len;
 
 	n = readl(USB_EPR(1));
@@ -280,9 +342,10 @@ void usb_handle_ep1(void) {
 	}
 }
 
+#if 0
 int usb_recv(void *_data, int count) {
 	int r, rx = 0;
-	unsigned n;
+	unsigned int n;
 	u8 *data = _data;
 
 	while (!_usb_online)
@@ -290,16 +353,16 @@ int usb_recv(void *_data, int count) {
 
 	while (count > 0) {
 		if (!_usb_online)
-			return -ENODEV;
+			return ERR_NOT_READY;
 
 		ep1_rx_data = data;
-		ep1_rx_status = -EBUSY;
+		ep1_rx_status = ERR_BUSY;
 
 		/* move from NAK to VALID, don't touch any other bits */
 		n = readl(USB_EPR(1)) & EPMASK;
 		writel(n | USB_EPR_CTR_RX | USB_EPR_CTR_TX | USB_EPR_RX_STALL, USB_EPR(1));
 
-		while (ep1_rx_status == -EBUSY)
+		while (ep1_rx_status == ERR_BUSY)
 			usb_handle_irq();
 
 		r = ep1_rx_status;
@@ -330,7 +393,7 @@ int usb_xmit(void *data, int len) {
 		int xfer = (len > 64) ? 64 : len;
 
 		if (!_usb_online)
-			return -ENODEV;
+			return ERR_NOT_READY;
 
 		while (ep1_tx_busy)
 			usb_handle_irq();
@@ -355,45 +418,40 @@ int usb_xmit(void *data, int len) {
 
 	return tx;
 }
+#endif 
 
-void usb_init(unsigned vid, unsigned pid) {
-	unsigned n;
-
-	_dev00[8] = vid;
-	_dev00[9] = vid >> 8;
-	_dev00[10] = pid;
-	_dev00[11] = pid >> 8;
-
-	/* enable GPIOC */
-	writel(readl(RCC_APB2ENR) | RCC_APB2_GPIOC, RCC_APB2ENR);
-
-	/* configure GPIOC-12 */
-	writel(1 << 12, GPIOC_BASE + GPIO_BSR);
-	n = readl(GPIOC_BASE + GPIO_CRH);
-	n = (n & 0xFFF0FFFF) | 0x00050000;
-	writel(n, GPIOC_BASE + GPIO_CRH);
+void usbc_init(void)
+{
+	TRACE_ENTRY;
 
 	printx("usb_init()\n");
 
 	/* enable USB clock */
-	writel(readl(RCC_APB1ENR) | RCC_APB1_USB, RCC_APB1ENR);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USB, ENABLE);
 
 	/* reset */
 	writel(USB_CR_PDWN | USB_CR_FRES, USB_CR);
-	for (n = 0; n < 100000; n++) asm("nop");
+	spin(1000);
 	writel(~USB_CR_PDWN, USB_CR); /* power up analog block */
-	for (n = 0; n < 100000; n++) asm("nop");
+	spin(1000);
 	writel(0, USB_CR);
 	writel(0, USB_ISR);
 
 	usb_handle_reset();
 
-	/* become active on the bus */
-	writel(1 << 12, GPIOC_BASE + GPIO_BRR);
+	NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
+
+	/* unmask interrupts */
+	writel(USB_RESETM, USB_CR);
+
+	TRACE_EXIT;
 }
 
-void usb_handle_irq(void) {
-	unsigned n;
+static void usb_handle_irq(void)
+{
+	inc_critical_section();
+
+	unsigned int n;
 	for (;;) {
 		n = readl(USB_ISR);
 		if (n & USB_RESETM) {
@@ -411,5 +469,17 @@ void usb_handle_irq(void) {
 		}
 		break;
 	}
+
+	dec_critical_section();
+}
+
+void stm32_USB_HP_CAN1_TX_IRQ(void)
+{
+	panic("usb_hp\n");
+}
+
+void stm32_USB_LP_CAN1_RX0_IRQ(void)
+{
+	usb_handle_irq();
 }
 

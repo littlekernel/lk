@@ -28,7 +28,7 @@
 #include <dev/usbc.h>
 #include <dev/usb.h>
 
-#define LOCAL_TRACE 0
+#define LOCAL_TRACE 1
 
 #define MAX_STRINGS 8
 static usb_string strings[MAX_STRINGS];
@@ -155,6 +155,7 @@ static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_
 				case SET_ADDRESS:
 					LTRACEF("SET_ADDRESS 0x%x\n", setup->value);
 					usbc_ep0_ack();
+					usbc_set_address(setup->value);
 					break;
 				case SET_FEATURE:
 				case CLEAR_FEATURE:
