@@ -63,4 +63,21 @@ status_t sem_trywait(semaphore_t *sem)
 	exit_critical_section();
 	return ret;
 }
-		
+
+status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout)
+{
+	status_t ret = NO_ERROR;
+	enter_critical_section();
+
+	if (--sem->count < 0) {
+		ret = wait_queue_block(&sem->wait, timeout);
+		if (ret < NO_ERROR) {
+			if (ret == ERR_TIMED_OUT) {
+				sem->count++;
+			}
+		}
+	}
+
+	exit_critical_section();
+	return ret;
+}
