@@ -144,30 +144,16 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 
 	enter_critical_section();
 
-	if (unlikely(++m->count > 1)) {
+	if (unlikely(m->count > 1))
 		ret = wait_queue_block(&m->wait, timeout);
-		if (ret < NO_ERROR) {
-			/* if the acquisition timed out, back out the acquire and exit */
-			if (ret == ERR_TIMED_OUT) {
-				/* 
-				 * XXX race: the mutex may have been destroyed after the timeout,
-				 * but before we got scheduled again which makes messing with the
-				 * count variable dangerous.
-				 */
-				m->count--;
-				goto err;
-			}
-			/* if there was a general error, it may have been destroyed out from 
-			 * underneath us, so just exit (which is really an invalid state anyway)
-			 */
-		}	
+
+	if (likely(ret == NO_ERROR) {
+		mutex->val++;
+#if MUTEX_CHECK
+		m->holder = current_thread;
+#endif
 	}
 
-#if MUTEX_CHECK
-	m->holder = current_thread;
-#endif
-
-err:
 	exit_critical_section();
 	return ret;
 }
