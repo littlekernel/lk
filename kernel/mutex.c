@@ -144,7 +144,7 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 
 	enter_critical_section();
 
-	if (unlikely(m->count > 1))
+	if (unlikely(m->count >= 1))
 		ret = wait_queue_block(&m->wait, timeout);
 
 	if (likely(ret == NO_ERROR) {
