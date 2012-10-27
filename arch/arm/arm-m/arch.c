@@ -34,8 +34,10 @@ extern void *vectab;
 extern int _end_of_ram;
 void *_heap_end = &_end_of_ram;
 
+#if ARM_M_DYNAMIC_PRIORITY_SIZE
 unsigned int cm3_num_irq_pri_bits;
 unsigned int cm3_irq_pri_mask;
+#endif
 
 void arch_early_init(void)
 {
@@ -56,6 +58,7 @@ void arch_early_init(void)
 		NVIC->IP[i*4+3] = 128; /* medium priority */
 	}
 
+#if ARM_M_DYNAMIC_PRIORITY_SIZE
 	/* number of priorities */
 	for (i=0; i < 7; i++) {
 		__set_BASEPRI(1 << i);
@@ -64,6 +67,7 @@ void arch_early_init(void)
 	}
 	cm3_num_irq_pri_bits = 8 - i;
 	cm3_irq_pri_mask = ~((1 << i) - 1) & 0xff;
+#endif
 
 	/* leave BASEPRI at 0 */
 	__set_BASEPRI(0);
@@ -99,7 +103,7 @@ void arch_idle(void)
 {
 }
 
-void cm3_set_irqpri(uint32_t pri)
+void _cm3_set_irqpri(uint32_t pri)
 {
 	if (pri == 0) {
 		__disable_irq(); // cpsid i
@@ -114,7 +118,7 @@ void cm3_set_irqpri(uint32_t pri)
 			__set_BASEPRI(1 << (8 - cm3_num_irq_pri_bits));
 		else
 			__set_BASEPRI(_pri);
-		__enable_irq(); // cpsid i
+		__enable_irq(); // cpsie i
 	}
 }
 

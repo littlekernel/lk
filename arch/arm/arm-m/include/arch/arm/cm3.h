@@ -81,10 +81,45 @@ struct cm3_exception_frame_long {
 	uint32_t psr;
 };
 
-void cm3_set_irqpri(uint32_t pri);
-
+#if ARM_M_DYNAMIC_PRIORITY_SIZE
 extern unsigned int cm3_num_irq_pri_bits;
 extern unsigned int cm3_irq_pri_mask;
+#else
+/* if we don't want to calculate the nubmer of priority bits, then assume
+ * the cpu implements 3 (8 priority levels), which is the minimum according to spec.
+ */
+#ifndef ARM_M_PRIORITY_BITS
+#define ARM_M_PRIORITY_BITS 3
+#endif
+static const unsigned int cm3_num_irq_pri_bits = 8 - ARM_M_PRIORITY_BITS;
+static const unsigned int cm3_irq_pri_mask = ~((1 << ARM_M_PRIORITY_BITS) - 1) & 0xff;
+#endif
+
+void _cm3_set_irqpri(uint32_t pri);
+
+static __ALWAYS_INLINE void cm3_set_irqpri(uint32_t pri)
+{
+	if (__ISCONSTANT(pri)) {
+		if (pri == 0) {
+			__disable_irq(); // cpsid i
+			__set_BASEPRI(0);
+		} else if (pri >= 256) {
+			__set_BASEPRI(0);
+			__enable_irq();
+		} else {
+			uint32_t _pri = pri & cm3_irq_pri_mask;
+
+			if (_pri == 0)
+				__set_BASEPRI(1 << (8 - cm3_num_irq_pri_bits));
+			else
+				__set_BASEPRI(_pri);
+			__enable_irq(); // cpsie i
+		}
+	} else {
+		_cm3_set_irqpri(pri);
+	}
+}
+
 
 static __ALWAYS_INLINE inline uint32_t cm3_highest_priority(void)
 {
