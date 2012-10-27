@@ -43,6 +43,7 @@
 #define __GET_CALLER(x) __builtin_return_address(0)
 #define __GET_FRAME(x) __builtin_frame_address(0)
 #define __NAKED __attribute__((naked))
+#define __ISCONSTANT(x) __builtin_constant_p(x)
 
 #define INCBIN(symname, sizename, filename, section)					\
 	__asm__ (".section " section "; .align 4; .globl "#symname);		\
