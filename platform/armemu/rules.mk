@@ -32,6 +32,10 @@ MODULE_DEPS += \
 MEMBASE := 0x0
 MEMSIZE := 0x400000	# 4MB
 
+DEFINES += \
+	MEMBASE=$(MEMBASE) \
+	MEMSIZE=$(MEMSIZE)
+
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
 
