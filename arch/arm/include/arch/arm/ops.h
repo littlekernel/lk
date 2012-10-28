@@ -32,13 +32,13 @@
 // override of some routines
 __GNU_INLINE __ALWAYS_INLINE extern inline void arch_enable_ints(void)
 {
-	__asm__("cpsie i");
 	CF;
+	__asm__ volatile("cpsie i");
 }
 
 __GNU_INLINE __ALWAYS_INLINE extern inline void arch_disable_ints(void)
 {
-	__asm__("cpsid i");
+	__asm__ volatile("cpsid i");
 	CF;
 }
 
