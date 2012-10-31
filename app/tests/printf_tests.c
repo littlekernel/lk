@@ -39,8 +39,10 @@ void printf_tests(void)
 	printf("ulong: %lu %lu %lu\n", -12345678UL, 0UL, 12345678UL);
 
 	// GCC has a problem with the next two lines
+#if 0
 	printf("long:  %D %D %D\n", -12345678L, 0L, 12345678L);
 	printf("ulong: %U %U %U\n", -12345678UL, 0UL, 12345678UL);
+#endif
 
 	printf("longlong: %lli %lli %lli\n", -12345678LL, 0LL, 12345678LL);
 	printf("ulonglong: %llu %llu %llu\n", -12345678LL, 0LL, 12345678LL);
