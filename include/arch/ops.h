@@ -29,9 +29,7 @@
 #include <stddef.h>
 #include <compiler.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 void arch_enable_ints(void);
 void arch_disable_ints(void);
@@ -63,9 +61,7 @@ void arch_switch_stacks_and_call(addr_t call, addr_t stack) __NO_RETURN;
 
 uint32_t arch_cycle_count(void);
 
-#if defined(__cplusplus)
-}
-#endif
+__END_CDECLS
 
 #endif // !ASSEMBLY
 

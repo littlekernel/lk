@@ -26,9 +26,7 @@
 #include <compiler.h>
 #include <sys/types.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 void x86_mmu_init(void);
 
@@ -257,8 +255,6 @@ static inline void outpdrep(uint16_t _port, uint32_t *_buffer,
 		  "c" (_writes));
 }
 
-#if defined(__cplusplus)
-}
-#endif
+__END_CDECLS
 
 #endif

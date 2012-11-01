@@ -28,9 +28,7 @@
 #include <debug.h>
 #include <stddef.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 #if !DISABLE_DEBUG_OUTPUT
 #define printf(x...) _printf(x)
@@ -53,8 +51,6 @@ typedef int (*_printf_engine_output_func)(char c, void *state);
 
 int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap);
 
-#if defined(__cplusplus)
-}
-#endif
+__END_CDECLS
 
 #endif

@@ -25,10 +25,9 @@
 
 #include <sys/types.h>
 #include <arch/arm/cores.h>
+#include <compiler.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 #define DSB __asm__ volatile("dsb" ::: "memory")
 #define ISB __asm__ volatile("isb" ::: "memory")
@@ -90,8 +89,6 @@ void arm_write_ttbr(uint32_t val);
 void arm_write_dacr(uint32_t val);
 void arm_invalidate_tlb(void);
 
-#if defined(__cplusplus)
-}
-#endif
+__END_CDECLS
 
 #endif

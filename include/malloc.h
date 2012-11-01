@@ -26,9 +26,7 @@
 #include <sys/types.h>
 #include <compiler.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 void *malloc(size_t size) __MALLOC;
 void *memalign(size_t boundary, size_t size) __MALLOC;
@@ -36,9 +34,7 @@ void *calloc(size_t count, size_t size) __MALLOC;
 void *realloc(void *ptr, size_t size) __MALLOC;
 void free(void *ptr);
 
-#if defined(__cplusplus)
-}
-#endif
+__END_CDECLS
 
 #endif
 

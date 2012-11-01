@@ -23,17 +23,13 @@
 #ifndef __ARCH_H
 #define __ARCH_H
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 void arch_early_init(void);
 void arch_init(void);
 void arch_quiesce(void);
 
-#if defined(__cplusplus)
-}
-#endif
+__END_CDECLS
 
 /* arch specific bits */
 #include <arch/defines.h>

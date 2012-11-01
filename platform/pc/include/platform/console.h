@@ -23,9 +23,9 @@
 #ifndef __PLATFORM_CONSOLE_H
 #define __PLATFORM_CONSOLE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <compiler.h>
+
+__BEGIN_CDECLS
 
 void platform_init_console(void);
 
@@ -79,9 +79,7 @@ int printf_xy(int x, int y, char attr, char *fmt, ...) __PRINTFLIKE(4, 5);
 #define YELLOW 			14
 #define WHITE			15
 
-#ifdef __cplusplus
-}
-#endif
+__END_CDECLS
 
 #endif
 
