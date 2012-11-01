@@ -32,15 +32,24 @@ static GPIO_TypeDef *port_to_pointer(unsigned int port)
 {
 	switch (port) {
 		default:
-		case GPIO_PORT_A: return GPIOA;
-		case GPIO_PORT_B: return GPIOB;
-		case GPIO_PORT_C: return GPIOC;
-		case GPIO_PORT_D: return GPIOD;
-		case GPIO_PORT_E: return GPIOE;
-		case GPIO_PORT_F: return GPIOF;
-		case GPIO_PORT_G: return GPIOG;
-		case GPIO_PORT_H: return GPIOH;
-		case GPIO_PORT_I: return GPIOI;
+		case GPIO_PORT_A:
+			return GPIOA;
+		case GPIO_PORT_B:
+			return GPIOB;
+		case GPIO_PORT_C:
+			return GPIOC;
+		case GPIO_PORT_D:
+			return GPIOD;
+		case GPIO_PORT_E:
+			return GPIOE;
+		case GPIO_PORT_F:
+			return GPIOF;
+		case GPIO_PORT_G:
+			return GPIOG;
+		case GPIO_PORT_H:
+			return GPIOH;
+		case GPIO_PORT_I:
+			return GPIOI;
 	}
 }
 
@@ -58,7 +67,7 @@ void stm32_gpio_early_init(void)
 
 int gpio_config(unsigned nr, unsigned flags)
 {
-	
+
 	uint port = GPIO_PORT(nr);
 	uint pin = GPIO_PIN(nr);
 
@@ -91,7 +100,7 @@ int gpio_config(unsigned nr, unsigned flags)
 	}
 
 	GPIO_Init(port_to_pointer(port), &init);
-	
+
 	return 0;
 }
 

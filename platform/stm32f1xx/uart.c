@@ -190,20 +190,20 @@ static USART_TypeDef *get_usart(int port)
 {
 	switch (port) {
 #ifdef ENABLE_UART1
-	case 1:
-		return USART1;
+		case 1:
+			return USART1;
 #endif
 #ifdef ENABLE_UART2
-	case 2:
-	    return USART2;
+		case 2:
+			return USART2;
 #endif
 #ifdef ENABLE_UART3
-	case 3:
-		return USART3;
+		case 3:
+			return USART3;
 #endif
-	default:
-		ASSERT(false);
-		return 0;
+		default:
+			ASSERT(false);
+			return 0;
 	}
 
 }
@@ -212,20 +212,20 @@ static cbuf_t *get_rxbuf(int port)
 {
 	switch (port) {
 #ifdef ENABLE_UART1
-	case 1:
-		return &uart1_rx_buf;
+		case 1:
+			return &uart1_rx_buf;
 #endif
 #ifdef ENABLE_UART2
-	case 2:
-	    return &uart2_rx_buf;
+		case 2:
+			return &uart2_rx_buf;
 #endif
 #ifdef ENABLE_UART3
-	case 3:
-		return &uart3_rx_buf;
+		case 3:
+			return &uart3_rx_buf;
 #endif
-	default:
-		ASSERT(false);
-		return 0;
+		default:
+			ASSERT(false);
+			return 0;
 	}
 
 }

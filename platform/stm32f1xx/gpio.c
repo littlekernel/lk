@@ -32,13 +32,20 @@ static GPIO_TypeDef *port_to_pointer(unsigned int port)
 {
 	switch (port) {
 		default:
-		case GPIO_PORT_A: return GPIOA;
-		case GPIO_PORT_B: return GPIOB;
-		case GPIO_PORT_C: return GPIOC;
-		case GPIO_PORT_D: return GPIOD;
-		case GPIO_PORT_E: return GPIOE;
-		case GPIO_PORT_F: return GPIOF;
-		case GPIO_PORT_G: return GPIOG;
+		case GPIO_PORT_A:
+			return GPIOA;
+		case GPIO_PORT_B:
+			return GPIOB;
+		case GPIO_PORT_C:
+			return GPIOC;
+		case GPIO_PORT_D:
+			return GPIOD;
+		case GPIO_PORT_E:
+			return GPIOE;
+		case GPIO_PORT_F:
+			return GPIOF;
+		case GPIO_PORT_G:
+			return GPIOG;
 	}
 }
 

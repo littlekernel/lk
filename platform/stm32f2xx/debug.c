@@ -63,5 +63,5 @@ int platform_dgetc(char *c, bool wait)
 void platform_halt(void)
 {
 	dprintf(ALWAYS, "HALT: spinning forever...\n");
-	for(;;);
+	for (;;);
 }

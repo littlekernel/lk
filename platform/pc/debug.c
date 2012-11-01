@@ -101,17 +101,17 @@ int platform_dgetc(char *c, bool wait)
 #if WITH_CGA_CONSOLE
 	int ret =  platform_read_key(c);
 	//if (ret < 0)
-	//	arch_idle();
+	//  arch_idle();
 #else
 	int ret = uart_getc(c, wait);
 #endif
-	
+
 	return ret;
 }
 
 void platform_halt(void)
 {
-	for(;;) {
+	for (;;) {
 		x86_cli();
 		x86_hlt();
 	}

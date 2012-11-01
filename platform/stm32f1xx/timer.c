@@ -68,8 +68,8 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	cb = callback;
 	cb_args = arg;
 
-    RCC_ClocksTypeDef clocks;
-    RCC_GetClocksFreq(&clocks);
+	RCC_ClocksTypeDef clocks;
+	RCC_GetClocksFreq(&clocks);
 
 	cm3_systick_set_periodic(clocks.SYSCLK_Frequency, interval);
 

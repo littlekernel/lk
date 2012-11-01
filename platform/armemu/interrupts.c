@@ -88,7 +88,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 //	printf("platform_irq: spsr 0x%x, pc 0x%x, currthread %p, vector %d\n", frame->spsr, frame->pc, current_thread, vector);
 
 	// deliver the interrupt
-	enum handler_return ret; 
+	enum handler_return ret;
 
 	ret = INT_NO_RESCHEDULE;
 	if (int_handler_table[vector].handler)

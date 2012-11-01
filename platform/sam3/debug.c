@@ -64,7 +64,7 @@ void sam_debug_early_init(void)
 	opt.ul_baudrate = 115200;
 	opt.ul_mode = UART_MR_PAR_NO | UART_MR_CHMODE_NORMAL;
 
-	NVIC_DisableIRQ(UART_IRQn);	
+	NVIC_DisableIRQ(UART_IRQn);
 
 	uart_init(UART, &opt);
 
@@ -74,7 +74,7 @@ void sam_debug_early_init(void)
 void sam_debug_init(void)
 {
 	cbuf_initialize(&debug_rx_buf, 16);
-	NVIC_EnableIRQ(UART_IRQn);	
+	NVIC_EnableIRQ(UART_IRQn);
 	uart_enable_interrupt(UART, UART_IER_RXRDY);
 }
 
@@ -97,6 +97,6 @@ int platform_dgetc(char *c, bool wait)
 void platform_halt(void)
 {
 	dprintf(ALWAYS, "HALT: spinning forever...\n");
-	for(;;);
+	for (;;);
 }
 

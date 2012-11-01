@@ -39,46 +39,46 @@
 #define hsusb_reg32(reg) *REG32(USB_HS_BASE + (reg))
 
 /* registers */
-#define FADDR	0x0
-#define POWER	0x1
-#define INTRTX	0x2
-#define INTRRX	0x4
-#define INTRTXE	0x6
-#define INTRRXE	0x8
-#define INTRUSB	0xa
+#define FADDR   0x0
+#define POWER   0x1
+#define INTRTX  0x2
+#define INTRRX  0x4
+#define INTRTXE 0x6
+#define INTRRXE 0x8
+#define INTRUSB 0xa
 #define INTRUSBE 0xb
-#define FRAME 	0xc
-#define INDEX 	0xe
+#define FRAME   0xc
+#define INDEX   0xe
 #define TESTMODE 0xf
 
 // indexed endpoint regs
-#define IDX_TXMAXP	0x10
-#define IDX_TXCSR	0x12
-#define IDX_TXCSRL	0x12
-#define IDX_TXCSRH	0x13
-#define IDX_RXMAXP	0x14
-#define IDX_RXCSR	0x16
-#define IDX_RXCSRL	0x16
-#define IDX_RXCSRH	0x17
-#define IDX_RXCOUNT	0x18
-#define IDX_FIFOSIZE	0x1f
+#define IDX_TXMAXP  0x10
+#define IDX_TXCSR   0x12
+#define IDX_TXCSRL  0x12
+#define IDX_TXCSRH  0x13
+#define IDX_RXMAXP  0x14
+#define IDX_RXCSR   0x16
+#define IDX_RXCSRL  0x16
+#define IDX_RXCSRH  0x17
+#define IDX_RXCOUNT 0x18
+#define IDX_FIFOSIZE    0x1f
 
 // if endpoint 0 is selected
-#define IDX_CSR0	0x12
-#define IDX_CONFIGDATA	0x1f
+#define IDX_CSR0    0x12
+#define IDX_CONFIGDATA  0x1f
 
 // endpoint FIFOs
-#define FIFOBASE	0x20
+#define FIFOBASE    0x20
 
-#define DEVCTL	0x60
-#define TXFIFOSZ	0x62
-#define RXFIFOSZ	0x63
-#define TXFIFOADD	0x64
-#define RXFIFOADD	0x66
-#define HWVERS	0x6c
-#define EPINFO	0x78
-#define RAMINFO	0x79
-#define LINKINFO	0x7a
+#define DEVCTL  0x60
+#define TXFIFOSZ    0x62
+#define RXFIFOSZ    0x63
+#define TXFIFOADD   0x64
+#define RXFIFOADD   0x66
+#define HWVERS  0x6c
+#define EPINFO  0x78
+#define RAMINFO 0x79
+#define LINKINFO    0x7a
 
 static void setup_dynamic_fifos(void);
 
@@ -92,7 +92,7 @@ struct usbc_ep {
 	bool active;
 	uint width;
 	uint blocksize;
-	
+
 	/* current data buffer */
 	usbc_transfer *transfer;
 
@@ -260,7 +260,7 @@ static void ep0_control_send_resume(void)
 	LTRACEF("buf %p pos %d len %d\n", usbc->ep0_tx_buf, usbc->ep0_tx_pos, usbc->ep0_tx_len);
 
 	size_t transfer_len = MIN(64, usbc->ep0_tx_len - usbc->ep0_tx_pos);
-	
+
 	write_ep_fifo(0, (const uint8_t *)usbc->ep0_tx_buf + usbc->ep0_tx_pos, transfer_len);
 
 	usbc->ep0_tx_pos += transfer_len;
@@ -311,7 +311,7 @@ static void usb_shutdown_endpoints(void)
 
 static void usb_enable_endpoints(void)
 {
-	setup_dynamic_fifos();	
+	setup_dynamic_fifos();
 }
 
 static void usb_disconnect(void)
@@ -319,7 +319,7 @@ static void usb_disconnect(void)
 	// we've been disconnected
 	usbc->state = USB_DEFAULT;
 	usbc->active_config = 0;
-	
+
 	usb_shutdown_endpoints();
 }
 
@@ -381,8 +381,8 @@ static enum handler_return hsusb_interrupt(void *arg)
 	uint8_t intrusb = hsusb_reg8(INTRUSB);
 	enum handler_return ret = INT_NO_RESCHEDULE;
 
-	LTRACEF("intrtx 0x%hx (0x%x), intrrx 0x%hx (0x%x), intrusb 0x%hhx, intrusbe 0x%hhx\n", 
-			intrtx, hsusb_reg16(INTRTXE), intrrx, hsusb_reg16(INTRRXE), intrusb, hsusb_reg8(INTRUSBE));
+	LTRACEF("intrtx 0x%hx (0x%x), intrrx 0x%hx (0x%x), intrusb 0x%hhx, intrusbe 0x%hhx\n",
+	        intrtx, hsusb_reg16(INTRTXE), intrrx, hsusb_reg16(INTRRXE), intrusb, hsusb_reg8(INTRUSBE));
 
 	dump_ep_regs(2);
 
@@ -439,7 +439,7 @@ static enum handler_return hsusb_interrupt(void *arg)
 		select_ep(0);
 		uint16_t csr = hsusb_reg16(IDX_CSR0);
 		LTRACEF("ep0 csr 0x%hhx\n", csr);
-	
+
 		// clear the stall bit
 		if (csr & (1<<2))
 			hsusb_reg16(IDX_CSR0) &= ~(1<<2);
@@ -565,7 +565,7 @@ static enum handler_return hsusb_interrupt(void *arg)
 					panic("rx on inactive endpoint\n");
 					continue;
 				}
-	
+
 				if (handle_ep_rx(i) > 0)
 					ret = INT_RESCHEDULE;
 			}
@@ -673,7 +673,7 @@ int usbc_queue_tx(ep_t ep, usbc_transfer *transfer)
 		return -1;
 	}
 
-e->transfer = transfer;
+	e->transfer = transfer;
 
 	select_ep(ep);
 
@@ -683,7 +683,7 @@ e->transfer = transfer;
 
 	// unmask irqs for this endpoint
 	hsusb_reg16(INTRTXE) |= (1<<ep);
-	
+
 	// if the fifo is empty, start the transfer
 	if ((hsusb_reg16(IDX_TXCSR) & (1<<1)) == 0) {
 		// dump the start of the transfer in the fifo
@@ -827,9 +827,9 @@ static void hsusb_init(void)
 	LTRACE_ENTRY;
 
 	// select endpoint 0
-	dprintf(SPEW, "hwvers 0x%hx\n", hsusb_reg16(HWVERS)); 
-	dprintf(SPEW, "epinfo 0x%hhx\n", hsusb_reg8(EPINFO)); 
-	dprintf(SPEW, "raminfo 0x%hhx\n", hsusb_reg8(RAMINFO)); 
+	dprintf(SPEW, "hwvers 0x%hx\n", hsusb_reg16(HWVERS));
+	dprintf(SPEW, "epinfo 0x%hhx\n", hsusb_reg8(EPINFO));
+	dprintf(SPEW, "raminfo 0x%hhx\n", hsusb_reg8(RAMINFO));
 	hsusb_reg8(INDEX) = 0;
 	dprintf(SPEW, "config 0x%hhx\n", hsusb_reg8(IDX_CONFIGDATA));
 

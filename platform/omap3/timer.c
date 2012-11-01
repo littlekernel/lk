@@ -68,7 +68,7 @@ lk_time_t current_time(void)
 {
 	uint32_t delta_ticks;
 	uint32_t delta_ticks2;
-	
+
 retry:
 	delta_ticks = *REG32(TIMER32K_CR);
 	delta_ticks2 = *REG32(TIMER32K_CR);
@@ -84,7 +84,7 @@ lk_bigtime_t current_time_hires(void)
 {
 	uint32_t delta_ticks;
 	uint32_t delta_ticks2;
-	
+
 retry:
 	delta_ticks = *REG32(TIMER32K_CR);
 	delta_ticks2 = *REG32(TIMER32K_CR);
@@ -109,7 +109,7 @@ void platform_init_timer(void)
 	RMWREG32(CM_ICLKEN_PER, 3, 1, 1);
 	RMWREG32(CM_FCLKEN_PER, 3, 1, 1);
 
-	// reset the GP timer 
+	// reset the GP timer
 	TIMER_REG(TIOCP_CFG) = 0x2;
 	while ((TIMER_REG(TISTAT) & 1) == 0)
 		;

@@ -34,10 +34,15 @@ static void write_uart_reg(int uart, int reg, unsigned char data)
 	unsigned long base;
 	int mul = 4;
 
-	switch(uart) {
-		case 0: base = INTEGRATOR_UART0_REG_BASE; break;
-		case 1: base = INTEGRATOR_UART1_REG_BASE; break;
-		default: return;
+	switch (uart) {
+		case 0:
+			base = INTEGRATOR_UART0_REG_BASE;
+			break;
+		case 1:
+			base = INTEGRATOR_UART1_REG_BASE;
+			break;
+		default:
+			return;
 	}
 
 	*(volatile unsigned char *)(base + reg * mul) = data;
@@ -48,10 +53,15 @@ static unsigned char read_uart_reg(int uart, int reg)
 	unsigned long base;
 	int mul = 4;
 
-	switch(uart) {
-		case 0: base = INTEGRATOR_UART0_REG_BASE; break;
-		case 1: base = INTEGRATOR_UART1_REG_BASE; break;
-		default: return 0;
+	switch (uart) {
+		case 0:
+			base = INTEGRATOR_UART0_REG_BASE;
+			break;
+		case 1:
+			base = INTEGRATOR_UART1_REG_BASE;
+			break;
+		default:
+			return 0;
 	}
 
 	return *(volatile unsigned char *)(base + reg * mul);
@@ -73,7 +83,7 @@ static int uart_putc(int port, char c )
 #if 0
 	while (!(read_uart_reg(port, UART_LSR) & (1<<6))) // wait for the shift register to empty
 		;
-  	write_uart_reg(port, UART_THR, c);
+	write_uart_reg(port, UART_THR, c);
 #endif
 	return 0;
 }
@@ -112,5 +122,5 @@ int platform_dgetc(char *c, bool wait)
 void platform_halt(void)
 {
 	dprintf(ALWAYS, "HALT: spinning forever...\n");
-	for(;;);
+	for (;;);
 }

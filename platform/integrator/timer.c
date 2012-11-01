@@ -63,7 +63,7 @@ time_t current_time(void)
 	time_t t;
 	uint32_t delta_ticks;
 	uint32_t delta_ticks2;
-	
+
 retry:
 	delta_ticks = OS_TIMER_TICK_COUNTER_REG;
 	t = system_time;
