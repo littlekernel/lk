@@ -87,7 +87,7 @@ STATIC_COMMAND("test", "test the command processor", &cmd_test)
 STATIC_COMMAND("history", "command history", &cmd_history)
 #endif
 #endif
-STATIC_COMMAND_END(help); 
+STATIC_COMMAND_END(help);
 
 int console_init(void)
 {
@@ -236,8 +236,8 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 		if (getc(&c) < 0)
 			continue;
 
-//		TRACEF("c = 0x%hhx\n", c); 
-		
+//		TRACEF("c = 0x%hhx\n", c);
+
 		if (escape_level == 0) {
 			switch (c) {
 				case '\r':
@@ -415,8 +415,8 @@ static int tokenize_command(const char *inbuffer, const char **continuebuffer, c
 					goto done;
 				}
 				if (isspace(c) || c == ';') {
-					arg++;					
-					buffer[outpos] = 0;			
+					arg++;
+					buffer[outpos] = 0;
 					outpos++;
 					/* are we out of tokens? */
 					if (arg == arg_count)
@@ -443,12 +443,12 @@ static int tokenize_command(const char *inbuffer, const char **continuebuffer, c
 				}
 				if (c == '"') {
 					arg++;
-					buffer[outpos] = 0;			
+					buffer[outpos] = 0;
 					outpos++;
 					/* are we out of tokens? */
 					if (arg == arg_count)
 						goto done;
-					
+
 					state = NEXT_FIELD;
 				}
 				buffer[outpos] = c;
@@ -711,7 +711,7 @@ static int cmd_help(int argc, const cmd_args *argv)
 {
 
 	printf("command list:\n");
-	
+
 	cmd_block *block;
 	size_t i;
 

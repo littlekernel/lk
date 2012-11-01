@@ -8,10 +8,10 @@
  * publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -49,20 +49,20 @@ static int ext2_calculate_block_pointer_pos(ext2_t *ext2, blocknum_t block_to_fi
 	uint32_t block_ptr_per_block, block_ptr_per_2nd_block;
 
 	// XXX optimize this
-	
+
 	// See if it's in the direct blocks
-	if(block_to_find < EXT2_NDIR_BLOCKS) {
+	if (block_to_find < EXT2_NDIR_BLOCKS) {
 		*level = 0;
 		pos[0] = block_to_find;
 		return 0;
 	}
-	
+
 	block_ptr_per_block = EXT2_ADDR_PER_BLOCK(ext2->sb);
 	block_to_find -= EXT2_NDIR_BLOCKS;
 	// See if it's in the first indirect block
-	if(block_to_find < block_ptr_per_block) {
+	if (block_to_find < block_ptr_per_block) {
 		*level = 1;
-		pos[0] = EXT2_IND_BLOCK;	
+		pos[0] = EXT2_IND_BLOCK;
 		pos[1] = block_to_find;
 		return 0;
 	}
@@ -70,25 +70,25 @@ static int ext2_calculate_block_pointer_pos(ext2_t *ext2, blocknum_t block_to_fi
 	block_to_find -= block_ptr_per_block;
 	block_ptr_per_2nd_block = block_ptr_per_block * block_ptr_per_block;
 	// See if it's in the second indirect block
-	if(block_to_find < (block_ptr_per_2nd_block)) {
+	if (block_to_find < (block_ptr_per_2nd_block)) {
 		*level = 2;
 		pos[0] = EXT2_DIND_BLOCK;
 		pos[1] = block_to_find / block_ptr_per_block;
-		pos[2] = block_to_find % block_ptr_per_block;		
+		pos[2] = block_to_find % block_ptr_per_block;
 		return 0;
 	}
-	
+
 	block_to_find -= block_ptr_per_2nd_block;
 	// See if it's in the third indirect block
-	if(block_to_find < (block_ptr_per_2nd_block * block_ptr_per_block)) {
+	if (block_to_find < (block_ptr_per_2nd_block * block_ptr_per_block)) {
 		*level = 3;
 		pos[0] = EXT2_TIND_BLOCK;
 		pos[1] = block_to_find / block_ptr_per_2nd_block;
 		pos[2] = (block_to_find % block_ptr_per_2nd_block) / block_ptr_per_block;
 		pos[3] = (block_to_find % block_ptr_per_2nd_block) % block_ptr_per_block;
-		return 0;	
+		return 0;
 	}
-	
+
 	// The block requested must be too big.
 	return -1;
 }
@@ -125,7 +125,7 @@ int ext2_get_indirect_block_pointer_cache_block(ext2_t *ext2, struct ext2_inode 
 		err = ext2_get_block(ext2, (void **)(void *)&block, current_block);
 		if (err < 0) {
 			goto error;
-		} 
+		}
 
 		if (current_level < level) {
 			current_block = LE32(block[pos[current_level]]);
@@ -148,10 +148,10 @@ static blocknum_t file_block_to_fs_block(ext2_t *ext2, struct ext2_inode *inode,
 	int err;
 	blocknum_t block;
 
-	LTRACEF("inode %p, fileblock %u\n", inode, fileblock);	
+	LTRACEF("inode %p, fileblock %u\n", inode, fileblock);
 
 	uint32_t pos[4];
-   	uint32_t level = 0;
+	uint32_t level = 0;
 	ext2_calculate_block_pointer_pos(ext2, fileblock, &level, pos);
 
 	LTRACEF("level %d, pos 0x%x 0x%x 0x%x 0x%x\n", level, pos[0], pos[1], pos[2], pos[3]);
@@ -189,7 +189,7 @@ int ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_t of
 	/* calculate the file size */
 	off_t file_size = ext2_file_len(ext2, inode);
 
-	LTRACEF("inode %p, offset %lld, len %zd, file_size %lld\n", inode, offset, len, file_size);	
+	LTRACEF("inode %p, offset %lld, len %zd, file_size %lld\n", inode, offset, len, file_size);
 
 	/* trim the read */
 	if (offset > file_size)
@@ -198,7 +198,7 @@ int ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_t of
 		len = file_size - offset;
 	if (len == 0)
 		return 0;
-	
+
 	/* calculate the starting file block */
 	uint file_block = offset / EXT2_BLOCK_SIZE(ext2->sb);
 

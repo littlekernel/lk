@@ -160,7 +160,7 @@ static int mount(const char *path, const char *device, struct fs_type *type)
 	strlcpy(temppath, path, sizeof(temppath));
 	fs_normalize_path(temppath);
 
-	if(temppath[0] != '/')
+	if (temppath[0] != '/')
 		return ERR_BAD_PATH;
 
 	if (find_mount(temppath, NULL))

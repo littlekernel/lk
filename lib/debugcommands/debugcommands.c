@@ -106,7 +106,7 @@ static int cmd_display_mem(int argc, const cmd_args *argv)
 			printf("\n");
 			count = 0;
 		}
-	}	
+	}
 
 	if (count != 0)
 		printf("\n");
@@ -185,15 +185,15 @@ static int cmd_fill_mem(int argc, const cmd_args *argv)
 
 	for ( ; address < stop; address += size) {
 		switch (size) {
-		case 4:
-			*(uint32_t *)address = (uint32_t)val;
-			break;
-		case 2:
-			*(uint16_t *)address = (uint16_t)val;
-			break;
-		case 1:
-			*(uint8_t *)address = (uint8_t)val;
-			break;
+			case 4:
+				*(uint32_t *)address = (uint32_t)val;
+				break;
+			case 2:
+				*(uint16_t *)address = (uint16_t)val;
+				break;
+			case 1:
+				*(uint8_t *)address = (uint8_t)val;
+				break;
 		}
 	}
 
@@ -207,7 +207,7 @@ static int cmd_copy_mem(int argc, const cmd_args *argv)
 		printf("%s <source address> <target address> <len>\n", argv[0].str);
 		return -1;
 	}
-	
+
 	addr_t source = argv[1].u;
 	addr_t target = argv[2].u;
 	size_t len = argv[3].u;
@@ -249,4 +249,4 @@ static int cmd_memtest(int argc, const cmd_args *argv)
 
 	return 0;
 }
- 
+

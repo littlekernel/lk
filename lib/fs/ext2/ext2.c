@@ -8,10 +8,10 @@
  * publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -157,9 +157,9 @@ int ext2_mount(bdev_t *dev, fscookie *cookie)
 
 	/* read in all the group descriptors */
 	ext2->gd = malloc(sizeof(struct ext2_group_desc) * ext2->s_group_count);
-	err = bio_read(ext2->dev, (void *)ext2->gd, 
-			(EXT2_BLOCK_SIZE(ext2->sb) == 4096) ? 4096 : 2048, 
-			sizeof(struct ext2_group_desc) * ext2->s_group_count);
+	err = bio_read(ext2->dev, (void *)ext2->gd,
+	               (EXT2_BLOCK_SIZE(ext2->sb) == 4096) ? 4096 : 2048,
+	               sizeof(struct ext2_group_desc) * ext2->s_group_count);
 	if (err < 0) {
 		err = -4;
 		return err;
@@ -228,7 +228,7 @@ static void get_inode_addr(ext2_t *ext2, inodenum_t num, blocknum_t *block, size
 int ext2_load_inode(ext2_t *ext2, inodenum_t num, struct ext2_inode *inode)
 {
 	int err;
-	
+
 	LTRACEF("num %d, inode %p\n", num, inode);
 
 	blocknum_t bnum;

@@ -44,7 +44,7 @@ int vsnprintf(char *str, size_t len, const char *fmt, va_list ap);
 
 /* printf engine that parses the format string and generates output */
 
-/* function pointer to pass the engine, 
+/* function pointer to pass the engine,
  * return code is remaining characters in destination (or INT_MAX for infinity)
  */
 typedef int (*_printf_engine_output_func)(char c, void *state);

@@ -1,4 +1,4 @@
-/* 
+/*
 ** Copyright 2001, Travis Geiselbrecht. All rights reserved.
 ** Distributed under the terms of the NewOS License.
 */
@@ -38,7 +38,7 @@ static int hexval(char c)
 		return c - 'a' + 10;
 	else if (c >= 'A' && c <= 'F')
 		return c - 'A' + 10;
-		
+
 	return 0;
 }
 

@@ -127,7 +127,7 @@ static void heap_test(void)
 
 	for (i=0; i < 32768; i++) {
 		unsigned int index = (unsigned int)rand() % 16;
-		
+
 		if ((i % (16*1024)) == 0)
 			printf("pass %d\n", i);
 
@@ -187,11 +187,11 @@ try_merge:
 		if ((vaddr_t)last_chunk + last_chunk->len == (vaddr_t)chunk) {
 			// easy, just extend the previous chunk
 			last_chunk->len += chunk->len;
-			
+
 			// remove ourself from the list
 			list_delete(&chunk->node);
-			
-			// set the chunk pointer to the newly extended chunk, in case 
+
+			// set the chunk pointer to the newly extended chunk, in case
 			// it needs to merge with the next chunk below
 			chunk = last_chunk;
 		}
@@ -231,7 +231,7 @@ void *heap_alloc(size_t size, unsigned int alignment)
 #if DEBUG_HEAP
 	size_t original_size = size;
 #endif
-	
+
 	LTRACEF("size %zd, align %d\n", size, alignment);
 
 	// alignment must be power of 2
@@ -344,7 +344,7 @@ void heap_free(void *ptr)
 	// check for the old allocation structure
 	struct alloc_struct_begin *as = (struct alloc_struct_begin *)ptr;
 	as--;
-	
+
 	DEBUG_ASSERT(as->magic == HEAP_MAGIC);
 
 #if DEBUG_HEAP

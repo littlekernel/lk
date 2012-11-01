@@ -30,7 +30,7 @@ struct flash_nor_bank {
 	uint flags;
 };
 
-#define FLASH_NOR_FLAG_NONE	0
+#define FLASH_NOR_FLAG_NONE 0
 
 const struct flash_nor_bank *flash_nor_get_bank(unsigned int bank);
 

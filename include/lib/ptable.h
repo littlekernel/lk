@@ -9,7 +9,7 @@
  *    notice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the 
+ *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -19,7 +19,7 @@
  * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
  * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED 
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
  * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
@@ -33,19 +33,17 @@
 /* flash partitions are defined in terms of blocks
  * (flash erase units)
  */
-#define MAX_PTENTRY_NAME	16
-#define MAX_PTABLE_PARTS	16
+#define MAX_PTENTRY_NAME    16
+#define MAX_PTABLE_PARTS    16
 
-struct ptentry
-{
+struct ptentry {
 	char name[MAX_PTENTRY_NAME];
 	unsigned start;
 	unsigned length;
 	unsigned flags;
 };
 
-struct ptable
-{
+struct ptable {
 	struct ptentry parts[MAX_PTABLE_PARTS];
 	int count;
 };
@@ -53,7 +51,7 @@ struct ptable
 /* tools to populate and query the partition table */
 void ptable_init(struct ptable *ptable);
 void ptable_add(struct ptable *ptable, char *name, unsigned start,
-		unsigned length, unsigned flags);
+                unsigned length, unsigned flags);
 struct ptentry *ptable_find(struct ptable *ptable, const char *name);
 struct ptentry *ptable_get(struct ptable *ptable, int n);
 int ptable_size(struct ptable *ptable);

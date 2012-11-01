@@ -1,4 +1,4 @@
-/* 
+/*
 ** Copyright 2001, Travis Geiselbrecht. All rights reserved.
 ** Distributed under the terms of the NewOS License.
 */
@@ -32,9 +32,9 @@ strcat(char *dest,  char const*src)
 {
 	char *tmp = dest;
 
-	while(*dest)
+	while (*dest)
 		dest++;
-	while((*dest++ = *src++) != '\0')
+	while ((*dest++ = *src++) != '\0')
 		;
 
 	return tmp;

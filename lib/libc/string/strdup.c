@@ -1,4 +1,4 @@
-/* 
+/*
 ** Copyright 2004, Travis Geiselbrecht. All rights reserved.
 ** Distributed under the terms of the NewOS License.
 */
@@ -32,7 +32,7 @@ strdup(const char *str)
 {
 	size_t len;
 	char *copy;
-	
+
 	len = strlen(str) + 1;
 	copy = malloc(len);
 	if (copy == NULL)

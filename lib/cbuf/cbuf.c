@@ -31,7 +31,7 @@
 #define LOCAL_TRACE 0
 
 #define INC_POINTER(cbuf, ptr, inc) \
-	modpow2(((ptr) + (inc)), (cbuf)->len_pow2)
+    modpow2(((ptr) + (inc)), (cbuf)->len_pow2)
 
 void cbuf_initialize(cbuf_t *cbuf, size_t len)
 {

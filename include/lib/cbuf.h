@@ -27,7 +27,7 @@
 #include <kernel/event.h>
 
 typedef struct cbuf {
-	uint head; 
+	uint head;
 	uint tail;
 	uint len_pow2;
 	char *buf;

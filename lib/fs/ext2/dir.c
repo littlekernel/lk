@@ -8,10 +8,10 @@
  * publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -36,7 +36,7 @@ static int ext2_dir_lookup(ext2_t *ext2, struct ext2_inode *dir_inode, const cha
 	int err;
 	uint8_t *buf;
 	size_t namelen = strlen(name);
-	
+
 	if (!S_ISDIR(dir_inode->i_mode))
 		return ERR_NOT_DIR;
 
@@ -58,7 +58,7 @@ static int ext2_dir_lookup(ext2_t *ext2, struct ext2_inode *dir_inode, const cha
 			ent = (struct ext2_dir_entry_2 *)&buf[pos];
 
 			LTRACEF("ent %d:%d: inode 0x%x, reclen %d, namelen %d\n",
-					file_blocknum, pos, LE32(ent->inode), LE16(ent->rec_len), ent->name_len/* , ent->name*/);
+			        file_blocknum, pos, LE32(ent->inode), LE16(ent->rec_len), ent->name_len/* , ent->name*/);
 
 			/* sanity check the record length */
 			if (LE16(ent->rec_len) == 0)
@@ -131,7 +131,7 @@ nextcomponent:
 		err = ext2_load_inode(ext2, *inum, &inode);
 		if (err < 0)
 			return err;
-		
+
 		/* is it a symlink? */
 		if (S_ISLNK(inode.i_mode)) {
 			char link[512];
@@ -174,7 +174,7 @@ nextcomponent:
 
 		if (!done) {
 			/* move to the next seperator */
-			ptr = next_sep + 1; 
+			ptr = next_sep + 1;
 
 			/* consume multiple seperators */
 			while (*ptr == '/')

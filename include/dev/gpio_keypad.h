@@ -35,8 +35,8 @@
 #include <sys/types.h>
 
 /* unset: drive active output low, set: drive active output high */
-#define GPIOKPF_ACTIVE_HIGH		(1U << 0)
-#define GPIOKPF_DRIVE_INACTIVE		(1U << 1)
+#define GPIOKPF_ACTIVE_HIGH     (1U << 0)
+#define GPIOKPF_DRIVE_INACTIVE      (1U << 1)
 
 struct gpio_keypad_info {
 	/* size must be ninputs * noutputs */

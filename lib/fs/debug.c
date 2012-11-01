@@ -218,7 +218,7 @@ usage:
 			return err;
 		}
 
-		printf("stat successful:\n");		
+		printf("stat successful:\n");
 		printf("\tis_dir: %d\n", stat.is_dir ? 1 : 0);
 		printf("\tsize: %lld\n", stat.size);
 

@@ -34,8 +34,8 @@ memchr(void const *buf, int c, size_t len)
 	unsigned char const *b= buf;
 	unsigned char        x= (c&0xff);
 
-	for(i= 0; i< len; i++) {
-		if(b[i]== x) {
+	for (i= 0; i< len; i++) {
+		if (b[i]== x) {
 			return (void*)(b+i);
 		}
 	}

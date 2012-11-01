@@ -97,15 +97,15 @@ static char *longlong_to_string(char *buf, unsigned long long n, int len, uint f
 	int pos = len;
 	int negative = 0;
 
-	if((flag & SIGNEDFLAG) && (long long)n < 0) {
+	if ((flag & SIGNEDFLAG) && (long long)n < 0) {
 		negative = 1;
 		n = -n;
 	}
 
 	buf[--pos] = 0;
-	
+
 	/* only do the math if the number is >= 10 */
-	while(n >= 10) {
+	while (n >= 10) {
 		int digit = n % 10;
 
 		n /= 10;
@@ -113,10 +113,10 @@ static char *longlong_to_string(char *buf, unsigned long long n, int len, uint f
 		buf[--pos] = digit + '0';
 	}
 	buf[--pos] = n + '0';
-	
-	if(negative)
+
+	if (negative)
 		buf[--pos] = '-';
-	else if((flag & SHOWSIGNFLAG))
+	else if ((flag & SHOWSIGNFLAG))
 		buf[--pos] = '+';
 
 	return &buf[pos];
@@ -129,7 +129,7 @@ static char *longlong_to_hexstring(char *buf, unsigned long long u, int len, uin
 	static const char hextable_caps[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 	const char *table;
 
-	if((flag & CAPSFLAG))
+	if ((flag & CAPSFLAG))
 		table = hextable_caps;
 	else
 		table = hextable;
@@ -138,9 +138,9 @@ static char *longlong_to_hexstring(char *buf, unsigned long long u, int len, uin
 	do {
 		unsigned int digit = u % 16;
 		u /= 16;
-	
+
 		buf[--pos] = table[digit];
-	} while(u != 0);
+	} while (u != 0);
 
 	return &buf[pos];
 }
@@ -194,16 +194,16 @@ int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt,
 #define OUTPUT_CHAR(c) do { chars_written++; if (out(c, state) <= 1) goto done; } while(0)
 #define OUTPUT_CHAR_NOLENCHECK(c) do { out(c, state); } while(0)
 
-	for(;;) {	
+	for (;;) {
 		/* handle regular chars that aren't format related */
-		while((c = *fmt++) != 0) {
-			if(c == '%')
+		while ((c = *fmt++) != 0) {
+			if (c == '%')
 				break; /* we saw a '%', break and start parsing format */
 			OUTPUT_CHAR(c);
 		}
 
 		/* make sure we haven't just hit the end of the string */
-		if(c == 0)
+		if (c == 0)
 			break;
 
 		/* reset the format state */
@@ -213,10 +213,10 @@ int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt,
 next_format:
 		/* grab the next format character */
 		c = *fmt++;
-		if(c == 0)
+		if (c == 0)
 			break;
-					
-		switch(c) {
+
+		switch (c) {
 			case '0'...'9':
 				if (c == '0' && format_num == 0)
 					flags |= LEADZEROFLAG;
@@ -235,7 +235,7 @@ next_format:
 				break;
 			case 's':
 				s = va_arg(ap, const char *);
-				if(s == 0)
+				if (s == 0)
 					s = "<null>";
 				goto _output_string;
 			case '-':
@@ -248,16 +248,16 @@ next_format:
 				flags |= ALTFLAG;
 				goto next_format;
 			case 'l':
-				if(flags & LONGFLAG)
+				if (flags & LONGFLAG)
 					flags |= LONGLONGFLAG;
 				flags |= LONGFLAG;
 				goto next_format;
 			case 'h':
-				if(flags & HALFFLAG)
+				if (flags & HALFFLAG)
 					flags |= HALFHALFFLAG;
 				flags |= HALFFLAG;
 				goto next_format;
-		    case 'z':
+			case 'z':
 				flags |= SIZETFLAG;
 				goto next_format;
 			case 'D':
@@ -266,11 +266,11 @@ next_format:
 			case 'i':
 			case 'd':
 				n = (flags & LONGLONGFLAG) ? va_arg(ap, long long) :
-					(flags & LONGFLAG) ? va_arg(ap, long) : 
-					(flags & HALFHALFFLAG) ? (signed char)va_arg(ap, int) :
-					(flags & HALFFLAG) ? (short)va_arg(ap, int) :
-					(flags & SIZETFLAG) ? va_arg(ap, ssize_t) :
-					va_arg(ap, int);
+				    (flags & LONGFLAG) ? va_arg(ap, long) :
+				    (flags & HALFHALFFLAG) ? (signed char)va_arg(ap, int) :
+				    (flags & HALFFLAG) ? (short)va_arg(ap, int) :
+				    (flags & SIZETFLAG) ? va_arg(ap, ssize_t) :
+				    va_arg(ap, int);
 				flags |= SIGNEDFLAG;
 				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags);
 				goto _output_string;
@@ -279,11 +279,11 @@ next_format:
 				/* fallthrough */
 			case 'u':
 				n = (flags & LONGLONGFLAG) ? va_arg(ap, unsigned long long) :
-					(flags & LONGFLAG) ? va_arg(ap, unsigned long) : 
-					(flags & HALFHALFFLAG) ? (unsigned char)va_arg(ap, unsigned int) :
-					(flags & HALFFLAG) ? (unsigned short)va_arg(ap, unsigned int) :
-					(flags & SIZETFLAG) ? va_arg(ap, size_t) :
-					va_arg(ap, unsigned int);
+				    (flags & LONGFLAG) ? va_arg(ap, unsigned long) :
+				    (flags & HALFHALFFLAG) ? (unsigned char)va_arg(ap, unsigned int) :
+				    (flags & HALFFLAG) ? (unsigned short)va_arg(ap, unsigned int) :
+				    (flags & SIZETFLAG) ? va_arg(ap, size_t) :
+				    va_arg(ap, unsigned int);
 				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags);
 				goto _output_string;
 			case 'p':
@@ -295,30 +295,30 @@ next_format:
 hex:
 			case 'x':
 				n = (flags & LONGLONGFLAG) ? va_arg(ap, unsigned long long) :
-				    (flags & LONGFLAG) ? va_arg(ap, unsigned long) : 
-					(flags & HALFHALFFLAG) ? (unsigned char)va_arg(ap, unsigned int) :
-					(flags & HALFFLAG) ? (unsigned short)va_arg(ap, unsigned int) :
-					(flags & SIZETFLAG) ? va_arg(ap, size_t) :
-					va_arg(ap, unsigned int);
+				    (flags & LONGFLAG) ? va_arg(ap, unsigned long) :
+				    (flags & HALFHALFFLAG) ? (unsigned char)va_arg(ap, unsigned int) :
+				    (flags & HALFFLAG) ? (unsigned short)va_arg(ap, unsigned int) :
+				    (flags & SIZETFLAG) ? va_arg(ap, size_t) :
+				    va_arg(ap, unsigned int);
 				s = longlong_to_hexstring(num_buffer, n, sizeof(num_buffer), flags);
-				if(flags & ALTFLAG) {
+				if (flags & ALTFLAG) {
 					OUTPUT_CHAR('0');
 					OUTPUT_CHAR((flags & CAPSFLAG) ? 'X': 'x');
 				}
 				goto _output_string;
 			case 'n':
 				ptr = va_arg(ap, void *);
-				if(flags & LONGLONGFLAG)
+				if (flags & LONGLONGFLAG)
 					*(long long *)ptr = chars_written;
-				else if(flags & LONGFLAG)
+				else if (flags & LONGFLAG)
 					*(long *)ptr = chars_written;
-				else if(flags & HALFHALFFLAG)
+				else if (flags & HALFHALFFLAG)
 					*(signed char *)ptr = chars_written;
-				else if(flags & HALFFLAG)
+				else if (flags & HALFFLAG)
 					*(short *)ptr = chars_written;
-				else if(flags & SIZETFLAG)
+				else if (flags & SIZETFLAG)
 					*(size_t *)ptr = chars_written;
-				else 
+				else
 					*(int *)ptr = chars_written;
 				break;
 			default:
@@ -335,7 +335,7 @@ _output_string:
 		if (flags & LEFTFORMATFLAG) {
 			/* left justify the text */
 			uint count = 0;
-			while(*s != 0) {
+			while (*s != 0) {
 				OUTPUT_CHAR(*s++);
 				count++;
 			}
@@ -351,7 +351,7 @@ _output_string:
 				OUTPUT_CHAR(outchar);
 
 			/* output the string */
-			while(*s != 0)
+			while (*s != 0)
 				OUTPUT_CHAR(*s++);
 		}
 		continue;
