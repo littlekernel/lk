@@ -61,9 +61,9 @@ void smc91c96_init(void)
 	for (i=0; i < 6; i++) {
 		mac_addr[i] = *SMC_REG8(SMC_IAR0 + i);
 	}
-	TRACEF("mac address %02x:%02x:%02x:%02x:%02x:%02x\n", 
-		mac_addr[0], mac_addr[1], mac_addr[2],
-		mac_addr[3], mac_addr[4], mac_addr[5]);
+	TRACEF("mac address %02x:%02x:%02x:%02x:%02x:%02x\n",
+	       mac_addr[0], mac_addr[1], mac_addr[2],
+	       mac_addr[3], mac_addr[4], mac_addr[5]);
 
 	smc_bank(0);
 }
