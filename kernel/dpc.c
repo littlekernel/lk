@@ -30,7 +30,7 @@
 #include <kernel/event.h>
 
 struct dpc {
-	struct list_node node;	
+	struct list_node node;
 
 	dpc_callback cb;
 	void *arg;
@@ -54,7 +54,7 @@ status_t dpc_queue(dpc_callback cb, void *arg, uint flags)
 
 	dpc = malloc(sizeof(struct dpc));
 
-	if(dpc == NULL)
+	if (dpc == NULL)
 		return ERR_NO_MEMORY;
 
 	dpc->cb = cb;

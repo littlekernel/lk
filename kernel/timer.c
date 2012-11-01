@@ -84,7 +84,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 
 	LTRACEF("timer %p, delay %lu, period %lu, callback %p, arg %p, now %lu\n", timer, delay, period, callback, arg, now);
 
-	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);	
+	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);
 
 	if (list_in_list(&timer->node)) {
 		panic("timer %p already in list\n", timer);
@@ -171,7 +171,7 @@ void timer_cancel(timer_t *timer)
 	if (list_in_list(&timer->node))
 		list_delete(&timer->node);
 
-	/* to keep it from being reinserted into the queue if called from 
+	/* to keep it from being reinserted into the queue if called from
 	 * periodic timer callback.
 	 */
 	timer->periodic_time = 0;

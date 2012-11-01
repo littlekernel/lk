@@ -95,10 +95,10 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
 
 //	printf("idle_time %lld, busytime %lld\n", idle_time - last_idle_time, busy_time);
 	printf("LOAD: %d.%02d%%, cs %d, ints %d, timer ints %d, timers %d\n", busypercent / 100, busypercent % 100,
-			thread_stats.context_switches - old_stats.context_switches,
-			thread_stats.interrupts - old_stats.interrupts,
-			thread_stats.timer_ints - old_stats.timer_ints,
-			thread_stats.timers - old_stats.timers);
+	       thread_stats.context_switches - old_stats.context_switches,
+	       thread_stats.interrupts - old_stats.interrupts,
+	       thread_stats.timer_ints - old_stats.timer_ints,
+	       thread_stats.timers - old_stats.timers);
 
 	old_stats = thread_stats;
 	last_idle_time = idle_time;

@@ -1,6 +1,6 @@
 /* semaphore.c
  *
- * Copyright 2012 Christopher Anderson <chris@nullcode.org> 
+ * Copyright 2012 Christopher Anderson <chris@nullcode.org>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -55,9 +55,9 @@ status_t sem_wait(semaphore_t *sem)
 	status_t ret = NO_ERROR;
 	enter_critical_section();
 
-	/* 
-	 * If there are no resources available then we need to 
-	 * sit in the wait queue until sem_post adds some. 
+	/*
+	 * If there are no resources available then we need to
+	 * sit in the wait queue until sem_post adds some.
 	 */
 	if (unlikely(--sem->count < 0))
 		ret = wait_queue_block(&sem->wait, INFINITE_TIME);
@@ -75,7 +75,7 @@ status_t sem_trywait(semaphore_t *sem)
 		ret = ERR_NOT_READY;
 	else
 		sem->count--;
-	
+
 	exit_critical_section();
 	return ret;
 }

@@ -127,13 +127,13 @@ static void init_thread_struct(thread_t *t, const char *name)
  * Thread priority is an integer from 0 (lowest) to 31 (highest).  Some standard
  * prioritys are defined in <kernel/thread.h>:
  *
- *	HIGHEST_PRIORITY
- *	DPC_PRIORITY
- *	HIGH_PRIORITY
- *	DEFAULT_PRIORITY
- *	LOW_PRIORITY
- *	IDLE_PRIORITY
- *	LOWEST_PRIORITY
+ *  HIGHEST_PRIORITY
+ *  DPC_PRIORITY
+ *  HIGH_PRIORITY
+ *  DEFAULT_PRIORITY
+ *  LOW_PRIORITY
+ *  IDLE_PRIORITY
+ *  LOWEST_PRIORITY
  *
  * Stack size is typically set to DEFAULT_STACK_SIZE
  *
@@ -268,7 +268,7 @@ void thread_exit(int retcode)
 
 static void idle_thread_routine(void)
 {
-	for(;;)
+	for (;;)
 		arch_idle();
 }
 
@@ -880,7 +880,7 @@ status_t thread_unblock_from_wait_queue(thread_t *t, bool reschedule, status_t w
 	ASSERT(t->blocking_wait_queue != NULL);
 	ASSERT(t->blocking_wait_queue->magic == WAIT_QUEUE_MAGIC);
 	ASSERT(list_in_list(&t->queue_node));
-#endif	
+#endif
 
 	list_delete(&t->queue_node);
 	t->blocking_wait_queue->count--;

@@ -44,9 +44,9 @@ static int bootstrap2(void *arg);
 static void call_constructors(void)
 {
 	void **ctor;
-   
+
 	ctor = &__ctor_list;
-	while(ctor != &__ctor_end) {
+	while (ctor != &__ctor_end) {
 		void (*func)(void);
 
 		func = (void (*)())*ctor;
@@ -75,7 +75,7 @@ void kmain(void)
 	target_early_init();
 
 	dprintf(INFO, "welcome to lk\n\n");
-	
+
 	// deal with any static constructors
 	dprintf(SPEW, "calling constructors\n");
 	call_constructors();
@@ -123,7 +123,7 @@ static int bootstrap2(void *arg)
 	// initialize the rest of the platform
 	dprintf(SPEW, "initializing platform\n");
 	platform_init();
-	
+
 	// initialize the target
 	dprintf(SPEW, "initializing target\n");
 	target_init();

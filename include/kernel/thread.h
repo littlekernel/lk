@@ -55,7 +55,7 @@ typedef struct thread {
 	/* active bits */
 	struct list_node queue_node;
 	int priority;
-	enum thread_state state;	
+	enum thread_state state;
 	int saved_critical_section_count;
 	int remaining_quantum;
 
@@ -180,7 +180,7 @@ typedef struct wait_queue {
 /* NOTE: must be inside critical section when using these */
 void wait_queue_init(wait_queue_t *);
 
-/* 
+/*
  * release all the threads on this wait queue with a return code of ERR_OBJECT_DESTROYED.
  * the caller must assure that no other threads are operating on the wait queue during or
  * after the call.
@@ -195,7 +195,7 @@ void wait_queue_destroy(wait_queue_t *, bool reschedule);
  */
 status_t wait_queue_block(wait_queue_t *, lk_time_t timeout);
 
-/* 
+/*
  * release one or more threads from the wait queue.
  * reschedule = should the system reschedule if any is released.
  * wait_queue_error = what wait_queue_block() should return for the blocking thread.
@@ -203,9 +203,9 @@ status_t wait_queue_block(wait_queue_t *, lk_time_t timeout);
 int wait_queue_wake_one(wait_queue_t *, bool reschedule, status_t wait_queue_error);
 int wait_queue_wake_all(wait_queue_t *, bool reschedule, status_t wait_queue_error);
 
-/* 
+/*
  * remove the thread from whatever wait queue it's in.
- * return an error if the thread is not currently blocked (or is the current thread) 
+ * return an error if the thread is not currently blocked (or is the current thread)
  */
 status_t thread_unblock_from_wait_queue(thread_t *t, bool reschedule, status_t wait_queue_error);
 
