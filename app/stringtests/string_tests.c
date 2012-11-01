@@ -60,7 +60,7 @@ static void bench_memcpy(void)
 {
 	lk_time_t null, libc, mine;
 	size_t srcalign, dstalign;
-	
+
 	printf("memcpy speed test\n");
 	thread_sleep(200); // let the debug string clear the serial port
 
@@ -78,12 +78,12 @@ static void bench_memcpy(void)
 
 			if (dstalign == 0)
 				dstalign = 1;
-			else 
+			else
 				dstalign <<= 1;
 		}
 		if (srcalign == 0)
 			srcalign = 1;
-		else 
+		else
 			srcalign <<= 1;
 	}
 }
@@ -149,7 +149,7 @@ static void bench_memset(void)
 {
 	lk_time_t libc, mine;
 	size_t dstalign;
-	
+
 	printf("memset speed test\n");
 	thread_sleep(200); // let the debug string clear the serial port
 

@@ -32,7 +32,7 @@
 
 static int sleep_thread(void *arg)
 {
-	for(;;) {
+	for (;;) {
 		printf("sleeper %p\n", current_thread);
 		thread_sleep(rand() % 500);
 	}
@@ -42,7 +42,7 @@ static int sleep_thread(void *arg)
 int sleep_test(void)
 {
 	int i;
-	for(i=0; i < 16; i++)
+	for (i=0; i < 16; i++)
 		thread_resume(thread_create("sleeper", &sleep_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 	return 0;
 }
@@ -69,7 +69,7 @@ static int semaphore_producer()
 static int semaphore_consumer()
 {
 	unsigned int iterations = 0;
-	
+
 	mutex_acquire(&sem_test_mutex);
 	if (sem_remaining_its >= sem_thread_max_its) {
 		iterations = rand();
@@ -105,12 +105,12 @@ static int semaphore_test()
 		}
 		mutex_release(&sem_test_mutex);
 	}
-	
+
 	thread_resume(thread_create("semaphore producer", &semaphore_producer, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 
 	while (sem_threads)
 		thread_yield();
-		
+
 	if (sem.count == sem_start_value)
 		printf("semaphore tests successfully complete\n");
 	else
@@ -189,7 +189,7 @@ int mutex_test(void)
 	mutex_init(&m);
 
 	int i;
-	for(i=0; i < 5; i++)
+	for (i=0; i < 5; i++)
 		thread_resume(thread_create("mutex tester", &mutex_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 
 	thread_sleep(1000);
@@ -321,8 +321,8 @@ static int context_switch_tester(void *arg)
 	}
 	total_count += arch_cycle_count() - count;
 	thread_sleep(1000);
-	printf("took %u cycles to yield %d times, %u per yield, %u per yield per thread\n", 
-		total_count, iter, total_count / iter, total_count / iter / thread_count);
+	printf("took %u cycles to yield %d times, %u per yield, %u per yield per thread\n",
+	       total_count, iter, total_count / iter, total_count / iter / thread_count);
 
 	event_signal(&context_switch_done_event, true);
 
@@ -438,7 +438,7 @@ static void preempt_test(void)
 	printf("done with preempt test, above time stamps should be very close\n");
 }
 
-int thread_tests(void) 
+int thread_tests(void)
 {
 	mutex_test();
 	semaphore_test();
