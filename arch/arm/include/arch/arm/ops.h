@@ -150,7 +150,7 @@ __GNU_INLINE __ALWAYS_INLINE extern inline uint32_t arch_cycle_count(void)
 {
 #if ARM_CPU_CORTEX_M3
 #define DWT_CYCCNT (0xE0001004)
-    return *REG32(DWT_CYCCNT);
+	return *REG32(DWT_CYCCNT);
 #else
 	return 0;
 #endif

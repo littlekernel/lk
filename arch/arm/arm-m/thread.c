@@ -104,7 +104,7 @@ static void pendsv(struct cm3_exception_frame_long *frame)
 	arch_enable_ints();
 }
 
-/* 
+/*
  * raw pendsv exception handler, triggered by interrupt glue to schedule
  * a preemption check.
  */

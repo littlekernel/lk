@@ -23,8 +23,8 @@
 #ifndef __ARM_CORES_H
 #define __ARM_CORES_H
 
-/* 
- * make the gcc built in define a little easier to deal with 
+/*
+ * make the gcc built in define a little easier to deal with
  * to decide what core it is generating code for
  *
  * ARM_ARCH_LEVEL gets assigned a numeric value of the general family

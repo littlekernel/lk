@@ -25,7 +25,7 @@
 
 struct arch_thread {
 	vaddr_t esp;
-	
+
 	// TODO: fpu context
 };
 

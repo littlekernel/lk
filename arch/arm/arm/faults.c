@@ -44,11 +44,21 @@ static void dump_fault_frame(struct arm_fault_frame *frame)
 	// dump the bottom of the current stack
 	addr_t stack;
 	switch (frame->spsr & MODE_MASK) {
-		case MODE_FIQ: stack = regs.fiq_r13; break;
-		case MODE_IRQ: stack = regs.irq_r13; break;
-		case MODE_SVC: stack = regs.svc_r13; break;
-		case MODE_UND: stack = regs.und_r13; break;
-		case MODE_SYS: stack = regs.sys_r13; break;
+		case MODE_FIQ:
+			stack = regs.fiq_r13;
+			break;
+		case MODE_IRQ:
+			stack = regs.irq_r13;
+			break;
+		case MODE_SVC:
+			stack = regs.svc_r13;
+			break;
+		case MODE_UND:
+			stack = regs.und_r13;
+			break;
+		case MODE_SYS:
+			stack = regs.sys_r13;
+			break;
 		default:
 			stack = 0;
 	}
@@ -65,9 +75,9 @@ static void exception_die(struct arm_fault_frame *frame, int pc_off, const char 
 	frame->pc += pc_off;
 	dprintf(CRITICAL, msg);
 	dump_fault_frame(frame);
-	
+
 	halt();
-	for(;;);
+	for (;;);
 }
 
 void arm_syscall_handler(struct arm_fault_frame *frame)

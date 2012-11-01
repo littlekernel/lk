@@ -75,7 +75,7 @@ void arch_thread_initialize(thread_t *t)
 	// fill it in
 	memset(frame, 0, sizeof(*frame));
 	frame->lr = (vaddr_t)&initial_thread_func;
-	
+
 	// set the stack pointer
 	t->arch.sp = (vaddr_t)frame;
 }

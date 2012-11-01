@@ -29,13 +29,13 @@ static void dump_frame(const struct cm3_exception_frame *frame)
 {
 	printf("exception frame at %p\n", frame);
 	printf("\tr0  0x%08x r1  0x%08x r2  0x%08x r3 0x%08x r4 0x%08x\n",
-		frame->r0, frame->r1, frame->r2, frame->r3, frame->r4);
+	       frame->r0, frame->r1, frame->r2, frame->r3, frame->r4);
 	printf("\tr5  0x%08x r6  0x%08x r7  0x%08x r8 0x%08x r9 0x%08x\n",
-		frame->r5, frame->r6, frame->r7, frame->r8, frame->r9);
+	       frame->r5, frame->r6, frame->r7, frame->r8, frame->r9);
 	printf("\tr10 0x%08x r11 0x%08x r12 0x%08x\n",
-		frame->r10, frame->r11, frame->r12);
+	       frame->r10, frame->r11, frame->r12);
 	printf("\tlr  0x%08x pc  0x%08x psr 0x%08x\n",
-		frame->lr, frame->pc, frame->psr);
+	       frame->lr, frame->pc, frame->psr);
 }
 
 static void hardfault(struct cm3_exception_frame *frame)

@@ -36,8 +36,7 @@ extern void _pendsv(void);
 extern void _pendsv(void);
 extern void _systick(void);
 
-const void * const __SECTION(".text.boot.vectab1") vectab[] =
-{
+const void * const __SECTION(".text.boot.vectab1") vectab[] = {
 	/* arm exceptions */
 	initial_stack + sizeof(initial_stack),
 	_start,
