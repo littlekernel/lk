@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,29 +20,30 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <app.h>
 #include <debug.h>
+#include <rand.h>
+#include <err.h>
 #include <app/tests.h>
-#include <compiler.h>
+#include <kernel/thread.h>
+#include <kernel/mutex.h>
+#include <kernel/semaphore.h>
+#include <kernel/event.h>
+#include <platform.h>
 
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
-
-STATIC_COMMAND_START
-STATIC_COMMAND("printf_tests", "test printf", (console_cmd)&printf_tests)
-STATIC_COMMAND("thread_tests", "test the scheduler", (console_cmd)&thread_tests)
-STATIC_COMMAND("clock_tests", "test clocks", (console_cmd)&clock_tests)
-STATIC_COMMAND("bench", "miscellaneous benchmarks", (console_cmd)&benchmarks)
-STATIC_COMMAND_END(tests);
-
-#endif
-
-static void tests_init(const struct app_descriptor *app)
+void clock_tests(void)
 {
-}
+	printf("counting to 5, in one second intervals\n");
+	for (int i = 0; i < 5; i++) {
+		thread_sleep(1000);
+		printf("%d\n", i + 1);
+	}
 
-APP_START(tests)
-	.init = tests_init,
-	.flags = 0,
-APP_END
+	printf("measuring cpu clock against time\n");
+	for (int i = 0; i < 5; i++) {
+		uint cycles = arch_cycle_count();
+		spin(1000000);
+		cycles = arch_cycle_count() - cycles;
+		printf("%u cycles per second\n", cycles);
+	}
+}
 

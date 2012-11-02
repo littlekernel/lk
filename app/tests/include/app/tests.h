@@ -25,6 +25,8 @@
 
 int thread_tests(void);
 void printf_tests(void);
+void clock_tests(void);
+void benchmarks(void);
 
 #endif
 
