@@ -6,6 +6,10 @@ $(OUTBIN): $(OUTELF)
 	$(NOECHO)$(SIZE) $<
 	$(NOCOPY)$(OBJCOPY) -O binary $< $@
 
+$(OUTELF).hex: $(OUTELF)
+	@echo generating hex file: $@
+	$(NOCOPY)$(OBJCOPY) -O ihex $< $@
+
 $(OUTELF): $(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LINKER_SCRIPT)
 	@echo linking $@
 	$(NOECHO)$(SIZE) -t $(ALLMODULE_OBJS)

@@ -48,7 +48,7 @@ GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
 GLOBAL_LDFLAGS += -gc-sections
 
 # top level rule
-all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).size
+all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).size $(OUTELF).hex
 
 # master module object list
 ALLOBJS_MODULE :=
@@ -176,7 +176,7 @@ endif
 include make/build.mk
 
 clean: $(EXTRA_CLEANDEPS)
-	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst
+	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).hex
 
 install: all
 	scp $(OUTBIN) 192.168.0.4:/tftproot
