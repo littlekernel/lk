@@ -101,6 +101,7 @@ void arch_quiesce(void)
 
 void arch_idle(void)
 {
+	__asm__ volatile("wfi");
 }
 
 void _cm3_set_irqpri(uint32_t pri)
