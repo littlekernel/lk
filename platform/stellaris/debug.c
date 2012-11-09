@@ -31,15 +31,10 @@
 #include <target/debugconfig.h>
 #include <arch/arm/cm3.h>
 
+#include "ti_driverlib.h"
+
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
-#include "driverlib/debug.h"
-#include "driverlib/fpu.h"
-#include "driverlib/gpio.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/rom.h"
-#include "driverlib/uart.h"
-#include "driverlib/sysctl.h"
 
 #define DEBUG_UART UART0_BASE
 

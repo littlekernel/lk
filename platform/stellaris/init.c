@@ -27,12 +27,8 @@
 
 #include "ti/inc/hw_memmap.h"
 #include "ti/inc/hw_types.h"
-#include "ti/driverlib/debug.h"
-#include "ti/driverlib/fpu.h"
-#include "ti/driverlib/gpio.h"
-#include "ti/driverlib/pin_map.h"
-#include "ti/driverlib/rom.h"
-#include "ti/driverlib/sysctl.h"
+
+#include "ti_driverlib.h"
 
 
 void stellaris_debug_early_init(void);

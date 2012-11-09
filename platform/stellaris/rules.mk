@@ -32,17 +32,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/timer.c \
-	$(LOCAL_DIR)/startup_gcc.c
-
-DRIVERLIB_DIR = $(LOCAL_DIR)/ti/driverlib
-DRIVERLIB_SRCS = \
-	$(DRIVERLIB_DIR)/fpu.c \
-	$(DRIVERLIB_DIR)/gpio.c \
-	$(DRIVERLIB_DIR)/sysctl.c \
-	$(DRIVERLIB_DIR)/systick.c \
-	$(DRIVERLIB_DIR)/uart.c
-
-MODULE_SRCS += $(DRIVERLIB_SRCS)
+	$(LOCAL_DIR)/startup_gcc.c \
+	$(LOCAL_DIR)/ti_driverlib.c
 
 #	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/interrupts.c \

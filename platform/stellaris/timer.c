@@ -29,8 +29,7 @@
 #include <arch/arm/cm3.h>
 
 #include <inc/hw_types.h>
-#include <driverlib/systick.h>
-#include <driverlib/sysctl.h>
+#include "ti_driverlib.h"
 
 #define MCLK 84000000 /* XXX read this */
 #define TICK_RATE (MCLK / 2)
