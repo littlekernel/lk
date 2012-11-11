@@ -33,6 +33,7 @@
 #include <kernel/event.h>
 #include <platform.h>
 
+#if ARCH_ARM
 void bench_set_overhead(void)
 {
 	const uint BUFSIZE = 4096;
@@ -173,9 +174,11 @@ void bench_memcpy(void)
 
 	free(buf);
 }
+#endif
 
 void benchmarks(void)
 {
+#if ARCH_ARM
 	bench_set_overhead();
 	bench_memset();
 	bench_cset_uint8_t();
@@ -185,5 +188,6 @@ void benchmarks(void)
 	bench_cset_wide();
 	bench_cset_stm();
 	bench_memcpy();
+#endif
 }
 
