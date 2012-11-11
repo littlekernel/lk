@@ -47,7 +47,7 @@ static uint16_t divisor;
 #define INTERNAL_FREQ 1193182ULL
 #define INTERNAL_FREQ_3X 3579546ULL
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, time_t interval)
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
 	enter_critical_section();
 
@@ -62,23 +62,23 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	return NO_ERROR;
 }
 
-time_t current_time(void)
+lk_time_t current_time(void)
 {
-	time_t time;
+	lk_time_t time;
 
 	enter_critical_section();
-	time = (time_t) (timer_current_time >> 32);
+	time = (lk_time_t) (timer_current_time >> 32);
 	exit_critical_section();
 
 	return time;
 }
 
-bigtime_t current_time_hires(void)
+lk_bigtime_t current_time_hires(void)
 {
-	bigtime_t time;
+	lk_bigtime_t time;
 
 	enter_critical_section();
-	time = (bigtime_t) ((timer_current_time >> 22) * 1000) >> 10;
+	time = (lk_bigtime_t) ((timer_current_time >> 22) * 1000) >> 10;
 	exit_critical_section();
 
 	return time;
@@ -89,8 +89,8 @@ static enum handler_return os_timer_tick(void *arg)
 
 	timer_current_time += timer_delta_time;
 
-	time_t time = current_time();
-	//bigtime_t btime = current_time_hires();
+	lk_time_t time = current_time();
+	//lk_bigtime_t btime = current_time_hires();
 	//printf_xy(71, 0, WHITE, "%08u", (uint32_t) time);
 	//printf_xy(63, 1, WHITE, "%016llu", (uint64_t) btime);
 

@@ -98,9 +98,9 @@ static inline void i8042_write_command(int val)
  */
 #define I8042_BUFFER_LENGTH 32
 
-static inline void delay(time_t delay)
+static inline void delay(lk_time_t delay)
 {
-	bigtime_t start = current_time();
+	lk_time_t start = current_time();
 
 	while (start + delay > current_time());
 }
