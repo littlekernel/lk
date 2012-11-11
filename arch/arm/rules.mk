@@ -181,4 +181,12 @@ $(BUILDDIR)/system-twosegment.ld: $(LOCAL_DIR)/system-twosegment.ld
 	@$(MKDIR)
 	$(NOECHO)sed "s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
 
+# arm specific script to try to guess stack usage
+$(OUTELF).stack: LOCAL_DIR:=$(LOCAL_DIR)
+$(OUTELF).stack: $(OUTELF).lst
+	$(NOECHO)echo generating stack usage $@
+	$(NOECHO)$(LOCAL_DIR)/stackusage < $< | sort -n -k 1 -r > $@
+
+EXTRA_BUILDDEPS += $(OUTELF).stack
+
 include make/module.mk
