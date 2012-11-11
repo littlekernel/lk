@@ -10,7 +10,7 @@ SECTIONS
 	.text.boot.vectab1 : { KEEP(*(.text.boot.vectab1)) }
 	.text.boot.vectab2 : { KEEP(*(.text.boot.vectab2)) }
 	.text.boot : { KEEP(*(.text.boot)) }
-	.text :	{ *(.text .text.* .glue_7* .gnu.linkonce.t.*) } =0x9090
+	.text :	{ *(.text .text.* .sram.text .glue_7* .gnu.linkonce.t.*) } =0x9090
 
 	.interp : { *(.interp) }
 	.hash : { *(.hash) }

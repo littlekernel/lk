@@ -44,6 +44,8 @@
 #define __GET_FRAME(x) __builtin_frame_address(0)
 #define __NAKED __attribute__((naked))
 #define __ISCONSTANT(x) __builtin_constant_p(x)
+#define __NO_INLINE __attribute((noinline))
+#define __SRAM __NO_INLINE __SECTION(".sram.text")
 
 #define INCBIN(symname, sizename, filename, section)                    \
     __asm__ (".section " section "; .align 4; .globl "#symname);        \

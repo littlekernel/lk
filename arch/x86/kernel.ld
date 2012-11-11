@@ -27,27 +27,28 @@ SECTIONS
 	.text 0x0200000 : {
 		*(.text.boot)
 		*(.text)
+		*(.sram.text)
 		*(SORT(.text$*))
 		*(.gnu.linkonce.t.*)
-		
+
 		__ctor_list = .;
 		*(SORT(.ctor*))
 		__ctor_end = .;
 		__dtor_list = .;
 		*(SORT(.dtor*))
 		__dtor_end = .;
-		
+
 		. = ALIGN(4096);
 	}
-	
+
 	__data_start = .;
 	.data		: { *(.data .data.* .gnu.linkonce.d.*) }
 	.stab		: { *(.stab) }
 	.stabst		: { *(.stabstr) }
-	
+
 	. = ALIGN(4096);
 	__data_end = .;
-	
+
 	.rdata		: {
 		*(.rdata)
 		*(SORT(.rdata$*))
@@ -60,25 +61,25 @@ SECTIONS
 		__apps_start = .;
 		KEEP (*(.apps))
 		__apps_end = .;
-		
+
 		. = ALIGN(4096);
 	}
-	
+
 	__bss_start = .;
 	.bss		: {
 		*(.bss*)
 		*(.gnu.linkonce.b.*)
 		*(COMMON)
-		
+
 		. = ALIGN(4096);
 	}
 	__bss_end = .;
-	
+
 	/*. += 0x2000;
 	_kstack = .;
 	. += 0x1000;*/
-	
+
 	_end = .;
-	
+
 	/DISCARD/ : { *(.comment .note .eh_frame) }
 }

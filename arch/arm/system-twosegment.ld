@@ -54,6 +54,7 @@ SECTIONS
 	__data_start_rom = .;
 	. = %MEMBASE%;
 	__data_start = .;
+
 	.data : AT ( ADDR (.rodata) + SIZEOF (.rodata) ) {
 		*(.data .data.* .gnu.linkonce.d.*)
 		. = ALIGN(4);
@@ -64,6 +65,11 @@ SECTIONS
 		__apps_start = .;
 		KEEP (*(.apps))
 		__apps_end = .;
+	}
+
+	/* code that is located in ram */
+	.sram.text : {
+		KEEP (*(.sram.text*))
 	}
 
 	__ctor_list = .;
