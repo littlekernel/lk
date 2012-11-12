@@ -138,7 +138,7 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_swap(volatile int *ptr, in
 #endif
 }
 
-__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_cmpxhg(volatile int *ptr, int oldval, int newval)
+__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 {
 	int old;
 	int test;
