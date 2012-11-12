@@ -29,6 +29,8 @@
 #include <reg.h>
 
 #if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
+#define USE_GCC_ATOMICS 0
+
 // override of some routines
 __GNU_INLINE __ALWAYS_INLINE extern inline void arch_enable_ints(void)
 {
@@ -44,6 +46,9 @@ __GNU_INLINE __ALWAYS_INLINE extern inline void arch_disable_ints(void)
 
 __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_add(volatile int *ptr, int val)
 {
+#if USE_GCC_ATOMICS
+	return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
+#else
 	int old;
 	int temp;
 	int test;
@@ -60,10 +65,14 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_add(volatile int *ptr, int
 	} while (test != 0);
 
 	return old;
+#endif
 }
 
 __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_or(volatile int *ptr, int val)
 {
+#if USE_GCC_ATOMICS
+	return __atomic_fetch_or(ptr, val, __ATOMIC_RELAXED);
+#else
 	int old;
 	int temp;
 	int test;
@@ -80,10 +89,14 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_or(volatile int *ptr, int 
 	} while (test != 0);
 
 	return old;
+#endif
 }
 
 __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_and(volatile int *ptr, int val)
 {
+#if USE_GCC_ATOMICS
+	return __atomic_fetch_and(ptr, val, __ATOMIC_RELAXED);
+#else
 	int old;
 	int temp;
 	int test;
@@ -100,10 +113,14 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_and(volatile int *ptr, int
 	} while (test != 0);
 
 	return old;
+#endif
 }
 
 __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_swap(volatile int *ptr, int val)
 {
+#if USE_GCC_ATOMICS
+	return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
+#else
 	int old;
 	int test;
 
@@ -118,6 +135,7 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_swap(volatile int *ptr, in
 	} while (test != 0);
 
 	return old;
+#endif
 }
 
 __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_cmpxhg(volatile int *ptr, int oldval, int newval)
