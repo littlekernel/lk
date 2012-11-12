@@ -26,7 +26,7 @@
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/timer.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #include <pmc/pmc.h>
 #include <tc/tc.h>

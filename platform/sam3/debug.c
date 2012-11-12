@@ -29,7 +29,7 @@
 #include <platform/debug.h>
 #include <arch/ops.h>
 #include <target/debugconfig.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #include <uart/uart.h>
 #include <pmc/pmc.h>

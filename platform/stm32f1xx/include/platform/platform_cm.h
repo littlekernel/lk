@@ -20,10 +20,10 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __PLATFORM_CM3_H
-#define __PLATFORM_CM3_H
+#ifndef __PLATFORM_CM_H
+#define __PLATFORM_CM_H
 
-#include <stm32f2xx.h>
+#include <stm32f10x.h>
 
 #endif
 

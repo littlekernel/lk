@@ -29,7 +29,7 @@
 #include <stm32f2xx_rcc.h>
 #include <stm32f2xx_tim.h>
 #include <misc.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #define LOCAL_TRACE 0
 
