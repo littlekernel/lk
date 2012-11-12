@@ -51,11 +51,11 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_add(volatile int *ptr, int
 	do {
 		__asm__ volatile(
 		    "ldrex	%[old], [%[ptr]]\n"
-		    "add	%[temp], %[old], %[val]\n"
+		    "adds	%[temp], %[old], %[val]\n"
 		    "strex	%[test], %[temp], [%[ptr]]\n"
 		    : [old]"=&r" (old), [temp]"=&r" (temp), [test]"=&r" (test)
 		    : [ptr]"r" (ptr), [val]"r" (val)
-		    : "memory");
+		    : "memory", "cc");
 
 	} while (test != 0);
 
@@ -71,11 +71,11 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_or(volatile int *ptr, int 
 	do {
 		__asm__ volatile(
 		    "ldrex	%[old], [%[ptr]]\n"
-		    "orr	%[temp], %[old], %[val]\n"
+		    "orrs	%[temp], %[old], %[val]\n"
 		    "strex	%[test], %[temp], [%[ptr]]\n"
 		    : [old]"=&r" (old), [temp]"=&r" (temp), [test]"=&r" (test)
 		    : [ptr]"r" (ptr), [val]"r" (val)
-		    : "memory");
+		    : "memory", "cc");
 
 	} while (test != 0);
 
@@ -91,11 +91,11 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_and(volatile int *ptr, int
 	do {
 		__asm__ volatile(
 		    "ldrex	%[old], [%[ptr]]\n"
-		    "and	%[temp], %[old], %[val]\n"
+		    "ands	%[temp], %[old], %[val]\n"
 		    "strex	%[test], %[temp], [%[ptr]]\n"
 		    : [old]"=&r" (old), [temp]"=&r" (temp), [test]"=&r" (test)
 		    : [ptr]"r" (ptr), [val]"r" (val)
-		    : "memory");
+		    : "memory", "cc");
 
 	} while (test != 0);
 
