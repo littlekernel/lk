@@ -27,7 +27,7 @@
 #include <assert.h>
 #include <kernel/thread.h>
 #include <arch/arm.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #define LOCAL_TRACE 0
 

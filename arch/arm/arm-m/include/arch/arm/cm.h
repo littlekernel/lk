@@ -20,11 +20,20 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ARCH_ARM_CM3_H
-#define __ARCH_ARM_CM3_H
+#ifndef __ARCH_ARM_CM_H
+#define __ARCH_ARM_CM_H
 
-#include <platform/platform_cm3.h>
+/* support header for all cortex-m class cpus */
+
+#include <platform/platform_cm.h>
+
+#if ARM_CPU_CORTEX_M3
 #include <core_cm3.h>
+#elif ARM_CPU_CORTEX_M4
+#include <core_cm4.h>
+#else
+#error "unknown cortex-m core"
+#endif
 
 /* registers dealing with the cycle counter */
 #define DWT_CTRL (0xE0001000)

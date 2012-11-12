@@ -26,6 +26,37 @@ ENABLE_THUMB := true
 ONLY_THUMB := true
 SUBARCH := arm-m
 endif
+ifeq ($(ARM_CPU),cortex-m4)
+DEFINES += \
+	ARM_CPU_CORTEX_M4=1 \
+	ARM_WITH_CP15=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7M=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1
+GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+HANDLED_CORE := true
+ENABLE_THUMB := true
+ONLY_THUMB := true
+SUBARCH := arm-m
+endif
+ifeq ($(ARM_CPU),cortex-m4f)
+DEFINES += \
+	ARM_CPU_CORTEX_M4=1 \
+	ARM_CPU_CORTEX_M4F=1 \
+	ARM_WITH_CP15=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7M=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1 \
+	ARM_WITH_VFP=1 \
+	__FPU_PRESENT=1
+GLOBAL_COMPILEFLAGS += -mcpu=cortex-m4 -mfloat-abi=softfp
+HANDLED_CORE := true
+ENABLE_THUMB := true
+ONLY_THUMB := true
+SUBARCH := arm-m
+endif
 ifeq ($(ARM_CPU),cortex-a8)
 DEFINES += \
 	ARM_WITH_CP15=1 \
@@ -87,8 +118,7 @@ HANDLED_CORE := true
 endif
 
 ifneq ($(HANDLED_CORE),true)
-$(warning $(LOCAL_DIR)/rules.mk doesnt have logic for arm core $(ARM_CPU))
-$(warning this is likely to be broken)
+$(error $(LOCAL_DIR)/rules.mk doesnt have logic for arm core $(ARM_CPU))
 endif
 
 THUMBCFLAGS :=

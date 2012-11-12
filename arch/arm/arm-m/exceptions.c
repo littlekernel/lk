@@ -23,7 +23,7 @@
 #include <debug.h>
 #include <compiler.h>
 #include <stdint.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 static void dump_frame(const struct cm3_exception_frame *frame)
 {

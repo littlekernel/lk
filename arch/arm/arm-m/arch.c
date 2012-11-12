@@ -25,7 +25,7 @@
 #include <arch/ops.h>
 #include <arch/arm.h>
 #include <platform.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #define ENABLE_CYCLE_COUNTER 1
 
