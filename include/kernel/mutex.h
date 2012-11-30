@@ -24,6 +24,7 @@
 #ifndef __KERNEL_MUTEX_H
 #define __KERNEL_MUTEX_H
 
+#include <debug.h>
 #include <kernel/thread.h>
 
 #if DEBUGLEVEL > 1
