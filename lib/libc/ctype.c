@@ -22,11 +22,6 @@
  */
 #include <ctype.h>
 
-#if 0
-/* XXX unimplemented for now */
-int ispunct(int c);
-#endif
-
 int isblank(int c)
 {
 	return (c == ' ' || c == '\t');
@@ -69,17 +64,22 @@ int isxdigit(int c)
 
 int isgraph(int c)
 {
-	return ((c >  ' ') && (c < 0x7f));
+	return ((c > ' ') && (c < 0x7f));
 }
 
 int iscntrl(int c)
 {
-	return ((c <  ' ') || (c == 0x7f));
+	return ((c < ' ') || (c == 0x7f));
 }
 
 int isprint(int c)
 {
 	return ((c >= 0x20) && (c < 0x7f));
+}
+
+int ispunct(int c)
+{
+	return isgraph(c) && (!isalnum(c));
 }
 
 int tolower(int c)
