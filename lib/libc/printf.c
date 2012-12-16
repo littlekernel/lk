@@ -80,17 +80,20 @@ int snprintf(char *str, size_t len, const char *fmt, ...)
 }
 
 
-#define LONGFLAG     0x00000001
-#define LONGLONGFLAG 0x00000002
-#define HALFFLAG     0x00000004
-#define HALFHALFFLAG 0x00000008
-#define SIZETFLAG    0x00000010
-#define ALTFLAG      0x00000020
-#define CAPSFLAG     0x00000040
-#define SHOWSIGNFLAG 0x00000080
-#define SIGNEDFLAG   0x00000100
-#define LEFTFORMATFLAG 0x00000200
-#define LEADZEROFLAG 0x00000400
+#define LONGFLAG       0x00000001
+#define LONGLONGFLAG   0x00000002
+#define HALFFLAG       0x00000004
+#define HALFHALFFLAG   0x00000008
+#define SIZETFLAG      0x00000010
+#define INTMAXFLAG     0x00000020
+#define PTRDIFFFLAG    0x00000040
+#define ALTFLAG        0x00000080
+#define CAPSFLAG       0x00000100
+#define SHOWSIGNFLAG   0x00000200
+#define SIGNEDFLAG     0x00000400
+#define LEFTFORMATFLAG 0x00000800
+#define LEADZEROFLAG   0x00001000
+#define BLANKPOSFLAG   0x00002000
 
 static char *longlong_to_string(char *buf, unsigned long long n, int len, uint flag)
 {
@@ -118,6 +121,8 @@ static char *longlong_to_string(char *buf, unsigned long long n, int len, uint f
 		buf[--pos] = '-';
 	else if ((flag & SHOWSIGNFLAG))
 		buf[--pos] = '+';
+	else if ((flag & BLANKPOSFLAG))
+		buf[--pos] = ' ';
 
 	return &buf[pos];
 }
@@ -244,6 +249,9 @@ next_format:
 			case '+':
 				flags |= SHOWSIGNFLAG;
 				goto next_format;
+			case ' ':
+				flags |= BLANKPOSFLAG;
+				goto next_format;
 			case '#':
 				flags |= ALTFLAG;
 				goto next_format;
@@ -260,9 +268,12 @@ next_format:
 			case 'z':
 				flags |= SIZETFLAG;
 				goto next_format;
-			case 'D':
-				flags |= LONGFLAG;
-				/* fallthrough */
+			case 'j':
+				flags |= INTMAXFLAG;
+				goto next_format;
+			case 't':
+				flags |= PTRDIFFFLAG;
+				goto next_format;
 			case 'i':
 			case 'd':
 				n = (flags & LONGLONGFLAG) ? va_arg(ap, long long) :
@@ -270,19 +281,20 @@ next_format:
 				    (flags & HALFHALFFLAG) ? (signed char)va_arg(ap, int) :
 				    (flags & HALFFLAG) ? (short)va_arg(ap, int) :
 				    (flags & SIZETFLAG) ? va_arg(ap, ssize_t) :
+				    (flags & INTMAXFLAG) ? va_arg(ap, intmax_t) :
+				    (flags & PTRDIFFFLAG) ? va_arg(ap, ptrdiff_t) :
 				    va_arg(ap, int);
 				flags |= SIGNEDFLAG;
 				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags);
 				goto _output_string;
-			case 'U':
-				flags |= LONGFLAG;
-				/* fallthrough */
 			case 'u':
 				n = (flags & LONGLONGFLAG) ? va_arg(ap, unsigned long long) :
 				    (flags & LONGFLAG) ? va_arg(ap, unsigned long) :
 				    (flags & HALFHALFFLAG) ? (unsigned char)va_arg(ap, unsigned int) :
 				    (flags & HALFFLAG) ? (unsigned short)va_arg(ap, unsigned int) :
 				    (flags & SIZETFLAG) ? va_arg(ap, size_t) :
+				    (flags & INTMAXFLAG) ? va_arg(ap, uintmax_t) :
+				    (flags & PTRDIFFFLAG) ? (uintptr_t)va_arg(ap, ptrdiff_t) :
 				    va_arg(ap, unsigned int);
 				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags);
 				goto _output_string;
@@ -299,6 +311,8 @@ hex:
 				    (flags & HALFHALFFLAG) ? (unsigned char)va_arg(ap, unsigned int) :
 				    (flags & HALFFLAG) ? (unsigned short)va_arg(ap, unsigned int) :
 				    (flags & SIZETFLAG) ? va_arg(ap, size_t) :
+				    (flags & INTMAXFLAG) ? va_arg(ap, uintmax_t) :
+				    (flags & PTRDIFFFLAG) ? (uintptr_t)va_arg(ap, ptrdiff_t) :
 				    va_arg(ap, unsigned int);
 				s = longlong_to_hexstring(num_buffer, n, sizeof(num_buffer), flags);
 				if (flags & ALTFLAG) {
