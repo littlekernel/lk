@@ -9,6 +9,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/thread_tests.c \
 	$(LOCAL_DIR)/printf_tests.c \
 	$(LOCAL_DIR)/clock_tests.c \
-	$(LOCAL_DIR)/benchmarks.c
+	$(LOCAL_DIR)/benchmarks.c \
+	$(LOCAL_DIR)/fibo.c
 
 include make/module.mk
