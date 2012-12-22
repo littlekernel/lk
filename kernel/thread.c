@@ -41,6 +41,7 @@
 #include <kernel/timer.h>
 #include <platform.h>
 #include <target.h>
+#include <lib/heap.h>
 
 #if DEBUGLEVEL > 1
 #define THREAD_CHECKS 1
@@ -139,13 +140,16 @@ static void init_thread_struct(thread_t *t, const char *name)
  *
  * @return  Pointer to thread object, or NULL on failure.
  */
-thread_t *thread_create(const char *name, thread_start_routine entry, void *arg, int priority, size_t stack_size)
+thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine entry, void *arg, int priority, void *stack, size_t stack_size)
 {
-	thread_t *t;
+	unsigned int flags = 0;
 
-	t = malloc(sizeof(thread_t));
-	if (!t)
-		return NULL;
+	if (!t) {
+		t = malloc(sizeof(thread_t));
+		if (!t)
+			return NULL;
+		flags |= THREAD_FLAG_FREE_STRUCT;
+	}
 
 	init_thread_struct(t, name);
 
@@ -157,14 +161,24 @@ thread_t *thread_create(const char *name, thread_start_routine entry, void *arg,
 	t->blocking_wait_queue = NULL;
 	t->wait_queue_block_ret = NO_ERROR;
 
+	t->retcode = 0;
+	wait_queue_init(&t->retcode_wait_queue);
+
 	/* create the stack */
-	t->stack = malloc(stack_size);
-	if (!t->stack) {
-		free(t);
-		return NULL;
+	if (!stack) {
+		t->stack = malloc(stack_size);
+		if (!t->stack) {
+			if (flags & THREAD_FLAG_FREE_STRUCT)
+				free(t);
+			return NULL;
+		}
+		flags |= THREAD_FLAG_FREE_STACK;
 	}
 
 	t->stack_size = stack_size;
+
+	/* save whether or not we need to free the thread struct and/or stack */
+	t->flags = flags;
 
 	/* inheirit thread local storage from the parent */
 	int i;
@@ -180,6 +194,11 @@ thread_t *thread_create(const char *name, thread_start_routine entry, void *arg,
 	exit_critical_section();
 
 	return t;
+}
+
+thread_t *thread_create(const char *name, thread_start_routine entry, void *arg, int priority, size_t stack_size)
+{
+	return thread_create_etc(NULL, name, entry, arg, priority, NULL, stack_size);
 }
 
 /**
@@ -199,40 +218,99 @@ status_t thread_resume(thread_t *t)
 	ASSERT(t->state != THREAD_DEATH);
 #endif
 
-	if (t->state == THREAD_READY || t->state == THREAD_RUNNING)
-		return ERR_NOT_SUSPENDED;
-
 	enter_critical_section();
-	t->state = THREAD_READY;
-	insert_in_run_queue_head(t);
-	thread_yield();
+	if (t->state == THREAD_SUSPENDED) {
+		t->state = THREAD_READY;
+		insert_in_run_queue_head(t);
+		thread_yield();
+	}
 	exit_critical_section();
 
 	return NO_ERROR;
 }
 
-static void thread_cleanup_dpc(void *thread)
+status_t thread_detach_and_resume(thread_t *t)
 {
-	thread_t *t = (thread_t *)thread;
+	status_t err;
+	err = thread_detach(t);
+	if (err < 0)
+		return err;
+	return thread_resume(t);
+}
 
-//	dprintf(SPEW, "thread_cleanup_dpc: thread %p (%s)\n", t, t->name);
+status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout)
+{
+#if THREAD_CHECKS
+	ASSERT(t->magic == THREAD_MAGIC);
+#endif
+
+	enter_critical_section();
+
+	if (t->flags & THREAD_FLAG_DETACHED) {
+		/* the thread is detached, go ahead and exit */
+		exit_critical_section();
+		return ERR_THREAD_DETACHED;
+	}
+
+	/* wait for the thread to die */
+	if (t->state != THREAD_DEATH) {
+		status_t err = wait_queue_block(&t->retcode_wait_queue, timeout);
+		if (err < 0) {
+			exit_critical_section();
+			return err;
+		}
+	}
 
 #if THREAD_CHECKS
+	ASSERT(t->magic == THREAD_MAGIC);
 	ASSERT(t->state == THREAD_DEATH);
 	ASSERT(t->blocking_wait_queue == NULL);
 	ASSERT(!list_in_list(&t->queue_node));
 #endif
 
+	/* save the return code */
+	if (retcode)
+		*retcode = t->retcode;
+
 	/* remove it from the master thread list */
-	enter_critical_section();
 	list_delete(&t->thread_list_node);
+
+	/* clear the structure's magic */
+	t->magic = 0;
+
 	exit_critical_section();
 
 	/* free its stack and the thread structure itself */
-	if (t->stack)
+	if (t->flags & THREAD_FLAG_FREE_STACK && t->stack)
 		free(t->stack);
 
-	free(t);
+	if (t->flags & THREAD_FLAG_FREE_STRUCT)
+		free(t);
+
+	return NO_ERROR;
+}
+
+status_t thread_detach(thread_t *t)
+{
+#if THREAD_CHECKS
+	ASSERT(t->magic == THREAD_MAGIC);
+#endif
+
+	enter_critical_section();
+
+	/* if anyone is blocked on this thread, wake them up with a specific return code */
+	wait_queue_wake_all(&current_thread->retcode_wait_queue, false, ERR_THREAD_DETACHED);
+
+	/* if it's already dead, then just do what join would have and exit */
+	if (t->state == THREAD_DEATH) {
+		t->flags &= ~THREAD_FLAG_DETACHED; /* makes susre thread_join continues */
+		exit_critical_section();
+		return thread_join(t, NULL, 0);
+	} else {
+		t->flags |= THREAD_FLAG_DETACHED;
+		exit_critical_section();
+		return NO_ERROR;
+	}
 }
 
 /**
@@ -257,8 +335,24 @@ void thread_exit(int retcode)
 	current_thread->state = THREAD_DEATH;
 	current_thread->retcode = retcode;
 
-	/* schedule a dpc to clean ourselves up */
-	dpc_queue(thread_cleanup_dpc, (void *)current_thread, DPC_FLAG_NORESCHED);
+	/* if we're detached, then do our teardown here */
+	if (current_thread->flags & THREAD_FLAG_DETACHED) {
+		/* remove it from the master thread list */
+		list_delete(&current_thread->thread_list_node);
+
+		/* clear the structure's magic */
+		current_thread->magic = 0;
+
+		/* free its stack and the thread structure itself */
+		if (current_thread->flags & THREAD_FLAG_FREE_STACK && current_thread->stack)
+			heap_delayed_free(current_thread->stack);
+
+		if (current_thread->flags & THREAD_FLAG_FREE_STRUCT)
+			heap_delayed_free(current_thread);
+	} else {
+		/* signal if anyone is waiting */
+		wait_queue_wake_all(&current_thread->retcode_wait_queue, false, 0);
+	}
 
 	/* reschedule */
 	thread_resched();
@@ -311,21 +405,11 @@ void thread_resched(void)
 
 	newthread = list_remove_head_type(&run_queue[next_queue], thread_t, queue_node);
 
-#if THREAD_CHECKS
-	ASSERT(newthread);
-#endif
-
 	if (list_is_empty(&run_queue[next_queue]))
 		run_queue_bitmap &= ~(1<<next_queue);
 
-#if 0
-	// XXX make this more efficient
-	newthread = NULL;
-	for (i=HIGHEST_PRIORITY; i >= LOWEST_PRIORITY; i--) {
-		newthread = list_remove_head_type(&run_queue[i], thread_t, queue_node);
-		if (newthread)
-			break;
-	}
+#if THREAD_CHECKS
+	ASSERT(newthread);
 #endif
 
 //	printf("newthread: ");
@@ -553,6 +637,8 @@ void thread_init_early(void)
 	t->priority = HIGHEST_PRIORITY;
 	t->state = THREAD_RUNNING;
 	t->saved_critical_section_count = 1;
+	t->flags = THREAD_FLAG_DETACHED;
+	wait_queue_init(&t->retcode_wait_queue);
 	list_add_head(&thread_list, &t->thread_list_node);
 	current_thread = t;
 }
@@ -604,12 +690,24 @@ void thread_become_idle(void)
 	thread_set_priority(IDLE_PRIORITY);
 	idle_thread = current_thread;
 
-
 	/* release the implicit boot critical section and yield to the scheduler */
 	exit_critical_section();
 	thread_yield();
 
 	idle_thread_routine();
+}
+
+static const char *thread_state_to_str(enum thread_state state)
+{
+	switch (state) {
+		case THREAD_SUSPENDED: return "susp";
+		case THREAD_READY: return "rdy";
+		case THREAD_RUNNING: return "run";
+		case THREAD_BLOCKED: return "blok";
+		case THREAD_SLEEPING: return "slep";
+		case THREAD_DEATH: return "deth";
+		default: return "unkn";
+	}
 }
 
 /**
@@ -618,9 +716,11 @@ void thread_become_idle(void)
 void dump_thread(thread_t *t)
 {
 	dprintf(INFO, "dump_thread: t %p (%s)\n", t, t->name);
-	dprintf(INFO, "\tstate %d, priority %d, remaining quantum %d, critical section %d\n", t->state, t->priority, t->remaining_quantum, t->saved_critical_section_count);
+	dprintf(INFO, "\tstate %s, priority %d, remaining quantum %d, critical section %d\n",
+				  thread_state_to_str(t->state), t->priority, t->remaining_quantum,
+				  t->saved_critical_section_count);
 	dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
-	dprintf(INFO, "\tentry %p, arg %p\n", t->entry, t->arg);
+	dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
 	dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
 	dprintf(INFO, "\ttls:");
 	int i;

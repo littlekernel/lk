@@ -88,17 +88,15 @@ void kmain(void)
 	dprintf(SPEW, "initializing threads\n");
 	thread_init();
 
-	// initialize the dpc system
-	dprintf(SPEW, "initializing dpc\n");
-	dpc_init();
-
 	// initialize kernel timers
 	dprintf(SPEW, "initializing timers\n");
 	timer_init();
 
 	// create a thread to complete system initialization
 	dprintf(SPEW, "creating bootstrap completion thread\n");
-	thread_resume(thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_t *t = thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	thread_detach(t);
+	thread_resume(t);
 
 	// become the idle thread and enable interrupts to start the scheduler
 	thread_become_idle();
@@ -111,6 +109,11 @@ static int bootstrap2(void *arg)
 	dprintf(SPEW, "top of bootstrap2()\n");
 
 	arch_init();
+
+	// initialize the dpc system
+#if WITH_LIB_DPC
+	dpc_init();
+#endif
 
 	// XXX put this somewhere else
 #if WITH_LIB_BIO
