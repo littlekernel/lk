@@ -68,6 +68,7 @@ struct heap {
 	void *base;
 	size_t len;
 	struct list_node free_list;
+	struct list_node delayed_free_list;
 };
 
 // heap static vars
@@ -97,6 +98,11 @@ static void heap_dump(void)
 
 	struct free_heap_chunk *chunk;
 	list_for_every_entry(&theheap.free_list, chunk, struct free_heap_chunk, node) {
+		dump_free_chunk(chunk);
+	}
+
+	dprintf(INFO, "\tdelayed free list:\n");
+	list_for_every_entry(&theheap.delayed_free_list, chunk, struct free_heap_chunk, node) {
 		dump_free_chunk(chunk);
 	}
 }
@@ -225,6 +231,28 @@ struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len)
 	return chunk;
 }
 
+static void heap_free_delayed_list(void)
+{
+	struct list_node list;
+
+	list_initialize(&list);
+
+	enter_critical_section();
+
+	struct free_heap_chunk *chunk;
+	while ((chunk = list_remove_head_type(&theheap.delayed_free_list, struct free_heap_chunk, node))) {
+		list_add_head(&list, &chunk->node);
+	}
+	exit_critical_section();
+
+	while ((chunk = list_remove_head_type(&list, struct free_heap_chunk, node))) {
+		LTRACEF("freeing chunk %p\n", chunk);
+		enter_critical_section();
+		heap_insert_free_chunk(chunk);
+		exit_critical_section();
+	}
+}
+
 void *heap_alloc(size_t size, unsigned int alignment)
 {
 	void *ptr;
@@ -233,6 +261,11 @@ void *heap_alloc(size_t size, unsigned int alignment)
 #endif
 
 	LTRACEF("size %zd, align %d\n", size, alignment);
+
+	// deal with the pending free list
+	if (unlikely(!list_is_empty(&theheap.delayed_free_list))) {
+		heap_free_delayed_list();
+	}
 
 	// alignment must be power of 2
 	if (alignment & (alignment - 1))
@@ -372,6 +405,21 @@ void heap_free(void *ptr)
 //	heap_dump();
 }
 
+void heap_delayed_free(void *ptr)
+{
+	// check for the old allocation structure
+	struct alloc_struct_begin *as = (struct alloc_struct_begin *)ptr;
+	as--;
+
+	DEBUG_ASSERT(as->magic == HEAP_MAGIC);
+
+	struct free_heap_chunk *chunk = heap_create_free_chunk(as->ptr, as->size);
+
+	enter_critical_section();
+	list_add_head(&theheap.delayed_free_list, &chunk->node);
+	exit_critical_section();
+}
+
 void heap_init(void)
 {
 	LTRACE_ENTRY;
@@ -384,6 +432,9 @@ void heap_init(void)
 
 	// initialize the free list
 	list_initialize(&theheap.free_list);
+
+	// initialize the delayed free list
+	list_initialize(&theheap.delayed_free_list);
 
 	// create an initial free chunk
 	heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len));
