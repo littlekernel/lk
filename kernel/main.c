@@ -28,11 +28,11 @@
 #include <platform.h>
 #include <target.h>
 #include <lib/heap.h>
+#include <lib/dpc.h>
 #include <lib/fs.h>
 #include <lib/bio.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
-#include <kernel/dpc.h>
 
 extern void *__ctor_list;
 extern void *__ctor_end;

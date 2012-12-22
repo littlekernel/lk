@@ -9,7 +9,6 @@ MODULE_DEPS := \
 
 MODULE_SRCS := \
 	$(LOCAL_DIR)/debug.c \
-	$(LOCAL_DIR)/dpc.c \
 	$(LOCAL_DIR)/event.c \
 	$(LOCAL_DIR)/main.c \
 	$(LOCAL_DIR)/mutex.c \

@@ -36,9 +36,9 @@
 #include <malloc.h>
 #include <string.h>
 #include <err.h>
+#include <lib/dpc.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
-#include <kernel/dpc.h>
 #include <platform.h>
 #include <target.h>
 

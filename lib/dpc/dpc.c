@@ -25,7 +25,7 @@
 #include <list.h>
 #include <malloc.h>
 #include <err.h>
-#include <kernel/dpc.h>
+#include <lib/dpc.h>
 #include <kernel/thread.h>
 #include <kernel/event.h>
 
@@ -45,7 +45,7 @@ void dpc_init(void)
 {
 	event_init(&dpc_event, false, 0);
 
-	thread_resume(thread_create("dpc", &dpc_thread_routine, NULL, DPC_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_detach_and_resume(thread_create("dpc", &dpc_thread_routine, NULL, DPC_PRIORITY, DEFAULT_STACK_SIZE));
 }
 
 status_t dpc_queue(dpc_callback cb, void *arg, uint flags)
