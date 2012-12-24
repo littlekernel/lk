@@ -34,6 +34,8 @@
 #include <debug.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
+#include <kernel/debug.h>
+#include <err.h>
 #include <platform.h>
 
 #if WITH_LIB_CONSOLE
@@ -42,6 +44,7 @@
 static int cmd_threads(int argc, const cmd_args *argv);
 static int cmd_threadstats(int argc, const cmd_args *argv);
 static int cmd_threadload(int argc, const cmd_args *argv);
+static int cmd_kevlog(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if DEBUGLEVEL > 1
@@ -50,6 +53,9 @@ STATIC_COMMAND("threads", "list kernel threads", &cmd_threads)
 #if THREAD_STATS
 STATIC_COMMAND("threadstats", "thread level statistics", &cmd_threadstats)
 STATIC_COMMAND("threadload", "toggle thread load display", &cmd_threadload)
+#endif
+#if WITH_KERNEL_EVLOG
+STATIC_COMMAND("kevlog", "dump kernel event log", &cmd_kevlog)
 #endif
 STATIC_COMMAND_END(kernel);
 
@@ -128,7 +134,76 @@ static int cmd_threadload(int argc, const cmd_args *argv)
 	return 0;
 }
 
-#endif
+#endif // THREAD_STATS
+
+#endif // WITH_LIB_CONSOLE
+
+#if WITH_KERNEL_EVLOG
+
+#include <lib/evlog.h>
+
+static evlog_t kernel_evlog;
+volatile bool kernel_evlog_enable;
+
+void kernel_evlog_init(void)
+{
+	evlog_init(&kernel_evlog, KERNEL_EVLOG_LEN, 4);
+
+	kernel_evlog_enable = true;
+}
+
+void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1)
+{
+	if (kernel_evlog_enable) {
+		uint index = evlog_bump_head(&kernel_evlog);
+
+		kernel_evlog.items[index] = (uintptr_t)current_time_hires();
+		kernel_evlog.items[index+1] = id;
+		kernel_evlog.items[index+2] = arg0;
+		kernel_evlog.items[index+3] = arg1;
+	}
+}
+
+#if WITH_LIB_CONSOLE
+
+static void kevdump_cb(const uintptr_t *i)
+{
+	switch (i[1]) {
+		case KERNEL_EVLOG_CONTEXT_SWITCH:
+			printf("%lu: context switch from %p to %p\n", i[0], (void *)i[2], (void *)i[3]);
+			break;
+		case KERNEL_EVLOG_PREEMPT:
+			printf("%lu: preempt on thread %p\n", i[0], (void *)i[2]);
+			break;
+		case KERNEL_EVLOG_TIMER_TICK:
+			printf("%lu: timer tick\n", i[0]);
+			break;
+		case KERNEL_EVLOG_TIMER_CALL:
+			printf("%lu: timer call %p, arg %p\n", i[0], (void *)i[2], (void *)i[3]);
+			break;
+		case KERNEL_EVLOG_IRQ_ENTER:
+			printf("%lu: irq entry %u\n", i[0], (uint)i[2]);
+			break;
+		case KERNEL_EVLOG_IRQ_EXIT:
+			printf("%lu: irq exit  %u\n", i[0], (uint)i[2]);
+			break;
+		default:
+			;
+	}
+}
+
+static int cmd_kevlog(int argc, const cmd_args *argv)
+{
+	printf("kernel event log:\n");
+	kernel_evlog_enable = false;
+	evlog_dump(&kernel_evlog, &kevdump_cb);
+	kernel_evlog_enable = true;
+
+	return NO_ERROR;
+}
 
 #endif
+
+#endif // WITH_KERNEL_EVLOG
+
 

@@ -39,6 +39,7 @@
 #include <list.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
+#include <kernel/debug.h>
 #include <platform/timer.h>
 #include <platform.h>
 
@@ -208,6 +209,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 	enum handler_return ret = INT_NO_RESCHEDULE;
 
 	THREAD_STATS_INC(timer_ints);
+//	KEVLOG_TIMER_TICK(); // enable only if necessary
 
 	LTRACEF("now %lu, sp %p\n", now, __GET_FRAME());
 
@@ -232,6 +234,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		bool periodic = timer->periodic_time > 0;
 
 		LTRACEF("timer %p firing callback %p, arg %p\n", timer, timer->callback, timer->arg);
+		KEVLOG_TIMER_CALL(timer->callback, timer->arg);
 		if (timer->callback(timer, now, timer->arg) == INT_RESCHEDULE)
 			ret = INT_RESCHEDULE;
 
@@ -250,7 +253,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 	timer = list_peek_head_type(&timer_queue, timer_t, node);
 	if (timer) {
 		/* has to be the case or it would have fired already */
-		ASSERT(TIME_GT(timer->scheduled_time, now));
+		DEBUG_ASSERT(TIME_GT(timer->scheduled_time, now));
 
 		lk_time_t delay = timer->scheduled_time - now;
 
@@ -264,7 +267,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		ret = INT_RESCHEDULE;
 #endif
 
-	ASSERT(in_critical_section());
+	DEBUG_ASSERT(in_critical_section());
 	return ret;
 }
 

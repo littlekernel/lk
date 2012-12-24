@@ -33,6 +33,7 @@
 #include <lib/bio.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
+#include <kernel/debug.h>
 
 extern void *__ctor_list;
 extern void *__ctor_end;
@@ -83,6 +84,9 @@ void kmain(void)
 	// bring up the kernel heap
 	dprintf(SPEW, "initializing heap\n");
 	heap_init();
+
+	// if enabled, configure the kernel's event log
+	kernel_evlog_init();
 
 	// initialize the threading system
 	dprintf(SPEW, "initializing threads\n");

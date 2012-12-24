@@ -39,6 +39,7 @@
 #include <lib/dpc.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
+#include <kernel/debug.h>
 #include <platform.h>
 #include <target.h>
 #include <lib/heap.h>
@@ -437,6 +438,8 @@ void thread_resched(void)
 	}
 #endif
 
+	KEVLOG_THREAD_SWITCH(oldthread, newthread);
+
 #if THREAD_CHECKS
 	ASSERT(critical_section_count > 0);
 	ASSERT(newthread->saved_critical_section_count > 0);
@@ -520,6 +523,8 @@ void thread_preempt(void)
 	if (current_thread != idle_thread)
 		THREAD_STATS_INC(preempts); /* only track when a meaningful preempt happens */
 #endif
+
+	KEVLOG_THREAD_PREEMPT(current_thread);
 
 	/* we are being preempted, so we get to go back into the front of the run queue if we have quantum left */
 	current_thread->state = THREAD_READY;
