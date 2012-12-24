@@ -25,6 +25,7 @@
 #include <debug.h>
 #include <reg.h>
 #include <kernel/thread.h>
+#include <kernel/debug.h>
 #include <platform/interrupts.h>
 #include <platform/armemu.h>
 #include <arch/ops.h>
@@ -84,6 +85,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 		return INT_NO_RESCHEDULE;
 
 	THREAD_STATS_INC(interrupts);
+	KEVLOG_IRQ_ENTER(vector);
 
 //	printf("platform_irq: spsr 0x%x, pc 0x%x, currthread %p, vector %d\n", frame->spsr, frame->pc, current_thread, vector);
 
@@ -95,6 +97,8 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 		ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
 
 //	dprintf("platform_irq: exit %d\n", ret);
+
+	KEVLOG_IRQ_EXIT(vector);
 
 	return ret;
 }
