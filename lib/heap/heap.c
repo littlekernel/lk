@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Travis Geiselbrecht
+ * Copyright (c) 2008-2009,2012 Travis Geiselbrecht
  * Copyright (c) 2009 Corey Tabaka
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -28,6 +28,7 @@
 #include <rand.h>
 #include <string.h>
 #include <kernel/thread.h>
+#include <kernel/mutex.h>
 #include <lib/heap.h>
 
 #define LOCAL_TRACE 0
@@ -67,6 +68,7 @@ struct free_heap_chunk {
 struct heap {
 	void *base;
 	size_t len;
+	mutex_t lock;
 	struct list_node free_list;
 	struct list_node delayed_free_list;
 };
@@ -96,6 +98,8 @@ static void heap_dump(void)
 	dprintf(INFO, "\tbase %p, len 0x%zx\n", theheap.base, theheap.len);
 	dprintf(INFO, "\tfree list:\n");
 
+	mutex_acquire(&theheap.lock);
+
 	struct free_heap_chunk *chunk;
 	list_for_every_entry(&theheap.free_list, chunk, struct free_heap_chunk, node) {
 		dump_free_chunk(chunk);
@@ -105,6 +109,7 @@ static void heap_dump(void)
 	list_for_every_entry(&theheap.delayed_free_list, chunk, struct free_heap_chunk, node) {
 		dump_free_chunk(chunk);
 	}
+	mutex_release(&theheap.lock);
 }
 
 static void heap_test(void)
@@ -172,6 +177,8 @@ static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *ch
 	struct free_heap_chunk *next_chunk;
 	struct free_heap_chunk *last_chunk;
 
+	mutex_acquire(&theheap.lock);
+
 	// walk through the list, finding the node to insert before
 	list_for_every_entry(&theheap.free_list, next_chunk, struct free_heap_chunk, node) {
 		if (chunk < next_chunk) {
@@ -214,6 +221,8 @@ try_merge:
 		}
 	}
 
+	mutex_release(&theheap.lock);
+
 	return chunk;
 }
 
@@ -247,9 +256,7 @@ static void heap_free_delayed_list(void)
 
 	while ((chunk = list_remove_head_type(&list, struct free_heap_chunk, node))) {
 		LTRACEF("freeing chunk %p\n", chunk);
-		enter_critical_section();
 		heap_insert_free_chunk(chunk);
-		exit_critical_section();
 	}
 }
 
@@ -295,8 +302,7 @@ void *heap_alloc(size_t size, unsigned int alignment)
 		size += alignment;
 	}
 
-	// critical section
-	enter_critical_section();
+	mutex_acquire(&theheap.lock);
 
 	// walk through the list
 	ptr = NULL;
@@ -358,11 +364,9 @@ void *heap_alloc(size_t size, unsigned int alignment)
 		}
 	}
 
+	mutex_release(&theheap.lock);
+
 	LTRACEF("returning ptr %p\n", ptr);
-
-//	heap_dump();
-
-	exit_critical_section();
 
 	return ptr;
 }
@@ -398,11 +402,7 @@ void heap_free(void *ptr)
 	LTRACEF("allocation was %zd bytes long at ptr %p\n", as->size, as->ptr);
 
 	// looks good, create a free chunk and add it to the pool
-	enter_critical_section();
 	heap_insert_free_chunk(heap_create_free_chunk(as->ptr, as->size));
-	exit_critical_section();
-
-//	heap_dump();
 }
 
 void heap_delayed_free(void *ptr)
@@ -429,6 +429,9 @@ void heap_init(void)
 	theheap.len = HEAP_LEN;
 
 	LTRACEF("base %p size %zd bytes\n", theheap.base, theheap.len);
+
+	// create a mutex
+	mutex_init(&theheap.lock);
 
 	// initialize the free list
 	list_initialize(&theheap.free_list);
