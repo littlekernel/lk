@@ -106,7 +106,7 @@ static const unsigned int cm3_irq_pri_mask = ~((1 << ARM_M_PRIORITY_BITS) - 1) &
 
 void _cm3_set_irqpri(uint32_t pri);
 
-static __ALWAYS_INLINE void cm3_set_irqpri(uint32_t pri)
+static void cm3_set_irqpri(uint32_t pri)
 {
 	if (__ISCONSTANT(pri)) {
 		if (pri == 0) {
@@ -130,27 +130,27 @@ static __ALWAYS_INLINE void cm3_set_irqpri(uint32_t pri)
 }
 
 
-static __ALWAYS_INLINE inline uint32_t cm3_highest_priority(void)
+static inline uint32_t cm3_highest_priority(void)
 {
 	return (1 << (8 - cm3_num_irq_pri_bits));
 }
 
-static __ALWAYS_INLINE inline uint32_t cm3_lowest_priority(void)
+static inline uint32_t cm3_lowest_priority(void)
 {
 	return (255 & cm3_irq_pri_mask) & 0xff;
 }
 
-static __ALWAYS_INLINE inline uint32_t cm3_medium_priority(void)
+static inline uint32_t cm3_medium_priority(void)
 {
 	return (128 & cm3_irq_pri_mask) & 0xff;
 }
 
-static __ALWAYS_INLINE inline void cm3_trigger_interrupt(int vector)
+static inline void cm3_trigger_interrupt(int vector)
 {
 	NVIC->STIR = vector;
 }
 
-static __ALWAYS_INLINE inline void cm3_trigger_preempt(void)
+static inline void cm3_trigger_preempt(void)
 {
 	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
