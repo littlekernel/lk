@@ -43,9 +43,9 @@ FUNCTION(arm_context_switch)
 	sub		r3, sp, #(11*4)		/* can't use sp in user mode stm */
 	mov		r12, lr
 	stmia	r3, { r4-r11, r12, r13, r14 }^
-	
+
 	/* save old sp */
-	str		r3, [r0] 
+	str		r3, [r0]
 
 	/* clear any exlusive locks that the old thread holds */
 #if ARM_ISA_ARMV7
@@ -68,30 +68,38 @@ FUNCTION(arm_context_switch)
 FUNCTION(arm_save_mode_regs)
 	mrs		r1, cpsr
 
-#if ARM_ISA_ARMv6
-	cps		#0x11			/* fiq */
+	bic		r2, r1, #0x1f	/* clear the mode bits */
+
+	orr     r3, r2, #0x11	/* fiq */
+	msr     cpsr_c, r3
 	str		r13, [r0], #4
 	str		r14, [r0], #4
-	cps		#0x12			/* irq */
+
+	orr     r3, r2, #0x12	/* irq */
+	msr     cpsr_c, r3
 	str		r13, [r0], #4
 	str		r14, [r0], #4
-	cps		#0x13			/* svc */
+
+	orr     r3, r2, #0x13	/* svc */
+	msr     cpsr_c, r3
 	str		r13, [r0], #4
 	str		r14, [r0], #4
-	cps		#0x17			/* abt */
+
+	orr     r3, r2, #0x17	/* abt */
+	msr     cpsr_c, r3
 	str		r13, [r0], #4
 	str		r14, [r0], #4
-	cps		#0x1b			/* und */
+
+	orr     r3, r2, #0x1b	/* und */
+	msr     cpsr_c, r3
 	str		r13, [r0], #4
 	str		r14, [r0], #4
-	cps		#0x1f			/* sys */
+
+	orr     r3, r2, #0x1f	/* sys */
+	msr     cpsr_c, r3
 	str		r13, [r0], #4
 	str		r14, [r0], #4
-#else
-	// XXX implement
-	b		.
-#endif
-	
+
 	msr		cpsr_c, r1
 
 	bx		lr
@@ -99,5 +107,5 @@ FUNCTION(arm_save_mode_regs)
 .data
 strex_spot:
 	.word	0
-	
+
 
