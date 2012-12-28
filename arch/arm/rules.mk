@@ -167,13 +167,23 @@ DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=1024
 endif
 
-# set the default toolchain to arm elf and set a #define
-TOOLCHAIN_PREFIX ?= arm-elf-
-ifeq ($(TOOLCHAIN_PREFIX),arm-none-linux-gnueabi-)
-# XXX test for EABI better than this
-# eabi compilers dont need this
-THUMBINTERWORK:=
+# try to find the toolchain
+ifndef TOOLCHAIN_PREFIX
+TOOLCHAIN_PREFIX := arm-eabi-
+FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
+ifeq ($(FOUNDTOOL),)
+TOOLCHAIN_PREFIX := arm-elf-
+FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
+ifeq ($(FOUNDTOOL),)
+TOOLCHAIN_PREFIX := arm-none-eabi-
+FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
 endif
+endif
+ifeq ($(FOUNDTOOL),)
+$(error cannot find toolchain, please set TOOLCHAIN_PREFIX or add it to your path)
+endif
+endif
+$(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
 GLOBAL_COMPILEFLAGS += $(THUMBINTERWORK)
 
