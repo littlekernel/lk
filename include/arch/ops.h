@@ -31,13 +31,16 @@
 
 __BEGIN_CDECLS
 
-void arch_enable_ints(void);
-void arch_disable_ints(void);
+/* fast routines that most arches will implement inline */
+static void arch_enable_ints(void);
+static void arch_disable_ints(void);
 
-int atomic_swap(volatile int *ptr, int val);
-int atomic_add(volatile int *ptr, int val);
-int atomic_and(volatile int *ptr, int val);
-int atomic_or(volatile int *ptr, int val);
+static int atomic_swap(volatile int *ptr, int val);
+static int atomic_add(volatile int *ptr, int val);
+static int atomic_and(volatile int *ptr, int val);
+static int atomic_or(volatile int *ptr, int val);
+
+static uint32_t arch_cycle_count(void);
 
 #endif // !ASSEMBLY
 #define ICACHE 1
@@ -57,16 +60,15 @@ void arch_idle(void);
 
 void arch_disable_mmu(void);
 
-void arch_switch_stacks_and_call(addr_t call, addr_t stack) __NO_RETURN;
-
-uint32_t arch_cycle_count(void);
-
 __END_CDECLS
 
 #endif // !ASSEMBLY
 
 #if ARCH_ARM
 #include <arch/arm/ops.h>
+#endif
+#if ARCH_X86
+#include <arch/x86/ops.h>
 #endif
 
 #endif

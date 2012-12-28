@@ -27,8 +27,6 @@
 #include <platform.h>
 #include <arch/arm/cm.h>
 
-#define ENABLE_CYCLE_COUNTER 1
-
 extern void *vectab;
 
 extern int _end_of_ram;

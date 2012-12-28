@@ -30,21 +30,22 @@
 
 #if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
 #define USE_GCC_ATOMICS 0
+#define ENABLE_CYCLE_COUNTER 1
 
 // override of some routines
-__GNU_INLINE __ALWAYS_INLINE extern inline void arch_enable_ints(void)
+static inline void arch_enable_ints(void)
 {
 	CF;
 	__asm__ volatile("cpsie i");
 }
 
-__GNU_INLINE __ALWAYS_INLINE extern inline void arch_disable_ints(void)
+static inline void arch_disable_ints(void)
 {
 	__asm__ volatile("cpsid i");
 	CF;
 }
 
-__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_add(volatile int *ptr, int val)
+static inline int atomic_add(volatile int *ptr, int val)
 {
 #if USE_GCC_ATOMICS
 	return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
@@ -68,7 +69,7 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_add(volatile int *ptr, int
 #endif
 }
 
-__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_or(volatile int *ptr, int val)
+static inline int atomic_or(volatile int *ptr, int val)
 {
 #if USE_GCC_ATOMICS
 	return __atomic_fetch_or(ptr, val, __ATOMIC_RELAXED);
@@ -92,7 +93,7 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_or(volatile int *ptr, int 
 #endif
 }
 
-__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_and(volatile int *ptr, int val)
+static inline int atomic_and(volatile int *ptr, int val)
 {
 #if USE_GCC_ATOMICS
 	return __atomic_fetch_and(ptr, val, __ATOMIC_RELAXED);
@@ -116,7 +117,7 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_and(volatile int *ptr, int
 #endif
 }
 
-__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_swap(volatile int *ptr, int val)
+static inline int atomic_swap(volatile int *ptr, int val)
 {
 #if USE_GCC_ATOMICS
 	return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
@@ -138,7 +139,7 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_swap(volatile int *ptr, in
 #endif
 }
 
-__GNU_INLINE __ALWAYS_INLINE extern inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
+static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 {
 	int old;
 	int test;
@@ -164,20 +165,56 @@ __GNU_INLINE __ALWAYS_INLINE extern inline int atomic_cmpxchg(volatile int *ptr,
 	return old;
 }
 
-__GNU_INLINE __ALWAYS_INLINE extern inline uint32_t arch_cycle_count(void)
+static inline uint32_t arch_cycle_count(void)
 {
-#if ARM_CPU_CORTEX_M3
+#if ARM_CPU_CORTEX_M3 || ARM_CPU_CORTEX_M4
+#if ENABLE_CYCLE_COUNTER
 #define DWT_CYCCNT (0xE0001004)
 	return *REG32(DWT_CYCCNT);
 #else
 	return 0;
 #endif
+#elif ARM_CPU_CORTEX_A8
+	uint32_t count;
+	__asm__ volatile("mrc		p15, 0, %0, c9, c13, 0"
+		: "=r" (count)
+		);
+	return count;
+#else
+#warning no arch_cycle_count implementation
+	return 0;
+#endif
 }
 
+#else // pre-armv6 || (armv6 & thumb)
+
+/* for pre-armv6 the bodies of these are too big to inline, call an assembly stub version */
+void _arch_enable_ints(void);
+void _arch_disable_ints(void);
+
+int _atomic_add(volatile int *ptr, int val);
+int _atomic_and(volatile int *ptr, int val);
+int _atomic_or(volatile int *ptr, int val);
+int _atomic_add(volatile int *ptr, int val);
+int _atomic_swap(volatile int *ptr, int val);
+int _atomic_cmpxchg(volatile int *ptr, int oldval, int newval);
+
+uint32_t _arch_cycle_count(void);
+
+static inline int atomic_add(volatile int *ptr, int val) { return _atomic_add(ptr, val); }
+static inline int atomic_and(volatile int *ptr, int val) { return _atomic_and(ptr, val); }
+static inline int atomic_or(volatile int *ptr, int val) { return _atomic_or(ptr, val); }
+static inline int atomic_swap(volatile int *ptr, int val) { return _atomic_swap(ptr, val); }
+static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) { return _atomic_cmpxchg(ptr, oldval, newval); }
+
+static inline void arch_enable_ints(void) { _arch_enable_ints(); }
+static inline void arch_disable_ints(void) { _arch_disable_ints(); }
+
+static inline uint32_t arch_cycle_count(void) { return _arch_cycle_count(); }
 
 #endif
 
-#endif
+#endif // ASSEMBLY
 
 #endif
 
