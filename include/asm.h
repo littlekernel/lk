@@ -23,8 +23,7 @@
 #ifndef __ASM_H
 #define __ASM_H
 
-//#define FUNCTION(x) .global x; .type x,@function; x:
-#define FUNCTION(x) .global x; x:
+#define FUNCTION(x) .global x; .type x,#function; x:
 
 #endif
 
