@@ -30,72 +30,75 @@
 #include <platform/realview-pb.h>
 #include "platform_p.h"
 
+#define TIMREG(reg) (*REG32(TIMER0 + (reg)))
+
+#define LOADVAL (0x00)
+#define VAL     (0x04)
+#define CONTROL (0x08)
+#define INTCLEAR (0x0c)
+#define RAWINTSTAT (0x10)
+#define MASKEDINTSTAT (0x14)
+
 static platform_timer_callback t_callback;
+
+static volatile uint ticks = 0;
+static lk_time_t periodic_interval;
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-//	PANIC_UNIMPLEMENTED;
-#if 0
 	enter_critical_section();
 
 	t_callback = callback;
 
-	*REG(PIT_CLEAR) = 1;
-	*REG(PIT_INTERVAL) = interval;
-	*REG(PIT_START_PERIODIC) = 1;
+	periodic_interval = interval;
+	TIMREG(LOADVAL) = periodic_interval * 1000; /* timer is running at 1Mhz */
 
-	unmask_interrupt(INT_PIT);
+	TIMREG(CONTROL) |= (1<<7); // enable
+
+	unmask_interrupt(TIMER01_INT);
 
 	exit_critical_section();
-#endif
 
 	return NO_ERROR;
 }
 
 lk_bigtime_t current_time_hires(void)
 {
-//	PANIC_UNIMPLEMENTED;
-#if 0
 	lk_bigtime_t time;
-	*REG(SYSINFO_TIME_LATCH) = 1;
-	time = *REG(SYSINFO_TIME_SECS) * 1000000ULL;
-	time += *REG(SYSINFO_TIME_USECS);
+
+	time = ticks * periodic_interval * 1000ULL;
 
 	return time;
-#endif
-	return 0;
 }
 
 lk_time_t current_time(void)
 {
-//	PANIC_UNIMPLEMENTED;
-#if 0
 	lk_time_t time;
-	*REG(SYSINFO_TIME_LATCH) = 1;
-	time = *REG(SYSINFO_TIME_SECS) * 1000;
-	time += *REG(SYSINFO_TIME_USECS) / 1000;
+
+	time = ticks * periodic_interval;
 
 	return time;
-#endif
-	return 0;
 }
 
 static enum handler_return platform_tick(void *arg)
 {
-	PANIC_UNIMPLEMENTED;
-#if 0
-	*REG(PIT_CLEAR_INT) = 1;
+	ticks++;
+	TIMREG(INTCLEAR) = 1;
 	if (t_callback) {
 		return t_callback(arg, current_time());
 	} else {
 		return INT_NO_RESCHEDULE;
 	}
-#endif
-	PANIC_UNIMPLEMENTED;
 }
 
 void platform_init_timer(void)
 {
-//	register_int_handler(INT_PIT, &platform_tick, NULL);
+	/* disable timer */
+	TIMREG(CONTROL) = 0;
+
+	/* periodic mode, ints enabled, 32bit, wrapping */
+	TIMREG(CONTROL) = (1<<6)|(1<<5)|(1<<1);
+
+	register_int_handler(TIMER01_INT, &platform_tick, NULL);
 }
 

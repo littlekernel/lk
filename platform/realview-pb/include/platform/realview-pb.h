@@ -40,10 +40,23 @@
 #define TIMER6 (0x10019000)
 #define TIMER7 (0x10019020)
 
-#define GIC1   (0x1e000000)
-#define GIC2   (0x1e010000)
-#define GIC3   (0x1e020000)
-#define GIC4   (0x1e030000)
+#define GIC0   (0x1e000000)
+#define GIC1   (0x1e010000)
+#define GIC2   (0x1e020000)
+#define GIC3   (0x1e030000)
+#define GICBASE(n) (GIC0 + (n) * 0x10000)
+
+/* interrupts */
+#define TIMER01_INT 36
+#define TIMER23_INT 37
+#define UART0_INT 44
+#define UART1_INT 45
+#define UART2_INT 46
+#define UART3_INT 47
+#define TIMER45_INT 73
+#define TIMER67_INT 74
+
+#define MAX_INT 96
 
 #endif
 
