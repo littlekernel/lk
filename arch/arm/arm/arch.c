@@ -41,7 +41,8 @@ void arch_early_init(void)
 
 	/* set the vector base to our exception vectors so we dont need to double map at 0 */
 #if ARM_CPU_CORTEX_A8
-	set_vector_base(MEMBASE);
+	if (MEMBASE != 0)
+		set_vector_base(MEMBASE);
 #endif
 
 #if ARM_WITH_MMU
