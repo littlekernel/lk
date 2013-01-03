@@ -401,13 +401,17 @@ void thread_resched(void)
 	ASSERT(run_queue_bitmap != 0);
 #endif
 
+retry:
 	int next_queue = HIGHEST_PRIORITY - __builtin_clz(run_queue_bitmap) - (32 - NUM_PRIORITIES);
 	//dprintf(SPEW, "bitmap 0x%x, next %d\n", run_queue_bitmap, next_queue);
 
 	newthread = list_remove_head_type(&run_queue[next_queue], thread_t, queue_node);
 
-	if (list_is_empty(&run_queue[next_queue]))
+	if (newthread == NULL)
+	{
 		run_queue_bitmap &= ~(1<<next_queue);
+		goto retry;
+	}
 
 #if THREAD_CHECKS
 	ASSERT(newthread);
