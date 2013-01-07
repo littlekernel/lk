@@ -1,0 +1,4 @@
+#!/bin/sh
+
+make pc-x86-test -j4 &&
+qemu-system-i386 -kernel build-pc-x86-test/lk -nographic $@
