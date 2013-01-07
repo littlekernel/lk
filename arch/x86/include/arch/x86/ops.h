@@ -42,17 +42,37 @@ static inline inline void arch_disable_ints(void)
 	CF;
 }
 
-int _atomic_add(volatile int *ptr, int val);
 int _atomic_and(volatile int *ptr, int val);
 int _atomic_or(volatile int *ptr, int val);
-int _atomic_add(volatile int *ptr, int val);
-int _atomic_swap(volatile int *ptr, int val);
 int _atomic_cmpxchg(volatile int *ptr, int oldval, int newval);
 
-static inline int atomic_add(volatile int *ptr, int val) { return _atomic_add(ptr, val); }
+static inline int atomic_add(volatile int *ptr, int val)
+{
+	__asm__ volatile(
+		"lock xaddl %[val], %[ptr];"
+		: [val]"=a" (val)
+		: "a" (val), [ptr]"m" (*ptr)
+		: "memory"
+	);
+
+	return val;
+}
+
+static inline int atomic_swap(volatile int *ptr, int val)
+{
+	__asm__ volatile(
+		"xchgl %[val], %[ptr];"
+		: [val]"=a" (val)
+		: "a" (val), [ptr]"m" (*ptr)
+		: "memory"
+	);
+
+	return val;
+}
+
+
 static inline int atomic_and(volatile int *ptr, int val) { return _atomic_and(ptr, val); }
 static inline int atomic_or(volatile int *ptr, int val) { return _atomic_or(ptr, val); }
-static inline int atomic_swap(volatile int *ptr, int val) { return _atomic_swap(ptr, val); }
 static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) { return _atomic_cmpxchg(ptr, oldval, newval); }
 
 static inline uint32_t arch_cycle_count(void)

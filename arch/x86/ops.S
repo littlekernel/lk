@@ -24,31 +24,6 @@
 
 .text
 
-/* void _arch_enable_ints(void); */
-FUNCTION(_arch_enable_ints)
-	sti
-	ret
-
-/* void _arch_disable_ints(void); */
-FUNCTION(_arch_disable_ints)
-	cli
-	ret
-
-/* int _atomic_swap(int *ptr, int val); */
-FUNCTION(_atomic_swap)
-	movl 4(%esp), %edx
-	movl 8(%esp), %eax
-	xchgl %eax, (%edx)
-	ret
-
-/* int _atomic_add(int *ptr, int val); */
-FUNCTION(_atomic_add)
-	movl 4(%esp), %edx
-	movl 8(%esp), %eax
-	lock
-	xadd %eax, (%edx)
-	ret
-	
 /* int _atomic_and(int *ptr, int val); */
 FUNCTION(_atomic_and)
 	movl 4(%esp), %edx
