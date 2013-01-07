@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,7 +23,7 @@
 #ifndef __ASM_H
 #define __ASM_H
 
-#define FUNCTION(x) .global x; .type x,#function; x:
+#define FUNCTION(x) .global x; .type x,STT_FUNC; x:
 
 #endif
 
