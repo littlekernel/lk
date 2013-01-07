@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,35 +26,21 @@ ENTRY(_start)
 SECTIONS
 {
 	.text 0x0200000 : {
-		*(.text.boot)
-		*(.text)
-		*(.sram.text)
-		*(SORT(.text$*))
+		KEEP(*(.text.boot))
+		*(.text* .sram.text)
 		*(.gnu.linkonce.t.*)
+	} =0x9090
 
-		__ctor_list = .;
-		*(SORT(.ctor*))
-		__ctor_end = .;
-		__dtor_list = .;
-		*(SORT(.dtor*))
-		__dtor_end = .;
-
-		. = ALIGN(4096);
-	}
-
-	__data_start = .;
-	.data		: { *(.data .data.* .gnu.linkonce.d.*) }
-	.stab		: { *(.stab) }
-	.stabst		: { *(.stabstr) }
-
-	. = ALIGN(4096);
-	__data_end = .;
-
-	.rdata		: {
-		*(.rdata)
-		*(SORT(.rdata$*))
+	.rodata : {
 		*(.rodata*)
 		*(.gnu.linkonce.r.*)
+	}
+
+	. = ALIGN(4096);
+	__data_start = .;
+	.data : {
+		*(.data .data.* .gnu.linkonce.d.*)
+		. = ALIGN(4);
 		__commands_start = .;
 		KEEP (*(.commands))
 		__commands_end = .;
@@ -61,18 +48,27 @@ SECTIONS
 		__apps_start = .;
 		KEEP (*(.apps))
 		__apps_end = .;
-
-		. = ALIGN(4096);
 	}
+	__ctor_list = .;
+	.ctors : { *(.ctors) }
+	__ctor_end = .;
+	__dtor_list = .;
+	.dtors : { *(.dtors) }
+	__dtor_end = .;
+
+	.stab		: { *(.stab) }
+	.stabst		: { *(.stabstr) }
+
+	. = ALIGN(4096);
+	__data_end = .;
 
 	__bss_start = .;
 	.bss		: {
 		*(.bss*)
 		*(.gnu.linkonce.b.*)
 		*(COMMON)
-
-		. = ALIGN(4096);
 	}
+	. = ALIGN(4096);
 	__bss_end = .;
 
 	/*. += 0x2000;
