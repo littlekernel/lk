@@ -37,8 +37,6 @@ struct context_switch_frame {
 	vaddr_t r10;
 	vaddr_t r11;
 	vaddr_t lr;
-	vaddr_t usp;
-	vaddr_t ulr;
 };
 
 extern void arm_context_switch(addr_t *old_sp, addr_t new_sp);

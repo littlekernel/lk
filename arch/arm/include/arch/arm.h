@@ -43,7 +43,11 @@ static inline uint32_t read_cpsr()
 }
 
 struct arm_iframe {
+	uint32_t usp;
+	uint32_t ulr;
+#if ARM_ARCH_LEVEL < 6
 	uint32_t spsr;
+#endif
 	uint32_t r0;
 	uint32_t r1;
 	uint32_t r2;
@@ -51,6 +55,9 @@ struct arm_iframe {
 	uint32_t r12;
 	uint32_t lr;
 	uint32_t pc;
+#if ARM_ARCH_LEVEL >= 6
+	uint32_t spsr;
+#endif
 };
 
 struct arm_fault_frame {
