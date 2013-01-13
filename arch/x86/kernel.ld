@@ -36,9 +36,8 @@ SECTIONS
 		*(.gnu.linkonce.r.*)
 	}
 
-	. = ALIGN(4096);
-	__data_start = .;
-	.data : {
+	.data : ALIGN(4096) {
+		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		. = ALIGN(4);
 		__commands_start = .;
@@ -56,24 +55,19 @@ SECTIONS
 	.dtors : { *(.dtors) }
 	__dtor_end = .;
 
-	.stab		: { *(.stab) }
-	.stabst		: { *(.stabstr) }
+	.stab   : { *(.stab) }
+	.stabst : { *(.stabstr) }
 
-	. = ALIGN(4096);
 	__data_end = .;
 
-	__bss_start = .;
-	.bss		: {
+	.bss : ALIGN(4) {
+		__bss_start = .;
 		*(.bss*)
 		*(.gnu.linkonce.b.*)
 		*(COMMON)
+		. = ALIGN(4);
+		__bss_end = .;
 	}
-	. = ALIGN(4096);
-	__bss_end = .;
-
-	/*. += 0x2000;
-	_kstack = .;
-	. += 0x1000;*/
 
 	_end = .;
 
