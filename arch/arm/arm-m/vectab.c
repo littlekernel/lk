@@ -23,7 +23,12 @@
 #include <compiler.h>
 #include <stdint.h>
 
-static uint8_t initial_stack[1024] __SECTION(".bss.initial_stack");
+/*
+ * Make a nice 8 byte aligned stack to run on before the threading system is up.
+ * Put it in the .bss.prebss.* section to make sure it doesn't get wiped
+ * when bss is cleared a little ways into boot.
+ */
+static uint8_t initial_stack[1024] __SECTION(".bss.prebss.initial_stack") __ALIGNED(8);
 
 extern void _start(void);
 extern void _nmi(void);
