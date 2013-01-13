@@ -42,7 +42,7 @@ GLOBAL_CFLAGS := --std=c99 -Werror-implicit-function-declaration
 GLOBAL_CPPFLAGS := -fno-exceptions -fno-rtti -fno-threadsafe-statics
 #GLOBAL_CPPFLAGS += -Weffc++
 GLOBAL_ASMFLAGS := -DASSEMBLY
-GLOBAL_LDFLAGS := 
+GLOBAL_LDFLAGS :=
 
 GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
 GLOBAL_LDFLAGS += -gc-sections
@@ -57,7 +57,7 @@ ALLOBJS_MODULE :=
 ALLOBJS :=
 
 # a linker script needs to be declared in one of the project/target/platform files
-LINKER_SCRIPT := 			
+LINKER_SCRIPT :=
 
 # anything you add here will be deleted in make clean
 GENERATED := $(CONFIGHEADER)
@@ -77,10 +77,10 @@ ALLMODULES :=
 MODULES :=
 
 # any rules you put here will also be built by the system before considered being complete
-EXTRA_BUILDDEPS := 
+EXTRA_BUILDDEPS :=
 
 # any rules you put here will be depended on in clean builds
-EXTRA_CLEANDEPS := 
+EXTRA_CLEANDEPS :=
 
 # any objects you put here get linked with the final image
 EXTRA_OBJS :=
