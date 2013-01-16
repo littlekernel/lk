@@ -95,7 +95,8 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
 	if (current_thread == idle_thread) {
 		idle_time += current_time_hires() - thread_stats.last_idle_timestamp;
 	}
-	lk_bigtime_t busy_time = 1000000ULL - (idle_time - last_idle_time);
+	lk_bigtime_t delta_time = idle_time - last_idle_time;
+	lk_bigtime_t busy_time = 1000000ULL - (delta_time > 1000000ULL ? 1000000ULL : delta_time);
 
 	uint busypercent = (busy_time * 10000) / (1000000);
 
