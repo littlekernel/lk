@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -97,7 +97,6 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
 
 size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 {
-	size_t ret;
 	char *buf = (char *)_buf;
 
 	DEBUG_ASSERT(cbuf);
@@ -109,6 +108,7 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 		event_wait(&cbuf->event);
 
 	// see if there's data available
+	size_t ret = 0;
 	if (cbuf->tail != cbuf->head) {
 		size_t pos = 0;
 
@@ -136,9 +136,58 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 		}
 
 		ret = pos;
-	} else {
-		DEBUG_ASSERT(!block);
-		ret = 0;
+	}
+
+	exit_critical_section();
+
+	return ret;
+}
+
+size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule)
+{
+	DEBUG_ASSERT(cbuf);
+
+	enter_critical_section();
+
+	size_t ret = 0;
+	if (cbuf_space_avail(cbuf) > 0) {
+		cbuf->buf[cbuf->head] = c;
+
+		cbuf->head = INC_POINTER(cbuf, cbuf->head, 1);
+		ret = 1;
+
+		if (cbuf->head != cbuf->tail)
+			event_signal(&cbuf->event, canreschedule);
+	}
+
+	exit_critical_section();
+
+	return ret;
+}
+
+size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block)
+{
+	DEBUG_ASSERT(cbuf);
+	DEBUG_ASSERT(c);
+
+	enter_critical_section();
+
+	if (block)
+		event_wait(&cbuf->event);
+
+	// see if there's data available
+	size_t ret = 0;
+	if (cbuf->tail != cbuf->head) {
+
+		*c = cbuf->buf[cbuf->tail];
+		cbuf->tail = INC_POINTER(cbuf, cbuf->tail, 1);
+
+		if (cbuf->tail == cbuf->head) {
+			// we've emptied the buffer, unsignal the event
+			event_unsignal(&cbuf->event);
+		}
+
+		ret = 1;
 	}
 
 	exit_critical_section();
