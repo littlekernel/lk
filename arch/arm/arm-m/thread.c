@@ -87,7 +87,7 @@ static void pendsv(struct arm_cm_exception_frame_long *frame)
 	arch_disable_ints();
 	inc_critical_section();
 
-	ASSERT(critical_section_count == 1);
+	DEBUG_ASSERT(critical_section_count == 1);
 
 	LTRACEF("preempting thread %p (%s)\n", current_thread, current_thread->name);
 
@@ -114,8 +114,7 @@ __NAKED void _pendsv(void)
 	    "push	{ r4-r11, lr };"
 	    "mov	r0, sp;"
 	    "bl		%0;"
-	    "pop	{ r4-r11, lr };"
-	    "bx		lr;"
+	    "pop	{ r4-r11, pc };"
 	    :: "i" (pendsv)
 	);
 	__UNREACHABLE;
@@ -130,8 +129,7 @@ __NAKED void _svc(void)
 	__asm__ volatile(
 		/* load the pointer to the original exception frame we want to restore */
 		"mov	sp, r4;"
-		"pop	{ r4-r11, lr };"
-		"bx		lr;"
+		"pop	{ r4-r11, pc };"
 	);
 }
 
@@ -160,19 +158,18 @@ __NAKED static void _arch_non_preempt_context_switch(vaddr_t *fromsp, vaddr_t to
 		"str	sp, [r0];"
 
 		"mov	sp, r1;"
-		"pop	{ r4-r11, lr };"
 		"clrex;"
-		"bx		lr;"
+		"pop	{ r4-r11, pc };"
 	);
 }
 
+/* second half of a regular context switch, bounced to from pendsv */
 __NAKED static void _thread_mode_bounce(void)
 {
 	__asm__ volatile(
-		"pop	{ r4-r11, lr };"
-		"bx		lr;"
+		"clrex;"
+		"pop	{ r4-r11, pc };"
 	);
-	__UNREACHABLE;
 }
 
 /*
@@ -205,9 +202,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 			__asm__ volatile(
 			    "mov	sp, %0;"
 			    "cpsie	i;"
-			    "pop	{ r4-r11, lr };"
-			    "clrex;"
-			    "bx		lr;"
+			    "pop	{ r4-r11, pc };"
 			    :: "r"(newthread->arch.sp)
 			);
 			__UNREACHABLE;
@@ -219,7 +214,6 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 
 			frame->pc = (uint32_t)&_thread_mode_bounce;
 			frame->psr = (1 << 24); /* thread bit set, IPSR 0 */
-			frame->r0 = frame->r1 =  frame->r2 = frame->r3 = frame->r12 = frame->lr = 99;
 
 			LTRACEF("iretting to user space\n");
 			//hexdump(frame, sizeof(*frame) + 64);
