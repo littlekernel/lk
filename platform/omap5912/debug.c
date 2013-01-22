@@ -118,7 +118,7 @@ static enum handler_return debug_timer_callback(timer_t *t, lk_time_t now, void 
 	signed char c;
 	c = uart_getc(0, false);
 	if (c > 0) {
-		cbuf_write(&debug_buf, &c, 1, false);
+		cbuf_write_char(&debug_buf, c, false);
 		return INT_RESCHEDULE;
 	} else {
 		return INT_NO_RESCHEDULE;
@@ -129,7 +129,7 @@ int platform_dgetc(char *c, bool wait)
 {
 	ssize_t len;
 
-	len = cbuf_read(&debug_buf, c, 1, wait);
+	len = cbuf_read_char(&debug_buf, c, wait);
 	return len;
 }
 

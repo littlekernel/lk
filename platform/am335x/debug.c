@@ -55,7 +55,7 @@ static enum handler_return uart_irq_handler(void *arg)
 
 	while (HWREG(UART_CONSOLE_BASE + UART_LSR) & UART_LSR_RX_FIFO_E) {
 		c = (char) HWREG(UART_CONSOLE_BASE + UART_RHR);
-		cbuf_write(&uart_rx_buf, &c, 1, false);
+		cbuf_write_char(&uart_rx_buf, c, false);
 		resched = true;
 	}
 
@@ -83,7 +83,7 @@ static void uart_putc(char c)
 
 static int uart_getc(char *c, bool wait)
 {
-	return cbuf_read(&uart_rx_buf, c, 1, wait);
+	return cbuf_read_char(&uart_rx_buf, c, wait);
 }
 
 void platform_dputc(char c)

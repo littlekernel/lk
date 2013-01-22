@@ -44,7 +44,7 @@ static enum handler_return uart_irq_handler(void *arg)
 
 	while (inp(uart_io_port + 5) & (1<<0)) {
 		c = inp(uart_io_port + 0);
-		cbuf_write(&uart_rx_buf, &c, 1, false);
+		cbuf_write_char(&uart_rx_buf, c, false);
 		resched = true;
 	}
 
@@ -84,7 +84,7 @@ void uart_putc(char c)
 
 int uart_getc(char *c, bool wait)
 {
-	return cbuf_read(&uart_rx_buf, c, 1, wait);
+	return cbuf_read_char(&uart_rx_buf, c, wait);
 }
 
 void platform_dputc(char c)

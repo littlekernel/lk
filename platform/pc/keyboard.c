@@ -198,7 +198,7 @@ static void i8042_process_scode(uint8_t scode, unsigned int flags)
 
 	if (keyCode != -1 && !keyUpBit) {
 		char c = (char) keyCode;
-		cbuf_write(&key_buf, &c, 1, false);
+		cbuf_write_char(&key_buf, c, false);
 	}
 
 	// update the last received code
@@ -306,7 +306,7 @@ int platform_read_key(char *c)
 {
 	ssize_t len;
 
-	len = cbuf_read(&key_buf, c, 1, true);
+	len = cbuf_read_char(&key_buf, c, true);
 	return len;
 }
 

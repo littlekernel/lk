@@ -43,7 +43,7 @@ void sam3_uart_irq(void)
 
 	unsigned char c;
 	if (uart_read(UART, &c) == 0) {
-		cbuf_write(&debug_rx_buf, &c, 1, false);
+		cbuf_write_char(&debug_rx_buf, c, false);
 		cm3_trigger_preempt();
 	}
 
@@ -91,7 +91,7 @@ void platform_dputc(char c)
 
 int platform_dgetc(char *c, bool wait)
 {
-	return cbuf_read(&debug_rx_buf, c, 1, wait);
+	return cbuf_read_char(&debug_rx_buf, c, wait);
 }
 
 void platform_halt(void)

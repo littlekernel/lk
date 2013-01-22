@@ -139,7 +139,7 @@ void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
 		}
 
 		char c = USART_ReceiveData(usart);
-		cbuf_write(rxbuf, &c, 1, false);
+		cbuf_write_char(rxbuf, c, false);
 	}
 
 	cm3_trigger_preempt();
@@ -179,7 +179,7 @@ static void usart_putc(USART_TypeDef *usart, char c)
 static int usart_getc(USART_TypeDef *usart, cbuf_t *rxbuf, bool wait)
 {
 	char c;
-	cbuf_read(rxbuf, &c, 1, wait);
+	cbuf_read_char(rxbuf, &c, wait);
 	if (cbuf_space_avail(rxbuf) > RXBUF_SIZE/2)
 		USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
 
