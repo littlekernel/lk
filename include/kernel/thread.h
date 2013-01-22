@@ -121,6 +121,7 @@ void thread_sleep(lk_time_t delay);
 status_t thread_detach(thread_t *t);
 status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout);
 status_t thread_detach_and_resume(thread_t *t);
+bool thread_might_resched(void);
 
 void dump_thread(thread_t *t);
 void dump_all_threads(void);

@@ -65,6 +65,9 @@ int critical_section_count;
 static struct list_node run_queue[NUM_PRIORITIES];
 static uint32_t run_queue_bitmap;
 
+// at the moment, can't deal with more than 32 priority levels
+STATIC_ASSERT(NUM_PRIORITIES <= 32);
+
 /* the bootstrap thread (statically allocated) */
 static thread_t bootstrap_thread;
 
@@ -367,6 +370,15 @@ static void idle_thread_routine(void)
 		arch_idle();
 }
 
+/* use the priority bitmap to decide which run queue to look into if we needed to reschedule */
+static int highest_sched_priority(void)
+{
+	/* undefined to call it with a zeroed bitmap (running on idle thread with no other threads in the queue) */
+	DEBUG_ASSERT(run_queue_bitmap != 0);
+
+	return HIGHEST_PRIORITY - __builtin_clz(run_queue_bitmap) - (32 - NUM_PRIORITIES);
+}
+
 /**
  * @brief  Cause another thread to be executed.
  *
@@ -377,7 +389,7 @@ static void idle_thread_routine(void)
  * This is probably not the function you're looking for. See
  * thread_yield() instead.
  */
-void thread_resched(void)
+static void thread_resched(void)
 {
 	thread_t *oldthread;
 	thread_t *newthread;
@@ -393,16 +405,12 @@ void thread_resched(void)
 
 	oldthread = current_thread;
 
-	// at the moment, can't deal with more than 32 priority levels
-	ASSERT(NUM_PRIORITIES <= 32);
-
 	// should at least find the idle thread
 #if THREAD_CHECKS
 	ASSERT(run_queue_bitmap != 0);
 #endif
 
-	int next_queue = HIGHEST_PRIORITY - __builtin_clz(run_queue_bitmap) - (32 - NUM_PRIORITIES);
-	//dprintf(SPEW, "bitmap 0x%x, next %d\n", run_queue_bitmap, next_queue);
+	int next_queue = highest_sched_priority();
 
 	newthread = list_remove_head_type(&run_queue[next_queue], thread_t, queue_node);
 
@@ -466,6 +474,18 @@ void thread_resched(void)
 	arch_context_switch(oldthread, newthread);
 }
 
+/* if we yielded or preempted would there be a potential for reschedule */
+bool thread_might_resched(void)
+{
+	/* if the bitmap is zero, we're the idle thread and the scheduler
+	 * queue is empty, so the answer is no
+	 */
+	if (likely(run_queue_bitmap == 0))
+		return false;
+
+	return highest_sched_priority() >= current_thread->priority;
+}
+
 /**
  * @brief Yield the cpu to another thread
  *
@@ -486,11 +506,15 @@ void thread_yield(void)
 
 	THREAD_STATS_INC(yields);
 
-	/* we are yielding the cpu, so stick ourselves into the tail of the run queue and reschedule */
-	current_thread->state = THREAD_READY;
+	/* give up our quantum */
 	current_thread->remaining_quantum = 0;
-	insert_in_run_queue_tail(current_thread);
-	thread_resched();
+
+	if (thread_might_resched()) {
+		/* we are yielding the cpu, so stick ourselves into the tail of the run queue and reschedule */
+		current_thread->state = THREAD_READY;
+		insert_in_run_queue_tail(current_thread);
+		thread_resched();
+	}
 
 	exit_critical_section();
 }
@@ -526,13 +550,15 @@ void thread_preempt(void)
 
 	KEVLOG_THREAD_PREEMPT(current_thread);
 
-	/* we are being preempted, so we get to go back into the front of the run queue if we have quantum left */
-	current_thread->state = THREAD_READY;
-	if (current_thread->remaining_quantum > 0)
-		insert_in_run_queue_head(current_thread);
-	else
-		insert_in_run_queue_tail(current_thread); /* if we're out of quantum, go to the tail of the queue */
-	thread_resched();
+	if (thread_might_resched()) {
+		/* we are being preempted, so we get to go back into the front of the run queue if we have quantum left */
+		current_thread->state = THREAD_READY;
+		if (current_thread->remaining_quantum > 0)
+			insert_in_run_queue_head(current_thread);
+		else
+			insert_in_run_queue_tail(current_thread); /* if we're out of quantum, go to the tail of the queue */
+		thread_resched();
+	}
 
 	exit_critical_section();
 }
@@ -679,7 +705,18 @@ void thread_set_priority(int priority)
 		priority = LOWEST_PRIORITY;
 	if (priority > HIGHEST_PRIORITY)
 		priority = HIGHEST_PRIORITY;
+
+	enter_critical_section();
+
 	current_thread->priority = priority;
+
+	/* if we've changed priority such that someone else needs to run,
+	 * immediately yield the cpu.
+	 */
+	if (thread_might_resched()) {
+		thread_yield();
+	}
+	exit_critical_section();
 }
 
 /**
@@ -692,12 +729,15 @@ void thread_set_priority(int priority)
 void thread_become_idle(void)
 {
 	thread_set_name("idle");
-	thread_set_priority(IDLE_PRIORITY);
 	idle_thread = current_thread;
 
-	/* release the implicit boot critical section and yield to the scheduler */
+	/* set our priority to idle, which also kicks the scheduler
+	 * if any other threads are queued up.
+	 */
+	thread_set_priority(IDLE_PRIORITY);
+
+	/* release the implicit boot critical section */
 	exit_critical_section();
-	thread_yield();
 
 	idle_thread_routine();
 }

@@ -15,6 +15,5 @@ MODULE_SRCS := \
 	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/semaphore.c \
-	
 
 include make/module.mk

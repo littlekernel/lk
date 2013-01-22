@@ -131,7 +131,7 @@ void arm_cm_irq_entry(void)
 
 void arm_cm_irq_exit(bool reschedule)
 {
-	if (reschedule)
+	if (reschedule && thread_might_resched())
 		arm_cm_trigger_preempt();
 
 	dec_critical_section();
