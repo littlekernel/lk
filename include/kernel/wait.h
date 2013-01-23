@@ -70,7 +70,7 @@ int wait_queue_wake_all(wait_queue_t *, bool reschedule, status_t wait_queue_err
  * remove the thread from whatever wait queue it's in.
  * return an error if the thread is not currently blocked (or is the current thread)
  */
-status_t thread_unblock_from_wait_queue(struct thread *t, bool reschedule, status_t wait_queue_error);
+status_t thread_unblock_from_wait_queue(struct thread *t, status_t wait_queue_error);
 
 #endif
 

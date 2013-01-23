@@ -775,7 +775,7 @@ static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t 
 	ASSERT(thread->magic == THREAD_MAGIC);
 #endif
 
-	if (thread_unblock_from_wait_queue(thread, false, ERR_TIMED_OUT) >= NO_ERROR)
+	if (thread_unblock_from_wait_queue(thread, ERR_TIMED_OUT) >= NO_ERROR)
 		return INT_RESCHEDULE;
 
 	return INT_NO_RESCHEDULE;
@@ -965,13 +965,12 @@ void wait_queue_destroy(wait_queue_t *wait, bool reschedule)
  * puts it at the head of the run queue.
  *
  * @param t  The thread to wake
- * @param reschedule  If true, the newly-woken threads will run immediately.
  * @param wait_queue_error  The return value which the new thread will receive
  *   from wait_queue_block().
  *
  * @return ERR_NOT_BLOCKED if thread was not in any wait queue.
  */
-status_t thread_unblock_from_wait_queue(thread_t *t, bool reschedule, status_t wait_queue_error)
+status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error)
 {
 #if THREAD_CHECKS
 	ASSERT(in_critical_section());
@@ -993,9 +992,6 @@ status_t thread_unblock_from_wait_queue(thread_t *t, bool reschedule, status_t w
 	t->state = THREAD_READY;
 	t->wait_queue_block_ret = wait_queue_error;
 	insert_in_run_queue_head(t);
-
-	if (reschedule)
-		thread_resched();
 
 	return NO_ERROR;
 }
