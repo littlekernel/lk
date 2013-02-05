@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Travis Geiselbrecht
+ * Copyright (c) 2009-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -27,7 +27,7 @@
 #include <kernel/event.h>
 
 typedef struct cbuf {
-	uint head; 
+	uint head;
 	uint tail;
 	uint len_pow2;
 	char *buf;
@@ -38,6 +38,10 @@ void cbuf_initialize(cbuf_t *cbuf, size_t len);
 size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block);
 size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule);
 size_t cbuf_space_avail(cbuf_t *cbuf);
+
+/* special cases for dealing with a single char of data */
+size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block);
+size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule);
 
 #endif
 

@@ -80,7 +80,7 @@ int partition_publish(const char *device, off_t offset)
 
 	// get a dma aligned and padded block to read info
 	STACKBUF_DMA_ALIGN(buf, dev->block_size);
-	
+
 	/* sniff for MBR partition types */
 	do {
 		int i;
@@ -110,7 +110,7 @@ int partition_publish(const char *device, off_t offset)
 				// publish it
 				char subdevice[128];
 
-				sprintf(subdevice, "%sp%d", device, i); 
+				sprintf(subdevice, "%sp%d", device, i);
 
 				err = bio_publish_subdevice(device, subdevice, part[i].lba_start, part[i].lba_length);
 				if (err < 0) {
@@ -120,7 +120,7 @@ int partition_publish(const char *device, off_t offset)
 				count++;
 			}
 		}
-	} while(0);
+	} while (0);
 
 	bio_close(dev);
 
@@ -133,7 +133,7 @@ int partition_unpublish(const char *device)
 	int i;
 	int count;
 	bdev_t *dev;
-	char devname[512];	
+	char devname[512];
 
 	count = 0;
 	for (i=0; i < 16; i++) {

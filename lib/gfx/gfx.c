@@ -181,7 +181,7 @@ static void fillrect16(gfx_surface *surface, uint x, uint y, uint width, uint he
 	uint stride_diff = surface->stride - width;
 
 	uint16_t color16 = ARGB8888_to_RGB565(color);
-	
+
 	uint i, j;
 	for (i=0; i < height; i++) {
 		for (j=0; j < width; j++) {
@@ -232,7 +232,7 @@ static void fillrect32(gfx_surface *surface, uint x, uint y, uint width, uint he
 {
 	uint32_t *dest = &((uint32_t *)surface->ptr)[x + y * surface->stride];
 	uint stride_diff = surface->stride - width;
-	
+
 	uint i, j;
 	for (i=0; i < height; i++) {
 		for (j=0; j < width; j++) {
@@ -474,7 +474,7 @@ gfx_surface *gfx_create_surface_from_display(struct display_info *info)
  * @brief  Destroy a graphics surface and free all resources allocated to it.
  *
  * @param  surface  Surface to destroy.  This pointer is no longer valid after
- * 		this call.
+ *      this call.
  */
 void gfx_surface_destroy(struct gfx_surface *surface)
 {
@@ -561,12 +561,12 @@ static int gfx_draw_rgb_bars(gfx_surface *surface)
 			gfx_putpixel(surface, x, y, color << 16);
 		}
 		//G
-		for (;x < 2*(surface->width/3); x++) {
+		for (; x < 2*(surface->width/3); x++) {
 			color = y*100 / step64;
 			gfx_putpixel(surface, x, y, color << 8);
 		}
 		//B
-		for (;x < surface->width; x++) {
+		for (; x < surface->width; x++) {
 			color = y*100 / step32;
 			gfx_putpixel(surface, x, y, color);
 		}
@@ -591,30 +591,25 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 
 	gfx_surface *surface = gfx_create_surface_from_display(&info);
 
-	if (!strcmp(argv[1].str, "rgb_bars"))
-	{
+	if (!strcmp(argv[1].str, "rgb_bars")) {
 		gfx_draw_rgb_bars(surface);
-	}
-	else if (!strcmp(argv[1].str, "fill"))
-	{
+	} else if (!strcmp(argv[1].str, "fill")) {
 		uint x, y;
 
-		for (y = 0; y < surface->height; y++)
-		{
-			for (x = 0; x < surface->width; x++)
-			{
+		for (y = 0; y < surface->height; y++) {
+			for (x = 0; x < surface->width; x++) {
 				/* write pixel to frame buffer */
 				gfx_putpixel(surface, x, y, (argv[2].i << 16) | (argv[3].i << 8) | argv[4].i);
 			}
 		}
 	}
 
-	 if (surface->flush)
-	 		surface->flush(0, surface->height-1);
+	if (surface->flush)
+		surface->flush(0, surface->height-1);
 
-	 gfx_surface_destroy(surface);
+	gfx_surface_destroy(surface);
 
-	 return 0;
+	return 0;
 }
 
 #endif

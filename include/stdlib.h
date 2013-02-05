@@ -43,7 +43,7 @@ unsigned long atoul(const char *num);
 
 /* allocate a buffer on the stack aligned and padded to the cpu's cache line size */
 #define STACKBUF_DMA_ALIGN(var, size) \
-	uint8_t __##var[(size) + CACHE_LINE]; uint8_t *var = (uint8_t *)(ROUNDUP((addr_t)__##var, CACHE_LINE))
+    uint8_t __##var[(size) + CACHE_LINE]; uint8_t *var = (uint8_t *)(ROUNDUP((addr_t)__##var, CACHE_LINE))
 
 #endif
 

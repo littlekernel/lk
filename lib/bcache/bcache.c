@@ -8,10 +8,10 @@
  * publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -64,7 +64,7 @@ bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count)
 	struct bcache *cache;
 
 	cache = malloc(sizeof(struct bcache));
-	
+
 	cache->dev = dev;
 	cache->block_size = block_size;
 	cache->count = block_count;
@@ -80,7 +80,7 @@ bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count)
 		cache->blocks[i].is_dirty = false;
 		cache->blocks[i].ptr = malloc(block_size);
 		// add to the free list
-		list_add_head(&cache->free_list, &cache->blocks[i].node);	
+		list_add_head(&cache->free_list, &cache->blocks[i].node);
 	}
 
 	return (bcache_t)cache;
@@ -91,8 +91,8 @@ static int flush_block(struct bcache *cache, struct bcache_block *block)
 	int rc;
 
 	rc = bio_write(cache->dev, block->ptr,
-			(off_t)block->blocknum * cache->block_size,
-			cache->block_size);
+	               (off_t)block->blocknum * cache->block_size,
+	               cache->block_size);
 	if (rc < 0)
 		goto exit;
 
@@ -113,7 +113,7 @@ void bcache_destroy(bcache_t _cache)
 
 		if (cache->blocks[i].is_dirty)
 			printf("warning: freeing dirty block %u\n",
-				cache->blocks[i].blocknum);
+			       cache->blocks[i].blocknum);
 
 		free(cache->blocks[i].ptr);
 	}
@@ -338,12 +338,12 @@ void bcache_dump(bcache_t priv, const char *name)
 	finds = cache->stats.hits + cache->stats.misses;
 
 	printf("%s: hits=%u(%u%%) depth=%u misses=%u(%u%%) reads=%u writes=%u\n",
-		name,
-		cache->stats.hits,
-		finds ? (cache->stats.hits * 100) / finds : 0,
-		cache->stats.hits ? cache->stats.depth / cache->stats.hits : 0,
-		cache->stats.misses,
-		finds ? (cache->stats.misses * 100) / finds : 0,
-		cache->stats.reads,
-		cache->stats.writes);
+	       name,
+	       cache->stats.hits,
+	       finds ? (cache->stats.hits * 100) / finds : 0,
+	       cache->stats.hits ? cache->stats.depth / cache->stats.hits : 0,
+	       cache->stats.misses,
+	       finds ? (cache->stats.misses * 100) / finds : 0,
+	       cache->stats.reads,
+	       cache->stats.writes);
 }

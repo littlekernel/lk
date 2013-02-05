@@ -37,7 +37,7 @@ void spin(uint32_t usecs)
 	lk_bigtime_t start = current_time_hires();
 
 	while ((current_time_hires() - start) < usecs)
-		;	
+		;
 }
 
 void halt(void)
@@ -62,7 +62,7 @@ void _panic(void *caller, const char *fmt, ...)
 
 int _dputs(const char *str)
 {
-	while(*str != 0) {
+	while (*str != 0) {
 		_dputc(*str++);
 	}
 
@@ -116,7 +116,7 @@ void hexdump(const void *ptr, size_t len)
 		}
 		printf("|\n");
 		address += 16;
-	}	
+	}
 }
 
 void hexdump8(const void *ptr, size_t len)
@@ -132,7 +132,7 @@ void hexdump8(const void *ptr, size_t len)
 		}
 		printf("\n");
 		address += 16;
-	}	
+	}
 }
 
 #endif // !DISABLE_DEBUG_OUTPUT

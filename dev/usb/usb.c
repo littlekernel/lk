@@ -93,7 +93,7 @@ void usb_set_string_descriptor(usb_descriptor *desc, const char *string)
 	int datalen = len * 2 + 2;
 
 	data = malloc(datalen);
-	
+
 	/* write length field */
 	data[0] = 0x0300 + datalen;
 
@@ -117,7 +117,7 @@ static void set_usb_id(uint16_t vendor, uint16_t product)
 	((uint16_t *)config->highspeed.device.desc)[5] = product;
 }
 
-void usb_add_string(const char *string, uint8_t id) 
+void usb_add_string(const char *string, uint8_t id)
 {
 	uint i;
 	size_t len = strlen(string);
@@ -175,22 +175,22 @@ static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_
 						speed = &config->lowspeed;
 					}
 
-					if ((setup->request_type & RECIP_MASK) == RECIP_DEVICE)	{
+					if ((setup->request_type & RECIP_MASK) == RECIP_DEVICE) {
 						switch (setup->value) {
 							case 0x100: /* device */
 								LTRACEF("got GET_DESCRIPTOR, device descriptor\n");
-								usbc_ep0_send(speed->device.desc, speed->device.len, 
-										setup->length);
+								usbc_ep0_send(speed->device.desc, speed->device.len,
+								              setup->length);
 								break;
 							case 0x200:    /* CONFIGURATION */
 								LTRACEF("got GET_DESCRIPTOR, config descriptor\n");
 								usbc_ep0_send(speed->config.desc, speed->config.len,
-										setup->length);
+								              setup->length);
 								break;
 							case 0x300:    /* Language ID */
 								LTRACEF("got GET_DESCRIPTOR, language id\n");
 								usbc_ep0_send(config->langid.desc,
-										config->langid.len, setup->length);
+								              config->langid.len, setup->length);
 								break;
 							case (0x301)...(0x3ff): {
 								/* string descriptor, search our list for a match */
@@ -200,8 +200,8 @@ static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_
 								for (i = 0; i < MAX_STRINGS; i++) {
 									if (strings[i].id == id) {
 										usbc_ep0_send(strings[i].string.desc,
-											strings[i].string.len, 
-											setup->length);
+										              strings[i].string.len,
+										              setup->length);
 										found = true;
 										break;
 									}
@@ -214,8 +214,8 @@ static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_
 							}
 							case 0x600:    /* DEVICE QUALIFIER */
 								LTRACEF("got GET_DESCRIPTOR, device qualifier\n");
-								usbc_ep0_send(speed->device_qual.desc, 
-										speed->device_qual.len, setup->length);
+								usbc_ep0_send(speed->device_qual.desc,
+								              speed->device_qual.len, setup->length);
 								break;
 							case 0xa00:
 								/* we aint got one of these */
@@ -280,7 +280,7 @@ void usb_setup(usb_config *_config)
 
 	ASSERT(usb_active == false);
 
-	// set the default usb control callback handler	
+	// set the default usb control callback handler
 	usbc_set_callback(&default_usb_callback);
 }
 

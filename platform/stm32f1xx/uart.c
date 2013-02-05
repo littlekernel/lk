@@ -33,7 +33,7 @@
 #include <target/debugconfig.h>
 #include <stm32f10x_rcc.h>
 #include <stm32f10x_usart.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #define RXBUF_SIZE 16
 
@@ -139,7 +139,7 @@ void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
 		}
 
 		char c = USART_ReceiveData(usart);
-		cbuf_write(rxbuf, &c, 1, false);
+		cbuf_write_char(rxbuf, c, false);
 	}
 
 	cm3_trigger_preempt();
@@ -179,7 +179,7 @@ static void usart_putc(USART_TypeDef *usart, char c)
 static int usart_getc(USART_TypeDef *usart, cbuf_t *rxbuf, bool wait)
 {
 	char c;
-	cbuf_read(rxbuf, &c, 1, wait);
+	cbuf_read_char(rxbuf, &c, wait);
 	if (cbuf_space_avail(rxbuf) > RXBUF_SIZE/2)
 		USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
 
@@ -190,20 +190,20 @@ static USART_TypeDef *get_usart(int port)
 {
 	switch (port) {
 #ifdef ENABLE_UART1
-	case 1:
-		return USART1;
+		case 1:
+			return USART1;
 #endif
 #ifdef ENABLE_UART2
-	case 2:
-	    return USART2;
+		case 2:
+			return USART2;
 #endif
 #ifdef ENABLE_UART3
-	case 3:
-		return USART3;
+		case 3:
+			return USART3;
 #endif
-	default:
-		ASSERT(false);
-		return 0;
+		default:
+			ASSERT(false);
+			return 0;
 	}
 
 }
@@ -212,20 +212,20 @@ static cbuf_t *get_rxbuf(int port)
 {
 	switch (port) {
 #ifdef ENABLE_UART1
-	case 1:
-		return &uart1_rx_buf;
+		case 1:
+			return &uart1_rx_buf;
 #endif
 #ifdef ENABLE_UART2
-	case 2:
-	    return &uart2_rx_buf;
+		case 2:
+			return &uart2_rx_buf;
 #endif
 #ifdef ENABLE_UART3
-	case 3:
-		return &uart3_rx_buf;
+		case 3:
+			return &uart3_rx_buf;
 #endif
-	default:
-		ASSERT(false);
-		return 0;
+		default:
+			ASSERT(false);
+			return 0;
 	}
 
 }

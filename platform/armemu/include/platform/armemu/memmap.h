@@ -8,10 +8,10 @@
  * publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -47,9 +47,9 @@
 #define SYSINFO_FEATURE_NETWORK 0x00000004
 #define SYSINFO_FEATURE_BLOCKDEV 0x00000008
 
-    /* a write to this register latches the current emulator system time, so the next two regs can be read atomically */
+/* a write to this register latches the current emulator system time, so the next two regs can be read atomically */
 #define SYSINFO_TIME_LATCH (SYSINFO_REGS_BASE + 4)
-    /* gettimeofday() style time values */
+/* gettimeofday() style time values */
 #define SYSINFO_TIME_SECS  (SYSINFO_REGS_BASE + 8)
 #define SYSINFO_TIME_USECS (SYSINFO_REGS_BASE + 12)
 
@@ -87,22 +87,22 @@
 #define PIC_REGS_BASE     (PIT_REGS_BASE + PIT_REGS_SIZE)
 #define PIC_REGS_SIZE     MEMBANK_SIZE
 
-    /* Current vector mask, read-only */
+/* Current vector mask, read-only */
 #define PIC_MASK          (PIC_REGS_BASE + 0)
-    /* Mask any of the 32 interrupt vectors by writing a 1 in the appropriate bit */
+/* Mask any of the 32 interrupt vectors by writing a 1 in the appropriate bit */
 #define PIC_MASK_LATCH    (PIC_REGS_BASE + 4)
-	/* Unmask any of the 32 interrupt vectors by writing a 1 in the appropriate bit */
+/* Unmask any of the 32 interrupt vectors by writing a 1 in the appropriate bit */
 #define PIC_UNMASK_LATCH  (PIC_REGS_BASE + 8)
-	/* each bit corresponds to the current status of the interrupt line */
+/* each bit corresponds to the current status of the interrupt line */
 #define PIC_STAT          (PIC_REGS_BASE + 12)
-	/* one bit set for the highest priority non-masked active interrupt */
+/* one bit set for the highest priority non-masked active interrupt */
 #define PIC_CURRENT_BIT   (PIC_REGS_BASE + 16)
-	/* holds the current interrupt number of the highest priority non-masked active interrupt, 
-	 * or 0xffffffff if no interrupt is active
-	 */
+/* holds the current interrupt number of the highest priority non-masked active interrupt,
+ * or 0xffffffff if no interrupt is active
+ */
 #define PIC_CURRENT_NUM   (PIC_REGS_BASE + 20)
 
-	/* interrupt map */
+/* interrupt map */
 #define INT_PIT      0
 #define INT_KEYBOARD 1
 #define INT_NET      2
@@ -140,34 +140,34 @@
 #define NET_BUF_LEN 2048
 #define NET_IN_BUF_COUNT 32
 
-#define NET_HEAD	(NET_REGS_BASE + 0)		/* current next buffer the hardware will write to */
-#define NET_TAIL	(NET_REGS_BASE + 4)		/* currently selected input buffer */
-#define NET_SEND	(NET_REGS_BASE + 8)		/* writes to this register sends whatever is in the out buf */
-#define NET_SEND_LEN (NET_REGS_BASE + 12)	/* length of packet to send */
+#define NET_HEAD    (NET_REGS_BASE + 0)     /* current next buffer the hardware will write to */
+#define NET_TAIL    (NET_REGS_BASE + 4)     /* currently selected input buffer */
+#define NET_SEND    (NET_REGS_BASE + 8)     /* writes to this register sends whatever is in the out buf */
+#define NET_SEND_LEN (NET_REGS_BASE + 12)   /* length of packet to send */
 #define NET_OUT_BUF (NET_REGS_BASE + NET_BUF_LEN)
 
-#define NET_IN_BUF_LEN (NET_REGS_BASE + 16)	/* length of the currently selected in buffer, via tail register */
-#define NET_IN_BUF	(NET_REGS_BASE + NET_BUF_LEN*2)
+#define NET_IN_BUF_LEN (NET_REGS_BASE + 16) /* length of the currently selected in buffer, via tail register */
+#define NET_IN_BUF  (NET_REGS_BASE + NET_BUF_LEN*2)
 
 /* block device interface */
 #define BDEV_REGS_BASE (NET_REGS_BASE + NET_REGS_SIZE)
 #define BDEV_REGS_SIZE MEMBANK_SIZE
 
-#define BDEV_CMD	(BDEV_REGS_BASE + 0)	/* command */
-#define BDEV_CMD_ADDR	(BDEV_REGS_BASE + 4)	/* address of next transfer, 32bit */
-#define BDEV_CMD_OFF	(BDEV_REGS_BASE + 8)	/* offset of next transfer, 64bit */
-#define BDEV_CMD_LEN	(BDEV_REGS_BASE + 16)	/* length of next transfer, 32bit */
+#define BDEV_CMD    (BDEV_REGS_BASE + 0)    /* command */
+#define BDEV_CMD_ADDR   (BDEV_REGS_BASE + 4)    /* address of next transfer, 32bit */
+#define BDEV_CMD_OFF    (BDEV_REGS_BASE + 8)    /* offset of next transfer, 64bit */
+#define BDEV_CMD_LEN    (BDEV_REGS_BASE + 16)   /* length of next transfer, 32bit */
 
-#define BDEV_LEN	(BDEV_REGS_BASE + 20)	/* length of block device, 64bit */
+#define BDEV_LEN    (BDEV_REGS_BASE + 20)   /* length of block device, 64bit */
 
 /* BDEV_CMD bits */
-#define BDEV_CMD_MASK	(0x3)
-#define BDEV_CMD_NOP	(0)
-#define BDEV_CMD_READ	(1)
-#define BDEV_CMD_WRITE	(2)
-#define BDEV_CMD_ERASE	(3)
-#define BDEV_CMD_ERRSHIFT	16
-#define BDEV_CMD_ERRMASK	(0xffff << BDEV_CMD_ERRSHIFT)
+#define BDEV_CMD_MASK   (0x3)
+#define BDEV_CMD_NOP    (0)
+#define BDEV_CMD_READ   (1)
+#define BDEV_CMD_WRITE  (2)
+#define BDEV_CMD_ERASE  (3)
+#define BDEV_CMD_ERRSHIFT   16
+#define BDEV_CMD_ERRMASK    (0xffff << BDEV_CMD_ERRSHIFT)
 #define BDEV_CMD_ERR_NONE (0 << BDEV_CMD_ERRSHIFT)
 #define BDEV_CMD_ERR_GENERAL (1 << BDEV_CMD_ERRSHIFT)
 #define BDEV_CMD_ERR_BAD_OFFSET (2 << BDEV_CMD_ERRSHIFT)

@@ -38,7 +38,7 @@ struct display_info {
 	uint height;
 	uint stride;
 
-	// Update function	
+	// Update function
 	void (*flush)(uint starty, uint endy);
 };
 

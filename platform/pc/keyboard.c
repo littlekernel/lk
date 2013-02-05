@@ -57,50 +57,51 @@ static inline void i8042_write_command(int val)
 /*
  * timeout in milliseconds
  */
-#define I8042_CTL_TIMEOUT	500
+#define I8042_CTL_TIMEOUT   500
 
 /*
  * status register bits
  */
-#define I8042_STR_PARITY	0x80
-#define I8042_STR_TIMEOUT	0x40
-#define I8042_STR_AUXDATA	0x20
-#define I8042_STR_KEYLOCK	0x10
-#define I8042_STR_CMDDAT	0x08
-#define I8042_STR_MUXERR	0x04
-#define I8042_STR_IBF		0x02
-#define	I8042_STR_OBF		0x01
+#define I8042_STR_PARITY    0x80
+#define I8042_STR_TIMEOUT   0x40
+#define I8042_STR_AUXDATA   0x20
+#define I8042_STR_KEYLOCK   0x10
+#define I8042_STR_CMDDAT    0x08
+#define I8042_STR_MUXERR    0x04
+#define I8042_STR_IBF       0x02
+#define I8042_STR_OBF       0x01
 
 /*
  * control register bits
  */
-#define I8042_CTR_KBDINT	0x01
-#define I8042_CTR_AUXINT	0x02
-#define I8042_CTR_IGNKEYLK	0x08
-#define I8042_CTR_KBDDIS	0x10
-#define I8042_CTR_AUXDIS	0x20
-#define I8042_CTR_XLATE		0x40
+#define I8042_CTR_KBDINT    0x01
+#define I8042_CTR_AUXINT    0x02
+#define I8042_CTR_IGNKEYLK  0x08
+#define I8042_CTR_KBDDIS    0x10
+#define I8042_CTR_AUXDIS    0x20
+#define I8042_CTR_XLATE     0x40
 
 /*
  * commands
  */
-#define I8042_CMD_CTL_RCTR	0x0120
-#define I8042_CMD_CTL_WCTR	0x1060
-#define I8042_CMD_CTL_TEST	0x01aa
+#define I8042_CMD_CTL_RCTR  0x0120
+#define I8042_CMD_CTL_WCTR  0x1060
+#define I8042_CMD_CTL_TEST  0x01aa
 
-#define I8042_CMD_KBD_DIS	0x00ad
-#define I8042_CMD_KBD_EN	0x00ae
-#define I8042_CMD_KBD_TEST	0x01ab
-#define I8042_CMD_KBD_MODE	0x01f0
+#define I8042_CMD_KBD_DIS   0x00ad
+#define I8042_CMD_KBD_EN    0x00ae
+#define I8042_CMD_KBD_TEST  0x01ab
+#define I8042_CMD_KBD_MODE  0x01f0
 
 /*
  * used for flushing buffers. the i8042 internal buffer shoudn't exceed this.
  */
-#define I8042_BUFFER_LENGTH	32
+#define I8042_BUFFER_LENGTH 32
 
-static inline void delay(time_t delay) {
-	bigtime_t start = current_time();
-	
+static inline void delay(lk_time_t delay)
+{
+	lk_time_t start = current_time();
+
 	while (start + delay > current_time());
 }
 
@@ -170,36 +171,36 @@ static void i8042_process_scode(uint8_t scode, unsigned int flags)
 	static int lastCode = 0;
 	int keyCode;
 	uint8_t keyUpBit;
-	
+
 	bool multi = lastCode == 0xe0;
-	
+
 	// save the key up event bit
 	keyUpBit = scode & 0x80;
 	scode &= 0x7f;
-	
+
 	if (scode == SCANCODE_LSHIFT) {
 		key_lshift = !keyUpBit;
 	}
-	
+
 	if (scode == SCANCODE_RSHIFT) {
 		key_rshift = !keyUpBit;
 	}
-	
+
 	if (key_lshift || key_rshift) {
 		keyCode = multi ? KeyCodeMultiUpper[scode] : KeyCodeSingleUpper[scode];
 	} else {
 		keyCode = multi ? KeyCodeMultiLower[scode] : KeyCodeSingleLower[scode];
 	}
-	
+
 	/*printf_xy(71, 3, BLUE, "%02x%02x %c %c%c", multi ? lastCode : 0, scode,
-		keyCode != -1 ? (char) keyCode : ' ', key_lshift ? 'L' : ' ',
-		key_rshift ? 'R' : ' ');*/
-	
+	    keyCode != -1 ? (char) keyCode : ' ', key_lshift ? 'L' : ' ',
+	    key_rshift ? 'R' : ' ');*/
+
 	if (keyCode != -1 && !keyUpBit) {
 		char c = (char) keyCode;
-		cbuf_write(&key_buf, &c, 1, false);
+		cbuf_write_char(&key_buf, c, false);
 	}
-	
+
 	// update the last received code
 	lastCode = scode;
 }
@@ -257,7 +258,7 @@ static int i8042_command(uint8_t *param, int command)
 			if ((retval = i8042_wait_write())) {
 				break;
 			}
-			
+
 			i8042_write_data(param[i]);
 		}
 	}
@@ -267,7 +268,7 @@ static int i8042_command(uint8_t *param, int command)
 			if ((retval = i8042_wait_read())) {
 				break;
 			}
-			
+
 			if (i8042_read_status() & I8042_STR_AUXDATA) {
 				param[i] = ~i8042_read_data();
 			} else {
@@ -294,10 +295,10 @@ static enum handler_return i8042_interrupt(void *arg)
 
 	if (str & I8042_STR_OBF) {
 		i8042_process_scode(data,
-			((str & I8042_STR_PARITY) ? I8042_STR_PARITY : 0) |
-			((str & I8042_STR_TIMEOUT) ? I8042_STR_TIMEOUT : 0));
+		                    ((str & I8042_STR_PARITY) ? I8042_STR_PARITY : 0) |
+		                    ((str & I8042_STR_TIMEOUT) ? I8042_STR_TIMEOUT : 0));
 	}
-	
+
 	return INT_NO_RESCHEDULE;
 }
 
@@ -305,37 +306,37 @@ int platform_read_key(char *c)
 {
 	ssize_t len;
 
-	len = cbuf_read(&key_buf, c, 1, true);
+	len = cbuf_read_char(&key_buf, c, true);
 	return len;
 }
 
 void platform_init_keyboard(void)
 {
 	uint8_t ctr;
-	
+
 	cbuf_initialize(&key_buf, 32);
 
 	i8042_flush();
-	
+
 	if (i8042_command(&ctr, I8042_CMD_CTL_RCTR)) {
 		dprintf(DEBUG, "Failed to read CTR while initializing i8042\n");
 		return;
 	}
-	
+
 	// turn on translation
 	ctr |= I8042_CTR_XLATE;
-	
+
 	// enable keyboard and keyboard irq
 	ctr &= ~I8042_CTR_KBDDIS;
 	ctr |= I8042_CTR_KBDINT;
-	
+
 	if (i8042_command(&ctr, I8042_CMD_CTL_WCTR)) {
 		dprintf(DEBUG, "Failed to write CTR while initializing i8042\n");
 		return;
 	}
-	
+
 	register_int_handler(INT_KEYBOARD, &i8042_interrupt, NULL);
 	unmask_interrupt(INT_KEYBOARD);
-	
+
 	i8042_interrupt(NULL);
 }

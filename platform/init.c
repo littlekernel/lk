@@ -24,7 +24,7 @@
 #include <debug.h>
 #include <platform.h>
 
-/* 
+/*
  * default implementations of these routines, if the platform code
  * chooses not to implement.
  */

@@ -38,14 +38,14 @@ void printf_tests(void)
 	printf("long:  %ld %ld %ld\n", -12345678L, 0L, 12345678L);
 	printf("ulong: %lu %lu %lu\n", -12345678UL, 0UL, 12345678UL);
 
-	// GCC has a problem with the next two lines
-	printf("long:  %D %D %D\n", -12345678L, 0L, 12345678L);
-	printf("ulong: %U %U %U\n", -12345678UL, 0UL, 12345678UL);
-
 	printf("longlong: %lli %lli %lli\n", -12345678LL, 0LL, 12345678LL);
 	printf("ulonglong: %llu %llu %llu\n", -12345678LL, 0LL, 12345678LL);
 	printf("ssize_t: %zd %zd %zd\n", (ssize_t)-12345678, (ssize_t)0, (ssize_t)12345678);
 	printf("usize_t: %zu %zu %zu\n", (size_t)-12345678, (size_t)0, (size_t)12345678);
+	printf("intmax_t: %jd %jd %jd\n", (intmax_t)-12345678, (intmax_t)0, (intmax_t)12345678);
+	printf("uintmax_t: %ju %ju %ju\n", (uintmax_t)-12345678, (uintmax_t)0, (uintmax_t)12345678);
+	printf("ptrdiff_t: %td %td %td\n", (ptrdiff_t)-12345678, (ptrdiff_t)0, (ptrdiff_t)12345678);
+	printf("ptrdiff_t (u): %tu %tu %tu\n", (ptrdiff_t)-12345678, (ptrdiff_t)0, (ptrdiff_t)12345678);
 
 	printf("hex:\n");
 	printf("uint8: %hhx %hhx %hhx\n", -12, 0, 254);
@@ -59,6 +59,7 @@ void printf_tests(void)
 	printf("alt/sign:\n");
 	printf("uint: %#x %#X\n", 0xabcdef, 0xabcdef);
 	printf("int: %+d %+d\n", 12345678, -12345678);
+	printf("int: % d %+d\n", 12345678, 12345678);
 
 	printf("formatting\n");
 	printf("int: a%8da\n", 12345678);

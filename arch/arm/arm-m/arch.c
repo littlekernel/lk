@@ -25,9 +25,7 @@
 #include <arch/ops.h>
 #include <arch/arm.h>
 #include <platform.h>
-#include <arch/arm/cm3.h>
-
-#define ENABLE_CYCLE_COUNTER 1
+#include <arch/arm/cm.h>
 
 extern void *vectab;
 
@@ -101,6 +99,7 @@ void arch_quiesce(void)
 
 void arch_idle(void)
 {
+	__asm__ volatile("wfi");
 }
 
 void _cm3_set_irqpri(uint32_t pri)

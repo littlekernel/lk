@@ -23,8 +23,13 @@
 #ifndef __APP_TESTS_H
 #define __APP_TESTS_H
 
+#include <lib/console.h>
+
 int thread_tests(void);
 void printf_tests(void);
+void clock_tests(void);
+void benchmarks(void);
+int fibo(int argc, const cmd_args *argv);
 
 #endif
 

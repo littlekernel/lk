@@ -28,9 +28,7 @@
 #include <debug.h>
 #include <stddef.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 #if !DISABLE_DEBUG_OUTPUT
 #define printf(x...) _printf(x)
@@ -46,15 +44,13 @@ int vsnprintf(char *str, size_t len, const char *fmt, va_list ap);
 
 /* printf engine that parses the format string and generates output */
 
-/* function pointer to pass the engine, 
+/* function pointer to pass the engine,
  * return code is remaining characters in destination (or INT_MAX for infinity)
  */
 typedef int (*_printf_engine_output_func)(char c, void *state);
 
 int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap);
 
-#if defined(__cplusplus)
-}
-#endif
+__END_CDECLS
 
 #endif

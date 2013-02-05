@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,8 +23,8 @@
 #ifndef __ARM_CORES_H
 #define __ARM_CORES_H
 
-/* 
- * make the gcc built in define a little easier to deal with 
+/*
+ * make the gcc built in define a little easier to deal with
  * to decide what core it is generating code for
  *
  * ARM_ARCH_LEVEL gets assigned a numeric value of the general family
@@ -32,7 +32,12 @@
  * ARM_ARCH_* gets defined for each feature recursively
  */
 
-#if defined(__ARM_ARCH_7M__)
+/* echo | gcc -E -dM - to dump builtin defines */
+
+#if defined(__ARM_ARCH_7EM__)
+#define ARM_ARCH_7EM 1
+#endif
+#if defined(__ARM_ARCH_7M__) || defined(ARM_ARCH_7EM)
 #define ARM_ARCH_7M 1
 #endif
 #if defined(__ARM_ARCH_7R__)

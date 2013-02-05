@@ -240,7 +240,11 @@ typedef enum IRQn
   * @}
   */
 
+#if ARM_CPU_CORTEX_M3
 #include "core_cm3.h"
+#elif ARM_CPU_CORTEX_M4
+#include "core_cm4.h"
+#endif
 #include "system_stm32f2xx.h"
 #include <stdint.h>
 

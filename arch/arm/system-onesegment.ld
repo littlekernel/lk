@@ -7,10 +7,12 @@ SECTIONS
 	. = %MEMBASE%;
 
 	/* text/read-only data */
-	.text.boot.vectab1 : { KEEP(*(.text.boot.vectab1)) }
-	.text.boot.vectab2 : { KEEP(*(.text.boot.vectab2)) }
-	.text.boot : { KEEP(*(.text.boot)) }
-	.text :	{ *(.text .text.* .glue_7* .gnu.linkonce.t.*) } =0x9090
+	.text : {
+		KEEP(*(.text.boot.vectab1))
+		KEEP(*(.text.boot.vectab2))
+		KEEP(*(.text.boot))
+		*(.text* .sram.text.glue_7* .gnu.linkonce.t.*)
+	}
 
 	.interp : { *(.interp) }
 	.hash : { *(.hash) }
@@ -44,17 +46,19 @@ SECTIONS
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
 	__exidx_end = .;
 
-	.rodata : {
+	.rodata : ALIGN(4) {
+		__rodata_start = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		. = ALIGN(4);
-		__rodata_end = . ;
+		__rodata_end = .;
 	}
 
-	/* writable data  */
-	__data_start_rom = .;
-	/* in one segment binaries, the rom data address is on top of the ram data address */
-	__data_start = .;
-	.data : SUBALIGN(4) {
+
+	.data : ALIGN(4) {
+		/* writable data  */
+		__data_start_rom = .;
+		/* in one segment binaries, the rom data address is on top of the ram data address */
+		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		. = ALIGN(4);
 		__commands_start = .;
@@ -66,26 +70,32 @@ SECTIONS
 		__apps_end = .;
 	}
 
-	__ctor_list = .;
-	.ctors : { *(.ctors) }
-	__ctor_end = .;
-	__dtor_list = .;
-	.dtors : { *(.dtors) }
-	__dtor_end = .;
+	.ctors : ALIGN(4) {
+		__ctor_list = .;
+		*(.ctors)
+		__ctor_end = .;
+	}
+	.dtors : ALIGN(4) {
+		__dtor_list = .;
+		*(.dtors)
+		__dtor_end = .;
+	}
 	.got : { *(.got.plt) *(.got) }
 	.dynamic : { *(.dynamic) }
 
 	__data_end = .;
 
 	/* unintialized data (in same segment as writable data) */
-	.prebss : SUBALIGN(4) { KEEP(*(.bss.prebss.*)) }
-	.bss.initial_stack : SUBALIGN(4) { KEEP(*(.bss.initial_stack)) }
-	.bss : SUBALIGN(4) {
+	.bss : ALIGN(4) {
+		KEEP(*(.bss.prebss.*))
+		. = ALIGN(4);
 		__bss_start = .;
 		*(.bss .bss.*)
+		*(.gnu.linkonce.b.*)
+		*(COMMON)
+		. = ALIGN(4);
+		__bss_end = .;
 	}
-	. = ALIGN(4);
-	__bss_end = .;
 
 	_end = .;
 

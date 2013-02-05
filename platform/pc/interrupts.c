@@ -63,11 +63,11 @@ static void map(uint32_t pic1, uint32_t pic2)
 	outp(PIC2, ICW1);
 
 	/* send ICW2 */
-	outp(PIC1 + 1, pic1);	/* remap */
-	outp(PIC2 + 1, pic2);	/*  pics */
+	outp(PIC1 + 1, pic1);   /* remap */
+	outp(PIC2 + 1, pic2);   /*  pics */
 
 	/* send ICW3 */
-	outp(PIC1 + 1, 4);	/* IRQ2 -> connection to slave */
+	outp(PIC1 + 1, 4);  /* IRQ2 -> connection to slave */
 	outp(PIC2 + 1, 2);
 
 	/* send ICW4 */
@@ -77,7 +77,7 @@ static void map(uint32_t pic1, uint32_t pic2)
 	/* disable all IRQs */
 	outp(PIC1 + 1, 0xff);
 	outp(PIC2 + 1, 0xff);
-	
+
 	irqMask[0] = 0xff;
 	irqMask[1] = 0xff;
 }
@@ -86,9 +86,9 @@ static void enable(unsigned int vector, bool enable)
 {
 	if (vector >= PIC1_BASE && vector < PIC1_BASE + 8) {
 		vector -= PIC1_BASE;
-		
+
 		uint8_t bit = 1 << vector;
-		
+
 		if (enable && (irqMask[0] & bit)) {
 			irqMask[0] = inp(PIC1 + 1);
 			irqMask[0] &= ~bit;
@@ -102,9 +102,9 @@ static void enable(unsigned int vector, bool enable)
 		}
 	} else if (vector >= PIC2_BASE && vector < PIC2_BASE + 8) {
 		vector -= PIC2_BASE;
-		
+
 		uint8_t bit = 1 << vector;
-		
+
 		if (enable && (irqMask[1] & bit)) {
 			irqMask[1] = inp(PIC2 + 1);
 			irqMask[1] &= ~bit;
@@ -116,9 +116,9 @@ static void enable(unsigned int vector, bool enable)
 			outp(PIC2 + 1, irqMask[1]);
 			irqMask[1] = inp(PIC2 + 1);
 		}
-		
+
 		bit = 1 << (INT_PIC2 - PIC1_BASE);
-		
+
 		if (irqMask[1] != 0xff && (irqMask[0] & bit)) {
 			irqMask[0] = inp(PIC1 + 1);
 			irqMask[0] &= ~bit;
@@ -141,7 +141,7 @@ void issueEOI(unsigned int vector)
 		outp(PIC1, 0x20);
 	} else if (vector >= PIC2_BASE && vector <= PIC2_BASE + 7) {
 		outp(PIC2, 0x20);
-		outp(PIC1, 0x20);	// must issue both for the second PIC
+		outp(PIC1, 0x20);   // must issue both for the second PIC
 	}
 }
 
@@ -172,10 +172,10 @@ void platform_mask_irqs(void)
 {
 	irqMask[0] = inp(PIC1 + 1);
 	irqMask[1] = inp(PIC2 + 1);
-	
+
 	outp(PIC1 + 1, 0xff);
 	outp(PIC2 + 1, 0xff);
-	
+
 	irqMask[0] = inp(PIC1 + 1);
 	irqMask[1] = inp(PIC2 + 1);
 }
@@ -203,18 +203,18 @@ enum handler_return platform_irq(struct x86_iframe *frame)
 
 	THREAD_STATS_INC(interrupts);
 
-	// deliver the interrupt	
+	// deliver the interrupt
 	enum handler_return ret = INT_NO_RESCHEDULE;
 
 	switch (vector) {
 		case INT_GP_FAULT:
 			x86_gpf_handler(frame);
 			break;
-		
+
 		case INT_INVALID_OP:
 			x86_invop_handler(frame);
 			break;
-		
+
 		case INT_DIVIDE_0:
 		case INT_DEBUG_EX:
 		case INT_DEV_NA_EX:
@@ -223,7 +223,7 @@ enum handler_return platform_irq(struct x86_iframe *frame)
 		case 3:
 			x86_unhandled_exception(frame);
 			break;
-		
+
 		default:
 			if (int_handler_table[vector].handler)
 				ret = int_handler_table[vector].handler(int_handler_table[vector].arg);

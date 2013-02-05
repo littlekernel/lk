@@ -39,12 +39,13 @@ struct int_handler_struct {
 static struct int_handler_struct int_handler_table[INT_VECTORS];
 
 static const uint32_t icBase[5] = {
-	INTCON0_BASE, INTCON1_BASE, INTCON2_BASE, INTCON3_BASE, INTCON4_BASE };
+	INTCON0_BASE, INTCON1_BASE, INTCON2_BASE, INTCON3_BASE, INTCON4_BASE
+};
 
 /* a bitmap of the level triggered interrupt vectors */
 static uint32_t level_trigger[5] = {
-	0xb3fefe8f,	// level 1 0-31
-	0xfdb3c1fd,	// level 2 0-31
+	0xb3fefe8f, // level 1 0-31
+	0xfdb3c1fd, // level 2 0-31
 	0xfffff7ff, // level 2 32-63
 	0xbfffffff, // level 2 64-95
 	0xffffffff // level 2 96-128
@@ -137,12 +138,12 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 {
 	// get the current vector
 	unsigned int vector;
-   
+
 	THREAD_STATS_INC(interrupts);
 
 	// read from the first level int handler
 	vector = *ICReg(0, INTCON_SIR_IRQ);
-	
+
 	// see if it's coming from the second level handler
 	if (vector == 0) {
 		vector = *ICReg(1, INTCON_SIR_IRQ) + 32;
@@ -151,7 +152,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 //	dprintf("platform_irq: spsr 0x%x, pc 0x%x, currthread %p, vector %d\n", frame->spsr, frame->pc, current_thread, vector);
 
 	// deliver the interrupt
-	enum handler_return ret; 
+	enum handler_return ret;
 
 	ret = INT_NO_RESCHEDULE;
 	if (int_handler_table[vector].handler)
@@ -163,7 +164,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 		*ICReg(vector / 32, INTCON_ITR) = ~(1 << (vector % 32));
 		*ICReg(1, INTCON_CONTROL) |= 1;
 		vector = 0; // force the following code to ack the chained first level vector
-	} 
+	}
 
 	*ICReg(0, INTCON_ITR) = ~(1 << vector);
 	*ICReg(0, INTCON_CONTROL) = 1;

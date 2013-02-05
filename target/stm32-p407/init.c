@@ -37,7 +37,7 @@ void target_early_init(void)
 	/* configure the usart3 pins */
 	gpio_config(GPIO_USART3_TX, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF_USART3) | GPIO_PULLUP);
 	gpio_config(GPIO_USART3_RX, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF_USART3) | GPIO_PULLUP);
-	
+
 	stm32_debug_early_init();
 
 	/* configure some status leds */

@@ -30,6 +30,7 @@ void heap_free(void *);
 
 void heap_init(void);
 
-
+/* critical section time delayed free */
+void heap_delayed_free(void *);
 
 #endif

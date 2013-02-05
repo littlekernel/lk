@@ -24,10 +24,9 @@
 #define __ARCH_ARM_MMU_H
 
 #include <sys/types.h>
+#include <compiler.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 void arm_mmu_init(void);
 
@@ -36,9 +35,6 @@ void arm_mmu_init(void);
 #define MMU_FLAG_READWRITE 0x4
 void arm_mmu_map_section(addr_t paddr, addr_t vaddr, uint flags);
 
-
-#if defined(__cplusplus)
-}
-#endif
+__END_CDECLS
 
 #endif

@@ -60,8 +60,8 @@
 #define SYNCH_FRAME                 0x0C
 
 /* Mass storage requests */
-#define MASS_STORAGE_GET_MAX_LUN	0xfe
-#define MASS_STORAGE_RESET			0xff
+#define MASS_STORAGE_GET_MAX_LUN    0xfe
+#define MASS_STORAGE_RESET          0xff
 
 /* DFU requests */
 #define DFU_DETACH                  0x00

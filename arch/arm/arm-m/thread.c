@@ -27,7 +27,7 @@
 #include <assert.h>
 #include <kernel/thread.h>
 #include <arch/arm.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #define LOCAL_TRACE 0
 
@@ -104,7 +104,7 @@ static void pendsv(struct cm3_exception_frame_long *frame)
 	arch_enable_ints();
 }
 
-/* 
+/*
  * raw pendsv exception handler, triggered by interrupt glue to schedule
  * a preemption check.
  */

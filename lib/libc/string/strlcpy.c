@@ -33,11 +33,11 @@ strlcpy(char *dst, char const *src, size_t s)
 {
 	size_t i= 0;
 
-	if(!s) {
+	if (!s) {
 		return strlen(src);
 	}
 
-	for(i= 0; ((i< s-1) && src[i]); i++) {
+	for (i= 0; ((i< s-1) && src[i]); i++) {
 		dst[i]= src[i];
 	}
 

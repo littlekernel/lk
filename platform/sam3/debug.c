@@ -29,7 +29,7 @@
 #include <platform/debug.h>
 #include <arch/ops.h>
 #include <target/debugconfig.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #include <uart/uart.h>
 #include <pmc/pmc.h>
@@ -43,7 +43,7 @@ void sam3_uart_irq(void)
 
 	unsigned char c;
 	if (uart_read(UART, &c) == 0) {
-		cbuf_write(&debug_rx_buf, &c, 1, false);
+		cbuf_write_char(&debug_rx_buf, c, false);
 		cm3_trigger_preempt();
 	}
 
@@ -64,7 +64,7 @@ void sam_debug_early_init(void)
 	opt.ul_baudrate = 115200;
 	opt.ul_mode = UART_MR_PAR_NO | UART_MR_CHMODE_NORMAL;
 
-	NVIC_DisableIRQ(UART_IRQn);	
+	NVIC_DisableIRQ(UART_IRQn);
 
 	uart_init(UART, &opt);
 
@@ -74,7 +74,7 @@ void sam_debug_early_init(void)
 void sam_debug_init(void)
 {
 	cbuf_initialize(&debug_rx_buf, 16);
-	NVIC_EnableIRQ(UART_IRQn);	
+	NVIC_EnableIRQ(UART_IRQn);
 	uart_enable_interrupt(UART, UART_IER_RXRDY);
 }
 
@@ -91,12 +91,12 @@ void platform_dputc(char c)
 
 int platform_dgetc(char *c, bool wait)
 {
-	return cbuf_read(&debug_rx_buf, c, 1, wait);
+	return cbuf_read_char(&debug_rx_buf, c, wait);
 }
 
 void platform_halt(void)
 {
 	dprintf(ALWAYS, "HALT: spinning forever...\n");
-	for(;;);
+	for (;;);
 }
 

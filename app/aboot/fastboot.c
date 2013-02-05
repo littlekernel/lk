@@ -9,7 +9,7 @@
  *    notice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the 
+ *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -19,7 +19,7 @@
  * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
  * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED 
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
  * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
@@ -38,29 +38,45 @@ void boot_linux(void *bootimg, unsigned sz);
 /* todo: give lk strtoul and nuke this */
 static unsigned hex2unsigned(const char *x)
 {
-    unsigned n = 0;
+	unsigned n = 0;
 
-    while(*x) {
-        switch(*x) {
-        case '0': case '1': case '2': case '3': case '4':
-        case '5': case '6': case '7': case '8': case '9':
-            n = (n << 4) | (*x - '0');
-            break;
-        case 'a': case 'b': case 'c':
-        case 'd': case 'e': case 'f':
-            n = (n << 4) | (*x - 'a' + 10);
-            break;
-        case 'A': case 'B': case 'C':
-        case 'D': case 'E': case 'F':
-            n = (n << 4) | (*x - 'A' + 10);
-            break;
-        default:
-            return n;
-        }
-        x++;
-    }
+	while (*x) {
+		switch (*x) {
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+				n = (n << 4) | (*x - '0');
+				break;
+			case 'a':
+			case 'b':
+			case 'c':
+			case 'd':
+			case 'e':
+			case 'f':
+				n = (n << 4) | (*x - 'a' + 10);
+				break;
+			case 'A':
+			case 'B':
+			case 'C':
+			case 'D':
+			case 'E':
+			case 'F':
+				n = (n << 4) | (*x - 'A' + 10);
+				break;
+			default:
+				return n;
+		}
+		x++;
+	}
 
-    return n;
+	return n;
 }
 
 struct fastboot_cmd {
@@ -75,11 +91,11 @@ struct fastboot_var {
 	const char *name;
 	const char *value;
 };
-	
+
 static struct fastboot_cmd *cmdlist;
 
 void fastboot_register(const char *prefix,
-		       void (*handle)(const char *arg, void *data, unsigned sz))
+                       void (*handle)(const char *arg, void *data, unsigned sz))
 {
 	struct fastboot_cmd *cmd;
 	cmd = malloc(sizeof(*cmd));
@@ -118,10 +134,10 @@ static void *download_base;
 static unsigned download_max;
 static unsigned download_size;
 
-#define STATE_OFFLINE	0
-#define STATE_COMMAND	1
-#define STATE_COMPLETE	2
-#define STATE_ERROR	3
+#define STATE_OFFLINE   0
+#define STATE_COMMAND   1
+#define STATE_COMPLETE  2
+#define STATE_ERROR 3
 
 static unsigned fastboot_state = STATE_OFFLINE;
 
@@ -284,14 +300,14 @@ again:
 				continue;
 			fastboot_state = STATE_COMMAND;
 			cmd->handle((const char*) buffer + cmd->prefix_len,
-				    (void*) download_base, download_size);
+			            (void*) download_base, download_size);
 			if (fastboot_state == STATE_COMMAND)
 				fastboot_fail("unknown reason");
 			goto again;
 		}
 
 		fastboot_fail("unknown command");
-			
+
 	}
 	fastboot_state = STATE_OFFLINE;
 	dprintf(INFO,"fastboot: oops!\n");
@@ -316,13 +332,13 @@ static void fastboot_notify(struct udc_gadget *gadget, unsigned event)
 static struct udc_endpoint *fastboot_endpoints[2];
 
 static struct udc_gadget fastboot_gadget = {
-	.notify		= fastboot_notify,
-	.ifc_class	= 0xff,
-	.ifc_subclass	= 0x42,
-	.ifc_protocol	= 0x03,
-	.ifc_endpoints	= 2,
-	.ifc_string	= "fastboot",
-	.ept		= fastboot_endpoints,
+	.notify     = fastboot_notify,
+	.ifc_class  = 0xff,
+	.ifc_subclass   = 0x42,
+	.ifc_protocol   = 0x03,
+	.ifc_endpoints  = 2,
+	.ifc_string = "fastboot",
+	.ept        = fastboot_endpoints,
 };
 
 int fastboot_init(void *base, unsigned size)
@@ -364,7 +380,7 @@ int fastboot_init(void *base, unsigned size)
 fail_udc_register:
 	udc_request_free(req);
 fail_alloc_req:
-	udc_endpoint_free(out);	
+	udc_endpoint_free(out);
 fail_alloc_out:
 	udc_endpoint_free(in);
 fail_alloc_in:

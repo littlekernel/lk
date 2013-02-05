@@ -31,7 +31,7 @@
 #include <target/debugconfig.h>
 #include <stm32f2xx_rcc.h>
 #include <stm32f2xx_usart.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 void stm32_debug_early_init(void)
 {
@@ -63,5 +63,5 @@ int platform_dgetc(char *c, bool wait)
 void platform_halt(void)
 {
 	dprintf(ALWAYS, "HALT: spinning forever...\n");
-	for(;;);
+	for (;;);
 }

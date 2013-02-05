@@ -29,9 +29,9 @@
 #include <arch/x86/descriptor.h>
 
 /*struct context_switch_frame {
-	uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
-	uint32_t ds, es, fs, gs;
-	uint32_t eip, cs, eflags;
+    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
+    uint32_t ds, es, fs, gs;
+    uint32_t eip, cs, eflags;
 };*/
 struct context_switch_frame {
 	uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
@@ -72,7 +72,7 @@ void arch_thread_initialize(thread_t *t)
 
 	// fill it in
 	memset(frame, 0, sizeof(*frame));
-	
+
 	frame->eip = (vaddr_t) &initial_thread_func;
 	frame->eflags = 0x3002; // IF = 0, NT = 0, IOPL = 3
 	//frame->cs = CODE_SELECTOR;
@@ -80,7 +80,7 @@ void arch_thread_initialize(thread_t *t)
 	//frame->gs = DATA_SELECTOR;
 	//frame->es = DATA_SELECTOR;
 	//frame->ds = DATA_SELECTOR;
-	
+
 	// set the stack pointer
 	t->arch.esp = (vaddr_t)frame;
 }

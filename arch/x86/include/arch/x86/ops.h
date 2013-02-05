@@ -23,24 +23,67 @@
 #ifndef __ARCH_X86_OPS_H
 #define __ARHC_X86_OPS_H
 
-#if 0
 #include <compiler.h>
 
 #ifndef ASSEMBLY
 
-// override of some routines
-__GNU_INLINE __ALWAYS_INLINE extern inline void arch_enable_ints(void)
+#include <arch/x86.h>
+
+/* override of some routines */
+static inline void arch_enable_ints(void)
 {
-	__asm__ __volatile__ ("sti");
+	CF;
+	__asm__ volatile("sti");
 }
 
-__GNU_INLINE __ALWAYS_INLINE extern inline void arch_disable_ints(void)
+static inline inline void arch_disable_ints(void)
 {
-	__asm__ __volatile__ ("cli");
+	__asm__ volatile("cli");
+	CF;
 }
 
-#endif
-#endif
+int _atomic_and(volatile int *ptr, int val);
+int _atomic_or(volatile int *ptr, int val);
+int _atomic_cmpxchg(volatile int *ptr, int oldval, int newval);
+
+static inline int atomic_add(volatile int *ptr, int val)
+{
+	__asm__ volatile(
+		"lock xaddl %[val], %[ptr];"
+		: [val]"=a" (val)
+		: "a" (val), [ptr]"m" (*ptr)
+		: "memory"
+	);
+
+	return val;
+}
+
+static inline int atomic_swap(volatile int *ptr, int val)
+{
+	__asm__ volatile(
+		"xchgl %[val], %[ptr];"
+		: [val]"=a" (val)
+		: "a" (val), [ptr]"m" (*ptr)
+		: "memory"
+	);
+
+	return val;
+}
+
+
+static inline int atomic_and(volatile int *ptr, int val) { return _atomic_and(ptr, val); }
+static inline int atomic_or(volatile int *ptr, int val) { return _atomic_or(ptr, val); }
+static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) { return _atomic_cmpxchg(ptr, oldval, newval); }
+
+static inline uint32_t arch_cycle_count(void)
+{
+	uint32_t timestamp;
+	rdtscl(timestamp);
+
+	return timestamp;
+}
+
+#endif // !ASSEMBLY
 
 #endif
 

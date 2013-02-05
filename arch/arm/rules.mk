@@ -26,6 +26,37 @@ ENABLE_THUMB := true
 ONLY_THUMB := true
 SUBARCH := arm-m
 endif
+ifeq ($(ARM_CPU),cortex-m4)
+DEFINES += \
+	ARM_CPU_CORTEX_M4=1 \
+	ARM_WITH_CP15=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7M=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1
+GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+HANDLED_CORE := true
+ENABLE_THUMB := true
+ONLY_THUMB := true
+SUBARCH := arm-m
+endif
+ifeq ($(ARM_CPU),cortex-m4f)
+DEFINES += \
+	ARM_CPU_CORTEX_M4=1 \
+	ARM_CPU_CORTEX_M4F=1 \
+	ARM_WITH_CP15=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7M=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1 \
+	ARM_WITH_VFP=1 \
+	__FPU_PRESENT=1
+GLOBAL_COMPILEFLAGS += -mcpu=cortex-m4 -mfloat-abi=softfp
+HANDLED_CORE := true
+ENABLE_THUMB := true
+ONLY_THUMB := true
+SUBARCH := arm-m
+endif
 ifeq ($(ARM_CPU),cortex-a8)
 DEFINES += \
 	ARM_WITH_CP15=1 \
@@ -87,8 +118,7 @@ HANDLED_CORE := true
 endif
 
 ifneq ($(HANDLED_CORE),true)
-$(warning $(LOCAL_DIR)/rules.mk doesnt have logic for arm core $(ARM_CPU))
-$(warning this is likely to be broken)
+$(error $(LOCAL_DIR)/rules.mk doesnt have logic for arm core $(ARM_CPU))
 endif
 
 THUMBCFLAGS :=
@@ -137,13 +167,23 @@ DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=1024
 endif
 
-# set the default toolchain to arm elf and set a #define
-TOOLCHAIN_PREFIX ?= arm-elf-
-ifeq ($(TOOLCHAIN_PREFIX),arm-none-linux-gnueabi-)
-# XXX test for EABI better than this
-# eabi compilers dont need this
-THUMBINTERWORK:=
+# try to find the toolchain
+ifndef TOOLCHAIN_PREFIX
+TOOLCHAIN_PREFIX := arm-eabi-
+FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
+ifeq ($(FOUNDTOOL),)
+TOOLCHAIN_PREFIX := arm-elf-
+FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
+ifeq ($(FOUNDTOOL),)
+TOOLCHAIN_PREFIX := arm-none-eabi-
+FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
 endif
+endif
+ifeq ($(FOUNDTOOL),)
+$(error cannot find toolchain, please set TOOLCHAIN_PREFIX or add it to your path)
+endif
+endif
+$(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
 GLOBAL_COMPILEFLAGS += $(THUMBINTERWORK)
 
@@ -180,5 +220,13 @@ $(BUILDDIR)/system-twosegment.ld: $(LOCAL_DIR)/system-twosegment.ld
 	@echo generating $@
 	@$(MKDIR)
 	$(NOECHO)sed "s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
+
+# arm specific script to try to guess stack usage
+$(OUTELF).stack: LOCAL_DIR:=$(LOCAL_DIR)
+$(OUTELF).stack: $(OUTELF).lst
+	$(NOECHO)echo generating stack usage $@
+	$(NOECHO)$(LOCAL_DIR)/stackusage < $< | sort -n -k 1 -r > $@
+
+EXTRA_BUILDDEPS += $(OUTELF).stack
 
 include make/module.mk

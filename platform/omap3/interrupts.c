@@ -117,7 +117,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 {
 	// get the current vector
 	unsigned int vector;
-   
+
 	// read the currently active IRQ
 	vector = *REG32(INTC_SIR_IRQ) & 0x7f;
 
@@ -126,7 +126,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 	THREAD_STATS_INC(interrupts);
 
 	// deliver the interrupt
-	enum handler_return ret; 
+	enum handler_return ret;
 
 	ret = INT_NO_RESCHEDULE;
 	if (int_handler_table[vector].handler)

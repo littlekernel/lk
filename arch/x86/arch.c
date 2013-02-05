@@ -37,12 +37,12 @@ void arch_early_init(void)
 	x86_mmu_init();
 
 	platform_init_mmu_mappings();
-	
+
 	/* enable caches here for now */
 	clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
-	
+
 	memset(&system_tss, 0, sizeof(tss_t));
-	
+
 	system_tss.esp0 = 0;
 	system_tss.ss0 = DATA_SELECTOR;
 	system_tss.ss1 = 0;
@@ -50,7 +50,7 @@ void arch_early_init(void)
 	system_tss.eflags = 0x00003002;
 	system_tss.bitmap = offsetof(tss_t, tss_bitmap);
 	system_tss.trace = 1; // trap on hardware task switch
-	
+
 	set_global_desc(TSS_SELECTOR, &system_tss, sizeof(tss_t), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
 
 	x86_ltr(TSS_SELECTOR);
@@ -60,11 +60,4 @@ void arch_init(void)
 {
 }
 
-uint32_t arch_cycle_count(void)
-{
-	uint32_t timestamp;
-	rdtscl(timestamp);
-	
-	return timestamp;
-}
 

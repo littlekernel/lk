@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,6 +20,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <asm.h>
+#include <arch/arm/cores.h>
+
 .section ".text.boot"
 .globl _start
 _start:
@@ -82,7 +85,7 @@ reset:
 	orr     r1, r0, #0x12 // irq
 	msr     cpsr_c, r1
 	ldr		r13, =irq_save_spot		/* save a pointer to a temporary dumping spot used during irq delivery */
-	    
+
 	orr     r1, r0, #0x11 // fiq
 	msr     cpsr_c, r1
 	mov		sp, r2
@@ -133,23 +136,21 @@ reset:
 .ltorg
 
 .bss
-.align 2
+.align 3
 	/* the abort stack is for unrecoverable errors.
 	 * also note the initial working stack is set to here.
 	 * when the threading system starts up it'll switch to a new 
 	 * dynamically allocated stack, so we don't need it for very long
 	 */
-abort_stack:
+LOCAL_DATA(abort_stack)
 	.skip 1024
-abort_stack_top:
+LOCAL_DATA(abort_stack_top)
 
-.rodata:
+.data
 .align 2
 
-/* define the heap end as read-only data containing the end defined in the
- * linker script. other archs that use dynamic memory length discovery can make
- * this read-write and update it during init.
+/* define the heap end a variable containing the end defined in the
+ * linker script. this could be updated during init.
  */
-.global _heap_end
-_heap_end:
+DATA(_heap_end)
 	.int _end_of_ram

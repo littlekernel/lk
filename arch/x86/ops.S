@@ -24,33 +24,8 @@
 
 .text
 
-/* void arch_enable_ints(void); */
-FUNCTION(arch_enable_ints)
-	sti
-	ret
-
-/* void arch_disable_ints(void); */
-FUNCTION(arch_disable_ints)
-	cli
-	ret
-
-/* int atomic_swap(int *ptr, int val); */
-FUNCTION(atomic_swap)
-	movl 4(%esp), %edx
-	movl 8(%esp), %eax
-	xchgl %eax, (%edx)
-	ret
-
-/* int atomic_add(int *ptr, int val); */
-FUNCTION(atomic_add)
-	movl 4(%esp), %edx
-	movl 8(%esp), %eax
-	lock
-	xadd %eax, (%edx)
-	ret
-	
-/* int atomic_and(int *ptr, int val); */
-FUNCTION(atomic_and)
+/* int _atomic_and(int *ptr, int val); */
+FUNCTION(_atomic_and)
 	movl 4(%esp), %edx
 	movl (%edx), %eax
 0:
@@ -64,8 +39,8 @@ FUNCTION(atomic_and)
 	jmp 0b
 	
 	
-/* int atomic_or(int *ptr, int val); */
-FUNCTION(atomic_or)
+/* int _atomic_or(int *ptr, int val); */
+FUNCTION(_atomic_or)
 movl 4(%esp), %edx
 	movl (%edx), %eax
 0:
@@ -89,9 +64,3 @@ FUNCTION(arch_idle)
 1:
 	ret
 
-/* void arch_switch_stacks_and_call(addr_t call, addr_t stack) */
-FUNCTION(arch_switch_stacks_and_call)
-	movl 4(%esp), %eax
-	movl 8(%esp), %edx
-	movl %edx, %esp
-	call *%eax			/* perhaps this should be a jmp? it's not used anywhere so I don't know. */

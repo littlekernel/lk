@@ -26,7 +26,7 @@
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/timer.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #include <pmc/pmc.h>
 #include <tc/tc.h>
@@ -63,7 +63,7 @@ void _systick(void)
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-	LTRACEF("callback %p, arg %p, interval %d\n", callback, arg, interval);
+	LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, (uint)interval);
 
 	cb = callback;
 	cb_args = arg;

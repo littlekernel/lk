@@ -23,6 +23,8 @@
 #ifndef __LIB_CONSOLE_H
 #define __LIB_CONSOLE_H
 
+#include <stdbool.h>
+#include <stddef.h>
 #include <sys/types.h>
 #include <compiler.h>
 
@@ -46,7 +48,7 @@ typedef struct {
 typedef struct _cmd_block {
 	struct _cmd_block *next;
 	size_t count;
-	const cmd *list;	
+	const cmd *list;
 } cmd_block;
 
 /* register a static block of commands at init time */

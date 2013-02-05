@@ -23,7 +23,12 @@
 #include <compiler.h>
 #include <stdint.h>
 
-static uint8_t initial_stack[1024] __SECTION(".bss.initial_stack");
+/*
+ * Make a nice 8 byte aligned stack to run on before the threading system is up.
+ * Put it in the .bss.prebss.* section to make sure it doesn't get wiped
+ * when bss is cleared a little ways into boot.
+ */
+static uint8_t initial_stack[1024] __SECTION(".bss.prebss.initial_stack") __ALIGNED(8);
 
 extern void _start(void);
 extern void _nmi(void);
@@ -36,8 +41,7 @@ extern void _pendsv(void);
 extern void _pendsv(void);
 extern void _systick(void);
 
-const void * const __SECTION(".text.boot.vectab1") vectab[] =
-{
+const void * const __SECTION(".text.boot.vectab1") vectab[] = {
 	/* arm exceptions */
 	initial_stack + sizeof(initial_stack),
 	_start,

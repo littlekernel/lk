@@ -55,7 +55,7 @@ static enum handler_return uart_irq_handler(void *arg)
 
 	while (HWREG(UART_CONSOLE_BASE + UART_LSR) & UART_LSR_RX_FIFO_E) {
 		c = (char) HWREG(UART_CONSOLE_BASE + UART_RHR);
-		cbuf_write(&uart_rx_buf, &c, 1, false);
+		cbuf_write_char(&uart_rx_buf, c, false);
 		resched = true;
 	}
 
@@ -83,7 +83,7 @@ static void uart_putc(char c)
 
 static int uart_getc(char *c, bool wait)
 {
-	return cbuf_read(&uart_rx_buf, c, 1, wait);
+	return cbuf_read_char(&uart_rx_buf, c, wait);
 }
 
 void platform_dputc(char c)
@@ -100,30 +100,30 @@ int platform_dgetc(char *c, bool wait)
 
 void platform_init_debug(void)
 {
-    /* configure UART0 clock */
+	/* configure UART0 clock */
 	HWREG(SOC_CM_WKUP_REGS + CM_WKUP_UART0_CLKCTRL) |=
-		CM_WKUP_UART0_CLKCTRL_MODULEMODE_ENABLE;
+	    CM_WKUP_UART0_CLKCTRL_MODULEMODE_ENABLE;
 
 	while (CM_WKUP_UART0_CLKCTRL_MODULEMODE_ENABLE !=
-			(HWREG(SOC_CM_WKUP_REGS + CM_WKUP_UART0_CLKCTRL) &
-			 CM_WKUP_UART0_CLKCTRL_MODULEMODE));
+	        (HWREG(SOC_CM_WKUP_REGS + CM_WKUP_UART0_CLKCTRL) &
+	         CM_WKUP_UART0_CLKCTRL_MODULEMODE));
 
 	while (CM_WKUP_CLKSTCTRL_CLKACTIVITY_UART0_GFCLK !=
-			(HWREG(SOC_CM_WKUP_REGS + CM_WKUP_CLKSTCTRL) &
-			 CM_WKUP_CLKSTCTRL_CLKACTIVITY_UART0_GFCLK));
+	        (HWREG(SOC_CM_WKUP_REGS + CM_WKUP_CLKSTCTRL) &
+	         CM_WKUP_CLKSTCTRL_CLKACTIVITY_UART0_GFCLK));
 
 	while ((CM_WKUP_UART0_CLKCTRL_IDLEST_FUNC << CM_WKUP_UART0_CLKCTRL_IDLEST_SHIFT) !=
-			(HWREG(SOC_CM_WKUP_REGS + CM_WKUP_UART0_CLKCTRL) &
-			 CM_WKUP_UART0_CLKCTRL_IDLEST));
+	        (HWREG(SOC_CM_WKUP_REGS + CM_WKUP_UART0_CLKCTRL) &
+	         CM_WKUP_UART0_CLKCTRL_IDLEST));
 
 	/* RXD */
-	HWREG(SOC_CONTROL_REGS + CONTROL_CONF_UART_RXD(0)) = 
-		(CONTROL_CONF_UART0_RXD_CONF_UART0_RXD_PUTYPESEL | 
-		 CONTROL_CONF_UART0_RXD_CONF_UART0_RXD_RXACTIVE);
+	HWREG(SOC_CONTROL_REGS + CONTROL_CONF_UART_RXD(0)) =
+	    (CONTROL_CONF_UART0_RXD_CONF_UART0_RXD_PUTYPESEL |
+	     CONTROL_CONF_UART0_RXD_CONF_UART0_RXD_RXACTIVE);
 
 	/* TXD */
-	HWREG(SOC_CONTROL_REGS + CONTROL_CONF_UART_TXD(0)) = 
-		CONTROL_CONF_UART0_TXD_CONF_UART0_TXD_PUTYPESEL;
+	HWREG(SOC_CONTROL_REGS + CONTROL_CONF_UART_TXD(0)) =
+	    CONTROL_CONF_UART0_TXD_CONF_UART0_TXD_PUTYPESEL;
 
 	/* software reset */
 	HWREG(UART_CONSOLE_BASE + UART_SYSC) |= (UART_SYSC_SOFTRESET);
@@ -131,22 +131,22 @@ void platform_init_debug(void)
 
 	/* setup fifo */
 	UARTFIFOConfig(UART_CONSOLE_BASE,
-			UART_FIFO_CONFIG(UART_TRIG_LVL_GRANULARITY_1,
-				UART_TRIG_LVL_GRANULARITY_1, 1, 1, 1, 1,
-				UART_DMA_EN_PATH_SCR,
-				UART_DMA_MODE_0_ENABLE));
+	               UART_FIFO_CONFIG(UART_TRIG_LVL_GRANULARITY_1,
+	                                UART_TRIG_LVL_GRANULARITY_1, 1, 1, 1, 1,
+	                                UART_DMA_EN_PATH_SCR,
+	                                UART_DMA_MODE_0_ENABLE));
 
 	/* baud rate settings */
 	unsigned int divisor = UARTDivisorValCompute(UART_MODULE_INPUT_CLK,
-			BAUD_RATE_115200,
-			UART16x_OPER_MODE,
-			UART_MIR_OVERSAMPLING_RATE_42);
+	                       BAUD_RATE_115200,
+	                       UART16x_OPER_MODE,
+	                       UART_MIR_OVERSAMPLING_RATE_42);
 
 	UARTDivisorLatchWrite(UART_CONSOLE_BASE, divisor);
 	UARTRegConfigModeEnable(UART_CONSOLE_BASE, UART_REG_CONFIG_MODE_B);
 	UARTLineCharacConfig(UART_CONSOLE_BASE,
-			(UART_FRAME_WORD_LENGTH_8 | UART_FRAME_NUM_STB_1),
-			UART_PARITY_NONE);
+	                     (UART_FRAME_WORD_LENGTH_8 | UART_FRAME_NUM_STB_1),
+	                     UART_PARITY_NONE);
 
 	UARTDivisorLatchDisable(UART_CONSOLE_BASE);
 	UARTBreakCtl(UART_CONSOLE_BASE, UART_BREAK_COND_DISABLE);
@@ -156,7 +156,7 @@ void platform_init_debug(void)
 void platform_halt(void)
 {
 	arch_disable_ints();
-	for(;;);
+	for (;;);
 }
 
 void debug_point(char c)

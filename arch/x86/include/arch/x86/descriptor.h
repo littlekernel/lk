@@ -28,10 +28,10 @@
 /*
  * System Selectors
  */
-#define CODE_SELECTOR	0x08
-#define DATA_SELECTOR	0x10
-#define VIDEO_SELECTOR	0x18
-#define TSS_SELECTOR	0x30
+#define CODE_SELECTOR   0x08
+#define DATA_SELECTOR   0x10
+#define VIDEO_SELECTOR  0x18
+#define TSS_SELECTOR    0x30
 
 #define USER_CODE_SELECTOR 0x23
 #define USER_DATA_SELECTOR 0x2b
@@ -39,16 +39,16 @@
 /*
  * Descriptor Types
  */
-#define SEG_TYPE_TSS		0x9
-#define SEG_TYPE_TSS_BUSY	0xb
-#define SEG_TYPE_TASK_GATE	0x5
-#define SEG_TYPE_INT_GATE	0xe		// 32 bit
-#define SEG_TYPE_DATA_RW	0x2
-#define SEG_TYPE_CODE_RW	0xa
+#define SEG_TYPE_TSS        0x9
+#define SEG_TYPE_TSS_BUSY   0xb
+#define SEG_TYPE_TASK_GATE  0x5
+#define SEG_TYPE_INT_GATE   0xe     // 32 bit
+#define SEG_TYPE_DATA_RW    0x2
+#define SEG_TYPE_CODE_RW    0xa
 
 typedef uint16_t seg_sel_t;
 
 void set_global_desc(seg_sel_t sel, void *base, uint32_t limit,
-	uint8_t present, uint8_t ring, uint8_t sys, uint8_t type, uint8_t gran, uint8_t bits);
+                     uint8_t present, uint8_t ring, uint8_t sys, uint8_t type, uint8_t gran, uint8_t bits);
 
 #endif

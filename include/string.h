@@ -26,9 +26,7 @@
 #include <stddef.h>
 #include <compiler.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 void *memchr (void const *, int, size_t) __PURE;
 int   memcmp (void const *, const void *, size_t) __PURE;
@@ -55,15 +53,6 @@ int         strcoll(const char *s1, const char *s2) __PURE;
 size_t      strxfrm(char *dest, const char *src, size_t n) __PURE;
 char       *strdup(const char *str) __MALLOC;
 
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 /* non standard */
 void  *bcopy(void const *, void *, size_t);
 void   bzero(void *, size_t);
@@ -73,8 +62,6 @@ int    strncasecmp(char const *, char const *, size_t)  __PURE;
 int    strnicmp(char const *, char const *, size_t) __PURE;
 size_t strnlen(char const *s, size_t count) __PURE;
 
-#ifdef __cplusplus
-}
-#endif
+__BEGIN_CDECLS
 
 #endif

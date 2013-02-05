@@ -37,8 +37,6 @@ struct context_switch_frame {
 	vaddr_t r10;
 	vaddr_t r11;
 	vaddr_t lr;
-	vaddr_t usp;
-	vaddr_t ulr;
 };
 
 extern void arm_context_switch(addr_t *old_sp, addr_t new_sp);
@@ -75,7 +73,7 @@ void arch_thread_initialize(thread_t *t)
 	// fill it in
 	memset(frame, 0, sizeof(*frame));
 	frame->lr = (vaddr_t)&initial_thread_func;
-	
+
 	// set the stack pointer
 	t->arch.sp = (vaddr_t)frame;
 }

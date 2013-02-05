@@ -44,21 +44,20 @@
 #include "bootimg.h"
 #include "fastboot.h"
 
-#define TAGS_ADDR	0x10000100
-#define KERNEL_ADDR	0x10800000
-#define RAMDISK_ADDR	0x11000000
-#define DEFAULT_CMDLINE	"mem=50M console=null";
+#define TAGS_ADDR   0x10000100
+#define KERNEL_ADDR 0x10800000
+#define RAMDISK_ADDR    0x11000000
+#define DEFAULT_CMDLINE "mem=50M console=null";
 
 static struct udc_device surf_udc_device = {
-	.vendor_id	= 0x18d1,
-	.product_id	= 0x0001,
-	.version_id	= 0x0100,
-	.manufacturer	= "Google",
-	.product	= "Android",
+	.vendor_id  = 0x18d1,
+	.product_id = 0x0001,
+	.version_id = 0x0100,
+	.manufacturer   = "Google",
+	.product    = "Android",
 };
 
-struct atag_ptbl_entry
-{
+struct atag_ptbl_entry {
 	char name[16];
 	unsigned offset;
 	unsigned size;
@@ -80,9 +79,9 @@ static void ptentry_to_tag(unsigned **ptr, struct ptentry *ptn)
 	*ptr += sizeof(struct atag_ptbl_entry) / sizeof(unsigned);
 }
 
-void boot_linux(void *kernel, unsigned *tags, 
-		const char *cmdline, unsigned machtype,
-		void *ramdisk, unsigned ramdisk_size)
+void boot_linux(void *kernel, unsigned *tags,
+                const char *cmdline, unsigned machtype,
+                void *ramdisk, unsigned ramdisk_size)
 {
 	unsigned *ptr = tags;
 	void (*entry)(unsigned,unsigned,unsigned*) = kernel;
@@ -102,7 +101,7 @@ void boot_linux(void *kernel, unsigned *tags,
 	if ((ptable = flash_get_ptable()) && (ptable->count != 0)) {
 		int i;
 		*ptr++ = 2 + (ptable->count * (sizeof(struct atag_ptbl_entry) /
-					       sizeof(unsigned)));
+		                               sizeof(unsigned)));
 		*ptr++ = 0x4d534d70;
 		for (i = 0; i < ptable->count; ++i)
 			ptentry_to_tag(&ptr, ptable_get(ptable, i));
@@ -123,7 +122,7 @@ void boot_linux(void *kernel, unsigned *tags,
 	*ptr++ = 0;
 
 	dprintf(INFO, "booting linux @ %p, ramdisk @ %p (%d)\n",
-		kernel, ramdisk, ramdisk_size);
+	        kernel, ramdisk, ramdisk_size);
 	if (cmdline)
 		dprintf(INFO, "cmdline: %s\n", cmdline);
 
@@ -189,11 +188,11 @@ int boot_linux_from_flash(void)
 	offset += n;
 
 	dprintf(INFO, "\nkernel  @ %x (%d bytes)\n", hdr->kernel_addr,
-		hdr->kernel_size);
+	        hdr->kernel_size);
 	dprintf(INFO, "ramdisk @ %x (%d bytes)\n", hdr->ramdisk_addr,
-		hdr->ramdisk_size);
+	        hdr->ramdisk_size);
 
-	if(hdr->cmdline[0]) {
+	if (hdr->cmdline[0]) {
 		cmdline = (char*) hdr->cmdline;
 	} else {
 		cmdline = DEFAULT_CMDLINE;
@@ -204,8 +203,8 @@ int boot_linux_from_flash(void)
 
 	dprintf(INFO, "\nBooting Linux\n");
 	boot_linux((void *)hdr->kernel_addr, (void *)TAGS_ADDR,
-		   (const char *)cmdline, LINUX_MACHTYPE,
-		   (void *)hdr->ramdisk_addr, hdr->ramdisk_size);
+	           (const char *)cmdline, LINUX_MACHTYPE,
+	           (void *)hdr->ramdisk_addr, hdr->ramdisk_size);
 
 	return 0;
 }
@@ -243,8 +242,8 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 
 
 	boot_linux((void*) KERNEL_ADDR, (void*) TAGS_ADDR,
-		   (const char*) hdr.cmdline, LINUX_MACHTYPE,
-		   (void*) RAMDISK_ADDR, hdr.ramdisk_size);
+	           (const char*) hdr.cmdline, LINUX_MACHTYPE,
+	           (void*) RAMDISK_ADDR, hdr.ramdisk_size);
 }
 
 void cmd_erase(const char *arg, void *data, unsigned sz)
@@ -325,7 +324,7 @@ void aboot_init(const struct app_descriptor *app)
 
 	boot_linux_from_flash();
 	dprintf(CRITICAL, "ERROR: Could not do normal boot. Reverting "
-		"to fastboot mode.\n");
+	        "to fastboot mode.\n");
 
 fastboot:
 	udc_init(&surf_udc_device);

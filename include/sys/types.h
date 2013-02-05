@@ -55,8 +55,10 @@ typedef unsigned long long lk_bigtime_t;
 #define TIME_LT(a, b) ((long)((a) - (b)) < 0)
 
 enum handler_return {
-	INT_NO_RESCHEDULE = 0,
-	INT_RESCHEDULE,
+    INT_NO_RESCHEDULE = 0,
+    INT_RESCHEDULE,
 };
+
+typedef signed int ssize_t;
 
 #endif

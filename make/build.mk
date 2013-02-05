@@ -4,7 +4,11 @@ NOECHO ?= @
 $(OUTBIN): $(OUTELF)
 	@echo generating image: $@
 	$(NOECHO)$(SIZE) $<
-	$(NOCOPY)$(OBJCOPY) -O binary $< $@
+	$(NOECHO)$(OBJCOPY) -O binary $< $@
+
+$(OUTELF).hex: $(OUTELF)
+	@echo generating hex file: $@
+	$(NOECHO)$(OBJCOPY) -O ihex $< $@
 
 $(OUTELF): $(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LINKER_SCRIPT)
 	@echo linking $@

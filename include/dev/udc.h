@@ -9,7 +9,7 @@
  *    notice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the 
+ *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -19,7 +19,7 @@
  * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
  * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED 
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
  * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
@@ -45,14 +45,14 @@ void udc_request_free(struct udc_request *req);
 int udc_request_queue(struct udc_endpoint *ept, struct udc_request *req);
 int udc_request_cancel(struct udc_endpoint *ept, struct udc_request *req);
 
-#define UDC_TYPE_BULK_IN	1
-#define UDC_TYPE_BULK_OUT	2
+#define UDC_TYPE_BULK_IN    1
+#define UDC_TYPE_BULK_OUT   2
 
 struct udc_endpoint *udc_endpoint_alloc(unsigned type, unsigned maxpkt);
 void udc_endpoint_free(struct udc_endpoint *ept);
 
-#define UDC_EVENT_ONLINE	1
-#define UDC_EVENT_OFFLINE	2
+#define UDC_EVENT_ONLINE    1
+#define UDC_EVENT_OFFLINE   2
 
 struct udc_gadget {
 	void (*notify)(struct udc_gadget *gadget, unsigned event);
@@ -77,7 +77,7 @@ struct udc_device {
 	const char *product;
 	const char *serialno;
 };
-	
+
 int udc_init(struct udc_device *devinfo);
 int udc_register_gadget(struct udc_gadget *gadget);
 int udc_start(void);

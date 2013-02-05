@@ -28,22 +28,21 @@ extern void sam3_uart_irq(void);
 extern void sam3_tc0_irq(void);
 
 /* appended to the end of the main vector table */
-const void * const __SECTION(".text.boot.vectab2") vectab2[] =
-{
+const void * const __SECTION(".text.boot.vectab2") vectab2[] = {
 	[UART_IRQn] = sam3_uart_irq,
 	[TC0_IRQn] = sam3_tc0_irq,
 #if 0
-    [TIM2_IRQn] = stm32_tim2_irq,
-    [TIM3_IRQn] = stm32_tim3_irq,
-    [TIM4_IRQn] = stm32_tim4_irq,
-    [TIM5_IRQn] = stm32_tim5_irq,
-    [TIM6_IRQn] = stm32_tim6_irq,
-    [TIM7_IRQn] = stm32_tim7_irq,
+	[TIM2_IRQn] = stm32_tim2_irq,
+	[TIM3_IRQn] = stm32_tim3_irq,
+	[TIM4_IRQn] = stm32_tim4_irq,
+	[TIM5_IRQn] = stm32_tim5_irq,
+	[TIM6_IRQn] = stm32_tim6_irq,
+	[TIM7_IRQn] = stm32_tim7_irq,
 
-    [USART1_IRQn] = stm32_USART1_IRQ,
-    [USART2_IRQn] = stm32_USART2_IRQ,
-    [USART3_IRQn] = stm32_USART3_IRQ,
+	[USART1_IRQn] = stm32_USART1_IRQ,
+	[USART2_IRQn] = stm32_USART2_IRQ,
+	[USART3_IRQn] = stm32_USART3_IRQ,
 #endif
-    [NUM_IRQn] = 0,
+	[NUM_IRQn] = 0,
 };
 

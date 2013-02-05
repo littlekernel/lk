@@ -60,7 +60,7 @@ static void bench_memcpy(void)
 {
 	lk_time_t null, libc, mine;
 	size_t srcalign, dstalign;
-	
+
 	printf("memcpy speed test\n");
 	thread_sleep(200); // let the debug string clear the serial port
 
@@ -71,19 +71,19 @@ static void bench_memcpy(void)
 			libc = bench_memcpy_routine(&memcpy, srcalign, dstalign);
 			mine = bench_memcpy_routine(&mymemcpy, srcalign, dstalign);
 
-			printf("srcalign %lu, dstalign %lu\n", srcalign, dstalign);
-			printf("   null memcpy %u msecs\n", null);
-			printf("   libc memcpy %u msecs, %llu bytes/sec\n", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
-			printf("   my   memcpy %u msecs, %llu bytes/sec\n", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
+			printf("srcalign %zu, dstalign %zu\n", srcalign, dstalign);
+			printf("   null memcpy %lu msecs\n", null);
+			printf("   libc memcpy %lu msecs, %llu bytes/sec\n", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
+			printf("   my   memcpy %lu msecs, %llu bytes/sec\n", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
 
 			if (dstalign == 0)
 				dstalign = 1;
-			else 
+			else
 				dstalign <<= 1;
 		}
 		if (srcalign == 0)
 			srcalign = 1;
-		else 
+		else
 			srcalign <<= 1;
 	}
 }
@@ -149,7 +149,7 @@ static void bench_memset(void)
 {
 	lk_time_t libc, mine;
 	size_t dstalign;
-	
+
 	printf("memset speed test\n");
 	thread_sleep(200); // let the debug string clear the serial port
 
@@ -158,9 +158,9 @@ static void bench_memset(void)
 		libc = bench_memset_routine(&memset, dstalign);
 		mine = bench_memset_routine(&mymemset, dstalign);
 
-		printf("dstalign %lu\n", dstalign);
-		printf("   libc memset %u msecs, %llu bytes/sec\n", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
-		printf("   my   memset %u msecs, %llu bytes/sec\n", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
+		printf("dstalign %zu\n", dstalign);
+		printf("   libc memset %lu msecs, %llu bytes/sec\n", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
+		printf("   my   memset %lu msecs, %llu bytes/sec\n", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
 	}
 }
 
@@ -195,7 +195,7 @@ static void validate_memset(void)
 #if defined(WITH_LIB_CONSOLE)
 #include <lib/console.h>
 
-static int string_tests(int argc, cmd_args *argv)
+static int string_tests(int argc, const cmd_args *argv)
 {
 	src = memalign(64, BUFFER_SIZE + 256);
 	dst = memalign(64, BUFFER_SIZE + 256);

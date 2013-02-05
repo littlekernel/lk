@@ -41,7 +41,8 @@ void arch_early_init(void)
 
 	/* set the vector base to our exception vectors so we dont need to double map at 0 */
 #if ARM_CPU_CORTEX_A8
-	set_vector_base(MEMBASE);
+	if (MEMBASE != 0)
+		set_vector_base(MEMBASE);
 #endif
 
 #if ARM_WITH_MMU
@@ -66,6 +67,7 @@ void arch_early_init(void)
 	__asm__ volatile("mcr  p10, 7, %0, c8, c0, 0" :: "r" (val));
 #endif
 
+#if ENABLE_CYCLE_COUNTER
 #if ARM_CPU_CORTEX_A8
 	/* enable the cycle count register */
 	uint32_t en;
@@ -78,6 +80,7 @@ void arch_early_init(void)
 	en = (1<<31);
 	__asm__ volatile("mcr	p15, 0, %0, c9, c12, 1" :: "r" (en));
 #endif
+#endif
 }
 
 void arch_init(void)
@@ -86,6 +89,7 @@ void arch_init(void)
 
 void arch_quiesce(void)
 {
+#if ENABLE_CYCLE_COUNTER
 #if ARM_CPU_CORTEX_A8
 	/* disable the cycle count and performance counters */
 	uint32_t en;
@@ -103,6 +107,7 @@ void arch_quiesce(void)
 	__asm__ volatile("mrc	p15, 0, %0, c15, c12, 0" : "=r" (en));
 	en &= ~1; /* disable all performance counters */
 	__asm__ volatile("mcr	p15, 0, %0, c15, c12, 0" :: "r" (en));
+#endif
 #endif
 }
 

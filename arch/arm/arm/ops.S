@@ -24,28 +24,28 @@
 
 .text
 
-/* void arch_enable_ints(void); */
-FUNCTION(arch_enable_ints)
+/* void _arch_enable_ints(void); */
+FUNCTION(_arch_enable_ints)
 	mrs	r0, cpsr
 	bic	r0, r0, #(1<<7)		/* clear the I bit */
 	msr	cpsr_c, r0
 	bx	lr
 
-/* void arch_disable_ints(void); */
-FUNCTION(arch_disable_ints)
+/* void _arch_disable_ints(void); */
+FUNCTION(_arch_disable_ints)
 	mrs	r0, cpsr
 	orr	r0, r0, #(1<<7)
 	msr	cpsr_c, r0
 	bx	lr
 
-/* int atomic_swap(int *ptr, int val); */
-FUNCTION(atomic_swap)
+/* int _atomic_swap(int *ptr, int val); */
+FUNCTION(_atomic_swap)
 	swp	r2, r1, [r0]
 	mov	r0, r2
 	bx	lr
 
-/* int atomic_add(int *ptr, int val); */
-FUNCTION(atomic_add)
+/* int _atomic_add(int *ptr, int val); */
+FUNCTION(_atomic_add)
 #if ARM_ISA_ARMV6 || ARM_ISA_ARMV7
 	/* use load/store exclusive */
 .L_loop_add:
@@ -78,8 +78,8 @@ FUNCTION(atomic_add)
 	bx	lr
 #endif
 	
-/* int atomic_and(int *ptr, int val); */
-FUNCTION(atomic_and)
+/* int _atomic_and(int *ptr, int val); */
+FUNCTION(_atomic_and)
 #if ARM_ISA_ARMV6 || ARM_ISA_ARMV7
 	/* use load/store exclusive */
 .L_loop_and:
@@ -112,8 +112,8 @@ FUNCTION(atomic_and)
 	bx	lr
 #endif
 	
-/* int atomic_or(int *ptr, int val); */
-FUNCTION(atomic_or)
+/* int _atomic_or(int *ptr, int val); */
+FUNCTION(_atomic_or)
 #if ARM_ISA_ARMV6 || ARM_ISA_ARMV7
 	/* use load/store exclusive */
 .L_loop_or:
@@ -198,13 +198,8 @@ FUNCTION(arm_invalidate_tlb)
 	mcr 	p15, 0, r0, c8, c7, 0
 	bx		lr
 
-/* void arch_switch_stacks_and_call(addr_t call, addr_t stack) */
-FUNCTION(arch_switch_stacks_and_call)
-	mov		sp, r1
-	bx		r0	
-
-/* uint32_t arch_cycle_count(void); */
-FUNCTION(arch_cycle_count)
+/* uint32_t _arch_cycle_count(void); */
+FUNCTION(_arch_cycle_count)
 #if ARM_CPU_CORTEX_A8
 	mrc		p15, 0, r0, c9, c13, 0
 #else

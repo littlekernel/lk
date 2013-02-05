@@ -22,13 +22,6 @@
  */
 #include <ctype.h>
 
-#if 0
-/* XXX unimplemented for now */
-int iscntrl(int c);
-int isgraph(int c);
-int ispunct(int c);
-#endif
-
 int isblank(int c)
 {
 	return (c == ' ' || c == '\t');
@@ -69,9 +62,24 @@ int isxdigit(int c)
 	return isdigit(c) || ((c >= 'a') && (c <= 'f')) || ((c >= 'A') && (c <= 'F'));
 }
 
+int isgraph(int c)
+{
+	return ((c > ' ') && (c < 0x7f));
+}
+
+int iscntrl(int c)
+{
+	return ((c < ' ') || (c == 0x7f));
+}
+
 int isprint(int c)
 {
 	return ((c >= 0x20) && (c < 0x7f));
+}
+
+int ispunct(int c)
+{
+	return isgraph(c) && (!isalnum(c));
 }
 
 int tolower(int c)

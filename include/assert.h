@@ -27,14 +27,14 @@
 #include <debug.h>
 
 #define ASSERT(x) \
-	do { if (unlikely(!(x))) { panic("ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
+    do { if (unlikely(!(x))) { panic("ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
 
 #if DEBUGLEVEL > 1
 #define DEBUG_ASSERT(x) \
-	do { if (unlikely(!(x))) { panic("DEBUG ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
+    do { if (unlikely(!(x))) { panic("DEBUG ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
 #else
 #define DEBUG_ASSERT(x) \
-	do { } while(0)
+    do { } while(0)
 #endif
 
 #endif

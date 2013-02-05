@@ -9,7 +9,7 @@
  *    notice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the 
+ *    the documentation and/or other materials provided with the
  *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -19,7 +19,7 @@
  * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
  * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED 
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
  * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
@@ -38,12 +38,12 @@ struct ptable *flash_get_ptable(void);
 /* flash operations */
 int flash_erase(struct ptentry *ptn);
 int flash_read_ext(struct ptentry *ptn, unsigned extra_per_page,
-		   unsigned offset, void *data, unsigned bytes);
+                   unsigned offset, void *data, unsigned bytes);
 int flash_write(struct ptentry *ptn, unsigned extra_per_page, const void *data,
-		unsigned bytes);
+                unsigned bytes);
 
 static inline int flash_read(struct ptentry *ptn, unsigned offset, void *data,
-			     unsigned bytes)
+                             unsigned bytes)
 {
 	return flash_read_ext(ptn, 0, offset, data, bytes);
 }

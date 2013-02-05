@@ -13,9 +13,13 @@ MODULES += \
 	lib/gfxconsole \
 	lib/text \
 	lib/tga \
+	lib/evlog \
 	lib/debugcommands \
 	app/tests \
 	app/shell
+
+DEFINES += \
+	WITH_KERNEL_EVLOG=1
 
 # extra rules to copy the armemu.conf file to the build dir
 #$(BUILDDIR)/armemu.conf: $(LOCAL_DIR)/armemu.conf

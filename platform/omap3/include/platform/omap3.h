@@ -37,7 +37,7 @@
 #define SCM_BASE    0x48002000
 
 /* clocks */
-#define CM_CLKSEL_PER		(L4_BASE + 0x5040)
+#define CM_CLKSEL_PER       (L4_BASE + 0x5040)
 
 /* PRCM */
 #define CM_FCLKEN_IVA2      (L4_BASE + 0x4000)
@@ -76,9 +76,9 @@
 #define CM_CLKSEL_PER       (L4_BASE + 0x5040)
 #define CM_CLKSEL1_EMU      (L4_BASE + 0x5140)
 
-#define PRM_CLKSEL			(L4_BASE + 0x306d40)
-#define PRM_RSTCTRL			(L4_BASE + 0x307250)
-#define PRM_CLKSRC_CTRL		(L4_BASE + 0x307270)
+#define PRM_CLKSEL          (L4_BASE + 0x306d40)
+#define PRM_RSTCTRL         (L4_BASE + 0x307250)
+#define PRM_CLKSRC_CTRL     (L4_BASE + 0x307270)
 
 /* General Purpose Timers */
 #define OMAP34XX_GPT1           (L4_BASE + 0x318000)
@@ -94,57 +94,57 @@
 #define OMAP34XX_GPT11          (L4_BASE + 0x88000)
 #define OMAP34XX_GPT12          (L4_BASE + 0x304000)
 
-#define TIDR				0x00
-#define TIOCP_CFG			0x10
-#define TISTAT				0x14
-#define TISR				0x18
-#define TIER				0x1C
-#define TWER				0x20
-#define TCLR				0x24
-#define TCRR				0x28
-#define TLDR				0x2C
-#define TTGR				0x30
-#define TWPS				0x34
-#define TMAR				0x38
-#define TCAR1				0x3C
-#define TSICR				0x40
-#define TCAR2				0x44
-#define TPIR				0x48
-#define TNIR				0x4C
-#define TCVR				0x50
-#define TOCR				0x54
-#define TOWR				0x58
+#define TIDR                0x00
+#define TIOCP_CFG           0x10
+#define TISTAT              0x14
+#define TISR                0x18
+#define TIER                0x1C
+#define TWER                0x20
+#define TCLR                0x24
+#define TCRR                0x28
+#define TLDR                0x2C
+#define TTGR                0x30
+#define TWPS                0x34
+#define TMAR                0x38
+#define TCAR1               0x3C
+#define TSICR               0x40
+#define TCAR2               0x44
+#define TPIR                0x48
+#define TNIR                0x4C
+#define TCVR                0x50
+#define TOCR                0x54
+#define TOWR                0x58
 
 /* WatchDog Timers (1 secure, 3 GP) */
 #define WD1_BASE            (0x4830C000)
 #define WD2_BASE            (0x48314000)
 #define WD3_BASE            (0x49030000)
 
-#define WIDR		0x00
-#define WD_SYSCONFIG	0x10
-#define WD_SYSSTATUS	0x14
-#define WISR		0x18
-#define WIER		0x1C
-#define WCLR		0x24
-#define WCRR		0x28
-#define WLDR		0x2C
-#define WTGR		0x30
-#define WWPS		0x34
-#define WSPR		0x48
+#define WIDR        0x00
+#define WD_SYSCONFIG    0x10
+#define WD_SYSSTATUS    0x14
+#define WISR        0x18
+#define WIER        0x1C
+#define WCLR        0x24
+#define WCRR        0x28
+#define WLDR        0x2C
+#define WTGR        0x30
+#define WWPS        0x34
+#define WSPR        0x48
 
-#define W_PEND_WCLR	(1<<0)
-#define W_PEND_WCRR	(1<<1)
-#define W_PEND_WLDR	(1<<2)
-#define W_PEND_WTGR	(1<<3)
-#define W_PEND_WSPR	(1<<4)
+#define W_PEND_WCLR (1<<0)
+#define W_PEND_WCRR (1<<1)
+#define W_PEND_WLDR (1<<2)
+#define W_PEND_WTGR (1<<3)
+#define W_PEND_WSPR (1<<4)
 
 #define WD_UNLOCK1      0xAAAA
 #define WD_UNLOCK2      0x5555
 
 /* 32KTIMER */
-#define TIMER32K_BASE		(L4_BASE + 0x320000)
-#define TIMER32K_REV		(TIMER32K_BASE + 0x00)
-#define TIMER32K_CR			(TIMER32K_BASE + 0x10)
+#define TIMER32K_BASE       (L4_BASE + 0x320000)
+#define TIMER32K_REV        (TIMER32K_BASE + 0x00)
+#define TIMER32K_CR         (TIMER32K_BASE + 0x10)
 
 /* UART */
 #define OMAP_UART1_BASE     (L4_BASE + 0x6a000)
@@ -186,72 +186,72 @@
 #define UART_SYSC   20
 
 /* MPU INTC */
-#define INTC_BASE			(L4_BASE + 0x200000)
-#define INTC_REVISION		(INTC_BASE + 0x000)
-#define INTC_SYSCONFIG		(INTC_BASE + 0x010)
-#define INTC_SYSSTATUS		(INTC_BASE + 0x014)
-#define INTC_SIR_IRQ		(INTC_BASE + 0x040)
-#define INTC_SIR_FIQ		(INTC_BASE + 0x044)
-#define INTC_CONTROL		(INTC_BASE + 0x048)
-#define INTC_PROTECTION		(INTC_BASE + 0x04C)
-#define INTC_IDLE			(INTC_BASE + 0x050)
-#define INTC_IRQ_PRIORITY	(INTC_BASE + 0x060)
-#define INTC_FIQ_PRIORITY	(INTC_BASE + 0x064)
-#define INTC_THRESHOLD		(INTC_BASE + 0x068)
-#define INTC_ITR(n)			(INTC_BASE + 0x080 + (n) * 0x20)
-#define INTC_MIR(n)			(INTC_BASE + 0x084 + (n) * 0x20)
-#define INTC_MIR_CLEAR(n)	(INTC_BASE + 0x088 + (n) * 0x20)
-#define INTC_MIR_SET(n)		(INTC_BASE + 0x08C + (n) * 0x20)
-#define INTC_ISR_SET(n)		(INTC_BASE + 0x090 + (n) * 0x20)
-#define INTC_ISR_CLEAR(n)	(INTC_BASE + 0x094 + (n) * 0x20)
-#define INTC_PENDING_IRQ(n)	(INTC_BASE + 0x098 + (n) * 0x20)
-#define INTC_PENDING_FIQ(n)	(INTC_BASE + 0x09C + (n) * 0x20)
-#define INTC_ILR(n)			(INTC_BASE + 0x100 + (n) * 4)
+#define INTC_BASE           (L4_BASE + 0x200000)
+#define INTC_REVISION       (INTC_BASE + 0x000)
+#define INTC_SYSCONFIG      (INTC_BASE + 0x010)
+#define INTC_SYSSTATUS      (INTC_BASE + 0x014)
+#define INTC_SIR_IRQ        (INTC_BASE + 0x040)
+#define INTC_SIR_FIQ        (INTC_BASE + 0x044)
+#define INTC_CONTROL        (INTC_BASE + 0x048)
+#define INTC_PROTECTION     (INTC_BASE + 0x04C)
+#define INTC_IDLE           (INTC_BASE + 0x050)
+#define INTC_IRQ_PRIORITY   (INTC_BASE + 0x060)
+#define INTC_FIQ_PRIORITY   (INTC_BASE + 0x064)
+#define INTC_THRESHOLD      (INTC_BASE + 0x068)
+#define INTC_ITR(n)         (INTC_BASE + 0x080 + (n) * 0x20)
+#define INTC_MIR(n)         (INTC_BASE + 0x084 + (n) * 0x20)
+#define INTC_MIR_CLEAR(n)   (INTC_BASE + 0x088 + (n) * 0x20)
+#define INTC_MIR_SET(n)     (INTC_BASE + 0x08C + (n) * 0x20)
+#define INTC_ISR_SET(n)     (INTC_BASE + 0x090 + (n) * 0x20)
+#define INTC_ISR_CLEAR(n)   (INTC_BASE + 0x094 + (n) * 0x20)
+#define INTC_PENDING_IRQ(n) (INTC_BASE + 0x098 + (n) * 0x20)
+#define INTC_PENDING_FIQ(n) (INTC_BASE + 0x09C + (n) * 0x20)
+#define INTC_ILR(n)         (INTC_BASE + 0x100 + (n) * 4)
 
 /* interrupts */
-#define INT_VECTORS 		96
-#define GPT2_IRQ			38
+#define INT_VECTORS         96
+#define GPT2_IRQ            38
 
 /* HS USB */
-#define USB_HS_BASE			(L4_BASE + 0xab000)
+#define USB_HS_BASE         (L4_BASE + 0xab000)
 
 /* USB OTG */
-#define OTG_BASE			(L4_BASE + 0xab400)
+#define OTG_BASE            (L4_BASE + 0xab400)
 
-#define OTG_REVISION		(OTG_BASE + 0x00)
-#define OTG_SYSCONFIG		(OTG_BASE + 0x04)
-#define OTG_SYSSTATUS		(OTG_BASE + 0x08)
-#define OTG_INTERFSEL		(OTG_BASE + 0x0C)
-#define OTG_SIMENABLE		(OTG_BASE + 0x10)
-#define OTG_FORCESTDBY		(OTG_BASE + 0x14)
+#define OTG_REVISION        (OTG_BASE + 0x00)
+#define OTG_SYSCONFIG       (OTG_BASE + 0x04)
+#define OTG_SYSSTATUS       (OTG_BASE + 0x08)
+#define OTG_INTERFSEL       (OTG_BASE + 0x0C)
+#define OTG_SIMENABLE       (OTG_BASE + 0x10)
+#define OTG_FORCESTDBY      (OTG_BASE + 0x14)
 
 /* I2C */
-#define I2C1_BASE		(L4_BASE + 0x70000)
-#define I2C2_BASE		(L4_BASE + 0x72000)
-#define I2C3_BASE		(L4_BASE + 0x60000)
+#define I2C1_BASE       (L4_BASE + 0x70000)
+#define I2C2_BASE       (L4_BASE + 0x72000)
+#define I2C3_BASE       (L4_BASE + 0x60000)
 
-#define I2C_REV				(0x00)
-#define I2C_IE				(0x04)
-#define I2C_STAT			(0x08)
-#define I2C_WE				(0x0C)
-#define I2C_SYSS			(0x10)
-#define I2C_BUF				(0x14)
-#define I2C_CNT				(0x18)
-#define I2C_DATA			(0x1C)
-#define I2C_SYSC			(0x20)
-#define I2C_CON				(0x24)
-#define I2C_OA0				(0x28)
-#define I2C_SA				(0x2C)
-#define I2C_PSC				(0x30)
-#define I2C_SCLL			(0x34)
-#define I2C_SCLH			(0x38)
-#define I2C_SYSTEST			(0x3C)
-#define I2C_BUFSTAT			(0x40)
-#define I2C_OA1				(0x44)
-#define I2C_OA2				(0x48)
-#define I2C_OA3				(0x4C)
-#define I2C_ACTOA			(0x50)
-#define I2C_SBLOCK			(0x54)
+#define I2C_REV             (0x00)
+#define I2C_IE              (0x04)
+#define I2C_STAT            (0x08)
+#define I2C_WE              (0x0C)
+#define I2C_SYSS            (0x10)
+#define I2C_BUF             (0x14)
+#define I2C_CNT             (0x18)
+#define I2C_DATA            (0x1C)
+#define I2C_SYSC            (0x20)
+#define I2C_CON             (0x24)
+#define I2C_OA0             (0x28)
+#define I2C_SA              (0x2C)
+#define I2C_PSC             (0x30)
+#define I2C_SCLL            (0x34)
+#define I2C_SCLH            (0x38)
+#define I2C_SYSTEST         (0x3C)
+#define I2C_BUFSTAT         (0x40)
+#define I2C_OA1             (0x44)
+#define I2C_OA2             (0x48)
+#define I2C_OA3             (0x4C)
+#define I2C_ACTOA           (0x50)
+#define I2C_SBLOCK          (0x54)
 
 #endif
 

@@ -57,7 +57,7 @@ void debug_dump_regs(void)
 void platform_halt(void)
 {
 	*REG32(DEBUG_HALT) = 1;
-	for(;;);
+	for (;;);
 }
 
 void debug_dump_memory_bytes(void *mem, int len)
@@ -87,7 +87,7 @@ void debug_dump_memory_words(void *mem, int len)
 
 void debug_set_trace_level(int trace_type, int level)
 {
-	if(trace_type < 0 || trace_type >= 4)
+	if (trace_type < 0 || trace_type >= 4)
 		return;
 
 	*REG32(DEBUG_SET_TRACELEVEL_CPU + trace_type * 4) = level;

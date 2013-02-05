@@ -28,11 +28,12 @@
 #include <platform.h>
 #include <target.h>
 #include <lib/heap.h>
+#include <lib/dpc.h>
 #include <lib/fs.h>
 #include <lib/bio.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
-#include <kernel/dpc.h>
+#include <kernel/debug.h>
 
 extern void *__ctor_list;
 extern void *__ctor_end;
@@ -44,9 +45,9 @@ static int bootstrap2(void *arg);
 static void call_constructors(void)
 {
 	void **ctor;
-   
+
 	ctor = &__ctor_list;
-	while(ctor != &__ctor_end) {
+	while (ctor != &__ctor_end) {
 		void (*func)(void);
 
 		func = (void (*)())*ctor;
@@ -75,7 +76,7 @@ void kmain(void)
 	target_early_init();
 
 	dprintf(INFO, "welcome to lk\n\n");
-	
+
 	// deal with any static constructors
 	dprintf(SPEW, "calling constructors\n");
 	call_constructors();
@@ -84,13 +85,12 @@ void kmain(void)
 	dprintf(SPEW, "initializing heap\n");
 	heap_init();
 
+	// if enabled, configure the kernel's event log
+	kernel_evlog_init();
+
 	// initialize the threading system
 	dprintf(SPEW, "initializing threads\n");
 	thread_init();
-
-	// initialize the dpc system
-	dprintf(SPEW, "initializing dpc\n");
-	dpc_init();
 
 	// initialize kernel timers
 	dprintf(SPEW, "initializing timers\n");
@@ -98,7 +98,9 @@ void kmain(void)
 
 	// create a thread to complete system initialization
 	dprintf(SPEW, "creating bootstrap completion thread\n");
-	thread_resume(thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+	thread_t *t = thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	thread_detach(t);
+	thread_resume(t);
 
 	// become the idle thread and enable interrupts to start the scheduler
 	thread_become_idle();
@@ -112,6 +114,11 @@ static int bootstrap2(void *arg)
 
 	arch_init();
 
+	// initialize the dpc system
+#if WITH_LIB_DPC
+	dpc_init();
+#endif
+
 	// XXX put this somewhere else
 #if WITH_LIB_BIO
 	bio_init();
@@ -123,7 +130,7 @@ static int bootstrap2(void *arg)
 	// initialize the rest of the platform
 	dprintf(SPEW, "initializing platform\n");
 	platform_init();
-	
+
 	// initialize the target
 	dprintf(SPEW, "initializing target\n");
 	target_init();

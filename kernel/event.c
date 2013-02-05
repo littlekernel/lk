@@ -153,7 +153,7 @@ status_t event_wait(event_t *e)
  * all waiting threads are allowed to proceed until such time as
  * event_unsignal() is called.
  *
- * @param e	          Event object
+ * @param e           Event object
  * @param reschedule  If true, waiting thread(s) are executed immediately,
  *                    and the current thread resumes only after the
  *                    waiting threads have been satisfied. If false,

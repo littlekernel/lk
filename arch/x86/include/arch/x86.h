@@ -26,60 +26,59 @@
 #include <compiler.h>
 #include <sys/types.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+__BEGIN_CDECLS
 
 void x86_mmu_init(void);
 
 struct x86_iframe {
-	uint32_t pivot;										// stack switch pivot
-	uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;	// pushed by common handler using pusha
-	uint32_t ds, es, fs, gs;							// pushed by common handler
-	uint32_t vector;									// pushed by stub
-	uint32_t err_code;									// pushed by interrupt or stub
-	uint32_t eip, cs, eflags;							// pushed by interrupt
-	uint32_t user_esp, user_ss;							// pushed by interrupt if priv change occurs
+	uint32_t pivot;                                     // stack switch pivot
+	uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;    // pushed by common handler using pusha
+	uint32_t ds, es, fs, gs;                            // pushed by common handler
+	uint32_t vector;                                    // pushed by stub
+	uint32_t err_code;                                  // pushed by interrupt or stub
+	uint32_t eip, cs, eflags;                           // pushed by interrupt
+	uint32_t user_esp, user_ss;                         // pushed by interrupt if priv change occurs
 };
 
 /*
  * x86 TSS structure
  */
 typedef struct {
-	uint16_t	backlink, __blh;
-	uint32_t	esp0;
-	uint16_t	ss0, __ss0h;
-	uint32_t	esp1;
-	uint16_t	ss1, __ss1h;
-	uint32_t	esp2;
-	uint16_t	ss2, __ss2h;
-	uint32_t	cr3;
-	uint32_t	eip;
-	uint32_t	eflags;
-	uint32_t	eax, ecx, edx, ebx;
-	uint32_t	esp, ebp, esi, edi;
-	uint16_t	es, __esh;
-	uint16_t	cs, __csh;
-	uint16_t	ss, __ssh;
-	uint16_t	ds, __dsh;
-	uint16_t	fs, __fsh;
-	uint16_t	gs, __gsh;
-	uint16_t	ldt, __ldth;
-	uint16_t	trace, bitmap;
-	
+	uint16_t    backlink, __blh;
+	uint32_t    esp0;
+	uint16_t    ss0, __ss0h;
+	uint32_t    esp1;
+	uint16_t    ss1, __ss1h;
+	uint32_t    esp2;
+	uint16_t    ss2, __ss2h;
+	uint32_t    cr3;
+	uint32_t    eip;
+	uint32_t    eflags;
+	uint32_t    eax, ecx, edx, ebx;
+	uint32_t    esp, ebp, esi, edi;
+	uint16_t    es, __esh;
+	uint16_t    cs, __csh;
+	uint16_t    ss, __ssh;
+	uint16_t    ds, __dsh;
+	uint16_t    fs, __fsh;
+	uint16_t    gs, __gsh;
+	uint16_t    ldt, __ldth;
+	uint16_t    trace, bitmap;
+
 	uint8_t tss_bitmap[8192];
 } __PACKED tss_t;
 
-#define X86_CR0_PE		0x00000001 /* protected mode enable */
-#define X86_CR0_MP		0x00000002 /* monitor coprocessor */
-#define X86_CR0_EM		0x00000004 /* emulation */
-#define X86_CR0_TS		0x00000008 /* task switched */
-#define X86_CR0_WP		0x00010000 /* supervisor write protect */
-#define X86_CR0_NW		0x20000000 /* not write-through */
-#define X86_CR0_CD		0x40000000 /* cache disable */
-#define X86_CR0_PG		0x80000000 /* enable paging */
+#define X86_CR0_PE      0x00000001 /* protected mode enable */
+#define X86_CR0_MP      0x00000002 /* monitor coprocessor */
+#define X86_CR0_EM      0x00000004 /* emulation */
+#define X86_CR0_TS      0x00000008 /* task switched */
+#define X86_CR0_WP      0x00010000 /* supervisor write protect */
+#define X86_CR0_NW      0x20000000 /* not write-through */
+#define X86_CR0_CD      0x40000000 /* cache disable */
+#define X86_CR0_PG      0x80000000 /* enable paging */
 
-static inline void set_in_cr0(uint32_t mask) {
+static inline void set_in_cr0(uint32_t mask)
+{
 	__asm__ __volatile__ (
 		"movl %%cr0,%%eax	\n\t"
 		"orl %0,%%eax		\n\t"
@@ -88,7 +87,8 @@ static inline void set_in_cr0(uint32_t mask) {
 		:"ax");
 }
 
-static inline void clear_in_cr0(uint32_t mask) {
+static inline void clear_in_cr0(uint32_t mask)
+{
 	__asm__ __volatile__ (
 		"movl %%cr0, %%eax	\n\t"
 		"andl %0, %%eax		\n\t"
@@ -101,18 +101,20 @@ static inline void x86_clts(void) {__asm__ __volatile__ ("clts"); }
 static inline void x86_hlt(void) {__asm__ __volatile__ ("hlt"); }
 static inline void x86_sti(void) {__asm__ __volatile__ ("sti"); }
 static inline void x86_cli(void) {__asm__ __volatile__ ("cli"); }
-static inline void x86_ltr(uint16_t sel) {
+static inline void x86_ltr(uint16_t sel)
+{
 	__asm__ __volatile__ ("ltr %%ax" :: "a" (sel));
 }
 
-static inline uint32_t x86_get_cr2(void) {
+static inline uint32_t x86_get_cr2(void)
+{
 	uint32_t rv;
-	
+
 	__asm__ __volatile__ (
-		"movl %%cr2, %0"
-		: "=r" (rv)
+	    "movl %%cr2, %0"
+	    : "=r" (rv)
 	);
-	
+
 	return rv;
 }
 
@@ -257,8 +259,6 @@ static inline void outpdrep(uint16_t _port, uint32_t *_buffer,
 		  "c" (_writes));
 }
 
-#if defined(__cplusplus)
-}
-#endif
+__END_CDECLS
 
 #endif

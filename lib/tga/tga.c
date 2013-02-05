@@ -52,18 +52,18 @@ struct tga_header {
 
 static void print_tga_info(const struct tga_header *header)
 {
-	LTRACEF("idlength %hhd\n", header->idlength);	
-	LTRACEF("colormaptype %hhd\n", header->colormaptype);	
-	LTRACEF("datatypecode %hhd\n", header->datatypecode);	
-	LTRACEF("colormaporigin %hd\n", header->colormaporigin);	
-	LTRACEF("colormaplength %hd\n", header->colormaplength);	
-	LTRACEF("colormapdepth %hhd\n", header->colormapdepth);	
-	LTRACEF("x_origin %hd\n", header->x_origin);	
-	LTRACEF("y_origin %hd\n", header->y_origin);	
-	LTRACEF("width %hd\n", header->width);	
-	LTRACEF("height %hd\n", header->height);	
-	LTRACEF("bitsperpixel %hhd\n", header->bitsperpixel);	
-	LTRACEF("imagedescriptor %hhd\n", header->imagedescriptor);	
+	LTRACEF("idlength %hhd\n", header->idlength);
+	LTRACEF("colormaptype %hhd\n", header->colormaptype);
+	LTRACEF("datatypecode %hhd\n", header->datatypecode);
+	LTRACEF("colormaporigin %hd\n", header->colormaporigin);
+	LTRACEF("colormaplength %hd\n", header->colormaplength);
+	LTRACEF("colormapdepth %hhd\n", header->colormapdepth);
+	LTRACEF("x_origin %hd\n", header->x_origin);
+	LTRACEF("y_origin %hd\n", header->y_origin);
+	LTRACEF("width %hd\n", header->width);
+	LTRACEF("height %hd\n", header->height);
+	LTRACEF("bitsperpixel %hhd\n", header->bitsperpixel);
+	LTRACEF("imagedescriptor %hhd\n", header->imagedescriptor);
 
 }
 
@@ -225,7 +225,7 @@ gfx_surface *tga_decode(const void *ptr, size_t len, gfx_format format)
 		}
 //		printf("done with RLE: x %d, y %d, pos %d, count %d\n", x, y, pos, count);
 	}
-	
+
 	return surface;
 }
 

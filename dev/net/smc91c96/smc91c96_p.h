@@ -30,7 +30,7 @@
 #define SMC_BSR   14
 
 /* bank 0 */
-#define SMC_TCR	  0
+#define SMC_TCR   0
 #define SMC_EPHSR 2
 #define SMC_RCR   4
 #define SMC_ECR   6
