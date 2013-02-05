@@ -26,7 +26,7 @@
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/timer.h>
-#include <arch/arm/cm3.h>
+#include <arch/arm/cm.h>
 
 #include <inc/hw_types.h>
 #include "ti_driverlib.h"
