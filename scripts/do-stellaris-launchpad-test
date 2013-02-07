@@ -1,0 +1,6 @@
+#!/bin/sh
+
+export PROJECT=stellaris-launchpad-test
+
+make -j8 &&
+lm4flash -v build-$PROJECT/lk.bin
