@@ -453,6 +453,19 @@ UARTEnable(unsigned long ulBase)
                                    UART_CTL_RXE);
 }
 
+tBoolean
+UARTCharsAvail(unsigned long ulBase)
+{
+    //
+    // Check the arguments.
+    //
+    ASSERT(UARTBaseValid(ulBase));
+
+    //
+    // Return the availability of characters.
+    //
+    return((HWREG(ulBase + UART_O_FR) & UART_FR_RXFE) ? false : true);
+}
 
 //*****************************************************************************
 //
