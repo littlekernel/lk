@@ -1,0 +1,353 @@
+Manifest for Texas Instruments StellarisWare Clickwrap License Agreement
+
+StellarisWare version 9453
+
+Legend (explanation of the fields in the Manifest table below)
+
+Software Name: The name of the application or file
+
+Version: Version of the application or file
+
+License Type: Type of license(s) under which TI will be providing software to 
+the licensee (e.g. BSD, GPLv2, TI TSPA License, TI Commercial License). See 
+Open Source Reference License Disclaimer in the Disclaimers Section.
+
+Location: The directory name and path on the media (or in an archive) where the 
+Software is located.
+
+Delivered As: This field will either be "Source", "Binary" or "Source and 
+Binary" and is the form the content of the Software is delivered in. If the 
+Software is delivered in an archive format, this field applies to the contents 
+of the archive. If the word Limited is used with Source, as in "Limited Source" 
+or "Limited Source and Binary" then only portions of the Source for the 
+application are provided.
+
+Modified by TI: This field will either be "Yes" or "No". A "Yes" means TI has 
+made changes to the Software. A "No" means TI has not made any changes. Note: 
+This field is not applicable for Software "Obtained from" TI.
+
+Obtained from: This field specifies from where or from whom TI obtained the 
+Software. It may be a URL to an Open Source site, a 3rd party licensor, or TI 
+(if TI developed the software). If this field contains a link to Open Source 
+software, the date TI downloaded the Software is also recorded. See Links 
+Disclaimer in the Disclaimers Section.
+
+DISCLAIMERS
+
+Export Control Classification Number (ECCN)
+
+Any use of ECCNs listed in the Manifest is at the user's risk and without 
+recourse to TI. Your company, as the exporter of record, is responsible for 
+determining the correct classification of any item at the time of export. Any 
+export classification by TI of Software is for TI's internal use only and shall 
+not be construed as a representation or warranty regarding the proper export 
+classification for such Software or whether an export license or other 
+documentation is required for exporting such Software.
+
+Links in the Manifest
+
+Any links appearing on this Manifest (for example in the "Obtained from" field) 
+were verified at the time the Manifest was created. TI makes no guarantee that 
+any listed links will remain active in the future.
+
+Open Source License Reference
+
+Your company is responsible for confirming the applicable license terms for any 
+open source Software listed in this Manifest that was not "Obtained from" TI. 
+Any open source license specified in this Manifest for Software that was not 
+"Obtained from" TI is for TI's internal use only and shall not be construed as 
+a representation or warranty regarding the proper open source license terms for 
+such Software.
+
+Manifest
+
+See Legend above for a description of the fields and possible values.
+
+
+
+Software Name:  StellarisWare make definitions
+Version:        9453
+License Type:   TI BSD
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./makedefs
+Obtained From:  TI
+
+Software Name:  StellarisWare master Makefile
+Version:        9453
+License Type:   TI BSD
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./Makefile
+Obtained From:  TI
+
+Software Name:  Stonestreet one LLC Bluetopia stack for 
+Software Name:  Bluetooth, SPP, A2DP, and AVRCP Profile
+Version:        N/A
+License Type:   TI Bluetopia Clickwrap SLA
+Delivered As:   Binary
+Modified by TI: No
+Location:       ./Bluetopia
+Obtained From:  Stonestreet One
+
+Software Name:  Stellaris Board Examples
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./boards
+Obtained From:  TI
+
+Software Name:  Stellaris Boot Loader
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./boot_loader
+Obtained From:  TI
+
+Software Name:  Stellaris Peripheral Driver Library
+Version:        9453
+License Type:   TI BSD
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./driverlib
+Obtained From:  TI
+
+Software Name:  Stellaris Peripheral Generic Examples
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./examples
+Obtained From:  TI
+
+Software Name:  Stellaris Graphics Library
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./grlib
+Obtained From:  TI
+
+Software Name:  Stellaris Device Header Files
+Version:        9453
+License Type:   TI BSD
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./inc
+Obtained From:  TI
+
+Software Name:  TI IQmath Fixed Point Library
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Binary
+Modified by TI: N/A
+Location:       ./IQmath
+Obtained From:  TI
+
+Software Name:  MIFARE TRF7960 RFID Stack
+Version:        9453
+License Type:   TI TRF RF Devices Clickwrap SLA
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./MIFARE
+Obtained From:  TI
+
+Software Name:  TI SimpliciTI Wireless Network Stack
+Version:        1.1.1
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source and Binary
+Modified by TI: N/A
+Location:       ./SimpliciTI-1.1.1
+Obtained From:  TI
+
+Software Name:  Host tools
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./tools
+Obtained From:  TI
+
+Software Name:  Stellaris USB Library
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./usblib
+Obtained From:  TI
+
+Software Name:  Utility Functions
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./utils
+Obtained From:  TI
+
+Software Name:  Custom Windows Drivers
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Binary
+Modified by TI: N/A
+Location:       ./windows_drivers
+Obtained From:  TI
+
+Software Name:  ZStack ZigBee protocol stack
+Version:        2.4.0-1.4.0(9453)
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source and Binary
+Modified by TI: N/A
+Location:       ./ZStack
+Obtained From:  TI
+
+Software Name:  Text-based Adventure Game
+Version:        Serial 060321 Release 9
+License Type:   Inform 6 License (BSD-ish, non-commercial)
+Delivered As:   Binary
+Modified by TI: No
+Location:       ./third_party/adventure
+Obtained From:  http://www.ifarchive.org/if-archive/games/source/inform/Advent.inf
+
+Software Name:  BGET Heap Allocator
+Version:        October 1995
+License Type:   Public domain
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/bget
+Obtained From:  http://www.fourmilab.ch/bget/
+
+Software Name:  Blox Game
+Version:        bsd-games-2.17
+License Type:   BSD
+Delivered As:   Source
+Modified by TI: Yes
+Location:       ./third_party/blox
+Obtained From:  http://www.ibiblio.org/pub/Linux/games/bsd-games-2.17.tar.gz
+
+Software Name:  FatFs FAT File System
+Version:        0.04b
+License Type:   BSD style
+Delivered As:   Source
+Modified by TI: Yes - porting code added
+Location:       ./third_party/fatfs
+Obtained From:  http://elm-chan.org/fsw/ff/00index_e.html
+
+Software Name:  Firefly Sung Font
+Version:        1.3.0
+License Type:   Arphic Public License
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/fonts/apl
+Obtained From:  http://www.study-area.org/apt/firefly-font/
+
+Software Name:  Custom Font Generation Demo
+Version:        9453
+License Type:   TI StellarisWare Clickwrap SLA
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./third_party/fonts/lang_demo
+Obtained From:  N/A
+
+Software Name:  Various OFL Fonts
+Version:        N/A
+License Type:   Open Font License 
+License Type:   http://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/fonts/ofl
+Obtained From:  OldStandard - http://www.thessalonica.org.ru/en/fonts-download.html 
+Obtained From:  Theano - http://www.thessalonica.org.ru/en/fonts-download.html 
+Obtained From:  Andika - http://www.sil.org/computing/catalog/show_software.asp?id=119 
+Obtained From:  Breip - http://helloalan.com/projects/breip/ 
+Obtained From:  Nanum - http://hangeul.naver.com/download.nhn 
+
+Software Name:  Other Fonts
+Version:        N/A
+License Type:   BSD style
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/fonts/other
+Obtained From:  (Sazanami) http://sourceforge.jp/projects/efont/releases/#10087
+
+Software Name:  FreeRTOS
+Version:        7.1.1
+License Type:   GPLv2 with linking exception
+Delivered As:   Source
+Modified by TI: Yes - CCS port added
+Location:       ./third_party/FreeRTOS
+Obtained From:  http://sourceforge.net/projects/freertos/files/FreeRTOS/V7.1.1
+
+Software Name:  JPEG Library
+Version:        6b
+License Type:   BSD style
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/jpeg
+Obtained From:  http://www.ijg.org/files/
+
+Software Name:  LWIP Network Stack
+Version:        1.3.2
+License Type:   BSD
+Delivered As:   Source
+Modified by TI: Yes - porting code added
+Location:       ./third_party/lwip-1.3.2
+Obtained From:  http://savannah.nongnu.org/projects/lwip/
+
+Software Name:  PTP Daemon
+Version:        v1rc1
+License Type:   Unrestricted with attribution
+Delivered As:   Source
+Modified by TI: Yes - porting code added
+Location:       ./third_party/ptpd-1rc1
+Obtained From:  http://sourceforge.net/projects/ptpd/files/ptpd/
+
+Software Name:  SafeRTOS Headers
+Version:        3.0
+License Type:   Wittenstein TI device ROM license
+Delivered As:   Source
+Modified by TI: Yes - map to device ROM
+Location:       ./third_party/SafeRTOS
+Obtained From:  Wittenstein via TI
+
+Software Name:  Speex Audio Codec
+Version:        1.2rc1
+License Type:   BSD style
+Delivered As:   Source
+Modified by TI: Yes - added device port
+Location:       ./third_party/speex-1.2rc1
+Obtained From:  http://www.speex.org/downloads/
+
+Software Name:  UIP Network Stack
+Version:        1.0
+License Type:   BSD style
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/uip-1.0
+Obtained From:  http://www.sics.se/~adam/old-uip/download.html
+
+Software Name:  Fast Light Toolkit
+Version:        1.1.10
+License Type:   LGPL 2.0 with linking exception
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/windows/fltk-1.1.10
+Obtained From:  http://www.fltk.org/software.php
+
+Software Name:  USB Library - libusb
+Version:        0.1.12.1
+License Type:   LGPL 2.1
+Delivered As:   Binary
+Modified by TI: No
+Location:       ./third_party/windows/libusb-win32-device-bin-0.1.12.1
+Obtained From:  http://sourceforge.net/projects/libusb-win32/files/
+
+Software Name:  ZIP Z-code Interpreter
+Version:        2.0
+License Type:   No license information can be found
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/zip
+Obtained From:  http://www.ifarchive.org/if-archive/infocom/interpreters/zip/zip.sh.Z
+    
