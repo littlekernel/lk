@@ -16,11 +16,7 @@ typedef enum IRQn
   DebugMonitor_IRQn     = FAULT_DEBUG-16,
   PendSV_IRQn           = FAULT_PENDSV-16,
   SysTick_IRQn          = FAULT_SYSTICK-16
-
-
-
 } IRQn_Type;
-
 
 // based on datasheet page 159?
 #define __NVIC_PRIO_BITS 3

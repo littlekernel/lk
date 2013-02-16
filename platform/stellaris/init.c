@@ -44,7 +44,7 @@ void platform_early_init(void)
   // instructions to be used within interrupt handlers, but at the expense of
   // extra stack usage.
   //
-  FPULazyStackingEnable();
+//  FPULazyStackingEnable();
 
   //
   // Set the clocking to run directly from the crystal.

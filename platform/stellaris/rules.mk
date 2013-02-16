@@ -26,14 +26,13 @@ endif
 
 INCLUDES += \
 	-I$(LOCAL_DIR)/include \
-	-I$(LOCAL_DIR)/ti
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/startup_gcc.c \
-	$(LOCAL_DIR)/ti_driverlib.c
+
 
 #	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/interrupts.c \
@@ -56,6 +55,6 @@ LINKER_SCRIPT += \
 MODULE_DEPS += \
 	lib/cbuf
 
-#include $(LOCAL_DIR)/cmsis/sam3x/rules.mk $(LOCAL_DIR)/drivers/rules.mk
+include $(LOCAL_DIR)/ti/rules.mk
 
 include make/module.mk
