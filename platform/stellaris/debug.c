@@ -57,7 +57,7 @@ void stellaris_uart_irq(void)
 	//
 	// Loop while there are characters in the receive FIFO.
 	//
-	while(UARTCharsAvail(DEBUG_UART)) {
+	while (UARTCharsAvail(DEBUG_UART)) {
 		//
 		// Read the next character from the UART and write it back to the UART.
 		//
@@ -117,7 +117,7 @@ int platform_dgetc(char *c, bool wait)
 void platform_halt(void)
 {
 	dprintf(ALWAYS, "HALT: spinning forever...\n");
-	for(;;);
+	for (;;);
 }
 
 

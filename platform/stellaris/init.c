@@ -39,28 +39,28 @@ void stellaris_timer_init(void);
 
 void platform_early_init(void)
 {
-  //
-  // Enable lazy stacking for interrupt handlers.  This allows floating-point
-  // instructions to be used within interrupt handlers, but at the expense of
-  // extra stack usage.
-  //
+	//
+	// Enable lazy stacking for interrupt handlers.  This allows floating-point
+	// instructions to be used within interrupt handlers, but at the expense of
+	// extra stack usage.
+	//
 //  FPULazyStackingEnable();
 
-  //
-  // Set the clocking to run directly from the crystal.
-  //
-  SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+	//
+	// Set the clocking to run directly from the crystal.
+	//
+	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 
 
 
 	stellaris_timer_early_init();
 
-  /*
+	/*
 	wdt_disable(WDT);
 
 	pmc_enable_periph_clk(ID_PIOC);
 	pio_set_output(PIOC, PIO_PC9, 0, 0, 1);
-  */
+	*/
 
 	stellaris_debug_early_init();
 }

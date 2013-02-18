@@ -100,13 +100,13 @@ lk_bigtime_t current_time_hires(void)
 
 void stellaris_timer_early_init(void)
 {
-  SysTickPeriodSet(SysCtlClockGet() / TICK_RATE);
+	SysTickPeriodSet(SysCtlClockGet() / TICK_RATE);
 }
 
 void stellaris_timer_init(void)
 {
-  SysTickIntEnable();
-  SysTickEnable();
+	SysTickIntEnable();
+	SysTickEnable();
 }
 
 
