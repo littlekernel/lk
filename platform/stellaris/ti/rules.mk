@@ -1,6 +1,6 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-MODULE_INCLUDES += -I$(LOCAL_DIR)
+INCLUDES += -I$(LOCAL_DIR)
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/driverlib/adc.c \

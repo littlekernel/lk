@@ -47,12 +47,13 @@ __BEGIN_CDECLS
 
 #include "inc/hw_types.h"
 #include "inc/hw_sysctl.h"
+#include "inc/hw_memmap.h"
 
+#include "driverlib/gpio.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/sysctl.h"
-#include "driverlib/uart.h"
-#include "driverlib/gpio.h"
 #include "driverlib/systick.h"
+#include "driverlib/uart.h"
 
 __END_CDECLS
 

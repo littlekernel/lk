@@ -25,9 +25,6 @@
 #include <debug.h>
 #include <platform.h>
 
-#include "ti/inc/hw_memmap.h"
-#include "ti/inc/hw_types.h"
-
 #include "ti_driverlib.h"
 
 
