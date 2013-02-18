@@ -31,12 +31,11 @@
 #include <inc/hw_types.h>
 #include "ti_driverlib.h"
 
-#define MCLK 84000000 /* XXX read this */
-#define TICK_RATE (MCLK / 2)
-
 #define LOCAL_TRACE 0
 
 static volatile uint64_t ticks = 0;
+
+static uint32_t tick_rate_mhz = 0;
 
 static platform_timer_callback cb;
 static void *cb_args;
@@ -47,6 +46,7 @@ void _systick(void)
 	inc_critical_section();
 
 	bool resched = false;
+	ticks += 10000;
 	if (cb) {
 		lk_time_t now = current_time();
 		if (cb(cb_args, now) == INT_RESCHEDULE)
@@ -65,14 +65,20 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 {
 	LTRACEF("callback %p, arg %p, interval %ld\n", callback, arg, interval);
 
+	enter_critical_section();
+
 	cb = callback;
 	cb_args = arg;
 
-	cm3_systick_set_periodic(/* XXX */ MCLK, interval);
+	uint32_t clock_rate = SysCtlClockGet();
+
+	tick_rate_mhz = clock_rate / 1000000;
+	cm3_systick_set_periodic(clock_rate, interval);
+
+	exit_critical_section();
 
 	return NO_ERROR;
 }
-
 
 lk_time_t current_time(void)
 {
@@ -81,32 +87,31 @@ lk_time_t current_time(void)
 
 lk_bigtime_t current_time_hires(void)
 {
+	uint32_t reload = SysTick->LOAD  & SysTick_LOAD_RELOAD_Msk;
+
 	uint64_t t;
+	uint32_t delta;
 	do {
 		t = ticks;
-		uint16_t delta = SysTickValueGet();
+		delta = (volatile uint32_t)SysTick->VAL;
 
 		if (ticks != t)
 			continue;
-
-		t += delta;
 	} while (0);
 
 	/* convert ticks to usec */
-	lk_bigtime_t res = t / (TICK_RATE / 1000000);
+	delta = (reload - delta) / tick_rate_mhz;
+	lk_bigtime_t res = t + delta;
 
 	return res;
 }
 
 void stellaris_timer_early_init(void)
 {
-	SysTickPeriodSet(SysCtlClockGet() / TICK_RATE);
 }
 
 void stellaris_timer_init(void)
 {
-	SysTickIntEnable();
-	SysTickEnable();
 }
 
 

@@ -26,9 +26,11 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/driverlib/ssi.c \
 	$(LOCAL_DIR)/driverlib/sysctl.c \
 	$(LOCAL_DIR)/driverlib/sysexc.c \
-	$(LOCAL_DIR)/driverlib/systick.c \
 	$(LOCAL_DIR)/driverlib/timer.c \
 	$(LOCAL_DIR)/driverlib/uart.c \
 	$(LOCAL_DIR)/driverlib/udma.c \
 	$(LOCAL_DIR)/driverlib/usb.c \
 	$(LOCAL_DIR)/driverlib/watchdog.c
+
+# UNUSED
+#	$(LOCAL_DIR)/driverlib/systick.c

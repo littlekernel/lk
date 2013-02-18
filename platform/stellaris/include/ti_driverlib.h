@@ -52,7 +52,6 @@ __BEGIN_CDECLS
 #include "driverlib/gpio.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/sysctl.h"
-#include "driverlib/systick.h"
 #include "driverlib/uart.h"
 
 __END_CDECLS
