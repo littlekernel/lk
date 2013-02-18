@@ -25,11 +25,35 @@
 #include <target.h>
 #include <compiler.h>
 
+#include "ti_driverlib.h"
+
 void target_early_init(void)
 {
+	SysCtlPeripheralPowerOn(SYSCTL_PERIPH_GPIOF);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+
+	GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0);
+	GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
+	GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, 0);
+
+	GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+	GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+	GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+	GPIODirModeSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_DIR_MODE_OUT);
+	GPIODirModeSet(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_DIR_MODE_OUT);
+	GPIODirModeSet(GPIO_PORTF_BASE, GPIO_PIN_3, GPIO_DIR_MODE_OUT);
 }
 
 void target_init(void)
 {
+}
+
+void target_set_debug_led(unsigned int led, bool on)
+{
+	switch (led) {
+		case 0: GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, on ? GPIO_PIN_1 : 0); break;
+		case 1: GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, on ? GPIO_PIN_2 : 0); break;
+		case 2: GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3, on ? GPIO_PIN_3 : 0); break;
+	}
 }
 
