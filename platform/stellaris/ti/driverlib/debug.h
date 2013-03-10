@@ -54,7 +54,8 @@ extern void __error__(char *pcFilename, unsigned long ulLine);
 // will be for procedure arguments.
 //
 //*****************************************************************************
-#ifdef DEBUG
+//#ifdef DEBUG
+#if 0
 #define ASSERT(expr) {                                      \
                          if(!(expr))                        \
                          {                                  \

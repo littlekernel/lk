@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012 Ian McKellar
+ * Copyright (c) 2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -33,9 +34,10 @@
 
 #define LOCAL_TRACE 0
 
-static volatile uint64_t ticks = 0;
-
+static volatile uint64_t ticks;
 static uint32_t tick_rate_mhz = 0;
+static lk_time_t tick_interval_ms;
+static lk_bigtime_t tick_interval_us;
 
 static platform_timer_callback cb;
 static void *cb_args;
@@ -45,8 +47,8 @@ void _systick(void)
 {
 	inc_critical_section();
 
+	ticks++;
 	bool resched = false;
-	ticks += 10000;
 	if (cb) {
 		lk_time_t now = current_time();
 		if (cb(cb_args, now) == INT_RESCHEDULE)
@@ -70,10 +72,9 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	cb = callback;
 	cb_args = arg;
 
-	uint32_t clock_rate = SysCtlClockGet();
-
-	tick_rate_mhz = clock_rate / 1000000;
-	cm3_systick_set_periodic(clock_rate, interval);
+	tick_interval_ms = interval;
+	tick_interval_us = interval * 1000;
+	cm3_systick_set_periodic(SysCtlClockGet(), interval);
 
 	exit_critical_section();
 
@@ -82,7 +83,20 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 
 lk_time_t current_time(void)
 {
-	return current_time_hires() / 1000;
+	uint32_t reload = SysTick->LOAD  & SysTick_LOAD_RELOAD_Msk;
+
+	uint64_t t;
+	uint32_t delta;
+	do {
+		t = ticks;
+		delta = (volatile uint32_t)SysTick->VAL;
+	} while (ticks != t);
+
+	/* convert ticks to msec */
+	delta = (reload - delta) / (tick_rate_mhz * 1000);
+	lk_time_t res = (t * tick_interval_ms) + delta;
+
+	return res;
 }
 
 lk_bigtime_t current_time_hires(void)
@@ -94,20 +108,28 @@ lk_bigtime_t current_time_hires(void)
 	do {
 		t = ticks;
 		delta = (volatile uint32_t)SysTick->VAL;
-
-		if (ticks != t)
-			continue;
-	} while (0);
+	} while (ticks != t);
 
 	/* convert ticks to usec */
 	delta = (reload - delta) / tick_rate_mhz;
-	lk_bigtime_t res = t + delta;
+	lk_bigtime_t res = (t * tick_interval_us) + delta;
 
 	return res;
 }
 
 void stellaris_timer_early_init(void)
 {
+	uint32_t clock_rate = SysCtlClockGet();
+	tick_rate_mhz = clock_rate / 1000000;
+
+#if 0
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_WTIMER0);
+
+	/* configure the timer as a 64bit up counting tick at syslock rate */
+	TimerConfigure(WTIMER0_BASE, TIMER_CFG_PERIODIC_UP);
+	TimerLoadSet64(WTIMER0_BASE, ULONG_MAX);
+	TimerEnable(WTIMER0_BASE, TIMER_BOTH);
+#endif
 }
 
 void stellaris_timer_init(void)
