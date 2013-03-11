@@ -55,7 +55,7 @@ void _systick(void)
 
 	if (resched) {
 		// have the cortex-m3 queue a preemption
-		cm3_trigger_preempt();
+		arm_cm_trigger_preempt();
 	}
 
 	dec_critical_section();
@@ -71,7 +71,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	RCC_ClocksTypeDef clocks;
 	RCC_GetClocksFreq(&clocks);
 
-	cm3_systick_set_periodic(clocks.SYSCLK_Frequency, interval);
+	arm_cm_systick_set_periodic(clocks.SYSCLK_Frequency, interval);
 
 	return NO_ERROR;
 }

@@ -64,7 +64,7 @@ void stellaris_uart_irq(void)
 		unsigned char c = UARTCharGetNonBlocking(DEBUG_UART);
 		cbuf_write_char(&debug_rx_buf, c, false);
 
-		cm3_trigger_preempt();
+		arm_cm_trigger_preempt();
 	}
 
 	dec_critical_section();

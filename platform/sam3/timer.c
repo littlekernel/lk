@@ -55,7 +55,7 @@ void _systick(void)
 
 	if (resched) {
 		// have the cortex-m3 queue a preemption
-		cm3_trigger_preempt();
+		arm_cm_trigger_preempt();
 	}
 
 	dec_critical_section();
@@ -68,7 +68,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	cb = callback;
 	cb_args = arg;
 
-	cm3_systick_set_periodic(/* XXX */ MCLK, interval);
+	arm_cm_systick_set_periodic(/* XXX */ MCLK, interval);
 
 	return NO_ERROR;
 }
@@ -124,7 +124,7 @@ void sam_timer_early_init(void)
 	tc_write_rc(TC0, 0, 0xffff); // slowest we can run
 
 	/* Configure and enable interrupt on RC compare */
-	NVIC_SetPriority(ID_TC0, cm3_highest_priority());
+	NVIC_SetPriority(ID_TC0, arm_cm_highest_priority());
 	NVIC_EnableIRQ((IRQn_Type) ID_TC0);
 	tc_enable_interrupt(TC0, 0, TC_IER_CPCS);
 

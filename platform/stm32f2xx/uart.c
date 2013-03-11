@@ -142,7 +142,7 @@ void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
 		cbuf_write_char(rxbuf, c, false);
 	}
 
-	cm3_trigger_preempt();
+	arm_cm_trigger_preempt();
 
 	dec_critical_section();
 }
