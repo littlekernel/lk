@@ -165,5 +165,13 @@ void arm_cm_systick_set_periodic(uint32_t systick_clk_freq, lk_time_t period);
 void arm_cm_systick_cancel_periodic(void);
 /* extern void _systick(void); // override this */
 
+/* interrupt glue */
+/*
+ * Platform code should put this as the first and last line of their irq handlers.
+ * Pass true to reschedule to request a preempt.
+ */
+void arm_cm_irq_entry(void);
+void arm_cm_irq_exit(bool reschedule);
+
 #endif
 

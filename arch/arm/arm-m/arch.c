@@ -24,6 +24,7 @@
 #include <arch.h>
 #include <arch/ops.h>
 #include <arch/arm.h>
+#include <kernel/thread.h>
 #include <platform.h>
 #include <arch/arm/cm.h>
 
@@ -119,5 +120,20 @@ void _arm_cm_set_irqpri(uint32_t pri)
 			__set_BASEPRI(_pri);
 		__enable_irq(); // cpsie i
 	}
+}
+
+void arm_cm_irq_entry(void)
+{
+	inc_critical_section();
+
+	THREAD_STATS_INC(interrupts);
+}
+
+void arm_cm_irq_exit(bool reschedule)
+{
+	if (reschedule)
+		arm_cm_trigger_preempt();
+
+	dec_critical_section();
 }
 
