@@ -42,7 +42,7 @@ static cbuf_t debug_rx_buf;
 
 void stellaris_uart_irq(void)
 {
-	inc_critical_section();
+	arm_cm_irq_entry();
 
 	//
 	// Get the interrrupt status.
@@ -57,6 +57,7 @@ void stellaris_uart_irq(void)
 	//
 	// Loop while there are characters in the receive FIFO.
 	//
+	bool resched = false;
 	while (UARTCharsAvail(DEBUG_UART)) {
 		//
 		// Read the next character from the UART and write it back to the UART.
@@ -64,10 +65,10 @@ void stellaris_uart_irq(void)
 		unsigned char c = UARTCharGetNonBlocking(DEBUG_UART);
 		cbuf_write_char(&debug_rx_buf, c, false);
 
-		arm_cm_trigger_preempt();
+		resched = true;
 	}
 
-	dec_critical_section();
+	arm_cm_irq_exit(resched);
 }
 
 void stellaris_debug_early_init(void)

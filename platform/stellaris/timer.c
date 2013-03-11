@@ -45,7 +45,7 @@ static void *cb_args;
 /* use systick as the kernel tick */
 void _systick(void)
 {
-	inc_critical_section();
+	arm_cm_irq_entry();
 
 	ticks++;
 	bool resched = false;
@@ -55,12 +55,7 @@ void _systick(void)
 			resched = true;
 	}
 
-	if (resched) {
-		// have the cortex-m3 queue a preemption
-		arm_cm_trigger_preempt();
-	}
-
-	dec_critical_section();
+	arm_cm_irq_exit(resched);
 }
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)

@@ -128,8 +128,9 @@ void uart_init(void)
 
 void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
 {
-	inc_critical_section();
+	arm_cm_irq_entry();
 
+	bool resched = false;
 	while (USART_GetFlagStatus(usart, USART_FLAG_RXNE)) {
 		if (!cbuf_space_avail(rxbuf)) {
 			// Overflow - let flow control do its thing by not
@@ -140,11 +141,10 @@ void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
 
 		char c = USART_ReceiveData(usart);
 		cbuf_write_char(rxbuf, c, false);
+		resched = true;
 	}
 
-	arm_cm_trigger_preempt();
-
-	dec_critical_section();
+	arm_cm_irq_exit(resched);
 }
 
 #ifdef ENABLE_UART1

@@ -23,6 +23,7 @@
 #include <debug.h>
 #include <compiler.h>
 #include <stm32f2xx.h>
+#include <arch/arm/cm.h>
 #include <platform/stm32.h>
 #include <target/debugconfig.h>
 #include <lib/cbuf.h>
@@ -30,6 +31,8 @@
 /* un-overridden irq handler */
 void stm32_dummy_irq(void)
 {
+	arm_cm_irq_entry();
+
 	panic("unhandled irq\n");
 }
 

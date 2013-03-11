@@ -39,15 +39,16 @@ static cbuf_t debug_rx_buf;
 
 void sam3_uart_irq(void)
 {
-	inc_critical_section();
+	arm_cm_irq_entry();
 
+	bool resched = false;
 	unsigned char c;
 	if (uart_read(UART, &c) == 0) {
 		cbuf_write_char(&debug_rx_buf, c, false);
-		arm_cm_trigger_preempt();
+		resched = true;
 	}
 
-	dec_critical_section();
+	arm_cm_irq_exit(resched);
 }
 
 void sam_debug_early_init(void)
