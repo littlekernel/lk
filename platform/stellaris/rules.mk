@@ -31,7 +31,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/timer.c \
-	$(LOCAL_DIR)/startup_gcc.c \
+	$(LOCAL_DIR)/vectab.c \
 
 
 #	$(LOCAL_DIR)/debug.c \
