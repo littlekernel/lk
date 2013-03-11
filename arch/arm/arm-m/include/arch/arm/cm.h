@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2012-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,6 +25,10 @@
 
 /* support header for all cortex-m class cpus */
 
+#include <compiler.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <sys/types.h>
 #include <platform/platform_cm.h>
 
 #if ARM_CPU_CORTEX_M3
@@ -40,7 +44,7 @@
 #define DWT_CYCCNT (0xE0001004)
 #define SCB_DEMCR (0xE000EDFC)
 
-struct cm3_exception_frame {
+struct arm_cm_exception_frame {
 	uint32_t r4;
 	uint32_t r5;
 	uint32_t r6;
@@ -59,7 +63,7 @@ struct cm3_exception_frame {
 	uint32_t psr;
 };
 
-struct cm3_exception_frame_short {
+struct arm_cm_exception_frame_short {
 	uint32_t r0;
 	uint32_t r1;
 	uint32_t r2;
@@ -70,7 +74,7 @@ struct cm3_exception_frame_short {
 	uint32_t psr;
 };
 
-struct cm3_exception_frame_long {
+struct arm_cm_exception_frame_long {
 	uint32_t r4;
 	uint32_t r5;
 	uint32_t r6;
@@ -91,8 +95,8 @@ struct cm3_exception_frame_long {
 };
 
 #if ARM_M_DYNAMIC_PRIORITY_SIZE
-extern unsigned int cm3_num_irq_pri_bits;
-extern unsigned int cm3_irq_pri_mask;
+extern unsigned int arm_cm_num_irq_pri_bits;
+extern unsigned int arm_cm_irq_pri_mask;
 #else
 /* if we don't want to calculate the nubmer of priority bits, then assume
  * the cpu implements 3 (8 priority levels), which is the minimum according to spec.
@@ -100,13 +104,13 @@ extern unsigned int cm3_irq_pri_mask;
 #ifndef ARM_M_PRIORITY_BITS
 #define ARM_M_PRIORITY_BITS 3
 #endif
-static const unsigned int cm3_num_irq_pri_bits = 8 - ARM_M_PRIORITY_BITS;
-static const unsigned int cm3_irq_pri_mask = ~((1 << ARM_M_PRIORITY_BITS) - 1) & 0xff;
+static const unsigned int arm_cm_num_irq_pri_bits = 8 - ARM_M_PRIORITY_BITS;
+static const unsigned int arm_cm_irq_pri_mask = ~((1 << ARM_M_PRIORITY_BITS) - 1) & 0xff;
 #endif
 
-void _cm3_set_irqpri(uint32_t pri);
+void _arm_cm_set_irqpri(uint32_t pri);
 
-static void cm3_set_irqpri(uint32_t pri)
+static void arm_cm_set_irqpri(uint32_t pri)
 {
 	if (__ISCONSTANT(pri)) {
 		if (pri == 0) {
@@ -116,49 +120,49 @@ static void cm3_set_irqpri(uint32_t pri)
 			__set_BASEPRI(0);
 			__enable_irq();
 		} else {
-			uint32_t _pri = pri & cm3_irq_pri_mask;
+			uint32_t _pri = pri & arm_cm_irq_pri_mask;
 
 			if (_pri == 0)
-				__set_BASEPRI(1 << (8 - cm3_num_irq_pri_bits));
+				__set_BASEPRI(1 << (8 - arm_cm_num_irq_pri_bits));
 			else
 				__set_BASEPRI(_pri);
 			__enable_irq(); // cpsie i
 		}
 	} else {
-		_cm3_set_irqpri(pri);
+		_arm_cm_set_irqpri(pri);
 	}
 }
 
 
-static inline uint32_t cm3_highest_priority(void)
+static inline uint32_t arm_cm_highest_priority(void)
 {
-	return (1 << (8 - cm3_num_irq_pri_bits));
+	return (1 << (8 - arm_cm_num_irq_pri_bits));
 }
 
-static inline uint32_t cm3_lowest_priority(void)
+static inline uint32_t arm_cm_lowest_priority(void)
 {
-	return (255 & cm3_irq_pri_mask) & 0xff;
+	return (255 & arm_cm_irq_pri_mask) & 0xff;
 }
 
-static inline uint32_t cm3_medium_priority(void)
+static inline uint32_t arm_cm_medium_priority(void)
 {
-	return (128 & cm3_irq_pri_mask) & 0xff;
+	return (128 & arm_cm_irq_pri_mask) & 0xff;
 }
 
-static inline void cm3_trigger_interrupt(int vector)
+static inline void arm_cm_trigger_interrupt(int vector)
 {
 	NVIC->STIR = vector;
 }
 
-static inline void cm3_trigger_preempt(void)
+static inline void arm_cm_trigger_preempt(void)
 {
 	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
 /* systick */
-void cm3_systick_init(void);
-void cm3_systick_set_periodic(uint32_t systick_clk_freq, lk_time_t period);
-void cm3_systick_cancel_periodic(void);
+void arm_cm_systick_init(void);
+void arm_cm_systick_set_periodic(uint32_t systick_clk_freq, lk_time_t period);
+void arm_cm_systick_cancel_periodic(void);
 /* extern void _systick(void); // override this */
 
 #endif

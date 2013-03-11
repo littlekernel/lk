@@ -30,12 +30,12 @@
 
 #define LOCAL_TRACE 0
 
-void cm3_systick_init(void)
+void arm_cm_systick_init(void)
 {
-	NVIC_SetPriority(SysTick_IRQn, cm3_medium_priority());
+	NVIC_SetPriority(SysTick_IRQn, arm_cm_medium_priority());
 }
 
-void cm3_systick_set_periodic(uint32_t systick_clk_freq, lk_time_t period)
+void arm_cm_systick_set_periodic(uint32_t systick_clk_freq, lk_time_t period)
 {
 	LTRACEF("clk_freq %u, period %u\n", systick_clk_freq, (uint)period);
 
@@ -47,7 +47,7 @@ void cm3_systick_set_periodic(uint32_t systick_clk_freq, lk_time_t period)
 	SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
 }
 
-void cm3_systick_cancel_periodic(void)
+void arm_cm_systick_cancel_periodic(void)
 {
 	SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
 }

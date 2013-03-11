@@ -31,7 +31,7 @@
 
 #define LOCAL_TRACE 0
 
-struct cm3_context_switch_frame {
+struct arm_cm_context_switch_frame {
 	uint32_t r4;
 	uint32_t r5;
 	uint32_t r6;
@@ -70,7 +70,7 @@ void arch_thread_initialize(struct thread *t)
 	/* find the top of the stack and align it on an 8 byte boundary */
 	uint32_t *sp = (void *)ROUNDDOWN((vaddr_t)t->stack + t->stack_size, 8);
 
-	struct cm3_context_switch_frame *frame = (void *)sp;
+	struct arm_cm_context_switch_frame *frame = (void *)sp;
 	frame--;
 
 	/* arrange for lr to point to our starting routine */
@@ -80,9 +80,9 @@ void arch_thread_initialize(struct thread *t)
 	t->arch.was_preempted = false;
 }
 
-volatile struct cm3_exception_frame_long *preempt_frame;
+volatile struct arm_cm_exception_frame_long *preempt_frame;
 
-static void pendsv(struct cm3_exception_frame_long *frame)
+static void pendsv(struct arm_cm_exception_frame_long *frame)
 {
 	arch_disable_ints();
 	inc_critical_section();
@@ -214,7 +214,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 		} else {
 			/* we're inside a pendsv, switching to a user mode thread */
 			/* set up a fake frame to exception return to */
-			struct cm3_exception_frame_short *frame = (void *)newthread->arch.sp;
+			struct arm_cm_exception_frame_short *frame = (void *)newthread->arch.sp;
 			frame--;
 
 			frame->pc = (uint32_t)&_thread_mode_bounce;

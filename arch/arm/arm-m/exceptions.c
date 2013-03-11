@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2012-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,7 +25,7 @@
 #include <stdint.h>
 #include <arch/arm/cm.h>
 
-static void dump_frame(const struct cm3_exception_frame *frame)
+static void dump_frame(const struct arm_cm_exception_frame *frame)
 {
 	printf("exception frame at %p\n", frame);
 	printf("\tr0  0x%08x r1  0x%08x r2  0x%08x r3 0x%08x r4 0x%08x\n",
@@ -38,7 +38,7 @@ static void dump_frame(const struct cm3_exception_frame *frame)
 	       frame->lr, frame->pc, frame->psr);
 }
 
-static void hardfault(struct cm3_exception_frame *frame)
+static void hardfault(struct arm_cm_exception_frame *frame)
 {
 	printf("hardfault: ");
 	dump_frame(frame);
@@ -48,7 +48,7 @@ static void hardfault(struct cm3_exception_frame *frame)
 	halt();
 }
 
-static void usagefault(struct cm3_exception_frame *frame)
+static void usagefault(struct arm_cm_exception_frame *frame)
 {
 	printf("usagefault: ");
 	dump_frame(frame);
@@ -56,7 +56,7 @@ static void usagefault(struct cm3_exception_frame *frame)
 	halt();
 }
 
-static void busfault(struct cm3_exception_frame *frame)
+static void busfault(struct arm_cm_exception_frame *frame)
 {
 	printf("busfault: ");
 	dump_frame(frame);

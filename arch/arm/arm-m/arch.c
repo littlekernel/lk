@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2012-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -33,8 +33,8 @@ extern int _end_of_ram;
 void *_heap_end = &_end_of_ram;
 
 #if ARM_M_DYNAMIC_PRIORITY_SIZE
-unsigned int cm3_num_irq_pri_bits;
-unsigned int cm3_irq_pri_mask;
+unsigned int arm_cm_num_irq_pri_bits;
+unsigned int arm_cm_irq_pri_mask;
 #endif
 
 void arch_early_init(void)
@@ -63,8 +63,8 @@ void arch_early_init(void)
 		if (__get_BASEPRI() != 0)
 			break;
 	}
-	cm3_num_irq_pri_bits = 8 - i;
-	cm3_irq_pri_mask = ~((1 << i) - 1) & 0xff;
+	arm_cm_num_irq_pri_bits = 8 - i;
+	arm_cm_irq_pri_mask = ~((1 << i) - 1) & 0xff;
 #endif
 
 	/* leave BASEPRI at 0 */
@@ -77,11 +77,11 @@ void arch_early_init(void)
 	SCB->SHCSR |= (SCB_SHCSR_USGFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_MEMFAULTENA_Msk);
 
 	/* set the svc and pendsv priority level to pretty low */
-	SCB->SHP[11-4] = cm3_lowest_priority();
-	SCB->SHP[14-4] = cm3_lowest_priority();
+	SCB->SHP[11-4] = arm_cm_lowest_priority();
+	SCB->SHP[14-4] = arm_cm_lowest_priority();
 
 	/* initialize the systick mechanism */
-	cm3_systick_init();
+	arm_cm_systick_init();
 }
 
 void arch_init(void)
@@ -102,7 +102,7 @@ void arch_idle(void)
 	__asm__ volatile("wfi");
 }
 
-void _cm3_set_irqpri(uint32_t pri)
+void _arm_cm_set_irqpri(uint32_t pri)
 {
 	if (pri == 0) {
 		__disable_irq(); // cpsid i
@@ -111,10 +111,10 @@ void _cm3_set_irqpri(uint32_t pri)
 		__set_BASEPRI(0);
 		__enable_irq();
 	} else {
-		uint32_t _pri = pri & cm3_irq_pri_mask;
+		uint32_t _pri = pri & arm_cm_irq_pri_mask;
 
 		if (_pri == 0)
-			__set_BASEPRI(1 << (8 - cm3_num_irq_pri_bits));
+			__set_BASEPRI(1 << (8 - arm_cm_num_irq_pri_bits));
 		else
 			__set_BASEPRI(_pri);
 		__enable_irq(); // cpsie i
