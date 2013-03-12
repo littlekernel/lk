@@ -34,6 +34,10 @@ SECTIONS
 	.rodata : {
 		*(.rodata*)
 		*(.gnu.linkonce.r.*)
+		. = ALIGN(4);
+		__drivers = .;
+		KEEP(*(.drivers))
+		__drivers_end = .;
 	}
 
 	.data : ALIGN(4096) {
@@ -47,6 +51,10 @@ SECTIONS
 		__apps_start = .;
 		KEEP (*(.apps))
 		__apps_end = .;
+		. = ALIGN(4);
+		__devices = .;
+		KEEP(*(.devices))
+		__devices_end = .;
 	}
 	__ctor_list = .;
 	.ctors : { *(.ctors) }
