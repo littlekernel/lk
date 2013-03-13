@@ -10,6 +10,7 @@ PROJECTS="$PROJECTS stm32-p107-test"
 PROJECTS="$PROJECTS sam3x-ek-test"
 PROJECTS="$PROJECTS stm3220g-eval"
 PROJECTS="$PROJECTS stm32-p407-test"
+PROJECTS="$PROJECTS stellaris-launchpad-test"
 FAILED=""
 
 for p in $PROJECTS; do
