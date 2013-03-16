@@ -1,4 +1,4 @@
 #!/bin/sh
 
 make realview-pb-test -j4 &&
-qemu-system-arm -machine realview-pb-a8 -kernel build-realview-pb-test/lk -nographic $@
+qemu-system-arm -machine realview-pb-a8 -kernel build-realview-pb-test/lk.elf -nographic $@
