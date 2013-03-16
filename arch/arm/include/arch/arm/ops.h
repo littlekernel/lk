@@ -45,6 +45,21 @@ static inline void arch_disable_ints(void)
 	CF;
 }
 
+static inline bool arch_ints_disabled(void)
+{
+	unsigned int state;
+
+#if ARM_ISA_ARMV7M
+	__asm__ volatile("mrs %0, primask" : "=r"(state));
+	state &= 0x1;
+#else
+	__asm__ volatile("mrs %0, cpsr" : "=r"(state));
+	state &= (1<<7);
+#endif
+
+	return !!state;
+}
+
 static inline int atomic_add(volatile int *ptr, int val)
 {
 #if USE_GCC_ATOMICS

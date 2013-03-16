@@ -42,6 +42,19 @@ static inline inline void arch_disable_ints(void)
 	CF;
 }
 
+static inline inline bool arch_ints_disabled(void)
+{
+	unsigned int state;
+
+	__asm__ volatile(
+	   "pushfl;"
+	   "popl %%eax"
+	   : "=a" (state)
+	   :: "memory");
+
+	return !!(state & (1<<9));
+}
+
 int _atomic_and(volatile int *ptr, int val);
 int _atomic_or(volatile int *ptr, int val);
 int _atomic_cmpxchg(volatile int *ptr, int oldval, int newval);
