@@ -34,6 +34,9 @@ void stellaris_debug_init(void);
 void stellaris_timer_early_init(void);
 void stellaris_timer_init(void);
 
+void stellaris_gpio_early_init(void);
+void stellaris_gpio_init(void);
+
 void platform_early_init(void)
 {
 	//
@@ -48,16 +51,9 @@ void platform_early_init(void)
 	//
 	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 
-
-
 	stellaris_timer_early_init();
 
-	/*
-	wdt_disable(WDT);
-
-	pmc_enable_periph_clk(ID_PIOC);
-	pio_set_output(PIOC, PIO_PC9, 0, 0, 1);
-	*/
+	stellaris_gpio_early_init();
 
 	stellaris_debug_early_init();
 }
@@ -65,6 +61,7 @@ void platform_early_init(void)
 void platform_init(void)
 {
 	stellaris_timer_init();
+	stellaris_gpio_init();
 	stellaris_debug_init();
 }
 
