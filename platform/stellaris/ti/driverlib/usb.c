@@ -1441,7 +1441,7 @@ USBDevEndpointStall(unsigned long ulBase, unsigned long ulEndpoint,
     // Check the arguments.
     //
     ASSERT(ulBase == USB0_BASE);
-    ASSERT((ulFlags & ~(USB_EP_DEV_IN | USB_EP_DEV_OUT)) == 0)
+    ASSERT((ulFlags & ~(USB_EP_DEV_IN | USB_EP_DEV_OUT)) == 0);
     ASSERT((ulEndpoint == USB_EP_0) || (ulEndpoint == USB_EP_1) ||
            (ulEndpoint == USB_EP_2) || (ulEndpoint == USB_EP_3) ||
            (ulEndpoint == USB_EP_4) || (ulEndpoint == USB_EP_5) ||
@@ -1516,7 +1516,7 @@ USBDevEndpointStallClear(unsigned long ulBase, unsigned long ulEndpoint,
            (ulEndpoint == USB_EP_10) || (ulEndpoint == USB_EP_11) ||
            (ulEndpoint == USB_EP_12) || (ulEndpoint == USB_EP_13) ||
            (ulEndpoint == USB_EP_14) || (ulEndpoint == USB_EP_15));
-    ASSERT((ulFlags & ~(USB_EP_DEV_IN | USB_EP_DEV_OUT)) == 0)
+    ASSERT((ulFlags & ~(USB_EP_DEV_IN | USB_EP_DEV_OUT)) == 0);
 
     //
     // Determine how to clear the stall on this endpoint.

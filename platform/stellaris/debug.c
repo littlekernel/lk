@@ -122,7 +122,3 @@ void platform_halt(void)
 }
 
 
-// TI driverlib debug function
-extern void __error__(char *pcFilename, unsigned long ulLine)
-{
-}

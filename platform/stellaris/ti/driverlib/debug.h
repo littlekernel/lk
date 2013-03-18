@@ -54,8 +54,8 @@ extern void __error__(char *pcFilename, unsigned long ulLine);
 // will be for procedure arguments.
 //
 //*****************************************************************************
-//#ifdef DEBUG
 #if 0
+#ifdef DEBUG
 #define ASSERT(expr) {                                      \
                          if(!(expr))                        \
                          {                                  \
@@ -64,6 +64,15 @@ extern void __error__(char *pcFilename, unsigned long ulLine);
                      }
 #else
 #define ASSERT(expr)
+#endif
+#else
+
+#include <assert.h>
+
+/* use lk's debug assert */
+#undef ASSERT
+#define ASSERT(e) DEBUG_ASSERT(e)
+
 #endif
 
 #endif // __DEBUG_H__
