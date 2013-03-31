@@ -23,6 +23,9 @@
 #ifndef __ARM_M_ARCH_THREAD_H
 #define __ARM_M_ARCH_THREAD_H
 
+#include <stdbool.h>
+#include <sys/types.h>
+
 struct arch_thread {
 	vaddr_t sp;
 	bool was_preempted;

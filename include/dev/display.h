@@ -23,7 +23,7 @@
 #ifndef __DEV_DISPLAY_H
 #define __DEV_DISPLAY_H
 
-#include <sys/types.h>
+#include <stdbool.h>
 #include <lib/gfx.h>
 
 int display_init(void *framebuffer);

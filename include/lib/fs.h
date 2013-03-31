@@ -23,6 +23,9 @@
 #ifndef __LIB_FS_H
 #define __LIB_FS_H
 
+#include <stdbool.h>
+#include <sys/types.h>
+
 void fs_init(void);
 
 struct file_stat {

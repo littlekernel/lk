@@ -25,6 +25,7 @@
 
 #ifndef ASSEMBLY
 
+#include <stdbool.h>
 #include <compiler.h>
 #include <reg.h>
 

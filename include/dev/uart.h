@@ -23,6 +23,7 @@
 #ifndef __DEV_UART_H
 #define __DEV_UART_H
 
+#include <stdbool.h>
 #include <sys/types.h>
 
 void uart_init(void);

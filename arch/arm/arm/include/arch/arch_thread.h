@@ -23,6 +23,8 @@
 #ifndef __ARM_ARCH_THREAD_H
 #define __ARM_ARCH_THREAD_H
 
+#include <sys/types.h>
+
 struct arch_thread {
 	vaddr_t sp;
 };

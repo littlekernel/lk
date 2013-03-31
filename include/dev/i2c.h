@@ -23,6 +23,8 @@
 #ifndef __DEV_I2C_H
 #define __DEV_I2C_H
 
+#include <stdint.h>
+
 void i2c_init(void);
 void i2c_init_early(void);
 

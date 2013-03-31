@@ -23,6 +23,8 @@
 #ifndef __DEV_ETHERNET_H
 #define __DEV_ETHERNET_H
 
+#include <sys/types.h>
+
 /* Queue an ethernet frame for send.
 **
 ** CRC and minimum length padding are handled by the driver.

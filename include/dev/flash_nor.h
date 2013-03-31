@@ -23,6 +23,8 @@
 #ifndef __DEV_FLASH_NOR_H
 #define __DEV_FLASH_NOR_H
 
+#include <sys/types.h>
+
 struct flash_nor_bank {
 	addr_t base;
 	size_t len;

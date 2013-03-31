@@ -24,6 +24,7 @@
 #define __POW2_H
 
 #include <sys/types.h>
+#include <stdbool.h>
 #include <compiler.h>
 
 /* routines for dealing with power of 2 values for efficiency */

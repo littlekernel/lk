@@ -23,6 +23,8 @@
 #ifndef __X86_ARCH_THREAD_H
 #define __X86_ARCH_THREAD_H
 
+#include <sys/types.h>
+
 struct arch_thread {
 	vaddr_t esp;
 

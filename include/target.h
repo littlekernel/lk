@@ -23,6 +23,8 @@
 #ifndef __TARGET_H
 #define __TARGET_H
 
+#include <stdbool.h>
+
 /* super early platform initialization, before almost everything */
 void target_early_init(void);
 

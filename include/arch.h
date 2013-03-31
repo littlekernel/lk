@@ -23,6 +23,8 @@
 #ifndef __ARCH_H
 #define __ARCH_H
 
+#include <compiler.h>
+
 __BEGIN_CDECLS
 
 void arch_early_init(void);

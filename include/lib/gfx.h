@@ -23,7 +23,9 @@
 #ifndef __LIB_GFX_H
 #define __LIB_GFX_H
 
+#include <stdbool.h>
 #include <sys/types.h>
+#include <inttypes.h>
 
 // gfx library
 
