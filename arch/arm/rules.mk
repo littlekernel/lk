@@ -177,6 +177,25 @@ FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
 ifeq ($(FOUNDTOOL),)
 TOOLCHAIN_PREFIX := arm-none-eabi-
 FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
+ifeq ($(FOUNDTOOL),)
+TOOLCHAIN_PREFIX := arm-linux-gnueabi-
+FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
+
+# Set no stack protection if we found our gnueabi toolchain. We don't
+# need it.
+#
+# Stack protection is default in this toolchain and we get such errors
+# final linking stage:
+#
+# undefined reference to `__stack_chk_guard'
+# undefined reference to `__stack_chk_fail'
+# undefined reference to `__stack_chk_guard'
+#
+ifneq (,$(findstring arm-linux-gnueabi-,$(FOUNDTOOL)))
+        GLOBAL_COMPILEFLAGS += -fno-stack-protector
+endif
+
+endif
 endif
 endif
 ifeq ($(FOUNDTOOL),)
