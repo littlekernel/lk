@@ -155,11 +155,11 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 				 * count variable dangerous.
 				 */
 				m->count--;
-				goto err;
 			}
 			/* if there was a general error, it may have been destroyed out from
 			 * underneath us, so just exit (which is really an invalid state anyway)
 			 */
+			goto err;
 		}
 	}
 
