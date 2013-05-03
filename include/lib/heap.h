@@ -23,6 +23,7 @@
 #ifndef __LIB_HEAP_H
 #define __LIB_HEAP_H
 
+#include <stddef.h>
 #include <sys/types.h>
 
 struct heap_stats {
