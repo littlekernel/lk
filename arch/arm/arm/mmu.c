@@ -97,13 +97,11 @@ void arm_mmu_unmap_section(addr_t vaddr)
 
 void arm_mmu_init(void)
 {
-	int i;
-
 	/* set some mmu specific control bits */
 	arm_write_cr1(arm_read_cr1() & ~((1<<29)|(1<<28)|(1<<0))); // access flag disabled, TEX remap disabled, mmu disabled
 
 	/* set up an identity-mapped translation table with cache disabled */
-	for (i=0; i < 4096; i++) {
+	for (addr_t i=0; i < 4096; i++) {
 		arm_mmu_map_section(i * MB, i * MB,  MMU_FLAG_READWRITE); // map everything uncached
 	}
 
