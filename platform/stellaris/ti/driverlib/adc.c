@@ -902,8 +902,8 @@ ADCSoftwareOversampleStepConfigure(unsigned long ulBase,
     ASSERT((ulBase == ADC0_BASE) || (ulBase == ADC1_BASE));
     ASSERT(ulSequenceNum < 3);
     ASSERT(((ulSequenceNum == 0) &&
-            (ulStep < (8 >> g_pucOversampleFactor[ulSequenceNum]))) ||
-           (ulStep < (4 >> g_pucOversampleFactor[ulSequenceNum])));
+            (ulStep < (8UL >> g_pucOversampleFactor[ulSequenceNum]))) ||
+           (ulStep < (4UL >> g_pucOversampleFactor[ulSequenceNum])));
 
     //
     // Get the offset of the sequence to be configured.
@@ -987,8 +987,8 @@ ADCSoftwareOversampleDataGet(unsigned long ulBase, unsigned long ulSequenceNum,
     ASSERT((ulBase == ADC0_BASE) || (ulBase == ADC1_BASE));
     ASSERT(ulSequenceNum < 3);
     ASSERT(((ulSequenceNum == 0) &&
-            (ulCount < (8 >> g_pucOversampleFactor[ulSequenceNum]))) ||
-           (ulCount < (4 >> g_pucOversampleFactor[ulSequenceNum])));
+            (ulCount < (8UL >> g_pucOversampleFactor[ulSequenceNum]))) ||
+           (ulCount < (4UL >> g_pucOversampleFactor[ulSequenceNum])));
 
     //
     // Get the offset of the sequence to be read.
