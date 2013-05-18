@@ -756,15 +756,9 @@ void dump_all_threads(void)
  * @defgroup  wait  Wait Queue
  * @{
  */
-
-/**
- * @brief  Initialize a wait queue
- */
 void wait_queue_init(wait_queue_t *wait)
 {
-	wait->magic = WAIT_QUEUE_MAGIC;
-	list_initialize(&wait->list);
-	wait->count = 0;
+	*wait = (wait_queue_t)WAIT_QUEUE_INITIAL_VALUE(*wait);
 }
 
 static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t now, void *arg)

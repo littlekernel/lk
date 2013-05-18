@@ -35,6 +35,7 @@ struct list_node {
 };
 
 #define LIST_INITIAL_VALUE(list) { &(list), &(list) }
+#define LIST_INITIAL_CLEARED_VALUE { NULL, NULL }
 
 static inline void list_initialize(struct list_node *list)
 {

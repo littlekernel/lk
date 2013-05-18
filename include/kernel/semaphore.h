@@ -28,6 +28,13 @@ typedef struct semaphore {
 	wait_queue_t wait;
 } semaphore_t;
 
+#define SEMAPHORE_INITIAL_VALUE(s, _count) \
+{ \
+	.magic = SEMAPHORE_MAGIC, \
+	.count = _count, \
+	.wait = WAIT_QUEUE_INITIAL_VALUE((s).wait), \
+}
+
 void sem_init(semaphore_t *, unsigned int);
 void sem_destroy(semaphore_t *);
 status_t sem_post(semaphore_t *);

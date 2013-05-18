@@ -44,6 +44,16 @@ typedef struct timer {
 	void *arg;
 } timer_t;
 
+#define TIMER_INITIAL_VALUE(t) \
+{ \
+	.magic = TIMER_MAGIC, \
+	.node = LIST_INITIAL_CLEARED_VALUE, \
+	.scheduled_time = 0, \
+	.periodic_time = 0, \
+	.callback = NULL, \
+	.arg = NULL, \
+}
+
 /* Rules for Timers:
  * - Timer callbacks occur from interrupt context
  * - Timers may be programmed or canceled from interrupt or thread context

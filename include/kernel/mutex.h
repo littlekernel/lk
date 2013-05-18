@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  * Copyright (c) 2012 Shantanu Gupta
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,23 +25,25 @@
 #define __KERNEL_MUTEX_H
 
 #include <debug.h>
+#include <stdint.h>
 #include <kernel/thread.h>
 
-#if DEBUGLEVEL > 1
-#define MUTEX_CHECK 1
 #define MUTEX_MAGIC 'mutx'
-#else
-#define MUTEX_CHECK 0
-#endif
 
 typedef struct mutex {
-#if MUTEX_CHECK
-	int magic;
+	uint32_t magic;
 	thread_t *holder;
-#endif
 	int count;
 	wait_queue_t wait;
 } mutex_t;
+
+#define MUTEX_INITIAL_VALUE(m) \
+{ \
+	.magic = MUTEX_MAGIC, \
+	.holder = NULL, \
+	.count = 0, \
+	.wait = WAIT_QUEUE_INITIAL_VALUE((m).wait), \
+}
 
 /* Rules for Mutexes:
  * - Mutexes are only safe to use from thread context.
@@ -50,9 +52,12 @@ typedef struct mutex {
 
 void mutex_init(mutex_t *);
 void mutex_destroy(mutex_t *);
-status_t mutex_acquire(mutex_t *);
 status_t mutex_acquire_timeout(mutex_t *, lk_time_t); /* try to acquire the mutex with a timeout value */
 status_t mutex_release(mutex_t *);
+
+static inline status_t mutex_acquire(mutex_t *m) {
+	return mutex_acquire_timeout(m, INFINITE_TIME);
+}
 
 #endif
 

@@ -54,12 +54,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now);
  */
 void timer_initialize(timer_t *timer)
 {
-	timer->magic = TIMER_MAGIC;
-	list_clear_node(&timer->node);
-	timer->scheduled_time = 0;
-	timer->periodic_time = 0;
-	timer->callback = 0;
-	timer->arg = 0;
+	*timer = (timer_t)TIMER_INITIAL_VALUE(*timer);
 }
 
 static void insert_timer_in_queue(timer_t *timer)

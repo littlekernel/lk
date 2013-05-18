@@ -39,9 +39,16 @@ typedef struct wait_queue {
 	int count;
 } wait_queue_t;
 
+#define WAIT_QUEUE_INITIAL_VALUE(q) \
+{ \
+	.magic = WAIT_QUEUE_MAGIC, \
+	.list = LIST_INITIAL_VALUE((q).list), \
+	.count = 0 \
+}
+
 /* wait queue primitive */
 /* NOTE: must be inside critical section when using these */
-void wait_queue_init(wait_queue_t *);
+void wait_queue_init(wait_queue_t *wait);
 
 /*
  * release all the threads on this wait queue with a return code of ERR_OBJECT_DESTROYED.

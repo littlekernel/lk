@@ -21,9 +21,7 @@
 
 void sem_init(semaphore_t *sem, unsigned int value)
 {
-	sem->magic = SEMAPHORE_MAGIC;
-	sem->count = value;
-	wait_queue_init(&sem->wait);
+	*sem = (semaphore_t)SEMAPHORE_INITIAL_VALUE(*sem, value);
 }
 
 void sem_destroy(semaphore_t *sem)
