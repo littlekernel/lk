@@ -88,8 +88,12 @@ static int semaphore_consumer()
 	return 0;
 }
 
-static int semaphore_test()
+static int semaphore_test(void)
 {
+	static semaphore_t isem = SEMAPHORE_INITIAL_VALUE(isem, 99);
+	printf("preinitialized sempahore:\n");
+	hexdump(&isem, sizeof(isem));
+
 	sem_init(&sem, sem_start_value);
 	mutex_init(&sem_test_mutex);
 
@@ -122,19 +126,19 @@ static int semaphore_test()
 	return 0;
 }
 
-
-static volatile int shared = 0;
-static mutex_t m;
-
 static int mutex_thread(void *arg)
 {
 	int i;
-	const int iterations = 10000;
+	const int iterations = 50000;
+
+	static volatile int shared = 0;
+
+	mutex_t *m = (mutex_t *)arg;
 
 	printf("mutex tester thread %p starting up, will go for %d iterations\n", current_thread, iterations);
 
 	for (i = 0; i < iterations; i++) {
-		mutex_acquire(&m);
+		mutex_acquire(m);
 
 		if (shared != 0)
 			panic("someone else has messed with the shared data\n");
@@ -143,7 +147,7 @@ static int mutex_thread(void *arg)
 		thread_yield();
 		shared = 0;
 
-		mutex_release(&m);
+		mutex_release(m);
 		thread_yield();
 	}
 
@@ -182,12 +186,17 @@ static int mutex_zerotimeout_thread(void *arg)
 
 int mutex_test(void)
 {
+	static mutex_t imutex = MUTEX_INITIAL_VALUE(imutex);
+	printf("preinitialized mutex:\n");
+	hexdump(&imutex, sizeof(imutex));
+
+	mutex_t m;
 	mutex_init(&m);
 
 	thread_t *threads[5];
 
 	for (uint i=0; i < countof(threads); i++) {
-		threads[i] = thread_create("mutex tester", &mutex_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+		threads[i] = thread_create("mutex tester", &mutex_thread, &m, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
 		thread_resume(threads[i]);
 	}
 
@@ -268,6 +277,10 @@ static int event_waiter(void *arg)
 void event_test(void)
 {
 	thread_t *threads[5];
+
+	static event_t ievent = EVENT_INITIAL_VALUE(ievent, true, 0x1234);
+	printf("preinitialized event:\n");
+	hexdump(&ievent, sizeof(ievent));
 
 	printf("event tests starting\n");
 
