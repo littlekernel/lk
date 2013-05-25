@@ -230,10 +230,9 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 	char *buffer = debug_buffer;
 
 	for (;;) {
-		char c;
-
 		/* loop until we get a char */
-		if (getc(&c) < 0)
+		int c;
+		if ((c = getchar()) < 0)
 			continue;
 
 //		TRACEF("c = 0x%hhx\n", c);
@@ -242,16 +241,16 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 			switch (c) {
 				case '\r':
 				case '\n':
-					putc('\n');
+					putchar('\n');
 					goto done;
 
 				case 0x7f: // backspace or delete
 				case 0x8:
 					if (pos > 0) {
 						pos--;
-						puts("\x1b[1D"); // move to the left one
-						putc(' ');
-						puts("\x1b[1D"); // move to the left one
+						fputs("\x1b[1D", stdout); // move to the left one
+						putchar(' ');
+						fputs("\x1b[1D", stdout); // move to the left one
 					}
 					break;
 
@@ -261,7 +260,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 
 				default:
 					buffer[pos++] = c;
-					putc(c);
+					putchar(c);
 			}
 		} else if (escape_level == 1) {
 			// inside an escape, look for '['
@@ -275,14 +274,14 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 			switch (c) {
 				case 67: // right arrow
 					buffer[pos++] = ' ';
-					putc(' ');
+					putchar(' ');
 					break;
 				case 68: // left arrow
 					if (pos > 0) {
 						pos--;
-						puts("\x1b[1D"); // move to the left one
-						putc(' ');
-						puts("\x1b[1D"); // move to the left one
+						fputs("\x1b[1D", stdout); // move to the left one
+						putchar(' ');
+						fputs("\x1b[1D", stdout); // move to the left one
 					}
 					break;
 #if CONSOLE_ENABLE_HISTORY
@@ -291,9 +290,9 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 					// wipe out the current line
 					while (pos > 0) {
 						pos--;
-						puts("\x1b[1D"); // move to the left one
-						putc(' ');
-						puts("\x1b[1D"); // move to the left one
+						fputs("\x1b[1D", stdout); // move to the left one
+						putchar(' ');
+						fputs("\x1b[1D", stdout); // move to the left one
 					}
 
 					if (c == 65)
@@ -301,7 +300,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 					else
 						strlcpy(buffer, next_history(&history_cursor), LINE_LEN);
 					pos = strlen(buffer);
-					puts(buffer);
+					fputs(buffer, stdout);
 					break;
 #endif
 				default:
@@ -312,7 +311,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 
 		/* end of line. */
 		if (pos == (LINE_LEN - 1)) {
-			puts("\nerror: line too long\n");
+			fputs("\nerror: line too long\n", stdout);
 			pos = 0;
 			goto done;
 		}
@@ -543,7 +542,7 @@ static void command_loop(int (*get_line)(const char **, void *), void *get_line_
 		// read a new line if it hadn't been split previously and passed back from tokenize_command
 		if (continuebuffer == NULL) {
 			if (showprompt)
-				puts("] ");
+				fputs("] ", stdout);
 
 			int len = get_line(&buffer, get_line_cookie);
 			if (len < 0)

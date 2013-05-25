@@ -42,7 +42,7 @@ static void pci_list(void)
 	uint16_t device_id, vendor_id;
 	uint8_t header_type;
 	int busses = 0, devices = 0, lines = 0, devfn, ret;
-	char c;
+	int c;
 
 	printf("Scanning...\n");
 
@@ -75,7 +75,7 @@ static void pci_list(void)
 
 			if (lines == 23) {
 				printf("... press any key to continue, q to quit ...");
-				while (getc(&c) < 0);
+				while ((c = getchar()) < 0);
 				printf("\n");
 				lines = 0;
 

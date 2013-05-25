@@ -227,7 +227,7 @@ static int i8042_wait_write(void)
 
 static int i8042_flush(void)
 {
-	unsigned char data;
+	unsigned char data __UNUSED;
 	int i = 0;
 
 	//enter_critical_section();

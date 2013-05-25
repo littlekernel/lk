@@ -44,7 +44,7 @@ status_t evlog_init_etc(evlog_t *e, uint len, uint unitsize, uintptr_t *items)
 
 	e->head = 0;
 	e->unitsize = unitsize;
-	e->len_pow2 = log2(len);
+	e->len_pow2 = log2_uint(len);
 	e->items = items;	
 
 	return NO_ERROR;

@@ -41,7 +41,7 @@ void cbuf_initialize(cbuf_t *cbuf, size_t len)
 
 	cbuf->head = 0;
 	cbuf->tail = 0;
-	cbuf->len_pow2 = log2(len);
+	cbuf->len_pow2 = log2_uint(len);
 	cbuf->buf = malloc(len);
 	event_init(&cbuf->event, false, 0);
 
