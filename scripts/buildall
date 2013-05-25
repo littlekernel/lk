@@ -4,7 +4,6 @@
 PROJECTS=`echo project/* | xargs -n1 basename | sed 's/\.mk//'`
 FAILED=""
 
-UNAME=`uname`
 case `uname` in
 Linux)
 	N=`cat /proc/cpuinfo | grep processor | wc -l`
