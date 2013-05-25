@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,12 +23,31 @@
 #ifndef __STDIO_H
 #define __STDIO_H
 
+#include <compiler.h>
 #include <debug.h>
 #include <printf.h>
 
-void putc(char c);
+__BEGIN_CDECLS
+
+/* fake FILE struct */
+typedef struct FILE {
+} FILE;
+
+#define stdin ((FILE *)1)
+#define stdout ((FILE *)2)
+#define stderr ((FILE *)3)
+
+int fputc(int c, FILE *fp);
+#define putc(c, fp) fputc(c, fp)
+int putchar(int c);
+
+int fputs(const char *s, FILE *fp);
 int puts(const char *str);
-int getc(char *c); // XXX not really getc
+
+int getc(FILE *fp);
+int getchar(void);
+
+__END_CDECLS
 
 #endif
 

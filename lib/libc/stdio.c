@@ -1,9 +1,5 @@
 /*
-** Copyright 2001, Travis Geiselbrecht. All rights reserved.
-** Distributed under the terms of the NewOS License.
-*/
-/*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,11 +20,50 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <string.h>
+#include <debug.h>
+#include <stdio.h>
+#include <stdarg.h>
 #include <sys/types.h>
+#include <platform/debug.h>
 
-void bcopy(void const *src, void *dest, size_t count)
+int fputc(int c, FILE *fp)
 {
-	memcpy(dest, src, count);
+	_dputc(c);
+	return 0;
+}
+
+int putchar(int c)
+{
+	return fputc(c, stdout);
+}
+
+int puts(const char *str)
+{
+	int err = _dputs(str);
+	if (err >= 0)
+		_dputc('\n');
+
+	return err;
+}
+
+int fputs(const char *s, FILE *fp)
+{
+	return _dputs(s);
+}
+
+int getc(FILE *fp)
+{
+	char c;
+
+	int err = platform_dgetc(&c, true);
+	if (err < 0)
+		return err;
+
+	return (unsigned char)c;
+}
+
+int getchar(void)
+{
+	return getc(stdin);
 }
 
