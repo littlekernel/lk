@@ -1,16 +1,7 @@
 #!/bin/sh
 
-PROJECTS="$PROJECTS armemu-test"
-PROJECTS="$PROJECTS realview-pb-test"
-PROJECTS="$PROJECTS beaglebone-test"
-PROJECTS="$PROJECTS osk5912-test"
-PROJECTS="$PROJECTS beagle-test"
-PROJECTS="$PROJECTS stm32-h103-test"
-PROJECTS="$PROJECTS stm32-p107-test"
-PROJECTS="$PROJECTS sam3x-ek-test"
-PROJECTS="$PROJECTS stm3220g-eval"
-PROJECTS="$PROJECTS stm32-p407-test"
-PROJECTS="$PROJECTS stellaris-launchpad-test"
+# build everything in the projects directory
+PROJECTS=`echo project/* | xargs basename | sed 's/\.mk//'`
 FAILED=""
 
 for p in $PROJECTS; do
