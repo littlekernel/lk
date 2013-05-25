@@ -1,8 +1,19 @@
 #!/bin/sh
 
 # build everything in the projects directory
-PROJECTS=`echo project/* | xargs basename | sed 's/\.mk//'`
+PROJECTS=`echo project/* | xargs -n1 basename | sed 's/\.mk//'`
 FAILED=""
+
+UNAME=`uname`
+case `uname` in
+Linux)
+	N=`cat /proc/cpuinfo | grep processor | wc -l`
+	PARALLEL=-j`expr $N + $N`
+	;;
+*)
+	PARALLEL=-j4
+	;;
+esac
 
 for p in $PROJECTS; do
 	PROJECT=$p nice make -j4 || FAILED="$FAILED $p"
