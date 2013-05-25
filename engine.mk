@@ -45,7 +45,7 @@ CONFIGHEADER := $(BUILDDIR)/config.h
 
 INCLUDES := -I$(BUILDDIR) -I$(LKROOT)/include $(addsuffix /include,$(addprefix -I,$(LKINC)))
 GLOBAL_OPTFLAGS ?= -Os
-GLOBAL_COMPILEFLAGS := -g -fno-builtin -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -include $(CONFIGHEADER)
+GLOBAL_COMPILEFLAGS := -g -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -include $(CONFIGHEADER)
 GLOBAL_CFLAGS := --std=gnu99 -Werror-implicit-function-declaration
 #GLOBAL_CFLAGS += -Werror
 GLOBAL_CPPFLAGS := -fno-exceptions -fno-rtti -fno-threadsafe-statics
