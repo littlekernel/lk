@@ -52,5 +52,6 @@
 #define ERR_NOT_SUPPORTED -24
 #define ERR_TOO_BIG -25
 #define ERR_THREAD_DETACHED -26
+#define ERR_NOT_CONFIGURED -27
 
 #endif
