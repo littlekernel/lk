@@ -37,4 +37,7 @@
     do { } while(0)
 #endif
 
+#define assert(e) DEBUG_ASSERT(e)
+#define static_assert(e) STATIC_ASSERT(e)
+
 #endif

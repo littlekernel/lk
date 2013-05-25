@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -105,6 +105,12 @@
 #define __UNREACHABLE __builtin_unreachable()
 #else
 #define __UNREACHABLE
+#endif
+
+#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#define STATIC_ASSERT(e) _Static_assert(e, #e)
+#else
+#define STATIC_ASSERT(e) extern char (*ct_assert(void)) [sizeof(char[1 - 2*!(e)])]
 #endif
 
 /* compiler fence */
