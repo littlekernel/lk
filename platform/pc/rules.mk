@@ -18,7 +18,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/console.c \
 	$(LOCAL_DIR)/keyboard.c \
-	$(LOCAL_DIR)/pci.c
+	$(LOCAL_DIR)/pci.c \
+	$(LOCAL_DIR)/ide.c \
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/kernel.ld
