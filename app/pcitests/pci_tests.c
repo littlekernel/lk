@@ -41,6 +41,7 @@ static void pci_list(void)
 	pci_location_t state;
 	uint16_t device_id, vendor_id;
 	uint8_t header_type;
+	uint8_t base_class, sub_class, interface;
 	int busses = 0, devices = 0, lines = 0, devfn, ret;
 	int c;
 
@@ -61,9 +62,19 @@ static void pci_list(void)
 			ret = pci_read_config_byte(&state, PCI_CONFIG_HEADER_TYPE, &header_type);
 			if (ret != _PCI_SUCCESSFUL) goto error;
 
+			ret = pci_read_config_byte(&state, PCI_CONFIG_CLASS_CODE_BASE, &base_class);
+			if (ret != _PCI_SUCCESSFUL) goto error;
+
+			ret = pci_read_config_byte(&state, PCI_CONFIG_CLASS_CODE_SUB, &sub_class);
+			if (ret != _PCI_SUCCESSFUL) goto error;
+
+			ret = pci_read_config_byte(&state, PCI_CONFIG_CLASS_CODE_INTR, &interface);
+			if (ret != _PCI_SUCCESSFUL) goto error;
+
 			if (vendor_id != 0xffff) {
-				printf("%02x:%02x vendor_id=%04x device_id=%04x, header_type=%02x\n", state.bus, state.dev_fn,
-				       vendor_id, device_id, header_type);
+				printf("%02x:%02x vendor_id=%04x device_id=%04x, header_type=%02x "
+						"base_class=%02x, sub_class=%02x, interface=%02x\n", state.bus, state.dev_fn,
+				       vendor_id, device_id, header_type, base_class, sub_class, interface);
 				devices++;
 				lines++;
 			}
