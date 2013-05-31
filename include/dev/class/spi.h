@@ -23,6 +23,7 @@
 #ifndef __DEV_CLASS_SPI_H
 #define __DEV_CLASS_SPI_H
 
+#include <compiler.h>
 #include <dev/driver.h>
 
 /* spi transaction flags */
@@ -48,7 +49,11 @@ struct spi_ops {
 	ssize_t (*transaction)(struct device *dev, struct spi_transaction *txn, size_t count);
 };
 
+__BEGIN_CDECLS
+
 ssize_t class_spi_transaction(struct device *dev, struct spi_transaction *txn, size_t count);
+
+__END_CDECLS
 
 #endif
 
