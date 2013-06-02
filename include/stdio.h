@@ -37,6 +37,20 @@ typedef struct FILE {
 #define stdout ((FILE *)2)
 #define stderr ((FILE *)3)
 
+FILE *fopen(const char *filename, const char *mode);
+int fclose(FILE *stream);
+size_t fread(void *ptr, size_t size, size_t count, FILE *stream);
+size_t fwrite(const void *ptr, size_t size, size_t count, FILE *stream);
+int fflush(FILE *stream);
+int feof(FILE *stream);
+
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
+int fseek(FILE *stream, long offset, int whence);
+long ftell(FILE *stream);
+
 int fputc(int c, FILE *fp);
 #define putc(c, fp) fputc(c, fp)
 int putchar(int c);
