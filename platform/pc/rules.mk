@@ -20,6 +20,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/keyboard.c \
 	$(LOCAL_DIR)/pci.c \
 	$(LOCAL_DIR)/ide.c \
+	$(LOCAL_DIR)/uart.c \
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/kernel.ld
