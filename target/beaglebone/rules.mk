@@ -11,7 +11,7 @@ MODULES += \
 
 MEMSIZE := 0x10000000	# 256MB
 
-DEFINES += \
+GLOBAL_DEFINES += \
 
 #include make/module.mk
 

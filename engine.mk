@@ -71,8 +71,8 @@ LINKER_SCRIPT :=
 # anything you add here will be deleted in make clean
 GENERATED := $(CONFIGHEADER)
 
-# anything added to DEFINES will be put into $(BUILDDIR)/config.h
-DEFINES := LK=1
+# anything added to GLOBAL_DEFINES will be put into $(BUILDDIR)/config.h
+GLOBAL_DEFINES := LK=1
 
 # Anything added to SRCDEPS will become a dependency of every source file in the system.
 # Useful for header files that may be included by one or more source files.
@@ -129,7 +129,7 @@ include make/recurse.mk
 all:: $(EXTRA_BUILDDEPS)
 
 # add some automatic configuration defines
-DEFINES += \
+GLOBAL_DEFINES += \
 	PROJECT_$(PROJECT)=1 \
 	PROJECT=\"$(PROJECT)\" \
 	TARGET_$(TARGET)=1 \
@@ -142,7 +142,7 @@ DEFINES += \
 
 # debug build?
 ifneq ($(DEBUG),)
-DEFINES += \
+GLOBAL_DEFINES += \
 	DEBUG=$(DEBUG)
 endif
 
@@ -157,6 +157,14 @@ DEPS := $(ALLOBJS:%o=%d)
 # prefix all of the paths in GLOBAL_INCLUDES with -I
 GLOBAL_INCLUDES := $(addprefix -I,$(GLOBAL_INCLUDES))
 
+# test for some old variables
+ifneq ($(INCLUDES),)
+$(error INCLUDES variable set, please move to GLOBAL_INCLUDES)
+endif
+ifneq ($(DEFINES),)
+$(error DEFINES variable set, please move to GLOBAL_DEFINES)
+endif
+
 # default to no ccache
 CCACHE ?=
 CC := $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
@@ -168,13 +176,13 @@ SIZE := $(TOOLCHAIN_PREFIX)size
 NM := $(TOOLCHAIN_PREFIX)nm
 
 # put all of the global build flags in config.h to force a rebuild if any change
-DEFINES += GLOBAL_INCLUDES=\"$(subst $(SPACE),_,$(GLOBAL_INCLUDES))\"
-DEFINES += GLOBAL_COMPILEFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_COMPILEFLAGS))\"
-DEFINES += GLOBAL_OPTFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_OPTFLAGS))\"
-DEFINES += GLOBAL_CFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CFLAGS))\"
-DEFINES += GLOBAL_CPPFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CPPFLAGS))\"
-DEFINES += GLOBAL_ASMFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_ASMFLAGS))\"
-DEFINES += GLOBAL_LDFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LDFLAGS))\"
+GLOBAL_DEFINES += GLOBAL_INCLUDES=\"$(subst $(SPACE),_,$(GLOBAL_INCLUDES))\"
+GLOBAL_DEFINES += GLOBAL_COMPILEFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_COMPILEFLAGS))\"
+GLOBAL_DEFINES += GLOBAL_OPTFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_OPTFLAGS))\"
+GLOBAL_DEFINES += GLOBAL_CFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CFLAGS))\"
+GLOBAL_DEFINES += GLOBAL_CPPFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CPPFLAGS))\"
+GLOBAL_DEFINES += GLOBAL_ASMFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_ASMFLAGS))\"
+GLOBAL_DEFINES += GLOBAL_LDFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LDFLAGS))\"
 
 # comment out or override if you want to see the full output of each command
 NOECHO ?= @
@@ -205,11 +213,11 @@ clean: $(EXTRA_CLEANDEPS)
 install: all
 	scp $(OUTBIN) 192.168.0.4:/tftproot
 
-# generate a config.h file with all of the DEFINES laid out in #define format
+# generate a config.h file with all of the GLOBAL_DEFINES laid out in #define format
 configheader:
 
 $(CONFIGHEADER): configheader
-	$(call MAKECONFIGHEADER,$@,DEFINES)
+	$(call MAKECONFIGHEADER,$@,GLOBAL_DEFINES)
 
 # Empty rule for the .d files. The above rules will build .d files as a side
 # effect. Only works on gcc 3.x and above, however.

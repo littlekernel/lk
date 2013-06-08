@@ -8,13 +8,13 @@ ENABLE_THUMB?=true
 # default to the regular arm subarch
 SUBARCH := arm
 
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARM_CPU_$(ARM_CPU)=1
 
 # do set some options based on the cpu core
 HANDLED_CORE := false
 ifeq ($(ARM_CPU),cortex-m3)
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
 	ARM_ISA_ARMv7=1 \
 	ARM_ISA_ARMv7M=1 \
@@ -27,7 +27,7 @@ ONLY_THUMB := true
 SUBARCH := arm-m
 endif
 ifeq ($(ARM_CPU),cortex-m4)
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARM_CPU_CORTEX_M4=1 \
 	ARM_WITH_CP15=1 \
 	ARM_ISA_ARMv7=1 \
@@ -41,7 +41,7 @@ ONLY_THUMB := true
 SUBARCH := arm-m
 endif
 ifeq ($(ARM_CPU),cortex-m4f)
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARM_CPU_CORTEX_M4=1 \
 	ARM_CPU_CORTEX_M4F=1 \
 	ARM_WITH_CP15=1 \
@@ -58,7 +58,7 @@ ONLY_THUMB := true
 SUBARCH := arm-m
 endif
 ifeq ($(ARM_CPU),cortex-a8)
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
 	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv7=1 \
@@ -74,7 +74,7 @@ HANDLED_CORE := true
 #CFLAGS += -mfpu=neon -mfloat-abi=softfp
 endif
 ifeq ($(ARM_CPU),arm1136j-s)
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
 	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv6=1 \
@@ -85,7 +85,7 @@ GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 ifeq ($(ARM_CPU),arm1176jzf-s)
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
 	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv6=1 \
@@ -97,7 +97,7 @@ GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 ifeq ($(ARM_CPU),arm926ej-s)
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
 	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv5E=1 \
@@ -109,7 +109,7 @@ GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 ifeq ($(ARM_CPU),arm7tdmi)
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARM_ISA_ARMv4=1 \
 	ARM_WITH_THUMB=1 \
 	ARM_CPU_ARM7=1
@@ -148,7 +148,7 @@ MODULE_SRCS += \
 MODULE_ARM_OVERRIDE_SRCS := \
 	$(LOCAL_DIR)/arm/arch.c
 
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=4096
 endif
 ifeq ($(SUBARCH),arm-m)
@@ -163,7 +163,7 @@ MODULE_SRCS += \
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/arm-m/CMSIS/Include
 
-DEFINES += \
+GLOBAL_DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=1024
 endif
 

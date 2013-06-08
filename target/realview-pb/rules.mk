@@ -9,7 +9,7 @@ PLATFORM := realview-pb
 
 MODULES += \
 
-DEFINES += \
+GLOBAL_DEFINES += \
 
 #include make/module.mk
 

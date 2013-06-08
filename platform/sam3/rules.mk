@@ -10,7 +10,7 @@ ARCH := arm
 ARM_CPU := cortex-m3
 
 ifeq ($(SAM_CHIP),sam3x8h)
-DEFINES += \
+GLOBAL_DEFINES += \
 	__SAM3X8H__=1 \
 	SAM3XA=1
 MEMSIZE ?= 98304 

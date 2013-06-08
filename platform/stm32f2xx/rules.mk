@@ -13,13 +13,13 @@ ARCH := arm
 ARM_CPU := cortex-m3
 
 ifeq ($(STM32_CHIP),stm32f207)
-DEFINES += \
+GLOBAL_DEFINES += \
 	STM32F207=1	\
 	STM32F2XX=1
 FOUND_CHIP := true
 endif
 ifeq ($(STM32_CHIP),stm32f407)
-DEFINES += \
+GLOBAL_DEFINES += \
 	STM32F407=1	\
 	STM32F4XX=1
 FOUND_CHIP := true
@@ -30,7 +30,7 @@ ifeq ($(FOUND_CHIP),)
 $(error unknown STM32F2xx chip $(STM32_CHIP))
 endif
 
-DEFINES += \
+GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 
 GLOBAL_INCLUDES += \

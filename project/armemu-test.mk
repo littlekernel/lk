@@ -18,7 +18,7 @@ MODULES += \
 	app/tests \
 	app/shell
 
-DEFINES += \
+GLOBAL_DEFINES += \
 	WITH_KERNEL_EVLOG=1
 
 # extra rules to copy the armemu.conf file to the build dir

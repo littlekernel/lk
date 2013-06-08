@@ -9,7 +9,7 @@ CPU := generic
 DEVS += usb
 
 # provides a few devices
-DEFINES += \
+GLOBAL_DEFINES += \
 	WITH_DEV_USBC=1 \
 	WITH_DEV_UART=1
 
@@ -31,7 +31,7 @@ MODULE_SRCS += \
 
 MEMBASE := 0x80000000
 
-DEFINES += MEMBASE=$(MEMBASE) \
+GLOBAL_DEFINES += MEMBASE=$(MEMBASE) \
 	WITH_CPU_EARLY_INIT=1
 
 LINKER_SCRIPT += \
