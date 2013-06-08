@@ -1,6 +1,3 @@
-# comment out or override if you want to see the full output of each command
-NOECHO ?= @
-
 $(OUTBIN): $(OUTELF)
 	@echo generating image: $@
 	$(NOECHO)$(SIZE) $<

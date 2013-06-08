@@ -128,9 +128,9 @@ THUMBCFLAGS := -mthumb -D__thumb__
 THUMBINTERWORK := -mthumb-interwork
 endif
 
-INCLUDES += \
-	-I$(LOCAL_DIR)/include \
-	-I$(LOCAL_DIR)/$(SUBARCH)/include
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include \
+	$(LOCAL_DIR)/$(SUBARCH)/include
 
 ifeq ($(SUBARCH),arm)
 MODULE_SRCS += \
@@ -160,8 +160,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm-m/thread.c \
 	$(LOCAL_DIR)/arm-m/systick.c
 
-INCLUDES += \
-	-I$(LOCAL_DIR)/arm-m/CMSIS/Include
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/arm-m/CMSIS/Include
 
 DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=1024

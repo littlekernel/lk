@@ -2,8 +2,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-INCLUDES += \
-	-I$(LOCAL_DIR)/include
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/crt0.S \

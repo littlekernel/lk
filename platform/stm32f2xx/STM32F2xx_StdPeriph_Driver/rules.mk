@@ -1,6 +1,6 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-INCLUDES += -I$(LOCAL_DIR)/inc
+GLOBAL_INCLUDES += $(LOCAL_DIR)/inc
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/src/system_stm32f2xx.c \

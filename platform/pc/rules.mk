@@ -8,8 +8,8 @@ CPU := generic
 MODULE_DEPS += \
 	lib/cbuf
 
-INCLUDES += \
-	-I$(LOCAL_DIR)/include
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/interrupts.c \

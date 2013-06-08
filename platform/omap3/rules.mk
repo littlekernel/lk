@@ -16,8 +16,8 @@ DEFINES += \
 MODULE_DEPS += \
 	dev/usb
 
-INCLUDES += \
-	-I$(LOCAL_DIR)/include
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/cpu_early_init.S \

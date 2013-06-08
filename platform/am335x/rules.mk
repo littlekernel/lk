@@ -8,12 +8,12 @@ CPU := generic
 
 ENABLE_THUMB := false
 
-INCLUDES += \
-	-I$(LOCAL_DIR)/include \
-	-I$(LOCAL_DIR)/ti/include \
-	-I$(LOCAL_DIR)/ti/include/hw \
-	-I$(LOCAL_DIR)/ti/include/armv7a \
-	-I$(LOCAL_DIR)/ti/include/armv7a/am335x \
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include \
+	$(LOCAL_DIR)/ti/include \
+	$(LOCAL_DIR)/ti/include/hw \
+	$(LOCAL_DIR)/ti/include/armv7a \
+	$(LOCAL_DIR)/ti/include/armv7a/am335x \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \

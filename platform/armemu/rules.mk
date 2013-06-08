@@ -9,8 +9,8 @@ CPU := generic
 # emulater doesn't support thumb properly
 ENABLE_THUMB := false
 
-INCLUDES += \
-	-I$(LOCAL_DIR)/include
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \

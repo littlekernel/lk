@@ -1,7 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-INCLUDES += \
-	-I$(LOCAL_DIR)
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/pio/pio.c \

@@ -43,7 +43,7 @@ OUTBIN := $(BUILDDIR)/lk.bin
 OUTELF := $(BUILDDIR)/lk.elf
 CONFIGHEADER := $(BUILDDIR)/config.h
 
-INCLUDES := -I$(BUILDDIR) -I$(LKROOT)/include $(addsuffix /include,$(addprefix -I,$(LKINC)))
+GLOBAL_INCLUDES := $(BUILDDIR) $(LKROOT)/include $(addsuffix /include,$(LKINC))
 GLOBAL_OPTFLAGS ?= -Os
 GLOBAL_COMPILEFLAGS := -g -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -include $(CONFIGHEADER)
 GLOBAL_CFLAGS := --std=gnu99 -Werror-implicit-function-declaration
@@ -154,7 +154,8 @@ endif
 
 DEPS := $(ALLOBJS:%o=%d)
 
-#$(warning DEPS=$(DEPS))
+# prefix all of the paths in GLOBAL_INCLUDES with -I
+GLOBAL_INCLUDES := $(addprefix -I,$(GLOBAL_INCLUDES))
 
 # default to no ccache
 CCACHE ?=
@@ -167,7 +168,7 @@ SIZE := $(TOOLCHAIN_PREFIX)size
 NM := $(TOOLCHAIN_PREFIX)nm
 
 # put all of the global build flags in config.h to force a rebuild if any change
-DEFINES += INCLUDES=\"$(subst $(SPACE),_,$(INCLUDES))\"
+DEFINES += GLOBAL_INCLUDES=\"$(subst $(SPACE),_,$(GLOBAL_INCLUDES))\"
 DEFINES += GLOBAL_COMPILEFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_COMPILEFLAGS))\"
 DEFINES += GLOBAL_OPTFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_OPTFLAGS))\"
 DEFINES += GLOBAL_CFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CFLAGS))\"
@@ -177,8 +178,6 @@ DEFINES += GLOBAL_LDFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LDFLAGS))\"
 
 # comment out or override if you want to see the full output of each command
 NOECHO ?= @
-
-#$(warning ALLMODULE_OBJS=$(ALLMODULE_OBJS))
 
 ifneq ($(OBJS),)
 $(warning OBJS=$(OBJS))
