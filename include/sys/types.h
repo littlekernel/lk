@@ -59,6 +59,6 @@ enum handler_return {
     INT_RESCHEDULE,
 };
 
-typedef signed long ssize_t;
+typedef signed int ssize_t;
 
 #endif
