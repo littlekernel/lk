@@ -54,7 +54,7 @@ void mutex_destroy(mutex_t *m)
 {
 	DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
-#if DEBUGLEVEL > 0
+#if LK_DEBUGLEVEL > 0
 	if (unlikely(m->holder != 0 && current_thread != m->holder))
 		panic("mutex_destroy: thread %p (%s) tried to release mutex %p it doesn't own. owned by %p (%s)\n",
 		      current_thread, current_thread->name, m, m->holder, m->holder->name);
@@ -81,7 +81,7 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 {
 	DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
-#if DEBUGLEVEL > 0
+#if LK_DEBUGLEVEL > 0
 	if (unlikely(current_thread == m->holder))
 		panic("mutex_acquire_timeout: thread %p (%s) tried to acquire mutex %p it already owns.\n",
 		      current_thread, current_thread->name, m);
@@ -123,7 +123,7 @@ status_t mutex_release(mutex_t *m)
 {
 	DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
-#if DEBUGLEVEL > 0
+#if LK_DEBUGLEVEL > 0
 	if (unlikely(current_thread != m->holder)) {
 		panic("mutex_release: thread %p (%s) tried to release mutex %p it doesn't own. owned by %p (%s)\n",
 		      current_thread, current_thread->name, m, m->holder, m->holder ? m->holder->name : "none");

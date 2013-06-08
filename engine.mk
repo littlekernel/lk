@@ -143,7 +143,7 @@ GLOBAL_DEFINES += \
 # debug build?
 ifneq ($(DEBUG),)
 GLOBAL_DEFINES += \
-	DEBUG=$(DEBUG)
+	LK_DEBUGLEVEL=$(DEBUG)
 endif
 
 # allow additional defines from outside the build system

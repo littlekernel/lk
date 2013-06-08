@@ -42,7 +42,7 @@ static int cmd_memtest(int argc, const cmd_args *argv);
 static int cmd_copy_mem(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
-#if DEBUGLEVEL > 0
+#if LK_DEBUGLEVEL > 0
 	{ "dw", "display memory in words", &cmd_display_mem },
 	{ "dh", "display memory in halfwords", &cmd_display_mem },
 	{ "db", "display memory in bytes", &cmd_display_mem },
@@ -54,7 +54,7 @@ STATIC_COMMAND_START
 	{ "fb", "fill range of memory by byte", &cmd_fill_mem },
 	{ "mc", "copy a range of memory", &cmd_copy_mem },
 #endif
-#if DEBUGLEVEL > 1
+#if LK_DEBUGLEVEL > 1
 	{ "mtest", "simple memory test", &cmd_memtest },
 #endif
 STATIC_COMMAND_END(mem);

@@ -168,7 +168,7 @@ static void heap_test(void)
 // nearby ones if possible. Returns base of whatever chunk it became in the list.
 static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *chunk)
 {
-#if DEBUGLEVEL > INFO
+#if LK_DEBUGLEVEL > INFO
 	vaddr_t chunk_end = (vaddr_t)chunk + chunk->len;
 #endif
 
@@ -449,7 +449,7 @@ void heap_init(void)
 //	heap_test();
 }
 
-#if DEBUGLEVEL > 1
+#if LK_DEBUGLEVEL > 1
 #if WITH_LIB_CONSOLE
 
 #include <lib/console.h>

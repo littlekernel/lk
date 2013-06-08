@@ -319,7 +319,7 @@ void platform_init_keyboard(void)
 	i8042_flush();
 
 	if (i8042_command(&ctr, I8042_CMD_CTL_RCTR)) {
-		dprintf(DEBUG, "Failed to read CTR while initializing i8042\n");
+		dprintf(SPEW, "Failed to read CTR while initializing i8042\n");
 		return;
 	}
 
@@ -331,7 +331,7 @@ void platform_init_keyboard(void)
 	ctr |= I8042_CTR_KBDINT;
 
 	if (i8042_command(&ctr, I8042_CMD_CTL_WCTR)) {
-		dprintf(DEBUG, "Failed to write CTR while initializing i8042\n");
+		dprintf(SPEW, "Failed to write CTR while initializing i8042\n");
 		return;
 	}
 

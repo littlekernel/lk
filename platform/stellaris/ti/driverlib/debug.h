@@ -73,6 +73,10 @@ extern void __error__(char *pcFilename, unsigned long ulLine);
 #undef ASSERT
 #define ASSERT(e) DEBUG_ASSERT(e)
 
+#if LK_DEBUGLEVEL > 0
+#define DEBUG
+#endif
+
 #endif
 
 #endif // __DEBUG_H__

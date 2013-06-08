@@ -44,7 +44,7 @@
 #include <target.h>
 #include <lib/heap.h>
 
-#if DEBUGLEVEL > 1
+#if LK_DEBUGLEVEL > 1
 #define THREAD_CHECKS 1
 #endif
 

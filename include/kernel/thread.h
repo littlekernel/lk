@@ -30,6 +30,7 @@
 #include <arch/ops.h>
 #include <arch/thread.h>
 #include <kernel/wait.h>
+#include <debug.h>
 
 enum thread_state {
 	THREAD_SUSPENDED = 0,
@@ -184,7 +185,7 @@ static inline __ALWAYS_INLINE uint32_t tls_set(uint entry, uint32_t val)
 }
 
 /* thread level statistics */
-#if DEBUGLEVEL > 1
+#if LK_DEBUGLEVEL > 1
 #define THREAD_STATS 1
 #else
 #define THREAD_STATS 0

@@ -29,7 +29,7 @@
 
 #if defined(WITH_LIB_CONSOLE)
 
-#if DEBUGLEVEL > 1
+#if LK_DEBUGLEVEL > 1
 static int cmd_fs(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START

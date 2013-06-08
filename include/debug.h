@@ -31,10 +31,8 @@
 
 __BEGIN_CDECLS
 
-#if defined(DEBUG)
-#define DEBUGLEVEL DEBUG
-#else
-#define DEBUGLEVEL 2
+#if !defined(LK_DEBUGLEVEL)
+#define LK_DEBUGLEVEL 0
 #endif
 
 /* debug levels */
@@ -69,10 +67,10 @@ static inline void hexdump8(const void *ptr, size_t len) { }
 
 #endif /* DISABLE_DEBUG_OUTPUT */
 
-#define dputc(level, str) do { if ((level) <= DEBUGLEVEL) { _dputc(str); } } while (0)
-#define dputs(level, str) do { if ((level) <= DEBUGLEVEL) { _dputs(str); } } while (0)
-#define dprintf(level, x...) do { if ((level) <= DEBUGLEVEL) { _dprintf(x); } } while (0)
-#define dvprintf(level, x...) do { if ((level) <= DEBUGLEVEL) { _dvprintf(x); } } while (0)
+#define dputc(level, str) do { if ((level) <= LK_DEBUGLEVEL) { _dputc(str); } } while (0)
+#define dputs(level, str) do { if ((level) <= LK_DEBUGLEVEL) { _dputs(str); } } while (0)
+#define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dprintf(x); } } while (0)
+#define dvprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dvprintf(x); } } while (0)
 
 /* trace routines */
 #define TRACE_ENTRY printf("%s: entry\n", __PRETTY_FUNCTION__)

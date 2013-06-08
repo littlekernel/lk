@@ -29,7 +29,7 @@
 #define ASSERT(x) \
     do { if (unlikely(!(x))) { panic("ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
 
-#if DEBUGLEVEL > 1
+#if LK_DEBUGLEVEL > 1
 #define DEBUG_ASSERT(x) \
     do { if (unlikely(!(x))) { panic("DEBUG ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
 #else

@@ -53,10 +53,10 @@ void platform_init_multiboot_info(void)
 		if (_multiboot_info->flags & MB_INFO_MMAP) {
 			memory_map_t *mmap = (memory_map_t *) (_multiboot_info->mmap_addr - 4);
 
-			dprintf(DEBUG, "mmap length: %u\n", _multiboot_info->mmap_length);
+			dprintf(SPEW, "mmap length: %u\n", _multiboot_info->mmap_length);
 
 			for (i=0; i < _multiboot_info->mmap_length / sizeof(memory_map_t); i++) {
-				dprintf(DEBUG, "base=%08x, length=%08x, type=%02x\n",
+				dprintf(SPEW, "base=%08x, length=%08x, type=%02x\n",
 				        mmap[i].base_addr_low, mmap[i].length_low, mmap[i].type);
 
 				if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE && mmap[i].base_addr_low >= _heap_end) {

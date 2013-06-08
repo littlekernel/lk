@@ -81,7 +81,7 @@ static int cmd_history(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("help", "this list", &cmd_help)
-#if DEBUGLEVEL > 1
+#if LK_DEBUGLEVEL > 1
 STATIC_COMMAND("test", "test the command processor", &cmd_test)
 #if CONSOLE_ENABLE_HISTORY
 STATIC_COMMAND("history", "command history", &cmd_history)
@@ -725,7 +725,7 @@ static int cmd_help(int argc, const cmd_args *argv)
 	return 0;
 }
 
-#if DEBUGLEVEL > 1
+#if LK_DEBUGLEVEL > 1
 static int cmd_test(int argc, const cmd_args *argv)
 {
 	int i;
