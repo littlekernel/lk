@@ -25,6 +25,7 @@
 #include <debug.h>
 #include <stdlib.h>
 #include <printf.h>
+#include <stdio.h>
 #include <list.h>
 #include <string.h>
 #include <arch/ops.h>

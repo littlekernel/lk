@@ -25,7 +25,7 @@
 #include <ctype.h>
 #include <debug.h>
 #include <stdlib.h>
-#include <printf.h>
+#include <stdio.h>
 #include <kernel/thread.h>
 #include <platform.h>
 #include <lib/cksum.h>

@@ -32,6 +32,7 @@
  */
 
 #include <debug.h>
+#include <stdio.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
 #include <kernel/debug.h>

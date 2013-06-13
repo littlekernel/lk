@@ -27,7 +27,6 @@
 #include <stddef.h>
 #include <compiler.h>
 #include <platform/debug.h>
-#include <printf.h>
 
 __BEGIN_CDECLS
 

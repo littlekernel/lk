@@ -67,3 +67,14 @@ int getchar(void)
 	return getc(stdin);
 }
 
+int _printf(const char *fmt, ...)
+{
+	int err;
+
+	va_list ap;
+	va_start(ap, fmt);
+	err = _dvprintf(fmt, ap);
+	va_end(ap);
+
+	return err;
+}

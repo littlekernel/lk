@@ -22,7 +22,7 @@
  */
 #include <stdarg.h>
 #include <reg.h>
-#include <printf.h>
+#include <stdio.h>
 #include <kernel/thread.h>
 #include <platform/debug.h>
 #include <platform/realview-pb.h>

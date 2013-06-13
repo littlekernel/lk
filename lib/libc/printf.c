@@ -22,24 +22,12 @@
  */
 #include <debug.h>
 #include <limits.h>
-#include <stdio.h>
+#include <printf.h>
 #include <stdarg.h>
 #include <sys/types.h>
-#include <printf.h>
+#include <stdio.h>
 #include <string.h>
 #include <platform/debug.h>
-
-int _printf(const char *fmt, ...)
-{
-	int err;
-
-	va_list ap;
-	va_start(ap, fmt);
-	err = _dvprintf(fmt, ap);
-	va_end(ap);
-
-	return err;
-}
 
 int sprintf(char *str, const char *fmt, ...)
 {

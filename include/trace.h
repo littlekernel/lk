@@ -23,7 +23,7 @@
 #ifndef __TRACE_H
 #define __TRACE_H
 
-#include <printf.h>
+#include <stdio.h>
 
 /* trace routines */
 #define TRACE_ENTRY printf("%s: entry\n", __PRETTY_FUNCTION__)

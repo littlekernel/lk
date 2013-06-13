@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <lib/console.h>

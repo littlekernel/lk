@@ -26,7 +26,6 @@
 #include <sys/types.h>
 #include <stddef.h>
 #include <malloc.h>
-#include <printf.h>
 #include <endian.h>
 #include <rand.h>
 #include <arch/defines.h>

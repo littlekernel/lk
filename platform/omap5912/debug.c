@@ -23,7 +23,7 @@
 #include <stdarg.h>
 #include <reg.h>
 #include <debug.h>
-#include <printf.h>
+#include <stdio.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
 #include <platform/debug.h>

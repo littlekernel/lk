@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app/tests.h>
-#include <debug.h>
+#include <stdio.h>
 #include <string.h>
 
 void printf_tests(void)

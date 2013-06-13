@@ -24,7 +24,7 @@
 #define __DEV_USBC_H
 
 #include <sys/types.h>
-#include <debug.h>
+#include <stdio.h>
 #include <hw/usb.h>
 
 void usbc_init(void);

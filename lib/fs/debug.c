@@ -24,6 +24,7 @@
 #include <string.h>
 #include <lib/console.h>
 #include <lib/fs.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <platform.h>
 
