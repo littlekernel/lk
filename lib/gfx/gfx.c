@@ -33,6 +33,7 @@
  */
 
 #include <debug.h>
+#include <trace.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>

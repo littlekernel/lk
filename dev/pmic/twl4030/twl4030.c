@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <trace.h>
 #include <sys/types.h>
 #include <dev/i2c.h>
 #include <dev/twl4030.h>

@@ -25,6 +25,7 @@
 #include <err.h>
 #include <pcnet.h>
 #include <debug.h>
+#include <trace.h>
 #include <assert.h>
 #include <arch/x86.h>
 #include <platform/pc.h>

@@ -22,6 +22,7 @@
  */
 #include <err.h>
 #include <debug.h>
+#include <trace.h>
 #include <target.h>
 #include <compiler.h>
 #include <dev/gpio.h>

@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <err.h>
 #include <debug.h>
+#include <trace.h>
 #include <lib/fs/ext2.h>
 #include "ext2_priv.h"
 

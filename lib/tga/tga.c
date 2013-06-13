@@ -29,6 +29,7 @@
  */
 
 #include <debug.h>
+#include <trace.h>
 #include <assert.h>
 #include <compiler.h>
 #include <lib/tga.h>

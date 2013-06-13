@@ -24,6 +24,7 @@
 #include <dev/driver.h>
 #include <assert.h>
 #include <err.h>
+#include <trace.h>
 
 extern struct device __devices[];
 extern struct device __devices_end[];

@@ -30,6 +30,7 @@
 
 #include <compiler.h>
 #include <debug.h>
+#include <trace.h>
 
 #define LOCAL_TRACE 0
 #define TRACE_INIT 0

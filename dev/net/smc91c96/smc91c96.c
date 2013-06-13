@@ -22,6 +22,7 @@
  */
 #include <sys/types.h>
 #include <debug.h>
+#include <trace.h>
 #include <printf.h>
 #include <dev/net/smc91c96.h>
 #include "smc91c96_p.h"

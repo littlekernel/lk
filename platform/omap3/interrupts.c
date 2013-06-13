@@ -22,6 +22,7 @@
  */
 #include <sys/types.h>
 #include <debug.h>
+#include <trace.h>
 #include <err.h>
 #include <reg.h>
 #include <kernel/thread.h>

@@ -23,6 +23,7 @@
 
 #include <reg.h>
 #include <debug.h>
+#include <trace.h>
 #include <assert.h>
 #include <err.h>
 #include <malloc.h>

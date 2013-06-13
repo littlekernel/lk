@@ -72,20 +72,6 @@ static inline void hexdump8(const void *ptr, size_t len) { }
 #define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dprintf(x); } } while (0)
 #define dvprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dvprintf(x); } } while (0)
 
-/* trace routines */
-#define TRACE_ENTRY printf("%s: entry\n", __PRETTY_FUNCTION__)
-#define TRACE_EXIT printf("%s: exit\n", __PRETTY_FUNCTION__)
-#define TRACE_ENTRY_OBJ printf("%s: entry obj %p\n", __PRETTY_FUNCTION__, this)
-#define TRACE_EXIT_OBJ printf("%s: exit obj %p\n", __PRETTY_FUNCTION__, this)
-#define TRACE printf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__)
-#define TRACEF(str, x...) do { printf("%s:%d: " str, __PRETTY_FUNCTION__, __LINE__, ## x); } while (0)
-
-/* trace routines that work if LOCAL_TRACE is set */
-#define LTRACE_ENTRY do { if (LOCAL_TRACE) { TRACE_ENTRY; } } while (0)
-#define LTRACE_EXIT do { if (LOCAL_TRACE) { TRACE_EXIT; } } while (0)
-#define LTRACE do { if (LOCAL_TRACE) { TRACE; } } while (0)
-#define LTRACEF(x...) do { if (LOCAL_TRACE) { TRACEF(x); } } while (0)
-
 /* systemwide halts */
 void halt(void) __NO_RETURN;
 

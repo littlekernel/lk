@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <debug.h>
+#include <trace.h>
 #include <assert.h>
 #include <kernel/thread.h>
 #include <arch/arm.h>

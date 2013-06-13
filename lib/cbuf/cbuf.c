@@ -22,6 +22,7 @@
  */
 #include <stdlib.h>
 #include <debug.h>
+#include <trace.h>
 #include <pow2.h>
 #include <string.h>
 #include <assert.h>

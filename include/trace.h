@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,44 +20,23 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
-#include <trace.h>
-#include <err.h>
-#include <sys/types.h>
-#include <kernel/thread.h>
-#include <platform.h>
-#include <dev/flash_nor.h>
-#include <stm32f10x_rcc.h>
-#include <stm32f10x_flash.h>
-#include <misc.h>
+#ifndef __TRACE_H
+#define __TRACE_H
 
-/* flash size and page size determined dynamically */
-#define FLASH_SIZE ((*(REG16(0x1FFFF7E0))) * (size_t)1024)
-#define FLASH_PAGE_SIZE ((size_t)((FLASH_SIZE > 131072) ? 2048 : 1024))
+#include <printf.h>
 
-struct flash_nor_bank flash[1];
+/* trace routines */
+#define TRACE_ENTRY printf("%s: entry\n", __PRETTY_FUNCTION__)
+#define TRACE_EXIT printf("%s: exit\n", __PRETTY_FUNCTION__)
+#define TRACE_ENTRY_OBJ printf("%s: entry obj %p\n", __PRETTY_FUNCTION__, this)
+#define TRACE_EXIT_OBJ printf("%s: exit obj %p\n", __PRETTY_FUNCTION__, this)
+#define TRACE printf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__)
+#define TRACEF(str, x...) do { printf("%s:%d: " str, __PRETTY_FUNCTION__, __LINE__, ## x); } while (0)
 
-void stm32_flash_nor_early_init(void)
-{
-	FLASH_Lock(); // make sure it's locked
+/* trace routines that work if LOCAL_TRACE is set */
+#define LTRACE_ENTRY do { if (LOCAL_TRACE) { TRACE_ENTRY; } } while (0)
+#define LTRACE_EXIT do { if (LOCAL_TRACE) { TRACE_EXIT; } } while (0)
+#define LTRACE do { if (LOCAL_TRACE) { TRACE; } } while (0)
+#define LTRACEF(x...) do { if (LOCAL_TRACE) { TRACEF(x); } } while (0)
 
-	flash[0].base = 0x08000000;
-	flash[0].len = FLASH_SIZE;
-	flash[0].page_size = FLASH_PAGE_SIZE;
-	flash[0].flags = 0;
-}
-
-void stm32_flash_nor_init(void)
-{
-	TRACEF("flash size %zu\n", FLASH_SIZE);
-	TRACEF("page size %zu\n", FLASH_PAGE_SIZE);
-}
-
-const struct flash_nor_bank *flash_nor_get_bank(unsigned int bank)
-{
-	if (bank != 0)
-		return NULL;
-
-	return &flash[0];
-}
-
+#endif

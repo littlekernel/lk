@@ -35,6 +35,7 @@
  * @{
  */
 #include <debug.h>
+#include <trace.h>
 #include <assert.h>
 #include <list.h>
 #include <kernel/thread.h>

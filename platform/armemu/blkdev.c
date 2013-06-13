@@ -22,6 +22,7 @@
  */
 #include <err.h>
 #include <debug.h>
+#include <trace.h>
 #include <platform.h>
 #include "platform_p.h"
 #include <platform/armemu.h>

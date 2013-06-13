@@ -26,6 +26,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <debug.h>
+#include <trace.h>
 #include <lib/bcache.h>
 #include <lib/bio.h>
 

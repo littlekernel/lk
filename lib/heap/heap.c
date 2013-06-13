@@ -22,10 +22,12 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <trace.h>
 #include <assert.h>
 #include <err.h>
 #include <list.h>
 #include <rand.h>
+#include <stdio.h>
 #include <string.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
