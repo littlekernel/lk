@@ -28,8 +28,7 @@
 
 int fputc(int c, FILE *fp)
 {
-	_dputc(c);
-	return 0;
+	return fp->fputc(fp->ctx, c);
 }
 
 int putchar(int c)
@@ -39,27 +38,20 @@ int putchar(int c)
 
 int puts(const char *str)
 {
-	int err = _dputs(str);
+	int err = fputs(str, stdout);
 	if (err >= 0)
-		_dputc('\n');
-
+		err = fputc('\n', stdout);
 	return err;
 }
 
 int fputs(const char *s, FILE *fp)
 {
-	return _dputs(s);
+	return fp->fputs(fp->ctx, s);
 }
 
 int getc(FILE *fp)
 {
-	char c;
-
-	int err = platform_dgetc(&c, true);
-	if (err < 0)
-		return err;
-
-	return (unsigned char)c;
+	return fp->fgetc(fp->ctx);
 }
 
 int getchar(void)
@@ -70,10 +62,11 @@ int getchar(void)
 int _printf(const char *fmt, ...)
 {
 	int err;
+	FILE *fp = stdout;
 
 	va_list ap;
 	va_start(ap, fmt);
-	err = _dvprintf(fmt, ap);
+	err = fp->vfprintf(fp->ctx, fmt, ap);
 	va_end(ap);
 
 	return err;

@@ -29,13 +29,19 @@
 
 __BEGIN_CDECLS
 
-/* fake FILE struct */
 typedef struct FILE {
+	void *ctx;
+	int (*fputc)(void *ctx, int c);
+	int (*fputs)(void *ctx, const char *s);
+	int (*fgetc)(void *ctx);
+	int (*vfprintf)(void *ctx, const char *fmt, va_list ap);
 } FILE;
 
-#define stdin ((FILE *)1)
-#define stdout ((FILE *)2)
-#define stderr ((FILE *)3)
+extern FILE __stdio_FILEs[];
+
+#define stdin  (&__stdio_FILEs[0])
+#define stdout (&__stdio_FILEs[1])
+#define stderr (&__stdio_FILEs[2])
 
 FILE *fopen(const char *filename, const char *mode);
 int fclose(FILE *stream);

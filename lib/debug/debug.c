@@ -59,6 +59,49 @@ void _panic(void *caller, const char *fmt, ...)
 	halt();
 }
 
+static int __debug_stdio_fputc(void *ctx, int c)
+{
+	_dputc(c);
+	return 0;
+}
+
+static int __debug_stdio_fputs(void *ctx, const char *s)
+{
+	return _dputs(s);
+}
+
+static int __debug_stdio_fgetc(void *ctx)
+{
+	char c;
+	int err;
+
+	err = platform_dgetc(&c, true);
+	if (err < 0)
+		return err;
+	return (unsigned char)c;
+}
+
+static int __debug_stdio_vfprintf(void *ctx, const char *fmt, va_list ap)
+{
+	return _dvprintf(fmt, ap);
+}
+
+#define DEFINE_STDIO_DESC(id)						\
+	[(id)]	= {							\
+		.ctx		= &__stdio_FILEs[(id)],			\
+		.fputc		= __debug_stdio_fputc,			\
+		.fputs		= __debug_stdio_fputs,			\
+		.fgetc		= __debug_stdio_fgetc,			\
+		.vfprintf	= __debug_stdio_vfprintf,		\
+	}
+
+FILE __stdio_FILEs[3] = {
+	DEFINE_STDIO_DESC(0), /* stdin */
+	DEFINE_STDIO_DESC(1), /* stdout */
+	DEFINE_STDIO_DESC(2), /* stderr */
+};
+#undef DEFINE_STDIO_DESC
+
 #if !DISABLE_DEBUG_OUTPUT
 
 int _dputs(const char *str)
