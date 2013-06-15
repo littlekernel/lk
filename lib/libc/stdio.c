@@ -59,14 +59,29 @@ int getchar(void)
 	return getc(stdin);
 }
 
+int vfprintf(FILE *fp, const char *fmt, va_list ap)
+{
+	return fp->vfprintf(fp->ctx, fmt, ap);
+}
+
+int fprintf(FILE *fp, const char *fmt, ...)
+{
+	va_list ap;
+	int err;
+
+	va_start(ap, fmt);
+	err = vfprintf(fp, fmt, ap);
+	va_end(ap);
+	return err;
+}
+
 int _printf(const char *fmt, ...)
 {
-	int err;
-	FILE *fp = stdout;
-
 	va_list ap;
+	int err;
+
 	va_start(ap, fmt);
-	err = fp->vfprintf(fp->ctx, fmt, ap);
+	err = vfprintf(stdout, fmt, ap);
 	va_end(ap);
 
 	return err;
