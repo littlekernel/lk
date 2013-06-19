@@ -34,7 +34,7 @@ __BEGIN_CDECLS
 
 void arm_context_switch(vaddr_t *old_sp, vaddr_t new_sp);
 
-static inline uint32_t read_cpsr()
+static inline uint32_t read_cpsr(void)
 {
 	uint32_t cpsr;
 

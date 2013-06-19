@@ -93,7 +93,7 @@ void debug_set_trace_level(int trace_type, int level)
 	*REG32(DEBUG_SET_TRACELEVEL_CPU + trace_type * 4) = level;
 }
 
-uint32_t debug_cycle_count()
+uint32_t debug_cycle_count(void)
 {
 	return *REG32(DEBUG_CYCLE_COUNT);
 }

@@ -55,7 +55,7 @@ static int sem_remaining_its = 0;
 static int sem_threads = 0;
 static mutex_t sem_test_mutex;
 
-static int semaphore_producer()
+static int semaphore_producer(void *unused)
 {
 	printf("semaphore producer %p starting up, running for %d iterations\n", current_thread, sem_total_its);
 
@@ -66,7 +66,7 @@ static int semaphore_producer()
 	return 0;
 }
 
-static int semaphore_consumer()
+static int semaphore_consumer(void *unused)
 {
 	unsigned int iterations = 0;
 
