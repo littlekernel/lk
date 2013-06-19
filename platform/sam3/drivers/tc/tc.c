@@ -42,8 +42,6 @@
 #include <assert.h>
 #include "tc.h"
 
-#define assert ASSERT
-
 /// @cond 0
 /**INDENT-OFF**/
 #ifdef __cplusplus
