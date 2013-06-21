@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,31 +20,23 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
 #include <compiler.h>
-#include <stdint.h>
+#include <debug.h>
+#include <kernel/thread.h>
+#include <kernel/timer.h>
+#include <kernel/debug.h>
 
-/* externals */
-extern unsigned int __data_start_rom, __data_start, __data_end;
-extern unsigned int __bss_start, __bss_end;
-
-extern void lk_main(void) __NO_RETURN __EXTERNALLY_VISIBLE;
-
-void _start(void)
+void kernel_init(void)
 {
-	/* copy data from rom */
-	if (&__data_start != &__data_start_rom) {
-		unsigned int *src = &__data_start_rom;
-		unsigned int *dest = &__data_start;
+	// if enabled, configure the kernel's event log
+	kernel_evlog_init();
 
-		while (dest != &__data_end)
-			*dest++ = *src++;
-	}
+	// initialize the threading system
+	dprintf(SPEW, "initializing threads\n");
+	thread_init();
 
-	/* zero out bss */
-	unsigned int *bss = &__bss_start;
-	while (bss != &__bss_end)
-		*bss++ = 0;
-
-	lk_main();
+	// initialize kernel timers
+	dprintf(SPEW, "initializing timers\n");
+	timer_init();
 }
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,6 +20,11 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+/*
+ * Main entry point to the OS. Initializes modules in order and creates
+ * the default thread.
+ */
 #include <compiler.h>
 #include <debug.h>
 #include <string.h>
@@ -32,8 +37,6 @@
 #include <lib/fs.h>
 #include <lib/bio.h>
 #include <kernel/thread.h>
-#include <kernel/timer.h>
-#include <kernel/debug.h>
 
 extern void *__ctor_list;
 extern void *__ctor_end;
@@ -41,6 +44,8 @@ extern int __bss_start;
 extern int _end;
 
 static int bootstrap2(void *arg);
+
+extern void kernel_init(void);
 
 static void call_constructors(void)
 {
@@ -57,9 +62,9 @@ static void call_constructors(void)
 	}
 }
 
-/* called from crt0.S */
-void kmain(void) __NO_RETURN __EXTERNALLY_VISIBLE;
-void kmain(void)
+/* called from arch code */
+void lk_main(void) __NO_RETURN __EXTERNALLY_VISIBLE;
+void lk_main(void)
 {
 	inc_critical_section();
 
@@ -85,16 +90,8 @@ void kmain(void)
 	dprintf(SPEW, "initializing heap\n");
 	heap_init();
 
-	// if enabled, configure the kernel's event log
-	kernel_evlog_init();
-
-	// initialize the threading system
-	dprintf(SPEW, "initializing threads\n");
-	thread_init();
-
-	// initialize kernel timers
-	dprintf(SPEW, "initializing timers\n");
-	timer_init();
+	// initialize the kernel
+	kernel_init();
 
 	// create a thread to complete system initialization
 	dprintf(SPEW, "creating bootstrap completion thread\n");
@@ -140,4 +137,5 @@ static int bootstrap2(void *arg)
 
 	return 0;
 }
+
 

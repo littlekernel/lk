@@ -130,7 +130,7 @@ reset:
 	strlt	r2, [r0], #4
 	blt		.L__bss_loop
 
-	bl		kmain
+	bl		lk_main
 	b		.
 
 .ltorg

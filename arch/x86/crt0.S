@@ -113,7 +113,7 @@ real_start:
 	loop 2b
 	
 	/* call the main module */
-	call kmain
+	call lk_main
 	
 0:							/* just sit around waiting for interrupts */
 	hlt						/* interrupts will unhalt the processor */
