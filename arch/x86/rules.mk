@@ -38,7 +38,7 @@ GENERATED += \
 
 # rules for generating the linker scripts
 
-$(BUILDDIR)/kernel.ld: $(LOCAL_DIR)/kernel.ld
+$(BUILDDIR)/kernel.ld: $(LOCAL_DIR)/kernel.ld $(wildcard arch/*.ld)
 	@echo generating $@
 	@$(MKDIR)
 	$(NOECHO)cp $< $@

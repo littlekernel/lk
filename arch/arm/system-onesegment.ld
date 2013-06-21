@@ -49,10 +49,7 @@ SECTIONS
 	.rodata : ALIGN(4) {
 		__rodata_start = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
-		. = ALIGN(4);
-		__drivers = .;
-		KEEP(*(.drivers))
-		__drivers_end = .;
+INCLUDE "arch/shared_rodata_sections.ld"
 		. = ALIGN(4);
 		__rodata_end = .;
 	}
@@ -64,18 +61,7 @@ SECTIONS
 		/* in one segment binaries, the rom data address is on top of the ram data address */
 		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
-		. = ALIGN(4);
-		__commands_start = .;
-		KEEP (*(.commands))
-		__commands_end = .;
-		. = ALIGN(4);
-		__apps_start = .;
-		KEEP (*(.apps))
-		__apps_end = .;
-		. = ALIGN(4);
-		__devices = .;
-		KEEP(*(.devices))
-		__devices_end = .;
+INCLUDE "arch/shared_data_sections.ld"
 	}
 
 	.ctors : ALIGN(4) {

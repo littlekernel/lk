@@ -31,30 +31,19 @@ SECTIONS
 		*(.gnu.linkonce.t.*)
 	} =0x9090
 
-	.rodata : {
+	.rodata : ALIGN(4) {
+		__rodata_start = .;
 		*(.rodata*)
 		*(.gnu.linkonce.r.*)
+INCLUDE "arch/shared_rodata_sections.ld"
 		. = ALIGN(4);
-		__drivers = .;
-		KEEP(*(.drivers))
-		__drivers_end = .;
+		__rodata_end = .;
 	}
 
 	.data : ALIGN(4096) {
 		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
-		. = ALIGN(4);
-		__commands_start = .;
-		KEEP (*(.commands))
-		__commands_end = .;
-		. = ALIGN(4);
-		__apps_start = .;
-		KEEP (*(.apps))
-		__apps_end = .;
-		. = ALIGN(4);
-		__devices = .;
-		KEEP(*(.devices))
-		__devices_end = .;
+INCLUDE "arch/shared_data_sections.ld"
 	}
 	__ctor_list = .;
 	.ctors : { *(.ctors) }

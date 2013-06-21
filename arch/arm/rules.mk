@@ -230,12 +230,12 @@ GENERATED += \
 
 # rules for generating the linker scripts
 
-$(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld
+$(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard arch/*.ld)
 	@echo generating $@
 	@$(MKDIR)
 	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
 
-$(BUILDDIR)/system-twosegment.ld: $(LOCAL_DIR)/system-twosegment.ld
+$(BUILDDIR)/system-twosegment.ld: $(LOCAL_DIR)/system-twosegment.ld $(wildcard arch/*.ld)
 	@echo generating $@
 	@$(MKDIR)
 	$(NOECHO)sed "s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
