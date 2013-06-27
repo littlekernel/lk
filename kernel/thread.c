@@ -563,6 +563,9 @@ void thread_resched(void)
 		newthread->priority, newthread->flags);
 #endif
 
+#ifdef WITH_LIB_UTHREAD
+	uthread_context_switch(oldthread, newthread);
+#endif
 	arch_context_switch(oldthread, newthread);
 }
 
