@@ -143,7 +143,7 @@ reset:
 	 * dynamically allocated stack, so we don't need it for very long
 	 */
 LOCAL_DATA(abort_stack)
-	.skip 1024
+	.skip 4096
 LOCAL_DATA(abort_stack_top)
 
 .data
