@@ -36,6 +36,10 @@ _start:
 	b	arm_fiq
 
 reset:
+#if WITH_PLATFORM_RESET
+	bl __platform_reset
+#endif
+
 	/* do some cpu setup */
 #if ARM_WITH_CP15
 	mrc		p15, 0, r0, c1, c0, 0
