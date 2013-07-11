@@ -55,6 +55,7 @@ GLOBAL_LDFLAGS :=
 
 GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
 GLOBAL_LDFLAGS += --gc-sections
+GLOBAL_LDFLAGS += -L $(LKROOT)
 
 # top level rule
 all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).size $(OUTELF).hex
