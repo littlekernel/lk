@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2012 Corey Tabaka
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,48 +20,39 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __STDIO_H
-#define __STDIO_H
 
-#include <compiler.h>
+#include <dev/driver.h>
+#include <dev/class/block.h>
+#include <platform/uart.h>
+#include <platform/ide.h>
+#include <platform.h>
+#include <malloc.h>
+#include <string.h>
 #include <debug.h>
-#include <printf.h>
+#include <ffs.h>
 
-__BEGIN_CDECLS
+#define LOCAL_TRACE 1
 
-/* fake FILE struct */
-typedef struct FILE {
-} FILE;
+static const struct platform_uart_config uart0_config = {
+	.io_port = 0x3f8,
+	.irq = 0x24,
+	.baud_rate = 115200,
+	.rx_buf_len = 1024,
+	.tx_buf_len = 1024,
+};
 
-#define stdin ((FILE *)1)
-#define stdout ((FILE *)2)
-#define stderr ((FILE *)3)
+DEVICE_INSTANCE(uart, uart0, &uart0_config);
 
-FILE *fopen(const char *filename, const char *mode);
-int fclose(FILE *stream);
-size_t fread(void *ptr, size_t size, size_t count, FILE *stream);
-size_t fwrite(const void *ptr, size_t size, size_t count, FILE *stream);
-int fflush(FILE *stream);
-int feof(FILE *stream);
+static const struct platform_ide_config ide0_config = {
+};
 
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
+DEVICE_INSTANCE(ide, ide0, &ide0_config);
 
-int fseek(FILE *stream, long offset, int whence);
-long ftell(FILE *stream);
+void target_init(void) {
+	//device_init_all();
 
-int fputc(int c, FILE *fp);
-#define putc(c, fp) fputc(c, fp)
-int putchar(int c);
+	device_init(device_get_by_name(ide, ide0));
+	ffs_mount(0, device_get_by_name(ide, ide0));
 
-int fputs(const char *s, FILE *fp);
-int puts(const char *str);
-
-int getc(FILE *fp);
-int getchar(void);
-
-__END_CDECLS
-
-#endif
+}
 

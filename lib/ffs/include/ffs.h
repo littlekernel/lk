@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2013 Corey Tabaka
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,48 +20,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __STDIO_H
-#define __STDIO_H
+#ifndef __LIB_FFS_H
+#define __LIB_FFS_H 
 
-#include <compiler.h>
-#include <debug.h>
-#include <printf.h>
+#include <sys/types.h>
+#include <dev/driver.h>
 
-__BEGIN_CDECLS
-
-/* fake FILE struct */
-typedef struct FILE {
-} FILE;
-
-#define stdin ((FILE *)1)
-#define stdout ((FILE *)2)
-#define stderr ((FILE *)3)
-
-FILE *fopen(const char *filename, const char *mode);
-int fclose(FILE *stream);
-size_t fread(void *ptr, size_t size, size_t count, FILE *stream);
-size_t fwrite(const void *ptr, size_t size, size_t count, FILE *stream);
-int fflush(FILE *stream);
-int feof(FILE *stream);
-
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
-
-int fseek(FILE *stream, long offset, int whence);
-long ftell(FILE *stream);
-
-int fputc(int c, FILE *fp);
-#define putc(c, fp) fputc(c, fp)
-int putchar(int c);
-
-int fputs(const char *s, FILE *fp);
-int puts(const char *str);
-
-int getc(FILE *fp);
-int getchar(void);
-
-__END_CDECLS
+status_t ffs_mount(size_t index, struct device *dev);
 
 #endif
 
