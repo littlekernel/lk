@@ -155,10 +155,10 @@ GLOBAL_INCLUDES := $(addprefix -I,$(GLOBAL_INCLUDES))
 
 # test for some old variables
 ifneq ($(INCLUDES),)
-$(error INCLUDES variable set, please move to GLOBAL_INCLUDES)
+$(error INCLUDES variable set, please move to GLOBAL_INCLUDES: $(INCLUDES))
 endif
 ifneq ($(DEFINES),)
-$(error DEFINES variable set, please move to GLOBAL_DEFINES)
+$(error DEFINES variable set, please move to GLOBAL_DEFINES: $(DEFINES))
 endif
 
 # default to no ccache
