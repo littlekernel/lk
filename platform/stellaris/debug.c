@@ -40,7 +40,7 @@
 
 static cbuf_t debug_rx_buf;
 
-void stellaris_uart_irq(void)
+void stellaris_uart0_irq(void)
 {
 	arm_cm_irq_entry();
 
