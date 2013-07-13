@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012 Ian McKellar
+ * Copyright (c) 2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -37,6 +38,9 @@ void stellaris_timer_init(void);
 void stellaris_gpio_early_init(void);
 void stellaris_gpio_init(void);
 
+void stellaris_usbc_early_init(void);
+void stellaris_usbc_init(void);
+
 void platform_early_init(void)
 {
 	//
@@ -56,6 +60,8 @@ void platform_early_init(void)
 	stellaris_gpio_early_init();
 
 	stellaris_debug_early_init();
+
+	stellaris_usbc_early_init();
 }
 
 void platform_init(void)
@@ -63,5 +69,23 @@ void platform_init(void)
 	stellaris_timer_init();
 	stellaris_gpio_init();
 	stellaris_debug_init();
+	stellaris_usbc_init();
+
+	// print device class
+	printf("stellaris device class: ");
+	if (CLASS_IS_SANDSTORM) printf("sandstorm");
+	if (CLASS_IS_FURY) printf("fury");
+	if (CLASS_IS_DUSTDEVIL) printf("dustdevil");
+	if (CLASS_IS_TEMPEST) printf("tempst");
+	if (CLASS_IS_FIRESTORM) printf("firestorm");
+	if (CLASS_IS_BLIZZARD) printf("blizzard");
+	printf("\n");
+
+	printf("revision register: ");
+	uint rev = (HWREG(SYSCTL_DID0) & SYSCTL_DID0_MAJ_M) >> 16;
+	printf("%c", rev + 'A');
+	printf("%ld", HWREG(SYSCTL_DID0) & (SYSCTL_DID0_MIN_M));
+	printf("\n");
 }
 
+// vim: set ts=4 sw=4 noexpandtab:
