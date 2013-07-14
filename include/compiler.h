@@ -46,6 +46,8 @@
 #define __ISCONSTANT(x) __builtin_constant_p(x)
 #define __NO_INLINE __attribute((noinline))
 #define __SRAM __NO_INLINE __SECTION(".sram.text")
+#define __CONSTRUCTOR __attribute__((constructor))
+#define __DESTRUCTOR __attribute__((destructor))
 
 #define INCBIN(symname, sizename, filename, section)                    \
     __asm__ (".section " section "; .align 4; .globl "#symname);        \
