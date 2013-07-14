@@ -46,10 +46,10 @@ INCLUDE "arch/shared_rodata_sections.ld"
 INCLUDE "arch/shared_data_sections.ld"
 	}
 	__ctor_list = .;
-	.ctors : { *(.ctors) }
+	.ctors : { KEEP(*(.ctors)) }
 	__ctor_end = .;
 	__dtor_list = .;
-	.dtors : { *(.dtors) }
+	.dtors : { KEEP(*(.dtors)) }
 	__dtor_end = .;
 
 	.stab   : { *(.stab) }
