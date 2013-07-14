@@ -66,12 +66,12 @@ INCLUDE "arch/shared_data_sections.ld"
 
 	.ctors : ALIGN(4) {
 		__ctor_list = .;
-		*(.ctors)
+		KEEP(*(.ctors .init_array))
 		__ctor_end = .;
 	}
 	.dtors : ALIGN(4) {
 		__dtor_list = .;
-		*(.dtors)
+		KEEP(*(.dtors .fini_array))
 		__dtor_end = .;
 	}
 	.got : { *(.got.plt) *(.got) }
