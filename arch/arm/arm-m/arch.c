@@ -46,15 +46,14 @@ void arch_early_init(void)
 	SCB->VTOR = (uint32_t)&vectab;
 
 	/* clear any pending interrupts and set all the vectors to medium priority */
-	int i;
-	int groups = SCnSCB->ICTR & 0xf;
+	uint i;
+	uint groups = (SCnSCB->ICTR & 0xf) + 1;
 	for (i = 0; i < groups; i++) {
 		NVIC->ICER[i] = 0xffffffff;
 		NVIC->ICPR[i] = 0xffffffff;
-		NVIC->IP[i*4] = 128; /* medium priority */
-		NVIC->IP[i*4+1] = 128; /* medium priority */
-		NVIC->IP[i*4+2] = 128; /* medium priority */
-		NVIC->IP[i*4+3] = 128; /* medium priority */
+		for (uint j = 0; j < 32; j++) {
+			NVIC->IP[i*32 + j] = 128;   /* medium priority */
+		}
 	}
 
 #if ARM_M_DYNAMIC_PRIORITY_SIZE
