@@ -6,7 +6,8 @@ ARCH := x86
 CPU := generic
 
 MODULE_DEPS += \
-	lib/cbuf
+	lib/cbuf \
+	lib/lwip \
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
@@ -21,6 +22,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/pci.c \
 	$(LOCAL_DIR)/ide.c \
 	$(LOCAL_DIR)/uart.c \
+	$(LOCAL_DIR)/pcnet.c \
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/kernel.ld
