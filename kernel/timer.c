@@ -189,7 +189,7 @@ void timer_cancel(timer_t *timer)
 		else
 			delay = newhead->scheduled_time - now;
 
-		LTRACEF("setting new timer to %d\n", delay);
+		LTRACEF("setting new timer to %u\n", (uint) delay);
 		platform_set_oneshot_timer(timer_tick, NULL, delay);
 	}
 #endif
@@ -270,8 +270,10 @@ void timer_init(void)
 {
 	list_initialize(&timer_queue);
 
+#if !PLATFORM_HAS_DYNAMIC_TIMER
 	/* register for a periodic timer tick */
 	platform_set_periodic_timer(timer_tick, NULL, 10); /* 10ms */
+#endif
 }
 
 
