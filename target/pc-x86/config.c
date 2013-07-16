@@ -23,13 +23,17 @@
 
 #include <dev/driver.h>
 #include <dev/class/block.h>
+#include <dev/class/netif.h>
 #include <platform/uart.h>
 #include <platform/ide.h>
+#include <platform/pcnet.h>
 #include <platform.h>
 #include <malloc.h>
 #include <string.h>
 #include <debug.h>
 #include <ffs.h>
+
+#include <lwip/tcpip.h>
 
 #define LOCAL_TRACE 1
 
@@ -48,11 +52,23 @@ static const struct platform_ide_config ide0_config = {
 
 DEVICE_INSTANCE(ide, ide0, &ide0_config);
 
+static const struct platform_pcnet_config pcnet0_config = {
+	.vendor_id = 0x1022,
+	.device_id = 0x2000,
+	.index = 0,
+};
+
+DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config);
+
 void target_init(void) {
 	//device_init_all();
 
 	device_init(device_get_by_name(ide, ide0));
 	ffs_mount(0, device_get_by_name(ide, ide0));
 
+	tcpip_init(NULL, NULL);
+
+	device_init(device_get_by_name(netif, pcnet0));
+	class_netif_add(device_get_by_name(netif, pcnet0));
 }
 
