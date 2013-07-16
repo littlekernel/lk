@@ -10,5 +10,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/class/spi_api.c \
 	$(LOCAL_DIR)/class/uart_api.c \
 	$(LOCAL_DIR)/class/fb_api.c \
+	$(LOCAL_DIR)/class/netif_api.c \
 
 include make/module.mk
