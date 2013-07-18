@@ -4,10 +4,10 @@ MODULE := $(LOCAL_DIR)
 
 MODULES += \
 
-INCLUDES += \
-	-I$(LOCAL_DIR)/include \
-	-I$(LOCAL_DIR)/include/lwip \
-	-I$(LOCAL_DIR)/include/posix \
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include \
+	$(LOCAL_DIR)/include/lwip \
+	$(LOCAL_DIR)/include/posix \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/sys_arch.c \
@@ -42,8 +42,8 @@ LWIP_IP_TYPE := IPV4
 
 ifeq ($(LWIP_IP_TYPE),IPV4)
 
-INCLUDES += \
-	-I$(LOCAL_DIR)/include/ipv4 \
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include/ipv4 \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/core/ipv4/autoip.c \
