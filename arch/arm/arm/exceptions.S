@@ -125,6 +125,7 @@ FUNCTION(arm_undefined)
 
 	restore
 
+#ifndef WITH_LIB_SYSCALL
 FUNCTION(arm_syscall)
 	saveall #0x13
 
@@ -132,6 +133,7 @@ FUNCTION(arm_syscall)
 	bl		arm_syscall_handler
 
 	restoreall
+#endif
 
 FUNCTION(arm_prefetch_abort)
 	saveall_offset #4, #0x17
