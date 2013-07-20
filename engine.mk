@@ -144,7 +144,7 @@ endif
 
 # allow additional defines from outside the build system
 ifneq ($(EXTERNAL_DEFINES),)
-DEFINES += $(EXTERNAL_DEFINES)
+GLOBAL_DEFINES += $(EXTERNAL_DEFINES)
 $(info EXTERNAL_DEFINES = $(EXTERNAL_DEFINES))
 endif
 
