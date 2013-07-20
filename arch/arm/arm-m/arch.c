@@ -25,6 +25,7 @@
 #include <arch/ops.h>
 #include <arch/arm.h>
 #include <kernel/thread.h>
+#include <kernel/debug.h>
 #include <platform.h>
 #include <arch/arm/cm.h>
 
@@ -126,6 +127,7 @@ void arm_cm_irq_entry(void)
 	inc_critical_section();
 
 	THREAD_STATS_INC(interrupts);
+	KEVLOG_IRQ_ENTER(__get_IPSR());
 }
 
 void arm_cm_irq_exit(bool reschedule)
@@ -133,6 +135,7 @@ void arm_cm_irq_exit(bool reschedule)
 	if (reschedule)
 		arm_cm_trigger_preempt();
 
+	KEVLOG_IRQ_EXIT(__get_IPSR());
 	dec_critical_section();
 }
 
