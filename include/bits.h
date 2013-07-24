@@ -58,4 +58,26 @@ static inline int bitmap_test(unsigned long *bitmap, int bit)
 	return BIT_SET(bitmap[BITMAP_WORD(bit)], BITMAP_BIT_IN_WORD(bit));
 }
 
+/* find first zero bit starting from LSB */
+static inline unsigned long _ffz(unsigned long x)
+{
+	return __builtin_ffsl(~x) - 1;
+}
+
+static inline int bitmap_ffz(unsigned long *bitmap, int numbits)
+{
+	uint i;
+	int bit;
+
+	for (i = 0; i < BITMAP_NUM_WORDS(numbits); i++) {
+		if (bitmap[i] == ~0UL)
+			continue;
+		bit = i * BITMAP_BITS_PER_WORD + _ffz(bitmap[i]);
+		if (bit < numbits)
+			return bit;
+		return -1;
+	}
+	return -1;
+}
+
 #endif
