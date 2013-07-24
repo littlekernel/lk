@@ -34,7 +34,7 @@
 #define BIT_SET(x, bit) (((x) & (1 << (bit))) ? 1 : 0)
 
 #define BITMAP_BITS_PER_WORD (sizeof(unsigned long) * 8)
-#define BITMAP_NUM_WORDS(x) (((x) / BITMAP_BITS_PER_WORD) + 1)
+#define BITMAP_NUM_WORDS(x) (((x) + BITMAP_BITS_PER_WORD - 1) / BITMAP_BITS_PER_WORD)
 #define BITMAP_WORD(x) ((x) / BITMAP_BITS_PER_WORD)
 #define BITMAP_BIT_IN_WORD(x) ((x) & (BITMAP_BITS_PER_WORD - 1))
 
