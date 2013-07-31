@@ -164,12 +164,18 @@ static int _vsnprintf_output(char c, void *state)
 int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
 {
 	struct _output_args args;
+	int wlen;
 
 	args.outstr = str;
 	args.len = len;
 	args.pos = 0;
 
-	return _printf_engine(&_vsnprintf_output, (void *)&args, fmt, ap);
+	wlen = _printf_engine(&_vsnprintf_output, (void *)&args, fmt, ap);
+	if (args.pos >= len)
+		str[len-1] = '\0';
+	else
+		str[wlen] = '\0';
+	return wlen;
 }
 
 int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap)
@@ -185,8 +191,7 @@ int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt,
 	size_t chars_written = 0;
 	char num_buffer[32];
 
-#define OUTPUT_CHAR(c) do { chars_written++; if (out(c, state) <= 1) goto done; } while(0)
-#define OUTPUT_CHAR_NOLENCHECK(c) do { out(c, state); } while(0)
+#define OUTPUT_CHAR(c) do { chars_written++; out(c, state); } while(0)
 
 	for (;;) {
 		/* handle regular chars that aren't format related */
@@ -376,12 +381,7 @@ _output_string:
 		continue;
 	}
 
-done:
-	/* null terminate */
-	OUTPUT_CHAR_NOLENCHECK('\0');
-
 #undef OUTPUT_CHAR
-#undef OUTPUT_CHAR_NOLENCHECK
 
 	return chars_written;
 }
