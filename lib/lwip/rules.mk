@@ -2,7 +2,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULES += \
+MODULE_DEPS := \
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include \

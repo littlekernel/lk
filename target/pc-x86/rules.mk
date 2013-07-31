@@ -5,7 +5,7 @@ MODULE := $(LOCAL_DIR)
 
 PLATFORM := pc
 
-MODULES += \
+MODULE_DEPS := \
 	lib/ffs \
 
 MODULE_SRCS += \
