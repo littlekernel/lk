@@ -74,9 +74,9 @@ GENERATED := $(CONFIGHEADER)
 # anything added to GLOBAL_DEFINES will be put into $(BUILDDIR)/config.h
 GLOBAL_DEFINES := LK=1
 
-# Anything added to SRCDEPS will become a dependency of every source file in the system.
+# Anything added to GLOBAL_SRCDEPS will become a dependency of every source file in the system.
 # Useful for header files that may be included by one or more source files.
-SRCDEPS := $(CONFIGHEADER)
+GLOBAL_SRCDEPS := $(CONFIGHEADER)
 
 # these need to be filled out by the project/target/platform rules.mk files
 TARGET :=
@@ -202,6 +202,9 @@ endif
 
 # the logic to compile and link stuff is in here
 include make/build.mk
+
+# make all object files depend on any targets in GLOBAL_SRCDEPS
+$(ALLOBJS): $(GLOBAL_SRCDEPS)
 
 clean: $(EXTRA_CLEANDEPS)
 	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).size $(OUTELF).hex
