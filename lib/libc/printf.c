@@ -81,7 +81,7 @@ int snprintf(char *str, size_t len, const char *fmt, ...)
 #define LEADZEROFLAG   0x00001000
 #define BLANKPOSFLAG   0x00002000
 
-static char *longlong_to_string(char *buf, unsigned long long n, int len, uint flag)
+static char *longlong_to_string(char *buf, unsigned long long n, int len, uint flag, char *signchar)
 {
 	int pos = len;
 	int negative = 0;
@@ -104,11 +104,13 @@ static char *longlong_to_string(char *buf, unsigned long long n, int len, uint f
 	buf[--pos] = n + '0';
 
 	if (negative)
-		buf[--pos] = '-';
+		*signchar = '-';
 	else if ((flag & SHOWSIGNFLAG))
-		buf[--pos] = '+';
+		*signchar = '+';
 	else if ((flag & BLANKPOSFLAG))
-		buf[--pos] = ' ';
+		*signchar = ' ';
+	else
+		*signchar = '\0';
 
 	return &buf[pos];
 }
@@ -179,6 +181,7 @@ int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt,
 	void *ptr;
 	int flags;
 	unsigned int format_num;
+	char signchar;
 	size_t chars_written = 0;
 	char num_buffer[32];
 
@@ -200,6 +203,7 @@ int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt,
 		/* reset the format state */
 		flags = 0;
 		format_num = 0;
+		signchar = '\0';
 
 next_format:
 		/* grab the next format character */
@@ -228,6 +232,7 @@ next_format:
 				s = va_arg(ap, const char *);
 				if (s == 0)
 					s = "<null>";
+				flags &= ~LEADZEROFLAG; /* doesn't make sense for strings */
 				goto _output_string;
 			case '-':
 				flags |= LEFTFORMATFLAG;
@@ -271,7 +276,7 @@ next_format:
 				    (flags & PTRDIFFFLAG) ? va_arg(ap, ptrdiff_t) :
 				    va_arg(ap, int);
 				flags |= SIGNEDFLAG;
-				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags);
+				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags, &signchar);
 				goto _output_string;
 			case 'u':
 				n = (flags & LONGLONGFLAG) ? va_arg(ap, unsigned long long) :
@@ -282,7 +287,7 @@ next_format:
 				    (flags & INTMAXFLAG) ? va_arg(ap, uintmax_t) :
 				    (flags & PTRDIFFFLAG) ? (uintptr_t)va_arg(ap, ptrdiff_t) :
 				    va_arg(ap, unsigned int);
-				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags);
+				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags, &signchar);
 				goto _output_string;
 			case 'p':
 				flags |= LONGFLAG | ALTFLAG;
@@ -346,9 +351,23 @@ _output_string:
 		} else {
 			/* right justify the text (digits) */
 			size_t string_len = strlen(s);
-			char outchar = (flags & LEADZEROFLAG) ? '0' : ' ';
+
+			/* if we're going to print a sign digit,
+			   it'll chew up one byte of the format size */
+			if (signchar != '\0' && format_num > 0)
+				format_num--;
+
+			/* output the sign char before the leading zeros */
+			if (flags & LEADZEROFLAG && signchar != '\0')
+				OUTPUT_CHAR(signchar);
+
+			/* pad according to the format string */
 			for (; format_num > string_len; format_num--)
-				OUTPUT_CHAR(outchar);
+				OUTPUT_CHAR(flags & LEADZEROFLAG ? '0' : ' ');
+
+			/* if not leading zeros, output the sign char just before the number */
+			if (!(flags & LEADZEROFLAG) && signchar != '\0')
+				OUTPUT_CHAR(signchar);
 
 			/* output the string */
 			while (*s != 0)

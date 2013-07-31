@@ -76,6 +76,18 @@ void printf_tests(void)
 	printf("a%-9sa\n", "b");
 	printf("a%5sa\n", "thisisatest");
 
+	printf("%03d\n", -2);       /* '-02' */
+	printf("%0+3d\n", -2);      /* '-02' */
+	printf("%0+3d\n", 2);       /* '+02' */
+	printf("%+3d\n", 2);        /* ' +2' */
+	printf("% 3d\n", -2000);    /* '-2000' */
+	printf("% 3d\n", 2000);     /* ' 2000' */
+	printf("%+3d\n", 2000);     /* '+2000' */
+	printf("%10s\n", "test");   /* '      test' */
+	printf("%010s\n", "test");  /* '      test' */
+	printf("%-10s\n", "test");  /* 'test      ' */
+	printf("%-010s\n", "test"); /* 'test      ' */
+
 	int err;
 
 	err = printf("a");
