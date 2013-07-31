@@ -68,6 +68,8 @@ struct free_heap_chunk {
 struct heap {
 	void *base;
 	size_t len;
+	size_t remaining;
+	size_t low_watermark;
 	mutex_t lock;
 	struct list_node free_list;
 	struct list_node delayed_free_list;
@@ -178,6 +180,8 @@ static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *ch
 	struct free_heap_chunk *last_chunk;
 
 	mutex_acquire(&theheap.lock);
+
+	theheap.remaining += chunk->len;
 
 	// walk through the list, finding the node to insert before
 	list_for_every_entry(&theheap.free_list, next_chunk, struct free_heap_chunk, node) {
@@ -352,6 +356,11 @@ void *heap_alloc(size_t size, unsigned int alignment)
 			as->magic = HEAP_MAGIC;
 			as->ptr = (void *)chunk;
 			as->size = size;
+			theheap.remaining -= size;
+
+			if (theheap.remaining < theheap.low_watermark) {
+				theheap.low_watermark = theheap.remaining;
+			}
 #if DEBUG_HEAP
 			as->padding_start = ((uint8_t *)ptr + original_size);
 			as->padding_size = (((addr_t)chunk + size) - ((addr_t)ptr + original_size));
@@ -420,6 +429,39 @@ void heap_delayed_free(void *ptr)
 	exit_critical_section();
 }
 
+void heap_get_stats(struct heap_stats *ptr)
+{
+	struct free_heap_chunk *chunk;
+
+	if ((struct heap_stats*)NULL==ptr) {
+		return;
+	}
+	//flush the delayed free list
+	if (unlikely(!list_is_empty(&theheap.delayed_free_list))) {
+		heap_free_delayed_list();
+	}
+
+	ptr->heap_start = theheap.base;
+	ptr->heap_len = theheap.len;
+	ptr->heap_free=0;
+	ptr->heap_max_chunk = 0;
+
+	mutex_acquire(&theheap.lock);
+
+	list_for_every_entry(&theheap.free_list, chunk, struct free_heap_chunk, node) {
+		ptr->heap_free += chunk->len;
+
+		if (chunk->len > ptr->heap_max_chunk) {
+			ptr->heap_max_chunk = chunk->len;
+		}
+	}
+
+	ptr->heap_low_watermark = theheap.low_watermark;
+
+	mutex_release(&theheap.lock);
+
+}
+
 void heap_init(void)
 {
 	LTRACE_ENTRY;
@@ -427,7 +469,8 @@ void heap_init(void)
 	// set the heap range
 	theheap.base = (void *)HEAP_START;
 	theheap.len = HEAP_LEN;
-
+	theheap.remaining =0; // will get set by heap_insert_free_chunk()
+	theheap.low_watermark = theheap.len;
 	LTRACEF("base %p size %zd bytes\n", theheap.base, theheap.len);
 
 	// create a mutex

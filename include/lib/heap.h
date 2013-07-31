@@ -25,10 +25,20 @@
 
 #include <sys/types.h>
 
+struct heap_stats {
+	void* heap_start;
+	size_t heap_len;
+	size_t heap_free;
+	size_t heap_max_chunk;
+	size_t heap_low_watermark;
+};
+
 void *heap_alloc(size_t, unsigned int alignment);
 void heap_free(void *);
 
 void heap_init(void);
+
+void heap_get_stats(struct heap_stats *ptr);
 
 /* critical section time delayed free */
 void heap_delayed_free(void *);
