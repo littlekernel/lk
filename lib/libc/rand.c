@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -22,7 +22,12 @@
  */
 #include <rand.h>
 
-static int randseed = 12345;
+static unsigned int randseed = 12345;
+
+void srand(unsigned int seed)
+{
+	randseed = seed;
+}
 
 int rand(void)
 {

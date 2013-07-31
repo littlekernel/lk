@@ -28,6 +28,7 @@
 #include <malloc.h>
 #include <printf.h>
 #include <endian.h>
+#include <rand.h>
 #include <arch/defines.h>
 
 int atoi(const char *num);
