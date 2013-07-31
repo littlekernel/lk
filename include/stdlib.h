@@ -34,6 +34,7 @@ int atoi(const char *num);
 unsigned int atoui(const char *num);
 long atol(const char *num);
 unsigned long atoul(const char *num);
+unsigned long long atoull(const char *num);
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))

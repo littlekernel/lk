@@ -103,3 +103,21 @@ unsigned long atoul(const char *num)
 	return value;
 }
 
+unsigned long long atoull(const char *num)
+{
+	unsigned long long value = 0;
+	if (num[0] == '0' && num[1] == 'x') {
+		// hex
+		num += 2;
+		while (*num && isxdigit(*num))
+			value = value * 16 + hexval(*num++);
+	} else {
+		// decimal
+		while (*num && isdigit(*num))
+			value = value * 10 + *num++  - '0';
+	}
+
+	return value;
+}
+
+
