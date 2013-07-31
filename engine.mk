@@ -213,7 +213,7 @@ install: all
 configheader:
 
 $(CONFIGHEADER): configheader
-	$(call MAKECONFIGHEADER,$@,GLOBAL_DEFINES)
+	@$(call MAKECONFIGHEADER,$@,GLOBAL_DEFINES)
 
 # Empty rule for the .d files. The above rules will build .d files as a side
 # effect. Only works on gcc 3.x and above, however.

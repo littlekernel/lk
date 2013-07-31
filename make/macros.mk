@@ -11,11 +11,27 @@ COMMA := ,
 SPACE :=
 SPACE +=
 
+# test if two files are different, replacing the first
+# with the second if so
+# args: $1 - temporary file to test
+#       $2 - file to replace
+define TESTANDREPLACEFILE
+	if [ -f "$2" ]; then \
+		if cmp "$1" "$2"; then \
+			rm -f $1; \
+		else \
+			mv $1 $2; \
+		fi \
+	else \
+		mv $1 $2; \
+	fi
+endef
+
 # generate a header file at $1 with an expanded variable in $2
 define MAKECONFIGHEADER
-	@$(MKDIR)
-	@echo generating $1
-	@rm -f $1.tmp; \
+	$(MKDIR); \
+	echo generating $1; \
+	rm -f $1.tmp; \
 	LDEF=`echo $1 | tr '/\\.-' '_'`; \
 	echo \#ifndef __$${LDEF}_H > $1.tmp; \
 	echo \#define __$${LDEF}_H >> $1.tmp; \
@@ -23,13 +39,5 @@ define MAKECONFIGHEADER
 		echo "#define $$d" | sed "s/=/\ /g;s/-/_/g;s/\//_/g;s/\./_/g;s/\//_/g" >> $1.tmp; \
 	done; \
 	echo \#endif >> $1.tmp; \
-	if [ -f "$1" ]; then \
-		if cmp "$1.tmp" "$1"; then \
-			rm -f $1.tmp; \
-		else \
-			mv $1.tmp $1; \
-		fi \
-	else \
-		mv $1.tmp $1; \
-	fi
+	$(call TESTANDREPLACEFILE,$1.tmp,$1)
 endef
