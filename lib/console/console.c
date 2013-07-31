@@ -49,6 +49,9 @@
 /* debug buffer */
 static char *debug_buffer;
 
+/* echo commands? */
+static bool echo = true;
+
 /* command processor state */
 static mutex_t *command_lock;
 int lastresult;
@@ -77,6 +80,7 @@ extern cmd_block __commands_start;
 extern cmd_block __commands_end;
 
 static int cmd_help(int argc, const cmd_args *argv);
+static int cmd_echo(int argc, const cmd_args *argv);
 static int cmd_test(int argc, const cmd_args *argv);
 #if CONSOLE_ENABLE_HISTORY
 static int cmd_history(int argc, const cmd_args *argv);
@@ -84,6 +88,7 @@ static int cmd_history(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("help", "this list", &cmd_help)
+STATIC_COMMAND("echo", NULL, &cmd_echo)
 #if LK_DEBUGLEVEL > 1
 STATIC_COMMAND("test", "test the command processor", &cmd_test)
 #if CONSOLE_ENABLE_HISTORY
@@ -244,7 +249,8 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 			switch (c) {
 				case '\r':
 				case '\n':
-					putchar('\n');
+					if (echo)
+						putchar('\n');
 					goto done;
 
 				case 0x7f: // backspace or delete
@@ -263,7 +269,8 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 
 				default:
 					buffer[pos++] = c;
-					putchar(c);
+					if (echo)
+						putchar(c);
 			}
 		} else if (escape_level == 1) {
 			// inside an escape, look for '['
@@ -277,14 +284,17 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 			switch (c) {
 				case 67: // right arrow
 					buffer[pos++] = ' ';
-					putchar(' ');
+					if (echo)
+						putchar(' ');
 					break;
 				case 68: // left arrow
 					if (pos > 0) {
 						pos--;
-						fputs("\x1b[1D", stdout); // move to the left one
-						putchar(' ');
-						fputs("\x1b[1D", stdout); // move to the left one
+						if (echo) {
+							fputs("\x1b[1D", stdout); // move to the left one
+							putchar(' ');
+							fputs("\x1b[1D", stdout); // move to the left one
+						}
 					}
 					break;
 #if CONSOLE_ENABLE_HISTORY
@@ -293,9 +303,11 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 					// wipe out the current line
 					while (pos > 0) {
 						pos--;
-						fputs("\x1b[1D", stdout); // move to the left one
-						putchar(' ');
-						fputs("\x1b[1D", stdout); // move to the left one
+						if (echo) {
+							fputs("\x1b[1D", stdout); // move to the left one
+							putchar(' ');
+							fputs("\x1b[1D", stdout); // move to the left one
+						}
 					}
 
 					if (c == 65)
@@ -303,7 +315,8 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 					else
 						strlcpy(buffer, next_history(&history_cursor), LINE_LEN);
 					pos = strlen(buffer);
-					fputs(buffer, stdout);
+					if (echo)
+						fputs(buffer, stdout);
 					break;
 #endif
 				default:
@@ -758,6 +771,13 @@ static int cmd_help(int argc, const cmd_args *argv)
 	}
 
 	return 0;
+}
+
+static int cmd_echo(int argc, const cmd_args *argv)
+{
+	if (argc > 1)
+		echo = argv[1].b;
+	return NO_ERROR;
 }
 
 #if LK_DEBUGLEVEL > 1
