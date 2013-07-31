@@ -35,9 +35,11 @@ typedef struct cbuf {
 } cbuf_t;
 
 void cbuf_initialize(cbuf_t *cbuf, size_t len);
+void cbuf_initialize_etc(cbuf_t *cbuf, size_t len, void *buf);
 size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block);
 size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule);
 size_t cbuf_space_avail(cbuf_t *cbuf);
+size_t cbuf_space_used(cbuf_t *cbuf);
 
 /* special cases for dealing with a single char of data */
 size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block);

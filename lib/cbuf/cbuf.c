@@ -35,6 +35,11 @@
 
 void cbuf_initialize(cbuf_t *cbuf, size_t len)
 {
+	cbuf_initialize_etc(cbuf, len, malloc(len));
+}
+
+void cbuf_initialize_etc(cbuf_t *cbuf, size_t len, void *buf)
+{
 	DEBUG_ASSERT(cbuf);
 	DEBUG_ASSERT(len > 0);
 	DEBUG_ASSERT(ispow2(len));
@@ -42,7 +47,7 @@ void cbuf_initialize(cbuf_t *cbuf, size_t len)
 	cbuf->head = 0;
 	cbuf->tail = 0;
 	cbuf->len_pow2 = log2_uint(len);
-	cbuf->buf = malloc(len);
+	cbuf->buf = buf;
 	event_init(&cbuf->event, false, 0);
 
 	LTRACEF("len %zd, len_pow2 %u\n", len, cbuf->len_pow2);
@@ -52,6 +57,11 @@ size_t cbuf_space_avail(cbuf_t *cbuf)
 {
 	uint consumed = modpow2((uint)(cbuf->head - cbuf->tail), cbuf->len_pow2);
 	return valpow2(cbuf->len_pow2) - consumed - 1;
+}
+
+size_t cbuf_space_used(cbuf_t *cbuf)
+{
+	return modpow2((uint)(cbuf->head - cbuf->tail), cbuf->len_pow2);
 }
 
 size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule)
