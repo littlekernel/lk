@@ -22,6 +22,7 @@
  */
 #include <debug.h>
 #include <assert.h>
+#include <err.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -38,6 +39,8 @@
 #endif
 
 #define LINE_LEN 128
+
+#define MAX_NUM_ARGS 16
 
 #define HISTORY_LEN 16
 
@@ -525,16 +528,28 @@ static void convert_args(int argc, cmd_args *argv)
 	}
 }
 
-static void command_loop(int (*get_line)(const char **, void *), void *get_line_cookie, bool showprompt, bool locked)
+
+static status_t command_loop(int (*get_line)(const char **, void *), void *get_line_cookie, bool showprompt, bool locked)
 {
 	bool exit;
-	cmd_args args[16];
+#if WITH_LIB_ENV
+	bool report_result;
+#endif
+	cmd_args *args = NULL;
 	const char *buffer;
 	const char *continuebuffer;
-	char *outbuf;
+	char *outbuf = NULL;
+
+	args = (cmd_args *) malloc (MAX_NUM_ARGS * sizeof(cmd_args));
+	if (unlikely(args == NULL)) {
+		goto no_mem_error;
+	}
 
 	const size_t outbuflen = 1024;
 	outbuf = malloc(outbuflen);
+	if (unlikely(outbuf == NULL)) {
+		goto no_mem_error;
+	}
 
 	exit = false;
 	continuebuffer = NULL;
@@ -556,7 +571,8 @@ static void command_loop(int (*get_line)(const char **, void *), void *get_line_
 //		dprintf("line = '%s'\n", buffer);
 
 		/* tokenize the line */
-		int argc = tokenize_command(buffer, &continuebuffer, outbuf, outbuflen, args, 16);
+		int argc = tokenize_command(buffer, &continuebuffer, outbuf, outbuflen, 
+		                            args, MAX_NUM_ARGS);
 		if (argc < 0) {
 			if (showprompt)
 				printf("syntax error\n");
@@ -612,6 +628,18 @@ static void command_loop(int (*get_line)(const char **, void *), void *get_line_
 	}
 
 	free(outbuf);
+	free(args);
+	return NO_ERROR;
+
+no_mem_error:
+	if (outbuf)
+		free(outbuf);
+
+	if (args)
+		free(args);
+
+	dprintf(INFO, "%s: not enough memory\n", __func__);
+	return ERR_NO_MEMORY;
 }
 
 void console_abort_script(void)
@@ -625,8 +653,13 @@ void console_start(void)
 
 	dprintf(INFO, "entering main console loop\n");
 
-	for (;;)
-		command_loop(&read_debug_line, NULL, true, false);
+
+	while (command_loop(&read_debug_line, NULL, true, false) == NO_ERROR)
+		;
+
+	dprintf(INFO, "exiting main console loop\n");
+
+	free (debug_buffer);
 }
 
 struct line_read_struct {
@@ -673,6 +706,8 @@ static int console_run_script_etc(const char *string, bool locked)
 	lineread.buflen = LINE_LEN;
 
 	command_loop(&fetch_next_line, (void *)&lineread, false, locked);
+
+	free(lineread.buffer);
 
 	return lastresult;
 }
