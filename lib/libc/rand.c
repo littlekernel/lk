@@ -26,5 +26,5 @@ static int randseed = 12345;
 
 int rand(void)
 {
-	return (randseed = randseed * 12345 + 17);
+	return (randseed = randseed * 1664525 + 1013904223);
 }
