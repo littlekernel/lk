@@ -33,10 +33,8 @@
 #include <platform.h>
 #include <target.h>
 #include <lib/heap.h>
-#include <lib/dpc.h>
-#include <lib/fs.h>
-#include <lib/bio.h>
 #include <kernel/thread.h>
+#include <lk/init.h>
 
 extern void *__ctor_list;
 extern void *__ctor_end;
@@ -72,12 +70,15 @@ void lk_main(void)
 	thread_init_early();
 
 	// early arch stuff
+	lk_init_level(LK_INIT_LEVEL_ARCH_EARLY - 1);
 	arch_early_init();
 
 	// do any super early platform initialization
+	lk_init_level(LK_INIT_LEVEL_PLATFORM_EARLY - 1);
 	platform_early_init();
 
 	// do any super early target initialization
+	lk_init_level(LK_INIT_LEVEL_TARGET_EARLY - 1);
 	target_early_init();
 
 	dprintf(INFO, "welcome to lk\n\n");
@@ -88,10 +89,14 @@ void lk_main(void)
 
 	// bring up the kernel heap
 	dprintf(SPEW, "initializing heap\n");
+	lk_init_level(LK_INIT_LEVEL_HEAP - 1);
 	heap_init();
 
 	// initialize the kernel
+	lk_init_level(LK_INIT_LEVEL_KERNEL - 1);
 	kernel_init();
+
+	lk_init_level(LK_INIT_LEVEL_THREADING - 1);
 
 	// create a thread to complete system initialization
 	dprintf(SPEW, "creating bootstrap completion thread\n");
@@ -103,39 +108,29 @@ void lk_main(void)
 	thread_become_idle();
 }
 
-int main(void);
-
 static int bootstrap2(void *arg)
 {
 	dprintf(SPEW, "top of bootstrap2()\n");
 
+	lk_init_level(LK_INIT_LEVEL_ARCH - 1);
 	arch_init();
-
-	// initialize the dpc system
-#if WITH_LIB_DPC
-	dpc_init();
-#endif
-
-	// XXX put this somewhere else
-#if WITH_LIB_BIO
-	bio_init();
-#endif
-#if WITH_LIB_FS
-	fs_init();
-#endif
 
 	// initialize the rest of the platform
 	dprintf(SPEW, "initializing platform\n");
+	lk_init_level(LK_INIT_LEVEL_PLATFORM - 1);
 	platform_init();
 
 	// initialize the target
 	dprintf(SPEW, "initializing target\n");
+	lk_init_level(LK_INIT_LEVEL_TARGET - 1);
 	target_init();
 
 	dprintf(SPEW, "calling apps_init()\n");
+	lk_init_level(LK_INIT_LEVEL_APPS - 1);
 	apps_init();
+
+	lk_init_level(LK_INIT_LEVEL_LAST);
 
 	return 0;
 }
-
 

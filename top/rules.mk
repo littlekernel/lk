@@ -10,6 +10,7 @@ MODULE_DEPS := \
 	kernel
 
 MODULE_SRCS := \
+	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/main.c \
 
 include make/module.mk
