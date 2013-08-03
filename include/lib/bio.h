@@ -58,9 +58,6 @@ ssize_t bio_write_block(bdev_t *dev, const void *buf, bnum_t block, uint count);
 ssize_t bio_erase(bdev_t *dev, off_t offset, size_t len);
 int bio_ioctl(bdev_t *dev, int request, void *argp);
 
-/* intialize the block device layer */
-void bio_init(void);
-
 /* register a block device */
 void bio_register_device(bdev_t *dev);
 void bio_unregister_device(bdev_t *dev);

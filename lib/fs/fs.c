@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <lib/fs.h>
 #include <lib/bio.h>
+#include <lk/init.h>
 
 #if WITH_LIB_FS_EXT2
 #include <lib/fs/ext2.h>
@@ -97,7 +98,7 @@ static struct fs_type types[] = {
 static void test_normalize(const char *in);
 static struct fs_mount *find_mount(const char *path, const char **trimmed_path);
 
-void fs_init(void)
+static void fs_init(uint level)
 {
 	list_initialize(&mounts);
 #if 0
@@ -129,6 +130,8 @@ void fs_init(void)
 	test_normalize("/bleh/bar/../../foo/../meh");
 #endif
 }
+
+LK_INIT_HOOK(libfs, &fs_init, LK_INIT_LEVEL_THREADING);
 
 static struct fs_mount *find_mount(const char *path, const char **trimmed_path)
 {

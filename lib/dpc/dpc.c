@@ -28,6 +28,7 @@
 #include <lib/dpc.h>
 #include <kernel/thread.h>
 #include <kernel/event.h>
+#include <lk/init.h>
 
 struct dpc {
 	struct list_node node;
@@ -40,13 +41,6 @@ static struct list_node dpc_list = LIST_INITIAL_VALUE(dpc_list);
 static event_t dpc_event;
 
 static int dpc_thread_routine(void *arg);
-
-void dpc_init(void)
-{
-	event_init(&dpc_event, false, 0);
-
-	thread_detach_and_resume(thread_create("dpc", &dpc_thread_routine, NULL, DPC_PRIORITY, DEFAULT_STACK_SIZE));
-}
 
 status_t dpc_queue(dpc_callback cb, void *arg, uint flags)
 {
@@ -88,5 +82,14 @@ static int dpc_thread_routine(void *arg)
 
 	return 0;
 }
+
+static void dpc_init(uint level)
+{
+	event_init(&dpc_event, false, 0);
+
+	thread_detach_and_resume(thread_create("dpc", &dpc_thread_routine, NULL, DPC_PRIORITY, DEFAULT_STACK_SIZE));
+}
+
+LK_INIT_HOOK(libdpc, &dpc_init, LK_INIT_LEVEL_THREADING);
 
 

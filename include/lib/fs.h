@@ -26,8 +26,6 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
-void fs_init(void);
-
 struct file_stat {
 	bool is_dir;
 	off_t size;

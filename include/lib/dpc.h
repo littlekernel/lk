@@ -26,8 +26,6 @@
 #include <list.h>
 #include <sys/types.h>
 
-void dpc_init(void);
-
 typedef void (*dpc_callback)(void *arg);
 
 #define DPC_FLAG_NORESCHED 0x1

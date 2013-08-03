@@ -28,6 +28,7 @@
 #include <list.h>
 #include <lib/bio.h>
 #include <kernel/mutex.h>
+#include <lk/init.h>
 
 #define LOCAL_TRACE 0
 
@@ -436,11 +437,13 @@ void bio_dump_devices(void)
 	mutex_release(&bdevs->lock);
 }
 
-void bio_init(void)
+static void bio_init(uint level)
 {
 	bdevs = malloc(sizeof(*bdevs));
 
 	list_initialize(&bdevs->list);
 	mutex_init(&bdevs->lock);
 }
+
+LK_INIT_HOOK(libbio, &bio_init, LK_INIT_LEVEL_THREADING);
 
