@@ -98,6 +98,7 @@ struct arm_fault_frame {
 #define MODE_SYS 0x1f
 
 struct arm_mode_regs {
+	uint32_t usr_r13, usr_r14;
 	uint32_t fiq_r13, fiq_r14;
 	uint32_t irq_r13, irq_r14;
 	uint32_t svc_r13, svc_r14;

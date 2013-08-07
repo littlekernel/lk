@@ -31,6 +31,7 @@ static void dump_mode_regs(uint32_t spsr)
 	struct arm_mode_regs regs;
 	arm_save_mode_regs(&regs);
 
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_USR) ? '*' : ' ', "usr", regs.usr_r13, regs.usr_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_FIQ) ? '*' : ' ', "fiq", regs.fiq_r13, regs.fiq_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_IRQ) ? '*' : ' ', "irq", regs.irq_r13, regs.irq_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_SVC) ? '*' : ' ', "svc", regs.svc_r13, regs.svc_r14);
