@@ -3,7 +3,7 @@
 #include <lwip/sys.h>
 #include <platform.h>
 #include <assert.h>
-#include <debug.h>
+#include <trace.h>
 #include <err.h>
 #include <stdbool.h>
 
