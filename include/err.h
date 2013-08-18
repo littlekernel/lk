@@ -65,6 +65,7 @@
 #define ERR_OUT_OF_RANGE        (-37)
 #define ERR_NOT_CONFIGURED      (-38)
 #define ERR_NOT_MOUNTED         (-39)
+#define ERR_FAULT               (-40)
 
 #define ERR_USER_BASE           (-16384)
 
