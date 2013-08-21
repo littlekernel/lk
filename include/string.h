@@ -62,6 +62,6 @@ int    strncasecmp(char const *, char const *, size_t)  __PURE;
 int    strnicmp(char const *, char const *, size_t) __PURE;
 size_t strnlen(char const *s, size_t count) __PURE;
 
-__BEGIN_CDECLS
+__END_CDECLS
 
 #endif
