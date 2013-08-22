@@ -20,15 +20,19 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
 #include <stdio.h>
+#include <debug.h>
 #include <stdarg.h>
+#include <string.h>
+#include <assert.h>
+#include <err.h>
 #include <sys/types.h>
 #include <platform/debug.h>
 
 int fputc(int c, FILE *fp)
 {
-	return fp->fputc(fp->ctx, c);
+	DEBUG_ASSERT(fp->write);
+	return fp->write(fp->ctx, &c, 1);
 }
 
 int putchar(int c)
@@ -46,12 +50,24 @@ int puts(const char *str)
 
 int fputs(const char *s, FILE *fp)
 {
-	return fp->fputs(fp->ctx, s);
+	size_t len = strlen(s);
+
+	DEBUG_ASSERT(fp->write);
+	return fp->write(fp->ctx, s, len);
 }
 
 int getc(FILE *fp)
 {
-	return fp->fgetc(fp->ctx);
+	unsigned char c;
+
+	DEBUG_ASSERT(fp->read);
+	ssize_t len = fp->read(fp->ctx, &c, 1, 0);
+	if (len == 1)
+		return c;
+	else if (len == 0)
+		return ERR_IO;
+	else
+		return len;
 }
 
 int getchar(void)
@@ -59,9 +75,18 @@ int getchar(void)
 	return getc(stdin);
 }
 
+static int _FILE_printf_output_routine(char c, void *state)
+{
+	FILE *fp = (FILE *)state;
+
+	fputc(c, fp);
+
+	return INT_MAX;
+}
+
 int vfprintf(FILE *fp, const char *fmt, va_list ap)
 {
-	return fp->vfprintf(fp->ctx, fmt, ap);
+	return _printf_engine(&_FILE_printf_output_routine, (void *)fp, fmt, ap);
 }
 
 int fprintf(FILE *fp, const char *fmt, ...)
@@ -86,3 +111,5 @@ int _printf(const char *fmt, ...)
 
 	return err;
 }
+
+/* vim: set ts=4 sw=4 noexpandtab: */

@@ -29,12 +29,13 @@
 
 __BEGIN_CDECLS
 
+#define __FILE_READ_NONBLOCK  (0x1)
+
 typedef struct FILE {
 	void *ctx;
-	int (*fputc)(void *ctx, int c);
-	int (*fputs)(void *ctx, const char *s);
-	int (*fgetc)(void *ctx);
-	int (*vfprintf)(void *ctx, const char *fmt, va_list ap);
+
+	ssize_t (*write)(void *ctx, const void *ptr, size_t len);
+	ssize_t (*read)(void *ctx, void *ptr, size_t len, unsigned int flags);
 } FILE;
 
 extern FILE __stdio_FILEs[];

@@ -59,40 +59,32 @@ void _panic(void *caller, const char *fmt, ...)
 	halt();
 }
 
-static int __debug_stdio_fputc(void *ctx, int c)
+ssize_t __debug_stdio_write(void *ctx, const void *_ptr, size_t len)
 {
-	_dputc(c);
-	return 0;
+	const char *ptr = _ptr;
+
+	for (size_t i = 0; i < len; i++)
+		_dputc(ptr[i]);
+
+	return len;
 }
 
-static int __debug_stdio_fputs(void *ctx, const char *s)
+ssize_t __debug_stdio_read(void *ctx, void *ptr, size_t len, unsigned int flags)
 {
-	return _dputs(s);
-}
-
-static int __debug_stdio_fgetc(void *ctx)
-{
-	char c;
 	int err;
 
-	err = platform_dgetc(&c, true);
+	err = platform_dgetc(ptr, (flags & __FILE_READ_NONBLOCK) ? false : true);
 	if (err < 0)
 		return err;
-	return (unsigned char)c;
-}
 
-static int __debug_stdio_vfprintf(void *ctx, const char *fmt, va_list ap)
-{
-	return _dvprintf(fmt, ap);
+	return 1;
 }
 
 #define DEFINE_STDIO_DESC(id)						\
 	[(id)]	= {							\
 		.ctx		= &__stdio_FILEs[(id)],			\
-		.fputc		= __debug_stdio_fputc,			\
-		.fputs		= __debug_stdio_fputs,			\
-		.fgetc		= __debug_stdio_fgetc,			\
-		.vfprintf	= __debug_stdio_vfprintf,		\
+		.write		= __debug_stdio_write,			\
+		.read		= __debug_stdio_read,			\
 	}
 
 FILE __stdio_FILEs[3] = {
@@ -181,3 +173,4 @@ void hexdump8(const void *ptr, size_t len)
 
 #endif // !DISABLE_DEBUG_OUTPUT
 
+/* vim: set ts=4 sw=4 noexpandtab: */
