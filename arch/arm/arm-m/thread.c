@@ -49,7 +49,7 @@ static void initial_thread_func(void)
 {
 	int ret;
 
-	LTRACEF("thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
+	KLTRACEF("thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
 #if LOCAL_TRACE
 	dump_thread(current_thread);
 #endif
@@ -59,14 +59,14 @@ static void initial_thread_func(void)
 
 	ret = current_thread->entry(current_thread->arg);
 
-	LTRACEF("thread %p exiting with %d\n", current_thread, ret);
+	KLTRACEF("thread %p exiting with %d\n", current_thread, ret);
 
 	thread_exit(ret);
 }
 
 void arch_thread_initialize(struct thread *t)
 {
-	LTRACEF("thread %p, stack %p\n", t, t->stack);
+	KLTRACEF("thread %p, stack %p\n", t, t->stack);
 
 	/* find the top of the stack and align it on an 8 byte boundary */
 	uint32_t *sp = (void *)ROUNDDOWN((vaddr_t)t->stack + t->stack_size, 8);
@@ -90,13 +90,13 @@ static void pendsv(struct arm_cm_exception_frame_long *frame)
 
 	ASSERT(critical_section_count == 1);
 
-	LTRACEF("preempting thread %p (%s)\n", current_thread, current_thread->name);
+	KLTRACEF("preempting thread %p (%s)\n", current_thread, current_thread->name);
 
 	/* save the iframe the pendsv fired on and hit the preemption code */
 	preempt_frame = frame;
 	thread_preempt();
 
-	LTRACEF("fell through\n");
+	KLTRACEF("fell through\n");
 
 	/* if we got here, there wasn't anything to switch to, so just fall through and exit */
 	preempt_frame = NULL;
@@ -185,7 +185,7 @@ __NAKED static void _thread_mode_bounce(void)
  */
 void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 {
-	LTRACE_ENTRY;
+	KLTRACE_ENTRY;
 
 	if (newthread->arch.was_preempted) {
 		/* we're about to return directly to a thread that was preempted (in user space),
@@ -200,7 +200,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 		oldthread->arch.sp = (addr_t)preempt_frame;
 		preempt_frame = NULL;
 
-		LTRACEF("we're preempted, new %d\n", newthread->arch.was_preempted);
+		KLTRACEF("we're preempted, new %d\n", newthread->arch.was_preempted);
 		if (newthread->arch.was_preempted) {
 			/* return directly to the preempted thread's iframe */
 			__asm__ volatile(
@@ -222,7 +222,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 			frame->psr = (1 << 24); /* thread bit set, IPSR 0 */
 			frame->r0 = frame->r1 =  frame->r2 = frame->r3 = frame->r12 = frame->lr = 99;
 
-			LTRACEF("iretting to user space\n");
+			KLTRACEF("iretting to user space\n");
 			//hexdump(frame, sizeof(*frame) + 64);
 
 			__asm__ volatile(
@@ -237,7 +237,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 		oldthread->arch.was_preempted = false;
 
 		if (newthread->arch.was_preempted) {
-			LTRACEF("not being preempted, but switching to preempted thread\n");
+			KLTRACEF("not being preempted, but switching to preempted thread\n");
 			_half_save_and_svc(&oldthread->arch.sp, newthread->arch.sp);
 		} else {
 			/* fast path, both sides did not preempt */

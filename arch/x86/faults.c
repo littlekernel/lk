@@ -20,26 +20,26 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
 #include <arch/x86.h>
 #include <kernel/thread.h>
+#include <kernel/debug.h>
 
 static void dump_fault_frame(struct x86_iframe *frame)
 {
-	dprintf(CRITICAL, " CS:     %04x EIP: %08x EFL: %08x CR2: %08x\n",
+	kprintf(" CS:     %04x EIP: %08x EFL: %08x CR2: %08x\n",
 	        frame->cs, frame->eip, frame->eflags, x86_get_cr2());
-	dprintf(CRITICAL, "EAX: %08x ECX: %08x EDX: %08x EBX: %08x\n",
+	kprintf("EAX: %08x ECX: %08x EDX: %08x EBX: %08x\n",
 	        frame->eax, frame->ecx, frame->edx, frame->ebx);
-	dprintf(CRITICAL, "ESP: %08x EBP: %08x ESI: %08x EDI: %08x\n",
+	kprintf("ESP: %08x EBP: %08x ESI: %08x EDI: %08x\n",
 	        frame->esp, frame->ebp, frame->esi, frame->edi);
-	dprintf(CRITICAL, " DS:     %04x  ES:     %04x  FS:     %04x  GS:     %04x\n",
+	kprintf(" DS:     %04x  ES:     %04x  FS:     %04x  GS:     %04x\n",
 	        frame->ds, frame->es, frame->fs, frame->gs);
 
 	// dump the bottom of the current stack
 	addr_t stack = (addr_t) frame; //(addr_t) (((uint32_t *) frame) + (sizeof(struct x86_iframe) / sizeof(uint32_t) - 1));
 
 	if (stack != 0) {
-		dprintf(CRITICAL, "bottom of stack at 0x%08x:\n", (unsigned int)stack);
+		kprintf("bottom of stack at 0x%08x:\n", (unsigned int)stack);
 		hexdump((void *)stack, 192);
 	}
 }
@@ -47,7 +47,7 @@ static void dump_fault_frame(struct x86_iframe *frame)
 static void exception_die(struct x86_iframe *frame, const char *msg)
 {
 	inc_critical_section();
-	dprintf(CRITICAL, msg);
+	kputs(msg);
 	dump_fault_frame(frame);
 
 	for (;;) {

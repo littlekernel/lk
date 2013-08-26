@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,23 +23,24 @@
 #include <debug.h>
 #include <arch/arm.h>
 #include <kernel/thread.h>
+#include <kernel/debug.h>
 
 static void dump_fault_frame(struct arm_fault_frame *frame)
 {
-	dprintf(CRITICAL, "r0  0x%08x r1  0x%08x r2  0x%08x r3  0x%08x\n", frame->r[0], frame->r[1], frame->r[2], frame->r[3]);
-	dprintf(CRITICAL, "r4  0x%08x r5  0x%08x r6  0x%08x r7  0x%08x\n", frame->r[4], frame->r[5], frame->r[6], frame->r[7]);
-	dprintf(CRITICAL, "r8  0x%08x r9  0x%08x r10 0x%08x r11 0x%08x\n", frame->r[8], frame->r[9], frame->r[10], frame->r[11]);
-	dprintf(CRITICAL, "r12 0x%08x usp 0x%08x ulr 0x%08x pc  0x%08x\n", frame->r[12], frame->usp, frame->ulr, frame->pc);
-	dprintf(CRITICAL, "spsr 0x%08x\n", frame->spsr);
+	kprintf("r0  0x%08x r1  0x%08x r2  0x%08x r3  0x%08x\n", frame->r[0], frame->r[1], frame->r[2], frame->r[3]);
+	kprintf("r4  0x%08x r5  0x%08x r6  0x%08x r7  0x%08x\n", frame->r[4], frame->r[5], frame->r[6], frame->r[7]);
+	kprintf("r8  0x%08x r9  0x%08x r10 0x%08x r11 0x%08x\n", frame->r[8], frame->r[9], frame->r[10], frame->r[11]);
+	kprintf("r12 0x%08x usp 0x%08x ulr 0x%08x pc  0x%08x\n", frame->r[12], frame->usp, frame->ulr, frame->pc);
+	kprintf("spsr 0x%08x\n", frame->spsr);
 
 	struct arm_mode_regs regs;
 	arm_save_mode_regs(&regs);
 
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_FIQ) ? '*' : ' ', "fiq", regs.fiq_r13, regs.fiq_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_IRQ) ? '*' : ' ', "irq", regs.irq_r13, regs.irq_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_SVC) ? '*' : ' ', "svc", regs.svc_r13, regs.svc_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_UND) ? '*' : ' ', "und", regs.und_r13, regs.und_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_SYS) ? '*' : ' ', "sys", regs.sys_r13, regs.sys_r14);
+	kprintf("%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_FIQ) ? '*' : ' ', "fiq", regs.fiq_r13, regs.fiq_r14);
+	kprintf("%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_IRQ) ? '*' : ' ', "irq", regs.irq_r13, regs.irq_r14);
+	kprintf("%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_SVC) ? '*' : ' ', "svc", regs.svc_r13, regs.svc_r14);
+	kprintf("%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_UND) ? '*' : ' ', "und", regs.und_r13, regs.und_r14);
+	kprintf("%c%s r13 0x%08x r14 0x%08x\n", ((frame->spsr & MODE_MASK) == MODE_SYS) ? '*' : ' ', "sys", regs.sys_r13, regs.sys_r14);
 
 	// dump the bottom of the current stack
 	addr_t stack;
@@ -64,7 +65,7 @@ static void dump_fault_frame(struct arm_fault_frame *frame)
 	}
 
 	if (stack != 0) {
-		dprintf(CRITICAL, "bottom of stack at 0x%08x:\n", (unsigned int)stack);
+		kprintf("bottom of stack at 0x%08x:\n", (unsigned int)stack);
 		hexdump((void *)stack, 128);
 	}
 }
@@ -73,7 +74,7 @@ static void exception_die(struct arm_fault_frame *frame, int pc_off, const char 
 {
 	inc_critical_section();
 	frame->pc += pc_off;
-	dprintf(CRITICAL, msg);
+	kprintf(msg);
 	dump_fault_frame(frame);
 
 	halt();
