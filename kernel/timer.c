@@ -62,7 +62,7 @@ static void insert_timer_in_queue(timer_t *timer)
 {
 	timer_t *entry;
 
-	LTRACEF("timer %p, scheduled %lu, periodic %lu\n", timer, timer->scheduled_time, timer->periodic_time);
+	KLTRACEF("timer %p, scheduled %lu, periodic %lu\n", timer, timer->scheduled_time, timer->periodic_time);
 
 	list_for_every_entry(&timer_queue, entry, timer_t, node) {
 		if (TIME_GT(entry->scheduled_time, timer->scheduled_time)) {
@@ -79,7 +79,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 {
 	lk_time_t now;
 
-	LTRACEF("timer %p, delay %lu, period %lu, callback %p, arg %p, now %lu\n", timer, delay, period, callback, arg, now);
+	KLTRACEF("timer %p, delay %lu, period %lu, callback %p, arg %p, now %lu\n", timer, delay, period, callback, arg, now);
 
 	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);
 
@@ -93,7 +93,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 	timer->callback = callback;
 	timer->arg = arg;
 
-	LTRACEF("scheduled time %lu\n", timer->scheduled_time);
+	KLTRACEF("scheduled time %lu\n", timer->scheduled_time);
 
 	enter_critical_section();
 
@@ -102,7 +102,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 #if PLATFORM_HAS_DYNAMIC_TIMER
 	if (list_peek_head_type(&timer_queue, timer_t, node) == timer) {
 		/* we just modified the head of the timer queue */
-		LTRACEF("setting new timer for %u msecs\n", (uint)delay);
+		KLTRACEF("setting new timer for %u msecs\n", (uint)delay);
 		platform_set_oneshot_timer(timer_tick, NULL, delay);
 	}
 #endif
@@ -179,7 +179,7 @@ void timer_cancel(timer_t *timer)
 	/* see if we've just modified the head of the timer queue */
 	timer_t *newhead = list_peek_head_type(&timer_queue, timer_t, node);
 	if (newhead == NULL) {
-		LTRACEF("clearing old hw timer, nothing in the queue\n");
+		KLTRACEF("clearing old hw timer, nothing in the queue\n");
 		platform_stop_timer();
 	} else if (newhead != oldhead) {
 		lk_time_t delay;
@@ -190,7 +190,7 @@ void timer_cancel(timer_t *timer)
 		else
 			delay = newhead->scheduled_time - now;
 
-		LTRACEF("setting new timer to %u\n", (uint) delay);
+		KLTRACEF("setting new timer to %u\n", (uint) delay);
 		platform_set_oneshot_timer(timer_tick, NULL, delay);
 	}
 #endif
@@ -207,29 +207,29 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 	THREAD_STATS_INC(timer_ints);
 //	KEVLOG_TIMER_TICK(); // enable only if necessary
 
-	LTRACEF("now %lu, sp %p\n", now, __GET_FRAME());
+	KLTRACEF("now %lu, sp %p\n", now, __GET_FRAME());
 
 	for (;;) {
 		/* see if there's an event to process */
 		timer = list_peek_head_type(&timer_queue, timer_t, node);
 		if (likely(timer == 0))
 			break;
-		LTRACEF("next item on timer queue %p at %lu now %lu (%p, arg %p)\n", timer, timer->scheduled_time, now, timer->callback, timer->arg);
+		KLTRACEF("next item on timer queue %p at %lu now %lu (%p, arg %p)\n", timer, timer->scheduled_time, now, timer->callback, timer->arg);
 		if (likely(TIME_LT(now, timer->scheduled_time)))
 			break;
 
 		/* process it */
-		LTRACEF("timer %p\n", timer);
+		KLTRACEF("timer %p\n", timer);
 		DEBUG_ASSERT(timer && timer->magic == TIMER_MAGIC);
 		list_delete(&timer->node);
 
-		LTRACEF("dequeued timer %p, scheduled %lu periodic %lu\n", timer, timer->scheduled_time, timer->periodic_time);
+		KLTRACEF("dequeued timer %p, scheduled %lu periodic %lu\n", timer, timer->scheduled_time, timer->periodic_time);
 
 		THREAD_STATS_INC(timers);
 
 		bool periodic = timer->periodic_time > 0;
 
-		LTRACEF("timer %p firing callback %p, arg %p\n", timer, timer->callback, timer->arg);
+		KLTRACEF("timer %p firing callback %p, arg %p\n", timer, timer->callback, timer->arg);
 		KEVLOG_TIMER_CALL(timer->callback, timer->arg);
 		if (timer->callback(timer, now, timer->arg) == INT_RESCHEDULE)
 			ret = INT_RESCHEDULE;
@@ -238,7 +238,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		 * by the callback put it back in the list
 		 */
 		if (periodic && !list_in_list(&timer->node) && timer->periodic_time > 0) {
-			LTRACEF("periodic timer, period %u\n", (uint)timer->periodic_time);
+			KLTRACEF("periodic timer, period %u\n", (uint)timer->periodic_time);
 			timer->scheduled_time = now + timer->periodic_time;
 			insert_timer_in_queue(timer);
 		}
@@ -253,7 +253,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 
 		lk_time_t delay = timer->scheduled_time - now;
 
-		LTRACEF("setting new timer for %u msecs for event %p\n", (uint)delay, timer);
+		KLTRACEF("setting new timer for %u msecs for event %p\n", (uint)delay, timer);
 		platform_set_oneshot_timer(timer_tick, NULL, delay);
 	}
 #else

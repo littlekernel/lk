@@ -101,8 +101,8 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
 
 	uint busypercent = (busy_time * 10000) / (1000000);
 
-//	printf("idle_time %lld, busytime %lld\n", idle_time - last_idle_time, busy_time);
-	printf("LOAD: %d.%02d%%, cs %d, ints %d, timer ints %d, timers %d\n", busypercent / 100, busypercent % 100,
+//	kprintf("idle_time %lld, busytime %lld\n", idle_time - last_idle_time, busy_time);
+	kprintf("LOAD: %d.%02d%%, cs %d, ints %d, timer ints %d, timers %d\n", busypercent / 100, busypercent % 100,
 	       thread_stats.context_switches - old_stats.context_switches,
 	       thread_stats.interrupts - old_stats.interrupts,
 	       thread_stats.timer_ints - old_stats.timer_ints,

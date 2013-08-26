@@ -328,7 +328,7 @@ void thread_exit(int retcode)
 	ASSERT(current_thread->state == THREAD_RUNNING);
 #endif
 
-//	dprintf("thread_exit: current %p\n", current_thread);
+//	kprintf("thread_exit: current %p\n", current_thread);
 
 	enter_critical_section();
 
@@ -382,9 +382,6 @@ void thread_resched(void)
 	thread_t *oldthread;
 	thread_t *newthread;
 
-//	printf("thread_resched: current %p: ", current_thread);
-//	dump_thread(current_thread);
-
 #if THREAD_CHECKS
 	ASSERT(in_critical_section());
 #endif
@@ -402,7 +399,6 @@ void thread_resched(void)
 #endif
 
 	int next_queue = HIGHEST_PRIORITY - __builtin_clz(run_queue_bitmap) - (32 - NUM_PRIORITIES);
-	//dprintf(SPEW, "bitmap 0x%x, next %d\n", run_queue_bitmap, next_queue);
 
 	newthread = list_remove_head_type(&run_queue[next_queue], thread_t, queue_node);
 
@@ -412,9 +408,6 @@ void thread_resched(void)
 #if THREAD_CHECKS
 	ASSERT(newthread);
 #endif
-
-//	printf("newthread: ");
-//	dump_thread(newthread);
 
 	newthread->state = THREAD_RUNNING;
 
@@ -720,19 +713,19 @@ static const char *thread_state_to_str(enum thread_state state)
  */
 void dump_thread(thread_t *t)
 {
-	dprintf(INFO, "dump_thread: t %p (%s)\n", t, t->name);
-	dprintf(INFO, "\tstate %s, priority %d, remaining quantum %d, critical section %d\n",
+	kprintf("dump_thread: t %p (%s)\n", t, t->name);
+	kprintf("\tstate %s, priority %d, remaining quantum %d, critical section %d\n",
 				  thread_state_to_str(t->state), t->priority, t->remaining_quantum,
 				  t->saved_critical_section_count);
-	dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
-	dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
-	dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
-	dprintf(INFO, "\ttls:");
+	kprintf("\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
+	kprintf("\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
+	kprintf("\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
+	kprintf("\ttls:");
 	int i;
 	for (i=0; i < MAX_TLS_ENTRY; i++) {
-		dprintf(INFO, " 0x%x", t->tls[i]);
+		kprintf(" 0x%x", t->tls[i]);
 	}
-	dprintf(INFO, "\n");
+	kprintf("\n");
 }
 
 /**
