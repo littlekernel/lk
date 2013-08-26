@@ -31,6 +31,7 @@
 #include <compiler.h>
 #include <debug.h>
 #include <trace.h>
+#include <kernel/debug.h>
 
 #define LOCAL_TRACE 0
 #define TRACE_INIT 0
@@ -42,18 +43,18 @@ static uint last_init_level = 0;
 
 int lk_init_level(uint level)
 {
-    LTRACEF("level %#x, last_init_level %#x\n", level, last_init_level);
+    KLTRACEF("level %#x, last_init_level %#x\n", level, last_init_level);
 
     uint last_called_level = last_init_level;
     const struct lk_init_struct *last = NULL;
     for (;;) {
         /* search for the lowest uncalled hook to call */
-        LTRACEF("last %p, last_called_level %#x\n", last, last_called_level);
+        KLTRACEF("last %p, last_called_level %#x\n", last, last_called_level);
 
         const struct lk_init_struct *found = NULL;
         bool seen_last = false;
         for (const struct lk_init_struct *ptr = __lk_init; ptr != __lk_init_end; ptr++) {
-            LTRACEF("looking at %p (%s) level %#x, seen_last %d\n", ptr, ptr->name, ptr->level, seen_last);
+            KLTRACEF("looking at %p (%s) level %#x, seen_last %d\n", ptr, ptr->name, ptr->level, seen_last);
 
             if (ptr == last)
                 seen_last = true;
@@ -86,7 +87,7 @@ int lk_init_level(uint level)
             break;
 
 #if TRACE_INIT
-        printf("INIT: calling hook %p (%s) at level %#x\n", found->hook, found->name, found->level);
+        kprintf("INIT: calling hook %p (%s) at level %#x\n", found->hook, found->name, found->level);
 #endif
         found->hook(found->level);
         last_called_level = found->level;

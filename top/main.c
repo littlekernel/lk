@@ -34,6 +34,7 @@
 #include <target.h>
 #include <lib/heap.h>
 #include <kernel/thread.h>
+#include <kernel/debug.h>
 #include <lk/init.h>
 
 extern void *__ctor_list;
@@ -81,14 +82,13 @@ void lk_main(void)
 	lk_init_level(LK_INIT_LEVEL_TARGET_EARLY - 1);
 	target_early_init();
 
-	dprintf(INFO, "welcome to lk\n\n");
+	kprintf("\nWelcome to LK\n");
+	kprintf("Source available at https://github.com/travisg/lk or git://git.newos.org/lk.git\n");
 
 	// deal with any static constructors
-	dprintf(SPEW, "calling constructors\n");
 	call_constructors();
 
 	// bring up the kernel heap
-	dprintf(SPEW, "initializing heap\n");
 	lk_init_level(LK_INIT_LEVEL_HEAP - 1);
 	heap_init();
 
@@ -99,7 +99,6 @@ void lk_main(void)
 	lk_init_level(LK_INIT_LEVEL_THREADING - 1);
 
 	// create a thread to complete system initialization
-	dprintf(SPEW, "creating bootstrap completion thread\n");
 	thread_t *t = thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
 	thread_detach(t);
 	thread_resume(t);
@@ -110,22 +109,17 @@ void lk_main(void)
 
 static int bootstrap2(void *arg)
 {
-	dprintf(SPEW, "top of bootstrap2()\n");
-
 	lk_init_level(LK_INIT_LEVEL_ARCH - 1);
 	arch_init();
 
 	// initialize the rest of the platform
-	dprintf(SPEW, "initializing platform\n");
 	lk_init_level(LK_INIT_LEVEL_PLATFORM - 1);
 	platform_init();
 
 	// initialize the target
-	dprintf(SPEW, "initializing target\n");
 	lk_init_level(LK_INIT_LEVEL_TARGET - 1);
 	target_init();
 
-	dprintf(SPEW, "calling apps_init()\n");
 	lk_init_level(LK_INIT_LEVEL_APPS - 1);
 	apps_init();
 
