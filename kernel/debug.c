@@ -31,13 +31,13 @@
  * @brief  Debug console functions.
  */
 
+#include <kernel/debug.h>
 #include <debug.h>
 #include <stdio.h>
-#include <kernel/thread.h>
-#include <kernel/timer.h>
-#include <kernel/debug.h>
 #include <err.h>
 #include <platform.h>
+#include <kernel/thread.h>
+#include <kernel/timer.h>
 
 #if WITH_LIB_CONSOLE
 #include <lib/console.h>
@@ -208,4 +208,50 @@ static int cmd_kevlog(int argc, const cmd_args *argv)
 
 #endif // WITH_KERNEL_EVLOG
 
+#if !DISABLE_DEBUG_OUTPUT
+
+/* kprintf and friends */
+void kputc(char c)
+{
+	platform_dputc(c);
+}
+
+void kputs(const char *str)
+{
+	for (; *str; str++) {
+		platform_dputc(*str);
+	}
+}
+
+static int kprintf_output_func(char c, void *state)
+{
+	platform_dputc(c);
+
+	return INT_MAX;
+}
+
+int kprintf(const char *fmt, ...)
+{
+	int err;
+
+	va_list ap;
+	va_start(ap, fmt);
+	err = _printf_engine(&kprintf_output_func, NULL, fmt, ap);
+	va_end(ap);
+
+	return err;
+}
+
+int kvprintf(const char *fmt, va_list ap)
+{
+	int err;
+
+	err = _printf_engine(&kprintf_output_func, NULL, fmt, ap);
+
+	return err;
+}
+
+#endif // !DISABLE_DEBUG_OUTPUT
+
+/* vim: set ts=4 sw=4 noexpandtab: */
 

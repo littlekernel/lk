@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2012-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,6 +24,8 @@
 #define __KERNEL_DEBUG_H
 
 #include <debug.h>
+#include <compiler.h>
+#include <stdarg.h>
 
 /* kernel event log */
 #if WITH_KERNEL_EVLOG
@@ -62,6 +64,24 @@ enum {
 #define KEVLOG_TIMER_CALL(ptr, arg) kernel_evlog_add(KERNEL_EVLOG_TIMER_CALL, (uintptr_t)ptr, (uintptr_t)arg)
 #define KEVLOG_IRQ_ENTER(irqn) kernel_evlog_add(KERNEL_EVLOG_IRQ_ENTER, (uintptr_t)irqn, 0)
 #define KEVLOG_IRQ_EXIT(irqn) kernel_evlog_add(KERNEL_EVLOG_IRQ_EXIT, (uintptr_t)irqn, 0)
+
+/*
+ * kprintf and friends
+ *
+ * Is defined to always go directly to the current platform debug mechanism.
+ * Safe to be called in any context.
+ */
+#if !DISABLE_DEBUG_OUTPUT
+void kputc(char c);
+void kputs(const char *str);
+int kprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);
+int kvprintf(const char *fmt, va_list ap);
+#else
+static inline void kputc(char c) { }
+static inline void kputs(const char *str) { return 0; }
+static inline int __PRINTFLIKE(1, 2) kprintf(const char *fmt, ...) { return 0; }
+static inline int kvprintf(const char *fmt, va_list ap) { return 0; }
+#endif
 
 #endif
 

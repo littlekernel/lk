@@ -28,20 +28,29 @@
 #include <err.h>
 #include <sys/types.h>
 #include <platform/debug.h>
+#include <kernel/thread.h>
 
 int fputc(int c, FILE *fp)
 {
-	DEBUG_ASSERT(fp->write);
+	DEBUG_ASSERT_PRINTCALLER(!in_critical_section());
+
+	if (!fp->write)
+		return 0;
+
 	return fp->write(fp->ctx, &c, 1);
 }
 
 int putchar(int c)
 {
+	DEBUG_ASSERT_PRINTCALLER(!in_critical_section());
+
 	return fputc(c, stdout);
 }
 
 int puts(const char *str)
 {
+	DEBUG_ASSERT_PRINTCALLER(!in_critical_section());
+
 	int err = fputs(str, stdout);
 	if (err >= 0)
 		err = fputc('\n', stdout);
@@ -50,17 +59,25 @@ int puts(const char *str)
 
 int fputs(const char *s, FILE *fp)
 {
+	DEBUG_ASSERT_PRINTCALLER(!in_critical_section());
+
+	if (!fp->write)
+		return 0;
+
 	size_t len = strlen(s);
 
-	DEBUG_ASSERT(fp->write);
 	return fp->write(fp->ctx, s, len);
 }
 
 int getc(FILE *fp)
 {
+	DEBUG_ASSERT_PRINTCALLER(!in_critical_section());
+
 	unsigned char c;
 
-	DEBUG_ASSERT(fp->read);
+	if (!fp->read)
+		return 0;
+
 	ssize_t len = fp->read(fp->ctx, &c, 1, 0);
 	if (len == 1)
 		return c;
@@ -72,6 +89,8 @@ int getc(FILE *fp)
 
 int getchar(void)
 {
+	DEBUG_ASSERT_PRINTCALLER(!in_critical_section());
+
 	return getc(stdin);
 }
 
@@ -86,6 +105,8 @@ static int _FILE_printf_output_routine(char c, void *state)
 
 int vfprintf(FILE *fp, const char *fmt, va_list ap)
 {
+	DEBUG_ASSERT_PRINTCALLER(!in_critical_section());
+
 	return _printf_engine(&_FILE_printf_output_routine, (void *)fp, fmt, ap);
 }
 
@@ -93,6 +114,8 @@ int fprintf(FILE *fp, const char *fmt, ...)
 {
 	va_list ap;
 	int err;
+
+	DEBUG_ASSERT_PRINTCALLER(!in_critical_section());
 
 	va_start(ap, fmt);
 	err = vfprintf(fp, fmt, ap);
@@ -105,11 +128,49 @@ int _printf(const char *fmt, ...)
 	va_list ap;
 	int err;
 
+	DEBUG_ASSERT_PRINTCALLER(!in_critical_section());
+
 	va_start(ap, fmt);
 	err = vfprintf(stdout, fmt, ap);
 	va_end(ap);
 
 	return err;
 }
+
+/* default stdio output target */
+ssize_t __debug_stdio_write(void *ctx, const void *_ptr, size_t len)
+{
+	const char *ptr = _ptr;
+
+	for (size_t i = 0; i < len; i++)
+		platform_dputc(ptr[i]);
+
+	return len;
+}
+
+ssize_t __debug_stdio_read(void *ctx, void *ptr, size_t len, unsigned int flags)
+{
+	int err;
+
+	err = platform_dgetc(ptr, (flags & __FILE_READ_NONBLOCK) ? false : true);
+	if (err < 0)
+		return err;
+
+	return 1;
+}
+
+#define DEFINE_STDIO_DESC(id)						\
+	[(id)]	= {							\
+		.ctx		= &__stdio_FILEs[(id)],			\
+		.write		= __debug_stdio_write,			\
+		.read		= __debug_stdio_read,			\
+	}
+
+FILE __stdio_FILEs[3] = {
+	DEFINE_STDIO_DESC(0), /* stdin */
+	DEFINE_STDIO_DESC(1), /* stdout */
+	DEFINE_STDIO_DESC(2), /* stderr */
+};
+#undef DEFINE_STDIO_DESC
 
 /* vim: set ts=4 sw=4 noexpandtab: */

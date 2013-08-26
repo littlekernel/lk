@@ -39,4 +39,17 @@
 #define LTRACE do { if (LOCAL_TRACE) { TRACE; } } while (0)
 #define LTRACEF(x...) do { if (LOCAL_TRACE) { TRACEF(x); } } while (0)
 
+/* kernel versions of the above */
+#define KTRACE_ENTRY kprintf("%s: entry\n", __PRETTY_FUNCTION__)
+#define KTRACE_EXIT kprintf("%s: exit\n", __PRETTY_FUNCTION__)
+#define KTRACE_ENTRY_OBJ kprintf("%s: entry obj %p\n", __PRETTY_FUNCTION__, this)
+#define KTRACE_EXIT_OBJ kprintf("%s: exit obj %p\n", __PRETTY_FUNCTION__, this)
+#define KTRACE kprintf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__)
+#define KTRACEF(str, x...) do { kprintf("%s:%d: " str, __PRETTY_FUNCTION__, __LINE__, ## x); } while (0)
+
+#define KLTRACE_ENTRY do { if (LOCAL_TRACE) { LTRACE_ENTRY; } } while (0)
+#define KLTRACE_EXIT do { if (LOCAL_TRACE) { LTRACE_EXIT; } } while (0)
+#define KLTRACE do { if (LOCAL_TRACE) { LTRACE; } } while (0)
+#define KLTRACEF(x...) do { if (LOCAL_TRACE) { LTRACEF(x); } } while (0)
+
 #endif

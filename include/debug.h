@@ -25,6 +25,7 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <compiler.h>
 #include <platform/debug.h>
 
@@ -40,36 +41,14 @@ __BEGIN_CDECLS
 #define INFO 1
 #define SPEW 2
 
-#if !DISABLE_DEBUG_OUTPUT
-
-/* input/output */
-#define _dputc(c) platform_dputc(c)
-int _dputs(const char *str);
-int _dprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);
-int _dvprintf(const char *fmt, va_list ap);
+#define dputc(level, c) do { if ((level) <= LK_DEBUGLEVEL) { putchar(c); } } while (0)
+#define dputs(level, str) do { if ((level) <= LK_DEBUGLEVEL) { fputs(str, stdout); } } while (0)
+#define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { printf(x); } } while (0)
+#define dvprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { vprintf(x); } } while (0)
 
 /* dump memory */
 void hexdump(const void *ptr, size_t len);
 void hexdump8(const void *ptr, size_t len);
-
-#else
-
-/* input/output */
-static inline void _dputc(char c) { }
-static inline int _dputs(const char *str) { return 0; }
-static inline int __PRINTFLIKE(1, 2) _dprintf(const char *fmt, ...) { return 0; }
-static inline int _dvprintf(const char *fmt, va_list ap) { return 0; }
-
-/* dump memory */
-static inline void hexdump(const void *ptr, size_t len) { }
-static inline void hexdump8(const void *ptr, size_t len) { }
-
-#endif /* DISABLE_DEBUG_OUTPUT */
-
-#define dputc(level, str) do { if ((level) <= LK_DEBUGLEVEL) { _dputc(str); } } while (0)
-#define dputs(level, str) do { if ((level) <= LK_DEBUGLEVEL) { _dputs(str); } } while (0)
-#define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dprintf(x); } } while (0)
-#define dvprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dvprintf(x); } } while (0)
 
 /* systemwide halts */
 void halt(void) __NO_RETURN;
