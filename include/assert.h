@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -28,12 +28,18 @@
 
 #define ASSERT(x) \
     do { if (unlikely(!(x))) { panic("ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
+#define ASSERT_PRINTCALLER(x) \
+    do { if (unlikely(!(x))) { panic("ASSERT FAILED at (%s:%d) caller %p: %s\n", __FILE__, __LINE__, __GET_CALLER(), #x); } } while (0)
 
 #if LK_DEBUGLEVEL > 1
 #define DEBUG_ASSERT(x) \
     do { if (unlikely(!(x))) { panic("DEBUG ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)
+#define DEBUG_ASSERT_PRINTCALLER(x) \
+    do { if (unlikely(!(x))) { panic("DEBUG ASSERT FAILED at (%s:%d) caller %p: %s\n", __FILE__, __LINE__, __GET_CALLER(), #x); } } while (0)
 #else
 #define DEBUG_ASSERT(x) \
+    do { } while(0)
+#define DEBUG_ASSERT_PRINTCALLER(x) \
     do { } while(0)
 #endif
 
