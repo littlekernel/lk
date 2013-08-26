@@ -82,7 +82,7 @@ void sam_debug_init(void)
 void platform_dputc(char c)
 {
 	if (c == '\n') {
-		_dputc('\r');
+		platform_dputc('\r');
 	}
 
 	while (!uart_is_tx_ready(UART))

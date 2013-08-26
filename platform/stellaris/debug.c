@@ -26,9 +26,10 @@
 #include <stdio.h>
 #include <lib/cbuf.h>
 #include <kernel/thread.h>
+#include <kernel/debug.h>
 #include <platform/debug.h>
-#include <arch/ops.h>
 #include <target/debugconfig.h>
+#include <arch/ops.h>
 #include <arch/arm/cm.h>
 
 #include "ti_driverlib.h"
@@ -98,13 +99,12 @@ void stellaris_debug_init(void)
 	UARTIntEnable(DEBUG_UART, UART_INT_RX | UART_INT_RT);
 
 	NVIC_EnableIRQ(INT_UART0 - 16);
-
 }
 
 void platform_dputc(char c)
 {
 	if (c == '\n') {
-		_dputc('\r');
+		UARTCharPut(DEBUG_UART, '\r');
 	}
 
 	UARTCharPut(DEBUG_UART, c);
@@ -117,7 +117,7 @@ int platform_dgetc(char *c, bool wait)
 
 void platform_halt(void)
 {
-	dprintf(ALWAYS, "HALT: spinning forever...\n");
+	kprintf("HALT: spinning forever...\n");
 	for (;;);
 }
 

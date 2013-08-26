@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <app.h>
 #include <kernel/thread.h>
+#include <kernel/debug.h>
 
 extern const struct app_descriptor __apps_start;
 extern const struct app_descriptor __apps_end;
