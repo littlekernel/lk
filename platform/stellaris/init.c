@@ -23,8 +23,10 @@
  */
 
 #include <err.h>
+#include <stdio.h>
 #include <debug.h>
 #include <platform.h>
+#include <dev/usb.h>
 
 #include "ti_driverlib.h"
 

@@ -11,6 +11,7 @@ GLOBAL_DEFINES += \
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/init.c
+	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/usb.c \
 
 include make/module.mk

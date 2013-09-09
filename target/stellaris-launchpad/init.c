@@ -29,6 +29,8 @@
 
 #include "ti_driverlib.h"
 
+extern void target_usb_setup(void);
+
 void target_early_init(void)
 {
 	GPIOPinWrite(GPIO_PORTF_AHB_BASE, GPIO_PIN_1, 0);
@@ -45,6 +47,7 @@ void target_early_init(void)
 
 void target_init(void)
 {
+	target_usb_setup();
 }
 
 void target_set_debug_led(unsigned int led, bool on)
@@ -56,3 +59,4 @@ void target_set_debug_led(unsigned int led, bool on)
 	}
 }
 
+// vim: set ts=4 sw=4 noexpandtab:

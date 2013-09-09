@@ -32,6 +32,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/timer.c \
+	$(LOCAL_DIR)/usbc.c \
 	$(LOCAL_DIR)/vectab.c \
 
 
@@ -54,7 +55,8 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
-	lib/cbuf
+	lib/cbuf \
+	dev/usb
 
 include $(LOCAL_DIR)/ti/rules.mk
 

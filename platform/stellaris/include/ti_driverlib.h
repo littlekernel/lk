@@ -13,5 +13,7 @@ __BEGIN_CDECLS
 #include "driverlib/sysctl.h"
 #include "driverlib/uart.h"
 #include "driverlib/timer.h"
+#include "driverlib/usb.h"
+#include "driverlib/rom.h"
 
 __END_CDECLS
