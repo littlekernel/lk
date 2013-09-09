@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <dev/usbc.h>
 #include <dev/usb.h>
+#include <lk/init.h>
 
 #define LOCAL_TRACE 0
 
@@ -118,7 +119,7 @@ static void set_usb_id(uint16_t vendor, uint16_t product)
 	((uint16_t *)config->highspeed.device.desc)[5] = product;
 }
 
-void usb_add_string(const char *string, uint8_t id)
+status_t usb_add_string(const char *string, uint8_t id)
 {
 	uint i;
 	size_t len = strlen(string);
@@ -136,12 +137,14 @@ void usb_add_string(const char *string, uint8_t id)
 			strings[i].string.desc = strbuf;
 			strings[i].string.len = len * 2 + 2;
 			strings[i].id = id;
-			break;
+			return NO_ERROR;
 		}
 	}
+
+	return ERR_NO_MEMORY;
 }
 
-static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_args *args)
+status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args)
 {
 	LTRACEF("op %d, args %p\n", op, args);
 
@@ -156,6 +159,7 @@ static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_
 				case SET_ADDRESS:
 					LTRACEF("SET_ADDRESS 0x%x\n", setup->value);
 					usbc_ep0_ack();
+					usbc_set_address(setup->value);
 					break;
 				case SET_FEATURE:
 				case CLEAR_FEATURE:
@@ -238,6 +242,8 @@ static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_
 				case SET_CONFIGURATION:
 					LTRACEF("SET_CONFIGURATION %d\n", setup->value);
 					active_config = setup->value;
+					if (active_config != 0)
+						printf("usb online\n");
 					usbc_ep0_ack();
 					break;
 
@@ -270,10 +276,10 @@ static int default_usb_callback(usbc_callback_op_t op, const union usb_callback_
 		}
 	}
 
-	return 0;
+	return NO_ERROR;
 }
 
-void usb_setup(usb_config *_config)
+status_t usb_setup(usb_config *_config)
 {
 	ASSERT(_config);
 
@@ -281,11 +287,10 @@ void usb_setup(usb_config *_config)
 
 	ASSERT(usb_active == false);
 
-	// set the default usb control callback handler
-	usbc_set_callback(&default_usb_callback);
+	return NO_ERROR;
 }
 
-void usb_start(void)
+status_t usb_start(void)
 {
 	ASSERT(config);
 	ASSERT(usb_active == false);
@@ -293,17 +298,24 @@ void usb_start(void)
 	// go online
 	usbc_set_active(true);
 	usb_active = true;
+
+	return NO_ERROR;
 }
 
-void usb_stop(void)
+status_t usb_stop(void)
 {
 	ASSERT(usb_active == true);
 
 	usb_active = false;
 	usbc_set_active(false);
+
+	return NO_ERROR;
 }
 
-void usb_init(void)
+static void usb_init(uint level)
 {
 }
 
+LK_INIT_HOOK(usb, usb_init, LK_INIT_LEVEL_THREADING);
+
+// vim: set ts=4 sw=4 noexpandtab:

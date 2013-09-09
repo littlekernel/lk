@@ -24,8 +24,8 @@
 #define __DEV_USBC_H
 
 #include <sys/types.h>
-#include <stdio.h>
 #include <hw/usb.h>
+#include <stdio.h>
 
 void usbc_init(void);
 
@@ -65,21 +65,22 @@ enum {
 	USB_TRANSFER_RESULT_CANCELLED = -2,
 };
 
-typedef int (*ep_callback)(ep_t endpoint, usbc_callback_op_t op, usbc_transfer *transfer);
+typedef status_t (*ep_callback)(ep_t endpoint, usbc_callback_op_t op, usbc_transfer *transfer);
 
 void usbc_setup_endpoint(ep_t ep, ep_dir_t dir, bool active, ep_callback callback, uint width, uint blocksize);
-int usbc_queue_rx(ep_t ep, usbc_transfer *transfer);
-int usbc_queue_tx(ep_t ep, usbc_transfer *transfer);
+status_t usbc_queue_rx(ep_t ep, usbc_transfer *transfer);
+status_t usbc_queue_tx(ep_t ep, usbc_transfer *transfer);
 
 /* setup arg is valid during CB_SETUP_MSG */
 union usb_callback_args {
 	const struct usb_setup *setup;
 };
 
-typedef int (*usb_callback)(usbc_callback_op_t op, const union usb_callback_args *args);
+status_t usbc_set_active(bool active);
+void usbc_set_address(uint8_t address);
 
-int usbc_set_callback(usb_callback);
-int usbc_set_active(bool active);
+/* callback api the usbc driver uses */
+status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args);
 
 /* called back from within a callback to handle setup responses */
 void usbc_ep0_ack(void);

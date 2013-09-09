@@ -32,6 +32,8 @@ typedef struct {
 	size_t len;
 } usb_descriptor __ALIGNED(2);
 
+#define USB_DESC_STATIC(x) { .desc = (void *)(x), .len = sizeof(x) }
+
 typedef struct {
 	usb_descriptor string;
 	uint8_t id;
@@ -47,19 +49,17 @@ typedef struct {
 	usb_descriptor langid;
 } usb_config;
 
-void usb_init(void);
-
 /* external code needs to set up the usb stack via the following calls */
-void usb_setup(usb_config *config);
+status_t usb_setup(usb_config *config);
 
 /* apped new interface descriptors to the existing config if desired */
-int usb_append_interface_highspeed(const uint8_t *int_descr, size_t len);
-int usb_append_interface_lowspeed(const uint8_t *int_descr, size_t len);
+status_t usb_append_interface_highspeed(const uint8_t *int_descr, size_t len);
+status_t usb_append_interface_lowspeed(const uint8_t *int_descr, size_t len);
 
-void usb_add_string(const char *string, uint8_t id);
+status_t usb_add_string(const char *string, uint8_t id);
 
-void usb_start(void);
-void usb_stop(void);
+status_t usb_start(void);
+status_t usb_stop(void);
 
 #endif
 
