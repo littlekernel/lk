@@ -137,16 +137,21 @@ struct _output_args {
 	size_t pos;
 };
 
-static int _vsnprintf_output(char c, void *state)
+static int _vsnprintf_output(const char *str, size_t len, void *state)
 {
 	struct _output_args *args = state;
 
-	if (args->pos >= args->len)
-		return 0;
+	size_t count = 0;
+	while (count < len && *str) {
+		if (args->pos < args->len) {
+			args->outstr[args->pos++] = *str;
+		}
 
-	args->outstr[args->pos++] = c;
+		str++;
+		count++;
+	}
 
-	return args->len - args->pos;
+	return count;
 }
 
 int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
@@ -168,9 +173,11 @@ int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
 
 int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap)
 {
+	int err = 0;
 	char c;
 	unsigned char uc;
 	const char *s;
+	size_t string_len;
 	unsigned long long n;
 	void *ptr;
 	int flags;
@@ -179,24 +186,30 @@ int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt,
 	size_t chars_written = 0;
 	char num_buffer[32];
 
-#define OUTPUT_CHAR(c) do { chars_written++; out(c, state); } while(0)
+#define OUTPUT_STRING(str, len) do { err = out(str, len, state); if (err < 0) { goto exit; } else { chars_written += err; } } while(0)
+#define OUTPUT_CHAR(c) do { char __temp[1] = { c }; OUTPUT_STRING(__temp, 1); } while (0)
 
 	for (;;) {
-		/* handle regular chars that aren't format related */
-		while ((c = *fmt++) != 0) {
-			if (c == '%')
-				break; /* we saw a '%', break and start parsing format */
-			OUTPUT_CHAR(c);
-		}
-
-		/* make sure we haven't just hit the end of the string */
-		if (c == 0)
-			break;
-
 		/* reset the format state */
 		flags = 0;
 		format_num = 0;
 		signchar = '\0';
+
+		/* handle regular chars that aren't format related */
+		s = fmt;
+		string_len = 0;
+		while ((c = *fmt++) != 0) {
+			if (c == '%')
+				break; /* we saw a '%', break and start parsing format */
+			string_len++;
+		}
+
+		/* output the string we've accumulated */
+		OUTPUT_STRING(s, string_len);
+
+		/* make sure we haven't just hit the end of the string */
+		if (c == 0)
+			break;
 
 next_format:
 		/* grab the next format character */
@@ -332,18 +345,15 @@ hex:
 _output_string:
 		if (flags & LEFTFORMATFLAG) {
 			/* left justify the text */
-			uint count = 0;
-			while (*s != 0) {
-				OUTPUT_CHAR(*s++);
-				count++;
-			}
+			OUTPUT_STRING(s, SIZE_MAX);
+			uint written = err;
 
 			/* pad to the right (if necessary) */
-			for (; format_num > count; format_num--)
+			for (; format_num > written; format_num--)
 				OUTPUT_CHAR(' ');
 		} else {
 			/* right justify the text (digits) */
-			size_t string_len = strlen(s);
+			string_len = strlen(s);
 
 			/* if we're going to print a sign digit,
 			   it'll chew up one byte of the format size */
@@ -363,15 +373,16 @@ _output_string:
 				OUTPUT_CHAR(signchar);
 
 			/* output the string */
-			while (*s != 0)
-				OUTPUT_CHAR(*s++);
+			OUTPUT_STRING(s, SIZE_MAX);
 		}
 		continue;
 	}
 
+#undef OUTPUT_STRING
 #undef OUTPUT_CHAR
 
-	return chars_written;
+exit:
+	return (err < 0) ? err : (int)chars_written;
 }
 
 

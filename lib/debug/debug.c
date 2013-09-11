@@ -113,11 +113,16 @@ int _dputs(const char *str)
 	return 0;
 }
 
-static int _dprintf_output_func(char c, void *state)
+static int _dprintf_output_func(const char *str, size_t len, void *state)
 {
-	_dputc(c);
+	size_t count = 0;
+	while (count < len && *str) {
+		_dputc(*str);
+		str++;
+		count++;
+	}
 
-	return INT_MAX;
+	return count;
 }
 
 int _dprintf(const char *fmt, ...)
