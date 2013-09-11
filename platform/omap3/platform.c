@@ -60,6 +60,6 @@ void platform_init(void)
 
 	uart_init();
 
-	usbc_init();
+//	usbc_init();
 }
 

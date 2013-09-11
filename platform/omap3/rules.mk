@@ -6,15 +6,9 @@ ARCH := arm
 ARM_CPU := cortex-a8
 CPU := generic
 
-DEVS += usb
-
 # provides a few devices
 GLOBAL_DEFINES += \
-	WITH_DEV_USBC=1 \
 	WITH_DEV_UART=1
-
-MODULE_DEPS += \
-	dev/usb
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
@@ -27,7 +21,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uart.c \
-	$(LOCAL_DIR)/usbc.c
+
+#	$(LOCAL_DIR)/usbc.c
 
 MEMBASE := 0x80000000
 
