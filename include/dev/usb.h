@@ -30,9 +30,12 @@
 typedef struct {
 	void *desc;
 	size_t len;
+	uint flags;
 } usb_descriptor __ALIGNED(2);
 
-#define USB_DESC_STATIC(x) { .desc = (void *)(x), .len = sizeof(x) }
+#define USB_DESC_FLAG_STATIC (0x1)
+
+#define USB_DESC_STATIC(x) { .desc = (void *)(x), .len = sizeof(x), .flags = USB_DESC_FLAG_STATIC }
 
 typedef struct {
 	usb_descriptor string;

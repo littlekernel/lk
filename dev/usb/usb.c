@@ -46,7 +46,12 @@ static void append_desc_data(usb_descriptor *desc, const void *dat, size_t len)
 
 	memcpy(ptr, desc->desc, desc->len);
 	memcpy(ptr + desc->len, dat, len);
-	free(desc->desc);
+
+	/* free the old buffer if it wasn't marked static */
+	if ((desc->flags & USB_DESC_FLAG_STATIC) == 0)
+		free(desc->desc);
+	desc->flags &= ~USB_DESC_FLAG_STATIC;
+
 	desc->desc = ptr;
 	desc->len += len;
 }
@@ -142,6 +147,17 @@ status_t usb_add_string(const char *string, uint8_t id)
 	}
 
 	return ERR_NO_MEMORY;
+}
+
+static void usb_set_active_config(uint8_t config)
+{
+	if (config != active_config) {
+		active_config = config;
+		if (active_config != 0)
+			printf("usb online\n");
+		else
+			printf("usb offline\n");
+	}
 }
 
 status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args)
@@ -241,10 +257,8 @@ status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args
 
 				case SET_CONFIGURATION:
 					LTRACEF("SET_CONFIGURATION %d\n", setup->value);
-					active_config = setup->value;
-					if (active_config != 0)
-						printf("usb online\n");
 					usbc_ep0_ack();
+					usb_set_active_config(setup->value);
 					break;
 
 				case GET_CONFIGURATION:
