@@ -22,6 +22,7 @@
  */
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <trace.h>
 #include <platform.h>
 #include <reg.h>
@@ -197,7 +198,7 @@ void usbc_ep0_send(const void *buf, size_t len, size_t maxlen)
 {
 	LTRACEF("buf %p, len %zu, maxlen %zu\n", buf, len, maxlen);
 
-	USBEndpointDataPut(USB0_BASE, USB_EP_0, (void *)buf, len);
+	USBEndpointDataPut(USB0_BASE, USB_EP_0, (void *)buf, MIN(len, maxlen));
 
 	USBEndpointDataSend(USB0_BASE, USB_EP_0, USB_TRANS_SETUP);
 }

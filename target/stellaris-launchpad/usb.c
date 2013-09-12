@@ -22,22 +22,24 @@
  */
 #include <err.h>
 #include <debug.h>
+#include <stdio.h>
 #include <target.h>
 #include <compiler.h>
 #include <dev/usb.h>
+#include <hw/usb.h>
 #include <lk/init.h>
 
 #define W(w) (w & 0xff), (w >> 8)
 #define W3(w) (w & 0xff), ((w >> 8) & 0xff), ((w >> 16) & 0xff)
 
 /* top level device descriptor */
-static uint8_t dev_descr[] = {
+static const uint8_t dev_descr[] = {
     0x12,           /* descriptor length */
-    0x01,           /* Device Descriptor type */
+    DEVICE,         /* Device Descriptor type */
     W(0x0200),      /* USB Version */
-    0x00,           /* class */
-    0x00,           /* subclass */
-    0x00,           /* protocol */
+    0xff,           /* class */
+    0xff,           /* subclass */
+    0xff,           /* protocol */
     64,             /* max packet size, ept0 */
     W(0x9999),      /* vendor */
     W(0x9999),      /* product */
@@ -49,21 +51,21 @@ static uint8_t dev_descr[] = {
 };
 
 /* high/low speed device qualifier */
-static uint8_t devqual_descr[] = {
+static const uint8_t devqual_descr[] = {
     0x0a,           /* len */
-    0x06,           /* Device Qualifier type */
+    DEVICE_QUALIFIER, /* Device Qualifier type */
     W(0x0200),      /* USB version */
     0x00,           /* class */
     0x00,           /* subclass */
     0x00,           /* protocol */
-    0x40,           /* max packet size, ept0 */
+    64,             /* max packet size, ept0 */
     0x01,           /* num configs */
     0x00            /* reserved */
 };
 
-static uint8_t cfg_descr[] = {
+static const uint8_t cfg_descr[] = {
     0x09,           /* Length of Cfg Descr */
-    0x02,           /* Type of Cfg Descr */
+    CONFIGURATION,  /* Type of Cfg Descr */
     W(0x09),        /* Total Length (incl ifc, ept) */
     0x00,           /* # Interfaces */
     0x01,           /* Cfg Value */
@@ -72,28 +74,59 @@ static uint8_t cfg_descr[] = {
     250,            /* Power Consumption - 500mA */
 };
 
-static uchar langid[] = { 0x04, 0x03, 0x09, 0x04 };
+static const uchar langid[] = { 0x04, 0x03, 0x09, 0x04 };
+
+static const uint8_t if_descriptor_lowspeed[] = {
+    0x09,           /* length */
+    INTERFACE,      /* type */
+    0x01,           /* interface num */
+    0x00,           /* alternates */
+    0x02,           /* endpoint count */
+    0xff,           /* interface class */
+    0xff,           /* interface subclass */
+    0x00,           /* interface protocol */
+    0x00,           /* string index */
+
+    /* endpoint 1 IN */
+    0x07,           /* length */
+    ENDPOINT,       /* type */
+    0x81,           /* address: 1 IN */
+    0x02,           /* type: bulk */
+    W(64),          /* max packet size: 64 */
+    00,             /* interval */
+
+    /* endpoint 1 OUT */
+    0x07,           /* length */
+    ENDPOINT,       /* type */
+    0x01,           /* address: 1 OUT */
+    0x02,           /* type: bulk */
+    W(64),          /* max packet size: 64 */
+    00,             /* interval */
+};
 
 usb_config config = {
-	.lowspeed = {
-		.device = USB_DESC_STATIC(dev_descr),
-		.device_qual = USB_DESC_STATIC(devqual_descr),
-		.config = USB_DESC_STATIC(cfg_descr),
-	},
-	.highspeed = {
-		.device = USB_DESC_STATIC(dev_descr),
-		.device_qual = USB_DESC_STATIC(devqual_descr),
-		.config = USB_DESC_STATIC(cfg_descr),
-	},
+    .lowspeed = {
+        .device = USB_DESC_STATIC(dev_descr),
+        .device_qual = USB_DESC_STATIC(devqual_descr),
+        .config = USB_DESC_STATIC(cfg_descr),
+    },
+    .highspeed = {
+        .device = USB_DESC_STATIC(dev_descr),
+        .device_qual = USB_DESC_STATIC(devqual_descr),
+        .config = USB_DESC_STATIC(cfg_descr),
+    },
 
-	.langid = USB_DESC_STATIC(langid),
+    .langid = USB_DESC_STATIC(langid),
 };
 
 void target_usb_setup(void)
 {
-	usb_setup(&config);
+    usb_setup(&config);
+    printf("appending interfaces\n");
+    usb_append_interface_lowspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));
+    usb_append_interface_highspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));
 
-	usb_start();
+    usb_start();
 }
 
-// vim: set ts=4 sw=4 noexpandtab:
+// vim: set ts=4 sw=4 expandtab:
