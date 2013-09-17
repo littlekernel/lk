@@ -38,13 +38,20 @@
 extern const struct lk_init_struct __lk_init[];
 extern const struct lk_init_struct __lk_init_end[];
 
-static uint last_init_level = 0;
+enum init_level_type {
+    INIT_LEVEL_TYPE_PRIMARY_CPU,
+    INIT_LEVEL_TYPE_SECONDARY_CPUS,
+    INIT_LEVEL_TYPE_COUNT
+};
+static uint last_init_level[INIT_LEVEL_TYPE_COUNT];
 
-int lk_init_level(uint level)
+int lk_init_level_common(uint level, enum init_level_type type)
 {
-    LTRACEF("level %#x, last_init_level %#x\n", level, last_init_level);
+    LTRACEF("level %#x, last_init_level %#x\n", level, last_init_level[type]);
 
-    uint last_called_level = last_init_level;
+    uint required_flag = (type == INIT_LEVEL_TYPE_PRIMARY_CPU) ?
+        LK_INIT_FLAG_PRIMARY_CPU : LK_INIT_FLAG_SECONDARY_CPUS;
+    uint last_called_level = last_init_level[type];
     const struct lk_init_struct *last = NULL;
     for (;;) {
         /* search for the lowest uncalled hook to call */
@@ -53,12 +60,14 @@ int lk_init_level(uint level)
         const struct lk_init_struct *found = NULL;
         bool seen_last = false;
         for (const struct lk_init_struct *ptr = __lk_init; ptr != __lk_init_end; ptr++) {
-            LTRACEF("looking at %p (%s) level %#x, seen_last %d\n", ptr, ptr->name, ptr->level, seen_last);
+            LTRACEF("looking at %p (%s) level %#x, flags %#x, seen_last %d\n", ptr, ptr->name, ptr->level, ptr->flags, seen_last);
 
             if (ptr == last)
                 seen_last = true;
 
             /* reject the easy ones */
+            if (!(ptr->flags & required_flag))
+                continue;
             if (ptr->level > level)
                 continue;
             if (ptr->level < last_called_level)
@@ -67,7 +76,7 @@ int lk_init_level(uint level)
                 continue;
 
             /* keep the lowest one we haven't called yet */
-            if (ptr->level > last_init_level && ptr->level > last_called_level) {
+            if (ptr->level > last_init_level[type] && ptr->level > last_called_level) {
                 found = ptr;
                 continue;
             }
@@ -86,16 +95,35 @@ int lk_init_level(uint level)
             break;
 
 #if TRACE_INIT
-        printf("INIT: calling hook %p (%s) at level %#x\n", found->hook, found->name, found->level);
+        printf("INIT: calling hook %p (%s) at level %#x, flags %#x\n", found->hook, found->name, found->level, found->flags);
 #endif
         found->hook(found->level);
         last_called_level = found->level;
         last = found;
     }
 
-    last_init_level = level;
+    last_init_level[type] = level;
 
     return 0;
+}
+
+int lk_init_level(uint level)
+{
+    return lk_init_level_common(level, INIT_LEVEL_TYPE_PRIMARY_CPU);
+}
+
+/* Since there may be multiple secondary CPUs, we allow reseting the
+ * last_init_level for secondary CPUs so that we can call the same handlers
+ * on all secondary CPUs without having a separate last_init_level for each CPU.
+ */
+void lk_secondary_cpu_reset_init_level(void)
+{
+    last_init_level[INIT_LEVEL_TYPE_SECONDARY_CPUS] = 0;
+}
+
+int lk_secondary_cpu_init_level(uint level)
+{
+    return lk_init_level_common(level, INIT_LEVEL_TYPE_SECONDARY_CPUS);
 }
 
 #if 0

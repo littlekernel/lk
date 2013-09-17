@@ -8,6 +8,8 @@
  */
 
 int lk_init_level(uint level);
+void lk_secondary_cpu_reset_init_level(void);
+int lk_secondary_cpu_init_level(uint level);
 
 typedef void (*lk_init_hook)(uint level);
 
@@ -29,25 +31,39 @@ enum lk_init_level {
     LK_INIT_LEVEL_LAST = UINT_MAX,
 };
 
+enum lk_init_flags {
+    LK_INIT_FLAG_PRIMARY_CPU     = 0x1,
+    LK_INIT_FLAG_SECONDARY_CPUS  = 0x2,
+    LK_INIT_FLAG_ALL_CPUS        = LK_INIT_FLAG_PRIMARY_CPU | LK_INIT_FLAG_SECONDARY_CPUS,
+};
+
+
 struct lk_init_struct {
     uint level;
+    uint flags;
     lk_init_hook hook;
     const char *name;
 };
 
 #ifdef ARCH_X86_64
-#define LK_INIT_HOOK(_name, _hook, _level) \
+#define LK_INIT_HOOK_FLAGS(_name, _hook, _level, _flags) \
     const struct lk_init_struct _init_struct_##_name __ALIGNED(8) __SECTION(".lk_init") = { \
         .level = _level, \
+        .flags = _flags, \
         .hook = _hook, \
         .name = #_name, \
     };
 #else
-#define LK_INIT_HOOK(_name, _hook, _level) \
+#define LK_INIT_HOOK_FLAGS(_name, _hook, _level, _flags) \
     const struct lk_init_struct _init_struct_##_name __SECTION(".lk_init") = { \
         .level = _level, \
+        .flags = _flags, \
         .hook = _hook, \
         .name = #_name, \
     };
 #endif
+
+#define LK_INIT_HOOK(_name, _hook, _level) \
+    LK_INIT_HOOK_FLAGS(_name, _hook, _level, LK_INIT_FLAG_PRIMARY_CPU)
+
 // vim: set ts=4 sw=4 expandtab:
