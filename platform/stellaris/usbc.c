@@ -141,7 +141,7 @@ static void ep0_irq(void)
 		} else {
 			union usb_callback_args args;
 			args.setup = (void *)buf;
-			usb_callback(CB_SETUP_MSG, &args);
+			usb_callback(USB_CB_SETUP_MSG, &args);
 		}
 	}
 	if (status & USB_DEV_EP0_SENT_STALL) {
@@ -162,7 +162,7 @@ void stellaris_usb0_irq(void)
 		// reset
 		LTRACEF("reset\n");
 		pending_addr_change = false;
-		usb_callback(CB_RESET, NULL);
+		usb_callback(USB_CB_RESET, NULL);
 	}
 	if (status & USB_INTCTRL_CONNECT) {
 		// reset
@@ -235,17 +235,17 @@ status_t usbc_set_active(bool active)
 	return NO_ERROR;
 }
 
-void usbc_setup_endpoint(ep_t ep, ep_dir_t dir, bool active, ep_callback callback, uint width, uint blocksize)
+status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width)
 {
 	PANIC_UNIMPLEMENTED;
 }
 
-status_t usbc_queue_rx(ep_t ep, usbc_transfer *transfer)
+status_t usbc_queue_rx(ep_t ep, usbc_transfer_t *transfer)
 {
 	PANIC_UNIMPLEMENTED;
 }
 
-status_t usbc_queue_tx(ep_t ep, usbc_transfer *transfer)
+status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer)
 {
 	PANIC_UNIMPLEMENTED;
 }
