@@ -165,10 +165,11 @@ status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args
 	LTRACEF("op %d, args %p\n", op, args);
 
 	/* start looking for specific things to handle */
-	if (op == CB_SETUP_MSG) {
+	if (op == USB_CB_SETUP_MSG) {
 		const struct usb_setup *setup = args->setup;
 		DEBUG_ASSERT(setup);
-		LTRACEF("SETUP: req_type=%#x req=%#x value=%#x index=%#x len=%#x\n", setup->request_type, setup->request, setup->value, setup->index, setup->length);
+		LTRACEF("SETUP: req_type=%#x req=%#x value=%#x index=%#x len=%#x\n",
+				setup->request_type, setup->request, setup->value, setup->index, setup->length);
 
 		if ((setup->request_type & TYPE_MASK) == TYPE_STANDARD) {
 			switch (setup->request) {
@@ -287,6 +288,8 @@ status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args
 				default:
 					LTRACEF("unhandled standard request 0x%x\n", setup->request);
 			}
+		} else {
+			LTRACEF("unhandled nonstandard request 0x%x\n", setup->request);
 		}
 	}
 
