@@ -7,6 +7,7 @@ TARGET := realview-pb
 MODULES += \
 	app/tests \
 	app/stringtests \
-	app/shell
+	app/shell \
+	lib/debugcommands
 
 
