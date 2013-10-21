@@ -3,7 +3,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 ARCH := arm
-ARM_CPU := arm926ej-s
+ARM_CPU := arm1136j-s
 CPU := generic
 
 # emulater doesn't support thumb properly
