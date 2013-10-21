@@ -49,5 +49,7 @@ unsigned long long atoull(const char *num);
 #define STACKBUF_DMA_ALIGN(var, size) \
     uint8_t __##var[(size) + CACHE_LINE]; uint8_t *var = (uint8_t *)(ROUNDUP((addr_t)__##var, CACHE_LINE))
 
+void qsort(void *aa, size_t n, size_t es, int (*cmp)(const void *, const void *));
+
 #endif
 
