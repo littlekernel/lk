@@ -23,6 +23,7 @@
 #include <err.h>
 #include <sys/types.h>
 #include <debug.h>
+#include <trace.h>
 #include <reg.h>
 #include <kernel/thread.h>
 #include <kernel/debug.h>
@@ -72,6 +73,9 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 #define CLRENABLE0  (0x1180)
 #define CLRENABLE1  (0x1184)
 #define CLRENABLE2  (0x1188)
+#define SETPEND0    (0x1200)
+#define SETPEND1    (0x1204)
+#define SETPEND2    (0x1208)
 #define CLRPEND0    (0x1280)
 #define CLRPEND1    (0x1284)
 #define CLRPEND2    (0x1288)
@@ -81,24 +85,24 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 
 static void gic_set_enable(uint vector, bool enable)
 {
-	uint regoff = (vector < 32) ? SETENABLE0 : ((vector < 64) ? SETENABLE1 : SETENABLE2);
-	
-	vector %= 32;
-
-	if (enable)
-		GICREG(0, regoff) |= (1 << vector);
-	else
-		GICREG(0, regoff) &= ~(1 << vector);
+	if (enable) {
+		uint regoff = (vector < 32) ? SETENABLE0 : ((vector < 64) ? SETENABLE1 : SETENABLE2);
+		GICREG(0, regoff) |= (1 << (vector % 32));
+	} else {
+		uint regoff = (vector < 32) ? CLRENABLE0 : ((vector < 64) ? CLRENABLE1 : CLRENABLE2);
+		GICREG(0, regoff) &= ~(1 << (vector % 32));
+	}
 }
 
 void platform_init_interrupts(void)
 {
-	GICREG(0, SETENABLE0) = 0;
-	GICREG(0, SETENABLE1) = 0;
-	GICREG(0, SETENABLE2) = 0;
+	GICREG(0, CLRENABLE0) = 0xffffffff;
+	GICREG(0, CLRENABLE1) = 0xffffffff;
+	GICREG(0, CLRENABLE2) = 0xffffffff;
 	GICREG(0, CLRPEND0) = 0xffffffff;
 	GICREG(0, CLRPEND1) = 0xffffffff;
 	GICREG(0, CLRPEND2) = 0xffffffff;
+	GICREG(0, PRIMASK) = 0xf0;
 
 	GICREG(0, CONTROL) = 1; // enable GIC0
 	GICREG(0, DISTCONTROL) = 1; // enable GIC0
@@ -169,3 +173,4 @@ void platform_fiq(struct arm_iframe *frame)
 	PANIC_UNIMPLEMENTED;
 }
 
+/* vim: set ts=4 sw=4 noexpandtab: */

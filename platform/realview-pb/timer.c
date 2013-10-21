@@ -23,6 +23,8 @@
 #include <debug.h>
 #include <sys/types.h>
 #include <err.h>
+#include <stdio.h>
+#include <trace.h>
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/interrupts.h>
@@ -30,7 +32,10 @@
 #include <platform/realview-pb.h>
 #include "platform_p.h"
 
+#define LOCAL_TRACE 0
+
 #define TIMREG(reg) (*REG32(TIMER0 + (reg)))
+#define TIMREG8(reg) (*REG8(TIMER0 + (reg)))
 
 #define LOADVAL (0x00)
 #define VAL     (0x04)
@@ -48,12 +53,14 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 {
 	enter_critical_section();
 
+	LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
+
 	t_callback = callback;
 
 	periodic_interval = interval;
 	TIMREG(LOADVAL) = periodic_interval * 1000; /* timer is running at 1Mhz */
 
-	TIMREG(CONTROL) |= (1<<7); // enable
+	TIMREG8(CONTROL) |= (1<<7); // enable
 
 	unmask_interrupt(TIMER01_INT);
 
@@ -102,3 +109,4 @@ void platform_init_timer(void)
 	register_int_handler(TIMER01_INT, &platform_tick, NULL);
 }
 
+/* vim: set ts=4 sw=4 noexpandtab: */
