@@ -71,7 +71,7 @@ GLOBAL_DEFINES += \
 	ARM_WITH_L2=1
 GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
-#CFLAGS += -mfpu=neon -mfloat-abi=softfp
+#GLOBAL_COMPILEFLAGS += -mfpu=neon -mfloat-abi=softfp
 endif
 ifeq ($(ARM_CPU),arm1136j-s)
 GLOBAL_DEFINES += \

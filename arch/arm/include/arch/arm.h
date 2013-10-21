@@ -27,10 +27,24 @@
 #include <arch/arm/cores.h>
 #include <compiler.h>
 
+/* due to the cp15 accessors below, you're gonna have a bad time if you try
+ * to compile in thumb mode. Either compile in ARM only or get a thumb2 capable cpu.
+ */
+#if defined(__thumb__) && !defined(__thumb2__)
+#error this file unsupported in thumb1 mode
+#endif
+
 __BEGIN_CDECLS
 
+#if ARM_ISA_ARMV7
 #define DSB __asm__ volatile("dsb" ::: "memory")
 #define ISB __asm__ volatile("isb" ::: "memory")
+#elif ARM_ISA_ARMV6
+#define DSB __asm__ volatile("mcr p15, 0, %0, c7, c10, 4" :: "r" (0) : "memory")
+#define ISB __asm__ volatile("mcr p15, 0, %0, c7, c5, 4" :: "r" (0) : "memory")
+#else
+#error unhandled arm isa
+#endif
 
 void arm_context_switch(vaddr_t *old_sp, vaddr_t new_sp);
 
@@ -84,12 +98,43 @@ struct arm_mode_regs {
 
 void arm_save_mode_regs(struct arm_mode_regs *regs);
 
-uint32_t arm_read_cr1(void);
-void arm_write_cr1(uint32_t val);
-uint32_t arm_read_cr1_aux(void);
-void arm_write_cr1_aux(uint32_t val);
-void arm_write_ttbr(uint32_t val);
-void arm_write_dacr(uint32_t val);
+#define GEN_CP15_REG_FUNCS(reg, op1, c1, c2, op2) \
+static inline __ALWAYS_INLINE uint32_t arm_read_##reg(void) { \
+	uint32_t val; \
+	__asm__ volatile("mrc p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 : "=r" (val)); \
+	return val; \
+} \
+\
+static inline __ALWAYS_INLINE void arm_write_##reg(uint32_t val) { \
+	__asm__ volatile("mcr p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 :: "r" (val)); \
+	ISB; \
+}
+
+/* armv6+ control regs */
+GEN_CP15_REG_FUNCS(sctlr, 0, c1, c0, 0);
+GEN_CP15_REG_FUNCS(actlr, 0, c1, c0, 1);
+GEN_CP15_REG_FUNCS(cpacr, 0, c1, c0, 2);
+
+GEN_CP15_REG_FUNCS(ttbr, 0, c2, c0, 0);
+GEN_CP15_REG_FUNCS(ttbr0, 0, c2, c0, 0);
+GEN_CP15_REG_FUNCS(ttbr1, 0, c2, c0, 1);
+GEN_CP15_REG_FUNCS(ttbcr, 0, c2, c0, 2);
+GEN_CP15_REG_FUNCS(dacr, 0, c3, c0, 0);
+GEN_CP15_REG_FUNCS(dfsr, 0, c5, c0, 0);
+GEN_CP15_REG_FUNCS(ifsr, 0, c5, c0, 1);
+GEN_CP15_REG_FUNCS(dfar, 0, c6, c0, 0);
+GEN_CP15_REG_FUNCS(wfar, 0, c6, c0, 1);
+GEN_CP15_REG_FUNCS(ifar, 0, c6, c0, 2);
+
+GEN_CP15_REG_FUNCS(fcseidr, 0, c13, c0, 0);
+GEN_CP15_REG_FUNCS(contextidr, 0, c13, c0, 1);
+GEN_CP15_REG_FUNCS(tpidrurw, 0, c13, c0, 2);
+GEN_CP15_REG_FUNCS(tpidruro, 0, c13, c0, 3);
+GEN_CP15_REG_FUNCS(tpidrprw, 0, c13, c0, 4);
+
+/* armv7+ */
+GEN_CP15_REG_FUNCS(vbar, 0, c12, c0, 0);
+
 void arm_invalidate_tlb(void);
 
 __END_CDECLS

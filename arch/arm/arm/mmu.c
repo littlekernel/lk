@@ -98,7 +98,7 @@ void arm_mmu_unmap_section(addr_t vaddr)
 void arm_mmu_init(void)
 {
 	/* set some mmu specific control bits */
-	arm_write_cr1(arm_read_cr1() & ~((1<<29)|(1<<28)|(1<<0))); // access flag disabled, TEX remap disabled, mmu disabled
+	arm_write_sctlr(arm_read_sctlr() & ~((1<<29)|(1<<28)|(1<<0))); // access flag disabled, TEX remap disabled, mmu disabled
 
 	/* set up an identity-mapped translation table with cache disabled */
 	for (addr_t i=0; i < 4096; i++) {
@@ -112,12 +112,12 @@ void arm_mmu_init(void)
 	arm_write_dacr(0x00000001);
 
 	/* turn on the mmu */
-	arm_write_cr1(arm_read_cr1() | 0x1);
+	arm_write_sctlr(arm_read_sctlr() | 0x1);
 }
 
 void arch_disable_mmu(void)
 {
-	arm_write_cr1(arm_read_cr1() & ~(1<<0)); // access flag disabled, TEX remap disabled, mmu disabled
+	arm_write_sctlr(arm_read_sctlr() & ~(1<<0)); // access flag disabled, TEX remap disabled, mmu disabled
 }
 
 #endif // ARM_WITH_MMU

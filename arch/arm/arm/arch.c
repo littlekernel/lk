@@ -27,13 +27,6 @@
 #include <arch/arm/mmu.h>
 #include <platform.h>
 
-#if ARM_ISA_ARMV7
-static void set_vector_base(addr_t addr)
-{
-	__asm__ volatile("mcr	p15, 0, %0, c12, c0, 0" :: "r" (addr));
-}
-#endif
-
 void arch_early_init(void)
 {
 	/* turn off the cache */
@@ -42,7 +35,7 @@ void arch_early_init(void)
 	/* set the vector base to our exception vectors so we dont need to double map at 0 */
 #if ARM_ISA_ARMV7
 	if (MEMBASE != 0)
-		set_vector_base(MEMBASE);
+		arm_write_vbar(MEMBASE);
 #endif
 
 #if ARM_WITH_MMU
@@ -54,12 +47,11 @@ void arch_early_init(void)
 	/* turn the cache back on */
 	arch_enable_cache(UCACHE);
 
-#if ARM_WITH_NEON
+#if ARM_WITH_VFP
 	/* enable cp10 and cp11 */
-	uint32_t val;
-	__asm__ volatile("mrc	p15, 0, %0, c1, c0, 2" : "=r" (val));
+	uint32_t val = arm_read_cpacr();
 	val |= (3<<22)|(3<<20);
-	__asm__ volatile("mcr	p15, 0, %0, c1, c0, 2" :: "r" (val));
+	arm_write_cpacr(val);
 
 	/* set enable bit in fpexc */
 	__asm__ volatile("mrc  p10, 7, %0, c8, c0, 0" : "=r" (val));
@@ -111,3 +103,4 @@ void arch_quiesce(void)
 #endif
 }
 
+/* vim: set ts=4 sw=4 noexpandtab: */

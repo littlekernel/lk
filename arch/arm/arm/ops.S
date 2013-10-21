@@ -105,48 +105,9 @@ FUNCTION(arch_idle)
 #endif
 	bx	lr
 
-/* uint32_t arm_read_cr1(void) */
-FUNCTION(arm_read_cr1)
-	mrc		p15, 0, r0, c1, c0, 0
-	bx		lr
-
-/* void arm_write_cr1(uint32_t val) */
-FUNCTION(arm_write_cr1)
-	mcr		p15, 0, r0, c1, c0, 0
-	bx		lr
-
-/* uint32_t arm_read_cr1_aux(void) */
-FUNCTION(arm_read_cr1_aux)
-	mrc		p15, 0, r0, c1, c0, 1
-	bx		lr
-
-/* void arm_write_cr1_aux(uint32_t val) */
-FUNCTION(arm_write_cr1_aux)
-	mcr		p15, 0, r0, c1, c0, 1
-	bx		lr
-
-/* void arm_write_ttbr(uint32_t val) */
-FUNCTION(arm_write_ttbr)
-	mcr 	p15, 0, r0, c2, c0, 0
-	bx		lr
-
-/* void arm_write_dacr(uint32_t val) */
-FUNCTION(arm_write_dacr)
-	mcr 	p15, 0, r0, c3, c0, 0
-	bx		lr
-
 /* void arm_invalidate_tlb(void) */
 FUNCTION(arm_invalidate_tlb)
 	mov		r0, #0
 	mcr 	p15, 0, r0, c8, c7, 0
-	bx		lr
-
-/* uint32_t _arch_cycle_count(void); */
-FUNCTION(_arch_cycle_count)
-#if ARM_ARCH_LEVEL >= 7
-	mrc		p15, 0, r0, c9, c13, 0
-#else
-	mov		r0, #0
-#endif
 	bx		lr
 
