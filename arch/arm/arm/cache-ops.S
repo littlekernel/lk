@@ -30,18 +30,13 @@
 
 /* low level cache routines for various cpu families */
 
-#if ARM_CPU_ARM1136 || ARM_CPU_ARM926
+#if ARM_CPU_ARM1136
 
 /* void arch_disable_cache(uint flags) */
 FUNCTION(arch_disable_cache)
 	mov		r12, #0						// zero register
 	mrs		r3, cpsr					// save the old interrupt state
-#if ARM_ISA_ARMv6
 	cpsid 	iaf							// interrupts disabled
-#else
-	orr		r3, r3, #(1<<7)
-	msr		cpsr, r3
-#endif
 	
 .Ldcache_disable:
 	tst		r0, #DCACHE
@@ -53,15 +48,7 @@ FUNCTION(arch_disable_cache)
 	bic		r1, #(1<<2)
 	mcr		p15, 0, r1, c1, c0, 0		// disable dcache
 
-#if ARM_CPU_ARM1136
     mcr     p15, 0, r12, c7, c14, 0     // clean & invalidate dcache
-#elif ARM_CPU_ARM926
-0:
-	mrc		p15, 0, r15, c7, c14, 3		// clean & invalidate dcache
-	bne		0b
-#else
-#error whut?
-#endif
 	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier (formerly drain write buffer)
 
 .Licache_disable:
@@ -82,12 +69,7 @@ FUNCTION(arch_disable_cache)
 FUNCTION(arch_enable_cache)
 	mov		r12, #0						// zero register
 	mrs		r3, cpsr					// save the old interrupt state
-#if ARM_ISA_ARMv6
 	cpsid iaf							// interrupts disabled
-#else
-	orr		r3, r3, #(1<<7)
-	msr		cpsr, r3
-#endif
 	
 .Ldcache_enable:
 	tst		r0, #DCACHE
@@ -115,7 +97,7 @@ FUNCTION(arch_enable_cache)
 	msr		cpsr, r3
 	bx		lr
 
-#elif ARM_CPU_CORTEX_A8
+#elif ARM_ISA_ARMV7
 
 /* void arch_disable_cache(uint flags) */
 FUNCTION(arch_disable_cache)
@@ -314,7 +296,7 @@ invalidate_cache_v7:
 #error unhandled cpu
 #endif
 
-#if ARM_CPU_ARM926 || ARM_CPU_ARM1136 || ARM_CPU_CORTEX_A8
+#if ARM_CPU_ARM926 || ARM_CPU_ARM1136 || ARM_ISA_ARMV7
 /* shared cache flush routines */
 
 	/* void arch_flush_cache_range(addr_t start, size_t len); */

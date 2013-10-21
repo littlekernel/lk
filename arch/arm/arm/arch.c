@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -27,7 +27,7 @@
 #include <arch/arm/mmu.h>
 #include <platform.h>
 
-#if ARM_CPU_CORTEX_A8
+#if ARM_ISA_ARMV7
 static void set_vector_base(addr_t addr)
 {
 	__asm__ volatile("mcr	p15, 0, %0, c12, c0, 0" :: "r" (addr));
@@ -40,7 +40,7 @@ void arch_early_init(void)
 	arch_disable_cache(UCACHE);
 
 	/* set the vector base to our exception vectors so we dont need to double map at 0 */
-#if ARM_CPU_CORTEX_A8
+#if ARM_ISA_ARMV7
 	if (MEMBASE != 0)
 		set_vector_base(MEMBASE);
 #endif
@@ -68,7 +68,7 @@ void arch_early_init(void)
 #endif
 
 #if ENABLE_CYCLE_COUNTER
-#if ARM_CPU_CORTEX_A8
+#if ARM_ISA_ARMV7
 	/* enable the cycle count register */
 	uint32_t en;
 	__asm__ volatile("mrc	p15, 0, %0, c9, c12, 0" : "=r" (en));
@@ -90,7 +90,7 @@ void arch_init(void)
 void arch_quiesce(void)
 {
 #if ENABLE_CYCLE_COUNTER
-#if ARM_CPU_CORTEX_A8
+#if ARM_ISA_ARMV7
 	/* disable the cycle count and performance counters */
 	uint32_t en;
 	__asm__ volatile("mrc	p15, 0, %0, c9, c12, 0" : "=r" (en));

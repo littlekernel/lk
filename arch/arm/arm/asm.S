@@ -63,35 +63,27 @@ FUNCTION(arm_context_switch)
 FUNCTION(arm_save_mode_regs)
 	mrs		r1, cpsr
 
-	bic		r2, r1, #0x1f	/* clear the mode bits */
-
-	orr     r3, r2, #0x11	/* fiq */
-	msr     cpsr_c, r3
+	cps     #0x11	/* fiq */
 	str		r13, [r0], #4
 	str		r14, [r0], #4
 
-	orr     r3, r2, #0x12	/* irq */
-	msr     cpsr_c, r3
+	cps     #0x12	/* irq */
 	str		r13, [r0], #4
 	str		r14, [r0], #4
 
-	orr     r3, r2, #0x13	/* svc */
-	msr     cpsr_c, r3
+	cps     #0x13	/* svc */
 	str		r13, [r0], #4
 	str		r14, [r0], #4
 
-	orr     r3, r2, #0x17	/* abt */
-	msr     cpsr_c, r3
+	cps     #0x17	/* abt */
 	str		r13, [r0], #4
 	str		r14, [r0], #4
 
-	orr     r3, r2, #0x1b	/* und */
-	msr     cpsr_c, r3
+	cps     #0x1b	/* und */
 	str		r13, [r0], #4
 	str		r14, [r0], #4
 
-	orr     r3, r2, #0x1f	/* sys */
-	msr     cpsr_c, r3
+	cps     #0x1f	/* sys */
 	str		r13, [r0], #4
 	str		r14, [r0], #4
 

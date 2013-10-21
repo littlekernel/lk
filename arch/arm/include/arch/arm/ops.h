@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2012 Travis Geiselbrecht
+ * Copyright (c) 2008-2013 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #ifndef __ARCH_ARM_OPS_H
-#define __ARHC_ARM_OPS_H
+#define __ARCH_ARM_OPS_H
 
 #ifndef ASSEMBLY
 
@@ -183,21 +183,21 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 
 static inline uint32_t arch_cycle_count(void)
 {
-#if ARM_CPU_CORTEX_M3 || ARM_CPU_CORTEX_M4
+#if ARM_ISA_ARM7M
 #if ENABLE_CYCLE_COUNTER
 #define DWT_CYCCNT (0xE0001004)
 	return *REG32(DWT_CYCCNT);
 #else
 	return 0;
 #endif
-#elif ARM_CPU_CORTEX_A8
+#elif ARM_ISA_ARMV7
 	uint32_t count;
 	__asm__ volatile("mrc		p15, 0, %0, c9, c13, 0"
 		: "=r" (count)
 		);
 	return count;
 #else
-#warning no arch_cycle_count implementation
+//#warning no arch_cycle_count implementation
 	return 0;
 #endif
 }

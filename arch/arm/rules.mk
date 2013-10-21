@@ -96,26 +96,6 @@ GLOBAL_DEFINES += \
 GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
-ifeq ($(ARM_CPU),arm926ej-s)
-GLOBAL_DEFINES += \
-	ARM_WITH_CP15=1 \
-	ARM_WITH_MMU=1 \
-	ARM_ISA_ARMv5E=1 \
-	ARM_WITH_THUMB=1 \
-	ARM_WITH_CACHE=1 \
-	ARM_CPU_ARM9=1 \
-	ARM_CPU_ARM926=1
-GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
-HANDLED_CORE := true
-endif
-ifeq ($(ARM_CPU),arm7tdmi)
-GLOBAL_DEFINES += \
-	ARM_ISA_ARMv4=1 \
-	ARM_WITH_THUMB=1 \
-	ARM_CPU_ARM7=1
-GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
-HANDLED_CORE := true
-endif
 
 ifneq ($(HANDLED_CORE),true)
 $(error $(LOCAL_DIR)/rules.mk doesnt have logic for arm core $(ARM_CPU))

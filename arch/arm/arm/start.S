@@ -66,7 +66,7 @@ reset:
 	beq		.Lstack_setup
 
 	/* we need to relocate ourselves to the proper spot */
-	ldr		r2, =__data_end	
+	ldr		r2, =__data_end
 
 .Lrelocate_loop:
 	ldr		r3, [r0], #4
@@ -82,33 +82,27 @@ reset:
 
 .Lstack_setup:
 	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
-	mrs     r0, cpsr
-	bic     r0, r0, #0x1f
-
 	ldr		r2, =abort_stack_top
-	orr     r1, r0, #0x12 // irq
-	msr     cpsr_c, r1
-	ldr		r13, =irq_save_spot		/* save a pointer to a temporary dumping spot used during irq delivery */
 
-	orr     r1, r0, #0x11 // fiq
-	msr     cpsr_c, r1
-	mov		sp, r2
-	            
-	orr     r1, r0, #0x17 // abort
-	msr     cpsr_c, r1
-	mov		sp, r2
-	    
-	orr     r1, r0, #0x1b // undefined
-	msr     cpsr_c, r1
-	mov		sp, r2
-	    
-	orr     r1, r0, #0x1f // system
-	msr     cpsr_c, r1
+	cpsid	i,#0x12       /* irq */
 	mov		sp, r2
 
-	orr		r1, r0, #0x13 // supervisor
-	msr		cpsr_c, r1
+	cpsid	i,#0x11       /* fiq */
 	mov		sp, r2
+
+	cpsid	i,#0x17       /* abort */
+	mov		sp, r2
+
+	cpsid	i,#0x1b       /* undefined */
+	mov		sp, r2
+
+	cpsid	i,#0x1f       /* system */
+	mov		sp, r2
+
+	cpsid	i,#0x13       /* supervisor */
+	mov		sp, r2
+
+	/* stay in supervisor mode from now on out */
 
 	/* copy the initialized data segment out of rom if necessary */
 	ldr		r0, =__data_start_rom
@@ -143,7 +137,7 @@ reset:
 .align 3
 	/* the abort stack is for unrecoverable errors.
 	 * also note the initial working stack is set to here.
-	 * when the threading system starts up it'll switch to a new 
+	 * when the threading system starts up it'll switch to a new
 	 * dynamically allocated stack, so we don't need it for very long
 	 */
 LOCAL_DATA(abort_stack)
@@ -158,3 +152,5 @@ LOCAL_DATA(abort_stack_top)
  */
 DATA(_heap_end)
 	.int _end_of_ram
+
+/* vim: set ts=4 sw=4 noexpandtab: */

@@ -23,7 +23,10 @@
 #include <asm.h>
 #include <arch/arm/cores.h>
 
-#if ARM_ARCH_LEVEL >= 6
+/* exception handling glue.
+ * NOTE: only usable on armv6+ cores
+ */
+
 .macro save, offset
 	/* save spsr and r14 onto the svc stack */
 	sub		lr, #\offset
@@ -50,49 +53,6 @@
 	/* return to whence we came from */
 	rfeia	sp!
 .endm
-#else
-.macro save, offset
-	/* XXX only deals with interrupting supervisor mode */
-
-	/* save r4-r6 and use as a temporary place to save while we switch into supervisor mode */
-	stmia	r13, { r4-r6 }
-	mov		r4, r13
-	sub		r5, lr, #\offset
-	mrs		r6, spsr
-
-	/* move into supervisor mode. irq/fiq disabled */
-	msr	cpsr_c, #(3<<6 | 0x13)
-
-	/* save the return address */
-	stmfd	sp!, { r5 }
-
-	/* save C trashed regs, supervisor lr */
-	stmfd	sp!, { r0-r3, r12, lr }
-
-	/* save spsr */
-	stmfd	sp!, { r6 }
-
-	/* restore r4-r6 */
-	ldmia	r4, { r4-r6 }
-
-	/* save user space sp/lr */
-	sub		sp, #8
-	stmia	sp, { r13, r14 }^
-.endm
-
-.macro restore
-	/* restore user space sp/lr */
-	ldmia	sp, { r13, r14 }^
-	add		sp, #8
-
-	/* restore spsr */
-	ldmfd	sp!, { r0 }
-	msr     spsr_cxsf, r0
-
-	/* restore back to where we came from */
-	ldmfd	sp!, { r0-r3, r12, lr, pc }^
-.endm
-#endif
 
 FUNCTION(arm_undefined)
 	stmfd 	sp!, { r0-r12, r14 }
@@ -167,11 +127,6 @@ FUNCTION(arm_fiq)
 
 	ldmfd	sp!, { r0-r3, r12, pc }^
 
-.bss
-.align 2
-DATA(irq_save_spot)
-	.word	0	/* r4 */
-	.word	0	/* r5 */
-	.word	0	/* r6 */
-
 .ltorg
+
+/* vim: set ts=4 sw=4 noexpandtab: */
