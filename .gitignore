@@ -7,3 +7,6 @@ cscope.out
 local.mk
 *.orig
 cscope.*
+doit
+t
+tagit
