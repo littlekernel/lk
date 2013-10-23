@@ -326,6 +326,8 @@ static void fastboot_notify(struct udc_gadget *gadget, unsigned event)
 {
 	if (event == UDC_EVENT_ONLINE) {
 		event_signal(&usb_online, 0);
+	} else if (event == UDC_EVENT_OFFLINE) {
+		event_unsignal(&usb_online);
 	}
 }
 
