@@ -95,12 +95,16 @@ int udc_stop(void);
 #define GET_INTERFACE        10
 #define SET_INTERFACE        11
 #define SYNCH_FRAME          12
+#define SET_SEL              48
 
 #define TYPE_DEVICE          1
 #define TYPE_CONFIGURATION   2
 #define TYPE_STRING          3
 #define TYPE_INTERFACE       4
 #define TYPE_ENDPOINT        5
+#define TYPE_BOS             15
+#define TYPE_DEVICE_CAP      16
+#define TYPE_SS_EP_COMP      48
 
 #define DEVICE_READ          0x80
 #define DEVICE_WRITE         0x00
