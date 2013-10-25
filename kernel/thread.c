@@ -781,11 +781,21 @@ void thread_set_name(const char *name)
  */
 void thread_set_priority(int priority)
 {
+	thread_t *current_thread = get_current_thread();
+
+	THREAD_LOCK(state);
+
 	if (priority <= IDLE_PRIORITY)
 		priority = IDLE_PRIORITY + 1;
 	if (priority > HIGHEST_PRIORITY)
 		priority = HIGHEST_PRIORITY;
-	get_current_thread()->priority = priority;
+	current_thread->priority = priority;
+
+	current_thread->state = THREAD_READY;
+	insert_in_run_queue_head(current_thread);
+	thread_resched();
+
+	THREAD_UNLOCK(state);
 }
 
 /**
