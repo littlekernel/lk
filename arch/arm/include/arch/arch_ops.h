@@ -291,6 +291,20 @@ static inline uint32_t arch_cycle_count(void) { return _arch_cycle_count(); }
 
 #endif
 
+#define mb()        DSB
+#define wmb()       DSB
+#define rmb()       DSB
+
+#ifdef WITH_SMP
+#define smp_mb()    DMB
+#define smp_wmb()   DMB
+#define smp_rmb()   DMB
+#else
+#define smp_mb()    CF
+#define smp_wmb()   CF
+#define smp_rmb()   CF
+#endif
+
 typedef unsigned long spin_lock_t;
 void spin_lock(spin_lock_t *lock); /* interrupts should already be disabled */
 int spin_trylock(spin_lock_t *lock); /* Returns 0 on success, non-0 on failure */
