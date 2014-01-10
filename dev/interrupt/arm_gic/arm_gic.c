@@ -28,6 +28,7 @@
 #include <reg.h>
 #include <kernel/thread.h>
 #include <kernel/debug.h>
+#include <lk/init.h>
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <arch/arm.h>
@@ -61,10 +62,16 @@ static bool arm_gic_interrupt_change_allowed(int irq)
 	TRACEF("change to interrupt %d ignored after booting ns\n", irq);
 	return false;
 }
+
+static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd);
 #else
 static bool arm_gic_interrupt_change_allowed(int irq)
 {
 	return true;
+}
+
+static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd)
+{
 }
 #endif
 
@@ -144,6 +151,19 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 #define GICD_CPENDSGIR(n)       (GICD_OFFSET + 0xf10 + (n) * 4)
 #define GICD_SPENDSGIR(n)       (GICD_OFFSET + 0xf20 + (n) * 4)
 
+#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
+#define GIC_REG_COUNT(bit_per_reg) DIV_ROUND_UP(MAX_INT, (bit_per_reg))
+#define DEFINE_GIC_SHADOW_REG(name, bit_per_reg, init_val, init_from) \
+	uint32_t (name)[GIC_REG_COUNT(bit_per_reg)] = { \
+		[(init_from / bit_per_reg) ... \
+		 (GIC_REG_COUNT(bit_per_reg) - 1)] = (init_val) \
+	}
+
+#if WITH_LIB_SM
+static DEFINE_GIC_SHADOW_REG(gicd_igroupr, 32, ~0UL, 0);
+#endif
+static DEFINE_GIC_SHADOW_REG(gicd_itargetsr, 4, 0x01010101, 32);
+
 static void gic_set_enable(uint vector, bool enable)
 {
 	int reg = vector / 32;
@@ -166,6 +186,34 @@ void arm_gic_init_percpu(void)
 	GICREG(0, GICC_PMR) = 0xFF; // unmask interrupts at all priority levels
 }
 
+static void arm_gic_suspend_cpu(uint level)
+{
+	suspend_resume_fiq(false, false);
+}
+
+LK_INIT_HOOK_FLAGS(arm_gic_suspend_cpu, arm_gic_suspend_cpu,
+		LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_CPU_SUSPEND);
+
+static void arm_gic_resume_cpu(uint level)
+{
+	spin_lock_saved_state_t state;
+	bool resume_gicd = false;
+
+	spin_lock_save(&gicd_lock, &state, GICD_LOCK_FLAGS);
+	if (!(GICREG(0, GICD_CTLR) & 1)) {
+		dprintf(SPEW, "%s: distibutor is off, calling arm_gic_init instead\n", __func__);
+		arm_gic_init();
+		resume_gicd = true;
+	} else {
+		arm_gic_init_secondary_cpu();
+	}
+	spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
+	suspend_resume_fiq(true, resume_gicd);
+}
+
+LK_INIT_HOOK_FLAGS(arm_gic_resume_cpu, arm_gic_resume_cpu,
+		LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_CPU_RESUME);
+
 static int arm_gic_max_cpu(void)
 {
 	return (GICREG(0, GICD_TYPER) >> 5) & 0x7;
@@ -183,7 +231,7 @@ void arm_gic_init(void)
 	if (arm_gic_max_cpu() > 0) {
 		/* Set external interrupts to target cpu 0 */
 		for (i = 32; i < MAX_INT; i += 4) {
-			GICREG(0, GICD_ITARGETSR(i / 4)) = 0x01010101;
+			GICREG(0, GICD_ITARGETSR(i / 4)) = gicd_itargetsr[i / 4];
 		}
 	}
 
@@ -194,8 +242,10 @@ void arm_gic_init(void)
 	 * mode. This will allow the non-secure side to handle
 	 * all the interrupts we don't explicitly claim.
 	 */
-	for (i = 32; i < MAX_INT; i += 32)
-		GICREG(0, GICD_IGROUPR(i / 32)) = ~0UL;
+	for (i = 32; i < MAX_INT; i += 32) {
+		u_int reg = i / 32;
+		GICREG(0, GICD_IGROUPR(reg)) = gicd_igroupr[reg];
+	}
 #endif
 	arm_gic_init_percpu();
 }
@@ -210,9 +260,9 @@ static status_t arm_gic_set_secure_locked(u_int irq, bool secure)
 		return ERR_INVALID_ARGS;
 
 	if (secure)
-		GICREG(0, GICD_IGROUPR(reg)) &= ~mask;
+		GICREG(0, GICD_IGROUPR(reg)) = (gicd_igroupr[reg] &= ~mask);
 	else
-		GICREG(0, GICD_IGROUPR(reg)) |= mask;
+		GICREG(0, GICD_IGROUPR(reg)) = (gicd_igroupr[reg] |= mask);
 	LTRACEF("irq %d, secure %d, GICD_IGROUP%d = %x\n",
 		irq, secure, reg, GICREG(0, GICD_IGROUPR(reg)));
 #endif
@@ -230,8 +280,8 @@ static status_t arm_gic_set_target_locked(u_int irq, u_int cpu_mask, u_int enabl
 	enable_mask = (enable_mask << shift) & cpu_mask;
 
 	old_val = GICREG(0, GICD_ITARGETSR(reg));
-	new_val = (old_val & ~cpu_mask) | enable_mask;
-	GICREG(0, GICD_ITARGETSR(reg)) = new_val;
+	new_val = (gicd_itargetsr[reg] & ~cpu_mask) | enable_mask;
+	GICREG(0, GICD_ITARGETSR(reg)) = gicd_itargetsr[reg] = new_val;
 	LTRACEF("irq %i, GICD_ITARGETSR%d %x => %x (got %x)\n",
 		irq, reg, old_val, new_val, GICREG(0, GICD_ITARGETSR(reg)));
 
@@ -470,7 +520,7 @@ static uint32_t read_mpidr(void)
 
 static u_int current_fiq[8] = { 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff };
 
-bool update_fiq_targets(u_int cpu, bool enable, u_int triggered_fiq)
+static bool update_fiq_targets(u_int cpu, bool enable, u_int triggered_fiq, bool resume_gicd)
 {
 	u_int i, j;
 	u_long mask;
@@ -490,12 +540,18 @@ bool update_fiq_targets(u_int cpu, bool enable, u_int triggered_fiq)
 			LTRACEF("cpu %d, irq %i, enable %d\n", cpu, fiq, enable);
 			if (smp)
 				arm_gic_set_target_locked(fiq, 1U << cpu, enable ? ~0 : 0);
-			else
+			if (!smp || resume_gicd)
 				gic_set_enable(fiq, enable);
 		}
 	}
 	spin_unlock(&gicd_lock);
 	return ret;
+}
+
+static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd)
+{
+	u_int cpu = read_mpidr() & 7;
+	update_fiq_targets(cpu, resume_gicc, ~0, resume_gicd);
 }
 
 status_t sm_intc_fiq_enter(void)
@@ -511,7 +567,7 @@ status_t sm_intc_fiq_enter(void)
 		return ERR_NO_MSG;
 	}
 
-	fiq_enabled = update_fiq_targets(cpu, false, irq);
+	fiq_enabled = update_fiq_targets(cpu, false, irq, false);
 	GICREG(0, GICC_EOIR) = irq;
 
 	if (current_fiq[cpu] != 0x3ff) {
@@ -537,7 +593,7 @@ void sm_intc_fiq_exit(void)
 		dprintf(INFO, "%s: no fiq active, cpu %d\n", __func__, cpu);
 		return;
 	}
-	update_fiq_targets(cpu, true, current_fiq[cpu]);
+	update_fiq_targets(cpu, true, current_fiq[cpu], false);
 	current_fiq[cpu] = 0x3ff;
 }
 #endif
