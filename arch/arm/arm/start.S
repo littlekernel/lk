@@ -48,6 +48,11 @@ arm_reset:
 	/* i/d cache disable, mmu disabled */
 	bic		r12, #(1<<12)
 	bic		r12, #(1<<2 | 1<<0)
+#if WITH_KERNEL_VM
+	/* enable caches so atomics and spinlocks work */
+	orr		r12, r12, #(1<<12)
+	orr		r12, r12, #(1<<2)
+#endif
 	mcr		p15, 0, r12, c1, c0, 0
 
 	/* calculate phys offset */
