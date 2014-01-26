@@ -29,7 +29,7 @@
 
 .macro save, offset
 	/* save spsr and r14 onto the svc stack */
-	sub		lr, #\offset
+	sub		lr, \offset
 	srsdb	#0x13!
 
 	/* switch to svc mode, interrupts disabled */
@@ -54,47 +54,71 @@
 	rfeia	sp!
 .endm
 
+.macro saveall, mode
+	/* save spsr and r14 onto our stack */
+	srsdb	\mode!
+
+	/* save all regs and lr to keep the stack aligned */
+	push	{ r0-r12, r14 }
+
+	/* save user space sp/lr */
+	sub		sp, #8
+	stmia	sp, { r13, r14 }^
+.endm
+
+.macro saveall_offset, offset, mode
+	sub		lr, \offset
+	saveall	\mode
+.endm
+
+.macro restoreall
+	/* restore user space sp/lr */
+	ldmia	sp, { r13, r14 }^
+	add		sp, #8
+
+	pop		{ r0-r12, r14 }
+
+	/* return to whence we came from */
+	rfeia	sp!
+.endm
+
 FUNCTION(arm_undefined)
-	stmfd 	sp!, { r0-r12, r14 }
-	sub		sp, sp, #12
+	saveall #0x1b
+
 	mov		r0, sp
-	mrs		r1, spsr
-	stmia	r0, { r1, r13-r14 }^
-	b		arm_undefined_handler
-	b		.
+	bl		arm_undefined_handler
+
+	restoreall
 
 FUNCTION(arm_syscall)
-	stmfd 	sp!, { r0-r12, r14 }
-	sub		sp, sp, #12
+	saveall #0x13
+
 	mov		r0, sp
-	mrs		r1, spsr
-	stmia	r0, { r1, r13-r14 }^
-	b		arm_syscall_handler
-	b		.
+	bl		arm_syscall_handler
+
+	restoreall
 
 FUNCTION(arm_prefetch_abort)
-	stmfd 	sp!, { r0-r12, r14 }
-	sub		sp, sp, #12
+	saveall_offset #4, #0x17
+
 	mov		r0, sp
-	mrs		r1, spsr
-	stmia	r0, { r1, r13-r14 }^
-	b		arm_prefetch_abort_handler
-	b		.
+	bl		arm_prefetch_abort_handler
+
+	restoreall
 
 FUNCTION(arm_data_abort)
-	stmfd 	sp!, { r0-r12, r14 }
-	sub		sp, sp, #12
+	saveall_offset #8, #0x17
+
 	mov		r0, sp
-	mrs		r1, spsr
-	stmia	r0, { r1, r13-r14 }^
-	b		arm_data_abort_handler
-	b		.
+	bl		arm_data_abort_handler
+
+	restoreall
 
 FUNCTION(arm_reserved)
 	b	.
 
 FUNCTION(arm_irq)
-	save    4
+	save    #4
 
 	/* increment the global critical section count */
 	ldr     r1, =critical_section_count
@@ -118,14 +142,13 @@ FUNCTION(arm_irq)
 
 	restore
 
-.text
 FUNCTION(arm_fiq)
-	sub	lr, lr, #4
-	stmfd	sp!, { r0-r3, r12, lr }
+	saveall_offset #4, #0x17
 
+	mov		r0, sp
 	bl	platform_fiq
 
-	ldmfd	sp!, { r0-r3, r12, pc }^
+	restoreall
 
 .ltorg
 
