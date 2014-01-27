@@ -22,6 +22,7 @@
  */
 #include <err.h>
 #include <debug.h>
+#include <lib/heap.h>
 #include <platform.h>
 #include "platform_p.h"
 
@@ -42,5 +43,7 @@ void platform_early_init(void)
 
 void platform_init(void)
 {
+    /* add the rest of the 6GB of ram */
+    heap_add_block((void *)0x880000000ULL, 0x180000000ULL);
 }
 

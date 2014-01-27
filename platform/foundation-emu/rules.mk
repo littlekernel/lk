@@ -15,6 +15,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/semihost.S
 
+# first 2GB of ram
 MEMBASE := 0x80000000
 MEMSIZE := 0x80000000
 
