@@ -32,12 +32,18 @@
 #ifndef __LWIP_ARCH_H__
 #define __LWIP_ARCH_H__
 
+
+#if LK
+/* LK's endian.h provides this */
+#include <endian.h>
+#else
 #ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN 1234
 #endif
 
 #ifndef BIG_ENDIAN
 #define BIG_ENDIAN 4321
+#endif
 #endif
 
 #include "arch/cc.h"
