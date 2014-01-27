@@ -56,10 +56,10 @@
 extern int _end;
 
 // end of memory
-extern int _heap_end;
+extern void *_heap_end;
 
-#define HEAP_START ((unsigned long)&_end)
-#define HEAP_LEN ((size_t)_heap_end - (size_t)&_end)
+#define HEAP_START ((uintptr_t)&_end)
+#define HEAP_LEN ((uintptr_t)_heap_end - (uintptr_t)&_end)
 #endif
 
 struct free_heap_chunk {
@@ -82,7 +82,9 @@ static struct heap theheap;
 
 // structure placed at the beginning every allocation
 struct alloc_struct_begin {
+#if LK_DEBUGLEVEL > 1
 	unsigned int magic;
+#endif
 	void *ptr;
 	size_t size;
 #if DEBUG_HEAP
@@ -355,7 +357,9 @@ void *heap_alloc(size_t size, unsigned int alignment)
 
 			struct alloc_struct_begin *as = (struct alloc_struct_begin *)ptr;
 			as--;
+#if LK_DEBUGLEVEL > 1
 			as->magic = HEAP_MAGIC;
+#endif
 			as->ptr = (void *)chunk;
 			as->size = size;
 			theheap.remaining -= size;
@@ -524,4 +528,6 @@ static int cmd_heap(int argc, const cmd_args *argv)
 
 #endif
 #endif
+
+/* vim: set ts=4 sw=4 noexpandtab: */
 
