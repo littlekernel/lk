@@ -58,7 +58,7 @@ GLOBAL_LDFLAGS += --gc-sections
 GLOBAL_LDFLAGS += -L $(LKROOT)
 
 # top level rule
-all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).size $(OUTELF).hex
+all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex
 
 # master module object list
 ALLOBJS_MODULE :=
@@ -208,7 +208,7 @@ include make/build.mk
 $(ALLOBJS): $(GLOBAL_SRCDEPS)
 
 clean: $(EXTRA_CLEANDEPS)
-	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).size $(OUTELF).hex
+	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex
 
 install: all
 	scp $(OUTBIN) 192.168.0.4:/tftproot

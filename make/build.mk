@@ -16,6 +16,10 @@ $(OUTELF).sym: $(OUTELF)
 	@echo generating symbols: $@
 	$(NOECHO)$(OBJDUMP) -t $< | $(CPPFILT) > $@
 
+$(OUTELF).sym.sorted: $(OUTELF)
+	@echo generating symbols: $@
+	$(NOECHO)$(OBJDUMP) -t $< | $(CPPFILT) | sort > $@
+
 $(OUTELF).lst: $(OUTELF)
 	@echo generating listing: $@
 	$(NOECHO)$(OBJDUMP) -Mreg-names-raw -d $< | $(CPPFILT) > $@
