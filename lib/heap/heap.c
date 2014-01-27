@@ -501,6 +501,12 @@ void heap_init(void)
 //	heap_test();
 }
 
+/* add a new block of memory to the heap */
+void heap_add_block(void *ptr, size_t len)
+{
+	heap_insert_free_chunk(heap_create_free_chunk(ptr, len, false));
+}
+
 #if LK_DEBUGLEVEL > 1
 #if WITH_LIB_CONSOLE
 
