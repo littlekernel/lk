@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -66,11 +66,6 @@ __END_CDECLS
 
 #endif // !ASSEMBLY
 
-#if ARCH_ARM
-#include <arch/arm/ops.h>
-#endif
-#if ARCH_X86
-#include <arch/x86/ops.h>
-#endif
+#include <arch/arch_ops.h>
 
 #endif
