@@ -234,12 +234,13 @@ try_merge:
 	return chunk;
 }
 
-struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len)
+static struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len, bool allow_debug)
 {
 	DEBUG_ASSERT((len % sizeof(void *)) == 0); // size must be aligned on pointer boundary
 
 #if DEBUG_HEAP
-	memset(ptr, FREE_FILL, len);
+	if (allow_debug)
+		memset(ptr, FREE_FILL, len);
 #endif
 
 	struct free_heap_chunk *chunk = (struct free_heap_chunk *)ptr;
@@ -328,7 +329,7 @@ void *heap_alloc(size_t size, unsigned int alignment)
 
 			if (chunk->len > size + sizeof(struct free_heap_chunk)) {
 				// there's enough space in this chunk to create a new one after the allocation
-				struct free_heap_chunk *newchunk = heap_create_free_chunk((uint8_t *)ptr + size, chunk->len - size);
+				struct free_heap_chunk *newchunk = heap_create_free_chunk((uint8_t *)ptr + size, chunk->len - size, true);
 
 				// truncate this chunk
 				chunk->len -= chunk->len - size;
@@ -417,18 +418,20 @@ void heap_free(void *ptr)
 	LTRACEF("allocation was %zd bytes long at ptr %p\n", as->size, as->ptr);
 
 	// looks good, create a free chunk and add it to the pool
-	heap_insert_free_chunk(heap_create_free_chunk(as->ptr, as->size));
+	heap_insert_free_chunk(heap_create_free_chunk(as->ptr, as->size, true));
 }
 
 void heap_delayed_free(void *ptr)
 {
+	LTRACEF("ptr %p\n", ptr);
+
 	// check for the old allocation structure
 	struct alloc_struct_begin *as = (struct alloc_struct_begin *)ptr;
 	as--;
 
 	DEBUG_ASSERT(as->magic == HEAP_MAGIC);
 
-	struct free_heap_chunk *chunk = heap_create_free_chunk(as->ptr, as->size);
+	struct free_heap_chunk *chunk = heap_create_free_chunk(as->ptr, as->size, false);
 
 	enter_critical_section();
 	list_add_head(&theheap.delayed_free_list, &chunk->node);
@@ -489,7 +492,7 @@ void heap_init(void)
 	list_initialize(&theheap.delayed_free_list);
 
 	// create an initial free chunk
-	heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len));
+	heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len, false));
 
 	// dump heap info
 //	heap_dump();
