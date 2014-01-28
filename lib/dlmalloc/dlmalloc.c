@@ -530,6 +530,23 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #define DLMALLOC_EXPORT extern
 #endif
 
+/* LK specific stuff here */
+#if defined(LK)
+#define USE_DL_PREFIX 1
+#define LACKS_TIME_H
+#define LACKS_SYS_MMAN_H
+#define LACKS_FCNTL_H
+#define LACKS_UNISTD_H
+#define LACKS_SYS_PARAM_H
+#define LACKS_SCHED_H
+#define HAVE_MMAP 0
+#define HAVE_MORECORE 1
+#define USE_LOCKS 2
+#include <debug.h>
+#define ABORT panic("dlmalloc abort\n")
+#define MALLOC_FAILURE_ACTION //dprintf(INFO, "dlmalloc failure\n");
+#endif  /* LK */
+
 #ifndef WIN32
 #ifdef _WIN32
 #define WIN32 1
@@ -996,7 +1013,7 @@ DLMALLOC_EXPORT size_t dlmalloc_max_footprint(void);
   guarantee that this number of bytes can actually be obtained from
   the system.
 */
-DLMALLOC_EXPORT size_t dlmalloc_footprint_limit();
+DLMALLOC_EXPORT size_t dlmalloc_footprint_limit(void);
 
 /*
   malloc_set_footprint_limit();
@@ -1816,6 +1833,15 @@ static FORCEINLINE int win32munmap(void* ptr, size_t size) {
 /* #define RELEASE_LOCK(lk)  ... */
 /* #define TRY_LOCK(lk) ... */
 /* static MLOCK_T malloc_global_mutex = ... */
+
+/* LK here */
+#include <kernel/mutex.h>
+#define MLOCK_T mutex_t
+static MLOCK_T malloc_global_mutex = MUTEX_INITIAL_VALUE(malloc_global_mutex);
+#define INITIAL_LOCK(lock) mutex_init(lock)
+#define ACQUIRE_LOCK(lock) mutex_acquire(lock)
+#define RELEASE_LOCK(lock) mutex_release(lock)
+#define DESTROY_LOCK(lock) mutex_destroy(lock)
 
 #elif USE_SPIN_LOCKS
 
@@ -2932,7 +2958,7 @@ static size_t traverse_and_check(mstate m);
 
 /* index corresponding to given bit. Use x86 asm if possible */
 
-#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
+#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) || defined(__arm__) || defined(__aarch64__)
 #define compute_bit2idx(X, I)\
 {\
   unsigned int J;\
