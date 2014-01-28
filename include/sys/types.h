@@ -25,6 +25,7 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <stddef.h>
 
 typedef unsigned char uchar;
 typedef unsigned short ushort;
@@ -59,6 +60,6 @@ enum handler_return {
     INT_RESCHEDULE,
 };
 
-typedef signed int ssize_t;
+typedef signed long int ssize_t;
 
 #endif
