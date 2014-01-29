@@ -1,0 +1,3 @@
+#!/bin/sh
+
+astyle -A4 --indent=spaces=4 --indent-switches --keep-one-line-blocks --pad-header --convert-tabs $@
