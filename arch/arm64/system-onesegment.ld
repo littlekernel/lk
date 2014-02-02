@@ -8,8 +8,8 @@ SECTIONS
 
     /* text/read-only data */
     .text : {
-        KEEP(*(.text.boot.vectab))
         KEEP(*(.text.boot))
+        KEEP(*(.text.boot.vectab))
         *(.text* .sram.text.glue_7* .gnu.linkonce.t.*)
     }
 
