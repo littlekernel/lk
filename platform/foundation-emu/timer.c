@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2012 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <limits.h>
 #include <sys/types.h>
 #include <err.h>
 #include <stdio.h>
@@ -61,21 +62,22 @@ static uint64_t read_counter(void)
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
+    LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
+
     enter_critical_section();
 
-    LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
     t_callback = callback;
 
     /* disable the timer */
     ARM64_WRITE_SYSREG(CNTP_CTL_EL0, 0);
 
+    /* set the countdown register to max */
+    ARM64_WRITE_SYSREG(CNTP_TVAL_EL0, INT32_MAX);
+
     /* calculate the compare delta and set the comparison register */
     interval_delta = (uint64_t)timer_freq * interval / 1000U;
-    last_compare = read_counter() + interval;
+    last_compare = read_counter() + interval_delta;
     ARM64_WRITE_SYSREG(CNTP_CVAL_EL0, last_compare);
-
-    /* set the countdown register to max */
-    ARM64_WRITE_SYSREG(CNTP_TVAL_EL0, 0xffffffff);
 
     ARM64_WRITE_SYSREG(CNTP_CTL_EL0, 1);
 
@@ -84,6 +86,50 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     exit_critical_section();
 
     return NO_ERROR;
+}
+
+status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg, lk_time_t interval)
+{
+    LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
+
+    enter_critical_section();
+
+    t_callback = callback;
+
+    /* disable the timer */
+    ARM64_WRITE_SYSREG(CNTP_CTL_EL0, 0);
+
+    /* set the countdown register to max */
+    ARM64_WRITE_SYSREG(CNTP_TVAL_EL0, INT32_MAX);
+
+    /* calculate the interval */
+    uint64_t ticks = (uint64_t)timer_freq * interval / 1000U;
+
+    /* set the comparison register */
+    uint64_t counter = read_counter();
+    counter += ticks;
+
+    LTRACEF("new counter 0x%x ticks %u\n", counter, ticks);
+
+    ARM64_WRITE_SYSREG(CNTP_CVAL_EL0, counter);
+
+    /* disable periodic mode */
+    interval_delta = 0;
+
+    /* start the timer, unmask irq */
+    ARM64_WRITE_SYSREG(CNTP_CTL_EL0, 1);
+
+    unmask_interrupt(INT_PPI_NSPHYS_TIMER);
+
+    exit_critical_section();
+
+    return NO_ERROR;
+}
+
+void platform_stop_timer(void)
+{
+    /* disable the timer */
+    ARM64_WRITE_SYSREG(CNTP_CTL_EL0, 0);
 }
 
 lk_bigtime_t current_time_hires(void)
@@ -98,12 +144,15 @@ lk_time_t current_time(void)
 
 static enum handler_return platform_tick(void *arg)
 {
-    /* reset the compare register ahead of the physical counter */
-    last_compare += interval_delta;
-    ARM64_WRITE_SYSREG(CNTP_CVAL_EL0, last_compare);
-
-    /* reset the countdown register to max to avoid it ticking */
-    //ARM64_WRITE_SYSREG(CNTP_TVAL_EL0, 0x7fffffff);
+    /* reset the compare register ahead of the physical counter
+     * if we're in periodic mode */
+    if (interval_delta != 0) {
+        last_compare += interval_delta;
+        ARM64_WRITE_SYSREG(CNTP_CVAL_EL0, last_compare);
+    } else {
+        /* oneshot mode, stop the timer */
+        ARM64_WRITE_SYSREG(CNTP_CTL_EL0, 0);
+    }
 
     if (t_callback) {
         return t_callback(arg, current_time());
@@ -115,6 +164,7 @@ static enum handler_return platform_tick(void *arg)
 void platform_init_timer(void)
 {
     TRACE_ENTRY;
+
     /* read the base frequency from the control block */
     timer_freq = *REG32(REFCLK_CNTControl + CNTFID0);
     printf("timer running at %d Hz\n", timer_freq);
