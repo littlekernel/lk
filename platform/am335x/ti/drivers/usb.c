@@ -44,7 +44,7 @@
  */
 
 /* Debug Macros */
-#include "debug.h"
+#include "../include/debug.h"
 
 /* HW Macros and Peripheral Defines */
 #include "hw_types.h"

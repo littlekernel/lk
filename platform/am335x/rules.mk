@@ -23,6 +23,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/ti/drivers/uart_irda_cir.c \
 	$(LOCAL_DIR)/ti/drivers/dmtimer.c \
 	$(LOCAL_DIR)/ti/drivers/gpio_v2.c \
+	$(LOCAL_DIR)/ti/drivers/usb.c \
 	$(LOCAL_DIR)/ti/interrupt.c \
 
 MODULES += \
@@ -37,6 +38,8 @@ GLOBAL_DEFINES += \
 	MEMBASE=$(MEMBASE) \
 	SDRAM_BASE=$(MEMBASE) \
 	SDRAM_SIZE=$(MEMSIZE) \
+
+GLOBAL_CFLAGS += -Dam335x \
 
 MODULE_DEPS += \
 	lib/cbuf
