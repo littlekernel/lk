@@ -183,7 +183,7 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 
 static inline uint32_t arch_cycle_count(void)
 {
-#if ARM_ISA_ARM7M
+#if ARM_ISA_ARMV7M
 #if ENABLE_CYCLE_COUNTER
 #define DWT_CYCCNT (0xE0001004)
 	return *REG32(DWT_CYCCNT);
