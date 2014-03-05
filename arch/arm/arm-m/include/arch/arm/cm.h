@@ -94,18 +94,18 @@ struct arm_cm_exception_frame_long {
 	uint32_t psr;
 };
 
-#if ARM_M_DYNAMIC_PRIORITY_SIZE
+#if ARM_CM_DYNAMIC_PRIORITY_SIZE
 extern unsigned int arm_cm_num_irq_pri_bits;
 extern unsigned int arm_cm_irq_pri_mask;
 #else
 /* if we don't want to calculate the nubmer of priority bits, then assume
  * the cpu implements 3 (8 priority levels), which is the minimum according to spec.
  */
-#ifndef ARM_M_PRIORITY_BITS
-#define ARM_M_PRIORITY_BITS 3
+#ifndef __NVIC_PRIO_BITS
+#define __NVIC_PRIO_BITS 3
 #endif
-static const unsigned int arm_cm_num_irq_pri_bits = 8 - ARM_M_PRIORITY_BITS;
-static const unsigned int arm_cm_irq_pri_mask = ~((1 << ARM_M_PRIORITY_BITS) - 1) & 0xff;
+static const unsigned int arm_cm_num_irq_pri_bits = __NVIC_PRIO_BITS;
+static const unsigned int arm_cm_irq_pri_mask = ~((1 << __NVIC_PRIO_BITS) - 1) & 0xff;
 #endif
 
 void _arm_cm_set_irqpri(uint32_t pri);
@@ -136,17 +136,17 @@ static void arm_cm_set_irqpri(uint32_t pri)
 
 static inline uint32_t arm_cm_highest_priority(void)
 {
-	return (1 << (8 - arm_cm_num_irq_pri_bits));
+	return 0;
 }
 
 static inline uint32_t arm_cm_lowest_priority(void)
 {
-	return (255 & arm_cm_irq_pri_mask) & 0xff;
+	return (1 << arm_cm_num_irq_pri_bits) - 1;
 }
 
 static inline uint32_t arm_cm_medium_priority(void)
 {
-	return (128 & arm_cm_irq_pri_mask) & 0xff;
+	return (1 << (arm_cm_num_irq_pri_bits - 1));
 }
 
 static inline void arm_cm_trigger_interrupt(int vector)
