@@ -28,8 +28,15 @@
 .thumb
 .align 2
 
-// void *memcpy(void *dest, const void *src, size_t count)
-FUNCTION(mymemcpy)
+/* void bcopy(const void *src, void *dest, size_t n); */
+FUNCTION(bcopy)
+    // swap args for bcopy
+    mov     r12, r0
+    mov     r0, r1
+    mov     r1, r12
+
+/* void *memcpy(void *dest, const void *src, size_t count) */
+FUNCTION(memcpy)
     push    { r0, r14 }
 
     // test for zero length or pointers being equivalent
@@ -64,7 +71,7 @@ FUNCTION(mymemcpy)
     // load the number of words left
     lsrs    r3, r2, #2
 
-    .align 2 // make sure the loop is aligned, which seems to make the m3 happy
+    .align 2
 .L_wordwise:
     // wordwise copy
     ldr     r12, [r1], #4
