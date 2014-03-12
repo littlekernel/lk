@@ -72,7 +72,7 @@ static void bench_memcpy(void)
             mine = bench_memcpy_routine(&mymemcpy, srcalign, dstalign);
 
             printf("srcalign %zu, dstalign %zu: ", srcalign, dstalign);
-            //printf("   null memcpy %lu msecs\n", null);
+            printf("   null memcpy %lu msecs\n", null);
             printf("libc memcpy %lu msecs, %llu bytes/sec; ", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
             printf("my memcpy %lu msecs, %llu bytes/sec; ", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
             printf("\n");

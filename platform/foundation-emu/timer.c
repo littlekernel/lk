@@ -109,7 +109,7 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     uint64_t counter = read_counter();
     counter += ticks;
 
-    LTRACEF("new counter 0x%x ticks %u\n", counter, ticks);
+    LTRACEF("new counter 0x%llx ticks %llu\n", counter, ticks);
 
     ARM64_WRITE_SYSREG(CNTP_CVAL_EL0, counter);
 

@@ -144,7 +144,7 @@ static int mutex_thread(void *arg)
 		if (shared != 0)
 			panic("someone else has messed with the shared data\n");
 
-		shared = (int)current_thread;
+		shared = (intptr_t)current_thread;
 		thread_yield();
 		shared = 0;
 
@@ -257,7 +257,7 @@ static int event_signaller(void *arg)
 
 static int event_waiter(void *arg)
 {
-	int count = (int)arg;
+	int count = (intptr_t)arg;
 
 	printf("event waiter starting\n");
 
@@ -347,7 +347,7 @@ static int context_switch_tester(void *arg)
 	int i;
 	uint total_count = 0;
 	const int iter = 100000;
-	int thread_count = (int)arg;
+	int thread_count = (intptr_t)arg;
 
 	event_wait(&context_switch_event);
 
@@ -402,7 +402,7 @@ static volatile int atomic_count;
 
 static int atomic_tester(void *arg)
 {
-	int add = (int)arg;
+	int add = (intptr_t)arg;
 	int i;
 
 	TRACEF("add %d\n", add);

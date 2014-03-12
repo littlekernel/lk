@@ -53,7 +53,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 {
 	enter_critical_section();
 
-	LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
+	LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
 
 	t_callback = callback;
 
