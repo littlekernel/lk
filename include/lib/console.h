@@ -31,8 +31,8 @@
 /* command args */
 typedef struct {
 	const char *str;
-	unsigned int u;
-	int i;
+	unsigned long u;
+	long i;
 	bool b;
 } cmd_args;
 

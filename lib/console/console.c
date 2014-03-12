@@ -529,8 +529,8 @@ static void convert_args(int argc, cmd_args *argv)
 	int i;
 
 	for (i = 0; i < argc; i++) {
-		argv[i].u = atoui(argv[i].str);
-		argv[i].i = atoi(argv[i].str);
+		argv[i].u = atoul(argv[i].str);
+		argv[i].i = atol(argv[i].str);
 
 		if (!strcmp(argv[i].str, "true") || !strcmp(argv[i].str, "on")) {
 			argv[i].b = true;
@@ -788,7 +788,7 @@ static int cmd_test(int argc, const cmd_args *argv)
 
 	printf("argc %d, argv %p\n", argc, argv);
 	for (i = 0; i < argc; i++)
-		printf("\t%d: str '%s', i %d, u %#x, b %d\n", i, argv[i].str, argv[i].i, argv[i].u, argv[i].b);
+		printf("\t%d: str '%s', i %ld, u %#lx, b %d\n", i, argv[i].str, argv[i].i, argv[i].u, argv[i].b);
 
 	return 0;
 }
