@@ -73,7 +73,9 @@ void platform_init(void)
 	stellaris_debug_init();
 	stellaris_usbc_init();
 
-	// print device class
+	// print device information
+	printf("raw revision registers: 0x%lx 0x%lx\n", HWREG(SYSCTL_DID0), HWREG(SYSCTL_DID1));
+
 	printf("stellaris device class: ");
 	if (CLASS_IS_SANDSTORM) printf("sandstorm");
 	if (CLASS_IS_FURY) printf("fury");
@@ -84,10 +86,11 @@ void platform_init(void)
 	printf("\n");
 
 	printf("revision register: ");
-	uint rev = (HWREG(SYSCTL_DID0) & SYSCTL_DID0_MAJ_M) >> 16;
+	uint rev = (HWREG(SYSCTL_DID0) & SYSCTL_DID0_MAJ_M) >> 8;
 	printf("%c", rev + 'A');
 	printf("%ld", HWREG(SYSCTL_DID0) & (SYSCTL_DID0_MIN_M));
 	printf("\n");
+
 }
 
 // vim: set ts=4 sw=4 noexpandtab:
