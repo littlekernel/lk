@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <debug.h>
 #include <platform.h>
+#include <platform/lpc.h>
 
 void lpc_debug_early_init(void);
 void lpc_debug_init(void);

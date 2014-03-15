@@ -1,0 +1,67 @@
+/*
+ * @brief I2C bus slave example using the ROM API in polling mode
+ *
+ * @note
+ * Copyright(C) NXP Semiconductors, 2014
+ * All rights reserved.
+ *
+ * @par
+ * Software that is described herein is for illustrative purposes only
+ * which provides customers with programming information regarding the
+ * LPC products.  This software is supplied "AS IS" without any warranties of
+ * any kind, and NXP Semiconductors and its licensor disclaim any and
+ * all warranties, express or implied, including all implied warranties of
+ * merchantability, fitness for a particular purpose and non-infringement of
+ * intellectual property rights.  NXP Semiconductors assumes no responsibility
+ * or liability for the use of the software, conveys no license or rights under any
+ * patent, copyright, mask work right, or any other intellectual property rights in
+ * or to any products. NXP Semiconductors reserves the right to make changes
+ * in the software without notification. NXP Semiconductors also makes no
+ * representation or warranty that such application will be suitable for the
+ * specified use without further testing or modification.
+ *
+ * @par
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation is hereby granted, under NXP Semiconductors' and its
+ * licensor's relevant copyrights in the software, without fee, provided that it
+ * is used in conjunction with NXP Semiconductors microcontrollers.  This
+ * copyright, permission, and disclaimer notice must appear in all copies of
+ * this code.
+ */
+
+/** @defgroup EXAMPLES_PERIPH_15XX_I2CSLAVEPOLL LPC15xx I2C bus slave (polling) example using the ROM API
+ * @ingroup EXAMPLES_PERIPH_15XX
+ * <b>Example description</b><br>
+ * This example shows how to configure I2C as a bus slave in polling mode using
+ * the ROM-based APIs.<br>
+ *
+ * This demo supports both 7-bit and 10-bit addressing, but only 7-bit addressing is
+ * used in the example. After I2C is setup, the I2C receive and transmit functions
+ * are called through the built-in ROM routines.<br>
+ *
+ * If this demo is running correctly and is correctly connected to a master that
+ * supports this example, the LED will toggle. Because of the connection
+ * requirements, this example is best used as a reference on how to use the ROM
+ * API I2C slave functions.<br>
+ *
+ * <b>Special connection requirements</b><br>
+ * IMOPRTANT NOTE:<br>
+ * This example requires a connection via I2C to a I2C master. The I2C master writes a byte
+ * to the slave which controls the slave's LED state (0 or 1). The master can also read the
+ * slave's LED state (0 or 1).<br>
+ *
+ * <b>Build procedures:</b><br>
+ * Visit the <a href="http://www.lpcware.com/content/project/lpcopen-platform-nxp-lpc-microcontrollers/lpcopen-v200-quickstart-guides">LPCOpen quickstart guides</a>
+ * to get started building LPCOpen projects.
+ *
+ * <b>Supported boards and board setup:</b><br>
+ * @ref LPCOPEN_15XX_BOARD_LPCXPRESSO_1549<br>
+ *
+ * <b>Submitting LPCOpen issues:</b><br>
+ * @ref LPCOPEN_COMMUNITY
+ * @{
+ */
+
+/**
+ * @}
+ */

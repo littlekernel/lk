@@ -51,8 +51,7 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	platform/lpc15xx/lpcopen \
 	lib/cbuf
-
-#include $(LOCAL_DIR)/ti/rules.mk
 
 include make/module.mk

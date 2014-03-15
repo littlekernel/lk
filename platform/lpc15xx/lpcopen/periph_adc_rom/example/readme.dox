@@ -1,0 +1,65 @@
+/*
+ * @brief LPC15xx ADC ROM example
+ *
+ * @note
+ * Copyright(C) NXP Semiconductors, 2014
+ * All rights reserved.
+ *
+ * @par
+ * Software that is described herein is for illustrative purposes only
+ * which provides customers with programming information regarding the
+ * LPC products.  This software is supplied "AS IS" without any warranties of
+ * any kind, and NXP Semiconductors and its licensor disclaim any and
+ * all warranties, express or implied, including all implied warranties of
+ * merchantability, fitness for a particular purpose and non-infringement of
+ * intellectual property rights.  NXP Semiconductors assumes no responsibility
+ * or liability for the use of the software, conveys no license or rights under any
+ * patent, copyright, mask work right, or any other intellectual property rights in
+ * or to any products. NXP Semiconductors reserves the right to make changes
+ * in the software without notification. NXP Semiconductors also makes no
+ * representation or warranty that such application will be suitable for the
+ * specified use without further testing or modification.
+ *
+ * @par
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation is hereby granted, under NXP Semiconductors' and its
+ * licensor's relevant copyrights in the software, without fee, provided that it
+ * is used in conjunction with NXP Semiconductors microcontrollers.  This
+ * copyright, permission, and disclaimer notice must appear in all copies of
+ * this code.
+ */
+
+/** @defgroup EXAMPLES_PERIPH_15XX_ADC_ROM LPC15xx ADC ROM example
+ * @ingroup EXAMPLES_PERIPH_15XX
+ * <b>Example description</b><br>
+ * The LPC15xx ADC ROM example shows how to use the ADC ROM API to perform
+ * a sequence of conversions and monitor a threshold crossing.<br>
+ *
+ * ADC0 is configured to monitor the internal temperature sensor on
+ * ADC0 channel 0. It is setup to be triggered periodically by the
+ * sysTick interrupt.<br>
+ *
+ * ADC1 is configured to monitor an analog input signal on ADC1. The
+ * ADC channel used may vary per board. It is setup to be triggered
+ * periodically by the sysTick interrupt with optional threshold
+ * support.<br>
+ *
+ * <b>Special connection requirements</b><br>
+ * To use this example, ADC1 channel 1 needs to be connected to an
+ * analog source.<br>
+ *
+ * <b>Build procedures:</b><br>
+ * Visit the <a href="http://www.lpcware.com/content/project/lpcopen-platform-nxp-lpc-microcontrollers/lpcopen-v200-quickstart-guides">LPCOpen quickstart guides</a>
+ * to get started building LPCOpen projects.
+ *
+ * <b>Supported boards and board setup:</b><br>
+ * @ref LPCOPEN_15XX_BOARD_LPCXPRESSO_1549<br>
+ *
+ * <b>Submitting LPCOpen issues:</b><br>
+ * @ref LPCOPEN_COMMUNITY
+ * @{
+ */
+
+/**
+ * @}
+ */

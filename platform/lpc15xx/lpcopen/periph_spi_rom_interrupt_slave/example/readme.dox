@@ -1,0 +1,65 @@
+/*
+ * @brief SPI bus slave example using the ROM API via interrupts
+ *
+ * @note
+ * Copyright(C) NXP Semiconductors, 2014
+ * All rights reserved.
+ *
+ * @par
+ * Software that is described herein is for illustrative purposes only
+ * which provides customers with programming information regarding the
+ * LPC products.  This software is supplied "AS IS" without any warranties of
+ * any kind, and NXP Semiconductors and its licensor disclaim any and
+ * all warranties, express or implied, including all implied warranties of
+ * merchantability, fitness for a particular purpose and non-infringement of
+ * intellectual property rights.  NXP Semiconductors assumes no responsibility
+ * or liability for the use of the software, conveys no license or rights under any
+ * patent, copyright, mask work right, or any other intellectual property rights in
+ * or to any products. NXP Semiconductors reserves the right to make changes
+ * in the software without notification. NXP Semiconductors also makes no
+ * representation or warranty that such application will be suitable for the
+ * specified use without further testing or modification.
+ *
+ * @par
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation is hereby granted, under NXP Semiconductors' and its
+ * licensor's relevant copyrights in the software, without fee, provided that it
+ * is used in conjunction with NXP Semiconductors microcontrollers.  This
+ * copyright, permission, and disclaimer notice must appear in all copies of
+ * this code.
+ */
+
+/** @defgroup EXAMPLES_PERIPH_15XX_SPISLAVEINT LPC15xx SPI bus slave (interrupt) example using the ROM API
+ * @ingroup EXAMPLES_PERIPH_15XX
+ * <b>Example description</b><br>
+ * This example shows how to configure SPI as a bus slave in interrupt mode using 
+ * the ROM-based APIs.<br>
+ *
+ * This example configures SPI as a slave to read an array of 4 words of 16 bits using interrupt mode.
+ * The received data is output through the Debug UART port.
+ * To test the example a SPI master needs to be connected, the SPI master needs to keep transmitting
+ * the 4 words which will be outputted on the UART port of the slave. Since the slave transmits the received
+ * SPI data on UART, the master should allow sufficient (around 10ms) delay between each transfer. <br>
+ *
+ * <b>Special connection requirements</b><br>
+ * A SPI master should be connected to test this example the SPI connections are as below: <br>
+ * SCK - P0.0 - J2 pin7 on Expresso board <br>
+ * MOSI - P0.16 - J2 pin5 on Expresso board <br>
+ * MISO - P0.10 - J2 pin4 on Expresso board <br>
+ * SSEL0 - P0.9 - J2 pin3 on Expresso board <br>
+ *
+ * <b>Build procedures:</b><br>
+ * Visit the <a href="http://www.lpcware.com/content/project/lpcopen-platform-nxp-lpc-microcontrollers/lpcopen-v200-quickstart-guides">LPCOpen quickstart guides</a>
+ * to get started building LPCOpen projects.
+ *
+ * <b>Supported boards and board setup:</b><br>
+ * @ref LPCOPEN_15XX_BOARD_LPCXPRESSO_1549<br>
+ *
+ * <b>Submitting LPCOpen issues:</b><br>
+ * @ref LPCOPEN_COMMUNITY
+ * @{
+ */
+
+/**
+ * @}
+ */
