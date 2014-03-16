@@ -54,4 +54,16 @@ MODULE_DEPS += \
 	platform/lpc15xx/lpcopen \
 	lib/cbuf
 
+LPCSIGNEDBIN := $(OUTBIN).sign
+LPCCHECK := $(LOCAL_DIR)/lpccheck.py
+EXTRA_BUILDDEPS += $(LPCSIGNEDBIN)
+GENERATED += $(LPCSIGNEDBIN)
+
+$(LPCSIGNEDBIN): $(OUTBIN) $(LPCCHECK)
+	@$(MKDIR)
+	$(NOECHO)echo generating $@; \
+	cp $< $@.tmp; \
+	$(LPCCHECK) $@.tmp; \
+	mv $@.tmp $@
+
 include make/module.mk
