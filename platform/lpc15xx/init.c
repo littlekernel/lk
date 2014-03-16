@@ -41,56 +41,34 @@ void lpc_usbc_init(void);
 
 void platform_early_init(void)
 {
+    /* set up clocking for a board with an external oscillator */
+    Chip_SetupXtalClocking();
+
+    /* Set USB PLL input to main oscillator */
+    Chip_Clock_SetUSBPLLSource(SYSCTL_PLLCLKSRC_MAINOSC);
+    /* Setup USB PLL  (FCLKIN = 12MHz) * 4 = 48MHz
+       MSEL = 3 (this is pre-decremented), PSEL = 1 (for P = 2)
+       FCLKOUT = FCLKIN * (MSEL + 1) = 12MHz * 4 = 48MHz
+       FCCO = FCLKOUT * 2 * P = 48MHz * 2 * 2 = 192MHz (within FCCO range) */
+    Chip_Clock_SetupUSBPLL(3, 1);
+
+    /* Powerup USB PLL */
+    Chip_SYSCTL_PowerUp(SYSCTL_POWERDOWN_USBPLL_PD);
+
+    /* Wait for PLL to lock */
+    while (!Chip_Clock_IsUSBPLLLocked()) {}
+
+    /* Set default system tick divder to 1 */
+    Chip_Clock_SetSysTickClockDiv(1);
+
     lpc_timer_early_init();
-
     lpc_debug_early_init();
-
-#if 0
-    //
-    // Enable lazy stacking for interrupt handlers.  This allows floating-point
-    // instructions to be used within interrupt handlers, but at the expense of
-    // extra stack usage.
-    //
-//  FPULazyStackingEnable();
-
-    //
-    // Set the clocking to run directly from the crystal.
-    //
-    SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
-
-    lpc_gpio_early_init();
-
-    lpc_usbc_early_init();
-#endif
 }
 
 void platform_init(void)
 {
     lpc_timer_init();
     lpc_debug_init();
-
-#if 0
-    lpc_gpio_init();
-    lpc_usbc_init();
-
-    // print device information
-    printf("raw revision registers: 0x%lx 0x%lx\n", HWREG(SYSCTL_DID0), HWREG(SYSCTL_DID1));
-
-    printf("lpc device class: ");
-    if (CLASS_IS_SANDSTORM) printf("sandstorm");
-    if (CLASS_IS_FURY) printf("fury");
-    if (CLASS_IS_DUSTDEVIL) printf("dustdevil");
-    if (CLASS_IS_TEMPEST) printf("tempst");
-    if (CLASS_IS_FIRESTORM) printf("firestorm");
-    if (CLASS_IS_BLIZZARD) printf("blizzard");
-    printf("\n");
-
-    printf("revision register: ");
-    uint rev = (HWREG(SYSCTL_DID0) & SYSCTL_DID0_MAJ_M) >> 8;
-    printf("%c", rev + 'A');
-    printf("%ld", HWREG(SYSCTL_DID0) & (SYSCTL_DID0_MIN_M));
-    printf("\n");
-#endif
 }
 
 // vim: set ts=4 sw=4 expandtab:

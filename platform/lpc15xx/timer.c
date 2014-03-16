@@ -29,6 +29,8 @@
 #include <platform/timer.h>
 #include <arch/arm/cm.h>
 
+#include <platform/lpc.h>
+
 #define LOCAL_TRACE 0
 
 static volatile uint64_t ticks;
@@ -38,9 +40,6 @@ static lk_bigtime_t tick_interval_us;
 
 static platform_timer_callback cb;
 static void *cb_args;
-
-// XXX read actual clock programmatically
-#define SYSTEM_CLOCK 12000000
 
 /* use systick as the kernel tick */
 void _systick(void)
@@ -69,7 +68,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 
     tick_interval_ms = interval;
     tick_interval_us = interval * 1000;
-    arm_cm_systick_set_periodic(SYSTEM_CLOCK, interval);
+    arm_cm_systick_set_periodic(Chip_Clock_GetMainClockRate(), interval);
 
     exit_critical_section();
 
@@ -114,7 +113,7 @@ lk_bigtime_t current_time_hires(void)
 
 void lpc_timer_early_init(void)
 {
-    uint32_t clock_rate = SYSTEM_CLOCK;
+    uint32_t clock_rate = Chip_Clock_GetMainClockRate();
     tick_rate_mhz = clock_rate / 1000000;
 
 #if 0

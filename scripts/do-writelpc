@@ -1,0 +1,34 @@
+#!/bin/sh
+
+if [ $# != 2 ]; then
+    echo not enough args
+    echo usage: $0 file device
+    exit 1
+fi
+
+if [ ! -f $1 ]; then
+    echo input file does not exist
+    exit 1
+fi
+
+if [ ! -b $2 ]; then
+    echo output device does not exist
+    exit 1
+fi
+
+UNAME=`uname`
+
+case `uname` in
+    Darwin)
+        set -v
+        sudo diskutil unmount $2 || exit 1
+        sudo dd if=$1 of=$2 bs=2048 seek=1 || exit 1
+        sudo diskutil eject $2 || exit 1
+    ;;
+    Linux)
+        set -v
+        sudo umount $2
+        sudo dd if=$1 of=$2 bs=2048 seek=1 || exit 1
+        sudo sync
+    ;;
+esac

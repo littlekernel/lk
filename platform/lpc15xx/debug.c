@@ -29,76 +29,26 @@
 #include <platform/debug.h>
 #include <arch/ops.h>
 #include <arch/arm/cm.h>
-//#include <target/debugconfig.h>
-
-#define DEBUG_UART UART0_BASE
+#include <target/debugconfig.h>
 
 static cbuf_t debug_rx_buf;
 
-#if 0
-void lpc_uart0_irq(void)
-{
-    arm_cm_irq_entry();
-
-    //
-    // Get the interrrupt status.
-    //
-    unsigned long ulStatus = UARTIntStatus(DEBUG_UART, true);
-
-    //
-    // Clear the asserted interrupts.
-    //
-    UARTIntClear(DEBUG_UART, ulStatus);
-
-    //
-    // Loop while there are characters in the receive FIFO.
-    //
-    bool resched = false;
-    while (UARTCharsAvail(DEBUG_UART)) {
-        //
-        // Read the next character from the UART and write it back to the UART.
-        //
-        unsigned char c = UARTCharGetNonBlocking(DEBUG_UART);
-        cbuf_write_char(&debug_rx_buf, c, false);
-
-        resched = true;
-    }
-
-    arm_cm_irq_exit(resched);
-}
-#endif
-
 void lpc_debug_early_init(void)
 {
-#if 0
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+    /* Use main clock rate as base for UART baud rate divider */
+    Chip_Clock_SetUARTBaseClockRate(Chip_Clock_GetMainClockRate(), false);
 
-    /* we only support UART0 right now */
-    STATIC_ASSERT(DEBUG_UART == UART0_BASE);
-
-    if (DEBUG_UART == UART0_BASE) {
-        /* Set GPIO A0 and A1 as UART pins. */
-        GPIOPinConfigure(GPIO_PA0_U0RX);
-        GPIOPinConfigure(GPIO_PA1_U0TX);
-        GPIOPinTypeUART(GPIO_PORTA_AHB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-    }
-
-    UARTConfigSetExpClk(DEBUG_UART, SysCtlClockGet(), 115200, UART_CONFIG_WLEN_8|UART_CONFIG_STOP_ONE|UART_CONFIG_PAR_NONE);
-
-    UARTEnable(DEBUG_UART);
-#endif
+    /* Setup UART */
+    Chip_UART_Init(DEBUG_UART);
+    Chip_UART_ConfigData(DEBUG_UART, UART_CFG_DATALEN_8 | UART_CFG_PARITY_NONE | UART_CFG_STOPLEN_1);
+    Chip_UART_SetBaud(DEBUG_UART, 115200);
+    Chip_UART_Enable(DEBUG_UART);
+    Chip_UART_TXEnable(DEBUG_UART);
 }
 
 void lpc_debug_init(void)
 {
     cbuf_initialize(&debug_rx_buf, 16);
-
-#if 0
-    /* Enable the UART interrupt. */
-    UARTIntEnable(DEBUG_UART, UART_INT_RX | UART_INT_RT);
-
-    NVIC_EnableIRQ(INT_UART0 - 16);
-#endif
 }
 
 void platform_dputc(char c)
@@ -107,12 +57,20 @@ void platform_dputc(char c)
         _dputc('\r');
     }
 
-//    UARTCharPut(DEBUG_UART, c);
+    Chip_UART_SendBlocking(DEBUG_UART, &c, 1);
 }
 
 int platform_dgetc(char *c, bool wait)
 {
-    return cbuf_read_char(&debug_rx_buf, c, wait);
+    //return cbuf_read_char(&debug_rx_buf, c, wait);
+
+    uint8_t data;
+
+    if (Chip_UART_Read(DEBUG_UART, &data, 1) == 1) {
+        *c = data;
+        return 1;
+    }
+    return -1;
 }
 
 void platform_halt(void)

@@ -22,6 +22,6 @@
  */
 #pragma once
 
-/* include cmsis.h in platform/lpc space */
-#include <cmsis.h>
+#include <platform/lpc.h>
 
+#define DEBUG_UART LPC_USART0
