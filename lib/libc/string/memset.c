@@ -33,12 +33,14 @@ memset(void *s, int c, size_t count)
 {
 	char *xs = (char *) s;
 	size_t len = (-(size_t)s) & (sizeof(size_t)-1);
-	int cc = c & 0xff;
+	size_t cc = c & 0xff;
 
 	if ( count > len ) {
 		count -= len;
 		cc |= cc << 8;
 		cc |= cc << 16;
+		if (sizeof(size_t) == 8)
+			cc |= cc << 32;
 
 		// write to non-aligned memory byte-wise
 		for ( ; len > 0; len-- )
@@ -46,7 +48,7 @@ memset(void *s, int c, size_t count)
 
 		// write to aligned memory dword-wise
 		for ( len = count/sizeof(size_t); len > 0; len-- ) {
-			*((size_t *)xs) = cc;
+			*((size_t *)xs) = (size_t)cc;
 			xs += sizeof(size_t);
 		}
 
