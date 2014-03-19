@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2012 Ian McKellar
- * Copyright (c) 2013 Travis Geiselbrecht
+ * Copyright (c) 2012-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,21 +20,29 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+/*
+ * Generic systick timer support for providing system time (current_time(), current_time_hires()),
+ * and a monotonic timer for the kernel.
+ */
+
+#include <sys/types.h>
+#include <string.h>
+#include <stdlib.h>
 #include <debug.h>
+#include <assert.h>
 #include <trace.h>
 #include <err.h>
-#include <sys/types.h>
 #include <kernel/thread.h>
+#include <arch/arm.h>
+#include <arch/arm/cm.h>
 #include <platform.h>
 #include <platform/timer.h>
-#include <arch/arm/cm.h>
-
-#include <inc/hw_types.h>
-#include "ti_driverlib.h"
 
 #define LOCAL_TRACE 0
 
 static volatile uint64_t ticks;
+static uint32_t tick_rate = 0;
 static uint32_t tick_rate_mhz = 0;
 static lk_time_t tick_interval_ms;
 static lk_bigtime_t tick_interval_us;
@@ -43,12 +50,30 @@ static lk_bigtime_t tick_interval_us;
 static platform_timer_callback cb;
 static void *cb_args;
 
-/* use systick as the kernel tick */
+static void arm_cm_systick_set_periodic(lk_time_t period)
+{
+	LTRACEF("clk_freq %u, period %u\n", tick_rate, (uint)period);
+
+	uint32_t ticks = tick_rate / (1000 / period);
+	LTRACEF("ticks %d\n", ticks);
+
+	SysTick->LOAD = (ticks & SysTick_LOAD_RELOAD_Msk) - 1;
+	SysTick->VAL = 0;
+	SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+}
+
+static void arm_cm_systick_cancel_periodic(void)
+{
+	SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
+}
+
+/* main systick irq handler */
 void _systick(void)
 {
+	ticks++;
+
 	arm_cm_irq_entry();
 
-	ticks++;
 	bool resched = false;
 	if (cb) {
 		lk_time_t now = current_time();
@@ -63,6 +88,8 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 {
 	LTRACEF("callback %p, arg %p, interval %ld\n", callback, arg, interval);
 
+	DEBUG_ASSERT(tick_rate != 0 && tick_rate_mhz != 0);
+
 	enter_critical_section();
 
 	cb = callback;
@@ -70,7 +97,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 
 	tick_interval_ms = interval;
 	tick_interval_us = interval * 1000;
-	arm_cm_systick_set_periodic(SysCtlClockGet(), interval);
+	arm_cm_systick_set_periodic(interval);
 
 	exit_critical_section();
 
@@ -113,23 +140,10 @@ lk_bigtime_t current_time_hires(void)
 	return res;
 }
 
-void stellaris_timer_early_init(void)
+void arm_cm_systick_init(uint32_t mhz)
 {
-	uint32_t clock_rate = SysCtlClockGet();
-	tick_rate_mhz = clock_rate / 1000000;
-
-#if 0
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_WTIMER0);
-
-	/* configure the timer as a 64bit up counting tick at syslock rate */
-	TimerConfigure(WTIMER0_BASE, TIMER_CFG_PERIODIC_UP);
-	TimerLoadSet64(WTIMER0_BASE, ULONG_MAX);
-	TimerEnable(WTIMER0_BASE, TIMER_BOTH);
-#endif
+	tick_rate = mhz;
+	tick_rate_mhz = mhz / 1000000;
 }
 
-void stellaris_timer_init(void)
-{
-}
-
-
+// vim: set ts=4 sw=4 noexpandtab:

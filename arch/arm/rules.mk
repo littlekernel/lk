@@ -135,8 +135,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm-m/vectab.c \
 	$(LOCAL_DIR)/arm-m/start.c \
 	$(LOCAL_DIR)/arm-m/exceptions.c \
-	$(LOCAL_DIR)/arm-m/thread.c \
-	$(LOCAL_DIR)/arm-m/systick.c
+	$(LOCAL_DIR)/arm-m/thread.c
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/arm-m/CMSIS/Include

@@ -160,9 +160,7 @@ static inline void arm_cm_trigger_preempt(void)
 }
 
 /* systick */
-void arm_cm_systick_init(void);
-void arm_cm_systick_set_periodic(uint32_t systick_clk_freq, lk_time_t period);
-void arm_cm_systick_cancel_periodic(void);
+void arm_cm_systick_init(uint32_t mhz);
 /* extern void _systick(void); // override this */
 
 /* interrupt glue */
