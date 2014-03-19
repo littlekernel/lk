@@ -26,12 +26,10 @@
 #include <debug.h>
 #include <platform.h>
 #include <platform/lpc.h>
+#include <arch/arm/cm.h>
 
 void lpc_debug_early_init(void);
 void lpc_debug_init(void);
-
-void lpc_timer_early_init(void);
-void lpc_timer_init(void);
 
 void lpc_gpio_early_init(void);
 void lpc_gpio_init(void);
@@ -61,13 +59,14 @@ void platform_early_init(void)
     /* Set default system tick divder to 1 */
     Chip_Clock_SetSysTickClockDiv(1);
 
-    lpc_timer_early_init();
+    /* start the generic systick driver */
+    arm_cm_systick_init(Chip_Clock_GetMainClockRate());
+
     lpc_debug_early_init();
 }
 
 void platform_init(void)
 {
-    lpc_timer_init();
     lpc_debug_init();
 }
 

@@ -24,7 +24,6 @@ GLOBAL_INCLUDES += \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
-	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/vectab.c \
 
@@ -51,6 +50,7 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	arch/arm/arm-m/systick \
 	platform/lpc15xx/lpcopen \
 	lib/cbuf
 
