@@ -49,6 +49,7 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	arch/arm/arm-m/systick \
 	lib/cbuf
 
 include $(LOCAL_DIR)/cmsis/sam3x/rules.mk $(LOCAL_DIR)/drivers/rules.mk
