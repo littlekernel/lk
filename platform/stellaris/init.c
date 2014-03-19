@@ -27,15 +27,13 @@
 #include <debug.h>
 #include <platform.h>
 #include <dev/usb.h>
+#include <arch/arm/cm.h>
 
 #include "ti_driverlib.h"
 
 
 void stellaris_debug_early_init(void);
 void stellaris_debug_init(void);
-
-void stellaris_timer_early_init(void);
-void stellaris_timer_init(void);
 
 void stellaris_gpio_early_init(void);
 void stellaris_gpio_init(void);
@@ -57,7 +55,8 @@ void platform_early_init(void)
 	//
 	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 
-	stellaris_timer_early_init();
+	// start the generic systick timer
+	arm_cm_systick_init(SysCtlClockGet());
 
 	stellaris_gpio_early_init();
 
@@ -68,7 +67,6 @@ void platform_early_init(void)
 
 void platform_init(void)
 {
-	stellaris_timer_init();
 	stellaris_gpio_init();
 	stellaris_debug_init();
 	stellaris_usbc_init();
