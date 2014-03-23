@@ -128,6 +128,8 @@ MODULE_ARM_OVERRIDE_SRCS := \
 
 GLOBAL_DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=4096
+
+ARCH_OPTFLAGS := -O2
 endif
 ifeq ($(SUBARCH),arm-m)
 MODULE_SRCS += \
@@ -140,8 +142,12 @@ MODULE_SRCS += \
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/arm-m/CMSIS/Include
 
+# we're building for small binaries
 GLOBAL_DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=1024
+
+ARCH_OPTFLAGS := -Os
+WITH_LINKER_GC := 1
 endif
 
 # try to find the toolchain
@@ -196,9 +202,6 @@ $(error missing MEMBASE or MEMSIZE variable, please set in target rules.mk)
 endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
-$(info LIBGCC = $(LIBGCC))
-
-$(info GLOBAL_COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS) $(THUMBCFLAGS))
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \

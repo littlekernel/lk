@@ -1,3 +1,9 @@
+# use linker garbage collection, if requested
+ifeq ($(WITH_LINKER_GC),1)
+GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
+GLOBAL_LDFLAGS += --gc-sections
+endif
+
 $(OUTBIN): $(OUTELF)
 	@echo generating image: $@
 	$(NOECHO)$(SIZE) $<

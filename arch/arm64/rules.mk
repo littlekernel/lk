@@ -28,6 +28,8 @@ MODULE_SRCS += \
 GLOBAL_DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=8192
 
+ARCH_OPTFLAGS := -O2
+
 # try to find the toolchain
 ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := aarch64-elf-
@@ -51,9 +53,7 @@ ifeq ($(MEMVARS_SET),0)
 $(error missing MEMBASE or MEMSIZE variable, please set in target rules.mk)
 endif
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
-$(info LIBGCC = $(LIBGCC))
-$(info GLOBAL_COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS) $(THUMBCFLAGS))
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \

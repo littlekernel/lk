@@ -32,6 +32,8 @@ GLOBAL_CFLAGS += $(call cc-option,$(CC),-fno-stack-protector,)
 GLOBAL_COMPILEFLAGS += -fasynchronous-unwind-tables
 GLOBAL_COMPILEFLAGS += -gdwarf-2
 
+ARCH_OPTFLAGS := -O2
+
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
 	$(BUILDDIR)/kernel.ld

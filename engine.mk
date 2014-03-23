@@ -44,7 +44,7 @@ OUTELF := $(BUILDDIR)/lk.elf
 CONFIGHEADER := $(BUILDDIR)/config.h
 
 GLOBAL_INCLUDES := $(BUILDDIR) $(LKROOT)/include $(addsuffix /include,$(LKINC))
-GLOBAL_OPTFLAGS ?= -Os
+GLOBAL_OPTFLAGS ?= $(ARCH_OPTFLAGS)
 GLOBAL_COMPILEFLAGS := -g -fno-builtin -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -include $(CONFIGHEADER)
 GLOBAL_CFLAGS := --std=gnu99 -Werror-implicit-function-declaration -Wstrict-prototypes
 #GLOBAL_CFLAGS += -Werror
@@ -53,8 +53,6 @@ GLOBAL_CPPFLAGS := -fno-exceptions -fno-rtti -fno-threadsafe-statics
 GLOBAL_ASMFLAGS := -DASSEMBLY
 GLOBAL_LDFLAGS :=
 
-GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
-GLOBAL_LDFLAGS += --gc-sections
 GLOBAL_LDFLAGS += -L $(LKROOT)
 
 # top level rule
@@ -99,6 +97,12 @@ EXTRA_OBJS :=
 
 # if someone defines this, the build id will be pulled into lib/version
 BUILDID ?=
+
+# if this is set to 1, use ld's garbage collector for unused functions and data
+WITH_LINKER_GC ?= 0
+
+# comment out or override if you want to see the full output of each command
+NOECHO ?= @
 
 # try to include the project file
 -include project/$(PROJECT).mk
@@ -172,6 +176,9 @@ CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
 SIZE := $(TOOLCHAIN_PREFIX)size
 NM := $(TOOLCHAIN_PREFIX)nm
 
+# the logic to compile and link stuff is in here
+include make/build.mk
+
 # put all of the global build flags in config.h to force a rebuild if any change
 GLOBAL_DEFINES += GLOBAL_INCLUDES=\"$(subst $(SPACE),_,$(GLOBAL_INCLUDES))\"
 GLOBAL_DEFINES += GLOBAL_COMPILEFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_COMPILEFLAGS))\"
@@ -180,9 +187,6 @@ GLOBAL_DEFINES += GLOBAL_CFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_CPPFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CPPFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_ASMFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_ASMFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_LDFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LDFLAGS))\"
-
-# comment out or override if you want to see the full output of each command
-NOECHO ?= @
 
 ifneq ($(OBJS),)
 $(warning OBJS=$(OBJS))
@@ -201,8 +205,9 @@ $(warning CPPFLAGS=$(CPPFLAGS))
 $(error CPPFLAGS is not empty, please use GLOBAL_CPPFLAGS or MODULE_CPPFLAGS)
 endif
 
-# the logic to compile and link stuff is in here
-include make/build.mk
+$(info LIBGCC = $(LIBGCC))
+$(info GLOBAL_COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS))
+$(info GLOBAL_OPTFLAGS = $(GLOBAL_OPTFLAGS))
 
 # make all object files depend on any targets in GLOBAL_SRCDEPS
 $(ALLOBJS): $(GLOBAL_SRCDEPS)
