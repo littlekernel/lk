@@ -101,7 +101,16 @@ real_start:
 	movw %ax, %ss
 	
 	movl $_kstack, %esp
-	
+	/*We jumped here in protected mode in a code segment that migh not longer
+	  be valid , do a long jump to our code segment, we use retf instead of
+	  ljmp to be able to use relative labels */
+	movl $codesel, %ecx     /*Pushing our code segment */
+	push %ecx
+	movl $farjump, %ecx /*and jump address */
+	push %ecx
+	xorl %ecx, %ecx
+	retf    /*This instruction will jump to codesel:farjump */
+farjump:
 	/* zero the bss section */
 	movl $__bss_start, %edi	/* starting address of the bss */
 	movl $__bss_end, %ecx	/* find the length of the bss in bytes */
