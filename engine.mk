@@ -92,6 +92,9 @@ ALLMODULES :=
 # add any external module dependencies
 MODULES := $(EXTERNAL_MODULES)
 
+# any .mk specified here will be included before build.mk
+EXTRA_BUILDRULES :=
+
 # any rules you put here will also be built by the system before considered being complete
 EXTRA_BUILDDEPS :=
 
