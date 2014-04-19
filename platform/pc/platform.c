@@ -96,7 +96,8 @@ void platform_init(void)
 	uart_init();
 
 	platform_init_keyboard();
-
+#ifndef ARCH_X86_64
 	pci_init();
+#endif
 }
 

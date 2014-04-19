@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Corey Tabaka
+ * Copyright (c) 2009 Corey Tabaka
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,62 +20,44 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include <dev/driver.h>
-#include <dev/class/block.h>
-#include <dev/class/netif.h>
-#include <platform/uart.h>
-#include <platform/ide.h>
-#include <platform/pcnet.h>
-#include <platform.h>
-#include <malloc.h>
-#include <string.h>
 #include <debug.h>
+#include <arch.h>
+#include <arch/ops.h>
+#include <arch/x86.h>
+#include <arch/x86/mmu.h>
+#include <arch/x86/descriptor.h>
+#include <platform.h>
+#include <sys/types.h>
+#include <string.h>
 
-#ifndef ARCH_X86_64
-#include <ffs.h>
-#endif
+static tss_t system_tss;
 
-#include <lwip/tcpip.h>
+void arch_early_init(void)
+{
+	x86_mmu_init();
 
-#define LOCAL_TRACE 1
+	platform_init_mmu_mappings();
 
-static const struct platform_uart_config uart0_config = {
-	.io_port = 0x3f8,
-	.irq = 0x24,
-	.baud_rate = 115200,
-	.rx_buf_len = 1024,
-	.tx_buf_len = 1024,
-};
+	/* enable caches here for now */
+	clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
 
-DEVICE_INSTANCE(uart, uart0, &uart0_config);
+	memset(&system_tss, 0, sizeof(tss_t));
 
-#ifndef ARCH_X86_64
-static const struct platform_ide_config ide0_config = {
-};
+	system_tss.esp0 = 0;
+	system_tss.ss0 = DATA_SELECTOR;
+	system_tss.ss1 = 0;
+	system_tss.ss2 = 0;
+	system_tss.eflags = 0x00003002;
+	system_tss.bitmap = offsetof(tss_t, tss_bitmap);
+	system_tss.trace = 1; // trap on hardware task switch
 
-DEVICE_INSTANCE(ide, ide0, &ide0_config);
+	set_global_desc(TSS_SELECTOR, &system_tss, sizeof(tss_t), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
 
-static const struct platform_pcnet_config pcnet0_config = {
-	.vendor_id = 0x1022,
-	.device_id = 0x2000,
-	.index = 0,
-};
-
-DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config);
-#endif
-
-void target_init(void) {
-	//device_init_all();
-#ifndef ARCH_X86_64
-
-	device_init(device_get_by_name(ide, ide0));
-	ffs_mount(0, device_get_by_name(ide, ide0));
-
-	tcpip_init(NULL, NULL);
-
-	device_init(device_get_by_name(netif, pcnet0));
-	class_netif_add(device_get_by_name(netif, pcnet0));
-#endif
+	x86_ltr(TSS_SELECTOR);
 }
+
+void arch_init(void)
+{
+}
+
 
