@@ -26,6 +26,7 @@
 #include <kernel/thread.h>
 #include <platform/debug.h>
 #include <platform/zynq.h>
+#include <target/debugconfig.h>
 #include <reg.h>
 
 #define UART_CR (0x00)
@@ -45,10 +46,47 @@
 #define UART_FLOW_DELAY (0x38)
 #define UART_TX_FIFO_TRIGGER (0x44)
 
-#define UARTREG(reg)  (*REG32(UART0_BASE + (reg)))
+/* DEBUG_UART must be defined to 0 or 1 */
+#if defined(DEBUG_UART) && DEBUG_UART == 0
+#define DEBUG_UART_BASE UART0_BASE
+#elif defined(DEBUG_UART) && DEBUG_UART == 1
+#define DEBUG_UART_BASE UART1_BASE
+#else
+#error define DEBUG_UART to something valid
+#endif
+
+#define UARTREG(reg)  (*REG32(DEBUG_UART_BASE + (reg)))
+
+#if 0
+uboot setup for zynq board
+E0001000:   00000114
+E0001004:   00000020
+E0001008:   00000000
+E000100C:   00000000
+E0001010:   00000000
+E0001014:   00000200
+E0001018:   0000003E
+E000101C:   00000000
+E0001020:   00000020
+E0001024:   00000000
+E0001028:   000000FB
+E000102C:   0000000A
+E0001030:   00000000
+E0001034:   00000006
+E0001038:   00000000
+E000103C:   00000000
+E0001040:   00000000
+E0001044:   00000020
+#endif
 
 void platform_dputc(char c)
 {
+    if (c == '\n')
+        platform_dputc('\r');
+
+    /* spin while fifo is full */
+    while (UARTREG(UART_SR) & (1<<4))
+        ;
     UARTREG(UART_FIFO) = c;
 }
 
