@@ -11,6 +11,7 @@
 # MODULE_CFLAGS : CFLAGS local to this module
 # MODULE_CPPFLAGS : CPPFLAGS local to this module
 # MODULE_ASMFLAGS : ASMFLAGS local to this module
+# MODULE_INCLUDES : include directories local to this module
 # MODULE_SRCDEPS : extra dependencies that all of this module's files depend on
 # MODULE_EXTRA_OBJS : extra .o files that should be linked with the module
 
@@ -70,6 +71,8 @@ MODULE_COMPILEFLAGS += --include $(MODULE_CONFIG)
 
 MODULE_SRCDEPS += $(MODULE_CONFIG)
 
+MODULE_INCLUDES := $(addprefix -I,$(MODULE_INCLUDES))
+
 # include the rules to compile the module's object files
 include make/compile.mk
 
@@ -106,6 +109,7 @@ MODULE_CFLAGS :=
 MODULE_CPPFLAGS :=
 MODULE_ASMFLAGS :=
 MODULE_SRCDEPS :=
+MODULE_INCLUDES :=
 MODULE_EXTRA_OBJS :=
 MODULE_CONFIG :=
 MODULE_OBJECT :=
