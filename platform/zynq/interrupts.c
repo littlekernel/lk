@@ -123,36 +123,12 @@ void platform_init_interrupts(void)
     }
 
     for (int i = 32/4; i < MAX_INT / 4; i++) {
-        GICDISTREG(_TARGET + i * 4) = 0;
+        GICDISTREG(_TARGET + i * 4) = 0x01010101; // assign all irqs to cpu 0
         GICDISTREG(PRIORITY + i * 4) = 0x80808080;
     }
 
     GICDISTREG(DISTCONTROL) = 1; // enable GIC0, IRQ only
     GICCPUREG(CONTROL) = (0<<3)|(0<<2)||1; // enable GIC0, IRQ only, group 0 set to IRQ
-
-#if 0
-    hexdump((void *)GIC_PROC_BASE, 0x20);
-    hexdump((void *)GIC_DISTRIB_BASE, 0x10);
-    printf("config:   "); hexdump((void *)GIC_DISTRIB_BASE + CONFIG, 0x10);
-    printf("group:    "); hexdump((void *)GIC_DISTRIB_BASE + GROUP, 0x10);
-    printf("priority: "); hexdump((void *)GIC_DISTRIB_BASE + PRIORITY, 0x40);
-    printf("enable:   "); hexdump((void *)GIC_DISTRIB_BASE + SETENABLE, 0x10);
-    printf("pending:  "); hexdump((void *)GIC_DISTRIB_BASE + SETPEND, 0x10);
-    printf("active:   "); hexdump((void *)GIC_DISTRIB_BASE + SETACTIVE, 0x10);
-
-    // trigger interrupt
-    gic_set_enable(34, true);
-    //GICDISTREG(SETPEND + 4) = (1<<2);
-    //GICDISTREG(SETACTIVE + 4) = (1<<2);
-    GICDISTREG(SGIR) = (2 << 24) | 1;
-
-    printf("ISR 0x%x\n", (uint32_t)ARM64_READ_SYSREG(isr_el1));
-
-    printf("daif 0x%x\n", (uint32_t)ARM64_READ_SYSREG(daif));
-    arch_enable_interrupts();
-
-    printf("daif 0x%x\n", (uint32_t)ARM64_READ_SYSREG(daif));
-#endif
 }
 
 status_t mask_interrupt(unsigned int vector)

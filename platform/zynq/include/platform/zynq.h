@@ -59,18 +59,10 @@
 #define GIC_DISTRIB_BASE  (CPUPRIV_BASE + 0x1000)
 #define L2CACHE_BASE      (CPUPRIV_BASE + 0x2000)
 
-#if 0
-#define TIMER0 (0x10011000)
-#define TIMER1 (0x10011020)
-#define TIMER2 (0x10012000)
-#define TIMER3 (0x10012020)
-#define TIMER4 (0x10018000)
-#define TIMER5 (0x10018020)
-#define TIMER6 (0x10019000)
-#define TIMER7 (0x10019020)
-#endif
-
 /* interrupts */
+#define CPU_GLOB_TIMER 27 // cortex-a9 specific timers
+#define CPU_PRIV_TIMER 29
+#define CPU_WATCHDOG   30
 #define TTC0_A_INT  42
 #define TTC0_B_INT  43
 #define TTC0_C_INT  44
