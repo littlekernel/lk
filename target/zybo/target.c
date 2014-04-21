@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,28 +20,15 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ARCH_CPU_H
-#define __ARCH_CPU_H
+extern int ps7_init(void);
 
-/* arm specific stuff */
-#define PAGE_SIZE 4096
+void target_early_init(void)
+{
+    ps7_init();
+}
 
-#if ARM_CPU_ARM7
-/* irrelevant, no consistent cache */
-#define CACHE_LINE 32
-#elif ARM_CPU_ARM926
-#define CACHE_LINE 32
-#elif ARM_CPU_ARM1136
-#define CACHE_LINE 32
-#elif ARM_CPU_CORTEX_A8
-#define CACHE_LINE 64
-#elif ARM_CPU_CORTEX_A9
-#define CACHE_LINE 32
-#elif ARM_CPU_CORTEX_M3 || ARM_CPU_CORTEX_M4
-#define CACHE_LINE 32 /* doesn't actually matter */
-#else
-#error unknown cpu
-#endif
+void target_init(void)
+{
+}
 
-#endif
 
