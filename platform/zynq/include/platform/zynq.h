@@ -67,7 +67,7 @@
 #define TTC0_B_INT  43
 #define TTC0_C_INT  44
 #define UART0_INT   59
-#define UART1_INT   81
+#define UART1_INT   82
 #define TTC1_A_INT  69
 #define TTC2_B_INT  70
 #define TTC3_C_INT  71

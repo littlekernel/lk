@@ -22,6 +22,7 @@
  */
 #include <err.h>
 #include <debug.h>
+#include <dev/uart.h>
 #include <platform.h>
 #include "platform_p.h"
 
@@ -31,7 +32,7 @@ void platform_init_mmu_mappings(void)
 
 void platform_early_init(void)
 {
-    platform_early_init_debug();
+    uart_init_early();
 
     /* initialize the interrupt controller */
     platform_init_interrupts();
@@ -42,5 +43,6 @@ void platform_early_init(void)
 
 void platform_init(void)
 {
+    uart_init();
 }
 

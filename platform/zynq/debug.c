@@ -20,31 +20,14 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <stdarg.h>
 #include <reg.h>
 #include <stdio.h>
 #include <kernel/thread.h>
+#include <dev/uart.h>
 #include <platform/debug.h>
 #include <platform/zynq.h>
 #include <target/debugconfig.h>
 #include <reg.h>
-
-#define UART_CR (0x00)
-#define UART_MR (0x04)
-#define UART_IER (0x08)
-#define UART_IDR (0x0c)
-#define UART_IMR (0x10)
-#define UART_ISR (0x14)
-#define UART_BAUDGEN (0x18)
-#define UART_RXTOUT (0x1c)
-#define UART_RXWM (0x20)
-#define UART_MODEMCR (0x24)
-#define UART_MODEMSR (0x28)
-#define UART_SR (0x2c)
-#define UART_FIFO (0x30)
-#define UART_BAUD_DIV (0x34)
-#define UART_FLOW_DELAY (0x38)
-#define UART_TX_FIFO_TRIGGER (0x44)
 
 /* DEBUG_UART must be defined to 0 or 1 */
 #if defined(DEBUG_UART) && DEBUG_UART == 0
@@ -54,8 +37,6 @@
 #else
 #error define DEBUG_UART to something valid
 #endif
-
-#define UARTREG(reg)  (*REG32(DEBUG_UART_BASE + (reg)))
 
 #if 0
 uboot setup for zynq board
@@ -82,42 +63,22 @@ E0001044:   00000020
 void platform_dputc(char c)
 {
     if (c == '\n')
-        platform_dputc('\r');
-
-    /* spin while fifo is full */
-    while (UARTREG(UART_SR) & (1<<4))
-        ;
-    UARTREG(UART_FIFO) = c;
+        uart_putc(DEBUG_UART, '\r');
+    uart_putc(DEBUG_UART, c);
 }
 
 int platform_dgetc(char *c, bool wait)
 {
-    if (!wait) {
-        if (UARTREG(UART_SR) & (1<<1)) {
-            /* fifo empty */
-            return -1;
-        }
-        *c = UARTREG(UART_FIFO) & 0xff;
-        return 0;
-    } else {
-        while ((UARTREG(UART_SR) & (1<<1))) {
-            // XXX actually block on interrupt
-            thread_yield();
-        }
+    int ret = uart_getc(DEBUG_UART, wait);
+    if (ret == -1)
+        return -1;
+    *c = ret;
+    return 0;
 
-        *c = UARTREG(UART_FIFO) & 0xff;
-        return 0;
-    }
 }
 
 void platform_halt(void)
 {
     arch_disable_ints();
     for (;;);
-}
-
-
-void platform_early_init_debug(void)
-{
-    UARTREG(UART_CR) = (1<<4)|(1<<2); // txen,rxen
 }
