@@ -61,6 +61,12 @@ GLOBAL_LDFLAGS :=
 
 GLOBAL_LDFLAGS += $(addprefix -L,$(LKINC))
 
+# Architecture specific compile flags
+ARCH_COMPILEFLAGS :=
+ARCH_CFLAGS :=
+ARCH_CPPFLAGS :=
+ARCH_ASMFLAGS :=
+
 # top level rule
 all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size
 
