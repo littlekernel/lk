@@ -23,8 +23,10 @@
 #include <err.h>
 #include <sys/types.h>
 #include <debug.h>
+#include <assert.h>
 #include <trace.h>
 #include <reg.h>
+#include <bits.h>
 #include <kernel/thread.h>
 #include <kernel/debug.h>
 #include <platform/interrupts.h>
@@ -75,6 +77,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 
 /* distribution regs */
 #define DISTCONTROL (0x000)
+#define TYPE        (0x004)
 #define GROUP       (0x080)
 #define SETENABLE   (0x100)
 #define CLRENABLE   (0x180)
@@ -108,6 +111,16 @@ void platform_init_interrupts(void)
     GICDISTREG(CLRPEND) = 0xffffffff;
     GICDISTREG(GROUP) = 0;
     GICCPUREG(PMR) = 0xf0;
+
+    // read supported irqs
+    uint32_t type = GICDISTREG(TYPE);
+    uint supported_irqs = (BITS(type, 4, 0) + 1) * 32;
+
+    DEBUG_ASSERT(supported_irqs >= MAX_INT);
+
+    uint num_cpus = BITS_SHIFT(type, 7, 5) + 1;
+
+    TRACEF("GIC: num cpus %u, num irqs %u\n", num_cpus, supported_irqs);
 
     for (int i = 0; i < 32 / 4; i++) {
         GICDISTREG(PRIORITY + i * 4) = 0x80808080;
