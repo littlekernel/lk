@@ -6,7 +6,8 @@ ARCH := arm
 ARM_CPU := cortex-a9
 
 MODULE_DEPS := \
-	lib/cbuf
+	lib/cbuf \
+	dev/interrupt/arm_gic
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
@@ -14,7 +15,6 @@ GLOBAL_INCLUDES += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/clocks.c \
 	$(LOCAL_DIR)/debug.c \
-	$(LOCAL_DIR)/interrupts.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uart.c

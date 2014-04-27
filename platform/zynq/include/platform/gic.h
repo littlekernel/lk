@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,30 +20,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <dev/uart.h>
-#include <dev/interrupt/arm_gic.h>
-#include <platform.h>
-#include "platform_p.h"
+#ifndef __PLATFORM_GIC_H
+#define __PLATFORM_GIC_H
 
-void platform_init_mmu_mappings(void)
-{
-}
+#include <platform/zynq.h>
 
-void platform_early_init(void)
-{
-    uart_init_early();
+#define GICBASE(n)  (CPUPRIV_BASE)
+#define GICC_OFFSET (0x0100)
+#define GICD_OFFSET (0x1000)
 
-    /* initialize the interrupt controller */
-    arm_gic_init();
-
-    /* initialize the timer block */
-    platform_init_timer();
-}
-
-void platform_init(void)
-{
-    uart_init();
-}
-
+#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2012-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -92,7 +92,6 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 	spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
 }
 
-/* GIC on cortex-a8 */
 #define GICREG(gic, reg) (*REG32(GICBASE(gic) + (reg)))
 
 /* main cpu regs */
@@ -295,9 +294,8 @@ enum handler_return __platform_irq(struct arm_iframe *frame)
 	// get the current vector
 	unsigned int vector = GICREG(0, GICC_IAR) & 0x3ff;
 
-	// see if it's spurious
-	if (vector == 0x3ff) {
-		GICREG(0, GICC_EOIR) = 0x3ff; // XXX is this necessary?
+	if (vector >= 0x3fe) {
+		// spurious
 		return INT_NO_RESCHEDULE;
 	}
 
@@ -485,3 +483,5 @@ void sm_intc_fiq_exit(void)
 	current_fiq[cpu] = 0x3ff;
 }
 #endif
+
+/* vim: set ts=4 sw=4 noexpandtab: */
