@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Travis Geiselbrecht
+ * Copyright (c) 2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,27 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <dev/interrupt/arm_gic.h>
+#ifndef __PLATFORM_GIC_H
+#define __PLATFORM_GIC_H
+
 #include <platform/realview-pb.h>
-#include <platform.h>
-#include "platform_p.h"
 
-void platform_init_mmu_mappings(void)
-{
-}
+#define GICC_OFFSET (0x0000)
+#define GICD_OFFSET (0x1000)
 
-void platform_early_init(void)
-{
-	/* initialize the interrupt controller */
-	arm_gic_init();
-
-	/* initialize the timer block */
-	platform_init_timer();
-}
-
-void platform_init(void)
-{
-}
-
+#endif
