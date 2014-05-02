@@ -57,14 +57,11 @@
 #define GTIMER_COMPARE_HI (0x14)
 #define GTIMER_INCREMENT (0x18)
 
-// XXX pull from someplace better
-#define TIMER_INPUT_CLOCK (200000000)
-
 static platform_timer_callback t_callback;
 
 static volatile uint ticks = 0;
 static lk_time_t periodic_interval;
-static uint32_t tick_freq;
+static uint32_t timer_freq;
 
 uint64_t get_global_val(void)
 {
@@ -93,7 +90,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     // disable timer
     TIMREG(TIMER_CONTROL) = 0;
 
-    TIMREG(TIMER_LOAD) = (((uint64_t)TIMER_INPUT_CLOCK * interval) / 1000);
+    TIMREG(TIMER_LOAD) = (((uint64_t)timer_freq * interval) / 1000);
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<1) | (1<<0); // irq enable, autoreload, enable
 
     unmask_interrupt(CPU_PRIV_TIMER);
@@ -144,7 +141,8 @@ void platform_init_timer(uint32_t freq)
     /* kill the watchdog */
     TIMREG(WDOG_CONTROL) = 0;
 
-    tick_freq = freq;
+    /* save the timer frequency for later calculations */
+    timer_freq = freq;
 
     register_int_handler(CPU_PRIV_TIMER, &platform_tick, NULL);
 }
