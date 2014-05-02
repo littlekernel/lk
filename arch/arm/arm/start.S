@@ -26,7 +26,7 @@
 .section ".text.boot"
 .globl _start
 _start:
-	b	reset
+	b	platform_reset
 	b	arm_undefined
 	b	arm_syscall
 	b	arm_prefetch_abort
@@ -35,20 +35,25 @@ _start:
 	b	arm_irq
 	b	arm_fiq
 
-reset:
-#if WITH_PLATFORM_RESET
-	bl __platform_reset
-#endif
+.weak platform_reset
+platform_reset:
+	/* Fall through for the weak symbol */
 
+.globl arm_reset
+arm_reset:
 	/* do some cpu setup */
 #if ARM_WITH_CP15
 	mrc		p15, 0, r0, c1, c0, 0
 		/* XXX this is currently for arm926, revist with armv6 cores */
 		/* new thumb behavior, low exception vectors, i/d cache disable, mmu disabled */
 	bic		r0, r0, #(1<<15| 1<<13 | 1<<12)
-	bic		r0, r0, #(1<<2 | 1<<0)
-		/* enable alignment faults */
+	bic		r0, r0, #(1<<2 | 1<<1 | 1<<0)
+#if ARM_ARCH_LEVEL < 6
+		/* enable alignment faults on pre-ARMv6 hardware. On v6+,
+		 * GCC is free to generate unaligned accesses.
+		 */
 	orr		r0, r0, #(1<<1)
+#endif
 	mcr		p15, 0, r0, c1, c0, 0
 #endif
 

@@ -203,6 +203,7 @@ FUNCTION(arch_enable_cache)
 // flush & invalidate cache routine, trashes r0-r6, r9-r11
 flush_invalidate_cache_v7:
 	/* from ARMv7 manual, B2-17 */
+	dmb
 	MRC 	p15, 1, R0, c0, c0, 1 		// Read CLIDR 
 	ANDS 	R3, R0, #0x7000000 
 	MOV 	R3, R3, LSR #23 			// Cache level value (naturally aligned) 
@@ -242,6 +243,7 @@ flush_invalidate_cache_v7:
 .Lfinished:
 	mov		r10, #0
 	mcr		p15, 2, r10, c0, c0, 0		// select cache level 0
+	dsb
 	isb
 
 	bx		lr
@@ -249,6 +251,7 @@ flush_invalidate_cache_v7:
 // invalidate cache routine, trashes r0-r6, r9-r11
 invalidate_cache_v7:
 	/* from ARMv7 manual, B2-17 */
+	dmb
 	MRC 	p15, 1, R0, c0, c0, 1 		// Read CLIDR 
 	ANDS 	R3, R0, #0x7000000 
 	MOV 	R3, R3, LSR #23 			// Cache level value (naturally aligned) 
@@ -286,6 +289,7 @@ invalidate_cache_v7:
 	BGT 	.Loop1_invalidate 
 
 .Lfinished_invalidate:
+	dsb
 	mov		r10, #0
 	mcr		p15, 2, r10, c0, c0, 0		// select cache level 0
 	isb

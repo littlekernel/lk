@@ -36,10 +36,10 @@
 #if !defined(MMU_TRANSLATION_TABLE_ADDR)
 #error must set MMU_TRANSLATION_TABLE_ADDR in the make configuration
 #endif
-static uint32_t *tt = (void *)MMU_TRANSLATION_TABLE_ADDR;
+uint32_t *tt = (void *)MMU_TRANSLATION_TABLE_ADDR;
 #else
 /* the main translation table */
-static uint32_t tt[4096] __ALIGNED(16384) __SECTION(".bss.prebss.translation_table");
+uint32_t tt[4096] __ALIGNED(16384) __SECTION(".bss.prebss.translation_table");
 #endif
 
 #define MMU_FLAG_CACHED 0x1
@@ -49,40 +49,16 @@ static uint32_t tt[4096] __ALIGNED(16384) __SECTION(".bss.prebss.translation_tab
 void arm_mmu_map_section(addr_t paddr, addr_t vaddr, uint flags)
 {
 	int index;
-	uint AP;
-	uint CB = 0;
-	uint TEX = 0;
 
-#if defined(PLATFORM_MSM7K)
-	if ((paddr >= 0x88000000) && (paddr < 0xD0000000)) {
-		/* peripherals in the 0x88000000 - 0xD0000000 range must
-		 * be mapped as DEVICE NON-SHARED: TEX=2, C=0, B=0
-		 */
-		TEX = 2;
-		flags &= (~(MMU_FLAG_CACHED | MMU_FLAG_BUFFERED));
-	}
-#endif
-
-	AP = (flags & MMU_FLAG_READWRITE) ? 0x3 : 0x2;
-#if 1
-	CB = ((flags & MMU_FLAG_CACHED) ? 0x2 : 0) | ((flags & MMU_FLAG_BUFFERED) ? 0x1 : 0);
-#elif 0
-	CB = ((flags & MMU_FLAG_CACHED) ? 0x2 : 0) | ((flags & MMU_FLAG_BUFFERED) ? 0x1 : 0);
-	if (CB) {
-		TEX = 1; // full write allocate on all levels
-	}
-#elif 0
-	// try out some of the extended TEX options
-	if (flags & MMU_FLAG_CACHED) {
-		TEX = 6;
-		CB = 3;
-	}
-#endif
-
+	/* Get the index into the translation table */
 	index = vaddr / MB;
 
-	// section mapping
-	tt[index] = (paddr & ~(MB-1)) | (TEX << 12) | (AP << 10) | (0<<5) | (CB << 2) | (2<<0);
+	/* Set the entry value:
+	 * (2<<0): Section entry
+	 * (0<<5): Domain = 0
+	 *  flags: TEX, CB and AP bit settings provided by the caller.
+	 */
+	tt[index] = (paddr & ~(MB-1)) | (MMU_MEMORY_DOMAIN_MEM << 5) | (2<<0) | flags;
 
 	arm_invalidate_tlb();
 }
@@ -95,24 +71,35 @@ void arm_mmu_unmap_section(addr_t vaddr)
 	arm_invalidate_tlb();
 }
 
+#if defined(ARM_ISA_ARMV6) | defined(ARM_ISA_ARMV7)
+#define MMU_INIT_MAP_FLAGS	    (MMU_MEMORY_L1_TYPE_STRONGLY_ORDERED | \
+				    MMU_MEMORY_L1_AP_P_RW_U_NA)
+#else
+#define MMU_INIT_MAP_FLAGS	    MMU_FLAG_READWRITE
+#endif
+
 void arm_mmu_init(void)
 {
+#if !WITH_MMU_RELOC
 	/* set some mmu specific control bits */
 	arm_write_sctlr(arm_read_sctlr() & ~((1<<29)|(1<<28)|(1<<0))); // access flag disabled, TEX remap disabled, mmu disabled
 
-	/* set up an identity-mapped translation table with cache disabled */
+	/* set up an identity-mapped translation table with
+	 * strongly ordered memory type and read/write access.
+	 */
 	for (addr_t i=0; i < 4096; i++) {
-		arm_mmu_map_section(i * MB, i * MB,  MMU_FLAG_READWRITE); // map everything uncached
+		arm_mmu_map_section(i * MB, i * MB, MMU_INIT_MAP_FLAGS);
 	}
 
 	/* set up the translation table base */
-	arm_write_ttbr((uint32_t)tt);
+	arm_write_ttbr0((uint32_t)tt);
 
 	/* set up the domain access register */
-	arm_write_dacr(0x00000001);
+	arm_write_dacr(0x1 << (MMU_MEMORY_DOMAIN_MEM * 2));
 
 	/* turn on the mmu */
 	arm_write_sctlr(arm_read_sctlr() | 0x1);
+#endif
 }
 
 void arch_disable_mmu(void)
