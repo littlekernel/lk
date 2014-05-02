@@ -34,9 +34,14 @@ void platform_init_mmu_mappings(void)
 {
 	/* do some memory map initialization */
 	addr_t addr;
-	arm_mmu_map_section(SDRAM_BASE, 0, MMU_FLAG_CACHED|MMU_FLAG_BUFFERED);
+	arm_mmu_map_section(SDRAM_BASE, 0,
+			MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE |
+			MMU_MEMORY_L1_AP_P_NA_U_NA);
+
 	for (addr = SDRAM_BASE; addr < SDRAM_BASE + SDRAM_SIZE; addr += (1024*1024)) {
-		arm_mmu_map_section(addr, addr, MMU_FLAG_CACHED|MMU_FLAG_BUFFERED|MMU_FLAG_READWRITE);
+		arm_mmu_map_section(addr, addr,
+				MMU_MEMORY_L2_TYPE_NORMAL_WRITE_BACK_ALLOCATE |
+				MMU_MEMORY_L1_AP_P_RW_U_NA);
 	}
 }
 
