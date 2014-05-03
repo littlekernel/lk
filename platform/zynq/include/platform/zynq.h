@@ -24,6 +24,12 @@
 
 #include <reg.h>
 
+/* memory addresses */
+#define SDRAM_BASE          (0)
+#define SDRAM_APERTURE_SIZE (0x40000000)
+#define SRAM_BASE           (0xfffc0000)
+#define SRAM_APERTURE_SIZE  (0x00040000)
+
 /* hardware base addresses */
 #define UART0_BASE (0xe0000000)
 #define UART1_BASE (0xe0001000)

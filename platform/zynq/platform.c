@@ -22,13 +22,21 @@
  */
 #include <err.h>
 #include <debug.h>
+#include <arch/arm/mmu.h>
 #include <dev/uart.h>
 #include <dev/interrupt/arm_gic.h>
 #include <platform.h>
+#include <platform/zynq.h>
 #include "platform_p.h"
 
 void platform_init_mmu_mappings(void)
 {
+#define MB (1024*1024)
+
+    /* map dram as full cacheable */
+    for (addr_t a = SDRAM_BASE; a < (SDRAM_BASE + SDRAM_APERTURE_SIZE); a += MB) {
+        arm_mmu_map_section(a, a, MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE | MMU_MEMORY_L1_AP_P_RW_U_NA);
+    }
 }
 
 void platform_early_init(void)
