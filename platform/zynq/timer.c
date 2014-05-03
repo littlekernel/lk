@@ -59,9 +59,11 @@
 
 static platform_timer_callback t_callback;
 
-static volatile uint ticks = 0;
 static lk_time_t periodic_interval;
+static lk_time_t oneshot_interval;
 static uint32_t timer_freq;
+static uint32_t timer_freq_usec_conversion;
+static uint32_t timer_freq_msec_conversion;
 
 uint64_t get_global_val(void)
 {
@@ -73,15 +75,32 @@ retry:
     if (GTIMREG(GTIMER_COUNT_HI) != hi)
         goto retry;
 
-
     return ((uint64_t)hi << 32 | lo);
+}
+
+lk_bigtime_t current_time_hires(void)
+{
+    lk_bigtime_t time;
+
+    time = get_global_val() / timer_freq_usec_conversion;
+
+    return time;
+}
+
+lk_time_t current_time(void)
+{
+    lk_time_t time;
+
+    time = get_global_val() / timer_freq_msec_conversion;
+
+    return time;
 }
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-    enter_critical_section();
-
     LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
+
+    enter_critical_section();
 
     t_callback = callback;
 
@@ -90,7 +109,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     // disable timer
     TIMREG(TIMER_CONTROL) = 0;
 
-    TIMREG(TIMER_LOAD) = (((uint64_t)timer_freq * interval) / 1000);
+    TIMREG(TIMER_LOAD) = ((uint64_t)timer_freq_msec_conversion * interval);
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<1) | (1<<0); // irq enable, autoreload, enable
 
     unmask_interrupt(CPU_PRIV_TIMER);
@@ -100,28 +119,35 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_bigtime_t current_time_hires(void)
+status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-    lk_bigtime_t time;
+    LTRACEF("callback %p, arg %p, timeout %lu\n", callback, arg, interval);
 
-    time = ticks * periodic_interval * 1000ULL;
+    enter_critical_section();
 
-    return time;
+    t_callback = callback;
+    oneshot_interval = interval;
+
+    // disable timer
+    TIMREG(TIMER_CONTROL) = 0;
+
+    TIMREG(TIMER_LOAD) = ((uint64_t)timer_freq_msec_conversion * interval);
+    TIMREG(TIMER_CONTROL) = (1<<2) | (1<<0) | (1<<0); // irq enable, oneshot, enable
+
+    unmask_interrupt(CPU_PRIV_TIMER);
+
+    exit_critical_section();
+
+    return NO_ERROR;
 }
 
-lk_time_t current_time(void)
+void platform_stop_timer(void)
 {
-    lk_time_t time;
-
-    time = ticks * periodic_interval;
-
-    return time;
+    LTRACE;
 }
 
 static enum handler_return platform_tick(void *arg)
 {
-    ticks++;
-
     LTRACE;
 
     TIMREG(TIMER_ISR) = 1; // ack the irq
@@ -143,6 +169,10 @@ void platform_init_timer(uint32_t freq)
 
     /* save the timer frequency for later calculations */
     timer_freq = freq;
+
+    /* precompute the conversion factor for global time to real time */
+    timer_freq_usec_conversion = timer_freq / 1000000UL;
+    timer_freq_msec_conversion = timer_freq / 1000UL;
 
     register_int_handler(CPU_PRIV_TIMER, &platform_tick, NULL);
 }
