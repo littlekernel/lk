@@ -20,6 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <bits.h>
 #include <err.h>
 #include <sys/types.h>
 #include <debug.h>
@@ -422,6 +423,19 @@ long smc_intc_get_next_irq(smc32_args_t *args)
 	return ret;
 }
 
+static u_long enabled_fiq_mask[BITMAP_NUM_WORDS(MAX_INT)];
+
+static void bitmap_update_locked(u_long *bitmap, u_int bit, bool set)
+{
+	u_long mask = 1UL << BITMAP_BIT_IN_WORD(bit);
+
+	bitmap += BITMAP_WORD(bit);
+	if (set)
+		*bitmap |= mask;
+	else
+		*bitmap &= ~mask;
+}
+
 long smc_intc_request_fiq(smc32_args_t *args)
 {
 	u_int fiq = args->params[0];
@@ -436,6 +450,7 @@ long smc_intc_request_fiq(smc32_args_t *args)
 	arm_gic_set_priority_locked(fiq, 0);
 
 	gic_set_enable(fiq, enable);
+	bitmap_update_locked(enabled_fiq_mask, fiq, enable);
 
 	dprintf(SPEW, "%s: fiq %d, enable %d done\n", __func__, fiq, enable);
 
@@ -455,10 +470,39 @@ static uint32_t read_mpidr(void)
 
 static u_int current_fiq[8] = { 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff };
 
+bool update_fiq_targets(u_int cpu, bool enable, u_int triggered_fiq)
+{
+	u_int i, j;
+	u_long mask;
+	u_int fiq;
+	bool smp = arm_gic_max_cpu() > 0;
+	bool ret = false;
+
+	spin_lock(&gicd_lock); /* IRQs and FIQs are already masked */
+	for (i = 0; i < BITMAP_NUM_WORDS(MAX_INT); i++) {
+		mask = enabled_fiq_mask[i];
+		while (mask) {
+			j = _ffz(~mask);
+			mask &= ~(1UL << j);
+			fiq = i * BITMAP_BITS_PER_WORD + j;
+			if (fiq == triggered_fiq)
+				ret = true;
+			LTRACEF("cpu %d, irq %i, enable %d\n", cpu, fiq, enable);
+			if (smp)
+				arm_gic_set_target_locked(fiq, 1U << cpu, enable ? ~0 : 0);
+			else
+				gic_set_enable(fiq, enable);
+		}
+	}
+	spin_unlock(&gicd_lock);
+	return ret;
+}
+
 status_t sm_intc_fiq_enter(void)
 {
 	u_int cpu = read_mpidr() & 7;
 	u_int irq = GICREG(0, GICC_IAR) & 0x3ff;
+	bool fiq_enabled;
 
 	LTRACEF("cpu %d, irq %i\n", cpu, irq);
 
@@ -467,20 +511,19 @@ status_t sm_intc_fiq_enter(void)
 		return ERR_NO_MSG;
 	}
 
-	if (arm_gic_max_cpu() > 0) {
-		spin_lock(&gicd_lock); /* IRQs and FIQs are already masked */
-		arm_gic_set_target_locked(irq, 1U << cpu, 0);
-		spin_unlock(&gicd_lock);
-	} else {
-		/* target register has no effect on uniprocessor systems */
-		gic_set_enable(irq, 0);
-	}
+	fiq_enabled = update_fiq_targets(cpu, false, irq);
 	GICREG(0, GICC_EOIR) = irq;
 
 	if (current_fiq[cpu] != 0x3ff) {
 		dprintf(INFO, "more than one fiq active: cpu %d, old %d, new %d\n", cpu, current_fiq[cpu], irq);
 		return ERR_ALREADY_STARTED;
 	}
+
+	if (!fiq_enabled) {
+		dprintf(INFO, "got disabled fiq: cpu %d, new %d\n", cpu, irq);
+		return ERR_NOT_READY;
+	}
+
 	current_fiq[cpu] = irq;
 
 	return 0;
@@ -494,13 +537,7 @@ void sm_intc_fiq_exit(void)
 		dprintf(INFO, "%s: no fiq active, cpu %d\n", __func__, cpu);
 		return;
 	}
-	if (arm_gic_max_cpu() > 0) {
-		spin_lock(&gicd_lock); /* IRQs and FIQs are already masked */
-		arm_gic_set_target_locked(current_fiq[cpu], 1U << cpu, ~0);
-		spin_unlock(&gicd_lock);
-	} else {
-		gic_set_enable(current_fiq[cpu], 1);
-	}
+	update_fiq_targets(cpu, true, current_fiq[cpu]);
 	current_fiq[cpu] = 0x3ff;
 }
 #endif
