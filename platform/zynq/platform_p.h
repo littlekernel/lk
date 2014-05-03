@@ -24,7 +24,7 @@
 #define __PLATFORM_P_H
 
 void platform_init_interrupts(void);
-void platform_init_timer(void);
+void platform_init_timer(uint32_t freq);
 
 #endif
 

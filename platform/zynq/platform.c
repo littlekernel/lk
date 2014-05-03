@@ -39,7 +39,7 @@ void platform_early_init(void)
     arm_gic_init();
 
     /* initialize the timer block */
-    platform_init_timer();
+    platform_init_timer(TIMER_CLOCK_FREQ);
 }
 
 void platform_init(void)

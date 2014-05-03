@@ -10,6 +10,7 @@ PLATFORM := zynq
 MODULES += \
 
 GLOBAL_DEFINES += \
+	TIMER_CLOCK_FREQ=100000000
 
 #include make/module.mk
 
