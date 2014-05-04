@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -93,7 +93,7 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
 	static lk_bigtime_t last_idle_time;
 
 	lk_bigtime_t idle_time = thread_stats.idle_time;
-	if (current_thread == idle_thread) {
+	if (get_current_thread()->priority == IDLE_PRIORITY) {
 		idle_time += current_time_hires() - thread_stats.last_idle_timestamp;
 	}
 	lk_bigtime_t delta_time = idle_time - last_idle_time;

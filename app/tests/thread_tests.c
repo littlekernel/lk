@@ -34,7 +34,7 @@
 static int sleep_thread(void *arg)
 {
 	for (;;) {
-		printf("sleeper %p\n", current_thread);
+		printf("sleeper %p\n", get_current_thread());
 		thread_sleep(rand() % 500);
 	}
 	return 0;
@@ -58,7 +58,7 @@ static mutex_t sem_test_mutex;
 
 static int semaphore_producer(void *unused)
 {
-	printf("semaphore producer %p starting up, running for %d iterations\n", current_thread, sem_total_its);
+	printf("semaphore producer %p starting up, running for %d iterations\n", get_current_thread(), sem_total_its);
 
 	for (int x = 0; x < sem_total_its; x++) {
 		sem_post(&sem);
@@ -81,10 +81,10 @@ static int semaphore_consumer(void *unused)
 	sem_remaining_its -= iterations;
 	mutex_release(&sem_test_mutex);
 
-	printf("semaphore consumer %p starting up, running for %u iterations\n", current_thread, iterations);
+	printf("semaphore consumer %p starting up, running for %u iterations\n", get_current_thread(), iterations);
 	for (unsigned int x = 0; x < iterations; x++)
 		sem_wait(&sem);
-	printf("semaphore consumer %p done\n", current_thread);
+	printf("semaphore consumer %p done\n", get_current_thread());
 	atomic_add(&sem_threads, -1);
 	return 0;
 }
@@ -136,7 +136,7 @@ static int mutex_thread(void *arg)
 
 	mutex_t *m = (mutex_t *)arg;
 
-	printf("mutex tester thread %p starting up, will go for %d iterations\n", current_thread, iterations);
+	printf("mutex tester thread %p starting up, will go for %d iterations\n", get_current_thread(), iterations);
 
 	for (i = 0; i < iterations; i++) {
 		mutex_acquire(m);
@@ -144,7 +144,7 @@ static int mutex_thread(void *arg)
 		if (shared != 0)
 			panic("someone else has messed with the shared data\n");
 
-		shared = (intptr_t)current_thread;
+		shared = (intptr_t)get_current_thread();
 		thread_yield();
 		shared = 0;
 
@@ -262,12 +262,12 @@ static int event_waiter(void *arg)
 	printf("event waiter starting\n");
 
 	while (count > 0) {
-		printf("%p: waiting on event...\n", current_thread);
+		printf("%p: waiting on event...\n", get_current_thread());
 		if (event_wait(&e) < 0) {
-			printf("%p: event_wait() returned error\n", current_thread);
+			printf("%p: event_wait() returned error\n", get_current_thread());
 			return -1;
 		}
-		printf("%p: done waiting on event...\n", current_thread);
+		printf("%p: done waiting on event...\n", get_current_thread());
 		thread_yield();
 		count--;
 	}
@@ -326,7 +326,7 @@ void event_test(void)
 static int quantum_tester(void *arg)
 {
 	for (;;) {
-		printf("%p: in this thread. rq %d\n", current_thread, current_thread->remaining_quantum);
+		printf("%p: in this thread. rq %d\n", get_current_thread(), get_current_thread()->remaining_quantum);
 	}
 	return 0;
 }

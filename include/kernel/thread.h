@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2012 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -135,10 +135,8 @@ void thread_block(void); /* block on something and reschedule */
 enum handler_return thread_timer_tick(void);
 
 /* the current thread */
-extern thread_t *current_thread;
-
-/* the idle thread */
-extern thread_t *idle_thread;
+thread_t *get_current_thread(void);
+void set_current_thread(thread_t *);
 
 /* critical sections */
 extern int critical_section_count;
@@ -174,13 +172,13 @@ static inline void dec_critical_section(void) { critical_section_count--; }
 /* thread local storage */
 static inline __ALWAYS_INLINE uint32_t tls_get(uint entry)
 {
-	return current_thread->tls[entry];
+	return get_current_thread()->tls[entry];
 }
 
 static inline __ALWAYS_INLINE uint32_t tls_set(uint entry, uint32_t val)
 {
-	uint32_t oldval = current_thread->tls[entry];
-	current_thread->tls[entry] = val;
+	uint32_t oldval = get_current_thread()->tls[entry];
+	get_current_thread()->tls[entry] = val;
 	return oldval;
 }
 

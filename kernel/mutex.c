@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  * Copyright (c) 2012-2012 Shantanu Gupta
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -55,9 +55,9 @@ void mutex_destroy(mutex_t *m)
 	DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
 #if LK_DEBUGLEVEL > 0
-	if (unlikely(m->holder != 0 && current_thread != m->holder))
+	if (unlikely(m->holder != 0 && get_current_thread() != m->holder))
 		panic("mutex_destroy: thread %p (%s) tried to release mutex %p it doesn't own. owned by %p (%s)\n",
-		      current_thread, current_thread->name, m, m->holder, m->holder->name);
+		      get_current_thread(), get_current_thread()->name, m, m->holder, m->holder->name);
 #endif
 
 	enter_critical_section();
@@ -82,9 +82,9 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 	DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
 #if LK_DEBUGLEVEL > 0
-	if (unlikely(current_thread == m->holder))
+	if (unlikely(get_current_thread() == m->holder))
 		panic("mutex_acquire_timeout: thread %p (%s) tried to acquire mutex %p it already owns.\n",
-		      current_thread, current_thread->name, m);
+		      get_current_thread(), get_current_thread()->name, m);
 #endif
 
 	enter_critical_section();
@@ -109,7 +109,7 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 		}
 	}
 
-	m->holder = current_thread;
+	m->holder = get_current_thread();
 
 err:
 	exit_critical_section();
@@ -124,9 +124,9 @@ status_t mutex_release(mutex_t *m)
 	DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
 #if LK_DEBUGLEVEL > 0
-	if (unlikely(current_thread != m->holder)) {
+	if (unlikely(get_current_thread() != m->holder)) {
 		panic("mutex_release: thread %p (%s) tried to release mutex %p it doesn't own. owned by %p (%s)\n",
-		      current_thread, current_thread->name, m, m->holder, m->holder ? m->holder->name : "none");
+		      get_current_thread(), get_current_thread()->name, m, m->holder, m->holder ? m->holder->name : "none");
 	}
 #endif
 

@@ -55,9 +55,6 @@ struct thread_stats thread_stats;
 /* global thread list */
 static struct list_node thread_list;
 
-/* the current thread */
-thread_t *current_thread;
-
 /* the global critical section count */
 int critical_section_count;
 
@@ -69,7 +66,7 @@ static uint32_t run_queue_bitmap;
 static thread_t bootstrap_thread;
 
 /* the idle thread */
-thread_t *idle_thread;
+static thread_t *idle_thread;
 
 /* local routines */
 static void thread_resched(void);
@@ -182,6 +179,7 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 	t->flags = flags;
 
 	/* inheirit thread local storage from the parent */
+	thread_t *current_thread = get_current_thread();
 	int i;
 	for (i=0; i < MAX_TLS_ENTRY; i++)
 		t->tls[i] = current_thread->tls[i];
@@ -299,6 +297,8 @@ status_t thread_detach(thread_t *t)
 
 	enter_critical_section();
 
+	thread_t *current_thread = get_current_thread();
+
 	/* if anyone is blocked on this thread, wake them up with a specific return code */
 	wait_queue_wake_all(&current_thread->retcode_wait_queue, false, ERR_THREAD_DETACHED);
 
@@ -323,6 +323,8 @@ status_t thread_detach(thread_t *t)
  */
 void thread_exit(int retcode)
 {
+	thread_t *current_thread = get_current_thread();
+
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_RUNNING);
@@ -381,6 +383,8 @@ void thread_resched(void)
 {
 	thread_t *oldthread;
 	thread_t *newthread;
+
+	thread_t *current_thread = get_current_thread();
 
 //	printf("thread_resched: current %p: ", current_thread);
 //	dump_thread(current_thread);
@@ -461,7 +465,7 @@ void thread_resched(void)
 
 	/* do the switch */
 	oldthread->saved_critical_section_count = critical_section_count;
-	current_thread = newthread;
+	set_current_thread(newthread);
 	critical_section_count = newthread->saved_critical_section_count;
 	arch_context_switch(oldthread, newthread);
 }
@@ -477,6 +481,8 @@ void thread_resched(void)
  */
 void thread_yield(void)
 {
+	thread_t *current_thread = get_current_thread();
+
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_RUNNING);
@@ -512,6 +518,8 @@ void thread_yield(void)
  */
 void thread_preempt(void)
 {
+	thread_t *current_thread = get_current_thread();
+
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_RUNNING);
@@ -549,6 +557,8 @@ void thread_preempt(void)
  */
 void thread_block(void)
 {
+	thread_t *current_thread = get_current_thread();
+
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_BLOCKED);
@@ -564,6 +574,8 @@ void thread_block(void)
 
 enum handler_return thread_timer_tick(void)
 {
+	thread_t *current_thread = get_current_thread();
+
 	if (current_thread == idle_thread)
 		return INT_NO_RESCHEDULE;
 
@@ -603,6 +615,8 @@ static enum handler_return thread_sleep_handler(timer_t *timer, lk_time_t now, v
 void thread_sleep(lk_time_t delay)
 {
 	timer_t timer;
+
+	thread_t *current_thread = get_current_thread();
 
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
@@ -645,7 +659,7 @@ void thread_init_early(void)
 	t->flags = THREAD_FLAG_DETACHED;
 	wait_queue_init(&t->retcode_wait_queue);
 	list_add_head(&thread_list, &t->thread_list_node);
-	current_thread = t;
+	set_current_thread(t);
 }
 
 /**
@@ -665,6 +679,7 @@ void thread_init(void)
  */
 void thread_set_name(const char *name)
 {
+	thread_t *current_thread = get_current_thread();
 	strlcpy(current_thread->name, name, sizeof(current_thread->name));
 }
 
@@ -679,7 +694,7 @@ void thread_set_priority(int priority)
 		priority = LOWEST_PRIORITY;
 	if (priority > HIGHEST_PRIORITY)
 		priority = HIGHEST_PRIORITY;
-	current_thread->priority = priority;
+	get_current_thread()->priority = priority;
 }
 
 /**
@@ -693,7 +708,7 @@ void thread_become_idle(void)
 {
 	thread_set_name("idle");
 	thread_set_priority(IDLE_PRIORITY);
-	idle_thread = current_thread;
+	idle_thread = get_current_thread();
 
 	/* release the implicit boot critical section and yield to the scheduler */
 	exit_critical_section();
@@ -797,6 +812,8 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout)
 {
 	timer_t timer;
 
+	thread_t *current_thread = get_current_thread();
+
 #if THREAD_CHECKS
 	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
 	ASSERT(current_thread->state == THREAD_RUNNING);
@@ -846,6 +863,8 @@ int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t wait_queue
 {
 	thread_t *t;
 	int ret = 0;
+
+	thread_t *current_thread = get_current_thread();
 
 #if THREAD_CHECKS
 	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
@@ -898,6 +917,8 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
 {
 	thread_t *t;
 	int ret = 0;
+
+	thread_t *current_thread = get_current_thread();
 
 #if THREAD_CHECKS
 	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
@@ -990,4 +1011,5 @@ status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error)
 	return NO_ERROR;
 }
 
+/* vim: set ts=4 sw=4 noexpandtab: */
 
