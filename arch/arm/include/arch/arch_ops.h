@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <compiler.h>
 #include <reg.h>
+#include <arch/arm.h>
 
 #if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
 #define USE_GCC_ATOMICS 0
@@ -223,6 +224,36 @@ static inline uint32_t arch_cycle_count(void)
 	return 0;
 #endif
 }
+
+/* defined in kernel/thread.h */
+
+#if !ARM_ISA_ARMV7M
+/* use the cpu local thread context pointer to store current_thread */
+static inline struct thread *get_current_thread(void)
+{
+    return (struct thread *)arm_read_tpidrprw();
+}
+
+static inline void set_current_thread(struct thread *t)
+{
+    arm_write_tpidrprw((uint32_t)t);
+}
+#else // ARM_ISA_ARM7M
+
+/* use a global pointer to store the current_thread */
+extern struct thread *_current_thread;
+
+static inline struct thread *get_current_thread(void)
+{
+    return _current_thread;
+}
+
+static inline void set_current_thread(struct thread *t)
+{
+    _current_thread = t;
+}
+
+#endif // !ARM_ISA_ARMV7M
 
 #else // pre-armv6 || (armv6 & thumb)
 

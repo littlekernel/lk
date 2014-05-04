@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <compiler.h>
 #include <reg.h>
+#include <arch/arm64.h>
 
 #define USE_GCC_ATOMICS 1
 #define ENABLE_CYCLE_COUNTER 1
@@ -194,6 +195,17 @@ static inline uint32_t arch_cycle_count(void)
 //#warning no arch_cycle_count implementation
     return 0;
 #endif
+}
+
+/* use the cpu local thread context pointer to store current_thread */
+static inline struct thread *get_current_thread(void)
+{
+    return (struct thread *)ARM64_READ_SYSREG(tpidr_el1);
+}
+
+static inline void set_current_thread(struct thread *t)
+{
+    ARM64_WRITE_SYSREG(tpidr_el1, (uint64_t)t);
 }
 
 #endif // ASSEMBLY

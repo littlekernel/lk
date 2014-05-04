@@ -44,22 +44,25 @@ struct arm_cm_context_switch_frame {
 	uint32_t lr;
 };
 
+/* since we're implicitly uniprocessor, store a pointer to the current thread here */
+thread_t *_current_thread;
+
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void)
 {
 	int ret;
 
-	LTRACEF("thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
+	LTRACEF("thread %p calling %p with arg %p\n", _current_thread, _current_thread->entry, _current_thread->arg);
 #if LOCAL_TRACE
-	dump_thread(current_thread);
+	dump_thread(_current_thread);
 #endif
 
 	/* exit the implicit critical section we're within */
 	exit_critical_section();
 
-	ret = current_thread->entry(current_thread->arg);
+	ret = _current_thread->entry(_current_thread->arg);
 
-	LTRACEF("thread %p exiting with %d\n", current_thread, ret);
+	LTRACEF("thread %p exiting with %d\n", _current_thread, ret);
 
 	thread_exit(ret);
 }
@@ -90,7 +93,7 @@ static void pendsv(struct arm_cm_exception_frame_long *frame)
 
 	ASSERT(critical_section_count == 1);
 
-	LTRACEF("preempting thread %p (%s)\n", current_thread, current_thread->name);
+	LTRACEF("preempting thread %p (%s)\n", _current_thread, _current_thread->name);
 
 	/* save the iframe the pendsv fired on and hit the preemption code */
 	preempt_frame = frame;

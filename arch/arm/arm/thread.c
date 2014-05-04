@@ -52,7 +52,8 @@ static void initial_thread_func(void)
 	/* exit the implicit critical section we're within */
 	exit_critical_section();
 
-	ret = current_thread->entry(current_thread->arg);
+	thread_t *ct = get_current_thread();
+	ret = ct->entry(ct->arg);
 
 //	dprintf("initial_thread_func: thread %p exiting with %d\n", current_thread, ret);
 

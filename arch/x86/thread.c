@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -39,6 +40,9 @@ struct context_switch_frame {
 	uint32_t eip;
 };
 
+/* we're uniprocessor at this point for x86, so store a global pointer to the current thread */
+struct thread *_current_thread;
+
 extern void x86_context_switch(addr_t *old_sp, addr_t new_sp);
 
 static void initial_thread_func(void) __NO_RETURN;
@@ -46,15 +50,15 @@ static void initial_thread_func(void)
 {
 	int ret;
 
-//	dprintf("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
-//	dump_thread(current_thread);
+//	dprintf("initial_thread_func: thread %p calling %p with arg %p\n", _current_thread, _current_thread->entry, _current_thread->arg);
+//	dump_thread(_current_thread);
 
 	/* exit the implicit critical section we're within */
 	exit_critical_section();
 
-	ret = current_thread->entry(current_thread->arg);
+	ret = _current_thread->entry(_current_thread->arg);
 
-//	dprintf("initial_thread_func: thread %p exiting with %d\n", current_thread, ret);
+//	dprintf("initial_thread_func: thread %p exiting with %d\n", _current_thread, ret);
 
 	thread_exit(ret);
 }

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -94,6 +95,19 @@ static inline uint32_t arch_cycle_count(void)
 	rdtscl(timestamp);
 
 	return timestamp;
+}
+
+/* use a global pointer to store the current_thread */
+extern struct thread *_current_thread;
+
+static inline struct thread *get_current_thread(void)
+{
+    return _current_thread;
+}
+
+static inline void set_current_thread(struct thread *t)
+{
+    _current_thread = t;
 }
 
 #endif // !ASSEMBLY

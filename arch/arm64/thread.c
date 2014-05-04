@@ -53,6 +53,8 @@ static void initial_thread_func(void)
 {
     int ret;
 
+    thread_t *current_thread = get_current_thread();
+
     LTRACEF("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
 
     /* exit the implicit critical section we're within */
