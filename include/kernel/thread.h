@@ -30,6 +30,7 @@
 #include <arch/ops.h>
 #include <arch/thread.h>
 #include <kernel/wait.h>
+#include <kernel/spinlock.h>
 #include <debug.h>
 
 enum thread_state {
