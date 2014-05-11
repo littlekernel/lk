@@ -64,7 +64,6 @@ typedef struct thread {
 	struct list_node queue_node;
 	int priority;
 	enum thread_state state;
-	int saved_critical_section_count;
 	int remaining_quantum;
 	unsigned int flags;
 
@@ -142,36 +141,11 @@ enum handler_return thread_timer_tick(void);
 thread_t *get_current_thread(void);
 void set_current_thread(thread_t *);
 
-/* critical sections */
-extern int critical_section_count;
+/* scheduler lock */
+extern spin_lock_t thread_lock;
 
-static inline __ALWAYS_INLINE void enter_critical_section(void)
-{
-	CF;
-	if (critical_section_count == 0)
-		arch_disable_ints();
-	critical_section_count++;
-	CF;
-}
-
-static inline __ALWAYS_INLINE void exit_critical_section(void)
-{
-	CF;
-	critical_section_count--;
-	if (critical_section_count == 0)
-		arch_enable_ints();
-	CF;
-}
-
-static inline __ALWAYS_INLINE bool in_critical_section(void)
-{
-	CF;
-	return critical_section_count > 0;
-}
-
-/* only used by interrupt glue */
-static inline void inc_critical_section(void) { critical_section_count++; }
-static inline void dec_critical_section(void) { critical_section_count--; }
+#define THREAD_LOCK(state) spin_lock_saved_state_t state; spin_lock_irqsave(&thread_lock, state)
+#define THREAD_UNLOCK(state) spin_unlock_irqrestore(&thread_lock, state)
 
 /* thread local storage */
 static inline __ALWAYS_INLINE uintptr_t tls_get(uint entry)

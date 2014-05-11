@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -41,12 +41,14 @@
 #include <kernel/thread.h>
 #include <kernel/timer.h>
 #include <kernel/debug.h>
+#include <kernel/spinlock.h>
 #include <platform/timer.h>
 #include <platform.h>
 
 #define LOCAL_TRACE 0
 
-static struct list_node timer_queue;
+static struct list_node timer_queue = LIST_INITIAL_VALUE(timer_queue);
+static spin_lock_t timer_lock = SPIN_LOCK_INITIAL_VALUE;
 
 static enum handler_return timer_tick(void *arg, lk_time_t now);
 
@@ -61,6 +63,8 @@ void timer_initialize(timer_t *timer)
 static void insert_timer_in_queue(timer_t *timer)
 {
 	timer_t *entry;
+
+    DEBUG_ASSERT(arch_ints_disabled());
 
 	LTRACEF("timer %p, scheduled %lu, periodic %lu\n", timer, timer->scheduled_time, timer->periodic_time);
 
@@ -95,7 +99,8 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 
 	LTRACEF("scheduled time %lu\n", timer->scheduled_time);
 
-	enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&timer_lock, &state);
 
 	insert_timer_in_queue(timer);
 
@@ -107,7 +112,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 	}
 #endif
 
-	exit_critical_section();
+    spin_unlock_irqrestore(&timer_lock, state);
 }
 
 /**
@@ -159,7 +164,8 @@ void timer_cancel(timer_t *timer)
 {
 	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);
 
-	enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&timer_lock, &state);
 
 #if PLATFORM_HAS_DYNAMIC_TIMER
 	timer_t *oldhead = list_peek_head_type(&timer_queue, timer_t, node);
@@ -195,7 +201,7 @@ void timer_cancel(timer_t *timer)
 	}
 #endif
 
-	exit_critical_section();
+    spin_unlock_irqrestore(&timer_lock, state);
 }
 
 /* called at interrupt time to process any pending timers */
@@ -204,10 +210,14 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 	timer_t *timer;
 	enum handler_return ret = INT_NO_RESCHEDULE;
 
+    DEBUG_ASSERT(arch_ints_disabled());
+
 	THREAD_STATS_INC(timer_ints);
 //	KEVLOG_TIMER_TICK(); // enable only if necessary
 
 	LTRACEF("now %lu, sp %p\n", now, __GET_FRAME());
+
+    spin_lock(&timer_lock);
 
 	for (;;) {
 		/* see if there's an event to process */
@@ -223,6 +233,9 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		DEBUG_ASSERT(timer && timer->magic == TIMER_MAGIC);
 		list_delete(&timer->node);
 
+        /* we pulled it off the list, release the list lock to handle it */
+        spin_unlock(&timer_lock);
+
 		LTRACEF("dequeued timer %p, scheduled %lu periodic %lu\n", timer, timer->scheduled_time, timer->periodic_time);
 
 		THREAD_STATS_INC(timers);
@@ -233,6 +246,9 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		KEVLOG_TIMER_CALL(timer->callback, timer->arg);
 		if (timer->callback(timer, now, timer->arg) == INT_RESCHEDULE)
 			ret = INT_RESCHEDULE;
+
+        /* it may have been requeued or periodic, grab the lock so we can safely inspect it */
+        spin_lock(&timer_lock);
 
 		/* if it was a periodic timer and it hasn't been requeued
 		 * by the callback put it back in the list
@@ -256,21 +272,24 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		LTRACEF("setting new timer for %u msecs for event %p\n", (uint)delay, timer);
 		platform_set_oneshot_timer(timer_tick, NULL, delay);
 	}
+
+    /* we're done manipulating the timer queue */
+    spin_unlock(&timer_lock);
 #else
+    /* release the timer lock before calling the tick handler */
+    spin_unlock(&timer_lock);
+
 	/* let the scheduler have a shot to do quantum expiration, etc */
 	/* in case of dynamic timer, the scheduler will set up a periodic timer */
 	if (thread_timer_tick() == INT_RESCHEDULE)
 		ret = INT_RESCHEDULE;
 #endif
 
-	DEBUG_ASSERT(in_critical_section());
 	return ret;
 }
 
 void timer_init(void)
 {
-	list_initialize(&timer_queue);
-
 #if !PLATFORM_HAS_DYNAMIC_TIMER
 	/* register for a periodic timer tick */
 	platform_set_periodic_timer(timer_tick, NULL, 10); /* 10ms */

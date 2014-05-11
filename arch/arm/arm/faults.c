@@ -87,7 +87,6 @@ static void dump_iframe(struct arm_iframe *frame)
 
 static void exception_die(struct arm_fault_frame *frame, const char *msg)
 {
-	inc_critical_section();
 	dprintf(CRITICAL, msg);
 	dump_fault_frame(frame);
 

@@ -119,8 +119,6 @@ static int cmd_threadload(int argc, const cmd_args *argv)
 	static bool showthreadload = false;
 	static timer_t tltimer;
 
-	enter_critical_section();
-
 	if (showthreadload == false) {
 		// start the display
 		timer_initialize(&tltimer);
@@ -130,8 +128,6 @@ static int cmd_threadload(int argc, const cmd_args *argv)
 		timer_cancel(&tltimer);
 		showthreadload = false;
 	}
-
-	exit_critical_section();
 
 	return 0;
 }

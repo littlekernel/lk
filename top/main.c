@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Travis Geiselbrecht
+ * Copyright (c) 2013-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -67,8 +67,6 @@ static void call_constructors(void)
 void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN __EXTERNALLY_VISIBLE;
 void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
-	inc_critical_section();
-
 	// save the boot args
 	lk_boot_args[0] = arg0;
 	lk_boot_args[1] = arg1;

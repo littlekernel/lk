@@ -55,8 +55,8 @@ struct thread_stats thread_stats;
 /* global thread list */
 static struct list_node thread_list;
 
-/* the global critical section count */
-int critical_section_count;
+/* master thread spinlock */
+spin_lock_t thread_lock = SPIN_LOCK_INITIAL_VALUE;
 
 /* the run queue */
 static struct list_node run_queue[NUM_PRIORITIES];
@@ -84,7 +84,8 @@ static void insert_in_run_queue_head(thread_t *t)
 	ASSERT(t->magic == THREAD_MAGIC);
 	ASSERT(t->state == THREAD_READY);
 	ASSERT(!list_in_list(&t->queue_node));
-	ASSERT(in_critical_section());
+	ASSERT(arch_ints_disabled());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
 	list_add_head(&run_queue[t->priority], &t->queue_node);
@@ -97,7 +98,8 @@ static void insert_in_run_queue_tail(thread_t *t)
 	ASSERT(t->magic == THREAD_MAGIC);
 	ASSERT(t->state == THREAD_READY);
 	ASSERT(!list_in_list(&t->queue_node));
-	ASSERT(in_critical_section());
+	ASSERT(arch_ints_disabled());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
 	list_add_tail(&run_queue[t->priority], &t->queue_node);
@@ -154,7 +156,6 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 	t->entry = entry;
 	t->arg = arg;
 	t->priority = priority;
-	t->saved_critical_section_count = 1; /* we always start inside a critical section */
 	t->state = THREAD_SUSPENDED;
 	t->blocking_wait_queue = NULL;
 	t->wait_queue_block_ret = NO_ERROR;
@@ -188,9 +189,9 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 	arch_thread_initialize(t);
 
 	/* add it to the global thread list */
-	enter_critical_section();
+	THREAD_LOCK(state);
 	list_add_head(&thread_list, &t->thread_list_node);
-	exit_critical_section();
+	THREAD_UNLOCK(state);
 
 	return t;
 }
@@ -251,13 +252,17 @@ status_t thread_resume(thread_t *t)
 	ASSERT(t->state != THREAD_DEATH);
 #endif
 
-	enter_critical_section();
+	bool resched = false;
+    THREAD_LOCK(state);
 	if (t->state == THREAD_SUSPENDED) {
 		t->state = THREAD_READY;
 		insert_in_run_queue_head(t);
-		thread_yield();
+		resched = true;
 	}
-	exit_critical_section();
+    THREAD_UNLOCK(state);
+
+	if (resched)
+		thread_yield();
 
 	return NO_ERROR;
 }
@@ -277,11 +282,11 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout)
 	ASSERT(t->magic == THREAD_MAGIC);
 #endif
 
-	enter_critical_section();
+	THREAD_LOCK(state);
 
 	if (t->flags & THREAD_FLAG_DETACHED) {
 		/* the thread is detached, go ahead and exit */
-		exit_critical_section();
+		THREAD_UNLOCK(state);
 		return ERR_THREAD_DETACHED;
 	}
 
@@ -289,7 +294,7 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout)
 	if (t->state != THREAD_DEATH) {
 		status_t err = wait_queue_block(&t->retcode_wait_queue, timeout);
 		if (err < 0) {
-			exit_critical_section();
+			THREAD_UNLOCK(state);
 			return err;
 		}
 	}
@@ -311,7 +316,7 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout)
 	/* clear the structure's magic */
 	t->magic = 0;
 
-	exit_critical_section();
+	THREAD_UNLOCK(state);
 
 	/* free its stack and the thread structure itself */
 	if (t->flags & THREAD_FLAG_FREE_STACK && t->stack)
@@ -329,7 +334,7 @@ status_t thread_detach(thread_t *t)
 	ASSERT(t->magic == THREAD_MAGIC);
 #endif
 
-	enter_critical_section();
+	THREAD_LOCK(state);
 
 	/* if another thread is blocked inside thread_join() on this thread,
 	 * wake them up with a specific return code */
@@ -338,11 +343,11 @@ status_t thread_detach(thread_t *t)
 	/* if it's already dead, then just do what join would have and exit */
 	if (t->state == THREAD_DEATH) {
 		t->flags &= ~THREAD_FLAG_DETACHED; /* makes sure thread_join continues */
-		exit_critical_section();
+		THREAD_UNLOCK(state);
 		return thread_join(t, NULL, 0);
 	} else {
 		t->flags |= THREAD_FLAG_DETACHED;
-		exit_critical_section();
+		THREAD_UNLOCK(state);
 		return NO_ERROR;
 	}
 }
@@ -365,7 +370,7 @@ void thread_exit(int retcode)
 
 //	dprintf("thread_exit: current %p\n", current_thread);
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
 	/* enter the dead state */
 	current_thread->state = THREAD_DEATH;
@@ -419,11 +424,9 @@ void thread_resched(void)
 
 	thread_t *current_thread = get_current_thread();
 
-//	printf("thread_resched: current %p: ", current_thread);
-//	dump_thread(current_thread);
-
 #if THREAD_CHECKS
-	ASSERT(in_critical_section());
+	ASSERT(arch_ints_disabled());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
 	THREAD_STATS_INC(reschedules);
@@ -439,7 +442,6 @@ void thread_resched(void)
 #endif
 
 	int next_queue = HIGHEST_PRIORITY - __builtin_clz(run_queue_bitmap) - (32 - NUM_PRIORITIES);
-	//dprintf(SPEW, "bitmap 0x%x, next %d\n", run_queue_bitmap, next_queue);
 
 	newthread = list_remove_head_type(&run_queue[next_queue], thread_t, queue_node);
 
@@ -449,9 +451,6 @@ void thread_resched(void)
 #if THREAD_CHECKS
 	ASSERT(newthread);
 #endif
-
-//	printf("newthread: ");
-//	dump_thread(newthread);
 
 	newthread->state = THREAD_RUNNING;
 
@@ -477,11 +476,6 @@ void thread_resched(void)
 
 	KEVLOG_THREAD_SWITCH(oldthread, newthread);
 
-#if THREAD_CHECKS
-	ASSERT(critical_section_count > 0);
-	ASSERT(newthread->saved_critical_section_count > 0);
-#endif
-
 #if PLATFORM_HAS_DYNAMIC_TIMER
 	if (thread_is_real_time(newthread)) {
 		if (!thread_is_real_time(oldthread)) {
@@ -500,9 +494,7 @@ void thread_resched(void)
 	target_set_debug_led(0, newthread != idle_thread);
 
 	/* do the switch */
-	oldthread->saved_critical_section_count = critical_section_count;
 	set_current_thread(newthread);
-	critical_section_count = newthread->saved_critical_section_count;
 	arch_context_switch(oldthread, newthread);
 }
 
@@ -524,7 +516,7 @@ void thread_yield(void)
 	ASSERT(current_thread->state == THREAD_RUNNING);
 #endif
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
 	THREAD_STATS_INC(yields);
 
@@ -534,7 +526,7 @@ void thread_yield(void)
 	insert_in_run_queue_tail(current_thread);
 	thread_resched();
 
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 }
 
 /**
@@ -559,7 +551,6 @@ void thread_preempt(void)
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_RUNNING);
-	ASSERT(in_critical_section());
 #endif
 
 #if THREAD_STATS
@@ -569,6 +560,8 @@ void thread_preempt(void)
 
 	KEVLOG_THREAD_PREEMPT(current_thread);
 
+    THREAD_LOCK(state);
+
 	/* we are being preempted, so we get to go back into the front of the run queue if we have quantum left */
 	current_thread->state = THREAD_READY;
 	if (current_thread->remaining_quantum > 0)
@@ -576,6 +569,8 @@ void thread_preempt(void)
 	else
 		insert_in_run_queue_tail(current_thread); /* if we're out of quantum, go to the tail of the queue */
 	thread_resched();
+
+    THREAD_UNLOCK(state);
 }
 
 /**
@@ -595,7 +590,7 @@ void thread_block(void)
 
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_BLOCKED);
-	ASSERT(in_critical_section());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
 	/* we are blocking on something. the blocking code should have already stuck us on a queue */
@@ -607,7 +602,7 @@ void thread_unblock(thread_t *t, bool resched)
 #if THREAD_CHECKS
 	ASSERT(t->magic == THREAD_MAGIC);
 	ASSERT(t->state == THREAD_BLOCKED);
-	ASSERT(in_critical_section());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
 	t->state = THREAD_READY;
@@ -641,8 +636,12 @@ static enum handler_return thread_sleep_handler(timer_t *timer, lk_time_t now, v
 	ASSERT(t->state == THREAD_SLEEPING);
 #endif
 
+    THREAD_LOCK(state);
+
 	t->state = THREAD_READY;
 	insert_in_run_queue_head(t);
+
+    THREAD_UNLOCK(state);
 
 	return INT_RESCHEDULE;
 }
@@ -670,11 +669,11 @@ void thread_sleep(lk_time_t delay)
 
 	timer_initialize(&timer);
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 	timer_set_oneshot(&timer, delay, thread_sleep_handler, (void *)current_thread);
 	current_thread->state = THREAD_SLEEPING;
 	thread_resched();
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 }
 
 /**
@@ -700,7 +699,6 @@ void thread_init_early(void)
 	/* half construct this thread, since we're already running */
 	t->priority = HIGHEST_PRIORITY;
 	t->state = THREAD_RUNNING;
-	t->saved_critical_section_count = 1;
 	t->flags = THREAD_FLAG_DETACHED;
 	wait_queue_init(&t->retcode_wait_queue);
 	list_add_head(&thread_list, &t->thread_list_node);
@@ -735,8 +733,8 @@ void thread_set_name(const char *name)
  */
 void thread_set_priority(int priority)
 {
-	if (priority < LOWEST_PRIORITY)
-		priority = LOWEST_PRIORITY;
+	if (priority <= IDLE_PRIORITY)
+		priority = IDLE_PRIORITY + 1;
 	if (priority > HIGHEST_PRIORITY)
 		priority = HIGHEST_PRIORITY;
 	get_current_thread()->priority = priority;
@@ -760,8 +758,8 @@ void thread_become_idle(void)
 	 * timer when it is scheduled. */
 	thread_set_real_time(idle_thread);
 
-	/* release the implicit boot critical section and yield to the scheduler */
-	exit_critical_section();
+	/* enable interrupts and start the scheduler */
+	arch_enable_ints();
 	thread_yield();
 
 	idle_thread_routine();
@@ -786,9 +784,8 @@ static const char *thread_state_to_str(enum thread_state state)
 void dump_thread(thread_t *t)
 {
 	dprintf(INFO, "dump_thread: t %p (%s)\n", t, t->name);
-	dprintf(INFO, "\tstate %s, priority %d, remaining quantum %d, critical section %d\n",
-				  thread_state_to_str(t->state), t->priority, t->remaining_quantum,
-				  t->saved_critical_section_count);
+	dprintf(INFO, "\tstate %s, priority %d, remaining quantum %d\n",
+				  thread_state_to_str(t->state), t->priority, t->remaining_quantum);
 	dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
 	dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
 	dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
@@ -807,11 +804,11 @@ void dump_all_threads(void)
 {
 	thread_t *t;
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 	list_for_every_entry(&thread_list, t, thread_t, thread_list_node) {
 		dump_thread(t);
 	}
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 }
 
 /** @} */
@@ -834,10 +831,16 @@ static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t 
 	ASSERT(thread->magic == THREAD_MAGIC);
 #endif
 
-	if (thread_unblock_from_wait_queue(thread, ERR_TIMED_OUT) >= NO_ERROR)
-		return INT_RESCHEDULE;
+	spin_lock(&thread_lock);
 
-	return INT_NO_RESCHEDULE;
+	enum handler_return ret = INT_NO_RESCHEDULE;
+	if (thread_unblock_from_wait_queue(thread, ERR_TIMED_OUT) >= NO_ERROR) {
+		ret = INT_RESCHEDULE;
+	}
+
+	spin_unlock(&thread_lock);
+
+	return ret;
 }
 
 /**
@@ -867,7 +870,8 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout)
 #if THREAD_CHECKS
 	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
 	ASSERT(current_thread->state == THREAD_RUNNING);
-	ASSERT(in_critical_section());
+	ASSERT(arch_ints_disabled());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
 	if (timeout == 0)
@@ -885,7 +889,7 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout)
 		timer_set_oneshot(&timer, timeout, wait_queue_timeout_handler, (void *)current_thread);
 	}
 
-	thread_block();
+	thread_resched();
 
 	/* we don't really know if the timer fired or not, so it's better safe to try to cancel it */
 	if (timeout != INFINITE_TIME) {
@@ -918,7 +922,8 @@ int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t wait_queue
 
 #if THREAD_CHECKS
 	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
-	ASSERT(in_critical_section());
+	ASSERT(arch_ints_disabled());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
 	t = list_remove_head_type(&wait->list, thread_t, queue_node);
@@ -972,7 +977,8 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
 
 #if THREAD_CHECKS
 	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
-	ASSERT(in_critical_section());
+	ASSERT(arch_ints_disabled());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
 	if (reschedule && wait->count > 0) {
@@ -1017,7 +1023,8 @@ void wait_queue_destroy(wait_queue_t *wait, bool reschedule)
 {
 #if THREAD_CHECKS
 	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
-	ASSERT(in_critical_section());
+	ASSERT(arch_ints_disabled());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 	wait_queue_wake_all(wait, reschedule, ERR_OBJECT_DESTROYED);
 	wait->magic = 0;
@@ -1038,8 +1045,9 @@ void wait_queue_destroy(wait_queue_t *wait, bool reschedule)
 status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error)
 {
 #if THREAD_CHECKS
-	ASSERT(in_critical_section());
 	ASSERT(t->magic == THREAD_MAGIC);
+	ASSERT(arch_ints_disabled());
+	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
 	if (t->state != THREAD_BLOCKED)

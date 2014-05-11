@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -40,10 +40,11 @@
  * @{
  */
 
+#include <kernel/event.h>
 #include <debug.h>
 #include <assert.h>
 #include <err.h>
-#include <kernel/event.h>
+#include <kernel/thread.h>
 
 /**
  * @brief  Initialize an event object
@@ -70,14 +71,14 @@ void event_destroy(event_t *e)
 {
 	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
 	e->magic = 0;
 	e->signalled = false;
 	e->flags = 0;
 	wait_queue_destroy(&e->wait, true);
 
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 }
 
 /**
@@ -101,7 +102,7 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout)
 
 	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
 	if (e->signalled) {
 		/* signalled, we're going to fall through */
@@ -112,12 +113,9 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout)
 	} else {
 		/* unsignalled, block here */
 		ret = wait_queue_block(&e->wait, timeout);
-		if (ret < 0)
-			goto err;
 	}
 
-err:
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 
 	return ret;
 }
@@ -143,7 +141,7 @@ status_t event_signal(event_t *e, bool reschedule)
 {
 	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
 	if (!e->signalled) {
 		if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
@@ -163,7 +161,7 @@ status_t event_signal(event_t *e, bool reschedule)
 		}
 	}
 
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 
 	return NO_ERROR;
 }

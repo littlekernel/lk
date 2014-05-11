@@ -584,7 +584,7 @@ static void spinlock_test(void)
     printf("testing spinlock:\n");
     ASSERT(!spin_lock_held(&lock));
     ASSERT(!arch_ints_disabled());
-    spin_lock_irqsave(&lock, &state);
+    spin_lock_irqsave(&lock, state);
     ASSERT(arch_ints_disabled());
     ASSERT(spin_lock_held(&lock));
     spin_unlock_irqrestore(&lock, state);
@@ -604,7 +604,7 @@ static void spinlock_test(void)
 
     c = arch_cycle_count();
     for (uint i = 0; i < COUNT; i++) {
-        spin_lock_irqsave(&lock, &state);
+        spin_lock_irqsave(&lock, state);
         spin_unlock_irqrestore(&lock, state);
     }
     c = arch_cycle_count() - c;

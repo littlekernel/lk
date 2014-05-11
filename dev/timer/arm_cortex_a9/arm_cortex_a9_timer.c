@@ -30,6 +30,7 @@
 #include <trace.h>
 #include <lib/fixed_point.h>
 #include <kernel/thread.h>
+#include <kernel/spinlock.h>
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
@@ -69,6 +70,7 @@
 
 static platform_timer_callback t_callback;
 static addr_t scu_control_base;
+static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
 static lk_time_t periodic_interval;
 static lk_time_t oneshot_interval;
@@ -118,7 +120,8 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     if (unlikely(ticks > 0xffffffff))
         ticks = 0xffffffff;
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     t_callback = callback;
 
@@ -130,7 +133,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     TIMREG(TIMER_LOAD) = ticks;
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<1) | (1<<0); // irq enable, autoreload, enable
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 
     return NO_ERROR;
 }
@@ -145,7 +148,8 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     if (unlikely(ticks > 0xffffffff))
         ticks = 0xffffffff;
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     t_callback = callback;
     oneshot_interval = interval;
@@ -156,7 +160,7 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     TIMREG(TIMER_LOAD) = ticks;
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<0) | (1<<0); // irq enable, oneshot, enable
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 
     return NO_ERROR;
 }

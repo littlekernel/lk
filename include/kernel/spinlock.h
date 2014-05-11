@@ -22,7 +22,10 @@
  */
 #pragma once
 
+#include <compiler.h>
 #include <arch/spinlock.h>
+
+__BEGIN_CDECLS
 
 /* interrupts should already be disabled */
 static inline void spin_lock(spin_lock_t *lock)
@@ -84,5 +87,7 @@ static inline void spin_unlock_restore(
 }
 
 /* hand(ier) routines */
-#define spin_lock_irqsave(lock, statep) spin_lock_save(lock, statep, SPIN_LOCK_FLAG_INTERRUPTS)
+#define spin_lock_irqsave(lock, statep) spin_lock_save(lock, &(statep), SPIN_LOCK_FLAG_INTERRUPTS)
 #define spin_unlock_irqrestore(lock, statep) spin_unlock_restore(lock, statep, SPIN_LOCK_FLAG_INTERRUPTS)
+
+__END_CDECLS

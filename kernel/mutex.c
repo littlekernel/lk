@@ -60,11 +60,11 @@ void mutex_destroy(mutex_t *m)
 		      get_current_thread(), get_current_thread()->name, m, m->holder, m->holder->name);
 #endif
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 	m->magic = 0;
 	m->count = 0;
 	wait_queue_destroy(&m->wait, true);
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 }
 
 /**
@@ -87,7 +87,7 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 		      get_current_thread(), get_current_thread()->name, m);
 #endif
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
 	status_t ret = NO_ERROR;
 	if (unlikely(++m->count > 1)) {
@@ -112,7 +112,7 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 	m->holder = get_current_thread();
 
 err:
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 	return ret;
 }
 
@@ -130,7 +130,7 @@ status_t mutex_release(mutex_t *m)
 	}
 #endif
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
 	m->holder = 0;
 
@@ -139,7 +139,7 @@ status_t mutex_release(mutex_t *m)
 		wait_queue_wake_one(&m->wait, true, NO_ERROR);
 	}
 
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 	return NO_ERROR;
 }
 

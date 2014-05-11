@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009,2012,2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2009,2012-2014 Travis Geiselbrecht
  * Copyright (c) 2009 Corey Tabaka
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -32,6 +32,7 @@
 #include <string.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
+#include <kernel/spinlock.h>
 #include <lib/heap.h>
 
 #define LOCAL_TRACE 0
@@ -87,6 +88,7 @@ struct heap {
 	mutex_t lock;
 	struct list_node free_list;
 	struct list_node delayed_free_list;
+	spin_lock_t delayed_free_lock;
 };
 
 // heap static vars
@@ -124,12 +126,15 @@ static void heap_dump(void)
 	list_for_every_entry(&theheap.free_list, chunk, struct free_heap_chunk, node) {
 		dump_free_chunk(chunk);
 	}
+	mutex_release(&theheap.lock);
 
 	dprintf(INFO, "\tdelayed free list:\n");
+	spin_lock_saved_state_t state;
+	spin_lock_irqsave(&theheap.delayed_free_lock, state);
 	list_for_every_entry(&theheap.delayed_free_list, chunk, struct free_heap_chunk, node) {
 		dump_free_chunk(chunk);
 	}
-	mutex_release(&theheap.lock);
+	spin_unlock_irqrestore(&theheap.delayed_free_lock, state);
 }
 
 static void heap_test(void)
@@ -269,13 +274,14 @@ static void heap_free_delayed_list(void)
 
 	list_initialize(&list);
 
-	enter_critical_section();
+	spin_lock_saved_state_t state;
+	spin_lock_irqsave(&theheap.delayed_free_lock, state);
 
 	struct free_heap_chunk *chunk;
 	while ((chunk = list_remove_head_type(&theheap.delayed_free_list, struct free_heap_chunk, node))) {
 		list_add_head(&list, &chunk->node);
 	}
-	exit_critical_section();
+	spin_unlock_irqrestore(&theheap.delayed_free_lock, state);
 
 	while ((chunk = list_remove_head_type(&list, struct free_heap_chunk, node))) {
 		LTRACEF("freeing chunk %p\n", chunk);
@@ -464,9 +470,10 @@ void heap_delayed_free(void *ptr)
 
 	struct free_heap_chunk *chunk = heap_create_free_chunk(as->ptr, as->size, false);
 
-	enter_critical_section();
+	spin_lock_saved_state_t state;
+	spin_lock_irqsave(&theheap.delayed_free_lock, state);
 	list_add_head(&theheap.delayed_free_list, &chunk->node);
-	exit_critical_section();
+	spin_unlock_irqrestore(&theheap.delayed_free_lock, state);
 }
 
 void heap_get_stats(struct heap_stats *ptr)
@@ -541,6 +548,7 @@ void heap_init(void)
 
 	// initialize the delayed free list
 	list_initialize(&theheap.delayed_free_list);
+	spin_lock_init(&theheap.delayed_free_lock);
 
 	// set the heap range
 #if WITH_KERNEL_VM
