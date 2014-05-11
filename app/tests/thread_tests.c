@@ -24,6 +24,7 @@
 #include <trace.h>
 #include <rand.h>
 #include <err.h>
+#include <assert.h>
 #include <app/tests.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
@@ -455,6 +456,7 @@ static int preempt_tester(void *arg)
 	printf("exiting ts %lld\n", current_time_hires());
 
 	atomic_add(&preempt_count, -1);
+#undef COUNT
 
 	return 0;
 }
@@ -571,12 +573,53 @@ static void join_test(void)
 	printf("thread_join returns err %d, retval %d (should be 0 and 55)\n", err, ret);
 }
 
+static void spinlock_test(void)
+{
+    spin_lock_saved_state_t state;
+    spin_lock_t lock;
+
+    spin_lock_init(&lock);
+
+    // verify basic functionality (single core)
+    printf("testing spinlock:\n");
+    ASSERT(!spin_lock_held(&lock));
+    ASSERT(!arch_ints_disabled());
+    spin_lock_irqsave(&lock, &state);
+    ASSERT(arch_ints_disabled());
+    ASSERT(spin_lock_held(&lock));
+    spin_unlock_irqrestore(&lock, state);
+    ASSERT(!spin_lock_held(&lock));
+    ASSERT(!arch_ints_disabled());
+    printf("seems to work\n");
+
+#define COUNT (1024*1024)
+    uint32_t c = arch_cycle_count();
+    for (uint i = 0; i < COUNT; i++) {
+        spin_lock(&lock);
+        spin_unlock(&lock);
+    }
+    c = arch_cycle_count() - c;
+
+    printf("%u cycles to acquire/release lock %u times (%u cycles per)\n", c, COUNT, c / COUNT);
+
+    c = arch_cycle_count();
+    for (uint i = 0; i < COUNT; i++) {
+        spin_lock_irqsave(&lock, &state);
+        spin_unlock_irqrestore(&lock, state);
+    }
+    c = arch_cycle_count() - c;
+
+    printf("%u cycles to acquire/release lock w/irqsave %u times (%u cycles per)\n", c, COUNT, c / COUNT);
+#undef COUNT
+}
+
 int thread_tests(void)
 {
 	mutex_test();
 	semaphore_test();
 	event_test();
 
+	spinlock_test();
 	atomic_test();
 
 	thread_sleep(200);
