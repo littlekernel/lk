@@ -25,6 +25,7 @@
 #include <arch/arm/mmu.h>
 #include <dev/uart.h>
 #include <dev/interrupt/arm_gic.h>
+#include <dev/timer/arm_cortex_a9.h>
 #include <platform.h>
 #include <platform/zynq.h>
 #include "platform_p.h"
@@ -47,7 +48,7 @@ void platform_early_init(void)
     arm_gic_init();
 
     /* initialize the timer block */
-    platform_init_timer(TIMER_CLOCK_FREQ);
+    arm_cortex_a9_timer_init(CPUPRIV_BASE, TIMER_CLOCK_FREQ);
 }
 
 void platform_init(void)

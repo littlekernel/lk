@@ -66,9 +66,6 @@
 #define L2CACHE_BASE      (CPUPRIV_BASE + 0x2000)
 
 /* interrupts */
-#define CPU_GLOB_TIMER 27 // cortex-a9 specific timers
-#define CPU_PRIV_TIMER 29
-#define CPU_WATCHDOG   30
 #define TTC0_A_INT  42
 #define TTC0_B_INT  43
 #define TTC0_C_INT  44

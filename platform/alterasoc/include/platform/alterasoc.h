@@ -86,9 +86,6 @@
 #define GIC_DISTRIB_BASE    (CPUPRIV_BASE + 0x1000)
 
 /* interrupts */
-#define CPU_GLOB_TIMER 27 // cortex-a9 specific timers
-#define CPU_PRIV_TIMER 29
-#define CPU_WATCHDOG   30
 
 #define FPGA_INT(n) (72 + (n))
 

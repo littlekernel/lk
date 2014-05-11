@@ -7,7 +7,8 @@ ARM_CPU := cortex-a9
 
 MODULE_DEPS := \
 	lib/cbuf \
-	dev/interrupt/arm_gic
+	dev/interrupt/arm_gic \
+	dev/timer/arm_cortex_a9
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
@@ -16,7 +17,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/clocks.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/platform.c \
-	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uart.c
 
 ifeq ($(ZYNQ_USE_SRAM),1)
@@ -29,8 +29,7 @@ endif
 
 GLOBAL_DEFINES += \
 	MEMBASE=$(MEMBASE) \
-	MEMSIZE=$(MEMSIZE) \
-	PLATFORM_HAS_DYNAMIC_TIMER=1
+	MEMSIZE=$(MEMSIZE)
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
