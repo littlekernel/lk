@@ -20,11 +20,21 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+/* defines FUNCTION macro */
 #include <asm.h>
 #include <arch/arm/cores.h>
 
-/* exception handling glue.
- * NOTE: only usable on armv6+ cores
+/*
+ * This file includes exception routines which are called when an exception
+ * occurs. The Vector Table is constructed in arch/arm/arm/start.S as branch
+ * (b) instructions to these routines here.
+ *
+ * These routines create a stack frame as defined in
+ * arch/arm/include/arch/arm.h, pass this frame to higher-level C function, and
+ * jump to it. These functions are defined in arch/arm/arm/faults.c
+ *
+ * NOTE: This file is only used on ARMv6+ cores.
  */
 
 .macro save, offset
@@ -55,18 +65,109 @@
 .endm
 
 .macro saveall, mode
-	/* save spsr and r14 onto our stack */
+	/*
+	 * This routine creates "struct arm_fault_frame" as defined in
+	 * arch/arm/include/arch/arm.h.
+	 */
+
+	/*
+	 * Save SPSR and r14 onto our stack
+	 *
+	 * SRS means Store Return State onto stack. DB (Decrement Before) is an
+	 * addressing mode.  Since we use full decreasing stack, meaning that stack
+	 * pointer points to the top of the stack which has a value in it, we need
+	 * to decrement the stack first, then write the value.
+	 *
+	 * SRS stores the lr and the SPSR of the current mode, at the address
+	 * contained in SP of the mode specified by mode.
+	 *
+	 * Our stack looks like this after srsdb instruction:
+	 * <high>
+	 * ...
+	 * SPSR
+	 * LR  <- stack pointer
+	 * ...
+	 * <low>
+	 *
+	 * NOTE: Before saveall routine is called, an offset is already subtracted
+	 * from lr. Thus, lr actually contains an address to return to without
+	 * requiring to subtraction. Please look at saveall_offset routine. Some
+	 * exceptions such as arm_undefined and arm_syscall do not require
+	 * subtraction and saveall is called directly.
+	 */
 	srsdb	\mode!
 
-	/* save all regs and lr to keep the stack aligned */
+	/*
+	 * Save all regs and lr to keep the stack aligned
+	 *
+	 * After pushing the registers on stack, our stack looks like this:
+	 *
+	 * <high>
+	 * ...
+	 * SPSR
+	 * LR
+	 * r14
+	 * r12
+	 * r11
+	 * ...
+	 * r0  <- stack pointer
+	 * ...
+	 * <low>
+	 *
+	 */
 	push	{ r0-r12, r14 }
 
-	/* save user space sp/lr */
+	/*
+	 * Make a room for 2 registers in the stack. Now stack pointer points an
+	 * empty location. (Of course there would be data in this area but let's
+	 * call it empty for our use)
+	 *
+	 * <high>
+	 * ...
+	 * r0
+	 * EMPTY
+	 * EMPTY <- stack pointer
+	 * ...
+	 * <low>
+	 */
 	sub		sp, #8
+
+	/*
+	 * Save user space lr (r14) and user space sp (r13) onto the stack.
+	 *
+	 * Use stmia (Store Multiple Increment After) instruction to put r13 and
+	 * r14 onto the stack. Since SP points to empty location, we put two
+	 * registers one after another. r13 register is written first, then r14 is
+	 * written afterwards. In ARM, lower numbered registers are put in the
+	 * lower address. Remember that SP is not updated after this
+	 * operation. ^ identifier makes stmia access r13 and r14 from user space
+	 * instead of banked registers. So, finally the stack looks like this:
+	 *
+	 * <high>
+	 * ...
+	 * SPSR
+	 * LR
+	 * r14
+	 * r12
+	 * r11
+	 * ...
+	 * r0
+	 * r14
+	 * r13  <- stack pointer
+	 * ...
+	 * <low>
+	 *
+	 */
 	stmia	sp, { r13, r14 }^
 .endm
 
 .macro saveall_offset, offset, mode
+	/*
+	 * Offset is subtracted from lr because of the fact that (PC +
+	 * exception-dependent offset) is saved in the link register when exception
+	 * occurs. To get the real PC value, we need to subtract offset. Please
+	 * see B1.6.3 Exception Entry in ARM ARM DBI0406B_10_10.
+	 */
 	sub		lr, \offset
 	saveall	\mode
 .endm
@@ -86,6 +187,8 @@ FUNCTION(arm_undefined)
 	saveall #0x1b
 
 	mov		r0, sp
+
+	/* void arm_undefined_handler(struct arm_fault_frame *frame) */
 	bl		arm_undefined_handler
 
 	restoreall

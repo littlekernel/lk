@@ -23,6 +23,18 @@
 #include <asm.h>
 #include <arch/arm/cores.h>
 
+/*
+ * Construct the vector table and put it in .text.boot section. The calls are
+ * simply branch instruction to exception handling routines. These routines are
+ * defined in arch/arm/arm/exceptions.S.
+ *
+ * In linking stage, this section is put at the memory base using the linker
+ * script (either system-onesegment.ld or system-twosegment.ld in arch/arm
+ * directory). Each platform defines its linker script to use in rules.mk
+ * (platform/PLATFORM_NAME/rules.mk)
+ *
+ *
+ */
 .section ".text.boot"
 .globl _start
 _start:
