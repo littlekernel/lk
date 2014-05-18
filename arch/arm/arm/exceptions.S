@@ -70,94 +70,14 @@
 	 * arch/arm/include/arch/arm.h.
 	 */
 
-	/*
-	 * Save SPSR and r14 onto our stack
-	 *
-	 * SRS means Store Return State onto stack. DB (Decrement Before) is an
-	 * addressing mode.  Since we use full decreasing stack, meaning that stack
-	 * pointer points to the top of the stack which has a value in it, we need
-	 * to decrement the stack first, then write the value.
-	 *
-	 * SRS stores the lr and the SPSR of the current mode, at the address
-	 * contained in SP of the mode specified by mode.
-	 *
-	 * Our stack looks like this after srsdb instruction:
-	 * <high>
-	 * ...
-	 * SPSR
-	 * LR  <- stack pointer
-	 * ...
-	 * <low>
-	 *
-	 * NOTE: Before saveall routine is called, an offset is already subtracted
-	 * from lr. Thus, lr actually contains an address to return to without
-	 * requiring to subtraction. Please look at saveall_offset routine. Some
-	 * exceptions such as arm_undefined and arm_syscall do not require
-	 * subtraction and saveall is called directly.
-	 */
+	/* save SPSR and r14 onto our stack */
 	srsdb	\mode!
 
-	/*
-	 * Save all regs and lr to keep the stack aligned
-	 *
-	 * After pushing the registers on stack, our stack looks like this:
-	 *
-	 * <high>
-	 * ...
-	 * SPSR
-	 * LR
-	 * r14
-	 * r12
-	 * r11
-	 * ...
-	 * r0  <- stack pointer
-	 * ...
-	 * <low>
-	 *
-	 */
+	/* save all regs and lr to keep the stack aligned */
 	push	{ r0-r12, r14 }
 
-	/*
-	 * Make a room for 2 registers in the stack. Now stack pointer points an
-	 * empty location. (Of course there would be data in this area but let's
-	 * call it empty for our use)
-	 *
-	 * <high>
-	 * ...
-	 * r0
-	 * EMPTY
-	 * EMPTY <- stack pointer
-	 * ...
-	 * <low>
-	 */
+	/* save user space lr (r14) and user space sp (r13) */
 	sub		sp, #8
-
-	/*
-	 * Save user space lr (r14) and user space sp (r13) onto the stack.
-	 *
-	 * Use stmia (Store Multiple Increment After) instruction to put r13 and
-	 * r14 onto the stack. Since SP points to empty location, we put two
-	 * registers one after another. r13 register is written first, then r14 is
-	 * written afterwards. In ARM, lower numbered registers are put in the
-	 * lower address. Remember that SP is not updated after this
-	 * operation. ^ identifier makes stmia access r13 and r14 from user space
-	 * instead of banked registers. So, finally the stack looks like this:
-	 *
-	 * <high>
-	 * ...
-	 * SPSR
-	 * LR
-	 * r14
-	 * r12
-	 * r11
-	 * ...
-	 * r0
-	 * r14
-	 * r13  <- stack pointer
-	 * ...
-	 * <low>
-	 *
-	 */
 	stmia	sp, { r13, r14 }^
 .endm
 
