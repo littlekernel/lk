@@ -27,6 +27,7 @@
 #include <debug.h>
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_cortex_a9.h>
+#include <dev/uart.h>
 #include <lk/init.h>
 #include <platform.h>
 #include <platform/gic.h>
@@ -40,19 +41,16 @@ void platform_init_mmu_mappings(void)
 
 void platform_early_init(void)
 {
-	/* initialize the interrupt controller */
-	arm_gic_init();
+    /* initialize the interrupt controller */
+    arm_gic_init();
 
-	/* initialize the timer block */
-	arm_cortex_a9_timer_init(CPUPRIV_BASE, 100000000);
+    /* initialize the timer block */
+    arm_cortex_a9_timer_init(CPUPRIV_BASE, 100000000);
+
+    uart_init_early();
 }
 
-static uint32_t read_mpidr(void)
+void platform_init(void)
 {
-	int mpidr;
-	__asm__ volatile("mrc		p15, 0, %0, c0, c0, 5"
-		: "=r" (mpidr)
-		);
-	return mpidr;
+    uart_init();
 }
-

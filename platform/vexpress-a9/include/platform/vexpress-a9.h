@@ -33,10 +33,10 @@
 #define MOTHERBOARD_CS7 (0x10000000)
 
 /* most of the peripherals live on the motherboard CS7 */
-#define UART0  (MOTHERBOARD_CS7 + 0x9000)
-#define UART1  (MOTHERBOARD_CS7 + 0xa000)
-#define UART2  (MOTHERBOARD_CS7 + 0xb000)
-#define UART3  (MOTHERBOARD_CS7 + 0xc000)
+#define UART0_BASE  (MOTHERBOARD_CS7 + 0x9000)
+#define UART1_BASE  (MOTHERBOARD_CS7 + 0xa000)
+#define UART2_BASE  (MOTHERBOARD_CS7 + 0xb000)
+#define UART3_BASE  (MOTHERBOARD_CS7 + 0xc000)
 
 #define CPUPRIV_BASE        (0x1e000000)
 
