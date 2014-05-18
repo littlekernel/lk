@@ -1,4 +1,4 @@
 #!/bin/sh
 
-make realview-pb-test -j4 &&
-qemu-system-arm -machine realview-pb-a8 -m 256 -kernel build-realview-pb-test/lk.elf -nographic $@
+make vexpress-a9-test -j4 &&
+qemu-system-arm -machine vexpress-a9 -m 512 -kernel build-vexpress-a9-test/lk.elf -nographic $@
