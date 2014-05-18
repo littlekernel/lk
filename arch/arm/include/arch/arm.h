@@ -135,6 +135,8 @@ GEN_CP15_REG_FUNCS(tpidruro, 0, c13, c0, 3);
 GEN_CP15_REG_FUNCS(tpidrprw, 0, c13, c0, 4);
 
 /* armv7+ */
+GEN_CP15_REG_FUNCS(midr, 0, c0, c0, 0);
+GEN_CP15_REG_FUNCS(mpidr, 0, c0, c0, 5);
 GEN_CP15_REG_FUNCS(vbar, 0, c12, c0, 0);
 
 void arm_invalidate_tlb(void);
