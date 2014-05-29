@@ -20,15 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-extern int ps7_init(void);
 
 void target_early_init(void)
 {
-    ps7_init();
 }
 
 void target_init(void)
 {
 }
-
 

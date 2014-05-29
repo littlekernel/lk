@@ -22,6 +22,7 @@
  */
 #include <err.h>
 #include <debug.h>
+#include <stdio.h>
 #include <arch/arm/mmu.h>
 #include <dev/uart.h>
 #include <dev/interrupt/arm_gic.h>
@@ -29,6 +30,9 @@
 #include <platform.h>
 #include <platform/zynq.h>
 #include "platform_p.h"
+
+// target must specify this as the initial jam table to set up the soc
+extern int ps7_init(void);
 
 void platform_init_mmu_mappings(void)
 {
@@ -42,17 +46,21 @@ void platform_init_mmu_mappings(void)
 
 void platform_early_init(void)
 {
+    ps7_init();
+
     uart_init_early();
 
     /* initialize the interrupt controller */
     arm_gic_init();
 
     /* initialize the timer block */
-    arm_cortex_a9_timer_init(CPUPRIV_BASE, TIMER_CLOCK_FREQ);
+    arm_cortex_a9_timer_init(CPUPRIV_BASE, zynq_get_arm_timer_freq());
 }
 
 void platform_init(void)
 {
     uart_init();
+
+    zynq_dump_clocks();
 }
 
