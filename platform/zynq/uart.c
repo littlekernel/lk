@@ -34,6 +34,7 @@
 static cbuf_t uart_rx_buf[NUM_UARTS];
 
 static inline uintptr_t uart_to_ptr(unsigned int n) { return (n == 0) ? UART0_BASE : UART1_BASE; }
+static inline uint uart_to_irq(unsigned int n) { return (n == 0) ? UART0_INT : UART1_INT; }
 
 #define UART_REG(base, reg)  (*REG32((base)  + (reg)))
 
@@ -66,7 +67,7 @@ void uart_init(void)
     for (uint i = 0; i < NUM_UARTS; i++) {
         cbuf_initialize(&uart_rx_buf[i], RXBUF_SIZE);
 
-        register_int_handler(UART0_INT + i, &uart_irq, (void *)0);
+        register_int_handler(uart_to_irq(i), &uart_irq, (void *)i);
 
         // clear all irqs
         UART_REG(uart_to_ptr(i), UART_IDR) = 0xffffffff;
@@ -80,7 +81,7 @@ void uart_init(void)
         // enable rx interrupt
         UART_REG(uart_to_ptr(i), UART_IER) = (1<<0); // rxtrig
 
-        unmask_interrupt(UART0_INT + i);
+        unmask_interrupt(uart_to_irq(i));
     }
 }
 
