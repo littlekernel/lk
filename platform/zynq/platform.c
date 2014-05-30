@@ -31,8 +31,8 @@
 #include <platform/zynq.h>
 #include "platform_p.h"
 
-// target must specify this as the initial jam table to set up the soc
-extern int ps7_init(void);
+/* target can specify this as the initial jam table to set up the soc */
+__WEAK void ps7_init(void) { }
 
 void platform_init_mmu_mappings(void)
 {
