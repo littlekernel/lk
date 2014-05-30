@@ -212,6 +212,8 @@ status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_so
 
     uint enable_bitpos = periph_clk_ctrl_enable_bitpos(periph);
 
+    zynq_slcr_unlock();
+
     // if we're enabling
     if (enable) {
         switch (periph) {
@@ -241,6 +243,8 @@ status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_so
 
         *REG32(clk_reg) = ctrl;
     }
+
+    zynq_slcr_lock();
 
     return NO_ERROR;
 }

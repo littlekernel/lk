@@ -273,9 +273,9 @@ uint32_t zynq_get_arm_timer_freq(void);
 void zynq_dump_clocks(void);
 
 enum zynq_clock_source {
-    PLL_CPU,
-    PLL_DDR,
-    PLL_IO,
+    PLL_IO = 0,
+    PLL_CPU = 2,
+    PLL_DDR = 3,
 };
 
 enum zynq_periph {
