@@ -23,6 +23,7 @@
 #include <reg.h>
 #include <stdio.h>
 #include <trace.h>
+#include <assert.h>
 #include <lib/cbuf.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
@@ -51,7 +52,7 @@ static enum handler_return uart_irq(void *arg)
     if (isr & (1<<0)) { // rxtrig
         UART_REG(base, UART_ISR) = (1<< 0);
 
-        while ((UART_REG(base, UART_SR) & (1<<1)) == 0) {
+        while ((UART_REG(base, UART_SR) & (1<<1)) == 0) { // ~rempty
             char c = UART_REG(base, UART_FIFO);
             cbuf_write_char(&uart_rx_buf[port], c, false);
 
@@ -67,20 +68,23 @@ void uart_init(void)
     for (uint i = 0; i < NUM_UARTS; i++) {
         cbuf_initialize(&uart_rx_buf[i], RXBUF_SIZE);
 
-        register_int_handler(uart_to_irq(i), &uart_irq, (void *)i);
+        uintptr_t base = uart_to_ptr(i);
 
         // clear all irqs
-        UART_REG(uart_to_ptr(i), UART_IDR) = 0xffffffff;
+        UART_REG(base, UART_IDR) = 0xffffffff;
 
         // set rx fifo trigger to 1
-        UART_REG(uart_to_ptr(i), UART_RXWM) = 1;
+        UART_REG(base, UART_RXWM) = 1;
 
         // enable the receiver
-        UART_REG(uart_to_ptr(i), UART_CR) |= (1<<2); // rxen
+        // NOTE: must clear rxdis and set rxen in the same write
+        UART_REG(base, UART_CR) = (UART_REG(base, UART_CR) & ~(1<<3)) | (1 << 2);
 
         // enable rx interrupt
-        UART_REG(uart_to_ptr(i), UART_IER) = (1<<0); // rxtrig
+        UART_REG(base, UART_IER) = (1<<0); // rxtrig
 
+        // set up interrupt handler
+        register_int_handler(uart_to_irq(i), &uart_irq, (void *)i);
         unmask_interrupt(uart_to_irq(i));
     }
 }
@@ -88,12 +92,27 @@ void uart_init(void)
 void uart_init_early(void)
 {
     for (uint i = 0; i < NUM_UARTS; i++) {
-        UART_REG(uart_to_ptr(i), UART_CR) = (1<<4); // txen
+        uintptr_t base = uart_to_ptr(i);
+
+        // reset the tx/rx path
+        UART_REG(base, UART_CR) |= 0x3; // txres, rxres
+        while ((UART_REG(base, UART_CR) & 0x3) != 0)
+            ;
+
+        // n81, clock select ref_clk
+        UART_REG(base, UART_MR) = (4 << 3);
+
+        // no flow
+        UART_REG(base, UART_MODEMCR) = 0;
+
+        UART_REG(base, UART_CR) = (1<<4); // ~txdis, txen
     }
 }
 
 int uart_putc(int port, char c)
 {
+    DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
+
     uintptr_t base = uart_to_ptr(port);
 
     /* spin while fifo is full */
@@ -106,6 +125,8 @@ int uart_putc(int port, char c)
 
 int uart_getc(int port, bool wait)
 {
+    DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
+
     char c;
     if (cbuf_read_char(&uart_rx_buf[port], &c, wait) == 1)
         return c;
@@ -115,13 +136,18 @@ int uart_getc(int port, bool wait)
 
 void uart_flush_tx(int port)
 {
+    DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
 }
 
 void uart_flush_rx(int port)
 {
+    DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
 }
 
 void uart_init_port(int port, uint baud)
 {
+    DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
+
+    PANIC_UNIMPLEMENTED;
 }
 
