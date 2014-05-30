@@ -23,6 +23,7 @@
 
 #include <arch/ops.h>
 #include <assert.h>
+#include <lk/init.h>
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
@@ -274,5 +275,15 @@ static void arm_generic_timer_init_secondary_cpu(uint level)
 LK_INIT_HOOK_FLAGS(arm_generic_timer_init_secondary_cpu,
 		   arm_generic_timer_init_secondary_cpu,
 		   LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_SECONDARY_CPUS);
+
+static void arm_generic_timer_resume_cpu(uint level)
+{
+	/* Always trigger a timer interrupt on each cpu for now */
+	write_cntp_tval(0);
+	write_cntp_ctl(1);
+}
+
+LK_INIT_HOOK_FLAGS(arm_generic_timer_resume_cpu, arm_generic_timer_resume_cpu,
+		LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_CPU_RESUME);
 
 /* vim: set noexpandtab: */
