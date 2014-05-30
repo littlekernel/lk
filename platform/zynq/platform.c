@@ -48,6 +48,9 @@ void platform_early_init(void)
 {
     ps7_init();
 
+    /* zynq manual says this is mandatory */
+    *REG32(SLCR_BASE + 0xa1c) = 0x020202;
+
     uart_init_early();
 
     /* initialize the interrupt controller */
