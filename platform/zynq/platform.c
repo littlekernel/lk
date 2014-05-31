@@ -51,6 +51,7 @@ void platform_early_init(void)
     /* zynq manual says this is mandatory */
     *REG32(SLCR_BASE + 0xa1c) = 0x020202;
 
+    /* early initialize the uart so we can printf */
     uart_init_early();
 
     /* initialize the interrupt controller */
@@ -63,6 +64,10 @@ void platform_early_init(void)
 void platform_init(void)
 {
     uart_init();
+
+    printf("zynq boot status:\n");
+    printf("\tREBOOT_STATUS 0x%x\n", SLCR_REG(REBOOT_STATUS));
+    printf("\tBOOT_MODE 0x%x\n", SLCR_REG(BOOT_MODE));
 
     zynq_dump_clocks();
 }

@@ -23,6 +23,7 @@
 #pragma once
 
 #include <reg.h>
+#include <stdbool.h>
 #include <sys/types.h>
 
 /* memory addresses */
@@ -303,6 +304,6 @@ enum zynq_periph {
     _PERIPH_MAX,
 };
 
-status_t zynq_set_clock(enum zynq_periph, bool enable, enum zynq_clock_source, uint32_t divisor);
+status_t zynq_set_clock(enum zynq_periph, bool enable, enum zynq_clock_source, uint32_t divisor, uint32_t divisor2);
 uint32_t zynq_get_clock(enum zynq_periph);
 

@@ -173,6 +173,24 @@ static uint periph_clk_ctrl_enable_bitpos(enum zynq_periph periph)
     }
 }
 
+static uint periph_clk_ctrl_divisor_count(enum zynq_periph periph)
+{
+    switch (periph) {
+        case PERIPH_GEM0:
+        case PERIPH_GEM1:
+        case PERIPH_CAN0:
+        case PERIPH_CAN1:
+        case PERIPH_FPGA0:
+        case PERIPH_FPGA1:
+        case PERIPH_FPGA2:
+        case PERIPH_FPGA3:
+            return 2;
+        default:
+            // most peripherals have a single divisor
+            return 1;
+    }
+}
+
 static const char *periph_to_name(enum zynq_periph periph)
 {
     switch (periph) {
@@ -200,10 +218,10 @@ static const char *periph_to_name(enum zynq_periph periph)
     }
 }
 
-status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_source source, uint32_t divisor)
+status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_source source, uint32_t divisor, uint32_t divisor2)
 {
     DEBUG_ASSERT(periph < _PERIPH_MAX);
-    DEBUG_ASSERT(divisor > 0 && divisor <= 0x3f);
+    DEBUG_ASSERT(!enable || (divisor > 0 && divisor <= 0x3f));
     DEBUG_ASSERT(source < 4);
 
     // get the clock control register base
@@ -216,20 +234,10 @@ status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_so
 
     // if we're enabling
     if (enable) {
-        switch (periph) {
-            case PERIPH_USB0:
-            case PERIPH_USB1:
-            case PERIPH_GEM0:
-            case PERIPH_GEM1:
-                PANIC_UNIMPLEMENTED;
-            default:
-                ;
-        }
-
         uint32_t ctrl = *REG32(clk_reg);
 
-        // set the divisor, source, and enable
-        // XXX handle split divisors
+        // set the divisor, divisor2 (if applicable), source, and enable
+        ctrl = (ctrl & ~(0x3f << 20)) | (divisor2 << 20);
         ctrl = (ctrl & ~(0x3f << 8)) | (divisor << 8);
         ctrl = (ctrl & ~(0x3 << 4)) | (source << 4);
         ctrl |= (1 << enable_bitpos);
@@ -259,6 +267,8 @@ uint32_t zynq_get_clock(enum zynq_periph periph)
 
     uint enable_bitpos = periph_clk_ctrl_enable_bitpos(periph);
 
+    LTRACEF("clkreg 0x%x\n", *REG32(clk_reg));
+
     // see if it's enabled
     if ((*REG32(clk_reg) & (1 << enable_bitpos)) == 0) {
         // not enabled
@@ -284,7 +294,14 @@ uint32_t zynq_get_clock(enum zynq_periph periph)
     if (divisor == 0)
         return 0;
 
-    uint32_t clk = srcclk / divisor;
+    uint32_t divisor2 = 1;
+    if (periph_clk_ctrl_divisor_count(periph) == 2) {
+        divisor2 = BITS_SHIFT(*REG32(clk_reg), 25, 20);
+        if (divisor2 == 0)
+            return 0;
+    }
+
+    uint32_t clk = srcclk / divisor / divisor2;
 
     return clk;
 }
