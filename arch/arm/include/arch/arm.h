@@ -139,7 +139,19 @@ GEN_CP15_REG_FUNCS(midr, 0, c0, c0, 0);
 GEN_CP15_REG_FUNCS(mpidr, 0, c0, c0, 5);
 GEN_CP15_REG_FUNCS(vbar, 0, c12, c0, 0);
 
+GEN_CP15_REG_FUNCS(ats1cpr, 0, c7, c8, 0);
+GEN_CP15_REG_FUNCS(ats1cpw, 0, c7, c8, 1);
+GEN_CP15_REG_FUNCS(ats1cur, 0, c7, c8, 2);
+GEN_CP15_REG_FUNCS(ats1cuw, 0, c7, c8, 3);
+GEN_CP15_REG_FUNCS(ats12nsopr, 0, c7, c8, 4);
+GEN_CP15_REG_FUNCS(ats12nsopw, 0, c7, c8, 5);
+GEN_CP15_REG_FUNCS(ats12nsour, 0, c7, c8, 6);
+GEN_CP15_REG_FUNCS(ats12nsouw, 0, c7, c8, 7);
+GEN_CP15_REG_FUNCS(par, 0, c7, c4, 0);
+
 void arm_invalidate_tlb(void);
+
+status_t arm_vtop(addr_t va, addr_t *pa);
 
 __END_CDECLS
 

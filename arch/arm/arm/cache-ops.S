@@ -137,6 +137,11 @@ FUNCTION(arch_disable_cache)
 	bic		r0, #(1<<1)
 	mcr		p15, 0, r0, c1, c0, 1		// disable L2 dcache
 #endif
+#if WITH_DEV_CACHE_PL310
+    bl      pl310_flush_invalidate
+    mov     r0, #0
+    bl      pl310_set_enable
+#endif
 
 .Licache_disable:
 	tst		r7, #ICACHE
@@ -179,6 +184,11 @@ FUNCTION(arch_enable_cache)
 	mrc     p15, 0, r0, c1, c0, 1		// aux cr1
 	orr		r0, #(1<<1)
 	mcr		p15, 0, r0, c1, c0, 1		// enable L2 dcache
+#endif
+#if WITH_DEV_CACHE_PL310
+    bl      pl310_invalidate
+    mov     r0, #1
+    bl      pl310_set_enable
 #endif
 
 	mrc     p15, 0, r0, c1, c0, 0		// cr1
@@ -306,18 +316,23 @@ invalidate_cache_v7:
 	/* void arch_flush_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_clean_cache_range)
 #if ARM_WITH_CP15
-	add		r2, r0, r1					// calculate the end address
-	bic		r0, #(CACHE_LINE-1)			// align the start with a cache line
+	mov     r3, r0
+	add		r2, r3, r1					// calculate the end address
+	bic		r3, #(CACHE_LINE-1)			// align the start with a cache line
 0:
-	mcr		p15, 0, r0, c7, c10, 1		// clean cache to PoC by MVA
-	add		r0, r0, #CACHE_LINE
-	cmp		r0, r2
+	mcr		p15, 0, r3, c7, c10, 1		// clean cache to PoC by MVA
+	add		r3, #CACHE_LINE
+	cmp		r3, r2
 	blo		0b
 	
-	mov		r0, #0
-	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier
+	mov		r3, #0
+	mcr		p15, 0, r3, c7, c10, 4		// data sync barrier
 #endif
+#if WITH_DEV_CACHE_PL310
+    b       pl310_clean_range
+#else
 	bx		lr
+#endif
 
 	/* void arch_flush_invalidate_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_clean_invalidate_cache_range)
@@ -333,7 +348,11 @@ FUNCTION(arch_clean_invalidate_cache_range)
 	mov		r0, #0
 	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier
 #endif
+#if WITH_DEV_CACHE_PL310
+    b       pl310_clean_invalidate_range
+#else
 	bx		lr
+#endif
 
 	/* void arch_invalidate_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_invalidate_cache_range)
@@ -349,7 +368,11 @@ FUNCTION(arch_invalidate_cache_range)
 	mov		r0, #0
 	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier
 #endif
+#if WITH_DEV_CACHE_PL310
+    b       pl310_invalidate_range
+#else
 	bx		lr
+#endif
 
 	/* void arch_sync_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_sync_cache_range)

@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <err.h>
 #include <arch.h>
 #include <arch/ops.h>
 #include <arch/arm.h>
@@ -101,5 +102,22 @@ void arch_quiesce(void)
 #endif
 #endif
 }
+
+#if ARM_ISA_ARMV7
+/* virtual to physical translation */
+status_t arm_vtop(addr_t va, addr_t *pa)
+{
+	arm_write_ats1cpr(va & 0xfffff000);
+	uint32_t par = arm_read_par();
+
+	if (par & 1)
+		return ERR_NOT_FOUND;
+
+	if (pa)
+		*pa = par & 0xfffff000;
+
+	return NO_ERROR;
+}
+#endif
 
 /* vim: set ts=4 sw=4 noexpandtab: */
