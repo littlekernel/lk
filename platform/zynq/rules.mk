@@ -7,6 +7,7 @@ ARM_CPU := cortex-a9
 
 MODULE_DEPS := \
 	lib/cbuf \
+	dev/cache/pl310 \
 	dev/interrupt/arm_gic \
 	dev/timer/arm_cortex_a9
 
