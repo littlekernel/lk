@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -27,6 +27,15 @@
 
 struct arch_thread {
 	vaddr_t sp;
+
+#if ARM_WITH_VFP
+    /* has this thread ever used the floating point state? */
+    bool fpused;
+
+    uint32_t fpscr;
+    uint32_t fpexc;
+    double   fpregs[32];
+#endif
 };
 
 #endif

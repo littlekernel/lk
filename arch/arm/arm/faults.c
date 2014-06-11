@@ -121,10 +121,10 @@ void arm_undefined_handler(struct arm_iframe *frame)
 		frame->pc -= 4;
 	}
 
-	uint32_t opcode = *(uint32_t *)frame->pc;
+	__UNUSED uint32_t opcode = *(uint32_t *)frame->pc;
 	//dprintf(CRITICAL, "undefined opcode 0x%x\n", opcode);
 
-#if __FPU_PRESENT
+#if ARM_WITH_VFP
 	if (in_thumb) {
 		/* look for a 32bit thumb instruction */
 		if (opcode & 0x0000e800) {
@@ -153,9 +153,11 @@ void arm_undefined_handler(struct arm_iframe *frame)
 	exception_die_iframe(frame, "undefined abort, halting\n");
 	return;
 
+#if ARM_WITH_VFP
 fpu:
 	arm_fpu_undefined_instruction();
 	dec_critical_section();
+#endif
 }
 
 void arm_data_abort_handler(struct arm_fault_frame *frame)

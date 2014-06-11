@@ -155,7 +155,12 @@ status_t arm_vtop(addr_t va, addr_t *pa);
 
 /* fpu */
 void arm_fpu_set_enable(bool enable);
+#if ARM_WITH_VFP
 void arm_fpu_undefined_instruction(void);
+struct thread;
+void arm_fpu_thread_initialize(struct thread *t);
+void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread);
+#endif
 
 __END_CDECLS
 

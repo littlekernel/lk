@@ -77,11 +77,20 @@ void arch_thread_initialize(thread_t *t)
 
 	// set the stack pointer
 	t->arch.sp = (vaddr_t)frame;
+
+#if ARM_WITH_VFP
+    arm_fpu_thread_initialize(t);
+#endif
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
 //	dprintf("arch_context_switch: old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
+#if ARM_WITH_VFP
+    arm_fpu_thread_swap(oldthread, newthread);
+#endif
+
 	arm_context_switch(&oldthread->arch.sp, newthread->arch.sp);
+
 }
 
