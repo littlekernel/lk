@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,33 +20,59 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <app.h>
-#include <debug.h>
-#include <app/tests.h>
-#include <compiler.h>
+#include <asm.h>
 
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
-
-STATIC_COMMAND_START
-STATIC_COMMAND("printf_tests", "test printf", (console_cmd)&printf_tests)
-STATIC_COMMAND("thread_tests", "test the scheduler", (console_cmd)&thread_tests)
-STATIC_COMMAND("clock_tests", "test clocks", (console_cmd)&clock_tests)
 #if ARM_WITH_VFP
-STATIC_COMMAND("float_tests", "floating point test", (console_cmd)&float_tests)
-#endif
-STATIC_COMMAND("bench", "miscellaneous benchmarks", (console_cmd)&benchmarks)
-STATIC_COMMAND("fibo", "threaded fibonacci", (console_cmd)&fibo)
-STATIC_COMMAND_END(tests);
 
-#endif
+.fpu neon
+.syntax unified
 
-static void tests_init(const struct app_descriptor *app)
-{
-}
+.macro disable
+    vmrs  r0, fpexc
+    bic   r0, #(1<<30)
+    vmsr  fpexc, r0
+.endm
 
-APP_START(tests)
-	.init = tests_init,
-	.flags = 0,
-APP_END
+.macro vfp_instructions
+    disable
+    vadd.f32 s0, s0, s0
 
+    disable
+    vadd.f64 d0, d0, d0
+
+    disable
+    vldr    s0, [r0]
+.endm
+
+.macro neon_instructions
+    disable
+    vadd.f32 q0, q0, q0
+
+    disable
+    vld1.f32 { q0 }, [r0]
+
+    disable
+    vmov    s0, r0
+.endm
+
+.arm
+
+FUNCTION(float_vfp_arm_instruction_test)
+    vfp_instructions
+    bx  lr
+
+FUNCTION(float_neon_arm_instruction_test)
+    neon_instructions
+    bx  lr
+
+.thumb
+
+FUNCTION(float_vfp_thumb_instruction_test)
+    vfp_instructions
+    bx  lr
+
+FUNCTION(float_neon_thumb_instruction_test)
+    neon_instructions
+    bx  lr
+
+#endif // ARM_WITH_VFP
