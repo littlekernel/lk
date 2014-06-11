@@ -48,6 +48,7 @@
 #define __SRAM __NO_INLINE __SECTION(".sram.text")
 #define __CONSTRUCTOR __attribute__((constructor))
 #define __DESTRUCTOR __attribute__((destructor))
+#define __OPTIMIZE(x) __attribute__((optimize(x)))
 
 #define INCBIN(symname, sizename, filename, section)                    \
     __asm__ (".section " section "; .align 4; .globl "#symname);        \
