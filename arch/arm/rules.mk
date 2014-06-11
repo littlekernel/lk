@@ -69,10 +69,23 @@ GLOBAL_DEFINES += \
 	ARM_WITH_L2=1
 GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
-#GLOBAL_COMPILEFLAGS += -mfpu=neon -mfloat-abi=softfp
+GLOBAL_COMPILEFLAGS += -mfpu=neon -mfloat-abi=softfp
 endif
 ifeq ($(ARM_CPU),cortex-a9)
 GLOBAL_DEFINES += \
+	ARM_WITH_CP15=1 \
+	ARM_WITH_MMU=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7A=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1 \
+	ARM_WITH_CACHE=1
+GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+HANDLED_CORE := true
+endif
+ifeq ($(ARM_CPU),cortex-a9-neon)
+GLOBAL_DEFINES += \
+	ARM_CPU_CORTEX_A9=1 \
 	ARM_WITH_CP15=1 \
 	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv7=1 \
@@ -82,9 +95,11 @@ GLOBAL_DEFINES += \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_THUMB2=1 \
 	ARM_WITH_CACHE=1
-GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+GLOBAL_COMPILEFLAGS += -mcpu=cortex-a9
 HANDLED_CORE := true
-#GLOBAL_COMPILEFLAGS += -mfpu=neon -mfloat-abi=softfp
+# XXX cannot enable neon right now because compiler generates
+# neon code for 64bit integer ops
+GLOBAL_COMPILEFLAGS += -mfpu=vfpv3 -mfloat-abi=softfp
 endif
 ifeq ($(ARM_CPU),arm1136j-s)
 GLOBAL_DEFINES += \
@@ -134,6 +149,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm/ops.S \
 	$(LOCAL_DIR)/arm/exceptions.S \
 	$(LOCAL_DIR)/arm/faults.c \
+	$(LOCAL_DIR)/arm/fpu.c \
 	$(LOCAL_DIR)/arm/mmu.c \
 	$(LOCAL_DIR)/arm/thread.c \
 	$(LOCAL_DIR)/arm/dcc.S

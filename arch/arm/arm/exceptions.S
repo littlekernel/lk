@@ -27,9 +27,8 @@
  * NOTE: only usable on armv6+ cores
  */
 
-.macro save, offset
+.macro save
 	/* save spsr and r14 onto the svc stack */
-	sub		lr, \offset
 	srsdb	#0x13!
 
 	/* switch to svc mode, interrupts disabled */
@@ -41,6 +40,11 @@
 	/* save user space sp/lr */
 	sub		sp, #8
 	stmia	sp, { r13, r14 }^
+.endm
+
+.macro save_offset, offset
+	sub		lr, \offset
+	save
 .endm
 
 .macro restore
@@ -83,12 +87,12 @@
 .endm
 
 FUNCTION(arm_undefined)
-	saveall #0x1b
+	save
 
 	mov		r0, sp
 	bl		arm_undefined_handler
 
-	restoreall
+	restore
 
 FUNCTION(arm_syscall)
 	saveall #0x13
@@ -118,7 +122,7 @@ FUNCTION(arm_reserved)
 	b	.
 
 FUNCTION(arm_irq)
-	save    #4
+	save_offset    #4
 
 	/* increment the global critical section count */
 	ldr     r1, =critical_section_count

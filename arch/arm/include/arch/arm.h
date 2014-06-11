@@ -153,6 +153,10 @@ void arm_invalidate_tlb(void);
 
 status_t arm_vtop(addr_t va, addr_t *pa);
 
+/* fpu */
+void arm_fpu_set_enable(bool enable);
+void arm_fpu_undefined_instruction(void);
+
 __END_CDECLS
 
 #endif
