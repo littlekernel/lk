@@ -258,9 +258,9 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 				case 0x8:
 					if (pos > 0) {
 						pos--;
-						fputs("\x1b[1D", stdout); // move to the left one
+						fputc('\b', stdout);
 						putchar(' ');
-						fputs("\x1b[1D", stdout); // move to the left one
+						fputc('\b', stdout); // move to the left one
 					}
 					break;
 
@@ -292,9 +292,9 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 					if (pos > 0) {
 						pos--;
 						if (echo) {
-							fputs("\x1b[1D", stdout); // move to the left one
+							fputc('\b', stdout); // move to the left one
 							putchar(' ');
-							fputs("\x1b[1D", stdout); // move to the left one
+							fputc('\b', stdout); // move to the left one
 						}
 					}
 					break;
@@ -305,9 +305,9 @@ static int read_debug_line(const char **outbuffer, void *cookie)
 					while (pos > 0) {
 						pos--;
 						if (echo) {
-							fputs("\x1b[1D", stdout); // move to the left one
+							fputc('\b', stdout); // move to the left one
 							putchar(' ');
-							fputs("\x1b[1D", stdout); // move to the left one
+							fputc('\b', stdout); // move to the left one
 						}
 					}
 
@@ -585,7 +585,7 @@ static status_t command_loop(int (*get_line)(const char **, void *), void *get_l
 //		dprintf("line = '%s'\n", buffer);
 
 		/* tokenize the line */
-		int argc = tokenize_command(buffer, &continuebuffer, outbuf, outbuflen, 
+		int argc = tokenize_command(buffer, &continuebuffer, outbuf, outbuflen,
 		                            args, MAX_NUM_ARGS);
 		if (argc < 0) {
 			if (showprompt)
