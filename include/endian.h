@@ -39,16 +39,21 @@
     (((uint32_t)(x) << 24) | (((uint32_t)(x) & 0xff00) << 8) |(((uint32_t)(x) & 0x00ff0000) >> 8) | ((uint32_t)(x) >> 24))
 #define SWAP_16(x) \
     ((((uint16_t)(x) & 0xff) << 8) | ((uint16_t)(x) >> 8))
+#define SWAP_64(x) ((((uint64_t)(SWAP_32((uint64_t)(x)))) << 32) | (SWAP_32(((uint64_t)(x)) >> 32)))
 
 // standard swap macros
 #if BYTE_ORDER == BIG_ENDIAN
+#define LE64(val) SWAP_64(val)
 #define LE32(val) SWAP_32(val)
 #define LE16(val) SWAP_16(val)
+#define BE64(val) (val)
 #define BE32(val) (val)
 #define BE16(val) (val)
 #else
+#define LE64(val) (val)
 #define LE32(val) (val)
 #define LE16(val) (val)
+#define BE64(val) SWAP_64(val)
 #define BE32(val) SWAP_32(val)
 #define BE16(val) SWAP_16(val)
 #endif
