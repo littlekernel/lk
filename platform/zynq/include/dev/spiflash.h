@@ -20,15 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <dev/spiflash.h>
+#pragma once
 
-void target_early_init(void)
-{
-}
+#include <sys/types.h>
 
-void target_init(void)
-{
-    /* zybo has a spiflash on qspi */
-    spiflash_detect();
-}
-
+status_t spiflash_detect(void);

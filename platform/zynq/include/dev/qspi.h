@@ -20,15 +20,24 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <dev/spiflash.h>
+#pragma once
 
-void target_early_init(void)
-{
-}
+#include <stdint.h>
 
-void target_init(void)
-{
-    /* zybo has a spiflash on qspi */
-    spiflash_detect();
-}
+/* a highly Zynq specific qspi interface */
+
+struct qspi_ctxt {
+    uint32_t cfg;
+    uint32_t khz;
+};
+
+int qspi_set_speed(struct qspi_ctxt *qspi, uint32_t khz);
+int qspi_init(struct qspi_ctxt *qspi, uint32_t khz);
+void qspi_rd(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count);
+void qspi_wr(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count);
+void qspi_wr0(struct qspi_ctxt *qspi, uint32_t cmd);
+uint32_t qspi_rd1(struct qspi_ctxt *qspi, uint32_t cmd);
+
+/* set 0 for chip select */
+void qspi_cs(struct qspi_ctxt *qspi, unsigned int cs);
 

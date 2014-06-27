@@ -6,6 +6,7 @@ ARCH := arm
 ARM_CPU := cortex-a9-neon
 
 MODULE_DEPS := \
+	lib/bio \
 	lib/cbuf \
 	dev/cache/pl310 \
 	dev/interrupt/arm_gic \
@@ -20,6 +21,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/fpga.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/qspi.c \
+	$(LOCAL_DIR)/spiflash.c \
 	$(LOCAL_DIR)/uart.c \
 
 ifeq ($(ZYNQ_USE_SRAM),1)
