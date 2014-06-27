@@ -61,14 +61,17 @@ STATIC_COMMAND_END(mem);
 
 static int cmd_display_mem(int argc, const cmd_args *argv)
 {
-	int size;
+	/* save the last address and len so we can continue where we left off */
+	static unsigned long address;
+	static size_t len;
 
-	if (argc < 3) {
+	if (argc < 3 && len == 0) {
 		printf("not enough arguments\n");
-		printf("%s <address> <length>\n", argv[0].str);
+		printf("%s [address] [length]\n", argv[0].str);
 		return -1;
 	}
 
+	int size;
 	if (strcmp(argv[0].str, "dw") == 0) {
 		size = 4;
 	} else if (strcmp(argv[0].str, "dh") == 0) {
@@ -77,8 +80,13 @@ static int cmd_display_mem(int argc, const cmd_args *argv)
 		size = 1;
 	}
 
-	unsigned long address = argv[1].u;
-	size_t len = argv[2].u;
+	if (argc >= 2) {
+		address = argv[1].u;
+	}
+	if (argc >= 3) {
+		len = argv[2].u;
+	}
+
 	unsigned long stop = address + len;
 	int count = 0;
 
