@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2012-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -37,12 +37,14 @@
 void kernel_evlog_init(void);
 
 void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1);
+void kernel_evlog_dump(void);
 
 #else // !WITH_KERNEL_EVLOG
 
 /* do nothing versions */
 static inline void kernel_evlog_init(void) {}
 static inline void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1) {}
+static inline void kernel_evlog_dump(void) {}
 
 #endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  * Copyright (c) 2012 Shantanu Gupta
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -57,6 +57,11 @@ status_t mutex_release(mutex_t *);
 
 static inline status_t mutex_acquire(mutex_t *m) {
 	return mutex_acquire_timeout(m, INFINITE_TIME);
+}
+
+/* does the current thread hold the mutex? */
+static bool is_mutex_held(mutex_t *m) {
+	return m->holder == get_current_thread();
 }
 
 #endif

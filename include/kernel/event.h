@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -67,6 +67,10 @@ void event_destroy(event_t *);
 status_t event_wait_timeout(event_t *, lk_time_t); /* wait on the event with a timeout */
 status_t event_signal(event_t *, bool reschedule);
 status_t event_unsignal(event_t *);
+
+static inline bool event_initialized(event_t *e) {
+	return e->magic == EVENT_MAGIC;
+}
 
 static inline status_t event_wait(event_t *e) {
 	return event_wait_timeout(e, INFINITE_TIME);

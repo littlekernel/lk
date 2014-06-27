@@ -194,12 +194,17 @@ static void kevdump_cb(const uintptr_t *i)
 	}
 }
 
-static int cmd_kevlog(int argc, const cmd_args *argv)
+void kernel_evlog_dump(void)
 {
-	printf("kernel event log:\n");
 	kernel_evlog_enable = false;
 	evlog_dump(&kernel_evlog, &kevdump_cb);
 	kernel_evlog_enable = true;
+}
+
+static int cmd_kevlog(int argc, const cmd_args *argv)
+{
+	printf("kernel event log:\n");
+	kernel_evlog_dump();
 
 	return NO_ERROR;
 }
