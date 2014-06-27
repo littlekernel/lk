@@ -72,4 +72,3 @@ void zynq_reset_fpga(void) {
 	writel(readl(DEVCFG_CTRL) | PCFG_PROG_B, DEVCFG_CTRL);
 }
 
-

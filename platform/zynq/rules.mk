@@ -17,9 +17,10 @@ GLOBAL_INCLUDES += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/clocks.c \
 	$(LOCAL_DIR)/debug.c \
+	$(LOCAL_DIR)/fpga.c \
 	$(LOCAL_DIR)/platform.c \
+	$(LOCAL_DIR)/qspi.c \
 	$(LOCAL_DIR)/uart.c \
-	$(LOCAL_DIR)/fpga.c
 
 ifeq ($(ZYNQ_USE_SRAM),1)
 MEMBASE := 0x0
