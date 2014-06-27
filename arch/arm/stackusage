@@ -6,11 +6,12 @@ import re
 hexrule = re.compile("([0-9a-fA-F]+)")
 hex2byterule = re.compile("([0-9a-fA-F]{4})")
 hexcolonrule = re.compile("([0-9a-fA-F]+)\:")
-symbolrule = re.compile("<([_a-zA-Z]+[_0-9a-zA-Z]*)>:")
+symbolrule = re.compile("<([\._a-zA-Z]+[\._0-9a-zA-Z]*)>:")
 insrule = re.compile("([a-zA-Z][\.a-zA-Z]*)")
 
 currsymbol = ""
 curraddress = 0
+count = 0
 
 for line in sys.stdin:
 	t = line.split()
@@ -19,7 +20,6 @@ for line in sys.stdin:
 		continue
 
 	try:
-		count = 0
 
 		# match the address
 		match = hexcolonrule.match(t[0])
@@ -31,6 +31,11 @@ for line in sys.stdin:
 		# see if this is a symbol declaration
 		match = symbolrule.match(t[1])
 		if match:
+			# print the previous count
+			if count > 0:
+				print "%d %s" % (count, currsymbol)
+			count = 0
+
 			#print "%s %s" % (match, match.group(1))
 			currsymbol = str(match.group(1))
 			#print "current symbol is now '%s'" % currsymbol
@@ -57,22 +62,31 @@ for line in sys.stdin:
 
 		# look for a few special instructions
 		if ins == "push":
-			count = (len(t) - 1 - iindex) * 4
-			#print "%d words pushed" % count
+			c = (len(t) - 1 - iindex) * 4
+			#print "%d bytes pushed" % c
+			count += c
+
+		# look for a few special instructions
+		if ins == "stmdb":
+			c = (len(t) - 2 - iindex) * 4
+			#print "%d bytes stmed" % c
+			count += c
 
 		if ins == "sub":
 			reg = t[iindex+1]
 			if reg == "sp,":
 				conststr = t[iindex+2]
-				count = int(conststr[1:])
-				#print "subtracting from sp, val %d" % count
-
-		# if we found a stack offset, print it
-		if count > 0:
-			print "%d %s" % (count, currsymbol)
+				c = int(conststr[1:])
+				#print "subtracting from sp, val %d" % c
+				count += c
 
 	except IndexError:
 		continue
 	except Exception as e:
 		print "Exception %s" % e
 		continue
+
+# print the last count
+if count > 0:
+	print "%d %s" % (count, currsymbol)
+
