@@ -26,9 +26,6 @@
 #include <arch/arm64.h>
 #include <platform.h>
 
-extern int _end_of_ram;
-void *_heap_end = &_end_of_ram;
-
 void arch_early_init(void)
 {
     /* set the vector base */
