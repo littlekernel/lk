@@ -37,7 +37,7 @@ typedef struct semaphore {
 
 void sem_init(semaphore_t *, unsigned int);
 void sem_destroy(semaphore_t *);
-status_t sem_post(semaphore_t *);
+status_t sem_post(semaphore_t *, bool resched);
 status_t sem_wait(semaphore_t *);
 status_t sem_trywait(semaphore_t *);
 status_t sem_timedwait(semaphore_t *, lk_time_t);

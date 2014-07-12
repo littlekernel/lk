@@ -32,7 +32,7 @@ void sem_destroy(semaphore_t *sem)
 	exit_critical_section();
 }
 
-status_t sem_post(semaphore_t *sem)
+status_t sem_post(semaphore_t *sem, bool resched)
 {
 	status_t ret = NO_ERROR;
 	enter_critical_section();
@@ -42,7 +42,7 @@ status_t sem_post(semaphore_t *sem)
 	 * it's safe to just increase the count available with no downsides
 	 */
 	if (unlikely(++sem->count <= 0))
-		wait_queue_wake_one(&sem->wait, true, NO_ERROR);
+		wait_queue_wake_one(&sem->wait, resched, NO_ERROR);
 
 	exit_critical_section();
 	return ret;

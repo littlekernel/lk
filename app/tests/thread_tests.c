@@ -61,7 +61,7 @@ static int semaphore_producer(void *unused)
 	printf("semaphore producer %p starting up, running for %d iterations\n", get_current_thread(), sem_total_its);
 
 	for (int x = 0; x < sem_total_its; x++) {
-		sem_post(&sem);
+		sem_post(&sem, true);
 	}
 
 	return 0;
