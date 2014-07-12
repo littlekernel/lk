@@ -161,6 +161,16 @@ GLOBAL_DEFINES += \
 	ARCH_DEFAULT_STACK_SIZE=4096
 
 ARCH_OPTFLAGS := -O2
+
+# we have a mmu and want the vmm/pmm
+WITH_KERNEL_VM=1
+
+KERNEL_BASE ?= 0x80000000
+KERNEL_LOAD_OFFSET ?= 0
+
+GLOBAL_DEFINES += \
+    KERNEL_BASE=$(KERNEL_BASE) \
+    KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET)
 endif
 ifeq ($(SUBARCH),arm-m)
 MODULE_SRCS += \
@@ -244,7 +254,7 @@ GENERATED += \
 $(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard arch/*.ld)
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
+	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@
 
 $(BUILDDIR)/system-twosegment.ld: $(LOCAL_DIR)/system-twosegment.ld $(wildcard arch/*.ld)
 	@echo generating $@

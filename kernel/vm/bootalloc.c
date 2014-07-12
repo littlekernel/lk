@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,50 +20,33 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ARCH_OPS_H
-#define __ARCH_OPS_H
+#include <kernel/vm.h>
+#include "vm_priv.h"
 
-#ifndef ASSEMBLY
-
+#include <stdint.h>
+#include <stdlib.h>
 #include <sys/types.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <compiler.h>
+#include <trace.h>
 
-__BEGIN_CDECLS
+#define LOCAL_TRACE 1
 
-/* fast routines that most arches will implement inline */
-static void arch_enable_ints(void);
-static void arch_disable_ints(void);
-static bool arch_ints_disabled(void);
+/* cheezy allocator that chews up space just after the end of the kernel mapping */
 
-static int atomic_swap(volatile int *ptr, int val);
-static int atomic_add(volatile int *ptr, int val);
-static int atomic_and(volatile int *ptr, int val);
-static int atomic_or(volatile int *ptr, int val);
+/* track how much memory we've used */
+extern int _end;
 
-static uint32_t arch_cycle_count(void);
+uintptr_t boot_alloc_start = (uintptr_t)&_end;
+uintptr_t boot_alloc_end = (uintptr_t)&_end;
 
-#endif // !ASSEMBLY
-#define ICACHE 1
-#define DCACHE 2
-#define UCACHE (ICACHE|DCACHE)
-#ifndef ASSEMBLY
+void *boot_alloc_mem(size_t len)
+{
+    uintptr_t ptr;
 
-void arch_disable_cache(uint flags);
-void arch_enable_cache(uint flags);
+    ptr = ALIGN(boot_alloc_end, 8);
+    boot_alloc_end = (ptr + ALIGN(len, 8));
 
-void arch_clean_cache_range(addr_t start, size_t len);
-void arch_clean_invalidate_cache_range(addr_t start, size_t len);
-void arch_invalidate_cache_range(addr_t start, size_t len);
-void arch_sync_cache_range(addr_t start, size_t len);
+    LTRACEF("len %zu, ptr %p\n", len, (void *)ptr);
 
-void arch_idle(void);
+    return (void *)ptr;
+}
 
-__END_CDECLS
-
-#endif // !ASSEMBLY
-
-#include <arch/arch_ops.h>
-
-#endif

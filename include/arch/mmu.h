@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,50 +20,27 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ARCH_OPS_H
-#define __ARCH_OPS_H
+#pragma once
 
-#ifndef ASSEMBLY
-
+#include <arch.h>
 #include <sys/types.h>
-#include <stddef.h>
-#include <stdbool.h>
 #include <compiler.h>
 
 __BEGIN_CDECLS
 
-/* fast routines that most arches will implement inline */
-static void arch_enable_ints(void);
-static void arch_disable_ints(void);
-static bool arch_ints_disabled(void);
+#define ARCH_MMU_FLAG_CACHED            (0<<0)
+#define ARCH_MMU_FLAG_UNCACHED          (1<<0)
+#define ARCH_MMU_FLAG_UNCACHED_DEVICE   (2<<0) /* only exists on some arches, otherwise UNCACHED */
+#define ARCH_MMU_FLAG_CACHE_MASK        (3<<0)
 
-static int atomic_swap(volatile int *ptr, int val);
-static int atomic_add(volatile int *ptr, int val);
-static int atomic_and(volatile int *ptr, int val);
-static int atomic_or(volatile int *ptr, int val);
+#define ARCH_MMU_FLAG_PERM_USER         (1<<2)
+#define ARCH_MMU_FLAG_PERM_RO           (1<<3)
 
-static uint32_t arch_cycle_count(void);
+int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags);
+int arch_mmu_unmap(vaddr_t vaddr, uint count);
+status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags);
 
-#endif // !ASSEMBLY
-#define ICACHE 1
-#define DCACHE 2
-#define UCACHE (ICACHE|DCACHE)
-#ifndef ASSEMBLY
-
-void arch_disable_cache(uint flags);
-void arch_enable_cache(uint flags);
-
-void arch_clean_cache_range(addr_t start, size_t len);
-void arch_clean_invalidate_cache_range(addr_t start, size_t len);
-void arch_invalidate_cache_range(addr_t start, size_t len);
-void arch_sync_cache_range(addr_t start, size_t len);
-
-void arch_idle(void);
+void arch_disable_mmu(void);
 
 __END_CDECLS
 
-#endif // !ASSEMBLY
-
-#include <arch/arch_ops.h>
-
-#endif

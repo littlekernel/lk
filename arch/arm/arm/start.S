@@ -22,6 +22,8 @@
  */
 #include <asm.h>
 #include <arch/arm/cores.h>
+#include <arch/arm/mmu.h>
+#include <kernel/vm.h>
 
 .section ".text.boot"
 .globl _start
@@ -62,6 +64,114 @@ arm_reset:
 	bl __cpu_early_init
 #endif
 
+#if WITH_KERNEL_VM
+	/* set up the mmu according to mmu_initial_mappings */
+
+	/* calculate our physical to virtual offset */
+	mov		r12, pc
+	ldr		r1, =.Laddr
+.Laddr:
+	sub		r12, r1
+
+	/* r12 now holds the offset from virtual to physical:
+	 * virtual + r12 = physical */
+
+	/* load the base of the translation table and clear the table */
+	ldr		r0, =arm_kernel_translation_table
+	add		r0, r12
+
+	mov		r1, #0
+	mov		r2, #0
+
+	/* walk through all the entries in the translation table, setting them up */
+0:
+	str		r1, [r0, r2, lsl #2]
+	add		r2, #1
+	cmp		r2, #4096
+	bne		0b
+
+	/* load the address of the mmu_initial_mappings table and start processing */
+	ldr		r1, =mmu_initial_mappings
+	add		r1, r12
+
+.Linitial_mapping_loop:
+	ldmia	r1!, { r2-r6 }
+		/* r2 = phys, r3 = virt, r4 = size, r5 = flags, r6 = name */
+
+	/* mask all the addresses and sizes to 1MB boundaries */
+	lsr		r2, #20  /* r2 = physical address / 1MB */
+	lsr		r3, #20  /* r3 = virtual address / 1MB */
+	lsr		r4, #20  /* r4 = size in 1MB chunks */
+
+	/* if size == 0, end of list */
+	cmp		r4, #0
+	beq		.Linitial_mapping_done
+
+	/* set up the flags */
+	ldr		r6, =MMU_KERNEL_L1_PTE_FLAGS
+	teq		r5, #MMU_INITIAL_MAPPING_FLAG_UNCACHED
+	ldreq	r6, =MMU_INITIAL_MAP_STRONGLY_ORDERED
+	beq		0f
+	teq		r5, #MMU_INITIAL_MAPPING_FLAG_DEVICE
+	ldreq	r6, =MMU_INITIAL_MAP_DEVICE
+		/* r6 = mmu entry flags */
+
+0:
+	orr		r7, r6, r2, lsl #20
+		/* r7 = phys addr | flags */
+
+	/* store into appropriate translation table entry */
+	str		r7, [r0, r3, lsl #2]
+
+	/* loop until we're done */
+	add		r2, #1
+	add		r3, #1
+	subs	r4, #1
+	bne		0b
+
+	b		.Linitial_mapping_loop
+
+.Linitial_mapping_done:
+
+	/* set up the mmu */
+
+	/* Invalidate TLB */
+	mov		r3, #0
+	mcr		p15, 0, r3, c8, c7, 0
+	isb
+
+	/* Write ttbr with phys addr of the translation table */
+	mcr		p15, 0, r0, c2, c0, 0
+	isb
+
+	/* Write DACR */
+	mov		r3, #0x1
+	mcr		p15, 0, r3, c3, c0, 0
+	isb
+
+	/* Read SCTLR into r3 */
+	mrc		p15, 0, r3, c1, c0, 0
+
+	/* Disable TRE/AFE */
+	bic	r3, r3, #(1<<29 | 1<<28)
+
+	/* Turn on the MMU */
+	orr		r3, r3, #0x1
+
+	/* Write back SCTLR */
+	mcr		p15, 0, r3, c1, c0, 0
+	isb
+
+	/* Jump to virtual code address */
+	ldr		pc, =1f
+1:
+
+	/* Invalidate TLB */
+	mov		r3, #0
+	mcr		p15, 0, r3, c8, c7, 0
+	isb
+
+#else
 	/* see if we need to relocate */
 	mov		r0, pc
 	sub		r0, r0, #(.Laddr - _start)
@@ -82,9 +192,9 @@ arm_reset:
 	/* we're relocated, jump to the right address */
 	ldr		r0, =.Lstack_setup
 	bx		r0
+#endif
 
-.ltorg
-
+	/* at this point we're running at our final location in virtual memory (if enabled) */
 .Lstack_setup:
 	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
 	ldr		r2, =abort_stack_top
@@ -151,11 +261,5 @@ LOCAL_DATA(abort_stack_top)
 
 .data
 .align 2
-
-/* define the heap end a variable containing the end defined in the
- * linker script. this could be updated during init.
- */
-DATA(_heap_end)
-	.int _end_of_ram
 
 /* vim: set ts=4 sw=4 noexpandtab: */
