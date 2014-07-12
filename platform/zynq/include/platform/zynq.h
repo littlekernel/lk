@@ -22,14 +22,15 @@
  */
 #pragma once
 
+#ifndef ASSEMBLY
 #include <reg.h>
-#include <stdbool.h>
-#include <sys/types.h>
+#endif
 
 /* memory addresses */
-#define SDRAM_BASE          (0)
-#define SDRAM_APERTURE_SIZE (0x40000000)
-#define SRAM_BASE           (0xfffc0000)
+/* assumes sram is mapped at 0 the first MB of sdram is covered by it */
+#define SDRAM_BASE          (0x00100000)
+#define SDRAM_APERTURE_SIZE (0x3ff00000)
+#define SRAM_BASE           (0x0)
 #define SRAM_APERTURE_SIZE  (0x00040000)
 
 /* hardware base addresses */
@@ -104,7 +105,9 @@
 
 #define SCL         0x00000000
 #define SLCR_LOCK   0x00000004
+#define SLCR_LOCK_KEY 0x767b
 #define SLCR_UNLOCK 0x00000008
+#define SLCR_UNLOCK_KEY 0xdf0d
 #define SLCR_LOCKSTA 0x0000000c
 #define ARM_PLL_CTRL 0x00000100
 #define DDR_PLL_CTRL 0x00000104
@@ -265,6 +268,11 @@
 #define DDRIOB_DCI_CTRL 0x00000B70
 #define DDRIOB_DCI_STATU 0x00000B74
 
+#ifndef ASSEMBLY
+
+#include <stdbool.h>
+#include <sys/types.h>
+
 static inline void zynq_slcr_unlock(void) { SLCR_REG(SLCR_UNLOCK) = 0xdf0d; }
 static inline void zynq_slcr_lock(void) { SLCR_REG(SLCR_LOCK) = 0x767b; }
 
@@ -306,4 +314,5 @@ enum zynq_periph {
 
 status_t zynq_set_clock(enum zynq_periph, bool enable, enum zynq_clock_source, uint32_t divisor, uint32_t divisor2);
 uint32_t zynq_get_clock(enum zynq_periph);
+#endif
 

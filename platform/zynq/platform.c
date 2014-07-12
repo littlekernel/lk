@@ -24,6 +24,7 @@
 #include <debug.h>
 #include <stdio.h>
 #include <arch/arm/mmu.h>
+#include <kernel/vm.h>
 #include <dev/uart.h>
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_cortex_a9.h>
@@ -34,14 +35,75 @@
 /* target can specify this as the initial jam table to set up the soc */
 __WEAK void ps7_init(void) { }
 
+STATIC_ASSERT(IS_ALIGNED(SDRAM_BASE, MB));
+STATIC_ASSERT(IS_ALIGNED(SDRAM_SIZE, MB));
+
+/* initial memory mappings. parsed by start.S */
+struct mmu_initial_mapping mmu_initial_mappings[] = {
+    /* 1GB of sram + sdram space */
+    { .phys = SRAM_BASE,
+      .virt = KERNEL_BASE,
+      .size = MB + SDRAM_SIZE - MB,
+      .flags = 0,
+      .name = "memory" },
+
+    /* 0xe0000000 hardware devices */
+    { .phys = 0xe0000000,
+      .virt = 0xe0000000,
+      .size = 0x00300000,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+      .name = "hw" },
+
+    /* 0xe1000000 hardware devices */
+    { .phys = 0xe1000000,
+      .virt = 0xe1000000,
+      .size = 0x05000000,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+      .name = "hw" },
+
+    /* 0xf8000000 hardware devices */
+    { .phys = 0xf8000000,
+      .virt = 0xf8000000,
+      .size = 0x01000000,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+      .name = "hw" },
+
+    /* 0xfc000000 hardware devices */
+    { .phys = 0xfc000000,
+      .virt = 0xfc000000,
+      .size = 0x02000000,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+      .name = "hw" },
+
+    /* identity map to let the boot code run */
+    { .phys = SRAM_BASE,
+      .virt = SRAM_BASE,
+      .size = MB,
+      .flags = MMU_INITIAL_MAPPING_TEMPORARY },
+
+    /* null entry to terminate the list */
+    { 0 }
+};
+
+#if SDRAM_SIZE != 0
+static pmm_arena_t sdram_arena = {
+    .name = "sdram",
+    .base = SDRAM_BASE,
+    .size = SDRAM_SIZE - MB,
+    .flags = PMM_ARENA_FLAG_KMAP
+};
+#endif
+
+static pmm_arena_t sram_arena = {
+    .name = "sram",
+    .base = SRAM_BASE,
+    .size = MEMSIZE,
+    .priority = 1,
+    .flags = PMM_ARENA_FLAG_KMAP
+};
+
 void platform_init_mmu_mappings(void)
 {
-#define MB (1024*1024)
-
-    /* map dram as full cacheable */
-    for (addr_t a = SDRAM_BASE; a < (SDRAM_BASE + SDRAM_APERTURE_SIZE); a += MB) {
-        arm_mmu_map_section(a, a, MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE | MMU_MEMORY_L1_AP_P_RW_U_NA);
-    }
 }
 
 void platform_early_init(void)
@@ -59,6 +121,21 @@ void platform_early_init(void)
 
     /* initialize the timer block */
     arm_cortex_a9_timer_init(CPUPRIV_BASE, zynq_get_arm_timer_freq());
+
+    /* add the main memory arena */
+#if SDRAM_SIZE != 0
+    /* since we have a discontinuity between the end of SRAM (256K) and the start of SDRAM (1MB),
+     * intentionally bump the boot-time allocator to start in the base of SDRAM.
+     */
+    extern uintptr_t boot_alloc_start;
+    extern uintptr_t boot_alloc_end;
+
+    boot_alloc_start = KERNEL_BASE + MB;
+    boot_alloc_end = KERNEL_BASE + MB;
+
+    pmm_add_arena(&sdram_arena);
+#endif
+    pmm_add_arena(&sram_arena);
 }
 
 void platform_init(void)

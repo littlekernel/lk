@@ -18,20 +18,27 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/clocks.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/platform.c \
+	$(LOCAL_DIR)/start.S \
 	$(LOCAL_DIR)/uart.c \
 	$(LOCAL_DIR)/fpga.c
 
+# default to no sdram unless the target calls it out
+ZYNQ_SDRAM_SIZE ?= 0
+
 ifeq ($(ZYNQ_USE_SRAM),1)
 MEMBASE := 0x0
-MEMSIZE ?= 0x40000 # 256KB
+MEMSIZE := 0x30000 # 3 * 64K
 else
-MEMBASE := 0x0
-MEMSIZE ?= 0x10000000	# 256MB
+# XXX untested path
+MEMBASE := 0x00000000
+MEMSIZE ?= $(ZYNQ_SDRAM_SIZE) # 256MB
+#KERNEL_LOAD_OFFSET := 0x00100000 # loaded 1MB into physical space
 endif
 
 GLOBAL_DEFINES += \
 	MEMBASE=$(MEMBASE) \
-	MEMSIZE=$(MEMSIZE)
+	MEMSIZE=$(MEMSIZE) \
+	SDRAM_SIZE=$(ZYNQ_SDRAM_SIZE)
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
