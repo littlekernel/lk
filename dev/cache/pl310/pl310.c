@@ -27,7 +27,7 @@
 #include <err.h>
 #include <reg.h>
 #include <arch.h>
-#include <arch/arm.h>
+#include <arch/arm/mmu.h>
 #include <dev/cache/pl310_config.h>
 #include <lk/init.h>
 
