@@ -146,8 +146,6 @@ static void arm_mmu_map_section(addr_t paddr, addr_t vaddr, uint flags)
      */
     arm_kernel_translation_table[index] = (paddr & ~(MB-1)) | (MMU_MEMORY_DOMAIN_MEM << 5) | MMU_MEMORY_L1_DESCRIPTOR_SECTION | flags;
     arch_clean_cache_range((vaddr_t)&arm_kernel_translation_table[index], sizeof(uint32_t));
-
-    arm_invalidate_tlb();
 }
 
 static void arm_mmu_unmap_section(addr_t vaddr)
@@ -158,7 +156,7 @@ static void arm_mmu_unmap_section(addr_t vaddr)
     arm_kernel_translation_table[index] = 0;
     arch_clean_cache_range((vaddr_t)&arm_kernel_translation_table[index], sizeof(uint32_t));
 
-    arm_invalidate_tlb();
+    arm_invalidate_tlb_mva(vaddr);
 }
 
 void arm_mmu_init(void)
@@ -379,7 +377,6 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
                     uint l2_index = (vaddr % SECTION_SIZE) / PAGE_SIZE;
                     l2_table[l2_index] = paddr | arch_flags;
                     arch_clean_cache_range((addr_t)&l2_table[l2_index], sizeof(uint32_t));
-                    arm_invalidate_tlb();
 
                     count--;
                     mapped++;

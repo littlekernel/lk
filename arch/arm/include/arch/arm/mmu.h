@@ -172,10 +172,31 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <compiler.h>
+#include <arch/arm.h>
 
 __BEGIN_CDECLS
 
 void arm_mmu_init(void);
+status_t arm_vtop(addr_t va, addr_t *pa);
+
+/* tlb routines */
+static inline void arm_invalidate_tlb_global(void) {
+    CF;
+    arm_write_tlbiall(0);
+    DSB;
+}
+
+static inline void arm_invalidate_tlb_mva(vaddr_t va) {
+    CF;
+    arm_write_tlbimva(va & 0xfffff000);
+    DSB;
+}
+
+static inline void arm_invalidate_tlb_asid(uint8_t asid) {
+    CF;
+    arm_write_tlbiasid(asid);
+    DSB;
+}
 
 __END_CDECLS
 
