@@ -48,7 +48,7 @@ typedef enum {
 	/**\b 0x00000000*/ LPC_OK = 0,	/**< enum value returned on Success */
 	/**\b 0xFFFFFFFF*/ ERR_FAILED = -1,	/**< enum value returned on general failure */
 	/**\b 0xFFFFFFFE*/ ERR_TIME_OUT = -2,	/**< enum value returned on general timeout */
-	/**\b 0xFFFFFFFD*/ ERR_BUSY = -3,	/**< enum value returned when resource is busy */
+	/**\b 0xFFFFFFFD*/ _ERR_BUSY = -3,	/**< enum value returned when resource is busy */
 
 	/* ISP related errors */
 	ERR_ISP_BASE = 0x00000000,
