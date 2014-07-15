@@ -145,7 +145,6 @@ static void arm_mmu_map_section(addr_t paddr, addr_t vaddr, uint flags)
      *  flags: TEX, CB and AP bit settings provided by the caller.
      */
     arm_kernel_translation_table[index] = (paddr & ~(MB-1)) | (MMU_MEMORY_DOMAIN_MEM << 5) | MMU_MEMORY_L1_DESCRIPTOR_SECTION | flags;
-    arch_clean_cache_range((vaddr_t)&arm_kernel_translation_table[index], sizeof(uint32_t));
 }
 
 static void arm_mmu_unmap_section(addr_t vaddr)
@@ -154,7 +153,6 @@ static void arm_mmu_unmap_section(addr_t vaddr)
 
     uint index = vaddr / SECTION_SIZE;
     arm_kernel_translation_table[index] = 0;
-    arch_clean_cache_range((vaddr_t)&arm_kernel_translation_table[index], sizeof(uint32_t));
 
     arm_invalidate_tlb_mva(vaddr);
 }
@@ -348,7 +346,6 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 
                     /* zero the L2 table and add it to the L1 table */
                     memset(l2_table, 0, PAGE_SIZE);
-                    arch_clean_cache_range((addr_t)l2_table, PAGE_SIZE);
 
                     /* put it in the adjacent 4 entries filling in 1K page tables at once */
                     l1_index = ROUNDDOWN(l1_index, 4);
@@ -356,7 +353,6 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
                     arm_kernel_translation_table[l1_index + 1] = (l2_pa + 1024) | MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE;
                     arm_kernel_translation_table[l1_index + 2] = (l2_pa + 2048) |  MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE;
                     arm_kernel_translation_table[l1_index + 3] = (l2_pa + 3072) |  MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE;
-                    arch_clean_cache_range((addr_t)&arm_kernel_translation_table[l1_index], 4 * 4);
                     tt_entry = arm_kernel_translation_table[l1_index];
 
                     /* fallthrough */
@@ -376,7 +372,6 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
                     /* add the entry */
                     uint l2_index = (vaddr % SECTION_SIZE) / PAGE_SIZE;
                     l2_table[l2_index] = paddr | arch_flags;
-                    arch_clean_cache_range((addr_t)&l2_table[l2_index], sizeof(uint32_t));
 
                     count--;
                     mapped++;

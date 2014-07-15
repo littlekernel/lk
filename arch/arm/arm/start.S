@@ -140,6 +140,16 @@ arm_reset:
 	mcr		p15, 0, r3, c8, c7, 0
 	isb
 
+	/* Write 0 to TTBCR */
+	mcr		p15, 0, r3, c2, c0, 2
+	isb
+
+	/* set cacheable attributes on translation walk */
+	/* (SMP extensions) non-shareable, inner write-back write-allocate */
+	orr		r0, #(1<<6 | 0<<1)
+	/* outer write-back write-allocate */
+	orr		r0, #(1<<3)
+
 	/* Write ttbr with phys addr of the translation table */
 	mcr		p15, 0, r0, c2, c0, 0
 	isb
@@ -153,7 +163,7 @@ arm_reset:
 	mrc		p15, 0, r3, c1, c0, 0
 
 	/* Disable TRE/AFE */
-	bic	r3, r3, #(1<<29 | 1<<28)
+	bic		r3, r3, #(1<<29 | 1<<28)
 
 	/* Turn on the MMU */
 	orr		r3, r3, #0x1
