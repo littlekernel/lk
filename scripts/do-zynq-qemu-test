@@ -1,4 +1,0 @@
-#!/bin/sh
-
-make zynq-qemu-test -j4 &&
-qemu-system-arm -machine xilinx-zynq-a9 -m 256 -kernel build-zynq-qemu-test/lk.elf -nographic $@
