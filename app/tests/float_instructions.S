@@ -55,6 +55,7 @@
     vmov    s0, r0
 .endm
 
+#if !ARM_ONLY_THUMB
 .arm
 
 FUNCTION(float_vfp_arm_instruction_test)
@@ -64,6 +65,7 @@ FUNCTION(float_vfp_arm_instruction_test)
 FUNCTION(float_neon_arm_instruction_test)
     neon_instructions
     bx  lr
+#endif
 
 .thumb
 

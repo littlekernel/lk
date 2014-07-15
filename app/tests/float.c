@@ -69,8 +69,10 @@ static void float_instruction_trap_test(void)
 {
     printf("testing fpu trap\n");
 
+#if !ARM_ONLY_THUMB
     float_vfp_arm_instruction_test();
     float_neon_arm_instruction_test();
+#endif
     float_vfp_thumb_instruction_test();
     float_neon_thumb_instruction_test();
 }

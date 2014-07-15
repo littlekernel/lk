@@ -23,7 +23,6 @@ GLOBAL_DEFINES += \
 GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 ENABLE_THUMB := true
-ONLY_THUMB := true
 SUBARCH := arm-m
 endif
 ifeq ($(ARM_CPU),cortex-m4)
@@ -36,7 +35,6 @@ GLOBAL_DEFINES += \
 GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 ENABLE_THUMB := true
-ONLY_THUMB := true
 SUBARCH := arm-m
 endif
 ifeq ($(ARM_CPU),cortex-m4f)
@@ -52,7 +50,6 @@ GLOBAL_DEFINES += \
 GLOBAL_COMPILEFLAGS += -mcpu=cortex-m4 -mfloat-abi=softfp
 HANDLED_CORE := true
 ENABLE_THUMB := true
-ONLY_THUMB := true
 SUBARCH := arm-m
 endif
 ifeq ($(ARM_CPU),cortex-a8)
@@ -175,6 +172,7 @@ GLOBAL_INCLUDES += \
 
 # we're building for small binaries
 GLOBAL_DEFINES += \
+	ARM_ONLY_THUMB=1 \
 	ARCH_DEFAULT_STACK_SIZE=1024
 
 ARCH_OPTFLAGS := -Os
