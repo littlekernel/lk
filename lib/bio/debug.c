@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Travis Geiselbrecht
+ * Copyright (c) 2009-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -29,6 +29,10 @@
 #include <lib/partition.h>
 #include <platform.h>
 
+#if WITH_LIB_CKSUM
+#include <lib/cksum.h>
+#endif
+
 #if defined(WITH_LIB_CONSOLE)
 
 #if LK_DEBUGLEVEL > 0
@@ -43,6 +47,7 @@ static int cmd_bio(int argc, const cmd_args *argv)
 	int rc = 0;
 
 	if (argc < 2) {
+notenoughargs:
 		printf("not enough arguments:\n");
 usage:
 		printf("%s list\n", argv[0].str);
@@ -54,16 +59,16 @@ usage:
 #if WITH_LIB_PARTITION
 		printf("%s partscan <device> [offset]\n", argv[0].str);
 #endif
+#if WITH_LIB_CKSUM
+		printf("%s crc32 <device> <offset> <len>\n", argv[0].str);
+#endif
 		return -1;
 	}
 
 	if (!strcmp(argv[1].str, "list")) {
 		bio_dump_devices();
 	} else if (!strcmp(argv[1].str, "read")) {
-		if (argc < 6) {
-			printf("not enough arguments:\n");
-			goto usage;
-		}
+		if (argc < 6) goto notenoughargs;
 
 		addr_t address = argv[3].u;
 		off_t offset = argv[4].u; // XXX use long
@@ -84,10 +89,7 @@ usage:
 
 		rc = err;
 	} else if (!strcmp(argv[1].str, "write")) {
-		if (argc < 6) {
-			printf("not enough arguments:\n");
-			goto usage;
-		}
+		if (argc < 6) goto notenoughargs;
 
 		addr_t address = argv[3].u;
 		off_t offset = argv[4].u; // XXX use long
@@ -108,10 +110,7 @@ usage:
 
 		rc = err;
 	} else if (!strcmp(argv[1].str, "erase")) {
-		if (argc < 5) {
-			printf("not enough arguments:\n");
-			goto usage;
-		}
+		if (argc < 5) goto notenoughargs;
 
 		off_t offset = argv[3].u; // XXX use long
 		size_t len = argv[4].u;
@@ -131,10 +130,7 @@ usage:
 
 		rc = err;
 	} else if (!strcmp(argv[1].str, "ioctl")) {
-		if (argc < 4) {
-			printf("not enough arguments:\n");
-			goto usage;
-		}
+		if (argc < 4) goto notenoughargs;
 
 		int request = argv[3].u;
 		int arg = (argc == 5) ? argv[4].u : 0;
@@ -152,10 +148,7 @@ usage:
 
 		rc = err;
 	} else if (!strcmp(argv[1].str, "remove")) {
-		if (argc < 3) {
-			printf("not enough arguments:\n");
-			goto usage;
-		}
+		if (argc < 3) goto notenoughargs;
 
 		bdev_t *dev = bio_open(argv[2].str);
 		if (!dev) {
@@ -167,10 +160,7 @@ usage:
 		bio_close(dev);
 #if WITH_LIB_PARTITION
 	} else if (!strcmp(argv[1].str, "partscan")) {
-		if (argc < 3) {
-			printf("not enough arguments:\n");
-			goto usage;
-		}
+		if (argc < 3) goto notenoughargs;
 
 		off_t offset = 0;
 		if (argc > 3)
@@ -178,6 +168,41 @@ usage:
 
 		rc = partition_publish(argv[2].str, offset);
 		dprintf(INFO, "partition_publish returns %d\n", rc);
+#endif
+#if WITH_LIB_CKSUM
+	} else if (!strcmp(argv[1].str, "crc32")) {
+		if (argc < 5) goto notenoughargs;
+
+		off_t offset = argv[3].u; // XXX use long
+		size_t len = argv[4].u;
+
+		bdev_t *dev = bio_open(argv[2].str);
+		if (!dev) {
+			printf("error opening block device\n");
+			return -1;
+		}
+
+		void *buf = malloc(dev->block_size);
+
+		ulong crc = 0;
+		while (len > 0) {
+			ssize_t err = bio_read(dev, buf, offset, MIN(len, dev->block_size));
+
+			if (err <= 0) {
+				printf("error reading at offset 0x%llx\n", offset);
+				break;
+			}
+
+			crc = crc32(crc, buf, err);
+
+			len -= err;
+			offset += err;
+		}
+
+		bio_close(dev);
+		free(buf);
+
+		printf("crc 0x%08lx\n", crc);
 #endif
 	} else {
 		printf("unrecognized subcommand\n");
@@ -190,4 +215,6 @@ usage:
 #endif
 
 #endif
+
+// vim: set ts=4 sw=4 noexpandtab:
 
