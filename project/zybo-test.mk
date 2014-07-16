@@ -6,6 +6,7 @@ MODULES += \
 	app/tests \
 	app/stringtests \
 	app/shell \
+	lib/cksum \
 	lib/debugcommands
 
 include $(LOCAL_DIR)/zybo.mk
