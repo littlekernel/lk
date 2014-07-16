@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <err.h>
 #include <string.h>
+#include <rand.h>
 #include <reg.h>
 
 #include <lib/bio.h>
@@ -40,8 +41,9 @@
 
 #define LOCAL_TRACE 1
 
+// parameters specifically for the 16MB spansion S25FL128S flash
 #define PARAMETER_AREA_SIZE (128*1024)
-#define PAGE_PROGRAM_SIZE (256) // XXX can be something else
+#define PAGE_PROGRAM_SIZE (256)     // can be something else based on the part
 #define PAGE_ERASE_SLEEP_TIME (150) // amount of time to sleep between checks of the status register
 #define SECTOR_ERASE_SIZE (4096)
 #define LARGE_SECTOR_ERASE_SIZE (64*1024)
@@ -194,6 +196,21 @@ static ssize_t spiflash_read_cfi(void *buf, size_t len)
 	return MIN(len, cfi_len);
 }
 
+static ssize_t spiflash_read_otp(void *buf, uint32_t addr, size_t len)
+{
+	DEBUG_ASSERT(len > 0 && (len % 4) == 0);
+
+	if (len > 1024)
+		len = 1024;
+
+	qspi_rd(&flash.qspi, 0x4b, 4, buf, len / 4);
+
+	if (len < 4)
+		return len;
+
+	return len;
+}
+
 status_t spiflash_detect(void)
 {
 	if (flash.detected)
@@ -225,6 +242,14 @@ status_t spiflash_detect(void)
 	}
 
 	free(buf);
+
+	/* read the 16 byte random number out of the OTP area and add to the rand entropy pool */
+	uint32_t r[4];
+	memset(r, 0, sizeof(r));
+	spiflash_read_otp(r, 0, 16);
+
+	TRACEF("OTP random %08x%08x%08x%08x\n", r[0], r[1], r[2], r[3]);
+	rand_add_entropy(r, sizeof(r));
 
 	flash.detected = true;
 
@@ -337,6 +362,7 @@ usage:
 		printf("usage:\n");
 		printf("\t%s detect\n", argv[0].str);
 		printf("\t%s cfi\n", argv[0].str);
+		printf("\t%s otp\n", argv[0].str);
 		printf("\t%s read <offset> <length>\n", argv[0].str);
 		printf("\t%s write <offset> <length> <address>\n", argv[0].str);
 		printf("\t%s erase <offset>\n", argv[0].str);
@@ -354,6 +380,19 @@ usage:
 		uint8_t *buf = calloc(1, 512);
 		ssize_t len = spiflash_read_cfi(buf, 512);
 		printf("returned cfi len %ld\n", len);
+
+		hexdump8(buf, len);
+
+		free(buf);
+	} else if (!strcmp(argv[1].str, "otp")) {
+		if (!flash.detected) {
+			printf("flash not detected\n");
+			return -1;
+		}
+
+		uint8_t *buf = calloc(1, 1024);
+		ssize_t len = spiflash_read_otp(buf, 0, 1024);
+		printf("spiflash_read_otp returns %ld\n", len);
 
 		hexdump8(buf, len);
 
@@ -395,5 +434,3 @@ STATIC_COMMAND_END(qspi);
 #endif
 
 // vim: set ts=4 sw=4 noexpandtab:
-
-
