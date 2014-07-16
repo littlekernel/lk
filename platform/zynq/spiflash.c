@@ -34,6 +34,7 @@
 #include <lib/bio.h>
 #include <lib/console.h>
 #include <dev/qspi.h>
+#include <kernel/thread.h>
 
 #include <platform/zynq.h>
 
@@ -41,6 +42,7 @@
 
 #define PARAMETER_AREA_SIZE (128*1024)
 #define PAGE_PROGRAM_SIZE (256) // XXX can be something else
+#define PAGE_ERASE_SLEEP_TIME (150) // amount of time to sleep between checks of the status register
 #define SECTOR_ERASE_SIZE (4096)
 #define LARGE_SECTOR_ERASE_SIZE (64*1024)
 
@@ -58,6 +60,11 @@ struct spi_flash {
 };
 
 static struct spi_flash flash;
+
+static ssize_t spiflash_bdev_read(struct bdev *, void *buf, off_t offset, size_t len);
+static ssize_t spiflash_bdev_read_block(struct bdev *, void *buf, bnum_t block, uint count);
+static ssize_t spiflash_bdev_write_block(struct bdev *, const void *buf, bnum_t block, uint count);
+static ssize_t spiflash_bdev_erase(struct bdev *, off_t offset, size_t len);
 
 // adjust 24 bit address to be correct-byte-order for 32bit qspi commands
 static uint32_t qspi_fix_addr(uint32_t addr)
@@ -92,10 +99,11 @@ static inline uint32_t qspi_rd_status(struct qspi_ctxt *qspi)
 	return qspi_rd1(qspi, 0x05) >> 24;
 }
 
-static int qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr)
+static ssize_t qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr)
 {
 	uint32_t cmd;
 	uint32_t status;
+	ssize_t toerase;
 
 	LTRACEF("addr 0x%x\n", addr);
 
@@ -108,6 +116,7 @@ static int qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr)
 			return ERR_INVALID_ARGS;
 
 		cmd = 0x20;
+		toerase = SECTOR_ERASE_SIZE;
 	} else {
 		// erase a large sector (64k or 256k)
 		DEBUG_ASSERT(IS_ALIGNED(addr, LARGE_SECTOR_ERASE_SIZE));
@@ -115,12 +124,15 @@ static int qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr)
 			return ERR_INVALID_ARGS;
 
 		cmd = 0xd8;
+		toerase = LARGE_SECTOR_ERASE_SIZE;
 	}
 
 	qspi_wren(qspi);
 	qspi_wr(qspi, qspi_fix_addr(addr) | cmd, 3, 0, 0);
 
-	while ((status = qspi_rd_status(qspi)) & STS_BUSY) ;
+	while ((status = qspi_rd_status(qspi)) & STS_BUSY) {
+		thread_sleep(PAGE_ERASE_SLEEP_TIME);
+	}
 
 	LTRACEF("status 0x%x\n", status);
 	if (status & (STS_PROGRAM_ERR | STS_ERASE_ERR)) {
@@ -128,12 +140,15 @@ static int qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr)
 		qspi_clsr(qspi);
 		return ERR_IO;
 	}
-	return 0;
+
+	return toerase;
 }
 
-static int qspi_write_page(struct qspi_ctxt *qspi, uint32_t addr, const uint8_t *data)
+static ssize_t qspi_write_page(struct qspi_ctxt *qspi, uint32_t addr, const uint8_t *data)
 {
 	uint32_t oldkhz, status;
+
+	LTRACEF("addr 0x%x, data %p\n", addr, data);
 
 	DEBUG_ASSERT(qspi);
 	DEBUG_ASSERT(data);
@@ -215,6 +230,14 @@ status_t spiflash_detect(void)
 
 	/* construct the block device */
 	bio_initialize_bdev(&flash.bdev, "spi0", PAGE_PROGRAM_SIZE, flash.size / PAGE_PROGRAM_SIZE);
+
+	/* override our block device hooks */
+	flash.bdev.read = &spiflash_bdev_read;
+	flash.bdev.read_block = &spiflash_bdev_read_block;
+	// flash.bdev.write has a default hook that will be okay
+	flash.bdev.write_block = &spiflash_bdev_write_block;
+	flash.bdev.erase = &spiflash_bdev_erase;
+
 	bio_register_device(&flash.bdev);
 
 	LTRACEF("found flash of size 0x%llx\n", flash.size);
@@ -229,6 +252,81 @@ nodetect:
 	return ERR_NOT_FOUND;
 }
 
+// bio layer hooks
+static ssize_t spiflash_bdev_read(struct bdev *bdev, void *buf, off_t offset, size_t len)
+{
+	LTRACEF("dev %p, buf %p, offset 0x%llx, len 0x%zx\n", bdev, buf, offset, len);
+
+	DEBUG_ASSERT(flash.detected);
+
+	len = bio_trim_range(bdev, offset, len);
+	if (len == 0)
+		return 0;
+
+	// XXX handle not mulitple of 4
+	qspi_rd32(&flash.qspi, offset, buf, len / 4);
+
+	return len;
+}
+
+static ssize_t spiflash_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count)
+{
+	LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
+
+	count = bio_trim_block_range(bdev, block, count);
+	if (count == 0)
+		return 0;
+
+	return spiflash_bdev_read(bdev, buf, block << bdev->block_shift, count << bdev->block_shift);
+}
+
+static ssize_t spiflash_bdev_write_block(struct bdev *bdev, const void *_buf, bnum_t block, uint count)
+{
+	LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, _buf, block, count);
+
+	DEBUG_ASSERT(bdev->block_size == PAGE_PROGRAM_SIZE);
+
+	count = bio_trim_block_range(bdev, block, count);
+	if (count == 0)
+		return 0;
+
+	const uint8_t *buf = _buf;
+
+	ssize_t written = 0;
+	while (count > 0) {
+		ssize_t err = qspi_write_page(&flash.qspi, block * PAGE_PROGRAM_SIZE, buf);
+		if (err < 0)
+			return err;
+
+		buf += PAGE_PROGRAM_SIZE;
+		written += err;
+		block++;
+		count--;
+	}
+
+	return written;
+}
+
+static ssize_t spiflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
+{
+	LTRACEF("dev %p, offset 0x%llx, len 0x%zx\n", bdev, offset, len);
+
+	len = bio_trim_range(bdev, offset, len);
+	if (len == 0)
+		return 0;
+
+	ssize_t erased = 0;
+	while (erased < (ssize_t)len) {
+		ssize_t err = qspi_erase_sector(&flash.qspi, offset);
+		if (err < 0)
+			return err;
+
+		erased += err;
+	}
+
+	return erased;
+}
+
 // debug tests
 int cmd_spiflash(int argc, const cmd_args *argv)
 {
@@ -239,9 +337,9 @@ usage:
 		printf("usage:\n");
 		printf("\t%s detect\n", argv[0].str);
 		printf("\t%s cfi\n", argv[0].str);
-		printf("\t%s read <address> <length>\n", argv[0].str);
-		printf("\t%s write <address> <length> <memory_address>\n", argv[0].str);
-		printf("\t%s erase <address>\n", argv[0].str);
+		printf("\t%s read <offset> <length>\n", argv[0].str);
+		printf("\t%s write <offset> <length> <address>\n", argv[0].str);
+		printf("\t%s erase <offset>\n", argv[0].str);
 		return ERR_INVALID_ARGS;
 	}
 
