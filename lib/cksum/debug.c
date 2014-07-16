@@ -85,7 +85,7 @@ static int cmd_cksum_bench(int argc, const cmd_args *argv)
 	if (!buf)
 		return -1;
 
-	bigtime_t t;
+	lk_bigtime_t t;
 	uint32_t crc;
 
 	t = current_time_hires();

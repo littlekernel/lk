@@ -7,4 +7,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/crc32.c \
 	$(LOCAL_DIR)/debug.c
 
+MODULE_CFLAGS += -Wno-strict-prototypes
+
 include make/module.mk
