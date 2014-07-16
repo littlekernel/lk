@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,8 +23,13 @@
 #ifndef __RAND_H
 #define __RAND_H
 
+#include <sys/types.h>
+
 int rand(void);
 void srand(unsigned int seed);
+
+/* non standard extension to add some entropy to the seed */
+void rand_add_entropy(const void *buf, size_t len);
 
 #endif
 
