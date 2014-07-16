@@ -27,6 +27,7 @@
 #include <string.h>
 #include <assert.h>
 #include <list.h>
+#include <pow2.h>
 #include <lib/bio.h>
 #include <kernel/mutex.h>
 #include <lk/init.h>
@@ -249,6 +250,33 @@ static void bdev_dec_ref(bdev_t *dev)
 	}
 }
 
+size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len)
+{
+	/* range check */
+	if (offset < 0)
+		return 0;
+	if (offset >= dev->size)
+		return 0;
+	if (len == 0)
+		return 0;
+	if (offset + len > dev->size)
+		len = dev->size - offset;
+
+	return len;
+}
+
+uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count)
+{
+	if (block > dev->block_count)
+		return 0;
+	if (count == 0)
+		return 0;
+	if (block + count > dev->block_count)
+		count = dev->block_count - block;
+
+	return count;
+}
+
 bdev_t *bio_open(const char *name)
 {
 	bdev_t *bdev = NULL;
@@ -283,14 +311,9 @@ ssize_t bio_read(bdev_t *dev, void *buf, off_t offset, size_t len)
 	DEBUG_ASSERT(dev->ref > 0);
 
 	/* range check */
-	if (offset < 0)
-		return -1;
-	if (offset >= dev->size)
-		return 0;
+	len = bio_trim_range(dev, offset, len);
 	if (len == 0)
 		return 0;
-	if (offset + len > dev->size)
-		len = dev->size - offset;
 
 	return dev->read(dev, buf, offset, len);
 }
@@ -302,12 +325,9 @@ ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count)
 	DEBUG_ASSERT(dev->ref > 0);
 
 	/* range check */
-	if (block > dev->block_count)
-		return 0;
+	count = bio_trim_block_range(dev, block, count);
 	if (count == 0)
 		return 0;
-	if (block + count > dev->block_count)
-		count = dev->block_count - block;
 
 	return dev->read_block(dev, buf, block, count);
 }
@@ -319,14 +339,9 @@ ssize_t bio_write(bdev_t *dev, const void *buf, off_t offset, size_t len)
 	DEBUG_ASSERT(dev->ref > 0);
 
 	/* range check */
-	if (offset < 0)
-		return -1;
-	if (offset >= dev->size)
-		return 0;
+	len = bio_trim_range(dev, offset, len);
 	if (len == 0)
 		return 0;
-	if (offset + len > dev->size)
-		len = dev->size - offset;
 
 	return dev->write(dev, buf, offset, len);
 }
@@ -338,12 +353,9 @@ ssize_t bio_write_block(bdev_t *dev, const void *buf, bnum_t block, uint count)
 	DEBUG_ASSERT(dev->ref > 0);
 
 	/* range check */
-	if (block > dev->block_count)
-		return 0;
+	count = bio_trim_block_range(dev, block, count);
 	if (count == 0)
 		return 0;
-	if (block + count > dev->block_count)
-		count = dev->block_count - block;
 
 	return dev->write_block(dev, buf, block, count);
 }
@@ -355,14 +367,9 @@ ssize_t bio_erase(bdev_t *dev, off_t offset, size_t len)
 	DEBUG_ASSERT(dev->ref > 0);
 
 	/* range check */
-	if (offset < 0)
-		return -1;
-	if (offset >= dev->size)
-		return 0;
+	len = bio_trim_range(dev, offset, len);
 	if (len == 0)
 		return 0;
-	if (offset + len > dev->size)
-		len = dev->size - offset;
 
 	return dev->erase(dev, offset, len);
 }
@@ -382,11 +389,12 @@ void bio_initialize_bdev(bdev_t *dev, const char *name, size_t block_size, bnum_
 {
 	DEBUG_ASSERT(dev);
 	DEBUG_ASSERT(name);
-	DEBUG_ASSERT(block_size == 512); // XXX can only deal with 512 for now
+	DEBUG_ASSERT(ispow2(block_size));
 
 	list_clear_node(&dev->node);
 	dev->name = strdup(name);
 	dev->block_size = block_size;
+	dev->block_shift = log2_uint(block_size);
 	dev->block_count = block_count;
 	dev->size = (off_t)block_count * block_size;
 	dev->ref = 0;
@@ -448,3 +456,4 @@ static void bio_init(uint level)
 
 LK_INIT_HOOK(libbio, &bio_init, LK_INIT_LEVEL_THREADING);
 
+// vim: set ts=4 sw=4 noexpandtab:
