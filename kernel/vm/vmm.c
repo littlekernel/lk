@@ -28,7 +28,7 @@
 #include <kernel/vm.h>
 #include "vm_priv.h"
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 static struct list_node aspace_list = LIST_INITIAL_VALUE(aspace_list);
 

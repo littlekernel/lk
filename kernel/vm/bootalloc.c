@@ -28,7 +28,7 @@
 #include <sys/types.h>
 #include <trace.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 /* cheezy allocator that chews up space just after the end of the kernel mapping */
 

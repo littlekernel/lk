@@ -30,7 +30,7 @@
 #include <lib/console.h>
 #include <arch/mmu.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 extern int _start;
 extern int _end;
