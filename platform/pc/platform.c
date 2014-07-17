@@ -33,7 +33,7 @@
 #include <dev/uart.h>
 
 extern multiboot_info_t *_multiboot_info;
-extern unsigned int _heap_end;
+extern uintptr_t _heap_end;
 
 void platform_init_mmu_mappings(void)
 {

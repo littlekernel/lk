@@ -68,5 +68,9 @@ INCLUDE "arch/shared_data_sections.ld"
 
 	_end = .;
 
+	/* put a symbol arbitrarily 4MB past the end of the kernel */
+	/* used by the heap and other early boot time allocators */
+	_end_of_ram = . + (4*1024*1024);
+
 	/DISCARD/ : { *(.comment .note .eh_frame) }
 }
