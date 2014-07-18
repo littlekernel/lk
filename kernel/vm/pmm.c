@@ -122,10 +122,8 @@ uint pmm_alloc_pages(uint count, struct list_node *list)
 {
     LTRACEF("count %u\n", count);
 
+    /* list must be initialized prior to calling this */
     DEBUG_ASSERT(list);
-
-    /* build a list of pages we have pulled from the arena(s) */
-    list_initialize(list);
 
     uint allocated = 0;
     if (count == 0)
@@ -164,9 +162,6 @@ uint pmm_alloc_range(paddr_t address, uint count, struct list_node *list)
 
     address = ROUNDDOWN(address, PAGE_SIZE);
 
-    /* build a list of pages we have pulled from the arena(s) */
-    list_initialize(list);
-
     /* walk through the arenas, looking to see if the physical page belongs to it */
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
@@ -199,13 +194,13 @@ uint pmm_alloc_range(paddr_t address, uint count, struct list_node *list)
     return allocated;
 }
 
-int pmm_free(struct list_node *list)
+uint pmm_free(struct list_node *list)
 {
     LTRACEF("list %p\n", list);
 
     DEBUG_ASSERT(list);
 
-    int count = 0;
+    uint count = 0;
     while (!list_is_empty(list)) {
         vm_page_t *page = list_remove_head_type(list, vm_page_t, node);
 
@@ -227,6 +222,16 @@ int pmm_free(struct list_node *list)
     }
 
     return count;
+}
+
+uint pmm_free_page(vm_page_t *page)
+{
+    struct list_node list;
+    list_initialize(&list);
+
+    list_add_head(&list, &page->node);
+
+    return pmm_free(&list);
 }
 
 /* physically allocate a run from arenas marked as KMAP */
@@ -257,9 +262,6 @@ void *pmm_alloc_kpages(uint count, struct list_node *list)
                 if (i - find_start == count - 1) {
                     /* we found a run */
                     LTRACEF("found run from pn %u to %u\n", find_start, i);
-
-                    if (list)
-                        list_initialize(list);
 
                     /* remove the pages from the run out of the free list */
                     for (uint j = find_start; j <= i; j++) {
@@ -344,6 +346,8 @@ usage:
         if (argc < 3) goto notenoughargs;
 
         struct list_node list;
+        list_initialize(&list);
+
         uint count = pmm_alloc_pages(argv[2].u, &list);
         printf("alloc returns %u\n", count);
 
@@ -367,6 +371,8 @@ usage:
         if (argc < 4) goto notenoughargs;
 
         struct list_node list;
+        list_initialize(&list);
+
         uint count = pmm_alloc_range(argv[2].u, argv[3].u, &list);
         printf("alloc returns %u\n", count);
 

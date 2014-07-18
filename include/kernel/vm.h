@@ -57,15 +57,15 @@ struct mmu_initial_mapping {
     const char *name;
 };
 
-/* assert that the assembly macros above match this struct */
+/* Assert that the assembly macros above match this struct. */
 STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, phys) == __MMU_INITIAL_MAPPING_PHYS_OFFSET);
 STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, virt) == __MMU_INITIAL_MAPPING_VIRT_OFFSET);
 STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, size) == __MMU_INITIAL_MAPPING_SIZE_OFFSET);
 STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, flags) == __MMU_INITIAL_MAPPING_FLAGS_OFFSET);
 STATIC_ASSERT(sizeof(struct mmu_initial_mapping) == __MMU_INITIAL_MAPPING_SIZE);
 
-/* platform or target must fill out one of these to set up the initial memory map
- * for kernel and enough IO space to boot
+/* Platform or target must fill out one of these to set up the initial memory map
+ * for kernel and enough IO space to boot.
  */
 extern struct mmu_initial_mapping mmu_initial_mappings[];
 
@@ -96,15 +96,37 @@ typedef struct pmm_arena {
     struct list_node free_list;
 } pmm_arena_t;
 
-#define PMM_ARENA_FLAG_KMAP (0x1) // this arena is already mapped and useful for kallocs
+#define PMM_ARENA_FLAG_KMAP (0x1) /* this arena is already mapped and useful for kallocs */
 
-status_t pmm_add_arena(pmm_arena_t *arena);
-uint pmm_alloc_pages(uint count, struct list_node *list);
-uint pmm_alloc_range(paddr_t address, uint count, struct list_node *list);
-int pmm_free(struct list_node *list);
+    /* Add a pre-filled memory arena to the physical allocator. */
+status_t pmm_add_arena(pmm_arena_t *arena) __NONNULL((1));
 
-    /* allocate a run of pages out of the kernel area and return the mapped pointer */
+    /* Allocate count pages of physical memory, adding to the tail of the passed list.
+     * The list must be initialized.
+     * Returns the number of pages allocated.
+     */
+uint pmm_alloc_pages(uint count, struct list_node *list) __NONNULL((2));
+
+    /* Allocate a specific range of physical pages, adding to the tail of the passed list.
+     * The list must be initialized.
+     * Returns the number of pages allocated.
+     */
+uint pmm_alloc_range(paddr_t address, uint count, struct list_node *list) __NONNULL((3));
+
+    /* Free a list of physical pages.
+     * Returns the number of pages freed.
+     */
+uint pmm_free(struct list_node *list) __NONNULL((1));
+
+    /* Helper routine for the above. */
+uint pmm_free_page(vm_page_t *page) __NONNULL((1));
+
+    /* Allocate a run of pages out of the kernel area and return the pointer in kernel space.
+     * If the optional list is passed, append the allocate page structures to the tail of the list.
+     */
 void *pmm_alloc_kpages(uint count, struct list_node *list);
+
+    /* Helper routine for pmm_alloc_kpages. */
 static inline void *pmm_alloc_kpage(void) { return pmm_alloc_kpages(1, NULL); }
 
 /* physical to virtual */
@@ -146,18 +168,23 @@ static inline vmm_aspace_t *vmm_get_kernel_aspace(void) {
 }
 
 /* reserve a chunk of address space to prevent allocations from that space */
-status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, vaddr_t vaddr);
+status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, vaddr_t vaddr)
+    __NONNULL((1));
 
 /* allocate a region of virtual space that maps a physical piece of address space.
    the physical pages that back this are not allocated from the pmm. */
-status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags);
+status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
+    __NONNULL((1));
 
 /* allocate a region of memory backed by newly allocated contiguous physical memory  */
-status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint vmm_flags, uint arch_mmu_flags);
+status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint vmm_flags, uint arch_mmu_flags)
+    __NONNULL((1));
 
 /* allocate a region of memory backed by newly allocated physical memory */
-status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint vmm_flags, uint arch_mmu_flags);
+status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint vmm_flags, uint arch_mmu_flags)
+    __NONNULL((1));
 
+    /* For the above region creation routines. Allocate virtual space at the passed in pointer. */
 #define VMM_FLAG_VALLOC_SPECIFIC 0x1
 
 __END_CDECLS

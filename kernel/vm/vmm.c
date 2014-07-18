@@ -366,6 +366,8 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
 
     /* allocate physical memory up front, in case it cant be satisfied */
     struct list_node page_list;
+    list_initialize(&page_list);
+
     paddr_t pa = 0;
     /* allocate a run of physical pages */
     void *kvptr = pmm_alloc_kpages(size / PAGE_SIZE, &page_list);
@@ -437,6 +439,8 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
 
     /* allocate a random pile of pages */
     struct list_node page_list;
+    list_initialize(&page_list);
+
     uint count = pmm_alloc_pages(size / PAGE_SIZE, &page_list);
     DEBUG_ASSERT(count <= size);
     if (count < size / PAGE_SIZE) {

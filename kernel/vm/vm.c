@@ -40,6 +40,10 @@ extern int _end;
 static void mark_pages_in_use(vaddr_t va, size_t len)
 {
     LTRACEF("va 0x%lx, len 0x%zx\n", va, len);
+
+    struct list_node list;
+    list_initialize(&list);
+
     for (size_t offset = 0; offset < len; offset += PAGE_SIZE) {
         uint flags;
         paddr_t pa;
@@ -49,7 +53,6 @@ static void mark_pages_in_use(vaddr_t va, size_t len)
             //LTRACEF("va 0x%x, pa 0x%x, flags 0x%x, err %d\n", va + offset, pa, flags, err);
 
             /* alloate the range, throw the results away */
-            struct list_node list;
             pmm_alloc_range(pa, 1, &list);
         }
     }
