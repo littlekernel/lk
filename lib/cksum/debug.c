@@ -32,12 +32,14 @@
 
 #include <lib/console.h>
 
+static int cmd_crc16(int argc, const cmd_args *argv);
 static int cmd_crc32(int argc, const cmd_args *argv);
 static int cmd_adler32(int argc, const cmd_args *argv);
 static int cmd_cksum_bench(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
+	{ "crc16", "crc16", &cmd_crc16 },
 	{ "crc32", "crc32", &cmd_crc32 },
 	{ "adler32", "adler32", &cmd_adler32 },
 #endif
@@ -45,6 +47,21 @@ STATIC_COMMAND_START
 	{ "bench_cksum", "benchmark the checksum routines", &cmd_cksum_bench },
 #endif
 STATIC_COMMAND_END(crc);
+
+static int cmd_crc16(int argc, const cmd_args *argv)
+{
+	if (argc < 3) {
+		printf("not enough arguments\n");
+		printf("usage: %s <address> <size>\n", argv[0].str);
+		return -1;
+	}
+
+	uint16_t crc = crc16((void *)argv[1].u, argv[2].u);
+
+	printf("0x%hx\n", crc);
+
+	return 0;
+}
 
 static int cmd_crc32(int argc, const cmd_args *argv)
 {
@@ -78,7 +95,6 @@ static int cmd_adler32(int argc, const cmd_args *argv)
 
 static int cmd_cksum_bench(int argc, const cmd_args *argv)
 {
-
 #define BUFSIZE 0x1000
 #define ITER 16384
 	void *buf = malloc(BUFSIZE);
