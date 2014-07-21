@@ -28,6 +28,7 @@
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_cortex_a9.h>
 #include <dev/uart.h>
+#include <dev/virtio.h>
 #include <lk/init.h>
 #include <platform.h>
 #include <platform/gic.h>
@@ -53,4 +54,8 @@ void platform_early_init(void)
 void platform_init(void)
 {
     uart_init();
+
+    /* detect any virtio devices */
+    const uint virtio_irqs[] = { VIRTIO0_INT, VIRTIO1_INT, VIRTIO2_INT, VIRTIO3_INT };
+    virtio_mmio_detect((void *)VIRTIO_BASE, 4, virtio_irqs);
 }

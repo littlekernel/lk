@@ -37,6 +37,7 @@
 #define UART1_BASE  (MOTHERBOARD_CS7 + 0xa000)
 #define UART2_BASE  (MOTHERBOARD_CS7 + 0xb000)
 #define UART3_BASE  (MOTHERBOARD_CS7 + 0xc000)
+#define VIRTIO_BASE (MOTHERBOARD_CS7 + 0x13000)
 
 #define CPUPRIV_BASE        (0x1e000000)
 
@@ -48,6 +49,10 @@
 #define UART1_INT   (32 + 6)
 #define UART2_INT   (32 + 7)
 #define UART3_INT   (32 + 8)
+#define VIRTIO0_INT (32 + 40)
+#define VIRTIO1_INT (32 + 41)
+#define VIRTIO2_INT (32 + 42)
+#define VIRTIO3_INT (32 + 43)
 
 #define MAX_INT 96
 

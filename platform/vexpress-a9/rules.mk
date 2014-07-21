@@ -19,7 +19,9 @@ MEMSIZE := 0x20000000	# 512MB
 MODULE_DEPS += \
 	lib/cbuf \
 	dev/interrupt/arm_gic \
-	dev/timer/arm_cortex_a9
+	dev/timer/arm_cortex_a9 \
+	dev/virtio/block \
+	dev/virtio/net
 
 GLOBAL_DEFINES += \
 	MEMBASE=$(MEMBASE) \
