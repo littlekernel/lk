@@ -8,6 +8,10 @@ MODULES += \
 	app/tests \
 	app/stringtests \
 	app/shell \
+	lib/aes \
+	lib/aes/test \
+	lib/bytes \
+	lib/cksum \
 	lib/debugcommands
 
 
