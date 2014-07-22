@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <trace.h>
 #include <assert.h>
 #include <err.h>
 #include <string.h>
@@ -28,15 +29,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <list.h>
-#include <dev/flash_nor.h>
+#include <lib/bio.h>
 #include <lib/cksum.h>
 #include <lib/sysparam.h>
+#include <lk/init.h>
 
-/* implementation of system parameter block, stored in nor flash */
+/* implementation of system parameter block, stored on a block device */
 /* sysparams are simple name/value pairs, with the data unstructured */
-
-/* TODO: optimize in memory copy to store direct pointer to data instead of making copy */
-
 #define LOCAL_TRACE 0
 
 #define SYSPARAM_MAGIC 'SYSP'
@@ -79,21 +78,17 @@ static struct {
 
     bool dirty;
 
-    const struct flash_nor_bank *flash_bank;
-    size_t flash_offset;
-    size_t flash_len;
+    bdev_t *bdev;
+    off_t offset;
+    size_t len;
 } params;
 
-status_t sysparam_init(void)
+static void sysparam_init(uint level)
 {
-    LTRACE_ENTRY;
-
     list_initialize(&params.list);
-
-    LTRACE_EXIT;
-
-    return NO_ERROR;
 }
+
+LK_INIT_HOOK(sysparam, &sysparam_init, LK_INIT_LEVEL_THREADING);
 
 static inline bool sysparam_is_locked(const struct sysparam *param)
 {
@@ -172,25 +167,41 @@ static struct sysparam *sysparam_find(const char *name)
     return NULL;
 }
 
-status_t sysparam_scan(const struct flash_nor_bank *bank, size_t offset, size_t len)
+status_t sysparam_scan(bdev_t *bdev, off_t offset, size_t len)
 {
-    LTRACEF("bank %p, offset %zx, len %zx\n", bank, offset, len);
+    status_t err = NO_ERROR;
 
-    DEBUG_ASSERT(bank);
-    DEBUG_ASSERT(offset + len <= bank->len);
-    DEBUG_ASSERT((offset % bank->page_size) == 0);
+    LTRACEF("bdev %p (%s), offset 0x%llx, len 0x%zx\n", bdev, bdev->name, offset, len);
 
-    params.flash_bank = bank;
-    params.flash_offset = offset;
-    params.flash_len = len;
+    DEBUG_ASSERT(bdev);
+    DEBUG_ASSERT(len > 0);
+    DEBUG_ASSERT(offset + len <= bdev->size);
+    DEBUG_ASSERT((offset % bdev->block_size) == 0);
+
+    params.bdev = bdev;
+    params.offset = offset;
+    params.len = len;
     params.dirty = false;
 
-    flash_nor_begin(bank->num);
+    /* allocate a len sized block */
+    uint8_t *buf = malloc(len);
+    if (!buf)
+        return ERR_NO_MEMORY;
 
-    status_t err = NO_ERROR;
-    size_t pos = offset;
-    while (pos < offset + len) {
-        struct sysparam_phys *sp = FLASH_PTR(bank, pos);
+    /* read in the sector at the scan offset */
+    err = bio_read(bdev, buf, offset, len);
+    if (err < (ssize_t)len) {
+        err = ERR_IO;
+        goto err;
+    }
+
+    LTRACEF("looking for sysparams in block:\n");
+    if (LOCAL_TRACE)
+        hexdump(buf, len);
+
+    size_t pos = 0;
+    while (pos < len) {
+        struct sysparam_phys *sp = (struct sysparam_phys *)(buf + pos);
 
         /* examine the sysparam entry, making sure it's valid */
         if (sp->magic != SYSPARAM_MAGIC) {
@@ -230,7 +241,9 @@ status_t sysparam_scan(const struct flash_nor_bank *bank, size_t offset, size_t 
         list_add_tail(&params.list, &param->node);
     }
 
-    flash_nor_end(bank->num);
+
+err:
+    free(buf);
 
     LTRACE_EXIT;
     return err;
@@ -238,9 +251,9 @@ status_t sysparam_scan(const struct flash_nor_bank *bank, size_t offset, size_t 
 
 status_t sysparam_reload(void)
 {
-    if (params.flash_bank == NULL)
+    if (params.bdev == NULL)
         return ERR_INVALID_ARGS;
-    if (params.flash_len == 0)
+    if (params.len == 0)
         return ERR_INVALID_ARGS;
 
     /* wipe out the existing memory entries */
@@ -257,7 +270,7 @@ status_t sysparam_reload(void)
     /* reset the list back to scratch */
     params.dirty = false;
 
-    status_t err = sysparam_scan(params.flash_bank, params.flash_offset, params.flash_len);
+    status_t err = sysparam_scan(params.bdev, params.offset, params.len);
 
     return err;
 }
@@ -308,9 +321,9 @@ status_t sysparam_get_ptr(const char *name, const void **ptr, size_t *len)
 /* write all of the parameters in memory to the space reserved in flash */
 status_t sysparam_write(void)
 {
-    if (params.flash_bank == NULL)
+    if (params.bdev == NULL)
         return ERR_INVALID_ARGS;
-    if (params.flash_len == 0)
+    if (params.len == 0)
         return ERR_INVALID_ARGS;
 
     if (!params.dirty)
@@ -318,20 +331,33 @@ status_t sysparam_write(void)
 
     /* preflight the length, make sure we have enough space */
     struct sysparam *param;
-    size_t total_len = 0;
+    off_t total_len = 0;
     list_for_every_entry(&params.list, param, struct sysparam, node) {
         total_len += sizeof(struct sysparam_phys);
         total_len += ROUNDUP(strlen(param->name), 4);
         total_len += ROUNDUP(param->datalen, 4);
     }
 
-    if (total_len > params.flash_len)
+    if (total_len > params.len)
         return ERR_NO_MEMORY;
 
-    flash_nor_begin(params.flash_bank->num);
+    /* allocate a buffer to stage it */
+    uint8_t *buf = calloc(1, params.len);
+    if (!buf) {
+        TRACEF("error allocating buffer to stage write\n");
+        return ERR_NO_MEMORY;
+    }
+
+    /* erase the block device area this covers */
+    ssize_t err = bio_erase(params.bdev, params.offset, params.len);
+    if (err < (ssize_t)params.len) {
+        TRACEF("error erasing sysparam area\n");
+        free(buf);
+        return ERR_IO;
+    }
 
     /* serialize all of the parameters */
-    size_t pos = params.flash_offset;
+    off_t pos = 0;
     list_for_every_entry(&params.list, param, struct sysparam, node) {
         struct sysparam_phys phys;
 
@@ -349,39 +375,29 @@ status_t sysparam_write(void)
         if (strlen(param->name) % 4)
             sum = crc32(sum, (const void *)&zero, 4 - (strlen(param->name) % 4));
         sum = crc32(sum, (const void *)param->data, ROUNDUP(param->datalen, 4));
-        LTRACEF("crc is 0x%x\n", sum);
         phys.crc32 = sum;
 
-        /* write the param out, a piece at a time */
         /* structure portion */
-        flash_nor_write_pending(params.flash_bank->num, pos, sizeof(struct sysparam_phys), &phys);
+        memcpy(buf + pos, &phys, sizeof(struct sysparam_phys));
         pos += sizeof(struct sysparam_phys);
 
         /* name portion */
-        flash_nor_write_pending(params.flash_bank->num, pos, ROUNDUP(strlen(param->name), 2), param->name);
+        memcpy(buf + pos, param->name, strlen(param->name));
         pos += ROUNDUP(strlen(param->name), 2);
         if (pos % 4) {
             /* write 2 zeros to realign */
-            flash_nor_write_pending(params.flash_bank->num, pos, 2, &zero);
             pos += 2;
         }
 
         /* data portion */
-        flash_nor_write_pending(params.flash_bank->num, pos, ROUNDUP(param->datalen, 4), param->data);
+        memcpy(buf + pos, param->data, param->datalen);
         pos += ROUNDUP(param->datalen, 4);
     }
 
-    /* write zeros to the rest of the sysparam block */
-    uint32_t zero = 0;
-    while (pos < params.flash_offset + params.flash_len) {
-        flash_nor_write_pending(params.flash_bank->num, pos, sizeof(zero), &zero);
-        pos += sizeof(zero);
-    }
+    /* write the block out */
+    bio_write(params.bdev, buf, params.offset, params.len);
 
-    /* flush everything to flash */
-    flash_nor_flush(params.flash_bank->num);
-
-    flash_nor_end(params.flash_bank->num);
+    free(buf);
 
     params.dirty = false;
 
@@ -632,12 +648,15 @@ usage:
         err = sysparam_lock(argv[2].str);
     } else if (!strcmp(argv[1].str, "write")) {
         err = sysparam_write();
+    } else if (!strcmp(argv[1].str, "nuke")) {
+        ssize_t err = bio_erase(params.bdev, params.offset, params.len);
+        printf("erase returns %d\n", (int)err);
 #endif // SYSPARAM_ALLOW_WRITE
     } else if (!strcmp(argv[1].str, "length")) {
         if (argc < 3) goto notenoughargs;
         ssize_t len = sysparam_length(argv[2].str);
         if (len >= 0) {
-            printf("%zd\n", len);
+            printf("%zu\n", (size_t)len);
         }
         err = (len >= 0) ? NO_ERROR : len;
     } else if (!strcmp(argv[1].str, "read")) {

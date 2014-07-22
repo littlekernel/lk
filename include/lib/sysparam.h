@@ -20,17 +20,17 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __LIB_SYSPARAM_H
-#define __LIB_SYSPARAM_H
+#pragma once
 
 #include <stdbool.h>
 #include <sys/types.h>
-#include <dev/flash_nor.h>
+#include <lib/bio.h>
 
-#define SYSPARAM_ALLOW_WRITE 1
+#ifndef SYSPARAM_ALLOW_WRITE
+#define SYSPARAM_ALLOW_WRITE 0
+#endif
 
-status_t sysparam_init(void);
-status_t sysparam_scan(const struct flash_nor_bank *bank, size_t offset, size_t len);
+status_t sysparam_scan(bdev_t *bdev, off_t offset, size_t len);
 status_t sysparam_reload(void);
 
 void sysparam_dump(bool show_all);
@@ -46,4 +46,3 @@ status_t sysparam_lock(const char *name);
 status_t sysparam_write(void);
 #endif
 
-#endif
