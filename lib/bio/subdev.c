@@ -81,20 +81,20 @@ static void subdev_close(struct bdev *_dev)
 	subdev->parent = NULL;
 }
 
-status_t bio_publish_subdevice(const char *parent_dev, const char *subdev, bnum_t startblock, size_t len)
+status_t bio_publish_subdevice(const char *parent_dev, const char *subdev, bnum_t startblock, bnum_t block_count)
 {
-	LTRACEF("parent %s, sub %s, startblock %u, len %zd\n", parent_dev, subdev, startblock, len);
+	LTRACEF("parent %s, sub %s, startblock %u, count %u\n", parent_dev, subdev, startblock, block_count);
 
 	bdev_t *parent = bio_open(parent_dev);
 	if (!parent)
 		return -1;
 
 	/* make sure we're able to do this */
-	if (startblock + len > parent->block_count)
+	if (startblock + block_count > parent->block_count)
 		return -1;
 
 	subdev_t *sub = malloc(sizeof(subdev_t));
-	bio_initialize_bdev(&sub->dev, subdev, parent->block_size, len);
+	bio_initialize_bdev(&sub->dev, subdev, parent->block_size, block_count);
 
 	sub->parent = parent;
 	sub->offset = startblock;

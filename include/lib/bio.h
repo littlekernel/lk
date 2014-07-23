@@ -69,7 +69,7 @@ void bio_initialize_bdev(bdev_t *dev, const char *name, size_t block_size, bnum_
 void bio_dump_devices(void);
 
 /* subdevice support */
-status_t bio_publish_subdevice(const char *parent_dev, const char *subdev, bnum_t startblock, size_t len);
+status_t bio_publish_subdevice(const char *parent_dev, const char *subdev, bnum_t startblock, bnum_t block_count);
 
 /* memory based block device */
 int create_membdev(const char *name, void *ptr, size_t len);
