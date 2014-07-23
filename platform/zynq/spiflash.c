@@ -44,7 +44,7 @@
 // parameters specifically for the 16MB spansion S25FL128S flash
 #define PARAMETER_AREA_SIZE (128*1024)
 #define PAGE_PROGRAM_SIZE (256)     // can be something else based on the part
-#define PAGE_ERASE_SLEEP_TIME (150) // amount of time to sleep between checks of the status register
+#define PAGE_ERASE_SLEEP_TIME (150) // amount of time before waiting to check if erase completed
 #define SECTOR_ERASE_SIZE (4096)
 #define LARGE_SECTOR_ERASE_SIZE (64*1024)
 
@@ -132,9 +132,9 @@ static ssize_t qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr)
 	qspi_wren(qspi);
 	qspi_wr(qspi, qspi_fix_addr(addr) | cmd, 3, 0, 0);
 
-	while ((status = qspi_rd_status(qspi)) & STS_BUSY) {
-		thread_sleep(PAGE_ERASE_SLEEP_TIME);
-	}
+	thread_sleep(PAGE_ERASE_SLEEP_TIME);
+	while ((status = qspi_rd_status(qspi)) & STS_BUSY)
+		;
 
 	LTRACEF("status 0x%x\n", status);
 	if (status & (STS_PROGRAM_ERR | STS_ERASE_ERR)) {

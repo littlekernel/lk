@@ -118,7 +118,11 @@ int qspi_set_speed(struct qspi_ctxt *qspi, uint32_t khz)
 	} else {
 		writel(0, QSPI_LPBK_DLY_ADJ);
 	}
-	writel((readl(QSPI_CONFIG) & (~CFG_BAUD_MASK)) | n, QSPI_CONFIG);
+
+	qspi->cfg &= ~CFG_BAUD_MASK;
+	qspi->cfg |= n;
+
+	writel(qspi->cfg, QSPI_CONFIG);
 	writel(1, QSPI_ENABLE);
 
 	return 0;
