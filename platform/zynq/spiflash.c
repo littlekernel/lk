@@ -347,6 +347,7 @@ static ssize_t spiflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
 			return err;
 
 		erased += err;
+		offset += err;
 	}
 
 	return erased;
