@@ -7,7 +7,12 @@ MODULES += \
 	app/stringtests \
 	app/shell \
 	lib/cksum \
-	lib/debugcommands
+	lib/sysparam \
+	lib/debugcommands \
+	lib/ptable \
+
+GLOBAL_DEFINES += \
+	SYSPARAM_ALLOW_WRITE=1
 
 include $(LOCAL_DIR)/zybo.mk
 
