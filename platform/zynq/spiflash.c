@@ -39,7 +39,7 @@
 
 #include <platform/zynq.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 // parameters specifically for the 16MB spansion S25FL128S flash
 #define PARAMETER_AREA_SIZE (128*1024)
