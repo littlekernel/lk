@@ -60,7 +60,7 @@ usage:
 		printf("%s partscan <device> [offset]\n", argv[0].str);
 #endif
 #if WITH_LIB_CKSUM
-		printf("%s crc32 <device> <offset> <len>\n", argv[0].str);
+		printf("%s crc32 <device> <offset> <len> [repeat]\n", argv[0].str);
 #endif
 		return -1;
 	}
@@ -184,25 +184,33 @@ usage:
 
 		void *buf = malloc(dev->block_size);
 
-		ulong crc = 0;
-		while (len > 0) {
-			ssize_t err = bio_read(dev, buf, offset, MIN(len, dev->block_size));
+		bool repeat = false;
+		if (argc >= 6 && !strcmp(argv[5].str, "repeat")) {
+			repeat = true;
+		}
 
-			if (err <= 0) {
-				printf("error reading at offset 0x%llx\n", offset);
-				break;
+		do {
+			ulong crc = 0;
+			off_t pos = offset;
+			while (pos < offset + len) {
+				ssize_t err = bio_read(dev, buf, pos, MIN(len - (pos - offset), dev->block_size));
+
+				if (err <= 0) {
+					printf("error reading at offset 0x%llx\n", offset + pos);
+					break;
+				}
+
+				crc = crc32(crc, buf, err);
+
+				pos += err;
 			}
 
-			crc = crc32(crc, buf, err);
-
-			len -= err;
-			offset += err;
-		}
+			printf("crc 0x%08lx\n", crc);
+		} while (repeat);
 
 		bio_close(dev);
 		free(buf);
 
-		printf("crc 0x%08lx\n", crc);
 #endif
 	} else {
 		printf("unrecognized subcommand\n");
