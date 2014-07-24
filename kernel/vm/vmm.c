@@ -552,7 +552,7 @@ usage:
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
-{ "vmm", "virtual memory manager", &cmd_vmm },
+STATIC_COMMAND("vmm", "virtual memory manager", &cmd_vmm)
 #endif
 STATIC_COMMAND_END(vmm);
 

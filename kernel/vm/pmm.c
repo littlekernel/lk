@@ -404,7 +404,7 @@ usage:
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
-{ "pmm", "physical memory manager", &cmd_pmm },
+STATIC_COMMAND("pmm", "physical memory manager", &cmd_pmm)
 #endif
 STATIC_COMMAND_END(pmm);
 

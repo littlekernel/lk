@@ -156,7 +156,7 @@ usage:
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
-{ "vm", "vm commands", &cmd_vm },
+STATIC_COMMAND("vm", "vm commands", &cmd_vm)
 #endif
 STATIC_COMMAND_END(vm);
 
