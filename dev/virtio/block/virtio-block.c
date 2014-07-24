@@ -30,8 +30,9 @@
 #include <err.h>
 #include <kernel/thread.h>
 #include <kernel/event.h>
+#include <kernel/vm.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 struct virtio_blk_config {
     uint64_t capacity;
@@ -126,6 +127,7 @@ ssize_t virtio_block_read(struct virtio_device *dev, void *buf, off_t offset, si
 {
     uint16_t i;
     struct vring_desc *desc;
+    paddr_t pa;
 
     LTRACEF("dev %p, buf %p, offset 0x%llx, len %zu\n", dev, buf, offset, len);
 
@@ -139,15 +141,30 @@ ssize_t virtio_block_read(struct virtio_device *dev, void *buf, off_t offset, si
     desc = virtio_alloc_desc_chain(dev, 0, 3, &i);
     LTRACEF("after alloc chain desc %p, i %u\n", desc, i);
 
+    // XXX not cache safe.
+    // At the moment only tested on arm qemu, which doesn't emulate cache.
+
     /* set up the descriptor pointing to the head */
+#if WITH_KERNEL_VM
+    // XXX handle bufs that cross page boundaries
+    arch_mmu_query((vaddr_t)&blk_req, &pa, NULL);
+    desc->addr = (uint64_t)pa;
+#else
     desc->addr = (uint64_t)(uintptr_t)&blk_req;
+#endif
     desc->len = sizeof(blk_req);
     desc->flags |= VRING_DESC_F_NEXT;
     virtio_dump_desc(desc);
 
     /* set up the descriptor pointing to the buffer */
     desc = virtio_desc_index_to_desc(dev, 0, desc->next);
+#if WITH_KERNEL_VM
+    // XXX handle bufs that cross page boundaries
+    arch_mmu_query((vaddr_t)buf, &pa, NULL);
+    desc->addr = (uint64_t)pa;
+#else
     desc->addr = (uint64_t)(uintptr_t)buf;
+#endif
     desc->len = len;
     desc->flags |= VRING_DESC_F_NEXT | VRING_DESC_F_WRITE;
     virtio_dump_desc(desc);
@@ -155,7 +172,13 @@ ssize_t virtio_block_read(struct virtio_device *dev, void *buf, off_t offset, si
     /* set up the descriptor pointing to the response */
     uint8_t blk_response;
     desc = virtio_desc_index_to_desc(dev, 0, desc->next);
+#if WITH_KERNEL_VM
+    // XXX handle bufs that cross page boundaries
+    arch_mmu_query((vaddr_t)&blk_response, &pa, NULL);
+    desc->addr = (uint64_t)pa;
+#else
     desc->addr = (uint64_t)(uintptr_t)&blk_response;
+#endif
     desc->len = 1;
     desc->flags = VRING_DESC_F_WRITE;
     virtio_dump_desc(desc);

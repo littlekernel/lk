@@ -35,6 +35,7 @@
 #include <arch/arm.h>
 #include <lk/init.h>
 #include <kernel/thread.h>
+#include <kernel/vm.h>
 #include <platform/interrupts.h>
 
 #include "virtio_priv.h"
@@ -43,7 +44,7 @@
 #include <dev/virtio/block.h>
 #endif
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 static struct virtio_device *devices;
 
@@ -148,6 +149,14 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[])
 
                 if (dev->irq_driver_callback)
                     unmask_interrupt(dev->irq);
+
+                // XXX quick test code, remove
+#if 0
+                uint8_t buf[512];
+                memset(buf, 0x99, sizeof(buf));
+                virtio_block_read(dev, buf, 0, sizeof(buf));
+                hexdump8(buf, sizeof(buf));
+#endif
             }
 
         }
@@ -253,6 +262,23 @@ status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len)
     size_t size = vring_size(len, PAGE_SIZE);
     LTRACEF("need %zu bytes\n", size);
 
+#if WITH_KERNEL_VM
+    void *vptr;
+    status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "virtio_ring", size, &vptr, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+    if (err < 0)
+        return ERR_NO_MEMORY;
+
+    LTRACEF("allocated virtio_ring at va %p\n", vptr);
+
+    /* compute the physical address */
+    paddr_t pa;
+    err = arch_mmu_query((vaddr_t)vptr, &pa, NULL);
+    if (err < 0) {
+        return ERR_NO_MEMORY;
+    }
+
+    LTRACEF("virtio_ring at pa 0x%lx\n", pa);
+#else
     void *vptr = memalign(PAGE_SIZE, size);
     if (!vptr)
         return ERR_NO_MEMORY;
@@ -261,14 +287,11 @@ status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len)
     memset(vptr, 0, size);
 
     /* compute the physical address */
-#if WITH_KERNEL_VM
-#error translate here
-#else
     paddr_t pa = (paddr_t)vptr;
 #endif
 
     /* initialize the ring */
-    vring_init(ring, len, vptr, 4096);
+    vring_init(ring, len, vptr, PAGE_SIZE);
     dev->ring[index].free_list = 0xffff;
     dev->ring[index].free_count = 0;
 
@@ -282,8 +305,8 @@ status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len)
     dev->mmio_config->guest_page_size = PAGE_SIZE;
     dev->mmio_config->queue_sel = index;
     dev->mmio_config->queue_num = len;
-    dev->mmio_config->queue_align = 4096;
-    dev->mmio_config->queue_pfn = pa >> 12;
+    dev->mmio_config->queue_align = PAGE_SIZE;
+    dev->mmio_config->queue_pfn = pa / PAGE_SIZE;
 
     return NO_ERROR;
 }
