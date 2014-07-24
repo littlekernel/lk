@@ -162,6 +162,13 @@ ARCH_OPTFLAGS := -O2
 # we have a mmu and want the vmm/pmm
 WITH_KERNEL_VM=1
 
+# for arm, have the kernel occupy the entire top 3GB of virtual space,
+# but put the kernel itself at 0x80000000.
+# this leaves 0x40000000 - 0x80000000 open for kernel space to use.
+GLOBAL_DEFINES += \
+    KERNEL_ASPACE_BASE=0x40000000 \
+    KERNEL_ASPACE_SIZE=0xc0000000
+
 KERNEL_BASE ?= 0x80000000
 KERNEL_LOAD_OFFSET ?= 0
 

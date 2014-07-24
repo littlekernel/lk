@@ -41,8 +41,8 @@ void vmm_init(void)
 {
     /* initialize the kernel address space */
     strlcpy(_kernel_aspace.name, "kernel", sizeof(_kernel_aspace.name));
-    _kernel_aspace.base = KERNEL_BASE;
-    _kernel_aspace.size = ULONG_MAX - _kernel_aspace.base + 1; // XXX make smarter
+    _kernel_aspace.base = KERNEL_ASPACE_BASE,
+    _kernel_aspace.size = KERNEL_ASPACE_SIZE,
     list_initialize(&_kernel_aspace.region_list);
 
     list_add_head(&aspace_list, &_kernel_aspace.node);
