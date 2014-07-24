@@ -60,8 +60,6 @@ void arch_sync_cache_range(addr_t start, size_t len);
 
 void arch_idle(void);
 
-void arch_disable_mmu(void);
-
 __END_CDECLS
 
 #endif // !ASSEMBLY

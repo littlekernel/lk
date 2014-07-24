@@ -303,15 +303,6 @@ interrupt_common:
 .data
 .align 8
 
-/* define the heap end as read-write data containing the default end of the
- * heap. dynamic memory length discovery can update this value during init.
- * other archs can define this statically based on the memory layout of the
- * platform.
- */
-.global _heap_end
-_heap_end:
-	.int 4096*1024	/* default to 4MB total */
-
 .global _multiboot_info
 _multiboot_info:
 	.int 0

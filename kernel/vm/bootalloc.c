@@ -20,34 +20,33 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
-#include <arch.h>
-#include <arch/ops.h>
-#include <arch/arm64.h>
-#include <platform.h>
+#include <kernel/vm.h>
+#include "vm_priv.h"
 
-void arch_early_init(void)
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <trace.h>
+
+#define LOCAL_TRACE 0
+
+/* cheezy allocator that chews up space just after the end of the kernel mapping */
+
+/* track how much memory we've used */
+extern int _end;
+
+uintptr_t boot_alloc_start = (uintptr_t)&_end;
+uintptr_t boot_alloc_end = (uintptr_t)&_end;
+
+void *boot_alloc_mem(size_t len)
 {
-    /* set the vector base */
-    ARM64_WRITE_SYSREG(VBAR_EL1, (uint64_t)&arm64_exception_base);
+    uintptr_t ptr;
 
-    /* switch to EL1 */
-    unsigned int current_el = ARM64_READ_SYSREG(CURRENTEL) >> 2;
-    if (current_el > 1) {
-        arm64_el3_to_el1();
-    }
-}
+    ptr = ALIGN(boot_alloc_end, 8);
+    boot_alloc_end = (ptr + ALIGN(len, 8));
 
-void arch_init(void)
-{
-}
+    LTRACEF("len %zu, ptr %p\n", len, (void *)ptr);
 
-void arch_quiesce(void)
-{
-}
-
-void arch_idle(void)
-{
-    __asm__ volatile("wfi");
+    return (void *)ptr;
 }
 

@@ -149,9 +149,21 @@ GEN_CP15_REG_FUNCS(ats12nsour, 0, c7, c8, 6);
 GEN_CP15_REG_FUNCS(ats12nsouw, 0, c7, c8, 7);
 GEN_CP15_REG_FUNCS(par, 0, c7, c4, 0);
 
-void arm_invalidate_tlb(void);
-
-status_t arm_vtop(addr_t va, addr_t *pa);
+/* tlb registers */
+GEN_CP15_REG_FUNCS(tlbiallis, 0, c8, c3, 0);
+GEN_CP15_REG_FUNCS(tlbimvais, 0, c8, c3, 1);
+GEN_CP15_REG_FUNCS(tlbiasidis, 0, c8, c3, 2);
+GEN_CP15_REG_FUNCS(tlbimvaais, 0, c8, c3, 3);
+GEN_CP15_REG_FUNCS(itlbiall, 0, c8, c5, 0);
+GEN_CP15_REG_FUNCS(itlbimva, 0, c8, c5, 1);
+GEN_CP15_REG_FUNCS(itlbiasid, 0, c8, c5, 2);
+GEN_CP15_REG_FUNCS(dtlbiall, 0, c8, c6, 0);
+GEN_CP15_REG_FUNCS(dtlbimva, 0, c8, c6, 1);
+GEN_CP15_REG_FUNCS(dtlbiasid, 0, c8, c6, 2);
+GEN_CP15_REG_FUNCS(tlbiall, 0, c8, c7, 0);
+GEN_CP15_REG_FUNCS(tlbimva, 0, c8, c7, 1);
+GEN_CP15_REG_FUNCS(tlbiasid, 0, c8, c7, 2);
+GEN_CP15_REG_FUNCS(tlbimvaa, 0, c8, c7, 3);
 
 /* fpu */
 void arm_fpu_set_enable(bool enable);

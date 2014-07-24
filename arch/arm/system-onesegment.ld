@@ -4,10 +4,13 @@ OUTPUT_ARCH(arm)
 ENTRY(_start)
 SECTIONS
 {
-	. = %MEMBASE%;
+	. = %KERNEL_BASE% + %KERNEL_LOAD_OFFSET%;
+
+	_start = .;
 
 	/* text/read-only data */
-	.text : {
+	/* set the load address to physical MEMBASE */
+	.text : AT(%MEMBASE% + %KERNEL_LOAD_OFFSET%) {
 		KEEP(*(.text.boot.vectab1))
 		KEEP(*(.text.boot.vectab2))
 		KEEP(*(.text.boot))
@@ -93,7 +96,7 @@ INCLUDE "arch/shared_data_sections.ld"
 
 	_end = .;
 
-	. = %MEMBASE% + %MEMSIZE%;
+	. = %KERNEL_BASE% + %MEMSIZE%;
 	_end_of_ram = .;
 
 	/* Strip unnecessary stuff */

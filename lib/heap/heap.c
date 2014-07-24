@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009,2012 Travis Geiselbrecht
+ * Copyright (c) 2008-2009,2012,2014 Travis Geiselbrecht
  * Copyright (c) 2009 Corey Tabaka
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -28,6 +28,7 @@
 #include <list.h>
 #include <rand.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
@@ -41,25 +42,36 @@
 #define PADDING_FILL 0x55
 #define PADDING_SIZE 64
 
-#define ROUNDUP(a, b) (((a) + ((b)-1)) & ~((b)-1))
-
 #define HEAP_MAGIC 'HEAP'
 
-#if WITH_STATIC_HEAP
+#if WITH_KERNEL_VM
+
+#include <kernel/vm.h>
+/* we will use kalloc routines to back our heap */
+#if !defined(HEAP_GROW_SIZE)
+#define HEAP_GROW_SIZE (4 * 1024 * 1024) /* size the heap grows by when it runs out of memory */
+#endif
+
+STATIC_ASSERT(IS_PAGE_ALIGNED(HEAP_GROW_SIZE));
+
+#elif WITH_STATIC_HEAP
 
 #if !defined(HEAP_START) || !defined(HEAP_LEN)
 #error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
 #endif
 
 #else
-// end of the binary
+/* not a static vm, not using the kernel vm */
 extern int _end;
+extern int _end_of_ram;
 
-// end of memory
-extern void *_heap_end;
+/* default to using up the rest of memory after the kernel ends */
+/* may be modified by other parts of the system */
+uintptr_t _heap_start = (uintptr_t)&_end;
+uintptr_t _heap_end = (uintptr_t)&_end_of_ram;
 
-#define HEAP_START ((uintptr_t)&_end)
-#define HEAP_LEN ((uintptr_t)_heap_end - (uintptr_t)&_end)
+#define HEAP_START ((uintptr_t)_heap_start)
+#define HEAP_LEN ((uintptr_t)_heap_end - HEAP_START)
 #endif
 
 struct free_heap_chunk {
@@ -92,6 +104,8 @@ struct alloc_struct_begin {
 	size_t padding_size;
 #endif
 };
+
+static ssize_t heap_grow(size_t len);
 
 static void dump_free_chunk(struct free_heap_chunk *chunk)
 {
@@ -178,7 +192,7 @@ static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *ch
 	vaddr_t chunk_end = (vaddr_t)chunk + chunk->len;
 #endif
 
-//	dprintf("%s: chunk ptr %p, size 0x%lx, chunk_end 0x%x\n", __FUNCTION__, chunk, chunk->len, chunk_end);
+	LTRACEF("chunk ptr %p, size 0x%zx\n", chunk, chunk->len);
 
 	struct free_heap_chunk *next_chunk;
 	struct free_heap_chunk *last_chunk;
@@ -311,6 +325,10 @@ void *heap_alloc(size_t size, unsigned int alignment)
 		size += alignment;
 	}
 
+#if WITH_KERNEL_VM
+	int retry_count = 0;
+retry:
+#endif
 	mutex_acquire(&theheap.lock);
 
 	// walk through the list
@@ -381,6 +399,19 @@ void *heap_alloc(size_t size, unsigned int alignment)
 	}
 
 	mutex_release(&theheap.lock);
+
+#if WITH_KERNEL_VM
+	/* try to grow the heap if we can */
+	if (ptr == NULL && retry_count == 0) {
+		size_t growby = MAX(HEAP_GROW_SIZE, ROUNDUP(size, PAGE_SIZE));
+
+		ssize_t err = heap_grow(growby);
+		if (err >= 0) {
+			retry_count++;
+			goto retry;
+		}
+	}
+#endif
 
 	LTRACEF("returning ptr %p\n", ptr);
 
@@ -468,19 +499,39 @@ void heap_get_stats(struct heap_stats *ptr)
 	ptr->heap_low_watermark = theheap.low_watermark;
 
 	mutex_release(&theheap.lock);
+}
 
+static ssize_t heap_grow(size_t size)
+{
+#if WITH_KERNEL_VM
+	size = ROUNDUP(size, PAGE_SIZE);
+
+	void *ptr = pmm_alloc_kpages(size / PAGE_SIZE, NULL);
+	if (!ptr)
+		return ERR_NO_MEMORY;
+
+	LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
+
+	heap_insert_free_chunk(heap_create_free_chunk(ptr, size, true));
+
+	/* change the heap start and end variables */
+	if ((uintptr_t)ptr < (uintptr_t)theheap.base)
+		theheap.base = ptr;
+
+	uintptr_t endptr = (uintptr_t)ptr + size;
+	if (endptr > (uintptr_t)theheap.base + theheap.len) {
+		theheap.len = (uintptr_t)endptr - (uintptr_t)theheap.base;
+	}
+
+	return size;
+#else
+	return ERR_NO_MEMORY;
+#endif
 }
 
 void heap_init(void)
 {
 	LTRACE_ENTRY;
-
-	// set the heap range
-	theheap.base = (void *)HEAP_START;
-	theheap.len = HEAP_LEN;
-	theheap.remaining =0; // will get set by heap_insert_free_chunk()
-	theheap.low_watermark = theheap.len;
-	LTRACEF("base %p size %zd bytes\n", theheap.base, theheap.len);
 
 	// create a mutex
 	mutex_init(&theheap.lock);
@@ -491,14 +542,24 @@ void heap_init(void)
 	// initialize the delayed free list
 	list_initialize(&theheap.delayed_free_list);
 
+	// set the heap range
+#if WITH_KERNEL_VM
+	theheap.base = pmm_alloc_kpages(HEAP_GROW_SIZE / PAGE_SIZE, NULL);
+	theheap.len = HEAP_GROW_SIZE;
+
+	if (theheap.base == 0) {
+		panic("HEAP: error allocating initial heap size\n");
+	}
+#else
+	theheap.base = (void *)HEAP_START;
+	theheap.len = HEAP_LEN;
+#endif
+	theheap.remaining = 0; // will get set by heap_insert_free_chunk()
+	theheap.low_watermark = theheap.len;
+	LTRACEF("base %p size %zd bytes\n", theheap.base, theheap.len);
+
 	// create an initial free chunk
 	heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len, false));
-
-	// dump heap info
-//	heap_dump();
-
-//	dprintf(INFO, "running heap tests\n");
-//	heap_test();
 }
 
 /* add a new block of memory to the heap */
@@ -521,15 +582,30 @@ STATIC_COMMAND_END(heap);
 static int cmd_heap(int argc, const cmd_args *argv)
 {
 	if (argc < 2) {
+notenoughargs:
 		printf("not enough arguments\n");
+usage:
+		printf("usage:\n");
+		printf("\t%s info\n", argv[0].str);
+		printf("\t%s alloc <size> [alignment]\n", argv[0].str);
+		printf("\t%s free <address>\n", argv[0].str);
 		return -1;
 	}
 
 	if (strcmp(argv[1].str, "info") == 0) {
 		heap_dump();
+	} else if (strcmp(argv[1].str, "alloc") == 0) {
+		if (argc < 3) goto notenoughargs;
+
+		void *ptr = heap_alloc(argv[2].u, (argc >= 3) ? argv[3].u : 0);
+		printf("heap_alloc returns %p\n", ptr);
+	} else if (strcmp(argv[1].str, "free") == 0) {
+		if (argc < 2) goto notenoughargs;
+
+		heap_free((void *)argv[2].u);
 	} else {
 		printf("unrecognized command\n");
-		return -1;
+		goto usage;
 	}
 
 	return 0;

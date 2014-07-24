@@ -31,9 +31,6 @@
 
 extern void *vectab;
 
-extern int _end_of_ram;
-void *_heap_end = &_end_of_ram;
-
 #if ARM_CM_DYNAMIC_PRIORITY_SIZE
 unsigned int arm_cm_num_irq_pri_bits;
 unsigned int arm_cm_irq_pri_mask;

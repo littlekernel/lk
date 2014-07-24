@@ -20,34 +20,19 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
-#include <arch.h>
-#include <arch/ops.h>
-#include <arch/arm64.h>
-#include <platform.h>
+#pragma once
 
-void arch_early_init(void)
-{
-    /* set the vector base */
-    ARM64_WRITE_SYSREG(VBAR_EL1, (uint64_t)&arm64_exception_base);
+#include <stdint.h>
+#include <sys/types.h>
+#include <kernel/vm.h>
 
-    /* switch to EL1 */
-    unsigned int current_el = ARM64_READ_SYSREG(CURRENTEL) >> 2;
-    if (current_el > 1) {
-        arm64_el3_to_el1();
-    }
-}
+/* simple boot time allocator */
+void *boot_alloc_mem(size_t len) __MALLOC;
+extern uintptr_t boot_alloc_start;
+extern uintptr_t boot_alloc_end;
 
-void arch_init(void)
-{
-}
+paddr_t page_to_address(const vm_page_t *page);
+vm_page_t *address_to_page(paddr_t addr);
 
-void arch_quiesce(void)
-{
-}
-
-void arch_idle(void)
-{
-    __asm__ volatile("wfi");
-}
+void vmm_init(void);
 

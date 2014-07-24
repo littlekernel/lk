@@ -20,34 +20,27 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
+#pragma once
+
 #include <arch.h>
-#include <arch/ops.h>
-#include <arch/arm64.h>
-#include <platform.h>
+#include <sys/types.h>
+#include <compiler.h>
 
-void arch_early_init(void)
-{
-    /* set the vector base */
-    ARM64_WRITE_SYSREG(VBAR_EL1, (uint64_t)&arm64_exception_base);
+__BEGIN_CDECLS
 
-    /* switch to EL1 */
-    unsigned int current_el = ARM64_READ_SYSREG(CURRENTEL) >> 2;
-    if (current_el > 1) {
-        arm64_el3_to_el1();
-    }
-}
+#define ARCH_MMU_FLAG_CACHED            (0<<0)
+#define ARCH_MMU_FLAG_UNCACHED          (1<<0)
+#define ARCH_MMU_FLAG_UNCACHED_DEVICE   (2<<0) /* only exists on some arches, otherwise UNCACHED */
+#define ARCH_MMU_FLAG_CACHE_MASK        (3<<0)
 
-void arch_init(void)
-{
-}
+#define ARCH_MMU_FLAG_PERM_USER         (1<<2)
+#define ARCH_MMU_FLAG_PERM_RO           (1<<3)
 
-void arch_quiesce(void)
-{
-}
+int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags);
+int arch_mmu_unmap(vaddr_t vaddr, uint count);
+status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags);
 
-void arch_idle(void)
-{
-    __asm__ volatile("wfi");
-}
+void arch_disable_mmu(void);
+
+__END_CDECLS
 
