@@ -34,7 +34,7 @@
 #include <arch/arm/mmu.h>
 #include <kernel/vm.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 #if ARM_WITH_MMU
 
