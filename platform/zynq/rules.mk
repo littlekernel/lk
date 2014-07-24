@@ -38,6 +38,9 @@ MEMSIZE ?= $(ZYNQ_SDRAM_SIZE) # 256MB
 #KERNEL_LOAD_OFFSET := 0x00100000 # loaded 1MB into physical space
 endif
 
+# put our kernel at 0xc0000000 so we can have axi bus 1 mapped at 0x80000000
+KERNEL_BASE = 0xc0000000
+
 GLOBAL_DEFINES += \
 	MEMBASE=$(MEMBASE) \
 	MEMSIZE=$(MEMSIZE) \

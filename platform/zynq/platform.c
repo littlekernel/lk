@@ -47,33 +47,47 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
       .flags = 0,
       .name = "memory" },
 
+    /* AXI fpga fabric bus 0 */
+    { .phys = 0x40000000,
+      .virt = 0x40000000,
+      .size = (16*1024*1024),
+      .flags = MMU_INITIAL_MAPPING_FLAG_UNCACHED,
+      .name = "axi0" },
+
+    /* AXI fpga fabric bus 1 */
+    { .phys = 0x80000000,
+      .virt = 0x80000000,
+      .size = (16*1024*1024),
+      .flags = MMU_INITIAL_MAPPING_FLAG_UNCACHED,
+      .name = "axi1" },
+
     /* 0xe0000000 hardware devices */
     { .phys = 0xe0000000,
       .virt = 0xe0000000,
       .size = 0x00300000,
       .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "hw" },
+      .name = "hw-e0000000" },
 
     /* 0xe1000000 hardware devices */
     { .phys = 0xe1000000,
       .virt = 0xe1000000,
       .size = 0x05000000,
       .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "hw" },
+      .name = "hw-e1000000" },
 
     /* 0xf8000000 hardware devices */
     { .phys = 0xf8000000,
       .virt = 0xf8000000,
       .size = 0x01000000,
       .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "hw" },
+      .name = "hw-f8000000" },
 
     /* 0xfc000000 hardware devices */
     { .phys = 0xfc000000,
       .virt = 0xfc000000,
       .size = 0x02000000,
       .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "hw" },
+      .name = "hw-fc000000" },
 
     /* identity map to let the boot code run */
     { .phys = SRAM_BASE,
