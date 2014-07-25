@@ -8,6 +8,7 @@ ARM_CPU := cortex-a9-neon
 MODULE_DEPS := \
 	lib/bio \
 	lib/cbuf \
+	lib/minip \
 	dev/cache/pl310 \
 	dev/interrupt/arm_gic \
 	dev/timer/arm_cortex_a9
@@ -19,6 +20,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/clocks.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/fpga.c \
+	$(LOCAL_DIR)/gem.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/qspi.c \
 	$(LOCAL_DIR)/spiflash.c \

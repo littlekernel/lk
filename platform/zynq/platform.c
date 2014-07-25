@@ -30,6 +30,7 @@
 #include <dev/timer/arm_cortex_a9.h>
 #include <platform.h>
 #include <platform/zynq.h>
+#include <platform/gem.h>
 #include "platform_p.h"
 
 /* target can specify this as the initial jam table to set up the soc */
@@ -155,6 +156,8 @@ void platform_early_init(void)
 void platform_init(void)
 {
     uart_init();
+
+    gem_init(GEM0_BASE, 256*1024);
 
     printf("zynq boot status:\n");
     printf("\tREBOOT_STATUS 0x%x\n", SLCR_REG(REBOOT_STATUS));
