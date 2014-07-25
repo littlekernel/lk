@@ -69,14 +69,21 @@
 #define L2CACHE_BASE      (CPUPRIV_BASE + 0x2000)
 
 /* interrupts */
-#define TTC0_A_INT  42
-#define TTC0_B_INT  43
-#define TTC0_C_INT  44
-#define UART0_INT   59
-#define UART1_INT   82
-#define TTC1_A_INT  69
-#define TTC2_B_INT  70
-#define TTC3_C_INT  71
+#define TTC0_A_INT    42
+#define TTC0_B_INT    43
+#define TTC0_C_INT    44
+#define GPIO_INT      52
+#define USB0_INT      53
+#define ETH0_INT      54
+#define ETH0_WAKE_INT 55
+#define SDIO0_INT     56
+#define I2C0_INT      57
+#define SPI0_INT      58
+#define UART0_INT     59
+#define UART1_INT     82
+#define TTC1_A_INT    69
+#define TTC2_B_INT    70
+#define TTC3_C_INT    71
 
 #define MAX_INT 96
 
