@@ -24,6 +24,10 @@
 #include <dev/spiflash.h>
 #include <lib/ptable.h>
 #include <lib/sysparam.h>
+#include <debug.h>
+
+#include <platform/gem.h>
+#include <lib/minip.h>
 
 void target_early_init(void)
 {
@@ -68,5 +72,8 @@ void target_init(void)
         }
     }
 #endif
+    /* Configure IP stack and hook to the driver */
+    minip_init_dhcp(gem_send_raw_pkt, NULL);
+    gem_set_callback(minip_rx_driver_callback);
 }
 
