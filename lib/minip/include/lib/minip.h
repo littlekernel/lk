@@ -1,0 +1,53 @@
+#pragma once
+
+#include <endian.h>
+#include <list.h>
+#include <stdint.h>
+
+#include <lib/pktbuf.h>
+
+#define IPV4(a,b,c,d) (((a)&0xFF)|(((b)&0xFF)<<8)|(((c)&0xFF)<<16)|(((d)&0xFF)<<24))
+#define IPV4_BCAST (0xFFFFFFFF)
+#define IPV4_NONE (0)
+
+typedef int (*tx_func_t)(pktbuf_t *p);
+typedef void (*udp_callback_t)(void *data, size_t len,
+    uint32_t srcaddr, uint16_t srcport, void *arg);
+
+/* initialize minip with static configuration */
+void minip_init(tx_func_t tx_func, void *tx_arg,
+	uint32_t ip, uint32_t netmask, uint32_t gateway);
+
+/* initialize minip with DHCP configuration */
+void minip_init_dhcp(tx_func_t tx_func, void *tx_arg);
+
+/* packet rx hook to hand to ethernet driver */
+void minip_rx_driver_callback(pktbuf_t *p);
+
+/* global configuration state */
+void minip_get_macaddr(uint8_t *addr);
+void minip_set_macaddr(const uint8_t *addr);
+
+uint32_t minip_get_ipaddr(void);
+void minip_set_ipaddr(const uint32_t addr);
+
+void minip_set_hostname(const char *name);
+const char *minip_get_hostname(void);
+
+/* udp socket interface */
+typedef struct {
+    uint32_t addr;
+    uint16_t port;
+} minip_fd_t;
+minip_fd_t *minip_open(uint32_t addr, uint16_t port);
+void minip_close(minip_fd_t *fd);
+void send(minip_fd_t *fd, void *buf, size_t len, int flags);
+
+/* raw udp transmit */
+int minip_udp_send(const void *data, size_t len,
+    uint32_t dstaddr, uint16_t dstport,
+    uint16_t srcport);
+
+/* install udp listener */
+int minip_udp_listen(uint16_t port, udp_callback_t rx_handler, void *arg);
+
