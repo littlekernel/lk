@@ -162,12 +162,121 @@ fpu:
 
 void arm_data_abort_handler(struct arm_fault_frame *frame)
 {
-	exception_die(frame, "data abort, halting\n");
+	uint32_t fsr = arm_read_dfsr();
+	uint32_t far = arm_read_dfar();
+
+	uint32_t fault_status = (BIT(fsr, 10) ? (1<<4) : 0) |  BITS(fsr, 3, 0);
+
+	dprintf(CRITICAL, "\n\ndata abort, ");
+	bool write = !!BIT(fsr, 11);
+
+	/* decode the fault status (from table B3-23) */
+	switch (fault_status) {
+		case 0b00001: // alignment fault
+			dprintf(CRITICAL, "alignment fault on %s\n", write ? "write" : "read");
+			break;
+		case 0b00101:
+		case 0b00111: // translation fault
+			dprintf(CRITICAL, "translation fault on %s\n", write ? "write" : "read");
+			break;
+		case 0b00011:
+		case 0b00110: // access flag fault
+			dprintf(CRITICAL, "access flag fault on %s\n", write ? "write" : "read");
+			break;
+		case 0b01001:
+		case 0b01011: // domain fault
+			dprintf(CRITICAL, "domain fault, domain %d\n", BITS_SHIFT(fsr, 7, 4));
+			break;
+		case 0b01101:
+		case 0b01111: // permission fault
+			dprintf(CRITICAL, "permission fault on %s\n", write ? "write" : "read");
+			break;
+		case 0b00010: // debug event
+			dprintf(CRITICAL, "debug event\n");
+			break;
+		case 0b01000: // synchronous external abort
+			dprintf(CRITICAL, "synchronous external abort on %s\n", write ? "write" : "read");
+			break;
+			break;
+		case 0b10110: // asynchronous external abort
+			dprintf(CRITICAL, "asynchronous external abort on %s\n", write ? "write" : "read");
+			break;
+		case 0b10000: // TLB conflict event
+		case 0b11001: // synchronous parity error on memory access
+		case 0b00100: // fault on instruction cache maintenance
+		case 0b01100: // synchronous external abort on translation table walk
+		case 0b01110: //    "
+		case 0b11100: // synchronous parity error on translation table walk
+		case 0b11110: //    "
+		case 0b11000: // asynchronous parity error on memory access
+		default:
+			dprintf(CRITICAL, "unhandled fault\n");
+			;
+	}
+
+	dprintf(CRITICAL, "DFAR 0x%x (fault address)\n", far);
+	dprintf(CRITICAL, "DFSR 0x%x (fault status register)\n", fsr);
+
+	exception_die(frame, "halting\n");
 }
 
 void arm_prefetch_abort_handler(struct arm_fault_frame *frame)
 {
-	exception_die(frame, "prefetch abort, halting\n");
+	uint32_t fsr = arm_read_ifsr();
+	uint32_t far = arm_read_ifar();
+
+	uint32_t fault_status = (BIT(fsr, 10) ? (1<<4) : 0) |  BITS(fsr, 3, 0);
+
+	dprintf(CRITICAL, "\n\nprefetch abort, ");
+
+	/* decode the fault status (from table B3-23) */
+	switch (fault_status) {
+		case 0b00001: // alignment fault
+			dprintf(CRITICAL, "alignment fault\n");
+			break;
+		case 0b00101:
+		case 0b00111: // translation fault
+			dprintf(CRITICAL, "translation fault\n");
+			break;
+		case 0b00011:
+		case 0b00110: // access flag fault
+			dprintf(CRITICAL, "access flag fault\n");
+			break;
+		case 0b01001:
+		case 0b01011: // domain fault
+			dprintf(CRITICAL, "domain fault, domain %d\n", BITS_SHIFT(fsr, 7, 4));
+			break;
+		case 0b01101:
+		case 0b01111: // permission fault
+			dprintf(CRITICAL, "permission fault\n");
+			break;
+		case 0b00010: // debug event
+			dprintf(CRITICAL, "debug event\n");
+			break;
+		case 0b01000: // synchronous external abort
+			dprintf(CRITICAL, "synchronous external abort\n");
+			break;
+			break;
+		case 0b10110: // asynchronous external abort
+			dprintf(CRITICAL, "asynchronous external abort\n");
+			break;
+		case 0b10000: // TLB conflict event
+		case 0b11001: // synchronous parity error on memory access
+		case 0b00100: // fault on instruction cache maintenance
+		case 0b01100: // synchronous external abort on translation table walk
+		case 0b01110: //    "
+		case 0b11100: // synchronous parity error on translation table walk
+		case 0b11110: //    "
+		case 0b11000: // asynchronous parity error on memory access
+		default:
+			dprintf(CRITICAL, "unhandled fault\n");
+			;
+	}
+
+	dprintf(CRITICAL, "IFAR 0x%x (fault address)\n", far);
+	dprintf(CRITICAL, "IFSR 0x%x (fault status register)\n", fsr);
+
+	exception_die(frame, "halting\n");
 }
 
 /* vim: set ts=4 sw=4 noexpandtab: */
