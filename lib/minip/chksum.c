@@ -41,19 +41,18 @@ uint16_t rfc1701_chksum(uint8_t *buf, size_t len)
 }
 
 #if MINIP_USE_UDP_CHECKSUM
-uint16_t rfc768_chksum(struct ip_pkt *pkt, size_t len)
+uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp)
 {
     uint32_t total = 0;
     uint16_t chksum = 0;
+    size_t len = ntohs(udp->len);
     uint16_t *p;
-    struct ipv4_hdr *ipv4 = (struct ipv4_hdr *)&pkt->ipv4;
-    struct udp_hdr *udp = (struct udp_hdr *)ipv4->data;
 
-    p = (uint16_t *)ipv4->src_ip;
+    p = (uint16_t *)ipv4->src_addr;
     total += htons(p[0]);
     total += htons(p[1]);
 
-    p = (uint16_t *)ipv4->dest_ip;
+    p = (uint16_t *)ipv4->dst_addr;
     total += htons(p[0]);
     total += htons(p[1]);
 
@@ -65,7 +64,7 @@ uint16_t rfc768_chksum(struct ip_pkt *pkt, size_t len)
     total += IP_PROTO_UDP;
     total += udp->len;
     total += udp->src_port;
-    total += udp->dest_port;
+    total += udp->dst_port;
     total += ipv4->len;
 
     chksum = (total & 0xFFFF) + (total >> 16);

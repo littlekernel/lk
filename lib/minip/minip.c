@@ -289,7 +289,7 @@ ready:
     fill_in_ipv4_header(ip, addr, IP_PROTO_UDP, len + sizeof(struct udp_hdr));
 
 #if (MINIP_USE_UDP_CHECKSUM != 0)
-#error unsupported
+    udp->chksum = rfc768_chksum(ip, udp);
 #endif
 
     minip_tx_handler(p);

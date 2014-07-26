@@ -111,7 +111,7 @@ uint8_t *arp_cache_lookup(uint32_t addr);
 void arp_cache_dump(void);
 
 uint16_t rfc1701_chksum(uint8_t *buf, size_t len);
-uint16_t rfc768_chksum(struct ipv4_hdr *pkt, size_t len);
+uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp);
 
 int send_arp_request(uint32_t addr);
 
