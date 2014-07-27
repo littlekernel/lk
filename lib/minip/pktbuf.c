@@ -104,3 +104,4 @@ void *pktbuf_consume(pktbuf_t *p, size_t sz) {
 	return data;
 }
 
+// vim: set noexpandtab:

@@ -65,7 +65,7 @@ minip_usage:
                     }
                     pos++;
                 }
-		memcpy(&fd.addr, ip, 4);
+                memcpy(&fd.addr, ip, 4);
                 fd.port = argv[3].u;
 
                 if (arp_cache_lookup(fd.addr) == NULL) {
@@ -118,4 +118,4 @@ STATIC_COMMAND("mi", "minip commands", &cmd_minip)
 STATIC_COMMAND_END(minip);
 #endif
 
-
+// vim: set ts=4 sw=4 expandtab:

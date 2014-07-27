@@ -86,3 +86,5 @@ void *pktbuf_consume(pktbuf_t *p, size_t sz);
 void pktbuf_create(void *ptr, u32 phys, size_t size);
 
 #endif
+
+// vim: set noexpandtab:

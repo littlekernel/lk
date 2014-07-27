@@ -1,3 +1,26 @@
+/*
+ * Copyright (c) 2014 Chris Anderson
+ * Copyright (c) 2014 Brian Swetland
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files
+ * (the "Software"), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge,
+ * publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 #pragma once
 
 #include <endian.h>
@@ -16,7 +39,7 @@ typedef void (*udp_callback_t)(void *data, size_t len,
 
 /* initialize minip with static configuration */
 void minip_init(tx_func_t tx_func, void *tx_arg,
-	uint32_t ip, uint32_t netmask, uint32_t gateway);
+    uint32_t ip, uint32_t netmask, uint32_t gateway);
 
 /* initialize minip with DHCP configuration */
 void minip_init_dhcp(tx_func_t tx_func, void *tx_arg);
@@ -51,3 +74,4 @@ int minip_udp_send(const void *data, size_t len,
 /* install udp listener */
 int minip_udp_listen(uint16_t port, udp_callback_t rx_handler, void *arg);
 
+// vim: set ts=4 sw=4 expandtab:

@@ -52,7 +52,7 @@ static uint32_t minip_ip      = IPV4_NONE;
 static uint32_t minip_netmask = IPV4_NONE;
 static uint32_t minip_gateway = IPV4_NONE;
 
-static uint8_t minip_mac[6]   = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
+static uint8_t minip_mac[6] = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
 static uint8_t bcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 static char minip_hostname[32] = "";
@@ -60,12 +60,12 @@ static char minip_hostname[32] = "";
 static mutex_t tx_mutex;
 
 void minip_set_hostname(const char *name) {
-	size_t len = strlen(name);
-	if (len >= sizeof(minip_hostname)) {
-		len = sizeof(minip_hostname) - 1;
-	}
-	memcpy(minip_hostname, name, len);
-	minip_hostname[len] = 0;
+    size_t len = strlen(name);
+    if (len >= sizeof(minip_hostname)) {
+        len = sizeof(minip_hostname) - 1;
+    }
+    memcpy(minip_hostname, name, len);
+    minip_hostname[len] = 0;
 }
 
 const char *minip_get_hostname(void) {
@@ -375,7 +375,7 @@ static int handle_arp_pkt(pktbuf_t *p)
         break;
 
         case ARP_OPER_REPLY: {
-	    uint32_t addr;
+            uint32_t addr;
             memcpy(&addr, &arp->spa, sizeof(addr)); // unaligned word
             arp_cache_update(addr, arp->sha);
         }
@@ -427,3 +427,5 @@ void send(minip_fd_t *fd, void *buf, size_t len, int flags)
 {
     minip_udp_send(buf, len, fd->addr, fd->port, fd->port);
 }
+
+// vim: set ts=4 sw=4 expandtab:

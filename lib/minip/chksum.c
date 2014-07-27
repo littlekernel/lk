@@ -74,3 +74,5 @@ uint16_t rfc768_chksum(struct ip_pkt *pkt, size_t len)
     return chksum;
 }
 #endif
+
+// vim: set ts=4 sw=4 expandtab:

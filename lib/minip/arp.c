@@ -73,7 +73,7 @@ void arp_cache_update(uint32_t addr, uint8_t mac[6])
     }
 
     if (!found) {
-	ipv4_t ip;
+        ipv4_t ip;
         ip.u = addr;
         LTRACEF("Adding %u.%u.%u.%u -> %02x:%02x:%02x%02x:%02x:%02x to cache\n",
             ip.b[0], ip.b[1], ip.b[2], ip.b[3],
@@ -123,4 +123,6 @@ void arp_cache_dump(void)
         printf("The arp table is empty\n");
     }
 }
+
+// vim: set ts=4 sw=4 expandtab:
 
