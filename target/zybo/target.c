@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <dev/spiflash.h>
 #include <lib/ptable.h>
 #include <lib/sysparam.h>
@@ -71,9 +72,37 @@ void target_init(void)
             sysparam_dump(true);
         }
     }
+
+    /* pull some network stack related params out of the sysparam block */
+    uint8_t mac_addr[6];
+    uint32_t ip_addr = IPV4_NONE;
+    uint32_t ip_mask = IPV4_NONE;
+    uint32_t ip_gateway = IPV4_NONE;
+
+    if (sysparam_read("net0.mac_addr", mac_addr, sizeof(mac_addr)) < (ssize_t)sizeof(mac_addr)) {
+        /* couldn't find eth address, make up a random one */
+        for (size_t i = 0; i < sizeof(mac_addr); i++) {
+            mac_addr[i] = rand() & 0xff;
+        }
+
+        /* unicast and locally administered */
+        mac_addr[0] &= ~(1<<0);
+        mac_addr[0] |= (1<<1);
+    }
+
+    sysparam_read("net0.ip_addr", &ip_addr, sizeof(ip_addr));
+    sysparam_read("net0.ip_mask", &ip_mask, sizeof(ip_mask));
+    sysparam_read("net0.ip_gateway", &ip_gateway, sizeof(ip_gateway));
+
+    minip_set_macaddr(mac_addr);
+    if (ip_addr != IPV4_NONE) {
+        minip_init(gem_send_raw_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+    } else
 #endif
-    /* Configure IP stack and hook to the driver */
-    minip_init_dhcp(gem_send_raw_pkt, NULL);
+    {
+        /* Configure IP stack and hook to the driver */
+        minip_init_dhcp(gem_send_raw_pkt, NULL);
+    }
     gem_set_callback(minip_rx_driver_callback);
 }
 
