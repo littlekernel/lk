@@ -135,26 +135,26 @@ static addr_t periph_clk_ctrl_reg(enum zynq_periph periph)
     DEBUG_ASSERT(periph < _PERIPH_MAX);
 
     switch (periph) {
-        case PERIPH_USB0: return SLCR_BASE + USB0_CLK_CTRL;
-        case PERIPH_USB1: return SLCR_BASE + USB1_CLK_CTRL;
-        case PERIPH_GEM0: return SLCR_BASE + GEM0_CLK_CTRL;
-        case PERIPH_GEM1: return SLCR_BASE + GEM1_CLK_CTRL;
-        case PERIPH_SMC: return SLCR_BASE + SMC_CLK_CTRL;
-        case PERIPH_LQSPI: return SLCR_BASE + LQSPI_CLK_CTRL;
-        case PERIPH_SDIO0: return SLCR_BASE + SDIO_CLK_CTRL;
-        case PERIPH_SDIO1: return SLCR_BASE + SDIO_CLK_CTRL;
-        case PERIPH_UART0: return SLCR_BASE + UART_CLK_CTRL;
-        case PERIPH_UART1: return SLCR_BASE + UART_CLK_CTRL;
-        case PERIPH_SPI0: return SLCR_BASE + SPI_CLK_CTRL;
-        case PERIPH_SPI1: return SLCR_BASE + SPI_CLK_CTRL;
-        case PERIPH_CAN0: return SLCR_BASE + CAN_CLK_CTRL;
-        case PERIPH_CAN1: return SLCR_BASE + CAN_CLK_CTRL;
-        case PERIPH_DBG: return SLCR_BASE + DBG_CLK_CTRL;
-        case PERIPH_PCAP: return SLCR_BASE + PCAP_CLK_CTRL;
-        case PERIPH_FPGA0: return SLCR_BASE + FPGA0_CLK_CTRL;
-        case PERIPH_FPGA1: return SLCR_BASE + FPGA1_CLK_CTRL;
-        case PERIPH_FPGA2: return SLCR_BASE + FPGA2_CLK_CTRL;
-        case PERIPH_FPGA3: return SLCR_BASE + FPGA3_CLK_CTRL;
+        case PERIPH_USB0:   return (uintptr_t)&SLCR->USB0_CLK_CTRL;
+        case PERIPH_USB1:   return (uintptr_t)&SLCR->USB1_CLK_CTRL;
+        case PERIPH_GEM0:   return (uintptr_t)&SLCR->GEM0_CLK_CTRL;
+        case PERIPH_GEM1:   return (uintptr_t)&SLCR->GEM1_CLK_CTRL;
+        case PERIPH_SMC:    return (uintptr_t)&SLCR->SMC_CLK_CTRL;
+        case PERIPH_LQSPI:  return (uintptr_t)&SLCR->LQSPI_CLK_CTRL;
+        case PERIPH_SDIO0:  return (uintptr_t)&SLCR->SDIO_CLK_CTRL;
+        case PERIPH_SDIO1:  return (uintptr_t)&SLCR->SDIO_CLK_CTRL;
+        case PERIPH_UART0:  return (uintptr_t)&SLCR->UART_CLK_CTRL;
+        case PERIPH_UART1:  return (uintptr_t)&SLCR->UART_CLK_CTRL;
+        case PERIPH_SPI0:   return (uintptr_t)&SLCR->SPI_CLK_CTRL;
+        case PERIPH_SPI1:   return (uintptr_t)&SLCR->SPI_CLK_CTRL;
+        case PERIPH_CAN0:   return (uintptr_t)&SLCR->CAN_CLK_CTRL;
+        case PERIPH_CAN1:   return (uintptr_t)&SLCR->CAN_CLK_CTRL;
+        case PERIPH_DBG:    return (uintptr_t)&SLCR->DBG_CLK_CTRL;
+        case PERIPH_PCAP:   return (uintptr_t)&SLCR->PCAP_CLK_CTRL;
+        case PERIPH_FPGA0:  return (uintptr_t)&SLCR->FPGA0_CLK_CTRL;
+        case PERIPH_FPGA1:  return (uintptr_t)&SLCR->FPGA1_CLK_CTRL;
+        case PERIPH_FPGA2:  return (uintptr_t)&SLCR->FPGA2_CLK_CTRL;
+        case PERIPH_FPGA3:  return (uintptr_t)&SLCR->FPGA3_CLK_CTRL;
         default: return 0;
     }
 }

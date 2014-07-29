@@ -38,7 +38,6 @@
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/gem.h>
-#include <platform/slcr.h>
 #include <platform.h>
 #include <kernel/event.h>
 #include <kernel/semaphore.h>
