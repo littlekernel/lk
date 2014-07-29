@@ -388,17 +388,14 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
 
     /* Configure for:
      * Ghz enabled, 100mhz default
-     * broadcast / multicast enabled, hw checksums, promiscuous mode
+     * broadcast / multicast enabled, hw checksums,
      * clock divider 48, assuming 80MHz < cpu_1xclk < 120MHz
      * skip first two bytes of rx buffer (ensure ip header alignment)
      */
     regs->net_cfg = NET_CFG_FULL_DUPLEX | NET_CFG_GIGE_EN | NET_CFG_SPEED_100 |
-        NET_CFG_COPY_ALL | NET_CFG_RX_CHKSUM_OFFLD_EN | NET_CFG_FCS_REMOVE |
-        NET_CFG_MDC_CLK_DIV(0x7) | NET_CFG_RX_BUF_OFFSET(2);
+        NET_CFG_RX_CHKSUM_OFFLD_EN | NET_CFG_FCS_REMOVE | NET_CFG_MDC_CLK_DIV(0x7) |
+        NET_CFG_RX_BUF_OFFSET(2);
 
-    /* Mac address: BE:EF:BE:EF:BE:EF */
-    regs->spec_addr1_bot = 0xCCCCCCCC;
-    regs->spec_addr1_top = 0xCCCC;
     /* Set DMA to 1600 byte rx buffer, 8KB addr space for rx, 4KB addr space for tx,
      * hw checksumming, little endian, and use INCR16 ahb bursts
      */
@@ -428,13 +425,19 @@ void gem_set_callback(gem_cb_t rx)
     rx_callback = rx;
 }
 
-void gem_set_mac(uint8_t mac[6]) {
-    regs->net_ctrl &= ~(NET_CTRL_RX_EN | NET_CTRL_TX_EN);
+void gem_set_macaddr(uint8_t mac[6]) {
+    uint32_t en = regs->net_ctrl &= NET_CTRL_RX_EN | NET_CTRL_TX_EN;
+
+    if (en) {
+        regs->net_ctrl &= ~(en);
+    }
 
     regs->spec_addr1_top = (mac[0] << 8) | mac[1];
-    regs->spec_addr1_bot = (mac[2] << 24) | (mac[3] << 16) | (mac[2] << 8) | mac[4];
+    regs->spec_addr1_bot = (mac[2] << 24) | (mac[3] << 16) | (mac[4] << 8) | mac[5];
 
-    regs->net_ctrl |= NET_CTRL_RX_EN | NET_CTRL_TX_EN;
+    if (en) {
+        regs->net_ctrl |= en;
+    }
 }
 
 
@@ -444,18 +447,20 @@ static int cmd_gem(int argc, const cmd_args *argv)
     static uint32_t frames_rx = 0, frames_tx = 0;
 
     if (argc == 1) {
-        printf("gem [f]lood:      flood 192.168.1.1 with MAC packets containing 0xAA\n");
-        printf("gem [s]tatus:     print driver status\n");
         printf("gem [d]ebug:      enable RX debug output\n");
-    } else if (argv[1].str[0] == 'f') {
+        printf("gem [r]aw <iter>: Send <iter> raw mac packet for testing\n");
+        printf("gem [s]tatus:     print driver status\n");
+    } else if (argv[1].str[0] == 'r') {
         pktbuf_t *p;
         int iter;
         if (argc < 3) {
             return 0;
         }
+
         if ((p = pktbuf_alloc()) == NULL) {
             printf("out of buffers\n");
         }
+
         iter = argv[2].u;
         p->dlen = 1024;
         while (iter--) {
@@ -463,6 +468,11 @@ static int cmd_gem(int argc, const cmd_args *argv)
             gem_send_raw_pkt(p);
         }
     } else if (argv[1].str[0] == 's') {
+        uint32_t mac_top = regs->spec_addr1_top;
+        uint32_t mac_bot = regs->spec_addr1_bot;
+        printf("mac addr: %02x:%02x:%02x:%02x:%02x:%02x\n",
+            mac_top >> 8, mac_top & 0xFF, mac_bot >> 24, (mac_bot >> 16) & 0xFF,
+            (mac_bot >> 8) & 0xFF, mac_bot & 0xFF);
         uint32_t rx_used = 0, tx_used = 0;
         for (int i = 0; i < GEM_RX_BUF_CNT; i++) {
             rx_used += !!(state->rx[i].addr & RX_DESC_USED);
@@ -490,5 +500,5 @@ static int cmd_gem(int argc, const cmd_args *argv)
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("g", "dump gem status", &cmd_gem)
+STATIC_COMMAND("gem", "ZYNQ GEM commands", &cmd_gem)
 STATIC_COMMAND_END(gem);

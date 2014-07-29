@@ -95,6 +95,8 @@ void target_init(void)
     sysparam_read("net0.ip_gateway", &ip_gateway, sizeof(ip_gateway));
 
     minip_set_macaddr(mac_addr);
+    gem_set_macaddr(mac_addr);
+
     if (ip_addr != IPV4_NONE) {
         minip_init(gem_send_raw_pkt, NULL, ip_addr, ip_mask, ip_gateway);
     } else

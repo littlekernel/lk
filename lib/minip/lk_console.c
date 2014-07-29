@@ -37,8 +37,9 @@ static int cmd_minip(int argc, const cmd_args *argv)
     if (argc == 1) {
 minip_usage:
         printf("minip commands\n");
-        printf("mi [a]rp:                       dump arp table\n");
-        printf("mi [c]onfig <ip addr> <port>:   set default dest to <ip addr>:<port>\n");
+        printf("mi [a]rp                        dump arp table\n");
+        printf("mi [c]onfig <ip addr> <port>    set default dest to <ip addr>:<port>\n");
+        printf("mi [s]tatus                     print ip status\n");
         printf("mi [t]est <cnt>                 send <cnt> test packets to the configured dest\n");
     } else {
         switch(argv[1].str[0]) {
@@ -90,7 +91,14 @@ minip_usage:
                 }
             }
             break;
+            case 's': {
+                uint32_t ipaddr = minip_get_ipaddr();
 
+                printf("hostname: %s\n", minip_get_hostname());
+                printf("ip: %u.%u.%u.%u\n",
+                    ipaddr >> 24, (ipaddr >> 16) & 0xFF, (ipaddr >> 8) & 0xFF, (ipaddr & 0xFF));;
+            }
+            break;
             case 't': {
                 uint32_t buf[256];
                 uint32_t c = 1;
