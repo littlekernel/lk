@@ -72,7 +72,7 @@ struct gem_state {
 
 static pktbuf_t *gem_rx_buffers[GEM_RX_BUF_CNT];
 
-static semaphore_t rx_pending;
+static event_t rx_pending;
 static event_t tx_complete;
 static bool debug_rx = false;
 static struct gem_state *state;
@@ -94,25 +94,6 @@ static void dump_gem_descriptors(bool rx, bool tx) {
                     state->tx[i].addr, state->tx[i].ctrl);
         }
     }
-}
-
-/* Loops through the rx buffer descriptors to find any received buffers. last_buf
- * retains its value in each call so we can generally start at the next buffer the
- * hardware will use
- */
-static int find_recv_buffer(void) {
-    static int last_buf = -1;
-    int ret = -1;
-
-    for (int i = (last_buf + 1) % GEM_RX_BUF_CNT; i != last_buf; i = (i + 1) % GEM_RX_BUF_CNT) {
-        if (state->rx[i].addr & RX_DESC_USED) {
-            ret = i;
-            last_buf = i;
-            break;
-        }
-    }
-
-    return ret;
 }
 
 static void debug_rx_handler(pktbuf_t *p)
@@ -177,7 +158,7 @@ enum handler_return gem_int_handler(void *arg) {
     intr_status = regs->intr_status;
     // Received an RX complete
     if (intr_status & INTR_RX_COMPLETE) {
-        sem_post(&rx_pending, false);
+        event_signal(&rx_pending, false);
 
         intr_status &= ~INTR_RX_COMPLETE;
         regs->rx_status |= INTR_RX_COMPLETE;
@@ -306,26 +287,28 @@ static void gem_cfg_ints(void)
 int gem_rx_thread(void *arg)
 {
     pktbuf_t *p;
-    int desc_id;
+    int bp = 0;
 
     while (1) {
-        sem_wait(&rx_pending);
-        desc_id = find_recv_buffer();
+        event_wait(&rx_pending);
 
-        if (desc_id < 0)
-            continue;
-
-        p = gem_rx_buffers[desc_id];
-        p->dlen = RX_BUF_LEN(state->rx[desc_id].ctrl);
-        p->data = p->buffer + 2;
-        if (debug_rx) {
-            debug_rx_handler(p);
-        } else if (rx_callback) {
-            rx_callback(p);
+        for (;;) {
+            if (state->rx[bp].addr & RX_DESC_USED) {
+                p = gem_rx_buffers[bp];
+                p->dlen = RX_BUF_LEN(state->rx[bp].ctrl);
+                p->data = p->buffer + 2;
+                if (debug_rx) {
+                    debug_rx_handler(p);
+                } else if (rx_callback) {
+                    rx_callback(p);
+                }
+                state->rx[bp].addr &= ~RX_DESC_USED;
+                state->rx[bp].ctrl = 0;
+                bp = (bp + 1) % GEM_RX_BUF_CNT;
+            } else {
+                break;
+            }
         }
-
-        state->rx[desc_id].addr &= ~RX_DESC_USED;
-        state->rx[desc_id].ctrl = 0;
     }
 
     return 0;
@@ -385,9 +368,9 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     }
 
     /* Lock / scheduling init */
-    sem_init(&rx_pending, 0);
     mutex_init(&tx_mutex);
     event_init(&tx_complete, false, EVENT_FLAG_AUTOUNSIGNAL);
+    event_init(&rx_pending, false, EVENT_FLAG_AUTOUNSIGNAL);
 
     /* rx background thread */
     rx_thread = thread_create("gem_rx", gem_rx_thread, NULL, HIGH_PRIORITY, DEFAULT_STACK_SIZE);
