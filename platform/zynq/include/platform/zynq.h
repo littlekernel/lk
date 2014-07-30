@@ -25,6 +25,7 @@
 #ifndef ASSEMBLY
 #include <reg.h>
 #include <compiler.h>
+#include <bits.h>
 #endif
 
 /* memory addresses */
@@ -305,6 +306,43 @@ STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 
 #define SLCR                            ((struct slcr_regs *)SLCR_BASE)
 #define SLCR_REG(reg)                   (*REG32((uintptr_t)&SLCR->reg))
+
+/* ARM_PLL_CFG */
+#define PLL_CFG_PLL_RES(x)              ((x & BIT_MASK(4)) << 4)
+#define PLL_CFG_PLL_CP(x)               ((x & BIT_MASK(4)) << 8)
+#define PLL_CFG_LOCK_CNT(x)             ((x & BIT_MASK(10)) << 12)
+
+/* DDR_PLL_CFG */
+
+/* ARM_PLL_CTRL and IO_PLL_CTRL */
+#define PLL_RESET                       (1)
+#define PLL_PWRDOWN                     (1 << 1)
+#define PLL_BYPASS_QUAL                 (1 << 3)
+#define PLL_BYPASS_FORCE                (1 << 4)
+#define PLL_FDIV(x)                     ((x & BIT_MASK(7)) << 12)
+
+/* ARM_CLK_CTRL */
+#define ARM_CLK_CTRL_SRCSEL(x)          ((x & BIT_MASK(2)) << 4)
+#define ARM_CLK_CTRL_DIVISOR(x)         ((x & BIT_MASK(6)) << 8)
+#define ARM_CLK_CTRL_CPU_6OR4XCLKACT    (1 << 24)
+#define ARM_CLK_CTRL_CPU_3OR2XCLKACT    (1 << 25)
+#define ARM_CLK_CTRL_CPU_2XCLKACT       (1 << 26)
+#define ARM_CLK_CTRL_CPU_1XCLKACT       (1 << 27)
+#define ARM_CLK_CTRL_PERI_CLKACT        (1 << 28)
+
+/* DDR_CLK_CTRL */
+#define DDR_CLK_CTRL_DDR_3XCLKACT       (1)
+#define DDR_CLK_CTRL_DDR_2XCLKACT       (1 << 1)
+#define DDR_CLK_CTRL_DDR_3XCLK_DIV(x)   ((x & BIT_MASK(6)) << 20)
+#define DDR_CLK_CTRL_DDR_2XCLK_DIV(x)   ((x & BIT_MASK(6)) << 26)
+
+/* PLL_STATUS */
+#define PLL_STATUS_ARM_PLL_LOCK         (1)
+#define PLL_STATUS_DDR_PLL_LOCK         (1 << 1)
+#define PLL_STATUS_IO_PLL_LOCK          (1 << 2)
+#define PLL_STATUS_ARM_PLL_STABLE       (1 << 3)
+#define PLL_STATUS_DDR_PLL_STABLE       (1 << 4)
+#define PLL_STATUS_IO_PLL_STABLE        (1 << 5)
 
 /* MIO pin configuration */
 #define MIO_TRI_ENABLE                  (1)
