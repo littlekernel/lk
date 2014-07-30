@@ -5,17 +5,6 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/string_tests.c \
 
-ifeq ($(ARCH),arm)
-ifeq ($(SUBARCH),arm)
-MODULE_SRCS += \
-	$(LOCAL_DIR)/arm/mymemcpy.S \
-	$(LOCAL_DIR)/arm/mymemset.S
-endif
-ifeq ($(SUBARCH),arm-m)
-MODULE_SRCS += \
-	$(LOCAL_DIR)/arm-m/mymemcpy.S \
-	$(LOCAL_DIR)/arm-m/mymemset.S
-endif
-endif
+# put arch local .S files here if developing memcpy/memmove
 
 include make/module.mk

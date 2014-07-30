@@ -33,11 +33,109 @@ static uint8_t *dst;
 static uint8_t *src2;
 static uint8_t *dst2;
 
-#define BUFFER_SIZE (4*1024)
+#define BUFFER_SIZE (64*1024)
 #define ITERATIONS 1024
 
+#if 1
+static inline void *mymemcpy(void *dst, const void *src, size_t len) { return memcpy(dst, src, len); }
+static inline void *mymemset(void *dst, int c, size_t len) { return memset(dst, c, len); }
+#else
+// if we're testing our own memcpy, use this
 extern void *mymemcpy(void *dst, const void *src, size_t len);
 extern void *mymemset(void *dst, int c, size_t len);
+#endif
+
+typedef long word;
+
+#define lsize sizeof(word)
+#define lmask (lsize - 1)
+
+static void *c_memmove(void *dest, void const *src, size_t count)
+{
+    char *d = (char *)dest;
+    const char *s = (const char *)src;
+    int len;
+
+    if (count == 0 || dest == src)
+        return dest;
+
+    if ((long)d < (long)s) {
+        if (((long)d | (long)s) & lmask) {
+            // src and/or dest do not align on word boundary
+            if ((((long)d ^ (long)s) & lmask) || (count < lsize))
+                len = count; // copy the rest of the buffer with the byte mover
+            else
+                len = lsize - ((long)d & lmask); // move the ptrs up to a word boundary
+
+            count -= len;
+            for (; len > 0; len--)
+                *d++ = *s++;
+        }
+        for (len = count / lsize; len > 0; len--) {
+            *(word *)d = *(word *)s;
+            d += lsize;
+            s += lsize;
+        }
+        for (len = count & lmask; len > 0; len--)
+            *d++ = *s++;
+    } else {
+        d += count;
+        s += count;
+        if (((long)d | (long)s) & lmask) {
+            // src and/or dest do not align on word boundary
+            if ((((long)d ^ (long)s) & lmask) || (count <= lsize))
+                len = count;
+            else
+                len = ((long)d & lmask);
+
+            count -= len;
+            for (; len > 0; len--)
+                *--d = *--s;
+        }
+        for (len = count / lsize; len > 0; len--) {
+            d -= lsize;
+            s -= lsize;
+            *(word *)d = *(word *)s;
+        }
+        for (len = count & lmask; len > 0; len--)
+            *--d = *--s;
+    }
+
+    return dest;
+}
+
+static void *c_memset(void *s, int c, size_t count)
+{
+    char *xs = (char *) s;
+    size_t len = (-(size_t)s) & (sizeof(size_t)-1);
+    size_t cc = c & 0xff;
+
+    if ( count > len ) {
+        count -= len;
+        cc |= cc << 8;
+        cc |= cc << 16;
+        if (sizeof(size_t) == 8)
+            cc |= cc << 32;
+
+        // write to non-aligned memory byte-wise
+        for ( ; len > 0; len-- )
+            *xs++ = c;
+
+        // write to aligned memory dword-wise
+        for ( len = count/sizeof(size_t); len > 0; len-- ) {
+            *((size_t *)xs) = (size_t)cc;
+            xs += sizeof(size_t);
+        }
+
+        count &= sizeof(size_t)-1;
+    }
+
+    // write remaining bytes
+    for ( ; count > 0; count-- )
+        *xs++ = c;
+
+    return s;
+}
 
 static void *null_memcpy(void *dst, const void *src, size_t len)
 {
@@ -58,7 +156,7 @@ static lk_time_t bench_memcpy_routine(void *memcpy_routine(void *, const void *,
 
 static void bench_memcpy(void)
 {
-    lk_time_t null, libc, mine;
+    lk_time_t null, c, libc, mine;
     size_t srcalign, dstalign;
 
     printf("memcpy speed test\n");
@@ -68,11 +166,13 @@ static void bench_memcpy(void)
         for (dstalign = 0; dstalign < 64; ) {
 
             null = bench_memcpy_routine(&null_memcpy, srcalign, dstalign);
+            c = bench_memcpy_routine(&c_memmove, srcalign, dstalign);
             libc = bench_memcpy_routine(&memcpy, srcalign, dstalign);
             mine = bench_memcpy_routine(&mymemcpy, srcalign, dstalign);
 
             printf("srcalign %zu, dstalign %zu: ", srcalign, dstalign);
             printf("   null memcpy %lu msecs\n", null);
+            printf("c memcpy %lu msecs, %llu bytes/sec; ", c, BUFFER_SIZE * ITERATIONS * 1000ULL / c);
             printf("libc memcpy %lu msecs, %llu bytes/sec; ", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
             printf("my memcpy %lu msecs, %llu bytes/sec; ", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
             printf("\n");
@@ -113,18 +213,18 @@ static void validate_memcpy(void)
     for (srcalign = 0; srcalign < 64; srcalign++) {
         printf("srcalign %zu\n", srcalign);
         for (dstalign = 0; dstalign < 64; dstalign++) {
-//          printf("\tdstalign %zu\n", dstalign);
+            //printf("\tdstalign %zu\n", dstalign);
             for (size = 0; size < maxsize; size++) {
 
-//              printf("srcalign %zu, dstalign %zu, size %zu\n", srcalign, dstalign, size);
+                //printf("srcalign %zu, dstalign %zu, size %zu\n", srcalign, dstalign, size);
 
                 fillbuf(src, maxsize * 2, 567);
                 fillbuf(src2, maxsize * 2, 567);
                 fillbuf(dst, maxsize * 2, 123514);
                 fillbuf(dst2, maxsize * 2, 123514);
 
-                memcpy(dst + dstalign, src + srcalign, size);
-                mymemcpy(dst2 + dstalign, src2 + srcalign, size);
+                c_memmove(dst + dstalign, src + srcalign, size);
+                memcpy(dst2 + dstalign, src2 + srcalign, size);
 
                 int comp = memcmp(dst, dst2, maxsize * 2);
                 if (comp != 0) {
@@ -149,7 +249,7 @@ static lk_time_t bench_memset_routine(void *memset_routine(void *, int, size_t),
 
 static void bench_memset(void)
 {
-    lk_time_t libc, mine;
+    lk_time_t c, libc, mine;
     size_t dstalign;
 
     printf("memset speed test\n");
@@ -157,10 +257,12 @@ static void bench_memset(void)
 
     for (dstalign = 0; dstalign < 64; dstalign++) {
 
+        c = bench_memset_routine(&c_memset, dstalign, BUFFER_SIZE);
         libc = bench_memset_routine(&memset, dstalign, BUFFER_SIZE);
         mine = bench_memset_routine(&mymemset, dstalign, BUFFER_SIZE);
 
         printf("dstalign %zu: ", dstalign);
+        printf("c memset %lu msecs, %llu bytes/sec; ", c, BUFFER_SIZE * ITERATIONS * 1000ULL / c);
         printf("libc memset %lu msecs, %llu bytes/sec; ", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
         printf("my memset %lu msecs, %llu bytes/sec; ", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
         printf("\n");
@@ -178,13 +280,13 @@ static void validate_memset(void)
     for (dstalign = 0; dstalign < 64; dstalign++) {
         printf("align %zd\n", dstalign);
         for (size = 0; size < maxsize; size++) {
-            for (c = 0; c < 257; c++) {
+            for (c = -1; c < 257; c++) {
 
                 fillbuf(dst, maxsize * 2, 123514);
                 fillbuf(dst2, maxsize * 2, 123514);
 
-                memset(dst + dstalign, c, size);
-                mymemset(dst2 + dstalign, c, size);
+                c_memset(dst + dstalign, c, size);
+                memset(dst2 + dstalign, c, size);
 
                 int comp = memcmp(dst, dst2, maxsize * 2);
                 if (comp != 0) {
