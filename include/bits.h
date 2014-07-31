@@ -38,6 +38,8 @@
 #define BITMAP_WORD(x) ((x) / BITMAP_BITS_PER_WORD)
 #define BITMAP_BIT_IN_WORD(x) ((x) & (BITMAP_BITS_PER_WORD - 1))
 
+#define BIT_MASK(x) (((x) >= sizeof(unsigned long) * 8) ? (0UL-1) : ((1UL << (x)) - 1))
+
 static inline int bitmap_set(unsigned long *bitmap, int bit)
 {
 	unsigned long mask = 1 << BITMAP_BIT_IN_WORD(bit);
