@@ -106,7 +106,7 @@ enum {
 };
 
 void arp_cache_init(void);
-void arp_cache_update(uint32_t addr, uint8_t mac[6]);
+void arp_cache_update(uint32_t addr, const uint8_t mac[6]);
 uint8_t *arp_cache_lookup(uint32_t addr);
 void arp_cache_dump(void);
 
@@ -114,6 +114,10 @@ uint16_t rfc1701_chksum(uint8_t *buf, size_t len);
 uint16_t rfc768_chksum(struct ipv4_hdr *pkt, size_t len);
 
 int send_arp_request(uint32_t addr);
+
+status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto);
+
+void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
 
 // vim: set ts=4 sw=4 expandtab:
 

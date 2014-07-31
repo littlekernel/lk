@@ -50,6 +50,7 @@ static struct list_node arp_list = LIST_INITIAL_VALUE(arp_list);
 #define LOCAL_TRACE 0
 static uint32_t minip_ip      = IPV4_NONE;
 static uint32_t minip_netmask = IPV4_NONE;
+static uint32_t minip_broadcast = IPV4_BCAST;
 static uint32_t minip_gateway = IPV4_NONE;
 
 static uint8_t minip_mac[6] = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
@@ -91,6 +92,11 @@ int minip_udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
     return 0;
 }
 
+static void compute_broadcast_address(void)
+{
+    minip_broadcast = (minip_ip & minip_netmask) | (IPV4_BCAST & ~minip_netmask);
+}
+
 void minip_get_macaddr(uint8_t *addr) {
     memcpy(addr, minip_mac, 6);
 }
@@ -105,6 +111,7 @@ uint32_t minip_get_ipaddr(void) {
 
 void minip_set_ipaddr(const uint32_t addr) {
     minip_ip = addr;
+    compute_broadcast_address();
 }
 
 /* This function is called by minip to send packets */
@@ -112,7 +119,7 @@ tx_func_t minip_tx_handler;
 void *minip_tx_arg;
 
 void minip_init(tx_func_t tx_handler, void *tx_arg,
-	uint32_t ip, uint32_t mask, uint32_t gateway)
+    uint32_t ip, uint32_t mask, uint32_t gateway)
 {
     minip_tx_handler = tx_handler;
     minip_tx_arg = tx_arg;
@@ -120,6 +127,7 @@ void minip_init(tx_func_t tx_handler, void *tx_arg,
     minip_ip = ip;
     minip_netmask = mask;
     minip_gateway = gateway;
+    compute_broadcast_address();
 
     mutex_init(&tx_mutex);
     arp_cache_init();
@@ -180,6 +188,50 @@ int send_arp_request(uint32_t addr)
 
     minip_tx_handler(p);
     return 0;
+}
+
+status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto)
+{
+    status_t ret = 0;
+    size_t data_len = p->dlen;
+    uint8_t *dst_mac;
+
+    struct ipv4_hdr *ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
+    struct eth_hdr *eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
+
+    mutex_acquire(&tx_mutex);
+
+    if (dest_addr == IPV4_BCAST || dest_addr == minip_broadcast) {
+        dst_mac = bcast_mac;
+        goto ready;
+    }
+
+    /* If we're missing an address in the cache send out a request periodically for a bit */
+    dst_mac = arp_cache_lookup(dest_addr);
+    if (!dst_mac) {
+        send_arp_request(dest_addr);
+        // TODO: Add a timeout here rather than an arbitrary iteration limit
+        for (int i = 50000; i > 0; i--) {
+            if ((dst_mac = arp_cache_lookup(dest_addr)) != NULL) {
+                break;
+            }
+        }
+
+        if (dst_mac == NULL) {
+            ret = -1;
+            goto err;
+        }
+    }
+
+ready:
+    fill_in_mac_header(eth, dst_mac, ETH_TYPE_IPV4);
+    fill_in_ipv4_header(ip, dest_addr, proto, data_len);
+
+    minip_tx_handler(p);
+
+err:
+    mutex_release(&tx_mutex);
+    return ret;
 }
 
 int minip_udp_send(const void *buf, size_t len, uint32_t addr,
@@ -282,19 +334,87 @@ void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdatalen)
     minip_tx_handler(p);
 }
 
-static void handle_ipv4_packet(pktbuf_t *p)
+static void dump_ipv4_addr(uint32_t addr)
 {
-    struct eth_hdr *eth;
+    const uint8_t *a = (void *)&addr;
+
+    printf("%hhu.%hhu.%hhu.%hhu", a[0], a[1], a[2], a[3]);
+}
+
+static void dump_ipv4_packet(const struct ipv4_hdr *ip)
+{
+    printf("IP ");
+    dump_ipv4_addr(ip->src_addr);
+    printf(" -> ");
+    dump_ipv4_addr(ip->dst_addr);
+    printf(" hlen 0x%x, prot 0x%x, cksum 0x%x, len 0x%x, ident 0x%x, frag offset 0x%x\n",
+        (ip->ver_ihl & 0xf) * 4, ip->proto, ntohs(ip->chksum), ntohs(ip->len), ntohs(ip->id), ntohs(ip->flags_frags) & 0x1fff);
+}
+
+__NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
+{
     struct ipv4_hdr *ip;
 
-    eth = (void*) (p->data - sizeof(struct eth_hdr));
+    ip = (struct ipv4_hdr *)p->data;
+    if (p->dlen < sizeof(struct ipv4_hdr))
+        return;
 
-    if ((ip = pktbuf_consume(p, sizeof(struct ipv4_hdr))) == NULL) {
+    /* reject bad packets */
+    if (((ip->ver_ihl >> 4) & 0xf) != 4) {
+        /* not version 4 */
+        //LTRACEF("REJECT: not version 4\n");
         return;
     }
 
-    /* If we've received a packet then we can use it to populate our arp cache */
-    arp_cache_update(ip->src_addr, eth->src_mac);
+    /* do we have enough buffer to hold the full header + options? */
+    size_t header_len = (ip->ver_ihl & 0xf) * 4;
+    if (p->dlen < header_len) {
+        //LTRACEF("REJECT: not enough buffer to hold header\n");
+        return;
+    }
+
+    /* compute checksum */
+    if (rfc1701_chksum((void *)ip, header_len) != 0) {
+        /* bad checksum */
+        //LTRACEF("REJECT: bad checksum\n");
+        return;
+    }
+
+    /* is the pkt_buf large enough to hold the length the header says the packet is? */
+    if (htons(ip->len) > p->dlen) {
+        //LTRACEF("REJECT: packet exceeds size of buffer (header %d, dlen %d)\n", htons(ip->len), p->dlen);
+        return;
+    }
+
+    /* trim any excess bytes at the end of the packet */
+    if (p->dlen > htons(ip->len)) {
+        pktbuf_consume_tail(p, p->dlen - htons(ip->len));
+    }
+
+    /* remove the header from the front of the packet_buf  */
+    if (pktbuf_consume(p, header_len) == NULL) {
+        return;
+    }
+
+    /* the packet is good, we can use it to populate our arp cache */
+    arp_cache_update(ip->src_addr, src_mac);
+
+    /* see if it's for us */
+    if (ip->dst_addr != IPV4_BCAST) {
+        if (minip_ip == IPV4_NONE) {
+            //LTRACEF("REJECT: no configured local address\n");
+            return;
+        }
+        if (ip->dst_addr != minip_ip && ip->dst_addr != minip_broadcast) {
+            //LTRACEF("REJECT: for another host\n");
+            return;
+        }
+    }
+
+    /* print packets for us */
+    if (LOCAL_TRACE) {
+        dump_ipv4_packet(ip);
+    }
 
     /* We only handle UDP and ECHO REQUEST */
     switch (ip->proto) {
@@ -395,7 +515,7 @@ void minip_rx_driver_callback(pktbuf_t *p)
 
     switch(htons(eth->type)) {
         case ETH_TYPE_IPV4:
-            handle_ipv4_packet(p);
+            handle_ipv4_packet(p, eth->src_mac);
             break;
 
         case ETH_TYPE_ARP:

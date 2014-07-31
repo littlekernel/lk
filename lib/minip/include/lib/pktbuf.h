@@ -80,6 +80,8 @@ void *pktbuf_prepend(pktbuf_t *p, size_t sz);
 // or NULL if there were not enough bytes to consume
 void *pktbuf_consume(pktbuf_t *p, size_t sz);
 
+// remove sz bytes from the end of the pktbuf
+void pktbuf_consume_tail(pktbuf_t *p, size_t sz);
 
 // create a new packet buffer from raw memory and add
 // it to the free pool

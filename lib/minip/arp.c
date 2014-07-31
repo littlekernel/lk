@@ -56,7 +56,7 @@ static inline void mru_update(struct list_node *entry)
     list_add_head(&arp_list, entry);
 }
 
-void arp_cache_update(uint32_t addr, uint8_t mac[6])
+void arp_cache_update(uint32_t addr, const uint8_t mac[6])
 {
     arp_entry_t *arp;
     bool found = false;

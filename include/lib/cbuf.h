@@ -41,6 +41,10 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
 size_t cbuf_space_avail(cbuf_t *cbuf);
 size_t cbuf_space_used(cbuf_t *cbuf);
 
+static size_t cbuf_size(cbuf_t *cbuf) {
+    return (1UL << cbuf->len_pow2);
+}
+
 /* special cases for dealing with a single char of data */
 size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block);
 size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule);

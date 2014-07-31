@@ -93,7 +93,8 @@ void *pktbuf_prepend(pktbuf_t *p, size_t sz) {
 }
 
 void *pktbuf_consume(pktbuf_t *p, size_t sz) {
-        void *data = p->data;
+	void *data = p->data;
+
 	if (sz > p->dlen) {
 		return NULL;
 	}
@@ -102,6 +103,15 @@ void *pktbuf_consume(pktbuf_t *p, size_t sz) {
 	p->dlen -= sz;
 
 	return data;
+}
+
+void pktbuf_consume_tail(pktbuf_t *p, size_t sz) {
+	if (sz > p->dlen) {
+		p->dlen = 0;
+		return;
+	}
+
+	p->dlen -= sz;
 }
 
 // vim: set noexpandtab:
