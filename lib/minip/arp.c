@@ -61,6 +61,10 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6])
     arp_entry_t *arp;
     bool found = false;
 
+    if (addr == 0) {
+        return;
+    }
+
     /* If the entry is in the cache update the address and move
      * it to head */
     list_for_every_entry(&arp_list, arp, arp_entry_t, node) {
