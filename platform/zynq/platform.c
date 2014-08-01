@@ -61,7 +61,6 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
       .size = (16*1024*1024),
       .flags = MMU_INITIAL_MAPPING_FLAG_UNCACHED,
       .name = "axi1" },
-
     /* 0xe0000000 hardware devices */
     { .phys = 0xe0000000,
       .virt = 0xe0000000,
@@ -164,5 +163,13 @@ void platform_init(void)
     printf("\tBOOT_MODE 0x%x\n", SLCR_REG(BOOT_MODE));
 
     zynq_dump_clocks();
+
+    printf("zynq mio:\n");
+    for (size_t i = 0; i < 54; i++) {
+        printf("\t%02u: 0x%08x", i, *REG32((uintptr_t)&SLCR->MIO_PIN_00 + (i * 4)));
+        if (i % 4 == 3 || i == 53) {
+            putchar('\n');
+        }
+    }
 }
 

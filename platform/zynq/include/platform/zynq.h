@@ -344,19 +344,68 @@ STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 #define PLL_STATUS_DDR_PLL_STABLE       (1 << 4)
 #define PLL_STATUS_IO_PLL_STABLE        (1 << 5)
 
+/* Generic clock control */
+#define CLK_CTRL_CLKACT1                (1)
+#define CLK_CTRL_CLKACT2                (1 << 1)
+#define CLK_CTRL_SRCSEL(x)              ((x & BIT_MASK(2)) << 4)
+#define CLK_CTRL_DIVISOR1(x)            ((x & BIT_MASK(6)) << 8)
+#define CLK_CTRL_DIVISOR2(x)            ((x & BIT_MASK(6)) << 20)
+
+/* GEM clock control */
+#define GEM_CLK_CTRL_SRCSEL(x)          ((x & BIT_MASK(3)) << 4)
+
+/* CLK 621 just has a single enable bit */
+#define CLK_621_ENABLE                  (1)
+
+/* AMBA Peripheral Clock Control */
+#define SMC_CPU_CLK_EN                  (1 << 24)
+#define LQSPI_CPU_CLK_EN                (1 << 23)
+#define GPIO_CPU_CLK_EN                 (1 << 22)
+#define UART1_CPU_CLK_EN                (1 << 21)
+#define UART0_CPU_CLK_EN                (1 << 20)
+#define I2C1_CPU_CLK_EN                 (1 << 19)
+#define I2C0_CPU_CLK_EN                 (1 << 18)
+#define CAN1_CPU_CLK_EN                 (1 << 17)
+#define CAN0_CPU_CLK_EN                 (1 << 16)
+#define SPI1_CPU_CLK_EN                 (1 << 15)
+#define SPI0_CPU_CLK_EN                 (1 << 14)
+#define SDI1_CPU_CLK_EN                 (1 << 11)
+#define SDI0_CPU_CLK_EN                 (1 << 10)
+#define GEM1_CPU_CLK_EN                 (1 << 7)
+#define GEM0_CPU_CLK_EN                 (1 << 6)
+#define USB1_CPU_CLK_EN                 (1 << 3)
+#define USB0_CPU_CLK_EN                 (1 << 2)
+#define DMA_CPU_CLK_EN                  (1 << 0)
+
+/* GPIOB_CTRL */
+#define GPIOB_CTRL_VREF_09_EN           (1 << 4)
+#define GPIOB_CTRL_VREF_EN              (1)
+
+/* DDRIOB_ADDR */
+#define DDRIOB_PULLUP_EN                (1 << 11)
+#define DDRIOB_OUTPUT_EN(x)             ((x & BIT_MASK(2)) << 9)
+#define DDRIOB_TERM_DISABLE_MODE        (1 << 8)
+#define DDRIOB_IBUF_DISABLE_MODE        (1 << 7)
+#define DDRIOB_DCI_TYPE(x)              ((x & BIT_MASK(2)) << 5)
+#define DDRIOB_TERM_EN                  (1 << 4)
+#define DDRIOB_DCI_UPDATE_B             (1 << 3)
+#define DDRIOB_INP_TYPE(x)              ((x & BIT_MASK(2)) << 1)
+
+/* SD1_WP_CD_SEL */
+#define SDIO0_WP_SEL(x)                 (x & BIT_MASK(6))
+#define SDIO0_CD_SEL(x)                 ((x & BIT_MASK(6)) << 16)
+
 /* MIO pin configuration */
 #define MIO_TRI_ENABLE                  (1)
 #define MIO_L0_SEL                      (1 << 1)
 #define MIO_L1_SEL                      (1 << 2)
-#define MIO_L2_SEL(x)                   (x << 3)
-#define MIO_L3_SEL(x)                   (x << 5)
-#define MIO_IO_TYPE_HSTL                MIO_IO_TYPE(0x4)
+#define MIO_L2_SEL(x)                   ((x & BIT_MASK(2)) << 3)
+#define MIO_L3_SEL(x)                   ((x & BIT_MASK(3)) << 5)
 #define MIO_SPEED_FAST                  (1 << 8)
-#define MIO_IO_TYPE(x)                  (x << 9)
-#define MIO_IO_TYPE_LVCMOS18            MIO_IO_TYPE(0x1)
-#define MIO_IO_TYPE_LVCMOS25            MIO_IO_TYPE(0x2)
-#define MIO_IO_TYPE_LVCMOS33            MIO_IO_TYPE(0x3)
-#define MIO_IO_TYPE_HSTL                MIO_IO_TYPE(0x4)
+#define MIO_IO_TYPE_LVCMOS18            (0x1 << 9)
+#define MIO_IO_TYPE_LVCMOS25            (0x2 << 9)
+#define MIO_IO_TYPE_LVCMOS33            (0x3 << 9)
+#define MIO_IO_TYPE_HSTL                (0x4 << 9)
 #define MIO_PULLUP                      (1 << 12)
 #define MIO_DISABLE_RCVR                (1 << 13)
 
