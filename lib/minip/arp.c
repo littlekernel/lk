@@ -59,9 +59,13 @@ static inline void mru_update(struct list_node *entry)
 void arp_cache_update(uint32_t addr, const uint8_t mac[6])
 {
     arp_entry_t *arp;
+    ipv4_t ip;
     bool found = false;
 
-    if (addr == 0) {
+    ip.u = addr;
+
+    // Ignore 0.0.0.0 or x.x.x.255
+    if (ip.u == 0 || ip.b[3] == 0xFF) {
         return;
     }
 
@@ -77,8 +81,6 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6])
     }
 
     if (!found) {
-        ipv4_t ip;
-        ip.u = addr;
         LTRACEF("Adding %u.%u.%u.%u -> %02x:%02x:%02x%02x:%02x:%02x to cache\n",
             ip.b[0], ip.b[1], ip.b[2], ip.b[3],
             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
