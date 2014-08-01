@@ -394,7 +394,7 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
      */
     regs->net_cfg = NET_CFG_FULL_DUPLEX | NET_CFG_GIGE_EN | NET_CFG_SPEED_100 |
         NET_CFG_RX_CHKSUM_OFFLD_EN | NET_CFG_FCS_REMOVE | NET_CFG_MDC_CLK_DIV(0x7) |
-        NET_CFG_RX_BUF_OFFSET(2);
+        NET_CFG_RX_BUF_OFFSET(2) | NET_CFG_COPY_ALL;
 
     /* Set DMA to 1600 byte rx buffer, 8KB addr space for rx, 4KB addr space for tx,
      * hw checksumming, little endian, and use INCR16 ahb bursts
