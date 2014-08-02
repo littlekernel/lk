@@ -401,11 +401,7 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
 
     /* see if it's for us */
     if (ip->dst_addr != IPV4_BCAST) {
-        if (minip_ip == IPV4_NONE) {
-            //LTRACEF("REJECT: no configured local address\n");
-            return;
-        }
-        if (ip->dst_addr != minip_ip && ip->dst_addr != minip_broadcast) {
+        if (minip_ip != IPV4_NONE && ip->dst_addr != minip_ip && ip->dst_addr != minip_broadcast) {
             //LTRACEF("REJECT: for another host\n");
             return;
         }
