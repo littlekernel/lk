@@ -40,7 +40,7 @@ memset(void *s, int c, size_t count)
 		cc |= cc << 8;
 		cc |= cc << 16;
 		if (sizeof(size_t) == 8)
-			cc |= cc << 32;
+			cc |= (uint64_t)cc << 32; // should be optimized out on 32 bit machines
 
 		// write to non-aligned memory byte-wise
 		for ( ; len > 0; len-- )
