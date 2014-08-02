@@ -5,6 +5,7 @@ TARGET := foundation-emu
 MODULES += \
 	app/tests \
 	app/shell \
+	app/stringtests \
 	lib/debugcommands
 
 

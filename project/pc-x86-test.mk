@@ -7,6 +7,7 @@ TARGET := pc-x86
 MODULES += \
 	app/tests \
 	app/shell \
+	app/stringtests \
 	app/pcitests
 
 # extra rules to copy the pc-x86.conf file to the build dir
