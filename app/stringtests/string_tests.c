@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -33,8 +33,8 @@ static uint8_t *dst;
 static uint8_t *src2;
 static uint8_t *dst2;
 
-#define BUFFER_SIZE (64*1024)
-#define ITERATIONS 1024
+#define BUFFER_SIZE (2*1024*1024)
+#define ITERATIONS (256*1024*1024 / BUFFER_SIZE) // enough iterations to have to copy/set 256MB of memory
 
 #if 1
 static inline void *mymemcpy(void *dst, const void *src, size_t len) { return memcpy(dst, src, len); }
@@ -45,6 +45,7 @@ extern void *mymemcpy(void *dst, const void *src, size_t len);
 extern void *mymemset(void *dst, int c, size_t len);
 #endif
 
+/* reference implementations of memmove/memcpy */
 typedef long word;
 
 #define lsize sizeof(word)
@@ -172,9 +173,9 @@ static void bench_memcpy(void)
 
             printf("srcalign %zu, dstalign %zu: ", srcalign, dstalign);
             printf("   null memcpy %lu msecs\n", null);
-            printf("c memcpy %lu msecs, %llu bytes/sec; ", c, BUFFER_SIZE * ITERATIONS * 1000ULL / c);
-            printf("libc memcpy %lu msecs, %llu bytes/sec; ", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
-            printf("my memcpy %lu msecs, %llu bytes/sec; ", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
+            printf("c memcpy %lu msecs, %llu bytes/sec; ", c, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / c);
+            printf("libc memcpy %lu msecs, %llu bytes/sec; ", libc, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
+            printf("my memcpy %lu msecs, %llu bytes/sec; ", mine, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
             printf("\n");
 
             if (dstalign < 8)
@@ -262,9 +263,9 @@ static void bench_memset(void)
         mine = bench_memset_routine(&mymemset, dstalign, BUFFER_SIZE);
 
         printf("dstalign %zu: ", dstalign);
-        printf("c memset %lu msecs, %llu bytes/sec; ", c, BUFFER_SIZE * ITERATIONS * 1000ULL / c);
-        printf("libc memset %lu msecs, %llu bytes/sec; ", libc, BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
-        printf("my memset %lu msecs, %llu bytes/sec; ", mine, BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
+        printf("c memset %lu msecs, %llu bytes/sec; ", c, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / c);
+        printf("libc memset %lu msecs, %llu bytes/sec; ", libc, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
+        printf("my memset %lu msecs, %llu bytes/sec; ", mine, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
         printf("\n");
     }
 }
