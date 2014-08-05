@@ -74,4 +74,11 @@ int minip_udp_send(const void *data, size_t len,
 /* install udp listener */
 int minip_udp_listen(uint16_t port, udp_callback_t rx_handler, void *arg);
 
+/* tcp */
+status_t tcp_open_listen(void **handle, uint16_t port);
+status_t tcp_accept(void *listen_socket, void **accept_socket);
+status_t tcp_close(void *socket);
+ssize_t tcp_read(void *socket, void *buf, size_t len);
+ssize_t tcp_write(void *socket, const void *buf, size_t len);
+
 // vim: set ts=4 sw=4 expandtab:

@@ -28,6 +28,7 @@
 #include <endian.h>
 #include <list.h>
 #include <stdint.h>
+#include <compiler.h>
 
 /* Lib configuration */
 #define MINIP_USE_UDP_CHECKSUM    0
@@ -92,6 +93,7 @@ enum {
 
 enum {
     IP_PROTO_ICMP = 0x1,
+    IP_PROTO_TCP  = 0x6,
     IP_PROTO_UDP  = 0x11,
 };
 
@@ -110,14 +112,31 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6]);
 uint8_t *arp_cache_lookup(uint32_t addr);
 void arp_cache_dump(void);
 
-uint16_t rfc1701_chksum(uint8_t *buf, size_t len);
+uint16_t rfc1701_chksum(const uint8_t *buf, size_t len);
 uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp);
+uint16_t ones_sum16(uint32_t sum, const void *_buf, int len);
 
 int send_arp_request(uint32_t addr);
 
 status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto);
 
 void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
+
+// timers
+typedef void (*net_timer_callback_t)(void *);
+
+typedef struct net_timer {
+    struct list_node node;
+
+    lk_time_t sched_time;
+
+    net_timer_callback_t cb;
+    void *arg;
+} net_timer_t;
+
+status_t net_timer_set(net_timer_t *, net_timer_callback_t, void *callback_args, lk_time_t delay) __NONNULL((1));
+status_t net_timer_cancel(net_timer_t *) __NONNULL();
+void net_timer_init(void);
 
 // vim: set ts=4 sw=4 expandtab:
 

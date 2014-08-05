@@ -131,6 +131,7 @@ void minip_init(tx_func_t tx_handler, void *tx_arg,
 
     mutex_init(&tx_mutex);
     arp_cache_init();
+    net_timer_init();
 }
 
 uint16_t ipv4_payload_len(struct ipv4_hdr *pkt)
@@ -359,6 +360,11 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
     if (p->dlen < sizeof(struct ipv4_hdr))
         return;
 
+    /* print packets for us */
+    if (LOCAL_TRACE) {
+        dump_ipv4_packet(ip);
+    }
+
     /* reject bad packets */
     if (((ip->ver_ihl >> 4) & 0xf) != 4) {
         /* not version 4 */
@@ -407,11 +413,6 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
         }
     }
 
-    /* print packets for us */
-    if (LOCAL_TRACE) {
-        dump_ipv4_packet(ip);
-    }
-
     /* We only handle UDP and ECHO REQUEST */
     switch (ip->proto) {
         case IP_PROTO_ICMP: {
@@ -443,10 +444,14 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
             }
         }
         break;
+
+        case IP_PROTO_TCP:
+            tcp_input(p, ip->src_addr, ip->dst_addr);
+        break;
     }
 }
 
-static int handle_arp_pkt(pktbuf_t *p)
+__NO_INLINE static int handle_arp_pkt(pktbuf_t *p)
 {
     struct eth_hdr *eth;
     struct arp_pkt *arp;

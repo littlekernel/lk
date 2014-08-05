@@ -23,11 +23,34 @@
 
 #include "minip-internal.h"
 
-uint16_t rfc1701_chksum(uint8_t *buf, size_t len)
+/* XXX alternate implementation, merge */
+uint16_t ones_sum16(uint32_t sum, const void *_buf, int len)
+{
+    const uint16_t *buf = _buf;
+
+    while (len >= 2) {
+        sum += *buf++;
+        if(sum & 0x80000000)
+            sum = (sum & 0xffff) + (sum >> 16);
+        len -= 2;
+    }
+
+    if (len) {
+        uint16_t temp = htons((*(uint8_t *)buf) << 8);
+        sum += temp;
+    }
+
+    while (sum >> 16)
+        sum = (sum & 0xffff) + (sum >> 16);
+
+    return sum;
+}
+
+uint16_t rfc1701_chksum(const uint8_t *buf, size_t len)
 {
     uint32_t total = 0;
     uint16_t chksum = 0;
-    uint16_t *p = (uint16_t *) buf;
+    const uint16_t *p = (const uint16_t *) buf;
 
     // Length is in bytes
     for (size_t i = 0; i < len / 2; i++ ) {
@@ -56,7 +79,7 @@ uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp)
     total += htons(p[0]);
     total += htons(p[1]);
 
-    p = (uint16_t *)udp->data;
+    p = (const uint16_t *)udp->data;
     for (size_t i = 0; i < len / 2; i++ ) {
         total += p[i];
     }
