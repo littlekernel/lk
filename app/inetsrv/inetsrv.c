@@ -97,7 +97,7 @@ static int discard_worker(void *socket)
     uint32_t crc = 0;
 
     for (;;) {
-        uint8_t buf[32];
+        uint8_t buf[1024];
 
         ssize_t ret = tcp_read(socket, buf, sizeof(buf));
         if (ret <= 0)
