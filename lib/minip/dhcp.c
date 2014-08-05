@@ -279,7 +279,7 @@ void minip_init_dhcp(tx_func_t tx_func, void *tx_arg) {
 	minip_udp_listen(DHCP_CLIENT_PORT, dhcp_cb, NULL);
 
 	dhcp_thr = thread_create("dhcp", dhcp_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
-	thread_resume(dhcp_thr);
+	thread_detach_and_resume(dhcp_thr);
 }
 
 // vim: set noexpandtab:
