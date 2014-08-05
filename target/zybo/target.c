@@ -90,6 +90,8 @@ void target_init(void)
         mac_addr[0] |= (1<<1);
     }
 
+    uint8_t use_dhcp = 0;
+    sysparam_read("net0.use_dhcp", &use_dhcp, sizeof(use_dhcp));
     sysparam_read("net0.ip_addr", &ip_addr, sizeof(ip_addr));
     sysparam_read("net0.ip_mask", &ip_mask, sizeof(ip_mask));
     sysparam_read("net0.ip_gateway", &ip_gateway, sizeof(ip_gateway));
@@ -97,11 +99,13 @@ void target_init(void)
     minip_set_macaddr(mac_addr);
     gem_set_macaddr(mac_addr);
 
-    if (ip_addr != IPV4_NONE) {
+    if (!use_dhcp && ip_addr != IPV4_NONE) {
+        printf("static\n");
         minip_init(gem_send_raw_pkt, NULL, ip_addr, ip_mask, ip_gateway);
     } else
 #endif
     {
+        printf("dhcp\n");
         /* Configure IP stack and hook to the driver */
         minip_init_dhcp(gem_send_raw_pkt, NULL);
     }
