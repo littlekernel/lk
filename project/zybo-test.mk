@@ -3,6 +3,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULES += \
+	app/inetsrv \
 	app/tests \
 	app/stringtests \
 	app/shell \
