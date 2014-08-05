@@ -76,20 +76,19 @@ FUNCTION(memcpy)
 	// and we need at least 32 bytes remaining to copy
 
 	// save r6-r7 for use in the big copy
-	stmfd	sp!, {r6-r7}
+	stmfd	sp!, {r6-r11}
 
 	sub		r2, r2, #32		// subtract an extra 32 to the len so we can avoid an extra compare
 
 .L_bigcopy_loop:
-	ldmia	r1!, {r4, r5, r6, r7}
-	stmia	r0!, {r4, r5, r6, r7}
-	ldmia	r1!, {r4, r5, r6, r7}
+	pld     [r1, #64]
+	ldmia	r1!, {r4-r11}
 	subs	r2, r2, #32
-	stmia	r0!, {r4, r5, r6, r7}
+	stmia	r0!, {r4-r11}
 	bge		.L_bigcopy_loop
 
 	// restore r6-r7
-	ldmfd	sp!, {r6-r7}
+	ldmfd	sp!, {r6-r11}
 
 	// see if we are done
 	adds	r2, r2, #32
