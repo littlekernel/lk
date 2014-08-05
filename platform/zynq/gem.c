@@ -394,7 +394,7 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
      */
     regs->net_cfg = NET_CFG_FULL_DUPLEX | NET_CFG_GIGE_EN | NET_CFG_SPEED_100 |
         NET_CFG_RX_CHKSUM_OFFLD_EN | NET_CFG_FCS_REMOVE | NET_CFG_MDC_CLK_DIV(0x7) |
-        NET_CFG_RX_BUF_OFFSET(2) | NET_CFG_COPY_ALL;
+        NET_CFG_RX_BUF_OFFSET(2);
 
     /* Set DMA to 1600 byte rx buffer, 8KB addr space for rx, 4KB addr space for tx,
      * hw checksumming, little endian, and use INCR16 ahb bursts
@@ -432,8 +432,9 @@ void gem_set_macaddr(uint8_t mac[6]) {
         regs->net_ctrl &= ~(en);
     }
 
-    regs->spec_addr1_top = (mac[0] << 8) | mac[1];
-    regs->spec_addr1_bot = (mac[2] << 24) | (mac[3] << 16) | (mac[4] << 8) | mac[5];
+    /* _top register must be written after _bot register */
+    regs->spec_addr1_bot = (mac[3] << 24) | (mac[2] << 16) | (mac[1] << 8) | mac[0];
+    regs->spec_addr1_top = (mac[5] << 8) | mac[4];
 
     if (en) {
         regs->net_ctrl |= en;
