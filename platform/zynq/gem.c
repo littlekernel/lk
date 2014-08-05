@@ -139,7 +139,10 @@ int gem_send_raw_pkt(struct pktbuf *p)
     regs->tx_qbar = ((uintptr_t)&state->tx[0] - (uintptr_t)state) + state_phys;
     regs->net_ctrl |= NET_CTRL_START_TX;
 
-    event_wait(&tx_complete);
+    ret = event_wait_timeout(&tx_complete, 1000);
+    if (ret == ERR_TIMED_OUT) {
+        TRACEF("timed out transmitting packet\n");
+    }
 
 err:
     mutex_release(&tx_mutex);
@@ -155,11 +158,11 @@ enum handler_return gem_int_handler(void *arg) {
     bool resched = false;
 
     intr_status = regs->intr_status;
+
     // Received an RX complete
     if (intr_status & INTR_RX_COMPLETE) {
         event_signal(&rx_pending, false);
 
-        intr_status &= ~INTR_RX_COMPLETE;
         regs->rx_status |= INTR_RX_COMPLETE;
 
         resched = true;
@@ -175,12 +178,10 @@ enum handler_return gem_int_handler(void *arg) {
         regs->net_ctrl &= ~NET_CTRL_RX_EN;
         regs->net_ctrl |= NET_CTRL_RX_EN;
         printf("GEM overflow, dumping pending packets\n");
-        intr_status &= ~INTR_RX_USED_READ;
     }
 
     if (intr_status & INTR_TX_CORRUPT) {
         printf("tx ahb error!\n");
-        intr_status &= ~INTR_TX_CORRUPT;
     }
 
     if (intr_status & INTR_TX_COMPLETE || intr_status & INTR_TX_USED_READ) {
@@ -190,18 +191,13 @@ enum handler_return gem_int_handler(void *arg) {
         state->tx[1].addr = 0;
         state->tx[1].ctrl &= TX_DESC_USED | TX_DESC_WRAP;
 
-        intr_status &= ~(INTR_TX_COMPLETE | INTR_TX_USED_READ);;
         regs->tx_status |= (TX_STATUS_COMPLETE | TX_STATUS_USED_READ);
         event_signal(&tx_complete, false);
 
         resched = true;
     }
 
-    if (intr_status) {
-        printf("unhandled GEM interrupt: %#08x\n", intr_status);
-    }
-
-    regs->intr_status |= 0xFFFFFFFF;
+    regs->intr_status = intr_status;
     return (resched) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
