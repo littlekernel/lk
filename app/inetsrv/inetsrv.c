@@ -35,6 +35,7 @@
 static int chargen_worker(void *socket)
 {
     uint64_t count = 0;
+    tcp_socket_t *s = socket;
 #define CHARGEN_BUFSIZE (64*1024)
 
     /* allocate a large buffer to flood the socket layer */
@@ -50,7 +51,7 @@ static int chargen_worker(void *socket)
     }
 
     for (;;) {
-        ssize_t ret = tcp_write(socket, buf, CHARGEN_BUFSIZE);
+        ssize_t ret = tcp_write(s, buf, CHARGEN_BUFSIZE);
         //TRACEF("tcp_write returns %d\n", ret);
         if (ret < 0)
             break;
@@ -60,7 +61,7 @@ static int chargen_worker(void *socket)
 
     TRACEF("chargen worker exiting, wrote %llu bytes\n", count);
     free(buf);
-    tcp_close(socket);
+    tcp_close(s);
 
     return 0;
 }
@@ -68,7 +69,7 @@ static int chargen_worker(void *socket)
 static int chargen_server(void *arg)
 {
     status_t err;
-    void *listen_socket;
+    tcp_socket_t *listen_socket;
 
     err = tcp_open_listen(&listen_socket, 19);
     if (err < 0) {
@@ -77,7 +78,7 @@ static int chargen_server(void *arg)
     }
 
     for (;;) {
-        void *accept_socket;
+        tcp_socket_t *accept_socket;
 
         err = tcp_accept(listen_socket, &accept_socket);
         TRACEF("tcp_accept returns returns %d, handle %p\n", err, accept_socket);
@@ -95,11 +96,12 @@ static int discard_worker(void *socket)
 {
     uint64_t count = 0;
     uint32_t crc = 0;
+    tcp_socket_t *s = socket;
 
     for (;;) {
         uint8_t buf[1024];
 
-        ssize_t ret = tcp_read(socket, buf, sizeof(buf));
+        ssize_t ret = tcp_read(s, buf, sizeof(buf));
         if (ret <= 0)
             break;
 
@@ -109,7 +111,7 @@ static int discard_worker(void *socket)
     }
 
     TRACEF("discard worker exiting, read %llu bytes, crc32 0x%x\n", count, crc);
-    tcp_close(socket);
+    tcp_close(s);
 
     return 0;
 }
@@ -117,7 +119,7 @@ static int discard_worker(void *socket)
 static int discard_server(void *arg)
 {
     status_t err;
-    void *listen_socket;
+    tcp_socket_t *listen_socket;
 
     err = tcp_open_listen(&listen_socket, 9);
     if (err < 0) {
@@ -126,7 +128,7 @@ static int discard_server(void *arg)
     }
 
     for (;;) {
-        void *accept_socket;
+        tcp_socket_t *accept_socket;
 
         err = tcp_accept(listen_socket, &accept_socket);
         TRACEF("tcp_accept returns returns %d, handle %p\n", err, accept_socket);

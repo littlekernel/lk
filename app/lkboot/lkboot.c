@@ -46,7 +46,7 @@ size_t lkb_iobuffer_size = 16*1024*1024;
 #define STATE_ERROR 4
 
 typedef struct LKB {
-	void *s;
+	tcp_socket_t *s;
 	int state;
 	size_t avail;
 } lkb_t;
@@ -203,8 +203,8 @@ fail:
 }
 
 static int lkboot_server(void *arg) {
-	void *listen_socket;
-	void *s;
+	tcp_socket_t *listen_socket;
+	tcp_socket_t *s;
 
 	if (tcp_open_listen(&listen_socket, 1023) < 0) {
 		printf("lkboot: error opening listen socket\n");
@@ -253,3 +253,5 @@ APP_START(lkboot)
 	.init = lkboot_init,
 	.flags = 0,
 APP_END
+
+// vim: noexpandtab

@@ -75,10 +75,12 @@ int minip_udp_send(const void *data, size_t len,
 int minip_udp_listen(uint16_t port, udp_callback_t rx_handler, void *arg);
 
 /* tcp */
-status_t tcp_open_listen(void **handle, uint16_t port);
-status_t tcp_accept(void *listen_socket, void **accept_socket);
-status_t tcp_close(void *socket);
-ssize_t tcp_read(void *socket, void *buf, size_t len);
-ssize_t tcp_write(void *socket, const void *buf, size_t len);
+typedef struct tcp_socket tcp_socket_t;
+
+status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port);
+status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket);
+status_t tcp_close(tcp_socket_t *socket);
+ssize_t tcp_read(tcp_socket_t *socket, void *buf, size_t len);
+ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len);
 
 // vim: set ts=4 sw=4 expandtab:

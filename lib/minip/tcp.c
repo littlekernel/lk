@@ -736,7 +736,7 @@ static tcp_socket_t *create_tcp_socket(bool alloc_buffers)
 
 /* user api */
 
-status_t tcp_open_listen(void **handle, uint16_t port)
+status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port)
 {
     tcp_socket_t *s;
 
@@ -762,12 +762,12 @@ status_t tcp_open_listen(void **handle, uint16_t port)
     return NO_ERROR;
 }
 
-status_t tcp_accept(void *listen_socket, void **accept_socket)
+status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket)
 {
     if (!listen_socket || !accept_socket)
         return ERR_INVALID_ARGS;
 
-    tcp_socket_t *s = (tcp_socket_t *)listen_socket;
+    tcp_socket_t *s = listen_socket;
 
     /* block to accept a socket */
     sem_wait(&s->accept_sem);
@@ -784,7 +784,7 @@ status_t tcp_accept(void *listen_socket, void **accept_socket)
     return NO_ERROR;
 }
 
-ssize_t tcp_read(void *socket, void *buf, size_t len)
+ssize_t tcp_read(tcp_socket_t *socket, void *buf, size_t len)
 {
     if (!socket)
         return ERR_INVALID_ARGS;
@@ -829,7 +829,7 @@ out:
     return ret;
 }
 
-ssize_t tcp_write(void *socket, const void *buf, size_t len)
+ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len)
 {
     if (!socket)
         return ERR_INVALID_ARGS;
@@ -886,7 +886,7 @@ ssize_t tcp_write(void *socket, const void *buf, size_t len)
     return len;
 }
 
-status_t tcp_close(void *socket)
+status_t tcp_close(tcp_socket_t *socket)
 {
     if (!socket)
         return ERR_INVALID_ARGS;
@@ -949,12 +949,12 @@ usage:
     if (!strcmp(argv[1].str, "listen")) {
         if (argc < 3) goto notenoughargs;
 
-        void *handle;
+        tcp_socket_t *handle;
 
         err = tcp_open_listen(&handle, argv[2].u);
         printf("tcp_open_listen returns %d, handle %p\n", err, handle);
 
-        void *accepted;
+        tcp_socket_t *accepted;
         err = tcp_accept(handle, &accepted);
         printf("tcp_accept returns returns %d, handle %p\n", err, accepted);
 
