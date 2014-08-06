@@ -56,6 +56,9 @@ void target_init(void)
             ptable_find("sysparam", &entry);
         }
 
+	/* create bootloader partition if it does not exist */
+        ptable_add("bootloader", 0x20000, 0x40000, 0);
+
         printf("flash partition table:\n");
         ptable_dump();
 
