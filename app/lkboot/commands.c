@@ -28,6 +28,8 @@
 #include <string.h>
 #include <endian.h>
 
+#include <kernel/thread.h>
+
 #include <lib/ptable.h>
 #include <lib/bio.h>
 #include <lib/sysparam.h>
@@ -47,6 +49,12 @@ int lkb_write(lkb_t *lkb, const void *data, size_t len);
 extern void *lkb_iobuffer;
 extern paddr_t lkb_iobuffer_phys;
 extern size_t lkb_iobuffer_size;
+
+static int do_reboot(void *arg) {
+	thread_sleep(250);
+	platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
+	return 0;
+}
 
 // return NULL for success, error string for failure
 const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, unsigned len) {
@@ -103,6 +111,10 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 			lkb_write(lkb, ptr, len);
 		}
 		return NULL;	
+	} else if (!strcmp(cmd, "reboot")) {
+		thread_resume(thread_create("reboot", &do_reboot, NULL,
+			DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+		return NULL;
 	} else {
 		return "unknown command";
 	}

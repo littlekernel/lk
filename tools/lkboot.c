@@ -207,6 +207,14 @@ int main(int argc, char **argv) {
 	const char *fn = NULL;
 	int fd = -1;
 
+	if (argc == 3) {
+		if (!strcmp(cmd, "reboot")) {
+			return lkboot_txn(host, cmd, fd, "");
+		} else {
+			usage();
+		}
+	}
+
 	if (argc < 4) usage();
 
 	if (!strcmp(cmd, "flash")) {
