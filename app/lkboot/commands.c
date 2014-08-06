@@ -41,7 +41,8 @@
 typedef struct LKB lkb_t;
 
 // returns 0 on success, -1 on failure (short read or io error)
-int lkb_read(lkb_t *lkb, void *_data, size_t len);
+int lkb_read(lkb_t *lkb, void *data, size_t len);
+int lkb_write(lkb_t *lkb, const void *data, size_t len);
 
 extern void *lkb_iobuffer;
 extern paddr_t lkb_iobuffer_phys;
@@ -96,6 +97,13 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 #else
 		return "no fpga";
 #endif
+	} else if (!strcmp(cmd, "getsysparam")) {
+		const void *ptr;
+		size_t len;
+		if (sysparam_get_ptr(arg, &ptr, &len) == 0) {
+			lkb_write(lkb, ptr, len);
+		}
+		return NULL;	
 	} else {
 		return "unknown command";
 	}

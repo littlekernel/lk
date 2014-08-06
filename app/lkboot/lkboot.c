@@ -77,6 +77,7 @@ static int lkb_send(lkb_t *lkb, u8 opcode, const void *data, size_t len) {
 		lkb->state = STATE_DONE;
 		break;
 	case MSG_LOG:
+	case MSG_SEND_DATA:
 		break;
 	case MSG_GO_AHEAD:
 		if (lkb->state == STATE_OPEN) {
@@ -93,7 +94,7 @@ static int lkb_send(lkb_t *lkb, u8 opcode, const void *data, size_t len) {
 
 	hdr.opcode = opcode;
 	hdr.extra = 0;
-	hdr.length = len;
+	hdr.length = (opcode == MSG_SEND_DATA) ? (len - 1) : len;
 	if (tcp_write(lkb->s, &hdr, sizeof(hdr)) != sizeof(&hdr)) {
 		printf("xmit hdr fail\n");
 		lkb->state = STATE_ERROR;
@@ -109,6 +110,17 @@ static int lkb_send(lkb_t *lkb, u8 opcode, const void *data, size_t len) {
 
 #define lkb_okay(lkb) lkb_send(lkb, MSG_OKAY, NULL, 0)
 #define lkb_fail(lkb, msg) lkb_send(lkb, MSG_FAIL, msg, strlen(msg))
+
+int lkb_write(lkb_t *lkb, const void *_data, size_t len) {
+	const char *data = _data;
+	while (len > 0) {
+		size_t xfer = (len > 65536) ? 65536 : len;
+		if (lkb_send(lkb, MSG_SEND_DATA, data, xfer)) return -1;
+		len -= xfer;
+		data += xfer;
+	}
+	return 0;
+}
 
 int lkb_read(lkb_t *lkb, void *_data, size_t len) {
 	char *data = _data;

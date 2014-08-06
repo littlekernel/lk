@@ -4,7 +4,8 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS += \
 	lib/console \
-	lib/minip
+	lib/minip \
+	lib/sysparam
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/lkboot.c \
