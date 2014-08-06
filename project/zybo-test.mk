@@ -7,6 +7,7 @@ MODULES += \
 	app/tests \
 	app/stringtests \
 	app/shell \
+	app/lkboot \
 	lib/cksum \
 	lib/sysparam \
 	lib/debugcommands \
