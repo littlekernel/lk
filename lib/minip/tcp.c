@@ -986,7 +986,7 @@ usage:
 }
 
 STATIC_COMMAND_START
-{ "tcp", "tcp commands", &cmd_tcp },
+STATIC_COMMAND("tcp", "tcp commands", &cmd_tcp)
 STATIC_COMMAND_END(tcp);
 
 
