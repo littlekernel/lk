@@ -304,7 +304,7 @@ struct slcr_regs {
 STATIC_ASSERT(offsetof(struct slcr_regs, SCL) == 0x0);
 STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 
-#define SLCR                            ((struct slcr_regs *)SLCR_BASE)
+#define SLCR                            ((volatile struct slcr_regs *)SLCR_BASE)
 #define SLCR_REG(reg)                   (*REG32((uintptr_t)&SLCR->reg))
 
 /* ARM_PLL_CFG */
@@ -412,8 +412,8 @@ STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 #include <stdbool.h>
 #include <sys/types.h>
 
-static inline void zynq_slcr_unlock(void) { SLCR_REG(SLCR_UNLOCK) = 0xdf0d; }
-static inline void zynq_slcr_lock(void) { SLCR_REG(SLCR_LOCK) = 0x767b; }
+static inline void zynq_slcr_unlock(void) { SLCR->SLCR_UNLOCK = 0xdf0d; }
+static inline void zynq_slcr_lock(void) { SLCR->SLCR_LOCK = 0x767b; }
 
 /* zynq specific functions */
 uint32_t zynq_get_arm_freq(void);
