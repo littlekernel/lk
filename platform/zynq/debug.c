@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <kernel/thread.h>
 #include <dev/uart.h>
+#include <platform.h>
 #include <platform/debug.h>
 #include <platform/zynq.h>
 #include <target/debugconfig.h>
@@ -36,28 +37,6 @@
 #define DEBUG_UART_BASE UART1_BASE
 #else
 #error define DEBUG_UART to something valid
-#endif
-
-#if 0
-uboot setup for zynq board
-E0001000:   00000114
-E0001004:   00000020
-E0001008:   00000000
-E000100C:   00000000
-E0001010:   00000000
-E0001014:   00000200
-E0001018:   0000003E
-E000101C:   00000000
-E0001020:   00000020
-E0001024:   00000000
-E0001028:   000000FB
-E000102C:   0000000A
-E0001030:   00000000
-E0001034:   00000006
-E0001038:   00000000
-E000103C:   00000000
-E0001040:   00000000
-E0001044:   00000020
 #endif
 
 void platform_dputc(char c)
@@ -77,8 +56,25 @@ int platform_dgetc(char *c, bool wait)
 
 }
 
-void platform_halt(void)
+/* zynq specific halt */
+void platform_halt(platform_halt_action suggested_action,
+                          platform_halt_reason reason)
 {
-    arch_disable_ints();
-    for (;;);
+    switch (suggested_action) {
+        default:
+        case HALT_ACTION_SHUTDOWN:
+        case HALT_ACTION_HALT:
+            printf("HALT: spinning forever... (reason = %d)\n", reason);
+            enter_critical_section();
+            for(;;);
+            break;
+        case HALT_ACTION_REBOOT:
+            printf("REBOOT\n");
+            enter_critical_section();
+            for (;;) {
+                zynq_slcr_unlock();
+                SLCR->PSS_RST_CTRL = 1;
+            }
+            break;
+    }
 }

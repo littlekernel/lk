@@ -30,8 +30,6 @@
 
 __BEGIN_CDECLS
 
-void platform_halt(void) __NO_RETURN;
-
 void platform_dputc(char c);
 int platform_dgetc(char *c, bool wait);
 

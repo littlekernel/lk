@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2012 Google, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,31 +20,47 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <stdarg.h>
-#include <reg.h>
 #include <debug.h>
-#include <stdio.h>
-#include <kernel/thread.h>
+#include <err.h>
+#include <compiler.h>
+#include <platform.h>
 #include <platform/debug.h>
-#include <arch/ops.h>
-#include <dev/uart.h>
-#include <target/debugconfig.h>
+#include <kernel/thread.h>
 
-void platform_dputc(char c)
+/*
+ * default implementations of these routines, if the platform code
+ * chooses not to implement.
+ */
+__WEAK void platform_halt(platform_halt_action suggested_action,
+                          platform_halt_reason reason)
 {
-	if (c == '\n')
-		uart_putc(DEBUG_UART, '\r');
-	uart_putc(DEBUG_UART, c);
+    dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
+    enter_critical_section();
+    for(;;);
 }
 
-int platform_dgetc(char *c, bool wait)
+#if WITH_LIB_CONSOLE
+
+#include <lib/console.h>
+
+static int cmd_reboot(int argc, const cmd_args *argv)
 {
-	int _c;
-
-	if ((_c = uart_getc(DEBUG_UART, false)) < 0)
-		return -1;
-
-	*c = _c;
-	return 0;
+    platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
+    return 0;
 }
+
+static int cmd_poweroff(int argc, const cmd_args *argv)
+{
+    platform_halt(HALT_ACTION_SHUTDOWN, HALT_REASON_SW_RESET);
+    return 0;
+}
+
+STATIC_COMMAND_START
+#if LK_DEBUGLEVEL > 1
+    { "reboot", "soft reset", &cmd_reboot },
+    { "poweroff", "powerdown", &cmd_poweroff },
+#endif
+STATIC_COMMAND_END(platform_power);
+
+#endif
 

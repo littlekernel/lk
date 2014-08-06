@@ -41,12 +41,6 @@ void spin(uint32_t usecs)
 		;
 }
 
-void halt(void)
-{
-	enter_critical_section(); // disable ints
-	platform_halt();
-}
-
 void _panic(void *caller, const char *fmt, ...)
 {
 	dprintf(ALWAYS, "panic (caller %p): ", caller);
@@ -56,7 +50,7 @@ void _panic(void *caller, const char *fmt, ...)
 	_dvprintf(fmt, ap);
 	va_end(ap);
 
-	halt();
+	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 static int __debug_stdio_fputc(void *ctx, int c)

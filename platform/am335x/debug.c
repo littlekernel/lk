@@ -153,12 +153,6 @@ void platform_init_debug(void)
 	UARTOperatingModeSelect(UART_CONSOLE_BASE, UART16x_OPER_MODE);
 }
 
-void platform_halt(void)
-{
-	arch_disable_ints();
-	for (;;);
-}
-
 void debug_point(char c)
 {
 	uart_putc('\r');

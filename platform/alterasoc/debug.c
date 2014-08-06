@@ -43,9 +43,3 @@ int platform_dgetc(char *c, bool wait)
     *c = ret;
     return 0;
 }
-
-void platform_halt(void)
-{
-    arch_disable_ints();
-    for (;;);
-}

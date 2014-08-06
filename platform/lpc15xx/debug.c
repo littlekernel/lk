@@ -99,10 +99,3 @@ int platform_dgetc(char *c, bool wait)
 #endif
 }
 
-void platform_halt(void)
-{
-    dprintf(ALWAYS, "HALT: spinning forever...\n");
-    for (;;);
-}
-
-

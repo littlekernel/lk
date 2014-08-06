@@ -24,6 +24,7 @@
 #include <bits.h>
 #include <arch/arm.h>
 #include <kernel/thread.h>
+#include <platform.h>
 
 static void dump_mode_regs(uint32_t spsr)
 {
@@ -90,7 +91,7 @@ static void exception_die(struct arm_fault_frame *frame, const char *msg)
 	dprintf(CRITICAL, msg);
 	dump_fault_frame(frame);
 
-	halt();
+	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 	for (;;);
 }
 
@@ -100,7 +101,7 @@ static void exception_die_iframe(struct arm_iframe *frame, const char *msg)
 	dprintf(CRITICAL, msg);
 	dump_iframe(frame);
 
-	halt();
+	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 	for (;;);
 }
 

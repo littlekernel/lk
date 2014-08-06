@@ -72,8 +72,6 @@ static inline void hexdump8(const void *ptr, size_t len) { }
 #define dvprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dvprintf(x); } } while (0)
 
 /* systemwide halts */
-void halt(void) __NO_RETURN;
-
 void _panic(void *caller, const char *fmt, ...) __PRINTFLIKE(2, 3) __NO_RETURN;
 #define panic(x...) _panic(__GET_CALLER(), x)
 
