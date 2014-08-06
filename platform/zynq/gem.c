@@ -277,7 +277,8 @@ static void gem_cfg_ints(void)
     // TODO: set up WOL int when we're using that
 
     /* Enable all interrupts */
-    regs->intr_en = 0xFFF;
+    regs->intr_en = INTR_RX_COMPLETE | INTR_TX_COMPLETE | INTR_HRESP_NOT_OK | INTR_MGMT_SENT |
+                    INTR_RX_USED_READ | INTR_TX_CORRUPT | INTR_TX_USED_READ | INTR_RX_OVERRUN;
 }
 
 int gem_rx_thread(void *arg)
