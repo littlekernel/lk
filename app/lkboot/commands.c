@@ -68,12 +68,12 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 		if (!(bdev = bio_open(bootdevice))) {
 			return "bio_open failed";
 		}
-		if (bio_erase(bdev, entry.offset, entry.length) != entry.length) {
+		if (bio_erase(bdev, entry.offset, entry.length) != (ssize_t)entry.length) {
 			bio_close(bdev);
 			return "bio_erase failed";
 		}
 		if (!strcmp(cmd, "flash")) {
-			if (bio_write(bdev, lkb_iobuffer, entry.offset, len) != len) {
+			if (bio_write(bdev, lkb_iobuffer, entry.offset, len) != (ssize_t)len) {
 				bio_close(bdev);
 				return "bio_write failed";
 			}
@@ -82,12 +82,11 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 		return NULL;
 	} else if (!strcmp(cmd, "fpga")) {
 #if PLATFORM_ZYNQ
-		int n;
 		unsigned *x = lkb_iobuffer;
 		if (lkb_read(lkb, lkb_iobuffer, len)) {
 			return "io error";
 		}
-		for (n = 0; n < len; n+= 4) {
+		for (unsigned n = 0; n < len; n+= 4) {
 			*x = SWAP_32(*x);
 			x++;
 		}
@@ -108,3 +107,5 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 		return "unknown command";
 	}
 }
+
+// vim: noexpandtab

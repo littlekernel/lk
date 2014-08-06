@@ -20,6 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#pragma once
 
 typedef struct {
 	unsigned char opcode;
@@ -77,3 +78,5 @@ typedef struct {
 //
 // C: MSG_CMD "reboot:0:"
 // S: MSG_OKAY
+
+// vim: noexpandtab

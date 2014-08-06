@@ -100,7 +100,7 @@ static int lkb_send(lkb_t *lkb, u8 opcode, const void *data, size_t len) {
 		lkb->state = STATE_ERROR;
 		return -1;
 	}
-	if (len && (tcp_write(lkb->s, data, len) != len)) {
+	if (len && (tcp_write(lkb->s, data, len) != (ssize_t)len)) {
 		printf("xmit data fail\n");
 		lkb->state = STATE_ERROR;
 		return -1;
