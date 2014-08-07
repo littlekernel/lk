@@ -464,10 +464,8 @@ static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, t
     }
 #endif
 
-    mutex_release(&s->lock);
     status_t err = tcp_send(s->remote_ip, s->remote_port, s->local_ip, s->local_port, data, len, flags,
             options, options_length, (flags & PKT_ACK) ? s->rx_win_low : 0, sequence, win_size);
-    mutex_acquire(&s->lock);
 
     return err;
 }
