@@ -36,13 +36,15 @@ static int chargen_worker(void *socket)
 {
     uint64_t count = 0;
     tcp_socket_t *s = socket;
-#define CHARGEN_BUFSIZE (64*1024)
 
-    /* allocate a large buffer to flood the socket layer */
+/* enough buffer to hold an entire defacto chargen sequences */
+#define CHARGEN_BUFSIZE (0x5f * 0x5f) // 9025 bytes
+
     uint8_t *buf = malloc(CHARGEN_BUFSIZE);
     if (!buf)
         return -1;
 
+    /* generate the sequence */
     uint8_t c = '!';
     for (size_t i = 0; i < CHARGEN_BUFSIZE; i++) {
         buf[i] = c++;
