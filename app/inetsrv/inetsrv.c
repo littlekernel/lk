@@ -29,6 +29,7 @@
 #include <kernel/thread.h>
 #include <lib/minip.h>
 #include <lib/cksum.h>
+#include <platform.h>
 
 #include "inetsrv.h"
 
@@ -52,6 +53,7 @@ static int chargen_worker(void *socket)
             c = ' ';
     }
 
+    lk_time_t t = current_time();
     for (;;) {
         ssize_t ret = tcp_write(s, buf, CHARGEN_BUFSIZE);
         //TRACEF("tcp_write returns %d\n", ret);
@@ -60,8 +62,10 @@ static int chargen_worker(void *socket)
 
         count += ret;
     }
+    t = current_time() - t;
 
-    TRACEF("chargen worker exiting, wrote %llu bytes\n", count);
+    TRACEF("chargen worker exiting, wrote %llu bytes in %u msecs (%llu bytes/sec)\n",
+        count, (uint32_t)t, count * 1000 / t);
     free(buf);
     tcp_close(s);
 
@@ -100,6 +104,7 @@ static int discard_worker(void *socket)
     uint32_t crc = 0;
     tcp_socket_t *s = socket;
 
+    lk_time_t t = current_time();
     for (;;) {
         uint8_t buf[1024];
 
@@ -111,8 +116,10 @@ static int discard_worker(void *socket)
 
         count += ret;
     }
+    t = current_time() - t;
 
-    TRACEF("discard worker exiting, read %llu bytes, crc32 0x%x\n", count, crc);
+    TRACEF("discard worker exiting, read %llu bytes in %u msecs (%llu bytes/sec), crc32 0x%x\n",
+        count, (uint32_t)t, count * 1000 / t, crc);
     tcp_close(s);
 
     return 0;
