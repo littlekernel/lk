@@ -32,7 +32,7 @@
 #include <pow2.h>
 #include <lib/console.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 static struct list_node arena_list = LIST_INITIAL_VALUE(arena_list);
 
