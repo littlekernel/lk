@@ -29,9 +29,10 @@
 #include <stdlib.h>
 #include <err.h>
 #include <string.h>
+#include <pow2.h>
 #include <lib/console.h>
 
-#define LOCAL_TRACE 0
+#define LOCAL_TRACE 1
 
 static struct list_node arena_list = LIST_INITIAL_VALUE(arena_list);
 
@@ -239,51 +240,97 @@ void *pmm_alloc_kpages(uint count, struct list_node *list)
 {
     LTRACEF("count %u\n", count);
 
-    if (count == 0)
+    // XXX do fast path for single page
+
+
+    paddr_t pa;
+    uint alloc_count = pmm_alloc_contiguous(count, 1, &pa, list);
+    if (alloc_count == 0)
         return NULL;
+
+    return paddr_to_kvaddr(pa);
+}
+
+static uint slow_align(uint x, uint align)
+{
+    if (align == 0)
+        return 0;
+
+    if (likely(ispow2(align))) {
+        /* use a power of 2 alignment */
+        return ROUNDUP(x, align);
+    } else {
+        /* do it the slow way */
+        return ((x + align - 1) / align) * align;
+    }
+}
+
+uint pmm_alloc_contiguous(uint count, uint alignment, paddr_t *pa, struct list_node *list)
+{
+    LTRACEF("count %u, align %u\n", count, alignment);
+
+    if (count == 0)
+        return 0;
+    if (alignment == 0)
+        alignment = 1;
 
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
+        // XXX make this a flag to only search kmap?
         if (a->flags & PMM_ARENA_FLAG_KMAP) {
-            uint find_start = -1;
-            for (uint i = 0; i < a->size / PAGE_SIZE; i++) {
-                vm_page_t *p = &a->page_array[i];
-                if (p->flags & VM_PAGE_FLAG_NONFREE) {
-                    /* page was not free, reset the start counter */
-                    find_start = -1;
-                    continue;
-                }
+            /* walk the list starting at alignment boundaries.
+             * calculate the starting offset into this arena, based on the
+             * base address of the arena to handle the case where the arena
+             * is not aligned on the same boundary requested.
+             */
+            paddr_t rounded_base = slow_align(a->base, alignment * PAGE_SIZE);
+            if (rounded_base < a->base || rounded_base >= a->base + a->size)
+                continue;
 
-                if (find_start == (uint)-1) {
-                    /* start of a new run */
-                    find_start = i;
-                }
-
-                if (i - find_start == count - 1) {
-                    /* we found a run */
-                    LTRACEF("found run from pn %u to %u\n", find_start, i);
-
-                    /* remove the pages from the run out of the free list */
-                    for (uint j = find_start; j <= i; j++) {
-                        p = &a->page_array[j];
-                        DEBUG_ASSERT(list_in_list(&p->node));
-
-                        list_delete(&p->node);
-                        p->flags |= VM_PAGE_FLAG_NONFREE;
-                        a->free_count--;
-
-                        if (list)
-                            list_add_tail(list, &p->node);
+            uint aligned_offset = (rounded_base - a->base) / PAGE_SIZE;
+            uint start = aligned_offset;
+            LTRACEF("starting search at aligned offset %u\n", start);
+retry:
+            while (start < a->size / PAGE_SIZE) {
+                vm_page_t *p = &a->page_array[start];
+                for (uint i = 0; i < count; i++) {
+                    if (p->flags & VM_PAGE_FLAG_NONFREE) {
+                        /* this run is broken, break out of the inner loop.
+                         * start over at the next alignment boundary
+                         */
+                        start = slow_align(start - aligned_offset + i + 1, alignment) + aligned_offset;
+                        goto retry;
                     }
-
-                    return paddr_to_kvaddr(a->base + find_start * PAGE_SIZE);
+                    p++;
                 }
+
+                /* we found a run */
+                LTRACEF("found run from pn %u to %u\n", start, start + count);
+
+                /* remove the pages from the run out of the free list */
+                for (uint i = start; i < start + count; i++) {
+                    p = &a->page_array[i];
+                    DEBUG_ASSERT(!(p->flags & VM_PAGE_FLAG_NONFREE));
+                    DEBUG_ASSERT(list_in_list(&p->node));
+
+                    list_delete(&p->node);
+                    p->flags |= VM_PAGE_FLAG_NONFREE;
+                    a->free_count--;
+
+                    if (list)
+                        list_add_tail(list, &p->node);
+                }
+
+                if (pa)
+                    *pa = a->base + start * PAGE_SIZE;
+
+                return count;
             }
         }
     }
 
     LTRACEF("couldn't find run\n");
-    return NULL;
+    return 0;
 }
 
 static void dump_arena(const pmm_arena_t *arena)
@@ -330,6 +377,7 @@ usage:
         printf("%s alloc <count>\n", argv[0].str);
         printf("%s alloc_range <address> <count>\n", argv[0].str);
         printf("%s alloc_kpages <count>\n", argv[0].str);
+        printf("%s alloc_contig <count> <alignment>\n", argv[0].str);
         printf("%s dump_alloced\n", argv[0].str);
         printf("%s free_alloced\n", argv[0].str);
         return ERR_GENERIC;
@@ -391,6 +439,22 @@ usage:
 
         void *ptr = pmm_alloc_kpages(argv[2].u, NULL);
         printf("pmm_alloc_kpages returns %p\n", ptr);
+    } else if (!strcmp(argv[1].str, "alloc_contig")) {
+        if (argc < 4) goto notenoughargs;
+
+        struct list_node list;
+        list_initialize(&list);
+
+        paddr_t pa;
+        uint ret = pmm_alloc_contiguous(argv[2].u, argv[3].u, &pa, &list);
+        printf("pmm_alloc_contiguous returns %u, address 0x%lx\n", ret, pa);
+        printf("address %% align = 0x%lx\n", pa % argv[3].u);
+
+        /* add the pages to the local allocated list */
+        struct list_node *node;
+        while ((node = list_remove_head(&list))) {
+            list_add_tail(&allocated, node);
+        }
     } else if (!strcmp(argv[1].str, "free_alloced")) {
         int err = pmm_free(&allocated);
         printf("pmm_free returns %d\n", err);

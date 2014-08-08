@@ -136,6 +136,12 @@ uint pmm_free(struct list_node *list) __NONNULL((1));
     /* Helper routine for the above. */
 uint pmm_free_page(vm_page_t *page) __NONNULL((1));
 
+    /* Allocate a run of contiguous pages, aligned on a boundary of alignment pages.
+     * If the optional physical address pointer is passed, return the address.
+     * If the optional list is passed, append the allocate page structures to the tail of the list.
+     */
+uint pmm_alloc_contiguous(uint count, uint alignment, paddr_t *pa, struct list_node *list);
+
     /* Allocate a run of pages out of the kernel area and return the pointer in kernel space.
      * If the optional list is passed, append the allocate page structures to the tail of the list.
      */
