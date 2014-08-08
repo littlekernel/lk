@@ -32,6 +32,7 @@
 
 #include <kernel/vm.h>
 #include <lib/minip.h>
+#include <app/lkboot.h>
 
 #include "lkboot.h"
 
@@ -66,7 +67,6 @@ static int readx(void *s, void *_data, size_t len) {
 
 static int lkb_send(lkb_t *lkb, u8 opcode, const void *data, size_t len) {
 	msg_hdr_t hdr;
-	if (len > 0xFFFF) return -1;
 
 	// once we sent our OKAY or FAIL or errored out, no more writes
 	if (lkb->state >= STATE_DONE) return -1;
@@ -75,15 +75,19 @@ static int lkb_send(lkb_t *lkb, u8 opcode, const void *data, size_t len) {
 	case MSG_OKAY:
 	case MSG_FAIL:
 		lkb->state = STATE_DONE;
+		if (len > 0xFFFF) return -1;
 		break;
-	case MSG_LOG:
 	case MSG_SEND_DATA:
+		if (len > 0x10000) return -1;
+	case MSG_LOG:
+		if (len > 0xFFFF) return -1;
 		break;
 	case MSG_GO_AHEAD:
 		if (lkb->state == STATE_OPEN) {
 			lkb->state = STATE_DATA;
 			break;
 		}
+		len = 0;
 	default:
 		lkb->state = STATE_ERROR;
 		opcode = MSG_FAIL;
