@@ -11,4 +11,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/lkboot.c \
 	$(LOCAL_DIR)/commands.c
 
+GLOBAL_INCLUDES += $(LOCAL_DIR)/include
+
 include make/module.mk

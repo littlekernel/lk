@@ -27,6 +27,7 @@
 #include <debug.h>
 #include <string.h>
 #include <endian.h>
+#include <malloc.h>
 
 #include <kernel/thread.h>
 
@@ -34,21 +35,37 @@
 #include <lib/bio.h>
 #include <lib/sysparam.h>
 
+#include <app/lkboot.h>
+
 #if PLATFORM_ZYNQ
 #include <platform/fpga.h>
 #endif
 
 #define bootdevice "spi0"
 
-typedef struct LKB lkb_t;
-
-// returns 0 on success, -1 on failure (short read or io error)
-int lkb_read(lkb_t *lkb, void *data, size_t len);
-int lkb_write(lkb_t *lkb, const void *data, size_t len);
-
 extern void *lkb_iobuffer;
 extern paddr_t lkb_iobuffer_phys;
 extern size_t lkb_iobuffer_size;
+
+struct lkb_command {
+	struct lkb_command *next;
+	const char *name;
+	lkb_handler_t handler;
+	void *cookie;
+};
+
+struct lkb_command *lkb_cmd_list = NULL;
+
+void lkb_register(const char *name, lkb_handler_t handler, void *cookie) {
+	struct lkb_command *cmd = malloc(sizeof(struct lkb_command));
+	if (cmd != NULL) {
+		cmd->next = lkb_cmd_list;
+		cmd->name = name;
+		cmd->handler = handler;
+		cmd->cookie = cookie;
+		lkb_cmd_list = cmd;
+	}
+}
 
 static int do_reboot(void *arg) {
 	thread_sleep(250);
@@ -58,6 +75,13 @@ static int do_reboot(void *arg) {
 
 // return NULL for success, error string for failure
 const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, unsigned len) {
+	struct lkb_command *lcmd;
+	for (lcmd = lkb_cmd_list; lcmd; lcmd = lcmd->next) {
+		if (!strcmp(lcmd->name, cmd)) {
+			return lcmd->handler(lkb, arg, len, lcmd->cookie);
+		}
+	}
+
 	if (len > lkb_iobuffer_size) {
 		return "buffer too small";
 	}
