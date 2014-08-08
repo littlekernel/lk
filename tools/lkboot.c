@@ -228,7 +228,7 @@ int main(int argc, char **argv) {
 		args = "";
 	} else if (!strcmp(cmd, "erase")) {
 	} else if (!strcmp(cmd, "getsysparam")) {
-		if (lkboot_txn(host, cmd, -1, fn) == 0) {
+		if (lkboot_txn(host, cmd, -1, args) == 0) {
 			printsysparam(replybuf, replylen);
 			return 0;
 		} else {
