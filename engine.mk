@@ -2,7 +2,7 @@ LOCAL_MAKEFILE:=$(MAKEFILE_LIST)
 
 ifeq ($(MAKECMDGOALS),spotless)
 spotless:
-	rm -rf build-*
+	rm -rf -- build-*
 else
 
 ifndef LKROOT
@@ -32,7 +32,12 @@ endif
 ifeq ($(do-nothing),)
 
 ifeq ($(PROJECT),)
+
+ifneq ($(DEFAULT_PROJECT),)
+PROJECT := $(DEFAULT_PROJECT)
+else
 $(error No project specified.  Use "make projectname" or put "PROJECT := projectname" in local.mk)
+endif
 endif
 
 DEBUG ?= 2
