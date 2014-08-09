@@ -77,10 +77,11 @@ static int lkb_send(lkb_t *lkb, u8 opcode, const void *data, size_t len) {
 		lkb->state = STATE_DONE;
 		if (len > 0xFFFF) return -1;
 		break;
-	case MSG_SEND_DATA:
-		if (len > 0x10000) return -1;
 	case MSG_LOG:
 		if (len > 0xFFFF) return -1;
+		break;
+	case MSG_SEND_DATA:
+		if (len > 0x10000) return -1;
 		break;
 	case MSG_GO_AHEAD:
 		if (lkb->state == STATE_OPEN) {
