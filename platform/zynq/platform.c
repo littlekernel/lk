@@ -51,7 +51,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* AXI fpga fabric bus 0 */
     { .phys = 0x40000000,
       .virt = 0x40000000,
-      .size = (16*1024*1024),
+      .size = (128*1024*1024),
       .flags = MMU_INITIAL_MAPPING_FLAG_UNCACHED,
       .name = "axi0" },
 
