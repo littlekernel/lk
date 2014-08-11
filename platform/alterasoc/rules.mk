@@ -3,7 +3,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 ARCH := arm
-ARM_CPU := cortex-a9
+ARM_CPU := cortex-a9-neon
 
 MODULE_DEPS := \
 	lib/cbuf \

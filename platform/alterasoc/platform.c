@@ -28,20 +28,46 @@
 #include <dev/uart.h>
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_cortex_a9.h>
+#include <kernel/vm.h>
 #include <platform.h>
 #include <platform/alterasoc.h>
 #include "platform_p.h"
 
+/* initial memory mappings. parsed by start.S */
+struct mmu_initial_mapping mmu_initial_mappings[] = {
+    /* 1GB of sdram space */
+    { .phys = 0x0,
+      .virt = KERNEL_BASE,
+      .size = 1024*1024*1024,
+      .flags = 0,
+      .name = "memory" },
+
+    /* HPS peripherals */
+    { .phys = 0xfc000000,
+      .virt = 0xfc000000,
+      .size = 0x04000000,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+      .name = "hps_periphs" },
+
+    /* identity map to let the boot code run */
+    { .phys = 0,
+      .virt = 0,
+      .size = 1024*1024*1024,
+      .flags = MMU_INITIAL_MAPPING_TEMPORARY },
+
+    /* null entry to terminate the list */
+    { 0 }
+};
+
+static pmm_arena_t sdram_arena = {
+    .name = "sdram",
+    .base = 0,
+    .size = MEMSIZE,
+    .flags = PMM_ARENA_FLAG_KMAP
+};
+
 void platform_init_mmu_mappings(void)
 {
-#define MB (1024*1024)
-    STATIC_ASSERT((MEMBASE % MB) == 0);
-    STATIC_ASSERT((MEMSIZE % MB) == 0);
-
-    /* map dram as full cacheable */
-    for (addr_t a = MEMBASE; a < MEMSIZE; a += MB) {
-        arm_mmu_map_section(a, a, MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE | MMU_MEMORY_L1_AP_P_RW_U_NA);
-    }
 }
 
 void platform_early_init(void)
@@ -53,6 +79,8 @@ void platform_early_init(void)
 
     /* initialize the timer block */
     arm_cortex_a9_timer_init(CPUPRIV_BASE, TIMER_CLOCK_FREQ);
+
+    pmm_add_arena(&sdram_arena);
 }
 
 void platform_init(void)
