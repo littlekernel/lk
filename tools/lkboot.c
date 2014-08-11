@@ -40,6 +40,7 @@ void usage(void) {
 "       lkboot <hostname> fpga <bitfile>\n"
 "       lkboot <hostname> boot <binary>\n"
 "       lkboot <hostname> getsysparam <name>\n"
+"       lkboot <hostname> reboot\n"
 "\n"
 	);
 	exit(1);
