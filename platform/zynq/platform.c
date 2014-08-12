@@ -31,6 +31,7 @@
 #include <platform.h>
 #include <platform/zynq.h>
 #include <platform/gem.h>
+#include <platform/timer.h>
 #include "platform_p.h"
 
 /* target can specify this as the initial jam table to set up the soc */
@@ -171,5 +172,12 @@ void platform_init(void)
             putchar('\n');
         }
     }
+}
+
+void platform_quiesce(void)
+{
+    gem_disable();
+
+    platform_stop_timer();
 }
 

@@ -31,6 +31,9 @@ void target_early_init(void);
 /* later init, after the kernel has come up */
 void target_init(void);
 
+/* called during chain loading to make sure target specific bits are put into a stopped state */
+void target_quiesce(void);
+
 /* a target can optionally define a set of debug leds that can be used
  * in various locations in the system.
  */

@@ -79,4 +79,7 @@ platform_halt_reason platform_get_reboot_reason(void);
 void platform_halt(platform_halt_action suggested_action,
                    platform_halt_reason reason) __NO_RETURN;
 
+/* called during chain loading to make sure drivers and platform is put into a stopped state */
+void platform_quiesce(void);
+
 #endif
