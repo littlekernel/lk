@@ -371,6 +371,17 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     rx_thread = thread_create("gem_rx", gem_rx_thread, NULL, HIGH_PRIORITY, DEFAULT_STACK_SIZE);
     thread_resume(rx_thread);
 
+    /* reset the gem peripheral */
+    uint32_t rst_mask;
+    if (base == GEM0_BASE) {
+        rst_mask = (1<<6) | (1<<4) | (1<<0);
+    } else {
+        rst_mask = (1<<7) | (1<<5) | (1<<1);
+    }
+    SLCR->GEM_RST_CTRL |= rst_mask;
+    spin(1);
+    SLCR->GEM_RST_CTRL &= ~rst_mask;
+
     regs = (struct gem_regs *) base;
     /* Clear Network control / status registers */
     regs->net_ctrl |= NET_CTRL_STATCLR;
@@ -414,6 +425,16 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     regs->net_ctrl = NET_CTRL_MD_EN | NET_CTRL_RX_EN | NET_CTRL_TX_EN;
 
     return NO_ERROR;
+}
+
+void gem_disable(void)
+{
+    /* disable all the interrupts */
+    regs->intr_en = 0;
+    mask_interrupt(ETH0_INT);
+
+    /* stop tx and rx */
+    regs->net_ctrl = 0;
 }
 
 void gem_set_callback(gem_cb_t rx)

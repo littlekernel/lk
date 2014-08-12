@@ -9,6 +9,8 @@ void gem_set_callback(gem_cb_t rx);
 void gem_set_macaddr(uint8_t mac[6]);
 int gem_send_raw_pkt(struct pktbuf *p);
 
+void gem_disable(void);
+
 struct gem_regs {
     uint32_t net_ctrl;
     uint32_t net_cfg;
