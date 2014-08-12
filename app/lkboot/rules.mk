@@ -3,8 +3,9 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS += \
-	lib/console \
+	lib/bio \
 	lib/minip \
+	lib/ptable \
 	lib/sysparam
 
 MODULE_SRCS += \
