@@ -31,6 +31,7 @@
 #include <platform.h>
 #include <platform/debug.h>
 #include <kernel/thread.h>
+#include <arch.h>
 
 #include <lib/console.h>
 
@@ -40,6 +41,7 @@ static int cmd_fill_mem(int argc, const cmd_args *argv);
 static int cmd_reset(int argc, const cmd_args *argv);
 static int cmd_memtest(int argc, const cmd_args *argv);
 static int cmd_copy_mem(int argc, const cmd_args *argv);
+static int cmd_chain(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
@@ -57,6 +59,7 @@ STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 1
 	{ "mtest", "simple memory test", &cmd_memtest },
 #endif
+	{ "chain", "chain load another binary", &cmd_chain },
 STATIC_COMMAND_END(mem);
 
 static int cmd_display_mem(int argc, const cmd_args *argv)
@@ -256,5 +259,18 @@ static int cmd_memtest(int argc, const cmd_args *argv)
 	printf("done\n");
 
 	return 0;
+}
+
+static int cmd_chain(int argc, const cmd_args *argv)
+{
+    if (argc < 2) {
+        printf("not enough arguments\n");
+        printf("%s <address>\n", argv[0].str);
+        return -1;
+    }
+
+    arch_chain_load((void *)argv[1].u);
+
+    return 0;
 }
 
