@@ -87,6 +87,25 @@
 #define TTC2_B_INT    70
 #define TTC3_C_INT    71
 
+/* Perhipheral IRQs from fabric */
+#define F2P0_IRQ      61
+#define F2P1_IRQ      62
+#define F2P2_IRQ      63
+#define F2P3_IRQ      64
+#define F2P4_IRQ      65
+#define F2P5_IRQ      66
+#define F2P6_IRQ      67
+#define F2P7_IRQ      68
+
+#define F2P8_IRQ      84
+#define F2P9_IRQ      85
+#define F2P10_IRQ     86
+#define F2P11_IRQ     87
+#define F2P12_IRQ     88
+#define F2P13_IRQ     89
+#define F2P14_IRQ     90
+#define F2P15_IRQ     91
+
 #define MAX_INT 96
 
 /* UART registers */
