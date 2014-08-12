@@ -28,6 +28,7 @@
 #include <string.h>
 #include <endian.h>
 #include <malloc.h>
+#include <arch.h>
 
 #include <kernel/thread.h>
 
@@ -128,6 +129,13 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 #else
 		return "no fpga";
 #endif
+	} else if (!strcmp(cmd, "boot")) {
+		if (lkb_read(lkb, lkb_iobuffer, len)) {
+			return "io error";
+		}
+
+		arch_chain_load(lkb_iobuffer);
+		return NULL;
 	} else if (!strcmp(cmd, "getsysparam")) {
 		const void *ptr;
 		size_t len;
