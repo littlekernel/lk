@@ -65,12 +65,37 @@ arm_reset:
 #endif
 
 #if WITH_KERNEL_VM
+__relocate_start:
+	/* see if we need to relocate to our proper location in physical memory */
+	adr		r0, _start                           /* this emits sub r0, pc, #constant */
+	ldr		r1, =(MEMBASE + KERNEL_LOAD_OFFSET)  /* calculate the binary's physical load address */
+	subs	r12, r0, r1                          /* calculate the delta between where we're loaded and the proper spot */
+	beq		.Lsetup_mmu
+
+	/* we need to relocate ourselves to the proper spot */
+	ldr		r2, =__data_end
+	ldr		r3, =(KERNEL_BASE - MEMBASE)
+	sub		r2, r3
+	add		r2, r12
+
+.Lrelocate_loop:
+	ldr		r3, [r0], #4
+	str		r3, [r1], #4
+	cmp		r0, r2
+	bne		.Lrelocate_loop
+
+	/* we're relocated, jump to the right address */
+	sub		pc, r12
+	nop
+
+__mmu_start:
+.Lsetup_mmu:
 	/* set up the mmu according to mmu_initial_mappings */
 
 	/* calculate our physical to virtual offset */
 	mov		r12, pc
-	ldr		r1, =.Laddr
-.Laddr:
+	ldr		r1, =.Laddr1
+.Laddr1:
 	sub		r12, r1
 
 	/* r12 now holds the offset from virtual to physical:

@@ -51,3 +51,9 @@ void arch_idle(void)
     __asm__ volatile("wfi");
 }
 
+void arch_chain_load(void *entry)
+{
+    PANIC_UNIMPLEMENTED;
+}
+
+

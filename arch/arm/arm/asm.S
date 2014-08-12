@@ -60,6 +60,14 @@ FUNCTION(arm_context_switch)
 
 .ltorg
 
+#if ARM_ARCH_LEVEL == 6
+.data
+strex_spot:
+	.word	0
+#endif
+
+.text
+
 FUNCTION(arm_save_mode_regs)
 	mrs		r1, cpsr
 
@@ -91,8 +99,35 @@ FUNCTION(arm_save_mode_regs)
 
 	bx		lr
 
-.data
-strex_spot:
-	.word	0
+.text
 
+/* void arm_chain_load(paddr_t entry) __NO_RETURN; */
+/* shut down the system, branching into the secondary system */
+FUNCTION(arm_chain_load)
+#if !WITH_KERNEL_VM
+#error implement non VM based chain load
+#else
+
+/* The MMU is initialized and running at this point, so we'll need to
+ * make sure we can disable it and continue to run. The caller should
+ * have built a identity map for us and branched to our identity mapping,
+ * so it will be safe to just disable the mmu and branch to the entry
+ * point in physical space.
+ */
+	/* Read SCTLR */
+	mrc		p15, 0, r1, c1, c0, 0
+
+	/* Turn off the MMU */
+	bic		r1, r1, #0x1
+
+	/* Write back SCTLR */
+	mcr		p15, 0, r1, c1, c0, 0
+	isb
+
+	/* call the entry point */
+	bx		r0
+
+#endif // WITH_KERNEL_VM
+
+/* vim: set ts=4 sw=4 noexpandtab: */
 

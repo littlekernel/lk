@@ -60,4 +60,8 @@ void arch_init(void)
 {
 }
 
+void arch_chain_load(void *entry)
+{
+    PANIC_UNIMPLEMENTED;
+}
 

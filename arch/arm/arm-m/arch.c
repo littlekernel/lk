@@ -137,3 +137,7 @@ void arm_cm_irq_exit(bool reschedule)
 	dec_critical_section();
 }
 
+void arch_chain_load(void *entry)
+{
+    PANIC_UNIMPLEMENTED;
+}

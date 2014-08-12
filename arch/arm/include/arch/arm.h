@@ -49,6 +49,8 @@ __BEGIN_CDECLS
 
 void arm_context_switch(vaddr_t *old_sp, vaddr_t new_sp);
 
+void arm_chain_load(paddr_t entry) __NO_RETURN;
+
 static inline uint32_t read_cpsr(void)
 {
 	uint32_t cpsr;
