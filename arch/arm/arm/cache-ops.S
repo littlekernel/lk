@@ -105,7 +105,7 @@ FUNCTION(arch_disable_cache)
 
 	mov		r7, r0						// save flags
 
-	mrs		r12, cpsr					// save the old interrupt state
+	mrs		r8, cpsr					// save the old interrupt state
 	cpsid	iaf							// interrupts disabled
 
 .Ldcache_disable:
@@ -156,16 +156,16 @@ FUNCTION(arch_disable_cache)
 	mov		r0, #0
 	mcr		p15, 0, r0, c7, c5, 0		// invalidate icache to PoU
 
-	msr		cpsr, r12
+	msr		cpsr, r8
 	ldmfd	sp!, {r4-r11, pc}
 
 /* void arch_enable_cache(uint flags) */
 FUNCTION(arch_enable_cache)
-	stmfd	sp!, {r4-r11, lr}
+	stmfd	sp!, {r4-r12, lr}
 
 	mov		r7, r0						// save flags
 
-	mrs		r12, cpsr					// save the old interrupt state
+	mrs		r8, cpsr					// save the old interrupt state
 	cpsid	iaf							// interrupts disabled
 	
 .Ldcache_enable:
@@ -207,8 +207,8 @@ FUNCTION(arch_enable_cache)
 	mcr		p15, 0, r0, c1, c0, 0		// enable icache
 
 .Ldone_enable:
-	msr		cpsr, r12
-	ldmfd	sp!, {r4-r11, pc}
+	msr		cpsr, r8
+	ldmfd	sp!, {r4-r12, pc}
 
 // flush & invalidate cache routine, trashes r0-r6, r9-r11
 flush_invalidate_cache_v7:

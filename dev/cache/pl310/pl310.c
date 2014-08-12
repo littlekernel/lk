@@ -124,8 +124,12 @@ status_t pl310_set_enable(bool enable)
     } else {
         if ((PL310_REG(REG1_CONTROL) & 1) == 1) {
             /* if enabled */
-            PL310_REG(REG1_CONTROL) = 0;
             pl310_flush_invalidate();
+            PL310_REG(REG1_CONTROL) = 0;
+            /* this seems to not always latch on the first try */
+            while (PL310_REG(REG1_CONTROL) & 1) {
+                PL310_REG(REG1_CONTROL) = 0;
+            }
         }
     }
 
