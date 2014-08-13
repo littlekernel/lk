@@ -74,6 +74,12 @@ static int do_reboot(void *arg) {
 	return 0;
 }
 
+static int do_ramboot(void *arg) {
+	thread_sleep(250);
+	arch_chain_load(lkb_iobuffer);
+	return 0;
+}
+
 // return NULL for success, error string for failure
 const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, unsigned len) {
 	struct lkb_command *lcmd;
@@ -133,8 +139,8 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 		if (lkb_read(lkb, lkb_iobuffer, len)) {
 			return "io error";
 		}
-
-		arch_chain_load(lkb_iobuffer);
+		thread_resume(thread_create("ramboot", &do_ramboot, NULL,
+			DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 		return NULL;
 	} else if (!strcmp(cmd, "getsysparam")) {
 		const void *ptr;
