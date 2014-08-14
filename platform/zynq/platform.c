@@ -37,6 +37,155 @@
 /* target can specify this as the initial jam table to set up the soc */
 __WEAK void ps7_init(void) { }
 
+/* These should be defined in the target somewhere */
+extern const uint32_t zynq_mio_cfg[ZYNQ_MIO_CNT];
+extern const long zynq_ddr_cfg[];
+extern const uint32_t zynq_ddr_cfg_cnt;
+extern const zynq_pll_cfg_tree_t zynq_pll_cfg;
+extern const zynq_clk_cfg_t zynq_clk_cfg;
+
+
+static inline int reg_poll(uint32_t addr,uint32_t mask)
+{
+    uint32_t iters = UINT_MAX;
+    while (iters-- && !(*REG32(addr) & mask)) ;
+
+    if (iters) {
+        return 0;
+    }
+
+    return -1;
+}
+
+/* For each PLL we need to configure the cp / res / lock_cnt and then place the PLL in bypass
+ * before doing a reset to switch to the new values. Then bypass is removed to switch back to using
+ * the PLL once its locked.
+ */
+int zynq_pll_init(void) {
+    const zynq_pll_cfg_tree_t *cfg = &zynq_pll_cfg;
+
+    zynq_slcr_unlock();
+    SLCR_REG(ARM_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->arm.lock_cnt) | PLL_CFG_PLL_CP(cfg->arm.cp) |
+                                PLL_CFG_PLL_RES(cfg->arm.res);
+    SLCR_REG(ARM_PLL_CTRL) = PLL_FDIV(cfg->arm.fdiv) | PLL_BYPASS_FORCE | PLL_RESET;
+    SLCR_REG(ARM_PLL_CTRL) &= ~PLL_RESET;
+
+    if (reg_poll((uintptr_t)&SLCR->PLL_STATUS, PLL_STATUS_ARM_PLL_LOCK) == -1) {
+        return -1;
+    }
+
+    SLCR_REG(ARM_PLL_CTRL) &= ~PLL_BYPASS_FORCE;
+    SLCR_REG(ARM_CLK_CTRL) = zynq_clk_cfg.arm_clk;
+
+    SLCR_REG(DDR_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->ddr.lock_cnt) | PLL_CFG_PLL_CP(cfg->ddr.cp) |
+                                PLL_CFG_PLL_RES(cfg->ddr.res);
+    SLCR_REG(DDR_PLL_CTRL) = PLL_FDIV(cfg->ddr.fdiv) | PLL_BYPASS_FORCE | PLL_RESET;
+    SLCR_REG(DDR_PLL_CTRL) &= ~PLL_RESET;
+
+    if (reg_poll((uintptr_t)&SLCR->PLL_STATUS, PLL_STATUS_DDR_PLL_LOCK) == -1) {
+        return -1;
+    }
+
+    SLCR_REG(DDR_PLL_CTRL) &= ~PLL_BYPASS_FORCE;
+    SLCR_REG(DDR_CLK_CTRL) = zynq_clk_cfg.ddr_clk;
+
+    SLCR_REG(IO_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->io.lock_cnt) | PLL_CFG_PLL_CP(cfg->io.cp) |
+                                PLL_CFG_PLL_RES(cfg->io.res);
+    SLCR_REG(IO_PLL_CTRL) = PLL_FDIV(cfg->io.fdiv) | PLL_BYPASS_FORCE | PLL_RESET;
+    SLCR_REG(IO_PLL_CTRL) &= ~PLL_RESET;
+
+    if (reg_poll((uintptr_t)&SLCR->PLL_STATUS, PLL_STATUS_IO_PLL_LOCK) == -1) {
+        return -1;
+    }
+
+    SLCR_REG(IO_PLL_CTRL) &= ~PLL_BYPASS_FORCE;
+    zynq_slcr_lock();
+    return 0;
+}
+
+/* TODO: This still contains some potentially Zybo specific logic and should be checked
+ * when switching to other Zynq boards
+ */
+int zynq_mio_init(void)
+{
+    zynq_slcr_unlock();
+
+    SLCR_REG(GPIOB_CTRL) = GPIOB_CTRL_VREF_EN;
+    SLCR_REG(DDRIOB_ADDR0) = DDRIOB_OUTPUT_EN(0x3);
+    SLCR_REG(DDRIOB_ADDR1) = DDRIOB_OUTPUT_EN(0x3);
+    SLCR_REG(DDRIOB_DATA0) = DDRIOB_INP_TYPE(1) | DDRIOB_TERM_EN |
+                                DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3);
+    SLCR_REG(DDRIOB_DATA1) = DDRIOB_INP_TYPE(1) | DDRIOB_TERM_EN |
+                                DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3);
+    SLCR_REG(DDRIOB_DIFF0) = DDRIOB_INP_TYPE(2) | DDRIOB_TERM_EN |
+                                DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3);
+    SLCR_REG(DDRIOB_DIFF1) = DDRIOB_INP_TYPE(2) | DDRIOB_TERM_EN |
+                                DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3);
+    SLCR_REG(DDRIOB_CLOCK) = DDRIOB_OUTPUT_EN(0x3);
+
+    /* These register fields are not documented in the TRM. These
+     * values represent the defaults generated via the Zynq tools
+     */
+    SLCR_REG(DDRIOB_DRIVE_SLEW_ADDR) = 0x0018C61CU;
+    SLCR_REG(DDRIOB_DRIVE_SLEW_DATA) = 0x00F9861CU;
+    SLCR_REG(DDRIOB_DRIVE_SLEW_DIFF) = 0x00F9861CU;
+    SLCR_REG(DDRIOB_DRIVE_SLEW_CLOCK) = 0x00F9861CU;
+    SLCR_REG(DDRIOB_DDR_CTRL) = 0x00000E60U;
+    SLCR_REG(DDRIOB_DCI_CTRL) = 0x00000001U;
+    SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000020U;
+    SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000823U;
+
+
+    for (size_t pin = 0; pin < countof(zynq_mio_cfg); pin++) {
+        if (zynq_mio_cfg[pin] != 0) {
+            SLCR_REG(MIO_PIN_00 + (pin * sizeof(uint32_t))) = zynq_mio_cfg[pin];
+        }
+    }
+
+    SLCR_REG(SD0_WP_CD_SEL) = SDIO0_WP_SEL(0x37) | SDIO0_CD_SEL(0x2F);
+    zynq_slcr_lock();
+
+    return 0;
+}
+
+void zynq_clk_init(void)
+{
+    zynq_slcr_unlock();
+    SLCR_REG(DCI_CLK_CTRL)   = zynq_clk_cfg.dci_clk;
+    SLCR_REG(GEM0_CLK_CTRL)  = zynq_clk_cfg.gem0_clk;
+    SLCR_REG(GEM0_RCLK_CTRL) = zynq_clk_cfg.gem0_rclk;
+    SLCR_REG(LQSPI_CLK_CTRL) = zynq_clk_cfg.lqspi_clk;
+    SLCR_REG(SDIO_CLK_CTRL)  = zynq_clk_cfg.sdio_clk;
+    SLCR_REG(UART_CLK_CTRL)  = zynq_clk_cfg.uart_clk;
+    SLCR_REG(PCAP_CLK_CTRL)  = zynq_clk_cfg.pcap_clk;
+    SLCR_REG(FPGA0_CLK_CTRL) = zynq_clk_cfg.fpga0_clk;
+    SLCR_REG(FPGA1_CLK_CTRL) = zynq_clk_cfg.fpga1_clk;
+    SLCR_REG(FPGA2_CLK_CTRL) = zynq_clk_cfg.fpga2_clk;
+    SLCR_REG(FPGA3_CLK_CTRL) = zynq_clk_cfg.fpga3_clk;
+    SLCR_REG(APER_CLK_CTRL)  = zynq_clk_cfg.aper_clk;
+    SLCR_REG(CLK_621_TRUE)   = zynq_clk_cfg.clk_621_true;
+    zynq_slcr_lock();
+}
+
+void zynq_ddr_init(void)
+{
+    /* Write addresss / value pairs from target table */
+    for (size_t i = 0; i < zynq_ddr_cfg_cnt; i += 2) {
+        *REG32(zynq_ddr_cfg[i]) = zynq_ddr_cfg[i+1];
+    }
+
+    /* Wait for DCI done */
+    reg_poll((uintptr_t)&SLCR->DDRIOB_DCI_STATUS, 0x2000);
+
+    /* Bring ddr out of reset and wait until self refresh */
+    *REG32(0XF8006000) = 0x00000081U;
+    reg_poll(0xf8006054, 0x00000007);
+
+    /* Switch timer to 64k */
+    *REG32(0XF8007000) = *REG32(0xF8007000) & ~0x20000000U;
+
+}
+
 STATIC_ASSERT(IS_ALIGNED(SDRAM_BASE, MB));
 STATIC_ASSERT(IS_ALIGNED(SDRAM_SIZE, MB));
 
@@ -130,9 +279,16 @@ void platform_init_mmu_mappings(void)
 
 void platform_early_init(void)
 {
-    ps7_init();
+    zynq_mio_init();
+    zynq_pll_init();
+    zynq_clk_init();
+    zynq_ddr_init();
 
-    /* zynq manual says this is mandatory */
+    /* Enable all level shifters */
+    SLCR_REG(LVL_SHFTR_EN) = 0xF;
+    /* FPGA SW reset (not documented, but mandatory) */
+    SLCR_REG(FPGA_RST_CTRL) = 0x0;
+    /* zynq manual says this is mandatory for cache init */
     *REG32(SLCR_BASE + 0xa1c) = 0x020202;
 
     /* early initialize the uart so we can printf */

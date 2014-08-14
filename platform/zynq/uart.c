@@ -91,6 +91,10 @@ void uart_init(void)
 
 void uart_init_early(void)
 {
+    /**REG32(0XE0001034) = 0x00000006U; // uart1
+    *REG32(0XE0001018) = 0x0000003EU; // uart1
+    *REG32(0XE0001000) = 0x00000017U; // uart1
+    *REG32(0XE0001004) = 0x00000020U; // uart1<]*/
     for (uint i = 0; i < NUM_UARTS; i++) {
         uintptr_t base = uart_to_ptr(i);
 
@@ -107,6 +111,12 @@ void uart_init_early(void)
 
         UART_REG(base, UART_CR) = (1<<4); // ~txdis, txen
     }
+
+    /* Configuration for the serial console */
+    UART_REG(UART1_BASE, UART_BAUD_DIV) = 0x00000006;
+    UART_REG(UART1_BASE, UART_BAUDGEN) = 0x0000003E;
+    UART_REG(UART1_BASE, UART_CR) = 0x00000017;
+    UART_REG(UART1_BASE, UART_MR) = 0x00000020;
 }
 
 int uart_putc(int port, char c)

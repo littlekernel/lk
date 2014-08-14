@@ -17,7 +17,6 @@ GLOBAL_DEFINES += \
 	EXTERNAL_CLOCK_FREQ=50000000
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/target.c \
-	$(LOCAL_DIR)/init.c
+	$(LOCAL_DIR)/target.c
 
 include make/module.mk

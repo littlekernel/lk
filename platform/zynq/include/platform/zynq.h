@@ -28,6 +28,12 @@
 #include <bits.h>
 #endif
 
+#ifdef ZYNQ_CLG225
+#define ZYNQ_MIO_CNT    32
+#else
+#define ZYNQ_MIO_CNT    54
+#endif
+
 /* memory addresses */
 /* assumes sram is mapped at 0 the first MB of sdram is covered by it */
 #define SDRAM_BASE          (0x00100000)
@@ -130,6 +136,37 @@
 #define NUM_UARTS 2
 
 #ifndef ASSEMBLY
+
+typedef struct {
+    uint32_t lock_cnt;
+    uint32_t cp;
+    uint32_t res;
+    uint32_t fdiv;
+} zynq_pll_cfg_t;
+
+typedef struct {
+    uint32_t arm_clk;
+    uint32_t ddr_clk;
+    uint32_t dci_clk;
+    uint32_t gem0_clk;
+    uint32_t gem0_rclk;
+    uint32_t lqspi_clk;
+    uint32_t sdio_clk;
+    uint32_t uart_clk;
+    uint32_t pcap_clk;
+    uint32_t fpga0_clk;
+    uint32_t fpga1_clk;
+    uint32_t fpga2_clk;
+    uint32_t fpga3_clk;
+    uint32_t aper_clk;
+    uint32_t clk_621_true;
+} zynq_clk_cfg_t;
+
+typedef struct {
+    zynq_pll_cfg_t arm;
+    zynq_pll_cfg_t ddr;
+    zynq_pll_cfg_t io;
+} zynq_pll_cfg_tree_t;
 
 /* SLCR registers */
 struct slcr_regs {
