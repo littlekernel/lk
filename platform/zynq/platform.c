@@ -119,7 +119,7 @@ static pmm_arena_t sdram_arena = {
 static pmm_arena_t sram_arena = {
     .name = "sram",
     .base = SRAM_BASE,
-    .size = MEMSIZE,
+    .size = SRAM_SIZE,
     .priority = 1,
     .flags = PMM_ARENA_FLAG_KMAP
 };
