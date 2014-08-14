@@ -44,6 +44,12 @@ static void mark_pages_in_use(vaddr_t va, size_t len)
     struct list_node list;
     list_initialize(&list);
 
+    /* make sure we are inclusive of all of the pages in the address range */
+    len = PAGE_ALIGN(len + (va & (PAGE_SIZE - 1)));
+    va = ROUNDDOWN(va, PAGE_SIZE);
+
+    LTRACEF("aligned va 0x%lx, len 0x%zx\n", va, len);
+
     for (size_t offset = 0; offset < len; offset += PAGE_SIZE) {
         uint flags;
         paddr_t pa;
@@ -70,7 +76,6 @@ static void vm_init_preheap(uint level)
     if (boot_alloc_end != boot_alloc_start) {
         LTRACEF("marking boot alloc used from 0x%lx to 0x%lx\n", boot_alloc_start, boot_alloc_end);
 
-        // XXX handle last partial page?
         mark_pages_in_use(boot_alloc_start, boot_alloc_end - boot_alloc_start);
     }
 }

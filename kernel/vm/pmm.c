@@ -319,12 +319,24 @@ retry:
     return 0;
 }
 
-static void dump_arena(const pmm_arena_t *arena)
+static void dump_page(const vm_page_t *page)
+{
+    printf("page %p: address 0x%lx flags 0x%x\n", page, page_to_address(page), page->flags);
+}
+
+static void dump_arena(const pmm_arena_t *arena, bool dump_pages)
 {
     printf("arena %p: name '%s' base 0x%lx size 0x%x priority %u flags 0x%x\n",
            arena, arena->name, arena->base, arena->size, arena->priority, arena->flags);
     printf("\tpage_array %p, free_count %zu\n",
            arena->page_array, arena->free_count);
+
+    /* dump all of the pages */
+    if (dump_pages) {
+        for (size_t i = 0; i < arena->size / PAGE_SIZE; i++) {
+            dump_page(&arena->page_array[i]);
+        }
+    }
 
     /* dump the free pages */
     printf("\tfree ranges:\n");
@@ -345,11 +357,6 @@ static void dump_arena(const pmm_arena_t *arena)
     if (last != -1) {
         printf("\t\t0x%lx - 0x%lx\n",  arena->base + last * PAGE_SIZE, arena->base + arena->size);
     }
-}
-
-static void dump_page(const vm_page_t *page)
-{
-    printf("page %p: address 0x%lx flags 0x%x\n", page, page_to_address(page), page->flags);
 }
 
 static int cmd_pmm(int argc, const cmd_args *argv)
@@ -374,7 +381,7 @@ usage:
     if (!strcmp(argv[1].str, "arenas")) {
         pmm_arena_t *a;
         list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
-            dump_arena(a);
+            dump_arena(a, false);
         }
     } else if (!strcmp(argv[1].str, "alloc")) {
         if (argc < 3) goto notenoughargs;
