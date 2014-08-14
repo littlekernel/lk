@@ -96,6 +96,7 @@ int zynq_pll_init(void) {
                              ARM_CLK_CTRL_CPU_3OR2XCLKACT | ARM_CLK_CTRL_CPU_2XCLKACT |
                              ARM_CLK_CTRL_CPU_1XCLKACT |ARM_CLK_CTRL_PERI_CLKACT;
 
+#if ZYNQ_SDRAM_INIT
     /* DDR PLL & Clock config
      * 475 cycles needed
      * 21 divisor on PLL
@@ -113,6 +114,7 @@ int zynq_pll_init(void) {
     SLCR_REG(DDR_PLL_CTRL) &= ~PLL_BYPASS_FORCE;
     SLCR_REG(DDR_CLK_CTRL) = DDR_CLK_CTRL_DDR_3XCLKACT | DDR_CLK_CTRL_DDR_2XCLKACT |
                              DDR_CLK_CTRL_DDR_3XCLK_DIV(2) | DDR_CLK_CTRL_DDR_2XCLK_DIV(3);
+#endif
 
     /* IO PLL config
      * 500 cycles needed for pll
@@ -162,6 +164,8 @@ int zynq_mio_init(void)
     zynq_slcr_unlock();
 
     SLCR_REG(GPIOB_CTRL) = GPIOB_CTRL_VREF_EN;
+
+#if ZYNQ_SDRAM_INIT
     SLCR_REG(DDRIOB_ADDR0) = DDRIOB_OUTPUT_EN(0x3);
     SLCR_REG(DDRIOB_ADDR1) = DDRIOB_OUTPUT_EN(0x3);
     SLCR_REG(DDRIOB_DATA0) = DDRIOB_INP_TYPE(1) | DDRIOB_TERM_EN |
@@ -185,6 +189,7 @@ int zynq_mio_init(void)
     SLCR_REG(DDRIOB_DCI_CTRL) = 0x00000001U;
     SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000020U;
     SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000823U;
+#endif
 
     /* mio pin config */
     SLCR_REG(MIO_PIN_01) = MIO_L0_SEL | MIO_SPEED_FAST | MIO_IO_TYPE_LVCMOS33;
@@ -576,9 +581,11 @@ int ps7_init(void)
     ret = zynq_clk_init();
     if (ret != PS7_INIT_SUCCESS) return ret;
 
+#if ZYNQ_SDRAM_INIT
     // DDR init
     ret = ps7_config (ps7_ddr_init_data_3_0);
     if (ret != PS7_INIT_SUCCESS) return ret;
+#endif
 
     // Peripherals init
     ret = ps7_config (ps7_peripherals_init_data_3_0);

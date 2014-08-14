@@ -5,7 +5,7 @@ MODULE := $(LOCAL_DIR)
 PLATFORM := zynq
 
 # set the system base to sram
-ZYNQ_USE_SRAM := 1
+ZYNQ_USE_SRAM ?= 1
 
 # we have sdram
 ZYNQ_SDRAM_SIZE := 0x10000000

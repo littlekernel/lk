@@ -33,11 +33,18 @@ ZYNQ_SDRAM_SIZE ?= 0
 ifeq ($(ZYNQ_USE_SRAM),1)
 MEMBASE := 0x0
 MEMSIZE := 0x30000 # 3 * 64K
+
+GLOBAL_DEFINES += \
+	ZYNQ_CODE_IN_SRAM=1 \
+	ZYNQ_SDRAM_INIT=1
 else
-# XXX untested path
 MEMBASE := 0x00000000
 MEMSIZE ?= $(ZYNQ_SDRAM_SIZE) # 256MB
-#KERNEL_LOAD_OFFSET := 0x00100000 # loaded 1MB into physical space
+KERNEL_LOAD_OFFSET := 0x00100000 # loaded 1MB into physical space
+
+# set a #define so system code can decide if it needs to reinitialize dram or not
+GLOBAL_DEFINES += \
+	ZYNQ_CODE_IN_SDRAM=1
 endif
 
 # put our kernel at 0xc0000000 so we can have axi bus 1 mapped at 0x80000000

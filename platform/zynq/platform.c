@@ -40,12 +40,19 @@ __WEAK void ps7_init(void) { }
 STATIC_ASSERT(IS_ALIGNED(SDRAM_BASE, MB));
 STATIC_ASSERT(IS_ALIGNED(SDRAM_SIZE, MB));
 
+#if SDRAM_SIZE != 0
+/* if we have sdram, the first 1MB is covered by sram */
+#define RAM_SIZE (MB + (SDRAM_SIZE - MB))
+#else
+#define RAM_SIZE (MB)
+#endif
+
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* 1GB of sram + sdram space */
     { .phys = SRAM_BASE,
       .virt = KERNEL_BASE,
-      .size = MB + SDRAM_SIZE - MB,
+      .size = RAM_SIZE,
       .flags = 0,
       .name = "memory" },
 
@@ -93,7 +100,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* identity map to let the boot code run */
     { .phys = SRAM_BASE,
       .virt = SRAM_BASE,
-      .size = MB,
+      .size = RAM_SIZE,
       .flags = MMU_INITIAL_MAPPING_TEMPORARY },
 
     /* null entry to terminate the list */
@@ -104,7 +111,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 static pmm_arena_t sdram_arena = {
     .name = "sdram",
     .base = SDRAM_BASE,
-    .size = SDRAM_SIZE - MB,
+    .size = SDRAM_SIZE - MB, /* first 1MB is covered by SRAM */
     .flags = PMM_ARENA_FLAG_KMAP
 };
 #endif
@@ -138,16 +145,19 @@ void platform_early_init(void)
     arm_cortex_a9_timer_init(CPUPRIV_BASE, zynq_get_arm_timer_freq());
 
     /* add the main memory arena */
-#if SDRAM_SIZE != 0
-    /* since we have a discontinuity between the end of SRAM (256K) and the start of SDRAM (1MB),
-     * intentionally bump the boot-time allocator to start in the base of SDRAM.
+#if !ZYNQ_CODE_IN_SDRAM && SDRAM_SIZE != 0
+    /* In the case of running from SRAM, and we are using SDRAM,
+     * there is a discontinuity between the end of SRAM (256K) and the start of SDRAM (1MB),
+     * so intentionally bump the boot-time allocator to start in the base of SDRAM.
      */
     extern uintptr_t boot_alloc_start;
     extern uintptr_t boot_alloc_end;
 
     boot_alloc_start = KERNEL_BASE + MB;
     boot_alloc_end = KERNEL_BASE + MB;
+#endif
 
+#if SDRAM_SIZE != 0
     pmm_add_arena(&sdram_arena);
 #endif
     pmm_add_arena(&sram_arena);
