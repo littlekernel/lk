@@ -244,35 +244,21 @@ void *pmm_alloc_kpages(uint count, struct list_node *list)
 
 
     paddr_t pa;
-    uint alloc_count = pmm_alloc_contiguous(count, 1, &pa, list);
+    uint alloc_count = pmm_alloc_contiguous(count, PAGE_SIZE_SHIFT, &pa, list);
     if (alloc_count == 0)
         return NULL;
 
     return paddr_to_kvaddr(pa);
 }
 
-static uint slow_align(uint x, uint align)
+uint pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struct list_node *list)
 {
-    if (align == 0)
-        return 0;
-
-    if (likely(ispow2(align))) {
-        /* use a power of 2 alignment */
-        return ROUNDUP(x, align);
-    } else {
-        /* do it the slow way */
-        return ((x + align - 1) / align) * align;
-    }
-}
-
-uint pmm_alloc_contiguous(uint count, uint alignment, paddr_t *pa, struct list_node *list)
-{
-    LTRACEF("count %u, align %u\n", count, alignment);
+    LTRACEF("count %u, align %u\n", count, alignment_log2);
 
     if (count == 0)
         return 0;
-    if (alignment == 0)
-        alignment = 1;
+    if (alignment_log2 < PAGE_SIZE_SHIFT)
+        alignment_log2 = PAGE_SIZE_SHIFT;
 
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
@@ -283,7 +269,7 @@ uint pmm_alloc_contiguous(uint count, uint alignment, paddr_t *pa, struct list_n
              * base address of the arena to handle the case where the arena
              * is not aligned on the same boundary requested.
              */
-            paddr_t rounded_base = slow_align(a->base, alignment * PAGE_SIZE);
+            paddr_t rounded_base = ROUNDUP(a->base, 1UL << alignment_log2);
             if (rounded_base < a->base || rounded_base >= a->base + a->size)
                 continue;
 
@@ -298,7 +284,7 @@ retry:
                         /* this run is broken, break out of the inner loop.
                          * start over at the next alignment boundary
                          */
-                        start = slow_align(start - aligned_offset + i + 1, alignment) + aligned_offset;
+                        start = ROUNDUP(start - aligned_offset + i + 1, 1UL << (alignment_log2 - PAGE_SIZE_SHIFT)) + aligned_offset;
                         goto retry;
                     }
                     p++;
