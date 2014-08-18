@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <debug.h>
 #include <string.h>
+#include <pow2.h>
 
 #include <kernel/thread.h>
 
@@ -237,7 +238,8 @@ static void lkboot_init(const struct app_descriptor *app) {
 	printf("lkboot: init\n");
 
 	if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "lkboot_iobuf",
-		lkb_iobuffer_size, &lkb_iobuffer, 0, ARCH_MMU_FLAG_UNCACHED) < 0) {
+		lkb_iobuffer_size, &lkb_iobuffer, log2_uint(16*1024*1024), 0,
+		ARCH_MMU_FLAG_UNCACHED) < 0) {
 		goto fail_alloc;
 	}
 	if (arch_mmu_query((u32) lkb_iobuffer, &lkb_iobuffer_phys, NULL) < 0) {
