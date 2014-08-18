@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -35,15 +35,15 @@ static inline __ALWAYS_INLINE bool ispow2(uint val)
 
 static inline __ALWAYS_INLINE uint log2_uint(uint val)
 {
-	if (!ispow2(val))
+	if (val == 0)
 		return 0; // undefined
 
-	return __builtin_ctz(val);
+	return (sizeof(val) * 8) - 1 - __builtin_clz(val);
 }
 
 static inline __ALWAYS_INLINE uint valpow2(uint valp2)
 {
-	return 1 << valp2;
+	return 1U << valp2;
 }
 
 static inline __ALWAYS_INLINE uint divpow2(uint val, uint divp2)
