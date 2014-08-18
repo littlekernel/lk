@@ -30,6 +30,7 @@
 #include <string.h>
 #include <malloc.h>
 #include <trace.h>
+#include <pow2.h>
 #include <sys/types.h>
 #include <lib/cbuf.h>
 #include <kernel/timer.h>
@@ -325,7 +326,7 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     /* allocate a block of contiguous memory for the descriptors */
     vaddr_t dmabase;
     ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_desc",
-            dmasize, (void **)&dmabase, 0, ARCH_MMU_FLAG_UNCACHED);
+            dmasize, (void **)&dmabase, 0, 0, ARCH_MMU_FLAG_UNCACHED);
     if (ret < 0)
         return ret;
 
