@@ -198,11 +198,11 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
     __NONNULL((1));
 
 /* allocate a region of memory backed by newly allocated contiguous physical memory  */
-status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, uint vmm_flags, uint arch_mmu_flags)
     __NONNULL((1));
 
 /* allocate a region of memory backed by newly allocated physical memory */
-status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, uint vmm_flags, uint arch_mmu_flags)
     __NONNULL((1));
 
     /* For the above region creation routines. Allocate virtual space at the passed in pointer. */

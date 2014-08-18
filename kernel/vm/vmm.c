@@ -161,52 +161,70 @@ static status_t add_region_to_aspace(vmm_aspace_t *aspace, vmm_region_t *r)
     return ERR_NO_MEMORY;
 }
 
-static vaddr_t alloc_spot(vmm_aspace_t *aspace, size_t size, struct list_node **before)
+static vaddr_t alloc_spot(vmm_aspace_t *aspace, size_t size, uint8_t align_pow2, struct list_node **before)
 {
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(size > 0 && IS_PAGE_ALIGNED(size));
 
-    /* does it fit before the first element? */
-    vmm_region_t *r;
-    r = list_peek_head_type(&aspace->region_list, vmm_region_t, node);
+    LTRACEF("aspace %p size 0x%zx align %hhu\n", aspace, size, align_pow2);
+
+    if (align_pow2 < PAGE_SIZE_SHIFT)
+        align_pow2 = PAGE_SIZE_SHIFT;
+    vaddr_t align = 1UL << align_pow2;
+
+    /* start our search */
+    vaddr_t spot = ALIGN(aspace->base, align);
+    if (!is_inside_aspace(aspace, spot)) {
+        /* the alignment is so big, we can't even allocate in this address space */
+        return -1;
+    }
+
+    vmm_region_t *r = list_peek_head_type(&aspace->region_list, vmm_region_t, node);
     if (r) {
-        DEBUG_ASSERT(r->base >= aspace->base);
-        if (r->base - aspace->base >= size) {
+        /* does it fit before the first element? */
+        if (spot < r->base && r->base - spot >= size) {
             if (before)
                 *before = &aspace->region_list;
-            return aspace->base;
+            return spot;
         }
     } else {
         /* nothing is in the list, does it fit in the aspace? */
-        if (aspace->size >= size) {
+        if (aspace->base + aspace->size - spot >= size) {
             if (before)
                 *before = &aspace->region_list;
-            return aspace->base;
+            return spot;
         }
     }
 
     /* search the middle of the list */
     list_for_every_entry(&aspace->region_list, r, vmm_region_t, node) {
+        /* calculate the aligned spot after r */
+        spot = ALIGN(r->base + r->size, align);
+        if (!is_inside_aspace(aspace, spot))
+            break;
+
         /* get the next element in the list */
         vmm_region_t *next = list_next_type(&aspace->region_list, &r->node, vmm_region_t, node);
 
         if (next) {
-            DEBUG_ASSERT(next->base >= r->base + r->size);
+            /* see if the aligned spot is between current and next */
+            if (spot >= next->base)
+                continue;
 
             /* see if it'll fit between the current item and the next */
-            if (next->base - (r->base + r->size) >= size) {
+            if (next->base - spot >= size) {
                 /* it'll fit here */
                 if (before)
                     *before = &r->node;
-                return r->base + r->size;
+                return spot;
             }
         } else {
             /* we're at the end of the list, will it fit between us and the end of the aspace? */
-            if ((aspace->base + aspace->size) - (r->base + r->size) >= size) {
+            if ((aspace->base + aspace->size) - spot >= size) {
                 /* it'll fit here */
                 if (before)
                     *before = &r->node;
-                return r->base + r->size;
+                return spot;
             }
         }
     }
@@ -216,7 +234,9 @@ static vaddr_t alloc_spot(vmm_aspace_t *aspace, size_t size, struct list_node **
 }
 
 /* allocate a region structure and stick it in the address space */
-static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t size, vaddr_t vaddr, uint vmm_flags, uint region_flags, uint arch_mmu_flags)
+static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t size,
+        vaddr_t vaddr, uint8_t align_pow2,
+        uint vmm_flags, uint region_flags, uint arch_mmu_flags)
 {
     /* make a region struct for it and stick it in the list */
     vmm_region_t *r = alloc_region_struct(name, vaddr, size, region_flags, arch_mmu_flags);
@@ -234,7 +254,7 @@ static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t
     } else {
         /* allocate a virtual slot for it */
         struct list_node *before = NULL;
-        vaddr = alloc_spot(aspace, size, &before);
+        vaddr = alloc_spot(aspace, size, align_pow2, &before);
         LTRACEF("alloc_spot returns 0x%lx, before %p\n", vaddr, before);
 
         if (vaddr == (vaddr_t)-1) {
@@ -283,7 +303,7 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
     arch_mmu_query(vaddr, NULL, &arch_mmu_flags);
 
     /* build a new region structure */
-    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, VMM_FLAG_VALLOC_SPECIFIC, VMM_REGION_FLAG_RESERVED, arch_mmu_flags);
+    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, 0, VMM_FLAG_VALLOC_SPECIFIC, VMM_REGION_FLAG_RESERVED, arch_mmu_flags);
     if (!r)
         return ERR_NO_MEMORY;
 
@@ -321,7 +341,7 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
     }
 
     /* allocate a region and put it in the aspace list */
-    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, 0, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r)
         return ERR_NO_MEMORY;
 
@@ -336,12 +356,12 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
     return NO_ERROR;
 }
 
-status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
 {
     status_t err = NO_ERROR;
 
-    LTRACEF("aspace %p name '%s' size 0x%zx ptr %p vmm_flags 0x%x arch_mmu_flags 0x%x\n",
-            aspace, name, size, ptr ? *ptr : 0, vmm_flags, arch_mmu_flags);
+    LTRACEF("aspace %p name '%s' size 0x%zx ptr %p align %hhu vmm_flags 0x%x arch_mmu_flags 0x%x\n",
+            aspace, name, size, ptr ? *ptr : 0, align_pow2, vmm_flags, arch_mmu_flags);
 
     DEBUG_ASSERT(aspace);
 
@@ -370,17 +390,14 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
 
     paddr_t pa = 0;
     /* allocate a run of physical pages */
-    void *kvptr = pmm_alloc_kpages(size / PAGE_SIZE, &page_list);
-    if (!kvptr) {
+    uint count = pmm_alloc_contiguous(size / PAGE_SIZE, align_pow2, &pa, &page_list);
+    if (count < size / PAGE_SIZE) {
         err = ERR_NO_MEMORY;
         goto err;
     }
 
-    err = arch_mmu_query((vaddr_t)kvptr, &pa, NULL);
-    DEBUG_ASSERT(err >= 0);
-
     /* allocate a region and put it in the aspace list */
-    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         err = ERR_NO_MEMORY;
         goto err1;
@@ -407,12 +424,12 @@ err:
     return err;
 }
 
-status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
 {
     status_t err = NO_ERROR;
 
-    LTRACEF("aspace %p name '%s' size 0x%zx ptr %p vmm_flags 0x%x arch_mmu_flags 0x%x\n",
-            aspace, name, size, ptr ? *ptr : 0, vmm_flags, arch_mmu_flags);
+    LTRACEF("aspace %p name '%s' size 0x%zx ptr %p align %hhu vmm_flags 0x%x arch_mmu_flags 0x%x\n",
+            aspace, name, size, ptr ? *ptr : 0, align_pow2, vmm_flags, arch_mmu_flags);
 
     DEBUG_ASSERT(aspace);
 
@@ -450,7 +467,7 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     }
 
     /* allocate a region and put it in the aspace list */
-    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         err = ERR_NO_MEMORY;
         goto err1;
@@ -513,9 +530,9 @@ notenoughargs:
 usage:
         printf("usage:\n");
         printf("%s aspaces\n", argv[0].str);
-        printf("%s alloc <size>\n", argv[0].str);
+        printf("%s alloc <size> <align_pow2>\n", argv[0].str);
         printf("%s alloc_physical <paddr> <size>\n", argv[0].str);
-        printf("%s alloc_contig <size>\n", argv[0].str);
+        printf("%s alloc_contig <size> <align_pow2>\n", argv[0].str);
         return ERR_GENERIC;
     }
 
@@ -525,10 +542,10 @@ usage:
             dump_aspace(a);
         }
     } else if (!strcmp(argv[1].str, "alloc")) {
-        if (argc < 3) goto notenoughargs;
+        if (argc < 4) goto notenoughargs;
 
         void *ptr = (void *)0x99;
-        status_t err = vmm_alloc(vmm_get_kernel_aspace(), "alloc test", argv[2].u, &ptr, 0, 0);
+        status_t err = vmm_alloc(vmm_get_kernel_aspace(), "alloc test", argv[2].u, &ptr, argv[3].u, 0, 0);
         printf("vmm_alloc returns %d, ptr %p\n", err, ptr);
     } else if (!strcmp(argv[1].str, "alloc_physical")) {
         if (argc < 4) goto notenoughargs;
@@ -537,10 +554,10 @@ usage:
         status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "physical test", argv[3].u, &ptr, argv[2].u, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
         printf("vmm_alloc_physical returns %d, ptr %p\n", err, ptr);
     } else if (!strcmp(argv[1].str, "alloc_contig")) {
-        if (argc < 3) goto notenoughargs;
+        if (argc < 4) goto notenoughargs;
 
         void *ptr = (void *)0x99;
-        status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "contig test", argv[2].u, &ptr, 0, 0);
+        status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "contig test", argv[2].u, &ptr, argv[3].u, 0, 0);
         printf("vmm_alloc_contig returns %d, ptr %p\n", err, ptr);
     } else {
         printf("unknown command\n");
