@@ -167,8 +167,8 @@ void platform_init(void)
 {
     uart_init();
 
-    gem_init(GEM0_BASE, 256*1024);
-
+    /* enable if we want to see some hardware boot status */
+#if 0
     printf("zynq boot status:\n");
     printf("\tREBOOT_STATUS 0x%x\n", SLCR_REG(REBOOT_STATUS));
     printf("\tBOOT_MODE 0x%x\n", SLCR_REG(BOOT_MODE));
@@ -182,6 +182,9 @@ void platform_init(void)
             putchar('\n');
         }
     }
+#endif
+
+    gem_init(GEM0_BASE, 256*1024);
 }
 
 void platform_quiesce(void)

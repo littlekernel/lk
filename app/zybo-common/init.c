@@ -52,7 +52,7 @@ static void zybo_common_target_init(uint level)
             ptable_find("sysparam", &entry);
         }
 
-	/* create bootloader partition if it does not exist */
+        /* create bootloader partition if it does not exist */
         ptable_add("bootloader", 0x20000, 0x40000, 0);
 
         printf("flash partition table:\n");
@@ -99,10 +99,8 @@ static void zybo_common_target_init(uint level)
     gem_set_macaddr(mac_addr);
 
     if (!use_dhcp && ip_addr != IPV4_NONE) {
-        printf("static\n");
         minip_init(gem_send_raw_pkt, NULL, ip_addr, ip_mask, ip_gateway);
     } else {
-        printf("dhcp\n");
         /* Configure IP stack and hook to the driver */
         minip_init_dhcp(gem_send_raw_pkt, NULL);
     }
