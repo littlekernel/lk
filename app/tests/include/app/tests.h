@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -27,6 +27,7 @@
 
 int thread_tests(void);
 void printf_tests(void);
+void printf_tests_float(void);
 void clock_tests(void);
 void float_tests(void);
 void benchmarks(void);
