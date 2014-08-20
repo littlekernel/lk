@@ -130,6 +130,7 @@ void dump_all_threads(void);
 void thread_yield(void); /* give up the cpu voluntarily */
 void thread_preempt(void); /* get preempted (inserted into head of run queue) */
 void thread_block(void); /* block on something and reschedule */
+void thread_unblock(thread_t *t, bool resched); /* go back in the run queue */
 
 /* called on every timer tick for the scheduler to do quantum expiration */
 enum handler_return thread_timer_tick(void);

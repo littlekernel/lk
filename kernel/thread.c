@@ -523,9 +523,8 @@ void thread_preempt(void)
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_RUNNING);
+	ASSERT(in_critical_section());
 #endif
-
-	enter_critical_section();
 
 #if THREAD_STATS
 	if (current_thread != idle_thread)
@@ -541,8 +540,6 @@ void thread_preempt(void)
 	else
 		insert_in_run_queue_tail(current_thread); /* if we're out of quantum, go to the tail of the queue */
 	thread_resched();
-
-	exit_critical_section();
 }
 
 /**
@@ -562,14 +559,25 @@ void thread_block(void)
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_BLOCKED);
+	ASSERT(in_critical_section());
 #endif
-
-	enter_critical_section();
 
 	/* we are blocking on something. the blocking code should have already stuck us on a queue */
 	thread_resched();
+}
 
-	exit_critical_section();
+void thread_unblock(thread_t *t, bool resched)
+{
+#if THREAD_CHECKS
+	ASSERT(t->magic == THREAD_MAGIC);
+	ASSERT(t->state == THREAD_BLOCKED);
+	ASSERT(in_critical_section());
+#endif
+
+	t->state = THREAD_READY;
+	insert_in_run_queue_head(t);
+	if (resched)
+		thread_resched();
 }
 
 enum handler_return thread_timer_tick(void)
