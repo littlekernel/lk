@@ -10,7 +10,8 @@ MODULES += \
 	app/shell \
 	app/lkboot \
 	lib/cksum \
-	lib/debugcommands
+	lib/debugcommands \
+	lib/libm \
 
 GLOBAL_DEFINES += \
 	SYSPARAM_ALLOW_WRITE=1
