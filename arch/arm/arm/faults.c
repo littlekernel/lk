@@ -137,7 +137,7 @@ void arm_undefined_handler(struct arm_iframe *frame)
 			((opcode & 0xef000000) == 0xef000000) || // advanced simd data processing
 			((opcode & 0xff100000) == 0xf9000000)) { // VLD
 
-			//dprintf(CRITICAL, "vfp/neon thumb instruction 0x%08x\n", opcode);
+			//dprintf(CRITICAL, "vfp/neon thumb instruction 0x%08x at 0x%x\n", opcode, frame->pc);
 			goto fpu;
 		}
 	} else {
@@ -145,7 +145,7 @@ void arm_undefined_handler(struct arm_iframe *frame)
 		if (((opcode & 0x0c000e00) == 0x0c000a00) || // vfp
 		    ((opcode & 0xfe000000) == 0xf2000000) || // advanced simd data processing
 			((opcode & 0xff100000) == 0xf4000000)) { // VLD
-			//dprintf(CRITICAL, "vfp/neon arm instruction 0x%08x\n", opcode);
+			//dprintf(CRITICAL, "vfp/neon arm instruction 0x%08x at 0x%x\n", opcode, frame->pc);
 			goto fpu;
 		}
 	}
@@ -156,7 +156,7 @@ void arm_undefined_handler(struct arm_iframe *frame)
 
 #if ARM_WITH_VFP
 fpu:
-	arm_fpu_undefined_instruction();
+	arm_fpu_undefined_instruction(frame);
 	dec_critical_section();
 #endif
 }

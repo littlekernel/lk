@@ -41,7 +41,7 @@ static inline uint32_t read_fpexc(void)
 {
     uint32_t val;
     /* use legacy encoding of vmsr reg, fpexc */
-    __asm__ volatile("mrc  p10, 7, %0, c8, c0, 0" : "=r" (val));
+    __asm__("mrc  p10, 7, %0, c8, c0, 0" : "=r" (val));
     return val;
 }
 
@@ -58,13 +58,21 @@ void arm_fpu_set_enable(bool enable)
 }
 
 #if ARM_WITH_VFP
-void arm_fpu_undefined_instruction(void)
+void arm_fpu_undefined_instruction(struct arm_iframe *frame)
 {
     thread_t *t = get_current_thread();
+
+    if (unlikely(arch_in_int_handler())) {
+        panic("floating point code in irq context. pc 0x%x\n", frame->pc);
+    }
+
     LTRACEF("enabling fpu on thread %p\n", t);
 
     t->arch.fpused = true;
     arm_fpu_thread_swap(NULL, t);
+
+    /* make sure the irq glue leaves the floating point unit enabled on the way out */
+    frame->fpexc |= (1<<30);
 }
 
 void arm_fpu_thread_initialize(struct thread *t)

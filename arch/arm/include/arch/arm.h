@@ -39,6 +39,7 @@ __BEGIN_CDECLS
 
 #if ARM_ISA_ARMV7
 #define DSB __asm__ volatile("dsb" ::: "memory")
+#define DMB __asm__ volatile("dmb" ::: "memory")
 #define ISB __asm__ volatile("isb" ::: "memory")
 #elif ARM_ISA_ARMV6
 #define DSB __asm__ volatile("mcr p15, 0, %0, c7, c10, 4" :: "r" (0) : "memory")
@@ -60,6 +61,10 @@ static inline uint32_t read_cpsr(void)
 }
 
 struct arm_iframe {
+#if ARM_WITH_VFP
+	uint32_t fpexc;
+	uint32_t __pad;
+#endif
 	uint32_t usp;
 	uint32_t ulr;
 	uint32_t r0;
@@ -170,7 +175,7 @@ GEN_CP15_REG_FUNCS(tlbimvaa, 0, c8, c7, 3);
 /* fpu */
 void arm_fpu_set_enable(bool enable);
 #if ARM_WITH_VFP
-void arm_fpu_undefined_instruction(void);
+void arm_fpu_undefined_instruction(struct arm_iframe *frame);
 struct thread;
 void arm_fpu_thread_initialize(struct thread *t);
 void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread);

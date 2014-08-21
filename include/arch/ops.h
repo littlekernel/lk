@@ -36,6 +36,7 @@ __BEGIN_CDECLS
 static void arch_enable_ints(void);
 static void arch_disable_ints(void);
 static bool arch_ints_disabled(void);
+static bool arch_in_int_handler(void);
 
 static int atomic_swap(volatile int *ptr, int val);
 static int atomic_add(volatile int *ptr, int val);

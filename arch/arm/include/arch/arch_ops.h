@@ -84,6 +84,14 @@ static inline bool arch_fiqs_disabled(void)
 	return !!state;
 }
 
+static inline bool arch_in_int_handler(void)
+{
+	/* set by the interrupt glue to track that the cpu is inside a handler */
+	extern bool __arm_in_handler;
+
+	return __arm_in_handler;
+}
+
 static inline int atomic_add(volatile int *ptr, int val)
 {
 #if USE_GCC_ATOMICS
