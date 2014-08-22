@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <assert.h>
 #include <limits.h>
 #include <printf.h>
 #include <stdarg.h>
@@ -28,6 +29,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <platform/debug.h>
+
+#define FLOAT_PRINTF 1
 
 int sprintf(char *str, const char *fmt, ...)
 {
@@ -69,9 +72,9 @@ int snprintf(char *str, size_t len, const char *fmt, ...)
 #define LEADZEROFLAG   0x00001000
 #define BLANKPOSFLAG   0x00002000
 
-static char *longlong_to_string(char *buf, unsigned long long n, int len, uint flag, char *signchar)
+__NO_INLINE static char *longlong_to_string(char *buf, unsigned long long n, size_t len, uint flag, char *signchar)
 {
-	int pos = len;
+	size_t pos = len;
 	int negative = 0;
 
 	if ((flag & SIGNEDFLAG) && (long long)n < 0) {
@@ -103,17 +106,13 @@ static char *longlong_to_string(char *buf, unsigned long long n, int len, uint f
 	return &buf[pos];
 }
 
-static char *longlong_to_hexstring(char *buf, unsigned long long u, int len, uint flag)
-{
-	int pos = len;
-	static const char hextable[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-	static const char hextable_caps[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-	const char *table;
+static const char hextable[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+static const char hextable_caps[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
-	if ((flag & CAPSFLAG))
-		table = hextable_caps;
-	else
-		table = hextable;
+__NO_INLINE static char *longlong_to_hexstring(char *buf, unsigned long long u, size_t len, uint flag)
+{
+	size_t pos = len;
+	const char *table = (flag & CAPSFLAG) ? hextable_caps : hextable;
 
 	buf[--pos] = 0;
 	do {
@@ -125,6 +124,228 @@ static char *longlong_to_hexstring(char *buf, unsigned long long u, int len, uin
 
 	return &buf[pos];
 }
+
+#if FLOAT_PRINTF
+union double_int {
+	double d;
+	uint64_t i;
+};
+
+#define OUT(c) buf[pos++] = (c)
+#define OUTSTR(str) do { for (size_t i = 0; (str)[i] != 0; i++) OUT((str)[i]); } while (0)
+
+/* print up to a 4 digit exponent as string, with sign */
+__NO_INLINE static size_t exponent_to_string(char *buf, int32_t exponent)
+{
+	size_t pos = 0;
+
+	/* handle sign */
+	if (exponent < 0) {
+		OUT('-');
+		exponent = -exponent;
+	} else {
+		OUT('+');
+	}
+
+	/* see how far we need to bump into the string to print from the right */
+	if (exponent >= 1000) pos += 4;
+	else if (exponent >= 100) pos += 3;
+	else if (exponent >= 10) pos += 2;
+	else pos++;
+
+	/* print decimal string, from the right */
+	uint i = pos;
+	do {
+		uint digit = (uint32_t)exponent % 10;
+
+		buf[--i] = digit + '0';
+
+		exponent /= 10;
+	} while (exponent != 0);
+
+	/* return number of characters printed */
+	return pos;
+}
+
+__NO_INLINE static char *double_to_string(char *buf, size_t len, double d, uint flag)
+{
+	size_t pos = 0;
+	union double_int u = { d };
+
+	uint32_t exponent = (u.i >> 52) & 0x7ff;
+	uint64_t fraction = (u.i & ((1ULL << 52) - 1));
+	bool neg = !!(u.i & (1ULL << 63));
+
+	/* start constructing the string */
+	if (neg) {
+		OUT('-');
+		d -= d;
+	}
+
+	/* longest:
+	 * 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000000o
+	 */
+
+	/* look for special cases */
+	if (exponent == 0x7ff) {
+		if (fraction == 0) {
+			/* infinity */
+			if (flag & CAPSFLAG) OUTSTR("INF"); else OUTSTR("inf");
+		} else {
+			/* NaN */
+			if (flag & CAPSFLAG) OUTSTR("NAN"); else OUTSTR("nan");
+		}
+	} else if (exponent == 0) {
+		if (fraction == 0) {
+			/* zero */
+			OUTSTR("0.000000");
+		} else {
+			/* denormalized */
+			/* XXX does not handle */
+			if (flag & CAPSFLAG) OUTSTR("DEN"); else OUTSTR("den");
+		}
+	} else {
+		/* see if it's in the range of floats we can easily print */
+		int exponent_signed = exponent - 1023;
+		if (exponent_signed < -52 || exponent_signed > 52) {
+			OUTSTR("<range>");
+		} else {
+			/* start by walking backwards through the string */
+#define OUTREV(c) do { if (&buf[pos] == buf) goto done; else buf[--pos] = (c); } while (0)
+			pos = len;
+			OUTREV(0);
+
+			/* reserve space for the fractional component first */
+			for (int i = 0; i <= 6; i++)
+				OUTREV('0');
+			size_t decimal_spot = pos;
+
+			/* print the integer portion */
+			uint64_t u;
+			if (exponent_signed >= 0) {
+				u = fraction;
+				u |= (1ULL<<52);
+				u >>= (52 - exponent_signed);
+
+				char *s = longlong_to_string(buf, u, pos + 1, flag, &(char){0});
+
+				pos = s - buf;
+			} else {
+				/* exponent is negative */
+				u = 0;
+				OUTREV('0');
+			}
+
+			buf[decimal_spot] = '.';
+
+			/* handle the fractional part */
+			uint32_t frac = ((d - u) * 1000000) + .5;
+
+			uint i = decimal_spot + 6 + 1;
+			while (frac != 0) {
+				uint digit = frac % 10;
+
+				buf[--i] = digit + '0';
+
+				frac /= 10;
+			}
+
+			if (neg)
+				OUTREV('-');
+
+done:
+			/* separate return path, since we've been walking backwards through the string */
+			return &buf[pos];
+		}
+#undef OUTREV
+	}
+
+	buf[pos] = 0;
+	return buf;
+}
+
+__NO_INLINE static char *double_to_hexstring(char *buf, size_t len, double d, uint flag)
+{
+	size_t pos = 0;
+	union double_int u = { d };
+
+	uint32_t exponent = (u.i >> 52) & 0x7ff;
+	uint64_t fraction = (u.i & ((1ULL << 52) - 1));
+	bool neg = !!(u.i & (1ULL << 63));
+
+	/* start constructing the string */
+	if (neg) {
+		OUT('-');
+	}
+
+	/* look for special cases */
+	if (exponent == 0x7ff) {
+		if (fraction == 0) {
+			/* infinity */
+			if (flag & CAPSFLAG) OUTSTR("INF"); else OUTSTR("inf");
+		} else {
+			/* NaN */
+			if (flag & CAPSFLAG) OUTSTR("NAN"); else OUTSTR("nan");
+		}
+	} else if (exponent == 0) {
+		if (fraction == 0) {
+			/* zero */
+			if (flag & CAPSFLAG) OUTSTR("0X0P+0"); else OUTSTR("0x0p+0");
+		} else {
+			/* denormalized */
+			/* XXX does not handle */
+			if (flag & CAPSFLAG) OUTSTR("DEN"); else OUTSTR("den");
+		}
+	} else {
+		/* regular normalized numbers:
+		 * 0x1p+1
+		 * 0x1.0000000000001p+1
+		 * 0X1.FFFFFFFFFFFFFP+1023
+		 * 0x1.FFFFFFFFFFFFFP+1023
+		 */
+		int exponent_signed = exponent - 1023;
+
+		/* implicit 1. */
+		if (flag & CAPSFLAG) OUTSTR("0X1"); else OUTSTR("0x1");
+
+		/* select the appropriate hex case table */
+		const char *table = (flag & CAPSFLAG) ? hextable_caps : hextable;
+
+		int zero_count = 0;
+		bool output_dot = false;
+		for (int i = 52 - 4; i >= 0; i -= 4) {
+			uint digit = (fraction >> i) & 0xf;
+
+			if (digit == 0) {
+				zero_count++;
+			} else {
+				/* output a . the first time we output a char */
+				if (!output_dot) {
+					OUT('.');
+					output_dot = true;
+				}
+				/* if we have a non zero digit, see if we need to output a string of zeros */
+				while (zero_count > 0) {
+					OUT('0');
+					zero_count--;
+				}
+				buf[pos++] = table[digit];
+			}
+		}
+
+		/* handle the exponent */
+		buf[pos++] = (flag & CAPSFLAG) ? 'P' : 'p';
+		pos += exponent_to_string(&buf[pos], exponent_signed);
+	}
+
+	buf[pos] = 0;
+	return buf;
+}
+
+#undef OUT
+#undef OUTSTR
+
+#endif // FLOAT_PRINTF
 
 int vsprintf(char *str, const char *fmt, va_list ap)
 {
@@ -332,6 +553,24 @@ hex:
 				else
 					*(int *)ptr = chars_written;
 				break;
+#if FLOAT_PRINTF
+			case 'F':
+				flags |= CAPSFLAG;
+				/* fallthrough */
+			case 'f': {
+				double d = va_arg(ap, double);
+				s = double_to_string(num_buffer, sizeof(num_buffer), d, flags);
+				goto _output_string;
+			}
+			case 'A':
+				flags |= CAPSFLAG;
+				/* fallthrough */
+			case 'a': {
+				double d = va_arg(ap, double);
+				s = double_to_hexstring(num_buffer, sizeof(num_buffer), d, flags);
+				goto _output_string;
+			}
+#endif
 			default:
 				OUTPUT_CHAR('%');
 				OUTPUT_CHAR(c);
@@ -385,4 +624,4 @@ exit:
 	return (err < 0) ? err : (int)chars_written;
 }
 
-
+// vim: set ts=4 sw=4 noexpandtab:
