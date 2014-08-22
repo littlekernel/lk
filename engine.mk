@@ -1,8 +1,10 @@
 LOCAL_MAKEFILE:=$(MAKEFILE_LIST)
 
+BUILDROOT ?= .
+
 ifeq ($(MAKECMDGOALS),spotless)
 spotless:
-	rm -rf -- build-*
+	rm -rf -- "$(BUILDROOT)/build-*"
 else
 
 ifndef LKROOT
@@ -42,7 +44,6 @@ endif
 
 DEBUG ?= 2
 
-BUILDROOT ?= .
 BUILDDIR := $(BUILDROOT)/build-$(PROJECT)
 OUTBIN := $(BUILDDIR)/lk.bin
 OUTELF := $(BUILDDIR)/lk.elf
