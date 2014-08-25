@@ -4,7 +4,7 @@ BUILDROOT ?= .
 
 ifeq ($(MAKECMDGOALS),spotless)
 spotless:
-	rm -rf -- "$(BUILDROOT)/build-*"
+	rm -rf -- "$(BUILDROOT)"/build-*
 else
 
 ifndef LKROOT
