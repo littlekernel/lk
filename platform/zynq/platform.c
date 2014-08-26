@@ -330,14 +330,6 @@ void platform_init(void)
     printf("\tBOOT_MODE 0x%x\n", SLCR_REG(BOOT_MODE));
 
     zynq_dump_clocks();
-
-    printf("zynq mio:\n");
-    for (size_t i = 0; i < 54; i++) {
-        printf("\t%02u: 0x%08x", i, *REG32((uintptr_t)&SLCR->MIO_PIN_00 + (i * 4)));
-        if (i % 4 == 3 || i == 53) {
-            putchar('\n');
-        }
-    }
 #endif
 
     gem_init(GEM0_BASE, 256*1024);
@@ -350,3 +342,21 @@ void platform_quiesce(void)
     platform_stop_timer();
 }
 
+#if WITH_LIB_CONSOLE
+static int cmd_mio(int argc, const cmd_args *argv)
+{
+    printf("zynq mio:\n");
+    for (size_t i = 0; i < ZYNQ_MIO_CNT; i++) {
+        printf("\t%02u: 0x%08x", i, *REG32((uintptr_t)&SLCR->MIO_PIN_00 + (i * 4)));
+        if (i % 4 == 3 || i == 53) {
+            putchar('\n');
+        }
+    }
+
+    return 0;
+}
+
+STATIC_COMMAND_START
+STATIC_COMMAND("mio", "print mio configuration", &cmd_mio)
+STATIC_COMMAND_END(mio);
+#endif
