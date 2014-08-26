@@ -201,6 +201,40 @@ thread_t *thread_create(const char *name, thread_start_routine entry, void *arg,
 }
 
 /**
+ * @brief Flag a thread as real time
+ *
+ * @param t Thread to flag
+ *
+ * @return NO_ERROR on success
+ */
+status_t thread_set_real_time(thread_t *t)
+{
+	if (!t)
+		return ERR_INVALID_ARGS;
+
+#if THREAD_CHECKS
+	ASSERT(t->magic == THREAD_MAGIC);
+#endif
+
+	enter_critical_section();
+#if PLATFORM_HAS_DYNAMIC_TIMER
+	if (t == get_current_thread()) {
+		/* if we're currently running, cancel the preemption timer. */
+		timer_cancel(&preempt_timer);
+	}
+#endif
+	t->flags |= THREAD_FLAG_REAL_TIME;
+	exit_critical_section();
+
+	return NO_ERROR;
+}
+
+static bool thread_is_real_time(thread_t *t)
+{
+	return !!(t->flags & THREAD_FLAG_REAL_TIME);
+}
+
+/**
  * @brief  Make a suspended thread executable.
  *
  * This function is typically called to start a thread which has just been
@@ -450,13 +484,16 @@ void thread_resched(void)
 #endif
 
 #if PLATFORM_HAS_DYNAMIC_TIMER
-	/* if we're switching from idle to a real thread, set up a periodic
-	 * timer to run our preemption tick.
-	 */
-	if (oldthread == idle_thread) {
+	if (thread_is_real_time(newthread)) {
+		if (!thread_is_real_time(oldthread)) {
+			/* if we're switching from a non real time to a real time, cancel
+			 * the preemption timer. */
+			timer_cancel(&preempt_timer);
+		}
+	} else if (thread_is_real_time(oldthread)) {
+		/* if we're switching from a real time (or idle thread) to a regular one,
+		 * set up a periodic timer to run our preemption tick. */
 		timer_set_periodic(&preempt_timer, 10, (timer_callback)thread_timer_tick, NULL);
-	} else if (newthread == idle_thread) {
-		timer_cancel(&preempt_timer);
 	}
 #endif
 
@@ -584,14 +621,15 @@ enum handler_return thread_timer_tick(void)
 {
 	thread_t *current_thread = get_current_thread();
 
-	if (current_thread == idle_thread)
+	if (thread_is_real_time(current_thread))
 		return INT_NO_RESCHEDULE;
 
 	current_thread->remaining_quantum--;
-	if (current_thread->remaining_quantum <= 0)
+	if (current_thread->remaining_quantum <= 0) {
 		return INT_RESCHEDULE;
-	else
+	} else {
 		return INT_NO_RESCHEDULE;
+	}
 }
 
 /* timer callback to wake up a sleeping thread */
@@ -714,9 +752,14 @@ void thread_set_priority(int priority)
  */
 void thread_become_idle(void)
 {
+	idle_thread = get_current_thread();
+
 	thread_set_name("idle");
 	thread_set_priority(IDLE_PRIORITY);
-	idle_thread = get_current_thread();
+
+	/* mark the idle thread as real time, to avoid running the preemption
+	 * timer when it is scheduled. */
+	thread_set_real_time(idle_thread);
 
 	/* release the implicit boot critical section and yield to the scheduler */
 	exit_critical_section();

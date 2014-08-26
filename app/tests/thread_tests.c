@@ -450,11 +450,7 @@ static volatile int preempt_count;
 
 static int preempt_tester(void *arg)
 {
-#define COUNT (8*1024*1024)
-
-	int i;
-	for (i = 0; i < COUNT; i++)
-		__asm__ volatile("nop");
+	spin(1000000);
 
 	printf("exiting ts %lld\n", current_time_hires());
 
@@ -465,12 +461,14 @@ static int preempt_tester(void *arg)
 
 static void preempt_test(void)
 {
+	/* create 5 threads, let them run. If the system is properly timer preempting,
+	 * the threads should interleave each other at a fine enough granularity so
+	 * that they complete at roughly the same time. */
 	printf("testing preemption\n");
 
 	preempt_count = 5;
 
-	int i;
-	for (i = 0; i < preempt_count; i++)
+	for (int i = 0; i < preempt_count; i++)
 		thread_detach_and_resume(thread_create("preempt tester", &preempt_tester, NULL, LOW_PRIORITY, DEFAULT_STACK_SIZE));
 
 	while (preempt_count > 0) {
@@ -478,6 +476,25 @@ static void preempt_test(void)
 	}
 
 	printf("done with preempt test, above time stamps should be very close\n");
+
+	/* do the same as above, but mark the threads as real time, which should
+	 * effectively disable timer based preemption for them. They should
+	 * complete in order, about a second apart. */
+	printf("testing real time preemption\n");
+
+	preempt_count = 5;
+
+	for (int i = 0; i < preempt_count; i++) {
+		thread_t *t = thread_create("preempt tester", &preempt_tester, NULL, LOW_PRIORITY, DEFAULT_STACK_SIZE);
+		thread_set_real_time(t);
+		thread_detach_and_resume(t);
+	}
+
+	while (preempt_count > 0) {
+		thread_sleep(1000);
+	}
+
+	printf("done with real-time preempt test, above time stamps should be 1 second apart\n");
 }
 
 int thread_tests(void)
@@ -495,3 +512,5 @@ int thread_tests(void)
 
 	return 0;
 }
+
+/* vim: set ts=4 sw=4 noexpandtab: */
