@@ -78,6 +78,7 @@ int zynq_pll_init(void) {
     SLCR_REG(ARM_PLL_CTRL) &= ~PLL_BYPASS_FORCE;
     SLCR_REG(ARM_CLK_CTRL) = zynq_clk_cfg.arm_clk;
 
+#if ZYNQ_SDRAM_INIT
     SLCR_REG(DDR_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->ddr.lock_cnt) | PLL_CFG_PLL_CP(cfg->ddr.cp) |
                                 PLL_CFG_PLL_RES(cfg->ddr.res);
     SLCR_REG(DDR_PLL_CTRL) = PLL_FDIV(cfg->ddr.fdiv) | PLL_BYPASS_FORCE | PLL_RESET;
@@ -89,7 +90,7 @@ int zynq_pll_init(void) {
 
     SLCR_REG(DDR_PLL_CTRL) &= ~PLL_BYPASS_FORCE;
     SLCR_REG(DDR_CLK_CTRL) = zynq_clk_cfg.ddr_clk;
-
+#endif
     SLCR_REG(IO_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->io.lock_cnt) | PLL_CFG_PLL_CP(cfg->io.cp) |
                                 PLL_CFG_PLL_RES(cfg->io.res);
     SLCR_REG(IO_PLL_CTRL) = PLL_FDIV(cfg->io.fdiv) | PLL_BYPASS_FORCE | PLL_RESET;
@@ -112,6 +113,7 @@ int zynq_mio_init(void)
      * it may not work for all boards in the future. Just something to keep in mind
      * with different memory configurations.
      */
+#if ZYNQ_SDRAM_INIT
     SLCR_REG(GPIOB_CTRL) = GPIOB_CTRL_VREF_EN;
     SLCR_REG(DDRIOB_ADDR0) = DDRIOB_OUTPUT_EN(0x3);
     SLCR_REG(DDRIOB_ADDR1) = DDRIOB_OUTPUT_EN(0x3);
@@ -136,7 +138,7 @@ int zynq_mio_init(void)
     SLCR_REG(DDRIOB_DCI_CTRL) = 0x00000001U;
     SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000020U;
     SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000823U;
-
+#endif
 
     for (size_t pin = 0; pin < countof(zynq_mio_cfg); pin++) {
         if (zynq_mio_cfg[pin] != 0) {
@@ -284,7 +286,9 @@ void platform_early_init(void)
     zynq_mio_init();
     zynq_pll_init();
     zynq_clk_init();
+#if ZYNQ_SDRAM_INIT
     zynq_ddr_init();
+#endif
 
     /* Enable all level shifters */
     SLCR_REG(LVL_SHFTR_EN) = 0xF;
