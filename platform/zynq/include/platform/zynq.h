@@ -115,26 +115,6 @@
 
 #define MAX_INT 96
 
-/* UART registers */
-#define UART_CR (0x00)
-#define UART_MR (0x04)
-#define UART_IER (0x08)
-#define UART_IDR (0x0c)
-#define UART_IMR (0x10)
-#define UART_ISR (0x14)
-#define UART_BAUDGEN (0x18)
-#define UART_RXTOUT (0x1c)
-#define UART_RXWM (0x20)
-#define UART_MODEMCR (0x24)
-#define UART_MODEMSR (0x28)
-#define UART_SR (0x2c)
-#define UART_FIFO (0x30)
-#define UART_BAUD_DIV (0x34)
-#define UART_FLOW_DELAY (0x38)
-#define UART_TX_FIFO_TRIGGER (0x44)
-
-#define NUM_UARTS 2
-
 #ifndef ASSEMBLY
 
 typedef struct {
@@ -402,11 +382,11 @@ STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 #define PLL_STATUS_IO_PLL_STABLE        (1 << 5)
 
 /* Generic clock control */
-#define CLK_CTRL_CLKACT1                (1)
-#define CLK_CTRL_CLKACT2                (1 << 1)
+#define CLK_CTRL_CLKACT                 (1)
+#define CLK_CTRL_CLKACT1                (1 << 1)
 #define CLK_CTRL_SRCSEL(x)              ((x & BIT_MASK(2)) << 4)
-#define CLK_CTRL_DIVISOR1(x)            ((x & BIT_MASK(6)) << 8)
-#define CLK_CTRL_DIVISOR2(x)            ((x & BIT_MASK(6)) << 20)
+#define CLK_CTRL_DIVISOR0(x)            ((x & BIT_MASK(6)) << 8)
+#define CLK_CTRL_DIVISOR1(x)            ((x & BIT_MASK(6)) << 20)
 
 /* GEM clock control */
 #define GEM_CLK_CTRL_SRCSEL(x)          ((x & BIT_MASK(3)) << 4)
@@ -466,6 +446,44 @@ STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 #define MIO_PULLUP                      (1 << 12)
 #define MIO_DISABLE_RCVR                (1 << 13)
 
+/* UART registers */
+#define UART_CR                         (0x00)
+#define UART_MR                         (0x04)
+#define UART_IER                        (0x08)
+#define UART_IDR                        (0x0c)
+#define UART_IMR                        (0x10)
+#define UART_ISR                        (0x14)
+#define UART_BAUDGEN                    (0x18)
+#define UART_RXTOUT                     (0x1c)
+#define UART_RXWM                       (0x20)
+#define UART_MODEMCR                    (0x24)
+#define UART_MODEMSR                    (0x28)
+#define UART_SR                         (0x2c)
+#define UART_FIFO                       (0x30)
+#define UART_BAUD_DIV                   (0x34)
+#define UART_FLOW_DELAY                 (0x38)
+#define UART_TX_FIFO_TRIGGER            (0x44)
+
+#define NUM_UARTS 2
+
+#define UART_CR_RXRES                   (1)
+#define UART_CR_TXRES                   (1 << 1)
+#define UART_CR_RXEN                    (1 << 2)
+#define UART_CR_RXDIS                   (1 << 3)
+#define UART_CR_TXEN                    (1 << 4)
+#define UART_CR_TXDIS                   (1 << 5)
+#define UART_CR_RSTTO                   (1 << 6)
+#define UART_CR_STTBRK                  (1 << 7)
+#define UART_CR_STPBRK                  (1 << 8)
+
+#define UART_MR_CLKS_DIV8               (1)
+#define UART_MR_CHRL(x)                 ((x & BIT_MASK(2)) << 1)
+#define UART_MR_PAR(x)                  ((x & BIT_MASK(3)) << 3)
+#define UART_MR_NBSTOP(x)               ((x & BIT_MASK(2)) << 6)
+#define UART_MR_CHMODE(x)               ((x & BIT_MASK(2)) << 8)
+
+#define UART_BRG_DIV(x)                 (x & BIT_MASK(16))
+#define UART_BRD_DIV(x)                 (x & BIT_MASK(8))
 #include <stdbool.h>
 #include <sys/types.h>
 

@@ -28,6 +28,7 @@
 #include <dev/uart.h>
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_cortex_a9.h>
+#include <lib/console.h>
 #include <platform.h>
 #include <platform/zynq.h>
 #include <platform/gem.h>
@@ -103,13 +104,14 @@ int zynq_pll_init(void) {
     return 0;
 }
 
-/* TODO: This still contains some potentially Zybo specific logic and should be checked
- * when switching to other Zynq boards
- */
 int zynq_mio_init(void)
 {
     zynq_slcr_unlock();
 
+    /* This DDRIOB configuration applies to both zybo and uzed, but it's possible
+     * it may not work for all boards in the future. Just something to keep in mind
+     * with different memory configurations.
+     */
     SLCR_REG(GPIOB_CTRL) = GPIOB_CTRL_VREF_EN;
     SLCR_REG(DDRIOB_ADDR0) = DDRIOB_OUTPUT_EN(0x3);
     SLCR_REG(DDRIOB_ADDR1) = DDRIOB_OUTPUT_EN(0x3);
