@@ -7,6 +7,9 @@ MODULE_DEPS += \
 	lib/sysparam \
 	lib/ptable
 
+GLOBAL_DEFINES += \
+	SYSPARAM_ALLOW_WRITE=1
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c
 

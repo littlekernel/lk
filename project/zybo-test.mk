@@ -3,11 +3,11 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULES += \
-	app/zybo-common \
 	app/inetsrv \
-	app/tests \
-	app/stringtests \
 	app/shell \
+	app/stringtests \
+	app/tests \
+	app/zynq-common \
 	app/lkboot \
 	lib/cksum \
 	lib/debugcommands \
