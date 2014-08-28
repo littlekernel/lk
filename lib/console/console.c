@@ -106,10 +106,18 @@ int console_init(void)
 	mutex_init(command_lock);
 
 	/* add all the statically defined commands to the list */
+#ifdef _NO_HACK_
 	cmd_block *block;
 	for (block = &__commands_start; block != &__commands_end; block++) {
 		console_register_commands(block);
 	}
+#else
+	cmd_block *block;
+	for (block = &__commands_start; block < &__commands_end; ) {
+		console_register_commands(block);
+		block = (cmd_block *)(((size_t)block)+ 0x20);
+	}
+#endif
 
 #if CONSOLE_ENABLE_HISTORY
 	init_history();
