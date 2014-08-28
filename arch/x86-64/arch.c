@@ -34,10 +34,12 @@ static tss_t system_tss;
 
 void arch_early_init(void)
 {
+
+	/* x86-64 MMU init is done as a part of platform init after the heap init */
+#ifndef ARCH_X86_64
 	x86_mmu_init();
-
 	platform_init_mmu_mappings();
-
+#endif
 	/* enable caches here for now */
 	clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
 

@@ -26,12 +26,14 @@ ENTRY(_start)
 SECTIONS
 {
 	.text 0x0200000 : {
+		__code_start = .;
 		KEEP(*(.text.boot))
 		*(.text* .sram.text)
 		*(.gnu.linkonce.t.*)
+		__code_end = .;
 	} =0x9090
 
-	.rodata : ALIGN(8) {
+	.rodata : ALIGN(4096) {
 		__rodata_start = .;
 		*(.rodata*)
 		*(.gnu.linkonce.r.*)
