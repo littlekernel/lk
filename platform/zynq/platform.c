@@ -173,6 +173,8 @@ void zynq_clk_init(void)
 
 void zynq_ddr_init(void)
 {
+    zynq_slcr_unlock();
+
     /* Write addresss / value pairs from target table */
     for (size_t i = 0; i < zynq_ddr_cfg_cnt; i += 2) {
         *REG32(zynq_ddr_cfg[i]) = zynq_ddr_cfg[i+1];
@@ -188,6 +190,7 @@ void zynq_ddr_init(void)
     /* Switch timer to 64k */
     *REG32(0XF8007000) = *REG32(0xF8007000) & ~0x20000000U;
 
+    zynq_slcr_lock();
 }
 
 STATIC_ASSERT(IS_ALIGNED(SDRAM_BASE, MB));
@@ -290,12 +293,17 @@ void platform_early_init(void)
     zynq_ddr_init();
 #endif
 
+    zynq_slcr_unlock();
+
     /* Enable all level shifters */
     SLCR_REG(LVL_SHFTR_EN) = 0xF;
     /* FPGA SW reset (not documented, but mandatory) */
     SLCR_REG(FPGA_RST_CTRL) = 0x0;
+
     /* zynq manual says this is mandatory for cache init */
     *REG32(SLCR_BASE + 0xa1c) = 0x020202;
+
+    zynq_slcr_lock();
 
     /* early initialize the uart so we can printf */
     uart_init_early();
