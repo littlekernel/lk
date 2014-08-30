@@ -159,7 +159,7 @@ static addr_t periph_clk_ctrl_reg(enum zynq_periph periph)
     }
 }
 
-static uint periph_clk_ctrl_enable_bitpos(enum zynq_periph periph)
+static int periph_clk_ctrl_enable_bitpos(enum zynq_periph periph)
 {
     switch (periph) {
         case PERIPH_SDIO1:
@@ -167,6 +167,11 @@ static uint periph_clk_ctrl_enable_bitpos(enum zynq_periph periph)
         case PERIPH_SPI1:
         case PERIPH_CAN1:
             return 1;
+        case PERIPH_FPGA0:
+        case PERIPH_FPGA1:
+        case PERIPH_FPGA2:
+        case PERIPH_FPGA3:
+            return -1; // enable bit is more complicated on fpga
         default:
             // most peripherals have the enable bit in bit0
             return 0;
@@ -228,7 +233,7 @@ status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_so
     addr_t clk_reg = periph_clk_ctrl_reg(periph);
     DEBUG_ASSERT(clk_reg != 0);
 
-    uint enable_bitpos = periph_clk_ctrl_enable_bitpos(periph);
+    int enable_bitpos = periph_clk_ctrl_enable_bitpos(periph);
 
     zynq_slcr_unlock();
 
@@ -240,16 +245,20 @@ status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_so
         ctrl = (ctrl & ~(0x3f << 20)) | (divisor2 << 20);
         ctrl = (ctrl & ~(0x3f << 8)) | (divisor << 8);
         ctrl = (ctrl & ~(0x3 << 4)) | (source << 4);
-        ctrl |= (1 << enable_bitpos);
+
+        if (enable_bitpos >= 0)
+            ctrl |= (1 << enable_bitpos);
 
         *REG32(clk_reg) = ctrl;
     } else {
-        // disabling
-        uint32_t ctrl = *REG32(clk_reg);
+        if (enable_bitpos >= 0) {
+            // disabling
+            uint32_t ctrl = *REG32(clk_reg);
 
-        ctrl &= ~(1 << enable_bitpos);
+            ctrl &= ~(1 << enable_bitpos);
 
-        *REG32(clk_reg) = ctrl;
+            *REG32(clk_reg) = ctrl;
+        }
     }
 
     zynq_slcr_lock();
@@ -265,14 +274,16 @@ uint32_t zynq_get_clock(enum zynq_periph periph)
     addr_t clk_reg = periph_clk_ctrl_reg(periph);
     DEBUG_ASSERT(clk_reg != 0);
 
-    uint enable_bitpos = periph_clk_ctrl_enable_bitpos(periph);
+    int enable_bitpos = periph_clk_ctrl_enable_bitpos(periph);
 
     LTRACEF("clkreg 0x%x\n", *REG32(clk_reg));
 
     // see if it's enabled
-    if ((*REG32(clk_reg) & (1 << enable_bitpos)) == 0) {
-        // not enabled
-        return 0;
+    if (enable_bitpos >= 0) {
+        if ((*REG32(clk_reg) & (1 << enable_bitpos)) == 0) {
+            // not enabled
+            return 0;
+        }
     }
 
     // get the source clock
