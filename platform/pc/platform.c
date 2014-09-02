@@ -52,7 +52,7 @@ uint32_t g_addr_width;
 
 void platform_init_mmu_mappings(void)
 {
-#ifndef ARCH_X86_64
+#ifdef ARCH_X86_64
 	uint64_t *new_pml4, phy_pml4;
 	struct map_range range;
 	uint64_t access;
