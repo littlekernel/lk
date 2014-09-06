@@ -68,6 +68,11 @@ static void dump_mode_regs(uint32_t spsr)
 
 static void dump_fault_frame(struct arm_fault_frame *frame)
 {
+	struct thread *current_thread = get_current_thread();
+
+	dprintf(CRITICAL, "current_thread %p, name %s\n",
+		current_thread, current_thread ? current_thread->name : "");
+
 	dprintf(CRITICAL, "r0  0x%08x r1  0x%08x r2  0x%08x r3  0x%08x\n", frame->r[0], frame->r[1], frame->r[2], frame->r[3]);
 	dprintf(CRITICAL, "r4  0x%08x r5  0x%08x r6  0x%08x r7  0x%08x\n", frame->r[4], frame->r[5], frame->r[6], frame->r[7]);
 	dprintf(CRITICAL, "r8  0x%08x r9  0x%08x r10 0x%08x r11 0x%08x\n", frame->r[8], frame->r[9], frame->r[10], frame->r[11]);
