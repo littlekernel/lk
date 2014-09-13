@@ -49,12 +49,15 @@ static void add_to_queue(net_timer_t *t)
     list_add_tail(&net_timer_list, &t->node);
 }
 
-status_t net_timer_set(net_timer_t *t, net_timer_callback_t cb, void *callback_args, lk_time_t delay)
+bool net_timer_set(net_timer_t *t, net_timer_callback_t cb, void *callback_args, lk_time_t delay)
 {
+    bool newly_queued = true;
+
     enter_critical_section();
 
     if (list_in_list(&t->node)) {
         list_delete(&t->node);
+        newly_queued = false;
     }
 
     t->cb = cb;
@@ -65,21 +68,23 @@ status_t net_timer_set(net_timer_t *t, net_timer_callback_t cb, void *callback_a
 
     exit_critical_section();
 
-    return NO_ERROR;
+    return newly_queued;
 }
 
-
-status_t net_timer_cancel(net_timer_t *t)
+bool net_timer_cancel(net_timer_t *t)
 {
+    bool was_queued = false;
+
     enter_critical_section();
 
     if (list_in_list(&t->node)) {
         list_delete(&t->node);
+        was_queued = true;
     }
 
     exit_critical_section();
 
-    return NO_ERROR;
+    return was_queued;
 }
 
 static void net_timer_work_routine(void)
