@@ -123,6 +123,8 @@ typedef struct tcp_socket {
     /* listen accept */
     semaphore_t accept_sem;
     struct tcp_socket *accepted;
+
+    net_timer_t time_wait_timer;
 } tcp_socket_t;
 
 #define DEFAULT_MSS (1024)
@@ -130,6 +132,7 @@ typedef struct tcp_socket {
 #define DEFAULT_TX_BUFFER_SIZE (4096)
 
 #define RETRANSMIT_TIMEOUT (50)
+#define TIME_WAIT_TIMEOUT (60000) // 1 minute
 
 #define SEQUENCE_GTE(a, b) ((int32_t)((a) - (b)) >= 0)
 #define SEQUENCE_LTE(a, b) ((int32_t)((a) - (b)) <= 0)
@@ -151,6 +154,7 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
 static void send_ack(tcp_socket_t *s);
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size);
 static void handle_retransmit_timeout(void *_s);
+static void handle_time_wait_timeout(void *_s);
 static void tcp_remote_close(tcp_socket_t *s);
 static void tcp_wakeup_waiters(tcp_socket_t *s);
 static void inc_socket_ref(tcp_socket_t *s);
@@ -198,6 +202,15 @@ static void dump_socket(tcp_socket_t *s)
     printf("socket %p: state %d (%s), local 0x%x:%hu, remote 0x%x:%hu, ref %d\n",
             s, s->state, tcp_state_to_string(s->state),
             s->local_ip, s->local_port, s->remote_ip, s->remote_port, s->ref);
+    if (s->state == STATE_ESTABLISHED || s->state == STATE_CLOSE_WAIT) {
+        printf("\trx: wsize %u wlo %u whi %u (%u)\n",
+                s->rx_win_size, s->rx_win_low, s->rx_win_high,
+                s->rx_win_high - s->rx_win_low);
+        printf("\ttx: wlo %u whi %u (%u) highest_seq %u (%u) bufsize %u bufoff %u\n",
+                s->tx_win_low, s->tx_win_high, s->tx_win_high - s->tx_win_low,
+                s->tx_highest_seq, s->tx_highest_seq - s->tx_win_low,
+                s->tx_buffer_size, s->tx_buffer_offset);
+    }
 }
 
 static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint16_t remote_port, uint16_t local_port)
@@ -500,6 +513,10 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
             break;
 
         case STATE_CLOSE_WAIT:
+            if (packet_flags & PKT_ACK) {
+                /* they're acking us */
+                handle_ack(s, header->ack_num, header->win_size);
+            }
             if (packet_flags & PKT_FIN) {
                 /* they must have missed our ack, ack them again */
                 send_ack(s);
@@ -536,7 +553,8 @@ fin_wait_2:
                 send_ack(s);
                 s->state = STATE_TIME_WAIT;
 
-                /* XXX set up time out timer here */
+                /* set timed wait timer */
+                tcp_timer_set(s, &s->time_wait_timer, &handle_time_wait_timeout, TIME_WAIT_TIMEOUT);
             }
             break;
         case STATE_CLOSING:
@@ -544,7 +562,8 @@ fin_wait_2:
                 /* they're acking our FIN, probably */
                 s->state = STATE_TIME_WAIT;
 
-                /* XXX set up time out timer here */
+                /* set timed wait timer */
+                tcp_timer_set(s, &s->time_wait_timer, &handle_time_wait_timeout, TIME_WAIT_TIMEOUT);
             }
             break;
         case STATE_TIME_WAIT:
@@ -705,7 +724,6 @@ static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip
         dump_tcp_header(header);
     }
 
-    /* send it */
     return minip_ipv4_send(p, dest_ip, IP_PROTO_TCP);
 }
 
@@ -791,7 +809,7 @@ static ssize_t tcp_retransmit(tcp_socket_t *s)
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
-    if (s->state != STATE_ESTABLISHED && s->state != STATE_FIN_WAIT_1)
+    if (s->state != STATE_ESTABLISHED && s->state != STATE_CLOSE_WAIT)
         return 0;
 
     /* how much data have we sent but not gotten an ack for? */
@@ -817,14 +835,32 @@ static void handle_retransmit_timeout(void *_s)
 
     mutex_acquire(&s->lock);
 
-    if (s->state == STATE_CLOSED)
+    if (tcp_retransmit(s) == 0)
         goto done;
-
-    tcp_retransmit(s);
 
     tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
 
 done:
+    mutex_release(&s->lock);
+    dec_socket_ref(s);
+}
+
+static void handle_time_wait_timeout(void *_s)
+{
+    tcp_socket_t *s = _s;
+
+    LTRACEF("s %p\n", s);
+
+    DEBUG_ASSERT(s);
+
+    mutex_acquire(&s->lock);
+
+    DEBUG_ASSERT(s->state == STATE_TIME_WAIT);
+
+    /* remove us from the list and drop the last ref */
+    remove_socket_from_list(s);
+    dec_socket_ref(s);
+
     mutex_release(&s->lock);
     dec_socket_ref(s);
 }
@@ -1086,7 +1122,7 @@ status_t tcp_close(tcp_socket_t *socket)
             tcp_socket_send(s, NULL, 0, PKT_ACK|PKT_FIN, NULL, 0, s->tx_win_low);
             s->tx_win_low++;
 
-            // stick around and wait for them to FIN us
+            /* stick around and wait for them to FIN us */
             break;
         case STATE_CLOSE_WAIT:
             s->state = STATE_LAST_ACK;
@@ -1095,6 +1131,14 @@ status_t tcp_close(tcp_socket_t *socket)
 
             // XXX set up fin retransmit timer here
             break;
+        case STATE_FIN_WAIT_1:
+        case STATE_FIN_WAIT_2:
+        case STATE_CLOSING:
+        case STATE_TIME_WAIT:
+        case STATE_LAST_ACK:
+            /* these states are all post tcp_close(), so it's invalid to call it here */
+            err = ERR_CHANNEL_CLOSED;
+            goto out;
         default:
             PANIC_UNIMPLEMENTED;
     }
@@ -1104,10 +1148,11 @@ status_t tcp_close(tcp_socket_t *socket)
 
     mutex_release(&s->lock);
 
+    err = NO_ERROR;
+
+out:
     /* if this was the last ref, it should destroy the socket */
     dec_socket_ref(s);
-
-    err = NO_ERROR;
 
     return err;
 }
