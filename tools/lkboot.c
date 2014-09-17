@@ -41,7 +41,7 @@ void usage(void) {
 "       lkboot <hostname> boot <binary>\n"
 "       lkboot <hostname> getsysparam <name>\n"
 "       lkboot <hostname> reboot\n"
-"	lkboot <hostname> :<commandname> [ <arg>* ]\n"
+"       lkboot <hostname> :<commandname> [ <arg>* ]\n"
 "\n"
 	);
 	exit(1);
