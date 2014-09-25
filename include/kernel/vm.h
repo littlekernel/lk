@@ -22,12 +22,13 @@
  */
 #pragma once
 
+#include <bits/wordsize.h>
 /* some assembly #defines, need to match the structure below */
 #define __MMU_INITIAL_MAPPING_PHYS_OFFSET 0
-#define __MMU_INITIAL_MAPPING_VIRT_OFFSET 4
-#define __MMU_INITIAL_MAPPING_SIZE_OFFSET 8
-#define __MMU_INITIAL_MAPPING_FLAGS_OFFSET 12
-#define __MMU_INITIAL_MAPPING_SIZE        20
+#define __MMU_INITIAL_MAPPING_VIRT_OFFSET (__WORDSIZE/32)*4
+#define __MMU_INITIAL_MAPPING_SIZE_OFFSET (__WORDSIZE/32)*8
+#define __MMU_INITIAL_MAPPING_FLAGS_OFFSET (__WORDSIZE/32)*12
+#define __MMU_INITIAL_MAPPING_SIZE (__WORDSIZE/32)*20
 
 /* flags for initial mapping struct */
 #define MMU_INITIAL_MAPPING_TEMPORARY     (0x1)
