@@ -110,6 +110,12 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 {
     LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
 
+    uint64_t ticks = ((uint64_t)timer_freq_msec_conversion * interval);
+    if (unlikely(ticks == 0))
+        ticks = 1;
+    if (unlikely(ticks > 0xffffffff))
+        ticks = 0xffffffff;
+
     enter_critical_section();
 
     t_callback = callback;
@@ -119,7 +125,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     // disable timer
     TIMREG(TIMER_CONTROL) = 0;
 
-    TIMREG(TIMER_LOAD) = ((uint64_t)timer_freq_msec_conversion * interval);
+    TIMREG(TIMER_LOAD) = ticks;
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<1) | (1<<0); // irq enable, autoreload, enable
 
     unmask_interrupt(CPU_PRIV_TIMER_INT);
@@ -133,6 +139,12 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
 {
     LTRACEF("callback %p, arg %p, timeout %lu\n", callback, arg, interval);
 
+    uint64_t ticks = ((uint64_t)timer_freq_msec_conversion * interval);
+    if (unlikely(ticks == 0))
+        ticks = 1;
+    if (unlikely(ticks > 0xffffffff))
+        ticks = 0xffffffff;
+
     enter_critical_section();
 
     t_callback = callback;
@@ -141,7 +153,7 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     // disable timer
     TIMREG(TIMER_CONTROL) = 0;
 
-    TIMREG(TIMER_LOAD) = ((uint64_t)timer_freq_msec_conversion * interval);
+    TIMREG(TIMER_LOAD) = ticks;
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<0) | (1<<0); // irq enable, oneshot, enable
 
     unmask_interrupt(CPU_PRIV_TIMER_INT);
