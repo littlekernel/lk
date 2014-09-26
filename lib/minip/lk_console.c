@@ -95,8 +95,7 @@ minip_usage:
                 uint32_t ipaddr = minip_get_ipaddr();
 
                 printf("hostname: %s\n", minip_get_hostname());
-                printf("ip: %u.%u.%u.%u\n",
-                    ipaddr >> 24, (ipaddr >> 16) & 0xFF, (ipaddr >> 8) & 0xFF, (ipaddr & 0xFF));;
+                printf("ip: %u.%u.%u.%u\n", IPV4_SPLIT(ipaddr));
             }
             break;
             case 't': {

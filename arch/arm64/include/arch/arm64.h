@@ -53,6 +53,12 @@ struct arm64_iframe_long {
     uint64_t spsr;
 };
 
+struct arm64_iframe_short {
+    uint64_t r[20];
+    uint64_t elr;
+    uint64_t spsr;
+};
+
 extern void arm64_exception_base(void);
 void arm64_el3_to_el1(void);
 

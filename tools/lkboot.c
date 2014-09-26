@@ -41,6 +41,7 @@ void usage(void) {
 "       lkboot <hostname> boot <binary>\n"
 "       lkboot <hostname> getsysparam <name>\n"
 "       lkboot <hostname> reboot\n"
+"       lkboot <hostname> :<commandname> [ <arg>* ]\n"
 "\n"
 	);
 	exit(1);
@@ -72,6 +73,8 @@ int main(int argc, char **argv) {
 	if (argc == 3) {
 		if (!strcmp(cmd, "reboot")) {
 			return lkboot_txn(host, cmd, fd, "");
+		} else if (cmd[0] == ':') {
+			return lkboot_txn(host, cmd + 1, fd, "");
 		} else {
 			usage();
 		}
@@ -97,6 +100,8 @@ int main(int argc, char **argv) {
 		} else {
 			return -1;
 		}
+	} else if (cmd[0] == ':') {
+		return lkboot_txn(host, cmd + 1, -1, args);
 	} else {
 		usage();
 	}

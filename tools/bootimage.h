@@ -20,18 +20,24 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
 #pragma once
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+#include "../include/bootimage.h"
 
-int udp_listen(in_addr_t addr, unsigned port, int shared);
-int udp_connect(in_addr_t addr, unsigned port);
+typedef struct bootimage bootimage;
 
-int tcp_listen(in_addr_t addr, unsigned port);
-int tcp_connect(in_addr_t addr, unsigned port);
+bootimage *bootimage_init(void);
 
-in_addr_t lookup_hostname(const char *hostname);
+bootentry_data *bootimage_add_string(
+	bootimage *img, unsigned kind, const char *s);
+
+bootentry_file *bootimage_add_filedata(
+	bootimage *img, unsigned type, void *data, unsigned len);
+
+bootentry_file *bootimage_add_file(
+	bootimage *img, unsigned type, const char *fn);
+
+void bootimage_done(bootimage *img);
+
+int bootimage_write(bootimage *img, int fd);

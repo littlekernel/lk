@@ -4,9 +4,9 @@ make foundation-arm64-test -j4 || exit 1
 
 case `uname` in
     Darwin)
-        scp build-foundation-arm64-test/lk.elf xubuntu:. &&
-        ssh xubuntu Foundation_v8pkg/models/Linux64_GCC-4.1/Foundation_v8 --use-real-time --visualization --image lk.elf
-        ssh xubuntu killall Foundation_v8
+        scp build-foundation-arm64-test/lk.elf vmint:. &&
+        ssh vmint Foundation_v8pkg/models/Linux64_GCC-4.1/Foundation_v8 --use-real-time --visualization --image lk.elf
+        ssh vmint killall Foundation_v8
         ;;
     Linux)
         Foundation_v8 --use-real-time --visualization --image build-foundation-arm64-test/lk.elf $@

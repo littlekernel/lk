@@ -29,7 +29,35 @@
 #include "network.h"
 
 in_addr_t lookup_hostname(const char *hostname) {
-	return inet_addr(hostname);
+	int err;
+	struct addrinfo *info, *temp;
+	in_addr_t addr = 0;
+
+	struct addrinfo hints;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+
+	err = getaddrinfo(hostname, NULL, &hints, &info);
+	if (err < 0) {
+		printf("getaddrinfo() returns %d, error '%s'\n", err, gai_strerror(err));
+		return 0;
+	}
+
+	for (temp = info; temp; temp = temp->ai_next) {
+//		printf("flags 0x%x, family %d, socktype %d, protocol %d, addrlen %d\n",
+//			temp->ai_flags, temp->ai_family, temp->ai_socktype, temp->ai_protocol, temp->ai_addrlen);
+
+		if (temp->ai_family == AF_INET && temp->ai_protocol == IPPROTO_TCP) {
+			struct sockaddr_in *sa = (struct sockaddr_in *)temp->ai_addr;
+//			printf("port %d, addr 0x%x\n", sa->sin_port, sa->sin_addr.s_addr);
+			addr = sa->sin_addr.s_addr;
+		}
+	}
+
+	freeaddrinfo(info);
+
+	return addr;
 }
 
 static int inet_listen(in_addr_t addr, int type, unsigned port, int shared) {

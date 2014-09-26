@@ -1,8 +1,14 @@
 
-all: lkboot
+all: lkboot mkboot
 
-lkboot: lkboot.c liblkboot.c network.c network.h liblkboot.h ../app/lkboot/lkboot.h
-	gcc -Wall -o lkboot lkboot.c liblkboot.c network.c
+LKBOOT_SRCS := lkboot.c liblkboot.c network.c
+LKBOOT_DEPS := network.h liblkboot.h ../app/lkboot/lkboot.h
+lkboot: $(LKBOOT_SRCS) $(LKBOOT_DEPS)
+	gcc -Wall -o lkboot $(LKBOOT_SRCS)
+
+MKBOOT_SRCS := mkimage.c bootimage.c ../lib/mincrypt/sha256.c
+mkboot: $(MKBOOT_SRCS)
+	gcc -Wall -g -o mkimage -I../lib/mincrypt/include $(MKBOOT_SRCS)
 
 clean::
-	rm -f lkboot
+	rm -f lkboot mkimage

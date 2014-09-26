@@ -26,15 +26,20 @@
 #include <trace.h>
 #include <debug.h>
 #include <compiler.h>
+#include <stdlib.h>
 #include <list.h>
 #include <err.h>
 #include <sys/types.h>
 #include <kernel/thread.h>
+#include <kernel/event.h>
+#include <kernel/mutex.h>
 #include <platform.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 static struct list_node net_timer_list = LIST_INITIAL_VALUE(net_timer_list);
+static event_t net_timer_event = EVENT_INITIAL_VALUE(net_timer_event, false, 0);
+static mutex_t net_timer_lock = MUTEX_INITIAL_VALUE(net_timer_lock);
 
 static void add_to_queue(net_timer_t *t)
 {
@@ -49,72 +54,97 @@ static void add_to_queue(net_timer_t *t)
     list_add_tail(&net_timer_list, &t->node);
 }
 
-status_t net_timer_set(net_timer_t *t, net_timer_callback_t cb, void *callback_args, lk_time_t delay)
+bool net_timer_set(net_timer_t *t, net_timer_callback_t cb, void *callback_args, lk_time_t delay)
 {
-    enter_critical_section();
+    bool newly_queued = true;
+
+    lk_time_t now = current_time();
+
+    mutex_acquire(&net_timer_lock);
 
     if (list_in_list(&t->node)) {
         list_delete(&t->node);
+        newly_queued = false;
     }
 
     t->cb = cb;
     t->arg = callback_args;
-    t->sched_time = current_time() + delay;
+    t->sched_time = now + delay;
 
     add_to_queue(t);
 
-    exit_critical_section();
+    mutex_release(&net_timer_lock);
 
-    return NO_ERROR;
+    event_signal(&net_timer_event, true);
+
+    return newly_queued;
 }
 
-
-status_t net_timer_cancel(net_timer_t *t)
+bool net_timer_cancel(net_timer_t *t)
 {
-    enter_critical_section();
+    bool was_queued = false;
+
+    mutex_acquire(&net_timer_lock);
 
     if (list_in_list(&t->node)) {
         list_delete(&t->node);
+        was_queued = true;
     }
 
-    exit_critical_section();
+    mutex_release(&net_timer_lock);
 
-    return NO_ERROR;
+    return was_queued;
 }
 
-static void net_timer_work_routine(void)
+/* returns the delay to the next event */
+static lk_time_t net_timer_work_routine(void)
 {
-    enter_critical_section();
+    lk_time_t now = current_time();
+    lk_time_t delay = INFINITE_TIME;
+
+    mutex_acquire(&net_timer_lock);
 
     for (;;) {
         net_timer_t *e;
         e = list_peek_head_type(&net_timer_list, net_timer_t, node);
-        if (!e)
+        if (!e) {
+            delay = INFINITE_TIME;
             goto done;
+        }
 
-        if (TIME_GT(e->sched_time, current_time()))
+        if (TIME_GT(e->sched_time, now)) {
+            delay = e->sched_time - now;
             goto done;
+        }
 
         list_delete(&e->node);
 
-        exit_critical_section();
+        mutex_release(&net_timer_lock);
 
+        LTRACEF("firing timer %p, cb %p, arg %p\n", e, e->cb, e->arg);
         e->cb(e->arg);
 
-        enter_critical_section();
+        mutex_acquire(&net_timer_lock);
     }
 
 done:
-    exit_critical_section();
+    if (delay == INFINITE_TIME)
+        event_unsignal(&net_timer_event);
+
+    mutex_release(&net_timer_lock);
+
+    return delay;
 }
 
 int net_timer_work_thread(void *args)
 {
     for (;;) {
-        // XXX be smarter
-        thread_sleep(100);
+        event_wait(&net_timer_event);
 
-        net_timer_work_routine();
+        lk_time_t delay = net_timer_work_routine();
+        if (delay != INFINITE_TIME) {
+            thread_sleep(MIN(delay, 100));
+        }
     }
 
     return 0;

@@ -179,7 +179,7 @@ status_t unmask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-enum handler_return platform_irq(struct arm64_iframe_long *frame)
+enum handler_return platform_irq(struct arm64_iframe_short *frame)
 {
     uint32_t iar = GICCPUREG(IAR);
     uint vector = iar & 0x3ff;
@@ -217,7 +217,7 @@ enum handler_return platform_irq(struct arm64_iframe_long *frame)
     return ret;
 }
 
-void platform_fiq(struct arm64_iframe_long *frame)
+void platform_fiq(struct arm64_iframe_short *frame)
 {
     PANIC_UNIMPLEMENTED;
 
