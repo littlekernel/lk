@@ -30,6 +30,7 @@
 #include <lib/pktbuf.h>
 
 #define IPV4(a,b,c,d) (((a)&0xFF)|(((b)&0xFF)<<8)|(((c)&0xFF)<<16)|(((d)&0xFF)<<24))
+#define IPV4_SPLIT(a) (a & 0xFF), ((a >> 8) & 0xFF), ((a >> 16) & 0xFF), ((a >> 24) & 0xFF)
 #define IPV4_BCAST (0xFFFFFFFF)
 #define IPV4_NONE (0)
 

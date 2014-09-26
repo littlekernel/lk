@@ -179,7 +179,7 @@ __NO_INLINE static char *double_to_string(char *buf, size_t len, double d, uint 
 	/* start constructing the string */
 	if (neg) {
 		OUT('-');
-		d -= d;
+		d = -d;
 	}
 
 	/* longest:

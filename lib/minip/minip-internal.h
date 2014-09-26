@@ -134,8 +134,12 @@ typedef struct net_timer {
     void *arg;
 } net_timer_t;
 
-status_t net_timer_set(net_timer_t *, net_timer_callback_t, void *callback_args, lk_time_t delay) __NONNULL((1));
-status_t net_timer_cancel(net_timer_t *) __NONNULL();
+/* set a net timer. returns true if the timer was not set before and is now */
+bool net_timer_set(net_timer_t *, net_timer_callback_t, void *callback_args, lk_time_t delay) __NONNULL((1));
+
+/* cancels a net timer. returns true if it was previously set and is not now */
+bool net_timer_cancel(net_timer_t *) __NONNULL();
+
 void net_timer_init(void);
 
 // vim: set ts=4 sw=4 expandtab:
