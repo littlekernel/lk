@@ -178,6 +178,7 @@ OBJCOPY := $(TOOLCHAIN_PREFIX)objcopy
 CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
 SIZE := $(TOOLCHAIN_PREFIX)size
 NM := $(TOOLCHAIN_PREFIX)nm
+STRIP := $(TOOLCHAIN_PREFIX)strip
 
 # try to have the compiler output colorized error messages if available
 export GCC_COLORS ?= 1
