@@ -36,10 +36,12 @@ void x86_mmu_init(void);
 #define X86_MMU_PG_PTE_PAT	0x080		/* PAT  PAT index		*/
 #define X86_MMU_PG_G		0x100		/* G    Global			*/
 #define X86_MMU_PG_NX		(1ul << 63)	/* NX   No Execute		*/
-#define x86_MMU_CLEAR		0x0
+#define X86_MMU_CLEAR		0x0
+#define X86_DIRTY_ACCESS_MASK	0xf9f
 #define X86_PG_FRAME		(0x000ffffffffff000ul)
 #define X86_PHY_ADDR_MASK	(0x000ffffffffffffful)
 #define X86_FLAGS_MASK		(0x8000000000000ffful)
+#define X86_PTE_NOT_PRESENT	(0xFFFFFFFFFFFFFFFEul)
 
 #define PAGE_SIZE		4096
 #define PAGING_LEVELS		4
@@ -54,43 +56,25 @@ void x86_mmu_init(void);
 #define X86_VIRT_TO_PHYS(x)	(x)
 #define X86_SET_FLAG(x)		(x=1)
 
-typedef uint64_t map_addr_t;
-
-struct pmap {
-	map_addr_t pml4_addr;
-	map_addr_t vaddr;
-	map_addr_t paddr;
-	uint64_t flags;
-};
-
-/* Return status of the Memory mapping request */
-typedef enum mapping_status {
-	MAP_SUCCESS,
-	MAP_NO_MAPPING,
-	MAP_ERR_NO_MEM,
-	MAP_ERR_INVLD_VADDR,
-	MAP_ERR_INVLD_PADDR,
-} map_stat;
-
-/* Different paging levels in the page table hirerachy */
-typedef enum paging_level {
-	PML4_LEVEL,
-	PDP_LEVEL,
-	PD_LEVEL,
-	PT_LEVEL,
-	PAGE_FRAMES
+/* Different page table levels in the page table mgmt hirerachy */
+enum page_table_levels {
+	PF_L,
+	PT_L,
+	PD_L,
+	PDP_L,
+	PML4_L
 } page_level;
 
 struct map_range {
-	map_addr_t start_vaddr;
-	map_addr_t start_paddr;
+	vaddr_t start_vaddr;
+	paddr_t start_paddr;
 	uint32_t size;
 };
 
-map_stat x86_mmu_add_mapping (map_addr_t pml4, map_addr_t paddr, map_addr_t vaddr, uint64_t flags);
-map_stat x86_mmu_map_range (map_addr_t pml4, struct map_range *range, uint64_t flags);
-map_stat x86_mmu_check_mapping (map_addr_t pml4, map_addr_t paddr,
-				map_addr_t vaddr, uint64_t in_flags,
+status_t x86_mmu_add_mapping (addr_t pml4, paddr_t paddr, vaddr_t vaddr, uint64_t flags);
+status_t x86_mmu_map_range (addr_t pml4, struct map_range *range, uint64_t flags);
+status_t x86_mmu_check_mapping (addr_t pml4, paddr_t paddr,
+				vaddr_t vaddr, uint64_t in_flags,
 				uint32_t *ret_level, uint64_t *ret_flags,
 				uint64_t *last_valid_entry);
 __END_CDECLS

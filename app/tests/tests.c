@@ -33,6 +33,9 @@ STATIC_COMMAND("printf_tests", "test printf", (console_cmd)&printf_tests)
 STATIC_COMMAND("printf_tests_float", "test printf with floating point", (console_cmd)&printf_tests_float)
 STATIC_COMMAND("thread_tests", "test the scheduler", (console_cmd)&thread_tests)
 STATIC_COMMAND("clock_tests", "test clocks", (console_cmd)&clock_tests)
+#ifdef ARCH_X86_64
+STATIC_COMMAND("x86_mmu_tests", "x86 64 Mapping tests", (console_cmd)&x86_mmu_tests)
+#endif
 #if ARM_WITH_VFP
 STATIC_COMMAND("float_tests", "floating point test", (console_cmd)&float_tests)
 #endif
