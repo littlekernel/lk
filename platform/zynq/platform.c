@@ -216,14 +216,14 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     { .phys = 0x40000000,
       .virt = 0x40000000,
       .size = (128*1024*1024),
-      .flags = MMU_INITIAL_MAPPING_FLAG_UNCACHED,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
       .name = "axi0" },
 
     /* AXI fpga fabric bus 1 */
     { .phys = 0x80000000,
       .virt = 0x80000000,
       .size = (16*1024*1024),
-      .flags = MMU_INITIAL_MAPPING_FLAG_UNCACHED,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
       .name = "axi1" },
     /* 0xe0000000 hardware devices */
     { .phys = 0xe0000000,
