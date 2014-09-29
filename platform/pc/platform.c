@@ -32,6 +32,7 @@
 #include <dev/pci.h>
 #include <dev/uart.h>
 #include <arch/x86.h>
+#include <arch/mmu.h>
 #include <malloc.h>
 #include <string.h>
 #include <assert.h>
@@ -55,7 +56,7 @@ void platform_init_mmu_mappings(void)
 #ifdef ARCH_X86_64
 	uint64_t *new_pml4, phy_pml4;
 	struct map_range range;
-	uint64_t access;
+	uint64_t access = 0;
 
 	/* getting the address width from CPUID instr */
 	g_addr_width = x86_get_address_width();
@@ -68,29 +69,38 @@ void platform_init_mmu_mappings(void)
 
 	/* kernel code section mapping */
 	access = X86_MMU_PG_P;
-	range.start_vaddr = range.start_paddr = (map_addr_t) &__code_start;
+	range.start_vaddr = range.start_paddr = (addr_t) &__code_start;
 	range.size = ((uint64_t)&__code_end) - ((uint64_t)&__code_start);
 	x86_mmu_map_range(phy_pml4, &range, access);
 
 	/* kernel data section mapping */
 	access = X86_MMU_PG_NX | X86_MMU_PG_RW | X86_MMU_PG_P;
-	range.start_vaddr = range.start_paddr = (map_addr_t) &__data_start;
+	range.start_vaddr = range.start_paddr = (addr_t) &__data_start;
 	range.size = ((uint64_t)&__data_end) - ((uint64_t)&__data_start);
 	x86_mmu_map_range(phy_pml4, &range, access);
 
 	/* kernel rodata section mapping */
 	access = X86_MMU_PG_NX | X86_MMU_PG_P;
-	range.start_vaddr = range.start_paddr = (map_addr_t) &__rodata_start;
+	range.start_vaddr = range.start_paddr = (addr_t) &__rodata_start;
 	range.size = ((uint64_t)&__rodata_end) - ((uint64_t)&__rodata_start);
 	x86_mmu_map_range(phy_pml4, &range, access);
 
 	/* kernel bss section and kernel heap mappings */
 	access = X86_MMU_PG_NX | X86_MMU_PG_RW | X86_MMU_PG_P;
-	range.start_vaddr = range.start_paddr = (map_addr_t) &__bss_start;
+	range.start_vaddr = range.start_paddr = (addr_t) &__bss_start;
 	range.size = ((uint64_t)_heap_end) - ((uint64_t)&__bss_start);
 	x86_mmu_map_range(phy_pml4, &range, access);
 
 	x86_set_cr3(phy_pml4);
+
+	/*
+	// Testing arch_mmu_query()
+	paddr_t temp_paddr;
+	uint temp_ret_flags;
+	arch_mmu_query((addr_t) &__code_start, &temp_paddr, &temp_ret_flags);
+	dprintf(SPEW, "\nVaddr: %lx paddr:%lx flags:%x\n",
+		(uint64_t) &__code_start, temp_paddr, temp_ret_flags);
+	*/
 #endif
 }
 

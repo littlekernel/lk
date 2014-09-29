@@ -32,6 +32,7 @@ void clock_tests(void);
 void float_tests(void);
 void benchmarks(void);
 int fibo(int argc, const cmd_args *argv);
+int x86_mmu_tests(void);
 
 #endif
 
