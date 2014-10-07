@@ -62,7 +62,9 @@ ARCH_arm_COMPILEFLAGS += -mfpu=vfpv3 -mfloat-abi=softfp
 endif
 ifeq ($(ARM_CPU),cortex-a15)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+ifneq ($(ARM_WITHOUT_VFP_NEON),true)
 ARCH_arm_COMPILEFLAGS += -mfpu=vfpv3 -mfloat-abi=softfp
+endif
 endif
 ifeq ($(ARM_CPU),arm1136j-s)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
