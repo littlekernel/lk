@@ -66,6 +66,9 @@ arm_reset:
 
 #if WITH_KERNEL_VM
 __relocate_start:
+#if WITH_NO_PHYS_RELOCATION
+	/* assume that image is properly loaded in physical memory */
+#else
 	/* see if we need to relocate to our proper location in physical memory */
 	adr		r0, _start                           /* this emits sub r0, pc, #constant */
 	ldr		r1, =(MEMBASE + KERNEL_LOAD_OFFSET)  /* calculate the binary's physical load address */
@@ -87,6 +90,7 @@ __relocate_start:
 	/* we're relocated, jump to the right address */
 	sub		pc, r12
 	nop
+#endif
 
 __mmu_start:
 .Lsetup_mmu:
