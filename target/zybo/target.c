@@ -23,6 +23,7 @@
  */
 
 #include <platform/zynq.h>
+#include <platform/gem.h>
 
 zynq_pll_cfg_tree_t zynq_pll_cfg = {
     .arm = {
@@ -154,4 +155,5 @@ void target_early_init(void)
 
 void target_init(void)
 {
+    gem_init(GEM0_BASE, 256*1024);
 }

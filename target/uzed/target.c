@@ -20,15 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <dev/spiflash.h>
-#include <lib/ptable.h>
-#include <lib/sysparam.h>
-#include <debug.h>
-
+#include <platform/zynq.h>
 #include <platform/gem.h>
-#include <lib/minip.h>
 
 zynq_pll_cfg_tree_t zynq_pll_cfg = {
     .arm = {
@@ -172,5 +165,6 @@ void target_early_init(void)
 
 void target_init(void)
 {
+    gem_init(GEM0_BASE, 256*1024);
 }
 

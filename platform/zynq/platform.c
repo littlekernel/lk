@@ -347,8 +347,6 @@ void platform_init(void)
 
     zynq_dump_clocks();
 #endif
-
-    gem_init(GEM0_BASE, 256*1024);
 }
 
 void platform_quiesce(void)
