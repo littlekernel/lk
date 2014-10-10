@@ -158,6 +158,8 @@ void zynq_clk_init(void)
     SLCR_REG(DCI_CLK_CTRL)   = zynq_clk_cfg.dci_clk;
     SLCR_REG(GEM0_CLK_CTRL)  = zynq_clk_cfg.gem0_clk;
     SLCR_REG(GEM0_RCLK_CTRL) = zynq_clk_cfg.gem0_rclk;
+    SLCR_REG(GEM1_CLK_CTRL)  = zynq_clk_cfg.gem1_clk;
+    SLCR_REG(GEM1_RCLK_CTRL) = zynq_clk_cfg.gem1_rclk;
     SLCR_REG(LQSPI_CLK_CTRL) = zynq_clk_cfg.lqspi_clk;
     SLCR_REG(SDIO_CLK_CTRL)  = zynq_clk_cfg.sdio_clk;
     SLCR_REG(UART_CLK_CTRL)  = zynq_clk_cfg.uart_clk;
