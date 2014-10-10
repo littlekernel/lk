@@ -184,8 +184,8 @@ void zynq_ddr_init(void)
     reg_poll((uintptr_t)&SLCR->DDRIOB_DCI_STATUS, 0x2000);
 
     /* Bring ddr out of reset and wait until self refresh */
-    *REG32(0XF8006000) = 0x00000081U;
-    reg_poll(0xf8006054, 0x00000007);
+    *REG32(DDRC_CTRL) |= DDRC_CTRL_OUT_OF_RESET;
+    reg_poll(DDRC_MODE_STATUS, DDRC_STS_SELF_REFRESH);
 
     /* Switch timer to 64k */
     *REG32(0XF8007000) = *REG32(0xF8007000) & ~0x20000000U;

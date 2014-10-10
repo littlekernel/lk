@@ -341,6 +341,16 @@ struct slcr_regs {
 STATIC_ASSERT(offsetof(struct slcr_regs, SCL) == 0x0);
 STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 
+#define DDRC_CTRL                       0xF8006000
+#define DDRC_MODE_STATUS                0xF8006054
+
+#define DDRC_CTRL_OUT_OF_RESET          (1)
+#define DDRC_CTRL_BUS_WIDTH_16BIT       (1 << 2)
+#define DDRC_CTRL_RDRW_IDLE_GAP(x)      ((x & BIT_MASK(7) << 7)
+
+#define DDRC_STS_OPER_MODE(x)           (x & BIT_MASK(3))
+#define DDRC_STS_SELF_REFRESH           DDRC_STS_OPER_MODE(0x3)
+
 #define SLCR                            ((volatile struct slcr_regs *)SLCR_BASE)
 #define SLCR_REG(reg)                   (*REG32((uintptr_t)&SLCR->reg))
 
