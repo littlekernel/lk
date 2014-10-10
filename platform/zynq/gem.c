@@ -153,7 +153,6 @@ err:
 }
 
 
-// XXX: desperately needs to be cleaned up
 enum handler_return gem_int_handler(void *arg) {
     uint32_t intr_status;
     bool resched = false;
@@ -242,9 +241,18 @@ static void gem_cfg_buffer_descs(void)
 
 static void gem_cfg_ints(void)
 {
-    register_int_handler(ETH0_INT, gem_int_handler, NULL);
-    unmask_interrupt(ETH0_INT);
-    // TODO: set up WOL int when we're using that
+    uint32_t gem_base = (uintptr_t)regs;
+
+    if (gem_base == GEM0_BASE) {
+        register_int_handler(ETH0_INT, gem_int_handler, NULL);
+        unmask_interrupt(ETH0_INT);
+    } else if (gem_base == GEM1_BASE) {
+        register_int_handler(ETH1_INT, gem_int_handler, NULL);
+        unmask_interrupt(ETH1_INT);
+    } else {
+        printf("Illegal gem periph base address 0x%08X!\n", gem_base);
+        return;
+    }
 
     /* Enable all interrupts */
     regs->intr_en = INTR_RX_COMPLETE | INTR_TX_COMPLETE | INTR_HRESP_NOT_OK | INTR_MGMT_SENT |

@@ -93,6 +93,8 @@
 #define TTC1_A_INT    69
 #define TTC2_B_INT    70
 #define TTC3_C_INT    71
+#define ETH1_INT      77
+#define ETH1_WAKE_INT 78
 
 /* Perhipheral IRQs from fabric */
 #define F2P0_IRQ      61
@@ -113,7 +115,7 @@
 #define F2P14_IRQ     90
 #define F2P15_IRQ     91
 
-#define MAX_INT 96
+#define MAX_INT       96
 
 #ifndef ASSEMBLY
 
