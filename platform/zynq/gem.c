@@ -202,36 +202,6 @@ enum handler_return gem_int_handler(void *arg) {
     return (resched) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-static void gem_io_init(void)
-{
-    uint32_t pin_cfg;
-
-    zynq_slcr_unlock();
-    pin_cfg = MIO_L0_SEL | MIO_SPEED_FAST | MIO_IO_TYPE_HSTL | MIO_PULLUP | MIO_DISABLE_RCVR;
-    SLCR_REG(MIO_PIN_16) = pin_cfg;
-    SLCR_REG(MIO_PIN_17) = pin_cfg;
-    SLCR_REG(MIO_PIN_18) = pin_cfg;
-    SLCR_REG(MIO_PIN_19) = pin_cfg;
-    SLCR_REG(MIO_PIN_20) = pin_cfg;
-    SLCR_REG(MIO_PIN_21) = pin_cfg;
-
-    pin_cfg = MIO_L0_SEL | MIO_SPEED_FAST | MIO_IO_TYPE_HSTL | MIO_PULLUP;
-    SLCR_REG(MIO_PIN_22) = pin_cfg;
-    SLCR_REG(MIO_PIN_23) = pin_cfg;
-    SLCR_REG(MIO_PIN_24) = pin_cfg;
-    SLCR_REG(MIO_PIN_25) = pin_cfg;
-    SLCR_REG(MIO_PIN_26) = pin_cfg;
-    SLCR_REG(MIO_PIN_27) = pin_cfg;
-
-    pin_cfg = MIO_L3_SEL(0x4) | MIO_IO_TYPE_LVCMOS18 | MIO_PULLUP;
-    SLCR_REG(MIO_PIN_52) = pin_cfg;
-    SLCR_REG(MIO_PIN_53) = pin_cfg;
-
-    /* Enable VREF from GPIOB */
-    SLCR_REG(GPIOB_CTRL) = 0x1;
-    zynq_slcr_lock();
-}
-
 static bool wait_for_phy_idle(void)
 {
     int iters = 1000;
@@ -412,8 +382,8 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
             DMA_CFG_TX_PKTBUF_MEMSZ_SEL | DMA_CFG_CSUM_GEN_OFFLOAD_EN |
             DMA_CFG_AHB_FIXED_BURST_LEN(0x16);
 
-    /* Enable MDIO, tx, and rx */
-    gem_io_init();
+    /* Enable VREF from GPIOB */
+    SLCR_REG(GPIOB_CTRL) = 0x1;
 
     ret = gem_phy_init();
     if (!ret) {

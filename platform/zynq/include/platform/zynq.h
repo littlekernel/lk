@@ -130,6 +130,8 @@ typedef struct {
     uint32_t dci_clk;
     uint32_t gem0_clk;
     uint32_t gem0_rclk;
+    uint32_t gem1_clk;
+    uint32_t gem1_rclk;
     uint32_t lqspi_clk;
     uint32_t sdio_clk;
     uint32_t uart_clk;
