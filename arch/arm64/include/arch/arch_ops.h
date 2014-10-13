@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -36,12 +37,12 @@
 static inline void arch_enable_ints(void)
 {
     CF;
-    __asm__ volatile("msr daifclr, #3" ::: "memory");
+    __asm__ volatile("msr daifclr, #2" ::: "memory");
 }
 
 static inline void arch_disable_ints(void)
 {
-    __asm__ volatile("msr daifset, #3" ::: "memory");
+    __asm__ volatile("msr daifset, #2" ::: "memory");
     CF;
 }
 
@@ -50,8 +51,8 @@ static inline bool arch_ints_disabled(void)
 {
     unsigned int state;
 
-    __asm__ volatile("mrs %0, cpsr" : "=r"(state));
-    state &= (1<<7);
+    __asm__ volatile("mrs %0, daif" : "=r"(state));
+    state &= (1<<1);
 
     return !!state;
 }
