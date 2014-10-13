@@ -45,12 +45,11 @@ static inline void arch_disable_ints(void)
     CF;
 }
 
-// XXX
 static inline bool arch_ints_disabled(void)
 {
     unsigned int state;
 
-    __asm__ volatile("mrs %0, cpsr" : "=r"(state));
+    __asm__ volatile("mrs %0, daif" : "=r"(state));
     state &= (1<<7);
 
     return !!state;
@@ -206,6 +205,11 @@ static inline struct thread *get_current_thread(void)
 static inline void set_current_thread(struct thread *t)
 {
     ARM64_WRITE_SYSREG(tpidr_el1, (uint64_t)t);
+}
+
+static inline uint arch_curr_cpu_num(void)
+{
+    return 0;
 }
 
 #endif // ASSEMBLY
