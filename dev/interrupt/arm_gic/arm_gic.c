@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,6 +26,7 @@
 #include <debug.h>
 #include <dev/interrupt/arm_gic.h>
 #include <reg.h>
+#include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <kernel/debug.h>
 #include <platform/interrupts.h>

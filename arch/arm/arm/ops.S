@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -92,35 +93,6 @@ FUNCTION(_atomic_or)
 	/* save old value */
 	mov		r0, r12
 	bx		lr
-
-FUNCTION(spin_trylock)
-	mov	r2, r0
-	mov	r1, #1
-	ldrex	r0, [r2]
-	cmp	r0, #0
-	strexeq	r0, r1, [r2]
-	dmb
-	bx	lr
-
-FUNCTION(spin_lock)
-	mov	r1, #1
-1:
-	ldrex	r2, [r0]
-	cmp	r2, #0
-	wfene
-	strexeq	r2, r1, [r0]
-	cmpeq	r2, #0
-	bne	1b
-	dmb
-	bx	lr
-
-FUNCTION(spin_unlock)
-	mov	r1, #0
-	dmb
-	str	r1, [r0]
-	dsb
-	sev
-	bx	lr
 
 /* void arch_idle(); */
 FUNCTION(arch_idle)
