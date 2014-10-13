@@ -57,6 +57,28 @@ static inline bool arch_ints_disabled(void)
     return !!state;
 }
 
+static inline void arch_enable_fiqs(void)
+{
+    CF;
+    __asm__ volatile("msr daifclr, #1" ::: "memory");
+}
+
+static inline void arch_disable_fiqs(void)
+{
+    __asm__ volatile("msr daifset, #1" ::: "memory");
+    CF;
+}
+
+static inline bool arch_fiqs_disabled(void)
+{
+    unsigned int state = 0;
+
+    __asm__ volatile("mrs %0, daif" : "=r"(state));
+    state &= (1<<0);
+
+    return !!state;
+}
+
 static inline int atomic_add(volatile int *ptr, int val)
 {
 #if USE_GCC_ATOMICS
