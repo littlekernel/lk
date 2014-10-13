@@ -5,7 +5,7 @@ MODULE := $(LOCAL_DIR)
 MODULE_DEPS += \
 	lib/minip \
 	lib/sysparam \
-	lib/ptable
+	lib/partition/ptable
 
 GLOBAL_DEFINES += \
 	SYSPARAM_ALLOW_WRITE=1

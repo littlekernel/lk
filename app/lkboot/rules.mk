@@ -5,7 +5,7 @@ MODULE := $(LOCAL_DIR)
 MODULE_DEPS += \
 	lib/bio \
 	lib/minip \
-	lib/ptable \
+	lib/partition/ptable \
 	lib/sysparam
 
 MODULE_SRCS += \
