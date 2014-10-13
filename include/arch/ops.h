@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -38,10 +39,16 @@ static void arch_disable_ints(void);
 static bool arch_ints_disabled(void);
 static bool arch_in_int_handler(void);
 
+/* optional fast irq for some arch(e.g. arm) */
+static void arch_enable_fiqs(void);
+static void arch_disable_fiqs(void);
+static bool arch_fiqs_disabled(void);
+
 static int atomic_swap(volatile int *ptr, int val);
 static int atomic_add(volatile int *ptr, int val);
 static int atomic_and(volatile int *ptr, int val);
 static int atomic_or(volatile int *ptr, int val);
+static int atomic_cmpxchg(volatile int *ptr, int oldval, int newval);
 
 static uint32_t arch_cycle_count(void);
 
