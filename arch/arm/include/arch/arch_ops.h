@@ -196,13 +196,9 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 		    "ldrex	%[old], [%[ptr]]\n"
 		    "mov	%[test], #0\n"
 		    "teq	%[old], %[oldval]\n"
-#if ARM_ISA_ARMV7M
 		    "bne	0f\n"
 		    "strex	%[test], %[newval], [%[ptr]]\n"
 		    "0:\n"
-#else
-		    "strexeq %[test], %[newval], [%[ptr]]\n"
-#endif
 		    : [old]"=&r" (old), [test]"=&r" (test)
 		    : [ptr]"r" (ptr), [oldval]"Ir" (oldval), [newval]"r" (newval)
 		    : "cc");
