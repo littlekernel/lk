@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Brian Swetland
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -256,12 +257,40 @@ void qspi_wr(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *dat
 	qspi_cs(qspi, 1);
 }
 
-void qspi_wr0(struct qspi_ctxt *qspi, uint32_t cmd)
+void qspi_wr1(struct qspi_ctxt *qspi, uint32_t cmd)
 {
 	DEBUG_ASSERT(qspi);
 
 	qspi_cs(qspi, 0);
 	writel(cmd, QSPI_TXD1);
+	qspi_xmit(qspi);
+
+	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
+
+	readl(QSPI_RXDATA);
+	qspi_cs(qspi, 1);
+}
+
+void qspi_wr2(struct qspi_ctxt *qspi, uint32_t cmd)
+{
+	DEBUG_ASSERT(qspi);
+
+	qspi_cs(qspi, 0);
+	writel(cmd, QSPI_TXD2);
+	qspi_xmit(qspi);
+
+	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
+
+	readl(QSPI_RXDATA);
+	qspi_cs(qspi, 1);
+}
+
+void qspi_wr3(struct qspi_ctxt *qspi, uint32_t cmd)
+{
+	DEBUG_ASSERT(qspi);
+
+	qspi_cs(qspi, 0);
+	writel(cmd, QSPI_TXD3);
 	qspi_xmit(qspi);
 
 	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
