@@ -113,6 +113,8 @@ int qspi_set_speed(struct qspi_ctxt *qspi, uint32_t khz)
 	if (khz == qspi->khz)
 		return 0;
 
+	qspi->khz = khz;
+
 	writel(0, QSPI_ENABLE);
 	if (n == CFG_BAUD_DIV_2) {
 		writel(0x20, QSPI_LPBK_DLY_ADJ);
@@ -148,13 +150,13 @@ int qspi_init(struct qspi_ctxt *qspi, uint32_t khz)
 	            CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS;
 
 	writel(qspi->cfg, QSPI_CONFIG);
+	qspi->khz = 100000;
 
 	writel(1, QSPI_ENABLE);
 
 	// clear sticky irqs
 	writel(TX_UNDERFLOW | RX_OVERFLOW, QSPI_IRQ_STATUS);
 
-	qspi->khz = 100000;
 	return 0;
 }
 
