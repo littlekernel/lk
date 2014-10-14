@@ -198,6 +198,12 @@ static inline void arm_invalidate_tlb_asid(uint8_t asid) {
     DSB;
 }
 
+static inline void arm_invalidate_tlb_mva_asid(vaddr_t va, uint8_t asid) {
+    CF;
+    arm_write_tlbimva((va & 0xfffff000) | asid);
+    DSB;
+}
+
 __END_CDECLS
 
 #endif /* ASSEMBLY */
