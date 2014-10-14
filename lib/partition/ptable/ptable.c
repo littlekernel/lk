@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2013, Google, Inc. All rights reserved
  * Copyright (c) 2014, Travis Geiselbrecht
+ * Copyright (c) 2014, Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -284,6 +285,41 @@ status_t ptable_scan(bdev_t *bdev, uint64_t offset)
 bool ptable_found_valid(void)
 {
     return ptable.valid;
+}
+
+int ptable_get_count(void)
+{
+    int count = 0;
+
+    if (ptable.valid) {
+        struct ptable_mem_entry *mentry;
+        list_for_every_entry(&ptable.list, mentry, struct ptable_mem_entry, node) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+status_t ptable_get(int n, struct ptable_entry *_entry)
+{
+    if (!ptable.valid)
+        return ERR_NOT_FOUND;
+
+    struct ptable_mem_entry *mentry;
+    list_for_every_entry(&ptable.list, mentry, struct ptable_mem_entry, node) {
+        const struct ptable_entry *entry = &mentry->entry;
+        if (n-- == 0) {
+            /* copy the entry to the passed in pointer */
+            if (_entry) {
+                memcpy(_entry, entry, sizeof(struct ptable_entry));
+            }
+
+            return NO_ERROR;
+        }
+    }
+
+    return ERR_NOT_FOUND;
 }
 
 status_t ptable_find(const char *name, struct ptable_entry *_entry)

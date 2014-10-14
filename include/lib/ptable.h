@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2013, Google, Inc. All rights reserved
  * Copyright (c) 2014, Travis Geiselbrecht
+ * Copyright (c) 2014, Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -30,6 +31,7 @@
 status_t ptable_scan(bdev_t *bdev, uint64_t offset);
 
 bool ptable_found_valid(void);
+int ptable_get_count(void);
 
 #define MAX_FLASH_PTABLE_NAME_LEN 12
 
@@ -40,6 +42,7 @@ struct ptable_entry {
     uint8_t name[MAX_FLASH_PTABLE_NAME_LEN];
 };
 
+status_t ptable_get(int n, struct ptable_entry *entry);
 status_t ptable_find(const char *name, struct ptable_entry *entry) __NONNULL((1));
 
 status_t ptable_create_default(bdev_t *bdev, uint64_t offset) __NONNULL();
