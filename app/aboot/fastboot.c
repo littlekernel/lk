@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009, Google Inc.
+ * Copyright (c) 2014, Xiaomi Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +29,7 @@
 
 #include <debug.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <kernel/thread.h>
 #include <kernel/event.h>
@@ -274,7 +276,7 @@ static void cmd_download(const char *arg, void *data, unsigned sz)
 		return;
 
 	r = usb_read(download_base, len);
-	if ((r < 0) || (r != len)) {
+	if ((r < 0) || ((unsigned)r != len)) {
 		fastboot_state = STATE_ERROR;
 		return;
 	}

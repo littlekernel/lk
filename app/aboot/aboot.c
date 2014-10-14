@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009, Google Inc.
+ * Copyright (c) 2014, Xiaomi Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,7 @@
 #include <app.h>
 #include <debug.h>
 #include <arch/arm.h>
+#include <arch/mmu.h>
 #include <dev/udc.h>
 #include <string.h>
 #include <kernel/thread.h>
@@ -66,13 +68,13 @@ struct atag_ptbl_entry {
 
 void platform_uninit_timer(void);
 
-static void ptentry_to_tag(unsigned **ptr, struct ptentry *ptn)
+static void ptentry_to_tag(unsigned **ptr, struct ptable_entry *ptn)
 {
 	struct atag_ptbl_entry atag_ptn;
 
 	memcpy(atag_ptn.name, ptn->name, 16);
 	atag_ptn.name[15] = '\0';
-	atag_ptn.offset = ptn->start;
+	atag_ptn.offset = ptn->offset;
 	atag_ptn.size = ptn->length;
 	atag_ptn.flags = ptn->flags;
 	memcpy(*ptr, &atag_ptn, sizeof(struct atag_ptbl_entry));
@@ -85,7 +87,7 @@ void boot_linux(void *kernel, unsigned *tags,
 {
 	unsigned *ptr = tags;
 	void (*entry)(unsigned,unsigned,unsigned*) = kernel;
-	struct ptable *ptable;
+	int count;
 
 	/* CORE */
 	*ptr++ = 2;
@@ -98,13 +100,18 @@ void boot_linux(void *kernel, unsigned *tags,
 		*ptr++ = ramdisk_size;
 	}
 
-	if ((ptable = flash_get_ptable()) && (ptable->count != 0)) {
+	count = ptable_get_count();
+	if (count != 0) {
 		int i;
-		*ptr++ = 2 + (ptable->count * (sizeof(struct atag_ptbl_entry) /
+		*ptr++ = 2 + (count * (sizeof(struct atag_ptbl_entry) /
 		                               sizeof(unsigned)));
 		*ptr++ = 0x4d534d70;
-		for (i = 0; i < ptable->count; ++i)
-			ptentry_to_tag(&ptr, ptable_get(ptable, i));
+		for (i = 0; i < count; ++i) {
+			struct ptable_entry entry;
+			bzero(&entry, sizeof(entry));
+			ptable_get(i, &entry);
+			ptentry_to_tag(&ptr, &entry);
+		}
 	}
 
 	if (cmdline && cmdline[0]) {
@@ -145,19 +152,12 @@ int boot_linux_from_flash(void)
 {
 	struct boot_img_hdr *hdr = (void*) buf;
 	unsigned n;
-	struct ptentry *ptn;
-	struct ptable *ptable;
+	struct ptable_entry entry;
+	struct ptable_entry *ptn = &entry;
 	unsigned offset = 0;
 	const char *cmdline;
 
-	ptable = flash_get_ptable();
-	if (ptable == NULL) {
-		dprintf(CRITICAL, "ERROR: Partition table not found\n");
-		return -1;
-	}
-
-	ptn = ptable_find(ptable, "boot");
-	if (ptn == NULL) {
+	if (ptable_find("boot", ptn) != 0) {
 		dprintf(CRITICAL, "ERROR: No boot partition found\n");
 		return -1;
 	}
@@ -248,17 +248,10 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 
 void cmd_erase(const char *arg, void *data, unsigned sz)
 {
-	struct ptentry *ptn;
-	struct ptable *ptable;
+	struct ptable_entry entry;
+	struct ptable_entry *ptn = &entry;
 
-	ptable = flash_get_ptable();
-	if (ptable == NULL) {
-		fastboot_fail("partition table doesn't exist");
-		return;
-	}
-
-	ptn = ptable_find(ptable, arg);
-	if (ptn == NULL) {
+	if (ptable_find(arg, ptn) != 0) {
 		fastboot_fail("unknown partition name");
 		return;
 	}
@@ -272,30 +265,23 @@ void cmd_erase(const char *arg, void *data, unsigned sz)
 
 void cmd_flash(const char *arg, void *data, unsigned sz)
 {
-	struct ptentry *ptn;
-	struct ptable *ptable;
+	struct ptable_entry entry;
+	struct ptable_entry *ptn = &entry;
 	unsigned extra = 0;
 
-	ptable = flash_get_ptable();
-	if (ptable == NULL) {
-		fastboot_fail("partition table doesn't exist");
-		return;
-	}
-
-	ptn = ptable_find(ptable, arg);
-	if (ptn == NULL) {
+	if (ptable_find(arg, ptn) != 0) {
 		fastboot_fail("unknown partition name");
 		return;
 	}
 
-	if (!strcmp(ptn->name, "boot") || !strcmp(ptn->name, "recovery")) {
+	if (!strcmp((char *)ptn->name, "boot") || !strcmp((char *)ptn->name, "recovery")) {
 		if (memcmp((void *)data, BOOT_MAGIC, BOOT_MAGIC_SIZE)) {
 			fastboot_fail("image is not a boot image");
 			return;
 		}
 	}
 
-	if (!strcmp(ptn->name, "system") || !strcmp(ptn->name, "userdata"))
+	if (!strcmp((char *)ptn->name, "system") || !strcmp((char *)ptn->name, "userdata"))
 		extra = 64;
 	else
 		sz = ROUND_TO_PAGE(sz);

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008, Google Inc.
+ * Copyright (c) 2014, Xiaomi Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,17 +33,14 @@
 
 #include <lib/ptable.h>
 
-void flash_init(struct ptable *ptable);
-struct ptable *flash_get_ptable(void);
-
 /* flash operations */
-int flash_erase(struct ptentry *ptn);
-int flash_read_ext(struct ptentry *ptn, unsigned extra_per_page,
+int flash_erase(struct ptable_entry *ptn);
+int flash_read_ext(struct ptable_entry *ptn, unsigned extra_per_page,
                    unsigned offset, void *data, unsigned bytes);
-int flash_write(struct ptentry *ptn, unsigned extra_per_page, const void *data,
+int flash_write(struct ptable_entry *ptn, unsigned extra_per_page, const void *data,
                 unsigned bytes);
 
-static inline int flash_read(struct ptentry *ptn, unsigned offset, void *data,
+static inline int flash_read(struct ptable_entry *ptn, unsigned offset, void *data,
                              unsigned bytes)
 {
 	return flash_read_ext(ptn, 0, offset, data, bytes);
