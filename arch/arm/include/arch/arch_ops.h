@@ -235,7 +235,7 @@ static inline uint32_t arch_cycle_count(void)
 #if WITH_SMP && ARM_ISA_ARMV7
 static inline uint arch_curr_cpu_num(void)
 {
-    return arm_read_mpidr() & 0x3;
+    return arm_read_mpidr_relaxed() & 0x3;
 }
 #else
 static inline uint arch_curr_cpu_num(void)
@@ -250,12 +250,12 @@ static inline uint arch_curr_cpu_num(void)
 /* use the cpu local thread context pointer to store current_thread */
 static inline struct thread *get_current_thread(void)
 {
-    return (struct thread *)arm_read_tpidrprw();
+    return (struct thread *)arm_read_tpidrprw_relaxed();
 }
 
 static inline void set_current_thread(struct thread *t)
 {
-    arm_write_tpidrprw((uint32_t)t);
+    arm_write_tpidrprw_relaxed((uint32_t)t);
 }
 #else // ARM_ISA_ARM7M
 

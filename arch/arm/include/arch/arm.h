@@ -115,9 +115,19 @@ static inline __ALWAYS_INLINE uint32_t arm_read_##reg(void) { \
 	return val; \
 } \
 \
+static inline __ALWAYS_INLINE uint32_t arm_read_##reg##_relaxed(void) { \
+	uint32_t val; \
+	__asm__("mrc p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 : "=r" (val)); \
+	return val; \
+} \
+\
 static inline __ALWAYS_INLINE void arm_write_##reg(uint32_t val) { \
 	__asm__ volatile("mcr p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 :: "r" (val)); \
 	ISB; \
+} \
+\
+static inline __ALWAYS_INLINE void arm_write_##reg##_relaxed(uint32_t val) { \
+	__asm__ volatile("mcr p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 :: "r" (val)); \
 }
 
 /* armv6+ control regs */
