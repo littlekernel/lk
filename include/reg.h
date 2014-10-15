@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -38,5 +39,11 @@
 
 #define writel(v, a) (*REG32(a) = (v))
 #define readl(a) (*REG32(a))
+
+#define writew(v, a) (*REG16(a) = (v))
+#define readw(a) (*REG16(a))
+
+#define writeb(v, a) (*REG8(a) = (v))
+#define readb(a) (*REG8(a))
 
 #endif
