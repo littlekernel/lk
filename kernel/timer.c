@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2009 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -277,4 +278,18 @@ void timer_init(void)
 #endif
 }
 
+void udelay(unsigned usecs)
+{
+	lk_bigtime_t start = current_time_hires();
 
+	while ((current_time_hires() - start) < usecs)
+		;
+}
+
+void mdelay(unsigned msecs)
+{
+	lk_time_t start = current_time();
+
+	while ((current_time() - start) < msecs)
+		;
+}

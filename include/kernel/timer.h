@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2009 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -64,6 +65,9 @@ void timer_initialize(timer_t *);
 void timer_set_oneshot(timer_t *, lk_time_t delay, timer_callback, void *arg);
 void timer_set_periodic(timer_t *, lk_time_t period, timer_callback, void *arg);
 void timer_cancel(timer_t *);
+
+void udelay(unsigned usecs);
+void mdelay(unsigned msecs);
 
 #endif
 
