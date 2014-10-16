@@ -187,6 +187,10 @@ static inline __ALWAYS_INLINE uint32_t tls_set(uint entry, uint32_t val)
 }
 
 void chain_load(void *entry) __NO_RETURN;
+void chain_load1(void *entry, uintptr_t a0) __NO_RETURN;
+void chain_load2(void *entry, uintptr_t a0, uintptr_t a1) __NO_RETURN;
+void chain_load3(void *entry, uintptr_t a0, uintptr_t a1, uintptr_t a2) __NO_RETURN;
+void chain_load4(void *entry, uintptr_t a0, uintptr_t a1, uintptr_t a2, uintptr_t a3) __NO_RETURN;
 
 /* thread level statistics */
 #if LK_DEBUGLEVEL > 1

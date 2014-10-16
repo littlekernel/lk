@@ -1071,6 +1071,26 @@ status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error)
 
 void chain_load(void *entry)
 {
+	chain_load1(entry, 0);
+}
+
+void chain_load1(void *entry, uintptr_t a0)
+{
+	chain_load2(entry, a0, 0);
+}
+
+void chain_load2(void *entry, uintptr_t a0, uintptr_t a1)
+{
+	chain_load3(entry, a0, a1, 0);
+}
+
+void chain_load3(void *entry, uintptr_t a0, uintptr_t a1, uintptr_t a2)
+{
+	chain_load4(entry, a0, a1, a2, 0);
+}
+
+void chain_load4(void *entry, uintptr_t a0, uintptr_t a1, uintptr_t a2, uintptr_t a3)
+{
 	/* we are going to shut down the system, start by disabling interrupts */
 	enter_critical_section();
 
@@ -1103,7 +1123,7 @@ void chain_load(void *entry)
 	loader(entry_pa);
 #else
 	/* branch to the chain loader routine */
-	arch_chain_load((paddr_t)entry);
+	arch_chain_load(a0, a1, a2, a3, (paddr_t)entry);
 #endif
 }
 

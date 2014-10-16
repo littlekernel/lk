@@ -32,7 +32,7 @@ __BEGIN_CDECLS
 void arch_early_init(void);
 void arch_init(void);
 void arch_quiesce(void);
-void arch_chain_load(paddr_t entry) __NO_RETURN;
+void arch_chain_load(uintptr_t a0, uintptr_t a1, uintptr_t a2, uintptr_t a3, paddr_t entry) __NO_RETURN;
 
 __END_CDECLS
 

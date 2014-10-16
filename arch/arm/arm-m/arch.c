@@ -138,7 +138,7 @@ void arm_cm_irq_exit(bool reschedule)
 	dec_critical_section();
 }
 
-void arch_chain_load(paddr_t entry)
+void arch_chain_load(uintptr_t a0, uintptr_t a1, uintptr_t a2, uintptr_t a3, paddr_t entry)
 {
 	PANIC_UNIMPLEMENTED;
 }
