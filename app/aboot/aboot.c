@@ -32,12 +32,10 @@
 
 #include <app.h>
 #include <debug.h>
-#include <arch/arm.h>
-#include <arch/mmu.h>
 #include <dev/udc.h>
 #include <string.h>
 #include <kernel/thread.h>
-#include <arch/ops.h>
+#include <kernel/vm.h>
 
 #include <dev/flash.h>
 #include <lib/ptable.h>
@@ -46,9 +44,6 @@
 #include "bootimg.h"
 #include "fastboot.h"
 
-#define TAGS_ADDR   0x10000100
-#define KERNEL_ADDR 0x10800000
-#define RAMDISK_ADDR    0x11000000
 #define DEFAULT_CMDLINE "mem=50M console=null";
 
 static struct udc_device surf_udc_device = {
@@ -65,8 +60,6 @@ struct atag_ptbl_entry {
 	unsigned size;
 	unsigned flags;
 };
-
-void platform_uninit_timer(void);
 
 static void ptentry_to_tag(unsigned **ptr, struct ptable_entry *ptn)
 {
@@ -86,7 +79,6 @@ void boot_linux(void *kernel, unsigned *tags,
                 void *ramdisk, unsigned ramdisk_size)
 {
 	unsigned *ptr = tags;
-	void (*entry)(unsigned,unsigned,unsigned*) = kernel;
 	int count;
 
 	/* CORE */
@@ -96,7 +88,7 @@ void boot_linux(void *kernel, unsigned *tags,
 	if (ramdisk_size) {
 		*ptr++ = 4;
 		*ptr++ = 0x54420005;
-		*ptr++ = (unsigned)ramdisk;
+		*ptr++ = vaddr_to_paddr(ramdisk);
 		*ptr++ = ramdisk_size;
 	}
 
@@ -133,13 +125,7 @@ void boot_linux(void *kernel, unsigned *tags,
 	if (cmdline)
 		dprintf(INFO, "cmdline: %s\n", cmdline);
 
-	enter_critical_section();
-	platform_uninit_timer();
-	arch_disable_cache(UCACHE);
-	arch_disable_mmu();
-
-	entry(0, machtype, tags);
-
+	chain_load3(kernel, 0, machtype, vaddr_to_paddr(tags));
 }
 
 #define PAGE_MASK 2047
@@ -156,6 +142,8 @@ int boot_linux_from_flash(void)
 	struct ptable_entry *ptn = &entry;
 	unsigned offset = 0;
 	const char *cmdline;
+	void *kernel;
+	void *ramdisk;
 
 	if (ptable_find("boot", ptn) != 0) {
 		dprintf(CRITICAL, "ERROR: No boot partition found\n");
@@ -174,14 +162,16 @@ int boot_linux_from_flash(void)
 	}
 
 	n = ROUND_TO_PAGE(hdr->kernel_size);
-	if (flash_read(ptn, offset, (void *)hdr->kernel_addr, n)) {
+	kernel = paddr_to_kvaddr(hdr->kernel_addr);
+	if (flash_read(ptn, offset, kernel, n)) {
 		dprintf(CRITICAL, "ERROR: Cannot read kernel image\n");
 		return -1;
 	}
 	offset += n;
 
 	n = ROUND_TO_PAGE(hdr->ramdisk_size);
-	if (flash_read(ptn, offset, (void *)hdr->ramdisk_addr, n)) {
+	ramdisk = paddr_to_kvaddr(hdr->ramdisk_addr);
+	if (flash_read(ptn, offset, ramdisk, n)) {
 		dprintf(CRITICAL, "ERROR: Cannot read ramdisk image\n");
 		return -1;
 	}
@@ -202,9 +192,9 @@ int boot_linux_from_flash(void)
 	/* TODO: create/pass atags to kernel */
 
 	dprintf(INFO, "\nBooting Linux\n");
-	boot_linux((void *)hdr->kernel_addr, (void *)TAGS_ADDR,
+	boot_linux(kernel, paddr_to_kvaddr(hdr->tags_addr),
 	           (const char *)cmdline, LINUX_MACHTYPE,
-	           (void *)hdr->ramdisk_addr, hdr->ramdisk_size);
+	           ramdisk, hdr->ramdisk_size);
 
 	return 0;
 }
@@ -215,6 +205,8 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 	unsigned ramdisk_actual;
 	static struct boot_img_hdr hdr;
 	char *ptr = ((char*) data);
+	void *kernel;
+	void *ramdisk;
 
 	if (sz < sizeof(hdr)) {
 		fastboot_fail("invalid bootimage header");
@@ -234,16 +226,19 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 		return;
 	}
 
-	memmove((void*) KERNEL_ADDR, ptr + 2048, hdr.kernel_size);
-	memmove((void*) RAMDISK_ADDR, ptr + 2048 + kernel_actual, hdr.ramdisk_size);
+	kernel = paddr_to_kvaddr(hdr.kernel_addr);
+	memmove(kernel, ptr + 2048, hdr.kernel_size);
+
+	ramdisk = paddr_to_kvaddr(hdr.ramdisk_addr);
+	memmove(ramdisk, ptr + 2048 + kernel_actual, hdr.ramdisk_size);
 
 	fastboot_okay("");
 	udc_stop();
 
 
-	boot_linux((void*) KERNEL_ADDR, (void*) TAGS_ADDR,
+	boot_linux(kernel, paddr_to_kvaddr(hdr.tags_addr),
 	           (const char*) hdr.cmdline, LINUX_MACHTYPE,
-	           (void*) RAMDISK_ADDR, hdr.ramdisk_size);
+	           ramdisk, hdr.ramdisk_size);
 }
 
 void cmd_erase(const char *arg, void *data, unsigned sz)
