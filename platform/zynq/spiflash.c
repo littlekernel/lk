@@ -105,6 +105,7 @@ static inline void qspi_wr_status_cr1(struct qspi_ctxt *qspi, uint8_t status, ui
 {
 	uint32_t cmd = (cr1 << 16) | (status << 8) | 0x01;
 
+	qspi_wren(qspi);
 	qspi_wr3(qspi, cmd);
 }
 
@@ -461,7 +462,7 @@ usage:
 		}
 
 		uint32_t cr1 = qspi_rd_cr1(&flash.qspi);
-		printf("cr1 0x%x\n", cr1);
+		printf("cr1 before 0x%x\n", cr1);
 
 		if (cr1 & (1<<1)) {
 			printf("flash already in quad mode\n");
@@ -469,6 +470,9 @@ usage:
 		}
 
 		qspi_wr_status_cr1(&flash.qspi, 0, cr1 | (1<<1));
+
+		cr1 = qspi_rd_cr1(&flash.qspi);
+		printf("cr1 after 0x%x\n", cr1);
 	} else {
 		printf("unknown command\n");
 		goto usage;
