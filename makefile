@@ -9,7 +9,10 @@ BUILDROOT ?= .
 DEFAULT_PROJECT ?=
 TOOLCHAIN_PREFIX ?=
 
+# check if LKROOT is already a part of LKINC list and add it only if it is not
+ifneq ($(findstring $(LKROOT),$(LKINC)), $(LKROOT))
 LKINC := $(LKROOT) $(LKINC)
+endif
 
 export LKMAKEROOT
 export LKROOT
