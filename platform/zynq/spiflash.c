@@ -471,6 +471,7 @@ usage:
 
 		qspi_wr_status_cr1(&flash.qspi, 0, cr1 | (1<<1));
 
+		thread_sleep(500);
 		cr1 = qspi_rd_cr1(&flash.qspi);
 		printf("cr1 after 0x%x\n", cr1);
 	} else {
