@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -31,7 +32,7 @@ __BEGIN_CDECLS
 void arch_early_init(void);
 void arch_init(void);
 void arch_quiesce(void);
-void arch_chain_load(void *entry) __NO_RETURN;
+void arch_chain_load(paddr_t entry) __NO_RETURN;
 
 __END_CDECLS
 

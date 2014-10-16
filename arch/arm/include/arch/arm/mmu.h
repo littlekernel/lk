@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2008-2014 Travis Geiselbrecht
  * Copyright (c) 2012, NVIDIA CORPORATION. All rights reserved
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,7 +26,6 @@
 #define __ARCH_ARM_MMU_H
 
 #define MB                (1024U*1024U)
-#define SECTION_SIZE      MB
 #define SUPERSECTION_SIZE (16 * MB)
 
 #if defined(ARM_ISA_ARMV6) | defined(ARM_ISA_ARMV7)

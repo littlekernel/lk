@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -184,6 +185,8 @@ static inline __ALWAYS_INLINE uint32_t tls_set(uint entry, uint32_t val)
 	get_current_thread()->tls[entry] = val;
 	return oldval;
 }
+
+void chain_load(void *entry) __NO_RETURN;
 
 /* thread level statistics */
 #if LK_DEBUGLEVEL > 1

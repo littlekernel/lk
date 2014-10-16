@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2009 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -37,15 +38,21 @@
 #include <string.h>
 #include <err.h>
 #include <lib/dpc.h>
+#include <kernel/vm.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
 #include <kernel/debug.h>
+#include <arch.h>
 #include <platform.h>
 #include <target.h>
 #include <lib/heap.h>
 
 #if LK_DEBUGLEVEL > 1
 #define THREAD_CHECKS 1
+#endif
+
+#ifndef SECTION_SIZE
+#define SECTION_SIZE PAGE_SIZE
 #endif
 
 #if THREAD_STATS
@@ -1060,6 +1067,44 @@ status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error)
 	insert_in_run_queue_head(t);
 
 	return NO_ERROR;
+}
+
+void chain_load(void *entry)
+{
+	/* we are going to shut down the system, start by disabling interrupts */
+	enter_critical_section();
+
+	/* give target and platform a chance to put hardware into a suitable
+	 * state for chain loading.
+	 */
+	target_quiesce();
+	platform_quiesce();
+
+	arch_quiesce();
+
+#if WITH_KERNEL_VM
+	/* get the physical address of the entry point we're going to branch to */
+	paddr_t entry_pa = vaddr_to_paddr(entry);
+	/* add the low bits of the virtual address back */
+	entry_pa |= ((addr_t)entry % PAGE_SIZE);
+
+	/* figure out the mapping for the chain load routine */
+	paddr_t loader_pa = vaddr_to_paddr(&arch_chain_load);
+	/* add the low bits of the virtual address back */
+	loader_pa |= ((addr_t)&arch_chain_load % PAGE_SIZE);
+
+	paddr_t loader_pa_section = ROUNDDOWN(loader_pa, SECTION_SIZE);
+
+	/* using large pages, map around the target location */
+	arch_mmu_map(loader_pa_section, loader_pa_section, (2 * SECTION_SIZE / PAGE_SIZE), 0);
+
+	/* branch to the physical address version of the chain loader routine */
+	void (*loader)(paddr_t entry) __NO_RETURN = (void *)loader_pa;
+	loader(entry_pa);
+#else
+	/* branch to the chain loader routine */
+	arch_chain_load((paddr_t)entry);
+#endif
 }
 
 /* vim: set ts=4 sw=4 noexpandtab: */

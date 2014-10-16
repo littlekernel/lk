@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -101,12 +102,10 @@ FUNCTION(arm_save_mode_regs)
 
 .text
 
-/* void arm_chain_load(paddr_t entry) __NO_RETURN; */
+/* void arch_chain_load(paddr_t entry) __NO_RETURN; */
 /* shut down the system, branching into the secondary system */
-FUNCTION(arm_chain_load)
-#if !WITH_KERNEL_VM
-#error implement non VM based chain load
-#else
+FUNCTION(arch_chain_load)
+#if WITH_KERNEL_VM
 
 /* The MMU is initialized and running at this point, so we'll need to
  * make sure we can disable it and continue to run. The caller should
@@ -123,11 +122,10 @@ FUNCTION(arm_chain_load)
 	/* Write back SCTLR */
 	mcr		p15, 0, r1, c1, c0, 0
 	isb
+#endif // WITH_KERNEL_VM
 
 	/* call the entry point */
 	bx		r0
-
-#endif // WITH_KERNEL_VM
 
 /* vim: set ts=4 sw=4 noexpandtab: */
 

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2013 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -137,7 +138,7 @@ void arm_cm_irq_exit(bool reschedule)
 	dec_critical_section();
 }
 
-void arch_chain_load(void *entry)
+void arch_chain_load(paddr_t entry)
 {
-    PANIC_UNIMPLEMENTED;
+	PANIC_UNIMPLEMENTED;
 }

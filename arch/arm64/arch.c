@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -51,7 +52,7 @@ void arch_idle(void)
     __asm__ volatile("wfi");
 }
 
-void arch_chain_load(void *entry)
+void arch_chain_load(paddr_t entry)
 {
     PANIC_UNIMPLEMENTED;
 }

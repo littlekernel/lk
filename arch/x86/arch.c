@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -60,8 +61,12 @@ void arch_init(void)
 {
 }
 
-void arch_chain_load(void *entry)
+void arch_quiesce(void)
 {
-    PANIC_UNIMPLEMENTED;
+}
+
+void arch_chain_load(paddr_t entry)
+{
+	PANIC_UNIMPLEMENTED;
 }
 

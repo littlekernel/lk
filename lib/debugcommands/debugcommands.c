@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2012 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -269,7 +270,7 @@ static int cmd_chain(int argc, const cmd_args *argv)
         return -1;
     }
 
-    arch_chain_load((void *)argv[1].u);
+    chain_load((void *)argv[1].u);
 
     return 0;
 }
