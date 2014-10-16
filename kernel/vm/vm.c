@@ -112,6 +112,15 @@ void *paddr_to_kvaddr(paddr_t pa)
     return NULL;
 }
 
+paddr_t vaddr_to_paddr(void *va)
+{
+    paddr_t pa;
+    if (arch_mmu_query((vaddr_t)va, &pa, 0) < 0) {
+        pa = 0;
+    }
+    return pa;
+}
+
 static int cmd_vm(int argc, const cmd_args *argv)
 {
     if (argc < 2) {

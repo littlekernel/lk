@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -150,8 +151,21 @@ void *pmm_alloc_kpages(uint count, struct list_node *list);
     /* Helper routine for pmm_alloc_kpages. */
 static inline void *pmm_alloc_kpage(void) { return pmm_alloc_kpages(1, NULL); }
 
-/* physical to virtual */
+/* physical <==> virtual */
+#if WITH_KERNEL_VM
 void *paddr_to_kvaddr(paddr_t pa);
+paddr_t vaddr_to_paddr(void *va);
+#else
+static inline void *paddr_to_kvaddr(paddr_t pa)
+{
+    return (void *)pa;
+}
+
+static inline paddr_t vaddr_to_paddr(void *va)
+{
+    return (paddr_t)va;
+}
+#endif
 
 /* virtual allocator */
 typedef struct vmm_aspace {
