@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -47,14 +48,17 @@ arm_reset:
 #if ARM_WITH_CP15
 	mrc		p15, 0, r0, c1, c0, 0
 		/* XXX this is currently for arm926, revist with armv6 cores */
-		/* new thumb behavior, low exception vectors, i/d cache disable, mmu disabled */
-	bic		r0, r0, #(1<<15| 1<<13 | 1<<12)
+		/* new thumb behavior, i/d cache disable, mmu disabled */
+	bic		r0, r0, #(1<<15| 1<<12)
 	bic		r0, r0, #(1<<2 | 1<<1 | 1<<0)
 #if ARM_ARCH_LEVEL < 6
 		/* enable alignment faults on pre-ARMv6 hardware. On v6+,
 		 * GCC is free to generate unaligned accesses.
 		 */
 	orr		r0, r0, #(1<<1)
+#elif ARM_ARCH_LEVEL == 7
+		/* low exception vectors */
+	bic		r0, r0, #(1<<13)
 #endif
 	mcr		p15, 0, r0, c1, c0, 0
 #endif

@@ -43,7 +43,8 @@ void arch_early_init(void)
 
 	/* set the vector base to our exception vectors so we dont need to double map at 0 */
 #if ARM_ISA_ARMV7
-	arm_write_vbar(KERNEL_BASE + KERNEL_LOAD_OFFSET);
+	extern void _start(void);
+	arm_write_vbar((vaddr_t)_start);
 #endif
 
 #if ARM_WITH_MMU
