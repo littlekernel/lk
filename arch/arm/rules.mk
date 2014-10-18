@@ -55,7 +55,6 @@ endif
 ifeq ($(ARM_CPU),cortex-a8)
 GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
-	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv7=1 \
 	ARM_ISA_ARMv7A=1 \
 	ARM_WITH_VFP=1 \
@@ -71,7 +70,6 @@ endif
 ifeq ($(ARM_CPU),cortex-a9)
 GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
-	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv7=1 \
 	ARM_ISA_ARMv7A=1 \
 	ARM_WITH_THUMB=1 \
@@ -84,7 +82,6 @@ ifeq ($(ARM_CPU),cortex-a9-neon)
 GLOBAL_DEFINES += \
 	ARM_CPU_CORTEX_A9=1 \
 	ARM_WITH_CP15=1 \
-	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv7=1 \
 	ARM_ISA_ARMv7A=1 \
 	ARM_WITH_VFP=1 \
@@ -101,7 +98,6 @@ endif
 ifeq ($(ARM_CPU),arm1136j-s)
 GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
-	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv6=1 \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_CACHE=1 \
@@ -112,7 +108,6 @@ endif
 ifeq ($(ARM_CPU),arm1176jzf-s)
 GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
-	ARM_WITH_MMU=1 \
 	ARM_ISA_ARMv6=1 \
 	ARM_WITH_VFP=1 \
 	ARM_WITH_THUMB=1 \
@@ -161,12 +156,14 @@ ARCH_OPTFLAGS := -O2
 WITH_LINKER_GC ?= 1
 
 # we have a mmu and want the vmm/pmm
-WITH_KERNEL_VM=1
+WITH_KERNEL_VM?=1
 
+ifeq ($(WITH_KERNEL_VM),1)
 # for arm, have the kernel occupy the entire top 3GB of virtual space,
 # but put the kernel itself at 0x80000000.
 # this leaves 0x40000000 - 0x80000000 open for kernel space to use.
 GLOBAL_DEFINES += \
+    ARM_WITH_MMU=1 \
     KERNEL_ASPACE_BASE=0x40000000 \
     KERNEL_ASPACE_SIZE=0xc0000000
 
@@ -176,6 +173,11 @@ KERNEL_LOAD_OFFSET ?= 0
 GLOBAL_DEFINES += \
     KERNEL_BASE=$(KERNEL_BASE) \
     KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET)
+else
+KERNEL_BASE ?= $(MEMBASE)
+KERNEL_LOAD_OFFSET ?= 0
+endif
+
 endif
 ifeq ($(SUBARCH),arm-m)
 MODULE_SRCS += \
