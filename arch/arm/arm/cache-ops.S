@@ -316,20 +316,25 @@ invalidate_cache_v7:
 	/* void arch_flush_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_clean_cache_range)
 #if ARM_WITH_CP15
-	mov     r3, r0
-	add		r2, r3, r1					// calculate the end address
-	bic		r3, #(CACHE_LINE-1)			// align the start with a cache line
+	mov     r3, r0						// save the start address
+	add		r2, r0, r1					// calculate the end address
+	bic		r0, #(CACHE_LINE-1)			// align the start with a cache line
 0:
-	mcr		p15, 0, r3, c7, c10, 1		// clean cache to PoC by MVA
-	add		r3, #CACHE_LINE
-	cmp		r3, r2
+	mcr		p15, 0, r0, c7, c10, 1		// clean cache to PoC by MVA
+	add		r0, #CACHE_LINE
+	cmp		r0, r2
 	blo		0b
 	
-	mov		r3, #0
-	mcr		p15, 0, r3, c7, c10, 4		// data sync barrier
+#if ARM_ISA_ARMV7
+	dsb
+#else
+	mov		r0, #0
+	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier
+#endif
 #endif
 #if WITH_DEV_CACHE_PL310
-    b       pl310_clean_range
+	mov		r0, r3 						// put the start address back
+	b       pl310_clean_range
 #else
 	bx		lr
 #endif
@@ -337,6 +342,7 @@ FUNCTION(arch_clean_cache_range)
 	/* void arch_flush_invalidate_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_clean_invalidate_cache_range)
 #if ARM_WITH_CP15
+	mov     r3, r0						// save the start address
 	add		r2, r0, r1					// calculate the end address
 	bic		r0, #(CACHE_LINE-1)			// align the start with a cache line
 0:
@@ -345,11 +351,16 @@ FUNCTION(arch_clean_invalidate_cache_range)
 	cmp		r0, r2
 	blo		0b
 
+#if ARM_ISA_ARMV7
+	dsb
+#else
 	mov		r0, #0
 	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier
 #endif
+#endif
 #if WITH_DEV_CACHE_PL310
-    b       pl310_clean_invalidate_range
+	mov		r0, r3 						// put the start address back
+	b       pl310_clean_invalidate_range
 #else
 	bx		lr
 #endif
@@ -357,6 +368,7 @@ FUNCTION(arch_clean_invalidate_cache_range)
 	/* void arch_invalidate_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_invalidate_cache_range)
 #if ARM_WITH_CP15
+	mov     r3, r0						// save the start address
 	add		r2, r0, r1					// calculate the end address
 	bic		r0, #(CACHE_LINE-1)			// align the start with a cache line
 0:
@@ -365,11 +377,16 @@ FUNCTION(arch_invalidate_cache_range)
 	cmp		r0, r2
 	blo		0b
 
+#if ARM_ISA_ARMV7
+	dsb
+#else
 	mov		r0, #0
 	mcr		p15, 0, r0, c7, c10, 4		// data sync barrier
 #endif
+#endif
 #if WITH_DEV_CACHE_PL310
-    b       pl310_invalidate_range
+	mov		r0, r3 						// put the start address back
+	b       pl310_invalidate_range
 #else
 	bx		lr
 #endif
@@ -407,3 +424,4 @@ FUNCTION(arch_sync_cache_range)
 
 #endif // ARM_WITH_CACHE
 
+// vim: set noexpandtab:

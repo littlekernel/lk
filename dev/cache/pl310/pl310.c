@@ -141,6 +141,8 @@ void pl310_invalidate(void)
     if (unlikely(!pl310_enabled()))
         return;
     PL310_REG(REG7_INV_WAY) = 0xffff;
+    while (PL310_REG(REG7_INV_WAY) != 0)
+        ;
 }
 
 void pl310_flush_invalidate(void)
@@ -148,6 +150,8 @@ void pl310_flush_invalidate(void)
     if (unlikely(!pl310_enabled()))
         return;
     PL310_REG(REG7_CLEAN_INV_WAY) = 0xffff;
+    while (PL310_REG(REG7_CLEAN_INV_WAY) != 0)
+        ;
 }
 
 void pl310_sync_range(void)
