@@ -137,6 +137,10 @@ void *pmm_alloc_kpages(uint count, struct list_node *list);
     /* Helper routine for pmm_alloc_kpages. */
 static inline void *pmm_alloc_kpage(void) { return pmm_alloc_kpages(1, NULL); }
 
+    /* mark the physical pages backing a range of virtual as in use.
+    * allocate the physical pages and throw them away */
+void mark_pages_in_use(vaddr_t va, size_t len);
+
 /* physical <==> virtual */
 #if WITH_KERNEL_VM
 void *paddr_to_kvaddr(paddr_t pa);

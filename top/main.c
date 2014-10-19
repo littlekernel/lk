@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -69,6 +70,10 @@ void lk_main(void)
 	// get us into some sort of thread context
 	thread_init_early();
 
+	// bring up the kernel heap
+	lk_init_level(LK_INIT_LEVEL_HEAP - 1);
+	heap_init();
+
 	// early arch stuff
 	lk_init_level(LK_INIT_LEVEL_ARCH_EARLY - 1);
 	arch_early_init();
@@ -86,11 +91,6 @@ void lk_main(void)
 	// deal with any static constructors
 	dprintf(SPEW, "calling constructors\n");
 	call_constructors();
-
-	// bring up the kernel heap
-	dprintf(SPEW, "initializing heap\n");
-	lk_init_level(LK_INIT_LEVEL_HEAP - 1);
-	heap_init();
 
 	// initialize the kernel
 	lk_init_level(LK_INIT_LEVEL_KERNEL - 1);

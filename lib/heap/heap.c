@@ -34,6 +34,7 @@
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <lib/heap.h>
+#include <lk/init.h>
 
 #define LOCAL_TRACE 0
 
@@ -44,6 +45,17 @@
 #define PADDING_SIZE 64
 
 #define HEAP_MAGIC 'HEAP'
+
+#if WITH_STATIC_HEAP
+
+/* WITH_STATIC_HEAP can't work with WITH_KERNEL_VM */
+STATIC_ASSERT(!WITH_KERNEL_VM);
+
+#if !defined(HEAP_START) || !defined(HEAP_LEN)
+#error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
+#endif
+
+#else
 
 #if WITH_KERNEL_VM
 
@@ -57,14 +69,9 @@ STATIC_ASSERT(IS_PAGE_ALIGNED(HEAP_GROW_SIZE));
 
 static ssize_t heap_grow(size_t len);
 
-#elif WITH_STATIC_HEAP
-
-#if !defined(HEAP_START) || !defined(HEAP_LEN)
-#error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
 #endif
 
-#else
-/* not a static vm, not using the kernel vm */
+/* not a static vm */
 extern int _end;
 extern int _end_of_ram;
 
@@ -85,6 +92,7 @@ struct free_heap_chunk {
 struct heap {
 	void *base;
 	size_t len;
+	bool postvm;
 	size_t remaining;
 	size_t low_watermark;
 	mutex_t lock;
@@ -326,7 +334,7 @@ void *heap_alloc(size_t size, unsigned int alignment)
 	}
 
 #if WITH_KERNEL_VM
-	int retry_count = 0;
+	int retry_count = !theheap.postvm;
 retry:
 #endif
 	mutex_acquire(&theheap.lock);
@@ -526,6 +534,36 @@ static ssize_t heap_grow(size_t size)
 
 	return ERR_NO_MEMORY;
 }
+
+static void heap_init_postvm(uint level)
+{
+	LTRACE_ENTRY;
+
+	// flush the delayed free list
+	if (unlikely(!list_is_empty(&theheap.delayed_free_list))) {
+		heap_free_delayed_list();
+	}
+
+	// mark the alloced memory from vm
+	vaddr_t alloced = HEAP_START;
+	struct free_heap_chunk *chunk;
+	list_for_every_entry(&theheap.free_list, chunk, struct free_heap_chunk, node) {
+		vaddr_t freed = (vaddr_t)chunk;
+		if (alloced < freed) {
+			mark_pages_in_use(alloced, freed - alloced);
+		}
+		alloced = freed + chunk->len;
+	}
+	if (alloced < HEAP_START + HEAP_LEN) {
+		mark_pages_in_use(alloced, HEAP_START + HEAP_LEN - alloced);
+	}
+
+	// switch to vm by emptying the free list
+	list_initialize(&theheap.free_list);
+	theheap.postvm = true;
+}
+
+LK_INIT_HOOK(heap, &heap_init_postvm, LK_INIT_LEVEL_VM + 1);
 #endif
 
 void heap_init(void)
@@ -542,17 +580,8 @@ void heap_init(void)
 	list_initialize(&theheap.delayed_free_list);
 
 	// set the heap range
-#if WITH_KERNEL_VM
-	theheap.base = pmm_alloc_kpages(HEAP_GROW_SIZE / PAGE_SIZE, NULL);
-	theheap.len = HEAP_GROW_SIZE;
-
-	if (theheap.base == 0) {
-		panic("HEAP: error allocating initial heap size\n");
-	}
-#else
 	theheap.base = (void *)HEAP_START;
 	theheap.len = HEAP_LEN;
-#endif
 	theheap.remaining = 0; // will get set by heap_insert_free_chunk()
 	theheap.low_watermark = theheap.len;
 	LTRACEF("base %p size %zd bytes\n", theheap.base, theheap.len);

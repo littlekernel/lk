@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -102,10 +103,7 @@ done_add:
 
     /* allocate an array of pages to back this one */
     size_t page_count = arena->size / PAGE_SIZE;
-    arena->page_array = boot_alloc_mem(page_count * sizeof(vm_page_t));
-
-    /* initialize all of the pages */
-    memset(arena->page_array, 0, page_count * sizeof(vm_page_t));
+    arena->page_array = calloc(page_count, sizeof(vm_page_t));
 
     /* add them to the free list */
     for (size_t i = 0; i < page_count; i++) {
