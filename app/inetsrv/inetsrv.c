@@ -149,7 +149,54 @@ static int discard_server(void *arg)
         TRACEF("starting discard worker\n");
         thread_detach_and_resume(thread_create("discard_worker", &discard_worker, accept_socket, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     }
+}
 
+static int echo_worker(void *socket)
+{
+    tcp_socket_t *s = socket;
+
+    for (;;) {
+        uint8_t buf[1024];
+
+        ssize_t ret = tcp_read(s, buf, sizeof(buf));
+        if (ret <= 0)
+            break;
+
+        tcp_write(s, buf, ret);
+        if (ret <= 0)
+            break;
+    }
+
+    TRACEF("echo worker exiting\n");
+    tcp_close(s);
+
+    return 0;
+}
+
+static int echo_server(void *arg)
+{
+    status_t err;
+    tcp_socket_t *listen_socket;
+
+    err = tcp_open_listen(&listen_socket, 7);
+    if (err < 0) {
+        TRACEF("error opening echo listen socket\n");
+        return -1;
+    }
+
+    for (;;) {
+        tcp_socket_t *accept_socket;
+
+        err = tcp_accept(listen_socket, &accept_socket);
+        TRACEF("tcp_accept returns returns %d, handle %p\n", err, accept_socket);
+        if (err < 0) {
+            TRACEF("error accepting socket, retrying\n");
+            continue;
+        }
+
+        TRACEF("starting echo worker\n");
+        thread_detach_and_resume(thread_create("echo_worker", &echo_worker, accept_socket, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+    }
 }
 
 static void inetsrv_init(const struct app_descriptor *app)
@@ -164,6 +211,7 @@ static void inetsrv_entry(const struct app_descriptor *app, void *args)
 
     thread_detach_and_resume(thread_create("chargen", &chargen_server, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_detach_and_resume(thread_create("discard", &discard_server, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+    thread_detach_and_resume(thread_create("echo", &echo_server, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 }
 
 APP_START(inetsrv)
