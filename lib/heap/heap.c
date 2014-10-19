@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2008-2009,2012,2014 Travis Geiselbrecht
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -54,6 +55,8 @@
 
 STATIC_ASSERT(IS_PAGE_ALIGNED(HEAP_GROW_SIZE));
 
+static ssize_t heap_grow(size_t len);
+
 #elif WITH_STATIC_HEAP
 
 #if !defined(HEAP_START) || !defined(HEAP_LEN)
@@ -104,8 +107,6 @@ struct alloc_struct_begin {
 	size_t padding_size;
 #endif
 };
-
-static ssize_t heap_grow(size_t len);
 
 static void dump_free_chunk(struct free_heap_chunk *chunk)
 {
@@ -403,9 +404,7 @@ retry:
 #if WITH_KERNEL_VM
 	/* try to grow the heap if we can */
 	if (ptr == NULL && retry_count == 0) {
-		size_t growby = MAX(HEAP_GROW_SIZE, ROUNDUP(size, PAGE_SIZE));
-
-		ssize_t err = heap_grow(growby);
+		ssize_t err = heap_grow(size);
 		if (err >= 0) {
 			retry_count++;
 			goto retry;
@@ -501,33 +500,34 @@ void heap_get_stats(struct heap_stats *ptr)
 	mutex_release(&theheap.lock);
 }
 
+#if WITH_KERNEL_VM
 static ssize_t heap_grow(size_t size)
 {
-#if WITH_KERNEL_VM
 	size = ROUNDUP(size, PAGE_SIZE);
 
-	void *ptr = pmm_alloc_kpages(size / PAGE_SIZE, NULL);
-	if (!ptr)
-		return ERR_NO_MEMORY;
+	for (size_t growby = MAX(HEAP_GROW_SIZE, size); growby >= size; growby /= 2) {
+		void *ptr = pmm_alloc_kpages(growby / PAGE_SIZE, NULL);
+		if (ptr) {
+			LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", growby, ptr);
 
-	LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
+			heap_insert_free_chunk(heap_create_free_chunk(ptr, growby, true));
 
-	heap_insert_free_chunk(heap_create_free_chunk(ptr, size, true));
+			/* change the heap start and end variables */
+			if ((uintptr_t)ptr < (uintptr_t)theheap.base)
+				theheap.base = ptr;
 
-	/* change the heap start and end variables */
-	if ((uintptr_t)ptr < (uintptr_t)theheap.base)
-		theheap.base = ptr;
+			uintptr_t endptr = (uintptr_t)ptr + growby;
+			if (endptr > (uintptr_t)theheap.base + theheap.len) {
+				theheap.len = (uintptr_t)endptr - (uintptr_t)theheap.base;
+			}
 
-	uintptr_t endptr = (uintptr_t)ptr + size;
-	if (endptr > (uintptr_t)theheap.base + theheap.len) {
-		theheap.len = (uintptr_t)endptr - (uintptr_t)theheap.base;
+			return growby;
+		}
 	}
 
-	return size;
-#else
 	return ERR_NO_MEMORY;
-#endif
 }
+#endif
 
 void heap_init(void)
 {
