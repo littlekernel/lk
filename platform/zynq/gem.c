@@ -123,6 +123,9 @@ int gem_send_raw_pkt(struct pktbuf *p)
 
     LTRACEF("buf %p, len %zu, pkt %p\n", p->data, p->dlen, p);
 
+    /* make sure the cache is invalidated for the packet */
+    arch_clean_cache_range((addr_t)p->buffer, sizeof(p->buffer));
+
     /* TRM known issue #1. The TX path requires at least two descriptors
      * and the final descriptor must have the used bit set. If not done
      * then the controller will continue to wrap and send the frame multiple
@@ -225,7 +228,13 @@ static void gem_cfg_buffer_descs(void)
 
     /* RX setup */
     for (int i = 0; i < GEM_RX_BUF_CNT; i++) {
-        state->rx[i].addr = (uintptr_t) pktbuf_data_phys(gem_rx_buffers[i]);
+        pktbuf_t *p = gem_rx_buffers[i];
+        DEBUG_ASSERT(p);
+
+        /* make sure the buffers start off with no stale data in them */
+        arch_invalidate_cache_range((addr_t)p->buffer, sizeof(p->buffer));
+
+        state->rx[i].addr = (uintptr_t) pktbuf_data_phys(p);
         state->rx[i].ctrl = 0;
     }
 
@@ -277,6 +286,10 @@ int gem_rx_thread(void *arg)
                 } else if (rx_callback) {
                     rx_callback(p);
                 }
+
+                /* invalidate the buffer before putting it back */
+                arch_invalidate_cache_range((addr_t)p->buffer, sizeof(p->buffer));
+
                 state->rx[bp].addr &= ~RX_DESC_USED;
                 state->rx[bp].ctrl = 0;
                 bp = (bp + 1) % GEM_RX_BUF_CNT;
@@ -305,7 +318,7 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     /* allocate a block of contiguous memory for the descriptors */
     vaddr_t dmabase;
     ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_desc",
-            dmasize, (void **)&dmabase, 0, 0, ARCH_MMU_FLAG_UNCACHED);
+            sizeof(*state), (void **)&dmabase, 0, 0, ARCH_MMU_FLAG_UNCACHED);
     if (ret < 0)
         return ret;
 
@@ -315,16 +328,23 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     if (ret < 0)
         return ret;
 
-    TRACEF("dmabase 0x%lx, dmabase_phys 0x%lx\n", dmabase, dmabase_phys);
+    TRACEF("dmabase 0x%lx, dmabase_phys 0x%lx, size %zu\n", dmabase, dmabase_phys, sizeof(*state));
 
     /* tx/rx descriptor tables */
     state = (void *)dmabase;
     state_phys = dmabase_phys;
 
-    size_t bump_size = PAGE_ALIGN(sizeof(*state));
-    dmasize -= bump_size;
-    dmabase += bump_size;
-    dmabase_phys += bump_size;
+    /* allocate packet buffers */
+    ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_desc",
+            dmasize, (void **)&dmabase, 0, 0, ARCH_MMU_FLAG_CACHED);
+    if (ret < 0)
+        return ret;
+
+    ret = arch_mmu_query(dmabase, &dmabase_phys, NULL);
+    if (ret < 0)
+        return ret;
+
+    TRACEF("packetbuf 0x%lx, packetbuf_phys 0x%lx, size %zu\n", dmabase, dmabase_phys, dmasize);
 
     /* allocate packet buffers */
     while (dmasize >= PKTBUF_SIZE) {
