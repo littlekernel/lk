@@ -178,8 +178,6 @@ void pl310_sync_range(void)
             last_pa_page = pa / PAGE_SIZE; \
         } \
         PL310_REG(reg) = pa; \
-        while (PL310_REG(reg) & 1) \
-            ; \
  \
         pa += CACHE_LINE; \
         start += CACHE_LINE; \
