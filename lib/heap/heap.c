@@ -187,8 +187,12 @@ static void heap_test(void)
 
 // try to insert this free chunk into the free list, consuming the chunk by merging it with
 // nearby ones if possible. Returns base of whatever chunk it became in the list.
-static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *chunk)
+static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *chunk, bool allow_debug)
 {
+#if DEBUG_HEAP
+	if (allow_debug)
+		memset(chunk + 1, FREE_FILL, chunk->len - sizeof(*chunk));
+#endif
 #if LK_DEBUGLEVEL > INFO
 	vaddr_t chunk_end = (vaddr_t)chunk + chunk->len;
 #endif
@@ -249,14 +253,9 @@ try_merge:
 	return chunk;
 }
 
-static struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len, bool allow_debug)
+static struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len)
 {
 	DEBUG_ASSERT((len % sizeof(void *)) == 0); // size must be aligned on pointer boundary
-
-#if DEBUG_HEAP
-	if (allow_debug)
-		memset(ptr, FREE_FILL, len);
-#endif
 
 	struct free_heap_chunk *chunk = (struct free_heap_chunk *)ptr;
 	chunk->len = len;
@@ -280,7 +279,7 @@ static void heap_free_delayed_list(void)
 
 	while ((chunk = list_remove_head_type(&list, struct free_heap_chunk, node))) {
 		LTRACEF("freeing chunk %p\n", chunk);
-		heap_insert_free_chunk(chunk);
+		heap_insert_free_chunk(chunk, true);
 	}
 }
 
@@ -348,7 +347,7 @@ retry:
 
 			if (chunk->len > size + sizeof(struct free_heap_chunk)) {
 				// there's enough space in this chunk to create a new one after the allocation
-				struct free_heap_chunk *newchunk = heap_create_free_chunk((uint8_t *)ptr + size, chunk->len - size, true);
+				struct free_heap_chunk *newchunk = heap_create_free_chunk((uint8_t *)ptr + size, chunk->len - size);
 
 				// truncate this chunk
 				chunk->len -= chunk->len - size;
@@ -448,7 +447,7 @@ void heap_free(void *ptr)
 	LTRACEF("allocation was %zd bytes long at ptr %p\n", as->size, as->ptr);
 
 	// looks good, create a free chunk and add it to the pool
-	heap_insert_free_chunk(heap_create_free_chunk(as->ptr, as->size, true));
+	heap_insert_free_chunk(heap_create_free_chunk(as->ptr, as->size), true);
 }
 
 void heap_delayed_free(void *ptr)
@@ -461,7 +460,7 @@ void heap_delayed_free(void *ptr)
 
 	DEBUG_ASSERT(as->magic == HEAP_MAGIC);
 
-	struct free_heap_chunk *chunk = heap_create_free_chunk(as->ptr, as->size, false);
+	struct free_heap_chunk *chunk = heap_create_free_chunk(as->ptr, as->size);
 
 	enter_critical_section();
 	list_add_head(&theheap.delayed_free_list, &chunk->node);
@@ -510,7 +509,7 @@ static ssize_t heap_grow(size_t size)
 		if (ptr) {
 			LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", growby, ptr);
 
-			heap_insert_free_chunk(heap_create_free_chunk(ptr, growby, true));
+			heap_insert_free_chunk(heap_create_free_chunk(ptr, growby), false);
 
 			/* change the heap start and end variables */
 			if ((uintptr_t)ptr < (uintptr_t)theheap.base)
@@ -559,13 +558,13 @@ void heap_init(void)
 	LTRACEF("base %p size %zd bytes\n", theheap.base, theheap.len);
 
 	// create an initial free chunk
-	heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len, false));
+	heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len), false);
 }
 
 /* add a new block of memory to the heap */
 void heap_add_block(void *ptr, size_t len)
 {
-	heap_insert_free_chunk(heap_create_free_chunk(ptr, len, false));
+	heap_insert_free_chunk(heap_create_free_chunk(ptr, len), false);
 }
 
 #if LK_DEBUGLEVEL > 1
