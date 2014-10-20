@@ -92,15 +92,6 @@ void platform_init_mmu_mappings(void)
 	x86_mmu_map_range(phy_pml4, &range, access);
 
 	x86_set_cr3(phy_pml4);
-
-	/*
-	// Testing arch_mmu_query()
-	paddr_t temp_paddr;
-	uint temp_ret_flags;
-	arch_mmu_query((addr_t) &__code_start, &temp_paddr, &temp_ret_flags);
-	dprintf(SPEW, "\nVaddr: %lx paddr:%lx flags:%x\n",
-		(uint64_t) &__code_start, temp_paddr, temp_ret_flags);
-	*/
 #endif
 }
 
@@ -164,7 +155,7 @@ void platform_init(void)
 
 	/* MMU init for x86_64 done after the heap is setup */
 #ifdef ARCH_X86_64
-        x86_mmu_init();
+        arch_mmu_init();
         platform_init_mmu_mappings();
 #endif
 

@@ -44,7 +44,7 @@ extern uint32_t g_addr_width;
  * @brief  check if the address is valid
  *
  */
-bool x86_mmu_check_map_addr(addr_t address)
+static bool x86_mmu_check_map_addr(addr_t address)
 {
 	uint64_t addr = (uint64_t)address;
 
@@ -107,7 +107,15 @@ static inline uint64_t get_pfn_from_pte(uint64_t pte)
 	return X86_PHYS_TO_VIRT(pfn);
 }
 
-void map_zero_page(addr_t *ptr)
+static inline uint64_t get_pfn_from_pde(uint64_t pde)
+{
+	uint64_t pfn;
+
+	pfn = (pde & X86_2MB_PAGE_FRAME);
+	return X86_PHYS_TO_VIRT(pfn);
+}
+
+static void map_zero_page(addr_t *ptr)
 {
 	if(ptr)
 		memset(ptr, 0, PAGE_SIZE);
@@ -120,14 +128,13 @@ void map_zero_page(addr_t *ptr)
  * 4KB pages.
  *
  */
-status_t x86_mmu_page_walking(addr_t pml4, vaddr_t vaddr, uint32_t *ret_level,
+static status_t x86_mmu_page_walking(addr_t pml4, vaddr_t vaddr, uint32_t *ret_level,
 				uint64_t *existing_flags, uint64_t *last_valid_entry)
 {
 	uint64_t pml4e, pdpe, pde, pte;
 
 	DEBUG_ASSERT(pml4);
-	if((!ret_level) || (!last_valid_entry) || (!existing_flags) ||
-		(!x86_mmu_check_map_addr(vaddr))) {
+	if((!ret_level) || (!last_valid_entry) || (!existing_flags)) {
 		return ERR_INVALID_ARGS;
 	}
 
@@ -154,6 +161,15 @@ status_t x86_mmu_page_walking(addr_t pml4, vaddr_t vaddr, uint32_t *ret_level,
 		return ERR_NOT_FOUND;
 	}
 
+	/* 2 MB pages */
+	if (pde & X86_MMU_PG_PS) {
+		/* Getting the Page frame & adding the 4KB page offset from the vaddr */
+		*last_valid_entry = get_pfn_from_pde(pde) + ((uint64_t)vaddr & PAGE_OFFSET_MASK_2MB);
+		*existing_flags = (X86_PHYS_TO_VIRT(pde)) & X86_FLAGS_MASK;
+		goto last;
+	}
+
+	/* 4 KB pages */
 	pte = get_pt_entry_from_pt_table(vaddr, pde);
 	if ((pte & X86_MMU_PG_P) == 0) {
 		*ret_level = PT_L;
@@ -161,9 +177,12 @@ status_t x86_mmu_page_walking(addr_t pml4, vaddr_t vaddr, uint32_t *ret_level,
 		return ERR_NOT_FOUND;
 	}
 
-	*last_valid_entry = get_pfn_from_pte(pte);
-	*ret_level = PF_L;
+	/* Getting the Page frame & adding the 4KB page offset from the vaddr */
+	*last_valid_entry = get_pfn_from_pte(pte) + ((uint64_t)vaddr & PAGE_OFFSET_MASK_4KB);
 	*existing_flags = (X86_PHYS_TO_VIRT(pte)) & X86_FLAGS_MASK;
+
+last:
+	*ret_level = PF_L;
 	return NO_ERROR;
 }
 
@@ -206,7 +225,7 @@ status_t x86_mmu_check_mapping(addr_t pml4, paddr_t paddr,
 	return ERR_NOT_FOUND;
 }
 
-void update_pt_entry(vaddr_t vaddr, paddr_t paddr, uint64_t flags, uint64_t pde)
+static void update_pt_entry(vaddr_t vaddr, paddr_t paddr, uint64_t flags, uint64_t pde)
 {
 	uint32_t pt_index;
 
@@ -216,7 +235,7 @@ void update_pt_entry(vaddr_t vaddr, paddr_t paddr, uint64_t flags, uint64_t pde)
 	pt_table[pt_index] |= flags;
 }
 
-void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, addr_t *m)
+static void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, addr_t *m)
 {
 	uint32_t pd_index;
 
@@ -226,7 +245,7 @@ void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, addr_t *m)
 	pd_table[pd_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
 }
 
-void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, addr_t *m)
+static void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, addr_t *m)
 {
 	uint32_t pdp_index;
 
@@ -236,7 +255,7 @@ void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, addr_t *m)
 	pdp_table[pdp_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
 }
 
-void update_pml4_entry(vaddr_t vaddr, addr_t pml4_addr, addr_t *m)
+static void update_pml4_entry(vaddr_t vaddr, addr_t pml4_addr, addr_t *m)
 {
 	uint32_t pml4_index;
 	uint64_t *pml4_table = (uint64_t *)(pml4_addr);
@@ -249,7 +268,7 @@ void update_pml4_entry(vaddr_t vaddr, addr_t pml4_addr, addr_t *m)
 /**
  * @brief Allocating a new page table
  */
-addr_t *_map_alloc(size_t size)
+static addr_t *_map_alloc(size_t size)
 {
 	addr_t *page_ptr = memalign(PAGE_SIZE, size);
 	if(page_ptr)
@@ -268,7 +287,7 @@ addr_t *_map_alloc(size_t size)
  * 4KB pages.
  *
  */
-status_t x86_mmu_add_mapping(addr_t pml4, paddr_t paddr,
+static status_t x86_mmu_add_mapping(addr_t pml4, paddr_t paddr,
 				vaddr_t vaddr, uint64_t flags)
 {
 	uint32_t pd_new = 0, pdp_new = 0;
@@ -351,7 +370,7 @@ status_t x86_mmu_add_mapping(addr_t pml4, paddr_t paddr,
  * @brief  x86-64 MMU unmap an entry in the page tables recursively and clear out tables
  *
  */
-void x86_mmu_unmap_entry(vaddr_t vaddr, int level, vaddr_t table_entry)
+static void x86_mmu_unmap_entry(vaddr_t vaddr, int level, vaddr_t table_entry)
 {
 	uint32_t offset = 0, next_level_offset = 0;
 	vaddr_t *table, *next_table_addr, value;
@@ -417,7 +436,7 @@ void x86_mmu_unmap_entry(vaddr_t vaddr, int level, vaddr_t table_entry)
 	}
 }
 
-int x86_mmu_unmap(addr_t pml4, vaddr_t vaddr, uint count)
+static int x86_mmu_unmap(addr_t pml4, vaddr_t vaddr, uint count)
 {
 	int unmapped = 0;
 	vaddr_t next_aligned_v_addr;
@@ -501,7 +520,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 	uint64_t ret_flags;
 	status_t stat;
 
-	if(!paddr || !flags || (!x86_mmu_check_map_addr(vaddr)))
+	if(!paddr || !flags)
 		return ERR_INVALID_ARGS;
 
 	DEBUG_ASSERT(x86_get_cr3());
@@ -512,8 +531,17 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 		return stat;
 
 	*paddr = (paddr_t)(last_valid_entry);
-	// Re-visit: typecasting 64 bit value to 32 - NX bit lost
-	*flags = (uint)ret_flags;
+
+	/* converting x86 arch specific flags to arch mmu flags */
+	*flags = 0;
+	if(!(ret_flags & X86_MMU_PG_RW))
+		*flags |= ARCH_MMU_FLAG_PERM_RO;
+
+	if(ret_flags & X86_MMU_PG_U)
+		*flags |= ARCH_MMU_FLAG_PERM_USER;
+
+	if(ret_flags & X86_MMU_PG_NX)
+		*flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
 
 	return NO_ERROR;
 }
@@ -522,6 +550,7 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 {
 	addr_t current_cr3_val;
 	struct map_range range;
+	uint64_t arch_flags = X86_MMU_PG_P;
 
 	if((!x86_mmu_check_map_addr(paddr)) || (!x86_mmu_check_map_addr(vaddr)))
 		return ERR_INVALID_ARGS;
@@ -536,15 +565,24 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 	range.start_paddr = paddr;
 	range.size = count * PAGE_SIZE;
 
-	// Re-visit: Can't set the x86-64 NX Bit here
-	return(x86_mmu_map_range(current_cr3_val, &range, flags));
+	/* converting arch mmu flags to x86 arch specific flags */
+	if(!(flags & ARCH_MMU_FLAG_PERM_RO))
+		arch_flags |= X86_MMU_PG_RW;
+
+	if(flags & ARCH_MMU_FLAG_PERM_USER)
+		arch_flags |= X86_MMU_PG_U;
+
+	if(flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE)
+		arch_flags |= X86_MMU_PG_NX;
+
+	return(x86_mmu_map_range(current_cr3_val, &range, arch_flags));
 }
 
 /**
  * @brief  x86-64 MMU basic initialization
  *
  */
-void x86_mmu_init(void)
+void arch_mmu_init(void)
 {
         uint64_t efer_msr, cr0;
 

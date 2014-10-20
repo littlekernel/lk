@@ -59,7 +59,7 @@ INCLUDE "arch/shared_data_sections.ld"
 
 	__data_end = .;
 
-	.bss : ALIGN(8) {
+	.bss : ALIGN(4096) {
 		__bss_start = .;
 		*(.bss*)
 		*(.gnu.linkonce.b.*)
