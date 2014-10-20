@@ -37,7 +37,7 @@ __BEGIN_CDECLS
 #define X86_8BYTE_MASK		0xFFFFFFFF
 #define X86_CPUID_ADDR_WIDTH	0x80000008
 
-void x86_mmu_init(void);
+void arch_mmu_init(void);
 
 struct x86_iframe {
 	uint64_t pivot;                                     // stack switch pivot

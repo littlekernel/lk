@@ -42,6 +42,9 @@ void x86_mmu_init(void);
 #define X86_PHY_ADDR_MASK	(0x000ffffffffffffful)
 #define X86_FLAGS_MASK		(0x8000000000000ffful)
 #define X86_PTE_NOT_PRESENT	(0xFFFFFFFFFFFFFFFEul)
+#define X86_2MB_PAGE_FRAME	(0x000fffffffe00000ul)
+#define PAGE_OFFSET_MASK_4KB	(0x0000000000000ffful)
+#define PAGE_OFFSET_MASK_2MB	(0x00000000001ffffful)
 
 #define PAGE_SIZE		4096
 #define PAGING_LEVELS		4
@@ -71,7 +74,6 @@ struct map_range {
 	uint32_t size;
 };
 
-status_t x86_mmu_add_mapping (addr_t pml4, paddr_t paddr, vaddr_t vaddr, uint64_t flags);
 status_t x86_mmu_map_range (addr_t pml4, struct map_range *range, uint64_t flags);
 status_t x86_mmu_check_mapping (addr_t pml4, paddr_t paddr,
 				vaddr_t vaddr, uint64_t in_flags,

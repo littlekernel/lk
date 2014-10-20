@@ -19,7 +19,7 @@ MODULE_SRCS += \
 
 # set the default toolchain to x86 elf and set a #define
 ifndef TOOLCHAIN_PREFIX
-TOOLCHAIN_PREFIX := x86_64-elf-
+TOOLCHAIN_PREFIX :=
 endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(CFLAGS) -print-libgcc-file-name)

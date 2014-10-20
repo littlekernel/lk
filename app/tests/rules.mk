@@ -14,8 +14,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/float.c \
 	$(LOCAL_DIR)/float_instructions.S \
 	$(LOCAL_DIR)/float_test_vec.c \
-	$(LOCAL_DIR)/fibo.c \
-	$(LOCAL_DIR)/x86_mmu_tests.c
+	$(LOCAL_DIR)/fibo.c
 
 MODULE_COMPILEFLAGS += -Wno-format
 
