@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -177,6 +178,7 @@ static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t coun
 
 static struct block_ops the_ops = {
 	.std = {
+		.device_class = &class_block,
 		.init = ide_init,
 	},
 	.get_block_size = ide_get_block_size,

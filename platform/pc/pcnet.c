@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -99,6 +100,7 @@ static status_t pcnet_output(struct device *dev, struct pbuf *p);
 
 static struct netif_ops pcnet_ops = {
 	.std = {
+		.device_class = &class_netif,
 		.init = pcnet_init,
 	},
 

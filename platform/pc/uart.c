@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -33,10 +34,6 @@
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
 
-struct device_class uart_device_class = {
-	.name = "uart",
-};
-
 struct uart_driver_state {
 	struct cbuf rx_buf;
 	struct cbuf tx_buf;
@@ -52,7 +49,7 @@ static ssize_t uart_write(struct device *dev, const void *buf, size_t len);
 
 static struct uart_ops the_ops = {
 	.std = {
-		.device_class = &uart_device_class,
+		.device_class = &class_uart,
 		.init = uart_init,
 	},
 	.read = uart_read,

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -40,6 +41,8 @@ struct block_ops {
 };
 
 __BEGIN_CDECLS
+
+extern struct device_class class_block;
 
 ssize_t class_block_get_size(struct device *dev);
 ssize_t class_block_get_count(struct device *dev);

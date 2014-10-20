@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -44,6 +45,8 @@ struct netif_ops {
 };
 
 __BEGIN_CDECLS
+
+extern struct device_class class_netif;
 
 /* netif API */
 status_t class_netif_set_state(struct device *dev, struct netstack_state *state);
