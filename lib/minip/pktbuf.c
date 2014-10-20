@@ -22,13 +22,16 @@
  */
 
 #include <debug.h>
+#include <trace.h>
 #include <printf.h>
 #include <string.h>
 
 #include <kernel/thread.h>
+#include <kernel/semaphore.h>
 #include <lib/pktbuf.h>
 
 static struct list_node pb_freelist = LIST_INITIAL_VALUE(pb_freelist);
+static semaphore_t pb_sem = SEMAPHORE_INITIAL_VALUE(pb_sem, 0);
 
 void pktbuf_create(void *ptr, u32 phys, size_t size) {
 	pktbuf_t *p = ptr;
@@ -41,11 +44,13 @@ void pktbuf_create(void *ptr, u32 phys, size_t size) {
 	p->rsv1 = 0;
 	p->rsv2 = 0;
 	list_add_tail(&pb_freelist, &(p->list));
+	sem_post(&pb_sem, false);
 }
 
 pktbuf_t *pktbuf_alloc(void) {
 	pktbuf_t *p;
 
+	sem_wait(&pb_sem);
 	enter_critical_section();
 	p = list_remove_head_type(&pb_freelist, pktbuf_t, list);
 	exit_critical_section();
@@ -56,7 +61,6 @@ pktbuf_t *pktbuf_alloc(void) {
 
 	p->data = p->buffer + PKTBUF_MAX_HDR;
 	p->dlen = 0;
-
 	return p;
 }
 
@@ -64,6 +68,8 @@ void pktbuf_free(pktbuf_t *p) {
 	enter_critical_section();
 	list_add_tail(&pb_freelist, &(p->list));
 	exit_critical_section();
+
+	sem_post(&pb_sem, true);
 }
 
 void pktbuf_append_data(pktbuf_t *p, const void *data, size_t sz) {
