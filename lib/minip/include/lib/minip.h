@@ -65,7 +65,7 @@ typedef struct {
 } minip_fd_t;
 minip_fd_t *minip_open(uint32_t addr, uint16_t port);
 void minip_close(minip_fd_t *fd);
-void send(minip_fd_t *fd, void *buf, size_t len, int flags);
+int send(minip_fd_t *fd, void *buf, size_t len, int flags);
 
 /* raw udp transmit */
 int minip_udp_send(const void *data, size_t len,
