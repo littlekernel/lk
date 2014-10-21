@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -44,6 +45,7 @@ struct device {
 	void *state;
 	
 	// TODO: add generic state, such as suspend/resume state, etc...
+	int order;
 };
 
 /* device class, mainly used as a unique magic pointer to validate ops */
@@ -75,13 +77,14 @@ struct driver {
 		.ops = ops_, \
 	}
 
-#define DEVICE_INSTANCE(type_, name_, config_) \
+#define DEVICE_INSTANCE(type_, name_, config_, order_) \
 	extern struct driver concat(__driver_, type_); \
 	struct device concat(__device_, concat(type_, concat(_, name_))) \
 		__SECTION(".devices") = { \
 		.name = #name_, \
 		.driver = &concat(__driver_, type_), \
 		.config = config_, \
+		.order = order_, \
 	}
 
 /*
