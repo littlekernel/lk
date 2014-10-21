@@ -144,14 +144,28 @@ void hexdump(const void *ptr, size_t len)
 {
 	addr_t address = (addr_t)ptr;
 	size_t count;
-	int i;
 
 	for (count = 0 ; count < len; count += 16) {
+		union {
+			uint32_t buf[4];
+			uint8_t  cbuf[16];
+		} u;
+		size_t s = ROUNDUP(MIN(len - count, 16), 4);
+		size_t i;
+
 		printf("0x%08lx: ", address);
-		printf("%08x %08x %08x %08x |", *(const uint32_t *)address, *(const uint32_t *)(address + 4), *(const uint32_t *)(address + 8), *(const uint32_t *)(address + 12));
+		for (i = 0; i < s / 4; i++) {
+			u.buf[i] = ((const uint32_t *)address)[i];
+			printf("%08x ", u.buf[i]);
+		}
+		for (; i < 4; i++) {
+			printf("         ");
+		}
+		printf("|");
+
 		for (i=0; i < 16; i++) {
-			char c = *(const char *)(address + i);
-			if (isprint(c)) {
+			char c = u.cbuf[i];
+			if (i < s && isprint(c)) {
 				printf("%c", c);
 			} else {
 				printf(".");
@@ -180,3 +194,4 @@ void hexdump8(const void *ptr, size_t len)
 
 #endif // !DISABLE_DEBUG_OUTPUT
 
+// vim: set noexpandtab:
