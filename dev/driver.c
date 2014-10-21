@@ -25,6 +25,7 @@
 #include <dev/driver.h>
 #include <assert.h>
 #include <err.h>
+#include <string.h>
 #include <trace.h>
 
 extern struct device __devices[];
@@ -202,3 +203,14 @@ status_t device_resume(struct device *dev)
 		return ERR_NOT_SUPPORTED;
 }
 
+struct device *device_find(const char *name)
+{
+	struct device *dev = __devices;
+	while (dev != __devices_end) {
+		if (!strcmp(dev->name, name)) {
+			return dev;
+		}
+	}
+
+	return NULL;
+}

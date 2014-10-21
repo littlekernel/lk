@@ -112,5 +112,7 @@ status_t device_fini(struct device *dev);
 status_t device_suspend(struct device *dev);
 status_t device_resume(struct device *dev);
 
+struct device *device_find(const char *name);
+
 #endif
 
