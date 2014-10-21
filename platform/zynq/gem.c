@@ -466,12 +466,12 @@ static int cmd_gem(int argc, const cmd_args *argv)
 
     if (argc == 1) {
         printf("gem [d]ebug:      enable RX debug output\n");
-        printf("gem [r]aw <iter>: Send <iter> raw mac packet for testing\n");
+        printf("gem [r]aw <iter> <length>: Send <iter> raw mac packet for testing\n");
         printf("gem [s]tatus:     print driver status\n");
     } else if (argv[1].str[0] == 'r') {
         pktbuf_t *p;
         int iter;
-        if (argc < 3) {
+        if (argc < 4) {
             return 0;
         }
 
@@ -480,7 +480,7 @@ static int cmd_gem(int argc, const cmd_args *argv)
         }
 
         iter = argv[2].u;
-        p->dlen = 1024;
+        p->dlen = argv[3].u;
         while (iter--) {
             memset(p->data, iter, 12);
             gem_send_raw_pkt(p);
