@@ -63,6 +63,12 @@ static uint32_t read_cntfrq(void)
 	return cntfrq;
 }
 
+static void write_cntfrq(uint32_t cntfrq)
+{
+	LTRACEF("cntfrq: 0x%08x, %u\n", cntfrq, cntfrq);
+	__asm__ volatile("mcr p15, 0, %0, c14, c0, 0" :: "r" (cntfrq));
+}
+
 static uint32_t read_cntp_ctl(void)
 {
 	uint32_t cntp_ctl;
@@ -254,5 +260,11 @@ void arm_generic_timer_init(int irq)
 
 	register_int_handler(irq, &platform_tick, NULL);
 	unmask_interrupt(irq);
+}
+
+void arm_generic_timer_init_freq(int irq, uint32_t freq)
+{
+	write_cntfrq(freq);
+	arm_generic_timer_init(irq);
 }
 

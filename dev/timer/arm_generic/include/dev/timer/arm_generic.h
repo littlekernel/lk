@@ -26,6 +26,7 @@
 #include <sys/types.h>
 
 void arm_generic_timer_init(int irq);
+void arm_generic_timer_init_freq(int irq, uint32_t freq);
 void arm_generic_timer_init_secondary_cpu(void);
 
 #endif
