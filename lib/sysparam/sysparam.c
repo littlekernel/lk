@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013, Google, Inc. All rights reserved
+ * Copyright (c) 2014, Xiaomi, Inc. All rights reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -40,7 +41,8 @@
 
 #define SYSPARAM_MAGIC 'SYSP'
 
-#define SYSPARAM_FLAG_LOCK 0x1
+#define SYSPARAM_FLAG_LOCK   0x1
+#define SYSPARAM_FLAG_NOSAVE 0x2
 
 struct sysparam_phys {
     uint32_t magic;
@@ -93,6 +95,11 @@ LK_INIT_HOOK(sysparam, &sysparam_init, LK_INIT_LEVEL_THREADING);
 static inline bool sysparam_is_locked(const struct sysparam *param)
 {
     return param->flags & SYSPARAM_FLAG_LOCK;
+}
+
+static inline bool sysparam_is_saved(const struct sysparam *param)
+{
+    return !(param->flags & SYSPARAM_FLAG_NOSAVE);
 }
 
 static inline size_t sysparam_len(const struct sysparam_phys *sp)
@@ -260,11 +267,13 @@ status_t sysparam_reload(void)
     struct sysparam *param;
     struct sysparam *temp;
     list_for_every_entry_safe(&params.list, param, temp, struct sysparam, node) {
-        list_delete(&param->node);
+        if (sysparam_is_saved(param)) {
+            list_delete(&param->node);
 
-        free(param->name);
-        free(param->data);
-        free(param);
+            free(param->name);
+            free(param->data);
+            free(param);
+        }
     }
 
     /* reset the list back to scratch */
@@ -333,9 +342,11 @@ status_t sysparam_write(void)
     struct sysparam *param;
     off_t total_len = 0;
     list_for_every_entry(&params.list, param, struct sysparam, node) {
-        total_len += sizeof(struct sysparam_phys);
-        total_len += ROUNDUP(strlen(param->name), 4);
-        total_len += ROUNDUP(param->datalen, 4);
+        if (sysparam_is_saved(param)) {
+            total_len += sizeof(struct sysparam_phys);
+            total_len += ROUNDUP(strlen(param->name), 4);
+            total_len += ROUNDUP(param->datalen, 4);
+        }
     }
 
     if (total_len > params.len)
@@ -359,39 +370,41 @@ status_t sysparam_write(void)
     /* serialize all of the parameters */
     off_t pos = 0;
     list_for_every_entry(&params.list, param, struct sysparam, node) {
-        struct sysparam_phys phys;
+        if (sysparam_is_saved(param)) {
+            struct sysparam_phys phys;
 
-        /* start filling out a struct */
-        phys.magic = SYSPARAM_MAGIC;
-        phys.crc32 = 0;
-        phys.flags = param->flags;
-        phys.namelen = strlen(param->name);
-        phys.datalen = param->datalen;
+            /* start filling out a struct */
+            phys.magic = SYSPARAM_MAGIC;
+            phys.crc32 = 0;
+            phys.flags = param->flags;
+            phys.namelen = strlen(param->name);
+            phys.datalen = param->datalen;
 
-        /* calculate the crc of the entire thing + padding */
-        uint32_t zero = 0;
-        uint32_t sum = crc32(0, (const void *)&phys.flags, 8);
-        sum = crc32(sum, (const void *)param->name, strlen(param->name));
-        if (strlen(param->name) % 4)
-            sum = crc32(sum, (const void *)&zero, 4 - (strlen(param->name) % 4));
-        sum = crc32(sum, (const void *)param->data, ROUNDUP(param->datalen, 4));
-        phys.crc32 = sum;
+            /* calculate the crc of the entire thing + padding */
+            uint32_t zero = 0;
+            uint32_t sum = crc32(0, (const void *)&phys.flags, 8);
+            sum = crc32(sum, (const void *)param->name, strlen(param->name));
+            if (strlen(param->name) % 4)
+                sum = crc32(sum, (const void *)&zero, 4 - (strlen(param->name) % 4));
+            sum = crc32(sum, (const void *)param->data, ROUNDUP(param->datalen, 4));
+            phys.crc32 = sum;
 
-        /* structure portion */
-        memcpy(buf + pos, &phys, sizeof(struct sysparam_phys));
-        pos += sizeof(struct sysparam_phys);
+            /* structure portion */
+            memcpy(buf + pos, &phys, sizeof(struct sysparam_phys));
+            pos += sizeof(struct sysparam_phys);
 
-        /* name portion */
-        memcpy(buf + pos, param->name, strlen(param->name));
-        pos += ROUNDUP(strlen(param->name), 2);
-        if (pos % 4) {
-            /* write 2 zeros to realign */
-            pos += 2;
+            /* name portion */
+            memcpy(buf + pos, param->name, strlen(param->name));
+            pos += ROUNDUP(strlen(param->name), 2);
+            if (pos % 4) {
+                /* write 2 zeros to realign */
+                pos += 2;
+            }
+
+            /* data portion */
+            memcpy(buf + pos, param->data, param->datalen);
+            pos += ROUNDUP(param->datalen, 4);
         }
-
-        /* data portion */
-        memcpy(buf + pos, param->data, param->datalen);
-        pos += ROUNDUP(param->datalen, 4);
     }
 
     /* write the block out */
@@ -423,6 +436,23 @@ status_t sysparam_add(const char *name, const void *value, size_t len)
     return NO_ERROR;
 }
 
+status_t sysparam_add_nosave(const char *name, const void *value, size_t len)
+{
+    struct sysparam *param;
+
+    param = sysparam_find(name);
+    if (param)
+        return ERR_ALREADY_EXISTS;
+
+    param = sysparam_create(name, strlen(name), value, len, SYSPARAM_FLAG_NOSAVE);
+    if (!param)
+        return ERR_NO_MEMORY;
+
+    list_add_tail(&params.list, &param->node);
+
+    return NO_ERROR;
+}
+
 status_t sysparam_remove(const char *name)
 {
     struct sysparam *param;
@@ -433,14 +463,14 @@ status_t sysparam_remove(const char *name)
 
     if (sysparam_is_locked(param))
         return ERR_NOT_ALLOWED;
+    if (sysparam_is_saved(param))
+        params.dirty = true;
 
     list_delete(&param->node);
 
     free(param->name);
     free(param->data);
     free(param);
-
-    params.dirty = true;
 
     return NO_ERROR;
 }
@@ -456,7 +486,8 @@ status_t sysparam_lock(const char *name)
     /* set the lock bit if it isn't already */
     if (!sysparam_is_locked(param)) {
         param->flags |= SYSPARAM_FLAG_LOCK;
-        params.dirty = true;
+        if (sysparam_is_saved(param))
+            params.dirty = true;
     }
 
     return NO_ERROR;
@@ -474,8 +505,9 @@ void sysparam_dump(bool show_all)
 
     struct sysparam *param;
     list_for_every_entry(&params.list, param, struct sysparam, node) {
-        printf("________%c %-16s : ",
+        printf("________%c%c %-16s : ",
                 (param->flags & SYSPARAM_FLAG_LOCK) ? 'L' : '_',
+                (param->flags & SYSPARAM_FLAG_NOSAVE) ? '_' : 'S',
                 param->name);
 
         const uint8_t *dat = (const uint8_t *)param->data;
