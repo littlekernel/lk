@@ -72,7 +72,7 @@ static int cache_tests(int argc, const cmd_args *argv)
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("cache_tests", "tests of cpu cache", &cache_tests)
+STATIC_COMMAND("cache_tests", "test/bench the cpu cache", &cache_tests)
 STATIC_COMMAND_END(cache_tests);
 
 #endif
