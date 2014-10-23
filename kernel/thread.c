@@ -591,9 +591,9 @@ void thread_preempt(void)
  */
 void thread_block(void)
 {
+#if THREAD_CHECKS
 	thread_t *current_thread = get_current_thread();
 
-#if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_BLOCKED);
 	ASSERT(in_critical_section());
