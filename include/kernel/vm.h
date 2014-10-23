@@ -33,6 +33,7 @@
 #define MMU_INITIAL_MAPPING_TEMPORARY     (0x1)
 #define MMU_INITIAL_MAPPING_FLAG_UNCACHED (0x2)
 #define MMU_INITIAL_MAPPING_FLAG_DEVICE   (0x4)
+#define MMU_INITIAL_MAPPING_FLAG_DYNAMIC  (0x8)  /* entry has to be patched up by platform_reset */
 
 #ifndef ASSEMBLY
 
