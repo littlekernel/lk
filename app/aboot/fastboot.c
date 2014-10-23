@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <lib/sysparam.h>
 #include <kernel/thread.h>
 #include <kernel/event.h>
 #include <dev/udc.h>
@@ -88,12 +89,6 @@ struct fastboot_cmd {
 	void (*handle)(const char *arg, void *data, unsigned sz);
 };
 
-struct fastboot_var {
-	struct fastboot_var *next;
-	const char *name;
-	const char *value;
-};
-
 static struct fastboot_cmd *cmdlist;
 
 void fastboot_register(const char *prefix,
@@ -110,18 +105,10 @@ void fastboot_register(const char *prefix,
 	}
 }
 
-static struct fastboot_var *varlist;
-
 void fastboot_publish(const char *name, const char *value)
 {
-	struct fastboot_var *var;
-	var = malloc(sizeof(*var));
-	if (var) {
-		var->name = name;
-		var->value = value;
-		var->next = varlist;
-		varlist = var;
-	}
+	sysparam_remove(name);
+	sysparam_add_nosave(name, value, strlen(value));
 }
 
 
@@ -248,13 +235,14 @@ void fastboot_okay(const char *info)
 
 static void cmd_getvar(const char *arg, void *data, unsigned sz)
 {
-	struct fastboot_var *var;
+	char *value = data;
+	ssize_t len;
 
-	for (var = varlist; var; var = var->next) {
-		if (!strcmp(var->name, arg)) {
-			fastboot_okay(var->value);
-			return;
-		}
+	len = sysparam_read(arg, value, sz);
+	if (len > 0) {
+		value[len] = 0;
+		fastboot_okay(value);
+		return;
 	}
 	fastboot_okay("");
 }
