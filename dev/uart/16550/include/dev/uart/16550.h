@@ -25,6 +25,15 @@
 #ifndef __DEV_UART_16550_H
 #define __DEV_UART_16550_H
 
+#include <lib/cbuf.h>
+
+#define UART_RXBUF_SIZE			32
+
+struct uart_16550_state {
+	struct cbuf rxbuf;
+	char buf[UART_RXBUF_SIZE];
+};
+
 struct uart_16550_config {
 	unsigned irq;
 	uintptr_t base;
@@ -37,6 +46,8 @@ struct uart_16550_config {
 	bool parity_enable;
 	bool even_parity;
 	bool autoflow_enable;
+	/* optional reserved state */
+	struct uart_16550_state *state;
 };
 
 #endif

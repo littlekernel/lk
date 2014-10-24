@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <dev/class/uart.h>
 #include <dev/uart/16550.h>
-#include <lib/cbuf.h>
 #include <platform/interrupts.h>
 
 #define UART_RBR			0
@@ -92,12 +91,6 @@
 #define UART_LSR_THRE			0x20
 #define UART_LSR_TEMT			0x40
 #define UART_LSR_FIFOE			0x80
-
-#define UART_RXBUF_SIZE			32
-
-struct uart_state {
-	struct cbuf rxbuf;
-};
 
 // internal function
 static uint8_t uart_get(struct device *dev, off_t offset)
@@ -232,7 +225,7 @@ static enum handler_return uart_irq_handler(void *arg)
 {
 	bool resched = false;
 	struct device *dev = arg;
-	struct uart_state *state = dev->state;
+	struct uart_16550_state *state = dev->state;
 
 	while (uart_get(dev, UART_LSR) & UART_LSR_DR) {
 		uint8_t c = uart_get(dev, UART_RBR);
@@ -261,48 +254,66 @@ static void uart_fini_irq(struct device *dev)
 // new uart api
 static status_t uart_init(struct device *dev)
 {
-	if (!dev->config) {
-		return ERR_NOT_CONFIGURED;
+	if (!dev->state) {
+		const struct uart_16550_config* config = dev->config;
+		if (!dev->config) {
+			return ERR_NOT_CONFIGURED;
+		}
+
+		struct uart_16550_state *state = config->state;
+		if (!state) {
+			state = malloc(sizeof(*state));
+			if (!state) {
+				return ERR_NO_MEMORY;
+			}
+		}
+
+		cbuf_initialize_etc(&state->rxbuf, UART_RXBUF_SIZE, state->buf);
+		dev->state = state;
+
+		uart_init_config(dev);
+		uart_init_irq(dev);
 	}
-
-	struct uart_state *state = malloc(sizeof(*state));
-	if (!state) {
-		return ERR_NO_MEMORY;
-	}
-
-	dev->state = state;
-	cbuf_initialize(&state->rxbuf, UART_RXBUF_SIZE);
-
-	uart_init_config(dev);
-	uart_init_irq(dev);
-
 	return NO_ERROR;
 }
 
 static status_t uart_fini(struct device *dev)
 {
-	uart_fini_irq(dev);
-	free(dev->state);
-	dev->state = NULL;
+	const struct uart_16550_config* config = dev->config;
+	if (dev->state) {
+		uart_fini_irq(dev);
+		if (dev->state != config->state) {
+			free(dev->state);
+		}
+		dev->state = NULL;
+	}
 	return NO_ERROR;
 }
 
 static ssize_t uart_read(struct device *dev, void *buf, size_t len)
 {
-	struct uart_state *state = dev->state;
-	return cbuf_read(&state->rxbuf, buf, len, true);
+	ssize_t ret = uart_init(dev);
+	if (ret >= 0) {
+		struct uart_16550_state *state = dev->state;
+		ret = cbuf_read(&state->rxbuf, buf, len, true);
+	}
+	return ret;
 }
 
 static ssize_t uart_write(struct device *dev, const void *buf_, size_t len)
 {
-	const char *buf = buf_;
-	for (size_t i = 0; i < len; i++) {
-		while (!(uart_get(dev, UART_LSR) & UART_LSR_THRE)) {
-			; // wait for the xmit fifo available
+	ssize_t ret = uart_init(dev);
+	if (ret >= 0) {
+		const char *buf = buf_;
+		for (size_t i = 0; i < len; i++) {
+			while (!(uart_get(dev, UART_LSR) & UART_LSR_THRE)) {
+				; // wait for the xmit fifo available
+			}
+			uart_set(dev, UART_THR, *buf++);
 		}
-		uart_set(dev, UART_THR, *buf++);
+		ret = len;
 	}
-	return len;
+	return ret;
 }
 
 static struct uart_ops uart_ops = {
@@ -323,7 +334,14 @@ static struct device *uart_find(int port)
 {
 	char name[16];
 	sprintf(name, "uart%d", port);
-	return device_find(name);
+
+	struct device *dev = device_find(name);
+	if (dev) {
+		if (uart_init(dev) < 0) {
+			dev = NULL;
+		}
+	}
+	return dev;
 }
 
 int uart_putc(int port, char c)
@@ -342,7 +360,7 @@ int uart_getc(int port, bool wait)
 	struct device *dev = uart_find(port);
 	if (dev) {
 		char c;
-		struct uart_state *state = dev->state;
+		struct uart_16550_state *state = dev->state;
 		if (cbuf_read_char(&state->rxbuf, &c, wait) == 1) {
 			ret = c;
 		} else {
