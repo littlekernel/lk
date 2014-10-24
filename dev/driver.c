@@ -31,6 +31,16 @@
 extern struct device __devices[];
 extern struct device __devices_end[];
 
+status_t device_init_all(void)
+{
+	return device_init_range(INT_MIN + 1, INT_MAX - 1);
+}
+
+status_t device_fini_all(void)
+{
+	return device_fini_range(INT_MIN + 1, INT_MAX - 1);
+}
+
 static int device_get_next_order(int order)
 {
 	int next = INT_MAX;
@@ -68,20 +78,16 @@ static status_t device_init_order(int order)
 	return res;
 }
 
-status_t device_init_all(void)
+status_t device_init_range(int first, int last)
 {
 	status_t res = NO_ERROR;
-	int order = INT_MIN;
 
-	while (true) {
-		order = device_get_next_order(order);
-		if (order == INT_MAX) {
-			break;
-		}
-		status_t code = device_init_order(order);
+	while (first <= last) {
+		status_t code = device_init_order(first);
 		if (code < 0) {
 			res = code;
 		}
+		first = device_get_next_order(first);
 	}
 
 	return res;
@@ -102,7 +108,7 @@ static int device_get_prev_order(int order)
 	return prev;
 }
 
-status_t device_fini_order(int order)
+static status_t device_fini_order(int order)
 {
 	status_t res = NO_ERROR;
 
@@ -124,20 +130,16 @@ status_t device_fini_order(int order)
 	return res;
 }
 
-status_t device_fini_all(void)
+status_t device_fini_range(int first, int last)
 {
 	status_t res = NO_ERROR;
-	int order = INT_MAX;
 
-	while (true) {
-		order = device_get_prev_order(order);
-		if (order == INT_MIN) {
-			break;
-		}
-		status_t code = device_fini_order(order);
+	while (first <= last) {
+		status_t code = device_fini_order(last);
 		if (code < 0) {
 			res = code;
 		}
+		last = device_get_prev_order(last);
 	}
 
 	return res;

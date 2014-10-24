@@ -106,6 +106,9 @@ struct driver {
 status_t device_init_all(void);
 status_t device_fini_all(void);
 
+status_t device_init_range(int first, int last);
+status_t device_fini_range(int first, int last);
+
 status_t device_init(struct device *dev);
 status_t device_fini(struct device *dev);
 
