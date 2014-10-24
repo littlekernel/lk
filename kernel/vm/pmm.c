@@ -83,6 +83,23 @@ status_t pmm_add_arena(pmm_arena_t *arena)
     DEBUG_ASSERT(IS_PAGE_ALIGNED(arena->size));
     DEBUG_ASSERT(arena->size > 0);
 
+    /* allocate an array of pages to back this one */
+    size_t page_count = arena->size / PAGE_SIZE;
+    arena->page_array = calloc(page_count, sizeof(vm_page_t));
+    if (!arena->page_array) { /* heap exhaust */
+        /* allocate from self if memory map already setup */
+        if (arena->flags & PMM_ARENA_FLAG_KMAP) {
+            arena->size -= PAGE_ALIGN(page_count * sizeof(vm_page_t));
+            arena->page_array = paddr_to_kvaddr(arena->base + arena->size);
+
+            page_count = arena->size / PAGE_SIZE;
+            memset(arena->page_array, 0, page_count * sizeof(vm_page_t));
+        } else {
+            LTRACEF("failing to allocate page_array\n");
+            return ERR_NO_MEMORY;
+        }
+    }
+
     /* walk the arena list and add arena based on priority order */
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
@@ -100,10 +117,6 @@ done_add:
     /* zero out some of the structure */
     arena->free_count = 0;
     list_initialize(&arena->free_list);
-
-    /* allocate an array of pages to back this one */
-    size_t page_count = arena->size / PAGE_SIZE;
-    arena->page_array = calloc(page_count, sizeof(vm_page_t));
 
     /* add them to the free list */
     for (size_t i = 0; i < page_count; i++) {
