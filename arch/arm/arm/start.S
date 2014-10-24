@@ -169,6 +169,40 @@ arm_reset:
 
 .Linitial_mapping_done:
 
+#if MMU_WITH_TRAMPOLINE
+	/* move arm_kernel_translation_table address to r3 and
+	 * set cacheable attributes on translation walk
+	 */
+	orr		r3, r0, #MMU_TTBRx_FLAGS
+
+	/* Prepare tt_trampoline page table */
+	/* Calculate pagetable physical addresses */
+	ldr		r0, =tt_trampoline	/* r0 = tt_trampoline vaddr */
+	add		r0, r0, r12		/* r0 = tt_trampoline paddr */
+
+	/* Zero tt_trampoline translation tables */
+	mov		r4, #0
+	mov		r5, #0
+1:
+	str		r5, [r0, r4, lsl#2]
+	add		r4, #1
+	cmp		r4, #0x1000
+	blt		1b
+
+	/* Setup 1M section mapping at
+	 * phys	 -> phys   and
+	 * virt	 -> phys
+	 */
+	lsr		r4, pc, #20		/* r4 = paddr index */
+	ldr		r2, =MMU_KERNEL_L1_PTE_FLAGS
+	add		r2, r2, r4, lsl #20	/* r2 = pt entry */
+
+	str		r2, [r0, r4, lsl #2]	/* tt_trampoline[paddr index] = pt entry */
+
+	rsb		r4, r12, r4, lsl #20	/* r4 = vaddr */
+	str		r2, [r0, r4, lsr #(20 - 2)]	/* tt_trampoline[vaddr index] = pt entry */
+#endif
+
 	/* set up the mmu */
 	bl		.Lmmu_setup
 
@@ -252,6 +286,7 @@ arm_reset:
 	/* per cpu mmu setup, shared between primary and secondary cpus
 	   args:
 	   r4 == translation table physical
+	   r3 == final translation table physical (if using trampoline)
 	*/
 .Lmmu_setup:
 	/* Invalidate TLB */
@@ -298,6 +333,12 @@ arm_reset:
 	/* Jump to virtual code address */
 	ldr		pc, =1f
 1:
+
+#if MMU_WITH_TRAMPOLINE
+	/* Switch to main page table */
+	mcr		p15, 0, r3, c2, c0, 0
+	isb
+#endif
 
 	/* Invalidate TLB */
 	mov		r12, #0
@@ -370,6 +411,13 @@ unsupported_cpu_trap:
 #endif
 
 .ltorg
+
+#if WITH_KERNEL_VM && MMU_WITH_TRAMPOLINE
+.section ".bss.prebss.translation_table"
+.align 14
+DATA(tt_trampoline)
+	.skip 16384
+#endif
 
 .data
 .align 2
