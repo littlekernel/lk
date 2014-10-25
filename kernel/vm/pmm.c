@@ -42,10 +42,10 @@ static struct list_node arena_list = LIST_INITIAL_VALUE(arena_list);
      ((uintptr_t)(page) < ((uintptr_t)(arena)->page_array + (arena)->size / PAGE_SIZE * sizeof(vm_page_t))))
 
 #define PAGE_ADDRESS_FROM_ARENA(page, arena) \
-    (paddr_t)(((uintptr_t)page - (uintptr_t)a->page_array) / sizeof(vm_page_t)) * PAGE_SIZE + a->base;
+    (paddr_t)((((uintptr_t)(page) - (uintptr_t)(arena)->page_array) / sizeof(vm_page_t)) * PAGE_SIZE + (arena)->base)
 
 #define ADDRESS_IN_ARENA(address, arena) \
-    ((address) >= (arena)->base && (address) <= (arena)->base + (arena)->size)
+    ((address) >= (arena)->base && (address) <= (arena)->base + ((arena)->size - 1))
 
 static inline bool page_is_free(const vm_page_t *page)
 {
@@ -67,7 +67,7 @@ vm_page_t *address_to_page(paddr_t addr)
 {
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
-        if (addr >= a->base && addr <= a->base + a->size - 1) {
+        if (ADDRESS_IN_ARENA(addr, a)) {
             size_t index = (addr - a->base) / PAGE_SIZE;
             return &a->page_array[index];
         }
@@ -281,7 +281,7 @@ uint pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struc
              * is not aligned on the same boundary requested.
              */
             paddr_t rounded_base = ROUNDUP(a->base, 1UL << alignment_log2);
-            if (rounded_base < a->base || rounded_base >= a->base + a->size)
+            if (!ADDRESS_IN_ARENA(rounded_base, a))
                 continue;
 
             uint aligned_offset = (rounded_base - a->base) / PAGE_SIZE;
