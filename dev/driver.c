@@ -212,7 +212,7 @@ struct device *device_find(const char *name)
 		if (!strcmp(dev->name, name)) {
 			return dev;
 		}
+		dev++;
 	}
-
 	return NULL;
 }
