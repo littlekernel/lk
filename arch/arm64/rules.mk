@@ -32,14 +32,8 @@ GLOBAL_DEFINES += \
 ARCH_OPTFLAGS := -O2
 
 # try to find the toolchain
-ifndef TOOLCHAIN_PREFIX
-TOOLCHAIN_PREFIX := aarch64-elf-
-endif
-
-FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
-ifeq ($(FOUNDTOOL),)
-$(error cannot find toolchain, please set TOOLCHAIN_PREFIX or add it to your path)
-endif
+include $(LOCAL_DIR)/toolchain.mk
+TOOLCHAIN_PREFIX := $(ARCH_$(ARCH)_TOOLCHAIN_PREFIX)
 $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
 # make sure some bits were set up
