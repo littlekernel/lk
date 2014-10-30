@@ -22,13 +22,6 @@
  */
 #pragma once
 
-/* some assembly #defines, need to match the structure below */
-#define __MMU_INITIAL_MAPPING_PHYS_OFFSET 0
-#define __MMU_INITIAL_MAPPING_VIRT_OFFSET 4
-#define __MMU_INITIAL_MAPPING_SIZE_OFFSET 8
-#define __MMU_INITIAL_MAPPING_FLAGS_OFFSET 12
-#define __MMU_INITIAL_MAPPING_SIZE        20
-
 /* flags for initial mapping struct */
 #define MMU_INITIAL_MAPPING_TEMPORARY     (0x1)
 #define MMU_INITIAL_MAPPING_FLAG_UNCACHED (0x2)
@@ -56,13 +49,6 @@ struct mmu_initial_mapping {
     unsigned int flags;
     const char *name;
 };
-
-/* Assert that the assembly macros above match this struct. */
-STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, phys) == __MMU_INITIAL_MAPPING_PHYS_OFFSET);
-STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, virt) == __MMU_INITIAL_MAPPING_VIRT_OFFSET);
-STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, size) == __MMU_INITIAL_MAPPING_SIZE_OFFSET);
-STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, flags) == __MMU_INITIAL_MAPPING_FLAGS_OFFSET);
-STATIC_ASSERT(sizeof(struct mmu_initial_mapping) == __MMU_INITIAL_MAPPING_SIZE);
 
 /* Platform or target must fill out one of these to set up the initial memory map
  * for kernel and enough IO space to boot.
