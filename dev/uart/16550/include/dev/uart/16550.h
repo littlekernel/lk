@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2012 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,33 +21,34 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <kernel/vm.h>
-#include "vm_priv.h"
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <trace.h>
+#ifndef __DEV_UART_16550_H
+#define __DEV_UART_16550_H
 
-#define LOCAL_TRACE 0
+#include <lib/cbuf.h>
 
-/* cheezy allocator that chews up space just after the end of the kernel mapping */
+#define UART_RXBUF_SIZE			32
 
-/* track how much memory we've used */
-extern int _end;
+struct uart_16550_state {
+	struct cbuf rxbuf;
+	char buf[UART_RXBUF_SIZE];
+};
 
-uintptr_t boot_alloc_start = (uintptr_t)&_end;
-uintptr_t boot_alloc_end = (uintptr_t)&_end;
+struct uart_16550_config {
+	unsigned irq;
+	uintptr_t base;
+	size_t unit;
+	size_t stride;
+	unsigned clock_rate;
+	unsigned baud_rate;
+	size_t word_length;
+	size_t stop_bits;
+	bool parity_enable;
+	bool even_parity;
+	bool autoflow_enable;
+	/* optional reserved state */
+	struct uart_16550_state *state;
+};
 
-void *boot_alloc_mem(size_t len)
-{
-    uintptr_t ptr;
-
-    ptr = ALIGN(boot_alloc_end, 8);
-    boot_alloc_end = (ptr + ALIGN(len, 8));
-
-    LTRACEF("len %zu, ptr %p\n", len, (void *)ptr);
-
-    return (void *)ptr;
-}
+#endif
 

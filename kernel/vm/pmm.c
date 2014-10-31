@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -41,10 +42,10 @@ static struct list_node arena_list = LIST_INITIAL_VALUE(arena_list);
      ((uintptr_t)(page) < ((uintptr_t)(arena)->page_array + (arena)->size / PAGE_SIZE * sizeof(vm_page_t))))
 
 #define PAGE_ADDRESS_FROM_ARENA(page, arena) \
-    (paddr_t)(((uintptr_t)page - (uintptr_t)a->page_array) / sizeof(vm_page_t)) * PAGE_SIZE + a->base;
+    (paddr_t)((((uintptr_t)(page) - (uintptr_t)(arena)->page_array) / sizeof(vm_page_t)) * PAGE_SIZE + (arena)->base)
 
 #define ADDRESS_IN_ARENA(address, arena) \
-    ((address) >= (arena)->base && (address) <= (arena)->base + (arena)->size)
+    ((address) >= (arena)->base && (address) <= (arena)->base + ((arena)->size - 1))
 
 static inline bool page_is_free(const vm_page_t *page)
 {
@@ -66,7 +67,7 @@ vm_page_t *address_to_page(paddr_t addr)
 {
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
-        if (addr >= a->base && addr <= a->base + a->size - 1) {
+        if (ADDRESS_IN_ARENA(addr, a)) {
             size_t index = (addr - a->base) / PAGE_SIZE;
             return &a->page_array[index];
         }
@@ -81,6 +82,23 @@ status_t pmm_add_arena(pmm_arena_t *arena)
     DEBUG_ASSERT(IS_PAGE_ALIGNED(arena->base));
     DEBUG_ASSERT(IS_PAGE_ALIGNED(arena->size));
     DEBUG_ASSERT(arena->size > 0);
+
+    /* allocate an array of pages to back this one */
+    size_t page_count = arena->size / PAGE_SIZE;
+    arena->page_array = calloc(page_count, sizeof(vm_page_t));
+    if (!arena->page_array) { /* heap exhaust */
+        /* allocate from self if memory map already setup */
+        if (arena->flags & PMM_ARENA_FLAG_KMAP) {
+            arena->size -= PAGE_ALIGN(page_count * sizeof(vm_page_t));
+            arena->page_array = paddr_to_kvaddr(arena->base + arena->size);
+
+            page_count = arena->size / PAGE_SIZE;
+            memset(arena->page_array, 0, page_count * sizeof(vm_page_t));
+        } else {
+            LTRACEF("failing to allocate page_array\n");
+            return ERR_NO_MEMORY;
+        }
+    }
 
     /* walk the arena list and add arena based on priority order */
     pmm_arena_t *a;
@@ -99,13 +117,6 @@ done_add:
     /* zero out some of the structure */
     arena->free_count = 0;
     list_initialize(&arena->free_list);
-
-    /* allocate an array of pages to back this one */
-    size_t page_count = arena->size / PAGE_SIZE;
-    arena->page_array = boot_alloc_mem(page_count * sizeof(vm_page_t));
-
-    /* initialize all of the pages */
-    memset(arena->page_array, 0, page_count * sizeof(vm_page_t));
 
     /* add them to the free list */
     for (size_t i = 0; i < page_count; i++) {
@@ -270,7 +281,7 @@ uint pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struc
              * is not aligned on the same boundary requested.
              */
             paddr_t rounded_base = ROUNDUP(a->base, 1UL << alignment_log2);
-            if (rounded_base < a->base || rounded_base >= a->base + a->size)
+            if (!ADDRESS_IN_ARENA(rounded_base, a))
                 continue;
 
             uint aligned_offset = (rounded_base - a->base) / PAGE_SIZE;

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -48,13 +49,13 @@ static const struct platform_uart_config uart0_config = {
 	.tx_buf_len = 1024,
 };
 
-DEVICE_INSTANCE(uart, uart0, &uart0_config);
+DEVICE_INSTANCE(uart, uart0, &uart0_config, 0);
 
 #ifndef ARCH_X86_64
 static const struct platform_ide_config ide0_config = {
 };
 
-DEVICE_INSTANCE(ide, ide0, &ide0_config);
+DEVICE_INSTANCE(ide, ide0, &ide0_config, 0);
 
 static const struct platform_pcnet_config pcnet0_config = {
 	.vendor_id = 0x1022,
@@ -62,7 +63,7 @@ static const struct platform_pcnet_config pcnet0_config = {
 	.index = 0,
 };
 
-DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config);
+DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config, 0);
 #endif
 
 void target_init(void) {

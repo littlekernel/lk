@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Brian Swetland
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -76,7 +77,7 @@ static int do_reboot(void *arg) {
 
 static int do_ramboot(void *arg) {
 	thread_sleep(250);
-	arch_chain_load(lkb_iobuffer);
+	chain_load(lkb_iobuffer);
 	return 0;
 }
 

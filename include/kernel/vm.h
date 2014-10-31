@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -77,7 +78,7 @@ STATIC_ASSERT(KERNEL_ASPACE_BASE + (KERNEL_ASPACE_SIZE - 1) > KERNEL_ASPACE_BASE
 
 static inline bool is_kernel_address(vaddr_t va)
 {
-    return (va >= KERNEL_ASPACE_BASE && va <= (KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE));
+    return (va >= KERNEL_ASPACE_BASE && va <= (KERNEL_ASPACE_BASE + (KERNEL_ASPACE_SIZE - 1)));
 }
 
 /* physical allocator */
@@ -136,8 +137,25 @@ void *pmm_alloc_kpages(uint count, struct list_node *list);
     /* Helper routine for pmm_alloc_kpages. */
 static inline void *pmm_alloc_kpage(void) { return pmm_alloc_kpages(1, NULL); }
 
-/* physical to virtual */
+    /* mark the physical pages backing a range of virtual as in use.
+    * allocate the physical pages and throw them away */
+void mark_pages_in_use(vaddr_t va, size_t len);
+
+/* physical <==> virtual */
+#if WITH_KERNEL_VM
 void *paddr_to_kvaddr(paddr_t pa);
+paddr_t vaddr_to_paddr(void *va);
+#else
+static inline void *paddr_to_kvaddr(paddr_t pa)
+{
+    return (void *)pa;
+}
+
+static inline paddr_t vaddr_to_paddr(void *va)
+{
+    return (paddr_t)va;
+}
+#endif
 
 /* virtual allocator */
 typedef struct vmm_aspace {

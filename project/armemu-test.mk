@@ -5,7 +5,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 TARGET := armemu
 MODULES += \
 	lib/bio \
-	lib/partition \
+	lib/partition/mbr \
 	lib/bcache \
 	lib/fs \
 	lib/fs/ext2 \

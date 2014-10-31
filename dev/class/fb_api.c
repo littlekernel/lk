@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,6 +24,10 @@
 
 #include <err.h>
 #include <dev/class/fb.h>
+
+struct device_class class_fb = {
+	.name = "fb",
+};
 
 status_t class_fb_set_mode(struct device *dev, size_t width, size_t height, size_t bpp)
 {

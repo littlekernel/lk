@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,11 +26,10 @@
 #include <debug.h>
 #include <dev/interrupt/arm_gic.h>
 #include <reg.h>
+#include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <kernel/debug.h>
 #include <platform/interrupts.h>
-#include <arch/ops.h>
-#include <arch/arm.h>
 #include <platform/gic.h>
 #include <trace.h>
 #if WITH_LIB_SM
@@ -289,7 +289,7 @@ status_t unmask_interrupt(unsigned int vector)
 }
 
 static
-enum handler_return __platform_irq(struct arm_iframe *frame)
+enum handler_return __platform_irq(void *frame)
 {
 	// get the current vector
 	unsigned int vector = GICREG(0, GICC_IAR) & 0x3ff;
@@ -302,7 +302,7 @@ enum handler_return __platform_irq(struct arm_iframe *frame)
 	THREAD_STATS_INC(interrupts);
 	KEVLOG_IRQ_ENTER(vector);
 
-//	printf("platform_irq: spsr 0x%x, pc 0x%x, currthread %p, vector %d\n", frame->spsr, frame->pc, current_thread, vector);
+//	printf("platform_irq: currthread %p, vector %d\n", get_current_thread(), vector);
 
 	// deliver the interrupt
 	enum handler_return ret;
@@ -320,7 +320,7 @@ enum handler_return __platform_irq(struct arm_iframe *frame)
 	return ret;
 }
 
-enum handler_return platform_irq(struct arm_iframe *frame)
+enum handler_return platform_irq(void *frame)
 {
 #if WITH_LIB_SM
 	uint32_t ahppir = GICREG(0, GICC_AHPPIR);
@@ -361,7 +361,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 #endif
 }
 
-void platform_fiq(struct arm_iframe *frame)
+void platform_fiq(void *frame)
 {
 #if WITH_LIB_SM
 	sm_handle_irq();

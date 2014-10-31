@@ -14,10 +14,10 @@ typedef void (*lk_init_hook)(uint level);
 enum lk_init_level {
     LK_INIT_LEVEL_EARLIEST = 1,
 
-    LK_INIT_LEVEL_ARCH_EARLY     = 0x10000,
-    LK_INIT_LEVEL_PLATFORM_EARLY = 0x20000,
-    LK_INIT_LEVEL_TARGET_EARLY   = 0x30000,
-    LK_INIT_LEVEL_HEAP           = 0x40000,
+    LK_INIT_LEVEL_HEAP           = 0x10000,
+    LK_INIT_LEVEL_ARCH_EARLY     = 0x20000,
+    LK_INIT_LEVEL_PLATFORM_EARLY = 0x30000,
+    LK_INIT_LEVEL_TARGET_EARLY   = 0x40000,
     LK_INIT_LEVEL_VM             = 0x50000,
     LK_INIT_LEVEL_KERNEL         = 0x60000,
     LK_INIT_LEVEL_THREADING      = 0x70000,

@@ -5,13 +5,10 @@ MODULE := $(LOCAL_DIR)
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
 
-GLOBAL_DEFINES += \
-	PLATFORM_HAS_DYNAMIC_TIMER=1
-
 MODULE_SRCS += \
-	$(LOCAL_DIR)/arm_generic_timer.c
+	$(LOCAL_DIR)/16550.c
 
 MODULE_DEPS += \
-	lib/fixed_point
+	lib/cbuf
 
 include make/module.mk

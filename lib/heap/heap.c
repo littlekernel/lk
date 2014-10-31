@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2008-2009,2012,2014 Travis Geiselbrecht
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -33,6 +34,7 @@
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <lib/heap.h>
+#include <lk/init.h>
 
 #define LOCAL_TRACE 0
 
@@ -44,6 +46,17 @@
 
 #define HEAP_MAGIC 'HEAP'
 
+#if WITH_STATIC_HEAP
+
+/* WITH_STATIC_HEAP can't work with WITH_KERNEL_VM */
+STATIC_ASSERT(!WITH_KERNEL_VM);
+
+#if !defined(HEAP_START) || !defined(HEAP_LEN)
+#error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
+#endif
+
+#else
+
 #if WITH_KERNEL_VM
 
 #include <kernel/vm.h>
@@ -54,14 +67,11 @@
 
 STATIC_ASSERT(IS_PAGE_ALIGNED(HEAP_GROW_SIZE));
 
-#elif WITH_STATIC_HEAP
+static ssize_t heap_grow(size_t len);
 
-#if !defined(HEAP_START) || !defined(HEAP_LEN)
-#error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
 #endif
 
-#else
-/* not a static vm, not using the kernel vm */
+/* not a static vm */
 extern int _end;
 extern int _end_of_ram;
 
@@ -82,6 +92,7 @@ struct free_heap_chunk {
 struct heap {
 	void *base;
 	size_t len;
+	bool postvm;
 	size_t remaining;
 	size_t low_watermark;
 	mutex_t lock;
@@ -104,8 +115,6 @@ struct alloc_struct_begin {
 	size_t padding_size;
 #endif
 };
-
-static ssize_t heap_grow(size_t len);
 
 static void dump_free_chunk(struct free_heap_chunk *chunk)
 {
@@ -186,8 +195,12 @@ static void heap_test(void)
 
 // try to insert this free chunk into the free list, consuming the chunk by merging it with
 // nearby ones if possible. Returns base of whatever chunk it became in the list.
-static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *chunk)
+static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *chunk, bool allow_debug)
 {
+#if DEBUG_HEAP
+	if (allow_debug)
+		memset(chunk + 1, FREE_FILL, chunk->len - sizeof(*chunk));
+#endif
 #if LK_DEBUGLEVEL > INFO
 	vaddr_t chunk_end = (vaddr_t)chunk + chunk->len;
 #endif
@@ -248,14 +261,9 @@ try_merge:
 	return chunk;
 }
 
-static struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len, bool allow_debug)
+static struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len)
 {
 	DEBUG_ASSERT((len % sizeof(void *)) == 0); // size must be aligned on pointer boundary
-
-#if DEBUG_HEAP
-	if (allow_debug)
-		memset(ptr, FREE_FILL, len);
-#endif
 
 	struct free_heap_chunk *chunk = (struct free_heap_chunk *)ptr;
 	chunk->len = len;
@@ -279,7 +287,7 @@ static void heap_free_delayed_list(void)
 
 	while ((chunk = list_remove_head_type(&list, struct free_heap_chunk, node))) {
 		LTRACEF("freeing chunk %p\n", chunk);
-		heap_insert_free_chunk(chunk);
+		heap_insert_free_chunk(chunk, true);
 	}
 }
 
@@ -326,7 +334,7 @@ void *heap_alloc(size_t size, unsigned int alignment)
 	}
 
 #if WITH_KERNEL_VM
-	int retry_count = 0;
+	int retry_count = !theheap.postvm;
 retry:
 #endif
 	mutex_acquire(&theheap.lock);
@@ -347,7 +355,7 @@ retry:
 
 			if (chunk->len > size + sizeof(struct free_heap_chunk)) {
 				// there's enough space in this chunk to create a new one after the allocation
-				struct free_heap_chunk *newchunk = heap_create_free_chunk((uint8_t *)ptr + size, chunk->len - size, true);
+				struct free_heap_chunk *newchunk = heap_create_free_chunk((uint8_t *)ptr + size, chunk->len - size);
 
 				// truncate this chunk
 				chunk->len -= chunk->len - size;
@@ -403,9 +411,7 @@ retry:
 #if WITH_KERNEL_VM
 	/* try to grow the heap if we can */
 	if (ptr == NULL && retry_count == 0) {
-		size_t growby = MAX(HEAP_GROW_SIZE, ROUNDUP(size, PAGE_SIZE));
-
-		ssize_t err = heap_grow(growby);
+		ssize_t err = heap_grow(size);
 		if (err >= 0) {
 			retry_count++;
 			goto retry;
@@ -449,7 +455,7 @@ void heap_free(void *ptr)
 	LTRACEF("allocation was %zd bytes long at ptr %p\n", as->size, as->ptr);
 
 	// looks good, create a free chunk and add it to the pool
-	heap_insert_free_chunk(heap_create_free_chunk(as->ptr, as->size, true));
+	heap_insert_free_chunk(heap_create_free_chunk(as->ptr, as->size), true);
 }
 
 void heap_delayed_free(void *ptr)
@@ -462,7 +468,7 @@ void heap_delayed_free(void *ptr)
 
 	DEBUG_ASSERT(as->magic == HEAP_MAGIC);
 
-	struct free_heap_chunk *chunk = heap_create_free_chunk(as->ptr, as->size, false);
+	struct free_heap_chunk *chunk = heap_create_free_chunk(as->ptr, as->size);
 
 	enter_critical_section();
 	list_add_head(&theheap.delayed_free_list, &chunk->node);
@@ -501,33 +507,64 @@ void heap_get_stats(struct heap_stats *ptr)
 	mutex_release(&theheap.lock);
 }
 
+#if WITH_KERNEL_VM
 static ssize_t heap_grow(size_t size)
 {
-#if WITH_KERNEL_VM
 	size = ROUNDUP(size, PAGE_SIZE);
 
-	void *ptr = pmm_alloc_kpages(size / PAGE_SIZE, NULL);
-	if (!ptr)
-		return ERR_NO_MEMORY;
+	for (size_t growby = MAX(HEAP_GROW_SIZE, size); growby >= size; growby /= 2) {
+		void *ptr = pmm_alloc_kpages(growby / PAGE_SIZE, NULL);
+		if (ptr) {
+			LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", growby, ptr);
 
-	LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
+			heap_insert_free_chunk(heap_create_free_chunk(ptr, growby), false);
 
-	heap_insert_free_chunk(heap_create_free_chunk(ptr, size, true));
+			/* change the heap start and end variables */
+			if ((uintptr_t)ptr < (uintptr_t)theheap.base)
+				theheap.base = ptr;
 
-	/* change the heap start and end variables */
-	if ((uintptr_t)ptr < (uintptr_t)theheap.base)
-		theheap.base = ptr;
+			uintptr_t endptr = (uintptr_t)ptr + growby;
+			if (endptr > (uintptr_t)theheap.base + theheap.len) {
+				theheap.len = (uintptr_t)endptr - (uintptr_t)theheap.base;
+			}
 
-	uintptr_t endptr = (uintptr_t)ptr + size;
-	if (endptr > (uintptr_t)theheap.base + theheap.len) {
-		theheap.len = (uintptr_t)endptr - (uintptr_t)theheap.base;
+			return growby;
+		}
 	}
 
-	return size;
-#else
 	return ERR_NO_MEMORY;
-#endif
 }
+
+static void heap_init_postvm(uint level)
+{
+	LTRACE_ENTRY;
+
+	// flush the delayed free list
+	if (unlikely(!list_is_empty(&theheap.delayed_free_list))) {
+		heap_free_delayed_list();
+	}
+
+	// mark the alloced memory from vm
+	vaddr_t alloced = HEAP_START;
+	struct free_heap_chunk *chunk;
+	list_for_every_entry(&theheap.free_list, chunk, struct free_heap_chunk, node) {
+		vaddr_t freed = (vaddr_t)chunk;
+		if (alloced < freed) {
+			mark_pages_in_use(alloced, freed - alloced);
+		}
+		alloced = freed + chunk->len;
+	}
+	if (alloced < HEAP_START + HEAP_LEN) {
+		mark_pages_in_use(alloced, HEAP_START + HEAP_LEN - alloced);
+	}
+
+	// switch to vm by emptying the free list
+	list_initialize(&theheap.free_list);
+	theheap.postvm = true;
+}
+
+LK_INIT_HOOK(heap, &heap_init_postvm, LK_INIT_LEVEL_VM + 1);
+#endif
 
 void heap_init(void)
 {
@@ -543,29 +580,20 @@ void heap_init(void)
 	list_initialize(&theheap.delayed_free_list);
 
 	// set the heap range
-#if WITH_KERNEL_VM
-	theheap.base = pmm_alloc_kpages(HEAP_GROW_SIZE / PAGE_SIZE, NULL);
-	theheap.len = HEAP_GROW_SIZE;
-
-	if (theheap.base == 0) {
-		panic("HEAP: error allocating initial heap size\n");
-	}
-#else
 	theheap.base = (void *)HEAP_START;
 	theheap.len = HEAP_LEN;
-#endif
 	theheap.remaining = 0; // will get set by heap_insert_free_chunk()
 	theheap.low_watermark = theheap.len;
 	LTRACEF("base %p size %zd bytes\n", theheap.base, theheap.len);
 
 	// create an initial free chunk
-	heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len, false));
+	heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len), false);
 }
 
 /* add a new block of memory to the heap */
 void heap_add_block(void *ptr, size_t len)
 {
-	heap_insert_free_chunk(heap_create_free_chunk(ptr, len, false));
+	heap_insert_free_chunk(heap_create_free_chunk(ptr, len), false);
 }
 
 #if LK_DEBUGLEVEL > 1

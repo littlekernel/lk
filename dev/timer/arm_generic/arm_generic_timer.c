@@ -27,11 +27,11 @@
 #include <platform/timer.h>
 #include <trace.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 #define LTRACEF_LEVEL(level, x...) do { if (LOCAL_TRACE >= level) { TRACEF(x); } } while (0)
 
-#include "fixed_point.h"
+#include <lib/fixed_point.h>
 
 static platform_timer_callback t_callback;
 
@@ -61,6 +61,12 @@ static uint32_t read_cntfrq(void)
 	__asm__ volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (cntfrq));
 	LTRACEF("cntfrq: 0x%08x, %u\n", cntfrq, cntfrq);
 	return cntfrq;
+}
+
+static void write_cntfrq(uint32_t cntfrq)
+{
+	LTRACEF("cntfrq: 0x%08x, %u\n", cntfrq, cntfrq);
+	__asm__ volatile("mcr p15, 0, %0, c14, c0, 0" :: "r" (cntfrq));
 }
 
 static uint32_t read_cntp_ctl(void)
@@ -254,5 +260,11 @@ void arm_generic_timer_init(int irq)
 
 	register_int_handler(irq, &platform_tick, NULL);
 	unmask_interrupt(irq);
+}
+
+void arm_generic_timer_init_freq(int irq, uint32_t freq)
+{
+	write_cntfrq(freq);
+	arm_generic_timer_init(irq);
 }
 

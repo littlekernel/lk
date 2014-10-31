@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -35,9 +36,7 @@
 extern int _start;
 extern int _end;
 
-/* mark the physical pages backing a range of virtual as in use.
- * allocate the physical pages and throw them away */
-static void mark_pages_in_use(vaddr_t va, size_t len)
+void mark_pages_in_use(vaddr_t va, size_t len)
 {
     LTRACEF("va 0x%lx, len 0x%zx\n", va, len);
 
@@ -64,25 +63,13 @@ static void mark_pages_in_use(vaddr_t va, size_t len)
     }
 }
 
-static void vm_init_preheap(uint level)
+static void vm_init(uint level)
 {
     LTRACE_ENTRY;
 
     /* mark all of the kernel pages in use */
     LTRACEF("marking all kernel pages as used\n");
     mark_pages_in_use((vaddr_t)&_start, ((uintptr_t)&_end - (uintptr_t)&_start));
-
-    /* mark the physical pages used by the boot time allocator */
-    if (boot_alloc_end != boot_alloc_start) {
-        LTRACEF("marking boot alloc used from 0x%lx to 0x%lx\n", boot_alloc_start, boot_alloc_end);
-
-        mark_pages_in_use(boot_alloc_start, boot_alloc_end - boot_alloc_start);
-    }
-}
-
-static void vm_init_postheap(uint level)
-{
-    LTRACE_ENTRY;
 
     vmm_init();
 
@@ -104,12 +91,21 @@ void *paddr_to_kvaddr(paddr_t pa)
     while (map->size > 0) {
         if (!(map->flags & MMU_INITIAL_MAPPING_TEMPORARY) &&
             pa >= map->phys &&
-            pa <= map->phys + map->size) {
+            pa <= map->phys + (map->size - 1)) {
             return (void *)(map->virt + (pa - map->phys));
         }
         map++;
     }
     return NULL;
+}
+
+paddr_t vaddr_to_paddr(void *va)
+{
+    paddr_t pa;
+    if (arch_mmu_query((vaddr_t)va, &pa, 0) < 0) {
+        pa = 0;
+    }
+    return pa;
 }
 
 static int cmd_vm(int argc, const cmd_args *argv)
@@ -165,6 +161,5 @@ STATIC_COMMAND("vm", "vm commands", &cmd_vm)
 #endif
 STATIC_COMMAND_END(vm);
 
-LK_INIT_HOOK(vm_preheap, &vm_init_preheap, LK_INIT_LEVEL_HEAP - 1);
-LK_INIT_HOOK(vm, &vm_init_postheap, LK_INIT_LEVEL_VM);
+LK_INIT_HOOK(vm, &vm_init, LK_INIT_LEVEL_VM);
 

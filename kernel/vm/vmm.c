@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -85,12 +86,12 @@ static size_t trim_to_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr, size_t s
     //LTRACEF("vaddr 0x%lx size 0x%zx offset 0x%zx aspace base 0x%lx aspace size 0x%zx\n",
     //        vaddr, size, offset, aspace->base, aspace->size);
 
-    if (offset + size < offset)
-        size = ULONG_MAX - offset - 1;
+    if (offset + size - 1 < offset)
+        size = ULONG_MAX - offset;
 
     //LTRACEF("size now 0x%zx\n", size);
 
-    if (offset + size >= aspace->size - 1)
+    if (offset + size - 1 >= aspace->size)
         size = aspace->size - offset;
 
     //LTRACEF("size now 0x%zx\n", size);
@@ -483,7 +484,7 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     vaddr_t va = r->base;
     DEBUG_ASSERT(IS_PAGE_ALIGNED(va));
     while ((p = list_remove_head_type(&page_list, vm_page_t, node))) {
-        DEBUG_ASSERT(va < r->base + r->size);
+        DEBUG_ASSERT(va <= r->base + r->size - 1);
 
         paddr_t pa = page_to_address(p);
         DEBUG_ASSERT(IS_PAGE_ALIGNED(pa));

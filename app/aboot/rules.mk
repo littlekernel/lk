@@ -2,15 +2,14 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULE_DEPS += \
-	lib/minip \
-	lib/sysparam \
-	lib/partition/ptable
-
 GLOBAL_DEFINES += \
 	SYSPARAM_ALLOW_WRITE=1
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/init.c
+	$(LOCAL_DIR)/aboot.c \
+	$(LOCAL_DIR)/fastboot.c
+
+MODULE_DEPS += \
+	lib/sysparam
 
 include make/module.mk

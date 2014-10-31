@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -45,6 +46,8 @@ struct fb_ops {
 };
 
 __BEGIN_CDECLS
+
+extern struct device_class class_fb;
 
 status_t class_fb_set_mode(struct device *dev, size_t width, size_t height, size_t bpp);
 status_t class_fb_get_info(struct device *dev, struct fb_info *info);

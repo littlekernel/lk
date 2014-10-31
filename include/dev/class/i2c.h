@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Corey Tabaka
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -38,6 +39,8 @@ struct i2c_ops {
 };
 
 __BEGIN_CDECLS
+
+extern struct device_class class_i2c;
 
 status_t class_i2c_write(struct device *dev, uint8_t addr, const void *buf, size_t len);
 status_t class_i2c_read(struct device *dev, uint8_t addr, void *buf, size_t len);

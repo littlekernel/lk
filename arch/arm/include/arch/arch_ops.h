@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2014 Xiaomi Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -196,13 +197,9 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 		    "ldrex	%[old], [%[ptr]]\n"
 		    "mov	%[test], #0\n"
 		    "teq	%[old], %[oldval]\n"
-#if ARM_ISA_ARMV7M
 		    "bne	0f\n"
 		    "strex	%[test], %[newval], [%[ptr]]\n"
 		    "0:\n"
-#else
-		    "strexeq %[test], %[newval], [%[ptr]]\n"
-#endif
 		    : [old]"=&r" (old), [test]"=&r" (test)
 		    : [ptr]"r" (ptr), [oldval]"Ir" (oldval), [newval]"r" (newval)
 		    : "cc");
@@ -290,62 +287,6 @@ static inline void arch_disable_ints(void) { _arch_disable_ints(); }
 static inline uint32_t arch_cycle_count(void) { return _arch_cycle_count(); }
 
 #endif
-
-typedef unsigned long spin_lock_t;
-void spin_lock(spin_lock_t *lock); /* interrupts should already be disabled */
-int spin_trylock(spin_lock_t *lock); /* Returns 0 on success, non-0 on failure */
-void spin_unlock(spin_lock_t *lock);
-
-typedef ulong spin_lock_saved_state_t;
-typedef ulong spin_lock_save_flags_t;
-
-enum {
-	/* Possible future flags:
-	 * SPIN_LOCK_FLAG_PMR_MASK         = 0x000000ff,
-	 * SPIN_LOCK_FLAG_PREEMPTION       = 0x10000000,
-	 * SPIN_LOCK_FLAG_SET_PMR          = 0x20000000,
-	 */
-
-	/* ARM specific flags */
-	SPIN_LOCK_FLAG_IRQ              = 0x40000000,
-	SPIN_LOCK_FLAG_FIQ              = 0x80000000, /* Do not use unless IRQs are already disabled */
-	SPIN_LOCK_FLAG_IRQ_FIQ          = SPIN_LOCK_FLAG_IRQ | SPIN_LOCK_FLAG_FIQ,
-
-	/* Generic flags */
-	SPIN_LOCK_FLAG_INTERRUPTS       = SPIN_LOCK_FLAG_IRQ,
-};
-
-enum {
-	/* private */
-	SPIN_LOCK_STATE_RESTORE_IRQ     = 1,
-	SPIN_LOCK_STATE_RESTORE_FIQ     = 2,
-};
-
-static inline void
-spin_lock_save(spin_lock_t *lock, spin_lock_saved_state_t *statep, spin_lock_save_flags_t flags)
-{
-	spin_lock_saved_state_t state = 0;
-	if ((flags & SPIN_LOCK_FLAG_IRQ) && !arch_ints_disabled()) {
-		state |= SPIN_LOCK_STATE_RESTORE_IRQ;
-		arch_disable_ints();
-	}
-	if ((flags & SPIN_LOCK_FLAG_FIQ) && !arch_fiqs_disabled()) {
-		state |= SPIN_LOCK_STATE_RESTORE_FIQ;
-		arch_disable_fiqs();
-	}
-	*statep = state;
-	spin_lock(lock);
-}
-
-static inline void
-spin_unlock_restore(spin_lock_t *lock, spin_lock_saved_state_t old_state, spin_lock_save_flags_t flags)
-{
-	spin_unlock(lock);
-	if ((flags & SPIN_LOCK_FLAG_FIQ) && (old_state & SPIN_LOCK_STATE_RESTORE_FIQ))
-		arch_enable_fiqs();
-	if ((flags & SPIN_LOCK_FLAG_IRQ) && (old_state & SPIN_LOCK_STATE_RESTORE_IRQ))
-		arch_enable_ints();
-}
 
 #endif // ASSEMBLY
 
