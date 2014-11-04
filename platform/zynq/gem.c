@@ -123,6 +123,9 @@ int gem_send_raw_pkt(struct pktbuf *p)
 
     LTRACEF("buf %p, len %zu, pkt %p\n", p->data, p->dlen, p);
 
+    /* make sure the cache is invalidated for the packet */
+    arch_clean_cache_range((addr_t)p->buffer, sizeof(p->buffer));
+
     /* TRM known issue #1. The TX path requires at least two descriptors
      * and the final descriptor must have the used bit set. If not done
      * then the controller will continue to wrap and send the frame multiple
@@ -153,7 +156,6 @@ err:
 }
 
 
-// XXX: desperately needs to be cleaned up
 enum handler_return gem_int_handler(void *arg) {
     uint32_t intr_status;
     bool resched = false;
@@ -202,36 +204,6 @@ enum handler_return gem_int_handler(void *arg) {
     return (resched) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-static void gem_io_init(void)
-{
-    uint32_t pin_cfg;
-
-    zynq_slcr_unlock();
-    pin_cfg = MIO_L0_SEL | MIO_SPEED_FAST | MIO_IO_TYPE_HSTL | MIO_PULLUP | MIO_DISABLE_RCVR;
-    SLCR_REG(MIO_PIN_16) = pin_cfg;
-    SLCR_REG(MIO_PIN_17) = pin_cfg;
-    SLCR_REG(MIO_PIN_18) = pin_cfg;
-    SLCR_REG(MIO_PIN_19) = pin_cfg;
-    SLCR_REG(MIO_PIN_20) = pin_cfg;
-    SLCR_REG(MIO_PIN_21) = pin_cfg;
-
-    pin_cfg = MIO_L0_SEL | MIO_SPEED_FAST | MIO_IO_TYPE_HSTL | MIO_PULLUP;
-    SLCR_REG(MIO_PIN_22) = pin_cfg;
-    SLCR_REG(MIO_PIN_23) = pin_cfg;
-    SLCR_REG(MIO_PIN_24) = pin_cfg;
-    SLCR_REG(MIO_PIN_25) = pin_cfg;
-    SLCR_REG(MIO_PIN_26) = pin_cfg;
-    SLCR_REG(MIO_PIN_27) = pin_cfg;
-
-    pin_cfg = MIO_L3_SEL(0x4) | MIO_IO_TYPE_LVCMOS18 | MIO_PULLUP;
-    SLCR_REG(MIO_PIN_52) = pin_cfg;
-    SLCR_REG(MIO_PIN_53) = pin_cfg;
-
-    /* Enable VREF from GPIOB */
-    SLCR_REG(GPIOB_CTRL) = 0x1;
-    zynq_slcr_lock();
-}
-
 static bool wait_for_phy_idle(void)
 {
     int iters = 1000;
@@ -256,7 +228,13 @@ static void gem_cfg_buffer_descs(void)
 
     /* RX setup */
     for (int i = 0; i < GEM_RX_BUF_CNT; i++) {
-        state->rx[i].addr = (uintptr_t) pktbuf_data_phys(gem_rx_buffers[i]);
+        pktbuf_t *p = gem_rx_buffers[i];
+        DEBUG_ASSERT(p);
+
+        /* make sure the buffers start off with no stale data in them */
+        arch_invalidate_cache_range((addr_t)p->buffer, sizeof(p->buffer));
+
+        state->rx[i].addr = (uintptr_t) pktbuf_data_phys(p);
         state->rx[i].ctrl = 0;
     }
 
@@ -272,9 +250,18 @@ static void gem_cfg_buffer_descs(void)
 
 static void gem_cfg_ints(void)
 {
-    register_int_handler(ETH0_INT, gem_int_handler, NULL);
-    unmask_interrupt(ETH0_INT);
-    // TODO: set up WOL int when we're using that
+    uint32_t gem_base = (uintptr_t)regs;
+
+    if (gem_base == GEM0_BASE) {
+        register_int_handler(ETH0_INT, gem_int_handler, NULL);
+        unmask_interrupt(ETH0_INT);
+    } else if (gem_base == GEM1_BASE) {
+        register_int_handler(ETH1_INT, gem_int_handler, NULL);
+        unmask_interrupt(ETH1_INT);
+    } else {
+        printf("Illegal gem periph base address 0x%08X!\n", gem_base);
+        return;
+    }
 
     /* Enable all interrupts */
     regs->intr_en = INTR_RX_COMPLETE | INTR_TX_COMPLETE | INTR_HRESP_NOT_OK | INTR_MGMT_SENT |
@@ -299,6 +286,10 @@ int gem_rx_thread(void *arg)
                 } else if (rx_callback) {
                     rx_callback(p);
                 }
+
+                /* invalidate the buffer before putting it back */
+                arch_invalidate_cache_range((addr_t)p->buffer, sizeof(p->buffer));
+
                 state->rx[bp].addr &= ~RX_DESC_USED;
                 state->rx[bp].ctrl = 0;
                 bp = (bp + 1) % GEM_RX_BUF_CNT;
@@ -327,7 +318,7 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     /* allocate a block of contiguous memory for the descriptors */
     vaddr_t dmabase;
     ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_desc",
-            dmasize, (void **)&dmabase, 0, 0, ARCH_MMU_FLAG_UNCACHED);
+            sizeof(*state), (void **)&dmabase, 0, 0, ARCH_MMU_FLAG_UNCACHED);
     if (ret < 0)
         return ret;
 
@@ -337,16 +328,23 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     if (ret < 0)
         return ret;
 
-    TRACEF("dmabase 0x%lx, dmabase_phys 0x%lx\n", dmabase, dmabase_phys);
+    TRACEF("dmabase 0x%lx, dmabase_phys 0x%lx, size %zu\n", dmabase, dmabase_phys, sizeof(*state));
 
     /* tx/rx descriptor tables */
     state = (void *)dmabase;
     state_phys = dmabase_phys;
 
-    size_t bump_size = PAGE_ALIGN(sizeof(*state));
-    dmasize -= bump_size;
-    dmabase += bump_size;
-    dmabase_phys += bump_size;
+    /* allocate packet buffers */
+    ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_desc",
+            dmasize, (void **)&dmabase, 0, 0, ARCH_MMU_FLAG_CACHED);
+    if (ret < 0)
+        return ret;
+
+    ret = arch_mmu_query(dmabase, &dmabase_phys, NULL);
+    if (ret < 0)
+        return ret;
+
+    TRACEF("packetbuf 0x%lx, packetbuf_phys 0x%lx, size %zu\n", dmabase, dmabase_phys, dmasize);
 
     /* allocate packet buffers */
     while (dmasize >= PKTBUF_SIZE) {
@@ -412,8 +410,8 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
             DMA_CFG_TX_PKTBUF_MEMSZ_SEL | DMA_CFG_CSUM_GEN_OFFLOAD_EN |
             DMA_CFG_AHB_FIXED_BURST_LEN(0x16);
 
-    /* Enable MDIO, tx, and rx */
-    gem_io_init();
+    /* Enable VREF from GPIOB */
+    SLCR_REG(GPIOB_CTRL) = 0x1;
 
     ret = gem_phy_init();
     if (!ret) {
@@ -468,12 +466,12 @@ static int cmd_gem(int argc, const cmd_args *argv)
 
     if (argc == 1) {
         printf("gem [d]ebug:      enable RX debug output\n");
-        printf("gem [r]aw <iter>: Send <iter> raw mac packet for testing\n");
+        printf("gem [r]aw <iter> <length>: Send <iter> raw mac packet for testing\n");
         printf("gem [s]tatus:     print driver status\n");
     } else if (argv[1].str[0] == 'r') {
         pktbuf_t *p;
         int iter;
-        if (argc < 3) {
+        if (argc < 4) {
             return 0;
         }
 
@@ -482,7 +480,7 @@ static int cmd_gem(int argc, const cmd_args *argv)
         }
 
         iter = argv[2].u;
-        p->dlen = 1024;
+        p->dlen = argv[3].u;
         while (iter--) {
             memset(p->data, iter, 12);
             gem_send_raw_pkt(p);

@@ -93,6 +93,8 @@
 #define TTC1_A_INT    69
 #define TTC2_B_INT    70
 #define TTC3_C_INT    71
+#define ETH1_INT      77
+#define ETH1_WAKE_INT 78
 
 /* Perhipheral IRQs from fabric */
 #define F2P0_IRQ      61
@@ -113,7 +115,7 @@
 #define F2P14_IRQ     90
 #define F2P15_IRQ     91
 
-#define MAX_INT 96
+#define MAX_INT       96
 
 #ifndef ASSEMBLY
 
@@ -130,6 +132,8 @@ typedef struct {
     uint32_t dci_clk;
     uint32_t gem0_clk;
     uint32_t gem0_rclk;
+    uint32_t gem1_clk;
+    uint32_t gem1_rclk;
     uint32_t lqspi_clk;
     uint32_t sdio_clk;
     uint32_t uart_clk;
@@ -340,6 +344,16 @@ struct slcr_regs {
 /* Verify the entries match the TRM offset to validate the struct */
 STATIC_ASSERT(offsetof(struct slcr_regs, SCL) == 0x0);
 STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
+
+#define DDRC_CTRL                       0xF8006000
+#define DDRC_MODE_STATUS                0xF8006054
+
+#define DDRC_CTRL_OUT_OF_RESET          (1)
+#define DDRC_CTRL_BUS_WIDTH_16BIT       (1 << 2)
+#define DDRC_CTRL_RDRW_IDLE_GAP(x)      ((x & BIT_MASK(7) << 7)
+
+#define DDRC_STS_OPER_MODE(x)           (x & BIT_MASK(3))
+#define DDRC_STS_SELF_REFRESH           DDRC_STS_OPER_MODE(0x3)
 
 #define SLCR                            ((volatile struct slcr_regs *)SLCR_BASE)
 #define SLCR_REG(reg)                   (*REG32((uintptr_t)&SLCR->reg))

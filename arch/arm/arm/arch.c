@@ -118,8 +118,9 @@ status_t arm_vtop(addr_t va, addr_t *pa)
 	if (par & 1)
 		return ERR_NOT_FOUND;
 
-	if (pa)
-		*pa = par & 0xfffff000;
+	if (pa) {
+		*pa = (par & 0xfffff000) | (va & 0xfff);
+	}
 
 	return NO_ERROR;
 }

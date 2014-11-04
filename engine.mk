@@ -104,9 +104,6 @@ EXTRA_OBJS :=
 # if someone defines this, the build id will be pulled into lib/version
 BUILDID ?=
 
-# if this is set to 1, use ld's garbage collector for unused functions and data
-WITH_LINKER_GC ?= 0
-
 # comment out or override if you want to see the full output of each command
 NOECHO ?= @
 

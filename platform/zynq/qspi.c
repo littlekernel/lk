@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Brian Swetland
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -112,6 +113,8 @@ int qspi_set_speed(struct qspi_ctxt *qspi, uint32_t khz)
 	if (khz == qspi->khz)
 		return 0;
 
+	qspi->khz = khz;
+
 	writel(0, QSPI_ENABLE);
 	if (n == CFG_BAUD_DIV_2) {
 		writel(0x20, QSPI_LPBK_DLY_ADJ);
@@ -147,13 +150,13 @@ int qspi_init(struct qspi_ctxt *qspi, uint32_t khz)
 	            CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS;
 
 	writel(qspi->cfg, QSPI_CONFIG);
+	qspi->khz = 100000;
 
 	writel(1, QSPI_ENABLE);
 
 	// clear sticky irqs
 	writel(TX_UNDERFLOW | RX_OVERFLOW, QSPI_IRQ_STATUS);
 
-	qspi->khz = 100000;
 	return 0;
 }
 
@@ -256,12 +259,40 @@ void qspi_wr(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *dat
 	qspi_cs(qspi, 1);
 }
 
-void qspi_wr0(struct qspi_ctxt *qspi, uint32_t cmd)
+void qspi_wr1(struct qspi_ctxt *qspi, uint32_t cmd)
 {
 	DEBUG_ASSERT(qspi);
 
 	qspi_cs(qspi, 0);
 	writel(cmd, QSPI_TXD1);
+	qspi_xmit(qspi);
+
+	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
+
+	readl(QSPI_RXDATA);
+	qspi_cs(qspi, 1);
+}
+
+void qspi_wr2(struct qspi_ctxt *qspi, uint32_t cmd)
+{
+	DEBUG_ASSERT(qspi);
+
+	qspi_cs(qspi, 0);
+	writel(cmd, QSPI_TXD2);
+	qspi_xmit(qspi);
+
+	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
+
+	readl(QSPI_RXDATA);
+	qspi_cs(qspi, 1);
+}
+
+void qspi_wr3(struct qspi_ctxt *qspi, uint32_t cmd)
+{
+	DEBUG_ASSERT(qspi);
+
+	qspi_cs(qspi, 0);
+	writel(cmd, QSPI_TXD3);
 	qspi_xmit(qspi);
 
 	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;

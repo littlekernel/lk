@@ -86,7 +86,7 @@ void clock_tests(void)
 		for (;;) {
 			t = current_time();
 			t2 = current_time_hires();
-			if (t > (t2 / 1000)) {
+			if (t > ((t2 + 500) / 1000)) {
 				printf("WARNING: current_time() ahead of current_time_hires() %lu %llu\n", t, t2);
 			}
 			if (t - start > 5000)
@@ -111,3 +111,4 @@ void clock_tests(void)
 	}
 }
 
+// vim: set noexpandtab:

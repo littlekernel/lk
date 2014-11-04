@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <trace.h>
+#include <lib/fixed_point.h>
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/interrupts.h>
@@ -72,8 +73,9 @@ static addr_t scu_control_base;
 static lk_time_t periodic_interval;
 static lk_time_t oneshot_interval;
 static uint32_t timer_freq;
-static uint32_t timer_freq_usec_conversion;
-static uint32_t timer_freq_msec_conversion;
+static struct fp_32_64 timer_freq_msec_conversion;
+static struct fp_32_64 timer_freq_usec_conversion_inverse;
+static struct fp_32_64 timer_freq_msec_conversion_inverse;
 
 uint64_t get_global_val(void)
 {
@@ -92,7 +94,7 @@ lk_bigtime_t current_time_hires(void)
 {
     lk_bigtime_t time;
 
-    time = get_global_val() / timer_freq_usec_conversion;
+    time = u64_mul_u64_fp32_64(get_global_val(), timer_freq_usec_conversion_inverse);
 
     return time;
 }
@@ -101,7 +103,7 @@ lk_time_t current_time(void)
 {
     lk_time_t time;
 
-    time = get_global_val() / timer_freq_msec_conversion;
+    time = u32_mul_u64_fp32_64(get_global_val(), timer_freq_msec_conversion_inverse);
 
     return time;
 }
@@ -109,6 +111,12 @@ lk_time_t current_time(void)
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
     LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
+
+    uint64_t ticks = u64_mul_u64_fp32_64(interval, timer_freq_msec_conversion);
+    if (unlikely(ticks == 0))
+        ticks = 1;
+    if (unlikely(ticks > 0xffffffff))
+        ticks = 0xffffffff;
 
     enter_critical_section();
 
@@ -119,10 +127,8 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     // disable timer
     TIMREG(TIMER_CONTROL) = 0;
 
-    TIMREG(TIMER_LOAD) = ((uint64_t)timer_freq_msec_conversion * interval);
+    TIMREG(TIMER_LOAD) = ticks;
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<1) | (1<<0); // irq enable, autoreload, enable
-
-    unmask_interrupt(CPU_PRIV_TIMER_INT);
 
     exit_critical_section();
 
@@ -133,6 +139,12 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
 {
     LTRACEF("callback %p, arg %p, timeout %lu\n", callback, arg, interval);
 
+    uint64_t ticks = u64_mul_u64_fp32_64(interval, timer_freq_msec_conversion);
+    if (unlikely(ticks == 0))
+        ticks = 1;
+    if (unlikely(ticks > 0xffffffff))
+        ticks = 0xffffffff;
+
     enter_critical_section();
 
     t_callback = callback;
@@ -141,10 +153,8 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     // disable timer
     TIMREG(TIMER_CONTROL) = 0;
 
-    TIMREG(TIMER_LOAD) = ((uint64_t)timer_freq_msec_conversion * interval);
+    TIMREG(TIMER_LOAD) = ticks;
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<0) | (1<<0); // irq enable, oneshot, enable
-
-    unmask_interrupt(CPU_PRIV_TIMER_INT);
 
     exit_critical_section();
 
@@ -181,14 +191,19 @@ void arm_cortex_a9_timer_init(addr_t _scu_control_base, uint32_t freq)
     /* kill the watchdog */
     TIMREG(WDOG_CONTROL) = 0;
 
+    /* ack any irqs that may be pending */
+    TIMREG(TIMER_ISR) = 1;
+
     /* save the timer frequency for later calculations */
     timer_freq = freq;
 
     /* precompute the conversion factor for global time to real time */
-    timer_freq_usec_conversion = timer_freq / 1000000UL;
-    timer_freq_msec_conversion = timer_freq / 1000UL;
+    fp_32_64_div_32_32(&timer_freq_msec_conversion, timer_freq, 1000);
+    fp_32_64_div_32_32(&timer_freq_usec_conversion_inverse, 1000000, timer_freq);
+    fp_32_64_div_32_32(&timer_freq_msec_conversion_inverse, 1000, timer_freq);
 
     register_int_handler(CPU_PRIV_TIMER_INT, &platform_tick, NULL);
+    unmask_interrupt(CPU_PRIV_TIMER_INT);
 }
 
 /* vim: set ts=4 sw=4 expandtab: */
