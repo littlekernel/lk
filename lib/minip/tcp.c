@@ -108,6 +108,7 @@ typedef struct tcp_socket {
     uint8_t  *rx_buffer_raw;
     cbuf_t   rx_buffer;
     event_t  rx_event;
+    int      rx_full_mss_count; // number of packets we have received in a row with a full mss
     net_timer_t ack_delay_timer;
 
     /* tx */
@@ -127,12 +128,15 @@ typedef struct tcp_socket {
     net_timer_t time_wait_timer;
 } tcp_socket_t;
 
-#define DEFAULT_MSS (1024)
+#define DEFAULT_MSS (1460)
 #define DEFAULT_RX_WINDOW_SIZE (4096)
 #define DEFAULT_TX_BUFFER_SIZE (4096)
 
 #define RETRANSMIT_TIMEOUT (50)
+#define DELAYED_ACK_TIMEOUT (50)
 #define TIME_WAIT_TIMEOUT (60000) // 1 minute
+
+#define DO_TCP_CHECKSUM (true)
 
 #define SEQUENCE_GTE(a, b) ((int32_t)((a) - (b)) >= 0)
 #define SEQUENCE_LTE(a, b) ((int32_t)((a) - (b)) <= 0)
@@ -155,6 +159,7 @@ static void send_ack(tcp_socket_t *s);
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size);
 static void handle_retransmit_timeout(void *_s);
 static void handle_time_wait_timeout(void *_s);
+static void handle_delayed_ack_timeout(void *_s);
 static void tcp_remote_close(tcp_socket_t *s);
 static void tcp_wakeup_waiters(tcp_socket_t *s);
 static void inc_socket_ref(tcp_socket_t *s);
@@ -353,7 +358,7 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
     }
 
     /* checksum */
-    {
+    if (DO_TCP_CHECKSUM) {
         tcp_pseudo_header_t pheader;
 
         // set up the pseudo header for checksum purposes
@@ -600,7 +605,6 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
     DEBUG_ASSERT(is_mutex_held(&s->lock));
     DEBUG_ASSERT(data);
     DEBUG_ASSERT(len > 0);
-    DEBUG_ASSERT(is_mutex_held(&s->lock));
 
     /* see if it matches our current window */
     uint32_t sequence_top = sequence + len - 1;
@@ -620,8 +624,21 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
         cbuf_write(&s->rx_buffer, (uint8_t *)data + offset, copy_len, false);
         event_signal(&s->rx_event, true);
 
-        // XXX set up a delayed ack here when we have timers
-        send_ack(s);
+        /* keep a counter if they've been sending a full mss */
+        if (copy_len >= s->mss) {
+            s->rx_full_mss_count++;
+        } else {
+            s->rx_full_mss_count = 0;
+        }
+
+        /* immediately ack if we're more than halfway into our buffer or they've sent 2 or more full packets */
+        if (s->rx_full_mss_count >= 2 ||
+            (int)(s->rx_win_low + s->rx_win_size - s->rx_win_high) > (int)s->rx_win_size / 2) {
+            send_ack(s);
+            s->rx_full_mss_count = 0;
+        } else {
+            tcp_timer_set(s, &s->ack_delay_timer, &handle_delayed_ack_timeout, DELAYED_ACK_TIMEOUT);
+        }
     } else {
         // either out of order or completely out of our window, drop
         // duplicately ack the last thing we really got
@@ -654,13 +671,10 @@ static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, t
         win_size = s->rx_win_high - s->rx_win_low;
     }
 
-#if 0
     // we are piggybacking a pending ACK, so clear the delayed ACK timer
     if (flags & PKT_ACK) {
-        if (cancel_net_timer(&s->ack_delay_timer) == 0)
-            dec_socket_ref(s);
+        tcp_timer_cancel(s, &s->ack_delay_timer);
     }
-#endif
 
     status_t err = tcp_send(s->remote_ip, s->remote_port, s->local_ip, s->local_port, data, len, flags,
             options, options_length, (flags & PKT_ACK) ? s->rx_win_low : 0, sequence, win_size);
@@ -710,14 +724,16 @@ static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip
         pktbuf_append_data(p, buf, len);
 
     /* compute the checksum */
-    tcp_pseudo_header_t pheader;
-    pheader.source_addr = src_ip;
-    pheader.dest_addr = dest_ip;
-    pheader.zero = 0;
-    pheader.protocol = IP_PROTO_TCP;
-    pheader.tcp_length = htons(p->dlen);
+    if (DO_TCP_CHECKSUM) {
+        tcp_pseudo_header_t pheader;
+        pheader.source_addr = src_ip;
+        pheader.dest_addr = dest_ip;
+        pheader.zero = 0;
+        pheader.protocol = IP_PROTO_TCP;
+        pheader.tcp_length = htons(p->dlen);
 
-    header->checksum = cksum_pheader(&pheader, p->data, p->dlen);
+        header->checksum = cksum_pheader(&pheader, p->data, p->dlen);
+    }
 
     if (LOCAL_TRACE) {
         printf("sending ");
@@ -841,6 +857,20 @@ static void handle_retransmit_timeout(void *_s)
     tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
 
 done:
+    mutex_release(&s->lock);
+    dec_socket_ref(s);
+}
+
+static void handle_delayed_ack_timeout(void *_s)
+{
+    tcp_socket_t *s = _s;
+
+    LTRACEF("s %p\n", s);
+
+    DEBUG_ASSERT(s);
+
+    mutex_acquire(&s->lock);
+    send_ack(s);
     mutex_release(&s->lock);
     dec_socket_ref(s);
 }

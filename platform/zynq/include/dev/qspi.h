@@ -35,7 +35,9 @@ int qspi_set_speed(struct qspi_ctxt *qspi, uint32_t khz);
 int qspi_init(struct qspi_ctxt *qspi, uint32_t khz);
 void qspi_rd(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count);
 void qspi_wr(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count);
-void qspi_wr0(struct qspi_ctxt *qspi, uint32_t cmd);
+void qspi_wr1(struct qspi_ctxt *qspi, uint32_t cmd);
+void qspi_wr2(struct qspi_ctxt *qspi, uint32_t cmd);
+void qspi_wr3(struct qspi_ctxt *qspi, uint32_t cmd);
 uint32_t qspi_rd1(struct qspi_ctxt *qspi, uint32_t cmd);
 
 /* set 0 for chip select */

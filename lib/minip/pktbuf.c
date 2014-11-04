@@ -49,6 +49,11 @@ pktbuf_t *pktbuf_alloc(void) {
 	enter_critical_section();
 	p = list_remove_head_type(&pb_freelist, pktbuf_t, list);
 	exit_critical_section();
+
+	if (!p) {
+		return NULL;
+	}
+
 	p->data = p->buffer + PKTBUF_MAX_HDR;
 	p->dlen = 0;
 

@@ -83,12 +83,12 @@ static void qspi_rd32(struct qspi_ctxt *qspi, uint32_t addr, uint32_t *data, uin
 
 static inline void qspi_wren(struct qspi_ctxt *qspi)
 {
-	qspi_wr0(qspi, 0x06);
+	qspi_wr1(qspi, 0x06);
 }
 
 static inline void qspi_clsr(struct qspi_ctxt *qspi)
 {
-	qspi_wr0(qspi, 0x30);
+	qspi_wr1(qspi, 0x30);
 }
 
 static inline uint32_t qspi_rd_cr1(struct qspi_ctxt *qspi)
@@ -99,6 +99,14 @@ static inline uint32_t qspi_rd_cr1(struct qspi_ctxt *qspi)
 static inline uint32_t qspi_rd_status(struct qspi_ctxt *qspi)
 {
 	return qspi_rd1(qspi, 0x05) >> 24;
+}
+
+static inline void qspi_wr_status_cr1(struct qspi_ctxt *qspi, uint8_t status, uint8_t cr1)
+{
+	uint32_t cmd = (cr1 << 16) | (status << 8) | 0x01;
+
+	qspi_wren(qspi);
+	qspi_wr3(qspi, cmd);
 }
 
 static ssize_t qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr)
@@ -253,6 +261,13 @@ status_t spiflash_detect(void)
 
 	flash.detected = true;
 
+	/* see if we're in serial mode */
+	uint32_t cr1 = qspi_rd_cr1(&flash.qspi);
+	if ((cr1 & (1<<1)) == 0) {
+		printf("spiflash: device not in quad mode, cannot use for read/write\n");
+		goto nouse;
+	}
+
 	/* construct the block device */
 	bio_initialize_bdev(&flash.bdev, "spi0", PAGE_PROGRAM_SIZE, flash.size / PAGE_PROGRAM_SIZE);
 
@@ -267,6 +282,7 @@ status_t spiflash_detect(void)
 
 	LTRACEF("found flash of size 0x%llx\n", flash.size);
 
+nouse:
 	return NO_ERROR;
 
 nodetect:
@@ -363,15 +379,25 @@ usage:
 		printf("usage:\n");
 		printf("\t%s detect\n", argv[0].str);
 		printf("\t%s cfi\n", argv[0].str);
+		printf("\t%s cr1\n", argv[0].str);
 		printf("\t%s otp\n", argv[0].str);
 		printf("\t%s read <offset> <length>\n", argv[0].str);
 		printf("\t%s write <offset> <length> <address>\n", argv[0].str);
 		printf("\t%s erase <offset>\n", argv[0].str);
+		printf("\t%s setquad (dangerous)\n", argv[0].str);
 		return ERR_INVALID_ARGS;
 	}
 
 	if (!strcmp(argv[1].str, "detect")) {
 		spiflash_detect();
+	} else if (!strcmp(argv[1].str, "cr1")) {
+		if (!flash.detected) {
+			printf("flash not detected\n");
+			return -1;
+		}
+
+		uint32_t cr1 = qspi_rd_cr1(&flash.qspi);
+		printf("cr1 0x%x\n", cr1);
 	} else if (!strcmp(argv[1].str, "cfi")) {
 		if (!flash.detected) {
 			printf("flash not detected\n");
@@ -400,6 +426,10 @@ usage:
 		free(buf);
 	} else if (!strcmp(argv[1].str, "read")) {
 		if (argc < 4) goto notenoughargs;
+		if (!flash.detected) {
+			printf("flash not detected\n");
+			return -1;
+		}
 
 		uint8_t *buf = calloc(1, argv[3].u);
 
@@ -409,14 +439,41 @@ usage:
 		free(buf);
 	} else if (!strcmp(argv[1].str, "write")) {
 		if (argc < 5) goto notenoughargs;
+		if (!flash.detected) {
+			printf("flash not detected\n");
+			return -1;
+		}
 
 		status_t err = qspi_write_page(&flash.qspi, argv[2].u, (void *)argv[4].u);
 		printf("write_page returns %d\n", err);
 	} else if (!strcmp(argv[1].str, "erase")) {
 		if (argc < 3) goto notenoughargs;
+		if (!flash.detected) {
+			printf("flash not detected\n");
+			return -1;
+		}
 
 		status_t err = qspi_erase_sector(&flash.qspi, argv[2].u);
 		printf("erase returns %d\n", err);
+	} else if (!strcmp(argv[1].str, "setquad")) {
+		if (!flash.detected) {
+			printf("flash not detected\n");
+			return -1;
+		}
+
+		uint32_t cr1 = qspi_rd_cr1(&flash.qspi);
+		printf("cr1 before 0x%x\n", cr1);
+
+		if (cr1 & (1<<1)) {
+			printf("flash already in quad mode\n");
+			return 0;
+		}
+
+		qspi_wr_status_cr1(&flash.qspi, 0, cr1 | (1<<1));
+
+		thread_sleep(500);
+		cr1 = qspi_rd_cr1(&flash.qspi);
+		printf("cr1 after 0x%x\n", cr1);
 	} else {
 		printf("unknown command\n");
 		goto usage;

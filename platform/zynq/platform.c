@@ -158,6 +158,8 @@ void zynq_clk_init(void)
     SLCR_REG(DCI_CLK_CTRL)   = zynq_clk_cfg.dci_clk;
     SLCR_REG(GEM0_CLK_CTRL)  = zynq_clk_cfg.gem0_clk;
     SLCR_REG(GEM0_RCLK_CTRL) = zynq_clk_cfg.gem0_rclk;
+    SLCR_REG(GEM1_CLK_CTRL)  = zynq_clk_cfg.gem1_clk;
+    SLCR_REG(GEM1_RCLK_CTRL) = zynq_clk_cfg.gem1_rclk;
     SLCR_REG(LQSPI_CLK_CTRL) = zynq_clk_cfg.lqspi_clk;
     SLCR_REG(SDIO_CLK_CTRL)  = zynq_clk_cfg.sdio_clk;
     SLCR_REG(UART_CLK_CTRL)  = zynq_clk_cfg.uart_clk;
@@ -184,8 +186,8 @@ void zynq_ddr_init(void)
     reg_poll((uintptr_t)&SLCR->DDRIOB_DCI_STATUS, 0x2000);
 
     /* Bring ddr out of reset and wait until self refresh */
-    *REG32(0XF8006000) = 0x00000081U;
-    reg_poll(0xf8006054, 0x00000007);
+    *REG32(DDRC_CTRL) |= DDRC_CTRL_OUT_OF_RESET;
+    reg_poll(DDRC_MODE_STATUS, DDRC_STS_SELF_REFRESH);
 
     /* Switch timer to 64k */
     *REG32(0XF8007000) = *REG32(0xF8007000) & ~0x20000000U;
@@ -216,14 +218,14 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     { .phys = 0x40000000,
       .virt = 0x40000000,
       .size = (128*1024*1024),
-      .flags = MMU_INITIAL_MAPPING_FLAG_UNCACHED,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
       .name = "axi0" },
 
     /* AXI fpga fabric bus 1 */
     { .phys = 0x80000000,
       .virt = 0x80000000,
       .size = (16*1024*1024),
-      .flags = MMU_INITIAL_MAPPING_FLAG_UNCACHED,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
       .name = "axi1" },
     /* 0xe0000000 hardware devices */
     { .phys = 0xe0000000,
@@ -345,8 +347,6 @@ void platform_init(void)
 
     zynq_dump_clocks();
 #endif
-
-    gem_init(GEM0_BASE, 256*1024);
 }
 
 void platform_quiesce(void)

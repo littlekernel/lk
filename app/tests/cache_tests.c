@@ -30,37 +30,49 @@
 #include <lib/console.h>
 #include <platform.h>
 
-static int cache_tests(int argc, const cmd_args *argv)
+static void bench_cache(size_t bufsize)
 {
     lk_bigtime_t t;
 
-    printf("testing cache\n");
+    uint8_t *buf = memalign(PAGE_SIZE, bufsize);
+    printf("buf %p, size %zu\n", buf, bufsize);
 
-#define BUFSIZE (256*1024)
-    uint8_t *buf = memalign(PAGE_SIZE, BUFSIZE);
-    printf("buf %p\n", buf);
-
-    t = current_time_hires();
-    arch_clean_cache_range((addr_t)buf, BUFSIZE);
-    t = current_time_hires() - t;
-
-    printf("took %llu usecs to clean %d bytes (cold)\n", t, BUFSIZE);
-
-    memset(buf, 0x99, BUFSIZE);
+    if (!buf)
+        return;
 
     t = current_time_hires();
-    arch_clean_cache_range((addr_t)buf, BUFSIZE);
+    arch_clean_cache_range((addr_t)buf, bufsize);
     t = current_time_hires() - t;
 
-    printf("took %llu usecs to clean %d bytes (hot)\n", t, BUFSIZE);
+    printf("took %llu usecs to clean %d bytes (cold)\n", t, bufsize);
+
+    memset(buf, 0x99, bufsize);
+
+    t = current_time_hires();
+    arch_clean_cache_range((addr_t)buf, bufsize);
+    t = current_time_hires() - t;
+
+    printf("took %llu usecs to clean %d bytes (hot)\n", t, bufsize);
 
     free(buf);
+}
+
+
+static int cache_tests(int argc, const cmd_args *argv)
+{
+    printf("testing cache\n");
+
+    bench_cache(2*1024);
+    bench_cache(64*1024);
+    bench_cache(256*1024);
+    bench_cache(1024*1024);
+    bench_cache(16*1024*1024);
 
     return 0;
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("cache_tests", "tests of cpu cache", &cache_tests)
+STATIC_COMMAND("cache_tests", "test/bench the cpu cache", &cache_tests)
 STATIC_COMMAND_END(cache_tests);
 
 #endif
