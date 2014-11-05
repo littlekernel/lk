@@ -29,7 +29,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include <mincrypt/sha256.h>
+#include <lib/mincrypt/sha256.h>
 
 #include "bootimage.h"
 

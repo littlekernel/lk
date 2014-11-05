@@ -7,3 +7,5 @@ GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 MODULE_SRCS += \
 	$(LOCAL_DIR)/sha.c \
 	$(LOCAL_DIR)/sha256.c
+
+include make/module.mk
