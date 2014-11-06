@@ -203,6 +203,7 @@ bootentry_file *bootimage_add_file(bootimage *img, unsigned type, const char *fn
 	unsigned len;
 	if ((data = load_file(fn, &len)) == NULL) {
 		fprintf(stderr, "error: cannot load '%s'\n", fn);
+		return NULL;
 	}
 	return bootimage_add_filedata(img, type, data, len);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Brian Swetland
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,24 +20,17 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #pragma once
 
+#include <sys/types.h>
+#include <compiler.h>
 #include <lib/bootimage_struct.h>
 
-typedef struct bootimage bootimage;
+typedef struct bootimage bootimage_t;
 
-bootimage *bootimage_init(void);
+status_t bootimage_open(const void *ptr, size_t len, bootimage_t **bi) __NONNULL();
+status_t bootimage_close(bootimage_t *bi) __NONNULL();
 
-bootentry_data *bootimage_add_string(
-	bootimage *img, unsigned kind, const char *s);
+/* ask for a file section of the bootimage, by type */
+status_t bootimage_get_file_section(bootimage_t *bi, uint32_t type, void **ptr, size_t *len) __NONNULL((1));
 
-bootentry_file *bootimage_add_filedata(
-	bootimage *img, unsigned type, void *data, unsigned len);
-
-bootentry_file *bootimage_add_file(
-	bootimage *img, unsigned type, const char *fn);
-
-void bootimage_done(bootimage *img);
-
-int bootimage_write(bootimage *img, int fd);
