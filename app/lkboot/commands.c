@@ -93,12 +93,12 @@ static int do_boot(void *arg) {
 		if (bootimage_get_file_section(bi, TYPE_LK, &ptr, &len) >= 0) {
 			TRACEF("found lk section at %p\n", ptr);
 
-			arch_chain_load(ptr);
+			arch_chain_load(ptr, 5, 6, 7, 8);
 		}
 	} else {
 		/* raw image, just chain load it directly */
 		TRACEF("raw image, chainloading\n");
-		arch_chain_load(lkb_iobuffer);
+		arch_chain_load(lkb_iobuffer, 1, 2, 3, 4);
 	}
 	return 0;
 }
