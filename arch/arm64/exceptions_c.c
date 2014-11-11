@@ -43,13 +43,21 @@ static void dump_iframe(const struct arm64_iframe_long *iframe)
 
 void arm64_sync_exception(struct arm64_iframe_long *iframe)
 {
-    printf("sync_exception\n");
-    dump_iframe(iframe);
-
     uint32_t esr = ARM64_READ_SYSREG(esr_el1);
     uint32_t ec = esr >> 26;
     uint32_t il = (esr >> 25) & 0x1;
     uint32_t iss = esr & ((1<<24) - 1);
+
+#ifdef WITH_LIB_SYSCALL
+    if (ec == 0x15 || ec == 0x11) { // syscall 64/32
+        void arm64_syscall(struct arm64_iframe_long *iframe);
+        arm64_syscall(iframe);
+        return;
+    }
+#endif
+
+    printf("sync_exception\n");
+    dump_iframe(iframe);
 
     printf("ESR 0x%x: ec 0x%x, il 0x%x, iss 0x%x\n", esr, ec, il, iss);
 
