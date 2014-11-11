@@ -38,6 +38,8 @@ include $(LOCAL_DIR)/toolchain.mk
 TOOLCHAIN_PREFIX := $(ARCH_$(ARCH)_TOOLCHAIN_PREFIX)
 $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
+ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
+
 # make sure some bits were set up
 MEMVARS_SET := 0
 ifneq ($(MEMBASE),)
