@@ -31,7 +31,6 @@
 #include <lk/init.h>
 #include <platform/interrupts.h>
 #include <arch/ops.h>
-#include <arch/arm.h>
 #include <platform/gic.h>
 #include <trace.h>
 #if WITH_LIB_SM
@@ -160,7 +159,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 	}
 
 #if WITH_LIB_SM
-static DEFINE_GIC_SHADOW_REG(gicd_igroupr, 32, ~0UL, 0);
+static DEFINE_GIC_SHADOW_REG(gicd_igroupr, 32, ~0U, 0);
 #endif
 static DEFINE_GIC_SHADOW_REG(gicd_itargetsr, 4, 0x01010101, 32);
 
@@ -179,7 +178,7 @@ void arm_gic_init_percpu(void)
 {
 #if WITH_LIB_SM
 	GICREG(0, GICC_CTLR) = 0xb; // enable GIC0 and select fiq mode for secure
-	GICREG(0, GICD_IGROUPR(0)) = ~0UL; /* GICD_IGROUPR0 is banked */
+	GICREG(0, GICD_IGROUPR(0)) = ~0U; /* GICD_IGROUPR0 is banked */
 #else
 	GICREG(0, GICC_CTLR) = 1; // enable GIC0
 #endif
@@ -512,9 +511,13 @@ long smc_intc_request_fiq(smc32_args_t *args)
 static uint32_t read_mpidr(void)
 {
 	int mpidr;
+#if ARCH_ARM64
+	mpidr = ARM64_READ_SYSREG(mpidr_el1);
+#else
 	__asm__ volatile("mrc		p15, 0, %0, c0, c0, 5"
 		: "=r" (mpidr)
 		);
+#endif
 	return mpidr;
 }
 
