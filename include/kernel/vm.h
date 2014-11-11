@@ -23,11 +23,19 @@
 #pragma once
 
 /* some assembly #defines, need to match the structure below */
+#if IS_64BIT
+#define __MMU_INITIAL_MAPPING_PHYS_OFFSET 0
+#define __MMU_INITIAL_MAPPING_VIRT_OFFSET 8
+#define __MMU_INITIAL_MAPPING_SIZE_OFFSET 16
+#define __MMU_INITIAL_MAPPING_FLAGS_OFFSET 24
+#define __MMU_INITIAL_MAPPING_SIZE        40
+#else
 #define __MMU_INITIAL_MAPPING_PHYS_OFFSET 0
 #define __MMU_INITIAL_MAPPING_VIRT_OFFSET 4
 #define __MMU_INITIAL_MAPPING_SIZE_OFFSET 8
 #define __MMU_INITIAL_MAPPING_FLAGS_OFFSET 12
 #define __MMU_INITIAL_MAPPING_SIZE        20
+#endif
 
 /* flags for initial mapping struct */
 #define MMU_INITIAL_MAPPING_TEMPORARY     (0x1)
