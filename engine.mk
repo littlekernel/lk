@@ -62,7 +62,7 @@ GLOBAL_LDFLAGS :=
 GLOBAL_LDFLAGS += -L $(LKROOT)
 
 # top level rule
-all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex
+all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size
 
 # master module object list
 ALLOBJS_MODULE :=
