@@ -24,7 +24,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm/cache.c \
 	$(LOCAL_DIR)/arm/ops.S \
 	$(LOCAL_DIR)/arm/faults.c \
-	$(LOCAL_DIR)/arm/mmu.c \
 	$(LOCAL_DIR)/arm/dcc.S
 
 GLOBAL_DEFINES += \
@@ -32,6 +31,36 @@ GLOBAL_DEFINES += \
 	SMP_MAX_CPUS=1
 
 ARCH_OPTFLAGS := -O2
+
+# we have a mmu and want the vmm/pmm
+WITH_KERNEL_VM ?= 1
+
+ifeq ($(WITH_KERNEL_VM),1)
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/mmu.c
+
+KERNEL_ASPACE_BASE ?= 0xffff000000000000
+KERNEL_ASPACE_SIZE ?= 0x0001000000000000
+
+GLOBAL_DEFINES += \
+    KERNEL_ASPACE_BASE=$(KERNEL_ASPACE_BASE) \
+    KERNEL_ASPACE_SIZE=$(KERNEL_ASPACE_SIZE)
+
+KERNEL_BASE ?= 0xffff000000000000
+KERNEL_LOAD_OFFSET ?= 0
+
+GLOBAL_DEFINES += \
+    KERNEL_BASE=$(KERNEL_BASE) \
+    KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET)
+
+else
+
+KERNEL_BASE ?= $(MEMBASE)
+KERNEL_LOAD_OFFSET ?= 0
+
+endif
+
 
 # try to find the toolchain
 include $(LOCAL_DIR)/toolchain.mk
@@ -62,6 +91,6 @@ GENERATED += \
 $(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard arch/*.ld)
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
+	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@
 
 include make/module.mk
