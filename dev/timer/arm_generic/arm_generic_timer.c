@@ -35,6 +35,96 @@
 
 #include <lib/fixed_point.h>
 
+#if ARCH_ARM64
+
+/* CNTFRQ AArch64 register */
+#define TIMER_REG_CNTFRQ	cntfrq_el0
+
+/* CNTP AArch64 registers */
+#define TIMER_REG_CNTP_CTL	cntp_ctl_el0
+#define TIMER_REG_CNTP_CVAL	cntp_cval_el0
+#define TIMER_REG_CNTP_TVAL	cntp_tval_el0
+#define TIMER_REG_CNTPCT	cntpct_el0
+
+/* CNTPS AArch64 registers */
+#define TIMER_REG_CNTPS_CTL	cntps_ctl_el1
+#define TIMER_REG_CNTPS_CVAL	cntps_cval_el1
+#define TIMER_REG_CNTPS_TVAL	cntps_tval_el1
+#define TIMER_REG_CNTPSCT	cntpct_el0
+
+/* CNTV AArch64 registers */
+#define TIMER_REG_CNTV_CTL	cntv_ctl_el0
+#define TIMER_REG_CNTV_CVAL	cntv_cval_el0
+#define TIMER_REG_CNTV_TVAL	cntv_tval_el0
+#define TIMER_REG_CNTVCT	cntvct_el0
+
+#define READ_TIMER_REG32(reg) ARM64_READ_SYSREG(reg)
+#define READ_TIMER_REG64(reg) ARM64_READ_SYSREG(reg)
+#define WRITE_TIMER_REG32(reg, val) ARM64_WRITE_SYSREG(reg, val)
+#define WRITE_TIMER_REG64(reg, val) ARM64_WRITE_SYSREG(reg, val)
+
+#else
+
+/* CNTFRQ AArch32 register */
+#define TIMER_REG_CNTFRQ	"c0, 0"
+
+/* CNTP AArch32 registers */
+#define TIMER_REG_CNTP_CTL	"c2, 1"
+#define TIMER_REG_CNTP_CVAL	"2"
+#define TIMER_REG_CNTP_TVAL	"c2, 0"
+#define TIMER_REG_CNTPCT	"0"
+
+/* CNTPS AArch32 registers are banked and accessed though CNTP */
+#define CNTPS CNTP
+
+/* CNTV AArch32 registers */
+#define TIMER_REG_CNTV_CTL	"c3, 1"
+#define TIMER_REG_CNTV_CVAL	"3"
+#define TIMER_REG_CNTV_TVAL	"c3, 0"
+#define TIMER_REG_CNTVCT	"1"
+
+#define READ_TIMER_REG32(reg) \
+({ \
+	uint32_t _val; \
+	__asm__ volatile("mrc p15, 0, %0, c14, " reg : "=r" (_val)); \
+	_val; \
+})
+
+#define READ_TIMER_REG64(reg) \
+({ \
+	uint64_t _val; \
+	__asm__ volatile("mrrc p15, " reg ", %0, %H0, c14" : "=r" (_val)); \
+	_val; \
+})
+
+#define WRITE_TIMER_REG32(reg, val) \
+({ \
+	__asm__ volatile("mcr p15, 0, %0, c14, " reg :: "r" (val)); \
+	ISB; \
+})
+
+#define WRITE_TIMER_REG64(reg, val) \
+({ \
+	__asm__ volatile("mcrr p15, " reg ", %0, %H0, c14" :: "r" (val)); \
+	ISB; \
+})
+
+#endif
+
+#ifndef TIMER_ARM_GENERIC_SELECTED
+#define TIMER_ARM_GENERIC_SELECTED CNTP
+#endif
+
+#define COMBINE3(a,b,c) a ## b ## c
+#define XCOMBINE3(a,b,c) COMBINE3(a, b, c)
+
+#define SELECTED_TIMER_REG(reg)	XCOMBINE3(TIMER_REG_, TIMER_ARM_GENERIC_SELECTED, reg)
+#define TIMER_REG_CTL		SELECTED_TIMER_REG(_CTL)
+#define TIMER_REG_CVAL		SELECTED_TIMER_REG(_CVAL)
+#define TIMER_REG_TVAL		SELECTED_TIMER_REG(_TVAL)
+#define TIMER_REG_CT		SELECTED_TIMER_REG(CT)
+
+
 static platform_timer_callback t_callback;
 static int timer_irq;
 
@@ -61,7 +151,7 @@ static uint32_t read_cntfrq(void)
 {
 	uint32_t cntfrq;
 
-	__asm__ volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (cntfrq));
+	cntfrq = READ_TIMER_REG32(TIMER_REG_CNTFRQ);
 	LTRACEF("cntfrq: 0x%08x, %u\n", cntfrq, cntfrq);
 	return cntfrq;
 }
@@ -70,33 +160,33 @@ static uint32_t read_cntp_ctl(void)
 {
 	uint32_t cntp_ctl;
 
-	__asm__ volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (cntp_ctl));
+	cntp_ctl = READ_TIMER_REG32(TIMER_REG_CTL);
 	return cntp_ctl;
 }
 
 static void write_cntp_ctl(uint32_t cntp_ctl)
 {
-	LTRACEF_LEVEL(3, "cntp_ctl: 0x%x\n", cntp_ctl);
-	__asm__ volatile("mcr p15, 0, %0, c14, c2, 1" :: "r" (cntp_ctl));
+	LTRACEF_LEVEL(3, "cntp_ctl: 0x%x %x\n", cntp_ctl, read_cntp_ctl());
+	WRITE_TIMER_REG32(TIMER_REG_CTL, cntp_ctl);
 }
 
 static void write_cntp_cval(uint64_t cntp_cval)
 {
 	LTRACEF_LEVEL(3, "cntp_cval: 0x%016llx, %llu\n", cntp_cval, cntp_cval);
-	__asm__ volatile("mcrr p15, 2, %0, %H0, c14" :: "r" (cntp_cval));
+	WRITE_TIMER_REG64(TIMER_REG_CVAL, cntp_cval);
 }
 
 static void write_cntp_tval(int32_t cntp_tval)
 {
 	LTRACEF_LEVEL(3, "cntp_tval: 0x%08x, %d\n", cntp_tval, cntp_tval);
-	__asm__ volatile("mcr p15, 0, %0, c14, c2, 0" :: "r" (cntp_tval));
+	WRITE_TIMER_REG32(TIMER_REG_TVAL, cntp_tval);
 }
 
 static uint64_t read_cntpct(void)
 {
 	uint64_t cntpct;
 
-	__asm__ volatile("mrrc p15, 0, %0, %H0, c14" : "=r" (cntpct));
+	cntpct = READ_TIMER_REG64(TIMER_REG_CT);
 	LTRACEF_LEVEL(3, "cntpct: 0x%016llx, %llu\n", cntpct, cntpct);
 	return cntpct;
 }
