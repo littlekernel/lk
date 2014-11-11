@@ -796,7 +796,7 @@ void dump_thread(thread_t *t)
 	dprintf(INFO, "\ttls:");
 	int i;
 	for (i=0; i < MAX_TLS_ENTRY; i++) {
-		dprintf(INFO, " 0x%x", t->tls[i]);
+		dprintf(INFO, " 0x%lx", t->tls[i]);
 	}
 	dprintf(INFO, "\n");
 }
