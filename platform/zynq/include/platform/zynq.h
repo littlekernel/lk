@@ -119,6 +119,7 @@
 
 #ifndef ASSEMBLY
 
+/* Configuration values for each of the system PLLs. Refer to the TRM 25.10.4 */
 typedef struct {
     uint32_t lock_cnt;
     uint32_t cp;
@@ -151,6 +152,18 @@ typedef struct {
     zynq_pll_cfg_t ddr;
     zynq_pll_cfg_t io;
 } zynq_pll_cfg_tree_t;
+
+/* Configuration for the DDR controller and buffers. TRM Ch 10 */
+typedef struct {
+    uint32_t addr0;
+    uint32_t addr1;
+    uint32_t data0;
+    uint32_t data1;
+    uint32_t diff0;
+    uint32_t diff1;
+    bool ibuf_disable;
+    bool term_disable;
+} zynq_ddriob_cfg_t;;
 
 /* SLCR registers */
 struct slcr_regs {
