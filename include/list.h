@@ -260,4 +260,15 @@ static inline bool list_is_empty(struct list_node *list)
 	return (list->next == list) ? true : false;
 }
 
+static inline size_t list_length(struct list_node *list)
+{
+    size_t cnt = 0;
+    struct list_node *node = list;
+    list_for_every(list, node) {
+        cnt++;
+    }
+
+    return cnt;
+}
+
 #endif
