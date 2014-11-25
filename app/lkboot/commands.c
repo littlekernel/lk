@@ -35,6 +35,7 @@
 #include <kernel/thread.h>
 
 #include <lib/bio.h>
+#include <lib/bootargs.h>
 #include <lib/bootimage.h>
 #include <lib/ptable.h>
 #include <lib/sysparam.h>
@@ -80,10 +81,22 @@ static int do_reboot(void *arg) {
 static int do_boot(void *arg) {
 	thread_sleep(250);
 
+	/* construct a boot argument list */
+	// XXX get memory smarter than this
+	const size_t bootargs_size = 64*1024;
+	void *args = (void *)((uintptr_t)lkb_iobuffer + lkb_iobuffer_size - bootargs_size);
+	paddr_t args_phys = lkb_iobuffer_phys + lkb_iobuffer_size - bootargs_size;
+	bootargs_start(args, bootargs_size);
+	bootargs_add_command_line(args, bootargs_size, "what what");
+
+	ulong lk_args[4];
+	bootargs_generate_lk_arg_values(args_phys, lk_args);
+
+	const void *ptr;
+
 	/* sniff it to see if it's a bootimage or a raw image */
 	bootimage_t *bi;
 	if (bootimage_open(lkb_iobuffer, lkb_iobuffer_size, &bi) >= 0) {
-		void *ptr;
 		size_t len;
 
 		/* it's a bootimage */
@@ -93,13 +106,21 @@ static int do_boot(void *arg) {
 		if (bootimage_get_file_section(bi, TYPE_LK, &ptr, &len) >= 0) {
 			TRACEF("found lk section at %p\n", ptr);
 
-			arch_chain_load(ptr, 5, 6, 7, 8);
+			/* add the boot image to the argument list */
+			size_t bootimage_size;
+			bootimage_get_range(bi, NULL, &bootimage_size);
+
+			bootargs_add_bootimage_pointer(args, bootargs_size, lkb_iobuffer_phys, bootimage_size);
 		}
 	} else {
 		/* raw image, just chain load it directly */
 		TRACEF("raw image, chainloading\n");
-		arch_chain_load(lkb_iobuffer, 1, 2, 3, 4);
+
+		ptr = lkb_iobuffer;
 	}
+
+	arch_chain_load((void *)ptr, lk_args[0], lk_args[1], lk_args[2], lk_args[3]);
+
 	return 0;
 }
 
