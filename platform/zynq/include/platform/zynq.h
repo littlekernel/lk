@@ -77,6 +77,8 @@
 #define GIC_DISTRIB_BASE  (CPUPRIV_BASE + 0x1000)
 #define L2CACHE_BASE      (CPUPRIV_BASE + 0x2000)
 
+#define QSPI_LINEAR_BASE  (0xfc000000)
+
 /* interrupts */
 #define TTC0_A_INT    42
 #define TTC0_B_INT    43
