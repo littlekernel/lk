@@ -29,3 +29,23 @@ stp \ra, \rb, [sp,#-16]!
 .macro pop ra, rb
 ldp \ra, \rb, [sp], #16
 .endm
+
+.macro tbzmask, reg, mask, label, shift=0
+.if \shift >= 64
+    .error "tbzmask: unsupported mask, \mask"
+.elseif \mask == 1 << \shift
+    tbz     \reg, #\shift, \label
+.else
+    tbzmask \reg, \mask, \label, "(\shift + 1)"
+.endif
+.endm
+
+.macro tbnzmask, reg, mask, label, shift=0
+.if \shift >= 64
+    .error "tbnzmask: unsupported mask, \mask"
+.elseif \mask == 1 << \shift
+    tbnz     \reg, #\shift, \label
+.else
+    tbnzmask \reg, \mask, \label, "(\shift + 1)"
+.endif
+.endm
