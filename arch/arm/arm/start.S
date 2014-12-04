@@ -170,37 +170,37 @@ arm_reset:
 .Linitial_mapping_done:
 
 #if MMU_WITH_TRAMPOLINE
-	/* move arm_kernel_translation_table address to r3 and
+	/* move arm_kernel_translation_table address to r8 and
 	 * set cacheable attributes on translation walk
 	 */
-	orr		r3, r0, #MMU_TTBRx_FLAGS
+	orr		r8, r4, #MMU_TTBRx_FLAGS
 
 	/* Prepare tt_trampoline page table */
 	/* Calculate pagetable physical addresses */
-	ldr		r0, =tt_trampoline	/* r0 = tt_trampoline vaddr */
-	add		r0, r0, r12		/* r0 = tt_trampoline paddr */
+	ldr		r4, =tt_trampoline	/* r4 = tt_trampoline vaddr */
+	add		r4, r4, r11		/* r4 = tt_trampoline paddr */
 
 	/* Zero tt_trampoline translation tables */
-	mov		r4, #0
-	mov		r5, #0
+	mov		r6, #0
+	mov		r7, #0
 1:
-	str		r5, [r0, r4, lsl#2]
-	add		r4, #1
-	cmp		r4, #0x1000
+	str		r7, [r4, r6, lsl#2]
+	add		r6, #1
+	cmp		r6, #0x1000
 	blt		1b
 
 	/* Setup 1M section mapping at
 	 * phys	 -> phys   and
 	 * virt	 -> phys
 	 */
-	lsr		r4, pc, #20		/* r4 = paddr index */
-	ldr		r2, =MMU_KERNEL_L1_PTE_FLAGS
-	add		r2, r2, r4, lsl #20	/* r2 = pt entry */
+	lsr		r6, pc, #20		/* r6 = paddr index */
+	ldr		r7, =MMU_KERNEL_L1_PTE_FLAGS
+	add		r7, r7, r6, lsl #20	/* r7 = pt entry */
 
-	str		r2, [r0, r4, lsl #2]	/* tt_trampoline[paddr index] = pt entry */
+	str		r7, [r4, r6, lsl #2]	/* tt_trampoline[paddr index] = pt entry */
 
-	rsb		r4, r12, r4, lsl #20	/* r4 = vaddr */
-	str		r2, [r0, r4, lsr #(20 - 2)]	/* tt_trampoline[vaddr index] = pt entry */
+	rsb		r6, r11, r6, lsl #20	/* r6 = vaddr */
+	str		r7, [r4, r6, lsr #(20 - 2)]	/* tt_trampoline[vaddr index] = pt entry */
 #endif
 
 	/* set up the mmu */
@@ -286,7 +286,7 @@ arm_reset:
 	/* per cpu mmu setup, shared between primary and secondary cpus
 	   args:
 	   r4 == translation table physical
-	   r3 == final translation table physical (if using trampoline)
+	   r8 == final translation table physical (if using trampoline)
 	*/
 .Lmmu_setup:
 	/* Invalidate TLB */
@@ -336,7 +336,7 @@ arm_reset:
 
 #if MMU_WITH_TRAMPOLINE
 	/* Switch to main page table */
-	mcr		p15, 0, r3, c2, c0, 0
+	mcr		p15, 0, r8, c2, c0, 0
 	isb
 #endif
 
@@ -396,6 +396,18 @@ FUNCTION(arm_secondary_setup)
 	/* load the physical base of the translation table and clear the table */
 	ldr		r4, =arm_kernel_translation_table
 	add		r4, r4, r11
+
+#if MMU_WITH_TRAMPOLINE
+	/* move arm_kernel_translation_table address to r8 and
+	 * set cacheable attributes on translation walk
+	 */
+	orr		r8, r4, #MMU_TTBRx_FLAGS
+
+	/* Prepare tt_trampoline page table */
+	/* Calculate pagetable physical addresses */
+	ldr		r4, =tt_trampoline	/* r4 = tt_trampoline vaddr */
+	add		r4, r4, r11		/* r4 = tt_trampoline paddr */
+#endif
 
 	/* set up the mmu on this cpu and switch to virtual memory */
 	bl		.Lmmu_setup
