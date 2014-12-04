@@ -21,17 +21,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <asm.h>
+#include <arch/asm_macros.h>
 
 .section .text.boot.vectab
 .align 12
-
-.macro push ra, rb
-stp \ra, \rb, [sp,#-16]!
-.endm
-
-.macro pop ra, rb
-ldp \ra, \rb, [sp], #16
-.endm
 
 #define lr x30
 #define regsave_long_offset 0xf0

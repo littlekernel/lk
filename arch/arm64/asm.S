@@ -21,14 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <asm.h>
-
-.macro push ra, rb
-stp \ra, \rb, [sp,#-16]!
-.endm
-
-.macro pop ra, rb
-ldp \ra, \rb, [sp], #16
-.endm
+#include <arch/asm_macros.h>
 
 /* void arm64_context_switch(vaddr_t *old_sp, vaddr_t new_sp); */
 FUNCTION(arm64_context_switch)
