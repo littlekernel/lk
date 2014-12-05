@@ -27,8 +27,22 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm/dcc.S
 
 GLOBAL_DEFINES += \
-	ARCH_DEFAULT_STACK_SIZE=8192 \
-	SMP_MAX_CPUS=1
+	ARCH_DEFAULT_STACK_SIZE=8192
+
+# if its requested we build with SMP, arm generically supports 4 cpus
+ifeq ($(WITH_SMP),1)
+SMP_MAX_CPUS ?= 4
+
+GLOBAL_DEFINES += \
+    WITH_SMP=1 \
+    SMP_MAX_CPUS=$(SMP_MAX_CPUS)
+
+MODULE_SRCS += \
+    $(LOCAL_DIR)/mp.c
+else
+GLOBAL_DEFINES += \
+    SMP_MAX_CPUS=1
+endif
 
 ARCH_OPTFLAGS := -O2
 

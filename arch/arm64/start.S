@@ -17,6 +17,7 @@ page_table              .req x13
 new_page_table          .req x14
 phys_offset             .req x15
 
+cpuid                   .req x19
 page_table0             .req x20
 page_table1             .req x21
 mmu_initial_mapping     .req x22
@@ -45,6 +46,12 @@ FUNCTION(_start)
     /* Calculate pagetable physical addresses */
     adrp    page_table0, tt_trampoline
     add     page_table0, page_table0, #:lo12:tt_trampoline
+
+#if WITH_SMP
+    mrs     cpuid, mpidr_el1
+    bic     cpuid, cpuid, #0xff000000
+    cbnz    cpuid, .Lmmu_enable_secondary
+#endif
 
     mov     tmp, #0
 
@@ -197,6 +204,19 @@ FUNCTION(_start)
 
     str     tmp2, [page_table0, tmp, lsl #3]     /* tt_trampoline[paddr index] = pt entry */
 
+#if WITH_SMP
+    adr     tmp, page_tables_not_ready
+    str     wzr, [tmp]
+    b       .Lpage_tables_ready
+
+.Lmmu_enable_secondary:
+    adr     tmp, page_tables_not_ready
+.Lpage_tables_not_ready:
+    ldr     tmp2, [tmp]
+    cbnz    tmp2, .Lpage_tables_not_ready
+.Lpage_tables_ready:
+#endif
+
     /* set up the mmu */
 
     /* Invalidate TLB */
@@ -248,6 +268,9 @@ FUNCTION(_start)
     tlbi    vmalle1
     isb
 
+#if WITH_SMP
+    cbnz    cpuid, .Lsecondary_boot
+#endif
 #endif /* WITH_KERNEL_VM */
 
     ldr tmp, =__stack_end
@@ -270,12 +293,38 @@ FUNCTION(_start)
     bl  lk_main
     b   .
 
+#if WITH_SMP
+.Lsecondary_boot:
+    cmp     cpuid, #SMP_MAX_CPUS
+    bge     .Lunsupported_cpu_trap
+
+    /* Set up the stack */
+    ldr     tmp, =__stack_end
+    mov     tmp2, #ARCH_DEFAULT_STACK_SIZE
+    mul     tmp2, tmp2, cpuid
+    sub     sp, tmp, tmp2
+
+    bl      arm64_secondary_entry
+
+.Lunsupported_cpu_trap:
+    wfe
+    b       .Lunsupported_cpu_trap
+#endif
+
 .ltorg
+
+#if WITH_SMP
+.data
+DATA(page_tables_not_ready)
+    .long       1
+DATA(secondary_cpu_allocated_stack)
+    .quad       0
+#endif
 
 .section .bss.prebss.stack
     .align 4
 DATA(__stack)
-    .skip 0x2000
+    .skip ARCH_DEFAULT_STACK_SIZE * SMP_MAX_CPUS
 DATA(__stack_end)
 
 #if WITH_KERNEL_VM
