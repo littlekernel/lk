@@ -31,16 +31,19 @@ __BEGIN_CDECLS
 #define DSB __asm__ volatile("dsb sy" ::: "memory")
 #define ISB __asm__ volatile("isb" ::: "memory")
 
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
 #define ARM64_READ_SYSREG(reg) \
 ({ \
     uint64_t _val; \
-    __asm__ volatile("mrs %0," #reg : "=r" (_val)); \
+    __asm__ volatile("mrs %0," TOSTRING(reg) : "=r" (_val)); \
     _val; \
 })
 
 #define ARM64_WRITE_SYSREG(reg, val) \
 ({ \
-    __asm__ volatile("msr " #reg ", %0" :: "r" (val)); \
+    __asm__ volatile("msr " TOSTRING(reg) ", %0" :: "r" (val)); \
     ISB; \
 })
 
