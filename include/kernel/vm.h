@@ -139,6 +139,9 @@ static inline void *pmm_alloc_kpage(void) { return pmm_alloc_kpages(1, NULL); }
 /* physical to virtual */
 void *paddr_to_kvaddr(paddr_t pa);
 
+/* virtual to physical */
+paddr_t kvaddr_to_paddr(void *va);
+
 /* virtual allocator */
 typedef struct vmm_aspace {
     struct list_node node;
@@ -190,6 +193,10 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
 /* allocate a region of memory backed by newly allocated physical memory */
 status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, uint vmm_flags, uint arch_mmu_flags)
     __NONNULL((1));
+
+/* Unmap previously allocated region and free physical memory pages backing it (if any) */
+status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t va);
+
 
     /* For the above region creation routines. Allocate virtual space at the passed in pointer. */
 #define VMM_FLAG_VALLOC_SPECIFIC 0x1

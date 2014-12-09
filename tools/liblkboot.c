@@ -85,7 +85,7 @@ static int upload(int s, int txfd, int txlen) {
 	return 0;
 }
 
-#define REPLYMAX (1 * 1024 * 1024)
+#define REPLYMAX (9 * 1024 * 1024)
 static unsigned char replybuf[REPLYMAX];
 static unsigned replylen = 0;
 

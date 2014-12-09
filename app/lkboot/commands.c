@@ -24,16 +24,19 @@
 
 #include <platform.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <debug.h>
 #include <string.h>
 #include <endian.h>
 #include <malloc.h>
 #include <arch.h>
+#include <trace.h>
 
 #include <kernel/thread.h>
 
-#include <lib/ptable.h>
 #include <lib/bio.h>
+#include <lib/bootimage.h>
+#include <lib/ptable.h>
 #include <lib/sysparam.h>
 
 #include <app/lkboot.h>
@@ -74,9 +77,29 @@ static int do_reboot(void *arg) {
 	return 0;
 }
 
-static int do_ramboot(void *arg) {
+static int do_boot(void *arg) {
 	thread_sleep(250);
-	arch_chain_load(lkb_iobuffer);
+
+	/* sniff it to see if it's a bootimage or a raw image */
+	bootimage_t *bi;
+	if (bootimage_open(lkb_iobuffer, lkb_iobuffer_size, &bi) >= 0) {
+		void *ptr;
+		size_t len;
+
+		/* it's a bootimage */
+		TRACEF("detected bootimage\n");
+
+		/* find the lk image */
+		if (bootimage_get_file_section(bi, TYPE_LK, &ptr, &len) >= 0) {
+			TRACEF("found lk section at %p\n", ptr);
+
+			arch_chain_load(ptr, 5, 6, 7, 8);
+		}
+	} else {
+		/* raw image, just chain load it directly */
+		TRACEF("raw image, chainloading\n");
+		arch_chain_load(lkb_iobuffer, 1, 2, 3, 4);
+	}
 	return 0;
 }
 
@@ -95,8 +118,26 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 	if (!strcmp(cmd, "flash") || !strcmp(cmd, "erase")) {
 		struct ptable_entry entry;
 		bdev_t *bdev;
+
 		if (ptable_find(arg, &entry) < 0) {
-			return "no such partition";
+			size_t plen = len;
+			/* doesn't exist, make one */
+#if PLATFORM_ZYNQ
+			/* XXX not really the right place, should be in the ptable/bio layer */
+			plen = ROUNDUP(plen, 256*1024);
+#endif
+			off_t off = ptable_allocate(plen, 0);
+			if (off < 0) {
+				return "no space to allocate partition";
+			}
+
+			if (ptable_add(arg, off, plen, 0) < 0) {
+				return "error creating partition";
+			}
+
+			if (ptable_find(arg, &entry) < 0) {
+				return "couldn't find partition after creating it";
+			}
 		}
 		if (len > entry.length) {
 			return "partition too small";
@@ -119,6 +160,12 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 		}
 		bio_close(bdev);
 		return NULL;
+	} else if (!strcmp(cmd, "remove")) {
+		if (ptable_remove(arg) < 0) {
+			return "remove failed";
+		}
+
+		return NULL;
 	} else if (!strcmp(cmd, "fpga")) {
 #if PLATFORM_ZYNQ
 		unsigned *x = lkb_iobuffer;
@@ -139,7 +186,7 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 		if (lkb_read(lkb, lkb_iobuffer, len)) {
 			return "io error";
 		}
-		thread_resume(thread_create("ramboot", &do_ramboot, NULL,
+		thread_resume(thread_create("boot", &do_boot, NULL,
 			DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 		return NULL;
 	} else if (!strcmp(cmd, "getsysparam")) {

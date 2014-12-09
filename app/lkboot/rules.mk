@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS += \
 	lib/bio \
+	lib/bootimage \
 	lib/minip \
 	lib/ptable \
 	lib/sysparam

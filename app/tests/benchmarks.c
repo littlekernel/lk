@@ -208,6 +208,11 @@ __NO_INLINE static void bench_sincos(void)
     a = sqrt(1234567.0);
     count = arch_cycle_count() - count;
     printf("took %u cycles for sqrt()\n", count);
+
+    count = arch_cycle_count();
+    a = sqrtf(1234567.0f);
+    count = arch_cycle_count() - count;
+    printf("took %u cycles for sqrtf()\n", count);
 }
 
 #endif

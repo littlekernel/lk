@@ -84,6 +84,10 @@ static uint32_t mmu_flags_to_l1_arch_flags(uint flags)
             break;
     }
 
+    if (flags & ARCH_MMU_FLAG_NS) {
+            arch_flags |= MMU_MEMORY_L1_SECTION_NON_SECURE;
+    }
+
     return arch_flags;
 }
 

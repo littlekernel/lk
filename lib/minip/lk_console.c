@@ -99,7 +99,7 @@ minip_usage:
             }
             break;
             case 't': {
-                uint32_t buf[256];
+                uint8_t buf[256];
                 uint32_t c = 1;
                 if (argc > 2) {
                     c = argv[2].u;
@@ -108,10 +108,14 @@ minip_usage:
                 memset(buf, 0x00, sizeof(buf));
                 printf("sending %u packet(s)\n", c);
 
+                uint32_t failures = 0;
                 while (c--) {
                     buf[255] = c;
-                    send(&fd, buf, sizeof(buf), 0);
+                    if (send(&fd, buf, sizeof(buf), 0) != 0) {
+                        failures++;
+                    }
                 }
+                printf("%d pkts failed\n", failures);
             }
             break;
         }

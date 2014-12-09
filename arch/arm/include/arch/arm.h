@@ -50,7 +50,7 @@ __BEGIN_CDECLS
 
 void arm_context_switch(vaddr_t *old_sp, vaddr_t new_sp);
 
-void arm_chain_load(paddr_t entry) __NO_RETURN;
+void arm_chain_load(paddr_t entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN;
 
 static inline uint32_t read_cpsr(void)
 {

@@ -35,6 +35,11 @@
 
 #include <lib/console.h>
 
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#include <arch/mmu.h>
+#endif
+
 static int cmd_display_mem(int argc, const cmd_args *argv);
 static int cmd_modify_mem(int argc, const cmd_args *argv);
 static int cmd_fill_mem(int argc, const cmd_args *argv);
@@ -97,6 +102,14 @@ static int cmd_display_mem(int argc, const cmd_args *argv)
 		printf("unaligned address, cannot display\n");
 		return -1;
 	}
+
+#if WITH_KERNEL_VM
+	/* preflight the start address to see if it's mapped */
+	if (arch_mmu_query((vaddr_t)address, NULL, NULL) < 0) {
+		printf("ERROR: address 0x%lx is unmapped\n", address);
+		return -1;
+	}
+#endif
 
 	for ( ; address < stop; address += size) {
 		if (count == 0)
@@ -269,8 +282,10 @@ static int cmd_chain(int argc, const cmd_args *argv)
         return -1;
     }
 
-    arch_chain_load((void *)argv[1].u);
+    arch_chain_load((void *)argv[1].u, 0, 0, 0, 0);
 
     return 0;
 }
 
+
+// vim: set noexpandtab:

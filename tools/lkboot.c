@@ -37,6 +37,7 @@ void usage(void) {
 "\n"
 "       lkboot <hostname> flash <partition> <filename>\n"
 "       lkboot <hostname> erase <partition>\n"
+"       lkboot <hostname> remove <partition>\n"
 "       lkboot <hostname> fpga <bitfile>\n"
 "       lkboot <hostname> boot <binary>\n"
 "       lkboot <hostname> getsysparam <name>\n"
@@ -92,6 +93,7 @@ int main(int argc, char **argv) {
 		fn = args;
 		args = "";
 	} else if (!strcmp(cmd, "erase")) {
+	} else if (!strcmp(cmd, "remove")) {
 	} else if (!strcmp(cmd, "getsysparam")) {
 		if (lkboot_txn(host, cmd, -1, args) == 0) {
 			void *rbuf;

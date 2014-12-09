@@ -12,6 +12,8 @@ MODULES += \
 	lib/aes/test \
 	lib/bytes \
 	lib/cksum \
-	lib/debugcommands
+	lib/debugcommands \
+	lib/libm
 
+WITH_LINKER_GC := 0
 

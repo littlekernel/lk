@@ -22,6 +22,20 @@ static char rcsid[] = "$FreeBSD$";
 
 static  const float one = 1.0, tiny=1.0e-30;
 
+#if defined(LK) && ARCH_ARM && ARM_WITH_VFP
+/* use ARM w/VFP sqrt instruction */
+float
+__ieee754_sqrtf(float x)
+{
+    float res;
+
+    __asm__("vsqrt.f32 %0, %1" : "=t"(res) : "t"(x));
+
+    return res;
+}
+
+#else
+
 float
 __ieee754_sqrtf(float x)
 {
@@ -87,3 +101,6 @@ __ieee754_sqrtf(float x)
     SET_FLOAT_WORD(z,ix);
     return z;
 }
+
+#endif
+

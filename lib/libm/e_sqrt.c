@@ -89,6 +89,20 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
+#if defined(LK) && ARCH_ARM && ARM_WITH_VFP
+/* use ARM w/VFP sqrt instruction */
+double
+__ieee754_sqrt(double x)
+{
+    double res;
+
+    __asm__("vsqrt.f64 %0, %1" : "=w"(res) : "w"(x));
+
+    return res;
+}
+
+#else
+
 static  const double    one = 1.0, tiny=1.0e-300;
 
 double
@@ -188,6 +202,7 @@ __ieee754_sqrt(double x)
     INSERT_WORDS(z,ix0,ix1);
     return z;
 }
+#endif
 
 #if SUPPORT_LONG_DOUBLE
 #if (LDBL_MANT_DIG == 53)

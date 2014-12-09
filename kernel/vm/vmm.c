@@ -504,6 +504,46 @@ err:
     return err;
 }
 
+static vmm_region_t *vmm_find_region(const vmm_aspace_t *aspace, vaddr_t vaddr)
+{
+    vmm_region_t *r;
+
+    DEBUG_ASSERT(aspace);
+
+    if (!aspace)
+        return NULL;
+
+    /* search the region list */
+    list_for_every_entry(&aspace->region_list, r, vmm_region_t, node) {
+        if ((vaddr >= r->base) && (vaddr < r->base + r->size))
+            return r;
+    }
+
+    return NULL;
+}
+
+status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr)
+{
+    vmm_region_t *r = vmm_find_region (aspace, vaddr);
+    if (!r) {
+        return ERR_NOT_FOUND;
+    }
+
+    /* remove it from aspace */
+    list_delete(&r->node);
+
+    /* unmap it */
+    arch_mmu_unmap(r->base, r->size / PAGE_SIZE);
+
+    /* return physical pages if any */
+    pmm_free (&r->page_list);
+
+    /* free it */
+    free (r);
+
+    return NO_ERROR;
+}
+
 static void dump_region(const vmm_region_t *r)
 {
     printf("\tregion %p: name '%s' range 0x%lx - 0x%lx size 0x%zx flags 0x%x mmu_flags 0x%x\n",

@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <lib/console.h>
 #include <debug.h>
+#include <list.h>
 #include <err.h>
 #include <reg.h>
 #include <endian.h>
@@ -47,17 +48,16 @@
 
 #define LOCAL_TRACE         0
 #define GEM_RX_BUF_CNT      64
-#define GEM_TX_BUF_CNT      4
+#define GEM_TX_BUF_CNT      32
 #define GEM_RX_BUF_SIZE     1536
 #define GEM_TX_BUF_SIZE     1536
 
+struct list_node active_tx_list;
+struct list_node pending_tx_list;
+struct list_node pktbuf_to_free_list;
 
-/*
- * TODO:
- * 1) TX should work with pbuf lists
- * 2) We are not in gigabit mode yet
- */
-
+struct list_node *active_tx_ptr = &active_tx_list;
+struct list_node *pending_tx_ptr = &pending_tx_list;
 gem_cb_t rx_callback = NULL;
 
 struct gem_desc {
@@ -109,12 +109,57 @@ static void debug_rx_handler(pktbuf_t *p)
     }
 }
 
+bool gem_tx_active(void) {
+    return (regs->tx_status & TX_STATUS_GO);
+}
+
+void gem_queue_for_tx(void) {
+    struct list_node *tmp;
+    struct pktbuf *p;
+
+    /* Packets being sent will be constantly appended to the pending queue. By swapping the pending
+     * ptr to the active pointer here atomically we don't need a lock that would risk being acquired
+     * in both thread and interrupt context */
+    enter_critical_section();
+
+    if (list_is_empty(&pending_tx_list) || gem_tx_active())
+        goto exit;
+
+    LTRACEF("pending %d, free %d, active %d\n", list_length(&pending_tx_list),
+            list_length(&pktbuf_to_free_list), list_length(&active_tx_list));
+
+    tmp = pending_tx_ptr;
+    pending_tx_ptr = active_tx_ptr;
+    active_tx_ptr = tmp;
+
+    int pos = 0;
+    while ((p = list_remove_head_type(pending_tx_ptr, pktbuf_t, list)) != NULL) {
+        arch_clean_cache_range((addr_t)p->buffer, sizeof(p->buffer));
+        state->tx[pos].addr = (uintptr_t) pktbuf_data_phys(p);
+        state->tx[pos].ctrl = TX_BUF_LEN(p->dlen);
+        if (pos == GEM_TX_BUF_CNT) {
+            state->tx[pos - 1].ctrl |= TX_DESC_WRAP;
+        }
+
+        list_add_tail(&pktbuf_to_free_list, &p->list);
+        pos++;
+    }
+
+    state->tx[pos - 1].ctrl |= TX_LAST_BUF;
+    state->tx[pos].addr = 0;
+    state->tx[pos].ctrl = TX_DESC_USED;
+
+    regs->tx_qbar = ((uintptr_t)&state->tx[0] - (uintptr_t)state) + state_phys;
+    regs->net_ctrl |= NET_CTRL_START_TX;
+
+exit:
+    exit_critical_section();
+}
 
 int gem_send_raw_pkt(struct pktbuf *p)
 {
     status_t ret = NO_ERROR;
 
-    mutex_acquire(&tx_mutex);
 
     if (!p || !p->dlen) {
         ret = -1;
@@ -123,35 +168,15 @@ int gem_send_raw_pkt(struct pktbuf *p)
 
     LTRACEF("buf %p, len %zu, pkt %p\n", p->data, p->dlen, p);
 
-    /* make sure the cache is invalidated for the packet */
-    arch_clean_cache_range((addr_t)p->buffer, sizeof(p->buffer));
+    enter_critical_section();
+    list_add_tail(pending_tx_ptr, &p->list);
+    exit_critical_section();
 
-    /* TRM known issue #1. The TX path requires at least two descriptors
-     * and the final descriptor must have the used bit set. If not done
-     * then the controller will continue to wrap and send the frame multiple
-     * times
-     */
-    state->tx[0].addr = (uintptr_t) pktbuf_data_phys(p);
-    state->tx[0].ctrl = TX_BUF_LEN(p->dlen) | TX_LAST_BUF;
-    state->tx[1].addr = 0;
-    state->tx[1].ctrl = TX_DESC_USED | TX_DESC_WRAP;
-
-    LTRACEF("desc 0: addr 0x%x ctrl 0x%x\n", state->tx[0].addr, state->tx[0].ctrl);
-    LTRACEF("desc 1: addr 0x%x ctrl 0x%x\n", state->tx[1].addr, state->tx[1].ctrl);
-
-    /* load the physical address of the tx descriptor */
-    regs->tx_qbar = ((uintptr_t)&state->tx[0] - (uintptr_t)state) + state_phys;
-    regs->net_ctrl |= NET_CTRL_START_TX;
-
-    ret = event_wait_timeout(&tx_complete, 1000);
-    if (ret == ERR_TIMED_OUT) {
-        TRACEF("timed out transmitting packet\n");
+    if (!gem_tx_active()) {
+        gem_queue_for_tx();
     }
 
 err:
-    mutex_release(&tx_mutex);
-    pktbuf_free(p);
-    LTRACE_EXIT;
     return ret;
 }
 
@@ -188,15 +213,15 @@ enum handler_return gem_int_handler(void *arg) {
     }
 
     if (intr_status & INTR_TX_COMPLETE || intr_status & INTR_TX_USED_READ) {
-        state->tx[0].addr = 0;
-        state->tx[0].ctrl &= TX_DESC_USED;
-
-        state->tx[1].addr = 0;
-        state->tx[1].ctrl &= TX_DESC_USED | TX_DESC_WRAP;
+        LTRACEF("pending %d, free %d, active %d\n", list_length(&pending_tx_list),
+                list_length(&pktbuf_to_free_list), list_length(&active_tx_list));
+        pktbuf_t *p;
+        while ((p = list_remove_head_type(&pktbuf_to_free_list, pktbuf_t, list)) != NULL) {
+            pktbuf_free(p);
+        }
 
         regs->tx_status |= (TX_STATUS_COMPLETE | TX_STATUS_USED_READ);
-        event_signal(&tx_complete, false);
-
+        gem_queue_for_tx();
         resched = true;
     }
 
@@ -309,6 +334,9 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     thread_t *rx_thread;
     DEBUG_ASSERT(base == GEM0_BASE || base == GEM1_BASE);
 
+    list_initialize(&pending_tx_list);
+    list_initialize(&active_tx_list);
+    list_initialize(&pktbuf_to_free_list);
     /* make sure we can allocate at least enough memory for a gem_state
      * + some buffers
      */

@@ -182,19 +182,41 @@ status_t arm_vtop(addr_t va, addr_t *pa);
 /* tlb routines */
 static inline void arm_invalidate_tlb_global(void) {
     CF;
+#if WITH_SMP
+    arm_write_tlbiallis(0);
+#else
     arm_write_tlbiall(0);
+#endif
     DSB;
 }
 
 static inline void arm_invalidate_tlb_mva(vaddr_t va) {
     CF;
+#if WITH_SMP
+    arm_write_tlbimvais(va & 0xfffff000);
+#else
     arm_write_tlbimva(va & 0xfffff000);
+#endif
     DSB;
 }
 
 static inline void arm_invalidate_tlb_asid(uint8_t asid) {
     CF;
+#if WITH_SMP
+    arm_write_tlbiasidis(asid);
+#else
     arm_write_tlbiasid(asid);
+#endif
+    DSB;
+}
+
+static inline void arm_invalidate_tlb_mva_asid(vaddr_t va, uint8_t asid) {
+    CF;
+#if WITH_SMP
+    arm_write_tlbimvais((va & 0xfffff000) | asid);
+#else
+    arm_write_tlbimva((va & 0xfffff000) | asid);
+#endif
     DSB;
 }
 

@@ -47,6 +47,11 @@ static struct {
 	{ NULL, 0 },
 };
 
+void usage(const char *binary) {
+	fprintf(stderr, "usage:\n");
+	fprintf(stderr, "%s [-h] [-o <output file] section:file ...\n", binary);
+}
+
 int process(bootimage *img, char *cmd, char *arg) {
 	unsigned n;
 
@@ -66,20 +71,17 @@ int process(bootimage *img, char *cmd, char *arg) {
 		return 0;
 	}
 
-	if (!strcmp(cmd, "output")) {
-		outname = arg;
-		return 0;
-	}
-
 	fprintf(stderr, "unknown command '%s'\n", cmd);
 	return -1;
 }
 
 int main(int argc, char **argv) {
+	const char *binary = argv[0];
 	bootimage *img;
 	int fd;
+	int count = 0;
 
- 	img = bootimage_init();
+	img = bootimage_init();
 
 	while (argc > 1) {
 		char *cmd = argv[1];
@@ -87,30 +89,46 @@ int main(int argc, char **argv) {
 		argc--;
 		argv++;
 
-		if (arg == NULL) {
-			fprintf(stderr, "error: invalid argument '%s'\n", cmd);
-			return -1;
-		}
+		if (!strcmp(cmd, "-h") || !strcmp(cmd, "--help")) {
+			usage(binary);
+			return 1;
+		} else if (!strcmp(cmd, "-o")) {
+			outname = argv[2];
+			argc--;
+			argv++;
+		} else {
+			if (arg == NULL) {
+				fprintf(stderr, "error: invalid argument '%s'\n", cmd);
+				return 1;
+			}
 
-		*arg++ = 0;
+			*arg++ = 0;
 
-		if (process(img, cmd, arg)) {
-			return -1;
+			if (process(img, cmd, arg)) {
+				return 1;
+			}
+			count++;
 		}
+	}
+
+	if (count == 0) {
+		fprintf(stderr, "no sections to process\n");
+		return 1;
 	}
 
 	bootimage_done(img);
 
 	if ((fd = open(outname, O_CREAT|O_TRUNC|O_WRONLY, 0644)) < 0) {
 		fprintf(stderr, "error; cannot open '%s' for writing\n", outname);
-		return -1;
+		return 1;
 	}
 	if (bootimage_write(img, fd)) {
 		fprintf(stderr, "error: failed to write '%s'\n", outname);
 		unlink(outname);
-		return -1;
+		return 1;
 	}
 	close(fd);
 	return 0;
 }
 
+// vim: set noexpandtab:
