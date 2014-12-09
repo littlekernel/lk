@@ -27,11 +27,11 @@
 #include <platform/timer.h>
 #include <trace.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 #define LTRACEF_LEVEL(level, x...) do { if (LOCAL_TRACE >= level) { TRACEF(x); } } while (0)
 
-#include "fixed_point.h"
+#include <lib/fixed_point.h>
 
 static platform_timer_callback t_callback;
 

@@ -36,6 +36,9 @@
 #include <kernel/thread.h>
 #include <lk/init.h>
 
+/* saved boot arguments from whoever loaded the system */
+ulong lk_boot_args[4];
+
 extern void *__ctor_list;
 extern void *__ctor_end;
 extern int __bss_start;
@@ -61,10 +64,16 @@ static void call_constructors(void)
 }
 
 /* called from arch code */
-void lk_main(void) __NO_RETURN __EXTERNALLY_VISIBLE;
-void lk_main(void)
+void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN __EXTERNALLY_VISIBLE;
+void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
 	inc_critical_section();
+
+	// save the boot args
+	lk_boot_args[0] = arg0;
+	lk_boot_args[1] = arg1;
+	lk_boot_args[2] = arg2;
+	lk_boot_args[3] = arg3;
 
 	// get us into some sort of thread context
 	thread_init_early();
@@ -82,6 +91,8 @@ void lk_main(void)
 	target_early_init();
 
 	dprintf(INFO, "welcome to lk\n\n");
+	dprintf(INFO, "boot args 0x%lx 0x%lx 0x%lx 0x%lx\n",
+		lk_boot_args[0], lk_boot_args[1], lk_boot_args[2], lk_boot_args[3]);
 
 	// deal with any static constructors
 	dprintf(SPEW, "calling constructors\n");
@@ -134,3 +145,4 @@ static int bootstrap2(void *arg)
 	return 0;
 }
 
+// vim: noexpandtab:

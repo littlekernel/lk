@@ -34,7 +34,7 @@
 #define BIT_SET(x, bit) (((x) & (1 << (bit))) ? 1 : 0)
 
 #define BITMAP_BITS_PER_WORD (sizeof(unsigned long) * 8)
-#define BITMAP_NUM_WORDS(x) (((x) / BITMAP_BITS_PER_WORD) + 1)
+#define BITMAP_NUM_WORDS(x) (((x) + BITMAP_BITS_PER_WORD - 1) / BITMAP_BITS_PER_WORD)
 #define BITMAP_WORD(x) ((x) / BITMAP_BITS_PER_WORD)
 #define BITMAP_BIT_IN_WORD(x) ((x) & (BITMAP_BITS_PER_WORD - 1))
 
@@ -56,6 +56,28 @@ static inline int bitmap_clear(unsigned long *bitmap, int bit)
 static inline int bitmap_test(unsigned long *bitmap, int bit)
 {
 	return BIT_SET(bitmap[BITMAP_WORD(bit)], BITMAP_BIT_IN_WORD(bit));
+}
+
+/* find first zero bit starting from LSB */
+static inline unsigned long _ffz(unsigned long x)
+{
+	return __builtin_ffsl(~x) - 1;
+}
+
+static inline int bitmap_ffz(unsigned long *bitmap, int numbits)
+{
+	uint i;
+	int bit;
+
+	for (i = 0; i < BITMAP_NUM_WORDS(numbits); i++) {
+		if (bitmap[i] == ~0UL)
+			continue;
+		bit = i * BITMAP_BITS_PER_WORD + _ffz(bitmap[i]);
+		if (bit < numbits)
+			return bit;
+		return -1;
+	}
+	return -1;
 }
 
 #endif

@@ -29,7 +29,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include <mincrypt/sha256.h>
+#include <lib/mincrypt/sha256.h>
 
 #include "bootimage.h"
 
@@ -203,6 +203,7 @@ bootentry_file *bootimage_add_file(bootimage *img, unsigned type, const char *fn
 	unsigned len;
 	if ((data = load_file(fn, &len)) == NULL) {
 		fprintf(stderr, "error: cannot load '%s'\n", fn);
+		return NULL;
 	}
 	return bootimage_add_filedata(img, type, data, len);
 }

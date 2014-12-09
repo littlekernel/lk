@@ -23,6 +23,7 @@
 #include <err.h>
 #include <debug.h>
 #include <stdio.h>
+#include <string.h>
 #include <arch/arm/mmu.h>
 #include <kernel/vm.h>
 #include <dev/uart.h>
@@ -44,6 +45,7 @@ extern const long zynq_ddr_cfg[];
 extern const uint32_t zynq_ddr_cfg_cnt;
 extern const zynq_pll_cfg_tree_t zynq_pll_cfg;
 extern const zynq_clk_cfg_t zynq_clk_cfg;
+extern const zynq_ddriob_cfg_t zynq_ddriob_cfg;
 
 
 static inline int reg_poll(uint32_t addr,uint32_t mask)
@@ -65,7 +67,6 @@ static inline int reg_poll(uint32_t addr,uint32_t mask)
 int zynq_pll_init(void) {
     const zynq_pll_cfg_tree_t *cfg = &zynq_pll_cfg;
 
-    zynq_slcr_unlock();
     SLCR_REG(ARM_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->arm.lock_cnt) | PLL_CFG_PLL_CP(cfg->arm.cp) |
                                 PLL_CFG_PLL_RES(cfg->arm.res);
     SLCR_REG(ARM_PLL_CTRL) = PLL_FDIV(cfg->arm.fdiv) | PLL_BYPASS_FORCE | PLL_RESET;
@@ -101,60 +102,31 @@ int zynq_pll_init(void) {
     }
 
     SLCR_REG(IO_PLL_CTRL) &= ~PLL_BYPASS_FORCE;
-    zynq_slcr_lock();
     return 0;
 }
 
 int zynq_mio_init(void)
 {
-    zynq_slcr_unlock();
 
     /* This DDRIOB configuration applies to both zybo and uzed, but it's possible
      * it may not work for all boards in the future. Just something to keep in mind
      * with different memory configurations.
      */
-#if ZYNQ_SDRAM_INIT
     SLCR_REG(GPIOB_CTRL) = GPIOB_CTRL_VREF_EN;
-    SLCR_REG(DDRIOB_ADDR0) = DDRIOB_OUTPUT_EN(0x3);
-    SLCR_REG(DDRIOB_ADDR1) = DDRIOB_OUTPUT_EN(0x3);
-    SLCR_REG(DDRIOB_DATA0) = DDRIOB_INP_TYPE(1) | DDRIOB_TERM_EN |
-                                DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3);
-    SLCR_REG(DDRIOB_DATA1) = DDRIOB_INP_TYPE(1) | DDRIOB_TERM_EN |
-                                DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3);
-    SLCR_REG(DDRIOB_DIFF0) = DDRIOB_INP_TYPE(2) | DDRIOB_TERM_EN |
-                                DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3);
-    SLCR_REG(DDRIOB_DIFF1) = DDRIOB_INP_TYPE(2) | DDRIOB_TERM_EN |
-                                DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3);
-    SLCR_REG(DDRIOB_CLOCK) = DDRIOB_OUTPUT_EN(0x3);
-
-    /* These register fields are not documented in the TRM. These
-     * values represent the defaults generated via the Zynq tools
-     */
-    SLCR_REG(DDRIOB_DRIVE_SLEW_ADDR) = 0x0018C61CU;
-    SLCR_REG(DDRIOB_DRIVE_SLEW_DATA) = 0x00F9861CU;
-    SLCR_REG(DDRIOB_DRIVE_SLEW_DIFF) = 0x00F9861CU;
-    SLCR_REG(DDRIOB_DRIVE_SLEW_CLOCK) = 0x00F9861CU;
-    SLCR_REG(DDRIOB_DDR_CTRL) = 0x00000E60U;
-    SLCR_REG(DDRIOB_DCI_CTRL) = 0x00000001U;
-    SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000020U;
-    SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000823U;
-#endif
 
     for (size_t pin = 0; pin < countof(zynq_mio_cfg); pin++) {
         if (zynq_mio_cfg[pin] != 0) {
-            SLCR_REG(MIO_PIN_00 + (pin * sizeof(uint32_t))) = zynq_mio_cfg[pin];
+            SLCR_REG(MIO_PIN_00 + (pin * 4)) = zynq_mio_cfg[pin];
         }
     }
 
     SLCR_REG(SD0_WP_CD_SEL) = SDIO0_WP_SEL(0x37) | SDIO0_CD_SEL(0x2F);
-    zynq_slcr_lock();
 
     return 0;
 }
 
 void zynq_clk_init(void)
 {
-    zynq_slcr_unlock();
     SLCR_REG(DCI_CLK_CTRL)   = zynq_clk_cfg.dci_clk;
     SLCR_REG(GEM0_CLK_CTRL)  = zynq_clk_cfg.gem0_clk;
     SLCR_REG(GEM0_RCLK_CTRL) = zynq_clk_cfg.gem0_rclk;
@@ -170,12 +142,31 @@ void zynq_clk_init(void)
     SLCR_REG(FPGA3_CLK_CTRL) = zynq_clk_cfg.fpga3_clk;
     SLCR_REG(APER_CLK_CTRL)  = zynq_clk_cfg.aper_clk;
     SLCR_REG(CLK_621_TRUE)   = zynq_clk_cfg.clk_621_true;
-    zynq_slcr_lock();
 }
 
 void zynq_ddr_init(void)
 {
-    zynq_slcr_unlock();
+#ifdef ZYNQ_SDRAM_INIT
+    SLCR_REG(DDRIOB_ADDR0) = zynq_ddriob_cfg.addr0;
+    SLCR_REG(DDRIOB_ADDR1) = zynq_ddriob_cfg.addr1;
+    SLCR_REG(DDRIOB_DATA0) = zynq_ddriob_cfg.data0;
+    SLCR_REG(DDRIOB_DATA1) = zynq_ddriob_cfg.data1;
+    SLCR_REG(DDRIOB_DIFF0) = zynq_ddriob_cfg.diff0;
+    SLCR_REG(DDRIOB_DIFF1) = zynq_ddriob_cfg.diff1;
+    SLCR_REG(DDRIOB_CLOCK) = DDRIOB_OUTPUT_EN(0x3);
+
+    /* These register fields are not documented in the TRM. These
+     * values represent the defaults generated via the Zynq tools
+     */
+    SLCR_REG(DDRIOB_DRIVE_SLEW_ADDR) = 0x0018C61CU;
+    SLCR_REG(DDRIOB_DRIVE_SLEW_DATA) = 0x00F9861CU;
+    SLCR_REG(DDRIOB_DRIVE_SLEW_DIFF) = 0x00F9861CU;
+    SLCR_REG(DDRIOB_DRIVE_SLEW_CLOCK) = 0x00F9861CU;
+    SLCR_REG(DDRIOB_DDR_CTRL) = 0x00000E60U;
+    SLCR_REG(DDRIOB_DCI_CTRL) = 0x00000001U;
+    SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000020U;
+    SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000823U;
+#endif
 
     /* Write addresss / value pairs from target table */
     for (size_t i = 0; i < zynq_ddr_cfg_cnt; i += 2) {
@@ -192,7 +183,19 @@ void zynq_ddr_init(void)
     /* Switch timer to 64k */
     *REG32(0XF8007000) = *REG32(0xF8007000) & ~0x20000000U;
 
-    zynq_slcr_lock();
+    if (zynq_ddriob_cfg.ibuf_disable) {
+        SLCR_REG(DDRIOB_DATA0) |= DDRIOB_IBUF_DISABLE_MODE;
+        SLCR_REG(DDRIOB_DATA1) |= DDRIOB_IBUF_DISABLE_MODE;
+        SLCR_REG(DDRIOB_DIFF0) |= DDRIOB_IBUF_DISABLE_MODE;
+        SLCR_REG(DDRIOB_DIFF1) |= DDRIOB_IBUF_DISABLE_MODE;
+    }
+
+    if (zynq_ddriob_cfg.term_disable) {
+        SLCR_REG(DDRIOB_DATA0) |= DDRIOB_TERM_DISABLE_MODE;
+        SLCR_REG(DDRIOB_DATA1) |= DDRIOB_TERM_DISABLE_MODE;
+        SLCR_REG(DDRIOB_DIFF0) |= DDRIOB_TERM_DISABLE_MODE;
+        SLCR_REG(DDRIOB_DIFF1) |= DDRIOB_TERM_DISABLE_MODE;
+    }
 }
 
 STATIC_ASSERT(IS_ALIGNED(SDRAM_BASE, MB));
@@ -288,14 +291,18 @@ void platform_init_mmu_mappings(void)
 
 void platform_early_init(void)
 {
+    /* Unlock the registers and leave them that way */
+#if 0
+    ps7_init();
+#else
+    zynq_slcr_unlock();
     zynq_mio_init();
     zynq_pll_init();
     zynq_clk_init();
 #if ZYNQ_SDRAM_INIT
     zynq_ddr_init();
 #endif
-
-    zynq_slcr_unlock();
+#endif
 
     /* Enable all level shifters */
     SLCR_REG(LVL_SHFTR_EN) = 0xF;
@@ -305,7 +312,6 @@ void platform_early_init(void)
     /* zynq manual says this is mandatory for cache init */
     *REG32(SLCR_BASE + 0xa1c) = 0x020202;
 
-    zynq_slcr_lock();
 
     /* early initialize the uart so we can printf */
     uart_init_early();
@@ -370,7 +376,32 @@ static int cmd_mio(int argc, const cmd_args *argv)
     return 0;
 }
 
+#define DSR(x) printf("%30s (0x%08lx): 0x%08x\n", #x, (uintptr_t)&SLCR_REG(x), SLCR_REG(x));
+static int cmd_slcr(int argc, const cmd_args *argv)
+{
+    if (argc == 2) {
+        bool print_lock_status = false;
+        if (!strcmp(argv[1].str, "lock")) {
+            zynq_slcr_lock();
+            print_lock_status = true;
+        } else if (!strcmp(argv[1].str, "unlock")) {
+            zynq_slcr_unlock();
+            print_lock_status = true;
+        } else if (print_lock_status || !strcmp(argv[1].str, "lockstatus")) {
+            printf("%s\n", (SLCR->SLCR_LOCKSTA & 0x1) ? "locked" : "unlocked");
+        }
+    } else {
+        printf("slcr lock:        lock the SCL registers\n");
+        printf("slcr unlock:      unlock the SCL registers\n");
+        printf("slcr lockstatus:  print the SCL lock status\n");
+     }
+
+    return 0;
+}
+#undef DSR
+
 STATIC_COMMAND_START
 STATIC_COMMAND("mio", "print mio configuration", &cmd_mio)
+STATIC_COMMAND("slcr", "slcr commands", &cmd_slcr)
 STATIC_COMMAND_END(mio);
-#endif
+#endif // WITH_LIB_CONSOLE

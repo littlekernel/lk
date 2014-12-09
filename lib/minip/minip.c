@@ -544,9 +544,9 @@ void minip_close(minip_fd_t *fd)
     free(fd);
 }
 
-void send(minip_fd_t *fd, void *buf, size_t len, int flags)
+int send(minip_fd_t *fd, void *buf, size_t len, int flags)
 {
-    minip_udp_send(buf, len, fd->addr, fd->port, fd->port);
+    return minip_udp_send(buf, len, fd->addr, fd->port, fd->port);
 }
 
 // vim: set ts=4 sw=4 expandtab:

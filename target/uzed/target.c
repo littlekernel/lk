@@ -76,6 +76,17 @@ const unsigned long zynq_ddr_cfg[] = {
 
 const unsigned long zynq_ddr_cfg_cnt = countof(zynq_ddr_cfg);
 
+const zynq_ddriob_cfg_t zynq_ddriob_cfg = {
+    .addr0 = DDRIOB_OUTPUT_EN(0x3),
+    .addr1 = DDRIOB_OUTPUT_EN(0x3),
+    .data0 = DDRIOB_INP_TYPE(1) | DDRIOB_TERM_EN | DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3),
+    .data1 = DDRIOB_INP_TYPE(1) | DDRIOB_TERM_EN | DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3),
+    .diff0 = DDRIOB_INP_TYPE(2) | DDRIOB_TERM_EN | DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3),
+    .diff1 = DDRIOB_INP_TYPE(2) | DDRIOB_TERM_EN | DDRIOB_DCI_TYPE(0x3) | DDRIOB_OUTPUT_EN(0x3),
+    .ibuf_disable = false,
+    .term_disable = false,
+};
+
 const uint32_t zynq_mio_cfg[ZYNQ_MIO_CNT] = {
     [0] = MIO_IO_TYPE_LVCMOS33,
     [1] = MIO_L0_SEL | MIO_IO_TYPE_LVCMOS33,

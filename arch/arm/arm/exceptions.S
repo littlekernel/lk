@@ -202,12 +202,12 @@ FUNCTION(arm_irq)
 	restore
 
 FUNCTION(arm_fiq)
-	saveall_offset #4, #0x17
+	save_offset #4 
 
 	mov		r0, sp
 	bl	platform_fiq
 
-	restoreall
+	restore
 
 .ltorg
 

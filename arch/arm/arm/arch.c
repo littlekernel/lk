@@ -126,9 +126,9 @@ status_t arm_vtop(addr_t va, addr_t *pa)
 }
 #endif
 
-void arch_chain_load(void *entry)
+void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
-	LTRACEF("entry %p\n", entry);
+	LTRACEF("entry %p, args 0x%lx 0x%lx 0x%lx 0x%lx\n", entry, arg0, arg1, arg2, arg3);
 
 	/* we are going to shut down the system, start by disabling interrupts */
 	enter_critical_section();
@@ -176,8 +176,8 @@ void arch_chain_load(void *entry)
 	LTRACEF("branching to physical address of loader\n");
 
 	/* branch to the physical address version of the chain loader routine */
-	void (*loader)(paddr_t entry) __NO_RETURN = (void *)loader_pa;
-	loader(entry_pa);
+	void (*loader)(paddr_t entry, ulong, ulong, ulong, ulong) __NO_RETURN = (void *)loader_pa;
+	loader(entry_pa, arg0, arg1, arg2, arg3);
 #else
 #error handle the non vm path (should be simpler)
 #endif

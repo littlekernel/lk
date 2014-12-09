@@ -45,18 +45,18 @@ platform_reset:
 arm_reset:
 	/* do some cpu setup */
 #if ARM_WITH_CP15
-	mrc		p15, 0, r0, c1, c0, 0
+	mrc		p15, 0, r12, c1, c0, 0
 		/* XXX this is currently for arm926, revist with armv6 cores */
 		/* new thumb behavior, low exception vectors, i/d cache disable, mmu disabled */
-	bic		r0, r0, #(1<<15| 1<<13 | 1<<12)
-	bic		r0, r0, #(1<<2 | 1<<1 | 1<<0)
+	bic		r12, #(1<<15| 1<<13 | 1<<12)
+	bic		r12, #(1<<2 | 1<<1 | 1<<0)
 #if ARM_ARCH_LEVEL < 6
 		/* enable alignment faults on pre-ARMv6 hardware. On v6+,
 		 * GCC is free to generate unaligned accesses.
 		 */
-	orr		r0, r0, #(1<<1)
+	orr		r12, #(1<<1)
 #endif
-	mcr		p15, 0, r0, c1, c0, 0
+	mcr		p15, 0, r12, c1, c0, 0
 #endif
 
 #if WITH_CPU_EARLY_INIT
@@ -66,27 +66,31 @@ arm_reset:
 
 #if WITH_KERNEL_VM
 __relocate_start:
+#if WITH_NO_PHYS_RELOCATION
+	/* assume that image is properly loaded in physical memory */
+#else
 	/* see if we need to relocate to our proper location in physical memory */
-	adr		r0, _start                           /* this emits sub r0, pc, #constant */
-	ldr		r1, =(MEMBASE + KERNEL_LOAD_OFFSET)  /* calculate the binary's physical load address */
-	subs	r12, r0, r1                          /* calculate the delta between where we're loaded and the proper spot */
+	adr		r4, _start                           /* this emits sub r4, pc, #constant */
+	ldr		r5, =(MEMBASE + KERNEL_LOAD_OFFSET)  /* calculate the binary's physical load address */
+	subs	r12, r4, r5                          /* calculate the delta between where we're loaded and the proper spot */
 	beq		.Lsetup_mmu
 
 	/* we need to relocate ourselves to the proper spot */
-	ldr		r2, =__data_end
-	ldr		r3, =(KERNEL_BASE - MEMBASE)
-	sub		r2, r3
-	add		r2, r12
+	ldr		r6, =__data_end
+	ldr		r7, =(KERNEL_BASE - MEMBASE)
+	sub		r6, r7
+	add		r6, r12
 
 .Lrelocate_loop:
-	ldr		r3, [r0], #4
-	str		r3, [r1], #4
-	cmp		r0, r2
+	ldr		r7, [r4], #4
+	str		r7, [r5], #4
+	cmp		r4, r6
 	bne		.Lrelocate_loop
 
 	/* we're relocated, jump to the right address */
 	sub		pc, r12
 	nop
+#endif
 
 __mmu_start:
 .Lsetup_mmu:
@@ -94,64 +98,66 @@ __mmu_start:
 
 	/* calculate our physical to virtual offset */
 	mov		r12, pc
-	ldr		r1, =.Laddr1
+	ldr		r5, =.Laddr1
 .Laddr1:
-	sub		r12, r1
+	sub		r12, r5
 
 	/* r12 now holds the offset from virtual to physical:
 	 * virtual + r12 = physical */
 
 	/* load the base of the translation table and clear the table */
-	ldr		r0, =arm_kernel_translation_table
-	add		r0, r12
+	ldr		r4, =arm_kernel_translation_table
+	add		r4, r12
+		/* r4 = physical address of translation table */
 
-	mov		r1, #0
-	mov		r2, #0
+	mov		r5, #0
+	mov		r6, #0
 
 	/* walk through all the entries in the translation table, setting them up */
 0:
-	str		r1, [r0, r2, lsl #2]
-	add		r2, #1
-	cmp		r2, #4096
+	str		r5, [r4, r6, lsl #2]
+	add		r6, #1
+	cmp		r6, #4096
 	bne		0b
 
 	/* load the address of the mmu_initial_mappings table and start processing */
-	ldr		r1, =mmu_initial_mappings
-	add		r1, r12
+	ldr		r5, =mmu_initial_mappings
+	add		r5, r12
+		/* r5 = physical address of mmu initial mapping table */
 
 .Linitial_mapping_loop:
-	ldmia	r1!, { r2-r6 }
-		/* r2 = phys, r3 = virt, r4 = size, r5 = flags, r6 = name */
+	ldmia	r5!, { r6-r10 }
+		/* r6 = phys, r7 = virt, r8 = size, r9 = flags, r10 = name */
 
 	/* mask all the addresses and sizes to 1MB boundaries */
-	lsr		r2, #20  /* r2 = physical address / 1MB */
-	lsr		r3, #20  /* r3 = virtual address / 1MB */
-	lsr		r4, #20  /* r4 = size in 1MB chunks */
+	lsr		r6, #20  /* r6 = physical address / 1MB */
+	lsr		r7, #20  /* r7 = virtual address / 1MB */
+	lsr		r8, #20  /* r8 = size in 1MB chunks */
 
 	/* if size == 0, end of list */
-	cmp		r4, #0
+	cmp		r8, #0
 	beq		.Linitial_mapping_done
 
 	/* set up the flags */
-	ldr		r6, =MMU_KERNEL_L1_PTE_FLAGS
-	teq		r5, #MMU_INITIAL_MAPPING_FLAG_UNCACHED
-	ldreq	r6, =MMU_INITIAL_MAP_STRONGLY_ORDERED
+	ldr		r10, =MMU_KERNEL_L1_PTE_FLAGS
+	teq		r9, #MMU_INITIAL_MAPPING_FLAG_UNCACHED
+	ldreq	r10, =MMU_INITIAL_MAP_STRONGLY_ORDERED
 	beq		0f
-	teq		r5, #MMU_INITIAL_MAPPING_FLAG_DEVICE
-	ldreq	r6, =MMU_INITIAL_MAP_DEVICE
-		/* r6 = mmu entry flags */
+	teq		r9, #MMU_INITIAL_MAPPING_FLAG_DEVICE
+	ldreq	r10, =MMU_INITIAL_MAP_DEVICE
+		/* r10 = mmu entry flags */
 
 0:
-	orr		r7, r6, r2, lsl #20
-		/* r7 = phys addr | flags */
+	orr		r11, r10, r6, lsl #20
+		/* r11 = phys addr | flags */
 
 	/* store into appropriate translation table entry */
-	str		r7, [r0, r3, lsl #2]
+	str		r11, [r4, r7, lsl #2]
 
 	/* loop until we're done */
-	add		r2, #1
-	add		r3, #1
-	subs	r4, #1
+	add		r6, #1
+	add		r7, #1
+	subs	r8, #1
 	bne		0b
 
 	b		.Linitial_mapping_loop
@@ -161,40 +167,40 @@ __mmu_start:
 	/* set up the mmu */
 
 	/* Invalidate TLB */
-	mov		r3, #0
-	mcr		p15, 0, r3, c8, c7, 0
+	mov		r12, #0
+	mcr		p15, 0, r12, c8, c7, 0
 	isb
 
 	/* Write 0 to TTBCR */
-	mcr		p15, 0, r3, c2, c0, 2
+	mcr		p15, 0, r12, c2, c0, 2
 	isb
 
 	/* set cacheable attributes on translation walk */
 	/* (SMP extensions) non-shareable, inner write-back write-allocate */
-	orr		r0, #(1<<6 | 0<<1)
+	orr		r4, #(1<<6 | 0<<1)
 	/* outer write-back write-allocate */
-	orr		r0, #(1<<3)
+	orr		r4, #(1<<3)
 
 	/* Write ttbr with phys addr of the translation table */
-	mcr		p15, 0, r0, c2, c0, 0
+	mcr		p15, 0, r4, c2, c0, 0
 	isb
 
 	/* Write DACR */
-	mov		r3, #0x1
-	mcr		p15, 0, r3, c3, c0, 0
+	mov		r12, #0x1
+	mcr		p15, 0, r12, c3, c0, 0
 	isb
 
-	/* Read SCTLR into r3 */
-	mrc		p15, 0, r3, c1, c0, 0
+	/* Read SCTLR */
+	mrc		p15, 0, r12, c1, c0, 0
 
 	/* Disable TRE/AFE */
-	bic		r3, r3, #(1<<29 | 1<<28)
+	bic		r12, #(1<<29 | 1<<28)
 
 	/* Turn on the MMU */
-	orr		r3, r3, #0x1
+	orr		r12, #0x1
 
 	/* Write back SCTLR */
-	mcr		p15, 0, r3, c1, c0, 0
+	mcr		p15, 0, r12, c1, c0, 0
 	isb
 
 	/* Jump to virtual code address */
@@ -202,80 +208,80 @@ __mmu_start:
 1:
 
 	/* Invalidate TLB */
-	mov		r3, #0
-	mcr		p15, 0, r3, c8, c7, 0
+	mov		r12, #0
+	mcr		p15, 0, r12, c8, c7, 0
 	isb
 
 #else
 	/* see if we need to relocate */
-	mov		r0, pc
-	sub		r0, r0, #(.Laddr - _start)
+	mov		r4, pc
+	sub		r4, r4, #(.Laddr - _start)
 .Laddr:
-	ldr		r1, =_start
-	cmp		r0, r1
+	ldr		r5, =_start
+	cmp		r4, r5
 	beq		.Lstack_setup
 
 	/* we need to relocate ourselves to the proper spot */
-	ldr		r2, =__data_end
+	ldr		r6, =__data_end
 
 .Lrelocate_loop:
-	ldr		r3, [r0], #4
-	str		r3, [r1], #4
-	cmp		r1, r2
+	ldr		r7, [r4], #4
+	str		r7, [r5], #4
+	cmp		r5, r6
 	bne		.Lrelocate_loop
 
 	/* we're relocated, jump to the right address */
-	ldr		r0, =.Lstack_setup
-	bx		r0
+	ldr		r4, =.Lstack_setup
+	bx		r4
 #endif
 
 	/* at this point we're running at our final location in virtual memory (if enabled) */
 .Lstack_setup:
 	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
-	ldr		r2, =abort_stack_top
+	ldr		r12, =abort_stack_top
 
 	cpsid	i,#0x12       /* irq */
-	mov		sp, r2
+	mov		sp, r12
 
 	cpsid	i,#0x11       /* fiq */
-	mov		sp, r2
+	mov		sp, r12
 
 	cpsid	i,#0x17       /* abort */
-	mov		sp, r2
+	mov		sp, r12
 
 	cpsid	i,#0x1b       /* undefined */
-	mov		sp, r2
+	mov		sp, r12
 
 	cpsid	i,#0x1f       /* system */
-	mov		sp, r2
+	mov		sp, r12
 
 	cpsid	i,#0x13       /* supervisor */
-	mov		sp, r2
+	mov		sp, r12
 
 	/* stay in supervisor mode from now on out */
 
 	/* copy the initialized data segment out of rom if necessary */
-	ldr		r0, =__data_start_rom
-	ldr		r1, =__data_start
-	ldr		r2, =__data_end
+	ldr		r4, =__data_start_rom
+	ldr		r5, =__data_start
+	ldr		r6, =__data_end
 
-	cmp		r0, r1
+	cmp		r4, r5
 	beq		.L__do_bss
 
 .L__copy_loop:
-	cmp		r1, r2
-	ldrlt	r3, [r0], #4
-	strlt	r3, [r1], #4
+	cmp		r5, r6
+	ldrlt	r7, [r4], #4
+	strlt	r7, [r5], #4
 	blt		.L__copy_loop
 
 .L__do_bss:
 	/* clear out the bss */
-	ldr		r0, =__bss_start
-	ldr		r1, =_end
-	mov		r2, #0
+	ldr		r4, =__bss_start
+	ldr		r5, =_end
+	mov		r6, #0
 .L__bss_loop:
-	cmp		r0, r1
-	strlt	r2, [r0], #4
+	cmp		r4, r5
+	strlt	r6, [r4], #4
 	blt		.L__bss_loop
 
 	bl		lk_main

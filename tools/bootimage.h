@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include "../include/bootimage.h"
+#include <lib/bootimage_struct.h>
 
 typedef struct bootimage bootimage;
 
