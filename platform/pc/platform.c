@@ -36,9 +36,18 @@
 #include <malloc.h>
 #include <string.h>
 #include <assert.h>
+#include <kernel/vm.h>
 
 extern multiboot_info_t *_multiboot_info;
+extern int _end_of_ram;
+
+#if WITH_KERNEL_VM
+extern int _end;
+static uintptr_t _heap_start = (uintptr_t)&_end;
+static uintptr_t _heap_end = (uintptr_t)&_end_of_ram;
+#else
 extern uintptr_t _heap_end;
+#endif
 extern uint64_t __code_start;
 extern uint64_t __code_end;
 extern uint64_t __rodata_start;
@@ -50,6 +59,22 @@ extern uint64_t __bss_end;
 
 /* Address width */
 uint32_t g_addr_width;
+
+struct mmu_initial_mapping mmu_initial_mappings[] = {
+	/* 1 GB of memory*/
+    { .phys = 0x200000,
+      .virt = 0x200000,
+      .size = 1024*1024*1024,
+      .flags = 0,
+      .name = "memory" },
+
+	{ .phys = 0,
+      .virt = 0,
+      .size = 1024*1024*1024,
+      .flags = MMU_INITIAL_MAPPING_TEMPORARY },
+    /* null entry to terminate the list */
+    { 0 }
+};
 
 void platform_init_mmu_mappings(void)
 {
@@ -95,6 +120,24 @@ void platform_init_mmu_mappings(void)
 #endif
 }
 
+#if WITH_KERNEL_VM
+static pmm_arena_t heap_arena = {
+    .name = "heap",
+    .base = 0,
+    .size = 0,
+    .priority = 1,
+    .flags = PMM_ARENA_FLAG_KMAP
+};
+
+void heap_arena_init()
+{
+	uintptr_t heap_base = ((uintptr_t)_heap_start);
+	uintptr_t heap_size = (uintptr_t)_heap_end-(uintptr_t)_heap_start;
+
+	heap_arena.base = PAGE_ALIGN(heap_base);
+	heap_arena.size = PAGE_ALIGN(heap_size);
+}
+#endif
 
 void platform_init_multiboot_info(void)
 {
@@ -141,6 +184,10 @@ void platform_early_init(void)
 
 	/* initialize the timer */
 	platform_init_timer();
+	#if WITH_KERNEL_VM
+	heap_arena_init();
+	pmm_add_arena(&heap_arena);
+	#endif
 
 }
 
