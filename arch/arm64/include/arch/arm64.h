@@ -28,7 +28,7 @@
 
 __BEGIN_CDECLS
 
-#define DSB __asm__ volatile("dsb" ::: "memory")
+#define DSB __asm__ volatile("dsb sy" ::: "memory")
 #define ISB __asm__ volatile("isb" ::: "memory")
 
 #define ARM64_READ_SYSREG(reg) \
