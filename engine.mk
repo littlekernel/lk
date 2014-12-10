@@ -179,6 +179,12 @@ CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
 SIZE := $(TOOLCHAIN_PREFIX)size
 NM := $(TOOLCHAIN_PREFIX)nm
 
+# GCC colors
+GCC_COLORS_SUPPORTED := $(shell $(CC) -E /dev/null -fdiagnostics-color=always && echo 1 )
+ifeq ($(GCC_COLORS_SUPPORTED),1)
+	GLOBAL_CFLAGS += -fdiagnostics-color=always
+endif
+
 # the logic to compile and link stuff is in here
 include make/build.mk
 
