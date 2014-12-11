@@ -5,7 +5,8 @@ MODULE := $(LOCAL_DIR)
 MODULE_DEPS := \
 	lib/libc \
 	lib/debug \
-	lib/heap
+	lib/heap \
+	lib/dpc
 
 MODULE_SRCS := \
 	$(LOCAL_DIR)/debug.c \

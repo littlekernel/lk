@@ -6,6 +6,9 @@ MODULE_DEPS += \
 	lib/bio \
 	lib/cksum
 
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/ptable.c
 
