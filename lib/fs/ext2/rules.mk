@@ -7,6 +7,9 @@ MODULE_DEPS += \
 	lib/bcache \
 	lib/bio
 
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/ext2.c \
 	$(LOCAL_DIR)/dir.c \

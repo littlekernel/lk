@@ -4,6 +4,9 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS += lib/gfx
 
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/font.c
 
