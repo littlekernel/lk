@@ -189,14 +189,10 @@ const char *lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, uns
 		return NULL;
 	} else if (!strcmp(cmd, "fpga")) {
 #if PLATFORM_ZYNQ
-		unsigned *x = lkb_iobuffer;
 		if (lkb_read(lkb, lkb_iobuffer, len)) {
 			return "io error";
 		}
-		for (unsigned n = 0; n < len; n+= 4) {
-			*x = SWAP_32(*x);
-			x++;
-		}
+
 		zynq_reset_fpga();
 		zynq_program_fpga(lkb_iobuffer_phys, len);
 		return NULL;
