@@ -54,9 +54,20 @@ typedef struct _cmd_block {
 /* register a static block of commands at init time */
 #if WITH_LIB_CONSOLE
 #define STATIC_COMMAND_START static const cmd _cmd_list[] = {
+
+#ifdef ARCH_X86_64
+#define STATIC_COMMAND_END(name) }; const cmd_block _cmd_block_##name __ALIGNED(8) __SECTION(".commands")= { NULL, sizeof(_cmd_list) / sizeof(_cmd_list[0]), _cmd_list }
+#else
 #define STATIC_COMMAND_END(name) }; const cmd_block _cmd_block_##name __SECTION(".commands")= { NULL, sizeof(_cmd_list) / sizeof(_cmd_list[0]), _cmd_list }
+#endif
+
 #define STATIC_COMMAND_START_NAMED(name) static const cmd _cmd_list_##name[] = {
+
+#ifdef ARCH_X86_64
+#define STATIC_COMMAND_END_NAMED(name) }; const cmd_block _cmd_block_##name __ALIGNED(8) __SECTION(".commands")= { NULL, sizeof(_cmd_list_##name) / sizeof(_cmd_list_##name[0]), _cmd_list_##name }
+#else
 #define STATIC_COMMAND_END_NAMED(name) }; const cmd_block _cmd_block_##name __SECTION(".commands")= { NULL, sizeof(_cmd_list_##name) / sizeof(_cmd_list_##name[0]), _cmd_list_##name }
+#endif
 
 #define STATIC_COMMAND(command_str, help_str, func) { command_str, help_str, func },
 

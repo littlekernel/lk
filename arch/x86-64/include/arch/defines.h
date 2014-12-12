@@ -24,6 +24,7 @@
 #define __ARCH_CPU_H
 
 #define PAGE_SIZE 4096
+#define PAGE_SIZE_SHIFT 12
 
 // TODO: define to resolve to platform setup discovered value
 #define CACHE_LINE 32

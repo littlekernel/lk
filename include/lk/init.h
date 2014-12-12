@@ -35,11 +35,19 @@ struct lk_init_struct {
     const char *name;
 };
 
+#ifdef ARCH_X86_64
+#define LK_INIT_HOOK(_name, _hook, _level) \
+    const struct lk_init_struct _init_struct_##_name __ALIGNED(8) __SECTION(".lk_init") = { \
+        .level = _level, \
+        .hook = _hook, \
+        .name = #_name, \
+    };
+#else
 #define LK_INIT_HOOK(_name, _hook, _level) \
     const struct lk_init_struct _init_struct_##_name __SECTION(".lk_init") = { \
         .level = _level, \
         .hook = _hook, \
         .name = #_name, \
     };
-
+#endif
 // vim: set ts=4 sw=4 expandtab:
