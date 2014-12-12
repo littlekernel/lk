@@ -152,7 +152,7 @@ int bootimage_write(bootimage *img, int fd) {
 	return 0;
 }
 
-static void *load_file(const char *fn, unsigned *len) {
+static void *load_file(const char *fn, size_t *len) {
 	off_t sz;
 	void *data = NULL;
 	char *x;
@@ -199,11 +199,44 @@ fail:
 }
 
 bootentry_file *bootimage_add_file(bootimage *img, unsigned type, const char *fn) {
-	void *data;
-	unsigned len;
+	unsigned char *data;
+	size_t len;
+
 	if ((data = load_file(fn, &len)) == NULL) {
 		fprintf(stderr, "error: cannot load '%s'\n", fn);
 		return NULL;
 	}
+
+	/* if fpga image, trim everything before ffffffaa995566 and wordwise endian swap */
+	if (type == TYPE_FPGA_IMAGE) {
+		static const unsigned char pat[] = { 0xff, 0xff, 0xff, 0xff, 0xaa, 0x99, 0x55, 0x66 };
+
+		size_t i;
+		if (len < sizeof(pat)) {
+			free(data);
+			fprintf(stderr, "error: fpga image too short\n");
+			return NULL;
+		}
+
+		for (i = 0; i < len - sizeof(pat); i++) {
+			if (!memcmp(data + i, pat, sizeof(pat))) {
+				/* we've found the pattern, trim everything before it */
+				memmove(data, data + i, len - i);
+				len -= i;
+			}
+		}
+
+		/* wordwise endian swap */
+#define SWAP_32(x) \
+    (((uint32_t)(x) << 24) | (((uint32_t)(x) & 0xff00) << 8) |(((uint32_t)(x) & 0x00ff0000) >> 8) | ((uint32_t)(x) >> 24))
+		uint32_t *w = (uint32_t *)data;
+		for (i = 0; i < len / 4; i++) {
+			*w = SWAP_32(*w);
+			w++;
+		}
+#undef SWAP_32
+	}
+
 	return bootimage_add_filedata(img, type, data, len);
 }
+

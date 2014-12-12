@@ -52,37 +52,96 @@ static int readx(int s, void *_data, int len) {
 	return 0;
 }
 
-static int upload(int s, int txfd, int txlen) {
-	char buf[65536];
+static int upload(int s, int txfd, size_t txlen, int do_endian_swap) {
+	int err = 0;
 	msg_hdr_t hdr;
 
-	while (txlen > 0) {
-		int xfer = (txlen > 65536) ? 65536 : txlen;
-		if (readx(txfd, buf, xfer)) {
-			fprintf(stderr, "error: reading from file\n");
-			return -1;
+	char *buf = malloc(txlen);
+	if (!buf)
+		return -1;
+
+	if (readx(txfd, buf, txlen)) {
+		fprintf(stderr, "error: reading from file\n");
+		err = -1;
+		goto done;
+	}
+
+	/* 4 byte swap data if requested */
+	if (do_endian_swap) {
+		size_t i;
+		for (i = 0; i < txlen; i += 4) {
+			char temp = buf[i];
+			buf[i] = buf[i + 3];
+			buf[i + 3] = temp;
+
+			temp = buf[i + 1];
+			buf[i + 1] = buf[i + 2];
+			buf[i + 2] = temp;
 		}
+	}
+
+	size_t pos = 0;
+	while (pos < txlen) {
+		size_t xfer = (txlen - pos > 65536) ? 65536 : txlen - pos;
+
 		hdr.opcode = MSG_SEND_DATA;
 		hdr.extra = 0;
 		hdr.length = xfer - 1;
 		if (write(s, &hdr, sizeof(hdr)) != sizeof(hdr)) {
 			fprintf(stderr, "error: writing socket\n");
-			return -1;
+			err = -1;
+			goto done;
 		}
-		if (write(s, buf, xfer) != xfer) {
+		if (write(s, buf + pos, xfer) != xfer) {
 			fprintf(stderr, "error: writing socket\n");
-			return -1;
+			err = -1;
+			goto done;
 		}
-		txlen -= xfer;
+		pos += xfer;
 	}
+
 	hdr.opcode = MSG_END_DATA;
 	hdr.extra = 0;
 	hdr.length = 0;
 	if (write(s, &hdr, sizeof(hdr)) != sizeof(hdr)) {
 		fprintf(stderr, "error: writing socket\n");
-		return -1;
+		err = -1;
+		goto done;
 	}
-	return 0;
+
+done:
+	free(buf);
+
+	return err;
+}
+
+static off_t trim_fpga_image(int fd, off_t len)
+{
+	/* fd should be at start of bitfile, seek until the
+	 * ff ff ff ff aa 99 55 66 pattern is found and subtract
+	 * the number of bytes read until pattern found.
+	 */
+	const unsigned char pat[] = { 0xff, 0xff, 0xff, 0xff, 0xaa, 0x99, 0x55, 0x66 };
+	unsigned char buf[sizeof(pat)];
+
+	memset(buf, 0, sizeof(buf));
+
+	off_t i;
+	for (i = 0; i < len; i++) {
+		memmove(buf, buf + 1, sizeof(buf) - 1);
+		if (read(fd, &buf[sizeof(buf) - 1], 1) < 1) {
+			return -1;
+		}
+
+		/* look for pattern */
+		if (memcmp(pat, buf, sizeof(pat)) == 0) {
+			/* found it, rewind the fd and return the truncated length */
+			lseek(fd, -sizeof(pat), SEEK_CUR);
+			return len - (i + 1 - sizeof(pat));
+		}
+	}
+
+	return -1;
 }
 
 #define REPLYMAX (9 * 1024 * 1024)
@@ -100,6 +159,8 @@ int lkboot_txn(const char *host, const char *_cmd, int txfd, const char *args) {
 	char cmd[128];
 	char tmp[65536];
 	off_t txlen = 0;
+	int do_endian_swap = 0;
+	int once = 1;
 	int len;
 	int s;
 
@@ -110,6 +171,20 @@ int lkboot_txn(const char *host, const char *_cmd, int txfd, const char *args) {
 			return -1;
 		}
 		lseek(txfd, 0, SEEK_SET);
+	}
+
+	if (!strcmp(_cmd, "fpga")) {
+		/* if we were asked to send an fpga image, try to find the sync words and
+		 * trim all the data before it
+		 */
+		txlen = trim_fpga_image(txfd, txlen);
+		if (txlen < 0) {
+			fprintf(stderr, "error: fpga image doesn't contain sync pattern\n");
+			return -1;
+		}
+
+		/* it'll need a 4 byte endian swap as well */
+		do_endian_swap = 1;
 	}
 
 	len = snprintf(cmd, 128, "%s:%d:%s", _cmd, (int) txlen, args);
@@ -123,9 +198,12 @@ int lkboot_txn(const char *host, const char *_cmd, int txfd, const char *args) {
 		fprintf(stderr, "error: cannot find host '%s'\n", host);
 		return -1;
 	}
-	if ((s = tcp_connect(addr, 1023)) < 0) {
-		fprintf(stderr, "error: cannot connect to host '%s'\n", host);
-		return -1;
+	while ((s = tcp_connect(addr, 1023)) < 0) {
+		if (once) {
+			fprintf(stderr, "error: cannot connect to host '%s'. retrying...\n", host);
+			once = 0;
+		}
+		usleep(100000);
 	}
 
 	hdr.opcode = MSG_CMD;
@@ -134,11 +212,11 @@ int lkboot_txn(const char *host, const char *_cmd, int txfd, const char *args) {
 	if (write(s, &hdr, sizeof(hdr)) != sizeof(hdr)) goto iofail;
 	if (write(s, cmd, len) != len) goto iofail;
 
-	for (;;) {	
+	for (;;) {
 		if (readx(s, &hdr, sizeof(hdr))) goto iofail;
 		switch (hdr.opcode) {
 		case MSG_GO_AHEAD:
-			if (upload(s, txfd, txlen)) goto fail;
+			if (upload(s, txfd, txlen, do_endian_swap)) goto fail;
 			break;
 		case MSG_OKAY:
 			close(s);
