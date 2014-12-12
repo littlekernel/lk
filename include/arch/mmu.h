@@ -36,7 +36,6 @@ __BEGIN_CDECLS
 #define ARCH_MMU_FLAG_PERM_USER         (1<<2)
 #define ARCH_MMU_FLAG_PERM_RO           (1<<3)
 #define ARCH_MMU_FLAG_PERM_NO_EXECUTE   (1<<4)
-
 #define ARCH_MMU_FLAG_NS                (1<<5) /* NON-SECURE */
 
 int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags);
