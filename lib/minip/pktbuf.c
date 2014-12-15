@@ -30,24 +30,96 @@
 #include <kernel/semaphore.h>
 #include <lib/pktbuf.h>
 
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
+
+#define LOCAL_TRACE 0
+
 static struct list_node pb_freelist = LIST_INITIAL_VALUE(pb_freelist);
+static struct list_node pb_buflist = LIST_INITIAL_VALUE(pb_buflist);
 static semaphore_t pb_sem = SEMAPHORE_INITIAL_VALUE(pb_sem, 0);
 
-void pktbuf_create(void *ptr, u32 phys, size_t size) {
-	pktbuf_t *p = ptr;
-	if (size != PKTBUF_SIZE) {
-		panic("pktbuf_create: invalid size %d\n", size);
-	}
 
-	p->phys_base = phys + __offsetof(pktbuf_t, buffer);
-	p->rsv0 = 0;
-	p->rsv1 = 0;
-	p->rsv2 = 0;
+static unsigned int cur_id = 0;
+
+void pktbuf_create(void *ptr, size_t size) {
+	pktbuf_t *p = ptr;
+
+	p->magic = PKTBUF_HDR_MAGIC;
+	p->phys_base = 0;
+	p->id = cur_id++;
 	list_add_tail(&pb_freelist, &(p->list));
 	sem_post(&pb_sem, false);
 }
 
+/* Carve buffers for pktbufs of size PKTBUF_BUF_SIZE from the memory pointed at by ptr */
+void pktbuf_create_bufs(void *ptr, size_t size) {
+	uintptr_t phys_addr;
+
+#if WITH_KERNEL_VM
+	if (arch_mmu_query((uintptr_t) ptr, &phys_addr, NULL) < 0) {
+		printf("Failed to get physical address for pktbuf slab, using virtual\n");
+	}
+#else
+	phys_addr = ptr;
+#endif
+
+	while (size > sizeof(pktbuf_buf_t)) {
+		pktbuf_buf_t *pkt = ptr;
+
+		pkt->magic = PKTBUF_BUF_MAGIC;
+		pkt->phys_addr = phys_addr;
+		list_add_tail(&pb_buflist, &pkt->list);
+
+
+		ptr += sizeof(pktbuf_buf_t);
+		phys_addr += sizeof(pktbuf_buf_t);
+		size -= sizeof(pktbuf_buf_t);
+	}
+}
+
+static inline pktbuf_buf_t *pktbuf_get_buf(void) {
+	return list_remove_head_type(&pb_buflist, pktbuf_buf_t, list);
+}
+
 pktbuf_t *pktbuf_alloc(void) {
+	pktbuf_t *p = NULL;
+	pktbuf_buf_t *b = NULL;
+
+	/* Check for buffers first to reduce the complexity of cases where we have a pktbuf
+	 * pointer but no buffer and would otherwise have to do sem / list bookkeeping on
+	 * cleanup */
+	sem_wait(&pb_sem);
+	enter_critical_section();
+	b = pktbuf_get_buf();
+	if (b) {
+		p = list_remove_head_type(&pb_freelist, pktbuf_t, list);
+	}
+	exit_critical_section();
+
+	if (b->magic != PKTBUF_BUF_MAGIC) {
+		panic("pktbuf id %u has corrupted buffer magic value\n"
+				"buf_addr %p magic: 0x%08X (expected 0x%08X), phys_addr: %p\n",
+				p->id, b, b->magic, PKTBUF_BUF_MAGIC, (void *) b->phys_addr);
+	}
+
+	if (!p) {
+		return NULL;
+	}
+
+	p->buffer = (uint8_t *) b;
+	p->data = p->buffer + PKTBUF_MAX_HDR;
+	p->dlen = 0;
+	p->managed = true;
+	/* TODO: This will be moved to the stack soon */
+	p->eof = true;
+	p->phys_base = b->phys_addr;
+
+	return p;
+}
+
+pktbuf_t *pktbuf_alloc_empty(void *buf, size_t dlen) {
 	pktbuf_t *p;
 
 	sem_wait(&pb_sem);
@@ -59,14 +131,24 @@ pktbuf_t *pktbuf_alloc(void) {
 		return NULL;
 	}
 
-	p->data = p->buffer + PKTBUF_MAX_HDR;
-	p->dlen = 0;
+	p->buffer = buf;
+	p->data = p->buffer;
+	p->dlen = dlen;
+	p->managed = false;
 	return p;
 }
 
 void pktbuf_free(pktbuf_t *p) {
 	enter_critical_section();
 	list_add_tail(&pb_freelist, &(p->list));
+	if (p->managed && p->buffer) {
+		pktbuf_buf_t *pkt = (pktbuf_buf_t *)p->buffer;
+		list_add_tail(&pb_buflist, &pkt->list);
+	}
+	p->buffer = NULL;
+	p->data = NULL;
+	p->eof = false;
+	p->managed = false;
 	exit_critical_section();
 
 	sem_post(&pb_sem, true);
@@ -125,4 +207,9 @@ void pktbuf_consume_tail(pktbuf_t *p, size_t sz) {
 	p->dlen -= sz;
 }
 
+void pktbuf_dump(pktbuf_t *p) {
+	printf("pktbuf id %u, data %p, buffer %p, dlen %u, data offset %lu, phys_base %p, managed %u\n",
+			p->id, p->data, p->buffer, p->dlen, (uintptr_t) p->data - (uintptr_t) p->buffer,
+			(void *)p->phys_base, p->managed);
+}
 // vim: set noexpandtab:

@@ -23,6 +23,7 @@
 
 #include "minip-internal.h"
 
+#include <err.h>
 #include <platform/gem.h>
 #include <platform.h>
 #include <stdio.h>
@@ -53,6 +54,8 @@ typedef struct dhcp_msg {
 	u32 cookie;
 	u8 options[0];
 } dhcp_msg_t;
+
+udp_socket_t *dhcp_udp_handle;
 
 #define DHCP_FLAG_BROADCAST 0x8000
 
@@ -124,8 +127,11 @@ static void dhcp_discover(u32 xid) {
 
 	*opt++ = OPT_DONE;
 
-	minip_udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt),
-		IPV4_BCAST, DHCP_SERVER_PORT, DHCP_CLIENT_PORT);
+	udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt), dhcp_udp_handle);
+	status_t ret = udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt), dhcp_udp_handle);
+	if (ret != NO_ERROR) {
+		printf("DHCP_DISCOVER failed: %d\n", ret);
+	}
 }
 
 static void dhcp_request(u32 xid, u32 server, u32 reqip) {
@@ -167,8 +173,10 @@ static void dhcp_request(u32 xid, u32 server, u32 reqip) {
 
 	*opt++ = OPT_DONE;
 
-	minip_udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt),
-		IPV4_BCAST, DHCP_SERVER_PORT, DHCP_CLIENT_PORT);
+	status_t ret = udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt), dhcp_udp_handle);
+	if (ret != NO_ERROR) {
+		printf("DHCP_REQUEST failed: %d\n", ret);
+	}
 }
 
 static void dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, void *arg) {
@@ -275,6 +283,9 @@ void minip_init_dhcp(tx_func_t tx_func, void *tx_arg) {
 	minip_get_macaddr(mac);
 
 	minip_init(tx_func, tx_arg, IPV4_NONE, IPV4_NONE, IPV4_NONE);
+
+	int ret = udp_open(IPV4_BCAST, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, &dhcp_udp_handle);
+	printf("dhcp opened udp: %d\n", ret);
 
 	minip_udp_listen(DHCP_CLIENT_PORT, dhcp_cb, NULL);
 

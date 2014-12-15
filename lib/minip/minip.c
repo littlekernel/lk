@@ -24,15 +24,17 @@
 
 #include "minip-internal.h"
 
+#include <err.h>
 #include <stdio.h>
 #include <debug.h>
 #include <endian.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <trace.h>
 #include <malloc.h>
 #include <list.h>
-#include <kernel/mutex.h>
+#include <kernel/thread.h>
 
 struct udp_listener {
     struct list_node list;
@@ -57,8 +59,6 @@ static uint8_t minip_mac[6] = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
 static uint8_t bcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 static char minip_hostname[32] = "";
-
-static mutex_t tx_mutex;
 
 void minip_set_hostname(const char *name) {
     size_t len = strlen(name);
@@ -129,7 +129,6 @@ void minip_init(tx_func_t tx_handler, void *tx_arg,
     minip_gateway = gateway;
     compute_broadcast_address();
 
-    mutex_init(&tx_mutex);
     arp_cache_init();
     net_timer_init();
 }
@@ -139,14 +138,14 @@ uint16_t ipv4_payload_len(struct ipv4_hdr *pkt)
     return (pkt->len - ((pkt->ver_ihl >> 4) * 5));
 }
 
-static void fill_in_mac_header(struct eth_hdr *pkt, uint8_t *dst, uint16_t type)
+void minip_build_mac_hdr(struct eth_hdr *pkt, uint8_t *dst, uint16_t type)
 {
     memcpy(pkt->dst_mac, dst, sizeof(pkt->dst_mac));
     memcpy(pkt->src_mac, minip_mac, sizeof(minip_mac));
     pkt->type = htons(type);
 }
 
-static void fill_in_ipv4_header(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, uint16_t len)
+void minip_build_ipv4_hdr(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, uint16_t len)
 {
     ipv4->ver_ihl       = 0x45;
     ipv4->dscp_ecn      = 0;
@@ -175,7 +174,7 @@ int send_arp_request(uint32_t addr)
 
     eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
     arp = pktbuf_append(p, sizeof(struct arp_pkt));
-    fill_in_mac_header(eth, bcast_mac, ETH_TYPE_ARP);
+    minip_build_mac_hdr(eth, bcast_mac, ETH_TYPE_ARP);
 
     arp->htype = htons(0x0001);
     arp->ptype = htons(0x0800);
@@ -191,6 +190,116 @@ int send_arp_request(uint32_t addr)
     return 0;
 }
 
+static void handle_arp_timeout_cb(void *arg) {
+    *(bool *)arg = true;
+}
+
+static inline uint8_t *get_dest_mac(uint32_t host)
+{
+    uint8_t *dst_mac = NULL;
+    bool arp_timeout = false;
+    net_timer_t arp_timeout_timer;
+
+    if (host == IPV4_BCAST) {
+        return bcast_mac;
+    }
+
+    dst_mac = arp_cache_lookup(host);
+    if (dst_mac == NULL) {
+        send_arp_request(host);
+        memset(&arp_timeout_timer, 0, sizeof(arp_timeout_timer));
+        net_timer_set(&arp_timeout_timer, handle_arp_timeout_cb, &arp_timeout, 100);
+        while (!arp_timeout) {
+            dst_mac = arp_cache_lookup(host);
+            if (dst_mac) {
+                net_timer_cancel(&arp_timeout_timer);
+                break;
+            }
+        }
+    }
+
+    return dst_mac;
+}
+
+status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle)
+{
+    TRACEF("host %u.%u.%u.%u sport %u dport %u handle %p\n",
+            IPV4_SPLIT(host), sport, dport, handle);
+    udp_socket_t *socket;
+    uint8_t *dst_mac;
+
+    if (handle == NULL) {
+        return -EINVAL;
+    }
+
+    socket = (udp_socket_t *) malloc(sizeof(udp_socket_t));
+    if (!socket) {
+        return -ENOMEM;
+    }
+
+    dst_mac = get_dest_mac(host);
+    if (dst_mac == NULL) {
+        return -EHOSTUNREACH;
+    }
+
+    socket->host = host;
+    socket->sport = sport;
+    socket->dport = dport;
+    socket->mac = dst_mac;
+
+    *handle = socket;
+    return NO_ERROR;
+}
+
+status_t udp_close(udp_socket_t *handle)
+{
+    if (handle == NULL) {
+        return -EINVAL;
+    }
+
+    free(handle);
+    return NO_ERROR;
+}
+
+status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
+{
+    pktbuf_t *p;
+    struct eth_hdr *eth;
+    struct ipv4_hdr *ip;
+    struct udp_hdr *udp;
+    status_t ret = NO_ERROR;
+
+    if (handle == NULL || buf == NULL || len == 0) {
+        return -EINVAL;
+    }
+
+    if ((p = pktbuf_alloc()) == NULL) {
+        return -ENOMEM;
+    }
+
+    udp = pktbuf_prepend(p, sizeof(struct udp_hdr));
+    ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
+    eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
+    pktbuf_append_data(p, buf, len);
+
+    udp->src_port   = htons(handle->sport);
+    udp->dst_port   = htons(handle->dport);
+    udp->len        = htons(sizeof(struct udp_hdr) + len);
+    udp->chksum     = 0;
+    memcpy(udp->data, buf, len);
+
+    minip_build_mac_hdr(eth, handle->mac, ETH_TYPE_IPV4);
+    minip_build_ipv4_hdr(ip, handle->host, IP_PROTO_UDP, len + sizeof(struct udp_hdr));
+
+#if (MINIP_USE_UDP_CHECKSUM != 0)
+    udp->chksum = rfc768_chksum(ip, udp);
+#endif
+
+    minip_tx_handler(p);
+
+    return ret;
+}
+
 status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto)
 {
     status_t ret = 0;
@@ -200,103 +309,26 @@ status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto)
     struct ipv4_hdr *ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
     struct eth_hdr *eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
 
-    mutex_acquire(&tx_mutex);
 
     if (dest_addr == IPV4_BCAST || dest_addr == minip_broadcast) {
         dst_mac = bcast_mac;
         goto ready;
     }
 
-    /* If we're missing an address in the cache send out a request periodically for a bit */
-    dst_mac = arp_cache_lookup(dest_addr);
+    dst_mac = get_dest_mac(dest_addr);
     if (!dst_mac) {
-        send_arp_request(dest_addr);
-        // TODO: Add a timeout here rather than an arbitrary iteration limit
-        for (int i = 50000; i > 0; i--) {
-            if ((dst_mac = arp_cache_lookup(dest_addr)) != NULL) {
-                break;
-            }
-        }
-
-        if (dst_mac == NULL) {
-            ret = -1;
-            goto err;
-        }
+        pktbuf_free(p);
+        ret = -EHOSTUNREACH;
+        goto err;
     }
 
 ready:
-    fill_in_mac_header(eth, dst_mac, ETH_TYPE_IPV4);
-    fill_in_ipv4_header(ip, dest_addr, proto, data_len);
+    minip_build_mac_hdr(eth, dst_mac, ETH_TYPE_IPV4);
+    minip_build_ipv4_hdr(ip, dest_addr, proto, data_len);
 
     minip_tx_handler(p);
 
 err:
-    mutex_release(&tx_mutex);
-    return ret;
-}
-
-int minip_udp_send(const void *buf, size_t len, uint32_t addr,
-    uint16_t dstport, uint16_t srcport)
-{
-    pktbuf_t *p;
-    struct eth_hdr *eth;
-    struct ipv4_hdr *ip;
-    struct udp_hdr *udp;
-    uint8_t *dst_mac;
-    int ret = 0;
-
-    if ((p = pktbuf_alloc()) == NULL) {
-        return -1;
-    }
-
-    udp = pktbuf_prepend(p, sizeof(struct udp_hdr));
-    ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
-    eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
-    memset(p->data, 0, p->dlen);
-    pktbuf_append_data(p, buf, len);
-
-    mutex_acquire(&tx_mutex);
-
-    if (addr == IPV4_BCAST) {
-        dst_mac = bcast_mac;
-        goto ready;
-    }
-
-    /* If we're missing an address in the cache send out a request periodically for a bit */
-    dst_mac = arp_cache_lookup(addr);
-    if (!dst_mac) {
-        send_arp_request(addr);
-        // TODO: Add a timeout here rather than an arbitrary iteration limit
-        for (int i = 50000; i > 0; i--) {
-            if ((dst_mac = arp_cache_lookup(addr)) != NULL) {
-                break;
-            }
-        }
-
-        if (dst_mac == NULL) {
-            ret = -1;
-            goto err;
-        }
-    }
-
-ready:
-    udp->src_port   = htons(srcport);
-    udp->dst_port  = htons(dstport);
-    udp->len        = htons(sizeof(struct udp_hdr) + len);
-    udp->chksum     = 0;
-    memcpy(udp->data, buf, len);
-
-    fill_in_mac_header(eth, dst_mac, ETH_TYPE_IPV4);
-    fill_in_ipv4_header(ip, addr, IP_PROTO_UDP, len + sizeof(struct udp_hdr));
-
-#if (MINIP_USE_UDP_CHECKSUM != 0)
-    udp->chksum = rfc768_chksum(ip, udp);
-#endif
-
-    minip_tx_handler(p);
-
-err:
-    mutex_release(&tx_mutex);
     return ret;
 }
 
@@ -323,8 +355,8 @@ void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdatalen)
 
     len = sizeof(struct icmp_pkt) + reqdatalen;
 
-    fill_in_mac_header(eth, arp_cache_lookup(ipaddr), ETH_TYPE_IPV4);
-    fill_in_ipv4_header(ip, ipaddr, IP_PROTO_ICMP, len);
+    minip_build_mac_hdr(eth, arp_cache_lookup(ipaddr), ETH_TYPE_IPV4);
+    minip_build_ipv4_hdr(ip, ipaddr, IP_PROTO_ICMP, len);
 
     icmp->type = ICMP_ECHO_REPLY;
     icmp->code = 0;
@@ -368,27 +400,27 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
     /* reject bad packets */
     if (((ip->ver_ihl >> 4) & 0xf) != 4) {
         /* not version 4 */
-        //LTRACEF("REJECT: not version 4\n");
+        LTRACEF("REJECT: not version 4\n");
         return;
     }
 
     /* do we have enough buffer to hold the full header + options? */
     size_t header_len = (ip->ver_ihl & 0xf) * 4;
     if (p->dlen < header_len) {
-        //LTRACEF("REJECT: not enough buffer to hold header\n");
+        LTRACEF("REJECT: not enough buffer to hold header\n");
         return;
     }
 
     /* compute checksum */
     if (rfc1701_chksum((void *)ip, header_len) != 0) {
         /* bad checksum */
-        //LTRACEF("REJECT: bad checksum\n");
+        LTRACEF("REJECT: bad checksum\n");
         return;
     }
 
     /* is the pkt_buf large enough to hold the length the header says the packet is? */
     if (htons(ip->len) > p->dlen) {
-        //LTRACEF("REJECT: packet exceeds size of buffer (header %d, dlen %d)\n", htons(ip->len), p->dlen);
+        LTRACEF("REJECT: packet exceeds size of buffer (header %d, dlen %d)\n", htons(ip->len), p->dlen);
         return;
     }
 
@@ -408,7 +440,7 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
     /* see if it's for us */
     if (ip->dst_addr != IPV4_BCAST) {
         if (minip_ip != IPV4_NONE && ip->dst_addr != minip_ip && ip->dst_addr != minip_broadcast) {
-            //LTRACEF("REJECT: for another host\n");
+            LTRACEF("REJECT: for another host\n");
             return;
         }
     }
@@ -477,7 +509,7 @@ __NO_INLINE static int handle_arp_pkt(pktbuf_t *p)
                 rarp = pktbuf_append(rp, sizeof(struct arp_pkt));
 
                 // Eth header
-                fill_in_mac_header(reth, eth->src_mac, ETH_TYPE_ARP);
+                minip_build_mac_hdr(reth, eth->src_mac, ETH_TYPE_ARP);
 
                 // ARP packet
                 rarp->oper = htons(ARP_OPER_REPLY);
@@ -516,37 +548,15 @@ void minip_rx_driver_callback(pktbuf_t *p)
 
     switch(htons(eth->type)) {
         case ETH_TYPE_IPV4:
+            LTRACEF("ipv4 pkt\n");
             handle_ipv4_packet(p, eth->src_mac);
             break;
 
         case ETH_TYPE_ARP:
+            LTRACEF("arp pkt\n");
             handle_arp_pkt(p);
             break;
     }
-}
-
-minip_fd_t *minip_open(uint32_t addr, uint16_t port)
-{
-    minip_fd_t *fd = malloc(sizeof(minip_fd_t));
-    if (!fd) {
-        return fd;
-    }
-
-    send_arp_request(addr);
-    fd->addr = addr;
-    fd->port = port;
-
-    return fd;
-}
-
-void minip_close(minip_fd_t *fd)
-{
-    free(fd);
-}
-
-int send(minip_fd_t *fd, void *buf, size_t len, int flags)
-{
-    return minip_udp_send(buf, len, fd->addr, fd->port, fd->port);
 }
 
 // vim: set ts=4 sw=4 expandtab:

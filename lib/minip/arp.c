@@ -27,6 +27,8 @@
 #include <string.h>
 #include <malloc.h>
 #include <stdio.h>
+#include <kernel/thread.h>
+#include <kernel/mutex.h>
 #include <trace.h>
 
 typedef union {
@@ -41,6 +43,8 @@ typedef struct {
     uint32_t addr;
     uint8_t mac[6];
 } arp_entry_t;
+
+static mutex_t arp_mutex = MUTEX_INITIAL_VALUE(arp_mutex);
 
 void arp_cache_init(void)
 {
@@ -71,6 +75,7 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6])
 
     /* If the entry is in the cache update the address and move
      * it to head */
+    mutex_acquire(&arp_mutex);
     list_for_every_entry(&arp_list, arp, arp_entry_t, node) {
         if (arp->addr == addr) {
             arp->addr = addr;
@@ -86,30 +91,38 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6])
             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         arp = malloc(sizeof(arp_entry_t));
         if (arp == NULL) {
-            return;
+            goto err;
         }
 
         arp->addr = addr;
         memcpy(arp->mac, mac, sizeof(arp->mac));
         list_add_head(&arp_list, &arp->node);
     }
+
+err:
+    mutex_release(&arp_mutex);
+    return;
 }
 
 /* Looks up and returns a MAC address based on the provided ip addr */
 uint8_t *arp_cache_lookup(uint32_t addr)
 {
-    arp_entry_t *arp;
+    arp_entry_t *arp = NULL;
+    uint8_t *ret = NULL;
 
     /* If the entry is in the cache update the address and move
      * it to head */
+    mutex_acquire(&arp_mutex);
     list_for_every_entry(&arp_list, arp, arp_entry_t, node) {
         if (arp->addr == addr) {
             mru_update(&arp->node);
-            return arp->mac;
+            ret = arp->mac;
+            break;
         }
     }
+    mutex_release(&arp_mutex);
 
-    return NULL;
+    return ret;
 }
 
 void arp_cache_dump(void)
