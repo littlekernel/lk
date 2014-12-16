@@ -37,7 +37,7 @@ _start:
 	b	arm_irq
 	b	arm_fiq
 #if WITH_SMP
-	b	arm_secondary_entry
+	b	arm_reset
 #endif
 
 .weak platform_reset
