@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/atoi.c \
+	$(LOCAL_DIR)/bsearch.c \
 	$(LOCAL_DIR)/ctype.c \
 	$(LOCAL_DIR)/printf.c \
 	$(LOCAL_DIR)/rand.c \
