@@ -25,11 +25,6 @@
 #include <arch/arm/mmu.h>
 #include <kernel/vm.h>
 
-/* the delta of the virtual address space to physical address space */
-/* ie: virtual = 0xc0000000, physical = 0x0, delta = 0x40000000 */
-/* virtual + KERNEL_PHYS_DELTA = phys */
-#define KERNEL_PHYS_DELTA (MEMBASE - KERNEL_BASE)
-
 .section ".text.boot"
 .globl _start
 _start:
@@ -54,6 +49,12 @@ arm_reset:
 	bic		r12, #(1<<12)
 	bic		r12, #(1<<2 | 1<<0)
 	mcr		p15, 0, r12, c1, c0, 0
+
+	/* calculate phys offset */
+.Lphys_offset:
+	ldr		r4, =.Lphys_offset
+	adr		r11, .Lphys_offset
+	sub		r11, r11, r4
 
 #if WITH_SMP
 	/* figure out our cpu number */
@@ -110,7 +111,8 @@ arm_reset:
 	/* set up the mmu according to mmu_initial_mappings */
 
 	/* load the base of the translation table and clear the table */
-	ldr		r4, =(KERNEL_PHYS_DELTA + arm_kernel_translation_table)
+	ldr		r4, =arm_kernel_translation_table
+	add		r4, r4, r11
 		/* r4 = physical address of translation table */
 
 	mov		r5, #0
@@ -124,7 +126,8 @@ arm_reset:
 	bne		0b
 
 	/* load the address of the mmu_initial_mappings table and start processing */
-	ldr		r5, =(KERNEL_PHYS_DELTA + mmu_initial_mappings)
+	ldr		r5, =mmu_initial_mappings
+	add		r5, r5, r11
 		/* r5 = physical address of mmu initial mapping table */
 
 .Linitial_mapping_loop:
@@ -150,11 +153,11 @@ arm_reset:
 		/* r10 = mmu entry flags */
 
 0:
-	orr		r11, r10, r6, lsl #20
-		/* r11 = phys addr | flags */
+	orr		r12, r10, r6, lsl #20
+		/* r12 = phys addr | flags */
 
 	/* store into appropriate translation table entry */
-	str		r11, [r4, r7, lsl #2]
+	str		r12, [r4, r7, lsl #2]
 
 	/* loop until we're done */
 	add		r6, #1
@@ -302,19 +305,20 @@ arm_reset:
 	isb
 
 	/* assume lr was in physical memory, adjust it before returning */
-	ldr		r12, =(KERNEL_BASE - MEMBASE)
-	add		lr, r12
+	sub		lr, r11
 	bx		lr
 #endif
 
 #if WITH_SMP
 	/* secondary cpu entry point */
 	/* r0 holds cpu number */
+	/* r11 hold phys offset */
 FUNCTION(arm_secondary_setup)
 	/* all other cpus, trap and wait to be released */
 1:
 	wfe
-	ldr     r12, =(KERNEL_PHYS_DELTA + arm_boot_cpu_lock)
+	ldr     r12, =arm_boot_cpu_lock
+	add     r12, r12, r11
 	ldr     r12, [r12]
 	cmp     r12, #0
 	bne     1b
@@ -349,7 +353,8 @@ FUNCTION(arm_secondary_setup)
 
 #if WITH_KERNEL_VM
 	/* load the physical base of the translation table and clear the table */
-	ldr		r4, =(KERNEL_PHYS_DELTA + arm_kernel_translation_table)
+	ldr		r4, =arm_kernel_translation_table
+	add		r4, r4, r11
 
 	/* set up the mmu on this cpu and switch to virtual memory */
 	bl		.Lmmu_setup
