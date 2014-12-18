@@ -31,6 +31,44 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/**
+ * \brief Default function to dump unit test results
+ *
+ * \param[in] line is the buffer to dump
+ * \param[in] len is the length of the buffer to dump
+ * \param[in] arg can be any kind of arguments needed to dump the values
+ */
+static void default_printf (const char *line, int len, void *arg)
+{
+    printf (line);
+}
+
+// Default output function is the printf
+static test_output_func out_func = default_printf;
+// Buffer the argument to be sent to the output function
+static void *out_func_arg = NULL;
+
+/**
+ * \brief Function called to dump results
+ *
+ * This function will call the out_func callback
+ */
+void unittest_printf (const char *format, ...)
+{
+    static char print_buffer[PRINT_BUFFER_SIZE];
+
+    va_list argp;
+    va_start (argp, format);
+
+    if (out_func != NULL) {
+        // Format the string
+        vsnprintf(print_buffer, PRINT_BUFFER_SIZE, format, argp);
+        out_func (print_buffer, PRINT_BUFFER_SIZE, out_func_arg);
+    }
+
+    va_end (argp);
+}
+
 bool expect_bytes_eq(const uint8_t *expected, const uint8_t *actual, size_t len,
                      const char *msg)
 {
@@ -42,4 +80,10 @@ bool expect_bytes_eq(const uint8_t *expected, const uint8_t *actual, size_t len,
         return false;
     }
     return true;
+}
+
+void unittest_set_output_function (test_output_func fun, void *arg)
+{
+    out_func = fun;
+    out_func_arg = arg;
 }

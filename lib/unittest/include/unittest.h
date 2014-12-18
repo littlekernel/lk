@@ -74,6 +74,35 @@
 #include <stdint.h>
 #include <string.h>
 #include <trace.h>
+#include <stdarg.h>
+
+#define PRINT_BUFFER_SIZE                                       (512)
+
+/*
+ * Type for unit test result Output
+ */
+typedef void (*test_output_func) (const char *line, int len, void *arg);
+
+/*
+ * Printf dedicated to the unittest library
+ * the default output is the printf
+ */
+void unittest_printf (const char *format, ...);
+
+/*
+ * Function to set the callback for printing
+ * the unit test output
+ */
+void unittest_set_output_function (test_output_func fun, void *arg);
+
+/*
+ * Macros to format the error string
+ */
+#define EXPECTED_STRING            "%s:\n        expected "
+#define UNITTEST_TRACEF(str, x...) do {                                 \
+        unittest_printf(" [FAILED] \n        %s:%d:\n        " str,     \
+                __PRETTY_FUNCTION__, __LINE__, ## x);                   \
+    } while (0)
 
 /*
  * BEGIN_TEST_CASE and END_TEST_CASE define a function that calls
@@ -83,7 +112,7 @@
     bool case_name(void)                        \
     {                                           \
     bool all_success = true;                    \
-    printf("\nRunning %s\n", #case_name);
+    unittest_printf("\nCASE %-49s [STARTED] \n", #case_name);
 
 #define DEFINE_REGISTER_TEST_CASE(case_name)                            \
     static void _register_##case_name(void)                             \
@@ -95,13 +124,13 @@
 
 #define END_TEST_CASE(case_name)                                        \
     if (all_success) {                                                  \
-        printf("SUCCESS!  All tests in %s passed.\n", #case_name);      \
+        unittest_printf("CASE %-59s [PASSED]\n", #case_name);           \
     } else {                                                            \
-        printf("FAILED!  One or more tests in %s failed.\n", #case_name); \
+        unittest_printf("CASE %-59s [FAILED]\n", #case_name);           \
     }                                                                   \
         return all_success;                                             \
     }                                                                   \
-    static struct test_case_element _##case_name##_element = { \
+    static struct test_case_element _##case_name##_element = {          \
         .next = NULL,                                                   \
         .failed_next = NULL,                                            \
         .name = #case_name,                                             \
@@ -109,13 +138,12 @@
     };                                                                  \
     DEFINE_REGISTER_TEST_CASE(case_name);
 
-#define RUN_TEST(test)                          \
-    printf("Running " #test "\n");              \
-    if (! test ()) {                            \
-        printf("FAILED " #test "\n");           \
-        all_success = false;                    \
-    } else {                                    \
-        printf("PASSED " #test "\n");           \
+#define RUN_TEST(test)                                  \
+    unittest_printf("    %-50s [RUNNING]",  #test );    \
+    if (! test ()) {                                    \
+         all_success = false;                           \
+    } else {                                            \
+        unittest_printf(" [PASSED] \n");                \
     }
 
 /*
@@ -128,117 +156,116 @@
 /*
  * Use the EXPECT_* macros to check test results.
  */
-#define EXPECT_EQ(expected, actual, msg)                \
-    {                                                   \
-        typeof(actual) _e = expected;                   \
-        typeof(actual) _a = actual;                     \
-        if (_e != _a) {                                 \
-            TRACEF("%s: expected " #expected " (%d), "  \
-                   "actual " #actual " (%d)\n",     \
-                   msg, (int)_e, (int)_a);              \
-            all_ok = false;                             \
-        }                                               \
+#define EXPECT_EQ(expected, actual, msg)                                   \
+    {                                                                      \
+        typeof(actual) _e = expected;                                      \
+        typeof(actual) _a = actual;                                        \
+        if (_e != _a) {                                                    \
+            UNITTEST_TRACEF (EXPECTED_STRING #expected " (%d), "           \
+                   "actual " #actual " (%d)\n",                            \
+                   msg, (int)_e, (int)_a);                                 \
+            all_ok = false;                                                \
+        }                                                                  \
     }
 
-#define EXPECT_NEQ(expected, actual, msg)                       \
-    {                               \
-        const typeof(expected) _e = expected;           \
-        if (_e == actual) {                 \
-            TRACEF("%s: expected " #expected " and actual " \
-                   #actual                  \
-                   " to differ, but they are the same %d\n",    \
-                   msg, (int)_e);               \
-            all_ok = false;                 \
-        }                           \
+#define EXPECT_NEQ(expected, actual, msg)                                  \
+    {                                                                      \
+        const typeof(expected) _e = expected;                              \
+        if (_e == actual) {                                                \
+            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d), " #actual    \
+                   " to differ, but they are the same %d\n",               \
+                   msg, (int)_e);                                          \
+            all_ok = false;                                                \
+        }                                                                  \
     }
 
-#define EXPECT_LE(expected, actual, msg)                        \
-    {                               \
-        const typeof(actual) _e = expected;         \
-        const typeof(actual) _a = actual;           \
-        if (_e > _a) {                      \
-            TRACEF("%s: expected " #expected " (%d) to be"  \
-                   " less-than-or-equal-to actual "     \
-                   #actual  " (%d)\n",          \
-                   msg, (int)_e, (int)_a);          \
-            all_ok = false;                 \
-        }                           \
+#define EXPECT_LE(expected, actual, msg)                                   \
+    {                                                                      \
+        const typeof(actual) _e = expected;                                \
+        const typeof(actual) _a = actual;                                  \
+        if (_e > _a) {                                                     \
+            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d) to be"        \
+                   " less-than-or-equal-to actual "                        \
+                   #actual  " (%d)\n",                                     \
+                   msg, (int)_e, (int)_a);                                 \
+            all_ok = false;                                                \
+        }                                                                  \
     }
 
-#define EXPECT_LT(expected, actual, msg)                        \
-    {                                                           \
-        const typeof(actual) _e = expected;                     \
-        const typeof(actual) _a = actual;                       \
-        if (_e >= _a) {                                         \
-            TRACEF("%s: expected " #expected " (%d) to be"      \
-                   " less-than actual "                         \
-                   #actual  " (%d)\n",                          \
-                   msg, (int)_e, (int)_a);                      \
-            all_ok = false;                                     \
-        }                                                       \
+#define EXPECT_LT(expected, actual, msg)                                  \
+    {                                                                     \
+        const typeof(actual) _e = expected;                               \
+        const typeof(actual) _a = actual;                                 \
+        if (_e >= _a) {                                                   \
+            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d) to be"       \
+                   " less-than actual "                                   \
+                   #actual  " (%d)\n",                                    \
+                   msg, (int)_e, (int)_a);                                \
+            all_ok = false;                                               \
+        }                                                                 \
     }
 
-#define EXPECT_GE(expected, actual, msg)                        \
-    {                               \
-        const typeof(actual) _e = expected;         \
-        const typeof(actual) _a = actual;           \
-        if (_e < _a) {                      \
-            TRACEF("%s: expected " #expected " (%d) to be"  \
-                   " greater-than-or-equal-to actual "          \
-                   #actual " (%d)\n",                           \
-                   msg, (int)_e, (int)_a);          \
-            all_ok = false;                 \
-        }                           \
+#define EXPECT_GE(expected, actual, msg)                                  \
+    {                                                                     \
+        const typeof(actual) _e = expected;                               \
+        const typeof(actual) _a = actual;                                 \
+        if (_e < _a) {                                                    \
+            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d) to be"       \
+                   " greater-than-or-equal-to actual "                    \
+                   #actual " (%d)\n",                                     \
+                   msg, (int)_e, (int)_a);                                \
+            all_ok = false;                                               \
+        }                                                                 \
     }
 
-#define EXPECT_GT(expected, actual, msg)                        \
-    {                                                           \
-        const typeof(actual) _e = expected;                     \
-        const typeof(actual) _a = actual;                       \
-        if (_e <= _a) {                                         \
-            TRACEF("%s: expected " #expected " (%d) to be"      \
-                   " greater-than actual "                      \
-                   #actual " (%d)\n",                           \
-                   msg, (int)_e, (int)_a);                      \
-            all_ok = false;                                     \
-        }                                                       \
+#define EXPECT_GT(expected, actual, msg)                                  \
+    {                                                                     \
+        const typeof(actual) _e = expected;                               \
+        const typeof(actual) _a = actual;                                 \
+        if (_e <= _a) {                                                   \
+            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d) to be"       \
+                   " greater-than actual "                                \
+                   #actual " (%d)\n",                                     \
+                   msg, (int)_e, (int)_a);                                \
+            all_ok = false;                                               \
+        }                                                                 \
     }
 
-#define EXPECT_TRUE(actual, msg)                        \
-    if (!(actual)) {                                    \
-        TRACEF("%s: " #actual " is false\n", msg);      \
-        all_ok = false;                                 \
+#define EXPECT_TRUE(actual, msg)                                          \
+    if (!(actual)) {                                                      \
+        UNITTEST_TRACEF("%s: " #actual " is false\n", msg);               \
+        all_ok = false;                                                   \
     }
 
-#define EXPECT_FALSE(actual, msg)                       \
-    if (actual) {                                       \
-        TRACEF("%s: " #actual " is true\n", msg);       \
-        all_ok = false;                                 \
+#define EXPECT_FALSE(actual, msg)                                         \
+    if (actual) {                                                         \
+        UNITTEST_TRACEF("%s: " #actual " is true\n", msg);                \
+        all_ok = false;                                                   \
     }
 
-#define EXPECT_BYTES_EQ(expected, actual, length, msg)          \
-    if (!expect_bytes_eq(expected, actual, length, msg)) {  \
-        all_ok = false;                                         \
+#define EXPECT_BYTES_EQ(expected, actual, length, msg)                    \
+    if (!expect_bytes_eq(expected, actual, length, msg)) {                \
+        all_ok = false;                                                   \
     }
 
-#define EXPECT_BYTES_NE(bytes1, bytes2, length, msg)            \
-    if (!memcmp(bytes1, bytes2, length)) {                      \
-        TRACEF(#bytes1 " and " #bytes2 " are the same; "    \
-               "expected different\n");             \
-        hexdump8(bytes1, length);               \
-        all_ok = false;                     \
+#define EXPECT_BYTES_NE(bytes1, bytes2, length, msg)                      \
+    if (!memcmp(bytes1, bytes2, length)) {                                \
+        UNITTEST_TRACEF(#bytes1 " and " #bytes2 " are the same; "         \
+               "expected different\n");                                   \
+        hexdump8(bytes1, length);                                         \
+        all_ok = false;                                                   \
     }
 
 /* For comparing uint64_t, like hw_id_t. */
-#define EXPECT_EQ_LL(expected, actual, msg)             \
-    {                                                   \
-        const typeof(actual) _e = expected;             \
-        const typeof(actual) _a = actual;               \
-        if (_e != _a) {                                 \
-            TRACEF("%s: expected %llu, actual %llu\n",  \
-                   msg, _e, _a);                        \
-            all_ok = false;                             \
-        }                                               \
+#define EXPECT_EQ_LL(expected, actual, msg)                               \
+    {                                                                     \
+        const typeof(actual) _e = expected;                               \
+        const typeof(actual) _a = actual;                                 \
+        if (_e != _a) {                                                   \
+            UNITTEST_TRACEF("%s: expected %llu, actual %llu\n",           \
+                   msg, _e, _a);                                          \
+            all_ok = false;                                               \
+        }                                                                 \
     }
 
 /*
@@ -247,7 +274,7 @@
  */
 #define ASSERT_NOT_NULL(p)                      \
     if (!p) {                   \
-        TRACEF("ERROR: NULL pointer\n");    \
+        UNITTEST_TRACEF("ERROR: NULL pointer\n");    \
         return false;               \
     }
 
