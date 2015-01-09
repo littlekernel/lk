@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 			usage(binary);
 			return 1;
 		} else if (!strcmp(cmd, "-o")) {
-			outname = argv[2];
+			outname = argv[1];
 			argc--;
 			argv++;
 		} else {
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 	bootimage_done(img);
 
 	if ((fd = open(outname, O_CREAT|O_TRUNC|O_WRONLY, 0644)) < 0) {
-		fprintf(stderr, "error; cannot open '%s' for writing\n", outname);
+		fprintf(stderr, "error: cannot open '%s' for writing\n", outname);
 		return 1;
 	}
 	if (bootimage_write(img, fd)) {
