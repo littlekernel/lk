@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <err.h>
 #include <string.h>
+#include <sys/types.h>
 #include <lib/console.h>
 #include <lib/cbuf.h>
 #include <kernel/mutex.h>
@@ -987,7 +988,7 @@ status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port)
     return NO_ERROR;
 }
 
-status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket)
+status_t tcp_accept_timeout(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket, lk_time_t timeout)
 {
     if (!listen_socket || !accept_socket)
         return ERR_INVALID_ARGS;
@@ -995,8 +996,11 @@ status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket)
     tcp_socket_t *s = listen_socket;
     inc_socket_ref(s);
 
-    /* block to accept a socket */
-    sem_wait(&s->accept_sem);
+    /* block to accept a socket for an amount of time */
+    if (sem_timedwait(&s->accept_sem, timeout) == ERR_TIMED_OUT) {
+        dec_socket_ref(s);
+        return ERR_TIMED_OUT;
+    }
 
     mutex_acquire(&s->lock);
 
