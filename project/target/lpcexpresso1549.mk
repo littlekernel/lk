@@ -1,0 +1,2 @@
+TARGET := lpcexpresso1549
+
