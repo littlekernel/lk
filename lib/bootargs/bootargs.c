@@ -63,6 +63,13 @@ struct lk_boot_arg {
     uint8_t  data[];
 };
 
+struct lk_boot_arg_bootimage {
+    uint64_t offset;
+    size_t len;
+
+    char device[];
+};
+
 static void *find_end(void *buf, size_t buf_len)
 {
     uint8_t *ptr = (uint8_t *)buf;
@@ -102,23 +109,30 @@ status_t bootargs_add_command_line(void *buf, size_t buf_len, const char *str)
 
     arg->type = LK_BOOT_ARG_TYPE_COMMAND_LINE;
     arg->len = ROUNDUP(strlen(str) + 1, 4);
-    memcpy(arg->data, str, strlen(str) + 1);
+    memset(arg->data, 0, arg->len);
+    strcpy((char *)arg->data, str);
 
     return NO_ERROR;
 }
 
-status_t bootargs_add_bootimage_pointer(void *buf, size_t buf_len, uintptr_t bootimage, size_t bootimage_len)
+status_t bootargs_add_bootimage_pointer(void *buf, size_t buf_len, const char *device, uint64_t offset, size_t len)
 {
     struct lk_boot_arg *arg = find_end(buf, buf_len);
     if (!arg)
         return ERR_NO_MEMORY;
 
     arg->type = LK_BOOT_ARG_TYPE_BOOTIMAGE;
-    arg->len = 2 * sizeof(ulong);
+    size_t string_len = device ? ROUNDUP(strlen(device) + 1, 4) : 0;
+    arg->len = string_len + sizeof(struct lk_boot_arg_bootimage);
 
-    ulong *data = (ulong *)arg->data;
-    data[0] = (ulong)bootimage;
-    data[1] = (ulong)bootimage_len;
+    struct lk_boot_arg_bootimage *bi = (struct lk_boot_arg_bootimage *)arg->data;
+
+    bi->offset = offset;
+    bi->len = len;
+    if (device) {
+        memset(bi->device, 0, string_len);
+        strcpy(bi->device, device);
+    }
 
     return NO_ERROR;
 }
@@ -203,18 +217,29 @@ const char *bootargs_get_command_line(void)
     return (const char *)arg->data;
 }
 
-status_t bootargs_get_bootimage_pointer(uintptr_t *ptr, size_t *len)
+status_t bootargs_get_bootimage_pointer(uint64_t *offset, size_t *len, const char **device)
 {
     struct lk_boot_arg *arg = find_tag(LK_BOOT_ARG_TYPE_BOOTIMAGE);
     if (!arg)
         return ERR_NOT_FOUND;
 
     // XXX validate it
-    ulong *data = (ulong *)arg->data;
-    if (ptr)
-        *ptr = data[0];
+
+    struct lk_boot_arg_bootimage *bi = (struct lk_boot_arg_bootimage *)arg->data;
+
+    if (device) {
+        if (arg->len != sizeof(struct lk_boot_arg_bootimage)) {
+            /* string is present */
+            *device = bi->device;
+        } else {
+            *device = NULL;
+        }
+    }
+
+    if (offset)
+        *offset = bi->offset;
     if (len)
-        *len = data[1];
+        *len = bi->len;
 
     return NO_ERROR;
 }
