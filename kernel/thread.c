@@ -533,11 +533,19 @@ void thread_resched(void)
 		if (!thread_is_real_time_or_idle(oldthread)) {
 			/* if we're switching from a non real time to a real time, cancel
 			 * the preemption timer. */
+#ifdef DEBUG_THREAD_CONTEXT_SWITCH
+			dprintf(ALWAYS, "arch_context_switch: stop preempt, cpu %d, old %p (%s), new %p (%s)\n",
+				cpu, oldthread, oldthread->name, newthread, newthread->name);
+#endif
 			timer_cancel(&preempt_timer[cpu]);
 		}
 	} else if (thread_is_real_time_or_idle(oldthread)) {
 		/* if we're switching from a real time (or idle thread) to a regular one,
 		 * set up a periodic timer to run our preemption tick. */
+#ifdef DEBUG_THREAD_CONTEXT_SWITCH
+		dprintf(ALWAYS, "arch_context_switch: start preempt, cpu %d, old %p (%s), new %p (%s)\n",
+			cpu, oldthread, oldthread->name, newthread, newthread->name);
+#endif
 		timer_set_periodic(&preempt_timer[cpu], 10, (timer_callback)thread_timer_tick, NULL);
 	}
 #endif
@@ -547,7 +555,14 @@ void thread_resched(void)
 
 	/* do the switch */
 	set_current_thread(newthread);
-	//printf("c %u %p (%s) -> %p (%s)\n", cpu, oldthread, oldthread->name, newthread, newthread->name);
+
+#ifdef DEBUG_THREAD_CONTEXT_SWITCH
+	dprintf(ALWAYS, "arch_context_switch: cpu %d, old %p (%s, pri %d, flags 0x%x), new %p (%s, pri %d, flags 0x%x)\n",
+		cpu, oldthread, oldthread->name, oldthread->priority,
+		oldthread->flags, newthread, newthread->name,
+		newthread->priority, newthread->flags);
+#endif
+
 	arch_context_switch(oldthread, newthread);
 }
 
