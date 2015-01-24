@@ -26,6 +26,7 @@
  * a init hook that is called at increasing init levels as the system is
  * initialized.
  */
+#include <arch/ops.h>
 #include <lk/init.h>
 
 #include <compiler.h>
@@ -95,7 +96,8 @@ int lk_init_level_common(uint level, enum init_level_type type)
             break;
 
 #if TRACE_INIT
-        printf("INIT: calling hook %p (%s) at level %#x, flags %#x\n", found->hook, found->name, found->level, found->flags);
+        printf("INIT: cpu %d, calling hook %p (%s) at level %#x, flags %#x\n",
+               arch_curr_cpu_num(), found->hook, found->name, found->level, found->flags);
 #endif
         found->hook(found->level);
         last_called_level = found->level;
