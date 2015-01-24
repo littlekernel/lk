@@ -110,6 +110,7 @@ void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 	// create a thread to complete system initialization
 	dprintf(SPEW, "creating bootstrap completion thread\n");
 	thread_t *t = thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	t->pinned_cpu = 0;
 	thread_detach(t);
 	thread_resume(t);
 

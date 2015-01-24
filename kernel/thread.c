@@ -112,6 +112,7 @@ static void init_thread_struct(thread_t *t, const char *name)
 {
 	memset(t, 0, sizeof(thread_t));
 	t->magic = THREAD_MAGIC;
+	t->pinned_cpu = -1;
 	strlcpy(t->name, name, sizeof(t->name));
 }
 
@@ -424,6 +425,31 @@ static void idle_thread_routine(void)
 		arch_idle();
 }
 
+static thread_t *get_top_thread(int cpu)
+{
+	thread_t *newthread;
+	uint32_t local_run_queue_bitmap = run_queue_bitmap;
+	int next_queue;
+
+	while (local_run_queue_bitmap) {
+		next_queue = HIGHEST_PRIORITY - __builtin_clz(local_run_queue_bitmap) - (32 - NUM_PRIORITIES);
+
+		list_for_every_entry(&run_queue[next_queue], newthread, thread_t, queue_node) {
+			if (newthread->pinned_cpu < 0 || newthread->pinned_cpu == cpu) {
+				list_delete(&newthread->queue_node);
+
+				if (list_is_empty(&run_queue[next_queue]))
+					run_queue_bitmap &= ~(1<<next_queue);
+
+				return newthread;
+			}
+		}
+
+		local_run_queue_bitmap &= ~(1<<next_queue);
+	}
+	return NULL;
+}
+
 /**
  * @brief  Cause another thread to be executed.
  *
@@ -450,16 +476,8 @@ void thread_resched(void)
 
 	THREAD_STATS_INC(reschedules);
 
-	if (likely(run_queue_bitmap != 0)) {
-		/* find the first queue with a thread in it */
-		uint next_queue = HIGHEST_PRIORITY - __builtin_clz(run_queue_bitmap)
-			- (sizeof(run_queue_bitmap) * 8 - NUM_PRIORITIES);
-
-		newthread = list_remove_head_type(&run_queue[next_queue], thread_t, queue_node);
-
-		if (list_is_empty(&run_queue[next_queue]))
-			run_queue_bitmap &= ~(1U << next_queue);
-	} else {
+	newthread = get_top_thread(cpu);
+	if (unlikely(!newthread)) {
 		/* no threads to run, select the idle thread for this cpu */
 		newthread = &idle_threads[cpu];
 	}
@@ -746,6 +764,7 @@ void thread_init_early(void)
 	t->state = THREAD_RUNNING;
 	t->flags = THREAD_FLAG_DETACHED;
 	t->curr_cpu = 0;
+	t->pinned_cpu = 0;
 	wait_queue_init(&t->retcode_wait_queue);
 	list_add_head(&thread_list, &t->thread_list_node);
 	set_current_thread(t);
@@ -818,6 +837,7 @@ void thread_become_idle(void)
 	/* mark ourself as idle */
 	t->priority = IDLE_PRIORITY;
 	t->flags |= THREAD_FLAG_IDLE;
+	t->pinned_cpu = arch_curr_cpu_num();
 
 	mp_set_curr_cpu_active(true);
 	mp_set_cpu_idle(arch_curr_cpu_num());
@@ -847,6 +867,7 @@ void thread_secondary_cpu_entry(void)
 	t->state = THREAD_RUNNING;
 	t->flags = THREAD_FLAG_DETACHED | THREAD_FLAG_IDLE;
 	t->curr_cpu = cpu;
+	t->pinned_cpu = cpu;
 	wait_queue_init(&t->retcode_wait_queue);
 
 	THREAD_LOCK(state);
@@ -885,8 +906,8 @@ static const char *thread_state_to_str(enum thread_state state)
 void dump_thread(thread_t *t)
 {
 	dprintf(INFO, "dump_thread: t %p (%s)\n", t, t->name);
-	dprintf(INFO, "\tstate %s, curr_cpu %d, priority %d, remaining quantum %d\n",
-				  thread_state_to_str(t->state), t->curr_cpu, t->priority, t->remaining_quantum);
+	dprintf(INFO, "\tstate %s, curr_cpu %d, pinned_cpu %d, priority %d, remaining quantum %d\n",
+				  thread_state_to_str(t->state), t->curr_cpu, t->pinned_cpu, t->priority, t->remaining_quantum);
 	dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
 	dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
 	dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
