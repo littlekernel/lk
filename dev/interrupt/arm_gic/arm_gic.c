@@ -240,6 +240,7 @@ void arm_gic_init(void)
 
 	GICREG(0, GICD_CTLR) = 1; // enable GIC0
 #if WITH_LIB_SM
+	GICREG(0, GICD_CTLR) = 3; // enable GIC0 ns interrupts
 	/*
 	 * Iterate through all IRQs and set them to non-secure
 	 * mode. This will allow the non-secure side to handle
