@@ -39,18 +39,20 @@ extern void bcm2835_send_ipi(uint irq, uint cpu_mask);
 
 #define LOCAL_TRACE 0
 
+#define GIC_IPI_BASE (14)
+
 status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi)
 {
     LTRACEF("target 0x%x, ipi %u\n", target, ipi);
 
 #if WITH_DEV_INTERRUPT_ARM_GIC
-    uint gic_ipi_num = ipi;
+    uint gic_ipi_num = ipi + GIC_IPI_BASE;
 
     /* filter out targets outside of the range of cpus we care about */
     target &= ((1UL << SMP_MAX_CPUS) - 1);
     if (target != 0) {
         LTRACEF("target 0x%x, gic_ipi %u\n", target, gic_ipi_num);
-        arm_gic_sgi(gic_ipi_num, 0, target);
+        arm_gic_sgi(gic_ipi_num, ARM_GIC_SGI_FLAG_NS, target);
     }
 #elif PLATFORM_BCM2835
     /* filter out targets outside of the range of cpus we care about */
@@ -80,8 +82,8 @@ enum handler_return arm_ipi_reschedule_handler(void *arg)
 void arch_mp_init_percpu(void)
 {
 #if WITH_DEV_INTERRUPT_ARM_GIC
-    register_int_handler(MP_IPI_GENERIC, &arm_ipi_generic_handler, 0);
-    register_int_handler(MP_IPI_RESCHEDULE, &arm_ipi_reschedule_handler, 0);
+    register_int_handler(MP_IPI_GENERIC + GIC_IPI_BASE, &arm_ipi_generic_handler, 0);
+    register_int_handler(MP_IPI_RESCHEDULE + GIC_IPI_BASE, &arm_ipi_reschedule_handler, 0);
 
     //unmask_interrupt(MP_IPI_GENERIC);
     //unmask_interrupt(MP_IPI_RESCHEDULE);
