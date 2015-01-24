@@ -470,6 +470,8 @@ long smc_intc_get_next_irq(smc32_args_t *args)
 
 	arm_gic_non_secure_interrupts_frozen = true;
 	ret = arm_gic_get_next_irq_locked(args->params[0], args->params[1]);
+	LTRACEF("min_irq %d, per_cpu %d, ret %d\n",
+		args->params[0], args->params[1], ret);
 
 	spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
 
