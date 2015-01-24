@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <arch/ops.h>
 #include <assert.h>
 #include <platform.h>
 #include <platform/interrupts.h>
@@ -34,6 +35,7 @@
 #include <lib/fixed_point.h>
 
 static platform_timer_callback t_callback;
+static int timer_irq;
 
 struct fp_32_64 cntpct_per_ms;
 struct fp_32_64 ms_per_cntpct;
@@ -137,10 +139,6 @@ lk_bigtime_t current_time_hires(void)
 lk_time_t current_time(void)
 {
 	return cntpct_to_lk_time(read_cntpct());
-}
-
-void arm_generic_timer_init_secondary_cpu(void)
-{
 }
 
 static uint32_t abs_int32(int32_t a)
@@ -259,8 +257,22 @@ void arm_generic_timer_init(int irq, uint32_t freq_override)
 	arm_generic_timer_init_conversion_factors(cntfrq);
 	test_time_conversions(cntfrq);
 
+	LTRACEF("register irq %d on cpu %d\n", irq, arch_curr_cpu_num());
 	register_int_handler(irq, &platform_tick, NULL);
 	unmask_interrupt(irq);
+
+	timer_irq = irq;
 }
+
+static void arm_generic_timer_init_secondary_cpu(uint level)
+{
+	LTRACEF("register irq %d on cpu %d\n", timer_irq, arch_curr_cpu_num());
+	register_int_handler(timer_irq, &platform_tick, NULL);
+	unmask_interrupt(timer_irq);
+}
+
+LK_INIT_HOOK_FLAGS(arm_generic_timer_init_secondary_cpu,
+		   arm_generic_timer_init_secondary_cpu,
+		   LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_SECONDARY_CPUS);
 
 /* vim: set noexpandtab: */
