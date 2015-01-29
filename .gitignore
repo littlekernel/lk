@@ -3,7 +3,6 @@ build-*
 *~
 tags
 TAGS
-cscope.out
 local.mk
 *.orig
 cscope.*
