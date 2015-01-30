@@ -120,6 +120,17 @@ add sp, sp, #32
     b   .
 .endm
 
+.macro irq_exception
+    regsave_short
+    mov x0, sp
+    bl  platform_irq
+    cbz x0, .Lirq_exception_no_preempt\@
+    bl  thread_preempt
+1:
+.Lirq_exception_no_preempt\@:
+    b   arm64_exc_shared_restore_short
+.endm
+
 FUNCTION(arm64_exception_base)
 
 /* exceptions from current EL, using SP0 */
@@ -148,10 +159,7 @@ LOCAL_FUNCTION(arm64_sync_exc_current_el_SPx)
 
 .org 0x280
 LOCAL_FUNCTION(arm64_irq_current_el_SPx)
-    regsave_short
-    mov x0, sp
-    bl  platform_irq
-    b  arm64_exc_shared_restore_short
+    irq_exception
 
 .org 0x300
 LOCAL_FUNCTION(arm64_fiq_current_el_SPx)
@@ -191,10 +199,7 @@ LOCAL_FUNCTION(arm64_sync_exc_lower_el_32)
 
 .org 0x680
 LOCAL_FUNCTION(arm64_irq_lower_el_32)
-    regsave_short
-    mov x0, sp
-    bl  platform_irq
-    b  arm64_exc_shared_restore_short
+    irq_exception
 
 .org 0x700
 LOCAL_FUNCTION(arm64_fiq_lower_el_32)
