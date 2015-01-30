@@ -179,6 +179,9 @@ CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
 SIZE := $(TOOLCHAIN_PREFIX)size
 NM := $(TOOLCHAIN_PREFIX)nm
 
+# try to have the compiler output colorized error messages if available
+export GCC_COLORS ?= 1
+
 # the logic to compile and link stuff is in here
 include make/build.mk
 
