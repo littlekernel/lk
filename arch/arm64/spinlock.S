@@ -24,7 +24,7 @@
 
 .text
 
-FUNCTION(spin_trylock)
+FUNCTION(arch_spin_trylock)
 	mov	x2, x0
 	mov	x1, #1
 	ldaxr	x0, [x2]
@@ -33,7 +33,7 @@ FUNCTION(spin_trylock)
 1:
 	ret
 
-FUNCTION(spin_lock)
+FUNCTION(arch_spin_lock)
 	mov	x1, #1
 	sevl
 1:
@@ -44,6 +44,6 @@ FUNCTION(spin_lock)
 	cbnz	w2, 1b
 	ret
 
-FUNCTION(spin_unlock)
+FUNCTION(arch_spin_unlock)
 	stlr	xzr, [x0]
 	ret
