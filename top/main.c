@@ -33,8 +33,10 @@
 #include <platform.h>
 #include <target.h>
 #include <lib/heap.h>
+#include <kernel/mutex.h>
 #include <kernel/thread.h>
 #include <lk/init.h>
+#include <lk/main.h>
 
 /* saved boot arguments from whoever loaded the system */
 ulong lk_boot_args[4];
@@ -43,6 +45,11 @@ extern void *__ctor_list;
 extern void *__ctor_end;
 extern int __bss_start;
 extern int _end;
+
+#if WITH_SMP
+static thread_t *secondary_bootstrap_threads[SMP_MAX_CPUS - 1];
+static uint secondary_bootstrap_thread_count;
+#endif
 
 static int bootstrap2(void *arg);
 
@@ -64,7 +71,6 @@ static void call_constructors(void)
 }
 
 /* called from arch code */
-void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN __EXTERNALLY_VISIBLE;
 void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
 	// save the boot args
@@ -144,4 +150,53 @@ static int bootstrap2(void *arg)
 	return 0;
 }
 
+#if WITH_SMP
+void lk_secondary_cpu_entry(void)
+{
+	uint cpu = arch_curr_cpu_num();
+
+	if (cpu > secondary_bootstrap_thread_count) {
+		dprintf(CRITICAL, "Invalid secondary cpu num %d, SMP_MAX_CPUS %d, secondary_bootstrap_thread_count %d\n",
+			cpu, SMP_MAX_CPUS, secondary_bootstrap_thread_count);
+		return;
+	}
+
+	thread_secondary_cpu_init_early();
+	thread_resume(secondary_bootstrap_threads[cpu - 1]);
+
+	dprintf(SPEW, "entering scheduler on cpu %d\n", cpu);
+	thread_secondary_cpu_entry();
+}
+
+static int secondary_cpu_bootstrap2(void *arg)
+{
+	static mutex_t lock = MUTEX_INITIAL_VALUE(lock);
+
+	mutex_acquire(&lock);
+	lk_secondary_cpu_reset_init_level();
+	lk_secondary_cpu_init_level(LK_INIT_LEVEL_LAST);
+	mutex_release(&lock);
+
+	return 0;
+}
+
+void lk_init_secondary_cpus(uint secondary_cpu_count)
+{
+	if (secondary_cpu_count >= SMP_MAX_CPUS) {
+		dprintf(CRITICAL, "Invalid secondary_cpu_count %d, SMP_MAX_CPUS %d\n",
+			secondary_cpu_count, SMP_MAX_CPUS);
+		secondary_cpu_count = SMP_MAX_CPUS - 1;
+	}
+	for (uint i = 0; i < secondary_cpu_count; i++) {
+		dprintf(SPEW, "creating bootstrap completion thread for cpu %d\n", i + 1);
+		thread_t *t = thread_create("secondarybootstrap2",
+					    &secondary_cpu_bootstrap2, NULL,
+					    DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+		t->pinned_cpu = i + 1;
+		thread_detach(t);
+		secondary_bootstrap_threads[i] = t;
+	}
+	secondary_bootstrap_thread_count = secondary_cpu_count;
+}
+#endif
 // vim: noexpandtab:
