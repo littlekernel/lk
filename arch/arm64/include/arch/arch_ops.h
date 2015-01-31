@@ -246,7 +246,7 @@ static inline void set_current_thread(struct thread *t)
 
 static inline uint arch_curr_cpu_num(void)
 {
-    return 0;
+    return ARM64_READ_SYSREG(mpidr_el1) & 0x3;
 }
 
 #endif // ASSEMBLY
