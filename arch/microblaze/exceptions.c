@@ -20,19 +20,14 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <trace.h>
+#include <compiler.h>
+#include <arch/microblaze.h>
 
-void arch_early_init(void)
-{
-    TRACE;
-}
+void microblaze_irq(void) __attribute__((interrupt_handler));
 
-void arch_init(void)
+void microblaze_irq(void)
 {
-    TRACE;
-}
 
-void arch_idle(void)
-{
+
 }
 

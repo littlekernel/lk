@@ -36,4 +36,17 @@ static inline void arch_disable_ints(void)
     CF;
 }
 
+/* use a global pointer to store the current_thread */
+extern struct thread *_current_thread;
+
+static inline struct thread *get_current_thread(void)
+{
+    return _current_thread;
+}
+
+static inline void set_current_thread(struct thread *t)
+{
+    _current_thread = t;
+}
+
 

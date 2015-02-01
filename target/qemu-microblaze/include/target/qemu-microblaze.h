@@ -20,19 +20,19 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <trace.h>
+#pragma once
 
-void arch_early_init(void)
-{
-    TRACE;
-}
+/* qemu emulates a petalogix s3adsp1800 */
+#define LMB_BRAM_SIZE       (128 * 1024)
+#define FLASH_SIZE          (16 * 1024 * 1024)
 
-void arch_init(void)
-{
-    TRACE;
-}
+#define ETHLITE_BASEADDR    0x81000000
+#define INTC_BASEADDR       0x81800000
+#define TIMER_BASEADDR      0x83c00000
+#define UARTLITE_BASEADDR   0x84000000
+#define MEMORY_BASEADDR     0x90000000
+#define FLASH_BASEADDR      0xa0000000
 
-void arch_idle(void)
-{
-}
-
+#define TIMER_IRQ           0
+#define ETHLITE_IRQ         1
+#define UARTLITE_IRQ        3

@@ -9,11 +9,12 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/start.S \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/asm.S \
+	$(LOCAL_DIR)/exceptions.c \
+	$(LOCAL_DIR)/thread.c \
 
 #	$(LOCAL_DIR)/cache.c \
 	$(LOCAL_DIR)/cache-ops.S \
 	$(LOCAL_DIR)/ops.S \
-	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/mmu.c \
 	$(LOCAL_DIR)/faults.c \
 	$(LOCAL_DIR)/descriptor.c
@@ -31,6 +32,11 @@ cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`";
 
 ARCH_OPTFLAGS := -O2
 
+GLOBAL_LDFLAGS += -relax
+
+KERNEL_BASE ?= 0
+KERNEL_LOAD_OFFSET ?= 0
+
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
 	$(BUILDDIR)/linker.ld
@@ -39,7 +45,7 @@ GENERATED += \
 $(BUILDDIR)/linker.ld: $(LOCAL_DIR)/linker.ld $(wildcard arch/*.ld)
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)cp $< $@
+	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@
 
 LINKER_SCRIPT += $(BUILDDIR)/linker.ld
 

@@ -20,19 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <trace.h>
+#pragma once
 
-void arch_early_init(void)
-{
-    TRACE;
-}
 
-void arch_init(void)
-{
-    TRACE;
-}
-
-void arch_idle(void)
-{
-}
 
