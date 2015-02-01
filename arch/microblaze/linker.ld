@@ -8,10 +8,14 @@ SECTIONS
 
     _start = .;
 
+    /* vector table goes at 0, for qemu target, at least */
+    .vectors : AT(0) {
+        KEEP(*(.vectors))
+    }
+
     /* text/read-only data */
     /* set the load address to physical MEMBASE */
-    .text : AT(%MEMBASE% + %KERNEL_LOAD_OFFSET%) {
-        KEEP(*(.vectors))
+    .text : AT(%MEMBASE% + %KERNEL_LOAD_OFFSET% + SIZEOF(.vectors)) {
         KEEP(*(.text.boot))
         *(.text* .gnu.linkonce.t.*)
     }

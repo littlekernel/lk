@@ -22,26 +22,26 @@
  */
 #include <asm.h>
 
-.section ".vectors"
-.globl _start
-_start:
+.section ".vectors", "ax"
+.globl _vectab
+_vectab:
 /* vector table here */
     # start vector
-    bri start
+    brai start
     # user exception
-    bri unhandled_exception
+    brai unhandled_exception
     # interrupt
-    bri microblaze_irq
+    brai microblaze_irq
     # break
-    bri unhandled_exception
+    brai unhandled_exception
     # hardware exception
-    bri unhandled_exception
+    brai unhandled_exception
 
     # reserved for future
 .fill (0x50 - 0x28)
 
 .section ".text.boot"
-start:
+FUNCTION(start)
     # set the default stack
     addik   r1, r0, default_stack_top
 
@@ -49,13 +49,15 @@ start:
     addik   r2, r0, _SDATA2_START__
     addik   r13, r0, _SDATA_START__
 
-    # TODO: make sure irqs are disabled and any other cpu specific setup
+    # set the processor mode to default
+    mts     rmsr, r0
 
     # zero out bss sections
     addik   r5, r0, __bss_start
     addik   r6, r0, 0
-    brlid   r15, memset
     rsubik  r7, r5, __bss_end
+    brlid   r15, memset
+    nop
 
     # arguments to main
     addik   r5, r0, 1
@@ -67,7 +69,7 @@ start:
     # shouldn't be here
     bri     .
 
-unhandled_exception:
+FUNCTION(unhandled_exception)
     bri     .
 
 .bss

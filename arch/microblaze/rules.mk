@@ -34,7 +34,7 @@ ARCH_OPTFLAGS := -O2
 
 GLOBAL_LDFLAGS += -relax
 
-KERNEL_BASE ?= 0
+KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0
 
 # potentially generated files that should be cleaned out with clean make rule

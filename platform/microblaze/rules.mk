@@ -11,8 +11,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/uartlite.c
 
-MEMBASE := 0x0
-MEMSIZE := 0x08000000	# 128MB
+MEMBASE ?= 0x0
+MEMSIZE ?= 0x20000	# 128KB
 
 MODULE_DEPS += \
 

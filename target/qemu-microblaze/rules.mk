@@ -5,5 +5,8 @@ GLOBAL_INCLUDES += \
 
 PLATFORM := microblaze
 
+MEMBASE ?= 0x90000000
+MEMSIZE ?= 0x08000000
+
 #include make/module.mk
 
