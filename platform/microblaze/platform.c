@@ -30,22 +30,7 @@
 #include <target/qemu-microblaze.h>
 
 void uartlite_putc(char c);
-int uartlite_getc(void);
-
-lk_bigtime_t current_time_hires(void)
-{
-    return 0;
-}
-
-lk_time_t current_time(void)
-{
-    return 0;
-}
-
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
-    return 0;
-}
+int uartlite_getc(bool wait);
 
 void platform_dputc(char c)
 {
@@ -57,7 +42,7 @@ void platform_dputc(char c)
 int platform_dgetc(char *c, bool wait)
 {
     for (;;) {
-        int ret = uartlite_getc();
+        int ret = uartlite_getc(wait);
         if (ret >= 0) {
             *c = ret;
             return 0;

@@ -36,3 +36,4 @@
 #define TIMER_IRQ           0
 #define ETHLITE_IRQ         1
 #define UARTLITE_IRQ        3
+#define MAX_INT             4

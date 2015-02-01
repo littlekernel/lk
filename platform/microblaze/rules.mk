@@ -4,11 +4,16 @@ MODULE := $(LOCAL_DIR)
 
 ARCH := microblaze
 
+MODULE_DEPS += \
+    lib/cbuf
+
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
 
 MODULE_SRCS += \
+	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c \
+	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uartlite.c
 
 MEMBASE ?= 0x0

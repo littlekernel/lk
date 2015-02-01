@@ -21,13 +21,21 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <compiler.h>
+#include <trace.h>
 #include <arch/microblaze.h>
+#include <kernel/thread.h>
 
 void microblaze_irq(void) __attribute__((interrupt_handler));
 
+enum handler_return platform_irq_handler(void);
+
 void microblaze_irq(void)
 {
+    inc_critical_section();
 
+    if (platform_irq_handler() == INT_RESCHEDULE)
+        thread_preempt();
 
+    dec_critical_section();
 }
 
