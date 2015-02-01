@@ -29,45 +29,40 @@
 #include <sys/types.h>
 #include <target/qemu-microblaze.h>
 
-void uartlite_putc(char c);
-int uartlite_getc(void);
+#define R_RX            0
+#define R_TX            1
+#define R_STATUS        2
+#define R_CTRL          3
+#define R_MAX           4
 
-lk_bigtime_t current_time_hires(void)
+#define STATUS_RXVALID    0x01
+#define STATUS_RXFULL     0x02
+#define STATUS_TXEMPTY    0x04
+#define STATUS_TXFULL     0x08
+#define STATUS_IE         0x10
+#define STATUS_OVERRUN    0x20
+#define STATUS_FRAME      0x40
+#define STATUS_PARITY     0x80
+
+#define CONTROL_RST_TX    0x01
+#define CONTROL_RST_RX    0x02
+#define CONTROL_IE        0x10
+
+#define UART_REG(reg) (*REG32(UARTLITE_BASEADDR + (reg) * 4))
+
+void uartlite_putc(char c)
 {
-    return 0;
+    UART_REG(R_TX) = c;
 }
 
-lk_time_t current_time(void)
+int uartlite_getc(void)
 {
-    return 0;
-}
-
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
-    return 0;
-}
-
-void platform_dputc(char c)
-{
-    if (c == '\n')
-        uartlite_putc('\r');
-    uartlite_putc(c);
-}
-
-int platform_dgetc(char *c, bool wait)
-{
-    for (;;) {
-        int ret = uartlite_getc();
-        if (ret >= 0) {
-            *c = ret;
-            return 0;
-        }
-
-        if (!wait)
-            return -1;
-
-        thread_yield();
+    uint32_t status = UART_REG(R_STATUS);
+    if (status & STATUS_RXVALID) {
+        return UART_REG(R_RX);
     }
+    return -1;
 }
+
 
 
