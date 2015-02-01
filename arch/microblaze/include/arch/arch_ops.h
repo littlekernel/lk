@@ -27,14 +27,70 @@
 static inline void arch_enable_ints(void)
 {
     CF;
-//    __asm__ volatile("cpsie i");
+    uint32_t temp;
+    __asm__ volatile(
+        "mfs    %0, rmsr;"
+        "ori    %0, %0, (1<<1);"
+        "mts    rmsr, %0" : "=r" (temp));
 }
 
 static inline void arch_disable_ints(void)
 {
-//    __asm__ volatile("cpsid i");
+    uint32_t temp;
+    __asm__ volatile(
+        "mfs    %0, rmsr;"
+        "andni  %0, %0, (1<<1);"
+        "mts    rmsr, %0" : "=r" (temp));
     CF;
 }
+
+static inline int atomic_add(volatile int *ptr, int val)
+{
+	return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
+}
+
+static inline int atomic_or(volatile int *ptr, int val)
+{
+	return __atomic_fetch_or(ptr, val, __ATOMIC_RELAXED);
+}
+
+static inline int atomic_and(volatile int *ptr, int val)
+{
+	return __atomic_fetch_and(ptr, val, __ATOMIC_RELAXED);
+}
+
+static inline int atomic_swap(volatile int *ptr, int val)
+{
+	return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
+}
+
+#if 0
+static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
+{
+	int old;
+	int test;
+
+	do {
+		__asm__ volatile(
+		    "ldrex	%[old], [%[ptr]]\n"
+		    "mov	%[test], #0\n"
+		    "teq	%[old], %[oldval]\n"
+#if ARM_ISA_ARMV7M
+		    "bne	0f\n"
+		    "strex	%[test], %[newval], [%[ptr]]\n"
+		    "0:\n"
+#else
+		    "strexeq %[test], %[newval], [%[ptr]]\n"
+#endif
+		    : [old]"=&r" (old), [test]"=&r" (test)
+		    : [ptr]"r" (ptr), [oldval]"Ir" (oldval), [newval]"r" (newval)
+		    : "cc");
+
+	} while (test != 0);
+
+	return old;
+}
+#endif
 
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;
@@ -49,4 +105,5 @@ static inline void set_current_thread(struct thread *t)
     _current_thread = t;
 }
 
+static inline uint32_t arch_cycle_count(void) { return 0; }
 
