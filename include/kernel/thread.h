@@ -53,6 +53,7 @@ enum thread_tls_list {
 #define THREAD_FLAG_FREE_STACK 0x2
 #define THREAD_FLAG_FREE_STRUCT 0x4
 #define THREAD_FLAG_REAL_TIME 0x8
+#define THREAD_FLAG_IDLE 0x10
 
 #define THREAD_MAGIC 'thrd'
 
@@ -66,6 +67,7 @@ typedef struct thread {
 	enum thread_state state;
 	int remaining_quantum;
 	unsigned int flags;
+	int curr_cpu;
 
 	/* if blocked, a pointer to the wait queue */
 	struct wait_queue *blocking_wait_queue;
@@ -113,6 +115,7 @@ typedef struct thread {
 void thread_init_early(void);
 void thread_init(void);
 void thread_become_idle(void) __NO_RETURN;
+void thread_secondary_cpu_entry(void) __NO_RETURN;
 void thread_set_name(const char *name);
 void thread_set_priority(int priority);
 thread_t *thread_create(const char *name, thread_start_routine entry, void *arg, int priority, size_t stack_size);
@@ -126,6 +129,7 @@ status_t thread_detach_and_resume(thread_t *t);
 status_t thread_set_real_time(thread_t *t);
 
 void dump_thread(thread_t *t);
+void arch_dump_thread(thread_t *t);
 void dump_all_threads(void);
 
 /* scheduler routines */
@@ -179,9 +183,9 @@ struct thread_stats {
 	int timers; /* timer code increment this */
 };
 
-extern struct thread_stats thread_stats;
+extern struct thread_stats thread_stats[SMP_MAX_CPUS];
 
-#define THREAD_STATS_INC(name) do { thread_stats.name++; } while(0)
+#define THREAD_STATS_INC(name) do { thread_stats[arch_curr_cpu_num()].name++; } while(0)
 
 #else
 
@@ -191,3 +195,4 @@ extern struct thread_stats thread_stats;
 
 #endif
 
+/* vim: set ts=4 sw=4 noexpandtab: */

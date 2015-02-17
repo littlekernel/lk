@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Travis Geiselbrecht
+ * Copyright (c) 2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,28 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <compiler.h>
-#include <debug.h>
-#include <kernel/debug.h>
-#include <kernel/thread.h>
-#include <kernel/timer.h>
+#pragma once
+
+#include <sys/types.h>
 #include <kernel/mp.h>
 
-void kernel_init(void)
-{
-	// if enabled, configure the kernel's event log
-	kernel_evlog_init();
+/* send inter processor interrupt, if supported */
+status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi);
 
-	// initialize the threading system
-	dprintf(SPEW, "initializing mp\n");
-	mp_init();
-
-	// initialize the threading system
-	dprintf(SPEW, "initializing threads\n");
-	thread_init();
-
-	// initialize kernel timers
-	dprintf(SPEW, "initializing timers\n");
-	timer_init();
-}
-
+void arch_mp_init_percpu(void);

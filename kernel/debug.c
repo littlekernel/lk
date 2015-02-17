@@ -73,43 +73,50 @@ static int cmd_threads(int argc, const cmd_args *argv)
 #if THREAD_STATS
 static int cmd_threadstats(int argc, const cmd_args *argv)
 {
-	printf("thread stats:\n");
-	printf("\ttotal idle time: %lld\n", thread_stats.idle_time);
-	printf("\ttotal busy time: %lld\n", current_time_hires() - thread_stats.idle_time);
-	printf("\treschedules: %d\n", thread_stats.reschedules);
-	printf("\tcontext_switches: %d\n", thread_stats.context_switches);
-	printf("\tpreempts: %d\n", thread_stats.preempts);
-	printf("\tyields: %d\n", thread_stats.yields);
-	printf("\tinterrupts: %d\n", thread_stats.interrupts);
-	printf("\ttimer interrupts: %d\n", thread_stats.timer_ints);
-	printf("\ttimers: %d\n", thread_stats.timers);
+	for (uint i = 0; i < SMP_MAX_CPUS; i++) {
+		printf("thread stats (cpu %d):\n", i);
+		printf("\ttotal idle time: %lld\n", thread_stats[i].idle_time);
+		printf("\ttotal busy time: %lld\n", current_time_hires() - thread_stats[i].idle_time);
+		printf("\treschedules: %d\n", thread_stats[i].reschedules);
+		printf("\tcontext_switches: %d\n", thread_stats[i].context_switches);
+		printf("\tpreempts: %d\n", thread_stats[i].preempts);
+		printf("\tyields: %d\n", thread_stats[i].yields);
+		printf("\tinterrupts: %d\n", thread_stats[i].interrupts);
+		printf("\ttimer interrupts: %d\n", thread_stats[i].timer_ints);
+		printf("\ttimers: %d\n", thread_stats[i].timers);
+	}
 
 	return 0;
 }
 
 static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
 {
-	static struct thread_stats old_stats;
-	static lk_bigtime_t last_idle_time;
+	static struct thread_stats old_stats[SMP_MAX_CPUS];
+	static lk_bigtime_t last_idle_time[SMP_MAX_CPUS];
 
-	lk_bigtime_t idle_time = thread_stats.idle_time;
-	if (get_current_thread()->priority == IDLE_PRIORITY) {
-		idle_time += current_time_hires() - thread_stats.last_idle_timestamp;
+	for (uint i = 0; i < SMP_MAX_CPUS; i++) {
+		lk_bigtime_t idle_time = thread_stats[i].idle_time;
+#if 0
+		if (get_current_thread()->priority == IDLE_PRIORITY) {
+			idle_time += current_time_hires() - thread_stats[i].last_idle_timestamp;
+		}
+#endif
+		lk_bigtime_t delta_time = idle_time - last_idle_time[i];
+		lk_bigtime_t busy_time = 1000000ULL - (delta_time > 1000000ULL ? 1000000ULL : delta_time);
+
+		uint busypercent = (busy_time * 10000) / (1000000);
+
+		//  printf("idle_time %lld, busytime %lld\n", idle_time - last_idle_time, busy_time);
+		printf("cpu %u LOAD: %d.%02d%%, cs %d, ints %d, timer ints %d, timers %d\n", i,
+		       busypercent / 100, busypercent % 100,
+		       thread_stats[i].context_switches - old_stats[i].context_switches,
+		       thread_stats[i].interrupts - old_stats[i].interrupts,
+		       thread_stats[i].timer_ints - old_stats[i].timer_ints,
+		       thread_stats[i].timers - old_stats[i].timers);
+
+		old_stats[i] = thread_stats[i];
+		last_idle_time[i] = idle_time;
 	}
-	lk_bigtime_t delta_time = idle_time - last_idle_time;
-	lk_bigtime_t busy_time = 1000000ULL - (delta_time > 1000000ULL ? 1000000ULL : delta_time);
-
-	uint busypercent = (busy_time * 10000) / (1000000);
-
-//	printf("idle_time %lld, busytime %lld\n", idle_time - last_idle_time, busy_time);
-	printf("LOAD: %d.%02d%%, cs %d, ints %d, timer ints %d, timers %d\n", busypercent / 100, busypercent % 100,
-	       thread_stats.context_switches - old_stats.context_switches,
-	       thread_stats.interrupts - old_stats.interrupts,
-	       thread_stats.timer_ints - old_stats.timer_ints,
-	       thread_stats.timers - old_stats.timers);
-
-	old_stats = thread_stats;
-	last_idle_time = idle_time;
 
 	return INT_NO_RESCHEDULE;
 }
@@ -156,7 +163,7 @@ void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1)
 		uint index = evlog_bump_head(&kernel_evlog);
 
 		kernel_evlog.items[index] = (uintptr_t)current_time_hires();
-		kernel_evlog.items[index+1] = id;
+		kernel_evlog.items[index+1] = (arch_curr_cpu_num() << 16) | id;
 		kernel_evlog.items[index+2] = arg0;
 		kernel_evlog.items[index+3] = arg1;
 	}
@@ -166,24 +173,24 @@ void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1)
 
 static void kevdump_cb(const uintptr_t *i)
 {
-	switch (i[1]) {
+	switch (i[1] & 0xffff) {
 		case KERNEL_EVLOG_CONTEXT_SWITCH:
-			printf("%lu: context switch from %p to %p\n", i[0], (void *)i[2], (void *)i[3]);
+			printf("%lu.%lu: context switch from %p to %p\n", i[0], i[1] >> 16, (void *)i[2], (void *)i[3]);
 			break;
 		case KERNEL_EVLOG_PREEMPT:
-			printf("%lu: preempt on thread %p\n", i[0], (void *)i[2]);
+			printf("%lu.%lu: preempt on thread %p\n", i[0], i[1] >> 16, (void *)i[2]);
 			break;
 		case KERNEL_EVLOG_TIMER_TICK:
-			printf("%lu: timer tick\n", i[0]);
+			printf("%lu.%lu: timer tick\n", i[0], i[1] >> 16);
 			break;
 		case KERNEL_EVLOG_TIMER_CALL:
-			printf("%lu: timer call %p, arg %p\n", i[0], (void *)i[2], (void *)i[3]);
+			printf("%lu.%lu: timer call %p, arg %p\n", i[0], i[1] >> 16, (void *)i[2], (void *)i[3]);
 			break;
 		case KERNEL_EVLOG_IRQ_ENTER:
-			printf("%lu: irq entry %u\n", i[0], (uint)i[2]);
+			printf("%lu.%lu: irq entry %u\n", i[0], i[1] >> 16, (uint)i[2]);
 			break;
 		case KERNEL_EVLOG_IRQ_EXIT:
-			printf("%lu: irq exit  %u\n", i[0], (uint)i[2]);
+			printf("%lu.%lu: irq exit  %u\n", i[0], i[1] >> 16, (uint)i[2]);
 			break;
 		default:
 			;

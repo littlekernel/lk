@@ -71,14 +71,14 @@ void event_destroy(event_t *e)
 {
 	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-    THREAD_LOCK(state);
+	THREAD_LOCK(state);
 
 	e->magic = 0;
 	e->signalled = false;
 	e->flags = 0;
 	wait_queue_destroy(&e->wait, true);
 
-    THREAD_UNLOCK(state);
+	THREAD_UNLOCK(state);
 }
 
 /**
@@ -102,7 +102,7 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout)
 
 	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-    THREAD_LOCK(state);
+	THREAD_LOCK(state);
 
 	if (e->signalled) {
 		/* signalled, we're going to fall through */
@@ -115,7 +115,7 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout)
 		ret = wait_queue_block(&e->wait, timeout);
 	}
 
-    THREAD_UNLOCK(state);
+	THREAD_UNLOCK(state);
 
 	return ret;
 }
@@ -141,7 +141,7 @@ status_t event_signal(event_t *e, bool reschedule)
 {
 	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-    THREAD_LOCK(state);
+	THREAD_LOCK(state);
 
 	if (!e->signalled) {
 		if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
@@ -161,7 +161,7 @@ status_t event_signal(event_t *e, bool reschedule)
 		}
 	}
 
-    THREAD_UNLOCK(state);
+	THREAD_UNLOCK(state);
 
 	return NO_ERROR;
 }
