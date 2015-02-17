@@ -34,12 +34,12 @@
 #include <platform.h>
 
 #if ARCH_ARM
+const uint BUFSIZE = (1024*1024);
+const uint ITER = 1024;
+
 void bench_set_overhead(void)
 {
-	const uint BUFSIZE = 4096;
-	const uint ITER = 4096;
 	uint32_t *buf = malloc(BUFSIZE);
-	printf("buf %p\n", buf);
 
 	uint count = arch_cycle_count();
 	for (uint i = 0; i < ITER; i++) {
@@ -59,10 +59,7 @@ void bench_set_overhead(void)
 
 void bench_memset(void)
 {
-	const uint BUFSIZE = 4096;
-	const uint ITER = 4096;
 	void *buf = malloc(BUFSIZE);
-	printf("buf %p\n", buf);
 
 	uint count = arch_cycle_count();
 	for (uint i = 0; i < ITER; i++) {
@@ -79,10 +76,7 @@ void bench_memset(void)
 #define bench_cset(type) \
 void bench_cset_##type(void) \
 { \
-	const uint BUFSIZE = 4096; \
-	const uint ITER = 4096; \
 	type *buf = malloc(BUFSIZE); \
-	printf("buf %p\n", buf); \
  \
 	uint count = arch_cycle_count(); \
 	for (uint i = 0; i < ITER; i++) { \
@@ -105,10 +99,7 @@ bench_cset(uint64_t)
 
 void bench_cset_wide(void)
 {
-	const uint BUFSIZE = 4096;
-	const uint ITER = 4096;
 	uint32_t *buf = malloc(BUFSIZE);
-	printf("buf %p\n", buf);
 
 	uint count = arch_cycle_count();
 	for (uint i = 0; i < ITER; i++) {
@@ -133,10 +124,7 @@ void bench_cset_wide(void)
 
 void bench_cset_stm(void)
 {
-	const uint BUFSIZE = 4096;
-	const uint ITER = 4096;
 	uint32_t *buf = malloc(BUFSIZE);
-	printf("buf %p\n", buf);
 
 	uint count = arch_cycle_count();
 	for (uint i = 0; i < ITER; i++) {
@@ -158,10 +146,7 @@ void bench_cset_stm(void)
 
 void bench_memcpy(void)
 {
-	const uint BUFSIZE = 4096;
-	const uint ITER = 4096;
 	uint8_t *buf = malloc(BUFSIZE);
-	printf("buf %p\n", buf);
 
 	uint count = arch_cycle_count();
 	for (uint i = 0; i < ITER; i++) {
