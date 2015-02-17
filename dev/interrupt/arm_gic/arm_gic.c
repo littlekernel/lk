@@ -73,10 +73,12 @@ struct int_handler_struct {
 	void *arg;
 };
 
-static struct int_handler_struct int_handler_table[MAX_INT];
+static struct int_handler_struct int_handler_table[MAX_INT][SMP_MAX_CPUS];
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 {
+	uint cpu = arch_curr_cpu_num();
+
 	spin_lock_saved_state_t state;
 
 	if (vector >= MAX_INT)
@@ -85,8 +87,8 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 	spin_lock_save(&gicd_lock, &state, GICD_LOCK_FLAGS);
 
 	if (arm_gic_interrupt_change_allowed(vector)) {
-		int_handler_table[vector].handler = handler;
-		int_handler_table[vector].arg = arg;
+		int_handler_table[vector][cpu].handler = handler;
+		int_handler_table[vector][cpu].arg = arg;
 	}
 
 	spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
@@ -141,7 +143,7 @@ static void gic_set_enable(uint vector, bool enable)
 		GICREG(0, GICD_ICENABLER(reg)) = mask;
 }
 
-void arm_gic_init_secondary_cpu(void)
+void arm_gic_init_percpu(void)
 {
 #if WITH_LIB_SM
 	GICREG(0, GICC_CTLR) = 0xb; // enable GIC0 and select fiq mode for secure
@@ -183,7 +185,7 @@ void arm_gic_init(void)
 	for (i = 32; i < MAX_INT; i += 32)
 		GICREG(0, GICD_IGROUPR(i / 32)) = ~0UL;
 #endif
-	arm_gic_init_secondary_cpu();
+	arm_gic_init_percpu();
 }
 
 static status_t arm_gic_set_secure_locked(u_int irq, bool secure)
@@ -292,7 +294,8 @@ static
 enum handler_return __platform_irq(struct arm_iframe *frame)
 {
 	// get the current vector
-	unsigned int vector = GICREG(0, GICC_IAR) & 0x3ff;
+	uint32_t iar = GICREG(0, GICC_IAR);
+	unsigned int vector = iar & 0x3ff;
 
 	if (vector >= 0x3fe) {
 		// spurious
@@ -302,18 +305,22 @@ enum handler_return __platform_irq(struct arm_iframe *frame)
 	THREAD_STATS_INC(interrupts);
 	KEVLOG_IRQ_ENTER(vector);
 
-//	printf("platform_irq: spsr 0x%x, pc 0x%x, currthread %p, vector %d\n", frame->spsr, frame->pc, current_thread, vector);
+	uint cpu = arch_curr_cpu_num();
+
+//	printf("platform_irq: iar 0x%x cpu %u spsr 0x%x, pc 0x%x, currthread %p, vector %d\n",
+//			iar, cpu, frame->spsr, frame->pc, get_current_thread(), vector);
 
 	// deliver the interrupt
 	enum handler_return ret;
 
 	ret = INT_NO_RESCHEDULE;
-	if (int_handler_table[vector].handler)
-		ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
+	struct int_handler_struct *handler = &int_handler_table[vector][cpu];
+	if (handler->handler)
+		ret = handler->handler(handler->arg);
 
-	GICREG(0, GICC_EOIR) = vector;
+	GICREG(0, GICC_EOIR) = iar;
 
-//	printf("platform_irq: exit %d\n", ret);
+//	printf("platform_irq: cpu %u exit %d\n", cpu, ret);
 
 	KEVLOG_IRQ_EXIT(vector);
 

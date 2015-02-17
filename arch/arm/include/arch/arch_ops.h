@@ -232,6 +232,18 @@ static inline uint32_t arch_cycle_count(void)
 #endif
 }
 
+#if WITH_SMP && ARM_ISA_ARMV7
+static inline uint arch_curr_cpu_num(void)
+{
+    return arm_read_mpidr() & 0x3;
+}
+#else
+static inline uint arch_curr_cpu_num(void)
+{
+    return 0;
+}
+#endif
+
 /* defined in kernel/thread.h */
 
 #if !ARM_ISA_ARMV7M

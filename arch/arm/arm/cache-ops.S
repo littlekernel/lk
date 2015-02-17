@@ -137,11 +137,6 @@ FUNCTION(arch_disable_cache)
 	bic		r0, #(1<<1)
 	mcr		p15, 0, r0, c1, c0, 1		// disable L2 dcache
 #endif
-#if WITH_DEV_CACHE_PL310
-    bl      pl310_flush_invalidate
-    mov     r0, #0
-    bl      pl310_set_enable
-#endif
 
 .Licache_disable:
 	tst		r7, #ICACHE
@@ -184,11 +179,6 @@ FUNCTION(arch_enable_cache)
 	mrc     p15, 0, r0, c1, c0, 1		// aux cr1
 	orr		r0, #(1<<1)
 	mcr		p15, 0, r0, c1, c0, 1		// enable L2 dcache
-#endif
-#if WITH_DEV_CACHE_PL310
-    bl      pl310_invalidate
-    mov     r0, #1
-    bl      pl310_set_enable
 #endif
 
 	mrc     p15, 0, r0, c1, c0, 0		// cr1

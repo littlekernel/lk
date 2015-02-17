@@ -96,7 +96,6 @@ static void exception_die(struct arm_fault_frame *frame, const char *msg)
 
 static void exception_die_iframe(struct arm_iframe *frame, const char *msg)
 {
-	inc_critical_section();
 	dprintf(CRITICAL, msg);
 	dump_iframe(frame);
 
@@ -111,8 +110,6 @@ void arm_syscall_handler(struct arm_fault_frame *frame)
 
 void arm_undefined_handler(struct arm_iframe *frame)
 {
-	inc_critical_section();
-
 	/* look at the undefined instruction, figure out if it's something we can handle */
 	bool in_thumb = frame->spsr & (1<<5);
 	if (in_thumb) {
@@ -156,7 +153,6 @@ void arm_undefined_handler(struct arm_iframe *frame)
 #if ARM_WITH_VFP
 fpu:
 	arm_fpu_undefined_instruction(frame);
-	dec_critical_section();
 #endif
 }
 

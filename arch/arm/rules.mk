@@ -176,6 +176,20 @@ KERNEL_LOAD_OFFSET ?= 0
 GLOBAL_DEFINES += \
     KERNEL_BASE=$(KERNEL_BASE) \
     KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET)
+
+# if its requested we build with SMP, arm generically supports 4 cpus
+ifeq ($(WITH_SMP),1)
+GLOBAL_DEFINES += \
+    WITH_SMP=1 \
+    SMP_MAX_CPUS=4
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/arm/mp.c
+else
+GLOBAL_DEFINES += \
+    SMP_MAX_CPUS=1
+endif
+
 endif
 ifeq ($(SUBARCH),arm-m)
 MODULE_SRCS += \

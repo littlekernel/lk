@@ -47,6 +47,7 @@ __BEGIN_CDECLS
 #else
 #error unhandled arm isa
 #endif
+#define NOP __asm__ volatile("nop");
 
 void arm_context_switch(vaddr_t *old_sp, vaddr_t new_sp);
 
@@ -145,6 +146,7 @@ GEN_CP15_REG_FUNCS(tpidrprw, 0, c13, c0, 4);
 GEN_CP15_REG_FUNCS(midr, 0, c0, c0, 0);
 GEN_CP15_REG_FUNCS(mpidr, 0, c0, c0, 5);
 GEN_CP15_REG_FUNCS(vbar, 0, c12, c0, 0);
+GEN_CP15_REG_FUNCS(cbar, 4, c15, c0, 0);
 
 GEN_CP15_REG_FUNCS(ats1cpr, 0, c7, c8, 0);
 GEN_CP15_REG_FUNCS(ats1cpw, 0, c7, c8, 1);

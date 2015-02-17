@@ -26,7 +26,7 @@
 #include <sys/types.h>
 
 void arm_gic_init(void);
-void arm_gic_init_secondary_cpu(void);
+void arm_gic_init_percpu(void);
 
 enum {
 	/* Ignore cpu_mask and forward interrupt to all CPUs other than the current cpu */
