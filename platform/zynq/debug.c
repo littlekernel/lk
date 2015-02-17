@@ -65,12 +65,12 @@ void platform_halt(platform_halt_action suggested_action,
         case HALT_ACTION_SHUTDOWN:
         case HALT_ACTION_HALT:
             printf("HALT: spinning forever... (reason = %d)\n", reason);
-            enter_critical_section();
+            arch_disable_ints();
             for(;;);
             break;
         case HALT_ACTION_REBOOT:
             printf("REBOOT\n");
-            enter_critical_section();
+            arch_disable_ints();
             for (;;) {
                 zynq_slcr_unlock();
                 SLCR->PSS_RST_CTRL = 1;

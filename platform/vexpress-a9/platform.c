@@ -31,6 +31,7 @@
 #include <dev/virtio.h>
 #include <lk/init.h>
 #include <kernel/vm.h>
+#include <kernel/spinlock.h>
 #include <platform.h>
 #include <platform/gic.h>
 #include <platform/interrupts.h>
@@ -64,7 +65,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 
     /* cortex-a9 private memory area */
     { .phys = CPUPRIV_BASE_PHYS,
-      .virt = CPUPRIV_BASE_VIRT,
+      .virt = CPUPRIV_BASE_PHYS, // XXX move back to CPUPRIV_BASE_VIRT
       .size = CPUPRIV_SIZE,
       .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
       .name = "cpu_priv"},
@@ -96,7 +97,7 @@ void platform_early_init(void)
     arm_gic_init();
 
     /* initialize the timer block */
-    arm_cortex_a9_timer_init(CPUPRIV_BASE_VIRT, 100000000);
+    arm_cortex_a9_timer_init(CPUPRIV_BASE_PHYS, 100000000);
 
     uart_init_early();
 

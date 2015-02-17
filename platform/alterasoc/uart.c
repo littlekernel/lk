@@ -26,6 +26,7 @@
 #include <trace.h>
 #include <lib/cbuf.h>
 #include <kernel/thread.h>
+#include <kernel/spinlock.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/alterasoc.h>
@@ -56,6 +57,8 @@ static cbuf_t uart1_rx_buf;
 
 static inline uintptr_t uart_to_ptr(unsigned int n) { return (n == 0) ? UART0_BASE : UART1_BASE; }
 static inline cbuf_t *uart_to_rxbuf(unsigned int n) { return (n == 0) ? &uart0_rx_buf : &uart1_rx_buf; }
+
+static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
 static enum handler_return uart_irq(void *arg)
 {
@@ -114,34 +117,26 @@ int uart_putc(int port, char c)
 {
     uintptr_t base = uart_to_ptr(port);
 
-#if 1
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
+
     /* spin while fifo is full */
-    while ((UARTREG(base, UART_USR) & (1<<1)) == 0)
-        ;
-#else
-    /* spin while fifo is not empty */
-    while ((UARTREG(base, UART_USR) & (1<<2)) == 0)
-        ;
-#endif
+    while ((UARTREG(base, UART_USR) & (1<<1)) == 0) {
+    }
     UARTREG(base, UART_THR) = c;
+
+    spin_unlock_irqrestore(&lock, state);
 
     return 1;
 }
 
 int uart_getc(int port, bool wait)
 {
-#if 0
-    uintptr_t base = uart_to_ptr(port);
-
-    if ((UARTREG(base, UART_USR) & (1<<3)))
-        return UARTREG(base, UART_RBR);
-#else
     cbuf_t *rxbuf = uart_to_rxbuf(port);
 
     char c;
     if (cbuf_read_char(rxbuf, &c, wait) == 1)
         return c;
-#endif
 
     return -1;
 }

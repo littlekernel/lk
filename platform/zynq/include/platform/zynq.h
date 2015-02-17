@@ -39,6 +39,7 @@
 #define SDRAM_BASE          (0x00100000)
 #define SDRAM_APERTURE_SIZE (0x3ff00000)
 #define SRAM_BASE           (0x0)
+#define SRAM_BASE_HIGH      (0xfffc0000)
 #define SRAM_APERTURE_SIZE  (0x00040000)
 #define SRAM_SIZE           (0x00030000) /* only 192KB mapped currently */
 

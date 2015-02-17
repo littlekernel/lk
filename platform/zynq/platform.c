@@ -36,6 +36,8 @@
 #include <platform/timer.h>
 #include "platform_p.h"
 
+extern void arm_reset(void);
+
 /* target can specify this as the initial jam table to set up the soc */
 __WEAK void ps7_init(void) { }
 
@@ -258,6 +260,12 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
       .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
       .name = "hw-fc000000" },
 
+    /* sram high aperture */
+    { .phys = 0xfff00000,
+      .virt = 0xfff00000,
+      .size = 0x00100000,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE },
+
     /* identity map to let the boot code run */
     { .phys = SRAM_BASE,
       .virt = SRAM_BASE,
@@ -339,6 +347,11 @@ void platform_early_init(void)
     pmm_add_arena(&sdram_arena);
 #endif
     pmm_add_arena(&sram_arena);
+
+    /* start the second cpu */
+    /* the boot rom has been holding it in a wfe loop up until now */
+    *REG32(0xfffffff0) = (uint32_t)(MEMBASE + KERNEL_LOAD_OFFSET);
+    __asm__ volatile("sev");
 }
 
 void platform_init(void)

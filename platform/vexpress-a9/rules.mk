@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 ARCH := arm
 ARM_CPU := cortex-a9-neon
+WITH_SMP := 1
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include

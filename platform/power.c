@@ -35,7 +35,7 @@ __WEAK void platform_halt(platform_halt_action suggested_action,
                           platform_halt_reason reason)
 {
     dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
-    enter_critical_section();
+    arch_disable_ints();
     for(;;);
 }
 
