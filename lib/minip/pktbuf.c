@@ -28,10 +28,12 @@
 
 #include <kernel/thread.h>
 #include <kernel/semaphore.h>
+#include <kernel/spinlock.h>
 #include <lib/pktbuf.h>
 
 static struct list_node pb_freelist = LIST_INITIAL_VALUE(pb_freelist);
 static semaphore_t pb_sem = SEMAPHORE_INITIAL_VALUE(pb_sem, 0);
+static spin_lock_t lock;
 
 void pktbuf_create(void *ptr, u32 phys, size_t size) {
 	pktbuf_t *p = ptr;
@@ -48,16 +50,17 @@ void pktbuf_create(void *ptr, u32 phys, size_t size) {
 }
 
 pktbuf_t *pktbuf_alloc(void) {
+	spin_lock_saved_state_t state;
+
 	pktbuf_t *p;
 
 	sem_wait(&pb_sem);
-	enter_critical_section();
+	spin_lock_irqsave(&lock, state);
+	spin_lock_irqsave(&lock, state);
 	p = list_remove_head_type(&pb_freelist, pktbuf_t, list);
-	exit_critical_section();
-
-	if (!p) {
+	spin_unlock_irqrestore(&lock, state);
+	if (!p)
 		return NULL;
-	}
 
 	p->data = p->buffer + PKTBUF_MAX_HDR;
 	p->dlen = 0;
@@ -65,9 +68,10 @@ pktbuf_t *pktbuf_alloc(void) {
 }
 
 void pktbuf_free(pktbuf_t *p) {
-	enter_critical_section();
+	spin_lock_saved_state_t state;
+	spin_lock_irqsave(&lock, state);
 	list_add_tail(&pb_freelist, &(p->list));
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, state);
 
 	sem_post(&pb_sem, true);
 }
