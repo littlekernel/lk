@@ -107,6 +107,17 @@ int _dputs(const char *str)
 	return 0;
 }
 
+int _dwrite(const char *ptr, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		_dputc(ptr[i]);
+	}
+
+	return 0;
+}
+
 static int _dprintf_output_func(const char *str, size_t len, void *state)
 {
 	size_t count = 0;
