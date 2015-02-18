@@ -46,7 +46,7 @@ static mutex_t lock = MUTEX_INITIAL_VALUE(lock);
     (paddr_t)(((uintptr_t)page - (uintptr_t)a->page_array) / sizeof(vm_page_t)) * PAGE_SIZE + a->base;
 
 #define ADDRESS_IN_ARENA(address, arena) \
-    ((address) >= (arena)->base && (address) <= (arena)->base + (arena)->size)
+    ((address) >= (arena)->base && (address) <= (arena)->base + (arena)->size - 1)
 
 static inline bool page_is_free(const vm_page_t *page)
 {
@@ -283,7 +283,7 @@ uint pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struc
              * is not aligned on the same boundary requested.
              */
             paddr_t rounded_base = ROUNDUP(a->base, 1UL << alignment_log2);
-            if (rounded_base < a->base || rounded_base >= a->base + a->size)
+            if (rounded_base < a->base || rounded_base > a->base + a->size - 1)
                 continue;
 
             uint aligned_offset = (rounded_base - a->base) / PAGE_SIZE;
