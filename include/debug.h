@@ -43,7 +43,7 @@ __BEGIN_CDECLS
 #if !DISABLE_DEBUG_OUTPUT
 
 /* input/output */
-#define _dputc(c) platform_dputc(c)
+void _dputc(char c);
 int _dputs(const char *str);
 int _dwrite(const char *ptr, size_t len);
 int _dprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);

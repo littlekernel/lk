@@ -98,11 +98,32 @@ FILE __stdio_FILEs[3] = {
 
 #if !DISABLE_DEBUG_OUTPUT
 
+#if WITH_LIB_SM
+#define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_IRQ_FIQ
+#else
+#define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_INTERRUPTS
+#endif
+
+static spin_lock_t print_spin_lock = 0;
+
+void _dputc(char c)
+{
+	spin_lock_saved_state_t state;
+
+	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
+	platform_dputc(c);
+	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
+}
+
 int _dputs(const char *str)
 {
+	spin_lock_saved_state_t state;
+
+	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
 	while (*str != 0) {
-		_dputc(*str++);
+		platform_dputc(*str++);
 	}
+	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 
 	return 0;
 }
@@ -110,10 +131,13 @@ int _dputs(const char *str)
 int _dwrite(const char *ptr, size_t len)
 {
 	size_t i;
+	spin_lock_saved_state_t state;
 
+	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
 	for (i = 0; i < len; i++) {
-		_dputc(ptr[i]);
+		platform_dputc(ptr[i]);
 	}
+	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 
 	return 0;
 }
@@ -121,8 +145,9 @@ int _dwrite(const char *ptr, size_t len)
 static int _dprintf_output_func(const char *str, size_t len, void *state)
 {
 	size_t count = 0;
+
 	while (count < len && *str) {
-		_dputc(*str);
+		platform_dputc(*str);
 		str++;
 		count++;
 	}
@@ -132,11 +157,14 @@ static int _dprintf_output_func(const char *str, size_t len, void *state)
 
 int _dprintf(const char *fmt, ...)
 {
+	spin_lock_saved_state_t state;
 	int err;
-
 	va_list ap;
+
 	va_start(ap, fmt);
+	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
 	err = _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
+	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 	va_end(ap);
 
 	return err;
@@ -144,9 +172,12 @@ int _dprintf(const char *fmt, ...)
 
 int _dvprintf(const char *fmt, va_list ap)
 {
+	spin_lock_saved_state_t state;
 	int err;
 
+	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
 	err = _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
+	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 
 	return err;
 }
