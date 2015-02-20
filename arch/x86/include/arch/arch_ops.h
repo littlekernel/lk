@@ -37,13 +37,13 @@ static inline void arch_enable_ints(void)
 	__asm__ volatile("sti");
 }
 
-static inline inline void arch_disable_ints(void)
+static inline void arch_disable_ints(void)
 {
 	__asm__ volatile("cli");
 	CF;
 }
 
-static inline inline bool arch_ints_disabled(void)
+static inline bool arch_ints_disabled(void)
 {
 	unsigned int state;
 
@@ -108,6 +108,11 @@ static inline struct thread *get_current_thread(void)
 static inline void set_current_thread(struct thread *t)
 {
     _current_thread = t;
+}
+
+static inline uint arch_curr_cpu_num(void)
+{
+    return 0;
 }
 
 #endif // !ASSEMBLY

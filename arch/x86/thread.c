@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <debug.h>
 #include <kernel/thread.h>
+#include <kernel/spinlock.h>
 #include <arch/x86.h>
 #include <arch/x86/descriptor.h>
 
@@ -50,11 +51,9 @@ static void initial_thread_func(void)
 {
 	int ret;
 
-//	dprintf("initial_thread_func: thread %p calling %p with arg %p\n", _current_thread, _current_thread->entry, _current_thread->arg);
-//	dump_thread(_current_thread);
-
-	/* exit the implicit critical section we're within */
-	exit_critical_section();
+	/* release the thread lock that was implicitly held across the reschedule */
+	spin_unlock(&thread_lock);
+	arch_enable_ints();
 
 	ret = _current_thread->entry(_current_thread->arg);
 
@@ -87,6 +86,14 @@ void arch_thread_initialize(thread_t *t)
 
 	// set the stack pointer
 	t->arch.esp = (vaddr_t)frame;
+}
+
+void arch_dump_thread(thread_t *t)
+{
+	if (t->state != THREAD_RUNNING) {
+		dprintf(INFO, "\tarch: ");
+		dprintf(INFO, "sp 0x%lx\n", t->arch.esp);
+	}
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
