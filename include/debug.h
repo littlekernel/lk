@@ -27,8 +27,7 @@
 #include <stddef.h>
 #include <compiler.h>
 #include <platform/debug.h>
-
-__BEGIN_CDECLS
+#include <list.h>
 
 #if !defined(LK_DEBUGLEVEL)
 #define LK_DEBUGLEVEL 0
@@ -39,6 +38,14 @@ __BEGIN_CDECLS
 #define ALWAYS 0
 #define INFO 1
 #define SPEW 2
+
+typedef struct __print_callback print_callback_t;
+struct __print_callback {
+	struct list_node entry;
+	void (*print)(print_callback_t *cb, const char *str, size_t len);
+};
+
+__BEGIN_CDECLS
 
 #if !DISABLE_DEBUG_OUTPUT
 
@@ -67,6 +74,10 @@ static inline void hexdump(const void *ptr, size_t len) { }
 static inline void hexdump8(const void *ptr, size_t len) { }
 
 #endif /* DISABLE_DEBUG_OUTPUT */
+
+/* register callback to receive debug prints */
+void register_print_callback(print_callback_t *cb);
+void unregister_print_callback(print_callback_t *cb);
 
 #define dputc(level, str) do { if ((level) <= LK_DEBUGLEVEL) { _dputc(str); } } while (0)
 #define dputs(level, str) do { if ((level) <= LK_DEBUGLEVEL) { _dputs(str); } } while (0)

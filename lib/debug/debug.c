@@ -33,6 +33,65 @@
 #include <platform/debug.h>
 #include <kernel/thread.h>
 
+#if WITH_LIB_SM
+#define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_IRQ_FIQ
+#else
+#define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_INTERRUPTS
+#endif
+
+static spin_lock_t print_spin_lock = 0;
+static struct list_node print_callbacks = LIST_INITIAL_VALUE(print_callbacks);
+/* print lock must be held when invoking out, outs, outc */
+static void out_count(const char *str, size_t len)
+{
+	print_callback_t *cb;
+	size_t i;
+
+	/* print to any registered loggers */
+	list_for_every_entry(&print_callbacks, cb, print_callback_t, entry) {
+		if (cb->print)
+			cb->print(cb, str, len);
+	}
+
+	/* write out the serial port */
+	for (i = 0; i < len; i++) {
+		platform_dputc(str[i]);
+	}
+}
+
+static void out_string(const char *str)
+{
+	out_count(str, strlen(str));
+}
+
+static void out_char(char c)
+{
+	out_count(&c, 1);
+}
+
+static int input_char(char *c)
+{
+	return platform_dgetc(c, true);
+}
+
+void register_print_callback(print_callback_t *cb)
+{
+	spin_lock_saved_state_t state;
+
+	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
+	list_add_head(&print_callbacks, &cb->entry);
+	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
+}
+
+void unregister_print_callback(print_callback_t *cb)
+{
+	spin_lock_saved_state_t state;
+
+	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
+	list_delete(&cb->entry);
+	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
+}
+
 void spin(uint32_t usecs)
 {
 	lk_bigtime_t start = current_time_hires();
@@ -69,7 +128,7 @@ static int __debug_stdio_fgetc(void *ctx)
 	char c;
 	int err;
 
-	err = platform_dgetc(&c, true);
+	err = input_char(&c);
 	if (err < 0)
 		return err;
 	return (unsigned char)c;
@@ -98,20 +157,12 @@ FILE __stdio_FILEs[3] = {
 
 #if !DISABLE_DEBUG_OUTPUT
 
-#if WITH_LIB_SM
-#define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_IRQ_FIQ
-#else
-#define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_INTERRUPTS
-#endif
-
-static spin_lock_t print_spin_lock = 0;
-
 void _dputc(char c)
 {
 	spin_lock_saved_state_t state;
 
 	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
-	platform_dputc(c);
+	out_char(c);
 	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 }
 
@@ -120,9 +171,7 @@ int _dputs(const char *str)
 	spin_lock_saved_state_t state;
 
 	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
-	while (*str != 0) {
-		platform_dputc(*str++);
-	}
+	out_string(str);
 	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 
 	return 0;
@@ -130,13 +179,10 @@ int _dputs(const char *str)
 
 int _dwrite(const char *ptr, size_t len)
 {
-	size_t i;
 	spin_lock_saved_state_t state;
 
 	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
-	for (i = 0; i < len; i++) {
-		platform_dputc(ptr[i]);
-	}
+	out_count(ptr, len);
 	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 
 	return 0;
@@ -144,15 +190,10 @@ int _dwrite(const char *ptr, size_t len)
 
 static int _dprintf_output_func(const char *str, size_t len, void *state)
 {
-	size_t count = 0;
+	size_t n = strnlen(str, len);
 
-	while (count < len && *str) {
-		platform_dputc(*str);
-		str++;
-		count++;
-	}
-
-	return count;
+	out_count(str, n);
+	return n;
 }
 
 int _dprintf(const char *fmt, ...)
