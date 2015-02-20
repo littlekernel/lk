@@ -95,10 +95,9 @@ void arch_early_init(void)
 
 void arch_init(void)
 {
-	// XXX not the right place, should be initialized before the kernel starts on cpu 0
+#if WITH_SMP
 	arch_mp_init_percpu();
 
-#if WITH_SMP
 	TRACEF("midr 0x%x\n", arm_read_midr());
 	TRACEF("sctlr 0x%x\n", arm_read_sctlr());
 	TRACEF("actlr 0x%x\n", arm_read_actlr());
