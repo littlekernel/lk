@@ -53,7 +53,7 @@ static inline inline bool arch_ints_disabled(void)
 	   : "=a" (state)
 	   :: "memory");
 
-	return !!(state & (1<<9));
+	return !(state & (1<<9));
 }
 
 int _atomic_and(volatile int *ptr, int val);
