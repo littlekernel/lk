@@ -45,6 +45,8 @@
 
 #define INTC_REG(reg) (*REG32(INTC_BASEADDR + (reg) * 4))
 
+static spin_lock_t lock;
+
 struct int_handler_struct {
     int_handler handler;
     void *arg;
@@ -59,12 +61,13 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
     if (vector >= MAX_INT)
         return;
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     int_handler_table[vector].handler = handler;
     int_handler_table[vector].arg = arg;
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 }
 
 status_t mask_interrupt(unsigned int vector)
