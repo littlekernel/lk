@@ -170,12 +170,12 @@ void timer_cancel(timer_t *timer)
 {
 	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);
 
-	uint cpu = arch_curr_cpu_num();
-
 	spin_lock_saved_state_t state;
 	spin_lock_irqsave(&timer_lock, state);
 
 #if PLATFORM_HAS_DYNAMIC_TIMER
+	uint cpu = arch_curr_cpu_num();
+
 	timer_t *oldhead = list_peek_head_type(&timers[cpu].timer_queue, timer_t, node);
 #endif
 
