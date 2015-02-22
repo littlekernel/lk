@@ -90,16 +90,12 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 
 	DEBUG_ASSERT(tick_rate != 0 && tick_rate_mhz != 0);
 
-	enter_critical_section();
-
 	cb = callback;
 	cb_args = arg;
 
 	tick_interval_ms = interval;
 	tick_interval_us = interval * 1000;
 	arm_cm_systick_set_periodic(interval);
-
-	exit_critical_section();
 
 	return NO_ERROR;
 }
