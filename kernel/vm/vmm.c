@@ -313,7 +313,7 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
     return r ? NO_ERROR : ERR_NO_MEMORY;
 }
 
-status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
 {
     status_t ret;
 
@@ -348,7 +348,7 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
     mutex_acquire(&vmm_lock);
 
     /* allocate a region and put it in the aspace list */
-    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, 0, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_log2, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         ret = ERR_NO_MEMORY;
         goto err_alloc_region;
@@ -597,7 +597,7 @@ usage:
         printf("usage:\n");
         printf("%s aspaces\n", argv[0].str);
         printf("%s alloc <size> <align_pow2>\n", argv[0].str);
-        printf("%s alloc_physical <paddr> <size>\n", argv[0].str);
+        printf("%s alloc_physical <paddr> <size> <align_pow2>\n", argv[0].str);
         printf("%s alloc_contig <size> <align_pow2>\n", argv[0].str);
         return ERR_GENERIC;
     }
@@ -617,7 +617,7 @@ usage:
         if (argc < 4) goto notenoughargs;
 
         void *ptr = (void *)0x99;
-        status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "physical test", argv[3].u, &ptr, argv[2].u, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+        status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "physical test", argv[3].u, &ptr, argv[4].u, argv[2].u, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
         printf("vmm_alloc_physical returns %d, ptr %p\n", err, ptr);
     } else if (!strcmp(argv[1].str, "alloc_contig")) {
         if (argc < 4) goto notenoughargs;
