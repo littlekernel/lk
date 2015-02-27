@@ -378,9 +378,63 @@ static void put_l2_table(uint32_t l1_index, paddr_t l2_pa)
     pmm_free_page(page);
 }
 
+#if WITH_ARCH_MMU_PICK_SPOT
+
+static inline bool are_regions_compatible(uint new_region_flags,
+                                          uint adjacent_region_flags)
+{
+    /*
+     * Two regions are compatible if NS flag matches.
+     */
+    uint mask = ARCH_MMU_FLAG_NS;
+
+    if ((new_region_flags & mask) == (adjacent_region_flags & mask))
+        return true;
+
+    return false;
+}
+
+
+vaddr_t arch_mmu_pick_spot(vaddr_t base, uint prev_region_flags,
+                           vaddr_t end,  uint next_region_flags,
+                           vaddr_t align, size_t size, uint flags)
+{
+    LTRACEF("base = 0x%lx, end=0x%lx, align=%ld, size=%zd, flags=0x%x\n",
+             base, end, align, size, flags);
+
+    vaddr_t spot;
+
+    if (align >= SECTION_SIZE ||
+        are_regions_compatible(flags, prev_region_flags)) {
+        spot = ALIGN(base, align);
+    } else {
+        spot = ALIGN(base, SECTION_SIZE);
+    }
+
+    vaddr_t spot_end = spot + size - 1;
+    if (spot_end < spot || spot_end > end)
+        return end; /* wrapped around or it does not fit */
+
+    if ((spot_end / SECTION_SIZE) == (end / SECTION_SIZE)) {
+       if (!are_regions_compatible(flags, next_region_flags))
+            return end;
+    }
+
+    return spot;
+}
+#endif  /* WITH_ARCH_MMU_PICK_SPOT */
+
+
 int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 {
     LTRACEF("vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", vaddr, paddr, count, flags);
+
+#if !WITH_ARCH_MMU_PICK_SPOT
+    if (flags & ARCH_MMU_FLAG_NS) {
+        /* WITH_ARCH_MMU_PICK_SPOT is required to support NS memory */
+        panic("NS mem is not supported\n");
+    }
+#endif
 
     /* paddr and vaddr must be aligned */
     DEBUG_ASSERT(IS_PAGE_ALIGNED(vaddr));

@@ -209,6 +209,11 @@ GLOBAL_DEFINES += \
     SMP_MAX_CPUS=1
 endif
 
+ifeq (true,$(call TOBOOL,$(WITH_NS_MAPPING)))
+GLOBAL_DEFINES += \
+    WITH_ARCH_MMU_PICK_SPOT=1
+endif
+
 endif
 ifeq ($(SUBARCH),arm-m)
 MODULE_SRCS += \
