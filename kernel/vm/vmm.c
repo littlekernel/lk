@@ -502,7 +502,7 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     vaddr_t va = r->base;
     DEBUG_ASSERT(IS_PAGE_ALIGNED(va));
     while ((p = list_remove_head_type(&page_list, vm_page_t, node))) {
-        DEBUG_ASSERT(va < r->base + r->size);
+        DEBUG_ASSERT(va <= r->base + r->size - 1);
 
         paddr_t pa = page_to_address(p);
         DEBUG_ASSERT(IS_PAGE_ALIGNED(pa));
@@ -536,7 +536,7 @@ static vmm_region_t *vmm_find_region(const vmm_aspace_t *aspace, vaddr_t vaddr)
 
     /* search the region list */
     list_for_every_entry(&aspace->region_list, r, vmm_region_t, node) {
-        if ((vaddr >= r->base) && (vaddr < r->base + r->size))
+        if ((vaddr >= r->base) && (vaddr <= r->base + r->size - 1))
             return r;
     }
 

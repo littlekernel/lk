@@ -100,7 +100,7 @@ STATIC_ASSERT(KERNEL_ASPACE_BASE + (KERNEL_ASPACE_SIZE - 1) > KERNEL_ASPACE_BASE
 
 static inline bool is_kernel_address(vaddr_t va)
 {
-    return (va >= KERNEL_ASPACE_BASE && va <= (KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE));
+    return (va >= KERNEL_ASPACE_BASE && va <= (KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - 1));
 }
 
 /* physical allocator */
