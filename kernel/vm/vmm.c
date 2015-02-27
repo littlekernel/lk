@@ -163,7 +163,68 @@ static status_t add_region_to_aspace(vmm_aspace_t *aspace, vmm_region_t *r)
     return ERR_NO_MEMORY;
 }
 
-static vaddr_t alloc_spot(vmm_aspace_t *aspace, size_t size, uint8_t align_pow2, struct list_node **before)
+/*
+ *  Try to pick the spot within specified gap
+ *
+ *  Arch can override this to impose it's own restrictions.
+ */
+__WEAK vaddr_t arch_mmu_pick_spot(vaddr_t base, uint prev_region_arch_mmu_flags,
+                                  vaddr_t end,  uint next_region_arch_mmu_flags,
+                                  vaddr_t align, size_t size, uint arch_mmu_flags)
+{
+    /* just align it by default */
+    return ALIGN(base, align);
+}
+
+/*
+ *  Returns true if the caller has to stop search
+ */
+static inline bool check_gap(vmm_aspace_t *aspace,
+                             vmm_region_t *prev, vmm_region_t *next,
+                             vaddr_t *pva, vaddr_t align, size_t size,
+                             uint arch_mmu_flags)
+{
+    vaddr_t gap_beg; /* first byte of a gap */
+    vaddr_t gap_end; /* last byte of a gap */
+
+    DEBUG_ASSERT(pva);
+
+    if (prev)
+        gap_beg = prev->base + prev->size;
+    else
+        gap_beg = aspace->base;
+
+    if (next) {
+        if (gap_beg == next->base)
+            goto next_gap;  /* no gap between regions */
+        gap_end = next->base - 1;
+    } else {
+        if (gap_beg == (aspace->base + aspace->size))
+            goto not_found;  /* no gap at the end of address space. Stop search */
+        gap_end = aspace->base + aspace->size - 1;
+    }
+
+    *pva = arch_mmu_pick_spot(gap_beg, prev ? prev->flags : ARCH_MMU_FLAG_INVALID,
+                              gap_end, next ? next->flags : ARCH_MMU_FLAG_INVALID,
+                              align, size, arch_mmu_flags);
+    if (*pva < gap_beg)
+        goto not_found; /* address wrapped around */
+
+    if (*pva < gap_end && ((gap_end - *pva + 1) >= size)) {
+        /* we have enough room */
+        return true; /* found spot, stop search */
+    }
+
+next_gap:
+    return false; /* continue search */
+
+not_found:
+    *pva = -1;
+    return true; /* not_found: stop search */
+}
+
+static vaddr_t alloc_spot(vmm_aspace_t *aspace, size_t size, uint8_t align_pow2,
+                          uint arch_mmu_flags, struct list_node **before)
 {
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(size > 0 && IS_PAGE_ALIGNED(size));
@@ -174,65 +235,30 @@ static vaddr_t alloc_spot(vmm_aspace_t *aspace, size_t size, uint8_t align_pow2,
         align_pow2 = PAGE_SIZE_SHIFT;
     vaddr_t align = 1UL << align_pow2;
 
-    /* start our search */
-    vaddr_t spot = ALIGN(aspace->base, align);
-    if (!is_inside_aspace(aspace, spot)) {
-        /* the alignment is so big, we can't even allocate in this address space */
-        return -1;
-    }
+    vaddr_t spot;
+    vmm_region_t *r = NULL;
 
-    vmm_region_t *r = list_peek_head_type(&aspace->region_list, vmm_region_t, node);
-    if (r) {
-        /* does it fit before the first element? */
-        if (spot < r->base && r->base - spot >= size) {
-            if (before)
-                *before = &aspace->region_list;
-            return spot;
-        }
-    } else {
-        /* nothing is in the list, does it fit in the aspace? */
-        if (aspace->base + aspace->size - spot >= size) {
-            if (before)
-                *before = &aspace->region_list;
-            return spot;
-        }
-    }
+    /* try to pick spot at the beginning of address space */
+    if (check_gap(aspace, NULL,
+                  list_peek_head_type(&aspace->region_list, vmm_region_t, node),
+                  &spot, align, size, arch_mmu_flags))
+        goto done;
 
     /* search the middle of the list */
     list_for_every_entry(&aspace->region_list, r, vmm_region_t, node) {
-        /* calculate the aligned spot after r */
-        spot = ALIGN(r->base + r->size, align);
-        if (!is_inside_aspace(aspace, spot))
-            break;
-
-        /* get the next element in the list */
-        vmm_region_t *next = list_next_type(&aspace->region_list, &r->node, vmm_region_t, node);
-
-        if (next) {
-            /* see if the aligned spot is between current and next */
-            if (spot >= next->base)
-                continue;
-
-            /* see if it'll fit between the current item and the next */
-            if (next->base - spot >= size) {
-                /* it'll fit here */
-                if (before)
-                    *before = &r->node;
-                return spot;
-            }
-        } else {
-            /* we're at the end of the list, will it fit between us and the end of the aspace? */
-            if ((aspace->base + aspace->size) - spot >= size) {
-                /* it'll fit here */
-                if (before)
-                    *before = &r->node;
-                return spot;
-            }
-        }
+        if (check_gap(aspace, r,
+                      list_next_type(&aspace->region_list, &r->node, vmm_region_t, node),
+                      &spot, align, size, arch_mmu_flags))
+            goto done;
     }
 
     /* couldn't find anything */
     return -1;
+
+done:
+    if (before)
+        *before = r ? &r->node : &aspace->region_list;
+    return spot;
 }
 
 /* allocate a region structure and stick it in the address space */
@@ -256,7 +282,8 @@ static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t
     } else {
         /* allocate a virtual slot for it */
         struct list_node *before = NULL;
-        vaddr = alloc_spot(aspace, size, align_pow2, &before);
+
+        vaddr = alloc_spot(aspace, size, align_pow2, arch_mmu_flags, &before);
         LTRACEF("alloc_spot returns 0x%lx, before %p\n", vaddr, before);
 
         if (vaddr == (vaddr_t)-1) {

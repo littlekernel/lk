@@ -37,10 +37,14 @@ __BEGIN_CDECLS
 #define ARCH_MMU_FLAG_PERM_RO           (1<<3)
 #define ARCH_MMU_FLAG_PERM_NO_EXECUTE   (1<<4)
 #define ARCH_MMU_FLAG_NS                (1<<5) /* NON-SECURE */
+#define ARCH_MMU_FLAG_INVALID           (1<<7)  /* indicates that flags are not specified */
 
 int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags);
 int arch_mmu_unmap(vaddr_t vaddr, uint count);
 status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags);
+vaddr_t arch_mmu_pick_spot(vaddr_t base, uint prev_region_arch_mmu_flags,
+                           vaddr_t end,  uint next_region_arch_mmu_flags,
+                           vaddr_t align, size_t size, uint arch_mmu_flags);
 
 void arch_disable_mmu(void);
 
