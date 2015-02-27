@@ -1,0 +1,4 @@
+#!/bin/sh
+
+make uzed-test -j &&
+xmd -tcl scripts/uzed-xmd.tcl
