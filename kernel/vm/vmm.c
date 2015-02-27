@@ -26,11 +26,13 @@
 #include <string.h>
 #include <lib/console.h>
 #include <kernel/vm.h>
+#include <kernel/mutex.h>
 #include "vm_priv.h"
 
 #define LOCAL_TRACE 0
 
 static struct list_node aspace_list = LIST_INITIAL_VALUE(aspace_list);
+static mutex_t vmm_lock = MUTEX_INITIAL_VALUE(vmm_lock);
 
 vmm_aspace_t _kernel_aspace;
 
@@ -298,20 +300,23 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
     /* trim the size */
     size = trim_to_aspace(aspace, vaddr, size);
 
+    mutex_acquire(&vmm_lock);
+
     /* lookup how it's already mapped */
     uint arch_mmu_flags = 0;
     arch_mmu_query(vaddr, NULL, &arch_mmu_flags);
 
     /* build a new region structure */
     vmm_region_t *r = alloc_region(aspace, name, size, vaddr, 0, VMM_FLAG_VALLOC_SPECIFIC, VMM_REGION_FLAG_RESERVED, arch_mmu_flags);
-    if (!r)
-        return ERR_NO_MEMORY;
 
-    return NO_ERROR;
+    mutex_release(&vmm_lock);
+    return r ? NO_ERROR : ERR_NO_MEMORY;
 }
 
 status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
 {
+    status_t ret;
+
     LTRACEF("aspace %p name '%s' size 0x%zx ptr %p paddr 0x%lx vmm_flags 0x%x arch_mmu_flags 0x%x\n",
             aspace, name, size, ptr ? *ptr : 0, paddr, vmm_flags, arch_mmu_flags);
 
@@ -340,10 +345,14 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
         vaddr = (vaddr_t)*ptr;
     }
 
+    mutex_acquire(&vmm_lock);
+
     /* allocate a region and put it in the aspace list */
     vmm_region_t *r = alloc_region(aspace, name, size, vaddr, 0, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
-    if (!r)
-        return ERR_NO_MEMORY;
+    if (!r) {
+        ret = ERR_NO_MEMORY;
+        goto err_alloc_region;
+    }
 
     /* return the vaddr if requested */
     if (ptr)
@@ -353,7 +362,11 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
     int err = arch_mmu_map(r->base, paddr, size / PAGE_SIZE, arch_mmu_flags);
     LTRACEF("arch_mmu_map returns %d\n", err);
 
-    return NO_ERROR;
+    ret = NO_ERROR;
+
+err_alloc_region:
+    mutex_release(&vmm_lock);
+    return ret;
 }
 
 status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
@@ -396,6 +409,8 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
         goto err;
     }
 
+    mutex_acquire(&vmm_lock);
+
     /* allocate a region and put it in the aspace list */
     vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
@@ -416,9 +431,11 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
         list_add_tail(&r->page_list, &p->node);
     }
 
+    mutex_release(&vmm_lock);
     return NO_ERROR;
 
 err1:
+    mutex_release(&vmm_lock);
     pmm_free(&page_list);
 err:
     return err;
@@ -466,6 +483,8 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
         goto err1;
     }
 
+    mutex_acquire(&vmm_lock);
+
     /* allocate a region and put it in the aspace list */
     vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
@@ -496,9 +515,11 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
         va += PAGE_SIZE;
     }
 
+    mutex_release(&vmm_lock);
     return NO_ERROR;
 
 err1:
+    mutex_release(&vmm_lock);
     pmm_free(&page_list);
 err:
     return err;
@@ -524,8 +545,11 @@ static vmm_region_t *vmm_find_region(const vmm_aspace_t *aspace, vaddr_t vaddr)
 
 status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr)
 {
+    mutex_acquire(&vmm_lock);
+
     vmm_region_t *r = vmm_find_region (aspace, vaddr);
     if (!r) {
+        mutex_release(&vmm_lock);
         return ERR_NOT_FOUND;
     }
 
@@ -534,6 +558,8 @@ status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr)
 
     /* unmap it */
     arch_mmu_unmap(r->base, r->size / PAGE_SIZE);
+
+    mutex_release(&vmm_lock);
 
     /* return physical pages if any */
     pmm_free (&r->page_list);
