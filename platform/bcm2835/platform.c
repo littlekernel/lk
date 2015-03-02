@@ -23,6 +23,7 @@
 #include <reg.h>
 #include <err.h>
 #include <debug.h>
+#include <trace.h>
 #include <dev/uart.h>
 #include <arch.h>
 #include <arch/arm.h>
@@ -34,9 +35,9 @@
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/bcm2835.h>
-//#include "platform_p.h"
 
 extern void intc_init(void);
+extern void arm_reset(void);
 
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
@@ -85,6 +86,15 @@ void platform_early_init(void)
 
     /* add the main memory arena */
     pmm_add_arena(&arena);
+
+#if WITH_SMP
+    /* start the other cpus */
+    uintptr_t sec_entry = (uintptr_t)&arm_reset;
+    sec_entry -= (KERNEL_BASE - MEMBASE);
+    for (uint i = 1; i <= 3; i++) {
+        *REG32(ARM_LOCAL_BASE + 0x8c + 0x10 * i) = sec_entry;
+    }
+#endif
 }
 
 void platform_init(void)

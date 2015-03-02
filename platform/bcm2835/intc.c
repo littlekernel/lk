@@ -27,6 +27,7 @@
 #include <arch/arm.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
+#include <kernel/mp.h>
 #include <platform/interrupts.h>
 #include <platform/bcm2835.h>
 
@@ -52,10 +53,10 @@
 #define INTC_LOCAL_TIMER_INT_CONTROL2 (ARM_LOCAL_BASE + 0x48)
 #define INTC_LOCAL_TIMER_INT_CONTROL3 (ARM_LOCAL_BASE + 0x4c)
 
-#define INTC_LOCAL_MAILBOX_INT_CONTROL0 (ARM_LOCAL_BASE + 0x40)
-#define INTC_LOCAL_MAILBOX_INT_CONTROL1 (ARM_LOCAL_BASE + 0x44)
-#define INTC_LOCAL_MAILBOX_INT_CONTROL2 (ARM_LOCAL_BASE + 0x48)
-#define INTC_LOCAL_MAILBOX_INT_CONTROL3 (ARM_LOCAL_BASE + 0x4c)
+#define INTC_LOCAL_MAILBOX_INT_CONTROL0 (ARM_LOCAL_BASE + 0x50)
+#define INTC_LOCAL_MAILBOX_INT_CONTROL1 (ARM_LOCAL_BASE + 0x54)
+#define INTC_LOCAL_MAILBOX_INT_CONTROL2 (ARM_LOCAL_BASE + 0x58)
+#define INTC_LOCAL_MAILBOX_INT_CONTROL3 (ARM_LOCAL_BASE + 0x5c)
 
 #define INTC_LOCAL_IRQ_PEND0 (ARM_LOCAL_BASE + 0x60)
 #define INTC_LOCAL_IRQ_PEND1 (ARM_LOCAL_BASE + 0x64)
@@ -66,6 +67,16 @@
 #define INTC_LOCAL_FIQ_PEND1 (ARM_LOCAL_BASE + 0x74)
 #define INTC_LOCAL_FIQ_PEND2 (ARM_LOCAL_BASE + 0x78)
 #define INTC_LOCAL_FIQ_PEND3 (ARM_LOCAL_BASE + 0x7c)
+
+#define INTC_LOCAL_MAILBOX0_SET0 (ARM_LOCAL_BASE + 0x80)
+#define INTC_LOCAL_MAILBOX0_SET1 (ARM_LOCAL_BASE + 0x90)
+#define INTC_LOCAL_MAILBOX0_SET2 (ARM_LOCAL_BASE + 0xa0)
+#define INTC_LOCAL_MAILBOX0_SET3 (ARM_LOCAL_BASE + 0xb0)
+
+#define INTC_LOCAL_MAILBOX0_CLR0 (ARM_LOCAL_BASE + 0xc0)
+#define INTC_LOCAL_MAILBOX0_CLR1 (ARM_LOCAL_BASE + 0xd0)
+#define INTC_LOCAL_MAILBOX0_CLR2 (ARM_LOCAL_BASE + 0xe0)
+#define INTC_LOCAL_MAILBOX0_CLR3 (ARM_LOCAL_BASE + 0xf0)
 
 struct int_handler_struct {
     int_handler handler;
@@ -209,15 +220,33 @@ enum handler_return platform_irq(struct arm_iframe *frame)
     vector = 0xffffffff;
 
 decoded:
-    LTRACEF("vector %u\n", vector);
+    LTRACEF("cpu %u vector %u\n", cpu, vector);
 
     // dispatch the irq
     enum handler_return ret = INT_NO_RESCHEDULE;
-    if (int_handler_table[vector][cpu].handler) {
+
+#if WITH_SMP
+    if (vector == INTERRUPT_ARM_LOCAL_MAILBOX0) {
+        pend = *REG32(INTC_LOCAL_MAILBOX0_CLR0 + 0x10 * cpu);
+        LTRACEF("mailbox0 clr 0x%x\n", pend);
+
+        // ack it
+        *REG32(INTC_LOCAL_MAILBOX0_CLR0 + 0x10 * cpu) = pend;
+
+        if (pend & (1 << MP_IPI_GENERIC)) {
+            PANIC_UNIMPLEMENTED;
+        }
+        if (pend & (1 << MP_IPI_RESCHEDULE)) {
+            ret = mp_mbx_reschedule_irq();
+        }
+    } else
+#endif // WITH_SMP
+    if (vector == 0xffffffff) {
+        ret = INT_NO_RESCHEDULE;
+    } else if (int_handler_table[vector][cpu].handler) {
         ret = int_handler_table[vector][cpu].handler(int_handler_table[vector][cpu].arg);
     } else {
         panic("irq %u fired on cpu %u but no handler set!\n", vector, cpu);
-
     }
 
     return ret;
@@ -228,11 +257,30 @@ enum handler_return platform_fiq(struct arm_iframe *frame)
     PANIC_UNIMPLEMENTED;
 }
 
+void bcm2835_send_ipi(uint irq, uint cpu_mask)
+{
+    LTRACEF("irq %u, cpu_mask 0x%x\n", irq, cpu_mask);
+
+    for (uint i = 0; i < 4; i++) {
+        if (cpu_mask & (1<<i)) {
+            LTRACEF("sending to cpu %u\n", i);
+            *REG32(INTC_LOCAL_MAILBOX0_SET0 + 0x10 * i) = (1 << irq);
+        }
+    }
+}
+
 void intc_init(void)
 {
     // mask everything
     *REG32(INTC_DISABLE1) = 0xffffffff;
     *REG32(INTC_DISABLE2) = 0xffffffff;
     *REG32(INTC_DISABLE3) = 0xffffffff;
+
+#if WITH_SMP
+    // unable mailbox irqs on all cores
+    for (uint i = 0; i < 4; i++) {
+        *REG32(INTC_LOCAL_MAILBOX_INT_CONTROL0 + 0x4 * i) = 0x1;
+    }
+#endif
 }
 
