@@ -120,6 +120,7 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg,
 	else
 		write_cntp_cval(read_cntpct() + cntpct_interval);
 	write_cntp_ctl(1);
+
 	return 0;
 }
 
@@ -231,13 +232,19 @@ static void arm_generic_timer_init_conversion_factors(uint32_t cntfrq)
 	LTRACEF("us_per_cntpct: %08x.%08x%08x\n", us_per_cntpct.l0, us_per_cntpct.l32, us_per_cntpct.l64);
 }
 
-void arm_generic_timer_init(int irq)
+void arm_generic_timer_init(int irq, uint32_t freq_override)
 {
-	uint32_t cntfrq = read_cntfrq();
+	uint32_t cntfrq;
 
-	if (!cntfrq) {
-		TRACEF("Failed to initialize timer, frequency is 0\n");
-		return;
+	if (freq_override == 0) {
+		cntfrq = read_cntfrq();
+
+		if (!cntfrq) {
+			TRACEF("Failed to initialize timer, frequency is 0\n");
+			return;
+		}
+	} else {
+		cntfrq = freq_override;
 	}
 
 #if LOCAL_TRACE
@@ -256,3 +263,4 @@ void arm_generic_timer_init(int irq)
 	unmask_interrupt(irq);
 }
 
+/* vim: set noexpandtab: */
