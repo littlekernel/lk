@@ -34,6 +34,8 @@
 #define CACHE_LINE 32
 #elif ARM_CPU_ARM1136
 #define CACHE_LINE 32
+#elif ARM_CPU_CORTEX_A7
+#define CACHE_LINE 64 /* XXX L1 icache is 32 bytes */
 #elif ARM_CPU_CORTEX_A8
 #define CACHE_LINE 64
 #elif ARM_CPU_CORTEX_A9

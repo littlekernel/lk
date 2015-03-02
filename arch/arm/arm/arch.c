@@ -106,12 +106,21 @@ void arch_init(void)
 	TRACEF("ttbcr 0x%x\n", arm_read_ttbcr());
 	TRACEF("ttbr0 0x%x\n", arm_read_ttbr0());
 	TRACEF("dacr 0x%x\n", arm_read_dacr());
+#if ARM_CPU_CORTEX_A7
+	TRACEF("l2ctlr 0x%x\n", arm_read_l2ctlr());
+	TRACEF("l2ectlr 0x%x\n", arm_read_l2ectlr());
+#endif
 
+#if ARM_CPU_CORTEX_A9
 	addr_t scu_base = arm_read_cbar();
 	TRACEF("SCU CONTROL 0x%x\n", *REG32(scu_base));
 	uint32_t scu_config = *REG32(scu_base + 4);
 	TRACEF("SCU CONFIG 0x%x\n", scu_config);
 	secondaries_to_init = scu_config & 0x3;
+#elif ARM_CPU_CORTEX_A7
+	uint32_t l2ctlr = arm_read_l2ctlr();
+	secondaries_to_init = (l2ctlr >> 24);
+#endif
 
 	TRACEF("releasing %d secondary cpus\n", secondaries_to_init);
 
@@ -139,7 +148,13 @@ __NO_RETURN void arm_secondary_entry(void)
 	arm_basic_setup();
 
 	/* enable the local L1 cache */
-	arch_enable_cache(UCACHE);
+	//arch_enable_cache(UCACHE);
+
+	// XXX may not be safe, but just hard enable i and d cache here
+	// at the moment cannot rely on arch_enable_cache not dumping the L2
+	uint32_t sctlr = arm_read_sctlr();
+	sctlr |= (1<<12) | (1<<2); // enable i and dcache
+	arm_write_sctlr(sctlr);
 
 #if WITH_DEV_TIMER_ARM_CORTEX_A9
 	arm_cortex_a9_timer_init_percpu();
@@ -154,9 +169,11 @@ __NO_RETURN void arm_secondary_entry(void)
 	TRACEF("sctlr 0x%x\n", arm_read_sctlr());
 	TRACEF("actlr 0x%x\n", arm_read_actlr());
 
+#if ARM_CPU_CORTEX_A9
 	addr_t scu_base = arm_read_cbar();
 	TRACEF("SCU CONTROL 0x%x\n", *REG32(scu_base));
 	TRACEF("SCU CONFIG 0x%x\n", *REG32(scu_base + 4));
+#endif
 
 	/* we're done, tell the main cpu we're up */
 	atomic_add(&secondaries_to_init, -1);
@@ -203,6 +220,12 @@ static void arm_basic_setup(void)
 	actlr |= (1<<6) | (1<<0);
 #endif
 #endif // ARM_CPU_CORTEX_A9
+#if ARM_CPU_CORTEX_A7
+#if WITH_SMP
+	/* enable smp mode */
+	actlr |= (1<<6);
+#endif
+#endif // ARM_CPU_CORTEX_A7
 
 	arm_write_actlr(actlr);
 

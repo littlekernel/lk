@@ -30,6 +30,9 @@
 
 #if WITH_DEV_INTERRUPT_ARM_GIC
 #include <dev/interrupt/arm_gic.h>
+#elif PLATFORM_BCM2835
+/* bcm2835 has a weird custom interrupt controller for MP */
+extern void bcm2835_send_ipi(uint irq, uint cpu_mask);
 #else
 #error need other implementation of interrupt controller that can ipi
 #endif
@@ -48,6 +51,12 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi)
     if (target != 0) {
         LTRACEF("target 0x%x, gic_ipi %u\n", target, gic_ipi_num);
         arm_gic_sgi(gic_ipi_num, 0, target);
+    }
+#elif PLATFORM_BCM2835
+    /* filter out targets outside of the range of cpus we care about */
+    target &= ((1UL << SMP_MAX_CPUS) - 1);
+    if (target != 0) {
+        bcm2835_send_ipi(ipi, target);
     }
 #endif
 
@@ -70,10 +79,12 @@ enum handler_return arm_ipi_reschedule_handler(void *arg)
 
 void arch_mp_init_percpu(void)
 {
+#if WITH_DEV_INTERRUPT_ARM_GIC
     register_int_handler(MP_IPI_GENERIC, &arm_ipi_generic_handler, 0);
     register_int_handler(MP_IPI_RESCHEDULE, &arm_ipi_reschedule_handler, 0);
 
     //unmask_interrupt(MP_IPI_GENERIC);
     //unmask_interrupt(MP_IPI_RESCHEDULE);
+#endif
 }
 

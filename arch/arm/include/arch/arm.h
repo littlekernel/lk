@@ -184,6 +184,9 @@ GEN_CP15_REG_FUNCS(tlbimva, 0, c8, c7, 1);
 GEN_CP15_REG_FUNCS(tlbiasid, 0, c8, c7, 2);
 GEN_CP15_REG_FUNCS(tlbimvaa, 0, c8, c7, 3);
 
+GEN_CP15_REG_FUNCS(l2ctlr, 1, c9, c0, 2);
+GEN_CP15_REG_FUNCS(l2ectlr, 1, c9, c0, 3);
+
 /* fpu */
 void arm_fpu_set_enable(bool enable);
 #if ARM_WITH_VFP

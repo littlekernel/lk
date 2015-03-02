@@ -163,7 +163,7 @@ void arm_data_abort_handler(struct arm_fault_frame *frame)
 
 	uint32_t fault_status = (BIT(fsr, 10) ? (1<<4) : 0) |  BITS(fsr, 3, 0);
 
-	dprintf(CRITICAL, "\n\ndata abort, ");
+	dprintf(CRITICAL, "\n\ncpu %u data abort, ", arch_curr_cpu_num());
 	bool write = !!BIT(fsr, 11);
 
 	/* decode the fault status (from table B3-23) */
@@ -223,7 +223,7 @@ void arm_prefetch_abort_handler(struct arm_fault_frame *frame)
 
 	uint32_t fault_status = (BIT(fsr, 10) ? (1<<4) : 0) |  BITS(fsr, 3, 0);
 
-	dprintf(CRITICAL, "\n\nprefetch abort, ");
+	dprintf(CRITICAL, "\n\ncpu %u prefetch abort, ", arch_curr_cpu_num());
 
 	/* decode the fault status (from table B3-23) */
 	switch (fault_status) {

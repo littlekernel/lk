@@ -59,11 +59,18 @@ arm_reset:
 	/* figure out our cpu number */
 	mrc     p15, 0, r12, c0, c0, 5 /* read MPIDR */
 
+#if 0
+	// XXX handle machines with weird cluster numbers
 	/* mask off the bottom 12 bits to test cluster number:cpu number */
 	ubfx    r12, r12, #0, #12
+#else
+	/* mask off the bottom 8 bits to test cpu number */
+	ubfx    r12, r12, #0, #8
+#endif
 
 	/* if we're not cpu 0:0, fall into a trap and wait */
-	movs	r0, r12
+	teq     r12, #0
+	movne	r0, r12
 	bne     arm_secondary_setup
 #endif
 
