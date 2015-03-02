@@ -68,7 +68,7 @@ static inline void mp_set_cpu_idle(uint cpu)
 
 static inline void mp_set_cpu_busy(uint cpu)
 {
-    mp.idle_cpus |= 1UL << cpu;
+    mp.idle_cpus &= ~(1UL << cpu);
 }
 
 static inline mp_cpu_mask_t mp_get_idle_mask(void)
@@ -83,7 +83,7 @@ static inline void mp_set_cpu_realtime(uint cpu)
 
 static inline void mp_set_cpu_non_realtime(uint cpu)
 {
-    mp.realtime_cpus |= 1UL << cpu;
+    mp.realtime_cpus &= ~(1UL << cpu);
 }
 
 static inline mp_cpu_mask_t mp_get_realtime_mask(void)

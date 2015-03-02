@@ -87,9 +87,8 @@ static void insert_timer_in_queue(uint cpu, timer_t *timer)
 static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_callback callback, void *arg)
 {
 	lk_time_t now;
-	uint cpu = arch_curr_cpu_num();
 
-	LTRACEF("timer %p, cpu %u, delay %lu, period %lu, callback %p, arg %p\n", timer, cpu, delay, period, callback, arg);
+	LTRACEF("timer %p, delay %lu, period %lu, callback %p, arg %p\n", timer, delay, period, callback, arg);
 
 	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);
 
@@ -108,6 +107,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 	spin_lock_saved_state_t state;
 	spin_lock_irqsave(&timer_lock, state);
 
+	uint cpu = arch_curr_cpu_num();
 	insert_timer_in_queue(cpu, timer);
 
 #if PLATFORM_HAS_DYNAMIC_TIMER
