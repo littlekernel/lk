@@ -439,7 +439,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 void platform_fiq(struct arm_iframe *frame)
 {
 #if WITH_LIB_SM
-	sm_handle_irq();
+	sm_handle_fiq();
 #else
 	PANIC_UNIMPLEMENTED;
 #endif
