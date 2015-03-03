@@ -64,6 +64,9 @@ spin_lock_t thread_lock = SPIN_LOCK_INITIAL_VALUE;
 static struct list_node run_queue[NUM_PRIORITIES];
 static uint32_t run_queue_bitmap;
 
+/* make sure the bitmap is large enough to cover our number of priorities */
+STATIC_ASSERT(NUM_PRIORITIES <= sizeof(run_queue_bitmap) * 8);
+
 /* the idle thread(s) (statically allocated) */
 static thread_t idle_threads[SMP_MAX_CPUS];
 
@@ -193,8 +196,6 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 	list_add_head(&thread_list, &t->thread_list_node);
 	THREAD_UNLOCK(state);
 
-	mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
-
 	return t;
 }
 
@@ -271,6 +272,9 @@ status_t thread_resume(thread_t *t)
 		insert_in_run_queue_head(t);
 		resched = true;
 	}
+
+	mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
+
 	THREAD_UNLOCK(state);
 
 	if (resched)
@@ -378,6 +382,7 @@ void thread_exit(int retcode)
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_RUNNING);
+	ASSERT(!thread_is_idle(current_thread));
 #endif
 
 //	dprintf("thread_exit: current %p\n", current_thread);
@@ -435,36 +440,37 @@ void thread_resched(void)
 	thread_t *newthread;
 
 	thread_t *current_thread = get_current_thread();
+	uint cpu = arch_curr_cpu_num();
 
 #if THREAD_CHECKS
 	ASSERT(arch_ints_disabled());
 	ASSERT(spin_lock_held(&thread_lock));
+	ASSERT(current_thread->state != THREAD_RUNNING);
 #endif
 
 	THREAD_STATS_INC(reschedules);
 
-	oldthread = current_thread;
+	if (likely(run_queue_bitmap != 0)) {
+		/* find the first queue with a thread in it */
+		uint next_queue = HIGHEST_PRIORITY - __builtin_clz(run_queue_bitmap)
+			- (sizeof(run_queue_bitmap) * 8 - NUM_PRIORITIES);
 
-	// at the moment, can't deal with more than 32 priority levels
-	ASSERT(NUM_PRIORITIES <= 32);
+		newthread = list_remove_head_type(&run_queue[next_queue], thread_t, queue_node);
 
-	// should at least find the idle thread
-#if THREAD_CHECKS
-	ASSERT(run_queue_bitmap != 0);
-#endif
-
-	int next_queue = HIGHEST_PRIORITY - __builtin_clz(run_queue_bitmap) - (32 - NUM_PRIORITIES);
-
-	newthread = list_remove_head_type(&run_queue[next_queue], thread_t, queue_node);
-
-	if (list_is_empty(&run_queue[next_queue]))
-		run_queue_bitmap &= ~(1<<next_queue);
+		if (list_is_empty(&run_queue[next_queue]))
+			run_queue_bitmap &= ~(1U << next_queue);
+	} else {
+		/* no threads to run, select the idle thread for this cpu */
+		newthread = &idle_threads[cpu];
+	}
 
 #if THREAD_CHECKS
 	ASSERT(newthread);
 #endif
 
 	newthread->state = THREAD_RUNNING;
+
+	oldthread = current_thread;
 
 	if (newthread == oldthread)
 		return;
@@ -475,7 +481,6 @@ void thread_resched(void)
 	}
 
 	/* mark the cpu ownership of the threads */
-	uint cpu = arch_curr_cpu_num();
 	oldthread->curr_cpu = -1;
 	newthread->curr_cpu = cpu;
 
@@ -524,6 +529,7 @@ void thread_resched(void)
 
 	/* do the switch */
 	set_current_thread(newthread);
+	//printf("c %u %p (%s) -> %p (%s)\n", cpu, oldthread, oldthread->name, newthread, newthread->name);
 	arch_context_switch(oldthread, newthread);
 }
 
@@ -552,7 +558,9 @@ void thread_yield(void)
 	/* we are yielding the cpu, so stick ourselves into the tail of the run queue and reschedule */
 	current_thread->state = THREAD_READY;
 	current_thread->remaining_quantum = 0;
-	insert_in_run_queue_tail(current_thread);
+	if (likely(!thread_is_idle(current_thread))) { /* idle thread doesn't go in the run queue */
+		insert_in_run_queue_tail(current_thread);
+	}
 	thread_resched();
 
 	THREAD_UNLOCK(state);
@@ -593,10 +601,12 @@ void thread_preempt(void)
 
 	/* we are being preempted, so we get to go back into the front of the run queue if we have quantum left */
 	current_thread->state = THREAD_READY;
-	if (current_thread->remaining_quantum > 0)
-		insert_in_run_queue_head(current_thread);
-	else
-		insert_in_run_queue_tail(current_thread); /* if we're out of quantum, go to the tail of the queue */
+	if (likely(!thread_is_idle(current_thread))) { /* idle thread doesn't go in the run queue */
+		if (current_thread->remaining_quantum > 0)
+			insert_in_run_queue_head(current_thread);
+		else
+			insert_in_run_queue_tail(current_thread); /* if we're out of quantum, go to the tail of the queue */
+	}
 	thread_resched();
 
 	THREAD_UNLOCK(state);
@@ -620,6 +630,7 @@ void thread_block(void)
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_BLOCKED);
 	ASSERT(spin_lock_held(&thread_lock));
+	ASSERT(!thread_is_idle(current_thread));
 #endif
 
 	/* we are blocking on something. the blocking code should have already stuck us on a queue */
@@ -632,10 +643,12 @@ void thread_unblock(thread_t *t, bool resched)
 	ASSERT(t->magic == THREAD_MAGIC);
 	ASSERT(t->state == THREAD_BLOCKED);
 	ASSERT(spin_lock_held(&thread_lock));
+	ASSERT(!thread_is_idle(t));
 #endif
 
 	t->state = THREAD_READY;
 	insert_in_run_queue_head(t);
+	mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
 	if (resched)
 		thread_resched();
 }
@@ -694,6 +707,7 @@ void thread_sleep(lk_time_t delay)
 #if THREAD_CHECKS
 	ASSERT(current_thread->magic == THREAD_MAGIC);
 	ASSERT(current_thread->state == THREAD_RUNNING);
+	ASSERT(!thread_is_idle(current_thread));
 #endif
 
 	timer_initialize(&timer);
@@ -731,6 +745,7 @@ void thread_init_early(void)
 	t->priority = HIGHEST_PRIORITY;
 	t->state = THREAD_RUNNING;
 	t->flags = THREAD_FLAG_DETACHED;
+	t->curr_cpu = 0;
 	wait_queue_init(&t->retcode_wait_queue);
 	list_add_head(&thread_list, &t->thread_list_node);
 	set_current_thread(t);
@@ -790,9 +805,8 @@ void thread_become_idle(void)
 	snprintf(name, sizeof(name), "idle %d", arch_curr_cpu_num());
 	thread_set_name(name);
 
-	thread_set_priority(IDLE_PRIORITY);
-
 	/* mark ourself as idle */
+	t->priority = IDLE_PRIORITY;
 	t->flags |= THREAD_FLAG_IDLE;
 
 	mp_set_curr_cpu_active(true);

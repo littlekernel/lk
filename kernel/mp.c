@@ -51,7 +51,7 @@ void mp_reschedule(mp_cpu_mask_t target, uint flags)
 
 	/* mask out cpus that are currently running realtime code */
 	if ((flags & MP_RESCHEDULE_FLAG_REALTIME) == 0) {
-		target &= mp.active_cpus;
+		target &= ~mp.realtime_cpus;
 	}
 	target &= ~(1U << local_cpu);
 
@@ -69,8 +69,13 @@ void mp_set_curr_cpu_active(bool active)
 #if WITH_SMP
 enum handler_return mp_mbx_reschedule_irq(void)
 {
-	LTRACEF("cpu %u\n", arch_curr_cpu_num());
-	return (mp.active_cpus & arch_curr_cpu_num()) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
+	uint cpu = arch_curr_cpu_num();
+
+	LTRACEF("cpu %u\n", cpu);
+
+	return (mp.active_cpus & (1U << cpu)) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 #endif
+
+// vim: set noexpandtab:
 
