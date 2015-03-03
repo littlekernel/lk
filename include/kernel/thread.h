@@ -174,13 +174,17 @@ static inline __ALWAYS_INLINE uintptr_t tls_set(uint entry, uintptr_t val)
 struct thread_stats {
 	lk_bigtime_t idle_time;
 	lk_bigtime_t last_idle_timestamp;
-	int reschedules;
-	int context_switches;
-	int preempts;
-	int yields;
-	int interrupts; /* platform code increment this */
-	int timer_ints; /* timer code increment this */
-	int timers; /* timer code increment this */
+	ulong reschedules;
+	ulong context_switches;
+	ulong preempts;
+	ulong yields;
+	ulong interrupts; /* platform code increment this */
+	ulong timer_ints; /* timer code increment this */
+	ulong timers; /* timer code increment this */
+
+#if WITH_SMP
+	ulong reschedule_ipis;
+#endif
 };
 
 extern struct thread_stats thread_stats[SMP_MAX_CPUS];

@@ -73,6 +73,8 @@ enum handler_return mp_mbx_reschedule_irq(void)
 
 	LTRACEF("cpu %u\n", cpu);
 
+	THREAD_STATS_INC(reschedule_ipis);
+
 	return (mp.active_cpus & (1U << cpu)) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 #endif
