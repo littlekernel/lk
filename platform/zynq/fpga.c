@@ -26,6 +26,7 @@
 #include <reg.h>
 #include <err.h>
 #include <platform.h>
+#include <kernel/thread.h>
 
 #define LOCAL_TRACE 0
 #define FPGA_TIMEOUT 1000
@@ -38,6 +39,7 @@
 #define DEVCFG_LOCK         0xF8007004
 #define DEVCFG_CFG          0xF8007008
 #define DEVCFG_INT_STS      0xF800700C
+#define  DMA_DONE_INT       (1 << 13)
 #define  PSS_CFG_RESET_B    (1 << 5) // 1 = PL in reset state
 #define  PCFG_DONE_INT      (1 << 2) // 1 = PL successfully programmed
 #define  PCFG_INIT_PE_INT   (1 << 1)
@@ -64,6 +66,8 @@
 status_t zynq_program_fpga(paddr_t physaddr, size_t length) {
     LTRACEF("phys 0x%lx, len 0x%zx\n", physaddr, length);
 
+    lk_bigtime_t bt = current_time_hires();
+
     /* length is in words */
     length /= 4;
 
@@ -85,21 +89,27 @@ status_t zynq_program_fpga(paddr_t physaddr, size_t length) {
     writel(length, DEVCFG_DMA_DST_LEN);
 
     t = current_time();
-    while (!(readl(DEVCFG_INT_STS) & PCFG_DONE_INT)) {
+    uint32_t sts = 0;
+    for (;;) {
+        sts = readl(DEVCFG_INT_STS);
 #if LOCAL_TRACE
         static uint32_t last = 0;
-        uint32_t now = readl(DEVCFG_STATUS);
-        if (last != now) {
-            printf("sts 0x%x\n", now);
+        if (last != sts) {
+            printf("dsts 0x%x\n", sts);
         }
-        last = now;
+        last = sts;
 #endif
+        if (sts & PCFG_DONE_INT)
+            break;
 
         if (current_time() - t > FPGA_TIMEOUT) {
-            TRACEF("timeout waiting for PCFG_DONE_INT\n");
+            TRACEF("timeout waiting for PCFG_DONE_INT, DEVCFG_INT_STS is 0x%x\n", sts);
             return ERR_TIMED_OUT;
         }
     }
+
+    bt = current_time_hires() - bt;
+    LTRACEF("fpga program took %llu usecs\n", bt);
 
     return NO_ERROR;
 }
