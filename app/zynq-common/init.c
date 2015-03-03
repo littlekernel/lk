@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <debug.h>
+#include <trace.h>
 #include <lk/init.h>
 #include <lib/bootargs.h>
 #include <lib/bootimage.h>
@@ -31,6 +32,7 @@
 #include <lib/sysparam.h>
 #include <dev/spiflash.h>
 #include <kernel/vm.h>
+#include <kernel/thread.h>
 
 #include <platform/gem.h>
 #include <platform/fpga.h>
@@ -89,36 +91,69 @@ static void zybo_common_target_init(uint level)
     }
 
     /* see if we came from a bootimage */
-    uintptr_t bootimage_phys;
+    const char *device;
+    uint64_t bootimage_phys;
     size_t bootimage_size;
-    if (bootargs_get_bootimage_pointer(&bootimage_phys, &bootimage_size) >= 0) {
-        printf("our bootimage is at phys 0x%lx, size %zx\n", bootimage_phys, bootimage_size);
+    if (bootargs_get_bootimage_pointer(&bootimage_phys, &bootimage_size, &device) >= 0) {
+        bootimage_t *bi = NULL;
+        bool put_bio_memmap = false;
 
-        void *ptr = paddr_to_kvaddr(bootimage_phys);
-        if (ptr) {
-            bootimage_t *bi;
-            if (bootimage_open(ptr, bootimage_size, &bi) >= 0) {
-                /* we have a valid bootimage, find the fpga section */
-                const void *fpga_ptr;
-                size_t fpga_len;
+        printf("our bootimage is at device '%s', phys 0x%llx, size %zx\n", device, bootimage_phys, bootimage_size);
 
-                if (bootimage_get_file_section(bi, TYPE_FPGA_IMAGE, &fpga_ptr, &fpga_len) >= 0) {
-                    /* we have a fpga image */
-
-                    /* lookup the physical address of the bitfile */
-                    paddr_t pa = kvaddr_to_paddr((void *)fpga_ptr);
-                    if (pa != 0) {
-                        /* program the fpga with it*/
-                        printf("loading fpga image at %p (phys 0x%lx), len %zx\n", fpga_ptr, pa, fpga_len);
-                        zynq_reset_fpga();
-                        err = zynq_program_fpga(pa, fpga_len);
-                        if (err < 0) {
-                            printf("error %d loading fpga\n", err);
-                        }
-                        printf("fpga image loaded\n");
-                    }
+        /* if the bootimage we came from is in physical memory, find it */
+        if (!strcmp(device, "pmem")) {
+            void *ptr = paddr_to_kvaddr(bootimage_phys);
+            if (ptr) {
+                bootimage_open(ptr, bootimage_size, &bi);
+            }
+        } else if (!strcmp(device, "spi0")) {
+            /* we were loaded from spi flash, go look at it to see if we can find it */
+            if (spi) {
+                void *ptr = 0;
+                int err = bio_ioctl(spi, BIO_IOCTL_GET_MEM_MAP, (void *)&ptr);
+                if (err >= 0) {
+                    put_bio_memmap = true;
+                    ptr = (uint8_t *)ptr + bootimage_phys;
+                    bootimage_open(ptr, bootimage_size, &bi);
                 }
             }
+        }
+
+        /* did we find the bootimage? */
+        if (bi) {
+            /* we have a valid bootimage, find the fpga section */
+            const void *fpga_ptr;
+            size_t fpga_len;
+
+            if (bootimage_get_file_section(bi, TYPE_FPGA_IMAGE, &fpga_ptr, &fpga_len) >= 0) {
+                /* we have a fpga image */
+
+                /* lookup the physical address of the bitfile */
+                paddr_t pa = kvaddr_to_paddr((void *)fpga_ptr);
+                if (pa != 0) {
+                    /* program the fpga with it*/
+                    printf("loading fpga image at %p (phys 0x%lx), len %zx\n", fpga_ptr, pa, fpga_len);
+                    zynq_reset_fpga();
+                    err = zynq_program_fpga(pa, fpga_len);
+                    if (err < 0) {
+                        printf("error %d loading fpga\n", err);
+                    }
+                    printf("fpga image loaded\n");
+                }
+            }
+        }
+
+        /* if we memory mapped it, put the block device back to block mode */
+        if (put_bio_memmap) {
+            /* HACK: for completely non-obvious reasons, need to sleep here for a little bit.
+             * Experimentally it was found that if fetching the fpga image out of qspi flash,
+             * for a period of time after the transfer is complete, there appears to be stray
+             * AXI bus transactions that cause the system to hang if immediately after
+             * programming the qspi memory aperture is destroyed.
+             */
+            thread_sleep(10);
+
+            bio_ioctl(spi, BIO_IOCTL_PUT_MEM_MAP, NULL);
         }
     }
 
