@@ -131,7 +131,7 @@ static int semaphore_test(void)
 static int mutex_thread(void *arg)
 {
 	int i;
-	const int iterations = 50000;
+	const int iterations = 1000000;
 
 	static volatile int shared = 0;
 
@@ -406,9 +406,11 @@ static int atomic_tester(void *arg)
 	int add = (intptr_t)arg;
 	int i;
 
-	TRACEF("add %d\n", add);
+	const int iter = 10000000;
 
-	for (i=0; i < 1000000; i++) {
+	TRACEF("add %d, %d iterations\n", add, iter);
+
+	for (i=0; i < iter; i++) {
 		atomic_add(&atomic, add);
 	}
 
@@ -628,6 +630,29 @@ int thread_tests(void)
 	preempt_test();
 
 	join_test();
+
+	return 0;
+}
+
+static int spinner_thread(void *arg)
+{
+	for (;;)
+		;
+
+	return 0;
+}
+
+int spinner(int argc, const cmd_args *argv)
+{
+	if (argc < 2) {
+		printf("not enough args\n");
+		printf("usage: %s <priority>\n", argv[0].str);
+		return -1;
+	}
+
+	thread_t *t = thread_create("spinner", spinner_thread, NULL, argv[1].u, DEFAULT_STACK_SIZE);
+	if (t)
+		thread_resume(t);
 
 	return 0;
 }
