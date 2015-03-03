@@ -83,7 +83,7 @@ struct int_handler_struct {
     void *arg;
 };
 
-static struct int_handler_struct int_handler_table[MAX_INT][SMP_MAX_CPUS];
+static struct int_handler_struct int_handler_table[MAX_INT];
 
 static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
@@ -95,11 +95,12 @@ status_t mask_interrupt(unsigned int vector)
     spin_lock_irqsave(&lock, state);
 
     if (vector >= INTERRUPT_ARM_LOCAL_CNTPSIRQ && vector <= INTERRUPT_ARM_LOCAL_CNTVIRQ) {
-        // local timer interrupts
-        uint cpu = arch_curr_cpu_num();
-        uintptr_t reg = INTC_LOCAL_TIMER_INT_CONTROL0 + cpu * 4;
+        // local timer interrupts, mask on all cpus
+        for (uint cpu = 0; cpu < 4; cpu++) {
+            uintptr_t reg = INTC_LOCAL_TIMER_INT_CONTROL0 + cpu * 4;
 
-        *REG32(reg) &= (1 << (vector - INTERRUPT_ARM_LOCAL_CNTPSIRQ));
+            *REG32(reg) &= (1 << (vector - INTERRUPT_ARM_LOCAL_CNTPSIRQ));
+        }
     } else if (/* vector >= ARM_IRQ1_BASE && */ vector < (ARM_IRQ0_BASE + 32)) {
         uintptr_t reg;
         if (vector >= ARM_IRQ0_BASE)
@@ -127,11 +128,12 @@ status_t unmask_interrupt(unsigned int vector)
     spin_lock_irqsave(&lock, state);
 
     if (vector >= INTERRUPT_ARM_LOCAL_CNTPSIRQ && vector <= INTERRUPT_ARM_LOCAL_CNTVIRQ) {
-        // local timer interrupts
-        uint cpu = arch_curr_cpu_num();
-        uintptr_t reg = INTC_LOCAL_TIMER_INT_CONTROL0 + cpu * 4;
+        // local timer interrupts, unmask for all cpus
+        for (uint cpu = 0; cpu < 4; cpu++) {
+            uintptr_t reg = INTC_LOCAL_TIMER_INT_CONTROL0 + cpu * 4;
 
-        *REG32(reg) |= (1 << (vector - INTERRUPT_ARM_LOCAL_CNTPSIRQ));
+            *REG32(reg) |= (1 << (vector - INTERRUPT_ARM_LOCAL_CNTPSIRQ));
+        }
     } else if (/* vector >= ARM_IRQ1_BASE && */ vector < (ARM_IRQ0_BASE + 32)) {
         uintptr_t reg;
         if (vector >= ARM_IRQ0_BASE)
@@ -153,16 +155,14 @@ status_t unmask_interrupt(unsigned int vector)
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 {
-    uint cpu = arch_curr_cpu_num();
-
     if (vector >= MAX_INT)
         panic("register_int_handler: vector out of range %d\n", vector);
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 
-    int_handler_table[vector][cpu].handler = handler;
-    int_handler_table[vector][cpu].arg = arg;
+    int_handler_table[vector].handler = handler;
+    int_handler_table[vector].arg = arg;
 
     spin_unlock_irqrestore(&lock, state);
 }
@@ -243,8 +243,8 @@ decoded:
 #endif // WITH_SMP
     if (vector == 0xffffffff) {
         ret = INT_NO_RESCHEDULE;
-    } else if (int_handler_table[vector][cpu].handler) {
-        ret = int_handler_table[vector][cpu].handler(int_handler_table[vector][cpu].arg);
+    } else if (int_handler_table[vector].handler) {
+        ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
     } else {
         panic("irq %u fired on cpu %u but no handler set!\n", vector, cpu);
     }
