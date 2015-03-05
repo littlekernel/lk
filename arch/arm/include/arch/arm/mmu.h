@@ -193,9 +193,9 @@ static inline void arm_invalidate_tlb_global(void) {
 static inline void arm_invalidate_tlb_mva(vaddr_t va) {
     CF;
 #if WITH_SMP
-    arm_write_tlbimvais(va & 0xfffff000);
+    arm_write_tlbimvaais(va & 0xfffff000);
 #else
-    arm_write_tlbimva(va & 0xfffff000);
+    arm_write_tlbimvaa(va & 0xfffff000);
 #endif
     DSB;
 }
