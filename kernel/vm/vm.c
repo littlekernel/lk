@@ -99,17 +99,13 @@ static void vm_init_postheap(uint level)
 
 void *paddr_to_kvaddr(paddr_t pa)
 {
-    /* slow path to do reverse lookup */
-    struct mmu_initial_mapping *map = mmu_initial_mappings;
-    while (map->size > 0) {
-        if (!(map->flags & MMU_INITIAL_MAPPING_TEMPORARY) &&
-            pa >= map->phys &&
-            pa <= map->phys + map->size) {
-            return (void *)(map->virt + (pa - map->phys));
-        }
-        map++;
-    }
-    return NULL;
+    status_t rc;
+    vaddr_t  va;
+
+    rc = arch_mmu_query_reverse(pa, &va, NULL);
+    if (rc)
+        return NULL;
+    return (void*)va;
 }
 
 paddr_t kvaddr_to_paddr(void *ptr)
