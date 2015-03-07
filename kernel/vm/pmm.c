@@ -247,19 +247,20 @@ uint pmm_free_page(vm_page_t *page)
 }
 
 /* physically allocate a run from arenas marked as KMAP */
-void *pmm_alloc_kpages(uint count, struct list_node *list)
+uint pmm_alloc_kpages(uint count, void **pa, struct list_node *list)
 {
     LTRACEF("count %u\n", count);
 
     // XXX do fast path for single page
 
-
-    paddr_t pa;
-    uint alloc_count = pmm_alloc_contiguous(count, PAGE_SIZE_SHIFT, &pa, list);
+    paddr_t pa_address;
+    uint alloc_count = pmm_alloc_contiguous(count, PAGE_SIZE_SHIFT, &pa_address, list);
     if (alloc_count == 0)
-        return NULL;
+        return 0;
 
-    return paddr_to_kvaddr(pa);
+    *pa = paddr_to_kvaddr(pa_address);
+
+    return alloc_count;
 }
 
 uint pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struct list_node *list)
@@ -447,8 +448,9 @@ usage:
     } else if (!strcmp(argv[1].str, "alloc_kpages")) {
         if (argc < 3) goto notenoughargs;
 
-        void *ptr = pmm_alloc_kpages(argv[2].u, NULL);
-        printf("pmm_alloc_kpages returns %p\n", ptr);
+        void* pa;
+        uint ret = pmm_alloc_kpages(argv[2].u, &pa, NULL);
+        printf("pmm_alloc_kpages returns %u, addr %p\n", ret, pa);
     } else if (!strcmp(argv[1].str, "alloc_contig")) {
         if (argc < 4) goto notenoughargs;
 

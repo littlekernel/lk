@@ -185,8 +185,9 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
             l2_table = paddr_to_kvaddr(pte & ~OR1K_MMU_PG_FLAGS_MASK);
             LTRACEF("l2_table at %p\n", l2_table);
         } else {
-            l2_table = pmm_alloc_kpage();
-            if (!l2_table) {
+            l2_table = NULL;
+            uint ret = pmm_alloc_kpage((void**)&l2_table);
+            if (!ret) {
                 TRACEF("failed to allocate pagetable\n");
                 return mapped;
             }

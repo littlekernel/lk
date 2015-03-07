@@ -506,8 +506,9 @@ static ssize_t heap_grow(size_t size)
 #if WITH_KERNEL_VM
 	size = ROUNDUP(size, PAGE_SIZE);
 
-	void *ptr = pmm_alloc_kpages(size / PAGE_SIZE, NULL);
-	if (!ptr)
+	void *ptr = NULL;
+	uint ret = pmm_alloc_kpages(size / PAGE_SIZE, ptr, NULL);
+	if (!ret)
 		return ERR_NO_MEMORY;
 
 	LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
@@ -544,10 +545,10 @@ void heap_init(void)
 
 	// set the heap range
 #if WITH_KERNEL_VM
-	theheap.base = pmm_alloc_kpages(HEAP_GROW_SIZE / PAGE_SIZE, NULL);
+	uint ret = pmm_alloc_kpages(HEAP_GROW_SIZE / PAGE_SIZE, &theheap.base, NULL);
 	theheap.len = HEAP_GROW_SIZE;
 
-	if (theheap.base == 0) {
+	if (ret == 0) {
 		panic("HEAP: error allocating initial heap size\n");
 	}
 #else
