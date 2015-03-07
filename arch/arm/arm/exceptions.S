@@ -20,12 +20,22 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+/* defines FUNCTION macro */
 #include <asm.h>
 #include <arch/asm.h>
 #include <arch/arm/cores.h>
 
-/* exception handling glue.
- * NOTE: only usable on armv6+ cores
+/*
+ * This file includes exception routines which are called when an exception
+ * occurs. The Vector Table is constructed in arch/arm/arm/start.S as branch
+ * (b) instructions to these routines here.
+ *
+ * These routines create a stack frame as defined in
+ * arch/arm/include/arch/arm.h, pass this frame to higher-level C function, and
+ * jump to it. These functions are defined in arch/arm/arm/faults.c
+ *
+ * NOTE: This file is only used on ARMv6+ cores.
  */
 
 #define TIMESTAMP_IRQ 0
@@ -62,18 +72,29 @@
 .endm
 
 .macro saveall, mode
-	/* save spsr and r14 onto our stack */
+	/*
+	 * This routine creates "struct arm_fault_frame" as defined in
+	 * arch/arm/include/arch/arm.h.
+	 */
+
+	/* save SPSR and r14 onto our stack */
 	srsdb	\mode!
 
 	/* save all regs and lr to keep the stack aligned */
 	push	{ r0-r12, r14 }
 
-	/* save user space sp/lr */
+	/* save user space lr (r14) and user space sp (r13) */
 	sub		sp, #8
 	stmia	sp, { r13, r14 }^
 .endm
 
 .macro saveall_offset, offset, mode
+	/*
+	 * Offset is subtracted from lr because of the fact that (PC +
+	 * exception-dependent offset) is saved in the link register when exception
+	 * occurs. To get the real PC value, we need to subtract offset. Please
+	 * see B1.6.3 Exception Entry in ARM ARM DBI0406B_10_10.
+	 */
 	sub		lr, \offset
 	saveall	\mode
 .endm
@@ -117,6 +138,8 @@ FUNCTION(arm_undefined)
 #endif
 
 	mov		r0, sp
+
+	/* void arm_undefined_handler(struct arm_fault_frame *frame) */
 	bl		arm_undefined_handler
 
 #if ARM_WITH_VFP
