@@ -131,10 +131,10 @@ uint pmm_alloc_contiguous(uint count, uint8_t align_log2, paddr_t *pa, struct li
     /* Allocate a run of pages out of the kernel area and return the pointer in kernel space.
      * If the optional list is passed, append the allocate page structures to the tail of the list.
      */
-void *pmm_alloc_kpages(uint count, struct list_node *list);
+uint pmm_alloc_kpages(uint count, void **pa, struct list_node *list);
 
     /* Helper routine for pmm_alloc_kpages. */
-static inline void *pmm_alloc_kpage(void) { return pmm_alloc_kpages(1, NULL); }
+static inline uint pmm_alloc_kpage(void **pa) { return pmm_alloc_kpages(1, pa, NULL); }
 
 /* physical to virtual */
 void *paddr_to_kvaddr(paddr_t pa);

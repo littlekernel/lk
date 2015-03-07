@@ -333,8 +333,9 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
                     break;
                 case MMU_MEMORY_L1_DESCRIPTOR_INVALID: {
                     /* alloc and put in a L2 page table */
-                    uint32_t *l2_table = pmm_alloc_kpage();
-                    if (!l2_table) {
+                    uint32_t *l2_table = NULL;
+                    uint ret = pmm_alloc_kpage((void**)&l2_table);
+                    if (!ret) {
                         TRACEF("failed to allocate pagetable\n");
                         goto done;
                     }
