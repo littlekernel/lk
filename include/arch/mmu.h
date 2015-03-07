@@ -41,6 +41,7 @@ __BEGIN_CDECLS
 int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags);
 int arch_mmu_unmap(vaddr_t vaddr, uint count);
 status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags);
+status_t arch_mmu_query_reverse(paddr_t paddr, vaddr_t *vaddr, uint *flags);
 
 void arch_disable_mmu(void);
 

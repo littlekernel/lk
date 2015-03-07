@@ -47,6 +47,8 @@ static void arm_mmu_unmap_section(addr_t vaddr);
 
 /* the main translation table */
 uint32_t arm_kernel_translation_table[4096] __ALIGNED(16384) __SECTION(".bss.prebss.translation_table");
+void* l2_addresses[4096];
+uint8_t l2_addresses_availability[4096];
 
 /* convert user level mmu flags to flags that go in L1 descriptors */
 static uint32_t mmu_flags_to_l1_arch_flags(uint flags)
@@ -291,6 +293,123 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
     return NO_ERROR;
 }
 
+status_t arch_mmu_query_reverse(paddr_t paddr, vaddr_t *vaddr, uint *flags) {
+    //LTRACEF("paddr 0x%lx\n", paddr);
+
+    unsigned i;
+    for(i=0; i<sizeof(arm_kernel_translation_table)/sizeof(arm_kernel_translation_table[0]); i++) {
+        uint32_t tt_entry = arm_kernel_translation_table[i];
+        switch (tt_entry & MMU_MEMORY_L1_DESCRIPTOR_MASK) {
+            case MMU_MEMORY_L1_DESCRIPTOR_INVALID:
+                continue;
+            case MMU_MEMORY_L1_DESCRIPTOR_SECTION:
+                if (tt_entry & (1<<18)) {
+                    /* supersection */
+                    PANIC_UNIMPLEMENTED;
+                }
+
+                paddr_t entry_paddr = MMU_MEMORY_L1_SECTION_ADDR(tt_entry);
+                if(entry_paddr!=(paddr & ~(SECTION_SIZE-1))) {
+                    continue;
+                }
+
+                /* section */
+                if (vaddr)
+                    *vaddr = i*SECTION_SIZE + (paddr & (SECTION_SIZE - 1));
+
+                if (flags) {
+                    *flags = 0;
+                    switch (tt_entry & MMU_MEMORY_L1_TYPE_MASK) {
+                        case MMU_MEMORY_L1_TYPE_STRONGLY_ORDERED:
+                            *flags |= ARCH_MMU_FLAG_UNCACHED;
+                            break;
+                        case MMU_MEMORY_L1_TYPE_DEVICE_SHARED:
+                        case MMU_MEMORY_L1_TYPE_DEVICE_NON_SHARED:
+                            *flags |= ARCH_MMU_FLAG_UNCACHED_DEVICE;
+                            break;
+                    }
+                    switch (tt_entry & MMU_MEMORY_L1_AP_MASK) {
+                        case MMU_MEMORY_L1_AP_P_NA_U_NA:
+                            // XXX no access, what to return?
+                            break;
+                        case MMU_MEMORY_L1_AP_P_RW_U_NA:
+                            break;
+                        case MMU_MEMORY_L1_AP_P_RW_U_RO:
+                            *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO; // XXX should it be rw anyway since kernel can rw it?
+                            break;
+                        case MMU_MEMORY_L1_AP_P_RW_U_RW:
+                            *flags |= ARCH_MMU_FLAG_PERM_USER;
+                            break;
+                    }
+                }
+                return NO_ERROR;
+            case MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE: {
+                if(!l2_addresses_availability[i]) {
+                    PANIC_UNIMPLEMENTED;
+                }
+
+                uint32_t *l2_table = (void*)l2_addresses[i];
+                unsigned j;
+                for(j=0; j<256; j++) {
+                    uint32_t l2_entry = l2_table[j];
+
+                    //LTRACEF("l2_table at %p, index %u, entry 0x%x\n", l2_table, j, l2_entry);
+
+                    switch (l2_entry & MMU_MEMORY_L2_DESCRIPTOR_MASK) {
+                        default:
+                        case MMU_MEMORY_L2_DESCRIPTOR_INVALID:
+                            continue;
+                        case MMU_MEMORY_L2_DESCRIPTOR_LARGE_PAGE:
+                            PANIC_UNIMPLEMENTED;
+                            continue;
+                        case MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE:
+                        case MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN: {
+                            paddr_t entry_paddr = MMU_MEMORY_L2_SMALL_PAGE_ADDR(l2_entry);
+                            if(entry_paddr!=(paddr & ~(PAGE_SIZE-1)))
+                                continue;
+
+                            if (vaddr)
+                                *vaddr = i*SECTION_SIZE + j*PAGE_SIZE + (paddr & (PAGE_SIZE - 1));
+
+                            if (flags) {
+                                *flags = 0;
+                                switch (l2_entry & MMU_MEMORY_L2_TYPE_MASK) {
+                                    case MMU_MEMORY_L2_TYPE_STRONGLY_ORDERED:
+                                        *flags |= ARCH_MMU_FLAG_UNCACHED;
+                                        break;
+                                    case MMU_MEMORY_L2_TYPE_DEVICE_SHARED:
+                                    case MMU_MEMORY_L2_TYPE_DEVICE_NON_SHARED:
+                                        *flags |= ARCH_MMU_FLAG_UNCACHED_DEVICE;
+                                        break;
+                                }
+                                switch (l2_entry & MMU_MEMORY_L2_AP_MASK) {
+                                    case MMU_MEMORY_L2_AP_P_NA_U_NA:
+                                        // XXX no access, what to return?
+                                        break;
+                                    case MMU_MEMORY_L2_AP_P_RW_U_NA:
+                                        break;
+                                    case MMU_MEMORY_L2_AP_P_RW_U_RO:
+                                        *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO; // XXX should it be rw anyway since kernel can rw it?
+                                        break;
+                                    case MMU_MEMORY_L2_AP_P_RW_U_RW:
+                                        *flags |= ARCH_MMU_FLAG_PERM_USER;
+                                        break;
+                                }
+                            }
+                            return NO_ERROR;
+                        }
+                    }
+                }
+                break;
+            }
+            default:
+                PANIC_UNIMPLEMENTED;
+        }
+    }
+
+    return ERR_NOT_FOUND;
+}
+
 int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 {
     LTRACEF("vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", vaddr, paddr, count, flags);
@@ -354,9 +473,20 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
                     /* put it in the adjacent 4 entries filling in 1K page tables at once */
                     l1_index = ROUNDDOWN(l1_index, 4);
                     arm_kernel_translation_table[l1_index] = l2_pa | MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE;
+                    l2_addresses[l1_index] = l2_table;
+                    l2_addresses_availability[l1_index] = 1;
+
                     arm_kernel_translation_table[l1_index + 1] = (l2_pa + 1024) | MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE;
+                    l2_addresses[l1_index + 1] = l2_table + 1024;
+                    l2_addresses_availability[l1_index + 1] = 1;
+
                     arm_kernel_translation_table[l1_index + 2] = (l2_pa + 2048) |  MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE;
+                    l2_addresses[l1_index + 2] = l2_table + 2048;
+                    l2_addresses_availability[l1_index + 2] = 1;
+
                     arm_kernel_translation_table[l1_index + 3] = (l2_pa + 3072) |  MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE;
+                    l2_addresses[l1_index + 3] = l2_table + 3072;
+                    l2_addresses_availability[l1_index + 3] = 1;
                     tt_entry = arm_kernel_translation_table[l1_index];
 
                     /* fallthrough */
