@@ -104,7 +104,7 @@ FUNCTION(arm_save_mode_regs)
 /* void arm_chain_load(paddr_t entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN; */
 /* shut down the system, branching into the secondary system */
 FUNCTION(arm_chain_load)
-#if !WITH_KERNEL_VM
+#if !ARM_WITH_MMU
 #error implement non VM based chain load
 #else
 
@@ -134,7 +134,7 @@ FUNCTION(arm_chain_load)
 	/* call the entry point */
 	bx		r4
 
-#endif // WITH_KERNEL_VM
+#endif // ARM_WITH_MMU
 
 /* vim: set ts=4 sw=4 noexpandtab: */
 
