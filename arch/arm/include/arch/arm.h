@@ -169,6 +169,11 @@ GEN_CP15_REG_FUNCS(ats12nsour, 0, c7, c8, 6);
 GEN_CP15_REG_FUNCS(ats12nsouw, 0, c7, c8, 7);
 GEN_CP15_REG_FUNCS(par, 0, c7, c4, 0);
 
+/* Branch predictor invalidate */
+GEN_CP15_REG_FUNCS(bpiall, 0, c7, c5, 6);
+GEN_CP15_REG_FUNCS(bpimva, 0, c7, c5, 7);
+GEN_CP15_REG_FUNCS(bpiallis, 0, c7, c1, 6);
+
 /* tlb registers */
 GEN_CP15_REG_FUNCS(tlbiallis, 0, c8, c3, 0);
 GEN_CP15_REG_FUNCS(tlbimvais, 0, c8, c3, 1);
