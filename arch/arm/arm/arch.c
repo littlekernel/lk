@@ -122,6 +122,8 @@ void arch_init(void)
 #elif ARM_CPU_CORTEX_A7
 	uint32_t l2ctlr = arm_read_l2ctlr();
 	secondaries_to_init = (l2ctlr >> 24);
+#else
+	secondaries_to_init = SMP_MAX_CPUS - 1; /* TODO: get count from somewhere else, or add cpus as they boot */
 #endif
 
 	TRACEF("releasing %d secondary cpus\n", secondaries_to_init);
