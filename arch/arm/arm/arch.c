@@ -198,7 +198,6 @@ static void arm_basic_setup(void)
 	uint32_t sctlr = arm_read_sctlr();
 
 	/* ARMV7 bits */
-	sctlr &= ~(1<<2);  /* disable alignment checking */
 	sctlr &= ~(1<<10); /* swp disable */
 	sctlr |=  (1<<11); /* enable program flow prediction */
 	sctlr &= ~(1<<14); /* random cache/tlb replacement */
