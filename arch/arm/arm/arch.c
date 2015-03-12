@@ -35,6 +35,7 @@
 #include <arch/mp.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
+#include <lk/main.h>
 #include <platform.h>
 #include <target.h>
 #include <kernel/thread.h>
@@ -126,6 +127,8 @@ void arch_init(void)
 	secondaries_to_init = SMP_MAX_CPUS - 1; /* TODO: get count from somewhere else, or add cpus as they boot */
 #endif
 
+	lk_init_secondary_cpus(secondaries_to_init);
+
 	TRACEF("releasing %d secondary cpus\n", secondaries_to_init);
 
 	/* release the secondary cpus */
@@ -147,7 +150,7 @@ void arch_init(void)
 }
 
 #if WITH_SMP
-__NO_RETURN void arm_secondary_entry(void)
+void arm_secondary_entry(void)
 {
 	arm_basic_setup();
 
@@ -183,17 +186,7 @@ __NO_RETURN void arm_secondary_entry(void)
 	atomic_add(&secondaries_to_init, -1);
 	__asm__ volatile("sev");
 
-	//spinlock_test_secondary();
-
-#if 0
-	arch_enable_ints();
-	for (;;) {
-		__asm__ volatile("wfe");
-	}
-#else
-	TRACEF("entering scheduler\n");
-	thread_secondary_cpu_entry();
-#endif
+	lk_secondary_cpu_entry();
 }
 #endif
 
