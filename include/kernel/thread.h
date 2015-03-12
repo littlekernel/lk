@@ -116,6 +116,7 @@ typedef struct thread {
 void thread_init_early(void);
 void thread_init(void);
 void thread_become_idle(void) __NO_RETURN;
+void thread_secondary_cpu_init_early(void);
 void thread_secondary_cpu_entry(void) __NO_RETURN;
 void thread_set_name(const char *name);
 void thread_set_priority(int priority);

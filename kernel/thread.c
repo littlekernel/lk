@@ -865,7 +865,8 @@ void thread_become_idle(void)
 }
 
 /* create an idle thread for the cpu we're on, and start scheduling */
-void thread_secondary_cpu_entry(void)
+
+void thread_secondary_cpu_init_early(void)
 {
 	DEBUG_ASSERT(arch_ints_disabled());
 
@@ -876,9 +877,10 @@ void thread_secondary_cpu_entry(void)
 	char name[16];
 	snprintf(name, sizeof(name), "idle %d", cpu);
 	init_thread_struct(t, name);
+	t->pinned_cpu = cpu;
 
 	/* half construct this thread, since we're already running */
-	t->priority = IDLE_PRIORITY;
+	t->priority = HIGHEST_PRIORITY;
 	t->state = THREAD_RUNNING;
 	t->flags = THREAD_FLAG_DETACHED | THREAD_FLAG_IDLE;
 	t->curr_cpu = cpu;
@@ -891,6 +893,13 @@ void thread_secondary_cpu_entry(void)
 	set_current_thread(t);
 
 	THREAD_UNLOCK(state);
+}
+
+void thread_secondary_cpu_entry(void)
+{
+	uint cpu = arch_curr_cpu_num();
+	thread_t *t = get_current_thread();
+	t->priority = IDLE_PRIORITY;
 
 	mp_set_curr_cpu_active(true);
 	mp_set_cpu_idle(cpu);
