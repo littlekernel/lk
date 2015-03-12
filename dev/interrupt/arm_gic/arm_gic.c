@@ -73,10 +73,20 @@ struct int_handler_struct {
 	void *arg;
 };
 
-static struct int_handler_struct int_handler_table[MAX_INT][SMP_MAX_CPUS];
+static struct int_handler_struct int_handler_table_per_cpu[GIC_MAX_PER_CPU_INT][SMP_MAX_CPUS];
+static struct int_handler_struct int_handler_table_shared[MAX_INT-GIC_MAX_PER_CPU_INT];
+
+static struct int_handler_struct *get_int_handler(unsigned int vector, uint cpu)
+{
+	if (vector < GIC_MAX_PER_CPU_INT)
+		return &int_handler_table_per_cpu[vector][cpu];
+	else
+		return &int_handler_table_shared[vector - GIC_MAX_PER_CPU_INT];
+}
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 {
+	struct int_handler_struct *h;
 	uint cpu = arch_curr_cpu_num();
 
 	spin_lock_saved_state_t state;
@@ -87,8 +97,9 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 	spin_lock_save(&gicd_lock, &state, GICD_LOCK_FLAGS);
 
 	if (arm_gic_interrupt_change_allowed(vector)) {
-		int_handler_table[vector][cpu].handler = handler;
-		int_handler_table[vector][cpu].arg = arg;
+		h = get_int_handler(vector, cpu);
+		h->handler = handler;
+		h->arg = arg;
 	}
 
 	spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
@@ -314,7 +325,7 @@ enum handler_return __platform_irq(struct arm_iframe *frame)
 	enum handler_return ret;
 
 	ret = INT_NO_RESCHEDULE;
-	struct int_handler_struct *handler = &int_handler_table[vector][cpu];
+	struct int_handler_struct *handler = get_int_handler(vector, cpu);
 	if (handler->handler)
 		ret = handler->handler(handler->arg);
 
@@ -332,9 +343,11 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 #if WITH_LIB_SM
 	uint32_t ahppir = GICREG(0, GICC_AHPPIR);
 	uint32_t pending_irq = ahppir & 0x3ff;
+	struct int_handler_struct *h;
+	uint cpu = arch_curr_cpu_num();
 
 	LTRACEF("ahppir %d\n", ahppir);
-	if (pending_irq < MAX_INT && int_handler_table[pending_irq].handler) {
+	if (pending_irq < MAX_INT && get_int_handler(pending_irq, cpu)->handler) {
 		enum handler_return ret = 0;
 		uint32_t irq;
 		uint8_t old_priority;
@@ -355,8 +368,8 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 		spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
 
 		LTRACEF("irq %d\n", irq);
-		if (irq < MAX_INT && int_handler_table[irq].handler)
-			ret = int_handler_table[irq].handler(int_handler_table[irq].arg);
+		if (irq < MAX_INT && (h = get_int_handler(pending_irq, cpu))->handler)
+			ret = h->handler(h->arg);
 		else
 			TRACEF("unexpected irq %d != %d may get lost\n", irq, pending_irq);
 		GICREG(0, GICC_AEOIR) = irq;
@@ -382,12 +395,13 @@ static status_t arm_gic_get_next_irq_locked(u_int min_irq, bool per_cpu)
 {
 	u_int irq;
 	u_int max_irq = per_cpu ? GIC_MAX_PER_CPU_INT : MAX_INT;
+	uint cpu = arch_curr_cpu_num();
 
 	if (!per_cpu && min_irq < GIC_MAX_PER_CPU_INT)
 		min_irq = GIC_MAX_PER_CPU_INT;
 
 	for (irq = min_irq; irq < max_irq; irq++)
-		if (int_handler_table[irq].handler)
+		if (get_int_handler(irq, cpu)->handler)
 			return irq;
 
 	return SM_ERR_END_OF_INPUT;
