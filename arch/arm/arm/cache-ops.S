@@ -197,6 +197,7 @@ FUNCTION(arch_enable_cache)
 	mcr		p15, 0, r0, c1, c0, 0		// enable icache
 
 .Ldone_enable:
+	isb
 	msr		cpsr, r8
 	ldmfd	sp!, {r4-r12, pc}
 
