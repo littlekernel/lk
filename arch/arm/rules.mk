@@ -191,9 +191,11 @@ GLOBAL_DEFINES += \
 
 # if its requested we build with SMP, arm generically supports 4 cpus
 ifeq ($(WITH_SMP),1)
+SMP_MAX_CPUS ?= 4
+
 GLOBAL_DEFINES += \
     WITH_SMP=1 \
-    SMP_MAX_CPUS=4
+    SMP_MAX_CPUS=$(SMP_MAX_CPUS)
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arm/mp.c
