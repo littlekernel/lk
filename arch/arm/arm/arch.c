@@ -101,7 +101,9 @@ void arch_init(void)
 	TRACEF("midr 0x%x\n", arm_read_midr());
 	TRACEF("sctlr 0x%x\n", arm_read_sctlr());
 	TRACEF("actlr 0x%x\n", arm_read_actlr());
+#if ARM_CPU_CORTEX_A9
 	TRACEF("cbar 0x%x\n", arm_read_cbar());
+#endif
 	TRACEF("mpidr 0x%x\n", arm_read_mpidr());
 	TRACEF("ttbcr 0x%x\n", arm_read_ttbcr());
 	TRACEF("ttbr0 0x%x\n", arm_read_ttbr0());
