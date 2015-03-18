@@ -1,4 +1,6 @@
 #!/bin/sh
 
-make zybo-test -j &&
-xmd -tcl scripts/zybo-xmd.tcl
+PROJECT=zybo-test
+
+make $PROJECT -j &&
+xmd -tcl scripts/xmd.tcl $PROJECT
