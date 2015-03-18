@@ -36,6 +36,10 @@
 #include <platform/timer.h>
 #include "platform_p.h"
 
+#if ZYNQ_SDRAM_INIT
+STATIC_ASSERT(SDRAM_SIZE != 0);
+#endif
+
 /* target can specify this as the initial jam table to set up the soc */
 __WEAK void ps7_init(void) { }
 
@@ -144,9 +148,9 @@ void zynq_clk_init(void)
     SLCR_REG(CLK_621_TRUE)   = zynq_clk_cfg.clk_621_true;
 }
 
+#if ZYNQ_SDRAM_INIT
 void zynq_ddr_init(void)
 {
-#ifdef ZYNQ_SDRAM_INIT
     SLCR_REG(DDRIOB_ADDR0) = zynq_ddriob_cfg.addr0;
     SLCR_REG(DDRIOB_ADDR1) = zynq_ddriob_cfg.addr1;
     SLCR_REG(DDRIOB_DATA0) = zynq_ddriob_cfg.data0;
@@ -166,7 +170,6 @@ void zynq_ddr_init(void)
     SLCR_REG(DDRIOB_DCI_CTRL) = 0x00000001U;
     SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000020U;
     SLCR_REG(DDRIOB_DCI_CTRL) |= 0x00000823U;
-#endif
 
     /* Write addresss / value pairs from target table */
     for (size_t i = 0; i < zynq_ddr_cfg_cnt; i += 2) {
@@ -197,6 +200,7 @@ void zynq_ddr_init(void)
         SLCR_REG(DDRIOB_DIFF1) |= DDRIOB_TERM_DISABLE_MODE;
     }
 }
+#endif
 
 STATIC_ASSERT(IS_ALIGNED(SDRAM_BASE, MB));
 STATIC_ASSERT(IS_ALIGNED(SDRAM_SIZE, MB));
@@ -357,7 +361,9 @@ void platform_init(void)
 
 void platform_quiesce(void)
 {
+#if ZYNQ_WITH_GEM_ETH
     gem_disable();
+#endif
 
     platform_stop_timer();
 }
