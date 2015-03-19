@@ -29,6 +29,7 @@
 #include <arch/ops.h>
 #include <lk/init.h>
 
+#include <assert.h>
 #include <compiler.h>
 #include <debug.h>
 #include <trace.h>
@@ -39,20 +40,13 @@
 extern const struct lk_init_struct __lk_init[];
 extern const struct lk_init_struct __lk_init_end[];
 
-enum init_level_type {
-    INIT_LEVEL_TYPE_PRIMARY_CPU,
-    INIT_LEVEL_TYPE_SECONDARY_CPUS,
-    INIT_LEVEL_TYPE_COUNT
-};
-static uint last_init_level[INIT_LEVEL_TYPE_COUNT];
-
-int lk_init_level_common(uint level, enum init_level_type type)
+void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop_level)
 {
-    LTRACEF("level %#x, last_init_level %#x\n", level, last_init_level[type]);
+    LTRACEF("flags %#x, start_level %#x, stop_level %#x\n",
+            required_flag, start_level, stop_level);
 
-    uint required_flag = (type == INIT_LEVEL_TYPE_PRIMARY_CPU) ?
-        LK_INIT_FLAG_PRIMARY_CPU : LK_INIT_FLAG_SECONDARY_CPUS;
-    uint last_called_level = last_init_level[type];
+    ASSERT(start_level > 0);
+    uint last_called_level = start_level - 1;
     const struct lk_init_struct *last = NULL;
     for (;;) {
         /* search for the lowest uncalled hook to call */
@@ -69,7 +63,7 @@ int lk_init_level_common(uint level, enum init_level_type type)
             /* reject the easy ones */
             if (!(ptr->flags & required_flag))
                 continue;
-            if (ptr->level > level)
+            if (ptr->level > stop_level)
                 continue;
             if (ptr->level < last_called_level)
                 continue;
@@ -77,7 +71,7 @@ int lk_init_level_common(uint level, enum init_level_type type)
                 continue;
 
             /* keep the lowest one we haven't called yet */
-            if (ptr->level > last_init_level[type] && ptr->level > last_called_level) {
+            if (ptr->level >= start_level && ptr->level > last_called_level) {
                 found = ptr;
                 continue;
             }
@@ -103,29 +97,6 @@ int lk_init_level_common(uint level, enum init_level_type type)
         last_called_level = found->level;
         last = found;
     }
-
-    last_init_level[type] = level;
-
-    return 0;
-}
-
-int lk_init_level(uint level)
-{
-    return lk_init_level_common(level, INIT_LEVEL_TYPE_PRIMARY_CPU);
-}
-
-/* Since there may be multiple secondary CPUs, we allow reseting the
- * last_init_level for secondary CPUs so that we can call the same handlers
- * on all secondary CPUs without having a separate last_init_level for each CPU.
- */
-void lk_secondary_cpu_reset_init_level(void)
-{
-    last_init_level[INIT_LEVEL_TYPE_SECONDARY_CPUS] = 0;
-}
-
-int lk_secondary_cpu_init_level(uint level)
-{
-    return lk_init_level_common(level, INIT_LEVEL_TYPE_SECONDARY_CPUS);
 }
 
 #if 0

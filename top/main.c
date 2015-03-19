@@ -83,15 +83,15 @@ void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 	thread_init_early();
 
 	// early arch stuff
-	lk_init_level(LK_INIT_LEVEL_ARCH_EARLY - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_ARCH_EARLY - 1);
 	arch_early_init();
 
 	// do any super early platform initialization
-	lk_init_level(LK_INIT_LEVEL_PLATFORM_EARLY - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_ARCH_EARLY, LK_INIT_LEVEL_PLATFORM_EARLY - 1);
 	platform_early_init();
 
 	// do any super early target initialization
-	lk_init_level(LK_INIT_LEVEL_TARGET_EARLY - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_PLATFORM_EARLY, LK_INIT_LEVEL_TARGET_EARLY - 1);
 	target_early_init();
 
 	dprintf(INFO, "welcome to lk\n\n");
@@ -104,14 +104,14 @@ void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 
 	// bring up the kernel heap
 	dprintf(SPEW, "initializing heap\n");
-	lk_init_level(LK_INIT_LEVEL_HEAP - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_TARGET_EARLY, LK_INIT_LEVEL_HEAP - 1);
 	heap_init();
 
 	// initialize the kernel
-	lk_init_level(LK_INIT_LEVEL_KERNEL - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_HEAP, LK_INIT_LEVEL_KERNEL - 1);
 	kernel_init();
 
-	lk_init_level(LK_INIT_LEVEL_THREADING - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_KERNEL, LK_INIT_LEVEL_THREADING - 1);
 
 	// create a thread to complete system initialization
 	dprintf(SPEW, "creating bootstrap completion thread\n");
@@ -128,24 +128,24 @@ static int bootstrap2(void *arg)
 {
 	dprintf(SPEW, "top of bootstrap2()\n");
 
-	lk_init_level(LK_INIT_LEVEL_ARCH - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_THREADING, LK_INIT_LEVEL_ARCH - 1);
 	arch_init();
 
 	// initialize the rest of the platform
 	dprintf(SPEW, "initializing platform\n");
-	lk_init_level(LK_INIT_LEVEL_PLATFORM - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_ARCH, LK_INIT_LEVEL_PLATFORM - 1);
 	platform_init();
 
 	// initialize the target
 	dprintf(SPEW, "initializing target\n");
-	lk_init_level(LK_INIT_LEVEL_TARGET - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_PLATFORM, LK_INIT_LEVEL_TARGET - 1);
 	target_init();
 
 	dprintf(SPEW, "calling apps_init()\n");
-	lk_init_level(LK_INIT_LEVEL_APPS - 1);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_TARGET, LK_INIT_LEVEL_APPS - 1);
 	apps_init();
 
-	lk_init_level(LK_INIT_LEVEL_LAST);
+	lk_primary_cpu_init_level(LK_INIT_LEVEL_APPS, LK_INIT_LEVEL_LAST);
 
 	return 0;
 }
@@ -170,12 +170,7 @@ void lk_secondary_cpu_entry(void)
 
 static int secondary_cpu_bootstrap2(void *arg)
 {
-	static mutex_t lock = MUTEX_INITIAL_VALUE(lock);
-
-	mutex_acquire(&lock);
-	lk_secondary_cpu_reset_init_level();
-	lk_secondary_cpu_init_level(LK_INIT_LEVEL_LAST);
-	mutex_release(&lock);
+	lk_init_level_all(LK_INIT_FLAG_SECONDARY_CPUS);
 
 	return 0;
 }

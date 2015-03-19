@@ -7,10 +7,6 @@
  * LK's init system
  */
 
-int lk_init_level(uint level);
-void lk_secondary_cpu_reset_init_level(void);
-int lk_secondary_cpu_init_level(uint level);
-
 typedef void (*lk_init_hook)(uint level);
 
 enum lk_init_level {
@@ -37,6 +33,15 @@ enum lk_init_flags {
     LK_INIT_FLAG_ALL_CPUS        = LK_INIT_FLAG_PRIMARY_CPU | LK_INIT_FLAG_SECONDARY_CPUS,
 };
 
+void lk_init_level(enum lk_init_flags flags, uint start_level, uint stop_level);
+
+static inline void lk_primary_cpu_init_level(uint start_level, uint stop_level) {
+	lk_init_level(LK_INIT_FLAG_PRIMARY_CPU, start_level, stop_level);
+}
+
+static inline void lk_init_level_all(enum lk_init_flags flags) {
+	lk_init_level(flags, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_LAST);
+}
 
 struct lk_init_struct {
     uint level;
