@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Travis Geiselbrecht
+ * Copyright (c) 2012-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -95,6 +95,10 @@ int zynq_pll_init(void) {
 
     SLCR_REG(DDR_PLL_CTRL) &= ~PLL_BYPASS_FORCE;
     SLCR_REG(DDR_CLK_CTRL) = zynq_clk_cfg.ddr_clk;
+#elif SDRAM_SIZE == 0
+    /* if we're not using sdram and haven't been told to initialize sdram, stop the DDR pll */
+    SLCR_REG(DDR_CLK_CTRL) = 0;
+    SLCR_REG(DDR_PLL_CTRL) |= PLL_PWRDOWN;
 #endif
     SLCR_REG(IO_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->io.lock_cnt) | PLL_CFG_PLL_CP(cfg->io.cp) |
                                 PLL_CFG_PLL_RES(cfg->io.res);
@@ -375,45 +379,54 @@ void platform_quiesce(void)
 }
 
 #if WITH_LIB_CONSOLE
-static int cmd_mio(int argc, const cmd_args *argv)
+static int cmd_zynq(int argc, const cmd_args *argv)
 {
-    printf("zynq mio:\n");
-    for (size_t i = 0; i < ZYNQ_MIO_CNT; i++) {
-        printf("\t%02u: 0x%08x", i, *REG32((uintptr_t)&SLCR->MIO_PIN_00 + (i * 4)));
-        if (i % 4 == 3 || i == 53) {
-            putchar('\n');
+    if (argc < 2) {
+notenoughargs:
+        printf("not enough arguments\n");
+usage:
+        printf("usage: %s <command>\n", argv[0].str);
+        printf("\tslcr lock\n");
+        printf("\tslcr unlock\n");
+        printf("\tslcr lockstatus\n");
+        printf("\tmio\n");
+        printf("\tclocks\n");
+        return -1;
+    }
+
+    if (!strcmp(argv[1].str, "slcr")) {
+        if (argc < 3) goto notenoughargs;
+
+        bool print_lock_status = false;
+        if (!strcmp(argv[2].str, "lock")) {
+            zynq_slcr_lock();
+            print_lock_status = true;
+        } else if (!strcmp(argv[2].str, "unlock")) {
+            zynq_slcr_unlock();
+            print_lock_status = true;
+        } else if (print_lock_status || !strcmp(argv[2].str, "lockstatus")) {
+            printf("%s\n", (SLCR->SLCR_LOCKSTA & 0x1) ? "locked" : "unlocked");
+        } else {
+            goto usage;
         }
+    } else if (!strcmp(argv[1].str, "mio")) {
+        printf("zynq mio:\n");
+        for (size_t i = 0; i < ZYNQ_MIO_CNT; i++) {
+            printf("\t%02u: 0x%08x", i, *REG32((uintptr_t)&SLCR->MIO_PIN_00 + (i * 4)));
+            if (i % 4 == 3 || i == 53) {
+                putchar('\n');
+            }
+        }
+    } else if (!strcmp(argv[1].str, "clocks")) {
+        zynq_dump_clocks();
+    } else {
+        goto usage;
     }
 
     return 0;
 }
 
-#define DSR(x) printf("%30s (0x%08lx): 0x%08x\n", #x, (uintptr_t)&SLCR_REG(x), SLCR_REG(x));
-static int cmd_slcr(int argc, const cmd_args *argv)
-{
-    if (argc == 2) {
-        bool print_lock_status = false;
-        if (!strcmp(argv[1].str, "lock")) {
-            zynq_slcr_lock();
-            print_lock_status = true;
-        } else if (!strcmp(argv[1].str, "unlock")) {
-            zynq_slcr_unlock();
-            print_lock_status = true;
-        } else if (print_lock_status || !strcmp(argv[1].str, "lockstatus")) {
-            printf("%s\n", (SLCR->SLCR_LOCKSTA & 0x1) ? "locked" : "unlocked");
-        }
-    } else {
-        printf("slcr lock:        lock the SCL registers\n");
-        printf("slcr unlock:      unlock the SCL registers\n");
-        printf("slcr lockstatus:  print the SCL lock status\n");
-     }
-
-    return 0;
-}
-#undef DSR
-
 STATIC_COMMAND_START
-STATIC_COMMAND("mio", "print mio configuration", &cmd_mio)
-STATIC_COMMAND("slcr", "slcr commands", &cmd_slcr)
-STATIC_COMMAND_END(mio);
+STATIC_COMMAND("zynq", "zynq configuration commands", &cmd_zynq)
+STATIC_COMMAND_END(zynq);
 #endif // WITH_LIB_CONSOLE
