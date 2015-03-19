@@ -396,10 +396,6 @@ int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
 	return wlen;
 }
 
-#include <kernel/spinlock.h>
-
-static spin_lock_t lock;
-
 int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap)
 {
 	int err = 0;
@@ -417,9 +413,6 @@ int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt,
 
 #define OUTPUT_STRING(str, len) do { err = out(str, len, state); if (err < 0) { goto exit; } else { chars_written += err; } } while(0)
 #define OUTPUT_CHAR(c) do { char __temp[1] = { c }; OUTPUT_STRING(__temp, 1); } while (0)
-
-    spin_lock_saved_state_t _state;
-    spin_lock_irqsave(&lock, _state);
 
 	for (;;) {
 		/* reset the format state */
@@ -632,8 +625,6 @@ _output_string:
 #undef OUTPUT_CHAR
 
 exit:
-    spin_unlock_irqrestore(&lock, _state);
-
 	return (err < 0) ? err : (int)chars_written;
 }
 
