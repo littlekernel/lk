@@ -326,7 +326,6 @@ void platform_early_init(void)
     /* zynq manual says this is mandatory for cache init */
     *REG32(SLCR_BASE + 0xa1c) = 0x020202;
 
-
     /* early initialize the uart so we can printf */
     uart_init_early();
 
@@ -335,6 +334,45 @@ void platform_early_init(void)
 
     /* initialize the timer block */
     arm_cortex_a9_timer_init(CPUPRIV_BASE, zynq_get_arm_timer_freq());
+
+    /* bump the 2nd cpu into our code space and remap the top SRAM block */
+    if (KERNEL_LOAD_OFFSET != 0) {
+        /* construct a trampoline to get the 2nd cpu up to the trap routine */
+
+        /* figure out the offset of the trampoline routine in physical space from address 0 */
+        extern void platform_reset(void);
+        addr_t tramp = (addr_t)&platform_reset;
+        tramp -= KERNEL_BASE;
+        tramp += MEMBASE;
+
+        /* stuff in a ldr pc, [nextaddrress], and a target address */
+        uint32_t *ptr = (uint32_t *)KERNEL_BASE;
+
+        ptr[0] = 0xe51ff004; // ldr pc, [pc, #-4]
+        ptr[1] = tramp;
+        arch_clean_invalidate_cache_range((addr_t)ptr, 8);
+    }
+
+    /* reset the 2nd cpu, letting it go through its reset vector (at 0x0 physical) */
+    SLCR_REG(A9_CPU_RST_CTRL) |= (1<<1); // reset cpu 1
+    spin(10);
+    SLCR_REG(A9_CPU_RST_CTRL) &= ~(1<<1); // unreset cpu 1
+
+    /* wait for the 2nd cpu to reset, go through the usual reset vector, and get trapped by our code */
+    /* see platform/zynq/reset.S */
+    extern volatile int __cpu_trapped;
+    uint count = 100000;
+    while (--count) {
+        arch_clean_invalidate_cache_range((addr_t)&__cpu_trapped, sizeof(__cpu_trapped));
+        if (__cpu_trapped != 0)
+            break;
+    }
+    if (count == 0) {
+        panic("ZYNQ: failed to trap 2nd cpu\n");
+    }
+
+    /* bounce the 4th sram region down to lower address */
+    SLCR_REG(OCM_CFG) &= ~0xf; /* all banks at low address */
 
     /* add the main memory arena */
 #if !ZYNQ_CODE_IN_SDRAM && SDRAM_SIZE != 0
@@ -376,6 +414,9 @@ void platform_quiesce(void)
 #endif
 
     platform_stop_timer();
+
+    /* stop the 2nd cpu and hold in reset */
+    SLCR_REG(A9_CPU_RST_CTRL) |= (1<<1); // reset cpu 1
 }
 
 #if WITH_LIB_CONSOLE
