@@ -25,6 +25,7 @@
 
 void platform_init_interrupts(void);
 void platform_init_timer(uint32_t freq);
+void zynq_gpio_init(void);
 
 #endif
 

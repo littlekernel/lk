@@ -311,6 +311,7 @@ void platform_early_init(void)
 #else
     zynq_slcr_unlock();
     zynq_mio_init();
+    zynq_gpio_init();
     zynq_pll_init();
     zynq_clk_init();
 #if ZYNQ_SDRAM_INIT

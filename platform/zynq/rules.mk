@@ -19,6 +19,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/clocks.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/fpga.c \
+	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/qspi.c \
 	$(LOCAL_DIR)/spiflash.c \
