@@ -497,6 +497,80 @@ static void preempt_test(void)
 	printf("done with real-time preempt test, above time stamps should be 1 second apart\n");
 }
 
+static int join_tester(void *arg)
+{
+	long val = (long)arg;
+
+	printf("\t\tjoin tester starting\n");
+	thread_sleep(500);
+	printf("\t\tjoin tester exiting with result %ld\n", val);
+
+	return val;
+}
+
+static int join_tester_server(void *arg)
+{
+	int ret;
+	status_t err;
+	thread_t *t;
+
+	printf("\ttesting thread_join/thread_detach\n");
+
+	printf("\tcreating and waiting on thread to exit with thread_join\n");
+	t = thread_create("join tester", &join_tester, (void *)1, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	thread_resume(t);
+	ret = 99;
+	printf("\tthread magic is 0x%x (should be 0x%x)\n", t->magic, THREAD_MAGIC);
+	err = thread_join(t, &ret, INFINITE_TIME);
+	printf("\tthread_join returns err %d, retval %d\n", err, ret);
+	printf("\tthread magic is 0x%x (should be 0)\n", t->magic);
+
+	printf("\tcreating and waiting on thread to exit with thread_join, after thread has exited\n");
+	t = thread_create("join tester", &join_tester, (void *)2, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	thread_resume(t);
+	thread_sleep(1000); // wait until thread is already dead
+	ret = 99;
+	printf("\tthread magic is 0x%x (should be 0x%x)\n", t->magic, THREAD_MAGIC);
+	err = thread_join(t, &ret, INFINITE_TIME);
+	printf("\tthread_join returns err %d, retval %d\n", err, ret);
+	printf("\tthread magic is 0x%x (should be 0)\n", t->magic);
+
+	printf("\tcreating a thread, detaching it, let it exit on its own\n");
+	t = thread_create("join tester", &join_tester, (void *)3, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	thread_detach(t);
+	thread_resume(t);
+	thread_sleep(1000); // wait until the thread should be dead
+	printf("\tthread magic is 0x%x (should be 0)\n", t->magic);
+
+	printf("\tcreating a thread, detaching it after it should be dead\n");
+	t = thread_create("join tester", &join_tester, (void *)4, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	thread_resume(t);
+	thread_sleep(1000); // wait until thread is already dead
+	printf("\tthread magic is 0x%x (should be 0x%x)\n", t->magic, THREAD_MAGIC);
+	thread_detach(t);
+	printf("\tthread magic is 0x%x\n", t->magic);
+
+	printf("\texiting join tester server\n");
+
+	return 55;
+}
+
+static void join_test(void)
+{
+	int ret;
+	status_t err;
+	thread_t *t;
+
+	printf("testing thread_join/thread_detach\n");
+
+	printf("creating thread join server thread\n");
+	t = thread_create("join tester server", &join_tester_server, (void *)1, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	thread_resume(t);
+	ret = 99;
+	err = thread_join(t, &ret, INFINITE_TIME);
+	printf("thread_join returns err %d, retval %d (should be 0 and 55)\n", err, ret);
+}
+
 int thread_tests(void)
 {
 	mutex_test();
@@ -509,6 +583,8 @@ int thread_tests(void)
 	context_switch_test();
 
 	preempt_test();
+
+	join_test();
 
 	return 0;
 }

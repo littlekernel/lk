@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <err.h>
 #include <string.h>
+#include <sys/types.h>
 #include <lib/console.h>
 #include <lib/cbuf.h>
 #include <kernel/mutex.h>
@@ -987,7 +988,7 @@ status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port)
     return NO_ERROR;
 }
 
-status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket)
+status_t tcp_accept_timeout(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket, lk_time_t timeout)
 {
     if (!listen_socket || !accept_socket)
         return ERR_INVALID_ARGS;
@@ -995,8 +996,11 @@ status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket)
     tcp_socket_t *s = listen_socket;
     inc_socket_ref(s);
 
-    /* block to accept a socket */
-    sem_wait(&s->accept_sem);
+    /* block to accept a socket for an amount of time */
+    if (sem_timedwait(&s->accept_sem, timeout) == ERR_TIMED_OUT) {
+        dec_socket_ref(s);
+        return ERR_TIMED_OUT;
+    }
 
     mutex_acquire(&s->lock);
 
@@ -1013,6 +1017,7 @@ status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket)
 
 ssize_t tcp_read(tcp_socket_t *socket, void *buf, size_t len)
 {
+    LTRACEF("socket %p, buf %p, len %zu\n", socket, buf, len);
     if (!socket)
         return ERR_INVALID_ARGS;
     if (len == 0)
@@ -1039,13 +1044,20 @@ retry:
             goto out;
         }
 
-        /* we must have raced with another thread then */
+        /* we must have raced with another thread */
+        event_unsignal(&s->rx_event);
         mutex_release(&s->lock);
         goto retry;
     }
 
+    /* if we've used up the last byte in the read buffer, unsignal the read event */
+    size_t remaining_bytes = cbuf_space_used(&s->rx_buffer);
+    if (s->state == STATE_ESTABLISHED && remaining_bytes == 0) {
+        event_unsignal(&s->rx_event);
+    }
+
     /* we've read something, make sure the other end knows that our window is opening */
-    uint32_t new_rx_win_size = s->rx_win_size - cbuf_space_used(&s->rx_buffer);
+    uint32_t new_rx_win_size = s->rx_win_size - remaining_bytes;
 
     /* if we've opened it enough, send an ack */
     if (new_rx_win_size >= s->mss && s->rx_win_high - s->rx_win_low < s->mss)
@@ -1060,6 +1072,7 @@ out:
 
 ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len)
 {
+    LTRACEF("socket %p, buf %p, len %zu\n", socket, buf, len);
     if (!socket)
         return ERR_INVALID_ARGS;
     if (len == 0)

@@ -127,6 +127,7 @@ static status_t validate_bootimage(bootimage_t *bi)
                 /* check the sha256 hash */
                 SHA256_init(&ctx);
 
+                LTRACEF("\tvalidating SHA256 hash\n");
                 SHA256_update(&ctx, (const uint8_t *)bi->ptr + be[i].file.offset, be[i].file.length);
                 const uint8_t *hash = SHA256_final(&ctx);
 
@@ -144,6 +145,7 @@ static status_t validate_bootimage(bootimage_t *bi)
         }
     }
 
+    LTRACEF("image good\n");
     return NO_ERROR;
 }
 
@@ -179,7 +181,20 @@ status_t bootimage_close(bootimage_t *bi)
     return NO_ERROR;
 }
 
-status_t bootimage_get_file_section(bootimage_t *bi, uint32_t type, void **ptr, size_t *len)
+status_t bootimage_get_range(bootimage_t *bi, const void **ptr, size_t *len)
+{
+    if (!bi)
+        return ERR_INVALID_ARGS;
+
+    if (ptr)
+        *ptr = bi->ptr;
+    if (len)
+        *len = bi->len;
+
+    return NO_ERROR;
+}
+
+status_t bootimage_get_file_section(bootimage_t *bi, uint32_t type, const void **ptr, size_t *len)
 {
     if (!bi)
         return ERR_INVALID_ARGS;

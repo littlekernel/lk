@@ -67,6 +67,7 @@ static ssize_t spiflash_bdev_read(struct bdev *, void *buf, off_t offset, size_t
 static ssize_t spiflash_bdev_read_block(struct bdev *, void *buf, bnum_t block, uint count);
 static ssize_t spiflash_bdev_write_block(struct bdev *, const void *buf, bnum_t block, uint count);
 static ssize_t spiflash_bdev_erase(struct bdev *, off_t offset, size_t len);
+static int spiflash_ioctl(struct bdev *, int request, void *argp);
 
 // adjust 24 bit address to be correct-byte-order for 32bit qspi commands
 static uint32_t qspi_fix_addr(uint32_t addr)
@@ -277,6 +278,7 @@ status_t spiflash_detect(void)
 	// flash.bdev.write has a default hook that will be okay
 	flash.bdev.write_block = &spiflash_bdev_write_block;
 	flash.bdev.erase = &spiflash_bdev_erase;
+	flash.bdev.ioctl = &spiflash_ioctl;
 
 	bio_register_device(&flash.bdev);
 
@@ -369,6 +371,27 @@ static ssize_t spiflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
 	return erased;
 }
 
+static int spiflash_ioctl(struct bdev *bdev, int request, void *argp)
+{
+	LTRACEF("dev %p, request %d, argp %p\n", bdev, request, argp);
+
+	int ret = ERR_NOT_SUPPORTED;
+	switch (request) {
+		case BIO_IOCTL_GET_MEM_MAP:
+			/* put the device into linear mode */
+			ret = qspi_enable_linear(&flash.qspi);
+			if (argp)
+				*(void **)argp = (void *)QSPI_LINEAR_BASE;
+			break;
+		case BIO_IOCTL_PUT_MEM_MAP:
+			/* put the device back into regular mode */
+			ret = qspi_disable_linear(&flash.qspi);
+			break;
+	}
+
+	return ret;
+}
+
 // debug tests
 int cmd_spiflash(int argc, const cmd_args *argv)
 {
@@ -381,6 +404,7 @@ usage:
 		printf("\t%s cfi\n", argv[0].str);
 		printf("\t%s cr1\n", argv[0].str);
 		printf("\t%s otp\n", argv[0].str);
+		printf("\t%s linear [true/false]\n", argv[0].str);
 		printf("\t%s read <offset> <length>\n", argv[0].str);
 		printf("\t%s write <offset> <length> <address>\n", argv[0].str);
 		printf("\t%s erase <offset>\n", argv[0].str);
@@ -424,6 +448,17 @@ usage:
 		hexdump8(buf, len);
 
 		free(buf);
+	} else if (!strcmp(argv[1].str, "linear")) {
+		if (argc < 3) goto notenoughargs;
+		if (!flash.detected) {
+			printf("flash not detected\n");
+			return -1;
+		}
+
+		if (argv[2].b)
+			qspi_enable_linear(&flash.qspi);
+		else
+			qspi_disable_linear(&flash.qspi);
 	} else if (!strcmp(argv[1].str, "read")) {
 		if (argc < 4) goto notenoughargs;
 		if (!flash.detected) {

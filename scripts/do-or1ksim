@@ -1,0 +1,4 @@
+#!/bin/sh
+
+make or1ksim -j4 &&
+or1k-elf-sim -f platform/or1ksim/or1ksim.cfg build-or1ksim/lk.elf $@

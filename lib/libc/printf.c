@@ -30,7 +30,11 @@
 #include <string.h>
 #include <platform/debug.h>
 
+#if WITH_NO_FP
+#define FLOAT_PRINTF 0
+#else
 #define FLOAT_PRINTF 1
+#endif
 
 int sprintf(char *str, const char *fmt, ...)
 {

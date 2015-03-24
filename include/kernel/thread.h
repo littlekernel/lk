@@ -87,7 +87,7 @@ typedef struct thread {
 	struct wait_queue retcode_wait_queue;
 
 	/* thread local storage */
-	uint32_t tls[MAX_TLS_ENTRY];
+	uintptr_t tls[MAX_TLS_ENTRY];
 
 	char name[32];
 } thread_t;
@@ -173,14 +173,14 @@ static inline void inc_critical_section(void) { critical_section_count++; }
 static inline void dec_critical_section(void) { critical_section_count--; }
 
 /* thread local storage */
-static inline __ALWAYS_INLINE uint32_t tls_get(uint entry)
+static inline __ALWAYS_INLINE uintptr_t tls_get(uint entry)
 {
 	return get_current_thread()->tls[entry];
 }
 
-static inline __ALWAYS_INLINE uint32_t tls_set(uint entry, uint32_t val)
+static inline __ALWAYS_INLINE uintptr_t tls_set(uint entry, uintptr_t val)
 {
-	uint32_t oldval = get_current_thread()->tls[entry];
+	uintptr_t oldval = get_current_thread()->tls[entry];
 	get_current_thread()->tls[entry] = val;
 	return oldval;
 }

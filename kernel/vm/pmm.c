@@ -31,10 +31,12 @@
 #include <string.h>
 #include <pow2.h>
 #include <lib/console.h>
+#include <kernel/mutex.h>
 
 #define LOCAL_TRACE 0
 
 static struct list_node arena_list = LIST_INITIAL_VALUE(arena_list);
+static mutex_t lock = MUTEX_INITIAL_VALUE(lock);
 
 #define PAGE_BELONGS_TO_ARENA(page, arena) \
     (((uintptr_t)(page) >= (uintptr_t)(arena)->page_array) && \
@@ -44,7 +46,7 @@ static struct list_node arena_list = LIST_INITIAL_VALUE(arena_list);
     (paddr_t)(((uintptr_t)page - (uintptr_t)a->page_array) / sizeof(vm_page_t)) * PAGE_SIZE + a->base;
 
 #define ADDRESS_IN_ARENA(address, arena) \
-    ((address) >= (arena)->base && (address) <= (arena)->base + (arena)->size)
+    ((address) >= (arena)->base && (address) <= (arena)->base + (arena)->size - 1)
 
 static inline bool page_is_free(const vm_page_t *page)
 {
@@ -130,6 +132,8 @@ uint pmm_alloc_pages(uint count, struct list_node *list)
     if (count == 0)
         return 0;
 
+    mutex_acquire(&lock);
+
     /* walk the arenas in order, allocating as many pages as we can from each */
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
@@ -148,6 +152,7 @@ uint pmm_alloc_pages(uint count, struct list_node *list)
     }
 
 done:
+    mutex_release(&lock);
     return allocated;
 }
 
@@ -162,6 +167,8 @@ uint pmm_alloc_range(paddr_t address, uint count, struct list_node *list)
         return 0;
 
     address = ROUNDDOWN(address, PAGE_SIZE);
+
+    mutex_acquire(&lock);
 
     /* walk through the arenas, looking to see if the physical page belongs to it */
     pmm_arena_t *a;
@@ -192,6 +199,7 @@ uint pmm_alloc_range(paddr_t address, uint count, struct list_node *list)
             break;
     }
 
+    mutex_release(&lock);
     return allocated;
 }
 
@@ -200,6 +208,8 @@ uint pmm_free(struct list_node *list)
     LTRACEF("list %p\n", list);
 
     DEBUG_ASSERT(list);
+
+    mutex_acquire(&lock);
 
     uint count = 0;
     while (!list_is_empty(list)) {
@@ -222,6 +232,7 @@ uint pmm_free(struct list_node *list)
         }
     }
 
+    mutex_release(&lock);
     return count;
 }
 
@@ -260,6 +271,8 @@ uint pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struc
     if (alignment_log2 < PAGE_SIZE_SHIFT)
         alignment_log2 = PAGE_SIZE_SHIFT;
 
+    mutex_acquire(&lock);
+
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
         // XXX make this a flag to only search kmap?
@@ -270,14 +283,19 @@ uint pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struc
              * is not aligned on the same boundary requested.
              */
             paddr_t rounded_base = ROUNDUP(a->base, 1UL << alignment_log2);
-            if (rounded_base < a->base || rounded_base >= a->base + a->size)
+            if (rounded_base < a->base || rounded_base > a->base + a->size - 1)
                 continue;
 
             uint aligned_offset = (rounded_base - a->base) / PAGE_SIZE;
             uint start = aligned_offset;
             LTRACEF("starting search at aligned offset %u\n", start);
+            LTRACEF("arena base 0x%lx size %zu\n", a->base, a->size);
+
 retry:
-            while (start < a->size / PAGE_SIZE) {
+            /* search while we're still within the arena and have a chance of finding a slot
+               (start + count < end of arena) */
+            while (start + count > start &&
+                    start + count <= a->size / PAGE_SIZE) {
                 vm_page_t *p = &a->page_array[start];
                 for (uint i = 0; i < count; i++) {
                     if (p->flags & VM_PAGE_FLAG_NONFREE) {
@@ -310,10 +328,14 @@ retry:
                 if (pa)
                     *pa = a->base + start * PAGE_SIZE;
 
+                mutex_release(&lock);
+
                 return count;
             }
         }
     }
+
+    mutex_release(&lock);
 
     LTRACEF("couldn't find run\n");
     return 0;

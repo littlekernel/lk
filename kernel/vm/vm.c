@@ -104,7 +104,7 @@ void *paddr_to_kvaddr(paddr_t pa)
     while (map->size > 0) {
         if (!(map->flags & MMU_INITIAL_MAPPING_TEMPORARY) &&
             pa >= map->phys &&
-            pa <= map->phys + map->size) {
+            pa <= map->phys + map->size - 1) {
             return (void *)(map->virt + (pa - map->phys));
         }
         map++;

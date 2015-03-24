@@ -30,6 +30,7 @@
 status_t ptable_scan(bdev_t *bdev, uint64_t offset);
 
 bool ptable_found_valid(void);
+bdev_t *ptable_get_device(void);
 
 #define MAX_FLASH_PTABLE_NAME_LEN 12
 

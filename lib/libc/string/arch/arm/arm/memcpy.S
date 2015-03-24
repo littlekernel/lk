@@ -46,14 +46,14 @@ FUNCTION(memcpy)
 
 	// check for forwards overlap (src > dst, distance < len)
 	subs	r3, r0, r1
-	cmpgt	r2, r3
-	bgt		.L_forwardoverlap
+	cmphi	r2, r3
+	bhi		.L_forwardoverlap
 
 	// check for a short copy len.
 	// 20 bytes is enough so that if a 16 byte alignment needs to happen there is at least a 
 	//   wordwise copy worth of work to be done.
 	cmp		r2, #(16+4)
-	blt		.L_bytewise
+	blo		.L_bytewise
 
 	// see if they are similarly aligned on 4 byte boundaries
 	eor		r3, r0, r1
@@ -69,7 +69,7 @@ FUNCTION(memcpy)
 	// check to see if we have at least 32 bytes of data to copy.
 	// if not, just revert to wordwise copy
 	cmp		r2, #32
-	blt		.L_wordwise
+	blo		.L_wordwise
 
 .L_bigcopy:
 	// copy 32 bytes at a time. src & dst need to be at least 4 byte aligned, 
@@ -85,7 +85,7 @@ FUNCTION(memcpy)
 	ldmia	r1!, {r4-r11}
 	subs	r2, r2, #32
 	stmia	r0!, {r4-r11}
-	bge		.L_bigcopy_loop
+	bhs		.L_bigcopy_loop
 
 	// restore r6-r7
 	ldmfd	sp!, {r6-r11}
@@ -96,7 +96,7 @@ FUNCTION(memcpy)
 
 	// less then 4 bytes left?
 	cmp		r2, #4
-	blt		.L_bytewise
+	blo		.L_bytewise
 
 .L_wordwise:
 	// copy 4 bytes at a time.
@@ -107,7 +107,7 @@ FUNCTION(memcpy)
 	ldr		r3, [r1], #4
 	subs	r2, r2, #4
 	str		r3, [r0], #4
-	bge		.L_wordwise_loop
+	bhs		.L_wordwise_loop
 
 	// correct the remaining len and test for completion
 	adds	r2, r2, #4	
@@ -118,7 +118,7 @@ FUNCTION(memcpy)
 	ldrb	r3, [r1], #1
 	subs	r2, r2, #1
 	strb	r3, [r0], #1
-	bgt		.L_bytewise
+	bhi		.L_bytewise
 
 .L_done:
 	// load dst for return and restore r4,r5
@@ -155,7 +155,7 @@ FUNCTION(memcpy)
 
 	// test to see what we should do now
 	cmp		r2, #32
-	bge		.L_bigcopy
+	bhs		.L_bigcopy
 	b		.L_wordwise
 	
 	// src and dest overlap 'forwards' or dst > src
@@ -172,7 +172,7 @@ FUNCTION(memcpy)
 	ldrb	r3, [r1], #-1
 	subs	r2, r2, #1
 	strb	r3, [r0], #-1
-	bgt		.L_bytewisereverse
+	bhi		.L_bytewisereverse
 
 	b		.L_done
 
