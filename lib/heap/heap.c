@@ -371,7 +371,7 @@ retry:
 
 			// align the output if requested
 			if (alignment > 0) {
-				ptr = (void *)ROUNDUP((addr_t)ptr, alignment);
+				ptr = (void *)ROUNDUP((addr_t)ptr, (addr_t)alignment);
 			}
 
 			struct alloc_struct_begin *as = (struct alloc_struct_begin *)ptr;

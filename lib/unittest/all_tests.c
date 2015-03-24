@@ -46,6 +46,10 @@ void unittest_register_test_case(struct test_case_element *elem)
  */
 bool run_all_tests(void)
 {
+    unsigned int n_tests   = 0;
+    unsigned int n_success = 0;
+    unsigned int n_failed  = 0;
+
     bool all_success = true;
     struct test_case_element *current = test_case_list;
     while (current) {
@@ -55,21 +59,29 @@ bool run_all_tests(void)
             all_success = false;
         }
         current = current->next;
+        n_tests++;
     }
+
     if (all_success) {
-        printf("SUCCESS!  All test cases passed!\n");
+        n_success = n_tests;
+        unittest_printf("SUCCESS!  All test cases passed!\n");
     } else {
-        printf("FAIL!  The following test case%s failed:\n",
-               failed_test_case_list->failed_next ? "s" : "");
         struct test_case_element *failed = failed_test_case_list;
         while (failed) {
-            printf("\t%s\n", failed->name);
             struct test_case_element *failed_next =
                 failed->failed_next;
             failed->failed_next = NULL;
             failed = failed_next;
+            n_failed++;
         }
+        n_success = n_tests - n_failed;
         failed_test_case_list = NULL;
     }
+
+    unittest_printf("\n====================================================\n");
+    unittest_printf  ("    CASES:  %d     SUCCESS:  %d     FAILED:  %d   ",
+                    n_tests, n_success, n_failed);
+    unittest_printf("\n====================================================\n");
+
     return all_success;
 }

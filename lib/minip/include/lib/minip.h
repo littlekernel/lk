@@ -26,6 +26,7 @@
 #include <endian.h>
 #include <list.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 #include <lib/pktbuf.h>
 
@@ -79,9 +80,14 @@ int minip_udp_listen(uint16_t port, udp_callback_t rx_handler, void *arg);
 typedef struct tcp_socket tcp_socket_t;
 
 status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port);
-status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket);
+status_t tcp_accept_timeout(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket, lk_time_t timeout);
 status_t tcp_close(tcp_socket_t *socket);
 ssize_t tcp_read(tcp_socket_t *socket, void *buf, size_t len);
 ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len);
+
+static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket)
+{
+    return tcp_accept_timeout(listen_socket, accept_socket, INFINITE_TIME);
+}
 
 // vim: set ts=4 sw=4 expandtab:

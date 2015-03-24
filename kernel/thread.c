@@ -331,14 +331,13 @@ status_t thread_detach(thread_t *t)
 
 	enter_critical_section();
 
-	thread_t *current_thread = get_current_thread();
-
-	/* if anyone is blocked on this thread, wake them up with a specific return code */
-	wait_queue_wake_all(&current_thread->retcode_wait_queue, false, ERR_THREAD_DETACHED);
+	/* if another thread is blocked inside thread_join() on this thread,
+	 * wake them up with a specific return code */
+	wait_queue_wake_all(&t->retcode_wait_queue, false, ERR_THREAD_DETACHED);
 
 	/* if it's already dead, then just do what join would have and exit */
 	if (t->state == THREAD_DEATH) {
-		t->flags &= ~THREAD_FLAG_DETACHED; /* makes susre thread_join continues */
+		t->flags &= ~THREAD_FLAG_DETACHED; /* makes sure thread_join continues */
 		exit_critical_section();
 		return thread_join(t, NULL, 0);
 	} else {
@@ -796,7 +795,7 @@ void dump_thread(thread_t *t)
 	dprintf(INFO, "\ttls:");
 	int i;
 	for (i=0; i < MAX_TLS_ENTRY; i++) {
-		dprintf(INFO, " 0x%x", t->tls[i]);
+		dprintf(INFO, " 0x%lx", t->tls[i]);
 	}
 	dprintf(INFO, "\n");
 }

@@ -334,6 +334,8 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     thread_t *rx_thread;
     DEBUG_ASSERT(base == GEM0_BASE || base == GEM1_BASE);
 
+    regs = (struct gem_regs *) base;
+
     list_initialize(&pending_tx_list);
     list_initialize(&active_tx_list);
     list_initialize(&pktbuf_to_free_list);
@@ -410,7 +412,6 @@ status_t gem_init(uintptr_t base, uint32_t dmasize)
     spin(1);
     SLCR->GEM_RST_CTRL &= ~rst_mask;
 
-    regs = (struct gem_regs *) base;
     /* Clear Network control / status registers */
     regs->net_ctrl |= NET_CTRL_STATCLR;
     regs->rx_status = 0x0F;

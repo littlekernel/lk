@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
 	} else if (!strcmp(cmd, "remove")) {
 	} else if (!strcmp(cmd, "getsysparam")) {
 		if (lkboot_txn(host, cmd, -1, args) == 0) {
-			void *rbuf;
+			void *rbuf = NULL;
 			printsysparam(rbuf, lkboot_get_reply(&rbuf));
 			return 0;
 		} else {

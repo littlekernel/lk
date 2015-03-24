@@ -286,6 +286,11 @@ bool ptable_found_valid(void)
     return ptable.valid;
 }
 
+bdev_t *ptable_get_device(void)
+{
+    return ptable.bdev;
+}
+
 status_t ptable_find(const char *name, struct ptable_entry *_entry)
 {
     if (!ptable.valid)

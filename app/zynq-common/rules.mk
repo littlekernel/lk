@@ -3,7 +3,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS += \
-	lib/minip \
+	lib/bootargs \
+	lib/bootimage \
 	lib/sysparam \
 	lib/ptable
 

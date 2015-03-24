@@ -1,6 +1,6 @@
-LOCAL_DIR := $(GET_LOCAL_DIR)
-
+# top level project rules for the uzed-dram-test project
+#
 ZYNQ_USE_SRAM := 0
 
-include $(LOCAL_DIR)/uzed-test.mk
+include project/uzed-test.mk
 

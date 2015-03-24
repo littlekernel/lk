@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # build everything in the projects directory
-PROJECTS=`echo project/* | xargs -n1 basename | sed 's/\.mk//'`
+PROJECTS=`echo project/*.mk | xargs -n1 basename | sed 's/\.mk//'`
 FAILED=""
 
 case `uname` in

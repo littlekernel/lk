@@ -80,4 +80,11 @@ size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len);
 /* helper routine to trim to a block range in the device */
 uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count);
 
+/* generic bio ioctls */
+enum bio_ioctl_num {
+	BIO_IOCTL_NULL = 0,
+	BIO_IOCTL_GET_MEM_MAP, /* if supported, request a pointer to the memory map of the device */
+	BIO_IOCTL_PUT_MEM_MAP, /* if needed, return the pointer (to 'close' the map) */
+};
+
 // vim: set ts=4 sw=4 noexpandtab:

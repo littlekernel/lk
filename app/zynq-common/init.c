@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -22,22 +22,33 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <debug.h>
+#include <trace.h>
 #include <lk/init.h>
-#include <dev/spiflash.h>
+#include <lib/bootargs.h>
+#include <lib/bootimage.h>
 #include <lib/ptable.h>
 #include <lib/sysparam.h>
-#include <debug.h>
+#include <dev/spiflash.h>
+#include <kernel/vm.h>
+#include <kernel/thread.h>
 
 #include <platform/gem.h>
+#include <platform/fpga.h>
+
+#if WITH_LIB_MINIP
 #include <lib/minip.h>
+#endif
 
 static void zybo_common_target_init(uint level)
 {
+    status_t err;
+
     /* zybo has a spiflash on qspi */
     spiflash_detect();
 
     bdev_t *spi = bio_open("spi0");
-
     if (spi) {
         /* find or create a partition table at the start of flash */
         if (ptable_scan(spi, 0) < 0) {
@@ -46,17 +57,12 @@ static void zybo_common_target_init(uint level)
 
         struct ptable_entry entry = { 0 };
 
+        /* find and recover sysparams */
         if (ptable_find("sysparam", &entry) < 0) {
             /* didn't find sysparam partition, create it */
             ptable_add("sysparam", 0x1000, 0x1000, 0);
             ptable_find("sysparam", &entry);
         }
-
-        /* create bootloader partition if it does not exist */
-        ptable_add("bootloader", 0x20000, 0x40000, 0);
-
-        printf("flash partition table:\n");
-        ptable_dump();
 
         if (entry.length > 0) {
             sysparam_scan(spi, entry.offset, entry.length);
@@ -70,8 +76,88 @@ static void zybo_common_target_init(uint level)
 
             sysparam_dump(true);
         }
+
+        /* create bootloader partition if it does not exist */
+        ptable_add("bootloader", 0x20000, 0x40000, 0);
+
+        printf("flash partition table:\n");
+        ptable_dump();
     }
 
+    /* recover boot arguments */
+    const char *cmdline = bootargs_get_command_line();
+    if (cmdline) {
+        printf("command line: '%s'\n", cmdline);
+    }
+
+    /* see if we came from a bootimage */
+    const char *device;
+    uint64_t bootimage_phys;
+    size_t bootimage_size;
+    if (bootargs_get_bootimage_pointer(&bootimage_phys, &bootimage_size, &device) >= 0) {
+        bootimage_t *bi = NULL;
+        bool put_bio_memmap = false;
+
+        printf("our bootimage is at device '%s', phys 0x%llx, size %zx\n", device, bootimage_phys, bootimage_size);
+
+        /* if the bootimage we came from is in physical memory, find it */
+        if (!strcmp(device, "pmem")) {
+            void *ptr = paddr_to_kvaddr(bootimage_phys);
+            if (ptr) {
+                bootimage_open(ptr, bootimage_size, &bi);
+            }
+        } else if (!strcmp(device, "spi0")) {
+            /* we were loaded from spi flash, go look at it to see if we can find it */
+            if (spi) {
+                void *ptr = 0;
+                int err = bio_ioctl(spi, BIO_IOCTL_GET_MEM_MAP, (void *)&ptr);
+                if (err >= 0) {
+                    put_bio_memmap = true;
+                    ptr = (uint8_t *)ptr + bootimage_phys;
+                    bootimage_open(ptr, bootimage_size, &bi);
+                }
+            }
+        }
+
+        /* did we find the bootimage? */
+        if (bi) {
+            /* we have a valid bootimage, find the fpga section */
+            const void *fpga_ptr;
+            size_t fpga_len;
+
+            if (bootimage_get_file_section(bi, TYPE_FPGA_IMAGE, &fpga_ptr, &fpga_len) >= 0) {
+                /* we have a fpga image */
+
+                /* lookup the physical address of the bitfile */
+                paddr_t pa = kvaddr_to_paddr((void *)fpga_ptr);
+                if (pa != 0) {
+                    /* program the fpga with it*/
+                    printf("loading fpga image at %p (phys 0x%lx), len %zx\n", fpga_ptr, pa, fpga_len);
+                    zynq_reset_fpga();
+                    err = zynq_program_fpga(pa, fpga_len);
+                    if (err < 0) {
+                        printf("error %d loading fpga\n", err);
+                    }
+                    printf("fpga image loaded\n");
+                }
+            }
+        }
+
+        /* if we memory mapped it, put the block device back to block mode */
+        if (put_bio_memmap) {
+            /* HACK: for completely non-obvious reasons, need to sleep here for a little bit.
+             * Experimentally it was found that if fetching the fpga image out of qspi flash,
+             * for a period of time after the transfer is complete, there appears to be stray
+             * AXI bus transactions that cause the system to hang if immediately after
+             * programming the qspi memory aperture is destroyed.
+             */
+            thread_sleep(10);
+
+            bio_ioctl(spi, BIO_IOCTL_PUT_MEM_MAP, NULL);
+        }
+    }
+
+#if WITH_LIB_MINIP
     /* pull some network stack related params out of the sysparam block */
     uint8_t mac_addr[6];
     uint32_t ip_addr = IPV4_NONE;
@@ -105,6 +191,7 @@ static void zybo_common_target_init(uint level)
         minip_init_dhcp(gem_send_raw_pkt, NULL);
     }
     gem_set_callback(minip_rx_driver_callback);
+#endif
 }
 
 /* init after target_init() */

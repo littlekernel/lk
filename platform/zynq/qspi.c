@@ -151,11 +151,77 @@ int qspi_init(struct qspi_ctxt *qspi, uint32_t khz)
 
 	writel(qspi->cfg, QSPI_CONFIG);
 	qspi->khz = 100000;
+	qspi->linear_mode = false;
 
 	writel(1, QSPI_ENABLE);
 
 	// clear sticky irqs
 	writel(TX_UNDERFLOW | RX_OVERFLOW, QSPI_IRQ_STATUS);
+
+	return 0;
+}
+
+int qspi_enable_linear(struct qspi_ctxt *qspi)
+{
+	if (qspi->linear_mode)
+		return 0;
+
+	/* disable the controller */
+	writel(0, QSPI_ENABLE);
+	writel(0, QSPI_LINEAR_CONFIG);
+
+	/* put the controller in auto chip select mode and assert chip select */
+	qspi->cfg &= ~(CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS);
+	writel(qspi->cfg, QSPI_CONFIG);
+
+#if 1
+	// uses Quad I/O mode
+	// should be 0x82FF02EB according to xilinx manual for spansion flashes
+	writel(LCFG_ENABLE |
+			LCFG_MODE_EN |
+			LCFG_MODE_BITS(0xff) |
+			LCFG_DUMMY_BYTES(2) |
+			LCFG_INST_CODE(0xeb),
+			QSPI_LINEAR_CONFIG);
+#else
+	// uses Quad Output Read mode
+	// should be 0x8000016B according to xilinx manual for spansion flashes
+	writel(LCFG_ENABLE |
+			LCFG_MODE_BITS(0) |
+			LCFG_DUMMY_BYTES(1) |
+			LCFG_INST_CODE(0x6b),
+			QSPI_LINEAR_CONFIG);
+#endif
+
+	/* enable the controller */
+	writel(1, QSPI_ENABLE);
+
+	qspi->linear_mode = true;
+
+	DSB;
+
+	return 0;
+}
+
+int qspi_disable_linear(struct qspi_ctxt *qspi)
+{
+	if (!qspi->linear_mode)
+		return 0;
+
+	/* disable the controller */
+	writel(0, QSPI_ENABLE);
+	writel(0, QSPI_LINEAR_CONFIG);
+
+	/* put the controller back into manual chip select mode */
+	qspi->cfg |= (CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS);
+	writel(qspi->cfg, QSPI_CONFIG);
+
+	/* enable the controller */
+	writel(1, QSPI_ENABLE);
+
+	qspi->linear_mode = false;
+
+	DSB;
 
 	return 0;
 }
