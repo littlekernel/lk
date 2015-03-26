@@ -100,6 +100,9 @@ static uint32_t mmu_flags_to_l2_arch_flags(uint flags)
     uint32_t arch_flags = 0;
     switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
         case ARCH_MMU_FLAG_CACHED:
+#if WITH_SMP
+            arch_flags |= MMU_MEMORY_L2_SHAREABLE;
+#endif
             arch_flags |= MMU_MEMORY_L2_TYPE_NORMAL_WRITE_BACK_ALLOCATE;
 #if WITH_SMP
             arch_flags |= MMU_MEMORY_L2_SHAREABLE;
