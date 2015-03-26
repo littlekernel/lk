@@ -51,7 +51,7 @@
 #define MMU_MEMORY_L1_TYPE_NORMAL_WRITE_THROUGH          ((0x0 << 12) | (0x2 << 2))
 #define MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_NO_ALLOCATE ((0x0 << 12) | (0x3 << 2))
 #define MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE    ((0x1 << 12) | (0x3 << 2))
-#define MMU_MEMORY_L1_TYPE_MASK                          ((0x3 << 12) | (0x3 << 2))
+#define MMU_MEMORY_L1_TYPE_MASK                          ((0x7 << 12) | (0x3 << 2))
 
 #define MMU_MEMORY_L1_TYPE_INNER_WRITE_BACK_ALLOCATE     ((0x4 << 12) | (0x1 << 2))
 
@@ -64,7 +64,7 @@
 #define MMU_MEMORY_L2_TYPE_NORMAL_WRITE_THROUGH          ((0x0 << 6) | (0x2 << 2))
 #define MMU_MEMORY_L2_TYPE_NORMAL_WRITE_BACK_NO_ALLOCATE ((0x0 << 6) | (0x3 << 2))
 #define MMU_MEMORY_L2_TYPE_NORMAL_WRITE_BACK_ALLOCATE    ((0x1 << 6) | (0x3 << 2))
-#define MMU_MEMORY_L2_TYPE_MASK                          ((0x3 << 6) | (0x3 << 2))
+#define MMU_MEMORY_L2_TYPE_MASK                          ((0x7 << 6) | (0x3 << 2))
 
 #define MMU_MEMORY_DOMAIN_MEM                            (0)
 
@@ -110,6 +110,13 @@
 #define MMU_MEMORY_L1_SECTION_SHAREABLE     (1 << 16)
 #define MMU_MEMORY_L1_SECTION_NON_GLOBAL    (1 << 17)
 #define MMU_MEMORY_L1_SECTION_XN            (1 << 4)
+
+#define MMU_MEMORY_L1_CB_SHIFT              2
+#define MMU_MEMORY_L1_TEX_SHIFT            12
+
+#define MMU_MEMORY_SET_L1_INNER(val)        (((val) & 0x3) << MMU_MEMORY_L1_CB_SHIFT)
+#define MMU_MEMORY_SET_L1_OUTER(val)        (((val) & 0x3) << MMU_MEMORY_L1_TEX_SHIFT)
+#define MMU_MEMORY_SET_L1_CACHEABLE_MEM     (0x4 << MMU_MEMORY_L1_TEX_SHIFT)
 
 #define MMU_MEMORY_L2_SHAREABLE             (1 << 10)
 #define MMU_MEMORY_L2_NON_GLOBAL            (1 << 11)
