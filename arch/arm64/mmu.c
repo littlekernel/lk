@@ -140,6 +140,8 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
         *paddr = pte_addr + vaddr_rem;
     if (flags) {
         *flags = 0;
+        if (pte & MMU_PTE_ATTR_NON_SECURE)
+            *flags |= ARCH_MMU_FLAG_NS;
         switch (pte & MMU_PTE_ATTR_ATTR_INDEX_MASK) {
             case MMU_PTE_ATTR_STRONGLY_ORDERED:
                 *flags |= ARCH_MMU_FLAG_UNCACHED;
