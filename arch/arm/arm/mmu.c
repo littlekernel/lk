@@ -230,6 +230,8 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 
             if (flags) {
                 *flags = 0;
+                if (tt_entry & MMU_MEMORY_L1_SECTION_NON_SECURE)
+                        *flags |= ARCH_MMU_FLAG_NS;
                 switch (tt_entry & MMU_MEMORY_L1_TYPE_MASK) {
                     case MMU_MEMORY_L1_TYPE_STRONGLY_ORDERED:
                         *flags |= ARCH_MMU_FLAG_UNCACHED;
@@ -275,6 +277,9 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 
                     if (flags) {
                         *flags = 0;
+                        /* NS flag is only present on L1 entry */
+                        if (tt_entry & MMU_MEMORY_L1_SECTION_NON_SECURE)
+                                *flags |= ARCH_MMU_FLAG_NS;
                         switch (l2_entry & MMU_MEMORY_L2_TYPE_MASK) {
                             case MMU_MEMORY_L2_TYPE_STRONGLY_ORDERED:
                                 *flags |= ARCH_MMU_FLAG_UNCACHED;
