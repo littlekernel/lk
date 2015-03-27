@@ -25,4 +25,3 @@
 #include <sys/types.h>
 
 void arm_cortex_a9_timer_init(addr_t scu_control_base, uint32_t freq);
-void arm_cortex_a9_timer_init_percpu(void);

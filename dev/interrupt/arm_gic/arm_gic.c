@@ -174,7 +174,7 @@ static void gic_set_enable(uint vector, bool enable)
 		GICREG(0, GICD_ICENABLER(reg)) = mask;
 }
 
-void arm_gic_init_percpu(void)
+static void arm_gic_init_percpu(uint level)
 {
 #if WITH_LIB_SM
 	GICREG(0, GICC_CTLR) = 0xb; // enable GIC0 and select fiq mode for secure
@@ -184,6 +184,10 @@ void arm_gic_init_percpu(void)
 #endif
 	GICREG(0, GICC_PMR) = 0xFF; // unmask interrupts at all priority levels
 }
+
+LK_INIT_HOOK_FLAGS(arm_gic_init_percpu,
+       arm_gic_init_percpu,
+       LK_INIT_LEVEL_PLATFORM_EARLY, LK_INIT_FLAG_SECONDARY_CPUS);
 
 static void arm_gic_suspend_cpu(uint level)
 {
@@ -204,7 +208,7 @@ static void arm_gic_resume_cpu(uint level)
 		arm_gic_init();
 		resume_gicd = true;
 	} else {
-		arm_gic_init_percpu();
+		arm_gic_init_percpu(0);
 	}
 	spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
 	suspend_resume_fiq(true, resume_gicd);
@@ -246,7 +250,7 @@ void arm_gic_init(void)
 		GICREG(0, GICD_IGROUPR(reg)) = gicd_igroupr[reg];
 	}
 #endif
-	arm_gic_init_percpu();
+	arm_gic_init_percpu(0);
 }
 
 static status_t arm_gic_set_secure_locked(u_int irq, bool secure)

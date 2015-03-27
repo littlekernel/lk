@@ -36,6 +36,7 @@
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <lk/main.h>
+#include <lk/init.h>
 #include <platform.h>
 #include <target.h>
 #include <kernel/thread.h>
@@ -163,12 +164,8 @@ void arm_secondary_entry(void)
 	sctlr |= (1<<12) | (1<<2); // enable i and dcache
 	arm_write_sctlr(sctlr);
 
-#if WITH_DEV_TIMER_ARM_CORTEX_A9
-	arm_cortex_a9_timer_init_percpu();
-#endif
-#if WITH_DEV_INTERRUPT_ARM_GIC
-	arm_gic_init_percpu();
-#endif
+	/* run early secondary cpu init routines up to the threading level */
+	lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
 
 	arch_mp_init_percpu();
 

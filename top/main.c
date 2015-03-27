@@ -170,7 +170,8 @@ void lk_secondary_cpu_entry(void)
 
 static int secondary_cpu_bootstrap2(void *arg)
 {
-	lk_init_level_all(LK_INIT_FLAG_SECONDARY_CPUS);
+	/* secondary cpu initialize from threading level up. 0 to threading was handled in arch */
+	lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_THREADING, LK_INIT_LEVEL_LAST);
 
 	return 0;
 }

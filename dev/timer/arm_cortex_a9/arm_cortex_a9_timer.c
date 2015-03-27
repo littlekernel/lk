@@ -34,6 +34,7 @@
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
+#include <lk/init.h>
 
 /* driver for cortex-a9's private timer */
 #define LOCAL_TRACE 0
@@ -78,6 +79,8 @@ static uint32_t timer_freq;
 static struct fp_32_64 timer_freq_msec_conversion;
 static struct fp_32_64 timer_freq_usec_conversion_inverse;
 static struct fp_32_64 timer_freq_msec_conversion_inverse;
+
+static void arm_cortex_a9_timer_init_percpu(uint level);
 
 uint64_t get_global_val(void)
 {
@@ -189,7 +192,7 @@ void arm_cortex_a9_timer_init(addr_t _scu_control_base, uint32_t freq)
 {
     scu_control_base = _scu_control_base;
 
-    arm_cortex_a9_timer_init_percpu();
+    arm_cortex_a9_timer_init_percpu(0);
 
     /* save the timer frequency for later calculations */
     timer_freq = freq;
@@ -200,7 +203,7 @@ void arm_cortex_a9_timer_init(addr_t _scu_control_base, uint32_t freq)
     fp_32_64_div_32_32(&timer_freq_msec_conversion_inverse, 1000, timer_freq);
 }
 
-void arm_cortex_a9_timer_init_percpu(void)
+static void arm_cortex_a9_timer_init_percpu(uint level)
 {
     /* disable timer */
     TIMREG(TIMER_CONTROL) = 0;
@@ -215,5 +218,10 @@ void arm_cortex_a9_timer_init_percpu(void)
     register_int_handler(CPU_PRIV_TIMER_INT, &platform_tick, NULL);
     unmask_interrupt(CPU_PRIV_TIMER_INT);
 }
+
+/* secondary cpu initialize the timer just before the kernel starts with interrupts enabled */
+LK_INIT_HOOK_FLAGS(arm_cortex_a9_timer_init_percpu,
+       arm_cortex_a9_timer_init_percpu,
+       LK_INIT_LEVEL_THREADING - 1, LK_INIT_FLAG_SECONDARY_CPUS);
 
 /* vim: set ts=4 sw=4 expandtab: */

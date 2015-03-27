@@ -362,9 +362,10 @@ static void arm_generic_timer_init_secondary_cpu(uint level)
 	unmask_interrupt(timer_irq);
 }
 
+/* secondary cpu initialize the timer just before the kernel starts with interrupts enabled */
 LK_INIT_HOOK_FLAGS(arm_generic_timer_init_secondary_cpu,
 		   arm_generic_timer_init_secondary_cpu,
-		   LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_SECONDARY_CPUS);
+		   LK_INIT_LEVEL_THREADING - 1, LK_INIT_FLAG_SECONDARY_CPUS);
 
 static void arm_generic_timer_resume_cpu(uint level)
 {
