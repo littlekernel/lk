@@ -204,7 +204,7 @@ static void arm_gic_resume_cpu(uint level)
 		arm_gic_init();
 		resume_gicd = true;
 	} else {
-		arm_gic_init_secondary_cpu();
+		arm_gic_init_percpu();
 	}
 	spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
 	suspend_resume_fiq(true, resume_gicd);
