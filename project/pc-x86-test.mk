@@ -5,6 +5,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 ARCH := x86
 TARGET := pc-x86
 MODULES += \
+	lib/debugcommands \
 	lib/libm \
 	app/tests \
 	app/shell \

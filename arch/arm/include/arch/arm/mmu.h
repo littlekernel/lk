@@ -53,6 +53,8 @@
 #define MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE    ((0x1 << 12) | (0x3 << 2))
 #define MMU_MEMORY_L1_TYPE_MASK                          ((0x3 << 12) | (0x3 << 2))
 
+#define MMU_MEMORY_L1_TYPE_INNER_WRITE_BACK_ALLOCATE     ((0x4 << 12) | (0x1 << 2))
+
 /* C, B and TEX[2:0] encodings without TEX remap (for second level descriptors) */
                                                           /* TEX     |    CB    */
 #define MMU_MEMORY_L2_TYPE_STRONGLY_ORDERED              ((0x0 << 6) | (0x0 << 2))
@@ -148,12 +150,18 @@
      MMU_MEMORY_TTBR_IRGN(MMU_MEMORY_WRITE_BACK_ALLOCATE))
 
 /* Section mapping, TEX[2:0]=001, CB=11, S=1, AP[2:0]=001 */
+#if WITH_SMP
+#define MMU_KERNEL_L1_PTE_FLAGS \
+    (MMU_MEMORY_L1_DESCRIPTOR_SECTION | \
+     MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE | \
+     MMU_MEMORY_L1_AP_P_RW_U_NA | \
+     MMU_MEMORY_L1_SECTION_SHAREABLE)
+#else
 #define MMU_KERNEL_L1_PTE_FLAGS \
     (MMU_MEMORY_L1_DESCRIPTOR_SECTION | \
      MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE | \
      MMU_MEMORY_L1_AP_P_RW_U_NA)
-/* XXX add with smp to above */
-//     MMU_MEMORY_L1_SECTION_SHAREABLE |
+#endif
 
 #define MMU_INITIAL_MAP_STRONGLY_ORDERED \
     (MMU_MEMORY_L1_DESCRIPTOR_SECTION | \
@@ -176,48 +184,77 @@
 
 __BEGIN_CDECLS
 
+void arm_mmu_early_init(void);
 void arm_mmu_init(void);
 status_t arm_vtop(addr_t va, addr_t *pa);
 
 /* tlb routines */
-static inline void arm_invalidate_tlb_global(void) {
-    CF;
+
+static inline void arm_after_invalidate_tlb_barrier(void) {
+#if WITH_SMP
+    arm_write_bpiallis(0);
+#else
+    arm_write_bpiall(0);
+#endif
+    DSB;
+    ISB;
+}
+
+static inline void arm_invalidate_tlb_global_no_barrier(void) {
 #if WITH_SMP
     arm_write_tlbiallis(0);
 #else
     arm_write_tlbiall(0);
 #endif
-    DSB;
 }
 
-static inline void arm_invalidate_tlb_mva(vaddr_t va) {
-    CF;
+static inline void arm_invalidate_tlb_global(void) {
+    DSB;
+    arm_invalidate_tlb_global_no_barrier();
+    arm_after_invalidate_tlb_barrier();
+}
+
+static inline void arm_invalidate_tlb_mva_no_barrier(vaddr_t va) {
 #if WITH_SMP
     arm_write_tlbimvaais(va & 0xfffff000);
 #else
     arm_write_tlbimvaa(va & 0xfffff000);
 #endif
-    DSB;
 }
 
-static inline void arm_invalidate_tlb_asid(uint8_t asid) {
-    CF;
+static inline void arm_invalidate_tlb_mva(vaddr_t va) {
+    DSB;
+    arm_invalidate_tlb_mva_no_barrier(va);
+    arm_after_invalidate_tlb_barrier();
+}
+
+
+static inline void arm_invalidate_tlb_asid_no_barrier(uint8_t asid) {
 #if WITH_SMP
     arm_write_tlbiasidis(asid);
 #else
     arm_write_tlbiasid(asid);
 #endif
-    DSB;
 }
 
-static inline void arm_invalidate_tlb_mva_asid(vaddr_t va, uint8_t asid) {
-    CF;
+static inline void arm_invalidate_tlb_asid(uint8_t asid) {
+    DSB;
+    arm_invalidate_tlb_asid_no_barrier(asid);
+    arm_after_invalidate_tlb_barrier();
+}
+
+static inline void arm_invalidate_tlb_mva_asid_no_barrier(vaddr_t va, uint8_t asid) {
 #if WITH_SMP
     arm_write_tlbimvais((va & 0xfffff000) | asid);
 #else
     arm_write_tlbimva((va & 0xfffff000) | asid);
 #endif
+}
+
+static inline void arm_invalidate_tlb_mva_asid(vaddr_t va, uint8_t asid) {
     DSB;
+    arm_invalidate_tlb_mva_asid_no_barrier(va, asid);
+    arm_after_invalidate_tlb_barrier();
 }
 
 __END_CDECLS

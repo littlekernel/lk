@@ -24,6 +24,7 @@
 #include <arch.h>
 #include <arch/ops.h>
 #include <arch/arm64.h>
+#include <arch/arm64/mmu.h>
 #include <platform.h>
 
 void arch_early_init(void)
@@ -36,6 +37,8 @@ void arch_early_init(void)
     if (current_el > 1) {
         arm64_el3_to_el1();
     }
+
+    platform_init_mmu_mappings();
 }
 
 void arch_init(void)

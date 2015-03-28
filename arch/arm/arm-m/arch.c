@@ -122,8 +122,6 @@ void _arm_cm_set_irqpri(uint32_t pri)
 
 void arm_cm_irq_entry(void)
 {
-	inc_critical_section();
-
 	THREAD_STATS_INC(interrupts);
 	KEVLOG_IRQ_ENTER(__get_IPSR());
 }
@@ -134,7 +132,6 @@ void arm_cm_irq_exit(bool reschedule)
 		arm_cm_trigger_preempt();
 
 	KEVLOG_IRQ_EXIT(__get_IPSR());
-	dec_critical_section();
 }
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)

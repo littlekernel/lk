@@ -272,6 +272,12 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
       .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
       .name = "hw-fc000000" },
 
+    /* sram high aperture */
+    { .phys = 0xfff00000,
+      .virt = 0xfff00000,
+      .size = 0x00100000,
+      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE },
+
     /* identity map to let the boot code run */
     { .phys = SRAM_BASE,
       .virt = SRAM_BASE,

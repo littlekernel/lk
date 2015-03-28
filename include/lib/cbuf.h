@@ -25,6 +25,7 @@
 
 #include <sys/types.h>
 #include <kernel/event.h>
+#include <kernel/spinlock.h>
 
 typedef struct cbuf {
 	uint head;
@@ -32,6 +33,7 @@ typedef struct cbuf {
 	uint len_pow2;
 	char *buf;
 	event_t event;
+	spin_lock_t lock;
 } cbuf_t;
 
 void cbuf_initialize(cbuf_t *cbuf, size_t len);

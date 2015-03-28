@@ -47,6 +47,7 @@ __BEGIN_CDECLS
 #else
 #error unhandled arm isa
 #endif
+#define NOP __asm__ volatile("nop");
 
 void arm_context_switch(vaddr_t *old_sp, vaddr_t new_sp);
 
@@ -97,6 +98,7 @@ struct arm_fault_frame {
 #define MODE_SYS 0x1f
 
 struct arm_mode_regs {
+	uint32_t usr_r13, usr_r14;
 	uint32_t fiq_r13, fiq_r14;
 	uint32_t irq_r13, irq_r14;
 	uint32_t svc_r13, svc_r14;
@@ -114,9 +116,19 @@ static inline __ALWAYS_INLINE uint32_t arm_read_##reg(void) { \
 	return val; \
 } \
 \
+static inline __ALWAYS_INLINE uint32_t arm_read_##reg##_relaxed(void) { \
+	uint32_t val; \
+	__asm__("mrc p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 : "=r" (val)); \
+	return val; \
+} \
+\
 static inline __ALWAYS_INLINE void arm_write_##reg(uint32_t val) { \
 	__asm__ volatile("mcr p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 :: "r" (val)); \
 	ISB; \
+} \
+\
+static inline __ALWAYS_INLINE void arm_write_##reg##_relaxed(uint32_t val) { \
+	__asm__ volatile("mcr p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 :: "r" (val)); \
 }
 
 /* armv6+ control regs */
@@ -145,6 +157,7 @@ GEN_CP15_REG_FUNCS(tpidrprw, 0, c13, c0, 4);
 GEN_CP15_REG_FUNCS(midr, 0, c0, c0, 0);
 GEN_CP15_REG_FUNCS(mpidr, 0, c0, c0, 5);
 GEN_CP15_REG_FUNCS(vbar, 0, c12, c0, 0);
+GEN_CP15_REG_FUNCS(cbar, 4, c15, c0, 0);
 
 GEN_CP15_REG_FUNCS(ats1cpr, 0, c7, c8, 0);
 GEN_CP15_REG_FUNCS(ats1cpw, 0, c7, c8, 1);
@@ -155,6 +168,11 @@ GEN_CP15_REG_FUNCS(ats12nsopw, 0, c7, c8, 5);
 GEN_CP15_REG_FUNCS(ats12nsour, 0, c7, c8, 6);
 GEN_CP15_REG_FUNCS(ats12nsouw, 0, c7, c8, 7);
 GEN_CP15_REG_FUNCS(par, 0, c7, c4, 0);
+
+/* Branch predictor invalidate */
+GEN_CP15_REG_FUNCS(bpiall, 0, c7, c5, 6);
+GEN_CP15_REG_FUNCS(bpimva, 0, c7, c5, 7);
+GEN_CP15_REG_FUNCS(bpiallis, 0, c7, c1, 6);
 
 /* tlb registers */
 GEN_CP15_REG_FUNCS(tlbiallis, 0, c8, c3, 0);
@@ -171,6 +189,9 @@ GEN_CP15_REG_FUNCS(tlbiall, 0, c8, c7, 0);
 GEN_CP15_REG_FUNCS(tlbimva, 0, c8, c7, 1);
 GEN_CP15_REG_FUNCS(tlbiasid, 0, c8, c7, 2);
 GEN_CP15_REG_FUNCS(tlbimvaa, 0, c8, c7, 3);
+
+GEN_CP15_REG_FUNCS(l2ctlr, 1, c9, c0, 2);
+GEN_CP15_REG_FUNCS(l2ectlr, 1, c9, c0, 3);
 
 /* fpu */
 void arm_fpu_set_enable(bool enable);

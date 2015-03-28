@@ -45,6 +45,11 @@ static int atomic_or(volatile int *ptr, int val);
 
 static uint32_t arch_cycle_count(void);
 
+static uint arch_curr_cpu_num(void);
+
+/* Use to align structures on cache lines to avoid cpu aliasing. */
+#define __CPU_ALIGN __ALIGNED(CACHE_LINE)
+
 #endif // !ASSEMBLY
 #define ICACHE 1
 #define DCACHE 2

@@ -31,6 +31,7 @@ static void dump_mode_regs(uint32_t spsr)
 	struct arm_mode_regs regs;
 	arm_save_mode_regs(&regs);
 
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_USR) ? '*' : ' ', "usr", regs.usr_r13, regs.usr_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_FIQ) ? '*' : ' ', "fiq", regs.fiq_r13, regs.fiq_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_IRQ) ? '*' : ' ', "irq", regs.irq_r13, regs.irq_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_SVC) ? '*' : ' ', "svc", regs.svc_r13, regs.svc_r14);
@@ -67,6 +68,11 @@ static void dump_mode_regs(uint32_t spsr)
 
 static void dump_fault_frame(struct arm_fault_frame *frame)
 {
+	struct thread *current_thread = get_current_thread();
+
+	dprintf(CRITICAL, "current_thread %p, name %s\n",
+		current_thread, current_thread ? current_thread->name : "");
+
 	dprintf(CRITICAL, "r0  0x%08x r1  0x%08x r2  0x%08x r3  0x%08x\n", frame->r[0], frame->r[1], frame->r[2], frame->r[3]);
 	dprintf(CRITICAL, "r4  0x%08x r5  0x%08x r6  0x%08x r7  0x%08x\n", frame->r[4], frame->r[5], frame->r[6], frame->r[7]);
 	dprintf(CRITICAL, "r8  0x%08x r9  0x%08x r10 0x%08x r11 0x%08x\n", frame->r[8], frame->r[9], frame->r[10], frame->r[11]);
@@ -87,7 +93,6 @@ static void dump_iframe(struct arm_iframe *frame)
 
 static void exception_die(struct arm_fault_frame *frame, const char *msg)
 {
-	inc_critical_section();
 	dprintf(CRITICAL, msg);
 	dump_fault_frame(frame);
 
@@ -97,7 +102,6 @@ static void exception_die(struct arm_fault_frame *frame, const char *msg)
 
 static void exception_die_iframe(struct arm_iframe *frame, const char *msg)
 {
-	inc_critical_section();
 	dprintf(CRITICAL, msg);
 	dump_iframe(frame);
 
@@ -112,8 +116,6 @@ void arm_syscall_handler(struct arm_fault_frame *frame)
 
 void arm_undefined_handler(struct arm_iframe *frame)
 {
-	inc_critical_section();
-
 	/* look at the undefined instruction, figure out if it's something we can handle */
 	bool in_thumb = frame->spsr & (1<<5);
 	if (in_thumb) {
@@ -157,7 +159,6 @@ void arm_undefined_handler(struct arm_iframe *frame)
 #if ARM_WITH_VFP
 fpu:
 	arm_fpu_undefined_instruction(frame);
-	dec_critical_section();
 #endif
 }
 
@@ -168,7 +169,7 @@ void arm_data_abort_handler(struct arm_fault_frame *frame)
 
 	uint32_t fault_status = (BIT(fsr, 10) ? (1<<4) : 0) |  BITS(fsr, 3, 0);
 
-	dprintf(CRITICAL, "\n\ndata abort, ");
+	dprintf(CRITICAL, "\n\ncpu %u data abort, ", arch_curr_cpu_num());
 	bool write = !!BIT(fsr, 11);
 
 	/* decode the fault status (from table B3-23) */
@@ -228,7 +229,7 @@ void arm_prefetch_abort_handler(struct arm_fault_frame *frame)
 
 	uint32_t fault_status = (BIT(fsr, 10) ? (1<<4) : 0) |  BITS(fsr, 3, 0);
 
-	dprintf(CRITICAL, "\n\nprefetch abort, ");
+	dprintf(CRITICAL, "\n\ncpu %u prefetch abort, ", arch_curr_cpu_num());
 
 	/* decode the fault status (from table B3-23) */
 	switch (fault_status) {

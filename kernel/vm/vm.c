@@ -60,6 +60,8 @@ static void mark_pages_in_use(vaddr_t va, size_t len)
 
             /* alloate the range, throw the results away */
             pmm_alloc_range(pa, 1, &list);
+        } else {
+            panic("Could not find pa for va 0x%lx\n", va);
         }
     }
 }

@@ -21,17 +21,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <asm.h>
+#include <arch/asm_macros.h>
 
 .section .text.boot.vectab
 .align 12
-
-.macro push ra, rb
-stp \ra, \rb, [sp,#-16]!
-.endm
-
-.macro pop ra, rb
-ldp \ra, \rb, [sp], #16
-.endm
 
 #define lr x30
 #define regsave_long_offset 0xf0
@@ -191,15 +184,24 @@ LOCAL_FUNCTION(arm64_err_exc_lower_el_64)
 /* exceptions from lower EL, running arm32 */
 .org 0x600
 LOCAL_FUNCTION(arm64_sync_exc_lower_el_32)
-    invalid_exception 0x30
+    regsave_long
+    mov x0, sp
+    bl  arm64_sync_exception
+    b  arm64_exc_shared_restore_long
 
 .org 0x680
 LOCAL_FUNCTION(arm64_irq_lower_el_32)
-    invalid_exception 0x31
+    regsave_short
+    mov x0, sp
+    bl  platform_irq
+    b  arm64_exc_shared_restore_short
 
 .org 0x700
 LOCAL_FUNCTION(arm64_fiq_lower_el_32)
-    invalid_exception 0x32
+    regsave_short
+    mov x0, sp
+    bl  platform_fiq
+    b  arm64_exc_shared_restore_short
 
 .org 0x780
 LOCAL_FUNCTION(arm64_err_exc_lower_el_32)

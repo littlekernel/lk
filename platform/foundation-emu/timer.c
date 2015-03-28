@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <trace.h>
 #include <kernel/thread.h>
+#include <kernel/spinlock.h>
 #include <arch/arm64.h>
 #include <platform.h>
 #include <platform/interrupts.h>
@@ -37,6 +38,7 @@
 #define LOCAL_TRACE 0
 
 static platform_timer_callback t_callback;
+static spin_lock_t lock;
 
 /* armv8 specified timer */
 
@@ -64,7 +66,8 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 {
     LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     t_callback = callback;
 
@@ -83,7 +86,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 
     unmask_interrupt(INT_PPI_NSPHYS_TIMER);
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 
     return NO_ERROR;
 }
@@ -92,7 +95,8 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
 {
     LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     t_callback = callback;
 
@@ -121,7 +125,7 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
 
     unmask_interrupt(INT_PPI_NSPHYS_TIMER);
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 
     return NO_ERROR;
 }

@@ -125,6 +125,7 @@ FUNCTION(arm_undefined)
 
 	restore
 
+#ifndef WITH_LIB_SYSCALL
 FUNCTION(arm_syscall)
 	saveall #0x13
 
@@ -132,6 +133,7 @@ FUNCTION(arm_syscall)
 	bl		arm_syscall_handler
 
 	restoreall
+#endif
 
 FUNCTION(arm_prefetch_abort)
 	saveall_offset #4, #0x17
@@ -161,12 +163,6 @@ FUNCTION(arm_irq)
 
 	save_offset    #4
 
-	/* increment the global critical section count */
-	LOADCONST(r1, critical_section_count)
-	ldr     r0, [r1]
-	add     r0, r0, #1
-	str     r0, [r1]
-
 	/* track that we're inside an irq handler */
 	LOADCONST(r1, __arm_in_handler)
 	mov		r0, #1
@@ -192,12 +188,6 @@ FUNCTION(arm_irq)
 	/* reschedule if the handler returns nonzero */
 	cmp     r0, #0
 	blne    thread_preempt
-
-	/* decrement the global critical section count */
-	LOADCONST(r1, critical_section_count)
-	ldr     r0, [r1]
-	sub     r0, r0, #1
-	str     r0, [r1]
 
 	restore
 

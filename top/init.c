@@ -26,8 +26,10 @@
  * a init hook that is called at increasing init levels as the system is
  * initialized.
  */
+#include <arch/ops.h>
 #include <lk/init.h>
 
+#include <assert.h>
 #include <compiler.h>
 #include <debug.h>
 #include <trace.h>
@@ -38,13 +40,13 @@
 extern const struct lk_init_struct __lk_init[];
 extern const struct lk_init_struct __lk_init_end[];
 
-static uint last_init_level = 0;
-
-int lk_init_level(uint level)
+void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop_level)
 {
-    LTRACEF("level %#x, last_init_level %#x\n", level, last_init_level);
+    LTRACEF("flags %#x, start_level %#x, stop_level %#x\n",
+            required_flag, start_level, stop_level);
 
-    uint last_called_level = last_init_level;
+    ASSERT(start_level > 0);
+    uint last_called_level = start_level - 1;
     const struct lk_init_struct *last = NULL;
     for (;;) {
         /* search for the lowest uncalled hook to call */
@@ -53,13 +55,15 @@ int lk_init_level(uint level)
         const struct lk_init_struct *found = NULL;
         bool seen_last = false;
         for (const struct lk_init_struct *ptr = __lk_init; ptr != __lk_init_end; ptr++) {
-            LTRACEF("looking at %p (%s) level %#x, seen_last %d\n", ptr, ptr->name, ptr->level, seen_last);
+            LTRACEF("looking at %p (%s) level %#x, flags %#x, seen_last %d\n", ptr, ptr->name, ptr->level, ptr->flags, seen_last);
 
             if (ptr == last)
                 seen_last = true;
 
             /* reject the easy ones */
-            if (ptr->level > level)
+            if (!(ptr->flags & required_flag))
+                continue;
+            if (ptr->level > stop_level)
                 continue;
             if (ptr->level < last_called_level)
                 continue;
@@ -67,7 +71,7 @@ int lk_init_level(uint level)
                 continue;
 
             /* keep the lowest one we haven't called yet */
-            if (ptr->level > last_init_level && ptr->level > last_called_level) {
+            if (ptr->level >= start_level && ptr->level > last_called_level) {
                 found = ptr;
                 continue;
             }
@@ -86,16 +90,13 @@ int lk_init_level(uint level)
             break;
 
 #if TRACE_INIT
-        printf("INIT: calling hook %p (%s) at level %#x\n", found->hook, found->name, found->level);
+        printf("INIT: cpu %d, calling hook %p (%s) at level %#x, flags %#x\n",
+               arch_curr_cpu_num(), found->hook, found->name, found->level, found->flags);
 #endif
         found->hook(found->level);
         last_called_level = found->level;
         last = found;
     }
-
-    last_init_level = level;
-
-    return 0;
 }
 
 #if 0

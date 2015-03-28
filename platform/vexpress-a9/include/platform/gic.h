@@ -24,7 +24,7 @@
 
 #include <platform/vexpress-a9.h>
 
-#define GICBASE(n)  (CPUPRIV_BASE_VIRT)
+#define GICBASE(n)  (CPUPRIV_BASE_PHYS)
 #define GICC_OFFSET (0x0100)
 #define GICD_OFFSET (0x1000)
 

@@ -22,10 +22,26 @@
  */
 #pragma once
 
+/* some assembly #defines, need to match the structure below */
+#if IS_64BIT
+#define __MMU_INITIAL_MAPPING_PHYS_OFFSET 0
+#define __MMU_INITIAL_MAPPING_VIRT_OFFSET 8
+#define __MMU_INITIAL_MAPPING_SIZE_OFFSET 16
+#define __MMU_INITIAL_MAPPING_FLAGS_OFFSET 24
+#define __MMU_INITIAL_MAPPING_SIZE        40
+#else
+#define __MMU_INITIAL_MAPPING_PHYS_OFFSET 0
+#define __MMU_INITIAL_MAPPING_VIRT_OFFSET 4
+#define __MMU_INITIAL_MAPPING_SIZE_OFFSET 8
+#define __MMU_INITIAL_MAPPING_FLAGS_OFFSET 12
+#define __MMU_INITIAL_MAPPING_SIZE        20
+#endif
+
 /* flags for initial mapping struct */
 #define MMU_INITIAL_MAPPING_TEMPORARY     (0x1)
 #define MMU_INITIAL_MAPPING_FLAG_UNCACHED (0x2)
 #define MMU_INITIAL_MAPPING_FLAG_DEVICE   (0x4)
+#define MMU_INITIAL_MAPPING_FLAG_DYNAMIC  (0x8)  /* entry has to be patched up by platform_reset */
 
 #ifndef ASSEMBLY
 
@@ -49,6 +65,13 @@ struct mmu_initial_mapping {
     unsigned int flags;
     const char *name;
 };
+
+/* Assert that the assembly macros above match this struct. */
+STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, phys) == __MMU_INITIAL_MAPPING_PHYS_OFFSET);
+STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, virt) == __MMU_INITIAL_MAPPING_VIRT_OFFSET);
+STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, size) == __MMU_INITIAL_MAPPING_SIZE_OFFSET);
+STATIC_ASSERT(__offsetof(struct mmu_initial_mapping, flags) == __MMU_INITIAL_MAPPING_FLAGS_OFFSET);
+STATIC_ASSERT(sizeof(struct mmu_initial_mapping) == __MMU_INITIAL_MAPPING_SIZE);
 
 /* Platform or target must fill out one of these to set up the initial memory map
  * for kernel and enough IO space to boot.
@@ -77,7 +100,7 @@ STATIC_ASSERT(KERNEL_ASPACE_BASE + (KERNEL_ASPACE_SIZE - 1) > KERNEL_ASPACE_BASE
 
 static inline bool is_kernel_address(vaddr_t va)
 {
-    return (va >= KERNEL_ASPACE_BASE && va <= (KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE));
+    return (va >= KERNEL_ASPACE_BASE && va <= (KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - 1));
 }
 
 /* physical allocator */
@@ -183,7 +206,7 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
 
 /* allocate a region of virtual space that maps a physical piece of address space.
    the physical pages that back this are not allocated from the pmm. */
-status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
     __NONNULL((1));
 
 /* allocate a region of memory backed by newly allocated contiguous physical memory  */

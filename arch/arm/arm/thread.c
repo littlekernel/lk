@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <debug.h>
+#include <trace.h>
 #include <kernel/thread.h>
 #include <arch/arm.h>
 
@@ -49,8 +50,9 @@ static void initial_thread_func(void)
 //	dprintf("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
 //	dump_thread(current_thread);
 
-	/* exit the implicit critical section we're within */
-	exit_critical_section();
+    /* release the thread lock that was implicitly held across the reschedule */
+    spin_unlock(&thread_lock);
+    arch_enable_ints();
 
 	thread_t *ct = get_current_thread();
 	ret = ct->entry(ct->arg);
@@ -85,12 +87,20 @@ void arch_thread_initialize(thread_t *t)
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
-//	dprintf("arch_context_switch: old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
+//	TRACEF("arch_context_switch: cpu %u old %p (%s), new %p (%s)\n", arch_curr_cpu_num(), oldthread, oldthread->name, newthread, newthread->name);
 #if ARM_WITH_VFP
     arm_fpu_thread_swap(oldthread, newthread);
 #endif
 
 	arm_context_switch(&oldthread->arch.sp, newthread->arch.sp);
 
+}
+
+void arch_dump_thread(thread_t *t)
+{
+    if (t->state != THREAD_RUNNING) {
+        dprintf(INFO, "\tarch: ");
+        dprintf(INFO, "sp 0x%lx\n", t->arch.sp);
+    }
 }
 

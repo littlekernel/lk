@@ -57,8 +57,9 @@ static void initial_thread_func(void)
 	dump_thread(_current_thread);
 #endif
 
-	/* exit the implicit critical section we're within */
-	exit_critical_section();
+	/* release the thread lock that was implicitly held across the reschedule */
+	spin_unlock(&thread_lock);
+	arch_enable_ints();
 
 	ret = _current_thread->entry(_current_thread->arg);
 
@@ -89,9 +90,6 @@ volatile struct arm_cm_exception_frame_long *preempt_frame;
 static void pendsv(struct arm_cm_exception_frame_long *frame)
 {
 	arch_disable_ints();
-	inc_critical_section();
-
-	ASSERT(critical_section_count == 1);
 
 	LTRACEF("preempting thread %p (%s)\n", _current_thread, _current_thread->name);
 
@@ -104,7 +102,6 @@ static void pendsv(struct arm_cm_exception_frame_long *frame)
 	/* if we got here, there wasn't anything to switch to, so just fall through and exit */
 	preempt_frame = NULL;
 
-	dec_critical_section();
 	arch_enable_ints();
 }
 
@@ -189,13 +186,6 @@ __NAKED static void _thread_mode_bounce(void)
 void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 {
 	LTRACE_ENTRY;
-
-	if (newthread->arch.was_preempted) {
-		/* we're about to return directly to a thread that was preempted (in user space),
-		 * so push its critical section count back down to zero
-		 */
-		critical_section_count = newthread->saved_critical_section_count = 0;
-	}
 
 	/* if preempt_frame is set, we are being preempted */
 	if (preempt_frame) {

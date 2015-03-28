@@ -71,6 +71,9 @@ strex_spot:
 FUNCTION(arm_save_mode_regs)
 	mrs		r1, cpsr
 
+	stmia	r0, { r13, r14 }^ /* usr */
+	add	r0, #8
+
 	cps     #0x11	/* fiq */
 	str		r13, [r0], #4
 	str		r14, [r0], #4

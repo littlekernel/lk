@@ -49,7 +49,7 @@ OUTBIN := $(BUILDDIR)/lk.bin
 OUTELF := $(BUILDDIR)/lk.elf
 CONFIGHEADER := $(BUILDDIR)/config.h
 
-GLOBAL_INCLUDES := $(BUILDDIR) $(LKROOT)/include $(addsuffix /include,$(LKINC))
+GLOBAL_INCLUDES := $(BUILDDIR) $(addsuffix /include,$(LKINC))
 GLOBAL_OPTFLAGS ?= $(ARCH_OPTFLAGS)
 GLOBAL_COMPILEFLAGS := -g -fno-builtin -finline -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -include $(CONFIGHEADER)
 GLOBAL_CFLAGS := --std=gnu99 -Werror-implicit-function-declaration -Wstrict-prototypes -Wwrite-strings
@@ -59,7 +59,13 @@ GLOBAL_CPPFLAGS := -fno-exceptions -fno-rtti -fno-threadsafe-statics
 GLOBAL_ASMFLAGS := -DASSEMBLY
 GLOBAL_LDFLAGS :=
 
-GLOBAL_LDFLAGS += -L $(LKROOT)
+GLOBAL_LDFLAGS += $(addprefix -L,$(LKINC))
+
+# Architecture specific compile flags
+ARCH_COMPILEFLAGS :=
+ARCH_CFLAGS :=
+ARCH_CPPFLAGS :=
+ARCH_ASMFLAGS :=
 
 # top level rule
 all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size
@@ -91,6 +97,9 @@ ALLMODULES :=
 
 # add any external module dependencies
 MODULES := $(EXTERNAL_MODULES)
+
+# any .mk specified here will be included before build.mk
+EXTRA_BUILDRULES :=
 
 # any rules you put here will also be built by the system before considered being complete
 EXTRA_BUILDDEPS :=
@@ -178,6 +187,7 @@ OBJCOPY := $(TOOLCHAIN_PREFIX)objcopy
 CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
 SIZE := $(TOOLCHAIN_PREFIX)size
 NM := $(TOOLCHAIN_PREFIX)nm
+STRIP := $(TOOLCHAIN_PREFIX)strip
 
 # try to have the compiler output colorized error messages if available
 export GCC_COLORS ?= 1

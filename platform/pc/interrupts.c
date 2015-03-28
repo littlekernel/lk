@@ -28,8 +28,11 @@
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
+#include <kernel/spinlock.h>
 #include "platform_p.h"
 #include <platform/pc.h>
+
+static spin_lock_t lock;
 
 void x86_gpf_handler(struct x86_iframe *frame);
 void x86_invop_handler(struct x86_iframe *frame);
@@ -161,11 +164,12 @@ status_t mask_interrupt(unsigned int vector)
 
 //	dprintf(DEBUG, "%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
-	enter_critical_section();
+	spin_lock_saved_state_t state;
+	spin_lock_irqsave(&lock, state);
 
 	enable(vector, false);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, state);
 
 	return NO_ERROR;
 }
@@ -190,11 +194,12 @@ status_t unmask_interrupt(unsigned int vector)
 
 //	dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
-	enter_critical_section();
+	spin_lock_saved_state_t state;
+	spin_lock_irqsave(&lock, state);
 
 	enable(vector, true);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, state);
 
 	return NO_ERROR;
 }
@@ -246,12 +251,14 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 	if (vector >= INT_VECTORS)
 		panic("register_int_handler: vector out of range %d\n", vector);
 
-	enter_critical_section();
+	spin_lock_saved_state_t state;
+	spin_lock_irqsave(&lock, state);
 
 	int_handler_table[vector].arg = arg;
 	int_handler_table[vector].handler = handler;
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, state);
 }
 
+/* vim: set noexpandtab: */
 

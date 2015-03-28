@@ -36,6 +36,7 @@
 #include <kernel/thread.h>
 #include <kernel/timer.h>
 #include <kernel/debug.h>
+#include <kernel/mp.h>
 #include <err.h>
 #include <platform.h>
 
@@ -73,43 +74,74 @@ static int cmd_threads(int argc, const cmd_args *argv)
 #if THREAD_STATS
 static int cmd_threadstats(int argc, const cmd_args *argv)
 {
-	printf("thread stats:\n");
-	printf("\ttotal idle time: %lld\n", thread_stats.idle_time);
-	printf("\ttotal busy time: %lld\n", current_time_hires() - thread_stats.idle_time);
-	printf("\treschedules: %d\n", thread_stats.reschedules);
-	printf("\tcontext_switches: %d\n", thread_stats.context_switches);
-	printf("\tpreempts: %d\n", thread_stats.preempts);
-	printf("\tyields: %d\n", thread_stats.yields);
-	printf("\tinterrupts: %d\n", thread_stats.interrupts);
-	printf("\ttimer interrupts: %d\n", thread_stats.timer_ints);
-	printf("\ttimers: %d\n", thread_stats.timers);
+	for (uint i = 0; i < SMP_MAX_CPUS; i++) {
+		if (!(mp.active_cpus & (1 << i)))
+			continue;
+
+		printf("thread stats (cpu %d):\n", i);
+		printf("\ttotal idle time: %lld\n", thread_stats[i].idle_time);
+		printf("\ttotal busy time: %lld\n", current_time_hires() - thread_stats[i].idle_time);
+		printf("\treschedules: %lu\n", thread_stats[i].reschedules);
+#if WITH_SMP
+		printf("\treschedule_ipis: %lu\n", thread_stats[i].reschedule_ipis);
+#endif
+		printf("\tcontext_switches: %lu\n", thread_stats[i].context_switches);
+		printf("\tpreempts: %lu\n", thread_stats[i].preempts);
+		printf("\tyields: %lu\n", thread_stats[i].yields);
+		printf("\tinterrupts: %lu\n", thread_stats[i].interrupts);
+		printf("\ttimer interrupts: %lu\n", thread_stats[i].timer_ints);
+		printf("\ttimers: %lu\n", thread_stats[i].timers);
+	}
 
 	return 0;
 }
 
 static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
 {
-	static struct thread_stats old_stats;
-	static lk_bigtime_t last_idle_time;
+	static struct thread_stats old_stats[SMP_MAX_CPUS];
+	static lk_bigtime_t last_idle_time[SMP_MAX_CPUS];
 
-	lk_bigtime_t idle_time = thread_stats.idle_time;
-	if (get_current_thread()->priority == IDLE_PRIORITY) {
-		idle_time += current_time_hires() - thread_stats.last_idle_timestamp;
+	for (uint i = 0; i < SMP_MAX_CPUS; i++) {
+		/* dont display time for inactiv cpus */
+		if (!(mp.active_cpus & (1 << i)))
+			continue;
+
+		lk_bigtime_t idle_time = thread_stats[i].idle_time;
+
+		/* if the cpu is currently idle, add the time since it went idle up until now to the idle counter */
+		bool is_idle = !!(mp.idle_cpus & (1 << i));
+		if (is_idle) {
+			idle_time += current_time_hires() - thread_stats[i].last_idle_timestamp;
+		}
+
+		lk_bigtime_t delta_time = idle_time - last_idle_time[i];
+		lk_bigtime_t busy_time = 1000000ULL - (delta_time > 1000000ULL ? 1000000ULL : delta_time);
+		uint busypercent = (busy_time * 10000) / (1000000);
+
+		printf("cpu %u LOAD: "
+		       "%u.%02u%%, "
+		       "cs %lu, "
+		       "pmpts %lu, "
+#if WITH_SMP
+		       "rs_ipis %lu, "
+#endif
+		       "ints %lu, "
+		       "tmr ints %lu, "
+		       "tmrs %lu\n",
+		       i,
+		       busypercent / 100, busypercent % 100,
+		       thread_stats[i].context_switches - old_stats[i].context_switches,
+		       thread_stats[i].preempts - old_stats[i].preempts,
+#if WITH_SMP
+		       thread_stats[i].reschedule_ipis - old_stats[i].reschedule_ipis,
+#endif
+		       thread_stats[i].interrupts - old_stats[i].interrupts,
+		       thread_stats[i].timer_ints - old_stats[i].timer_ints,
+		       thread_stats[i].timers - old_stats[i].timers);
+
+		old_stats[i] = thread_stats[i];
+		last_idle_time[i] = idle_time;
 	}
-	lk_bigtime_t delta_time = idle_time - last_idle_time;
-	lk_bigtime_t busy_time = 1000000ULL - (delta_time > 1000000ULL ? 1000000ULL : delta_time);
-
-	uint busypercent = (busy_time * 10000) / (1000000);
-
-//	printf("idle_time %lld, busytime %lld\n", idle_time - last_idle_time, busy_time);
-	printf("LOAD: %d.%02d%%, cs %d, ints %d, timer ints %d, timers %d\n", busypercent / 100, busypercent % 100,
-	       thread_stats.context_switches - old_stats.context_switches,
-	       thread_stats.interrupts - old_stats.interrupts,
-	       thread_stats.timer_ints - old_stats.timer_ints,
-	       thread_stats.timers - old_stats.timers);
-
-	old_stats = thread_stats;
-	last_idle_time = idle_time;
 
 	return INT_NO_RESCHEDULE;
 }
@@ -118,8 +150,6 @@ static int cmd_threadload(int argc, const cmd_args *argv)
 {
 	static bool showthreadload = false;
 	static timer_t tltimer;
-
-	enter_critical_section();
 
 	if (showthreadload == false) {
 		// start the display
@@ -130,8 +160,6 @@ static int cmd_threadload(int argc, const cmd_args *argv)
 		timer_cancel(&tltimer);
 		showthreadload = false;
 	}
-
-	exit_critical_section();
 
 	return 0;
 }
@@ -160,7 +188,7 @@ void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1)
 		uint index = evlog_bump_head(&kernel_evlog);
 
 		kernel_evlog.items[index] = (uintptr_t)current_time_hires();
-		kernel_evlog.items[index+1] = id;
+		kernel_evlog.items[index+1] = (arch_curr_cpu_num() << 16) | id;
 		kernel_evlog.items[index+2] = arg0;
 		kernel_evlog.items[index+3] = arg1;
 	}
@@ -170,24 +198,24 @@ void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1)
 
 static void kevdump_cb(const uintptr_t *i)
 {
-	switch (i[1]) {
+	switch (i[1] & 0xffff) {
 		case KERNEL_EVLOG_CONTEXT_SWITCH:
-			printf("%lu: context switch from %p to %p\n", i[0], (void *)i[2], (void *)i[3]);
+			printf("%lu.%lu: context switch from %p to %p\n", i[0], i[1] >> 16, (void *)i[2], (void *)i[3]);
 			break;
 		case KERNEL_EVLOG_PREEMPT:
-			printf("%lu: preempt on thread %p\n", i[0], (void *)i[2]);
+			printf("%lu.%lu: preempt on thread %p\n", i[0], i[1] >> 16, (void *)i[2]);
 			break;
 		case KERNEL_EVLOG_TIMER_TICK:
-			printf("%lu: timer tick\n", i[0]);
+			printf("%lu.%lu: timer tick\n", i[0], i[1] >> 16);
 			break;
 		case KERNEL_EVLOG_TIMER_CALL:
-			printf("%lu: timer call %p, arg %p\n", i[0], (void *)i[2], (void *)i[3]);
+			printf("%lu.%lu: timer call %p, arg %p\n", i[0], i[1] >> 16, (void *)i[2], (void *)i[3]);
 			break;
 		case KERNEL_EVLOG_IRQ_ENTER:
-			printf("%lu: irq entry %u\n", i[0], (uint)i[2]);
+			printf("%lu.%lu: irq entry %u\n", i[0], i[1] >> 16, (uint)i[2]);
 			break;
 		case KERNEL_EVLOG_IRQ_EXIT:
-			printf("%lu: irq exit  %u\n", i[0], (uint)i[2]);
+			printf("%lu.%lu: irq exit  %u\n", i[0], i[1] >> 16, (uint)i[2]);
 			break;
 		default:
 			;
@@ -213,4 +241,4 @@ static int cmd_kevlog(int argc, const cmd_args *argv)
 
 #endif // WITH_KERNEL_EVLOG
 
-
+// vim: set noexpandtab:
