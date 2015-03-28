@@ -37,6 +37,7 @@
 #include <kernel/timer.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
+#include <kernel/spinlock.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/gem.h>
@@ -59,6 +60,8 @@ struct list_node pktbuf_to_free_list;
 struct list_node *active_tx_ptr = &active_tx_list;
 struct list_node *pending_tx_ptr = &pending_tx_list;
 gem_cb_t rx_callback = NULL;
+
+static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
 struct gem_desc {
     uint32_t addr;
@@ -120,7 +123,8 @@ void gem_queue_for_tx(void) {
     /* Packets being sent will be constantly appended to the pending queue. By swapping the pending
      * ptr to the active pointer here atomically we don't need a lock that would risk being acquired
      * in both thread and interrupt context */
-    enter_critical_section();
+    spin_lock_saved_state_t irqstate;
+    spin_lock_irqsave(&lock, irqstate);
 
     if (list_is_empty(&pending_tx_list) || gem_tx_active())
         goto exit;
@@ -153,7 +157,7 @@ void gem_queue_for_tx(void) {
     regs->net_ctrl |= NET_CTRL_START_TX;
 
 exit:
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, irqstate);
 }
 
 int gem_send_raw_pkt(struct pktbuf *p)
@@ -168,9 +172,10 @@ int gem_send_raw_pkt(struct pktbuf *p)
 
     LTRACEF("buf %p, len %zu, pkt %p\n", p->data, p->dlen, p);
 
-    enter_critical_section();
+    spin_lock_saved_state_t irqstate;
+    spin_lock_irqsave(&lock, irqstate);
     list_add_tail(pending_tx_ptr, &p->list);
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, irqstate);
 
     if (!gem_tx_active()) {
         gem_queue_for_tx();
