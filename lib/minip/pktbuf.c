@@ -56,7 +56,6 @@ pktbuf_t *pktbuf_alloc(void) {
 
 	sem_wait(&pb_sem);
 	spin_lock_irqsave(&lock, state);
-	spin_lock_irqsave(&lock, state);
 	p = list_remove_head_type(&pb_freelist, pktbuf_t, list);
 	spin_unlock_irqrestore(&lock, state);
 	if (!p)
