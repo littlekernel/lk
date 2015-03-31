@@ -28,11 +28,7 @@
 #include <bits.h>
 #endif
 
-#ifdef ZYNQ_CLG225
-#define ZYNQ_MIO_CNT    32
-#else
 #define ZYNQ_MIO_CNT    54
-#endif
 
 /* memory addresses */
 /* assumes sram is mapped at 0 the first MB of sdram is covered by it */
@@ -41,7 +37,7 @@
 #define SRAM_BASE           (0x0)
 #define SRAM_BASE_HIGH      (0xfffc0000)
 #define SRAM_APERTURE_SIZE  (0x00040000)
-#define SRAM_SIZE           (0x00030000) /* only 192KB mapped currently */
+#define SRAM_SIZE           (0x00040000)
 
 /* hardware base addresses */
 #define UART0_BASE (0xe0000000)
@@ -138,9 +134,15 @@ typedef struct {
     uint32_t gem0_rclk;
     uint32_t gem1_clk;
     uint32_t gem1_rclk;
+    uint32_t smc_clk;
     uint32_t lqspi_clk;
     uint32_t sdio_clk;
     uint32_t uart_clk;
+    uint32_t spi_clk;
+    uint32_t can_clk;
+    uint32_t can_mioclk;
+    uint32_t usb0_clk;
+    uint32_t usb1_clk;
     uint32_t pcap_clk;
     uint32_t fpga0_clk;
     uint32_t fpga1_clk;

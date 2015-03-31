@@ -6,7 +6,6 @@ MODULE_DEPS += \
 	lib/bio \
 	lib/bootargs \
 	lib/bootimage \
-	lib/minip \
 	lib/ptable \
 	lib/sysparam
 

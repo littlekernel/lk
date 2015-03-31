@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,12 +23,42 @@
 #include <asm.h>
 #include <platform/zynq.h>
 
+/* code run at the very beginning of the system, attempting to trap the 2nd cpu */
+FUNCTION(platform_reset)
+    /* figure out our cpu number */
+    mrc     p15, 0, r12, c0, c0, 5 /* MPIDR */
+
+    /* mask off the bottom 8 bits to test cpu number */
+    ubfx    r12, r12, #0, #8
+
+    /* if we're the 0th cpu, continue to arm_reset */
+    teq     r12, #0
+    beq     arm_reset
+
+    /* bump the cpu counter */
+    adr     r12, __cpu_trapped
+    mov     r11, #1
+    str     r11, [r12]
+    dsb
+
+0:
+    /* stay trapped here forever */
+    wfe
+    b       0b
+
+    ldr pc, foo
+foo:
+    .word       0xa
+
+DATA(__cpu_trapped)
+    .word     0
+
+#if 0
+/* disabled for now */
+
 /* this code attempts to remap sram to 0xfffc0000 - 0xffffffff and
    branch the cpu into the equivalent spot. Assumes the cpu is running
    at the initial 0 based mapping */
-
-/* disabled for now */
-#if 0
 
 /* a spot of the top bank of OCM memory for us to run our code from
    needs to be below where the second cpu is running (0xffffe00-0xfffffff0) */
@@ -85,4 +115,5 @@ FUNCTION(platform_reset)
 
 .ltorg
 #endif
+
 
