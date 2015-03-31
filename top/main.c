@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Travis Geiselbrecht
+ * Copyright (c) 2013-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -94,7 +94,11 @@ void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 	lk_primary_cpu_init_level(LK_INIT_LEVEL_PLATFORM_EARLY, LK_INIT_LEVEL_TARGET_EARLY - 1);
 	target_early_init();
 
-	dprintf(INFO, "welcome to lk\n\n");
+#if WITH_SMP
+	dprintf(INFO, "\nwelcome to lk/MP\n\n");
+#else
+	dprintf(INFO, "\nwelcome to lk\n\n");
+#endif
 	dprintf(INFO, "boot args 0x%lx 0x%lx 0x%lx 0x%lx\n",
 		lk_boot_args[0], lk_boot_args[1], lk_boot_args[2], lk_boot_args[3]);
 
