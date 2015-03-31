@@ -21,7 +21,9 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/k_rem_pio2.c \
 	$(LOCAL_DIR)/s_floor.c \
 	$(LOCAL_DIR)/s_scalbn.c \
+	$(LOCAL_DIR)/s_scalbnf.c \
 	$(LOCAL_DIR)/s_copysign.c \
+	$(LOCAL_DIR)/s_copysignf.c \
 	$(LOCAL_DIR)/e_acos.c \
 	$(LOCAL_DIR)/e_acosf.c \
 	$(LOCAL_DIR)/e_asin.c \
