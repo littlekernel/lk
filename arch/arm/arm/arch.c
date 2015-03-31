@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -100,26 +100,24 @@ void arch_init(void)
 #if WITH_SMP
 	arch_mp_init_percpu();
 
-	TRACEF("midr 0x%x\n", arm_read_midr());
-	TRACEF("sctlr 0x%x\n", arm_read_sctlr());
-	TRACEF("actlr 0x%x\n", arm_read_actlr());
+	LTRACEF("midr 0x%x\n", arm_read_midr());
+	LTRACEF("sctlr 0x%x\n", arm_read_sctlr());
+	LTRACEF("actlr 0x%x\n", arm_read_actlr());
 #if ARM_CPU_CORTEX_A9
-	TRACEF("cbar 0x%x\n", arm_read_cbar());
+	LTRACEF("cbar 0x%x\n", arm_read_cbar());
 #endif
-	TRACEF("mpidr 0x%x\n", arm_read_mpidr());
-	TRACEF("ttbcr 0x%x\n", arm_read_ttbcr());
-	TRACEF("ttbr0 0x%x\n", arm_read_ttbr0());
-	TRACEF("dacr 0x%x\n", arm_read_dacr());
+	LTRACEF("mpidr 0x%x\n", arm_read_mpidr());
+	LTRACEF("ttbcr 0x%x\n", arm_read_ttbcr());
+	LTRACEF("ttbr0 0x%x\n", arm_read_ttbr0());
+	LTRACEF("dacr 0x%x\n", arm_read_dacr());
 #if ARM_CPU_CORTEX_A7
-	TRACEF("l2ctlr 0x%x\n", arm_read_l2ctlr());
-	TRACEF("l2ectlr 0x%x\n", arm_read_l2ectlr());
+	LTRACEF("l2ctlr 0x%x\n", arm_read_l2ctlr());
+	LTRACEF("l2ectlr 0x%x\n", arm_read_l2ectlr());
 #endif
 
 #if ARM_CPU_CORTEX_A9
 	addr_t scu_base = arm_read_cbar();
-	TRACEF("SCU CONTROL 0x%x\n", *REG32(scu_base));
 	uint32_t scu_config = *REG32(scu_base + 4);
-	TRACEF("SCU CONFIG 0x%x\n", scu_config);
 	secondaries_to_init = scu_config & 0x3;
 #elif ARM_CPU_CORTEX_A7
 	uint32_t l2ctlr = arm_read_l2ctlr();
@@ -130,7 +128,7 @@ void arch_init(void)
 
 	lk_init_secondary_cpus(secondaries_to_init);
 
-	TRACEF("releasing %d secondary cpus\n", secondaries_to_init);
+	dprintf(SPEW, "releasing %d secondary cpu%c\n", secondaries_to_init, secondaries_to_init > 1 ? 's' : ' ');
 
 	/* release the secondary cpus */
 	spin_unlock(&arm_boot_cpu_lock);
@@ -169,18 +167,13 @@ void arm_secondary_entry(void)
 
 	arch_mp_init_percpu();
 
-	TRACEF("cpu num %d\n", arch_curr_cpu_num());
-	TRACEF("sctlr 0x%x\n", arm_read_sctlr());
-	TRACEF("actlr 0x%x\n", arm_read_actlr());
-
-#if ARM_CPU_CORTEX_A9
-	addr_t scu_base = arm_read_cbar();
-	TRACEF("SCU CONTROL 0x%x\n", *REG32(scu_base));
-	TRACEF("SCU CONFIG 0x%x\n", *REG32(scu_base + 4));
-#endif
+	LTRACEF("cpu num %d\n", arch_curr_cpu_num());
+	LTRACEF("sctlr 0x%x\n", arm_read_sctlr());
+	LTRACEF("actlr 0x%x\n", arm_read_actlr());
 
 	/* we're done, tell the main cpu we're up */
 	atomic_add(&secondaries_to_init, -1);
+	smp_mb();
 	__asm__ volatile("sev");
 
 	lk_secondary_cpu_entry();
