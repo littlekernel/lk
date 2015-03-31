@@ -41,14 +41,15 @@ FUNCTION(platform_reset)
     str     r11, [r12]
     dsb
 
+#if !WITH_SMP
 0:
     /* stay trapped here forever */
     wfe
     b       0b
-
-    ldr pc, foo
-foo:
-    .word       0xa
+#else
+    /* pass on through the reset vector, where the arm arch code will trap the cpu */
+    b       arm_reset
+#endif
 
 DATA(__cpu_trapped)
     .word     0
