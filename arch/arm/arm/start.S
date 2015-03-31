@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -55,10 +55,10 @@ arm_reset:
 	/* enable caches so atomics and spinlocks work */
 	orr		r12, r12, #(1<<12)
 	orr		r12, r12, #(1<<2)
-#endif
+#endif // WITH_KERNEL_VM
 	mcr		p15, 0, r12, c1, c0, 0
 
-	/* calculate phys offset */
+	/* calculate the physical offset from our eventual virtual location */
 .Lphys_offset:
 	ldr		r4, =.Lphys_offset
 	adr		r11, .Lphys_offset
@@ -81,14 +81,13 @@ arm_reset:
 	teq     r12, #0
 	movne	r0, r12
 	bne     arm_secondary_setup
-#endif
+#endif // WITH_SMP
 
 #if WITH_CPU_EARLY_INIT
 	/* call platform/arch/etc specific init code */
 	bl __cpu_early_init
-#endif
+#endif // WITH_CPU_EARLY_INIT
 
-#if WITH_KERNEL_VM
 #if WITH_NO_PHYS_RELOCATION
 	/* assume that image is properly loaded in physical memory */
 #else
@@ -96,7 +95,7 @@ arm_reset:
 	adr		r4, _start                           /* this emits sub r4, pc, #constant */
 	ldr		r5, =(MEMBASE + KERNEL_LOAD_OFFSET)  /* calculate the binary's physical load address */
 	subs	r12, r4, r5                          /* calculate the delta between where we're loaded and the proper spot */
-	beq		.Lsetup_mmu
+	beq		.Lrelocate_done
 
 	/* we need to relocate ourselves to the proper spot */
 	ldr		r6, =__data_end
@@ -112,10 +111,17 @@ arm_reset:
 
 	/* we're relocated, jump to the right address */
 	sub		pc, r12
-	nop
-#endif
+	nop		/* skipped in the add to pc */
 
+	/* recalculate the physical offset */
+	sub		r11, r11, r12
+
+.Lrelocate_done:
+#endif // !WITH_NO_PHYS_RELOCATION
+
+#if WITH_KERNEL_VM
 .Lsetup_mmu:
+
 	/* set up the mmu according to mmu_initial_mappings */
 
 	/* load the base of the translation table and clear the table */
@@ -209,33 +215,11 @@ arm_reset:
 
 	rsb		r6, r11, r6, lsl #20	/* r6 = vaddr */
 	str		r7, [r4, r6, lsr #(20 - 2)]	/* tt_trampoline[vaddr index] = pt entry */
-#endif
+#endif // MMU_WITH_TRAMPOLINE
 
 	/* set up the mmu */
 	bl		.Lmmu_setup
-
-#else
-	/* see if we need to relocate */
-	mov		r4, pc
-	sub		r4, r4, #(.Laddr - _start)
-.Laddr:
-	ldr		r5, =_start
-	cmp		r4, r5
-	beq		.Lstack_setup
-
-	/* we need to relocate ourselves to the proper spot */
-	ldr		r6, =__data_end
-
-.Lrelocate_loop:
-	ldr		r7, [r4], #4
-	str		r7, [r5], #4
-	cmp		r5, r6
-	bne		.Lrelocate_loop
-
-	/* we're relocated, jump to the right address */
-	ldr		r4, =.Lstack_setup
-	bx		r4
-#endif
+#endif // WITH_KERNEL_VM
 
 	/* at this point we're running at our final location in virtual memory (if enabled) */
 .Lstack_setup:
