@@ -262,7 +262,7 @@ status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len)
     size_t size = vring_size(len, PAGE_SIZE);
     LTRACEF("need %zu bytes\n", size);
 
-#if WITH_KERNEL_VM
+#if WITH_KERNEL_VMM
     void *vptr;
     status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "virtio_ring", size, &vptr, 0, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err < 0)

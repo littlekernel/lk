@@ -27,7 +27,7 @@
 #include <lib/console.h>
 #include <kernel/vm.h>
 #include <kernel/mutex.h>
-#include "vm_priv.h"
+#include "../vm/vm_priv.h"
 
 #define LOCAL_TRACE 0
 

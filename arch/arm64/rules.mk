@@ -33,9 +33,10 @@ GLOBAL_DEFINES += \
 ARCH_OPTFLAGS := -O2
 
 # we have a mmu and want the vmm/pmm
-WITH_KERNEL_VM ?= 1
+WITH_KERNEL_VM  ?= 1
+WITH_KERNEL_VMM ?= 1
 
-ifeq ($(WITH_KERNEL_VM),1)
+ifeq ($(WITH_KERNEL_VMM),1)
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/mmu.c

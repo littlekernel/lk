@@ -84,6 +84,7 @@ static void vm_init_preheap(uint level)
 
 static void vm_init_postheap(uint level)
 {
+#if WITH_KERNEL_VMM
     LTRACE_ENTRY;
 
     vmm_init();
@@ -97,6 +98,7 @@ static void vm_init_postheap(uint level)
 
         map++;
     }
+#endif
 }
 
 void *paddr_to_kvaddr(paddr_t pa)

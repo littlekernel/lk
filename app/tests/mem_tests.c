@@ -29,7 +29,7 @@
 #include <lib/console.h>
 #include <platform.h>
 
-#if WITH_KERNEL_VM
+#if WITH_KERNEL_VMM
 #include <kernel/vm.h>
 #endif
 
@@ -182,7 +182,7 @@ usage:
     void *ptr;
     size_t len = argv[1].u;
 
-#if WITH_KERNEL_VM
+#if WITH_KERNEL_VMM
     /* rounding up len to the next page */
     len = PAGE_ALIGN(len);
     if (len == 0) {
@@ -215,7 +215,7 @@ usage:
     /* run the tests */
     do_mem_tests(ptr, len);
 
-#if WITH_KERNEL_VM
+#if WITH_KERNEL_VMM
     // XXX free memory region here
     printf("NOTE: leaked memory\n");
 #else

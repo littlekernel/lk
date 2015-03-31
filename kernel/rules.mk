@@ -21,4 +21,10 @@ ifeq ($(WITH_KERNEL_VM),1)
 MODULE_DEPS += kernel/vm
 endif
 
+ifeq ($(WITH_KERNEL_VMM),1)
+MODULE_DEPS += \
+	kernel/vm \
+	kernel/vmm
+endif
+
 include make/module.mk

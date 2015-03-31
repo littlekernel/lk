@@ -178,6 +178,7 @@ void arm_mmu_early_init(void)
 
 void arm_mmu_init(void)
 {
+#if WITH_KERNEL_VMM
     /* unmap the initial mapings that are marked temporary */
     struct mmu_initial_mapping *map = mmu_initial_mappings;
     while (map->size > 0) {
@@ -196,6 +197,7 @@ void arm_mmu_init(void)
         map++;
     }
     arm_after_invalidate_tlb_barrier();
+#endif
 }
 
 void arch_disable_mmu(void)

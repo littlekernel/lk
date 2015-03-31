@@ -165,6 +165,7 @@ void *paddr_to_kvaddr(paddr_t pa);
 /* virtual to physical */
 paddr_t kvaddr_to_paddr(void *va);
 
+#if WITH_KERNEL_VMM
 /* virtual allocator */
 typedef struct vmm_aspace {
     struct list_node node;
@@ -223,6 +224,7 @@ status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t va);
 
     /* For the above region creation routines. Allocate virtual space at the passed in pointer. */
 #define VMM_FLAG_VALLOC_SPECIFIC 0x1
+#endif
 
 __END_CDECLS
 
