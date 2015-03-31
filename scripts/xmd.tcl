@@ -7,12 +7,15 @@ if { $argc != 1 } {
     exit
 }
 
+set offset 0
+set file [lindex $argv 0]
+
 connect arm hw
 
 rst
 after 1000
 stop
-dow -data build-[lindex $argv 0]/lk.bin 0
-rwr pc 0
+dow -data build-$file/lk.bin $offset
+rwr pc $offset
 con
 
