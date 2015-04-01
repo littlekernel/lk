@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Brian Swetland
+ * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,22 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#pragma once
 
-.global dcc_putc
-.global dcc_getc
+/* gpios on the microzed target */
+#define GPIO_LEDR       (47)
 
-#if defined(ARM_ISA_ARMV6) || defined(ARM_ISA_ARMV7)
-dcc_getc:
-	mrc 14, 0, r0, c0, c1, 0 
-	tst r0, #(1 << 30)
-	moveq r0, #-1
-	mrcne 14, 0, r0, c0, c5, 0
-	bx lr
-
-dcc_putc:
-	mrc 14, 0, r15, c0, c1, 0 
-	mcrcc 14, 0, r0, c0, c5, 0
-	movcc r0, #0
-	movcs r0, #-1
-	bx lr
-#endif
