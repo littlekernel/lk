@@ -476,6 +476,8 @@ STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 #define MIO_IO_TYPE_HSTL                (0x4 << 9)
 #define MIO_PULLUP                      (1 << 12)
 #define MIO_DISABLE_RCVR                (1 << 13)
+#define MIO_GPIO                        (MIO_IO_TYPE_LVCMOS18 | MIO_DISABLE_RCVR)
+#define MIO_DEFAULT                     (0xFFFF0000)
 
 /* UART registers */
 #define UART_CR                         (0x00)

@@ -123,7 +123,7 @@ int zynq_mio_init(void)
     SLCR_REG(GPIOB_CTRL) = GPIOB_CTRL_VREF_EN;
 
     for (size_t pin = 0; pin < countof(zynq_mio_cfg); pin++) {
-        if (zynq_mio_cfg[pin] != 0) {
+        if (zynq_mio_cfg[pin] != MIO_DEFAULT) {
             SLCR_REG(MIO_PIN_00 + (pin * 4)) = zynq_mio_cfg[pin];
         }
     }
