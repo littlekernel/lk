@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2015 Travis Geiselbrecht
+ * Copyright (c) 2015 Christopher Anderson
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,84 +21,65 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
+#include <assert.h>
 #include <debug.h>
+#include <reg.h>
 #include <stdio.h>
 #include <string.h>
-#include <arch/arm/mmu.h>
-#include <kernel/vm.h>
-#include <dev/uart.h>
 #include <dev/gpio.h>
-#include <lib/console.h>
-#include <platform.h>
-#include <platform/zynq.h>
-#include "platform_p.h"
+#include <platform/gpio.h>
 
-#define MAX_GPIO (64*2) // MIO + EMIO block
+#define MAX_GPIO 128
 
-// registers with 4 adjacent copies
-#define GPIO_REG_MASK_DATA_0_LSW (0x0)
-#define GPIO_REG_DATA_0          (0x40)
-#define GPIO_REG_DATA_0_RO       (0x60)
-
-// next block of registers repeated every 0x40
-#define GPIO_REG_DIRM_0          (0x204)
-#define GPIO_REG_OEN_0           (0x208)
-
-void gpio_set(uint gpio, unsigned set)
+void zynq_gpio_early_init(void)
 {
-    DEBUG_ASSERT(gpio < MAX_GPIO);
-
-    uint reg = gpio / 16;
-
-    gpio %= 16;
-
-    uint32_t mask = (~(1 << gpio) & 0xffff) << 16;
-    *REG32(GPIO_BASE + GPIO_REG_MASK_DATA_0_LSW + reg * 4) = mask | (set ? 0xffff : 0);
 }
 
-int gpio_get(uint gpio)
+void zynq_gpio_init(void)
 {
-    DEBUG_ASSERT(gpio < MAX_GPIO);
-
-    uint bank = gpio / 32;
-
-    uint32_t val = *REG32(GPIO_BASE + GPIO_REG_DATA_0_RO + bank * 4);
-
-    return (val & (1 << (gpio % 32)));
 }
 
 int gpio_config(unsigned gpio, unsigned flags)
 {
     DEBUG_ASSERT(gpio < MAX_GPIO);
 
-    if (gpio >= MAX_GPIO)
-        return ERR_INVALID_ARGS;
+    uint16_t bank = gpio / 31;
+    uint16_t bit = gpio % 32;
+    uint32_t mio_cfg = MIO_GPIO;
 
-    uint bank = gpio / 32;
-
-    if (flags & GPIO_OUTPUT) {
-        /* configure this mio as an output */
-        *REG32(GPIO_BASE + GPIO_REG_DIRM_0 + bank * 0x40) |= (1 << (gpio % 32));
-        *REG32(GPIO_BASE + GPIO_REG_OEN_0 + bank * 0x40) |= (1 << (gpio % 32));
-    } else {
-        /* configure this mio as an input */
-        *REG32(GPIO_BASE + GPIO_REG_DIRM_0 + bank * 0x40) &= ~(1 << (gpio % 32));
-
-        if (flags & GPIO_PULLUP && gpio < 54) {
-            *REG32(&SLCR->MIO_PIN_00 + gpio) |= MIO_PULLUP;
-        } else {
-            *REG32(&SLCR->MIO_PIN_00 + gpio) &= ~MIO_PULLUP;
+    /* MIO region, exclude EMIO. MIO needs to be configured before the GPIO block. */
+    if (bank < 2) {
+        if (flags & GPIO_PULLUP) {
+            mio_cfg |= MIO_PULLUP;
         }
+
+        SLCR_REG(MIO_PIN_00 + (gpio * 4)) = mio_cfg;
     }
 
-    return NO_ERROR;
+    if (flags & GPIO_OUTPUT || flags & GPIO_INPUT) {
+        RMWREG32(GPIO_DIRM(bank), bit, 1, ((flags & GPIO_OUTPUT) > 0));
+        RMWREG32(GPIO_OEN(bank), bit, 1, ((flags & GPIO_OUTPUT) > 0));
+    }
+
+	return 0;
 }
 
-void zynq_gpio_init(void)
+void gpio_set(unsigned gpio, unsigned on)
 {
-    /* Enable VREF from GPIOB */
-    SLCR->GPIOB_CTRL = 0x1;
+    DEBUG_ASSERT(gpio < MAX_GPIO);
+
+    uint16_t bank = gpio / 32;
+    uint16_t bit = gpio % 32;
+    uintptr_t reg = (bit < 16) ? GPIO_MASK_DATA_LSW(bank) : GPIO_MASK_DATA_MSW(bank);
+    *REG32(reg) = (~(1 << bit) << 16) | (!!on << bit);
 }
 
+int gpio_get(unsigned gpio)
+{
+    DEBUG_ASSERT(gpio < MAX_GPIO);
 
+    uint16_t bank = gpio / 32;
+    uint16_t bit = gpio % 32;
+
+    return ((*REG32(GPIO_DATA_RO(bank)) & (1 << bit)) > 0);
+}
