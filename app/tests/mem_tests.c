@@ -174,7 +174,6 @@ static int mem_test(int argc, const cmd_args *argv)
 {
     if (argc < 2) {
         printf("not enough arguments\n");
-usage:
         printf("usage: %s <length>\n", argv[0].str);
         return -1;
     }
@@ -187,7 +186,7 @@ usage:
     len = PAGE_ALIGN(len);
     if (len == 0) {
         printf("invalid length\n");
-        goto usage;
+        return -1;
     }
 
     /* allocate a region to test in */
