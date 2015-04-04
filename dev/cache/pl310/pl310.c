@@ -26,6 +26,7 @@
 #include <trace.h>
 #include <err.h>
 #include <reg.h>
+#include <stdlib.h>
 #include <arch.h>
 #include <arch/arm/mmu.h>
 #include <dev/cache/pl310_config.h>
@@ -201,5 +202,28 @@ void pl310_invalidate_range(addr_t start, size_t len)
 {
     LTRACEF("start 0x%lx, len %zd\n", start, len);
     PL310_LOOP_BODY(REG7_INV_PA);
+}
+
+void pl310_pin_cache_range(addr_t start, size_t len)
+{
+    len = ROUNDUP(len, CACHE_LINE);
+
+    arch_disable_ints();
+
+    arch_clean_invalidate_cache_range(start, len);
+
+    PL310_REG(REG9_LOCK_LINE_EN) = 1;
+    DSB;
+
+    while (len > 0) {
+        asm volatile("pld [%0]" :: "r"(start) : "memory");
+        start += CACHE_LINE;
+        len -= CACHE_LINE;
+    }
+
+    DSB;
+    PL310_REG(REG9_LOCK_LINE_EN) = 0;
+
+    arch_enable_ints();
 }
 

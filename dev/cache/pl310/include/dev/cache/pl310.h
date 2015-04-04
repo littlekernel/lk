@@ -34,3 +34,5 @@ void pl310_sync_range(void);
 void pl310_clean_range(addr_t start, size_t len);
 void pl310_clean_invalidate_range(addr_t start, size_t len);
 void pl310_invalidate_range(addr_t start, size_t len);
+
+void pl310_pin_cache_range(addr_t start, size_t len);
