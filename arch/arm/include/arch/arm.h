@@ -63,7 +63,6 @@ static inline uint32_t read_cpsr(void)
 struct arm_iframe {
 #if ARM_WITH_VFP
 	uint32_t fpexc;
-	uint32_t __pad;
 #endif
 	uint32_t usp;
 	uint32_t ulr;
@@ -78,10 +77,12 @@ struct arm_iframe {
 };
 
 struct arm_fault_frame {
+#if ARM_WITH_VFP
+	uint32_t fpexc;
+#endif
 	uint32_t usp;
 	uint32_t ulr;
 	uint32_t r[13];
-	uint32_t lr;
 	uint32_t pc;
 	uint32_t spsr;
 };
