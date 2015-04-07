@@ -48,8 +48,23 @@ static struct {
 };
 
 void usage(const char *binary) {
+	unsigned n;
 	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "%s [-h] [-o <output file] section:file ...\n", binary);
+	fprintf(stderr, "%s [-h] [-o <output file] section:file ...\n\n", binary);
+
+	fprintf(stderr, "Supported section types:\n");
+	for (n = 0; types[n].cmd != NULL; n++) {
+		if (types[n].kind == KIND_FILE) {
+			fprintf(stderr, "\t%s\n", types[n].cmd);
+		}
+	}
+
+	fprintf(stderr, "\nSupported string types:\n");
+	for (n = 0; types[n].cmd != NULL; n++) {
+		if (types[n].kind != KIND_FILE) {
+			fprintf(stderr, "\t%s\n", types[n].cmd);
+		}
+	}
 }
 
 int process(bootimage *img, char *cmd, char *arg) {
