@@ -205,6 +205,8 @@ static void arm_basic_setup(void)
     sctlr &= ~(1<<14); /* random cache/tlb replacement */
     sctlr &= ~(1<<25); /* E bit set to 0 on exception */
     sctlr &= ~(1<<30); /* no thumb exceptions */
+    sctlr |=  (1<<22); /* enable unaligned access */
+    sctlr &= ~(1<<1);  /* disable alignment abort */
 
     arm_write_sctlr(sctlr);
 
