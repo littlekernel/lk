@@ -227,10 +227,10 @@
 #define MMU_MAIR_ATTR1                  MMU_MAIR_ATTR(1, 0x04)
 #define MMU_PTE_ATTR_DEVICE             MMU_PTE_ATTR_ATTR_INDEX(1)
 
-/* Normal Memory, Outer Write-though non-transient No-allocate,
+/* Normal Memory, Outer Write-back non-transient Read/Write allocate,
  * Inner Write-back non-transient Read/Write allocate
  */
-#define MMU_MAIR_ATTR2                  MMU_MAIR_ATTR(2, 0x8f)
+#define MMU_MAIR_ATTR2                  MMU_MAIR_ATTR(2, 0xff)
 #define MMU_PTE_ATTR_NORMAL_MEMORY      MMU_PTE_ATTR_ATTR_INDEX(2)
 
 #define MMU_MAIR_ATTR3                  (0)
