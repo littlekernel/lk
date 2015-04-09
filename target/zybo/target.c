@@ -23,10 +23,12 @@
  */
 
 #include <stdio.h>
-#include <kernel/vm.h>
+#include <dev/gpio.h>
 #include <lib/pktbuf.h>
+#include <kernel/vm.h>
 #include <platform/zynq.h>
 #include <platform/gem.h>
+#include <target/gpioconfig.h>
 
 #define ZYNQ_PKTBUF_CNT 128
 
@@ -180,6 +182,8 @@ const zynq_clk_cfg_t zynq_clk_cfg = {
 
 void target_early_init(void)
 {
+    gpio_config(GPIO_LEDY, GPIO_OUTPUT);
+    gpio_set(GPIO_LEDY, 0);
 }
 
 void target_init(void)
@@ -207,3 +211,11 @@ void target_init(void)
     pktbuf_create_bufs((void *)buf_vaddr, ZYNQ_PKTBUF_CNT * sizeof(pktbuf_buf_t));
     gem_init(GEM0_BASE);
 }
+
+void target_set_debug_led(unsigned int led, bool on)
+{
+    if (led == 0) {
+        gpio_set(GPIO_LEDY, on);
+    }
+}
+
