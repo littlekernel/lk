@@ -188,6 +188,11 @@ static inline int atomic_swap(volatile int *ptr, int val)
 
 static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 {
+#if USE_GCC_ATOMICS
+    __atomic_compare_exchange_n(ptr, &oldval, newval, false,
+                                __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+    return oldval;
+#else
     int old;
     int test;
 
@@ -210,6 +215,7 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
     } while (test != 0);
 
     return old;
+#endif
 }
 
 static inline uint32_t arch_cycle_count(void)
