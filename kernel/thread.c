@@ -267,11 +267,13 @@ status_t thread_resume(thread_t *t)
 #endif
 
 	bool resched = false;
+	bool ints_disabled = arch_ints_disabled();
 	THREAD_LOCK(state);
 	if (t->state == THREAD_SUSPENDED) {
 		t->state = THREAD_READY;
 		insert_in_run_queue_head(t);
-		resched = true;
+		if (!ints_disabled) /* HACK, don't resced into bootstrap thread before idle thread is set up */
+			resched = true;
 	}
 
 	mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
