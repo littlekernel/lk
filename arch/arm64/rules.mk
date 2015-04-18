@@ -32,10 +32,14 @@ GLOBAL_DEFINES += \
 # if its requested we build with SMP, arm generically supports 4 cpus
 ifeq ($(WITH_SMP),1)
 SMP_MAX_CPUS ?= 4
+SMP_CPU_CLUSTER_SHIFT ?= 8
+SMP_CPU_ID_BITS ?= 24 # Ignore aff3 bits for now since they are not next to aff2
 
 GLOBAL_DEFINES += \
     WITH_SMP=1 \
-    SMP_MAX_CPUS=$(SMP_MAX_CPUS)
+    SMP_MAX_CPUS=$(SMP_MAX_CPUS) \
+    SMP_CPU_CLUSTER_SHIFT=$(SMP_CPU_CLUSTER_SHIFT) \
+    SMP_CPU_ID_BITS=$(SMP_CPU_ID_BITS)
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/mp.c

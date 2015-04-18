@@ -68,14 +68,8 @@ arm_reset:
 	/* figure out our cpu number */
 	mrc     p15, 0, r12, c0, c0, 5 /* read MPIDR */
 
-#if 0
-	// XXX handle machines with weird cluster numbers
-	/* mask off the bottom 12 bits to test cluster number:cpu number */
-	ubfx    r12, r12, #0, #12
-#else
-	/* mask off the bottom 8 bits to test cpu number */
-	ubfx    r12, r12, #0, #8
-#endif
+	/* mask off the bottom bits to test cluster number:cpu number */
+	ubfx    r12, r12, #0, #SMP_CPU_ID_BITS
 
 	/* if we're not cpu 0:0, fall into a trap and wait */
 	teq     r12, #0
@@ -361,6 +355,12 @@ FUNCTION(arm_secondary_setup)
 	ldr     r12, [r12]
 	cmp     r12, #0
 	bne     1b
+
+	and	r1, r0, #0xff
+	cmp	r1, #(1 << SMP_CPU_CLUSTER_SHIFT)
+	bge	unsupported_cpu_trap
+	bic	r0, r0, #0xff
+	orr	r0, r1, r0, LSR #(8 - SMP_CPU_CLUSTER_SHIFT)
 
 	cmp		r0, #SMP_MAX_CPUS
 	bge		unsupported_cpu_trap

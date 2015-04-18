@@ -49,7 +49,7 @@ FUNCTION(_start)
 
 #if WITH_SMP
     mrs     cpuid, mpidr_el1
-    bic     cpuid, cpuid, #0xff000000
+    ubfx    cpuid, cpuid, #0, #SMP_CPU_ID_BITS
     cbnz    cpuid, .Lmmu_enable_secondary
 #endif
 
@@ -295,6 +295,12 @@ FUNCTION(_start)
 
 #if WITH_SMP
 .Lsecondary_boot:
+    and     tmp, cpuid, #0xff
+    cmp     tmp, #(1 << SMP_CPU_CLUSTER_SHIFT)
+    bge     .Lunsupported_cpu_trap
+    bic     cpuid, cpuid, #0xff
+    orr     cpuid, tmp, cpuid, LSR #(8 - SMP_CPU_CLUSTER_SHIFT)
+
     cmp     cpuid, #SMP_MAX_CPUS
     bge     .Lunsupported_cpu_trap
 

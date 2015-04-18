@@ -5,6 +5,7 @@ MODULE := $(LOCAL_DIR)
 ARCH := arm
 ARM_CPU := cortex-a7
 WITH_SMP := 1
+SMP_CPU_ID_BITS := 8
 
 MODULE_DEPS := \
 	dev/timer/arm_generic \
