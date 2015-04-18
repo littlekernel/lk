@@ -76,11 +76,6 @@ void arch_init(void)
 
     /* flush the release of the lock, since the secondary cpus are running without cache on */
     arch_clean_cache_range((addr_t)&arm_boot_cpu_lock, sizeof(arm_boot_cpu_lock));
-
-    /* wait for all of the secondary cpus to boot */
-    while (secondaries_to_init > 0) {
-        __asm__ volatile("wfe");
-    }
 #endif
 }
 
