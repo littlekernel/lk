@@ -84,7 +84,7 @@ MODULE_OBJECT := $(call TOBUILDDIR,$(MODULE_SRCDIR).mod.o)
 $(MODULE_OBJECT): $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
 	@$(MKDIR)
 	@echo linking $@
-	$(NOECHO)$(LD) -r $^ -o $@
+	$(NOECHO)$(LD) $(GLOBAL_MODULE_LDFLAGS) -r $^ -o $@
 
 # track all the objects built
 ALLOBJS += $(MODULE_OBJS)
