@@ -8,7 +8,7 @@ PLATFORM := zynq
 ZYNQ_USE_SRAM ?= 1
 
 # we have sdram
-ZYNQ_SDRAM_SIZE := 0x10000000
+ZYNQ_SDRAM_SIZE := 0x20000000
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
