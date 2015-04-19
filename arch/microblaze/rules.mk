@@ -24,7 +24,17 @@ ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := microblaze-elf-
 endif
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(CFLAGS) -print-libgcc-file-name)
+WITH_LINKER_GC ?= 1
+
+LITTLE_ENDIAN ?= 0
+
+ifneq ($(LITTLE_ENDIAN),0)
+GLOBAL_COMPILEFLAGS += -mlittle-endian
+GLOBAL_LDFLAGS += -EL
+GLOBAL_MODULE_LDFLAGS += -EL
+endif
+
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))
 
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
@@ -36,6 +46,7 @@ GLOBAL_LDFLAGS += -relax
 
 KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0
+VECTOR_BASE_PHYS ?= 0
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
@@ -45,7 +56,7 @@ GENERATED += \
 $(BUILDDIR)/linker.ld: $(LOCAL_DIR)/linker.ld $(wildcard arch/*.ld)
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@
+	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/;s/%VECTOR_BASE_PHYS%/$(VECTOR_BASE_PHYS)/" < $< > $@
 
 LINKER_SCRIPT += $(BUILDDIR)/linker.ld
 

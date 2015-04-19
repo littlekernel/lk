@@ -22,19 +22,21 @@
  */
 #pragma once
 
-static inline uint32_t mb_read_msr(void)
-{
-    uint32_t temp;
-    __asm__ volatile(
-        "mfs    %0, rmsr;" : "=r" (temp));
+/* qemu emulates a petalogix s3adsp1800 */
+#define LMB_BRAM_SIZE       (128 * 1024)
+#define FLASH_SIZE          (16 * 1024 * 1024)
 
-    return temp;
-}
+#define ETHLITE_BASEADDR    0x81000000
+#define INTC_BASEADDR       0x81800000
+#define TIMER_BASEADDR      0x83c00000
+#define UARTLITE_BASEADDR   0x84000000
+#define MEMORY_BASEADDR     0x90000000
+#define FLASH_BASEADDR      0xa0000000
 
-static inline void mb_write_msr(uint32_t val)
-{
-    __asm__ volatile(
-        "mts    rmsr, %0" :: "r" (val));
-}
+#define TIMER_IRQ           0
+#define ETHLITE_IRQ         1
+#define UARTLITE_IRQ        3
+#define MAX_INT             4
 
+#define TIMER_RATE (62*1000000)
 

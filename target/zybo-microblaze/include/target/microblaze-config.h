@@ -22,19 +22,18 @@
  */
 #pragma once
 
-static inline uint32_t mb_read_msr(void)
-{
-    uint32_t temp;
-    __asm__ volatile(
-        "mfs    %0, rmsr;" : "=r" (temp));
+/* zybo-microblaze is a project running on zybo */
+#define MDM_BASEADDR        0x40000000
+#define TIMER_BASEADDR      0x40001000
+#define GPIO_BASEADDR       0x40002000
+#define INTC_BASEADDR       0x40003000
+#define UARTLITE_BASEADDR   0x40004000
 
-    return temp;
-}
+#define TIMER_IRQ           0
+#define GPIO_IRQ            1
+#define MDM_IRQ             2
+#define UARTLITE_IRQ        3
+#define MAX_INT             4
 
-static inline void mb_write_msr(uint32_t val)
-{
-    __asm__ volatile(
-        "mts    rmsr, %0" :: "r" (val));
-}
-
+#define TIMER_RATE (100000000)
 
