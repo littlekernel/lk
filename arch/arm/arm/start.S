@@ -148,6 +148,12 @@ arm_reset:
 	ldmia	r5!, { r6-r10 }
 		/* r6 = phys, r7 = virt, r8 = size, r9 = flags, r10 = name */
 
+	/* round size up to 1MB alignment */
+	ubfx		r10, r6, #0, #20
+	add		r8, r8, r10
+	add		r8, r8, #(1 << 20)
+	sub		r8, r8, #1
+
 	/* mask all the addresses and sizes to 1MB boundaries */
 	lsr		r6, #20  /* r6 = physical address / 1MB */
 	lsr		r7, #20  /* r7 = virtual address / 1MB */
