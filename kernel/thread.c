@@ -236,7 +236,7 @@ status_t thread_set_real_time(thread_t *t)
 
 static bool thread_is_realtime(thread_t *t)
 {
-	return !!(t->flags & THREAD_FLAG_REAL_TIME);
+	return (t->flags & THREAD_FLAG_REAL_TIME) && t->priority > DEFAULT_PRIORITY;
 }
 
 static bool thread_is_idle(thread_t *t)
