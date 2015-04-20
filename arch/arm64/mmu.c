@@ -319,7 +319,7 @@ static void arm64_mmu_unmap_pt(vaddr_t vaddr, vaddr_t vaddr_rel,
             else
                 ARM64_TLBI(vae1is, vaddr >> 12 | (vaddr_t)asid << 48);
         } else {
-            TRACEF("pte %p[0x%lx] already clear\n", page_table, index);
+            LTRACEF("pte %p[0x%lx] already clear\n", page_table, index);
         }
         vaddr += chunk_size;
         vaddr_rel += chunk_size;
