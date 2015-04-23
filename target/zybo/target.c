@@ -28,6 +28,8 @@
 #include <kernel/vm.h>
 #include <platform/zynq.h>
 #include <platform/gem.h>
+#include <platform/gpio.h>
+#include <platform/interrupts.h>
 #include <target/gpioconfig.h>
 
 #define ZYNQ_PKTBUF_CNT 128
@@ -186,6 +188,21 @@ void target_early_init(void)
     gpio_set(GPIO_LEDY, 0);
 }
 
+static enum handler_return toggle_ledy(void *arg) {
+    static bool on = false;
+
+    gpio_set(GPIO_LEDY, on);
+    on = !on;
+
+    return INT_NO_RESCHEDULE;
+}
+
+void target_set_debug_led(unsigned int led, bool on)
+{
+    if (led == 0) {
+        gpio_set(GPIO_LEDY, on);
+    }
+}
 void target_init(void)
 {
     paddr_t buf_vaddr;
@@ -210,12 +227,9 @@ void target_init(void)
 
     pktbuf_create_bufs((void *)buf_vaddr, ZYNQ_PKTBUF_CNT * sizeof(pktbuf_buf_t));
     gem_init(GEM0_BASE);
+
+    register_gpio_int_handler(ZYBO_BTN5, toggle_ledy, NULL);
+    zynq_unmask_gpio_interrupt(ZYBO_BTN5);
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
-    if (led == 0) {
-        gpio_set(GPIO_LEDY, on);
-    }
-}
 

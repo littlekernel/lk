@@ -305,13 +305,12 @@ void platform_init_mmu_mappings(void)
 
 void platform_early_init(void)
 {
-    /* Unlock the registers and leave them that way */
 #if 0
     ps7_init();
 #else
+    /* Unlock the registers and leave them that way */
     zynq_slcr_unlock();
     zynq_mio_init();
-    zynq_gpio_init();
     zynq_pll_init();
     zynq_clk_init();
 #if ZYNQ_SDRAM_INIT
@@ -332,6 +331,7 @@ void platform_early_init(void)
 
     /* initialize the interrupt controller */
     arm_gic_init();
+    zynq_gpio_init();
 
     /* initialize the timer block */
     arm_cortex_a9_timer_init(CPUPRIV_BASE, zynq_get_arm_timer_freq());

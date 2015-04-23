@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <platform/interrupts.h>
 #include <platform/zynq.h>
 
 /* GPIO registers are not indexed in a particularly convenient manner, but can be calculated
@@ -46,3 +47,10 @@
 #define GPIO_INT_TYPE(bank)         (GPIO_REGS(bank) + 0x18)
 #define GPIO_INT_POLARITY(bank)     (GPIO_REGS(bank) + 0x1C)
 #define GPIO_INT_ANY(bank)          (GPIO_REGS(bank) + 0x20)
+
+void zynq_unmask_gpio_interrupt(unsigned gpio);
+void zynq_mask_gpio_interrupt(unsigned gpio);
+void zynq_gpio_init(void);
+void zynq_gpio_early_init(void);
+void register_gpio_int_handler(unsigned gpio, int_handler handler, void *args);
+void unregister_gpio_int_handler(unsigned gpio);
