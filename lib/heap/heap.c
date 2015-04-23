@@ -514,8 +514,10 @@ static ssize_t heap_grow(size_t size)
 	size = ROUNDUP(size, PAGE_SIZE);
 
 	void *ptr = pmm_alloc_kpages(size / PAGE_SIZE, NULL);
-	if (!ptr)
+	if (!ptr) {
+		TRACEF("failed to grow kernel heap by 0x%zx bytes\n", size);
 		return ERR_NO_MEMORY;
+	}
 
 	LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
 
