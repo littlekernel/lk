@@ -208,6 +208,8 @@ void target_init(void)
     paddr_t buf_vaddr;
     void *hdr_addr;
 
+    /* TODO: Move into zynq_common once the init order is sorted out with gem_init needing
+     * pktbufs, and app init running after target_init */
     if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf_headers",
             ZYNQ_PKTBUF_CNT * sizeof(pktbuf_buf_t), (void **)&hdr_addr, 0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
         printf("Failed to initialize pktbuf hdr slab\n");
