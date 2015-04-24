@@ -469,6 +469,8 @@ usage:
 }
 
 STATIC_COMMAND_START
+#if LK_DEBUGLEVEL > 1
 STATIC_COMMAND("zynq", "zynq configuration commands", &cmd_zynq)
+#endif
 STATIC_COMMAND_END(zynq);
 #endif // WITH_LIB_CONSOLE
