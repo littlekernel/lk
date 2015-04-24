@@ -108,17 +108,27 @@ struct arm_mode_regs {
 
 void arm_save_mode_regs(struct arm_mode_regs *regs);
 
-#define GEN_CP15_REG_FUNCS(reg, op1, c1, c2, op2) \
+#define GEN_CP_REG_FUNCS(cp, reg, op1, c1, c2, op2) \
 static inline __ALWAYS_INLINE uint32_t arm_read_##reg(void) { \
 	uint32_t val; \
-	__asm__ volatile("mrc p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 : "=r" (val)); \
+	__asm__ volatile("mrc " #cp ", " #op1 ", %0, " #c1 ","  #c2 "," #op2 : "=r" (val)); \
 	return val; \
 } \
 \
 static inline __ALWAYS_INLINE void arm_write_##reg(uint32_t val) { \
-	__asm__ volatile("mcr p15, " #op1 ", %0, " #c1 ","  #c2 "," #op2 :: "r" (val)); \
+	__asm__ volatile("mcr " #cp ", " #op1 ", %0, " #c1 ","  #c2 "," #op2 :: "r" (val)); \
 	ISB; \
+} \
+\
+static inline __ALWAYS_INLINE void arm_write_##reg##_relaxed(uint32_t val) { \
+	__asm__ volatile("mcr " #cp ", " #op1 ", %0, " #c1 ","  #c2 "," #op2 :: "r" (val)); \
 }
+
+#define GEN_CP15_REG_FUNCS(reg, op1, c1, c2, op2) \
+    GEN_CP_REG_FUNCS(p15, reg, op1, c1, c2, op2)
+
+#define GEN_CP14_REG_FUNCS(reg, op1, c1, c2, op2) \
+    GEN_CP_REG_FUNCS(p14, reg, op1, c1, c2, op2)
 
 /* armv6+ control regs */
 GEN_CP15_REG_FUNCS(sctlr, 0, c1, c0, 0);
@@ -172,6 +182,42 @@ GEN_CP15_REG_FUNCS(tlbiall, 0, c8, c7, 0);
 GEN_CP15_REG_FUNCS(tlbimva, 0, c8, c7, 1);
 GEN_CP15_REG_FUNCS(tlbiasid, 0, c8, c7, 2);
 GEN_CP15_REG_FUNCS(tlbimvaa, 0, c8, c7, 3);
+
+/* debug registers */
+GEN_CP14_REG_FUNCS(dbddidr, 0, c0, c0, 0);
+GEN_CP14_REG_FUNCS(dbgdrar, 0, c1, c0, 0);
+GEN_CP14_REG_FUNCS(dbgdsar, 0, c2, c0, 0);
+GEN_CP14_REG_FUNCS(dbgdscr, 0, c0, c1, 0);
+GEN_CP14_REG_FUNCS(dbgdtrtxint, 0, c0, c5, 0);
+GEN_CP14_REG_FUNCS(dbgdtrrxint, 0, c0, c5, 0); /* alias to previous */
+GEN_CP14_REG_FUNCS(dbgwfar, 0, c0, c6, 0);
+GEN_CP14_REG_FUNCS(dbgvcr, 0, c0, c7, 0);
+GEN_CP14_REG_FUNCS(dbgecr, 0, c0, c9, 0);
+GEN_CP14_REG_FUNCS(dbgdsccr, 0, c0, c10, 0);
+GEN_CP14_REG_FUNCS(dbgdsmcr, 0, c0, c11, 0);
+GEN_CP14_REG_FUNCS(dbgdtrrxext, 0, c0, c0, 2);
+GEN_CP14_REG_FUNCS(dbgdscrext, 0, c0, c2, 2);
+GEN_CP14_REG_FUNCS(dbgdtrtxext, 0, c0, c3, 2);
+GEN_CP14_REG_FUNCS(dbgdrcr, 0, c0, c4, 2);
+GEN_CP14_REG_FUNCS(dbgvr0, 0, c0, c0, 4);
+GEN_CP14_REG_FUNCS(dbgvr1, 0, c0, c1, 4);
+GEN_CP14_REG_FUNCS(dbgvr2, 0, c0, c2, 4);
+GEN_CP14_REG_FUNCS(dbgbcr0, 0, c0, c0, 5);
+GEN_CP14_REG_FUNCS(dbgbcr1, 0, c0, c1, 5);
+GEN_CP14_REG_FUNCS(dbgbcr2, 0, c0, c2, 5);
+GEN_CP14_REG_FUNCS(dbgwvr0, 0, c0, c0, 6);
+GEN_CP14_REG_FUNCS(dbgwvr1, 0, c0, c1, 6);
+GEN_CP14_REG_FUNCS(dbgwcr0, 0, c0, c0, 7);
+GEN_CP14_REG_FUNCS(dbgwcr1, 0, c0, c1, 7);
+GEN_CP14_REG_FUNCS(dbgoslar, 0, c1, c0, 4);
+GEN_CP14_REG_FUNCS(dbgoslsr, 0, c1, c1, 4);
+GEN_CP14_REG_FUNCS(dbgossrr, 0, c1, c2, 4);
+GEN_CP14_REG_FUNCS(dbgprcr, 0, c1, c4, 4);
+GEN_CP14_REG_FUNCS(dbgprsr, 0, c1, c5, 4);
+GEN_CP14_REG_FUNCS(dbgclaimset, 0, c7, c8, 6);
+GEN_CP14_REG_FUNCS(dbgclaimclr, 0, c7, c9, 6);
+GEN_CP14_REG_FUNCS(dbgauthstatus, 0, c7, c14, 6);
+GEN_CP14_REG_FUNCS(dbgdevid, 0, c7, c2, 7);
 
 /* fpu */
 void arm_fpu_set_enable(bool enable);

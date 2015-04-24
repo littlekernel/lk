@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Brian Swetland
+ * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,13 +21,17 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __ARCH_ARM_DCC_H
-#define __ARCH_ARM_DCC_H
+#pragma once
 
-/* returns < 0 if no data available */
-int dcc_getc(void);
+#include <sys/types.h>
+#include <stdint.h>
 
-/* returns < 0 if output register was already full */
-int dcc_putc(unsigned c);
+/* dcc */
+typedef void (*dcc_rx_callback_t)(uint32_t val);
 
-#endif
+status_t arm_dcc_enable(dcc_rx_callback_t rx_callback);
+
+bool arm_dcc_read_available(void);
+ssize_t arm_dcc_read(uint32_t *buf, size_t len, lk_time_t timeout);
+ssize_t arm_dcc_write(const uint32_t *buf, size_t len, lk_time_t timeout);
+
