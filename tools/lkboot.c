@@ -44,6 +44,10 @@ void usage(void) {
 "       lkboot <hostname> reboot\n"
 "       lkboot <hostname> :<commandname> [ <arg>* ]\n"
 "\n"
+"NOTE: If <hostname> is 'jtag', lkboot will attempt to use\n"
+"       a tool 'zynq-dcc' to communicate with the device.\n"
+"       Make sure it is in your path.\n"
+"\n"
 	);
 	exit(1);
 }
@@ -54,14 +58,14 @@ void printsysparam(void *data, int len) {
 	for (i = 0; i < len; i++) {
 		if ((x[i] < ' ') || (x[1] > 127)) goto printhex;
 	}
-	write(1, "\"", 1);
-	write(1, data, len);
-	write(1, "\"\n", 2);
+	write(STDERR_FILENO, "\"", 1);
+	write(STDERR_FILENO, data, len);
+	write(STDERR_FILENO, "\"\n", 2);
 	return;
 printhex:
-	printf("[");
-	for (i = 0; i < len; i++) printf(" %02x", x[i]);
-	printf(" ]\n");
+	fprintf(stderr, "[");
+	for (i = 0; i < len; i++) fprintf(stderr, " %02x", x[i]);
+	fprintf(stderr, " ]\n");
 }
 
 int main(int argc, char **argv) {
