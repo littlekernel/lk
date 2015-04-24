@@ -22,26 +22,32 @@
  */
 #pragma once
 
-#include <sys/types.h>
-#include <app/lkboot.h>
-#include "lkboot_protocol.h"
+#include <stdint.h>
 
-/* private to lkboot app */
+/* in memory and DCC descriptors for the PDCC protocol */
 
-int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len, const char **result);
+/* shared outside of lk repository, be careful of modifications */
+#define PDCC_VERSION 1
 
-status_t do_flash_boot(void);
+struct pdcc_buffer_descriptor {
+    uint32_t version;
 
-typedef ssize_t lkb_read_hook(void *s, void *data, size_t len);
-typedef ssize_t lkb_write_hook(void *s, const void *data, size_t len);
+    uint32_t htod_buffer_phys;
+    uint32_t htod_buffer_len;
 
-lkb_t *lkboot_create_lkb(void *cookie, lkb_read_hook *read, lkb_write_hook *write);
-status_t lkboot_process_command(lkb_t *);
+    uint32_t dtoh_buffer_phys;
+    uint32_t dtoh_buffer_len;
+};
 
-/* inet server */
-lkb_t *lkboot_tcp_opened(void *s);
+#define PDCC_VALID (1<<31)
+#define PDCC_OPCODE_SHIFT (24)
+#define PDCC_OPCODE(x) (((x) >> PDCC_OPCODE_SHIFT) & 0x7f)
+#define PDCC_DATA(x) ((x) & 0x00ffffff);
 
-/* dcc based server */
-void lkboot_dcc_init(void);
-lkb_t *lkboot_check_dcc_open(void);
+enum {
+    PDCC_OP_RESET = 0,
+    PDCC_OP_BUF_HEADER,
+    PDCC_OP_UPDATE_OUT_INDEX,
+    PDCC_OP_CONSUMED_IN,
+};
 

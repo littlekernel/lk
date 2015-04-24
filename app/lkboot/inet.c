@@ -20,28 +20,47 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#pragma once
 
-#include <sys/types.h>
+#if WITH_LIB_MINIP
+#include <app.h>
+
+#include <platform.h>
+#include <stdio.h>
+#include <debug.h>
+#include <string.h>
+#include <pow2.h>
+#include <err.h>
+#include <assert.h>
+#include <trace.h>
+
 #include <app/lkboot.h>
-#include "lkboot_protocol.h"
 
-/* private to lkboot app */
+#include "lkboot.h"
 
-int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len, const char **result);
+#include <lib/minip.h>
 
-status_t do_flash_boot(void);
+#define LOCAL_TRACE 0
 
-typedef ssize_t lkb_read_hook(void *s, void *data, size_t len);
-typedef ssize_t lkb_write_hook(void *s, const void *data, size_t len);
+static ssize_t tcp_readx(void *s, void *_data, size_t len) {
+    char *data = _data;
+    while (len > 0) {
+        int r = tcp_read(s, data, len);
+        if (r <= 0) return -1;
+        data += r;
+        len -= r;
+    }
+    return 0;
+}
 
-lkb_t *lkboot_create_lkb(void *cookie, lkb_read_hook *read, lkb_write_hook *write);
-status_t lkboot_process_command(lkb_t *);
+lkb_t *lkboot_tcp_opened(void *s)
+{
+    lkb_t *lkb;
 
-/* inet server */
-lkb_t *lkboot_tcp_opened(void *s);
+    lkb = lkboot_create_lkb(s, tcp_readx, (void *)tcp_write);
+    if (!lkb)
+        return NULL;
 
-/* dcc based server */
-void lkboot_dcc_init(void);
-lkb_t *lkboot_check_dcc_open(void);
+    return lkb;
+}
 
+#endif
