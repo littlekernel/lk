@@ -235,7 +235,7 @@ lkb_t *lkboot_check_dcc_open(void)
 void lkboot_dcc_init(void)
 {
     paddr_t pa;
-    status_t err;
+    __UNUSED status_t err;
 
     buffer_desc.version = PDCC_VERSION;
 

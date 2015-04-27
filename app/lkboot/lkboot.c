@@ -34,6 +34,8 @@
 #include <assert.h>
 #include <trace.h>
 
+#include <lib/sysparam.h>
+
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 
@@ -44,8 +46,12 @@
 #include <lib/minip.h>
 #endif
 
+#ifndef LKBOOT_WITH_SERVER
 #define LKBOOT_WITH_SERVER 1
-#define LKBOOT_SERVER_TIMEOUT 5000
+#endif
+#ifndef LKBOOT_AUTOBOOT_TIMEOUT
+#define LKBOOT_AUTOBOOT_TIMEOUT 5000
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -54,6 +60,8 @@
 #define STATE_RESP 2
 #define STATE_DONE 3
 #define STATE_ERROR 4
+
+static lk_time_t autoboot_timeout = LKBOOT_AUTOBOOT_TIMEOUT;
 
 typedef struct LKB {
     lkb_read_hook *read;
@@ -221,6 +229,11 @@ fail:
 
 static status_t lkboot_server(bool wait_forever)
 {
+    /* if we're not going to autoboot, stay here forever */
+    if (autoboot_timeout == INFINITE_TIME) {
+        wait_forever = true;
+    }
+
     lkboot_dcc_init();
 
 #if WITH_LIB_MINIP
@@ -272,7 +285,7 @@ static status_t lkboot_server(bool wait_forever)
 
         /* see if we need to drop out and try to direct boot */
         if (!wait_forever) {
-            if (current_time() - t >= LKBOOT_SERVER_TIMEOUT) {
+            if (current_time() - t >= autoboot_timeout) {
                 break;
             }
         }
@@ -289,8 +302,25 @@ static status_t lkboot_server(bool wait_forever)
 
 static void lkboot_task(const struct app_descriptor *app, void *args)
 {
+    /* read a few sysparams to decide if we're going to autoboot */
+    uint8_t autoboot = 1;
+    sysparam_read("lkboot.autoboot", &autoboot, sizeof(autoboot));
+
+    if (!autoboot) {
+        autoboot_timeout = INFINITE_TIME;
+    } else {
+        sysparam_read("lkboot.autoboot_timeout", &autoboot_timeout, sizeof(autoboot_timeout));
+    }
+
+    TRACEF("autoboot %u autoboot_timeout %d\n", autoboot, autoboot_timeout);
+
 #if LKBOOT_WITH_SERVER
     lkboot_server(false);
+#else
+    if (autoboot_timeout != INFINITE_TIME) {
+        TRACEF("waiting for %u milliseconds before autobooting\n", autoboot_timeout);
+        thread_sleep(autoboot_timeout);
+    }
 #endif
 
     TRACEF("trying to boot from flash...\n");
