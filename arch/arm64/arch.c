@@ -94,8 +94,12 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 }
 
 #if WITH_SMP
-void arm64_secondary_entry(void)
+void arm64_secondary_entry(ulong asm_cpu_num)
 {
+    uint cpu = arch_curr_cpu_num();
+    if (cpu != asm_cpu_num)
+        return;
+
     arm64_cpu_early_init();
 
     spin_lock(&arm_boot_cpu_lock);
@@ -106,7 +110,7 @@ void arm64_secondary_entry(void)
 
     arch_mp_init_percpu();
 
-    LTRACEF("cpu num %d\n", arch_curr_cpu_num());
+    LTRACEF("cpu num %d\n", cpu);
 
     /* we're done, tell the main cpu we're up */
     atomic_add(&secondaries_to_init, -1);

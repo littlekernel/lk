@@ -144,8 +144,12 @@ void arch_init(void)
 }
 
 #if WITH_SMP
-void arm_secondary_entry(void)
+void arm_secondary_entry(uint asm_cpu_num)
 {
+	uint cpu = arch_curr_cpu_num();
+	if (cpu != asm_cpu_num)
+		return;
+
 	arm_basic_setup();
 
 	/* enable the local L1 cache */
@@ -162,7 +166,7 @@ void arm_secondary_entry(void)
 
 	arch_mp_init_percpu();
 
-	LTRACEF("cpu num %d\n", arch_curr_cpu_num());
+	LTRACEF("cpu num %d\n", cpu);
 	LTRACEF("sctlr 0x%x\n", arm_read_sctlr());
 	LTRACEF("actlr 0x%x\n", arm_read_actlr());
 

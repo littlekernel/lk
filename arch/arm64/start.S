@@ -310,6 +310,7 @@ FUNCTION(_start)
     mul     tmp2, tmp2, cpuid
     sub     sp, tmp, tmp2
 
+    mov     x0, cpuid
     bl      arm64_secondary_entry
 
 .Lunsupported_cpu_trap:

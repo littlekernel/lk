@@ -364,6 +364,7 @@ FUNCTION(arm_secondary_setup)
 
 	cmp		r0, #SMP_MAX_CPUS
 	bge		unsupported_cpu_trap
+	mov		r5, r0 /* save cpu num */
 
 	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
 	ldr		r1, =abort_stack
@@ -412,6 +413,7 @@ FUNCTION(arm_secondary_setup)
 #endif
 
 	/* stay in supervisor and call into arm arch code to continue setup */
+	mov		r0, r5
 	bl		arm_secondary_entry
 
 	/* cpus above the number we claim to support get trapped here */
