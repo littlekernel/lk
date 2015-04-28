@@ -431,10 +431,12 @@ static thread_t *get_top_thread(int cpu)
 {
 	thread_t *newthread;
 	uint32_t local_run_queue_bitmap = run_queue_bitmap;
-	int next_queue;
+	uint next_queue;
 
 	while (local_run_queue_bitmap) {
-		next_queue = HIGHEST_PRIORITY - __builtin_clz(local_run_queue_bitmap) - (32 - NUM_PRIORITIES);
+		/* find the first (remaining) queue with a thread in it */
+		next_queue = HIGHEST_PRIORITY - __builtin_clz(local_run_queue_bitmap)
+			- (sizeof(run_queue_bitmap) * 8 - NUM_PRIORITIES);
 
 		list_for_every_entry(&run_queue[next_queue], newthread, thread_t, queue_node) {
 			if (newthread->pinned_cpu < 0 || newthread->pinned_cpu == cpu) {
@@ -449,7 +451,8 @@ static thread_t *get_top_thread(int cpu)
 
 		local_run_queue_bitmap &= ~(1<<next_queue);
 	}
-	return NULL;
+	/* no threads to run, select the idle thread for this cpu */
+	return &idle_threads[cpu];
 }
 
 /**
@@ -479,10 +482,6 @@ void thread_resched(void)
 	THREAD_STATS_INC(reschedules);
 
 	newthread = get_top_thread(cpu);
-	if (unlikely(!newthread)) {
-		/* no threads to run, select the idle thread for this cpu */
-		newthread = &idle_threads[cpu];
-	}
 
 #if THREAD_CHECKS
 	ASSERT(newthread);
