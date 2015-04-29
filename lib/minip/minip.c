@@ -317,7 +317,7 @@ status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto)
 
     dst_mac = get_dest_mac(dest_addr);
     if (!dst_mac) {
-        pktbuf_free(p);
+        pktbuf_free(p, true);
         ret = -EHOSTUNREACH;
         goto err;
     }

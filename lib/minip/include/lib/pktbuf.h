@@ -76,7 +76,8 @@ static inline u32 pktbuf_avail_tail(pktbuf_t *p) {
 pktbuf_t *pktbuf_alloc(void);
 
 // return packet buffer to buffer pool
-void pktbuf_free(pktbuf_t *p);
+// returns number of threads woken up
+int pktbuf_free(pktbuf_t *p, bool reschedule);
 
 // extend buffer by sz bytes, copied from data
 void pktbuf_append_data(pktbuf_t *p, const void *data, size_t sz);

@@ -100,17 +100,20 @@ static void debug_rx_handler(pktbuf_t *p)
     }
 }
 
-static void free_completed_pbuf_frame(void) {
+static int free_completed_pbuf_frame(void) {
     pktbuf_t *p;
     bool eof;
+    int ret = 0;
 
     if (!list_is_empty(&queued_pbufs)) {
         do {
             p = list_remove_head_type(&queued_pbufs, pktbuf_t, list);
             eof = p->eof;
-            pktbuf_free(p);
+            ret += pktbuf_free(p, false);
         } while (!eof);
     }
+
+    return ret;
 }
 
 void queue_pkts_in_tx_tbl(void) {
@@ -201,7 +204,9 @@ enum handler_return gem_int_handler(void *arg) {
 
     /* A frame has been completed so we can clean up ownership of its buffers */
     if (intr_status & INTR_TX_COMPLETE) {
-        free_completed_pbuf_frame();
+        if (free_completed_pbuf_frame() > 0) {
+            resched = true;
+        }
         regs->tx_status |= TX_STATUS_COMPLETE;
     }
 

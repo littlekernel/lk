@@ -138,7 +138,7 @@ pktbuf_t *pktbuf_alloc_empty(void *buf, size_t dlen) {
 	return p;
 }
 
-void pktbuf_free(pktbuf_t *p) {
+int pktbuf_free(pktbuf_t *p, bool reschedule) {
 	enter_critical_section();
 	list_add_tail(&pb_freelist, &(p->list));
 	if (p->managed && p->buffer) {
@@ -151,7 +151,7 @@ void pktbuf_free(pktbuf_t *p) {
 	p->managed = false;
 	exit_critical_section();
 
-	sem_post(&pb_sem, true);
+	return sem_post(&pb_sem, reschedule);
 }
 
 void pktbuf_append_data(pktbuf_t *p, const void *data, size_t sz) {
