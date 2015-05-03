@@ -257,7 +257,7 @@ status_t spiflash_detect(void)
 	memset(r, 0, sizeof(r));
 	spiflash_read_otp(r, 0, 16);
 
-	TRACEF("OTP random %08x%08x%08x%08x\n", r[0], r[1], r[2], r[3]);
+	LTRACEF("OTP random %08x%08x%08x%08x\n", r[0], r[1], r[2], r[3]);
 	rand_add_entropy(r, sizeof(r));
 
 	flash.detected = true;

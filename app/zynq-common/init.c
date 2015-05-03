@@ -74,20 +74,24 @@ static void zybo_common_target_init(uint level)
             }
 #endif
 
+#if LK_DEBUGLEVEL > 1
             sysparam_dump(true);
+#endif
         }
 
         /* create bootloader partition if it does not exist */
         ptable_add("bootloader", 0x20000, 0x40000, 0);
 
+#if LK_DEBUGLEVEL > 1
         printf("flash partition table:\n");
         ptable_dump();
+#endif
     }
 
     /* recover boot arguments */
     const char *cmdline = bootargs_get_command_line();
     if (cmdline) {
-        printf("command line: '%s'\n", cmdline);
+        printf("lk command line: '%s'\n", cmdline);
     }
 
     /* see if we came from a bootimage */
