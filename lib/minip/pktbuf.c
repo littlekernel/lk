@@ -29,12 +29,18 @@
 #include <kernel/thread.h>
 #include <kernel/semaphore.h>
 #include <lib/pktbuf.h>
+#include <lk/init.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #endif
 
 #define LOCAL_TRACE 0
+
+/* default number of packet buffers */
+#ifndef PKTBUF_COUNT
+#define PKTBUF_COUNT 128
+#endif
 
 static struct list_node pb_freelist = LIST_INITIAL_VALUE(pb_freelist);
 static struct list_node pb_buflist = LIST_INITIAL_VALUE(pb_buflist);
@@ -212,4 +218,43 @@ void pktbuf_dump(pktbuf_t *p) {
 			p->id, p->data, p->buffer, p->dlen, (uintptr_t) p->data - (uintptr_t) p->buffer,
 			(void *)p->phys_base, p->managed);
 }
+
+static void pktbuf_init(uint level)
+{
+	void *buf;
+
+#if LK_DEBUGLEVEL > 0
+	printf("pktbuf: creating %u packet buffers (%zu/%zu bytes header/buffers)\n",
+		PKTBUF_COUNT, PKTBUF_COUNT * sizeof(pktbuf_t), PKTBUF_COUNT * sizeof(pktbuf_buf_t));
+#endif
+
+#if WITH_KERNEL_VM
+	if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf_headers",
+			PKTBUF_COUNT * sizeof(pktbuf_t), &buf, 0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
+		printf("Failed to initialize pktbuf hdr slab\n");
+		return;
+	}
+#else
+	buf = malloc(PKTBUF_COUNT * sizeof(pktbuf_t));
+#endif
+
+	for (size_t i = 0; i < PKTBUF_COUNT; i++) {
+		pktbuf_create((char *)buf + i * sizeof(pktbuf_t), sizeof(pktbuf_t));
+	}
+
+#if WITH_KERNEL_VM
+	if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf_buffers",
+			PKTBUF_COUNT * sizeof(pktbuf_buf_t), &buf, 0, 0, ARCH_MMU_FLAG_UNCACHED) < 0) {
+		printf("Failed to initialize pktbuf vm slab\n");
+		return;
+	}
+#else
+	buf = memalign(CACHE_LINE, PKTBUF_COUNT * sizeof(pktbuf_buf_t));
+#endif
+
+	pktbuf_create_bufs(buf, PKTBUF_COUNT * sizeof(pktbuf_buf_t));
+}
+
+LK_INIT_HOOK(pktbuf, pktbuf_init, LK_INIT_LEVEL_THREADING);
+
 // vim: set noexpandtab:

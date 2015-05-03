@@ -28,8 +28,6 @@
 #include <platform/zynq.h>
 #include <platform/gem.h>
 
-#define ZYNQ_PKTBUF_CNT 128
-
 zynq_pll_cfg_tree_t zynq_pll_cfg = {
     .arm = {
         .lock_cnt = 250,
@@ -185,29 +183,6 @@ void target_early_init(void)
 
 void target_init(void)
 {
-    paddr_t buf_vaddr;
-    void *hdr_addr;
-
-    /* TODO: Move into zynq_common once the init order is sorted out with gem_init needing
-     * pktbufs, and app init running after target_init */
-    if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf_headers",
-            ZYNQ_PKTBUF_CNT * sizeof(pktbuf_buf_t), (void **)&hdr_addr, 0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
-        printf("Failed to initialize pktbuf hdr slab\n");
-        return;
-    }
-
-    for (size_t i = 0; i < ZYNQ_PKTBUF_CNT; i++) {
-        pktbuf_create((void *)hdr_addr, sizeof(pktbuf_t));
-        hdr_addr += sizeof(pktbuf_t);
-    }
-
-    if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf_buffers",
-            ZYNQ_PKTBUF_CNT * sizeof(pktbuf_buf_t), (void **)&buf_vaddr, 0, 0, ARCH_MMU_FLAG_UNCACHED) < 0) {
-        printf("Failed to initialize pktbuf vm slab\n");
-        return;
-    }
-
-    pktbuf_create_bufs((void *)buf_vaddr, ZYNQ_PKTBUF_CNT * sizeof(pktbuf_buf_t));
     gem_init(GEM0_BASE);
 }
 
