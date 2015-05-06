@@ -32,12 +32,14 @@
 #include <string.h>
 #include <malloc.h>
 #include <trace.h>
+#include <bits.h>
 #include <pow2.h>
 #include <sys/types.h>
 #include <lib/cbuf.h>
 #include <kernel/timer.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
+#include <kernel/debug.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/gem.h>
@@ -48,14 +50,10 @@
 #include <lib/pktbuf.h>
 
 #define LOCAL_TRACE         0
-#define GEM_RX_BUF_CNT      64
+#define GEM_RX_BUF_CNT      32
 #define GEM_TX_BUF_CNT      32
 #define GEM_RX_BUF_SIZE     1536
 #define GEM_TX_BUF_SIZE     1536
-
-struct list_node tx_queue;
-struct list_node queued_pbufs;
-gem_cb_t rx_callback = NULL;
 
 struct gem_desc {
     uint32_t addr;
@@ -68,18 +66,22 @@ struct gem_desc {
  *  entry in the table points to a buffer in the pktbuf. rx_tbl[X]'s pktbuf is stored in rx_pbufs[X]
  *
  * TX:
- *  The current position to write new tx descriptors to is maintained by tx_pos. As frames are
+ *  The current position to write new tx descriptors to is maintained by tx_head. As frames are
  *  queued in tx_tbl their pktbufs are stored in the list queued_pbufs. As frame transmission is
  *  completed these pktbufs are released back to the pool by the interrupt handler for TX_COMPLETE
  */
 struct gem_state {
     struct gem_desc rx_tbl[GEM_RX_BUF_CNT];
     struct gem_desc tx_tbl[GEM_TX_BUF_CNT];
-    pktbuf_t *rx_pbufs[GEM_RX_BUF_CNT];
-    unsigned int tx_pos;
 };
 
-
+static pktbuf_t *rx_pbufs[GEM_RX_BUF_CNT];
+static unsigned int tx_head;
+static unsigned int tx_tail;
+static unsigned int tx_count;
+static struct list_node tx_queue;
+static struct list_node queued_pbufs;
+static gem_cb_t rx_callback = NULL;
 static event_t rx_pending;
 static event_t tx_complete;
 static bool debug_rx = false;
@@ -94,23 +96,26 @@ static void debug_rx_handler(pktbuf_t *p)
     printf("[%10lu] packet %u, %zu bytes:\n", current_time(), ++pkt, p->dlen);
     hexdump8(p->data, p->dlen);
     putchar('\n');
-
-    if (rx_callback) {
-        rx_callback(p);
-    }
 }
 
-static int free_completed_pbuf_frame(void) {
-    pktbuf_t *p;
-    bool eof;
+static int free_completed_pbuf_frames(void) {
     int ret = 0;
 
-    if (!list_is_empty(&queued_pbufs)) {
+    regs->tx_status = regs->tx_status;
+
+    while (tx_count > 0 &&
+            (state->tx_tbl[tx_tail].ctrl & TX_DESC_USED)) {
+
+        bool eof;
         do {
-            p = list_remove_head_type(&queued_pbufs, pktbuf_t, list);
+            pktbuf_t *p = list_remove_head_type(&queued_pbufs, pktbuf_t, list);
+            DEBUG_ASSERT(p);
             eof = p->eof;
             ret += pktbuf_free(p, false);
         } while (!eof);
+
+        tx_tail = (tx_tail + 1) % GEM_TX_BUF_CNT;
+        tx_count--;
     }
 
     return ret;
@@ -125,26 +130,34 @@ void queue_pkts_in_tx_tbl(void) {
         goto exit;
     }
 
+    // XXX handle multi part buffers
+
     /* Queue packets in the descriptor table until we're either out of space in the table
      * or out of packets in our tx queue. Any packets left will remain in the list and be
      * processed the next time available */
-    while ((state->tx_tbl[state->tx_pos].ctrl & TX_DESC_USED) &&
+    while (tx_count < GEM_TX_BUF_CNT &&
             ((p = list_remove_head_type(&tx_queue, pktbuf_t, list)) != NULL)) {
-        cur_pos = state->tx_pos;
+        cur_pos = tx_head;
 
-        state->tx_tbl[cur_pos].addr = pktbuf_data_phys(p);
-        state->tx_tbl[cur_pos].ctrl &= TX_DESC_WRAP; /* Protect the wrap bit the table's end */
-        state->tx_tbl[cur_pos].ctrl |= TX_BUF_LEN(p->dlen);
+        uint32_t addr = pktbuf_data_phys(p);
+        uint32_t ctrl = state->tx_tbl[cur_pos].ctrl & TX_DESC_WRAP; /* protect the wrap bit */
+        ctrl |= TX_BUF_LEN(p->dlen);
 
-        /* Mark end of frame for if we've reached the end of a pktbuf chain */
+        DEBUG_ASSERT(p->eof); // a multi part buffer would have caused a race condition w/hardware
         if (p->eof) {
-            state->tx_tbl[cur_pos].ctrl |= TX_LAST_BUF;
+            ctrl |= TX_LAST_BUF;
         }
 
-        state->tx_pos = (state->tx_pos + 1) % GEM_TX_BUF_CNT;
+        /* fill in the descriptor, control word last (in case hardware is racing us) */
+        state->tx_tbl[cur_pos].addr = addr;
+        state->tx_tbl[cur_pos].ctrl = ctrl;
+
+        tx_head = (tx_head + 1) % GEM_TX_BUF_CNT;
+        tx_count++;
         list_add_tail(&queued_pbufs, &p->list);
     }
 
+    DMB;
     regs->net_ctrl |= NET_CTRL_START_TX;
 
 exit:
@@ -154,12 +167,17 @@ exit:
 int gem_send_raw_pkt(struct pktbuf *p)
 {
     status_t ret = NO_ERROR;
-    struct list_node pbuf_head = LIST_INITIAL_VALUE(pbuf_head);
 
     if (!p || !p->dlen) {
         ret = -1;
         goto err;
     }
+
+    /* make sure the output buffer is fully written to memory before
+     * placing on the outgoing list. */
+
+    // XXX handle multi part buffers
+    arch_clean_cache_range((vaddr_t)p->data, p->dlen);
 
     enter_critical_section();
     list_add_tail(&tx_queue, &p->list);
@@ -177,46 +195,55 @@ enum handler_return gem_int_handler(void *arg) {
 
     intr_status = regs->intr_status;
 
-    // Received an RX complete
-    if (intr_status & INTR_RX_COMPLETE) {
-        event_signal(&rx_pending, false);
+    while (intr_status) {
+        // clear any pending status
+        regs->intr_status = intr_status;
 
-        regs->rx_status |= INTR_RX_COMPLETE;
+        // Received an RX complete
+        if (intr_status & INTR_RX_COMPLETE) {
+            event_signal(&rx_pending, false);
 
-        resched = true;
-    }
+            regs->rx_status |= INTR_RX_COMPLETE;
 
-    if (intr_status & INTR_RX_USED_READ) {
-
-        for (int i = 0; i < GEM_RX_BUF_CNT; i++) {
-            state->rx_tbl[i].addr &= ~RX_DESC_USED;
-        }
-
-        regs->rx_status &= ~RX_STATUS_BUFFER_NOT_AVAIL;
-        regs->net_ctrl &= ~NET_CTRL_RX_EN;
-        regs->net_ctrl |= NET_CTRL_RX_EN;
-        printf("GEM overflow, dumping pending packets\n");
-    }
-
-    if (intr_status & INTR_TX_CORRUPT) {
-        printf("tx ahb error!\n");
-    }
-
-    /* A frame has been completed so we can clean up ownership of its buffers */
-    if (intr_status & INTR_TX_COMPLETE) {
-        if (free_completed_pbuf_frame() > 0) {
             resched = true;
         }
-        regs->tx_status |= TX_STATUS_COMPLETE;
+
+        if (intr_status & INTR_RX_USED_READ) {
+
+            for (int i = 0; i < GEM_RX_BUF_CNT; i++) {
+                state->rx_tbl[i].addr &= ~RX_DESC_USED;
+            }
+
+            regs->rx_status &= ~RX_STATUS_BUFFER_NOT_AVAIL;
+            regs->net_ctrl &= ~NET_CTRL_RX_EN;
+            regs->net_ctrl |= NET_CTRL_RX_EN;
+            printf("GEM overflow, dumping pending packets\n");
+        }
+
+        if (intr_status & INTR_TX_CORRUPT) {
+            printf("tx ahb error!\n");
+            if (free_completed_pbuf_frames() > 0) {
+                resched = true;
+            }
+        }
+
+        /* A frame has been completed so we can clean up ownership of its buffers */
+        if (intr_status & INTR_TX_COMPLETE) {
+            if (free_completed_pbuf_frames() > 0) {
+                resched = true;
+            }
+        }
+
+        /* The controller has processed packets until it hit a buffer owned by the driver */
+        if (intr_status & INTR_TX_USED_READ) {
+            queue_pkts_in_tx_tbl();
+            regs->tx_status |= TX_STATUS_USED_READ;
+        }
+
+        /* see if we have any more */
+        intr_status = regs->intr_status;
     }
 
-    /* The controller has processed packets until it hit a buffer owned by the driver */
-    if (intr_status & INTR_TX_USED_READ) {
-        queue_pkts_in_tx_tbl();
-        regs->tx_status |= TX_STATUS_USED_READ;
-    }
-
-    regs->intr_status = intr_status;
     return (resched) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
@@ -250,7 +277,7 @@ static status_t gem_cfg_buffer_descs(void)
             return -1;
         }
 
-        state->rx_pbufs[n] = p;
+        rx_pbufs[n] = p;
         state->rx_tbl[n].addr = (uintptr_t) p->phys_base;
         state->rx_tbl[n].ctrl = 0;
     }
@@ -301,14 +328,33 @@ int gem_rx_thread(void *arg)
 
         for (;;) {
             if (state->rx_tbl[bp].addr & RX_DESC_USED) {
-                p = state->rx_pbufs[bp];
-                p->dlen = RX_BUF_LEN(state->rx_tbl[bp].ctrl);
+                uint32_t ctrl = state->rx_tbl[bp].ctrl;
+
+                p = rx_pbufs[bp];
+                p->dlen = RX_BUF_LEN(ctrl);
                 p->data = p->buffer + 2;
-                if (debug_rx) {
+
+                /* copy the checksum offloading bits */
+                p->flags = 0;
+                p->flags |= (BITS_SHIFT(ctrl, 23, 22) != 0) ? PKTBUF_FLAG_CKSUM_IP_GOOD : 0;
+                p->flags |= (BITS_SHIFT(ctrl, 23, 22) == 1) ? PKTBUF_FLAG_CKSUM_UDP_GOOD : 0;
+                p->flags |= (BITS_SHIFT(ctrl, 23, 22) == 2) ? PKTBUF_FLAG_CKSUM_TCP_GOOD : 0;
+
+                /* invalidate any stale cache lines on the receive buffer to ensure
+                 * the cpu has a fresh copy of incomding data. */
+                arch_invalidate_cache_range((vaddr_t)p->data, p->dlen);
+
+                if (unlikely(debug_rx)) {
                     debug_rx_handler(p);
-                } else if (rx_callback) {
+                }
+
+                if (likely(rx_callback)) {
                     rx_callback(p);
                 }
+
+                /* make sure all dirty data is flushed out of the buffer before
+                 * putting into the receive queue */
+                arch_clean_invalidate_cache_range((vaddr_t)p->buffer, PKTBUF_SIZE);
 
                 state->rx_tbl[bp].addr &= ~RX_DESC_USED;
                 state->rx_tbl[bp].ctrl = 0;
@@ -367,7 +413,7 @@ status_t gem_init(uintptr_t gem_base)
 
     /* allocate a block of contiguous memory for the peripheral state */
     if ((ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_desc",
-            sizeof(*state), (void **)&state_vaddr, 0, 0, ARCH_MMU_FLAG_UNCACHED)) < 0) {
+            sizeof(*state), (void **)&state_vaddr, 0, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE)) < 0) {
         return ret;
     }
 
@@ -405,7 +451,7 @@ status_t gem_init(uintptr_t gem_base)
     reg_val |= DMA_CFG_RX_PKTBUF_MEMSZ_SEL(0x3);
     reg_val |= DMA_CFG_TX_PKTBUF_MEMSZ_SEL;
     reg_val |= DMA_CFG_CSUM_GEN_OFFLOAD_EN;
-    reg_val |= DMA_CFG_AHB_FIXED_BURST_LEN(0x16);
+    reg_val |= DMA_CFG_AHB_FIXED_BURST_LEN(0x10);
     regs->dma_cfg = reg_val;
 
     /* Enable VREF from GPIOB */
@@ -506,6 +552,14 @@ static int cmd_gem(int argc, const cmd_args *argv)
             rx_used, GEM_RX_BUF_CNT, tx_used, GEM_TX_BUF_CNT);
         printf("frames rx: %u, frames tx: %u\n",
             frames_rx, frames_tx);
+#if 0
+        printf("rx descriptors:\n");
+        hexdump(state->rx_tbl, GEM_RX_BUF_CNT * sizeof(struct gem_desc));
+        printf("tx descriptors:\n");
+        hexdump(state->tx_tbl, GEM_TX_BUF_CNT * sizeof(struct gem_desc));
+        printf("tx head %u tail %u (%p %p)\n", tx_head, tx_tail,
+            &state->tx_tbl[tx_head], &state->tx_tbl[tx_tail]);
+#endif
     } else if (argv[1].str[0] == 'd') {
         debug_rx = !debug_rx;
     }
