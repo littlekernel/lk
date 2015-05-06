@@ -59,9 +59,8 @@ static int cmd_minip(int argc, const cmd_args *argv)
 minip_usage:
         printf("minip commands\n");
         printf("mi [a]rp                        dump arp table\n");
-        printf("mi [c]onfig <ip addr> <port>    set default dest to <ip addr>:<port>\n");
         printf("mi [s]tatus                     print ip status\n");
-        printf("mi [t]est <cnt>                 send <cnt> test packets to the configured dest\n");
+        printf("mi [t]est <dest> <port> <cnt>   send <cnt> test packets to the dest:port\n");
     } else {
         switch(argv[1].str[0]) {
 
@@ -79,7 +78,7 @@ minip_usage:
             case 't': {
                 uint8_t buf[1470];
 
-                uint32_t cnt = 1;
+                uint32_t count = 1;
                 uint32_t host, port;
                 udp_socket_t *handle;
 
@@ -89,7 +88,7 @@ minip_usage:
 
                 host = str_ip_to_int(argv[2].str, strlen(argv[2].str));
                 port = argv[3].u;
-                cnt = argv[4].u;
+                count = argv[4].u;
                 printf("host is %s\n", argv[2].str);
 
                 if (udp_open(host, port, port, &handle) != NO_ERROR) {
@@ -98,16 +97,21 @@ minip_usage:
                 }
 
                 memset(&buf, 0x00, sizeof(buf));
-                printf("sending %u packet(s) to %u.%u.%u.%u:%u\n", cnt, IPV4_SPLIT(host), port);
+                printf("sending %u packet(s) to %u.%u.%u.%u:%u\n", count, IPV4_SPLIT(host), port);
 
+                lk_time_t t = current_time();
                 uint32_t failures = 0;
-                while (cnt--) {
+                for (uint32_t i = 0; i < count; i++) {
                     if (udp_send(buf, sizeof(buf), handle) != 0) {
                         failures++;
                     }
                     buf[128]++;
                 }
+                t = current_time() - t;
                 printf("%d pkts failed\n", failures);
+                uint64_t total_count = (uint64_t)count * sizeof(buf);
+                printf("wrote %llu bytes in %u msecs (%llu bytes/sec)\n",
+                    total_count, (uint32_t)t, total_count * 1000 / t);
             }
             break;
         default:
