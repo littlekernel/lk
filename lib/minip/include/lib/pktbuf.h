@@ -39,10 +39,15 @@ typedef struct pktbuf {
 	u32 phys_base;
 	u32 id;
 	struct list_node list;
+	u32 flags;
 	bool managed;
 	bool eof;
 	u8 *buffer;
 } pktbuf_t;
+
+#define PKTBUF_FLAG_CKSUM_IP_GOOD  (1<<0)
+#define PKTBUF_FLAG_CKSUM_TCP_GOOD (1<<1)
+#define PKTBUF_FLAG_CKSUM_UDP_GOOD (1<<2)
 
 /* metadata is stored at the end of the structure to catch overflows of
  * the packet data itself */

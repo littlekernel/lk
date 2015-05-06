@@ -44,7 +44,7 @@
 
 static struct list_node pb_freelist = LIST_INITIAL_VALUE(pb_freelist);
 static struct list_node pb_buflist = LIST_INITIAL_VALUE(pb_buflist);
-static semaphore_t pb_sem = SEMAPHORE_INITIAL_VALUE(pb_sem, 0);
+static semaphore_t pb_sem = SEMAPHORE_INITIAL_VALUE(pb_sem, -1);
 
 
 static unsigned int cur_id = 0;
@@ -118,6 +118,7 @@ pktbuf_t *pktbuf_alloc(void) {
 	p->data = p->buffer + PKTBUF_MAX_HDR;
 	p->dlen = 0;
 	p->managed = true;
+	p->flags = 0;
 	/* TODO: This will be moved to the stack soon */
 	p->eof = true;
 	p->phys_base = b->phys_addr;
@@ -141,6 +142,7 @@ pktbuf_t *pktbuf_alloc_empty(void *buf, size_t dlen) {
 	p->data = p->buffer;
 	p->dlen = dlen;
 	p->managed = false;
+	p->flags = 0;
 	return p;
 }
 
@@ -155,6 +157,7 @@ int pktbuf_free(pktbuf_t *p, bool reschedule) {
 	p->data = NULL;
 	p->eof = false;
 	p->managed = false;
+	p->flags = 0;
 	exit_critical_section();
 
 	return sem_post(&pb_sem, reschedule);
@@ -244,7 +247,7 @@ static void pktbuf_init(uint level)
 
 #if WITH_KERNEL_VM
 	if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf_buffers",
-			PKTBUF_COUNT * sizeof(pktbuf_buf_t), &buf, 0, 0, ARCH_MMU_FLAG_UNCACHED) < 0) {
+			PKTBUF_COUNT * sizeof(pktbuf_buf_t), &buf, 0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
 		printf("Failed to initialize pktbuf vm slab\n");
 		return;
 	}
