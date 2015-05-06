@@ -61,12 +61,7 @@ static uint8_t bcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 static char minip_hostname[32] = "";
 
 void minip_set_hostname(const char *name) {
-    size_t len = strlen(name);
-    if (len >= sizeof(minip_hostname)) {
-        len = sizeof(minip_hostname) - 1;
-    }
-    memcpy(minip_hostname, name, len);
-    minip_hostname[len] = 0;
+    strlcpy(minip_hostname, name, sizeof(minip_hostname));
 }
 
 const char *minip_get_hostname(void) {
@@ -98,11 +93,11 @@ static void compute_broadcast_address(void)
 }
 
 void minip_get_macaddr(uint8_t *addr) {
-    memcpy(addr, minip_mac, 6);
+    mac_addr_copy(addr, minip_mac);
 }
 
 void minip_set_macaddr(const uint8_t *addr) {
-    memcpy(minip_mac, addr, 6);
+    mac_addr_copy(minip_mac, addr);
 }
 
 uint32_t minip_get_ipaddr(void) {
@@ -138,10 +133,10 @@ uint16_t ipv4_payload_len(struct ipv4_hdr *pkt)
     return (pkt->len - ((pkt->ver_ihl >> 4) * 5));
 }
 
-void minip_build_mac_hdr(struct eth_hdr *pkt, uint8_t *dst, uint16_t type)
+void minip_build_mac_hdr(struct eth_hdr *pkt, const uint8_t *dst, uint16_t type)
 {
-    memcpy(pkt->dst_mac, dst, sizeof(pkt->dst_mac));
-    memcpy(pkt->src_mac, minip_mac, sizeof(minip_mac));
+    mac_addr_copy(pkt->dst_mac, dst);
+    mac_addr_copy(pkt->src_mac, minip_mac);
     pkt->type = htons(type);
 }
 
@@ -181,10 +176,10 @@ int send_arp_request(uint32_t addr)
     arp->hlen = 6;
     arp->plen = 4;
     arp->oper = htons(ARP_OPER_REQUEST);
-    memcpy(&arp->spa, &minip_ip, sizeof(arp->spa));
-    memcpy(&arp->tpa, &addr, sizeof(arp->tpa));
-    memcpy(arp->sha, minip_mac, sizeof(arp->sha));
-    memcpy(arp->tha, bcast_mac, sizeof(arp->tha));
+    arp->spa = minip_ip;
+    arp->tpa = addr;
+    mac_addr_copy(arp->sha, minip_mac);
+    mac_addr_copy(arp->tha, bcast_mac);
 
     minip_tx_handler(p);
     return 0;
@@ -517,10 +512,10 @@ __NO_INLINE static int handle_arp_pkt(pktbuf_t *p)
                 rarp->ptype = htons(0x0800);
                 rarp->hlen = 6;
                 rarp->plen = 4;
-                memcpy(rarp->tha, arp->sha, sizeof(arp->tha));
-                memcpy(rarp->sha, minip_mac, sizeof(arp->sha));
-                memcpy(&rarp->tpa, &arp->spa, sizeof(rarp->tpa));
-                memcpy(&rarp->spa, &minip_ip, sizeof(rarp->spa));
+                mac_addr_copy(rarp->sha, minip_mac);
+                rarp->spa = minip_ip;
+                mac_addr_copy(rarp->tha, arp->sha);
+                rarp->tpa = arp->spa;
 
                 minip_tx_handler(rp);
             }

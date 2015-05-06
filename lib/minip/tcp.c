@@ -35,6 +35,7 @@
 #include <kernel/mutex.h>
 #include <kernel/semaphore.h>
 #include <arch/ops.h>
+#include <platform.h>
 
 #define LOCAL_TRACE 0
 
@@ -130,14 +131,14 @@ typedef struct tcp_socket {
 } tcp_socket_t;
 
 #define DEFAULT_MSS (1460)
-#define DEFAULT_RX_WINDOW_SIZE (4096)
-#define DEFAULT_TX_BUFFER_SIZE (4096)
+#define DEFAULT_RX_WINDOW_SIZE (8192)
+#define DEFAULT_TX_BUFFER_SIZE (8192)
 
 #define RETRANSMIT_TIMEOUT (50)
 #define DELAYED_ACK_TIMEOUT (50)
 #define TIME_WAIT_TIMEOUT (60000) // 1 minute
 
-#define DO_TCP_CHECKSUM (true)
+#define FORCE_TCP_CHECKSUM (false)
 
 #define SEQUENCE_GTE(a, b) ((int32_t)((a) - (b)) >= 0)
 #define SEQUENCE_LTE(a, b) ((int32_t)((a) - (b)) <= 0)
@@ -146,6 +147,8 @@ typedef struct tcp_socket {
 
 static mutex_t tcp_socket_list_lock = MUTEX_INITIAL_VALUE(tcp_socket_list_lock);
 static struct list_node tcp_socket_list = LIST_INITIAL_VALUE(tcp_socket_list);
+
+static bool tcp_debug = false;
 
 /* local routines */
 static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint16_t remote_port, uint16_t local_port);
@@ -339,7 +342,8 @@ static void tcp_timer_cancel(tcp_socket_t *s, net_timer_t *timer)
 
 void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
 {
-    LTRACEF("p %p (len %zu), src_ip 0x%x, dst_ip 0x%x\n", p, p->dlen, src_ip, dst_ip);
+    if (unlikely(tcp_debug))
+        TRACEF("p %p (len %zu), src_ip 0x%x, dst_ip 0x%x\n", p, p->dlen, src_ip, dst_ip);
 
     tcp_header_t *header = (tcp_header_t *)p->data;
 
@@ -347,19 +351,19 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
     if (p->dlen < sizeof(tcp_header_t))
         return;
 
-    if (LOCAL_TRACE) {
+    if (unlikely(tcp_debug) || LOCAL_TRACE) {
         dump_tcp_header(header);
     }
 
     /* compute the actual header length (+ options) */
     size_t header_len = ((ntohs(header->length_flags) >> 12) & 0xf) * 4;
     if (p->dlen < header_len) {
-        LTRACEF("REJECT: packet too large for buffer\n");
+        TRACEF("REJECT: packet too large for buffer\n");
         return;
     }
 
     /* checksum */
-    if (DO_TCP_CHECKSUM) {
+    if (FORCE_TCP_CHECKSUM || (p->flags & PKTBUF_FLAG_CKSUM_TCP_GOOD) == 0) {
         tcp_pseudo_header_t pheader;
 
         // set up the pseudo header for checksum purposes
@@ -371,7 +375,7 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
 
         uint16_t checksum = cksum_pheader(&pheader, p->data, p->dlen);
         if(checksum != 0) {
-            LTRACEF("REJECT: failed checksum\n");
+            TRACEF("REJECT: failed checksum, header says 0x%x, we got 0x%x\n", header->checksum, checksum);
             return;
         }
     }
@@ -397,7 +401,8 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
         goto send_reset;
     }
 
-    LTRACEF("got socket %p, state %d (%s), ref %d\n", s, s->state, tcp_state_to_string(s->state), s->ref);
+    if (unlikely(tcp_debug))
+        TRACEF("got socket %p, state %d (%s), ref %d\n", s, s->state, tcp_state_to_string(s->state), s->ref);
 
     /* remove the header */
     pktbuf_consume(p, header_len);
@@ -600,7 +605,8 @@ send_reset:
 
 static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t sequence)
 {
-    LTRACEF("data %p, len %zu, sequence %u\n", data, len, sequence);
+    if (unlikely(tcp_debug))
+        TRACEF("data %p, len %zu, sequence %u\n", data, len, sequence);
 
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
@@ -725,7 +731,8 @@ static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip
         pktbuf_append_data(p, buf, len);
 
     /* compute the checksum */
-    if (DO_TCP_CHECKSUM) {
+    /* XXX get the tx ckecksum capability from the nic */
+    if (FORCE_TCP_CHECKSUM || true) {
         tcp_pseudo_header_t pheader;
         pheader.source_addr = src_ip;
         pheader.dest_addr = dest_ip;
@@ -741,7 +748,9 @@ static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip
         dump_tcp_header(header);
     }
 
-    return minip_ipv4_send(p, dest_ip, IP_PROTO_TCP);
+    status_t err = minip_ipv4_send(p, dest_ip, IP_PROTO_TCP);
+
+    return err;
 }
 
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size)
@@ -1212,6 +1221,7 @@ usage:
         printf("usage: %s sockets\n", argv[0].str);
         printf("usage: %s listenclose <port>\n", argv[0].str);
         printf("usage: %s listen <port>\n", argv[0].str);
+        printf("usage: %s debug\n", argv[0].str);
         return ERR_INVALID_ARGS;
     }
 
@@ -1275,6 +1285,9 @@ usage:
 
         err = tcp_close(handle);
         printf("tcp_close returns %d\n", err);
+    } else if (!strcmp(argv[1].str, "debug")) {
+        tcp_debug = !tcp_debug;
+        printf("tcp debug now %u\n", tcp_debug);
     } else {
         printf("ERROR unknown command\n");
         goto usage;
