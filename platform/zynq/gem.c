@@ -289,7 +289,8 @@ static status_t gem_cfg_buffer_descs(void)
 
     /* Claim ownership of TX descriptors for the driver */
     for (unsigned i = 0; i < GEM_TX_BUF_CNT; i++) {
-        gem.descs->tx_tbl[i].ctrl |= TX_DESC_USED;
+        gem.descs->tx_tbl[i].addr = 0;
+        gem.descs->tx_tbl[i].ctrl = TX_DESC_USED;
     }
 
     /* Both set of descriptors need wrap bits set at the end of their tables*/
