@@ -414,6 +414,7 @@ int arm64_mmu_map(vaddr_t vaddr, paddr_t paddr, size_t size, pte_t attrs,
                   uint top_index_shift, uint page_size_shift,
                   pte_t *top_page_table, uint asid)
 {
+    int ret;
     vaddr_t vaddr_rel = vaddr - vaddr_base;
     vaddr_t vaddr_rel_max = 1UL << top_size_shift;
 
@@ -431,8 +432,10 @@ int arm64_mmu_map(vaddr_t vaddr, paddr_t paddr, size_t size, pte_t attrs,
         return ERR_INVALID_ARGS;
     }
 
-    return arm64_mmu_map_pt(vaddr, vaddr_rel, paddr, size, attrs,
-                            top_index_shift, page_size_shift, top_page_table, asid);
+    ret = arm64_mmu_map_pt(vaddr, vaddr_rel, paddr, size, attrs,
+                           top_index_shift, page_size_shift, top_page_table, asid);
+    DSB;
+    return ret;
 }
 
 int arm64_mmu_unmap(vaddr_t vaddr, size_t size,
