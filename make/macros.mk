@@ -39,7 +39,7 @@ define MAKECONFIGHEADER
 	echo \#ifndef __$${LDEF}_H > $1.tmp; \
 	echo \#define __$${LDEF}_H >> $1.tmp; \
 	for d in `echo $($2) | tr '[:lower:]' '[:upper:]'`; do \
-		echo "#define $$d" | sed "s/=/\ /g;s/-/_/g;s/\//_/g;s/\./_/g;s/\//_/g" >> $1.tmp; \
+		echo "#define $$d" | sed "s/=/\ /g;s/-/_/g;s/\//_/g;s/\./_/g;s/\//_/g;s/C++/CPP/g" >> $1.tmp; \
 	done; \
 	echo \#endif >> $1.tmp; \
 	$(call TESTANDREPLACEFILE,$1.tmp,$1)
