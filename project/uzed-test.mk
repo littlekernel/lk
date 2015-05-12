@@ -10,7 +10,10 @@ MODULES += \
 	dev/gpio \
 	lib/cksum \
 	lib/debugcommands \
+	lib/klog \
 	lib/libm \
+	lib/version \
+	lib/watchdog \
 
 GLOBAL_DEFINES += \
 	SYSPARAM_ALLOW_WRITE=1
