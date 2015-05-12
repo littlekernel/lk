@@ -53,7 +53,6 @@ struct udp_hdr {
     uint16_t dst_port;
     uint16_t len;
     uint16_t chksum;
-    uint8_t data[];
 };
 
 struct ipv4_hdr {

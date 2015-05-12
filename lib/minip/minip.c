@@ -272,16 +272,15 @@ status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
         return -ENOMEM;
     }
 
+    pktbuf_append_data(p, buf, len);
     udp = pktbuf_prepend(p, sizeof(struct udp_hdr));
     ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
     eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
-    pktbuf_append_data(p, buf, len);
 
     udp->src_port   = htons(handle->sport);
     udp->dst_port   = htons(handle->dport);
     udp->len        = htons(sizeof(struct udp_hdr) + len);
     udp->chksum     = 0;
-    memcpy(udp->data, buf, len);
 
     minip_build_mac_hdr(eth, handle->mac, ETH_TYPE_IPV4);
     minip_build_ipv4_hdr(ip, handle->host, IP_PROTO_UDP, len + sizeof(struct udp_hdr));
