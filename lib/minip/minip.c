@@ -29,6 +29,7 @@
 #include <debug.h>
 #include <endian.h>
 #include <errno.h>
+#include <iovec.h>
 #include <stdlib.h>
 #include <string.h>
 #include <trace.h>
@@ -256,15 +257,17 @@ status_t udp_close(udp_socket_t *handle)
     return NO_ERROR;
 }
 
-status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
+status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle)
 {
     pktbuf_t *p;
     struct eth_hdr *eth;
     struct ipv4_hdr *ip;
     struct udp_hdr *udp;
     status_t ret = NO_ERROR;
+    void *buf;
+    ssize_t len;
 
-    if (handle == NULL || buf == NULL || len == 0) {
+    if (handle == NULL || iov == NULL || iov_count == 0) {
         return -EINVAL;
     }
 
@@ -272,10 +275,14 @@ status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
         return -ENOMEM;
     }
 
-    pktbuf_append_data(p, buf, len);
+    len = iovec_size(iov, iov_count);
+
+    buf = pktbuf_append(p, len);
     udp = pktbuf_prepend(p, sizeof(struct udp_hdr));
     ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
     eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
+
+    iovec_to_membuf(buf, len, iov, iov_count, 0);
 
     udp->src_port   = htons(handle->sport);
     udp->dst_port   = htons(handle->dport);
@@ -292,6 +299,20 @@ status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
     minip_tx_handler(p);
 
     return ret;
+}
+
+status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
+{
+    iovec_t iov;
+
+    if (buf == NULL || len == 0) {
+        return -EINVAL;
+    }
+
+    iov.iov_base = buf;
+    iov.iov_len = len;
+
+    return udp_send_iovec(&iov, 1, handle);
 }
 
 status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto)
