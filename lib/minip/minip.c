@@ -37,14 +37,6 @@
 #include <list.h>
 #include <kernel/thread.h>
 
-struct udp_listener {
-    struct list_node list;
-    uint16_t port;
-    udp_callback_t callback;
-    void *arg;
-};
-
-static struct list_node udp_list = LIST_INITIAL_VALUE(udp_list);
 static struct list_node arp_list = LIST_INITIAL_VALUE(arp_list);
 
 // TODO
@@ -57,7 +49,6 @@ static uint32_t minip_broadcast = IPV4_BCAST;
 static uint32_t minip_gateway = IPV4_NONE;
 
 static uint8_t minip_mac[6] = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
-static uint8_t bcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 static char minip_hostname[32] = "";
 
@@ -67,25 +58,6 @@ void minip_set_hostname(const char *name) {
 
 const char *minip_get_hostname(void) {
    return minip_hostname;
-}
-
-int minip_udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
-    struct udp_listener *entry;
-
-    list_for_every_entry(&udp_list, entry, struct udp_listener, list) {
-        if (entry->port == port) {
-            return -1;
-        }
-    }
-
-    if ((entry = malloc(sizeof(struct udp_listener))) == NULL) {
-        return -1;
-    }
-    entry->port = port;
-    entry->callback = cb;
-    entry->arg = arg;
-    list_add_tail(&udp_list, &entry->list);
-    return 0;
 }
 
 static void compute_broadcast_address(void)
@@ -190,7 +162,7 @@ static void handle_arp_timeout_cb(void *arg) {
     *(bool *)arg = true;
 }
 
-static inline uint8_t *get_dest_mac(uint32_t host)
+const uint8_t *get_dest_mac(uint32_t host)
 {
     uint8_t *dst_mac = NULL;
     bool arp_timeout = false;
@@ -217,109 +189,11 @@ static inline uint8_t *get_dest_mac(uint32_t host)
     return dst_mac;
 }
 
-status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle)
-{
-    TRACEF("host %u.%u.%u.%u sport %u dport %u handle %p\n",
-            IPV4_SPLIT(host), sport, dport, handle);
-    udp_socket_t *socket;
-    uint8_t *dst_mac;
-
-    if (handle == NULL) {
-        return -EINVAL;
-    }
-
-    socket = (udp_socket_t *) malloc(sizeof(udp_socket_t));
-    if (!socket) {
-        return -ENOMEM;
-    }
-
-    dst_mac = get_dest_mac(host);
-    if (dst_mac == NULL) {
-        return -EHOSTUNREACH;
-    }
-
-    socket->host = host;
-    socket->sport = sport;
-    socket->dport = dport;
-    socket->mac = dst_mac;
-
-    *handle = socket;
-    return NO_ERROR;
-}
-
-status_t udp_close(udp_socket_t *handle)
-{
-    if (handle == NULL) {
-        return -EINVAL;
-    }
-
-    free(handle);
-    return NO_ERROR;
-}
-
-status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle)
-{
-    pktbuf_t *p;
-    struct eth_hdr *eth;
-    struct ipv4_hdr *ip;
-    struct udp_hdr *udp;
-    status_t ret = NO_ERROR;
-    void *buf;
-    ssize_t len;
-
-    if (handle == NULL || iov == NULL || iov_count == 0) {
-        return -EINVAL;
-    }
-
-    if ((p = pktbuf_alloc()) == NULL) {
-        return -ENOMEM;
-    }
-
-    len = iovec_size(iov, iov_count);
-
-    buf = pktbuf_append(p, len);
-    udp = pktbuf_prepend(p, sizeof(struct udp_hdr));
-    ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
-    eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
-
-    iovec_to_membuf(buf, len, iov, iov_count, 0);
-
-    udp->src_port   = htons(handle->sport);
-    udp->dst_port   = htons(handle->dport);
-    udp->len        = htons(sizeof(struct udp_hdr) + len);
-    udp->chksum     = 0;
-
-    minip_build_mac_hdr(eth, handle->mac, ETH_TYPE_IPV4);
-    minip_build_ipv4_hdr(ip, handle->host, IP_PROTO_UDP, len + sizeof(struct udp_hdr));
-
-#if (MINIP_USE_UDP_CHECKSUM != 0)
-    udp->chksum = rfc768_chksum(ip, udp);
-#endif
-
-    minip_tx_handler(p);
-
-    return ret;
-}
-
-status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
-{
-    iovec_t iov;
-
-    if (buf == NULL || len == 0) {
-        return -EINVAL;
-    }
-
-    iov.iov_base = buf;
-    iov.iov_len = len;
-
-    return udp_send_iovec(&iov, 1, handle);
-}
-
 status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto)
 {
     status_t ret = 0;
     size_t data_len = p->dlen;
-    uint8_t *dst_mac;
+    const uint8_t *dst_mac;
 
     struct ipv4_hdr *ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
     struct eth_hdr *eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
@@ -473,23 +347,8 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
         }
         break;
 
-        case IP_PROTO_UDP: {
-            struct udp_hdr *udp;
-            struct udp_listener *e;
-            uint16_t port;
-
-            if ((udp = pktbuf_consume(p, sizeof(struct udp_hdr))) == NULL) {
-                break;
-            }
-            port = ntohs(udp->dst_port);
-
-            list_for_every_entry(&udp_list, e, struct udp_listener, list) {
-                if (e->port == port) {
-                    e->callback(p->data, p->dlen, ip->src_addr, ntohs(udp->src_port), e->arg);
-                    return;
-                }
-            }
-        }
+        case IP_PROTO_UDP:
+            udp_input(p, ip->src_addr);
         break;
 
         case IP_PROTO_TCP:

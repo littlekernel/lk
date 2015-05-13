@@ -17,5 +17,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/net_timer.c \
 	$(LOCAL_DIR)/pktbuf.c \
 	$(LOCAL_DIR)/tcp.c \
+	$(LOCAL_DIR)/udp.c
 
 include make/module.mk

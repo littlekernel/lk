@@ -287,7 +287,7 @@ void minip_init_dhcp(tx_func_t tx_func, void *tx_arg) {
 	int ret = udp_open(IPV4_BCAST, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, &dhcp_udp_handle);
 	printf("dhcp opened udp: %d\n", ret);
 
-	minip_udp_listen(DHCP_CLIENT_PORT, dhcp_cb, NULL);
+	udp_listen(DHCP_CLIENT_PORT, dhcp_cb, NULL);
 
 	dhcp_thr = thread_create("dhcp", dhcp_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
 	thread_detach_and_resume(dhcp_thr);

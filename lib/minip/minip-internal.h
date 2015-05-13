@@ -25,10 +25,11 @@
 
 #include <lib/minip.h>
 
+#include <compiler.h>
 #include <endian.h>
 #include <list.h>
 #include <stdint.h>
-#include <compiler.h>
+#include <string.h>
 
 /* Lib configuration */
 #define MINIP_USE_UDP_CHECKSUM    0
@@ -46,13 +47,6 @@ struct arp_pkt {
     uint32_t spa;
     uint8_t  tha[6];
     uint32_t tpa;
-};
-
-struct udp_hdr {
-    uint16_t src_port;
-    uint16_t dst_port;
-    uint16_t len;
-    uint16_t chksum;
 };
 
 struct ipv4_hdr {
@@ -106,29 +100,30 @@ enum {
     ARP_OPER_REPLY   = 0x0002,
 };
 
+extern tx_func_t minip_tx_handler;
+typedef struct udp_hdr udp_hdr_t;
+static const uint8_t bcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
 void arp_cache_init(void);
 void arp_cache_update(uint32_t addr, const uint8_t mac[6]);
 uint8_t *arp_cache_lookup(uint32_t addr);
 void arp_cache_dump(void);
+int send_arp_request(uint32_t addr);
 
 uint16_t rfc1701_chksum(const uint8_t *buf, size_t len);
-uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp);
+uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, udp_hdr_t *udp);
 uint16_t ones_sum16(uint32_t sum, const void *_buf, int len);
 
 /* Helper methods for building headers */
 void minip_build_mac_hdr(struct eth_hdr *pkt, const uint8_t *dst, uint16_t type);
 void minip_build_ipv4_hdr(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, uint16_t len);
 
-int send_arp_request(uint32_t addr);
-
 status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto);
 
 void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
+void udp_input(pktbuf_t *p, uint32_t src_ip);
 
-static inline void mac_addr_copy(uint8_t *dest, const uint8_t *src) {
-    *(uint32_t *)dest = *(const uint32_t *)src;
-    *(uint16_t *)(dest + 4) = *(const uint16_t *)(src + 4);
-}
+const uint8_t *get_dest_mac(uint32_t host);
 
 // timers
 typedef void (*net_timer_callback_t)(void *);
@@ -149,6 +144,11 @@ bool net_timer_set(net_timer_t *, net_timer_callback_t, void *callback_args, lk_
 bool net_timer_cancel(net_timer_t *) __NONNULL();
 
 void net_timer_init(void);
+
+static inline void mac_addr_copy(uint8_t *dest, const uint8_t *src) {
+    *(uint32_t *)dest = *(const uint32_t *)src;
+    *(uint16_t *)(dest + 4) = *(const uint16_t *)(src + 4);
+}
 
 // vim: set ts=4 sw=4 expandtab:
 
