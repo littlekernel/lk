@@ -20,6 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <assert.h>
 #include <bits.h>
 #include <err.h>
 #include <sys/types.h>
@@ -515,19 +516,6 @@ long smc_intc_request_fiq(smc32_args_t *args)
 	return NO_ERROR;
 }
 
-static uint32_t read_mpidr(void)
-{
-	int mpidr;
-#if ARCH_ARM64
-	mpidr = ARM64_READ_SYSREG(mpidr_el1);
-#else
-	__asm__ volatile("mrc		p15, 0, %0, c0, c0, 5"
-		: "=r" (mpidr)
-		);
-#endif
-	return mpidr;
-}
-
 static u_int current_fiq[8] = { 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff };
 
 static bool update_fiq_targets(u_int cpu, bool enable, u_int triggered_fiq, bool resume_gicd)
@@ -560,15 +548,20 @@ static bool update_fiq_targets(u_int cpu, bool enable, u_int triggered_fiq, bool
 
 static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd)
 {
-	u_int cpu = read_mpidr() & 7;
+	u_int cpu = arch_curr_cpu_num();
+
+	ASSERT(cpu < 8);
+
 	update_fiq_targets(cpu, resume_gicc, ~0, resume_gicd);
 }
 
 status_t sm_intc_fiq_enter(void)
 {
-	u_int cpu = read_mpidr() & 7;
+	u_int cpu = arch_curr_cpu_num();
 	u_int irq = GICREG(0, GICC_IAR) & 0x3ff;
 	bool fiq_enabled;
+
+	ASSERT(cpu < 8);
 
 	LTRACEF("cpu %d, irq %i\n", cpu, irq);
 
@@ -597,7 +590,10 @@ status_t sm_intc_fiq_enter(void)
 
 void sm_intc_fiq_exit(void)
 {
-	u_int cpu = read_mpidr() & 7;
+	u_int cpu = arch_curr_cpu_num();
+
+	ASSERT(cpu < 8);
+
 	LTRACEF("cpu %d, irq %i\n", cpu, current_fiq[cpu]);
 	if (current_fiq[cpu] == 0x3ff) {
 		dprintf(INFO, "%s: no fiq active, cpu %d\n", __func__, cpu);
