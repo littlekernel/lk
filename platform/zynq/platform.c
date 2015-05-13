@@ -30,6 +30,7 @@
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_cortex_a9.h>
 #include <lib/console.h>
+#include <lib/watchdog.h>
 #include <platform.h>
 #include <platform/zynq.h>
 #include <platform/gem.h>
@@ -38,6 +39,11 @@
 
 #if ZYNQ_SDRAM_INIT
 STATIC_ASSERT(SDRAM_SIZE != 0);
+#endif
+
+/* default timeout of the global hardware watchdog */
+#ifndef ZYNQ_WATCHDOG_TIMEOUT
+#define ZYNQ_WATCHDOG_TIMEOUT (1000) // 1 second
 #endif
 
 /* target can specify this as the initial jam table to set up the soc */
@@ -336,6 +342,9 @@ void platform_early_init(void)
     /* initialize the timer block */
     arm_cortex_a9_timer_init(CPUPRIV_BASE, zynq_get_arm_timer_freq());
 
+    /* initialize the hardware watchdog */
+    watchdog_hw_init(ZYNQ_WATCHDOG_TIMEOUT);
+
     /* bump the 2nd cpu into our code space and remap the top SRAM block */
     if (KERNEL_LOAD_OFFSET != 0) {
         /* construct a trampoline to get the 2nd cpu up to the trap routine */
@@ -433,6 +442,7 @@ usage:
         printf("\tslcr lockstatus\n");
         printf("\tmio\n");
         printf("\tclocks\n");
+        printf("\ttrip_watchdog\n");
         return -1;
     }
 
@@ -461,6 +471,14 @@ usage:
         }
     } else if (!strcmp(argv[1].str, "clocks")) {
         zynq_dump_clocks();
+    } else if (!strcmp(argv[1].str, "trip_watchdog")) {
+        /* try to trip the watchdog by disabling interrupts for a while */
+        arch_disable_ints();
+        for (int i = 0; i < 20; i++) {
+            spin(250000);
+            printf("SWDT MODE 0x%x CONTROL 0x%x STATUS 0x%x\n", SWDT->MODE, SWDT->CONTROL, SWDT->STATUS);
+        }
+        arch_enable_ints();
     } else {
         goto usage;
     }

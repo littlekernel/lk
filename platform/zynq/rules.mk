@@ -8,6 +8,7 @@ ARM_CPU := cortex-a9-neon
 MODULE_DEPS := \
 	lib/bio \
 	lib/cbuf \
+	lib/watchdog \
 	dev/cache/pl310 \
 	dev/interrupt/arm_gic \
 	dev/timer/arm_cortex_a9
@@ -24,6 +25,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/qspi.c \
 	$(LOCAL_DIR)/spiflash.c \
 	$(LOCAL_DIR)/start.S \
+	$(LOCAL_DIR)/swdt.c \
 	$(LOCAL_DIR)/uart.c \
 
 # default to no sdram unless the target calls it out
