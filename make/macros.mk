@@ -35,7 +35,7 @@ define MAKECONFIGHEADER
 	$(MKDIR); \
 	echo generating $1; \
 	rm -f $1.tmp; \
-	LDEF=`echo $1 | tr '/\\.-' '_'`; \
+	LDEF=`echo $1 | tr '/\\.-' '_' | sed "s/C++/CPP/g;s/c++/cpp/g"`; \
 	echo \#ifndef __$${LDEF}_H > $1.tmp; \
 	echo \#define __$${LDEF}_H >> $1.tmp; \
 	for d in `echo $($2) | tr '[:lower:]' '[:upper:]'`; do \
