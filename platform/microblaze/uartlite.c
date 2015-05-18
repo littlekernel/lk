@@ -28,7 +28,7 @@
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <sys/types.h>
-#include <target/qemu-microblaze.h>
+#include <target/microblaze-config.h>
 
 #define LOCAL_TRACE 0
 
@@ -58,14 +58,25 @@ static cbuf_t uart_rx_buf;
 
 void uartlite_putc(char c)
 {
+    while (UART_REG(R_STATUS) & STATUS_TXFULL)
+        ;
     UART_REG(R_TX) = c;
 }
 
 int uartlite_getc(bool wait)
 {
+#if 0
     char c;
     if (cbuf_read_char(&uart_rx_buf, &c, wait) == 1)
         return c;
+#else
+    do {
+        if (UART_REG(R_STATUS) & STATUS_RXVALID) {
+            char c = UART_REG(R_RX);
+            return c;
+        }
+    } while (wait);
+#endif
 
     return -1;
 }
@@ -89,12 +100,13 @@ static void uartlite_init(uint level)
 {
     TRACE;
 
-    UART_REG(R_CTRL) |= CONTROL_IE;
+    //UART_REG(R_CTRL) = CONTROL_RST_TX | CONTROL_RST_RX;
+//    UART_REG(R_CTRL) |= CONTROL_IE;
 
     cbuf_initialize(&uart_rx_buf, RXBUF_SIZE);
 
-    register_int_handler(UARTLITE_IRQ, uartlite_irq, NULL);
-    unmask_interrupt(UARTLITE_IRQ);
+//    register_int_handler(UARTLITE_IRQ, uartlite_irq, NULL);
+//    unmask_interrupt(UARTLITE_IRQ);
 }
 
 LK_INIT_HOOK(uartlite, uartlite_init, LK_INIT_LEVEL_PLATFORM);

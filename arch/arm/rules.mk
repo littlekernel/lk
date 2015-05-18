@@ -161,13 +161,13 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm/asm.S \
 	$(LOCAL_DIR)/arm/cache-ops.S \
 	$(LOCAL_DIR)/arm/cache.c \
+	$(LOCAL_DIR)/arm/debug.c \
 	$(LOCAL_DIR)/arm/ops.S \
 	$(LOCAL_DIR)/arm/exceptions.S \
 	$(LOCAL_DIR)/arm/faults.c \
 	$(LOCAL_DIR)/arm/fpu.c \
 	$(LOCAL_DIR)/arm/mmu.c \
-	$(LOCAL_DIR)/arm/thread.c \
-	$(LOCAL_DIR)/arm/dcc.S
+	$(LOCAL_DIR)/arm/thread.c
 
 MODULE_ARM_OVERRIDE_SRCS := \
 	$(LOCAL_DIR)/arm/arch.c

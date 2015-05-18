@@ -27,7 +27,7 @@
 #include <platform/debug.h>
 #include <platform/timer.h>
 #include <sys/types.h>
-#include <target/qemu-microblaze.h>
+#include <target/microblaze-config.h>
 
 void uartlite_putc(char c);
 int uartlite_getc(bool wait);

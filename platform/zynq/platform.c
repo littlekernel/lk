@@ -123,7 +123,7 @@ int zynq_mio_init(void)
     SLCR_REG(GPIOB_CTRL) = GPIOB_CTRL_VREF_EN;
 
     for (size_t pin = 0; pin < countof(zynq_mio_cfg); pin++) {
-        if (zynq_mio_cfg[pin] != 0) {
+        if (zynq_mio_cfg[pin] != MIO_DEFAULT) {
             SLCR_REG(MIO_PIN_00 + (pin * 4)) = zynq_mio_cfg[pin];
         }
     }
@@ -311,13 +311,12 @@ void platform_init_mmu_mappings(void)
 
 void platform_early_init(void)
 {
-    /* Unlock the registers and leave them that way */
 #if 0
     ps7_init();
 #else
+    /* Unlock the registers and leave them that way */
     zynq_slcr_unlock();
     zynq_mio_init();
-    zynq_gpio_init();
     zynq_pll_init();
     zynq_clk_init();
 #if ZYNQ_SDRAM_INIT
@@ -338,6 +337,7 @@ void platform_early_init(void)
 
     /* initialize the interrupt controller */
     arm_gic_init();
+    zynq_gpio_init();
 
     /* initialize the timer block */
     arm_cortex_a9_timer_init(CPUPRIV_BASE, zynq_get_arm_timer_freq());
@@ -475,6 +475,8 @@ usage:
 }
 
 STATIC_COMMAND_START
+#if LK_DEBUGLEVEL > 1
 STATIC_COMMAND("zynq", "zynq configuration commands", &cmd_zynq)
+#endif
 STATIC_COMMAND_END(zynq);
 #endif // WITH_LIB_CONSOLE

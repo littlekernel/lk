@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Brian Swetland
+ * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -22,59 +22,26 @@
  */
 #pragma once
 
-typedef struct {
-    unsigned char opcode;
-    unsigned char extra;
-    unsigned short length;
-} msg_hdr_t;
+#include <sys/types.h>
+#include <app/lkboot.h>
+#include "lkboot_protocol.h"
 
-// unless otherwise specified, extra is always zero.
+/* private to lkboot app */
 
-#define MSG_OKAY    0x00
-// length must be zero.
-// server indicates command was successful.
+int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len, const char **result);
 
-#define MSG_FAIL    0xFF
-// length may be nonzero, if so data is a human readable error message
-// extra may be nonzero, if so it is a more specific error code
+status_t do_flash_boot(void);
 
-#define MSG_LOG     0xFE
-// data contains human readable log message from server
-// server may issue these at any time
+typedef ssize_t lkb_read_hook(void *s, void *data, size_t len);
+typedef ssize_t lkb_write_hook(void *s, const void *data, size_t len);
 
-#define MSG_GO_AHEAD    0x01
-// length must be zero
-// server indicates that command was valid and it is ready for data
-// client should send MSG_SEND_DATA messages to transfer data
+lkb_t *lkboot_create_lkb(void *cookie, lkb_read_hook *read, lkb_write_hook *write);
+status_t lkboot_process_command(lkb_t *);
 
-#define MSG_CMD     0x40
-// length must be greater than zero
-// data will contain an ascii command
-// server may reject excessively large commands
+/* inet server */
+lkb_t *lkboot_tcp_opened(void *s);
 
-#define MSG_SEND_DATA   0x41
-// client sends data to server
-// length is datalen -1 (to allow for full 64k chunks)
+/* dcc based server */
+void lkboot_dcc_init(void);
+lkb_t *lkboot_check_dcc_open(void);
 
-#define MSG_END_DATA    0x42
-// client ends data stream
-// server will then respond with MSG_OKAY or MSG_FAIL
-
-// command strings are in the form of
-// <command> ':' <decimal-datalen> ':' <optional-arguments>
-
-// example:
-// C: MSG_CMD "flash:32768:bootloader"
-// S: MSG_GO_AHEAD
-// C: MSG_SEND_DATA 16384 ...
-// C: MSG_SEND_DATA 16384 ...
-// C: MSG_END_DATA
-// S: MSG_LOG "erasing sectors"
-// S: MSG_LOG "writing sectors"
-// S: MSG_OKAY
-//
-// C: MSG_CMD "eraese:0:bootloader"
-// S: MSG_FAIL "unknown command 'eraese'"
-//
-// C: MSG_CMD "reboot:0:"
-// S: MSG_OKAY

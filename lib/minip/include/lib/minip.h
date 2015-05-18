@@ -32,6 +32,7 @@
 
 #define IPV4(a,b,c,d) (((a)&0xFF)|(((b)&0xFF)<<8)|(((c)&0xFF)<<16)|(((d)&0xFF)<<24))
 #define IPV4_SPLIT(a) (a & 0xFF), ((a >> 8) & 0xFF), ((a >> 16) & 0xFF), ((a >> 24) & 0xFF)
+#define IPV4_PACK(a) (a[3] << 24 | a[2] << 16 | a[1] << 8 | a[0])
 #define IPV4_BCAST (0xFFFFFFFF)
 #define IPV4_NONE (0)
 
@@ -59,23 +60,17 @@ void minip_set_ipaddr(const uint32_t addr);
 void minip_set_hostname(const char *name);
 const char *minip_get_hostname(void);
 
-/* udp socket interface */
 typedef struct {
-    uint32_t addr;
-    uint16_t port;
-} minip_fd_t;
-minip_fd_t *minip_open(uint32_t addr, uint16_t port);
-void minip_close(minip_fd_t *fd);
-int send(minip_fd_t *fd, void *buf, size_t len, int flags);
+    uint32_t host;
+    uint16_t sport;
+    uint16_t dport;
+    uint8_t *mac;
+} udp_socket_t;
 
-/* raw udp transmit */
-int minip_udp_send(const void *data, size_t len,
-    uint32_t dstaddr, uint16_t dstport,
-    uint16_t srcport);
-
-/* install udp listener */
-int minip_udp_listen(uint16_t port, udp_callback_t rx_handler, void *arg);
-
+status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle);
+status_t udp_close(udp_socket_t *handle);
+status_t udp_send(void *buf, size_t len, udp_socket_t *handle);
+int minip_udp_listen(uint16_t port, udp_callback_t cb, void *arg);
 /* tcp */
 typedef struct tcp_socket tcp_socket_t;
 

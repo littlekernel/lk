@@ -26,6 +26,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <kernel/thread.h>
+#include <arch/microblaze.h>
 
 #define LOCAL_TRACE 0
 

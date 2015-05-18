@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -30,6 +30,46 @@
 
 #define TIMESTAMP_IRQ 0
 
+/* macros to align and unalign the stack on 8 byte boundary for ABI compliance */
+.macro stack_align, tempreg
+	/* make sure the stack is aligned */
+	mov		\tempreg, sp
+	tst		sp, #4
+	subeq	sp, #4
+	push	{ \tempreg }
+
+	/* tempreg holds the original stack */
+.endm
+
+.macro stack_restore, tempreg
+	/* restore the potentially unaligned stack */
+	pop		{ \tempreg }
+	mov		sp, \tempreg
+.endm
+
+/* save and disable the vfp unit */
+.macro vfp_save, temp1
+	/* save old fpexc */
+	vmrs	\temp1, fpexc
+
+	push	{ \temp1 }
+
+	/* hard disable the vfp unit */
+	bic		\temp1, #(1<<30)
+	vmsr	fpexc, \temp1
+.endm
+
+/* restore the vfp enable/disable state */
+.macro vfp_restore, temp1
+	/* restore fpexc */
+	pop		{ \temp1 }
+
+	vmsr	fpexc, \temp1
+.endm
+
+/* Save callee trashed registers.
+ * At exit r0 contains a pointer to the register frame.
+ */
 .macro save
 	/* save spsr and r14 onto the svc stack */
 	srsdb	#0x13!
@@ -43,6 +83,16 @@
 	/* save user space sp/lr */
 	sub		sp, #8
 	stmia	sp, { r13, r14 }^
+
+#if ARM_WITH_VFP
+	/* save and disable the vfp unit */
+	vfp_save	r0
+#endif
+
+	/* make sure the stack is 8 byte aligned */
+	stack_align r0
+
+	/* r0 now holds the pointer to the original iframe (before alignment) */
 .endm
 
 .macro save_offset, offset
@@ -51,6 +101,14 @@
 .endm
 
 .macro restore
+	/* undo the stack alignment we did before */
+	stack_restore r0
+
+#if ARM_WITH_VFP
+	/* restore the old state of the vfp unit */
+	vfp_restore	r0
+#endif
+
 	/* restore user space sp/lr */
 	ldmia	sp, { r13, r14 }^
 	add		sp, #8
@@ -61,16 +119,29 @@
 	rfeia	sp!
 .endm
 
+/* Save all registers.
+ * At exit r0 contains a pointer to the register frame.
+ */
 .macro saveall, mode
 	/* save spsr and r14 onto our stack */
 	srsdb	\mode!
 
-	/* save all regs and lr to keep the stack aligned */
-	push	{ r0-r12, r14 }
+	/* save all regs */
+	push	{ r0-r12 }
 
 	/* save user space sp/lr */
 	sub		sp, #8
 	stmia	sp, { r13, r14 }^
+
+#if ARM_WITH_VFP
+	/* save and disable the vfp unit */
+	vfp_save	r0
+#endif
+
+	/* make sure the stack is 8 byte aligned */
+	stack_align r0
+
+	/* r0 now holds the pointer to the original iframe (before alignment) */
 .endm
 
 .macro saveall_offset, offset, mode
@@ -79,6 +150,14 @@
 .endm
 
 .macro restoreall
+	/* undo the stack alignment we did before */
+	stack_restore r0
+
+#if ARM_WITH_VFP
+	/* restore the old state of the vfp unit */
+	vfp_restore	r0
+#endif
+
 	/* restore user space sp/lr */
 	ldmia	sp, { r13, r14 }^
 	add		sp, #8
@@ -89,47 +168,19 @@
 	rfeia	sp!
 .endm
 
-.macro save_vfp, temp1
-	/* save old fpexc */
-	vmrs	\temp1, fpexc
-
-	sub		sp, #4
-	push	{ \temp1 }
-
-	/* hard disable the vfp unit */
-	bic		\temp1, #(1<<30)
-	vmsr	fpexc, \temp1
-.endm
-
-.macro restore_vfp, temp1
-	/* restore fpexc and fpscr */
-	pop		{ \temp1 }
-
-	vmsr	fpexc, \temp1
-	add		sp, #4
-.endm
-
 FUNCTION(arm_undefined)
 	save
+	/* r0 now holds pointer to iframe */
 
-#if ARM_WITH_VFP
-	save_vfp	r0
-#endif
-
-	mov		r0, sp
 	bl		arm_undefined_handler
-
-#if ARM_WITH_VFP
-	restore_vfp 	r0
-#endif
 
 	restore
 
 #ifndef WITH_LIB_SYSCALL
 FUNCTION(arm_syscall)
 	saveall #0x13
+	/* r0 now holds pointer to iframe */
 
-	mov		r0, sp
 	bl		arm_syscall_handler
 
 	restoreall
@@ -137,16 +188,16 @@ FUNCTION(arm_syscall)
 
 FUNCTION(arm_prefetch_abort)
 	saveall_offset #4, #0x17
+	/* r0 now holds pointer to iframe */
 
-	mov		r0, sp
 	bl		arm_prefetch_abort_handler
 
 	restoreall
 
 FUNCTION(arm_data_abort)
 	saveall_offset #8, #0x17
+	/* r0 now holds pointer to iframe */
 
-	mov		r0, sp
 	bl		arm_data_abort_handler
 
 	restoreall
@@ -163,22 +214,15 @@ FUNCTION(arm_irq)
 
 	save_offset    #4
 
-	/* track that we're inside an irq handler */
-	LOADCONST(r1, __arm_in_handler)
-	mov		r0, #1
-	str		r0, [r1]
+	/* r0 now holds pointer to iframe */
 
-#if ARM_WITH_VFP
-	save_vfp	r0
-#endif
+	/* track that we're inside an irq handler */
+	LOADCONST(r2, __arm_in_handler)
+	mov		r1, #1
+	str		r1, [r2]
 
 	/* call into higher level code */
-	mov		r0, sp /* iframe */
 	bl	platform_irq
-
-#if ARM_WITH_VFP
-	restore_vfp 	r1
-#endif
 
 	/* clear the irq handler status */
 	LOADCONST(r1, __arm_in_handler)
@@ -192,9 +236,9 @@ FUNCTION(arm_irq)
 	restore
 
 FUNCTION(arm_fiq)
-	save_offset #4 
+	save_offset #4
+	/* r0 now holds pointer to iframe */
 
-	mov		r0, sp
 	bl	platform_fiq
 
 	restore

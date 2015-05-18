@@ -3,7 +3,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS := \
-	lib/cbuf
+	lib/cbuf \
+	lib/iovec
 
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 

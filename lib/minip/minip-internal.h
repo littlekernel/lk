@@ -53,7 +53,6 @@ struct udp_hdr {
     uint16_t dst_port;
     uint16_t len;
     uint16_t chksum;
-    uint8_t data[];
 };
 
 struct ipv4_hdr {
@@ -116,11 +115,20 @@ uint16_t rfc1701_chksum(const uint8_t *buf, size_t len);
 uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp);
 uint16_t ones_sum16(uint32_t sum, const void *_buf, int len);
 
+/* Helper methods for building headers */
+void minip_build_mac_hdr(struct eth_hdr *pkt, const uint8_t *dst, uint16_t type);
+void minip_build_ipv4_hdr(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, uint16_t len);
+
 int send_arp_request(uint32_t addr);
 
 status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto);
 
 void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
+
+static inline void mac_addr_copy(uint8_t *dest, const uint8_t *src) {
+    *(uint32_t *)dest = *(const uint32_t *)src;
+    *(uint16_t *)(dest + 4) = *(const uint16_t *)(src + 4);
+}
 
 // timers
 typedef void (*net_timer_callback_t)(void *);

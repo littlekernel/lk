@@ -23,7 +23,7 @@ GLOBAL_DEFINES += \
 	STM32F407=1	\
 	STM32F4XX=1
 FOUND_CHIP := true
-ARM_CPU := cortex-m4f
+ARM_CPU := cortex-m4
 endif
 
 ifeq ($(FOUND_CHIP),)

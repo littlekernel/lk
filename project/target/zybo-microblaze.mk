@@ -1,0 +1,2 @@
+TARGET := zybo-microblaze
+

@@ -257,7 +257,7 @@ status_t spiflash_detect(void)
 	memset(r, 0, sizeof(r));
 	spiflash_read_otp(r, 0, 16);
 
-	TRACEF("OTP random %08x%08x%08x%08x\n", r[0], r[1], r[2], r[3]);
+	LTRACEF("OTP random %08x%08x%08x%08x\n", r[0], r[1], r[2], r[3]);
 	rand_add_entropy(r, sizeof(r));
 
 	flash.detected = true;
@@ -400,6 +400,7 @@ notenoughargs:
 		printf("not enough arguments\n");
 usage:
 		printf("usage:\n");
+#if LK_DEBUGLEVEL > 1
 		printf("\t%s detect\n", argv[0].str);
 		printf("\t%s cfi\n", argv[0].str);
 		printf("\t%s cr1\n", argv[0].str);
@@ -408,10 +409,12 @@ usage:
 		printf("\t%s read <offset> <length>\n", argv[0].str);
 		printf("\t%s write <offset> <length> <address>\n", argv[0].str);
 		printf("\t%s erase <offset>\n", argv[0].str);
+#endif
 		printf("\t%s setquad (dangerous)\n", argv[0].str);
 		return ERR_INVALID_ARGS;
 	}
 
+#if LK_DEBUGLEVEL > 1
 	if (!strcmp(argv[1].str, "detect")) {
 		spiflash_detect();
 	} else if (!strcmp(argv[1].str, "cr1")) {
@@ -490,7 +493,9 @@ usage:
 
 		status_t err = qspi_erase_sector(&flash.qspi, argv[2].u);
 		printf("erase returns %d\n", err);
-	} else if (!strcmp(argv[1].str, "setquad")) {
+	} else
+#endif
+	if (!strcmp(argv[1].str, "setquad")) {
 		if (!flash.detected) {
 			printf("flash not detected\n");
 			return -1;

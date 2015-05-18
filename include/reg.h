@@ -23,7 +23,7 @@
 #ifndef __REG_H
 #define __REG_H
 
-#include <sys/types.h>
+#include <stdint.h>
 
 /* low level macros for accessing memory mapped hardware registers */
 #define REG64(addr) ((volatile uint64_t *)(uintptr_t)(addr))

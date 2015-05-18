@@ -35,7 +35,7 @@
 #include <trace.h>
 
 #define LOCAL_TRACE 0
-#define TRACE_INIT 0
+#define TRACE_INIT (LK_DEBUGLEVEL >= 2)
 
 extern const struct lk_init_struct __lk_init[];
 extern const struct lk_init_struct __lk_init_end[];
