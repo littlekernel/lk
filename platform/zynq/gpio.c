@@ -33,6 +33,9 @@
 
 #define MAX_GPIO 128
 
+static inline uint16_t extract_bank(unsigned gpio_id) { return gpio_id / 32; }
+static inline uint16_t extract_bit (unsigned gpio_id) { return gpio_id % 32; }
+
 struct {
     int_handler callback;
     void *args;
@@ -73,8 +76,8 @@ static enum handler_return gpio_int_handler(void *arg) {
 
 void zynq_unmask_gpio_interrupt(unsigned gpio)
 {
-    uint16_t bank = gpio / 31;
-    uint16_t bit = gpio % 32;
+    uint16_t bank = extract_bank(gpio);
+    uint16_t bit  = extract_bit(gpio);
 
     RMWREG32(GPIO_INT_EN(bank), bit, 1, 1);
     RMWREG32(GPIO_INT_STAT(bank), bit, 1, 1);
@@ -82,8 +85,8 @@ void zynq_unmask_gpio_interrupt(unsigned gpio)
 
 void zynq_mask_gpio_interrupt(unsigned gpio)
 {
-    uint16_t bank = gpio / 31;
-    uint16_t bit = gpio % 32;
+    uint16_t bank = extract_bank(gpio);
+    uint16_t bit  = extract_bit(gpio);
 
     RMWREG32(GPIO_INT_DIS(bank), bit, 1, 1);
 }
@@ -120,8 +123,8 @@ int gpio_config(unsigned gpio, unsigned flags)
 {
     DEBUG_ASSERT(gpio < MAX_GPIO);
 
-    uint16_t bank = gpio / 31;
-    uint16_t bit = gpio % 32;
+    uint16_t bank = extract_bank(gpio);
+    uint16_t bit  = extract_bit(gpio);
     uint32_t mio_cfg = MIO_GPIO;
 
     /* MIO region, exclude EMIO. MIO needs to be configured before the GPIO block. */
@@ -175,8 +178,8 @@ void gpio_set(unsigned gpio, unsigned on)
 {
     DEBUG_ASSERT(gpio < MAX_GPIO);
 
-    uint16_t bank = gpio / 32;
-    uint16_t bit = gpio % 32;
+    uint16_t bank = extract_bank(gpio);
+    uint16_t bit  = extract_bit(gpio);
     uintptr_t reg = (bit < 16) ? GPIO_MASK_DATA_LSW(bank) : GPIO_MASK_DATA_MSW(bank);
     *REG32(reg) = (~(1 << bit) << 16) | (!!on << bit);
 }
@@ -185,8 +188,8 @@ int gpio_get(unsigned gpio)
 {
     DEBUG_ASSERT(gpio < MAX_GPIO);
 
-    uint16_t bank = gpio / 32;
-    uint16_t bit = gpio % 32;
+    uint16_t bank = extract_bank(gpio);
+    uint16_t bit  = extract_bit(gpio);
 
     return ((*REG32(GPIO_DATA_RO(bank)) & (1 << bit)) > 0);
 }
