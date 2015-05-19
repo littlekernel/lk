@@ -468,15 +468,17 @@ STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 #define MIO_L0_SEL                      (1 << 1)
 #define MIO_L1_SEL                      (1 << 2)
 #define MIO_L2_SEL(x)                   ((x & BIT_MASK(2)) << 3)
+#define MIO_L2_SEL_MASK                 MIO_L2_SEL(0x3)
 #define MIO_L3_SEL(x)                   ((x & BIT_MASK(3)) << 5)
+#define MIO_L3_SEL_MASK                 MIO_L3_SEL(0x7)
 #define MIO_SPEED_FAST                  (1 << 8)
 #define MIO_IO_TYPE_LVCMOS18            (0x1 << 9)
 #define MIO_IO_TYPE_LVCMOS25            (0x2 << 9)
 #define MIO_IO_TYPE_LVCMOS33            (0x3 << 9)
 #define MIO_IO_TYPE_HSTL                (0x4 << 9)
+#define MIO_IO_TYPE_MASK                (0x7 << 9)
 #define MIO_PULLUP                      (1 << 12)
 #define MIO_DISABLE_RCVR                (1 << 13)
-#define MIO_GPIO                        (MIO_IO_TYPE_LVCMOS18 | MIO_DISABLE_RCVR)
 #define MIO_DEFAULT                     (0xFFFF0000)
 
 /* UART registers */
