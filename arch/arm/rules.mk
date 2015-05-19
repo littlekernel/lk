@@ -182,6 +182,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm-m/arch.c \
 	$(LOCAL_DIR)/arm-m/vectab.c \
 	$(LOCAL_DIR)/arm-m/start.c \
+	$(LOCAL_DIR)/arm-m/spin_cycles.c \
 	$(LOCAL_DIR)/arm-m/exceptions.c \
 	$(LOCAL_DIR)/arm-m/thread.c
 
