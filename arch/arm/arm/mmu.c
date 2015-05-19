@@ -327,6 +327,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 
 static status_t get_l2_table(uint32_t l1_index, paddr_t *ppa)
 {
+    status_t ret;
     paddr_t pa;
     uint32_t tt_entry;
 
@@ -352,7 +353,9 @@ static status_t get_l2_table(uint32_t l1_index, paddr_t *ppa)
     memset(l2_va, 0, PAGE_SIZE);
 
     /* get physical address */
-    arm_vtop((vaddr_t)l2_va, &pa);
+    ret = arm_vtop((vaddr_t)l2_va, &pa);
+    ASSERT(!ret);
+    ASSERT(paddr_to_kvaddr(pa));
 
     DEBUG_ASSERT(IS_PAGE_ALIGNED((vaddr_t)l2_va));
     DEBUG_ASSERT(IS_PAGE_ALIGNED(pa));
