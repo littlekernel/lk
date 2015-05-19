@@ -276,8 +276,14 @@ void arch_quiesce(void)
 /* virtual to physical translation */
 status_t arm_vtop(addr_t va, addr_t *pa)
 {
+	spin_lock_saved_state_t irqstate;
+
+	arch_interrupt_save(&irqstate, SPIN_LOCK_FLAG_INTERRUPTS);
+
 	arm_write_ats1cpr(va & ~(PAGE_SIZE-1));
 	uint32_t par = arm_read_par();
+
+	arch_interrupt_restore(irqstate, SPIN_LOCK_FLAG_INTERRUPTS);
 
 	if (par & 1)
 		return ERR_NOT_FOUND;
