@@ -312,7 +312,7 @@ static void lkboot_task(const struct app_descriptor *app, void *args)
         sysparam_read("lkboot.autoboot_timeout", &autoboot_timeout, sizeof(autoboot_timeout));
     }
 
-    TRACEF("autoboot %u autoboot_timeout %d\n", autoboot, autoboot_timeout);
+    TRACEF("autoboot %u autoboot_timeout %u\n", autoboot, (uint32_t)autoboot_timeout);
 
 #if LKBOOT_WITH_SERVER
     lkboot_server(false);
