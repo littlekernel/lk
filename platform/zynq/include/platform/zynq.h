@@ -574,5 +574,15 @@ enum zynq_periph {
 status_t zynq_set_clock(enum zynq_periph, bool enable, enum zynq_clock_source, uint32_t divisor, uint32_t divisor2);
 uint32_t zynq_get_clock(enum zynq_periph);
 
+/* boot mode */
+#define ZYNQ_BOOT_MODE_JTAG     (0)
+#define ZYNQ_BOOT_MODE_QSPI     (1)
+#define ZYNQ_BOOT_MODE_NOR      (2)
+#define ZYNQ_BOOT_MODE_NAND     (4)
+#define ZYNQ_BOOT_MODE_SD       (5)
+#define ZYNQ_BOOT_MODE_MASK     (0x7)    /* only interested in BOOT_MODE[2:0] */
+
+static inline uint32_t zynq_get_boot_mode(void) { return SLCR->BOOT_MODE & ZYNQ_BOOT_MODE_MASK; }
+
 #endif // !ASSEMBLY
 

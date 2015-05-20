@@ -408,12 +408,10 @@ void platform_init(void)
     uart_init();
 
     /* enable if we want to see some hardware boot status */
-#if 0
+#if LK_DEBUGLEVEL > 0
     printf("zynq boot status:\n");
     printf("\tREBOOT_STATUS 0x%x\n", SLCR_REG(REBOOT_STATUS));
-    printf("\tBOOT_MODE 0x%x\n", SLCR_REG(BOOT_MODE));
-
-    zynq_dump_clocks();
+    printf("\tboot mode 0x%x\n", zynq_get_boot_mode());
 #endif
 }
 
