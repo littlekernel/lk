@@ -427,6 +427,22 @@ void platform_quiesce(void)
     SLCR_REG(A9_CPU_RST_CTRL) |= (1<<1); // reset cpu 1
 }
 
+/* called from lkboot to see if we want to abort autobooting.
+ * having the BOOT_MODE pins set to JTAG should cause us to hang out in
+ * whatever binary is loaded at the time.
+ */
+bool platform_abort_autoboot(void)
+{
+    /* test BOOT_MODE pins to see if we want to skip the autoboot stuff */
+    uint32_t boot_mode = zynq_get_boot_mode();
+    if (boot_mode == ZYNQ_BOOT_MODE_JTAG) {
+        printf("ZYNQ: disabling autoboot due to JTAG/QSPI jumper being set to JTAG\n");
+        return true;
+    }
+
+    return false;
+}
+
 #if WITH_LIB_CONSOLE
 static int cmd_zynq(int argc, const cmd_args *argv)
 {

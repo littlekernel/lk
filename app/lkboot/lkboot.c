@@ -61,8 +61,6 @@
 #define STATE_DONE 3
 #define STATE_ERROR 4
 
-static lk_time_t autoboot_timeout = LKBOOT_AUTOBOOT_TIMEOUT;
-
 typedef struct LKB {
     lkb_read_hook *read;
     lkb_write_hook *write;
@@ -227,13 +225,8 @@ fail:
     return ERR_IO;
 }
 
-static status_t lkboot_server(bool wait_forever)
+static status_t lkboot_server(lk_time_t timeout)
 {
-    /* if we're not going to autoboot, stay here forever */
-    if (autoboot_timeout == INFINITE_TIME) {
-        wait_forever = true;
-    }
-
     lkboot_dcc_init();
 
 #if WITH_LIB_MINIP
@@ -255,9 +248,9 @@ static status_t lkboot_server(bool wait_forever)
 
 #if WITH_LIB_MINIP
         /* wait for a new connection */
-        lk_time_t timeout = 100;
+        lk_time_t sock_timeout = 100;
         tcp_socket_t *s;
-        if (tcp_accept_timeout(listen_socket, &s, timeout) >= 0) {
+        if (tcp_accept_timeout(listen_socket, &s, sock_timeout) >= 0) {
             DEBUG_ASSERT(s);
 
             /* handle the command and close it */
@@ -278,16 +271,14 @@ static status_t lkboot_server(bool wait_forever)
         }
 
         /* after the first command, stay in the server loop forever */
-        if (handled_command && !wait_forever) {
-            wait_forever = true;
+        if (handled_command && timeout != INFINITE_TIME) {
+            timeout = INFINITE_TIME;
             printf("lkboot: handled command, staying in server loop\n");
         }
 
         /* see if we need to drop out and try to direct boot */
-        if (!wait_forever) {
-            if (current_time() - t >= autoboot_timeout) {
-                break;
-            }
+        if (timeout != INFINITE_TIME && (current_time() - t >= timeout)) {
+            break;
         }
     }
 
@@ -300,38 +291,51 @@ static status_t lkboot_server(bool wait_forever)
     return ERR_TIMED_OUT;
 }
 
+/* platform code can override this to conditionally abort autobooting from flash */
+__WEAK bool platform_abort_autoboot(void)
+{
+    return false;
+}
+
 static void lkboot_task(const struct app_descriptor *app, void *args)
 {
     /* read a few sysparams to decide if we're going to autoboot */
     uint8_t autoboot = 1;
     sysparam_read("lkboot.autoboot", &autoboot, sizeof(autoboot));
 
+    /* let platform code have a shot at disabling the autoboot behavior */
+    if (platform_abort_autoboot())
+        autoboot = 0;
+
+    /* if we're going to autoobot, read the timeout value */
+    lk_time_t autoboot_timeout;
     if (!autoboot) {
         autoboot_timeout = INFINITE_TIME;
     } else {
+        autoboot_timeout = LKBOOT_AUTOBOOT_TIMEOUT;
         sysparam_read("lkboot.autoboot_timeout", &autoboot_timeout, sizeof(autoboot_timeout));
     }
 
-    TRACEF("autoboot %u autoboot_timeout %u\n", autoboot, (uint32_t)autoboot_timeout);
+    TRACEF("autoboot %u autoboot_timeout %u\n", autoboot, (uint)autoboot_timeout);
 
 #if LKBOOT_WITH_SERVER
-    lkboot_server(false);
+    lkboot_server(autoboot_timeout);
 #else
     if (autoboot_timeout != INFINITE_TIME) {
-        TRACEF("waiting for %u milliseconds before autobooting\n", autoboot_timeout);
+        TRACEF("waiting for %u milliseconds before autobooting\n", (uint)autoboot_timeout);
         thread_sleep(autoboot_timeout);
     }
 #endif
 
-    TRACEF("trying to boot from flash...\n");
-    status_t err = do_flash_boot();
-    TRACEF("do_flash_boot returns %d\n", err);
+    if (autoboot_timeout != INFINITE_TIME) {
+        TRACEF("trying to boot from flash...\n");
+        status_t err = do_flash_boot();
+        TRACEF("do_flash_boot returns %d\n", err);
+    }
 
 #if LKBOOT_WITH_SERVER
-    if (err < 0) {
-        TRACEF("restarting server\n");
-        lkboot_server(true);
-    }
+    TRACEF("restarting server\n");
+    lkboot_server(INFINITE_TIME);
 #endif
 
     TRACEF("nothing to do, exiting\n");
