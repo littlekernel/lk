@@ -163,6 +163,7 @@ static void arm_mmu_unmap_section(addr_t vaddr)
 
 void arm_mmu_init(void)
 {
+#if WITH_KERNEL_VM
     /* unmap the initial mapings that are marked temporary */
     struct mmu_initial_mapping *map = mmu_initial_mappings;
     while (map->size > 0) {
@@ -180,6 +181,7 @@ void arm_mmu_init(void)
         }
         map++;
     }
+#endif
 }
 
 void arch_disable_mmu(void)
@@ -333,7 +335,11 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
                     break;
                 case MMU_MEMORY_L1_DESCRIPTOR_INVALID: {
                     /* alloc and put in a L2 page table */
+#if WITH_KERNEL_VM
                     uint32_t *l2_table = pmm_alloc_kpage();
+#else
+                    uint32_t *l2_table = memalign(PAGE_SIZE, PAGE_SIZE);
+#endif
                     if (!l2_table) {
                         TRACEF("failed to allocate pagetable\n");
                         goto done;

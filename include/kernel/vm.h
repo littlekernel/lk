@@ -50,6 +50,7 @@ struct mmu_initial_mapping {
     const char *name;
 };
 
+#if WITH_KERNEL_VM
 /* Platform or target must fill out one of these to set up the initial memory map
  * for kernel and enough IO space to boot.
  */
@@ -200,6 +201,14 @@ status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t va);
 
     /* For the above region creation routines. Allocate virtual space at the passed in pointer. */
 #define VMM_FLAG_VALLOC_SPECIFIC 0x1
+
+#else
+/* physical to virtual */
+static inline void *paddr_to_kvaddr(paddr_t pa) { return (void*)pa; }
+
+/* virtual to physical */
+static inline paddr_t kvaddr_to_paddr(void *va) { return (paddr_t)va; }
+#endif
 
 __END_CDECLS
 
