@@ -301,24 +301,28 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout)
 	ASSERT(!list_in_list(&t->queue_node));
 #endif
 
-	/* save the return code */
-	if (retcode)
-		*retcode = t->retcode;
+    /* Check if some other thread already reclaimed the thread resources */
+    if (t) {
+        /* save the return code */
+        if (retcode)
+            *retcode = t->retcode;
 
-	/* remove it from the master thread list */
-	list_delete(&t->thread_list_node);
+        /* remove it from the master thread list */
+        list_delete(&t->thread_list_node);
 
-	/* clear the structure's magic */
-	t->magic = 0;
-
+        /* clear the structure's magic */
+        t->magic = 0;
+    }
 	exit_critical_section();
 
 	/* free its stack and the thread structure itself */
-	if (t->flags & THREAD_FLAG_FREE_STACK && t->stack)
-		free(t->stack);
+    if (t) {
+        if (t->flags & THREAD_FLAG_FREE_STACK && t->stack)
+            free(t->stack);
 
-	if (t->flags & THREAD_FLAG_FREE_STRUCT)
-		free(t);
+        if (t->flags & THREAD_FLAG_FREE_STRUCT)
+            free(t);
+    }
 
 	return NO_ERROR;
 }
