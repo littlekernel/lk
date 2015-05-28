@@ -19,6 +19,9 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/faults.c \
 	$(LOCAL_DIR)/descriptor.c
 
+GLOBAL_DEFINES += \
+	SMP_MAX_CPUS=1
+
 # set the default toolchain to microblaze elf and set a #define
 ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := microblaze-elf-

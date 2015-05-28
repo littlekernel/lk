@@ -4,6 +4,10 @@ GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
 GLOBAL_LDFLAGS += --gc-sections
 endif
 
+ifneq (,$(EXTRA_BUILDRULES))
+-include $(EXTRA_BUILDRULES)
+endif
+
 $(OUTBIN): $(OUTELF)
 	@echo generating image: $@
 	$(NOECHO)$(SIZE) $<

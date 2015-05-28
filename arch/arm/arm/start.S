@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -36,6 +36,9 @@ _start:
 	b	arm_reserved
 	b	arm_irq
 	b	arm_fiq
+#if WITH_SMP
+	b	arm_reset
+#endif
 
 .weak platform_reset
 platform_reset:
@@ -43,29 +46,42 @@ platform_reset:
 
 .globl arm_reset
 arm_reset:
-	/* do some cpu setup */
-#if ARM_WITH_CP15
+	/* do some early cpu setup */
 	mrc		p15, 0, r12, c1, c0, 0
-		/* XXX this is currently for arm926, revist with armv6 cores */
-		/* new thumb behavior, low exception vectors, i/d cache disable, mmu disabled */
-	bic		r12, #(1<<15| 1<<13 | 1<<12)
-	bic		r12, #(1<<2 | 1<<1 | 1<<0)
-#if ARM_ARCH_LEVEL < 6
-		/* enable alignment faults on pre-ARMv6 hardware. On v6+,
-		 * GCC is free to generate unaligned accesses.
-		 */
-	orr		r12, #(1<<1)
-#endif
+	/* i/d cache disable, mmu disabled */
+	bic		r12, #(1<<12)
+	bic		r12, #(1<<2 | 1<<0)
+#if WITH_KERNEL_VM
+	/* enable caches so atomics and spinlocks work */
+	orr		r12, r12, #(1<<12)
+	orr		r12, r12, #(1<<2)
+#endif // WITH_KERNEL_VM
 	mcr		p15, 0, r12, c1, c0, 0
-#endif
+
+	/* calculate the physical offset from our eventual virtual location */
+.Lphys_offset:
+	ldr		r4, =.Lphys_offset
+	adr		r11, .Lphys_offset
+	sub		r11, r11, r4
+
+#if WITH_SMP
+	/* figure out our cpu number */
+	mrc     p15, 0, r12, c0, c0, 5 /* read MPIDR */
+
+	/* mask off the bottom bits to test cluster number:cpu number */
+	ubfx    r12, r12, #0, #SMP_CPU_ID_BITS
+
+	/* if we're not cpu 0:0, fall into a trap and wait */
+	teq     r12, #0
+	movne	r0, r12
+	bne     arm_secondary_setup
+#endif // WITH_SMP
 
 #if WITH_CPU_EARLY_INIT
 	/* call platform/arch/etc specific init code */
 	bl __cpu_early_init
-#endif
+#endif // WITH_CPU_EARLY_INIT
 
-#if WITH_KERNEL_VM
-__relocate_start:
 #if WITH_NO_PHYS_RELOCATION
 	/* assume that image is properly loaded in physical memory */
 #else
@@ -73,7 +89,7 @@ __relocate_start:
 	adr		r4, _start                           /* this emits sub r4, pc, #constant */
 	ldr		r5, =(MEMBASE + KERNEL_LOAD_OFFSET)  /* calculate the binary's physical load address */
 	subs	r12, r4, r5                          /* calculate the delta between where we're loaded and the proper spot */
-	beq		.Lsetup_mmu
+	beq		.Lrelocate_done
 
 	/* we need to relocate ourselves to the proper spot */
 	ldr		r6, =__data_end
@@ -89,25 +105,22 @@ __relocate_start:
 
 	/* we're relocated, jump to the right address */
 	sub		pc, r12
-	nop
-#endif
+	nop		/* skipped in the add to pc */
 
-__mmu_start:
+	/* recalculate the physical offset */
+	sub		r11, r11, r12
+
+.Lrelocate_done:
+#endif // !WITH_NO_PHYS_RELOCATION
+
+#if WITH_KERNEL_VM
 .Lsetup_mmu:
+
 	/* set up the mmu according to mmu_initial_mappings */
-
-	/* calculate our physical to virtual offset */
-	mov		r12, pc
-	ldr		r5, =.Laddr1
-.Laddr1:
-	sub		r12, r5
-
-	/* r12 now holds the offset from virtual to physical:
-	 * virtual + r12 = physical */
 
 	/* load the base of the translation table and clear the table */
 	ldr		r4, =arm_kernel_translation_table
-	add		r4, r12
+	add		r4, r4, r11
 		/* r4 = physical address of translation table */
 
 	mov		r5, #0
@@ -122,12 +135,18 @@ __mmu_start:
 
 	/* load the address of the mmu_initial_mappings table and start processing */
 	ldr		r5, =mmu_initial_mappings
-	add		r5, r12
+	add		r5, r5, r11
 		/* r5 = physical address of mmu initial mapping table */
 
 .Linitial_mapping_loop:
 	ldmia	r5!, { r6-r10 }
 		/* r6 = phys, r7 = virt, r8 = size, r9 = flags, r10 = name */
+
+	/* round size up to 1MB alignment */
+	ubfx		r10, r6, #0, #20
+	add		r8, r8, r10
+	add		r8, r8, #(1 << 20)
+	sub		r8, r8, #1
 
 	/* mask all the addresses and sizes to 1MB boundaries */
 	lsr		r6, #20  /* r6 = physical address / 1MB */
@@ -148,11 +167,11 @@ __mmu_start:
 		/* r10 = mmu entry flags */
 
 0:
-	orr		r11, r10, r6, lsl #20
-		/* r11 = phys addr | flags */
+	orr		r12, r10, r6, lsl #20
+		/* r12 = phys addr | flags */
 
 	/* store into appropriate translation table entry */
-	str		r11, [r4, r7, lsl #2]
+	str		r12, [r4, r7, lsl #2]
 
 	/* loop until we're done */
 	add		r6, #1
@@ -164,81 +183,49 @@ __mmu_start:
 
 .Linitial_mapping_done:
 
-	/* set up the mmu */
+#if MMU_WITH_TRAMPOLINE
+	/* move arm_kernel_translation_table address to r8 and
+	 * set cacheable attributes on translation walk
+	 */
+	orr		r8, r4, #MMU_TTBRx_FLAGS
 
-	/* Invalidate TLB */
-	mov		r12, #0
-	mcr		p15, 0, r12, c8, c7, 0
-	isb
+	/* Prepare tt_trampoline page table */
+	/* Calculate pagetable physical addresses */
+	ldr		r4, =tt_trampoline	/* r4 = tt_trampoline vaddr */
+	add		r4, r4, r11		/* r4 = tt_trampoline paddr */
 
-	/* Write 0 to TTBCR */
-	mcr		p15, 0, r12, c2, c0, 2
-	isb
-
-	/* set cacheable attributes on translation walk */
-	/* (SMP extensions) non-shareable, inner write-back write-allocate */
-	orr		r4, #(1<<6 | 0<<1)
-	/* outer write-back write-allocate */
-	orr		r4, #(1<<3)
-
-	/* Write ttbr with phys addr of the translation table */
-	mcr		p15, 0, r4, c2, c0, 0
-	isb
-
-	/* Write DACR */
-	mov		r12, #0x1
-	mcr		p15, 0, r12, c3, c0, 0
-	isb
-
-	/* Read SCTLR */
-	mrc		p15, 0, r12, c1, c0, 0
-
-	/* Disable TRE/AFE */
-	bic		r12, #(1<<29 | 1<<28)
-
-	/* Turn on the MMU */
-	orr		r12, #0x1
-
-	/* Write back SCTLR */
-	mcr		p15, 0, r12, c1, c0, 0
-	isb
-
-	/* Jump to virtual code address */
-	ldr		pc, =1f
+	/* Zero tt_trampoline translation tables */
+	mov		r6, #0
+	mov		r7, #0
 1:
+	str		r7, [r4, r6, lsl#2]
+	add		r6, #1
+	cmp		r6, #0x1000
+	blt		1b
 
-	/* Invalidate TLB */
-	mov		r12, #0
-	mcr		p15, 0, r12, c8, c7, 0
-	isb
+	/* Setup 1M section mapping at
+	 * phys	 -> phys   and
+	 * virt	 -> phys
+	 */
+	lsr		r6, pc, #20		/* r6 = paddr index */
+	ldr		r7, =MMU_KERNEL_L1_PTE_FLAGS
+	add		r7, r7, r6, lsl #20	/* r7 = pt entry */
 
-#else
-	/* see if we need to relocate */
-	mov		r4, pc
-	sub		r4, r4, #(.Laddr - _start)
-.Laddr:
-	ldr		r5, =_start
-	cmp		r4, r5
-	beq		.Lstack_setup
+	str		r7, [r4, r6, lsl #2]	/* tt_trampoline[paddr index] = pt entry */
 
-	/* we need to relocate ourselves to the proper spot */
-	ldr		r6, =__data_end
+	rsb		r6, r11, r6, lsl #20	/* r6 = vaddr */
+	str		r7, [r4, r6, lsr #(20 - 2)]	/* tt_trampoline[vaddr index] = pt entry */
+#endif // MMU_WITH_TRAMPOLINE
 
-.Lrelocate_loop:
-	ldr		r7, [r4], #4
-	str		r7, [r5], #4
-	cmp		r5, r6
-	bne		.Lrelocate_loop
-
-	/* we're relocated, jump to the right address */
-	ldr		r4, =.Lstack_setup
-	bx		r4
-#endif
+	/* set up the mmu */
+	bl		.Lmmu_setup
+#endif // WITH_KERNEL_VM
 
 	/* at this point we're running at our final location in virtual memory (if enabled) */
 .Lstack_setup:
 	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
-	ldr		r12, =abort_stack_top
+	ldr		r12, =abort_stack
+	add		r12, #ARCH_DEFAULT_STACK_SIZE
 
 	cpsid	i,#0x12       /* irq */
 	mov		sp, r12
@@ -287,18 +274,162 @@ __mmu_start:
 	bl		lk_main
 	b		.
 
+#if WITH_KERNEL_VM
+	/* per cpu mmu setup, shared between primary and secondary cpus
+	   args:
+	   r4 == translation table physical
+	   r8 == final translation table physical (if using trampoline)
+	*/
+.Lmmu_setup:
+	/* Invalidate TLB */
+	mov		r12, #0
+	mcr		p15, 0, r12, c8, c7, 0
+	isb
+
+	/* Write 0 to TTBCR */
+	mcr		p15, 0, r12, c2, c0, 2
+	isb
+
+	/* set cacheable attributes on translation walk */
+	/* inner write-back write-allocate */
+	orr		r12, r4, #(1<<6 | 0<<1)
+	/* outer write-back write-allocate */
+	orr		r12, #(1<<3)
+#if WITH_SMP
+	/* (SMP extensions) shareable, outer shareable */
+	orr		r12, #(1<<1 | 0<<5)
+#endif
+
+	/* Write ttbr with phys addr of the translation table */
+	mcr		p15, 0, r12, c2, c0, 0
+	isb
+
+	/* Write DACR */
+	mov		r12, #0x1
+	mcr		p15, 0, r12, c3, c0, 0
+	isb
+
+	/* Read SCTLR into r12 */
+	mrc		p15, 0, r12, c1, c0, 0
+
+	/* Disable TRE/AFE */
+	bic		r12, #(1<<29 | 1<<28)
+
+	/* Turn on the MMU */
+	orr		r12, #0x1
+
+	/* Write back SCTLR */
+	mcr		p15, 0, r12, c1, c0, 0
+	isb
+
+	/* Jump to virtual code address */
+	ldr		pc, =1f
+1:
+
+#if MMU_WITH_TRAMPOLINE
+	/* Switch to main page table */
+	mcr		p15, 0, r8, c2, c0, 0
+	isb
+#endif
+
+	/* Invalidate TLB */
+	mov		r12, #0
+	mcr		p15, 0, r12, c8, c7, 0
+	isb
+
+	/* assume lr was in physical memory, adjust it before returning */
+	sub		lr, r11
+	bx		lr
+#endif
+
+#if WITH_SMP
+	/* secondary cpu entry point */
+	/* r0 holds cpu number */
+	/* r11 hold phys offset */
+FUNCTION(arm_secondary_setup)
+	/* all other cpus, trap and wait to be released */
+1:
+	wfe
+	ldr     r12, =arm_boot_cpu_lock
+	add     r12, r12, r11
+	ldr     r12, [r12]
+	cmp     r12, #0
+	bne     1b
+
+	and	r1, r0, #0xff
+	cmp	r1, #(1 << SMP_CPU_CLUSTER_SHIFT)
+	bge	unsupported_cpu_trap
+	bic	r0, r0, #0xff
+	orr	r0, r1, r0, LSR #(8 - SMP_CPU_CLUSTER_SHIFT)
+
+	cmp		r0, #SMP_MAX_CPUS
+	bge		unsupported_cpu_trap
+	mov		r5, r0 /* save cpu num */
+
+	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
+	ldr		r1, =abort_stack
+	mov		r2, #ARCH_DEFAULT_STACK_SIZE
+	add		r0, #1
+	mul		r2, r2, r0
+	add		r1, r2
+
+	cpsid	i,#0x12       /* irq */
+	mov		sp, r1
+
+	cpsid	i,#0x11       /* fiq */
+	mov		sp, r1
+
+	cpsid	i,#0x17       /* abort */
+	mov		sp, r1
+
+	cpsid	i,#0x1b       /* undefined */
+	mov		sp, r1
+
+	cpsid	i,#0x1f       /* system */
+	mov		sp, r1
+
+	cpsid	i,#0x13       /* supervisor */
+	mov		sp, r1
+
+#if WITH_KERNEL_VM
+	/* load the physical base of the translation table and clear the table */
+	ldr		r4, =arm_kernel_translation_table
+	add		r4, r4, r11
+
+#if MMU_WITH_TRAMPOLINE
+	/* move arm_kernel_translation_table address to r8 and
+	 * set cacheable attributes on translation walk
+	 */
+	orr		r8, r4, #MMU_TTBRx_FLAGS
+
+	/* Prepare tt_trampoline page table */
+	/* Calculate pagetable physical addresses */
+	ldr		r4, =tt_trampoline	/* r4 = tt_trampoline vaddr */
+	add		r4, r4, r11		/* r4 = tt_trampoline paddr */
+#endif
+
+	/* set up the mmu on this cpu and switch to virtual memory */
+	bl		.Lmmu_setup
+#endif
+
+	/* stay in supervisor and call into arm arch code to continue setup */
+	mov		r0, r5
+	bl		arm_secondary_entry
+
+	/* cpus above the number we claim to support get trapped here */
+unsupported_cpu_trap:
+	wfe
+	b 		unsupported_cpu_trap
+#endif
+
 .ltorg
 
-.bss
-.align 3
-	/* the abort stack is for unrecoverable errors.
-	 * also note the initial working stack is set to here.
-	 * when the threading system starts up it'll switch to a new
-	 * dynamically allocated stack, so we don't need it for very long
-	 */
-LOCAL_DATA(abort_stack)
-	.skip 4096
-LOCAL_DATA(abort_stack_top)
+#if WITH_KERNEL_VM && MMU_WITH_TRAMPOLINE
+.section ".bss.prebss.translation_table"
+.align 14
+DATA(tt_trampoline)
+	.skip 16384
+#endif
 
 .data
 .align 2

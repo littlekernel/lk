@@ -41,12 +41,15 @@ static int fibo_thread(void *argv)
 	if (fibo == 1)
 		return 1;
 
-	t[0] = thread_create("fibo", &fibo_thread, (void *)(fibo - 1), DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	char name[32];
+	snprintf(name, sizeof(name), "fibo %lu", fibo - 1);
+	t[0] = thread_create(name, &fibo_thread, (void *)(fibo - 1), DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
 	if (!t[0]) {
 		printf("error creating thread for fibo %d\n", fibo-1);
 		return 0;
 	}
-	t[1] = thread_create("fibo", &fibo_thread, (void *)(fibo - 2), DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	snprintf(name, sizeof(name), "fibo %lu", fibo - 2);
+	t[1] = thread_create(name, &fibo_thread, (void *)(fibo - 2), DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
 	if (!t[1]) {
 		printf("error creating thread for fibo %d\n", fibo-2);
 		thread_resume(t[0]);
@@ -89,4 +92,5 @@ int fibo(int argc, const cmd_args *argv)
 	return NO_ERROR;
 }
 
+// vim: set noexpandtab:
 

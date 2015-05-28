@@ -39,6 +39,7 @@
 #include <kernel/timer.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
+#include <kernel/spinlock.h>
 #include <kernel/debug.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
@@ -54,6 +55,8 @@
 #define GEM_TX_BUF_CNT      32
 #define GEM_RX_BUF_SIZE     1536
 #define GEM_TX_BUF_SIZE     1536
+
+static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
 struct gem_desc {
     uint32_t addr;
@@ -132,7 +135,8 @@ void queue_pkts_in_tx_tbl(void) {
     pktbuf_t *p;
     unsigned int cur_pos;
 
-    enter_critical_section();
+    spin_lock_saved_state_t irqstate;
+    spin_lock_irqsave(&lock, irqstate);
     if (list_is_empty(&gem.tx_queue)) {
         goto exit;
     }
@@ -168,7 +172,7 @@ void queue_pkts_in_tx_tbl(void) {
     gem.regs->net_ctrl |= NET_CTRL_START_TX;
 
 exit:
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, irqstate);
 }
 
 int gem_send_raw_pkt(struct pktbuf *p)
@@ -186,10 +190,11 @@ int gem_send_raw_pkt(struct pktbuf *p)
     // XXX handle multi part buffers
     arch_clean_cache_range((vaddr_t)p->data, p->dlen);
 
-    enter_critical_section();
+    spin_lock_saved_state_t irqstate;
+    spin_lock_irqsave(&lock, irqstate);
     list_add_tail(&gem.tx_queue, &p->list);
     queue_pkts_in_tx_tbl();
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, irqstate);
 
 err:
     return ret;

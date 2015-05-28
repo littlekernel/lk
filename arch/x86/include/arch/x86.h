@@ -118,6 +118,28 @@ static inline uint32_t x86_get_cr2(void)
 	return rv;
 }
 
+static inline uint32_t x86_save_eflags(void)
+{
+	unsigned int state;
+
+	__asm__ volatile(
+		"pushfl;"
+		"popl %0"
+		: "=rm" (state)
+		:: "memory");
+
+	return state;
+}
+
+static inline void x86_restore_eflags(uint32_t eflags)
+{
+	__asm__ volatile(
+		"pushl %0;"
+		"popfl"
+		:: "g" (eflags)
+		: "memory", "cc");
+}
+
 #define rdtsc(low,high) \
      __asm__ __volatile__("rdtsc" : "=a" (low), "=d" (high))
 

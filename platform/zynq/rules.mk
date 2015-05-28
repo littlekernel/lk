@@ -4,6 +4,8 @@ MODULE := $(LOCAL_DIR)
 
 ARCH := arm
 ARM_CPU := cortex-a9-neon
+WITH_SMP ?= 1
+SMP_MAX_CPUS := 2
 
 MODULE_DEPS := \
 	lib/bio \
@@ -12,6 +14,7 @@ MODULE_DEPS := \
 	dev/cache/pl310 \
 	dev/interrupt/arm_gic \
 	dev/timer/arm_cortex_a9
+
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include

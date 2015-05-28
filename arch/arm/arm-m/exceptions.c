@@ -43,7 +43,6 @@ static void dump_frame(const struct arm_cm_exception_frame *frame)
 
 static void hardfault(struct arm_cm_exception_frame *frame)
 {
-	inc_critical_section();
 	printf("hardfault: ");
 	dump_frame(frame);
 
@@ -54,7 +53,6 @@ static void hardfault(struct arm_cm_exception_frame *frame)
 
 static void usagefault(struct arm_cm_exception_frame *frame)
 {
-	inc_critical_section();
 	printf("usagefault: ");
 	dump_frame(frame);
 
@@ -63,7 +61,6 @@ static void usagefault(struct arm_cm_exception_frame *frame)
 
 static void busfault(struct arm_cm_exception_frame *frame)
 {
-	inc_critical_section();
 	printf("busfault: ");
 	dump_frame(frame);
 
@@ -74,7 +71,6 @@ static void busfault(struct arm_cm_exception_frame *frame)
 
 void _nmi(void)
 {
-	inc_critical_section();
 	printf("nmi\n");
 	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
@@ -92,7 +88,6 @@ __NAKED void _hardfault(void)
 
 void _memmanage(void)
 {
-	inc_critical_section();
 	printf("memmanage\n");
 	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
@@ -122,7 +117,6 @@ void _usagefault(void)
 /* systick handler */
 void __WEAK _systick(void)
 {
-	inc_critical_section();
 	printf("systick\n");
 	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }

@@ -25,8 +25,8 @@
 
 #include <sys/types.h>
 
-void arm_generic_timer_init(int irq);
-void arm_generic_timer_init_secondary_cpu(void);
+/* if freq_override != 0, use that as the operating frequency instead of CNTFRQ register */
+void arm_generic_timer_init(int irq, uint32_t freq_override);
 
 #endif
 

@@ -20,7 +20,6 @@ GLOBAL_DEFINES += \
 	ARM_ISA_ARMv7M=1 \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_THUMB2=1
-GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 ENABLE_THUMB := true
 SUBARCH := arm-m
@@ -32,7 +31,6 @@ GLOBAL_DEFINES += \
 	ARM_ISA_ARMv7M=1 \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_THUMB2=1
-GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 ENABLE_THUMB := true
 SUBARCH := arm-m
@@ -47,10 +45,39 @@ GLOBAL_DEFINES += \
 	ARM_WITH_THUMB2=1 \
 	ARM_WITH_VFP=1 \
 	__FPU_PRESENT=1
-GLOBAL_COMPILEFLAGS += -mcpu=cortex-m4 -mfloat-abi=softfp
 HANDLED_CORE := true
 ENABLE_THUMB := true
 SUBARCH := arm-m
+endif
+ifeq ($(ARM_CPU),cortex-a7)
+GLOBAL_DEFINES += \
+	ARM_WITH_CP15=1 \
+	ARM_WITH_MMU=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7A=1 \
+	ARM_WITH_VFP=1 \
+	ARM_WITH_NEON=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1 \
+	ARM_WITH_CACHE=1
+HANDLED_CORE := true
+endif
+ifeq ($(ARM_CPU),cortex-a15)
+GLOBAL_DEFINES += \
+	ARM_WITH_CP15=1 \
+	ARM_WITH_MMU=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7A=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1 \
+	ARM_WITH_CACHE=1 \
+	ARM_WITH_L2=1
+ifneq ($(ARM_WITHOUT_VFP_NEON),true)
+GLOBAL_DEFINES += \
+	ARM_WITH_VFP=1 \
+	ARM_WITH_NEON=1
+endif
+HANDLED_CORE := true
 endif
 ifeq ($(ARM_CPU),cortex-a8)
 GLOBAL_DEFINES += \
@@ -64,9 +91,7 @@ GLOBAL_DEFINES += \
 	ARM_WITH_THUMB2=1 \
 	ARM_WITH_CACHE=1 \
 	ARM_WITH_L2=1
-GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
-GLOBAL_COMPILEFLAGS += -mfpu=neon -mfloat-abi=softfp
 endif
 ifeq ($(ARM_CPU),cortex-a9)
 GLOBAL_DEFINES += \
@@ -77,7 +102,6 @@ GLOBAL_DEFINES += \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_THUMB2=1 \
 	ARM_WITH_CACHE=1
-GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 ifeq ($(ARM_CPU),cortex-a9-neon)
@@ -92,11 +116,7 @@ GLOBAL_DEFINES += \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_THUMB2=1 \
 	ARM_WITH_CACHE=1
-GLOBAL_COMPILEFLAGS += -mcpu=cortex-a9
 HANDLED_CORE := true
-# XXX cannot enable neon right now because compiler generates
-# neon code for 64bit integer ops
-GLOBAL_COMPILEFLAGS += -mfpu=vfpv3 -mfloat-abi=softfp
 endif
 ifeq ($(ARM_CPU),arm1136j-s)
 GLOBAL_DEFINES += \
@@ -106,7 +126,6 @@ GLOBAL_DEFINES += \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_CACHE=1 \
 	ARM_CPU_ARM1136=1
-GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 ifeq ($(ARM_CPU),arm1176jzf-s)
@@ -118,7 +137,6 @@ GLOBAL_DEFINES += \
 	ARM_WITH_THUMB=1 \
 	ARM_WITH_CACHE=1 \
 	ARM_CPU_ARM1136=1
-GLOBAL_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 HANDLED_CORE := true
 endif
 
@@ -176,6 +194,31 @@ KERNEL_LOAD_OFFSET ?= 0
 GLOBAL_DEFINES += \
     KERNEL_BASE=$(KERNEL_BASE) \
     KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET)
+
+# if its requested we build with SMP, arm generically supports 4 cpus
+ifeq ($(WITH_SMP),1)
+SMP_MAX_CPUS ?= 4
+SMP_CPU_CLUSTER_SHIFT ?= 8
+SMP_CPU_ID_BITS ?= 24
+
+GLOBAL_DEFINES += \
+    WITH_SMP=1 \
+    SMP_MAX_CPUS=$(SMP_MAX_CPUS) \
+    SMP_CPU_CLUSTER_SHIFT=$(SMP_CPU_CLUSTER_SHIFT) \
+    SMP_CPU_ID_BITS=$(SMP_CPU_ID_BITS)
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/arm/mp.c
+else
+GLOBAL_DEFINES += \
+    SMP_MAX_CPUS=1
+endif
+
+ifeq (true,$(call TOBOOL,$(WITH_NS_MAPPING)))
+GLOBAL_DEFINES += \
+    WITH_ARCH_MMU_PICK_SPOT=1
+endif
+
 endif
 ifeq ($(SUBARCH),arm-m)
 MODULE_SRCS += \
@@ -192,48 +235,19 @@ GLOBAL_INCLUDES += \
 # we're building for small binaries
 GLOBAL_DEFINES += \
 	ARM_ONLY_THUMB=1 \
-	ARCH_DEFAULT_STACK_SIZE=1024
+	ARCH_DEFAULT_STACK_SIZE=1024 \
+	SMP_MAX_CPUS=1
 
 ARCH_OPTFLAGS := -Os
 WITH_LINKER_GC ?= 1
 endif
 
-# try to find the toolchain
-ifndef TOOLCHAIN_PREFIX
-TOOLCHAIN_PREFIX := arm-eabi-
-FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
-ifeq ($(FOUNDTOOL),)
-TOOLCHAIN_PREFIX := arm-elf-
-FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
-ifeq ($(FOUNDTOOL),)
-TOOLCHAIN_PREFIX := arm-none-eabi-
-FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
-ifeq ($(FOUNDTOOL),)
-TOOLCHAIN_PREFIX := arm-linux-gnueabi-
-FOUNDTOOL=$(shell which $(TOOLCHAIN_PREFIX)gcc)
-
-# Set no stack protection if we found our gnueabi toolchain. We don't
-# need it.
-#
-# Stack protection is default in this toolchain and we get such errors
-# final linking stage:
-#
-# undefined reference to `__stack_chk_guard'
-# undefined reference to `__stack_chk_fail'
-# undefined reference to `__stack_chk_guard'
-#
-ifneq (,$(findstring arm-linux-gnueabi-,$(FOUNDTOOL)))
-        GLOBAL_COMPILEFLAGS += -fno-stack-protector
-endif
-
-endif
-endif
-endif
-ifeq ($(FOUNDTOOL),)
-$(error cannot find toolchain, please set TOOLCHAIN_PREFIX or add it to your path)
-endif
-endif
+# try to find toolchain
+include $(LOCAL_DIR)/toolchain.mk
+TOOLCHAIN_PREFIX := $(ARCH_$(ARCH)_TOOLCHAIN_PREFIX)
 $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
+
+ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
 
 GLOBAL_COMPILEFLAGS += $(THUMBINTERWORK)
 
@@ -249,7 +263,10 @@ ifeq ($(MEMVARS_SET),0)
 $(error missing MEMBASE or MEMSIZE variable, please set in target rules.mk)
 endif
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
+$(info LIBGCC = $(LIBGCC))
+
+$(info GLOBAL_COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS))
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
