@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <lib/cbuf.h>
 #include <kernel/event.h>
+#include <kernel/spinlock.h>
 
 #define LOCAL_TRACE 0
 
@@ -177,7 +178,9 @@ retry:
 size_t cbuf_peek(cbuf_t *cbuf, iovec_t* regions)
 {
 	DEBUG_ASSERT(cbuf && regions);
-	enter_critical_section();
+
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&cbuf->lock, state);
 
 	size_t ret = cbuf_space_used(cbuf);
 	size_t sz  = cbuf_size(cbuf);
@@ -196,7 +199,7 @@ size_t cbuf_peek(cbuf_t *cbuf, iovec_t* regions)
 		regions[1].iov_len	= 0;
 	}
 
-	exit_critical_section();
+    spin_unlock_irqrestore(&cbuf->lock, state);
 	return ret;
 }
 

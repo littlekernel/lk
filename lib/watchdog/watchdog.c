@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Google Inc.
+ * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -28,8 +29,11 @@
 
 #include <kernel/thread.h>
 #include <kernel/timer.h>
+#include <kernel/spinlock.h>
 
 #include <lib/watchdog.h>
+
+static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
 __WEAK void watchdog_handler(watchdog_t* dog)
 {
@@ -64,7 +68,9 @@ status_t watchdog_init(watchdog_t* dog, lk_time_t timeout, const char* name)
 
 void watchdog_set_enabled(watchdog_t* dog, bool enabled)
 {
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
+
     DEBUG_ASSERT((NULL != dog) && (WATCHDOG_MAGIC == dog->magic));
 
     if (dog->enabled == enabled)
@@ -77,12 +83,14 @@ void watchdog_set_enabled(watchdog_t* dog, bool enabled)
         timer_cancel(&dog->expire_timer);
 
 done:
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 }
 
 void watchdog_pet(watchdog_t* dog)
 {
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
+
     DEBUG_ASSERT((NULL != dog) && (WATCHDOG_MAGIC == dog->magic));
 
     if (!dog->enabled)
@@ -92,7 +100,7 @@ void watchdog_pet(watchdog_t* dog)
     timer_set_oneshot(&dog->expire_timer, dog->timeout, watchdog_timer_callback, dog);
 
 done:
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 }
 
 
@@ -115,7 +123,8 @@ status_t watchdog_hw_init(lk_time_t timeout)
 
 void watchdog_hw_set_enabled(bool enabled)
 {
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     if (hw_watchdog_enabled == enabled)
         goto done;
@@ -131,5 +140,5 @@ void watchdog_hw_set_enabled(bool enabled)
         timer_cancel(&hw_watchdog_timer);
 
 done:
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 }
