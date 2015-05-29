@@ -290,15 +290,8 @@ arm_reset:
 	mcr		p15, 0, r12, c2, c0, 2
 	isb
 
-	/* set cacheable attributes on translation walk */
-	/* inner write-back write-allocate */
-	orr		r12, r4, #(1<<6 | 0<<1)
-	/* outer write-back write-allocate */
-	orr		r12, #(1<<3)
-#if WITH_SMP
-	/* (SMP extensions) shareable, outer shareable */
-	orr		r12, #(1<<1 | 0<<5)
-#endif
+	/* Set cacheable attributes on translation walk */
+	orr		r12, r4, #MMU_TTBRx_FLAGS
 
 	/* Write ttbr with phys addr of the translation table */
 	mcr		p15, 0, r12, c2, c0, 0
