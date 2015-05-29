@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2012 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,6 +25,7 @@
 #include <rand.h>
 #include <err.h>
 #include <assert.h>
+#include <string.h>
 #include <app/tests.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
@@ -646,13 +647,18 @@ int spinner(int argc, const cmd_args *argv)
 {
 	if (argc < 2) {
 		printf("not enough args\n");
-		printf("usage: %s <priority>\n", argv[0].str);
+		printf("usage: %s <priority> <rt>\n", argv[0].str);
 		return -1;
 	}
 
 	thread_t *t = thread_create("spinner", spinner_thread, NULL, argv[1].u, DEFAULT_STACK_SIZE);
-	if (t)
-		thread_resume(t);
+	if (!t)
+		return ERR_NO_MEMORY;
+
+	if (argc >= 3 && !strcmp(argv[2].str, "rt")) {
+		thread_set_real_time(t);
+	}
+	thread_resume(t);
 
 	return 0;
 }
