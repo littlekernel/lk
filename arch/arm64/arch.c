@@ -50,6 +50,8 @@ static void arm64_cpu_early_init(void)
     if (current_el > 1) {
         arm64_el3_to_el1();
     }
+
+    arch_enable_fiqs();
 }
 
 void arch_early_init(void)

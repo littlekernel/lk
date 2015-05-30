@@ -122,12 +122,13 @@ add sp, sp, #32
 
 .macro irq_exception
     regsave_short
+    msr daifclr, #1 /* reenable fiqs once elr and spsr have been saved */
     mov x0, sp
     bl  platform_irq
     cbz x0, .Lirq_exception_no_preempt\@
     bl  thread_preempt
-1:
 .Lirq_exception_no_preempt\@:
+    msr daifset, #1 /* disable fiqs to protect elr and spsr restore */
     b   arm64_exc_shared_restore_short
 .endm
 

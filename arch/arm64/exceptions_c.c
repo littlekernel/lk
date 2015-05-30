@@ -22,6 +22,7 @@
  */
 #include <stdio.h>
 #include <debug.h>
+#include <arch/arch_ops.h>
 #include <arch/arm64.h>
 
 #define SHUTDOWN_ON_FATAL 1
@@ -51,7 +52,9 @@ void arm64_sync_exception(struct arm64_iframe_long *iframe)
 #ifdef WITH_LIB_SYSCALL
     if (ec == 0x15 || ec == 0x11) { // syscall 64/32
         void arm64_syscall(struct arm64_iframe_long *iframe);
+        arch_enable_fiqs();
         arm64_syscall(iframe);
+        arch_disable_fiqs();
         return;
     }
 #endif
