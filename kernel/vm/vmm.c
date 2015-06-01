@@ -204,8 +204,8 @@ static inline bool check_gap(vmm_aspace_t *aspace,
         gap_end = aspace->base + aspace->size - 1;
     }
 
-    *pva = arch_mmu_pick_spot(gap_beg, prev ? prev->flags : ARCH_MMU_FLAG_INVALID,
-                              gap_end, next ? next->flags : ARCH_MMU_FLAG_INVALID,
+    *pva = arch_mmu_pick_spot(gap_beg, prev ? prev->arch_mmu_flags : ARCH_MMU_FLAG_INVALID,
+                              gap_end, next ? next->arch_mmu_flags : ARCH_MMU_FLAG_INVALID,
                               align, size, arch_mmu_flags);
     if (*pva < gap_beg)
         goto not_found; /* address wrapped around */
