@@ -270,6 +270,12 @@ void arch_quiesce(void)
 	__asm__ volatile("mcr	p15, 0, %0, c15, c12, 0" :: "r" (en));
 #endif
 #endif
+
+	uint32_t actlr = arm_read_actlr();
+#if ARM_CPU_CORTEX_A9
+	actlr = 0; /* put the aux control register back to default */
+#endif // ARM_CPU_CORTEX_A9
+	arm_write_actlr(actlr);
 }
 
 #if ARM_ISA_ARMV7
@@ -309,8 +315,6 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 	target_quiesce();
 	platform_quiesce();
 
-	arch_quiesce();
-
 #if WITH_KERNEL_VM
 	/* get the physical address of the entry point we're going to branch to */
 	paddr_t entry_pa;
@@ -345,6 +349,9 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 #if WITH_DEV_CACHE_PL310
 	pl310_set_enable(false);
 #endif
+
+	/* put the booting cpu back into close to a default state */
+	arch_quiesce();
 
 	LTRACEF("branching to physical address of loader\n");
 
