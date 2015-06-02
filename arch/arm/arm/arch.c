@@ -128,10 +128,8 @@ void arch_init(void)
 
 	lk_init_secondary_cpus(secondaries_to_init);
 
-#if ARM_ARCH_BOOTS_SECONDARIES
 	/* in platforms where the cpus have already been started, go ahead and wake up all the
 	 * secondary cpus here.
-	 * TODO: find a cleaner way to do this than this #define
 	 */
 	dprintf(SPEW, "releasing %d secondary cpu%c\n", secondaries_to_init, secondaries_to_init > 1 ? 's' : ' ');
 
@@ -141,8 +139,10 @@ void arch_init(void)
 	/* flush the release of the lock, since the secondary cpus are running without cache on */
 	arch_clean_cache_range((addr_t)&arm_boot_cpu_lock, sizeof(arm_boot_cpu_lock));
 
+#if ARM_ARCH_WAIT_FOR_SECONDARIES
 	/* wait for secondary cpus to boot before arm_mmu_init below, which will remove
 	 * temporary boot mappings
+	 * TODO: find a cleaner way to do this than this #define
 	 */
 	while (secondaries_to_init > 0) {
 		__asm__ volatile("wfe");
