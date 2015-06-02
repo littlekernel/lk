@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Brian Swetland
+ * Copyright (c) 2013 Heather Lee Wilson
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,22 +20,29 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#ifndef __NORFS_CONFIG_H
+#define __NORFS_CONFIG_H
 
-.global dcc_putc
-.global dcc_getc
+#include <platform/flash_nor_config.h>
 
-#if defined(ARM_ISA_ARMV6) || defined(ARM_ISA_ARMV7)
-dcc_getc:
-	mrc 14, 0, r0, c0, c1, 0 
-	tst r0, #(1 << 30)
-	moveq r0, #-1
-	mrcne 14, 0, r0, c0, c5, 0
-	bx lr
+#define NORFS_NUM_BLOCKS 8
+#define NORFS_BLOCK_HEADER_SIZE 8
+#define NORFS_NVRAM_SIZE (FLASH_PAGE_SIZE * NORFS_NUM_BLOCKS)
+#define NORFS_MAX_OBJ_LEN (FLASH_PAGE_SIZE/2 - NORFS_OBJ_OFFSET)
+#define NORFS_BANK 0
 
-dcc_putc:
-	mrc 14, 0, r15, c0, c1, 0 
-	mcrcc 14, 0, r0, c0, c5, 0
-	movcc r0, #0
-	movcs r0, #-1
-	bx lr
+#define NORFS_FLASH_SIZE(obj_size) (uint16_t)(obj_size + NORFS_OBJ_OFFSET)
+
+#define NORFS_AVAILABLE_SPACE ((NORFS_NVRAM_SIZE - NORFS_NUM_BLOCKS * NORFS_BLOCK_HEADER_SIZE) / 2)
+#define NORFS_MIN_FREE_BLOCKS 1
+
+#define NORFS_KEY_OFFSET 0
+#define NORFS_VERSION_OFFSET 4
+#define NORFS_LENGTH_OFFSET 6
+#define NORFS_FLAGS_OFFSET 8
+#define NORFS_CHECKSUM_OFFSET 10
+#define NORFS_OBJ_OFFSET 12
+
+#define NORFS_DELETED_MASK 1
+
 #endif

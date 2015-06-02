@@ -32,9 +32,10 @@ void sem_destroy(semaphore_t *sem)
 	exit_critical_section();
 }
 
-status_t sem_post(semaphore_t *sem, bool resched)
+int sem_post(semaphore_t *sem, bool resched)
 {
-	status_t ret = NO_ERROR;
+	int ret = 0;
+
 	enter_critical_section();
 
 	/*
@@ -42,9 +43,10 @@ status_t sem_post(semaphore_t *sem, bool resched)
 	 * it's safe to just increase the count available with no downsides
 	 */
 	if (unlikely(++sem->count <= 0))
-		wait_queue_wake_one(&sem->wait, resched, NO_ERROR);
+		ret = wait_queue_wake_one(&sem->wait, resched, NO_ERROR);
 
 	exit_critical_section();
+
 	return ret;
 }
 
@@ -95,3 +97,5 @@ status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout)
 	exit_critical_section();
 	return ret;
 }
+
+/* vim: set noexpandtab: */

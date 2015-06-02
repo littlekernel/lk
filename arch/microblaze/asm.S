@@ -48,24 +48,10 @@ FUNCTION(microblaze_context_switch)
     swi     r28, r5, 0x44
     swi     r29, r5, 0x48
     swi     r30, r5, 0x4c
-    mfs     r11, rmsr
-    swi     r11, r5, 0x50
-    mfs     r11, rear
-    swi     r11, r5, 0x54
-    mfs     r11, resr
-    swi     r11, r5, 0x58
-    mfs     r11, rfsr
-    swi     r11, r5, 0x5c
+    swi     r31, r5, 0x50
 
     # restore the new context
-    lwi     r11, r6, 0x5c
-    mts     rfsr, r11
-    lwi     r11, r6, 0x58
-    mts     resr, r11
-    lwi     r11, r6, 0x54
-    mts     rear, r11
-    lwi     r11, r6, 0x50
-    mts     rmsr, r11
+    lwi     r31, r6, 0x50
     lwi     r30, r6, 0x4c
     lwi     r29, r6, 0x48
     lwi     r28, r6, 0x44

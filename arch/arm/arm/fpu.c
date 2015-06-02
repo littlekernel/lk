@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Travis Geiselbrecht
+ * Copyright (c) 2013-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -87,7 +87,9 @@ void arm_fpu_thread_initialize(struct thread *t)
 
 void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread)
 {
-    LTRACEF("old %p, new %p\n", oldthread, newthread);
+    LTRACEF("old %p (%d), new %p (%d)\n",
+            oldthread, oldthread ? oldthread->arch.fpused : 0,
+            newthread, newthread ? newthread->arch.fpused : 0);
 
     if (oldthread) {
         if (oldthread->arch.fpused) {
@@ -95,10 +97,10 @@ void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread)
             uint32_t fpexc;
             fpexc = read_fpexc();
 
-            /* assert that we are actually enabled, or the next instruction will fault */
-            DEBUG_ASSERT(fpexc & (1<<30));
-
             oldthread->arch.fpexc = fpexc;
+
+            /* make sure that the fpu is enabled, so the next instructions won't fault */
+            arm_fpu_set_enable(true);
 
             __asm__ volatile("vmrs  %0, fpscr" : "=r" (oldthread->arch.fpscr));
             __asm__ volatile("vstm   %0, { d0-d15 }" :: "r" (&oldthread->arch.fpregs[0]));
@@ -113,13 +115,14 @@ void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread)
     if (newthread) {
         if (newthread->arch.fpused) {
             // load the new state
-            write_fpexc(newthread->arch.fpexc);
+            arm_fpu_set_enable(true);
             __asm__ volatile("vmsr  fpscr, %0" :: "r" (newthread->arch.fpscr));
 
             __asm__ volatile("vldm   %0, { d0-d15 }" :: "r" (&newthread->arch.fpregs[0]));
             if (!is_16regs()) {
                 __asm__ volatile("vldm   %0, { d16-d31 }" :: "r" (&newthread->arch.fpregs[16]));
             }
+            write_fpexc(newthread->arch.fpexc);
         } else {
             arm_fpu_set_enable(false);
         }

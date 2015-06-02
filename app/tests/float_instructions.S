@@ -27,31 +27,33 @@
 .fpu neon
 .syntax unified
 
-.macro disable
-    vmrs  r0, fpexc
-    bic   r0, #(1<<30)
-    vmsr  fpexc, r0
+.macro disable, scratchreg
+    vmrs  \scratchreg, fpexc
+    bic   \scratchreg, #(1<<30)
+    vmsr  fpexc, \scratchreg
 .endm
 
 .macro vfp_instructions
-    disable
+    disable r12
     vadd.f32 s0, s0, s0
 
-    disable
+    disable r12
     vadd.f64 d0, d0, d0
 
-    disable
+    disable r12
+    ldr     r0, =float_test_scratch
     vldr    s0, [r0]
 .endm
 
 .macro neon_instructions
-    disable
+    disable r12
     vadd.f32 q0, q0, q0
 
-    disable
+    disable r12
+    ldr     r0, =float_test_scratch
     vld1.f32 { q0 }, [r0]
 
-    disable
+    disable r12
     vmov    s0, r0
 .endm
 
@@ -76,5 +78,10 @@ FUNCTION(float_vfp_thumb_instruction_test)
 FUNCTION(float_neon_thumb_instruction_test)
     neon_instructions
     bx  lr
+
+.data
+LOCAL_DATA(float_test_scratch)
+    .word 0
+    .word 0
 
 #endif // ARM_WITH_VFP

@@ -7,6 +7,7 @@ MODULES += \
 	app/tests \
 	app/zynq-common \
 	app/lkboot \
+	dev/gpio \
 	lib/cksum \
 	lib/debugcommands \
 	lib/libm \

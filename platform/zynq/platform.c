@@ -30,6 +30,7 @@
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_cortex_a9.h>
 #include <lib/console.h>
+#include <lib/watchdog.h>
 #include <platform.h>
 #include <platform/zynq.h>
 #include <platform/gem.h>
@@ -38,6 +39,11 @@
 
 #if ZYNQ_SDRAM_INIT
 STATIC_ASSERT(SDRAM_SIZE != 0);
+#endif
+
+/* default timeout of the global hardware watchdog */
+#ifndef ZYNQ_WATCHDOG_TIMEOUT
+#define ZYNQ_WATCHDOG_TIMEOUT (1000) // 1 second
 #endif
 
 /* target can specify this as the initial jam table to set up the soc */
@@ -123,7 +129,7 @@ int zynq_mio_init(void)
     SLCR_REG(GPIOB_CTRL) = GPIOB_CTRL_VREF_EN;
 
     for (size_t pin = 0; pin < countof(zynq_mio_cfg); pin++) {
-        if (zynq_mio_cfg[pin] != 0) {
+        if (zynq_mio_cfg[pin] != MIO_DEFAULT) {
             SLCR_REG(MIO_PIN_00 + (pin * 4)) = zynq_mio_cfg[pin];
         }
     }
@@ -305,13 +311,12 @@ void platform_init_mmu_mappings(void)
 
 void platform_early_init(void)
 {
-    /* Unlock the registers and leave them that way */
 #if 0
     ps7_init();
 #else
+    /* Unlock the registers and leave them that way */
     zynq_slcr_unlock();
     zynq_mio_init();
-    zynq_gpio_init();
     zynq_pll_init();
     zynq_clk_init();
 #if ZYNQ_SDRAM_INIT
@@ -332,9 +337,13 @@ void platform_early_init(void)
 
     /* initialize the interrupt controller */
     arm_gic_init();
+    zynq_gpio_init();
 
     /* initialize the timer block */
     arm_cortex_a9_timer_init(CPUPRIV_BASE, zynq_get_arm_timer_freq());
+
+    /* initialize the hardware watchdog */
+    watchdog_hw_init(ZYNQ_WATCHDOG_TIMEOUT);
 
     /* bump the 2nd cpu into our code space and remap the top SRAM block */
     if (KERNEL_LOAD_OFFSET != 0) {
@@ -399,12 +408,10 @@ void platform_init(void)
     uart_init();
 
     /* enable if we want to see some hardware boot status */
-#if 0
+#if LK_DEBUGLEVEL > 0
     printf("zynq boot status:\n");
     printf("\tREBOOT_STATUS 0x%x\n", SLCR_REG(REBOOT_STATUS));
-    printf("\tBOOT_MODE 0x%x\n", SLCR_REG(BOOT_MODE));
-
-    zynq_dump_clocks();
+    printf("\tboot mode 0x%x\n", zynq_get_boot_mode());
 #endif
 }
 
@@ -420,6 +427,22 @@ void platform_quiesce(void)
     SLCR_REG(A9_CPU_RST_CTRL) |= (1<<1); // reset cpu 1
 }
 
+/* called from lkboot to see if we want to abort autobooting.
+ * having the BOOT_MODE pins set to JTAG should cause us to hang out in
+ * whatever binary is loaded at the time.
+ */
+bool platform_abort_autoboot(void)
+{
+    /* test BOOT_MODE pins to see if we want to skip the autoboot stuff */
+    uint32_t boot_mode = zynq_get_boot_mode();
+    if (boot_mode == ZYNQ_BOOT_MODE_JTAG) {
+        printf("ZYNQ: disabling autoboot due to JTAG/QSPI jumper being set to JTAG\n");
+        return true;
+    }
+
+    return false;
+}
+
 #if WITH_LIB_CONSOLE
 static int cmd_zynq(int argc, const cmd_args *argv)
 {
@@ -433,6 +456,7 @@ usage:
         printf("\tslcr lockstatus\n");
         printf("\tmio\n");
         printf("\tclocks\n");
+        printf("\ttrip_watchdog\n");
         return -1;
     }
 
@@ -461,6 +485,14 @@ usage:
         }
     } else if (!strcmp(argv[1].str, "clocks")) {
         zynq_dump_clocks();
+    } else if (!strcmp(argv[1].str, "trip_watchdog")) {
+        /* try to trip the watchdog by disabling interrupts for a while */
+        arch_disable_ints();
+        for (int i = 0; i < 20; i++) {
+            spin(250000);
+            printf("SWDT MODE 0x%x CONTROL 0x%x STATUS 0x%x\n", SWDT->MODE, SWDT->CONTROL, SWDT->STATUS);
+        }
+        arch_enable_ints();
     } else {
         goto usage;
     }
@@ -469,6 +501,8 @@ usage:
 }
 
 STATIC_COMMAND_START
+#if LK_DEBUGLEVEL > 1
 STATIC_COMMAND("zynq", "zynq configuration commands", &cmd_zynq)
+#endif
 STATIC_COMMAND_END(zynq);
 #endif // WITH_LIB_CONSOLE

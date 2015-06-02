@@ -21,10 +21,16 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <trace.h>
+#include <arch/microblaze.h>
 
 void arch_early_init(void)
 {
     TRACE;
+
+    /* enable i/d cache */
+    uint32_t val = mb_read_msr();
+    val |= (1 << (31 - 26)) | (1 << (31 - 24));
+    mb_write_msr(val);
 }
 
 void arch_init(void)

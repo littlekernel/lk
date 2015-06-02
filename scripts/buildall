@@ -15,7 +15,7 @@ Linux)
 esac
 
 for p in $PROJECTS; do
-	PROJECT=$p nice make -j4 || FAILED="$FAILED $p"
+	PROJECT=$p nice make $PARALLEL || FAILED="$FAILED $p"
 done
 
 if [ "$FAILED" != "" ]; then

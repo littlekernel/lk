@@ -80,6 +80,9 @@ void _panic(void *caller, const char *fmt, ...) __PRINTFLIKE(2, 3) __NO_RETURN;
 /* spin the cpu for a period of (short) time */
 void spin(uint32_t usecs);
 
+/* spin the cpu for a certain number of cpu cycles */
+void spin_cycles(uint32_t usecs);
+
 __END_CDECLS
 
 #endif

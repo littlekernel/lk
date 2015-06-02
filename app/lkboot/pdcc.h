@@ -22,18 +22,32 @@
  */
 #pragma once
 
-/* qemu emulates a petalogix s3adsp1800 */
-#define LMB_BRAM_SIZE       (128 * 1024)
-#define FLASH_SIZE          (16 * 1024 * 1024)
+#include <stdint.h>
 
-#define ETHLITE_BASEADDR    0x81000000
-#define INTC_BASEADDR       0x81800000
-#define TIMER_BASEADDR      0x83c00000
-#define UARTLITE_BASEADDR   0x84000000
-#define MEMORY_BASEADDR     0x90000000
-#define FLASH_BASEADDR      0xa0000000
+/* in memory and DCC descriptors for the PDCC protocol */
 
-#define TIMER_IRQ           0
-#define ETHLITE_IRQ         1
-#define UARTLITE_IRQ        3
-#define MAX_INT             4
+/* shared outside of lk repository, be careful of modifications */
+#define PDCC_VERSION 1
+
+struct pdcc_buffer_descriptor {
+    uint32_t version;
+
+    uint32_t htod_buffer_phys;
+    uint32_t htod_buffer_len;
+
+    uint32_t dtoh_buffer_phys;
+    uint32_t dtoh_buffer_len;
+};
+
+#define PDCC_VALID (1<<31)
+#define PDCC_OPCODE_SHIFT (24)
+#define PDCC_OPCODE(x) (((x) >> PDCC_OPCODE_SHIFT) & 0x7f)
+#define PDCC_DATA(x) ((x) & 0x00ffffff);
+
+enum {
+    PDCC_OP_RESET = 0,
+    PDCC_OP_BUF_HEADER,
+    PDCC_OP_UPDATE_OUT_INDEX,
+    PDCC_OP_CONSUMED_IN,
+};
+

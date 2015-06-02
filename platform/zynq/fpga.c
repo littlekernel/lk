@@ -114,6 +114,10 @@ status_t zynq_program_fpga(paddr_t physaddr, size_t length) {
     return NO_ERROR;
 }
 
+bool zync_fpga_config_done(void) {
+    return (0 != (readl(DEVCFG_INT_STS) & PCFG_DONE_INT));
+}
+
 void zynq_reset_fpga(void) {
     writel(readl(DEVCFG_CTRL) & (~PCFG_PROG_B), DEVCFG_CTRL);
     writel(readl(DEVCFG_CTRL) | PCFG_PROG_B, DEVCFG_CTRL);

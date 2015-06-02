@@ -190,7 +190,7 @@ static void kevdump_cb(const uintptr_t *i)
 			printf("%lu: irq exit  %u\n", i[0], (uint)i[2]);
 			break;
 		default:
-			;
+			printf("%lu: unknown id 0x%x 0x%x 0x%x\n", i[0], i[1], (uint)i[2], (uint)i[3]);
 	}
 }
 

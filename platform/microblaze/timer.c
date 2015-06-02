@@ -30,7 +30,7 @@
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <sys/types.h>
-#include <target/qemu-microblaze.h>
+#include <target/microblaze-config.h>
 
 #define LOCAL_TRACE 0
 
@@ -50,8 +50,6 @@
 #define TCSR_TINT       (1<<8)
 #define TCSR_PWMA       (1<<9)
 #define TCSR_ENALL      (1<<10)
-
-#define TIMER_RATE (62*1000000)
 
 #define TIMER_REG(reg) (*REG32(TIMER_BASEADDR + (reg) * 4))
 

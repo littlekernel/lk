@@ -22,12 +22,6 @@
  */
 #pragma once
 
-#ifndef ASSEMBLY
-#include <reg.h>
-#include <compiler.h>
-#include <bits.h>
-#endif
-
 #define ZYNQ_MIO_CNT    54
 
 /* memory addresses */
@@ -116,6 +110,12 @@
 #define MAX_INT       96
 
 #ifndef ASSEMBLY
+
+#include <reg.h>
+#include <compiler.h>
+#include <bits.h>
+#include <stdbool.h>
+#include <sys/types.h>
 
 /* Configuration values for each of the system PLLs. Refer to the TRM 25.10.4 */
 typedef struct {
@@ -468,14 +468,18 @@ STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 #define MIO_L0_SEL                      (1 << 1)
 #define MIO_L1_SEL                      (1 << 2)
 #define MIO_L2_SEL(x)                   ((x & BIT_MASK(2)) << 3)
+#define MIO_L2_SEL_MASK                 MIO_L2_SEL(0x3)
 #define MIO_L3_SEL(x)                   ((x & BIT_MASK(3)) << 5)
+#define MIO_L3_SEL_MASK                 MIO_L3_SEL(0x7)
 #define MIO_SPEED_FAST                  (1 << 8)
 #define MIO_IO_TYPE_LVCMOS18            (0x1 << 9)
 #define MIO_IO_TYPE_LVCMOS25            (0x2 << 9)
 #define MIO_IO_TYPE_LVCMOS33            (0x3 << 9)
 #define MIO_IO_TYPE_HSTL                (0x4 << 9)
+#define MIO_IO_TYPE_MASK                (0x7 << 9)
 #define MIO_PULLUP                      (1 << 12)
 #define MIO_DISABLE_RCVR                (1 << 13)
+#define MIO_DEFAULT                     (0xFFFF0000)
 
 /* UART registers */
 #define UART_CR                         (0x00)
@@ -515,15 +519,25 @@ STATIC_ASSERT(offsetof(struct slcr_regs, DDRIOB_DCI_STATUS) == 0xb74);
 
 #define UART_BRG_DIV(x)                 (x & BIT_MASK(16))
 #define UART_BRD_DIV(x)                 (x & BIT_MASK(8))
-#include <stdbool.h>
-#include <sys/types.h>
 
+/* system watchdog timer */
+struct swdt_regs {
+    uint32_t MODE;
+    uint32_t CONTROL;
+    uint32_t RESTART;
+    uint32_t STATUS;
+};
+
+#define SWDT                            ((volatile struct swdt_regs *)SWDT_BASE)
+#define SWDT_REG(reg)                   (*REG32((uintptr_t)&SWDT->reg))
+
+/* zynq specific functions */
 static inline void zynq_slcr_unlock(void) { SLCR->SLCR_UNLOCK = 0xdf0d; }
 static inline void zynq_slcr_lock(void) { SLCR->SLCR_LOCK = 0x767b; }
 
-/* zynq specific functions */
 uint32_t zynq_get_arm_freq(void);
 uint32_t zynq_get_arm_timer_freq(void);
+uint32_t zynq_get_swdt_freq(void);
 void zynq_dump_clocks(void);
 
 enum zynq_clock_source {
@@ -559,5 +573,16 @@ enum zynq_periph {
 
 status_t zynq_set_clock(enum zynq_periph, bool enable, enum zynq_clock_source, uint32_t divisor, uint32_t divisor2);
 uint32_t zynq_get_clock(enum zynq_periph);
-#endif
+
+/* boot mode */
+#define ZYNQ_BOOT_MODE_JTAG     (0)
+#define ZYNQ_BOOT_MODE_QSPI     (1)
+#define ZYNQ_BOOT_MODE_NOR      (2)
+#define ZYNQ_BOOT_MODE_NAND     (4)
+#define ZYNQ_BOOT_MODE_SD       (5)
+#define ZYNQ_BOOT_MODE_MASK     (0x7)    /* only interested in BOOT_MODE[2:0] */
+
+static inline uint32_t zynq_get_boot_mode(void) { return SLCR->BOOT_MODE & ZYNQ_BOOT_MODE_MASK; }
+
+#endif // !ASSEMBLY
 
