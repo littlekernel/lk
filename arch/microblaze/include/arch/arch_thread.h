@@ -49,12 +49,6 @@ struct microblaze_context_switch_frame {
     uint32_t r29;
     uint32_t r30;
     uint32_t r31;
-
-    /* special purpose */
-    uint32_t msr;
-    uint32_t ear;
-    uint32_t esr;
-    uint32_t fsr;
 };
 
 struct arch_thread {

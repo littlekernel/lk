@@ -32,7 +32,7 @@
 #define LOCAL_TRACE 0
 
 #define INC_POINTER(cbuf, ptr, inc) \
-    modpow2(((ptr) + (inc)), (cbuf)->len_pow2)
+	modpow2(((ptr) + (inc)), (cbuf)->len_pow2)
 
 void cbuf_initialize(cbuf_t *cbuf, size_t len)
 {
@@ -72,7 +72,6 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
 	LTRACEF("len %zd\n", len);
 
 	DEBUG_ASSERT(cbuf);
-	DEBUG_ASSERT(_buf);
 	DEBUG_ASSERT(len < valpow2(cbuf->len_pow2));
 
 	enter_critical_section();
@@ -92,7 +91,11 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
 			break;
 		}
 
-		memcpy(cbuf->buf + cbuf->head, buf + pos, write_len);
+		if (NULL == buf) {
+			memset(cbuf->buf + cbuf->head, 0, write_len);
+		} else {
+			memcpy(cbuf->buf + cbuf->head, buf + pos, write_len);
+		}
 
 		cbuf->head = INC_POINTER(cbuf, cbuf->head, write_len);
 		pos += write_len;
@@ -111,7 +114,6 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 	char *buf = (char *)_buf;
 
 	DEBUG_ASSERT(cbuf);
-	DEBUG_ASSERT(_buf);
 
 	enter_critical_section();
 
@@ -135,7 +137,10 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 				read_len = MIN(valpow2(cbuf->len_pow2) - cbuf->tail, buflen - pos);
 			}
 
-			memcpy(buf + pos, cbuf->buf + cbuf->tail, read_len);
+			// Only perform the copy if a buf was supplied
+			if (NULL != buf) {
+				memcpy(buf + pos, cbuf->buf + cbuf->tail, read_len);
+			}
 
 			cbuf->tail = INC_POINTER(cbuf, cbuf->tail, read_len);
 			pos += read_len;
@@ -151,6 +156,32 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 
 	exit_critical_section();
 
+	return ret;
+}
+
+size_t cbuf_peek(cbuf_t *cbuf, iovec_t* regions)
+{
+	DEBUG_ASSERT(cbuf && regions);
+	enter_critical_section();
+
+	size_t ret = cbuf_space_used(cbuf);
+	size_t sz  = cbuf_size(cbuf);
+
+	DEBUG_ASSERT(cbuf->tail < sz);
+	DEBUG_ASSERT(ret <= sz);
+
+	regions[0].iov_base = ret ? (cbuf->buf + cbuf->tail) : NULL;
+	if (ret + cbuf->tail > sz) {
+		regions[0].iov_len	= sz - cbuf->tail;
+		regions[1].iov_base = cbuf->buf;
+		regions[1].iov_len	= ret - regions[0].iov_len;
+	} else {
+		regions[0].iov_len	= ret;
+		regions[1].iov_base = NULL;
+		regions[1].iov_len	= 0;
+	}
+
+	exit_critical_section();
 	return ret;
 }
 

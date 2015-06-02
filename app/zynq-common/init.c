@@ -30,6 +30,7 @@
 #include <lib/bootimage.h>
 #include <lib/ptable.h>
 #include <lib/sysparam.h>
+#include <lib/watchdog.h>
 #include <dev/spiflash.h>
 #include <kernel/vm.h>
 #include <kernel/thread.h>
@@ -41,7 +42,7 @@
 #include <lib/minip.h>
 #endif
 
-static void zybo_common_target_init(uint level)
+static void zynq_common_target_init(uint level)
 {
     status_t err;
 
@@ -74,20 +75,24 @@ static void zybo_common_target_init(uint level)
             }
 #endif
 
+#if LK_DEBUGLEVEL > 1
             sysparam_dump(true);
+#endif
         }
 
         /* create bootloader partition if it does not exist */
         ptable_add("bootloader", 0x20000, 0x40000, 0);
 
+#if LK_DEBUGLEVEL > 1
         printf("flash partition table:\n");
         ptable_dump();
+#endif
     }
 
     /* recover boot arguments */
     const char *cmdline = bootargs_get_command_line();
     if (cmdline) {
-        printf("command line: '%s'\n", cmdline);
+        printf("lk command line: '%s'\n", cmdline);
     }
 
     /* see if we came from a bootimage */
@@ -195,5 +200,14 @@ static void zybo_common_target_init(uint level)
 }
 
 /* init after target_init() */
-LK_INIT_HOOK(app_zybo_common, &zybo_common_target_init, LK_INIT_LEVEL_TARGET);
+LK_INIT_HOOK(app_zynq_common, &zynq_common_target_init, LK_INIT_LEVEL_TARGET);
+
+/* watchdog setup, as early as possible */
+static void zynq_watchdog_init(uint level)
+{
+    /* start the watchdog timer */
+    watchdog_hw_set_enabled(true);
+}
+
+LK_INIT_HOOK(app_zynq_common_watchdog, &zynq_watchdog_init, LK_INIT_LEVEL_KERNEL);
 

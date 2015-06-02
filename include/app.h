@@ -24,6 +24,7 @@
 #define __APP_H
 
 #include <stddef.h>
+#include <compiler.h>
 
 /* app support api */
 void apps_init(void); /* one time setup */

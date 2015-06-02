@@ -30,7 +30,7 @@
 #include <sys/types.h>
 
 #include "network.h"
-#include "../app/lkboot/lkboot.h"
+#include "../app/lkboot/lkboot_protocol.h"
 
 static int readx(int s, void *_data, int len) {
 	char *data = _data;
@@ -144,6 +144,47 @@ static off_t trim_fpga_image(int fd, off_t len)
 	return -1;
 }
 
+#define DCC_SUBPROCESS "zynq-dcc"
+
+static int start_dcc_subprocess(int *fd_in, int *fd_out)
+{
+	int outpipe[2];
+	if (pipe(outpipe) != 0)
+		return -1;
+
+	int inpipe[2];
+	if (pipe(inpipe) != 0)
+		return -1;
+
+	*fd_in = inpipe[0];
+	*fd_out = outpipe[1];
+
+	pid_t pid = fork();
+	if (pid == 0) {
+		/* we are the child */
+		close(STDIN_FILENO);
+		close(STDOUT_FILENO);
+
+		dup2(outpipe[0], STDIN_FILENO);
+		close(outpipe[1]);
+
+		dup2(inpipe[1], STDOUT_FILENO);
+		close(inpipe[0]);
+
+		fprintf(stderr, "in the child\n");
+
+		execlp(DCC_SUBPROCESS, DCC_SUBPROCESS, NULL);
+		fprintf(stderr, "after exec, didn't work!\n");
+	} else {
+		fprintf(stderr, "in parent, pid %u\n", pid);
+
+		close(outpipe[0]);
+		close(inpipe[1]);
+	}
+
+	return 0;
+}
+
 #define REPLYMAX (9 * 1024 * 1024)
 static unsigned char replybuf[REPLYMAX];
 static unsigned replylen = 0;
@@ -155,14 +196,14 @@ unsigned lkboot_get_reply(void **ptr) {
 
 int lkboot_txn(const char *host, const char *_cmd, int txfd, const char *args) {
 	msg_hdr_t hdr;
-	in_addr_t addr;
 	char cmd[128];
 	char tmp[65536];
 	off_t txlen = 0;
 	int do_endian_swap = 0;
 	int once = 1;
 	int len;
-	int s;
+	int fd_in, fd_out;
+	int ret = 0;
 
 	if (txfd != -1) {
 		txlen = lseek(txfd, 0, SEEK_END);
@@ -193,64 +234,88 @@ int lkboot_txn(const char *host, const char *_cmd, int txfd, const char *args) {
 		return -1;
 	}
 
-	addr = lookup_hostname(host);
-	if (addr == 0) {
-		fprintf(stderr, "error: cannot find host '%s'\n", host);
-		return -1;
-	}
-	while ((s = tcp_connect(addr, 1023)) < 0) {
-		if (once) {
-			fprintf(stderr, "error: cannot connect to host '%s'. retrying...\n", host);
-			once = 0;
+	/* if host is -, use stdin/stdout */
+	if (!strcmp(host, "-")) {
+		fprintf(stderr, "using stdin/stdout for io\n");
+		fd_in = STDIN_FILENO;
+		fd_out = STDOUT_FILENO;
+	} else if (!strcasecmp(host, "jtag")) {
+		fprintf(stderr, "using zynq-dcc utility for io\n");
+		if (start_dcc_subprocess(&fd_in, &fd_out) < 0) {
+			fprintf(stderr, "error starting jtag subprocess, is it in your path?\n");
+			return -1;
 		}
-		usleep(100000);
+	} else {
+		in_addr_t addr = lookup_hostname(host);
+		if (addr == 0) {
+			fprintf(stderr, "error: cannot find host '%s'\n", host);
+			return -1;
+		}
+		while ((fd_in = tcp_connect(addr, 1023)) < 0) {
+			if (once) {
+				fprintf(stderr, "error: cannot connect to host '%s'. retrying...\n", host);
+				once = 0;
+			}
+			usleep(100000);
+		}
+		fd_out = fd_in;
 	}
 
 	hdr.opcode = MSG_CMD;
 	hdr.extra = 0;
 	hdr.length = len;
-	if (write(s, &hdr, sizeof(hdr)) != sizeof(hdr)) goto iofail;
-	if (write(s, cmd, len) != len) goto iofail;
+	if (write(fd_out, &hdr, sizeof(hdr)) != sizeof(hdr)) goto iofail;
+	if (write(fd_out, cmd, len) != len) goto iofail;
 
 	for (;;) {
-		if (readx(s, &hdr, sizeof(hdr))) goto iofail;
+		if (readx(fd_in, &hdr, sizeof(hdr))) goto iofail;
 		switch (hdr.opcode) {
 		case MSG_GO_AHEAD:
-			if (upload(s, txfd, txlen, do_endian_swap)) goto fail;
+			if (upload(fd_out, txfd, txlen, do_endian_swap)) {
+				ret = -1;
+				goto out;
+			}
 			break;
 		case MSG_OKAY:
-			close(s);
-			return 0;
+			ret = 0;
+			goto out;
 		case MSG_FAIL:
 			len = (hdr.length > 127) ? 127 : hdr.length;
-			if (readx(s, cmd, len)) {
+			if (readx(fd_in, cmd, len)) {
 				cmd[0] = 0;
 			} else {
 				cmd[len] = 0;
 			}
 			fprintf(stderr,"error: remote failure: %s\n", cmd);
-			goto fail;
+			ret = -1;
+			goto out;
 		case MSG_SEND_DATA:
 			len = hdr.length + 1;
-			if (readx(s, tmp, len)) goto iofail;
+			if (readx(fd_in, tmp, len)) goto iofail;
 			if (len > (REPLYMAX - replylen)) {
 				fprintf(stderr, "error: too much reply data\n");
-				goto fail;
+				ret = -1;
+				goto out;
 			}
 			memcpy(replybuf + replylen, tmp, len);
 			replylen += len;
 			break;
 		default:
 			fprintf(stderr, "error: unknown opcode %d\n", hdr.opcode);
-			goto fail;
+			ret = -1;
+			goto out;
 		}
 	}
 
 iofail:
 	fprintf(stderr, "error: socket io\n");
-fail:
-	close(s);
-	return -1;
+	ret = -1;
+
+out:
+	close(fd_in);
+	if (fd_out != fd_in)
+		close(fd_out);
+	return ret;
 }
 
 // vim: noexpandtab

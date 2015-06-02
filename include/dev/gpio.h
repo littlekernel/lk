@@ -30,20 +30,18 @@
 #ifndef __DEV_GPIO_H
 #define __DEV_GPIO_H
 
-#define GPIO_INPUT  0x0000
-#define GPIO_OUTPUT 0x0001
-
-#define GPIO_LEVEL  0x0000
-#define GPIO_EDGE   0x0010
-
-#define GPIO_RISING 0x0020
-#define GPIO_FALLING    0x0040
-
-#define GPIO_HIGH   0x0020
-#define GPIO_LOW    0x0040
-
-#define GPIO_PULLUP 0x0100
-#define GPIO_PULLDOWN   0x0200
+enum gpio_flags {
+    GPIO_INPUT      = (1 << 0),
+    GPIO_OUTPUT     = (1 << 1),
+    GPIO_LEVEL      = (1 << 2),
+    GPIO_EDGE       = (1 << 3),
+    GPIO_RISING     = (1 << 4),
+    GPIO_FALLING    = (1 << 5),
+    GPIO_HIGH       = (1 << 6),
+    GPIO_LOW        = (1 << 7),
+    GPIO_PULLUP     = (1 << 8),
+    GPIO_PULLDOWN   = (1 << 9),
+};
 
 /* top 16 bits of the gpio flags are platform specific */
 #define GPIO_PLATFORM_MASK 0xffff0000

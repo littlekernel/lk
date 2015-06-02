@@ -125,6 +125,11 @@ uint32_t zynq_get_arm_timer_freq(void)
     return get_cpu_3x2x_freq();
 }
 
+uint32_t zynq_get_swdt_freq(void)
+{
+    return get_cpu_1x_freq();
+}
+
 struct periph_clock {
     addr_t clk_ctrl_reg;
     uint enable_bit_pos;

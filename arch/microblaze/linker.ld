@@ -9,7 +9,7 @@ SECTIONS
     _start = .;
 
     /* vector table goes at 0, for qemu target, at least */
-    .vectors : AT(0) {
+    .vectors : AT(%VECTOR_BASE_PHYS%) {
         KEEP(*(.vectors))
     }
 

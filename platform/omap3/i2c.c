@@ -25,6 +25,7 @@
 #include <err.h>
 #include <reg.h>
 #include <string.h>
+#include <dev/i2c.h>
 #include <platform.h>
 #include <platform/omap3.h>
 
@@ -87,9 +88,9 @@ static void i2c_wait_for_bb(int bus)
 	I2C_REG(bus, I2C_STAT) = 0xffff; // clear whatever is pending
 }
 
-int i2c_transmit(int bus, uint8_t address, const void *buf, size_t count)
+status_t i2c_transmit(int bus, uint8_t address, const void *buf, size_t count)
 {
-	int err;
+	status_t err;
 
 	LTRACEF("bus %d, address 0x%hhx, buf %p, count %zd\n", bus, address, buf, count);
 
@@ -107,13 +108,13 @@ int i2c_transmit(int bus, uint8_t address, const void *buf, size_t count)
 		if (stat & (1<<1)) {
 			// NACK
 //			printf("NACK\n");
-			err = -1;
+			err = ERR_GENERIC;
 			goto out;
 		}
 		if (stat & (1<<0)) {
 			// AL (arbitration lost)
 //			printf("arbitration lost!\n");
-			err = -1;
+			err = ERR_GENERIC;
 			goto out;
 		}
 		if (stat & (1<<2)) {
@@ -138,7 +139,7 @@ int i2c_transmit(int bus, uint8_t address, const void *buf, size_t count)
 		}
 	}
 
-	err = 0;
+	err = NO_ERROR;
 
 out:
 	I2C_REG(bus, I2C_STAT) = 0xffff;
@@ -147,9 +148,9 @@ out:
 	return err;
 }
 
-int i2c_receive(int bus, uint8_t address, void *buf, size_t count)
+status_t i2c_receive(int bus, uint8_t address, void *buf, size_t count)
 {
-	int err;
+	status_t err;
 
 	LTRACEF("bus %d, address 0x%hhx, buf %p, count %zd\n", bus, address, buf, count);
 
@@ -167,13 +168,13 @@ int i2c_receive(int bus, uint8_t address, void *buf, size_t count)
 		if (stat & (1<<1)) {
 			// NACK
 //			printf("NACK\n");
-			err = -1;
+			err = ERR_GENERIC;
 			goto out;
 		}
 		if (stat & (1<<0)) {
 			// AL (arbitration lost)
 //			printf("arbitration lost!\n");
-			err = -1;
+			err = ERR_GENERIC;
 			goto out;
 		}
 		if (stat & (1<<2)) {
@@ -198,7 +199,7 @@ int i2c_receive(int bus, uint8_t address, void *buf, size_t count)
 		}
 	}
 
-	err = 0;
+	err = NO_ERROR;
 
 out:
 	I2C_REG(bus, I2C_STAT) = 0xffff;
@@ -207,23 +208,26 @@ out:
 	return err;
 }
 
-int i2c_write_reg(int bus, uint8_t address, uint8_t reg, uint8_t val)
+status_t i2c_write_reg_bytes(int bus, uint8_t address, uint8_t reg, const uint8_t* val, size_t cnt)
 {
-	uint8_t buf[2];
+	uint8_t buf[16];
+
+	if (cnt > (sizeof(buf) - 1))
+		return ERR_TOO_BIG;
 
 	buf[0] = reg;
-	buf[1] = val;
+	memcpy(buf + 1, val, cnt);
 
-	return i2c_transmit(bus, address, buf, 2);
+	return i2c_transmit(bus, address, buf, cnt + 1);
 }
 
-int i2c_read_reg(int bus, uint8_t address, uint8_t reg, uint8_t *val)
+status_t i2c_read_reg_bytes(int bus, uint8_t address, uint8_t reg, uint8_t *val, size_t cnt)
 {
 	int err = i2c_transmit(bus, address, &reg, 1);
 	if (err < 0)
 		return err;
 
-	return i2c_receive(bus, address, val, 1);
+	return i2c_receive(bus, address, val, cnt);
 }
 
 

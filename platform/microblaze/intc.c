@@ -29,7 +29,7 @@
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <sys/types.h>
-#include <target/qemu-microblaze.h>
+#include <target/microblaze-config.h>
 
 #define LOCAL_TRACE 0
 

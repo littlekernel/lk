@@ -32,8 +32,10 @@
 #include <arch.h>
 #include <err.h>
 #include <trace.h>
+#include <pow2.h>
 
 #include <kernel/thread.h>
+#include <kernel/vm.h>
 
 #include <lib/bio.h>
 #include <lib/bootargs.h>
@@ -45,15 +47,12 @@
 
 #if PLATFORM_ZYNQ
 #include <platform/fpga.h>
+#include <platform/zynq.h>
 #endif
 
 #define bootdevice "spi0"
 
 #define LOCAL_TRACE 0
-
-extern void *lkb_iobuffer;
-extern paddr_t lkb_iobuffer_phys;
-extern size_t lkb_iobuffer_size;
 
 struct lkb_command {
     struct lkb_command *next;
@@ -81,16 +80,63 @@ static int do_reboot(void *arg) {
     return 0;
 }
 
-static int do_boot(void *arg) {
+struct chainload_args {
+    void *func;
+    ulong args[4];
+};
+
+static int chainload_thread(void *arg)
+{
+    struct chainload_args *args = (struct chainload_args *)arg;
+
     thread_sleep(250);
 
+    TRACEF("chain loading address %p, args 0x%lx 0x%lx 0x%lx 0x%lx\n",
+            args->func, args->args[0], args->args[1], args->args[2], args->args[3]);
+    arch_chain_load((void *)args->func, args->args[0], args->args[1], args->args[2], args->args[3]);
+
+    for (;;);
+}
+
+static int do_boot(lkb_t *lkb, size_t len, const char **result)
+{
+    LTRACEF("lkb %p, len %zu, result %p\n", lkb, len, result);
+
+    void *buf;
+    paddr_t buf_phys;
+
+    if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "lkboot_iobuf",
+        len, &buf, log2_uint(1024*1024), 0, ARCH_MMU_FLAG_UNCACHED) < 0) {
+        *result = "not enough memory";
+        return -1;
+    }
+    arch_mmu_query((vaddr_t)buf, &buf_phys, NULL);
+    LTRACEF("iobuffer %p (phys 0x%lx)\n", buf, buf_phys);
+
+    if (lkb_read(lkb, buf, len)) {
+        *result = "io error";
+        // XXX free buffer here
+        return -1;
+    }
+
     /* construct a boot argument list */
-    // XXX get memory smarter than this
-    const size_t bootargs_size = 64*1024;
+    const size_t bootargs_size = PAGE_SIZE;
+#if 0
     void *args = (void *)((uintptr_t)lkb_iobuffer + lkb_iobuffer_size - bootargs_size);
     paddr_t args_phys = lkb_iobuffer_phys + lkb_iobuffer_size - bootargs_size;
+#elif PLATFORM_ZYNQ
+    /* grab the top page of sram */
+    /* XXX do this better */
+    paddr_t args_phys = SRAM_BASE + SRAM_SIZE - bootargs_size;
+    void *args = paddr_to_kvaddr(args_phys);
+#else
+#error need better way
+#endif
+    LTRACEF("boot args %p, phys 0x%lx, len %zu\n", args, args_phys, bootargs_size);
+
     bootargs_start(args, bootargs_size);
     bootargs_add_command_line(args, bootargs_size, "what what");
+    arch_clean_cache_range((vaddr_t)args, bootargs_size);
 
     ulong lk_args[4];
     bootargs_generate_lk_arg_values(args_phys, lk_args);
@@ -99,7 +145,7 @@ static int do_boot(void *arg) {
 
     /* sniff it to see if it's a bootimage or a raw image */
     bootimage_t *bi;
-    if (bootimage_open(lkb_iobuffer, lkb_iobuffer_size, &bi) >= 0) {
+    if (bootimage_open(buf, len, &bi) >= 0) {
         size_t len;
 
         /* it's a bootimage */
@@ -113,16 +159,26 @@ static int do_boot(void *arg) {
             size_t bootimage_size;
             bootimage_get_range(bi, NULL, &bootimage_size);
 
-            bootargs_add_bootimage_pointer(args, bootargs_size, "pmem", lkb_iobuffer_phys, bootimage_size);
+            bootargs_add_bootimage_pointer(args, bootargs_size, "pmem", buf_phys, bootimage_size);
         }
     } else {
         /* raw image, just chain load it directly */
         TRACEF("raw image, chainloading\n");
 
-        ptr = lkb_iobuffer;
+        ptr = buf;
     }
 
-    arch_chain_load((void *)ptr, lk_args[0], lk_args[1], lk_args[2], lk_args[3]);
+    /* start a boot thread to complete the startup */
+    static struct chainload_args cl_args;
+
+    cl_args.func = (void *)ptr;
+    cl_args.args[0] = lk_args[0];
+    cl_args.args[1] = lk_args[1];
+    cl_args.args[2] = lk_args[2];
+    cl_args.args[3] = lk_args[3];
+
+    thread_resume(thread_create("boot", &chainload_thread, &cl_args,
+        DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 
     return 0;
 }
@@ -132,13 +188,26 @@ status_t do_flash_boot(void)
 {
     status_t err;
 
+    LTRACE_ENTRY;
+
     /* construct a boot argument list */
-    // XXX get memory smarter than this
-    const size_t bootargs_size = 64*1024;
+    const size_t bootargs_size = PAGE_SIZE;
+#if 0
+    /* old code */
     void *args = (void *)((uintptr_t)lkb_iobuffer + lkb_iobuffer_size - bootargs_size);
     paddr_t args_phys = lkb_iobuffer_phys + lkb_iobuffer_size - bootargs_size;
+#elif PLATFORM_ZYNQ
+    /* grab the top page of sram */
+    paddr_t args_phys = SRAM_BASE + SRAM_SIZE - bootargs_size;
+    void *args = paddr_to_kvaddr(args_phys);
+#else
+#error need better way
+#endif
+    LTRACEF("boot args %p, phys 0x%lx, len %zu\n", args, args_phys, bootargs_size);
+
     bootargs_start(args, bootargs_size);
     bootargs_add_command_line(args, bootargs_size, "what what");
+    arch_clean_cache_range((vaddr_t)args, bootargs_size);
 
     ulong lk_args[4];
     bootargs_generate_lk_arg_values(args_phys, lk_args);
@@ -207,7 +276,7 @@ status_t do_flash_boot(void)
 }
 
 // return NULL for success, error string for failure
-int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, unsigned len, const char **result)
+int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len, const char **result)
 {
     *result = NULL;
 
@@ -219,10 +288,6 @@ int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, unsigned le
         }
     }
 
-    if (len > lkb_iobuffer_size) {
-        *result = "buffer too small";
-        return -1;
-    }
     if (!strcmp(cmd, "flash") || !strcmp(cmd, "erase")) {
         struct ptable_entry entry;
         bdev_t *bdev;
@@ -254,25 +319,49 @@ int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, unsigned le
             *result = "partition too small";
             return -1;
         }
-        if (lkb_read(lkb, lkb_iobuffer, len)) {
-            *result = "io error";
-            return -1;
-        }
+
         if (!(bdev = ptable_get_device())) {
             *result = "ptable_get_device failed";
             return -1;
         }
+
         printf("lkboot: erasing partition of size %llu\n", entry.length);
         if (bio_erase(bdev, entry.offset, entry.length) != (ssize_t)entry.length) {
             *result = "bio_erase failed";
             return -1;
         }
+
         if (!strcmp(cmd, "flash")) {
             printf("lkboot: writing to partition\n");
-            if (bio_write(bdev, lkb_iobuffer, entry.offset, len) != (ssize_t)len) {
-                *result = "bio_write failed";
+
+            void *buf = malloc(bdev->block_size);
+            if (!buf) {
+                *result = "memory allocation failed";
                 return -1;
             }
+
+            size_t pos = 0;
+            while (pos < len) {
+                size_t toread = MIN(len - pos, bdev->block_size);
+
+                LTRACEF("offset %zu, toread %zu\n", pos, toread);
+
+                if (lkb_read(lkb, buf, toread)) {
+                    *result = "io error";
+                    free(buf);
+                    return -1;
+                }
+
+                if (bio_write(bdev, buf, entry.offset + pos, toread) != (ssize_t)toread) {
+                    *result = "bio_write failed";
+                    free(buf);
+                    return -1;
+                }
+
+                pos += toread;
+            }
+
+            free(buf);
         }
     } else if (!strcmp(cmd, "remove")) {
         if (ptable_remove(arg) < 0) {
@@ -281,25 +370,41 @@ int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, unsigned le
         }
     } else if (!strcmp(cmd, "fpga")) {
 #if PLATFORM_ZYNQ
-        if (lkb_read(lkb, lkb_iobuffer, len)) {
-            *result = "io error";
+        void *buf = malloc(len);
+        if (!buf) {
+            *result = "error allocating buffer";
             return -1;
         }
 
+        /* translate to physical address */
+        paddr_t pa = kvaddr_to_paddr(buf);
+        if (pa == 0) {
+            *result = "error allocating buffer";
+            free(buf);
+            return -1;
+
+        }
+
+        if (lkb_read(lkb, buf, len)) {
+            *result = "io error";
+            free(buf);
+            return -1;
+        }
+
+        /* make sure the cache is flushed for this buffer for DMA coherency purposes */
+        arch_clean_cache_range((vaddr_t)buf, len);
+
+        /* program the fpga */
         zynq_reset_fpga();
-        zynq_program_fpga(lkb_iobuffer_phys, len);
-        *result = NULL;
+        zynq_program_fpga(pa, len);
+
+        free(buf);
 #else
         *result = "no fpga";
         return -1;
 #endif
     } else if (!strcmp(cmd, "boot")) {
-        if (lkb_read(lkb, lkb_iobuffer, len)) {
-            *result = "io error";
-            return -1;
-        }
-        thread_resume(thread_create("boot", &do_boot, NULL,
-            DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+        return do_boot(lkb, len, result);
     } else if (!strcmp(cmd, "getsysparam")) {
         const void *ptr;
         size_t len;
