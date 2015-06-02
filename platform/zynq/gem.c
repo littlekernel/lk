@@ -202,6 +202,8 @@ enum handler_return gem_int_handler(void *arg) {
 
     intr_status = gem.regs->intr_status;
 
+    spin_lock(&lock);
+
     while (intr_status) {
         // clear any pending status
         gem.regs->intr_status = intr_status;
@@ -243,16 +245,15 @@ enum handler_return gem_int_handler(void *arg) {
 
         /* The controller has processed packets until it hit a buffer owned by the driver */
         if (intr_status & INTR_TX_USED_READ) {
-            spin_lock_saved_state_t irqstate;
-            spin_lock_irqsave(&lock, irqstate);
             queue_pkts_in_tx_tbl();
-            spin_unlock_irqrestore(&lock, irqstate);
             gem.regs->tx_status |= TX_STATUS_USED_READ;
         }
 
         /* see if we have any more */
         intr_status = gem.regs->intr_status;
     }
+
+    spin_unlock(&lock);
 
     return (resched) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
