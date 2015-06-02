@@ -42,7 +42,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gem.c \
 
 GLOBAL_DEFINES += \
-	ZYNQ_WITH_GEM_ETH=1
+	ZYNQ_WITH_GEM_ETH=1 \
+	ARM_ARCH_BOOTS_SECONDARIES=1
 
 # gem driver depends on minip interface
 MODULE_DEPS += \
