@@ -259,7 +259,7 @@ static void test_lk_time_to_cntpct(uint32_t cntfrq, lk_time_t lk_time)
 	uint64_t expected_cntpct = ((uint64_t)cntfrq * lk_time + 500) / 1000;
 
 	test_time_conversion_check_result(cntpct, expected_cntpct, 1, false);
-	LTRACEF_LEVEL(2, "lk_time_to_cntpct(%lu): got %llu, expect %llu\n", lk_time, cntpct, expected_cntpct);
+	LTRACEF_LEVEL(2, "lk_time_to_cntpct(%u): got %llu, expect %llu\n", lk_time, cntpct, expected_cntpct);
 }
 
 static void test_cntpct_to_lk_time(uint32_t cntfrq, lk_time_t expected_lk_time, uint32_t wrap_count)
@@ -275,7 +275,7 @@ static void test_cntpct_to_lk_time(uint32_t cntfrq, lk_time_t expected_lk_time, 
 	lk_time = cntpct_to_lk_time(cntpct);
 
 	test_time_conversion_check_result(lk_time, expected_lk_time, (1000 + cntfrq - 1) / cntfrq, true);
-	LTRACEF_LEVEL(2, "cntpct_to_lk_time(%llu): got %lu, expect %lu\n", cntpct, lk_time, expected_lk_time);
+	LTRACEF_LEVEL(2, "cntpct_to_lk_time(%llu): got %u, expect %u\n", cntpct, lk_time, expected_lk_time);
 }
 
 static void test_cntpct_to_lk_bigtime(uint32_t cntfrq, uint64_t expected_s)

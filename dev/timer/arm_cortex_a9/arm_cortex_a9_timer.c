@@ -115,7 +115,7 @@ lk_time_t current_time(void)
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-    LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
+    LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
     uint64_t ticks = u64_mul_u64_fp32_64(interval, timer_freq_msec_conversion);
     if (unlikely(ticks == 0))
@@ -143,7 +143,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 
 status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-    LTRACEF("callback %p, arg %p, timeout %lu\n", callback, arg, interval);
+    LTRACEF("callback %p, arg %p, timeout %u\n", callback, arg, interval);
 
     uint64_t ticks = u64_mul_u64_fp32_64(interval, timer_freq_msec_conversion);
     if (unlikely(ticks == 0))

@@ -114,8 +114,6 @@ STATIC const SWM_GRP_T swmSetup[] = {
 /* Sets up system pin muxing */
 void Board_SetupMuxing(void)
 {
-    int i;
-
     /* Enable SWM and IOCON clocks */
     Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
     Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_SWM);
@@ -125,7 +123,7 @@ void Board_SetupMuxing(void)
     Chip_IOCON_SetPinMuxing(LPC_IOCON, ioconSetup, sizeof(ioconSetup) / sizeof(PINMUX_GRP_T));
 
     /* SWM assignable pin setup */
-    for (i = 0; i < (sizeof(swmSetup) / sizeof(SWM_GRP_T)); i++) {
+    for (uint i = 0; i < (sizeof(swmSetup) / sizeof(SWM_GRP_T)); i++) {
         Chip_SWM_MovablePortPinAssign((CHIP_SWM_PIN_MOVABLE_T) swmSetup[i].assignedpin,
                                       swmSetup[i].port, swmSetup[i].pin);
     }

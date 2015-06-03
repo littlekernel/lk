@@ -187,7 +187,7 @@ void arm_data_abort_handler(struct arm_fault_frame *frame)
 			break;
 		case 0b01001:
 		case 0b01011: // domain fault
-			dprintf(CRITICAL, "domain fault, domain %d\n", BITS_SHIFT(fsr, 7, 4));
+			dprintf(CRITICAL, "domain fault, domain %lu\n", BITS_SHIFT(fsr, 7, 4));
 			break;
 		case 0b01101:
 		case 0b01111: // permission fault
@@ -246,7 +246,7 @@ void arm_prefetch_abort_handler(struct arm_fault_frame *frame)
 			break;
 		case 0b01001:
 		case 0b01011: // domain fault
-			dprintf(CRITICAL, "domain fault, domain %d\n", BITS_SHIFT(fsr, 7, 4));
+			dprintf(CRITICAL, "domain fault, domain %lu\n", BITS_SHIFT(fsr, 7, 4));
 			break;
 		case 0b01101:
 		case 0b01111: // permission fault

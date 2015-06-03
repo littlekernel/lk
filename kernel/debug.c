@@ -212,13 +212,13 @@ static void kevdump_cb(const uintptr_t *i)
 			printf("%lu.%lu: timer call %p, arg %p\n", i[0], i[1] >> 16, (void *)i[2], (void *)i[3]);
 			break;
 		case KERNEL_EVLOG_IRQ_ENTER:
-			printf("%lu.%lu: irq entry %u\n", i[0], i[1] >> 16, (uint)i[2]);
+			printf("%lu.%lu: irq entry %lu\n", i[0], i[1] >> 16, i[2]);
 			break;
 		case KERNEL_EVLOG_IRQ_EXIT:
-			printf("%lu.%lu: irq exit  %u\n", i[0], i[1] >> 16, (uint)i[2]);
+			printf("%lu.%lu: irq exit  %lu\n", i[0], i[1] >> 16, i[2]);
 			break;
 		default:
-			printf("%lu: unknown id 0x%x 0x%x 0x%x\n", i[0], i[1], (uint)i[2], (uint)i[3]);
+			printf("%lu: unknown id 0x%lx 0x%lx 0x%lx\n", i[0], i[1], i[2], i[3]);
 	}
 }
 

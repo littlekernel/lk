@@ -86,7 +86,7 @@ void _systick(void)
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-	LTRACEF("callback %p, arg %p, interval %ld\n", callback, arg, interval);
+	LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
 	DEBUG_ASSERT(tick_rate != 0 && tick_rate_mhz != 0);
 

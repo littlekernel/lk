@@ -71,7 +71,7 @@ static void insert_timer_in_queue(uint cpu, timer_t *timer)
 
 	DEBUG_ASSERT(arch_ints_disabled());
 
-	LTRACEF("timer %p, cpu %u, scheduled %lu, periodic %lu\n", timer, cpu, timer->scheduled_time, timer->periodic_time);
+	LTRACEF("timer %p, cpu %u, scheduled %u, periodic %u\n", timer, cpu, timer->scheduled_time, timer->periodic_time);
 
 	list_for_every_entry(&timers[cpu].timer_queue, entry, timer_t, node) {
 		if (TIME_GT(entry->scheduled_time, timer->scheduled_time)) {
@@ -88,7 +88,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 {
 	lk_time_t now;
 
-	LTRACEF("timer %p, delay %lu, period %lu, callback %p, arg %p\n", timer, delay, period, callback, arg);
+	LTRACEF("timer %p, delay %u, period %u, callback %p, arg %p\n", timer, delay, period, callback, arg);
 
 	DEBUG_ASSERT(timer->magic == TIMER_MAGIC);
 
@@ -102,7 +102,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 	timer->callback = callback;
 	timer->arg = arg;
 
-	LTRACEF("scheduled time %lu\n", timer->scheduled_time);
+	LTRACEF("scheduled time %u\n", timer->scheduled_time);
 
 	spin_lock_saved_state_t state;
 	spin_lock_irqsave(&timer_lock, state);
@@ -113,7 +113,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 #if PLATFORM_HAS_DYNAMIC_TIMER
 	if (list_peek_head_type(&timers[cpu].timer_queue, timer_t, node) == timer) {
 		/* we just modified the head of the timer queue */
-		LTRACEF("setting new timer for %u msecs\n", (uint)delay);
+		LTRACEF("setting new timer for %u msecs\n", delay);
 		platform_set_oneshot_timer(timer_tick, NULL, delay);
 	}
 #endif
@@ -225,7 +225,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 
 	uint cpu = arch_curr_cpu_num();
 
-	LTRACEF("cpu %u now %lu, sp %p\n", cpu, now, __GET_FRAME());
+	LTRACEF("cpu %u now %u, sp %p\n", cpu, now, __GET_FRAME());
 
 	spin_lock(&timer_lock);
 
@@ -234,7 +234,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		timer = list_peek_head_type(&timers[cpu].timer_queue, timer_t, node);
 		if (likely(timer == 0))
 			break;
-		LTRACEF("next item on timer queue %p at %lu now %lu (%p, arg %p)\n", timer, timer->scheduled_time, now, timer->callback, timer->arg);
+		LTRACEF("next item on timer queue %p at %u now %u (%p, arg %p)\n", timer, timer->scheduled_time, now, timer->callback, timer->arg);
 		if (likely(TIME_LT(now, timer->scheduled_time)))
 			break;
 
@@ -246,7 +246,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		/* we pulled it off the list, release the list lock to handle it */
 		spin_unlock(&timer_lock);
 
-		LTRACEF("dequeued timer %p, scheduled %lu periodic %lu\n", timer, timer->scheduled_time, timer->periodic_time);
+		LTRACEF("dequeued timer %p, scheduled %u periodic %u\n", timer, timer->scheduled_time, timer->periodic_time);
 
 		THREAD_STATS_INC(timers);
 
@@ -264,7 +264,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 		 * by the callback put it back in the list
 		 */
 		if (periodic && !list_in_list(&timer->node) && timer->periodic_time > 0) {
-			LTRACEF("periodic timer, period %u\n", (uint)timer->periodic_time);
+			LTRACEF("periodic timer, period %u\n", timer->periodic_time);
 			timer->scheduled_time = now + timer->periodic_time;
 			insert_timer_in_queue(cpu, timer);
 		}
