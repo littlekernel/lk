@@ -25,6 +25,7 @@
 #include <reg.h>
 #include <debug.h>
 #include <kernel/thread.h>
+#include <kernel/spinlock.h>
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/console.h>
@@ -40,7 +41,7 @@ static uint64_t next_trigger_time;
 static uint64_t next_trigger_delta;
 
 static uint64_t timer_delta_time;
-static uint64_t timer_current_time;
+static volatile uint64_t timer_current_time;
 
 static uint16_t divisor;
 
@@ -49,15 +50,11 @@ static uint16_t divisor;
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-	enter_critical_section();
-
 	t_callback = callback;
 	callback_arg = arg;
 
 	next_trigger_delta = (uint64_t) interval << 32;
 	next_trigger_time = timer_current_time + next_trigger_delta;
-
-	exit_critical_section();
 
 	return NO_ERROR;
 }
@@ -66,9 +63,8 @@ lk_time_t current_time(void)
 {
 	lk_time_t time;
 
-	enter_critical_section();
+	// XXX slight race
 	time = (lk_time_t) (timer_current_time >> 32);
-	exit_critical_section();
 
 	return time;
 }
@@ -77,9 +73,8 @@ lk_bigtime_t current_time_hires(void)
 {
 	lk_bigtime_t time;
 
-	enter_critical_section();
+	// XXX slight race
 	time = (lk_bigtime_t) ((timer_current_time >> 22) * 1000) >> 10;
-	exit_critical_section();
 
 	return time;
 }
@@ -164,3 +159,4 @@ void platform_halt_timers(void)
 	mask_interrupt(INT_PIT);
 }
 
+/* vim: set noexpandtab */

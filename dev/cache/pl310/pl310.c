@@ -104,6 +104,10 @@ static void pl310_init(uint level)
     PL310_REG(REG1_TAG_RAM_CONTROL) = PL310_TAG_RAM_LATENCY;
     PL310_REG(REG1_DATA_RAM_CONTROL) = PL310_DATA_RAM_LATENCY;
 
+    /* configure */
+    /* early BRESP enable, instruction/data prefetch, exclusive cache, full line of zero */
+    PL310_REG(REG1_AUX_CONTROL) |= (1<<30)|(1<<29)|(1<<28)|(1<<12)|(1<<0);
+
     /* flush all the ways */
     PL310_REG(REG7_INV_WAY) = 0xffff;
 }
@@ -120,6 +124,7 @@ status_t pl310_set_enable(bool enable)
     if (enable) {
         if ((PL310_REG(REG1_CONTROL) & 1) == 0) {
             /* if disabled */
+            pl310_invalidate();
             PL310_REG(REG1_CONTROL) = 1;
         }
     } else {

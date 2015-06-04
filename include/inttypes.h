@@ -23,6 +23,9 @@
 #ifndef __INTTYPES_H
 #define __INTTYPES_H
 
+#define PRIu32 "u"
+#define PRIx32 "x"
+
 #include <stdint.h>
 
 #endif

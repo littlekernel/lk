@@ -74,6 +74,8 @@ void platform_early_init(void)
 {
     uart_init_early();
 
+    printf("stat 0x%x\n", *REG32(0xffd05000));
+
     /* initialize the interrupt controller */
     arm_gic_init();
 
@@ -81,6 +83,9 @@ void platform_early_init(void)
     arm_cortex_a9_timer_init(CPUPRIV_BASE, TIMER_CLOCK_FREQ);
 
     pmm_add_arena(&sdram_arena);
+
+    /* start the secondary cpu */
+    *REG32(0xffd05010) = 0;
 }
 
 void platform_init(void)

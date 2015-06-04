@@ -57,8 +57,9 @@ static void initial_thread_func(void)
 
     LTRACEF("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
 
-    /* exit the implicit critical section we're within */
-    exit_critical_section();
+    /* release the thread lock that was implicitly held across the reschedule */
+    spin_unlock(&thread_lock);
+    arch_enable_ints();
 
     ret = current_thread->entry(current_thread->arg);
 
@@ -92,3 +93,10 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
     arm64_context_switch(&oldthread->arch.sp, newthread->arch.sp);
 }
 
+void arch_dump_thread(thread_t *t)
+{
+    if (t->state != THREAD_RUNNING) {
+        dprintf(INFO, "\tarch: ");
+        dprintf(INFO, "sp 0x%lx\n", t->arch.sp);
+    }
+}

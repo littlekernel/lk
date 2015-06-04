@@ -25,10 +25,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <kernel/thread.h>
+#include <kernel/spinlock.h>
 #include <arch/x86/descriptor.h>
 #include <dev/pci.h>
 
 static int last_bus = 0;
+static spin_lock_t lock;
 
 typedef struct {
 	uint16_t size;
@@ -64,87 +66,95 @@ int (*g_pci_set_irq_hw_int)(const pci_location_t *state, uint8_t int_pin, uint8_
 
 int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
 
 	int res = g_pci_find_pci_device(state, device_id, vendor_id, index);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, irqstate);
 
 	return res;
 }
 
 int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
 
 	int res = g_pci_find_pci_class_code(state, class_code, index);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, irqstate);
 
 	return res;
 }
 
 int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
 
 	int res = g_pci_read_config_byte(state, reg, value);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, irqstate);
 
 	return res;
 }
 int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
 
 	int res = g_pci_read_config_half(state, reg, value);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, irqstate);
 
 	return res;
 }
 
 int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
 
 	int res = g_pci_read_config_word(state, reg, value);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, irqstate);
 
 	return res;
 }
 
 int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
 
 	int res = g_pci_write_config_byte(state, reg, value);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, irqstate);
 
 	return res;
 }
 
 int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
 
 	int res = g_pci_write_config_half(state, reg, value);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, irqstate);
 
 	return res;
 }
 
 int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
 
 	int res = g_pci_write_config_word(state, reg, value);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, irqstate);
 
 	return res;
 }
@@ -152,29 +162,31 @@ int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t va
 
 int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs)
 {
-	enter_critical_section();
-
 	irq_routing_options_t options;
 	options.size = sizeof(irq_routing_entry) * *count;
 	options.selector = DATA_SELECTOR;
 	options.offset = entries;
 
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
+
 	int res = g_pci_get_irq_routing_options(&options, pci_irqs);
 
-	*count = options.size / sizeof(irq_routing_entry);
+	spin_unlock_irqrestore(&lock, irqstate);
 
-	exit_critical_section();
+	*count = options.size / sizeof(irq_routing_entry);
 
 	return res;
 }
 
 int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t irqstate;
+	spin_lock_irqsave(&lock, irqstate);
 
 	int res = g_pci_set_irq_hw_int(state, int_pin, irq);
 
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, irqstate);
 
 	return res;
 }

@@ -28,6 +28,7 @@
 
 #include <kernel/thread.h>
 #include <kernel/semaphore.h>
+#include <kernel/spinlock.h>
 #include <lib/pktbuf.h>
 #include <lk/init.h>
 
@@ -45,6 +46,7 @@
 static struct list_node pb_freelist = LIST_INITIAL_VALUE(pb_freelist);
 static struct list_node pb_buflist = LIST_INITIAL_VALUE(pb_buflist);
 static semaphore_t pb_sem = SEMAPHORE_INITIAL_VALUE(pb_sem, -1);
+static spin_lock_t lock;
 
 
 static unsigned int cur_id = 0;
@@ -90,6 +92,8 @@ static inline pktbuf_buf_t *pktbuf_get_buf(void) {
 }
 
 pktbuf_t *pktbuf_alloc(void) {
+	spin_lock_saved_state_t state;
+
 	pktbuf_t *p = NULL;
 	pktbuf_buf_t *b = NULL;
 
@@ -97,12 +101,12 @@ pktbuf_t *pktbuf_alloc(void) {
 	 * pointer but no buffer and would otherwise have to do sem / list bookkeeping on
 	 * cleanup */
 	sem_wait(&pb_sem);
-	enter_critical_section();
+	spin_lock_irqsave(&lock, state);
 	b = pktbuf_get_buf();
 	if (b) {
 		p = list_remove_head_type(&pb_freelist, pktbuf_t, list);
 	}
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, state);
 
 	if (b->magic != PKTBUF_BUF_MAGIC) {
 		panic("pktbuf id %u has corrupted buffer magic value\n"
@@ -127,12 +131,13 @@ pktbuf_t *pktbuf_alloc(void) {
 }
 
 pktbuf_t *pktbuf_alloc_empty(void *buf, size_t dlen) {
+	spin_lock_saved_state_t state;
 	pktbuf_t *p;
 
 	sem_wait(&pb_sem);
-	enter_critical_section();
+	spin_lock_irqsave(&lock, state);
 	p = list_remove_head_type(&pb_freelist, pktbuf_t, list);
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, state);
 
 	if (!p) {
 		return NULL;
@@ -147,7 +152,8 @@ pktbuf_t *pktbuf_alloc_empty(void *buf, size_t dlen) {
 }
 
 int pktbuf_free(pktbuf_t *p, bool reschedule) {
-	enter_critical_section();
+	spin_lock_saved_state_t state;
+	spin_lock_irqsave(&lock, state);
 	list_add_tail(&pb_freelist, &(p->list));
 	if (p->managed && p->buffer) {
 		pktbuf_buf_t *pkt = (pktbuf_buf_t *)p->buffer;
@@ -158,7 +164,7 @@ int pktbuf_free(pktbuf_t *p, bool reschedule) {
 	p->eof = false;
 	p->managed = false;
 	p->flags = 0;
-	exit_critical_section();
+	spin_unlock_irqrestore(&lock, state);
 
 	return sem_post(&pb_sem, reschedule);
 }

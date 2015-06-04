@@ -4,10 +4,11 @@ OUTPUT_ARCH(aarch64)
 ENTRY(_start)
 SECTIONS
 {
-    . = %MEMBASE%;
+    . = %KERNEL_BASE% + %KERNEL_LOAD_OFFSET%;
 
     /* text/read-only data */
-    .text : {
+    /* set the load address to physical MEMBASE */
+    .text : AT(%MEMBASE% + %KERNEL_LOAD_OFFSET%) {
         KEEP(*(.text.boot))
         KEEP(*(.text.boot.vectab))
         *(.text* .sram.text.glue_7* .gnu.linkonce.t.*)
@@ -93,7 +94,7 @@ INCLUDE "arch/shared_data_sections.ld"
     . = ALIGN(8);
     _end = .;
 
-    . = %MEMBASE% + %MEMSIZE%;
+    . = %KERNEL_BASE% + %MEMSIZE%;
     _end_of_ram = .;
 
     /* Strip unnecessary stuff */

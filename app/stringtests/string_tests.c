@@ -172,10 +172,10 @@ static void bench_memcpy(void)
             mine = bench_memcpy_routine(&mymemcpy, srcalign, dstalign);
 
             printf("srcalign %zu, dstalign %zu: ", srcalign, dstalign);
-            printf("   null memcpy %lu msecs\n", null);
-            printf("c memcpy %lu msecs, %llu bytes/sec; ", c, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / c);
-            printf("libc memcpy %lu msecs, %llu bytes/sec; ", libc, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
-            printf("my memcpy %lu msecs, %llu bytes/sec; ", mine, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
+            printf("   null memcpy %u msecs\n", null);
+            printf("c memcpy %u msecs, %llu bytes/sec; ", c, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / c);
+            printf("libc memcpy %u msecs, %llu bytes/sec; ", libc, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
+            printf("my memcpy %u msecs, %llu bytes/sec; ", mine, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
             printf("\n");
 
             if (dstalign < 8)
@@ -263,9 +263,9 @@ static void bench_memset(void)
         mine = bench_memset_routine(&mymemset, dstalign, BUFFER_SIZE);
 
         printf("dstalign %zu: ", dstalign);
-        printf("c memset %lu msecs, %llu bytes/sec; ", c, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / c);
-        printf("libc memset %lu msecs, %llu bytes/sec; ", libc, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
-        printf("my memset %lu msecs, %llu bytes/sec; ", mine, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
+        printf("c memset %u msecs, %llu bytes/sec; ", c, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / c);
+        printf("libc memset %u msecs, %llu bytes/sec; ", libc, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / libc);
+        printf("my memset %u msecs, %llu bytes/sec; ", mine, (uint64_t)BUFFER_SIZE * ITERATIONS * 1000ULL / mine);
         printf("\n");
     }
 }

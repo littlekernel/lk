@@ -93,7 +93,7 @@ FUNCTION(_atomic_or)
 	mov		r0, r12
 	bx		lr
 
-FUNCTION(spin_trylock)
+FUNCTION(arch_spin_trylock)
 	mov	r2, r0
 	mov	r1, #1
 	ldrex	r0, [r2]
@@ -102,7 +102,7 @@ FUNCTION(spin_trylock)
 	dmb
 	bx	lr
 
-FUNCTION(spin_lock)
+FUNCTION(arch_spin_lock)
 	mov	r1, #1
 1:
 	ldrex	r2, [r0]
@@ -114,7 +114,7 @@ FUNCTION(spin_lock)
 	dmb
 	bx	lr
 
-FUNCTION(spin_unlock)
+FUNCTION(arch_spin_unlock)
 	mov	r1, #0
 	dmb
 	str	r1, [r0]
