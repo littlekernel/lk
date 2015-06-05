@@ -58,7 +58,11 @@ int _dvprintf(const char *fmt, va_list ap);
 
 /* dump memory */
 void hexdump(const void *ptr, size_t len);
-void hexdump8(const void *ptr, size_t len);
+void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr_start);
+static inline void hexdump8(const void *ptr, size_t len)
+{
+	hexdump8_ex(ptr, len, (uint64_t)((addr_t)ptr));
+}
 
 #else
 
