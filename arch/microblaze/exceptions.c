@@ -31,11 +31,7 @@ enum handler_return platform_irq_handler(void);
 
 void microblaze_irq(void)
 {
-    inc_critical_section();
-
     if (platform_irq_handler() == INT_RESCHEDULE)
         thread_preempt();
-
-    dec_critical_section();
 }
 

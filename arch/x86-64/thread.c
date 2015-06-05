@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <debug.h>
 #include <kernel/thread.h>
+#include <kernel/spinlock.h>
 #include <arch/x86.h>
 #include <arch/x86/descriptor.h>
 
@@ -45,8 +46,9 @@ static void initial_thread_func(void)
 {
 	int ret;
 
-	/* exit the implicit critical section we're within */
-	exit_critical_section();
+	/* release the thread lock that was implicitly held across the reschedule */
+	spin_unlock(&thread_lock);
+	arch_enable_ints();
 
 	ret = _current_thread->entry(_current_thread->arg);
 
@@ -126,3 +128,5 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 		: "g" (newthread->arch.rsp)
 	);
 }
+
+/* vim: noexpandtab */

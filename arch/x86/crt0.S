@@ -173,8 +173,6 @@ interrupt_common:
 	movl %esp, %eax			/* store pointer to iframe, using same method */
 	pushl %eax
 	
-	incl critical_section_count
-
 	call platform_irq
 	
 	cmpl $0,%eax
@@ -182,8 +180,6 @@ interrupt_common:
 	call thread_preempt
 
 0:
-	decl critical_section_count
-
 	popl %eax				/* drop pointer to iframe */
 	popl %eax				/* restore task_esp, stack switch can occur here if task_esp is modified */
 	movl %eax, %esp

@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 ARCH := arm
 ARM_CPU := cortex-a9-neon
+WITH_SMP ?= 1
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
@@ -25,7 +26,8 @@ MODULE_DEPS += \
 
 GLOBAL_DEFINES += \
 	MEMBASE=$(MEMBASE) \
-	MEMSIZE=$(MEMSIZE)
+	MEMSIZE=$(MEMSIZE) \
+	ARM_ARCH_WAIT_FOR_SECONDARIES=1
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld

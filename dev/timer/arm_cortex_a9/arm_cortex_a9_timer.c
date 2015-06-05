@@ -30,9 +30,11 @@
 #include <trace.h>
 #include <lib/fixed_point.h>
 #include <kernel/thread.h>
+#include <kernel/spinlock.h>
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
+#include <lk/init.h>
 
 /* driver for cortex-a9's private timer */
 #define LOCAL_TRACE 0
@@ -69,6 +71,7 @@
 
 static platform_timer_callback t_callback;
 static addr_t scu_control_base;
+static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
 static lk_time_t periodic_interval;
 static lk_time_t oneshot_interval;
@@ -76,6 +79,8 @@ static uint32_t timer_freq;
 static struct fp_32_64 timer_freq_msec_conversion;
 static struct fp_32_64 timer_freq_usec_conversion_inverse;
 static struct fp_32_64 timer_freq_msec_conversion_inverse;
+
+static void arm_cortex_a9_timer_init_percpu(uint level);
 
 uint64_t get_global_val(void)
 {
@@ -110,7 +115,7 @@ lk_time_t current_time(void)
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-    LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
+    LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
     uint64_t ticks = u64_mul_u64_fp32_64(interval, timer_freq_msec_conversion);
     if (unlikely(ticks == 0))
@@ -118,7 +123,8 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     if (unlikely(ticks > 0xffffffff))
         ticks = 0xffffffff;
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     t_callback = callback;
 
@@ -130,14 +136,14 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     TIMREG(TIMER_LOAD) = ticks;
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<1) | (1<<0); // irq enable, autoreload, enable
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 
     return NO_ERROR;
 }
 
 status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-    LTRACEF("callback %p, arg %p, timeout %lu\n", callback, arg, interval);
+    LTRACEF("callback %p, arg %p, timeout %u\n", callback, arg, interval);
 
     uint64_t ticks = u64_mul_u64_fp32_64(interval, timer_freq_msec_conversion);
     if (unlikely(ticks == 0))
@@ -145,7 +151,8 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     if (unlikely(ticks > 0xffffffff))
         ticks = 0xffffffff;
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     t_callback = callback;
     oneshot_interval = interval;
@@ -156,7 +163,7 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     TIMREG(TIMER_LOAD) = ticks;
     TIMREG(TIMER_CONTROL) = (1<<2) | (1<<0) | (1<<0); // irq enable, oneshot, enable
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 
     return NO_ERROR;
 }
@@ -185,6 +192,19 @@ void arm_cortex_a9_timer_init(addr_t _scu_control_base, uint32_t freq)
 {
     scu_control_base = _scu_control_base;
 
+    arm_cortex_a9_timer_init_percpu(0);
+
+    /* save the timer frequency for later calculations */
+    timer_freq = freq;
+
+    /* precompute the conversion factor for global time to real time */
+    fp_32_64_div_32_32(&timer_freq_msec_conversion, timer_freq, 1000);
+    fp_32_64_div_32_32(&timer_freq_usec_conversion_inverse, 1000000, timer_freq);
+    fp_32_64_div_32_32(&timer_freq_msec_conversion_inverse, 1000, timer_freq);
+}
+
+static void arm_cortex_a9_timer_init_percpu(uint level)
+{
     /* disable timer */
     TIMREG(TIMER_CONTROL) = 0;
 
@@ -194,16 +214,14 @@ void arm_cortex_a9_timer_init(addr_t _scu_control_base, uint32_t freq)
     /* ack any irqs that may be pending */
     TIMREG(TIMER_ISR) = 1;
 
-    /* save the timer frequency for later calculations */
-    timer_freq = freq;
-
-    /* precompute the conversion factor for global time to real time */
-    fp_32_64_div_32_32(&timer_freq_msec_conversion, timer_freq, 1000);
-    fp_32_64_div_32_32(&timer_freq_usec_conversion_inverse, 1000000, timer_freq);
-    fp_32_64_div_32_32(&timer_freq_msec_conversion_inverse, 1000, timer_freq);
-
+    /* register the platform tick on each cpu */
     register_int_handler(CPU_PRIV_TIMER_INT, &platform_tick, NULL);
     unmask_interrupt(CPU_PRIV_TIMER_INT);
 }
+
+/* secondary cpu initialize the timer just before the kernel starts with interrupts enabled */
+LK_INIT_HOOK_FLAGS(arm_cortex_a9_timer_init_percpu,
+       arm_cortex_a9_timer_init_percpu,
+       LK_INIT_LEVEL_THREADING - 1, LK_INIT_FLAG_SECONDARY_CPUS);
 
 /* vim: set ts=4 sw=4 expandtab: */

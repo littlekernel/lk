@@ -39,6 +39,7 @@
 #include <kernel/timer.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
+#include <kernel/spinlock.h>
 #include <kernel/debug.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
@@ -54,6 +55,8 @@
 #define GEM_TX_BUF_CNT      32
 #define GEM_RX_BUF_SIZE     1536
 #define GEM_TX_BUF_SIZE     1536
+
+static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
 struct gem_desc {
     uint32_t addr;
@@ -100,7 +103,7 @@ static void debug_rx_handler(pktbuf_t *p)
 {
     static uint32_t pkt = 0;
 
-    printf("[%10lu] packet %u, %zu bytes:\n", current_time(), ++pkt, p->dlen);
+    printf("[%10u] packet %u, %zu bytes:\n", (uint32_t)current_time(), ++pkt, p->dlen);
     hexdump8(p->data, p->dlen);
     putchar('\n');
 }
@@ -132,9 +135,8 @@ void queue_pkts_in_tx_tbl(void) {
     pktbuf_t *p;
     unsigned int cur_pos;
 
-    enter_critical_section();
     if (list_is_empty(&gem.tx_queue)) {
-        goto exit;
+        return;
     }
 
     // XXX handle multi part buffers
@@ -166,9 +168,6 @@ void queue_pkts_in_tx_tbl(void) {
 
     DMB;
     gem.regs->net_ctrl |= NET_CTRL_START_TX;
-
-exit:
-    exit_critical_section();
 }
 
 int gem_send_raw_pkt(struct pktbuf *p)
@@ -186,10 +185,11 @@ int gem_send_raw_pkt(struct pktbuf *p)
     // XXX handle multi part buffers
     arch_clean_cache_range((vaddr_t)p->data, p->dlen);
 
-    enter_critical_section();
+    spin_lock_saved_state_t irqstate;
+    spin_lock_irqsave(&lock, irqstate);
     list_add_tail(&gem.tx_queue, &p->list);
     queue_pkts_in_tx_tbl();
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, irqstate);
 
 err:
     return ret;
@@ -201,6 +201,8 @@ enum handler_return gem_int_handler(void *arg) {
     bool resched = false;
 
     intr_status = gem.regs->intr_status;
+
+    spin_lock(&lock);
 
     while (intr_status) {
         // clear any pending status
@@ -250,6 +252,8 @@ enum handler_return gem_int_handler(void *arg) {
         /* see if we have any more */
         intr_status = gem.regs->intr_status;
     }
+
+    spin_unlock(&lock);
 
     return (resched) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }

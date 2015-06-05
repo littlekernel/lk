@@ -27,6 +27,7 @@
 #include <reg.h>
 #include <kernel/thread.h>
 #include <kernel/debug.h>
+#include <kernel/spinlock.h>
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <arch/arm64.h>
@@ -39,18 +40,20 @@ struct int_handler_struct {
 };
 
 static struct int_handler_struct int_handler_table[MAX_INT];
+static spin_lock_t lock;
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 {
     if (vector >= MAX_INT)
         panic("register_int_handler: vector out of range %d\n", vector);
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     int_handler_table[vector].handler = handler;
     int_handler_table[vector].arg = arg;
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 }
 
 #define GICCPUREG(reg) (*REG32(GIC_PROC_BASE + (reg)))
@@ -156,11 +159,12 @@ status_t mask_interrupt(unsigned int vector)
     if (vector >= MAX_INT)
         return -1;
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     gic_set_enable(vector, false);
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 
     return NO_ERROR;
 }
@@ -170,11 +174,12 @@ status_t unmask_interrupt(unsigned int vector)
     if (vector >= MAX_INT)
         return -1;
 
-    enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
 
     gic_set_enable(vector, true);
 
-    exit_critical_section();
+    spin_unlock_irqrestore(&lock, state);
 
     return NO_ERROR;
 }
@@ -190,8 +195,6 @@ enum handler_return platform_irq(struct arm64_iframe_short *frame)
         // spurious
         return INT_NO_RESCHEDULE;
     }
-
-    inc_critical_section();
 
     THREAD_STATS_INC(interrupts);
     KEVLOG_IRQ_ENTER(vector);
@@ -211,8 +214,6 @@ enum handler_return platform_irq(struct arm64_iframe_short *frame)
 
     if (ret != INT_NO_RESCHEDULE)
         thread_preempt();
-
-    dec_critical_section();
 
     return ret;
 }

@@ -69,6 +69,10 @@
 #define ntohl(n) BE32(n)
 #define htonl(h) BE32(h)
 
+/* 64-bit network byte swap stuff */
+#define htobe64(h) BE64(h)
+#define be64toh(b) BE64(b)
+
 // some memory access macros
 #if __POWERPC__
 #include <ppc_intrinsics.h>

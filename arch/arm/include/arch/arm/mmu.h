@@ -51,7 +51,9 @@
 #define MMU_MEMORY_L1_TYPE_NORMAL_WRITE_THROUGH          ((0x0 << 12) | (0x2 << 2))
 #define MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_NO_ALLOCATE ((0x0 << 12) | (0x3 << 2))
 #define MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE    ((0x1 << 12) | (0x3 << 2))
-#define MMU_MEMORY_L1_TYPE_MASK                          ((0x3 << 12) | (0x3 << 2))
+#define MMU_MEMORY_L1_TYPE_MASK                          ((0x7 << 12) | (0x3 << 2))
+
+#define MMU_MEMORY_L1_TYPE_INNER_WRITE_BACK_ALLOCATE     ((0x4 << 12) | (0x1 << 2))
 
 /* C, B and TEX[2:0] encodings without TEX remap (for second level descriptors) */
                                                           /* TEX     |    CB    */
@@ -62,7 +64,7 @@
 #define MMU_MEMORY_L2_TYPE_NORMAL_WRITE_THROUGH          ((0x0 << 6) | (0x2 << 2))
 #define MMU_MEMORY_L2_TYPE_NORMAL_WRITE_BACK_NO_ALLOCATE ((0x0 << 6) | (0x3 << 2))
 #define MMU_MEMORY_L2_TYPE_NORMAL_WRITE_BACK_ALLOCATE    ((0x1 << 6) | (0x3 << 2))
-#define MMU_MEMORY_L2_TYPE_MASK                          ((0x3 << 6) | (0x3 << 2))
+#define MMU_MEMORY_L2_TYPE_MASK                          ((0x7 << 6) | (0x3 << 2))
 
 #define MMU_MEMORY_DOMAIN_MEM                            (0)
 
@@ -109,6 +111,13 @@
 #define MMU_MEMORY_L1_SECTION_NON_GLOBAL    (1 << 17)
 #define MMU_MEMORY_L1_SECTION_XN            (1 << 4)
 
+#define MMU_MEMORY_L1_CB_SHIFT              2
+#define MMU_MEMORY_L1_TEX_SHIFT            12
+
+#define MMU_MEMORY_SET_L1_INNER(val)        (((val) & 0x3) << MMU_MEMORY_L1_CB_SHIFT)
+#define MMU_MEMORY_SET_L1_OUTER(val)        (((val) & 0x3) << MMU_MEMORY_L1_TEX_SHIFT)
+#define MMU_MEMORY_SET_L1_CACHEABLE_MEM     (0x4 << MMU_MEMORY_L1_TEX_SHIFT)
+
 #define MMU_MEMORY_L2_SHAREABLE             (1 << 10)
 #define MMU_MEMORY_L2_NON_GLOBAL            (1 << 11)
 
@@ -134,6 +143,8 @@
 /* IRGN[1:0] is encoded as: IRGN[0] in TTBRx[6], and IRGN[1] in TTBRx[0] */
 #define MMU_MEMORY_TTBR_IRGN(x)             ((((x) & 0x1) << 6) | \
                                             ((((x) >> 1) & 0x1) << 0))
+#define MMU_MEMORY_TTBR_S                   (1 << 1)
+#define MMU_MEMORY_TTBR_NOS                 (1 << 5)
 
 /* Default configuration for main kernel page table:
  *    - section mappings for memory
@@ -142,18 +153,31 @@
 
 /* Enable cached page table walks:
  * inner/outer (IRGN/RGN): write-back + write-allocate
+ * (select inner sharable on smp)
  */
+#if WITH_SMP
+#define MMU_TTBRx_SHARABLE_FLAGS (MMU_MEMORY_TTBR_S | MMU_MEMORY_TTBR_NOS)
+#else
+#define MMU_TTBRx_SHARABLE_FLAGS (0)
+#endif
 #define MMU_TTBRx_FLAGS \
     (MMU_MEMORY_TTBR_RGN(MMU_MEMORY_WRITE_BACK_ALLOCATE) |\
-     MMU_MEMORY_TTBR_IRGN(MMU_MEMORY_WRITE_BACK_ALLOCATE))
+     MMU_MEMORY_TTBR_IRGN(MMU_MEMORY_WRITE_BACK_ALLOCATE) | \
+     MMU_TTBRx_SHARABLE_FLAGS)
 
 /* Section mapping, TEX[2:0]=001, CB=11, S=1, AP[2:0]=001 */
+#if WITH_SMP
+#define MMU_KERNEL_L1_PTE_FLAGS \
+    (MMU_MEMORY_L1_DESCRIPTOR_SECTION | \
+     MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE | \
+     MMU_MEMORY_L1_AP_P_RW_U_NA | \
+     MMU_MEMORY_L1_SECTION_SHAREABLE)
+#else
 #define MMU_KERNEL_L1_PTE_FLAGS \
     (MMU_MEMORY_L1_DESCRIPTOR_SECTION | \
      MMU_MEMORY_L1_TYPE_NORMAL_WRITE_BACK_ALLOCATE | \
      MMU_MEMORY_L1_AP_P_RW_U_NA)
-/* XXX add with smp to above */
-//     MMU_MEMORY_L1_SECTION_SHAREABLE |
+#endif
 
 #define MMU_INITIAL_MAP_STRONGLY_ORDERED \
     (MMU_MEMORY_L1_DESCRIPTOR_SECTION | \
@@ -176,48 +200,77 @@
 
 __BEGIN_CDECLS
 
+void arm_mmu_early_init(void);
 void arm_mmu_init(void);
 status_t arm_vtop(addr_t va, addr_t *pa);
 
 /* tlb routines */
-static inline void arm_invalidate_tlb_global(void) {
-    CF;
+
+static inline void arm_after_invalidate_tlb_barrier(void) {
+#if WITH_SMP
+    arm_write_bpiallis(0);
+#else
+    arm_write_bpiall(0);
+#endif
+    DSB;
+    ISB;
+}
+
+static inline void arm_invalidate_tlb_global_no_barrier(void) {
 #if WITH_SMP
     arm_write_tlbiallis(0);
 #else
     arm_write_tlbiall(0);
 #endif
-    DSB;
 }
 
-static inline void arm_invalidate_tlb_mva(vaddr_t va) {
-    CF;
+static inline void arm_invalidate_tlb_global(void) {
+    DSB;
+    arm_invalidate_tlb_global_no_barrier();
+    arm_after_invalidate_tlb_barrier();
+}
+
+static inline void arm_invalidate_tlb_mva_no_barrier(vaddr_t va) {
 #if WITH_SMP
     arm_write_tlbimvaais(va & 0xfffff000);
 #else
     arm_write_tlbimvaa(va & 0xfffff000);
 #endif
-    DSB;
 }
 
-static inline void arm_invalidate_tlb_asid(uint8_t asid) {
-    CF;
+static inline void arm_invalidate_tlb_mva(vaddr_t va) {
+    DSB;
+    arm_invalidate_tlb_mva_no_barrier(va);
+    arm_after_invalidate_tlb_barrier();
+}
+
+
+static inline void arm_invalidate_tlb_asid_no_barrier(uint8_t asid) {
 #if WITH_SMP
     arm_write_tlbiasidis(asid);
 #else
     arm_write_tlbiasid(asid);
 #endif
-    DSB;
 }
 
-static inline void arm_invalidate_tlb_mva_asid(vaddr_t va, uint8_t asid) {
-    CF;
+static inline void arm_invalidate_tlb_asid(uint8_t asid) {
+    DSB;
+    arm_invalidate_tlb_asid_no_barrier(asid);
+    arm_after_invalidate_tlb_barrier();
+}
+
+static inline void arm_invalidate_tlb_mva_asid_no_barrier(vaddr_t va, uint8_t asid) {
 #if WITH_SMP
     arm_write_tlbimvais((va & 0xfffff000) | asid);
 #else
     arm_write_tlbimva((va & 0xfffff000) | asid);
 #endif
+}
+
+static inline void arm_invalidate_tlb_mva_asid(vaddr_t va, uint8_t asid) {
     DSB;
+    arm_invalidate_tlb_mva_asid_no_barrier(va, asid);
+    arm_after_invalidate_tlb_barrier();
 }
 
 __END_CDECLS

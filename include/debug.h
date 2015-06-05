@@ -27,8 +27,7 @@
 #include <stddef.h>
 #include <compiler.h>
 #include <platform/debug.h>
-
-__BEGIN_CDECLS
+#include <list.h>
 
 #if !defined(LK_DEBUGLEVEL)
 #define LK_DEBUGLEVEL 0
@@ -40,11 +39,20 @@ __BEGIN_CDECLS
 #define INFO 1
 #define SPEW 2
 
+typedef struct __print_callback print_callback_t;
+struct __print_callback {
+	struct list_node entry;
+	void (*print)(print_callback_t *cb, const char *str, size_t len);
+};
+
+__BEGIN_CDECLS
+
 #if !DISABLE_DEBUG_OUTPUT
 
 /* input/output */
-#define _dputc(c) platform_dputc(c)
+void _dputc(char c);
 int _dputs(const char *str);
+int _dwrite(const char *ptr, size_t len);
 int _dprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);
 int _dvprintf(const char *fmt, va_list ap);
 
@@ -57,6 +65,7 @@ void hexdump8(const void *ptr, size_t len);
 /* input/output */
 static inline void _dputc(char c) { }
 static inline int _dputs(const char *str) { return 0; }
+static inline int _dwrite(const char *ptr, size_t len) { return 0; }
 static inline int __PRINTFLIKE(1, 2) _dprintf(const char *fmt, ...) { return 0; }
 static inline int _dvprintf(const char *fmt, va_list ap) { return 0; }
 
@@ -66,8 +75,13 @@ static inline void hexdump8(const void *ptr, size_t len) { }
 
 #endif /* DISABLE_DEBUG_OUTPUT */
 
+/* register callback to receive debug prints */
+void register_print_callback(print_callback_t *cb);
+void unregister_print_callback(print_callback_t *cb);
+
 #define dputc(level, str) do { if ((level) <= LK_DEBUGLEVEL) { _dputc(str); } } while (0)
 #define dputs(level, str) do { if ((level) <= LK_DEBUGLEVEL) { _dputs(str); } } while (0)
+#define dwrite(level, ptr, len) do { if ((level) <= LK_DEBUGLEVEL) { _dwrite(ptr, len); } } while(0)
 #define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dprintf(x); } } while (0)
 #define dvprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dvprintf(x); } } while (0)
 

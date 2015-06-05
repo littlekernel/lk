@@ -21,7 +21,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <arch/ops.h>
 #include <assert.h>
+#include <lk/init.h>
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
@@ -29,11 +31,100 @@
 
 #define LOCAL_TRACE 0
 
-#define LTRACEF_LEVEL(level, x...) do { if (LOCAL_TRACE >= level) { TRACEF(x); } } while (0)
-
 #include <lib/fixed_point.h>
 
+#if ARCH_ARM64
+
+/* CNTFRQ AArch64 register */
+#define TIMER_REG_CNTFRQ	cntfrq_el0
+
+/* CNTP AArch64 registers */
+#define TIMER_REG_CNTP_CTL	cntp_ctl_el0
+#define TIMER_REG_CNTP_CVAL	cntp_cval_el0
+#define TIMER_REG_CNTP_TVAL	cntp_tval_el0
+#define TIMER_REG_CNTPCT	cntpct_el0
+
+/* CNTPS AArch64 registers */
+#define TIMER_REG_CNTPS_CTL	cntps_ctl_el1
+#define TIMER_REG_CNTPS_CVAL	cntps_cval_el1
+#define TIMER_REG_CNTPS_TVAL	cntps_tval_el1
+#define TIMER_REG_CNTPSCT	cntpct_el0
+
+/* CNTV AArch64 registers */
+#define TIMER_REG_CNTV_CTL	cntv_ctl_el0
+#define TIMER_REG_CNTV_CVAL	cntv_cval_el0
+#define TIMER_REG_CNTV_TVAL	cntv_tval_el0
+#define TIMER_REG_CNTVCT	cntvct_el0
+
+#define READ_TIMER_REG32(reg) ARM64_READ_SYSREG(reg)
+#define READ_TIMER_REG64(reg) ARM64_READ_SYSREG(reg)
+#define WRITE_TIMER_REG32(reg, val) ARM64_WRITE_SYSREG(reg, val)
+#define WRITE_TIMER_REG64(reg, val) ARM64_WRITE_SYSREG(reg, val)
+
+#else
+
+/* CNTFRQ AArch32 register */
+#define TIMER_REG_CNTFRQ	"c0, 0"
+
+/* CNTP AArch32 registers */
+#define TIMER_REG_CNTP_CTL	"c2, 1"
+#define TIMER_REG_CNTP_CVAL	"2"
+#define TIMER_REG_CNTP_TVAL	"c2, 0"
+#define TIMER_REG_CNTPCT	"0"
+
+/* CNTPS AArch32 registers are banked and accessed though CNTP */
+#define CNTPS CNTP
+
+/* CNTV AArch32 registers */
+#define TIMER_REG_CNTV_CTL	"c3, 1"
+#define TIMER_REG_CNTV_CVAL	"3"
+#define TIMER_REG_CNTV_TVAL	"c3, 0"
+#define TIMER_REG_CNTVCT	"1"
+
+#define READ_TIMER_REG32(reg) \
+({ \
+	uint32_t _val; \
+	__asm__ volatile("mrc p15, 0, %0, c14, " reg : "=r" (_val)); \
+	_val; \
+})
+
+#define READ_TIMER_REG64(reg) \
+({ \
+	uint64_t _val; \
+	__asm__ volatile("mrrc p15, " reg ", %0, %H0, c14" : "=r" (_val)); \
+	_val; \
+})
+
+#define WRITE_TIMER_REG32(reg, val) \
+({ \
+	__asm__ volatile("mcr p15, 0, %0, c14, " reg :: "r" (val)); \
+	ISB; \
+})
+
+#define WRITE_TIMER_REG64(reg, val) \
+({ \
+	__asm__ volatile("mcrr p15, " reg ", %0, %H0, c14" :: "r" (val)); \
+	ISB; \
+})
+
+#endif
+
+#ifndef TIMER_ARM_GENERIC_SELECTED
+#define TIMER_ARM_GENERIC_SELECTED CNTP
+#endif
+
+#define COMBINE3(a,b,c) a ## b ## c
+#define XCOMBINE3(a,b,c) COMBINE3(a, b, c)
+
+#define SELECTED_TIMER_REG(reg)	XCOMBINE3(TIMER_REG_, TIMER_ARM_GENERIC_SELECTED, reg)
+#define TIMER_REG_CTL		SELECTED_TIMER_REG(_CTL)
+#define TIMER_REG_CVAL		SELECTED_TIMER_REG(_CVAL)
+#define TIMER_REG_TVAL		SELECTED_TIMER_REG(_TVAL)
+#define TIMER_REG_CT		SELECTED_TIMER_REG(CT)
+
+
 static platform_timer_callback t_callback;
+static int timer_irq;
 
 struct fp_32_64 cntpct_per_ms;
 struct fp_32_64 ms_per_cntpct;
@@ -58,7 +149,7 @@ static uint32_t read_cntfrq(void)
 {
 	uint32_t cntfrq;
 
-	__asm__ volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (cntfrq));
+	cntfrq = READ_TIMER_REG32(TIMER_REG_CNTFRQ);
 	LTRACEF("cntfrq: 0x%08x, %u\n", cntfrq, cntfrq);
 	return cntfrq;
 }
@@ -67,33 +158,33 @@ static uint32_t read_cntp_ctl(void)
 {
 	uint32_t cntp_ctl;
 
-	__asm__ volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (cntp_ctl));
+	cntp_ctl = READ_TIMER_REG32(TIMER_REG_CTL);
 	return cntp_ctl;
 }
 
 static void write_cntp_ctl(uint32_t cntp_ctl)
 {
-	LTRACEF_LEVEL(3, "cntp_ctl: 0x%x\n", cntp_ctl);
-	__asm__ volatile("mcr p15, 0, %0, c14, c2, 1" :: "r" (cntp_ctl));
+	LTRACEF_LEVEL(3, "cntp_ctl: 0x%x %x\n", cntp_ctl, read_cntp_ctl());
+	WRITE_TIMER_REG32(TIMER_REG_CTL, cntp_ctl);
 }
 
 static void write_cntp_cval(uint64_t cntp_cval)
 {
 	LTRACEF_LEVEL(3, "cntp_cval: 0x%016llx, %llu\n", cntp_cval, cntp_cval);
-	__asm__ volatile("mcrr p15, 2, %0, %H0, c14" :: "r" (cntp_cval));
+	WRITE_TIMER_REG64(TIMER_REG_CVAL, cntp_cval);
 }
 
 static void write_cntp_tval(int32_t cntp_tval)
 {
 	LTRACEF_LEVEL(3, "cntp_tval: 0x%08x, %d\n", cntp_tval, cntp_tval);
-	__asm__ volatile("mcr p15, 0, %0, c14, c2, 0" :: "r" (cntp_tval));
+	WRITE_TIMER_REG32(TIMER_REG_TVAL, cntp_tval);
 }
 
 static uint64_t read_cntpct(void)
 {
 	uint64_t cntpct;
 
-	__asm__ volatile("mrrc p15, 0, %0, %H0, c14" : "=r" (cntpct));
+	cntpct = READ_TIMER_REG64(TIMER_REG_CT);
 	LTRACEF_LEVEL(3, "cntpct: 0x%016llx, %llu\n", cntpct, cntpct);
 	return cntpct;
 }
@@ -120,6 +211,7 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg,
 	else
 		write_cntp_cval(read_cntpct() + cntpct_interval);
 	write_cntp_ctl(1);
+
 	return 0;
 }
 
@@ -136,10 +228,6 @@ lk_bigtime_t current_time_hires(void)
 lk_time_t current_time(void)
 {
 	return cntpct_to_lk_time(read_cntpct());
-}
-
-void arm_generic_timer_init_secondary_cpu(void)
-{
 }
 
 static uint32_t abs_int32(int32_t a)
@@ -169,7 +257,7 @@ static void test_lk_time_to_cntpct(uint32_t cntfrq, lk_time_t lk_time)
 	uint64_t expected_cntpct = ((uint64_t)cntfrq * lk_time + 500) / 1000;
 
 	test_time_conversion_check_result(cntpct, expected_cntpct, 1, false);
-	LTRACEF_LEVEL(2, "lk_time_to_cntpct(%lu): got %llu, expect %llu\n", lk_time, cntpct, expected_cntpct);
+	LTRACEF_LEVEL(2, "lk_time_to_cntpct(%u): got %llu, expect %llu\n", lk_time, cntpct, expected_cntpct);
 }
 
 static void test_cntpct_to_lk_time(uint32_t cntfrq, lk_time_t expected_lk_time, uint32_t wrap_count)
@@ -185,7 +273,7 @@ static void test_cntpct_to_lk_time(uint32_t cntfrq, lk_time_t expected_lk_time, 
 	lk_time = cntpct_to_lk_time(cntpct);
 
 	test_time_conversion_check_result(lk_time, expected_lk_time, (1000 + cntfrq - 1) / cntfrq, true);
-	LTRACEF_LEVEL(2, "cntpct_to_lk_time(%llu): got %lu, expect %lu\n", cntpct, lk_time, expected_lk_time);
+	LTRACEF_LEVEL(2, "cntpct_to_lk_time(%llu): got %u, expect %u\n", cntpct, lk_time, expected_lk_time);
 }
 
 static void test_cntpct_to_lk_bigtime(uint32_t cntfrq, uint64_t expected_s)
@@ -231,13 +319,19 @@ static void arm_generic_timer_init_conversion_factors(uint32_t cntfrq)
 	LTRACEF("us_per_cntpct: %08x.%08x%08x\n", us_per_cntpct.l0, us_per_cntpct.l32, us_per_cntpct.l64);
 }
 
-void arm_generic_timer_init(int irq)
+void arm_generic_timer_init(int irq, uint32_t freq_override)
 {
-	uint32_t cntfrq = read_cntfrq();
+	uint32_t cntfrq;
 
-	if (!cntfrq) {
-		TRACEF("Failed to initialize timer, frequency is 0\n");
-		return;
+	if (freq_override == 0) {
+		cntfrq = read_cntfrq();
+
+		if (!cntfrq) {
+			TRACEF("Failed to initialize timer, frequency is 0\n");
+			return;
+		}
+	} else {
+		cntfrq = freq_override;
 	}
 
 #if LOCAL_TRACE
@@ -252,7 +346,33 @@ void arm_generic_timer_init(int irq)
 	arm_generic_timer_init_conversion_factors(cntfrq);
 	test_time_conversions(cntfrq);
 
+	LTRACEF("register irq %d on cpu %d\n", irq, arch_curr_cpu_num());
 	register_int_handler(irq, &platform_tick, NULL);
 	unmask_interrupt(irq);
+
+	timer_irq = irq;
 }
 
+static void arm_generic_timer_init_secondary_cpu(uint level)
+{
+	LTRACEF("register irq %d on cpu %d\n", timer_irq, arch_curr_cpu_num());
+	register_int_handler(timer_irq, &platform_tick, NULL);
+	unmask_interrupt(timer_irq);
+}
+
+/* secondary cpu initialize the timer just before the kernel starts with interrupts enabled */
+LK_INIT_HOOK_FLAGS(arm_generic_timer_init_secondary_cpu,
+		   arm_generic_timer_init_secondary_cpu,
+		   LK_INIT_LEVEL_THREADING - 1, LK_INIT_FLAG_SECONDARY_CPUS);
+
+static void arm_generic_timer_resume_cpu(uint level)
+{
+	/* Always trigger a timer interrupt on each cpu for now */
+	write_cntp_tval(0);
+	write_cntp_ctl(1);
+}
+
+LK_INIT_HOOK_FLAGS(arm_generic_timer_resume_cpu, arm_generic_timer_resume_cpu,
+		LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_CPU_RESUME);
+
+/* vim: set noexpandtab: */

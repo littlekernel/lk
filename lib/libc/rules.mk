@@ -4,14 +4,18 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/atoi.c \
+	$(LOCAL_DIR)/bsearch.c \
 	$(LOCAL_DIR)/ctype.c \
+	$(LOCAL_DIR)/errno.c \
 	$(LOCAL_DIR)/printf.c \
-	$(LOCAL_DIR)/malloc.c \
 	$(LOCAL_DIR)/rand.c \
 	$(LOCAL_DIR)/stdio.c \
 	$(LOCAL_DIR)/qsort.c \
 	$(LOCAL_DIR)/eabi.c
 
+ifneq ($(WITH_CUSTOM_MALLOC),true)
+MODULE_SRCS += $(LOCAL_DIR)/malloc.c
+endif
 
 include $(LOCAL_DIR)/string/rules.mk
 

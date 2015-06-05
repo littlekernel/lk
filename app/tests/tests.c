@@ -38,6 +38,7 @@ STATIC_COMMAND("float_tests", "floating point test", (console_cmd)&float_tests)
 #endif
 STATIC_COMMAND("bench", "miscellaneous benchmarks", (console_cmd)&benchmarks)
 STATIC_COMMAND("fibo", "threaded fibonacci", (console_cmd)&fibo)
+STATIC_COMMAND("spinner", "create a spinning thread", (console_cmd)&spinner)
 STATIC_COMMAND_END(tests);
 
 #endif

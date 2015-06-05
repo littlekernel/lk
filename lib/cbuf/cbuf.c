@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <lib/cbuf.h>
 #include <kernel/event.h>
+#include <kernel/spinlock.h>
 
 #define LOCAL_TRACE 0
 
@@ -50,6 +51,7 @@ void cbuf_initialize_etc(cbuf_t *cbuf, size_t len, void *buf)
 	cbuf->len_pow2 = log2_uint(len);
 	cbuf->buf = buf;
 	event_init(&cbuf->event, false, 0);
+	spin_lock_init(&cbuf->lock);
 
 	LTRACEF("len %zd, len_pow2 %u\n", len, cbuf->len_pow2);
 }
@@ -74,7 +76,8 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
 	DEBUG_ASSERT(cbuf);
 	DEBUG_ASSERT(len < valpow2(cbuf->len_pow2));
 
-	enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&cbuf->lock, state);
 
 	size_t write_len;
 	size_t pos = 0;
@@ -102,9 +105,13 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
 	}
 
 	if (cbuf->head != cbuf->tail)
-		event_signal(&cbuf->event, canreschedule);
+		event_signal(&cbuf->event, false);
 
-	exit_critical_section();
+    spin_unlock_irqrestore(&cbuf->lock, state);
+
+    // XXX convert to only rescheduling if 
+    if (canreschedule)
+        thread_preempt();
 
 	return pos;
 }
@@ -115,10 +122,14 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 
 	DEBUG_ASSERT(cbuf);
 
-	enter_critical_section();
-
+retry:
+    // block on the cbuf outside of the lock, which may
+    // unblock us early and we'll have to double check below
 	if (block)
 		event_wait(&cbuf->event);
+
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&cbuf->lock, state);
 
 	// see if there's data available
 	size_t ret = 0;
@@ -147,6 +158,7 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 		}
 
 		if (cbuf->tail == cbuf->head) {
+            DEBUG_ASSERT(pos > 0);
 			// we've emptied the buffer, unsignal the event
 			event_unsignal(&cbuf->event);
 		}
@@ -154,7 +166,11 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 		ret = pos;
 	}
 
-	exit_critical_section();
+    spin_unlock_irqrestore(&cbuf->lock, state);
+
+    // we apparently blocked but raced with another thread and found no data, retry
+    if (block && ret == 0)
+        goto retry;
 
 	return ret;
 }
@@ -162,7 +178,9 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
 size_t cbuf_peek(cbuf_t *cbuf, iovec_t* regions)
 {
 	DEBUG_ASSERT(cbuf && regions);
-	enter_critical_section();
+
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&cbuf->lock, state);
 
 	size_t ret = cbuf_space_used(cbuf);
 	size_t sz  = cbuf_size(cbuf);
@@ -181,7 +199,7 @@ size_t cbuf_peek(cbuf_t *cbuf, iovec_t* regions)
 		regions[1].iov_len	= 0;
 	}
 
-	exit_critical_section();
+    spin_unlock_irqrestore(&cbuf->lock, state);
 	return ret;
 }
 
@@ -189,7 +207,8 @@ size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule)
 {
 	DEBUG_ASSERT(cbuf);
 
-	enter_critical_section();
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&cbuf->lock, state);
 
 	size_t ret = 0;
 	if (cbuf_space_avail(cbuf) > 0) {
@@ -202,7 +221,7 @@ size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule)
 			event_signal(&cbuf->event, canreschedule);
 	}
 
-	exit_critical_section();
+    spin_unlock_irqrestore(&cbuf->lock, state);
 
 	return ret;
 }
@@ -212,10 +231,12 @@ size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block)
 	DEBUG_ASSERT(cbuf);
 	DEBUG_ASSERT(c);
 
-	enter_critical_section();
-
+retry:
 	if (block)
 		event_wait(&cbuf->event);
+
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&cbuf->lock, state);
 
 	// see if there's data available
 	size_t ret = 0;
@@ -232,7 +253,10 @@ size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block)
 		ret = 1;
 	}
 
-	exit_critical_section();
+    spin_unlock_irqrestore(&cbuf->lock, state);
+
+    if (block && ret == 0)
+        goto retry;
 
 	return ret;
 }

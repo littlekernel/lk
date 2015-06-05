@@ -1,15 +1,13 @@
+# main project for qemu-arm
 TARGET := vexpress-a9
 
 MODULES += \
-	app/tests \
-	app/stringtests \
 	app/shell \
-	lib/aes \
-	lib/aes/test \
-	lib/bytes \
-	lib/cksum \
-	lib/debugcommands \
-	lib/libm
+	lib/evlog
+
+GLOBAL_DEFINES += WITH_KERNEL_EVLOG=1
 
 WITH_LINKER_GC := 0
+
+include project/virtual/test.mk
 
