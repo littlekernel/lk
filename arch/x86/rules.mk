@@ -34,7 +34,7 @@ endif
 
 # for the moment, SMP is not supported on x86
 GLOBAL_DEFINES += \
-	-       SMP_MAX_CPUS=1
+	       SMP_MAX_CPUS=1
 
 
 
