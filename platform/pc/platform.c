@@ -201,10 +201,7 @@ void platform_init(void)
 #endif
 
 	/* MMU init for x86_64 done after the heap is setup */
-#ifdef ARCH_X86_64
         arch_mmu_init();
         platform_init_mmu_mappings();
-#endif
-
 }
 
