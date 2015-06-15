@@ -72,7 +72,7 @@ static status_t validate_entry(const struct ptable_entry *entry)
 {
     if (entry->offset > entry->offset + entry->length)
         return ERR_GENERIC;
-    if (entry->offset + entry->length > (uint64_t)ptable.bdev->size)
+    if (entry->offset + entry->length > (uint64_t)ptable.bdev->total_size)
         return ERR_GENERIC;
 
     bool nullterm = false;
@@ -371,26 +371,6 @@ status_t ptable_remove(const char *name)
     return err;
 }
 
-static bool does_overlap(uint64_t offset1, uint64_t len1, uint64_t offset2, uint64_t len2)
-{
-    size_t end1 = offset1 + len1;
-    size_t end2 = offset2 + len2;
-
-    DEBUG_ASSERT(end1 >= offset1);
-    DEBUG_ASSERT(end2 >= offset2);
-
-    if (offset1 >= offset2 && offset1 < end2) {
-        return true;
-    }
-    if (end1 > offset2 && end1 <= end2) {
-        return true;
-    }
-    if (offset1 < offset2 && end1 > end2) {
-        return true;
-    }
-    return false;
-}
-
 status_t ptable_add(const char *name, uint64_t offset, uint64_t len, uint32_t flags)
 {
     status_t err;
@@ -422,7 +402,7 @@ status_t ptable_add(const char *name, uint64_t offset, uint64_t len, uint32_t fl
     }
 
     /* make sure its within the bounds of the device */
-    if (offset + len > (uint64_t)ptable.bdev->size) {
+    if (offset + len > (uint64_t)ptable.bdev->total_size) {
         LTRACEF("outside of device\n");
         return ERR_INVALID_ARGS;
     }
@@ -436,7 +416,7 @@ status_t ptable_add(const char *name, uint64_t offset, uint64_t len, uint32_t fl
         const struct ptable_entry *entry = &mentry->entry;
 
         /* check to see if we overlap */
-        if (does_overlap(offset, len, entry->offset, entry->length)) {
+        if (bio_does_overlap(offset, len, entry->offset, entry->length)) {
             LTRACEF("overlaps with existing partition\n");
             return ERR_INVALID_ARGS;
         }
@@ -498,8 +478,8 @@ off_t ptable_allocate(uint64_t length, uint flags)
     if (list_is_empty(&ptable.list)) {
         /* if the ptable is empty, see if we can simply fit in flash and alloc at the start or end */
         LTRACEF("empty list\n");
-        if (length <= (uint64_t)ptable.bdev->size) {
-            offset = ALLOC_END ? ptable.bdev->size - length : 0;
+        if (length <= (uint64_t)ptable.bdev->total_size) {
+            offset = ALLOC_END ? ptable.bdev->total_size - length : 0;
             LTRACEF("spot at 0x%llx\n", offset);
         }
     } else {
@@ -533,8 +513,10 @@ off_t ptable_allocate(uint64_t length, uint flags)
         /* see if we can fit off the end */
         DEBUG_ASSERT(lastentry); /* should always have a valid tail */
 
-        if (lastentry->offset + lastentry->length + length <= (uint64_t)ptable.bdev->size)
-            offset = ALLOC_END ? (uint64_t)ptable.bdev->size - length : lastentry->offset + lastentry->length;
+        if (lastentry->offset + lastentry->length + length <= (uint64_t)ptable.bdev->total_size)
+            offset = ALLOC_END
+                   ? (uint64_t)ptable.bdev->total_size - length
+                   : lastentry->offset + lastentry->length;
     }
 
 #undef ALLOC_END
@@ -559,7 +541,7 @@ off_t ptable_allocate_at(off_t _offset, uint64_t length)
 
     length = ROUNDUP(length, ptable.bdev->block_size);
 
-    if (offset + length < offset || offset + length > (uint64_t)ptable.bdev->size)
+    if (offset + length < offset || offset + length > (uint64_t)ptable.bdev->total_size)
         return ERR_INVALID_ARGS;
 
     /* check all ptable entries for overlap with the requested spot */
