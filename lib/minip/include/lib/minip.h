@@ -60,6 +60,8 @@ void minip_set_ipaddr(const uint32_t addr);
 void minip_set_hostname(const char *name);
 const char *minip_get_hostname(void);
 
+uint32_t minip_parse_ipaddr(const char *addr, size_t len);
+
 /* udp */
 typedef struct udp_socket udp_socket_t;
 

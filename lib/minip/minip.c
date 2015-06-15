@@ -433,4 +433,25 @@ void minip_rx_driver_callback(pktbuf_t *p)
     }
 }
 
+uint32_t minip_parse_ipaddr(const char* ipaddr_str, size_t len)
+{
+    uint8_t ip[4] = { 0, 0, 0, 0 };
+    uint8_t pos = 0, i = 0;
+
+    while (pos < len) {
+        char c = ipaddr_str[pos];
+        if (c == '.') {
+            i++;
+        } else if (c == '\0') {
+            break;
+        } else {
+            ip[i] *= 10;
+            ip[i] += c - '0';
+        }
+        pos++;
+    }
+
+    return IPV4_PACK(ip);
+}
+
 // vim: set ts=4 sw=4 expandtab:
