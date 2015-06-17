@@ -79,6 +79,14 @@ void arch_thread_initialize(thread_t *t)
 	t->arch.rsp = (vaddr_t)frame;
 }
 
+void arch_dump_thread(thread_t *t)
+{
+      if (t->state != THREAD_RUNNING) {
+              	dprintf(INFO, "\tarch: ");
+	        dprintf(INFO, "sp 0x%llx\n", t->arch.rsp);
+ 	}
+}
+
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
 

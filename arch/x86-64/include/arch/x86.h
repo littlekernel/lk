@@ -128,6 +128,28 @@ static inline uint64_t x86_get_cr2(void)
 	return rv;
 }
 
+static inline uint64_t x86_save_rflags(void)
+{
+        uint64_t state;
+		 
+        __asm__ volatile(
+            "pushfq;"
+            "popq %0"
+            : "=rm" (state)
+            :: "memory");
+	 
+       return state;
+}
+ 
+static inline void x86_restore_rflags(uint64_t rflags)
+{
+        __asm__ volatile(
+            "pushq %0;"
+            "popfq"
+            :: "g" (rflags)
+            : "memory", "cc");
+}
+
 #define rdtsc(low,high) \
      __asm__ __volatile__("rdtsc" : "=a" (low), "=d" (high))
 

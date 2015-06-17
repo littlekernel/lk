@@ -263,7 +263,6 @@ interrupt_common:
 	pushq %rax
 	movq %rsp, %rdi		/* pass the  iframe using rdi */
 	
-	incl critical_section_count
 
 	call platform_irq
 	
@@ -272,7 +271,6 @@ interrupt_common:
 	call thread_preempt
 
 0:
-	decl critical_section_count
 
 	/* restore task_rsp, stack switch can occur here 
            if task_rsp is modified */

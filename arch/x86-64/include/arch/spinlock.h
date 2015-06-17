@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,51 +20,59 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
-#include <arch.h>
+#pragma once
+
 #include <arch/ops.h>
 #include <arch/x86.h>
-#include <arch/x86/mmu.h>
-#include <arch/x86/descriptor.h>
-#include <platform.h>
-#include <sys/types.h>
-#include <string.h>
+#include <stdbool.h>
 
-static tss_t system_tss;
+#define SPIN_LOCK_INITIAL_VALUE (0)
 
-void arch_early_init(void)
+typedef unsigned long spin_lock_t;
+
+typedef uint64_t spin_lock_saved_state_t;
+typedef uint spin_lock_save_flags_t;
+
+/* simple implementation of spinlocks for no smp support */
+static inline void arch_spin_lock_init(spin_lock_t *lock)
 {
-
-	/* x86-64 MMU init is done as a part of platform init after the heap init */
-#ifndef ARCH_X86_64
-	x86_mmu_init();
-	platform_init_mmu_mappings();
-#endif
-	/* enable caches here for now */
-	clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
-
-	memset(&system_tss, 0, sizeof(tss_t));
-
-	system_tss.esp0 = 0;
-	system_tss.ss0 = DATA_SELECTOR;
-	system_tss.ss1 = 0;
-	system_tss.ss2 = 0;
-	system_tss.eflags = 0x00003002;
-	system_tss.bitmap = offsetof(tss_t, tss_bitmap);
-	system_tss.trace = 1; // trap on hardware task switch
-
-	set_global_desc(TSS_SELECTOR, &system_tss, sizeof(tss_t), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
-
-	x86_ltr(TSS_SELECTOR);
+    *lock = SPIN_LOCK_INITIAL_VALUE;
 }
 
-void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
+static inline bool arch_spin_lock_held(spin_lock_t *lock)
 {
-	    PANIC_UNIMPLEMENTED;
+    return *lock != 0;
 }
 
-void arch_init(void)
+static inline void arch_spin_lock(spin_lock_t *lock)
 {
+    *lock = 1;
+}
+
+static inline int arch_spin_trylock(spin_lock_t *lock)
+{
+    return 0;
+}
+
+static inline void arch_spin_unlock(spin_lock_t *lock)
+{
+    *lock = 0;
+}
+
+/* flags are unused on x86 */
+#define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS  0
+
+static inline void
+arch_interrupt_save(spin_lock_saved_state_t *statep, spin_lock_save_flags_t flags)
+{
+    *statep = x86_save_rflags();
+    arch_disable_ints();
+}
+
+static inline void
+arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t flags)
+{
+    x86_restore_rflags(old_state);
 }
 
 
