@@ -27,12 +27,8 @@
 #include <sys/types.h>
 #include <lib/bio.h>
 
-status_t ptable_scan(bdev_t *bdev, uint64_t offset);
-
-bool ptable_found_valid(void);
-bdev_t *ptable_get_device(void);
-
 #define MAX_FLASH_PTABLE_NAME_LEN 12
+#define FLASH_PTABLE_ALLOC_END 0x1
 
 struct ptable_entry {
     uint64_t offset;
@@ -41,14 +37,11 @@ struct ptable_entry {
     uint8_t name[MAX_FLASH_PTABLE_NAME_LEN];
 };
 
+bool     ptable_found_valid(void);
+bdev_t*  ptable_get_device(void);
+status_t ptable_scan(const char* bdev_name, uint64_t offset);
 status_t ptable_find(const char *name, struct ptable_entry *entry) __NONNULL((1));
-
-status_t ptable_create_default(bdev_t *bdev, uint64_t offset) __NONNULL();
-status_t ptable_add(const char *name, uint64_t offset, uint64_t len, uint32_t flags) __NONNULL();
+status_t ptable_create_default(const char* bdev_name, uint64_t offset) __NONNULL();
+status_t ptable_add(const char *name, uint64_t min_len, uint32_t flags) __NONNULL();
 status_t ptable_remove(const char *name) __NONNULL();
-void ptable_dump(void);
-
-#define FLASH_PTABLE_ALLOC_END 0x1
-off_t ptable_allocate(uint64_t length, uint flags);
-off_t ptable_allocate_at(off_t offset, uint64_t length);
-
+void     ptable_dump(void);
