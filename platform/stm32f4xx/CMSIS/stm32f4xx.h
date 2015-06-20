@@ -56,7 +56,15 @@
 #ifdef __cplusplus
  extern "C" {
 #endif /* __cplusplus */
-  
+
+/* lk integration */
+
+#ifdef STM32F40_41XXX
+#define STM32F40_41xxx
+#endif
+
+#define assert_param(x)
+ 
 /** @addtogroup Library_configuration_section
   * @{
   */
