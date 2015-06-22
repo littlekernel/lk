@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -72,6 +72,8 @@ typedef struct thread {
 	unsigned int flags;
 	int curr_cpu;
 	int pinned_cpu; /* only run on pinned_cpu if >= 0 */
+	int preempt_disable_count;
+	bool pending_reschedule;
 
 	/* if blocked, a pointer to the wait queue */
 	struct wait_queue *blocking_wait_queue;
@@ -159,6 +161,11 @@ extern spin_lock_t thread_lock;
 
 #define THREAD_LOCK(state) spin_lock_saved_state_t state; spin_lock_irqsave(&thread_lock, state)
 #define THREAD_UNLOCK(state) spin_unlock_irqrestore(&thread_lock, state)
+
+/* preempt disable/enable */
+void preempt_disable(void);
+void preempt_enable(void);
+bool is_preempt_disabled(void);
 
 /* thread local storage */
 static inline __ALWAYS_INLINE uintptr_t tls_get(uint entry)

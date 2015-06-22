@@ -163,6 +163,8 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 	t->blocking_wait_queue = NULL;
 	t->wait_queue_block_ret = NO_ERROR;
 	t->curr_cpu = -1;
+	t->preempt_disable_count = 0;
+	t->pending_reschedule = false;
 
 	t->retcode = 0;
 	wait_queue_init(&t->retcode_wait_queue);
@@ -247,6 +249,44 @@ static bool thread_is_idle(thread_t *t)
 static bool thread_is_real_time_or_idle(thread_t *t)
 {
 	return !!(t->flags & (THREAD_FLAG_REAL_TIME | THREAD_FLAG_IDLE));
+}
+
+void preempt_disable(void)
+{
+	thread_t *cur = get_current_thread();
+
+	DEBUG_ASSERT(cur->preempt_disable_count >= 0);
+
+	cur->preempt_disable_count++;
+	CF;
+}
+
+void preempt_enable(void)
+{
+	thread_t *cur = get_current_thread();
+
+	DEBUG_ASSERT(cur->preempt_disable_count > 0);
+
+	CF;
+	cur->preempt_disable_count--;
+	if (unlikely(cur->preempt_disable_count == 0 && cur->pending_reschedule)) {
+		thread_preempt();
+	}
+}
+
+static bool _is_preempt_disabled(thread_t *current_thread)
+{
+	return current_thread->preempt_disable_count > 0;
+}
+
+static bool _is_preempt_enabled(thread_t *current_thread)
+{
+	return current_thread->preempt_disable_count == 0;
+}
+
+bool is_preempt_disabled(void)
+{
+	return _is_preempt_disabled(get_current_thread());
 }
 
 /**
@@ -481,6 +521,8 @@ void thread_resched(void)
 
 	THREAD_STATS_INC(reschedules);
 
+	current_thread->pending_reschedule = false;
+
 	newthread = get_top_thread(cpu);
 
 #if THREAD_CHECKS
@@ -699,6 +741,7 @@ enum handler_return thread_timer_tick(void)
 
 	current_thread->remaining_quantum--;
 	if (current_thread->remaining_quantum <= 0) {
+		current_thread->pending_reschedule = true;
 		return INT_RESCHEDULE;
 	} else {
 		return INT_NO_RESCHEDULE;
@@ -721,6 +764,8 @@ static enum handler_return thread_sleep_handler(timer_t *timer, lk_time_t now, v
 	insert_in_run_queue_head(t);
 
 	THREAD_UNLOCK(state);
+
+	get_current_thread()->pending_reschedule = true;
 
 	return INT_RESCHEDULE;
 }
@@ -934,8 +979,9 @@ static const char *thread_state_to_str(enum thread_state state)
 void dump_thread(thread_t *t)
 {
 	dprintf(INFO, "dump_thread: t %p (%s)\n", t, t->name);
-	dprintf(INFO, "\tstate %s, curr_cpu %d, pinned_cpu %d, priority %d, remaining quantum %d\n",
-				  thread_state_to_str(t->state), t->curr_cpu, t->pinned_cpu, t->priority, t->remaining_quantum);
+	dprintf(INFO, "\tstate %s, curr_cpu %d, pinned_cpu %d, priority %d, remaining quantum %d, preempt_disable %d\n",
+				  thread_state_to_str(t->state), t->curr_cpu, t->pinned_cpu, t->priority, t->remaining_quantum,
+				  t->preempt_disable_count);
 	dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
 	dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
 	dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
@@ -986,6 +1032,7 @@ static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t 
 
 	enum handler_return ret = INT_NO_RESCHEDULE;
 	if (thread_unblock_from_wait_queue(thread, ERR_TIMED_OUT) >= NO_ERROR) {
+		get_current_thread()->pending_reschedule = true;
 		ret = INT_RESCHEDULE;
 	}
 
@@ -1091,14 +1138,18 @@ int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t wait_queue
 		 * of the run queue first, so that the newly awakened thread gets a chance to run
 		 * before the current one, but the current one doesn't get unnecessarilly punished.
 		 */
-		if (reschedule) {
+		if (_is_preempt_enabled(current_thread)) {
 			current_thread->state = THREAD_READY;
 			insert_in_run_queue_head(current_thread);
 		}
+
 		insert_in_run_queue_head(t);
 		mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
-		if (reschedule) {
+
+		if (_is_preempt_enabled(current_thread)) {
 			thread_resched();
+		} else {
+			current_thread->pending_reschedule = true;
 		}
 		ret = 1;
 
@@ -1135,7 +1186,7 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
 	ASSERT(spin_lock_held(&thread_lock));
 #endif
 
-	if (reschedule && wait->count > 0) {
+	if (_is_preempt_enabled(current_thread) && wait->count > 0) {
 		/* if we're instructed to reschedule, stick the current thread on the head
 		 * of the run queue first, so that the newly awakened threads get a chance to run
 		 * before the current one, but the current one doesn't get unnecessarilly punished.
@@ -1164,8 +1215,10 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
 
 	if (ret > 0) {
 		mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
-		if (reschedule) {
+		if (_is_preempt_enabled(current_thread)) {
 			thread_resched();
+		} else {
+			current_thread->pending_reschedule = true;
 		}
 	}
 

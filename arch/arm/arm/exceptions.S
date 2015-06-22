@@ -221,6 +221,11 @@ FUNCTION(arm_irq)
 	mov		r1, #1
 	str		r1, [r2]
 
+	// XXX
+	push	{ r0, r1 }
+	bl		preempt_disable
+	pop		{ r0, r1 }
+
 	/* call into higher level code */
 	bl	platform_irq
 
@@ -229,9 +234,7 @@ FUNCTION(arm_irq)
 	mov		r2, #0
 	str		r2, [r1]
 
-	/* reschedule if the handler returns nonzero */
-	cmp     r0, #0
-	blne    thread_preempt
+	bl		preempt_enable
 
 	restore
 
