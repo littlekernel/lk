@@ -409,6 +409,21 @@
 
 /******************************************************************************/
 
+#ifdef PLL_M_VALUE
+#undef PLL_M
+#define PLL_M (PLL_M_VALUE)
+#endif
+
+#ifdef PLL_N_VALUE
+#undef PLL_N
+#define PLL_N (PLL_N_VALUE)
+#endif
+
+#ifdef PLL_P_VALUE
+#undef PLL_P
+#define PLL_P (PLL_P_VALUE)
+#endif
+
 /**
   * @}
   */
