@@ -33,6 +33,8 @@
 #include <kernel/spinlock.h>
 #include <debug.h>
 
+__BEGIN_CDECLS;
+
 enum thread_state {
 	THREAD_SUSPENDED = 0,
 	THREAD_READY,
@@ -205,6 +207,8 @@ extern struct thread_stats thread_stats[SMP_MAX_CPUS];
 #define THREAD_STATS_INC(name) do { } while (0)
 
 #endif
+
+__END_CDECLS;
 
 #endif
 

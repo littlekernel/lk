@@ -23,7 +23,10 @@
 
 #pragma once
 
+#include <compiler.h>
 #include <lib/bootimage_struct.h>
+
+__BEGIN_CDECLS;
 
 typedef struct bootimage bootimage;
 
@@ -41,3 +44,5 @@ bootentry_file *bootimage_add_file(
 void bootimage_done(bootimage *img);
 
 int bootimage_write(bootimage *img, int fd);
+
+__END_CDECLS;

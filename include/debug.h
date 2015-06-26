@@ -39,13 +39,13 @@
 #define INFO 1
 #define SPEW 2
 
+__BEGIN_CDECLS
+
 typedef struct __print_callback print_callback_t;
 struct __print_callback {
 	struct list_node entry;
 	void (*print)(print_callback_t *cb, const char *str, size_t len);
 };
-
-__BEGIN_CDECLS
 
 #if !DISABLE_DEBUG_OUTPUT
 

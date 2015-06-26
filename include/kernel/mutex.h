@@ -24,9 +24,12 @@
 #ifndef __KERNEL_MUTEX_H
 #define __KERNEL_MUTEX_H
 
+#include <compiler.h>
 #include <debug.h>
 #include <stdint.h>
 #include <kernel/thread.h>
+
+__BEGIN_CDECLS;
 
 #define MUTEX_MAGIC 'mutx'
 
@@ -64,5 +67,6 @@ static bool is_mutex_held(mutex_t *m) {
 	return m->holder == get_current_thread();
 }
 
+__END_CDECLS;
 #endif
 

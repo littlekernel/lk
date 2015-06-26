@@ -27,6 +27,8 @@
 #include <stdbool.h>
 #include <compiler.h>
 
+__BEGIN_CDECLS;
+
 /* routines for dealing with power of 2 values for efficiency */
 static inline __ALWAYS_INLINE bool ispow2(uint val)
 {
@@ -55,6 +57,8 @@ static inline __ALWAYS_INLINE uint modpow2(uint val, uint modp2)
 {
 	return val & ((1UL << modp2) - 1);
 }
+
+__END_CDECLS;
 
 #endif
 
