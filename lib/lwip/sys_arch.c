@@ -37,11 +37,12 @@ void sys_sem_free(sys_sem_t * sem)
 
 int sys_sem_valid(sys_sem_t *sem)
 {
-	return 1;
+	return sem->magic == SEMAPHORE_MAGIC;
 }
 
 void sys_sem_set_invalid(sys_sem_t *sem)
 {
+	// sem_destroy() does this
 }
 
 void sys_sem_signal(sys_sem_t * sem)
@@ -66,6 +67,7 @@ err_t sys_mbox_new(sys_mbox_t * mbox, int size)
 	sem_init(&mbox->full, 0);
 	mutex_init(&mbox->lock);
 
+	mbox->magic = MBOX_MAGIC;
 	mbox->head = 0;
 	mbox->tail = 0;
 	mbox->size = size;
@@ -165,11 +167,12 @@ err_t sys_mbox_trypost(sys_mbox_t * mbox, void *msg)
 
 int sys_mbox_valid(sys_mbox_t *mbox)
 {
-	return mbox->queue != NULL;
+	return mbox->magic == MBOX_MAGIC;
 }
 
 void sys_mbox_set_invalid(sys_mbox_t *mbox)
 {
+	mbox->magic = 'xobm';
 }
 
 err_t sys_mutex_new(sys_mutex_t *mutex)
