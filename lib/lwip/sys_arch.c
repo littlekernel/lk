@@ -13,37 +13,15 @@ void sys_init(void)
 {
 }
 
-static int sys_thread_func(void *arg)
+sys_thread_t sys_thread_new(const char *name, lwip_thread_fn func, void *arg, int stacksize, int prio)
 {
-	LTRACE_ENTRY;
-
-	struct sys_thread *st = arg;
-	DEBUG_ASSERT(st);
-
-	tls_set(0, (uint32_t) st);
-
-	st->func(st->arg);
-
-	LTRACE_EXIT;
-	return 0;
-}
-
-sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, int stacksize, int prio)
-{
-	struct sys_thread *st = malloc(sizeof(struct sys_thread));
-	DEBUG_ASSERT(st);
-
-	thread_t *t = thread_create(name, sys_thread_func, st, prio, stacksize);
+	thread_t *t = thread_create(name, (void*) func, arg, prio, stacksize);
 	DEBUG_ASSERT(t);
-
-	st->t = t;
-	st->func = thread;
-	st->arg = arg;
 
 	thread_detach(t);
 	thread_resume(t);
 
-	return st;
+	return t;
 }
 
 err_t sys_sem_new(sys_sem_t *sem, u8_t count)
