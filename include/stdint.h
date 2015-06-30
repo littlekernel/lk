@@ -37,17 +37,32 @@ typedef long long          int64_t;
 #define INT8_MIN    CHAR_MIN
 #define INT16_MIN   SHORT_MIN
 #define INT32_MIN   INT_MIN
+
+#if defined(LLONG_MIN)
 #define INT64_MIN   LLONG_MIN
+#elif defined(__LONG_LONG_MAX__)
+#define INT64_MIN (-__LONG_LONG_MAX__-1LL)
+#endif
 
 #define INT8_MAX    CHAR_MAX
 #define INT16_MAX   SHORT_MAX
 #define INT32_MAX   INT_MAX
+
+#if defined(LLONG_MAX)
 #define INT64_MAX   LLONG_MAX
+#elif defined(__LONG_LONG_MAX__)
+#define INT64_MAX  __LONG_LONG_MAX__
+#endif
 
 #define UINT8_MAX   UCHAR_MAX
 #define UINT16_MAX  USHORT_MAX
 #define UINT32_MAX  UINT_MAX
+
+#if defined(ULLONG_MAX)
 #define UINT64_MAX  ULLONG_MAX
+#elif defined(__LONG_LONG_MAX__)
+#define UINT64_MAX (__LONG_LONG_MAX__*2ULL + 1ULL)
+#endif
 
 typedef int8_t int_least8_t;
 typedef int16_t int_least16_t;
