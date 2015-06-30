@@ -3,8 +3,9 @@ all: lkboot mkimage
 
 LKBOOT_SRCS := lkboot.c liblkboot.c network.c
 LKBOOT_DEPS := network.h liblkboot.h ../app/lkboot/lkboot_protocol.h
+LKBOOT_INCS :=
 lkboot: $(LKBOOT_SRCS) $(LKBOOT_DEPS)
-	gcc -Wall -o $@ $(LKBOOT_SRCS)
+	gcc -Wall -o $@ $(LKBOOT_INCS) $(LKBOOT_SRCS)
 
 MKIMAGE_DEPS := bootimage.h ../lib/bootimage/include/lib/bootimage_struct.h
 MKIMAGE_SRCS := mkimage.c bootimage.c ../lib/mincrypt/sha256.c
