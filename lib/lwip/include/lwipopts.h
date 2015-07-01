@@ -5,6 +5,10 @@
 #include <malloc.h>
 #include <kernel/thread.h>
 
+#ifdef WITH_TARGET_LWIPOPTS
+#include <target/lwipopts.h>
+#else
+
 // use lk's libc malloc
 #define MEM_LIBC_MALLOC 1
 
@@ -51,5 +55,6 @@
 
 #define LWIP_STATS_DISPLAY 0
 
+#endif
 #endif
 
