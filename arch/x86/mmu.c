@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
- * Copyright (c) 2014 Intel Corporation
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,6 +21,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
 #include <debug.h>
 #include <sys/types.h>
 #include <compiler.h>
@@ -33,6 +34,8 @@
 #include <assert.h>
 #include <err.h>
 #include <arch/arch_ops.h>
+
+extern map_addr_t g_CR3;
 
 #ifdef PAE_MODE_ENABLED
 /* PDP table address is 32 bit wide when on PAE mode, but the PDP entries are 64 bit wide */
@@ -93,11 +96,57 @@ static inline map_addr_t get_pfn_from_pte(map_addr_t pte)
 }
 
 /**
+ * @brief Returning the x86 arch flags from generic mmu flags
+ */
+arch_flags_t get_x86_arch_flags(arch_flags_t flags)
+{
+	arch_flags_t arch_flags = 0;
+
+	if(!(flags & ARCH_MMU_FLAG_PERM_RO))
+		arch_flags |= X86_MMU_PG_RW;
+
+	if(flags & ARCH_MMU_FLAG_PERM_USER)
+		arch_flags |= X86_MMU_PG_U;
+
+	if(flags & ARCH_MMU_FLAG_UNCACHED)
+		arch_flags |= X86_MMU_CACHE_DISABLE;
+
+#ifdef PAE_MODE_ENABLED
+	if(flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE)
+		arch_flags |= X86_MMU_PG_NX;
+#endif
+	return arch_flags;
+}
+
+/**
+ * @brief Returning the generic mmu flags from x86 arch flags
+ */
+uint get_arch_mmu_flags(arch_flags_t flags)
+{
+	arch_flags_t mmu_flags = 0;
+
+	if(!(flags & X86_MMU_PG_RW))
+		mmu_flags |= ARCH_MMU_FLAG_PERM_RO;
+
+	if(flags & X86_MMU_PG_U)
+		mmu_flags |= ARCH_MMU_FLAG_PERM_USER;
+
+	if(flags & X86_MMU_CACHE_DISABLE)
+		mmu_flags |= ARCH_MMU_FLAG_UNCACHED;
+
+#ifdef PAE_MODE_ENABLED
+	if(flags & X86_MMU_PG_NX)
+		mmu_flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+#endif
+	return (uint)mmu_flags;
+}
+
+/**
  * @brief  Walk the page table structures - supported for both PAE & non-PAE modes
  *
  */
-static status_t x86_mmu_page_walking(map_addr_t init_table, vaddr_t vaddr, uint32_t *ret_level,
-				arch_flags_t *existing_flags, map_addr_t *last_valid_entry)
+status_t x86_mmu_get_mapping(map_addr_t init_table, vaddr_t vaddr, uint32_t *ret_level,
+				arch_flags_t *mmu_flags, map_addr_t *last_valid_entry)
 {
 	map_addr_t pt, pte, pdt;
 #ifdef PAE_MODE_ENABLED
@@ -105,11 +154,11 @@ static status_t x86_mmu_page_walking(map_addr_t init_table, vaddr_t vaddr, uint3
 #endif
 
 	DEBUG_ASSERT(init_table);
-	if((!ret_level) || (!last_valid_entry) || (!existing_flags)) {
+	if((!ret_level) || (!last_valid_entry) || (!mmu_flags)) {
 		return ERR_INVALID_ARGS;
 	}
 
-	*existing_flags = 0;
+	*mmu_flags = 0;
 
 #ifdef PAE_MODE_ENABLED
 	pdpt = init_table; /* First level table in PAE mode is pdpt */
@@ -149,7 +198,7 @@ static status_t x86_mmu_page_walking(map_addr_t init_table, vaddr_t vaddr, uint3
 		/* Getting the Page frame & adding the 4MB page offset from the vaddr */
 		*last_valid_entry = get_pfn_from_pde(pt) + (vaddr & PAGE_OFFSET_MASK_4MB);
 #endif
-		*existing_flags = (X86_PHYS_TO_VIRT(pt)) & X86_FLAGS_MASK;
+		*mmu_flags = get_arch_mmu_flags((X86_PHYS_TO_VIRT(pt)) & X86_FLAGS_MASK);
 		goto last;
 	}
 
@@ -163,7 +212,7 @@ static status_t x86_mmu_page_walking(map_addr_t init_table, vaddr_t vaddr, uint3
 
 	/* Getting the Page frame & adding the 4KB page offset from the vaddr */
 	*last_valid_entry = get_pfn_from_pte(pte) + (vaddr & PAGE_OFFSET_MASK_4KB);
-	*existing_flags = (X86_PHYS_TO_VIRT(pte)) & X86_FLAGS_MASK;
+	*mmu_flags = get_arch_mmu_flags((X86_PHYS_TO_VIRT(pte)) & X86_FLAGS_MASK);
 last:
 	*ret_level = PF_L;
 	return NO_ERROR;
@@ -189,7 +238,7 @@ status_t x86_mmu_check_mapping(map_addr_t init_table, map_addr_t paddr,
 		return ERR_INVALID_ARGS;
 	}
 
-	status = x86_mmu_page_walking(init_table, vaddr, ret_level, &existing_flags, last_valid_entry);
+	status = x86_mmu_get_mapping(init_table, vaddr, ret_level, &existing_flags, last_valid_entry);
 	if(status || ((*last_valid_entry) != paddr)) {
 		/* We did not reach till we check the access flags for the mapping */
 		*ret_flags = in_flags;
@@ -200,7 +249,7 @@ status_t x86_mmu_check_mapping(map_addr_t init_table, map_addr_t paddr,
 	 * the access flags are different & the return flag will have those access bits
 	 * which are different.
 	 */
-	*ret_flags = (in_flags ^ existing_flags) & X86_DIRTY_ACCESS_MASK;
+	*ret_flags = (in_flags ^ get_x86_arch_flags(existing_flags)) & X86_DIRTY_ACCESS_MASK;
 
 	if(!(*ret_flags))
 		return NO_ERROR;
@@ -209,35 +258,45 @@ status_t x86_mmu_check_mapping(map_addr_t init_table, map_addr_t paddr,
 }
 
 #ifdef PAE_MODE_ENABLED
-static void update_pdp_entry(vaddr_t vaddr, map_addr_t pdpt, map_addr_t *m)
+static void update_pdp_entry(vaddr_t vaddr, map_addr_t pdpt, map_addr_t *m, arch_flags_t flags)
 {
         uint32_t pdp_index;
 
 	map_addr_t *pdp_table = (map_addr_t *)(pdpt & X86_PG_FRAME);
         pdp_index = ((vaddr >> PDP_SHIFT) & ((1ul << PDPT_ADDR_OFFSET) - 1));
         pdp_table[pdp_index] = (map_addr_t)m;
-        pdp_table[pdp_index] |= X86_MMU_PG_P | X86_MMU_PG_RW | X86_MMU_PG_U;
+        pdp_table[pdp_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
+	if(flags & X86_MMU_PG_U)
+		pdp_table[pdp_index] |= X86_MMU_PG_U;
+	else
+		pdp_table[pdp_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
 }
 #endif
 
-static void update_pt_entry(vaddr_t vaddr, map_addr_t paddr, arch_flags_t flags, map_addr_t pt)
+static void update_pt_entry(vaddr_t vaddr, map_addr_t paddr, map_addr_t pt, arch_flags_t flags)
 {
 	uint32_t pt_index;
 
 	map_addr_t *pt_table = (map_addr_t *)(pt & X86_PG_FRAME);
 	pt_index = ((vaddr >> PT_SHIFT) & ((1 << ADDR_OFFSET) - 1));
 	pt_table[pt_index] = paddr;
-	pt_table[pt_index] |= flags;
+	pt_table[pt_index] |= flags | X86_MMU_PG_P; /* last level - actual page being mapped */
+	if(!(flags & X86_MMU_PG_U))
+		pt_table[pt_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
 }
 
-static void update_pd_entry(vaddr_t vaddr, map_addr_t pdt, map_addr_t *m)
+static void update_pd_entry(vaddr_t vaddr, map_addr_t pdt, map_addr_t *m, arch_flags_t flags)
 {
 	uint32_t pd_index;
 
 	map_addr_t *pd_table = (map_addr_t *)(pdt & X86_PG_FRAME);
 	pd_index = ((vaddr >> PD_SHIFT) & ((1 << ADDR_OFFSET) - 1));
 	pd_table[pd_index] = (map_addr_t)m;
-	pd_table[pd_index] |= X86_MMU_PG_P | X86_MMU_PG_RW | X86_MMU_PG_U;
+	pd_table[pd_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
+	if(flags & X86_MMU_PG_U)
+		pd_table[pd_index] |= X86_MMU_PG_U;
+	else
+		pd_table[pd_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
 }
 
 /**
@@ -253,6 +312,33 @@ static map_addr_t *_map_alloc_page()
 	return page_ptr;
 }
 
+addr_t *x86_create_new_cr3(void)
+{
+	map_addr_t *kernel_table, *new_table = NULL;
+
+	if(!g_CR3)
+		return 0;
+
+	kernel_table = (map_addr_t *)X86_PHYS_TO_VIRT(g_CR3);
+
+	/* Allocate a new Page to generate a new paging structure for a new CR3 */
+	new_table = _map_alloc_page();
+	ASSERT(new_table);
+
+	/* Copying the kernel mapping as-is */
+	memcpy(new_table, kernel_table, PAGE_SIZE);
+
+	return (addr_t)new_table;
+}
+
+/**
+ * @brief Returning the kernel CR3
+ */
+map_addr_t get_kernel_cr3()
+{
+	return g_CR3;
+}
+
 /**
  * @brief  Add a new mapping for the given virtual address & physical address
  *
@@ -261,8 +347,8 @@ static map_addr_t *_map_alloc_page()
  * new mapping with the required flags.
  *
  */
-static status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
-				vaddr_t vaddr, arch_flags_t flags)
+status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
+				vaddr_t vaddr, arch_flags_t mmu_flags)
 {
 #ifdef PAE_MODE_ENABLED
 	map_addr_t pdt;
@@ -284,7 +370,7 @@ static status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
 			ret = ERR_NO_MEMORY;
 			goto clean;
 		}
-		update_pdp_entry(vaddr, init_table, m);
+		update_pdp_entry(vaddr, init_table, m, get_x86_arch_flags(mmu_flags));
 		pdt = (map_addr_t)m;
 		pd_new = 1;
 	}
@@ -302,7 +388,7 @@ static status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
 			goto clean;
 		}
 
-		update_pd_entry(vaddr, pdt, m);
+		update_pd_entry(vaddr, pdt, m, get_x86_arch_flags(mmu_flags));
 		pt = (map_addr_t)m;
 	}
 #else
@@ -315,13 +401,13 @@ static status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
 			goto clean;
 		}
 
-		update_pd_entry(vaddr, init_table, m);
+		update_pd_entry(vaddr, init_table, m, get_x86_arch_flags(mmu_flags));
 		pt = (map_addr_t)m;
 	}
 #endif
 
 	/* Updating the page table entry with the paddr and access flags required for the mapping */
-	update_pt_entry(vaddr, paddr, flags, pt);
+	update_pt_entry(vaddr, paddr, pt, get_x86_arch_flags(mmu_flags));
 	ret = NO_ERROR;
 #ifdef PAE_MODE_ENABLED
 	goto clean;
@@ -397,9 +483,8 @@ static void x86_mmu_unmap_entry(vaddr_t vaddr, int level, map_addr_t table_entry
 	}
 }
 
-static int x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count)
+status_t x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count)
 {
-	int unmapped = 0;
 	vaddr_t next_aligned_v_addr;
 
 	DEBUG_ASSERT(init_table);
@@ -417,10 +502,9 @@ static int x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count)
 		x86_mmu_unmap_entry(next_aligned_v_addr, X86_PAGING_LEVELS, init_table);
 #endif
 		next_aligned_v_addr += PAGE_SIZE;
-		unmapped++;
 		count--;
 	}
-	return unmapped;
+	return NO_ERROR;
 }
 
 int arch_mmu_unmap(vaddr_t vaddr, uint count)
@@ -491,27 +575,16 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 	DEBUG_ASSERT(x86_get_cr3());
 	current_cr3_val = (map_addr_t)x86_get_cr3();
 
-	stat = x86_mmu_page_walking(current_cr3_val, vaddr, &ret_level, &ret_flags, &last_valid_entry);
+	stat = x86_mmu_get_mapping(current_cr3_val, vaddr, &ret_level, &ret_flags, &last_valid_entry);
 	if(stat)
 		return stat;
 
 	*paddr = (paddr_t)last_valid_entry;
 
 	/* converting x86 arch specific flags to arch mmu flags */
-	*flags = 0;
-	if(!(ret_flags & X86_MMU_PG_RW))
-		*flags |= ARCH_MMU_FLAG_PERM_RO;
+	if (flags)
+		*flags = ret_flags;
 
-	if(ret_flags & X86_MMU_PG_U)
-		*flags |= ARCH_MMU_FLAG_PERM_USER;
-
-	if(ret_flags & X86_MMU_CACHE_DISABLE)
-		*flags |= ARCH_MMU_FLAG_UNCACHED;
-
-#ifdef PAE_MODE_ENABLED
-	if(ret_flags & X86_MMU_PG_NX)
-		*flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
-#endif
 	return NO_ERROR;
 }
 
@@ -519,7 +592,6 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 {
 	uint32_t current_cr3_val;
 	struct map_range range;
-	arch_flags_t arch_flags = X86_MMU_PG_P;
 
 	if((!IS_ALIGNED(paddr, PAGE_SIZE)) || (!IS_ALIGNED(vaddr, PAGE_SIZE)))
 		return ERR_INVALID_ARGS;
@@ -534,21 +606,7 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 	range.start_paddr = (map_addr_t)paddr;
 	range.size = count * PAGE_SIZE;
 
-	/* converting arch mmu flags to x86 arch specific flags */
-	if(!(flags & ARCH_MMU_FLAG_PERM_RO))
-		arch_flags |= X86_MMU_PG_RW;
-
-	if(flags & ARCH_MMU_FLAG_PERM_USER)
-		arch_flags |= X86_MMU_PG_U;
-
-	if(flags & ARCH_MMU_FLAG_UNCACHED)
-		arch_flags |= X86_MMU_CACHE_DISABLE;
-
-#ifdef PAE_MODE_ENABLED
-	if(flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE)
-		arch_flags |= X86_MMU_PG_NX;
-#endif
-	return(x86_mmu_map_range(current_cr3_val, &range, arch_flags));
+	return(x86_mmu_map_range(current_cr3_val, &range, flags));
 }
 
 /**
@@ -557,13 +615,16 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
  */
 void arch_mmu_init(void)
 {
-	volatile uint32_t efer_msr, cr0, cr4;
+	volatile uint32_t cr0;
 
 	/* Set WP bit in CR0*/
 	cr0 = x86_get_cr0();
 	cr0 |= X86_CR0_WP;
 	x86_set_cr0(cr0);
-	#ifdef PAE_MODE_ENABLED
+
+#ifdef PAE_MODE_ENABLED
+	volatile uint32_t efer_msr, cr4;
+
 	/* Setting the SMEP & SMAP bit in CR4 */
 	cr4 = x86_get_cr4();
 	if(check_smep_avail())
@@ -571,9 +632,10 @@ void arch_mmu_init(void)
 	if(check_smap_avail())
 		cr4 |=X86_CR4_SMAP;
 	x86_set_cr4(cr4);
+
 	/* Set NXE bit in MSR_EFER*/
 	efer_msr = read_msr(x86_MSR_EFER);
 	efer_msr |= x86_EFER_NXE;
 	write_msr(x86_MSR_EFER, efer_msr);
-	#endif
+#endif
 }

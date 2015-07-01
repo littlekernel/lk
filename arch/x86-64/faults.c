@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,7 +25,6 @@
 #include <arch/x86.h>
 #include <kernel/thread.h>
 #include <arch/arch_ops.h>
-#define DEBUG_MODE	1
 
 static void dump_fault_frame(struct x86_iframe *frame)
 {
@@ -85,34 +85,36 @@ void x86_unhandled_exception(struct x86_iframe *frame)
 void x86_pfe_handler(struct x86_iframe *frame)
 {
 	/* Handle a page fault exception */
-	uint64_t v_addr, ssp, esp, ip, rip;
 	uint32_t error_code;
 	thread_t *current_thread;
-	v_addr = x86_get_cr2();
 	error_code = frame->err_code;
+
+#ifdef PAGE_FAULT_DEBUG_INFO
+	uint64_t v_addr, ssp, esp, ip, rip;
+
+	v_addr = x86_get_cr2();
 	ssp = frame->user_ss & X86_8BYTE_MASK;
 	esp = frame->user_rsp;
 	ip  = frame->cs & X86_8BYTE_MASK;
 	rip = frame->rip;
 
-	if(DEBUG_MODE) {
-		dprintf(SPEW, "<PAGE FAULT> Instruction Pointer   = 0x%x:0x%x\n",
-			(unsigned int)ip,
-			(unsigned int)rip);
-		dprintf(SPEW, "<PAGE FAULT> Stack Pointer         = 0x%x:0x%x\n",
-			(unsigned int)ssp,
-			(unsigned int)esp);
-		dprintf(SPEW, "<PAGE FAULT> Fault Linear Address = 0x%x\n",
-			(unsigned int)v_addr);
-		dprintf(SPEW, "<PAGE FAULT> Error Code Value      = 0x%x\n",
-			error_code);
-		dprintf(SPEW, "<PAGE FAULT> Error Code Type = %s %s %s%s, %s\n",
-			error_code & PFEX_U ? "user" : "supervisor",
-			error_code & PFEX_W ? "write" : "read",
-			error_code & PFEX_I ? "instruction" : "data",
-			error_code & PFEX_RSV ? " rsv" : "",
-			error_code & PFEX_P ? "protection violation" : "page not present");
-	}
+	dprintf(SPEW, "<PAGE FAULT> Instruction Pointer   = 0x%x:0x%x\n",
+		(unsigned int)ip,
+		(unsigned int)rip);
+	dprintf(SPEW, "<PAGE FAULT> Stack Pointer         = 0x%x:0x%x\n",
+		(unsigned int)ssp,
+		(unsigned int)esp);
+	dprintf(SPEW, "<PAGE FAULT> Fault Linear Address = 0x%x\n",
+		(unsigned int)v_addr);
+	dprintf(SPEW, "<PAGE FAULT> Error Code Value      = 0x%x\n",
+		error_code);
+	dprintf(SPEW, "<PAGE FAULT> Error Code Type = %s %s %s%s, %s\n",
+		error_code & PFEX_U ? "user" : "supervisor",
+		error_code & PFEX_W ? "write" : "read",
+		error_code & PFEX_I ? "instruction" : "data",
+		error_code & PFEX_RSV ? " rsv" : "",
+		error_code & PFEX_P ? "protection violation" : "page not present");
+#endif
 
 	current_thread = get_current_thread();
 	dump_thread(current_thread);
@@ -124,11 +126,12 @@ void x86_pfe_handler(struct x86_iframe *frame)
 			case 5:
 			case 6:
 			case 7:
-				if(DEBUG_MODE)
-					thread_detach(current_thread);
-				else
-					thread_exit(current_thread->retcode);
-				break;
+#ifdef PAGE_FAULT_DEBUG_INFO
+				thread_detach(current_thread);
+#else
+				thread_exit(current_thread->retcode);
+#endif
+			break;
 		}
 	}
 	else {

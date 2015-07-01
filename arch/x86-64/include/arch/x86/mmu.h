@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Travis Geiselbrecht
- * Copyright (c) 2014 Intel Corporation
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -36,6 +36,7 @@ void x86_mmu_init(void);
 #define X86_MMU_PG_PTE_PAT	0x080		/* PAT  PAT index		*/
 #define X86_MMU_PG_G		0x100		/* G    Global			*/
 #define X86_MMU_PG_NX		(1ul << 63)	/* NX   No Execute		*/
+#define X86_MMU_CACHE_DISABLE	0x010		/* C Cache disable */
 #define X86_MMU_CLEAR		0x0
 #define X86_DIRTY_ACCESS_MASK	0xf9f
 #define X86_PG_FRAME		(0x000ffffffffff000ul)
@@ -74,9 +75,18 @@ struct map_range {
 	uint32_t size;
 };
 
-status_t x86_mmu_map_range (addr_t pml4, struct map_range *range, uint64_t flags);
+typedef uint64_t map_addr_t;
+typedef uint64_t arch_flags_t;
+
+status_t x86_mmu_map_range (addr_t pml4, struct map_range *range, arch_flags_t flags);
 status_t x86_mmu_check_mapping (addr_t pml4, paddr_t paddr,
-				vaddr_t vaddr, uint64_t in_flags,
-				uint32_t *ret_level, uint64_t *ret_flags,
-				uint64_t *last_valid_entry);
+				vaddr_t vaddr, arch_flags_t in_flags,
+				uint32_t *ret_level, arch_flags_t *ret_flags,
+				map_addr_t *last_valid_entry);
+status_t x86_mmu_add_mapping(addr_t pml4, paddr_t paddr,
+				vaddr_t vaddr, arch_flags_t flags);
+status_t x86_mmu_unmap(addr_t pml4, vaddr_t vaddr, uint count);
+addr_t *x86_create_new_cr3(void);
+map_addr_t get_kernel_cr3();
+
 __END_CDECLS

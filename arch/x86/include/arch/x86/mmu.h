@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,8 +21,6 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-//#ifndef __ARCH_ARM_MMU_H
-//#define __ARCH_ARM_MMU_H
 
 #include <sys/types.h>
 #include <compiler.h>
@@ -102,7 +101,6 @@ struct map_range {
 	uint32_t size;
 };
 
-
 #ifdef PAE_MODE_ENABLED
 typedef uint64_t map_addr_t;
 typedef uint64_t arch_flags_t;
@@ -112,11 +110,12 @@ typedef uint32_t arch_flags_t;
 #endif
 
 status_t x86_mmu_map_range (map_addr_t pdpt, struct map_range *range, arch_flags_t flags);
-status_t x86_mmu_check_mapping (map_addr_t pdpt, map_addr_t paddr,
-				vaddr_t vaddr, arch_flags_t in_flags,
-				uint32_t *ret_level, arch_flags_t *ret_flags,
-				map_addr_t *last_valid_entry);
+status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
+				vaddr_t vaddr, arch_flags_t flags);
+status_t x86_mmu_get_mapping(map_addr_t init_table, vaddr_t vaddr, uint32_t *ret_level,
+				arch_flags_t *mmu_flags, map_addr_t *last_valid_entry);
+status_t x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count);
+addr_t *x86_create_new_cr3(void);
+map_addr_t get_kernel_cr3();
 
 __END_CDECLS
-
-//#endif
