@@ -44,7 +44,8 @@ static void initial_thread_func(void)
 #endif
 
     /* exit the implicit critical section we're within */
-    exit_critical_section();
+    spin_unlock(&thread_lock);
+    arch_enable_ints();
 
     int ret = ct->entry(ct->arg);
 
@@ -73,4 +74,12 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
     LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
 
     or1k_context_switch(&oldthread->arch.cs_frame, &newthread->arch.cs_frame);
+}
+
+void arch_dump_thread(thread_t *t)
+{
+    if (t->state != THREAD_RUNNING) {
+        dprintf(INFO, "\tarch: ");
+        dprintf(INFO, "sp 0x%x\n", t->arch.cs_frame.r1);
+    }
 }

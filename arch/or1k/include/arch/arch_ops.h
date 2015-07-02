@@ -42,6 +42,13 @@ static inline void arch_disable_ints(void)
     mtspr(OR1K_SPR_SYS_SR_ADDR, sr);
 }
 
+static inline bool arch_ints_disabled(void)
+{
+    uint32_t sr = mfspr(OR1K_SPR_SYS_SR_ADDR);
+
+    return !(sr & (OR1K_SPR_SYS_SR_IEE_MASK | OR1K_SPR_SYS_SR_TEE_MASK));
+}
+
 static inline int atomic_add(volatile int *ptr, int val)
 {
     return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
@@ -93,4 +100,9 @@ static inline void set_current_thread(struct thread *t)
 }
 
 static inline uint32_t arch_cycle_count(void) { return 0; }
+
+static inline uint arch_curr_cpu_num(void)
+{
+    return 0;
+}
 #endif // !ASSEMBLY

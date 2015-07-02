@@ -15,6 +15,9 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/mmu.c \
 	$(LOCAL_DIR)/faults.c
 
+GLOBAL_DEFINES += \
+	SMP_MAX_CPUS=1
+
 # set the default toolchain to or1k elf and set a #define
 ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := or1k-elf-
