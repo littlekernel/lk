@@ -55,7 +55,6 @@ static void dump_fault_frame(struct or1k_iframe *frame)
 
 static void exception_die(struct or1k_iframe *frame, const char *msg)
 {
-    inc_critical_section();
     dprintf(CRITICAL, msg);
     dump_fault_frame(frame);
 
