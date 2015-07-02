@@ -200,8 +200,9 @@ static void usart_putc(USART_TypeDef *usart, char c)
 
 static int usart_getc(USART_TypeDef *usart, cbuf_t *rxbuf, bool wait)
 {
-	char c;
-	cbuf_read_char(rxbuf, &c, wait);
+	unsigned char c;
+	if (cbuf_read_char(rxbuf, &c, wait) == 0)
+		return -1;
 	if (cbuf_space_avail(rxbuf) > RXBUF_SIZE/2)
 		USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
 
