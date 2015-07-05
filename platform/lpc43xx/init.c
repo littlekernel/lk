@@ -23,6 +23,8 @@
 
 #include <debug.h>
 #include <arch/arm/cm.h>
+#include <kernel/thread.h>
+#include <platform.h>
 
 void lpc43xx_debug_early_init(void);
 
@@ -34,4 +36,17 @@ void platform_early_init(void)
 
 void platform_init(void)
 {
+}
+
+void platform_halt(platform_halt_action suggested_action,
+			platform_halt_reason reason)
+{
+	arch_disable_ints();
+	if (suggested_action == HALT_ACTION_REBOOT) {
+		// CORE reset
+		writel(1, 0x40053100);
+	} else {
+		dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
+	}
+	for(;;);
 }
