@@ -24,8 +24,31 @@
 #include <debug.h>
 #include <reg.h>
 
+#include <platform/lpc43xx-uart.h>
+
+#if TARGET_DEBUG_UART == 1
+#define UART_BASE UART0_BASE
+#elif TARGET_DEBUG_UART == 2
+#define UART_BASE UART1_BASE
+#elif TARGET_DEBUG_UART == 3
+#define UART_BASE UART2_BASE
+#elif TARGET_DEBUG_UART == 4
+#define UART_BASE UART3_BASE
+#else
+#warning TARGET_DEBUG_UART unspecified
+#endif
+
 void lpc43xx_debug_early_init(void)
 {
+#ifdef UART_BASE
+	// config for 115200-n-8-1 from 12MHz clock
+	writel(LCR_DLAB, UART_BASE + REG_LCR);
+	writel(4, UART_BASE + REG_DLL);
+	writel(0, UART_BASE + REG_DLM);
+	writel(FDR_DIVADDVAL(5) | FDR_MULVAL(8), UART_BASE + REG_FDR);
+	writel(LCR_WLS_8 | LCR_SBS_1, UART_BASE + REG_LCR);
+	writel(FCR_FIFOEN | FCR_RX_TRIG_1, UART_BASE + REG_FCR);
+#endif
 }
 
 void lpc43xx_debug_init(void)
@@ -34,13 +57,28 @@ void lpc43xx_debug_init(void)
 
 void platform_dputc(char c)
 {
+#ifdef UART_BASE
+	while (!(readl(UART_BASE + REG_LSR) & LSR_THRE)) ;
+	writel(c, UART_BASE + REG_THR);
+#endif
 }
 
 int platform_dgetc(char *c, bool wait)
 {
+#ifdef UART_BASE
+	while (!(readl(UART_BASE + REG_LSR) & LSR_RDR)) {
+		if (!wait) {
+			return -1;
+		}
+	}
+
+	*c = readl(UART_BASE + REG_RBR);
+	return 0;
+#else
 	if (wait) {
 		for (;;) ;
 	}
 	return -1;
+#endif
 }
 

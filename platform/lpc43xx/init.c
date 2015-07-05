@@ -24,8 +24,11 @@
 #include <debug.h>
 #include <arch/arm/cm.h>
 
+void lpc43xx_debug_early_init(void);
+
 void platform_early_init(void)
 {
+	lpc43xx_debug_early_init();
 	arm_cm_systick_init(96000000);
 }
 

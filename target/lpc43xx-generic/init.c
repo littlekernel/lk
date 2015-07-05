@@ -21,10 +21,16 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <reg.h>
 #include <debug.h>
+
+#include <platform/lpc43xx-gpio.h>
 
 void target_early_init(void)
 {
+	// UART2 on P1.15 (TX) and P1.16 (RX)
+	writel(PIN_MODE(1) | PIN_PLAIN, PIN_CFG(1, 15));
+	writel(PIN_MODE(1) | PIN_PLAIN | PIN_INPUT, PIN_CFG(1, 16));
 }
 
 void target_init(void)
