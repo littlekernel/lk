@@ -23,6 +23,10 @@
 #ifndef __KERNEL_DEBUG_H
 #define __KERNEL_DEBUG_H
 
+#include <compiler.h>
+
+__BEGIN_CDECLS;
+
 #include <debug.h>
 
 /* kernel event log */
@@ -64,6 +68,8 @@ enum {
 #define KEVLOG_TIMER_CALL(ptr, arg) kernel_evlog_add(KERNEL_EVLOG_TIMER_CALL, (uintptr_t)ptr, (uintptr_t)arg)
 #define KEVLOG_IRQ_ENTER(irqn) kernel_evlog_add(KERNEL_EVLOG_IRQ_ENTER, (uintptr_t)irqn, 0)
 #define KEVLOG_IRQ_EXIT(irqn) kernel_evlog_add(KERNEL_EVLOG_IRQ_EXIT, (uintptr_t)irqn, 0)
+
+__END_CDECLS;
 
 #endif
 

@@ -939,12 +939,14 @@ void dump_thread(thread_t *t)
 	dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
 	dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
 	dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
+#if (MAX_TLS_ENTRY > 0)
 	dprintf(INFO, "\ttls:");
 	int i;
 	for (i=0; i < MAX_TLS_ENTRY; i++) {
 		dprintf(INFO, " 0x%lx", t->tls[i]);
 	}
 	dprintf(INFO, "\n");
+#endif
 	arch_dump_thread(t);
 }
 

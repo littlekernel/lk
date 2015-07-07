@@ -20,6 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <assert.h>
 #include <debug.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,6 +54,7 @@ usage:
 		printf("%s list\n", argv[0].str);
 		printf("%s read <device> <address> <offset> <len>\n", argv[0].str);
 		printf("%s write <device> <address> <offset> <len>\n", argv[0].str);
+		printf("%s dump <device> <offset> <len>\n", argv[0].str);
 		printf("%s erase <device> <offset> <len>\n", argv[0].str);
 		printf("%s ioctl <device> <request> <arg>\n", argv[0].str);
 		printf("%s remove <device>\n", argv[0].str);
@@ -108,6 +110,48 @@ usage:
 
 		bio_close(dev);
 
+		rc = err;
+	} else if (!strcmp(argv[1].str, "dump")) {
+		if (argc < 5) {
+			printf("not enough arguments:\n");
+			goto usage;
+		}
+
+		off_t offset = argv[3].u; // XXX use long
+		size_t len = argv[4].u;
+
+		bdev_t *dev = bio_open(argv[2].str);
+		if (!dev) {
+			printf("error opening block device\n");
+			return -1;
+		}
+
+		uint8_t buf[256];
+		ssize_t err = 0;
+		while (len > 0) {
+			size_t  amt = MIN(sizeof(buf), len);
+			ssize_t err = bio_read(dev, buf, offset, amt);
+
+			if (err < 0) {
+				dprintf(ALWAYS, "read error %s %zu@%zu (err %d)\n",
+						argv[2].str, amt, (size_t)offset, (int)err);
+				break;
+			}
+
+			DEBUG_ASSERT((size_t)err <= amt);
+			hexdump8_ex(buf, err, offset);
+
+			if ((size_t)err != amt) {
+				dprintf(ALWAYS, "short read from %s @%zu (wanted %zu, got %zu)\n",
+								 argv[2].str, (size_t)offset, amt, (size_t)err);
+				break;
+			}
+
+			offset += amt;
+			len    -= amt;
+		}
+
+		bio_close(dev);
 		rc = err;
 	} else if (!strcmp(argv[1].str, "erase")) {
 		if (argc < 5) goto notenoughargs;

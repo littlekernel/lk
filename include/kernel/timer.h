@@ -23,8 +23,11 @@
 #ifndef __KERNEL_TIMER_H
 #define __KERNEL_TIMER_H
 
+#include <compiler.h>
 #include <list.h>
 #include <sys/types.h>
+
+__BEGIN_CDECLS;
 
 void timer_init(void);
 
@@ -64,6 +67,8 @@ void timer_initialize(timer_t *);
 void timer_set_oneshot(timer_t *, lk_time_t delay, timer_callback, void *arg);
 void timer_set_periodic(timer_t *, lk_time_t period, timer_callback, void *arg);
 void timer_cancel(timer_t *);
+
+__END_CDECLS;
 
 #endif
 

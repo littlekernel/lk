@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2015 Brian Swetland
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,45 +20,25 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __POW2_H
-#define __POW2_H
 
-#include <sys/types.h>
-#include <stdbool.h>
+#include <debug.h>
 #include <compiler.h>
+#include <arch/arm/cm.h>
 
-__BEGIN_CDECLS;
-
-/* routines for dealing with power of 2 values for efficiency */
-static inline __ALWAYS_INLINE bool ispow2(uint val)
+void lpc43xx_dummy_irq(void)
 {
-	return ((val - 1) & val) == 0;
+	arm_cm_irq_entry();
+	panic("unhandled irq\n");
 }
 
-static inline __ALWAYS_INLINE uint log2_uint(uint val)
-{
-	if (val == 0)
-		return 0; // undefined
+// default handlers are weak aliases to the dummy handler
+#define DEFIRQ(x) \
+	void lpc43xx_##x##_IRQ(void) __WEAK_ALIAS("lpc43xx_dummy_irq");
+#include <platform/defirq.h>
+#undef DEFIRQ
 
-	return (sizeof(val) * 8) - 1 - __builtin_clz(val);
-}
-
-static inline __ALWAYS_INLINE uint valpow2(uint valp2)
-{
-	return 1U << valp2;
-}
-
-static inline __ALWAYS_INLINE uint divpow2(uint val, uint divp2)
-{
-	return val >> divp2;
-}
-
-static inline __ALWAYS_INLINE uint modpow2(uint val, uint modp2)
-{
-	return val & ((1UL << modp2) - 1);
-}
-
-__END_CDECLS;
-
-#endif
-
+#define DEFIRQ(x) [x##_IRQn] = lpc43xx_##x##_IRQ,
+const void * const __SECTION(".text.boot.vectab2") vectab2[] = {
+#include <platform/defirq.h>
+};
+#undef DEFIRQ

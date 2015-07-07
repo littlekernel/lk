@@ -23,9 +23,12 @@
 #ifndef __KERNEL_EVENT_H
 #define __KERNEL_EVENT_H
 
+#include <compiler.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <kernel/thread.h>
+
+__BEGIN_CDECLS;
 
 #define EVENT_MAGIC 'evnt'
 
@@ -75,6 +78,8 @@ static inline bool event_initialized(event_t *e) {
 static inline status_t event_wait(event_t *e) {
 	return event_wait_timeout(e, INFINITE_TIME);
 }
+
+__END_CDECLS;
 
 #endif
 

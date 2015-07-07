@@ -22,10 +22,13 @@
  */
 #pragma once
 
+#include <compiler.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <kernel/thread.h>
+
+__BEGIN_CDECLS;
 
 void mp_init(void);
 
@@ -91,4 +94,4 @@ static inline mp_cpu_mask_t mp_get_realtime_mask(void)
     return mp.realtime_cpus;
 }
 
-
+__END_CDECLS;

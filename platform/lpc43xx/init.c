@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2015 Brian Swetland
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,45 +20,33 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __POW2_H
-#define __POW2_H
 
-#include <sys/types.h>
-#include <stdbool.h>
-#include <compiler.h>
+#include <debug.h>
+#include <arch/arm/cm.h>
+#include <kernel/thread.h>
+#include <platform.h>
 
-__BEGIN_CDECLS;
+void lpc43xx_debug_early_init(void);
 
-/* routines for dealing with power of 2 values for efficiency */
-static inline __ALWAYS_INLINE bool ispow2(uint val)
+void platform_early_init(void)
 {
-	return ((val - 1) & val) == 0;
+	lpc43xx_debug_early_init();
+	arm_cm_systick_init(96000000);
 }
 
-static inline __ALWAYS_INLINE uint log2_uint(uint val)
+void platform_init(void)
 {
-	if (val == 0)
-		return 0; // undefined
-
-	return (sizeof(val) * 8) - 1 - __builtin_clz(val);
 }
 
-static inline __ALWAYS_INLINE uint valpow2(uint valp2)
+void platform_halt(platform_halt_action suggested_action,
+			platform_halt_reason reason)
 {
-	return 1U << valp2;
+	arch_disable_ints();
+	if (suggested_action == HALT_ACTION_REBOOT) {
+		// CORE reset
+		writel(1, 0x40053100);
+	} else {
+		dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
+	}
+	for(;;);
 }
-
-static inline __ALWAYS_INLINE uint divpow2(uint val, uint divp2)
-{
-	return val >> divp2;
-}
-
-static inline __ALWAYS_INLINE uint modpow2(uint val, uint modp2)
-{
-	return val & ((1UL << modp2) - 1);
-}
-
-__END_CDECLS;
-
-#endif
-

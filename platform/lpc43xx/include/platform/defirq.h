@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2015 Brian Swetland
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,45 +20,57 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __POW2_H
-#define __POW2_H
 
-#include <sys/types.h>
-#include <stdbool.h>
-#include <compiler.h>
-
-__BEGIN_CDECLS;
-
-/* routines for dealing with power of 2 values for efficiency */
-static inline __ALWAYS_INLINE bool ispow2(uint val)
-{
-	return ((val - 1) & val) == 0;
-}
-
-static inline __ALWAYS_INLINE uint log2_uint(uint val)
-{
-	if (val == 0)
-		return 0; // undefined
-
-	return (sizeof(val) * 8) - 1 - __builtin_clz(val);
-}
-
-static inline __ALWAYS_INLINE uint valpow2(uint valp2)
-{
-	return 1U << valp2;
-}
-
-static inline __ALWAYS_INLINE uint divpow2(uint val, uint divp2)
-{
-	return val >> divp2;
-}
-
-static inline __ALWAYS_INLINE uint modpow2(uint val, uint modp2)
-{
-	return val & ((1UL << modp2) - 1);
-}
-
-__END_CDECLS;
-
-#endif
-
+DEFIRQ(DAC)
+DEFIRQ(M0APP)
+DEFIRQ(DMA)
+DEFIRQ(RESERVED03)
+DEFIRQ(RESERVED04)
+DEFIRQ(ETHERNET)
+DEFIRQ(SDIO)
+DEFIRQ(LCD)
+DEFIRQ(USB0)
+DEFIRQ(USB1)
+DEFIRQ(SCT)
+DEFIRQ(RITIMER)
+DEFIRQ(TIMER0)
+DEFIRQ(TIMER1)
+DEFIRQ(TIMER2)
+DEFIRQ(TIMER3)
+DEFIRQ(MCPWM)
+DEFIRQ(ADC0)
+DEFIRQ(I2C0)
+DEFIRQ(I2C1)
+DEFIRQ(SPI_INT)
+DEFIRQ(ADC1)
+DEFIRQ(SSP0)
+DEFIRQ(SSP1)
+DEFIRQ(USART0)
+DEFIRQ(UART1)
+DEFIRQ(USART2)
+DEFIRQ(USART3)
+DEFIRQ(I2S0)
+DEFIRQ(I2S1)
+DEFIRQ(RESERVED30)
+DEFIRQ(SGPIO_INT)
+DEFIRQ(PIN_INT0)
+DEFIRQ(PIN_INT1)
+DEFIRQ(PIN_INT2)
+DEFIRQ(PIN_INT3)
+DEFIRQ(PIN_INT4)
+DEFIRQ(PIN_INT5)
+DEFIRQ(PIN_INT6)
+DEFIRQ(PIN_INT7)
+DEFIRQ(GINT0)
+DEFIRQ(GINT1)
+DEFIRQ(EVENTROUTER)
+DEFIRQ(C_CAN1)
+DEFIRQ(RESERVED44)
+DEFIRQ(ADCHS)
+DEFIRQ(ATIMER)
+DEFIRQ(RTC)
+DEFIRQ(RESERVED48)
+DEFIRQ(WWDT)
+DEFIRQ(M0SUB)
+DEFIRQ(C_CAN0)
+DEFIRQ(QEI)

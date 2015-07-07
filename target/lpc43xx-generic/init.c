@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2015 Brian Swetland
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,45 +20,20 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __POW2_H
-#define __POW2_H
 
-#include <sys/types.h>
-#include <stdbool.h>
-#include <compiler.h>
+#include <reg.h>
+#include <debug.h>
 
-__BEGIN_CDECLS;
+#include <platform/lpc43xx-gpio.h>
 
-/* routines for dealing with power of 2 values for efficiency */
-static inline __ALWAYS_INLINE bool ispow2(uint val)
+void target_early_init(void)
 {
-	return ((val - 1) & val) == 0;
+	// UART2 on P1.15 (TX) and P1.16 (RX)
+	writel(PIN_MODE(1) | PIN_PLAIN, PIN_CFG(1, 15));
+	writel(PIN_MODE(1) | PIN_PLAIN | PIN_INPUT, PIN_CFG(1, 16));
 }
 
-static inline __ALWAYS_INLINE uint log2_uint(uint val)
+void target_init(void)
 {
-	if (val == 0)
-		return 0; // undefined
-
-	return (sizeof(val) * 8) - 1 - __builtin_clz(val);
 }
-
-static inline __ALWAYS_INLINE uint valpow2(uint valp2)
-{
-	return 1U << valp2;
-}
-
-static inline __ALWAYS_INLINE uint divpow2(uint val, uint divp2)
-{
-	return val >> divp2;
-}
-
-static inline __ALWAYS_INLINE uint modpow2(uint val, uint modp2)
-{
-	return val & ((1UL << modp2) - 1);
-}
-
-__END_CDECLS;
-
-#endif
 

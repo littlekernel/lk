@@ -5,10 +5,14 @@
 #include <kernel/semaphore.h>
 #include <kernel/mutex.h>
 
+#define MBOX_MAGIC 'mbox'
+
 typedef semaphore_t sys_sem_t; 
 typedef mutex_t sys_mutex_t;
 
 typedef struct {
+	uint32_t magic;
+
 	semaphore_t empty;
 	semaphore_t full;
 	mutex_t lock;
@@ -21,16 +25,7 @@ typedef struct {
 	void **queue;
 } sys_mbox_t;
 
-struct sys_thread {
-	thread_t *t;
-
-	void (*func)(void *);
-	void *arg;
-
-	struct sys_timeouts *timeouts;
-};
-
-typedef struct sys_thread * sys_thread_t;
+typedef thread_t * sys_thread_t;
 
 #endif
 

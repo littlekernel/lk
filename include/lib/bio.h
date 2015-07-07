@@ -22,10 +22,18 @@
  */
 #pragma once
 
+#include <assert.h>
 #include <sys/types.h>
 #include <list.h>
 
 typedef uint32_t bnum_t;
+
+typedef struct bio_erase_geometry_info {
+	off_t  start;  // start of the region in bytes.
+	off_t  size;
+	size_t erase_size;
+	size_t erase_shift;
+} bio_erase_geometry_info_t;
 
 typedef struct bdev {
 	struct list_node node;
@@ -33,10 +41,14 @@ typedef struct bdev {
 
 	/* info about the block device */
 	char *name;
-	off_t size;
+	off_t total_size;
+
 	size_t block_size;
 	size_t block_shift;
 	bnum_t block_count;
+
+	size_t geometry_count;
+	const bio_erase_geometry_info_t* geometry;
 
 	/* function pointers */
 	ssize_t (*read)(struct bdev *, void *buf, off_t offset, size_t len);
@@ -63,13 +75,21 @@ void bio_register_device(bdev_t *dev);
 void bio_unregister_device(bdev_t *dev);
 
 /* used during bdev construction */
-void bio_initialize_bdev(bdev_t *dev, const char *name, size_t block_size, bnum_t block_count);
+void bio_initialize_bdev(bdev_t* dev,
+						 const char* name,
+						 size_t block_size,
+						 bnum_t block_count,
+						 size_t geometry_count,
+						 const bio_erase_geometry_info_t* geometry);
 
 /* debug stuff */
 void bio_dump_devices(void);
 
 /* subdevice support */
-status_t bio_publish_subdevice(const char *parent_dev, const char *subdev, bnum_t startblock, bnum_t block_count);
+status_t bio_publish_subdevice(const char *parent_dev,
+							   const char *subdev,
+							   bnum_t startblock,
+							   bnum_t block_count);
 
 /* memory based block device */
 int create_membdev(const char *name, void *ptr, size_t len);
@@ -79,6 +99,33 @@ size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len);
 
 /* helper routine to trim to a block range in the device */
 uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count);
+
+/* utility routine */
+static inline bool bio_does_overlap(uint64_t start1, uint64_t len1,
+									uint64_t start2, uint64_t len2)
+{
+	uint64_t end1 = start1 + len1;
+	uint64_t end2 = start2 + len2;
+
+	DEBUG_ASSERT(end1 >= start1);
+	DEBUG_ASSERT(end2 >= start2);
+
+	return (((start1 >= start2) && (start1 < end2)) ||
+			((start2 >= start1) && (start2 < end1)));
+}
+
+static inline bool bio_contains_range(uint64_t container_start, uint64_t container_len,
+									  uint64_t contained_start, uint64_t contained_len)
+{
+	uint64_t container_end = container_start + container_len;
+	uint64_t contained_end = contained_start + contained_len;
+
+	DEBUG_ASSERT(container_end >= container_start);
+	DEBUG_ASSERT(contained_end >= contained_start);
+
+	return ((container_start <= contained_start) &&
+			(container_end   >= contained_end));
+}
 
 /* generic bio ioctls */
 enum bio_ioctl_num {

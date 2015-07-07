@@ -24,10 +24,10 @@
 #include "minip-internal.h"
 
 #include <err.h>
-#include <platform/gem.h>
 #include <platform.h>
 #include <stdio.h>
 #include <debug.h>
+#include <malloc.h>
 
 #include <kernel/thread.h>
 #include <sys/types.h>

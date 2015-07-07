@@ -242,17 +242,33 @@ void hexdump(const void *ptr, size_t len)
 	}
 }
 
-void hexdump8(const void *ptr, size_t len)
+void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr)
 {
 	addr_t address = (addr_t)ptr;
 	size_t count;
 	size_t i;
+	const char* addr_fmt = ((disp_addr + len) > 0xFFFFFFFF)
+						 ? "0x%016llx: "
+						 : "0x%08llx: ";
 
 	for (count = 0 ; count < len; count += 16) {
-		printf("0x%08lx: ", address);
+		printf(addr_fmt, disp_addr + count);
+
 		for (i=0; i < MIN(len - count, 16); i++) {
-			printf("0x%02hhx ", *(const uint8_t *)(address + i));
+			printf("%02hhx ", *(const uint8_t *)(address + i));
 		}
+
+		for (; i < 16; i++) {
+			printf("   ");
+		}
+
+		printf("|");
+
+		for (i=0; i < MIN(len - count, 16); i++) {
+			char c = ((const char *)address)[i];
+			printf("%c", isprint(c) ? c : '.');
+		}
+
 		printf("\n");
 		address += 16;
 	}

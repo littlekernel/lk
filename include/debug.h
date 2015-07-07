@@ -39,13 +39,13 @@
 #define INFO 1
 #define SPEW 2
 
+__BEGIN_CDECLS
+
 typedef struct __print_callback print_callback_t;
 struct __print_callback {
 	struct list_node entry;
 	void (*print)(print_callback_t *cb, const char *str, size_t len);
 };
-
-__BEGIN_CDECLS
 
 #if !DISABLE_DEBUG_OUTPUT
 
@@ -58,7 +58,11 @@ int _dvprintf(const char *fmt, va_list ap);
 
 /* dump memory */
 void hexdump(const void *ptr, size_t len);
-void hexdump8(const void *ptr, size_t len);
+void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr_start);
+static inline void hexdump8(const void *ptr, size_t len)
+{
+	hexdump8_ex(ptr, len, (uint64_t)((addr_t)ptr));
+}
 
 #else
 

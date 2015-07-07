@@ -23,7 +23,10 @@
 #ifndef __BITS_H
 #define __BITS_H
 
+#include <compiler.h>
 #include <arch/ops.h>
+
+__BEGIN_CDECLS;
 
 #define clz(x) __builtin_clz(x)
 #define ctz(x) __builtin_ctz(x)
@@ -84,5 +87,7 @@ static inline int bitmap_ffz(unsigned long *bitmap, int numbits)
 	}
 	return -1;
 }
+
+__END_CDECLS;
 
 #endif

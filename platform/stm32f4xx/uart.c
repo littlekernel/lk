@@ -35,12 +35,16 @@
 #include <stm32f4xx_usart.h>
 #include <arch/arm/cm.h>
 
-#define RXBUF_SIZE 16
-
 #ifdef ENABLE_UART1
 cbuf_t uart1_rx_buf;
 #ifndef UART1_FLOWCONTROL
 #define UART1_FLOWCONTROL USART_HardwareFlowControl_None
+#endif
+#ifndef UART1_BAUDRATE
+#define UART1_BAUDRATE 115200
+#endif
+#ifndef UART1_RXBUF_SIZE
+#define UART1_RXBUF_SIZE 16
 #endif
 #endif
 
@@ -49,12 +53,24 @@ cbuf_t uart2_rx_buf;
 #ifndef UART2_FLOWCONTROL
 #define UART2_FLOWCONTROL USART_HardwareFlowControl_None
 #endif
+#ifndef UART2_BAUDRATE
+#define UART2_BAUDRATE 115200
+#endif
+#ifndef UART2_RXBUF_SIZE
+#define UART2_RXBUF_SIZE 16
+#endif
 #endif
 
 #ifdef ENABLE_UART3
 cbuf_t uart3_rx_buf;
 #ifndef UART3_FLOWCONTROL
 #define UART3_FLOWCONTROL USART_HardwareFlowControl_None
+#endif
+#ifndef UART3_BAUDRATE
+#define UART3_BAUDRATE 115200
+#endif
+#ifndef UART3_RXBUF_SIZE
+#define UART3_RXBUF_SIZE 16
 #endif
 #endif
 
@@ -63,20 +79,19 @@ cbuf_t uart6_rx_buf;
 #ifndef UART6_FLOWCONTROL
 #define UART6_FLOWCONTROL USART_HardwareFlowControl_None
 #endif
+#ifndef UART6_BAUDRATE
+#define UART6_BAUDRATE 115200
+#endif
+#ifndef UART6_RXBUF_SIZE
+#define UART6_RXBUF_SIZE 16
+#endif
 #endif
 
-#ifdef ENABLE_UART1
-#endif
-#ifdef ENABLE_UART2
-#endif
-#ifdef ENABLE_UART3
-#endif
-
-static void usart_init1_early(USART_TypeDef *usart, uint16_t flowcontrol, int irqn)
+static void usart_init1_early(USART_TypeDef *usart, uint32_t baud, uint16_t flowcontrol, int irqn)
 {
 	USART_InitTypeDef init;
 
-	init.USART_BaudRate = 115200;
+	init.USART_BaudRate = baud;
 	init.USART_WordLength = USART_WordLength_8b;
 	init.USART_StopBits = USART_StopBits_1;
 	init.USART_Parity = USART_Parity_No;
@@ -89,9 +104,9 @@ static void usart_init1_early(USART_TypeDef *usart, uint16_t flowcontrol, int ir
 	USART_Cmd(usart, ENABLE);
 }
 
-static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf)
+static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf, size_t rxsize)
 {
-	cbuf_initialize(rxbuf, RXBUF_SIZE);
+	cbuf_initialize(rxbuf, rxsize);
 	USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
 	NVIC_EnableIRQ(irqn);
 	USART_Cmd(usart, ENABLE);
@@ -101,44 +116,35 @@ void uart_init_early(void)
 {
 #ifdef ENABLE_UART1
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+	usart_init1_early(USART1, UART1_BAUDRATE, UART1_FLOWCONTROL, USART1_IRQn);
 #endif
 #ifdef ENABLE_UART2
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
+	usart_init1_early(USART2, UART2_BAUDRATE, UART2_FLOWCONTROL, USART2_IRQn);
 #endif
 #ifdef ENABLE_UART3
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
+	usart_init1_early(USART3, UART3_BAUDRATE, UART3_FLOWCONTROL, USART3_IRQn);
 #endif
 #ifdef ENABLE_UART6
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART6, ENABLE);
-#endif
-
-#ifdef ENABLE_UART1
-	usart_init1_early(USART1, UART1_FLOWCONTROL, USART1_IRQn);
-#endif
-#ifdef ENABLE_UART2
-	usart_init1_early(USART2, UART2_FLOWCONTROL, USART2_IRQn);
-#endif
-#ifdef ENABLE_UART3
-	usart_init1_early(USART3, UART3_FLOWCONTROL, USART3_IRQn);
-#endif
-#ifdef ENABLE_UART6
-	usart_init1_early(USART6, UART6_FLOWCONTROL, USART6_IRQn);
+	usart_init1_early(USART6, UART6_BAUDRATE, UART6_FLOWCONTROL, USART6_IRQn);
 #endif
 }
 
 void uart_init(void)
 {
 #ifdef ENABLE_UART1
-	usart_init1(USART1, USART1_IRQn, &uart1_rx_buf);
+	usart_init1(USART1, USART1_IRQn, &uart1_rx_buf, UART1_RXBUF_SIZE);
 #endif
 #ifdef ENABLE_UART2
-	usart_init1(USART2, USART2_IRQn, &uart2_rx_buf);
+	usart_init1(USART2, USART2_IRQn, &uart2_rx_buf, UART2_RXBUF_SIZE);
 #endif
 #ifdef ENABLE_UART3
-	usart_init1(USART3, USART3_IRQn, &uart3_rx_buf);
+	usart_init1(USART3, USART3_IRQn, &uart3_rx_buf, UART3_RXBUF_SIZE);
 #endif
 #ifdef ENABLE_UART6
-	usart_init1(USART6, USART6_IRQn, &uart6_rx_buf);
+	usart_init1(USART6, USART6_IRQn, &uart6_rx_buf, UART6_RXBUF_SIZE);
 #endif
 }
 
@@ -200,9 +206,10 @@ static void usart_putc(USART_TypeDef *usart, char c)
 
 static int usart_getc(USART_TypeDef *usart, cbuf_t *rxbuf, bool wait)
 {
-	char c;
-	cbuf_read_char(rxbuf, &c, wait);
-	if (cbuf_space_avail(rxbuf) > RXBUF_SIZE/2)
+	unsigned char c;
+	if (cbuf_read_char(rxbuf, (char*) &c, wait) == 0)
+		return -1;
+	if (cbuf_space_avail(rxbuf) > cbuf_size(rxbuf))
 		USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
 
 	return c;
@@ -212,52 +219,42 @@ static USART_TypeDef *get_usart(int port)
 {
 	switch (port) {
 #ifdef ENABLE_UART1
-		case 1:
-			return USART1;
+	case 1: return USART1;
 #endif
 #ifdef ENABLE_UART2
-		case 2:
-			return USART2;
+	case 2: return USART2;
 #endif
 #ifdef ENABLE_UART3
-		case 3:
-			return USART3;
+	case 3: return USART3;
 #endif
 #ifdef ENABLE_UART6
-		case 6:
-			return USART6;
+	case 6: return USART6;
 #endif
-		default:
-			ASSERT(false);
-			return 0;
+	default:
+		ASSERT(false);
+		return 0;
 	}
-
 }
 
 static cbuf_t *get_rxbuf(int port)
 {
 	switch (port) {
 #ifdef ENABLE_UART1
-		case 1:
-			return &uart1_rx_buf;
+	case 1: return &uart1_rx_buf;
 #endif
 #ifdef ENABLE_UART2
-		case 2:
-			return &uart2_rx_buf;
+	case 2: return &uart2_rx_buf;
 #endif
 #ifdef ENABLE_UART3
-		case 3:
-			return &uart3_rx_buf;
+	case 3: return &uart3_rx_buf;
 #endif
 #ifdef ENABLE_UART6
-		case 6:
-			return &uart6_rx_buf;
+	case 6: return &uart6_rx_buf;
 #endif
-		default:
-			ASSERT(false);
-			return 0;
+	default:
+		ASSERT(false);
+		return 0;
 	}
-
 }
 
 int uart_putc(int port, char c)

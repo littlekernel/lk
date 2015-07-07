@@ -31,6 +31,7 @@
 #include <string.h>
 #include <rand.h>
 #include <reg.h>
+#include <pow2.h>
 
 #include <lib/bio.h>
 #include <lib/console.h>
@@ -52,11 +53,14 @@
 #define STS_ERASE_ERR (1<<5)
 #define STS_BUSY (1<<0)
 
+#define MAX_GEOMETRY_COUNT (2)
+
 struct spi_flash {
 	bool detected;
 
 	struct qspi_ctxt qspi;
 	bdev_t bdev;
+	bio_erase_geometry_info_t geometry[MAX_GEOMETRY_COUNT];
 
 	off_t size;
 };
@@ -250,6 +254,41 @@ status_t spiflash_detect(void)
 		goto nodetect;
 	}
 
+	/* Fill out our geometry info based on the CFI */
+	size_t region_count = buf[0x2C];
+	if (region_count > countof(flash.geometry)) {
+		TRACEF("erase region count (%zu) exceeds max allowed (%zu)\n",
+			   region_count, countof(flash.geometry));
+		goto nodetect;
+	}
+
+	size_t offset = 0;
+	for (size_t i = 0; i < region_count; i++) {
+		const uint8_t* info = buf + 0x2D + (i << 2);
+		size_t pages      = ((((size_t)info[1]) << 8) | info[0]) + 1;
+		size_t erase_size = ((((size_t)info[3]) << 8) | info[2]) << 8;
+
+		if (!ispow2(erase_size)) {
+			TRACEF("Region %zu page size (%zu) is not a power of 2\n",
+					i, erase_size);
+			goto nodetect;
+		}
+
+		flash.geometry[i].erase_size  = erase_size;
+		flash.geometry[i].erase_shift = log2_uint(erase_size);
+		flash.geometry[i].start       = offset;
+		flash.geometry[i].size        = pages << flash.geometry[i].erase_shift;
+
+		size_t erase_mask = ((size_t)0x1 << flash.geometry[i].erase_shift) - 1;
+		if (offset & erase_mask) {
+			TRACEF("Region %zu not aligned to erase boundary (start %zu, erase size %zu)\n",
+					i, offset, erase_size);
+			goto nodetect;
+		}
+
+		offset += flash.geometry[i].size;
+	}
+
 	free(buf);
 
 	/* read the 16 byte random number out of the OTP area and add to the rand entropy pool */
@@ -270,7 +309,9 @@ status_t spiflash_detect(void)
 	}
 
 	/* construct the block device */
-	bio_initialize_bdev(&flash.bdev, "spi0", PAGE_PROGRAM_SIZE, flash.size / PAGE_PROGRAM_SIZE);
+	bio_initialize_bdev(&flash.bdev, "spi0",
+						PAGE_PROGRAM_SIZE, flash.size / PAGE_PROGRAM_SIZE,
+						region_count, flash.geometry);
 
 	/* override our block device hooks */
 	flash.bdev.read = &spiflash_bdev_read;
