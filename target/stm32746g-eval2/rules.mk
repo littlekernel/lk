@@ -1,0 +1,22 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+MODULE := $(LOCAL_DIR)
+
+STM32_CHIP := stm32f746
+
+PLATFORM := stm32f7xx
+
+GLOBAL_DEFINES += \
+	ENABLE_UART1=1 \
+	HSE_VALUE=8000000 \
+	PLL_M_VALUE=8 \
+	PLL_N_VALUE=336 \
+	PLL_P_VALUE=2
+
+GLOBAL_INCLUDES += $(LOCAL_DIR)/include
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c
+
+include make/module.mk
+

@@ -1,0 +1,3 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+TARGET := stm32746g-eval2
