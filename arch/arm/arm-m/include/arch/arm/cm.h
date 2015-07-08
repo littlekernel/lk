@@ -35,6 +35,8 @@
 #include <core_cm3.h>
 #elif ARM_CPU_CORTEX_M4
 #include <core_cm4.h>
+#elif ARM_CPU_CORTEX_M7
+#include <core_cm7.h>
 #else
 #error "unknown cortex-m core"
 #endif
