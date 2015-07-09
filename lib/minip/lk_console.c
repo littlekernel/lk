@@ -60,7 +60,7 @@ minip_usage:
         printf("minip commands\n");
         printf("mi [a]rp                        dump arp table\n");
         printf("mi [s]tatus                     print ip status\n");
-        printf("mi [t]est <dest> <port> <cnt>   send <cnt> test packets to the dest:port\n");
+        printf("mi [t]est [dest] [port] [cnt]   send <cnt> test packets to the dest:port\n");
     } else {
         switch(argv[1].str[0]) {
 
@@ -79,17 +79,19 @@ minip_usage:
                 uint8_t buf[1470];
 
                 uint32_t count = 1;
-                uint32_t host, port;
+                uint32_t host = 0x0100000A; // 10.0.0.1
+                uint32_t port = 1025;
                 udp_socket_t *handle;
 
-                if (argc < 5) {
-                    return -1;
+                switch (argc) {
+                    case 5:
+                        count = argv[4].u;
+                    case 4:
+                        port = argv[3].u;
+                    case 3:
+                        host = str_ip_to_int(argv[2].str, strlen(argv[2].str));
+                        break;
                 }
-
-                host = str_ip_to_int(argv[2].str, strlen(argv[2].str));
-                port = argv[3].u;
-                count = argv[4].u;
-                printf("host is %s\n", argv[2].str);
 
                 if (udp_open(host, port, port, &handle) != NO_ERROR) {
                     printf("udp_open to %u.%u.%u.%u:%u failed\n", IPV4_SPLIT(host), port);
