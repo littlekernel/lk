@@ -1230,5 +1230,34 @@ status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error)
 	return NO_ERROR;
 }
 
-/* vim: set ts=4 sw=4 noexpandtab: */
+#if defined(WITH_DEBUGGER_INFO)
+// This is, by necessity, arch-specific, and arm-m specific right now,
+// but lives here due to thread_list being static.
+//
+// It contains sufficient information for a remote debugger to walk
+// the thread list without needing the symbols and debug sections in
+// the elf binary for lk or the ability to parse them.
+const struct __debugger_info__ {
+	u32 version; // flags:16 major:8 minor:8
+	void *thread_list_ptr;
+	void *current_thread_ptr;
+	u8 off_list_node;
+	u8 off_state;
+	u8 off_saved_sp;
+	u8 off_was_preempted;
+	u8 off_name;
+	u8 off_waitq;
+} _debugger_info = {
+	.version = 0x0100,
+	.thread_list_ptr = &thread_list,
+	.current_thread_ptr = &_current_thread,
+	.off_list_node = __builtin_offsetof(thread_t, thread_list_node),
+	.off_state = __builtin_offsetof(thread_t, state),
+	.off_saved_sp = __builtin_offsetof(thread_t, arch.sp),
+	.off_was_preempted = __builtin_offsetof(thread_t, arch.was_preempted),
+	.off_name = __builtin_offsetof(thread_t, name),
+	.off_waitq = __builtin_offsetof(thread_t, blocking_wait_queue),
+};
+#endif
 
+/* vim: set ts=4 sw=4 noexpandtab: */
