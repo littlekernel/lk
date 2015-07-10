@@ -41,6 +41,10 @@ extern void _pendsv(void);
 extern void _pendsv(void);
 extern void _systick(void);
 
+#if defined(WITH_DEBUGGER_INFO)
+extern struct __debugger_info__ _debugger_info;
+#endif
+
 const void * const __SECTION(".text.boot.vectab1") vectab[] = {
 	/* arm exceptions */
 	initial_stack + sizeof(initial_stack),
@@ -51,8 +55,13 @@ const void * const __SECTION(".text.boot.vectab1") vectab[] = {
 	_busfault, // bus fault
 	_usagefault, // usage fault
 	0, // reserved
+#if defined(WITH_DEBUGGER_INFO)
+	(void*) 0x52474244,
+	&_debugger_info,
+#else
 	0, // reserved
 	0, // reserved
+#endif
 	0, // reserved
 	_svc, // svcall
 	0, // debug monitor
