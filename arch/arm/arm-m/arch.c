@@ -81,7 +81,20 @@ void arch_early_init(void)
 
 	/* set systick to medium priority */
 	NVIC_SetPriority(SysTick_IRQn, arm_cm_medium_priority());
+
+#if ARM_WITH_CACHE
+	SCB_EnableICache();
+	SCB_EnableDCache();
+#endif
 }
+
+#if ARM_WITH_CACHE
+// XXX add full implementation, move to separate file
+void arch_clean_cache_range(addr_t start, size_t len)
+{
+	SCB_CleanDCache_by_Addr((void *)start, len);
+}
+#endif
 
 void arch_init(void)
 {
