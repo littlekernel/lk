@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012 Kent Ryhorchuk
+ * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -212,16 +213,19 @@ void stm32_USART6_IRQ(void)
 static void usart_putc(USART_TypeDef *usart, char c)
 {
     //HAL_StatusTypeDef HAL_USART_Transmit(USART_HandleTypeDef *husart, uint8_t *pTxData, uint16_t Size, uint32_t Timeout);
+
     HAL_UART_Transmit(&handle, (uint8_t *)&c, 1, HAL_MAX_DELAY);
-#if 0
-    while (USART_GetFlagStatus(usart, USART_FLAG_TXE) == 0);
-    USART_SendData(usart, c);
-    while (USART_GetFlagStatus(usart, USART_FLAG_TC) == 0);
-#endif
 }
 
 static int usart_getc(USART_TypeDef *usart, cbuf_t *rxbuf, bool wait)
 {
+    //HAL_StatusTypeDef HAL_UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
+
+    uint8_t c;
+    HAL_StatusTypeDef ret = HAL_UART_Receive(&handle, &c, 1, 0);
+    if (ret == HAL_OK)
+        return c;
+
     return -1;
 #if 0
     unsigned char c;

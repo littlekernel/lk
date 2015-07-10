@@ -61,6 +61,9 @@ void target_early_init(void)
     gpio_config(GPIO_LED2, GPIO_OUTPUT);
     gpio_config(GPIO_LED3, GPIO_OUTPUT);
 #endif
+
+    printf("RCC_CSR 0x%x\n", RCC->CSR);
+    RCC->CSR |= (1<<24);
 }
 
 void target_init(void)

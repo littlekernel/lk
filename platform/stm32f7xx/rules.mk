@@ -7,13 +7,14 @@ ROMBASE ?= 0x08000000
 MEMBASE ?= 0x20010000
 # default memsize, specific STM32_CHIP may override this
 # and target/project may have already overridden
-MEMSIZE ?= 131072
+MEMSIZE ?= 0x40000
 
 ARCH := arm
 ARM_CPU := cortex-m7
 
 ifeq ($(STM32_CHIP),stm32f746)
 GLOBAL_DEFINES += STM32F746xx
+# XXX workaround for uppercasing in GLOBAL_DEFINES
 GLOBAL_COMPILEFLAGS += -DSTM32F746xx
 FOUND_CHIP := true
 endif
