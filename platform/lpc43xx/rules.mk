@@ -2,7 +2,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-ROMBASE ?= 0x00000000
+ROMBASE ?= 0x10000000
 MEMBASE ?= 0x10080000
 MEMSIZE ?= 40960
 
@@ -25,5 +25,17 @@ LINKER_SCRIPT += \
 
 MODULE_DEPS += \
 	arch/arm/arm-m/systick
+
+LPCSIGNEDBIN := $(OUTBIN).sign
+LPCCHECK := platform/lpc15xx/lpccheck.py
+EXTRA_BUILDDEPS += $(LPCSIGNEDBIN)
+GENERATED += $(LPCSIGNEDBIN)
+
+$(LPCSIGNEDBIN): $(OUTBIN) $(LPCCHECK)
+	@$(MKDIR)
+	$(NOECHO)echo generating $@; \
+	cp $< $@.tmp; \
+	$(LPCCHECK) $@.tmp; \
+	mv $@.tmp $@
 
 include make/module.mk
