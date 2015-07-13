@@ -131,7 +131,7 @@ void platform_early_init(void)
     // Crank up the clock before initing timers.
     SystemInit();
 
-    //SystemClock_Config();
+    SystemClock_Config();
 
 #if 0
     // start the systick timer

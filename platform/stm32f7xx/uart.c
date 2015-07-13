@@ -125,6 +125,7 @@ void uart_init_early(void)
 {
 #if 1
 #ifdef ENABLE_UART1
+    __HAL_RCC_USART1_CONFIG(RCC_USART1CLKSOURCE_HSI);
     __HAL_RCC_USART1_CLK_ENABLE();
     usart_init1_early(USART1, UART1_BAUDRATE, 0, USART1_IRQn);
 #endif
