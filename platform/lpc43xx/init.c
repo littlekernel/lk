@@ -65,7 +65,7 @@ void platform_early_init(void)
 #endif
 
 	lpc43xx_debug_early_init();
-	arm_cm_systick_init(96000000);
+	arm_cm_systick_init(192000000);
 }
 
 void platform_init(void)
