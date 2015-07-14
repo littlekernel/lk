@@ -276,8 +276,36 @@ void uart_flush_tx(int port) {}
 
 void uart_flush_rx(int port) {}
 
-void uart_init_port(int port, uint baud)
-{
-	// TODO - later
-	PANIC_UNIMPLEMENTED;
+void uart_init_port(int port, uint baud) {
+	USART_TypeDef *usart = get_usart(port);
+	uint32_t treg = 0;
+	uint32_t apbclk = 0;
+	uint32_t intdiv = 0;
+	uint32_t fracdiv = 0;
+	RCC_ClocksTypeDef RCC_ClksStat;
+
+	RCC_GetClocksFreq(&RCC_ClksStat);
+
+	if ((usart == USART1) || (usart == USART6)) {
+		apbclk = RCC_ClksStat.PCLK2_Frequency;
+	} else {
+		apbclk = RCC_ClksStat.PCLK1_Frequency;
+	}
+
+	if ((usart->CR1 & USART_CR1_OVER8) != 0) {
+		intdiv = ((25 * apbclk) / (2 * (baud)));
+	} else {
+		intdiv = ((25 * apbclk) / (4 * (baud)));
+	}
+	treg = (intdiv / 100) << 4;
+
+	fracdiv = intdiv - (100 * (treg >> 4));
+
+	if ((usart->CR1 & USART_CR1_OVER8) != 0) {
+		treg |= ((((fracdiv * 8) + 50) / 100)) & ((uint8_t) 0x07);
+	} else {
+		treg |= ((((fracdiv * 16) + 50) / 100)) & ((uint8_t) 0x0F);
+	}
+
+	usart->BRR = (uint16_t) treg;
 }
