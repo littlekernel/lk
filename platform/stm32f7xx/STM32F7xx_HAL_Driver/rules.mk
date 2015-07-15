@@ -8,6 +8,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/Src/stm32f7xx_hal_gpio.c \
 	$(LOCAL_DIR)/Src/stm32f7xx_hal_pwr_ex.c \
 	$(LOCAL_DIR)/Src/stm32f7xx_hal_rcc.c \
+        $(LOCAL_DIR)/Src/stm32f7xx_hal_rcc_ex.c \
 	$(LOCAL_DIR)/Src/stm32f7xx_hal_uart.c \
 
 #MODULE_SRCS += \

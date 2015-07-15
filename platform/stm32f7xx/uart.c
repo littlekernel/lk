@@ -32,7 +32,9 @@
 #include <arch/ops.h>
 #include <dev/uart.h>
 #include <target/debugconfig.h>
+#include <stm32f7xx_hal.h>
 #include <stm32f7xx_hal_rcc.h>
+#include <stm32f7xx_hal_rcc_ex.h> 
 #include <stm32f7xx_hal_dma.h>
 #include <stm32f7xx_hal_uart.h>
 #include <arch/arm/cm.h>
@@ -50,46 +52,52 @@ cbuf_t uart1_rx_buf;
 #endif
 #endif
 
-#ifdef ENABLE_UART2
-cbuf_t uart2_rx_buf;
-#ifndef UART2_FLOWCONTROL
-#define UART2_FLOWCONTROL USART_HardwareFlowControl_None
-#endif
-#ifndef UART2_BAUDRATE
-#define UART2_BAUDRATE 115200
-#endif
-#ifndef UART2_RXBUF_SIZE
-#define UART2_RXBUF_SIZE 16
-#endif
-#endif
 
-#ifdef ENABLE_UART3
-cbuf_t uart3_rx_buf;
-#ifndef UART3_FLOWCONTROL
-#define UART3_FLOWCONTROL USART_HardwareFlowControl_None
-#endif
-#ifndef UART3_BAUDRATE
-#define UART3_BAUDRATE 115200
-#endif
-#ifndef UART3_RXBUF_SIZE
-#define UART3_RXBUF_SIZE 16
-#endif
-#endif
+#define USARTx                           USART1
 
-#ifdef ENABLE_UART6
-cbuf_t uart6_rx_buf;
-#ifndef UART6_FLOWCONTROL
-#define UART6_FLOWCONTROL USART_HardwareFlowControl_None
-#endif
-#ifndef UART6_BAUDRATE
-#define UART6_BAUDRATE 115200
-#endif
-#ifndef UART6_RXBUF_SIZE
-#define UART6_RXBUF_SIZE 16
-#endif
-#endif
+#define USARTx_TX_PIN                    GPIO_PIN_9
+#define USARTx_TX_GPIO_PORT              GPIOA
+#define USARTx_TX_AF                     GPIO_AF7_USART1
+#define USARTx_RX_PIN                    GPIO_PIN_10
+#define USARTx_RX_GPIO_PORT              GPIOA
+#define USARTx_RX_AF                     GPIO_AF7_USART1
 
 static UART_HandleTypeDef handle;
+
+void HAL_UART_MspInit(UART_HandleTypeDef *huart)
+{
+  GPIO_InitTypeDef  GPIO_InitStruct;
+
+  RCC_PeriphCLKInitTypeDef RCC_PeriphClkInit;
+
+  /*##-1- Enable peripherals and GPIO Clocks #################################*/
+  /* Enable GPIO TX/RX clock */
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /* Select SysClk as source of USART1 clocks */
+  RCC_PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+  RCC_PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_HSI;
+  HAL_RCCEx_PeriphCLKConfig(&RCC_PeriphClkInit);
+
+  /* Enable USARTx clock */
+  __HAL_RCC_USART1_CLK_ENABLE();
+
+  /*##-2- Configure peripheral GPIO ##########################################*/
+  /* UART TX GPIO pin configuration  */
+  GPIO_InitStruct.Pin       = USARTx_TX_PIN;
+  GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull      = GPIO_PULLUP;
+  GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = USARTx_TX_AF;
+
+  HAL_GPIO_Init(USARTx_TX_GPIO_PORT, &GPIO_InitStruct);
+
+  /* UART RX GPIO pin configuration  */
+  GPIO_InitStruct.Pin = USARTx_RX_PIN;
+  GPIO_InitStruct.Alternate = USARTx_RX_AF;
+
+  HAL_GPIO_Init(USARTx_RX_GPIO_PORT, &GPIO_InitStruct);
+}
 
 static void usart_init1_early(USART_TypeDef *usart, uint32_t baud, uint16_t flowcontrol, int irqn)
 {
@@ -123,24 +131,8 @@ static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf, size_t rx
 
 void uart_init_early(void)
 {
-#if 1
-#ifdef ENABLE_UART1
-    __HAL_RCC_USART1_CONFIG(RCC_USART1CLKSOURCE_HSI);
-    __HAL_RCC_USART1_CLK_ENABLE();
+#if ENABLE_UART1  
     usart_init1_early(USART1, UART1_BAUDRATE, 0, USART1_IRQn);
-#endif
-#ifdef ENABLE_UART2
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
-    usart_init1_early(USART2, UART2_BAUDRATE, UART2_FLOWCONTROL, USART2_IRQn);
-#endif
-#ifdef ENABLE_UART3
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
-    usart_init1_early(USART3, UART3_BAUDRATE, UART3_FLOWCONTROL, USART3_IRQn);
-#endif
-#ifdef ENABLE_UART6
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART6, ENABLE);
-    usart_init1_early(USART6, UART6_BAUDRATE, UART6_FLOWCONTROL, USART6_IRQn);
-#endif
 #endif
 }
 
@@ -148,15 +140,6 @@ void uart_init(void)
 {
 #ifdef ENABLE_UART1
     usart_init1(USART1, USART1_IRQn, &uart1_rx_buf, UART1_RXBUF_SIZE);
-#endif
-#ifdef ENABLE_UART2
-    usart_init1(USART2, USART2_IRQn, &uart2_rx_buf, UART2_RXBUF_SIZE);
-#endif
-#ifdef ENABLE_UART3
-    usart_init1(USART3, USART3_IRQn, &uart3_rx_buf, UART3_RXBUF_SIZE);
-#endif
-#ifdef ENABLE_UART6
-    usart_init1(USART6, USART6_IRQn, &uart6_rx_buf, UART6_RXBUF_SIZE);
 #endif
 }
 
@@ -187,27 +170,6 @@ void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
 void stm32_USART1_IRQ(void)
 {
     uart_rx_irq(USART1, &uart1_rx_buf);
-}
-#endif
-
-#ifdef ENABLE_UART2
-void stm32_USART2_IRQ(void)
-{
-    uart_rx_irq(USART2, &uart2_rx_buf);
-}
-#endif
-
-#ifdef ENABLE_UART3
-void stm32_USART3_IRQ(void)
-{
-    uart_rx_irq(USART3, &uart3_rx_buf);
-}
-#endif
-
-#ifdef ENABLE_UART6
-void stm32_USART6_IRQ(void)
-{
-    uart_rx_irq(USART6, &uart6_rx_buf);
 }
 #endif
 
