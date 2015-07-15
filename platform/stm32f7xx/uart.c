@@ -53,19 +53,24 @@ cbuf_t uart1_rx_buf;
 #endif
 
 
-#define USARTx                           USART1
-
-#define USARTx_TX_PIN                    GPIO_PIN_9
-#define USARTx_TX_GPIO_PORT              GPIOA
-#define USARTx_TX_AF                     GPIO_AF7_USART1
-#define USARTx_RX_PIN                    GPIO_PIN_10
-#define USARTx_RX_GPIO_PORT              GPIOA
-#define USARTx_RX_AF                     GPIO_AF7_USART1
+#define USART1_TX_PIN                    GPIO_PIN_9
+#define USART1_TX_GPIO_PORT              GPIOA
+#define USART1_TX_AF                     GPIO_AF7_USART1
+#define USART1_RX_PIN                    GPIO_PIN_10
+#define USART1_RX_GPIO_PORT              GPIOA
+#define USART1_RX_AF                     GPIO_AF7_USART1
 
 static UART_HandleTypeDef handle;
 
+// This function is called by HAL_UART_Init().
 void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 {
+  if (huart != &handle)
+  {
+    //  !! harcoded only for USART1, like the rest of this file.
+    return;
+  }
+
   GPIO_InitTypeDef  GPIO_InitStruct;
 
   RCC_PeriphCLKInitTypeDef RCC_PeriphClkInit;
@@ -76,7 +81,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 
   /* Select SysClk as source of USART1 clocks */
   RCC_PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
-  RCC_PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_HSI;
+  RCC_PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_SYSCLK;
   HAL_RCCEx_PeriphCLKConfig(&RCC_PeriphClkInit);
 
   /* Enable USARTx clock */
@@ -84,19 +89,19 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 
   /*##-2- Configure peripheral GPIO ##########################################*/
   /* UART TX GPIO pin configuration  */
-  GPIO_InitStruct.Pin       = USARTx_TX_PIN;
+  GPIO_InitStruct.Pin       = USART1_TX_PIN;
   GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull      = GPIO_PULLUP;
   GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
-  GPIO_InitStruct.Alternate = USARTx_TX_AF;
+  GPIO_InitStruct.Alternate = USART1_TX_AF;
 
-  HAL_GPIO_Init(USARTx_TX_GPIO_PORT, &GPIO_InitStruct);
+  HAL_GPIO_Init(USART1_TX_GPIO_PORT, &GPIO_InitStruct);
 
   /* UART RX GPIO pin configuration  */
-  GPIO_InitStruct.Pin = USARTx_RX_PIN;
-  GPIO_InitStruct.Alternate = USARTx_RX_AF;
+  GPIO_InitStruct.Pin = USART1_RX_PIN;
+  GPIO_InitStruct.Alternate = USART1_RX_AF;
 
-  HAL_GPIO_Init(USARTx_RX_GPIO_PORT, &GPIO_InitStruct);
+  HAL_GPIO_Init(USART1_RX_GPIO_PORT, &GPIO_InitStruct);
 }
 
 static void usart_init1_early(USART_TypeDef *usart, uint32_t baud, uint16_t flowcontrol, int irqn)

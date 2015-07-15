@@ -87,11 +87,15 @@ void SystemInit(void)
   */
 void SystemClock_Config(void)
 {
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_OscInitTypeDef RCC_OscInitStruct;
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   HAL_StatusTypeDef ret = HAL_OK;
 
+#if 0
   /* Enable HSE Oscillator and activate PLL with HSE as source */
+  // This is not working, the result is a funky 69.1 MHz speed and
+  // the USART1 cannot use HSE as its source, nor can use SYSCLK, in
+  // other words, something is not kosher.
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -100,7 +104,19 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLN = 432;  
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 9;
-  
+#else
+  /* Enable HSI Oscillator and activate PLL with HSE as source */
+  RCC_OscInitStruct.OscillatorType    = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState          = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue  = 16;
+  RCC_OscInitStruct.PLL.PLLState      = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource     = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM          = 16;
+  RCC_OscInitStruct.PLL.PLLN          = 432;
+  RCC_OscInitStruct.PLL.PLLP          = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ          = 9;
+#endif
+
   ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
   if(ret != HAL_OK)
   {
