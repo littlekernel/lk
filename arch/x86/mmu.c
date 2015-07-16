@@ -569,7 +569,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 	arch_flags_t ret_flags;
 	status_t stat;
 
-	if(!paddr || !flags)
+	if(!paddr)
 		return ERR_INVALID_ARGS;
 
 	DEBUG_ASSERT(x86_get_cr3());
