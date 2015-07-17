@@ -171,10 +171,10 @@ int uart_putc(int port, char c)
 int uart_getc(int port, bool wait)
 {
   char c;
-  HAL_StatusTypeDef hs =  HAL_UART_Receive_IT(&handle, &icc, 1);
+  HAL_StatusTypeDef hs =  HAL_UART_Receive_IT(&handle, (uint8_t *)&icc, 1);
   if (hs != HAL_OK)
     return -1;
-  if (cbuf_read_char(&uart1_rx_buf, (char*) &c, wait) == 0)
+  if (cbuf_read_char(&uart1_rx_buf, &c, wait) == 0)
     return -1;
   return c;
 }
