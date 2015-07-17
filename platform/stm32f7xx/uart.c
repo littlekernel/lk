@@ -102,6 +102,12 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
   GPIO_InitStruct.Alternate = USART1_RX_AF;
 
   HAL_GPIO_Init(USART1_RX_GPIO_PORT, &GPIO_InitStruct);
+
+  /*##-3- Configure the NVIC for UART ########################################*/   
+  /* NVIC for USARTx */
+  HAL_NVIC_SetPriority(USART1_IRQn, 0, 1);
+  HAL_NVIC_EnableIRQ(USART1_IRQn);
+  ITM_SendChar('@');
 }
 
 static void usart_init1_early(USART_TypeDef *usart, uint32_t baud, uint16_t flowcontrol, int irqn)
@@ -117,21 +123,11 @@ static void usart_init1_early(USART_TypeDef *usart, uint32_t baud, uint16_t flow
     handle.Init.OverSampling = UART_OVERSAMPLING_8;
 
     HAL_UART_Init(&handle);
-#if 0
-    HAL_USART_ITConfig(usart, USART_IT_RXNE, DISABLE);
-    NVIC_DisableIRQ(irqn);
-    HAL_USART_Cmd(usart, ENABLE);
-#endif
 }
 
 static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf, size_t rxsize)
 {
     cbuf_initialize(rxbuf, rxsize);
-#if 0
-    USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
-    NVIC_EnableIRQ(irqn);
-    USART_Cmd(usart, ENABLE);
-#endif
 }
 
 void uart_init_early(void)
@@ -148,120 +144,45 @@ void uart_init(void)
 #endif
 }
 
-void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
-{
-    arm_cm_irq_entry();
-
-    bool resched = false;
-#if 0
-    while (USART_GetFlagStatus(usart, USART_FLAG_RXNE)) {
-        if (!cbuf_space_avail(rxbuf)) {
-            // Overflow - let flow control do its thing by not
-            // reading the from the FIFO.
-            USART_ITConfig(usart, USART_IT_RXNE, DISABLE);
-            break;
-        }
-
-        char c = USART_ReceiveData(usart);
-        cbuf_write_char(rxbuf, c, false);
-        resched = true;
-    }
-#endif
-
-    arm_cm_irq_exit(resched);
-}
-
 #ifdef ENABLE_UART1
 void stm32_USART1_IRQ(void)
 {
-    uart_rx_irq(USART1, &uart1_rx_buf);
+    arm_cm_irq_entry();
+    ITM_SendChar('x');
+    HAL_UART_IRQHandler(&handle);
+    ITM_SendChar('y');
+    arm_cm_irq_exit(true);
 }
 #endif
 
-static void usart_putc(USART_TypeDef *usart, char c)
+static char icc;
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    //HAL_StatusTypeDef HAL_USART_Transmit(USART_HandleTypeDef *husart, uint8_t *pTxData, uint16_t Size, uint32_t Timeout);
-
-    HAL_UART_Transmit(&handle, (uint8_t *)&c, 1, HAL_MAX_DELAY);
-}
-
-static int usart_getc(USART_TypeDef *usart, cbuf_t *rxbuf, bool wait)
-{
-    //HAL_StatusTypeDef HAL_UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
-
-    uint8_t c;
-    HAL_StatusTypeDef ret = HAL_UART_Receive(&handle, &c, 1, 0);
-    if (ret == HAL_OK)
-        return c;
-
-    return -1;
-#if 0
-    unsigned char c;
-    if (cbuf_read_char(rxbuf, (char*) &c, wait) == 0)
-        return -1;
-
-    if (cbuf_space_avail(rxbuf) > cbuf_size(rxbuf))
-        USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
-
-    return c;
-#endif
-}
-
-static USART_TypeDef *get_usart(int port)
-{
-    switch (port) {
-#ifdef ENABLE_UART1
-    case 1: return USART1;
-#endif
-#ifdef ENABLE_UART2
-    case 2: return USART2;
-#endif
-#ifdef ENABLE_UART3
-    case 3: return USART3;
-#endif
-#ifdef ENABLE_UART6
-    case 6: return USART6;
-#endif
-    default:
-        ASSERT(false);
-        return 0;
-    }
-}
-
-static cbuf_t *get_rxbuf(int port)
-{
-    switch (port) {
-#ifdef ENABLE_UART1
-    case 1: return &uart1_rx_buf;
-#endif
-#ifdef ENABLE_UART2
-    case 2: return &uart2_rx_buf;
-#endif
-#ifdef ENABLE_UART3
-    case 3: return &uart3_rx_buf;
-#endif
-#ifdef ENABLE_UART6
-    case 6: return &uart6_rx_buf;
-#endif
-    default:
-        ASSERT(false);
-        return 0;
-    }
+    cbuf_write_char(&uart1_rx_buf, icc, false);
+    ITM_SendChar(icc);
 }
 
 int uart_putc(int port, char c)
-{
-    USART_TypeDef *usart = get_usart(port);
-    usart_putc(usart, c);
+{ 
+    HAL_StatusTypeDef hs = HAL_UART_Transmit(&handle, (uint8_t *)&c, 1, HAL_MAX_DELAY);
+    if (hs != HAL_OK)
+      return -1;
+    ITM_SendChar('.');
     return 1;
 }
 
 int uart_getc(int port, bool wait)
 {
-    cbuf_t *rxbuf = get_rxbuf(port);
-    USART_TypeDef *usart = get_usart(port);
-
-    return usart_getc(usart, rxbuf, wait);
+    char c;
+    HAL_StatusTypeDef hs =  HAL_UART_Receive_IT(&handle, &icc, 1);
+    if (hs != HAL_OK)
+      return -1;
+    ITM_SendChar('g');
+    if (cbuf_read_char(&uart1_rx_buf, (char*) &c, wait) == 0)
+        return -1;
+    ITM_SendChar('h');
+    return c;
 }
 
 void uart_flush_tx(int port) {}

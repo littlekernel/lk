@@ -148,7 +148,6 @@ void platform_early_init(void)
 {
     // Crank up the clock before initing timers.
     SystemInit();
-
     SystemClock_Config();
 
 #if 0
@@ -161,6 +160,8 @@ void platform_early_init(void)
 
     stm32_timer_early_init();
     stm32_gpio_early_init();
+
+    ITM_SendChar('1');
 }
 
 void platform_init(void)
@@ -171,4 +172,6 @@ void platform_init(void)
     printf("hclk %u\n", hclk);
 
     stm32_timer_init();
+
+    ITM_SendChar('2');
 }
