@@ -30,7 +30,8 @@ GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 
 GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
+	$(LOCAL_DIR)/include \
+	$(LOCAL_DIR)/include/dev
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
@@ -38,7 +39,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/debug.c \
-	$(LOCAL_DIR)/uart.c 
+	$(LOCAL_DIR)/uart.c \
+	$(LOCAL_DIR)/flash.c
 
 # use a two segment memory layout, where all of the read-only sections 
 # of the binary reside in rom, and the read/write are in memory. The 
@@ -50,7 +52,8 @@ LINKER_SCRIPT += \
 
 MODULE_DEPS += \
 	arch/arm/arm-m/systick \
-	lib/cbuf
+	lib/cbuf \
+	lib/bio
 
 include $(LOCAL_DIR)/STM32F4xx_StdPeriph_Driver/rules.mk $(LOCAL_DIR)/CMSIS/rules.mk
 
