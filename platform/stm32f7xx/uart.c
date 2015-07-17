@@ -68,6 +68,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
   if (huart != &handle)
   {
     //  !! harcoded only for USART1, like the rest of this file.
+    ITM_SendChar('!');
     return;
   }
 
@@ -107,82 +108,75 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
   /* NVIC for USARTx */
   HAL_NVIC_SetPriority(USART1_IRQn, 0, 1);
   HAL_NVIC_EnableIRQ(USART1_IRQn);
-  ITM_SendChar('@');
 }
 
 static void usart_init1_early(USART_TypeDef *usart, uint32_t baud, uint16_t flowcontrol, int irqn)
 {
-    handle.Instance = usart;
-
-    handle.Init.BaudRate = baud;
-    handle.Init.WordLength = UART_WORDLENGTH_8B;
-    handle.Init.StopBits = UART_STOPBITS_1;
-    handle.Init.Parity = UART_PARITY_NONE;
-    handle.Init.Mode = UART_MODE_TX_RX;
-    handle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
-    handle.Init.OverSampling = UART_OVERSAMPLING_8;
-
-    HAL_UART_Init(&handle);
+  handle.Instance = usart;
+  handle.Init.BaudRate = baud;
+  handle.Init.WordLength = UART_WORDLENGTH_8B;
+  handle.Init.StopBits = UART_STOPBITS_1;
+  handle.Init.Parity = UART_PARITY_NONE;
+  handle.Init.Mode = UART_MODE_TX_RX;
+  handle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  handle.Init.OverSampling = UART_OVERSAMPLING_8;
+  HAL_UART_Init(&handle);
 }
 
 static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf, size_t rxsize)
 {
-    cbuf_initialize(rxbuf, rxsize);
+  cbuf_initialize(rxbuf, rxsize);
 }
 
 void uart_init_early(void)
 {
 #if ENABLE_UART1  
-    usart_init1_early(USART1, UART1_BAUDRATE, 0, USART1_IRQn);
+  usart_init1_early(USART1, UART1_BAUDRATE, 0, USART1_IRQn);
 #endif
 }
 
 void uart_init(void)
 {
 #ifdef ENABLE_UART1
-    usart_init1(USART1, USART1_IRQn, &uart1_rx_buf, UART1_RXBUF_SIZE);
+  usart_init1(USART1, USART1_IRQn, &uart1_rx_buf, UART1_RXBUF_SIZE);
 #endif
 }
 
 #ifdef ENABLE_UART1
 void stm32_USART1_IRQ(void)
 {
-    arm_cm_irq_entry();
-    ITM_SendChar('x');
-    HAL_UART_IRQHandler(&handle);
-    ITM_SendChar('y');
-    arm_cm_irq_exit(true);
+  arm_cm_irq_entry();
+  HAL_UART_IRQHandler(&handle);
+  arm_cm_irq_exit(true);
 }
 #endif
 
+// TODO: remove icc hack.
 static char icc;
 
+// Thi function is called from HAL_UART_IRQHandler().
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    cbuf_write_char(&uart1_rx_buf, icc, false);
-    ITM_SendChar(icc);
+  cbuf_write_char(&uart1_rx_buf, icc, false);  
 }
 
 int uart_putc(int port, char c)
 { 
-    HAL_StatusTypeDef hs = HAL_UART_Transmit(&handle, (uint8_t *)&c, 1, HAL_MAX_DELAY);
-    if (hs != HAL_OK)
-      return -1;
-    ITM_SendChar('.');
-    return 1;
+  HAL_StatusTypeDef hs = HAL_UART_Transmit(&handle, (uint8_t *)&c, 1, HAL_MAX_DELAY);
+  if (hs != HAL_OK)
+    return -1;
+  return 1;
 }
 
 int uart_getc(int port, bool wait)
 {
-    char c;
-    HAL_StatusTypeDef hs =  HAL_UART_Receive_IT(&handle, &icc, 1);
-    if (hs != HAL_OK)
-      return -1;
-    ITM_SendChar('g');
-    if (cbuf_read_char(&uart1_rx_buf, (char*) &c, wait) == 0)
-        return -1;
-    ITM_SendChar('h');
-    return c;
+  char c;
+  HAL_StatusTypeDef hs =  HAL_UART_Receive_IT(&handle, &icc, 1);
+  if (hs != HAL_OK)
+    return -1;
+  if (cbuf_read_char(&uart1_rx_buf, (char*) &c, wait) == 0)
+    return -1;
+  return c;
 }
 
 void uart_flush_tx(int port) {}
