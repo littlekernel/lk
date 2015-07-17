@@ -26,6 +26,14 @@
 #include <kernel/thread.h>
 #include <platform.h>
 
+struct fault_handler_table_entry {
+	uint32_t pc;
+	uint32_t fault_handler;
+};
+
+extern struct fault_handler_table_entry __fault_handler_table_start[];
+extern struct fault_handler_table_entry __fault_handler_table_end[];
+
 static void dump_mode_regs(uint32_t spsr)
 {
 	struct arm_mode_regs regs;
@@ -164,10 +172,18 @@ fpu:
 
 void arm_data_abort_handler(struct arm_fault_frame *frame)
 {
+	struct fault_handler_table_entry *fault_handler;
 	uint32_t fsr = arm_read_dfsr();
 	uint32_t far = arm_read_dfar();
 
 	uint32_t fault_status = (BIT(fsr, 10) ? (1<<4) : 0) |  BITS(fsr, 3, 0);
+
+	for (fault_handler = __fault_handler_table_start; fault_handler < __fault_handler_table_end; fault_handler++) {
+		if (fault_handler->pc == frame->pc) {
+			frame->pc = fault_handler->fault_handler;
+			return;
+		}
+	}
 
 	dprintf(CRITICAL, "\n\ncpu %u data abort, ", arch_curr_cpu_num());
 	bool write = !!BIT(fsr, 11);
