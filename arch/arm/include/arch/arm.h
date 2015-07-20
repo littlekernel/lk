@@ -84,6 +84,7 @@ struct arm_fault_frame {
 	uint32_t usp;
 	uint32_t ulr;
 	uint32_t r[13];
+	uint32_t lr;
 	uint32_t pc;
 	uint32_t spsr;
 };
