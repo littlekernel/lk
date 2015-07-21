@@ -34,7 +34,7 @@ struct fault_handler_table_entry {
 extern struct fault_handler_table_entry __fault_handler_table_start[];
 extern struct fault_handler_table_entry __fault_handler_table_end[];
 
-static void dump_mode_regs(uint32_t spsr)
+static void dump_mode_regs(uint32_t spsr, uint32_t svc_r13, uint32_t svc_r14)
 {
 	struct arm_mode_regs regs;
 	arm_save_mode_regs(&regs);
@@ -42,7 +42,8 @@ static void dump_mode_regs(uint32_t spsr)
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_USR) ? '*' : ' ', "usr", regs.usr_r13, regs.usr_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_FIQ) ? '*' : ' ', "fiq", regs.fiq_r13, regs.fiq_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_IRQ) ? '*' : ' ', "irq", regs.irq_r13, regs.irq_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_SVC) ? '*' : ' ', "svc", regs.svc_r13, regs.svc_r14);
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", 'a', "svc", regs.svc_r13, regs.svc_r14);
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_SVC) ? '*' : ' ', "svc", svc_r13, svc_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_UND) ? '*' : ' ', "und", regs.und_r13, regs.und_r14);
 	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_SYS) ? '*' : ' ', "sys", regs.sys_r13, regs.sys_r14);
 
@@ -56,7 +57,7 @@ static void dump_mode_regs(uint32_t spsr)
 			stack = regs.irq_r13;
 			break;
 		case CPSR_MODE_SVC:
-			stack = regs.svc_r13;
+			stack = svc_r13;
 			break;
 		case CPSR_MODE_UND:
 			stack = regs.und_r13;
@@ -87,7 +88,7 @@ static void dump_fault_frame(struct arm_fault_frame *frame)
 	dprintf(CRITICAL, "r12 0x%08x usp 0x%08x ulr 0x%08x pc  0x%08x\n", frame->r[12], frame->usp, frame->ulr, frame->pc);
 	dprintf(CRITICAL, "spsr 0x%08x\n", frame->spsr);
 
-	dump_mode_regs(frame->spsr);
+	dump_mode_regs(frame->spsr, (uintptr_t)(frame + 1), frame->lr);
 }
 
 static void dump_iframe(struct arm_iframe *frame)
@@ -96,7 +97,7 @@ static void dump_iframe(struct arm_iframe *frame)
 	dprintf(CRITICAL, "r12 0x%08x usp 0x%08x ulr 0x%08x pc  0x%08x\n", frame->r12, frame->usp, frame->ulr, frame->pc);
 	dprintf(CRITICAL, "spsr 0x%08x\n", frame->spsr);
 
-	dump_mode_regs(frame->spsr);
+	dump_mode_regs(frame->spsr, (uintptr_t)(frame + 1), frame->lr);
 }
 
 static void exception_die(struct arm_fault_frame *frame, const char *msg)
