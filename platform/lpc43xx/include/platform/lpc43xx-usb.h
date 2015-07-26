@@ -39,7 +39,7 @@
 #define USB_MODE		0x1A8
 #define USB_ENDPTSETUPSTAT	0x1AC
 #define USB_ENDPTPRIME		0x1B0
-#define USB_ENDPTFLUS		0x1B4
+#define USB_ENDPTFLUSH		0x1B4
 #define USB_ENDPTSTAT		0x1B8
 #define USB_ENDPTCOMPLETE	0x1BC
 #define USB_ENDPTCTRL(n)	(0x1C0 + (n) * 4)
@@ -115,7 +115,7 @@
 #define OTG_MS1E		(1 << 29)
 #define OTG_DPIE		(1 << 30)
 
-#define MODE_MASK		3
+//#define MODE_MASK		3
 #define MODE_IDLE		0 // write once to enter device/host mode
 #define MODE_DEVICE		2 // must reset to idle to change mode
 #define MODE_HOST		3 // nust reset to idle to change mode
@@ -127,13 +127,14 @@
 #define EPCTRL_RXS		(1 << 0) // rx ept stall
 #define EPCTRL_RX_CTRL		(0 << 2)
 #define EPCTRL_RX_ISOC		(1 << 2)
-#define EPCTLR_RX_BULK		(2 << 2)
+#define EPCTRL_RX_BULK		(2 << 2)
 #define EPCTRL_RX_INTR		(3 << 2)
 #define EPCTRL_RXR		(1 << 6) // tx data toggle reset
 #define EPCTRL_RXE		(1 << 7) // rx ept enable
+#define EPCTRL_TXS		(1 << 16) // tx ept stall
 #define EPCTRL_TX_CTRL		(0 << 18)
 #define EPCTRL_TX_ISOC		(1 << 18)
-#define EPCTLR_TX_BULK		(2 << 18)
+#define EPCTRL_TX_BULK		(2 << 18)
 #define EPCTRL_TX_INTR		(3 << 18)
 #define EPCTRL_TXR		(1 << 22) // tx data toggle reset
 #define EPCTRL_TXE		(1 << 23) // rx ept enable
@@ -153,6 +154,9 @@
 #define EP3_TX			(1 << 19)
 #define EP4_TX			(1 << 20)
 #define EP5_TX			(1 << 21)
+
+#define EPT_TX(n) (1 << ((n) + 16))
+#define EPT_RX(n) (1 << (n))
 
 #define DQH_MULT0		(0 << 30) // non-iscoh
 #define DQH_MULT1		(1 << 30) // 1 txn per td

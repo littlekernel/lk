@@ -98,8 +98,11 @@ void platform_early_init(void)
 	arm_cm_systick_init(192000000);
 }
 
+void lpc43xx_usb_init(u32 dmabase, size_t dmasize);
+
 void platform_init(void)
 {
+	lpc43xx_usb_init(0x20000000, 4096);
 }
 
 void platform_halt(platform_halt_action suggested_action,

@@ -18,7 +18,9 @@ GLOBAL_INCLUDES += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/vectab.c \
-	$(LOCAL_DIR)/debug.c
+	$(LOCAL_DIR)/debug.c \
+	$(LOCAL_DIR)/udc.c \
+	$(LOCAL_DIR)/udc-common.c
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
@@ -27,7 +29,7 @@ MODULE_DEPS += \
 	arch/arm/arm-m/systick
 
 LPCSIGNEDBIN := $(OUTBIN).sign
-LPCCHECK := platform/lpc15xx/lpccheck.py
+LPCCHECK := $(LKROOT)/platform/lpc15xx/lpccheck.py
 EXTRA_BUILDDEPS += $(LPCSIGNEDBIN)
 GENERATED += $(LPCSIGNEDBIN)
 
