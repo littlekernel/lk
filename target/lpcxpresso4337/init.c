@@ -28,9 +28,10 @@
 
 void target_early_init(void)
 {
-	// UART2 on P1.15 (TX) and P1.16 (RX)
-	writel(PIN_MODE(1) | PIN_PLAIN, PIN_CFG(1, 15));
-	writel(PIN_MODE(1) | PIN_PLAIN | PIN_INPUT, PIN_CFG(1, 16));
+	// UART1 on P6.4 (TX) and P2.1 (RX)
+	// LpcXpresso4337 P4 FTDI header
+	writel(PIN_MODE(2) | PIN_PLAIN, PIN_CFG(6, 4));
+	writel(PIN_MODE(1) | PIN_PLAIN | PIN_INPUT, PIN_CFG(2, 1));
 }
 
 void target_init(void)
