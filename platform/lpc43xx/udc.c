@@ -30,6 +30,7 @@
 #include <reg.h>
 #include <arch/arm/cm.h>
 #include <kernel/thread.h>
+#include <kernel/spinlock.h>
 
 #include <platform/lpc43xx-usb.h>
 static_assert(sizeof(usb_dqh_t) == 64);
@@ -42,8 +43,16 @@ static_assert(sizeof(usb_dtd_t) == 32);
 #define F_LL_INIT	1
 #define F_UDC_INIT	2
 
+// NOTE: I cheat a bit with the locking because this is a UP Cortex-M
+// NOTE: device.  I use spinlocks for code that might be called from
+// NOTE: userspace or irq context, but for the irq-only code I don't
+// NOTE: bother with locking because it's impossible for it to execute
+// NOTE: while the lock is held from userspace.
+
 typedef struct {
 	u32 base;
+	spin_lock_t lock;
+
 	usb_dqh_t *qh;
 	usb_dtd_t *dtd_freelist;
 
@@ -181,20 +190,26 @@ static void endpoint_enable(usb_t *usb, udc_endpoint_t *ept, unsigned yes)
 
 udc_request_t *udc_request_alloc(void)
 {
+	spin_lock_saved_state_t state;
 	usb_request_t *req;
 	if ((req = malloc(sizeof(*req))) == NULL) {
 		return NULL;
 	}
-	// todo: locking
+
+	spin_lock_irqsave(&USB.lock, state);
 	if (USB.dtd_freelist == NULL) {
+		spin_unlock_irqrestore(&USB.lock, state);
 		free(req);
 		return NULL;
+	} else {
+		req->dtd = USB.dtd_freelist;
+		USB.dtd_freelist = req->dtd->next;
+		spin_unlock_irqrestore(&USB.lock, state);
+
+		req->req.buffer = 0;
+		req->req.length = 0;
+		return &req->req;
 	}
-	req->dtd = USB.dtd_freelist;
-	USB.dtd_freelist = req->dtd->next;
-	req->req.buffer = 0;
-	req->req.length = 0;
-	return &req->req;
 }
 
 void udc_request_free(struct udc_request *req)
@@ -205,6 +220,7 @@ void udc_request_free(struct udc_request *req)
 
 int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req)
 {
+	spin_lock_saved_state_t state;
 	usb_request_t *req = (usb_request_t *) _req;
 	usb_dtd_t *dtd = req->dtd;
 	unsigned phys = (unsigned) req->req.buffer;
@@ -218,11 +234,12 @@ int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req)
 	dtd->bptr3 = phys + 0x3000;
 	dtd->bptr4 = phys + 0x4000;
 
-	// todo: locking
+	spin_lock_irqsave(&ept->usb->lock, state);
 	ept->head->next_dtd = (unsigned) dtd;
 	ept->head->dtd_config = 0;
 	ept->req = req;
 	writel(ept->bit, ept->usb->base + USB_ENDPTPRIME);
+	spin_unlock_irqrestore(&ept->usb->lock, state);
 
 	DBG("ept%d %s queue req=%p\n", ept->num, ept->in ? "in" : "out", req);
 	return 0;
