@@ -22,19 +22,23 @@
  */
 
 #include <reg.h>
-#include <debug.h>
-
 #include <platform/lpc43xx-gpio.h>
 
-void target_early_init(void)
-{
-	// UART1 on P6.4 (TX) and P2.1 (RX)
-	// LpcXpresso4337 P4 FTDI header
-	pin_config(PIN(6,4), PIN_MODE(2) | PIN_PLAIN);
-	pin_config(PIN(2,1), PIN_MODE(1) | PIN_PLAIN | PIN_INPUT);
+inline int gpio_config(unsigned nr, unsigned flags) {
+	unsigned m = _GPIOm(nr);
+	unsigned n = _GPIOn(nr);
+	if (flags & GPIO_INPUT) {
+		writel(readl(GPIO_DIR(m)) & (~(1 << n)), GPIO_DIR(m));
+	} else {
+		writel(readl(GPIO_DIR(m)) | (1 << n), GPIO_DIR(m));
+	}
+	return 0;
 }
 
-void target_init(void)
-{
+inline void gpio_set(unsigned nr, unsigned on) {
+	writel(on, GPIO_WORD(nr));
 }
 
+inline int gpio_get(unsigned nr) {
+	return readl(GPIO_WORD(nr)) & 1;
+}

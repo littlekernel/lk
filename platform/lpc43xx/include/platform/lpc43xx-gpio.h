@@ -23,9 +23,16 @@
 
 #pragma once
 
-// pinmux
+#include <dev/gpio.h>
 
-#define PIN_CFG(m,n)	(0x40086000 + ((m) * 0x80) + ((n) * 4))
+// pinmux
+#define PIN(m,n)	((((m) & 0xFF) << 8) | ((n) & 0xFF))
+#define _PINm(nr)	(((nr) >> 8) & 0xFF)
+#define _PINn(nr)	((nr) & 0xFF)
+
+#define _PIN_CFG(m,n)	(0x40086000 + ((m) * 0x80) + ((n) * 4))
+#define PIN_CFG(nr)	_PIN_CFG(_PINm(nr),_PINn(nr))
+
 #define PIN_MODE(n)	((n) & 3)
 #define PIN_PULLUP	(0 << 3) // pull-up, no pull-down
 #define PIN_REPEATER	(1 << 3) // repeater mode
@@ -36,15 +43,24 @@
 #define PIN_INPUT	(1 << 6) // enable input buffer, required for inputs
 #define PIN_FILTER	(1 << 7) // enable glitch filter, not for >30MHz signals
 
+static inline void pin_config(unsigned nr, unsigned flags) {
+	writel(flags, PIN_CFG(nr));
+}
+
 // gpio
+#define GPIO(m,n) ((((m) & 0xFF) << 8) | ((n) & 0xFF))
+#define _GPIOm(nr)	(((nr) >> 8) & 0xFF)
+#define _GPIOn(nr)	((nr) & 0xFF)
 
 // each GPIO as a single byte or word register
 // write zero to clear
 // write non-zero to set
 // reads as zero if input is low
 // reads as FF (byte) or FFFFFFFF (word) if input is high
-#define GPIO_BYTE(m,n)	(0x400F4000 + ((m) * 0x20) + (n))
-#define GPIO_WORD(m,n)	(0x400F5000 + ((m) * 0x80) + ((n) * 4))
+#define _GPIO_BYTE(m,n)	(0x400F4000 + ((m) * 0x20) + (n))
+#define _GPIO_WORD(m,n)	(0x400F5000 + ((m) * 0x80) + ((n) * 4))
+#define GPIO_BYTE(nr)	_GPIO_BYTE(_GPIOm(nr),_GPIOn(nr))
+#define GPIO_WORD(nr)	_GPIO_WORD(_GPIOm(nr),_GPIOn(nr))
 
 // GPIOs grouped by port, with one bit per pin
 #define GPIO_DIR(m)	(0x400F6000 + ((m) * 4)) // 1 = output, 0 = input
@@ -55,6 +71,3 @@
 #define GPIO_SET(m)	(0x400F6200 + ((m) * 4)) // write 1s to set
 #define GPIO_CLR(m)	(0x400F6280 + ((m) * 4)) // write 1s to clear
 #define GPIO_NOT(m)	(0x400F6300 + ((m) * 4)) // write 1s to invert
-
-
-

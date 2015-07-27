@@ -17,6 +17,7 @@ GLOBAL_INCLUDES += \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/vectab.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/udc.c \

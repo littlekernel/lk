@@ -31,16 +31,16 @@
 void target_early_init(void)
 {
 	// UART2 on P2.10 (TX) and P2.11 (RX)
-	writel(PIN_MODE(2) | PIN_PLAIN, PIN_CFG(2, 10));
-	writel(PIN_MODE(2) | PIN_PLAIN | PIN_INPUT, PIN_CFG(2, 11));
+	pin_config(PIN(2,10), PIN_MODE(2) | PIN_PLAIN);
+	pin_config(PIN(2,11), PIN_MODE(2) | PIN_PLAIN | PIN_INPUT);
 
 	// SPIFI
-	writel(PIN_MODE(3) | PIN_PLAIN, PIN_CFG(3,3)); // SPIFI_SCK
-	writel(PIN_MODE(3) | PIN_PLAIN | PIN_INPUT, PIN_CFG(3, 4)); // SPIFI_SIO3
-	writel(PIN_MODE(3) | PIN_PLAIN | PIN_INPUT, PIN_CFG(3, 5)); // SPIFI_SIO2
-	writel(PIN_MODE(3) | PIN_PLAIN | PIN_INPUT, PIN_CFG(3, 6)); // SPIFI_MISO
-	writel(PIN_MODE(3) | PIN_PLAIN | PIN_INPUT, PIN_CFG(3, 7)); // SPIFI_MOSI
-	writel(PIN_MODE(3) | PIN_PLAIN, PIN_CFG(3, 8)); // SPIFI_CS
+	pin_config(PIN(3,3), PIN_MODE(3) | PIN_PLAIN); // SPIFI_SCK
+	pin_config(PIN(3,4), PIN_MODE(3) | PIN_PLAIN | PIN_INPUT); // SPIFI_SIO3
+	pin_config(PIN(3,5), PIN_MODE(3) | PIN_PLAIN | PIN_INPUT); // SPIFI_SIO2
+	pin_config(PIN(3,6), PIN_MODE(3) | PIN_PLAIN | PIN_INPUT); // SPIFI_MISO
+	pin_config(PIN(3,7), PIN_MODE(3) | PIN_PLAIN | PIN_INPUT); // SPIFI_MOSI
+	pin_config(PIN(3,8), PIN_MODE(3) | PIN_PLAIN); // SPIFI_CS
 }
 
 void target_init(void)
