@@ -61,14 +61,20 @@ void lpc43xx_debug_early_init(void)
 	writel(0, UART_BASE + REG_DLM);
 	writel(FDR_DIVADDVAL(5) | FDR_MULVAL(8), UART_BASE + REG_FDR);
 #else
+#ifdef WITH_NO_CLOCK_INIT
+	writel(BASE_CLK_SEL(CLK_IDIVC), base_uart_clk[TARGET_DEBUG_UART - 1]);
+#define CADJ 1
+#else
 	writel(BASE_CLK_SEL(CLK_PLL1), base_uart_clk[TARGET_DEBUG_UART - 1]);
+#define CADJ 2
+#endif
 	writel(LCR_DLAB, UART_BASE + REG_LCR);
 #if TARGET_DEBUG_BAUDRATE == 1000000
-	writel(12, UART_BASE + REG_DLL);
+	writel(6 * CADJ, UART_BASE + REG_DLL);
 #elif TARGET_DEBUG_BAUDRATE == 2000000
-	writel(6, UART_BASE + REG_DLL);
+	writel(3 * CADJ, UART_BASE + REG_DLL);
 #elif TARGET_DEBUG_BAUDRATE == 3000000
-	writel(4, UART_BASE + REG_DLL);
+	writel(2 * CADJ, UART_BASE + REG_DLL);
 #else
 #error Unsupported TARGET_DEBUG_BAUDRATE
 #endif

@@ -32,6 +32,7 @@ void lpc43xx_debug_early_init(void);
 
 void platform_early_init(void)
 {
+#ifndef WITH_NO_CLOCK_INIT
 	unsigned cfg;
 	// Different boot modes will enable different sets of clocks.
 	// To keep it simple, we drop back to the 12MHz internal osc,
@@ -94,8 +95,11 @@ void platform_early_init(void)
 	writel(IDIV_CLK_SEL(CLK_PLL0USB) | IDIV_N(4), IDIVA_CTRL);
 	writel(BASE_CLK_SEL(CLK_IDIVA), BASE_OUT_CLK);
 #endif
-	lpc43xx_debug_early_init();
 	arm_cm_systick_init(192000000);
+#else
+	arm_cm_systick_init(96000000);
+#endif
+	lpc43xx_debug_early_init();
 }
 
 void lpc43xx_usb_init(u32 dmabase, size_t dmasize);
