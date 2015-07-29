@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
  * Copyright (c) 2013 Travis Geiselbrecht
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -37,7 +38,7 @@ SECTIONS
 		__rodata_start = .;
 		*(.rodata*)
 		*(.gnu.linkonce.r.*)
-INCLUDE "arch/shared_rodata_sections.ld"
+INCLUDE "arch/x86-64/shared_rodata_sections.ld"
 		. = ALIGN(8);
 		__rodata_end = .;
 	}
@@ -45,7 +46,7 @@ INCLUDE "arch/shared_rodata_sections.ld"
 	.data : ALIGN(4096) {
 		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
-INCLUDE "arch/shared_data_sections.ld"
+INCLUDE "arch/x86-64/shared_data_sections.ld"
 	}
 	__ctor_list = .;
 	.ctors : { KEEP(*(.ctors)) }

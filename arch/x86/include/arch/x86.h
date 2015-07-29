@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -30,13 +31,13 @@
 
 __BEGIN_CDECLS
 
-#define PFEX_P			0x01
-#define PFEX_W			0x02
-#define PFEX_U			0x04
-#define PFEX_RSV		0x08
-#define PFEX_I			0x10
-#define X86_8BYTE_MASK		0xFFFFFFFF
-#define X86_CPUID_ADDR_WIDTH	0x80000008
+#define PFEX_P 0x01
+#define PFEX_W 0x02
+#define PFEX_U 0x04
+#define PFEX_RSV 0x08
+#define PFEX_I 0x10
+#define X86_8BYTE_MASK 0xFFFFFFFF
+#define X86_CPUID_ADDR_WIDTH 0x80000008
 
 void arch_mmu_init(void);
 addr_t *x86_create_new_cr3(void);
@@ -156,7 +157,6 @@ static inline void x86_restore_eflags(uint32_t eflags)
                 :: "g" (eflags)
                 : "memory", "cc");
 }
-
 
 #define rdtsc(low,high) \
      __asm__ __volatile__("rdtsc" : "=a" (low), "=d" (high))
@@ -412,17 +412,7 @@ static inline uint32_t x86_is_PAE_enabled(void)
 
 	return true;
 }
-static inline uint32_t lapic_avail(void)
-{
-	uint32_t smp = 0x01;
-	__asm__ __volatile__ (
-		"cpuid \n\t"
-		:"=d" (smp)
-		:"a" (smp));
-	return ((smp>>0x08) & 0x1);
-	//return smp;
 
-}
 static inline uint32_t check_smep_avail(void)
 {
 	uint32_t reg_a = 0x07;
@@ -433,7 +423,6 @@ static inline uint32_t check_smep_avail(void)
 		:"=b" (reg_b)
 		:"a" (reg_a),"c" (reg_c));
 	return ((reg_b>>0x06) & 0x1);
-
 }
 
 static inline uint32_t check_smap_avail(void)
@@ -446,7 +435,7 @@ static inline uint32_t check_smap_avail(void)
 		:"=b" (reg_b)
 		:"a" (reg_a),"c" (reg_c));
 	return ((reg_b>>0x13) & 0x1);
-
 }
+
 __END_CDECLS
 #endif

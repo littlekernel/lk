@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -79,17 +80,19 @@ void x86_unhandled_exception(struct x86_iframe *frame)
 void x86_pfe_handler(struct x86_iframe *frame)
 {
 	/* Handle a page fault exception */
-	addr_t v_addr, ssp, esp, ip, rip;
 	uint32_t error_code;
 	thread_t *current_thread;
-	v_addr = x86_get_cr2();
 	error_code = frame->err_code;
+
+#ifdef PAGE_FAULT_DEBUG_INFO
+	addr_t v_addr, ssp, esp, ip, rip;
+	v_addr = x86_get_cr2();
+
 	ssp = frame->user_ss & X86_8BYTE_MASK;
 	esp = frame->user_esp;
 	ip  = frame->cs & X86_8BYTE_MASK;
 	rip = frame->eip;
 
-#ifdef PAGE_FAULT_DEBUG_INFO
 	dprintf(CRITICAL, "<PAGE FAULT> Instruction Pointer   = 0x%x:0x%x\n",
 		(unsigned int)ip,
 		(unsigned int)rip);

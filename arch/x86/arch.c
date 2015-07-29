@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,6 +21,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
 #include <debug.h>
 #include <arch.h>
 #include <arch/ops.h>
@@ -31,8 +33,7 @@
 #include <string.h>
 
 tss_t system_tss;
-static void* allocate_tss(void);
-uint32_t default_tss = 0;
+
 void arch_early_init(void)
 {
 	/* enable caches here for now */
@@ -51,18 +52,10 @@ void arch_early_init(void)
 	x86_ltr(TSS_SELECTOR);
 }
 
-
-/* Kernel does not need tss if running without user space */
-static inline void set_kernel_tss(void)
-{
-	default_tss = NULL;
-	system_tss.esp0 = default_tss; 
-}
 void arch_init(void)
 {
-	/* Kernel Space tss can be NULL */
-	set_kernel_tss();
 }
+
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
     PANIC_UNIMPLEMENTED;
