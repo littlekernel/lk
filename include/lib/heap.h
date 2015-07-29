@@ -25,6 +25,9 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <compiler.h>
+
+__BEGIN_CDECLS;
 
 struct heap_stats {
 	void* heap_start;
@@ -44,5 +47,7 @@ void heap_get_stats(struct heap_stats *ptr);
 
 /* critical section time delayed free */
 void heap_delayed_free(void *);
+
+__END_CDECLS;
 
 #endif

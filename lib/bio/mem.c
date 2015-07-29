@@ -85,7 +85,7 @@ int create_membdev(const char *name, void *ptr, size_t len)
 	mem_bdev_t *mem = malloc(sizeof(mem_bdev_t));
 
 	/* set up the base device */
-	bio_initialize_bdev(&mem->dev, name, BLOCKSIZE, len / BLOCKSIZE);
+	bio_initialize_bdev(&mem->dev, name, BLOCKSIZE, len / BLOCKSIZE, 0, NULL);
 
 	/* our bits */
 	mem->ptr = ptr;

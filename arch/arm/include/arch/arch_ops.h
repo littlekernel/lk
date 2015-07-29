@@ -29,6 +29,8 @@
 #include <reg.h>
 #include <arch/arm.h>
 
+__BEGIN_CDECLS;
+
 #if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
 #define USE_GCC_ATOMICS 0
 #define ENABLE_CYCLE_COUNTER 1
@@ -316,6 +318,8 @@ static inline uint32_t arch_cycle_count(void) { return _arch_cycle_count(); }
 #define smp_wmb()   CF
 #define smp_rmb()   CF
 #endif
+
+__END_CDECLS;
 
 #endif // ASSEMBLY
 

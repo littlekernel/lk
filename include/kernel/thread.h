@@ -33,6 +33,8 @@
 #include <kernel/spinlock.h>
 #include <debug.h>
 
+__BEGIN_CDECLS;
+
 enum thread_state {
 	THREAD_SUSPENDED = 0,
 	THREAD_READY,
@@ -166,12 +168,18 @@ static inline __ALWAYS_INLINE uintptr_t tls_get(uint entry)
 	return get_current_thread()->tls[entry];
 }
 
-static inline __ALWAYS_INLINE uintptr_t tls_set(uint entry, uintptr_t val)
+static inline __ALWAYS_INLINE uintptr_t __tls_set(uint entry, uintptr_t val)
 {
 	uintptr_t oldval = get_current_thread()->tls[entry];
 	get_current_thread()->tls[entry] = val;
 	return oldval;
 }
+
+#define tls_set(e,v) \
+	({ \
+		STATIC_ASSERT((e) < MAX_TLS_ENTRY); \
+		__tls_set(e, v); \
+	})
 
 /* thread level statistics */
 #if LK_DEBUGLEVEL > 1
@@ -205,6 +213,8 @@ extern struct thread_stats thread_stats[SMP_MAX_CPUS];
 #define THREAD_STATS_INC(name) do { } while (0)
 
 #endif
+
+__END_CDECLS;
 
 #endif
 

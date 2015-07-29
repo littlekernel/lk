@@ -295,17 +295,7 @@ int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len,
         if (ptable_find(arg, &entry) < 0) {
             size_t plen = len;
             /* doesn't exist, make one */
-#if PLATFORM_ZYNQ
-            /* XXX not really the right place, should be in the ptable/bio layer */
-            plen = ROUNDUP(plen, 256*1024);
-#endif
-            off_t off = ptable_allocate(plen, 0);
-            if (off < 0) {
-                *result = "no space to allocate partition";
-                return -1;
-            }
-
-            if (ptable_add(arg, off, plen, 0) < 0) {
+            if (ptable_add(arg, plen, 0) < 0) {
                 *result = "error creating partition";
                 return -1;
             }

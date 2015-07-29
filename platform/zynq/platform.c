@@ -46,6 +46,9 @@ STATIC_ASSERT(SDRAM_SIZE != 0);
 #define ZYNQ_WATCHDOG_TIMEOUT (1000) // 1 second
 #endif
 
+/* saved REBOOT_STATUS register */
+static uint32_t saved_reboot_status;
+
 /* target can specify this as the initial jam table to set up the soc */
 __WEAK void ps7_init(void) { }
 
@@ -56,7 +59,6 @@ extern const uint32_t zynq_ddr_cfg_cnt;
 extern const zynq_pll_cfg_tree_t zynq_pll_cfg;
 extern const zynq_clk_cfg_t zynq_clk_cfg;
 extern const zynq_ddriob_cfg_t zynq_ddriob_cfg;
-
 
 static inline int reg_poll(uint32_t addr,uint32_t mask)
 {
@@ -338,6 +340,10 @@ void platform_early_init(void)
     /* zynq manual says this is mandatory for cache init */
     *REG32(SLCR_BASE + 0xa1c) = 0x020202;
 
+    /* save the reboot status register, clear bits we dont want to save */
+    saved_reboot_status = SLCR->REBOOT_STATUS;
+    SLCR->REBOOT_STATUS &= ~(0xff << 16);
+
     /* early initialize the uart so we can printf */
     uart_init_early();
 
@@ -416,7 +422,15 @@ void platform_init(void)
     /* enable if we want to see some hardware boot status */
 #if LK_DEBUGLEVEL > 0
     printf("zynq boot status:\n");
-    printf("\tREBOOT_STATUS 0x%x\n", SLCR_REG(REBOOT_STATUS));
+    printf("\tREBOOT_STATUS 0x%x\n", saved_reboot_status);
+    if (BIT(saved_reboot_status, 16)) printf("\t\tSWDT_RST\n");
+    if (BIT(saved_reboot_status, 17)) printf("\t\tAWDT0_RST\n");
+    if (BIT(saved_reboot_status, 18)) printf("\t\tAWDT1_RST\n");
+    if (BIT(saved_reboot_status, 19)) printf("\t\tSLC_RST\n");
+    if (BIT(saved_reboot_status, 20)) printf("\t\tDBG_RST\n");
+    if (BIT(saved_reboot_status, 21)) printf("\t\tSRST_B\n");
+    if (BIT(saved_reboot_status, 22)) printf("\t\tPOR\n");
+    printf("\tREBOOT_STATE 0x%lx\n", BITS_SHIFT(saved_reboot_status, 31, 24));
     printf("\tboot mode 0x%x\n", zynq_get_boot_mode());
 #endif
 }

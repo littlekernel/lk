@@ -25,6 +25,7 @@
 #include <trace.h>
 #include <printf.h>
 #include <string.h>
+#include <malloc.h>
 
 #include <kernel/thread.h>
 #include <kernel/semaphore.h>

@@ -229,12 +229,16 @@ static ssize_t bio_default_write_block(struct bdev *dev, const void *buf, bnum_t
 
 static void bdev_inc_ref(bdev_t *dev)
 {
+	LTRACEF("Add ref \"%s\" %d -> %d\n", dev->name, dev->ref, dev->ref + 1);
 	atomic_add(&dev->ref, 1);
 }
 
 static void bdev_dec_ref(bdev_t *dev)
 {
 	int oldval = atomic_add(&dev->ref, -1);
+
+	LTRACEF("Dec ref \"%s\" %d -> %d\n", dev->name, oldval, dev->ref);
+
 	if (oldval == 1) {
 		// last ref, remove it
 		DEBUG_ASSERT(!list_in_list(&dev->node));
@@ -246,7 +250,6 @@ static void bdev_dec_ref(bdev_t *dev)
 			dev->close(dev);
 
 		free(dev->name);
-		free(dev);
 	}
 }
 
@@ -255,12 +258,12 @@ size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len)
 	/* range check */
 	if (offset < 0)
 		return 0;
-	if (offset >= dev->size)
+	if (offset >= dev->total_size)
 		return 0;
 	if (len == 0)
 		return 0;
-	if (offset + len > dev->size)
-		len = dev->size - offset;
+	if (offset + len > dev->total_size)
+		len = dev->total_size - offset;
 
 	return len;
 }
@@ -281,6 +284,8 @@ bdev_t *bio_open(const char *name)
 {
 	bdev_t *bdev = NULL;
 
+	LTRACEF(" '%s'\n", name);
+
 	/* see if it's in our list */
 	bdev_t *entry;
 	mutex_acquire(&bdevs->lock);
@@ -300,7 +305,7 @@ bdev_t *bio_open(const char *name)
 void bio_close(bdev_t *dev)
 {
 	DEBUG_ASSERT(dev);
-
+	LTRACEF(" '%s'\n", dev->name);
 	bdev_dec_ref(dev);
 }
 
@@ -385,19 +390,69 @@ int bio_ioctl(bdev_t *dev, int request, void *argp)
 	}
 }
 
-void bio_initialize_bdev(bdev_t *dev, const char *name, size_t block_size, bnum_t block_count)
+void bio_initialize_bdev(bdev_t *dev,
+						 const char *name,
+						 size_t block_size,
+						 bnum_t block_count,
+						 size_t geometry_count,
+						 const bio_erase_geometry_info_t* geometry)
 {
 	DEBUG_ASSERT(dev);
 	DEBUG_ASSERT(name);
-	DEBUG_ASSERT(ispow2(block_size));
+
+	// Block size must be finite powers of 2
+	DEBUG_ASSERT(block_size && ispow2(block_size));
 
 	list_clear_node(&dev->node);
 	dev->name = strdup(name);
 	dev->block_size = block_size;
-	dev->block_shift = log2_uint(block_size);
 	dev->block_count = block_count;
-	dev->size = (off_t)block_count * block_size;
+	dev->block_shift = log2_uint(block_size);
+	dev->total_size = (off_t)block_count << dev->block_shift;
+	dev->geometry_count = geometry_count;
+	dev->geometry = geometry;
 	dev->ref = 0;
+
+#if DEBUG
+	// If we have been supplied information about our erase geometry, sanity
+	// check it in debug bulids.
+	if (geometry_count && geometry) {
+		for (size_t i = 0; i < geometry_count; ++i) {
+			bio_erase_geometry_info_t* info = geometry + i;
+
+			// Erase sizes must be powers of two and agree with the supplied erase shift.
+			DEBUG_ASSERT(info->erase_size);
+			DEBUG_ASSERT(info->erase_size == ((size_t)1 << info->erase_shift));
+
+			info->start       = desc->start;
+			info->erase_size  = desc->erase_size;
+			info->erase_shift = log2_uint(desc->erase_size);
+			info->size        = ((off_t)desc->block_count) << desc->block_size;
+
+			// Make sure that region is aligned on both a program and erase block boundary.
+			DEBUG_ASSERT(!(info->start & (((off_t)1 << info->block_shift) - 1)));
+			DEBUG_ASSERT(!(info->start & (((off_t)1 << info->erase_shift) - 1)));
+
+			// Make sure that region's length is an integral multiple of both the
+			// program and erase block size.
+			DEBUG_ASSERT(!(info->size & (((off_t)1 << dev->block_shift) - 1)));
+			DEBUG_ASSERT(!(info->size & (((off_t)1 << info->erase_shift) - 1)));
+		}
+
+		// Make sure that none of the regions overlap each other and that they are
+		// listed in ascending order.
+		for (size_t i = 0; (i + 1) < geometry_count; ++i) {
+			bio_geometry_info_t* r1 = dev->geometry + i;
+			bio_geometry_info_t* r2 = dev->geometry + i + 1;
+			DEBUG_ASSERT(r1->start <= r2->start);
+
+			for (size_t j = (i + 1); j < geometry_count; ++j) {
+				bio_geometry_info_t* r2 = dev->geometry + j;
+				DEBUG_ASSERT(!bio_does_overlap(r1->start, r1->size, r2->start, r2->size));
+			}
+		}
+	}
+#endif
 
 	/* set up the default hooks, the sub driver should override the block operations at least */
 	dev->read = bio_default_read;
@@ -417,7 +472,7 @@ void bio_register_device(bdev_t *dev)
 	bdev_inc_ref(dev);
 
 	mutex_acquire(&bdevs->lock);
-	list_add_head(&bdevs->list, &dev->node);
+	list_add_tail(&bdevs->list, &dev->node);
 	mutex_release(&bdevs->lock);
 }
 
@@ -441,7 +496,22 @@ void bio_dump_devices(void)
 	bdev_t *entry;
 	mutex_acquire(&bdevs->lock);
 	list_for_every_entry(&bdevs->list, entry, bdev_t, node) {
-		printf("\t%s, size %lld, bsize %zd, ref %d\n", entry->name, entry->size, entry->block_size, entry->ref);
+
+		printf("\t%s, size %lld, bsize %zd, ref %d",
+				entry->name, entry->total_size, entry->block_size, entry->ref);
+
+		if (!entry->geometry_count || !entry->geometry) {
+			printf(" (no erase geometry)\n");
+		} else {
+			for (size_t i = 0; i < entry->geometry_count; ++i) {
+				const bio_erase_geometry_info_t* geo = entry->geometry + i;
+				printf("\n\t\terase_region[%zu] : start %lld size %lld erase size %zu",
+					   i, geo->start, geo->size, geo->erase_size);
+
+			}
+		}
+
+		printf("\n");
 	}
 	mutex_release(&bdevs->lock);
 }

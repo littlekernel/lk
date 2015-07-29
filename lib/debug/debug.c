@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -41,6 +41,7 @@
 
 static spin_lock_t print_spin_lock = 0;
 static struct list_node print_callbacks = LIST_INITIAL_VALUE(print_callbacks);
+
 /* print lock must be held when invoking out, outs, outc */
 static void out_count(const char *str, size_t len)
 {
@@ -48,25 +49,22 @@ static void out_count(const char *str, size_t len)
 	size_t i;
 
 	/* print to any registered loggers */
-	list_for_every_entry(&print_callbacks, cb, print_callback_t, entry) {
-		if (cb->print)
-			cb->print(cb, str, len);
+	if (!list_is_empty(&print_callbacks)) {
+		spin_lock_saved_state_t state;
+		spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
+
+		list_for_every_entry(&print_callbacks, cb, print_callback_t, entry) {
+			if (cb->print)
+				cb->print(cb, str, len);
+		}
+
+		spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 	}
 
 	/* write out the serial port */
 	for (i = 0; i < len; i++) {
 		platform_dputc(str[i]);
 	}
-}
-
-static void out_string(const char *str)
-{
-	out_count(str, strlen(str));
-}
-
-static void out_char(char c)
-{
-	out_count(&c, 1);
 }
 
 static int input_char(char *c)
@@ -77,18 +75,20 @@ static int input_char(char *c)
 void register_print_callback(print_callback_t *cb)
 {
 	spin_lock_saved_state_t state;
-
 	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
+
 	list_add_head(&print_callbacks, &cb->entry);
+
 	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 }
 
 void unregister_print_callback(print_callback_t *cb)
 {
 	spin_lock_saved_state_t state;
-
 	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
+
 	list_delete(&cb->entry);
+
 	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 }
 
@@ -115,7 +115,8 @@ void _panic(void *caller, const char *fmt, ...)
 static int __debug_stdio_fputc(void *ctx, int c)
 {
 	_dputc(c);
-	return 0;
+
+	return c;
 }
 
 static int __debug_stdio_fputs(void *ctx, const char *s)
@@ -159,31 +160,19 @@ FILE __stdio_FILEs[3] = {
 
 void _dputc(char c)
 {
-	spin_lock_saved_state_t state;
-
-	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
-	out_char(c);
-	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
+	out_count(&c, 1);
 }
 
 int _dputs(const char *str)
 {
-	spin_lock_saved_state_t state;
-
-	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
-	out_string(str);
-	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
+	out_count(str, strlen(str));
 
 	return 0;
 }
 
 int _dwrite(const char *ptr, size_t len)
 {
-	spin_lock_saved_state_t state;
-
-	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
 	out_count(ptr, len);
-	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 
 	return 0;
 }
@@ -198,14 +187,11 @@ static int _dprintf_output_func(const char *str, size_t len, void *state)
 
 int _dprintf(const char *fmt, ...)
 {
-	spin_lock_saved_state_t state;
 	int err;
 	va_list ap;
 
 	va_start(ap, fmt);
-	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
 	err = _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
-	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 	va_end(ap);
 
 	return err;
@@ -213,12 +199,9 @@ int _dprintf(const char *fmt, ...)
 
 int _dvprintf(const char *fmt, va_list ap)
 {
-	spin_lock_saved_state_t state;
 	int err;
 
-	spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
 	err = _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
-	spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 
 	return err;
 }
@@ -259,17 +242,33 @@ void hexdump(const void *ptr, size_t len)
 	}
 }
 
-void hexdump8(const void *ptr, size_t len)
+void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr)
 {
 	addr_t address = (addr_t)ptr;
 	size_t count;
 	size_t i;
+	const char* addr_fmt = ((disp_addr + len) > 0xFFFFFFFF)
+						 ? "0x%016llx: "
+						 : "0x%08llx: ";
 
 	for (count = 0 ; count < len; count += 16) {
-		printf("0x%08lx: ", address);
+		printf(addr_fmt, disp_addr + count);
+
 		for (i=0; i < MIN(len - count, 16); i++) {
-			printf("0x%02hhx ", *(const uint8_t *)(address + i));
+			printf("%02hhx ", *(const uint8_t *)(address + i));
 		}
+
+		for (; i < 16; i++) {
+			printf("   ");
+		}
+
+		printf("|");
+
+		for (i=0; i < MIN(len - count, 16); i++) {
+			char c = ((const char *)address)[i];
+			printf("%c", isprint(c) ? c : '.');
+		}
+
 		printf("\n");
 		address += 16;
 	}

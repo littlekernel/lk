@@ -23,7 +23,10 @@
 #ifndef __TARGET_H
 #define __TARGET_H
 
+#include <compiler.h>
 #include <stdbool.h>
+
+__BEGIN_CDECLS;
 
 /* super early platform initialization, before almost everything */
 void target_early_init(void);
@@ -42,5 +45,7 @@ void target_set_debug_led(unsigned int led, bool on);
 #else
 #define target_set_debug_led(led, on) ((void)(0))
 #endif
+
+__END_CDECLS;
 
 #endif

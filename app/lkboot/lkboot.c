@@ -49,6 +49,9 @@
 #ifndef LKBOOT_WITH_SERVER
 #define LKBOOT_WITH_SERVER 1
 #endif
+#ifndef LKBOOT_AUTOBOOT
+#define LKBOOT_AUTOBOOT 1
+#endif
 #ifndef LKBOOT_AUTOBOOT_TIMEOUT
 #define LKBOOT_AUTOBOOT_TIMEOUT 5000
 #endif
@@ -306,6 +309,10 @@ static void lkboot_task(const struct app_descriptor *app, void *args)
     /* let platform code have a shot at disabling the autoboot behavior */
     if (platform_abort_autoboot())
         autoboot = 0;
+
+#if !LKBOOT_AUTOBOOT
+    autoboot = 0;
+#endif
 
     /* if we're going to autoobot, read the timeout value */
     lk_time_t autoboot_timeout;

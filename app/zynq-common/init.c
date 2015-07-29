@@ -42,6 +42,8 @@
 #include <lib/minip.h>
 #endif
 
+#define BLOCK_DEVICE_NAME "spi0"
+
 static void zynq_common_target_init(uint level)
 {
     status_t err;
@@ -49,11 +51,11 @@ static void zynq_common_target_init(uint level)
     /* zybo has a spiflash on qspi */
     spiflash_detect();
 
-    bdev_t *spi = bio_open("spi0");
+    bdev_t *spi = bio_open(BLOCK_DEVICE_NAME);
     if (spi) {
         /* find or create a partition table at the start of flash */
-        if (ptable_scan(spi, 0) < 0) {
-            ptable_create_default(spi, 0);
+        if (ptable_scan(BLOCK_DEVICE_NAME, 0) < 0) {
+            ptable_create_default(BLOCK_DEVICE_NAME, 0);
         }
 
         struct ptable_entry entry = { 0 };
@@ -61,7 +63,7 @@ static void zynq_common_target_init(uint level)
         /* find and recover sysparams */
         if (ptable_find("sysparam", &entry) < 0) {
             /* didn't find sysparam partition, create it */
-            ptable_add("sysparam", 0x1000, 0x1000, 0);
+            ptable_add("sysparam", 0x1000, 0);
             ptable_find("sysparam", &entry);
         }
 
@@ -81,7 +83,7 @@ static void zynq_common_target_init(uint level)
         }
 
         /* create bootloader partition if it does not exist */
-        ptable_add("bootloader", 0x20000, 0x40000, 0);
+        ptable_add("bootloader", 0x40000, 0);
 
 #if LK_DEBUGLEVEL > 1
         printf("flash partition table:\n");
@@ -111,7 +113,7 @@ static void zynq_common_target_init(uint level)
             if (ptr) {
                 bootimage_open(ptr, bootimage_size, &bi);
             }
-        } else if (!strcmp(device, "spi0")) {
+        } else if (!strcmp(device, BLOCK_DEVICE_NAME)) {
             /* we were loaded from spi flash, go look at it to see if we can find it */
             if (spi) {
                 void *ptr = 0;

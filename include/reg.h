@@ -38,5 +38,7 @@
 
 #define writel(v, a) (*REG32(a) = (v))
 #define readl(a) (*REG32(a))
+#define writeb(v, a) (*REG8(a) = (v))
+#define readb(a) (*REG8(a))
 
 #endif
