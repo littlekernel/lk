@@ -25,10 +25,14 @@
 #include <platform.h>
 #include <arch/arm.h>
 #include <kernel/thread.h>
+#include <kernel/event.h>
 
 #include <platform/lpc43xx-gpio.h>
 
 #include "swd.h"
+
+static event_t txevt = EVENT_INITIAL_VALUE(txevt, 0, 0);
+static event_t rxevt = EVENT_INITIAL_VALUE(rxevt, 0, 0);
 
 static udc_request_t *txreq;
 static udc_request_t *rxreq;
@@ -51,26 +55,30 @@ static void mdebug_notify(udc_gadget_t *gadget, unsigned event) {
 static void rx_complete(udc_request_t *req, unsigned actual, int status) {
 	rxactual = actual;
 	rxstatus = status;
+	event_signal(&rxevt, 0);
 }
 
 static void tx_complete(udc_request_t *req, unsigned actual, int status) {
-	txstatus = status;	
+	txstatus = status;
+	event_signal(&txevt, 0);
 }
 
 void usb_xmit(void *data, unsigned len) {
+	event_unsignal(&txevt);
 	txreq->buffer = data;
 	txreq->length = len;
 	txstatus = 1;
 	udc_request_queue(txept, txreq);
-	while (txstatus == 1) thread_yield();
+	event_wait(&txevt);
 }
 
 unsigned usb_recv(void *data, unsigned len) {
+	event_unsignal(&rxevt);
 	rxreq->buffer = data;
 	rxreq->length = len;
 	rxstatus = 1;
 	udc_request_queue(rxept, rxreq);
-	while (rxstatus == 1) thread_yield();
+	event_wait(&rxevt);
 	return rxactual;
 }
 	
