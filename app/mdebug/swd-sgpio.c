@@ -45,7 +45,7 @@
 #define GPIO_SWDIO	GPIO(1,9)
 #define GPIO_SWCLK	GPIO(0,12)
 
-static unsigned sgpio_div = 31;
+static unsigned sgpio_div = 31; // 6MHz
 
 static void gpio_init(void) {
 	pin_config(PIN_LED, PIN_MODE(0) | PIN_PLAIN);
@@ -345,7 +345,12 @@ int swd_write(unsigned reg, unsigned val) {
 }
 
 unsigned swd_set_clock(unsigned khz) {
-	return 6000;
+	unsigned div;
+	if (khz < 2000) khz = 2000;
+	if (khz > 48000) khz = 48000;
+	div = 192000 / khz;
+	sgpio_div = div - 1;
+	return 192000 / div;
 }
 
 void swd_hw_reset(int assert) {
