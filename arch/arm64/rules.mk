@@ -15,6 +15,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/asm.S \
 	$(LOCAL_DIR)/exceptions.S \
 	$(LOCAL_DIR)/exceptions_c.c \
+	$(LOCAL_DIR)/fpu.c \
 	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/spinlock.S \
 	$(LOCAL_DIR)/start.S \

@@ -90,6 +90,7 @@ void arch_thread_initialize(thread_t *t)
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
     LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
+    arm64_fpu_pre_context_switch(oldthread);
     arm64_context_switch(&oldthread->arch.sp, newthread->arch.sp);
 }
 

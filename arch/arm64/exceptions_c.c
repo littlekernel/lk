@@ -68,6 +68,12 @@ void arm64_sync_exception(struct arm64_iframe_long *iframe)
     }
 #endif
 
+    /* floating point */
+    if (ec == 0x07) {
+        arm64_fpu_exception(iframe);
+        return;
+    }
+
     for (fault_handler = __fault_handler_table_start; fault_handler < __fault_handler_table_end; fault_handler++) {
         if (fault_handler->pc == iframe->elr) {
             iframe->elr = fault_handler->fault_handler;
