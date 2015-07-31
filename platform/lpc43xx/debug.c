@@ -23,6 +23,7 @@
 
 #include <debug.h>
 #include <reg.h>
+#include <kernel/thread.h>
 
 #include <platform/lpc43xx-uart.h>
 #include <platform/lpc43xx-clocks.h>
@@ -105,13 +106,16 @@ int platform_dgetc(char *c, bool wait)
 		if (!wait) {
 			return -1;
 		}
+		thread_yield();
 	}
 
 	*c = readl(UART_BASE + REG_RBR);
 	return 0;
 #else
 	if (wait) {
-		for (;;) ;
+		for (;;) {
+			thread_yield();
+		}
 	}
 	return -1;
 #endif
