@@ -162,10 +162,8 @@ FILE __stdio_FILEs[3] = {
 
 static int _dprintf_output_func(const char *str, size_t len, void *state)
 {
-	size_t n = strnlen(str, len);
-
-	out_count(str, n);
-	return n;
+	out_count(str, len);
+	return len;
 }
 
 int _dvprintf(const char *fmt, va_list ap)

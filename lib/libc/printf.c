@@ -367,7 +367,7 @@ static int _vsnprintf_output(const char *str, size_t len, void *state)
 	struct _output_args *args = state;
 
 	size_t count = 0;
-	while (count < len && *str) {
+	while (count < len) {
 		if (args->pos < args->len) {
 			args->outstr[args->pos++] = *str;
 		}
@@ -586,9 +586,11 @@ hex:
 
 		/* shared output code */
 _output_string:
+		string_len = strlen(s);
+
 		if (flags & LEFTFORMATFLAG) {
 			/* left justify the text */
-			OUTPUT_STRING(s, SIZE_MAX);
+			OUTPUT_STRING(s, string_len);
 			uint written = err;
 
 			/* pad to the right (if necessary) */
@@ -596,7 +598,6 @@ _output_string:
 				OUTPUT_CHAR(' ');
 		} else {
 			/* right justify the text (digits) */
-			string_len = strlen(s);
 
 			/* if we're going to print a sign digit,
 			   it'll chew up one byte of the format size */
@@ -616,7 +617,7 @@ _output_string:
 				OUTPUT_CHAR(signchar);
 
 			/* output the string */
-			OUTPUT_STRING(s, SIZE_MAX);
+			OUTPUT_STRING(s, string_len);
 		}
 		continue;
 	}
