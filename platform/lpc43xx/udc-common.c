@@ -181,7 +181,7 @@ void udc_create_descriptors(udc_device_t *device, udc_gadget_t *gadgetlist)
 	n = 0;
 	p = data + 9;
 	for (gadget = gadgetlist; gadget; gadget = gadget->next) {
-		udc_ifc_desc_fill(gadget, n, p);
+		udc_ifc_desc_fill(gadget, n++, p);
 		p += udc_ifc_desc_size(gadget);
 	}
 	udc_descriptor_register(desc);
