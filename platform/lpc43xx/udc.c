@@ -238,6 +238,7 @@ int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req)
 	ept->head->next_dtd = (unsigned) dtd;
 	ept->head->dtd_config = 0;
 	ept->req = req;
+	DSB;
 	writel(ept->bit, ept->usb->base + USB_ENDPTPRIME);
 	spin_unlock_irqrestore(&ept->usb->lock, state);
 
