@@ -163,11 +163,15 @@ done:
 	}	
 }
 
-static u32 rxbuffer[1024];
-static u32 txbuffer[1024+1];
+// io buffers in AHB SRAM
+static u32 *rxbuffer = (void*) 0x20001000;
+static u32 *txbuffer[2] = {(void*) 0x20003000, (void*) 0x20005000 };
+
+#include <kernel/thread.h>
 
 void handle_rswd(void) {
 	int rxc;
+	int toggle = 0;
 
 #if CONFIG_MDEBUG_TRACE
 	printf("[ rswdp agent v0.9 ]\n");
@@ -175,7 +179,7 @@ void handle_rswd(void) {
 #endif
 
 	for (;;) {
-		rxc = usb_recv(rxbuffer, sizeof(rxbuffer));
+		rxc = usb_recv(rxbuffer, 4096);
 
 #if CONFIG_MDEBUG_TRACE
 		int n;
@@ -199,6 +203,7 @@ void handle_rswd(void) {
 			continue;
 		}
 
-		process_txn(rxbuffer[0], rxbuffer + 1, rxc - 1, txbuffer);
+		process_txn(rxbuffer[0], rxbuffer + 1, rxc - 1, txbuffer[toggle]);
+		toggle ^= 1;
 	}
 }

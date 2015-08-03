@@ -31,7 +31,9 @@
 
 #include "swd.h"
 
-static event_t txevt = EVENT_INITIAL_VALUE(txevt, 0, 0);
+#define TX_AHEAD 1
+
+static event_t txevt = EVENT_INITIAL_VALUE(txevt, TX_AHEAD, 0);
 static event_t rxevt = EVENT_INITIAL_VALUE(rxevt, 0, 0);
 
 static udc_request_t *txreq;
@@ -63,22 +65,45 @@ static void tx_complete(udc_request_t *req, unsigned actual, int status) {
 	event_signal(&txevt, 0);
 }
 
+#if TX_AHEAD
 void usb_xmit(void *data, unsigned len) {
+//printf(">%d>\n", len);
+	event_wait(&txevt);
+	event_unsignal(&txevt);
+	txreq->buffer = data;
+	txreq->length = len;
+	txstatus = 1;
+	udc_request_queue(txept, txreq);
+//printf(">%d>QUEUED\n", len);
+}
+#else
+void usb_xmit(void *data, unsigned len) {
+//printf(">%d>\n", len);
 	event_unsignal(&txevt);
 	txreq->buffer = data;
 	txreq->length = len;
 	txstatus = 1;
 	udc_request_queue(txept, txreq);
 	event_wait(&txevt);
+//printf(">%d>%s\n", len, txstatus ? "ERR" : "");
 }
+#endif
 
 unsigned usb_recv(void *data, unsigned len) {
+//printf("<%d<\n", len);
 	event_unsignal(&rxevt);
 	rxreq->buffer = data;
 	rxreq->length = len;
 	rxstatus = 1;
 	udc_request_queue(rxept, rxreq);
 	event_wait(&rxevt);
+#if 0
+	if (rxstatus) {
+		printf("<%d<ERR\n", len);
+	} else {
+		printf("<%d<%d\n", len, rxactual);
+	}
+#endif
 	return rxactual;
 }
 	
