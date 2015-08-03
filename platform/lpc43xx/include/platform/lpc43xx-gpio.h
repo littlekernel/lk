@@ -33,7 +33,7 @@
 #define _PIN_CFG(m,n)	(0x40086000 + ((m) * 0x80) + ((n) * 4))
 #define PIN_CFG(nr)	_PIN_CFG(_PINm(nr),_PINn(nr))
 
-#define PIN_MODE(n)	((n) & 3)
+#define PIN_MODE(n)	((n) & 7)
 #define PIN_PULLUP	(0 << 3) // pull-up, no pull-down
 #define PIN_REPEATER	(1 << 3) // repeater mode
 #define PIN_PLAIN	(2 << 3) // no pull-up, no pull-down

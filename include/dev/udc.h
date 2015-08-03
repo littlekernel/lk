@@ -64,6 +64,8 @@ struct udc_gadget {
 	void (*notify)(udc_gadget_t *gadget, unsigned event);
 	void *context;
 
+	struct udc_gadget *next; // do not modify
+
 	uint8_t ifc_class;
 	uint8_t ifc_subclass;
 	uint8_t ifc_protocol;

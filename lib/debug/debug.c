@@ -33,6 +33,12 @@
 #include <platform/debug.h>
 #include <kernel/thread.h>
 
+#if !DISABLE_DEBUG_OUTPUT
+static int _dvprintf(const char *fmt, va_list ap);
+#else
+static inline int _dvprintf(const char *fmt, va_list ap) { }
+#endif
+
 #if WITH_LIB_SM
 #define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_IRQ_FIQ
 #else
@@ -65,11 +71,6 @@ static void out_count(const char *str, size_t len)
 	for (i = 0; i < len; i++) {
 		platform_dputc(str[i]);
 	}
-}
-
-static int input_char(char *c)
-{
-	return platform_dgetc(c, true);
 }
 
 void register_print_callback(print_callback_t *cb)
@@ -114,14 +115,15 @@ void _panic(void *caller, const char *fmt, ...)
 
 static int __debug_stdio_fputc(void *ctx, int c)
 {
-	_dputc(c);
-
+	char x = c;
+	out_count(&x, 1);
 	return c;
 }
 
 static int __debug_stdio_fputs(void *ctx, const char *s)
 {
-	return _dputs(s);
+	out_count(s, strlen(s));
+	return 0;
 }
 
 static int __debug_stdio_fgetc(void *ctx)
@@ -129,7 +131,7 @@ static int __debug_stdio_fgetc(void *ctx)
 	char c;
 	int err;
 
-	err = input_char(&c);
+	err = platform_dgetc(&c, true);
 	if (err < 0)
 		return err;
 	return (unsigned char)c;
@@ -158,31 +160,15 @@ FILE __stdio_FILEs[3] = {
 
 #if !DISABLE_DEBUG_OUTPUT
 
-void _dputc(char c)
-{
-	out_count(&c, 1);
-}
-
-int _dputs(const char *str)
-{
-	out_count(str, strlen(str));
-
-	return 0;
-}
-
-int _dwrite(const char *ptr, size_t len)
-{
-	out_count(ptr, len);
-
-	return 0;
-}
-
 static int _dprintf_output_func(const char *str, size_t len, void *state)
 {
-	size_t n = strnlen(str, len);
+	out_count(str, len);
+	return len;
+}
 
-	out_count(str, n);
-	return n;
+int _dvprintf(const char *fmt, va_list ap)
+{
+	return _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
 }
 
 int _dprintf(const char *fmt, ...)
@@ -193,15 +179,6 @@ int _dprintf(const char *fmt, ...)
 	va_start(ap, fmt);
 	err = _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
 	va_end(ap);
-
-	return err;
-}
-
-int _dvprintf(const char *fmt, va_list ap)
-{
-	int err;
-
-	err = _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
 
 	return err;
 }

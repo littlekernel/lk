@@ -128,8 +128,8 @@ static udc_endpoint_t *_udc_endpoint_alloc(usb_t *usb,
 	ept->head->config = cfg;
 	ept->next = usb->ept_list;
 	usb->ept_list = ept;
-    
-	DBG("ept%d %s @%p/%p max=%d bit=%x\n", 
+
+	DBG("ept%d %s @%p/%p max=%d bit=%x\n",
 		num, in ? "in":"out", ept, ept->head, max_pkt, ept->bit);
 
 	return ept;
@@ -224,7 +224,7 @@ int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req)
 	usb_request_t *req = (usb_request_t *) _req;
 	usb_dtd_t *dtd = req->dtd;
 	unsigned phys = (unsigned) req->req.buffer;
-    
+
 	dtd->next_dtd = 1; // terminate bit
 	dtd->config = DTD_LEN(req->req.length) | DTD_IOC | DTD_ACTIVE;
 	dtd->bptr0 = phys;
@@ -238,6 +238,7 @@ int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req)
 	ept->head->next_dtd = (unsigned) dtd;
 	ept->head->dtd_config = 0;
 	ept->req = req;
+	DSB;
 	writel(ept->bit, ept->usb->base + USB_ENDPTPRIME);
 	spin_unlock_irqrestore(&ept->usb->lock, state);
 
@@ -251,10 +252,10 @@ static void handle_ept_complete(struct udc_endpoint *ept)
 	usb_dtd_t *dtd;
 	unsigned actual;
 	int status;
-    
+
 	DBG("ept%d %s complete req=%p\n",
             ept->num, ept->in ? "in" : "out", ept->req);
-    
+
 	if ((req = ept->req)) {
 		ept->req = 0;
 		dtd = req->dtd;
@@ -300,6 +301,15 @@ static void setup_tx(usb_t *usb, void *buf, unsigned len)
 	udc_request_queue(usb->ep0in, usb->ep0req);
 }
 
+static void notify_gadgets(udc_gadget_t *gadget, unsigned event) {
+	while (gadget) {
+		if (gadget->notify) {
+			gadget->notify(gadget, event);
+		}
+		gadget = gadget->next;
+	}
+}
+
 #define SETUP(type,request) (((type) << 8) | (request))
 
 static void handle_setup(usb_t *usb)
@@ -307,7 +317,7 @@ static void handle_setup(usb_t *usb)
 	union setup_packet s;
 
 	// setup procedure, per databook
-	// a. clear setup status by writing and waiting for 0 (1-2uS)	
+	// a. clear setup status by writing and waiting for 0 (1-2uS)
 	writel(1, usb->base + USB_ENDPTSETUPSTAT);
 	while (readl(usb->base + USB_ENDPTSETUPSTAT) & 1) ;
 	do {
@@ -362,11 +372,11 @@ static void handle_setup(usb_t *usb)
 				}
 			}
 			usb->config_value = 1;
-			usb->gadget->notify(usb->gadget, UDC_EVENT_ONLINE);
+			notify_gadgets(usb->gadget, UDC_EVENT_ONLINE);
 		} else {
 			writel(0, usb->base + USB_ENDPTCTRL(1));
 			usb->config_value = 0;
-			usb->gadget->notify(usb->gadget, UDC_EVENT_OFFLINE);
+			notify_gadgets(usb->gadget, UDC_EVENT_OFFLINE);
 		}
 		setup_ack(usb);
 		usb->online = s.value ? 1 : 0;
@@ -382,7 +392,7 @@ static void handle_setup(usb_t *usb)
 		udc_endpoint_t *ept;
 		unsigned num = s.index & 15;
 		unsigned in = !!(s.index & 0x80);
-        
+
 		if ((s.value != 0) || (s.length != 0)) {
 			break;
 		}
@@ -487,7 +497,7 @@ void lpc43xx_USB0_IRQ(void)
 		// 5. free active DTDs
 		usb->online = 0;
 		usb->config_value = 0;
-		usb->gadget->notify(usb->gadget, UDC_EVENT_OFFLINE);
+		notify_gadgets(usb->gadget, UDC_EVENT_OFFLINE);
 		for (ept = usb->ept_list; ept; ept = ept->next) {
 			if (ept->req) {
 				ept->req->dtd->config = DTD_HALTED;
@@ -521,7 +531,7 @@ void lpc43xx_USB0_IRQ(void)
 
 // ---- UDC API
 
-int udc_init(struct udc_device *dev) 
+int udc_init(struct udc_device *dev)
 {
 	USB.device = dev;
 	USB.ep0out = _udc_endpoint_alloc(&USB, 0, 0, 64);
@@ -532,16 +542,22 @@ int udc_init(struct udc_device *dev)
 	return 0;
 }
 
-int udc_register_gadget(struct udc_gadget *gadget)
+int udc_register_gadget(udc_gadget_t *gadget)
 {
 	if (USB.gadget) {
-		panic("multiple udc gadgets not supported\n");
+		udc_gadget_t *last = USB.gadget;
+		while (last->next) {
+			last = last->next;
+		}
+		last->next = gadget;
+	} else {
+		USB.gadget = gadget;
 	}
-	USB.gadget = gadget;
+	gadget->next = NULL;
 	return 0;
 }
 
-static void udc_ept_desc_fill(struct udc_endpoint *ept, unsigned char *data)
+void udc_ept_desc_fill(udc_endpoint_t *ept, unsigned char *data)
 {
 	data[0] = 7;
 	data[1] = TYPE_ENDPOINT;
@@ -552,41 +568,11 @@ static void udc_ept_desc_fill(struct udc_endpoint *ept, unsigned char *data)
 	data[6] = ept->in ? 0x00 : 0x01;
 }
 
-static unsigned udc_ifc_desc_size(struct udc_gadget *g)
-{
-	return 9 + g->ifc_endpoints * 7;
-}
-
-static void udc_ifc_desc_fill(struct udc_gadget *g, unsigned char *data)
-{
-	unsigned n;
-
-	data[0] = 0x09;
-	data[1] = TYPE_INTERFACE;
-	data[2] = 0x00; // ifc number
-	data[3] = 0x00; // alt number
-	data[4] = g->ifc_endpoints;
-	data[5] = g->ifc_class;
-	data[6] = g->ifc_subclass;
-	data[7] = g->ifc_protocol;
-	data[8] = udc_string_desc_alloc(g->ifc_string);
-
-	data += 9;
-	for (n = 0; n < g->ifc_endpoints; n++) {
-		udc_ept_desc_fill(g->ept[n], data);
-		data += 7;
-	}
-}
-
 int udc_start(void)
 {
-	udc_descriptor_t *desc;
-	uint8_t *data;
-	unsigned size;
 	usb_t *usb = &USB;
 
 	dprintf(INFO, "udc_start()\n");
-
 	if (!(usb->flags & F_LL_INIT)) {
 		panic("udc cannot start before hw init\n");
 	}
@@ -596,42 +582,7 @@ int udc_start(void)
 	if (!usb->gadget) {
 		panic("udc has no gadget registered\n");
 	}
-
-	// create our device descriptor 
-	desc = udc_descriptor_alloc(TYPE_DEVICE, 0, 18);
-	data = desc->data;
-	data[2] = 0x00; // usb spec rev 2.00
-	data[3] = 0x02;
-	data[4] = 0x00; // class 
-	data[5] = 0x00; // subclass
-	data[6] = 0x00; // protocol
-	data[7] = 0x40; // max packet size on ept 0
-	data[8] = usb->device->vendor_id;
-	data[9] = usb->device->vendor_id >> 8;
-	data[10] = usb->device->product_id;
-	data[11] = usb->device->product_id >> 8;
-	data[12] = usb->device->version_id;
-	data[13] = usb->device->version_id >> 8;
-	data[14] = udc_string_desc_alloc(usb->device->manufacturer);
-	data[15] = udc_string_desc_alloc(usb->device->product);
-	data[16] = udc_string_desc_alloc(usb->device->serialno);
-	data[17] = 1; // number of configurations
-	udc_descriptor_register(desc);
-
-	// create our configuration descriptor
-	size = 9 + udc_ifc_desc_size(usb->gadget);
-	desc = udc_descriptor_alloc(TYPE_CONFIGURATION, 0, size);
-	data = desc->data;
-	data[0] = 0x09;
-	data[2] = size;
-	data[3] = size >> 8;
-	data[4] = 0x01; // number of interfaces
-	data[5] = 0x01; // configuration value
-	data[6] = 0x00; // configuration string
-	data[7] = 0x80; // attributes
-	data[8] = 0x80; // max power (250ma) -- todo fix this
-	udc_ifc_desc_fill(usb->gadget, data + 9);
-	udc_descriptor_register(desc);
+	udc_create_descriptors(usb->device, usb->gadget);
 
 	usb_enable(usb, 1);
 	return 0;

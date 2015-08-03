@@ -22,6 +22,7 @@
  */
 
 #include <app.h>
+#include <err.h>
 #include <debug.h>
 #include <string.h>
 #include <stdlib.h>
@@ -31,12 +32,22 @@
 #include <platform.h>
 #include <arch/arm.h>
 #include <kernel/thread.h>
+#include <kernel/event.h>
+#include <kernel/timer.h>
+
+#include <platform/lpc43xx-gpio.h>
+
+#define PIN_LED		PIN(1,1)
+#define GPIO_LED	GPIO(0,8)
 
 void spifi_init(void);
 void spifi_page_program(u32 addr, u32 *ptr, u32 count);
 void spifi_sector_erase(u32 addr);
 int spifi_verify_erased(u32 addr, u32 count);
 int spifi_verify_page(u32 addr, u32 *ptr);
+
+static event_t txevt = EVENT_INITIAL_VALUE(txevt, 0, 0);
+static event_t rxevt = EVENT_INITIAL_VALUE(rxevt, 0, 0);
 
 static udc_request_t *txreq;
 static udc_request_t *rxreq;
@@ -59,29 +70,35 @@ static void lpcboot_notify(udc_gadget_t *gadget, unsigned event) {
 static void rx_complete(udc_request_t *req, unsigned actual, int status) {
 	rxactual = actual;
 	rxstatus = status;
+	event_signal(&rxevt, 0);
 }
 
 static void tx_complete(udc_request_t *req, unsigned actual, int status) {
-	txstatus = status;	
+	txstatus = status;
+	event_signal(&txevt, 0);
 }
 
 void usb_xmit(void *data, unsigned len) {
+	event_unsignal(&txevt);
 	txreq->buffer = data;
 	txreq->length = len;
 	txstatus = 1;
 	udc_request_queue(txept, txreq);
-	while (txstatus == 1) thread_yield();
+	event_wait(&txevt);
 }
 
-unsigned usb_recv(void *data, unsigned len) {
+int usb_recv(void *data, unsigned len, lk_time_t timeout) {
+	event_unsignal(&rxevt);
 	rxreq->buffer = data;
 	rxreq->length = len;
 	rxstatus = 1;
 	udc_request_queue(rxept, rxreq);
-	while (rxstatus == 1) thread_yield();
+	if (event_wait_timeout(&rxevt, timeout)) {
+		return ERR_TIMED_OUT;
+	}
 	return rxactual;
 }
-	
+
 static udc_device_t lpcboot_device = {
 	.vendor_id = 0x18d1,
 	.product_id = 0xdb00,
@@ -98,7 +115,7 @@ static udc_gadget_t lpcboot_gadget = {
 	.ifc_endpoints = 2,
 	.ept = lpcboot_endpoints,
 };
-	
+
 static void lpcboot_init(const struct app_descriptor *app)
 {
 	udc_init(&lpcboot_device);
@@ -112,10 +129,13 @@ static void lpcboot_init(const struct app_descriptor *app)
 }
 
 #define RAM_BASE	0x10000000
-#define RAM_SIZE	(32 * 1024)
+#define RAM_SIZE	(128 * 1024)
 
-#define ROM_BASE	0x00000000
-#define ROM_SIZE	(1024 * 1024)
+#define BOOT_BASE	0
+#define BOOT_SIZE	(32 * 1024)
+
+#define ROM_BASE	(32 * 1024)
+#define ROM_SIZE	(128 * 1024)
 
 struct device_info {
 	u8 part[16];
@@ -141,6 +161,16 @@ struct device_info DEVICE = {
 };
 
 
+#define MAGIC1		0xAA113377
+#define MAGIC2		0xAA773311
+#define MAGIC1_ADDR	0x20003FF8
+#define MAGIC2_ADDR	0x20003FFC
+
+void boot_app(void) {
+	writel(MAGIC1, MAGIC1_ADDR);
+	writel(MAGIC2, MAGIC2_ADDR);
+}
+
 int erase_page(u32 addr) {
 	spifi_sector_erase(addr);
 	return spifi_verify_erased(addr, 0x1000/4);
@@ -156,7 +186,7 @@ int write_page(u32 addr, void *ptr) {
 		x += (256 / 4);
 	}
 	return 0;
-} 
+}
 
 static uint32_t ram[4096/4];
 
@@ -173,17 +203,24 @@ void handle(u32 magic, u32 cmd, u32 arg) {
 
 	switch (cmd) {
 	case 'E':
-		reply[1] = erase_page(0);
+		reply[1] = erase_page(ROM_BASE);
 		break;
 	case 'W':
-		if (arg > ROM_SIZE)
-			break;
+	case 'w':
+		if (cmd == 'W') {
+			if (arg > ROM_SIZE)
+				break;
+			addr = ROM_BASE;
+		} else {
+			if (arg > BOOT_SIZE)
+				break;
+			addr = BOOT_BASE;
+		}
 		reply[1] = 0;
 		usb_xmit(reply, 8);
-		addr = ROM_BASE;
 		while (arg > 0) {
 			xfer = (arg > 4096) ? 4096 : arg;
-			usb_recv(ram, xfer);
+			usb_recv(ram, xfer, INFINITE_TIME);
 			if (!err) err = erase_page(addr);
 			if (!err) err = write_page(addr, ram);
 			addr += 4096;
@@ -192,7 +229,7 @@ void handle(u32 magic, u32 cmd, u32 arg) {
 		printf("flash %s\n", err ? "ERROR" : "OK");
 		reply[1] = err;
 		break;
-#if WITH_BOOT_TO_RAM 
+#if WITH_BOOT_TO_RAM
 	case 'X':
 		if (arg > RAM_SIZE)
 			break;
@@ -212,10 +249,8 @@ void handle(u32 magic, u32 cmd, u32 arg) {
 		usb_xmit(reply, 8);
 		usb_xmit(&DEVICE, sizeof(DEVICE));
 		return;
-#if WITH_BOOT_TO_APP
 	case 'A':
-		// reboot-into-app
-#endif
+		boot_app();
 	case 'R':
 		/* reboot "normally" */
 		reply[1] = 0;
@@ -228,10 +263,41 @@ void handle(u32 magic, u32 cmd, u32 arg) {
 	usb_xmit(reply, 8);
 }
 
+static short led_idx = 0;
+static short led_delay[] = { 500, 100, 100, 100, };
+static short led_state[] = {   1,   0,   1,   0, };
+static timer_t led_timer = TIMER_INITIAL_VALUE(led_timer);
+
+static enum handler_return led_timer_cb(timer_t *timer, lk_time_t now, void *arg) {
+	gpio_set(GPIO_LED, led_state[led_idx]);
+	timer_set_oneshot(timer, led_delay[led_idx], led_timer_cb, NULL);
+	led_idx++;
+	if (led_idx == (sizeof(led_state)/sizeof(led_state[0]))) {
+		led_idx = 0;
+	}
+	return 0;
+}
 
 static void lpcboot_entry(const struct app_descriptor *app, void *args)
 {
+	lk_time_t timeout;
+	int r;
 	u32 buf[64/4];
+
+#if 0
+	timeout = INFINITE_TIME;
+#else
+	if (readl(32768) != 0) {
+		timeout = 3000;
+	} else {
+		timeout = INFINITE_TIME;
+	}
+#endif
+
+	pin_config(PIN_LED, PIN_MODE(0) | PIN_PLAIN);
+	gpio_config(GPIO_LED, GPIO_OUTPUT);
+	led_timer_cb(&led_timer, 0, NULL);
+
 	udc_start();
 	spifi_init();
 	for (;;) {
@@ -239,8 +305,14 @@ static void lpcboot_entry(const struct app_descriptor *app, void *args)
 			thread_yield();
 			continue;
 		}
-		if (usb_recv(buf, 64) == 12) {
+		r = usb_recv(buf, 64, timeout);
+		if (r == ERR_TIMED_OUT) {
+			boot_app();
+			platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
+		}
+		if (r == 12) {
 			handle(buf[0], buf[1], buf[2]);
+			timeout = INFINITE_TIME;
 		}
 	}
 }

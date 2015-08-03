@@ -77,9 +77,13 @@ struct udc_descriptor {
 	uint8_t data[4];
 };
 
-udc_descriptor_t *udc_descriptor_alloc(unsigned type, unsigned num, unsigned len);
+// driver calls this to build descriptors from device and gadgets
+void udc_create_descriptors(udc_device_t *device, udc_gadget_t *gadget);
+
+// driver uses this to obtain descriptors
 udc_descriptor_t *udc_descriptor_find(unsigned tag);
-void udc_descriptor_register(udc_descriptor_t *desc);
-unsigned udc_string_desc_alloc(const char *str);
+
+// driver provides this
+void udc_ept_desc_fill(udc_endpoint_t *ept, unsigned char *data);
 
 #endif
