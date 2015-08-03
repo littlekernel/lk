@@ -50,12 +50,15 @@ m0_fault:
 
 .ltorg
 
+#define REPORT_DELAY	0
+
 #define COMM_BASE	0x18004000
 
 #define	COMM_CMD	0
 #define COMM_ARG0	4
 #define COMM_ARG1	8
 #define COMM_RESP	12
+#define COMM_RETRY	16
 
 
 #define M4_TXEV		0x40043130 // write 0 to clear
@@ -144,10 +147,10 @@ snooze_8m:
 	orrs r3, r3, r0		// add bit
 	DELAY
 	str r4, [r7, #OFF_OUT]	// commit negative edge
+	ldr r0, [r7, #OFF_IN]	// sample input
 	nop
 	nop
 	DELAY
-	ldr r0, [r7, #OFF_IN]	// sample input
 	str r5, [r7, #OFF_OUT]	// commit positive edge
 .endm
 
@@ -161,10 +164,10 @@ read_2:
 	nop
 	DELAY
 	str r4, [r7, #OFF_OUT]
+	ldr r0, [r7, #OFF_IN]
 	nop
 	nop
 	DELAY
-	ldr r0, [r7, #OFF_IN]
 	str r5, [r7, #OFF_OUT]
 	ands r0, r0, r6		// isolate bit
 	lsrs r0, r0, #DIO_BIT	// shift to bit0
@@ -287,7 +290,7 @@ init:
 	ldr r4, =CLK0_IN
 	bx lr
 
-#define MAX_RETRY	32
+#define MAX_RETRY	8192
 
 err_fail:
 	movs r0, #3
@@ -304,7 +307,8 @@ err_timeout:
 cmd_read_txn:
 	push {lr}
 
-	movs r0, #MAX_RETRY
+	ldr r0, =MAX_RETRY
+	//movs r0, #MAX_RETRY
 	mov r12, r0
 
 rd_retry:
@@ -346,13 +350,17 @@ rd_okay:
 	str r0, [r1, #COMM_ARG1]
 	movs r0, #0
 	str r0, [r1, #COMM_RESP]
+#if REPORT_DELAY
+	mov r0, r12
+	str r0, [r1, #COMM_RETRY]
+#endif
 	pop {pc}
 	
 
 cmd_write_txn:
 	push {lr}
 
-	movs r0, #MAX_RETRY
+	ldr r0, =MAX_RETRY
 	mov r12, r0
 
 wr_retry:
@@ -399,6 +407,10 @@ wr_okay:
 	mov r3, r8		// get COMM_BASE
 	movs r0, #0
 	str r0, [r3, #COMM_RESP]
+#if REPORT_DELAY
+	mov r0, r12
+	str r0, [r3, #COMM_RETRY]
+#endif
 	pop {pc}
 
 cmd_reset:
