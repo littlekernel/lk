@@ -1,7 +1,7 @@
 /* rswdp.h - remote serial wire debug protocol
  *
  * Copyright 2011 Brian Swetland <swetland@frotz.net>
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -23,14 +23,14 @@
 /* Basic framing:
  * - host and device exchange "transactions" consisting of
  *   some number of "messages".
- * - each "message" has a 32bit header and may have 0 or more 
- *   32bit words of payload 
+ * - each "message" has a 32bit header and may have 0 or more
+ *   32bit words of payload
  * - a transaction may not exceed 4K (1024 words)
  * - a transaction is sent in a series of USB BULK packets
- * - the final packet must be a short packet unless the 
+ * - the final packet must be a short packet unless the
  *   transaction is exactly 4K in length
  * - packets must be a multiple of 4 bytes
- * - the first message in a transaction must be 
+ * - the first message in a transaction must be
  *   CMD_TXN_START or CMD_TXN_ASYNC
  */
 
@@ -50,7 +50,7 @@
 #define CMD_SWD_READ	0x02 /* op=addr arg=count payload: data x count */
 #define CMD_SWD_DISCARD	0x03 /* op=addr arg=count payload: none (discards) */
 #define CMD_ATTACH	0x04 /* do swdp reset/connect handshake */
-#define CMD_RESET	0x05 /* arg=1 -> assert RESETn, otherwise deassert */ 
+#define CMD_RESET	0x05 /* arg=1 -> assert RESETn, otherwise deassert */
 #define CMD_DOWNLOAD	0x06 /* arg=wordcount, payload: addr x 1, data x n */
 #define CMD_EXECUTE	0x07 /* payload: addr x 1 */
 #define CMD_TRACE	0x08 /* op=tracebits n=0 */
@@ -63,6 +63,15 @@
 
 /* valid: target to host async */
 #define CMD_DEBUG_PRINT	0x20 /* arg*4 bytes of ascii debug output */
+
+/* valid: bidirectional query/config messages */
+#define CMD_VERSION	0x30 /* arg=bcdversion (0x0100 etc) */
+#define CMD_BUILD_STR	0x31 /* arg=wordcount, payload = asciiz */
+#define CMD_BOARD_STR	0x32 /* arg=wordcount, payload = asciiz */
+#define CMD_RX_MAXDATA	0x33 /* arg=bytes, declares senders rx buffer size */
+#define CMD_CLOCK_KHZ	0x34 /* arg=khz, reports active clock rate */
+
+#define RSWD_VERSION	0x0100
 
 /* CMD_SWD_OP operations - combine for direct AP/DP io */
 #define OP_RD 0x00

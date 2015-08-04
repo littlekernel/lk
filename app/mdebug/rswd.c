@@ -1,7 +1,7 @@
 /* rswd.c
  *
  * Copyright 2011-2015 Brian Swetland <swetland@frotz.net>
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -29,6 +29,11 @@ unsigned usb_recv(void *data, unsigned len);
 
 unsigned swdp_trace = 0;
 
+// indicates host knows about v1.0 protocol features
+unsigned host_version = 0;
+
+#define VERSION_1_0	0x0100
+
 static u8 optable[16] = {
 	[OP_RD | OP_DP | OP_X0] = RD_IDCODE,
 	[OP_RD | OP_DP | OP_X4] = RD_DPCTRL,
@@ -47,6 +52,9 @@ static u8 optable[16] = {
 	[OP_WR | OP_AP | OP_X8] = WR_AP2,
 	[OP_WR | OP_AP | OP_XC] = WR_AP3,
 };
+
+static const char *board_str = TARGET;
+static const char *build_str = "fw v0.9 (" __DATE__ ", " __TIME__ ")";
 
 /* TODO bounds checking -- we trust the host far too much */
 void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
@@ -79,7 +87,7 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 			}
 			continue;
 		case CMD_SWD_READ:
-			tx[txc++] = RSWD_MSG(CMD_SWD_DATA, 0, n); 
+			tx[txc++] = RSWD_MSG(CMD_SWD_DATA, 0, n);
 			while (n-- > 0) {
 				if (swd_read(optable[op], tx + txc)) {
 					txc++;
@@ -129,6 +137,28 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 		case CMD_SET_CLOCK:
 			n = swd_set_clock(n);
 			printf("swdp clock is now %d KHz\n", n);
+			if (host_version >= VERSION_1_0) {
+				tx[txc++] = RSWD_MSG(CMD_CLOCK_KHZ, 0, n);
+			}
+			continue;
+		case CMD_VERSION:
+			host_version = n;
+			tx[txc++] = RSWD_MSG(CMD_VERSION, 0, VERSION_1_0);
+
+			n = strlen(board_str);
+			memcpy(tx + txc + 1, board_str, n + 1);
+			n = (n + 4) / 4;
+			tx[txc++] = RSWD_MSG(CMD_BOARD_STR, 0, n);
+			txc += n;
+
+			n = strlen(build_str);
+			memcpy(tx + txc + 1, build_str, n + 1);
+			n = (n + 4) / 4;
+			tx[txc++] = RSWD_MSG(CMD_BUILD_STR, 0, n);
+			txc += n;
+
+			tx[txc++] = RSWD_MSG(CMD_RX_MAXDATA, 0, 8192);
+			txc += n;
 			continue;
 		default:
 			printf("unknown command %02x\n", RSWD_MSG_CMD(msg));
@@ -160,7 +190,7 @@ done:
 		for (n = 0; n < 1000000; n++) asm("nop");
 		func();
 		for (;;) ;
-	}	
+	}
 }
 
 // io buffers in AHB SRAM
@@ -179,7 +209,7 @@ void handle_rswd(void) {
 #endif
 
 	for (;;) {
-		rxc = usb_recv(rxbuffer, 4096);
+		rxc = usb_recv(rxbuffer, 8192);
 
 #if CONFIG_MDEBUG_TRACE
 		int n;
