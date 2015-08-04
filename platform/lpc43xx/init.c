@@ -30,6 +30,9 @@
 
 void lpc43xx_debug_early_init(void);
 
+uint8_t __lpc43xx_main_clock_sel;
+uint32_t __lpc43xx_main_clock_mhz;
+
 void platform_early_init(void)
 {
 #ifndef WITH_NO_CLOCK_INIT
@@ -95,10 +98,13 @@ void platform_early_init(void)
 	writel(IDIV_CLK_SEL(CLK_PLL0USB) | IDIV_N(4), IDIVA_CTRL);
 	writel(BASE_CLK_SEL(CLK_IDIVA), BASE_OUT_CLK);
 #endif
-	arm_cm_systick_init(192000000);
+	__lpc43xx_main_clock_mhz = 192000000;
+	__lpc43xx_main_clock_sel = CLK_PLL1;
 #else
-	arm_cm_systick_init(96000000);
+	__lpc43xx_main_clock_mhz = 96000000;
+	__lpc43xx_main_clock_sel = CLK_IDIVC;
 #endif
+	arm_cm_systick_init(__lpc43xx_main_clock_mhz);
 	lpc43xx_debug_early_init();
 }
 
