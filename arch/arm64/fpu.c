@@ -27,11 +27,22 @@
 
 #define LOCAL_TRACE 0
 
+static struct fpstate *current_fpstate[SMP_MAX_CPUS];
+
 static void arm64_fpu_load_state(struct thread *t)
 {
+    uint cpu = arch_curr_cpu_num();
     struct fpstate *fpstate = &t->arch.fpstate;
 
-    LTRACEF("thread %s\n", t->name);
+    if (fpstate == current_fpstate[cpu] && fpstate->current_cpu == cpu) {
+        LTRACEF("cpu %d, thread %s, fpstate already valid\n", cpu, t->name);
+        return;
+    }
+    LTRACEF("cpu %d, thread %s, load fpstate %p, last cpu %d, last fpstate %p\n",
+            cpu, t->name, fpstate, fpstate->current_cpu, current_fpstate[cpu]);
+    fpstate->current_cpu = cpu;
+    current_fpstate[cpu] = fpstate;
+
 
     STATIC_ASSERT(sizeof(fpstate->regs) == 16 * 32);
     __asm__ volatile("ldp     q0, q1, [%0, #(0 * 32)]\n"
