@@ -44,7 +44,7 @@ static udc_endpoint_t *rxept;
 static volatile int online;
 static volatile int txstatus;
 static volatile int rxstatus;
-static volatile unsigned rxactual;
+static volatile int rxactual;
 
 static void mdebug_notify(udc_gadget_t *gadget, unsigned event) {
 	if (event == UDC_EVENT_ONLINE) {
@@ -67,46 +67,41 @@ static void tx_complete(udc_request_t *req, unsigned actual, int status) {
 
 #if TX_AHEAD
 void usb_xmit(void *data, unsigned len) {
-//printf(">%d>\n", len);
 	event_wait(&txevt);
 	event_unsignal(&txevt);
 	txreq->buffer = data;
 	txreq->length = len;
 	txstatus = 1;
-	udc_request_queue(txept, txreq);
-//printf(">%d>QUEUED\n", len);
+	if (udc_request_queue(txept, txreq)) {
+		printf("txqf\n");
+		event_signal(&txevt, 0);
+	}
 }
 #else
 void usb_xmit(void *data, unsigned len) {
-//printf(">%d>\n", len);
 	event_unsignal(&txevt);
 	txreq->buffer = data;
 	txreq->length = len;
 	txstatus = 1;
-	udc_request_queue(txept, txreq);
-	event_wait(&txevt);
-//printf(">%d>%s\n", len, txstatus ? "ERR" : "");
+	if (udc_request_queue(txept, txreq) == 0) {
+		event_wait(&txevt);
+	}
 }
 #endif
 
-unsigned usb_recv(void *data, unsigned len) {
-//printf("<%d<\n", len);
+int usb_recv(void *data, unsigned len) {
 	event_unsignal(&rxevt);
 	rxreq->buffer = data;
 	rxreq->length = len;
 	rxstatus = 1;
-	udc_request_queue(rxept, rxreq);
-	event_wait(&rxevt);
-#if 0
-	if (rxstatus) {
-		printf("<%d<ERR\n", len);
-	} else {
-		printf("<%d<%d\n", len, rxactual);
+	if (udc_request_queue(rxept, rxreq)) {
+		printf("rxqf\n");
+		return -1;
 	}
-#endif
-	return rxactual;
+	event_wait(&rxevt);
+	return rxstatus ? rxstatus : rxactual;
 }
-	
+
 static udc_device_t mdebug_device = {
 	.vendor_id = 0x18d1,
 	.product_id = 0xdb03,
@@ -139,10 +134,14 @@ static void mdebug_init(const struct app_descriptor *app)
 }
 
 void handle_rswd(void);
+void swo_init(udc_endpoint_t *ept);
+void swo_config(unsigned mhz);
 
 static void mdebug_entry(const struct app_descriptor *app, void *args)
 {
 	udc_start();
+	swo_init(txept);
+	swo_config(1000000);
 
 	for (;;) {
 		if (!online) {

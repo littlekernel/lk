@@ -51,6 +51,9 @@ static u32 base_uart_clk[4] = {
 	BASE_UART3_CLK
 };
 
+extern uint8_t __lpc43xx_main_clock_sel;
+extern uint32_t __lpc43xx_main_clock_mhz;
+
 void lpc43xx_debug_early_init(void)
 {
 #ifdef UART_BASE
@@ -62,25 +65,12 @@ void lpc43xx_debug_early_init(void)
 	writel(0, UART_BASE + REG_DLM);
 	writel(FDR_DIVADDVAL(5) | FDR_MULVAL(8), UART_BASE + REG_FDR);
 #else
-#ifdef WITH_NO_CLOCK_INIT
-	writel(BASE_CLK_SEL(CLK_IDIVC), base_uart_clk[TARGET_DEBUG_UART - 1]);
-#define CADJ 1
-#else
-	writel(BASE_CLK_SEL(CLK_PLL1), base_uart_clk[TARGET_DEBUG_UART - 1]);
-#define CADJ 2
-#endif
+	uint32_t div = __lpc43xx_main_clock_mhz / 16 / TARGET_DEBUG_BAUDRATE;
+	writel(BASE_CLK_SEL(__lpc43xx_main_clock_sel),
+		base_uart_clk[TARGET_DEBUG_UART - 1]);
 	writel(LCR_DLAB, UART_BASE + REG_LCR);
-#if TARGET_DEBUG_BAUDRATE == 1000000
-	writel(6 * CADJ, UART_BASE + REG_DLL);
-#elif TARGET_DEBUG_BAUDRATE == 2000000
-	writel(3 * CADJ, UART_BASE + REG_DLL);
-#elif TARGET_DEBUG_BAUDRATE == 3000000
-	writel(2 * CADJ, UART_BASE + REG_DLL);
-#else
-#error Unsupported TARGET_DEBUG_BAUDRATE
-#endif
-	writel(0, UART_BASE + REG_DLM);
-	writel(0, UART_BASE + REG_FDR);
+	writel(div & 0xFF, UART_BASE + REG_DLL);
+	writel((div >> 8) & 0xFF, UART_BASE + REG_DLM);
 #endif
 	writel(LCR_WLS_8 | LCR_SBS_1, UART_BASE + REG_LCR);
 	writel(FCR_FIFOEN | FCR_RX_TRIG_1, UART_BASE + REG_FCR);

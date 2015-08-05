@@ -53,6 +53,8 @@ static void gpio_init(void) {
 	pin_config(PIN_SWDIO, PIN_MODE(6) | PIN_PLAIN | PIN_INPUT | PIN_FAST);
 	pin_config(PIN_SWCLK, PIN_MODE(6) | PIN_PLAIN | PIN_FAST);
 
+	pin_config(PIN_SWO, PIN_MODE(1) | PIN_PLAIN | PIN_INPUT | PIN_FAST);
+
 	gpio_set(GPIO_LED, 0);
 	gpio_set(GPIO_RESET, 1);
 	gpio_set(GPIO_RESET_TXEN, 0);
