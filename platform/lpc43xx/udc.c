@@ -78,6 +78,7 @@ static usb_t USB;
 
 typedef struct usb_request {
 	udc_request_t req;
+	struct usb_request *next;
 	usb_dtd_t *dtd;
 } usb_request_t;
 
@@ -85,6 +86,7 @@ struct udc_endpoint {
 	udc_endpoint_t *next;
 	usb_dqh_t *head;
 	usb_request_t *req;
+	usb_request_t *last;
 	usb_t *usb;
 	uint32_t bit;
 	uint16_t maxpkt;
@@ -111,6 +113,7 @@ static udc_endpoint_t *_udc_endpoint_alloc(usb_t *usb,
 	ept->num = num;
 	ept->in = !!in;
 	ept->req = 0;
+	ept->last = 0;
 	ept->usb = usb;
 
 	cfg = DQH_CFG_MAXPKT(max_pkt) | DQH_CFG_ZLT;
@@ -224,6 +227,7 @@ int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req)
 	usb_request_t *req = (usb_request_t *) _req;
 	usb_dtd_t *dtd = req->dtd;
 	unsigned phys = (unsigned) req->req.buffer;
+	int ret = 0;
 
 	dtd->next_dtd = 1; // terminate bit
 	dtd->config = DTD_LEN(req->req.length) | DTD_IOC | DTD_ACTIVE;
@@ -234,16 +238,26 @@ int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req)
 	dtd->bptr3 = phys + 0x3000;
 	dtd->bptr4 = phys + 0x4000;
 
+	req->next = 0;
 	spin_lock_irqsave(&ept->usb->lock, state);
-	ept->head->next_dtd = (unsigned) dtd;
-	ept->head->dtd_config = 0;
-	ept->req = req;
-	DSB;
-	writel(ept->bit, ept->usb->base + USB_ENDPTPRIME);
+	if (!USB.online && ept->num) {
+		ret = -1;
+	} else if (ept->req) {
+		// already a transfer in flight, add us to the list
+		// we'll get queue'd by the irq handler when it's our turn
+		ept->last->next = req;
+	} else {
+		ept->head->next_dtd = (unsigned) dtd;
+		ept->head->dtd_config = 0;
+		DSB;
+		writel(ept->bit, ept->usb->base + USB_ENDPTPRIME);
+		ept->req = req;
+	}
+	ept->last = req;
 	spin_unlock_irqrestore(&ept->usb->lock, state);
 
 	DBG("ept%d %s queue req=%p\n", ept->num, ept->in ? "in" : "out", req);
-	return 0;
+	return ret;
 }
 
 static void handle_ept_complete(struct udc_endpoint *ept)
@@ -257,7 +271,17 @@ static void handle_ept_complete(struct udc_endpoint *ept)
             ept->num, ept->in ? "in" : "out", ept->req);
 
 	if ((req = ept->req)) {
-		ept->req = 0;
+		if (req->next) {
+			// queue next req to hw
+			ept->head->next_dtd = (unsigned) req->next->dtd;
+			ept->head->dtd_config = 0;
+			DSB;
+			writel(ept->bit, ept->usb->base + USB_ENDPTPRIME);
+			ept->req = req->next;
+		} else {
+			ept->req = 0;
+			ept->last = 0;
+		}
 		dtd = req->dtd;
 		if (dtd->config & 0xff) {
 			actual = 0;
@@ -331,6 +355,8 @@ static void handle_setup(usb_t *usb)
 	// e. clear tripwire
 	writel(CMD_RUN, usb->base + USB_CMD);
 	// flush any pending io from previous setup transactions
+	usb->ep0in->req = 0;
+	usb->ep0out->req = 0;
 	// f. process packet
 	// g. ensure setup status is 0
 
