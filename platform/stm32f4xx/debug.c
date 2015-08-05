@@ -44,8 +44,17 @@ void stm32_debug_init(void)
 	uart_init();
 }
 
+#define ITM_STIM0	0xE0000000
+#define ITM_TCR		0xE0000E80
+
 void platform_dputc(char c)
 {
+	// if ITM is enabled, send character to STIM0
+	if (readl(ITM_TCR) & 1) {
+		while (!readl(ITM_STIM0)) ;
+		writel(c, ITM_STIM0);
+	}
+
 	if (c == '\n')
 		uart_putc(DEBUG_UART, '\r');
 	uart_putc(DEBUG_UART, c);
@@ -60,3 +69,24 @@ int platform_dgetc(char *c, bool wait)
 	return 0;
 }
 
+void __debugger_console_putc(char c);
+
+#define DCRDR 0xE000EDF8
+
+void _debugmonitor(void) {
+	u32 n;
+	arm_cm_irq_entry();
+	n = readl(DCRDR);
+	if (n & 0x80000000) {
+		switch (n >> 24) {
+		case 0x80: // write to console
+			__debugger_console_putc(n & 0xFF);
+			n = 0;
+			break;
+		default:
+			n = 0x01000000;
+		}
+		writel(n, DCRDR);
+	}
+	arm_cm_irq_exit(1);
+}
