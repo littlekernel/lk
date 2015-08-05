@@ -25,7 +25,7 @@
 #include "rswdp.h"
 
 void usb_xmit(void *data, unsigned len);
-unsigned usb_recv(void *data, unsigned len);
+int usb_recv(void *data, unsigned len);
 
 unsigned swdp_trace = 0;
 
@@ -226,7 +226,7 @@ void handle_rswd(void) {
 #endif
 
 		if ((rxc < 4) || (rxc & 3)) {
-			printf("error, runt frame, or strange frame... %x\n", rxc);
+			printf("error, runt frame, or strange frame... %d\n", rxc);
 			continue;
 		}
 
