@@ -166,6 +166,25 @@ void udc_endpoint_free(struct udc_endpoint *ept)
 	// todo
 }
 
+static void handle_ept_complete(struct udc_endpoint *ept);
+
+static void endpoint_flush(usb_t *usb, udc_endpoint_t *ept) {
+	if (ept->req) {
+		// flush outstanding transfers
+		writel(ept->bit, usb->base + USB_ENDPTFLUSH);
+		while (readl(usb->base + USB_ENDPTFLUSH)) ;
+		while (ept->req) {
+			handle_ept_complete(ept);
+		}
+	}
+}
+
+static void endpoint_reset(usb_t *usb, udc_endpoint_t *ept) {
+	unsigned n = readl(usb->base + USB_ENDPTCTRL(ept->num));
+	n |= ept->in ? EPCTRL_TXR : EPCTRL_RXR;
+	writel(n, usb->base + USB_ENDPTCTRL(ept->num));
+}
+
 static void endpoint_enable(usb_t *usb, udc_endpoint_t *ept, unsigned yes)
 {
 	unsigned n = readl(usb->base + USB_ENDPTCTRL(ept->num));
@@ -425,7 +444,9 @@ static void handle_setup(usb_t *usb)
 		DBG("clr feat %d %d\n", num, in);
 		for (ept = usb->ept_list; ept; ept = ept->next) {
 			if ((ept->num == num) && (ept->in == in)) {
-				endpoint_enable(usb, ept, 1);
+				endpoint_flush(usb, ept);
+				// todo: if callback requeues this could be ugly...
+				endpoint_reset(usb, ept);
 				setup_ack(usb);
 				return;
 			}
