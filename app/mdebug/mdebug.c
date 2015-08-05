@@ -106,7 +106,7 @@ unsigned usb_recv(void *data, unsigned len) {
 #endif
 	return rxactual;
 }
-	
+
 static udc_device_t mdebug_device = {
 	.vendor_id = 0x18d1,
 	.product_id = 0xdb03,
@@ -139,10 +139,14 @@ static void mdebug_init(const struct app_descriptor *app)
 }
 
 void handle_rswd(void);
+void swo_init(udc_endpoint_t *ept);
+void swo_config(unsigned mhz);
 
 static void mdebug_entry(const struct app_descriptor *app, void *args)
 {
 	udc_start();
+	swo_init(txept);
+	swo_config(1000000);
 
 	for (;;) {
 		if (!online) {

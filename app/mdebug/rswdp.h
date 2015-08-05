@@ -56,10 +56,12 @@
 #define CMD_TRACE	0x08 /* op=tracebits n=0 */
 #define CMD_BOOTLOADER	0x09 /* return to bootloader for reflashing */
 #define CMD_SET_CLOCK	0x0A /* set SWCLK rate to n khz */
+#define CMD_SWO_CLOCK	0x0B /* set SWOCLK rate to n khz, 0 = disable SWO */
 
 /* valid: target to host */
 #define CMD_STATUS	0x10 /* op=errorcode, arg=commands since last TXN_START */
 #define CMD_SWD_DATA	0x11 /* op=0 arg=count, payload: data x count */
+#define CMD_SWO_DATA	0x12 /* op=0 arg=count, payload: count * 4 bytes */
 
 /* valid: target to host async */
 #define CMD_DEBUG_PRINT	0x20 /* arg*4 bytes of ascii debug output */

@@ -141,6 +141,10 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 				tx[txc++] = RSWD_MSG(CMD_CLOCK_KHZ, 0, n);
 			}
 			continue;
+		case CMD_SWO_CLOCK:
+			n = swo_set_clock(n);
+			printf("swo clock is now %d KHz\n", n);
+			continue;
 		case CMD_VERSION:
 			host_version = n;
 			tx[txc++] = RSWD_MSG(CMD_VERSION, 0, VERSION_1_0);

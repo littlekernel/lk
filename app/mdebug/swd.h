@@ -24,6 +24,7 @@ int swd_write(unsigned reg, unsigned val);
 int swd_read(unsigned reg, unsigned *val);
 
 unsigned swd_set_clock(unsigned khz);
+unsigned swo_set_clock(unsigned khz);
 void swd_hw_reset(int assert);
 
 // swdp_read/write() register codes
