@@ -79,8 +79,9 @@ void arch_early_init(void)
 	NVIC_SetPriority(SVCall_IRQn, arm_cm_lowest_priority());
 	NVIC_SetPriority(PendSV_IRQn, arm_cm_lowest_priority());
 
-	/* set systick to medium priority */
+	/* set systick and debugmonitor to medium priority */
 	NVIC_SetPriority(SysTick_IRQn, arm_cm_medium_priority());
+	NVIC_SetPriority(DebugMonitor_IRQn, arm_cm_medium_priority());
 }
 
 void arch_init(void)
