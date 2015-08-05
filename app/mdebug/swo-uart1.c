@@ -130,7 +130,11 @@ void swo_config(unsigned mhz) {
 }
 
 unsigned swo_set_clock(unsigned khz) {
-	if (khz >= 6000) {
+	if (khz >= 12000) {
+		khz = 12000;
+	} else if (khz >= 8000) {
+		khz = 8000;
+	} else if (khz >= 6000) {
 		khz = 6000;
 	} else if (khz >= 4000) {
 		khz = 4000;

@@ -141,7 +141,7 @@ static void mdebug_entry(const struct app_descriptor *app, void *args)
 {
 	udc_start();
 	swo_init(txept);
-	swo_config(1000000);
+	swo_config(6000000);
 
 	for (;;) {
 		if (!online) {
