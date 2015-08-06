@@ -73,6 +73,13 @@
 #define CMD_RX_MAXDATA	0x33 /* arg=bytes, declares senders rx buffer size */
 #define CMD_CLOCK_KHZ	0x34 /* arg=khz, reports active clock rate */
 
+/* CMD_STATUS error codes */
+#define ERR_NONE	0
+#define ERR_INTERNAL	1
+#define ERR_TIMEOUT	2
+#define ERR_IO		3
+#define ERR_PARITY	4
+
 #define RSWD_VERSION	0x0100
 
 /* CMD_SWD_OP operations - combine for direct AP/DP io */
