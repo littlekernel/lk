@@ -103,8 +103,8 @@ int usb_recv(void *data, unsigned len) {
 }
 
 static udc_device_t mdebug_device = {
-	.vendor_id = 0x18d1,
-	.product_id = 0xdb03,
+	.vendor_id = 0x1209,
+	.product_id = 0x5038,
 	.version_id = 0x0100,
 };
 
