@@ -52,7 +52,7 @@ void platform_dputc(char c)
 	// if ITM is enabled, send character to STIM0
 	if (readl(ITM_TCR) & 1) {
 		while (!readl(ITM_STIM0)) ;
-		writel(c, ITM_STIM0);
+		writeb(c, ITM_STIM0);
 	}
 
 	if (c == '\n')
