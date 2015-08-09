@@ -92,7 +92,7 @@ void swo_init(udc_endpoint_t *_txept) {
 		TXN[n].busy = 0;
 		TXN[n].next = TXN + (n + 1);
 		TXN[n].buf[0] = RSWD_TXN_ASYNC;
-		TXN[n].buf[1] = RSWD_MSG(CMD_SWO_DATA, 0, TXNSIZE / 4);
+		TXN[n].buf[1] = RSWD_MSG(CMD_SWO_DATA, 0, TXNSIZE);
 	}
 	TXN[n-1].next = TXN;
 

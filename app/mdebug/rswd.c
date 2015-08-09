@@ -34,8 +34,6 @@ unsigned swdp_trace = 0;
 // indicates host knows about v1.0 protocol features
 unsigned host_version = 0;
 
-#define VERSION_1_0	0x0100
-
 static u8 optable[16] = {
 	[OP_RD | OP_DP | OP_X0] = RD_IDCODE,
 	[OP_RD | OP_DP | OP_X4] = RD_DPCTRL,
@@ -143,7 +141,7 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 		case CMD_SET_CLOCK:
 			n = swd_set_clock(n);
 			printf("swdp clock is now %d KHz\n", n);
-			if (host_version >= VERSION_1_0) {
+			if (host_version >= RSWD_VERSION_1_0) {
 				tx[txc++] = RSWD_MSG(CMD_CLOCK_KHZ, 0, n);
 			}
 			continue;
@@ -153,7 +151,7 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 			continue;
 		case CMD_VERSION:
 			host_version = n;
-			tx[txc++] = RSWD_MSG(CMD_VERSION, 0, VERSION_1_0);
+			tx[txc++] = RSWD_MSG(CMD_VERSION, 0, RSWD_VERSION);
 
 			n = strlen(board_str);
 			memcpy(tx + txc + 1, board_str, n + 1);
