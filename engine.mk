@@ -166,7 +166,6 @@ GLOBAL_DEFINES += $(EXTERNAL_DEFINES)
 $(info EXTERNAL_DEFINES = $(EXTERNAL_DEFINES))
 endif
 
-DEPS := $(ALLOBJS:%o=%d)
 
 # prefix all of the paths in GLOBAL_INCLUDES with -I
 GLOBAL_INCLUDES := $(addprefix -I,$(GLOBAL_INCLUDES))
@@ -195,6 +194,8 @@ export GCC_COLORS ?= 1
 
 # the logic to compile and link stuff is in here
 include make/build.mk
+
+DEPS := $(ALLOBJS:%o=%d)
 
 # put all of the global build flags in config.h to force a rebuild if any change
 GLOBAL_DEFINES += GLOBAL_INCLUDES=\"$(subst $(SPACE),_,$(GLOBAL_INCLUDES))\"
