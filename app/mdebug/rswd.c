@@ -54,7 +54,7 @@ static u8 optable[16] = {
 };
 
 static const char *board_str = TARGET;
-static const char *build_str = "fw v0.9 (" __DATE__ ", " __TIME__ ")";
+static const char *build_str = "fw v0.91 (" __DATE__ ", " __TIME__ ")";
 
 static void _reboot(void) {
 	platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
