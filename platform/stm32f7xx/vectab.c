@@ -26,7 +26,6 @@
 #include <platform/stm32.h>
 #include <target/debugconfig.h>
 #include <lib/cbuf.h>
-#include <stm32f7xx.h>
 
 /* un-overridden irq handler */
 void stm32_dummy_irq(void)

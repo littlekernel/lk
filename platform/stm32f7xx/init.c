@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -26,48 +26,44 @@
 #include <platform.h>
 #include <platform/stm32.h>
 #include <arch/arm/cm.h>
-#include <stm32f7xx_hal_rcc.h>
-#include <stm32f7xx_hal_pwr.h>
-#include <stm32f7xx_hal_flash.h>
-#include "system_stm32f7xx.h"
 
-uint32_t SystemCoreClock = 16000000;
+uint32_t SystemCoreClock = HSI_VALUE;
 
 void SystemInit(void)
 {
-  /* FPU settings ------------------------------------------------------------*/
-  #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+    /* FPU settings ------------------------------------------------------------*/
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
     SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
-  #endif
-  /* Reset the RCC clock configuration to the default reset state ------------*/
-  /* Set HSION bit */
-  RCC->CR |= (uint32_t)0x00000001;
+#endif
+    /* Reset the RCC clock configuration to the default reset state ------------*/
+    /* Set HSION bit */
+    RCC->CR |= (uint32_t)0x00000001;
 
-  /* Reset CFGR register */
-  RCC->CFGR = 0x00000000;
+    /* Reset CFGR register */
+    RCC->CFGR = 0x00000000;
 
-  /* Reset HSEON, CSSON and PLLON bits */
-  RCC->CR &= (uint32_t)0xFEF6FFFF;
+    /* Reset HSEON, CSSON and PLLON bits */
+    RCC->CR &= (uint32_t)0xFEF6FFFF;
 
-  /* Reset PLLCFGR register */
-  RCC->PLLCFGR = 0x24003010;
+    /* Reset PLLCFGR register */
+    RCC->PLLCFGR = 0x24003010;
 
-  /* Reset HSEBYP bit */
-  RCC->CR &= (uint32_t)0xFFFBFFFF;
+    /* Reset HSEBYP bit */
+    RCC->CR &= (uint32_t)0xFFFBFFFF;
 
-  /* Disable all interrupts */
-  RCC->CIR = 0x00000000;
+    /* Disable all interrupts */
+    RCC->CIR = 0x00000000;
 
-  __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_RCC_PWR_CLK_ENABLE();
 
 #if defined (DATA_IN_ExtSRAM) || defined (DATA_IN_ExtSDRAM)
-  SystemInit_ExtMemCtl(); 
+    SystemInit_ExtMemCtl();
 #endif /* DATA_IN_ExtSRAM || DATA_IN_ExtSDRAM */
 }
 
 /**
   * @brief  System Clock Configuration
-  *         The system Clock is configured as follow : 
+  *         The system Clock is configured as follow :
   *            System Clock source            = PLL (HSE)
   *            SYSCLK(Hz)                     = 216000000
   *            HCLK(Hz)                       = 216000000
@@ -85,93 +81,94 @@ void SystemInit(void)
   * @param  None
   * @retval None
   */
-void SystemClock_Config(void)
+static void SystemClock_Config(void)
 {
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  HAL_StatusTypeDef ret = HAL_OK;
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    HAL_StatusTypeDef ret = HAL_OK;
 
 #if 0
-  /* Enable HSE Oscillator and activate PLL with HSE as source */
-  // This is not working, the result is a funky 69.1 MHz speed and
-  // the USART1 cannot use HSE as its source, nor can use SYSCLK, in
-  // other words, something is not kosher.
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 25;
-  RCC_OscInitStruct.PLL.PLLN = 432;  
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 9;
+    /* Enable HSE Oscillator and activate PLL with HSE as source */
+    // This is not working, the result is a funky 69.1 MHz speed and
+    // the USART1 cannot use HSE as its source, nor can use SYSCLK, in
+    // other words, something is not kosher.
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM = 25;
+    RCC_OscInitStruct.PLL.PLLN = 432;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = 9;
 #else
-  /* Enable HSI Oscillator and activate PLL with HSE as source */
-  RCC_OscInitStruct.OscillatorType    = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState          = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue  = 16;
-  RCC_OscInitStruct.PLL.PLLState      = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource     = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM          = 16;
-  RCC_OscInitStruct.PLL.PLLN          = 432;
-  RCC_OscInitStruct.PLL.PLLP          = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ          = 9;
+    /* Enable HSI Oscillator and activate PLL with HSE as source */
+    RCC_OscInitStruct.OscillatorType    = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState          = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue  = 16;
+    RCC_OscInitStruct.PLL.PLLState      = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource     = RCC_PLLSOURCE_HSI;
+    RCC_OscInitStruct.PLL.PLLM          = 16;
+    RCC_OscInitStruct.PLL.PLLN          = 432;
+    RCC_OscInitStruct.PLL.PLLP          = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ          = 9;
 #endif
 
-  ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
-  if(ret != HAL_OK)
-  {
-    while(1) { ; }
-  }
-  
-  /* Activate the OverDrive to reach the 216 MHz Frequency */  
-  ret = HAL_PWREx_EnableOverDrive();
-  if(ret != HAL_OK)
-  {
-    while(1) { ; }
-  }
-  
-  /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers */
-  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;  
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2; 
-  
-  ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7);
-  if(ret != HAL_OK)
-  {
-    while(1) { ; }
-  }  
+    ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
+    if (ret != HAL_OK) {
+        while (1) { ; }
+    }
+
+    /* Activate the OverDrive to reach the 216 MHz Frequency */
+    ret = HAL_PWREx_EnableOverDrive();
+    if (ret != HAL_OK) {
+        while (1) { ; }
+    }
+
+    /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers */
+    RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+
+    ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7);
+    if (ret != HAL_OK) {
+        while (1) { ; }
+    }
 }
 
 void platform_early_init(void)
 {
-    // Crank up the clock before initing timers.
+    // Do general system init
     SystemInit();
     SystemClock_Config();
 
-#if 0
-    // start the systick timer
-    RCC_ClocksTypeDef clocks;
-    RCC_GetClocksFreq(&clocks);
-#endif
+    // Enable the flash ART controller
+    __HAL_FLASH_ART_ENABLE();
+    __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+
+    // Start the systick timer
     uint32_t sysclk = HAL_RCC_GetSysClockFreq();
     arm_cm_systick_init(sysclk);
 
     stm32_timer_early_init();
     stm32_gpio_early_init();
 
-    ITM_SendChar('1');
+    /* clear the reboot reason */
+    RCC->CSR |= (1<<24);
+
+//    ITM_SendChar('1');
 }
 
 void platform_init(void)
 {
-    uint32_t sysclk = HAL_RCC_GetSysClockFreq();
-    printf("sysclk %u\n", sysclk);
-    uint32_t hclk = HAL_RCC_GetHCLKFreq();
-    printf("hclk %u\n", hclk);
+    printf("clocks:\n");
+    printf("\tsysclk %u\n", HAL_RCC_GetSysClockFreq());
+    printf("\thclk %u\n", HAL_RCC_GetHCLKFreq());
+    printf("\tpclk1 %u\n", HAL_RCC_GetPCLK1Freq());
+    printf("\tpclk2 %u\n", HAL_RCC_GetPCLK2Freq());
 
     stm32_timer_init();
 
-    ITM_SendChar('2');
+//    ITM_SendChar('2');
 }

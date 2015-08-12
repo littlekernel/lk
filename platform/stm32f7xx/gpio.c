@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2012-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,12 +25,11 @@
 #include <dev/gpio.h>
 #include <platform/stm32.h>
 #include <platform/gpio.h>
-#include <stm32f7xx_hal_dma.h>
-#include <stm32f7xx_hal_gpio.h>
-#include <stm32f7xx_hal_rcc.h>
 
 static GPIO_TypeDef *port_to_pointer(unsigned int port)
 {
+    DEBUG_ASSERT(port <= GPIO_PORT_I);
+
     switch (port) {
         default:
         case GPIO_PORT_A:
@@ -58,11 +57,35 @@ static void enable_port(unsigned int port)
 {
     DEBUG_ASSERT(port <= GPIO_PORT_I);
 
-#if 0
-    /* happens to be the RCC ids are sequential bits, so we can start from A and shift */
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA << port, ENABLE);
-#endif
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    switch (port) {
+        case GPIO_PORT_A:
+            __HAL_RCC_GPIOA_CLK_ENABLE();
+            break;
+        case GPIO_PORT_B:
+            __HAL_RCC_GPIOB_CLK_ENABLE();
+            break;
+        case GPIO_PORT_C:
+            __HAL_RCC_GPIOC_CLK_ENABLE();
+            break;
+        case GPIO_PORT_D:
+            __HAL_RCC_GPIOD_CLK_ENABLE();
+            break;
+        case GPIO_PORT_E:
+            __HAL_RCC_GPIOE_CLK_ENABLE();
+            break;
+        case GPIO_PORT_F:
+            __HAL_RCC_GPIOF_CLK_ENABLE();
+            break;
+        case GPIO_PORT_G:
+            __HAL_RCC_GPIOG_CLK_ENABLE();
+            break;
+        case GPIO_PORT_H:
+            __HAL_RCC_GPIOH_CLK_ENABLE();
+            break;
+        case GPIO_PORT_I:
+            __HAL_RCC_GPIOI_CLK_ENABLE();
+            break;
+    }
 }
 
 void stm32_gpio_early_init(void)
@@ -71,27 +94,25 @@ void stm32_gpio_early_init(void)
 
 int gpio_config(unsigned nr, unsigned flags)
 {
-#if 1
     uint port = GPIO_PORT(nr);
     uint pin = GPIO_PIN(nr);
 
     enable_port(port);
 
     GPIO_InitTypeDef init;
-    init.Speed = GPIO_SPEED_FAST;
+    init.Speed = GPIO_SPEED_HIGH;
     init.Pin = (1 << pin);
-    init.Pull = GPIO_NOPULL;
     init.Alternate = 0;
 
     if (flags & GPIO_INPUT) {
         init.Mode = GPIO_MODE_INPUT;
-    } else if  (flags & GPIO_OUTPUT) {
+    } else if (flags & GPIO_OUTPUT) {
         if (flags & GPIO_STM32_OD) {
             init.Mode = GPIO_MODE_OUTPUT_OD;
         } else {
             init.Mode = GPIO_MODE_OUTPUT_PP;
         }
-    } else if  (flags & GPIO_STM32_AF) {
+    } else if (flags & GPIO_STM32_AF) {
         if (flags & GPIO_STM32_OD) {
             init.Mode = GPIO_MODE_AF_OD;
         } else {
@@ -104,10 +125,11 @@ int gpio_config(unsigned nr, unsigned flags)
         init.Pull = GPIO_PULLUP;
     } else if (flags & GPIO_PULLDOWN) {
         init.Pull = GPIO_PULLDOWN;
+    } else {
+        init.Pull = GPIO_NOPULL;
     }
 
     HAL_GPIO_Init(port_to_pointer(port), &init);
-#endif
 
     return 0;
 }

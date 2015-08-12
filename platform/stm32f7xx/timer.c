@@ -27,9 +27,7 @@
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/timer.h>
-#include <stm32f7xx_hal_rcc.h>
-#include <stm32f7xx_hal_dma.h>
-#include <stm32f7xx_hal_tim.h>
+#include <platform/stm32.h>
 #include <arch/arm/cm.h>
 
 #define LOCAL_TRACE 0

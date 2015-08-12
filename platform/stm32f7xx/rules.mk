@@ -3,7 +3,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 # ROMBASE, MEMBASE, and MEMSIZE are required for the linker script
-ROMBASE ?= 0x08000000
+ROMBASE ?= 0x00200000
 MEMBASE ?= 0x20010000
 # default memsize, specific STM32_CHIP may override this
 # and target/project may have already overridden
