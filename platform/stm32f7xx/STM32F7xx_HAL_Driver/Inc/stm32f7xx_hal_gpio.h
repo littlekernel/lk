@@ -46,6 +46,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f7xx_hal_def.h"
 
+/* XXX tg - avoids collision with lk gpio.h */
+#include <dev/gpio.h>
+
 /** @addtogroup STM32F7xx_HAL_Driver
   * @{
   */
@@ -170,8 +173,9 @@ typedef enum
    * @{
    */  
 #define  GPIO_NOPULL        ((uint32_t)0x00000000)   /*!< No Pull-up or Pull-down activation  */
-#define  GPIO_PULLUP        ((uint32_t)0x00000001)   /*!< Pull-up activation                  */
-#define  GPIO_PULLDOWN      ((uint32_t)0x00000002)   /*!< Pull-down activation                */
+/* XXX tg - avoid collision with lk GPIO_ api */
+//#define  GPIO_PULLUP        ((uint32_t)0x00000001)   /*!< Pull-up activation                  */
+//#define  GPIO_PULLDOWN      ((uint32_t)0x00000002)   /*!< Pull-down activation                */
 /**
   * @}
   */

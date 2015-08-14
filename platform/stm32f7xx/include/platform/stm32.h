@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -22,6 +22,9 @@
  */
 #ifndef __PLATFORM_STM32_H
 #define __PLATFORM_STM32_H
+
+/* include all of the ST driver library here */
+#include <stm32f7xx.h>
 
 void stm32_debug_early_init(void);
 void stm32_debug_init(void);

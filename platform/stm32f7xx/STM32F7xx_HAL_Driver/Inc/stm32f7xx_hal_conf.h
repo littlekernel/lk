@@ -162,6 +162,13 @@
   */
 /* #define USE_FULL_ASSERT    1 */
 
+/* LK - set to 1 to enable full asserts in ST code.
+ * Greatly increases the size of the binary.
+ */
+#if 0 && LK_DEBUGLEVEL >= 2
+#define USE_FULL_ASSERT    1
+#endif
+
 /* ################## Ethernet peripheral configuration ##################### */
 
 /* Section 1 : Ethernet peripheral configuration */
@@ -394,7 +401,7 @@
 #endif /* HAL_HCD_MODULE_ENABLED */
    
 /* Exported macro ------------------------------------------------------------*/
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  The assert_param macro is used for function's parameters check.
   * @param  expr: If expr is false, it calls assert_failed function
@@ -403,7 +410,9 @@
   *         If expr is true, it returns no value.
   * @retval None
   */
-  #define assert_param(expr) ((expr) ? (void)0 : assert_failed((uint8_t *)__FILE__, __LINE__))
+#include <assert.h>
+#define assert_param(expr) ASSERT(expr)
+//#define assert_param(expr) ((expr) ? (void)0 : assert_failed((uint8_t *)__FILE__, __LINE__))
 /* Exported functions ------------------------------------------------------- */
   void assert_failed(uint8_t* file, uint32_t line);
 #else
