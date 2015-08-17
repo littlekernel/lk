@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2010 Travis Geiselbrecht
+ * Copyright (c) 2008-2010, 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -503,7 +503,7 @@ void gfx_draw_pattern(void)
 			scaledx = x * 256 / surface->width;
 			scaledy = y * 256 / surface->height;
 
-			gfx_putpixel(surface, x, y, (scaledx * scaledy) << 16 | (scaledx >> 1) << 8 | scaledy >> 1);
+			gfx_putpixel(surface, x, y, (0xff << 24) | (scaledx * scaledy) << 16 | (scaledx >> 1) << 8 | scaledy >> 1);
 		}
 	}
 
@@ -526,7 +526,7 @@ void gfx_draw_pattern_white(void)
 	uint x, y;
 	for (y = 0; y < surface->height; y++) {
 		for (x = 0; x < surface->width; x++) {
-			gfx_putpixel(surface, x, y, 0xFFFFFF);
+			gfx_putpixel(surface, x, y, 0xFFFFFFFF);
 		}
 	}
 
@@ -551,25 +551,24 @@ static int gfx_draw_rgb_bars(gfx_surface *surface)
 {
 	uint x, y;
 
-	int step32 = surface->height*100 / 32;
-	int step64 = surface->height*100 / 64;
-	int color;
+	uint step = surface->height*100 / 256;
+	uint color;
 
 	for (y = 0; y < surface->height; y++) {
 		//R
 		for (x = 0; x < surface->width/3; x++) {
-			color = y*100 / step32;
-			gfx_putpixel(surface, x, y, color << 16);
+			color = y*100 / step;
+			gfx_putpixel(surface, x, y, 0xff << 24 | color << 16);
 		}
 		//G
 		for (; x < 2*(surface->width/3); x++) {
-			color = y*100 / step64;
-			gfx_putpixel(surface, x, y, color << 8);
+			color = y*100 / step;
+			gfx_putpixel(surface, x, y, 0xff << 24 | color << 8);
 		}
 		//B
 		for (; x < surface->width; x++) {
-			color = y*100 / step32;
-			gfx_putpixel(surface, x, y, color);
+			color = y*100 / step;
+			gfx_putpixel(surface, x, y, 0xff << 24 | color);
 		}
 	}
 
@@ -581,8 +580,10 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 {
 	if (argc < 2) {
 		printf("not enough arguments:\n");
-		printf("%s rgb_bars		: Fill frame buffer with rgb bars\n", argv[0].str);
-		printf("%s fill r g b	: Fill frame buffer with RGB565 value and force update\n", argv[0].str);
+		printf("%s display_info : output information bout the current display\n", argv[0].str);
+		printf("%s rgb_bars     : Fill frame buffer with rgb bars\n", argv[0].str);
+		printf("%s test_pattern : Fill frame with test pattern\n", argv[0].str);
+		printf("%s fill r g b   : Fill frame buffer with RGB888 value and force update\n", argv[0].str);
 
 		return -1;
 	}
@@ -592,15 +593,22 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 
 	gfx_surface *surface = gfx_create_surface_from_display(&info);
 
-	if (!strcmp(argv[1].str, "rgb_bars")) {
+	if (!strcmp(argv[1].str, "display_info")) {
+		printf("display:\n");
+		printf("\tframebuffer %p\n", info.framebuffer);
+		printf("\twidth %u height %u stride %u\n", info.width, info.height, info.stride);
+		printf("\tformat %u\n", info.format);
+	} else if (!strcmp(argv[1].str, "rgb_bars")) {
 		gfx_draw_rgb_bars(surface);
+	} else if (!strcmp(argv[1].str, "test_pattern")) {
+		gfx_draw_pattern();
 	} else if (!strcmp(argv[1].str, "fill")) {
 		uint x, y;
 
 		for (y = 0; y < surface->height; y++) {
 			for (x = 0; x < surface->width; x++) {
 				/* write pixel to frame buffer */
-				gfx_putpixel(surface, x, y, (argv[2].i << 16) | (argv[3].i << 8) | argv[4].i);
+				gfx_putpixel(surface, x, y, (0xff << 24) | (argv[2].i << 16) | (argv[3].i << 8) | argv[4].i);
 			}
 		}
 	}
@@ -615,3 +623,5 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 
 #endif
 #endif
+
+// vim: set noexpandtab:
