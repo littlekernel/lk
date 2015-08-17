@@ -33,6 +33,7 @@
 #include <reg.h>
 
 extern uint8_t BSP_SDRAM_Init(void);
+extern uint8_t BSP_LCD_Init(void);
 
 void target_early_init(void)
 {
@@ -49,6 +50,9 @@ void target_early_init(void)
 
     /* initialize sdram */
     BSP_SDRAM_Init();
+
+    /* initialize the lcd panel */
+    BSP_LCD_Init();
 }
 
 void target_init(void)
