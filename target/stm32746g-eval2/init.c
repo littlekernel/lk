@@ -32,6 +32,8 @@
 #include <target/gpioconfig.h>
 #include <reg.h>
 
+extern uint8_t BSP_SDRAM_Init(void);
+
 void target_early_init(void)
 {
 #if DEBUG_UART == 1
@@ -44,6 +46,9 @@ void target_early_init(void)
 
     /* now that the uart gpios are configured, enable the debug uart */
     stm32_debug_early_init();
+
+    /* initialize sdram */
+    BSP_SDRAM_Init();
 }
 
 void target_init(void)
