@@ -32,5 +32,8 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/lcd.c \
     $(LOCAL_DIR)/sdram.c
 
+MODULE_DEPS += \
+    lib/gfx
+
 include make/module.mk
 

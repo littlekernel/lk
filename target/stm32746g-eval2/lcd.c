@@ -53,7 +53,9 @@
 #include <trace.h>
 #include <target.h>
 #include <compiler.h>
+#include <lib/gfx.h>
 #include <dev/gpio.h>
+#include <dev/display.h>
 #include <platform/stm32.h>
 
 /*
@@ -371,5 +373,27 @@ uint8_t BSP_LCD_Init(void)
     BSP_LCD_DisplayOn();
 
     return LCD_OK;
+}
+
+/* LK display api here */
+void display_get_info(struct display_info *info)
+{
+    info->framebuffer = (void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress;
+
+    if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) {
+        info->format = GFX_FORMAT_ARGB_8888;
+    } else if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_RGB888) {
+        info->format = GFX_FORMAT_RGB_x888;
+    } else if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_RGB565) {
+        info->format = GFX_FORMAT_RGB_565;
+    } else {
+        panic("unknown pixel format\n");
+        info->format = GFX_FORMAT_MAX;
+    }
+
+    info->width = BSP_LCD_GetXSize();
+    info->height = BSP_LCD_GetXSize();
+    info->stride = BSP_LCD_GetXSize();
+    info->flush = NULL; // XXX cache flush
 }
 
