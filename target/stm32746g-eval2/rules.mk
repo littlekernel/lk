@@ -33,7 +33,9 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/sdram.c
 
 MODULE_DEPS += \
-    lib/gfx
+    lib/gfx \
+
+#    lib/gfxconsole
 
 include make/module.mk
 

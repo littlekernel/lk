@@ -53,6 +53,7 @@
 #include <trace.h>
 #include <target.h>
 #include <compiler.h>
+#include <string.h>
 #include <lib/gfx.h>
 #include <dev/gpio.h>
 #include <dev/display.h>
@@ -369,6 +370,9 @@ uint8_t BSP_LCD_Init(void)
     BSP_LCD_LayerDefaultInit(0, SDRAM_BASE);
     BSP_LCD_SelectLayer(0);
 
+    /* clear it out */
+    memset((void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress, 0, BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * 4); // XXX hard coded size
+
     /* turn the display on */
     BSP_LCD_DisplayOn();
 
@@ -392,7 +396,7 @@ void display_get_info(struct display_info *info)
     }
 
     info->width = BSP_LCD_GetXSize();
-    info->height = BSP_LCD_GetXSize();
+    info->height = BSP_LCD_GetYSize();
     info->stride = BSP_LCD_GetXSize();
     info->flush = NULL; // XXX cache flush
 }
