@@ -74,13 +74,17 @@
  * | AP        P         U   |
  * +-------------------------+
  * |                         |
- * | 00       NA        NA   |
+ * | 000      NA        NA   |
  * |                         |
- * | 01       RW        NA   |
+ * | 001      RW        NA   |
  * |                         |
- * | 10       RW        R    |
+ * | 010      RW        R    |
  * |                         |
- * | 11       RW        RW   |
+ * | 011      RW        RW   |
+ * |                         |
+ * | 101      R         NA   |
+ * |                         |
+ * | 111      R         R    |
  * |                         |
  * +-------------------------+
  *
@@ -93,15 +97,19 @@
  *
  */
 #define MMU_MEMORY_L1_AP_P_NA_U_NA          ((0x0 << 15) | (0x0 << 10))
-#define MMU_MEMORY_L1_AP_P_RW_U_RO          ((0x0 << 15) | (0x2 << 10))
+#define MMU_MEMORY_L1_AP_P_RW_U_RO          ((0x0 << 15) | (0x2 << 10)) /* Obsolete */
 #define MMU_MEMORY_L1_AP_P_RW_U_RW          ((0x0 << 15) | (0x3 << 10))
 #define MMU_MEMORY_L1_AP_P_RW_U_NA          ((0x0 << 15) | (0x1 << 10))
+#define MMU_MEMORY_L1_AP_P_RO_U_RO          ((0x1 << 15) | (0x3 << 10))
+#define MMU_MEMORY_L1_AP_P_RO_U_NA          ((0x1 << 15) | (0x1 << 10))
 #define MMU_MEMORY_L1_AP_MASK               ((0x1 << 15) | (0x3 << 10))
 
 #define MMU_MEMORY_L2_AP_P_NA_U_NA          ((0x0 << 9) | (0x0 << 4))
-#define MMU_MEMORY_L2_AP_P_RW_U_RO          ((0x0 << 9) | (0x2 << 4))
+#define MMU_MEMORY_L2_AP_P_RW_U_RO          ((0x0 << 9) | (0x2 << 4)) /* Obsolete */
 #define MMU_MEMORY_L2_AP_P_RW_U_RW          ((0x0 << 9) | (0x3 << 4))
 #define MMU_MEMORY_L2_AP_P_RW_U_NA          ((0x0 << 9) | (0x1 << 4))
+#define MMU_MEMORY_L2_AP_P_RO_U_RO          ((0x1 << 9) | (0x3 << 4))
+#define MMU_MEMORY_L2_AP_P_RO_U_NA          ((0x1 << 9) | (0x1 << 4))
 #define MMU_MEMORY_L2_AP_MASK               ((0x1 << 9) | (0x3 << 4))
 
 #define MMU_MEMORY_L1_PAGETABLE_NON_SECURE  (1 << 3)

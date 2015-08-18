@@ -76,14 +76,13 @@ static uint32_t mmu_flags_to_l1_arch_flags(uint flags)
             arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_NA;
             break;
         case ARCH_MMU_FLAG_PERM_RO:
-            /* this mapping is a lie, we don't support RO kernel mapping */
-            arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_NA;
+            arch_flags |= MMU_MEMORY_L1_AP_P_RO_U_NA;
             break;
         case ARCH_MMU_FLAG_PERM_USER:
             arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_RW;
             break;
         case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO:
-            arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_RO;
+            arch_flags |= MMU_MEMORY_L1_AP_P_RO_U_RO;
             break;
     }
 
@@ -129,14 +128,13 @@ static uint32_t mmu_flags_to_l2_arch_flags_small_page(uint flags)
             arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_NA;
             break;
         case ARCH_MMU_FLAG_PERM_RO:
-            /* this mapping is a lie, we don't support RO kernel mapping */
-            arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_NA;
+            arch_flags |= MMU_MEMORY_L2_AP_P_RO_U_NA;
             break;
         case ARCH_MMU_FLAG_PERM_USER:
             arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_RW;
             break;
         case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO:
-            arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_RO;
+            arch_flags |= MMU_MEMORY_L2_AP_P_RO_U_RO;
             break;
     }
 
@@ -252,13 +250,13 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
                         break;
                 }
                 switch (tt_entry & MMU_MEMORY_L1_AP_MASK) {
-                    case MMU_MEMORY_L1_AP_P_NA_U_NA:
-                        // XXX no access, what to return?
+                    case MMU_MEMORY_L1_AP_P_RO_U_NA:
+                        *flags |= ARCH_MMU_FLAG_PERM_RO;
                         break;
                     case MMU_MEMORY_L1_AP_P_RW_U_NA:
                         break;
-                    case MMU_MEMORY_L1_AP_P_RW_U_RO:
-                        *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO; // XXX should it be rw anyway since kernel can rw it?
+                    case MMU_MEMORY_L1_AP_P_RO_U_RO:
+                        *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO;
                         break;
                     case MMU_MEMORY_L1_AP_P_RW_U_RW:
                         *flags |= ARCH_MMU_FLAG_PERM_USER;
@@ -303,13 +301,13 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
                                 break;
                         }
                         switch (l2_entry & MMU_MEMORY_L2_AP_MASK) {
-                            case MMU_MEMORY_L2_AP_P_NA_U_NA:
-                                // XXX no access, what to return?
+                            case MMU_MEMORY_L2_AP_P_RO_U_NA:
+                                *flags |= ARCH_MMU_FLAG_PERM_RO;
                                 break;
                             case MMU_MEMORY_L2_AP_P_RW_U_NA:
                                 break;
-                            case MMU_MEMORY_L2_AP_P_RW_U_RO:
-                                *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO; // XXX should it be rw anyway since kernel can rw it?
+                            case MMU_MEMORY_L2_AP_P_RO_U_RO:
+                                *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO;
                                 break;
                             case MMU_MEMORY_L2_AP_P_RW_U_RW:
                                 *flags |= ARCH_MMU_FLAG_PERM_USER;
