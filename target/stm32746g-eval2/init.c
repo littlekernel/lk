@@ -35,6 +35,7 @@
 
 extern uint8_t BSP_SDRAM_Init(void);
 extern uint8_t BSP_LCD_Init(void);
+extern uint8_t BSP_SRAM_Init(void);
 static void MPU_RegionConfig(void);
 
 void target_early_init(void)
@@ -53,7 +54,10 @@ void target_early_init(void)
     /* initialize sdram */
     BSP_SDRAM_Init();
 
-    /* initialize the mcu */
+    /* initialize external sram */
+    BSP_SRAM_Init();
+
+    /* initialize the mpu */
     MPU_RegionConfig();
 
     /* initialize the lcd panel */
@@ -72,6 +76,8 @@ static void MPU_RegionConfig(void)
     /* Disable MPU */
     HAL_MPU_Disable();
 
+    uint region_num = 0;
+
 #if 1
     // SDRAM
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
@@ -80,9 +86,26 @@ static void MPU_RegionConfig(void)
     MPU_InitStruct.AccessPermission = MPU_REGION_PRIV_RW;
     MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
     MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-    MPU_InitStruct.Number = 0;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    MPU_InitStruct.Number = region_num++;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+    MPU_InitStruct.SubRegionDisable = 0x00;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+#endif
+
+    // SRAM
+#if 1
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.BaseAddress = EXT_SRAM_BASE;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_2MB;
+    MPU_InitStruct.AccessPermission = MPU_REGION_PRIV_RW;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    MPU_InitStruct.Number = region_num++;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
     MPU_InitStruct.SubRegionDisable = 0x00;
     MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
 

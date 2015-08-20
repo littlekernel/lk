@@ -103,7 +103,8 @@
 /**
   * @brief  LCD FB_StartAddress
   */
-#define LCD_FB_START_ADDRESS       ((uint32_t)0xC0000000)
+#define LCD_FB_START_ADDRESS       ((uint32_t)SDRAM_BASE)
+//#define LCD_FB_START_ADDRESS       ((uint32_t)EXT_SRAM_BASE)
 
 static LTDC_HandleTypeDef  hLtdcEval;
 
@@ -367,7 +368,7 @@ uint8_t BSP_LCD_Init(void)
     HAL_LTDC_Init(&hLtdcEval);
 
     /* set a default layer to the base of sdram */
-    BSP_LCD_LayerDefaultInit(0, SDRAM_BASE);
+    BSP_LCD_LayerDefaultInit(0, LCD_FB_START_ADDRESS);
     BSP_LCD_SelectLayer(0);
 
     /* clear it out */
