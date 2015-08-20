@@ -381,6 +381,20 @@ uint8_t BSP_LCD_Init(void)
 }
 
 /* LK display api here */
+
+static void display_flush(uint starty, uint endy)
+{
+    if (endy <= starty)
+        return;
+
+    uint32_t xsize = BSP_LCD_GetXSize();
+    uint8_t *ptr = (uint8_t *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress + starty * xsize;
+    size_t len = (endy - starty) * xsize * 4;
+
+    /* flush the dirty cache lines for the updated region */
+    SCB_CleanDCache_by_Addr((uint32_t *)ptr, len);
+}
+
 void display_get_info(struct display_info *info)
 {
     info->framebuffer = (void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress;
@@ -399,6 +413,6 @@ void display_get_info(struct display_info *info)
     info->width = BSP_LCD_GetXSize();
     info->height = BSP_LCD_GetYSize();
     info->stride = BSP_LCD_GetXSize();
-    info->flush = NULL; // XXX cache flush
+    info->flush = &display_flush;
 }
 
