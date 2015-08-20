@@ -97,12 +97,24 @@ static int cmd_cksum_bench(int argc, const cmd_args *argv)
 {
 #define BUFSIZE 0x1000
 #define ITER 16384
-	void *buf = malloc(BUFSIZE);
+	void *buf;
+	bool freebuf;
+
+	if (argc > 1) {
+		buf = (void *)argv[1].u;
+		freebuf = false;
+	} else {
+		buf = malloc(BUFSIZE);
+		freebuf = true;
+	}
+
 	if (!buf)
 		return -1;
 
 	lk_bigtime_t t;
 	uint32_t crc;
+
+	printf("buffer at %p, size %zu\n", buf, BUFSIZE);
 
 	t = current_time_hires();
 	crc = 0;
@@ -123,9 +135,11 @@ static int cmd_cksum_bench(int argc, const cmd_args *argv)
 
 	printf("took %llu usecs to adler32 %d bytes (%lld bytes/sec)\n", t, BUFSIZE * ITER, (BUFSIZE * ITER) * 1000000ULL / t);
 
-	free(buf);
+	if (freebuf)
+		free(buf);
 	return 0;
 }
 
 #endif // WITH_LIB_CONSOLE
 
+// vim: set noexpandtab:
