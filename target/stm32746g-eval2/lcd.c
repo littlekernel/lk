@@ -57,6 +57,7 @@
 #include <lib/gfx.h>
 #include <dev/gpio.h>
 #include <dev/display.h>
+#include <arch/ops.h>
 #include <platform/stm32.h>
 
 /*
@@ -388,11 +389,11 @@ static void display_flush(uint starty, uint endy)
         return;
 
     uint32_t xsize = BSP_LCD_GetXSize();
-    uint8_t *ptr = (uint8_t *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress + starty * xsize;
+    uint32_t ptr = hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress + starty * xsize;
     size_t len = (endy - starty) * xsize * 4;
 
     /* flush the dirty cache lines for the updated region */
-    SCB_CleanDCache_by_Addr((uint32_t *)ptr, len);
+    arch_clean_cache_range(ptr, len);
 }
 
 void display_get_info(struct display_info *info)
