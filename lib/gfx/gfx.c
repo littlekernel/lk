@@ -507,8 +507,7 @@ void gfx_draw_pattern(void)
 		}
 	}
 
-	if (surface->flush)
-		surface->flush(0, surface->height-1);
+	gfx_flush(surface);
 
 	gfx_surface_destroy(surface);
 }
@@ -530,8 +529,7 @@ void gfx_draw_pattern_white(void)
 		}
 	}
 
-	if (surface->flush)
-		surface->flush(0, surface->height-1);
+	gfx_flush(surface);
 
 	gfx_surface_destroy(surface);
 }
@@ -575,7 +573,6 @@ static int gfx_draw_rgb_bars(gfx_surface *surface)
 	return 0;
 }
 
-
 static int cmd_gfx(int argc, const cmd_args *argv)
 {
 	if (argc < 2) {
@@ -613,8 +610,7 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 		}
 	}
 
-	if (surface->flush)
-		surface->flush(0, surface->height-1);
+	gfx_flush(surface);
 
 	gfx_surface_destroy(surface);
 
