@@ -107,6 +107,9 @@
 #define LCD_FB_START_ADDRESS       ((uint32_t)SDRAM_BASE)
 //#define LCD_FB_START_ADDRESS       ((uint32_t)EXT_SRAM_BASE)
 
+//#define LCD_PIXEL_FORMAT LTDC_PIXEL_FORMAT_ARGB888
+#define LCD_PIXEL_FORMAT LTDC_PIXEL_FORMAT_RGB565
+
 static LTDC_HandleTypeDef  hLtdcEval;
 
 /* Default LCD configuration with LCD Layer 1 */
@@ -150,6 +153,10 @@ void BSP_LCD_SetYSize(uint32_t imageHeightPixels)
     hLtdcEval.LayerCfg[ActiveLayer].ImageHeight = imageHeightPixels;
 }
 
+static size_t BSP_LCD_PixelSize(void)
+{
+    return (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) ? 4 : 2;
+}
 
 /**
   * @brief  Initializes the LCD layers.
@@ -166,7 +173,7 @@ void BSP_LCD_LayerDefaultInit(uint16_t LayerIndex, uint32_t FB_Address)
     layer_cfg.WindowX1 = BSP_LCD_GetXSize();
     layer_cfg.WindowY0 = 0;
     layer_cfg.WindowY1 = BSP_LCD_GetYSize();
-    layer_cfg.PixelFormat = LTDC_PIXEL_FORMAT_ARGB8888;
+    layer_cfg.PixelFormat = LCD_PIXEL_FORMAT;
     layer_cfg.FBStartAdress = FB_Address;
     layer_cfg.Alpha = 255;
     layer_cfg.Alpha0 = 0;
@@ -373,7 +380,7 @@ uint8_t BSP_LCD_Init(void)
     BSP_LCD_SelectLayer(0);
 
     /* clear it out */
-    memset((void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress, 0, BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * 4); // XXX hard coded size
+    memset((void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress, 0, BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * BSP_LCD_PixelSize());
 
     /* turn the display on */
     BSP_LCD_DisplayOn();
@@ -382,38 +389,22 @@ uint8_t BSP_LCD_Init(void)
 }
 
 /* LK display api here */
-
-static void display_flush(uint starty, uint endy)
-{
-    if (endy <= starty)
-        return;
-
-    uint32_t xsize = BSP_LCD_GetXSize();
-    uint32_t ptr = hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress + starty * xsize;
-    size_t len = (endy - starty) * xsize * 4;
-
-    /* flush the dirty cache lines for the updated region */
-    arch_clean_cache_range(ptr, len);
-}
-
 void display_get_info(struct display_info *info)
 {
     info->framebuffer = (void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress;
 
     if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) {
         info->format = GFX_FORMAT_ARGB_8888;
-    } else if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_RGB888) {
-        info->format = GFX_FORMAT_RGB_x888;
     } else if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_RGB565) {
         info->format = GFX_FORMAT_RGB_565;
     } else {
-        panic("unknown pixel format\n");
+        panic("unhandled pixel format\n");
         info->format = GFX_FORMAT_MAX;
     }
 
     info->width = BSP_LCD_GetXSize();
     info->height = BSP_LCD_GetYSize();
     info->stride = BSP_LCD_GetXSize();
-    info->flush = &display_flush;
+    info->flush = NULL;
 }
 
