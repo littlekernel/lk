@@ -104,7 +104,7 @@ void stellaris_debug_init(void)
 void platform_dputc(char c)
 {
 	if (c == '\n') {
-		_dputc('\r');
+		platform_dputc('\r');
 	}
 
 	UARTCharPut(DEBUG_UART, c);

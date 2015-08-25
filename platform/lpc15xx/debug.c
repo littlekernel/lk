@@ -78,7 +78,7 @@ void lpc_UART0_irq(void)
 void platform_dputc(char c)
 {
     if (c == '\n') {
-        _dputc('\r');
+        platform_dputc('\r');
     }
 
     Chip_UART_SendBlocking(DEBUG_UART, &c, 1);
