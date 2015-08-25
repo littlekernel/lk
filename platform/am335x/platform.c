@@ -25,6 +25,7 @@
 #include <debug.h>
 #include <sys/types.h>
 #include <arch/arm/mmu.h>
+#include <kernel/vm.h>
 #include <platform.h>
 #include "platform_p.h"
 #include <dev/uart.h>
@@ -35,6 +36,17 @@
 #include <hw_cm_per.h>
 #include <hw_types.h>
 
+#warning Add proper memory map
+
+/* initial memory mappings. parsed by start.S */
+struct mmu_initial_mapping mmu_initial_mappings[] = {
+	// XXX needs to be filled in
+
+	/* null entry to terminate the list */
+	{ 0 }
+};
+
+#if 0
 void platform_init_mmu_mappings(void)
 {
 	/* do some memory map initialization */
@@ -56,6 +68,7 @@ void platform_init_mmu_mappings(void)
 				MMU_MEMORY_L1_AP_P_RW_U_NA);
 	}
 }
+#endif
 
 static void wait_field(addr_t base, uint32_t reg, uint32_t mask, uint32_t val)
 {

@@ -29,7 +29,19 @@
 #include <dev/i2c.h>
 #include <dev/uart.h>
 #include <dev/usbc.h>
+#include <kernel/vm.h>
 
+#warning Add proper memory map
+
+/* initial memory mappings. parsed by start.S */
+struct mmu_initial_mapping mmu_initial_mappings[] = {
+	// XXX needs to be filled in
+
+	/* null entry to terminate the list */
+	{ 0 }
+};
+
+#if 0
 void platform_init_mmu_mappings(void)
 {
 	/* do some memory map initialization */
@@ -44,6 +56,7 @@ void platform_init_mmu_mappings(void)
 				MMU_MEMORY_L1_AP_P_RW_U_NA);
 	}
 }
+#endif
 
 void platform_early_init(void)
 {
