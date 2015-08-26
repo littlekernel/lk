@@ -32,5 +32,13 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/e_powf.c \
 	$(LOCAL_DIR)/s_fabs.c \
 	$(LOCAL_DIR)/s_fabsf.c \
+	$(LOCAL_DIR)/e_fmod.c \
+	$(LOCAL_DIR)/e_log.c \
+	$(LOCAL_DIR)/e_exp.c \
+	$(LOCAL_DIR)/s_round.c \
+	$(LOCAL_DIR)/s_ceil.c \
+	$(LOCAL_DIR)/s_trunc.c \
+	$(LOCAL_DIR)/s_atan.c \
+	$(LOCAL_DIR)/e_atan2.c \
 
 include make/module.mk

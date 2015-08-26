@@ -39,6 +39,9 @@ long atol(const char *num);
 unsigned long atoul(const char *num);
 unsigned long long atoull(const char *num);
 
+long strtol(const char *nptr, char **endptr, int base);
+long long strtoll(const char *nptr, char **endptr, int base);
+
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
