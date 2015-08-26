@@ -3,6 +3,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 GLOBAL_INCLUDES += $(LOCAL_DIR)/Inc
 
 MODULE_SRCS += \
+    $(LOCAL_DIR)/lk_hal.c \
+\
     $(LOCAL_DIR)/Src/stm32f7xx_hal.c \
     $(LOCAL_DIR)/Src/stm32f7xx_hal_adc.c \
     $(LOCAL_DIR)/Src/stm32f7xx_hal_adc_ex.c \

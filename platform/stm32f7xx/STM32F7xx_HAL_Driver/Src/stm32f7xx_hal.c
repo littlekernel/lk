@@ -239,6 +239,7 @@ __weak void HAL_MspDeInit(void)
   * @param TickPriority: Tick interrupt priority.
   * @retval HAL status
   */
+#if 0 // disabled for LK
 __weak HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
 {
   /*Configure the SysTick to have interrupt in 1ms time basis*/
@@ -250,6 +251,7 @@ __weak HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
   /* Return function status */
   return HAL_OK;
 }
+#endif
 
 /**
   * @}
@@ -278,6 +280,7 @@ __weak HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
   * @{
   */
 
+#if 0 // disabled for LK
 /**
   * @brief This function is called to increment  a global variable "uwTick"
   *        used as application time base.
@@ -354,6 +357,7 @@ __weak void HAL_ResumeTick(void)
   /* Enable SysTick Interrupt */
   SysTick->CTRL  |= SysTick_CTRL_TICKINT_Msk;
 }
+#endif // LK
 
 /**
   * @brief  Returns the HAL revision
