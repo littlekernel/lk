@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <err.h>
 #include <assert.h>
 #include <dev/gpio.h>
 #include <platform/stm32.h>
@@ -119,6 +120,9 @@ int gpio_config(unsigned nr, unsigned flags)
             init.Mode = GPIO_MODE_AF_PP;
         }
         init.Alternate = GPIO_AFNUM(flags);
+    } else {
+        panic("stm32f7: invalid args to gpio_config\n");
+        return ERR_INVALID_ARGS;
     }
 
     if (flags & GPIO_PULLUP) {
