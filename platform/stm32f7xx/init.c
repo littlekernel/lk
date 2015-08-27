@@ -153,6 +153,7 @@ void platform_early_init(void)
 
     stm32_timer_early_init();
     stm32_gpio_early_init();
+    stm32_flash_early_init();
 
     /* clear the reboot reason */
     RCC->CSR |= (1<<24);
@@ -169,6 +170,8 @@ void platform_init(void)
     printf("\tpclk2 %u\n", HAL_RCC_GetPCLK2Freq());
 
     stm32_timer_init();
+
+    stm32_flash_init();
 
 //    ITM_SendChar('2');
 }

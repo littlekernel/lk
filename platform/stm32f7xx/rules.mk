@@ -32,6 +32,7 @@ GLOBAL_INCLUDES += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/eth.c \
+	$(LOCAL_DIR)/flash.c \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/timer.c \
@@ -48,6 +49,7 @@ LINKER_SCRIPT += \
 
 MODULE_DEPS += \
 	arch/arm/arm-m/systick \
+	lib/bio \
 	lib/cbuf
 
 include $(LOCAL_DIR)/STM32F7xx_HAL_Driver/rules.mk $(LOCAL_DIR)/CMSIS/rules.mk
