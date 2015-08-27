@@ -26,6 +26,8 @@ GLOBAL_DEFINES += \
     WITH_STATIC_HEAP=1 \
     HEAP_START=$(HEAP_START) \
     HEAP_LEN=$(HEAP_SIZE) \
+\
+    PKTBUF_COUNT=16
 
 # XXX todo, drive pll config from here
 #HSE_VALUE=8000000 \

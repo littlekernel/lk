@@ -50,6 +50,7 @@
 
 #include <err.h>
 #include <debug.h>
+#include <assert.h>
 #include <trace.h>
 #include <target.h>
 #include <compiler.h>
@@ -64,6 +65,11 @@
 #include <arch/arm/cm.h>
 #include <platform.h>
 #include <platform/stm32.h>
+
+#if WITH_LIB_MINIP
+#include <lib/minip.h>
+#include <lib/pktbuf.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -86,6 +92,10 @@ static struct eth_status eth;
 
 static event_t rx_event = EVENT_INITIAL_VALUE(rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
 static int eth_rx_worker(void *arg);
+
+#if WITH_LIB_MINIP
+static int eth_send_raw_pkt(pktbuf_t *p);
+#endif
 
 status_t eth_init(void)
 {
@@ -196,6 +206,19 @@ status_t eth_init(void)
     /* start worker thread */
     thread_resume(thread_create("eth_rx", &eth_rx_worker, NULL, HIGH_PRIORITY, DEFAULT_STACK_SIZE));
 
+#if WITH_LIB_MINIP
+    /* start minip */
+    /* XXX move elsewhere */
+    minip_set_macaddr(mac_addr);
+
+    uint32_t ip_addr = IPV4(192, 168, 0, 2);
+    uint32_t ip_mask = IPV4(255, 255, 255, 0);
+    uint32_t ip_gateway = IPV4_NONE;
+
+    minip_init(eth_send_raw_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+    //gem_set_callback(minip_rx_driver_callback);
+#endif
+
     TRACE_EXIT;
 
     return NO_ERROR;
@@ -220,7 +243,7 @@ void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth)
     event_signal(&rx_event, false);
 }
 
-status_t eth_send(const void *buf, size_t len)
+static status_t eth_send(const void *buf, size_t len)
 {
     status_t err;
     __IO ETH_DMADescTypeDef *DmaTxDesc;
@@ -293,6 +316,17 @@ static int eth_rx_worker(void *arg)
                 //hexdump8((void *)eth.EthHandle.RxFrameInfos.buffer, eth.EthHandle.RxFrameInfos.length);
                 //eth_send((void *)eth.EthHandle.RxFrameInfos.buffer, eth.EthHandle.RxFrameInfos.length);
 
+#if WITH_LIB_MINIP
+                pktbuf_t *p = pktbuf_alloc();
+                if (p) {
+                    pktbuf_append_data(p, (void *)eth.EthHandle.RxFrameInfos.buffer, eth.EthHandle.RxFrameInfos.length);
+
+                    minip_rx_driver_callback(p);
+
+                    pktbuf_free(p, true);
+                }
+#endif
+
                 /* Release descriptors to DMA */
                 /* Point to first descriptor */
                 __IO ETH_DMADescTypeDef *dmarxdesc;
@@ -320,3 +354,29 @@ static int eth_rx_worker(void *arg)
 
     return 0;
 }
+
+#if WITH_LIB_MINIP
+
+static int eth_send_raw_pkt(pktbuf_t *p)
+{
+    LTRACEF("p %p, dlen %zu, eof %u\n", p, p->dlen, p->eof);
+
+    DEBUG_ASSERT(p && p->dlen);
+
+    if (!p->eof) {
+        /* can't handle multi part packets yet */
+        PANIC_UNIMPLEMENTED;
+
+        return ERR_NOT_IMPLEMENTED;
+    }
+
+    eth_send(p->data, p->dlen);
+
+    pktbuf_free(p, true);
+
+    return 0;
+}
+
+#endif
+
+
