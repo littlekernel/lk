@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <err.h>
+#include <stdlib.h>
 #include <debug.h>
 #include <trace.h>
 #include <target.h>
@@ -33,11 +34,13 @@
 #include <target/gpioconfig.h>
 #include <reg.h>
 
+#if WITH_LIB_MINIP
+#include <lib/minip.h>
+#endif
+
 extern uint8_t BSP_SDRAM_Init(void);
 extern uint8_t BSP_LCD_Init(void);
 extern uint8_t BSP_SRAM_Init(void);
-
-extern status_t eth_init(void);
 
 static void MPU_RegionConfig(void);
 
@@ -159,7 +162,29 @@ void target_init(void)
     TRACE_ENTRY;
     stm32_debug_init();
 
-    eth_init();
+#if WITH_LIB_MINIP
+    // make up a mac address
+    uint8_t mac_addr[6];
+    for (size_t i = 0; i < sizeof(mac_addr); i++) {
+        mac_addr[i] = rand() & 0xff;
+    }
+
+    /* unicast and locally administered */
+    mac_addr[0] &= ~(1<<0);
+    mac_addr[0] |= (1<<1);
+
+    eth_init(mac_addr);
+
+    /* start minip */
+    minip_set_macaddr(mac_addr);
+
+    uint32_t ip_addr = IPV4(192, 168, 0, 99);
+    uint32_t ip_mask = IPV4(255, 255, 255, 0);
+    uint32_t ip_gateway = IPV4_NONE;
+
+    minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+#endif
+
     TRACE_EXIT;
 }
 

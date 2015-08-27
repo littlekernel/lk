@@ -20,8 +20,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __PLATFORM_STM32_H
-#define __PLATFORM_STM32_H
+#pragma once
+
+#include <sys/types.h>
 
 /* include all of the ST driver library here */
 #include <stm32f7xx.h>
@@ -34,5 +35,8 @@ void stm32_gpio_early_init(void);
 void stm32_flash_nor_early_init(void);
 void stm32_flash_nor_init(void);
 
-#endif
+/* ethernet driver public api */
+struct pktbuf;
+status_t eth_init(const uint8_t *mac_addr);
+status_t stm32_eth_send_minip_pkt(struct pktbuf *p);
 

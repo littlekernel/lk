@@ -97,34 +97,23 @@ static int eth_rx_worker(void *arg);
 static int eth_send_raw_pkt(pktbuf_t *p);
 #endif
 
-status_t eth_init(void)
+status_t eth_init(const uint8_t *mac_addr)
 {
-    TRACE_ENTRY;
+    LTRACE_ENTRY;
 
-    uint32_t regvalue = 0;
-    //uint8_t mac_addr[6]= { MAC_ADDR0, MAC_ADDR1, MAC_ADDR2, MAC_ADDR3, MAC_ADDR4, MAC_ADDR5 };
+    DEBUG_ASSERT(mac_addr);
 
     /* Enable ETHERNET clock  */
     __HAL_RCC_ETH_CLK_ENABLE();
 
-    // make up a mac address
-    uint8_t mac_addr[6];
-    for (size_t i = 0; i < sizeof(mac_addr); i++) {
-        mac_addr[i] = rand() & 0xff;
-    }
-
-    /* unicast and locally administered */
-    mac_addr[0] &= ~(1<<0);
-    mac_addr[0] |= (1<<1);
-
     eth.EthHandle.Instance = ETH;
-    eth.EthHandle.Init.MACAddr = mac_addr;
+    eth.EthHandle.Init.MACAddr = (uint8_t *)mac_addr;
     eth.EthHandle.Init.AutoNegotiation = ETH_AUTONEGOTIATION_ENABLE;
     eth.EthHandle.Init.Speed = ETH_SPEED_100M;
     eth.EthHandle.Init.DuplexMode = ETH_MODE_FULLDUPLEX;
     eth.EthHandle.Init.MediaInterface = ETH_MEDIA_INTERFACE_MII;
     eth.EthHandle.Init.RxMode = ETH_RXINTERRUPT_MODE;
-    eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_SOFTWARE; //ETH_CHECKSUM_BY_HARDWARE;
+    eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
     eth.EthHandle.Init.PhyAddress = DP83848_PHY_ADDRESS;
 
     /* configure ethernet peripheral (GPIOs, clocks, MAC, DMA) */
@@ -181,6 +170,7 @@ status_t eth_init(void)
 
     /**** Configure PHY to generate an interrupt when Eth Link state changes ****/
     /* Read Register Configuration */
+    uint32_t regvalue;
     HAL_ETH_ReadPHYRegister(&eth.EthHandle, PHY_MICR, &regvalue);
 
     regvalue |= (PHY_MICR_INT_EN | PHY_MICR_INT_OE);
@@ -206,20 +196,7 @@ status_t eth_init(void)
     /* start worker thread */
     thread_resume(thread_create("eth_rx", &eth_rx_worker, NULL, HIGH_PRIORITY, DEFAULT_STACK_SIZE));
 
-#if WITH_LIB_MINIP
-    /* start minip */
-    /* XXX move elsewhere */
-    minip_set_macaddr(mac_addr);
-
-    uint32_t ip_addr = IPV4(192, 168, 0, 2);
-    uint32_t ip_mask = IPV4(255, 255, 255, 0);
-    uint32_t ip_gateway = IPV4_NONE;
-
-    minip_init(eth_send_raw_pkt, NULL, ip_addr, ip_mask, ip_gateway);
-    //gem_set_callback(minip_rx_driver_callback);
-#endif
-
-    TRACE_EXIT;
+    LTRACE_EXIT;
 
     return NO_ERROR;
 }
@@ -357,7 +334,7 @@ static int eth_rx_worker(void *arg)
 
 #if WITH_LIB_MINIP
 
-static int eth_send_raw_pkt(pktbuf_t *p)
+status_t stm32_eth_send_minip_pkt(pktbuf_t *p)
 {
     LTRACEF("p %p, dlen %zu, eof %u\n", p, p->dlen, p->eof);
 
@@ -370,11 +347,11 @@ static int eth_send_raw_pkt(pktbuf_t *p)
         return ERR_NOT_IMPLEMENTED;
     }
 
-    eth_send(p->data, p->dlen);
+    status_t err = eth_send(p->data, p->dlen);
 
     pktbuf_free(p, true);
 
-    return 0;
+    return err;
 }
 
 #endif
