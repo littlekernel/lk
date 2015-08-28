@@ -378,6 +378,22 @@ int gem_rx_thread(void *arg)
     return 0;
 }
 
+
+int gem_stat_thread(void *arg) {
+    volatile bool *run = ((bool *)arg);
+    static uint32_t frames_rx = 0, frames_tx = 0;
+
+    while (*run) {
+        frames_tx += gem.regs->frames_tx;
+        frames_rx += gem.regs->frames_rx;
+        printf("GEM tx_head %u, tx_tail %u, tx_count %u, tx_frames %u, rx_frames %u\n",
+                gem.tx_head, gem.tx_tail, gem.tx_count, frames_tx, frames_rx);
+        thread_sleep(1000);
+    }
+
+    return 0;
+}
+
 void gem_deinit(uintptr_t base)
 {
     /* reset the gem peripheral */
@@ -518,13 +534,17 @@ void gem_set_macaddr(uint8_t mac[6]) {
 /* Debug console commands */
 static int cmd_gem(int argc, const cmd_args *argv)
 {
-    static uint32_t frames_rx = 0, frames_tx = 0;
+    static uint32_t frames_rx = 0;
+    static uint32_t frames_tx = 0;
+    static bool run_stats = false;
+    thread_t *stat_thread;
 
     if (argc == 1) {
-        printf("gem [d]ebug:      enable RX debug output\n");
-        printf("gem [r]aw <iter> <length>: Send <iter> raw mac packet for testing\n");
-        printf("gem [s]tatus:     print driver status\n");
-    } else if (argv[1].str[0] == 'r') {
+        printf("gem raw <iter> <length>: Send <iter> raw mac packet for testing\n");
+        printf("gem rx_debug:      toggle RX debug output\n");
+        printf("gem stats          toggle periodic output of driver stats\n");
+        printf("gem status:        print driver status\n");
+    } else if (strncmp(argv[1].str, "rx_debug", sizeof("rx_debug")) == 0) {
         pktbuf_t *p;
         int iter;
         if (argc < 4) {
@@ -541,7 +561,7 @@ static int cmd_gem(int argc, const cmd_args *argv)
             memset(p->data, iter, 12);
             gem_send_raw_pkt(p);
         }
-    } else if (argv[1].str[0] == 's') {
+    } else if (strncmp(argv[1].str, "status", sizeof("status")) == 0) {
         uint32_t mac_top = gem.regs->spec_addr1_top;
         uint32_t mac_bot = gem.regs->spec_addr1_bot;
         printf("mac addr: %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -562,14 +582,27 @@ static int cmd_gem(int argc, const cmd_args *argv)
             rx_used, GEM_RX_BUF_CNT, tx_used, GEM_TX_BUF_CNT);
         printf("frames rx: %u, frames tx: %u\n",
             frames_rx, frames_tx);
-#if 0
-        printf("rx descriptors:\n");
-        hexdump(gem.descs->rx_tbl, GEM_RX_BUF_CNT * sizeof(struct gem_desc));
-        printf("tx descriptors:\n");
-        hexdump(gem.descs->tx_tbl, GEM_TX_BUF_CNT * sizeof(struct gem_desc));
-        printf("tx head %u tail %u (%p %p)\n", gem.tx_head, gem.tx_tail,
-            &gem.descs->tx_tbl[gem.tx_head], &gem.descs->tx_tbl[gem.tx_tail]);
-#endif
+        printf("tx:\n");
+            for (size_t i = 0; i < GEM_TX_BUF_CNT; i++) {
+                uint32_t ctrl = gem.descs->tx_tbl[i].ctrl;
+                uint32_t addr = gem.descs->tx_tbl[i].addr;
+
+                printf("%3zu 0x%08X 0x%08X: len %u, %s%s%s %s%s\n",
+                    i, addr, ctrl, TX_BUF_LEN(ctrl),
+                    (ctrl & TX_DESC_USED) ? "driver " : "controller ",
+                    (ctrl & TX_DESC_WRAP) ? "wrap " : "",
+                    (ctrl & TX_LAST_BUF) ? "eof " : "",
+                    (i == gem.tx_head) ? "<-- HEAD " : "",
+                    (i == gem.tx_tail) ? "<-- TAIL " : "");
+            }
+
+    } else if (strncmp(argv[1].str, "stats", sizeof("stats")) == 0) {
+        run_stats = !run_stats;
+        if (run_stats) {
+            stat_thread = thread_create("gem_stat",
+                    gem_stat_thread, &run_stats, LOW_PRIORITY, DEFAULT_STACK_SIZE);
+            thread_resume(stat_thread);
+        }
     } else if (argv[1].str[0] == 'd') {
         gem.debug_rx = !gem.debug_rx;
     }
