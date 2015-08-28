@@ -113,7 +113,7 @@ strtol(const char *nptr, char **endptr, int base)
 		if (any < 0)
 			continue;
 		if (neg) {
-			if (acc < cutoff || acc == cutoff && c > cutlim) {
+			if (acc < cutoff || (acc == cutoff && c > cutlim)) {
 				any = -1;
 				acc = LONG_MIN;
 				errno = ERANGE;
@@ -123,7 +123,7 @@ strtol(const char *nptr, char **endptr, int base)
 				acc -= c;
 			}
 		} else {
-			if (acc > cutoff || acc == cutoff && c > cutlim) {
+			if (acc > cutoff || (acc == cutoff && c > cutlim)) {
 				any = -1;
 				acc = LONG_MAX;
 				errno = ERANGE;
