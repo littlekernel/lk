@@ -13,10 +13,7 @@ MODULES += \
 	lib/gfxconsole \
 	lib/text \
 	lib/tga \
-	lib/evlog \
-	lib/debugcommands \
-	app/tests \
-	app/shell
+	lib/evlog
 
 GLOBAL_DEFINES += \
 	WITH_KERNEL_EVLOG=1
@@ -28,3 +25,5 @@ GLOBAL_DEFINES += \
 
 #EXTRA_BUILDDEPS += $(BUILDDIR)/armemu.conf
 #GENERATED += $(BUILDDIR)/armemu.conf
+
+include project/virtual/test.mk

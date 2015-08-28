@@ -90,5 +90,8 @@ endif
 ifeq ($(ARM_CPU),arm1176jzf-s)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 endif
+ifeq ($(ARM_CPU),armemu)
+ARCH_arm_COMPILEFLAGS += -march=armv7-a
+endif
 
 endif

@@ -151,6 +151,16 @@ GLOBAL_DEFINES += \
 	ARM_CPU_ARM1136=1
 HANDLED_CORE := true
 endif
+ifeq ($(ARM_CPU),armemu)
+# flavor of emulated cpu by the armemu project
+GLOBAL_DEFINES += \
+	ARM_WITH_CP15=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7A=1 \
+	ARM_WITH_CACHE=1
+HANDLED_CORE := true
+ENABLE_THUMB := false # armemu doesn't currently support thumb properly
+endif
 
 ifneq ($(HANDLED_CORE),true)
 $(error $(LOCAL_DIR)/rules.mk doesnt have logic for arm core $(ARM_CPU))

@@ -3,11 +3,10 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 ARCH := arm
-ARM_CPU := arm1136j-s
+ARM_CPU := armemu
 CPU := generic
 
-# emulater doesn't support thumb properly
-ENABLE_THUMB := false
+WITH_KERNEL_VM := 0
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
