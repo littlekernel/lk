@@ -219,12 +219,12 @@ static ssize_t bio_default_erase(struct bdev *dev, off_t offset, size_t len)
 
 static ssize_t bio_default_read_block(struct bdev *dev, void *buf, bnum_t block, uint count)
 {
-	panic("%s no reasonable default operation\n", __PRETTY_FUNCTION__);
+	return ERR_NOT_SUPPORTED;
 }
 
 static ssize_t bio_default_write_block(struct bdev *dev, const void *buf, bnum_t block, uint count)
 {
-	panic("%s no reasonable default operation\n", __PRETTY_FUNCTION__);
+	return ERR_NOT_SUPPORTED;
 }
 
 static void bdev_inc_ref(bdev_t *dev)
@@ -313,7 +313,8 @@ ssize_t bio_read(bdev_t *dev, void *buf, off_t offset, size_t len)
 {
 	LTRACEF("dev '%s', buf %p, offset %lld, len %zd\n", dev->name, buf, offset, len);
 
-	DEBUG_ASSERT(dev->ref > 0);
+	DEBUG_ASSERT(dev && dev->ref > 0);
+	DEBUG_ASSERT(buf);
 
 	/* range check */
 	len = bio_trim_range(dev, offset, len);
@@ -327,7 +328,8 @@ ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count)
 {
 	LTRACEF("dev '%s', buf %p, block %d, count %u\n", dev->name, buf, block, count);
 
-	DEBUG_ASSERT(dev->ref > 0);
+	DEBUG_ASSERT(dev && dev->ref > 0);
+	DEBUG_ASSERT(buf);
 
 	/* range check */
 	count = bio_trim_block_range(dev, block, count);
@@ -341,7 +343,8 @@ ssize_t bio_write(bdev_t *dev, const void *buf, off_t offset, size_t len)
 {
 	LTRACEF("dev '%s', buf %p, offset %lld, len %zd\n", dev->name, buf, offset, len);
 
-	DEBUG_ASSERT(dev->ref > 0);
+	DEBUG_ASSERT(dev && dev->ref > 0);
+	DEBUG_ASSERT(buf);
 
 	/* range check */
 	len = bio_trim_range(dev, offset, len);
@@ -355,7 +358,8 @@ ssize_t bio_write_block(bdev_t *dev, const void *buf, bnum_t block, uint count)
 {
 	LTRACEF("dev '%s', buf %p, block %d, count %u\n", dev->name, buf, block, count);
 
-	DEBUG_ASSERT(dev->ref > 0);
+	DEBUG_ASSERT(dev && dev->ref > 0);
+	DEBUG_ASSERT(buf);
 
 	/* range check */
 	count = bio_trim_block_range(dev, block, count);
@@ -369,7 +373,7 @@ ssize_t bio_erase(bdev_t *dev, off_t offset, size_t len)
 {
 	LTRACEF("dev '%s', offset %lld, len %zd\n", dev->name, offset, len);
 
-	DEBUG_ASSERT(dev->ref > 0);
+	DEBUG_ASSERT(dev && dev->ref > 0);
 
 	/* range check */
 	len = bio_trim_range(dev, offset, len);

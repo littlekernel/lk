@@ -49,6 +49,18 @@ HANDLED_CORE := true
 ENABLE_THUMB := true
 SUBARCH := arm-m
 endif
+ifeq ($(ARM_CPU),cortex-m7)
+GLOBAL_DEFINES += \
+	ARM_CPU_CORTEX_M7=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7M=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1 \
+	ARM_WITH_CACHE=1
+HANDLED_CORE := true
+ENABLE_THUMB := true
+SUBARCH := arm-m
+endif
 ifeq ($(ARM_CPU),cortex-a7)
 GLOBAL_DEFINES += \
 	ARM_WITH_CP15=1 \
@@ -223,11 +235,12 @@ endif
 ifeq ($(SUBARCH),arm-m)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arm-m/arch.c \
-	$(LOCAL_DIR)/arm-m/vectab.c \
+	$(LOCAL_DIR)/arm-m/cache.c \
+	$(LOCAL_DIR)/arm-m/exceptions.c \
 	$(LOCAL_DIR)/arm-m/start.c \
 	$(LOCAL_DIR)/arm-m/spin_cycles.c \
-	$(LOCAL_DIR)/arm-m/exceptions.c \
-	$(LOCAL_DIR)/arm-m/thread.c
+	$(LOCAL_DIR)/arm-m/thread.c \
+	$(LOCAL_DIR)/arm-m/vectab.c
 
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/arm-m/CMSIS/Include
