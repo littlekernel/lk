@@ -113,7 +113,7 @@ arm_reset:
 .Lrelocate_done:
 #endif // !WITH_NO_PHYS_RELOCATION
 
-#if WITH_KERNEL_VM
+#if ARM_WITH_MMU
 .Lsetup_mmu:
 
 	/* set up the mmu according to mmu_initial_mappings */

@@ -152,8 +152,10 @@ void arch_init(void)
 
 	//spinlock_test();
 
+#if ARM_WITH_MMU
 	/* finish intializing the mmu */
 	arm_mmu_init();
+#endif
 }
 
 #if WITH_SMP
@@ -328,9 +330,11 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 	target_quiesce();
 	platform_quiesce();
 
+	paddr_t entry_pa;
+	paddr_t loader_pa;
+
 #if WITH_KERNEL_VM
 	/* get the physical address of the entry point we're going to branch to */
-	paddr_t entry_pa;
 	if (arm_vtop((addr_t)entry, &entry_pa) < 0) {
 		panic("error translating entry physical address\n");
 	}
@@ -341,7 +345,6 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 	LTRACEF("entry pa 0x%lx\n", entry_pa);
 
 	/* figure out the mapping for the chain load routine */
-	paddr_t loader_pa;
 	if (arm_vtop((addr_t)&arm_chain_load, &loader_pa) < 0) {
 		panic("error translating loader physical address\n");
 	}
@@ -356,6 +359,11 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 
 	/* using large pages, map around the target location */
 	arch_mmu_map(loader_pa_section, loader_pa_section, (2 * SECTION_SIZE / PAGE_SIZE), 0);
+#else
+	/* for non vm case, just branch directly into it */
+	entry_pa = (paddr_t)entry;
+	loader_pa = (paddr_t)&arm_chain_load;
+#endif
 
 	LTRACEF("disabling instruction/data cache\n");
 	arch_disable_cache(UCACHE);
@@ -371,9 +379,6 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 	/* branch to the physical address version of the chain loader routine */
 	void (*loader)(paddr_t entry, ulong, ulong, ulong, ulong) __NO_RETURN = (void *)loader_pa;
 	loader(entry_pa, arg0, arg1, arg2, arg3);
-#else
-#error handle the non vm path (should be simpler)
-#endif
 }
 
 static spin_lock_t lock = 0;
