@@ -11,3 +11,5 @@ MODULES += \
 	lib/libm \
 	lib/version \
 
+WITH_CPP_SUPPORT=true
+
