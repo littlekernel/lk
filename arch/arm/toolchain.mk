@@ -42,6 +42,8 @@ ifneq (,$(findstring arm-linux-gnueabi-,$(FOUNDTOOL)))
 endif
 endif # arm-linux-gnueabi-
 
+else
+FOUNDTOOL=$(shell which $(ARCH_arm_TOOLCHAIN_PREFIX)gcc)
 endif # ARCH_arm_TOOLCHAIN_PREFIX
 
 ifeq ($(FOUNDTOOL),)
