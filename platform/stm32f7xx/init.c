@@ -64,14 +64,14 @@ void SystemInit(void)
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow :
-  *            System Clock source            = PLL (HSE)
+  *            System Clock source            = PLL (HSE or HSI)
   *            SYSCLK(Hz)                     = 216000000
   *            HCLK(Hz)                       = 216000000
   *            AHB Prescaler                  = 1
   *            APB1 Prescaler                 = 4
   *            APB2 Prescaler                 = 2
   *            HSE Frequency(Hz)              = 25000000
-  *            PLL_M                          = 25
+  *            PLL_M                          = 25 or 16
   *            PLL_N                          = 432
   *            PLL_P                          = 2
   *            PLL_Q                          = 9
@@ -87,11 +87,10 @@ static void SystemClock_Config(void)
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
     HAL_StatusTypeDef ret = HAL_OK;
 
-#if 0
-    /* Enable HSE Oscillator and activate PLL with HSE as source */
-    // This is not working, the result is a funky 69.1 MHz speed and
-    // the USART1 cannot use HSE as its source, nor can use SYSCLK, in
-    // other words, something is not kosher.
+#if defined(USE_HSE_XTAL)
+    /* Enable HSE Oscillator and activate PLL with HSE as source.
+     * The external XTAL is a more stable clock source.
+     */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
     RCC_OscInitStruct.HSEState = RCC_HSE_ON;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -101,7 +100,10 @@ static void SystemClock_Config(void)
     RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
     RCC_OscInitStruct.PLL.PLLQ = 9;
 #else
-    /* Enable HSI Oscillator and activate PLL with HSE as source */
+    /* Enable HSI Oscillator and activate PLL with HSI as source.
+     * Some boards like STm32756G-EVAL2 seem to malfuction with the
+     * HSE xtal configuration.
+     */
     RCC_OscInitStruct.OscillatorType    = RCC_OSCILLATORTYPE_HSI;
     RCC_OscInitStruct.HSIState          = RCC_HSI_ON;
     RCC_OscInitStruct.HSICalibrationValue  = 16;
