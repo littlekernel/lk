@@ -53,6 +53,35 @@ uint32_t str_ip_to_int(const char *s, size_t len)
     return IPV4_PACK(ip);
 }
 
+void arp_usage(void) {
+    printf("arp list                        print arp table\n");
+    printf("arp query <ipv4 address>        query arp address\n");
+}
+
+static int cmd_arp(int argc, const cmd_args *argv)
+{
+    const char *cmd;
+
+    if (argc == 1) {
+        arp_usage();
+        return -1;
+    }
+
+    cmd = argv[1].str;
+    if (argc == 2 && strncmp(cmd, "list", sizeof("list")) == 0) {
+        arp_cache_dump();
+    } else if (argc == 3 && strncmp(cmd, "query", sizeof("query")) == 0) {
+        const char *addr_s = argv[2].str;
+        uint32_t addr = str_ip_to_int(addr_s, strlen(addr_s));
+
+        arp_send_request(addr);
+    } else {
+        arp_usage();
+    }
+
+    return 0;
+}
+
 static int cmd_minip(int argc, const cmd_args *argv)
 {
     if (argc == 1) {
@@ -125,6 +154,7 @@ minip_usage:
 }
 
 STATIC_COMMAND_START
+STATIC_COMMAND("arp", "arp commands", &cmd_arp)
 STATIC_COMMAND("mi", "minip commands", &cmd_minip)
 STATIC_COMMAND_END(minip);
 #endif
