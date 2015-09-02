@@ -108,7 +108,8 @@ void arp_cache_init(void);
 void arp_cache_update(uint32_t addr, const uint8_t mac[6]);
 uint8_t *arp_cache_lookup(uint32_t addr);
 void arp_cache_dump(void);
-int send_arp_request(uint32_t addr);
+int arp_send_request(uint32_t addr);
+const uint8_t *arp_get_dest_mac(uint32_t host);
 
 uint16_t rfc1701_chksum(const uint8_t *buf, size_t len);
 uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, udp_hdr_t *udp);
