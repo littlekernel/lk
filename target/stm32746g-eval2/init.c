@@ -29,6 +29,7 @@
 #include <lib/gfx.h>
 #include <dev/gpio.h>
 #include <platform/stm32.h>
+#include <platform/sdram.h>
 #include <platform/gpio.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
@@ -38,7 +39,6 @@
 #include <lib/minip.h>
 #endif
 
-extern uint8_t BSP_SDRAM_Init(void);
 extern uint8_t BSP_LCD_Init(void);
 extern uint8_t BSP_SRAM_Init(void);
 
@@ -57,8 +57,14 @@ void target_early_init(void)
     /* now that the uart gpios are configured, enable the debug uart */
     stm32_debug_early_init();
 
+#if defined(ENABLE_SDRAM)
     /* initialize sdram */
-    BSP_SDRAM_Init();
+    sdram_config_t sdram_config;
+    sdram_config.bus_width = SDRAM_BUS_WIDTH_32;
+    sdram_config.cas_latency = SDRAM_CAS_LATENCY_3;
+    sdram_config.col_bits_num = SDRAM_COLUMN_BITS_9;
+    stm32_sdram_init(&sdram_config);
+#endif
 
     /* initialize external sram */
     BSP_SRAM_Init();
@@ -322,5 +328,60 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
     */
 }
 
+/**
+  * @brief  Initializes SDRAM GPIO.
+  * @retval None
+  */
+/* called back from BSP_SDRAM_Init */
+void stm_sdram_GPIO_init(void)
+{
+    GPIO_InitTypeDef gpio_init_structure;
 
+    /* Enable GPIOs clock */
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    __HAL_RCC_GPIOH_CLK_ENABLE();
+    __HAL_RCC_GPIOI_CLK_ENABLE();
+
+    /* Common GPIO configuration */
+    gpio_init_structure.Mode      = GPIO_MODE_AF_PP;
+    gpio_init_structure.Pull      = GPIO_PULLUP;
+    gpio_init_structure.Speed     = GPIO_SPEED_FAST;
+    gpio_init_structure.Alternate = GPIO_AF12_FMC;
+
+    /* GPIOD configuration */
+    gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_8| GPIO_PIN_9 | GPIO_PIN_10 |\
+                                GPIO_PIN_14 | GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOD, &gpio_init_structure);
+
+    /* GPIOE configuration */
+    gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_7| GPIO_PIN_8 | GPIO_PIN_9 |\
+                                GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 |\
+                                GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOE, &gpio_init_structure);
+
+    /* GPIOF configuration */
+    gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2| GPIO_PIN_3 | GPIO_PIN_4 |\
+                                GPIO_PIN_5 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 |\
+                                GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOF, &gpio_init_structure);
+
+    /* GPIOG configuration */
+    gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_4| GPIO_PIN_5 | GPIO_PIN_8 |\
+                                GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOG, &gpio_init_structure);
+
+    /* GPIOH configuration */
+    gpio_init_structure.Pin   = GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_5 | GPIO_PIN_8 | GPIO_PIN_9 |\
+                                GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 |\
+                                GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOH, &gpio_init_structure);
+
+    /* GPIOI configuration */
+    gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 |\
+                                GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_9 | GPIO_PIN_10;
+    HAL_GPIO_Init(GPIOI, &gpio_init_structure);
+}
 

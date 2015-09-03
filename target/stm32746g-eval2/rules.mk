@@ -40,7 +40,6 @@ GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 MODULE_SRCS += \
     $(LOCAL_DIR)/init.c \
     $(LOCAL_DIR)/lcd.c \
-    $(LOCAL_DIR)/sdram.c \
     $(LOCAL_DIR)/sram.c
 
 MODULE_DEPS += \

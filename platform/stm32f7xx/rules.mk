@@ -38,6 +38,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uart.c \
 	$(LOCAL_DIR)/vectab.c \
+  $(LOCAL_DIR)/sdram.c \
 
 # use a two segment memory layout, where all of the read-only sections 
 # of the binary reside in rom, and the read/write are in memory. The 
