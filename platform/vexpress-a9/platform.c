@@ -43,38 +43,48 @@
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* 1GB of sdram space */
-    { .phys = SDRAM_BASE,
-      .virt = KERNEL_BASE,
-      .size = SDRAM_SIZE,
-      .flags = 0,
-      .name = "memory" },
+    {
+        .phys = SDRAM_BASE,
+        .virt = KERNEL_BASE,
+        .size = SDRAM_SIZE,
+        .flags = 0,
+        .name = "memory"
+    },
 
     /* CS0 - CS6 devices */
-    { .phys = MOTHERBOARD_CS0_PHYS,
-      .virt = MOTHERBOARD_CS0_VIRT,
-      .size = MOTHERBOARD_CS_SIZE * 7,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "cs0-cs6" },
+    {
+        .phys = MOTHERBOARD_CS0_PHYS,
+        .virt = MOTHERBOARD_CS0_VIRT,
+        .size = MOTHERBOARD_CS_SIZE * 7,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "cs0-cs6"
+    },
 
     /* CS7 devices */
-    { .phys = MOTHERBOARD_CS7_PHYS,
-      .virt = MOTHERBOARD_CS7_VIRT,
-      .size = MOTHERBOARD_CS_SIZE,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "cs7" },
+    {
+        .phys = MOTHERBOARD_CS7_PHYS,
+        .virt = MOTHERBOARD_CS7_VIRT,
+        .size = MOTHERBOARD_CS_SIZE,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "cs7"
+    },
 
     /* cortex-a9 private memory area */
-    { .phys = CPUPRIV_BASE_PHYS,
-      .virt = CPUPRIV_BASE_PHYS, // XXX move back to CPUPRIV_BASE_VIRT
-      .size = CPUPRIV_SIZE,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "cpu_priv"},
+    {
+        .phys = CPUPRIV_BASE_PHYS,
+        .virt = CPUPRIV_BASE_PHYS, // XXX move back to CPUPRIV_BASE_VIRT
+        .size = CPUPRIV_SIZE,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "cpu_priv"
+    },
 
     /* identity map to let the boot code run */
-    { .phys = SDRAM_BASE,
-      .virt = SDRAM_BASE,
-      .size = 16*1024*1024,
-      .flags = MMU_INITIAL_MAPPING_TEMPORARY },
+    {
+        .phys = SDRAM_BASE,
+        .virt = SDRAM_BASE,
+        .size = 16*1024*1024,
+        .flags = MMU_INITIAL_MAPPING_TEMPORARY
+    },
 
     /* null entry to terminate the list */
     { 0 }
@@ -86,10 +96,6 @@ static pmm_arena_t arena = {
     .size = SDRAM_SIZE,
     .flags = PMM_ARENA_FLAG_KMAP,
 };
-
-void platform_init_mmu_mappings(void)
-{
-}
 
 void platform_early_init(void)
 {

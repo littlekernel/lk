@@ -37,27 +37,27 @@
 
 void platform_dputc(char c)
 {
-	UARTREG(DR) = c;
+    UARTREG(DR) = c;
 }
 
 int platform_dgetc(char *c, bool wait)
 {
-	if (!wait) {
-		if (UARTREG(FR) & (1<<4)) {
-			/* fifo empty */
-			return -1;
-		}
-		*c = UARTREG(DR) & 0xff;
-		return 0;
-	} else {
-		while ((UARTREG(FR) & (1<<4))) {
-			// XXX actually block on interrupt
-			thread_yield();
-		}
+    if (!wait) {
+        if (UARTREG(FR) & (1<<4)) {
+            /* fifo empty */
+            return -1;
+        }
+        *c = UARTREG(DR) & 0xff;
+        return 0;
+    } else {
+        while ((UARTREG(FR) & (1<<4))) {
+            // XXX actually block on interrupt
+            thread_yield();
+        }
 
-		*c = UARTREG(DR) & 0xff;
-		return 0;
-	}
+        *c = UARTREG(DR) & 0xff;
+        return 0;
+    }
 }
 #endif
 
@@ -88,10 +88,14 @@ static inline uintptr_t uart_to_ptr(unsigned int n)
 {
     switch (n) {
         default:
-        case 0: return UART0_BASE;
-        case 1: return UART1_BASE;
-        case 2: return UART2_BASE;
-        case 3: return UART3_BASE;
+        case 0:
+            return UART0_BASE;
+        case 1:
+            return UART1_BASE;
+        case 2:
+            return UART2_BASE;
+        case 3:
+            return UART3_BASE;
     }
 }
 
