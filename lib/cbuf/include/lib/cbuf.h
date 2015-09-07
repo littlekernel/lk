@@ -20,8 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __LIB_CBUF_H
-#define __LIB_CBUF_H
+#pragma once
 
 #include <sys/types.h>
 #include <kernel/event.h>
@@ -29,12 +28,12 @@
 #include <iovec.h>
 
 typedef struct cbuf {
-	uint head;
-	uint tail;
-	uint len_pow2;
-	char *buf;
-	event_t event;
-	spin_lock_t lock;
+    uint head;
+    uint tail;
+    uint len_pow2;
+    char *buf;
+    event_t event;
+    spin_lock_t lock;
 } cbuf_t;
 
 /**
@@ -136,8 +135,9 @@ size_t cbuf_space_used(cbuf_t *cbuf);
  *
  * @return The size of the cbuf's underlying data buffer.
  */
-static inline size_t cbuf_size(cbuf_t *cbuf) {
-	return (1UL << cbuf->len_pow2);
+static inline size_t cbuf_size(cbuf_t *cbuf)
+{
+    return (1UL << cbuf->len_pow2);
 }
 
 /**
@@ -148,13 +148,12 @@ static inline size_t cbuf_size(cbuf_t *cbuf) {
  *
  * @param[in] cbuf The cbuf instance to reset.
  */
-static inline void cbuf_reset(cbuf_t *cbuf) {
-	cbuf_read(cbuf, NULL, cbuf_size(cbuf), false);
+static inline void cbuf_reset(cbuf_t *cbuf)
+{
+    cbuf_read(cbuf, NULL, cbuf_size(cbuf), false);
 }
 
 /* special cases for dealing with a single char of data */
 size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block);
 size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule);
-
-#endif
 
