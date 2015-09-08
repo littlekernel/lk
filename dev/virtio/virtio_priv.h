@@ -31,7 +31,8 @@ struct virtio_mmio_config {
             uint32_t device_id;
             uint32_t vendor_id;
 /* 0x10 */  uint32_t host_features;
-            uint32_t __reserved0[3];
+            uint32_t host_features_sel;
+            uint32_t __reserved0[2];
 /* 0x20 */  uint32_t guest_features;
             uint32_t guest_features_sel;
             uint32_t guest_page_size;
@@ -55,3 +56,10 @@ struct virtio_mmio_config {
 STATIC_ASSERT(sizeof(struct virtio_mmio_config) == 0x100);
 
 #define VIRTIO_MMIO_MAGIC 0x74726976 // 'virt'
+
+#define VIRTIO_STATUS_ACKNOWLEDGE (1<<0)
+#define VIRTIO_STATUS_DRIVER      (1<<1)
+#define VIRTIO_STATUS_DRIVER_OK   (1<<2)
+#define VIRTIO_STATUS_FEATURES_OK (1<<3)
+#define VIRTIO_STATUS_DEVICE_NEEDS_RESET (1<<6)
+#define VIRTIO_STATUS_FAILED      (1<<7)

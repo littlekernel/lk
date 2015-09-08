@@ -6,9 +6,11 @@ GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/virtio-block.c
+	$(LOCAL_DIR)/virtio-block.c \
 
 MODULE_DEPS += \
-	dev/virtio
+	dev/virtio \
+	lib/bio
+
 
 include make/module.mk
