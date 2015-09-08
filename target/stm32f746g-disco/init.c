@@ -33,6 +33,8 @@
 #include <target/gpioconfig.h>
 #include <reg.h>
 
+static void MPU_RegionConfig(void);
+
 void target_early_init(void)
 {
 #if DEBUG_UART == 1
@@ -47,12 +49,14 @@ void target_early_init(void)
     stm32_debug_early_init();
 
 #if defined(ENABLE_SDRAM)
-    /* initialize sdram */
+    /* initialize SDRAM */
     sdram_config_t sdram_config;
     sdram_config.bus_width = SDRAM_BUS_WIDTH_16;
     sdram_config.cas_latency = SDRAM_CAS_LATENCY_2;
     sdram_config.col_bits_num = SDRAM_COLUMN_BITS_8;
     stm32_sdram_init(&sdram_config);
+
+    MPU_RegionConfig();
 #endif
 }
 
@@ -61,12 +65,34 @@ void target_init(void)
     stm32_debug_init();
 }
 
+static void MPU_RegionConfig(void)
+{
+    MPU_Region_InitTypeDef MPU_InitStruct;
+    HAL_MPU_Disable();
+
+    uint region_num = 0;
+
+    /* configure SDRAM */
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.BaseAddress = SDRAM_BASE;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
+    MPU_InitStruct.AccessPermission = MPU_REGION_PRIV_RW;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    MPU_InitStruct.Number = region_num++;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+    MPU_InitStruct.SubRegionDisable = 0x00;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+    HAL_MPU_Enable(MPU_HFNMI_PRIVDEF);
+}
 
 /**
   * @brief  Initializes SDRAM GPIO.
-  * @retval None
+  * called back from stm32_sdram_init 
   */
-/* called back from stm32_sdram_init */
 void stm_sdram_GPIO_init(void)
 {
     GPIO_InitTypeDef gpio_init_structure;
