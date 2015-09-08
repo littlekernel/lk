@@ -55,10 +55,6 @@ int _dprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);
 /* dump memory */
 void hexdump(const void *ptr, size_t len);
 void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr_start);
-static inline void hexdump8(const void *ptr, size_t len)
-{
-	hexdump8_ex(ptr, len, (uint64_t)((addr_t)ptr));
-}
 
 #else
 
@@ -67,9 +63,14 @@ static inline int __PRINTFLIKE(1, 2) _dprintf(const char *fmt, ...) { return 0; 
 
 /* dump memory */
 static inline void hexdump(const void *ptr, size_t len) { }
-static inline void hexdump8(const void *ptr, size_t len) { }
+static inline void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr_start) { }
 
 #endif /* DISABLE_DEBUG_OUTPUT */
+
+static inline void hexdump8(const void *ptr, size_t len)
+{
+	hexdump8_ex(ptr, len, (uint64_t)((addr_t)ptr));
+}
 
 /* register callback to receive debug prints */
 void register_print_callback(print_callback_t *cb);
