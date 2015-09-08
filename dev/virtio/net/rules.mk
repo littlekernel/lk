@@ -9,6 +9,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/virtio-net.c
 
 MODULE_DEPS += \
-	dev/virtio
+	dev/virtio \
+	lib/minip
 
 include make/module.mk

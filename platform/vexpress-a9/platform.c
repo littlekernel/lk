@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Travis Geiselbrecht
+ * Copyright (c) 2012-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,10 +25,12 @@
 #include <arch/arm/mmu.h>
 #include <err.h>
 #include <debug.h>
+#include <trace.h>
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_cortex_a9.h>
 #include <dev/uart.h>
 #include <dev/virtio.h>
+#include <dev/virtio/net.h>
 #include <lk/init.h>
 #include <kernel/vm.h>
 #include <kernel/spinlock.h>
@@ -37,6 +39,10 @@
 #include <platform/interrupts.h>
 #include <platform/vexpress-a9.h>
 #include "platform_p.h"
+
+#if WITH_LIB_MINIP
+#include <lib/minip.h>
+#endif
 
 #define SDRAM_SIZE (512*1024*1024) // XXX get this from the emulator somehow
 
@@ -118,4 +124,28 @@ void platform_init(void)
     /* detect any virtio devices */
     const uint virtio_irqs[] = { VIRTIO0_INT, VIRTIO1_INT, VIRTIO2_INT, VIRTIO3_INT };
     virtio_mmio_detect((void *)VIRTIO_BASE, 4, virtio_irqs);
+
+#if WITH_LIB_MINIP
+
+    if (virtio_net_found() > 0) {
+        uint8_t mac_addr[6];
+
+        virtio_net_get_mac_addr(mac_addr);
+
+        TRACEF("found virtio networking interface, mac addr:\n");
+        hexdump8_ex(mac_addr, 6, 0);
+
+        /* start minip */
+        minip_set_macaddr(mac_addr);
+
+        uint32_t ip_addr = IPV4(192, 168, 0, 99);
+        uint32_t ip_mask = IPV4(255, 255, 255, 0);
+        uint32_t ip_gateway = IPV4_NONE;
+
+        //minip_init(virtio_net_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+        minip_init_dhcp(virtio_net_send_minip_pkt, NULL);
+
+        virtio_net_start();
+    }
+#endif
 }
