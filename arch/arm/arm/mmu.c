@@ -284,7 +284,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
                 case MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE:
                 case MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN:
                     if (paddr)
-                        *paddr = MMU_MEMORY_L2_SMALL_PAGE_ADDR(l2_entry);
+                        *paddr = MMU_MEMORY_L2_SMALL_PAGE_ADDR(l2_entry) + (vaddr & (PAGE_SIZE - 1));
 
                     if (flags) {
                         *flags = 0;
