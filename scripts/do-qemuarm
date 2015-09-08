@@ -1,4 +1,44 @@
 #!/bin/sh
 
+function HELP {
+    echo "help:"
+    echo "-b a virtio block device"
+    echo "-n a virtio network device"
+    echo "-h for help"
+    echo "all arguments after -- are passed to qemu directly"
+    exit 1
+}
+
+DO_NET=0
+DO_BLOCK=0
+
+while getopts bhn FLAG; do
+    case $FLAG in
+        b) DO_BLOCK=1;;
+        n) DO_NET=1;;
+        h) HELP;;
+        \?)
+            echo unrecognized option
+            HELP
+    esac
+done
+
+shift $((OPTIND-1))
+
+ARGS=" -machine vexpress-a9 -m 512 -kernel build-vexpress-a9-test/lk.elf -nographic"
+BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
+NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
+
+echo DO_BLOCK = $DO_BLOCK
+echo DO_NET = $DO_NET
+
+if [ $DO_BLOCK == 1 ]; then
+    ARGS+=$BLOCK_ARGS
+fi
+if [ $DO_NET == 1 ]; then
+    ARGS+=$NET_ARGS
+fi
+
 make vexpress-a9-test -j4 &&
-qemu-system-arm -machine vexpress-a9 -m 512 -kernel build-vexpress-a9-test/lk.elf -nographic $@
+echo qemu-system-arm $ARGS $@ &&
+qemu-system-arm $ARGS $@
