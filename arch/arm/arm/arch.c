@@ -131,7 +131,7 @@ void arch_init(void)
 	/* in platforms where the cpus have already been started, go ahead and wake up all the
 	 * secondary cpus here.
 	 */
-	dprintf(SPEW, "releasing %d secondary cpu%c\n", secondaries_to_init, secondaries_to_init > 1 ? 's' : ' ');
+	dprintf(SPEW, "releasing %d secondary cpu%c\n", secondaries_to_init, secondaries_to_init != 1 ? 's' : ' ');
 
 	/* release the secondary cpus */
 	spin_unlock(&arm_boot_cpu_lock);
