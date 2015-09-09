@@ -72,6 +72,47 @@ static void free_pool_object(pktbuf_pool_object_t *entry, bool reschedule) {
 	sem_post(&pktbuf_sem, reschedule);
 }
 
+/* Callback used internally to place a pktbuf_pool_object back in the pool after
+ * it was used as a buffer for another pktbuf
+ */
+static void free_pktbuf_buf_cb(void *buf, void *arg) {
+	memset(buf, 0, sizeof(pktbuf_t));
+	free_pool_object((pktbuf_pool_object_t *)buf, true);
+}
+
+/* Add a buffer to a pktbuf. Header space for prepending data is adjusted based on
+ * header_sz. cb is called when the pktbuf is freed / released by the driver level
+ * and should handle proper management / freeing of the buffer pointed to by the iovec.
+ *
+ * It's important to note that there is a flag to note that the buffer is cached and should
+ * be properly handled via the appropriate driver when it's time to deal with buffer
+ * descriptiors.
+ */
+void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz, uint32_t flags,
+					   pktbuf_free_callback cb, void *cb_args) {
+	DEBUG_ASSERT(p);
+	DEBUG_ASSERT(buf);
+	DEBUG_ASSERT(header_sz < len);
+
+	p->buffer = buf;
+	p->blen = len;
+	p->data = p->buffer + header_sz;
+	p->dlen = 0;
+	p->flags = PKTBUF_FLAG_EOF | flags;
+	p->cb = cb;
+	p->cb_args = cb_args;
+
+	/* If we're using a VM then this may be a virtual address, look up to see
+	 * if there is an associated physical address we can store. If not, then
+	 * stick with the address as presented to us.
+	 */
+#if WITH_KERNEL_VM
+	p->phys_base = kvaddr_to_paddr(buf) | (uintptr_t) buf % PAGE_SIZE;
+#else
+	p->phys_base = buf;
+#endif
+}
+
 pktbuf_t *pktbuf_alloc(void) {
 	pktbuf_t *p = NULL;
 	void *buf = NULL;
@@ -87,18 +128,7 @@ pktbuf_t *pktbuf_alloc(void) {
 		return NULL;
 	}
 
-	p->buffer = (uint8_t *) buf;
-	p->data = p->buffer + PKTBUF_MAX_HDR;
-	p->dlen = 0;
-	p->managed = true;
-	p->flags = PKTBUF_FLAG_EOF;
-	/* kvaddr will return the proper page, but lose the lower bits. */
-#if WITH_KERNEL_VM
-	p->phys_base = kvaddr_to_paddr(buf) | (uintptr_t) buf % PAGE_SIZE;
-#else
-	p->phys_base = buf;
-#endif
-
+	pktbuf_add_buffer(p, buf, PKTBUF_SIZE, PKTBUF_MAX_HDR, 0, free_pktbuf_buf_cb, NULL);
 	return p;
 }
 
@@ -110,7 +140,11 @@ pktbuf_t *pktbuf_alloc_empty(void) {
 }
 
 int pktbuf_free(pktbuf_t *p, bool reschedule) {
-	free_pool_object((pktbuf_pool_object_t *)p->buffer, false);
+	DEBUG_ASSERT(p);
+
+	if (p->cb) {
+		p->cb(p->buffer, p->cb_args);
+	}
 	free_pool_object((pktbuf_pool_object_t *)p, false);
 
 	return 1;
@@ -170,9 +204,9 @@ void pktbuf_consume_tail(pktbuf_t *p, size_t sz) {
 }
 
 void pktbuf_dump(pktbuf_t *p) {
-	printf("pktbuf data %p, buffer %p, dlen %u, data offset %lu, phys_base %p, managed %u\n",
+	printf("pktbuf data %p, buffer %p, dlen %u, data offset %lu, phys_base %p\n",
 			p->data, p->buffer, p->dlen, (uintptr_t) p->data - (uintptr_t) p->buffer,
-			(void *)p->phys_base, p->managed);
+			(void *)p->phys_base);
 }
 
 static void pktbuf_init(uint level)
