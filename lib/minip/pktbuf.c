@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Brian Swetland
+ * Copyright (c) 2014-2015 Christopher Anderson
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,6 +22,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <assert.h>
 #include <debug.h>
 #include <trace.h>
 #include <printf.h>
@@ -31,6 +33,7 @@
 #include <kernel/semaphore.h>
 #include <kernel/spinlock.h>
 #include <lib/pktbuf.h>
+#include <lib/pool.h>
 #include <lk/init.h>
 
 #if WITH_KERNEL_VM
@@ -39,135 +42,81 @@
 
 #define LOCAL_TRACE 0
 
-/* default number of packet buffers */
-#ifndef PKTBUF_COUNT
-#define PKTBUF_COUNT 128
-#endif
-
-static struct list_node pb_freelist = LIST_INITIAL_VALUE(pb_freelist);
-static struct list_node pb_buflist = LIST_INITIAL_VALUE(pb_buflist);
-static semaphore_t pb_sem = SEMAPHORE_INITIAL_VALUE(pb_sem, -1);
+static pool_t pktbuf_pool;
+static semaphore_t pktbuf_sem;
 static spin_lock_t lock;
 
 
-static unsigned int cur_id = 0;
+/* Take an object from the pool of pktbuf objects to act as a header or buffer.  */
+static void *get_pool_object(void) {
+	pool_t *entry;
+	spin_lock_saved_state_t state;
 
-void pktbuf_create(void *ptr, size_t size) {
-	pktbuf_t *p = ptr;
+	sem_wait(&pktbuf_sem);
+	spin_lock_irqsave(&lock, state);
+	entry = pool_alloc(&pktbuf_pool);
+	spin_unlock_irqrestore(&lock, state);
 
-	p->magic = PKTBUF_HDR_MAGIC;
-	p->phys_base = 0;
-	p->id = cur_id++;
-	list_add_tail(&pb_freelist, &(p->list));
-	sem_post(&pb_sem, false);
+	return (pktbuf_pool_object_t *) entry;
+
 }
 
-/* Carve buffers for pktbufs of size PKTBUF_BUF_SIZE from the memory pointed at by ptr */
-void pktbuf_create_bufs(void *ptr, size_t size) {
-	uintptr_t phys_addr;
+/* Return an object to thje pktbuf object pool. */
+static void free_pool_object(pktbuf_pool_object_t *entry, bool reschedule) {
+	DEBUG_ASSERT(entry);
+	spin_lock_saved_state_t state;
 
-#if WITH_KERNEL_VM
-	if (arch_mmu_query((uintptr_t) ptr, &phys_addr, NULL) < 0) {
-		printf("Failed to get physical address for pktbuf slab, using virtual\n");
-	}
-#else
-	phys_addr = (uintptr_t)ptr;
-#endif
-
-	while (size > sizeof(pktbuf_buf_t)) {
-		pktbuf_buf_t *pkt = ptr;
-
-		pkt->magic = PKTBUF_BUF_MAGIC;
-		pkt->phys_addr = phys_addr;
-		list_add_tail(&pb_buflist, &pkt->list);
-
-
-		ptr += sizeof(pktbuf_buf_t);
-		phys_addr += sizeof(pktbuf_buf_t);
-		size -= sizeof(pktbuf_buf_t);
-	}
-}
-
-static inline pktbuf_buf_t *pktbuf_get_buf(void) {
-	return list_remove_head_type(&pb_buflist, pktbuf_buf_t, list);
+	spin_lock_irqsave(&lock, state);
+	pool_free(&pktbuf_pool, entry);
+	spin_unlock_irqrestore(&lock, state);
+	sem_post(&pktbuf_sem, reschedule);
 }
 
 pktbuf_t *pktbuf_alloc(void) {
-	spin_lock_saved_state_t state;
-
 	pktbuf_t *p = NULL;
-	pktbuf_buf_t *b = NULL;
+	void *buf = NULL;
 
-	/* Check for buffers first to reduce the complexity of cases where we have a pktbuf
-	 * pointer but no buffer and would otherwise have to do sem / list bookkeeping on
-	 * cleanup */
-	sem_wait(&pb_sem);
-	spin_lock_irqsave(&lock, state);
-	b = pktbuf_get_buf();
-	if (b) {
-		p = list_remove_head_type(&pb_freelist, pktbuf_t, list);
-	}
-	spin_unlock_irqrestore(&lock, state);
-
-	if (b->magic != PKTBUF_BUF_MAGIC) {
-		panic("pktbuf id %u has corrupted buffer magic value\n"
-				"buf_addr %p magic: 0x%08X (expected 0x%08X), phys_addr: %p\n",
-				p->id, b, b->magic, PKTBUF_BUF_MAGIC, (void *) b->phys_addr);
-	}
-
+	p = get_pool_object();
 	if (!p) {
 		return NULL;
 	}
 
-	p->buffer = (uint8_t *) b;
+	buf = get_pool_object();
+	if (!buf) {
+		free_pool_object((pktbuf_pool_object_t *)p, false);
+		return NULL;
+	}
+
+	p->buffer = (uint8_t *) buf;
 	p->data = p->buffer + PKTBUF_MAX_HDR;
 	p->dlen = 0;
 	p->managed = true;
 	p->flags = 0;
 	/* TODO: This will be moved to the stack soon */
 	p->eof = true;
-	p->phys_base = b->phys_addr;
+	/* kvaddr will return the proper page, but lose the lower bits. */
+#if WITH_KERNEL_VM
+	p->phys_base = kvaddr_to_paddr(buf) | (uintptr_t) buf % PAGE_SIZE;
+#else
+	p->phys_base = buf;
+#endif
 
 	return p;
 }
 
-pktbuf_t *pktbuf_alloc_empty(void *buf, size_t dlen) {
-	spin_lock_saved_state_t state;
-	pktbuf_t *p;
+pktbuf_t *pktbuf_alloc_empty(void) {
+	pktbuf_t *p = (pktbuf_t *) get_pool_object();
 
-	sem_wait(&pb_sem);
-	spin_lock_irqsave(&lock, state);
-	p = list_remove_head_type(&pb_freelist, pktbuf_t, list);
-	spin_unlock_irqrestore(&lock, state);
-
-	if (!p) {
-		return NULL;
-	}
-
-	p->buffer = buf;
-	p->data = p->buffer;
-	p->dlen = dlen;
-	p->managed = false;
-	p->flags = 0;
+	/* TODO: This will be moved to the stack soon */
+	p->eof = true;
 	return p;
 }
 
 int pktbuf_free(pktbuf_t *p, bool reschedule) {
-	spin_lock_saved_state_t state;
-	spin_lock_irqsave(&lock, state);
-	list_add_tail(&pb_freelist, &(p->list));
-	if (p->managed && p->buffer) {
-		pktbuf_buf_t *pkt = (pktbuf_buf_t *)p->buffer;
-		list_add_tail(&pb_buflist, &pkt->list);
-	}
-	p->buffer = NULL;
-	p->data = NULL;
-	p->eof = false;
-	p->managed = false;
-	p->flags = 0;
-	spin_unlock_irqrestore(&lock, state);
+	free_pool_object((pktbuf_pool_object_t *)p->buffer, false);
+	free_pool_object((pktbuf_pool_object_t *)p, false);
 
-	return sem_post(&pb_sem, reschedule);
+	return 1;
 }
 
 void pktbuf_append_data(pktbuf_t *p, const void *data, size_t sz) {
@@ -224,45 +173,34 @@ void pktbuf_consume_tail(pktbuf_t *p, size_t sz) {
 }
 
 void pktbuf_dump(pktbuf_t *p) {
-	printf("pktbuf id %u, data %p, buffer %p, dlen %u, data offset %lu, phys_base %p, managed %u\n",
-			p->id, p->data, p->buffer, p->dlen, (uintptr_t) p->data - (uintptr_t) p->buffer,
+	printf("pktbuf data %p, buffer %p, dlen %u, data offset %lu, phys_base %p, managed %u\n",
+			p->data, p->buffer, p->dlen, (uintptr_t) p->data - (uintptr_t) p->buffer,
 			(void *)p->phys_base, p->managed);
 }
 
 static void pktbuf_init(uint level)
 {
-	void *buf;
+	void *slab;
 
 #if LK_DEBUGLEVEL > 0
-	printf("pktbuf: creating %u packet buffers (%zu/%zu bytes header/buffers)\n",
-		PKTBUF_COUNT, PKTBUF_COUNT * sizeof(pktbuf_t), PKTBUF_COUNT * sizeof(pktbuf_buf_t));
+	printf("pktbuf: creating %u pktbuf entries of size %zu (total %zu)\n",
+		PKTBUF_POOL_SIZE, sizeof(struct pktbuf_pool_object),
+		PKTBUF_POOL_SIZE * sizeof(struct pktbuf_pool_object));
 #endif
 
 #if WITH_KERNEL_VM
-	if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf_headers",
-			PKTBUF_COUNT * sizeof(pktbuf_t), &buf, 0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
+	if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf",
+			PKTBUF_POOL_SIZE * sizeof(struct pktbuf_pool_object), 
+			&slab, 0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
 		printf("Failed to initialize pktbuf hdr slab\n");
 		return;
 	}
 #else
-	buf = malloc(PKTBUF_COUNT * sizeof(pktbuf_t));
+	slab = memalign(CACHE_LINE, PKTBUF_POOL_SIZE * sizeof(pktbuf_pool_object_t));
 #endif
 
-	for (size_t i = 0; i < PKTBUF_COUNT; i++) {
-		pktbuf_create((char *)buf + i * sizeof(pktbuf_t), sizeof(pktbuf_t));
-	}
-
-#if WITH_KERNEL_VM
-	if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf_buffers",
-			PKTBUF_COUNT * sizeof(pktbuf_buf_t), &buf, 0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
-		printf("Failed to initialize pktbuf vm slab\n");
-		return;
-	}
-#else
-	buf = memalign(CACHE_LINE, PKTBUF_COUNT * sizeof(pktbuf_buf_t));
-#endif
-
-	pktbuf_create_bufs(buf, PKTBUF_COUNT * sizeof(pktbuf_buf_t));
+	pool_init(&pktbuf_pool, sizeof(struct pktbuf_pool_object), CACHE_LINE, PKTBUF_POOL_SIZE, slab);
+	sem_init(&pktbuf_sem, PKTBUF_POOL_SIZE);
 }
 
 LK_INIT_HOOK(pktbuf, pktbuf_init, LK_INIT_LEVEL_THREADING);

@@ -4,7 +4,8 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS := \
 	lib/cbuf \
-	lib/iovec
+	lib/iovec \
+	lib/pool
 
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 

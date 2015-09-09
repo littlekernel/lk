@@ -27,7 +27,7 @@ GLOBAL_DEFINES += \
     HEAP_START=$(HEAP_START) \
     HEAP_LEN=$(HEAP_SIZE) \
 \
-    PKTBUF_COUNT=16
+    PKTBUF_POOL_SIZE=16
 
 # XXX todo, drive pll config from here
 #HSE_VALUE=8000000 \
