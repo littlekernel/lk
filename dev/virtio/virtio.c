@@ -82,25 +82,30 @@ static enum handler_return virtio_mmio_irq(void *arg)
     LTRACEF("status 0x%x\n", irq_status);
 
     enum handler_return ret = INT_NO_RESCHEDULE;
-    if (irq_status & 0x1) { // used ring update
-        // XXX only handles ring 0
-        struct vring *ring = &dev->ring[0];
-        LTRACEF("used flags 0x%hhx idx 0x%hhx\n", ring->used->flags, ring->used->idx);
+    if (irq_status & 0x1) { /* used ring update */
 
-        uint cur_idx = ring->used->idx;
-        for (uint i = ring->last_used; i != cur_idx; i = (i + 1) & ring->num_mask) {
-            LTRACEF("looking at idx %u\n", i);
+        /* cycle through all the active rings */
+        for (uint r = 0; r < MAX_VIRTIO_RINGS; r++) {
+            if ((dev->active_rings_bitmap & (1<<r)) == 0)
+                continue;
 
-            // process chain
-            struct vring_used_elem *used_elem = &ring->used->ring[i];
-            LTRACEF("id %u, len %u\n", used_elem->id, used_elem->len);
+            struct vring *ring = &dev->ring[r];
+            LTRACEF("ring %u: used flags 0x%hhx idx 0x%hhx\n", r, ring->used->flags, ring->used->idx);
 
-            DEBUG_ASSERT(dev->irq_driver_callback);
-            ret |= dev->irq_driver_callback(dev, 0, used_elem);
+            uint cur_idx = ring->used->idx;
+            for (uint i = ring->last_used; i != cur_idx; i = (i + 1) & ring->num_mask) {
+                LTRACEF("looking at idx %u\n", i);
 
-            ring->last_used = (ring->last_used + 1) & ring->num_mask;
+                // process chain
+                struct vring_used_elem *used_elem = &ring->used->ring[i];
+                LTRACEF("id %u, len %u\n", used_elem->id, used_elem->len);
+
+                DEBUG_ASSERT(dev->irq_driver_callback);
+                ret |= dev->irq_driver_callback(dev, r, used_elem);
+
+                ring->last_used = (ring->last_used + 1) & ring->num_mask;
+            }
         }
-
         // XXX is this safe?
         dev->mmio_config->interrupt_ack = 0x1;
     }
@@ -330,6 +335,9 @@ status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len)
     dev->mmio_config->queue_num = len;
     dev->mmio_config->queue_align = PAGE_SIZE;
     dev->mmio_config->queue_pfn = pa / PAGE_SIZE;
+
+    /* mark the ring active */
+    dev->active_rings_bitmap |= (1 << index);
 
     return NO_ERROR;
 }

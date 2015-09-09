@@ -49,6 +49,7 @@ struct virtio_device {
     enum handler_return (*irq_driver_callback)(struct virtio_device *dev, uint ring, const struct vring_used_elem *e);
 
     /* virtio rings */
+    uint32_t active_rings_bitmap;
     struct vring ring[MAX_VIRTIO_RINGS];
 };
 
