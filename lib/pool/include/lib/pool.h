@@ -46,10 +46,11 @@
  */
 #pragma once
 
-extern "C" {
-
+#include <compiler.h>
 #include <stddef.h>
 #include <stdint.h>
+
+__BEGIN_CDECLS
 
 /**
  * Pool type.
@@ -147,4 +148,4 @@ void pool_free(pool_t * pool, void * object);
 #define TYPED_POOL_FREE(type, pool, object) \
     pool_free(pool, object)
 
-} // extern "C"
+__END_CDECLS
