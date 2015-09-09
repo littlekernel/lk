@@ -48,7 +48,6 @@ typedef struct pktbuf {
 	struct list_node list;
 	u32 flags;
 	bool managed;
-	bool eof;
 	u8 *buffer;
 } pktbuf_t;
 
@@ -62,6 +61,7 @@ typedef struct pktbuf_pool_object {
 #define PKTBUF_FLAG_CKSUM_IP_GOOD  (1<<0)
 #define PKTBUF_FLAG_CKSUM_TCP_GOOD (1<<1)
 #define PKTBUF_FLAG_CKSUM_UDP_GOOD (1<<2)
+#define PKTBUF_FLAG_EOF			   (1<<3)
 
 /* Return the physical address offset of data in the packet */
 static inline u32 pktbuf_data_phys(pktbuf_t *p) {

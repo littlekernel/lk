@@ -120,7 +120,7 @@ static int free_completed_pbuf_frames(void) {
         do {
             pktbuf_t *p = list_remove_head_type(&gem.queued_pbufs, pktbuf_t, list);
             DEBUG_ASSERT(p);
-            eof = p->eof;
+            eof = p->flags & PKTBUF_FLAG_EOF;
             ret += pktbuf_free(p, false);
         } while (!eof);
 
@@ -152,8 +152,8 @@ void queue_pkts_in_tx_tbl(void) {
         uint32_t ctrl = gem.descs->tx_tbl[cur_pos].ctrl & TX_DESC_WRAP; /* protect the wrap bit */
         ctrl |= TX_BUF_LEN(p->dlen);
 
-        DEBUG_ASSERT(p->eof); // a multi part buffer would have caused a race condition w/hardware
-        if (p->eof) {
+        DEBUG_ASSERT(p->flags & PKTBUF_FLAG_EOF); // a multi part buffer would have caused a race condition w/hardware
+        if (p->flags & PKTBUF_FLAG_EOF) {
             ctrl |= TX_LAST_BUF;
         }
 

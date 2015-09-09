@@ -91,9 +91,7 @@ pktbuf_t *pktbuf_alloc(void) {
 	p->data = p->buffer + PKTBUF_MAX_HDR;
 	p->dlen = 0;
 	p->managed = true;
-	p->flags = 0;
-	/* TODO: This will be moved to the stack soon */
-	p->eof = true;
+	p->flags = PKTBUF_FLAG_EOF;
 	/* kvaddr will return the proper page, but lose the lower bits. */
 #if WITH_KERNEL_VM
 	p->phys_base = kvaddr_to_paddr(buf) | (uintptr_t) buf % PAGE_SIZE;
@@ -107,8 +105,7 @@ pktbuf_t *pktbuf_alloc(void) {
 pktbuf_t *pktbuf_alloc_empty(void) {
 	pktbuf_t *p = (pktbuf_t *) get_pool_object();
 
-	/* TODO: This will be moved to the stack soon */
-	p->eof = true;
+	p->flags = PKTBUF_FLAG_EOF;
 	return p;
 }
 

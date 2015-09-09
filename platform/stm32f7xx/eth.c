@@ -330,11 +330,11 @@ static int eth_rx_worker(void *arg)
 
 status_t stm32_eth_send_minip_pkt(pktbuf_t *p)
 {
-    LTRACEF("p %p, dlen %zu, eof %u\n", p, p->dlen, p->eof);
+    LTRACEF("p %p, dlen %zu, eof %u\n", p, p->dlen, p->flags & PKTBUF_FLAG_EOF);
 
     DEBUG_ASSERT(p && p->dlen);
 
-    if (!p->eof) {
+    if (!(p->flags & PKTBUF_FLAG_EOF)) {
         /* can't handle multi part packets yet */
         PANIC_UNIMPLEMENTED;
 
