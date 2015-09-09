@@ -75,7 +75,7 @@ static void MPU_RegionConfig(void)
     /* configure SDRAM */
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
     MPU_InitStruct.BaseAddress = SDRAM_BASE;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_8MB;
     MPU_InitStruct.AccessPermission = MPU_REGION_PRIV_RW;
     MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
     MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
