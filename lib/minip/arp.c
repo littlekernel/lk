@@ -86,7 +86,7 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6])
     }
 
     if (!found) {
-        LTRACEF("Adding %u.%u.%u.%u -> %02x:%02x:%02x%02x:%02x:%02x to cache\n",
+        LTRACEF("Adding %u.%u.%u.%u -> %02x:%02x:%02x:%02x:%02x:%02x to cache\n",
             ip.b[0], ip.b[1], ip.b[2], ip.b[3],
             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         arp = malloc(sizeof(arp_entry_t));

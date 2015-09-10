@@ -70,7 +70,6 @@ status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **
 status_t udp_send(void *buf, size_t len, udp_socket_t *handle);
 status_t udp_close(udp_socket_t *handle);
 
-
 /* tcp */
 typedef struct tcp_socket tcp_socket_t;
 
