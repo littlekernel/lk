@@ -131,8 +131,7 @@ void platform_init(void)
 
         virtio_net_get_mac_addr(mac_addr);
 
-        TRACEF("found virtio networking interface, mac addr:\n");
-        hexdump8_ex(mac_addr, 6, 0);
+        TRACEF("found virtio networking interface\n");
 
         /* start minip */
         minip_set_macaddr(mac_addr);
