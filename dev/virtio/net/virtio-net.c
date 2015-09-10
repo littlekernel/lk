@@ -111,6 +111,33 @@ static status_t virtio_net_queue_rx(struct virtio_net_dev *ndev, pktbuf_t *p);
 // XXX remove need for this
 static struct virtio_net_dev *the_ndev;
 
+static void dump_feature_bits(uint32_t feature)
+{
+    printf("virtio-net host features (0x%x):", feature);
+    if (feature & VIRTIO_NET_F_CSUM) printf(" CSUM");
+    if (feature & VIRTIO_NET_F_GUEST_CSUM) printf(" GUEST_CSUM");
+    if (feature & VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) printf(" CTRL_GUEST_OFFLOADS");
+    if (feature & VIRTIO_NET_F_MAC) printf(" MAC");
+    if (feature & VIRTIO_NET_F_GSO) printf(" GSO");
+    if (feature & VIRTIO_NET_F_GUEST_TSO4) printf(" GUEST_TSO4");
+    if (feature & VIRTIO_NET_F_GUEST_TSO6) printf(" GUEST_TSO6");
+    if (feature & VIRTIO_NET_F_GUEST_ECN) printf(" GUEST_ECN");
+    if (feature & VIRTIO_NET_F_GUEST_UFO) printf(" GUEST_UFO");
+    if (feature & VIRTIO_NET_F_HOST_TSO4) printf(" HOST_TSO4");
+    if (feature & VIRTIO_NET_F_HOST_TSO6) printf(" HOST_TSO6");
+    if (feature & VIRTIO_NET_F_HOST_ECN) printf(" HOST_ECN");
+    if (feature & VIRTIO_NET_F_HOST_UFO) printf(" HOST_UFO");
+    if (feature & VIRTIO_NET_F_MRG_RXBUF) printf(" MRG_RXBUF");
+    if (feature & VIRTIO_NET_F_STATUS) printf(" STATUS");
+    if (feature & VIRTIO_NET_F_CTRL_VQ) printf(" CTRL_VQ");
+    if (feature & VIRTIO_NET_F_CTRL_RX) printf(" CTRL_RX");
+    if (feature & VIRTIO_NET_F_CTRL_VLAN) printf(" CTRL_VLAN");
+    if (feature & VIRTIO_NET_F_GUEST_ANNOUNCE) printf(" GUEST_ANNOUNCE");
+    if (feature & VIRTIO_NET_F_MQ) printf(" MQ");
+    if (feature & VIRTIO_NET_F_CTRL_MAC_ADDR) printf(" CTRL_MAC_ADDR");
+    printf("\n");
+}
+
 status_t virtio_net_init(struct virtio_device *dev, uint32_t host_features)
 {
     LTRACEF("dev %p, host_features 0x%x\n", dev, host_features);
@@ -134,6 +161,7 @@ status_t virtio_net_init(struct virtio_device *dev, uint32_t host_features)
     virtio_status_acknowledge_driver(dev);
 
     // XXX check features bits and ack/nak them
+    dump_feature_bits(host_features);
 
     /* set our irq handler */
     dev->irq_driver_callback = &virtio_net_irq_driver_callback;
