@@ -85,6 +85,8 @@ struct virtio_net_hdr {
 #define RING_RX 0
 #define RING_TX 1
 
+#define VIRTIO_NET_MSS 1514
+
 struct virtio_net_dev {
     struct virtio_device *dev;
     bool started;
@@ -169,37 +171,24 @@ status_t virtio_net_start(void)
     return NO_ERROR;
 }
 
-static status_t virtio_net_queue_tx(struct virtio_net_dev *ndev, void *buf, size_t len)
+static status_t virtio_net_queue_tx_pktbuf(struct virtio_net_dev *ndev, pktbuf_t *p2)
 {
     struct virtio_device *vdev = ndev->dev;
 
     uint16_t i;
     pktbuf_t *p;
-    pktbuf_t *p2;
 
     DEBUG_ASSERT(ndev);
-    DEBUG_ASSERT(buf);
 
     p = pktbuf_alloc();
     if (!p)
         return ERR_NO_MEMORY;
-
-    p2 = pktbuf_alloc();
-    if (!p2) {
-        pktbuf_free(p, true);
-        return ERR_NO_MEMORY;
-    }
 
     /* point our header to the base of the first pktbuf */
     p->data = p->buffer;
     struct virtio_net_hdr *hdr = (struct virtio_net_hdr *)p->data;
     p->dlen = sizeof(*hdr) - 2; // num_buffers field is unused in tx
     memset(hdr, 0, p->dlen);
-
-    /* copy the outgoing packet into the second pktbuf */
-    p2->data = p2->buffer;
-    p2->dlen = len;
-    memcpy(p2->data, buf, len);
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&ndev->lock, state);
@@ -215,7 +204,6 @@ static status_t virtio_net_queue_tx(struct virtio_net_dev *ndev, void *buf, size
 
 nodesc:
         TRACEF("out of virtio tx descriptors, tx_pending_count %u\n", ndev->tx_pending_count);
-        pktbuf_free(p2, false);
         pktbuf_free(p, true);
 
         return ERR_NO_MEMORY;
@@ -252,6 +240,30 @@ nodesc:
     return NO_ERROR;
 }
 
+/* variant of the above function that copies the buffer into a pktbuf before sending */
+static status_t virtio_net_queue_tx(struct virtio_net_dev *ndev, const void *buf, size_t len)
+{
+    DEBUG_ASSERT(ndev);
+    DEBUG_ASSERT(buf);
+
+    pktbuf_t *p = pktbuf_alloc();
+    if (!p)
+        return ERR_NO_MEMORY;
+
+    /* copy the outgoing packet into the pktbuf */
+    p->data = p->buffer;
+    p->dlen = len;
+    memcpy(p->data, buf, len);
+
+    /* call through to the variant of the function that takes a pre-populated pktbuf */
+    status_t err = virtio_net_queue_tx_pktbuf(ndev, p);
+    if (err < 0) {
+        pktbuf_free(p, true);
+    }
+
+    return err;
+}
+
 static status_t virtio_net_queue_rx(struct virtio_net_dev *ndev, pktbuf_t *p)
 {
     struct virtio_device *vdev = ndev->dev;
@@ -262,9 +274,9 @@ static status_t virtio_net_queue_rx(struct virtio_net_dev *ndev, pktbuf_t *p)
     /* point our header to the base of the pktbuf */
     p->data = p->buffer;
     struct virtio_net_hdr *hdr = (struct virtio_net_hdr *)p->data;
-    memset(hdr, 0, sizeof(struct virtio_net_hdr));
+    memset(hdr, 0, sizeof(struct virtio_net_hdr) - 2);
 
-    p->dlen = sizeof(struct virtio_net_hdr) + 1512;
+    p->dlen = sizeof(struct virtio_net_hdr) - 2 + VIRTIO_NET_MSS;
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&ndev->lock, state);
@@ -326,8 +338,12 @@ static enum handler_return virtio_net_irq_driver_callback(struct virtio_device *
             LTRACEF("rx pktbuf %p filled\n", p);
 
             /* trim the pktbuf according to the written length in the used element descriptor */
-            // XXX is it safe?
-            p->dlen = e->len;
+            if (e->len > (sizeof(struct virtio_net_hdr) - 2 + VIRTIO_NET_MSS)) {
+                TRACEF("bad used len on RX %u\n", e->len);
+                p->dlen = 0;
+            } else {
+                p->dlen = e->len;
+            }
 
             list_add_tail(&ndev->completed_rx_queue, &p->list);
         } else { // ring == RING_TX
@@ -376,13 +392,11 @@ static int virtio_net_rx_worker(void *arg)
             if (!p)
                 break; /* nothing left in the queue, go back to waiting */
 
-            LTRACEF("got packet len %u\n", p->dlen);
+            TRACEF("got packet len %u\n", p->dlen);
 
             /* process our packet */
             struct virtio_net_hdr *hdr = pktbuf_consume(p, sizeof(struct virtio_net_hdr) - 2);
             if (hdr) {
-                //hexdump8(p->data, p->dlen);
-
                 /* call up into the stack */
                 minip_rx_driver_callback(p);
             }
@@ -422,9 +436,11 @@ status_t virtio_net_send_minip_pkt(pktbuf_t *p)
         return ERR_NOT_IMPLEMENTED;
     }
 
-    status_t err = virtio_net_queue_tx(the_ndev, p->data, p->dlen);
-
-    pktbuf_free(p, true);
+    /* hand the pktbuf off to the nic, it owns the pktbuf from now on out unless it fails */
+    status_t err = virtio_net_queue_tx_pktbuf(the_ndev, p);
+    if (err < 0) {
+        pktbuf_free(p, true);
+    }
 
     return err;
 }
