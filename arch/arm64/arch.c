@@ -62,9 +62,9 @@ void arch_early_init(void)
 
 void arch_init(void)
 {
+#if WITH_SMP
     arch_mp_init_percpu();
 
-#if WITH_SMP
     LTRACEF("midr_el1 0x%llx\n", ARM64_READ_SYSREG(midr_el1));
 
     secondaries_to_init = SMP_MAX_CPUS - 1; /* TODO: get count from somewhere else, or add cpus as they boot */
