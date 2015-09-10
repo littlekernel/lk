@@ -36,13 +36,10 @@ static void bench_cache(size_t bufsize, uint8_t* buf)
     lk_bigtime_t t;
     bool do_free;
 
-    if (buf == 0)
-    {   
+    if (buf == 0) {
         buf = memalign(PAGE_SIZE, bufsize);
         do_free = true;
-    }
-    else 
-    {
+    } else {
         do_free = false;
     }
 
@@ -71,9 +68,9 @@ static void bench_cache(size_t bufsize, uint8_t* buf)
 
 static int cache_tests(int argc, const cmd_args *argv)
 {
-	  uint8_t* buf;
-    buf = (uint8_t *) (argc > 1) ? argv[1].u : 0UL;
-  
+    uint8_t* buf;
+    buf = (uint8_t *)((argc > 1) ? argv[1].u : 0UL);
+
     printf("testing cache\n");
 
     bench_cache(2*1024, buf);
