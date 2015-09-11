@@ -49,8 +49,13 @@ struct virtio_device {
     enum handler_return (*irq_driver_callback)(struct virtio_device *dev, uint ring, const struct vring_used_elem *e);
 
     /* virtio rings */
+    uint32_t active_rings_bitmap;
     struct vring ring[MAX_VIRTIO_RINGS];
 };
+
+void virtio_reset_device(struct virtio_device *dev);
+void virtio_status_acknowledge_driver(struct virtio_device *dev);
+void virtio_status_driver_ok(struct virtio_device *dev);
 
 /* api used by devices to interact with the virtio bus */
 status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len) __NONNULL();
@@ -75,4 +80,5 @@ void virtio_dump_desc(const struct vring_desc *desc);
 void virtio_submit_chain(struct virtio_device *dev, uint ring_index, uint16_t desc_index);
 
 void virtio_kick(struct virtio_device *dev, uint ring_idnex);
+
 

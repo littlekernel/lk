@@ -1,7 +1,7 @@
 /* swdp-m0sub.c
  *
  * Copyright 2015 Brian Swetland <swetland@frotz.net>
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -28,6 +28,8 @@
 #include <platform/lpc43xx-gpio.h>
 #include <platform/lpc43xx-sgpio.h>
 #include <platform/lpc43xx-clocks.h>
+
+#include "rswdp.h"
 
 #define PIN_LED		PIN(1,1)
 #define PIN_RESET	PIN(2,5)
@@ -116,7 +118,7 @@ void swd_init(void) {
 	writel((1 << 11) | (1 << 14) | (1 << 15), SGPIO_OEN);
 
 	writel(0, M4_TXEV);
-	writel(M0_SUB_RST, RESET_CTRL0);	
+	writel(M0_SUB_RST, RESET_CTRL0);
 	writel(0x18000000, M0SUB_ZEROMAP);
 	writel(0xffffffff, 0x18004000);
 	memcpy((void*) 0x18000000, zero_bin, sizeof(zero_bin));
@@ -152,7 +154,7 @@ int swd_read(unsigned hdr, unsigned *val) {
 	data = readl(COMM_ARG1);
 	p = readl(COMM_ARG2);
 	if (p != parity(data)) {
-		return 2;
+		return ERR_PARITY;
 	}
 	//printf("rd s=%d p=%d d=%08x\n", n, p, data);
 	*val = data;

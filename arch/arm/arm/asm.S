@@ -107,10 +107,6 @@ FUNCTION(arm_save_mode_regs)
 /* void arm_chain_load(paddr_t entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN; */
 /* shut down the system, branching into the secondary system */
 FUNCTION(arm_chain_load)
-#if !WITH_KERNEL_VM
-#error implement non VM based chain load
-#else
-
 	/* shuffle the args around */
 	mov		r4, r0		/* r4 = entry point */
 	mov		r0, r1
@@ -118,6 +114,7 @@ FUNCTION(arm_chain_load)
 	mov		r2, r3
 	ldr		r3, [sp]
 
+#if WITH_KERNEL_VM
 /* The MMU is initialized and running at this point, so we'll need to
  * make sure we can disable it and continue to run. The caller should
  * have built a identity map for us and branched to our identity mapping,
@@ -134,10 +131,10 @@ FUNCTION(arm_chain_load)
 	mcr		p15, 0, r12, c1, c0, 0
 	isb
 
+#endif // WITH_KERNEL_VM
+
 	/* call the entry point */
 	bx		r4
-
-#endif // WITH_KERNEL_VM
 
 /* vim: set ts=4 sw=4 noexpandtab: */
 

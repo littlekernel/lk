@@ -46,8 +46,11 @@ SECTIONS
     .ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
     __exidx_end = .;
 
-    .rodata : ALIGN(8) {
+    .rodata : ALIGN(4096) {
         __rodata_start = .;
+        __fault_handler_table_start = .;
+        KEEP(*(.rodata.fault_handler_table))
+        __fault_handler_table_end = .;
         *(.rodata .rodata.* .gnu.linkonce.r.*)
 INCLUDE "arch/shared_rodata_sections.ld"
         . = ALIGN(8);
@@ -55,7 +58,7 @@ INCLUDE "arch/shared_rodata_sections.ld"
     }
 
 
-    .data : ALIGN(8) {
+    .data : ALIGN(4096) {
         /* writable data  */
         __data_start_rom = .;
         /* in one segment binaries, the rom data address is on top of the ram data address */

@@ -71,7 +71,7 @@ void pktbuf_create_bufs(void *ptr, size_t size) {
 		printf("Failed to get physical address for pktbuf slab, using virtual\n");
 	}
 #else
-	phys_addr = ptr;
+	phys_addr = (uintptr_t)ptr;
 #endif
 
 	while (size > sizeof(pktbuf_buf_t)) {

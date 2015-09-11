@@ -53,6 +53,35 @@ uint32_t str_ip_to_int(const char *s, size_t len)
     return IPV4_PACK(ip);
 }
 
+void arp_usage(void) {
+    printf("arp list                        print arp table\n");
+    printf("arp query <ipv4 address>        query arp address\n");
+}
+
+static int cmd_arp(int argc, const cmd_args *argv)
+{
+    const char *cmd;
+
+    if (argc == 1) {
+        arp_usage();
+        return -1;
+    }
+
+    cmd = argv[1].str;
+    if (argc == 2 && strncmp(cmd, "list", sizeof("list")) == 0) {
+        arp_cache_dump();
+    } else if (argc == 3 && strncmp(cmd, "query", sizeof("query")) == 0) {
+        const char *addr_s = argv[2].str;
+        uint32_t addr = str_ip_to_int(addr_s, strlen(addr_s));
+
+        arp_send_request(addr);
+    } else {
+        arp_usage();
+    }
+
+    return 0;
+}
+
 static int cmd_minip(int argc, const cmd_args *argv)
 {
     if (argc == 1) {
@@ -60,7 +89,7 @@ minip_usage:
         printf("minip commands\n");
         printf("mi [a]rp                        dump arp table\n");
         printf("mi [s]tatus                     print ip status\n");
-        printf("mi [t]est <dest> <port> <cnt>   send <cnt> test packets to the dest:port\n");
+        printf("mi [t]est [dest] [port] [cnt]   send <cnt> test packets to the dest:port\n");
     } else {
         switch(argv[1].str[0]) {
 
@@ -79,17 +108,19 @@ minip_usage:
                 uint8_t buf[1470];
 
                 uint32_t count = 1;
-                uint32_t host, port;
+                uint32_t host = 0x0100000A; // 10.0.0.1
+                uint32_t port = 1025;
                 udp_socket_t *handle;
 
-                if (argc < 5) {
-                    return -1;
+                switch (argc) {
+                    case 5:
+                        count = argv[4].u;
+                    case 4:
+                        port = argv[3].u;
+                    case 3:
+                        host = str_ip_to_int(argv[2].str, strlen(argv[2].str));
+                        break;
                 }
-
-                host = str_ip_to_int(argv[2].str, strlen(argv[2].str));
-                port = argv[3].u;
-                count = argv[4].u;
-                printf("host is %s\n", argv[2].str);
 
                 if (udp_open(host, port, port, &handle) != NO_ERROR) {
                     printf("udp_open to %u.%u.%u.%u:%u failed\n", IPV4_SPLIT(host), port);
@@ -123,6 +154,7 @@ minip_usage:
 }
 
 STATIC_COMMAND_START
+STATIC_COMMAND("arp", "arp commands", &cmd_arp)
 STATIC_COMMAND("mi", "minip commands", &cmd_minip)
 STATIC_COMMAND_END(minip);
 #endif

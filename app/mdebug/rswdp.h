@@ -61,7 +61,7 @@
 /* valid: target to host */
 #define CMD_STATUS	0x10 /* op=errorcode, arg=commands since last TXN_START */
 #define CMD_SWD_DATA	0x11 /* op=0 arg=count, payload: data x count */
-#define CMD_SWO_DATA	0x12 /* op=0 arg=count, payload: count * 4 bytes */
+#define CMD_SWO_DATA	0x12 /* op=0 arg=bytecount, payload: ((arg + 3) / 4) words*/
 
 /* valid: target to host async */
 #define CMD_DEBUG_PRINT	0x20 /* arg*4 bytes of ascii debug output */
@@ -73,7 +73,27 @@
 #define CMD_RX_MAXDATA	0x33 /* arg=bytes, declares senders rx buffer size */
 #define CMD_CLOCK_KHZ	0x34 /* arg=khz, reports active clock rate */
 
-#define RSWD_VERSION	0x0100
+/* CMD_STATUS error codes */
+#define ERR_NONE	0
+#define ERR_INTERNAL	1
+#define ERR_TIMEOUT	2
+#define ERR_IO		3
+#define ERR_PARITY	4
+
+#define RSWD_VERSION		0x0101
+
+#define RSWD_VERSION_1_0	0x0100
+#define RSWD_VERSION_1_1	0x0101
+
+// Pre-1.0
+//  - max packet size fixed at 2048 bytes
+//
+// Version 1.0
+// - CMD_VERSION, CMD_BUILD_STR, CMD_BOARD_STR, CMD_RX_MAXDATA,
+//   CMD_CLOCK_KHZ added
+//
+// Version 1.1
+// - CMD_SWO_DATA arg is now byte count, not word count
 
 /* CMD_SWD_OP operations - combine for direct AP/DP io */
 #define OP_RD 0x00

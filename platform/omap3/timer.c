@@ -44,7 +44,8 @@ static const ulong timer_base = OMAP34XX_GPT2;
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t statep;
+	arch_interrupt_save(&statep, SPIN_LOCK_FLAG_IRQ);
 
 	t_callback = callback;
 	callback_arg = arg;
@@ -59,7 +60,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 
 	unmask_interrupt(GPT2_IRQ);
 
-	exit_critical_section();
+	arch_interrupt_restore(statep, SPIN_LOCK_FLAG_IRQ);
 
 	return NO_ERROR;
 }

@@ -48,9 +48,13 @@ static uint32_t minip_netmask = IPV4_NONE;
 static uint32_t minip_broadcast = IPV4_BCAST;
 static uint32_t minip_gateway = IPV4_NONE;
 
+static const uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static uint8_t minip_mac[6] = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
 
 static char minip_hostname[32] = "";
+
+static void dump_mac_address(const uint8_t *mac);
+static void dump_ipv4_addr(uint32_t addr);
 
 void minip_set_hostname(const char *name) {
     strlcpy(minip_hostname, name, sizeof(minip_hostname));
@@ -412,11 +416,36 @@ __NO_INLINE static int handle_arp_pkt(pktbuf_t *p)
     return 0;
 }
 
+static void dump_mac_address(const uint8_t *mac)
+{
+    printf("%02x:%02x:%02x:%02x:%02x:%02x",
+        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+static void dump_eth_packet(const struct eth_hdr *eth)
+{
+    printf("ETH src ");
+    dump_mac_address(eth->src_mac);
+    printf(" dst ");
+    dump_mac_address(eth->dst_mac);
+    printf(" type 0x%hx\n", htons(eth->type));
+}
+
 void minip_rx_driver_callback(pktbuf_t *p)
 {
     struct eth_hdr *eth;
 
     if ((eth = (void*) pktbuf_consume(p, sizeof(struct eth_hdr))) == NULL) {
+        return;
+    }
+
+    if (LOCAL_TRACE) {
+        dump_eth_packet(eth);
+    }
+
+    if (memcmp(eth->dst_mac, minip_mac, 6) != 0 &&
+        memcmp(eth->dst_mac, broadcast_mac, 6) != 0) {
+        /* not for us */
         return;
     }
 

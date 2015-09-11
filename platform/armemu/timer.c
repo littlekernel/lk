@@ -33,8 +33,6 @@ static platform_timer_callback t_callback;
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-	enter_critical_section();
-
 	t_callback = callback;
 
 	*REG(PIT_CLEAR) = 1;
@@ -42,8 +40,6 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 	*REG(PIT_START_PERIODIC) = 1;
 
 	unmask_interrupt(INT_PIT);
-
-	exit_critical_section();
 
 	return NO_ERROR;
 }

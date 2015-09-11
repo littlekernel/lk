@@ -42,6 +42,8 @@ ifneq (,$(findstring arm-linux-gnueabi-,$(FOUNDTOOL)))
 endif
 endif # arm-linux-gnueabi-
 
+else
+FOUNDTOOL=$(shell which $(ARCH_arm_TOOLCHAIN_PREFIX)gcc)
 endif # ARCH_arm_TOOLCHAIN_PREFIX
 
 ifeq ($(FOUNDTOOL),)
@@ -54,6 +56,9 @@ ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 endif
 ifeq ($(ARM_CPU),cortex-m4)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+endif
+ifeq ($(ARM_CPU),cortex-m7)
+ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m4
 endif
 ifeq ($(ARM_CPU),cortex-m4f)
 ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m4 -mfloat-abi=softfp
@@ -86,6 +91,9 @@ ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 endif
 ifeq ($(ARM_CPU),arm1176jzf-s)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+endif
+ifeq ($(ARM_CPU),armemu)
+ARCH_arm_COMPILEFLAGS += -march=armv7-a
 endif
 
 endif

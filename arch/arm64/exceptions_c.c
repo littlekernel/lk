@@ -27,6 +27,14 @@
 
 #define SHUTDOWN_ON_FATAL 1
 
+struct fault_handler_table_entry {
+    uint64_t pc;
+    uint64_t fault_handler;
+};
+
+extern struct fault_handler_table_entry __fault_handler_table_start[];
+extern struct fault_handler_table_entry __fault_handler_table_end[];
+
 static void dump_iframe(const struct arm64_iframe_long *iframe)
 {
     printf("iframe %p:\n", iframe);
@@ -44,6 +52,7 @@ static void dump_iframe(const struct arm64_iframe_long *iframe)
 
 void arm64_sync_exception(struct arm64_iframe_long *iframe)
 {
+    struct fault_handler_table_entry *fault_handler;
     uint32_t esr = ARM64_READ_SYSREG(esr_el1);
     uint32_t ec = esr >> 26;
     uint32_t il = (esr >> 25) & 0x1;
@@ -58,6 +67,13 @@ void arm64_sync_exception(struct arm64_iframe_long *iframe)
         return;
     }
 #endif
+
+    for (fault_handler = __fault_handler_table_start; fault_handler < __fault_handler_table_end; fault_handler++) {
+        if (fault_handler->pc == iframe->elr) {
+            iframe->elr = fault_handler->fault_handler;
+            return;
+        }
+    }
 
     printf("sync_exception\n");
     dump_iframe(iframe);

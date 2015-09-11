@@ -174,52 +174,64 @@ static int mem_test(int argc, const cmd_args *argv)
 {
     if (argc < 2) {
         printf("not enough arguments\n");
+usage:
         printf("usage: %s <length>\n", argv[0].str);
+        printf("usage: %s <base> <length>\n", argv[0].str);
         return -1;
     }
 
-    void *ptr;
-    size_t len = argv[1].u;
+    if (argc == 2) {
+        void *ptr;
+        size_t len = argv[1].u;
 
 #if WITH_KERNEL_VM
-    /* rounding up len to the next page */
-    len = PAGE_ALIGN(len);
-    if (len == 0) {
-        printf("invalid length\n");
-        return -1;
-    }
+        /* rounding up len to the next page */
+        len = PAGE_ALIGN(len);
+        if (len == 0) {
+            printf("invalid length\n");
+            return -1;
+        }
 
-    /* allocate a region to test in */
-    status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "memtest", len, &ptr, 0, 0, ARCH_MMU_FLAG_UNCACHED);
-    if (err < 0) {
-        printf("error %d allocating test region\n", err);
-        return -1;
-    }
+        /* allocate a region to test in */
+        status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "memtest", len, &ptr, 0, 0, ARCH_MMU_FLAG_UNCACHED);
+        if (err < 0) {
+            printf("error %d allocating test region\n", err);
+            return -1;
+        }
 
-    paddr_t pa;
-    arch_mmu_query((vaddr_t)ptr, &pa, 0);
-    printf("physical address 0x%lx\n", pa);
+        paddr_t pa;
+        arch_mmu_query((vaddr_t)ptr, &pa, 0);
+        printf("physical address 0x%lx\n", pa);
 #else
-    /* allocate from the heap */
-    ptr = malloc(len);
-    if (!ptr ) {
-        printf("error allocating test area from heap\n");
-        return -1;
-    }
+        /* allocate from the heap */
+        ptr = malloc(len);
+        if (!ptr ) {
+            printf("error allocating test area from heap\n");
+            return -1;
+        }
 
 #endif
 
-    printf("got buffer at %p of length 0x%lx\n", ptr, len);
+        printf("got buffer at %p of length 0x%lx\n", ptr, len);
 
-    /* run the tests */
-    do_mem_tests(ptr, len);
+        /* run the tests */
+        do_mem_tests(ptr, len);
 
 #if WITH_KERNEL_VM
-    // XXX free memory region here
-    printf("NOTE: leaked memory\n");
+        // XXX free memory region here
+        printf("NOTE: leaked memory\n");
 #else
-    free(ptr);
+        free(ptr);
 #endif
+    } else if (argc == 3) {
+        void *ptr = (void *)argv[1].u;
+        size_t len = argv[2].u;
+
+        /* run the tests */
+        do_mem_tests(ptr, len);
+    } else {
+        goto usage;
+    }
 
     return 0;
 }

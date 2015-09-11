@@ -113,7 +113,7 @@ arm_reset:
 .Lrelocate_done:
 #endif // !WITH_NO_PHYS_RELOCATION
 
-#if WITH_KERNEL_VM
+#if ARM_WITH_MMU
 .Lsetup_mmu:
 
 	/* set up the mmu according to mmu_initial_mappings */
@@ -224,8 +224,7 @@ arm_reset:
 	/* at this point we're running at our final location in virtual memory (if enabled) */
 .Lstack_setup:
 	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
-	ldr		r12, =abort_stack
-	add		r12, #ARCH_DEFAULT_STACK_SIZE
+	mov		r12, #0
 
 	cpsid	i,#0x12       /* irq */
 	mov		sp, r12
@@ -243,6 +242,8 @@ arm_reset:
 	mov		sp, r12
 
 	cpsid	i,#0x13       /* supervisor */
+	ldr		r12, =abort_stack
+	add		r12, #ARCH_DEFAULT_STACK_SIZE
 	mov		sp, r12
 
 	/* stay in supervisor mode from now on out */
@@ -360,12 +361,7 @@ FUNCTION(arm_secondary_setup)
 	mov		r5, r0 /* save cpu num */
 
 	/* set up the stack for irq, fiq, abort, undefined, system/user, and lastly supervisor mode */
-	ldr		r1, =abort_stack
-	mov		r2, #ARCH_DEFAULT_STACK_SIZE
-	add		r0, #1
-	mul		r2, r2, r0
-	add		r1, r2
-
+	mov		r1, #0
 	cpsid	i,#0x12       /* irq */
 	mov		sp, r1
 
@@ -382,6 +378,12 @@ FUNCTION(arm_secondary_setup)
 	mov		sp, r1
 
 	cpsid	i,#0x13       /* supervisor */
+	ldr		r1, =abort_stack
+	mov		r2, #ARCH_DEFAULT_STACK_SIZE
+	add		r0, #1
+	mul		r2, r2, r0
+	add		r1, r2
+
 	mov		sp, r1
 
 #if WITH_KERNEL_VM

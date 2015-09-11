@@ -36,11 +36,13 @@ void platform_early_init(void)
 
 	/* initialize the timer block */
 	platform_init_timer();
+
+	/* initialize the display */
+	platform_init_display();
 }
 
 void platform_init(void)
 {
 	platform_init_blkdev();
-	platform_init_display();
 }
 

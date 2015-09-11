@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2010 Travis Geiselbrecht
+ * Copyright (c) 2008-2010, 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -32,6 +32,7 @@
 
 #include <debug.h>
 #include <assert.h>
+#include <lk/init.h>
 #include <lib/gfx.h>
 #include <lib/gfxconsole.h>
 #include <lib/font.h>
@@ -106,6 +107,18 @@ static void gfxconsole_putc(char c)
 	}
 }
 
+void gfxconsole_print_callback(print_callback_t *cb, const char *str, size_t len)
+{
+	for (size_t i = 0; i < len; i++) {
+		gfxconsole_putc(str[i]);
+	}
+}
+
+static print_callback_t cb = {
+	{ 0 },
+	gfxconsole_print_callback
+};
+
 /**
  * @brief  Initialize graphics console on given drawing surface.
  *
@@ -135,7 +148,7 @@ void gfxconsole_start(gfx_surface *surface)
 	gfxconsole.back_color = 0;
 
 	// register for debug callbacks
-	//register_debug_output(&gfxconsole_putc);
+	register_print_callback(&cb);
 }
 
 /**
@@ -156,3 +169,11 @@ void gfxconsole_start_on_display(void)
 	started = true;
 }
 
+static void gfxconsole_init_hook(uint level)
+{
+	gfxconsole_start_on_display();
+}
+
+LK_INIT_HOOK(gfxconsole, &gfxconsole_init_hook, LK_INIT_LEVEL_HEAP);
+
+// vim: set noexpandtab:

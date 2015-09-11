@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -30,7 +30,9 @@
 #include <err.h>
 #include <kernel/thread.h>
 #include <kernel/event.h>
+#include <kernel/mutex.h>
 #include <kernel/vm.h>
+#include <lib/bio.h>
 
 #define LOCAL_TRACE 0
 
@@ -60,6 +62,8 @@ struct virtio_blk_req {
 #define VIRTIO_BLK_F_BLK_SIZE (1<<6)
 #define VIRTIO_BLK_F_SCSI     (1<<7)
 #define VIRTIO_BLK_F_FLUSH    (1<<9)
+#define VIRTIO_BLK_F_TOPOLOGY (1<<10)
+#define VIRTIO_BLK_F_CONFIG_WCE (1<<11)
 
 #define VIRTIO_BLK_T_IN         0
 #define VIRTIO_BLK_T_OUT        1
@@ -70,12 +74,58 @@ struct virtio_blk_req {
 #define VIRTIO_BLK_S_UNSUPP     2
 
 static enum handler_return virtio_block_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e);
+static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count);
+static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count);
 
-static event_t *curr_event;
+struct virtio_block_dev {
+    struct virtio_device *dev;
+
+    mutex_t lock;
+    event_t io_event;
+
+    /* bio block device */
+    bdev_t bdev;
+
+    /* one blk_req structure for io, not crossing a page boundary */
+    struct virtio_blk_req *blk_req;
+    paddr_t blk_req_phys;
+
+    /* one uint8_t response word */
+    uint8_t blk_response;
+    paddr_t blk_response_phys;
+};
 
 status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features)
 {
     LTRACEF("dev %p, host_features 0x%x\n", dev, host_features);
+
+    /* allocate a new block device */
+    struct virtio_block_dev *bdev = malloc(sizeof(struct virtio_block_dev));
+    if (!bdev)
+        return ERR_NO_MEMORY;
+
+    mutex_init(&bdev->lock);
+    event_init(&bdev->io_event, false, EVENT_FLAG_AUTOUNSIGNAL);
+
+    bdev->dev = dev;
+    dev->priv = bdev;
+
+    bdev->blk_req = memalign(sizeof(struct virtio_blk_req), sizeof(struct virtio_blk_req));
+#if WITH_KERNEL_VM
+    arch_mmu_query((vaddr_t)bdev->blk_req, &bdev->blk_req_phys, NULL);
+#else
+    bdev->blk_freq_phys = (uint64_t)(uintptr_t)bdev->blk_req;
+#endif
+    LTRACEF("blk_req structure at %p (0x%lx phys)\n", bdev->blk_req, bdev->blk_req_phys);
+
+#if WITH_KERNEL_VM
+    arch_mmu_query((vaddr_t)&bdev->blk_response, &bdev->blk_response_phys, NULL);
+#else
+    bdev->blk_response_phys = (uint64_t)(uintptr_t)&bdev->blk_response;
+#endif
+
+    /* make sure the device is reset */
+    virtio_reset_device(dev);
 
     volatile struct virtio_blk_config *config = (struct virtio_blk_config *)dev->config_ptr;
 
@@ -84,17 +134,43 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features)
     LTRACEF("seg_max  0x%x\n", config->seg_max);
     LTRACEF("blk_size 0x%x\n", config->blk_size);
 
+    /* ack and set the driver status bit */
+    virtio_status_acknowledge_driver(dev);
+
+    // XXX check features bits and ack/nak them
+
     /* allocate a virtio ring */
-    virtio_alloc_ring(dev, 0, 128);
+    virtio_alloc_ring(dev, 0, 16);
 
     /* set our irq handler */
     dev->irq_driver_callback = &virtio_block_irq_driver_callback;
+
+    /* set DRIVER_OK */
+    virtio_status_driver_ok(dev);
+
+    /* construct the block device */
+    static uint8_t found_index = 0;
+    char buf[16];
+    snprintf(buf, sizeof(buf), "virtio%u", found_index++);
+    bio_initialize_bdev(&bdev->bdev, buf,
+                        config->blk_size, config->capacity,
+                        0, NULL);
+
+    /* override our block device hooks */
+    bdev->bdev.read_block = &virtio_bdev_read_block;
+    bdev->bdev.write_block = &virtio_bdev_write_block;
+
+    bio_register_device(&bdev->bdev);
+
+    printf("found virtio block device of size %lld\n", config->capacity * config->blk_size);
 
     return NO_ERROR;
 }
 
 static enum handler_return virtio_block_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e)
 {
+    struct virtio_block_dev *bdev = (struct virtio_block_dev *)dev->priv;
+
     LTRACEF("dev %p, ring %u, e %p, id %u, len %u\n", dev, ring, e, e->id, e->len);
 
     /* parse our descriptor chain, add back to the free queue */
@@ -102,6 +178,8 @@ static enum handler_return virtio_block_irq_driver_callback(struct virtio_device
     for (;;) {
         int next;
         struct vring_desc *desc = virtio_desc_index_to_desc(dev, ring, i);
+
+        //virtio_dump_desc(desc);
 
         if (desc->flags & VRING_DESC_F_NEXT) {
             next = desc->next;
@@ -118,24 +196,29 @@ static enum handler_return virtio_block_irq_driver_callback(struct virtio_device
     }
 
     /* signal our event */
-    event_signal(curr_event, false);
+    event_signal(&bdev->io_event, false);
 
     return INT_RESCHEDULE;
 }
 
-ssize_t virtio_block_read(struct virtio_device *dev, void *buf, off_t offset, size_t len)
+ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offset, size_t len, bool write)
 {
+    struct virtio_block_dev *bdev = (struct virtio_block_dev *)dev->priv;
+
     uint16_t i;
     struct vring_desc *desc;
     paddr_t pa;
 
     LTRACEF("dev %p, buf %p, offset 0x%llx, len %zu\n", dev, buf, offset, len);
 
+    mutex_acquire(&bdev->lock);
+
     /* set up the request */
-    struct virtio_blk_req blk_req;
-    blk_req.type = VIRTIO_BLK_T_IN;
-    blk_req.ioprio = 0;
-    blk_req.sector = offset / 512;
+    bdev->blk_req->type = write ? VIRTIO_BLK_T_OUT : VIRTIO_BLK_T_IN;
+    bdev->blk_req->ioprio = 0;
+    bdev->blk_req->sector = offset / 512;
+    LTRACEF("blk_req type %u ioprio %u sector %llu\n",
+            bdev->blk_req->type, bdev->blk_req->ioprio, bdev->blk_req->sector);
 
     /* put together a transfer */
     desc = virtio_alloc_desc_chain(dev, 0, 3, &i);
@@ -145,16 +228,9 @@ ssize_t virtio_block_read(struct virtio_device *dev, void *buf, off_t offset, si
     // At the moment only tested on arm qemu, which doesn't emulate cache.
 
     /* set up the descriptor pointing to the head */
-#if WITH_KERNEL_VM
-    // XXX handle bufs that cross page boundaries
-    arch_mmu_query((vaddr_t)&blk_req, &pa, NULL);
-    desc->addr = (uint64_t)pa;
-#else
-    desc->addr = (uint64_t)(uintptr_t)&blk_req;
-#endif
-    desc->len = sizeof(blk_req);
+    desc->addr = bdev->blk_req_phys;
+    desc->len = sizeof(struct virtio_blk_req);
     desc->flags |= VRING_DESC_F_NEXT;
-    virtio_dump_desc(desc);
 
     /* set up the descriptor pointing to the buffer */
     desc = virtio_desc_index_to_desc(dev, 0, desc->next);
@@ -166,27 +242,14 @@ ssize_t virtio_block_read(struct virtio_device *dev, void *buf, off_t offset, si
     desc->addr = (uint64_t)(uintptr_t)buf;
 #endif
     desc->len = len;
-    desc->flags |= VRING_DESC_F_NEXT | VRING_DESC_F_WRITE;
-    virtio_dump_desc(desc);
+    desc->flags |= write ? 0 : VRING_DESC_F_WRITE; /* mark buffer as write-only if its a block read */
+    desc->flags |= VRING_DESC_F_NEXT;
 
     /* set up the descriptor pointing to the response */
-    uint8_t blk_response;
     desc = virtio_desc_index_to_desc(dev, 0, desc->next);
-#if WITH_KERNEL_VM
-    // XXX handle bufs that cross page boundaries
-    arch_mmu_query((vaddr_t)&blk_response, &pa, NULL);
-    desc->addr = (uint64_t)pa;
-#else
-    desc->addr = (uint64_t)(uintptr_t)&blk_response;
-#endif
+    desc->addr = bdev->blk_response_phys;
     desc->len = 1;
     desc->flags = VRING_DESC_F_WRITE;
-    virtio_dump_desc(desc);
-
-    /* set up an event to block on */
-    event_t event;
-    event_init(&event, false, 0);
-    curr_event = &event;
 
     /* submit the transfer */
     virtio_submit_chain(dev, 0, i);
@@ -195,10 +258,30 @@ ssize_t virtio_block_read(struct virtio_device *dev, void *buf, off_t offset, si
     virtio_kick(dev, 0);
 
     /* wait for the transfer to complete */
-    event_wait(&event);
+    event_wait(&bdev->io_event);
 
-    LTRACEF("status 0x%hhx\n", blk_response);
+    LTRACEF("status 0x%hhx\n", bdev->blk_response);
+
+    mutex_release(&bdev->lock);
 
     return len;
+}
+
+static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count)
+{
+    struct virtio_block_dev *dev = containerof(bdev, struct virtio_block_dev, bdev);
+
+    LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
+
+    return virtio_block_read_write(dev->dev, buf, (off_t)block * dev->bdev.block_size, count * dev->bdev.block_size, false);
+}
+
+static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count)
+{
+    struct virtio_block_dev *dev = containerof(bdev, struct virtio_block_dev, bdev);
+
+    LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
+
+    return virtio_block_read_write(dev->dev, (void *)buf, (off_t)block * dev->bdev.block_size, count * dev->bdev.block_size, true);
 }
 

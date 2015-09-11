@@ -103,8 +103,8 @@ int usb_recv(void *data, unsigned len) {
 }
 
 static udc_device_t mdebug_device = {
-	.vendor_id = 0x18d1,
-	.product_id = 0xdb03,
+	.vendor_id = 0x1209,
+	.product_id = 0x5038,
 	.version_id = 0x0100,
 };
 
@@ -141,7 +141,7 @@ static void mdebug_entry(const struct app_descriptor *app, void *args)
 {
 	udc_start();
 	swo_init(txept);
-	swo_config(1000000);
+	swo_config(6000000);
 
 	for (;;) {
 		if (!online) {

@@ -51,6 +51,9 @@ SECTIONS
 
 	.rodata : ALIGN(4) {
 		__rodata_start = .;
+		__fault_handler_table_start = .;
+		KEEP(*(.rodata.fault_handler_table))
+		__fault_handler_table_end = .;
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 INCLUDE "arch/shared_rodata_sections.ld"
 		. = ALIGN(4);

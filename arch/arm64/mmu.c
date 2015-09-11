@@ -78,6 +78,10 @@ static pte_t mmu_flags_to_pte_attr(uint flags)
             break;
     }
 
+    if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
+        attr |= MMU_PTE_ATTR_UXN | MMU_PTE_ATTR_PXN;
+    }
+
     if (flags & ARCH_MMU_FLAG_NS) {
             attr |= MMU_PTE_ATTR_NON_SECURE;
     }
@@ -166,6 +170,9 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
             case MMU_PTE_ATTR_AP_P_RO_U_RO:
                 *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO;
                 break;
+        }
+        if ((pte & MMU_PTE_ATTR_UXN) && (pte & MMU_PTE_ATTR_PXN)) {
+            *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
         }
     }
     LTRACEF("va 0x%lx, paddr 0x%lx, flags 0x%x\n",

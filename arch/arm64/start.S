@@ -23,8 +23,9 @@ page_table1             .req x21
 mmu_initial_mapping     .req x22
 vaddr                   .req x23
 paddr                   .req x24
-size                    .req x25
-attr                    .req x26
+mapping_size            .req x25
+size                    .req x26
+attr                    .req x27
 
 .section .text.boot
 FUNCTION(_start)
@@ -79,16 +80,38 @@ FUNCTION(_start)
 .Lnot_dynamic:
     /* if size == 0, end of list */
     cbz     size, .Linitial_mapping_done
+    mov     mapping_size, size
 
     /* set up the flags */
-    ldr     attr, =MMU_PTE_KERNEL_FLAGS
     tbzmask tmp, MMU_INITIAL_MAPPING_FLAG_UNCACHED, .Lnot_uncached
     ldr     attr, =MMU_INITIAL_MAP_STRONGLY_ORDERED
     b       .Lmem_type_done
 .Lnot_uncached:
-    tbzmask tmp, MMU_INITIAL_MAPPING_FLAG_DEVICE, .Lmem_type_done
+    tbzmask tmp, MMU_INITIAL_MAPPING_FLAG_DEVICE, .Lnot_device
     ldr     attr, =MMU_INITIAL_MAP_DEVICE
+    b       .Lmem_type_done
+.Lnot_device:
+
+.Lmapping_size_loop:
+    ldr     attr, =MMU_PTE_KERNEL_RO_FLAGS
+    ldr     tmp, =__rodata_start
+    subs    size, tmp, vaddr
+    b.hi    .Lmem_type_done
+    orr     attr, attr, #MMU_PTE_ATTR_PXN
+    ldr     tmp, =__data_start
+    subs    size, tmp, vaddr
+    b.hi    .Lmem_type_done
+    ldr     attr, =MMU_PTE_KERNEL_DATA_FLAGS
+    ldr     tmp, =_end
+    subs    size, tmp, vaddr
+    b.lo    . /* Error: _end < vaddr */
+    cmp     mapping_size, size
+    b.lo    . /* Error: mapping_size < size => RAM size too small for data/bss */
+    mov     size, mapping_size
+
 .Lmem_type_done:
+    subs    mapping_size, mapping_size, size
+    b.lo    . /* Error: mapping_size < size (RAM size too small for code/rodata?) */
 
     /* Check that paddr, vaddr and size are page aligned */
     orr     tmp, vaddr, paddr
@@ -145,6 +168,11 @@ FUNCTION(_start)
     subs    size, size, tmp
     /* TODO: add local loop if next entry is in the same page table */
     b.ne    .Lmap_range_top_loop /* size != 0 */
+
+    /* Restore top bits of virtual address (should be all set) */
+    eor     vaddr, vaddr, #(~0 << MMU_KERNEL_SIZE_SHIFT)
+    /* Move to next subtype of ram mmu_initial_mappings entry */
+    cbnz     mapping_size, .Lmapping_size_loop
 
     /* Move to next mmu_initial_mappings entry */
     add     mmu_initial_mapping, mmu_initial_mapping, __MMU_INITIAL_MAPPING_SIZE

@@ -92,7 +92,7 @@ void swo_init(udc_endpoint_t *_txept) {
 		TXN[n].busy = 0;
 		TXN[n].next = TXN + (n + 1);
 		TXN[n].buf[0] = RSWD_TXN_ASYNC;
-		TXN[n].buf[1] = RSWD_MSG(CMD_SWO_DATA, 0, TXNSIZE / 4);
+		TXN[n].buf[1] = RSWD_MSG(CMD_SWO_DATA, 0, TXNSIZE);
 	}
 	TXN[n-1].next = TXN;
 
@@ -130,7 +130,11 @@ void swo_config(unsigned mhz) {
 }
 
 unsigned swo_set_clock(unsigned khz) {
-	if (khz >= 6000) {
+	if (khz >= 12000) {
+		khz = 12000;
+	} else if (khz >= 8000) {
+		khz = 8000;
+	} else if (khz >= 6000) {
 		khz = 6000;
 	} else if (khz >= 4000) {
 		khz = 4000;

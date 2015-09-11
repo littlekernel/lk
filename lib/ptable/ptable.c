@@ -217,6 +217,29 @@ static void ptable_reset(void)
     ptable_init(LK_INIT_LEVEL_THREADING);
 }
 
+static void ptable_push_entry (struct ptable_mem_entry *mentry)
+{
+    DEBUG_ASSERT (mentry);
+
+    // iterator for the list
+    struct ptable_mem_entry *it_mentry;
+
+    // The ptable list must be ordered by offset, so let's find the correct
+    // spot for this entry
+    list_for_every_entry(&ptable.list, it_mentry, struct ptable_mem_entry, node) {
+        if (it_mentry->entry.offset > mentry->entry.offset) {
+            // push the entry and we are done !
+            list_add_before(&it_mentry->node, &mentry->node);
+            // All done
+            return;
+        }
+    }
+
+    // if we exist the loop, that means that the
+    // entry has not been added, let add it at the tail
+    list_add_tail(&ptable.list, &mentry->node);
+}
+
 static status_t ptable_publish(const struct ptable_entry* entry) {
     status_t err;
     struct ptable_mem_entry *mentry = NULL;
@@ -285,7 +308,7 @@ bailout:
     if (err < 0) {
         ptable_unpublish(mentry);
     } else {
-        list_add_tail(&ptable.list, &mentry->node);
+        ptable_push_entry (mentry);
     }
 
     return err;

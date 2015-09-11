@@ -48,7 +48,8 @@ static platform_timer_callback t_callback;
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-	enter_critical_section();
+	spin_lock_saved_state_t statep;
+	arch_interrupt_save(&statep, SPIN_LOCK_FLAG_IRQ);
 
 	t_callback = callback;
 	delta_ms = interval;
@@ -62,7 +63,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 
 	unmask_interrupt(SYS_INT_TINT2);
 
-	exit_critical_section();
+	arch_interrupt_restore(statep, SPIN_LOCK_FLAG_IRQ);
 
 	return NO_ERROR;
 }
@@ -72,9 +73,7 @@ lk_bigtime_t current_time_hires(void)
 	lk_bigtime_t ret;
 	lk_bigtime_t counter;
 
-	enter_critical_section();
 	ret = current_ms;
-	exit_critical_section();
 
 	counter = DMTimerCounterGet(SOC_DMTIMER_2_REGS);
 
@@ -86,9 +85,7 @@ lk_time_t current_time(void)
 	lk_time_t ret;
 	lk_time_t counter;
 
-	enter_critical_section();
 	ret = current_ms;
-	exit_critical_section();
 
 	counter = DMTimerCounterGet(SOC_DMTIMER_2_REGS);
 

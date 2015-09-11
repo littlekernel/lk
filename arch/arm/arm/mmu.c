@@ -76,15 +76,18 @@ static uint32_t mmu_flags_to_l1_arch_flags(uint flags)
             arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_NA;
             break;
         case ARCH_MMU_FLAG_PERM_RO:
-            /* this mapping is a lie, we don't support RO kernel mapping */
-            arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_NA;
+            arch_flags |= MMU_MEMORY_L1_AP_P_RO_U_NA;
             break;
         case ARCH_MMU_FLAG_PERM_USER:
             arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_RW;
             break;
         case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO:
-            arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_RO;
+            arch_flags |= MMU_MEMORY_L1_AP_P_RO_U_RO;
             break;
+    }
+
+    if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
+         arch_flags |= MMU_MEMORY_L1_SECTION_XN;
     }
 
     if (flags & ARCH_MMU_FLAG_NS) {
@@ -95,7 +98,7 @@ static uint32_t mmu_flags_to_l1_arch_flags(uint flags)
 }
 
 /* convert user level mmu flags to flags that go in L2 descriptors */
-static uint32_t mmu_flags_to_l2_arch_flags(uint flags)
+static uint32_t mmu_flags_to_l2_arch_flags_small_page(uint flags)
 {
     uint32_t arch_flags = 0;
     switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
@@ -125,15 +128,20 @@ static uint32_t mmu_flags_to_l2_arch_flags(uint flags)
             arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_NA;
             break;
         case ARCH_MMU_FLAG_PERM_RO:
-            /* this mapping is a lie, we don't support RO kernel mapping */
-            arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_NA;
+            arch_flags |= MMU_MEMORY_L2_AP_P_RO_U_NA;
             break;
         case ARCH_MMU_FLAG_PERM_USER:
             arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_RW;
             break;
         case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO:
-            arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_RO;
+            arch_flags |= MMU_MEMORY_L2_AP_P_RO_U_RO;
             break;
+    }
+
+    if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
+         arch_flags |= MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN;
+    } else {
+         arch_flags |= MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE;
     }
 
     return arch_flags;
@@ -242,17 +250,20 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
                         break;
                 }
                 switch (tt_entry & MMU_MEMORY_L1_AP_MASK) {
-                    case MMU_MEMORY_L1_AP_P_NA_U_NA:
-                        // XXX no access, what to return?
+                    case MMU_MEMORY_L1_AP_P_RO_U_NA:
+                        *flags |= ARCH_MMU_FLAG_PERM_RO;
                         break;
                     case MMU_MEMORY_L1_AP_P_RW_U_NA:
                         break;
-                    case MMU_MEMORY_L1_AP_P_RW_U_RO:
-                        *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO; // XXX should it be rw anyway since kernel can rw it?
+                    case MMU_MEMORY_L1_AP_P_RO_U_RO:
+                        *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO;
                         break;
                     case MMU_MEMORY_L1_AP_P_RW_U_RW:
                         *flags |= ARCH_MMU_FLAG_PERM_USER;
                         break;
+                }
+                if (tt_entry & MMU_MEMORY_L1_SECTION_XN) {
+                    *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
                 }
             }
             break;
@@ -273,12 +284,12 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
                 case MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE:
                 case MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN:
                     if (paddr)
-                        *paddr = MMU_MEMORY_L2_SMALL_PAGE_ADDR(l2_entry);
+                        *paddr = MMU_MEMORY_L2_SMALL_PAGE_ADDR(l2_entry) + (vaddr & (PAGE_SIZE - 1));
 
                     if (flags) {
                         *flags = 0;
                         /* NS flag is only present on L1 entry */
-                        if (tt_entry & MMU_MEMORY_L1_SECTION_NON_SECURE)
+                        if (tt_entry & MMU_MEMORY_L1_PAGETABLE_NON_SECURE)
                                 *flags |= ARCH_MMU_FLAG_NS;
                         switch (l2_entry & MMU_MEMORY_L2_TYPE_MASK) {
                             case MMU_MEMORY_L2_TYPE_STRONGLY_ORDERED:
@@ -290,17 +301,21 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
                                 break;
                         }
                         switch (l2_entry & MMU_MEMORY_L2_AP_MASK) {
-                            case MMU_MEMORY_L2_AP_P_NA_U_NA:
-                                // XXX no access, what to return?
+                            case MMU_MEMORY_L2_AP_P_RO_U_NA:
+                                *flags |= ARCH_MMU_FLAG_PERM_RO;
                                 break;
                             case MMU_MEMORY_L2_AP_P_RW_U_NA:
                                 break;
-                            case MMU_MEMORY_L2_AP_P_RW_U_RO:
-                                *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO; // XXX should it be rw anyway since kernel can rw it?
+                            case MMU_MEMORY_L2_AP_P_RO_U_RO:
+                                *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO;
                                 break;
                             case MMU_MEMORY_L2_AP_P_RW_U_RW:
                                 *flags |= ARCH_MMU_FLAG_PERM_USER;
                                 break;
+                        }
+                        if ((l2_entry & MMU_MEMORY_L2_DESCRIPTOR_MASK) ==
+                            MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN) {
+                            *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
                         }
                     }
                     break;
@@ -505,8 +520,7 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
                     // XXX handle 64K pages here
 
                     /* compute the arch flags for L2 4K pages */
-                    uint arch_flags = mmu_flags_to_l2_arch_flags(flags) |
-                        MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE;
+                    uint arch_flags = mmu_flags_to_l2_arch_flags_small_page(flags);
 
                     uint l2_index = (vaddr % SECTION_SIZE) / PAGE_SIZE;
                     do {

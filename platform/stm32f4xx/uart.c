@@ -44,7 +44,7 @@ cbuf_t uart1_rx_buf;
 #define UART1_BAUDRATE 115200
 #endif
 #ifndef UART1_RXBUF_SIZE
-#define UART1_RXBUF_SIZE 16
+#define UART1_RXBUF_SIZE 64
 #endif
 #endif
 
@@ -57,7 +57,7 @@ cbuf_t uart2_rx_buf;
 #define UART2_BAUDRATE 115200
 #endif
 #ifndef UART2_RXBUF_SIZE
-#define UART2_RXBUF_SIZE 16
+#define UART2_RXBUF_SIZE 64
 #endif
 #endif
 
@@ -70,7 +70,7 @@ cbuf_t uart3_rx_buf;
 #define UART3_BAUDRATE 115200
 #endif
 #ifndef UART3_RXBUF_SIZE
-#define UART3_RXBUF_SIZE 16
+#define UART3_RXBUF_SIZE 64
 #endif
 #endif
 
@@ -83,7 +83,7 @@ cbuf_t uart6_rx_buf;
 #define UART6_BAUDRATE 115200
 #endif
 #ifndef UART6_RXBUF_SIZE
-#define UART6_RXBUF_SIZE 16
+#define UART6_RXBUF_SIZE 64
 #endif
 #endif
 
@@ -309,3 +309,12 @@ void uart_init_port(int port, uint baud) {
 
 	usart->BRR = (uint16_t) treg;
 }
+
+// inject a character into the console uart rx buffer
+void __debugger_console_putc(char c) {
+	cbuf_t *rxbuf = get_rxbuf(DEBUG_UART);
+	if (rxbuf && cbuf_space_avail(rxbuf)) {
+		cbuf_write_char(rxbuf, c, false);
+	}
+}
+

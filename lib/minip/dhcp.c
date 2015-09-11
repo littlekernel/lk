@@ -228,13 +228,13 @@ static void dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, voi
 			if (opt[1] == 4) memcpy(&netmask, opt + 2, 4);
 			break;
 		case OPT_ROUTERS:
-			if (opt[1] >= 4) memcpy(&gateway, opt + 3, 4);
+			if (opt[1] >= 4) memcpy(&gateway, opt + 2, 4);
 			break;
 		case OPT_DNS:
-			if (opt[1] >= 4) memcpy(&dns, opt + 3, 4);
+			if (opt[1] >= 4) memcpy(&dns, opt + 2, 4);
 			break;
 		case OPT_SERVER_ID:
-			if (opt[1] == 4) memcpy(&server, opt + 3, 4);
+			if (opt[1] == 4) memcpy(&server, opt + 2, 4);
 			break;
 		case OPT_DONE:
 			goto done;

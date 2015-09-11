@@ -37,7 +37,7 @@ extern void _memmanage(void);
 extern void _busfault(void);
 extern void _usagefault(void);
 extern void _svc(void);
-extern void _pendsv(void);
+extern void _debugmonitor(void);
 extern void _pendsv(void);
 extern void _systick(void);
 
@@ -64,7 +64,7 @@ const void * const __SECTION(".text.boot.vectab1") vectab[] = {
 #endif
 	0, // reserved
 	_svc, // svcall
-	0, // debug monitor
+	_debugmonitor, // debug monitor
 	0, // reserved
 	_pendsv, // pendsv
 	_systick, // systick

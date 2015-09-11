@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include <printf.h>
 
+#include <platform.h>
+
 #include "swd.h"
 #include "rswdp.h"
 
@@ -31,8 +33,6 @@ unsigned swdp_trace = 0;
 
 // indicates host knows about v1.0 protocol features
 unsigned host_version = 0;
-
-#define VERSION_1_0	0x0100
 
 static u8 optable[16] = {
 	[OP_RD | OP_DP | OP_X0] = RD_IDCODE,
@@ -54,7 +54,11 @@ static u8 optable[16] = {
 };
 
 static const char *board_str = TARGET;
-static const char *build_str = "fw v0.9 (" __DATE__ ", " __TIME__ ")";
+static const char *build_str = "fw v0.91 (" __DATE__ ", " __TIME__ ")";
+
+static void _reboot(void) {
+	platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
+}
 
 /* TODO bounds checking -- we trust the host far too much */
 void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
@@ -80,8 +84,8 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 		case CMD_SWD_WRITE:
 			while (n-- > 0) {
 				rxc--;
-				if (swd_write(optable[op], *rx++)) {
-					status = 3;
+				status = swd_write(optable[op], *rx++);
+				if (status) {
 					goto done;
 				}
 			}
@@ -89,11 +93,11 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 		case CMD_SWD_READ:
 			tx[txc++] = RSWD_MSG(CMD_SWD_DATA, 0, n);
 			while (n-- > 0) {
-				if (swd_read(optable[op], tx + txc)) {
+				status = swd_read(optable[op], tx + txc);
+				if (status) {
 					txc++;
 					while (n-- > 0)
 						tx[txc++] = 0xfefefefe;
-					status = 3;
 					goto done;
 				}
 				txc++;
@@ -102,8 +106,8 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 		case CMD_SWD_DISCARD:
 			while (n-- > 0) {
 				u32 tmp;
-				if (swd_read(optable[op], &tmp)) {
-					status = 3;
+				status = swd_read(optable[op], &tmp);
+				if (status) {
 					goto done;
 				}
 			}
@@ -132,12 +136,12 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 			swdp_trace = op;
 			continue;
 		case CMD_BOOTLOADER:
-			//func = reboot_bootloader;
+			func = _reboot;
 			continue;
 		case CMD_SET_CLOCK:
 			n = swd_set_clock(n);
 			printf("swdp clock is now %d KHz\n", n);
-			if (host_version >= VERSION_1_0) {
+			if (host_version >= RSWD_VERSION_1_0) {
 				tx[txc++] = RSWD_MSG(CMD_CLOCK_KHZ, 0, n);
 			}
 			continue;
@@ -147,7 +151,7 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 			continue;
 		case CMD_VERSION:
 			host_version = n;
-			tx[txc++] = RSWD_MSG(CMD_VERSION, 0, VERSION_1_0);
+			tx[txc++] = RSWD_MSG(CMD_VERSION, 0, RSWD_VERSION);
 
 			n = strlen(board_str);
 			memcpy(tx + txc + 1, board_str, n + 1);

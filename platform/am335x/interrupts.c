@@ -57,11 +57,12 @@ status_t mask_interrupt(unsigned int vector)
 
 //	dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
-	enter_critical_section();
+	spin_lock_saved_state_t statep;
+	arch_interrupt_save(&statep, SPIN_LOCK_FLAG_IRQ);
 
 	IntSystemDisable(vector);
 
-	exit_critical_section();
+	arch_interrupt_restore(statep, SPIN_LOCK_FLAG_IRQ);
 
 	return NO_ERROR;
 }
@@ -73,11 +74,12 @@ status_t unmask_interrupt(unsigned int vector)
 
 //	dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
-	enter_critical_section();
+	spin_lock_saved_state_t statep;
+	arch_interrupt_save(&statep, SPIN_LOCK_FLAG_IRQ);
 
 	IntSystemEnable(vector);
 
-	exit_critical_section();
+	arch_interrupt_restore(statep, SPIN_LOCK_FLAG_IRQ);
 
 	return NO_ERROR;
 }
@@ -117,11 +119,12 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 	if (vector >= NUM_INTS)
 		panic("register_int_handler: vector out of range %d\n", vector);
 
-	enter_critical_section();
+	spin_lock_saved_state_t statep;
+	arch_interrupt_save(&statep, SPIN_LOCK_FLAG_IRQ);
 
 	int_handler_table[vector].handler = handler;
 	int_handler_table[vector].arg = arg;
 
-	exit_critical_section();
+	arch_interrupt_restore(statep, SPIN_LOCK_FLAG_IRQ);
 }
 

@@ -100,8 +100,8 @@ int usb_recv(void *data, unsigned len, lk_time_t timeout) {
 }
 
 static udc_device_t lpcboot_device = {
-	.vendor_id = 0x18d1,
-	.product_id = 0xdb00,
+	.vendor_id = 0x1209,
+	.product_id = 0x5039,
 	.version_id = 0x0100,
 };
 

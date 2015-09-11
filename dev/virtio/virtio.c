@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -43,6 +43,9 @@
 #if WITH_DEV_VIRTIO_BLOCK
 #include <dev/virtio/block.h>
 #endif
+#if WITH_DEV_VIRTIO_NET
+#include <dev/virtio/net.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -55,11 +58,13 @@ static void dump_mmio_config(const volatile struct virtio_mmio_config *mmio)
     printf("\tversion 0x%x\n", mmio->version);
     printf("\tdevice_id 0x%x\n", mmio->device_id);
     printf("\tvendor_id 0x%x\n", mmio->vendor_id);
+    printf("\thost_features 0x%x\n", mmio->host_features);
     printf("\tguest_page_size %u\n", mmio->guest_page_size);
     printf("\tqnum %u\n", mmio->queue_num);
     printf("\tqnum_max %u\n", mmio->queue_num_max);
     printf("\tqnum_align %u\n", mmio->queue_align);
     printf("\tqnum_pfn %u\n", mmio->queue_pfn);
+    printf("\tstatus 0x%x\n", mmio->status);
 }
 
 void virtio_dump_desc(const struct vring_desc *desc)
@@ -80,26 +85,35 @@ static enum handler_return virtio_mmio_irq(void *arg)
     LTRACEF("status 0x%x\n", irq_status);
 
     enum handler_return ret = INT_NO_RESCHEDULE;
-    if (irq_status & 0x1) { // used ring update
+    if (irq_status & 0x1) { /* used ring update */
         // XXX is this safe?
         dev->mmio_config->interrupt_ack = 0x1;
 
-        // XXX only handles ring 0
-        struct vring *ring = &dev->ring[0];
-        printf("used flags 0x%hhx idx 0x%hhx\n", ring->used->flags, ring->used->idx);
+        /* cycle through all the active rings */
+        for (uint r = 0; r < MAX_VIRTIO_RINGS; r++) {
+            if ((dev->active_rings_bitmap & (1<<r)) == 0)
+                continue;
 
-        uint cur_idx = ring->used->idx;
-        for (uint i = ring->last_used; i != cur_idx; i = (i + 1) & ring->num_mask) {
-            LTRACEF("looking at idx %u\n", i);
+            struct vring *ring = &dev->ring[r];
+            LTRACEF("ring %u: used flags 0x%hhx idx 0x%hhx last_used %u\n", r, ring->used->flags, ring->used->idx, ring->last_used);
 
-            // process chain
-            struct vring_used_elem *used_elem = &ring->used->ring[i];
-            LTRACEF("id %u, len %u\n", used_elem->id, used_elem->len);
+            uint cur_idx = ring->used->idx;
+            for (uint i = ring->last_used; i != (cur_idx & ring->num_mask); i = (i + 1) & ring->num_mask) {
+                LTRACEF("looking at idx %u\n", i);
 
-            DEBUG_ASSERT(dev->irq_driver_callback);
-            ret |= dev->irq_driver_callback(dev, 0, used_elem);
+                // process chain
+                struct vring_used_elem *used_elem = &ring->used->ring[i];
+                LTRACEF("id %u, len %u\n", used_elem->id, used_elem->len);
+
+                DEBUG_ASSERT(dev->irq_driver_callback);
+                ret |= dev->irq_driver_callback(dev, r, used_elem);
+
+                ring->last_used = (ring->last_used + 1) & ring->num_mask;
+            }
         }
     }
+
+    LTRACEF("exiting irq\n");
 
     return ret;
 }
@@ -117,6 +131,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[])
     if (!devices)
         return ERR_NO_MEMORY;
 
+    int found = 0;
     for (uint i = 0; i < count; i++) {
         volatile struct virtio_mmio_config *mmio = (struct virtio_mmio_config *)((uint8_t *)ptr + i * 0x200);
         struct virtio_device *dev = &devices[i];
@@ -134,7 +149,11 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[])
             continue;
         }
 
-        //dump_mmio_config(mmio);
+#if LOCAL_TRACE
+        if (mmio->device_id != 0) {
+            dump_mmio_config(mmio);
+        }
+#endif
 
 #if WITH_DEV_VIRTIO_BLOCK
         if (mmio->device_id == 2) { // block device
@@ -142,6 +161,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[])
 
             dev->mmio_config = mmio;
             dev->config_ptr = (void *)mmio->config;
+
             status_t err = virtio_block_init(dev, mmio->host_features);
             if (err >= 0) {
                 // good device
@@ -154,21 +174,47 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[])
 #if 0
                 uint8_t buf[512];
                 memset(buf, 0x99, sizeof(buf));
-                virtio_block_read(dev, buf, 0, sizeof(buf));
-                hexdump8(buf, sizeof(buf));
+                virtio_block_read_write(dev, buf, 0, sizeof(buf), false);
+                hexdump8_ex(buf, sizeof(buf), 0);
+
+                buf[0]++;
+                virtio_block_read_write(dev, buf, 0, sizeof(buf), true);
+
+                virtio_block_read_write(dev, buf, 0, sizeof(buf), false);
+                hexdump8_ex(buf, sizeof(buf), 0);
 #endif
             }
 
         }
-#endif
+#endif // WITH_DEV_VIRTIO_BLOCK
+#if WITH_DEV_VIRTIO_NET
+        if (mmio->device_id == 1) { // network device
+            LTRACEF("found net device\n");
+
+            dev->mmio_config = mmio;
+            dev->config_ptr = (void *)mmio->config;
+
+            status_t err = virtio_net_init(dev, mmio->host_features);
+            if (err >= 0) {
+                // good device
+                dev->valid = true;
+
+                if (dev->irq_driver_callback)
+                    unmask_interrupt(dev->irq);
+            }
+        }
+#endif // WITH_DEV_VIRTIO_NET
+
+        if (dev->valid)
+            found++;
     }
 
-    return 0;
+    return found;
 }
 
 void virtio_free_desc(struct virtio_device *dev, uint ring_index, uint16_t desc_index)
 {
-    LTRACEF("dev %p ring %u index %u\n", dev, ring_index, desc_index);
+    LTRACEF("dev %p ring %u index %u free_count %u\n", dev, ring_index, desc_index, dev->ring[ring_index].free_count);
     dev->ring[ring_index].desc[desc_index].next = dev->ring[ring_index].free_list;
     dev->ring[ring_index].free_list = desc_index;
     dev->ring[ring_index].free_count++;
@@ -203,6 +249,7 @@ struct vring_desc *virtio_alloc_desc_chain(struct virtio_device *dev, uint ring_
         struct vring_desc *desc = &dev->ring[ring_index].desc[i];
 
         dev->ring[ring_index].free_list = desc->next;
+        dev->ring[ring_index].free_count--;
 
         if (last) {
             desc->flags = VRING_DESC_F_NEXT;
@@ -234,7 +281,9 @@ void virtio_submit_chain(struct virtio_device *dev, uint ring_index, uint16_t de
     DSB;
     avail->idx++;
 
+#if LOCAL_TRACE
     hexdump(avail, 16);
+#endif
 }
 
 void virtio_kick(struct virtio_device *dev, uint ring_index)
@@ -308,7 +357,25 @@ status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len)
     dev->mmio_config->queue_align = PAGE_SIZE;
     dev->mmio_config->queue_pfn = pa / PAGE_SIZE;
 
+    /* mark the ring active */
+    dev->active_rings_bitmap |= (1 << index);
+
     return NO_ERROR;
+}
+
+void virtio_reset_device(struct virtio_device *dev)
+{
+    dev->mmio_config->status = 0;
+}
+
+void virtio_status_acknowledge_driver(struct virtio_device *dev)
+{
+    dev->mmio_config->status |= VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER;
+}
+
+void virtio_status_driver_ok(struct virtio_device *dev)
+{
+    dev->mmio_config->status |= VIRTIO_STATUS_DRIVER_OK;
 }
 
 void virtio_init(uint level)

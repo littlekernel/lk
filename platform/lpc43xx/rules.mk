@@ -27,7 +27,8 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
-	arch/arm/arm-m/systick
+	arch/arm/arm-m/systick \
+	lib/cbuf
 
 LPCSIGNEDBIN := $(OUTBIN).sign
 LPCCHECK := $(LKROOT)/platform/lpc15xx/lpccheck.py

@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app.h>
+#include <err.h>
 #include <debug.h>
 #include <trace.h>
 #include <stdio.h>
@@ -43,7 +44,7 @@ static int chargen_worker(void *socket)
 
     uint8_t *buf = malloc(CHARGEN_BUFSIZE);
     if (!buf)
-        return -1;
+        return ERR_NO_MEMORY;
 
     /* generate the sequence */
     uint8_t c = '!';
@@ -104,11 +105,16 @@ static int discard_worker(void *socket)
     uint32_t crc = 0;
     tcp_socket_t *s = socket;
 
+#define DISCARD_BUFSIZE 1024
+
+    uint8_t *buf = malloc(DISCARD_BUFSIZE);
+    if (!buf) {
+        TRACEF("error allocating buffer\n");
+    }
+
     lk_time_t t = current_time();
     for (;;) {
-        uint8_t buf[1024];
-
-        ssize_t ret = tcp_read(s, buf, sizeof(buf));
+        ssize_t ret = tcp_read(s, buf, DISCARD_BUFSIZE);
         if (ret <= 0)
             break;
 
@@ -121,6 +127,8 @@ static int discard_worker(void *socket)
     TRACEF("discard worker exiting, read %llu bytes in %u msecs (%llu bytes/sec), crc32 0x%x\n",
         count, (uint32_t)t, count * 1000 / t, crc);
     tcp_close(s);
+
+    free(buf);
 
     return 0;
 }
@@ -155,9 +163,15 @@ static int echo_worker(void *socket)
 {
     tcp_socket_t *s = socket;
 
-    for (;;) {
-        uint8_t buf[1024];
+#define ECHO_BUFSIZE 1024
 
+    uint8_t *buf = malloc(ECHO_BUFSIZE);
+    if (!buf) {
+        TRACEF("error allocating buffer\n");
+        return ERR_NO_MEMORY;
+    }
+
+    for (;;) {
         ssize_t ret = tcp_read(s, buf, sizeof(buf));
         if (ret <= 0)
             break;
@@ -169,6 +183,7 @@ static int echo_worker(void *socket)
 
     TRACEF("echo worker exiting\n");
     tcp_close(s);
+    free(buf);
 
     return 0;
 }

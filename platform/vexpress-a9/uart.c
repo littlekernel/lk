@@ -37,27 +37,27 @@
 
 void platform_dputc(char c)
 {
-	UARTREG(DR) = c;
+    UARTREG(DR) = c;
 }
 
 int platform_dgetc(char *c, bool wait)
 {
-	if (!wait) {
-		if (UARTREG(FR) & (1<<4)) {
-			/* fifo empty */
-			return -1;
-		}
-		*c = UARTREG(DR) & 0xff;
-		return 0;
-	} else {
-		while ((UARTREG(FR) & (1<<4))) {
-			// XXX actually block on interrupt
-			thread_yield();
-		}
+    if (!wait) {
+        if (UARTREG(FR) & (1<<4)) {
+            /* fifo empty */
+            return -1;
+        }
+        *c = UARTREG(DR) & 0xff;
+        return 0;
+    } else {
+        while ((UARTREG(FR) & (1<<4))) {
+            // XXX actually block on interrupt
+            thread_yield();
+        }
 
-		*c = UARTREG(DR) & 0xff;
-		return 0;
-	}
+        *c = UARTREG(DR) & 0xff;
+        return 0;
+    }
 }
 #endif
 
@@ -88,10 +88,14 @@ static inline uintptr_t uart_to_ptr(unsigned int n)
 {
     switch (n) {
         default:
-        case 0: return UART0_BASE;
-        case 1: return UART1_BASE;
-        case 2: return UART2_BASE;
-        case 3: return UART3_BASE;
+        case 0:
+            return UART0_BASE;
+        case 1:
+            return UART1_BASE;
+        case 2:
+            return UART2_BASE;
+        case 3:
+            return UART3_BASE;
     }
 }
 
@@ -105,11 +109,16 @@ static enum handler_return uart_irq(void *arg)
     uint32_t isr = UARTREG(base, UART_TMIS);
 
     if (isr & (1<<4)) { // rxmis
-        UARTREG(base, UART_ICR) = (1<<4);
         cbuf_t *rxbuf = &uart_rx_buf[port];
 
         /* while fifo is not empty, read chars out of it */
         while ((UARTREG(base, UART_TFR) & (1<<4)) == 0) {
+            /* if we're out of rx buffer, mask the irq instead of handling it */
+            if (cbuf_space_avail(rxbuf) == 0) {
+                UARTREG(base, UART_IMSC) &= ~(1<<4); // !rxim
+                break;
+            }
+
             char c = UARTREG(base, UART_DR);
             cbuf_write_char(rxbuf, c, false);
 
@@ -123,6 +132,8 @@ static enum handler_return uart_irq(void *arg)
 void uart_init(void)
 {
     for (size_t i = 0; i < NUM_UART; i++) {
+        uintptr_t base = uart_to_ptr(i);
+
         // create circular buffer to hold received data
         cbuf_initialize(&uart_rx_buf[i], RXBUF_SIZE);
 
@@ -130,16 +141,16 @@ void uart_init(void)
         register_int_handler(UART0_INT + i, &uart_irq, (void *)i);
 
         // clear all irqs
-        UARTREG(uart_to_ptr(i), UART_ICR) = 0x3ff;
+        UARTREG(base, UART_ICR) = 0x3ff;
 
         // set fifo trigger level
-        UARTREG(uart_to_ptr(i), UART_IFLS) = 0; // 1/8 rxfifo, 1/8 txfifo
+        UARTREG(base, UART_IFLS) = 0; // 1/8 rxfifo, 1/8 txfifo
 
         // enable rx interrupt
-        UARTREG(uart_to_ptr(i), UART_IMSC) = (1<<4); // rxim
+        UARTREG(base, UART_IMSC) = (1<<4); // rxim
 
         // enable receive
-        UARTREG(uart_to_ptr(i), UART_CR) |= (1<<9); // rxen
+        UARTREG(base, UART_CR) |= (1<<9); // rxen
 
         // enable interrupt
         unmask_interrupt(UART0_INT + i);
@@ -170,8 +181,10 @@ int uart_getc(int port, bool wait)
     cbuf_t *rxbuf = &uart_rx_buf[port];
 
     char c;
-    if (cbuf_read_char(rxbuf, &c, wait) == 1)
+    if (cbuf_read_char(rxbuf, &c, wait) == 1) {
+        UARTREG(uart_to_ptr(port), UART_IMSC) = (1<<4); // rxim
         return c;
+    }
 
     return -1;
 }

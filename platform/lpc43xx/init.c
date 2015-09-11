@@ -29,6 +29,7 @@
 #include <platform/lpc43xx-clocks.h>
 
 void lpc43xx_debug_early_init(void);
+void lpc43xx_debug_init(void);
 
 uint8_t __lpc43xx_main_clock_sel;
 uint32_t __lpc43xx_main_clock_mhz;
@@ -112,6 +113,7 @@ void lpc43xx_usb_init(u32 dmabase, size_t dmasize);
 
 void platform_init(void)
 {
+	lpc43xx_debug_init();
 	lpc43xx_usb_init(0x20000000, 4096);
 }
 

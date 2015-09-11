@@ -121,4 +121,10 @@ void __WEAK _systick(void)
 	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
+void __WEAK _debugmonitor(void)
+{
+	printf("debugmonitor\n");
+	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+}
+
 

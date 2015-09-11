@@ -23,7 +23,9 @@
 #ifndef __ERR_H
 #define __ERR_H
 
+#ifndef ASSEMBLY
 #include <sys/types.h> // for status_t
+#endif
 
 #define NO_ERROR                (0)
 #define ERR_GENERIC             (-1)

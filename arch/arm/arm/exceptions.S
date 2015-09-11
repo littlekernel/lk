@@ -122,12 +122,15 @@
 /* Save all registers.
  * At exit r0 contains a pointer to the register frame.
  */
-.macro saveall, mode
-	/* save spsr and r14 onto our stack */
-	srsdb	\mode!
+.macro saveall
+	/* save spsr and r14 onto the svc stack */
+	srsdb	#0x13!
+
+	/* switch to svc mode, interrupts disabled */
+	cpsid	i,#0x13
 
 	/* save all regs */
-	push	{ r0-r12 }
+	push	{ r0-r12, lr }
 
 	/* save user space sp/lr */
 	sub		sp, #8
@@ -144,9 +147,9 @@
 	/* r0 now holds the pointer to the original iframe (before alignment) */
 .endm
 
-.macro saveall_offset, offset, mode
+.macro saveall_offset, offset
 	sub		lr, \offset
-	saveall	\mode
+	saveall
 .endm
 
 .macro restoreall
@@ -178,7 +181,7 @@ FUNCTION(arm_undefined)
 
 #ifndef WITH_LIB_SYSCALL
 FUNCTION(arm_syscall)
-	saveall #0x13
+	saveall
 	/* r0 now holds pointer to iframe */
 
 	bl		arm_syscall_handler
@@ -187,7 +190,7 @@ FUNCTION(arm_syscall)
 #endif
 
 FUNCTION(arm_prefetch_abort)
-	saveall_offset #4, #0x17
+	saveall_offset #4
 	/* r0 now holds pointer to iframe */
 
 	bl		arm_prefetch_abort_handler
@@ -195,7 +198,7 @@ FUNCTION(arm_prefetch_abort)
 	restoreall
 
 FUNCTION(arm_data_abort)
-	saveall_offset #8, #0x17
+	saveall_offset #8
 	/* r0 now holds pointer to iframe */
 
 	bl		arm_data_abort_handler

@@ -52,11 +52,7 @@ status_t mask_interrupt(unsigned int vector)
 
 //	dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
-	enter_critical_section();
-
 	*REG32(PIC_MASK_LATCH) = 1 << vector;
-
-	exit_critical_section();
 
 	return NO_ERROR;
 }
@@ -68,11 +64,7 @@ status_t unmask_interrupt(unsigned int vector)
 
 //	dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
 
-	enter_critical_section();
-
 	*REG32(PIC_UNMASK_LATCH) = 1 << vector;
-
-	exit_critical_section();
 
 	return NO_ERROR;
 }
@@ -113,11 +105,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 	if (vector >= PIC_MAX_INT)
 		panic("register_int_handler: vector out of range %d\n", vector);
 
-	enter_critical_section();
-
 	int_handler_table[vector].handler = handler;
 	int_handler_table[vector].arg = arg;
-
-	exit_critical_section();
 }
 

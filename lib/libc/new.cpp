@@ -22,7 +22,7 @@
  */
 #include <new.h>
 #include <debug.h>
-#include <kernel/heap.h>
+#include <lib/heap.h>
 
 void *operator new(size_t s)
 {
