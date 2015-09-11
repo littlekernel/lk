@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <err.h>
+#include <stdlib.h>
 #include <debug.h>
 #include <trace.h>
 #include <target.h>
@@ -29,6 +30,7 @@
 #include <platform/stm32.h>
 #include <platform/sdram.h>
 #include <platform/gpio.h>
+#include <platform/eth.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
 #include <reg.h>
@@ -60,9 +62,23 @@ void target_early_init(void)
 #endif
 }
 
+
+static uint8_t* gen_mac_address(void) {
+    static uint8_t mac_addr[6];
+
+    for (size_t i = 0; i < sizeof(mac_addr); i++) {
+        mac_addr[i] = rand() & 0xff;
+    }
+    /* unicast and locally administered */
+    mac_addr[0] &= ~(1<<0);
+    mac_addr[0] |= (1<<1);
+    return mac_addr;
+}
+
 void target_init(void)
 {
     stm32_debug_init();
+    eth_init(gen_mac_address(), PHY_LAN8742A);
 }
 
 static void MPU_RegionConfig(void)
@@ -141,4 +157,51 @@ void stm_sdram_GPIO_init(void)
     gpio_init_structure.Pin   = GPIO_PIN_3 | GPIO_PIN_5;
     HAL_GPIO_Init(GPIOH, &gpio_init_structure);
 }
+
+
+/**
+  * @brief  Initializes the ETH MSP.
+  * @param  heth: ETH handle
+  * @retval None
+  */
+/* called back from the HAL_ETH_Init routine */
+void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+  
+    /* Enable GPIOs clocks */
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+
+    /* Ethernet pins configuration ************************************************/
+    /*
+        RMII_REF_CLK ----------------------> PA1
+        RMII_MDIO -------------------------> PA2
+        RMII_MDC --------------------------> PC1
+        RMII_MII_CRS_DV -------------------> PA7
+        RMII_MII_RXD0 ---------------------> PC4
+        RMII_MII_RXD1 ---------------------> PC5
+        RMII_MII_TX_EN --------------------> PG11
+        RMII_MII_TXD0 ---------------------> PG13
+        RMII_MII_TXD1 ---------------------> PG14
+    */
+
+    /* Configure PA1, PA2 and PA7 */
+    GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
+    GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStructure.Pull = GPIO_NOPULL; 
+    GPIO_InitStructure.Alternate = GPIO_AF11_ETH;
+    GPIO_InitStructure.Pin = GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_7;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
+  
+    /* Configure PC1, PC4 and PC5 */
+    GPIO_InitStructure.Pin = GPIO_PIN_1 | GPIO_PIN_4 | GPIO_PIN_5;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+    /* Configure PG2, PG11, PG13 and PG14 */
+    GPIO_InitStructure.Pin =  GPIO_PIN_2 | GPIO_PIN_11 | GPIO_PIN_13 | GPIO_PIN_14;
+    HAL_GPIO_Init(GPIOG, &GPIO_InitStructure);
+}
+
 

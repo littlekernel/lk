@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Travis Geiselbrecht
+ * Copyright (c) 2015 Carlos Pizano-Uribe <cpu@chromium.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -22,16 +22,16 @@
  */
 #pragma once
 
-#include <sys/types.h>
+#include <stdint.h>
 
-/* include all of the ST driver library here */
-#include <stm32f7xx.h>
+/* ethernet driver public api */
+typedef enum {
+   PHY_LAN8742A,     // Microchip.
+   PHY_DP83848,      // Texas Instruments.
+} eth_phy_itf;
 
-void stm32_debug_early_init(void);
-void stm32_debug_init(void);
-void stm32_timer_early_init(void);
-void stm32_timer_init(void);
-void stm32_gpio_early_init(void);
-void stm32_flash_early_init(void);
-void stm32_flash_init(void);
+struct pktbuf;
+
+status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy);
+status_t stm32_eth_send_minip_pkt(struct pktbuf *p);
 

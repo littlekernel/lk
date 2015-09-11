@@ -31,6 +31,7 @@
 #include <platform/stm32.h>
 #include <platform/sdram.h>
 #include <platform/gpio.h>
+#include <platform/eth.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
 #include <reg.h>
@@ -179,7 +180,7 @@ void target_init(void)
     mac_addr[0] &= ~(1<<0);
     mac_addr[0] |= (1<<1);
 
-    eth_init(mac_addr);
+    eth_init(mac_addr, PHY_DP83848);
 
     /* start minip */
     minip_set_macaddr(mac_addr);

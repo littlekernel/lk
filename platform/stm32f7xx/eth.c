@@ -65,6 +65,7 @@
 #include <arch/arm/cm.h>
 #include <platform.h>
 #include <platform/stm32.h>
+#include <platform/eth.h>
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
@@ -72,6 +73,12 @@
 #endif
 
 #define LOCAL_TRACE 0
+
+/* LAN8742A PHY Address*/
+#define LAN8742A_PHY_ADDRESS            0x00
+/* DP83848 PHY Address*/ 
+#define DP83848_PHY_ADDRESS             0x01
+
 
 struct eth_status {
     ETH_HandleTypeDef EthHandle;
@@ -97,7 +104,7 @@ static int eth_rx_worker(void *arg);
 static int eth_send_raw_pkt(pktbuf_t *p);
 #endif
 
-status_t eth_init(const uint8_t *mac_addr)
+status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
 {
     LTRACE_ENTRY;
 
@@ -111,10 +118,12 @@ status_t eth_init(const uint8_t *mac_addr)
     eth.EthHandle.Init.AutoNegotiation = ETH_AUTONEGOTIATION_ENABLE;
     eth.EthHandle.Init.Speed = ETH_SPEED_100M;
     eth.EthHandle.Init.DuplexMode = ETH_MODE_FULLDUPLEX;
-    eth.EthHandle.Init.MediaInterface = ETH_MEDIA_INTERFACE_MII;
+    eth.EthHandle.Init.MediaInterface = 
+        eth_phy == PHY_DP83848 ? ETH_MEDIA_INTERFACE_MII : ETH_MEDIA_INTERFACE_RMII;
     eth.EthHandle.Init.RxMode = ETH_RXINTERRUPT_MODE;
     eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
-    eth.EthHandle.Init.PhyAddress = DP83848_PHY_ADDRESS;
+    eth.EthHandle.Init.PhyAddress = 
+        eth_phy == PHY_DP83848 ? DP83848_PHY_ADDRESS : LAN8742A_PHY_ADDRESS;
 
     /* configure ethernet peripheral (GPIOs, clocks, MAC, DMA) */
     if (HAL_ETH_Init(&eth.EthHandle) == HAL_OK) {
@@ -275,7 +284,8 @@ static int eth_rx_worker(void *arg)
 
                 /* Check whether the link is up or down*/
                 if (val & PHY_LINK_STATUS) {
-                    printf("eth: link up\n");
+                    //TODO(cpu): investigate why this keeps firing on the disco board.
+                    //printf("eth: link up\n");
                     //netif_set_link_up(link_arg->netif);
                 } else {
                     printf("eth: link down\n");
