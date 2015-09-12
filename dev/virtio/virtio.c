@@ -32,7 +32,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pow2.h>
-#include <arch/arm.h>
 #include <lk/init.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
