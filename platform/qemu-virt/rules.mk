@@ -4,7 +4,12 @@ MODULE := $(LOCAL_DIR)
 
 ifeq ($(ARCH),)
 ARCH := arm64
-ARM_CPU := cortex-a53
+endif
+ifeq ($(ARCH),arm64)
+ARM_CPU ?= cortex-a53
+endif
+ifeq ($(ARCH),arm)
+ARM_CPU ?= cortex-a15
 endif
 WITH_SMP ?= 1
 
@@ -29,7 +34,7 @@ MODULE_DEPS += \
 GLOBAL_DEFINES += \
     MEMBASE=$(MEMBASE) \
     MEMSIZE=$(MEMSIZE) \
-    ARM_ARCH_WAIT_FOR_SECONDARIES=1
+    MMU_WITH_TRAMPOLINE=1 # use the trampoline translation table in start.S
 
 LINKER_SCRIPT += \
     $(BUILDDIR)/system-onesegment.ld

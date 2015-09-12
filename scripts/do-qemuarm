@@ -36,8 +36,8 @@ if [ $DO_64BIT == 1 ]; then
     QEMU="qemu-system-aarch64 -machine virt -cpu cortex-a53"
     PROJECT="qemu-virt-a53-test"
 else
-    QEMU="qemu-system-arm -machine vexpress-a9"
-    PROJECT="vexpress-a9-test"
+    QEMU="qemu-system-arm -machine virt -cpu cortex-a15"
+    PROJECT="qemu-virt-a15-test"
 fi
 
 ARGS=" -m 512 -kernel build-${PROJECT}/lk.elf -nographic"

@@ -64,24 +64,6 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
         .name = "peripherals"
     },
 
-#if ARCH_ARM // arm64 uses the trampoline method
-    /* cortex-a9 private memory area temporary map at boot */
-    {
-        .phys = CPUPRIV_BASE_PHYS,
-        .virt = CPUPRIV_BASE_PHYS,
-        .size = CPUPRIV_SIZE,
-        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE | MMU_INITIAL_MAPPING_TEMPORARY,
-    },
-
-    /* identity map to let the boot code run */
-    {
-        .phys = MEMORY_BASE_PHYS,
-        .virt = MEMORY_BASE_PHYS,
-        .size = 16*1024*1024,
-        .flags = MMU_INITIAL_MAPPING_TEMPORARY
-    },
-#endif
-
     /* null entry to terminate the list */
     { 0 }
 };

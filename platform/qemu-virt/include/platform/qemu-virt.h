@@ -24,7 +24,11 @@
 
 /* up to 30 GB of ram */
 #define MEMORY_BASE_PHYS     (0x40000000)
+#if ARCH_ARM64
 #define MEMORY_APERTURE_SIZE (30ULL * 1024 * 1024 * 1024)
+#else
+#define MEMORY_APERTURE_SIZE (1UL * 1024 * 1024 * 1024)
+#endif
 
 /* memory map of peripherals, from qemu hw/arm/virt.c */
 #if 0
@@ -60,11 +64,17 @@ static const int a15irqmap[] = {
 
 /* map all of 0-1GB into kernel space in one shot */
 #define PERIPHERAL_BASE_PHYS (0)
-#define PERIPHERAL_BASE_VIRT (0xffffffff00000000ULL) // -4GB
-#define PERIPHERAL_BASE_SIZE (0x0000000040000000ULL) // 1GB
+#define PERIPHERAL_BASE_SIZE (0x40000000UL) // 1GB
+
+#if ARCH_ARM64
+#define PERIPHERAL_BASE_VIRT (0xffffffffc0000000ULL) // -1GB
+#else
+#define PERIPHERAL_BASE_VIRT (0xc0000000UL) // -1GB
+#endif
 
 /* individual peripherals in this mapping */
 #define CPUPRIV_BASE_VIRT   (PERIPHERAL_BASE_VIRT + 0x08000000)
+#define CPUPRIV_BASE_PHYS   (PERIPHERAL_BASE_PHYS + 0x08000000)
 #define CPUPRIV_SIZE        (0x00020000)
 #define UART_BASE           (PERIPHERAL_BASE_VIRT + 0x09000000)
 #define UART_SIZE           (0x00001000)
