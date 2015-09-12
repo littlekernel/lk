@@ -119,7 +119,7 @@ void arch_init(void)
 	addr_t scu_base = arm_read_cbar();
 	uint32_t scu_config = *REG32(scu_base + 4);
 	secondaries_to_init = scu_config & 0x3;
-#elif ARM_CPU_CORTEX_A7
+#elif ARM_CPU_CORTEX_A7 || ARM_CPU_CORTEX_A15
 	uint32_t l2ctlr = arm_read_l2ctlr();
 	secondaries_to_init = (l2ctlr >> 24);
 #else
