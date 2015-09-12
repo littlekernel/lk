@@ -35,6 +35,10 @@
 #include <target/gpioconfig.h>
 #include <reg.h>
 
+#if WITH_LIB_MINIP
+#include <lib/minip.h>
+#endif
+
 static void MPU_RegionConfig(void);
 
 void target_early_init(void)
@@ -77,8 +81,18 @@ static uint8_t* gen_mac_address(void) {
 
 void target_init(void)
 {
+    uint8_t* mac_addr = gen_mac_address();
     stm32_debug_init();
-    eth_init(gen_mac_address(), PHY_LAN8742A);
+
+    eth_init(mac_addr, PHY_LAN8742A);
+#if WITH_LIB_MINIP
+    minip_set_macaddr(mac_addr);
+
+    uint32_t ip_addr = IPV4(192, 168, 0, 98);
+    uint32_t ip_mask = IPV4(255, 255, 255, 0);
+    uint32_t ip_gateway = IPV4_NONE;
+    minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+#endif
 }
 
 static void MPU_RegionConfig(void)
@@ -168,7 +182,7 @@ void stm_sdram_GPIO_init(void)
 void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
-  
+
     /* Enable GPIOs clocks */
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
