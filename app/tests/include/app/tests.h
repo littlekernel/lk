@@ -29,7 +29,6 @@ int thread_tests(void);
 void printf_tests(void);
 void printf_tests_float(void);
 void clock_tests(void);
-void float_tests(void);
 void benchmarks(void);
 int fibo(int argc, const cmd_args *argv);
 int spinner(int argc, const cmd_args *argv);

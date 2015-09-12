@@ -20,13 +20,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#if ARM_WITH_VFP
+#if ARM_WITH_VFP || ARCH_ARM64
 
 #include <stdio.h>
 #include <rand.h>
 #include <err.h>
+#include <lib/console.h>
 #include <app/tests.h>
-#include <arch/arm.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <kernel/semaphore.h>
@@ -42,7 +42,7 @@ extern void float_neon_thumb_instruction_test(void);
 __OPTIMIZE("O3")
 static int float_thread(void *arg)
 {
-    uint64_t *val = arg;
+    double *val = arg;
     uint i, j;
 
     double a[16];
@@ -65,7 +65,8 @@ static int float_thread(void *arg)
     return 1;
 }
 
-static void float_instruction_trap_test(void)
+#if ARCH_ARM
+static void arm_float_instruction_trap_test(void)
 {
     printf("testing fpu trap\n");
 
@@ -75,33 +76,41 @@ static void float_instruction_trap_test(void)
 #endif
     float_vfp_thumb_instruction_test();
     float_neon_thumb_instruction_test();
-}
 
-void float_tests(void)
+    printf("if we got here, we probably decoded everything properly\n");
+}
+#endif
+
+static void float_tests(void)
 {
     printf("floating point test:\n");
 
     /* test lazy fpu load on separate thread */
-    printf("creating floating point threads\n");
     thread_t *t[8];
-    uint64_t val[countof(t)];
+    double val[countof(t)];
 
+    printf("creating %u floating point threads\n", countof(t));
     for (uint i = 0; i < countof(t); i++) {
         val[i] = i;
-        t[i] = thread_create("float", &float_thread, &val[i], DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+        t[i] = thread_create("float", &float_thread, &val[i], LOW_PRIORITY, DEFAULT_STACK_SIZE);
         thread_resume(t[i]);
     }
 
     int res;
     for (uint i = 0; i < countof(t); i++) {
         thread_join(t[i], &res, INFINITE_TIME);
-        printf("float thread %u returns %d, val 0x%llx\n", i, res, val[i]);
+        printf("float thread %u returns %d, val %f\n", i, res, val[i]);
     }
+    printf("the above values should be close\n");
 
+#if ARCH_ARM
     /* test all the instruction traps */
-    float_instruction_trap_test();
-
-    printf("if we got here, we probably decoded everything properly\n");
+    arm_float_instruction_trap_test();
+#endif
 }
 
-#endif // ARM_WITH_VFP
+STATIC_COMMAND_START
+STATIC_COMMAND("float_tests", "floating point test", (console_cmd)&float_tests)
+STATIC_COMMAND_END(float_tests);
+
+#endif // ARM_WITH_VFP || ARCH_ARM64
