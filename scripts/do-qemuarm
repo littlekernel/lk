@@ -5,6 +5,7 @@ function HELP {
     echo "-b a virtio block device"
     echo "-n a virtio network device"
     echo "-t a virtio tap network device"
+    echo "-6 64bit arm"
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
@@ -13,14 +14,15 @@ function HELP {
 DO_NET=0
 DO_NET_TAP=0
 DO_BLOCK=0
+DO_64BIT=0
 SUDO=""
 
-while getopts bhnt FLAG; do
+while getopts bhnt6 FLAG; do
     case $FLAG in
         b) DO_BLOCK=1;;
         n) DO_NET=1;;
-        t) DO_NET_TAP=1
-           SUDO="sudo ";;
+        t) DO_NET_TAP=1;;
+        6) DO_64BIT=1;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -30,7 +32,15 @@ done
 
 shift $((OPTIND-1))
 
-ARGS=" -machine vexpress-a9 -m 512 -kernel build-vexpress-a9-test/lk.elf -nographic"
+if [ $DO_64BIT == 1 ]; then
+    QEMU="qemu-system-aarch64 -machine virt -cpu cortex-a53"
+    PROJECT="qemu-virt-a53-test"
+else
+    QEMU="qemu-system-arm -machine vexpress-a9"
+    PROJECT="vexpress-a9-test"
+fi
+
+ARGS=" -m 512 -kernel build-${PROJECT}/lk.elf -nographic"
 BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
 NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
 NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"
@@ -46,8 +56,9 @@ if [ $DO_NET == 1 ]; then
 fi
 if [ $DO_NET_TAP == 1 ]; then
     ARGS+=$NET_TAP_ARGS
+    SUDO="sudo "
 fi
 
-make vexpress-a9-test -j4 &&
-echo $SUDO qemu-system-arm $ARGS $@ &&
-$SUDO qemu-system-arm $ARGS $@
+make $PROJECT -j4 &&
+echo $SUDO $QEMU $ARGS $@ &&
+$SUDO $QEMU $ARGS $@
