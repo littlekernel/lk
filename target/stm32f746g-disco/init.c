@@ -73,6 +73,7 @@ static uint8_t* gen_mac_address(void) {
     for (size_t i = 0; i < sizeof(mac_addr); i++) {
         mac_addr[i] = rand() & 0xff;
     }
+    mac_addr[5] += 1;
     /* unicast and locally administered */
     mac_addr[0] &= ~(1<<0);
     mac_addr[0] |= (1<<1);
