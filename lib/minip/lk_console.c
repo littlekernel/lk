@@ -105,8 +105,6 @@ minip_usage:
             }
             break;
             case 't': {
-                uint8_t buf[1470];
-
                 uint32_t count = 1;
                 uint32_t host = 0x0100000A; // 10.0.0.1
                 uint32_t port = 1025;
@@ -127,22 +125,35 @@ minip_usage:
                     return -1;
                 }
 
-                memset(&buf, 0x00, sizeof(buf));
+#define BUFSIZE 1470
+                uint8_t *buf;
+
+                buf = malloc(BUFSIZE);
+                if (!buf) {
+                    udp_close(handle);
+                    return -1;
+                }
+
+                memset(buf, 0x00, BUFSIZE);
                 printf("sending %u packet(s) to %u.%u.%u.%u:%u\n", count, IPV4_SPLIT(host), port);
 
                 lk_time_t t = current_time();
                 uint32_t failures = 0;
                 for (uint32_t i = 0; i < count; i++) {
-                    if (udp_send(buf, sizeof(buf), handle) != 0) {
+                    if (udp_send(buf, BUFSIZE, handle) != 0) {
                         failures++;
                     }
                     buf[128]++;
                 }
                 t = current_time() - t;
                 printf("%d pkts failed\n", failures);
-                uint64_t total_count = (uint64_t)count * sizeof(buf);
+                uint64_t total_count = (uint64_t)count * BUFSIZE;
                 printf("wrote %llu bytes in %u msecs (%llu bytes/sec)\n",
                     total_count, (uint32_t)t, total_count * 1000 / t);
+
+                free(buf);
+                udp_close(handle);
+#undef BUFSIZE
             }
             break;
         default:
