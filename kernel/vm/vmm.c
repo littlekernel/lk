@@ -430,7 +430,7 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
 
     paddr_t pa = 0;
     /* allocate a run of physical pages */
-    uint count = pmm_alloc_contiguous(size / PAGE_SIZE, align_pow2, &pa, &page_list);
+    size_t count = pmm_alloc_contiguous(size / PAGE_SIZE, align_pow2, &pa, &page_list);
     if (count < size / PAGE_SIZE) {
         err = ERR_NO_MEMORY;
         goto err;
@@ -502,10 +502,10 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     struct list_node page_list;
     list_initialize(&page_list);
 
-    uint count = pmm_alloc_pages(size / PAGE_SIZE, &page_list);
+    size_t count = pmm_alloc_pages(size / PAGE_SIZE, &page_list);
     DEBUG_ASSERT(count <= size);
     if (count < size / PAGE_SIZE) {
-        LTRACEF("failed to allocate enough pages (asked for %u, got %u)\n", size / PAGE_SIZE, count);
+        LTRACEF("failed to allocate enough pages (asked for %zu, got %zu)\n", size / PAGE_SIZE, count);
         err = ERR_NO_MEMORY;
         goto err1;
     }
@@ -589,10 +589,10 @@ status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr)
     mutex_release(&vmm_lock);
 
     /* return physical pages if any */
-    pmm_free (&r->page_list);
+    pmm_free(&r->page_list);
 
     /* free it */
-    free (r);
+    free(r);
 
     return NO_ERROR;
 }

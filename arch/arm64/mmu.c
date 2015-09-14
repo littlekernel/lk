@@ -182,8 +182,8 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 
 static int alloc_page_table(paddr_t *paddrp, uint page_size_shift)
 {
-    int ret;
-    int count;
+    size_t ret;
+    size_t count;
     size_t size = 1U << page_size_shift;
     void *vaddr;
 

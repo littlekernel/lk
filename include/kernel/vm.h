@@ -129,27 +129,27 @@ status_t pmm_add_arena(pmm_arena_t *arena) __NONNULL((1));
      * The list must be initialized.
      * Returns the number of pages allocated.
      */
-uint pmm_alloc_pages(uint count, struct list_node *list) __NONNULL((2));
+size_t pmm_alloc_pages(uint count, struct list_node *list) __NONNULL((2));
 
     /* Allocate a specific range of physical pages, adding to the tail of the passed list.
      * The list must be initialized.
      * Returns the number of pages allocated.
      */
-uint pmm_alloc_range(paddr_t address, uint count, struct list_node *list) __NONNULL((3));
+size_t pmm_alloc_range(paddr_t address, uint count, struct list_node *list) __NONNULL((3));
 
     /* Free a list of physical pages.
      * Returns the number of pages freed.
      */
-uint pmm_free(struct list_node *list) __NONNULL((1));
+size_t pmm_free(struct list_node *list) __NONNULL((1));
 
     /* Helper routine for the above. */
-uint pmm_free_page(vm_page_t *page) __NONNULL((1));
+size_t pmm_free_page(vm_page_t *page) __NONNULL((1));
 
     /* Allocate a run of contiguous pages, aligned on log2 byte boundary (0-31)
      * If the optional physical address pointer is passed, return the address.
      * If the optional list is passed, append the allocate page structures to the tail of the list.
      */
-uint pmm_alloc_contiguous(uint count, uint8_t align_log2, paddr_t *pa, struct list_node *list);
+size_t pmm_alloc_contiguous(uint count, uint8_t align_log2, paddr_t *pa, struct list_node *list);
 
     /* Allocate a run of pages out of the kernel area and return the pointer in kernel space.
      * If the optional list is passed, append the allocate page structures to the tail of the list.
