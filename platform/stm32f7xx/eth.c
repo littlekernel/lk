@@ -76,28 +76,24 @@
 
 /* LAN8742A PHY Address*/
 #define LAN8742A_PHY_ADDRESS            0x00
-/* DP83848 PHY Address*/ 
+/* DP83848 PHY Address*/
 #define DP83848_PHY_ADDRESS             0x01
-
 
 struct eth_status {
     ETH_HandleTypeDef EthHandle;
 
-    /* allocated directly out of DTCM below */
-    ETH_DMADescTypeDef  *DMARxDscrTab; // [ETH_RXBUFNB]
-    ETH_DMADescTypeDef  *DMATxDscrTab; // [ETH_TXBUFNB]
-    uint8_t             *Rx_Buff; // [ETH_RXBUFNB][ETH_RX_BUF_SIZE]
-    uint8_t             *Tx_Buff; // [ETH_TXBUFNB][ETH_TX_BUF_SIZE]
+    eth_phy_itf eth_phy;
+    event_t rx_event;
 
-//    ETH_DMADescTypeDef  DMARxDscrTab[ETH_RXBUFNB]; //  __attribute__((section(".RxDecripSection")));/* Ethernet Rx MA Descriptor */
-//    ETH_DMADescTypeDef  DMATxDscrTab[ETH_TXBUFNB]; //  __attribute__((section(".TxDescripSection")));/* Ethernet Tx DMA Descriptor */
-//    uint8_t             Rx_Buff[ETH_RXBUFNB][ETH_RX_BUF_SIZE]; //  __attribute__((section(".RxarraySection"))); /* Ethernet Receive Buffer */
-//    uint8_t             Tx_Buff[ETH_TXBUFNB][ETH_TX_BUF_SIZE]; //  __attribute__((section(".TxarraySection"))); /* Ethernet Transmit Buffer */
-} __ALIGNED(CACHE_LINE);
+    /* allocated directly out of DTCM below */
+    ETH_DMADescTypeDef  *DMARxDscrTab;  // ETH_RXBUFNB
+    ETH_DMADescTypeDef  *DMATxDscrTab;  // ETH_TXBUFNB
+    uint8_t             *Rx_Buff;       // ETH_RXBUFNB * ETH_RX_BUF_SIZE
+    uint8_t             *Tx_Buff;       // ETH_TXBUFNB * ETH_TX_BUF_SIZE
+};
 
 static struct eth_status eth;
 
-static event_t rx_event = EVENT_INITIAL_VALUE(rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
 static int eth_rx_worker(void *arg);
 
 #if WITH_LIB_MINIP
@@ -110,6 +106,8 @@ status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
 
     DEBUG_ASSERT(mac_addr);
 
+    eth.eth_phy = eth_phy;
+
     /* Enable ETHERNET clock  */
     __HAL_RCC_ETH_CLK_ENABLE();
 
@@ -118,19 +116,17 @@ status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
     eth.EthHandle.Init.AutoNegotiation = ETH_AUTONEGOTIATION_ENABLE;
     eth.EthHandle.Init.Speed = ETH_SPEED_100M;
     eth.EthHandle.Init.DuplexMode = ETH_MODE_FULLDUPLEX;
-    eth.EthHandle.Init.MediaInterface = 
+    eth.EthHandle.Init.MediaInterface =
         eth_phy == PHY_DP83848 ? ETH_MEDIA_INTERFACE_MII : ETH_MEDIA_INTERFACE_RMII;
     eth.EthHandle.Init.RxMode = ETH_RXINTERRUPT_MODE;
     //eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE; // XXX icmp checksums corrupted if stack stuff valid checksum
     eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_SOFTWARE;
-    eth.EthHandle.Init.PhyAddress = 
+    eth.EthHandle.Init.PhyAddress =
         eth_phy == PHY_DP83848 ? DP83848_PHY_ADDRESS : LAN8742A_PHY_ADDRESS;
 
     /* configure ethernet peripheral (GPIOs, clocks, MAC, DMA) */
-    if (HAL_ETH_Init(&eth.EthHandle) == HAL_OK) {
-        /* Set netif link flag */
-        //netif->flags |= NETIF_FLAG_LINK_UP;
-    }
+    if (HAL_ETH_Init(&eth.EthHandle) != HAL_OK)
+        return ERR_NOT_CONFIGURED;
 
     /* allocate descriptor and buffer memory from DTCM */
     /* XXX do in a more generic way */
@@ -155,29 +151,11 @@ status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
     /* Initialize Rx Descriptors list: Chain Mode  */
     HAL_ETH_DMARxDescListInit(&eth.EthHandle, eth.DMARxDscrTab, eth.Rx_Buff, ETH_RXBUFNB);
 
-#if 0
-    /* set MAC hardware address length */
-    netif->hwaddr_len = ETHARP_HWADDR_LEN;
-
-    /* set MAC hardware address */
-    netif->hwaddr[0] =  MAC_ADDR0;
-    netif->hwaddr[1] =  MAC_ADDR1;
-    netif->hwaddr[2] =  MAC_ADDR2;
-    netif->hwaddr[3] =  MAC_ADDR3;
-    netif->hwaddr[4] =  MAC_ADDR4;
-    netif->hwaddr[5] =  MAC_ADDR5;
-
-    /* maximum transfer unit */
-    netif->mtu = 1500;
-
-    /* device capabilities */
-    /* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
-    netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
-#endif
-
     /* Enable MAC and DMA transmission and reception */
     HAL_ETH_Start(&eth.EthHandle);
 
+#if 0
+    // XXX DP83848 specific
     /**** Configure PHY to generate an interrupt when Eth Link state changes ****/
     /* Read Register Configuration */
     uint32_t regvalue;
@@ -188,8 +166,6 @@ status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
     /* Enable Interrupts */
     HAL_ETH_WritePHYRegister(&eth.EthHandle, PHY_MICR, regvalue );
 
-    HAL_NVIC_EnableIRQ(ETH_IRQn);
-
     /* Read Register Configuration */
     HAL_ETH_ReadPHYRegister(&eth.EthHandle, PHY_MISR, &regvalue);
 
@@ -197,14 +173,16 @@ status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
 
     /* Enable Interrupt on change of link status */
     HAL_ETH_WritePHYRegister(&eth.EthHandle, PHY_MISR, regvalue);
+#endif
 
-    if (regvalue & PHY_LINK_INTERRUPT) {
-        printf("eth: link up\n");
-        //netif->flags |= NETIF_FLAG_LINK_UP;
-    }
+    /* set up an event to block the rx thread on */
+    event_init(&eth.rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
 
     /* start worker thread */
     thread_resume(thread_create("eth_rx", &eth_rx_worker, NULL, HIGH_PRIORITY, DEFAULT_STACK_SIZE));
+
+    /* enable interrupts */
+    HAL_NVIC_EnableIRQ(ETH_IRQn);
 
     LTRACE_EXIT;
 
@@ -227,7 +205,7 @@ void stm32_ETH_IRQ(void)
   */
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth)
 {
-    event_signal(&rx_event, false);
+    event_signal(&eth.rx_event, false);
 }
 
 static status_t eth_send(const void *buf, size_t len)
@@ -269,9 +247,11 @@ error:
 static int eth_rx_worker(void *arg)
 {
     for (;;) {
-        status_t event_err = event_wait_timeout(&rx_event, 1000);
+#if 0
+        status_t event_err = event_wait_timeout(&eth.rx_event, 1000);
         if (event_err == ERR_TIMED_OUT) {
             /* periodically poll the phys status register */
+            /* XXX specific to DP83848 */
             uint32_t val;
 
             /* Read PHY_MISR */
@@ -285,8 +265,7 @@ static int eth_rx_worker(void *arg)
 
                 /* Check whether the link is up or down*/
                 if (val & PHY_LINK_STATUS) {
-                    //TODO(cpu): investigate why this keeps firing on the disco board.
-                    //printf("eth: link up\n");
+                    printf("eth: link up\n");
                     //netif_set_link_up(link_arg->netif);
                 } else {
                     printf("eth: link down\n");
@@ -294,6 +273,10 @@ static int eth_rx_worker(void *arg)
                 }
             }
         } else {
+#else
+        status_t event_err = event_wait(&eth.rx_event);
+        if (event_err >= NO_ERROR) {
+#endif
             // XXX probably race with the event here
             while (HAL_ETH_GetReceivedFrame_IT(&eth.EthHandle) == HAL_OK) {
                 LTRACEF("got packet len %u, buffer %p, seg count %u\n", eth.EthHandle.RxFrameInfos.length,
