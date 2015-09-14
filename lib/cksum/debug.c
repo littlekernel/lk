@@ -114,7 +114,7 @@ static int cmd_cksum_bench(int argc, const cmd_args *argv)
 	lk_bigtime_t t;
 	uint32_t crc;
 
-	printf("buffer at %p, size %zu\n", buf, BUFSIZE);
+	printf("buffer at %p, size %u\n", buf, BUFSIZE);
 
 	t = current_time_hires();
 	crc = 0;
