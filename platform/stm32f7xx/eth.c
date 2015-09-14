@@ -121,7 +121,8 @@ status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
     eth.EthHandle.Init.MediaInterface = 
         eth_phy == PHY_DP83848 ? ETH_MEDIA_INTERFACE_MII : ETH_MEDIA_INTERFACE_RMII;
     eth.EthHandle.Init.RxMode = ETH_RXINTERRUPT_MODE;
-    eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
+    //eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE; // XXX icmp checksums corrupted if stack stuff valid checksum
+    eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_SOFTWARE;
     eth.EthHandle.Init.PhyAddress = 
         eth_phy == PHY_DP83848 ? DP83848_PHY_ADDRESS : LAN8742A_PHY_ADDRESS;
 
