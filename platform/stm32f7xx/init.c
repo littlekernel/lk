@@ -22,12 +22,15 @@
  */
 #include <err.h>
 #include <debug.h>
+#include <stdlib.h>
+#include <reg.h>
 #include <dev/uart.h>
 #include <platform.h>
 #include <platform/stm32.h>
 #include <arch/arm/cm.h>
 
 uint32_t SystemCoreClock = HSI_VALUE;
+uint32_t stm32_unique_id[3];
 
 void SystemInit(void)
 {
@@ -139,6 +142,37 @@ static void SystemClock_Config(void)
     }
 }
 
+void stm32_rng_init(void)
+{
+    RNG_HandleTypeDef rng_handle = { 0 };
+
+    __HAL_RCC_RNG_CLK_ENABLE();
+
+    rng_handle.Instance = RNG;
+    HAL_StatusTypeDef status = HAL_RNG_Init(&rng_handle);
+    if (status != HAL_OK) {
+        panic("error initializing random number hardware\n");
+    }
+
+    /* seed the pseudo random number generator with this */
+#if STM32_SEED_RAND_FROM_HWRNG
+    uint32_t r;
+
+    /* discard he first result */
+    status = HAL_RNG_GenerateRandomNumber(&rng_handle, &r);
+    if (status != HAL_OK) {
+        panic("error getting random number from hardware\n");
+    }
+
+    status = HAL_RNG_GenerateRandomNumber(&rng_handle, &r);
+    if (status != HAL_OK) {
+        panic("error getting random number from hardware\n");
+    }
+
+    srand(r);
+#endif
+}
+
 void platform_early_init(void)
 {
     // Do general system init
@@ -149,6 +183,14 @@ void platform_early_init(void)
     __HAL_FLASH_ART_ENABLE();
     __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
 
+    /* read the unique id */
+    stm32_unique_id[0] = *REG32(0x1ff0f420);
+    stm32_unique_id[1] = *REG32(0x1ff0f424);
+    stm32_unique_id[2] = *REG32(0x1ff0f428);
+
+    /* seed the random number generator based on this */
+    srand(stm32_unique_id[0] ^ stm32_unique_id[1] ^ stm32_unique_id[2]);
+
     // Start the systick timer
     uint32_t sysclk = HAL_RCC_GetSysClockFreq();
     arm_cm_systick_init(sysclk);
@@ -156,6 +198,7 @@ void platform_early_init(void)
     stm32_timer_early_init();
     stm32_gpio_early_init();
     stm32_flash_early_init();
+    stm32_rng_init();
 
     /* clear the reboot reason */
     RCC->CSR |= (1<<24);
@@ -171,9 +214,12 @@ void platform_init(void)
     printf("\tpclk1 %u\n", HAL_RCC_GetPCLK1Freq());
     printf("\tpclk2 %u\n", HAL_RCC_GetPCLK2Freq());
 
+    printf("unique id: 0x%08x%08x%08x\n", stm32_unique_id[0], stm32_unique_id[1], stm32_unique_id[2]);
+
     stm32_timer_init();
 
     stm32_flash_init();
 
 //    ITM_SendChar('2');
 }
+
