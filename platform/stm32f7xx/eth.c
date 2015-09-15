@@ -283,14 +283,13 @@ static int eth_rx_worker(void *arg)
                         (void *)eth.EthHandle.RxFrameInfos.buffer,
                         eth.EthHandle.RxFrameInfos.SegCount);
 
-                // XXX copy out here
-                //hexdump8((void *)eth.EthHandle.RxFrameInfos.buffer, eth.EthHandle.RxFrameInfos.length);
-                //eth_send((void *)eth.EthHandle.RxFrameInfos.buffer, eth.EthHandle.RxFrameInfos.length);
-
 #if WITH_LIB_MINIP
-                pktbuf_t *p = pktbuf_alloc();
+                /* allocate a pktbuf header, point it at our rx buffer, and pass up the stack */
+                pktbuf_t *p = pktbuf_alloc_empty();
                 if (p) {
-                    pktbuf_append_data(p, (void *)eth.EthHandle.RxFrameInfos.buffer, eth.EthHandle.RxFrameInfos.length);
+                    pktbuf_add_buffer(p, (void *)eth.EthHandle.RxFrameInfos.buffer, eth.EthHandle.RxFrameInfos.length,
+                            0, 0, NULL, NULL);
+                    p->dlen = eth.EthHandle.RxFrameInfos.length;
 
                     minip_rx_driver_callback(p);
 
