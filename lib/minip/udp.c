@@ -60,10 +60,14 @@ typedef struct udp_hdr {
 
 
 int udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
-    struct udp_listener *entry;
+    struct udp_listener *entry, *temp;
 
-    list_for_every_entry(&udp_list, entry, struct udp_listener, list) {
+    list_for_every_entry_safe(&udp_list, entry, temp, struct udp_listener, list) {
         if (entry->port == port) {
+            if (cb == NULL) {
+                list_delete(&entry->list);
+                return 0;
+            }
             return -1;
         }
     }
