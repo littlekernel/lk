@@ -76,7 +76,6 @@ static void free_pool_object(pktbuf_pool_object_t *entry, bool reschedule) {
  * it was used as a buffer for another pktbuf
  */
 static void free_pktbuf_buf_cb(void *buf, void *arg) {
-	memset(buf, 0, sizeof(pktbuf_t));
 	free_pool_object((pktbuf_pool_object_t *)buf, true);
 }
 
@@ -128,6 +127,7 @@ pktbuf_t *pktbuf_alloc(void) {
 		return NULL;
 	}
 
+	memset(p, 0, sizeof(pktbuf_t));
 	pktbuf_add_buffer(p, buf, PKTBUF_SIZE, PKTBUF_MAX_HDR, 0, free_pktbuf_buf_cb, NULL);
 	return p;
 }
