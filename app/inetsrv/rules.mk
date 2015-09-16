@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/inetsrv.c \
+	$(LOCAL_DIR)/tftp.c \
 
 MODULE_DEPS := \
     lib/cksum \

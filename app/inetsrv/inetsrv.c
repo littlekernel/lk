@@ -33,6 +33,7 @@
 #include <platform.h>
 
 #include "inetsrv.h"
+#include "tftp.h"
 
 static int chargen_worker(void *socket)
 {
@@ -227,6 +228,7 @@ static void inetsrv_entry(const struct app_descriptor *app, void *args)
     thread_detach_and_resume(thread_create("chargen", &chargen_server, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_detach_and_resume(thread_create("discard", &discard_server, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_detach_and_resume(thread_create("echo", &echo_server, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+    tftp_server_init(NULL);
 }
 
 APP_START(inetsrv)
