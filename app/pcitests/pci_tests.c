@@ -250,7 +250,7 @@ out:
 }
 
 STATIC_COMMAND_START
-{ "pci", "pci toolbox", &pci_cmd },
+STATIC_COMMAND("pci", "pci toolbox", &pci_cmd)
 STATIC_COMMAND_END(pcitests);
 
 #endif

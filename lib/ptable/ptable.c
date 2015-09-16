@@ -927,7 +927,7 @@ usage:
 }
 
 STATIC_COMMAND_START
-{ "ptable", "commands for manipulating the flash partition table", &cmd_ptable },
+STATIC_COMMAND("ptable", "commands for manipulating the flash partition table", &cmd_ptable)
 STATIC_COMMAND_END(ptable);
 
 #endif // WITH_LIB_CONSOLE

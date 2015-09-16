@@ -39,12 +39,12 @@ static int cmd_cksum_bench(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
-	{ "crc16", "crc16", &cmd_crc16 },
-	{ "crc32", "crc32", &cmd_crc32 },
-	{ "adler32", "adler32", &cmd_adler32 },
+	STATIC_COMMAND("crc16", "crc16", &cmd_crc16)
+	STATIC_COMMAND("crc32", "crc32", &cmd_crc32)
+	STATIC_COMMAND("adler32", "adler32", &cmd_adler32)
 #endif
 #if LK_DEBUGLEVEL > 1
-	{ "bench_cksum", "benchmark the checksum routines", &cmd_cksum_bench },
+	STATIC_COMMAND("bench_cksum", "benchmark the checksum routines", &cmd_cksum_bench)
 #endif
 STATIC_COMMAND_END(crc);
 

@@ -278,7 +278,7 @@ void i2c_init(void)
 static int cmd_i2c(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
-	{ "i2c", "i2c read/write commands", &cmd_i2c },
+STATIC_COMMAND("i2c", "i2c read/write commands", &cmd_i2c)
 STATIC_COMMAND_END(i2c);
 
 static int cmd_i2c(int argc, const cmd_args *argv)

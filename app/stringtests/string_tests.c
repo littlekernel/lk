@@ -350,7 +350,7 @@ out:
 }
 
 STATIC_COMMAND_START
-{ "string", "memcpy tests", &string_tests },
+STATIC_COMMAND("string", "memcpy tests", &string_tests)
 STATIC_COMMAND_END(stringtests);
 
 #endif

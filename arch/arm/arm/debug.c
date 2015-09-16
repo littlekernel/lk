@@ -202,7 +202,7 @@ static int cmd_dcc(int argc, const cmd_args *argv)
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 1
-    { "dcc", "dcc stuff", &cmd_dcc }
+     STATIC_COMMAND("dcc", "dcc stuff", &cmd_dcc)
 #endif
 STATIC_COMMAND_END(dcc);
 

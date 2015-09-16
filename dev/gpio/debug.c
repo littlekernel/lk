@@ -94,7 +94,7 @@ static int cmd_gpio(int argc, const cmd_args *argv)
     return 0;
 }
 STATIC_COMMAND_START
-{ "gpio", "commands for manipulating system gpios", &cmd_gpio },
+STATIC_COMMAND("gpio", "commands for manipulating system gpios", &cmd_gpio)
 STATIC_COMMAND_END(gpio);
 
 #endif

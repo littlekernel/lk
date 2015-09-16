@@ -609,7 +609,7 @@ usage:
 }
 
 STATIC_COMMAND_START
-{ "klog", "commands for manipulating klog", &cmd_klog },
+STATIC_COMMAND("klog", "commands for manipulating klog", &cmd_klog)
 STATIC_COMMAND_END(klog);
 
 #endif // WITH_LIB_CONSOLE

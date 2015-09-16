@@ -57,8 +57,8 @@ static int cmd_poweroff(int argc, const cmd_args *argv)
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 1
-    { "reboot", "soft reset", &cmd_reboot },
-    { "poweroff", "powerdown", &cmd_poweroff },
+STATIC_COMMAND("reboot", "soft reset", &cmd_reboot)
+STATIC_COMMAND("poweroff", "powerdown", &cmd_poweroff)
 #endif
 STATIC_COMMAND_END(platform_power);
 

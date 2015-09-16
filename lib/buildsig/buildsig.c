@@ -153,7 +153,7 @@ usage:
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 1
-    { "buildsig", "scan for and dump build signature", &cmd_buildsig },
+    STATIC_COMMAND("buildsig", "scan for and dump build signature", &cmd_buildsig)
 #endif
 STATIC_COMMAND_END(buildid);
 

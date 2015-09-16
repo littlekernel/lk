@@ -63,7 +63,7 @@ out:
 }
 
 STATIC_COMMAND_START
-{ "net", "net toolbox", &net_cmd },
+STATIC_COMMAND("net", "net toolbox", &net_cmd)
 STATIC_COMMAND_END(net);
 
 #endif

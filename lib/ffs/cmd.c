@@ -106,7 +106,7 @@ out:
 }
 
 STATIC_COMMAND_START
-{ "ffs", "ffs toolbox", &ffs_cmd },
+STATIC_COMMAND("ffs", "ffs toolbox", &ffs_cmd)
 STATIC_COMMAND_END(ffscommands);
 
 

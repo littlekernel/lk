@@ -709,7 +709,7 @@ done:
 }
 
 STATIC_COMMAND_START
-{ "sysparam", "commands for manipulating system parameters", &cmd_sysparam },
+STATIC_COMMAND("sysparam", "commands for manipulating system parameters", &cmd_sysparam)
 STATIC_COMMAND_END(sysparam);
 
 #endif // WITH_LIB_CONSOLE

@@ -50,21 +50,21 @@ static int cmd_chain(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
-	{ "dw", "display memory in words", &cmd_display_mem },
-	{ "dh", "display memory in halfwords", &cmd_display_mem },
-	{ "db", "display memory in bytes", &cmd_display_mem },
-	{ "mw", "modify word of memory", &cmd_modify_mem },
-	{ "mh", "modify halfword of memory", &cmd_modify_mem },
-	{ "mb", "modify byte of memory", &cmd_modify_mem },
-	{ "fw", "fill range of memory by word", &cmd_fill_mem },
-	{ "fh", "fill range of memory by halfword", &cmd_fill_mem },
-	{ "fb", "fill range of memory by byte", &cmd_fill_mem },
-	{ "mc", "copy a range of memory", &cmd_copy_mem },
+	STATIC_COMMAND("dw", "display memory in words", &cmd_display_mem)
+	STATIC_COMMAND("dh", "display memory in halfwords", &cmd_display_mem)
+	STATIC_COMMAND("db", "display memory in bytes", &cmd_display_mem)
+	STATIC_COMMAND("mw", "modify word of memory", &cmd_modify_mem)
+	STATIC_COMMAND("mh", "modify halfword of memory", &cmd_modify_mem)
+	STATIC_COMMAND("mb", "modify byte of memory", &cmd_modify_mem)
+	STATIC_COMMAND("fw", "fill range of memory by word", &cmd_fill_mem)
+	STATIC_COMMAND("fh", "fill range of memory by halfword", &cmd_fill_mem)
+	STATIC_COMMAND("fb", "fill range of memory by byte", &cmd_fill_mem)
+	STATIC_COMMAND("mc", "copy a range of memory", &cmd_copy_mem)
 #endif
 #if LK_DEBUGLEVEL > 1
-	{ "mtest", "simple memory test", &cmd_memtest },
+	STATIC_COMMAND("mtest", "simple memory test", &cmd_memtest)
 #endif
-	{ "chain", "chain load another binary", &cmd_chain },
+	STATIC_COMMAND("chain", "chain load another binary", &cmd_chain)
 STATIC_COMMAND_END(mem);
 
 static int cmd_display_mem(int argc, const cmd_args *argv)
