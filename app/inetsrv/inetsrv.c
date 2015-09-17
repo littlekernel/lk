@@ -29,11 +29,11 @@
 #include <compiler.h>
 #include <kernel/thread.h>
 #include <lib/minip.h>
+#include <lib/tftp.h>
 #include <lib/cksum.h>
 #include <platform.h>
 
 #include "inetsrv.h"
-#include "tftp.h"
 
 static int chargen_worker(void *socket)
 {
