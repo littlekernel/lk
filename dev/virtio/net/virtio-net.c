@@ -213,9 +213,7 @@ static status_t virtio_net_queue_tx_pktbuf(struct virtio_net_dev *ndev, pktbuf_t
         return ERR_NO_MEMORY;
 
     /* point our header to the base of the first pktbuf */
-    p->data = p->buffer;
-    struct virtio_net_hdr *hdr = (struct virtio_net_hdr *)p->data;
-    p->dlen = sizeof(*hdr) - 2; // num_buffers field is unused in tx
+    struct virtio_net_hdr *hdr = pktbuf_append(p, sizeof(struct virtio_net_hdr) - 2);
     memset(hdr, 0, p->dlen);
 
     spin_lock_saved_state_t state;
@@ -420,7 +418,7 @@ static int virtio_net_rx_worker(void *arg)
             if (!p)
                 break; /* nothing left in the queue, go back to waiting */
 
-            TRACEF("got packet len %u\n", p->dlen);
+            LTRACEF("got packet len %u\n", p->dlen);
 
             /* process our packet */
             struct virtio_net_hdr *hdr = pktbuf_consume(p, sizeof(struct virtio_net_hdr) - 2);
@@ -453,11 +451,11 @@ status_t virtio_net_get_mac_addr(uint8_t mac_addr[6])
 
 status_t virtio_net_send_minip_pkt(pktbuf_t *p)
 {
-    LTRACEF("p %p, dlen %zu, eof %u\n", p, p->dlen, p->eof);
+    LTRACEF("p %p, dlen %zu, flags 0x%x\n", p, p->dlen, p->flags);
 
     DEBUG_ASSERT(p && p->dlen);
 
-    if (!p->eof) {
+    if ((p->flags & PKTBUF_FLAG_EOF) == 0) {
         /* can't handle multi part packets yet */
         PANIC_UNIMPLEMENTED;
 
