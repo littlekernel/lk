@@ -51,6 +51,36 @@ static void hardfault(struct arm_cm_exception_frame *frame)
 	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
+static void memmanage(struct arm_cm_exception_frame *frame)
+{
+	printf("memmanage: ");
+	dump_frame(frame);
+
+	uint32_t mmfsr = SCB->CFSR & 0xff;
+
+	if (mmfsr & (1<<0)) { // IACCVIOL
+		printf("instruction fault\n");
+	}
+	if (mmfsr & (1<<1)) { // DACCVIOL
+		printf("data fault\n");
+	}
+	if (mmfsr & (1<<3)) { // MUNSTKERR
+		printf("fault on exception return\n");
+	}
+	if (mmfsr & (1<<4)) { // MSTKERR
+		printf("fault on exception entry\n");
+	}
+	if (mmfsr & (1<<5)) { // MLSPERR
+		printf("fault on lazy fpu preserve\n");
+	}
+	if (mmfsr & (1<<7)) { // MMARVALID
+		printf("fault address 0x%x\n", SCB->MMFAR);
+	}
+
+	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+}
+
+
 static void usagefault(struct arm_cm_exception_frame *frame)
 {
 	printf("usagefault: ");
@@ -88,8 +118,13 @@ __NAKED void _hardfault(void)
 
 void _memmanage(void)
 {
-	printf("memmanage\n");
-	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+	__asm__ volatile(
+		"push	{r4-r11};"
+		"mov	r0, sp;"
+		"b		%0;"
+		:: "i" (memmanage)
+	);
+	__UNREACHABLE;
 }
 
 void _busfault(void)
@@ -127,4 +162,4 @@ void __WEAK _debugmonitor(void)
 	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
-
+// vim: set noexpandtab:
