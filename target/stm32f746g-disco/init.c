@@ -39,7 +39,11 @@
 #include <lib/minip.h>
 #endif
 
-static void MPU_RegionConfig(void);
+const sdram_config_t target_sdram_config = {
+    .bus_width = SDRAM_BUS_WIDTH_16,
+    .cas_latency = SDRAM_CAS_LATENCY_2,
+    .col_bits_num = SDRAM_COLUMN_BITS_8
+};
 
 void target_early_init(void)
 {
@@ -53,19 +57,7 @@ void target_early_init(void)
 
     /* now that the uart gpios are configured, enable the debug uart */
     stm32_debug_early_init();
-
-#if defined(ENABLE_SDRAM)
-    /* initialize SDRAM */
-    sdram_config_t sdram_config;
-    sdram_config.bus_width = SDRAM_BUS_WIDTH_16;
-    sdram_config.cas_latency = SDRAM_CAS_LATENCY_2;
-    sdram_config.col_bits_num = SDRAM_COLUMN_BITS_8;
-    stm32_sdram_init(&sdram_config);
-
-    MPU_RegionConfig();
-#endif
 }
-
 
 static uint8_t* gen_mac_address(void) {
     static uint8_t mac_addr[6];
@@ -94,30 +86,6 @@ void target_init(void)
     uint32_t ip_gateway = IPV4_NONE;
     minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
 #endif
-}
-
-static void MPU_RegionConfig(void)
-{
-    MPU_Region_InitTypeDef MPU_InitStruct;
-    HAL_MPU_Disable();
-
-    uint region_num = 0;
-
-    /* configure SDRAM */
-    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-    MPU_InitStruct.BaseAddress = SDRAM_BASE;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_8MB;
-    MPU_InitStruct.AccessPermission = MPU_REGION_PRIV_RW;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-    MPU_InitStruct.Number = region_num++;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-    MPU_InitStruct.SubRegionDisable = 0x00;
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
-
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-    HAL_MPU_Enable(MPU_HFNMI_PRIVDEF);
 }
 
 /**
@@ -209,7 +177,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
     GPIO_InitStructure.Alternate = GPIO_AF11_ETH;
     GPIO_InitStructure.Pin = GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_7;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
-  
+
     /* Configure PC1, PC4 and PC5 */
     GPIO_InitStructure.Pin = GPIO_PIN_1 | GPIO_PIN_4 | GPIO_PIN_5;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);

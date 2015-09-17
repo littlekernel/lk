@@ -27,10 +27,16 @@
 #include <dev/uart.h>
 #include <platform.h>
 #include <platform/stm32.h>
+#include <platform/sdram.h>
 #include <arch/arm/cm.h>
 
 uint32_t SystemCoreClock = HSI_VALUE;
 uint32_t stm32_unique_id[3];
+
+#if defined(ENABLE_SDRAM)
+// target exports this with sdram configuration values
+extern const sdram_config_t target_sdram_config;
+#endif
 
 void SystemInit(void)
 {
@@ -173,6 +179,64 @@ void stm32_rng_init(void)
 #endif
 }
 
+/* set up the mpu to enable caching in the appropriate areas */
+static void mpu_init(void)
+{
+    MPU_Region_InitTypeDef MPU_InitStruct;
+    HAL_MPU_Disable();
+
+    uint region_num = 0;
+
+    /* mark the first bit of the address space as inaccessible, to catch null pointers */
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.BaseAddress = 0x0;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_128KB; /* 0x00200000 */
+    MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    MPU_InitStruct.Number = region_num++;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+    MPU_InitStruct.SubRegionDisable = 0x00;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+#if defined(ENABLE_SDRAM)
+    /* configure SDRAM */
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.BaseAddress = SDRAM_BASE;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_64MB;
+    MPU_InitStruct.AccessPermission = MPU_REGION_PRIV_RW;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    MPU_InitStruct.Number = region_num++;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+    MPU_InitStruct.SubRegionDisable = 0x00;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+#endif
+
+    // SRAM
+#if defined(ENABLE_EXT_SRAM)
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.BaseAddress = EXT_SRAM_BASE;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_2MB; // XXX use max size of aperture?
+    MPU_InitStruct.AccessPermission = MPU_REGION_PRIV_RW;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    MPU_InitStruct.Number = region_num++;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+    MPU_InitStruct.SubRegionDisable = 0x00;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+#endif
+
+    HAL_MPU_Enable(MPU_HFNMI_PRIVDEF);
+}
+
 void platform_early_init(void)
 {
     // Do general system init
@@ -203,7 +267,12 @@ void platform_early_init(void)
     /* clear the reboot reason */
     RCC->CSR |= (1<<24);
 
-//    ITM_SendChar('1');
+#if defined(ENABLE_SDRAM)
+    /* initialize SDRAM */
+    stm32_sdram_init((sdram_config_t *)&target_sdram_config);
+#endif
+
+    mpu_init();
 }
 
 void platform_init(void)
@@ -219,7 +288,5 @@ void platform_init(void)
     stm32_timer_init();
 
     stm32_flash_init();
-
-//    ITM_SendChar('2');
 }
 
