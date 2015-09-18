@@ -109,7 +109,7 @@ static void process_elf_blob(const void* start, size_t len)
         return;
     }
 
-    printf("elf looks good\n", (void*)elf.entry);
+    printf("elf looks good\n");
     thread_resume(thread_create("elf_runner", &run_elf, (void*)elf.entry,
                   DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     elf_close_handle(&elf);
