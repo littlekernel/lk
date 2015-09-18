@@ -30,7 +30,6 @@
 #include <compiler.h>
 #include <endian.h>
 #include <lib/minip.h>
-#include <lib/cksum.h>
 #include <platform.h>
 
 #include <lib/tftp.h>
@@ -266,22 +265,8 @@ int tftp_set_write_client(const char* file_name, tftp_callback_t cb, void* arg)
     return 0;
 }
 
-static unsigned long test_crc = 0UL;
-
-int test_tftp_client(void* data, size_t len, void* arg) {
-    if (!data) {
-        printf("--test transfer done-- crc32 = %lu\n", test_crc);
-        test_crc = 0UL;
-    }
-
-    test_crc = crc32(test_crc, data,len);
-    return 0;
-}
-
 int tftp_server_init(void *arg)
 {
-    tftp_set_write_client("tftp_test.txt", &test_tftp_client, NULL);
-
     status_t st = udp_listen(TFTP_PORT, &udp_svc_callback, 0);
     return st;
 }

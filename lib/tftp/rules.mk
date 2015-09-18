@@ -4,7 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS := \
   lib/minip \
-  lib/cksum
+
 
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
