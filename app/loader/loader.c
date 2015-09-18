@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <app.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -33,22 +33,17 @@
 
 #include <kernel/thread.h>
 
+#if defined(WITH_LIB_CONSOLE)
+#include <lib/console.h>
+#else
+#error "loader app needs a console"
+#endif
+
 #if defined(SDRAM_BASE)
 static unsigned char* download_start = (void*)SDRAM_BASE;
 #else
 static unsigned char* download_start = NULL;
 #endif
-
-static void loader_init(const struct app_descriptor *app)
-{
-}
-
-static void loader_entry(const struct app_descriptor *app, void *args)
-{
-}
-
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
 
 #define FNAME_SIZE 64
 #define DOWNLOAD_SLOT_SIZE (128 * 1024)
@@ -91,10 +86,10 @@ static size_t output_result(const download_t* download)
 static int run_elf(void* entry_point)
 {
     void (*elf_start)(void) = (void*)entry_point;
-    printf("running elf\n");
+    printf("elf (%p) running ...\n", entry_point);
     thread_sleep(10);
 	  elf_start();
-    printf("elf terminated\n"); 
+    printf("elf (%p) finished\n", entry_point); 
     return 0;
 }
 
@@ -114,10 +109,10 @@ static void process_elf_blob(const void* start, size_t len)
         return;
     }
 
-    printf("elf looks good. entrypoint at %p\n", (void*)elf.entry);
-
+    printf("elf looks good\n", (void*)elf.entry);
     thread_resume(thread_create("elf_runner", &run_elf, (void*)elf.entry,
                   DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+    elf_close_handle(&elf);
 }
 
 int tftp_callback(void* data, size_t len, void* arg)
@@ -178,14 +173,6 @@ usage:
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("load", "download via tftp", &loader)
+STATIC_COMMAND("load", "download and run via tftp", &loader)
 STATIC_COMMAND_END(loader);
-
-#endif
-
-APP_START(loader_app)
-    .init = loader_init,
-    .entry = loader_entry,
-    .flags = 0,
-APP_END
 
