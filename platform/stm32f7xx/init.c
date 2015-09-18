@@ -205,7 +205,28 @@ static void mpu_init(void)
     /* configure SDRAM */
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
     MPU_InitStruct.BaseAddress = SDRAM_BASE;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_64MB;
+
+    MPU_InitStruct.Size = 
+#if   SDRAM_SIZE == 0x00100000
+        MPU_REGION_SIZE_1MB;
+#elif SDRAM_SIZE == 0x00200000
+        MPU_REGION_SIZE_2MB;
+#elif SDRAM_SIZE == 0x00400000
+        MPU_REGION_SIZE_4MB;
+#elif SDRAM_SIZE == 0x00800000
+        MPU_REGION_SIZE_8MB;
+#elif SDRAM_SIZE == 0x01000000
+        MPU_REGION_SIZE_16MB
+#elif SDRAM_SIZE == 0x02000000
+        MPU_REGION_SIZE_32MB;
+#elif SDRAM_SIZE == 0x04000000
+        MPU_REGION_SIZE_64MB;
+#elif SDRAM_SIZE == 0x08000000
+        MPU_REGION_SIZE_128MB;
+#else
+#error SDRAM_SIZE not defined.
+#endif
+
     MPU_InitStruct.AccessPermission = MPU_REGION_PRIV_RW;
     MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
     MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
