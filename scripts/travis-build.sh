@@ -33,11 +33,14 @@ TOOLCHAIN_SUFFIX="tar.xz"
 
 TOOLCHAIN_ADDRESS="$TOOLCHAIN_BASE_URL/$TOOLCHAIN.$TOOLCHAIN_SUFFIX"
 
+mkdir -p archives
+cd archives
 echo "Downloading toolchain $TOOLCHAIN from $TOOLCHAIN_ADDRESS"
-wget $TOOLCHAIN_ADDRESS -q
+wget -v -N $TOOLCHAIN_ADDRESS || exit 1
+cd ..
 
 echo "Unpacking $TOOLCHAIN"
-tar xf $TOOLCHAIN.$TOOLCHAIN_SUFFIX
+tar xf archives/$TOOLCHAIN.$TOOLCHAIN_SUFFIX || exit 1
 export PATH=`pwd`/$TOOLCHAIN/bin:$PATH
 
 echo "Starting build '$PROJECT' with '$TOOLCHAIN'\n"

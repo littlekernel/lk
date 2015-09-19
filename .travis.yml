@@ -9,6 +9,11 @@ env:
 # run in a container
 sudo: false
 
+# try to cache the toolchain download
+cache:
+  directories:
+  - archives
+
 # notify a few irc channels
 notifications:
   irc:
