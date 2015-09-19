@@ -108,5 +108,11 @@ endif
 ifeq ($(ARM_CPU),armemu)
 ARCH_arm_COMPILEFLAGS += -march=armv7-a
 endif
+ifeq ($(ARM_CPU),armv8-a)
+ARCH_arm_COMPILEFLAGS += -march=$(ARM_CPU)
+ifneq ($(ARM_WITHOUT_VFP_NEON),true)
+ARCH_arm_COMPILEFLAGS += -mfpu=vfpv3 -mfloat-abi=softfp
+endif
+endif
 
 endif

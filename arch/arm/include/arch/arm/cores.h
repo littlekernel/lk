@@ -34,6 +34,12 @@
 
 /* echo | gcc -E -dM - to dump builtin defines */
 
+#if defined(__ARM_ARCH_8A__)
+#ifndef ARM_ARCH_LEVEL
+#define ARM_ARCH_LEVEL 8
+#endif
+#endif
+
 #if defined(__ARM_ARCH_7EM__)
 #define ARM_ARCH_7EM 1
 #endif

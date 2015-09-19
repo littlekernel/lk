@@ -193,6 +193,24 @@ GLOBAL_DEFINES += \
 HANDLED_CORE := true
 ENABLE_THUMB := false # armemu doesn't currently support thumb properly
 endif
+ifeq ($(ARM_CPU),armv8-a)
+GLOBAL_DEFINES += \
+	ARM_CPU_CORTEX_ARMV8_A=1 \
+	ARM_WITH_CP15=1 \
+	ARM_WITH_MMU=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7A=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1 \
+	ARM_WITH_CACHE=1 \
+	ARM_WITH_L2=1
+ifneq ($(ARM_WITHOUT_VFP_NEON),true)
+GLOBAL_DEFINES += \
+	ARM_WITH_VFP=1 \
+	ARM_WITH_NEON=1
+endif
+HANDLED_CORE := true
+endif
 
 ifneq ($(HANDLED_CORE),true)
 $(error $(LOCAL_DIR)/rules.mk doesnt have logic for arm core $(ARM_CPU))
