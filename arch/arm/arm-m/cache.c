@@ -95,6 +95,40 @@ void arch_sync_cache_range(addr_t start, size_t len)
     SCB_InvalidateICache();
 }
 
-#endif // ARM_WITH_CACHE
+#else
 
+/* doesn't support cache flush, just nop */
+
+void arch_disable_cache(uint flags)
+{
+}
+
+void arch_enable_cache(uint flags)
+{
+}
+
+/* clean (writeback) data in the data cache on the range */
+void arch_clean_cache_range(addr_t start, size_t len)
+{
+}
+
+/* clean (writeback) and then evict data from the data cache on the range */
+void arch_clean_invalidate_cache_range(addr_t start, size_t len)
+{
+}
+
+/* evict data from the data cache on the range */
+void arch_invalidate_cache_range(addr_t start, size_t len)
+{
+}
+
+/*
+ * clean (writeback) data on the range and then throw away the instruction cache,
+ * ensuring that new instructions fetched from the range are not stale.
+ */
+void arch_sync_cache_range(addr_t start, size_t len)
+{
+}
+
+#endif // !ARM_WITH_CACHE
 
