@@ -6,6 +6,8 @@ env:
     - PROJECT=zybo-test                 TOOLCHAIN=arm-eabi-5.2.0-Linux-x86_64
     - PROJECT=stm32746g-eval2-test      TOOLCHAIN=arm-eabi-5.2.0-Linux-x86_64
     - PROJECT=stm32f746g-disco-test     TOOLCHAIN=arm-eabi-5.2.0-Linux-x86_64
+    - PROJECT=stm32f4-discovery-test    TOOLCHAIN=arm-eabi-5.2.0-Linux-x86_64
+    - PROJECT=qemu-microblaze-test      TOOLCHAIN=microblaze-elf-5.2.0-Linux-x86_64
 
     - PROJECT=vexpress-a9-test          TOOLCHAIN=arm-eabi-4.8.2-Linux-x86_64
 
