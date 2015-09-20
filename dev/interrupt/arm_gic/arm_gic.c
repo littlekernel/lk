@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Travis Geiselbrecht
+ * Copyright (c) 2012-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -40,6 +40,17 @@
 #endif
 
 #define LOCAL_TRACE 0
+
+#if ARCH_ARM
+#include <arch/arm.h>
+#define iframe arm_iframe
+#define IFRAME_PC(frame) ((frame)->pc)
+#endif
+#if ARCH_ARM64
+#include <arch/arm64.h>
+#define iframe arm64_iframe_short
+#define IFRAME_PC(frame) ((frame)->elr)
+#endif
 
 static status_t arm_gic_set_secure_locked(u_int irq, bool secure);
 
@@ -358,7 +369,7 @@ status_t unmask_interrupt(unsigned int vector)
 }
 
 static
-enum handler_return __platform_irq(struct arm_iframe *frame)
+enum handler_return __platform_irq(struct iframe *frame)
 {
 	// get the current vector
 	uint32_t iar = GICREG(0, GICC_IAR);
@@ -374,8 +385,8 @@ enum handler_return __platform_irq(struct arm_iframe *frame)
 
 	uint cpu = arch_curr_cpu_num();
 
-//	printf("platform_irq: iar 0x%x cpu %u spsr 0x%x, pc 0x%x, currthread %p, vector %d\n",
-//			iar, cpu, frame->spsr, frame->pc, get_current_thread(), vector);
+	LTRACEF_LEVEL(2, "iar 0x%x cpu %u currthread %p vector %d pc 0x%lx\n", iar, cpu,
+	       get_current_thread(), vector, (uintptr_t)IFRAME_PC(frame));
 
 	// deliver the interrupt
 	enum handler_return ret;
@@ -387,14 +398,14 @@ enum handler_return __platform_irq(struct arm_iframe *frame)
 
 	GICREG(0, GICC_EOIR) = iar;
 
-//	printf("platform_irq: cpu %u exit %d\n", cpu, ret);
+	LTRACEF_LEVEL(2, "cpu %u exit %d\n", cpu, ret);
 
 	KEVLOG_IRQ_EXIT(vector);
 
 	return ret;
 }
 
-enum handler_return platform_irq(struct arm_iframe *frame)
+enum handler_return platform_irq(struct iframe *frame)
 {
 #if WITH_LIB_SM
 	uint32_t ahppir = GICREG(0, GICC_AHPPIR);
@@ -437,7 +448,7 @@ enum handler_return platform_irq(struct arm_iframe *frame)
 #endif
 }
 
-void platform_fiq(struct arm_iframe *frame)
+void platform_fiq(struct iframe *frame)
 {
 #if WITH_LIB_SM
 	sm_handle_fiq();
