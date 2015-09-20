@@ -1,7 +1,8 @@
 language: c
 script: ./scripts/travis-build.sh
 env:
-    - PROJECT=vexpress-a9-test          TOOLCHAIN=arm-eabi-5.2.0-Linux-x86_64
+    - PROJECT=qemu-virt-a15-test        TOOLCHAIN=arm-eabi-5.2.0-Linux-x86_64
+    - PROJECT=qemu-virt-a53-test        TOOLCHAIN=aarch-elf-5.2.0-Linux-x86_64
     - PROJECT=zybo-test                 TOOLCHAIN=arm-eabi-5.2.0-Linux-x86_64
     - PROJECT=stm32746g-eval2-test      TOOLCHAIN=arm-eabi-5.2.0-Linux-x86_64
     - PROJECT=stm32f746g-disco-test     TOOLCHAIN=arm-eabi-5.2.0-Linux-x86_64
