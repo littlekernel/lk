@@ -107,4 +107,3 @@ static inline uint arch_curr_cpu_num(void)
     return 0;
 }
 
-
