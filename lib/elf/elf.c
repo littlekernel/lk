@@ -37,7 +37,7 @@ struct read_hook_memory_args {
     size_t len;
 };
 
-static ssize_t elf_read_hook_memory(struct elf_handle *handle, void *buf, off_t offset, size_t len)
+static ssize_t elf_read_hook_memory(struct elf_handle *handle, void *buf, uint64_t offset, size_t len)
 {
     LTRACEF("handle %p, buf %p, offset %lld, len %zu\n", handle, buf, offset, len);
 
@@ -193,7 +193,7 @@ status_t elf_load(elf_handle_t *handle)
     }
 
     LTRACEF("program headers:\n");
-    for (size_t i = 0; i < handle->eheader.e_phnum; i++) {
+    for (uint i = 0; i < handle->eheader.e_phnum; i++) {
         // parse the program headers
         struct Elf32_Phdr *pheader = &handle->pheaders[i];
 
@@ -204,8 +204,8 @@ status_t elf_load(elf_handle_t *handle)
         if (pheader->p_type == PT_LOAD) {
 
             // read the file portion of the segment into memory at vaddr
-            LTRACEF("reading segment at offset %u to address %p\n", pheader->p_offset, (void *)pheader->p_vaddr);
-            readerr = handle->read_hook(handle, (void *)pheader->p_vaddr, pheader->p_offset, pheader->p_filesz);
+            LTRACEF("reading segment at offset %u to address 0x%x\n", pheader->p_offset, pheader->p_vaddr);
+            readerr = handle->read_hook(handle, (void *)(uintptr_t)pheader->p_vaddr, pheader->p_offset, pheader->p_filesz);
             if (readerr < (ssize_t)pheader->p_filesz) {
                 LTRACEF("error %ld reading program header %u\n", readerr, i);
                 return (readerr < 0) ? readerr : ERR_IO;
@@ -214,7 +214,7 @@ status_t elf_load(elf_handle_t *handle)
             // zero out he difference between memsz and filesz
             size_t tozero = pheader->p_memsz - pheader->p_filesz;
             if (tozero > 0) {
-                uint8_t *ptr = (uint8_t *)pheader->p_vaddr + pheader->p_filesz;
+                uint8_t *ptr = (uint8_t *)(uintptr_t)pheader->p_vaddr + pheader->p_filesz;
                 LTRACEF("zeroing memory at %p, size %zu\n", ptr, tozero);
                 memset(ptr, 0, tozero);
             }

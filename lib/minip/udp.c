@@ -87,7 +87,7 @@ int udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
 
 status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle)
 {
-    TRACEF("host %u.%u.%u.%u sport %u dport %u handle %p\n",
+    LTRACEF("host %u.%u.%u.%u sport %u dport %u handle %p\n",
            IPV4_SPLIT(host), sport, dport, handle);
     udp_socket_t *socket;
     const uint8_t *dst_mac;
@@ -173,6 +173,8 @@ status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle
 status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
 {
     iovec_t iov;
+
+    LTRACEF("buf %p, len %zu, handle %p\n", buf, len, handle);
 
     if (buf == NULL || len == 0) {
         return -EINVAL;

@@ -28,7 +28,7 @@
 
 /* api */
 struct elf_handle;
-typedef ssize_t (*elf_read_hook_t)(struct elf_handle *, void *buf, off_t offset, size_t len);
+typedef ssize_t (*elf_read_hook_t)(struct elf_handle *, void *buf, uint64_t offset, size_t len);
 
 typedef struct elf_handle {
     bool open;

@@ -343,7 +343,7 @@ static void tcp_timer_cancel(tcp_socket_t *s, net_timer_t *timer)
 void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
 {
     if (unlikely(tcp_debug))
-        TRACEF("p %p (len %zu), src_ip 0x%x, dst_ip 0x%x\n", p, p->dlen, src_ip, dst_ip);
+        TRACEF("p %p (len %u), src_ip 0x%x, dst_ip 0x%x\n", p, p->dlen, src_ip, dst_ip);
 
     tcp_header_t *header = (tcp_header_t *)p->data;
 
@@ -504,7 +504,7 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
             }
 
             if (data_len > 0) {
-                LTRACEF("new data, len %u\n", data_len);
+                LTRACEF("new data, len %zu\n", data_len);
                 handle_data(s, p->data, p->dlen, header->seq_num);
             }
 
@@ -665,7 +665,7 @@ static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, t
     // calculate the new right edge of the rx window
     uint32_t rx_win_high = s->rx_win_low + s->rx_win_size - cbuf_space_used(&s->rx_buffer) - 1;
 
-    LTRACEF("rx_win_low %u rx_win_size %u read_buf_len %d, new win high %u\n",
+    LTRACEF("rx_win_low %u rx_win_size %u read_buf_len %zu, new win high %u\n",
         s->rx_win_low, s->rx_win_size, cbuf_space_used(&s->rx_buffer), rx_win_high);
 
     uint16_t win_size;
@@ -760,7 +760,7 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size)
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
-    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %zu offset %zu\n",
+    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %u offset %u\n",
             s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, s->tx_buffer_size, s->tx_buffer_offset);
     if (SEQUENCE_LTE(sequence, s->tx_win_low)) {
         /* they're acking stuff we've already received an ack for */
@@ -799,7 +799,7 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size)
 
 static ssize_t tcp_write_pending_data(tcp_socket_t *s)
 {
-    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %zu offset %zu\n",
+    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %u offset %u\n",
             s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, s->tx_buffer_size, s->tx_buffer_offset);
 
     DEBUG_ASSERT(s);
@@ -1094,7 +1094,7 @@ ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len)
 
     size_t off = 0;
     while (off < len) {
-        LTRACEF("off %u, len %u\n", off, len);
+        LTRACEF("off %zu, len %zu\n", off, len);
 
         /* wait for the tx buffer to open up */
         event_wait(&s->tx_event);

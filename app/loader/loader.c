@@ -62,13 +62,13 @@ typedef struct {
 } download_t;
 
 static download_t* make_download(const char* name)
-{   
+{
     download_t* s = malloc(sizeof(download_t));
     s->start = download_start;
     s->end = s->start;
     s->max = download_start + DOWNLOAD_SLOT_SIZE;
     strncpy(s->name, name, FNAME_SIZE);
- 
+
     download_start = s->max;
     memset(s->start, 0, DOWNLOAD_SLOT_SIZE);
     return s;
@@ -78,7 +78,7 @@ static size_t output_result(const download_t* download)
 {
     size_t len = download->end - download->start;
     unsigned long crc = crc32(0, download->start, len);
-    printf("[%s] done, start at: %p - %d bytes, crc32 = %lu\n",
+    printf("[%s] done, start at: %p - %zu bytes, crc32 = %lu\n",
            download->name, download->start, len, crc);
     return len;
 }
@@ -88,8 +88,8 @@ static int run_elf(void* entry_point)
     void (*elf_start)(void) = (void*)entry_point;
     printf("elf (%p) running ...\n", entry_point);
     thread_sleep(10);
-	  elf_start();
-    printf("elf (%p) finished\n", entry_point); 
+    elf_start();
+    printf("elf (%p) finished\n", entry_point);
     return 0;
 }
 
@@ -111,7 +111,7 @@ static void process_elf_blob(const void* start, size_t len)
 
     printf("elf looks good\n");
     thread_resume(thread_create("elf_runner", &run_elf, (void*)elf.entry,
-                  DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+                                DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     elf_close_handle(&elf);
 }
 
@@ -164,7 +164,7 @@ usage:
     } else if (strcmp(argv[1].str, "elf") == 0) {
         download->type = DOWNLOAD_ELF;
     } else {
-      goto usage;
+        goto usage;
     }
 
     tftp_set_write_client(download->name, &tftp_callback, download);

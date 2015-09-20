@@ -46,7 +46,7 @@ typedef struct pktbuf {
 	u8 *data;
 	u32 blen;
 	u32 dlen;
-	u32 phys_base;
+	paddr_t phys_base;
 	struct list_node list;
 	u32 flags;
 	pktbuf_free_callback cb;
