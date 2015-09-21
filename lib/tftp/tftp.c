@@ -29,6 +29,7 @@
 #include <list.h>
 #include <compiler.h>
 #include <endian.h>
+#include <stdbool.h>
 #include <lib/minip.h>
 #include <platform.h>
 
@@ -72,6 +73,7 @@ typedef struct {
     udp_socket_t* socket;
     uint32_t src_addr;
     uint16_t src_port;
+    uint16_t listen_port;
     uint16_t pkt_count;
 } tftp_job_t;
 
@@ -93,7 +95,7 @@ static void send_error(udp_socket_t* socket, uint16_t code)
     // Packet is [5][error code][error in ascii-string][0].
     status_t st;
     uint16_t ncode = htons(code);
-    uint16_t err[] = {htons(TFTP_OPCODE_ERROR), ncode,
+    uint16_t err[] = { htons(TFTP_OPCODE_ERROR), ncode,
                       0x7245, 0x2072, 0x3030 + ncode, 0 };
     st = udp_send(err, sizeof(err), socket);
     if (st < 0) {
@@ -101,12 +103,15 @@ static void send_error(udp_socket_t* socket, uint16_t code)
     }
 }
 
-static void end_transfer(tftp_job_t* job)
+static void end_transfer(tftp_job_t* job, bool do_callback)
 {
+    udp_listen(job->listen_port, NULL, NULL);
     udp_close(job->socket);
     job->socket = NULL;
     job->src_addr = 0UL;
-    job->callback(NULL, 0UL, job->arg);
+    if (do_callback) {
+        job->callback(NULL, 0UL, job->arg);
+    }
 }
 
 static void udp_wrq_callback(void *data, size_t len,
@@ -133,29 +138,29 @@ static void udp_wrq_callback(void *data, size_t len,
     if ((srcaddr != job->src_addr) || (srcport != job->src_port)) {
         LTRACEF("invalid source\n");
         send_error(job->socket, TFTP_ERROR_UNKNOWN_XFER);
-        end_transfer(job);
+        end_transfer(job, true);
         return;
     }
 
     if (RD_U16(data_c) != htons(TFTP_OPCODE_DATA)) {
         LTRACEF("invalid opcode\n");
         send_error(job->socket, TFTP_ERROR_ILLEGAL_OP);
-        end_transfer(job);
+        end_transfer(job, true);
         return;
     }
 
     send_ack(job->socket, job->pkt_count);
 
     if (job->callback(&data_c[4], len - 4, job->arg) < 0) {
-      // The client wants to abort.
-      send_error(job->socket, TFTP_ERROR_FULL);
-      end_transfer(job);      
+        // The client wants to abort.
+        send_error(job->socket, TFTP_ERROR_FULL);
+        end_transfer(job, true);
     }
     
     // 512 bytes payload plus 4 of fixed header. The last packet.
     // has always less than 512 bytes of payload.
     if (len != 516) {
-        end_transfer(job);
+        end_transfer(job, true);
     }
 }
 
@@ -210,13 +215,13 @@ static void udp_svc_callback(void *data, size_t len,
     }
 
     if (job->socket) {
-      // There is already an ongoing job.
-      // TODO: garbage collect the existing one if too long since the
-      // last packet was processed.
-      LTRACEF("existing job in progress\n");
-      send_error(socket, TFTP_ERROR_EXISTS);
-      udp_close(socket);
-      return;      
+        // There is already an ongoing job.
+        // TODO: garbage collect the existing one if too long since the
+        // last packet was processed.
+        LTRACEF("existing job in progress\n");
+        send_error(socket, TFTP_ERROR_EXISTS);
+        udp_close(socket);
+        return;      
     }
 
     LTRACEF("write op accepted, port %d\n", srcport);
@@ -227,8 +232,9 @@ static void udp_svc_callback(void *data, size_t len,
     job->src_addr = srcaddr;
     job->src_port = srcport;
     job->pkt_count = 0UL;
+    job->listen_port = next_port;
 
-    st = udp_listen(next_port, &udp_wrq_callback, job);
+    st = udp_listen(job->listen_port, &udp_wrq_callback, job);
     if (st < 0) {
         LTRACEF("error listening on port\n");
         return;
@@ -247,8 +253,12 @@ int tftp_set_write_client(const char* file_name, tftp_callback_t cb, void* arg)
 
     list_for_every_entry(&tftp_list, job, tftp_job_t, list) {
         if (strcmp(file_name, job->file_name) == 0) {
-            // TODO: un-registration.
-            return -1;
+            list_delete(&job->list);
+            if (job->socket) {
+                // There is a job in progress. It will be cancelled silently.
+                end_transfer(job, false);
+            }
+            return 0;
         }
     }
 
