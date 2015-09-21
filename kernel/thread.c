@@ -176,6 +176,8 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 			return NULL;
 		}
 		flags |= THREAD_FLAG_FREE_STACK;
+	} else {
+		t->stack = stack;
 	}
 
 	t->stack_size = stack_size;
