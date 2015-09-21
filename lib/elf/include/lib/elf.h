@@ -29,6 +29,7 @@
 /* api */
 struct elf_handle;
 typedef ssize_t (*elf_read_hook_t)(struct elf_handle *, void *buf, uint64_t offset, size_t len);
+typedef status_t (*elf_mem_alloc_t)(struct elf_handle *, void **ptr, size_t len, uint num, uint flags);
 
 typedef struct elf_handle {
     bool open;
@@ -37,6 +38,9 @@ typedef struct elf_handle {
     elf_read_hook_t read_hook;
     void *read_hook_arg;
     bool free_read_hook_arg;
+
+    // memory allocation callback
+    elf_mem_alloc_t mem_alloc_hook;
 
     // loaded info about the elf file
     struct Elf32_Ehdr eheader;    // a copy of the main elf header

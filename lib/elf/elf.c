@@ -108,27 +108,27 @@ void elf_close_handle(elf_handle_t *handle)
 
 static int verify_eheader(const struct Elf32_Ehdr *eheader)
 {
-    if(memcmp(eheader->e_ident, ELF_MAGIC, 4) != 0)
+    if (memcmp(eheader->e_ident, ELF_MAGIC, 4) != 0)
         return ERR_NOT_FOUND;
 
-    if(eheader->e_ident[EI_CLASS] != ELFCLASS32)
+    if (eheader->e_ident[EI_CLASS] != ELFCLASS32)
         return ERR_NOT_FOUND;
 
 #if BYTE_ORDER == LITTLE_ENDIAN
-    if(eheader->e_ident[EI_DATA] != ELFDATA2LSB)
+    if (eheader->e_ident[EI_DATA] != ELFDATA2LSB)
         return ERR_NOT_FOUND;
 #elif BYTE_ORDER == BIG_ENDIAN
-    if(eheader->e_ident[EI_DATA] != ELFDATA2MSB)
+    if (eheader->e_ident[EI_DATA] != ELFDATA2MSB)
         return ERR_NOT_FOUND;
 #endif
 
-    if(eheader->e_ident[EI_VERSION] != EV_CURRENT)
+    if (eheader->e_ident[EI_VERSION] != EV_CURRENT)
         return ERR_NOT_FOUND;
 
-    if(eheader->e_phoff == 0)
+    if (eheader->e_phoff == 0)
         return ERR_NOT_FOUND;
 
-    if(eheader->e_phentsize < sizeof(struct Elf32_Phdr))
+    if (eheader->e_phentsize < sizeof(struct Elf32_Phdr))
         return ERR_NOT_FOUND;
 
 #if ARCH_ARM
@@ -193,6 +193,7 @@ status_t elf_load(elf_handle_t *handle)
     }
 
     LTRACEF("program headers:\n");
+    uint load_count = 0;
     for (uint i = 0; i < handle->eheader.e_phnum; i++) {
         // parse the program headers
         struct Elf32_Phdr *pheader = &handle->pheaders[i];
@@ -202,10 +203,21 @@ status_t elf_load(elf_handle_t *handle)
 
         // we only care about PT_LOAD segments at the moment
         if (pheader->p_type == PT_LOAD) {
+            // if the memory allocation hook exists, call it
+            void *ptr = (void *)(uintptr_t)pheader->p_vaddr;
+
+            if (handle->mem_alloc_hook) {
+                status_t err = handle->mem_alloc_hook(handle, &ptr, pheader->p_memsz, load_count, 0);
+                if (err < 0) {
+                    LTRACEF("mem hook failed, abort\n");
+                    // XXX clean up what we got so far
+                    return err;
+                }
+            }
 
             // read the file portion of the segment into memory at vaddr
-            LTRACEF("reading segment at offset %u to address 0x%x\n", pheader->p_offset, pheader->p_vaddr);
-            readerr = handle->read_hook(handle, (void *)(uintptr_t)pheader->p_vaddr, pheader->p_offset, pheader->p_filesz);
+            LTRACEF("reading segment at offset %u to address %p\n", pheader->p_offset, ptr);
+            readerr = handle->read_hook(handle, ptr, pheader->p_offset, pheader->p_filesz);
             if (readerr < (ssize_t)pheader->p_filesz) {
                 LTRACEF("error %ld reading program header %u\n", readerr, i);
                 return (readerr < 0) ? readerr : ERR_IO;
@@ -214,13 +226,16 @@ status_t elf_load(elf_handle_t *handle)
             // zero out he difference between memsz and filesz
             size_t tozero = pheader->p_memsz - pheader->p_filesz;
             if (tozero > 0) {
-                uint8_t *ptr = (uint8_t *)(uintptr_t)pheader->p_vaddr + pheader->p_filesz;
-                LTRACEF("zeroing memory at %p, size %zu\n", ptr, tozero);
-                memset(ptr, 0, tozero);
+                uint8_t *ptr2 = (uint8_t *)ptr + pheader->p_filesz;
+                LTRACEF("zeroing memory at %p, size %zu\n", ptr2, tozero);
+                memset(ptr2, 0, tozero);
             }
 
             // make sure the i&d cache are coherent, if they exist
-            arch_sync_cache_range(pheader->p_vaddr, pheader->p_memsz);
+            arch_sync_cache_range((addr_t)ptr, pheader->p_memsz);
+
+            // track the number of load segments we have seen to pass the mem alloc hook
+            load_count++;
         }
     }
 
