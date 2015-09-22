@@ -26,6 +26,11 @@
 #include <platform.h>
 #include <platform/debug.h>
 #include <kernel/thread.h>
+#include <stdio.h>
+
+#ifdef ENABLE_PANIC_SHELL
+#include <lib/console.h>
+#endif
 
 /*
  * default implementations of these routines, if the platform code
@@ -34,6 +39,16 @@
 __WEAK void platform_halt(platform_halt_action suggested_action,
                           platform_halt_reason reason)
 {
+#ifdef ENABLE_PANIC_SHELL
+
+    if (reason == HALT_REASON_SW_PANIC) {
+        dprintf(ALWAYS, "CRASH: starting debug shell... (reason = %d)\n", reason);
+        arch_disable_ints();
+        panic_shell_start();
+    }
+
+#endif  // ENABLE_PANIC_SHELL
+
     dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
     arch_disable_ints();
     for(;;);
@@ -63,4 +78,3 @@ STATIC_COMMAND("poweroff", "powerdown", &cmd_poweroff)
 STATIC_COMMAND_END(platform_power);
 
 #endif
-

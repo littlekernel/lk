@@ -28,6 +28,7 @@
 #include <arch/ops.h>
 #include <lib/console.h>
 #include <platform.h>
+#include <debug.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -239,4 +240,3 @@ usage:
 STATIC_COMMAND_START
 STATIC_COMMAND("mem_test", "test memory", &mem_test)
 STATIC_COMMAND_END(mem_tests);
-

@@ -197,6 +197,15 @@ int uart_getc(int port, bool wait)
     return c;
 }
 
+int stm32_uart_getc_poll(int port)
+{
+  if ((__HAL_UART_GET_IT(&handle, UART_IT_RXNE) != RESET) && (__HAL_UART_GET_IT_SOURCE(&handle, UART_IT_RXNE) != RESET)) {
+      uint8_t c = (uint8_t)(handle.Instance->RDR & 0xff);
+      return c;
+  }
+  return -1;
+}
+
 void uart_flush_tx(int port) {}
 
 void uart_flush_rx(int port) {}

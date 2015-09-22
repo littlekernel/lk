@@ -38,11 +38,16 @@ typedef struct {
 
 typedef int (*console_cmd)(int argc, const cmd_args *argv);
 
+#define CMD_AVAIL_NORMAL (0x1 << 0)
+#define CMD_AVAIL_PANIC  (0x1 << 1)
+#define CMD_AVAIL_ALWAYS (CMD_AVAIL_NORMAL | CMD_AVAIL_PANIC)
+
 /* a block of commands to register */
 typedef struct {
 	const char *cmd_str;
 	const char *help_str;
 	const console_cmd cmd_callback;
+	uint8_t availability_mask;
 } cmd;
 
 typedef struct _cmd_block {
@@ -69,7 +74,8 @@ typedef struct _cmd_block {
 #define STATIC_COMMAND_END_NAMED(name) }; const cmd_block _cmd_block_##name __SECTION(".commands")= { NULL, sizeof(_cmd_list_##name) / sizeof(_cmd_list_##name[0]), _cmd_list_##name }
 #endif
 
-#define STATIC_COMMAND(command_str, help_str, func) { command_str, help_str, func },
+#define STATIC_COMMAND(command_str, help_str, func) { command_str, help_str, func, CMD_AVAIL_NORMAL },
+#define STATIC_COMMAND_MASKED(command_str, help_str, func, availability_mask) { command_str, help_str, func, availability_mask },
 
 #else
 
@@ -94,7 +100,9 @@ int console_run_script_locked(const char *string); // special case from inside a
 console_cmd console_get_command_handler(const char *command);
 void console_abort_script(void);
 
+/* panic shell api */
+void panic_shell_start(void);
+
 extern int lastresult;
 
 #endif
-

@@ -41,11 +41,15 @@
 
 #define LINE_LEN 128
 
+#define PANIC_LINE_LEN 32
+
 #define MAX_NUM_ARGS 16
 
 #define HISTORY_LEN 16
 
 #define LOCAL_TRACE 0
+
+#define WHITESPACE " \t"
 
 /* debug buffer */
 static char *debug_buffer;
@@ -81,6 +85,7 @@ extern cmd_block __commands_start;
 extern cmd_block __commands_end;
 
 static int cmd_help(int argc, const cmd_args *argv);
+static int cmd_help_panic(int argc, const cmd_args *argv);
 static int cmd_echo(int argc, const cmd_args *argv);
 static int cmd_test(int argc, const cmd_args *argv);
 #if CONSOLE_ENABLE_HISTORY
@@ -89,6 +94,7 @@ static int cmd_history(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("help", "this list", &cmd_help)
+STATIC_COMMAND_MASKED("help", "this list", &cmd_help_panic, CMD_AVAIL_PANIC)
 STATIC_COMMAND("echo", NULL, &cmd_echo)
 #if LK_DEBUGLEVEL > 1
 STATIC_COMMAND("test", "test the command processor", &cmd_test)
@@ -211,7 +217,7 @@ static const char *prev_history(uint *cursor)
 }
 #endif
 
-static const cmd *match_command(const char *command)
+static const cmd *match_command(const char *command, const uint8_t availability_mask)
 {
 	cmd_block *block;
 	size_t i;
@@ -219,6 +225,9 @@ static const cmd *match_command(const char *command)
 	for (block = command_list; block != NULL; block = block->next) {
 		const cmd *curr_cmd = block->list;
 		for (i = 0; i < block->count; i++) {
+			if ((availability_mask & curr_cmd[i].availability_mask) == 0) {
+				continue;
+			}
 			if (strcmp(command, curr_cmd[i].cmd_str) == 0) {
 				return &curr_cmd[i];
 			}
@@ -603,7 +612,7 @@ static status_t command_loop(int (*get_line)(const char **, void *), void *get_l
 		convert_args(argc, args);
 
 		/* try to match the command */
-		const cmd *command = match_command(args[0].str);
+		const cmd *command = match_command(args[0].str, CMD_AVAIL_NORMAL);
 		if (!command) {
 			if (showprompt)
 				printf("command not found\n");
@@ -738,7 +747,7 @@ int console_run_script_locked(const char *string)
 
 console_cmd console_get_command_handler(const char *commandstr)
 {
-	const cmd *command = match_command(commandstr);
+	const cmd *command = match_command(commandstr, CMD_AVAIL_NORMAL);
 
 	if (command)
 		return command->cmd_callback;
@@ -755,9 +764,9 @@ void console_register_commands(cmd_block *block)
 	command_list = block;
 }
 
-static int cmd_help(int argc, const cmd_args *argv)
-{
 
+static int cmd_help_impl(uint8_t availability_mask)
+{
 	printf("command list:\n");
 
 	cmd_block *block;
@@ -766,6 +775,10 @@ static int cmd_help(int argc, const cmd_args *argv)
 	for (block = command_list; block != NULL; block = block->next) {
 		const cmd *curr_cmd = block->list;
 		for (i = 0; i < block->count; i++) {
+			if ((availability_mask & curr_cmd[i].availability_mask) == 0) {
+				// Skip commands that aren't available in the current shell.
+				continue;
+			}
 			if (curr_cmd[i].help_str)
 				printf("\t%-16s: %s\n", curr_cmd[i].cmd_str, curr_cmd[i].help_str);
 		}
@@ -774,11 +787,99 @@ static int cmd_help(int argc, const cmd_args *argv)
 	return 0;
 }
 
+static int cmd_help(int argc, const cmd_args *argv)
+{
+	return cmd_help_impl(CMD_AVAIL_NORMAL);
+}
+
+static int cmd_help_panic(int argc, const cmd_args *argv)
+{
+	return cmd_help_impl(CMD_AVAIL_PANIC);
+}
+
 static int cmd_echo(int argc, const cmd_args *argv)
 {
 	if (argc > 1)
 		echo = argv[1].b;
 	return NO_ERROR;
+}
+
+static void read_line_panic(char* buffer, const size_t len, FILE* panic_fd) {
+	size_t pos = 0;
+
+	for (;;) {
+		int c;
+		if ((c = getc(panic_fd)) < 0) {
+			continue;
+		}
+
+		switch(c) {
+			case '\r':
+			case '\n':
+				fputc('\n', panic_fd);
+				goto done;
+			case 0x7f: // backspace or delete
+			case 0x8:
+				if (pos > 0) {
+					pos--;
+					fputc('\b', stdout);
+					fputc(' ', panic_fd);
+					fputc('\b', stdout); // move to the left one
+				}
+				break;
+			default:
+				buffer[pos++] = c;
+				fputc(c, panic_fd);
+		}
+		if (pos == (len - 1)) {
+			fputs("\nerror: line too long\n", panic_fd);
+			pos = 0;
+			goto done;
+		}
+	}
+done:
+	buffer[pos] = 0;
+}
+
+void panic_shell_start(void)
+{
+	dprintf(INFO, "entering panic shell loop\n");
+	char input_buffer[PANIC_LINE_LEN];
+	cmd_args args[MAX_NUM_ARGS];
+
+	// panic_fd allows us to do I/O using the polling drivers.
+	// These drivers function even if interrupts are disabled.
+	FILE _panic_fd = get_panic_fd();
+	FILE *panic_fd = &_panic_fd;
+
+	for(;;) {
+		fputs("! ", panic_fd);
+		read_line_panic(input_buffer, PANIC_LINE_LEN, panic_fd);
+
+		int argc;
+		char* tok = strtok(input_buffer, WHITESPACE);
+		for (argc = 0; argc < MAX_NUM_ARGS; argc++) {
+			if (tok == NULL) {
+				break;
+			}
+			args[argc].str = tok;
+			tok = strtok(NULL, WHITESPACE);
+		}
+
+		if (argc == 0) {
+			continue;
+		}
+
+		convert_args(argc, args);
+
+		const cmd* command = match_command(args[0].str, CMD_AVAIL_PANIC);
+		if (!command) {
+			fputs("command not found\n", panic_fd);
+			continue;
+		}
+
+		command->cmd_callback(argc, args);
+	}
 }
 
 #if LK_DEBUGLEVEL > 1
@@ -793,4 +894,3 @@ static int cmd_test(int argc, const cmd_args *argv)
 	return 0;
 }
 #endif
-

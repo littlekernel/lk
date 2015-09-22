@@ -24,7 +24,6 @@
 #define __STDIO_H
 
 #include <compiler.h>
-#include <debug.h>
 #include <printf.h>
 #include <sys/types.h>
 

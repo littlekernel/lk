@@ -30,6 +30,7 @@
 #include <dev/uart.h>
 #include <target/debugconfig.h>
 #include <arch/arm/cm.h>
+#include <platform/stm32.h>
 
 void stm32_debug_early_init(void)
 {
@@ -58,3 +59,11 @@ int platform_dgetc(char *c, bool wait)
 	return 0;
 }
 
+int platform_pgetc(char *c, bool wait)
+{
+	int ret = stm32_uart_getc_poll(DEBUG_UART);
+	if (ret == -1)
+		return -1;
+	*c = ret;
+	return 0;
+}

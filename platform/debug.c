@@ -21,4 +21,15 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <compiler.h>
+#include <debug.h>
 
+__WEAK void platform_pputc(char c)
+{
+	return platform_dputc(c);
+}
+
+__WEAK int platform_pgetc(char *c, bool wait)
+{
+	return platform_pgetc(c, wait);
+}
