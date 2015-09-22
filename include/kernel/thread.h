@@ -51,6 +51,9 @@ enum thread_tls_list {
 #ifdef WITH_LIB_UTHREAD
 	TLS_ENTRY_UTHREAD,
 #endif
+#ifdef WITH_LIB_LKUSER
+	TLS_ENTRY_LKUSER,
+#endif
 	MAX_TLS_ENTRY
 };
 
