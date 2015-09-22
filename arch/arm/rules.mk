@@ -208,6 +208,13 @@ ifneq ($(ARM_WITHOUT_VFP_NEON),true)
 GLOBAL_DEFINES += \
 	ARM_WITH_VFP=1 \
 	ARM_WITH_NEON=1
+
+# Enable optional instructions unless platform already disabled them
+USE_ARM_V7_NEON ?= true
+USE_ARM_V8_AES ?= true
+USE_ARM_V8_PMULL ?= true
+USE_ARM_V8_SHA1 ?= true
+USE_ARM_V8_SHA2 ?= true
 endif
 HANDLED_CORE := true
 endif

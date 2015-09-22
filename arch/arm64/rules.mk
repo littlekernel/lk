@@ -46,6 +46,15 @@ GLOBAL_DEFINES += \
     SMP_MAX_CPUS=1
 endif
 
+ifeq (false,$(call TOBOOL,$(ARM_WITHOUT_VFP_NEON)))
+# Enable optional instructions unless platform already disabled them
+USE_ARM_V7_NEON ?= true
+USE_ARM_V8_AES ?= true
+USE_ARM_V8_PMULL ?= true
+USE_ARM_V8_SHA1 ?= true
+USE_ARM_V8_SHA2 ?= true
+endif
+
 ARCH_OPTFLAGS := -O2
 
 # we have a mmu and want the vmm/pmm
