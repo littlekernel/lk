@@ -23,6 +23,7 @@
 #pragma once
 
 #include <compiler.h>
+#include <assert.h>
 #include <list.h>
 #include <sys/types.h>
 #include <dev/virtio/virtio_ring.h>
@@ -71,6 +72,7 @@ struct vring_desc *virtio_alloc_desc_chain(struct virtio_device *dev, uint ring_
 
 static inline struct vring_desc *virtio_desc_index_to_desc(struct virtio_device *dev, uint ring_index, uint16_t desc_index)
 {
+    DEBUG_ASSERT(desc_index != 0xffff);
     return &dev->ring[ring_index].desc[desc_index];
 }
 

@@ -140,7 +140,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features)
     // XXX check features bits and ack/nak them
 
     /* allocate a virtio ring */
-    virtio_alloc_ring(dev, 0, 16);
+    virtio_alloc_ring(dev, 0, 256);
 
     /* set our irq handler */
     dev->irq_driver_callback = &virtio_block_irq_driver_callback;
@@ -208,6 +208,7 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
     uint16_t i;
     struct vring_desc *desc;
     paddr_t pa;
+    vaddr_t va = (vaddr_t)buf;
 
     LTRACEF("dev %p, buf %p, offset 0x%llx, len %zu\n", dev, buf, offset, len);
 
@@ -235,15 +236,57 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
     /* set up the descriptor pointing to the buffer */
     desc = virtio_desc_index_to_desc(dev, 0, desc->next);
 #if WITH_KERNEL_VM
-    // XXX handle bufs that cross page boundaries
-    arch_mmu_query((vaddr_t)buf, &pa, NULL);
+    /* translate the first buffer */
+    arch_mmu_query(va, &pa, NULL);
     desc->addr = (uint64_t)pa;
+    /* desc->len is filled in below */
 #else
     desc->addr = (uint64_t)(uintptr_t)buf;
-#endif
     desc->len = len;
+#endif
     desc->flags |= write ? 0 : VRING_DESC_F_WRITE; /* mark buffer as write-only if its a block read */
     desc->flags |= VRING_DESC_F_NEXT;
+
+#if WITH_KERNEL_VM
+    /* see if we need to add more descriptors due to scatter gather */
+    paddr_t next_pa = PAGE_ALIGN(pa + 1);
+    desc->len = MIN(next_pa - pa, len);
+    LTRACEF("first descriptor va 0x%lx desc->addr 0x%llx desc->len %zu\n", va, desc->addr, desc->len);
+    len -= desc->len;
+    while (len > 0) {
+        /* amount of source buffer handled by this iteration of the loop */
+        size_t len_tohandle = MIN(len, PAGE_SIZE);
+
+        /* translate the next page in the buffer */
+        va = PAGE_ALIGN(va + 1);
+        arch_mmu_query(va, &pa, NULL);
+        LTRACEF("va now 0x%lx, pa 0x%lx, next_pa 0x%lx, remaining len %zu\n", va, pa, next_pa, len);
+
+        /* is the new translated physical address contiguous to the last one? */
+        if (next_pa == pa) {
+            LTRACEF("extending last one by %zu bytes\n", len_tohandle);
+            desc->len += len_tohandle;
+        } else {
+            uint16_t next_i = virtio_alloc_desc(dev, 0);
+            struct vring_desc *next_desc = virtio_desc_index_to_desc(dev, 0, next_i);
+            DEBUG_ASSERT(next_desc);
+
+            LTRACEF("doesn't extend, need new desc, allocated desc %i (%p)\n", next_i, next_desc);
+
+            /* fill this descriptor in and put it after the last one but before the response descriptor */
+            next_desc->addr = (uint64_t)pa;
+            next_desc->len = len_tohandle;
+            next_desc->flags = write ? 0 : VRING_DESC_F_WRITE; /* mark buffer as write-only if its a block read */
+            next_desc->flags |= VRING_DESC_F_NEXT;
+            next_desc->next = desc->next;
+            desc->next = next_i;
+
+            desc = next_desc;
+        }
+        len -= len_tohandle;
+        next_pa += PAGE_SIZE;
+    }
+#endif
 
     /* set up the descriptor pointing to the response */
     desc = virtio_desc_index_to_desc(dev, 0, desc->next);
