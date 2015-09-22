@@ -51,16 +51,16 @@ static int cmd_sleep(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
-	STATIC_COMMAND("dw", "display memory in words", &cmd_display_mem)
-	STATIC_COMMAND("dh", "display memory in halfwords", &cmd_display_mem)
-	STATIC_COMMAND("db", "display memory in bytes", &cmd_display_mem)
-	STATIC_COMMAND("mw", "modify word of memory", &cmd_modify_mem)
-	STATIC_COMMAND("mh", "modify halfword of memory", &cmd_modify_mem)
-	STATIC_COMMAND("mb", "modify byte of memory", &cmd_modify_mem)
-	STATIC_COMMAND("fw", "fill range of memory by word", &cmd_fill_mem)
-	STATIC_COMMAND("fh", "fill range of memory by halfword", &cmd_fill_mem)
-	STATIC_COMMAND("fb", "fill range of memory by byte", &cmd_fill_mem)
-	STATIC_COMMAND("mc", "copy a range of memory", &cmd_copy_mem)
+	STATIC_COMMAND_MASKED("dw", "display memory in words", &cmd_display_mem, CMD_AVAIL_ALWAYS)
+	STATIC_COMMAND_MASKED("dh", "display memory in halfwords", &cmd_display_mem, CMD_AVAIL_ALWAYS)
+	STATIC_COMMAND_MASKED("db", "display memory in bytes", &cmd_display_mem, CMD_AVAIL_ALWAYS)
+	STATIC_COMMAND_MASKED("mw", "modify word of memory", &cmd_modify_mem, CMD_AVAIL_ALWAYS)
+	STATIC_COMMAND_MASKED("mh", "modify halfword of memory", &cmd_modify_mem, CMD_AVAIL_ALWAYS)
+	STATIC_COMMAND_MASKED("mb", "modify byte of memory", &cmd_modify_mem, CMD_AVAIL_ALWAYS)
+	STATIC_COMMAND_MASKED("fw", "fill range of memory by word", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
+	STATIC_COMMAND_MASKED("fh", "fill range of memory by halfword", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
+	STATIC_COMMAND_MASKED("fb", "fill range of memory by byte", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
+	STATIC_COMMAND_MASKED("mc", "copy a range of memory", &cmd_copy_mem, CMD_AVAIL_ALWAYS)
 #endif
 #if LK_DEBUGLEVEL > 1
 	STATIC_COMMAND("mtest", "simple memory test", &cmd_memtest)
