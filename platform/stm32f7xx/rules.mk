@@ -10,7 +10,7 @@ MEMBASE ?= 0x20010000
 MEMSIZE ?= 0x40000
 
 ARCH := arm
-ARM_CPU := cortex-m7
+ARM_CPU := cortex-m7-fpu-sp-d16
 
 ifeq ($(STM32_CHIP),stm32f746)
 GLOBAL_DEFINES += STM32F746xx

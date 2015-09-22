@@ -83,6 +83,11 @@ void arch_early_init(void)
     NVIC_SetPriority(SysTick_IRQn, arm_cm_medium_priority());
     NVIC_SetPriority(DebugMonitor_IRQn, arm_cm_medium_priority());
 
+    /* FPU settings ------------------------------------------------------------*/
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+    SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
+#endif
+
 #if ARM_WITH_CACHE
     arch_enable_cache(UCACHE);
 #endif

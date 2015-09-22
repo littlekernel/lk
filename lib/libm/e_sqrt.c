@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
-#if defined(LK) && ARCH_ARM && ARM_WITH_VFP
+#if defined(LK) && ARCH_ARM && ARM_WITH_VFP && !ARM_WITH_VFP_SP_ONLY
 /* use ARM w/VFP sqrt instruction */
 double
 __ieee754_sqrt(double x)
