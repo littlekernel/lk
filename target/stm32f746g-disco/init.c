@@ -39,6 +39,8 @@
 #include <lib/minip.h>
 #endif
 
+extern uint8_t BSP_LCD_Init(uint32_t fb_address);
+
 const sdram_config_t target_sdram_config = {
     .bus_width = SDRAM_BUS_WIDTH_16,
     .cas_latency = SDRAM_CAS_LATENCY_2,
@@ -57,6 +59,9 @@ void target_early_init(void)
 
     /* now that the uart gpios are configured, enable the debug uart */
     stm32_debug_early_init();
+
+    /* The lcd framebuffer starts at the base of SDRAM */
+    BSP_LCD_Init(SDRAM_BASE);
 }
 
 static uint8_t* gen_mac_address(void) {

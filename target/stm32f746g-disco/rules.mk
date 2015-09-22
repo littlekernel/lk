@@ -25,7 +25,11 @@ GLOBAL_DEFINES += \
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
 MODULE_SRCS += \
-    $(LOCAL_DIR)/init.c
+    $(LOCAL_DIR)/init.c \
+    $(LOCAL_DIR)/lcd.c
+
+MODULE_DEPS += \
+    lib/gfx
 
 include make/module.mk
 
