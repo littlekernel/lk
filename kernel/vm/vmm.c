@@ -632,14 +632,12 @@ status_t vmm_create_aspace(vmm_aspace_t **_aspace, const char *name, uint flags)
 status_t vmm_free_aspace(vmm_aspace_t *aspace)
 {
     /* pop it out of the global aspace list */
-    status_t err = NO_ERROR;
     mutex_acquire(&vmm_lock);
     if (!list_in_list(&aspace->node)) {
-        err = ERR_INVALID_ARGS;
+        mutex_release(&vmm_lock);
+        return ERR_INVALID_ARGS;
     }
     list_delete(&aspace->node);
-    if (err != NO_ERROR)
-        return err;
 
     /* free all of the regions */
     struct list_node region_list = LIST_INITIAL_VALUE(region_list);
