@@ -88,12 +88,7 @@ static const int a15irqmap[] = {
 
 /* interrupts */
 #define ARM_GENERIC_TIMER_VIRTUAL_INT 27
-#if ARCH_ARM
-/* for cortex-a15, the irq seems to be coming in via the secure vector */
-#define ARM_GENERIC_TIMER_PHYSICAL_INT 29
-#else
 #define ARM_GENERIC_TIMER_PHYSICAL_INT 30
-#endif
 #define UART0_INT   (32 + 1)
 #define VIRTIO0_INT (32 + 16)
 
