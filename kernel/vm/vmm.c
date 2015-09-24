@@ -45,6 +45,7 @@ void vmm_init(void)
     strlcpy(_kernel_aspace.name, "kernel", sizeof(_kernel_aspace.name));
     _kernel_aspace.base = KERNEL_ASPACE_BASE,
     _kernel_aspace.size = KERNEL_ASPACE_SIZE,
+    _kernel_aspace.flags = VMM_FLAG_ASPACE_KERNEL;
     list_initialize(&_kernel_aspace.region_list);
 
     list_add_head(&aspace_list, &_kernel_aspace.node);
@@ -597,6 +598,77 @@ status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr)
     return NO_ERROR;
 }
 
+status_t vmm_create_aspace(vmm_aspace_t **_aspace, const char *name, uint flags)
+{
+    vmm_aspace_t *aspace = malloc(sizeof(vmm_aspace_t));
+    if (!aspace)
+        return ERR_NO_MEMORY;
+
+    if (name)
+        strlcpy(aspace->name, name, sizeof(aspace->name));
+    else
+        strlcpy(aspace->name, "unnamed", sizeof(aspace->name));
+
+    if (flags & VMM_FLAG_ASPACE_KERNEL) {
+        aspace->base = KERNEL_ASPACE_BASE;
+        aspace->size = KERNEL_ASPACE_SIZE;
+    } else {
+        aspace->base = USER_ASPACE_BASE;
+        aspace->size = USER_ASPACE_SIZE;
+    }
+
+    list_clear_node(&aspace->node);
+    list_initialize(&aspace->region_list);
+
+    mutex_acquire(&vmm_lock);
+    list_add_head(&aspace_list, &aspace->node);
+    mutex_release(&vmm_lock);
+
+    *_aspace = aspace;
+
+    return NO_ERROR;
+}
+
+status_t vmm_free_aspace(vmm_aspace_t *aspace)
+{
+    /* pop it out of the global aspace list */
+    status_t err = NO_ERROR;
+    mutex_acquire(&vmm_lock);
+    if (!list_in_list(&aspace->node)) {
+        err = ERR_INVALID_ARGS;
+    }
+    list_delete(&aspace->node);
+    if (err != NO_ERROR)
+        return err;
+
+    /* free all of the regions */
+    struct list_node region_list = LIST_INITIAL_VALUE(region_list);
+
+    vmm_region_t *r;
+    while ((r = list_remove_head_type(&aspace->region_list, vmm_region_t, node))) {
+        /* add it to our tempoary list */
+        list_add_tail(&region_list, &r->node);
+
+        /* unmap it */
+        arch_mmu_unmap(r->base, r->size / PAGE_SIZE);
+    }
+    mutex_release(&vmm_lock);
+
+    /* without the vmm lock held, free all of the pmm pages and the structure */
+    while ((r = list_remove_head_type(&region_list, vmm_region_t, node))) {
+        /* return physical pages if any */
+        pmm_free(&r->page_list);
+
+        /* free it */
+        free(r);
+    }
+
+    /* free the aspace */
+    free(aspace);
+
+    return NO_ERROR;
+}
+
 static void dump_region(const vmm_region_t *r)
 {
     printf("\tregion %p: name '%s' range 0x%lx - 0x%lx size 0x%zx flags 0x%x mmu_flags 0x%x\n",
@@ -626,6 +698,7 @@ usage:
         printf("%s alloc <size> <align_pow2>\n", argv[0].str);
         printf("%s alloc_physical <paddr> <size> <align_pow2>\n", argv[0].str);
         printf("%s alloc_contig <size> <align_pow2>\n", argv[0].str);
+        printf("%s create_aspace\n", argv[0].str);
         return ERR_GENERIC;
     }
 
@@ -652,6 +725,10 @@ usage:
         void *ptr = (void *)0x99;
         status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "contig test", argv[2].u, &ptr, argv[3].u, 0, 0);
         printf("vmm_alloc_contig returns %d, ptr %p\n", err, ptr);
+    } else if (!strcmp(argv[1].str, "create_aspace")) {
+        vmm_aspace_t *aspace;
+        status_t err = vmm_create_aspace(&aspace, "test", 0);
+        printf("vmm_create_aspace returns %d, aspace %p\n", err, aspace);
     } else {
         printf("unknown command\n");
         goto usage;
