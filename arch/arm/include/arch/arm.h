@@ -61,6 +61,21 @@ static inline uint32_t read_cpsr(void)
 	return cpsr;
 }
 
+#define CPSR_MODE_MASK 0x1f
+#define CPSR_MODE_USR 0x10
+#define CPSR_MODE_FIQ 0x11
+#define CPSR_MODE_IRQ 0x12
+#define CPSR_MODE_SVC 0x13
+#define CPSR_MODE_MON 0x16
+#define CPSR_MODE_ABT 0x17
+#define CPSR_MODE_UND 0x1b
+#define CPSR_MODE_SYS 0x1f
+#define CPSR_THUMB    (1<<5)
+#define CPSR_FIQ_MASK (1<<6)
+#define CPSR_IRQ_MASK (1<<7)
+#define CPSR_ABORT    (1<<8)
+#define CPSR_ENDIAN   (1<<9)
+
 struct arm_iframe {
 #if ARM_WITH_VFP
 	uint32_t fpexc;
@@ -88,16 +103,6 @@ struct arm_fault_frame {
 	uint32_t pc;
 	uint32_t spsr;
 };
-
-#define MODE_MASK 0x1f
-#define MODE_USR 0x10
-#define MODE_FIQ 0x11
-#define MODE_IRQ 0x12
-#define MODE_SVC 0x13
-#define MODE_MON 0x16
-#define MODE_ABT 0x17
-#define MODE_UND 0x1b
-#define MODE_SYS 0x1f
 
 struct arm_mode_regs {
 	uint32_t usr_r13, usr_r14;

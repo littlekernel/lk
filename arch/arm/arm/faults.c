@@ -39,29 +39,29 @@ static void dump_mode_regs(uint32_t spsr)
 	struct arm_mode_regs regs;
 	arm_save_mode_regs(&regs);
 
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_USR) ? '*' : ' ', "usr", regs.usr_r13, regs.usr_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_FIQ) ? '*' : ' ', "fiq", regs.fiq_r13, regs.fiq_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_IRQ) ? '*' : ' ', "irq", regs.irq_r13, regs.irq_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_SVC) ? '*' : ' ', "svc", regs.svc_r13, regs.svc_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_UND) ? '*' : ' ', "und", regs.und_r13, regs.und_r14);
-	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & MODE_MASK) == MODE_SYS) ? '*' : ' ', "sys", regs.sys_r13, regs.sys_r14);
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_USR) ? '*' : ' ', "usr", regs.usr_r13, regs.usr_r14);
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_FIQ) ? '*' : ' ', "fiq", regs.fiq_r13, regs.fiq_r14);
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_IRQ) ? '*' : ' ', "irq", regs.irq_r13, regs.irq_r14);
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_SVC) ? '*' : ' ', "svc", regs.svc_r13, regs.svc_r14);
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_UND) ? '*' : ' ', "und", regs.und_r13, regs.und_r14);
+	dprintf(CRITICAL, "%c%s r13 0x%08x r14 0x%08x\n", ((spsr & CPSR_MODE_MASK) == CPSR_MODE_SYS) ? '*' : ' ', "sys", regs.sys_r13, regs.sys_r14);
 
 	// dump the bottom of the current stack
 	addr_t stack;
-	switch (spsr & MODE_MASK) {
-		case MODE_FIQ:
+	switch (spsr & CPSR_MODE_MASK) {
+		case CPSR_MODE_FIQ:
 			stack = regs.fiq_r13;
 			break;
-		case MODE_IRQ:
+		case CPSR_MODE_IRQ:
 			stack = regs.irq_r13;
 			break;
-		case MODE_SVC:
+		case CPSR_MODE_SVC:
 			stack = regs.svc_r13;
 			break;
-		case MODE_UND:
+		case CPSR_MODE_UND:
 			stack = regs.und_r13;
 			break;
-		case MODE_SYS:
+		case CPSR_MODE_SYS:
 			stack = regs.sys_r13;
 			break;
 		default:
@@ -117,7 +117,7 @@ static void exception_die_iframe(struct arm_iframe *frame, const char *msg)
 	for (;;);
 }
 
-void arm_syscall_handler(struct arm_fault_frame *frame)
+__WEAK void arm_syscall_handler(struct arm_fault_frame *frame)
 {
 	exception_die(frame, "unhandled syscall, halting\n");
 }

@@ -414,4 +414,33 @@ static void spinlock_test_secondary(void)
 	spin_unlock_irqrestore(&lock, state);
 }
 
+/* switch to user mode, set the user stack pointer to user_stack_top, put the svc stack pointer to the top of the kernel stack */
+void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top)
+{
+	DEBUG_ASSERT(IS_ALIGNED(user_stack_top, 8));
+
+	thread_t *ct = get_current_thread();
+
+	vaddr_t kernel_stack_top = (uintptr_t)ct->stack + ct->stack_size;
+	kernel_stack_top = ROUNDDOWN(kernel_stack_top, 8);
+
+	uint32_t spsr = CPSR_MODE_USR;
+	spsr |= (entry_point & 1) ? CPSR_THUMB : 0;
+
+	arch_disable_ints();
+
+	asm volatile(
+		"ldmia  %[ustack], { sp }^;"
+		"msr	spsr, %[spsr];"
+		"mov	sp, %[kstack];"
+		"movs	pc, %[entry];"
+			:
+			: [ustack]"r"(&user_stack_top),
+			  [kstack]"r"(kernel_stack_top),
+			  [entry]"r"(entry_point),
+			  [spsr]"r"(spsr)
+			: "memory");
+	__UNREACHABLE;
+}
+
 /* vim: set ts=4 sw=4 noexpandtab: */
