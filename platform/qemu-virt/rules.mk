@@ -22,7 +22,7 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/uart.c
 
 MEMBASE := 0x40000000
-MEMSIZE := 0x08000000   # 512MB
+MEMSIZE ?= 0x08000000   # 512MB
 
 MODULE_DEPS += \
     lib/cbuf \

@@ -42,7 +42,7 @@
 #include <lib/minip.h>
 #endif
 
-#define MEMORY_SIZE (512*1024*1024) // XXX get this from the emulator somehow
+#define MEMORY_SIZE (MEMSIZE) // XXX get this from the emulator somehow
 
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
