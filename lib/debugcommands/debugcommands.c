@@ -75,7 +75,7 @@ static int cmd_display_mem(int argc, const cmd_args *argv)
 
 	if (argc < 3 && len == 0) {
 		printf("not enough arguments\n");
-		printf("%s [address] [length]\n", argv[0].str);
+		printf("%s [-l] [-b] [address] [length]\n", argv[0].str);
 		return -1;
 	}
 
@@ -88,11 +88,22 @@ static int cmd_display_mem(int argc, const cmd_args *argv)
 		size = 1;
 	}
 
-	if (argc >= 2) {
-		address = argv[1].u;
-	}
-	if (argc >= 3) {
-		len = argv[2].u;
+	uint byte_order = BYTE_ORDER;
+	int argindex = 1;
+	bool read_address = false;
+	while (argc > argindex) {
+		if (!strcmp(argv[argindex].str, "-l")) {
+			byte_order = LITTLE_ENDIAN;
+		} else if (!strcmp(argv[argindex].str, "-b")) {
+			byte_order = BIG_ENDIAN;
+		} else if (!read_address) {
+			address = argv[argindex].u;
+			read_address = true;
+		} else {
+			len = argv[argindex].u;
+		}
+
+		argindex++;
 	}
 
 	unsigned long stop = address + len;
@@ -115,12 +126,20 @@ static int cmd_display_mem(int argc, const cmd_args *argv)
 		if (count == 0)
 			printf("0x%08lx: ", address);
 		switch (size) {
-			case 4:
-				printf("%08x ", *(uint32_t *)address);
+			case 4: {
+				uint32_t val = (byte_order != BYTE_ORDER) ?
+					SWAP_32(*(uint32_t *)address) :
+					*(uint32_t *)address;
+				printf("%08x ", val);
 				break;
-			case 2:
-				printf("%04hx ", *(uint16_t *)address);
+			}
+			case 2: {
+				uint16_t val = (byte_order != BYTE_ORDER) ?
+					SWAP_16(*(uint16_t *)address) :
+					*(uint16_t *)address;
+				printf("%04hx ", val);
 				break;
+			}
 			case 1:
 				printf("%02hhx ", *(uint8_t *)address);
 				break;
