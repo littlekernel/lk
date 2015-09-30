@@ -653,7 +653,7 @@ typedef struct
   *            @arg UART_CLEAR_CMF: Character Match Clear Flag
   * @retval None
   */
-#define __HAL_UART_CLEAR_IT(__HANDLE__, __FLAG__) ((__HANDLE__)->Instance->ICR = ~(__FLAG__))
+#define __HAL_UART_CLEAR_IT(__HANDLE__, __FLAG__) ((__HANDLE__)->Instance->ICR = (__FLAG__))
 
 /** @brief  Clear the UART PE pending flag.
   * @param  __HANDLE__: specifies the UART Handle.
