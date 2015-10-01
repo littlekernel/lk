@@ -158,7 +158,9 @@ void stm32_USART1_IRQ(void)
 
         /* we got a character */
         uint8_t c = (uint8_t)(handle.Instance->RDR & 0xff);
-        cbuf_write_char(&uart1_rx_buf, c, false);
+        if (cbuf_write_char(&uart1_rx_buf, c, false) != 1) {
+            printf("WARNING: uart cbuf overrun!\n");
+        }
         resched = true;
 
         /* Clear RXNE interrupt flag */
