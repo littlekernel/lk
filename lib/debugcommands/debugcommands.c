@@ -47,6 +47,7 @@ static int cmd_reset(int argc, const cmd_args *argv);
 static int cmd_memtest(int argc, const cmd_args *argv);
 static int cmd_copy_mem(int argc, const cmd_args *argv);
 static int cmd_chain(int argc, const cmd_args *argv);
+static int cmd_sleep(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
@@ -65,6 +66,8 @@ STATIC_COMMAND_START
 	STATIC_COMMAND("mtest", "simple memory test", &cmd_memtest)
 #endif
 	STATIC_COMMAND("chain", "chain load another binary", &cmd_chain)
+	STATIC_COMMAND("sleep", "sleep number of seconds", &cmd_sleep)
+	STATIC_COMMAND("sleepm", "sleep number of milliseconds", &cmd_sleep)
 STATIC_COMMAND_END(mem);
 
 static int cmd_display_mem(int argc, const cmd_args *argv)
@@ -304,6 +307,21 @@ static int cmd_chain(int argc, const cmd_args *argv)
     arch_chain_load((void *)argv[1].u, 0, 0, 0, 0);
 
     return 0;
+}
+
+static int cmd_sleep(int argc, const cmd_args *argv)
+{
+	lk_time_t t = 1000; /* default to 1 second */
+
+	if (argc >= 2) {
+		t = argv[1].u;
+		if (!strcmp(argv[0].str, "sleep"))
+			t *= 1000;
+	}
+
+	thread_sleep(t);
+
+	return 0;
 }
 
 
