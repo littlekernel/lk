@@ -265,11 +265,7 @@ static void update_pdp_entry(vaddr_t vaddr, map_addr_t pdpt, map_addr_t *m, arch
 	map_addr_t *pdp_table = (map_addr_t *)(pdpt & X86_PG_FRAME);
         pdp_index = ((vaddr >> PDP_SHIFT) & ((1ul << PDPT_ADDR_OFFSET) - 1));
         pdp_table[pdp_index] = (map_addr_t)m;
-        pdp_table[pdp_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
-	if(flags & X86_MMU_PG_U)
-		pdp_table[pdp_index] |= X86_MMU_PG_U;
-	else
-		pdp_table[pdp_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
+        pdp_table[pdp_index] |= X86_MMU_PG_P;
 }
 #endif
 
