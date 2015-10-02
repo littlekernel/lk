@@ -76,6 +76,9 @@ struct lk_init_struct {
     const char *name;
 };
 
+#if MODULE_STATIC_LIB
+#define LK_INIT_HOOK_FLAGS(a,b,c,d) _Pragma("GCC error \"init hooks are not fully compatible with static libraries\"")
+#else
 #define LK_INIT_HOOK_FLAGS(_name, _hook, _level, _flags) \
     const struct lk_init_struct _init_struct_##_name __ALIGNED(sizeof(void *)) __SECTION(".lk_init") = { \
         .level = _level, \
@@ -83,6 +86,7 @@ struct lk_init_struct {
         .hook = _hook, \
         .name = #_name, \
     };
+#endif
 
 #define LK_INIT_HOOK(_name, _hook, _level) \
     LK_INIT_HOOK_FLAGS(_name, _hook, _level, LK_INIT_FLAG_PRIMARY_CPU)
