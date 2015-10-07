@@ -174,6 +174,6 @@ static void gfxconsole_init_hook(uint level)
 	gfxconsole_start_on_display();
 }
 
-LK_INIT_HOOK(gfxconsole, &gfxconsole_init_hook, LK_INIT_LEVEL_HEAP);
+LK_INIT_HOOK(gfxconsole, &gfxconsole_init_hook, LK_INIT_LEVEL_PLATFORM);
 
 // vim: set noexpandtab:
