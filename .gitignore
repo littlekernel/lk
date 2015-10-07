@@ -9,3 +9,5 @@ cscope.*
 doit
 t
 tagit
+blk.bin
+*.dSYM
