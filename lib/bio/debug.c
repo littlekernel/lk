@@ -38,6 +38,7 @@
 
 #if LK_DEBUGLEVEL > 0
 static int cmd_bio(int argc, const cmd_args *argv);
+static int bio_test_device(bdev_t* device);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("bio", "block io debug commands", &cmd_bio)
@@ -58,6 +59,7 @@ usage:
         printf("%s erase <device> <offset> <len>\n", argv[0].str);
         printf("%s ioctl <device> <request> <arg>\n", argv[0].str);
         printf("%s remove <device>\n", argv[0].str);
+        printf("%s test <device>\n", argv[0].str);
 #if WITH_LIB_PARTITION
         printf("%s partscan <device> [offset]\n", argv[0].str);
 #endif
@@ -202,6 +204,19 @@ usage:
 
         bio_unregister_device(dev);
         bio_close(dev);
+    } else if (!strcmp(argv[1].str, "test")) {
+        if (argc < 3) goto notenoughargs;
+
+        bdev_t *dev = bio_open(argv[2].str);
+        if (!dev) {
+            printf("error opening block device\n");
+            return -1;
+        }
+
+        int err = bio_test_device(dev);
+        bio_close(dev);
+
+        rc = err;
 #if WITH_LIB_PARTITION
     } else if (!strcmp(argv[1].str, "partscan")) {
         if (argc < 3) goto notenoughargs;
@@ -267,6 +282,87 @@ usage:
 #endif
 
 #endif
+
+// Returns the number of blocks that do not match the reference pattern.
+static bool is_valid_block(bdev_t *device, bnum_t block_num, uint8_t* pattern,
+                           size_t pattern_length)
+{
+    uint8_t *block_contents = malloc(device->block_size);
+    device->read_block(device, block_contents, block_num, 1);
+    for (size_t i = 0; i < device->block_size; i++) {
+        if (block_contents[i] != pattern[i % pattern_length]) {
+            free(block_contents);
+            block_contents = NULL;
+            return false;
+        }
+    }
+
+    free(block_contents);
+    block_contents = NULL;
+
+    return true;
+}
+
+static size_t erase_test(bdev_t *device)
+{
+    printf("erasing flash...\n");
+    uint8_t empty_flash[1] = { 0xff };
+
+    bio_erase(device, 0, device->total_size);
+
+    printf("validating erase...\n");
+    size_t num_invalid_blocks = 0;
+    for (bnum_t bnum = 0; bnum < device->block_count; bnum++) {
+        if (!is_valid_block(device, bnum, empty_flash, sizeof(empty_flash))) {
+            num_invalid_blocks++;
+        }
+    }
+    return num_invalid_blocks;
+}
+
+// returns the number of blocks where the write was not successful.
+static size_t write_test(bdev_t *device)
+{
+    uint8_t *test_buffer = malloc(device->block_size);
+
+    for (bnum_t bnum = 0; bnum < device->block_count; bnum++) {
+        memset(test_buffer, (uint8_t)bnum, device->block_size);
+        bio_write_block(device, test_buffer, bnum, 1);
+    }
+
+    size_t num_errors = 0;
+    uint8_t expected_pattern[1];
+    for (bnum_t bnum = 0; bnum < device->block_count; bnum++) {
+        expected_pattern[0] = (uint8_t)bnum;
+        if (!is_valid_block(device, bnum, expected_pattern, sizeof(expected_pattern))) {
+            num_errors++;
+        }
+    }
+
+    free(test_buffer);
+    test_buffer = NULL;
+
+    return num_errors;
+}
+
+static int bio_test_device(bdev_t* device)
+{
+    size_t num_errors = erase_test(device);
+    printf("discovered %u error(s) while testing erase.\n", num_errors);
+    if (num_errors) {
+        // No point in continuing the tests if we couldn't erase the device.
+        printf("not continuing to test writes.\n");
+        return -1;
+    }
+
+    num_errors = write_test(device);
+    printf("Discovered %u error(s) while testing write.\n", num_errors);
+    if (num_errors) {
+        return -1;
+    }
+
+    return 0;
+}
 
 // vim: set ts=4 sw=4 noexpandtab:
 
