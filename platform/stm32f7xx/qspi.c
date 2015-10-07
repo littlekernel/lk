@@ -20,7 +20,11 @@ static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset, size_t len
 static int spiflash_ioctl(struct bdev* device, int request, void* argp);
 
 static ssize_t qspi_write_page(uint32_t addr, const uint8_t *data);
-static ssize_t qspi_erase_block(uint32_t block_addr);
+
+static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction);
+static ssize_t qspi_bulk_erase(void);
+static ssize_t qspi_erase_sector(uint32_t block_addr);
+static ssize_t qspi_erase_subsector(uint32_t block_addr);
 
 status_t hal_error_to_status(HAL_StatusTypeDef hal_status);
 
@@ -277,8 +281,26 @@ static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset,
     }
 
     ssize_t total_erased = 0;
+
+    // Choose an erase strategy based on the number of bytes being erased.
+    if (len == N25Q128A_FLASH_SIZE) {
+        // Bulk erase the whole flash.
+        return qspi_bulk_erase();
+    }
+
+    // Erase as many sectors as necessary, then switch to subsector erase for
+    // more fine grained erasure.
+    while (((ssize_t)len - total_erased) >= N25Q128A_SECTOR_SIZE) {
+        ssize_t erased = qspi_erase_sector(offset);
+        if (erased < 0) {
+            return erased;
+        }
+        total_erased += erased;
+        offset += erased;
+    }
+
     while (total_erased < (ssize_t)len) {
-        ssize_t erased = qspi_erase_block(offset);
+        ssize_t erased = qspi_erase_subsector(offset);
         if (erased < 0) {
             return erased;
         }
@@ -339,44 +361,6 @@ static ssize_t qspi_write_page(uint32_t addr, const uint8_t *data)
     }
 
     return N25Q128A_PAGE_SIZE;
-}
-
-static ssize_t qspi_erase_block(uint32_t block_addr)
-{
-    QSPI_CommandTypeDef s_command;
-
-    /* Initialize the erase command */
-    s_command.InstructionMode   = QSPI_INSTRUCTION_1_LINE;
-    s_command.Instruction       = SUBSECTOR_ERASE_CMD;
-    s_command.AddressMode       = QSPI_ADDRESS_1_LINE;
-    s_command.AddressSize       = QSPI_ADDRESS_24_BITS;
-    s_command.Address           = block_addr;
-    s_command.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
-    s_command.DataMode          = QSPI_DATA_NONE;
-    s_command.DummyCycles       = 0;
-    s_command.DdrMode           = QSPI_DDR_MODE_DISABLE;
-    s_command.DdrHoldHalfCycle  = QSPI_DDR_HHC_ANALOG_DELAY;
-    s_command.SIOOMode          = QSPI_SIOO_INST_EVERY_CMD;
-
-    /* Enable write operations */
-    status_t qspi_write_enable_result = qspi_write_enable(&qspi_handle);
-    if (qspi_write_enable_result != NO_ERROR) {
-        return qspi_write_enable_result;
-    }
-
-    /* Send the command */
-    if (HAL_QSPI_Command(&qspi_handle, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE) != HAL_OK) {
-        return ERR_GENERIC;
-    }
-
-    /* Configure automatic polling mode to wait for end of erase */
-    status_t auto_polling_mem_ready_result = 
-            qspi_auto_polling_mem_ready(&qspi_handle, N25Q128A_SUBSECTOR_ERASE_MAX_TIME);
-    if (auto_polling_mem_ready_result != NO_ERROR) {
-        return auto_polling_mem_ready_result;
-    }
-
-    return N25Q128A_SUBSECTOR_SIZE;
 }
 
 
@@ -452,4 +436,90 @@ status_t hal_error_to_status(HAL_StatusTypeDef hal_status)
     default:
         return ERR_GENERIC;
     }
+}
+
+static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
+{
+    if (instruction == BULK_ERASE_CMD && block_addr != 0) {
+        // This call was probably not what the user intended since the
+        // block_addr is irrelevant when performing a bulk erase.
+        return ERR_INVALID_ARGS;
+    }
+
+    QSPI_CommandTypeDef erase_cmd;
+    uint32_t timeout;
+
+    ssize_t num_erased_bytes;
+    switch (instruction) {
+        case SUBSECTOR_ERASE_CMD: {
+            num_erased_bytes = N25Q128A_SUBSECTOR_SIZE;
+            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            timeout = N25Q128A_SUBSECTOR_ERASE_MAX_TIME;
+            break;
+        }
+        case SECTOR_ERASE_CMD: {
+            num_erased_bytes = N25Q128A_SECTOR_SIZE;
+            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            timeout = N25Q128A_SECTOR_ERASE_MAX_TIME;
+            break;
+        }
+        case BULK_ERASE_CMD: {
+            num_erased_bytes = N25Q128A_FLASH_SIZE;
+            erase_cmd.AddressMode = QSPI_ADDRESS_NONE;
+            timeout = N25Q128A_BULK_ERASE_MAX_TIME;
+            break;
+        }
+        default: {
+            // Instruction must be a valid erase instruction.
+            return ERR_INVALID_ARGS;
+        }
+    }
+
+    erase_cmd.InstructionMode   = QSPI_INSTRUCTION_1_LINE;
+    erase_cmd.AddressSize       = QSPI_ADDRESS_24_BITS;
+    erase_cmd.Address           = block_addr;
+    erase_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
+    erase_cmd.DataMode          = QSPI_DATA_NONE;
+    erase_cmd.DummyCycles       = 0;
+    erase_cmd.DdrMode           = QSPI_DDR_MODE_DISABLE;
+    erase_cmd.DdrHoldHalfCycle  = QSPI_DDR_HHC_ANALOG_DELAY;
+    erase_cmd.SIOOMode          = QSPI_SIOO_INST_EVERY_CMD;
+
+    erase_cmd.Instruction = instruction;
+
+
+    /* Enable write operations */
+    status_t qspi_write_enable_result = qspi_write_enable(&qspi_handle);
+    if (qspi_write_enable_result != NO_ERROR) {
+        return qspi_write_enable_result;
+    }
+
+    /* Send the command */
+    if (HAL_QSPI_Command(&qspi_handle, &erase_cmd, HAL_QPSI_TIMEOUT_DEFAULT_VALUE) != HAL_OK) {
+        return ERR_GENERIC;
+    }
+
+    /* Configure automatic polling mode to wait for end of erase */
+    status_t auto_polling_mem_ready_result =
+            qspi_auto_polling_mem_ready(&qspi_handle, timeout);
+    if (auto_polling_mem_ready_result != NO_ERROR) {
+        return auto_polling_mem_ready_result;
+    }
+
+    return num_erased_bytes;
+}
+
+static ssize_t qspi_bulk_erase(void)
+{
+    return qspi_erase(0, BULK_ERASE_CMD);
+}
+
+static ssize_t qspi_erase_sector(uint32_t block_addr)
+{
+    return qspi_erase(block_addr, SECTOR_ERASE_CMD);
+}
+
+static ssize_t qspi_erase_subsector(uint32_t block_addr)
+{
+    return qspi_erase(block_addr, SUBSECTOR_ERASE_CMD);
 }
