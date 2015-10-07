@@ -29,6 +29,7 @@ MODULE_DEPS += \
     dev/interrupt/arm_gic \
     dev/timer/arm_generic \
     dev/virtio/block \
+    dev/virtio/gpu \
     dev/virtio/net \
 
 GLOBAL_DEFINES += \

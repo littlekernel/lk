@@ -45,6 +45,9 @@
 #if WITH_DEV_VIRTIO_NET
 #include <dev/virtio/net.h>
 #endif
+#if WITH_DEV_VIRTIO_GPU
+#include <dev/virtio/gpu.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -109,6 +112,13 @@ static enum handler_return virtio_mmio_irq(void *arg)
 
                 ring->last_used = (ring->last_used + 1) & ring->num_mask;
             }
+        }
+    }
+    if (irq_status & 0x2) { /* config change */
+        dev->mmio_config->interrupt_ack = 0x2;
+
+        if (dev->config_change_callback) {
+            ret |= dev->config_change_callback(dev);
         }
     }
 
@@ -203,6 +213,25 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[])
             }
         }
 #endif // WITH_DEV_VIRTIO_NET
+#if WITH_DEV_VIRTIO_GPU
+        if (mmio->device_id == 0x10) { // virtio-gpu
+            LTRACEF("found gpu device\n");
+
+            dev->mmio_config = mmio;
+            dev->config_ptr = (void *)mmio->config;
+
+            status_t err = virtio_gpu_init(dev, mmio->host_features);
+            if (err >= 0) {
+                // good device
+                dev->valid = true;
+
+                if (dev->irq_driver_callback)
+                    unmask_interrupt(dev->irq);
+
+                virtio_gpu_start(dev);
+            }
+        }
+#endif // WITH_DEV_VIRTIO_GPU
 
         if (dev->valid)
             found++;
