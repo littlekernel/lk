@@ -31,6 +31,7 @@
 
 // different graphics formats
 typedef enum {
+	GFX_FORMAT_NONE,
 	GFX_FORMAT_RGB_565,
 	GFX_FORMAT_ARGB_8888,
 	GFX_FORMAT_RGB_x888,

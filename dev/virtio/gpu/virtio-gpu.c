@@ -550,18 +550,21 @@ void virtio_gpu_gfx_flush(uint starty, uint endy)
     event_signal(&the_gdev->flush_event, !arch_ints_disabled());
 }
 
-void display_get_info(struct display_info *info)
+status_t display_get_info(struct display_info *info)
 {
     memset(info, 0, sizeof(*info));
 
-    if (the_gdev) {
-        info->framebuffer = the_gdev->fb;
-        info->format = GFX_FORMAT_RGB_x888;
-        info->width = the_gdev->pmode.r.width;
-        info->height = the_gdev->pmode.r.height;
-        info->stride = info->width;
-        info->flush = virtio_gpu_gfx_flush;
-    }
+    if (!the_gdev)
+        return ERR_NOT_FOUND;
+
+    info->framebuffer = the_gdev->fb;
+    info->format = GFX_FORMAT_RGB_x888;
+    info->width = the_gdev->pmode.r.width;
+    info->height = the_gdev->pmode.r.height;
+    info->stride = info->width;
+    info->flush = virtio_gpu_gfx_flush;
+
+    return NO_ERROR;
 }
 
 

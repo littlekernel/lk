@@ -395,7 +395,7 @@ uint8_t BSP_LCD_Init(uint32_t fb_address)
 }
 
 /* LK display (lib/gfx.h) calls this function */
-void display_get_info(struct display_info *info)
+status_t display_get_info(struct display_info *info)
 {
     info->framebuffer = (void *)ltdc_handle.LayerCfg[active_layer].FBStartAdress;
 
@@ -405,12 +405,14 @@ void display_get_info(struct display_info *info)
         info->format = GFX_FORMAT_RGB_565;
     } else {
         panic("unhandled pixel format\n");
-        info->format = GFX_FORMAT_MAX;
+        return ERR_NOT_FOUND;
     }
 
     info->width = BSP_LCD_GetXSize();
     info->height = BSP_LCD_GetYSize();
     info->stride = BSP_LCD_GetXSize();
     info->flush = NULL;
+
+    return NO_ERROR;
 }
 

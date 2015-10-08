@@ -490,7 +490,8 @@ void gfx_surface_destroy(struct gfx_surface *surface)
 void gfx_draw_pattern(void)
 {
 	struct display_info info;
-	display_get_info(&info);
+	if (display_get_info(&info) < 0)
+		return;
 
 	gfx_surface *surface = gfx_create_surface_from_display(&info);
 
@@ -518,7 +519,8 @@ void gfx_draw_pattern(void)
 void gfx_draw_pattern_white(void)
 {
 	struct display_info info;
-	display_get_info(&info);
+	if (display_get_info(&info) < 0)
+		return;
 
 	gfx_surface *surface = gfx_create_surface_from_display(&info);
 
@@ -586,7 +588,10 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 	}
 
 	struct display_info info;
-	display_get_info(&info);
+	if (display_get_info(&info) < 0) {
+		printf("no display to draw on!\n");
+		return -1;
+	}
 
 	gfx_surface *surface = gfx_create_surface_from_display(&info);
 
