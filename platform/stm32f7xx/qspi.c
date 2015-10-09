@@ -283,7 +283,7 @@ static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset,
     ssize_t total_erased = 0;
 
     // Choose an erase strategy based on the number of bytes being erased.
-    if (len == N25Q128A_FLASH_SIZE) {
+    if (len == N25Q128A_FLASH_SIZE && offset == 0) {
         // Bulk erase the whole flash.
         return qspi_bulk_erase();
     }
