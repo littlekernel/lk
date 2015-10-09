@@ -6,11 +6,15 @@
 #include <lib/bio.h>
 #include <platform/n25q128a.h>
 #include <platform/qspi.h>
+#include <kernel/mutex.h>
 
 static QSPI_HandleTypeDef qspi_handle;
+
 static const char device_name[] = "qspi-flash";
 static bdev_t qspi_flash_device;
 static bio_erase_geometry_info_t geometry;
+
+static mutex_t spiflash_mutex;
 
 // Functions exported to Block I/O handler.
 static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, size_t len);
@@ -19,7 +23,7 @@ static ssize_t spiflash_bdev_write_block(struct bdev* device, const void* buf, b
 static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset, size_t len);
 static int spiflash_ioctl(struct bdev* device, int request, void* argp);
 
-static ssize_t qspi_write_page(uint32_t addr, const uint8_t *data);
+static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data);
 
 static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction);
 static ssize_t qspi_bulk_erase(void);
@@ -28,7 +32,8 @@ static ssize_t qspi_erase_subsector(uint32_t block_addr);
 
 status_t hal_error_to_status(HAL_StatusTypeDef hal_status);
 
-static status_t qspi_write_enable(QSPI_HandleTypeDef* hqspi)
+// Must hold spiflash_mutex before calling.
+static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef* hqspi)
 {
     QSPI_CommandTypeDef s_command;
     QSPI_AutoPollingTypeDef s_config;
@@ -69,7 +74,8 @@ static status_t qspi_write_enable(QSPI_HandleTypeDef* hqspi)
     return NO_ERROR;
 }
 
-static status_t qspi_dummy_cycles_cfg(QSPI_HandleTypeDef* hqspi)
+// Must hold spiflash_mutex before calling.
+static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef* hqspi)
 {
     QSPI_CommandTypeDef s_command;
     uint8_t reg;
@@ -100,7 +106,7 @@ static status_t qspi_dummy_cycles_cfg(QSPI_HandleTypeDef* hqspi)
     }
 
     /* Enable write operations */
-    status = qspi_write_enable(hqspi);
+    status = qspi_write_enable_unsafe(hqspi);
     if (status != NO_ERROR) {
         return status;
     }
@@ -126,7 +132,8 @@ static status_t qspi_dummy_cycles_cfg(QSPI_HandleTypeDef* hqspi)
     return NO_ERROR;
 }
 
-static status_t qspi_auto_polling_mem_ready(QSPI_HandleTypeDef* hqspi,
+// Must hold spiflash_mutex before calling.
+static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi,
         uint32_t Timeout)
 {
     QSPI_CommandTypeDef s_command;
@@ -159,7 +166,8 @@ static status_t qspi_auto_polling_mem_ready(QSPI_HandleTypeDef* hqspi,
     return NO_ERROR;
 }
 
-static status_t qspi_reset_memory(QSPI_HandleTypeDef* hqspi)
+// Must hold spiflash_mutex before calling.
+static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef* hqspi)
 {
     QSPI_CommandTypeDef s_command;
     HAL_StatusTypeDef status;
@@ -189,7 +197,7 @@ static status_t qspi_reset_memory(QSPI_HandleTypeDef* hqspi)
     }
 
     /* Configure automatic polling mode to wait the memory is ready */
-    status = qspi_auto_polling_mem_ready(hqspi, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status = qspi_auto_polling_mem_ready_unsafe(hqspi, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != NO_ERROR) {
         return hal_error_to_status(status);
     }
@@ -222,19 +230,26 @@ static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, 
     s_command.NbData = len;
     s_command.Address = offset;
 
+    size_t retcode = len;
+
+    mutex_acquire(&spiflash_mutex);
     // /* Configure the command */
     status = HAL_QSPI_Command(&qspi_handle, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
-        return hal_error_to_status(status);
+        retcode =  hal_error_to_status(status);
+        goto err;
     }
 
     // /* Reception of the data */
     status = HAL_QSPI_Receive(&qspi_handle, buf, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
-        return hal_error_to_status(status);
+        retcode = hal_error_to_status(status);
+        goto err;
     }
 
-    return len;
+err:
+    mutex_release(&spiflash_mutex);
+    return retcode;
 }
 
 static ssize_t spiflash_bdev_read_block(struct bdev* device, void* buf,
@@ -258,17 +273,22 @@ static ssize_t spiflash_bdev_write_block(struct bdev* device, const void* _buf,
 
     const uint8_t *buf = _buf;
 
+    mutex_acquire(&spiflash_mutex);
+
     ssize_t total_bytes_written = 0;
     for (; count > 0; count--, block++) {
-        ssize_t bytes_written = qspi_write_page(block * N25Q128A_PAGE_SIZE, buf);
+        ssize_t bytes_written = qspi_write_page_unsafe(block * N25Q128A_PAGE_SIZE, buf);
         if (bytes_written < 0) {
-            return bytes_written;
+            total_bytes_written = bytes_written;
+            goto err;
         }
 
         buf += N25Q128A_PAGE_SIZE;
         total_bytes_written += bytes_written;
     }
 
+err:
+    mutex_release(&spiflash_mutex);
     return total_bytes_written;
 }
 
@@ -282,10 +302,13 @@ static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset,
 
     ssize_t total_erased = 0;
 
+    mutex_acquire(&spiflash_mutex);
+
     // Choose an erase strategy based on the number of bytes being erased.
     if (len == N25Q128A_FLASH_SIZE && offset == 0) {
         // Bulk erase the whole flash.
-        return qspi_bulk_erase();
+        total_erased = qspi_bulk_erase();
+        goto finish;
     }
 
     // Erase as many sectors as necessary, then switch to subsector erase for
@@ -293,7 +316,8 @@ static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset,
     while (((ssize_t)len - total_erased) >= N25Q128A_SECTOR_SIZE) {
         ssize_t erased = qspi_erase_sector(offset);
         if (erased < 0) {
-            return erased;
+            total_erased = erased;
+            goto finish;
         }
         total_erased += erased;
         offset += erased;
@@ -302,12 +326,15 @@ static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset,
     while (total_erased < (ssize_t)len) {
         ssize_t erased = qspi_erase_subsector(offset);
         if (erased < 0) {
-            return erased;
+            total_erased = erased;
+            goto finish;
         }
         total_erased += erased;
         offset += erased;
     }
 
+finish:
+    mutex_release(&spiflash_mutex);
     return total_erased;
 }
 
@@ -316,7 +343,7 @@ static int spiflash_ioctl(struct bdev* device, int request, void* argp)
     return ERR_NOT_IMPLEMENTED;
 }
 
-static ssize_t qspi_write_page(uint32_t addr, const uint8_t *data)
+static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 {
     if (!IS_ALIGNED(addr, N25Q128A_PAGE_SIZE)) {
         return ERR_INVALID_ARGS;
@@ -339,7 +366,7 @@ static ssize_t qspi_write_page(uint32_t addr, const uint8_t *data)
         .NbData            = N25Q128A_PAGE_SIZE
     };
 
-    status_t write_enable_result = qspi_write_enable(&qspi_handle);
+    status_t write_enable_result = qspi_write_enable_unsafe(&qspi_handle);
     if (write_enable_result != NO_ERROR) {
         return write_enable_result;
     }
@@ -355,7 +382,7 @@ static ssize_t qspi_write_page(uint32_t addr, const uint8_t *data)
     }
 
     status_t auto_polling_mem_ready_result = 
-            qspi_auto_polling_mem_ready(&qspi_handle, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+            qspi_auto_polling_mem_ready_unsafe(&qspi_handle, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (auto_polling_mem_ready_result != NO_ERROR) {
         return auto_polling_mem_ready_result;
     }
@@ -366,14 +393,22 @@ static ssize_t qspi_write_page(uint32_t addr, const uint8_t *data)
 
 status_t qspi_flash_init(void)
 {
+    status_t result;
+
+    mutex_init(&spiflash_mutex);
+    result = mutex_acquire(&spiflash_mutex);
+    if (result != NO_ERROR) {
+        return result;
+    }
+
     qspi_handle.Instance = QUADSPI;
 
     HAL_StatusTypeDef status;
-    status_t result;
 
     status = HAL_QSPI_DeInit(&qspi_handle);
     if (status != HAL_OK) {
-        return hal_error_to_status(status);
+        result = hal_error_to_status(status);
+        goto err;
     }
 
     // Setup the QSPI Flash device.
@@ -388,17 +423,18 @@ status_t qspi_flash_init(void)
 
     status = HAL_QSPI_Init(&qspi_handle);
     if (status != HAL_OK) {
-        return hal_error_to_status(status);
+        result = hal_error_to_status(status);
+        goto err;
     }
 
-    result = qspi_reset_memory(&qspi_handle);
+    result = qspi_reset_memory_unsafe(&qspi_handle);
     if (result != NO_ERROR) {
-        return result;
+        goto err;
     }
 
-    result = qspi_dummy_cycles_cfg(&qspi_handle);
+    result = qspi_dummy_cycles_cfg_unsafe(&qspi_handle);
     if (result != NO_ERROR) {
-        return result;
+        goto err;
     }
 
     // Initialize the QSPI Flash and register it as a Block I/O device.
@@ -419,6 +455,8 @@ status_t qspi_flash_init(void)
 
     bio_register_device(&qspi_flash_device);
 
+err:
+    mutex_release(&spiflash_mutex);
     return NO_ERROR;
 }
 
@@ -489,7 +527,7 @@ static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
 
 
     /* Enable write operations */
-    status_t qspi_write_enable_result = qspi_write_enable(&qspi_handle);
+    status_t qspi_write_enable_result = qspi_write_enable_unsafe(&qspi_handle);
     if (qspi_write_enable_result != NO_ERROR) {
         return qspi_write_enable_result;
     }
@@ -501,7 +539,7 @@ static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
 
     /* Configure automatic polling mode to wait for end of erase */
     status_t auto_polling_mem_ready_result =
-            qspi_auto_polling_mem_ready(&qspi_handle, timeout);
+            qspi_auto_polling_mem_ready_unsafe(&qspi_handle, timeout);
     if (auto_polling_mem_ready_result != NO_ERROR) {
         return auto_polling_mem_ready_result;
     }
