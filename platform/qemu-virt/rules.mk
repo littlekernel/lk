@@ -23,9 +23,11 @@ MODULE_SRCS += \
 
 MEMBASE := 0x40000000
 MEMSIZE ?= 0x08000000   # 512MB
+KERNEL_LOAD_OFFSET := 0x10000 # 64k
 
 MODULE_DEPS += \
     lib/cbuf \
+    lib/fdt \
     dev/interrupt/arm_gic \
     dev/timer/arm_generic \
     dev/virtio/block \

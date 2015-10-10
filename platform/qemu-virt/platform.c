@@ -36,13 +36,14 @@
 #include <platform/gic.h>
 #include <platform/interrupts.h>
 #include <platform/qemu-virt.h>
+#include <libfdt.h>
 #include "platform_p.h"
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
 
-#define MEMORY_SIZE (MEMSIZE) // XXX get this from the emulator somehow
+#define DEFAULT_MEMORY_SIZE (MEMSIZE) /* try to fetch from the emulator via the fdt */
 
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
@@ -71,7 +72,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 static pmm_arena_t arena = {
     .name = "ram",
     .base = MEMORY_BASE_PHYS,
-    .size = MEMORY_SIZE,
+    .size = DEFAULT_MEMORY_SIZE,
     .flags = PMM_ARENA_FLAG_KMAP,
 };
 
@@ -84,8 +85,53 @@ void platform_early_init(void)
 
     uart_init_early();
 
+    /* look for a flattened device tree just before the kernel */
+    const void *fdt = (void *)KERNEL_BASE;
+    int err = fdt_check_header(fdt);
+    if (err >= 0) {
+        /* walk the nodes, looking for 'memory' */
+        int depth = 0;
+        int offset = 0;
+        for (;;) {
+            offset = fdt_next_node(fdt, offset, &depth);
+            if (offset < 0)
+                break;
+
+            /* get the name */
+            const char *name = fdt_get_name(fdt, offset, NULL);
+            if (!name)
+                continue;
+
+            /* look for the 'memory' property */
+            if (strcmp(name, "memory") == 0) {
+                int lenp;
+                const void *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
+                if (prop_ptr && lenp == 0x10) {
+                    /* we're looking at a memory descriptor */
+                    //uint64_t base = fdt64_to_cpu(*(uint64_t *)prop_ptr);
+                    uint64_t len = fdt64_to_cpu(*((const uint64_t *)prop_ptr + 1));
+
+                    /* trim size on certain platforms */
+#if ARCH_ARM
+                    if (len > 1024*1024*1024U) {
+                        len = 1024*1024*1024; /* only use the first 1GB on ARM32 */
+                        printf("trimming memory to 1GB\n");
+                    }
+#endif
+
+                    /* set the size in the pmm arena */
+                    arena.size = len;
+                }
+            }
+        }
+    }
+
     /* add the main memory arena */
     pmm_add_arena(&arena);
+
+    /* reserve the first 64k of ram, which should be holding the fdt */
+    struct list_node list = LIST_INITIAL_VALUE(list);
+    pmm_alloc_range(MEMBASE, 0x10000 / PAGE_SIZE, &list);
 }
 
 void platform_init(void)
