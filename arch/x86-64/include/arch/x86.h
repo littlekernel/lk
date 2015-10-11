@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
- * Copyright (c) 2014 Intel Corporation
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -29,13 +29,13 @@
 
 __BEGIN_CDECLS
 
-#define PFEX_P			0x01
-#define PFEX_W			0x02
-#define PFEX_U			0x04
-#define PFEX_RSV		0x08
-#define PFEX_I			0x10
-#define X86_8BYTE_MASK		0xFFFFFFFF
-#define X86_CPUID_ADDR_WIDTH	0x80000008
+#define PFEX_P 0x01
+#define PFEX_W 0x02
+#define PFEX_U 0x04
+#define PFEX_RSV 0x08
+#define PFEX_I 0x10
+#define X86_8BYTE_MASK 0xFFFFFFFF
+#define X86_CPUID_ADDR_WIDTH 0x80000008
 
 void arch_mmu_init(void);
 
@@ -51,41 +51,38 @@ struct x86_iframe {
 /*
  * x86 TSS structure
  */
-typedef struct {
-	uint16_t    backlink, __blh;
-	uint32_t    esp0;
-	uint16_t    ss0, __ss0h;
-	uint32_t    esp1;
-	uint16_t    ss1, __ss1h;
-	uint32_t    esp2;
-	uint16_t    ss2, __ss2h;
-	uint32_t    cr3;
-	uint32_t    eip;
-	uint32_t    eflags;
-	uint32_t    eax, ecx, edx, ebx;
-	uint32_t    esp, ebp, esi, edi;
-	uint16_t    es, __esh;
-	uint16_t    cs, __csh;
-	uint16_t    ss, __ssh;
-	uint16_t    ds, __dsh;
-	uint16_t    fs, __fsh;
-	uint16_t    gs, __gsh;
-	uint16_t    ldt, __ldth;
-	uint16_t    trace, bitmap;
-
-	uint8_t tss_bitmap[8192];
+typedef struct __PACKED tss_64{
+	uint32_t rsvd0;
+	uint64_t rsp0;
+	uint64_t rsp1;
+	uint64_t rsp2;
+	uint32_t rsvd1;
+	uint32_t rsvd2;
+	uint64_t ist1;
+	uint64_t ist2;
+	uint64_t ist3;
+	uint64_t ist4;
+	uint64_t ist5;
+	uint64_t ist6;
+	uint64_t ist7;
+	uint32_t rsvd3;
+	uint32_t rsvd4;
+	uint16_t rsvd5;
+	uint16_t iomap_base;
 } __PACKED tss_t;
 
-#define X86_CR0_PE      0x00000001 /* protected mode enable */
-#define X86_CR0_MP      0x00000002 /* monitor coprocessor */
-#define X86_CR0_EM      0x00000004 /* emulation */
-#define X86_CR0_TS      0x00000008 /* task switched */
-#define X86_CR0_WP      0x00010000 /* supervisor write protect */
-#define X86_CR0_NW      0x20000000 /* not write-through */
-#define X86_CR0_CD      0x40000000 /* cache disable */
-#define X86_CR0_PG	0x80000000 /* enable paging */
-#define x86_EFER_NXE	0x00000800 /* to enable execute disable bit */
-#define x86_MSR_EFER	0xc0000080 /* EFER Model Specific Register id */
+#define X86_CR0_PE 0x00000001 /* protected mode enable */
+#define X86_CR0_MP 0x00000002 /* monitor coprocessor */
+#define X86_CR0_EM 0x00000004 /* emulation */
+#define X86_CR0_TS 0x00000008 /* task switched */
+#define X86_CR0_WP 0x00010000 /* supervisor write protect */
+#define X86_CR0_NW 0x20000000 /* not write-through */
+#define X86_CR0_CD 0x40000000 /* cache disable */
+#define X86_CR0_PG 0x80000000 /* enable paging */
+#define X86_CR4_SMEP 0x00100000 /* SMEP protection enabling */
+#define X86_CR4_SMAP 0x00200000 /* SMAP protection enabling */
+#define x86_EFER_NXE 0x00000800 /* to enable execute disable bit */
+#define x86_MSR_EFER 0xc0000080 /* EFER Model Specific Register id */
 
 static inline void set_in_cr0(uint32_t mask)
 {
@@ -121,11 +118,33 @@ static inline uint64_t x86_get_cr2(void)
 	uint64_t rv;
 
 	__asm__ __volatile__ (
-	    "movq %%cr2, %0"
-	    : "=r" (rv)
+		"movq %%cr2, %0"
+		: "=r" (rv)
 	);
 
 	return rv;
+}
+
+static inline uint64_t x86_save_rflags(void)
+{
+	uint64_t state;
+
+	__asm__ volatile(
+		"pushfq;"
+		"popq %0"
+		: "=rm" (state)
+		:: "memory");
+
+	return state;
+}
+
+static inline void x86_restore_rflags(uint64_t rflags)
+{
+	__asm__ volatile(
+		"pushq %0;"
+		"popfq"
+		:: "g" (rflags)
+		: "memory", "cc");
 }
 
 #define rdtsc(low,high) \
@@ -302,6 +321,24 @@ static inline void x86_set_cr3(uint64_t in_val)
 		:"r" (in_val));
 }
 
+static inline uint64_t x86_get_cr4(void)
+{
+	uint64_t rv;
+
+	__asm__ __volatile__ (
+		"movq %%cr4, %0 \n\t"
+		: "=r" (rv));
+	return rv;
+}
+
+static inline void x86_set_cr4(uint64_t in_val)
+{
+	__asm__ __volatile__ (
+		"movq %0,%%cr4 \n\t"
+		:
+		:"r" (in_val));
+}
+
 static inline uint64_t x86_get_cr0(void)
 {
 	uint64_t rv;
@@ -331,6 +368,30 @@ static inline uint32_t x86_get_address_width(void)
 
 	/* Extracting bit 15:8 from eax register */
 	return ((rv >> 8) & 0x0ff);
+}
+
+static inline uint64_t check_smep_avail(void)
+{
+	uint64_t reg_a = 0x07;
+	uint64_t reg_b = 0x0;
+	uint64_t reg_c = 0x0;
+	__asm__ __volatile__ (
+		"cpuid \n\t"
+		:"=b" (reg_b)
+		:"a" (reg_a),"c" (reg_c));
+	return ((reg_b>>0x06) & 0x1);
+}
+
+static inline uint64_t check_smap_avail(void)
+{
+	uint64_t reg_a = 0x07;
+	uint64_t reg_b = 0x0;
+	uint64_t reg_c = 0x0;
+	__asm__ __volatile__ (
+		"cpuid \n\t"
+		:"=b" (reg_b)
+		:"a" (reg_a),"c" (reg_c));
+	return ((reg_b>>0x13) & 0x1);
 }
 
 __END_CDECLS

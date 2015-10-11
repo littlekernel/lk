@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -104,7 +105,7 @@ real_start:
 	/*We jumped here in protected mode in a code segment that migh not longer
 	  be valid , do a long jump to our code segment, we use retf instead of
 	  ljmp to be able to use relative labels */
-	movl $codesel, %ecx     /*Pushing our code segment */
+	movl $codesel_32, %ecx     /*Pushing our code segment */
 	push %ecx
 	movl $farjump, %ecx /*and jump address */
 	push %ecx
@@ -115,15 +116,86 @@ farjump:
 	movl $__bss_start, %edi	/* starting address of the bss */
 	movl $__bss_end, %ecx	/* find the length of the bss in bytes */
 	subl %edi, %ecx
-	shrl $2, %ecx			/* convert to 32 bit words, since the bss is aligned anyway */
+	shrl $2, %ecx		/* convert to 32 bit words, since the bss is aligned anyway */
 2:
 	movl $0, (%edi)
 	addl $4, %edi
 	loop 2b
-	
+
+#ifdef PAE_MODE_ENABLED
+
+	/* Preparing PAE paging, we will use 2MB pages covering 1GB
+	for initial bootstrap, this page table will be 1 to 1 */
+
+	/* Setting the First PDPTE with a PD table reference*/
+	xorl %eax,  %eax
+	movl $pdp,   %eax
+	orl  $0x01, %eax
+	movl %eax, (pdpt)
+
+	movl $pdp, %esi
+	movl $0x1ff, %ecx
+
+fill_pdp:
+	movl $0x1ff, %eax
+	subl %ecx, %eax
+	shll $21,%eax
+	orl  $0x83, %eax
+	movl %eax, (%esi)
+	addl $8,%esi
+	loop fill_pdp
+
+	/* Set PDPT in CR3 */
+	movl $pdpt, %eax
+	mov %eax, %cr3
+
+	/* Enabling PAE*/
+	mov %cr4, %eax
+	btsl $(5), %eax
+	mov %eax, %cr4
+
+	/* Enabling Paging and from this point we are in
+	32 bit compatibility mode */
+	mov %cr0,  %eax
+	btsl $(31), %eax
+	mov %eax,  %cr0
+
+#else
+	/* Set PD in CR3 */
+	movl $pd, %eax
+	mov %eax, %cr3
+
+	movl $pd, %esi
+	movl $0x100, %ecx
+
+fill_pd:
+	xor %eax, %eax
+	mov $0x100, %eax
+	sub %ecx, %eax
+	shll $22,%eax
+	orl  $0x87, %eax
+	movl %eax, (%esi)
+	addl $4,%esi
+	loop fill_pd
+
+	/* Enabling Paging and from this point we are in */
+	xorl %eax, %eax
+	mov %cr4, %eax
+	orl $0x10, %eax
+	mov %eax, %cr4
+	xorl %eax, %eax
+	mov %cr0,  %eax
+	btsl $(31), %eax
+	mov %eax, %cr0
+#endif
+
+	/* Flushing TLB's */
+        mov %cr3,%eax
+        mov %eax,%cr3
+
+main_lk:
 	/* call the main module */
 	call lk_main
-	
 0:							/* just sit around waiting for interrupts */
 	hlt						/* interrupts will unhalt the processor */
 	pause
@@ -173,6 +245,7 @@ interrupt_common:
 	movl %esp, %eax			/* store pointer to iframe, using same method */
 	pushl %eax
 	
+
 	call platform_irq
 	
 	cmpl $0,%eax
@@ -180,6 +253,7 @@ interrupt_common:
 	call thread_preempt
 
 0:
+
 	popl %eax				/* drop pointer to iframe */
 	popl %eax				/* restore task_esp, stack switch can occur here if task_esp is modified */
 	movl %eax, %esp
@@ -198,7 +272,6 @@ interrupt_common:
 _multiboot_info:
 	.int 0
 
-.global _gdtr
 _gdtr:
 	.short _gdt_end - _gdt - 1
 	.int _gdt
@@ -209,69 +282,99 @@ _gdt:
 	.int 0
 
 /* ring 0 descriptors */
-.set codesel, . - _gdt
-_code_gde:
+.set codesel_32, . - _gdt
+_code_32_gde:
 	.short 0xffff			/* limit 15:00 */
 	.short 0x0000			/* base 15:00 */
-	.byte  0x00				/* base 23:16 */
+	.byte  0x00			/* base 23:16 */
 	.byte  0b10011010		/* P(1) DPL(00) S(1) 1 C(0) R(1) A(0) */
 	.byte  0b11001111		/* G(1) D(1) 0 0 limit 19:16 */
-	.byte  0x0				/* base 31:24 */
+	.byte  0x0			/* base 31:24 */
 	
 .set datasel, . - _gdt
 _data_gde:
 	.short 0xffff			/* limit 15:00 */
 	.short 0x0000			/* base 15:00 */
-	.byte  0x00				/* base 23:16 */
+	.byte  0x00			/* base 23:16 */
 	.byte  0b10010010		/* P(1) DPL(00) S(1) 0 E(0) W(1) A(0) */
 	.byte  0b11001111		/* G(1) B(1) 0 0 limit 19:16 */
-	.byte  0x0				/* base 31:24 */
-	
-.set videosel, . - _gdt
-_video_gde:
-	.short 0xffff			/* limit 15:00 */
-	.short 0x8000			/* base 15:00 */
-	.byte  0x0b				/* base 23:16 */
-	.byte  0b10010010		/* P(1) DPL(00) S(1) 0 E(0) W(1) A(0) */
-	.byte  0b11001111		/* G(1) B(1) 0 0 limit 19:16 */
-	.byte  0x0				/* base 31:24 */
-	
-.if 1
-/* ring 3 descriptors */
-.set user_codesel, . - _gdt
-_user_code_gde:
+	.byte  0x0			/* base 31:24 */
+
+.set user_codesel_32, . - _gdt
+_user_code_32_gde:
 	.short 0xffff			/* limit 15:00 */
 	.short 0x0000			/* base 15:00 */
-	.byte  0x00				/* base 23:16 */
+	.byte  0x00			/* base 23:16 */
 	.byte  0b11111010		/* P(1) DPL(11) S(1) 1 C(0) R(1) A(0) */
 	.byte  0b11001111		/* G(1) D(1) 0 0 limit 19:16 */
-	.byte  0x0				/* base 31:24 */
-	
+	.byte  0x0			/* base 31:24 */
+
 .set user_datasel, . - _gdt
-_user_data_gde:
+_user_data_32_gde:
 	.short 0xffff			/* limit 15:00 */
 	.short 0x0000			/* base 15:00 */
-	.byte  0x00				/* base 23:16 */
+	.byte  0x00			/* base 23:16 */
 	.byte  0b11110010		/* P(1) DPL(11) S(1) 0 E(0) W(1) A(0) */
 	.byte  0b11001111		/* G(1) B(1) 0 0 limit 19:16 */
-	.byte  0x0				/* base 31:24 */
-.endif
+	.byte  0x0			/* base 31:24 */
 
+.set codesel_64, . - _gdt
+_code_64_gde:
+	.short 0xffff			/* limit 15:00 */
+	.short 0x0000			/* base 15:00 */
+	.byte  0x00			/* base 23:16 */
+	.byte  0b10011010		/* P(1) DPL(00) S(1) 1 C(0) R(1) A(0) */
+	.byte  0b10101111		/* G(1) D(0) L(1) AVL(0) limit 19:16 */
+	.byte  0x0			/* base 31:24 */
+
+.set datasel_64, . - _gdt
+_data_64_gde:
+	.short 0xffff			/* limit 15:00 */
+	.short 0x0000			/* base 15:00 */
+	.byte  0x00			/* base 23:16 */
+	.byte  0b10010010		/* P(1) DPL(00) S(1) 1 C(0) R(1) A(0) */
+	.byte  0b11001111		/* G(1) B(1) 0 AVL(0) limit 19:16 */
+	.byte  0x0			/* base 31:24 */
+	
+	.quad  0x0000000000000000
+	.quad  0x0000000000000000
+
+.set user_codesel_64, . - _gdt
+_user_code_64_gde:
+	.short 0xffff			/* limit 15:00 */
+	.short 0x0000			/* base 15:00 */
+	.byte  0x00			/* base 23:16 */
+	.byte  0b11111010		/* P(1) DPL(11) S(1) 1 C(0) R(1) A(0) */
+	.byte  0b10101111		/* G(1) D(1) L(0) AVL(0) limit 19:16 */
+	.byte  0x0			/* base 31:24 */
+	
+.set user_datasel_64, . - _gdt
+_user_data_64_gde:
+	.short 0xffff			/* limit 15:00 */
+	.short 0x0000			/* base 15:00 */
+	.byte  0x00			/* base 23:16 */
+	.byte  0b11110010		/* P(1) DPL(11) S(1) 0 E(0) W(1) A(0) */
+	.byte  0b11001111		/* G(1) B(1) 0 0 limit 19:16 */
+	.byte  0x0			/* base 31:24 */
+
+.set null_2, . - _gdt
+_null_2:
+	.int 0
+	.int 0
+	
 /* TSS descriptor */
-.if 1
 .set tsssel, . - _gdt
 _tss_gde:
 	.short 0				/* limit 15:00 */
 	.short 0				/* base 15:00 */
 	.byte  0				/* base 23:16 */
-	.byte  0xe9				/* P(1) DPL(11) 0 10 B(0) 1 */
-	.byte  0x00				/* G(0) 0 0 AVL(0) limit 19:16 */
-	.short 0				/* base 31:24 */
-.endif
-
+	.byte  0x89				/* P(1) DPL(11) 0 10 B(0) 1 */
+	.byte  0x80				/* G(0) 0 0 AVL(0) limit 19:16 */
+	.short  0				/* base 31:24 */
 .global _gdt_end
 _gdt_end:
 
+.align 8
 .global _idtr
 _idtr:
 	.short _idt_end - _idt - 1	/* IDT limit */
@@ -284,7 +387,7 @@ _idt:
 .set i, 0
 .rept NUM_INT-1
 	.short 0				/* low 16 bits of ISR offset (_isr#i & 0FFFFh) */
-	.short codesel			/* selector */
+	.short codesel_32			/* selector */
 	.byte  0
 	.byte  0x8e				/* present, ring 0, 32-bit interrupt gate */
 	.short 0				/* high 16 bits of ISR offset (_isr#i / 65536) */
@@ -295,13 +398,33 @@ _idt:
 /* syscall int (ring 3) */
 _idt30:
 	.short 0				/* low 16 bits of ISR offset (_isr#i & 0FFFFh) */
-	.short codesel			/* selector */
+	.short codesel_32			/* selector */
 	.byte  0
 	.byte  0xee				/* present, ring 3, 32-bit interrupt gate */
 	.short 0				/* high 16 bits of ISR offset (_isr#i / 65536) */
 
 .global _idt_end
 _idt_end:
+
+/* Memory for the initial page table, we will use 2 pages for a
+   1 to 1 mapping that covers 1GB of physical memory */
+.align 4096
+.fill 4096
+
+#ifdef PAE_MODE_ENABLED
+.align 4096
+pdpt:
+.fill 4096
+pdp:
+.fill 4096
+#else
+.align 4096
+pd:
+.fill 4096
+#endif
+
+.align 4096
+.fill 4096
 
 .bss
 .align 4096

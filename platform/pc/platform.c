@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,8 +21,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
 #include <err.h>
-#include <debug.h>
 #include <arch/x86/mmu.h>
 #include <platform.h>
 #include "platform_p.h"
@@ -41,7 +42,7 @@
 extern multiboot_info_t *_multiboot_info;
 extern int _end_of_ram;
 
-#if WITH_KERNEL_VM
+#ifdef WITH_KERNEL_VM
 extern int _end;
 static uintptr_t _heap_start = (uintptr_t)&_end;
 static uintptr_t _heap_end = (uintptr_t)&_end_of_ram;
@@ -56,10 +57,16 @@ extern uint64_t __data_start;
 extern uint64_t __data_end;
 extern uint64_t __bss_start;
 extern uint64_t __bss_end;
+extern void pci_init(void);
+extern void arch_mmu_init(void);
 
 /* Address width */
 uint32_t g_addr_width;
 
+/* Kernel global CR3 */
+map_addr_t g_CR3 = 0;
+
+#ifdef WITH_KERNEL_VM
 struct mmu_initial_mapping mmu_initial_mappings[] = {
 	/* 1 GB of memory*/
     { .phys = 0x200000,
@@ -75,52 +82,70 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* null entry to terminate the list */
     { 0 }
 };
+#endif
 
 void platform_init_mmu_mappings(void)
 {
-#ifdef ARCH_X86_64
-	uint64_t *new_pml4, phy_pml4;
 	struct map_range range;
-	uint64_t access = 0;
+	arch_flags_t access;
+	map_addr_t *init_table, phy_init_table;
 
 	/* getting the address width from CPUID instr */
 	g_addr_width = x86_get_address_width();
 
-	/* creating a new pml4 table */
-	new_pml4 = memalign(PAGE_SIZE, PAGE_SIZE);
-	ASSERT(new_pml4);
-	memset(new_pml4, 0, PAGE_SIZE);
-	phy_pml4 = (uint64_t)X86_VIRT_TO_PHYS(new_pml4);
+	/* Creating the First page in the page table hirerachy */
+	/* Can be pml4, pdpt or pdt based on x86_64, x86 PAE mode & x86 non-PAE mode respectively */
+	init_table = memalign(PAGE_SIZE, PAGE_SIZE);
+	ASSERT(init_table);
+	memset(init_table, 0, PAGE_SIZE);
+
+	phy_init_table = (map_addr_t)X86_VIRT_TO_PHYS(init_table);
 
 	/* kernel code section mapping */
-	access = X86_MMU_PG_P;
-	range.start_vaddr = range.start_paddr = (addr_t) &__code_start;
-	range.size = ((uint64_t)&__code_end) - ((uint64_t)&__code_start);
-	x86_mmu_map_range(phy_pml4, &range, access);
+	access = ARCH_MMU_FLAG_PERM_RO;
+	range.start_vaddr = range.start_paddr = (map_addr_t) &__code_start;
+	range.size = ((map_addr_t)&__code_end) - ((map_addr_t)&__code_start);
+	x86_mmu_map_range(phy_init_table, &range, access);
 
 	/* kernel data section mapping */
-	access = X86_MMU_PG_NX | X86_MMU_PG_RW | X86_MMU_PG_P;
-	range.start_vaddr = range.start_paddr = (addr_t) &__data_start;
-	range.size = ((uint64_t)&__data_end) - ((uint64_t)&__data_start);
-	x86_mmu_map_range(phy_pml4, &range, access);
+	access = 0;
+#if defined(ARCH_X86_64) || defined(PAE_MODE_ENABLED)
+	access |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+#endif
+	range.start_vaddr = range.start_paddr = (map_addr_t) &__data_start;
+	range.size = ((map_addr_t)&__data_end) - ((map_addr_t)&__data_start);
+	x86_mmu_map_range(phy_init_table, &range, access);
 
 	/* kernel rodata section mapping */
-	access = X86_MMU_PG_NX | X86_MMU_PG_P;
-	range.start_vaddr = range.start_paddr = (addr_t) &__rodata_start;
-	range.size = ((uint64_t)&__rodata_end) - ((uint64_t)&__rodata_start);
-	x86_mmu_map_range(phy_pml4, &range, access);
+	access = ARCH_MMU_FLAG_PERM_RO;
+#if defined(ARCH_X86_64) || defined(PAE_MODE_ENABLED)
+	access |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+#endif
+	range.start_vaddr = range.start_paddr = (map_addr_t) &__rodata_start;
+	range.size = ((map_addr_t)&__rodata_end) - ((map_addr_t)&__rodata_start);
+	x86_mmu_map_range(phy_init_table, &range, access);
 
 	/* kernel bss section and kernel heap mappings */
-	access = X86_MMU_PG_NX | X86_MMU_PG_RW | X86_MMU_PG_P;
-	range.start_vaddr = range.start_paddr = (addr_t) &__bss_start;
-	range.size = ((uint64_t)_heap_end) - ((uint64_t)&__bss_start);
-	x86_mmu_map_range(phy_pml4, &range, access);
-
-	x86_set_cr3(phy_pml4);
+	access = 0;
+#ifdef ARCH_X86_64
+	access |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
 #endif
+	range.start_vaddr = range.start_paddr = (map_addr_t) &__bss_start;
+	range.size = ((map_addr_t)_heap_end) - ((map_addr_t)&__bss_start);
+	x86_mmu_map_range(phy_init_table, &range, access);
+
+	/* Mapping for BIOS, devices */
+	access = 0;
+	range.start_vaddr = range.start_paddr = (map_addr_t) 0;
+	range.size = ((map_addr_t)&__code_start);
+	x86_mmu_map_range(phy_init_table, &range, access);
+
+	/* Moving to the new CR3 */
+	g_CR3 = (map_addr_t)phy_init_table;
+	x86_set_cr3((map_addr_t)phy_init_table);
 }
 
-#if WITH_KERNEL_VM
+#ifdef WITH_KERNEL_VM
 static pmm_arena_t heap_arena = {
     .name = "heap",
     .base = 0,
@@ -171,6 +196,7 @@ void platform_init_multiboot_info(void)
 
 void platform_early_init(void)
 {
+
 	platform_init_uart();
 
 	/* update the heap end so we can take advantage of more ram */
@@ -184,11 +210,11 @@ void platform_early_init(void)
 
 	/* initialize the timer */
 	platform_init_timer();
-	#if WITH_KERNEL_VM
+
+#ifdef WITH_KERNEL_VM
 	heap_arena_init();
 	pmm_add_arena(&heap_arena);
-	#endif
-
+#endif
 }
 
 void platform_init(void)
@@ -196,15 +222,11 @@ void platform_init(void)
 	uart_init();
 
 	platform_init_keyboard();
-#ifndef ARCH_X86_64
+#if defined(ARCH_X86)
 	pci_init();
 #endif
 
-	/* MMU init for x86_64 done after the heap is setup */
-#ifdef ARCH_X86_64
+	/* MMU init for x86 Archs done after the heap is setup */
         arch_mmu_init();
-        platform_init_mmu_mappings();
-#endif
-
+	platform_init_mmu_mappings();
 }
-

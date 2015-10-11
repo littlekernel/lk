@@ -36,9 +36,11 @@
 
 static platform_timer_callback t_callback;
 static void *callback_arg;
+static spin_lock_t lock;
 
 static uint64_t next_trigger_time;
 static uint64_t next_trigger_delta;
+static uint64_t ticks_per_ms;
 
 static uint64_t timer_delta_time;
 static volatile uint64_t timer_current_time;
@@ -47,6 +49,12 @@ static uint16_t divisor;
 
 #define INTERNAL_FREQ 1193182ULL
 #define INTERNAL_FREQ_3X 3579546ULL
+
+/* Maximum amount of time that can be program on the timer to schedule the next
+ *  interrupt, in miliseconds */
+#define MAX_TIMER_INTERVAL 55
+
+
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
@@ -146,10 +154,10 @@ static void set_pit_frequency(uint32_t frequency)
 
 void platform_init_timer(void)
 {
+
 	timer_current_time = 0;
-
+	ticks_per_ms = INTERNAL_FREQ/1000; 
 	set_pit_frequency(1000); // ~1ms granularity
-
 	register_int_handler(INT_PIT, &os_timer_tick, NULL);
 	unmask_interrupt(INT_PIT);
 }
@@ -157,6 +165,49 @@ void platform_init_timer(void)
 void platform_halt_timers(void)
 {
 	mask_interrupt(INT_PIT);
+}
+
+
+
+status_t platform_set_oneshot_timer(platform_timer_callback callback,
+		                    void *arg, lk_time_t interval)
+{
+
+    uint32_t count;
+
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
+
+    t_callback = callback;
+    callback_arg = arg;
+
+    
+    if (interval > MAX_TIMER_INTERVAL)
+	    interval = MAX_TIMER_INTERVAL;
+    if (interval < 1) interval = 1;
+
+    count = ticks_per_ms * interval;
+    
+    divisor = count & 0xffff;
+    timer_delta_time = (3685982306ULL * count) >> 10;
+/* Program PIT in teh software strobe configuration, to send one pulse
+ * after the count reach 0 */
+    outp(I8253_CONTROL_REG, 0x38);
+    outp(I8253_DATA_REG, divisor & 0xff); // LSB
+    outp(I8253_DATA_REG, divisor >> 8); // MSB
+
+
+    unmask_interrupt(INT_PIT);
+    spin_unlock_irqrestore(&lock, state);
+
+    return NO_ERROR;
+}
+
+void platform_stop_timer(void)
+{
+/* Enable interrupt mode that will stop the decreasing counter of the PIT */ 
+    outp(I8253_CONTROL_REG, 0x30);
+    return;
 }
 
 /* vim: set noexpandtab */

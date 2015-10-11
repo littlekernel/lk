@@ -5,6 +5,16 @@ MODULE := $(LOCAL_DIR)
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
 
+WITH_KERNEL_VM=1
+
+GLOBAL_DEFINES += \
+	KERNEL_ASPACE_BASE=0x00000000 \
+	KERNEL_ASPACE_SIZE=0x80000000 \
+	SMP_MAX_CPUS=1
+
+KERNEL_BASE ?= 0x00000000
+KERNEL_LOAD_OFFSET ?= 0x200000
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/crt0.S \
 	$(LOCAL_DIR)/arch.c \
@@ -21,10 +31,6 @@ MODULE_SRCS += \
 ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := i386-elf-
 endif
-
-# for the moment, SMP is not supported on x86
-GLOBAL_DEFINES += \
-	SMP_MAX_CPUS=1
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(CFLAGS) -print-libgcc-file-name)
 #$(info LIBGCC = $(LIBGCC))
@@ -45,7 +51,6 @@ GENERATED += \
 	$(BUILDDIR)/kernel.ld
 
 # rules for generating the linker scripts
-
 $(BUILDDIR)/kernel.ld: $(LOCAL_DIR)/kernel.ld $(wildcard arch/*.ld)
 	@echo generating $@
 	@$(MKDIR)
