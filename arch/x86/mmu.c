@@ -298,7 +298,7 @@ static void update_pd_entry(vaddr_t vaddr, map_addr_t pdt, map_addr_t *m, arch_f
 /**
  * @brief Allocating a new page table
  */
-static map_addr_t *_map_alloc_page()
+static map_addr_t *_map_alloc_page(void)
 {
 	map_addr_t *page_ptr = memalign(PAGE_SIZE, PAGE_SIZE);
 
@@ -330,7 +330,7 @@ addr_t *x86_create_new_cr3(void)
 /**
  * @brief Returning the kernel CR3
  */
-map_addr_t get_kernel_cr3()
+map_addr_t get_kernel_cr3(void)
 {
 	return g_CR3;
 }

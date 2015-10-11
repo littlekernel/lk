@@ -23,6 +23,7 @@
  */
 
 #include <err.h>
+#include <trace.h>
 #include <arch/x86/mmu.h>
 #include <platform.h>
 #include "platform_p.h"
@@ -40,12 +41,12 @@
 #include <kernel/vm.h>
 
 extern multiboot_info_t *_multiboot_info;
-extern int _end_of_ram;
+
+#define DEFAULT_MEMEND (16*1024*1024)
 
 #ifdef WITH_KERNEL_VM
 extern int _end;
-static uintptr_t _heap_start = (uintptr_t)&_end;
-static uintptr_t _heap_end = (uintptr_t)&_end_of_ram;
+static uintptr_t _heap_end = (uintptr_t)DEFAULT_MEMEND;
 #else
 extern uintptr_t _heap_end;
 #endif
@@ -65,24 +66,6 @@ uint32_t g_addr_width;
 
 /* Kernel global CR3 */
 map_addr_t g_CR3 = 0;
-
-#ifdef WITH_KERNEL_VM
-struct mmu_initial_mapping mmu_initial_mappings[] = {
-	/* 1 GB of memory*/
-    { .phys = 0x200000,
-      .virt = 0x200000,
-      .size = 1024*1024*1024,
-      .flags = 0,
-      .name = "memory" },
-
-	{ .phys = 0,
-      .virt = 0,
-      .size = 1024*1024*1024,
-      .flags = MMU_INITIAL_MAPPING_TEMPORARY },
-    /* null entry to terminate the list */
-    { 0 }
-};
-#endif
 
 void platform_init_mmu_mappings(void)
 {
@@ -145,39 +128,62 @@ void platform_init_mmu_mappings(void)
 	x86_set_cr3((map_addr_t)phy_init_table);
 }
 
-#ifdef WITH_KERNEL_VM
-static pmm_arena_t heap_arena = {
-    .name = "heap",
-    .base = 0,
-    .size = 0,
+#if WITH_KERNEL_VM
+struct mmu_initial_mapping mmu_initial_mappings[] = {
+	/* all of detected memory */
+    { .phys = MEMBASE,
+      .virt = MEMBASE,
+      .size = DEFAULT_MEMEND - MEMBASE,
+      .flags = 0,
+      .name = "memory" },
+
+    /* null entry to terminate the list */
+    { 0 }
+};
+
+/* set up the size of the identity map of physical ram to virtual at the base
+ * of the kernel to match what we detected in platform_init_multiboot_info()
+ */
+void initial_mapping_init(void)
+{
+	/* tweak the amount of physical memory map we have mapped
+	 * in the mmu_initial_mappings table, which is used by the vm
+	 * for reverse lookups of memory in the kernel area */
+	mmu_initial_mappings[0].size = _heap_end - mmu_initial_mappings[0].virt;
+}
+
+static pmm_arena_t mem_arena = {
+    .name = "memory",
+    .base = MEMBASE, /* start 2MB into memory */
+    .size = DEFAULT_MEMEND, /* default amount of memory in case we don't have multiboot */
     .priority = 1,
     .flags = PMM_ARENA_FLAG_KMAP
 };
 
-void heap_arena_init()
+/* set up the size of the physical memory map based on the end of memory we detected in
+ * platform_init_multiboot_info()
+ */
+void mem_arena_init(void)
 {
-	uintptr_t heap_base = ((uintptr_t)_heap_start);
-	uintptr_t heap_size = (uintptr_t)_heap_end-(uintptr_t)_heap_start;
+	uintptr_t mem_base = ((uintptr_t)MEMBASE);
+	uintptr_t mem_size = (uintptr_t)_heap_end - (uintptr_t)mem_base;
 
-	heap_arena.base = PAGE_ALIGN(heap_base);
-	heap_arena.size = PAGE_ALIGN(heap_size);
+	mem_arena.base = PAGE_ALIGN(mem_base);
+	mem_arena.size = PAGE_ALIGN(mem_size);
 }
 #endif
 
 void platform_init_multiboot_info(void)
 {
-	unsigned int i;
-
 	if (_multiboot_info) {
 		if (_multiboot_info->flags & MB_INFO_MEM_SIZE) {
 			_heap_end = _multiboot_info->mem_upper * 1024;
-			memory_map_t *mmap = (memory_map_t *) (_multiboot_info->mmap_addr - 4);
 		}
 
 		if (_multiboot_info->flags & MB_INFO_MMAP) {
 			memory_map_t *mmap = (memory_map_t *) (_multiboot_info->mmap_addr - 4);
 
-			for (i=0; i < _multiboot_info->mmap_length / sizeof(memory_map_t); i++) {
+			for (uint i = 0; i < _multiboot_info->mmap_length / sizeof(memory_map_t); i++) {
 
 				if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE && mmap[i].base_addr_low >= _heap_end) {
 					_heap_end = mmap[i].base_addr_low + mmap[i].length_low;
@@ -199,9 +205,6 @@ void platform_early_init(void)
 
 	platform_init_uart();
 
-	/* update the heap end so we can take advantage of more ram */
-	platform_init_multiboot_info();
-
 	/* get the text console working */
 	platform_init_console();
 
@@ -211,9 +214,13 @@ void platform_early_init(void)
 	/* initialize the timer */
 	platform_init_timer();
 
+	/* look at multiboot to determine our memory size */
+	platform_init_multiboot_info();
+
 #ifdef WITH_KERNEL_VM
-	heap_arena_init();
-	pmm_add_arena(&heap_arena);
+	initial_mapping_init();
+	mem_arena_init();
+	pmm_add_arena(&mem_arena);
 #endif
 }
 
@@ -227,6 +234,9 @@ void platform_init(void)
 #endif
 
 	/* MMU init for x86 Archs done after the heap is setup */
-        arch_mmu_init();
+	// XXX move this into arch/
+    arch_mmu_init();
 	platform_init_mmu_mappings();
 }
+
+/* vim: set noexpandtab: */

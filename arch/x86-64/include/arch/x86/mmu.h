@@ -87,6 +87,6 @@ status_t x86_mmu_add_mapping(addr_t pml4, paddr_t paddr,
 				vaddr_t vaddr, arch_flags_t flags);
 status_t x86_mmu_unmap(addr_t pml4, vaddr_t vaddr, uint count);
 addr_t *x86_create_new_cr3(void);
-map_addr_t get_kernel_cr3();
+map_addr_t get_kernel_cr3(void);
 
 __END_CDECLS

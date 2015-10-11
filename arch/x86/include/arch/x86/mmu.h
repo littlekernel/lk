@@ -116,6 +116,6 @@ status_t x86_mmu_get_mapping(map_addr_t init_table, vaddr_t vaddr, uint32_t *ret
 				arch_flags_t *mmu_flags, map_addr_t *last_valid_entry);
 status_t x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count);
 addr_t *x86_create_new_cr3(void);
-map_addr_t get_kernel_cr3();
+map_addr_t get_kernel_cr3(void);
 
 __END_CDECLS
