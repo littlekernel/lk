@@ -36,7 +36,9 @@
 #include <ffs.h>
 #endif
 
+#if WITH_LIB_LWIP
 #include <lwip/tcpip.h>
+#endif
 
 #define LOCAL_TRACE 1
 
@@ -56,13 +58,6 @@ static const struct platform_ide_config ide0_config = {
 
 DEVICE_INSTANCE(ide, ide0, &ide0_config);
 
-static const struct platform_pcnet_config pcnet0_config = {
-	.vendor_id = 0x1022,
-	.device_id = 0x2000,
-	.index = 0,
-};
-
-DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config);
 #endif
 
 void target_init(void) {
@@ -72,10 +67,9 @@ void target_init(void) {
 	device_init(device_get_by_name(ide, ide0));
 	ffs_mount(0, device_get_by_name(ide, ide0));
 
+#if WITH_LIB_LWIP
 	tcpip_init(NULL, NULL);
-
-	device_init(device_get_by_name(netif, pcnet0));
-	class_netif_add(device_get_by_name(netif, pcnet0));
+#endif
 #endif
 }
 
