@@ -20,3 +20,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <arch/ops.h>
+
+/* nothing to do to sync I & D cache on x86 */
+void arch_sync_cache_range(addr_t start, size_t len)
+{
+}
