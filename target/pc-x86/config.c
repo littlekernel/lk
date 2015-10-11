@@ -36,10 +36,6 @@
 #include <ffs.h>
 #endif
 
-#if WITH_LIB_LWIP
-#include <lwip/tcpip.h>
-#endif
-
 #define LOCAL_TRACE 1
 
 static const struct platform_uart_config uart0_config = {
@@ -66,10 +62,6 @@ void target_init(void) {
 
 	device_init(device_get_by_name(ide, ide0));
 	ffs_mount(0, device_get_by_name(ide, ide0));
-
-#if WITH_LIB_LWIP
-	tcpip_init(NULL, NULL);
-#endif
 #endif
 }
 
