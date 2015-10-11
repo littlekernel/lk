@@ -30,14 +30,11 @@
 #include <sys/types.h>
 #include <string.h>
 
-static tss_t system_tss;
-
+tss_t system_tss;
+static void* allocate_tss(void);
+uint32_t default_tss = 0;
 void arch_early_init(void)
 {
-	x86_mmu_init();
-
-	platform_init_mmu_mappings();
-
 	/* enable caches here for now */
 	clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
 
@@ -50,18 +47,23 @@ void arch_early_init(void)
 	system_tss.eflags = 0x00003002;
 	system_tss.bitmap = offsetof(tss_t, tss_bitmap);
 	system_tss.trace = 1; // trap on hardware task switch
-
 	set_global_desc(TSS_SELECTOR, &system_tss, sizeof(tss_t), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
-
 	x86_ltr(TSS_SELECTOR);
 }
 
+
+/* Kernel does not need tss if running without user space */
+static inline void set_kernel_tss(void)
+{
+	default_tss = NULL;
+	system_tss.esp0 = default_tss; 
+}
 void arch_init(void)
 {
+	/* Kernel Space tss can be NULL */
+	set_kernel_tss();
 }
-
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
     PANIC_UNIMPLEMENTED;
 }
-

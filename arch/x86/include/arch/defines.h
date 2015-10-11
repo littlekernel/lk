@@ -24,11 +24,14 @@
 #define __ARCH_CPU_H
 
 #define PAGE_SIZE 4096
+#define PAGE_SIZE_SHIFT 12
 
 // TODO: define to resolve to platform setup discovered value
 #define CACHE_LINE 32
 
 #define ARCH_DEFAULT_STACK_SIZE 8192
 
+
+#define DEFAULT_TSS	4096	
 #endif
 
