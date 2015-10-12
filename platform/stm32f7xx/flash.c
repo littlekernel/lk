@@ -91,6 +91,9 @@ void stm32_flash_init(void)
                         PROGRAM_SIZE, flash.size / PROGRAM_SIZE,
                         3, flash.geometry);
 
+    /* we erase to 0xff */
+    flash.erase_byte = 0xff;
+
     /* override our block device hooks */
     flash.bdev.read = &stm32_flash_bdev_read;
     flash.bdev.read_block = &stm32_flash_bdev_read_block;

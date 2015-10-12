@@ -321,6 +321,9 @@ status_t spiflash_detect(void)
 	flash.bdev.erase = &spiflash_bdev_erase;
 	flash.bdev.ioctl = &spiflash_ioctl;
 
+	/* we erase to 0xff */
+	flash.erase_byte = 0xff;
+
 	bio_register_device(&flash.bdev);
 
 	LTRACEF("found flash of size 0x%llx\n", flash.size);

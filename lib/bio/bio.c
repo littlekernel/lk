@@ -415,6 +415,7 @@ void bio_initialize_bdev(bdev_t *dev,
 	dev->total_size = (off_t)block_count << dev->block_shift;
 	dev->geometry_count = geometry_count;
 	dev->geometry = geometry;
+	dev->erase_byte = 0;
 	dev->ref = 0;
 
 #if DEBUG

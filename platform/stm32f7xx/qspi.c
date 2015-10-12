@@ -453,6 +453,9 @@ status_t qspi_flash_init(void)
     qspi_flash_device.erase = &spiflash_bdev_erase;
     qspi_flash_device.ioctl = &spiflash_ioctl;
 
+    /* we erase to 0xff */
+    flash.erase_byte = 0xff;
+
     bio_register_device(&qspi_flash_device);
 
 err:

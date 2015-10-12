@@ -50,6 +50,8 @@ typedef struct bdev {
 	size_t geometry_count;
 	const bio_erase_geometry_info_t* geometry;
 
+	uint8_t erase_byte;
+
 	/* function pointers */
 	ssize_t (*read)(struct bdev *, void *buf, off_t offset, size_t len);
 	ssize_t (*read_block)(struct bdev *, void *buf, bnum_t block, uint count);

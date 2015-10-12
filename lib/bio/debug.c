@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 #include <lib/console.h>
 #include <lib/bio.h>
 #include <lib/partition.h>
@@ -303,17 +304,21 @@ static bool is_valid_block(bdev_t *device, bnum_t block_num, uint8_t* pattern,
     return true;
 }
 
-static size_t erase_test(bdev_t *device)
+static ssize_t erase_test(bdev_t *device)
 {
-    printf("erasing flash...\n");
-    uint8_t empty_flash[1] = { 0xff };
+    printf("erasing device...\n");
 
-    bio_erase(device, 0, device->total_size);
+    ssize_t err = bio_erase(device, 0, device->total_size);
+    if (err < 0) {
+        return err;
+    } else if (err != device->total_size) {
+        return ERR_IO;
+    }
 
     printf("validating erase...\n");
     size_t num_invalid_blocks = 0;
     for (bnum_t bnum = 0; bnum < device->block_count; bnum++) {
-        if (!is_valid_block(device, bnum, empty_flash, sizeof(empty_flash))) {
+        if (!is_valid_block(device, bnum, &device->erase_byte, sizeof(device->erase_byte))) {
             num_invalid_blocks++;
         }
     }
@@ -321,13 +326,17 @@ static size_t erase_test(bdev_t *device)
 }
 
 // returns the number of blocks where the write was not successful.
-static size_t write_test(bdev_t *device)
+static ssize_t write_test(bdev_t *device)
 {
     uint8_t *test_buffer = malloc(device->block_size);
 
     for (bnum_t bnum = 0; bnum < device->block_count; bnum++) {
         memset(test_buffer, (uint8_t)bnum, device->block_size);
-        bio_write_block(device, test_buffer, bnum, 1);
+        ssize_t err = bio_write_block(device, test_buffer, bnum, 1);
+        if (err < 0) {
+            free(test_buffer);
+            return err;
+        }
     }
 
     size_t num_errors = 0;
@@ -340,15 +349,18 @@ static size_t write_test(bdev_t *device)
     }
 
     free(test_buffer);
-    test_buffer = NULL;
 
     return num_errors;
 }
 
 static int bio_test_device(bdev_t* device)
 {
-    size_t num_errors = erase_test(device);
-    printf("discovered %u error(s) while testing erase.\n", num_errors);
+    ssize_t num_errors = erase_test(device);
+    if (num_errors < 0) {
+        printf("error %ld performing erase test\n", num_errors);
+        return -1;
+    }
+    printf("discovered %ld error(s) while testing erase.\n", num_errors);
     if (num_errors) {
         // No point in continuing the tests if we couldn't erase the device.
         printf("not continuing to test writes.\n");
@@ -356,13 +368,10 @@ static int bio_test_device(bdev_t* device)
     }
 
     num_errors = write_test(device);
-    printf("Discovered %u error(s) while testing write.\n", num_errors);
+    printf("Discovered %ld error(s) while testing write.\n", num_errors);
     if (num_errors) {
         return -1;
     }
 
     return 0;
 }
-
-// vim: set ts=4 sw=4 noexpandtab:
-
