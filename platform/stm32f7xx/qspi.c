@@ -454,7 +454,7 @@ status_t qspi_flash_init(void)
     qspi_flash_device.ioctl = &spiflash_ioctl;
 
     /* we erase to 0xff */
-    flash.erase_byte = 0xff;
+    qspi_flash_device.erase_byte = 0xff;
 
     bio_register_device(&qspi_flash_device);
 

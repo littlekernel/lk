@@ -92,7 +92,7 @@ void stm32_flash_init(void)
                         3, flash.geometry);
 
     /* we erase to 0xff */
-    flash.erase_byte = 0xff;
+    flash.bdev.erase_byte = 0xff;
 
     /* override our block device hooks */
     flash.bdev.read = &stm32_flash_bdev_read;
