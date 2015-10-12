@@ -322,7 +322,7 @@ status_t spiflash_detect(void)
 	flash.bdev.ioctl = &spiflash_ioctl;
 
 	/* we erase to 0xff */
-	flash.erase_byte = 0xff;
+	flash.bdev.erase_byte = 0xff;
 
 	bio_register_device(&flash.bdev);
 
