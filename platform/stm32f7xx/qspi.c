@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <arch/arm/cm.h>
+#include <kernel/event.h>
+#include <kernel/mutex.h>
 #include <lib/bio.h>
 #include <platform/n25q128a.h>
 #include <platform/qspi.h>
-#include <kernel/mutex.h>
 
 static QSPI_HandleTypeDef qspi_handle;
 
@@ -29,6 +31,14 @@ static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction);
 static ssize_t qspi_bulk_erase(void);
 static ssize_t qspi_erase_sector(uint32_t block_addr);
 static ssize_t qspi_erase_subsector(uint32_t block_addr);
+
+static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*);
+static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef*, uint8_t*);
+static HAL_StatusTypeDef qspi_rx(QSPI_HandleTypeDef*, uint8_t*);
+
+static event_t cmd_event;
+static event_t rx_event;
+static event_t tx_event;
 
 status_t hal_error_to_status(HAL_StatusTypeDef hal_status);
 
@@ -133,8 +143,7 @@ static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef* hqspi)
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi,
-        uint32_t Timeout)
+static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi)
 {
     QSPI_CommandTypeDef s_command;
     QSPI_AutoPollingTypeDef s_config;
@@ -158,7 +167,7 @@ static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi,
     s_config.Interval = 0x10;
     s_config.AutomaticStop = QSPI_AUTOMATIC_STOP_ENABLE;
 
-    status = HAL_QSPI_AutoPolling(hqspi, &s_command, &s_config, Timeout);
+    status = HAL_QSPI_AutoPolling_IT(hqspi, &s_command, &s_config);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
@@ -184,20 +193,20 @@ static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef* hqspi)
     s_command.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
 
     /* Send the command */
-    status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status = qspi_cmd(hqspi, &s_command);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
 
     /* Send the reset memory command */
     s_command.Instruction = RESET_MEMORY_CMD;
-    status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status = qspi_cmd(hqspi, &s_command);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
 
     /* Configure automatic polling mode to wait the memory is ready */
-    status = qspi_auto_polling_mem_ready_unsafe(hqspi, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status = qspi_auto_polling_mem_ready_unsafe(hqspi);
     if (status != NO_ERROR) {
         return hal_error_to_status(status);
     }
@@ -241,7 +250,7 @@ static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, 
     }
 
     // /* Reception of the data */
-    status = HAL_QSPI_Receive(&qspi_handle, buf, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status = qspi_rx(&qspi_handle, buf);
     if (status != HAL_OK) {
         retcode = hal_error_to_status(status);
         goto err;
@@ -349,7 +358,7 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
         return ERR_INVALID_ARGS;
     }
 
-    HAL_StatusTypeDef status; 
+    HAL_StatusTypeDef status;
 
     QSPI_CommandTypeDef s_command = {
         .InstructionMode   = QSPI_INSTRUCTION_1_LINE,
@@ -376,13 +385,13 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
         return hal_error_to_status(status);
     }
 
-    status = HAL_QSPI_Transmit(&qspi_handle, (uint8_t*)data, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status = qspi_tx(&qspi_handle, (uint8_t*)data);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
 
-    status_t auto_polling_mem_ready_result = 
-            qspi_auto_polling_mem_ready_unsafe(&qspi_handle, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status_t auto_polling_mem_ready_result =
+        qspi_auto_polling_mem_ready_unsafe(&qspi_handle);
     if (auto_polling_mem_ready_result != NO_ERROR) {
         return auto_polling_mem_ready_result;
     }
@@ -394,6 +403,10 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 status_t qspi_flash_init(void)
 {
     status_t result;
+
+    event_init(&cmd_event, false, EVENT_FLAG_AUTOUNSIGNAL);
+    event_init(&tx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
+    event_init(&rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
 
     mutex_init(&spiflash_mutex);
     result = mutex_acquire(&spiflash_mutex);
@@ -463,19 +476,19 @@ err:
     return NO_ERROR;
 }
 
-status_t hal_error_to_status(HAL_StatusTypeDef hal_status) 
+status_t hal_error_to_status(HAL_StatusTypeDef hal_status)
 {
-    switch(hal_status) {
-    case HAL_OK:
-        return NO_ERROR;
-    case HAL_ERROR:
-        return ERR_GENERIC;
-    case HAL_BUSY:
-        return ERR_BUSY;
-    case HAL_TIMEOUT:
-        return ERR_TIMED_OUT;
-    default:
-        return ERR_GENERIC;
+    switch (hal_status) {
+        case HAL_OK:
+            return NO_ERROR;
+        case HAL_ERROR:
+            return ERR_GENERIC;
+        case HAL_BUSY:
+            return ERR_BUSY;
+        case HAL_TIMEOUT:
+            return ERR_TIMED_OUT;
+        default:
+            return ERR_GENERIC;
     }
 }
 
@@ -488,26 +501,22 @@ static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
     }
 
     QSPI_CommandTypeDef erase_cmd;
-    uint32_t timeout;
 
     ssize_t num_erased_bytes;
     switch (instruction) {
         case SUBSECTOR_ERASE_CMD: {
             num_erased_bytes = N25Q128A_SUBSECTOR_SIZE;
             erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
-            timeout = N25Q128A_SUBSECTOR_ERASE_MAX_TIME;
             break;
         }
         case SECTOR_ERASE_CMD: {
             num_erased_bytes = N25Q128A_SECTOR_SIZE;
             erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
-            timeout = N25Q128A_SECTOR_ERASE_MAX_TIME;
             break;
         }
         case BULK_ERASE_CMD: {
             num_erased_bytes = N25Q128A_FLASH_SIZE;
             erase_cmd.AddressMode = QSPI_ADDRESS_NONE;
-            timeout = N25Q128A_BULK_ERASE_MAX_TIME;
             break;
         }
         default: {
@@ -536,13 +545,13 @@ static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
     }
 
     /* Send the command */
-    if (HAL_QSPI_Command(&qspi_handle, &erase_cmd, HAL_QPSI_TIMEOUT_DEFAULT_VALUE) != HAL_OK) {
+    if (qspi_cmd(&qspi_handle, &erase_cmd) != HAL_OK) {
         return ERR_GENERIC;
     }
 
     /* Configure automatic polling mode to wait for end of erase */
     status_t auto_polling_mem_ready_result =
-            qspi_auto_polling_mem_ready_unsafe(&qspi_handle, timeout);
+        qspi_auto_polling_mem_ready_unsafe(&qspi_handle);
     if (auto_polling_mem_ready_result != NO_ERROR) {
         return auto_polling_mem_ready_result;
     }
@@ -563,4 +572,50 @@ static ssize_t qspi_erase_sector(uint32_t block_addr)
 static ssize_t qspi_erase_subsector(uint32_t block_addr)
 {
     return qspi_erase(block_addr, SUBSECTOR_ERASE_CMD);
+}
+
+static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
+                                  QSPI_CommandTypeDef* s_command)
+{
+    HAL_StatusTypeDef result = HAL_QSPI_Command_IT(qspi_handle, s_command);
+    event_wait(&cmd_event);
+    return result;
+}
+
+// Send data and wait for interrupt.
+static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef* qspi_handle, uint8_t* buf)
+{
+    HAL_StatusTypeDef result = HAL_QSPI_Transmit_IT(qspi_handle, buf);
+    event_wait(&tx_event);
+    return result;
+}
+
+// Send data and wait for interrupt.
+static HAL_StatusTypeDef qspi_rx(QSPI_HandleTypeDef* qspi_handle, uint8_t* buf)
+{
+    HAL_StatusTypeDef result = HAL_QSPI_Receive_IT(qspi_handle, buf);
+    event_wait(&rx_event);
+    return result;
+}
+
+void stm32_QUADSPI_IRQ(void)
+{
+    arm_cm_irq_entry();
+    HAL_QSPI_IRQHandler(&qspi_handle);
+    arm_cm_irq_exit(true);
+}
+
+void HAL_QSPI_CmdCpltCallback(QSPI_HandleTypeDef *hqspi)
+{
+    event_signal(&cmd_event, false);
+}
+
+void HAL_QSPI_RxCpltCallback(QSPI_HandleTypeDef *hqspi)
+{
+    event_signal(&rx_event, false);
+}
+
+void HAL_QSPI_TxCpltCallback(QSPI_HandleTypeDef *hqspi)
+{
+    event_signal(&tx_event, false);
 }
