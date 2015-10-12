@@ -358,7 +358,7 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
         return ERR_INVALID_ARGS;
     }
 
-    HAL_StatusTypeDef status; 
+    HAL_StatusTypeDef status;
 
     QSPI_CommandTypeDef s_command = {
         .InstructionMode   = QSPI_INSTRUCTION_1_LINE,
@@ -390,8 +390,8 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
         return hal_error_to_status(status);
     }
 
-    status_t auto_polling_mem_ready_result = 
-            qspi_auto_polling_mem_ready_unsafe(&qspi_handle);
+    status_t auto_polling_mem_ready_result =
+        qspi_auto_polling_mem_ready_unsafe(&qspi_handle);
     if (auto_polling_mem_ready_result != NO_ERROR) {
         return auto_polling_mem_ready_result;
     }
@@ -473,19 +473,19 @@ err:
     return NO_ERROR;
 }
 
-status_t hal_error_to_status(HAL_StatusTypeDef hal_status) 
+status_t hal_error_to_status(HAL_StatusTypeDef hal_status)
 {
-    switch(hal_status) {
-    case HAL_OK:
-        return NO_ERROR;
-    case HAL_ERROR:
-        return ERR_GENERIC;
-    case HAL_BUSY:
-        return ERR_BUSY;
-    case HAL_TIMEOUT:
-        return ERR_TIMED_OUT;
-    default:
-        return ERR_GENERIC;
+    switch (hal_status) {
+        case HAL_OK:
+            return NO_ERROR;
+        case HAL_ERROR:
+            return ERR_GENERIC;
+        case HAL_BUSY:
+            return ERR_BUSY;
+        case HAL_TIMEOUT:
+            return ERR_TIMED_OUT;
+        default:
+            return ERR_GENERIC;
     }
 }
 
@@ -552,7 +552,7 @@ static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
 
     /* Configure automatic polling mode to wait for end of erase */
     status_t auto_polling_mem_ready_result =
-            qspi_auto_polling_mem_ready_unsafe(&qspi_handle);
+        qspi_auto_polling_mem_ready_unsafe(&qspi_handle);
     if (auto_polling_mem_ready_result != NO_ERROR) {
         return auto_polling_mem_ready_result;
     }
@@ -586,7 +586,8 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
 
 // Send data and wait for interrupt.
 static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef* qspi_handle,
-                                 QSPI_CommandTypeDef* s_command) {
+                                 QSPI_CommandTypeDef* s_command)
+{
     HAL_StatusTypeDef result = HAL_QSPI_Transmit_IT(qspi_handle, s_command);
     event_wait(&tx_event);
     event_unsignal(&tx_event);
@@ -595,7 +596,8 @@ static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef* qspi_handle,
 
 // Send data and wait for interrupt.
 static HAL_StatusTypeDef qspi_rx(QSPI_HandleTypeDef* qspi_handle,
-                                 QSPI_CommandTypeDef* s_command) {
+                                 QSPI_CommandTypeDef* s_command)
+{
     HAL_StatusTypeDef result = HAL_QSPI_Receive_IT(qspi_handle, s_command);
     event_wait(&rx_event);
     event_unsignal(&rx_event);
