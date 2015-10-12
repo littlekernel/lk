@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Travis Geiselbrecht
+ * Copyright (c) 2009-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -34,12 +34,13 @@
 
 #define LOCAL_TRACE 0
 
-struct bdev_struct {
+static struct {
 	struct list_node list;
 	mutex_t lock;
+} bdevs = {
+	.list = LIST_INITIAL_VALUE(bdevs.list),
+	.lock = MUTEX_INITIAL_VALUE(bdevs.lock),
 };
-
-static struct bdev_struct *bdevs;
 
 /* default implementation is to use the read_block hook to 'deblock' the device */
 static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size_t len)
@@ -193,28 +194,29 @@ err:
 static ssize_t bio_default_erase(struct bdev *dev, off_t offset, size_t len)
 {
 	/* default erase operation is to just write zeros over the device */
-#define ERASE_BUF_SIZE 4096
-	uint8_t *zero_buf;
+	STACKBUF_DMA_ALIGN(erase_buf, dev->block_size);
 
-	zero_buf = calloc(1, ERASE_BUF_SIZE);
+	memset(erase_buf, dev->erase_byte, dev->block_size);
 
+	ssize_t erased = 0;
 	size_t remaining = len;
 	off_t pos = offset;
 	while (remaining > 0) {
-		ssize_t towrite = MIN(remaining, ERASE_BUF_SIZE);
+		size_t towrite = MIN(remaining, dev->block_size);
 
-		ssize_t written = bio_write(dev, zero_buf, pos, towrite);
+		ssize_t written = bio_write(dev, erase_buf, pos, towrite);
 		if (written < 0)
-			return pos;
+			return written;
 
+		erased += written;
 		pos += written;
 		remaining -= written;
 
-		if (written < towrite)
-			return pos;
+		if ((size_t)written < towrite)
+			break;
 	}
 
-	return len;
+	return erased;
 }
 
 static ssize_t bio_default_read_block(struct bdev *dev, void *buf, bnum_t block, uint count)
@@ -288,8 +290,8 @@ bdev_t *bio_open(const char *name)
 
 	/* see if it's in our list */
 	bdev_t *entry;
-	mutex_acquire(&bdevs->lock);
-	list_for_every_entry(&bdevs->list, entry, bdev_t, node) {
+	mutex_acquire(&bdevs.lock);
+	list_for_every_entry(&bdevs.list, entry, bdev_t, node) {
 		DEBUG_ASSERT(entry->ref > 0);
 		if (!strcmp(entry->name, name)) {
 			bdev = entry;
@@ -297,7 +299,7 @@ bdev_t *bio_open(const char *name)
 			break;
 		}
 	}
-	mutex_release(&bdevs->lock);
+	mutex_release(&bdevs.lock);
 
 	return bdev;
 }
@@ -476,9 +478,9 @@ void bio_register_device(bdev_t *dev)
 
 	bdev_inc_ref(dev);
 
-	mutex_acquire(&bdevs->lock);
-	list_add_tail(&bdevs->list, &dev->node);
-	mutex_release(&bdevs->lock);
+	mutex_acquire(&bdevs.lock);
+	list_add_tail(&bdevs.list, &dev->node);
+	mutex_release(&bdevs.lock);
 }
 
 void bio_unregister_device(bdev_t *dev)
@@ -488,9 +490,9 @@ void bio_unregister_device(bdev_t *dev)
 	LTRACEF(" '%s'\n", dev->name);
 
 	// remove it from the list
-	mutex_acquire(&bdevs->lock);
+	mutex_acquire(&bdevs.lock);
 	list_delete(&dev->node);
-	mutex_release(&bdevs->lock);
+	mutex_release(&bdevs.lock);
 
 	bdev_dec_ref(dev); // remove the ref the list used to have
 }
@@ -499,8 +501,8 @@ void bio_dump_devices(void)
 {
 	printf("block devices:\n");
 	bdev_t *entry;
-	mutex_acquire(&bdevs->lock);
-	list_for_every_entry(&bdevs->list, entry, bdev_t, node) {
+	mutex_acquire(&bdevs.lock);
+	list_for_every_entry(&bdevs.list, entry, bdev_t, node) {
 
 		printf("\t%s, size %lld, bsize %zd, ref %d",
 				entry->name, entry->total_size, entry->block_size, entry->ref);
@@ -518,17 +520,7 @@ void bio_dump_devices(void)
 
 		printf("\n");
 	}
-	mutex_release(&bdevs->lock);
+	mutex_release(&bdevs.lock);
 }
-
-static void bio_init(uint level)
-{
-	bdevs = malloc(sizeof(*bdevs));
-
-	list_initialize(&bdevs->list);
-	mutex_init(&bdevs->lock);
-}
-
-LK_INIT_HOOK(libbio, &bio_init, LK_INIT_LEVEL_THREADING);
 
 // vim: set ts=4 sw=4 noexpandtab:
