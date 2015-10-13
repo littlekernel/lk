@@ -3,3 +3,4 @@ include project/virtual/test.mk
 include project/virtual/minip.mk
 
 MODULES += \
+    app/loader
