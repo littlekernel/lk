@@ -34,10 +34,6 @@
 #define LK_DEBUGLEVEL 0
 #endif
 
-#if !defined(ENABLE_PANIC_SHELL)
-#define ENABLE_PANIC_SHELL 1
-#endif
-
 /* debug levels */
 #define CRITICAL 0
 #define ALWAYS 0

@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <trace.h>
+#include <debug.h>
 #include <platform.h>
 #include <reg.h>
 #include <dev/usb.h>

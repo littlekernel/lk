@@ -27,10 +27,7 @@
 #include <platform/debug.h>
 #include <kernel/thread.h>
 #include <stdio.h>
-
-#ifdef ENABLE_PANIC_SHELL
 #include <lib/console.h>
-#endif
 
 /*
  * default implementations of these routines, if the platform code
@@ -39,7 +36,7 @@
 __WEAK void platform_halt(platform_halt_action suggested_action,
                           platform_halt_reason reason)
 {
-#ifdef ENABLE_PANIC_SHELL
+#if ENABLE_PANIC_SHELL
 
     if (reason == HALT_REASON_SW_PANIC) {
         dprintf(ALWAYS, "CRASH: starting debug shell... (reason = %d)\n", reason);

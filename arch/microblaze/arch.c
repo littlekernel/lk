@@ -21,6 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <trace.h>
+#include <debug.h>
+#include <stdint.h>
 #include <arch/microblaze.h>
 
 void arch_early_init(void)

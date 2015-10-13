@@ -58,6 +58,12 @@ typedef struct _cmd_block {
 
 /* register a static block of commands at init time */
 #if WITH_LIB_CONSOLE
+
+/* enable the panic shell if we're being built */
+#if !defined(ENABLE_PANIC_SHELL)
+#define ENABLE_PANIC_SHELL 1
+#endif
+
 #define STATIC_COMMAND_START static const cmd _cmd_list[] = {
 
 #ifdef ARCH_X86_64
