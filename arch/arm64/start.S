@@ -352,8 +352,6 @@ FUNCTION(_start)
 .data
 DATA(page_tables_not_ready)
     .long       1
-DATA(secondary_cpu_allocated_stack)
-    .quad       0
 #endif
 
 .section .bss.prebss.stack
