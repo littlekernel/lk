@@ -33,8 +33,8 @@ static ssize_t qspi_erase_sector(uint32_t block_addr);
 static ssize_t qspi_erase_subsector(uint32_t block_addr);
 
 static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*);
-static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*);
-static HAL_StatusTypeDef qspi_rx(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*);
+static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef*, uint8_t*);
+static HAL_StatusTypeDef qspi_rx(QSPI_HandleTypeDef*, uint8_t*);
 
 static event_t cmd_event;
 static event_t rx_event;
@@ -404,9 +404,9 @@ status_t qspi_flash_init(void)
 {
     status_t result;
 
-    event_init(&cmd_event, false, 0);
-    event_init(&tx_event, false, 0);
-    event_init(&rx_event, false, 0);
+    event_init(&cmd_event, false, EVENT_FLAG_AUTOUNSIGNAL);
+    event_init(&tx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
+    event_init(&rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
 
     mutex_init(&spiflash_mutex);
     result = mutex_acquire(&spiflash_mutex);
@@ -580,27 +580,22 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
 {
     HAL_StatusTypeDef result = HAL_QSPI_Command_IT(qspi_handle, s_command);
     event_wait(&cmd_event);
-    event_unsignal(&cmd_event);
     return result;
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef* qspi_handle,
-                                 QSPI_CommandTypeDef* s_command)
+static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef* qspi_handle, uint8_t* buf)
 {
-    HAL_StatusTypeDef result = HAL_QSPI_Transmit_IT(qspi_handle, s_command);
+    HAL_StatusTypeDef result = HAL_QSPI_Transmit_IT(qspi_handle, buf);
     event_wait(&tx_event);
-    event_unsignal(&tx_event);
     return result;
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_rx(QSPI_HandleTypeDef* qspi_handle,
-                                 QSPI_CommandTypeDef* s_command)
+static HAL_StatusTypeDef qspi_rx(QSPI_HandleTypeDef* qspi_handle, uint8_t* buf)
 {
-    HAL_StatusTypeDef result = HAL_QSPI_Receive_IT(qspi_handle, s_command);
+    HAL_StatusTypeDef result = HAL_QSPI_Receive_IT(qspi_handle, buf);
     event_wait(&rx_event);
-    event_unsignal(&rx_event);
     return result;
 }
 
@@ -608,7 +603,7 @@ void stm32_QUADSPI_IRQ(void)
 {
     arm_cm_irq_entry();
     HAL_QSPI_IRQHandler(&qspi_handle);
-    arm_cm_irq_exit(false);
+    arm_cm_irq_exit(true);
 }
 
 void HAL_QSPI_CmdCpltCallback(QSPI_HandleTypeDef *hqspi)
