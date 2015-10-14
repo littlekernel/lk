@@ -37,7 +37,9 @@ MODULE_DEPS += \
 GLOBAL_DEFINES += \
     MEMBASE=$(MEMBASE) \
     MEMSIZE=$(MEMSIZE) \
-    MMU_WITH_TRAMPOLINE=1 # use the trampoline translation table in start.S
+    PLATFORM_SUPPORTS_PANIC_SHELL=1
+
+GLOBAL_DEFINES += MMU_WITH_TRAMPOLINE=1 \ # use the trampoline translation table in start.S
 
 LINKER_SCRIPT += \
     $(BUILDDIR)/system-onesegment.ld
