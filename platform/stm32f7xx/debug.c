@@ -59,9 +59,16 @@ int platform_dgetc(char *c, bool wait)
 	return 0;
 }
 
+void platform_pputc(char c)
+{
+	if (c == '\n')
+		uart_pputc(DEBUG_UART, '\r');
+	uart_pputc(DEBUG_UART, c);
+}
+
 int platform_pgetc(char *c, bool wait)
 {
-	int ret = stm32_uart_getc_poll(DEBUG_UART);
+	int ret = uart_pgetc(DEBUG_UART);
 	if (ret == -1)
 		return -1;
 	*c = ret;

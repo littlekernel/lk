@@ -142,7 +142,7 @@ static int __panic_stdio_fgetc(void *ctx)
 	char c;
 	int err;
 
-	err = platform_pgetc(&c, true);
+	err = platform_pgetc(&c, false);
 	if (err < 0)
 		return err;
 	return (unsigned char)c;

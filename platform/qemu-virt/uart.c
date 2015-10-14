@@ -151,6 +151,31 @@ int uart_getc(int port, bool wait)
     return -1;
 }
 
+/* panic-time getc/putc */
+int uart_pputc(int port, char c)
+{
+    uintptr_t base = uart_to_ptr(port);
+
+    /* spin while fifo is full */
+    while (UARTREG(base, UART_TFR) & (1<<5))
+        ;
+    UARTREG(base, UART_DR) = c;
+
+    return 1;
+}
+
+int uart_pgetc(int port, bool wait)
+{
+    uintptr_t base = uart_to_ptr(port);
+
+    if ((UARTREG(base, UART_TFR) & (1<<4)) == 0) {
+        return UARTREG(base, UART_DR);
+    } else {
+        return -1;
+    }
+}
+
+
 void uart_flush_tx(int port)
 {
 }
