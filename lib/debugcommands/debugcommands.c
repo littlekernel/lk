@@ -48,6 +48,7 @@ static int cmd_memtest(int argc, const cmd_args *argv);
 static int cmd_copy_mem(int argc, const cmd_args *argv);
 static int cmd_chain(int argc, const cmd_args *argv);
 static int cmd_sleep(int argc, const cmd_args *argv);
+static int cmd_crash(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
@@ -61,6 +62,7 @@ STATIC_COMMAND_MASKED("fw", "fill range of memory by word", &cmd_fill_mem, CMD_A
 STATIC_COMMAND_MASKED("fh", "fill range of memory by halfword", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_MASKED("fb", "fill range of memory by byte", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_MASKED("mc", "copy a range of memory", &cmd_copy_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND("crash", "intentionally crash", &cmd_crash)
 #endif
 #if LK_DEBUGLEVEL > 1
 STATIC_COMMAND("mtest", "simple memory test", &cmd_memtest)
@@ -324,5 +326,16 @@ static int cmd_sleep(int argc, const cmd_args *argv)
     return 0;
 }
 
+static int cmd_crash(int argc, const cmd_args *argv)
+{
+	/* should crash */
+	volatile uint32_t *ptr = (void *)1;
+	*ptr = 1;
+
+	/* if it didn't, panic the system */
+	panic("crash");
+
+	return 0;
+}
 
 // vim: set noexpandtab:
