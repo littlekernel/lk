@@ -86,6 +86,16 @@ void minip_set_ipaddr(const uint32_t addr) {
     compute_broadcast_address();
 }
 
+void gen_random_mac_address(uint8_t *mac_addr)
+{
+    for (size_t i = 0; i < 6; i++) {
+        mac_addr[i] = rand() & 0xff;
+    }
+    /* unicast and locally administered */
+    mac_addr[0] &= ~(1<<0);
+    mac_addr[0] |= (1<<1);
+}
+
 /* This function is called by minip to send packets */
 tx_func_t minip_tx_handler;
 void *minip_tx_arg;

@@ -65,33 +65,24 @@ void target_early_init(void)
     BSP_LCD_Init(SDRAM_BASE);
 }
 
-static uint8_t* gen_mac_address(void)
-{
-    static uint8_t mac_addr[6];
-
-    for (size_t i = 0; i < sizeof(mac_addr); i++) {
-        mac_addr[i] = rand() & 0xff;
-    }
-    mac_addr[5] += 1;
-    /* unicast and locally administered */
-    mac_addr[0] &= ~(1<<0);
-    mac_addr[0] |= (1<<1);
-    return mac_addr;
-}
-
 void target_init(void)
 {
-    uint8_t* mac_addr = gen_mac_address();
     stm32_debug_init();
 
-    eth_init(mac_addr, PHY_LAN8742A);
     qspi_flash_init();
+
 #if WITH_LIB_MINIP
+    uint8_t mac_addr[6];
+    gen_random_mac_address(mac_addr);
+    eth_init(mac_addr, PHY_LAN8742A);
+
+    /* start minip */
     minip_set_macaddr(mac_addr);
 
     uint32_t ip_addr = IPV4(192, 168, 0, 98);
     uint32_t ip_mask = IPV4(255, 255, 255, 0);
     uint32_t ip_gateway = IPV4_NONE;
+
     minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
 #endif
 }

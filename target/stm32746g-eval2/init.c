@@ -75,16 +75,8 @@ void target_init(void)
     stm32_debug_init();
 
 #if WITH_LIB_MINIP
-    // make up a mac address
     uint8_t mac_addr[6];
-    for (size_t i = 0; i < sizeof(mac_addr); i++) {
-        mac_addr[i] = rand() & 0xff;
-    }
-
-    /* unicast and locally administered */
-    mac_addr[0] &= ~(1<<0);
-    mac_addr[0] |= (1<<1);
-
+    gen_random_mac_address(mac_addr);
     eth_init(mac_addr, PHY_DP83848);
 
     /* start minip */
