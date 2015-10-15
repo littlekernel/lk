@@ -5,8 +5,6 @@ GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/heap_wrapper.c
-
-MODULE_DEPS := $(LOCAL_DIR)/miniheap
+	$(LOCAL_DIR)/miniheap.c
 
 include make/module.mk
