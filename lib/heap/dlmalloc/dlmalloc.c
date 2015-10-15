@@ -558,14 +558,19 @@ static inline int munmap(void *base, size_t len) {
     return 0;
 }
 
+static int direct_mmap(size_t s)
+{
+    panic("direct map");
+    return 0;
+}
+
 #define MMAP(s) mmap(s)
-#define DIRECT_MMAP(s) mmap(s)
+#define DIRECT_MMAP(s) direct_mmap(s)
 #define MUNMAP(b, s) munmap(b, s)
+#define DEFAULT_MMAP_THRESHOLD MAX_SIZE_T /* disable direct mapping of chunks */
+#define DEFAULT_GRANULARITY PAGE_SIZE // (64*1024)
 #define HAVE_MORECORE 0
-#define MORECORE dl_sbrk
-void *dl_sbrk(long incr);
 #define USE_LOCKS 2
-#include <debug.h>
 #define ABORT panic("dlmalloc abort\n")
 #define MALLOC_FAILURE_ACTION //dprintf(INFO, "dlmalloc failure\n");
 #endif  /* LK */

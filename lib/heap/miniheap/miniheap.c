@@ -30,7 +30,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <lib/miniheap.h>
 #include <lib/heap.h>
@@ -214,10 +213,8 @@ void *miniheap_alloc(size_t size, unsigned int alignment)
         size += alignment;
     }
 
-#if WITH_KERNEL_VM
     int retry_count = 0;
 retry:
-#endif
     mutex_acquire(&theheap.lock);
 
     // walk through the list
@@ -289,7 +286,6 @@ retry:
 
     mutex_release(&theheap.lock);
 
-#if WITH_KERNEL_VM
     /* try to grow the heap if we can */
     if (ptr == NULL && retry_count == 0) {
         ssize_t err = heap_grow(size);
@@ -298,7 +294,6 @@ retry:
             goto retry;
         }
     }
-#endif
 
     LTRACEF("returning ptr %p\n", ptr);
 
@@ -372,7 +367,7 @@ static ssize_t heap_grow(size_t size)
         return ERR_NO_MEMORY;
     }
 
-    LTRACEF("growing heap by 0x%zx bytes, allocated 0x%zx, new ptr %p\n", size, allocated, ptr);
+    LTRACEF("growing heap by 0x%zx bytes, allocated 0x%zx, new ptr %p\n", size, (size_t)allocated, ptr);
 
     heap_insert_free_chunk(heap_create_free_chunk(ptr, allocated, true));
 
@@ -402,9 +397,6 @@ void miniheap_init(void *ptr, size_t len)
     theheap.base = 0;
     theheap.len = 0;
     theheap.remaining = 0; // will get set by heap_insert_free_chunk()
-    theheap.low_watermark = theheap.len;
-
-    // create an initial free chunk
-    //heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len, false));
+    theheap.low_watermark = 0;
 }
 

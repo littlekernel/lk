@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -31,8 +31,9 @@
 #include <kernel/spinlock.h>
 #include <lib/console.h>
 
-#define LOCAL_TRACE 0
+#define LOCAL_TRACE 1
 
+/* delayed free list */
 struct list_node delayed_free_list = LIST_INITIAL_VALUE(delayed_free_list);
 spin_lock_t delayed_free_lock = SPIN_LOCK_INITIAL_VALUE;
 
@@ -122,7 +123,7 @@ static void heap_free_delayed_list(void)
 
 void *heap_alloc(size_t size, unsigned int alignment)
 {
-    LTRACEF("size %zd, align %d\n", size, alignment);
+    LTRACEF("size %zd, align %u\n", size, alignment);
 
     // deal with the pending free list
     if (unlikely(!list_is_empty(&delayed_free_list))) {
@@ -193,7 +194,8 @@ ssize_t heap_grow_memory(void **ptr, size_t size)
     if (have_asked_for_memory)
         return ERR_NO_MEMORY;
 
-    *ptr = HEAP_START;
+    // XXX dont return all of the range on the first call
+    *ptr = (void *)HEAP_START;
     size = HEAP_LEN;
     have_asked_for_memory = true;
 #endif
@@ -295,11 +297,11 @@ usage:
     }
 
     if (strcmp(argv[1].str, "info") == 0) {
-        heap_dump(); // XXX
+        heap_dump();
     } else if (strcmp(argv[1].str, "alloc") == 0) {
         if (argc < 3) goto notenoughargs;
 
-        void *ptr = heap_alloc(argv[2].u, (argc >= 3) ? argv[3].u : 0);
+        void *ptr = heap_alloc(argv[2].u, (argc >= 4) ? argv[3].u : 0);
         printf("heap_alloc returns %p\n", ptr);
     } else if (strcmp(argv[1].str, "free") == 0) {
         if (argc < 2) goto notenoughargs;
