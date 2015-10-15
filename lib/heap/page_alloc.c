@@ -34,24 +34,24 @@
 void *page_alloc(size_t pages, page_alloc_handle *handle)
 {
 #if WITH_KERNEL_VM
-	if (handle != NULL) list_initialize(handle);
-	void *result = pmm_alloc_kpages(pages, handle);
-	if (!result) {
-		TRACEF("failed to grow kernel heap by 0x%zx bytes\n",
-		       pages * PAGE_SIZE);
-		return 0;
-	}
+    if (handle != NULL) list_initialize(handle);
+    void *result = pmm_alloc_kpages(pages, handle);
+    if (!result) {
+        TRACEF("failed to grow kernel heap by 0x%zx bytes\n",
+               pages * PAGE_SIZE);
+        return 0;
+    }
     return result;
 #else
     void *result = novm_alloc_pages(pages);
     if (handle == NULL) return result;
     if (result == NULL) {
-		handle->address = NULL;
-		handle->pages = 0;
-		return NULL;
+        handle->address = NULL;
+        handle->pages = 0;
+        return NULL;
     } else {
-		handle->address = result;
-		handle->pages = pages;
+        handle->address = result;
+        handle->pages = pages;
         return result;
     }
 #endif
@@ -59,7 +59,7 @@ void *page_alloc(size_t pages, page_alloc_handle *handle)
 
 void page_free(page_alloc_handle *handle) {
 #if WITH_KERNEL_VM
-	pmm_free(handle);
+    pmm_free(handle);
 #else
     novm_free_pages(handle->address, handle->pages);
 #endif
@@ -67,9 +67,9 @@ void page_free(page_alloc_handle *handle) {
 
 void *page_first_alloc(size_t *size_return) {
 #if WITH_KERNEL_VM
-	return page_alloc(1, NULL);
+    return page_alloc(1, NULL);
 #else
-	return novm_alloc_unaligned(size_return);
+    return novm_alloc_unaligned(size_return);
 #endif
 }
 
@@ -88,35 +88,33 @@ STATIC_COMMAND_END(page_alloc);
 
 static int cmd_page_alloc(int argc, const cmd_args *argv)
 {
-	if (argc != 2) {
+    if (argc != 2) {
 notenoughargs:
-		printf("not enough arguments\n");
+        printf("not enough arguments\n");
 usage:
-		printf("usage:\n");
-		printf("\t%s info\n", argv[0].str);
-		return -1;
-	}
+        printf("usage:\n");
+        printf("\t%s info\n", argv[0].str);
+        return -1;
+    }
 
-	if (strcmp(argv[1].str, "info") == 0) {
-		page_alloc_dump();
-	} else {
-		printf("unrecognized command\n");
-		goto usage;
-	}
+    if (strcmp(argv[1].str, "info") == 0) {
+        page_alloc_dump();
+    } else {
+        printf("unrecognized command\n");
+        goto usage;
+    }
 
-	return 0;
+    return 0;
 }
 
 static void page_alloc_dump(void)
 {
 #ifdef WITH_KERNEL_VM
-	dprintf(INFO, "Page allocator is based on pmm\n");
+    dprintf(INFO, "Page allocator is based on pmm\n");
 #else
-	dprintf(INFO, "Page allocator is based on novm\n");
+    dprintf(INFO, "Page allocator is based on novm\n");
 #endif
 }
 
 #endif
 #endif
-
-/* vim: set ts=4 sw=4 noexpandtab: */

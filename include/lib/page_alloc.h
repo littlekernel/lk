@@ -36,7 +36,7 @@ typedef struct list_node page_alloc_handle;
 #else
 
 typedef struct {
-	void* address;
+    void* address;
     size_t pages;
 } page_alloc_handle;
 
