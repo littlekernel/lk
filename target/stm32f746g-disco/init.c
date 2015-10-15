@@ -191,18 +191,10 @@ void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
     GPIO_InitTypeDef GPIO_InitStruct;
 
     /*##-1- Enable peripherals and GPIO Clocks #################################*/
-    /* Enable the QuadSPI memory interface clock */
-    __HAL_RCC_QSPI_CLK_ENABLE();
-    /* Reset the QuadSPI memory interface */
-    __HAL_RCC_QSPI_FORCE_RESET();
-    __HAL_RCC_QSPI_RELEASE_RESET();
     /* Enable GPIO clocks */
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_GPIOD_CLK_ENABLE();
     __HAL_RCC_GPIOD_CLK_ENABLE();
     __HAL_RCC_GPIOE_CLK_ENABLE();
-    __HAL_RCC_GPIOD_CLK_ENABLE();
 
     /*##-2- Configure peripheral GPIO ##########################################*/
     /* QSPI CS GPIO pin configuration  */
@@ -238,9 +230,4 @@ void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
     GPIO_InitStruct.Pin       = GPIO_PIN_13;
     GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
     HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-    /*##-3- Configure the NVIC for QSPI #########################################*/
-    /* NVIC configuration for QSPI interrupt */
-    HAL_NVIC_SetPriority(QUADSPI_IRQn, 0x0F, 0);
-    HAL_NVIC_EnableIRQ(QUADSPI_IRQn);
 }
