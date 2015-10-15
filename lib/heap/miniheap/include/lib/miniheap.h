@@ -39,7 +39,7 @@ void miniheap_get_stats(struct miniheap_stats *ptr);
 void *miniheap_alloc(size_t, unsigned int alignment);
 void miniheap_free(void *);
 
-void miniheap_init(void);
+void miniheap_init(void *ptr, size_t len);
 void miniheap_dump(void);
 
 __END_CDECLS;

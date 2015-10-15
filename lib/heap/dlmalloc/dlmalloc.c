@@ -539,8 +539,31 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #define LACKS_UNISTD_H
 #define LACKS_SYS_PARAM_H
 #define LACKS_SCHED_H
-#define HAVE_MMAP 0
-#define HAVE_MORECORE 1
+#define HAVE_MMAP 1
+#include <sys/types.h>
+#include <stdio.h>
+#include <lib/heap.h>
+#include <debug.h>
+
+static inline void *mmap(size_t len) {
+    void *ptr;
+    if (heap_grow_memory(&ptr, len) < 0)
+        return 0;
+
+    return ptr;
+}
+
+static inline int munmap(void *base, size_t len) {
+    heap_free_memory(base, len);
+    return 0;
+}
+
+#define MMAP(s) mmap(s)
+#define DIRECT_MMAP(s) mmap(s)
+#define MUNMAP(b, s) munmap(b, s)
+#define HAVE_MORECORE 0
+#define MORECORE dl_sbrk
+void *dl_sbrk(long incr);
 #define USE_LOCKS 2
 #include <debug.h>
 #define ABORT panic("dlmalloc abort\n")

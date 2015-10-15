@@ -13,6 +13,8 @@ ARM_CPU ?= cortex-a15
 endif
 WITH_SMP ?= 1
 
+LK_HEAP_IMPLEMENTATION ?= dlmalloc
+
 GLOBAL_INCLUDES += \
     $(LOCAL_DIR)/include
 

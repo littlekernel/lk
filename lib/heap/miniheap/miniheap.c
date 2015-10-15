@@ -33,6 +33,7 @@
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <lib/miniheap.h>
+#include <lib/heap.h>
 
 #define LOCAL_TRACE 0
 
@@ -43,36 +44,6 @@
 #define PADDING_SIZE 64
 
 #define HEAP_MAGIC 'HEAP'
-
-#if WITH_KERNEL_VM
-
-#include <kernel/vm.h>
-/* we will use kalloc routines to back our heap */
-#if !defined(HEAP_GROW_SIZE)
-#define HEAP_GROW_SIZE (4 * 1024 * 1024) /* size the heap grows by when it runs out of memory */
-#endif
-
-STATIC_ASSERT(IS_PAGE_ALIGNED(HEAP_GROW_SIZE));
-
-#elif WITH_STATIC_HEAP
-
-#if !defined(HEAP_START) || !defined(HEAP_LEN)
-#error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
-#endif
-
-#else
-/* not a static vm, not using the kernel vm */
-extern int _end;
-extern int _end_of_ram;
-
-/* default to using up the rest of memory after the kernel ends */
-/* may be modified by other parts of the system */
-uintptr_t _heap_start = (uintptr_t)&_end;
-uintptr_t _heap_end = (uintptr_t)&_end_of_ram;
-
-#define HEAP_START ((uintptr_t)_heap_start)
-#define HEAP_LEN ((uintptr_t)_heap_end - HEAP_START)
-#endif
 
 struct free_heap_chunk {
     struct list_node node;
@@ -321,9 +292,7 @@ retry:
 #if WITH_KERNEL_VM
     /* try to grow the heap if we can */
     if (ptr == NULL && retry_count == 0) {
-        size_t growby = MAX(HEAP_GROW_SIZE, ROUNDUP(size, PAGE_SIZE));
-
-        ssize_t err = heap_grow(growby);
+        ssize_t err = heap_grow(size);
         if (err >= 0) {
             retry_count++;
             goto retry;
@@ -396,35 +365,30 @@ void miniheap_get_stats(struct miniheap_stats *ptr)
 
 static ssize_t heap_grow(size_t size)
 {
-#if WITH_KERNEL_VM
-    size = ROUNDUP(size, PAGE_SIZE);
-
-    void *ptr = pmm_alloc_kpages(size / PAGE_SIZE, NULL);
-    if (!ptr) {
+    void *ptr;
+    ssize_t allocated = heap_grow_memory(&ptr, size);
+    if (allocated <= 0) {
         TRACEF("failed to grow kernel heap by 0x%zx bytes\n", size);
         return ERR_NO_MEMORY;
     }
 
-    LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
+    LTRACEF("growing heap by 0x%zx bytes, allocated 0x%zx, new ptr %p\n", size, allocated, ptr);
 
-    heap_insert_free_chunk(heap_create_free_chunk(ptr, size, true));
+    heap_insert_free_chunk(heap_create_free_chunk(ptr, allocated, true));
 
     /* change the heap start and end variables */
     if ((uintptr_t)ptr < (uintptr_t)theheap.base)
         theheap.base = ptr;
 
-    uintptr_t endptr = (uintptr_t)ptr + size;
+    uintptr_t endptr = (uintptr_t)ptr + allocated;
     if (endptr > (uintptr_t)theheap.base + theheap.len) {
         theheap.len = (uintptr_t)endptr - (uintptr_t)theheap.base;
     }
 
-    return size;
-#else
-    return ERR_NO_MEMORY;
-#endif
+    return allocated;
 }
 
-void miniheap_init(void)
+void miniheap_init(void *ptr, size_t len)
 {
     LTRACE_ENTRY;
 
@@ -435,22 +399,12 @@ void miniheap_init(void)
     list_initialize(&theheap.free_list);
 
     // set the heap range
-#if WITH_KERNEL_VM
-    theheap.base = pmm_alloc_kpages(HEAP_GROW_SIZE / PAGE_SIZE, NULL);
-    theheap.len = HEAP_GROW_SIZE;
-
-    if (theheap.base == 0) {
-        panic("HEAP: error allocating initial heap size\n");
-    }
-#else
-    theheap.base = (void *)HEAP_START;
-    theheap.len = HEAP_LEN;
-#endif
+    theheap.base = 0;
+    theheap.len = 0;
     theheap.remaining = 0; // will get set by heap_insert_free_chunk()
     theheap.low_watermark = theheap.len;
-    LTRACEF("base %p size %zd bytes\n", theheap.base, theheap.len);
 
     // create an initial free chunk
-    heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len, false));
+    //heap_insert_free_chunk(heap_create_free_chunk(theheap.base, theheap.len, false));
 }
 
