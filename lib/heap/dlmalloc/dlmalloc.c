@@ -568,11 +568,13 @@ static int direct_mmap(size_t s)
 #define DIRECT_MMAP(s) direct_mmap(s)
 #define MUNMAP(b, s) munmap(b, s)
 #define DEFAULT_MMAP_THRESHOLD MAX_SIZE_T /* disable direct mapping of chunks */
-#define DEFAULT_GRANULARITY PAGE_SIZE // (64*1024)
+#define DEFAULT_GRANULARITY (64*1024)
+#define MMAP_CLEARS 0
 #define HAVE_MORECORE 0
 #define USE_LOCKS 2
 #define ABORT panic("dlmalloc abort\n")
 #define MALLOC_FAILURE_ACTION //dprintf(INFO, "dlmalloc failure\n");
+#define MALLOC_INSPECT_ALL 1
 #endif  /* LK */
 
 #ifndef WIN32

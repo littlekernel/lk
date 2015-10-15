@@ -38,18 +38,22 @@ struct list_node delayed_free_list = LIST_INITIAL_VALUE(delayed_free_list);
 spin_lock_t delayed_free_lock = SPIN_LOCK_INITIAL_VALUE;
 
 #if WITH_LIB_HEAP_MINIHEAP
+/* miniheap implementation */
 #include <lib/miniheap.h>
 
 #define HEAP_ALLOC miniheap_alloc
 #define HEAP_FREE miniheap_free
 static inline void HEAP_INIT(void) { miniheap_init(NULL, 0); }
 #define HEAP_DUMP miniheap_dump
+static inline void HEAP_TRIM(void) {}
 
+/* end miniheap implementation */
 #elif WITH_LIB_HEAP_DLMALLOC
+/* dlmalloc implementation */
 #include <lib/dlmalloc.h>
 
 static inline void *HEAP_ALLOC(size_t size, unsigned int alignment) {
-    if (alignment == 0)
+    if (alignment < 8)
         return dlmalloc(size);
     else
         return dlmemalign(alignment, size);
@@ -57,14 +61,30 @@ static inline void *HEAP_ALLOC(size_t size, unsigned int alignment) {
 
 static inline void HEAP_FREE(void *ptr) { dlfree(ptr); }
 static inline void HEAP_INIT(void) {}
-static inline void HEAP_DUMP(void) {}
 
-void *dl_sbrk(int incr) {
-    LTRACEF("incr %d\n", incr);
+static inline void HEAP_DUMP(void) {
+    struct mallinfo minfo = dlmallinfo();
 
-    panic("what");
+    printf("\tmallinfo:\n");
+    printf("\t\tarena space 0x%zx\n", minfo.arena);
+    printf("\t\tfree chunks 0x%zx\n", minfo.ordblks);
+    printf("\t\tspace in mapped regions 0x%zx\n", minfo.hblkhd);
+    printf("\t\tmax total allocated 0x%zx\n", minfo.usmblks);
+    printf("\t\ttotal allocated 0x%zx\n", minfo.uordblks);
+    printf("\t\tfree 0x%zx\n", minfo.fordblks);
+    printf("\t\treleasable space 0x%zx\n", minfo.keepcost);
+
+    printf("\theap block list:\n");
+    void dump_callback(void *start, void *end, size_t used_bytes, void *arg) {
+        printf("\t\tstart %p end %p used_bytes %zu\n", start, end, used_bytes);
+    }
+
+    dlmalloc_inspect_all(&dump_callback, NULL);
 }
 
+static inline void HEAP_TRIM(void) { dlmalloc_trim(0); }
+
+/* end dlmalloc implementation */
 #else
 #error need to select valid heap implementation or provide wrapper
 #endif
@@ -143,6 +163,11 @@ void heap_free(void *ptr)
 void heap_init(void)
 {
     HEAP_INIT();
+}
+
+void heap_trim(void)
+{
+    HEAP_TRIM();
 }
 
 /* critical section time delayed free */
@@ -291,6 +316,7 @@ notenoughargs:
 usage:
         printf("usage:\n");
         printf("\t%s info\n", argv[0].str);
+        printf("\t%s trim\n", argv[0].str);
         printf("\t%s alloc <size> [alignment]\n", argv[0].str);
         printf("\t%s free <address>\n", argv[0].str);
         return -1;
@@ -298,6 +324,8 @@ usage:
 
     if (strcmp(argv[1].str, "info") == 0) {
         heap_dump();
+    } else if (strcmp(argv[1].str, "trim") == 0) {
+        heap_trim();
     } else if (strcmp(argv[1].str, "alloc") == 0) {
         if (argc < 3) goto notenoughargs;
 
