@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2015 Google, Inc. All rights reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,27 +20,17 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __MALLOC_H
-#define __MALLOC_H
+#ifndef __KERNEL_NOVM_H
+#define __KERNEL_NOVM_H
 
-#include <sys/types.h>
-#include <compiler.h>
 #include <stddef.h>
 
-__BEGIN_CDECLS
+void novm_init(void);
+void *novm_alloc_pages(size_t pages);
+void novm_free_pages(void* address, size_t pages);
 
-void *malloc(size_t size) __MALLOC;
-void *memalign(size_t boundary, size_t size) __MALLOC;
-void *calloc(size_t count, size_t size) __MALLOC;
-void *realloc(void *ptr, size_t size) __MALLOC;
-void free(void *ptr);
-/* Allocate a number of contiguous 4k pages.  These pages cannot be freed with
- * free(), but the handle must be passed to free_pages.
- */
-void *allocate_pages(void **handle_return, int pages);
-void free_pages(void *handle);
-
-__END_CDECLS
+// You can call this once and it will give you some possibly unaligned memory
+// that would otherwise go to waste.  The memory can't be freed.
+void *novm_alloc_unaligned(size_t *size_return);
 
 #endif
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2015 Google, Inc. All rights reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,27 +20,35 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __MALLOC_H
-#define __MALLOC_H
+#ifndef __LIB_PAGE_ALLOC_H
+#define __LIB_PAGE_ALLOC_H
 
+#include <stddef.h>
 #include <sys/types.h>
 #include <compiler.h>
-#include <stddef.h>
 
-__BEGIN_CDECLS
+__BEGIN_CDECLS;
 
-void *malloc(size_t size) __MALLOC;
-void *memalign(size_t boundary, size_t size) __MALLOC;
-void *calloc(size_t count, size_t size) __MALLOC;
-void *realloc(void *ptr, size_t size) __MALLOC;
-void free(void *ptr);
-/* Allocate a number of contiguous 4k pages.  These pages cannot be freed with
- * free(), but the handle must be passed to free_pages.
- */
-void *allocate_pages(void **handle_return, int pages);
-void free_pages(void *handle);
+#if WITH_KERNEL_VM
 
-__END_CDECLS
+typedef struct list_node page_alloc_handle;
+
+#else
+
+typedef struct {
+	void* address;
+    size_t pages;
+} page_alloc_handle;
 
 #endif
 
+void *page_alloc(size_t pages, page_alloc_handle *list);
+void page_free(page_alloc_handle *list);
+
+// You can call this once at the start, and it will either return a page or it
+// will return some non-page-aligned memory that would otherwise go to waste.
+void *page_first_alloc(size_t *size_return);
+
+__END_CDECLS;
+
+#endif

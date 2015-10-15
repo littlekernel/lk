@@ -24,6 +24,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <lib/heap.h>
+#include <lib/page_alloc.h>
 
 void *malloc(size_t size)
 {
@@ -69,3 +70,22 @@ void free(void *ptr)
 	return heap_free(ptr);
 }
 
+void *allocate_pages(void **handle_return, int pages)
+{
+	page_alloc_handle *handle =
+		(page_alloc_handle *)malloc(sizeof(page_alloc_handle));
+	void* address = page_alloc(pages, handle);
+    if (address == NULL) {
+		*handle_return = NULL;
+		return NULL;
+    } else {
+		*handle_return = handle;
+		return address;
+    }
+}
+
+void free_pages(void* handle)
+{
+	page_free((page_alloc_handle *)handle);
+    free(handle);
+}

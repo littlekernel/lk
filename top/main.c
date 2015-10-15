@@ -34,6 +34,7 @@
 #include <target.h>
 #include <lib/heap.h>
 #include <kernel/mutex.h>
+#include <kernel/novm.h>
 #include <kernel/thread.h>
 #include <lk/init.h>
 #include <lk/main.h>
@@ -101,6 +102,10 @@ void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 #endif
 	dprintf(INFO, "boot args 0x%lx 0x%lx 0x%lx 0x%lx\n",
 		lk_boot_args[0], lk_boot_args[1], lk_boot_args[2], lk_boot_args[3]);
+
+#if !WITH_KERNEL_VM
+	novm_init();
+#endif
 
 	// bring up the kernel heap
 	dprintf(SPEW, "initializing heap\n");
