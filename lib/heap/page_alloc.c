@@ -13,7 +13,8 @@
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
  * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
  * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
@@ -23,6 +24,7 @@
 #include <lib/page_alloc.h>
 
 #include <debug.h>
+#include <assert.h>
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #else
@@ -31,11 +33,13 @@
 #include <string.h>
 #include <trace.h>
 
-void *page_alloc(size_t pages, page_alloc_handle *handle)
-{
+void *page_alloc(size_t pages) {
 #if WITH_KERNEL_VM
-    if (handle != NULL) list_initialize(handle);
-    void *result = pmm_alloc_kpages(pages, handle);
+    /* throw the list away, we can reconstruct it later */
+    struct list_node list;
+    list_initialize(&list);
+
+    void *result = pmm_alloc_kpages(pages, &list);
     if (!result) {
         TRACEF("failed to grow kernel heap by 0x%zx bytes\n",
                pages * PAGE_SIZE);
@@ -44,30 +48,23 @@ void *page_alloc(size_t pages, page_alloc_handle *handle)
     return result;
 #else
     void *result = novm_alloc_pages(pages);
-    if (handle == NULL) return result;
-    if (result == NULL) {
-        handle->address = NULL;
-        handle->pages = 0;
-        return NULL;
-    } else {
-        handle->address = result;
-        handle->pages = pages;
-        return result;
-    }
+    return result;
 #endif
 }
 
-void page_free(page_alloc_handle *handle) {
+void page_free(void *ptr, size_t pages) {
 #if WITH_KERNEL_VM
-    pmm_free(handle);
+    DEBUG_ASSERT(IS_PAGE_ALIGNED((uintptr_t)ptr));
+
+    pmm_free_kpages(ptr, pages);
 #else
-    novm_free_pages(handle->address, handle->pages);
+    novm_free_pages(ptr, pages);
 #endif
 }
 
 void *page_first_alloc(size_t *size_return) {
 #if WITH_KERNEL_VM
-    return page_alloc(1, NULL);
+    return page_alloc(1);
 #else
     return novm_alloc_unaligned(size_return);
 #endif

@@ -372,7 +372,7 @@ static ssize_t heap_grow(size_t size)
     heap_insert_free_chunk(heap_create_free_chunk(ptr, allocated, true));
 
     /* change the heap start and end variables */
-    if ((uintptr_t)ptr < (uintptr_t)theheap.base)
+    if ((uintptr_t)ptr < (uintptr_t)theheap.base || theheap.base == 0)
         theheap.base = ptr;
 
     uintptr_t endptr = (uintptr_t)ptr + allocated;
@@ -394,8 +394,8 @@ void miniheap_init(void *ptr, size_t len)
     list_initialize(&theheap.free_list);
 
     // set the heap range
-    theheap.base = 0;
-    theheap.len = 0;
+    theheap.base = ptr;
+    theheap.len = len;
     theheap.remaining = 0; // will get set by heap_insert_free_chunk()
     theheap.low_watermark = 0;
 }

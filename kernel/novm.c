@@ -100,6 +100,7 @@ void novm_init_helper(
 {
     uintptr_t start = ROUNDUP(heap_start, PAGE_SIZE);
     uintptr_t size = ROUNDDOWN(heap_start + heap_size, PAGE_SIZE) - start;
+
     mutex_init(&n->lock);
     size_t map_size = size >> PAGE_SIZE_SHIFT;
     char* map = default_map;

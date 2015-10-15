@@ -27,23 +27,17 @@
 #include <sys/types.h>
 #include <compiler.h>
 
-__BEGIN_CDECLS;
-
+// to pick up PAGE_SIZE, PAGE_ALIGN, etc
 #if WITH_KERNEL_VM
-
-typedef struct list_node page_alloc_handle;
-
+#include <kernel/vm.h>
 #else
-
-typedef struct {
-    void* address;
-    size_t pages;
-} page_alloc_handle;
-
+#include <kernel/novm.h>
 #endif
 
-void *page_alloc(size_t pages, page_alloc_handle *list);
-void page_free(page_alloc_handle *list);
+__BEGIN_CDECLS;
+
+void *page_alloc(size_t pages);
+void page_free(void *ptr, size_t pages);
 
 // You can call this once at the start, and it will either return a page or it
 // will return some non-page-aligned memory that would otherwise go to waste.

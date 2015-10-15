@@ -25,11 +25,13 @@
 #include <trace.h>
 #include <debug.h>
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 #include <err.h>
 #include <list.h>
 #include <kernel/spinlock.h>
 #include <lib/console.h>
+#include <lib/page_alloc.h>
 
 #define LOCAL_TRACE 1
 
@@ -204,6 +206,16 @@ ssize_t heap_grow_memory(void **ptr, size_t size)
 {
     LTRACEF("ptr %p, size 0x%zx\n", ptr, size);
 
+    size = ROUNDUP(size, PAGE_SIZE);
+    *ptr = page_alloc(size / PAGE_SIZE);
+
+    LTRACEF("returning ptr %p\n", *ptr);
+
+    return size;
+
+#if 0
+    LTRACEF("ptr %p, size 0x%zx\n", ptr, size);
+
 #if WITH_KERNEL_VM && !WITH_STATIC_HEAP
     size = ROUNDUP(size, PAGE_SIZE);
     LTRACEF("size now 0x%zx\n", size);
@@ -228,18 +240,17 @@ ssize_t heap_grow_memory(void **ptr, size_t size)
     LTRACEF("returning %p, size 0x%zx\n", *ptr, size);
 
     return size;
+#endif
 }
 
 void heap_free_memory(void *ptr, size_t len)
 {
     LTRACEF("ptr %p, len 0x%zx\n", ptr, len);
 
-#if WITH_KERNEL_VM && !WITH_STATIC_HEAP
     DEBUG_ASSERT(IS_PAGE_ALIGNED((uintptr_t)ptr));
     DEBUG_ASSERT(IS_PAGE_ALIGNED(len));
 
-    pmm_free_kpages(ptr, len / PAGE_SIZE);
-#endif
+    page_free(ptr, len / PAGE_SIZE);
 }
 
 #if 0

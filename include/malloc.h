@@ -34,11 +34,6 @@ void *memalign(size_t boundary, size_t size) __MALLOC;
 void *calloc(size_t count, size_t size) __MALLOC;
 void *realloc(void *ptr, size_t size) __MALLOC;
 void free(void *ptr);
-/* Allocate a number of contiguous 4k pages.  These pages cannot be freed with
- * free(), but the handle must be passed to free_pages.
- */
-void *allocate_pages(void **handle_return, int pages);
-void free_pages(void *handle);
 
 __END_CDECLS
 
