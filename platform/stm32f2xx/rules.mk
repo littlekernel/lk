@@ -30,9 +30,6 @@ ifeq ($(FOUND_CHIP),)
 $(error unknown STM32F2xx chip $(STM32_CHIP))
 endif
 
-GLOBAL_DEFINES += \
-	MEMSIZE=$(MEMSIZE)
-
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
 

@@ -9,9 +9,6 @@ MEMSIZE ?= 40960
 ARCH := arm
 ARM_CPU := cortex-m4
 
-GLOBAL_DEFINES += \
-	MEMSIZE=$(MEMSIZE)
-
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
 

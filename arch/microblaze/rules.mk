@@ -51,6 +51,10 @@ KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0
 VECTOR_BASE_PHYS ?= 0
 
+GLOBAL_DEFINES += \
+    MEMBASE=$(MEMBASE) \
+    MEMSIZE=$(MEMSIZE)
+
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
 	$(BUILDDIR)/linker.ld

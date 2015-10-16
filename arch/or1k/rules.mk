@@ -40,6 +40,10 @@ GLOBAL_DEFINES += \
 	KERNEL_BASE=$(KERNEL_BASE) \
 	KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET)
 
+GLOBAL_DEFINES += \
+    MEMBASE=$(MEMBASE) \
+    MEMSIZE=$(MEMSIZE)
+
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
 	$(BUILDDIR)/linker.ld

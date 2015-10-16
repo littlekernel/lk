@@ -24,8 +24,4 @@ WITH_KERNEL_VM=1
 
 KERNEL_BASE = 0xc0000000
 
-GLOBAL_DEFINES += \
-	MEMBASE=$(MEMBASE) \
-	MEMSIZE=$(MEMSIZE)
-
 include make/module.mk
