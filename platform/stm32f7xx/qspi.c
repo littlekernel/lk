@@ -33,6 +33,7 @@
 #include <platform/qspi.h>
 
 static QSPI_HandleTypeDef qspi_handle;
+static DMA_HandleTypeDef hdma;
 
 static const char device_name[] = "qspi-flash";
 static bdev_t qspi_flash_device;
@@ -55,8 +56,10 @@ static ssize_t qspi_erase_sector(uint32_t block_addr);
 static ssize_t qspi_erase_subsector(uint32_t block_addr);
 
 static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*);
-static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef*, uint8_t*);
-static HAL_StatusTypeDef qspi_rx(QSPI_HandleTypeDef*, uint8_t*);
+static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
+static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
+
+status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi);
 
 static event_t cmd_event;
 static event_t rx_event;
@@ -248,7 +251,7 @@ static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, 
 
     // /* Initialize the read command */
     s_command.InstructionMode = QSPI_INSTRUCTION_1_LINE;
-    s_command.Instruction = QUAD_INOUT_FAST_READ_CMD;
+    s_command.Instruction = QUAD_OUT_FAST_READ_CMD;
     s_command.AddressMode = QSPI_ADDRESS_4_LINES;
     s_command.AddressSize = QSPI_ADDRESS_24_BITS;
     s_command.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
@@ -272,7 +275,7 @@ static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, 
     }
 
     // /* Reception of the data */
-    status = qspi_rx(&qspi_handle, buf);
+    status = qspi_rx_dma(&qspi_handle, &s_command, buf);
     if (status != HAL_OK) {
         retcode = hal_error_to_status(status);
         goto err;
@@ -310,6 +313,7 @@ static ssize_t spiflash_bdev_write_block(struct bdev* device, const void* _buf,
     for (; count > 0; count--, block++) {
         ssize_t bytes_written = qspi_write_page_unsafe(block * N25Q128A_PAGE_SIZE, buf);
         if (bytes_written < 0) {
+            printf("qspi_write_page_unsafe failed\n");
             total_bytes_written = bytes_written;
             goto err;
         }
@@ -384,7 +388,7 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 
     QSPI_CommandTypeDef s_command = {
         .InstructionMode   = QSPI_INSTRUCTION_1_LINE,
-        .Instruction       = EXT_QUAD_IN_FAST_PROG_CMD,
+        .Instruction       = QUAD_IN_FAST_PROG_CMD,
         .AddressMode       = QSPI_ADDRESS_4_LINES,
         .AddressSize       = QSPI_ADDRESS_24_BITS,
         .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
@@ -407,7 +411,7 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
         return hal_error_to_status(status);
     }
 
-    status = qspi_tx(&qspi_handle, (uint8_t*)data);
+    status = qspi_tx_dma(&qspi_handle, &s_command, (uint8_t*)data);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
@@ -424,7 +428,7 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 
 status_t qspi_flash_init(void)
 {
-    status_t result;
+    status_t result = NO_ERROR;
 
     event_init(&cmd_event, false, EVENT_FLAG_AUTOUNSIGNAL);
     event_init(&tx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
@@ -464,7 +468,7 @@ status_t qspi_flash_init(void)
     }
 
     // enable the qspi interrupt
-    NVIC_EnableIRQ(QUADSPI_IRQn);
+    HAL_NVIC_EnableIRQ(QUADSPI_IRQn);
 
     result = qspi_reset_memory_unsafe(&qspi_handle);
     if (result != NO_ERROR) {
@@ -472,6 +476,11 @@ status_t qspi_flash_init(void)
     }
 
     result = qspi_dummy_cycles_cfg_unsafe(&qspi_handle);
+    if (result != NO_ERROR) {
+        goto err;
+    }
+
+    result = qspi_dma_init(&qspi_handle);
     if (result != NO_ERROR) {
         goto err;
     }
@@ -499,7 +508,7 @@ status_t qspi_flash_init(void)
 
 err:
     mutex_release(&spiflash_mutex);
-    return NO_ERROR;
+    return result;
 }
 
 status_t hal_error_to_status(HAL_StatusTypeDef hal_status)
@@ -609,18 +618,34 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_tx(QSPI_HandleTypeDef* qspi_handle, uint8_t* buf)
+static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_CommandTypeDef* s_command, uint8_t* buf)
 {
-    HAL_StatusTypeDef result = HAL_QSPI_Transmit_IT(qspi_handle, buf);
+    // Make sure cache is flushed to RAM before invoking the DMA controller.
+    arch_clean_invalidate_cache_range((addr_t)buf, s_command->NbData);
+
+    HAL_StatusTypeDef result = HAL_QSPI_Transmit_DMA(qspi_handle, buf);
     event_wait(&tx_event);
+
+    // CPU may have cached data while we were performing the DMA.
+    arch_invalidate_cache_range((addr_t)buf, s_command->NbData);
+
     return result;
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_rx(QSPI_HandleTypeDef* qspi_handle, uint8_t* buf)
+static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_CommandTypeDef* s_command, uint8_t* buf)
 {
-    HAL_StatusTypeDef result = HAL_QSPI_Receive_IT(qspi_handle, buf);
+    // DMA controller is about to overwrite this memory. All data pointing to it
+    // is invalid.
+    arch_invalidate_cache_range((addr_t)buf, s_command->NbData);
+
+    HAL_StatusTypeDef result = HAL_QSPI_Receive_DMA(qspi_handle, buf);
     event_wait(&rx_event);
+
+    // DMA controller has modified this memory. Any caches that reference it are
+    // now invalid.
+    arch_invalidate_cache_range((addr_t)buf, s_command->NbData);
+
     return result;
 }
 
@@ -631,17 +656,53 @@ void stm32_QUADSPI_IRQ(void)
     arm_cm_irq_exit(true);
 }
 
+void stm32_DMA2_Stream7_IRQ(void)
+{
+    arm_cm_irq_entry();
+    HAL_DMA_IRQHandler(&hdma);
+    arm_cm_irq_exit(true);
+}
+
+/* IRQ Context */
 void HAL_QSPI_CmdCpltCallback(QSPI_HandleTypeDef *hqspi)
 {
     event_signal(&cmd_event, false);
 }
 
+/* IRQ Context */
 void HAL_QSPI_RxCpltCallback(QSPI_HandleTypeDef *hqspi)
 {
     event_signal(&rx_event, false);
 }
 
+/* IRQ Context */
 void HAL_QSPI_TxCpltCallback(QSPI_HandleTypeDef *hqspi)
 {
     event_signal(&tx_event, false);
+}
+
+status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
+{
+    hdma.Init.Channel             = DMA_CHANNEL_3;
+    hdma.Init.PeriphInc           = DMA_PINC_DISABLE;
+    hdma.Init.MemInc              = DMA_MINC_ENABLE;
+    hdma.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma.Init.MemDataAlignment    = DMA_MDATAALIGN_BYTE;
+    hdma.Init.Mode                = DMA_NORMAL;
+    hdma.Init.Priority            = DMA_PRIORITY_LOW;
+    hdma.Init.FIFOMode            = DMA_FIFOMODE_DISABLE;
+    hdma.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
+    hdma.Init.MemBurst            = DMA_MBURST_SINGLE;
+    hdma.Init.PeriphBurst         = DMA_PBURST_SINGLE;
+    hdma.Instance                 = DMA2_Stream7;
+
+    __HAL_LINKDMA(hqspi, hdma, hdma);
+    HAL_StatusTypeDef hal_result = HAL_DMA_Init(&hdma);
+    if (hal_result != HAL_OK) {
+        return hal_error_to_status(hal_result);
+    }
+
+    HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
+
+    return NO_ERROR;
 }

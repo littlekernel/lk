@@ -196,6 +196,9 @@ void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
     __HAL_RCC_GPIOD_CLK_ENABLE();
     __HAL_RCC_GPIOE_CLK_ENABLE();
 
+    /* QSPI DMA Controller Clock */
+    __HAL_RCC_DMA2_CLK_ENABLE();
+
     /*##-2- Configure peripheral GPIO ##########################################*/
     /* QSPI CS GPIO pin configuration  */
     GPIO_InitStruct.Pin       = GPIO_PIN_6;
