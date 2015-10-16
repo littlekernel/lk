@@ -376,7 +376,8 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
     mutex_acquire(&vmm_lock);
 
     /* allocate a region and put it in the aspace list */
-    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_log2, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_log2, vmm_flags,
+            VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         ret = ERR_NO_MEMORY;
         goto err_alloc_region;
@@ -397,7 +398,8 @@ err_alloc_region:
     return ret;
 }
 
-status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr,
+        uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
 {
     status_t err = NO_ERROR;
 
@@ -433,6 +435,7 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
     /* allocate a run of physical pages */
     size_t count = pmm_alloc_contiguous(size / PAGE_SIZE, align_pow2, &pa, &page_list);
     if (count < size / PAGE_SIZE) {
+        DEBUG_ASSERT(count == 0); /* check that the pmm didn't allocate a partial run */
         err = ERR_NO_MEMORY;
         goto err;
     }
@@ -440,7 +443,8 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
     mutex_acquire(&vmm_lock);
 
     /* allocate a region and put it in the aspace list */
-    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags,
+            VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         err = ERR_NO_MEMORY;
         goto err1;
@@ -469,7 +473,8 @@ err:
     return err;
 }
 
-status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr,
+        uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
 {
     status_t err = NO_ERROR;
 
@@ -507,14 +512,16 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     DEBUG_ASSERT(count <= size);
     if (count < size / PAGE_SIZE) {
         LTRACEF("failed to allocate enough pages (asked for %zu, got %zu)\n", size / PAGE_SIZE, count);
+        pmm_free(&page_list);
         err = ERR_NO_MEMORY;
-        goto err1;
+        goto err;
     }
 
     mutex_acquire(&vmm_lock);
 
     /* allocate a region and put it in the aspace list */
-    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags, VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags,
+            VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         err = ERR_NO_MEMORY;
         goto err1;
