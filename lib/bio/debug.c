@@ -289,7 +289,13 @@ static bool is_valid_block(bdev_t *device, bnum_t block_num, uint8_t* pattern,
                            size_t pattern_length)
 {
     uint8_t *block_contents = malloc(device->block_size);
-    device->read_block(device, block_contents, block_num, 1);
+
+    ssize_t n_bytes = device->read_block(device, block_contents, block_num, 1);
+    if (n_bytes != device->block_size) {
+        free(block_contents);
+        return false;
+    }
+
     for (size_t i = 0; i < device->block_size; i++) {
         if (block_contents[i] != pattern[i % pattern_length]) {
             free(block_contents);
