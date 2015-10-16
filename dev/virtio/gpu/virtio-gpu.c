@@ -381,6 +381,13 @@ status_t virtio_gpu_start(struct virtio_device *dev)
     /* attach a backing store to the resource */
     size_t len = gdev->pmode.r.width * gdev->pmode.r.height * 4;
     gdev->fb = pmm_alloc_kpages(ROUNDUP(len, PAGE_SIZE) / PAGE_SIZE, NULL);
+    if (!gdev->fb) {
+        TRACEF("failed to allocate framebuffer, wanted 0x%zx bytes\n", len);
+        return ERR_NO_MEMORY;
+    }
+
+    printf("virtio-gpu: framebuffer at %p, 0x%zx bytes\n", gdev->fb, len);
+
     err = attach_backing(gdev, gdev->display_resource_id, gdev->fb, len);
     if (err < 0) {
         LTRACEF("failed to attach backing store\n");
