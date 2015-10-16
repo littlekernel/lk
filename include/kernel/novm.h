@@ -29,9 +29,10 @@
 #define PAGE_ALIGN(x) ALIGN(x, PAGE_SIZE)
 #define IS_PAGE_ALIGNED(x) IS_ALIGNED(x, PAGE_SIZE)
 
-void novm_init(void);
 void *novm_alloc_pages(size_t pages);
 void novm_free_pages(void* address, size_t pages);
+
+status_t novm_alloc_specific_pages(void *address, size_t pages);
 
 // You can call this once and it will give you some possibly unaligned memory
 // that would otherwise go to waste.  The memory can't be freed.

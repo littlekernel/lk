@@ -23,6 +23,8 @@ ifeq ($(FOUND_CHIP),)
 $(error unknown STM32F7xx chip $(STM32_CHIP))
 endif
 
+LK_HEAP_IMPLEMENTATION ?= miniheap
+
 GLOBAL_DEFINES += \
 	PLATFORM_SUPPORTS_PANIC_SHELL=1
 

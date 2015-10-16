@@ -33,7 +33,7 @@
 #include <lib/console.h>
 #include <lib/page_alloc.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 /* delayed free list */
 struct list_node delayed_free_list = LIST_INITIAL_VALUE(delayed_free_list);
@@ -45,7 +45,12 @@ spin_lock_t delayed_free_lock = SPIN_LOCK_INITIAL_VALUE;
 
 #define HEAP_ALLOC miniheap_alloc
 #define HEAP_FREE miniheap_free
-static inline void HEAP_INIT(void) { miniheap_init(NULL, 0); }
+static inline void HEAP_INIT(void) {
+    /* start the heap off with some spare memory in the page allocator */
+    size_t len;
+    void *ptr = page_first_alloc(&len);
+    miniheap_init(ptr, len);
+}
 #define HEAP_DUMP miniheap_dump
 static inline void HEAP_TRIM(void) {}
 
@@ -91,35 +96,14 @@ static inline void HEAP_TRIM(void) { dlmalloc_trim(0); }
 #error need to select valid heap implementation or provide wrapper
 #endif
 
-#if WITH_KERNEL_VM
+#if WITH_STATIC_HEAP
 
-#include <kernel/vm.h>
-
-/* we will use kalloc routines to back our heap */
-#if !defined(HEAP_GROW_SIZE)
-#define HEAP_GROW_SIZE (64 * 1024) /* size the heap grows by when it runs out of memory */
-#endif
-
-STATIC_ASSERT(IS_PAGE_ALIGNED(HEAP_GROW_SIZE));
-
-#elif WITH_STATIC_HEAP
+#error "fix static heap post page allocator and novm stuff"
 
 #if !defined(HEAP_START) || !defined(HEAP_LEN)
 #error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
 #endif
 
-#else
-/* not a static vm, not using the kernel vm */
-extern int _end;
-extern int _end_of_ram;
-
-/* default to using up the rest of memory after the kernel ends */
-/* may be modified by other parts of the system */
-uintptr_t _heap_start = (uintptr_t)&_end;
-uintptr_t _heap_end = (uintptr_t)&_end_of_ram;
-
-#define HEAP_START ((uintptr_t)_heap_start)
-#define HEAP_LEN ((uintptr_t)_heap_end - HEAP_START)
 #endif
 
 static void heap_free_delayed_list(void)
@@ -212,35 +196,6 @@ ssize_t heap_grow_memory(void **ptr, size_t size)
     LTRACEF("returning ptr %p\n", *ptr);
 
     return size;
-
-#if 0
-    LTRACEF("ptr %p, size 0x%zx\n", ptr, size);
-
-#if WITH_KERNEL_VM && !WITH_STATIC_HEAP
-    size = ROUNDUP(size, PAGE_SIZE);
-    LTRACEF("size now 0x%zx\n", size);
-
-    *ptr = pmm_alloc_kpages(size / PAGE_SIZE, NULL);
-    if (!*ptr) {
-        TRACEF("failed to grow kernel heap by 0x%zx bytes\n", size);
-        return ERR_NO_MEMORY;
-    }
-#else
-    static bool have_asked_for_memory = false;
-
-    if (have_asked_for_memory)
-        return ERR_NO_MEMORY;
-
-    // XXX dont return all of the range on the first call
-    *ptr = (void *)HEAP_START;
-    size = HEAP_LEN;
-    have_asked_for_memory = true;
-#endif
-
-    LTRACEF("returning %p, size 0x%zx\n", *ptr, size);
-
-    return size;
-#endif
 }
 
 void heap_free_memory(void *ptr, size_t len)

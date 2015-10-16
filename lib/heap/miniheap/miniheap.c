@@ -385,7 +385,7 @@ static ssize_t heap_grow(size_t size)
 
 void miniheap_init(void *ptr, size_t len)
 {
-    LTRACE_ENTRY;
+    LTRACEF("ptr %p, len %zu\n", ptr, len);
 
     // create a mutex
     mutex_init(&theheap.lock);
@@ -398,5 +398,9 @@ void miniheap_init(void *ptr, size_t len)
     theheap.len = len;
     theheap.remaining = 0; // will get set by heap_insert_free_chunk()
     theheap.low_watermark = 0;
+
+    // if passed a default range, use it
+    if (len > 0)
+        heap_insert_free_chunk(heap_create_free_chunk(ptr, len, true));
 }
 

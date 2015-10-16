@@ -64,12 +64,12 @@ void page_free(void *ptr, size_t pages) {
 
 void *page_first_alloc(size_t *size_return) {
 #if WITH_KERNEL_VM
+    *size_return = PAGE_SIZE;
     return page_alloc(1);
 #else
     return novm_alloc_unaligned(size_return);
 #endif
 }
-
 
 #if LK_DEBUGLEVEL > 1
 #if WITH_LIB_CONSOLE

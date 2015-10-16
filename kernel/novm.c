@@ -25,55 +25,32 @@
 
 #include <assert.h>
 #include <kernel/mutex.h>
+#include <trace.h>
 #include <stdlib.h>
 #include <string.h>
+#include <lk/init.h>
+#include <err.h>
 
-#if WITH_STATIC_HEAP
-
-#define DEFAULT_MAP_SIZE (HEAP_LEN >> PAGE_SIZE_SHIFT)
-
-#else
+struct novm_arena {
+    mutex_t lock;
+    size_t pages;
+    char *map;
+    char *base;
+    size_t size;
+};
 
 /* not a static vm, not using the kernel vm */
 extern int _end;
 extern int _end_of_ram;
 
-/* default to using up the rest of memory after the kernel ends */
-/* may be modified by other parts of the system */
-
-#define HEAP_START ((uintptr_t)&_end)
-#define HEAP_LEN ((uintptr_t)&_end_of_ram - HEAP_START)
-
-#define MAP_SIZE (HEAP_LEN >> PAGE_SIZE_SHIFT)
-// The map is one byte per page, but we can't statically size that because
-// the C compiler doesn't think the difference between two addresses is a
-// compile time constant.
-// Instead, the default bytemap starts with this many bytes, which covers a
-// quarter megabyte if page size is 4k.  If that's not enough, we steal the
-// first of the plentiful pages for the map.
-#define DEFAULT_MAP_SIZE 64
-
-#endif
+#define MEM_START ((uintptr_t)&_end)
+#define MEM_SIZE ((MEMBASE + MEMSIZE) - MEM_START)
+#define DEFAULT_MAP_SIZE (MEMSIZE >> PAGE_SIZE_SHIFT)
 
 static char allocation_map[DEFAULT_MAP_SIZE];
 
-struct novm {
-    mutex_t lock;
-    size_t pages;
-    char* map;
-    char* heap_base;
-    uintptr_t heap_size;
-};
-
-static bool in_heap(struct novm *n, void* p)
-{
-    char *ptr = (char *)p;
-    char *base = n->heap_base;
-    return ptr >= base && ptr < base + n->heap_size;
-}
-
-struct novm sram_heap;
-struct novm sdram_heap;
+struct novm_arena mem_arena;
+struct novm_arena sdram_arena;
 
 // We divide the memory up into pages.  If there is memory we can use before
 // the first aligned page address, then we record it here and the heap will use
@@ -94,8 +71,15 @@ void *novm_alloc_unaligned(size_t *size_return)
     return novm_alloc_pages(1);
 }
 
+static bool in_arena(struct novm_arena *n, void* p)
+{
+    char *ptr = (char *)p;
+    char *base = n->base;
+    return ptr >= base && ptr < base + n->size;
+}
+
 void novm_init_helper(
-    struct novm* n, uintptr_t heap_start,
+    struct novm_arena* n, uintptr_t heap_start,
     uintptr_t heap_size, char* default_map, size_t default_map_size)
 {
     uintptr_t start = ROUNDUP(heap_start, PAGE_SIZE);
@@ -123,22 +107,30 @@ void novm_init_helper(
     n->map = map;
     memset(n->map, 0, map_size);
     n->pages = map_size;
-    n->heap_base = (char *)start;
-    n->heap_size = size;
+    n->base = (char *)start;
+    n->size = size;
 }
 
-void novm_init(void)
+void novm_init_preheap(uint level)
 {
-    novm_init_helper(&sram_heap, HEAP_START, HEAP_LEN, allocation_map, DEFAULT_MAP_SIZE);
+    novm_init_helper(&mem_arena, MEM_START, MEM_SIZE, allocation_map, DEFAULT_MAP_SIZE);
 
 #ifdef SDRAM_BASE
 #define SDRAM_MAP_SIZE (SDRAM_SIZE >> PAGE_SIZE_SHIFT)
     static char sdram_map[SDRAM_MAP_SIZE];
-    novm_init_helper(&sdram_heap, SDRAM_BASE, SDRAM_SIZE, sdram_map, SDRAM_MAP_SIZE);
+    novm_init_helper(&sdram_arena, SDRAM_BASE, SDRAM_SIZE, sdram_map, SDRAM_MAP_SIZE);
+#endif
+
+#if 0
+    /* mark pieces of the novm as used */
+    novm_alloc_specific_pages(&__data_start,
+            ROUNDUP((uintptr_t)&_end - (uintptr_t)&__data_start, PAGE_SIZE) / PAGE_SIZE);
 #endif
 }
 
-void *novm_alloc_helper(struct novm *n, size_t pages)
+LK_INIT_HOOK(novm_preheap, &novm_init_preheap, LK_INIT_LEVEL_HEAP - 1);
+
+void *novm_alloc_helper(struct novm_arena *n, size_t pages)
 {
     mutex_acquire(&n->lock);
     for (size_t i = 0; i <= n->pages - pages; i++) {
@@ -153,7 +145,7 @@ void *novm_alloc_helper(struct novm *n, size_t pages)
         if (found) {
             memset(n->map + i, 1, pages);
             mutex_release(&n->lock);
-            return n->heap_base + (i << PAGE_SIZE_SHIFT);
+            return n->base + (i << PAGE_SIZE_SHIFT);
         }
     }
     mutex_release(&n->lock);
@@ -162,32 +154,62 @@ void *novm_alloc_helper(struct novm *n, size_t pages)
 
 void* novm_alloc_pages(size_t pages)
 {
-    void* result = novm_alloc_helper(&sram_heap, pages);
+    void* result = novm_alloc_helper(&mem_arena, pages);
     if (result != NULL) return result;
 #ifdef SDRAM_BASE
-    return novm_alloc_helper(&sdram_heap, pages);
+    return novm_alloc_helper(&sdram_arena, pages);
 #endif
     return NULL;
 }
 
-
 void novm_free_pages(void* address, size_t pages)
 {
 #ifdef SDRAM_BASE
-    struct novm *n = in_heap(&sram_heap, address) ? &sram_heap : &sdram_heap;
+    struct novm_arena *n = in_arena(&mem_arena, address) ? &mem_arena : &sdram_arena;
 #else
-    struct novm *n = &sram_heap;
+    struct novm_arena *n = &mem_arena;
 #endif
 
-    DEBUG_ASSERT(in_heap(n, address));
+    DEBUG_ASSERT(in_arena(n, address));
 
-    size_t index = ((char *)address - (char*)(n->heap_base)) >> PAGE_SIZE_SHIFT;
+    size_t index = ((char *)address - (char*)(n->base)) >> PAGE_SIZE_SHIFT;
     char *map = n->map;
 
     mutex_acquire(&n->lock);
     for (size_t i = 0; i < pages; i++) map[index + i] = 0;
     mutex_release(&n->lock);
 }
+
+status_t novm_alloc_specific_pages(void *address, size_t pages)
+{
+    TRACEF("address %p, pages %zu\n", address, pages);
+
+    struct novm_arena *n = in_arena(&mem_arena, address) ? &mem_arena : NULL;
+#ifdef SDRAM_BASE
+    if (!n)
+        n = in_arena(&sdram_arena, address) ? &sdram_arena : NULL;
+#endif
+    if (!n)
+        return ERR_NOT_FOUND;
+
+    size_t index = ((char *)address - (char*)(n->base)) >> PAGE_SIZE_SHIFT;
+    char *map = n->map;
+
+    status_t err = NO_ERROR;
+
+    mutex_acquire(&n->lock);
+    for (size_t i = 0; i < pages; i++) {
+        if (map[index + i] != 0) {
+            err = ERR_NO_MEMORY;
+            break;
+        }
+        map[index + i] = 1;
+    }
+    mutex_release(&n->lock);
+
+    return err;
+}
+
 
 #if LK_DEBUGLEVEL > 1
 #if WITH_LIB_CONSOLE
@@ -222,11 +244,11 @@ usage:
     return 0;
 }
 
-static void novm_dump_area(struct novm *n)
+static void novm_dump_area(struct novm_arena *n)
 {
     mutex_acquire(&n->lock);
     printf("  %d pages, each %zdk (%zdk in all)\n", n->pages, PAGE_SIZE >> 10, (PAGE_SIZE * n->pages) >> 10);
-    printf("  %p-%p\n", (void *)n->heap_base, (char *)n->heap_base + n->heap_size);
+    printf("  %p-%p\n", (void *)n->base, (char *)n->base + n->size);
 #define MAX_PRINT 1024u
     unsigned i;
     for (i = 0; i < MAX_PRINT && i < n->pages; i++) {
@@ -241,16 +263,14 @@ static void novm_dump_area(struct novm *n)
 
 static void novm_dump(void)
 {
-    printf("SRAM area:\n");
-    novm_dump_area(&sram_heap);
+    printf("main memory arena:\n");
+    novm_dump_area(&mem_arena);
 #ifdef SDRAM_BASE
-    printf("SDRAM area:\n");
-    novm_dump_area(&sdram_heap);
+    printf("SDRAM arena:\n");
+    novm_dump_area(&sdram_arena);
 #endif
 }
 
 #endif
 #endif
-
-/* vim: set ts=4 sw=4 noexpandtab: */
 
