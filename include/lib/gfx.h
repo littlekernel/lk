@@ -77,6 +77,9 @@ void gfx_fillrect(gfx_surface *surface, uint x, uint y, uint width, uint height,
 // draw a pixel at x, y in the surface
 void gfx_putpixel(gfx_surface *surface, uint x, uint y, uint color);
 
+// draw a single pixel line between x1,y1 and x2,y1
+void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint color);
+
 // clear the entire surface with a color
 static inline void gfx_clear(gfx_surface *surface, uint color)
 {
