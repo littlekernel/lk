@@ -40,13 +40,19 @@
  */
 #define LOCAL_TRACE 0
 
+#if WITH_STATIC_HEAP
+
+#error "fix static heap post page allocator and novm stuff"
+
+#if !defined(HEAP_START) || !defined(HEAP_LEN)
+#error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
+#endif
+
+#endif
+
 void *page_alloc(size_t pages) {
 #if WITH_KERNEL_VM
-    /* throw the list away, we can reconstruct it later */
-    struct list_node list;
-    list_initialize(&list);
-
-    void *result = pmm_alloc_kpages(pages, &list);
+    void *result = pmm_alloc_kpages(pages, NULL);
     return result;
 #else
     void *result = novm_alloc_pages(pages);

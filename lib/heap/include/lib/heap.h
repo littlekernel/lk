@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -28,8 +28,12 @@
 
 __BEGIN_CDECLS;
 
-void *heap_alloc(size_t, unsigned int alignment);
-void heap_free(void *);
+/* standard heap definitions */
+void *malloc(size_t size) __MALLOC;
+void *memalign(size_t boundary, size_t size) __MALLOC;
+void *calloc(size_t count, size_t size) __MALLOC;
+void *realloc(void *ptr, size_t size) __MALLOC;
+void free(void *ptr);
 
 void heap_init(void);
 /* critical section time delayed free */

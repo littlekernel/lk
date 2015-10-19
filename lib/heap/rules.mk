@@ -8,6 +8,11 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/heap_wrapper.c \
 	$(LOCAL_DIR)/page_alloc.c
 
+ifeq ($(WITH_CPP_SUPPORT),true)
+MODULE_SRCS += \
+	$(LOCAL_DIR)/new.cpp
+endif
+
 # pick a heap implementation
 ifndef LK_HEAP_IMPLEMENTATION
 LK_HEAP_IMPLEMENTATION=miniheap

@@ -301,9 +301,30 @@ retry:
     return ptr;
 }
 
+void *miniheap_realloc(void *ptr, size_t size)
+{
+    /* slow implementation */
+    if (!ptr)
+        return miniheap_alloc(size, 0);
+    if (size == 0) {
+        miniheap_free(ptr);
+        return NULL;
+    }
+
+    // XXX better implementation
+    void *p = miniheap_alloc(size, 0);
+    if (!p)
+        return NULL;
+
+    memcpy(p, ptr, size); // XXX wrong
+    miniheap_free(ptr);
+
+    return p;
+}
+
 void miniheap_free(void *ptr)
 {
-    if (ptr == 0)
+    if (!ptr)
         return;
 
     LTRACEF("ptr %p\n", ptr);
@@ -357,6 +378,11 @@ void miniheap_get_stats(struct miniheap_stats *ptr)
     ptr->heap_low_watermark = theheap.low_watermark;
 
     mutex_release(&theheap.lock);
+}
+
+void miniheap_trim(void)
+{
+    /* currently does nothing */
 }
 
 static ssize_t heap_grow(size_t size)

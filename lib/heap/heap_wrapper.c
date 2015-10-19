@@ -43,8 +43,18 @@ spin_lock_t delayed_free_lock = SPIN_LOCK_INITIAL_VALUE;
 /* miniheap implementation */
 #include <lib/miniheap.h>
 
-#define HEAP_ALLOC miniheap_alloc
+static inline void *HEAP_MALLOC(size_t s) { return miniheap_alloc(s, 0); }
+static inline void *HEAP_REALLOC(void *ptr, size_t s) { return miniheap_realloc(ptr, s); }
+static inline void *HEAP_MEMALIGN(size_t boundary, size_t s) { return miniheap_alloc(s, boundary); }
 #define HEAP_FREE miniheap_free
+static inline void *HEAP_CALLOC(size_t n, size_t s) {
+    size_t realsize = n * s;
+
+    void *ptr = miniheap_alloc(n * s, 0);
+    if (likely(ptr))
+        memset(ptr, 0, realsize);
+    return ptr;
+}
 static inline void HEAP_INIT(void) {
     /* start the heap off with some spare memory in the page allocator */
     size_t len;
@@ -52,21 +62,18 @@ static inline void HEAP_INIT(void) {
     miniheap_init(ptr, len);
 }
 #define HEAP_DUMP miniheap_dump
-static inline void HEAP_TRIM(void) {}
+#define HEAP_TRIM miniheap_trim
 
 /* end miniheap implementation */
 #elif WITH_LIB_HEAP_DLMALLOC
 /* dlmalloc implementation */
 #include <lib/dlmalloc.h>
 
-static inline void *HEAP_ALLOC(size_t size, unsigned int alignment) {
-    if (alignment < 8)
-        return dlmalloc(size);
-    else
-        return dlmemalign(alignment, size);
-}
-
-static inline void HEAP_FREE(void *ptr) { dlfree(ptr); }
+#define HEAP_MALLOC(s) dlmalloc(s)
+#define HEAP_CALLOC(n, s) dlcalloc(n, s)
+#define HEAP_MEMALIGN(b, s) dlmemalign(b, s)
+#define HEAP_REALLOC(p, s) dlrealloc(p, s)
+#define HEAP_FREE(p) dlfree(p)
 static inline void HEAP_INIT(void) {}
 
 static inline void HEAP_DUMP(void) {
@@ -96,16 +103,6 @@ static inline void HEAP_TRIM(void) { dlmalloc_trim(0); }
 #error need to select valid heap implementation or provide wrapper
 #endif
 
-#if WITH_STATIC_HEAP
-
-#error "fix static heap post page allocator and novm stuff"
-
-#if !defined(HEAP_START) || !defined(HEAP_LEN)
-#error WITH_STATIC_HEAP set but no HEAP_START or HEAP_LEN defined
-#endif
-
-#endif
-
 static void heap_free_delayed_list(void)
 {
     struct list_node list;
@@ -123,27 +120,8 @@ static void heap_free_delayed_list(void)
 
     while ((node = list_remove_head(&list))) {
         LTRACEF("freeing node %p\n", node);
-        heap_free(node);
+        HEAP_FREE(node);
     }
-}
-
-void *heap_alloc(size_t size, unsigned int alignment)
-{
-    LTRACEF("size %zd, align %u\n", size, alignment);
-
-    // deal with the pending free list
-    if (unlikely(!list_is_empty(&delayed_free_list))) {
-        heap_free_delayed_list();
-    }
-
-    return HEAP_ALLOC(size, alignment);
-}
-
-void heap_free(void *ptr)
-{
-    LTRACEF("ptr %p\n", ptr);
-
-    HEAP_FREE(ptr);
 }
 
 void heap_init(void)
@@ -153,7 +131,67 @@ void heap_init(void)
 
 void heap_trim(void)
 {
+    // deal with the pending free list
+    if (unlikely(!list_is_empty(&delayed_free_list))) {
+        heap_free_delayed_list();
+    }
+
     HEAP_TRIM();
+}
+
+void *malloc(size_t size)
+{
+    LTRACEF("size %zd\n", size);
+
+    // deal with the pending free list
+    if (unlikely(!list_is_empty(&delayed_free_list))) {
+        heap_free_delayed_list();
+    }
+
+    return HEAP_MALLOC(size);
+}
+
+void *memalign(size_t boundary, size_t size)
+{
+    LTRACEF("boundary %zu, size %zd\n", boundary, size);
+
+    // deal with the pending free list
+    if (unlikely(!list_is_empty(&delayed_free_list))) {
+        heap_free_delayed_list();
+    }
+
+    return HEAP_MEMALIGN(boundary, size);
+}
+
+void *calloc(size_t count, size_t size)
+{
+    LTRACEF("count %zu, size %zd\n", count, size);
+
+    // deal with the pending free list
+    if (unlikely(!list_is_empty(&delayed_free_list))) {
+        heap_free_delayed_list();
+    }
+
+    return HEAP_CALLOC(count, size);
+}
+
+void *realloc(void *ptr, size_t size)
+{
+    LTRACEF("ptr %p, size %zd\n", ptr, size);
+
+    // deal with the pending free list
+    if (unlikely(!list_is_empty(&delayed_free_list))) {
+        heap_free_delayed_list();
+    }
+
+    return HEAP_REALLOC(ptr, size);
+}
+
+void free(void *ptr)
+{
+    LTRACEF("ptr %p\n", ptr);
+
+    HEAP_FREE(ptr);
 }
 
 /* critical section time delayed free */
@@ -261,6 +299,7 @@ usage:
         printf("\t%s info\n", argv[0].str);
         printf("\t%s trim\n", argv[0].str);
         printf("\t%s alloc <size> [alignment]\n", argv[0].str);
+        printf("\t%s realloc <ptr> <size>\n", argv[0].str);
         printf("\t%s free <address>\n", argv[0].str);
         return -1;
     }
@@ -272,12 +311,17 @@ usage:
     } else if (strcmp(argv[1].str, "alloc") == 0) {
         if (argc < 3) goto notenoughargs;
 
-        void *ptr = heap_alloc(argv[2].u, (argc >= 4) ? argv[3].u : 0);
-        printf("heap_alloc returns %p\n", ptr);
+        void *ptr = memalign((argc >= 4) ? argv[3].u : 0, argv[2].u);
+        printf("memalign returns %p\n", ptr);
+    } else if (strcmp(argv[1].str, "realloc") == 0) {
+        if (argc < 4) goto notenoughargs;
+
+        void *ptr = realloc(argv[2].p, argv[3].u);
+        printf("realloc returns %p\n", ptr);
     } else if (strcmp(argv[1].str, "free") == 0) {
         if (argc < 2) goto notenoughargs;
 
-        heap_free(argv[2].p);
+        free(argv[2].p);
     } else {
         printf("unrecognized command\n");
         goto usage;

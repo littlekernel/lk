@@ -2,6 +2,9 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
+MODULE_DEPS := \
+	lib/heap
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/atoi.c \
 	$(LOCAL_DIR)/bsearch.c \
@@ -15,13 +18,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/qsort.c \
 	$(LOCAL_DIR)/eabi.c
 
-ifneq ($(WITH_CUSTOM_MALLOC),true)
-MODULE_SRCS += $(LOCAL_DIR)/malloc.c
-endif
-
 ifeq ($(WITH_CPP_SUPPORT),true)
 MODULE_SRCS += \
-	$(LOCAL_DIR)/new.cpp \
 	$(LOCAL_DIR)/atexit.c \
 	$(LOCAL_DIR)/pure_virtual.cpp
 endif
