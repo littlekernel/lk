@@ -25,13 +25,20 @@
 
 #include <debug.h>
 #include <assert.h>
+#include <string.h>
+#include <trace.h>
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #else
 #include <kernel/novm.h>
 #endif
-#include <string.h>
-#include <trace.h>
+
+/* A simple page-aligned wrapper around the pmm or novm implementation of
+ * the underlying physical page allocator. Used by system heaps or any
+ * other user that wants pages of memory but doesn't want to use LK
+ * specific apis.
+ */
+#define LOCAL_TRACE 0
 
 void *page_alloc(size_t pages) {
 #if WITH_KERNEL_VM
@@ -40,11 +47,6 @@ void *page_alloc(size_t pages) {
     list_initialize(&list);
 
     void *result = pmm_alloc_kpages(pages, &list);
-    if (!result) {
-        TRACEF("failed to grow kernel heap by 0x%zx bytes\n",
-               pages * PAGE_SIZE);
-        return 0;
-    }
     return result;
 #else
     void *result = novm_alloc_pages(pages);

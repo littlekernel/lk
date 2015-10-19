@@ -35,7 +35,4 @@ void heap_init(void);
 /* critical section time delayed free */
 void heap_delayed_free(void *);
 
-ssize_t heap_grow_memory(void **ptr, size_t len);
-void heap_free_memory(void *ptr, size_t len);
-
 __END_CDECLS;

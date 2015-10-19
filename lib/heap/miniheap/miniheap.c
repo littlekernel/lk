@@ -33,6 +33,7 @@
 #include <kernel/mutex.h>
 #include <lib/miniheap.h>
 #include <lib/heap.h>
+#include <lib/page_alloc.h>
 
 #define LOCAL_TRACE 0
 
@@ -360,27 +361,27 @@ void miniheap_get_stats(struct miniheap_stats *ptr)
 
 static ssize_t heap_grow(size_t size)
 {
-    void *ptr;
-    ssize_t allocated = heap_grow_memory(&ptr, size);
-    if (allocated <= 0) {
+    size = ROUNDUP(size, PAGE_SIZE);
+    void *ptr = page_alloc(size / PAGE_SIZE);
+    if (!ptr) {
         TRACEF("failed to grow kernel heap by 0x%zx bytes\n", size);
         return ERR_NO_MEMORY;
     }
 
-    LTRACEF("growing heap by 0x%zx bytes, allocated 0x%zx, new ptr %p\n", size, (size_t)allocated, ptr);
+    LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
 
-    heap_insert_free_chunk(heap_create_free_chunk(ptr, allocated, true));
+    heap_insert_free_chunk(heap_create_free_chunk(ptr, size, true));
 
     /* change the heap start and end variables */
     if ((uintptr_t)ptr < (uintptr_t)theheap.base || theheap.base == 0)
         theheap.base = ptr;
 
-    uintptr_t endptr = (uintptr_t)ptr + allocated;
+    uintptr_t endptr = (uintptr_t)ptr + size;
     if (endptr > (uintptr_t)theheap.base + theheap.len) {
         theheap.len = (uintptr_t)endptr - (uintptr_t)theheap.base;
     }
 
-    return allocated;
+    return size;
 }
 
 void miniheap_init(void *ptr, size_t len)

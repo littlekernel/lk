@@ -185,31 +185,6 @@ static void heap_dump(void)
     spin_unlock_irqrestore(&delayed_free_lock, state);
 }
 
-/* called back from the heap implementation to allocate another block of memory */
-ssize_t heap_grow_memory(void **ptr, size_t size)
-{
-    LTRACEF("ptr %p, size 0x%zx\n", ptr, size);
-
-    size = ROUNDUP(size, PAGE_SIZE);
-    *ptr = page_alloc(size / PAGE_SIZE);
-    if (!*ptr)
-        return ERR_NO_MEMORY;
-
-    LTRACEF("returning ptr %p\n", *ptr);
-
-    return size;
-}
-
-void heap_free_memory(void *ptr, size_t len)
-{
-    LTRACEF("ptr %p, len 0x%zx\n", ptr, len);
-
-    DEBUG_ASSERT(IS_PAGE_ALIGNED((uintptr_t)ptr));
-    DEBUG_ASSERT(IS_PAGE_ALIGNED(len));
-
-    page_free(ptr, len / PAGE_SIZE);
-}
-
 #if 0
 static void heap_test(void)
 {
