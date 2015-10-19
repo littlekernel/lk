@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -48,6 +49,8 @@
 #define INT_DEBUG_EX        0x01
 #define INT_INVALID_OP      0x06
 #define INT_DEV_NA_EX       0x07
+#define INT_MF              0x10
+#define INT_XM              0x13
 
 /* faults */
 #define INT_STACK_FAULT     0x0c
