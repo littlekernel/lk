@@ -32,6 +32,7 @@
 typedef struct {
 	const char *str;
 	unsigned long u;
+	void* p;
 	long i;
 	bool b;
 } cmd_args;

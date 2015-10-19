@@ -300,7 +300,7 @@ usage:
     } else if (strcmp(argv[1].str, "free") == 0) {
         if (argc < 2) goto notenoughargs;
 
-        heap_free((void *)argv[2].u);
+        heap_free(argv[2].p);
     } else {
         printf("unrecognized command\n");
         goto usage;

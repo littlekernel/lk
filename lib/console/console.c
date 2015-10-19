@@ -538,7 +538,9 @@ static void convert_args(int argc, cmd_args *argv)
     int i;
 
     for (i = 0; i < argc; i++) {
-        argv[i].u = atoul(argv[i].str);
+        unsigned long u = atoul(argv[i].str);
+        argv[i].u = u;
+        argv[i].p = (void*)u;
         argv[i].i = atol(argv[i].str);
 
         if (!strcmp(argv[i].str, "true") || !strcmp(argv[i].str, "on")) {

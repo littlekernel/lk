@@ -225,7 +225,7 @@ usage:
         free(ptr);
 #endif
     } else if (argc == 3) {
-        void *ptr = (void *)argv[1].u;
+        void *ptr = argv[1].p;
         size_t len = argv[2].u;
 
         /* run the tests */

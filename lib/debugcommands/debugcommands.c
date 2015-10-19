@@ -306,7 +306,7 @@ static int cmd_chain(int argc, const cmd_args *argv)
         return -1;
     }
 
-    arch_chain_load((void *)argv[1].u, 0, 0, 0, 0);
+    arch_chain_load(argv[1].p, 0, 0, 0, 0);
 
     return 0;
 }
