@@ -192,6 +192,8 @@ ssize_t heap_grow_memory(void **ptr, size_t size)
 
     size = ROUNDUP(size, PAGE_SIZE);
     *ptr = page_alloc(size / PAGE_SIZE);
+    if (!*ptr)
+        return ERR_NO_MEMORY;
 
     LTRACEF("returning ptr %p\n", *ptr);
 
