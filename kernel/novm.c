@@ -132,6 +132,7 @@ LK_INIT_HOOK(novm_preheap, &novm_init_preheap, LK_INIT_LEVEL_HEAP - 1);
 
 void *novm_alloc_helper(struct novm_arena *n, size_t pages)
 {
+    if (pages > n->pages) return NULL;  // Unsigned types!
     mutex_acquire(&n->lock);
     for (size_t i = 0; i <= n->pages - pages; i++) {
         bool found = true;
@@ -225,17 +226,29 @@ STATIC_COMMAND_END(novm);
 
 static int cmd_novm(int argc, const cmd_args *argv)
 {
-    if (argc != 2) {
+    if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");
 usage:
         printf("usage:\n");
         printf("\t%s info\n", argv[0].str);
+        printf("\t%s alloc <numberofpages>\n", argv[0].str);
+        printf("\t%s free address <numberofpages>\n", argv[0].str);
         return -1;
     }
 
     if (strcmp(argv[1].str, "info") == 0) {
         novm_dump();
+	} else if (strcmp(argv[1].str, "alloc") == 0) {
+		if (argc < 3) goto notenoughargs;
+
+		void *ptr = novm_alloc_pages(argv[2].u);
+		printf("novm_alloc_pages returns %p\n", ptr);
+	} else if (strcmp(argv[1].str, "free") == 0) {
+		if (argc < 3) goto notenoughargs;
+		size_t pages = (argc >= 4) ? argv[3].u : 1;
+		novm_free_pages(argv[2].p, pages);
+		printf("novm_free_pages: %zd pages at %p\n", pages, argv[2].p);
     } else {
         printf("unrecognized command\n");
         goto usage;
@@ -249,14 +262,19 @@ static void novm_dump_area(struct novm_arena *n)
     mutex_acquire(&n->lock);
     printf("  %d pages, each %zdk (%zdk in all)\n", n->pages, PAGE_SIZE >> 10, (PAGE_SIZE * n->pages) >> 10);
     printf("  %p-%p\n", (void *)n->base, (char *)n->base + n->size);
-#define MAX_PRINT 1024u
     unsigned i;
+    size_t in_use = 0;
+    for (i = 0; i < n->pages; i++) if (n->map[i] != 0) in_use++;
+    printf("  %zd/%zd in use\n", in_use, n->pages);
+#define MAX_PRINT 1024u
     for (i = 0; i < MAX_PRINT && i < n->pages; i++) {
         if ((i & 63) == 0) printf("    ");
         printf("%c", n->map[i] ? '*' : '.');
         if ((i & 63) == 63) printf("\n");
     }
-    if (i == MAX_PRINT && n->pages > MAX_PRINT) printf("    ...");
+    if (i == MAX_PRINT && n->pages > MAX_PRINT) {
+        printf("    etc., %zd more pages.", n->pages - MAX_PRINT);
+    }
     printf("\n");
     mutex_release(&n->lock);
 }
