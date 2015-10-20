@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Travis Geiselbrecht
+ * Copyright (c) 2009-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,15 +20,14 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __LIB_FS_H
-#define __LIB_FS_H
+#pragma once
 
 #include <stdbool.h>
 #include <sys/types.h>
 
 struct file_stat {
-	bool is_dir;
-	off_t size;
+    bool is_dir;
+    off_t size;
 };
 
 typedef void *filecookie;
@@ -48,6 +47,4 @@ ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen);
 
 /* walk through a path string, removing duplicate path seperators, flattening . and .. references */
 void fs_normalize_path(char *path);
-
-#endif
 

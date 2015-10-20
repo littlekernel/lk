@@ -33,26 +33,26 @@ typedef uint32_t inodenum_t;
 typedef uint32_t groupnum_t;
 
 typedef struct {
-	bdev_t *dev;
-	bcache_t cache;
+    bdev_t *dev;
+    bcache_t cache;
 
-	struct ext2_super_block sb;
-	int s_group_count;
-	struct ext2_group_desc *gd;
-	struct ext2_inode root_inode;
+    struct ext2_super_block sb;
+    int s_group_count;
+    struct ext2_group_desc *gd;
+    struct ext2_inode root_inode;
 } ext2_t;
 
 struct cache_block {
-	blocknum_t num;
-	void *ptr;
+    blocknum_t num;
+    void *ptr;
 };
 
 /* open file handle */
 typedef struct {
-	ext2_t *ext2;
+    ext2_t *ext2;
 
-	struct cache_block ind_cache[3]; // cache of indirect blocks as they're scanned
-	struct ext2_inode inode;
+    struct cache_block ind_cache[3]; // cache of indirect blocks as they're scanned
+    struct ext2_inode inode;
 } ext2_file_t;
 
 /* internal routines */
