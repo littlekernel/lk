@@ -23,21 +23,32 @@
 
 #include "kernel/novm.h"
 
+#include <err.h>
 #include <assert.h>
-#include <kernel/mutex.h>
 #include <trace.h>
 #include <stdlib.h>
 #include <string.h>
 #include <lk/init.h>
-#include <err.h>
+#include <kernel/mutex.h>
+
+#define LOCAL_TRACE 0
 
 struct novm_arena {
     mutex_t lock;
+    const char *name;
     size_t pages;
     char *map;
     char *base;
     size_t size;
+
+    // We divide the memory up into pages.  If there is memory we can use before
+    // the first aligned page address, then we record it here and the heap will use
+    // it.
+#define MINIMUM_USEFUL_UNALIGNED_SIZE 64
+    void* unaligned_area;
+    size_t unaligned_size;
 };
+
 
 /* not a static vm, not using the kernel vm */
 extern int _end;
@@ -47,63 +58,67 @@ extern int _end_of_ram;
 #define MEM_SIZE ((MEMBASE + MEMSIZE) - MEM_START)
 #define DEFAULT_MAP_SIZE (MEMSIZE >> PAGE_SIZE_SHIFT)
 
-static char allocation_map[DEFAULT_MAP_SIZE];
-
-struct novm_arena mem_arena;
-struct novm_arena sdram_arena;
-
-// We divide the memory up into pages.  If there is memory we can use before
-// the first aligned page address, then we record it here and the heap will use
-// it.
-#define MINIMUM_USEFUL_UNALIGNED_SIZE 64
-static void* unaligned_area = NULL;
-static size_t unaligned_size = 0;
+/* a static list of arenas */
+#ifndef NOVM_MAX_ARENAS
+#define NOVM_MAX_ARENAS 1
+#endif
+struct novm_arena arena[NOVM_MAX_ARENAS];
 
 void *novm_alloc_unaligned(size_t *size_return)
 {
-    if (unaligned_area != NULL) {
-        *size_return = unaligned_size;
-        void *result = unaligned_area;
-        unaligned_area = NULL;
+    /* only do the unaligned thing in the first arena */
+    if (arena[0].unaligned_area != NULL) {
+        *size_return = arena[0].unaligned_size;
+        void *result = arena[0].unaligned_area;
+        arena[0].unaligned_area = NULL;
+        arena[0].unaligned_size = 0;
         return result;
     }
     *size_return = PAGE_SIZE;
-    return novm_alloc_pages(1);
+    return novm_alloc_pages(1, NOVM_ARENA_ANY);
 }
 
 static bool in_arena(struct novm_arena *n, void* p)
 {
+    if (n->size == 0)
+        return false;
+
     char *ptr = (char *)p;
     char *base = n->base;
     return ptr >= base && ptr < base + n->size;
 }
 
-void novm_init_helper(
-    struct novm_arena* n, uintptr_t heap_start,
-    uintptr_t heap_size, char* default_map, size_t default_map_size)
+static void novm_init_helper(struct novm_arena* n, const char *name,
+    uintptr_t arena_start, uintptr_t arena_size,
+    char* default_map, size_t default_map_size)
 {
-    uintptr_t start = ROUNDUP(heap_start, PAGE_SIZE);
-    uintptr_t size = ROUNDDOWN(heap_start + heap_size, PAGE_SIZE) - start;
+    uintptr_t start = ROUNDUP(arena_start, PAGE_SIZE);
+    uintptr_t size = ROUNDDOWN(arena_start + arena_size, PAGE_SIZE) - start;
 
     mutex_init(&n->lock);
+
     size_t map_size = size >> PAGE_SIZE_SHIFT;
     char* map = default_map;
     if (map == NULL || default_map_size < map_size) {
-        map = (char *)heap_start;
-        // Grab enough map for 16Mbyte of heap each time around the loop.
-        while (start - heap_start < map_size) {
+        // allocate the map out of the arena itself
+        map = (char *)arena_start;
+
+        // Grab enough map for 16Mbyte of arena each time around the loop.
+        while (start - arena_start < map_size) {
             start += PAGE_SIZE;
             size -= PAGE_SIZE;
             map_size--;
         }
-        if ((char *)start - (map + map_size) >= MINIMUM_USEFUL_UNALIGNED_SIZE) {
-            unaligned_area = map + map_size;
-            unaligned_size = (char *)start - (map + map_size);
+
+        if ((char *)start - (map + ROUNDUP(map_size, 4)) >= MINIMUM_USEFUL_UNALIGNED_SIZE) {
+            n->unaligned_area = map + ROUNDUP(map_size, 4);
+            n->unaligned_size = (char *)start - (map + ROUNDUP(map_size, 4));
         }
-    } else if (start - heap_start >= MINIMUM_USEFUL_UNALIGNED_SIZE) {
-        unaligned_area = (char *)heap_start;
-        unaligned_size = start - heap_start;
+    } else if (start - arena_start >= MINIMUM_USEFUL_UNALIGNED_SIZE) {
+        n->unaligned_area = (char *)arena_start;
+        n->unaligned_size = start - arena_start;
     }
+    n->name = name;
     n->map = map;
     memset(n->map, 0, map_size);
     n->pages = map_size;
@@ -111,28 +126,30 @@ void novm_init_helper(
     n->size = size;
 }
 
-void novm_init_preheap(uint level)
+void novm_add_arena(const char *name, uintptr_t arena_start, uintptr_t arena_size)
 {
-    novm_init_helper(&mem_arena, MEM_START, MEM_SIZE, allocation_map, DEFAULT_MAP_SIZE);
-
-#ifdef SDRAM_BASE
-#define SDRAM_MAP_SIZE (SDRAM_SIZE >> PAGE_SIZE_SHIFT)
-    static char sdram_map[SDRAM_MAP_SIZE];
-    novm_init_helper(&sdram_arena, SDRAM_BASE, SDRAM_SIZE, sdram_map, SDRAM_MAP_SIZE);
-#endif
-
-#if 0
-    /* mark pieces of the novm as used */
-    novm_alloc_specific_pages(&__data_start,
-            ROUNDUP((uintptr_t)&_end - (uintptr_t)&__data_start, PAGE_SIZE) / PAGE_SIZE);
-#endif
+    for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
+        if (arena[i].pages == 0) {
+            novm_init_helper(&arena[i], name, arena_start, arena_size, NULL, 0);
+            return;
+        }
+    }
+    panic("novm_add_arena: too many arenas added, bump NOVM_MAX_ARENAS!\n");
 }
 
-LK_INIT_HOOK(novm_preheap, &novm_init_preheap, LK_INIT_LEVEL_HEAP - 1);
+static void novm_init(uint level)
+{
+    static char mem_allocation_map[DEFAULT_MAP_SIZE];
+    novm_init_helper(&arena[0], "main", MEM_START, MEM_SIZE, mem_allocation_map, DEFAULT_MAP_SIZE);
+}
+
+LK_INIT_HOOK(novm, &novm_init, LK_INIT_LEVEL_PLATFORM_EARLY - 1);
 
 void *novm_alloc_helper(struct novm_arena *n, size_t pages)
 {
-    if (pages > n->pages) return NULL;  // Unsigned types!
+    if (pages == 0 || pages > n->pages)
+        return NULL;
+
     mutex_acquire(&n->lock);
     for (size_t i = 0; i <= n->pages - pages; i++) {
         bool found = true;
@@ -150,26 +167,42 @@ void *novm_alloc_helper(struct novm_arena *n, size_t pages)
         }
     }
     mutex_release(&n->lock);
+
     return NULL;
 }
 
-void* novm_alloc_pages(size_t pages)
+void* novm_alloc_pages(size_t pages, int arena_index)
 {
-    void* result = novm_alloc_helper(&mem_arena, pages);
-    if (result != NULL) return result;
-#ifdef SDRAM_BASE
-    return novm_alloc_helper(&sdram_arena, pages);
-#endif
+    LTRACEF("pages %zu\n", pages);
+
+    if (arena_index < 0) {
+        /* allocate from any arena */
+        for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
+            void *result = novm_alloc_helper(&arena[i], pages);
+            if (result)
+                return result;
+        }
+    } else if (arena_index < NOVM_MAX_ARENAS) {
+        /* allocate from a specific index */
+        return novm_alloc_helper(&arena[arena_index], pages);
+    }
+
     return NULL;
 }
 
 void novm_free_pages(void* address, size_t pages)
 {
-#ifdef SDRAM_BASE
-    struct novm_arena *n = in_arena(&mem_arena, address) ? &mem_arena : &sdram_arena;
-#else
-    struct novm_arena *n = &mem_arena;
-#endif
+    LTRACEF("address %p, pages %zu\n", address, pages);
+
+    struct novm_arena *n = NULL;
+    for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
+        if (in_arena(&arena[i], address)) {
+            n = &arena[i];
+            break;
+        }
+    }
+    if (!n)
+        return;
 
     DEBUG_ASSERT(in_arena(n, address));
 
@@ -183,13 +216,15 @@ void novm_free_pages(void* address, size_t pages)
 
 status_t novm_alloc_specific_pages(void *address, size_t pages)
 {
-    TRACEF("address %p, pages %zu\n", address, pages);
+    LTRACEF("address %p, pages %zu\n", address, pages);
 
-    struct novm_arena *n = in_arena(&mem_arena, address) ? &mem_arena : NULL;
-#ifdef SDRAM_BASE
-    if (!n)
-        n = in_arena(&sdram_arena, address) ? &sdram_arena : NULL;
-#endif
+    struct novm_arena *n = NULL;
+    for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
+        if (in_arena(&arena[i], address)) {
+            n = &arena[i];
+            break;
+        }
+    }
     if (!n)
         return ERR_NOT_FOUND;
 
@@ -232,23 +267,24 @@ notenoughargs:
 usage:
         printf("usage:\n");
         printf("\t%s info\n", argv[0].str);
-        printf("\t%s alloc <numberofpages>\n", argv[0].str);
-        printf("\t%s free address <numberofpages>\n", argv[0].str);
+        printf("\t%s alloc <numberofpages> [arena #]\n", argv[0].str);
+        printf("\t%s free <address> [numberofpages]\n", argv[0].str);
         return -1;
     }
 
     if (strcmp(argv[1].str, "info") == 0) {
         novm_dump();
-	} else if (strcmp(argv[1].str, "alloc") == 0) {
-		if (argc < 3) goto notenoughargs;
+    } else if (strcmp(argv[1].str, "alloc") == 0) {
+        if (argc < 3) goto notenoughargs;
 
-		void *ptr = novm_alloc_pages(argv[2].u);
-		printf("novm_alloc_pages returns %p\n", ptr);
-	} else if (strcmp(argv[1].str, "free") == 0) {
-		if (argc < 3) goto notenoughargs;
-		size_t pages = (argc >= 4) ? argv[3].u : 1;
-		novm_free_pages(argv[2].p, pages);
-		printf("novm_free_pages: %zd pages at %p\n", pages, argv[2].p);
+        int arena_index = (argc >= 4) ? argv[3].i : NOVM_ARENA_ANY;
+        void *ptr = novm_alloc_pages(argv[2].u, arena_index);
+        printf("novm_alloc_pages returns %p\n", ptr);
+    } else if (strcmp(argv[1].str, "free") == 0) {
+        if (argc < 3) goto notenoughargs;
+        size_t pages = (argc >= 4) ? argv[3].u : 1;
+        novm_free_pages(argv[2].p, pages);
+        printf("novm_free_pages: %zd pages at %p\n", pages, argv[2].p);
     } else {
         printf("unrecognized command\n");
         goto usage;
@@ -257,11 +293,16 @@ usage:
     return 0;
 }
 
-static void novm_dump_area(struct novm_arena *n)
+static void novm_dump_arena(struct novm_arena *n)
 {
+    if (n->pages == 0) {
+        return;
+    }
+
     mutex_acquire(&n->lock);
-    printf("  %d pages, each %zdk (%zdk in all)\n", n->pages, PAGE_SIZE >> 10, (PAGE_SIZE * n->pages) >> 10);
-    printf("  %p-%p\n", (void *)n->base, (char *)n->base + n->size);
+    printf("name '%s', %d pages, each %zdk (%zdk in all)\n", n->name, n->pages, PAGE_SIZE >> 10, (PAGE_SIZE * n->pages) >> 10);
+    printf("  range: %p-%p\n", (void *)n->base, (char *)n->base + n->size);
+    printf("  unaligned range: %p-%p\n", n->unaligned_area, n->unaligned_area + n->unaligned_size);
     unsigned i;
     size_t in_use = 0;
     for (i = 0; i < n->pages; i++) if (n->map[i] != 0) in_use++;
@@ -281,12 +322,9 @@ static void novm_dump_area(struct novm_arena *n)
 
 static void novm_dump(void)
 {
-    printf("main memory arena:\n");
-    novm_dump_area(&mem_arena);
-#ifdef SDRAM_BASE
-    printf("SDRAM arena:\n");
-    novm_dump_area(&sdram_arena);
-#endif
+    for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
+        novm_dump_arena(&arena[i]);
+    }
 }
 
 #endif

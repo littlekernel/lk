@@ -55,7 +55,7 @@ void *page_alloc(size_t pages) {
     void *result = pmm_alloc_kpages(pages, NULL);
     return result;
 #else
-    void *result = novm_alloc_pages(pages);
+    void *result = novm_alloc_pages(pages, NOVM_ARENA_ANY);
     return result;
 #endif
 }
