@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,8 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __LIB_HEAP_H
-#define __LIB_HEAP_H
+#pragma once
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -29,25 +28,15 @@
 
 __BEGIN_CDECLS;
 
-struct heap_stats {
-	void* heap_start;
-	size_t heap_len;
-	size_t heap_free;
-	size_t heap_max_chunk;
-	size_t heap_low_watermark;
-};
-
-void *heap_alloc(size_t, unsigned int alignment);
-void heap_free(void *);
+/* standard heap definitions */
+void *malloc(size_t size) __MALLOC;
+void *memalign(size_t boundary, size_t size) __MALLOC;
+void *calloc(size_t count, size_t size) __MALLOC;
+void *realloc(void *ptr, size_t size) __MALLOC;
+void free(void *ptr);
 
 void heap_init(void);
-void heap_add_block(void *, size_t);
-
-void heap_get_stats(struct heap_stats *ptr);
-
 /* critical section time delayed free */
 void heap_delayed_free(void *);
 
 __END_CDECLS;
-
-#endif

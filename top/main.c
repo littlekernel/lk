@@ -34,6 +34,7 @@
 #include <target.h>
 #include <lib/heap.h>
 #include <kernel/mutex.h>
+#include <kernel/novm.h>
 #include <kernel/thread.h>
 #include <lk/init.h>
 #include <lk/main.h>

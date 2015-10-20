@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Travis Geiselbrecht
+ * Copyright (c) 2015 Google, Inc. All rights reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,32 +20,28 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <new.h>
-#include <debug.h>
-#include <lib/heap.h>
+#ifndef __KERNEL_NOVM_H
+#define __KERNEL_NOVM_H
 
-void *operator new(size_t s)
-{
-	return heap_alloc(s, 0);
-}
+#include <stddef.h>
+#include <stdlib.h>
+#include <arch.h>
 
-void *operator new[](size_t s)
-{
-	return heap_alloc(s, 0);
-}
+#define PAGE_ALIGN(x) ALIGN(x, PAGE_SIZE)
+#define IS_PAGE_ALIGNED(x) IS_ALIGNED(x, PAGE_SIZE)
 
-void *operator new(size_t , void *p)
-{
-	return p;
-}
+#define NOVM_ARENA_ANY (-1)
+#define NOVM_ARENA_MAIN (0)
+#define NOVM_ARENA_SECONDARY (1)
 
-void operator delete(void *p)
-{
-	return heap_free(p);
-}
+void *novm_alloc_pages(size_t pages, int arena_index);
+void novm_free_pages(void* address, size_t pages);
+status_t novm_alloc_specific_pages(void *address, size_t pages);
 
-void operator delete[](void *p)
-{
-	return heap_free(p);
-}
+// You can call this once and it will give you some possibly unaligned memory
+// that would otherwise go to waste.  The memory can't be freed.
+void *novm_alloc_unaligned(size_t *size_return);
 
+void novm_add_arena(const char *name, uintptr_t arena_start, uintptr_t arena_size);
+
+#endif

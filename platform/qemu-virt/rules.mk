@@ -13,6 +13,8 @@ ARM_CPU ?= cortex-a15
 endif
 WITH_SMP ?= 1
 
+LK_HEAP_IMPLEMENTATION ?= dlmalloc
+
 MODULE_SRCS += \
     $(LOCAL_DIR)/debug.c \
     $(LOCAL_DIR)/platform.c \

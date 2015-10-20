@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2006-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,52 +20,32 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <new.h>
 #include <debug.h>
-#include <malloc.h>
-#include <string.h>
 #include <lib/heap.h>
 
-void *malloc(size_t size)
+void *operator new(size_t s)
 {
-	return heap_alloc(size, 0);
+    return malloc(s);
 }
 
-void *memalign(size_t boundary, size_t size)
+void *operator new[](size_t s)
 {
-	return heap_alloc(size, boundary);
+    return malloc(s);
 }
 
-void *calloc(size_t count, size_t size)
+void *operator new(size_t , void *p)
 {
-	void *ptr;
-	size_t realsize = count * size;
-
-	ptr = heap_alloc(realsize, 0);
-	if (!ptr)
-		return NULL;
-
-	memset(ptr, 0, realsize);
-	return ptr;
+    return p;
 }
 
-void *realloc(void *ptr, size_t size)
+void operator delete(void *p)
 {
-	if (!ptr)
-		return malloc(size);
-
-	// XXX better implementation
-	void *p = malloc(size);
-	if (!p)
-		return NULL;
-
-	memcpy(p, ptr, size); // XXX wrong
-	free(ptr);
-
-	return p;
+    return free(p);
 }
 
-void free(void *ptr)
+void operator delete[](void *p)
 {
-	return heap_free(ptr);
+    return free(p);
 }
 

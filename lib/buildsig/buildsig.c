@@ -130,7 +130,7 @@ usage:
     if (!strcmp(argv[1].str, "dump")) {
         const void *offset = &__rom_start;
         if (argc >= 3) {
-            offset = (void *)argv[2].u;
+            offset = argv[2].p;
         }
 
         const lk_version_t *v;

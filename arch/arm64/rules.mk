@@ -81,6 +81,9 @@ KERNEL_LOAD_OFFSET ?= 0
 
 endif
 
+GLOBAL_DEFINES += \
+	MEMBASE=$(MEMBASE) \
+	MEMSIZE=$(MEMSIZE)
 
 # try to find the toolchain
 include $(LOCAL_DIR)/toolchain.mk

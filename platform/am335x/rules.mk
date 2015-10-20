@@ -34,7 +34,6 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
 
 GLOBAL_DEFINES += \
-	MEMBASE=$(MEMBASE) \
 	SDRAM_BASE=$(MEMBASE) \
 	SDRAM_SIZE=$(MEMSIZE) \
 

@@ -262,6 +262,28 @@ void *pmm_alloc_kpages(uint count, struct list_node *list)
     return paddr_to_kvaddr(pa);
 }
 
+size_t pmm_free_kpages(void *_ptr, uint count)
+{
+    LTRACEF("ptr %p, count %u\n", _ptr, count);
+
+    uint8_t *ptr = (uint8_t *)_ptr;
+
+    struct list_node list;
+    list_initialize(&list);
+
+    while (count > 0) {
+        vm_page_t *p = address_to_page(kvaddr_to_paddr(ptr));
+        if (p) {
+            list_add_tail(&list, &p->node);
+        }
+
+        ptr += PAGE_SIZE;
+        count--;
+    }
+
+    return pmm_free(&list);
+}
+
 size_t pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struct list_node *list)
 {
     LTRACEF("count %u, align %u\n", count, alignment_log2);

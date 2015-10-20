@@ -18,8 +18,4 @@ MEMSIZE ?= 0x20000	# 128KB
 
 MODULE_DEPS += \
 
-GLOBAL_DEFINES += \
-	MEMBASE=$(MEMBASE) \
-	MEMSIZE=$(MEMSIZE)
-
 include make/module.mk

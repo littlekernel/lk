@@ -285,6 +285,10 @@ ifeq ($(MEMVARS_SET),0)
 $(error missing MEMBASE or MEMSIZE variable, please set in target rules.mk)
 endif
 
+GLOBAL_DEFINES += \
+	MEMBASE=$(MEMBASE) \
+	MEMSIZE=$(MEMSIZE)
+
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))
 

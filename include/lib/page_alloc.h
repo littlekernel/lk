@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2015 Travis Geiselbrecht
+ * Copyright (c) 2015 Google, Inc. All rights reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,15 +20,35 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __MALLOC_H
-#define __MALLOC_H
+#ifndef __LIB_PAGE_ALLOC_H
+#define __LIB_PAGE_ALLOC_H
 
+#include <stddef.h>
 #include <sys/types.h>
 #include <compiler.h>
-#include <stddef.h>
 
-/* lib/heap provides malloc/free definitions */
-#include <lib/heap.h>
-
+// to pick up PAGE_SIZE, PAGE_ALIGN, etc
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#else
+#include <kernel/novm.h>
 #endif
 
+/* A simple page-aligned wrapper around the pmm or novm implementation of
+ * the underlying physical page allocator. Used by system heaps or any
+ * other user that wants pages of memory but doesn't want to use LK
+ * specific apis.
+ */
+
+__BEGIN_CDECLS;
+
+void *page_alloc(size_t pages);
+void page_free(void *ptr, size_t pages);
+
+// You can call this once at the start, and it will either return a page or it
+// will return some non-page-aligned memory that would otherwise go to waste.
+void *page_first_alloc(size_t *size_return);
+
+__END_CDECLS;
+
+#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2015 Travis Geiselbrecht
+ * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,15 +20,28 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __MALLOC_H
-#define __MALLOC_H
+#pragma once
 
-#include <sys/types.h>
 #include <compiler.h>
-#include <stddef.h>
 
-/* lib/heap provides malloc/free definitions */
-#include <lib/heap.h>
+__BEGIN_CDECLS;
 
-#endif
+struct miniheap_stats {
+    void* heap_start;
+    size_t heap_len;
+    size_t heap_free;
+    size_t heap_max_chunk;
+    size_t heap_low_watermark;
+};
 
+void miniheap_get_stats(struct miniheap_stats *ptr);
+
+void *miniheap_alloc(size_t, unsigned int alignment);
+void *miniheap_realloc(void *, size_t);
+void miniheap_free(void *);
+
+void miniheap_init(void *ptr, size_t len);
+void miniheap_dump(void);
+void miniheap_trim(void);
+
+__END_CDECLS;
