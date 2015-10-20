@@ -174,7 +174,6 @@ THUMBINTERWORK := -mthumb-interwork
 endif
 
 GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include \
 	$(LOCAL_DIR)/$(SUBARCH)/include
 
 ifeq ($(SUBARCH),arm)

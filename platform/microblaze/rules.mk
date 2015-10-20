@@ -7,9 +7,6 @@ ARCH := microblaze
 MODULE_DEPS += \
     lib/cbuf
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c \

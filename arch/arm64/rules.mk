@@ -7,9 +7,6 @@ GLOBAL_DEFINES += \
 	ARM_ISA_ARMV8=1 \
 	IS_64BIT=1
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/asm.S \

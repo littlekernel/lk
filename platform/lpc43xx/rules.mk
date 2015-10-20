@@ -12,9 +12,6 @@ ARM_CPU := cortex-m4
 GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/gpio.c \

@@ -17,9 +17,6 @@ MODULE_DEPS := \
 	dev/interrupt/arm_gic \
 	dev/timer/arm_cortex_a9
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c \

@@ -30,7 +30,6 @@ GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 
 GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include \
 	$(LOCAL_DIR)/include/dev
 
 MODULE_SRCS += \

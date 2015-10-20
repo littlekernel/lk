@@ -9,9 +9,6 @@ CPU := generic
 WITH_KERNEL_VM := 0
 KERNEL_BASE := 0x0
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/interrupts.c \

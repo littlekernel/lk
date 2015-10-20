@@ -13,9 +13,6 @@ ARM_CPU ?= cortex-a15
 endif
 WITH_SMP ?= 1
 
-GLOBAL_INCLUDES += \
-    $(LOCAL_DIR)/include
-
 MODULE_SRCS += \
     $(LOCAL_DIR)/debug.c \
     $(LOCAL_DIR)/platform.c \

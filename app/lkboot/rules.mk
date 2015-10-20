@@ -16,6 +16,4 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/inet.c \
 	$(LOCAL_DIR)/lkboot.c \
 
-GLOBAL_INCLUDES += $(LOCAL_DIR)/include
-
 include make/module.mk

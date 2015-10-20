@@ -10,9 +10,6 @@ CPU := generic
 GLOBAL_DEFINES += \
 	WITH_DEV_UART=1
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/cpu_early_init.S \
 	$(LOCAL_DIR)/debug.c \
