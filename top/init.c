@@ -37,7 +37,7 @@
 #define LOCAL_TRACE 0
 #define TRACE_INIT (LK_DEBUGLEVEL >= 2)
 #ifndef EARLIEST_TRACE_LEVEL
-#define EARLIEST_TRACE_LEVEL LK_INIT_LEVEL_ARCH_EARLY
+#define EARLIEST_TRACE_LEVEL LK_INIT_LEVEL_TARGET_EARLY
 #endif
 
 extern const struct lk_init_struct __lk_init[];
