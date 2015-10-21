@@ -29,8 +29,11 @@
 #include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <lib/bio.h>
-#include <platform/n25q128a.h>
+#include <platform/n25qxxa.h>
+#include <platform/n25q512a.h>
 #include <platform/qspi.h>
+
+#define FOUR_BYTE_ADDR_THRESHOLD (1 << 24)
 
 static QSPI_HandleTypeDef qspi_handle;
 static DMA_HandleTypeDef hdma;
@@ -50,16 +53,19 @@ static int spiflash_ioctl(struct bdev* device, int request, void* argp);
 
 static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data);
 
-static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction);
-static ssize_t qspi_bulk_erase(void);
-static ssize_t qspi_erase_sector(uint32_t block_addr);
-static ssize_t qspi_erase_subsector(uint32_t block_addr);
+static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruction);
+static ssize_t qspi_bulk_erase(bdev_t *device);
+static ssize_t qspi_erase_sector(bdev_t *device, uint32_t block_addr);
+static ssize_t qspi_erase_subsector(bdev_t *device, uint32_t block_addr);
 
 static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*);
 static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
 static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
 
 status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi);
+
+static uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address);
+static uint32_t get_address_size(uint32_t address);
 
 static event_t cmd_event;
 static event_t rx_event;
@@ -91,8 +97,8 @@ static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef* hqspi)
     }
 
     /* Configure automatic polling mode to wait for write enabling */
-    s_config.Match = N25Q128A_SR_WREN;
-    s_config.Mask = N25Q128A_SR_WREN;
+    s_config.Match = N25QXXA_SR_WREN;
+    s_config.Mask = N25QXXA_SR_WREN;
     s_config.MatchMode = QSPI_MATCH_MODE_AND;
     s_config.StatusBytesSize = 1;
     s_config.Interval = 0x10;
@@ -149,8 +155,8 @@ static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef* hqspi)
     /* Update volatile configuration register (with new dummy cycles) */
     s_command.Instruction = WRITE_VOL_CFG_REG_CMD;
     MODIFY_REG(
-        reg, N25Q128A_VCR_NB_DUMMY,
-        (N25Q128A_DUMMY_CYCLES_READ_QUAD << POSITION_VAL(N25Q128A_VCR_NB_DUMMY)));
+        reg, N25QXXA_VCR_NB_DUMMY,
+        (N25QXXA_DUMMY_CYCLES_READ_QUAD << POSITION_VAL(N25QXXA_VCR_NB_DUMMY)));
 
     /* Configure the write volatile configuration register command */
     status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
@@ -186,7 +192,7 @@ static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi)
     s_command.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
 
     s_config.Match = 0;
-    s_config.Mask = N25Q128A_SR_WIP;
+    s_config.Mask = N25QXXA_SR_WIP;
     s_config.MatchMode = QSPI_MATCH_MODE_AND;
     s_config.StatusBytesSize = 1;
     s_config.Interval = 0x10;
@@ -251,12 +257,12 @@ static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, 
 
     // /* Initialize the read command */
     s_command.InstructionMode = QSPI_INSTRUCTION_1_LINE;
-    s_command.Instruction = QUAD_OUT_FAST_READ_CMD;
+    s_command.Instruction = get_specialized_instruction(QUAD_OUT_FAST_READ_CMD, offset);
     s_command.AddressMode = QSPI_ADDRESS_1_LINE;
-    s_command.AddressSize = QSPI_ADDRESS_24_BITS;
+    s_command.AddressSize = get_address_size(offset);
     s_command.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
     s_command.DataMode = QSPI_DATA_4_LINES;
-    s_command.DummyCycles = N25Q128A_DUMMY_CYCLES_READ_QUAD;
+    s_command.DummyCycles = N25QXXA_DUMMY_CYCLES_READ_QUAD;
     s_command.DdrMode = QSPI_DDR_MODE_DISABLE;
     s_command.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
     s_command.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
@@ -311,14 +317,14 @@ static ssize_t spiflash_bdev_write_block(struct bdev* device, const void* _buf,
 
     ssize_t total_bytes_written = 0;
     for (; count > 0; count--, block++) {
-        ssize_t bytes_written = qspi_write_page_unsafe(block * N25Q128A_PAGE_SIZE, buf);
+        ssize_t bytes_written = qspi_write_page_unsafe(block * N25QXXA_PAGE_SIZE, buf);
         if (bytes_written < 0) {
             printf("qspi_write_page_unsafe failed\n");
             total_bytes_written = bytes_written;
             goto err;
         }
 
-        buf += N25Q128A_PAGE_SIZE;
+        buf += N25QXXA_PAGE_SIZE;
         total_bytes_written += bytes_written;
     }
 
@@ -340,16 +346,16 @@ static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset,
     mutex_acquire(&spiflash_mutex);
 
     // Choose an erase strategy based on the number of bytes being erased.
-    if (len == N25Q128A_FLASH_SIZE && offset == 0) {
+    if (len == device->total_size && offset == 0) {
         // Bulk erase the whole flash.
-        total_erased = qspi_bulk_erase();
+        total_erased = qspi_bulk_erase(device);
         goto finish;
     }
 
     // Erase as many sectors as necessary, then switch to subsector erase for
     // more fine grained erasure.
-    while (((ssize_t)len - total_erased) >= N25Q128A_SECTOR_SIZE) {
-        ssize_t erased = qspi_erase_sector(offset);
+    while (((ssize_t)len - total_erased) >= N25QXXA_SECTOR_SIZE) {
+        ssize_t erased = qspi_erase_sector(device, offset);
         if (erased < 0) {
             total_erased = erased;
             goto finish;
@@ -359,7 +365,7 @@ static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset,
     }
 
     while (total_erased < (ssize_t)len) {
-        ssize_t erased = qspi_erase_subsector(offset);
+        ssize_t erased = qspi_erase_subsector(device, offset);
         if (erased < 0) {
             total_erased = erased;
             goto finish;
@@ -380,7 +386,7 @@ static int spiflash_ioctl(struct bdev* device, int request, void* argp)
 
 static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 {
-    if (!IS_ALIGNED(addr, N25Q128A_PAGE_SIZE)) {
+    if (!IS_ALIGNED(addr, N25QXXA_PAGE_SIZE)) {
         return ERR_INVALID_ARGS;
     }
 
@@ -388,9 +394,9 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 
     QSPI_CommandTypeDef s_command = {
         .InstructionMode   = QSPI_INSTRUCTION_1_LINE,
-        .Instruction       = QUAD_IN_FAST_PROG_CMD,
+        .Instruction       = get_specialized_instruction(QUAD_IN_FAST_PROG_CMD, addr),
         .AddressMode       = QSPI_ADDRESS_1_LINE,
-        .AddressSize       = QSPI_ADDRESS_24_BITS,
+        .AddressSize       = get_address_size(addr),
         .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
         .DataMode          = QSPI_DATA_4_LINES,
         .DummyCycles       = 0,
@@ -398,7 +404,7 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
         .DdrHoldHalfCycle  = QSPI_DDR_HHC_ANALOG_DELAY,
         .SIOOMode          = QSPI_SIOO_INST_EVERY_CMD,
         .Address           = addr,
-        .NbData            = N25Q128A_PAGE_SIZE
+        .NbData            = N25QXXA_PAGE_SIZE
     };
 
     status_t write_enable_result = qspi_write_enable_unsafe(&qspi_handle);
@@ -422,11 +428,11 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
         return auto_polling_mem_ready_result;
     }
 
-    return N25Q128A_PAGE_SIZE;
+    return N25QXXA_PAGE_SIZE;
 }
 
 
-status_t qspi_flash_init(void)
+status_t qspi_flash_init(size_t flash_size)
 {
     status_t result = NO_ERROR;
 
@@ -455,7 +461,7 @@ status_t qspi_flash_init(void)
     qspi_handle.Init.ClockPrescaler = 1;
     qspi_handle.Init.FifoThreshold = 4;
     qspi_handle.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_HALFCYCLE;
-    qspi_handle.Init.FlashSize = POSITION_VAL(N25Q128A_FLASH_SIZE) - 1;
+    qspi_handle.Init.FlashSize = POSITION_VAL(flash_size) - 1;
     qspi_handle.Init.ChipSelectHighTime = QSPI_CS_HIGH_TIME_2_CYCLE;
     qspi_handle.Init.ClockMode = QSPI_CLOCK_MODE_0;
     qspi_handle.Init.FlashID = QSPI_FLASH_ID_1;
@@ -486,13 +492,13 @@ status_t qspi_flash_init(void)
     }
 
     // Initialize the QSPI Flash and register it as a Block I/O device.
-    geometry.erase_size = log2_uint(N25Q128A_SUBSECTOR_SIZE);
-    geometry.erase_shift = log2_uint(N25Q128A_SUBSECTOR_SIZE);
+    geometry.erase_size = log2_uint(N25QXXA_SUBSECTOR_SIZE);
+    geometry.erase_shift = log2_uint(N25QXXA_SUBSECTOR_SIZE);
     geometry.start = 0;
-    geometry.size = N25Q128A_FLASH_SIZE;
+    geometry.size = flash_size;
 
-    bio_initialize_bdev(&qspi_flash_device, device_name, N25Q128A_PAGE_SIZE,
-                        (N25Q128A_FLASH_SIZE / N25Q128A_PAGE_SIZE), 1, &geometry);
+    bio_initialize_bdev(&qspi_flash_device, device_name, N25QXXA_PAGE_SIZE,
+                        (flash_size / N25QXXA_PAGE_SIZE), 1, &geometry);
 
     qspi_flash_device.read = &spiflash_bdev_read;
     qspi_flash_device.read_block = &spiflash_bdev_read_block;
@@ -527,7 +533,7 @@ status_t hal_error_to_status(HAL_StatusTypeDef hal_status)
     }
 }
 
-static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
+static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruction)
 {
     if (instruction == BULK_ERASE_CMD && block_addr != 0) {
         // This call was probably not what the user intended since the
@@ -540,18 +546,21 @@ static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
     ssize_t num_erased_bytes;
     switch (instruction) {
         case SUBSECTOR_ERASE_CMD: {
-            num_erased_bytes = N25Q128A_SUBSECTOR_SIZE;
-            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            num_erased_bytes = N25QXXA_SUBSECTOR_SIZE;
+            erase_cmd.AddressMode = get_address_size(block_addr);
+            erase_cmd.Instruction = get_specialized_instruction(instruction, block_addr);
             break;
         }
         case SECTOR_ERASE_CMD: {
-            num_erased_bytes = N25Q128A_SECTOR_SIZE;
-            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            num_erased_bytes = N25QXXA_SECTOR_SIZE;
+            erase_cmd.AddressMode = get_address_size(block_addr);
+            erase_cmd.Instruction = get_specialized_instruction(instruction, block_addr);
             break;
         }
         case BULK_ERASE_CMD: {
-            num_erased_bytes = N25Q128A_FLASH_SIZE;
+            num_erased_bytes = device->total_size;
             erase_cmd.AddressMode = QSPI_ADDRESS_NONE;
+            erase_cmd.Instruction = instruction;
             break;
         }
         default: {
@@ -569,8 +578,6 @@ static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
     erase_cmd.DdrMode           = QSPI_DDR_MODE_DISABLE;
     erase_cmd.DdrHoldHalfCycle  = QSPI_DDR_HHC_ANALOG_DELAY;
     erase_cmd.SIOOMode          = QSPI_SIOO_INST_EVERY_CMD;
-
-    erase_cmd.Instruction = instruction;
 
 
     /* Enable write operations */
@@ -594,19 +601,19 @@ static ssize_t qspi_erase(uint32_t block_addr, uint32_t instruction)
     return num_erased_bytes;
 }
 
-static ssize_t qspi_bulk_erase(void)
+static ssize_t qspi_bulk_erase(bdev_t *device)
 {
-    return qspi_erase(0, BULK_ERASE_CMD);
+    return qspi_erase(device, 0, BULK_ERASE_CMD);
 }
 
-static ssize_t qspi_erase_sector(uint32_t block_addr)
+static ssize_t qspi_erase_sector(bdev_t *device, uint32_t block_addr)
 {
-    return qspi_erase(block_addr, SECTOR_ERASE_CMD);
+    return qspi_erase(device, block_addr, SECTOR_ERASE_CMD);
 }
 
-static ssize_t qspi_erase_subsector(uint32_t block_addr)
+static ssize_t qspi_erase_subsector(bdev_t *device, uint32_t block_addr)
 {
-    return qspi_erase(block_addr, SUBSECTOR_ERASE_CMD);
+    return qspi_erase(device, block_addr, SUBSECTOR_ERASE_CMD);
 }
 
 static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
@@ -708,4 +715,45 @@ status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
     HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 
     return NO_ERROR;
+}
+
+uint32_t get_address_size(uint32_t address)
+{
+    if (address >= FOUR_BYTE_ADDR_THRESHOLD) {
+        return QSPI_ADDRESS_32_BITS;
+    }
+    return QSPI_ADDRESS_24_BITS;
+}
+
+// Converts a 3 byte instruction into a 4 byte instruction if necessary.
+uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address)
+{
+    if (address < FOUR_BYTE_ADDR_THRESHOLD) {
+        return instruction;
+    }
+
+    switch (instruction) {
+        case READ_CMD:
+            return READ_4_BYTE_ADDR_CMD;
+        case FAST_READ_CMD:
+            return FAST_READ_4_BYTE_ADDR_CMD;
+        case DUAL_OUT_FAST_READ_CMD:
+            return DUAL_OUT_FAST_READ_4_BYTE_ADDR_CMD;
+        case DUAL_INOUT_FAST_READ_CMD:
+            return DUAL_INOUT_FAST_READ_4_BYTE_ADDR_CMD;
+        case QUAD_OUT_FAST_READ_CMD:
+            return QUAD_OUT_FAST_READ_4_BYTE_ADDR_CMD;
+        case QUAD_INOUT_FAST_READ_CMD:
+            return QUAD_INOUT_FAST_READ_4_BYTE_ADDR_CMD;
+        case PAGE_PROG_CMD:
+            return PAGE_PROG_4_BYTE_ADDR_CMD;
+        case QUAD_IN_FAST_PROG_CMD:
+            return QUAD_IN_FAST_PROG_4_BYTE_ADDR_CMD;
+        case SUBSECTOR_ERASE_CMD:
+            return SUBSECTOR_ERASE_4_BYTE_ADDR_CMD;
+        case SECTOR_ERASE_CMD:
+            return SECTOR_ERASE_4_BYTE_ADDR_CMD;
+    }
+
+    return instruction;
 }
