@@ -18,10 +18,10 @@ ifndef LK_HEAP_IMPLEMENTATION
 LK_HEAP_IMPLEMENTATION=miniheap
 endif
 ifeq ($(LK_HEAP_IMPLEMENTATION),miniheap)
-MODULE_DEPS := $(LOCAL_DIR)/miniheap
+MODULE_DEPS := lib/heap/miniheap
 endif
 ifeq ($(LK_HEAP_IMPLEMENTATION),dlmalloc)
-MODULE_DEPS := $(LOCAL_DIR)/dlmalloc
+MODULE_DEPS := lib/heap/dlmalloc
 endif
 
 GLOBAL_DEFINES += LK_HEAP_IMPLEMENTATION=$(LK_HEAP_IMPLEMENTATION)
