@@ -171,20 +171,17 @@ void *novm_alloc_helper(struct novm_arena *n, size_t pages)
     return NULL;
 }
 
-void* novm_alloc_pages(size_t pages, int arena_index)
+void* novm_alloc_pages(size_t pages, uint32_t arena_bitmap)
 {
     LTRACEF("pages %zu\n", pages);
 
-    if (arena_index < 0) {
-        /* allocate from any arena */
-        for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
+    /* allocate from any arena */
+    for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
+        if (arena_bitmap & (1U << i)) {
             void *result = novm_alloc_helper(&arena[i], pages);
             if (result)
                 return result;
         }
-    } else if (arena_index < NOVM_MAX_ARENAS) {
-        /* allocate from a specific index */
-        return novm_alloc_helper(&arena[arena_index], pages);
     }
 
     return NULL;
@@ -267,7 +264,7 @@ notenoughargs:
 usage:
         printf("usage:\n");
         printf("\t%s info\n", argv[0].str);
-        printf("\t%s alloc <numberofpages> [arena #]\n", argv[0].str);
+        printf("\t%s alloc <numberofpages> [arena bitmap]\n", argv[0].str);
         printf("\t%s free <address> [numberofpages]\n", argv[0].str);
         return -1;
     }
@@ -277,8 +274,8 @@ usage:
     } else if (strcmp(argv[1].str, "alloc") == 0) {
         if (argc < 3) goto notenoughargs;
 
-        int arena_index = (argc >= 4) ? argv[3].i : NOVM_ARENA_ANY;
-        void *ptr = novm_alloc_pages(argv[2].u, arena_index);
+        uint32_t arena_bitmap = (argc >= 4) ? argv[3].u : NOVM_ARENA_ANY;
+        void *ptr = novm_alloc_pages(argv[2].u, arena_bitmap);
         printf("novm_alloc_pages returns %p\n", ptr);
     } else if (strcmp(argv[1].str, "free") == 0) {
         if (argc < 3) goto notenoughargs;
