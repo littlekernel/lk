@@ -35,6 +35,13 @@
 
 #define LOCAL_TRACE 0
 
+/* heap tracing */
+#if LK_DEBUGLEVEL > 0
+static bool heap_trace = false;
+#else
+#define heap_trace (false)
+#endif
+
 /* delayed free list */
 struct list_node delayed_free_list = LIST_INITIAL_VALUE(delayed_free_list);
 spin_lock_t delayed_free_lock = SPIN_LOCK_INITIAL_VALUE;
@@ -148,7 +155,10 @@ void *malloc(size_t size)
         heap_free_delayed_list();
     }
 
-    return HEAP_MALLOC(size);
+    void *ptr = HEAP_MALLOC(size);
+    if (heap_trace)
+        printf("caller %p malloc %zu -> %p\n", __GET_CALLER(), size, ptr);
+    return ptr;
 }
 
 void *memalign(size_t boundary, size_t size)
@@ -160,7 +170,10 @@ void *memalign(size_t boundary, size_t size)
         heap_free_delayed_list();
     }
 
-    return HEAP_MEMALIGN(boundary, size);
+    void *ptr = HEAP_MEMALIGN(boundary, size);
+    if (heap_trace)
+        printf("caller %p memalign %zu, %zu -> %p\n", __GET_CALLER(), boundary, size, ptr);
+    return ptr;
 }
 
 void *calloc(size_t count, size_t size)
@@ -172,7 +185,10 @@ void *calloc(size_t count, size_t size)
         heap_free_delayed_list();
     }
 
-    return HEAP_CALLOC(count, size);
+    void *ptr = HEAP_CALLOC(count, size);
+    if (heap_trace)
+        printf("caller %p calloc %zu, %zu -> %p\n", __GET_CALLER(), count, size, ptr);
+    return ptr;
 }
 
 void *realloc(void *ptr, size_t size)
@@ -184,12 +200,17 @@ void *realloc(void *ptr, size_t size)
         heap_free_delayed_list();
     }
 
-    return HEAP_REALLOC(ptr, size);
+    void *ptr2 = HEAP_REALLOC(ptr, size);
+    if (heap_trace)
+        printf("caller %p realloc %p, %zu -> %p\n", __GET_CALLER(), ptr, size, ptr2);
+    return ptr2;
 }
 
 void free(void *ptr)
 {
     LTRACEF("ptr %p\n", ptr);
+    if (heap_trace)
+        printf("caller %p free %p\n", __GET_CALLER(), ptr);
 
     HEAP_FREE(ptr);
 }
@@ -297,6 +318,7 @@ notenoughargs:
 usage:
         printf("usage:\n");
         printf("\t%s info\n", argv[0].str);
+        printf("\t%s trace\n", argv[0].str);
         printf("\t%s trim\n", argv[0].str);
         printf("\t%s alloc <size> [alignment]\n", argv[0].str);
         printf("\t%s realloc <ptr> <size>\n", argv[0].str);
@@ -306,6 +328,9 @@ usage:
 
     if (strcmp(argv[1].str, "info") == 0) {
         heap_dump();
+    } else if (strcmp(argv[1].str, "trace") == 0) {
+        heap_trace = !heap_trace;
+        printf("heap trace is now %s\n", heap_trace ? "on" : "off");
     } else if (strcmp(argv[1].str, "trim") == 0) {
         heap_trim();
     } else if (strcmp(argv[1].str, "alloc") == 0) {
