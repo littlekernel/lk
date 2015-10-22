@@ -732,7 +732,7 @@ uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address)
         return instruction;
     }
 
-    switch(instruction) {
+    switch (instruction) {
         case READ_CMD:
             return READ_4_BYTE_ADDR_CMD;
         case FAST_READ_CMD:
