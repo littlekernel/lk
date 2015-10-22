@@ -64,8 +64,8 @@ static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, 
 
 status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi);
 
-uint32_t getSpecializedInstruction(uint32_t instruction, uint32_t address);
-uint32_t getAddressSize(uint32_t address);
+static uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address);
+static uint32_t get_address_size(uint32_t address);
 
 static event_t cmd_event;
 static event_t rx_event;
@@ -257,9 +257,9 @@ static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, 
 
     // /* Initialize the read command */
     s_command.InstructionMode = QSPI_INSTRUCTION_1_LINE;
-    s_command.Instruction = getSpecializedInstruction(QUAD_OUT_FAST_READ_CMD, offset);
+    s_command.Instruction = get_specialized_instruction(QUAD_OUT_FAST_READ_CMD, offset);
     s_command.AddressMode = QSPI_ADDRESS_1_LINE;
-    s_command.AddressSize = getAddressSize(offset);
+    s_command.AddressSize = get_address_size(offset);
     s_command.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
     s_command.DataMode = QSPI_DATA_4_LINES;
     s_command.DummyCycles = N25QXXA_DUMMY_CYCLES_READ_QUAD;
@@ -394,9 +394,9 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 
     QSPI_CommandTypeDef s_command = {
         .InstructionMode   = QSPI_INSTRUCTION_1_LINE,
-        .Instruction       = getSpecializedInstruction(QUAD_IN_FAST_PROG_CMD, addr),
+        .Instruction       = get_specialized_instruction(QUAD_IN_FAST_PROG_CMD, addr),
         .AddressMode       = QSPI_ADDRESS_1_LINE,
-        .AddressSize       = getAddressSize(addr),
+        .AddressSize       = get_address_size(addr),
         .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
         .DataMode          = QSPI_DATA_4_LINES,
         .DummyCycles       = 0,
@@ -547,14 +547,14 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     switch (instruction) {
         case SUBSECTOR_ERASE_CMD: {
             num_erased_bytes = N25QXXA_SUBSECTOR_SIZE;
-            erase_cmd.AddressMode = getAddressSize(block_addr);
-            erase_cmd.Instruction = getSpecializedInstruction(instruction, block_addr);
+            erase_cmd.AddressMode = get_address_size(block_addr);
+            erase_cmd.Instruction = get_specialized_instruction(instruction, block_addr);
             break;
         }
         case SECTOR_ERASE_CMD: {
             num_erased_bytes = N25QXXA_SECTOR_SIZE;
-            erase_cmd.AddressMode = getAddressSize(block_addr);
-            erase_cmd.Instruction = getSpecializedInstruction(instruction, block_addr);
+            erase_cmd.AddressMode = get_address_size(block_addr);
+            erase_cmd.Instruction = get_specialized_instruction(instruction, block_addr);
             break;
         }
         case BULK_ERASE_CMD: {
@@ -717,7 +717,7 @@ status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
     return NO_ERROR;
 }
 
-uint32_t getAddressSize(uint32_t address)
+uint32_t get_address_size(uint32_t address)
 {
     if (address >= FOUR_BYTE_ADDR_THRESHOLD) {
         return QSPI_ADDRESS_32_BITS;
@@ -726,7 +726,7 @@ uint32_t getAddressSize(uint32_t address)
 }
 
 // Converts a 3 byte instruction into a 4 byte instruction if necessary.
-uint32_t getSpecializedInstruction(uint32_t instruction, uint32_t address)
+uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address)
 {
     if (address < FOUR_BYTE_ADDR_THRESHOLD) {
         return instruction;

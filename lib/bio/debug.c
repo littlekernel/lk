@@ -333,7 +333,7 @@ static ssize_t erase_test(bdev_t *device)
     return num_invalid_blocks;
 }
 
-uint8_t get_signature(uint32_t word)
+static uint8_t get_signature(uint32_t word)
 {
     uint8_t* sigptr = (uint8_t*)(&word);
     return sigptr[0] ^ sigptr[1] ^ sigptr[2] ^ sigptr[3];
