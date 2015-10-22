@@ -717,7 +717,7 @@ status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
     return NO_ERROR;
 }
 
-uint32_t get_address_size(uint32_t address)
+static uint32_t get_address_size(uint32_t address)
 {
     if (address >= FOUR_BYTE_ADDR_THRESHOLD) {
         return QSPI_ADDRESS_32_BITS;
@@ -726,7 +726,7 @@ uint32_t get_address_size(uint32_t address)
 }
 
 // Converts a 3 byte instruction into a 4 byte instruction if necessary.
-uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address)
+static uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address)
 {
     if (address < FOUR_BYTE_ADDR_THRESHOLD) {
         return instruction;
