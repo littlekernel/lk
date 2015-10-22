@@ -30,7 +30,10 @@
 #include <kernel/mutex.h>
 #include <lib/bio.h>
 #include <platform/n25qxxa.h>
+#include <platform/n25q512a.h>
 #include <platform/qspi.h>
+
+#define FOUR_BYTE_ADDR_THRESHOLD (1 << 24)
 
 static QSPI_HandleTypeDef qspi_handle;
 static DMA_HandleTypeDef hdma;
@@ -60,6 +63,9 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, 
 static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
 
 status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi);
+
+uint32_t getSpecializedInstruction(uint32_t instruction, uint32_t address);
+uint32_t getAddressSize(uint32_t address);
 
 static event_t cmd_event;
 static event_t rx_event;
@@ -251,9 +257,9 @@ static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, 
 
     // /* Initialize the read command */
     s_command.InstructionMode = QSPI_INSTRUCTION_1_LINE;
-    s_command.Instruction = QUAD_OUT_FAST_READ_CMD;
+    s_command.Instruction = getSpecializedInstruction(QUAD_OUT_FAST_READ_CMD, offset);
     s_command.AddressMode = QSPI_ADDRESS_1_LINE;
-    s_command.AddressSize = QSPI_ADDRESS_24_BITS;
+    s_command.AddressSize = getAddressSize(offset);
     s_command.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
     s_command.DataMode = QSPI_DATA_4_LINES;
     s_command.DummyCycles = N25QXXA_DUMMY_CYCLES_READ_QUAD;
@@ -388,9 +394,9 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 
     QSPI_CommandTypeDef s_command = {
         .InstructionMode   = QSPI_INSTRUCTION_1_LINE,
-        .Instruction       = QUAD_IN_FAST_PROG_CMD,
+        .Instruction       = getSpecializedInstruction(QUAD_IN_FAST_PROG_CMD, addr),
         .AddressMode       = QSPI_ADDRESS_1_LINE,
-        .AddressSize       = QSPI_ADDRESS_24_BITS,
+        .AddressSize       = getAddressSize(addr),
         .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
         .DataMode          = QSPI_DATA_4_LINES,
         .DummyCycles       = 0,
@@ -541,17 +547,20 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     switch (instruction) {
         case SUBSECTOR_ERASE_CMD: {
             num_erased_bytes = N25QXXA_SUBSECTOR_SIZE;
-            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            erase_cmd.AddressMode = getAddressSize(block_addr);
+            erase_cmd.Instruction = getSpecializedInstruction(instruction, block_addr);
             break;
         }
         case SECTOR_ERASE_CMD: {
             num_erased_bytes = N25QXXA_SECTOR_SIZE;
-            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            erase_cmd.AddressMode = getAddressSize(block_addr);
+            erase_cmd.Instruction = getSpecializedInstruction(instruction, block_addr);
             break;
         }
         case BULK_ERASE_CMD: {
             num_erased_bytes = device->total_size;
             erase_cmd.AddressMode = QSPI_ADDRESS_NONE;
+            erase_cmd.Instruction = instruction;
             break;
         }
         default: {
@@ -569,8 +578,6 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     erase_cmd.DdrMode           = QSPI_DDR_MODE_DISABLE;
     erase_cmd.DdrHoldHalfCycle  = QSPI_DDR_HHC_ANALOG_DELAY;
     erase_cmd.SIOOMode          = QSPI_SIOO_INST_EVERY_CMD;
-
-    erase_cmd.Instruction = instruction;
 
 
     /* Enable write operations */
@@ -708,4 +715,45 @@ status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
     HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 
     return NO_ERROR;
+}
+
+uint32_t getAddressSize(uint32_t address)
+{
+    if (address >= FOUR_BYTE_ADDR_THRESHOLD) {
+        return QSPI_ADDRESS_32_BITS;
+    }
+    return QSPI_ADDRESS_24_BITS;
+}
+
+// Converts a 3 byte instruction into a 4 byte instruction if necessary.
+uint32_t getSpecializedInstruction(uint32_t instruction, uint32_t address)
+{
+    if (address < FOUR_BYTE_ADDR_THRESHOLD) {
+        return instruction;
+    }
+
+    switch(instruction) {
+        case READ_CMD:
+            return READ_4_BYTE_ADDR_CMD;
+        case FAST_READ_CMD:
+            return FAST_READ_4_BYTE_ADDR_CMD;
+        case DUAL_OUT_FAST_READ_CMD:
+            return DUAL_OUT_FAST_READ_4_BYTE_ADDR_CMD;
+        case DUAL_INOUT_FAST_READ_CMD:
+            return DUAL_INOUT_FAST_READ_4_BYTE_ADDR_CMD;
+        case QUAD_OUT_FAST_READ_CMD:
+            return QUAD_OUT_FAST_READ_4_BYTE_ADDR_CMD;
+        case QUAD_INOUT_FAST_READ_CMD:
+            return QUAD_INOUT_FAST_READ_4_BYTE_ADDR_CMD;
+        case PAGE_PROG_CMD:
+            return PAGE_PROG_4_BYTE_ADDR_CMD;
+        case QUAD_IN_FAST_PROG_CMD:
+            return QUAD_IN_FAST_PROG_4_BYTE_ADDR_CMD;
+        case SUBSECTOR_ERASE_CMD:
+            return SUBSECTOR_ERASE_4_BYTE_ADDR_CMD;
+        case SECTOR_ERASE_CMD:
+            return SECTOR_ERASE_4_BYTE_ADDR_CMD;
+    }
+
+    return instruction;
 }
