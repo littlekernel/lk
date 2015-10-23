@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Travis Geiselbrecht
+ * Copyright (c) 2007-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,7 +25,8 @@
 #include <stdlib.h>
 #include <debug.h>
 #include <trace.h>
-#include <lib/fs/ext2.h>
+#include <lk/init.h>
+#include <lib/fs.h>
 #include "ext2_priv.h"
 
 #define LOCAL_TRACE 0
@@ -257,4 +258,22 @@ int ext2_load_inode(ext2_t *ext2, inodenum_t num, struct ext2_inode *inode)
 
     return 0;
 }
+
+static const struct fs_api ext2_api = {
+    .mount = ext2_mount,
+    .unmount = ext2_unmount,
+    .open = ext2_open_file,
+    .stat = ext2_stat_file,
+    .read = ext2_read_file,
+    .close = ext2_close_file,
+};
+
+static void ext2_init(uint level)
+{
+    fs_register_type("ext2", &ext2_api);
+}
+
+LK_INIT_HOOK(ext2, &ext2_init, LK_INIT_LEVEL_THREADING);
+
+
 

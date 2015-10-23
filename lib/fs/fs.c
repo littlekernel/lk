@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Travis Geiselbrecht
+ * Copyright (c) 2009-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -30,35 +30,16 @@
 #include <lib/bio.h>
 #include <lk/init.h>
 
-#if WITH_LIB_FS_EXT2
-#include <lib/fs/ext2.h>
-#endif
-#if WITH_LIB_FS_FAT32
-#include <lib/fs/fat32.h>
-#endif
-
 #define LOCAL_TRACE 0
-
-struct fs_type {
-    const char *name;
-    int (*mount)(bdev_t *, fscookie *);
-    int (*unmount)(fscookie);
-    int (*open)(fscookie, const char *, filecookie *);
-    int (*create)(fscookie, const char *, filecookie *);
-    int (*mkdir)(fscookie, const char *);
-    int (*stat)(filecookie, struct file_stat *);
-    int (*read)(filecookie, void *, off_t, size_t);
-    int (*write)(filecookie, const void *, off_t, size_t);
-    int (*close)(filecookie);
-};
 
 struct fs_mount {
     struct list_node node;
+
     char *path;
     bdev_t *dev;
     fscookie cookie;
     int refs;
-    struct fs_type *type;
+    const struct fs_api *api;
 };
 
 struct fs_file {
@@ -66,20 +47,17 @@ struct fs_file {
     struct fs_mount *mount;
 };
 
-static struct list_node mounts;
+struct fs {
+    struct list_node node;
+    const char *name;
+    const struct fs_api *api;
+};
 
-static struct fs_type types[] = {
-#if WITH_LIB_FS_EXT2
-    {
-        .name = "ext2",
-        .mount = ext2_mount,
-        .unmount = ext2_unmount,
-        .open = ext2_open_file,
-        .stat = ext2_stat_file,
-        .read = ext2_read_file,
-        .close = ext2_close_file,
-    },
-#endif
+static struct list_node mounts = LIST_INITIAL_VALUE(mounts);
+static struct list_node fses = LIST_INITIAL_VALUE(fses);
+
+#if 0
+static struct fs_api types[] = {
 #if WITH_LIB_FS_FAT32
     {
         .name = "fat32",
@@ -95,13 +73,13 @@ static struct fs_type types[] = {
     },
 #endif
 };
+#endif
 
 static void test_normalize(const char *in);
 static struct fs_mount *find_mount(const char *path, const char **trimmed_path);
 
 static void fs_init(uint level)
 {
-    list_initialize(&mounts);
 #if 0
     test_normalize("/");
     test_normalize("/test");
@@ -134,6 +112,32 @@ static void fs_init(uint level)
 
 LK_INIT_HOOK(libfs, &fs_init, LK_INIT_LEVEL_THREADING);
 
+status_t fs_register_type(const char *name, const struct fs_api *api)
+{
+    struct fs *fs;
+
+    fs = malloc(sizeof(struct fs));
+    if (!fs)
+        return ERR_NO_MEMORY;
+
+    fs->name = name;
+    fs->api = api;
+
+    list_add_head(&fses, &fs->node);
+
+    return NO_ERROR;
+}
+
+static struct fs *find_fs(const char *name)
+{
+    struct fs *fs;
+    list_for_every_entry(&fses, fs, struct fs, node) {
+        if (!strcmp(name, fs->name))
+            return fs;
+    }
+    return NULL;
+}
+
 static struct fs_mount *find_mount(const char *path, const char **trimmed_path)
 {
     struct fs_mount *mount;
@@ -157,7 +161,7 @@ static struct fs_mount *find_mount(const char *path, const char **trimmed_path)
     return NULL;
 }
 
-static int mount(const char *path, const char *device, struct fs_type *type)
+static int mount(const char *path, const char *device, const struct fs_api *api)
 {
     char temppath[512];
 
@@ -175,7 +179,7 @@ static int mount(const char *path, const char *device, struct fs_type *type)
         return ERR_NOT_FOUND;
 
     fscookie cookie;
-    int err = type->mount(dev, &cookie);
+    int err = api->mount(dev, &cookie);
     if (err < 0) {
         bio_close(dev);
         return err;
@@ -187,35 +191,27 @@ static int mount(const char *path, const char *device, struct fs_type *type)
     mount->dev = dev;
     mount->cookie = cookie;
     mount->refs = 1;
-    mount->type = type;
+    mount->api = api;
 
     list_add_head(&mounts, &mount->node);
 
     return 0;
 }
 
-int fs_mount(const char *path, const char *device)
+int fs_mount(const char *path, const char *fsname, const char *device)
 {
-    return mount(path, device, &types[0]);
-}
+    struct fs *fs = find_fs(fsname);
+    if (!fs)
+        return ERR_NOT_FOUND;
 
-int fs_mount_type(const char *path, const char *device, const char *name)
-{
-    size_t i;
-
-    for (i = 0; i < countof(types); i++) {
-        if (!strcmp(name, types[i].name))
-            return mount(path, device, &types[i]);
-    }
-
-    return ERR_NOT_FOUND;
+    return mount(path, device, fs->api);
 }
 
 static void put_mount(struct fs_mount *mount)
 {
     if (!(--mount->refs)) {
         list_delete(&mount->node);
-        mount->type->unmount(mount->cookie);
+        mount->api->unmount(mount->cookie);
         free(mount->path);
         bio_close(mount->dev);
         free(mount);
@@ -257,7 +253,7 @@ int fs_open_file(const char *path, filecookie *fcookie)
 
     LTRACEF("path %s temppath %s newpath %s\n", path, temppath, newpath);
 
-    err = mount->type->open(mount->cookie, newpath, &cookie);
+    err = mount->api->open(mount->cookie, newpath, &cookie);
     if (err < 0)
         return err;
 
@@ -284,10 +280,10 @@ int fs_create_file(const char *path, filecookie *fcookie)
     if (!mount)
         return ERR_NOT_FOUND;
 
-    if (!mount->type->create)
+    if (!mount->api->create)
         return ERR_NOT_SUPPORTED;
 
-    err = mount->type->create(mount->cookie, newpath, &cookie);
+    err = mount->api->create(mount->cookie, newpath, &cookie);
     if (err < 0)
         return err;
 
@@ -312,27 +308,27 @@ int fs_make_dir(const char *path)
     if (!mount)
         return ERR_NOT_FOUND;
 
-    if (!mount->type->mkdir)
+    if (!mount->api->mkdir)
         return ERR_NOT_SUPPORTED;
 
-    return mount->type->mkdir(mount->cookie, newpath);
+    return mount->api->mkdir(mount->cookie, newpath);
 }
 
 int fs_read_file(filecookie fcookie, void *buf, off_t offset, size_t len)
 {
     struct fs_file *f = fcookie;
 
-    return f->mount->type->read(f->cookie, buf, offset, len);
+    return f->mount->api->read(f->cookie, buf, offset, len);
 }
 
 int fs_write_file(filecookie fcookie, const void *buf, off_t offset, size_t len)
 {
     struct fs_file *f = fcookie;
 
-    if (!f->mount->type->write)
+    if (!f->mount->api->write)
         return ERR_NOT_SUPPORTED;
 
-    return f->mount->type->write(f->cookie, buf, offset, len);
+    return f->mount->api->write(f->cookie, buf, offset, len);
 }
 
 int fs_close_file(filecookie fcookie)
@@ -340,7 +336,7 @@ int fs_close_file(filecookie fcookie)
     int err;
     struct fs_file *f = fcookie;
 
-    err = f->mount->type->close(f->cookie);
+    err = f->mount->api->close(f->cookie);
     if (err < 0)
         return err;
 
@@ -353,7 +349,7 @@ int fs_stat_file(filecookie fcookie, struct file_stat *stat)
 {
     struct fs_file *f = fcookie;
 
-    return f->mount->type->stat(f->cookie, stat);
+    return f->mount->api->stat(f->cookie, stat);
 }
 
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen)

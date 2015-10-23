@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Travis Geiselbrecht
+ * Copyright (c) 2007-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -26,6 +26,7 @@
 
 #include <lib/bio.h>
 #include <lib/bcache.h>
+#include <lib/fs.h>
 #include "ext2_fs.h"
 
 typedef uint32_t blocknum_t;
@@ -67,6 +68,16 @@ int ext2_put_block(ext2_t *ext2, blocknum_t bnum);
 off_t ext2_file_len(ext2_t *ext2, struct ext2_inode *inode);
 int ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *buf, off_t offset, size_t len);
 int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len);
+
+/* fs api */
+typedef void *fsfilecookie;
+
+int ext2_mount(bdev_t *dev, fscookie *cookie);
+int ext2_unmount(fscookie cookie);
+int ext2_open_file(fscookie cookie, const char *path, fsfilecookie *fcookie);
+int ext2_read_file(fsfilecookie fcookie, void *buf, off_t offset, size_t len);
+int ext2_close_file(fsfilecookie fcookie);
+int ext2_stat_file(fsfilecookie fcookie, struct file_stat *);
 
 /* mode stuff */
 #define S_IFMT      0170000

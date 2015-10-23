@@ -33,7 +33,7 @@ struct file_stat {
 typedef void *filecookie;
 typedef void *fscookie;
 
-int fs_mount(const char *path, const char *device);
+int fs_mount(const char *path, const char *fs, const char *device);
 int fs_unmount(const char *path);
 
 /* file api */
@@ -47,4 +47,20 @@ ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen);
 
 /* walk through a path string, removing duplicate path seperators, flattening . and .. references */
 void fs_normalize_path(char *path);
+
+/* file system api */
+struct bdev;
+struct fs_api {
+    int (*mount)(struct bdev *, fscookie *);
+    int (*unmount)(fscookie);
+    int (*open)(fscookie, const char *, filecookie *);
+    int (*create)(fscookie, const char *, filecookie *);
+    int (*mkdir)(fscookie, const char *);
+    int (*stat)(filecookie, struct file_stat *);
+    int (*read)(filecookie, void *, off_t, size_t);
+    int (*write)(filecookie, const void *, off_t, size_t);
+    int (*close)(filecookie);
+};
+
+status_t fs_register_type(const char *name, const struct fs_api *api);
 
