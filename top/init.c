@@ -132,5 +132,3 @@ LK_INIT_HOOK(test2, test_hook2, 2);
 LK_INIT_HOOK(test1a, test_hook1a, 1);
 LK_INIT_HOOK(test1b, test_hook1b, 1);
 #endif
-
-// vim: set ts=4 sw=4 expandtab:

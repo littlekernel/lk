@@ -1,3 +1,25 @@
+/*
+ * Copyright (c) 2013-2015 Travis Geiselbrecht
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files
+ * (the "Software"), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge,
+ * publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 #pragma once
 
 #include <compiler.h>
@@ -38,11 +60,11 @@ enum lk_init_flags {
 void lk_init_level(enum lk_init_flags flags, uint start_level, uint stop_level);
 
 static inline void lk_primary_cpu_init_level(uint start_level, uint stop_level) {
-	lk_init_level(LK_INIT_FLAG_PRIMARY_CPU, start_level, stop_level);
+    lk_init_level(LK_INIT_FLAG_PRIMARY_CPU, start_level, stop_level);
 }
 
 static inline void lk_init_level_all(enum lk_init_flags flags) {
-	lk_init_level(flags, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_LAST);
+    lk_init_level(flags, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_LAST);
 }
 
 struct lk_init_struct {
