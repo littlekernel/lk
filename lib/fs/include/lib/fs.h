@@ -30,36 +30,42 @@ struct file_stat {
     off_t size;
 };
 
-typedef void *filecookie;
-typedef void *fscookie;
+typedef struct _filehandle filehandle;
+//typedef void *filecookie;
+//typedef void *fscookie;
 
-int fs_mount(const char *path, const char *fs, const char *device);
-int fs_unmount(const char *path);
+status_t fs_mount(const char *path, const char *fs, const char *device) __NONNULL();
+status_t fs_unmount(const char *path) __NONNULL();
 
 /* file api */
-int fs_open_file(const char *path, filecookie *fcookie);
-int fs_read_file(filecookie fcookie, void *buf, off_t offset, size_t len);
-int fs_close_file(filecookie fcookie);
-int fs_stat_file(filecookie fcookie, struct file_stat *);
+status_t fs_create_file(const char *path, filehandle **handle, uint64_t len) __NONNULL();
+status_t fs_open_file(const char *path, filehandle **handle) __NONNULL();
+ssize_t fs_read_file(filehandle *handle, void *buf, off_t offset, size_t len) __NONNULL();
+ssize_t fs_write_file(filehandle *handle, const void *buf, off_t offset, size_t len) __NONNULL();
+status_t fs_close_file(filehandle *handle) __NONNULL();
+status_t fs_stat_file(filehandle *handle, struct file_stat *) __NONNULL();
+status_t fs_make_dir(const char *path) __NONNULL();
 
 /* convenience routines */
-ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen);
+ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen) __NONNULL();
 
 /* walk through a path string, removing duplicate path seperators, flattening . and .. references */
-void fs_normalize_path(char *path);
+void fs_normalize_path(char *path) __NONNULL();
 
 /* file system api */
+typedef struct _fscookie fscookie;
+typedef struct _filecookie filecookie;
 struct bdev;
 struct fs_api {
-    int (*mount)(struct bdev *, fscookie *);
-    int (*unmount)(fscookie);
-    int (*open)(fscookie, const char *, filecookie *);
-    int (*create)(fscookie, const char *, filecookie *);
-    int (*mkdir)(fscookie, const char *);
-    int (*stat)(filecookie, struct file_stat *);
-    int (*read)(filecookie, void *, off_t, size_t);
-    int (*write)(filecookie, const void *, off_t, size_t);
-    int (*close)(filecookie);
+    status_t (*mount)(struct bdev *, fscookie **);
+    status_t (*unmount)(fscookie *);
+    status_t (*open)(fscookie *, const char *, filecookie **);
+    status_t (*create)(fscookie *, const char *, filecookie **, uint64_t);
+    status_t (*mkdir)(fscookie *, const char *);
+    status_t (*stat)(filecookie *, struct file_stat *);
+    ssize_t (*read)(filecookie *, void *, off_t, size_t);
+    ssize_t (*write)(filecookie *, const void *, off_t, size_t);
+    status_t (*close)(filecookie *);
 };
 
 status_t fs_register_type(const char *name, const struct fs_api *api);

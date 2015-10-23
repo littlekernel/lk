@@ -66,18 +66,16 @@ int ext2_get_block(ext2_t *ext2, void **ptr, blocknum_t bnum);
 int ext2_put_block(ext2_t *ext2, blocknum_t bnum);
 
 off_t ext2_file_len(ext2_t *ext2, struct ext2_inode *inode);
-int ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *buf, off_t offset, size_t len);
+ssize_t ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *buf, off_t offset, size_t len);
 int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len);
 
 /* fs api */
-typedef void *fsfilecookie;
-
-int ext2_mount(bdev_t *dev, fscookie *cookie);
-int ext2_unmount(fscookie cookie);
-int ext2_open_file(fscookie cookie, const char *path, fsfilecookie *fcookie);
-int ext2_read_file(fsfilecookie fcookie, void *buf, off_t offset, size_t len);
-int ext2_close_file(fsfilecookie fcookie);
-int ext2_stat_file(fsfilecookie fcookie, struct file_stat *);
+status_t ext2_mount(bdev_t *dev, fscookie **cookie);
+status_t ext2_unmount(fscookie *cookie);
+status_t ext2_open_file(fscookie *cookie, const char *path, filecookie **fcookie);
+ssize_t ext2_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len);
+status_t ext2_close_file(filecookie *fcookie);
+status_t ext2_stat_file(filecookie *fcookie, struct file_stat *);
 
 /* mode stuff */
 #define S_IFMT      0170000

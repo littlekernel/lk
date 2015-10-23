@@ -37,13 +37,13 @@ struct fs_mount {
 
     char *path;
     bdev_t *dev;
-    fscookie cookie;
+    fscookie *cookie;
     int refs;
     const struct fs_api *api;
 };
 
-struct fs_file {
-    filecookie cookie;
+struct _filehandle {
+    filecookie *cookie;
     struct fs_mount *mount;
 };
 
@@ -55,78 +55,6 @@ struct fs {
 
 static struct list_node mounts = LIST_INITIAL_VALUE(mounts);
 static struct list_node fses = LIST_INITIAL_VALUE(fses);
-
-#if 0
-static struct fs_api types[] = {
-#if WITH_LIB_FS_FAT32
-    {
-        .name = "fat32",
-        .mount = fat32_mount,
-        .unmount = fat32_unmount,
-        .open = fat32_open_file,
-        .create = fat32_create_file,
-        .mkdir = fat32_make_dir,
-        .stat = fat32_stat_file,
-        .read = fat32_read_file,
-        .write = fat32_write_file,
-        .close = fat32_close_file,
-    },
-#endif
-};
-#endif
-
-static void test_normalize(const char *in);
-static struct fs_mount *find_mount(const char *path, const char **trimmed_path);
-
-static void fs_init(uint level)
-{
-#if 0
-    test_normalize("/");
-    test_normalize("/test");
-    test_normalize("/test/");
-    test_normalize("test/");
-    test_normalize("test");
-    test_normalize("/test//");
-    test_normalize("/test/foo");
-    test_normalize("/test/foo/");
-    test_normalize("/test/foo/bar");
-    test_normalize("/test/foo/bar//");
-    test_normalize("/test//foo/bar//");
-    test_normalize("/test//./foo/bar//");
-    test_normalize("/test//./.foo/bar//");
-    test_normalize("/test//./..foo/bar//");
-    test_normalize("/test//./../foo/bar//");
-    test_normalize("/test/../foo");
-    test_normalize("/test/bar/../foo");
-    test_normalize("../foo");
-    test_normalize("../foo/");
-    test_normalize("/../foo");
-    test_normalize("/../foo/");
-    test_normalize("/../../foo");
-    test_normalize("/bleh/../../foo");
-    test_normalize("/bleh/bar/../../foo");
-    test_normalize("/bleh/bar/../../foo/..");
-    test_normalize("/bleh/bar/../../foo/../meh");
-#endif
-}
-
-LK_INIT_HOOK(libfs, &fs_init, LK_INIT_LEVEL_THREADING);
-
-status_t fs_register_type(const char *name, const struct fs_api *api)
-{
-    struct fs *fs;
-
-    fs = malloc(sizeof(struct fs));
-    if (!fs)
-        return ERR_NO_MEMORY;
-
-    fs->name = name;
-    fs->api = api;
-
-    list_add_head(&fses, &fs->node);
-
-    return NO_ERROR;
-}
 
 static struct fs *find_fs(const char *name)
 {
@@ -161,7 +89,23 @@ static struct fs_mount *find_mount(const char *path, const char **trimmed_path)
     return NULL;
 }
 
-static int mount(const char *path, const char *device, const struct fs_api *api)
+status_t fs_register_type(const char *name, const struct fs_api *api)
+{
+    struct fs *fs;
+
+    fs = malloc(sizeof(struct fs));
+    if (!fs)
+        return ERR_NO_MEMORY;
+
+    fs->name = name;
+    fs->api = api;
+
+    list_add_head(&fses, &fs->node);
+
+    return NO_ERROR;
+}
+
+static status_t mount(const char *path, const char *device, const struct fs_api *api)
 {
     char temppath[512];
 
@@ -178,8 +122,8 @@ static int mount(const char *path, const char *device, const struct fs_api *api)
     if (!dev)
         return ERR_NOT_FOUND;
 
-    fscookie cookie;
-    int err = api->mount(dev, &cookie);
+    fscookie *cookie;
+    status_t err = api->mount(dev, &cookie);
     if (err < 0) {
         bio_close(dev);
         return err;
@@ -198,7 +142,7 @@ static int mount(const char *path, const char *device, const struct fs_api *api)
     return 0;
 }
 
-int fs_mount(const char *path, const char *fsname, const char *device)
+status_t fs_mount(const char *path, const char *fsname, const char *device)
 {
     struct fs *fs = find_fs(fsname);
     if (!fs)
@@ -218,7 +162,7 @@ static void put_mount(struct fs_mount *mount)
     }
 }
 
-int fs_unmount(const char *path)
+status_t fs_unmount(const char *path)
 {
     char temppath[512];
 
@@ -235,11 +179,9 @@ int fs_unmount(const char *path)
 }
 
 
-int fs_open_file(const char *path, filecookie *fcookie)
+status_t fs_open_file(const char *path, filehandle **handle)
 {
-    int err;
     char temppath[512];
-    filecookie cookie;
 
     strlcpy(temppath, path, sizeof(temppath));
     fs_normalize_path(temppath);
@@ -253,24 +195,23 @@ int fs_open_file(const char *path, filecookie *fcookie)
 
     LTRACEF("path %s temppath %s newpath %s\n", path, temppath, newpath);
 
-    err = mount->api->open(mount->cookie, newpath, &cookie);
+    filecookie *cookie;
+    status_t err = mount->api->open(mount->cookie, newpath, &cookie);
     if (err < 0)
         return err;
 
-    struct fs_file *f = malloc(sizeof(*f));
+    filehandle *f = malloc(sizeof(*f));
     f->cookie = cookie;
     f->mount = mount;
     mount->refs++;
-    *fcookie = f;
+    *handle = f;
 
     return 0;
 }
 
-int fs_create_file(const char *path, filecookie *fcookie)
+status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
 {
-    int err;
     char temppath[512];
-    filecookie cookie;
 
     strlcpy(temppath, path, sizeof(temppath));
     fs_normalize_path(temppath);
@@ -283,20 +224,21 @@ int fs_create_file(const char *path, filecookie *fcookie)
     if (!mount->api->create)
         return ERR_NOT_SUPPORTED;
 
-    err = mount->api->create(mount->cookie, newpath, &cookie);
+    filecookie *cookie;
+    status_t err = mount->api->create(mount->cookie, newpath, &cookie, len);
     if (err < 0)
         return err;
 
-    struct fs_file *f = malloc(sizeof(*f));
+    filehandle *f = malloc(sizeof(*f));
     f->cookie = cookie;
     f->mount = mount;
     mount->refs++;
-    *fcookie = f;
+    *handle = f;
 
     return 0;
 }
 
-int fs_make_dir(const char *path)
+status_t fs_make_dir(const char *path)
 {
     char temppath[512];
 
@@ -314,72 +256,53 @@ int fs_make_dir(const char *path)
     return mount->api->mkdir(mount->cookie, newpath);
 }
 
-int fs_read_file(filecookie fcookie, void *buf, off_t offset, size_t len)
+ssize_t fs_read_file(filehandle *handle, void *buf, off_t offset, size_t len)
 {
-    struct fs_file *f = fcookie;
-
-    return f->mount->api->read(f->cookie, buf, offset, len);
+    return handle->mount->api->read(handle->cookie, buf, offset, len);
 }
 
-int fs_write_file(filecookie fcookie, const void *buf, off_t offset, size_t len)
+ssize_t fs_write_file(filehandle *handle, const void *buf, off_t offset, size_t len)
 {
-    struct fs_file *f = fcookie;
-
-    if (!f->mount->api->write)
+    if (!handle->mount->api->write)
         return ERR_NOT_SUPPORTED;
 
-    return f->mount->api->write(f->cookie, buf, offset, len);
+    return handle->mount->api->write(handle->cookie, buf, offset, len);
 }
 
-int fs_close_file(filecookie fcookie)
+status_t fs_close_file(filehandle *handle)
 {
-    int err;
-    struct fs_file *f = fcookie;
-
-    err = f->mount->api->close(f->cookie);
+    status_t err = handle->mount->api->close(handle->cookie);
     if (err < 0)
         return err;
 
-    put_mount(f->mount);
-    free(f);
+    put_mount(handle->mount);
+    free(handle);
     return 0;
 }
 
-int fs_stat_file(filecookie fcookie, struct file_stat *stat)
+status_t fs_stat_file(filehandle *handle, struct file_stat *stat)
 {
-    struct fs_file *f = fcookie;
-
-    return f->mount->api->stat(f->cookie, stat);
+    return handle->mount->api->stat(handle->cookie, stat);
 }
 
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen)
 {
-    int err;
-    filecookie cookie;
+    filehandle *handle;
 
     /* open the file */
-    err = fs_open_file(path, &cookie);
+    status_t err = fs_open_file(path, &handle);
     if (err < 0)
         return err;
 
     /* stat it for size, see how much we need to read */
     struct file_stat stat;
-    fs_stat_file(cookie, &stat);
+    fs_stat_file(handle, &stat);
 
-    err = fs_read_file(cookie, ptr, 0, MIN(maxlen, stat.size));
+    ssize_t read_bytes = fs_read_file(handle, ptr, 0, MIN(maxlen, stat.size));
 
-    fs_close_file(cookie);
+    fs_close_file(handle);
 
-    return err;
-}
-
-static void test_normalize(const char *in)
-{
-    char path[1024];
-
-    strlcpy(path, in, sizeof(path));
-    fs_normalize_path(path);
-    printf("'%s' -> '%s'\n", in, path);
+    return read_bytes;
 }
 
 void fs_normalize_path(char *path)
