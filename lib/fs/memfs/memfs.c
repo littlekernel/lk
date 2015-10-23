@@ -29,12 +29,14 @@
 #include <list.h>
 #include <lk/init.h>
 #include <lib/fs.h>
+#include <kernel/mutex.h>
 
 #define LOCAL_TRACE 1
 
 typedef struct {
     struct list_node files;
 
+    mutex_t lock;
 } memfs_t;
 
 typedef struct {
@@ -61,6 +63,16 @@ static memfs_file_t *find_file(memfs_t *mem, const char *name)
     return NULL;
 }
 
+const char *trim_name(const char *_name)
+{
+    // chew up leading slashes
+    const char *name = &_name[0];
+    while (*name == '/')
+        name++;
+
+    return name;
+}
+
 static status_t memfs_mount(struct bdev *dev, fscookie **cookie)
 {
     LTRACEF("dev %p, cookie %p\n", dev, cookie);
@@ -70,6 +82,7 @@ static status_t memfs_mount(struct bdev *dev, fscookie **cookie)
         return ERR_NO_MEMORY;
 
     list_initialize(&mem->files);
+    mutex_init(&mem->lock);
 
     *cookie = (fscookie *)mem;
 
@@ -82,13 +95,17 @@ static status_t memfs_unmount(fscookie *cookie)
 
     memfs_t *mem = (memfs_t *)cookie;
 
-    // XXX free all the files
+    mutex_acquire(&mem->lock);
+
+    // free all the files
     memfs_file_t *file;
     while ((file = list_remove_head_type(&mem->files, memfs_file_t, node))) {
         free(file->ptr);
         free(file->name);
         free(file);
     }
+
+    mutex_release(&mem->lock);
 
     free(mem);
 
@@ -97,6 +114,8 @@ static status_t memfs_unmount(fscookie *cookie)
 
 static status_t memfs_create(fscookie *cookie, const char *name, filecookie **fcookie, uint64_t len)
 {
+    status_t err;
+
     LTRACEF("cookie %p name '%s' filecookie %p len %llu\n", cookie, name, fcookie, len);
 
     memfs_t *mem = (memfs_t *)cookie;
@@ -104,19 +123,34 @@ static status_t memfs_create(fscookie *cookie, const char *name, filecookie **fc
     if (len >= ULONG_MAX)
         return ERR_NO_MEMORY;
 
-    if (find_file(mem, name))
-        return ERR_ALREADY_EXISTS;
+    // make sure we strip out any leading /
+    name = trim_name(name);
+
+    // we can't handle directories right now, so fail if the file has a / in its name
+    if (strchr(name, '/'))
+        return ERR_NOT_SUPPORTED;
+
+    mutex_acquire(&mem->lock);
+
+    // see if the file already exists
+    if (find_file(mem, name)) {
+        err = ERR_ALREADY_EXISTS;
+        goto out;
+    }
 
     // allocate a new file
     memfs_file_t *file = malloc(sizeof(*file));
-    if (!file)
-        return ERR_NO_MEMORY;
+    if (!file) {
+        err = ERR_NO_MEMORY;
+        goto out;
+    }
 
     // allocate the space for it
     file->ptr = calloc(1, len);
     if (!file->ptr) {
         free(file);
-        return ERR_NO_MEMORY;
+        err = ERR_NO_MEMORY;
+        goto out;
     }
     file->len = len;
 
@@ -128,7 +162,12 @@ static status_t memfs_create(fscookie *cookie, const char *name, filecookie **fc
 
     *fcookie = (filecookie *)file;
 
-    return NO_ERROR;
+    err = NO_ERROR;
+
+out:
+    mutex_release(&mem->lock);
+
+    return err;
 }
 
 static status_t memfs_open(fscookie *cookie, const char *name, filecookie **fcookie)
@@ -137,7 +176,13 @@ static status_t memfs_open(fscookie *cookie, const char *name, filecookie **fcoo
 
     memfs_t *mem = (memfs_t *)cookie;
 
+    // make sure we strip out any leading /
+    name = trim_name(name);
+
+    mutex_acquire(&mem->lock);
     memfs_file_t *file = find_file(mem, name);
+    mutex_release(&mem->lock);
+
     if (!file)
         return ERR_NOT_FOUND;
 
@@ -164,15 +209,18 @@ static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
     if (off < 0)
         return ERR_INVALID_ARGS;
 
-    if (off >= file->len)
-        return 0;
+    mutex_acquire(&file->fs->lock);
 
-    if (off + len > file->len) {
+    if (off >= file->len) {
+        len = 0;
+    } else if (off + len > file->len) {
         len = file->len - off;
     }
 
     // copy that floppy
     memcpy(buf, file->ptr + off, len);
+
+    mutex_release(&file->fs->lock);
 
     return len;
 }
@@ -186,11 +234,15 @@ static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size
     if (off < 0)
         return ERR_INVALID_ARGS;
 
+    mutex_acquire(&file->fs->lock);
+
     // see if this write will extend the file
     if (off + len > file->len) {
         void *ptr = realloc(file->ptr, off + len);
-        if (!ptr)
+        if (!ptr) {
+            mutex_release(&file->fs->lock);
             return ERR_NO_MEMORY;
+        }
 
         file->ptr = ptr;
         file->len = off + len;
@@ -198,8 +250,9 @@ static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size
 
     memcpy(file->ptr + off, buf, len);
 
-    return len;
+    mutex_release(&file->fs->lock);
 
+    return len;
 }
 
 static status_t memfs_stat(filecookie *fcookie, struct file_stat *stat)
@@ -208,10 +261,14 @@ static status_t memfs_stat(filecookie *fcookie, struct file_stat *stat)
 
     memfs_file_t *file = (memfs_file_t *)fcookie;
 
+    mutex_acquire(&file->fs->lock);
+
     if (stat) {
         stat->is_dir = false;
         stat->size = file->len;
     }
+
+    mutex_release(&file->fs->lock);
 
     return NO_ERROR;
 }
