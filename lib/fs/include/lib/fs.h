@@ -30,6 +30,9 @@ struct file_stat {
     uint64_t size;
 };
 
+#define FS_MAX_PATH_LEN 256
+#define FS_MAX_FILE_LEN 128
+
 typedef struct _filehandle filehandle;
 
 status_t fs_mount(const char *path, const char *fs, const char *device) __NONNULL((1)) __NONNULL((2));

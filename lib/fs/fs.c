@@ -29,6 +29,7 @@
 #include <lib/fs.h>
 #include <lib/bio.h>
 #include <lk/init.h>
+#include <kernel/mutex.h>
 
 #define LOCAL_TRACE 0
 
@@ -38,7 +39,7 @@ struct fs_mount {
     char *path;
     bdev_t *dev;
     fscookie *cookie;
-    int refs;
+    int ref;
     const struct fs_api *api;
 };
 
@@ -53,6 +54,7 @@ struct fs {
     const struct fs_api *api;
 };
 
+static mutex_t mount_lock = MUTEX_INITIAL_VALUE(mount_lock);
 static struct list_node mounts = LIST_INITIAL_VALUE(mounts);
 static struct list_node fses = LIST_INITIAL_VALUE(fses);
 
@@ -66,11 +68,15 @@ static struct fs *find_fs(const char *name)
     return NULL;
 }
 
+
+// find a mount structure based on the prefix of this path
+// bump the ref to the mount structure before returning
 static struct fs_mount *find_mount(const char *path, const char **trimmed_path)
 {
     struct fs_mount *mount;
     size_t pathlen = strlen(path);
 
+    mutex_acquire(&mount_lock);
     list_for_every_entry(&mounts, mount, struct fs_mount, node) {
         size_t mountpathlen = strlen(mount->path);
         if (pathlen < mountpathlen)
@@ -82,11 +88,31 @@ static struct fs_mount *find_mount(const char *path, const char **trimmed_path)
             if (trimmed_path)
                 *trimmed_path = &path[mountpathlen];
 
+            mount->ref++;
+
+            mutex_release(&mount_lock);
             return mount;
         }
     }
 
+    mutex_release(&mount_lock);
     return NULL;
+}
+
+// decrement the ref to the mount structure, which may
+// cause an unmount operation
+static void put_mount(struct fs_mount *mount)
+{
+    mutex_acquire(&mount_lock);
+    if ((--mount->ref) == 0) {
+        list_delete(&mount->node);
+        mount->api->unmount(mount->cookie);
+        free(mount->path);
+        if (mount->dev)
+            bio_close(mount->dev);
+        free(mount);
+    }
+    mutex_release(&mount_lock);
 }
 
 status_t fs_register_type(const char *name, const struct fs_api *api)
@@ -107,7 +133,8 @@ status_t fs_register_type(const char *name, const struct fs_api *api)
 
 static status_t mount(const char *path, const char *device, const struct fs_api *api)
 {
-    char temppath[512];
+    struct fs_mount *mount;
+    char temppath[FS_MAX_PATH_LEN];
 
     strlcpy(temppath, path, sizeof(temppath));
     fs_normalize_path(temppath);
@@ -115,8 +142,12 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
     if (temppath[0] != '/')
         return ERR_BAD_PATH;
 
-    if (find_mount(temppath, NULL))
+    /* see if there's already something at this path, abort if there is */
+    mount = find_mount(temppath, NULL);
+    if (mount) {
+        put_mount(mount);
         return ERR_ALREADY_MOUNTED;
+    }
 
     /* open a bio device if the string is nonnull */
     bdev_t *dev = NULL;
@@ -126,24 +157,27 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
             return ERR_NOT_FOUND;
     }
 
+    /* call into the fs implementation */
     fscookie *cookie;
     status_t err = api->mount(dev, &cookie);
     if (err < 0) {
         bio_close(dev);
+        put_mount(mount);
         return err;
     }
 
     /* create the mount structure and add it to the list */
-    struct fs_mount *mount = malloc(sizeof(struct fs_mount));
+    mount = malloc(sizeof(struct fs_mount));
     mount->path = strdup(temppath);
     mount->dev = dev;
     mount->cookie = cookie;
-    mount->refs = 1;
+    mount->ref = 1;
     mount->api = api;
 
     list_add_head(&mounts, &mount->node);
 
     return 0;
+
 }
 
 status_t fs_mount(const char *path, const char *fsname, const char *device)
@@ -155,21 +189,9 @@ status_t fs_mount(const char *path, const char *fsname, const char *device)
     return mount(path, device, fs->api);
 }
 
-static void put_mount(struct fs_mount *mount)
-{
-    if (!(--mount->refs)) {
-        list_delete(&mount->node);
-        mount->api->unmount(mount->cookie);
-        free(mount->path);
-        if (mount->dev)
-            bio_close(mount->dev);
-        free(mount);
-    }
-}
-
 status_t fs_unmount(const char *path)
 {
-    char temppath[512];
+    char temppath[FS_MAX_PATH_LEN];
 
     strlcpy(temppath, path, sizeof(temppath));
     fs_normalize_path(temppath);
@@ -178,6 +200,8 @@ status_t fs_unmount(const char *path)
     if (!mount)
         return ERR_NOT_FOUND;
 
+    // return the ref that find_mount added and one extra
+    put_mount(mount);
     put_mount(mount);
 
     return 0;
@@ -186,7 +210,7 @@ status_t fs_unmount(const char *path)
 
 status_t fs_open_file(const char *path, filehandle **handle)
 {
-    char temppath[512];
+    char temppath[FS_MAX_PATH_LEN];
 
     strlcpy(temppath, path, sizeof(temppath));
     fs_normalize_path(temppath);
@@ -202,13 +226,14 @@ status_t fs_open_file(const char *path, filehandle **handle)
 
     filecookie *cookie;
     status_t err = mount->api->open(mount->cookie, newpath, &cookie);
-    if (err < 0)
+    if (err < 0) {
+        put_mount(mount);
         return err;
+    }
 
     filehandle *f = malloc(sizeof(*f));
     f->cookie = cookie;
     f->mount = mount;
-    mount->refs++;
     *handle = f;
 
     return 0;
@@ -216,7 +241,7 @@ status_t fs_open_file(const char *path, filehandle **handle)
 
 status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
 {
-    char temppath[512];
+    char temppath[FS_MAX_PATH_LEN];
 
     strlcpy(temppath, path, sizeof(temppath));
     fs_normalize_path(temppath);
@@ -226,18 +251,21 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
     if (!mount)
         return ERR_NOT_FOUND;
 
-    if (!mount->api->create)
+    if (!mount->api->create) {
+        put_mount(mount);
         return ERR_NOT_SUPPORTED;
+    }
 
     filecookie *cookie;
     status_t err = mount->api->create(mount->cookie, newpath, &cookie, len);
-    if (err < 0)
+    if (err < 0) {
+        put_mount(mount);
         return err;
+    }
 
     filehandle *f = malloc(sizeof(*f));
     f->cookie = cookie;
     f->mount = mount;
-    mount->refs++;
     *handle = f;
 
     return 0;
@@ -245,7 +273,7 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
 
 status_t fs_make_dir(const char *path)
 {
-    char temppath[512];
+    char temppath[FS_MAX_PATH_LEN];
 
     strlcpy(temppath, path, sizeof(temppath));
     fs_normalize_path(temppath);
@@ -255,10 +283,16 @@ status_t fs_make_dir(const char *path)
     if (!mount)
         return ERR_NOT_FOUND;
 
-    if (!mount->api->mkdir)
+    if (!mount->api->mkdir) {
+        put_mount(mount);
         return ERR_NOT_SUPPORTED;
+    }
 
-    return mount->api->mkdir(mount->cookie, newpath);
+    status_t err = mount->api->mkdir(mount->cookie, newpath);
+
+    put_mount(mount);
+
+    return err;
 }
 
 ssize_t fs_read_file(filehandle *handle, void *buf, off_t offset, size_t len)
