@@ -31,17 +31,17 @@
 #include <lib/fs.h>
 #include <kernel/mutex.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 typedef struct {
     struct list_node files;
+    struct list_node dcookies;
 
     mutex_t lock;
 } memfs_t;
 
 typedef struct {
     struct list_node node;
-
     memfs_t *fs;
 
     // name
@@ -51,6 +51,14 @@ typedef struct {
     uint8_t *ptr;
     size_t len;
 } memfs_file_t;
+
+struct dircookie {
+    struct list_node node;
+    memfs_t *fs;
+
+    // next entry that will be returned
+    memfs_file_t *next_file;
+};
 
 static memfs_file_t *find_file(memfs_t *mem, const char *name)
 {
@@ -82,6 +90,7 @@ static status_t memfs_mount(struct bdev *dev, fscookie **cookie)
         return ERR_NO_MEMORY;
 
     list_initialize(&mem->files);
+    list_initialize(&mem->dcookies);
     mutex_init(&mem->lock);
 
     *cookie = (fscookie *)mem;
@@ -158,7 +167,7 @@ static status_t memfs_create(fscookie *cookie, const char *name, filecookie **fc
     file->name = strdup(name);
     file->fs = mem;
 
-    list_add_head(&mem->files, &file->node);
+    list_add_tail(&mem->files, &file->node);
 
     *fcookie = (filecookie *)file;
 
@@ -273,6 +282,75 @@ static status_t memfs_stat(filecookie *fcookie, struct file_stat *stat)
     return NO_ERROR;
 }
 
+static status_t memfs_opendir(fscookie *cookie, const char *name, dircookie **dcookie)
+{
+    LTRACEF("cookie %p name '%s' dircookie %p\n", cookie, name, dcookie);
+
+    memfs_t *mem = (memfs_t *)cookie;
+
+    // make sure we strip out any leading /
+    name = trim_name(name);
+
+    // at the moment, we only support opening "" (with / stripped)
+    if (strcmp("", name))
+        return ERR_NOT_FOUND;
+
+    // allocate a dir cookie, point it at the first file, and stuff it in the dircookie jar
+    dircookie *dir = malloc(sizeof(*dir));
+    if (!dir)
+        return ERR_NO_MEMORY;
+
+    dir->fs = mem;
+
+    mutex_acquire(&mem->lock);
+    dir->next_file = list_peek_head_type(&mem->files, memfs_file_t, node);
+    list_add_head(&mem->dcookies, &dir->node);
+    mutex_release(&mem->lock);
+
+    *dcookie = dir;
+
+    return NO_ERROR;
+}
+
+static status_t memfs_readdir(dircookie *dcookie, struct dirent *ent)
+{
+    status_t err;
+
+    LTRACEF("dircookie %p ent %p\n", dcookie, ent);
+
+    if (!ent)
+        return ERR_INVALID_ARGS;
+
+    mutex_acquire(&dcookie->fs->lock);
+
+    // return the next file in the list and bump the cursor
+    if (dcookie->next_file) {
+        strlcpy(ent->name, dcookie->next_file->name, sizeof(ent->name));
+        dcookie->next_file = list_next_type(&dcookie->fs->files, &dcookie->next_file->node, memfs_file_t, node);
+        err = NO_ERROR;
+    } else {
+        err = ERR_NOT_FOUND;
+    }
+
+    mutex_release(&dcookie->fs->lock);
+
+    return err;
+}
+
+static status_t memfs_closedir(dircookie *dcookie)
+{
+    LTRACEF("dircookie %p\n", dcookie);
+
+    // free the dircookie
+    mutex_acquire(&dcookie->fs->lock);
+    list_delete(&dcookie->node);
+    mutex_release(&dcookie->fs->lock);
+
+    free(dcookie);
+
+    return NO_ERROR;
+}
+
 static const struct fs_api memfs_api = {
     .mount = memfs_mount,
     .unmount = memfs_unmount,
@@ -289,6 +367,10 @@ static const struct fs_api memfs_api = {
 #if 0
     status_t (*mkdir)(fscookie *, const char *);
 #endif
+    .opendir = memfs_opendir,
+    .readdir = memfs_readdir,
+    .closedir = memfs_closedir,
+
 };
 
 static void memfs_init(uint level)

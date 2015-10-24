@@ -92,6 +92,7 @@ usage:
         printf("%s read <path> [<offset>] [<len>]\n", argv[0].str);
         printf("%s write <path> <string> [<offset>]\n", argv[0].str);
         printf("%s stat <file>\n", argv[0].str);
+        printf("%s dir <path>\n", argv[0].str);
         return -1;
     }
 
@@ -256,6 +257,24 @@ usage:
         printf("\tsize: %lld\n", stat.size);
 
         fs_close_file(handle);
+    } else if (!strcmp(argv[1].str, "dir")) {
+        dirhandle *handle;
+
+        if (argc < 3)
+            goto notenoughargs;
+
+        status_t err = fs_open_dir(argv[2].str, &handle);
+        if (err < 0) {
+            printf("error %d opening dir\n", err);
+            return err;
+        }
+
+        struct dirent ent;
+        while ((err = fs_read_dir(handle, &ent)) >= 0) {
+            printf("\t%s\n", ent.name);
+        }
+
+        fs_close_dir(handle);
     } else {
         printf("unrecognized subcommand\n");
         goto usage;
