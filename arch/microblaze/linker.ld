@@ -50,7 +50,6 @@ SECTIONS
     .rodata : ALIGN(4) {
         __rodata_start = .;
         *(.rodata .rodata.* .gnu.linkonce.r.*)
-INCLUDE "arch/shared_rodata_sections.ld"
         . = ALIGN(4);
         _SDATA2_START__ = .;
         *(.sdata2)
@@ -65,7 +64,6 @@ INCLUDE "arch/shared_rodata_sections.ld"
         /* in one segment binaries, the rom data address is on top of the ram data address */
         __data_start = .;
         *(.data .data.* .gnu.linkonce.d.*)
-INCLUDE "arch/shared_data_sections.ld"
         __ctor_list = .;
         KEEP(*(.ctors .init_array))
         __ctor_end = .;
