@@ -89,7 +89,7 @@ static void dump_free_chunk(struct free_heap_chunk *chunk)
 
 void miniheap_dump(void)
 {
-    dprintf(INFO, "Heap dump:\n");
+    dprintf(INFO, "Heap dump (using miniheap):\n");
     dprintf(INFO, "\tbase %p, len 0x%zx\n", theheap.base, theheap.len);
     dprintf(INFO, "\tfree list:\n");
 

@@ -23,6 +23,9 @@ endif
 ifeq ($(LK_HEAP_IMPLEMENTATION),dlmalloc)
 MODULE_DEPS := lib/heap/dlmalloc
 endif
+ifeq ($(LK_HEAP_IMPLEMENTATION),cmpctmalloc)
+MODULE_DEPS := lib/heap/cmpctmalloc
+endif
 
 GLOBAL_DEFINES += LK_HEAP_IMPLEMENTATION=$(LK_HEAP_IMPLEMENTATION)
 
