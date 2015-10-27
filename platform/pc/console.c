@@ -227,8 +227,11 @@ void cputc(char c)
 			}
 			break;
 
-		case '\n':
+		case '\r':
 			x = view_window.x1;
+			break;
+
+		case '\n':
 			if (y == view_window.y2) {
 				scroll();
 			} else {
