@@ -227,7 +227,7 @@ static status_t ide_init(struct device *dev)
 	if (!dev->config)
 		return ERR_NOT_CONFIGURED;
 	
-	const struct platform_ide_config *config = dev->config;
+	__UNUSED const struct platform_ide_config *config = dev->config;
 
 	err = pci_find_pci_class_code(&loc, 0x010180, 0);
 	if (err != _PCI_SUCCESSFUL) {
@@ -319,7 +319,7 @@ static ssize_t ide_write(struct device *dev, off_t offset, const void *buf, size
 	DEBUG_ASSERT(dev);
 	DEBUG_ASSERT(dev->state);
 
-	struct ide_driver_state *state = dev->state;
+	__UNUSED struct ide_driver_state *state = dev->state;
 
 	size_t sectors, do_sectors, i;
 	const uint16_t *ubuf = buf;
@@ -404,7 +404,7 @@ static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t coun
 	DEBUG_ASSERT(dev);
 	DEBUG_ASSERT(dev->state);
 
-	struct ide_driver_state *state = dev->state;
+	__UNUSED struct ide_driver_state *state = dev->state;
 
 	size_t sectors, do_sectors, i;
 	uint16_t *ubuf = buf;

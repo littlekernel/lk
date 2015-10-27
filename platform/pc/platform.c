@@ -181,7 +181,7 @@ void platform_init_multiboot_info(void)
 		}
 
 		if (_multiboot_info->flags & MB_INFO_MMAP) {
-			memory_map_t *mmap = (memory_map_t *) (_multiboot_info->mmap_addr - 4);
+			memory_map_t *mmap = (memory_map_t *)(uintptr_t)(_multiboot_info->mmap_addr - 4);
 
 			for (uint i = 0; i < _multiboot_info->mmap_length / sizeof(memory_map_t); i++) {
 
