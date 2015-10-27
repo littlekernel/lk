@@ -56,7 +56,7 @@ static int cmd_crc16(int argc, const cmd_args *argv)
 		return -1;
 	}
 
-	uint16_t crc = crc16((void *)argv[1].u, argv[2].u);
+	uint16_t crc = crc16(argv[1].p, argv[2].u);
 
 	printf("0x%hx\n", crc);
 
@@ -71,7 +71,7 @@ static int cmd_crc32(int argc, const cmd_args *argv)
 		return -1;
 	}
 
-	uint32_t crc = crc32(0, (void *)argv[1].u, argv[2].u);
+	uint32_t crc = crc32(0, argv[1].p, argv[2].u);
 
 	printf("0x%x\n", crc);
 
@@ -86,7 +86,7 @@ static int cmd_adler32(int argc, const cmd_args *argv)
 		return -1;
 	}
 
-	uint32_t crc = adler32(0, (void *)argv[1].u, argv[2].u);
+	uint32_t crc = adler32(0, argv[1].p, argv[2].u);
 
 	printf("0x%x\n", crc);
 
@@ -101,7 +101,7 @@ static int cmd_cksum_bench(int argc, const cmd_args *argv)
 	bool freebuf;
 
 	if (argc > 1) {
-		buf = (void *)argv[1].u;
+		buf = argv[1].p;
 		freebuf = false;
 	} else {
 		buf = malloc(BUFSIZE);

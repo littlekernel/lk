@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Travis Geiselbrecht
+ * Copyright (c) 2007 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,34 +20,18 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __LIB_FS_H
-#define __LIB_FS_H
+#pragma once
 
-#include <stdbool.h>
-#include <sys/types.h>
+#include <lib/bio.h>
 
-struct file_stat {
-	bool is_dir;
-	off_t size;
-};
+typedef void * bcache_t;
 
-typedef void *filecookie;
-typedef void *fscookie;
+bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count);
+void bcache_destroy(bcache_t);
 
-int fs_mount(const char *path, const char *device);
-int fs_unmount(const char *path);
+int bcache_read_block(bcache_t, void *, uint block);
 
-/* file api */
-int fs_open_file(const char *path, filecookie *fcookie);
-int fs_read_file(filecookie fcookie, void *buf, off_t offset, size_t len);
-int fs_close_file(filecookie fcookie);
-int fs_stat_file(filecookie fcookie, struct file_stat *);
-
-/* convenience routines */
-ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen);
-
-/* walk through a path string, removing duplicate path seperators, flattening . and .. references */
-void fs_normalize_path(char *path);
-
-#endif
+// get and put a pointer directly to the block
+int bcache_get_block(bcache_t, void **, uint block);
+int bcache_put_block(bcache_t, uint block);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -27,15 +27,8 @@
 #include <compiler.h>
 #include <stddef.h>
 
-__BEGIN_CDECLS
-
-void *malloc(size_t size) __MALLOC;
-void *memalign(size_t boundary, size_t size) __MALLOC;
-void *calloc(size_t count, size_t size) __MALLOC;
-void *realloc(void *ptr, size_t size) __MALLOC;
-void free(void *ptr);
-
-__END_CDECLS
+/* lib/heap provides malloc/free definitions */
+#include <lib/heap.h>
 
 #endif
 

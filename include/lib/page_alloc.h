@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Travis Geiselbrecht
+ * Copyright (c) 2015 Google, Inc. All rights reserved
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,32 +20,35 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <new.h>
-#include <debug.h>
-#include <lib/heap.h>
+#ifndef __LIB_PAGE_ALLOC_H
+#define __LIB_PAGE_ALLOC_H
 
-void *operator new(size_t s)
-{
-	return heap_alloc(s, 0);
-}
+#include <stddef.h>
+#include <sys/types.h>
+#include <compiler.h>
 
-void *operator new[](size_t s)
-{
-	return heap_alloc(s, 0);
-}
+// to pick up PAGE_SIZE, PAGE_ALIGN, etc
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#else
+#include <kernel/novm.h>
+#endif
 
-void *operator new(size_t , void *p)
-{
-	return p;
-}
+/* A simple page-aligned wrapper around the pmm or novm implementation of
+ * the underlying physical page allocator. Used by system heaps or any
+ * other user that wants pages of memory but doesn't want to use LK
+ * specific apis.
+ */
 
-void operator delete(void *p)
-{
-	return heap_free(p);
-}
+__BEGIN_CDECLS;
 
-void operator delete[](void *p)
-{
-	return heap_free(p);
-}
+void *page_alloc(size_t pages);
+void page_free(void *ptr, size_t pages);
 
+// You can call this once at the start, and it will either return a page or it
+// will return some non-page-aligned memory that would otherwise go to waste.
+void *page_first_alloc(size_t *size_return);
+
+__END_CDECLS;
+
+#endif

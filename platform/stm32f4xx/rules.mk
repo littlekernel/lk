@@ -26,11 +26,7 @@ ifeq ($(FOUND_CHIP),)
 $(error unknown STM32F4xx chip $(STM32_CHIP))
 endif
 
-GLOBAL_DEFINES += \
-	MEMSIZE=$(MEMSIZE)
-
 GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include \
 	$(LOCAL_DIR)/include/dev
 
 MODULE_SRCS += \

@@ -27,6 +27,6 @@
 #include <stm32f7xx.h>
 
 // Initialize the QSPI Flash device.
-status_t qspi_flash_init(void);
+status_t qspi_flash_init(size_t flash_size);
 
 #endif  // __PLATFORM_STM32_QSPI_H

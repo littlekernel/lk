@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,52 +20,27 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
-#include <malloc.h>
-#include <string.h>
-#include <lib/heap.h>
+#pragma once
 
-void *malloc(size_t size)
-{
-	return heap_alloc(size, 0);
-}
+#include <stddef.h>
+#include <sys/types.h>
+#include <compiler.h>
 
-void *memalign(size_t boundary, size_t size)
-{
-	return heap_alloc(size, boundary);
-}
+__BEGIN_CDECLS;
 
-void *calloc(size_t count, size_t size)
-{
-	void *ptr;
-	size_t realsize = count * size;
+/* standard heap definitions */
+void *malloc(size_t size) __MALLOC;
+void *memalign(size_t boundary, size_t size) __MALLOC;
+void *calloc(size_t count, size_t size) __MALLOC;
+void *realloc(void *ptr, size_t size) __MALLOC;
+void free(void *ptr);
 
-	ptr = heap_alloc(realsize, 0);
-	if (!ptr)
-		return NULL;
+void heap_init(void);
 
-	memset(ptr, 0, realsize);
-	return ptr;
-}
+/* critical section time delayed free */
+void heap_delayed_free(void *);
 
-void *realloc(void *ptr, size_t size)
-{
-	if (!ptr)
-		return malloc(size);
+/* tell the heap to return any free pages it can find */
+void heap_trim(void);
 
-	// XXX better implementation
-	void *p = malloc(size);
-	if (!p)
-		return NULL;
-
-	memcpy(p, ptr, size); // XXX wrong
-	free(ptr);
-
-	return p;
-}
-
-void free(void *ptr)
-{
-	return heap_free(ptr);
-}
-
+__END_CDECLS;

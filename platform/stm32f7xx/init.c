@@ -28,6 +28,7 @@
 #include <platform.h>
 #include <platform/stm32.h>
 #include <platform/sdram.h>
+#include <kernel/novm.h>
 #include <arch/arm/cm.h>
 
 uint32_t SystemCoreClock = HSI_VALUE;
@@ -291,6 +292,9 @@ void platform_early_init(void)
 #if defined(ENABLE_SDRAM)
     /* initialize SDRAM */
     stm32_sdram_init((sdram_config_t *)&target_sdram_config);
+
+    /* add a novm arena for it */
+    novm_add_arena("sdram", SDRAM_BASE, SDRAM_SIZE);
 #endif
 
     mpu_init();

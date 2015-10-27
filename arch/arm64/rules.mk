@@ -7,9 +7,6 @@ GLOBAL_DEFINES += \
 	ARM_ISA_ARMV8=1 \
 	IS_64BIT=1
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/asm.S \
@@ -84,6 +81,9 @@ KERNEL_LOAD_OFFSET ?= 0
 
 endif
 
+GLOBAL_DEFINES += \
+	MEMBASE=$(MEMBASE) \
+	MEMSIZE=$(MEMSIZE)
 
 # try to find the toolchain
 include $(LOCAL_DIR)/toolchain.mk
@@ -111,9 +111,13 @@ GENERATED += \
 	$(BUILDDIR)/system-onesegment.ld
 
 # rules for generating the linker script
-$(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard arch/*.ld)
+$(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard arch/*.ld) linkerscript.phony
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@
+	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@.tmp
+	@$(call TESTANDREPLACEFILE,$@.tmp,$@)
+
+linkerscript.phony:
+.PHONY: linkerscript.phony
 
 include make/module.mk

@@ -7,9 +7,6 @@ CPU := generic
 MODULE_DEPS += \
 	lib/cbuf \
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 ifeq ($(ARCH), x86)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/interrupts.c \

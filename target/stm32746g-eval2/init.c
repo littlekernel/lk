@@ -33,6 +33,7 @@
 #include <platform/gpio.h>
 #include <platform/eth.h>
 #include <platform/qspi.h>
+#include <platform/n25q512a.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
 #include <reg.h>
@@ -75,7 +76,7 @@ void target_init(void)
     TRACE_ENTRY;
     stm32_debug_init();
 
-    qspi_flash_init();
+    qspi_flash_init(N25Q512A_FLASH_SIZE);
 
 #if WITH_LIB_MINIP
     uint8_t mac_addr[6];

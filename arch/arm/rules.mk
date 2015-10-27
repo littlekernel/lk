@@ -174,7 +174,6 @@ THUMBINTERWORK := -mthumb-interwork
 endif
 
 GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include \
 	$(LOCAL_DIR)/$(SUBARCH)/include
 
 ifeq ($(SUBARCH),arm)
@@ -286,6 +285,10 @@ ifeq ($(MEMVARS_SET),0)
 $(error missing MEMBASE or MEMSIZE variable, please set in target rules.mk)
 endif
 
+GLOBAL_DEFINES += \
+	MEMBASE=$(MEMBASE) \
+	MEMSIZE=$(MEMSIZE)
+
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))
 
@@ -297,16 +300,20 @@ GENERATED += \
 	$(BUILDDIR)/system-twosegment.ld
 
 # rules for generating the linker scripts
-
-$(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard arch/*.ld)
+$(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard arch/*.ld) linkerscript.phony
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@
+	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@.tmp
+	@$(call TESTANDREPLACEFILE,$@.tmp,$@)
 
-$(BUILDDIR)/system-twosegment.ld: $(LOCAL_DIR)/system-twosegment.ld $(wildcard arch/*.ld)
+$(BUILDDIR)/system-twosegment.ld: $(LOCAL_DIR)/system-twosegment.ld $(wildcard arch/*.ld) linkerscript.phony
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@
+	$(NOECHO)sed "s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/" < $< > $@.tmp
+	@$(call TESTANDREPLACEFILE,$@.tmp,$@)
+
+linkerscript.phony:
+.PHONY: linkerscript.phony
 
 # arm specific script to try to guess stack usage
 $(OUTELF).stack: LOCAL_DIR:=$(LOCAL_DIR)
@@ -315,5 +322,6 @@ $(OUTELF).stack: $(OUTELF).lst
 	$(NOECHO)$(LOCAL_DIR)/stackusage < $< | sort -n -k 1 -r > $@
 
 EXTRA_BUILDDEPS += $(OUTELF).stack
+GENERATED += $(OUTELF).stack
 
 include make/module.mk

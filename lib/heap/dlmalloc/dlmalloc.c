@@ -539,12 +539,23 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #define LACKS_UNISTD_H
 #define LACKS_SYS_PARAM_H
 #define LACKS_SCHED_H
-#define HAVE_MMAP 0
-#define HAVE_MORECORE 1
-#define USE_LOCKS 2
+#define HAVE_MMAP 1
+#include <sys/types.h>
+#include <lib/page_alloc.h>
+#include <assert.h>
 #include <debug.h>
+#define MMAP(s) mmap(s)
+#define DIRECT_MMAP(s) mmap(s)
+#define MUNMAP(b, s) munmap(b, s)
+#define DEFAULT_MMAP_THRESHOLD MAX_SIZE_T /* disable direct mapping of chunks */
+#define DEFAULT_GRANULARITY (64*1024)
+#define MMAP_CLEARS 0
+#define HAVE_MORECORE 0
+#define USE_LOCKS 2
 #define ABORT panic("dlmalloc abort\n")
-#define MALLOC_FAILURE_ACTION //dprintf(INFO, "dlmalloc failure\n");
+#define MALLOC_FAILURE_ACTION // dprintf(INFO, "dlmalloc failure\n");
+#define MALLOC_INSPECT_ALL 1
+#define REALLOC_ZERO_BYTES_FREES 1
 #endif  /* LK */
 
 #ifndef WIN32
@@ -1652,7 +1663,28 @@ unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
 
 #if HAVE_MMAP
 
-#ifndef WIN32
+#if defined(LK)
+
+/* LK specific stuff here */
+static inline void *mmap(size_t len) {
+    DEBUG_ASSERT(IS_PAGE_ALIGNED(len));
+
+    void *ptr = page_alloc(len / PAGE_SIZE);
+    if (!ptr)
+        return MFAIL;
+    return ptr;
+}
+
+static inline int munmap(void *base, size_t len) {
+    DEBUG_ASSERT(IS_PAGE_ALIGNED((uintptr_t)base));
+    DEBUG_ASSERT(IS_PAGE_ALIGNED(len));
+
+    page_free(base, len / PAGE_SIZE);
+    return 0;
+}
+
+#elif !defined(WIN32)
+
 #define MUNMAP_DEFAULT(a, s)  munmap((a), (s))
 #define MMAP_PROT            (PROT_READ|PROT_WRITE)
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)

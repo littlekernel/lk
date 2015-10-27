@@ -526,7 +526,7 @@ usage:
 			return -1;
 		}
 
-		status_t err = qspi_write_page(&flash.qspi, argv[2].u, (void *)argv[4].u);
+		status_t err = qspi_write_page(&flash.qspi, argv[2].u, argv[4].p);
 		printf("write_page returns %d\n", err);
 	} else if (!strcmp(argv[1].str, "erase")) {
 		if (argc < 3) goto notenoughargs;

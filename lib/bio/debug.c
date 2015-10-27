@@ -35,6 +35,8 @@
 #include <lib/cksum.h>
 #endif
 
+#define DMA_ALIGNMENT (CACHE_LINE)
+
 #if defined(WITH_LIB_CONSOLE)
 
 #if LK_DEBUGLEVEL > 0
@@ -288,7 +290,7 @@ usage:
 static bool is_valid_block(bdev_t *device, bnum_t block_num, uint8_t* pattern,
                            size_t pattern_length)
 {
-    uint8_t *block_contents = malloc(device->block_size);
+    uint8_t *block_contents = memalign(DMA_ALIGNMENT, device->block_size);
 
     ssize_t n_bytes = device->read_block(device, block_contents, block_num, 1);
     if (n_bytes < 0 || n_bytes != (ssize_t)device->block_size) {
@@ -331,13 +333,19 @@ static ssize_t erase_test(bdev_t *device)
     return num_invalid_blocks;
 }
 
+static uint8_t get_signature(uint32_t word)
+{
+    uint8_t* sigptr = (uint8_t*)(&word);
+    return sigptr[0] ^ sigptr[1] ^ sigptr[2] ^ sigptr[3];
+}
+
 // returns the number of blocks where the write was not successful.
 static ssize_t write_test(bdev_t *device)
 {
-    uint8_t *test_buffer = malloc(device->block_size);
+    uint8_t *test_buffer = memalign(DMA_ALIGNMENT, device->block_size);
 
     for (bnum_t bnum = 0; bnum < device->block_count; bnum++) {
-        memset(test_buffer, (uint8_t)bnum, device->block_size);
+        memset(test_buffer, get_signature(bnum), device->block_size);
         ssize_t err = bio_write_block(device, test_buffer, bnum, 1);
         if (err < 0) {
             free(test_buffer);
@@ -348,7 +356,7 @@ static ssize_t write_test(bdev_t *device)
     size_t num_errors = 0;
     uint8_t expected_pattern[1];
     for (bnum_t bnum = 0; bnum < device->block_count; bnum++) {
-        expected_pattern[0] = (uint8_t)bnum;
+        expected_pattern[0] = get_signature(bnum);
         if (!is_valid_block(device, bnum, expected_pattern, sizeof(expected_pattern))) {
             num_errors++;
         }

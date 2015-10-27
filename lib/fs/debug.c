@@ -44,192 +44,192 @@ extern int fs_write_file(filecookie fcookie, const void *buf, off_t offset, size
 
 static int cmd_fs(int argc, const cmd_args *argv)
 {
-	int rc = 0;
+    int rc = 0;
 
-	if (argc < 2) {
+    if (argc < 2) {
 notenoughargs:
-		printf("not enough arguments:\n");
+        printf("not enough arguments:\n");
 usage:
-		printf("%s mount <path> <device> [<type>]\n", argv[0].str);
-		printf("%s unmount <path>\n", argv[0].str);
-		printf("%s create <path>\n", argv[0].str);
-		printf("%s mkdir <path>\n", argv[0].str);
-		printf("%s read <path> [<offset>] [<len>]\n", argv[0].str);
-		printf("%s write <path> <string> [<offset>]\n", argv[0].str);
-		printf("%s stat <file>\n", argv[0].str);
-		return -1;
-	}
+        printf("%s mount <path> <device> [<type>]\n", argv[0].str);
+        printf("%s unmount <path>\n", argv[0].str);
+        printf("%s create <path>\n", argv[0].str);
+        printf("%s mkdir <path>\n", argv[0].str);
+        printf("%s read <path> [<offset>] [<len>]\n", argv[0].str);
+        printf("%s write <path> <string> [<offset>]\n", argv[0].str);
+        printf("%s stat <file>\n", argv[0].str);
+        return -1;
+    }
 
-	if (!strcmp(argv[1].str, "mount")) {
-		int err;
+    if (!strcmp(argv[1].str, "mount")) {
+        int err;
 
-		if (argc < 4)
-			goto notenoughargs;
+        if (argc < 4)
+            goto notenoughargs;
 
-		if (argc < 5)
-			err = fs_mount(argv[2].str, argv[3].str);
+        if (argc < 5)
+            err = fs_mount(argv[2].str, argv[3].str);
 
-		else
-			err = fs_mount_type(argv[2].str, argv[3].str, argv[4].str);
+        else
+            err = fs_mount_type(argv[2].str, argv[3].str, argv[4].str);
 
-		if (err < 0) {
-			printf("error %d mounting device\n", err);
-			return err;
-		}
-	} else if (!strcmp(argv[1].str, "unmount")) {
-		int err;
+        if (err < 0) {
+            printf("error %d mounting device\n", err);
+            return err;
+        }
+    } else if (!strcmp(argv[1].str, "unmount")) {
+        int err;
 
-		if (argc < 3)
-			goto notenoughargs;
+        if (argc < 3)
+            goto notenoughargs;
 
-		err = fs_unmount(argv[2].str);
-		if (err < 0) {
-			printf("error %d unmounting device\n", err);
-			return err;
-		}
-	} else if (!strcmp(argv[1].str, "create")) {
-		int err;
-		filecookie cookie;
+        err = fs_unmount(argv[2].str);
+        if (err < 0) {
+            printf("error %d unmounting device\n", err);
+            return err;
+        }
+    } else if (!strcmp(argv[1].str, "create")) {
+        int err;
+        filecookie cookie;
 
-		if (argc < 3)
-			goto notenoughargs;
+        if (argc < 3)
+            goto notenoughargs;
 
-		err = fs_create_file(argv[2].str, &cookie);
-		if (err < 0) {
-			printf("error %d creating file\n", err);
-			return err;
-		}
+        err = fs_create_file(argv[2].str, &cookie);
+        if (err < 0) {
+            printf("error %d creating file\n", err);
+            return err;
+        }
 
-		fs_close_file(cookie);
-	} else if (!strcmp(argv[1].str, "mkdir")) {
-		int err;
+        fs_close_file(cookie);
+    } else if (!strcmp(argv[1].str, "mkdir")) {
+        int err;
 
-		if (argc < 3)
-			goto notenoughargs;
+        if (argc < 3)
+            goto notenoughargs;
 
-		err = fs_make_dir(argv[2].str);
-		if (err < 0) {
-			printf("error %d making directory\n", err);
-			return err;
-		}
-	} else if (!strcmp(argv[1].str, "read")) {
-		int err;
-		char *buf;
-		off_t off;
-		size_t len;
-		filecookie cookie;
-		struct file_stat stat;
+        err = fs_make_dir(argv[2].str);
+        if (err < 0) {
+            printf("error %d making directory\n", err);
+            return err;
+        }
+    } else if (!strcmp(argv[1].str, "read")) {
+        int err;
+        char *buf;
+        off_t off;
+        size_t len;
+        filecookie cookie;
+        struct file_stat stat;
 
-		if (argc < 3)
-			goto notenoughargs;
+        if (argc < 3)
+            goto notenoughargs;
 
-		err = fs_open_file(argv[2].str, &cookie);
-		if (err < 0) {
-			printf("error %d opening file\n", err);
-			return err;
-		}
+        err = fs_open_file(argv[2].str, &cookie);
+        if (err < 0) {
+            printf("error %d opening file\n", err);
+            return err;
+        }
 
-		err = fs_stat_file(cookie, &stat);
-		if (err < 0) {
-			printf("error %d stat'ing file\n", err);
-			fs_close_file(cookie);
-			return err;
-		}
+        err = fs_stat_file(cookie, &stat);
+        if (err < 0) {
+            printf("error %d stat'ing file\n", err);
+            fs_close_file(cookie);
+            return err;
+        }
 
-		if (argc < 4)
-			off = 0;
+        if (argc < 4)
+            off = 0;
 
-		else
-			off = argv[3].u;
+        else
+            off = argv[3].u;
 
-		if (argc < 5)
-			len = stat.size - off;
+        if (argc < 5)
+            len = stat.size - off;
 
-		else
-			len = argv[4].u;
+        else
+            len = argv[4].u;
 
-		buf = malloc(len + 1);
+        buf = malloc(len + 1);
 
-		err = fs_read_file(cookie, buf, off, len);
-		if (err < 0) {
-			printf("error %d reading file\n", err);
-			free(buf);
-			fs_close_file(cookie);
-			return err;
-		}
+        err = fs_read_file(cookie, buf, off, len);
+        if (err < 0) {
+            printf("error %d reading file\n", err);
+            free(buf);
+            fs_close_file(cookie);
+            return err;
+        }
 
-		buf[len] = '\0';
-		printf("%s\n", buf);
-		free(buf);
-		fs_close_file(cookie);
-	} else if (!strcmp(argv[1].str, "write")) {
-		int err;
-		off_t off;
-		filecookie cookie;
-		struct file_stat stat;
+        buf[len] = '\0';
+        printf("%s\n", buf);
+        free(buf);
+        fs_close_file(cookie);
+    } else if (!strcmp(argv[1].str, "write")) {
+        int err;
+        off_t off;
+        filecookie cookie;
+        struct file_stat stat;
 
-		if (argc < 3)
-			goto notenoughargs;
+        if (argc < 3)
+            goto notenoughargs;
 
-		err = fs_open_file(argv[2].str, &cookie);
-		if (err < 0) {
-			printf("error %d opening file\n", err);
-			return err;
-		}
+        err = fs_open_file(argv[2].str, &cookie);
+        if (err < 0) {
+            printf("error %d opening file\n", err);
+            return err;
+        }
 
-		err = fs_stat_file(cookie, &stat);
-		if (err < 0) {
-			printf("error %d stat'ing file\n", err);
-			fs_close_file(cookie);
-			return err;
-		}
+        err = fs_stat_file(cookie, &stat);
+        if (err < 0) {
+            printf("error %d stat'ing file\n", err);
+            fs_close_file(cookie);
+            return err;
+        }
 
-		if (argc < 5)
-			off = stat.size;
+        if (argc < 5)
+            off = stat.size;
 
-		else
-			off = argv[4].u;
+        else
+            off = argv[4].u;
 
-		err = fs_write_file(cookie, argv[3].str, off, strlen(argv[3].str));
-		if (err < 0) {
-			printf("error %d writing file\n", err);
-			fs_close_file(cookie);
-			return err;
-		}
+        err = fs_write_file(cookie, argv[3].str, off, strlen(argv[3].str));
+        if (err < 0) {
+            printf("error %d writing file\n", err);
+            fs_close_file(cookie);
+            return err;
+        }
 
-		fs_close_file(cookie);
-	} else if (!strcmp(argv[1].str, "stat")) {
-		int err;
-		struct file_stat stat;
-		filecookie cookie;
+        fs_close_file(cookie);
+    } else if (!strcmp(argv[1].str, "stat")) {
+        int err;
+        struct file_stat stat;
+        filecookie cookie;
 
-		if (argc < 3)
-			goto notenoughargs;
+        if (argc < 3)
+            goto notenoughargs;
 
-		err = fs_open_file(argv[2].str, &cookie);
-		if (err < 0) {
-			printf("error %d opening file\n", err);
-			return err;
-		}
+        err = fs_open_file(argv[2].str, &cookie);
+        if (err < 0) {
+            printf("error %d opening file\n", err);
+            return err;
+        }
 
-		err = fs_stat_file(cookie, &stat);
-		if (err < 0) {
-			printf("error %d statting file\n", err);
-			fs_close_file(cookie);
-			return err;
-		}
+        err = fs_stat_file(cookie, &stat);
+        if (err < 0) {
+            printf("error %d statting file\n", err);
+            fs_close_file(cookie);
+            return err;
+        }
 
-		printf("stat successful:\n");
-		printf("\tis_dir: %d\n", stat.is_dir ? 1 : 0);
-		printf("\tsize: %lld\n", stat.size);
+        printf("stat successful:\n");
+        printf("\tis_dir: %d\n", stat.is_dir ? 1 : 0);
+        printf("\tsize: %lld\n", stat.size);
 
-		fs_close_file(cookie);
-	} else {
-		printf("unrecognized subcommand\n");
-		goto usage;
-	}
+        fs_close_file(cookie);
+    } else {
+        printf("unrecognized subcommand\n");
+        goto usage;
+    }
 
-	return rc;
+    return rc;
 }
 
 #endif

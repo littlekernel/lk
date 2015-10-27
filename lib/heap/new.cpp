@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Travis Geiselbrecht
+ * Copyright (c) 2006-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,21 +20,32 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __LIB_BCACHE_H
-#define __LIB_BCACHE_H
+#include <new.h>
+#include <debug.h>
+#include <lib/heap.h>
 
-#include <lib/bio.h>
+void *operator new(size_t s)
+{
+    return malloc(s);
+}
 
-typedef void * bcache_t;
+void *operator new[](size_t s)
+{
+    return malloc(s);
+}
 
-bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count);
-void bcache_destroy(bcache_t);
+void *operator new(size_t , void *p)
+{
+    return p;
+}
 
-int bcache_read_block(bcache_t, void *, uint block);
+void operator delete(void *p)
+{
+    return free(p);
+}
 
-// get and put a pointer directly to the block
-int bcache_get_block(bcache_t, void **, uint block);
-int bcache_put_block(bcache_t, uint block);
-
-#endif
+void operator delete[](void *p)
+{
+    return free(p);
+}
 

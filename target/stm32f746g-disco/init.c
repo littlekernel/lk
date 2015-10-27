@@ -26,21 +26,23 @@
 #include <trace.h>
 #include <target.h>
 #include <compiler.h>
+#include <reg.h>
 #include <dev/gpio.h>
 #include <platform/stm32.h>
 #include <platform/sdram.h>
 #include <platform/gpio.h>
 #include <platform/eth.h>
 #include <platform/qspi.h>
+#include <platform/n25q128a.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
-#include <reg.h>
+#include <kernel/novm.h>
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
 
-extern uint8_t BSP_LCD_Init(uint32_t fb_address);
+extern uint8_t BSP_LCD_Init(void);
 
 const sdram_config_t target_sdram_config = {
     .bus_width = SDRAM_BUS_WIDTH_16,
@@ -61,15 +63,15 @@ void target_early_init(void)
     /* now that the uart gpios are configured, enable the debug uart */
     stm32_debug_early_init();
 
-    /* The lcd framebuffer starts at the base of SDRAM */
-    BSP_LCD_Init(SDRAM_BASE);
+    /* start the lcd */
+    BSP_LCD_Init();
 }
 
 void target_init(void)
 {
     stm32_debug_init();
 
-    qspi_flash_init();
+    qspi_flash_init(N25Q128A_FLASH_SIZE);
 
 #if WITH_LIB_MINIP
     uint8_t mac_addr[6];
