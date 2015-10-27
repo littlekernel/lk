@@ -90,7 +90,7 @@ void arch_thread_initialize(thread_t *t)
 	t->arch.esp = (vaddr_t)frame;
 #ifdef ENABLE_FPU
 	memset(t->arch.fpu_buffer, 0, sizeof(t->arch.fpu_buffer));
-	t->arch.fpu_states = ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
+	t->arch.fpu_states = (vaddr_t *)ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
 #endif
 }
 

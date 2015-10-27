@@ -80,7 +80,7 @@ void arch_thread_initialize(thread_t *t)
 	t->arch.rsp = (vaddr_t)frame;
 #ifdef ENABLE_FPU
 	memset(t->arch.fpu_buffer, 0, sizeof(t->arch.fpu_buffer));
-	t->arch.fpu_states = ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
+	t->arch.fpu_states = (vaddr_t *)ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
 #endif
 }
 
@@ -88,7 +88,7 @@ void arch_dump_thread(thread_t *t)
 {
       if (t->state != THREAD_RUNNING) {
               	dprintf(INFO, "\tarch: ");
-	        dprintf(INFO, "sp 0x%llx\n", t->arch.rsp);
+	        dprintf(INFO, "sp 0x%lx\n", t->arch.rsp);
  	}
 }
 
