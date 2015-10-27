@@ -27,14 +27,12 @@
 
 struct file_stat {
     bool is_dir;
-    off_t size;
+    uint64_t size;
 };
 
 typedef struct _filehandle filehandle;
-//typedef void *filecookie;
-//typedef void *fscookie;
 
-status_t fs_mount(const char *path, const char *fs, const char *device) __NONNULL();
+status_t fs_mount(const char *path, const char *fs, const char *device) __NONNULL((1)) __NONNULL((2));
 status_t fs_unmount(const char *path) __NONNULL();
 
 /* file api */
@@ -43,7 +41,7 @@ status_t fs_open_file(const char *path, filehandle **handle) __NONNULL();
 ssize_t fs_read_file(filehandle *handle, void *buf, off_t offset, size_t len) __NONNULL();
 ssize_t fs_write_file(filehandle *handle, const void *buf, off_t offset, size_t len) __NONNULL();
 status_t fs_close_file(filehandle *handle) __NONNULL();
-status_t fs_stat_file(filehandle *handle, struct file_stat *) __NONNULL();
+status_t fs_stat_file(filehandle *handle, struct file_stat *) __NONNULL((1));
 status_t fs_make_dir(const char *path) __NONNULL();
 
 /* convenience routines */
@@ -56,6 +54,7 @@ void fs_normalize_path(char *path) __NONNULL();
 typedef struct _fscookie fscookie;
 typedef struct _filecookie filecookie;
 struct bdev;
+
 struct fs_api {
     status_t (*mount)(struct bdev *, fscookie **);
     status_t (*unmount)(fscookie *);
@@ -68,5 +67,6 @@ struct fs_api {
     status_t (*close)(filecookie *);
 };
 
+/* called by each fs implementation to register a set of hooks */
 status_t fs_register_type(const char *name, const struct fs_api *api);
 

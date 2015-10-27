@@ -118,9 +118,13 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
     if (find_mount(temppath, NULL))
         return ERR_ALREADY_MOUNTED;
 
-    bdev_t *dev = bio_open(device);
-    if (!dev)
-        return ERR_NOT_FOUND;
+    /* open a bio device if the string is nonnull */
+    bdev_t *dev = NULL;
+    if (device && device[0] != '\0') {
+        dev = bio_open(device);
+        if (!dev)
+            return ERR_NOT_FOUND;
+    }
 
     fscookie *cookie;
     status_t err = api->mount(dev, &cookie);
@@ -157,7 +161,8 @@ static void put_mount(struct fs_mount *mount)
         list_delete(&mount->node);
         mount->api->unmount(mount->cookie);
         free(mount->path);
-        bio_close(mount->dev);
+        if (mount->dev)
+            bio_close(mount->dev);
         free(mount);
     }
 }

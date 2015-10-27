@@ -85,7 +85,7 @@ static int cmd_fs(int argc, const cmd_args *argv)
 notenoughargs:
         printf("not enough arguments:\n");
 usage:
-        printf("%s mount <path> <type> <device>\n", argv[0].str);
+        printf("%s mount <path> <type> [device]\n", argv[0].str);
         printf("%s unmount <path>\n", argv[0].str);
         printf("%s create <path> [size]\n", argv[0].str);
         printf("%s mkdir <path>\n", argv[0].str);
@@ -98,10 +98,11 @@ usage:
     if (!strcmp(argv[1].str, "mount")) {
         int err;
 
-        if (argc < 5)
+        if (argc < 4)
             goto notenoughargs;
 
-        err = fs_mount(argv[2].str, argv[3].str, argv[4].str);
+        err = fs_mount(argv[2].str, argv[3].str,
+                (argc >= 5) ? argv[4].str : NULL);
 
         if (err < 0) {
             printf("error %d mounting device\n", err);

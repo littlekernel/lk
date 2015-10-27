@@ -1,0 +1,243 @@
+/*
+ * Copyright (c) 2015 Travis Geiselbrecht
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files
+ * (the "Software"), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge,
+ * publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include <string.h>
+#include <stdlib.h>
+#include <debug.h>
+#include <err.h>
+#include <trace.h>
+#include <list.h>
+#include <lk/init.h>
+#include <lib/fs.h>
+
+#define LOCAL_TRACE 1
+
+typedef struct {
+    struct list_node files;
+
+} memfs_t;
+
+typedef struct {
+    struct list_node node;
+
+    memfs_t *fs;
+
+    // name
+    char *name;
+
+    // main data area
+    uint8_t *ptr;
+    size_t len;
+} memfs_file_t;
+
+static memfs_file_t *find_file(memfs_t *mem, const char *name)
+{
+    memfs_file_t *file;
+    list_for_every_entry(&mem->files, file, memfs_file_t, node) {
+        if (!strcmp(name, file->name))
+            return file;
+    }
+
+    return NULL;
+}
+
+static status_t memfs_mount(struct bdev *dev, fscookie **cookie)
+{
+    LTRACEF("dev %p, cookie %p\n", dev, cookie);
+
+    memfs_t *mem = malloc(sizeof(*mem));
+    if (!mem)
+        return ERR_NO_MEMORY;
+
+    list_initialize(&mem->files);
+
+    *cookie = (fscookie *)mem;
+
+    return NO_ERROR;
+}
+
+static status_t memfs_unmount(fscookie *cookie)
+{
+    LTRACEF("cookie %p\n", cookie);
+
+    memfs_t *mem = (memfs_t *)cookie;
+
+    // XXX free all the files
+    memfs_file_t *file;
+    while ((file = list_remove_head_type(&mem->files, memfs_file_t, node))) {
+        free(file->ptr);
+        free(file->name);
+        free(file);
+    }
+
+    free(mem);
+
+    return NO_ERROR;
+}
+
+static status_t memfs_create(fscookie *cookie, const char *name, filecookie **fcookie, uint64_t len)
+{
+    LTRACEF("cookie %p name '%s' filecookie %p len %llu\n", cookie, name, fcookie, len);
+
+    memfs_t *mem = (memfs_t *)cookie;
+
+    if (len >= ULONG_MAX)
+        return ERR_NO_MEMORY;
+
+    if (find_file(mem, name))
+        return ERR_ALREADY_EXISTS;
+
+    // allocate a new file
+    memfs_file_t *file = malloc(sizeof(*file));
+    if (!file)
+        return ERR_NO_MEMORY;
+
+    // allocate the space for it
+    file->ptr = calloc(1, len);
+    if (!file->ptr) {
+        free(file);
+        return ERR_NO_MEMORY;
+    }
+    file->len = len;
+
+    // fill in some metadata and stuff it in the file list
+    file->name = strdup(name);
+    file->fs = mem;
+
+    list_add_head(&mem->files, &file->node);
+
+    *fcookie = (filecookie *)file;
+
+    return NO_ERROR;
+}
+
+static status_t memfs_open(fscookie *cookie, const char *name, filecookie **fcookie)
+{
+    LTRACEF("cookie %p name '%s' filecookie %p\n", cookie, name, fcookie);
+
+    memfs_t *mem = (memfs_t *)cookie;
+
+    memfs_file_t *file = find_file(mem, name);
+    if (!file)
+        return ERR_NOT_FOUND;
+
+    *fcookie = (filecookie *)file;
+
+    return NO_ERROR;
+}
+
+static status_t memfs_close(filecookie *fcookie)
+{
+    memfs_file_t *file = (memfs_file_t *)fcookie;
+
+    LTRACEF("cookie %p name '%s'\n", fcookie, file->name);
+
+    return NO_ERROR;
+}
+
+static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
+{
+    LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
+
+    memfs_file_t *file = (memfs_file_t *)fcookie;
+
+    if (off < 0)
+        return ERR_INVALID_ARGS;
+
+    if (off >= file->len)
+        return 0;
+
+    if (off + len > file->len) {
+        len = file->len - off;
+    }
+
+    // copy that floppy
+    memcpy(buf, file->ptr + off, len);
+
+    return len;
+}
+
+static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size_t len)
+{
+    LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
+
+    memfs_file_t *file = (memfs_file_t *)fcookie;
+
+    if (off < 0)
+        return ERR_INVALID_ARGS;
+
+    // see if this write will extend the file
+    if (off + len > file->len) {
+        void *ptr = realloc(file->ptr, off + len);
+        if (!ptr)
+            return ERR_NO_MEMORY;
+
+        file->ptr = ptr;
+        file->len = off + len;
+    }
+
+    memcpy(file->ptr + off, buf, len);
+
+    return len;
+
+}
+
+static status_t memfs_stat(filecookie *fcookie, struct file_stat *stat)
+{
+    LTRACEF("filecookie %p stat %p\n", fcookie, stat);
+
+    memfs_file_t *file = (memfs_file_t *)fcookie;
+
+    if (stat) {
+        stat->is_dir = false;
+        stat->size = file->len;
+    }
+
+    return NO_ERROR;
+}
+
+static const struct fs_api memfs_api = {
+    .mount = memfs_mount,
+    .unmount = memfs_unmount,
+
+    .create = memfs_create,
+    .open = memfs_open,
+    .close = memfs_close,
+
+    .read = memfs_read,
+    .write = memfs_write,
+
+    .stat = memfs_stat,
+
+#if 0
+    status_t (*mkdir)(fscookie *, const char *);
+#endif
+};
+
+static void memfs_init(uint level)
+{
+    fs_register_type("memfs", &memfs_api);
+}
+
+LK_INIT_HOOK(memfs, &memfs_init, LK_INIT_LEVEL_THREADING);
+

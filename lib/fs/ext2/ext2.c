@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <debug.h>
+#include <err.h>
 #include <trace.h>
 #include <lk/init.h>
 #include <lib/fs.h>
@@ -114,6 +115,9 @@ status_t ext2_mount(bdev_t *dev, fscookie **cookie)
     int err;
 
     LTRACEF("dev %p\n", dev);
+
+    if (!dev)
+        return ERR_NOT_FOUND;
 
     ext2_t *ext2 = malloc(sizeof(ext2_t));
     ext2->dev = dev;

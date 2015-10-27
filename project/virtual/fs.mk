@@ -2,5 +2,6 @@
 
 MODULES += \
     lib/fs \
-    lib/fs/ext2
+    lib/fs/ext2 \
+    lib/fs/memfs
 
