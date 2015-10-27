@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Travis Geiselbrecht
+ * Copyright (c) 2013-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#if ARM_WITH_VFP || ARCH_ARM64
+#if ARM_WITH_VFP || ARCH_ARM64 || ENABLE_FPU
 
 #include <stdio.h>
 #include <rand.h>
