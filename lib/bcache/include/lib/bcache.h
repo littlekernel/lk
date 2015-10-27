@@ -20,8 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __LIB_BCACHE_H
-#define __LIB_BCACHE_H
+#pragma once
 
 #include <lib/bio.h>
 
@@ -35,6 +34,4 @@ int bcache_read_block(bcache_t, void *, uint block);
 // get and put a pointer directly to the block
 int bcache_get_block(bcache_t, void **, uint block);
 int bcache_put_block(bcache_t, uint block);
-
-#endif
 
