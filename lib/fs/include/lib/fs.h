@@ -24,6 +24,7 @@
 
 #include <stdbool.h>
 #include <sys/types.h>
+#include <compiler.h>
 
 #define FS_MAX_PATH_LEN 256
 #define FS_MAX_FILE_LEN 128
@@ -85,6 +86,12 @@ struct fs_api {
     status_t (*closedir)(dircookie *) __NONNULL();
 };
 
-/* called by each fs implementation to register a set of hooks */
-status_t fs_register_type(const char *name, const struct fs_api *api);
+struct fs_impl {
+    const char *name;
+    const struct fs_api *api;
+};
+
+/* define in your fs implementation to register your api with the fs layer */
+#define STATIC_FS_IMPL(_name, _api) const struct fs_impl __fs_impl_##_name __SECTION(".fs_impl") = \
+    { .name = #_name, .api = _api }
 

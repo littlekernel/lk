@@ -373,10 +373,4 @@ static const struct fs_api memfs_api = {
 
 };
 
-static void memfs_init(uint level)
-{
-    fs_register_type("memfs", &memfs_api);
-}
-
-LK_INIT_HOOK(memfs, &memfs_init, LK_INIT_LEVEL_THREADING);
-
+STATIC_FS_IMPL(memfs, &memfs_api);

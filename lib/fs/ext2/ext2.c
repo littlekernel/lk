@@ -272,12 +272,4 @@ static const struct fs_api ext2_api = {
     .close = ext2_close_file,
 };
 
-static void ext2_init(uint level)
-{
-    fs_register_type("ext2", &ext2_api);
-}
-
-LK_INIT_HOOK(ext2, &ext2_init, LK_INIT_LEVEL_THREADING);
-
-
-
+STATIC_FS_IMPL(ext2, &ext2_api);

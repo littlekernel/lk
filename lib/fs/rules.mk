@@ -6,4 +6,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/fs.c \
 	$(LOCAL_DIR)/debug.c
 
+EXTRA_LINKER_SCRIPTS += $(LOCAL_DIR)/fs.ld
+
 include make/module.mk

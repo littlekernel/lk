@@ -53,20 +53,17 @@ struct dirhandle {
     struct fs_mount *mount;
 };
 
-struct fs {
-    struct list_node node;
-    const char *name;
-    const struct fs_api *api;
-};
-
 static mutex_t mount_lock = MUTEX_INITIAL_VALUE(mount_lock);
 static struct list_node mounts = LIST_INITIAL_VALUE(mounts);
 static struct list_node fses = LIST_INITIAL_VALUE(fses);
 
-static struct fs *find_fs(const char *name)
+// defined in the linker script
+extern const struct fs_impl __fs_impl_start;
+extern const struct fs_impl __fs_impl_end;
+
+static const struct fs_impl *find_fs(const char *name)
 {
-    struct fs *fs;
-    list_for_every_entry(&fses, fs, struct fs, node) {
+    for (const struct fs_impl *fs = &__fs_impl_start; fs != &__fs_impl_end; fs++) {
         if (!strcmp(name, fs->name))
             return fs;
     }
@@ -120,22 +117,6 @@ static void put_mount(struct fs_mount *mount)
     mutex_release(&mount_lock);
 }
 
-status_t fs_register_type(const char *name, const struct fs_api *api)
-{
-    struct fs *fs;
-
-    fs = malloc(sizeof(struct fs));
-    if (!fs)
-        return ERR_NO_MEMORY;
-
-    fs->name = name;
-    fs->api = api;
-
-    list_add_head(&fses, &fs->node);
-
-    return NO_ERROR;
-}
-
 static status_t mount(const char *path, const char *device, const struct fs_api *api)
 {
     struct fs_mount *mount;
@@ -187,7 +168,7 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
 
 status_t fs_mount(const char *path, const char *fsname, const char *device)
 {
-    struct fs *fs = find_fs(fsname);
+    const struct fs_impl *fs = find_fs(fsname);
     if (!fs)
         return ERR_NOT_FOUND;
 
