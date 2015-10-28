@@ -22,6 +22,7 @@
  */
 #include <trace.h>
 #include <err.h>
+#include <debug.h>
 #include <arch/or1k.h>
 #include <arch/ops.h>
 #include <arch/mmu.h>
