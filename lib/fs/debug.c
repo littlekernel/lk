@@ -87,12 +87,7 @@ notenoughargs:
 usage:
         printf("%s mount <path> <type> [device]\n", argv[0].str);
         printf("%s unmount <path>\n", argv[0].str);
-        printf("%s create <path> [size]\n", argv[0].str);
-        printf("%s mkdir <path>\n", argv[0].str);
-        printf("%s read <path> [<offset>] [<len>]\n", argv[0].str);
         printf("%s write <path> <string> [<offset>]\n", argv[0].str);
-        printf("%s stat <file>\n", argv[0].str);
-        printf("%s dir <path>\n", argv[0].str);
         return -1;
     }
 
@@ -120,81 +115,6 @@ usage:
             printf("error %d unmounting device\n", err);
             return err;
         }
-    } else if (!strcmp(argv[1].str, "create")) {
-        int err;
-        filehandle *handle;
-
-        if (argc < 3)
-            goto notenoughargs;
-
-        err = fs_create_file(argv[2].str, &handle, (argc > 3) ? argv[3].u : 0);
-        if (err < 0) {
-            printf("error %d creating file\n", err);
-            return err;
-        }
-
-        fs_close_file(handle);
-    } else if (!strcmp(argv[1].str, "mkdir")) {
-        int err;
-
-        if (argc < 3)
-            goto notenoughargs;
-
-        err = fs_make_dir(argv[2].str);
-        if (err < 0) {
-            printf("error %d making directory\n", err);
-            return err;
-        }
-    } else if (!strcmp(argv[1].str, "read")) {
-        int err;
-        char *buf;
-        off_t off;
-        size_t len;
-        filehandle *handle;
-        struct file_stat stat;
-
-        if (argc < 3)
-            goto notenoughargs;
-
-        err = fs_open_file(argv[2].str, &handle);
-        if (err < 0) {
-            printf("error %d opening file\n", err);
-            return err;
-        }
-
-        err = fs_stat_file(handle, &stat);
-        if (err < 0) {
-            printf("error %d stat'ing file\n", err);
-            fs_close_file(handle);
-            return err;
-        }
-
-        if (argc < 4)
-            off = 0;
-
-        else
-            off = argv[3].u;
-
-        if (argc < 5)
-            len = stat.size - off;
-
-        else
-            len = argv[4].u;
-
-        buf = malloc(len + 1);
-
-        err = fs_read_file(handle, buf, off, len);
-        if (err < 0) {
-            printf("error %d reading file\n", err);
-            free(buf);
-            fs_close_file(handle);
-            return err;
-        }
-
-        buf[len] = '\0';
-        printf("%s\n", buf);
-        free(buf);
-        fs_close_file(handle);
     } else if (!strcmp(argv[1].str, "write")) {
         int err;
         off_t off;
@@ -219,7 +139,6 @@ usage:
 
         if (argc < 5)
             off = stat.size;
-
         else
             off = argv[4].u;
 
@@ -231,50 +150,6 @@ usage:
         }
 
         fs_close_file(handle);
-    } else if (!strcmp(argv[1].str, "stat")) {
-        int err;
-        struct file_stat stat;
-        filehandle *handle;
-
-        if (argc < 3)
-            goto notenoughargs;
-
-        err = fs_open_file(argv[2].str, &handle);
-        if (err < 0) {
-            printf("error %d opening file\n", err);
-            return err;
-        }
-
-        err = fs_stat_file(handle, &stat);
-        if (err < 0) {
-            printf("error %d statting file\n", err);
-            fs_close_file(handle);
-            return err;
-        }
-
-        printf("stat successful:\n");
-        printf("\tis_dir: %d\n", stat.is_dir ? 1 : 0);
-        printf("\tsize: %lld\n", stat.size);
-
-        fs_close_file(handle);
-    } else if (!strcmp(argv[1].str, "dir")) {
-        dirhandle *handle;
-
-        if (argc < 3)
-            goto notenoughargs;
-
-        status_t err = fs_open_dir(argv[2].str, &handle);
-        if (err < 0) {
-            printf("error %d opening dir\n", err);
-            return err;
-        }
-
-        struct dirent ent;
-        while ((err = fs_read_dir(handle, &ent)) >= 0) {
-            printf("\t%s\n", ent.name);
-        }
-
-        fs_close_dir(handle);
     } else {
         printf("unrecognized subcommand\n");
         goto usage;
