@@ -147,8 +147,7 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
     fscookie *cookie;
     status_t err = api->mount(dev, &cookie);
     if (err < 0) {
-        bio_close(dev);
-        put_mount(mount);
+        if (dev) bio_close(dev);
         return err;
     }
 
@@ -255,6 +254,30 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
     *handle = f;
 
     return 0;
+}
+
+status_t fs_remove_file(const char *path)
+{
+    char temppath[FS_MAX_PATH_LEN];
+
+    strlcpy(temppath, path, sizeof(temppath));
+    fs_normalize_path(temppath);
+
+    const char *newpath;
+    struct fs_mount *mount = find_mount(temppath, &newpath);
+    if (!mount)
+        return ERR_NOT_FOUND;
+
+    if (!mount->api->remove) {
+        put_mount(mount);
+        return ERR_NOT_SUPPORTED;
+    }
+
+    status_t err = mount->api->remove(mount->cookie, newpath);
+
+    put_mount(mount);
+
+    return err;
 }
 
 ssize_t fs_read_file(filehandle *handle, void *buf, off_t offset, size_t len)

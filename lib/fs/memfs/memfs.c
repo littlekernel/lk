@@ -98,6 +98,13 @@ static status_t memfs_mount(struct bdev *dev, fscookie **cookie)
     return NO_ERROR;
 }
 
+static void free_file(memfs_file_t *file)
+{
+    free(file->ptr);
+    free(file->name);
+    free(file);
+}
+
 static status_t memfs_unmount(fscookie *cookie)
 {
     LTRACEF("cookie %p\n", cookie);
@@ -109,9 +116,7 @@ static status_t memfs_unmount(fscookie *cookie)
     // free all the files
     memfs_file_t *file;
     while ((file = list_remove_head_type(&mem->files, memfs_file_t, node))) {
-        free(file->ptr);
-        free(file->name);
-        free(file);
+        free_file(file);
     }
 
     mutex_release(&mem->lock);
@@ -196,6 +201,30 @@ static status_t memfs_open(fscookie *cookie, const char *name, filecookie **fcoo
         return ERR_NOT_FOUND;
 
     *fcookie = (filecookie *)file;
+
+    return NO_ERROR;
+}
+
+static status_t memfs_remove(fscookie *cookie, const char *name)
+{
+    LTRACEF("cookie %p name '%s'\n", cookie, name);
+
+    memfs_t *mem = (memfs_t *)cookie;
+
+    // make sure we strip out any leading /
+    name = trim_name(name);
+
+    mutex_acquire(&mem->lock);
+    memfs_file_t *file = find_file(mem, name);
+    if (file)
+        list_delete(&file->node);
+    mutex_release(&mem->lock);
+
+    if (!file)
+        return ERR_NOT_FOUND;
+
+    // XXX make sure there are no open file handles
+    free_file(file);
 
     return NO_ERROR;
 }
@@ -357,6 +386,7 @@ static const struct fs_api memfs_api = {
 
     .create = memfs_create,
     .open = memfs_open,
+    .remove = memfs_remove,
     .close = memfs_close,
 
     .read = memfs_read,
