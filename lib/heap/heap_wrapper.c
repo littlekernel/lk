@@ -82,6 +82,7 @@ static inline void HEAP_INIT(void) {
 #define HEAP_FREE cmpct_free
 #define HEAP_INIT cmpct_init
 #define HEAP_DUMP cmpct_dump
+#define HEAP_TRIM cmpct_trim
 static inline void *HEAP_CALLOC(size_t n, size_t s)
 {
     size_t realsize = n * s;
@@ -90,9 +91,6 @@ static inline void *HEAP_CALLOC(size_t n, size_t s)
     if (likely(ptr))
         memset(ptr, 0, realsize);
     return ptr;
-}
-static inline void HEAP_TRIM(void)
-{
 }
 
 /* end cmpctmalloc implementation */
@@ -268,9 +266,11 @@ static void heap_dump(void)
     spin_unlock_irqrestore(&delayed_free_lock, state);
 }
 
-//#if 0
 static void heap_test(void)
 {
+#if WITH_LIB_HEAP_CMPCTMALLOC
+	cmpct_test();
+#else
     void *ptr[16];
 
     ptr[0] = HEAP_MALLOC(8);
@@ -319,8 +319,8 @@ static void heap_test(void)
     }
 
     HEAP_DUMP();
+#endif
 }
-//#endif
 
 
 #if LK_DEBUGLEVEL > 1
