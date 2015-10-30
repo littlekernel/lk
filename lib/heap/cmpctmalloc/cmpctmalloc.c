@@ -39,6 +39,10 @@
 // kept in linked lists with 8 different sizes per binary order of magnitude
 // and the header size is two words with eager coalescing on free.
 
+#ifdef DEBUG
+#define CMPCT_DEBUG
+#endif
+
 #define LOCAL_TRACE 0
 
 #define ALLOC_FILL 0x99
@@ -259,7 +263,7 @@ static void create_free_area(void *address, void *left, size_t size, free_t **bu
 	free_area->prev = NULL;
 	*bucket = free_area;
 	theheap.remaining += size;
-#ifdef DEBUG
+#ifdef CMPCT_DEBUG
 	memset(free_area + 1, FREE_FILL, size - sizeof(free_t));
 #endif
 }
@@ -278,10 +282,11 @@ void free_to_os(header_t *header, size_t size)
 
 static void free_memory(void *address, void *left, size_t size)
 {
-	if (is_start_of_os_allocation(untag(left)) &&
-			(char *)address - (char *)left == sizeof(header_t) &&
+	left = untag(left);
+	if ((char *)address - (char *)left == sizeof(header_t) &&
+			is_start_of_os_allocation(left) &&
 			is_end_of_os_allocation((char *)address + size)) {
-		free_to_os(untag(left), size + 2 * sizeof(header_t));
+		free_to_os(left, size + 2 * sizeof(header_t));
 	} else {
 		create_free_area(address, left, size, NULL);
 	}
@@ -412,10 +417,31 @@ void cmpct_test_get_back_newly_freed(void)
 	}
 }
 
+void cmpct_test_return_to_os(void)
+{
+	cmpct_trim();
+	size_t remaining = theheap.remaining;
+	// This goes in a new OS allocation since the trim above removed any free
+	// area big enough to contain it.
+	void* a = cmpct_alloc(5000);
+	void* b = cmpct_alloc(2500);
+	cmpct_free(a);
+	cmpct_free(b);
+	// If things work as expected the new allocation is at the start of an OS
+	// allocation.  There's just one sentinel and one header to the left of it.
+	// It that's not the case then the allocation was met from some space in
+	// the middle of an OS allocation, and our test won't work as expected, so
+	// bail out.
+	if (((uintptr_t)a & (PAGE_SIZE - 1)) != sizeof(header_t) * 2) return;
+	// No trim needed when the entire OS allocation is free.
+	ASSERT(remaining == theheap.remaining);
+}
+
 void cmpct_test(void)
 {
 	cmpct_test_buckets();
 	cmpct_test_get_back_newly_freed();
+	cmpct_test_return_to_os();
 	cmpct_dump();
 	void *ptr[16];
 
@@ -472,6 +498,9 @@ void cmpct_test(void)
 
 void *large_alloc(size_t size)
 {
+#ifdef CMPCT_DEBUG
+	size_t requested_size = size;
+#endif
 	size = ROUNDUP(size, 8);
 	free_t *free_area = NULL;
 	lock();
@@ -480,6 +509,10 @@ void *large_alloc(size_t size)
 		create_allocation_header(free_area, 0, free_area->header.size, free_area->header.left);
 	theheap.remaining -= free_area->header.size;
 	unlock();
+#ifdef CMPCT_DEBUG
+	memset(result, ALLOC_FILL, requested_size);
+	memset((char *)result + requested_size, PADDING_FILL, free_area->header.size - requested_size);
+#endif
 	return result;
 }
 
@@ -582,7 +615,7 @@ void *cmpct_alloc(size_t size)
 	}
 	void *result =
 		create_allocation_header(head, 0, head->header.size, head->header.left);
-#ifdef DEBUG
+#ifdef CMPCT_DEBUG
 	memset(result, ALLOC_FILL, size - sizeof(header_t));
 	memset(((char *)result) + size - sizeof(header_t), PADDING_FILL, rounded_up - size);
 #endif
