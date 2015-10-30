@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <debug.h>
 #include <trace.h>
-#include <lib/fs/ext2.h>
 #include "ext2_priv.h"
 
 #define LOCAL_TRACE 0
@@ -181,10 +180,10 @@ static blocknum_t file_block_to_fs_block(ext2_t *ext2, struct ext2_inode *inode,
     return block;
 }
 
-int ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_t offset, size_t len)
+ssize_t ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_t offset, size_t len)
 {
     int err = 0;
-    int bytes_read = 0;
+    size_t bytes_read = 0;
     uint8_t *buf = _buf;
 
     /* calculate the file size */
@@ -263,8 +262,8 @@ int ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_t of
         bytes_read += len;
     }
 
-    LTRACEF("err %d, bytes_read %d\n", err, bytes_read);
+    LTRACEF("err %d, bytes_read %zu\n", err, bytes_read);
 
-    return (err < 0) ? err : bytes_read;
+    return (err < 0) ? err : (ssize_t)bytes_read;
 }
 

@@ -27,12 +27,11 @@
 #include <err.h>
 #include <debug.h>
 #include <trace.h>
-#include <lib/fs/ext2.h>
 #include "ext2_priv.h"
 
 #define LOCAL_TRACE 0
 
-int ext2_open_file(fscookie cookie, const char *path, fsfilecookie *fcookie)
+int ext2_open_file(fscookie *cookie, const char *path, filecookie **fcookie)
 {
     ext2_t *ext2 = (ext2_t *)cookie;
     int err;
@@ -55,12 +54,12 @@ int ext2_open_file(fscookie cookie, const char *path, fsfilecookie *fcookie)
     }
 
     file->ext2 = ext2;
-    *fcookie = file;
+    *fcookie = (filecookie *)file;
 
     return 0;
 }
 
-int ext2_read_file(fsfilecookie fcookie, void *buf, off_t offset, size_t len)
+ssize_t ext2_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len)
 {
     ext2_file_t *file = (ext2_file_t *)fcookie;
     int err;
@@ -77,7 +76,7 @@ int ext2_read_file(fsfilecookie fcookie, void *buf, off_t offset, size_t len)
     return err;
 }
 
-int ext2_close_file(fsfilecookie fcookie)
+int ext2_close_file(filecookie *fcookie)
 {
     ext2_file_t *file = (ext2_file_t *)fcookie;
 
@@ -106,7 +105,7 @@ off_t ext2_file_len(ext2_t *ext2, struct ext2_inode *inode)
     return len;
 }
 
-int ext2_stat_file(fsfilecookie fcookie, struct file_stat *stat)
+int ext2_stat_file(filecookie *fcookie, struct file_stat *stat)
 {
     ext2_file_t *file = (ext2_file_t *)fcookie;
 

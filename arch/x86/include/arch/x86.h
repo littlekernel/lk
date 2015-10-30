@@ -83,11 +83,15 @@ typedef struct {
 #define X86_CR0_PE 0x00000001 /* protected mode enable */
 #define X86_CR0_MP 0x00000002 /* monitor coprocessor */
 #define X86_CR0_EM 0x00000004 /* emulation */
+#define X86_CR0_NE 0x00000020 /* enable x87 exception */
 #define X86_CR0_TS 0x00000008 /* task switched */
 #define X86_CR0_WP 0x00010000 /* supervisor write protect */
 #define X86_CR0_NW 0x20000000 /* not write-through */
 #define X86_CR0_CD 0x40000000 /* cache disable */
 #define X86_CR0_PG 0x80000000 /* enable paging */
+#define X86_CR4_OSFXSR 0x00000200 /* os supports fxsave */
+#define X86_CR4_OSXMMEXPT 0x00000400 /* os supports xmm exception */
+#define X86_CR4_OSXSAVE 0x00040000 /* os supports xsave */
 #define X86_CR4_SMEP 0x00100000 /* SMEP protection enabling */
 #define X86_CR4_SMAP 0x00200000 /* SMAP protection enabling */
 #define X86_CR4_PAE 0x00000020 /* PAE paging */

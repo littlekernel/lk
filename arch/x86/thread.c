@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
  * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -29,6 +30,7 @@
 #include <kernel/spinlock.h>
 #include <arch/x86.h>
 #include <arch/x86/descriptor.h>
+#include <arch/fpu.h>
 
 /*struct context_switch_frame {
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
@@ -86,6 +88,10 @@ void arch_thread_initialize(thread_t *t)
 
 	// set the stack pointer
 	t->arch.esp = (vaddr_t)frame;
+#ifdef ENABLE_FPU
+	memset(t->arch.fpu_buffer, 0, sizeof(t->arch.fpu_buffer));
+	t->arch.fpu_states = (vaddr_t *)ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
+#endif
 }
 
 void arch_dump_thread(thread_t *t)
@@ -99,7 +105,11 @@ void arch_dump_thread(thread_t *t)
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
 	//dprintf(DEBUG, "arch_context_switch: old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
-	
+
+#ifdef ENABLE_FPU
+	fpu_context_switch(oldthread, newthread);
+#endif
+
 	__asm__ __volatile__ (
 		"pushl $1f			\n\t"
 		"pushf				\n\t"

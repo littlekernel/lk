@@ -251,7 +251,7 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
     /* see if we need to add more descriptors due to scatter gather */
     paddr_t next_pa = PAGE_ALIGN(pa + 1);
     desc->len = MIN(next_pa - pa, len);
-    LTRACEF("first descriptor va 0x%lx desc->addr 0x%llx desc->len %zu\n", va, desc->addr, desc->len);
+    LTRACEF("first descriptor va 0x%lx desc->addr 0x%llx desc->len %u\n", va, desc->addr, desc->len);
     len -= desc->len;
     while (len > 0) {
         /* amount of source buffer handled by this iteration of the loop */

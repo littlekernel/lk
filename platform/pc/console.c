@@ -160,7 +160,7 @@ void _clear(char c,char attr,int x1,int y1,int x2,int y2)
 	w |= c;
 	for (i = x1; i <= x2; i++) {
 		for (j = y1; j <= y2; j++) {
-			*((unsigned short *)(0xB8000 + 2*i+160*j + 2*active_page*VPAGE_SIZE)) = w;
+			*((unsigned short *)(uintptr_t)(0xB8000 + 2*i+160*j + 2 * active_page * VPAGE_SIZE)) = w;
 		}
 	}
 
@@ -179,7 +179,7 @@ void _scroll(char attr, int x1, int y1, int x2, int y2)
 {
 	register int x,y;
 	unsigned short xattr = attr << 8,w;
-	unsigned char *v = (unsigned char *)(0xB8000 + active_page*(2*VPAGE_SIZE));
+	unsigned char *v = (unsigned char *)(uintptr_t)(0xB8000 + active_page*(2*VPAGE_SIZE));
 
 	for (y = y1+1; y <= y2; y++) {
 		for (x = x1; x <= x2; x++) {
@@ -202,7 +202,7 @@ void scroll(void)
 void cputc(char c)
 {
 	static unsigned short scan_x, x, y;
-	unsigned char *v = (unsigned char *)(0xB8000 + active_page*(2*VPAGE_SIZE));
+	unsigned char *v = (unsigned char *)(uintptr_t)(0xB8000 + active_page*(2*VPAGE_SIZE));
 	x = curr_x;
 	y = curr_y;
 
@@ -227,8 +227,11 @@ void cputc(char c)
 			}
 			break;
 
-		case '\n':
+		case '\r':
 			x = view_window.x1;
+			break;
+
+		case '\n':
 			if (y == view_window.y2) {
 				scroll();
 			} else {
@@ -269,7 +272,7 @@ void cputs(char *s)
 
 void puts_xy(int x,int y,char attr,char *s)
 {
-	unsigned char *v = (unsigned char *)(0xB8000 + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
+	unsigned char *v = (unsigned char *)(uintptr_t)(0xB8000 + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
 	while (*s != 0) {
 		*v = *s;
 		s++;
@@ -281,7 +284,7 @@ void puts_xy(int x,int y,char attr,char *s)
 
 void putc_xy(int x, int y, char attr, char c)
 {
-	unsigned char *v = (unsigned char *)(0xB8000 + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
+	unsigned char *v = (unsigned char *)(uintptr_t)(0xB8000 + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
 	*v = c;
 	v++;
 	*v = attr;
