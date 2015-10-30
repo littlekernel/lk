@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -28,6 +29,7 @@
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
+#include <arch/fpu.h>
 #include <kernel/spinlock.h>
 #include "platform_p.h"
 #include <platform/pc.h>
@@ -227,9 +229,17 @@ enum handler_return platform_irq(struct x86_iframe *frame)
 			x86_pfe_handler(frame);
 #endif
 			break;
+
+		case INT_DEV_NA_EX:
+#ifdef ENABLE_FPU
+			fpu_dev_na_handler();
+			break;
+#endif
+
+		case INT_MF:
+		case INT_XM:
 		case INT_DIVIDE_0:
 		case INT_DEBUG_EX:
-		case INT_DEV_NA_EX:
 		case INT_STACK_FAULT:
 		case 3:
 			x86_unhandled_exception(frame);

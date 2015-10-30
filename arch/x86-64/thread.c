@@ -30,6 +30,7 @@
 #include <kernel/spinlock.h>
 #include <arch/x86.h>
 #include <arch/x86/descriptor.h>
+#include <arch/fpu.h>
 
 struct context_switch_frame {
 	uint64_t rdi, rsi, rdx, rcx, rax, rbx, rbp;
@@ -77,18 +78,25 @@ void arch_thread_initialize(thread_t *t)
 
 	/* set the stack pointer */
 	t->arch.rsp = (vaddr_t)frame;
+#ifdef ENABLE_FPU
+	memset(t->arch.fpu_buffer, 0, sizeof(t->arch.fpu_buffer));
+	t->arch.fpu_states = (vaddr_t *)ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
+#endif
 }
 
 void arch_dump_thread(thread_t *t)
 {
       if (t->state != THREAD_RUNNING) {
               	dprintf(INFO, "\tarch: ");
-	        dprintf(INFO, "sp 0x%llx\n", t->arch.rsp);
+	        dprintf(INFO, "sp 0x%lx\n", t->arch.rsp);
  	}
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
+#ifdef ENABLE_FPU
+	fpu_context_switch(oldthread, newthread);
+#endif
 
 	/* save the old context and restore the new */
 	__asm__ __volatile__ (

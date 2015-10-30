@@ -346,13 +346,13 @@ addr_t *x86_create_new_cr3(void)
 	kernel_table = (map_addr_t *)X86_PHYS_TO_VIRT(g_CR3);
 
 	/* Allocate a new Page to generate a new paging structure for a new CR3 */
-	new_table = _map_alloc(PAGE_SIZE);
+	new_table = (map_addr_t *)_map_alloc(PAGE_SIZE);
 	ASSERT(new_table);
 
 	/* Copying the kernel mapping as-is */
 	memcpy(new_table, kernel_table, PAGE_SIZE);
 
-	return (addr_t)new_table;
+	return (addr_t *)new_table;
 }
 
 /**

@@ -35,6 +35,8 @@
 #include <lib/cksum.h>
 #endif
 
+#define DMA_ALIGNMENT (CACHE_LINE)
+
 #if defined(WITH_LIB_CONSOLE)
 
 #if LK_DEBUGLEVEL > 0
@@ -44,8 +46,6 @@ static int bio_test_device(bdev_t* device);
 STATIC_COMMAND_START
 STATIC_COMMAND("bio", "block io debug commands", &cmd_bio)
 STATIC_COMMAND_END(bio);
-
-#define DMA_ALIGNMENT (CACHE_LINE)
 
 static int cmd_bio(int argc, const cmd_args *argv)
 {
