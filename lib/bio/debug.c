@@ -36,6 +36,8 @@
 #endif
 
 #define DMA_ALIGNMENT (CACHE_LINE)
+#define THREE_BYTE_ADDR_BOUNDARY (16777216)
+#define SUB_ERASE_TEST_SAMPLES (32)
 
 #if defined(WITH_LIB_CONSOLE)
 
@@ -333,6 +335,52 @@ static ssize_t erase_test(bdev_t *device)
     return num_invalid_blocks;
 }
 
+static bool test_erase_block(bdev_t* device, uint32_t block_addr)
+{
+    bool success = false;
+    uint8_t valid_byte[1];
+
+    uint8_t *block_contents = memalign(DMA_ALIGNMENT, device->block_size);
+    memset(block_contents, ~(device->erase_byte), device->block_size);
+
+    ssize_t err = bio_write_block(device, block_contents, block_addr, 1);
+    if (err != (ssize_t)device->block_size) {
+        goto finish;
+    }
+
+    valid_byte[0] = ~(device->erase_byte);
+    if (!is_valid_block(device, block_addr, valid_byte, 1)) {
+        goto finish;
+    }
+
+    err = bio_erase(device, block_addr * device->block_size, 1);
+    if (err <= 0) {
+        goto finish;
+    }
+
+    valid_byte[0] = device->erase_byte;
+    if (is_valid_block(device, block_addr, valid_byte, 1)) {
+        success = true;
+    }
+
+finish:
+    free(block_contents);
+    return success;
+}
+
+// Ensure that (sub)sector erase work.
+static bool sub_erase_test(bdev_t* device, uint32_t n_samples)
+{
+    printf("Sampling the device %d times.\n", n_samples);
+    for (uint32_t i = 0; i < n_samples; i++) {
+        bnum_t block_addr = rand() % device->block_count;
+        if (!test_erase_block(device, block_addr)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static uint8_t get_signature(uint32_t word)
 {
     uint8_t* sigptr = (uint8_t*)(&word);
@@ -385,6 +433,15 @@ static int bio_test_device(bdev_t* device)
     printf("Discovered %ld error(s) while testing write.\n", num_errors);
     if (num_errors) {
         return -1;
+    }
+
+    printf ("Testing sub-erase...\n");
+    bool success = sub_erase_test(device, SUB_ERASE_TEST_SAMPLES);
+    if (!success) {
+        printf("Discovered errors while testing sub-erase.\n");
+        return -1;
+    } else {
+        printf("No errors while testing sub-erase.\n");
     }
 
     return 0;

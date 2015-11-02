@@ -562,14 +562,20 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     switch (instruction) {
         case SUBSECTOR_ERASE_CMD: {
             num_erased_bytes = N25QXXA_SUBSECTOR_SIZE;
-            erase_cmd.AddressMode = get_address_size(block_addr);
+            erase_cmd.AddressSize = get_address_size(block_addr);
             erase_cmd.Instruction = get_specialized_instruction(instruction, block_addr);
+            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            erase_cmd.Address     = block_addr;
+
             break;
         }
         case SECTOR_ERASE_CMD: {
             num_erased_bytes = N25QXXA_SECTOR_SIZE;
-            erase_cmd.AddressMode = get_address_size(block_addr);
+            erase_cmd.AddressSize = get_address_size(block_addr);
             erase_cmd.Instruction = get_specialized_instruction(instruction, block_addr);
+            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            erase_cmd.Address     = block_addr;
+
             break;
         }
         case BULK_ERASE_CMD: {
@@ -585,8 +591,6 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     }
 
     erase_cmd.InstructionMode   = QSPI_INSTRUCTION_1_LINE;
-    erase_cmd.AddressSize       = QSPI_ADDRESS_24_BITS;
-    erase_cmd.Address           = block_addr;
     erase_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
     erase_cmd.DataMode          = QSPI_DATA_NONE;
     erase_cmd.DummyCycles       = 0;
