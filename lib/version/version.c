@@ -24,6 +24,7 @@
 
 #include <debug.h>
 #include <stdio.h>
+#include <lk/init.h>
 
 /* generated for us */
 #include <buildid.h>
@@ -70,4 +71,9 @@ STATIC_COMMAND("version", "print version", &cmd_version)
 STATIC_COMMAND_END(version);
 
 #endif // WITH_LIB_CONSOLE
+
+#if LK_DEBUGLEVEL > 0
+// print the version string if any level of debug is set
+LK_INIT_HOOK(version, (void *)&print_version, LK_INIT_LEVEL_HEAP - 1);
+#endif
 
