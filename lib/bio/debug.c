@@ -30,6 +30,7 @@
 #include <lib/bio.h>
 #include <lib/partition.h>
 #include <platform.h>
+#include <kernel/thread.h>
 
 #if WITH_LIB_CKSUM
 #include <lib/cksum.h>
@@ -133,10 +134,10 @@ usage:
             return -1;
         }
 
-        uint8_t buf[256];
+        uint8_t* buf = memalign(CACHE_LINE, 256);
         ssize_t err = 0;
         while (len > 0) {
-            size_t  amt = MIN(sizeof(buf), len);
+            size_t  amt = MIN(256, len);
             ssize_t err = bio_read(dev, buf, offset, amt);
 
             if (err < 0) {

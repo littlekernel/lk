@@ -51,6 +51,11 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
     int err = 0;
     STACKBUF_DMA_ALIGN(temp, dev->block_size); // temporary buffer for partial block transfers
 
+    // If the device requires alignment AND our buffer is not alread aligned.
+    bool requires_alignment =
+        (dev->flags & BIO_FLAG_REQUIRES_CACHE_ALIGNMENT) &&
+        (IS_ALIGNED((uint)buf, CACHE_LINE) == false);
+
     /* find the starting block */
     block = offset / dev->block_size;
 
@@ -76,21 +81,22 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
 
     LTRACEF("buf %p, block %u, len %zd\n", buf, block, len);
     /* handle middle blocks */
-    if (len >= dev->block_size) {
+    while (len >= dev->block_size) {
         /* do the middle reads */
-        size_t block_count = len / dev->block_size;
-        err = bio_read_block(dev, buf, block, block_count);
+        if (requires_alignment) {
+            err = bio_read_block(dev, temp, block, 1);
+            memcpy(buf, temp, dev->block_size);
+        } else {
+            err = bio_read_block(dev, buf, block, 1);
+        }
+
         if (err < 0)
             goto err;
 
-        /* increment our buffers */
-        size_t bytes = block_count * dev->block_size;
-        DEBUG_ASSERT(bytes <= len);
-
-        buf += bytes;
-        len -= bytes;
-        bytes_read += bytes;
-        block += block_count;
+        buf += dev->block_size;
+        len -= dev->block_size;
+        bytes_read += dev->block_size;
+        block++;
     }
 
     LTRACEF("buf %p, block %u, len %zd\n", buf, block, len);

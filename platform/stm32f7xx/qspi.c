@@ -32,8 +32,11 @@
 #include <platform/n25qxxa.h>
 #include <platform/n25q512a.h>
 #include <platform/qspi.h>
+#include <trace.h>
+
 
 #define FOUR_BYTE_ADDR_THRESHOLD (1 << 24)
+#define LOCAL_TRACE 0
 
 static QSPI_HandleTypeDef qspi_handle;
 static DMA_HandleTypeDef hdma;
@@ -247,21 +250,31 @@ static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef* hqspi)
     return NO_ERROR;
 }
 
-static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, size_t len)
+static ssize_t spiflash_bdev_read_block(struct bdev* device, void* buf,
+                                        bnum_t block, uint count)
 {
-    len = bio_trim_range(device, offset, len);
-    if (len == 0) {
-        return 0;
+    LTRACEF("device %p, buf %p, block %u, count %u\n",
+            device, buf, block, count);
+
+    if (!IS_ALIGNED((uint)buf, CACHE_LINE)) {
+        DEBUG_ASSERT(IS_ALIGNED((uint)buf, CACHE_LINE));
+        return ERR_INVALID_ARGS;
     }
+
+    count = bio_trim_block_range(device, block, count);
+    if (count == 0)
+        return 0;
 
     QSPI_CommandTypeDef s_command;
     HAL_StatusTypeDef status;
 
+    uint64_t largest_offset = (block + count) * device->block_size;
+
     // /* Initialize the read command */
     s_command.InstructionMode = QSPI_INSTRUCTION_1_LINE;
-    s_command.Instruction = get_specialized_instruction(QUAD_OUT_FAST_READ_CMD, offset);
+    s_command.Instruction = get_specialized_instruction(QUAD_OUT_FAST_READ_CMD, largest_offset);
     s_command.AddressMode = QSPI_ADDRESS_1_LINE;
-    s_command.AddressSize = get_address_size(offset);
+    s_command.AddressSize = get_address_size(largest_offset);
     s_command.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
     s_command.DataMode = QSPI_DATA_4_LINES;
     s_command.DummyCycles = N25QXXA_DUMMY_CYCLES_READ_QUAD;
@@ -269,40 +282,36 @@ static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, 
     s_command.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
     s_command.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
 
-    s_command.NbData = len;
-    s_command.Address = offset;
+    s_command.NbData = device->block_size;
 
-    size_t retcode = len;
+    ssize_t retcode = 0;
 
     mutex_acquire(&spiflash_mutex);
-    // /* Configure the command */
-    status = HAL_QSPI_Command(&qspi_handle, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
-    if (status != HAL_OK) {
-        retcode =  hal_error_to_status(status);
-        goto err;
-    }
 
-    // /* Reception of the data */
-    status = qspi_rx_dma(&qspi_handle, &s_command, buf);
-    if (status != HAL_OK) {
-        retcode = hal_error_to_status(status);
-        goto err;
+    s_command.Address = block * device->block_size;
+    for (uint i = 0; i < count; i++) {
+
+        status = HAL_QSPI_Command(&qspi_handle, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+        if (status != HAL_OK) {
+            retcode = hal_error_to_status(status);
+            goto err;
+        }
+
+        // /* Reception of the data */
+        status = qspi_rx_dma(&qspi_handle, &s_command, buf);
+        if (status != HAL_OK) {
+            retcode = hal_error_to_status(status);
+            goto err;
+        }
+
+        buf += device->block_size;
+        retcode += device->block_size;
+        s_command.Address += device->block_size;
     }
 
 err:
     mutex_release(&spiflash_mutex);
     return retcode;
-}
-
-static ssize_t spiflash_bdev_read_block(struct bdev* device, void* buf,
-                                        bnum_t block, uint count)
-{
-    count = bio_trim_block_range(device, block, count);
-    if (count == 0)
-        return 0;
-
-    return spiflash_bdev_read(device, buf, block << device->block_shift,
-                              count << device->block_shift);
 }
 
 static ssize_t spiflash_bdev_write_block(struct bdev* device, const void* _buf,
@@ -516,7 +525,7 @@ status_t qspi_flash_init(size_t flash_size)
                         (flash_size / N25QXXA_PAGE_SIZE), 1, &geometry,
                          BIO_FLAG_REQUIRES_CACHE_ALIGNMENT);
 
-    qspi_flash_device.read = &spiflash_bdev_read;
+    // qspi_flash_device.read: Use default hook.
     qspi_flash_device.read_block = &spiflash_bdev_read_block;
     // qspi_flash_device.write has a default hook that will be okay
     qspi_flash_device.write_block = &spiflash_bdev_write_block;
@@ -648,13 +657,10 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
 static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_CommandTypeDef* s_command, uint8_t* buf)
 {
     // Make sure cache is flushed to RAM before invoking the DMA controller.
-    arch_clean_invalidate_cache_range((addr_t)buf, s_command->NbData);
+    arch_clean_cache_range((addr_t)buf, s_command->NbData);
 
     HAL_StatusTypeDef result = HAL_QSPI_Transmit_DMA(qspi_handle, buf);
     event_wait(&tx_event);
-
-    // CPU may have cached data while we were performing the DMA.
-    arch_invalidate_cache_range((addr_t)buf, s_command->NbData);
 
     return result;
 }
@@ -662,10 +668,6 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_Comma
 // Send data and wait for interrupt.
 static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_CommandTypeDef* s_command, uint8_t* buf)
 {
-    // DMA controller is about to overwrite this memory. All data pointing to it
-    // is invalid.
-    arch_invalidate_cache_range((addr_t)buf, s_command->NbData);
-
     HAL_StatusTypeDef result = HAL_QSPI_Receive_DMA(qspi_handle, buf);
     event_wait(&rx_event);
 
