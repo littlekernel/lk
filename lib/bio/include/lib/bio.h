@@ -26,6 +26,10 @@
 #include <sys/types.h>
 #include <list.h>
 
+#define BIO_FLAGS_NONE                (0 << 0)
+#define BIO_FLAG_CACHE_ALIGNED_READS  (1 << 0)
+#define BIO_FLAG_CACHE_ALIGNED_WRITES (1 << 1)
+
 typedef uint32_t bnum_t;
 
 typedef struct bio_erase_geometry_info {
@@ -51,6 +55,8 @@ typedef struct bdev {
     const bio_erase_geometry_info_t* geometry;
 
     uint8_t erase_byte;
+
+    uint32_t flags;
 
     /* function pointers */
     ssize_t (*read)(struct bdev *, void *buf, off_t offset, size_t len);
@@ -82,7 +88,8 @@ void bio_initialize_bdev(bdev_t* dev,
                          size_t block_size,
                          bnum_t block_count,
                          size_t geometry_count,
-                         const bio_erase_geometry_info_t* geometry);
+                         const bio_erase_geometry_info_t* geometry,
+                         const uint32_t flags);
 
 /* debug stuff */
 void bio_dump_devices(void);
