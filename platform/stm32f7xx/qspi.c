@@ -513,7 +513,8 @@ status_t qspi_flash_init(size_t flash_size)
     geometry.size = flash_size;
 
     bio_initialize_bdev(&qspi_flash_device, device_name, N25QXXA_PAGE_SIZE,
-                        (flash_size / N25QXXA_PAGE_SIZE), 1, &geometry);
+                        (flash_size / N25QXXA_PAGE_SIZE), 1, &geometry,
+                         BIO_FLAG_REQUIRES_CACHE_ALIGNMENT);
 
     qspi_flash_device.read = &spiflash_bdev_read;
     qspi_flash_device.read_block = &spiflash_bdev_read_block;

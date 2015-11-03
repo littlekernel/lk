@@ -311,7 +311,7 @@ status_t spiflash_detect(void)
 	/* construct the block device */
 	bio_initialize_bdev(&flash.bdev, "spi0",
 						PAGE_PROGRAM_SIZE, flash.size / PAGE_PROGRAM_SIZE,
-						region_count, flash.geometry);
+						region_count, flash.geometry, BIO_FLAGS_NONE);
 
 	/* override our block device hooks */
 	flash.bdev.read = &spiflash_bdev_read;

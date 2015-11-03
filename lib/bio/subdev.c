@@ -172,7 +172,7 @@ status_t bio_publish_subdevice(const char *parent_dev,
 
     bio_initialize_bdev(&sub->dev, subdev,
                         parent->block_size, block_count,
-                        geometry_count, geometry);
+                        geometry_count, geometry, BIO_FLAGS_NONE);
 
     sub->parent = parent;
     sub->offset = startblock;

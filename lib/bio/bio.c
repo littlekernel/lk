@@ -401,7 +401,8 @@ void bio_initialize_bdev(bdev_t *dev,
                          size_t block_size,
                          bnum_t block_count,
                          size_t geometry_count,
-                         const bio_erase_geometry_info_t* geometry)
+                         const bio_erase_geometry_info_t* geometry,
+                         const uint8_t flags)
 {
     DEBUG_ASSERT(dev);
     DEBUG_ASSERT(name);
@@ -419,6 +420,7 @@ void bio_initialize_bdev(bdev_t *dev,
     dev->geometry = geometry;
     dev->erase_byte = 0;
     dev->ref = 0;
+    dev->flags = flags;
 
 #if DEBUG
     // If we have been supplied information about our erase geometry, sanity
