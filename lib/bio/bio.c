@@ -59,8 +59,12 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
     if ((offset % dev->block_size) != 0) {
         /* read in the block */
         err = bio_read_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if ((size_t)err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* copy what we need */
         size_t block_offset = offset % dev->block_size;
@@ -75,22 +79,42 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
     }
 
     LTRACEF("buf %p, block %u, len %zd\n", buf, block, len);
+
+    // If the device requires alignment AND our buffer is not alread aligned.
+    bool requires_alignment =
+        (dev->flags & BIO_FLAG_CACHE_ALIGNED_READS) &&
+        (IS_ALIGNED((size_t)buf, CACHE_LINE) == false);
     /* handle middle blocks */
-    if (len >= dev->block_size) {
-        /* do the middle reads */
-        size_t block_count = len / dev->block_size;
-        err = bio_read_block(dev, buf, block, block_count);
-        if (err < 0)
+    if (requires_alignment) {
+        while (len >= dev->block_size) {
+            /* do the middle reads */
+            err = bio_read_block(dev, temp, block, 1);
+            if (err < 0) {
+                goto err;
+            } else if ((size_t)err != dev->block_size) {
+                err = ERR_IO;
+                goto err;
+            }
+            memcpy(buf, temp, dev->block_size);
+
+            buf += dev->block_size;
+            len -= dev->block_size;
+            bytes_read += dev->block_size;
+            block++;
+        }
+    } else {
+        uint32_t num_blocks = divpow2(len, dev->block_shift);
+        err = bio_read_block(dev, buf, block, num_blocks);
+        if (err < 0) {
             goto err;
-
-        /* increment our buffers */
-        size_t bytes = block_count * dev->block_size;
-        DEBUG_ASSERT(bytes <= len);
-
-        buf += bytes;
-        len -= bytes;
-        bytes_read += bytes;
-        block += block_count;
+        } else if ((size_t)err != dev->block_size * num_blocks) {
+            err = ERR_IO;
+            goto err;
+        }
+        buf += err;
+        len -= err;
+        bytes_read += err;
+        block += num_blocks;
     }
 
     LTRACEF("buf %p, block %u, len %zd\n", buf, block, len);
@@ -98,8 +122,12 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
     if (len > 0) {
         /* read the block */
         err = bio_read_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if ((size_t)err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* copy the partial block from our temp buffer */
         memcpy(buf, temp, len);
@@ -128,8 +156,12 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
     if ((offset % dev->block_size) != 0) {
         /* read in the block */
         err = bio_read_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if ((size_t)err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* copy what we need */
         size_t block_offset = offset % dev->block_size;
@@ -138,8 +170,12 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
 
         /* write it back out */
         err = bio_write_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if ((size_t)err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* increment our buffers */
         buf += tocopy;
@@ -149,21 +185,45 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
     }
 
     LTRACEF("buf %p, block %u, len %zd\n", buf, block, len);
+
+    // If the device requires alignment AND our buffer is not alread aligned.
+    bool requires_alignment =
+        (dev->flags & BIO_FLAG_CACHE_ALIGNED_WRITES) &&
+        (IS_ALIGNED((size_t)buf, CACHE_LINE) == false);
+
     /* handle middle blocks */
-    if (len >= dev->block_size) {
-        /* do the middle writes */
-        size_t block_count = len / dev->block_size;
+    if (requires_alignment) {
+        while (len >= dev->block_size) {
+            /* do the middle reads */
+            memcpy(temp, buf, dev->block_size);
+            err = bio_write_block(dev, temp, block, 1);
+            if (err < 0) {
+                goto err;
+            } else if ((size_t)err != dev->block_size) {
+                err = ERR_IO;
+                goto err;
+            }
+
+            buf += dev->block_size;
+            len -= dev->block_size;
+            bytes_written += dev->block_size;
+            block++;
+        }
+    } else {
+        uint32_t block_count = divpow2(len, dev->block_shift);
         err = bio_write_block(dev, buf, block, block_count);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if ((size_t)err != dev->block_size * block_count) {
+            err = ERR_IO;
+            goto err;
+        }
 
-        /* increment our buffers */
-        size_t bytes = block_count * dev->block_size;
-        DEBUG_ASSERT(bytes <= len);
+        DEBUG_ASSERT((size_t)err == (block_count * dev->block_size));
 
-        buf += bytes;
-        len -= bytes;
-        bytes_written += bytes;
+        buf += err;
+        len -= err;
+        bytes_written += err;
         block += block_count;
     }
 
@@ -172,16 +232,24 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
     if (len > 0) {
         /* read the block */
         err = bio_read_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if ((size_t)err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* copy the partial block from our temp buffer */
         memcpy(temp, buf, len);
 
         /* write it back out */
         err = bio_write_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if ((size_t)err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         bytes_written += len;
     }
