@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -34,6 +34,11 @@
 #include <debug.h>
 
 __BEGIN_CDECLS;
+
+/* debug-enable runtime checks */
+#if LK_DEBUGLEVEL > 1
+#define THREAD_STATS 1
+#endif
 
 enum thread_state {
 	THREAD_SUSPENDED = 0,
@@ -185,11 +190,6 @@ static inline __ALWAYS_INLINE uintptr_t __tls_set(uint entry, uintptr_t val)
 	})
 
 /* thread level statistics */
-#if LK_DEBUGLEVEL > 1
-#define THREAD_STATS 1
-#else
-#define THREAD_STATS 0
-#endif
 #if THREAD_STATS
 struct thread_stats {
 	lk_bigtime_t idle_time;

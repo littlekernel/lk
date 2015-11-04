@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -46,10 +46,6 @@
 #include <target.h>
 #include <lib/heap.h>
 
-#if LK_DEBUGLEVEL > 1
-#define THREAD_CHECKS 1
-#endif
-
 #if THREAD_STATS
 struct thread_stats thread_stats[SMP_MAX_CPUS];
 #endif
@@ -82,13 +78,11 @@ static timer_t preempt_timer[SMP_MAX_CPUS];
 /* run queue manipulation */
 static void insert_in_run_queue_head(thread_t *t)
 {
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-	ASSERT(t->state == THREAD_READY);
-	ASSERT(!list_in_list(&t->queue_node));
-	ASSERT(arch_ints_disabled());
-	ASSERT(spin_lock_held(&thread_lock));
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(t->state == THREAD_READY);
+	DEBUG_ASSERT(!list_in_list(&t->queue_node));
+	DEBUG_ASSERT(arch_ints_disabled());
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
 
 	list_add_head(&run_queue[t->priority], &t->queue_node);
 	run_queue_bitmap |= (1<<t->priority);
@@ -96,13 +90,11 @@ static void insert_in_run_queue_head(thread_t *t)
 
 static void insert_in_run_queue_tail(thread_t *t)
 {
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-	ASSERT(t->state == THREAD_READY);
-	ASSERT(!list_in_list(&t->queue_node));
-	ASSERT(arch_ints_disabled());
-	ASSERT(spin_lock_held(&thread_lock));
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(t->state == THREAD_READY);
+	DEBUG_ASSERT(!list_in_list(&t->queue_node));
+	DEBUG_ASSERT(arch_ints_disabled());
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
 
 	list_add_tail(&run_queue[t->priority], &t->queue_node);
 	run_queue_bitmap |= (1<<t->priority);
@@ -219,9 +211,7 @@ status_t thread_set_real_time(thread_t *t)
 	if (!t)
 		return ERR_INVALID_ARGS;
 
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
 
 	THREAD_LOCK(state);
 #if PLATFORM_HAS_DYNAMIC_TIMER
@@ -263,10 +253,8 @@ static bool thread_is_real_time_or_idle(thread_t *t)
  */
 status_t thread_resume(thread_t *t)
 {
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-	ASSERT(t->state != THREAD_DEATH);
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(t->state != THREAD_DEATH);
 
 	bool resched = false;
 	bool ints_disabled = arch_ints_disabled();
@@ -299,9 +287,7 @@ status_t thread_detach_and_resume(thread_t *t)
 
 status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout)
 {
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
 
 	THREAD_LOCK(state);
 
@@ -320,12 +306,10 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout)
 		}
 	}
 
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-	ASSERT(t->state == THREAD_DEATH);
-	ASSERT(t->blocking_wait_queue == NULL);
-	ASSERT(!list_in_list(&t->queue_node));
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(t->state == THREAD_DEATH);
+	DEBUG_ASSERT(t->blocking_wait_queue == NULL);
+	DEBUG_ASSERT(!list_in_list(&t->queue_node));
 
 	/* save the return code */
 	if (retcode)
@@ -351,9 +335,7 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout)
 
 status_t thread_detach(thread_t *t)
 {
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
 
 	THREAD_LOCK(state);
 
@@ -384,11 +366,9 @@ void thread_exit(int retcode)
 {
 	thread_t *current_thread = get_current_thread();
 
-#if THREAD_CHECKS
-	ASSERT(current_thread->magic == THREAD_MAGIC);
-	ASSERT(current_thread->state == THREAD_RUNNING);
-	ASSERT(!thread_is_idle(current_thread));
-#endif
+	DEBUG_ASSERT(current_thread->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(current_thread->state == THREAD_RUNNING);
+	DEBUG_ASSERT(!thread_is_idle(current_thread));
 
 //	dprintf("thread_exit: current %p\n", current_thread);
 
@@ -475,19 +455,15 @@ void thread_resched(void)
 	thread_t *current_thread = get_current_thread();
 	uint cpu = arch_curr_cpu_num();
 
-#if THREAD_CHECKS
-	ASSERT(arch_ints_disabled());
-	ASSERT(spin_lock_held(&thread_lock));
-	ASSERT(current_thread->state != THREAD_RUNNING);
-#endif
+	DEBUG_ASSERT(arch_ints_disabled());
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
+	DEBUG_ASSERT(current_thread->state != THREAD_RUNNING);
 
 	THREAD_STATS_INC(reschedules);
 
 	newthread = get_top_thread(cpu);
 
-#if THREAD_CHECKS
-	ASSERT(newthread);
-#endif
+	DEBUG_ASSERT(newthread);
 
 	newthread->state = THREAD_RUNNING;
 
@@ -585,10 +561,8 @@ void thread_yield(void)
 {
 	thread_t *current_thread = get_current_thread();
 
-#if THREAD_CHECKS
-	ASSERT(current_thread->magic == THREAD_MAGIC);
-	ASSERT(current_thread->state == THREAD_RUNNING);
-#endif
+	DEBUG_ASSERT(current_thread->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(current_thread->state == THREAD_RUNNING);
 
 	THREAD_LOCK(state);
 
@@ -624,10 +598,8 @@ void thread_preempt(void)
 {
 	thread_t *current_thread = get_current_thread();
 
-#if THREAD_CHECKS
-	ASSERT(current_thread->magic == THREAD_MAGIC);
-	ASSERT(current_thread->state == THREAD_RUNNING);
-#endif
+	DEBUG_ASSERT(current_thread->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(current_thread->state == THREAD_RUNNING);
 
 #if THREAD_STATS
 	if (!thread_is_idle(current_thread))
@@ -663,14 +635,12 @@ void thread_preempt(void)
  */
 void thread_block(void)
 {
-#if THREAD_CHECKS
-	thread_t *current_thread = get_current_thread();
+	__UNUSED thread_t *current_thread = get_current_thread();
 
-	ASSERT(current_thread->magic == THREAD_MAGIC);
-	ASSERT(current_thread->state == THREAD_BLOCKED);
-	ASSERT(spin_lock_held(&thread_lock));
-	ASSERT(!thread_is_idle(current_thread));
-#endif
+	DEBUG_ASSERT(current_thread->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(current_thread->state == THREAD_BLOCKED);
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
+	DEBUG_ASSERT(!thread_is_idle(current_thread));
 
 	/* we are blocking on something. the blocking code should have already stuck us on a queue */
 	thread_resched();
@@ -678,12 +648,10 @@ void thread_block(void)
 
 void thread_unblock(thread_t *t, bool resched)
 {
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-	ASSERT(t->state == THREAD_BLOCKED);
-	ASSERT(spin_lock_held(&thread_lock));
-	ASSERT(!thread_is_idle(t));
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(t->state == THREAD_BLOCKED);
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
+	DEBUG_ASSERT(!thread_is_idle(t));
 
 	t->state = THREAD_READY;
 	insert_in_run_queue_head(t);
@@ -712,10 +680,8 @@ static enum handler_return thread_sleep_handler(timer_t *timer, lk_time_t now, v
 {
 	thread_t *t = (thread_t *)arg;
 
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-	ASSERT(t->state == THREAD_SLEEPING);
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(t->state == THREAD_SLEEPING);
 
 	THREAD_LOCK(state);
 
@@ -743,11 +709,9 @@ void thread_sleep(lk_time_t delay)
 
 	thread_t *current_thread = get_current_thread();
 
-#if THREAD_CHECKS
-	ASSERT(current_thread->magic == THREAD_MAGIC);
-	ASSERT(current_thread->state == THREAD_RUNNING);
-	ASSERT(!thread_is_idle(current_thread));
-#endif
+	DEBUG_ASSERT(current_thread->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(current_thread->state == THREAD_RUNNING);
+	DEBUG_ASSERT(!thread_is_idle(current_thread));
 
 	timer_initialize(&timer);
 
@@ -982,9 +946,7 @@ static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t 
 {
 	thread_t *thread = (thread_t *)arg;
 
-#if THREAD_CHECKS
-	ASSERT(thread->magic == THREAD_MAGIC);
-#endif
+	DEBUG_ASSERT(thread->magic == THREAD_MAGIC);
 
 	spin_lock(&thread_lock);
 
@@ -1022,12 +984,10 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout)
 
 	thread_t *current_thread = get_current_thread();
 
-#if THREAD_CHECKS
-	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
-	ASSERT(current_thread->state == THREAD_RUNNING);
-	ASSERT(arch_ints_disabled());
-	ASSERT(spin_lock_held(&thread_lock));
-#endif
+	DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
+	DEBUG_ASSERT(current_thread->state == THREAD_RUNNING);
+	DEBUG_ASSERT(arch_ints_disabled());
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
 
 	if (timeout == 0)
 		return ERR_TIMED_OUT;
@@ -1075,18 +1035,14 @@ int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t wait_queue
 
 	thread_t *current_thread = get_current_thread();
 
-#if THREAD_CHECKS
-	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
-	ASSERT(arch_ints_disabled());
-	ASSERT(spin_lock_held(&thread_lock));
-#endif
+	DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
+	DEBUG_ASSERT(arch_ints_disabled());
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
 
 	t = list_remove_head_type(&wait->list, thread_t, queue_node);
 	if (t) {
 		wait->count--;
-#if THREAD_CHECKS
-		ASSERT(t->state == THREAD_BLOCKED);
-#endif
+		DEBUG_ASSERT(t->state == THREAD_BLOCKED);
 		t->state = THREAD_READY;
 		t->wait_queue_block_ret = wait_queue_error;
 		t->blocking_wait_queue = NULL;
@@ -1133,11 +1089,9 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
 
 	thread_t *current_thread = get_current_thread();
 
-#if THREAD_CHECKS
-	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
-	ASSERT(arch_ints_disabled());
-	ASSERT(spin_lock_held(&thread_lock));
-#endif
+	DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
+	DEBUG_ASSERT(arch_ints_disabled());
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
 
 	if (reschedule && wait->count > 0) {
 		/* if we're instructed to reschedule, stick the current thread on the head
@@ -1151,9 +1105,7 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
 	/* pop all the threads off the wait queue into the run queue */
 	while ((t = list_remove_head_type(&wait->list, thread_t, queue_node))) {
 		wait->count--;
-#if THREAD_CHECKS
-		ASSERT(t->state == THREAD_BLOCKED);
-#endif
+		DEBUG_ASSERT(t->state == THREAD_BLOCKED);
 		t->state = THREAD_READY;
 		t->wait_queue_block_ret = wait_queue_error;
 		t->blocking_wait_queue = NULL;
@@ -1162,9 +1114,7 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
 		ret++;
 	}
 
-#if THREAD_CHECKS
-	ASSERT(wait->count == 0);
-#endif
+	DEBUG_ASSERT(wait->count == 0);
 
 	if (ret > 0) {
 		mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
@@ -1183,11 +1133,10 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
  */
 void wait_queue_destroy(wait_queue_t *wait, bool reschedule)
 {
-#if THREAD_CHECKS
-	ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
-	ASSERT(arch_ints_disabled());
-	ASSERT(spin_lock_held(&thread_lock));
-#endif
+	DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
+	DEBUG_ASSERT(arch_ints_disabled());
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
+
 	wait_queue_wake_all(wait, reschedule, ERR_OBJECT_DESTROYED);
 	wait->magic = 0;
 }
@@ -1206,20 +1155,16 @@ void wait_queue_destroy(wait_queue_t *wait, bool reschedule)
  */
 status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error)
 {
-#if THREAD_CHECKS
-	ASSERT(t->magic == THREAD_MAGIC);
-	ASSERT(arch_ints_disabled());
-	ASSERT(spin_lock_held(&thread_lock));
-#endif
+	DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+	DEBUG_ASSERT(arch_ints_disabled());
+	DEBUG_ASSERT(spin_lock_held(&thread_lock));
 
 	if (t->state != THREAD_BLOCKED)
 		return ERR_NOT_BLOCKED;
 
-#if THREAD_CHECKS
-	ASSERT(t->blocking_wait_queue != NULL);
-	ASSERT(t->blocking_wait_queue->magic == WAIT_QUEUE_MAGIC);
-	ASSERT(list_in_list(&t->queue_node));
-#endif
+	DEBUG_ASSERT(t->blocking_wait_queue != NULL);
+	DEBUG_ASSERT(t->blocking_wait_queue->magic == WAIT_QUEUE_MAGIC);
+	DEBUG_ASSERT(list_in_list(&t->queue_node));
 
 	list_delete(&t->queue_node);
 	t->blocking_wait_queue->count--;
