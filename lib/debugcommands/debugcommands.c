@@ -49,6 +49,7 @@ static int cmd_copy_mem(int argc, const cmd_args *argv);
 static int cmd_chain(int argc, const cmd_args *argv);
 static int cmd_sleep(int argc, const cmd_args *argv);
 static int cmd_crash(int argc, const cmd_args *argv);
+static int cmd_stackstomp(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
@@ -63,6 +64,7 @@ STATIC_COMMAND_MASKED("fh", "fill range of memory by halfword", &cmd_fill_mem, C
 STATIC_COMMAND_MASKED("fb", "fill range of memory by byte", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_MASKED("mc", "copy a range of memory", &cmd_copy_mem, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND("crash", "intentionally crash", &cmd_crash)
+STATIC_COMMAND("stackstomp", "intentionally overrun the stack", &cmd_stackstomp)
 #endif
 #if LK_DEBUGLEVEL > 1
 STATIC_COMMAND("mtest", "simple memory test", &cmd_memtest)
@@ -328,14 +330,28 @@ static int cmd_sleep(int argc, const cmd_args *argv)
 
 static int cmd_crash(int argc, const cmd_args *argv)
 {
-	/* should crash */
-	volatile uint32_t *ptr = (void *)1;
-	*ptr = 1;
+    /* should crash */
+    volatile uint32_t *ptr = (void *)1;
+    *ptr = 1;
 
-	/* if it didn't, panic the system */
-	panic("crash");
+    /* if it didn't, panic the system */
+    panic("crash");
 
-	return 0;
+    return 0;
 }
 
-// vim: set noexpandtab:
+static int cmd_stackstomp(int argc, const cmd_args *argv)
+{
+    for (size_t i = 0; i < DEFAULT_STACK_SIZE * 2; i++) {
+        uint8_t death[i];
+
+        memset(death, 0xaa, i);
+        thread_sleep(1);
+    }
+
+    printf("survived.\n");
+
+    return 0;
+}
+
+
