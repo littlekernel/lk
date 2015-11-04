@@ -26,8 +26,9 @@
 #include <sys/types.h>
 #include <list.h>
 
-#define BIO_FLAGS_NONE                    (0 << 0)
-#define BIO_FLAG_REQUIRES_CACHE_ALIGNMENT (1 << 0)
+#define BIO_FLAGS_NONE                (0 << 0)
+#define BIO_FLAG_CACHE_ALIGNED_READS  (1 << 0)
+#define BIO_FLAG_CACHE_ALIGNED_WRITES (1 << 1)
 
 typedef uint32_t bnum_t;
 
@@ -55,7 +56,7 @@ typedef struct bdev {
 
     uint8_t erase_byte;
 
-    uint8_t flags;
+    uint32_t flags;
 
     /* function pointers */
     ssize_t (*read)(struct bdev *, void *buf, off_t offset, size_t len);
