@@ -28,6 +28,8 @@
 #include <arch/x86.h>
 #include <arch/x86/mmu.h>
 #include <arch/x86/descriptor.h>
+#include <arch/fpu.h>
+#include <arch/fpu.h>
 #include <platform.h>
 #include <sys/types.h>
 #include <string.h>
@@ -54,6 +56,9 @@ void arch_early_init(void)
 
 void arch_init(void)
 {
+#ifdef ENABLE_FPU
+	fpu_init();
+#endif
 }
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)

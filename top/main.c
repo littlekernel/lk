@@ -104,8 +104,8 @@ void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
             lk_boot_args[0], lk_boot_args[1], lk_boot_args[2], lk_boot_args[3]);
 
     // bring up the kernel heap
-    dprintf(SPEW, "initializing heap\n");
     lk_primary_cpu_init_level(LK_INIT_LEVEL_TARGET_EARLY, LK_INIT_LEVEL_HEAP - 1);
+    dprintf(SPEW, "initializing heap\n");
     heap_init();
 
     // deal with any static constructors

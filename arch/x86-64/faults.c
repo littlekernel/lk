@@ -29,7 +29,7 @@
 static void dump_fault_frame(struct x86_iframe *frame)
 {
 
-	dprintf(CRITICAL, " CS:     %04x EIP: %08x EFL: %08x CR2: %08x\n",
+	dprintf(CRITICAL, " CS:     %04llx EIP: %08llx EFL: %08llx CR2: %08llx\n",
 	        frame->cs, frame->rip, frame->rflags, x86_get_cr2());
 /*	dprintf(CRITICAL, "EAX: %08x ECX: %08x EDX: %08x EBX: %08x\n",
 	        frame->rax, frame->rcx, frame->rdx, frame->rbx);

@@ -62,6 +62,8 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*);
 static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
 static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
 
+status_t qspi_enable_linear(void);
+
 status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi);
 
 static uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address);
@@ -381,7 +383,20 @@ finish:
 
 static int spiflash_ioctl(struct bdev* device, int request, void* argp)
 {
-    return ERR_NOT_IMPLEMENTED;
+    int ret = ERR_NOT_SUPPORTED;
+
+    switch (request) {
+        case BIO_IOCTL_GET_MEM_MAP:
+            /* put the device into linear mode */
+            ret = qspi_enable_linear();
+            if (ret != NO_ERROR)
+                break;
+            if (argp)
+                *(void **)argp = (void*)QSPI_BASE;
+            break;
+    }
+
+    return ret;
 }
 
 static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
@@ -547,14 +562,20 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     switch (instruction) {
         case SUBSECTOR_ERASE_CMD: {
             num_erased_bytes = N25QXXA_SUBSECTOR_SIZE;
-            erase_cmd.AddressMode = get_address_size(block_addr);
+            erase_cmd.AddressSize = get_address_size(block_addr);
             erase_cmd.Instruction = get_specialized_instruction(instruction, block_addr);
+            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            erase_cmd.Address     = block_addr;
+
             break;
         }
         case SECTOR_ERASE_CMD: {
             num_erased_bytes = N25QXXA_SECTOR_SIZE;
-            erase_cmd.AddressMode = get_address_size(block_addr);
+            erase_cmd.AddressSize = get_address_size(block_addr);
             erase_cmd.Instruction = get_specialized_instruction(instruction, block_addr);
+            erase_cmd.AddressMode = QSPI_ADDRESS_1_LINE;
+            erase_cmd.Address     = block_addr;
+
             break;
         }
         case BULK_ERASE_CMD: {
@@ -570,8 +591,6 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     }
 
     erase_cmd.InstructionMode   = QSPI_INSTRUCTION_1_LINE;
-    erase_cmd.AddressSize       = QSPI_ADDRESS_24_BITS;
-    erase_cmd.Address           = block_addr;
     erase_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
     erase_cmd.DataMode          = QSPI_DATA_NONE;
     erase_cmd.DummyCycles       = 0;
@@ -756,4 +775,40 @@ static uint32_t get_specialized_instruction(uint32_t instruction, uint32_t addre
     }
 
     return instruction;
+}
+
+status_t qspi_enable_linear(void)
+{
+    status_t result = NO_ERROR;
+
+    mutex_acquire(&spiflash_mutex);
+
+    result = qspi_dummy_cycles_cfg_unsafe(&qspi_handle);
+
+    QSPI_CommandTypeDef s_command = {
+        .InstructionMode   = QSPI_INSTRUCTION_1_LINE,
+        .AddressSize       = QSPI_ADDRESS_24_BITS,
+        .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
+        .DdrMode           = QSPI_DDR_MODE_DISABLE,
+        .DdrHoldHalfCycle  = QSPI_DDR_HHC_ANALOG_DELAY,
+        .AddressMode       = QSPI_ADDRESS_1_LINE,
+        .Instruction       = QUAD_OUT_FAST_READ_CMD,
+        .DataMode          = QSPI_DATA_4_LINES,
+        .DummyCycles       = 10,
+        .SIOOMode          = QSPI_SIOO_INST_EVERY_CMD
+    };
+
+    QSPI_MemoryMappedTypeDef linear_mode_cfg = {
+        .TimeOutActivation = QSPI_TIMEOUT_COUNTER_DISABLE,
+    };
+
+    HAL_StatusTypeDef hal_result = HAL_QSPI_MemoryMapped(&qspi_handle, &s_command, &linear_mode_cfg);
+    if (hal_result != HAL_OK) {
+        result = hal_error_to_status(hal_result);
+        goto err;
+    }
+
+err:
+    mutex_release(&spiflash_mutex);
+    return result;
 }

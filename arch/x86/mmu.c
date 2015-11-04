@@ -324,7 +324,7 @@ addr_t *x86_create_new_cr3(void)
 	/* Copying the kernel mapping as-is */
 	memcpy(new_table, kernel_table, PAGE_SIZE);
 
-	return (addr_t)new_table;
+	return (addr_t *)new_table;
 }
 
 /**

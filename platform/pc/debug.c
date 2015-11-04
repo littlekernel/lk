@@ -89,6 +89,8 @@ int uart_getc(char *c, bool wait)
 
 void platform_dputc(char c)
 {
+	if (c == '\n')
+		platform_dputc('\r');
 #if WITH_CGA_CONSOLE
 	cputc(c);
 #else
