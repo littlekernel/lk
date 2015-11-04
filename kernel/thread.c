@@ -50,6 +50,9 @@
 struct thread_stats thread_stats[SMP_MAX_CPUS];
 #endif
 
+#define STACK_DEBUG_BYTE (0x99)
+#define STACK_DEBUG_WORD (0x99999999)
+
 /* global thread list */
 static struct list_node thread_list;
 
@@ -161,6 +164,10 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 
 	/* create the stack */
 	if (!stack) {
+#if THREAD_STACK_BOUNDS_CHECK
+		stack_size += THREAD_STACK_PADDING_SIZE;
+		flags |= THREAD_FLAG_DEBUG_STACK_BOUNDS_CHECK;
+#endif
 		t->stack = malloc(stack_size);
 		if (!t->stack) {
 			if (flags & THREAD_FLAG_FREE_STRUCT)
@@ -168,6 +175,9 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 			return NULL;
 		}
 		flags |= THREAD_FLAG_FREE_STACK;
+#if THREAD_STACK_BOUNDS_CHECK
+		memset(t->stack, STACK_DEBUG_BYTE, THREAD_STACK_PADDING_SIZE);
+#endif
 	} else {
 		t->stack = stack;
 	}
@@ -387,8 +397,12 @@ void thread_exit(int retcode)
 		current_thread->magic = 0;
 
 		/* free its stack and the thread structure itself */
-		if (current_thread->flags & THREAD_FLAG_FREE_STACK && current_thread->stack)
+		if (current_thread->flags & THREAD_FLAG_FREE_STACK && current_thread->stack) {
 			heap_delayed_free(current_thread->stack);
+
+			/* make sure its not going to get a bounds check performed on the half-freed stack */
+			current_thread->flags &= ~THREAD_FLAG_DEBUG_STACK_BOUNDS_CHECK;
+		}
 
 		if (current_thread->flags & THREAD_FLAG_FREE_STRUCT)
 			heap_delayed_free(current_thread);
@@ -540,6 +554,23 @@ void thread_resched(void)
 		cpu, oldthread, oldthread->name, oldthread->priority,
 		oldthread->flags, newthread, newthread->name,
 		newthread->priority, newthread->flags);
+#endif
+
+#if THREAD_STACK_BOUNDS_CHECK
+	/* check that the old thread has not blown its stack just before pushing its context */
+	if (oldthread->flags & THREAD_FLAG_DEBUG_STACK_BOUNDS_CHECK) {
+		STATIC_ASSERT((THREAD_STACK_PADDING_SIZE % sizeof(uint32_t)) == 0);
+		uint32_t *s = (uint32_t *)oldthread->stack;
+		for (size_t i = 0; i < THREAD_STACK_PADDING_SIZE / sizeof(uint32_t); i++) {
+			if (unlikely(s[i] != STACK_DEBUG_WORD)) {
+				/* NOTE: will probably blow the stack harder here, but hopefully enough
+				 * state exists to at least get some sort of debugging done.
+				 */
+				panic("stack overrun at %p: thread %p (%s), stack %p\n", &s[i],
+						oldthread, oldthread->name, oldthread->stack);
+			}
+		}
+	}
 #endif
 
 #ifdef WITH_LIB_UTHREAD
@@ -925,6 +956,11 @@ void dump_all_threads(void)
 
 	THREAD_LOCK(state);
 	list_for_every_entry(&thread_list, t, thread_t, thread_list_node) {
+		if (t->magic != THREAD_MAGIC) {
+			dprintf(INFO, "bad magic on thread struct %p, aborting.\n", t);
+			hexdump(t, sizeof(thread_t));
+			break;
+		}
 		dump_thread(t);
 	}
 	THREAD_UNLOCK(state);

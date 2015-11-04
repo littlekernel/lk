@@ -38,6 +38,10 @@ __BEGIN_CDECLS;
 /* debug-enable runtime checks */
 #if LK_DEBUGLEVEL > 1
 #define THREAD_STATS 1
+#define THREAD_STACK_BOUNDS_CHECK 1
+#ifndef THREAD_STACK_PADDING_SIZE
+#define THREAD_STACK_PADDING_SIZE 256
+#endif
 #endif
 
 enum thread_state {
@@ -62,11 +66,12 @@ enum thread_tls_list {
 	MAX_TLS_ENTRY
 };
 
-#define THREAD_FLAG_DETACHED 0x1
-#define THREAD_FLAG_FREE_STACK 0x2
-#define THREAD_FLAG_FREE_STRUCT 0x4
-#define THREAD_FLAG_REAL_TIME 0x8
-#define THREAD_FLAG_IDLE 0x10
+#define THREAD_FLAG_DETACHED                  (1<<0)
+#define THREAD_FLAG_FREE_STACK                (1<<1)
+#define THREAD_FLAG_FREE_STRUCT               (1<<2)
+#define THREAD_FLAG_REAL_TIME                 (1<<3)
+#define THREAD_FLAG_IDLE                      (1<<4)
+#define THREAD_FLAG_DEBUG_STACK_BOUNDS_CHECK  (1<<5)
 
 #define THREAD_MAGIC 'thrd'
 
