@@ -256,8 +256,8 @@ static ssize_t spiflash_bdev_read_block(struct bdev* device, void* buf,
     LTRACEF("device %p, buf %p, block %u, count %u\n",
             device, buf, block, count);
 
-    if (!IS_ALIGNED((uint)buf, CACHE_LINE)) {
-        DEBUG_ASSERT(IS_ALIGNED((uint)buf, CACHE_LINE));
+    if (!IS_ALIGNED((size_t)buf, CACHE_LINE)) {
+        DEBUG_ASSERT(IS_ALIGNED((size_t)buf, CACHE_LINE));
         return ERR_INVALID_ARGS;
     }
 
@@ -668,12 +668,14 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_Comma
 // Send data and wait for interrupt.
 static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_CommandTypeDef* s_command, uint8_t* buf)
 {
+    // Make sure the front and back of the buffer are cache aligned.
+    DEBUG_ASSERT(IS_ALIGNED((size_t)buf, CACHE_LINE));
+    DEBUG_ASSERT(IS_ALIGNED(((size_t)buf) + s_command->NbData, CACHE_LINE));
+
+    arch_invalidate_cache_range((addr_t)buf, s_command->NbData);
+
     HAL_StatusTypeDef result = HAL_QSPI_Receive_DMA(qspi_handle, buf);
     event_wait(&rx_event);
-
-    // DMA controller has modified this memory. Any caches that reference it are
-    // now invalid.
-    arch_invalidate_cache_range((addr_t)buf, s_command->NbData);
 
     return result;
 }
