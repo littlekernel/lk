@@ -59,8 +59,12 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
     if ((offset % dev->block_size) != 0) {
         /* read in the block */
         err = bio_read_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if (err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* copy what we need */
         size_t block_offset = offset % dev->block_size;
@@ -85,9 +89,13 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
         while (len >= dev->block_size) {
             /* do the middle reads */
             err = bio_read_block(dev, temp, block, 1);
-            memcpy(buf, temp, dev->block_size);
-            if (err < 0)
+            if (err < 0) {
                 goto err;
+            } else if (err != dev->block_size) {
+                err = ERR_IO;
+                goto err;
+            }
+            memcpy(buf, temp, dev->block_size);
 
             buf += dev->block_size;
             len -= dev->block_size;
@@ -97,8 +105,12 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
     } else {
         uint32_t num_blocks = divpow2(len, dev->block_shift);
         err = bio_read_block(dev, buf, block, num_blocks);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if (err != dev->block_size * num_blocks) {
+            err = ERR_IO;
+            goto err;
+        }
         buf += err;
         len -= err;
         bytes_read += err;
@@ -110,8 +122,12 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
     if (len > 0) {
         /* read the block */
         err = bio_read_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if (err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* copy the partial block from our temp buffer */
         memcpy(buf, temp, len);
@@ -140,8 +156,12 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
     if ((offset % dev->block_size) != 0) {
         /* read in the block */
         err = bio_read_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if (err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* copy what we need */
         size_t block_offset = offset % dev->block_size;
@@ -150,8 +170,12 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
 
         /* write it back out */
         err = bio_write_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if (err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* increment our buffers */
         buf += tocopy;
@@ -173,8 +197,12 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
             /* do the middle reads */
             memcpy(temp, buf, dev->block_size);
             err = bio_write_block(dev, temp, block, 1);
-            if (err < 0)
+            if (err < 0) {
                 goto err;
+            } else if (err != dev->block_size) {
+                err = ERR_IO;
+                goto err;
+            }
 
             buf += dev->block_size;
             len -= dev->block_size;
@@ -184,8 +212,12 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
     } else {
         uint32_t block_count = divpow2(len, dev->block_shift);
         err = bio_write_block(dev, buf, block, block_count);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if (err != dev->block_size * block_count) {
+            err = ERR_IO;
+            goto err;
+        }
 
         DEBUG_ASSERT((size_t)err == (block_count * dev->block_size));
 
@@ -200,16 +232,24 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
     if (len > 0) {
         /* read the block */
         err = bio_read_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if (err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         /* copy the partial block from our temp buffer */
         memcpy(temp, buf, len);
 
         /* write it back out */
         err = bio_write_block(dev, temp, block, 1);
-        if (err < 0)
+        if (err < 0) {
             goto err;
+        } else if (err != dev->block_size) {
+            err = ERR_IO;
+            goto err;
+        }
 
         bytes_written += len;
     }
