@@ -57,7 +57,7 @@ static inline void *HEAP_MEMALIGN(size_t boundary, size_t s) { return miniheap_a
 static inline void *HEAP_CALLOC(size_t n, size_t s) {
     size_t realsize = n * s;
 
-    void *ptr = miniheap_alloc(n * s, 0);
+    void *ptr = miniheap_alloc(realsize, 0);
     if (likely(ptr))
         memset(ptr, 0, realsize);
     return ptr;
@@ -72,6 +72,28 @@ static inline void HEAP_INIT(void) {
 #define HEAP_TRIM miniheap_trim
 
 /* end miniheap implementation */
+#elif WITH_LIB_HEAP_CMPCTMALLOC
+/* cmpctmalloc implementation */
+#include <lib/cmpctmalloc.h>
+
+#define HEAP_MEMALIGN(boundary, s) cmpct_memalign(s, boundary)
+#define HEAP_MALLOC cmpct_alloc
+#define HEAP_REALLOC cmpct_realloc
+#define HEAP_FREE cmpct_free
+#define HEAP_INIT cmpct_init
+#define HEAP_DUMP cmpct_dump
+#define HEAP_TRIM cmpct_trim
+static inline void *HEAP_CALLOC(size_t n, size_t s)
+{
+    size_t realsize = n * s;
+
+    void *ptr = cmpct_alloc(realsize);
+    if (likely(ptr))
+        memset(ptr, 0, realsize);
+    return ptr;
+}
+
+/* end cmpctmalloc implementation */
 #elif WITH_LIB_HEAP_DLMALLOC
 /* dlmalloc implementation */
 #include <lib/dlmalloc.h>
@@ -86,7 +108,7 @@ static inline void HEAP_INIT(void) {}
 static inline void HEAP_DUMP(void) {
     struct mallinfo minfo = dlmallinfo();
 
-    printf("\tmallinfo:\n");
+    printf("\tmallinfo (dlmalloc):\n");
     printf("\t\tarena space 0x%zx\n", minfo.arena);
     printf("\t\tfree chunks 0x%zx\n", minfo.ordblks);
     printf("\t\tspace in mapped regions 0x%zx\n", minfo.hblkhd);
@@ -244,26 +266,28 @@ static void heap_dump(void)
     spin_unlock_irqrestore(&delayed_free_lock, state);
 }
 
-#if 0
 static void heap_test(void)
 {
+#if WITH_LIB_HEAP_CMPCTMALLOC
+	cmpct_test();
+#else
     void *ptr[16];
 
-    ptr[0] = heap_alloc(8, 0);
-    ptr[1] = heap_alloc(32, 0);
-    ptr[2] = heap_alloc(7, 0);
-    ptr[3] = heap_alloc(0, 0);
-    ptr[4] = heap_alloc(98713, 0);
-    ptr[5] = heap_alloc(16, 0);
+    ptr[0] = HEAP_MALLOC(8);
+    ptr[1] = HEAP_MALLOC(32);
+    ptr[2] = HEAP_MALLOC(7);
+    ptr[3] = HEAP_MALLOC(0);
+    ptr[4] = HEAP_MALLOC(98713);
+    ptr[5] = HEAP_MALLOC(16);
 
-    heap_free(ptr[5]);
-    heap_free(ptr[1]);
-    heap_free(ptr[3]);
-    heap_free(ptr[0]);
-    heap_free(ptr[4]);
-    heap_free(ptr[2]);
+    HEAP_FREE(ptr[5]);
+    HEAP_FREE(ptr[1]);
+    HEAP_FREE(ptr[3]);
+    HEAP_FREE(ptr[0]);
+    HEAP_FREE(ptr[4]);
+    HEAP_FREE(ptr[2]);
 
-    heap_dump();
+    HEAP_DUMP();
 
     int i;
     for (i=0; i < 16; i++)
@@ -278,11 +302,11 @@ static void heap_test(void)
 //      printf("index 0x%x\n", index);
         if (ptr[index]) {
 //          printf("freeing ptr[0x%x] = %p\n", index, ptr[index]);
-            heap_free(ptr[index]);
+            HEAP_FREE(ptr[index]);
             ptr[index] = 0;
         }
         unsigned int align = 1 << ((unsigned int)rand() % 8);
-        ptr[index] = heap_alloc((unsigned int)rand() % 32768, align);
+        ptr[index] = HEAP_MEMALIGN(align, (unsigned int)rand() % 32768);
 //      printf("ptr[0x%x] = %p, align 0x%x\n", index, ptr[index], align);
 
         DEBUG_ASSERT(((addr_t)ptr[index] % align) == 0);
@@ -291,12 +315,12 @@ static void heap_test(void)
 
     for (i=0; i < 16; i++) {
         if (ptr[i])
-            heap_free(ptr[i]);
+            HEAP_FREE(ptr[i]);
     }
 
-    heap_dump();
-}
+    HEAP_DUMP();
 #endif
+}
 
 
 #if LK_DEBUGLEVEL > 1
@@ -328,6 +352,8 @@ usage:
 
     if (strcmp(argv[1].str, "info") == 0) {
         heap_dump();
+    } else if (strcmp(argv[1].str, "test") == 0) {
+        heap_test();
     } else if (strcmp(argv[1].str, "trace") == 0) {
         heap_trace = !heap_trace;
         printf("heap trace is now %s\n", heap_trace ? "on" : "off");
