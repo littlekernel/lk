@@ -316,7 +316,12 @@ static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block
 
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
-    return virtio_block_read_write(dev->dev, buf, (off_t)block * dev->bdev.block_size, count * dev->bdev.block_size, false);
+    if (virtio_block_read_write(dev->dev, buf, (off_t)block * dev->bdev.block_size,
+                                count * dev->bdev.block_size, false) == 0) {
+        return count * dev->bdev.block_size;
+    } else {
+        return ERR_IO;
+    }
 }
 
 static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count)
@@ -325,6 +330,11 @@ static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_
 
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
-    return virtio_block_read_write(dev->dev, (void *)buf, (off_t)block * dev->bdev.block_size, count * dev->bdev.block_size, true);
+    if (virtio_block_read_write(dev->dev, (void *)buf, (off_t)block * dev->bdev.block_size,
+                                count * dev->bdev.block_size, true) == 0) {
+        return count * dev->bdev.block_size;
+    } else {
+        return ERR_IO;
+    }
 }
 
