@@ -154,7 +154,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features)
     snprintf(buf, sizeof(buf), "virtio%u", found_index++);
     bio_initialize_bdev(&bdev->bdev, buf,
                         config->blk_size, config->capacity,
-                        0, NULL);
+                        0, NULL, BIO_FLAGS_NONE);
 
     /* override our block device hooks */
     bdev->bdev.read_block = &virtio_bdev_read_block;

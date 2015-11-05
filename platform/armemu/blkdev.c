@@ -78,7 +78,8 @@ void platform_init_blkdev(void)
 	if (get_blkdev_len() == 0)
 		return;
 
-	bio_initialize_bdev(&dev, "block0", 512, get_blkdev_len() / 512, 0, NULL);
+	bio_initialize_bdev(&dev, "block0", 512, get_blkdev_len() / 512, 0, NULL,
+						BIO_FLAGS_NONE);
 
 	// fill in hooks
 	dev.read_block = &read_block;

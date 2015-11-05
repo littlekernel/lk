@@ -89,7 +89,7 @@ void stm32_flash_init(void)
     /* construct the block device */
     bio_initialize_bdev(&flash.bdev, "flash0",
                         PROGRAM_SIZE, flash.size / PROGRAM_SIZE,
-                        3, flash.geometry);
+                        3, flash.geometry, BIO_FLAGS_NONE);
 
     /* we erase to 0xff */
     flash.bdev.erase_byte = 0xff;
