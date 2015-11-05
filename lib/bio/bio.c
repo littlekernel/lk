@@ -61,7 +61,7 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
         err = bio_read_block(dev, temp, block, 1);
         if (err < 0) {
             goto err;
-        } else if (err != dev->block_size) {
+        } else if ((size_t)err != dev->block_size) {
             err = ERR_IO;
             goto err;
         }
@@ -91,7 +91,7 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
             err = bio_read_block(dev, temp, block, 1);
             if (err < 0) {
                 goto err;
-            } else if (err != dev->block_size) {
+            } else if ((size_t)err != dev->block_size) {
                 err = ERR_IO;
                 goto err;
             }
@@ -107,7 +107,7 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
         err = bio_read_block(dev, buf, block, num_blocks);
         if (err < 0) {
             goto err;
-        } else if (err != dev->block_size * num_blocks) {
+        } else if ((size_t)err != dev->block_size * num_blocks) {
             err = ERR_IO;
             goto err;
         }
@@ -124,7 +124,7 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
         err = bio_read_block(dev, temp, block, 1);
         if (err < 0) {
             goto err;
-        } else if (err != dev->block_size) {
+        } else if ((size_t)err != dev->block_size) {
             err = ERR_IO;
             goto err;
         }
@@ -158,7 +158,7 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
         err = bio_read_block(dev, temp, block, 1);
         if (err < 0) {
             goto err;
-        } else if (err != dev->block_size) {
+        } else if ((size_t)err != dev->block_size) {
             err = ERR_IO;
             goto err;
         }
@@ -172,7 +172,7 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
         err = bio_write_block(dev, temp, block, 1);
         if (err < 0) {
             goto err;
-        } else if (err != dev->block_size) {
+        } else if ((size_t)err != dev->block_size) {
             err = ERR_IO;
             goto err;
         }
@@ -199,7 +199,7 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
             err = bio_write_block(dev, temp, block, 1);
             if (err < 0) {
                 goto err;
-            } else if (err != dev->block_size) {
+            } else if ((size_t)err != dev->block_size) {
                 err = ERR_IO;
                 goto err;
             }
@@ -214,7 +214,7 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
         err = bio_write_block(dev, buf, block, block_count);
         if (err < 0) {
             goto err;
-        } else if (err != dev->block_size * block_count) {
+        } else if ((size_t)err != dev->block_size * block_count) {
             err = ERR_IO;
             goto err;
         }
@@ -234,7 +234,7 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
         err = bio_read_block(dev, temp, block, 1);
         if (err < 0) {
             goto err;
-        } else if (err != dev->block_size) {
+        } else if ((size_t)err != dev->block_size) {
             err = ERR_IO;
             goto err;
         }
@@ -246,7 +246,7 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
         err = bio_write_block(dev, temp, block, 1);
         if (err < 0) {
             goto err;
-        } else if (err != dev->block_size) {
+        } else if ((size_t)err != dev->block_size) {
             err = ERR_IO;
             goto err;
         }
