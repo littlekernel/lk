@@ -370,8 +370,12 @@ static inline uint32_t x86_get_address_width(void)
 		:"=a" (rv)
 		:"a" (X86_CPUID_ADDR_WIDTH));
 
-	/* Extracting bit 15:8 from eax register */
-	return ((rv >> 8) & 0x0ff);
+	/*
+	 Extracting bit 15:0 from eax register
+	 Bits 07-00: #Physical Address Bits
+	 Bits 15-08: #Linear Address Bits
+	*/
+	return (rv & 0x0000ffff);
 }
 
 static inline uint64_t check_smep_avail(void)

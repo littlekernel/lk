@@ -37,27 +37,58 @@
 extern map_addr_t g_CR3;
 
 /* Address width */
-extern uint32_t g_addr_width;
+extern uint8_t g_vaddr_width;
+extern uint8_t g_paddr_width;
+
 
 /**
- * @brief  check if the address is valid
+ * @brief  check if the virtual address is aligned and canonical
  *
  */
-static bool x86_mmu_check_map_addr(addr_t address)
+static bool x86_mmu_check_vaddr(vaddr_t vaddr)
 {
-	uint64_t addr = (uint64_t)address;
+	uint64_t addr = (uint64_t)vaddr;
+	uint64_t max_vaddr_lohalf,
+	         min_vaddr_hihalf;
 
 	/* Check to see if the address is PAGE aligned */
 	if(!IS_ALIGNED(addr, PAGE_SIZE))
 		return false;
 
+	/* get max address in lower-half canonical addr space */
+	/* e.g. if width is 48, then 0x00007FFF_FFFFFFFF */
+	max_vaddr_lohalf = ((uint64_t)1ull << (g_vaddr_width - 1)) - 1;
+
+	/* get min address in higher-half canonical addr space */
+	/* e.g. if width is 48, then 0xFFFF8000_00000000*/
+	min_vaddr_hihalf = ~ max_vaddr_lohalf;
+
 	/* Check to see if the address in a canonical address */
-	if(addr >> (g_addr_width - 1))
-		if((addr >> (g_addr_width - 1)) ^ ((1ul << (64 - (g_addr_width - 1))) - 1))
-			return false;
+	if((addr > max_vaddr_lohalf) && (addr < min_vaddr_hihalf))
+		return false;
 
 	return true;
 }
+
+
+/**
+ * @brief  check if the physical address is valid and aligned
+ *
+ */
+static bool x86_mmu_check_paddr(paddr_t paddr)
+{
+	uint64_t addr = (uint64_t)paddr;
+	uint64_t max_paddr;
+
+	/* Check to see if the address is PAGE aligned */
+	if(!IS_ALIGNED(addr, PAGE_SIZE))
+		return false;
+
+	max_paddr = ((uint64_t)1ull << g_paddr_width) - 1;
+
+	return addr <= max_paddr;
+}
+
 
 static inline uint64_t get_pml4_entry_from_pml4_table(vaddr_t vaddr, addr_t pml4_addr)
 {
@@ -244,8 +275,8 @@ status_t x86_mmu_check_mapping(addr_t pml4, paddr_t paddr,
 
 	DEBUG_ASSERT(pml4);
 	if((!ret_level) || (!last_valid_entry) || (!ret_flags) ||
-		(!x86_mmu_check_map_addr(vaddr)) ||
-		(!x86_mmu_check_map_addr(paddr))) {
+		(!x86_mmu_check_vaddr(vaddr)) ||
+		(!x86_mmu_check_paddr(paddr))) {
 		return ERR_INVALID_ARGS;
 	}
 
@@ -383,7 +414,7 @@ status_t x86_mmu_add_mapping(addr_t pml4, paddr_t paddr,
 	status_t ret = NO_ERROR;
 
 	DEBUG_ASSERT(pml4);
-	if((!x86_mmu_check_map_addr(vaddr)) || (!x86_mmu_check_map_addr(paddr)) )
+	if((!x86_mmu_check_vaddr(vaddr)) || (!x86_mmu_check_paddr(paddr)) )
 		return ERR_INVALID_ARGS;
 
 	pml4e = get_pml4_entry_from_pml4_table(vaddr, pml4);
@@ -525,7 +556,7 @@ status_t x86_mmu_unmap(addr_t pml4, vaddr_t vaddr, uint count)
 	vaddr_t next_aligned_v_addr;
 
 	DEBUG_ASSERT(pml4);
-	if(!(x86_mmu_check_map_addr(vaddr)))
+	if(!(x86_mmu_check_vaddr(vaddr)))
 		return ERR_INVALID_ARGS;
 
 	if (count == 0)
@@ -544,7 +575,7 @@ int arch_mmu_unmap(vaddr_t vaddr, uint count)
 {
 	addr_t current_cr3_val;
 
-	if(!(x86_mmu_check_map_addr(vaddr)))
+	if(!(x86_mmu_check_vaddr(vaddr)))
 		return ERR_INVALID_ARGS;
 
 	if (count == 0)
@@ -626,7 +657,7 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 	addr_t current_cr3_val;
 	struct map_range range;
 
-	if((!x86_mmu_check_map_addr(paddr)) || (!x86_mmu_check_map_addr(vaddr)))
+	if((!x86_mmu_check_paddr(paddr)) || (!x86_mmu_check_vaddr(vaddr)))
 		return ERR_INVALID_ARGS;
 
 	if (count == 0)
