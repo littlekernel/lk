@@ -61,8 +61,9 @@ extern uint64_t __bss_end;
 extern void pci_init(void);
 extern void arch_mmu_init(void);
 
-/* Address width */
-uint32_t g_addr_width;
+/* Address width including virtual/physical address*/
+uint8_t g_vaddr_width = 0;
+uint8_t g_paddr_width = 0;
 
 /* Kernel global CR3 */
 map_addr_t g_CR3 = 0;
@@ -72,9 +73,14 @@ void platform_init_mmu_mappings(void)
 	struct map_range range;
 	arch_flags_t access;
 	map_addr_t *init_table, phy_init_table;
+	uint32_t   addr_width;
 
 	/* getting the address width from CPUID instr */
-	g_addr_width = x86_get_address_width();
+	/* Bits 07-00: Physical Address width info */
+	/* Bits 15-08: Linear Address width info */
+	addr_width    = x86_get_address_width();
+	g_paddr_width = (uint8_t)(addr_width & 0xFF);
+	g_vaddr_width = (uint8_t)((addr_width >> 8) & 0xFF);
 
 	/* Creating the First page in the page table hirerachy */
 	/* Can be pml4, pdpt or pdt based on x86_64, x86 PAE mode & x86 non-PAE mode respectively */
