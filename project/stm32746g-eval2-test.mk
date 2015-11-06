@@ -4,3 +4,5 @@ include project/virtual/minip.mk
 
 MODULES += \
     app/loader
+
+LK_HEAP_IMPLEMENTATION=cmpctmalloc
