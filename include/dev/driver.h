@@ -69,7 +69,7 @@ struct driver {
 };
 
 #define DRIVER_EXPORT(type_, ops_) \
-	struct driver concat(__driver_, type_) \
+	const struct driver concat(__driver_, type_) \
 		__ALIGNED(sizeof(void *)) __SECTION(".drivers") = { \
 		.type = #type_, \
 		.ops = ops_, \
