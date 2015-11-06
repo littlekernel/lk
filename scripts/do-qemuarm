@@ -9,7 +9,7 @@ function HELP {
     echo "-t a virtio tap network device"
     echo "-d a virtio display"
     echo "-6 64bit arm"
-    echo "-M <memory in MB>"
+    echo "-m <memory in MB>"
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1

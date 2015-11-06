@@ -118,8 +118,8 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 		"pushq %%r14			\n\t"
 		"pushq %%r15			\n\t"
 
-		"movq %%rsp,%0			\n\t"
-		"movq %1,%%rsp			\n\t"
+		"movq %%rsp,%[old]			\n\t"
+		"movq %[new],%%rsp			\n\t"
 
 		"popq %%r15			\n\t"
 		"popq %%r14			\n\t"
@@ -140,9 +140,9 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 
 		"ret				\n\t"
 		"1:				\n\t"
-		: "=g" (oldthread->arch.rsp)
-		: "g" (newthread->arch.rsp)
+		: [old] "=m" (oldthread->arch.rsp)
+		: [new] "g" (newthread->arch.rsp)
 	);
 }
 
-/* vim: noexpandtab */
+/* vim: noexpandtab: */

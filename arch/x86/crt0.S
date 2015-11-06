@@ -45,6 +45,7 @@ _start:
 
 .align 4
 
+.type multiboot_header,STT_OBJECT
 multiboot_header:
 	/* magic */
 	.int MULTIBOOT_HEADER_MAGIC
@@ -59,7 +60,7 @@ multiboot_header:
 	/* load_addr */
 	.int _start
 	/* load_end_addr */
-	.int __bss_start
+	.int __data_end
 	/* bss_end_addr */
 	.int __bss_end
 	/* entry_addr */
