@@ -239,7 +239,7 @@ static int find_nonempty_bucket(int index)
     return -1;
 }
 
-bool is_start_of_os_allocation(header_t *header)
+static bool is_start_of_os_allocation(header_t *header)
 {
     uintptr_t address = (uintptr_t)header;
     if ((address & (PAGE_SIZE - 1)) != 0) return false;
@@ -268,12 +268,12 @@ static void create_free_area(void *address, void *left, size_t size, free_t **bu
 #endif
 }
 
-bool is_end_of_os_allocation(char *address)
+static bool is_end_of_os_allocation(char *address)
 {
     return ((header_t *)address)->size == 0;
 }
 
-void free_to_os(header_t *header, size_t size)
+static void free_to_os(header_t *header, size_t size)
 {
     DEBUG_ASSERT(size == ROUNDUP(size, PAGE_SIZE));
     page_free(header, size >> PAGE_SIZE_SHIFT);
@@ -320,13 +320,13 @@ static void *create_allocation_header(
     return standalone + 1;
 }
 
-void FixLeftPointer(header_t *right, header_t *new_left)
+static void FixLeftPointer(header_t *right, header_t *new_left)
 {
     int tag = (uintptr_t)right->left & 1;
     right->left = (header_t *)(((uintptr_t)new_left & ~1) | tag);
 }
 
-void cmpct_test_buckets(void)
+static void cmpct_test_buckets(void)
 {
     size_t rounded;
     unsigned bucket;
@@ -379,7 +379,7 @@ void cmpct_test_buckets(void)
     }
 }
 
-void cmpct_test_get_back_newly_freed_helper(size_t size)
+static void cmpct_test_get_back_newly_freed_helper(size_t size)
 {
     void *allocated = cmpct_alloc(size);
     if (allocated == NULL) return;
@@ -404,7 +404,7 @@ void cmpct_test_get_back_newly_freed_helper(size_t size)
     cmpct_free(allocated3);
 }
 
-void cmpct_test_get_back_newly_freed(void)
+static void cmpct_test_get_back_newly_freed(void)
 {
     size_t increment = 16;
     for (size_t i = 128; i <= 0x8000000; i *= 2, increment *= 2) {
@@ -419,7 +419,7 @@ void cmpct_test_get_back_newly_freed(void)
     }
 }
 
-void cmpct_test_return_to_os(void)
+static void cmpct_test_return_to_os(void)
 {
     cmpct_trim();
     size_t remaining = theheap.remaining;
@@ -498,7 +498,7 @@ void cmpct_test(void)
     cmpct_dump();
 }
 
-void *large_alloc(size_t size)
+static void *large_alloc(size_t size)
 {
 #ifdef CMPCT_DEBUG
     size_t requested_size = size;
