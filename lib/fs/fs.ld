@@ -1,5 +1,5 @@
 SECTIONS {
-    .fs_impls : ALIGN(8) {
+    .fs_impls : {
         __fs_impl_start = .;
         KEEP (*(.fs_impl))
         __fs_impl_end = .;

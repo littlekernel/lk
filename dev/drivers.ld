@@ -1,5 +1,5 @@
 SECTIONS {
-    .drivers : ALIGN(8) {
+    .drivers : {
         __drivers = .;
         KEEP (*(.drivers))
         __drivers_end = .;

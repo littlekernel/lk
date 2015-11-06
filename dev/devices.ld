@@ -1,5 +1,5 @@
 SECTIONS {
-    .devices : ALIGN(8) {
+    .devices : {
         __devices = .;
         KEEP (*(.devices))
         __devices_end = .;

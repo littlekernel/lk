@@ -1,5 +1,5 @@
 SECTIONS {
-    .commands : ALIGN(8) {
+    .commands : {
         __commands_start = .;
         KEEP (*(.commands))
         __commands_end = .;
