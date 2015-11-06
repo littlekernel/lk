@@ -54,9 +54,16 @@ SECTIONS
         *(.rodata .rodata.* .gnu.linkonce.r.*)
     }
 
+    /*
+     * extra linker scripts tend to insert sections just after .rodata,
+     * so we want to make sure this symbol comes after anything inserted above,
+     * but not aligned to the next section necessarily.
+     */
+    .dummy_post_rodata : {
+        __rodata_end = .;
+    }
 
     .data : ALIGN(4096) {
-        __rodata_end = .;
         /* writable data  */
         __data_start_rom = .;
         /* in one segment binaries, the rom data address is on top of the ram data address */
@@ -77,11 +84,17 @@ SECTIONS
     .got : { *(.got.plt) *(.got) }
     .dynamic : { *(.dynamic) }
 
+    /*
+     * extra linker scripts tend to insert sections just after .data,
+     * so we want to make sure this symbol comes after anything inserted above,
+     * but not aligned to the next section necessarily.
+     */
+    .dummy_post_data : {
+        __data_end = .;
+    }
 
     /* unintialized data (in same segment as writable data) */
     .bss : ALIGN(8) {
-        __data_end = .;
-
         KEEP(*(.bss.prebss.*))
         . = ALIGN(8);
         __bss_start = .;

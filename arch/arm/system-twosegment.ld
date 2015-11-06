@@ -58,7 +58,7 @@ SECTIONS
      * needed because extra linker scripts tend to insert sections
      * just after .rodata
      */
-    .bogus : {
+    .dummy_post_rodata : {
         /* end of rodata, start of data area */
         __rodata_end = . ;
         __data_start_rom = .;
@@ -70,7 +70,7 @@ SECTIONS
     . = %MEMBASE%;
 
     /* start .data segment, force the physical address to be AT() __data_start_rom */
-    .data : AT ( ADDR (.bogus) + SIZEOF (.bogus) ) ALIGN(4) {
+    .data : AT ( ADDR (.dummy_post_rodata) + SIZEOF (.dummy_post_rodata) ) ALIGN(4) {
         __data_start = .;
         *(.data .data.* .gnu.linkonce.d.*)
     }
@@ -92,10 +92,17 @@ SECTIONS
     .got : { *(.got.plt) *(.got) }
     .dynamic : { *(.dynamic) }
 
+    /*
+     * extra linker scripts tend to insert sections just after .data,
+     * so we want to make sure this symbol comes after anything inserted above,
+     * but not aligned to the next section necessarily.
+     */
+    .dummy_post_data : {
+        __data_end = .;
+    }
+
     /* unintialized data (in same segment as writable data) */
     .bss : ALIGN(4) {
-        __data_end = .;
-
         KEEP(*(.bss.prebss.*))
         . = ALIGN(4);
         __bss_start = .;

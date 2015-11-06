@@ -92,6 +92,10 @@ $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
 ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
 
+GLOBAL_LDFLAGS += -z max-page-size=4096
+
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)
+
 # make sure some bits were set up
 MEMVARS_SET := 0
 ifneq ($(MEMBASE),)
@@ -103,8 +107,6 @@ endif
 ifeq ($(MEMVARS_SET),0)
 $(error missing MEMBASE or MEMSIZE variable, please set in target rules.mk)
 endif
-
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \

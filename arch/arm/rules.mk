@@ -273,6 +273,15 @@ ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
 
 GLOBAL_COMPILEFLAGS += $(THUMBINTERWORK)
 
+# set the max page size to something more reasonables (defaults to 64K or above)
+GLOBAL_LDFLAGS += -z max-page-size=4096
+
+# find the direct path to libgcc.a for our particular multilib variant
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
+$(info LIBGCC = $(LIBGCC))
+
+$(info GLOBAL_COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS))
+
 # make sure some bits were set up
 MEMVARS_SET := 0
 ifneq ($(MEMBASE),)
@@ -288,11 +297,6 @@ endif
 GLOBAL_DEFINES += \
 	MEMBASE=$(MEMBASE) \
 	MEMSIZE=$(MEMSIZE)
-
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
-$(info LIBGCC = $(LIBGCC))
-
-$(info GLOBAL_COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS))
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
