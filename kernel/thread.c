@@ -53,6 +53,8 @@ struct thread_stats thread_stats[SMP_MAX_CPUS];
 #define STACK_DEBUG_BYTE (0x99)
 #define STACK_DEBUG_WORD (0x99999999)
 
+#define DEBUG_THREAD_CONTEXT_SWITCH 0
+
 /* global thread list */
 static struct list_node thread_list;
 
@@ -526,7 +528,7 @@ void thread_resched(void)
 		if (!thread_is_real_time_or_idle(oldthread)) {
 			/* if we're switching from a non real time to a real time, cancel
 			 * the preemption timer. */
-#ifdef DEBUG_THREAD_CONTEXT_SWITCH
+#if DEBUG_THREAD_CONTEXT_SWITCH
 			dprintf(ALWAYS, "arch_context_switch: stop preempt, cpu %d, old %p (%s), new %p (%s)\n",
 				cpu, oldthread, oldthread->name, newthread, newthread->name);
 #endif
@@ -535,7 +537,7 @@ void thread_resched(void)
 	} else if (thread_is_real_time_or_idle(oldthread)) {
 		/* if we're switching from a real time (or idle thread) to a regular one,
 		 * set up a periodic timer to run our preemption tick. */
-#ifdef DEBUG_THREAD_CONTEXT_SWITCH
+#if DEBUG_THREAD_CONTEXT_SWITCH
 		dprintf(ALWAYS, "arch_context_switch: start preempt, cpu %d, old %p (%s), new %p (%s)\n",
 			cpu, oldthread, oldthread->name, newthread, newthread->name);
 #endif
@@ -549,7 +551,7 @@ void thread_resched(void)
 	/* do the switch */
 	set_current_thread(newthread);
 
-#ifdef DEBUG_THREAD_CONTEXT_SWITCH
+#if DEBUG_THREAD_CONTEXT_SWITCH
 	dprintf(ALWAYS, "arch_context_switch: cpu %d, old %p (%s, pri %d, flags 0x%x), new %p (%s, pri %d, flags 0x%x)\n",
 		cpu, oldthread, oldthread->name, oldthread->priority,
 		oldthread->flags, newthread, newthread->name,
