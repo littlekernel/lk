@@ -39,6 +39,16 @@ __BEGIN_CDECLS
 
 void arch_mmu_init(void);
 
+struct x86_context_switch_frame {
+	uint64_t r15, r14, r13, r12;
+	uint64_t rbp;
+	uint64_t rbx;
+	uint64_t rflags;
+	uint64_t rip;
+};
+
+void x86_64_context_switch(vaddr_t *oldsp, vaddr_t newsp);
+
 struct x86_iframe {
 	uint64_t pivot;                                     // stack switch pivot
 	uint64_t rdi, rsi, rbp, rbx, rdx, rcx, rax;    	    // pushed by common handler

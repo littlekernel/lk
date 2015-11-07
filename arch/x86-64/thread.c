@@ -32,13 +32,6 @@
 #include <arch/x86/descriptor.h>
 #include <arch/fpu.h>
 
-struct context_switch_frame {
-	uint64_t rdi, rsi, rdx, rcx, rax, rbx, rbp;
-	uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
-	uint64_t rflags;
-	uint64_t rip;
-};
-
 /* we're uniprocessor at this point for x86-64, so store a global pointer to the current thread */
 struct thread *_current_thread;
 
@@ -61,13 +54,13 @@ void arch_thread_initialize(thread_t *t)
 	/* create a default stack frame on the stack */
 	vaddr_t stack_top = (vaddr_t)t->stack + t->stack_size;
 
-	/* make sure the top of the stack is 8 byte aligned 
+	/* make sure the top of the stack is 8 byte aligned
               for EABI compliance */
 
 	stack_top = ROUNDDOWN(stack_top, 8);
 
-	struct context_switch_frame *frame = 
-                        (struct context_switch_frame *)(stack_top);
+	struct x86_context_switch_frame *frame =
+		(struct x86_context_switch_frame *)(stack_top);
 	frame--;
 
 	/* fill it in */
@@ -98,51 +91,7 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 	fpu_context_switch(oldthread, newthread);
 #endif
 
-	/* save the old context and restore the new */
-	__asm__ __volatile__ (
-		"pushq $1f			\n\t"
-		"pushf				\n\t"
-		"pushq %%rdi			\n\t"
-		"pushq %%rsi			\n\t"
-		"pushq %%rdx			\n\t"
-		"pushq %%rcx			\n\t"
-		"pushq %%rax			\n\t"
-		"pushq %%rbx			\n\t"
-		"pushq %%rbp			\n\t"
-		"pushq %%r8			\n\t"
-		"pushq %%r9			\n\t"
-		"pushq %%r10			\n\t"
-		"pushq %%r11			\n\t"
-		"pushq %%r12			\n\t"
-		"pushq %%r13			\n\t"
-		"pushq %%r14			\n\t"
-		"pushq %%r15			\n\t"
-
-		"movq %%rsp,%[old]			\n\t"
-		"movq %[new],%%rsp			\n\t"
-
-		"popq %%r15			\n\t"
-		"popq %%r14			\n\t"
-		"popq %%r13			\n\t"
-		"popq %%r12			\n\t"
-		"popq %%r11			\n\t"
-		"popq %%r10			\n\t"
-		"popq %%r9			\n\t"
-		"popq %%r8			\n\t"
-		"popq %%rbp			\n\t"
-		"popq %%rbx			\n\t"
-		"popq %%rax			\n\t"
-		"popq %%rcx			\n\t"
-		"popq %%rdx			\n\t"
-		"popq %%rsi			\n\t"
-		"popq %%rdi			\n\t"
-		"popf				\n\t"
-
-		"ret				\n\t"
-		"1:				\n\t"
-		: [old] "=m" (oldthread->arch.rsp)
-		: [new] "g" (newthread->arch.rsp)
-	);
+	x86_64_context_switch(&oldthread->arch.rsp, newthread->arch.rsp);
 }
 
-/* vim: noexpandtab: */
+/* vim: set noexpandtab: */
