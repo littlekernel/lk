@@ -58,119 +58,119 @@ static uint16_t divisor;
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
-	t_callback = callback;
-	callback_arg = arg;
+    t_callback = callback;
+    callback_arg = arg;
 
-	next_trigger_delta = (uint64_t) interval << 32;
-	next_trigger_time = timer_current_time + next_trigger_delta;
+    next_trigger_delta = (uint64_t) interval << 32;
+    next_trigger_time = timer_current_time + next_trigger_delta;
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
 
 lk_time_t current_time(void)
 {
-	lk_time_t time;
+    lk_time_t time;
 
-	// XXX slight race
-	time = (lk_time_t) (timer_current_time >> 32);
+    // XXX slight race
+    time = (lk_time_t) (timer_current_time >> 32);
 
-	return time;
+    return time;
 }
 
 lk_bigtime_t current_time_hires(void)
 {
-	lk_bigtime_t time;
+    lk_bigtime_t time;
 
-	// XXX slight race
-	time = (lk_bigtime_t) ((timer_current_time >> 22) * 1000) >> 10;
+    // XXX slight race
+    time = (lk_bigtime_t) ((timer_current_time >> 22) * 1000) >> 10;
 
-	return time;
+    return time;
 }
 static enum handler_return os_timer_tick(void *arg)
 {
-	uint64_t delta;
+    uint64_t delta;
 
-	timer_current_time += timer_delta_time;
+    timer_current_time += timer_delta_time;
 
-	lk_time_t time = current_time();
-	//lk_bigtime_t btime = current_time_hires();
-	//printf_xy(71, 0, WHITE, "%08u", (uint32_t) time);
-	//printf_xy(63, 1, WHITE, "%016llu", (uint64_t) btime);
+    lk_time_t time = current_time();
+    //lk_bigtime_t btime = current_time_hires();
+    //printf_xy(71, 0, WHITE, "%08u", (uint32_t) time);
+    //printf_xy(63, 1, WHITE, "%016llu", (uint64_t) btime);
 
-	if (t_callback && timer_current_time >= next_trigger_time) {
-		delta = timer_current_time - next_trigger_time;
-		next_trigger_time = timer_current_time + next_trigger_delta - delta;
+    if (t_callback && timer_current_time >= next_trigger_time) {
+        delta = timer_current_time - next_trigger_time;
+        next_trigger_time = timer_current_time + next_trigger_delta - delta;
 
-		return t_callback(callback_arg, time);
-	} else {
-		return INT_NO_RESCHEDULE;
-	}
+        return t_callback(callback_arg, time);
+    } else {
+        return INT_NO_RESCHEDULE;
+    }
 }
 
 static void set_pit_frequency(uint32_t frequency)
 {
-	uint32_t count, remainder;
+    uint32_t count, remainder;
 
-	/* figure out the correct divisor for the desired frequency */
-	if (frequency <= 18) {
-		count = 0xffff;
-	} else if (frequency >= INTERNAL_FREQ) {
-		count = 1;
-	} else {
-		count = INTERNAL_FREQ_3X / frequency;
-		remainder = INTERNAL_FREQ_3X % frequency;
+    /* figure out the correct divisor for the desired frequency */
+    if (frequency <= 18) {
+        count = 0xffff;
+    } else if (frequency >= INTERNAL_FREQ) {
+        count = 1;
+    } else {
+        count = INTERNAL_FREQ_3X / frequency;
+        remainder = INTERNAL_FREQ_3X % frequency;
 
-		if (remainder >= INTERNAL_FREQ_3X / 2) {
-			count += 1;
-		}
+        if (remainder >= INTERNAL_FREQ_3X / 2) {
+            count += 1;
+        }
 
-		count /= 3;
-		remainder = count % 3;
+        count /= 3;
+        remainder = count % 3;
 
-		if (remainder >= 1) {
-			count += 1;
-		}
-	}
+        if (remainder >= 1) {
+            count += 1;
+        }
+    }
 
-	divisor = count & 0xffff;
+    divisor = count & 0xffff;
 
-	/*
-	 * funky math that i don't feel like explaining. essentially 32.32 fixed
-	 * point representation of the configured timer delta.
-	 */
-	timer_delta_time = (3685982306ULL * count) >> 10;
+    /*
+     * funky math that i don't feel like explaining. essentially 32.32 fixed
+     * point representation of the configured timer delta.
+     */
+    timer_delta_time = (3685982306ULL * count) >> 10;
 
-	//dprintf(DEBUG, "set_pit_frequency: dt=%016llx\n", timer_delta_time);
-	//dprintf(DEBUG, "set_pit_frequency: divisor=%04x\n", divisor);
+    //dprintf(DEBUG, "set_pit_frequency: dt=%016llx\n", timer_delta_time);
+    //dprintf(DEBUG, "set_pit_frequency: divisor=%04x\n", divisor);
 
-	/*
-	 * setup the Programmable Interval Timer
-	 * timer 0, mode 2, binary counter, LSB followed by MSB
-	 */
-	outp(I8253_CONTROL_REG, 0x34);
-	outp(I8253_DATA_REG, divisor & 0xff); // LSB
-	outp(I8253_DATA_REG, divisor >> 8); // MSB
+    /*
+     * setup the Programmable Interval Timer
+     * timer 0, mode 2, binary counter, LSB followed by MSB
+     */
+    outp(I8253_CONTROL_REG, 0x34);
+    outp(I8253_DATA_REG, divisor & 0xff); // LSB
+    outp(I8253_DATA_REG, divisor >> 8); // MSB
 }
 
 void platform_init_timer(void)
 {
 
-	timer_current_time = 0;
-	ticks_per_ms = INTERNAL_FREQ/1000; 
-	set_pit_frequency(1000); // ~1ms granularity
-	register_int_handler(INT_PIT, &os_timer_tick, NULL);
-	unmask_interrupt(INT_PIT);
+    timer_current_time = 0;
+    ticks_per_ms = INTERNAL_FREQ/1000;
+    set_pit_frequency(1000); // ~1ms granularity
+    register_int_handler(INT_PIT, &os_timer_tick, NULL);
+    unmask_interrupt(INT_PIT);
 }
 
 void platform_halt_timers(void)
 {
-	mask_interrupt(INT_PIT);
+    mask_interrupt(INT_PIT);
 }
 
 
 
 status_t platform_set_oneshot_timer(platform_timer_callback callback,
-		                    void *arg, lk_time_t interval)
+                                    void *arg, lk_time_t interval)
 {
 
     uint32_t count;
@@ -181,17 +181,17 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback,
     t_callback = callback;
     callback_arg = arg;
 
-    
+
     if (interval > MAX_TIMER_INTERVAL)
-	    interval = MAX_TIMER_INTERVAL;
+        interval = MAX_TIMER_INTERVAL;
     if (interval < 1) interval = 1;
 
     count = ticks_per_ms * interval;
-    
+
     divisor = count & 0xffff;
     timer_delta_time = (3685982306ULL * count) >> 10;
-/* Program PIT in teh software strobe configuration, to send one pulse
- * after the count reach 0 */
+    /* Program PIT in teh software strobe configuration, to send one pulse
+     * after the count reach 0 */
     outp(I8253_CONTROL_REG, 0x38);
     outp(I8253_DATA_REG, divisor & 0xff); // LSB
     outp(I8253_DATA_REG, divisor >> 8); // MSB
@@ -205,7 +205,7 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback,
 
 void platform_stop_timer(void)
 {
-/* Enable interrupt mode that will stop the decreasing counter of the PIT */ 
+    /* Enable interrupt mode that will stop the decreasing counter of the PIT */
     outp(I8253_CONTROL_REG, 0x30);
     return;
 }
