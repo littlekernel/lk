@@ -31,6 +31,8 @@ MODULE_SRCS += \
 
 endif
 
+LK_HEAP_IMPLEMENTATION ?= dlmalloc
+
 LINKER_SCRIPT += \
 	$(BUILDDIR)/kernel.ld
 
