@@ -29,22 +29,22 @@
 /*
  * System Selectors
  */
-#define NULL_SELECTOR		0x00
+#define NULL_SELECTOR       0x00
 
 /********* x86 selectors *********/
-#define CODE_SELECTOR		0x08
-#define DATA_SELECTOR		0x10
-#define USER_CODE_32_SELECTOR  	0x18
-#define USER_DATA_32_SELECTOR	0x20
-#define NULL_2_SELECTOR 	0x28
+#define CODE_SELECTOR       0x08
+#define DATA_SELECTOR       0x10
+#define USER_CODE_32_SELECTOR   0x18
+#define USER_DATA_32_SELECTOR   0x20
+#define NULL_2_SELECTOR     0x28
 
 /******* x86-64 selectors ********/
-#define CODE_64_SELECTOR	0x30
-#define STACK_64_SELECTOR	0x38
-#define USER_CODE_64_SELECTOR  	0x50
-#define USER_DATA_64_SELECTOR	0x58
+#define CODE_64_SELECTOR    0x30
+#define STACK_64_SELECTOR   0x38
+#define USER_CODE_64_SELECTOR   0x50
+#define USER_DATA_64_SELECTOR   0x58
 
-#define TSS_SELECTOR		0x60	
+#define TSS_SELECTOR        0x60
 /*
  * Descriptor Types
  */

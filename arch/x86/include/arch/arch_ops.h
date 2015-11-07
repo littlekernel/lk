@@ -33,27 +33,27 @@
 /* override of some routines */
 static inline void arch_enable_ints(void)
 {
-	CF;
-	__asm__ volatile("sti");
+    CF;
+    __asm__ volatile("sti");
 }
 
 static inline void arch_disable_ints(void)
 {
-	__asm__ volatile("cli");
-	CF;
+    __asm__ volatile("cli");
+    CF;
 }
 
 static inline bool arch_ints_disabled(void)
 {
-	unsigned int state;
+    unsigned int state;
 
-	__asm__ volatile(
-	   "pushfl;"
-	   "popl %%eax"
-	   : "=a" (state)
-	   :: "memory");
+    __asm__ volatile(
+        "pushfl;"
+        "popl %%eax"
+        : "=a" (state)
+        :: "memory");
 
-	return !(state & (1<<9));
+    return !(state & (1<<9));
 }
 
 int _atomic_and(volatile int *ptr, int val);
@@ -62,26 +62,26 @@ int _atomic_cmpxchg(volatile int *ptr, int oldval, int newval);
 
 static inline int atomic_add(volatile int *ptr, int val)
 {
-	__asm__ volatile(
-		"lock xaddl %[val], %[ptr];"
-		: [val]"=a" (val)
-		: "a" (val), [ptr]"m" (*ptr)
-		: "memory"
-	);
+    __asm__ volatile(
+        "lock xaddl %[val], %[ptr];"
+        : [val]"=a" (val)
+        : "a" (val), [ptr]"m" (*ptr)
+        : "memory"
+    );
 
-	return val;
+    return val;
 }
 
 static inline int atomic_swap(volatile int *ptr, int val)
 {
-	__asm__ volatile(
-		"xchgl %[val], %[ptr];"
-		: [val]"=a" (val)
-		: "a" (val), [ptr]"m" (*ptr)
-		: "memory"
-	);
+    __asm__ volatile(
+        "xchgl %[val], %[ptr];"
+        : [val]"=a" (val)
+        : "a" (val), [ptr]"m" (*ptr)
+        : "memory"
+    );
 
-	return val;
+    return val;
 }
 
 
@@ -91,10 +91,10 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) { re
 
 static inline uint32_t arch_cycle_count(void)
 {
-	uint32_t timestamp;
-	rdtscl(timestamp);
+    uint32_t timestamp;
+    rdtscl(timestamp);
 
-	return timestamp;
+    return timestamp;
 }
 
 /* use a global pointer to store the current_thread */

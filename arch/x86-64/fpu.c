@@ -39,9 +39,9 @@
 #define FPU_CAP(ecx, edx) ((edx & EDX_FPU) != 0)
 
 #define SSE_CAP(ecx, edx) ( \
-	((ecx & (ECX_SSE3 | ECX_SSSE3 | ECX_SSE4_1 | ECX_SSE4_2)) != 0) || \
-	((edx & (EDX_SSE | EDX_SSE2)) != 0) \
-	)
+    ((ecx & (ECX_SSE3 | ECX_SSSE3 | ECX_SSE4_1 | ECX_SSE4_2)) != 0) || \
+    ((edx & (EDX_SSE | EDX_SSE2)) != 0) \
+    )
 
 #define FXSAVE_CAP(ecx, edx) ((edx & EDX_FXSR) != 0)
 
@@ -50,96 +50,96 @@ static thread_t *fp_owner;
 
 static void get_cpu_cap(uint32_t *ecx, uint32_t *edx)
 {
-	uint32_t eax = 1;
+    uint32_t eax = 1;
 
-	__asm__ __volatile__
-		("cpuid" : "=c" (*ecx), "=d" (*edx) : "a" (eax));
+    __asm__ __volatile__
+    ("cpuid" : "=c" (*ecx), "=d" (*edx) : "a" (eax));
 }
 
 void fpu_init(void)
 {
-	uint32_t ecx = 0, edx = 0;
-	uint16_t fcw;
-	uint32_t mxcsr;
+    uint32_t ecx = 0, edx = 0;
+    uint16_t fcw;
+    uint32_t mxcsr;
 
 #ifdef ARCH_X86_64
-	uint64_t x;
+    uint64_t x;
 #else
-	uint32_t x;
+    uint32_t x;
 #endif
 
-	fp_supported = 0;
-	fp_owner = NULL;
+    fp_supported = 0;
+    fp_owner = NULL;
 
-	get_cpu_cap(&ecx, &edx);
+    get_cpu_cap(&ecx, &edx);
 
-	if (!FPU_CAP(ecx, edx) || !SSE_CAP(ecx, edx) || !FXSAVE_CAP(ecx, edx))
-		return;
+    if (!FPU_CAP(ecx, edx) || !SSE_CAP(ecx, edx) || !FXSAVE_CAP(ecx, edx))
+        return;
 
-	fp_supported = 1;
+    fp_supported = 1;
 
-	/* No x87 emul, monitor co-processor */
+    /* No x87 emul, monitor co-processor */
 
-	x = x86_get_cr0();
-	x &= ~X86_CR0_EM;
-	x |= X86_CR0_NE;
-	x |= X86_CR0_MP;
-	x86_set_cr0(x);
+    x = x86_get_cr0();
+    x &= ~X86_CR0_EM;
+    x |= X86_CR0_NE;
+    x |= X86_CR0_MP;
+    x86_set_cr0(x);
 
-	/* Init x87 and unmask all exceptions */
+    /* Init x87 and unmask all exceptions */
 
-	__asm__ __volatile__ ("finit");
-	__asm__ __volatile__("fstcw %0" : "=m" (fcw));
-	fcw &= 0xffc0;
-	__asm__ __volatile__("fldcw %0" : : "m" (fcw));
+    __asm__ __volatile__ ("finit");
+    __asm__ __volatile__("fstcw %0" : "=m" (fcw));
+    fcw &= 0xffc0;
+    __asm__ __volatile__("fldcw %0" : : "m" (fcw));
 
-	/* Init SSE and unmask all exceptions */
+    /* Init SSE and unmask all exceptions */
 
-	x = x86_get_cr4();
-	x |= X86_CR4_OSXMMEXPT;
-	x |= X86_CR4_OSFXSR;
-	x &= ~X86_CR4_OSXSAVE;
-	x86_set_cr4(x);
+    x = x86_get_cr4();
+    x |= X86_CR4_OSXMMEXPT;
+    x |= X86_CR4_OSFXSR;
+    x &= ~X86_CR4_OSXSAVE;
+    x86_set_cr4(x);
 
-	__asm__ __volatile__("stmxcsr %0" : "=m" (mxcsr));
-	mxcsr &= 0x0000003f;
-	__asm__ __volatile__("ldmxcsr %0" : : "m" (mxcsr));
+    __asm__ __volatile__("stmxcsr %0" : "=m" (mxcsr));
+    mxcsr &= 0x0000003f;
+    __asm__ __volatile__("ldmxcsr %0" : : "m" (mxcsr));
 
-	x86_set_cr0(x86_get_cr0() | X86_CR0_TS);
-	return;
+    x86_set_cr0(x86_get_cr0() | X86_CR0_TS);
+    return;
 }
 
 void fpu_context_switch(thread_t *old_thread, thread_t *new_thread)
 {
-	if (fp_supported == 0)
-		return;
+    if (fp_supported == 0)
+        return;
 
-	if (new_thread != fp_owner)
-		x86_set_cr0(x86_get_cr0() | X86_CR0_TS);
-	else
-		x86_set_cr0(x86_get_cr0() & ~X86_CR0_TS);
+    if (new_thread != fp_owner)
+        x86_set_cr0(x86_get_cr0() | X86_CR0_TS);
+    else
+        x86_set_cr0(x86_get_cr0() & ~X86_CR0_TS);
 
-	return;
+    return;
 }
 
 void fpu_dev_na_handler(void)
 {
-	thread_t *self;
+    thread_t *self;
 
-	x86_set_cr0(x86_get_cr0() & ~X86_CR0_TS);
+    x86_set_cr0(x86_get_cr0() & ~X86_CR0_TS);
 
-	if (fp_supported == 0)
-		return;
+    if (fp_supported == 0)
+        return;
 
-	self = get_current_thread();
+    self = get_current_thread();
 
-	if ((fp_owner != NULL) && (fp_owner != self)) {
-		__asm__ __volatile__("fxsave %0" : "=m" (*fp_owner->arch.fpu_states));
-		__asm__ __volatile__("fxrstor %0" : : "m" (*self->arch.fpu_states));
-	}
+    if ((fp_owner != NULL) && (fp_owner != self)) {
+        __asm__ __volatile__("fxsave %0" : "=m" (*fp_owner->arch.fpu_states));
+        __asm__ __volatile__("fxrstor %0" : : "m" (*self->arch.fpu_states));
+    }
 
-	fp_owner = self;
-	return;
+    fp_owner = self;
+    return;
 }
 
 /* End of file */

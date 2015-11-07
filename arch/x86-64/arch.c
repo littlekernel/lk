@@ -36,23 +36,23 @@ static tss_t system_tss;
 
 void arch_early_init(void)
 {
-	/* enable caches here for now */
-	clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
+    /* enable caches here for now */
+    clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
 
-	memset(&system_tss, 0, sizeof(tss_t));
+    memset(&system_tss, 0, sizeof(tss_t));
 
-	set_global_desc(TSS_SELECTOR, &system_tss, sizeof(tss_t), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
-	x86_ltr(TSS_SELECTOR);
+    set_global_desc(TSS_SELECTOR, &system_tss, sizeof(tss_t), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
+    x86_ltr(TSS_SELECTOR);
 }
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
-	    PANIC_UNIMPLEMENTED;
+    PANIC_UNIMPLEMENTED;
 }
 
 void arch_init(void)
 {
 #ifdef ENABLE_FPU
-	fpu_init();
+    fpu_init();
 #endif
 }

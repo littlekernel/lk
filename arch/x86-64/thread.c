@@ -38,60 +38,58 @@ struct thread *_current_thread;
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void)
 {
-	int ret;
+    int ret;
 
-	/* release the thread lock that was implicitly held across the reschedule */
-	spin_unlock(&thread_lock);
-	arch_enable_ints();
+    /* release the thread lock that was implicitly held across the reschedule */
+    spin_unlock(&thread_lock);
+    arch_enable_ints();
 
-	ret = _current_thread->entry(_current_thread->arg);
+    ret = _current_thread->entry(_current_thread->arg);
 
-	thread_exit(ret);
+    thread_exit(ret);
 }
 
 void arch_thread_initialize(thread_t *t)
 {
-	/* create a default stack frame on the stack */
-	vaddr_t stack_top = (vaddr_t)t->stack + t->stack_size;
+    /* create a default stack frame on the stack */
+    vaddr_t stack_top = (vaddr_t)t->stack + t->stack_size;
 
-	/* make sure the top of the stack is 8 byte aligned
+    /* make sure the top of the stack is 8 byte aligned
               for EABI compliance */
 
-	stack_top = ROUNDDOWN(stack_top, 8);
+    stack_top = ROUNDDOWN(stack_top, 8);
 
-	struct x86_context_switch_frame *frame =
-		(struct x86_context_switch_frame *)(stack_top);
-	frame--;
+    struct x86_context_switch_frame *frame =
+        (struct x86_context_switch_frame *)(stack_top);
+    frame--;
 
-	/* fill it in */
-	memset(frame, 0, sizeof(*frame));
+    /* fill it in */
+    memset(frame, 0, sizeof(*frame));
 
-	frame->rip = (vaddr_t) &initial_thread_func;
-	frame->rflags = 0x3002; /* IF = 0, NT = 0, IOPL = 3 */
+    frame->rip = (vaddr_t) &initial_thread_func;
+    frame->rflags = 0x3002; /* IF = 0, NT = 0, IOPL = 3 */
 
-	/* set the stack pointer */
-	t->arch.rsp = (vaddr_t)frame;
+    /* set the stack pointer */
+    t->arch.rsp = (vaddr_t)frame;
 #ifdef ENABLE_FPU
-	memset(t->arch.fpu_buffer, 0, sizeof(t->arch.fpu_buffer));
-	t->arch.fpu_states = (vaddr_t *)ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
+    memset(t->arch.fpu_buffer, 0, sizeof(t->arch.fpu_buffer));
+    t->arch.fpu_states = (vaddr_t *)ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
 #endif
 }
 
 void arch_dump_thread(thread_t *t)
 {
-      if (t->state != THREAD_RUNNING) {
-              	dprintf(INFO, "\tarch: ");
-	        dprintf(INFO, "sp 0x%lx\n", t->arch.rsp);
- 	}
+    if (t->state != THREAD_RUNNING) {
+        dprintf(INFO, "\tarch: ");
+        dprintf(INFO, "sp 0x%lx\n", t->arch.rsp);
+    }
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
 #ifdef ENABLE_FPU
-	fpu_context_switch(oldthread, newthread);
+    fpu_context_switch(oldthread, newthread);
 #endif
 
-	x86_64_context_switch(&oldthread->arch.rsp, newthread->arch.rsp);
+    x86_64_context_switch(&oldthread->arch.rsp, newthread->arch.rsp);
 }
-
-/* vim: set noexpandtab: */

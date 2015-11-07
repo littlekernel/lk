@@ -29,14 +29,14 @@
 /* stubs */
 
 FUNCTION(arch_disable_cache)
-	ret
+    ret
 
 FUNCTION(arch_enable_cache)
-	ret
+    ret
 
 FUNCTION(arch_clean_cache_range)
-	ret
+    ret
 
 FUNCTION(arch_clean_invalidate_cache_range)
-	ret
+    ret
 
