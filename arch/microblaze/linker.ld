@@ -54,9 +54,16 @@ SECTIONS
         _SDATA2_START__ = .;
         *(.sdata2)
         _SDATA2_END__ = .;
-        __rodata_end = .;
     }
 
+    /*
+     * extra linker scripts tend to insert sections just after .rodata,
+     * so we want to make sure this symbol comes after anything inserted above,
+     * but not aligned to the next section necessarily.
+     */
+    .dummy_post_rodata : {
+        __rodata_end = .;
+    }
 
     .data : ALIGN(4) {
         /* writable data  */
@@ -77,10 +84,16 @@ SECTIONS
         _SDATA_START__ = .;
         *(.sdata)
         _SDATA_END__ = .;
-
-        __data_end = .;
     }
 
+    /*
+     * extra linker scripts tend to insert sections just after .data,
+     * so we want to make sure this symbol comes after anything inserted above,
+     * but not aligned to the next section necessarily.
+     */
+    .dummy_post_data : {
+        __data_end = .;
+    }
 
     /* unintialized data (in same segment as writable data) */
     .bss : ALIGN(4) {

@@ -60,9 +60,6 @@ void arch_thread_initialize(thread_t *t)
     /* some registers we want to clone for the new thread */
     register uint32_t r2 asm("r2");
     register uint32_t r13 asm("r13");
-    register uint32_t r14 asm("r14");
-    register uint32_t r16 asm("r16");
-    register uint32_t r17 asm("r17");
 
     /* zero out the thread context */
     memset(&t->arch.cs_frame, 0, sizeof(t->arch.cs_frame));
@@ -70,10 +67,10 @@ void arch_thread_initialize(thread_t *t)
     t->arch.cs_frame.r1 = (vaddr_t)t->stack + t->stack_size;
     t->arch.cs_frame.r2 = r2;
     t->arch.cs_frame.r13 = r13;
-    t->arch.cs_frame.r14 = r14;
-    t->arch.cs_frame.r15 = (vaddr_t)initial_thread_func - 8; // rtsd in context switch expects this
-    t->arch.cs_frame.r16 = r16;
-    t->arch.cs_frame.r17 = r17;
+    t->arch.cs_frame.r15 = (vaddr_t)&initial_thread_func;
+    // NOTE: appears to be bug in binutils 2.25 that forces us to -8 from the offset
+    // using this method if gc-sections is enabled.
+    *(volatile uint32_t *)&t->arch.cs_frame.r15 -= 8;
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)

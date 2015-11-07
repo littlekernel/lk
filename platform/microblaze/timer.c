@@ -101,7 +101,7 @@ enum handler_return timer_irq(void *arg)
 
 static void timer_init(uint level)
 {
-    TRACE;
+    LTRACE;
 
     register_int_handler(TIMER_IRQ, timer_irq, NULL);
     unmask_interrupt(TIMER_IRQ);

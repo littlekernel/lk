@@ -24,7 +24,7 @@ ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := microblaze-elf-
 endif
 
-WITH_LINKER_GC ?= 1
+WITH_LINKER_GC ?= 0
 
 LITTLE_ENDIAN ?= 0
 
@@ -40,6 +40,7 @@ $(info LIBGCC = $(LIBGCC))
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
 	then echo "$(2)"; else echo "$(3)"; fi ;)
 
+ARCH_COMPILEFLAGS :=
 ARCH_OPTFLAGS := -O2
 
 GLOBAL_LDFLAGS += -relax
