@@ -411,6 +411,17 @@ ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen)
     return read_bytes;
 }
 
+const char *trim_name(const char *_name)
+{
+    // chew up leading slashes
+    const char *name = &_name[0];
+    while (*name == '/')
+        name++;
+
+    return name;
+}
+
+
 void fs_normalize_path(char *path)
 {
     int outpos;

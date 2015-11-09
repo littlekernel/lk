@@ -3,5 +3,6 @@
 MODULES += \
     lib/fs \
     lib/fs/ext2 \
+    lib/fs/spifs \
     lib/fs/memfs
 
