@@ -56,7 +56,7 @@ void arch_early_init(void)
 
 void arch_init(void)
 {
-#ifdef ENABLE_FPU
+#ifdef X86_WITH_FPU
     fpu_init();
 #endif
 }
