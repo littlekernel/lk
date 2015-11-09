@@ -129,5 +129,3 @@ void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread)
     }
 }
 #endif
-
-/* vim: set ts=4 sw=4 expandtab: */

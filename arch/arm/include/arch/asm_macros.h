@@ -26,7 +26,7 @@
 .macro set_fault_handler, handler
 .Lfault_location\@:
 .pushsection .rodata.fault_handler_table
-    .long    .Lfault_location\@
-    .long    \handler
+.long    .Lfault_location\@
+.long    \handler
 .popsection
 .endm

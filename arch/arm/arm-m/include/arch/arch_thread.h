@@ -27,8 +27,8 @@
 #include <sys/types.h>
 
 struct arch_thread {
-	vaddr_t sp;
-	bool was_preempted;
+    vaddr_t sp;
+    bool was_preempted;
 };
 
 #endif

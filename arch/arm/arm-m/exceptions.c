@@ -30,136 +30,134 @@
 
 static void dump_frame(const struct arm_cm_exception_frame *frame)
 {
-	printf("exception frame at %p\n", frame);
-	printf("\tr0  0x%08x r1  0x%08x r2  0x%08x r3 0x%08x r4 0x%08x\n",
-	       frame->r0, frame->r1, frame->r2, frame->r3, frame->r4);
-	printf("\tr5  0x%08x r6  0x%08x r7  0x%08x r8 0x%08x r9 0x%08x\n",
-	       frame->r5, frame->r6, frame->r7, frame->r8, frame->r9);
-	printf("\tr10 0x%08x r11 0x%08x r12 0x%08x\n",
-	       frame->r10, frame->r11, frame->r12);
-	printf("\tlr  0x%08x pc  0x%08x psr 0x%08x\n",
-	       frame->lr, frame->pc, frame->psr);
+    printf("exception frame at %p\n", frame);
+    printf("\tr0  0x%08x r1  0x%08x r2  0x%08x r3 0x%08x r4 0x%08x\n",
+           frame->r0, frame->r1, frame->r2, frame->r3, frame->r4);
+    printf("\tr5  0x%08x r6  0x%08x r7  0x%08x r8 0x%08x r9 0x%08x\n",
+           frame->r5, frame->r6, frame->r7, frame->r8, frame->r9);
+    printf("\tr10 0x%08x r11 0x%08x r12 0x%08x\n",
+           frame->r10, frame->r11, frame->r12);
+    printf("\tlr  0x%08x pc  0x%08x psr 0x%08x\n",
+           frame->lr, frame->pc, frame->psr);
 }
 
 static void hardfault(struct arm_cm_exception_frame *frame)
 {
-	printf("hardfault: ");
-	dump_frame(frame);
+    printf("hardfault: ");
+    dump_frame(frame);
 
-	printf("HFSR 0x%x\n", SCB->HFSR);
+    printf("HFSR 0x%x\n", SCB->HFSR);
 
-	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 static void memmanage(struct arm_cm_exception_frame *frame)
 {
-	printf("memmanage: ");
-	dump_frame(frame);
+    printf("memmanage: ");
+    dump_frame(frame);
 
-	uint32_t mmfsr = SCB->CFSR & 0xff;
+    uint32_t mmfsr = SCB->CFSR & 0xff;
 
-	if (mmfsr & (1<<0)) { // IACCVIOL
-		printf("instruction fault\n");
-	}
-	if (mmfsr & (1<<1)) { // DACCVIOL
-		printf("data fault\n");
-	}
-	if (mmfsr & (1<<3)) { // MUNSTKERR
-		printf("fault on exception return\n");
-	}
-	if (mmfsr & (1<<4)) { // MSTKERR
-		printf("fault on exception entry\n");
-	}
-	if (mmfsr & (1<<5)) { // MLSPERR
-		printf("fault on lazy fpu preserve\n");
-	}
-	if (mmfsr & (1<<7)) { // MMARVALID
-		printf("fault address 0x%x\n", SCB->MMFAR);
-	}
+    if (mmfsr & (1<<0)) { // IACCVIOL
+        printf("instruction fault\n");
+    }
+    if (mmfsr & (1<<1)) { // DACCVIOL
+        printf("data fault\n");
+    }
+    if (mmfsr & (1<<3)) { // MUNSTKERR
+        printf("fault on exception return\n");
+    }
+    if (mmfsr & (1<<4)) { // MSTKERR
+        printf("fault on exception entry\n");
+    }
+    if (mmfsr & (1<<5)) { // MLSPERR
+        printf("fault on lazy fpu preserve\n");
+    }
+    if (mmfsr & (1<<7)) { // MMARVALID
+        printf("fault address 0x%x\n", SCB->MMFAR);
+    }
 
-	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 
 static void usagefault(struct arm_cm_exception_frame *frame)
 {
-	printf("usagefault: ");
-	dump_frame(frame);
+    printf("usagefault: ");
+    dump_frame(frame);
 
-	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 static void busfault(struct arm_cm_exception_frame *frame)
 {
-	printf("busfault: ");
-	dump_frame(frame);
+    printf("busfault: ");
+    dump_frame(frame);
 
-	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 /* raw exception vectors */
 
 void _nmi(void)
 {
-	printf("nmi\n");
-	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+    printf("nmi\n");
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 __NAKED void _hardfault(void)
 {
-	__asm__ volatile(
-		"push	{r4-r11};"
-		"mov	r0, sp;"
-		"b		%0;"
-		:: "i" (hardfault)
-	);
-	__UNREACHABLE;
+    __asm__ volatile(
+        "push	{r4-r11};"
+        "mov	r0, sp;"
+        "b		%0;"
+        :: "i" (hardfault)
+    );
+    __UNREACHABLE;
 }
 
 void _memmanage(void)
 {
-	__asm__ volatile(
-		"push	{r4-r11};"
-		"mov	r0, sp;"
-		"b		%0;"
-		:: "i" (memmanage)
-	);
-	__UNREACHABLE;
+    __asm__ volatile(
+        "push	{r4-r11};"
+        "mov	r0, sp;"
+        "b		%0;"
+        :: "i" (memmanage)
+    );
+    __UNREACHABLE;
 }
 
 void _busfault(void)
 {
-	__asm__ volatile(
-		"push	{r4-r11};"
-		"mov	r0, sp;"
-		"b		%0;"
-		:: "i" (busfault)
-	);
-	__UNREACHABLE;
+    __asm__ volatile(
+        "push	{r4-r11};"
+        "mov	r0, sp;"
+        "b		%0;"
+        :: "i" (busfault)
+    );
+    __UNREACHABLE;
 }
 
 void _usagefault(void)
 {
-	__asm__ volatile(
-		"push	{r4-r11};"
-		"mov	r0, sp;"
-		"b		%0;"
-		:: "i" (usagefault)
-	);
-	__UNREACHABLE;
+    __asm__ volatile(
+        "push	{r4-r11};"
+        "mov	r0, sp;"
+        "b		%0;"
+        :: "i" (usagefault)
+    );
+    __UNREACHABLE;
 }
 
 /* systick handler */
 void __WEAK _systick(void)
 {
-	printf("systick\n");
-	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+    printf("systick\n");
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 void __WEAK _debugmonitor(void)
 {
-	printf("debugmonitor\n");
-	platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+    printf("debugmonitor\n");
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
-
-// vim: set noexpandtab:
