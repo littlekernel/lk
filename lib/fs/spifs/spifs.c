@@ -28,6 +28,7 @@
 #include <lib/cksum.h>
 #include <lib/console.h>
 #include <lib/fs.h>
+#include <lib/fs/spifs.h>
 #include <list.h>
 #include <lk/init.h>
 #include <pow2.h>
@@ -439,7 +440,7 @@ static status_t get_device_page_info(bdev_t* dev, uint32_t* page_size, uint32_t 
         }
         case 1: {
             // Device has erase geometry.
-            size_t erase_size = dev->geometry->erase_size;
+            size_t erase_size = valpow2(dev->geometry->erase_size);
             size_t block_size = dev->block_size;
 
             if (erase_size % block_size != 0) {
@@ -458,13 +459,24 @@ static status_t get_device_page_info(bdev_t* dev, uint32_t* page_size, uint32_t 
     }
 }
 
-status_t spifs_format(bdev_t* dev, uint32_t num_pages)
+status_t spifs_format(bdev_t* dev, const void* args)
 {
     status_t err = NO_ERROR;
 
-    LTRACEF("dev %p, num_pages %u\n", dev, num_pages);
+    LTRACEF("dev %p, args %p\n", dev, args);
 
     DEBUG_ASSERT(dev);
+
+    spifs_format_args_t *spifs_args;
+    spifs_format_args_t default_args = {
+        .toc_pages = 1,
+    };
+
+    if (!args) {
+        spifs_args = &default_args;
+    } else {
+        spifs_args = (spifs_format_args_t*)args;
+    }
 
     // Make sure that each of the three data structures are the same size.
     STATIC_ASSERT(sizeof(toc_header_t) == SPIFS_ENTRY_LENGTH);
@@ -478,19 +490,21 @@ status_t spifs_format(bdev_t* dev, uint32_t num_pages)
         return err;
 
     // Make sure entries can be exactly packed into pages.
-    if (page_size % SPIFS_ENTRY_LENGTH != 0)
+    if (page_size % SPIFS_ENTRY_LENGTH != 0) {
         return ERR_NOT_SUPPORTED;
+    }
 
     // Make sure the device size is some multiple of the page size;
     // we don't want a partial page at the end of the device.
-    if (dev->total_size % page_size != 0)
+    if (dev->total_size % page_size != 0) {
         return ERR_NOT_SUPPORTED;
+    }
 
     uint32_t entires_per_page = page_size / SPIFS_ENTRY_LENGTH;
 
     // Number of ToC entrries is the total number of entries less 2 for the
     // header/footer
-    uint32_t num_entries = num_pages * entires_per_page;
+    uint32_t num_entries = spifs_args->toc_pages * entires_per_page;
     uint32_t num_toc_entries = num_entries - 2;
 
     // Four entries will be consumed by metadata: Header, Front ToC entry,
@@ -516,16 +530,16 @@ status_t spifs_format(bdev_t* dev, uint32_t num_pages)
 
     spifs_file_t f_toc;
     f_toc.metadata.page_idx = 0;
-    f_toc.metadata.length = num_pages * page_size;
-    f_toc.metadata.capacity = num_pages * page_size;
+    f_toc.metadata.length = spifs_args->toc_pages * page_size;
+    f_toc.metadata.capacity = spifs_args->toc_pages * page_size;
     f_toc.fs_handle = &spifs;
     memset(f_toc.metadata.filename, 0, MAX_FILENAME_LENGTH);
     strlcpy(f_toc.metadata.filename, FRONT_TOC_LABEL, MAX_FILENAME_LENGTH);
 
     spifs_file_t b_toc;
-    b_toc.metadata.page_idx = page_count - num_pages ;
-    b_toc.metadata.length = num_pages * page_size;
-    b_toc.metadata.capacity = num_pages * page_size;
+    b_toc.metadata.page_idx = page_count - spifs_args->toc_pages;
+    b_toc.metadata.length = spifs_args->toc_pages * page_size;
+    b_toc.metadata.capacity = spifs_args->toc_pages * page_size;
     b_toc.fs_handle = &spifs;
     memset(b_toc.metadata.filename, 0, MAX_FILENAME_LENGTH);
     strlcpy(b_toc.metadata.filename, BACK_TOC_LABEL, MAX_FILENAME_LENGTH);
@@ -1042,6 +1056,8 @@ static status_t spifs_closedir(dircookie *dcookie)
 }
 
 static const struct fs_api spifs_api = {
+    .format = spifs_format,
+
     .mount = spifs_mount,
     .unmount = spifs_unmount,
 

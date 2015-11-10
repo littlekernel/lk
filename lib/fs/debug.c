@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <platform.h>
+#include <err.h>
 
 static void test_normalize(const char *in)
 {
@@ -88,6 +89,7 @@ usage:
         printf("%s mount <path> <type> [device]\n", argv[0].str);
         printf("%s unmount <path>\n", argv[0].str);
         printf("%s write <path> <string> [<offset>]\n", argv[0].str);
+        printf("%s format <type> [device]\n", argv[0].str);
         return -1;
     }
 
@@ -115,6 +117,23 @@ usage:
             printf("error %d unmounting device\n", err);
             return err;
         }
+    } else if (!strcmp(argv[1].str, "format")) {
+        int err;
+
+        if (argc < 3)
+            goto notenoughargs;
+
+        err = fs_format_device(
+                argv[2].str,
+                (argc >= 4) ? argv[3].str : NULL,
+                NULL
+        );
+
+        if (err != NO_ERROR) {
+            printf("error %d formatting device\n", err);
+            return err;
+        }
+
     } else if (!strcmp(argv[1].str, "write")) {
         int err;
         off_t off;

@@ -165,6 +165,26 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
 
 }
 
+status_t fs_format_device(const char *fsname, const char *device, const void *args)
+{
+    const struct fs_impl *fs = find_fs(fsname);
+    if (!fs)
+        return ERR_NOT_FOUND;
+
+    if (fs->api->format == NULL) {
+        return ERR_NOT_SUPPORTED;
+    }
+
+    bdev_t *dev = NULL;
+    if (device && device[0] != '\0') {
+        dev = bio_open(device);
+        if (!dev)
+            return ERR_NOT_FOUND;
+    }
+
+    return fs->api->format(dev, args);
+}
+
 status_t fs_mount(const char *path, const char *fsname, const char *device)
 {
     const struct fs_impl *fs = find_fs(fsname);

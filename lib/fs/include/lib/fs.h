@@ -41,6 +41,8 @@ struct dirent {
 typedef struct filehandle filehandle;
 typedef struct dirhandle dirhandle;
 
+
+status_t fs_format_device(const char *fsname, const char *device, const void *args);
 status_t fs_mount(const char *path, const char *fs, const char *device) __NONNULL((1)) __NONNULL((2));
 status_t fs_unmount(const char *path) __NONNULL();
 
@@ -75,6 +77,8 @@ typedef struct dircookie dircookie;
 struct bdev;
 
 struct fs_api {
+    status_t (*format)(struct bdev *, const void*);
+
     status_t (*mount)(struct bdev *, fscookie **);
     status_t (*unmount)(fscookie *);
     status_t (*open)(fscookie *, const char *, filecookie **);
