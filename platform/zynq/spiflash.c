@@ -419,11 +419,13 @@ static int spiflash_ioctl(struct bdev *bdev, int request, void *argp)
 {
 	LTRACEF("dev %p, request %d, argp %p\n", bdev, request, argp);
 
-	int ret = ERR_NOT_SUPPORTED;
+	int ret = NO_ERROR;
 	switch (request) {
 		case BIO_IOCTL_GET_MEM_MAP:
 			/* put the device into linear mode */
 			ret = qspi_enable_linear(&flash.qspi);
+			// Fallthrough.
+		case BIO_IOCTL_GET_MAP_ADDR:
 			if (argp)
 				*(void **)argp = (void *)QSPI_LINEAR_BASE;
 			break;
@@ -431,6 +433,8 @@ static int spiflash_ioctl(struct bdev *bdev, int request, void *argp)
 			/* put the device back into regular mode */
 			ret = qspi_disable_linear(&flash.qspi);
 			break;
+		default:
+			ret = ERR_NOT_SUPPORTED;
 	}
 
 	return ret;

@@ -139,6 +139,7 @@ static inline bool bio_contains_range(uint64_t container_start, uint64_t contain
 /* generic bio ioctls */
 enum bio_ioctl_num {
     BIO_IOCTL_NULL = 0,
-    BIO_IOCTL_GET_MEM_MAP, /* if supported, request a pointer to the memory map of the device */
-    BIO_IOCTL_PUT_MEM_MAP, /* if needed, return the pointer (to 'close' the map) */
+    BIO_IOCTL_GET_MEM_MAP,  /* if supported, request a pointer to the memory map of the device */
+    BIO_IOCTL_PUT_MEM_MAP,  /* if needed, return the pointer (to 'close' the map) */
+    BIO_IOCTL_GET_MAP_ADDR, /* if supported, request a pointer to the memory map without putting the device into linear mode */
 };
