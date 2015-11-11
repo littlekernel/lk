@@ -230,6 +230,18 @@ static uint32_t find_open_run(spifs_t *spifs, uint32_t requested_length)
     return NO_OPEN_RUNS;
 }
 
+static uint64_t used_space(spifs_t *spifs)
+{
+    uint64_t result = 0;
+
+    spifs_file_t *file;
+    list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
+        result += file->metadata.capacity;
+    }
+
+    return result;
+}
+
 static toc_position_t advance_toc(toc_position_t pos)
 {
     return pos == FRONT_TOC ? BACK_TOC : FRONT_TOC;
@@ -1055,8 +1067,24 @@ static status_t spifs_closedir(dircookie *dcookie)
     return NO_ERROR;
 }
 
+static status_t spifs_fs_stat(fscookie *cookie, struct fs_stat *stat)
+{
+    LTRACEF("cookie %p, stat %p\n", cookie, stat);
+
+    spifs_t *spifs = (spifs_t*)cookie;
+
+    stat->total_space = (uint64_t)spifs->dev->total_size;
+    stat->free_space  = stat->total_space - used_space(spifs);
+
+    stat->total_inodes = spifs->num_entries;
+    stat->free_inodes  = stat->total_inodes - list_length(&spifs->files);
+
+    return NO_ERROR;
+}
+
 static const struct fs_api spifs_api = {
     .format = spifs_format,
+    .fs_stat = spifs_fs_stat,
 
     .mount = spifs_mount,
     .unmount = spifs_unmount,

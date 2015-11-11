@@ -90,6 +90,7 @@ usage:
         printf("%s unmount <path>\n", argv[0].str);
         printf("%s write <path> <string> [<offset>]\n", argv[0].str);
         printf("%s format <type> [device]\n", argv[0].str);
+        printf("%s stat <path>\n", argv[0].str);
         return -1;
     }
 
@@ -133,6 +134,26 @@ usage:
             printf("error %d formatting device\n", err);
             return err;
         }
+
+    } else if (!strcmp(argv[1].str, "stat")) {
+        int err;
+
+        if (argc < 3)
+            goto notenoughargs;
+
+        struct fs_stat stat;
+        err = fs_stat_fs(argv[2].str, &stat);
+
+        if (err != NO_ERROR) {
+            printf("error %d formatting device\n", err);
+            return err;
+        }
+
+        printf("\ttotal bytes: %llu\n", stat.total_space);
+        printf("\tfree bytes: %llu\n", stat.free_space);
+        printf("\n");
+        printf("\ttotal inodes: %d\n", stat.total_inodes);
+        printf("\tfree inodes: %d\n", stat.free_inodes);
 
     } else if (!strcmp(argv[1].str, "write")) {
         int err;

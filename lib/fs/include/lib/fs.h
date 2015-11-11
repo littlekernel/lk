@@ -34,6 +34,14 @@ struct file_stat {
     uint64_t size;
 };
 
+struct fs_stat {
+    uint64_t free_space;
+    uint64_t total_space;
+
+    uint32_t free_inodes;
+    uint32_t total_inodes;
+};
+
 struct dirent {
     char name[FS_MAX_FILE_LEN];
 };
@@ -61,6 +69,8 @@ status_t fs_open_dir(const char *path, dirhandle **handle) __NONNULL();
 status_t fs_read_dir(dirhandle *handle, struct dirent *ent) __NONNULL();
 status_t fs_close_dir(dirhandle *handle) __NONNULL();
 
+status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat);
+
 /* convenience routines */
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen) __NONNULL();
 
@@ -78,6 +88,7 @@ struct bdev;
 
 struct fs_api {
     status_t (*format)(struct bdev *, const void*);
+    status_t (*fs_stat)(fscookie *, struct fs_stat *);
 
     status_t (*mount)(struct bdev *, fscookie **);
     status_t (*unmount)(fscookie *);

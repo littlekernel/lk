@@ -411,6 +411,26 @@ status_t fs_close_dir(dirhandle *handle)
     return 0;
 }
 
+status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat)
+{
+    LTRACEF("mountpoint %s stat %p\n", mountpoint, stat);
+
+    const char *newpath;
+    struct fs_mount *mount = find_mount(mountpoint, &newpath);
+    if (!mount)
+        return ERR_NOT_FOUND;
+
+    if (!mount->api->fs_stat)
+        return ERR_NOT_SUPPORTED;
+
+    status_t result = mount->api->fs_stat(mount->cookie, stat);
+
+    put_mount(mount);
+
+    return result;
+}
+
+
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen)
 {
     filehandle *handle;
