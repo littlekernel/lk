@@ -992,6 +992,7 @@ static status_t spifs_stat(filecookie *fcookie, struct file_stat *stat)
     if (stat) {
         stat->is_dir = false;
         stat->size = file->metadata.length;
+        stat->capacity = file->metadata.capacity;
     }
 
     mutex_release(&file->fs_handle->lock);

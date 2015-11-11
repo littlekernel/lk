@@ -32,6 +32,7 @@
 struct file_stat {
     bool is_dir;
     uint64_t size;
+    uint64_t capacity;
 };
 
 struct fs_stat {
