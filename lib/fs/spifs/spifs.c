@@ -112,14 +112,13 @@ struct dircookie {
     spifs_file_t *next_file;
 };
 
-typedef struct
-{
+typedef struct {
     uint32_t page_id;
-     int32_t direction;
+    int32_t direction;
     uint32_t entry_length;
-     uint8_t *data;
-     uint8_t *page;
-     spifs_t *spifs;
+    uint8_t *data;
+    uint8_t *page;
+    spifs_t *spifs;
 } cursor_t;
 
 static status_t spifs_read_page(spifs_t *spifs, uint32_t page_addr);
@@ -130,9 +129,10 @@ static status_t get_device_page_info(bdev_t* dev, uint32_t* page_size,
 
 
 static status_t cursor_init(
-        cursor_t *cursor, spifs_t *spifs, int32_t direction, uint32_t page_id,
-        uint32_t entry_length
-) {
+    cursor_t *cursor, spifs_t *spifs, int32_t direction, uint32_t page_id,
+    uint32_t entry_length
+)
+{
     // Make sure the cursor can only be advanced an integer number of times
     // per page.
     DEBUG_ASSERT(spifs->page_size % entry_length == 0);
@@ -189,7 +189,7 @@ static spifs_file_t *find_file(spifs_t *spifs, const char* name)
     list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
         // Skip the ToC Entries
         if (file == list_peek_head_type(&spifs->files, spifs_file_t, node) ||
-            file == list_peek_tail_type(&spifs->files, spifs_file_t, node)) {
+                file == list_peek_tail_type(&spifs->files, spifs_file_t, node)) {
             continue;
         }
 
@@ -207,14 +207,14 @@ static uint32_t find_open_run(spifs_t *spifs, uint32_t requested_length)
     list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
         // Number of pages that this file occupies
         uint32_t file_page_length =
-                file->metadata.capacity / file->fs_handle->page_size;
+            file->metadata.capacity / file->fs_handle->page_size;
 
         // Index of the page immediately following the last page of this file.
         uint32_t file_end_page = file->metadata.page_idx + file_page_length;
 
         // Determine the page that the next file starts at.
         spifs_file_t* next =
-                list_next_type(&spifs->files, &file->node, spifs_file_t, node);
+            list_next_type(&spifs->files, &file->node, spifs_file_t, node);
 
         // End of list?
         if (next == NULL) {
@@ -260,7 +260,7 @@ static status_t spifs_commit_toc(spifs_t *spifs)
     uint32_t crc = 0;
     uint8_t *cursor = spifs->page;
     uint32_t toc_page_addr = target_toc == FRONT_TOC ?
-            0 : spifs->page_count - 1;
+                             0 : spifs->page_count - 1;
 
     // Setup the ToC Header.
     toc_header_t header = {
@@ -309,7 +309,7 @@ static status_t spifs_commit_toc(spifs_t *spifs)
     // Sanity check. The cursor should be at the last position in this page
     // at this point.
     uint8_t* expected_cursor_location =
-            (spifs->page + spifs->page_size) - SPIFS_ENTRY_LENGTH;
+        (spifs->page + spifs->page_size) - SPIFS_ENTRY_LENGTH;
     DEBUG_ASSERT(cursor == expected_cursor_location);
 
     toc_footer_t footer;
@@ -367,7 +367,7 @@ static status_t spifs_write_page(spifs_t *spifs, uint32_t page_addr)
     // Device requires erase before write?
     if (spifs->dev->geometry_count != 0) {
         ssize_t bytes = bio_erase(spifs->dev, device_addr, spifs->page_size);
-        if ((uint32_t)bytes != spifs->page_size){
+        if ((uint32_t)bytes != spifs->page_size) {
             return ERR_IO;
         }
     }
@@ -375,7 +375,7 @@ static status_t spifs_write_page(spifs_t *spifs, uint32_t page_addr)
     ssize_t bytes = bio_write_block(spifs->dev, spifs->page, block_addr,
                                     spifs->blocks_per_page);
 
-    if ((uint32_t)bytes != spifs->page_size){
+    if ((uint32_t)bytes != spifs->page_size) {
         return ERR_IO;
     }
 
@@ -392,12 +392,12 @@ static uint32_t get_toc_generation(spifs_t *spifs, toc_position_t toc_pos)
 
     DEBUG_ASSERT(toc_pos == FRONT_TOC || toc_pos == BACK_TOC);
     uint32_t toc_page = toc_pos == FRONT_TOC ?
-            0 : (spifs->page_count - 1);
+                        0 : (spifs->page_count - 1);
 
 
     cursor_t cursor;
     if (cursor_init(&cursor, spifs, toc_pos, toc_page, SPIFS_ENTRY_LENGTH) !=
-        NO_ERROR) {
+            NO_ERROR) {
         return CORRUPT_TOC;
     }
 
@@ -617,11 +617,11 @@ static status_t spifs_mount(bdev_t *dev, fscookie **cookie)
     }
 
     spifs->toc_position =
-            f_toc_generation > b_toc_generation ? FRONT_TOC : BACK_TOC;
+        f_toc_generation > b_toc_generation ? FRONT_TOC : BACK_TOC;
     spifs->generation = MAX(f_toc_generation, b_toc_generation);
 
     uint32_t toc_page_addr = spifs->toc_position == FRONT_TOC ?
-            0 : spifs->page_count - 1;
+                             0 : spifs->page_count - 1;
 
     cursor_t cursor;
     status = cursor_init(&cursor, spifs, spifs->toc_position, toc_page_addr,
@@ -756,7 +756,7 @@ static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fc
 
     // Erase the memory allocated to the file.
     if (bio_erase(spifs->dev, open_run * spifs->page_size, capacity) !=
-        (ssize_t)capacity) {
+            (ssize_t)capacity) {
 
         free(file);
 
@@ -904,7 +904,7 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
     bool dirty_toc = false;
 
     uint32_t start_addr =
-            off + (file->metadata.page_idx * spifs->page_size);
+        off + (file->metadata.page_idx * spifs->page_size);
     uint32_t target_page_id = start_addr / spifs->page_size;
 
     // Are we growing the file?
@@ -1008,7 +1008,7 @@ static status_t spifs_opendir(fscookie *cookie, const char *name, dircookie **dc
 
     name = trim_name(name);
 
-    if(strcmp("", name))
+    if (strcmp("", name))
         return ERR_NOT_FOUND;
 
     dircookie *dir = malloc(sizeof(*dir));
@@ -1020,7 +1020,7 @@ static status_t spifs_opendir(fscookie *cookie, const char *name, dircookie **dc
     mutex_acquire(&spifs->lock);
 
     spifs_file_t *front_toc_file =
-            list_peek_head_type(&spifs->files, spifs_file_t, node);
+        list_peek_head_type(&spifs->files, spifs_file_t, node);
     dir->next_file = list_next_type(&spifs->files, &front_toc_file->node,
                                     spifs_file_t, node);
     list_add_head(&spifs->dcookies, &dir->node);
@@ -1041,13 +1041,13 @@ static status_t spifs_readdir(dircookie *dcookie, struct dirent *ent)
     mutex_acquire(&dcookie->fs->lock);
 
     spifs_file_t *back_toc_file =
-            list_peek_tail_type(&dcookie->fs->files, spifs_file_t, node);
+        list_peek_tail_type(&dcookie->fs->files, spifs_file_t, node);
 
     if (dcookie->next_file != back_toc_file) {
         strlcpy(ent->name, dcookie->next_file->metadata.filename, sizeof(ent->name));
         dcookie->next_file =
-                list_next_type(&dcookie->fs->files, &dcookie->next_file->node,
-                               spifs_file_t, node);
+            list_next_type(&dcookie->fs->files, &dcookie->next_file->node,
+                           spifs_file_t, node);
         err = NO_ERROR;
     } else {
         err = ERR_NOT_FOUND;

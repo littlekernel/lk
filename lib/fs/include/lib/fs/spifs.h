@@ -27,7 +27,7 @@
 #include <lib/fs.h>
 
 typedef struct {
-	uint32_t toc_pages;
+    uint32_t toc_pages;
 } spifs_format_args_t;
 
 #endif  // LIB_SPIFS_SPIFS_H_

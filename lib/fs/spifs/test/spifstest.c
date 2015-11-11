@@ -75,14 +75,14 @@ bool test_setup(const char *dev_name, uint32_t toc_pages)
     status_t res = fs_format_device(FS_NAME, dev_name, (void*)&args);
     if (res != NO_ERROR) {
         printf("spifs_format failed dev = %s, toc_pages = %u, retcode = %d\n",
-                dev_name, toc_pages, res);
+               dev_name, toc_pages, res);
         return false;
     }
 
     res = fs_mount(MNT_PATH, FS_NAME, dev_name);
     if (res != NO_ERROR) {
         printf("fs_mount failed path = %s, fs name = %s, dev name = %s,"
-                " retcode = %d\n", MNT_PATH, FS_NAME, dev_name, res);
+               " retcode = %d\n", MNT_PATH, FS_NAME, dev_name, res);
         return false;
     }
 
@@ -172,7 +172,7 @@ bool test_write_read_normal(const char *dev_name)
 
     filehandle *handle;
     status_t status =
-            fs_create_file(TEST_FILE_PATH, &handle, sizeof(test_message));
+        fs_create_file(TEST_FILE_PATH, &handle, sizeof(test_message));
     if (status != NO_ERROR) {
         return false;
     }
@@ -216,7 +216,7 @@ bool test_write_past_eof(const char *dev_name)
     // Create a 0 length file.
     filehandle *handle;
     status_t status =
-            fs_create_file(TEST_FILE_PATH, &handle, 0);
+        fs_create_file(TEST_FILE_PATH, &handle, 0);
     if (status != NO_ERROR) {
         return false;
     }
@@ -540,7 +540,7 @@ usage:
 }
 
 STATIC_COMMAND_START
-    STATIC_COMMAND("spifs", "commands related to the spifs implementation.", &cmd_spifs)
+STATIC_COMMAND("spifs", "commands related to the spifs implementation.", &cmd_spifs)
 STATIC_COMMAND_END(spifs);
 
 #endif  // LK_DEBUGLEVEL > 1
