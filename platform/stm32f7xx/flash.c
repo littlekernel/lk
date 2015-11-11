@@ -238,6 +238,7 @@ static int stm32_flash_ioctl(struct bdev *bdev, int request, void *argp)
 
     int ret = ERR_NOT_SUPPORTED;
     switch (request) {
+        case BIO_IOCTL_GET_MAP_ADDR:
         case BIO_IOCTL_GET_MEM_MAP:
             /* we're already mapped */
             if (argp)
