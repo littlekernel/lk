@@ -91,7 +91,7 @@ static void usagefault(struct arm_cm_exception_frame *frame)
     printf("UFSR 0x%x: ", ufsr);
 
     if (ufsr & (1<<0))
-        printf("divide by zero\n");
+        printf("undefined instruction\n");
     if (ufsr & (1<<1))
         printf("ESPR invalid\n");
     if (ufsr & (1<<2))

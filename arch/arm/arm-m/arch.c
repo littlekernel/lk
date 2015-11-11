@@ -100,6 +100,9 @@ void arch_init(void)
     *REG32(DWT_CYCCNT) = 0;
     *REG32(DWT_CTRL) |= 1; // enable cycle counter
 #endif
+    printf("CONTROL 0x%x\n", __get_CONTROL());
+    printf("FPSCR 0x%x\n", __get_FPSCR());
+    printf("FPCCR 0x%x\n", FPU->FPCCR);
 }
 
 void arch_quiesce(void)
