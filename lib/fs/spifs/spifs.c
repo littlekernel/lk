@@ -881,9 +881,10 @@ static ssize_t spifs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
     return result;
 }
 
-static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size_t len)
+static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size_t size)
 {
-    status_t err;
+    status_t err = NO_ERROR;
+    size_t len = size;
 
     LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
 
@@ -966,6 +967,8 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
         err = spifs_write_page(spifs, target_page_id);
         if (err != NO_ERROR) {
             goto err;
+        } else {
+            len = 0;
         }
     }
 
@@ -975,7 +978,7 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
 
 err:
     mutex_release(&spifs->lock);
-    return err;
+    return len == 0 ? (ssize_t)size : err;
 }
 
 static status_t spifs_stat(filecookie *fcookie, struct file_stat *stat)
