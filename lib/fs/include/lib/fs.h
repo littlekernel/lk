@@ -26,8 +26,8 @@
 #include <sys/types.h>
 #include <compiler.h>
 
-#define FS_MAX_PATH_LEN 256
-#define FS_MAX_FILE_LEN 128
+#define FS_MAX_PATH_LEN 128
+#define FS_MAX_FILE_LEN 64
 
 struct file_stat {
     bool is_dir;
