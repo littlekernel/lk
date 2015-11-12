@@ -247,6 +247,36 @@ static toc_position_t advance_toc(toc_position_t pos)
     return pos == FRONT_TOC ? BACK_TOC : FRONT_TOC;
 }
 
+
+static bool consistency_check(spifs_t *spifs)
+{
+    /* Return true iff the ToC is in a consistent state. */
+    spifs_file_t *file;
+    list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
+        // Number of pages that this file occupies
+        uint32_t file_page_length =
+            file->metadata.capacity / file->fs_handle->page_size;
+
+        // Index of the last page of this file.
+        uint32_t file_end_page = file->metadata.page_idx + file_page_length - 1;
+
+        // Determine the page that the next file starts at.
+        spifs_file_t* next =
+            list_next_type(&spifs->files, &file->node, spifs_file_t, node);
+
+        // End of list?
+        if (next == NULL) {
+            continue;
+        }
+
+        if (next->metadata.page_idx <= file_end_page) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static status_t spifs_commit_toc(spifs_t *spifs)
 {
     status_t err;
@@ -352,7 +382,6 @@ static status_t spifs_read_page(spifs_t *spifs, uint32_t page_addr)
                                    spifs->blocks_per_page);
 
     if ((uint32_t)bytes != spifs->page_size) {
-        printf("Read FAILED!\n");
         return ERR_IO;
     }
 
@@ -656,6 +685,11 @@ static status_t spifs_mount(bdev_t *dev, fscookie **cookie)
         file->fs_handle = spifs;
 
         list_add_tail(&spifs->files, &file->node);
+    }
+
+    if (!consistency_check(spifs)) {
+        status = ERR_BAD_STATE;
+        goto err;
     }
 
     *cookie = (fscookie *)spifs;
