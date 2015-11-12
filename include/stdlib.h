@@ -49,7 +49,7 @@ long long strtoll(const char *nptr, char **endptr, int base);
 #define ROUNDDOWN(a, b) ((a) & ~((b)-1))
 
 #define ALIGN(a, b) ROUNDUP(a, b)
-#define IS_ALIGNED(a, b) (!((a) & ((b)-1)))
+#define IS_ALIGNED(a, b) (!(((uintptr_t)(a)) & (((uintptr_t)(b))-1)))
 
 /* allocate a buffer on the stack aligned and padded to the cpu's cache line size */
 #define STACKBUF_DMA_ALIGN(var, size) \
