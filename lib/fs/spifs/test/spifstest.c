@@ -53,6 +53,8 @@ bool test_full_fs(const char *);
 bool test_write_past_end_of_capacity(const char *);
 bool test_rm_reclaim(const char *);
 bool test_corrupt_toc(const char *);
+bool test_write_with_offset(const char *);
+bool test_read_write_big(const char *);
 
 static test tests[] = {
     {&test_empty_after_format, "Test no files in ToC after format.", 1},
@@ -64,6 +66,8 @@ static test tests[] = {
     {&test_rm_reclaim, "Test that files can be deleted and that used space is reclaimed.", 1},
     {&test_write_past_end_of_capacity, "Test that we cannot write past the capacity of a file.", 1},
     {&test_corrupt_toc, "Test that FS can be mounted with one corrupt ToC.", 1},
+    {&test_write_with_offset, "Test that files can be written to at an offset.", 1},
+    {&test_read_write_big, "Test that an unaligned ~10kb buffer can be written and read.", 1},
 };
 
 bool test_setup(const char *dev_name, uint32_t toc_pages)
@@ -486,6 +490,98 @@ bool test_corrupt_toc(const char *dev_name)
     return true;
 }
 
+bool test_write_with_offset(const char *dev_name)
+{
+    size_t repeats = 3;
+    char test_message[] = "test";
+    size_t msg_len = strnlen(test_message, sizeof(test_message));
+    char test_buf[msg_len * repeats];
+
+    filehandle *handle;
+    status_t status = fs_create_file(TEST_FILE_PATH, &handle, msg_len);
+    if (status != NO_ERROR) {
+        return false;
+    }
+
+    ssize_t bytes;
+    for (size_t pos = 0; pos < repeats; pos++) {
+        bytes = fs_write_file(handle, test_message, pos * msg_len, msg_len);
+        if ((size_t)bytes != msg_len) {
+            return false;
+        }
+    }
+
+    bytes = fs_read_file(handle, test_buf, 0, msg_len * repeats);
+    if ((size_t)bytes != msg_len * repeats) {
+        return false;
+    }
+
+    status = fs_close_file(handle);
+    if (status != NO_ERROR) {
+        return false;
+    }
+
+    bool success = true;
+    for (size_t i = 0; i < repeats; i++) {
+        success &= (memcmp(test_message,
+                           test_buf + i * msg_len,
+                           msg_len) == 0);
+    }
+    return success;
+}
+
+bool test_read_write_big(const char *dev_name)
+{
+    bool success = true;
+
+    size_t buflen = 10013;
+
+    uint8_t *rbuf = malloc(buflen);
+    if (!rbuf) {
+        return false;
+    }
+
+    uint8_t *wbuf = malloc(buflen);
+    if (!wbuf) {
+        free(rbuf);
+        return false;
+    }
+
+    for (size_t i = 0; i < buflen; i++) {
+        wbuf[i] = rand() % sizeof(uint8_t);
+    }
+
+    filehandle *handle;
+    status_t status = fs_create_file(TEST_FILE_PATH, &handle, buflen);
+    if (status != NO_ERROR) {
+        success = false;
+        goto err;
+    }
+
+    ssize_t bytes = fs_write_file(handle, wbuf, 0, buflen);
+    if ((size_t)bytes != buflen) {
+        success = false;
+        goto err;
+    }
+
+    bytes = fs_read_file(handle, rbuf, 0, buflen);
+    if ((size_t)bytes != buflen) {
+        success = false;
+        goto err;
+    }
+
+    for (size_t i = 0; i < buflen; i++) {
+        if (wbuf[i] != rbuf[i]) {
+            success = false;
+            break;
+        }
+    }
+
+err:
+    free(rbuf);
+    free(wbuf);
+    return success;
+}
 
 static int cmd_spifs(int argc, const cmd_args *argv)
 {

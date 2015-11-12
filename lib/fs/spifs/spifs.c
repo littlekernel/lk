@@ -948,7 +948,8 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
     }
 
     // Leading Partial Page.
-    if (start_addr % spifs->page_size) {
+    uint32_t page_offset = start_addr % spifs->page_size;
+    if (page_offset) {
         uint32_t page_end = ROUNDUP(start_addr, spifs->page_size);
 
         uint32_t n_bytes = MIN(len, page_end - start_addr);
@@ -960,7 +961,7 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
         }
 
         // modify..
-        memcpy(spifs->page, buf, n_bytes);
+        memcpy(spifs->page + page_offset, buf, n_bytes);
 
         // write..
         err = spifs_write_page(spifs, target_page_id);
