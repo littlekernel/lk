@@ -35,6 +35,8 @@ cache:
 # notify a few irc channels
 notifications:
   irc:
-    - "chat.freenode.net#lk"
-    - "chat.freenode.net#fnlk"
-
+    channels:
+      - "chat.freenode.net#lk"
+      - "chat.freenode.net#fnlk"
+    skip_join: true
+    use_notice: true
