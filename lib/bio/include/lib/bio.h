@@ -26,6 +26,8 @@
 #include <sys/types.h>
 #include <list.h>
 
+__BEGIN_CDECLS;
+
 #define BIO_FLAGS_NONE                (0 << 0)
 #define BIO_FLAG_CACHE_ALIGNED_READS  (1 << 0)
 #define BIO_FLAG_CACHE_ALIGNED_WRITES (1 << 1)
@@ -143,3 +145,5 @@ enum bio_ioctl_num {
     BIO_IOCTL_PUT_MEM_MAP,  /* if needed, return the pointer (to 'close' the map) */
     BIO_IOCTL_GET_MAP_ADDR, /* if supported, request a pointer to the memory map without putting the device into linear mode */
 };
+
+__END_CDECLS;
