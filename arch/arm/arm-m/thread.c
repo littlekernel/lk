@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2012-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -30,7 +30,7 @@
 #include <arch/arm.h>
 #include <arch/arm/cm.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 struct arm_cm_context_switch_frame {
     uint32_t r4;
@@ -139,62 +139,58 @@ __NAKED void _svc(void)
         "mov    sp, r4;"
         "pop    { r4-r11, lr };"
         "bx     lr;"
+        ::  [FPCCR] "i"(&FPU->FPCCR),
+            [LSPACT] "i"(FPU_FPCCR_LSPACT_Msk)
     );
 }
 
-__NAKED static void _half_save_and_svc(vaddr_t *fromsp, vaddr_t tosp, bool fpu_save)
-{
-    __asm__ volatile(
-        "push   { r4-r11, lr };"
-        "str    sp, [r0];"
-
-        /* make sure we load the destination sp here before we reenable interrupts */
-        "mov    sp, r1;"
-
-        "clrex;"
-        "cpsie  i;"
-
-        "mov    r4, r1;"
-        "svc #0;" /* make a svc call to get us into handler mode */
-    );
-}
-
-#if 0 // snapshot
-/* simple scenario where the to and from thread yielded */
-__NAKED static void _arch_non_preempt_context_switch(vaddr_t *fromsp, vaddr_t tosp, bool fpu_save, bool fpu_restore)
+__NAKED static void _half_save_and_svc(struct thread *oldthread, struct thread *newthread, bool fpu_save, bool restore_fpu)
 {
     __asm__ volatile(
         /* see if we need to save fpu context */
         "tst    r2, #1;"
         "beq    0f;"
 
-        /* save fpu context */
+        /* save part of the fpu context on the stack */
         "vmrs   r2, fpscr;"
         "push   { r2 };"
-        "vstm   sp!, { s0-s15 };"
+        "vpush  { s0-s15 };"
+
+        /* save the top regs into the thread struct */
+        "add    r2, r0, %[fp_off];"
+        "vstm   r2, { s16-s31 };"
 
         /* save regular context */
         "0: push   { r4-r11, lr };"
-        "str    sp, [r0];"
+        "str    sp, [r0, %[sp_off]];"
 
-        /* restore new context */
-        "mov    sp, r1;"
-        "pop    { r4-r11, lr };"
+        /* restore the new thread's stack pointer, but not the integer state (yet) */
+        "0: ldr    sp, [r1, %[sp_off]];"
 
         /* see if we need to restore fpu context */
-        "tst     r3, #1;"
-        "beq     0f;"
+        "tst    r3, #1;"
+        "beq    0f;"
 
-        /* restore fpu context */
-        "vldm   sp!, { s0-s15 };"
-        "pop    { r3 };"
+        /* restore the top part of the fpu context */
+        "add    r3, r1, %[fp_off];"
+        "vldm   r3, { s16-s31 };"
+
+        /* restore the bottom part of the context, stored up the frame a little bit */
+        "add    r3, sp, %[fp_exc_off];"
+        "vldm   r3!, { s0-s15 };"
+        "ldr    r3, [r3];"
         "vmsr   fpscr, r3;"
 
-        "0: clrex;"
-        "bx     lr;"
+        "clrex;"
+        "cpsie  i;"
+
+        "mov    r4, sp;"
+        "svc    #0;" /* make a svc call to get us into handler mode */
+        ::  [sp_off] "i"(offsetof(thread_t, arch.sp)),
+            [fp_off] "i"(offsetof(thread_t, arch.fpregs)),
+            [fp_exc_off] "i"(sizeof(struct arm_cm_exception_frame_long))
     );
 }
-#endif
 
 /* simple scenario where the to and from thread yielded */
 __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, struct thread *newthread, bool save_fpu, bool restore_fpu)
@@ -207,7 +203,7 @@ __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, s
         /* save part of the fpu context on the stack */
         "vmrs   r2, fpscr;"
         "push   { r2 };"
-        "vstm   sp!, { s0-s15 };"
+        "vpush  { s0-s15 };"
 
         /* save the top regs into the thread struct */
         "add    r2, r0, %[fp_off];"
@@ -222,13 +218,14 @@ __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, s
         "pop    { r4-r11, lr };"
 
         /* see if we need to restore fpu context */
-        "tst     r3, #1;"
-        "beq     0f;"
+        "tst    r3, #1;"
+        "beq    0f;"
 
         /* restore fpu context */
         "add    r3, r1, %[fp_off];"
         "vldm   r3, { s16-s31 };"
-        "vldm   sp!, { s0-s15 };"
+
+        "vpop   { s0-s15 };"
         "pop    { r3 };"
         "vmsr   fpscr, r3;"
 
@@ -242,8 +239,19 @@ __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, s
 __NAKED static void _thread_mode_bounce(void)
 {
     __asm__ volatile(
+        /* restore main context */
         "pop    { r4-r11, lr };"
-        "bx     lr;"
+
+        /* see if we need to restore fpu context */
+        "tst    r0, #1;"
+        "beq    0f;"
+
+        /* restore fpu context */
+        "vpop   { s0-s15 };"
+        "pop    { r0 };"
+        "vmsr   fpscr, r0;"
+
+        "0: bx     lr;"
     );
     __UNREACHABLE;
 }
@@ -261,17 +269,17 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
     LTRACEF("FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
             FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
 
+    asm volatile("vmov s0, s0");
+
     /* if preempt_frame is set, we are being preempted */
     if (preempt_frame) {
-        LTRACEF("we're preempted, old frame %p, old lr 0x%x, new preempted bool %d\n",
-                preempt_frame, preempt_frame->lr, newthread->arch.was_preempted);
+        LTRACEF("we're preempted, old frame %p, old lr 0x%x, pc 0x%x, new preempted bool %d\n",
+                preempt_frame, preempt_frame->lr, preempt_frame->pc, newthread->arch.was_preempted);
 
 #if __FPU_PRESENT
+        /* see if extended fpu frame was pushed */
         if ((preempt_frame->lr & (1<<4)) == 0) {
-            /* extended fpu frame was pushed */
-            DEBUG_ASSERT(FPU->FPCCR & FPU_FPCCR_LSPACT_Msk);
-
-            /* force a context save */
+            /* force a context save if it hasn't already */
             asm volatile("vmov s0, s0" ::: "memory");
             asm volatile("isb");
 
@@ -282,26 +290,31 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
             /* verify that FPCCR.LSPACT was cleared and CONTROL.FPCA was set */
             DEBUG_ASSERT((FPU->FPCCR & FPU_FPCCR_LSPACT_Msk) == 0);
             DEBUG_ASSERT(__get_CONTROL() & CONTROL_FPCA_Msk);
+        } else {
+            DEBUG_ASSERT(oldthread->arch.fpused == false);
         }
 #endif
         oldthread->arch.was_preempted = true;
         oldthread->arch.sp = (addr_t)preempt_frame;
         preempt_frame = NULL;
 
-        if (newthread->arch.was_preempted) {
 #if __FPU_PRESENT
-            if (newthread->arch.fpused) {
-                /* restore the old fpu state */
-                DEBUG_ASSERT((FPU->FPCCR & FPU_FPCCR_LSPACT_Msk) == 0);
-                DEBUG_ASSERT(__get_CONTROL() & CONTROL_FPCA_Msk);
+        if (newthread->arch.fpused) {
+            /* restore the old fpu state */
+            DEBUG_ASSERT((FPU->FPCCR & FPU_FPCCR_LSPACT_Msk) == 0);
+            DEBUG_ASSERT(__get_CONTROL() & CONTROL_FPCA_Msk);
 
-                LTRACEF("newthread FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
-                        FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
+            LTRACEF("newthread FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
+                    FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
 
-                asm volatile("vldm %0, { s16-s31 }" :: "r" (&newthread->arch.fpregs[0]));
-            }
+            asm volatile("vldm %0, { s16-s31 }" :: "r" (&newthread->arch.fpregs[0]));
+        }
 #endif
+        if (newthread->arch.was_preempted) {
             /* return directly to the preempted thread's iframe */
+            LTRACEF("newthread2 FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
+                    FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
+            //hexdump((void *)newthread->arch.sp, 128+64);
             __asm__ volatile(
                 "mov    sp, %0;"
                 "cpsie  i;"
@@ -319,10 +332,11 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 
             frame->pc = (uint32_t)&_thread_mode_bounce;
             frame->psr = (1 << 24); /* thread bit set, IPSR 0 */
-            frame->r0 = frame->r1 =  frame->r2 = frame->r3 = frame->r12 = frame->lr = 99;
+            frame->r0 = newthread->arch.fpused;
+            frame->r1 = frame->r2 = frame->r3 = frame->r12 = frame->lr = 99;
 
-            LTRACEF("iretting to user space\n");
-            //hexdump(frame, sizeof(*frame) + 64);
+            LTRACEF("iretting to user space, fpused %u\n", newthread->arch.fpused);
+            //hexdump(frame, 128+32);
 
             __asm__ volatile(
                 "clrex;"
@@ -338,18 +352,19 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 #if __FPU_PRESENT
         /* see if we have fpu state we need to save */
         if (oldthread->arch.fpused || __get_CONTROL() & CONTROL_FPCA_Msk) {
-            /* save the top part of the context */
-            asm volatile("vstm %0, { s16-s31 }" :: "r" (&oldthread->arch.fpregs[0]));
+            /* mark this thread as using float */
             oldthread->arch.fpused = true;
         }
 #endif
 
         if (newthread->arch.was_preempted) {
             LTRACEF("not being preempted, but switching to preempted thread\n");
-            _half_save_and_svc(&oldthread->arch.sp, newthread->arch.sp, oldthread->arch.fpused);
+            //hexdump((void *)newthread->arch.sp, 128+32);
+            _half_save_and_svc(oldthread, newthread, oldthread->arch.fpused, newthread->arch.fpused);
         } else {
             /* fast path, both sides did not preempt */
-            LTRACEF("both sides are not preempted\n");
+            LTRACEF("both sides are not preempted newsp 0x%lx %u %u\n", newthread->arch.sp, oldthread->arch.fpused, newthread->arch.fpused);
+            //hexdump((void *)newthread->arch.sp, 128);
             _arch_non_preempt_context_switch(oldthread, newthread, oldthread->arch.fpused, newthread->arch.fpused);
         }
     }

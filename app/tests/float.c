@@ -92,7 +92,7 @@ static void float_tests(void)
     printf("floating point test:\n");
 
     /* test lazy fpu load on separate thread */
-    thread_t *t[2];
+    thread_t *t[8];
     FLOAT val[countof(t)];
 
     printf("creating %u floating point threads\n", countof(t));
@@ -110,7 +110,6 @@ static void float_tests(void)
         printf("float thread %u returns %d, val %f\n", i, res, val[i]);
     }
     printf("the above values should be close\n");
-    hexdump((void *)val, sizeof(val));
 
 #if ARCH_ARM && !ARM_ISA_ARMV7M
     /* test all the instruction traps */
