@@ -168,8 +168,9 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
 status_t fs_format_device(const char *fsname, const char *device, const void *args)
 {
     const struct fs_impl *fs = find_fs(fsname);
-    if (!fs)
+    if (!fs) {
         return ERR_NOT_FOUND;
+    }
 
     if (fs->api->format == NULL) {
         return ERR_NOT_SUPPORTED;
@@ -415,13 +416,19 @@ status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat)
 {
     LTRACEF("mountpoint %s stat %p\n", mountpoint, stat);
 
+    if (!stat) {
+        return ERR_INVALID_ARGS;
+    }
+
     const char *newpath;
     struct fs_mount *mount = find_mount(mountpoint, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
-    if (!mount->api->fs_stat)
+    if (!mount->api->fs_stat){
         return ERR_NOT_SUPPORTED;
+    }
 
     status_t result = mount->api->fs_stat(mount->cookie, stat);
 

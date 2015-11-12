@@ -121,8 +121,9 @@ usage:
     } else if (!strcmp(argv[1].str, "format")) {
         int err;
 
-        if (argc < 3)
+        if (argc < 3) {
             goto notenoughargs;
+        }
 
         err = fs_format_device(
                 argv[2].str,
@@ -138,14 +139,15 @@ usage:
     } else if (!strcmp(argv[1].str, "stat")) {
         int err;
 
-        if (argc < 3)
+        if (argc < 3) {
             goto notenoughargs;
+        }
 
         struct fs_stat stat;
         err = fs_stat_fs(argv[2].str, &stat);
 
         if (err != NO_ERROR) {
-            printf("error %d formatting device\n", err);
+            printf("error %d statting filesystem\n", err);
             return err;
         }
 

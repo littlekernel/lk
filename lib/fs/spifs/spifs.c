@@ -23,6 +23,13 @@
 
 #include <debug.h>
 #include <err.h>
+#include <pow2.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <trace.h>
+
 #include <kernel/mutex.h>
 #include <lib/bio.h>
 #include <lib/cksum.h>
@@ -31,12 +38,6 @@
 #include <lib/fs/spifs.h>
 #include <list.h>
 #include <lk/init.h>
-#include <pow2.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <trace.h>
 
 #define LOCAL_TRACE 0
 
@@ -135,9 +136,9 @@ static status_t cursor_init(
 {
     // Make sure the cursor can only be advanced an integer number of times
     // per page.
+    DEBUG_ASSERT(ispow2(entry_length));
     DEBUG_ASSERT(spifs->page_size % entry_length == 0);
     DEBUG_ASSERT(spifs->page);
-    DEBUG_ASSERT(ispow2(entry_length));
 
     cursor->page_id = page_id;
     cursor->direction = direction;
@@ -149,11 +150,11 @@ static status_t cursor_init(
     return spifs_read_page(spifs, page_id);
 }
 
-static uint8_t* cursor_get(cursor_t* cursor)
+static uint8_t *cursor_get(cursor_t* cursor)
 {
-    spifs_t* spifs = cursor->spifs;
+    spifs_t *spifs = cursor->spifs;
 
-    uint8_t* page_end = spifs->page + spifs->page_size;
+    uint8_t *page_end = spifs->page + spifs->page_size;
     DEBUG_ASSERT(cursor->data < page_end);
 
     return cursor->data;
@@ -161,9 +162,9 @@ static uint8_t* cursor_get(cursor_t* cursor)
 
 static status_t cursor_advance(cursor_t *cursor)
 {
-    spifs_t* spifs = cursor->spifs;
+    spifs_t *spifs = cursor->spifs;
 
-    uint8_t* page_end = spifs->page + spifs->page_size;
+    uint8_t *page_end = spifs->page + spifs->page_size;
 
     cursor->data += cursor->entry_length;
 
@@ -242,12 +243,6 @@ static uint64_t used_space(spifs_t *spifs)
     return result;
 }
 
-static toc_position_t advance_toc(toc_position_t pos)
-{
-    return pos == FRONT_TOC ? BACK_TOC : FRONT_TOC;
-}
-
-
 static bool consistency_check(spifs_t *spifs)
 {
     /* Return true iff the ToC is in a consistent state. */
@@ -282,7 +277,8 @@ static status_t spifs_commit_toc(spifs_t *spifs)
     status_t err;
 
     // Get the next logical ToC.
-    toc_position_t target_toc = advance_toc(spifs->toc_position);
+    toc_position_t target_toc =
+            spifs->toc_position == FRONT_TOC ? BACK_TOC : FRONT_TOC;
 
     // Bump the generation counter.
     uint32_t target_generation = spifs->generation + 1;
@@ -317,8 +313,9 @@ static status_t spifs_commit_toc(spifs_t *spifs)
 
         if (cursor == page_end) {
             err = spifs_write_page(spifs, toc_page_addr);
-            if (err != NO_ERROR)
+            if (err != NO_ERROR) {
                 return err;
+            }
 
             toc_page_addr += target_toc;
             cursor = spifs->page;
@@ -500,13 +497,15 @@ static status_t get_device_page_info(bdev_t* dev, uint32_t* page_size, uint32_t 
     }
 }
 
-status_t spifs_format(bdev_t* dev, const void* args)
+static status_t spifs_format(bdev_t* dev, const void* args)
 {
     status_t err = NO_ERROR;
 
     LTRACEF("dev %p, args %p\n", dev, args);
 
-    DEBUG_ASSERT(dev);
+    if (!dev) {
+        return ERR_INVALID_ARGS;
+    }
 
     spifs_format_args_t *spifs_args;
     spifs_format_args_t default_args = {
@@ -568,6 +567,7 @@ status_t spifs_format(bdev_t* dev, const void* args)
     spifs.page = memalign(CACHE_LINE, page_size);
     list_initialize(&spifs.files);
     list_initialize(&spifs.dcookies);
+    mutex_init(&spifs.lock);
 
     spifs_file_t f_toc;
     f_toc.metadata.page_idx = 0;

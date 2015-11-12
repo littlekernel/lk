@@ -21,8 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef LIB_SPIFS_SPIFS_H_
-#define LIB_SPIFS_SPIFS_H_
+#ifndef LIB_FS_SPIFS_H_
+#define LIB_FS_SPIFS_H_
 
 #include <lib/fs.h>
 
@@ -30,4 +30,4 @@ typedef struct {
     uint32_t toc_pages;
 } spifs_format_args_t;
 
-#endif  // LIB_SPIFS_SPIFS_H_
+#endif  // LIB_FS_SPIFS_H_
