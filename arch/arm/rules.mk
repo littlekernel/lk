@@ -321,9 +321,9 @@ linkerscript.phony:
 
 # arm specific script to try to guess stack usage
 $(OUTELF).stack: LOCAL_DIR:=$(LOCAL_DIR)
-$(OUTELF).stack: $(OUTELF).lst
+$(OUTELF).stack: $(OUTELF)
 	$(NOECHO)echo generating stack usage $@
-	$(NOECHO)$(LOCAL_DIR)/stackusage < $< | sort -n -k 1 -r > $@
+	$(NOECHO)$(OBJDUMP) -Mreg-names-raw -d $< | $(LOCAL_DIR)/stackusage | $(CPPFILT) | sort -n -k 1 -r > $@
 
 EXTRA_BUILDDEPS += $(OUTELF).stack
 GENERATED += $(OUTELF).stack
