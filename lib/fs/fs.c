@@ -427,6 +427,7 @@ status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat)
     }
 
     if (!mount->api->fs_stat){
+        put_mount(mount);
         return ERR_NOT_SUPPORTED;
     }
 
@@ -460,8 +461,12 @@ ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen)
 
 const char *trim_name(const char *_name)
 {
-    // chew up leading slashes
     const char *name = &_name[0];
+    // chew up leading spaces
+    while (*name == ' ')
+        name++;
+
+    // chew up leading slashes
     while (*name == '/')
         name++;
 

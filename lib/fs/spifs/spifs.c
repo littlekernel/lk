@@ -207,8 +207,10 @@ static uint32_t find_open_run(spifs_t *spifs, uint32_t requested_length)
     spifs_file_t *file;
     list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
         // Number of pages that this file occupies
+        uint32_t page_size_shift = log2_uint(file->fs_handle->page_size);
+
         uint32_t file_page_length =
-            file->metadata.capacity / file->fs_handle->page_size;
+                divpow2(file->metadata.capacity, page_size_shift);
 
         // Index of the page immediately following the last page of this file.
         uint32_t file_end_page = file->metadata.page_idx + file_page_length;
@@ -747,6 +749,10 @@ static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fc
     if (strnlen(name, MAX_FILENAME_LENGTH) == MAX_FILENAME_LENGTH)
         return ERR_BAD_PATH;
 
+    // Length is bigger than 4GB?
+    if (len > 0xFFFFFFFF)
+        return ERR_TOO_BIG;
+
     mutex_acquire(&spifs->lock);
 
     if (find_file(spifs, name)) {
@@ -939,7 +945,9 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
 
     uint32_t start_addr =
         off + (file->metadata.page_idx * spifs->page_size);
-    uint32_t target_page_id = start_addr / spifs->page_size;
+
+    uint32_t page_shift = log2_uint(spifs->page_size);
+    uint32_t target_page_id = divpow2(start_addr, page_shift);
 
     // Are we growing the file?
     if (off + len > file->metadata.length) {

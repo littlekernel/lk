@@ -44,17 +44,17 @@ typedef struct {
     uint32_t toc_pages;
 } test;
 
-bool test_empty_after_format(const char *);
-bool test_double_create_file(const char *);
-bool test_write_read_normal(const char *);
-bool test_write_past_eof(const char *);
-bool test_full_toc(const char *);
-bool test_full_fs(const char *);
-bool test_write_past_end_of_capacity(const char *);
-bool test_rm_reclaim(const char *);
-bool test_corrupt_toc(const char *);
-bool test_write_with_offset(const char *);
-bool test_read_write_big(const char *);
+static bool test_empty_after_format(const char *);
+static bool test_double_create_file(const char *);
+static bool test_write_read_normal(const char *);
+static bool test_write_past_eof(const char *);
+static bool test_full_toc(const char *);
+static bool test_full_fs(const char *);
+static bool test_write_past_end_of_capacity(const char *);
+static bool test_rm_reclaim(const char *);
+static bool test_corrupt_toc(const char *);
+static bool test_write_with_offset(const char *);
+static bool test_read_write_big(const char *);
 
 static test tests[] = {
     {&test_empty_after_format, "Test no files in ToC after format.", 1},
@@ -103,7 +103,7 @@ bool test_teardown(void)
     return true;;
 }
 
-bool test_empty_after_format(const char *dev_name)
+static bool test_empty_after_format(const char *dev_name)
 {
     dirhandle *dhandle;
     status_t err = fs_open_dir(MNT_PATH, &dhandle);
@@ -121,7 +121,7 @@ bool test_empty_after_format(const char *dev_name)
     return true;
 }
 
-bool test_double_create_file(const char *dev_name)
+static bool test_double_create_file(const char *dev_name)
 {
     status_t status;
 
@@ -162,7 +162,7 @@ err:
     return status == NO_ERROR ? num_files == 1 : false;
 }
 
-bool test_write_read_normal(const char *dev_name)
+static bool test_write_read_normal(const char *dev_name)
 {
     char test_message[] = "spifs test";
     char test_buf[sizeof(test_message)];
@@ -213,7 +213,7 @@ bool test_write_read_normal(const char *dev_name)
     return strncmp(test_message, test_buf, sizeof(test_message)) == 0;
 }
 
-bool test_write_past_eof(const char *dev_name)
+static bool test_write_past_eof(const char *dev_name)
 {
     char test_message[] = "spifs test";
 
@@ -242,7 +242,7 @@ bool test_write_past_eof(const char *dev_name)
     return true;
 }
 
-bool test_full_toc(const char *dev_name)
+static bool test_full_toc(const char *dev_name)
 {
     struct fs_stat stat;
 
@@ -284,7 +284,7 @@ bool test_full_toc(const char *dev_name)
     return true;
 }
 
-bool test_rm_reclaim(const char *dev_name)
+static bool test_rm_reclaim(const char *dev_name)
 {
     // Create some number of files that's a power of 2;
     size_t n_files = 4;
@@ -356,7 +356,7 @@ bool test_rm_reclaim(const char *dev_name)
     return true;
 }
 
-bool test_full_fs(const char *dev_name)
+static bool test_full_fs(const char *dev_name)
 {
     struct fs_stat stat;
 
@@ -385,7 +385,7 @@ bool test_full_fs(const char *dev_name)
     return true;
 }
 
-bool test_write_past_end_of_capacity(const char *dev_name)
+static bool test_write_past_end_of_capacity(const char *dev_name)
 {
     filehandle *handle;
     status_t status = fs_create_file(TEST_FILE_PATH, &handle, 0);
@@ -413,7 +413,7 @@ finish:
     return status == NO_ERROR;
 }
 
-bool test_corrupt_toc(const char *dev_name)
+static bool test_corrupt_toc(const char *dev_name)
 {
     // Create a zero byte file.
     filehandle *handle;
@@ -490,7 +490,7 @@ bool test_corrupt_toc(const char *dev_name)
     return true;
 }
 
-bool test_write_with_offset(const char *dev_name)
+static bool test_write_with_offset(const char *dev_name)
 {
     size_t repeats = 3;
     char test_message[] = "test";
@@ -530,7 +530,7 @@ bool test_write_with_offset(const char *dev_name)
     return success;
 }
 
-bool test_read_write_big(const char *dev_name)
+static bool test_read_write_big(const char *dev_name)
 {
     bool success = true;
 
