@@ -27,10 +27,10 @@
 char const *
 strerror(int errnum)
 {
-	if (errnum < 0) {
-		return "General Error";
-	} else {
-		return "No Error";
-	}
+    if (errnum < 0) {
+        return "General Error";
+    } else {
+        return "No Error";
+    }
 }
 

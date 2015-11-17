@@ -30,13 +30,13 @@
 char *
 strcat(char *dest,  char const*src)
 {
-	char *tmp = dest;
+    char *tmp = dest;
 
-	while (*dest)
-		dest++;
-	while ((*dest++ = *src++) != '\0')
-		;
+    while (*dest)
+        dest++;
+    while ((*dest++ = *src++) != '\0')
+        ;
 
-	return tmp;
+    return tmp;
 }
 

@@ -28,61 +28,61 @@
 
 int fputc(int c, FILE *fp)
 {
-	return fp->fputc(fp->ctx, c);
+    return fp->fputc(fp->ctx, c);
 }
 
 int putchar(int c)
 {
-	return fputc(c, stdout);
+    return fputc(c, stdout);
 }
 
 int puts(const char *str)
 {
-	int err = fputs(str, stdout);
-	if (err >= 0)
-		err = fputc('\n', stdout);
-	return err;
+    int err = fputs(str, stdout);
+    if (err >= 0)
+        err = fputc('\n', stdout);
+    return err;
 }
 
 int fputs(const char *s, FILE *fp)
 {
-	return fp->fputs(fp->ctx, s);
+    return fp->fputs(fp->ctx, s);
 }
 
 int getc(FILE *fp)
 {
-	return fp->fgetc(fp->ctx);
+    return fp->fgetc(fp->ctx);
 }
 
 int getchar(void)
 {
-	return getc(stdin);
+    return getc(stdin);
 }
 
 int vfprintf(FILE *fp, const char *fmt, va_list ap)
 {
-	return fp->vfprintf(fp->ctx, fmt, ap);
+    return fp->vfprintf(fp->ctx, fmt, ap);
 }
 
 int fprintf(FILE *fp, const char *fmt, ...)
 {
-	va_list ap;
-	int err;
+    va_list ap;
+    int err;
 
-	va_start(ap, fmt);
-	err = vfprintf(fp, fmt, ap);
-	va_end(ap);
-	return err;
+    va_start(ap, fmt);
+    err = vfprintf(fp, fmt, ap);
+    va_end(ap);
+    return err;
 }
 
 int _printf(const char *fmt, ...)
 {
-	va_list ap;
-	int err;
+    va_list ap;
+    int err;
 
-	va_start(ap, fmt);
-	err = vfprintf(stdout, fmt, ap);
-	va_end(ap);
+    va_start(ap, fmt);
+    err = vfprintf(stdout, fmt, ap);
+    va_end(ap);
 
-	return err;
+    return err;
 }
