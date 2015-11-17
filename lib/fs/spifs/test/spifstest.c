@@ -55,6 +55,7 @@ static bool test_rm_reclaim(const char *);
 static bool test_corrupt_toc(const char *);
 static bool test_write_with_offset(const char *);
 static bool test_read_write_big(const char *);
+static bool test_rm_active_dirent(const char *);
 
 static test tests[] = {
     {&test_empty_after_format, "Test no files in ToC after format.", 1},
@@ -68,6 +69,7 @@ static test tests[] = {
     {&test_corrupt_toc, "Test that FS can be mounted with one corrupt ToC.", 1},
     {&test_write_with_offset, "Test that files can be written to at an offset.", 1},
     {&test_read_write_big, "Test that an unaligned ~10kb buffer can be written and read.", 1},
+    {&test_rm_active_dirent, "Test that we can remove a file with an open dirent.", 1},
 };
 
 bool test_setup(const char *dev_name, uint32_t toc_pages)
@@ -578,8 +580,48 @@ static bool test_read_write_big(const char *dev_name)
     }
 
 err:
+    success &= fs_close_file(handle) == NO_ERROR;
+
     free(rbuf);
     free(wbuf);
+    return success;
+}
+
+static bool test_rm_active_dirent(const char *dev_name)
+{
+    filehandle *handle;
+    status_t status = fs_create_file(TEST_FILE_PATH, &handle, 0);
+    if (status != NO_ERROR) {
+        return false;
+    }
+
+    status = fs_close_file(handle);
+    if (status != NO_ERROR) {
+        return false;
+    }
+
+    dirhandle *dhandle;
+    status = fs_open_dir(MNT_PATH, &dhandle);
+    if (status != NO_ERROR) {
+        return false;
+    }
+
+    // Dir handle should now be pointing to the only file in our FS.
+    status = fs_remove_file(TEST_FILE_PATH);
+    if (status != NO_ERROR) {
+        fs_close_dir(dhandle);
+        return false;
+    }
+
+    bool success = true;
+    struct dirent *ent = malloc(sizeof(*ent));
+    if (fs_read_dir(dhandle, ent) >= 0) {
+        success = false;
+    }
+
+    success &= fs_close_dir(dhandle) == NO_ERROR;
+    free(ent);
+
     return success;
 }
 

@@ -871,14 +871,24 @@ static status_t spifs_remove(fscookie *cookie, const char *name)
 
     spifs_file_t *file = find_file(spifs, name);
 
-    if (file) {
-        list_delete(&file->node);
-        free(file);
-        status = NO_ERROR;
-    } else {
+    if (!file) {
         status = ERR_NOT_FOUND;
         goto err;
     }
+
+    // Make sure there are no dirents open that point to the file that we're
+    // deleting.
+    dircookie *dcookie;
+    list_for_every_entry(&spifs->dcookies, dcookie, dircookie, node) {
+        if (dcookie->next_file == file) {
+            dcookie->next_file = list_next_type(&dcookie->fs->files,
+                                                &dcookie->next_file->node,
+                                                spifs_file_t, node);
+        }
+    }
+
+    list_delete(&file->node);
+    free(file);
 
     status = spifs_commit_toc(spifs);
 
