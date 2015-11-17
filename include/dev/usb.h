@@ -28,9 +28,9 @@
 
 /* top level initialization for usb client, abstracts away the interfaces */
 typedef struct {
-	void *desc;
-	size_t len;
-	uint flags;
+    void *desc;
+    size_t len;
+    uint flags;
 } usb_descriptor __ALIGNED(2);
 
 #define USB_DESC_FLAG_STATIC (0x1)
@@ -38,18 +38,18 @@ typedef struct {
 #define USB_DESC_STATIC(x) { .desc = (void *)(x), .len = sizeof(x), .flags = USB_DESC_FLAG_STATIC }
 
 typedef struct {
-	usb_descriptor string;
-	uint8_t id;
+    usb_descriptor string;
+    uint8_t id;
 } usb_string;
 
 /* complete usb config struct, passed in to usb_setup() */
 typedef struct {
-	struct usb_descriptor_speed {
-		usb_descriptor device;
-		usb_descriptor device_qual;
-		usb_descriptor config;
-	} lowspeed, highspeed;
-	usb_descriptor langid;
+    struct usb_descriptor_speed {
+        usb_descriptor device;
+        usb_descriptor device_qual;
+        usb_descriptor config;
+    } lowspeed, highspeed;
+    usb_descriptor langid;
 } usb_config;
 
 /* external code needs to set up the usb stack via the following calls */
