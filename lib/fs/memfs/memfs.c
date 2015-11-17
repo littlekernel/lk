@@ -71,16 +71,6 @@ static memfs_file_t *find_file(memfs_t *mem, const char *name)
     return NULL;
 }
 
-const char *trim_name(const char *_name)
-{
-    // chew up leading slashes
-    const char *name = &_name[0];
-    while (*name == '/')
-        name++;
-
-    return name;
-}
-
 static status_t memfs_mount(struct bdev *dev, fscookie **cookie)
 {
     LTRACEF("dev %p, cookie %p\n", dev, cookie);

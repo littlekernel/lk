@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <platform.h>
+#include <err.h>
 
 static void test_normalize(const char *in)
 {
@@ -88,6 +89,8 @@ usage:
         printf("%s mount <path> <type> [device]\n", argv[0].str);
         printf("%s unmount <path>\n", argv[0].str);
         printf("%s write <path> <string> [<offset>]\n", argv[0].str);
+        printf("%s format <type> [device]\n", argv[0].str);
+        printf("%s stat <path>\n", argv[0].str);
         return -1;
     }
 
@@ -115,6 +118,45 @@ usage:
             printf("error %d unmounting device\n", err);
             return err;
         }
+    } else if (!strcmp(argv[1].str, "format")) {
+        int err;
+
+        if (argc < 3) {
+            goto notenoughargs;
+        }
+
+        err = fs_format_device(
+                argv[2].str,
+                (argc >= 4) ? argv[3].str : NULL,
+                NULL
+        );
+
+        if (err != NO_ERROR) {
+            printf("error %d formatting device\n", err);
+            return err;
+        }
+
+    } else if (!strcmp(argv[1].str, "stat")) {
+        int err;
+
+        if (argc < 3) {
+            goto notenoughargs;
+        }
+
+        struct fs_stat stat;
+        err = fs_stat_fs(argv[2].str, &stat);
+
+        if (err != NO_ERROR) {
+            printf("error %d statting filesystem\n", err);
+            return err;
+        }
+
+        printf("\ttotal bytes: %llu\n", stat.total_space);
+        printf("\tfree bytes: %llu\n", stat.free_space);
+        printf("\n");
+        printf("\ttotal inodes: %d\n", stat.total_inodes);
+        printf("\tfree inodes: %d\n", stat.free_inodes);
+
     } else if (!strcmp(argv[1].str, "write")) {
         int err;
         off_t off;

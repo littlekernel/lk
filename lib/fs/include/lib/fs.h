@@ -26,12 +26,21 @@
 #include <sys/types.h>
 #include <compiler.h>
 
-#define FS_MAX_PATH_LEN 256
-#define FS_MAX_FILE_LEN 128
+#define FS_MAX_PATH_LEN 128
+#define FS_MAX_FILE_LEN 64
 
 struct file_stat {
     bool is_dir;
     uint64_t size;
+    uint64_t capacity;
+};
+
+struct fs_stat {
+    uint64_t free_space;
+    uint64_t total_space;
+
+    uint32_t free_inodes;
+    uint32_t total_inodes;
 };
 
 struct dirent {
@@ -41,6 +50,8 @@ struct dirent {
 typedef struct filehandle filehandle;
 typedef struct dirhandle dirhandle;
 
+
+status_t fs_format_device(const char *fsname, const char *device, const void *args) __NONNULL((1));
 status_t fs_mount(const char *path, const char *fs, const char *device) __NONNULL((1)) __NONNULL((2));
 status_t fs_unmount(const char *path) __NONNULL();
 
@@ -59,11 +70,16 @@ status_t fs_open_dir(const char *path, dirhandle **handle) __NONNULL();
 status_t fs_read_dir(dirhandle *handle, struct dirent *ent) __NONNULL();
 status_t fs_close_dir(dirhandle *handle) __NONNULL();
 
+status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat) __NONNULL((1)) __NONNULL((2));
+
 /* convenience routines */
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen) __NONNULL();
 
 /* walk through a path string, removing duplicate path seperators, flattening . and .. references */
 void fs_normalize_path(char *path) __NONNULL();
+
+/* Remove any leading spaces or slashes */
+const char *trim_name(const char *_name);
 
 /* file system api */
 typedef struct fscookie fscookie;
@@ -72,6 +88,9 @@ typedef struct dircookie dircookie;
 struct bdev;
 
 struct fs_api {
+    status_t (*format)(struct bdev *, const void*);
+    status_t (*fs_stat)(fscookie *, struct fs_stat *);
+
     status_t (*mount)(struct bdev *, fscookie **);
     status_t (*unmount)(fscookie *);
     status_t (*open)(fscookie *, const char *, filecookie **);

@@ -268,7 +268,7 @@ static ssize_t spiflash_bdev_read_block(struct bdev* device, void* buf,
     QSPI_CommandTypeDef s_command;
     HAL_StatusTypeDef status;
 
-    uint64_t largest_offset = (block + count) * device->block_size;
+    uint64_t largest_offset = (block + count) * device->block_size - 1;
 
     // /* Initialize the read command */
     s_command.InstructionMode = QSPI_INSTRUCTION_1_LINE;
