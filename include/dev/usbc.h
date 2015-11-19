@@ -37,16 +37,6 @@ typedef enum {
     USB_OUT
 } ep_dir_t;
 
-typedef enum {
-    USB_CB_RESET,
-    USB_CB_SUSPEND,
-    USB_CB_RESUME,
-    USB_CB_DISCONNECT,
-    USB_CB_ONLINE,
-    USB_CB_OFFLINE,
-    USB_CB_SETUP_MSG,
-} usbc_callback_op_t;
-
 struct usbc_transfer;
 typedef status_t (*ep_callback)(ep_t endpoint, struct usbc_transfer *transfer);
 
@@ -69,16 +59,8 @@ status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width);
 status_t usbc_queue_rx(ep_t ep, usbc_transfer_t *transfer);
 status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer);
 
-/* setup arg is valid during CB_SETUP_MSG */
-union usb_callback_args {
-    const struct usb_setup *setup;
-};
-
 status_t usbc_set_active(bool active);
 void usbc_set_address(uint8_t address);
-
-/* callback api the usbc driver uses */
-status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args);
 
 /* called back from within a callback to handle setup responses */
 void usbc_ep0_ack(void);

@@ -64,5 +64,29 @@ status_t usb_add_string(const char *string, uint8_t id);
 status_t usb_start(void);
 status_t usb_stop(void);
 
+/* callbacks from usbc and usb layers */
+typedef enum {
+    USB_CB_RESET,
+    USB_CB_SUSPEND,
+    USB_CB_RESUME,
+    USB_CB_DISCONNECT,
+    USB_CB_ONLINE,
+    USB_CB_OFFLINE,
+    USB_CB_SETUP_MSG,
+} usb_callback_op_t;
+
+/* setup arg is valid during CB_SETUP_MSG */
+union usb_callback_args {
+    const struct usb_setup *setup;
+};
+
+typedef status_t (*usb_callback_t)(void *cookie, usb_callback_op_t op, const union usb_callback_args *args);
+
+/* callback api the usbc driver uses */
+status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args);
+
+/* callback api that anyone can register for */
+status_t usb_register_callback(usb_callback_t, void *cookie);
+
 #endif
 

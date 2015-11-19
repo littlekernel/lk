@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <list.h>
 #include <dev/usbc.h>
 #include <dev/usb.h>
 #include <lk/init.h>
@@ -33,12 +34,24 @@
 #define LOCAL_TRACE 0
 
 #define MAX_STRINGS 8
-static usb_string strings[MAX_STRINGS];
+static struct {
+    bool active;
+    uint8_t active_config;
 
-static usb_config *config;
+    usb_config *config;
 
-static uint8_t active_config;
-static bool usb_active = false;
+    struct list_node cb_list;
+
+    usb_string strings[MAX_STRINGS];
+} usb;
+
+typedef struct {
+    struct list_node node;
+    usb_callback_t cb;
+    void *cookie;
+} usb_callback_container_t;
+
+static void usb_do_callbacks(usb_callback_op_t op, const union usb_callback_args *args);
 
 static void append_desc_data(usb_descriptor *desc, const void *dat, size_t len)
 {
@@ -85,12 +98,12 @@ static int usb_append_interface(usb_descriptor *desc, const uint8_t *int_descr, 
 
 int usb_append_interface_highspeed(const uint8_t *int_descr, size_t len)
 {
-    return usb_append_interface(&config->highspeed.config, int_descr, len);
+    return usb_append_interface(&usb.config->highspeed.config, int_descr, len);
 }
 
 int usb_append_interface_lowspeed(const uint8_t *int_descr, size_t len)
 {
-    return usb_append_interface(&config->lowspeed.config, int_descr, len);
+    return usb_append_interface(&usb.config->lowspeed.config, int_descr, len);
 }
 
 void usb_set_string_descriptor(usb_descriptor *desc, const char *string)
@@ -117,11 +130,11 @@ void usb_set_string_descriptor(usb_descriptor *desc, const char *string)
 static void set_usb_id(uint16_t vendor, uint16_t product)
 {
     // patch the current configuration to with the vendor/product id
-    ((uint16_t *)config->lowspeed.device.desc)[4] = vendor;
-    ((uint16_t *)config->lowspeed.device.desc)[5] = product;
+    ((uint16_t *)usb.config->lowspeed.device.desc)[4] = vendor;
+    ((uint16_t *)usb.config->lowspeed.device.desc)[5] = product;
 
-    ((uint16_t *)config->highspeed.device.desc)[4] = vendor;
-    ((uint16_t *)config->highspeed.device.desc)[5] = product;
+    ((uint16_t *)usb.config->highspeed.device.desc)[4] = vendor;
+    ((uint16_t *)usb.config->highspeed.device.desc)[5] = product;
 }
 
 status_t usb_add_string(const char *string, uint8_t id)
@@ -138,10 +151,10 @@ status_t usb_add_string(const char *string, uint8_t id)
 
     /* find a slot to put it */
     for (i = 0; i < MAX_STRINGS; i++) {
-        if (strings[i].id == 0) {
-            strings[i].string.desc = strbuf;
-            strings[i].string.len = len * 2 + 2;
-            strings[i].id = id;
+        if (usb.strings[i].id == 0) {
+            usb.strings[i].string.desc = strbuf;
+            usb.strings[i].string.len = len * 2 + 2;
+            usb.strings[i].id = id;
             return NO_ERROR;
         }
     }
@@ -151,21 +164,48 @@ status_t usb_add_string(const char *string, uint8_t id)
 
 static void usb_set_active_config(uint8_t config)
 {
-    if (config != active_config) {
-        active_config = config;
-        if (active_config != 0)
+    if (config != usb.active_config) {
+        usb.active_config = config;
+        if (usb.active_config != 0) {
             printf("usb online\n");
-        else
+            usb_do_callbacks(USB_CB_ONLINE, NULL);
+        } else {
             printf("usb offline\n");
+            usb_do_callbacks(USB_CB_OFFLINE, NULL);
+        }
     }
 }
 
-status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args)
+status_t usb_register_callback(usb_callback_t cb, void *cookie)
+{
+    DEBUG_ASSERT(cb);
+
+    usb_callback_container_t *c = malloc(sizeof(usb_callback_container_t));
+    if (!c)
+        return ERR_NO_MEMORY;
+
+    c->cb = cb;
+    c->cookie = cookie;
+    list_add_tail(&usb.cb_list, &c->node);
+
+    return NO_ERROR;
+}
+
+static void usb_do_callbacks(usb_callback_op_t op, const union usb_callback_args *args)
+{
+    usb_callback_container_t *c;
+    list_for_every_entry(&usb.cb_list, c, usb_callback_container_t, node) {
+        c->cb(c->cookie, op, args);
+    }
+}
+
+status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args)
 {
     LTRACEF("op %d, args %p\n", op, args);
 
     /* start looking for specific things to handle */
     if (op == USB_CB_SETUP_MSG) {
+        bool setup_handled = false;
         const struct usb_setup *setup = args->setup;
         DEBUG_ASSERT(setup);
         LTRACEF("SETUP: req_type=%#x req=%#x value=%#x index=%#x len=%#x\n",
@@ -177,27 +217,31 @@ status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args
                     LTRACEF("SET_ADDRESS 0x%x\n", setup->value);
                     usbc_ep0_ack();
                     usbc_set_address(setup->value);
+                    setup_handled = true;
                     break;
                 case SET_FEATURE:
                 case CLEAR_FEATURE:
-                    // OTAY
                     LTRACEF("SET/CLEAR_FEATURE, feature 0x%x\n", setup->value);
                     usbc_ep0_ack();
+                    setup_handled = true;
                     break;
                 case SET_DESCRIPTOR:
                     LTRACEF("SET_DESCRIPTOR\n");
                     usbc_ep0_stall();
+                    setup_handled = true;
                     break;
                 case GET_DESCRIPTOR: {
-                    /* Get the right descriptors based on current speed */
-                    const struct usb_descriptor_speed *speed;
-                    if (usbc_is_highspeed()) {
-                        speed = &config->highspeed;
-                    } else {
-                        speed = &config->lowspeed;
-                    }
-
                     if ((setup->request_type & RECIP_MASK) == RECIP_DEVICE) {
+                        /* handle device descriptor fetches */
+
+                        /* Get the right descriptors based on current speed */
+                        const struct usb_descriptor_speed *speed;
+                        if (usbc_is_highspeed()) {
+                            speed = &usb.config->highspeed;
+                        } else {
+                            speed = &usb.config->lowspeed;
+                        }
+
                         switch (setup->value) {
                             case 0x100: /* device */
                                 LTRACEF("got GET_DESCRIPTOR, device descriptor\n");
@@ -211,8 +255,8 @@ status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args
                                 break;
                             case 0x300:    /* Language ID */
                                 LTRACEF("got GET_DESCRIPTOR, language id\n");
-                                usbc_ep0_send(config->langid.desc,
-                                              config->langid.len, setup->length);
+                                usbc_ep0_send(usb.config->langid.desc,
+                                              usb.config->langid.len, setup->length);
                                 break;
                             case (0x301)...(0x3ff): {
                                 /* string descriptor, search our list for a match */
@@ -220,9 +264,9 @@ status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args
                                 bool found = false;
                                 uint8_t id = setup->value & 0xff;
                                 for (i = 0; i < MAX_STRINGS; i++) {
-                                    if (strings[i].id == id) {
-                                        usbc_ep0_send(strings[i].string.desc,
-                                                      strings[i].string.len,
+                                    if (usb.strings[i].id == id) {
+                                        usbc_ep0_send(usb.strings[i].string.desc,
+                                                      usb.strings[i].string.len,
                                                       setup->length);
                                         found = true;
                                         break;
@@ -249,9 +293,7 @@ status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args
                                 // stall
                                 break;
                         }
-                    } else {
-                        // interface/endpoint descriptors? let someone else handle it
-                        // STALL
+                        setup_handled = true;
                     }
                     break;
                 }
@@ -264,7 +306,7 @@ status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args
 
                 case GET_CONFIGURATION:
                     LTRACEF("GET_CONFIGURATION\n");
-                    usbc_ep0_send(&active_config, 1, setup->length);
+                    usbc_ep0_send(&usb.active_config, 1, setup->length);
                     break;
 
                 case SET_INTERFACE:
@@ -291,39 +333,50 @@ status_t usb_callback(usbc_callback_op_t op, const union usb_callback_args *args
         } else {
             LTRACEF("unhandled nonstandard request 0x%x\n", setup->request);
         }
+
+        if (!setup_handled) {
+            usb_do_callbacks(op, args);
+        }
+    } else if (op == USB_CB_RESET) {
+        usb_do_callbacks(op, args);
+
+        usb.active_config = 0;
+        usb_do_callbacks(USB_CB_OFFLINE, args);
+    } else {
+        // other non setup messages, pass them down to anyone else
+        usb_do_callbacks(op, args);
     }
 
     return NO_ERROR;
 }
 
-status_t usb_setup(usb_config *_config)
+status_t usb_setup(usb_config *config)
 {
-    ASSERT(_config);
+    DEBUG_ASSERT(config);
+    DEBUG_ASSERT(usb.active == false);
 
-    config = _config;
-
-    ASSERT(usb_active == false);
+    usb.config = config;
 
     return NO_ERROR;
 }
 
 status_t usb_start(void)
 {
-    ASSERT(config);
-    ASSERT(usb_active == false);
+    DEBUG_ASSERT(usb.config);
+    DEBUG_ASSERT(usb.active == false);
 
     // go online
     usbc_set_active(true);
-    usb_active = true;
+    usb.active = true;
 
     return NO_ERROR;
 }
 
 status_t usb_stop(void)
 {
-    ASSERT(usb_active == true);
+    DEBUG_ASSERT(usb.active == true);
 
-    usb_active = false;
+    usb.active = false;
     usbc_set_active(false);
 
     return NO_ERROR;
@@ -331,6 +384,7 @@ status_t usb_stop(void)
 
 static void usb_init(uint level)
 {
+    list_initialize(&usb.cb_list);
 }
 
 LK_INIT_HOOK(usb, usb_init, LK_INIT_LEVEL_THREADING);
