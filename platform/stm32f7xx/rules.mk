@@ -37,6 +37,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uart.c \
+	$(LOCAL_DIR)/usbc.c \
 	$(LOCAL_DIR)/vectab.c \
 	$(LOCAL_DIR)/sdram.c \
 	$(LOCAL_DIR)/qspi.c
@@ -51,6 +52,7 @@ LINKER_SCRIPT += \
 
 MODULE_DEPS += \
 	arch/arm/arm-m/systick \
+	dev/usb \
 	lib/bio \
 	lib/cbuf
 

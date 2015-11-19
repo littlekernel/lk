@@ -24,7 +24,8 @@ GLOBAL_DEFINES += \
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/init.c \
-    $(LOCAL_DIR)/lcd.c
+    $(LOCAL_DIR)/lcd.c \
+    $(LOCAL_DIR)/usb.c
 
 MODULE_DEPS += \
     lib/gfx
