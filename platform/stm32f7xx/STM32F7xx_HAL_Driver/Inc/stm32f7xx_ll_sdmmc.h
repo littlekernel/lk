@@ -33,14 +33,14 @@
   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   *
   ******************************************************************************
-  */ 
+  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __STM32F7xx_LL_SDMMC_H
 #define __STM32F7xx_LL_SDMMC_H
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
@@ -52,95 +52,92 @@
 
 /** @addtogroup SDMMC_LL
   * @{
-  */ 
+  */
 
-/* Exported types ------------------------------------------------------------*/ 
+/* Exported types ------------------------------------------------------------*/
 /** @defgroup SDMMC_LL_Exported_Types SDMMC_LL Exported Types
   * @{
   */
-  
-/** 
-  * @brief  SDMMC Configuration Structure definition  
+
+/**
+  * @brief  SDMMC Configuration Structure definition
   */
-typedef struct
-{
-  uint32_t ClockEdge;            /*!< Specifies the clock transition on which the bit capture is made.
+typedef struct {
+    uint32_t ClockEdge;            /*!< Specifies the clock transition on which the bit capture is made.
                                       This parameter can be a value of @ref SDMMC_LL_Clock_Edge                 */
 
-  uint32_t ClockBypass;          /*!< Specifies whether the SDMMC Clock divider bypass is
+    uint32_t ClockBypass;          /*!< Specifies whether the SDMMC Clock divider bypass is
                                       enabled or disabled.
                                       This parameter can be a value of @ref SDMMC_LL_Clock_Bypass               */
 
-  uint32_t ClockPowerSave;       /*!< Specifies whether SDMMC Clock output is enabled or
+    uint32_t ClockPowerSave;       /*!< Specifies whether SDMMC Clock output is enabled or
                                       disabled when the bus is idle.
                                       This parameter can be a value of @ref SDMMC_LL_Clock_Power_Save           */
 
-  uint32_t BusWide;              /*!< Specifies the SDMMC bus width.
+    uint32_t BusWide;              /*!< Specifies the SDMMC bus width.
                                       This parameter can be a value of @ref SDMMC_LL_Bus_Wide                   */
 
-  uint32_t HardwareFlowControl;  /*!< Specifies whether the SDMMC hardware flow control is enabled or disabled.
+    uint32_t HardwareFlowControl;  /*!< Specifies whether the SDMMC hardware flow control is enabled or disabled.
                                       This parameter can be a value of @ref SDMMC_LL_Hardware_Flow_Control      */
 
-  uint32_t ClockDiv;             /*!< Specifies the clock frequency of the SDMMC controller.
-                                      This parameter can be a value between Min_Data = 0 and Max_Data = 255 */  
-  
-}SDMMC_InitTypeDef;
-  
+    uint32_t ClockDiv;             /*!< Specifies the clock frequency of the SDMMC controller.
+                                      This parameter can be a value between Min_Data = 0 and Max_Data = 255 */
 
-/** 
-  * @brief  SDMMC Command Control structure 
+} SDMMC_InitTypeDef;
+
+
+/**
+  * @brief  SDMMC Command Control structure
   */
-typedef struct                                                                                            
-{
-  uint32_t Argument;            /*!< Specifies the SDMMC command argument which is sent
+typedef struct {
+    uint32_t Argument;            /*!< Specifies the SDMMC command argument which is sent
                                      to a card as part of a command message. If a command
                                      contains an argument, it must be loaded into this register
                                      before writing the command to the command register.              */
 
-  uint32_t CmdIndex;            /*!< Specifies the SDMMC command index. It must be Min_Data = 0 and 
+    uint32_t CmdIndex;            /*!< Specifies the SDMMC command index. It must be Min_Data = 0 and
                                      Max_Data = 64                                                    */
 
-  uint32_t Response;            /*!< Specifies the SDMMC response type.
+    uint32_t Response;            /*!< Specifies the SDMMC response type.
                                      This parameter can be a value of @ref SDMMC_LL_Response_Type         */
 
-  uint32_t WaitForInterrupt;    /*!< Specifies whether SDMMC wait for interrupt request is 
+    uint32_t WaitForInterrupt;    /*!< Specifies whether SDMMC wait for interrupt request is
                                      enabled or disabled.
                                      This parameter can be a value of @ref SDMMC_LL_Wait_Interrupt_State  */
 
-  uint32_t CPSM;                /*!< Specifies whether SDMMC Command path state machine (CPSM)
+    uint32_t CPSM;                /*!< Specifies whether SDMMC Command path state machine (CPSM)
                                      is enabled or disabled.
                                      This parameter can be a value of @ref SDMMC_LL_CPSM_State            */
-}SDMMC_CmdInitTypeDef;
+} SDMMC_CmdInitTypeDef;
 
 
-/** 
-  * @brief  SDMMC Data Control structure 
+/**
+  * @brief  SDMMC Data Control structure
   */
-typedef struct
-{
-  uint32_t DataTimeOut;         /*!< Specifies the data timeout period in card bus clock periods.  */
+typedef struct {
+    uint32_t DataTimeOut;         /*!< Specifies the data timeout period in card bus clock periods.  */
 
-  uint32_t DataLength;          /*!< Specifies the number of data bytes to be transferred.         */
- 
-  uint32_t DataBlockSize;       /*!< Specifies the data block size for block transfer.
+    uint32_t DataLength;          /*!< Specifies the number of data bytes to be transferred.         */
+
+    uint32_t DataBlockSize;       /*!< Specifies the data block size for block transfer.
                                      This parameter can be a value of @ref SDMMC_LL_Data_Block_Size    */
- 
-  uint32_t TransferDir;         /*!< Specifies the data transfer direction, whether the transfer
+
+    uint32_t TransferDir;         /*!< Specifies the data transfer direction, whether the transfer
                                      is a read or write.
                                      This parameter can be a value of @ref SDMMC_LL_Transfer_Direction */
- 
-  uint32_t TransferMode;        /*!< Specifies whether data transfer is in stream or block mode.
+
+    uint32_t TransferMode;        /*!< Specifies whether data transfer is in stream or block mode.
                                      This parameter can be a value of @ref SDMMC_LL_Transfer_Type      */
- 
-  uint32_t DPSM;                /*!< Specifies whether SDMMC Data path state machine (DPSM)
+
+    uint32_t DPSM;                /*!< Specifies whether SDMMC Data path state machine (DPSM)
                                      is enabled or disabled.
                                      This parameter can be a value of @ref SDMMC_LL_DPSM_State         */
-}SDMMC_DataInitTypeDef;
+} SDMMC_DataInitTypeDef;
 
 /**
   * @}
   */
-  
+
 /* Exported constants --------------------------------------------------------*/
 /** @defgroup SDMMC_LL_Exported_Constants SDMMC_LL Exported Constants
   * @{
@@ -162,13 +159,13 @@ typedef struct
   * @{
   */
 #define SDMMC_CLOCK_BYPASS_DISABLE             ((uint32_t)0x00000000)
-#define SDMMC_CLOCK_BYPASS_ENABLE              SDMMC_CLKCR_BYPASS   
+#define SDMMC_CLOCK_BYPASS_ENABLE              SDMMC_CLKCR_BYPASS
 
 #define IS_SDMMC_CLOCK_BYPASS(BYPASS) (((BYPASS) == SDMMC_CLOCK_BYPASS_DISABLE) || \
                                       ((BYPASS) == SDMMC_CLOCK_BYPASS_ENABLE))
 /**
   * @}
-  */ 
+  */
 
 /** @defgroup SDMMC_LL_Clock_Power_Save Clock Power Saving
   * @{
@@ -207,15 +204,15 @@ typedef struct
 /**
   * @}
   */
-  
+
 /** @defgroup SDMMC_LL_Clock_Division Clock Division
   * @{
   */
 #define IS_SDMMC_CLKDIV(DIV)   ((DIV) <= 0xFF)
 /**
   * @}
-  */  
-    
+  */
+
 /** @defgroup SDMMC_LL_Command_Index Command Index
   * @{
   */
@@ -242,7 +239,7 @@ typedef struct
   * @{
   */
 #define SDMMC_WAIT_NO                        ((uint32_t)0x00000000)
-#define SDMMC_WAIT_IT                        SDMMC_CMD_WAITINT 
+#define SDMMC_WAIT_IT                        SDMMC_CMD_WAITINT
 #define SDMMC_WAIT_PEND                      SDMMC_CMD_WAITPEND
 
 #define IS_SDMMC_WAIT(WAIT) (((WAIT) == SDMMC_WAIT_NO) || \
@@ -262,7 +259,7 @@ typedef struct
                             ((CPSM) == SDMMC_CPSM_ENABLE))
 /**
   * @}
-  */  
+  */
 
 /** @defgroup SDMMC_LL_Response_Registers Response Register
   * @{
@@ -302,7 +299,7 @@ typedef struct
 #define SDMMC_DATABLOCK_SIZE_256B             SDMMC_DCTRL_DBLOCKSIZE_3
 #define SDMMC_DATABLOCK_SIZE_512B             (SDMMC_DCTRL_DBLOCKSIZE_0|SDMMC_DCTRL_DBLOCKSIZE_3)
 #define SDMMC_DATABLOCK_SIZE_1024B            (SDMMC_DCTRL_DBLOCKSIZE_1|SDMMC_DCTRL_DBLOCKSIZE_3)
-#define SDMMC_DATABLOCK_SIZE_2048B            (SDMMC_DCTRL_DBLOCKSIZE_0|SDMMC_DCTRL_DBLOCKSIZE_1|SDMMC_DCTRL_DBLOCKSIZE_3) 
+#define SDMMC_DATABLOCK_SIZE_2048B            (SDMMC_DCTRL_DBLOCKSIZE_0|SDMMC_DCTRL_DBLOCKSIZE_1|SDMMC_DCTRL_DBLOCKSIZE_3)
 #define SDMMC_DATABLOCK_SIZE_4096B            (SDMMC_DCTRL_DBLOCKSIZE_2|SDMMC_DCTRL_DBLOCKSIZE_3)
 #define SDMMC_DATABLOCK_SIZE_8192B            (SDMMC_DCTRL_DBLOCKSIZE_0|SDMMC_DCTRL_DBLOCKSIZE_2|SDMMC_DCTRL_DBLOCKSIZE_3)
 #define SDMMC_DATABLOCK_SIZE_16384B           (SDMMC_DCTRL_DBLOCKSIZE_1|SDMMC_DCTRL_DBLOCKSIZE_2|SDMMC_DCTRL_DBLOCKSIZE_3)
@@ -321,7 +318,7 @@ typedef struct
                                   ((SIZE) == SDMMC_DATABLOCK_SIZE_2048B) || \
                                   ((SIZE) == SDMMC_DATABLOCK_SIZE_4096B) || \
                                   ((SIZE) == SDMMC_DATABLOCK_SIZE_8192B) || \
-                                  ((SIZE) == SDMMC_DATABLOCK_SIZE_16384B)) 
+                                  ((SIZE) == SDMMC_DATABLOCK_SIZE_16384B))
 /**
   * @}
   */
@@ -361,7 +358,7 @@ typedef struct
 /**
   * @}
   */
-  
+
 /** @defgroup SDMMC_LL_Read_Wait_Mode Read Wait Mode
   * @{
   */
@@ -372,7 +369,7 @@ typedef struct
                                      ((MODE) == SDMMC_READ_WAIT_MODE_DATA2))
 /**
   * @}
-  */  
+  */
 
 /** @defgroup SDMMC_LL_Interrupt_sources Interrupt Sources
   * @{
@@ -401,7 +398,7 @@ typedef struct
 #define SDMMC_IT_SDIOIT                      SDMMC_STA_SDIOIT
 /**
   * @}
-  */ 
+  */
 
 /** @defgroup SDMMC_LL_Flags Flags
   * @{
@@ -435,19 +432,19 @@ typedef struct
 /**
   * @}
   */
-  
+
 /* Exported macro ------------------------------------------------------------*/
 /** @defgroup SDMMC_LL_Exported_macros SDMMC_LL Exported Macros
   * @{
   */
-  
+
 /** @defgroup SDMMC_LL_Register Bits And Addresses Definitions
   * @brief SDMMC_LL registers bit address in the alias region
   * @{
   */
 /* ---------------------- SDMMC registers bit mask --------------------------- */
 /* --- CLKCR Register ---*/
-/* CLKCR register clear mask */ 
+/* CLKCR register clear mask */
 #define CLKCR_CLEAR_MASK         ((uint32_t)(SDMMC_CLKCR_CLKDIV  | SDMMC_CLKCR_PWRSAV |\
                                              SDMMC_CLKCR_BYPASS  | SDMMC_CLKCR_WIDBUS |\
                                              SDMMC_CLKCR_NEGEDGE | SDMMC_CLKCR_HWFC_EN))
@@ -477,37 +474,37 @@ typedef struct
  *  @brief macros to handle interrupts and specific clock configurations
  * @{
  */
- 
+
 /**
   * @brief  Enable the SDMMC device.
-  * @param  __INSTANCE__: SDMMC Instance  
+  * @param  __INSTANCE__: SDMMC Instance
   * @retval None
-  */ 
+  */
 #define __SDMMC_ENABLE(__INSTANCE__)  ((__INSTANCE__)->CLKCR |= SDMMC_CLKCR_CLKEN)
 
 /**
   * @brief  Disable the SDMMC device.
-  * @param  __INSTANCE__: SDMMC Instance  
+  * @param  __INSTANCE__: SDMMC Instance
   * @retval None
   */
 #define __SDMMC_DISABLE(__INSTANCE__)  ((__INSTANCE__)->CLKCR &= ~SDMMC_CLKCR_CLKEN)
 
 /**
   * @brief  Enable the SDMMC DMA transfer.
-  * @param  __INSTANCE__: SDMMC Instance  
+  * @param  __INSTANCE__: SDMMC Instance
   * @retval None
-  */ 
+  */
 #define __SDMMC_DMA_ENABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL |= SDMMC_DCTRL_DMAEN)
 /**
   * @brief  Disable the SDMMC DMA transfer.
-  * @param  __INSTANCE__: SDMMC Instance   
+  * @param  __INSTANCE__: SDMMC Instance
   * @retval None
   */
 #define __SDMMC_DMA_DISABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL &= ~SDMMC_DCTRL_DMAEN)
- 
+
 /**
   * @brief  Enable the SDMMC device interrupt.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base  
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @param  __INTERRUPT__ : specifies the SDMMC interrupt sources to be enabled.
   *         This parameter can be one or a combination of the following values:
   *            @arg SDMMC_IT_CCRCFAIL: Command response received (CRC check failed) interrupt
@@ -531,14 +528,14 @@ typedef struct
   *            @arg SDMMC_IT_RXFIFOE:  Receive FIFO empty interrupt
   *            @arg SDMMC_IT_TXDAVL:   Data available in transmit FIFO interrupt
   *            @arg SDMMC_IT_RXDAVL:   Data available in receive FIFO interrupt
-  *            @arg SDMMC_IT_SDIOIT:   SD I/O interrupt received interrupt   
+  *            @arg SDMMC_IT_SDIOIT:   SD I/O interrupt received interrupt
   * @retval None
   */
 #define __SDMMC_ENABLE_IT(__INSTANCE__, __INTERRUPT__)  ((__INSTANCE__)->MASK |= (__INTERRUPT__))
 
 /**
   * @brief  Disable the SDMMC device interrupt.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base   
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @param  __INTERRUPT__ : specifies the SDMMC interrupt sources to be disabled.
   *          This parameter can be one or a combination of the following values:
   *            @arg SDMMC_IT_CCRCFAIL: Command response received (CRC check failed) interrupt
@@ -562,15 +559,15 @@ typedef struct
   *            @arg SDMMC_IT_RXFIFOE:  Receive FIFO empty interrupt
   *            @arg SDMMC_IT_TXDAVL:   Data available in transmit FIFO interrupt
   *            @arg SDMMC_IT_RXDAVL:   Data available in receive FIFO interrupt
-  *            @arg SDMMC_IT_SDIOIT:   SD I/O interrupt received interrupt   
+  *            @arg SDMMC_IT_SDIOIT:   SD I/O interrupt received interrupt
   * @retval None
   */
 #define __SDMMC_DISABLE_IT(__INSTANCE__, __INTERRUPT__)  ((__INSTANCE__)->MASK &= ~(__INTERRUPT__))
 
 /**
-  * @brief  Checks whether the specified SDMMC flag is set or not. 
-  * @param  __INSTANCE__ : Pointer to SDMMC register base   
-  * @param  __FLAG__: specifies the flag to check. 
+  * @brief  Checks whether the specified SDMMC flag is set or not.
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
+  * @param  __FLAG__: specifies the flag to check.
   *          This parameter can be one of the following values:
   *            @arg SDMMC_FLAG_CCRCFAIL: Command response received (CRC check failed)
   *            @arg SDMMC_FLAG_DCRCFAIL: Data block sent/received (CRC check failed)
@@ -601,8 +598,8 @@ typedef struct
 
 /**
   * @brief  Clears the SDMMC pending flags.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base  
-  * @param  __FLAG__: specifies the flag to clear.  
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
+  * @param  __FLAG__: specifies the flag to clear.
   *          This parameter can be one or a combination of the following values:
   *            @arg SDMMC_FLAG_CCRCFAIL: Command response received (CRC check failed)
   *            @arg SDMMC_FLAG_DCRCFAIL: Data block sent/received (CRC check failed)
@@ -621,8 +618,8 @@ typedef struct
 
 /**
   * @brief  Checks whether the specified SDMMC interrupt has occurred or not.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base   
-  * @param  __INTERRUPT__: specifies the SDMMC interrupt source to check. 
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
+  * @param  __INTERRUPT__: specifies the SDMMC interrupt source to check.
   *          This parameter can be one of the following values:
   *            @arg SDMMC_IT_CCRCFAIL: Command response received (CRC check failed) interrupt
   *            @arg SDMMC_IT_DCRCFAIL: Data block sent/received (CRC check failed) interrupt
@@ -652,8 +649,8 @@ typedef struct
 
 /**
   * @brief  Clears the SDMMC's interrupt pending bits.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base 
-  * @param  __INTERRUPT__: specifies the interrupt pending bit to clear. 
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
+  * @param  __INTERRUPT__: specifies the interrupt pending bit to clear.
   *          This parameter can be one or a combination of the following values:
   *            @arg SDMMC_IT_CCRCFAIL: Command response received (CRC check failed) interrupt
   *            @arg SDMMC_IT_DCRCFAIL: Data block sent/received (CRC check failed) interrupt
@@ -671,73 +668,73 @@ typedef struct
 
 /**
   * @brief  Enable Start the SD I/O Read Wait operation.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base  
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @retval None
-  */  
+  */
 #define __SDMMC_START_READWAIT_ENABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL |= SDMMC_DCTRL_RWSTART)
 
 /**
   * @brief  Disable Start the SD I/O Read Wait operations.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base   
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @retval None
-  */  
+  */
 #define __SDMMC_START_READWAIT_DISABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL &= ~SDMMC_DCTRL_RWSTART)
 
 /**
   * @brief  Enable Start the SD I/O Read Wait operation.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base   
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @retval None
-  */  
+  */
 #define __SDMMC_STOP_READWAIT_ENABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL |= SDMMC_DCTRL_RWSTOP)
 
 /**
   * @brief  Disable Stop the SD I/O Read Wait operations.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base  
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @retval None
-  */  
+  */
 #define __SDMMC_STOP_READWAIT_DISABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL &= ~SDMMC_DCTRL_RWSTOP)
 
 /**
   * @brief  Enable the SD I/O Mode Operation.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base   
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @retval None
-  */  
-#define __SDMMC_OPERATION_ENABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL |= SDMMC_DCTRL_SDIOEN) 
+  */
+#define __SDMMC_OPERATION_ENABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL |= SDMMC_DCTRL_SDIOEN)
 
 /**
   * @brief  Disable the SD I/O Mode Operation.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base 
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @retval None
-  */  
-#define __SDMMC_OPERATION_DISABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL &= ~SDMMC_DCTRL_SDIOEN) 
+  */
+#define __SDMMC_OPERATION_DISABLE(__INSTANCE__)  ((__INSTANCE__)->DCTRL &= ~SDMMC_DCTRL_SDIOEN)
 
 /**
   * @brief  Enable the SD I/O Suspend command sending.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base  
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @retval None
-  */  
-#define __SDMMC_SUSPEND_CMD_ENABLE(__INSTANCE__)  ((__INSTANCE__)->CMD |= SDMMC_CMD_SDIOSUSPEND) 
+  */
+#define __SDMMC_SUSPEND_CMD_ENABLE(__INSTANCE__)  ((__INSTANCE__)->CMD |= SDMMC_CMD_SDIOSUSPEND)
 
 /**
   * @brief  Disable the SD I/O Suspend command sending.
-  * @param  __INSTANCE__ : Pointer to SDMMC register base  
+  * @param  __INSTANCE__ : Pointer to SDMMC register base
   * @retval None
-  */  
-#define __SDMMC_SUSPEND_CMD_DISABLE(__INSTANCE__)  ((__INSTANCE__)->CMD &= ~SDMMC_CMD_SDIOSUSPEND) 
-      
+  */
+#define __SDMMC_SUSPEND_CMD_DISABLE(__INSTANCE__)  ((__INSTANCE__)->CMD &= ~SDMMC_CMD_SDIOSUSPEND)
+
 /**
   * @}
   */
 
 /**
   * @}
-  */  
+  */
 
 /* Exported functions --------------------------------------------------------*/
 /** @addtogroup SDMMC_LL_Exported_Functions
   * @{
   */
-  
+
 /* Initialization/de-initialization functions  **********************************/
 /** @addtogroup HAL_SDMMC_LL_Group1
   * @{
@@ -746,7 +743,7 @@ HAL_StatusTypeDef SDMMC_Init(SDMMC_TypeDef *SDMMCx, SDMMC_InitTypeDef Init);
 /**
   * @}
   */
-  
+
 /* I/O operation functions  *****************************************************/
 /** @addtogroup HAL_SDMMC_LL_Group2
   * @{
@@ -757,7 +754,7 @@ HAL_StatusTypeDef SDMMC_WriteFIFO(SDMMC_TypeDef *SDMMCx, uint32_t *pWriteData);
 /**
   * @}
   */
-  
+
 /* Peripheral Control functions  ************************************************/
 /** @addtogroup HAL_SDMMC_LL_Group3
   * @{
@@ -782,14 +779,14 @@ HAL_StatusTypeDef SDMMC_SetSDMMCReadWaitMode(SDMMC_TypeDef *SDMMCx, uint32_t SDM
 /**
   * @}
   */
-  
+
 /**
   * @}
   */
-  
+
 /**
   * @}
-  */ 
+  */
 
 /**
   * @}

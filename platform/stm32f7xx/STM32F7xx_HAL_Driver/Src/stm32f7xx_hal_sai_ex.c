@@ -5,19 +5,19 @@
   * @version V1.0.1
   * @date    25-June-2015
   * @brief   SAI Extension HAL module driver.
-  *          This file provides firmware functions to manage the following 
+  *          This file provides firmware functions to manage the following
   *          functionalities of SAI extension peripheral:
   *           + Extension features functions
-  *         
+  *
   @verbatim
   ==============================================================================
                ##### SAI peripheral extension features  #####
   ==============================================================================
-   
+
                      ##### How to use this driver #####
   ==============================================================================
   [..] This driver provides functions to manage several sources to clock SAI
-  
+
   @endverbatim
   ******************************************************************************
   * @attention
@@ -47,7 +47,7 @@
   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   *
   ******************************************************************************
-  */ 
+  */
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f7xx_hal.h"
@@ -74,24 +74,24 @@
 /** @defgroup SAI_Private_Functions  SAI Private Functions
   * @{
   */
- /**
-  * @}
-  */
-  
+/**
+ * @}
+ */
+
 /* Exported functions --------------------------------------------------------*/
 /** @defgroup SAIEx_Exported_Functions SAI Extended Exported Functions
   * @{
   */
 
-/** @defgroup SAIEx_Exported_Functions_Group1 Extension features functions 
+/** @defgroup SAIEx_Exported_Functions_Group1 Extension features functions
   *  @brief   Extension features functions
   *
-@verbatim    
+@verbatim
  ===============================================================================
                        ##### Extension features Functions #####
- ===============================================================================  
+ ===============================================================================
     [..]
-    This subsection provides a set of functions allowing to manage the possible 
+    This subsection provides a set of functions allowing to manage the possible
     SAI clock sources.
 
 @endverbatim
@@ -101,62 +101,55 @@
 /**
   * @brief  Configure SAI Block synchronization mode
   * @param  hsai: pointer to a SAI_HandleTypeDef structure that contains
-  *               the configuration information for SAI module.   
-  * @retval SAI Clock Input 
+  *               the configuration information for SAI module.
+  * @retval SAI Clock Input
   */
 void SAI_BlockSynchroConfig(SAI_HandleTypeDef *hsai)
 {
-  uint32_t tmpregisterGCR = 0;
- 
-  /* This setting must be done with both audio block (A & B) disabled     */
-  switch(hsai->Init.SynchroExt)
-  {
-  case SAI_SYNCEXT_DISABLE :
-    tmpregisterGCR = 0;
-    break;
-  case SAI_SYNCEXT_IN_ENABLE :
-    tmpregisterGCR = SAI_GCR_SYNCIN_0;
-    break;
-  case SAI_SYNCEXT_OUTBLOCKA_ENABLE :
-    tmpregisterGCR = SAI_GCR_SYNCOUT_0;
-    break;
-  case SAI_SYNCEXT_OUTBLOCKB_ENABLE :
-    tmpregisterGCR = SAI_GCR_SYNCOUT_1;
-    break;
-  default :
-    break;
-  }
-  
-  if((hsai->Instance == SAI1_Block_A) || (hsai->Instance == SAI1_Block_B))
-  {
-    SAI1->GCR = tmpregisterGCR;
-  }
-  else 
-  {
-    SAI2->GCR = tmpregisterGCR;
-  }
-}
-  /**
-  * @brief  Get SAI Input Clock based on SAI source clock selection
-  * @param  hsai: pointer to a SAI_HandleTypeDef structure that contains
-  *               the configuration information for SAI module.   
-  * @retval SAI Clock Input 
-  */
-uint32_t SAI_GetInputClock(SAI_HandleTypeDef *hsai)   
-{
-  /* This variable used to store the SAI_CK_x (value in Hz) */
-  uint32_t saiclocksource = 0;
+    uint32_t tmpregisterGCR = 0;
 
-  if ((hsai->Instance == SAI1_Block_A) || (hsai->Instance == SAI1_Block_B))
-  {
-    saiclocksource = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI1);
-  }
-  else /* SAI2_Block_A || SAI2_Block_B*/
-  {
-    saiclocksource = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI2); 
-  }
-  /* the return result is the value of SAI clock */
-  return saiclocksource;        
+    /* This setting must be done with both audio block (A & B) disabled     */
+    switch (hsai->Init.SynchroExt) {
+        case SAI_SYNCEXT_DISABLE :
+            tmpregisterGCR = 0;
+            break;
+        case SAI_SYNCEXT_IN_ENABLE :
+            tmpregisterGCR = SAI_GCR_SYNCIN_0;
+            break;
+        case SAI_SYNCEXT_OUTBLOCKA_ENABLE :
+            tmpregisterGCR = SAI_GCR_SYNCOUT_0;
+            break;
+        case SAI_SYNCEXT_OUTBLOCKB_ENABLE :
+            tmpregisterGCR = SAI_GCR_SYNCOUT_1;
+            break;
+        default :
+            break;
+    }
+
+    if ((hsai->Instance == SAI1_Block_A) || (hsai->Instance == SAI1_Block_B)) {
+        SAI1->GCR = tmpregisterGCR;
+    } else {
+        SAI2->GCR = tmpregisterGCR;
+    }
+}
+/**
+* @brief  Get SAI Input Clock based on SAI source clock selection
+* @param  hsai: pointer to a SAI_HandleTypeDef structure that contains
+*               the configuration information for SAI module.
+* @retval SAI Clock Input
+*/
+uint32_t SAI_GetInputClock(SAI_HandleTypeDef *hsai)
+{
+    /* This variable used to store the SAI_CK_x (value in Hz) */
+    uint32_t saiclocksource = 0;
+
+    if ((hsai->Instance == SAI1_Block_A) || (hsai->Instance == SAI1_Block_B)) {
+        saiclocksource = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI1);
+    } else { /* SAI2_Block_A || SAI2_Block_B*/
+        saiclocksource = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SAI2);
+    }
+    /* the return result is the value of SAI clock */
+    return saiclocksource;
 }
 
 /**

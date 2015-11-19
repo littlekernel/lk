@@ -40,7 +40,7 @@
 #define __STM32F7xx_HAL_FLASH_EX_H
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
@@ -54,7 +54,7 @@
   * @{
   */
 
-/* Exported types ------------------------------------------------------------*/ 
+/* Exported types ------------------------------------------------------------*/
 /** @defgroup FLASHEx_Exported_Types FLASH Exported Types
   * @{
   */
@@ -62,18 +62,17 @@
 /**
   * @brief  FLASH Erase structure definition
   */
-typedef struct
-{
-  uint32_t TypeErase;   /*!< Mass erase or sector Erase.
+typedef struct {
+    uint32_t TypeErase;   /*!< Mass erase or sector Erase.
                              This parameter can be a value of @ref FLASHEx_Type_Erase */
 
-  uint32_t Sector;      /*!< Initial FLASH sector to erase when Mass erase is disabled
+    uint32_t Sector;      /*!< Initial FLASH sector to erase when Mass erase is disabled
                              This parameter must be a value of @ref FLASHEx_Sectors */
 
-  uint32_t NbSectors;   /*!< Number of sectors to be erased.
+    uint32_t NbSectors;   /*!< Number of sectors to be erased.
                              This parameter must be a value between 1 and (max number of sectors - value of Initial sector)*/
 
-  uint32_t VoltageRange;/*!< The device voltage range which defines the erase parallelism
+    uint32_t VoltageRange;/*!< The device voltage range which defines the erase parallelism
                              This parameter must be a value of @ref FLASHEx_Voltage_Range */
 
 } FLASH_EraseInitTypeDef;
@@ -81,30 +80,29 @@ typedef struct
 /**
   * @brief  FLASH Option Bytes Program structure definition
   */
-typedef struct
-{
-  uint32_t OptionType;   /*!< Option byte to be configured.
+typedef struct {
+    uint32_t OptionType;   /*!< Option byte to be configured.
                               This parameter can be a value of @ref FLASHEx_Option_Type */
 
-  uint32_t WRPState;     /*!< Write protection activation or deactivation.
+    uint32_t WRPState;     /*!< Write protection activation or deactivation.
                               This parameter can be a value of @ref FLASHEx_WRP_State */
 
-  uint32_t WRPSector;         /*!< Specifies the sector(s) to be write protected.
+    uint32_t WRPSector;         /*!< Specifies the sector(s) to be write protected.
                               The value of this parameter depend on device used within the same series */
 
-  uint32_t RDPLevel;     /*!< Set the read protection level.
+    uint32_t RDPLevel;     /*!< Set the read protection level.
                               This parameter can be a value of @ref FLASHEx_Option_Bytes_Read_Protection */
 
-  uint32_t BORLevel;     /*!< Set the BOR Level.
+    uint32_t BORLevel;     /*!< Set the BOR Level.
                               This parameter can be a value of @ref FLASHEx_BOR_Reset_Level */
 
-  uint32_t USERConfig;   /*!< Program the FLASH User Option Byte: WWDG_SW / IWDG_SW / RST_STOP / RST_STDBY / 
+    uint32_t USERConfig;   /*!< Program the FLASH User Option Byte: WWDG_SW / IWDG_SW / RST_STOP / RST_STDBY /
                               IWDG_FREEZE_STOP / IWDG_FREEZE_SANDBY. */
- 
-  uint32_t BootAddr0;    /*!< Boot base address when Boot pin = 0.
+
+    uint32_t BootAddr0;    /*!< Boot base address when Boot pin = 0.
                               This parameter can be a value of @ref FLASHEx_Boot_Address */
 
-  uint32_t BootAddr1;    /*!< Boot base address when Boot pin = 1.
+    uint32_t BootAddr1;    /*!< Boot base address when Boot pin = 1.
                               This parameter can be a value of @ref FLASHEx_Boot_Address */
 
 } FLASH_OBProgramInitTypeDef;
@@ -120,16 +118,16 @@ typedef struct
 
 /** @defgroup FLASHEx_Type_Erase FLASH Type Erase
   * @{
-  */ 
+  */
 #define FLASH_TYPEERASE_SECTORS         ((uint32_t)0x00)  /*!< Sectors erase only          */
 #define FLASH_TYPEERASE_MASSERASE       ((uint32_t)0x01)  /*!< Flash Mass erase activation */
 /**
   * @}
   */
-  
+
 /** @defgroup FLASHEx_Voltage_Range FLASH Voltage Range
   * @{
-  */ 
+  */
 #define FLASH_VOLTAGE_RANGE_1        ((uint32_t)0x00)  /*!< Device operating range: 1.8V to 2.1V                */
 #define FLASH_VOLTAGE_RANGE_2        ((uint32_t)0x01)  /*!< Device operating range: 2.1V to 2.7V                */
 #define FLASH_VOLTAGE_RANGE_3        ((uint32_t)0x02)  /*!< Device operating range: 2.7V to 3.6V                */
@@ -137,19 +135,19 @@ typedef struct
 /**
   * @}
   */
-  
+
 /** @defgroup FLASHEx_WRP_State FLASH WRP State
   * @{
-  */ 
+  */
 #define OB_WRPSTATE_DISABLE       ((uint32_t)0x00)  /*!< Disable the write protection of the desired bank 1 sectors */
 #define OB_WRPSTATE_ENABLE        ((uint32_t)0x01)  /*!< Enable the write protection of the desired bank 1 sectors  */
 /**
   * @}
   */
-  
+
 /** @defgroup FLASHEx_Option_Type FLASH Option Type
   * @{
-  */ 
+  */
 #define OPTIONBYTE_WRP         ((uint32_t)0x01)  /*!< WRP option byte configuration  */
 #define OPTIONBYTE_RDP         ((uint32_t)0x02)  /*!< RDP option byte configuration  */
 #define OPTIONBYTE_USER        ((uint32_t)0x04)  /*!< USER option byte configuration */
@@ -159,7 +157,7 @@ typedef struct
 /**
   * @}
   */
-  
+
 /** @defgroup FLASHEx_Option_Bytes_Read_Protection FLASH Option Bytes Read Protection
   * @{
   */
@@ -169,39 +167,39 @@ typedef struct
                                                   it s no more possible to go back to level 1 or 0 */
 /**
   * @}
-  */ 
-  
+  */
+
 /** @defgroup FLASHEx_Option_Bytes_WWatchdog FLASH Option Bytes WWatchdog
   * @{
-  */ 
+  */
 #define OB_WWDG_SW           ((uint32_t)0x10)  /*!< Software WWDG selected */
 #define OB_WWDG_HW           ((uint32_t)0x00)  /*!< Hardware WWDG selected */
 /**
   * @}
-  */ 
-  
+  */
+
 
 /** @defgroup FLASHEx_Option_Bytes_IWatchdog FLASH Option Bytes IWatchdog
   * @{
-  */ 
+  */
 #define OB_IWDG_SW           ((uint32_t)0x20)  /*!< Software IWDG selected */
 #define OB_IWDG_HW           ((uint32_t)0x00)  /*!< Hardware IWDG selected */
 /**
   * @}
-  */ 
+  */
 
 /** @defgroup FLASHEx_Option_Bytes_nRST_STOP FLASH Option Bytes nRST_STOP
   * @{
-  */ 
+  */
 #define OB_STOP_NO_RST       ((uint32_t)0x40) /*!< No reset generated when entering in STOP */
 #define OB_STOP_RST          ((uint32_t)0x00) /*!< Reset generated when entering in STOP    */
 /**
   * @}
-  */ 
+  */
 
 /** @defgroup FLASHEx_Option_Bytes_nRST_STDBY FLASH Option Bytes nRST_STDBY
   * @{
-  */                               
+  */
 #define OB_STDBY_NO_RST      ((uint32_t)0x80) /*!< No reset generated when entering in STANDBY */
 #define OB_STDBY_RST         ((uint32_t)0x00) /*!< Reset generated when entering in STANDBY    */
 /**
@@ -237,7 +235,7 @@ typedef struct
 /**
   * @}
   */
-  
+
 /** @defgroup FLASHEx_Boot_Address FLASH Boot Address
   * @{
   */
@@ -252,7 +250,7 @@ typedef struct
 /**
   * @}
   */
-  
+
 /** @defgroup FLASH_Latency FLASH Latency
   * @{
   */
@@ -274,7 +272,7 @@ typedef struct
 #define FLASH_LATENCY_15               FLASH_ACR_LATENCY_15WS  /*!< FLASH Fifteen Latency cycles  */
 /**
   * @}
-  */ 
+  */
 
 /** @defgroup FLASHEx_MassErase_bit FLASH Mass Erase bit
   * @{
@@ -298,7 +296,7 @@ typedef struct
 
 /**
   * @}
-  */ 
+  */
 
 /** @defgroup FLASHEx_Option_Bytes_Write_Protection FLASH Option Bytes Write Protection
   * @{
@@ -321,8 +319,8 @@ typedef struct
 
 /**
   * @}
-  */ 
-  
+  */
+
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions --------------------------------------------------------*/
 /** @addtogroup FLASHEx_Exported_Functions
@@ -366,15 +364,15 @@ void              HAL_FLASHEx_OBGetConfig(FLASH_OBProgramInitTypeDef *pOBInit);
   */
 
 #define IS_FLASH_TYPEERASE(VALUE)(((VALUE) == FLASH_TYPEERASE_SECTORS) || \
-                                  ((VALUE) == FLASH_TYPEERASE_MASSERASE))  
+                                  ((VALUE) == FLASH_TYPEERASE_MASSERASE))
 
 #define IS_VOLTAGERANGE(RANGE)(((RANGE) == FLASH_VOLTAGE_RANGE_1) || \
                                ((RANGE) == FLASH_VOLTAGE_RANGE_2) || \
                                ((RANGE) == FLASH_VOLTAGE_RANGE_3) || \
-                               ((RANGE) == FLASH_VOLTAGE_RANGE_4))  
+                               ((RANGE) == FLASH_VOLTAGE_RANGE_4))
 
 #define IS_WRPSTATE(VALUE)(((VALUE) == OB_WRPSTATE_DISABLE) || \
-                           ((VALUE) == OB_WRPSTATE_ENABLE))  
+                           ((VALUE) == OB_WRPSTATE_ENABLE))
 
 #define IS_OPTIONBYTE(VALUE)(((VALUE) <= (OPTIONBYTE_WRP | OPTIONBYTE_RDP        | OPTIONBYTE_USER |\
                                           OPTIONBYTE_BOR | OPTIONBYTE_BOOTADDR_0 | OPTIONBYTE_BOOTADDR_1)))
@@ -449,11 +447,11 @@ void              HAL_FLASHEx_OBGetConfig(FLASH_OBProgramInitTypeDef *pOBInit);
 void FLASH_Erase_Sector(uint32_t Sector, uint8_t VoltageRange);
 /**
   * @}
-  */ 
+  */
 
 /**
   * @}
-  */ 
+  */
 
 /**
   * @}

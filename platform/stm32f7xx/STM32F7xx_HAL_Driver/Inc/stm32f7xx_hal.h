@@ -4,7 +4,7 @@
   * @author  MCD Application Team
   * @version V1.0.1
   * @date    25-June-2015
-  * @brief   This file contains all the functions prototypes for the HAL 
+  * @brief   This file contains all the functions prototypes for the HAL
   *          module driver.
   ******************************************************************************
   * @attention
@@ -34,14 +34,14 @@
   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   *
   ******************************************************************************
-  */ 
+  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __STM32F7xx_HAL_H
 #define __STM32F7xx_HAL_H
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
@@ -53,7 +53,7 @@
 
 /** @addtogroup HAL
   * @{
-  */ 
+  */
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
@@ -61,8 +61,8 @@
 /** @defgroup HAL_Exported_Macros HAL Exported Macros
   * @{
   */
-  
-/** @brief  Freeze/Unfreeze Peripherals in Debug mode 
+
+/** @brief  Freeze/Unfreeze Peripherals in Debug mode
   */
 #define __HAL_DBGMCU_FREEZE_TIM2()           (DBGMCU->APB1FZ |= (DBGMCU_APB1_FZ_DBG_TIM2_STOP))
 #define __HAL_DBGMCU_FREEZE_TIM3()           (DBGMCU->APB1FZ |= (DBGMCU_APB1_FZ_DBG_TIM3_STOP))
@@ -118,7 +118,7 @@
 /** @brief  FMC (NOR/RAM) mapped at 0x60000000 and SDRAM mapped at 0xC0000000
   */
 #define __HAL_SYSCFG_REMAPMEMORY_FMC()          (SYSCFG->MEMRMP &= ~(SYSCFG_MEMRMP_SWP_FMC))
-                                       
+
 
 /** @brief  FMC/SDRAM  mapped at 0x60000000 (NOR/RAM) mapped at 0xC0000000
   */
@@ -128,7 +128,7 @@
 /**
   * @}
   */
-  
+
 /* Exported functions --------------------------------------------------------*/
 /** @addtogroup HAL_Exported_Functions
   * @{
@@ -145,10 +145,10 @@ HAL_StatusTypeDef HAL_InitTick (uint32_t TickPriority);
 /**
   * @}
   */
- 
+
 /** @addtogroup HAL_Exported_Functions_Group2
   * @{
-  */ 
+  */
 /* Peripheral Control functions  ************************************************/
 void HAL_IncTick(void);
 void HAL_Delay(__IO uint32_t Delay);
@@ -174,7 +174,7 @@ void HAL_DisableFMCMemorySwapping(void);
 
 /**
   * @}
-  */  
+  */
 /* Private types -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /** @defgroup HAL_Private_Variables HAL Private Variables
@@ -194,12 +194,12 @@ void HAL_DisableFMCMemorySwapping(void);
 /* Private functions ---------------------------------------------------------*/
 /**
   * @}
-  */ 
+  */
 
 /**
   * @}
-  */ 
-  
+  */
+
 #ifdef __cplusplus
 }
 #endif
