@@ -35,16 +35,16 @@
 #include <platform/stm32.h>
 #include <arch/arm/cm.h>
 
-#ifdef ENABLE_UART1
-cbuf_t uart1_rx_buf;
-#ifndef UART1_FLOWCONTROL
-#define UART1_FLOWCONTROL USART_HardwareFlowControl_None
+#ifdef ENABLE_UART3
+cbuf_t uart3_rx_buf;
+#ifndef UART3_FLOWCONTROL
+#define UART3_FLOWCONTROL USART_HardwareFlowControl_None
 #endif
-#ifndef UART1_BAUDRATE
-#define UART1_BAUDRATE 115200
+#ifndef UART3_BAUDRATE
+#define UART3_BAUDRATE 115200
 #endif
-#ifndef UART1_RXBUF_SIZE
-#define UART1_RXBUF_SIZE 16
+#ifndef UART3_RXBUF_SIZE
+#define UART3_RXBUF_SIZE 16
 #endif
 #endif
 
@@ -64,16 +64,16 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
     /*##-1- Enable Clocks #################################*/
 
     /* Select SysClk as source of USART1 clocks */
-    RCC_PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
-    RCC_PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_SYSCLK;
+    RCC_PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART3;
+    RCC_PeriphClkInit.Usart1ClockSelection = RCC_USART3CLKSOURCE_SYSCLK;
     HAL_RCCEx_PeriphCLKConfig(&RCC_PeriphClkInit);
 
     /* Enable USARTx clock */
-    __HAL_RCC_USART1_CLK_ENABLE();
+    __HAL_RCC_USART3_CLK_ENABLE();
 
     /*##-2- Make sure the irq handler is disabled for now */
     /* NVIC for USARTx */
-    HAL_NVIC_DisableIRQ(USART1_IRQn);
+    HAL_NVIC_DisableIRQ(USART3_IRQn);
 }
 
 static void usart_init1_early(USART_TypeDef *usart, uint32_t baud, uint16_t flowcontrol, int irqn)
@@ -102,20 +102,20 @@ static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf, size_t rx
     /* Enable the UART Data Register not empty Interrupt */
     __HAL_UART_ENABLE_IT(&handle, UART_IT_RXNE);
 
-    HAL_NVIC_EnableIRQ(USART1_IRQn);
+    HAL_NVIC_EnableIRQ(USART3_IRQn);
 }
 
 void uart_init_early(void)
 {
-#if ENABLE_UART1
-    usart_init1_early(USART1, UART1_BAUDRATE, 0, USART1_IRQn);
+#if ENABLE_UART3
+    usart_init1_early(USART3, UART3_BAUDRATE, 0, USART3_IRQn);
 #endif
 }
 
 void uart_init(void)
 {
-#ifdef ENABLE_UART1
-    usart_init1(USART1, USART1_IRQn, &uart1_rx_buf, UART1_RXBUF_SIZE);
+#ifdef ENABLE_UART3
+    usart_init1(USART3, USART3_IRQn, &uart3_rx_buf, UART3_RXBUF_SIZE);
 #endif
 }
 
@@ -139,7 +139,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 #endif
 
-void stm32_USART1_IRQ(void)
+void stm32_USART3_IRQ(void)
 {
     bool resched = false;
 
@@ -178,7 +178,7 @@ void stm32_USART1_IRQ(void)
 
         /* we got a character */
         uint8_t c = (uint8_t)(handle.Instance->RDR & 0xff);
-        cbuf_write_char(&uart1_rx_buf, c, false);
+        cbuf_write_char(&uart3_rx_buf, c, false);
         resched = true;
 
         /* Clear RXNE interrupt flag */
@@ -222,7 +222,7 @@ int uart_getc(int port, bool wait)
         return -1;
 #endif
     char c;
-    if (cbuf_read_char(&uart1_rx_buf, &c, wait) == 0)
+    if (cbuf_read_char(&uart3_rx_buf, &c, wait) == 0)
         return -1;
     return c;
 }
