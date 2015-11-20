@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Carlos Pizano-Uribe <cpu@chromium.org>
+ * Copyright (c) 2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,19 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#pragma once
+#ifndef __TARGET_GPIOCONFIG_H
+#define __TARGET_GPIOCONFIG_H
 
-#include <stdint.h>
+#include <platform/gpio.h>
 
-/* ethernet driver public api */
-typedef enum {
-   PHY_LAN8742A,     // Microchip.
-   PHY_DP83848,      // Texas Instruments.
-   PHY_KSZ8721,      // Micrel
-} eth_phy_itf;
+#define GPIO_USART3_TX GPIO(GPIO_PORT_B, 10)
+#define GPIO_USART3_RX GPIO(GPIO_PORT_B, 11)
 
-struct pktbuf;
-
-status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy);
-status_t stm32_eth_send_minip_pkt(struct pktbuf *p);
-
+#endif

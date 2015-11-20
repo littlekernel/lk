@@ -19,6 +19,13 @@ GLOBAL_COMPILEFLAGS += -DSTM32F746xx
 FOUND_CHIP := true
 endif
 
+ifeq ($(STM32_CHIP),stm32f756)
+GLOBAL_DEFINES += STM32F746xx
+# XXX workaround for uppercasing in GLOBAL_DEFINES
+GLOBAL_COMPILEFLAGS += -DSTM32F746xx
+FOUND_CHIP := true
+endif
+
 ifeq ($(FOUND_CHIP),)
 $(error unknown STM32F7xx chip $(STM32_CHIP))
 endif
