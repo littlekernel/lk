@@ -26,6 +26,7 @@
 #include <lib/console.h>
 
 int thread_tests(void);
+int port_tests(void);
 void printf_tests(void);
 void printf_tests_float(void);
 void clock_tests(void);
