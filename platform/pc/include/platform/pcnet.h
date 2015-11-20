@@ -27,9 +27,9 @@
 #include <stdint.h>
 
 struct platform_pcnet_config {
-	uint16_t vendor_id;
-	uint16_t device_id;
-	int index;
+    uint16_t vendor_id;
+    uint16_t device_id;
+    int index;
 };
 
 #endif

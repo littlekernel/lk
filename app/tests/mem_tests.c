@@ -28,6 +28,7 @@
 #include <arch/ops.h>
 #include <lib/console.h>
 #include <platform.h>
+#include <debug.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -224,7 +225,7 @@ usage:
         free(ptr);
 #endif
     } else if (argc == 3) {
-        void *ptr = (void *)argv[1].u;
+        void *ptr = argv[1].p;
         size_t len = argv[2].u;
 
         /* run the tests */
@@ -239,4 +240,3 @@ usage:
 STATIC_COMMAND_START
 STATIC_COMMAND("mem_test", "test memory", &mem_test)
 STATIC_COMMAND_END(mem_tests);
-

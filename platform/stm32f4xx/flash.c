@@ -59,7 +59,8 @@ status_t stmflash_init(uint32_t start, uint32_t length)
                        1,
                   length,
                        0,
-                       NULL);
+                       NULL,
+                       BIO_FLAGS_NONE);
 
     /* override our block device hooks */
     sg_flash.bdev.read        = &stmflash_bdev_read;

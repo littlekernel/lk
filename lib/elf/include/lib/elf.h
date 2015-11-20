@@ -41,6 +41,7 @@ typedef struct elf_handle {
 
     // memory allocation callback
     elf_mem_alloc_t mem_alloc_hook;
+    void *mem_alloc_hook_arg;
 
     // loaded info about the elf file
     struct Elf32_Ehdr eheader;    // a copy of the main elf header

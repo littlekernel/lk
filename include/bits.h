@@ -50,13 +50,13 @@ __BEGIN_CDECLS;
 
 static inline int bitmap_set(unsigned long *bitmap, int bit)
 {
-	unsigned long mask = 1 << BITMAP_BIT_IN_INT(bit);
+	unsigned long mask = 1UL << BITMAP_BIT_IN_INT(bit);
 	return atomic_or(&((int*)bitmap)[BITMAP_INT(bit)], mask) & mask ? 1 : 0;
 }
 
 static inline int bitmap_clear(unsigned long *bitmap, int bit)
 {
-	unsigned long mask = 1 << BITMAP_BIT_IN_INT(bit);
+	unsigned long mask = 1UL << BITMAP_BIT_IN_INT(bit);
 
 	return atomic_and(&((int*)bitmap)[BITMAP_INT(bit)], ~mask) & mask ? 1:0;
 }

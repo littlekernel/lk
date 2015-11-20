@@ -311,7 +311,7 @@ status_t spiflash_detect(void)
 	/* construct the block device */
 	bio_initialize_bdev(&flash.bdev, "spi0",
 						PAGE_PROGRAM_SIZE, flash.size / PAGE_PROGRAM_SIZE,
-						region_count, flash.geometry);
+						region_count, flash.geometry, BIO_FLAGS_NONE);
 
 	/* override our block device hooks */
 	flash.bdev.read = &spiflash_bdev_read;
@@ -320,6 +320,9 @@ status_t spiflash_detect(void)
 	flash.bdev.write_block = &spiflash_bdev_write_block;
 	flash.bdev.erase = &spiflash_bdev_erase;
 	flash.bdev.ioctl = &spiflash_ioctl;
+
+	/* we erase to 0xff */
+	flash.bdev.erase_byte = 0xff;
 
 	bio_register_device(&flash.bdev);
 
@@ -416,11 +419,13 @@ static int spiflash_ioctl(struct bdev *bdev, int request, void *argp)
 {
 	LTRACEF("dev %p, request %d, argp %p\n", bdev, request, argp);
 
-	int ret = ERR_NOT_SUPPORTED;
+	int ret = NO_ERROR;
 	switch (request) {
 		case BIO_IOCTL_GET_MEM_MAP:
 			/* put the device into linear mode */
 			ret = qspi_enable_linear(&flash.qspi);
+			// Fallthrough.
+		case BIO_IOCTL_GET_MAP_ADDR:
 			if (argp)
 				*(void **)argp = (void *)QSPI_LINEAR_BASE;
 			break;
@@ -428,6 +433,8 @@ static int spiflash_ioctl(struct bdev *bdev, int request, void *argp)
 			/* put the device back into regular mode */
 			ret = qspi_disable_linear(&flash.qspi);
 			break;
+		default:
+			ret = ERR_NOT_SUPPORTED;
 	}
 
 	return ret;
@@ -523,7 +530,7 @@ usage:
 			return -1;
 		}
 
-		status_t err = qspi_write_page(&flash.qspi, argv[2].u, (void *)argv[4].u);
+		status_t err = qspi_write_page(&flash.qspi, argv[2].u, argv[4].p);
 		printf("write_page returns %d\n", err);
 	} else if (!strcmp(argv[1].str, "erase")) {
 		if (argc < 3) goto notenoughargs;

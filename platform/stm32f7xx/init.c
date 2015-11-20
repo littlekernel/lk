@@ -28,6 +28,7 @@
 #include <platform.h>
 #include <platform/stm32.h>
 #include <platform/sdram.h>
+#include <kernel/novm.h>
 #include <arch/arm/cm.h>
 
 uint32_t SystemCoreClock = HSI_VALUE;
@@ -284,6 +285,7 @@ void platform_early_init(void)
     stm32_gpio_early_init();
     stm32_flash_early_init();
     stm32_rng_init();
+    stm32_usbc_early_init();
 
     /* clear the reboot reason */
     RCC->CSR |= (1<<24);
@@ -291,6 +293,9 @@ void platform_early_init(void)
 #if defined(ENABLE_SDRAM)
     /* initialize SDRAM */
     stm32_sdram_init((sdram_config_t *)&target_sdram_config);
+
+    /* add a novm arena for it */
+    novm_add_arena("sdram", SDRAM_BASE, SDRAM_SIZE);
 #endif
 
     mpu_init();
@@ -309,5 +314,7 @@ void platform_init(void)
     stm32_timer_init();
 
     stm32_flash_init();
+
+    stm32_usbc_init();
 }
 

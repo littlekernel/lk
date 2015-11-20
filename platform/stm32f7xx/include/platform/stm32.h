@@ -34,6 +34,11 @@ void stm32_timer_init(void);
 void stm32_gpio_early_init(void);
 void stm32_flash_early_init(void);
 void stm32_flash_init(void);
+void stm32_usbc_early_init(void);
+void stm32_usbc_init(void);
+
+int stm32_uart_getc_poll(int port);
+
 
 /* unique id of device */
 uint32_t stm32_unique_id[3];

@@ -47,53 +47,53 @@
 #define SCB_DEMCR (0xE000EDFC)
 
 struct arm_cm_exception_frame {
-	uint32_t r4;
-	uint32_t r5;
-	uint32_t r6;
-	uint32_t r7;
-	uint32_t r8;
-	uint32_t r9;
-	uint32_t r10;
-	uint32_t r11;
-	uint32_t r0;
-	uint32_t r1;
-	uint32_t r2;
-	uint32_t r3;
-	uint32_t r12;
-	uint32_t lr;
-	uint32_t pc;
-	uint32_t psr;
+    uint32_t r4;
+    uint32_t r5;
+    uint32_t r6;
+    uint32_t r7;
+    uint32_t r8;
+    uint32_t r9;
+    uint32_t r10;
+    uint32_t r11;
+    uint32_t r0;
+    uint32_t r1;
+    uint32_t r2;
+    uint32_t r3;
+    uint32_t r12;
+    uint32_t lr;
+    uint32_t pc;
+    uint32_t psr;
 };
 
 struct arm_cm_exception_frame_short {
-	uint32_t r0;
-	uint32_t r1;
-	uint32_t r2;
-	uint32_t r3;
-	uint32_t r12;
-	uint32_t lr;
-	uint32_t pc;
-	uint32_t psr;
+    uint32_t r0;
+    uint32_t r1;
+    uint32_t r2;
+    uint32_t r3;
+    uint32_t r12;
+    uint32_t lr;
+    uint32_t pc;
+    uint32_t psr;
 };
 
 struct arm_cm_exception_frame_long {
-	uint32_t r4;
-	uint32_t r5;
-	uint32_t r6;
-	uint32_t r7;
-	uint32_t r8;
-	uint32_t r9;
-	uint32_t r10;
-	uint32_t r11;
-	uint32_t lr;
-	uint32_t r0;
-	uint32_t r1;
-	uint32_t r2;
-	uint32_t r3;
-	uint32_t r12;
-	uint32_t exc_lr;
-	uint32_t pc;
-	uint32_t psr;
+    uint32_t r4;
+    uint32_t r5;
+    uint32_t r6;
+    uint32_t r7;
+    uint32_t r8;
+    uint32_t r9;
+    uint32_t r10;
+    uint32_t r11;
+    uint32_t lr;
+    uint32_t r0;
+    uint32_t r1;
+    uint32_t r2;
+    uint32_t r3;
+    uint32_t r12;
+    uint32_t exc_lr;
+    uint32_t pc;
+    uint32_t psr;
 };
 
 #if ARM_CM_DYNAMIC_PRIORITY_SIZE
@@ -114,51 +114,51 @@ void _arm_cm_set_irqpri(uint32_t pri);
 
 static void arm_cm_set_irqpri(uint32_t pri)
 {
-	if (__ISCONSTANT(pri)) {
-		if (pri == 0) {
-			__disable_irq(); // cpsid i
-			__set_BASEPRI(0);
-		} else if (pri >= 256) {
-			__set_BASEPRI(0);
-			__enable_irq();
-		} else {
-			uint32_t _pri = pri & arm_cm_irq_pri_mask;
+    if (__ISCONSTANT(pri)) {
+        if (pri == 0) {
+            __disable_irq(); // cpsid i
+            __set_BASEPRI(0);
+        } else if (pri >= 256) {
+            __set_BASEPRI(0);
+            __enable_irq();
+        } else {
+            uint32_t _pri = pri & arm_cm_irq_pri_mask;
 
-			if (_pri == 0)
-				__set_BASEPRI(1 << (8 - arm_cm_num_irq_pri_bits));
-			else
-				__set_BASEPRI(_pri);
-			__enable_irq(); // cpsie i
-		}
-	} else {
-		_arm_cm_set_irqpri(pri);
-	}
+            if (_pri == 0)
+                __set_BASEPRI(1 << (8 - arm_cm_num_irq_pri_bits));
+            else
+                __set_BASEPRI(_pri);
+            __enable_irq(); // cpsie i
+        }
+    } else {
+        _arm_cm_set_irqpri(pri);
+    }
 }
 
 
 static inline uint32_t arm_cm_highest_priority(void)
 {
-	return 0;
+    return 0;
 }
 
 static inline uint32_t arm_cm_lowest_priority(void)
 {
-	return (1 << arm_cm_num_irq_pri_bits) - 1;
+    return (1 << arm_cm_num_irq_pri_bits) - 1;
 }
 
 static inline uint32_t arm_cm_medium_priority(void)
 {
-	return (1 << (arm_cm_num_irq_pri_bits - 1));
+    return (1 << (arm_cm_num_irq_pri_bits - 1));
 }
 
 static inline void arm_cm_trigger_interrupt(int vector)
 {
-	NVIC->STIR = vector;
+    NVIC->STIR = vector;
 }
 
 static inline void arm_cm_trigger_preempt(void)
 {
-	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
 /* systick */

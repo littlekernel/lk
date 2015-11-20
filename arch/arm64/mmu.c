@@ -193,12 +193,12 @@ static int alloc_page_table(paddr_t *paddrp, uint page_size_shift)
         if (ret != count)
             return ERR_NO_MEMORY;
     } else {
-        vaddr = heap_alloc(size, size);
+        vaddr = memalign(size, size);
         if (!vaddr)
             return ERR_NO_MEMORY;
         ret = arch_mmu_query((vaddr_t)vaddr, paddrp, NULL);
         if (ret) {
-            heap_free(vaddr);
+            free(vaddr);
             return ret;
         }
     }
@@ -218,7 +218,7 @@ static void free_page_table(void *vaddr, paddr_t paddr, uint page_size_shift)
             panic("bad page table paddr 0x%lx\n", paddr);
         pmm_free_page(page);
     } else {
-        heap_free(vaddr);
+        free(vaddr);
     }
 }
 

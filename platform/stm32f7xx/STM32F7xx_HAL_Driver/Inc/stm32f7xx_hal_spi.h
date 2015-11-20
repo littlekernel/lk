@@ -1,46 +1,46 @@
- /**
-  ******************************************************************************
-  * @file    stm32f7xx_hal_spi.h
-  * @author  MCD Application Team
-  * @version V1.0.1
-  * @date    25-June-2015
-  * @brief   Header file of SPI HAL module.
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; COPYRIGHT(c) 2015 STMicroelectronics</center></h2>
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  *
-  ******************************************************************************  
-  */
+/**
+ ******************************************************************************
+ * @file    stm32f7xx_hal_spi.h
+ * @author  MCD Application Team
+ * @version V1.0.1
+ * @date    25-June-2015
+ * @brief   Header file of SPI HAL module.
+ ******************************************************************************
+ * @attention
+ *
+ * <h2><center>&copy; COPYRIGHT(c) 2015 STMicroelectronics</center></h2>
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of STMicroelectronics nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ ******************************************************************************
+ */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __STM32F7xx_HAL_SPI_H
 #define __STM32F7xx_HAL_SPI_H
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
@@ -62,50 +62,49 @@
 /**
   * @brief  SPI Configuration Structure definition
   */
-typedef struct
-{
-  uint32_t Mode;                /*!< Specifies the SPI operating mode.
+typedef struct {
+    uint32_t Mode;                /*!< Specifies the SPI operating mode.
                                      This parameter can be a value of @ref SPI_Mode */
 
-  uint32_t Direction;           /*!< Specifies the SPI bidirectional mode state.
+    uint32_t Direction;           /*!< Specifies the SPI bidirectional mode state.
                                      This parameter can be a value of @ref SPI_Direction */
 
-  uint32_t DataSize;            /*!< Specifies the SPI data size.
+    uint32_t DataSize;            /*!< Specifies the SPI data size.
                                      This parameter can be a value of @ref SPI_Data_Size */
 
-  uint32_t CLKPolarity;         /*!< Specifies the serial clock steady state.
+    uint32_t CLKPolarity;         /*!< Specifies the serial clock steady state.
                                      This parameter can be a value of @ref SPI_Clock_Polarity */
 
-  uint32_t CLKPhase;            /*!< Specifies the clock active edge for the bit capture.
+    uint32_t CLKPhase;            /*!< Specifies the clock active edge for the bit capture.
                                      This parameter can be a value of @ref SPI_Clock_Phase */
 
-  uint32_t NSS;                 /*!< Specifies whether the NSS signal is managed by
+    uint32_t NSS;                 /*!< Specifies whether the NSS signal is managed by
                                      hardware (NSS pin) or by software using the SSI bit.
                                      This parameter can be a value of @ref SPI_Slave_Select_management */
 
-  uint32_t BaudRatePrescaler;   /*!< Specifies the Baud Rate prescaler value which will be
+    uint32_t BaudRatePrescaler;   /*!< Specifies the Baud Rate prescaler value which will be
                                      used to configure the transmit and receive SCK clock.
                                      This parameter can be a value of @ref SPI_BaudRate_Prescaler
                                      @note The communication clock is derived from the master
                                      clock. The slave clock does not need to be set. */
 
-  uint32_t FirstBit;            /*!< Specifies whether data transfers start from MSB or LSB bit.
+    uint32_t FirstBit;            /*!< Specifies whether data transfers start from MSB or LSB bit.
                                      This parameter can be a value of @ref SPI_MSB_LSB_transmission */
 
-  uint32_t TIMode;              /*!< Specifies if the TI mode is enabled or not .
+    uint32_t TIMode;              /*!< Specifies if the TI mode is enabled or not .
                                      This parameter can be a value of @ref SPI_TI_mode */
 
-  uint32_t CRCCalculation;      /*!< Specifies if the CRC calculation is enabled or not.
+    uint32_t CRCCalculation;      /*!< Specifies if the CRC calculation is enabled or not.
                                      This parameter can be a value of @ref SPI_CRC_Calculation */
 
-  uint32_t CRCPolynomial;       /*!< Specifies the polynomial used for the CRC calculation.
+    uint32_t CRCPolynomial;       /*!< Specifies the polynomial used for the CRC calculation.
                                      This parameter must be a number between Min_Data = 0 and Max_Data = 65535 */
 
-  uint32_t CRCLength;           /*!< Specifies the CRC Length used for the CRC calculation.
+    uint32_t CRCLength;           /*!< Specifies the CRC Length used for the CRC calculation.
                                      CRC Length is only used with Data8 and Data16, not other data size
                                      This parameter can be a value of @ref SPI_CRC_length */
 
-  uint32_t NSSPMode;            /*!< Specifies whether the NSSP signal is enabled or not .
+    uint32_t NSSPMode;            /*!< Specifies whether the NSSP signal is enabled or not .
                                      This parameter can be a value of @ref SPI_NSSP_Mode
                                      This mode is activated by the NSSP bit in the SPIx_CR2 register and
                                      it takes effect only if the SPI interface is configured as Motorola SPI
@@ -116,55 +115,53 @@ typedef struct
 /**
   * @brief  HAL State structures definition
   */
-typedef enum
-{
-  HAL_SPI_STATE_RESET      = 0x00,    /*!< Peripheral not Initialized                         */
-  HAL_SPI_STATE_READY      = 0x01,    /*!< Peripheral Initialized and ready for use           */
-  HAL_SPI_STATE_BUSY       = 0x02,    /*!< an internal process is ongoing                     */
-  HAL_SPI_STATE_BUSY_TX    = 0x03,    /*!< Data Transmission process is ongoing               */
-  HAL_SPI_STATE_BUSY_RX    = 0x04,    /*!< Data Reception process is ongoing                  */
-  HAL_SPI_STATE_BUSY_TX_RX = 0x05,    /*!< Data Transmission and Reception process is ongoing*/
-  HAL_SPI_STATE_ERROR      = 0x06     /*!< SPI error state                                   */
-}HAL_SPI_StateTypeDef;
+typedef enum {
+    HAL_SPI_STATE_RESET      = 0x00,    /*!< Peripheral not Initialized                         */
+    HAL_SPI_STATE_READY      = 0x01,    /*!< Peripheral Initialized and ready for use           */
+    HAL_SPI_STATE_BUSY       = 0x02,    /*!< an internal process is ongoing                     */
+    HAL_SPI_STATE_BUSY_TX    = 0x03,    /*!< Data Transmission process is ongoing               */
+    HAL_SPI_STATE_BUSY_RX    = 0x04,    /*!< Data Reception process is ongoing                  */
+    HAL_SPI_STATE_BUSY_TX_RX = 0x05,    /*!< Data Transmission and Reception process is ongoing*/
+    HAL_SPI_STATE_ERROR      = 0x06     /*!< SPI error state                                   */
+} HAL_SPI_StateTypeDef;
 
 /**
   * @brief  SPI handle Structure definition
   */
-typedef struct __SPI_HandleTypeDef
-{
-  SPI_TypeDef             *Instance;      /* SPI registers base address     */
+typedef struct __SPI_HandleTypeDef {
+    SPI_TypeDef             *Instance;      /* SPI registers base address     */
 
-  SPI_InitTypeDef         Init;           /* SPI communication parameters   */
+    SPI_InitTypeDef         Init;           /* SPI communication parameters   */
 
-  uint8_t                 *pTxBuffPtr;    /* Pointer to SPI Tx transfer Buffer */
+    uint8_t                 *pTxBuffPtr;    /* Pointer to SPI Tx transfer Buffer */
 
-  uint16_t                TxXferSize;     /* SPI Tx Transfer size */
+    uint16_t                TxXferSize;     /* SPI Tx Transfer size */
 
-  uint16_t                TxXferCount;    /* SPI Tx Transfer Counter */
+    uint16_t                TxXferCount;    /* SPI Tx Transfer Counter */
 
-  uint8_t                 *pRxBuffPtr;    /* Pointer to SPI Rx transfer Buffer */
+    uint8_t                 *pRxBuffPtr;    /* Pointer to SPI Rx transfer Buffer */
 
-  uint16_t                RxXferSize;     /* SPI Rx Transfer size */
+    uint16_t                RxXferSize;     /* SPI Rx Transfer size */
 
-  uint16_t                RxXferCount;    /* SPI Rx Transfer Counter */
+    uint16_t                RxXferCount;    /* SPI Rx Transfer Counter */
 
-  uint32_t                CRCSize;        /* SPI CRC size used for the transfer */
+    uint32_t                CRCSize;        /* SPI CRC size used for the transfer */
 
-  void (*RxISR)(struct __SPI_HandleTypeDef *hspi); /* function pointer on Rx IRQ handler   */
+    void (*RxISR)(struct __SPI_HandleTypeDef *hspi); /* function pointer on Rx IRQ handler   */
 
-  void (*TxISR)(struct __SPI_HandleTypeDef *hspi); /* function pointer on Tx IRQ handler   */
+    void (*TxISR)(struct __SPI_HandleTypeDef *hspi); /* function pointer on Tx IRQ handler   */
 
-  DMA_HandleTypeDef       *hdmatx;        /* SPI Tx DMA Handle parameters   */
+    DMA_HandleTypeDef       *hdmatx;        /* SPI Tx DMA Handle parameters   */
 
-  DMA_HandleTypeDef       *hdmarx;        /* SPI Rx DMA Handle parameters   */
+    DMA_HandleTypeDef       *hdmarx;        /* SPI Rx DMA Handle parameters   */
 
-  HAL_LockTypeDef         Lock;           /* Locking object                 */
+    HAL_LockTypeDef         Lock;           /* Locking object                 */
 
-  HAL_SPI_StateTypeDef    State;          /* SPI communication state        */
+    HAL_SPI_StateTypeDef    State;          /* SPI communication state        */
 
-  uint32_t                ErrorCode;      /* SPI Error code                 */
+    uint32_t                ErrorCode;      /* SPI Error code                 */
 
-}SPI_HandleTypeDef;
+} SPI_HandleTypeDef;
 
 /**
   * @}

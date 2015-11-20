@@ -4,8 +4,6 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_CFLAGS += -Wno-unused-variable -Wno-sign-compare -Wno-parentheses
 
-GLOBAL_INCLUDES += $(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/k_sin.c \
 	$(LOCAL_DIR)/s_sin.c \

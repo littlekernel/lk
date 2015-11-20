@@ -84,4 +84,7 @@ static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **ac
     return tcp_accept_timeout(listen_socket, accept_socket, INFINITE_TIME);
 }
 
+/* utilities */
+void gen_random_mac_address(uint8_t *mac_addr);
+
 // vim: set ts=4 sw=4 expandtab:

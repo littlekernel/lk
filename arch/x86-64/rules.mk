@@ -2,16 +2,17 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 WITH_KERNEL_VM=1
 GLOBAL_DEFINES += \
-    KERNEL_ASPACE_BASE=0x00000000 \
-    KERNEL_ASPACE_SIZE=0xc0000000
- 
-KERNEL_BASE ?= 0x00000000
-KERNEL_LOAD_OFFSET ?= 0x200000
+	MEMBASE=0x00200000U \
+	KERNEL_ASPACE_BASE=0x00200000U \
+	KERNEL_ASPACE_SIZE=0x7fe00000U \
+	IS_64BIT=1 \
+	SMP_MAX_CPUS=1 \
+	X86_WITH_FPU=1
+
+KERNEL_BASE ?= 0x00200000
+KERNEL_LOAD_OFFSET ?= 0x0
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/crt0.S \
@@ -23,7 +24,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/mmu.c \
 	$(LOCAL_DIR)/faults.c \
-	$(LOCAL_DIR)/descriptor.c
+	$(LOCAL_DIR)/descriptor.c \
+	$(LOCAL_DIR)/fpu.c
 
 # set the default toolchain to x86 elf and set a #define
 ifndef TOOLCHAIN_PREFIX
@@ -42,6 +44,7 @@ GLOBAL_CFLAGS += $(call cc-option,$(CC),-fno-stack-protector,)
 GLOBAL_COMPILEFLAGS += -fasynchronous-unwind-tables
 GLOBAL_COMPILEFLAGS += -gdwarf-2
 GLOBAL_COMPILEFLAGS += -fno-stack-protector
+GLOBAL_LDFLAGS += -z max-page-size=4096
 
 ARCH_OPTFLAGS := -O2
 

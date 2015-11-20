@@ -21,11 +21,15 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <trace.h>
+#include <debug.h>
+#include <stdint.h>
 #include <arch/microblaze.h>
+
+#define LOCAL_TRACE 0
 
 void arch_early_init(void)
 {
-    TRACE;
+    LTRACE;
 
     /* enable i/d cache */
     uint32_t val = mb_read_msr();
@@ -35,7 +39,7 @@ void arch_early_init(void)
 
 void arch_init(void)
 {
-    TRACE;
+    LTRACE;
 }
 
 void arch_idle(void)

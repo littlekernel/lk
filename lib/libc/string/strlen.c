@@ -30,12 +30,12 @@
 size_t
 strlen(char const *s)
 {
-	size_t i;
+    size_t i;
 
-	i= 0;
-	while (s[i]) {
-		i+= 1;
-	}
+    i= 0;
+    while (s[i]) {
+        i+= 1;
+    }
 
-	return i;
+    return i;
 }

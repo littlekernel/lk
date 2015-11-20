@@ -48,6 +48,7 @@ struct virtio_device {
     void *priv; /* a place for the driver to put private data */
 
     enum handler_return (*irq_driver_callback)(struct virtio_device *dev, uint ring, const struct vring_used_elem *e);
+    enum handler_return (*config_change_callback)(struct virtio_device *dev);
 
     /* virtio rings */
     uint32_t active_rings_bitmap;

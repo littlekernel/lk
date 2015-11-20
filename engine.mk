@@ -69,7 +69,7 @@ ARCH_CPPFLAGS :=
 ARCH_ASMFLAGS :=
 
 # top level rule
-all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size
+all:: $(OUTBIN) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).dump
 
 # master module object list
 ALLOBJS_MODULE :=
@@ -110,6 +110,9 @@ EXTRA_CLEANDEPS :=
 
 # any objects you put here get linked with the final image
 EXTRA_OBJS :=
+
+# any extra linker scripts to be put on the command line
+EXTRA_LINKER_SCRIPTS :=
 
 # if someone defines this, the build id will be pulled into lib/version
 BUILDID ?=
@@ -231,7 +234,7 @@ $(info GLOBAL_OPTFLAGS = $(GLOBAL_OPTFLAGS))
 $(ALLOBJS): $(GLOBAL_SRCDEPS)
 
 clean: $(EXTRA_CLEANDEPS)
-	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex
+	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex $(OUTELF).dump
 
 install: all
 	scp $(OUTBIN) 192.168.0.4:/tftproot

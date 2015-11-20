@@ -40,7 +40,7 @@
 #define __STM32F7xx_HAL_DMA_EX_H
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
@@ -52,23 +52,22 @@
 
 /** @addtogroup DMAEx
   * @{
-  */ 
+  */
 
 /* Exported types ------------------------------------------------------------*/
 /** @defgroup DMAEx_Exported_Types DMAEx Exported Types
   * @brief DMAEx Exported types
   * @{
   */
-   
-/** 
-  * @brief  HAL DMA Memory definition  
-  */ 
-typedef enum
-{
-  MEMORY0      = 0x00,    /*!< Memory 0     */
-  MEMORY1      = 0x01,    /*!< Memory 1     */
 
-}HAL_DMA_MemoryTypeDef;
+/**
+  * @brief  HAL DMA Memory definition
+  */
+typedef enum {
+    MEMORY0      = 0x00,    /*!< Memory 0     */
+    MEMORY1      = 0x01,    /*!< Memory 1     */
+
+} HAL_DMA_MemoryTypeDef;
 
 /**
   * @}
@@ -96,7 +95,7 @@ HAL_StatusTypeDef HAL_DMAEx_ChangeMemory(DMA_HandleTypeDef *hdma, uint32_t Addre
 /**
   * @}
   */
-         
+
 /* Private functions ---------------------------------------------------------*/
 /** @defgroup DMAEx_Private_Functions DMAEx Private Functions
   * @brief DMAEx Private functions

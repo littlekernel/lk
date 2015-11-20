@@ -13,8 +13,7 @@ ARM_CPU ?= cortex-a15
 endif
 WITH_SMP ?= 1
 
-GLOBAL_INCLUDES += \
-    $(LOCAL_DIR)/include
+LK_HEAP_IMPLEMENTATION ?= dlmalloc
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/debug.c \
@@ -22,19 +21,24 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/uart.c
 
 MEMBASE := 0x40000000
-MEMSIZE := 0x08000000   # 512MB
+MEMSIZE ?= 0x08000000   # 512MB
+KERNEL_LOAD_OFFSET := 0x10000 # 64k
 
 MODULE_DEPS += \
     lib/cbuf \
+    lib/fdt \
     dev/interrupt/arm_gic \
     dev/timer/arm_generic \
     dev/virtio/block \
+    dev/virtio/gpu \
     dev/virtio/net \
 
 GLOBAL_DEFINES += \
     MEMBASE=$(MEMBASE) \
     MEMSIZE=$(MEMSIZE) \
-    MMU_WITH_TRAMPOLINE=1 # use the trampoline translation table in start.S
+    PLATFORM_SUPPORTS_PANIC_SHELL=1
+
+GLOBAL_DEFINES += MMU_WITH_TRAMPOLINE=1 \ # use the trampoline translation table in start.S
 
 LINKER_SCRIPT += \
     $(BUILDDIR)/system-onesegment.ld

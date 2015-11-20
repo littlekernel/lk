@@ -111,7 +111,11 @@
 #endif
 
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#ifdef __cplusplus
+#define STATIC_ASSERT(e) static_assert(e, #e)
+#else
 #define STATIC_ASSERT(e) _Static_assert(e, #e)
+#endif
 #else
 #define STATIC_ASSERT(e) extern char (*ct_assert(void)) [sizeof(char[1 - 2*!(e)])]
 #endif

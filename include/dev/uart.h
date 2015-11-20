@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -34,6 +34,10 @@ int uart_getc(int port, bool wait);
 void uart_flush_tx(int port);
 void uart_flush_rx(int port);
 void uart_init_port(int port, uint baud);
+
+/* panic-time uart accessors, intended to be run with interrupts disabled */
+int uart_pputc(int port, char c);
+int uart_pgetc(int port);
 
 #endif
 

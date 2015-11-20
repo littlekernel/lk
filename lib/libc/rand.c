@@ -27,23 +27,23 @@ static unsigned int randseed = 12345;
 
 void srand(unsigned int seed)
 {
-	randseed = seed;
+    randseed = seed;
 }
 
 void rand_add_entropy(const void *buf, size_t len)
 {
-	if (len == 0)
-		return;
+    if (len == 0)
+        return;
 
-	uint32_t enp = 0;
-	for (size_t i = 0; i < len; i++) {
-		enp ^= ((enp << 8) | (enp >> 24)) ^ ((const uint8_t *)buf)[i];
-	}
+    uint32_t enp = 0;
+    for (size_t i = 0; i < len; i++) {
+        enp ^= ((enp << 8) | (enp >> 24)) ^ ((const uint8_t *)buf)[i];
+    }
 
-	randseed ^= enp;
+    randseed ^= enp;
 }
 
 int rand(void)
 {
-	return (randseed = randseed * 1664525 + 1013904223);
+    return (randseed = randseed * 1664525 + 1013904223);
 }

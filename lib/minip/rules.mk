@@ -7,8 +7,6 @@ MODULE_DEPS := \
 	lib/iovec \
 	lib/pool
 
-GLOBAL_INCLUDES += $(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arp.c \
 	$(LOCAL_DIR)/chksum.c \

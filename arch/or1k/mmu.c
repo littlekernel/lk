@@ -23,6 +23,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <trace.h>
+#include <debug.h>
 #include <err.h>
 #include <string.h>
 #include <arch/mmu.h>

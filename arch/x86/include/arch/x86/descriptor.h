@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2014 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -28,14 +29,22 @@
 /*
  * System Selectors
  */
-#define CODE_SELECTOR   0x08
-#define DATA_SELECTOR   0x10
-#define VIDEO_SELECTOR  0x18
-#define TSS_SELECTOR    0x30
+#define NULL_SELECTOR       0x00
 
-#define USER_CODE_SELECTOR 0x23
-#define USER_DATA_SELECTOR 0x2b
+/********* x86 selectors *********/
+#define CODE_SELECTOR       0x08
+#define DATA_SELECTOR       0x10
+#define USER_CODE_32_SELECTOR   0x18
+#define USER_DATA_32_SELECTOR   0x20
+#define NULL_2_SELECTOR     0x28
 
+/******* x86-64 selectors ********/
+#define CODE_64_SELECTOR    0x30
+#define STACK_64_SELECTOR   0x38
+#define USER_CODE_64_SELECTOR   0x50
+#define USER_DATA_64_SELECTOR   0x58
+
+#define TSS_SELECTOR        0x60
 /*
  * Descriptor Types
  */

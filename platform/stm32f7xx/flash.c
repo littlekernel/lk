@@ -89,7 +89,10 @@ void stm32_flash_init(void)
     /* construct the block device */
     bio_initialize_bdev(&flash.bdev, "flash0",
                         PROGRAM_SIZE, flash.size / PROGRAM_SIZE,
-                        3, flash.geometry);
+                        3, flash.geometry, BIO_FLAGS_NONE);
+
+    /* we erase to 0xff */
+    flash.bdev.erase_byte = 0xff;
 
     /* override our block device hooks */
     flash.bdev.read = &stm32_flash_bdev_read;
@@ -235,6 +238,7 @@ static int stm32_flash_ioctl(struct bdev *bdev, int request, void *argp)
 
     int ret = ERR_NOT_SUPPORTED;
     switch (request) {
+        case BIO_IOCTL_GET_MAP_ADDR:
         case BIO_IOCTL_GET_MEM_MAP:
             /* we're already mapped */
             if (argp)

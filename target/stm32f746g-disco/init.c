@@ -26,20 +26,25 @@
 #include <trace.h>
 #include <target.h>
 #include <compiler.h>
+#include <reg.h>
 #include <dev/gpio.h>
+#include <dev/usb.h>
 #include <platform/stm32.h>
 #include <platform/sdram.h>
 #include <platform/gpio.h>
 #include <platform/eth.h>
+#include <platform/qspi.h>
+#include <platform/n25q128a.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
-#include <reg.h>
+#include <kernel/novm.h>
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
 
-extern uint8_t BSP_LCD_Init(uint32_t fb_address);
+extern uint8_t BSP_LCD_Init(void);
+extern void target_usb_setup(void);
 
 const sdram_config_t target_sdram_config = {
     .bus_width = SDRAM_BUS_WIDTH_16,
@@ -60,42 +65,38 @@ void target_early_init(void)
     /* now that the uart gpios are configured, enable the debug uart */
     stm32_debug_early_init();
 
-    /* The lcd framebuffer starts at the base of SDRAM */
-    BSP_LCD_Init(SDRAM_BASE);
-}
-
-static uint8_t* gen_mac_address(void) {
-    static uint8_t mac_addr[6];
-
-    for (size_t i = 0; i < sizeof(mac_addr); i++) {
-        mac_addr[i] = rand() & 0xff;
-    }
-    mac_addr[5] += 1;
-    /* unicast and locally administered */
-    mac_addr[0] &= ~(1<<0);
-    mac_addr[0] |= (1<<1);
-    return mac_addr;
+    /* start the lcd */
+    BSP_LCD_Init();
 }
 
 void target_init(void)
 {
-    uint8_t* mac_addr = gen_mac_address();
     stm32_debug_init();
 
-    eth_init(mac_addr, PHY_LAN8742A);
+    qspi_flash_init(N25Q128A_FLASH_SIZE);
+
 #if WITH_LIB_MINIP
+    uint8_t mac_addr[6];
+    gen_random_mac_address(mac_addr);
+    eth_init(mac_addr, PHY_LAN8742A);
+
+    /* start minip */
     minip_set_macaddr(mac_addr);
 
     uint32_t ip_addr = IPV4(192, 168, 0, 98);
     uint32_t ip_mask = IPV4(255, 255, 255, 0);
     uint32_t ip_gateway = IPV4_NONE;
+
     minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
 #endif
+
+    // start usb
+    target_usb_setup();
 }
 
 /**
   * @brief  Initializes SDRAM GPIO.
-  * called back from stm32_sdram_init 
+  * called back from stm32_sdram_init
   */
 void stm_sdram_GPIO_init(void)
 {
@@ -178,7 +179,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
     /* Configure PA1, PA2 and PA7 */
     GPIO_InitStructure.Speed = GPIO_SPEED_HIGH;
     GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStructure.Pull = GPIO_NOPULL; 
+    GPIO_InitStructure.Pull = GPIO_NOPULL;
     GPIO_InitStructure.Alternate = GPIO_AF11_ETH;
     GPIO_InitStructure.Pin = GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_7;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
@@ -192,4 +193,156 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
     HAL_GPIO_Init(GPIOG, &GPIO_InitStructure);
 }
 
+void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
+{
+    GPIO_InitTypeDef GPIO_InitStruct;
+
+    /*##-1- Enable peripherals and GPIO Clocks #################################*/
+    /* Enable GPIO clocks */
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+
+    /*##-2- Configure peripheral GPIO ##########################################*/
+    /* QSPI CS GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_6;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull      = GPIO_PULLUP;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF10_QUADSPI;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* QSPI CLK GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_2;
+    GPIO_InitStruct.Pull      = GPIO_NOPULL;
+    GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* QSPI D0 GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_11;
+    GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+    /* QSPI D1 GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_12;
+    GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+    /* QSPI D2 GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_2;
+    GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
+    HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+    /* QSPI D3 GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_13;
+    GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+}
+
+/**
+  * @brief  Initializes the PCD MSP.
+  * @param  hpcd: PCD handle
+  * @retval None
+  */
+void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd)
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    if (hpcd->Instance == USB_OTG_FS) {
+        /* Configure USB FS GPIOs */
+        __HAL_RCC_GPIOA_CLK_ENABLE();
+
+        /* Configure DM DP Pins */
+        GPIO_InitStruct.Pin = (GPIO_PIN_11 | GPIO_PIN_12);
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
+        HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+        /* Enable USB FS Clock */
+        __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
+
+        /* Set USBFS Interrupt priority */
+        HAL_NVIC_SetPriority(OTG_FS_IRQn, 5, 0);
+
+        /* Enable USBFS Interrupt */
+        HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
+
+        if (hpcd->Init.low_power_enable == 1) {
+            /* Enable EXTI Line 18 for USB wakeup*/
+            __HAL_USB_OTG_FS_WAKEUP_EXTI_CLEAR_FLAG();
+            __HAL_USB_OTG_FS_WAKEUP_EXTI_ENABLE_RISING_EDGE();
+            __HAL_USB_OTG_FS_WAKEUP_EXTI_ENABLE_IT();
+
+            /* Set EXTI Wakeup Interrupt priority*/
+            HAL_NVIC_SetPriority(OTG_FS_WKUP_IRQn, 0, 0);
+
+            /* Enable EXTI Interrupt */
+            HAL_NVIC_EnableIRQ(OTG_FS_WKUP_IRQn);
+        }
+    } else if (hpcd->Instance == USB_OTG_HS) {
+        /* Configure USB FS GPIOs */
+        __HAL_RCC_GPIOA_CLK_ENABLE();
+        __HAL_RCC_GPIOB_CLK_ENABLE();
+        __HAL_RCC_GPIOC_CLK_ENABLE();
+        __HAL_RCC_GPIOH_CLK_ENABLE();
+
+        /* CLK */
+        GPIO_InitStruct.Pin = GPIO_PIN_5;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
+        HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+        /* D0 */
+        GPIO_InitStruct.Pin = GPIO_PIN_3;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
+        HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+        /* D1 D2 D3 D4 D5 D6 D7 */
+        GPIO_InitStruct.Pin = GPIO_PIN_0  | GPIO_PIN_1  | GPIO_PIN_5 |\
+                              GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
+        HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+        /* STP */
+        GPIO_InitStruct.Pin = GPIO_PIN_0;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
+        HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+        /* NXT */
+        GPIO_InitStruct.Pin = GPIO_PIN_4;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
+        HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
+
+        /* DIR */
+        GPIO_InitStruct.Pin = GPIO_PIN_2;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
+        HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+        __HAL_RCC_USB_OTG_HS_ULPI_CLK_ENABLE();
+
+        /* Enable USB HS Clocks */
+        __HAL_RCC_USB_OTG_HS_CLK_ENABLE();
+
+        /* Set USBHS Interrupt to the lowest priority */
+        HAL_NVIC_SetPriority(OTG_HS_IRQn, 5, 0);
+
+        /* Enable USBHS Interrupt */
+        HAL_NVIC_EnableIRQ(OTG_HS_IRQn);
+    }
+}
 

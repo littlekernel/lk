@@ -70,12 +70,12 @@ static inline void arch_spin_unlock(spin_lock_t *lock)
 
 #endif
 
-    /* ARM specific flags */
+/* ARM specific flags */
 #define SPIN_LOCK_FLAG_IRQ                      0x40000000
 #define SPIN_LOCK_FLAG_FIQ                      0x80000000 /* Do not use unless IRQs are already disabled */
 #define SPIN_LOCK_FLAG_IRQ_FIQ                  (SPIN_LOCK_FLAG_IRQ | SPIN_LOCK_FLAG_FIQ)
 
-    /* default arm flag is to just disable plain irqs */
+/* default arm flag is to just disable plain irqs */
 #define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS  SPIN_LOCK_FLAG_IRQ
 
 enum {

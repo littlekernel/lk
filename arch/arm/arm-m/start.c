@@ -32,19 +32,19 @@ extern void lk_main(void) __NO_RETURN __EXTERNALLY_VISIBLE;
 
 void _start(void)
 {
-	/* copy data from rom */
-	if (&__data_start != &__data_start_rom) {
-		unsigned int *src = &__data_start_rom;
-		unsigned int *dest = &__data_start;
+    /* copy data from rom */
+    if (&__data_start != &__data_start_rom) {
+        unsigned int *src = &__data_start_rom;
+        unsigned int *dest = &__data_start;
 
-		while (dest != &__data_end)
-			*dest++ = *src++;
-	}
+        while (dest != &__data_end)
+            *dest++ = *src++;
+    }
 
-	/* zero out bss */
-	unsigned int *bss = &__bss_start;
-	while (bss != &__bss_end)
-		*bss++ = 0;
+    /* zero out bss */
+    unsigned int *bss = &__bss_start;
+    while (bss != &__bss_end)
+        *bss++ = 0;
 
-	lk_main();
+    lk_main();
 }

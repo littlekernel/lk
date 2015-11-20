@@ -15,10 +15,6 @@ MODULE_DEPS := \
 	dev/interrupt/arm_gic \
 	dev/timer/arm_cortex_a9
 
-
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/clocks.c \
 	$(LOCAL_DIR)/debug.c \
@@ -76,8 +72,6 @@ endif
 KERNEL_BASE = 0xc0000000
 
 GLOBAL_DEFINES += \
-	MEMBASE=$(MEMBASE) \
-	MEMSIZE=$(MEMSIZE) \
 	SDRAM_SIZE=$(ZYNQ_SDRAM_SIZE)
 
 LINKER_SCRIPT += \

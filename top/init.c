@@ -37,7 +37,7 @@
 #define LOCAL_TRACE 0
 #define TRACE_INIT (LK_DEBUGLEVEL >= 2)
 #ifndef EARLIEST_TRACE_LEVEL
-#define EARLIEST_TRACE_LEVEL LK_INIT_LEVEL_ARCH_EARLY
+#define EARLIEST_TRACE_LEVEL LK_INIT_LEVEL_TARGET_EARLY
 #endif
 
 extern const struct lk_init_struct __lk_init[];
@@ -132,5 +132,3 @@ LK_INIT_HOOK(test2, test_hook2, 2);
 LK_INIT_HOOK(test1a, test_hook1a, 1);
 LK_INIT_HOOK(test1b, test_hook1b, 1);
 #endif
-
-// vim: set ts=4 sw=4 expandtab:

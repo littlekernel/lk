@@ -7,9 +7,6 @@ GLOBAL_DEFINES += \
 	ARM_ISA_ARMV8=1 \
 	IS_64BIT=1
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/asm.S \
@@ -61,12 +58,16 @@ MODULE_SRCS += \
 
 KERNEL_ASPACE_BASE ?= 0xffff000000000000
 KERNEL_ASPACE_SIZE ?= 0x0001000000000000
+USER_ASPACE_BASE   ?= 0x0000000001000000
+USER_ASPACE_SIZE   ?= 0x0000fffffe000000
 
 GLOBAL_DEFINES += \
     KERNEL_ASPACE_BASE=$(KERNEL_ASPACE_BASE) \
-    KERNEL_ASPACE_SIZE=$(KERNEL_ASPACE_SIZE)
+    KERNEL_ASPACE_SIZE=$(KERNEL_ASPACE_SIZE) \
+    USER_ASPACE_BASE=$(USER_ASPACE_BASE) \
+    USER_ASPACE_SIZE=$(USER_ASPACE_SIZE)
 
-KERNEL_BASE ?= 0xffff000000000000
+KERNEL_BASE ?= $(KERNEL_ASPACE_BASE)
 KERNEL_LOAD_OFFSET ?= 0
 
 GLOBAL_DEFINES += \
@@ -80,6 +81,9 @@ KERNEL_LOAD_OFFSET ?= 0
 
 endif
 
+GLOBAL_DEFINES += \
+	MEMBASE=$(MEMBASE) \
+	MEMSIZE=$(MEMSIZE)
 
 # try to find the toolchain
 include $(LOCAL_DIR)/toolchain.mk
@@ -87,6 +91,10 @@ TOOLCHAIN_PREFIX := $(ARCH_$(ARCH)_TOOLCHAIN_PREFIX)
 $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
 ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
+
+GLOBAL_LDFLAGS += -z max-page-size=4096
+
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)
 
 # make sure some bits were set up
 MEMVARS_SET := 0
@@ -100,16 +108,18 @@ ifeq ($(MEMVARS_SET),0)
 $(error missing MEMBASE or MEMSIZE variable, please set in target rules.mk)
 endif
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)
-
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
 	$(BUILDDIR)/system-onesegment.ld
 
 # rules for generating the linker script
-$(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard arch/*.ld)
+$(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard arch/*.ld) linkerscript.phony
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@
+	$(NOECHO)sed "s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@.tmp
+	@$(call TESTANDREPLACEFILE,$@.tmp,$@)
+
+linkerscript.phony:
+.PHONY: linkerscript.phony
 
 include make/module.mk

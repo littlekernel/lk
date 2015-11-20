@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -35,6 +35,15 @@
 
 __BEGIN_CDECLS;
 
+/* debug-enable runtime checks */
+#if LK_DEBUGLEVEL > 1
+#define THREAD_STATS 1
+#define THREAD_STACK_BOUNDS_CHECK 1
+#ifndef THREAD_STACK_PADDING_SIZE
+#define THREAD_STACK_PADDING_SIZE 256
+#endif
+#endif
+
 enum thread_state {
 	THREAD_SUSPENDED = 0,
 	THREAD_READY,
@@ -57,11 +66,12 @@ enum thread_tls_list {
 	MAX_TLS_ENTRY
 };
 
-#define THREAD_FLAG_DETACHED 0x1
-#define THREAD_FLAG_FREE_STACK 0x2
-#define THREAD_FLAG_FREE_STRUCT 0x4
-#define THREAD_FLAG_REAL_TIME 0x8
-#define THREAD_FLAG_IDLE 0x10
+#define THREAD_FLAG_DETACHED                  (1<<0)
+#define THREAD_FLAG_FREE_STACK                (1<<1)
+#define THREAD_FLAG_FREE_STRUCT               (1<<2)
+#define THREAD_FLAG_REAL_TIME                 (1<<3)
+#define THREAD_FLAG_IDLE                      (1<<4)
+#define THREAD_FLAG_DEBUG_STACK_BOUNDS_CHECK  (1<<5)
 
 #define THREAD_MAGIC 'thrd'
 
@@ -185,11 +195,6 @@ static inline __ALWAYS_INLINE uintptr_t __tls_set(uint entry, uintptr_t val)
 	})
 
 /* thread level statistics */
-#if LK_DEBUGLEVEL > 1
-#define THREAD_STATS 1
-#else
-#define THREAD_STATS 0
-#endif
 #if THREAD_STATS
 struct thread_stats {
 	lk_bigtime_t idle_time;

@@ -103,6 +103,22 @@ static inline bool is_kernel_address(vaddr_t va)
     return (va >= KERNEL_ASPACE_BASE && va <= (KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - 1));
 }
 
+/* user address space, defaults to below kernel space with a 16MB guard gap on either side */
+#ifndef USER_ASPACE_BASE
+#define USER_ASPACE_BASE ((vaddr_t)0x01000000UL)
+#endif
+#ifndef USER_ASPACE_SIZE
+#define USER_ASPACE_SIZE ((vaddr_t)KERNEL_ASPACE_BASE - USER_ASPACE_BASE - 0x01000000UL)
+#endif
+
+STATIC_ASSERT(USER_ASPACE_BASE + (USER_ASPACE_SIZE - 1) > USER_ASPACE_BASE);
+
+static inline bool is_user_address(vaddr_t va)
+{
+    return (va >= USER_ASPACE_BASE && va <= (USER_ASPACE_BASE + USER_ASPACE_SIZE - 1));
+}
+
+
 /* physical allocator */
 typedef struct pmm_arena {
     struct list_node node;
@@ -158,6 +174,8 @@ void *pmm_alloc_kpages(uint count, struct list_node *list);
 
     /* Helper routine for pmm_alloc_kpages. */
 static inline void *pmm_alloc_kpage(void) { return pmm_alloc_kpages(1, NULL); }
+
+size_t pmm_free_kpages(void *ptr, uint count);
 
 /* physical to virtual */
 void *paddr_to_kvaddr(paddr_t pa);
@@ -220,9 +238,18 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
 /* Unmap previously allocated region and free physical memory pages backing it (if any) */
 status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t va);
 
-
     /* For the above region creation routines. Allocate virtual space at the passed in pointer. */
 #define VMM_FLAG_VALLOC_SPECIFIC 0x1
+
+/* allocate a new address space */
+status_t vmm_create_aspace(vmm_aspace_t **aspace, const char *name, uint flags)
+    __NONNULL((1));
+
+/* destroy everything in the address space */
+status_t vmm_free_aspace(vmm_aspace_t *aspace)
+    __NONNULL((1));
+
+#define VMM_FLAG_ASPACE_KERNEL 0x1
 
 __END_CDECLS
 

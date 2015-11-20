@@ -137,6 +137,17 @@ static int __debug_stdio_fgetc(void *ctx)
 	return (unsigned char)c;
 }
 
+static int __panic_stdio_fgetc(void *ctx)
+{
+	char c;
+	int err;
+
+	err = platform_pgetc(&c, false);
+	if (err < 0)
+		return err;
+	return (unsigned char)c;
+}
+
 static int __debug_stdio_vfprintf(void *ctx, const char *fmt, va_list ap)
 {
 	return _dvprintf(fmt, ap);
@@ -157,6 +168,17 @@ FILE __stdio_FILEs[3] = {
 	DEFINE_STDIO_DESC(2), /* stderr */
 };
 #undef DEFINE_STDIO_DESC
+
+FILE get_panic_fd(void)
+{
+	FILE panic_fd;
+	panic_fd.fgetc = __panic_stdio_fgetc;
+
+	panic_fd.fputc = __debug_stdio_fputc;
+	panic_fd.fputs = __debug_stdio_fputs;
+	panic_fd.vfprintf = __debug_stdio_vfprintf;
+	return panic_fd;
+}
 
 #if !DISABLE_DEBUG_OUTPUT
 

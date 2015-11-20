@@ -42,7 +42,7 @@ struct display_info {
 	void (*flush)(uint starty, uint endy);
 };
 
-void display_get_info(struct display_info *info);
+status_t display_get_info(struct display_info *info);
 
 #endif
 

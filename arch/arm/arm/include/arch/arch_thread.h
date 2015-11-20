@@ -26,7 +26,7 @@
 #include <sys/types.h>
 
 struct arch_thread {
-	vaddr_t sp;
+    vaddr_t sp;
 
 #if ARM_WITH_VFP
     /* has this thread ever used the floating point state? */

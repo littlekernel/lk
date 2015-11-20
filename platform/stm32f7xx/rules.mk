@@ -30,11 +30,11 @@ ifeq ($(FOUND_CHIP),)
 $(error unknown STM32F7xx chip $(STM32_CHIP))
 endif
 
-GLOBAL_DEFINES += \
-	MEMSIZE=$(MEMSIZE)
+LK_HEAP_IMPLEMENTATION ?= miniheap
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
+GLOBAL_DEFINES += \
+	PLATFORM_SUPPORTS_PANIC_SHELL=1 \
+    NOVM_MAX_ARENAS=2
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
@@ -44,8 +44,10 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uart.c \
+	$(LOCAL_DIR)/usbc.c \
 	$(LOCAL_DIR)/vectab.c \
-  $(LOCAL_DIR)/sdram.c \
+	$(LOCAL_DIR)/sdram.c \
+	$(LOCAL_DIR)/qspi.c
 
 # use a two segment memory layout, where all of the read-only sections 
 # of the binary reside in rom, and the read/write are in memory. The 
@@ -57,6 +59,7 @@ LINKER_SCRIPT += \
 
 MODULE_DEPS += \
 	arch/arm/arm-m/systick \
+	dev/usb \
 	lib/bio \
 	lib/cbuf
 

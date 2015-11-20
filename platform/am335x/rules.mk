@@ -9,7 +9,6 @@ CPU := generic
 ENABLE_THUMB := false
 
 GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include \
 	$(LOCAL_DIR)/ti/include \
 	$(LOCAL_DIR)/ti/include/hw \
 	$(LOCAL_DIR)/ti/include/armv7a \
@@ -35,7 +34,6 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
 
 GLOBAL_DEFINES += \
-	MEMBASE=$(MEMBASE) \
 	SDRAM_BASE=$(MEMBASE) \
 	SDRAM_SIZE=$(MEMSIZE) \
 

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
  * Copyright (c) 2013 Travis Geiselbrecht
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,39 +26,61 @@
 ENTRY(_start)
 SECTIONS
 {
-	.text 0x0200000 : {
+    . = 0x0200000;
+
+	.text : {
+		__code_start = .;
 		KEEP(*(.text.boot))
 		*(.text* .sram.text)
 		*(.gnu.linkonce.t.*)
+		__code_end = .;
 	} =0x9090
 
-	.rodata : ALIGN(4) {
+	.rodata : ALIGN(4096) {
 		__rodata_start = .;
 		*(.rodata*)
 		*(.gnu.linkonce.r.*)
-INCLUDE "arch/shared_rodata_sections.ld"
 		. = ALIGN(4);
-		__rodata_end = .;
 	}
+
+    /*
+     * extra linker scripts tend to insert sections just after .rodata,
+     * so we want to make sure this symbol comes after anything inserted above,
+     * but not aligned to the next section necessarily.
+     */
+    .dummy_post_rodata : {
+        __rodata_end = .;
+    }
 
 	.data : ALIGN(4096) {
 		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
-INCLUDE "arch/shared_data_sections.ld"
 	}
-	__ctor_list = .;
-	.ctors : { KEEP(*(.ctors)) }
-	__ctor_end = .;
-	__dtor_list = .;
-	.dtors : { KEEP(*(.dtors)) }
-	__dtor_end = .;
+
+	.ctors : ALIGN(4) {
+		__ctor_list = .;
+		KEEP(*(.ctors .init_array))
+		__ctor_end = .;
+	}
+	.dtors : ALIGN(4) {
+		__dtor_list = .;
+		KEEP(*(.dtors .fini_array))
+		__dtor_end = .;
+	}
 
 	.stab   : { *(.stab) }
 	.stabst : { *(.stabstr) }
 
-	__data_end = .;
+    /*
+     * extra linker scripts tend to insert sections just after .data,
+     * so we want to make sure this symbol comes after anything inserted above,
+     * but not aligned to the next section necessarily.
+     */
+    .dummy_post_data : {
+        __data_end = .;
+    }
 
-	.bss : ALIGN(4) {
+	.bss : {
 		__bss_start = .;
 		*(.bss*)
 		*(.gnu.linkonce.b.*)
@@ -66,11 +89,8 @@ INCLUDE "arch/shared_data_sections.ld"
 		__bss_end = .;
 	}
 
-	_end = .;
 
-	/* put a symbol arbitrarily 4MB past the end of the kernel */
-	/* used by the heap and other early boot time allocators */
-	_end_of_ram = . + (4*1024*1024);
+	_end = .;
 
 	/DISCARD/ : { *(.comment .note .eh_frame) }
 }

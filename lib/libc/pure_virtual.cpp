@@ -24,6 +24,6 @@
 
 extern "C" void __cxa_pure_virtual(void)
 {
-	panic("pure virtual called\n");
+    panic("pure virtual called\n");
 }
 

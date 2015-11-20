@@ -53,10 +53,10 @@ void platform_init_display(void)
 #endif
 }
 
-void display_get_info(struct display_info *info)
+status_t display_get_info(struct display_info *info)
 {
 	if (!has_display())
-		return;
+		return ERR_NOT_FOUND;
 
 	info->framebuffer = display_fb;
 	info->format = GFX_FORMAT_RGB_x888;
@@ -64,5 +64,7 @@ void display_get_info(struct display_info *info)
 	info->height = display_h;
 	info->stride = display_w;
 	info->flush = NULL;
+
+	return NO_ERROR;
 }
 

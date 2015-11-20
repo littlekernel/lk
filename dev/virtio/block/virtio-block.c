@@ -154,7 +154,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features)
     snprintf(buf, sizeof(buf), "virtio%u", found_index++);
     bio_initialize_bdev(&bdev->bdev, buf,
                         config->blk_size, config->capacity,
-                        0, NULL);
+                        0, NULL, BIO_FLAGS_NONE);
 
     /* override our block device hooks */
     bdev->bdev.read_block = &virtio_bdev_read_block;
@@ -251,7 +251,7 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
     /* see if we need to add more descriptors due to scatter gather */
     paddr_t next_pa = PAGE_ALIGN(pa + 1);
     desc->len = MIN(next_pa - pa, len);
-    LTRACEF("first descriptor va 0x%lx desc->addr 0x%llx desc->len %zu\n", va, desc->addr, desc->len);
+    LTRACEF("first descriptor va 0x%lx desc->addr 0x%llx desc->len %u\n", va, desc->addr, desc->len);
     len -= desc->len;
     while (len > 0) {
         /* amount of source buffer handled by this iteration of the loop */
@@ -316,7 +316,12 @@ static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block
 
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
-    return virtio_block_read_write(dev->dev, buf, (off_t)block * dev->bdev.block_size, count * dev->bdev.block_size, false);
+    if (virtio_block_read_write(dev->dev, buf, (off_t)block * dev->bdev.block_size,
+                                count * dev->bdev.block_size, false) == 0) {
+        return count * dev->bdev.block_size;
+    } else {
+        return ERR_IO;
+    }
 }
 
 static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count)
@@ -325,6 +330,11 @@ static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_
 
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
-    return virtio_block_read_write(dev->dev, (void *)buf, (off_t)block * dev->bdev.block_size, count * dev->bdev.block_size, true);
+    if (virtio_block_read_write(dev->dev, (void *)buf, (off_t)block * dev->bdev.block_size,
+                                count * dev->bdev.block_size, true) == 0) {
+        return count * dev->bdev.block_size;
+    } else {
+        return ERR_IO;
+    }
 }
 

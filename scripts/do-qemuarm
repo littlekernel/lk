@@ -3,9 +3,13 @@
 function HELP {
     echo "help:"
     echo "-b a virtio block device"
+    echo "-c cmpctmalloc instead of dlmalloc"
+    echo "-M miniheap instead of dlmalloc"
     echo "-n a virtio network device"
     echo "-t a virtio tap network device"
+    echo "-d a virtio display"
     echo "-6 64bit arm"
+    echo "-m <memory in MB>"
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
@@ -15,14 +19,22 @@ DO_NET=0
 DO_NET_TAP=0
 DO_BLOCK=0
 DO_64BIT=0
+DO_DISPLAY=0
+DO_CMPCTMALLOC=0
+DO_MINIHEAP=0
+MEMSIZE=512
 SUDO=""
 
-while getopts bhnt6 FLAG; do
+while getopts bdhm:cMnt6 FLAG; do
     case $FLAG in
         b) DO_BLOCK=1;;
+        c) DO_CMPCTMALLOC=1;;
+        d) DO_DISPLAY=1;;
+        M) DO_MINIHEAP=1;;
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
         6) DO_64BIT=1;;
+        m) MEMSIZE=$OPTARG;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -40,10 +52,12 @@ else
     PROJECT="qemu-virt-a15-test"
 fi
 
-ARGS=" -m 512 -kernel build-${PROJECT}/lk.elf -nographic"
+ARGS=" -m $MEMSIZE -kernel build-${PROJECT}/lk.elf"
 BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
 NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
 NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"
+NO_DISPLAY_ARGS=" -nographic"
+DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
 
 echo DO_BLOCK = $DO_BLOCK
 echo DO_NET = $DO_NET
@@ -58,7 +72,20 @@ if [ $DO_NET_TAP == 1 ]; then
     ARGS+=$NET_TAP_ARGS
     SUDO="sudo "
 fi
+if [ $DO_DISPLAY == 1 ]; then
+    ARGS+=$DISPLAY_ARGS
+else
+    ARGS+=$NO_DISPLAY_ARGS
+fi
 
-make $PROJECT -j4 &&
+MAKE_VARS=""
+
+if [ $DO_CMPCTMALLOC == 1 ]; then
+	MAKE_VARS=LK_HEAP_IMPLEMENTATION=cmpctmalloc
+elif [ $DO_MINIHEAP == 1 ]; then
+	MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
+fi
+
+make $MAKE_VARS $PROJECT -j4 &&
 echo $SUDO $QEMU $ARGS $@ &&
 $SUDO $QEMU $ARGS $@

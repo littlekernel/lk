@@ -1,4 +1,43 @@
-#!/bin/sh
+#!/bin/bash
 
-make pc-x86-test -j4 &&
-qemu-system-i386 -kernel build-pc-x86-test/lk.elf -nographic $@
+function HELP {
+    echo "help:"
+    echo "-6 x86-64"
+    echo "-m <memory in MB>"
+    echo "-h for help"
+    echo "all arguments after -- are passed to qemu directly"
+    exit 1
+}
+
+DO_64BIT=0
+MEMSIZE=512
+SUDO=""
+MAKE_VARS=""
+
+while getopts bdhm:cMnt6 FLAG; do
+    case $FLAG in
+        6) DO_64BIT=1;;
+        m) MEMSIZE=$OPTARG;;
+        h) HELP;;
+        \?)
+            echo unrecognized option
+            HELP
+    esac
+done
+
+shift $((OPTIND-1))
+
+if [ $DO_64BIT == 1 ]; then
+    QEMU="qemu-system-x86_64"
+    PROJECT="pc-x86-64-test"
+else
+    QEMU="qemu-system-i386"
+    PROJECT="pc-x86-test"
+fi
+
+ARGS=" -m $MEMSIZE -kernel build-${PROJECT}/lk.elf -nographic"
+
+make $MAKE_VARS $PROJECT -j4 &&
+echo $SUDO $QEMU $ARGS $@ &&
+$SUDO $QEMU $ARGS $@
+

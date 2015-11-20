@@ -17,9 +17,6 @@ MODULE_DEPS := \
 	dev/interrupt/arm_gic \
 	dev/timer/arm_cortex_a9
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c \
@@ -36,8 +33,6 @@ KERNEL_LOAD_OFFSET := 0x00008000 # loaded 32KB into physical
 KERNEL_BASE = 0x80000000
 
 GLOBAL_DEFINES += \
-	MEMBASE=$(MEMBASE) \
-	MEMSIZE=$(MEMSIZE) \
 	ARM_ARCH_WAIT_FOR_SECONDARIES=1
 
 LINKER_SCRIPT += \

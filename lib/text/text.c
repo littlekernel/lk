@@ -77,7 +77,8 @@ void text_draw(int x, int y, const char *string)
 void text_update(void)
 {
 	struct display_info info;
-	display_get_info(&info);
+	if (display_get_info(&info) < 0)
+		return;
 
 	/* get the display's surface */
 	gfx_surface *surface = gfx_create_surface_from_display(&info);

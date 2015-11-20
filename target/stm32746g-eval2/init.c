@@ -32,6 +32,8 @@
 #include <platform/sdram.h>
 #include <platform/gpio.h>
 #include <platform/eth.h>
+#include <platform/qspi.h>
+#include <platform/n25q512a.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
 #include <reg.h>
@@ -74,17 +76,11 @@ void target_init(void)
     TRACE_ENTRY;
     stm32_debug_init();
 
+    qspi_flash_init(N25Q512A_FLASH_SIZE);
+
 #if WITH_LIB_MINIP
-    // make up a mac address
     uint8_t mac_addr[6];
-    for (size_t i = 0; i < sizeof(mac_addr); i++) {
-        mac_addr[i] = rand() & 0xff;
-    }
-
-    /* unicast and locally administered */
-    mac_addr[0] &= ~(1<<0);
-    mac_addr[0] |= (1<<1);
-
+    gen_random_mac_address(mac_addr);
     eth_init(mac_addr, PHY_DP83848);
 
     /* start minip */
@@ -289,5 +285,50 @@ void stm_sdram_GPIO_init(void)
     gpio_init_structure.Pin   = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 |\
                                 GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_9 | GPIO_PIN_10;
     HAL_GPIO_Init(GPIOI, &gpio_init_structure);
+}
+
+void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
+{
+    GPIO_InitTypeDef GPIO_InitStruct;
+
+    /*##-1- Enable peripherals and GPIO Clocks #################################*/
+    /* Enable GPIO clocks */
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
+
+    /*##-2- Configure peripheral GPIO ##########################################*/
+    /* QSPI CS GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_6;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull      = GPIO_PULLUP;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF10_QUADSPI;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* QSPI CLK GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_2;
+    GPIO_InitStruct.Pull      = GPIO_NOPULL;
+    GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* QSPI D0 GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_8;
+    GPIO_InitStruct.Alternate = GPIO_AF10_QUADSPI;
+    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+    /* QSPI D1 GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_9;
+    GPIO_InitStruct.Alternate = GPIO_AF10_QUADSPI;
+    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+    /* QSPI D2 GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_7;
+    GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
+    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+    /* QSPI D3 GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_6;
+    GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
+    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 }
 

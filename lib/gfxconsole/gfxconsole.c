@@ -163,7 +163,9 @@ void gfxconsole_start_on_display(void)
 
 	/* pop up the console */
 	struct display_info info;
-	display_get_info(&info);
+	if (display_get_info(&info) < 0)
+		return;
+
 	gfx_surface *s = gfx_create_surface_from_display(&info);
 	gfxconsole_start(s);
 	started = true;
@@ -174,6 +176,6 @@ static void gfxconsole_init_hook(uint level)
 	gfxconsole_start_on_display();
 }
 
-LK_INIT_HOOK(gfxconsole, &gfxconsole_init_hook, LK_INIT_LEVEL_HEAP);
+LK_INIT_HOOK(gfxconsole, &gfxconsole_init_hook, LK_INIT_LEVEL_PLATFORM);
 
 // vim: set noexpandtab:

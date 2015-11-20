@@ -87,11 +87,11 @@ static uint32_t mmu_flags_to_l1_arch_flags(uint flags)
     }
 
     if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
-         arch_flags |= MMU_MEMORY_L1_SECTION_XN;
+        arch_flags |= MMU_MEMORY_L1_SECTION_XN;
     }
 
     if (flags & ARCH_MMU_FLAG_NS) {
-            arch_flags |= MMU_MEMORY_L1_SECTION_NON_SECURE;
+        arch_flags |= MMU_MEMORY_L1_SECTION_NON_SECURE;
     }
 
     return arch_flags;
@@ -139,9 +139,9 @@ static uint32_t mmu_flags_to_l2_arch_flags_small_page(uint flags)
     }
 
     if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
-         arch_flags |= MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN;
+        arch_flags |= MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN;
     } else {
-         arch_flags |= MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE;
+        arch_flags |= MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE;
     }
 
     return arch_flags;
@@ -239,7 +239,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
             if (flags) {
                 *flags = 0;
                 if (tt_entry & MMU_MEMORY_L1_SECTION_NON_SECURE)
-                        *flags |= ARCH_MMU_FLAG_NS;
+                    *flags |= ARCH_MMU_FLAG_NS;
                 switch (tt_entry & MMU_MEMORY_L1_TYPE_MASK) {
                     case MMU_MEMORY_L1_TYPE_STRONGLY_ORDERED:
                         *flags |= ARCH_MMU_FLAG_UNCACHED;
@@ -290,7 +290,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
                         *flags = 0;
                         /* NS flag is only present on L1 entry */
                         if (tt_entry & MMU_MEMORY_L1_PAGETABLE_NON_SECURE)
-                                *flags |= ARCH_MMU_FLAG_NS;
+                            *flags |= ARCH_MMU_FLAG_NS;
                         switch (l2_entry & MMU_MEMORY_L2_TYPE_MASK) {
                             case MMU_MEMORY_L2_TYPE_STRONGLY_ORDERED:
                                 *flags |= ARCH_MMU_FLAG_UNCACHED;
@@ -314,7 +314,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
                                 break;
                         }
                         if ((l2_entry & MMU_MEMORY_L2_DESCRIPTOR_MASK) ==
-                            MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN) {
+                                MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN) {
                             *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
                         }
                     }
@@ -349,12 +349,12 @@ static status_t get_l2_table(uint32_t l1_index, paddr_t *ppa)
     DEBUG_ASSERT(ppa);
 
     /* lookup an existing l2 pagetable */
-    for(uint i = 0; i < L1E_PER_PAGE; i++) {
+    for (uint i = 0; i < L1E_PER_PAGE; i++) {
         tt_entry = arm_kernel_translation_table[ROUNDDOWN(l1_index, L1E_PER_PAGE) + i];
         if ((tt_entry & MMU_MEMORY_L1_DESCRIPTOR_MASK)
-                     == MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE) {
+                == MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE) {
             *ppa = (paddr_t)ROUNDDOWN(MMU_MEMORY_L1_PAGE_TABLE_ADDR(tt_entry), PAGE_SIZE)
-                            + (PAGE_SIZE / L1E_PER_PAGE) * (l1_index & (L1E_PER_PAGE-1));
+                   + (PAGE_SIZE / L1E_PER_PAGE) * (l1_index & (L1E_PER_PAGE-1));
             return NO_ERROR;
         }
     }
@@ -398,7 +398,7 @@ static void put_l2_table(uint32_t l1_index, paddr_t l2_pa)
     /* we can free this l2 table */
     vm_page_t *page = address_to_page(l2_pa);
     if (!page)
-         panic("bad page table paddr 0x%lx\n", l2_pa);
+        panic("bad page table paddr 0x%lx\n", l2_pa);
 
     LTRACEF("freeing pagetable at 0x%lx\n", l2_pa);
     pmm_free_page(page);
@@ -407,7 +407,7 @@ static void put_l2_table(uint32_t l1_index, paddr_t l2_pa)
 #if WITH_ARCH_MMU_PICK_SPOT
 
 static inline bool are_regions_compatible(uint new_region_flags,
-                                          uint adjacent_region_flags)
+        uint adjacent_region_flags)
 {
     /*
      * Two regions are compatible if NS flag matches.
@@ -426,12 +426,12 @@ vaddr_t arch_mmu_pick_spot(vaddr_t base, uint prev_region_flags,
                            vaddr_t align, size_t size, uint flags)
 {
     LTRACEF("base = 0x%lx, end=0x%lx, align=%ld, size=%zd, flags=0x%x\n",
-             base, end, align, size, flags);
+            base, end, align, size, flags);
 
     vaddr_t spot;
 
     if (align >= SECTION_SIZE ||
-        are_regions_compatible(flags, prev_region_flags)) {
+            are_regions_compatible(flags, prev_region_flags)) {
         spot = ALIGN(base, align);
     } else {
         spot = ALIGN(base, SECTION_SIZE);
@@ -442,7 +442,7 @@ vaddr_t arch_mmu_pick_spot(vaddr_t base, uint prev_region_flags,
         return end; /* wrapped around or it does not fit */
 
     if ((spot_end / SECTION_SIZE) == (end / SECTION_SIZE)) {
-       if (!are_regions_compatible(flags, next_region_flags))
+        if (!are_regions_compatible(flags, next_region_flags))
             return end;
     }
 
@@ -479,7 +479,7 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 
             /* compute the arch flags for L1 sections */
             uint arch_flags = mmu_flags_to_l1_arch_flags(flags) |
-                MMU_MEMORY_L1_DESCRIPTOR_SECTION;
+                              MMU_MEMORY_L1_DESCRIPTOR_SECTION;
 
             /* map it */
             arm_mmu_map_section(paddr, vaddr, arch_flags);
@@ -632,5 +632,3 @@ int arch_mmu_unmap(vaddr_t vaddr, uint count)
 
 
 #endif // ARM_WITH_MMU
-
-/* vim: set ts=4 sw=4 expandtab: */

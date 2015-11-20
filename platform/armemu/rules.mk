@@ -9,9 +9,6 @@ CPU := generic
 WITH_KERNEL_VM := 0
 KERNEL_BASE := 0x0
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/interrupts.c \
@@ -31,10 +28,6 @@ MODULE_DEPS += \
 
 MEMBASE := 0x0
 MEMSIZE := 0x400000	# 4MB
-
-GLOBAL_DEFINES += \
-	MEMBASE=$(MEMBASE) \
-	MEMSIZE=$(MEMSIZE)
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld

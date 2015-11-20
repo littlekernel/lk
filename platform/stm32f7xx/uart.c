@@ -119,26 +119,6 @@ void uart_init(void)
 #endif
 }
 
-#if 0
-#ifdef ENABLE_UART1
-void stm32_USART1_IRQ(void)
-{
-    arm_cm_irq_entry();
-    HAL_UART_IRQHandler(&handle);
-    arm_cm_irq_exit(true);
-}
-#endif
-
-// TODO: remove icc hack.
-static char icc;
-
-// Thi function is called from HAL_UART_IRQHandler().
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    cbuf_write_char(&uart1_rx_buf, icc, false);
-}
-#endif
-
 void stm32_USART3_IRQ(void)
 {
     bool resched = false;
@@ -149,14 +129,14 @@ void stm32_USART3_IRQ(void)
     if ((__HAL_UART_GET_IT(&handle, UART_IT_PE) != RESET) && (__HAL_UART_GET_IT_SOURCE(&handle, UART_IT_PE) != RESET)) {
         __HAL_UART_CLEAR_PEFLAG(&handle);
 
-        printf("PARITY ERROR\n");
+        printf("UART PARITY ERROR\n");
     }
 
     /* UART frame error interrupt occurred --------------------------------------*/
     if ((__HAL_UART_GET_IT(&handle, UART_IT_FE) != RESET) && (__HAL_UART_GET_IT_SOURCE(&handle, UART_IT_ERR) != RESET)) {
         __HAL_UART_CLEAR_FEFLAG(&handle);
 
-        printf("FRAME ERROR\n");
+        printf("UART FRAME ERROR\n");
     }
 
     /* UART noise error interrupt occurred --------------------------------------*/
@@ -170,7 +150,7 @@ void stm32_USART3_IRQ(void)
     if ((__HAL_UART_GET_IT(&handle, UART_IT_ORE) != RESET) && (__HAL_UART_GET_IT_SOURCE(&handle, UART_IT_ERR) != RESET)) {
         __HAL_UART_CLEAR_OREFLAG(&handle);
 
-        printf("OVERRUN ERROR\n");
+        printf("UART OVERRUN ERROR\n");
     }
 
     /* UART in mode Receiver ---------------------------------------------------*/
@@ -178,7 +158,9 @@ void stm32_USART3_IRQ(void)
 
         /* we got a character */
         uint8_t c = (uint8_t)(handle.Instance->RDR & 0xff);
-        cbuf_write_char(&uart3_rx_buf, c, false);
+        if (cbuf_write_char(&uart3_rx_buf, c, false) != 1) {
+            printf("WARNING: uart cbuf overrun!\n");
+        }
         resched = true;
 
         /* Clear RXNE interrupt flag */
@@ -200,31 +182,33 @@ void stm32_USART3_IRQ(void)
 
 int uart_putc(int port, char c)
 {
-#if 0
-    HAL_StatusTypeDef hs = HAL_UART_Transmit(&handle, (uint8_t *)&c, 1, HAL_MAX_DELAY);
-    if (hs != HAL_OK)
-        return -1;
-    return 1;
-#else
     while (__HAL_UART_GET_FLAG(&handle, UART_FLAG_TXE) == RESET)
         ;
     handle.Instance->TDR = (c & (uint8_t)0xFF);
 
     return 1;
-#endif
 }
 
 int uart_getc(int port, bool wait)
 {
-#if 0
-    HAL_StatusTypeDef hs =  HAL_UART_Receive_IT(&handle, (uint8_t *)&icc, 1);
-    if (hs != HAL_OK)
-        return -1;
-#endif
     char c;
     if (cbuf_read_char(&uart3_rx_buf, &c, wait) == 0)
         return -1;
     return c;
+}
+
+int uart_pputc(int port, char c)
+{
+    return uart_putc(port, c);
+}
+
+int uart_pgetc(int port)
+{
+  if ((__HAL_UART_GET_IT(&handle, UART_IT_RXNE) != RESET) && (__HAL_UART_GET_IT_SOURCE(&handle, UART_IT_RXNE) != RESET)) {
+      uint8_t c = (uint8_t)(handle.Instance->RDR & 0xff);
+      return c;
+  }
+  return -1;
 }
 
 void uart_flush_tx(int port) {}

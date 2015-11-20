@@ -46,28 +46,28 @@ extern struct __debugger_info__ _debugger_info;
 #endif
 
 const void * const __SECTION(".text.boot.vectab1") vectab[] = {
-	/* arm exceptions */
-	initial_stack + sizeof(initial_stack),
-	_start,
-	_nmi, // nmi
-	_hardfault, // hard fault
-	_memmanage, // mem manage
-	_busfault, // bus fault
-	_usagefault, // usage fault
-	0, // reserved
+    /* arm exceptions */
+    initial_stack + sizeof(initial_stack),
+    _start,
+    _nmi, // nmi
+    _hardfault, // hard fault
+    _memmanage, // mem manage
+    _busfault, // bus fault
+    _usagefault, // usage fault
+    0, // reserved
 #if defined(WITH_DEBUGGER_INFO)
-	(void*) 0x52474244,
-	&_debugger_info,
+    (void*) 0x52474244,
+    &_debugger_info,
 #else
-	0, // reserved
-	0, // reserved
+    0, // reserved
+    0, // reserved
 #endif
-	0, // reserved
-	_svc, // svcall
-	_debugmonitor, // debug monitor
-	0, // reserved
-	_pendsv, // pendsv
-	_systick, // systick
+    0, // reserved
+    _svc, // svcall
+    _debugmonitor, // debug monitor
+    0, // reserved
+    _pendsv, // pendsv
+    _systick, // systick
 };
 
 

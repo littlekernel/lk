@@ -52,11 +52,16 @@ SECTIONS
         KEEP(*(.rodata.fault_handler_table))
         __fault_handler_table_end = .;
         *(.rodata .rodata.* .gnu.linkonce.r.*)
-INCLUDE "arch/shared_rodata_sections.ld"
-        . = ALIGN(8);
-        __rodata_end = .;
     }
 
+    /*
+     * extra linker scripts tend to insert sections just after .rodata,
+     * so we want to make sure this symbol comes after anything inserted above,
+     * but not aligned to the next section necessarily.
+     */
+    .dummy_post_rodata : {
+        __rodata_end = .;
+    }
 
     .data : ALIGN(4096) {
         /* writable data  */
@@ -64,7 +69,6 @@ INCLUDE "arch/shared_rodata_sections.ld"
         /* in one segment binaries, the rom data address is on top of the ram data address */
         __data_start = .;
         *(.data .data.* .gnu.linkonce.d.*)
-INCLUDE "arch/shared_data_sections.ld"
     }
 
     .ctors : ALIGN(8) {
@@ -80,7 +84,14 @@ INCLUDE "arch/shared_data_sections.ld"
     .got : { *(.got.plt) *(.got) }
     .dynamic : { *(.dynamic) }
 
-    __data_end = .;
+    /*
+     * extra linker scripts tend to insert sections just after .data,
+     * so we want to make sure this symbol comes after anything inserted above,
+     * but not aligned to the next section necessarily.
+     */
+    .dummy_post_data : {
+        __data_end = .;
+    }
 
     /* unintialized data (in same segment as writable data) */
     .bss : ALIGN(8) {

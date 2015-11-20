@@ -57,6 +57,7 @@
 #include <lib/gfx.h>
 #include <dev/gpio.h>
 #include <dev/display.h>
+#include <kernel/novm.h>
 #include <platform/stm32.h>
 
 /*
@@ -345,7 +346,7 @@ static void BSP_LCD_ClockConfig(LTDC_HandleTypeDef *hltdc, void *Params)
   * @brief  Initializes the LCD.
   * @retval LCD state
   */
-uint8_t BSP_LCD_Init(uint32_t fb_address)
+uint8_t BSP_LCD_Init(void)
 {    
     /* Timing Configuration */
     ltdc_handle.Init.HorizontalSync = (RK043FN48H_HSYNC - 1);
@@ -382,7 +383,13 @@ uint8_t BSP_LCD_Init(uint32_t fb_address)
 
     HAL_LTDC_Init(&ltdc_handle);
 
-    BSP_LCD_LayerDefaultInit(0, fb_address);
+    /* allocate the framebuffer */
+    size_t fb_size_pages = PAGE_ALIGN(RK043FN48H_WIDTH * RK043FN48H_HEIGHT * 4) / PAGE_SIZE;
+    void *fb_address = novm_alloc_pages(fb_size_pages, NOVM_ARENA_SECONDARY);
+    if (!fb_address)
+        panic("failed to allocate framebuffer for LCD\n");
+
+    BSP_LCD_LayerDefaultInit(0, (uint32_t)fb_address);
     BSP_LCD_SelectLayer(0);
 
     /* clear framebuffer */
@@ -395,7 +402,7 @@ uint8_t BSP_LCD_Init(uint32_t fb_address)
 }
 
 /* LK display (lib/gfx.h) calls this function */
-void display_get_info(struct display_info *info)
+status_t display_get_info(struct display_info *info)
 {
     info->framebuffer = (void *)ltdc_handle.LayerCfg[active_layer].FBStartAdress;
 
@@ -405,12 +412,14 @@ void display_get_info(struct display_info *info)
         info->format = GFX_FORMAT_RGB_565;
     } else {
         panic("unhandled pixel format\n");
-        info->format = GFX_FORMAT_MAX;
+        return ERR_NOT_FOUND;
     }
 
     info->width = BSP_LCD_GetXSize();
     info->height = BSP_LCD_GetYSize();
     info->stride = BSP_LCD_GetXSize();
     info->flush = NULL;
+
+    return NO_ERROR;
 }
 

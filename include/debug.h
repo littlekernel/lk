@@ -28,6 +28,7 @@
 #include <compiler.h>
 #include <platform/debug.h>
 #include <list.h>
+#include <stdio.h>
 
 #if !defined(LK_DEBUGLEVEL)
 #define LK_DEBUGLEVEL 0
@@ -51,6 +52,9 @@ struct __print_callback {
 
 /* input/output */
 int _dprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);
+
+// Obtain the panic file descriptor.
+FILE get_panic_fd(void);
 
 /* dump memory */
 void hexdump(const void *ptr, size_t len);

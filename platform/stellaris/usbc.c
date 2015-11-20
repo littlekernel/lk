@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <trace.h>
+#include <debug.h>
 #include <platform.h>
 #include <reg.h>
 #include <dev/usb.h>
@@ -141,7 +142,7 @@ static void ep0_irq(void)
 		} else {
 			union usb_callback_args args;
 			args.setup = (void *)buf;
-			usb_callback(USB_CB_SETUP_MSG, &args);
+			usbc_callback(USB_CB_SETUP_MSG, &args);
 		}
 	}
 	if (status & USB_DEV_EP0_SENT_STALL) {
@@ -162,7 +163,7 @@ void stellaris_usb0_irq(void)
 		// reset
 		LTRACEF("reset\n");
 		pending_addr_change = false;
-		usb_callback(USB_CB_RESET, NULL);
+		usbc_callback(USB_CB_RESET, NULL);
 	}
 	if (status & USB_INTCTRL_CONNECT) {
 		// reset
