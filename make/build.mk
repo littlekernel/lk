@@ -49,5 +49,18 @@ $(OUTELF).size: $(OUTELF)
 	@echo generating size map: $@
 	$(NOECHO)$(NM) -S --size-sort $< > $@
 
+# print some information about the build
+$(BUILDDIR)/srcfiles.txt:
+	@echo generating $@
+	$(NOECHO)echo $(sort $(ALLSRCS)) | tr ' ' '\n' > $@
+
+.PHONY: $(BUILDDIR)/srcfiles.txt
+
+$(BUILDDIR)/include_paths.txt:
+	@echo generating $@
+	$(NOECHO)echo $(subst -I,,$(sort $(GLOBAL_INCLUDES))) | tr ' ' '\n' > $@
+
+.PHONY: $(BUILDDIR)/include_paths.txt
+
 #include arch/$(ARCH)/compile.mk
 

@@ -89,6 +89,9 @@ $(MODULE_OBJECT): $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
 	@echo linking $@
 	$(NOECHO)$(LD) $(GLOBAL_MODULE_LDFLAGS) -r $^ -o $@
 
+# track all of the source files compiled
+ALLSRCS += $(MODULE_SRCS)
+
 # track all the objects built
 ALLOBJS += $(MODULE_OBJS)
 

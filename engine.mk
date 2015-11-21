@@ -77,6 +77,9 @@ ALLOBJS_MODULE :=
 # master object list (for dep generation)
 ALLOBJS :=
 
+# master source file list
+ALLSRCS :=
+
 # a linker script needs to be declared in one of the project/target/platform files
 LINKER_SCRIPT :=
 
