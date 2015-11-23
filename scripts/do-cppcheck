@@ -1,0 +1,23 @@
+#!/bin/sh
+
+if [ "$#" -lt 1 ]; then
+    echo "not enough arguments"
+    echo "usage: $0 <project>"
+    exit 1
+fi
+
+case `uname` in
+Linux)
+    N=`cat /proc/cpuinfo | grep processor | wc -l`
+    JOBS=-j$N
+    ;;
+*)
+    JOBS=-j4
+    ;;
+esac
+
+PROJ=$1
+PROJ_DIR=build-${PROJ}
+TESTS="--enable=warning,style,performance,portability,information"
+
+cppcheck --force --file-list=${PROJ_DIR}/srcfiles.txt --includes-file=${PROJ_DIR}/include_paths.txt --include=${PROJ_DIR}/config.h -q --platform=unix32 $TESTS $JOBS
