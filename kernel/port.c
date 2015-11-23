@@ -210,8 +210,10 @@ status_t port_open(const char* name, void* ctx, port_t* port)
     // this buffer is only needed for broadcast ports, but we don't know
     // that here.
     port_buf_t* buf = make_buf(PORT_BUFF_SIZE);
-    if (!buf)
+    if (!buf) {
+        free(rp);
         return ERR_NO_MEMORY;
+    }
 
     // find the named write port and associate it with read port.
     status_t rc = ERR_NOT_FOUND;
