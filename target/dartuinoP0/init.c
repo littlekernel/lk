@@ -32,6 +32,8 @@
 #include <platform/sdram.h>
 #include <platform/gpio.h>
 #include <platform/eth.h>
+#include <platform/qspi.h>
+#include <platform/n25q128a.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
 #include <reg.h>
@@ -81,6 +83,32 @@ static uint8_t* gen_mac_address(void) {
 
 void target_init(void)
 {
+    stm32_debug_init();
+
+    qspi_flash_init(N25Q128A_FLASH_SIZE);
+
+#if WITH_LIB_MINIP
+    uint8_t mac_addr[6];
+    gen_random_mac_address(mac_addr);
+    eth_init(mac_addr, PHY_LAN8742A);
+
+    /* start minip */
+    minip_set_macaddr(mac_addr);
+
+    uint32_t ip_addr = IPV4(192, 168, 0, 98);
+    uint32_t ip_mask = IPV4(255, 255, 255, 0);
+    uint32_t ip_gateway = IPV4_NONE;
+
+    minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+#endif
+
+    // start usb
+    target_usb_setup();
+}
+
+/*
+void target_init(void)
+{
     uint8_t* mac_addr = gen_mac_address();
     stm32_debug_init();
 
@@ -98,6 +126,7 @@ void target_init(void)
     target_usb_setup();
 
 }
+*/
 
 /**
   * @brief  Initializes SDRAM GPIO.
