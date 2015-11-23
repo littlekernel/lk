@@ -29,7 +29,7 @@
 
 static GPIO_TypeDef *port_to_pointer(unsigned int port)
 {
-    DEBUG_ASSERT(port <= GPIO_PORT_I);
+    DEBUG_ASSERT(port <= GPIO_PORT_K);
 
     switch (port) {
         default:
@@ -51,12 +51,16 @@ static GPIO_TypeDef *port_to_pointer(unsigned int port)
             return GPIOH;
         case GPIO_PORT_I:
             return GPIOI;
+        case GPIO_PORT_J:
+            return GPIOJ;
+        case GPIO_PORT_K:
+            return GPIOK;
     }
 }
 
 static void enable_port(unsigned int port)
 {
-    DEBUG_ASSERT(port <= GPIO_PORT_I);
+    DEBUG_ASSERT(port <= GPIO_PORT_K);
 
     switch (port) {
         case GPIO_PORT_A:
@@ -85,6 +89,12 @@ static void enable_port(unsigned int port)
             break;
         case GPIO_PORT_I:
             __HAL_RCC_GPIOI_CLK_ENABLE();
+            break;
+        case GPIO_PORT_J:
+            __HAL_RCC_GPIOJ_CLK_ENABLE();
+            break;
+        case GPIO_PORT_K:
+            __HAL_RCC_GPIOK_CLK_ENABLE();
             break;
     }
 }

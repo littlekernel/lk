@@ -54,6 +54,14 @@ const sdram_config_t target_sdram_config = {
 
 void target_early_init(void)
 {
+
+    GPIO_InitTypeDef gpio_init_structure;
+
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOJ_CLK_ENABLE();
+
+
 #if DEBUG_UART == 3
     /* configure usart 3 pins */
     gpio_config(GPIO_USART3_TX, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF7_USART3) | GPIO_PULLUP);
@@ -61,6 +69,29 @@ void target_early_init(void)
 #else
 #error need to configure gpio pins for debug uart
 #endif
+
+    gpio_init_structure.Mode        = GPIO_MODE_OUTPUT_PP;
+    gpio_init_structure.Pull        = GPIO_NOPULL;
+    gpio_init_structure.Speed       = GPIO_SPEED_LOW;
+
+    gpio_init_structure.Pin     = GPIO_TO_PIN_MASK(GPIO_LED108) | GPIO_TO_PIN_MASK(GPIO_LED109) |\
+                                  GPIO_TO_PIN_MASK(GPIO_LED110) | GPIO_TO_PIN_MASK(GPIO_LED111);
+    HAL_GPIO_Init(GPIOE, &gpio_init_structure);
+
+    gpio_init_structure.Pin     = GPIO_TO_PIN_MASK(GPIO_LED112) | GPIO_TO_PIN_MASK(GPIO_LED113);
+    HAL_GPIO_Init(GPIOD, &gpio_init_structure);
+
+    gpio_init_structure.Pin     = GPIO_TO_PIN_MASK(GPIO_LED114) | GPIO_TO_PIN_MASK(GPIO_LED115);
+    HAL_GPIO_Init(GPIOJ, &gpio_init_structure);
+    // Initialize to a pattern just so we know we have something
+    gpio_set(GPIO_LED108, GPIO_LED_ON);
+    gpio_set(GPIO_LED109, GPIO_LED_ON);
+    gpio_set(GPIO_LED110, GPIO_LED_ON);
+    gpio_set(GPIO_LED111, GPIO_LED_ON);
+    gpio_set(GPIO_LED112, GPIO_LED_ON);
+    gpio_set(GPIO_LED113, GPIO_LED_ON);
+    gpio_set(GPIO_LED114, GPIO_LED_ON);
+    gpio_set(GPIO_LED115, GPIO_LED_ON);
 
     /* now that the uart gpios are configured, enable the debug uart */
     stm32_debug_early_init();
@@ -83,6 +114,7 @@ static uint8_t* gen_mac_address(void) {
 
 void target_init(void)
 {
+
     stm32_debug_init();
 
     qspi_flash_init(N25Q128A_FLASH_SIZE);
