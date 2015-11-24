@@ -231,7 +231,7 @@ enum handler_return platform_irq(struct x86_iframe *frame)
             break;
 
         case INT_DEV_NA_EX:
-#ifdef X86_WITH_FPU
+#if X86_WITH_FPU
             fpu_dev_na_handler();
             break;
 #endif

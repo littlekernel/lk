@@ -25,6 +25,8 @@
 #include <arch/fpu.h>
 #include <kernel/thread.h>
 
+#if X86_WITH_FPU
+
 /* CPUID EAX = 1 return values */
 
 #define ECX_SSE3    (0x00000001 << 0)
@@ -153,5 +155,6 @@ void fpu_dev_na_handler(void)
     fp_owner = self;
     return;
 }
+#endif
 
 /* End of file */

@@ -88,7 +88,7 @@ void arch_thread_initialize(thread_t *t)
 
     // set the stack pointer
     t->arch.esp = (vaddr_t)frame;
-#ifdef X86_WITH_FPU
+#if X86_WITH_FPU
     memset(t->arch.fpu_buffer, 0, sizeof(t->arch.fpu_buffer));
     t->arch.fpu_states = (vaddr_t *)ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
 #endif
@@ -106,7 +106,7 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
     //dprintf(DEBUG, "arch_context_switch: old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
 
-#ifdef X86_WITH_FPU
+#if X86_WITH_FPU
     fpu_context_switch(oldthread, newthread);
 #endif
 

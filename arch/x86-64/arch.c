@@ -52,7 +52,7 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 
 void arch_init(void)
 {
-#ifdef X86_WITH_FPU
+#if X86_WITH_FPU
     fpu_init();
 #endif
 }
