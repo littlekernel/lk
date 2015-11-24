@@ -141,7 +141,10 @@ status_t usb_add_string(const char *string, uint8_t id)
 {
     uint i;
     size_t len = strlen(string);
+
     uint16_t *strbuf = malloc(len * 2 + 2);
+    if (!strbuf)
+        return ERR_NO_MEMORY;
 
     /* build the usb string descriptor */
     strbuf[0] = 0x300 | (len * 2 + 2);
@@ -159,6 +162,8 @@ status_t usb_add_string(const char *string, uint8_t id)
         }
     }
 
+    /* couldn't find a spot */
+    free(strbuf);
     return ERR_NO_MEMORY;
 }
 

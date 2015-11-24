@@ -103,6 +103,7 @@ status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **
 
     dst_mac = arp_get_dest_mac(host);
     if (dst_mac == NULL) {
+        free(socket);
         return -EHOSTUNREACH;
     }
 

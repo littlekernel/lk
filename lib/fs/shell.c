@@ -46,8 +46,9 @@ static void set_cwd(const char *path)
     }
 
     size_t len = strlen(path) + 1;
-    cwd = realloc(cwd, len);
-    if (cwd) {
+    char *new_cwd = realloc(cwd, len);
+    if (new_cwd) {
+        cwd = new_cwd;
         memcpy(cwd, path, len);
     }
 }

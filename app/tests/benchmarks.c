@@ -119,7 +119,7 @@ __NO_INLINE static void bench_cset_wide(void)
 
 __NO_INLINE static void bench_memcpy(void)
 {
-    uint8_t *buf = malloc(BUFSIZE);
+    uint8_t *buf = calloc(1, BUFSIZE);
 
     uint count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {

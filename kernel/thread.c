@@ -429,11 +429,10 @@ static thread_t *get_top_thread(int cpu)
 {
 	thread_t *newthread;
 	uint32_t local_run_queue_bitmap = run_queue_bitmap;
-	uint next_queue;
 
 	while (local_run_queue_bitmap) {
 		/* find the first (remaining) queue with a thread in it */
-		next_queue = HIGHEST_PRIORITY - __builtin_clz(local_run_queue_bitmap)
+		uint next_queue = HIGHEST_PRIORITY - __builtin_clz(local_run_queue_bitmap)
 			- (sizeof(run_queue_bitmap) * 8 - NUM_PRIORITIES);
 
 		list_for_every_entry(&run_queue[next_queue], newthread, thread_t, queue_node) {
@@ -878,7 +877,7 @@ void thread_secondary_cpu_init_early(void)
 	thread_t *t = &idle_threads[cpu];
 
 	char name[16];
-	snprintf(name, sizeof(name), "idle %d", cpu);
+	snprintf(name, sizeof(name), "idle %u", cpu);
 	init_thread_struct(t, name);
 	t->pinned_cpu = cpu;
 
