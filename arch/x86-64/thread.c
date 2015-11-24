@@ -71,7 +71,7 @@ void arch_thread_initialize(thread_t *t)
 
     /* set the stack pointer */
     t->arch.rsp = (vaddr_t)frame;
-#ifdef X86_WITH_FPU
+#if X86_WITH_FPU
     fpu_init_thread_states(t);
 #endif
 }
@@ -86,7 +86,7 @@ void arch_dump_thread(thread_t *t)
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
-#ifdef X86_WITH_FPU
+#if X86_WITH_FPU
     fpu_context_switch(oldthread, newthread);
 #endif
 
