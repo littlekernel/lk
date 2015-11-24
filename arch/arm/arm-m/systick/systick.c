@@ -41,28 +41,48 @@
 
 #define LOCAL_TRACE 0
 
-static volatile uint64_t ticks;
 static uint32_t tick_rate = 0;
 static uint32_t tick_rate_mhz = 0;
+
+#if !PLATFORM_IMPLEMENTS_TIME_BASE
+static volatile uint64_t ticks;
 static lk_time_t tick_interval_ms;
 static lk_bigtime_t tick_interval_us;
+#endif
 
 static platform_timer_callback cb;
 static void *cb_args;
+static bool periodic;
+
+static void arm_cm_systick_set_oneshot(lk_time_t period)
+{
+    uint32_t ticks = tick_rate_mhz * 1000 * period;
+    if (ticks > 0x00ffffff)
+        ticks = 0x00ffffff;
+
+    LTRACEF("clk_freq %u, period %u, computed ticks %u\n", tick_rate, (uint)period, ticks);
+
+    periodic = false;
+    SysTick->LOAD = (ticks & SysTick_LOAD_RELOAD_Msk) - 1;
+    SysTick->VAL = 0;
+    SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+}
 
 static void arm_cm_systick_set_periodic(lk_time_t period)
 {
-    LTRACEF("clk_freq %u, period %u\n", tick_rate, (uint)period);
+    uint32_t ticks = tick_rate_mhz * 1000 * period;
+    if (ticks > 0x00ffffff)
+        ticks = 0x00ffffff;
 
-    uint32_t ticks = tick_rate / (1000 / period);
-    LTRACEF("ticks %d\n", ticks);
+    LTRACEF("clk_freq %u, period %u, computed ticks %u\n", tick_rate, (uint)period, ticks);
 
+    periodic = true;
     SysTick->LOAD = (ticks & SysTick_LOAD_RELOAD_Msk) - 1;
     SysTick->VAL = 0;
-    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+    SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
 }
 
-static void arm_cm_systick_cancel_periodic(void)
+static void arm_cm_systick_cancel(void)
 {
     SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
 }
@@ -70,7 +90,13 @@ static void arm_cm_systick_cancel_periodic(void)
 /* main systick irq handler */
 void _systick(void)
 {
+#if !PLATFORM_IMPLEMENTS_TIME_BASE
     ticks++;
+#endif
+
+    /* oneshot, so cancel the timer */
+    if (!periodic)
+        SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
 
     arm_cm_irq_entry();
 
@@ -84,22 +110,40 @@ void _systick(void)
     arm_cm_irq_exit(resched);
 }
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
+status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
 {
     LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
-
-    DEBUG_ASSERT(tick_rate != 0 && tick_rate_mhz != 0);
 
     cb = callback;
     cb_args = arg;
 
+    arm_cm_systick_set_oneshot(interval);
+
+    return NO_ERROR;
+}
+
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
+{
+    LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
+
+    cb = callback;
+    cb_args = arg;
+
+#if !PLATFORM_IMPLEMENTS_TIME_BASE
     tick_interval_ms = interval;
     tick_interval_us = interval * 1000;
+#endif
     arm_cm_systick_set_periodic(interval);
 
     return NO_ERROR;
 }
 
+void platform_stop_timer(void)
+{
+    arm_cm_systick_cancel();
+}
+
+#if !PLATFORM_HAS_TIME_BASE
 lk_time_t current_time(void)
 {
     uint32_t reload = SysTick->LOAD  & SysTick_LOAD_RELOAD_Msk;
@@ -137,9 +181,18 @@ lk_bigtime_t current_time_hires(void)
 
     return res;
 }
+#endif
 
-void arm_cm_systick_init(uint32_t mhz)
+void arm_cm_systick_init(uint32_t mhz, bool ext_clock_source)
 {
     tick_rate = mhz;
     tick_rate_mhz = mhz / 1000000;
+
+    if (tick_rate_mhz * 1000000 != tick_rate) {
+        TRACEF("WARNING: tick mhz not evenly divisible by 1000000 (%u)\n", mhz);
+    }
+
+    SysTick->CTRL = 0;
+    if (!ext_clock_source)
+        SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk;
 }

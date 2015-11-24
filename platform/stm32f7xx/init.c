@@ -279,7 +279,7 @@ void platform_early_init(void)
 
     // Start the systick timer
     uint32_t sysclk = HAL_RCC_GetSysClockFreq();
-    arm_cm_systick_init(sysclk);
+    arm_cm_systick_init(sysclk / 8, true);
 
     stm32_timer_early_init();
     stm32_gpio_early_init();

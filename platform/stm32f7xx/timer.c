@@ -32,47 +32,71 @@
 
 #define LOCAL_TRACE 0
 
-static void stm32_tim_irq(uint num)
+/* terminal count of the timer, a nice even boundary that uses most of the 32bit counter */
+#define WRAP_INTERVAL_US (4000000000)
+
+static volatile lk_time_t ticks;
+
+static TIM_HandleTypeDef timer2;
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	TRACEF("tim irq %d\n", num);
-	PANIC_UNIMPLEMENTED;
+    LTRACEF("WRAP\n");
+    // wrapping the time base counter
+    ticks += WRAP_INTERVAL_US / 1000;
 }
 
-void stm32_TIM3_IRQ(void)
-{
-	stm32_tim_irq(3);
-}
-
-void stm32_TIM4_IRQ(void)
-{
-	stm32_tim_irq(4);
-}
-
-void stm32_TIM5_IRQ(void)
-{
-	stm32_tim_irq(5);
-}
-
-void stm32_TIM6_IRQ(void)
-{
-	stm32_tim_irq(6);
-}
-
-void stm32_TIM7_IRQ(void)
-{
-	stm32_tim_irq(7);
-}
-
-/* time base */
 void stm32_TIM2_IRQ(void)
 {
-	stm32_tim_irq(2);
+    arm_cm_irq_entry();
+    HAL_TIM_IRQHandler(&timer2);
+    arm_cm_irq_exit(false);
 }
 
 void stm32_timer_early_init(void)
 {
+    uint32_t pclk2 = HAL_RCC_GetPCLK2Freq();
+
+    /* timer 2 - timebase */
+    __HAL_RCC_TIM2_CLK_ENABLE();
+    timer2.Instance = TIM2;
+    timer2.Init.Prescaler = (pclk2 / 1000000) - 1;
+    timer2.Init.CounterMode = TIM_COUNTERMODE_UP;
+    timer2.Init.Period = WRAP_INTERVAL_US;
+    timer2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    timer2.Init.RepetitionCounter = 0;
+
+    HAL_TIM_Base_Init(&timer2);
+
+    HAL_TIM_Base_Start_IT(&timer2);
 }
 
 void stm32_timer_init(void)
 {
+    HAL_NVIC_EnableIRQ(TIM2_IRQn);
 }
+
+lk_time_t current_time(void)
+{
+    uint32_t t, delta;
+    do {
+        t = ticks;
+        delta = __HAL_TIM_GET_COUNTER(&timer2);
+        DMB;
+    } while (ticks != t);
+
+    return t + delta / 1000;
+}
+
+lk_bigtime_t current_time_hires(void)
+{
+    uint32_t t, delta;
+    do {
+        t = ticks;
+        delta = __HAL_TIM_GET_COUNTER(&timer2);
+        DMB;
+    } while (ticks != t);
+
+    return (lk_bigtime_t)t * 1000 + delta;
+}
+

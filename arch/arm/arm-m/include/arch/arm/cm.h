@@ -162,7 +162,7 @@ static inline void arm_cm_trigger_preempt(void)
 }
 
 /* systick */
-void arm_cm_systick_init(uint32_t mhz);
+void arm_cm_systick_init(uint32_t mhz, bool ext_clock_source);
 /* extern void _systick(void); // override this */
 
 /* interrupt glue */
