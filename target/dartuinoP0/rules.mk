@@ -26,10 +26,12 @@ GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/init.c \
-	$(LOCAL_DIR)/usb.c \
+    $(LOCAL_DIR)/usb.c \
+    $(LOCAL_DIR)/memory_lcd.c \
 
 
 MODULE_DEPS += \
+    lib/gfx
 
 include make/module.mk
 

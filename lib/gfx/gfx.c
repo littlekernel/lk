@@ -44,6 +44,24 @@
 
 #define LOCAL_TRACE 0
 
+
+// Convert a 32bit ARGB image to its respective gamma corrected grayscale value.
+static uint8_t ARGB8888_to_Luma(uint32_t in)
+{
+    uint8_t out;
+
+    uint32_t blue  = (in & 0xFF) * 74;
+    uint32_t green = ((in >> 8) & 0xFF) * 732;
+    uint32_t red   = ((in >> 16) & 0xFF) * 218;
+
+    uint32_t intensity = red + blue + green;
+
+    out = (intensity >> 10) & 0xFF;
+
+    return out;
+}
+
+
 static uint16_t ARGB8888_to_RGB565(uint32_t in)
 {
     uint16_t out;
@@ -138,6 +156,67 @@ static void putpixel32(gfx_surface *surface, uint x, uint y, uint color)
     uint32_t *dest = &((uint32_t *)surface->ptr)[x + y * surface->stride];
 
     *dest = color;
+}
+
+static void putpixel8(gfx_surface *surface, uint x, uint y, uint color)
+{
+    uint8_t *dest = &((uint8_t *)surface->ptr)[x + y * surface->stride];
+
+    // colors come in in ARGB 8888 form, flatten them
+    *dest = ARGB8888_to_Luma(color);
+}
+
+static void copyrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2)
+{
+    // copy
+    const uint8_t *src = &((const uint8_t *)surface->ptr)[x + y * surface->stride];
+    uint8_t *dest = &((uint8_t *)surface->ptr)[x2 + y2 * surface->stride];
+    uint stride_diff = surface->stride - width;
+
+    if (dest < src) {
+        uint i, j;
+        for (i=0; i < height; i++) {
+            for (j=0; j < width; j++) {
+                *dest = *src;
+                dest++;
+                src++;
+            }
+            dest += stride_diff;
+            src += stride_diff;
+        }
+    } else {
+        // copy backwards
+        src += height * surface->stride + width;
+        dest += height * surface->stride + width;
+
+        uint i, j;
+        for (i=0; i < height; i++) {
+            for (j=0; j < width; j++) {
+                *dest = *src;
+                dest--;
+                src--;
+            }
+            dest -= stride_diff;
+            src -= stride_diff;
+        }
+    }
+}
+
+static void fillrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color)
+{
+    uint8_t *dest = &((uint8_t *)surface->ptr)[x + y * surface->stride];
+    uint stride_diff = surface->stride - width;
+
+    uint8_t color8 = ARGB8888_to_Luma(color);
+
+    uint i, j;
+    for (i=0; i < height; i++) {
+        for (j=0; j < width; j++) {
+            *dest = color8;
+            dest++;
+        }
+        dest += stride_diff;
+    }
 }
 
 static void copyrect16(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2)
@@ -448,7 +527,8 @@ void gfx_flush_rows(struct gfx_surface *surface, uint start, uint end)
     if (end >= surface->height)
         end = surface->height - 1;
 
-    arch_clean_cache_range((addr_t)surface->ptr + start * surface->stride * surface->pixelsize, (end - start + 1) * surface->stride * surface->pixelsize);
+    uint32_t runlen = surface->stride * surface->pixelsize;
+    arch_clean_cache_range((addr_t)surface->ptr + start * runlen, (end - start + 1) * runlen);
 
     if (surface->flush)
         surface->flush(start, end);
@@ -481,7 +561,7 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
             surface->fillrect = &fillrect16;
             surface->putpixel = &putpixel16;
             surface->pixelsize = 2;
-            surface->len = surface->height * surface->stride * surface->pixelsize;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
             break;
         case GFX_FORMAT_RGB_x888:
         case GFX_FORMAT_ARGB_8888:
@@ -489,7 +569,14 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
             surface->fillrect = &fillrect32;
             surface->putpixel = &putpixel32;
             surface->pixelsize = 4;
-            surface->len = surface->height * surface->stride * surface->pixelsize;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
+            break;
+        case GFX_FORMAT_MONO:
+            surface->copyrect = &copyrect8;
+            surface->fillrect = &fillrect8;
+            surface->putpixel = &putpixel8;
+            surface->pixelsize = 1;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
             break;
         default:
             dprintf(INFO, "invalid graphics format\n");

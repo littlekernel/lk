@@ -36,6 +36,7 @@
 #include <platform/n25q128a.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
+#include <target/memory_lcd.h>
 #include <reg.h>
 
 #if WITH_LIB_MINIP
@@ -119,6 +120,8 @@ void target_init(void)
 
     qspi_flash_init(N25Q128A_FLASH_SIZE);
 
+    memory_lcd_init();
+
 #if WITH_LIB_MINIP
     uint8_t mac_addr[6];
     gen_random_mac_address(mac_addr);
@@ -159,6 +162,55 @@ void target_init(void)
 
 }
 */
+
+void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
+{
+GPIO_InitTypeDef  GPIO_InitStruct;
+  if (hspi->Instance == SPI2)
+  {
+    /*##-1- Enable peripherals and GPIO Clocks #################################*/
+    /* Enable GPIO TX/RX clock */
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOK_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    /* Enable SPI clock */
+    __HAL_RCC_SPI2_CLK_ENABLE();
+
+    /*##-2- Configure peripheral GPIO ##########################################*/
+    /* SPI SCK GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_3;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull      = GPIO_PULLDOWN;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+    /* SPI MISO GPIO pin configuration  */
+    // GPIO_InitStruct.Pin = GPIO_PIN_14;
+    // GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+    // HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* SPI MOSI GPIO pin configuration  */
+    GPIO_InitStruct.Pin = GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Mode      = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull      = GPIO_NOPULL;
+
+    /* LCD_ON Pin configuration */
+    GPIO_InitStruct.Pin = GPIO_PIN_6;
+    HAL_GPIO_Init(GPIOK, &GPIO_InitStruct);
+
+    /* LCD_CS Pin configuration */
+    GPIO_InitStruct.Pin = GPIO_PIN_12;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+
+    /*##-3- Configure the NVIC for SPI #########################################*/
+    /* NVIC for SPI */
+    HAL_NVIC_EnableIRQ(SPI2_IRQn);
+  }
+}
 
 /**
   * @brief  Initializes SDRAM GPIO.
