@@ -28,20 +28,51 @@
 #include <platform/timer.h>
 #include <sys/types.h>
 
-void uartlite_putc(char c) {}
-int uartlite_getc(bool wait) { return -1; }
+/*
+ * The plain mips target for qemu has an emulated PC style UART mapped
+ * into the ISA io port apterture at 0x14000000
+ */
+#define ISA_IO_BASE ((volatile uint8_t *)0x14000000)
+#define UART_PORT_BASE (0x3f8)
+
+static inline void isa_write_8(uint16_t port, uint8_t val)
+{
+    volatile uint8_t *addr = ISA_IO_BASE + port;
+
+    *addr = val;
+}
+
+static inline uint8_t isa_read_8(uint16_t port)
+{
+    volatile uint8_t *addr = ISA_IO_BASE + port;
+
+    return *addr;
+}
+
+void uart_putc(char c)
+{
+    isa_write_8(UART_PORT_BASE + 0, c);
+}
+
+int uart_getc(bool wait)
+{
+    while ((isa_read_8(UART_PORT_BASE + 5) & (1<<0)) == 0)
+        ;
+
+    return isa_read_8(UART_PORT_BASE + 0);
+}
 
 void platform_dputc(char c)
 {
     if (c == '\n')
-        uartlite_putc('\r');
-    uartlite_putc(c);
+        uart_putc('\r');
+    uart_putc(c);
 }
 
 int platform_dgetc(char *c, bool wait)
 {
     for (;;) {
-        int ret = uartlite_getc(wait);
+        int ret = uart_getc(wait);
         if (ret >= 0) {
             *c = ret;
             return 0;
@@ -53,5 +84,4 @@ int platform_dgetc(char *c, bool wait)
         thread_yield();
     }
 }
-
 

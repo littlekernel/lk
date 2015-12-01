@@ -23,53 +23,33 @@
 #pragma once
 
 #include <compiler.h>
+#include <arch/mips.h>
 
 static inline void arch_enable_ints(void)
 {
-#if 0
     CF;
-    uint32_t temp;
-    __asm__ volatile(
-#if USE_MSRSET
-        "msrset %0, (1<<1)"
-#else
-        "mfs    %0, rmsr;"
-        "ori    %0, %0, (1<<1);"
-        "mts    rmsr, %0"
-#endif
-        : "=r" (temp));
-#endif
+    uint32_t status = mips_read_c0_status();
+    status |= 0x1;
+    mips_write_c0_status(status);
 }
 
 static inline void arch_disable_ints(void)
 {
-#if 0
-    uint32_t temp;
-    __asm__ volatile(
-#if USE_MSRSET
-        "msrclr %0, (1<<1)"
-#else
-        "mfs    %0, rmsr;"
-        "andni  %0, %0, (1<<1);"
-        "mts    rmsr, %0"
-#endif
-        : "=r" (temp));
+    uint32_t status = mips_read_c0_status();
+    status &= ~0x1;
+    mips_write_c0_status(status);
     CF;
-#endif
 }
 
 static inline bool arch_ints_disabled(void)
 {
-#if 0
     uint32_t state;
 
     __asm__ volatile(
-        "mfs    %0, rmsr;"
+        "mfc0    %0, $12;"
         : "=r" (state));
 
-    return !(state & (1<<1));
-#endif
-    return false;
+    return !(state & (1<<0));
 }
 
 static inline int atomic_add(volatile int *ptr, int val)

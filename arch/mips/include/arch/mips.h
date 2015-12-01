@@ -22,21 +22,24 @@
  */
 #pragma once
 
-#if 0
-static inline uint32_t mb_read_msr(void)
-{
-    uint32_t temp;
-    __asm__ volatile(
-        "mfs    %0, rmsr;" : "=r" (temp));
+#include <stdint.h>
 
-    return temp;
+static inline uint32_t mips_read_c0_status(void)
+{
+    uint32_t val;
+    __asm__ volatile(
+        "mfc0   %0, $12;"
+        : "=r" (val));
+
+    return val;
 }
 
-static inline void mb_write_msr(uint32_t val)
+static inline void mips_write_c0_status(uint32_t val)
 {
     __asm__ volatile(
-        "mts    rmsr, %0" :: "r" (val));
+        "mtc0   %0, $12;"
+        :: "r" (val));
 }
-#endif
+
 
 

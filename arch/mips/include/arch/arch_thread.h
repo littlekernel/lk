@@ -24,37 +24,24 @@
 
 #include <sys/types.h>
 
-struct microblaze_context_switch_frame {
-    uint32_t r1; // stack pointer
-    uint32_t r2; // read-only small data base pointer
-
-    uint32_t r13; // read-write small data base pointer
-    uint32_t r14;
-    uint32_t r15; // link register
-    uint32_t r16;
-    uint32_t r17;
-    uint32_t r18;
-
+struct mips_context_switch_frame {
     /* callee saved */
-    uint32_t r19;
-    uint32_t r20;
-    uint32_t r21;
-    uint32_t r22;
-    uint32_t r23;
-    uint32_t r24;
-    uint32_t r25;
-    uint32_t r26;
-    uint32_t r27;
-    uint32_t r28;
-    uint32_t r29;
-    uint32_t r30;
-    uint32_t r31;
+    uint32_t s0;
+    uint32_t s1;
+    uint32_t s2;
+    uint32_t s3;
+    uint32_t s4;
+    uint32_t s5;
+    uint32_t s6;
+    uint32_t s7;
+    uint32_t s8;
+    uint32_t ra;
+    uint32_t sp;
 };
 
 struct arch_thread {
-    struct microblaze_context_switch_frame cs_frame;
+    struct mips_context_switch_frame cs_frame;
 };
 
-void microblaze_context_switch(struct microblaze_context_switch_frame *oldcs,
-    struct microblaze_context_switch_frame *newcs);
+void mips_context_switch(struct mips_context_switch_frame *oldcs, struct mips_context_switch_frame *newcs);
 
