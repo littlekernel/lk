@@ -37,16 +37,66 @@ void arch_early_init(void)
     val |= (1 << (31 - 26)) | (1 << (31 - 24));
     mb_write_msr(val);
 #endif
+
+    /* configure the vector table */
+    uint32_t temp = mips_read_c0_status();
+    temp &= ~(1<<22); /* unset BEV, which moves vectors to 0x80000000 */
+    temp &= ~(1<<2);  /* clear ERL */
+
+    /* unmask all of the irq handlers */
+    temp |= (1<<8); // IM0
+    temp |= (1<<9); // IM1
+    temp |= (1<<10); // IM2
+    temp |= (1<<11); // IM3
+    temp |= (1<<12); // IM4
+    temp |= (1<<13); // IM5
+    temp |= (1<<14); // IM6
+    temp |= (1<<15); // IM7
+    temp |= (1<<16); // IM8
+    temp |= (1<<18); // IM9 (note the bit gap)
+
+    mips_write_c0_status(temp);
+
+    /* set vectored mode */
+    temp = mips_read_c0_intctl();
+    temp &= ~(0b1111 << 5);
+    temp |= 1 << 5; /* 32 byte spacing */
+    STATIC_ASSERT(VECTORED_OFFSET_SHIFT == 32);
+
+    mips_write_c0_intctl(temp);
+
+    temp = mips_read_c0_cause();
+    temp |= (1<<23); /* IV vectored mode */
+    mips_write_c0_cause(temp);
 }
 
 void arch_init(void)
 {
     LTRACE;
+
+    printf("MIPS registers:\n");
+    printf("\tPRId 0x%x\n", mips_read_c0_prid());
+    printf("\tconfig  0x%x\n", mips_read_c0_config());
+    printf("\tconfig1 0x%x\n", mips_read_c0_config1());
+    printf("\tconfig2 0x%x\n", mips_read_c0_config2());
+    printf("\tconfig3 0x%x\n", mips_read_c0_config3());
+    printf("\tconfig4 0x%x\n", mips_read_c0_config4());
+    printf("\tconfig5 0x%x\n", mips_read_c0_config5());
+    printf("\tconfig6 0x%x\n", mips_read_c0_config6());
+    printf("\tconfig7 0x%x\n", mips_read_c0_config7());
+    printf("\tstatus  0x%x\n", mips_read_c0_status());
+    printf("\tintctl  0x%x\n", mips_read_c0_intctl());
+    printf("\tcount   0x%x\n", mips_read_c0_count());
+    printf("\tcompare 0x%x\n", mips_read_c0_compare());
+
+    __asm__ volatile("syscall");
+
+    LTRACE_EXIT;
 }
 
 void arch_idle(void)
 {
-    //asm volatile("sleep");
+    asm volatile("wait");
 }
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)

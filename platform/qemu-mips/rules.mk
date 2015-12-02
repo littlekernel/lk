@@ -13,7 +13,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/timer.c
 
-MEMBASE ?= 0x0
+MEMBASE ?= 0x80000000 # not exactly correct but gets us going for now
 MEMSIZE ?= 0x01000000 # 16MB
 
 MODULE_DEPS += \

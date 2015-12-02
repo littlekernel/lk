@@ -28,16 +28,24 @@
 static inline void arch_enable_ints(void)
 {
     CF;
+#if 0
     uint32_t status = mips_read_c0_status();
     status |= 0x1;
     mips_write_c0_status(status);
+#else
+    __asm__ volatile("ei");
+#endif
 }
 
 static inline void arch_disable_ints(void)
 {
+#if 0
     uint32_t status = mips_read_c0_status();
     status &= ~0x1;
     mips_write_c0_status(status);
+#else
+    __asm__ volatile("di");
+#endif
     CF;
 }
 

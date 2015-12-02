@@ -6,10 +6,9 @@ SECTIONS
 {
     . = %KERNEL_BASE% + %KERNEL_LOAD_OFFSET%;
 
-    _start = .;
-
     /* text/read-only data */
     .text : {
+        KEEP(*(.text.vectab))
         KEEP(*(.text.boot))
         *(.text* .gnu.linkonce.t.*)
     }

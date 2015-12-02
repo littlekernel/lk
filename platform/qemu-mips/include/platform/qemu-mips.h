@@ -20,37 +20,29 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <asm.h>
+#pragma once
 
-.section ".text.boot"
-FUNCTION(_start)
-    # set the default stack
-    lui      $sp, %hi(default_stack_top)
-    ori      $sp, %lo(default_stack_top)
+#include <stdint.h>
 
-    # zero out the bss section
-    lui     $t0, %hi(__bss_start)
-    ori     $t0, %lo(__bss_start)
-    lui     $t1, %hi(__bss_end)
-    ori     $t1, %lo(__bss_end)
-0:
-    sw      $zero, ($t0)
-    addi    $t0, 4
-    bne     $t0, $t1, 0b
+/*
+ * The plain mips target for qemu has an emulated PC style UART mapped
+ * into the ISA io port apterture at 0x14000000
+ */
+#define ISA_IO_BASE ((volatile uint8_t *)0x14000000 + 0x80000000)
+#define UART_PORT_BASE (0x3f8)
 
-    # args to main and call it
-    li      $a0, 1
-    li      $a1, 2
-    li      $a2, 3
-    li      $a3, 4
-    jal     lk_main
+static inline void isa_write_8(uint16_t port, uint8_t val)
+{
+    volatile uint8_t *addr = ISA_IO_BASE + port;
 
-    # should never return here
-    b       .
+    *addr = val;
+}
 
-.bss
-.align 3
-LOCAL_DATA(default_stack)
-    .skip 4096
-LOCAL_DATA(default_stack_top)
+static inline uint8_t isa_read_8(uint16_t port)
+{
+    volatile uint8_t *addr = ISA_IO_BASE + port;
 
+    return *addr;
+}
+
+#define INT_VECTORS 8

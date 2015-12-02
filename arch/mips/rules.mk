@@ -3,11 +3,12 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/start.S \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/asm.S \
 	$(LOCAL_DIR)/exceptions.c \
+	$(LOCAL_DIR)/start.S \
 	$(LOCAL_DIR)/thread.c \
+	$(LOCAL_DIR)/vectors.S \
 
 #	$(LOCAL_DIR)/cache.c \
 	$(LOCAL_DIR)/cache-ops.S \
@@ -33,7 +34,7 @@ GLOBAL_LDFLAGS += -EL
 GLOBAL_MODULE_LDFLAGS += -EL
 endif
 
-ARCH_COMPILEFLAGS := -march=mips32 -mno-gpopt
+ARCH_COMPILEFLAGS := -march=m14k -mno-gpopt
 ARCH_OPTFLAGS := -O2
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name)
@@ -50,7 +51,9 @@ VECTOR_BASE_PHYS ?= 0
 
 GLOBAL_DEFINES += \
     MEMBASE=$(MEMBASE) \
-    MEMSIZE=$(MEMSIZE)
+    MEMSIZE=$(MEMSIZE) \
+    KERNEL_BASE=$(KERNEL_BASE) \
+    KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET)
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
