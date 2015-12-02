@@ -23,22 +23,25 @@
 
 #include <debug.h>
 #include <err.h>
-#include <string.h>
 #include <rand.h>
+#include <string.h>
+#include <trace.h>
 
 #include <kernel/port.h>
 #include <kernel/thread.h>
 
 #include <platform.h>
 
+#define LOCAL_TRACE 0
+
 void* context1 = (void*) 0x53;
 
 static void dump_port_result(const port_result_t* result)
 {
     const port_packet_t* p = &result->packet;
-    printf("[%02x %02x %02x %02x %02x %02x %02x %02x]\n",
-           p->value[0], p->value[1], p->value[2], p->value[3],
-           p->value[4], p->value[5], p->value[6], p->value[7]);
+    LTRACEF("[%02x %02x %02x %02x %02x %02x %02x %02x]\n",
+            p->value[0], p->value[1], p->value[2], p->value[3],
+            p->value[4], p->value[5], p->value[6], p->value[7]);
 }
 
 static int single_thread_basic(void)
@@ -62,7 +65,6 @@ static int single_thread_basic(void)
         printf("could not open port, status = %d\n", st);
         return __LINE__;
     }
-
 
     port_packet_t packet[3] = {
         {{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}},
@@ -401,15 +403,196 @@ fail:
     return __LINE__;
 }
 
+#define CMD_PORT_CTX ((void*) 0x77)
+#define TS1_PORT_CTX ((void*) 0x11)
+#define TS2_PORT_CTX ((void*) 0x12)
+
+typedef enum {
+    ADD_PORT,
+    QUIT
+} action_t;
+
+typedef struct {
+    action_t what;
+    port_t port;
+} watcher_cmd;
+
+status_t send_watcher_cmd(port_t cmd_port, action_t action, port_t port)
+{
+    watcher_cmd cmd  = {action, port};
+    return port_write(cmd_port, ((port_packet_t*) &cmd), 1);;
+}
+
+static int group_watcher_thread(void *arg)
+{
+    port_t watched[8] = {0};
+    status_t st = port_open("grp_ctrl", CMD_PORT_CTX, &watched[0]);
+    if (st < 0) {
+        printf("could not open port, status = %d\n", st);
+        return __LINE__;
+    }
+
+    size_t count = 1;
+    port_t group;
+    int ctx_count = -1;
+
+    while (true) {
+        st = port_group(watched, count, &group);
+        if (st < 0) {
+            printf("could not make group, status = %d\n", st);
+            return __LINE__;
+        }
+
+        port_result_t pr;
+        while (true) {
+            st = port_read(group, INFINITE_TIME, &pr);
+            if (st < 0) {
+                printf("could not read port, status = %d\n", st);
+                return __LINE__;
+            }
+
+            if (pr.ctx == CMD_PORT_CTX) {
+                break;
+            } else if (pr.ctx == TS1_PORT_CTX) {
+                ctx_count += 1;
+            } else if (pr.ctx == TS2_PORT_CTX) {
+                ctx_count += 2;
+            } else {
+                printf("unknown context %p\n", pr.ctx);
+                return __LINE__;
+            }
+        }
+
+        // Either adding a port or exiting; either way close the
+        // existing group port and create a new one if needed
+        // at the top of the loop.
+
+        port_close(group);
+        watcher_cmd* wc = (watcher_cmd*) &pr.packet;
+
+        if (wc->what == ADD_PORT) {
+            watched[count++] = wc->port;
+        }  else if (wc->what == QUIT) {
+            break;
+        } else {
+            printf("unknown command %d\n", wc->what);
+            return __LINE__;
+        }
+    }
+
+    if (ctx_count !=  2) {
+        printf("unexpected context count %d", ctx_count);
+        return __LINE__;
+    }
+
+    printf("group watcher shutdown\n");
+
+    for (size_t ix = 0; ix != count; ++ix) {
+        st = port_close(watched[ix]);
+        if (st < 0) {
+            printf("failed to close read port, status = %d\n", st);
+            return __LINE__;
+        }
+    }
+
+    return 0;
+}
+
+static status_t make_port_pair(const char* name, void* ctx, port_t* write, port_t* read)
+{
+    status_t st = port_create(name, PORT_MODE_UNICAST, write);
+    if (st < 0)
+        return st;
+    return port_open(name,ctx, read);
+}
+
+int group_basic(void)
+{
+    // we spin a thread that connects to a well known port, then we
+    // send two ports that it will add to a group port.
+    port_t cmd_port;
+    status_t st = port_create("grp_ctrl", PORT_MODE_UNICAST, &cmd_port);
+    if (st < 0 ) {
+        printf("could not create port, status = %d\n", st);
+        return __LINE__;
+    }
+
+    thread_t* wt = thread_create(
+                       "g_watcher", &group_watcher_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    thread_resume(wt);
+
+    port_t w_test_port1, r_test_port1;
+    st = make_port_pair("tst_port1", TS1_PORT_CTX, &w_test_port1, &r_test_port1);
+    if (st < 0)
+        return __LINE__;
+
+    port_t w_test_port2, r_test_port2;
+    st = make_port_pair("tst_port2", TS2_PORT_CTX, &w_test_port2, &r_test_port2);
+    if (st < 0)
+        return __LINE__;
+
+    st = send_watcher_cmd(cmd_port, ADD_PORT, r_test_port1);
+    if (st < 0)
+        return __LINE__;
+
+    st = send_watcher_cmd(cmd_port, ADD_PORT, r_test_port2);
+    if (st < 0)
+        return __LINE__;
+
+    thread_sleep(50);
+
+    port_packet_t pp = {{0}};
+    st = port_write(w_test_port1, &pp, 1);
+    if (st < 0)
+        return __LINE__;
+
+    st = port_write(w_test_port2, &pp, 1);
+    if (st < 0)
+        return __LINE__;
+
+    st = send_watcher_cmd(cmd_port, QUIT, 0);
+    if (st < 0)
+        return __LINE__;
+
+    int retcode = -1;
+    thread_join(wt, &retcode, INFINITE_TIME);
+    if (retcode) {
+        printf("child thread exited with %d\n", retcode);
+        return __LINE__;
+    }
+
+    st = port_close(w_test_port1);
+    if (st < 0)
+        return __LINE__;
+    st = port_close(w_test_port2);
+    if (st < 0)
+        return __LINE__;
+    st = port_close(cmd_port);
+    if (st < 0)
+        return __LINE__;
+    st = port_destroy(w_test_port1);
+    if (st < 0)
+        return __LINE__;
+    st = port_destroy(w_test_port2);
+    if (st < 0)
+        return __LINE__;
+    st = port_destroy(cmd_port);
+    if (st < 0)
+        return __LINE__;
+
+    return 0;
+}
+
 #define RUN_TEST(t)  result = t(); if (result) goto fail
 
 int port_tests(void)
 {
     int result;
-    int count = 2;
+    int count = 3;
     while (count--) {
         RUN_TEST(single_thread_basic);
         RUN_TEST(two_threads_basic);
+        RUN_TEST(group_basic);
     }
 
     printf("all tests passed\n");
