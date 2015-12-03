@@ -28,14 +28,17 @@
 #include <compiler.h>
 #include <dev/gpio.h>
 #include <dev/usb.h>
+#include <dev/accelerometer.h>
 #include <platform/stm32.h>
 #include <platform/sdram.h>
 #include <platform/gpio.h>
 #include <platform/eth.h>
 #include <platform/qspi.h>
 #include <platform/n25q128a.h>
+#include <target/bmi055.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
+#include <target/sensor_bus.h>
 #include <reg.h>
 
 #if WITH_LIB_MINIP
@@ -49,8 +52,6 @@ const sdram_config_t target_sdram_config = {
     .cas_latency = SDRAM_CAS_LATENCY_2,
     .col_bits_num = SDRAM_COLUMN_BITS_8
 };
-
-
 
 void target_early_init(void)
 {
@@ -83,6 +84,13 @@ void target_early_init(void)
 
     gpio_init_structure.Pin     = GPIO_TO_PIN_MASK(GPIO_LED114) | GPIO_TO_PIN_MASK(GPIO_LED115);
     HAL_GPIO_Init(GPIOJ, &gpio_init_structure);
+
+    // Configure momentary switches
+    gpio_init_structure.Mode            =   GPIO_MODE_INPUT;
+    gpio_init_structure.Pin             =   GPIO_TO_PIN_MASK(GPIO_SW100) | GPIO_TO_PIN_MASK(GPIO_SW101) |\
+                                            GPIO_TO_PIN_MASK(GPIO_SW102) | GPIO_TO_PIN_MASK(GPIO_SW103);
+    HAL_GPIO_Init(GPIOJ, &gpio_init_structure);
+
     // Initialize to a pattern just so we know we have something
     gpio_set(GPIO_LED108, GPIO_LED_ON);
     gpio_set(GPIO_LED109, GPIO_LED_ON);
@@ -92,6 +100,10 @@ void target_early_init(void)
     gpio_set(GPIO_LED113, GPIO_LED_ON);
     gpio_set(GPIO_LED114, GPIO_LED_ON);
     gpio_set(GPIO_LED115, GPIO_LED_ON);
+
+    // Initialize Sensor bus (accelerometer / gyroscope / nrf51 spi bus
+
+    sensor_bus_init_early();
 
     /* now that the uart gpios are configured, enable the debug uart */
     stm32_debug_early_init();
@@ -111,6 +123,7 @@ static uint8_t* gen_mac_address(void) {
     mac_addr[0] |= (1<<1);
     return mac_addr;
 }
+
 
 void target_init(void)
 {
@@ -136,29 +149,9 @@ void target_init(void)
 
     // start usb
     target_usb_setup();
+
+    sensor_bus_init();
 }
-
-/*
-void target_init(void)
-{
-    uint8_t* mac_addr = gen_mac_address();
-    stm32_debug_init();
-
-    eth_init(mac_addr, PHY_KSZ8721);
-#if WITH_LIB_MINIP
-    minip_set_macaddr(mac_addr);
-
-    uint32_t ip_addr = IPV4(192, 168, 0, 98);
-    uint32_t ip_mask = IPV4(255, 255, 255, 0);
-    uint32_t ip_gateway = IPV4_NONE;
-    minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
-#endif
-
-    // start usb
-    target_usb_setup();
-
-}
-*/
 
 /**
   * @brief  Initializes SDRAM GPIO.

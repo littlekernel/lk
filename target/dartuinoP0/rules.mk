@@ -21,12 +21,14 @@ GLOBAL_DEFINES += \
 \
     PKTBUF_POOL_SIZE=16
 
+MODULES += \
 
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/usb.c \
+	$(LOCAL_DIR)/sensor_bus.c \
 
 
 MODULE_DEPS += \
