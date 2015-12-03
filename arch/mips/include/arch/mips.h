@@ -23,7 +23,9 @@
 #pragma once
 
 #ifndef ASSEMBLY
+#include <compiler.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 #define GEN_CP_REG_FUNCS(regname, regnum, sel) \
 static inline __ALWAYS_INLINE uint32_t mips_read_##regname(void) { \
@@ -91,7 +93,10 @@ struct mips_iframe {
     uint32_t cause;
     uint32_t epc;
 };
-#endif
+
+enum handler_return mips_timer_irq(void);
+
+#endif // !ASSEMBLY
 
 #define VECTORED_OFFSET_SHIFT 32
 

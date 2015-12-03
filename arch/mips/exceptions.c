@@ -22,12 +22,14 @@
  */
 #include <trace.h>
 #include <debug.h>
+#include <assert.h>
 #include <stdint.h>
 #include <bits.h>
 #include <kernel/thread.h>
+#include <kernel/debug.h>
 #include <arch/mips.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 extern enum handler_return platform_irq(struct mips_iframe *iframe, uint num);
 
@@ -48,7 +50,14 @@ void mips_gen_exception(struct mips_iframe *iframe)
 
 void mips_irq(struct mips_iframe *iframe, uint num)
 {
-    LTRACEF("IRQ %u, EPC 0x%x\n", num, iframe->epc);
+    // unset IE and clear EXL
+    mips_write_c0_status(mips_read_c0_status() & ~(3<<0));
+
+    THREAD_STATS_INC(interrupts);
+    KEVLOG_IRQ_ENTER(num);
+
+    LTRACEF("IRQ %u, EPC 0x%x, old status 0x%x, status 0x%x\n",
+            num, iframe->epc, iframe->status, mips_read_c0_status());
 
     enum handler_return ret = INT_NO_RESCHEDULE;
     switch (num) {
@@ -56,9 +65,11 @@ void mips_irq(struct mips_iframe *iframe, uint num)
             ret = platform_irq(iframe, num);
             break;
         case 7: // builtin timer
-            //ret = mips_timer_irq();
+            ret = mips_timer_irq();
             break;
     }
+
+    KEVLOG_IRQ_EXIT(num);
 
     if (ret != INT_NO_RESCHEDULE)
         thread_preempt();

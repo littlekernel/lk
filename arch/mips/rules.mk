@@ -8,6 +8,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/exceptions.c \
 	$(LOCAL_DIR)/start.S \
 	$(LOCAL_DIR)/thread.c \
+	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/vectors.S \
 
 #	$(LOCAL_DIR)/cache.c \

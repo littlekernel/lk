@@ -24,6 +24,7 @@
 #include <debug.h>
 #include <stdint.h>
 #include <arch/mips.h>
+#include <platform.h>
 
 #define LOCAL_TRACE 0
 
@@ -86,6 +87,7 @@ void arch_init(void)
     printf("\tconfig7 0x%x\n", mips_read_c0_config7());
     printf("\tstatus  0x%x\n", mips_read_c0_status());
     printf("\tintctl  0x%x\n", mips_read_c0_intctl());
+    printf("\tsrsctl  0x%x\n", mips_read_c0_srsctl());
     printf("\tcount   0x%x\n", mips_read_c0_count());
     printf("\tcompare 0x%x\n", mips_read_c0_compare());
 

@@ -53,11 +53,9 @@ static inline bool arch_ints_disabled(void)
 {
     uint32_t state;
 
-    __asm__ volatile(
-        "mfc0    %0, $12;"
-        : "=r" (state));
+    state = mips_read_c0_status();
 
-    return !(state & (1<<0));
+    return (state & (1<<1)) || !(state & (1<<0)); // check if EXL or IE is set
 }
 
 static inline int atomic_add(volatile int *ptr, int val)
