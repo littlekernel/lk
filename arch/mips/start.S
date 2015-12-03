@@ -25,14 +25,11 @@
 .section ".text.boot"
 FUNCTION(_start)
     # set the default stack
-    lui      $sp, %hi(default_stack_top)
-    ori      $sp, %lo(default_stack_top)
+    la      $sp, default_stack_top
 
     # zero out the bss section
-    lui     $t0, %hi(__bss_start)
-    ori     $t0, %lo(__bss_start)
-    lui     $t1, %hi(__bss_end)
-    ori     $t1, %lo(__bss_end)
+    la      $t0, __bss_start
+    la     $t1, __bss_end
 0:
     sw      $zero, ($t0)
     addi    $t0, 4

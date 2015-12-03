@@ -106,8 +106,7 @@ _tlb_refill:
 /* compatibility mode irq/syscall/general exception */
 .org 0x180
 _irq:
-    lui     $k0, %hi(mips_gen_exception)
-    ori     $k0, %lo(mips_gen_exception)
+    la      $k0, mips_gen_exception
     li      $k1, 0
     b       shared_irq_save_return
 
@@ -115,8 +114,7 @@ _irq:
 .macro vectored_irq, num
 .org 0x200 + VECTORED_OFFSET_SHIFT * \num
 _vectored_irq\num:
-    lui     $k0, %hi(mips_irq)
-    ori     $k0, %lo(mips_irq)
+    la      $k0, mips_irq
     li      $k1, \num
     b       shared_irq_save_return
     b       .
