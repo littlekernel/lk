@@ -22,6 +22,7 @@ GLOBAL_DEFINES += \
     PKTBUF_POOL_SIZE=16
 
 MODULES += \
+	app/accelerometer \
 
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
