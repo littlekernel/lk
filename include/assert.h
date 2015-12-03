@@ -38,6 +38,9 @@
 #endif
 
 #define assert(e) DEBUG_ASSERT(e)
+
+#ifndef __cplusplus
 #define static_assert(e) STATIC_ASSERT(e)
+#endif
 
 #endif
