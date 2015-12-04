@@ -1,0 +1,8 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+LOCAL_TOOLPATH="$DIR/toolpaths.local"
+if [ -e "$LOCAL_TOOLPATH" ]
+then
+  source $LOCAL_TOOLPATH
+fi
