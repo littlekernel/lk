@@ -29,45 +29,18 @@
 #include <platform/qemu-mips.h>
 #include <sys/types.h>
 
-extern void platform_init_interrupts();
-
-void uart_putc(char c)
-{
-    isa_write_8(UART_PORT_BASE + 0, c);
-}
-
-int uart_getc(bool wait)
-{
-    while ((isa_read_8(UART_PORT_BASE + 5) & (1<<0)) == 0)
-        ;
-
-    return isa_read_8(UART_PORT_BASE + 0);
-}
-
-void platform_dputc(char c)
-{
-    if (c == '\n')
-        uart_putc('\r');
-    uart_putc(c);
-}
-
-int platform_dgetc(char *c, bool wait)
-{
-    for (;;) {
-        int ret = uart_getc(wait);
-        if (ret >= 0) {
-            *c = ret;
-            return 0;
-        }
-
-        if (!wait)
-            return -1;
-
-        thread_yield();
-    }
-}
+extern void platform_init_interrupts(void);
+extern void platform_init_uart(void);
+extern void uart_init(void);
 
 void platform_early_init(void)
 {
     platform_init_interrupts();
+    platform_init_uart();
 }
+
+void platform_init(void)
+{
+    uart_init();
+}
+

@@ -32,7 +32,7 @@
 #include <arch/mips.h>
 #include <platform/qemu-mips.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 static spin_lock_t lock;
 
@@ -42,13 +42,30 @@ static spin_lock_t lock;
 #define ICW1 0x11
 #define ICW4 0x01
 
+#define PIC1_CMD                    0x20
+#define PIC1_DATA                   0x21
+#define PIC2_CMD                    0xA0
+#define PIC2_DATA                   0xA1
+#define PIC_READ_IRR                0x0a    /* OCW3 irq ready next CMD read */
+#define PIC_READ_ISR                0x0b    /* OCW3 irq service next CMD read */
+
+#define ICW1_ICW4   0x01        /* ICW4 (not) needed */
+#define ICW1_SINGLE 0x02        /* Single (cascade) mode */
+#define ICW1_INTERVAL4  0x04    /* Call address interval 4 (8) */
+#define ICW1_LEVEL  0x08        /* Level triggered (edge) mode */
+#define ICW1_INIT   0x10        /* Initialization */
+
+#define ICW4_8086   0x01        /* 8086/88 (MCS-80/85) mode */
+#define ICW4_AUTO   0x02        /* Auto (normal) EOI */
+#define ICW4_BUF_SLAVE  0x08    /* Buffered mode/slave */
+#define ICW4_BUF_MASTER 0x0C    /* Buffered mode/master */
+#define ICW4_SFNM   0x10        /* Special fully nested (not) */
+
 struct int_handler_struct {
     int_handler handler;
     void *arg;
 };
 
-#define PIC1_BASE 0
-#define PIC2_BASE 8
 #define INT_PIC2 2
 
 static struct int_handler_struct int_handler_table[INT_VECTORS];
@@ -76,8 +93,8 @@ static void map(uint32_t pic1, uint32_t pic2)
     isa_write_8(PIC2 + 1, 2);
 
     /* send ICW4 */
-    isa_write_8(PIC1 + 1, 5);
-    isa_write_8(PIC2 + 1, 1);
+    isa_write_8(PIC1 + 1, 2|5);
+    isa_write_8(PIC2 + 1, 2|1);
 
     /* disable all IRQs */
     isa_write_8(PIC1 + 1, 0xff);
@@ -89,9 +106,7 @@ static void map(uint32_t pic1, uint32_t pic2)
 
 static void enable(unsigned int vector, bool enable)
 {
-    if (vector >= PIC1_BASE && vector < PIC1_BASE + 8) {
-        vector -= PIC1_BASE;
-
+    if (vector < 8) {
         uint8_t bit = 1 << vector;
 
         if (enable && (irqMask[0] & bit)) {
@@ -105,8 +120,8 @@ static void enable(unsigned int vector, bool enable)
             isa_write_8(PIC1 + 1, irqMask[0]);
             irqMask[0] = isa_read_8(PIC1 + 1);
         }
-    } else if (vector >= PIC2_BASE && vector < PIC2_BASE + 8) {
-        vector -= PIC2_BASE;
+    } else if (vector < 16) {
+        vector -= 8;
 
         uint8_t bit = 1 << vector;
 
@@ -122,7 +137,7 @@ static void enable(unsigned int vector, bool enable)
             irqMask[1] = isa_read_8(PIC2 + 1);
         }
 
-        bit = 1 << (INT_PIC2 - PIC1_BASE);
+        bit = 1 << INT_PIC2;
 
         if (irqMask[1] != 0xff && (irqMask[0] & bit)) {
             irqMask[0] = isa_read_8(PIC1 + 1);
@@ -135,25 +150,45 @@ static void enable(unsigned int vector, bool enable)
             isa_write_8(PIC1 + 1, irqMask[0]);
             irqMask[0] = isa_read_8(PIC1 + 1);
         }
-    } else {
-        //dprintf(DEBUG, "Invalid PIC interrupt: %02x\n", vector);
     }
 }
 
-void issueEOI(unsigned int vector)
+static void issueEOI(unsigned int vector)
 {
-    if (vector >= PIC1_BASE && vector <= PIC1_BASE + 7) {
+    if (vector < 8) {
         isa_write_8(PIC1, 0x20);
-    } else if (vector >= PIC2_BASE && vector <= PIC2_BASE + 7) {
+    } else if (vector < 16) {
         isa_write_8(PIC2, 0x20);
         isa_write_8(PIC1, 0x20);   // must issue both for the second PIC
     }
 }
 
+/* Helper func */
+static uint16_t __pic_get_irq_reg(uint ocw3)
+{
+    /* OCW3 to PIC CMD to get the register values.  PIC2 is chained, and
+     * represents IRQs 8-15.  PIC1 is IRQs 0-7, with 2 being the chain */
+    isa_write_8(PIC1_CMD, ocw3);
+    isa_write_8(PIC2_CMD, ocw3);
+    return (isa_read_8(PIC2_CMD) << 8) | isa_read_8(PIC1_CMD);
+}
+
+/* Returns the combined value of the cascaded PICs irq request register */
+static uint16_t pic_get_irr(void)
+{
+    return __pic_get_irq_reg(PIC_READ_IRR);
+}
+
+/* Returns the combined value of the cascaded PICs in-service register */
+static uint16_t pic_get_isr(void)
+{
+    return __pic_get_irq_reg(PIC_READ_ISR);
+}
+
 void platform_init_interrupts(void)
 {
     // rebase the PIC out of the way of processor exceptions
-    map(PIC1_BASE, PIC2_BASE);
+    map(0, 8);
 }
 
 status_t mask_interrupt(unsigned int vector)
@@ -161,7 +196,7 @@ status_t mask_interrupt(unsigned int vector)
     if (vector >= INT_VECTORS)
         return ERR_INVALID_ARGS;
 
-//  dprintf(DEBUG, "%s: vector %d\n", __PRETTY_FUNCTION__, vector);
+    LTRACEF("vector %d\n", vector);
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
@@ -172,7 +207,6 @@ status_t mask_interrupt(unsigned int vector)
 
     return NO_ERROR;
 }
-
 
 void platform_mask_irqs(void)
 {
@@ -191,7 +225,7 @@ status_t unmask_interrupt(unsigned int vector)
     if (vector >= INT_VECTORS)
         return ERR_INVALID_ARGS;
 
-//  dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
+    LTRACEF("vector %d\n", vector);
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
@@ -205,18 +239,34 @@ status_t unmask_interrupt(unsigned int vector)
 
 enum handler_return platform_irq(struct mips_iframe *iframe, uint vector)
 {
-    THREAD_STATS_INC(interrupts);
+    // figure out which irq is pending
+    // issue OCW3 poll commands to PIC1 and (potentially) PIC2
+    isa_write_8(PIC1_CMD, (1<<3) | (1<<2));
+    uint8_t val = isa_read_8(PIC1_CMD);
+    if ((val & 0x80) == 0) {
+        // spurious?
+        return INT_NO_RESCHEDULE;
+    }
+    val &= ~0x80;
+    if (val == INT_PIC2) {
+        isa_write_8(PIC2_CMD, (1<<3) | (1<<2));
+        val = isa_read_8(PIC2_CMD);
+        if ((val & 0x80) == 0) {
+            // spurious?
+            return INT_NO_RESCHEDULE;
+        }
+        val &= ~0x80;
+    }
+    vector = val;
+    LTRACEF("poll vector 0x%x\n", vector);
 
-    LTRACEF("vector %u\n", vector);
+    THREAD_STATS_INC(interrupts);
 
     // deliver the interrupt
     enum handler_return ret = INT_NO_RESCHEDULE;
 
     if (int_handler_table[vector].handler)
         ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
-
-    // ack the interrupt
-    issueEOI(vector);
 
     return ret;
 }

@@ -9,6 +9,7 @@ MODULE_DEPS += \
     lib/cbuf
 
 MODULE_SRCS += \
+	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c
 
