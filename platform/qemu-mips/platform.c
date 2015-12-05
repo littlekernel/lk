@@ -21,13 +21,14 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <reg.h>
+#include <sys/types.h>
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/timer.h>
 #include <platform/qemu-mips.h>
-#include <sys/types.h>
+#include <arch/mips.h>
 
 extern void platform_init_interrupts(void);
 extern void platform_init_uart(void);
@@ -37,6 +38,9 @@ void platform_early_init(void)
 {
     platform_init_interrupts();
     platform_init_uart();
+
+    mips_init_timer(100000000);
+    mips_enable_irq(2);
 }
 
 void platform_init(void)

@@ -60,13 +60,18 @@ void mips_irq(struct mips_iframe *iframe, uint num)
             num, iframe->epc, iframe->status, mips_read_c0_status());
 
     enum handler_return ret = INT_NO_RESCHEDULE;
-    switch (num) {
-        case 2: // XXX qemu specific
-            ret = platform_irq(iframe, num);
-            break;
-        case 7: // builtin timer
-            ret = mips_timer_irq();
-            break;
+
+    // figure out which interrupt the timer is set to
+    uint32_t ipti = BITS_SHIFT(mips_read_c0_intctl(), 31, 29);
+    if (ipti >= 2 && ipti == num) {
+        // builtin timer
+        ret = mips_timer_irq();
+#if PLATFORM_QEMU_MIPS
+    } else if (num == 2) {
+        ret = platform_irq(iframe, num);
+#endif
+    } else {
+        panic("mips: unhandled irq\n");
     }
 
     KEVLOG_IRQ_EXIT(num);

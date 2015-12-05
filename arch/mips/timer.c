@@ -26,6 +26,7 @@
 #include <debug.h>
 #include <assert.h>
 #include <stdint.h>
+#include <bits.h>
 #include <arch/ops.h>
 #include <platform.h>
 #include <platform/timer.h>
@@ -35,8 +36,8 @@
 static volatile uint64_t ticks;
 static volatile uint32_t last_compare_set;
 
-static const uint32_t tick_rate = 100000000; // XXX qemu specific
-static const uint32_t tick_rate_mhz = 100;
+static uint32_t tick_rate;
+static uint32_t tick_rate_mhz;
 
 static lk_time_t tick_interval_ms;
 static lk_bigtime_t tick_interval_us;
@@ -51,13 +52,15 @@ enum handler_return mips_timer_irq(void)
     LTRACEF("compare 0x%x\n", mips_read_c0_compare());
 
     /* reset it for the next interval */
+retry:
     ticks++;
     last_compare_set += tick_interval;
     uint32_t count = mips_read_c0_count();
     if (unlikely(TIME_GT(count, last_compare_set))) {
         /* if it took us too long to get to this irq, make sure it fires immediately */
-        printf("took too long to service timer irq! %u %u\n", count, last_compare_set);
-        mips_write_c0_compare(mips_read_c0_count() + tick_rate_mhz);
+        //printf("took too long to service timer irq! %u %u\n", count, last_compare_set);
+        goto retry;
+        //mips_write_c0_compare(mips_read_c0_count() + tick_rate_mhz);
     } else {
         mips_write_c0_compare(last_compare_set);
     }
@@ -88,6 +91,9 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     uint32_t now = mips_read_c0_count();
     last_compare_set = now + tick_interval;
     mips_write_c0_compare(last_compare_set);
+
+    // enable the counter
+    mips_write_c0_cause(mips_read_c0_cause() & ~(1<<27));
 
     return NO_ERROR;
 }
@@ -130,5 +136,20 @@ lk_bigtime_t current_time_hires(void)
     lk_bigtime_t res = (t * tick_interval_us) + delta;
 
     return res;
+}
+
+void mips_init_timer(uint32_t freq)
+{
+    tick_rate = freq;
+    tick_rate_mhz = freq / 1000000;
+
+    // disable the counter
+    mips_write_c0_cause(mips_read_c0_cause() | (1<<27));
+
+    // figure out which interrupt the timer is set to
+    uint32_t ipti = BITS_SHIFT(mips_read_c0_intctl(), 31, 29);
+    if (ipti >= 2) {
+        mips_enable_irq(ipti);
+    }
 }
 

@@ -59,6 +59,8 @@ GEN_CP_REG_FUNCS(c0_srsmap2, 12, 5)
 GEN_CP_REG_FUNCS(c0_cause, 13, 0)
 GEN_CP_REG_FUNCS(c0_epc, 14, 0)
 GEN_CP_REG_FUNCS(c0_prid, 15, 0)
+GEN_CP_REG_FUNCS(c0_ebase, 15, 1)
+GEN_CP_REG_FUNCS(c0_cdmmbase, 15, 2)
 GEN_CP_REG_FUNCS(c0_config, 16, 0)
 GEN_CP_REG_FUNCS(c0_config1, 16, 1)
 GEN_CP_REG_FUNCS(c0_config2, 16, 2)
@@ -93,8 +95,13 @@ struct mips_iframe {
     uint32_t cause;
     uint32_t epc;
 };
+STATIC_ASSERT(sizeof(struct mips_iframe) == 88);
 
+void mips_init_timer(uint32_t freq);
 enum handler_return mips_timer_irq(void);
+
+void mips_enable_irq(uint num);
+void mips_disable_irq(uint num);
 
 #endif // !ASSEMBLY
 

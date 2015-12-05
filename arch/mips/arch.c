@@ -23,6 +23,7 @@
 #include <trace.h>
 #include <debug.h>
 #include <stdint.h>
+#include <bits.h>
 #include <arch/mips.h>
 #include <platform.h>
 
@@ -32,31 +33,30 @@ void arch_early_init(void)
 {
     LTRACE;
 
-#if 0
-    /* enable i/d cache */
-    uint32_t val = mb_read_msr();
-    val |= (1 << (31 - 26)) | (1 << (31 - 24));
-    mb_write_msr(val);
-#endif
-
     /* configure the vector table */
     uint32_t temp = mips_read_c0_status();
     temp &= ~(1<<22); /* unset BEV, which moves vectors to 0x80000000 */
     temp &= ~(1<<2);  /* clear ERL */
 
-    /* unmask all of the irq handlers */
-    temp |= (1<<8); // IM0
-    temp |= (1<<9); // IM1
-    temp |= (1<<10); // IM2
-    temp |= (1<<11); // IM3
-    temp |= (1<<12); // IM4
-    temp |= (1<<13); // IM5
-    temp |= (1<<14); // IM6
-    temp |= (1<<15); // IM7
-    temp |= (1<<16); // IM8
-    temp |= (1<<18); // IM9 (note the bit gap)
+    /* mask all of the irq handlers */
+    temp &= ~(1<<8); // IM0
+    temp &= ~(1<<9); // IM1
+    temp &= ~(1<<10); // IM2
+    temp &= ~(1<<11); // IM3
+    temp &= ~(1<<12); // IM4
+    temp &= ~(1<<13); // IM5
+    temp &= ~(1<<14); // IM6
+    temp &= ~(1<<15); // IM7
+    temp &= ~(1<<16); // IM8
+    temp &= ~(1<<18); // IM9 (note the bit gap)
 
     mips_write_c0_status(temp);
+
+    /* set ebase */
+    mips_write_c0_ebase(MEMBASE);
+
+    /* make sure we take exceptions in 32bit mips mode */
+    mips_write_c0_config3(mips_read_c0_config3() & ~(1<<16));
 
     /* set vectored mode */
     temp = mips_read_c0_intctl();
@@ -86,8 +86,13 @@ void arch_init(void)
     printf("\tconfig6 0x%x\n", mips_read_c0_config6());
     printf("\tconfig7 0x%x\n", mips_read_c0_config7());
     printf("\tstatus  0x%x\n", mips_read_c0_status());
-    printf("\tintctl  0x%x\n", mips_read_c0_intctl());
+    uint32_t intctl = mips_read_c0_intctl();
+    printf("\tintctl  0x%x\n", intctl);
+    printf("\t\tIPTI  0x%lx\n", BITS_SHIFT(intctl, 31, 29));
+    printf("\t\tIPPCI 0x%lx\n", BITS_SHIFT(intctl, 28, 26));
+    printf("\t\tIPFDC 0x%lx\n", BITS_SHIFT(intctl, 25, 23));
     printf("\tsrsctl  0x%x\n", mips_read_c0_srsctl());
+    printf("\tebase   0x%x\n", mips_read_c0_ebase());
     printf("\tcount   0x%x\n", mips_read_c0_count());
     printf("\tcompare 0x%x\n", mips_read_c0_compare());
 
@@ -104,6 +109,28 @@ void arch_idle(void)
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
     PANIC_UNIMPLEMENTED;
+}
+
+void mips_enable_irq(uint num)
+{
+    uint32_t temp = mips_read_c0_status();
+    if (num < 9) {
+        temp |= (1 << (num + 8));
+    } else if (num == 9) {
+        temp |= (1 << 18);
+    }
+    mips_write_c0_status(temp);
+}
+
+void mips_disable_irq(uint num)
+{
+    uint32_t temp = mips_read_c0_status();
+    if (num < 9) {
+        temp &= ~(1 << (num + 8));
+    } else if (num == 9) {
+        temp &= ~(1 << 18);
+    }
+    mips_write_c0_status(temp);
 }
 
 /* unimplemented cache operations */
