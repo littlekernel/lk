@@ -185,11 +185,6 @@ GPIO_InitTypeDef  GPIO_InitStruct;
     GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
     HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-    /* SPI MISO GPIO pin configuration  */
-    // GPIO_InitStruct.Pin = GPIO_PIN_14;
-    // GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-    // HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
     /* SPI MOSI GPIO pin configuration  */
     GPIO_InitStruct.Pin = GPIO_PIN_15;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
