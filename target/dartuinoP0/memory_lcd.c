@@ -119,7 +119,7 @@ static void mlcd_flush(uint starty, uint endy)
 {
     chip_select(true);
 
-    uint8_t localbuf[MLCD_BUF_SIZE];
+    static uint8_t localbuf[MLCD_BUF_SIZE];
     uint8_t *bufptr = localbuf;
 
     // The first line is preceeded with a write command.
