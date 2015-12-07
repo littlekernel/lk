@@ -352,7 +352,7 @@ void gfx_line(gfx_surface* surface, uint x1, uint y1, uint x2, uint y2, uint col
 
     if (dxabs >= dyabs) {
         // mostly horizontal line.
-        for(uint i = 0; i < dxabs; i++) {
+        for (uint i = 0; i < dxabs; i++) {
             y += dyabs;
             if (y >= dxabs) {
                 y -= dxabs;
@@ -363,7 +363,7 @@ void gfx_line(gfx_surface* surface, uint x1, uint y1, uint x2, uint y2, uint col
         }
     } else {
         // mostly vertical line.
-        for(uint i = 0; i < dyabs; i++) {
+        for (uint i = 0; i < dyabs; i++) {
             x += dxabs;
             if (x >= dyabs) {
                 x -= dyabs;

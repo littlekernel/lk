@@ -56,20 +56,20 @@ static uint8_t vcom_state;
 
 static void chip_select(bool s)
 {
-	if (s) {
-		gpio_set(GPIO(GPIO_PORT_B, 12), GPIO_PIN_SET);
-	} else {
-		gpio_set(GPIO(GPIO_PORT_B, 12), GPIO_PIN_RESET);
-	}
+    if (s) {
+        gpio_set(GPIO(GPIO_PORT_B, 12), GPIO_PIN_SET);
+    } else {
+        gpio_set(GPIO(GPIO_PORT_B, 12), GPIO_PIN_RESET);
+    }
 }
 
 static void lcd_power(bool s)
 {
-	if (s) {
-		gpio_set(GPIO(GPIO_PORT_K, 6), GPIO_PIN_SET);
-	} else {
-		gpio_set(GPIO(GPIO_PORT_K, 6), GPIO_PIN_RESET);
-	}
+    if (s) {
+        gpio_set(GPIO(GPIO_PORT_K, 6), GPIO_PIN_SET);
+    } else {
+        gpio_set(GPIO(GPIO_PORT_K, 6), GPIO_PIN_RESET);
+    }
 }
 
 static void mlcd_clear(void)
@@ -87,37 +87,37 @@ static void mlcd_clear(void)
 
 status_t memory_lcd_init(void)
 {
-	SpiHandle.Instance               = SPI2;
-	SpiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
-	SpiHandle.Init.Direction         = SPI_DIRECTION_1LINE;
-	SpiHandle.Init.CLKPhase          = SPI_PHASE_1EDGE;
-	SpiHandle.Init.CLKPolarity       = SPI_POLARITY_LOW;
-	SpiHandle.Init.DataSize          = SPI_DATASIZE_8BIT;
-	SpiHandle.Init.FirstBit          = SPI_FIRSTBIT_LSB;
-	SpiHandle.Init.TIMode            = SPI_TIMODE_DISABLE;
-	SpiHandle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
-	SpiHandle.Init.CRCPolynomial     = 7;
-	SpiHandle.Init.NSS               = SPI_NSS_SOFT;
-	SpiHandle.Init.Mode 			 = SPI_MODE_MASTER;
+    SpiHandle.Instance               = SPI2;
+    SpiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+    SpiHandle.Init.Direction         = SPI_DIRECTION_1LINE;
+    SpiHandle.Init.CLKPhase          = SPI_PHASE_1EDGE;
+    SpiHandle.Init.CLKPolarity       = SPI_POLARITY_LOW;
+    SpiHandle.Init.DataSize          = SPI_DATASIZE_8BIT;
+    SpiHandle.Init.FirstBit          = SPI_FIRSTBIT_LSB;
+    SpiHandle.Init.TIMode            = SPI_TIMODE_DISABLE;
+    SpiHandle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+    SpiHandle.Init.CRCPolynomial     = 7;
+    SpiHandle.Init.NSS               = SPI_NSS_SOFT;
+    SpiHandle.Init.Mode              = SPI_MODE_MASTER;
 
-	if (HAL_SPI_Init(&SpiHandle) != HAL_OK) {
-		return ERR_GENERIC;
-	}
+    if (HAL_SPI_Init(&SpiHandle) != HAL_OK) {
+        return ERR_GENERIC;
+    }
 
-	vcom_state = VCOM_LO;
+    vcom_state = VCOM_LO;
 
-	lcd_power(true);
+    lcd_power(true);
 
     mlcd_clear();
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
 
 
 
 static void mlcd_flush(uint starty, uint endy)
 {
-	chip_select(true);
+    chip_select(true);
 
     uint8_t localbuf[MLCD_BUF_SIZE];
     uint8_t *bufptr = localbuf;
@@ -129,50 +129,50 @@ static void mlcd_flush(uint starty, uint endy)
 
     // Send the image data.
     for (uint i = starty; i <= endy; ++i) {
-		*bufptr++ = (i + 1);  // Preceed each write with the line number.
+        *bufptr++ = (i + 1);  // Preceed each write with the line number.
 
-		int ctr = 0;
-		uint8_t outpix = 0;
-		for (uint j = 0; j < MLCD_WIDTH; j++) {
-			uint8_t pixval = framebuffer[i][j] > 128 ? 0xFF : 0x0;
-			outpix |= (pixval & (0x1 << ctr++));
-			if (ctr == 8) {
-				*bufptr++ = outpix;
-				ctr = 0;
-				outpix = 0;
-			}
-		}
+        int ctr = 0;
+        uint8_t outpix = 0;
+        for (uint j = 0; j < MLCD_WIDTH; j++) {
+            uint8_t pixval = framebuffer[i][j] > 128 ? 0xFF : 0x0;
+            outpix |= (pixval & (0x1 << ctr++));
+            if (ctr == 8) {
+                *bufptr++ = outpix;
+                ctr = 0;
+                outpix = 0;
+            }
+        }
 
-		*bufptr++ = outpix;
-		*bufptr = 0x0;
+        *bufptr++ = outpix;
+        *bufptr = 0x0;
 
-		if (HAL_SPI_Transmit(&SpiHandle, localbuf, bufptr - localbuf, XMIT_TIMEOUT_LONG) != HAL_OK) {
-    		goto finish;
-    	}
+        if (HAL_SPI_Transmit(&SpiHandle, localbuf, bufptr - localbuf, XMIT_TIMEOUT_LONG) != HAL_OK) {
+            goto finish;
+        }
 
-    	bufptr = localbuf;
+        bufptr = localbuf;
     }
 
     uint8_t trailer = 0;
     if (HAL_SPI_Transmit(&SpiHandle, &trailer, 1, XMIT_TIMEOUT_SHORT) != HAL_OK) {
-		goto finish;
-	}
+        goto finish;
+    }
 
 
 finish:
-	chip_select(false);
+    chip_select(false);
 }
 
 status_t display_get_info(struct display_info *info)
 {
-	LTRACEF("display_info %p\n", info);
+    LTRACEF("display_info %p\n", info);
 
-	info->framebuffer = (void*)framebuffer;
-	info->format = GFX_FORMAT_MONO;
-	info->width = MLCD_WIDTH;
-	info->height = MLCD_HEIGHT;
-	info->stride = MLCD_WIDTH;
-	info->flush = mlcd_flush;
+    info->framebuffer = (void*)framebuffer;
+    info->format = GFX_FORMAT_MONO;
+    info->width = MLCD_WIDTH;
+    info->height = MLCD_HEIGHT;
+    info->stride = MLCD_WIDTH;
+    info->flush = mlcd_flush;
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
