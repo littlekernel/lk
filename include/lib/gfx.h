@@ -63,6 +63,7 @@ typedef struct gfx_surface {
 	uint alpha;
 
 	// function pointers
+	uint32_t (*translate_color)(uint32_t input);
 	void (*copyrect)(struct gfx_surface *, uint x, uint y, uint width, uint height, uint x2, uint y2);
 	void (*fillrect)(struct gfx_surface *, uint x, uint y, uint width, uint height, uint color);
 	void (*putpixel)(struct gfx_surface *, uint x, uint y, uint color);

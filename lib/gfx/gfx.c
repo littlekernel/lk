@@ -46,7 +46,7 @@
 
 
 // Convert a 32bit ARGB image to its respective gamma corrected grayscale value.
-static uint8_t ARGB8888_to_Luma(uint32_t in)
+static uint32_t ARGB8888_to_Luma(uint32_t in)
 {
     uint8_t out;
 
@@ -62,7 +62,7 @@ static uint8_t ARGB8888_to_Luma(uint32_t in)
 }
 
 
-static uint16_t ARGB8888_to_RGB565(uint32_t in)
+static uint32_t ARGB8888_to_RGB565(uint32_t in)
 {
     uint16_t out;
 
@@ -148,7 +148,7 @@ static void putpixel16(gfx_surface *surface, uint x, uint y, uint color)
     uint16_t *dest = &((uint16_t *)surface->ptr)[x + y * surface->stride];
 
     // colors come in in ARGB 8888 form, flatten them
-    *dest = ARGB8888_to_RGB565(color);
+    *dest = (uint16_t)(surface->translate_color(color));
 }
 
 static void putpixel32(gfx_surface *surface, uint x, uint y, uint color)
@@ -163,7 +163,7 @@ static void putpixel8(gfx_surface *surface, uint x, uint y, uint color)
     uint8_t *dest = &((uint8_t *)surface->ptr)[x + y * surface->stride];
 
     // colors come in in ARGB 8888 form, flatten them
-    *dest = ARGB8888_to_Luma(color);
+    *dest = (uint8_t)(surface->translate_color(color));
 }
 
 static void copyrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2)
@@ -207,7 +207,7 @@ static void fillrect8(gfx_surface *surface, uint x, uint y, uint width, uint hei
     uint8_t *dest = &((uint8_t *)surface->ptr)[x + y * surface->stride];
     uint stride_diff = surface->stride - width;
 
-    uint8_t color8 = ARGB8888_to_Luma(color);
+    uint8_t color8 = (uint8_t)(surface->translate_color(color));
 
     uint i, j;
     for (i=0; i < height; i++) {
@@ -260,7 +260,7 @@ static void fillrect16(gfx_surface *surface, uint x, uint y, uint width, uint he
     uint16_t *dest = &((uint16_t *)surface->ptr)[x + y * surface->stride];
     uint stride_diff = surface->stride - width;
 
-    uint16_t color16 = ARGB8888_to_RGB565(color);
+    uint16_t color16 = (uint16_t)(surface->translate_color(color));
 
     uint i, j;
     for (i=0; i < height; i++) {
@@ -557,6 +557,7 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
     // set up some function pointers
     switch (format) {
         case GFX_FORMAT_RGB_565:
+            surface->translate_color = &ARGB8888_to_RGB565;
             surface->copyrect = &copyrect16;
             surface->fillrect = &fillrect16;
             surface->putpixel = &putpixel16;
@@ -565,6 +566,7 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
             break;
         case GFX_FORMAT_RGB_x888:
         case GFX_FORMAT_ARGB_8888:
+            surface->translate_color = NULL;
             surface->copyrect = &copyrect32;
             surface->fillrect = &fillrect32;
             surface->putpixel = &putpixel32;
@@ -572,6 +574,7 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
             surface->len = (surface->height * surface->stride * surface->pixelsize);
             break;
         case GFX_FORMAT_MONO:
+            surface->translate_color = &ARGB8888_to_Luma;
             surface->copyrect = &copyrect8;
             surface->fillrect = &fillrect8;
             surface->putpixel = &putpixel8;
