@@ -3,7 +3,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 ARCH := mips
-MIPS_CPU := mips32
+MIPS_CPU := m14k
 
 MODULE_DEPS += \
     lib/cbuf

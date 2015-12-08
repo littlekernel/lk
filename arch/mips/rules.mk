@@ -36,16 +36,21 @@ GLOBAL_LDFLAGS += -EL
 GLOBAL_MODULE_LDFLAGS += -EL
 endif
 
-ARCH_COMPILEFLAGS := -march=m14k -mno-gpopt
+ARCH_COMPILEFLAGS := -mno-gpopt
 ARCH_OPTFLAGS := -O2
+
+ifeq ($(MIPS_CPU),m14k)
+ARCH_COMPILEFLAGS += -march=m14k
+endif
+ifeq ($(MIPS_CPU),microaptiv-uc)
+ARCH_COMPILEFLAGS += -march=m14k
+endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))
 
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
 	then echo "$(2)"; else echo "$(3)"; fi ;)
-
-GLOBAL_LDFLAGS += -relax
 
 KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0
