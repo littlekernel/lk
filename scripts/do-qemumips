@@ -1,0 +1,4 @@
+#!/bin/sh
+
+make qemu-mips-test -j4 &&
+qemu-system-mips -machine mips -cpu M14K -kernel build-qemu-mips-test/lk.elf -nographic $@

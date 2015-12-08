@@ -58,6 +58,8 @@ void clock_tests(void)
 			//printf("%lu %lu\n", last, t);
 			if (TIME_LT(t, last)) {
 				printf("WARNING: time ran backwards: %lu < %lu\n", t, last);
+				last = t;
+				continue;
 			}
 			last = t;
 			if (last - start > 5000)
@@ -73,6 +75,8 @@ void clock_tests(void)
 			//printf("%llu %llu\n", last, t2);
 			if (t2 < last) {
 				printf("WARNING: time ran backwards: %llu < %llu\n", t2, last);
+				last = t2;
+				continue;
 			}
 			last = t2;
 			if (last - start > 5000000)
