@@ -48,9 +48,6 @@ SPI_HandleTypeDef SpiHandle;
 #define VCOM_HI 0x02
 #define VCOM_LO 0x00
 
-#define XMIT_TIMEOUT_LONG  5000
-#define XMIT_TIMEOUT_SHORT 1000
-
 static uint8_t framebuffer[MLCD_HEIGHT][MLCD_WIDTH];
 static uint8_t vcom_state;
 
@@ -80,7 +77,7 @@ static void mlcd_clear(void)
     clear[1] = 0;
 
     chip_select(true);
-    HAL_SPI_Transmit(&SpiHandle, clear, 2, XMIT_TIMEOUT_SHORT);
+    HAL_SPI_Transmit(&SpiHandle, clear, 2, HAL_MAX_DELAY);
     chip_select(false);
 }
 
@@ -146,7 +143,7 @@ static void mlcd_flush(uint starty, uint endy)
         *bufptr++ = outpix;
         *bufptr = 0x0;
 
-        if (HAL_SPI_Transmit(&SpiHandle, localbuf, bufptr - localbuf, XMIT_TIMEOUT_LONG) != HAL_OK) {
+        if (HAL_SPI_Transmit(&SpiHandle, localbuf, bufptr - localbuf, HAL_MAX_DELAY) != HAL_OK) {
             goto finish;
         }
 
@@ -154,7 +151,7 @@ static void mlcd_flush(uint starty, uint endy)
     }
 
     uint8_t trailer = 0;
-    if (HAL_SPI_Transmit(&SpiHandle, &trailer, 1, XMIT_TIMEOUT_SHORT) != HAL_OK) {
+    if (HAL_SPI_Transmit(&SpiHandle, &trailer, 1, HAL_MAX_DELAY) != HAL_OK) {
         goto finish;
     }
 
