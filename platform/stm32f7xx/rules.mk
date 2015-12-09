@@ -59,6 +59,7 @@ LINKER_SCRIPT += \
 
 MODULE_DEPS += \
 	arch/arm/arm-m/systick \
+	dev/gpio \
 	dev/usb \
 	lib/bio \
 	lib/cbuf
