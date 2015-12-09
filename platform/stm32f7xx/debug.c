@@ -53,7 +53,7 @@ void platform_dputc(char c)
 int platform_dgetc(char *c, bool wait)
 {
 	int ret = uart_getc(DEBUG_UART, wait);
-	if (ret == -1)
+	if (ret < 0)
 		return -1;
 	*c = ret;
 	return 0;
@@ -69,7 +69,7 @@ void platform_pputc(char c)
 int platform_pgetc(char *c, bool wait)
 {
 	int ret = uart_pgetc(DEBUG_UART);
-	if (ret == -1)
+	if (ret < 0)
 		return -1;
 	*c = ret;
 	return 0;
