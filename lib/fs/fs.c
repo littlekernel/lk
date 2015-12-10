@@ -245,6 +245,18 @@ status_t fs_open_file(const char *path, filehandle **handle)
     return 0;
 }
 
+status_t fs_file_ioctl(filehandle *handle, int request, void *argp)
+{
+    LTRACEF("filehandle %p, request %d, argp, %p\n", handle, request, argp);
+
+    if (unlikely(!handle || !handle->mount ||
+                 !handle->mount->api || !handle->mount->api->file_ioctl)) {
+        return ERR_INVALID_ARGS;
+    }
+
+    return handle->mount->api->file_ioctl(handle->cookie, request, argp);
+}
+
 status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
 {
     char temppath[FS_MAX_PATH_LEN];
@@ -412,7 +424,7 @@ status_t fs_close_dir(dirhandle *handle)
     return 0;
 }
 
-status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat)
+status_t fs_stat_fs(const char *mountpoint, struct fs_stat *stat)
 {
     LTRACEF("mountpoint %s stat %p\n", mountpoint, stat);
 
@@ -426,7 +438,7 @@ status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat)
         return ERR_NOT_FOUND;
     }
 
-    if (!mount->api->fs_stat){
+    if (!mount->api->fs_stat) {
         put_mount(mount);
         return ERR_NOT_SUPPORTED;
     }
