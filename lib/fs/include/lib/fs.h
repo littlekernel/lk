@@ -29,6 +29,12 @@
 #define FS_MAX_PATH_LEN 128
 #define FS_MAX_FILE_LEN 64
 
+// Generic FS ioctls
+enum fs_ioctl_num {
+  FS_IOCTL_NULL = 0,
+  FS_IOCTL_GET_FILE_ADDR,
+};
+
 struct file_stat {
     bool is_dir;
     uint64_t size;
@@ -54,6 +60,7 @@ typedef struct dirhandle dirhandle;
 status_t fs_format_device(const char *fsname, const char *device, const void *args) __NONNULL((1));
 status_t fs_mount(const char *path, const char *fs, const char *device) __NONNULL((1)) __NONNULL((2));
 status_t fs_unmount(const char *path) __NONNULL();
+status_t fs_file_ioctl(filehandle *handle, int request, void *argp) __NONNULL((1)) __NONNULL((3));
 
 /* file api */
 status_t fs_create_file(const char *path, filehandle **handle, uint64_t len) __NONNULL();
@@ -105,6 +112,8 @@ struct fs_api {
     status_t (*opendir)(fscookie *, const char *, dircookie **) __NONNULL();
     status_t (*readdir)(dircookie *, struct dirent *) __NONNULL();
     status_t (*closedir)(dircookie *) __NONNULL();
+
+    status_t (*file_ioctl)(filecookie *, int, void *);
 };
 
 struct fs_impl {

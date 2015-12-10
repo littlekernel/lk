@@ -245,6 +245,13 @@ status_t fs_open_file(const char *path, filehandle **handle)
     return 0;
 }
 
+status_t fs_file_ioctl(filehandle *handle, int request, void *argp)
+{
+    LTRACEF("filehandle %p, request %d, argp, %p\n", handle, request, argp);
+
+    return handle->mount->api->file_ioctl(handle->cookie, request, argp);
+}
+
 status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
 {
     char temppath[FS_MAX_PATH_LEN];

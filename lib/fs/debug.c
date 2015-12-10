@@ -78,6 +78,47 @@ STATIC_COMMAND_END(fs);
 
 extern int fs_mount_type(const char *path, const char *device, const char *name);
 
+static int cmd_fs_ioctl(int argc, const cmd_args *argv)
+{
+    if (argc < 3) {
+        printf("not enough arguments\n");
+        return ERR_INVALID_ARGS;
+    }
+
+    int request = argv[2].u;
+
+    switch (request) {
+        case FS_IOCTL_GET_FILE_ADDR: {
+            if (argc < 4) {
+                printf("%s %s %lu <path>\n", argv[0].str, argv[1].str,
+                                            argv[2].u);
+                return ERR_INVALID_ARGS;
+            }
+
+            int err;
+            filehandle *handle;
+            err = fs_open_file(argv[3].str, &handle);
+            if (err != NO_ERROR) {
+                printf("error %d opening file\n", err);
+                return err;
+            }
+
+            void *file_addr;
+            err = fs_file_ioctl(handle, request, &file_addr);
+            if (err != NO_ERROR) {
+                fs_close_file(handle);
+                return err;
+            }
+
+            printf("%s is mapped at %p\n", argv[3].str, file_addr);
+
+            return fs_close_file(handle);
+        }
+    }
+
+    return ERR_NOT_SUPPORTED;
+}
+
 static int cmd_fs(int argc, const cmd_args *argv)
 {
     int rc = 0;
@@ -91,6 +132,7 @@ usage:
         printf("%s write <path> <string> [<offset>]\n", argv[0].str);
         printf("%s format <type> [device]\n", argv[0].str);
         printf("%s stat <path>\n", argv[0].str);
+        printf("%s ioctl <request> [args...]\n", argv[0].str);
         return -1;
     }
 
@@ -157,6 +199,8 @@ usage:
         printf("\ttotal inodes: %d\n", stat.total_inodes);
         printf("\tfree inodes: %d\n", stat.free_inodes);
 
+    } else if (!strcmp(argv[1].str, "ioctl")) {
+        return cmd_fs_ioctl(argc, argv);
     } else if (!strcmp(argv[1].str, "write")) {
         int err;
         off_t off;

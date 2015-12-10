@@ -1139,6 +1139,42 @@ static status_t spifs_fs_stat(fscookie *cookie, struct fs_stat *stat)
     return NO_ERROR;
 }
 
+static status_t spifs_ioctl_get_file_addr(filecookie *cookie, void** argp)
+{
+    LTRACEF("cookie %p, argp %p\n", cookie, argp);
+
+    status_t result;
+
+    spifs_file_t *file = (spifs_file_t *)cookie;
+    spifs_t *spifs = file->fs_handle;
+    bdev_t *dev = spifs->dev;
+
+    // Get the base address of the underlying BIO device.
+    void* result_addr;
+    result = bio_ioctl(dev, BIO_IOCTL_GET_MAP_ADDR, &result_addr);
+    if (result != NO_ERROR) {
+        return result;
+    }
+
+    // Get the offset of the file.
+    result_addr += file->metadata.page_idx * spifs->page_size;
+    *argp = result_addr;
+
+    return NO_ERROR;
+}
+
+static status_t spifs_file_ioctl(filecookie *cookie, int request, void *argp)
+{
+    LTRACEF("request %d, argp %p\n", request, argp);
+
+    switch (request) {
+        case FS_IOCTL_GET_FILE_ADDR: {
+            return spifs_ioctl_get_file_addr(cookie, (void**)argp);
+        }
+    }
+    return ERR_NOT_SUPPORTED;
+}
+
 static const struct fs_api spifs_api = {
     .format = spifs_format,
     .fs_stat = spifs_fs_stat,
@@ -1155,6 +1191,8 @@ static const struct fs_api spifs_api = {
     .write = spifs_write,
 
     .stat = spifs_stat,
+
+    .file_ioctl = spifs_file_ioctl,
 
     .opendir = spifs_opendir,
     .readdir = spifs_readdir,
