@@ -31,8 +31,8 @@
 
 // Generic FS ioctls
 enum fs_ioctl_num {
-  FS_IOCTL_NULL = 0,
-  FS_IOCTL_GET_FILE_ADDR,
+    FS_IOCTL_NULL = 0,
+    FS_IOCTL_GET_FILE_ADDR,
 };
 
 struct file_stat {

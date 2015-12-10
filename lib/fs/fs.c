@@ -433,7 +433,7 @@ status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat)
         return ERR_NOT_FOUND;
     }
 
-    if (!mount->api->fs_stat){
+    if (!mount->api->fs_stat) {
         put_mount(mount);
         return ERR_NOT_SUPPORTED;
     }

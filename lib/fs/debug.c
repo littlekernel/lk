@@ -39,32 +39,32 @@ static void test_normalize(const char *in)
 }
 
 #if 0
-    test_normalize("/");
-    test_normalize("/test");
-    test_normalize("/test/");
-    test_normalize("test/");
-    test_normalize("test");
-    test_normalize("/test//");
-    test_normalize("/test/foo");
-    test_normalize("/test/foo/");
-    test_normalize("/test/foo/bar");
-    test_normalize("/test/foo/bar//");
-    test_normalize("/test//foo/bar//");
-    test_normalize("/test//./foo/bar//");
-    test_normalize("/test//./.foo/bar//");
-    test_normalize("/test//./..foo/bar//");
-    test_normalize("/test//./../foo/bar//");
-    test_normalize("/test/../foo");
-    test_normalize("/test/bar/../foo");
-    test_normalize("../foo");
-    test_normalize("../foo/");
-    test_normalize("/../foo");
-    test_normalize("/../foo/");
-    test_normalize("/../../foo");
-    test_normalize("/bleh/../../foo");
-    test_normalize("/bleh/bar/../../foo");
-    test_normalize("/bleh/bar/../../foo/..");
-    test_normalize("/bleh/bar/../../foo/../meh");
+test_normalize("/");
+test_normalize("/test");
+test_normalize("/test/");
+test_normalize("test/");
+test_normalize("test");
+test_normalize("/test//");
+test_normalize("/test/foo");
+test_normalize("/test/foo/");
+test_normalize("/test/foo/bar");
+test_normalize("/test/foo/bar//");
+test_normalize("/test//foo/bar//");
+test_normalize("/test//./foo/bar//");
+test_normalize("/test//./.foo/bar//");
+test_normalize("/test//./..foo/bar//");
+test_normalize("/test//./../foo/bar//");
+test_normalize("/test/../foo");
+test_normalize("/test/bar/../foo");
+test_normalize("../foo");
+test_normalize("../foo/");
+test_normalize("/../foo");
+test_normalize("/../foo/");
+test_normalize("/../../foo");
+test_normalize("/bleh/../../foo");
+test_normalize("/bleh/bar/../../foo");
+test_normalize("/bleh/bar/../../foo/..");
+test_normalize("/bleh/bar/../../foo/../meh");
 #endif
 
 #if defined(WITH_LIB_CONSOLE)
@@ -91,7 +91,7 @@ static int cmd_fs_ioctl(int argc, const cmd_args *argv)
         case FS_IOCTL_GET_FILE_ADDR: {
             if (argc < 4) {
                 printf("%s %s %lu <path>\n", argv[0].str, argv[1].str,
-                                            argv[2].u);
+                       argv[2].u);
                 return ERR_INVALID_ARGS;
             }
 
@@ -143,7 +143,7 @@ usage:
             goto notenoughargs;
 
         err = fs_mount(argv[2].str, argv[3].str,
-                (argc >= 5) ? argv[4].str : NULL);
+                       (argc >= 5) ? argv[4].str : NULL);
 
         if (err < 0) {
             printf("error %d mounting device\n", err);
@@ -168,10 +168,10 @@ usage:
         }
 
         err = fs_format_device(
-                argv[2].str,
-                (argc >= 4) ? argv[3].str : NULL,
-                NULL
-        );
+                  argv[2].str,
+                  (argc >= 4) ? argv[3].str : NULL,
+                  NULL
+              );
 
         if (err != NO_ERROR) {
             printf("error %d formatting device\n", err);

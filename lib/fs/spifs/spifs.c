@@ -210,7 +210,7 @@ static uint32_t find_open_run(spifs_t *spifs, uint32_t requested_length)
         uint32_t page_size_shift = log2_uint(file->fs_handle->page_size);
 
         uint32_t file_page_length =
-                divpow2(file->metadata.capacity, page_size_shift);
+            divpow2(file->metadata.capacity, page_size_shift);
 
         // Index of the page immediately following the last page of this file.
         uint32_t file_end_page = file->metadata.page_idx + file_page_length;
@@ -280,7 +280,7 @@ static status_t spifs_commit_toc(spifs_t *spifs)
 
     // Get the next logical ToC.
     toc_position_t target_toc =
-            spifs->toc_position == FRONT_TOC ? BACK_TOC : FRONT_TOC;
+        spifs->toc_position == FRONT_TOC ? BACK_TOC : FRONT_TOC;
 
     // Bump the generation counter.
     uint32_t target_generation = spifs->generation + 1;
