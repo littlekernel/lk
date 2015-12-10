@@ -28,6 +28,7 @@
 #include <compiler.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
+#include <dev/usb/class/bulktest.h>
 #include <hw/usb.h>
 #include <lk/init.h>
 
@@ -80,34 +81,6 @@ static const uint8_t cfg_descr[] = {
 
 static const uchar langid[] = { 0x04, 0x03, 0x09, 0x04 };
 
-static const uint8_t if_descriptor_lowspeed[] = {
-    0x09,           /* length */
-    INTERFACE,      /* type */
-    0x01,           /* interface num */
-    0x00,           /* alternates */
-    0x02,           /* endpoint count */
-    0xff,           /* interface class */
-    0xff,           /* interface subclass */
-    0x00,           /* interface protocol */
-    0x00,           /* string index */
-
-    /* endpoint 1 IN */
-    0x07,           /* length */
-    ENDPOINT,       /* type */
-    0x81,           /* address: 1 IN */
-    0x02,           /* type: bulk */
-    W(64),          /* max packet size: 64 */
-    00,             /* interval */
-
-    /* endpoint 1 OUT */
-    0x07,           /* length */
-    ENDPOINT,       /* type */
-    0x01,           /* address: 1 OUT */
-    0x02,           /* type: bulk */
-    W(64),          /* max packet size: 64 */
-    00,             /* interval */
-};
-
 usb_config config = {
     .lowspeed = {
         .device = USB_DESC_STATIC(dev_descr),
@@ -123,97 +96,16 @@ usb_config config = {
     .langid = USB_DESC_STATIC(langid),
 };
 
-static status_t ep_cb_rx(ep_t endpoint, usbc_transfer_t *t);
-static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t);
-
-static void queue_rx(void)
-{
-    static usbc_transfer_t transfer;
-    static uint8_t buf[512];
-
-    transfer.callback = &ep_cb_rx;
-    transfer.result = 0;
-    transfer.buf = &buf;
-    transfer.buflen = sizeof(buf);
-    transfer.bufpos = 0;
-    transfer.extra = 0;
-
-    usbc_queue_rx(1, &transfer);
-}
-
-static void queue_tx(void)
-{
-    static usbc_transfer_t transfer;
-    static uint8_t buf[512];
-
-    for (uint i = 0; i < sizeof(buf); i++) {
-        buf[i] = ~i;
-    }
-
-    transfer.callback = &ep_cb_tx;
-    transfer.result = 0;
-    transfer.buf = &buf;
-    transfer.buflen = sizeof(buf);
-    transfer.bufpos = 0;
-    transfer.extra = 0;
-
-    usbc_queue_tx(1, &transfer);
-}
-
-static status_t ep_cb_rx(ep_t endpoint, usbc_transfer_t *t)
-{
-#if LOCAL_TRACE
-    LTRACEF("ep %u transfer %p\n", endpoint, t);
-    usbc_dump_transfer(t);
-
-    if (t->result >= 0) {
-        hexdump8(t->buf, t->bufpos);
-    }
-#endif
-
-    if (t->result >= 0)
-        queue_rx();
-
-    return NO_ERROR;
-}
-
-static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t)
-{
-#if LOCAL_TRACE
-    LTRACEF("ep %u transfer %p\n", endpoint, t);
-    usbc_dump_transfer(t);
-#endif
-
-    if (t->result >= 0)
-        queue_tx();
-
-    return NO_ERROR;
-}
-
-static status_t usb_cb(void *cookie, usb_callback_op_t op, const union usb_callback_args *args)
-{
-    LTRACEF("cookie %p, op %u, args %p\n", cookie, op, args);
-
-    if (op == USB_CB_ONLINE) {
-        usbc_setup_endpoint(1, USB_IN, 0x40);
-        usbc_setup_endpoint(1, USB_OUT, 0x40);
-
-        queue_rx();
-        queue_tx();
-    }
-    return NO_ERROR;
-}
-
 void target_usb_setup(void)
 {
     usb_setup(&config);
     printf("appending interfaces\n");
-    usb_append_interface_lowspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));
-    usb_append_interface_highspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));
 
     usb_add_string("LK", 1);
     usb_add_string("LK Industries", 2);
 
-    usb_register_callback(&usb_cb, NULL);
+    /* add our bulk endpoint class device */
+    usb_class_bulktest_init(1, 1, 1);
+
     usb_start();
 }

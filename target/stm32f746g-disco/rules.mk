@@ -28,7 +28,8 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/usb.c
 
 MODULE_DEPS += \
-    lib/gfx
+    lib/gfx \
+    dev/usb/class/bulktest
 
 include make/module.mk
 
