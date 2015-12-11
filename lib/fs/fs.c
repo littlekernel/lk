@@ -424,7 +424,7 @@ status_t fs_close_dir(dirhandle *handle)
     return 0;
 }
 
-status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat)
+status_t fs_stat_fs(const char *mountpoint, struct fs_stat *stat)
 {
     LTRACEF("mountpoint %s stat %p\n", mountpoint, stat);
 

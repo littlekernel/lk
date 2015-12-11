@@ -77,7 +77,7 @@ status_t fs_open_dir(const char *path, dirhandle **handle) __NONNULL();
 status_t fs_read_dir(dirhandle *handle, struct dirent *ent) __NONNULL();
 status_t fs_close_dir(dirhandle *handle) __NONNULL();
 
-status_t fs_stat_fs(const char* mountpoint, struct fs_stat* stat) __NONNULL((1)) __NONNULL((2));
+status_t fs_stat_fs(const char *mountpoint, struct fs_stat *stat) __NONNULL((1)) __NONNULL((2));
 
 /* convenience routines */
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen) __NONNULL();
@@ -95,7 +95,7 @@ typedef struct dircookie dircookie;
 struct bdev;
 
 struct fs_api {
-    status_t (*format)(struct bdev *, const void*);
+    status_t (*format)(struct bdev *, const void *);
     status_t (*fs_stat)(fscookie *, struct fs_stat *);
 
     status_t (*mount)(struct bdev *, fscookie **);

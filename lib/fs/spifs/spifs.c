@@ -62,7 +62,7 @@
 typedef int32_t toc_position_t;
 
 typedef struct {
-    uint8_t* page;
+    uint8_t *page;
     uint32_t page_size;
     uint32_t page_count;
     uint32_t blocks_per_page;
@@ -125,8 +125,8 @@ typedef struct {
 static status_t spifs_read_page(spifs_t *spifs, uint32_t page_addr);
 static status_t spifs_write_page(spifs_t *spifs, uint32_t page_addr);
 
-static status_t get_device_page_info(bdev_t* dev, uint32_t* page_size,
-                                     uint32_t* page_count);
+static status_t get_device_page_info(bdev_t *dev, uint32_t *page_size,
+                                     uint32_t *page_count);
 
 
 static status_t cursor_init(
@@ -150,7 +150,7 @@ static status_t cursor_init(
     return spifs_read_page(spifs, page_id);
 }
 
-static uint8_t *cursor_get(cursor_t* cursor)
+static uint8_t *cursor_get(cursor_t *cursor)
 {
     spifs_t *spifs = cursor->spifs;
 
@@ -183,7 +183,7 @@ static status_t cursor_advance(cursor_t *cursor)
     return NO_ERROR;
 }
 
-static spifs_file_t *find_file(spifs_t *spifs, const char* name)
+static spifs_file_t *find_file(spifs_t *spifs, const char *name)
 {
     spifs_file_t *file;
 
@@ -216,7 +216,7 @@ static uint32_t find_open_run(spifs_t *spifs, uint32_t requested_length)
         uint32_t file_end_page = file->metadata.page_idx + file_page_length;
 
         // Determine the page that the next file starts at.
-        spifs_file_t* next =
+        spifs_file_t *next =
             list_next_type(&spifs->files, &file->node, spifs_file_t, node);
 
         // End of list?
@@ -258,7 +258,7 @@ static bool consistency_check(spifs_t *spifs)
         uint32_t file_end_page = file->metadata.page_idx + file_page_length - 1;
 
         // Determine the page that the next file starts at.
-        spifs_file_t* next =
+        spifs_file_t *next =
             list_next_type(&spifs->files, &file->node, spifs_file_t, node);
 
         // End of list?
@@ -299,9 +299,9 @@ static status_t spifs_commit_toc(spifs_t *spifs)
     };
     memset(header._reserved, 0, TOC_HEADER_RESERVED_BYTES);
 
-    crc = crc32(crc, (uint8_t*)&header, SPIFS_ENTRY_LENGTH);
+    crc = crc32(crc, (uint8_t *)&header, SPIFS_ENTRY_LENGTH);
 
-    memcpy(cursor, (uint8_t*)&header, SPIFS_ENTRY_LENGTH);
+    memcpy(cursor, (uint8_t *)&header, SPIFS_ENTRY_LENGTH);
     cursor += SPIFS_ENTRY_LENGTH;
 
     // Create an empty file to copy into the empty spots in the ToC
@@ -324,12 +324,12 @@ static status_t spifs_commit_toc(spifs_t *spifs)
         }
 
         if (file) {
-            crc = crc32(crc, (uint8_t*)&file->metadata, SPIFS_ENTRY_LENGTH);
-            memcpy(cursor, (uint8_t*)&file->metadata, SPIFS_ENTRY_LENGTH);
+            crc = crc32(crc, (uint8_t *)&file->metadata, SPIFS_ENTRY_LENGTH);
+            memcpy(cursor, (uint8_t *)&file->metadata, SPIFS_ENTRY_LENGTH);
             file = list_next_type(&spifs->files, &file->node, spifs_file_t, node);
         } else {
-            crc = crc32(crc, (uint8_t*)&empty, SPIFS_ENTRY_LENGTH);
-            memcpy(cursor, (uint8_t*)&empty, SPIFS_ENTRY_LENGTH);
+            crc = crc32(crc, (uint8_t *)&empty, SPIFS_ENTRY_LENGTH);
+            memcpy(cursor, (uint8_t *)&empty, SPIFS_ENTRY_LENGTH);
         }
 
         cursor += SPIFS_ENTRY_LENGTH;
@@ -337,14 +337,14 @@ static status_t spifs_commit_toc(spifs_t *spifs)
 
     // Sanity check. The cursor should be at the last position in this page
     // at this point.
-    uint8_t* expected_cursor_location =
+    uint8_t *expected_cursor_location =
         (spifs->page + spifs->page_size) - SPIFS_ENTRY_LENGTH;
     DEBUG_ASSERT(cursor == expected_cursor_location);
 
     toc_footer_t footer;
     memset(&footer, 0, SPIFS_ENTRY_LENGTH);
     footer.checksum = crc;
-    memcpy(cursor, (uint8_t*)&footer, SPIFS_ENTRY_LENGTH);
+    memcpy(cursor, (uint8_t *)&footer, SPIFS_ENTRY_LENGTH);
 
     err = spifs_write_page(spifs, toc_page_addr);
     if (err != NO_ERROR)
@@ -429,7 +429,7 @@ static uint32_t get_toc_generation(spifs_t *spifs, toc_position_t toc_pos)
         return CORRUPT_TOC;
     }
 
-    toc_header_t* header = (toc_header_t*)cursor_get(&cursor);
+    toc_header_t *header = (toc_header_t *)cursor_get(&cursor);
 
     if (header->magic != FS_MAGIC) {
         return CORRUPT_TOC;
@@ -443,7 +443,7 @@ static uint32_t get_toc_generation(spifs_t *spifs, toc_position_t toc_pos)
     uint32_t num_toc_entries = header->num_entries;
 
     uint32_t crc = 0;
-    crc = crc32(crc, (uint8_t*)header, SPIFS_ENTRY_LENGTH);
+    crc = crc32(crc, (uint8_t *)header, SPIFS_ENTRY_LENGTH);
 
     header = NULL;
 
@@ -467,7 +467,7 @@ static uint32_t get_toc_generation(spifs_t *spifs, toc_position_t toc_pos)
 
 // page_size will be populated with the device's page size if this function
 // returns NO_ERROR, otherwise the contents of page_size are undefined.
-static status_t get_device_page_info(bdev_t* dev, uint32_t* page_size, uint32_t *page_count)
+static status_t get_device_page_info(bdev_t *dev, uint32_t *page_size, uint32_t *page_count)
 {
     LTRACEF("dev %p, page_size %p\n", dev, page_size);
 
@@ -499,7 +499,7 @@ static status_t get_device_page_info(bdev_t* dev, uint32_t* page_size, uint32_t 
     }
 }
 
-static status_t spifs_format(bdev_t* dev, const void* args)
+static status_t spifs_format(bdev_t *dev, const void *args)
 {
     status_t err = NO_ERROR;
 
@@ -517,7 +517,7 @@ static status_t spifs_format(bdev_t* dev, const void* args)
     if (!args) {
         spifs_args = &default_args;
     } else {
-        spifs_args = (spifs_format_args_t*)args;
+        spifs_args = (spifs_format_args_t *)args;
     }
 
     // Make sure that each of the three data structures are the same size.
@@ -660,7 +660,7 @@ static status_t spifs_mount(bdev_t *dev, fscookie **cookie)
     if (status != NO_ERROR)
         goto err;
 
-    toc_header_t *header = (toc_header_t*)cursor_get(&cursor);
+    toc_header_t *header = (toc_header_t *)cursor_get(&cursor);
     spifs->num_entries = header->num_entries;
     header = NULL;
 
@@ -671,7 +671,7 @@ static status_t spifs_mount(bdev_t *dev, fscookie **cookie)
         if (status != NO_ERROR)
             goto err;
 
-        toc_file_t* file_entry = (toc_file_t*)cursor_get(&cursor);
+        toc_file_t *file_entry = (toc_file_t *)cursor_get(&cursor);
         if (file_entry->capacity == 0) {
             continue;
         }
@@ -712,11 +712,11 @@ static status_t spifs_unmount(fscookie *cookie)
 {
     LTRACEF("cookie %p\n", cookie);
 
-    spifs_t *spifs = (spifs_t*)cookie;
+    spifs_t *spifs = (spifs_t *)cookie;
 
     mutex_acquire(&spifs->lock);
 
-    spifs_file_t* file;
+    spifs_file_t *file;
     while ((file = list_remove_head_type(&spifs->files, spifs_file_t, node))) {
         free(file);
     }
@@ -736,7 +736,7 @@ static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fc
 
     LTRACEF("cookie %p name '%s' filecookie %p len %llu\n", cookie, name, fcookie, len);
 
-    spifs_t *spifs = (spifs_t*)cookie;
+    spifs_t *spifs = (spifs_t *)cookie;
 
     // Strip leading fwd-slashes
     name = trim_name(name);
@@ -817,7 +817,7 @@ static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fc
         goto err;
     }
 
-    *fcookie = (filecookie*) file;
+    *fcookie = (filecookie *) file;
 
 err:
     mutex_release(&spifs->lock);
@@ -829,7 +829,7 @@ static status_t spifs_open(fscookie *cookie, const char *name, filecookie **fcoo
 {
     LTRACEF("cookie %p name '%s' filecookie %p\n", cookie, name, fcookie);
 
-    spifs_t *spifs = (spifs_t*)cookie;
+    spifs_t *spifs = (spifs_t *)cookie;
 
     name = trim_name(name);
 
@@ -902,7 +902,7 @@ static ssize_t spifs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
 {
     LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
 
-    spifs_file_t *file = (spifs_file_t*)fcookie;
+    spifs_file_t *file = (spifs_file_t *)fcookie;
     spifs_t *spifs = file->fs_handle;
 
     if (off < 0)
@@ -938,8 +938,8 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
 
     LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
 
-    spifs_file_t *file = (spifs_file_t*)fcookie;
-    spifs_t *spifs = (spifs_t*)(file->fs_handle);
+    spifs_file_t *file = (spifs_file_t *)fcookie;
+    spifs_t *spifs = (spifs_t *)(file->fs_handle);
 
     if (off < 0)
         return ERR_INVALID_ARGS;
@@ -1038,7 +1038,7 @@ static status_t spifs_stat(filecookie *fcookie, struct file_stat *stat)
 {
     LTRACEF("filecookie %p stat %p\n", fcookie, stat);
 
-    spifs_file_t *file = (spifs_file_t*)fcookie;
+    spifs_file_t *file = (spifs_file_t *)fcookie;
 
     mutex_acquire(&file->fs_handle->lock);
 
@@ -1128,7 +1128,7 @@ static status_t spifs_fs_stat(fscookie *cookie, struct fs_stat *stat)
 {
     LTRACEF("cookie %p, stat %p\n", cookie, stat);
 
-    spifs_t *spifs = (spifs_t*)cookie;
+    spifs_t *spifs = (spifs_t *)cookie;
 
     stat->total_space = (uint64_t)spifs->dev->total_size;
     stat->free_space  = stat->total_space - used_space(spifs);
@@ -1139,7 +1139,7 @@ static status_t spifs_fs_stat(fscookie *cookie, struct fs_stat *stat)
     return NO_ERROR;
 }
 
-static status_t spifs_ioctl_get_file_addr(filecookie *cookie, void** argp)
+static status_t spifs_ioctl_get_file_addr(filecookie *cookie, void **argp)
 {
     LTRACEF("cookie %p, argp %p\n", cookie, argp);
 
@@ -1154,7 +1154,7 @@ static status_t spifs_ioctl_get_file_addr(filecookie *cookie, void** argp)
     bdev_t *dev = spifs->dev;
 
     // Get the base address of the underlying BIO device.
-    void* result_addr;
+    void *result_addr;
     result = bio_ioctl(dev, BIO_IOCTL_GET_MAP_ADDR, &result_addr);
     if (result != NO_ERROR) {
         return result;
@@ -1173,7 +1173,7 @@ static status_t spifs_file_ioctl(filecookie *cookie, int request, void *argp)
 
     switch (request) {
         case FS_IOCTL_GET_FILE_ADDR: {
-            return spifs_ioctl_get_file_addr(cookie, (void**)argp);
+            return spifs_ioctl_get_file_addr(cookie, (void **)argp);
         }
         default: {
             return ERR_NOT_SUPPORTED;
