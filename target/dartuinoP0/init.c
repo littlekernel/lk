@@ -55,36 +55,35 @@ const sdram_config_t target_sdram_config = {
 
 void target_early_init(void)
 {
-
-    GPIO_InitTypeDef gpio_init_structure;
+    GPIO_InitTypeDef gpio_init;
 
     __HAL_RCC_GPIOE_CLK_ENABLE();
     __HAL_RCC_GPIOD_CLK_ENABLE();
     __HAL_RCC_GPIOJ_CLK_ENABLE();
 
-
 #if DEBUG_UART == 3
-    /* configure usart 3 pins */
+    // configure usart 3 pins.
     gpio_config(GPIO_USART3_TX, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF7_USART3) | GPIO_PULLUP);
     gpio_config(GPIO_USART3_RX, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF7_USART3) | GPIO_PULLUP);
 #else
 #error need to configure gpio pins for debug uart
 #endif
 
-    gpio_init_structure.Mode        = GPIO_MODE_OUTPUT_PP;
-    gpio_init_structure.Pull        = GPIO_NOPULL;
-    gpio_init_structure.Speed       = GPIO_SPEED_LOW;
+    gpio_init.Mode    = GPIO_MODE_OUTPUT_PP;
+    gpio_init.Pull    = GPIO_NOPULL;
+    gpio_init.Speed   = GPIO_SPEED_LOW;
 
-    gpio_init_structure.Pin     = GPIO_TO_PIN_MASK(GPIO_LED108) | GPIO_TO_PIN_MASK(GPIO_LED109) |\
-                                  GPIO_TO_PIN_MASK(GPIO_LED110) | GPIO_TO_PIN_MASK(GPIO_LED111);
-    HAL_GPIO_Init(GPIOE, &gpio_init_structure);
+    gpio_init.Pin  = GPIO_TO_PIN_MASK(GPIO_LED108) | GPIO_TO_PIN_MASK(GPIO_LED109) |
+                     GPIO_TO_PIN_MASK(GPIO_LED110) | GPIO_TO_PIN_MASK(GPIO_LED111);
+    HAL_GPIO_Init(GPIOE, &gpio_init);
 
-    gpio_init_structure.Pin     = GPIO_TO_PIN_MASK(GPIO_LED112) | GPIO_TO_PIN_MASK(GPIO_LED113);
-    HAL_GPIO_Init(GPIOD, &gpio_init_structure);
+    gpio_init.Pin  = GPIO_TO_PIN_MASK(GPIO_LED112) | GPIO_TO_PIN_MASK(GPIO_LED113);
+    HAL_GPIO_Init(GPIOD, &gpio_init);
 
-    gpio_init_structure.Pin     = GPIO_TO_PIN_MASK(GPIO_LED114) | GPIO_TO_PIN_MASK(GPIO_LED115);
-    HAL_GPIO_Init(GPIOJ, &gpio_init_structure);
-    // Initialize to a pattern just so we know we have something
+    gpio_init.Pin  = GPIO_TO_PIN_MASK(GPIO_LED114) | GPIO_TO_PIN_MASK(GPIO_LED115);
+    HAL_GPIO_Init(GPIOJ, &gpio_init);
+
+    // Initialize to a pattern just so we know we have something.
     gpio_set(GPIO_LED108, GPIO_LED_ON);
     gpio_set(GPIO_LED109, GPIO_LED_ON);
     gpio_set(GPIO_LED110, GPIO_LED_ON);
@@ -94,10 +93,20 @@ void target_early_init(void)
     gpio_set(GPIO_LED114, GPIO_LED_ON);
     gpio_set(GPIO_LED115, GPIO_LED_ON);
 
-    /* now that the uart gpios are configured, enable the debug uart */
-    stm32_debug_early_init();
+    // Initialize the switches GPIOs for interrupt on raising edge. In order
+    // to use stm32_EXTI15_10_IRQ() handler needs to be provided and EXTI15_10_IRQn
+    // needs to be enabled.
+    gpio_init.Mode   = GPIO_MODE_INPUT;
+    gpio_init.Pull   = GPIO_NOPULL;
+    gpio_init.Speed  = GPIO_SPEED_FAST;
+    gpio_init.Mode   = GPIO_MODE_IT_RISING;
 
-    /* The lcd framebuffer starts at the base of SDRAM */
+    gpio_init.Pin  =  GPIO_TO_PIN_MASK(GPIO_SW100) | GPIO_TO_PIN_MASK(GPIO_SW101) |
+                      GPIO_TO_PIN_MASK(GPIO_SW102) | GPIO_TO_PIN_MASK(GPIO_SW103);
+    HAL_GPIO_Init(GPIOJ, &gpio_init);
+
+    // now that the uart gpios are configured, enable the debug uart.
+    stm32_debug_early_init();
 }
 
 static uint8_t* gen_mac_address(void)
