@@ -280,29 +280,145 @@ static inline void set_current_thread(struct thread *t)
 #else // pre-armv6 || (armv6 & thumb)
 
 /* for pre-armv6 the bodies of these are too big to inline, call an assembly stub version */
-void _arch_enable_ints(void);
-void _arch_disable_ints(void);
 
-int _atomic_add(volatile int *ptr, int val);
-int _atomic_and(volatile int *ptr, int val);
-int _atomic_or(volatile int *ptr, int val);
-int _atomic_add(volatile int *ptr, int val);
-int _atomic_swap(volatile int *ptr, int val);
-int _atomic_cmpxchg(volatile int *ptr, int oldval, int newval);
 
-uint32_t _arch_cycle_count(void);
+static inline void arch_enable_fiqs(void)
+{
+    CF;
+    __asm__ volatile("cpsie f");
+}
 
-static inline int atomic_add(volatile int *ptr, int val) { return _atomic_add(ptr, val); }
-static inline int atomic_and(volatile int *ptr, int val) { return _atomic_and(ptr, val); }
-static inline int atomic_or(volatile int *ptr, int val) { return _atomic_or(ptr, val); }
-static inline int atomic_swap(volatile int *ptr, int val) { return _atomic_swap(ptr, val); }
-static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) { return _atomic_cmpxchg(ptr, oldval, newval); }
+static inline void arch_disable_fiqs(void)
+{
+    __asm__ volatile("cpsid f");
+    CF;
+}
 
-static inline void arch_enable_ints(void) { _arch_enable_ints(); }
-static inline void arch_disable_ints(void) { _arch_disable_ints(); }
+static inline bool arch_fiqs_disabled(void)
+{
+    unsigned int state;
 
-static inline uint32_t arch_cycle_count(void) { return _arch_cycle_count(); }
+    __asm__ volatile("mrs %0, cpsr" : "=r"(state));
+    state &= (1<<6);
 
+    return !!state;
+}
+
+
+
+static inline void arch_enable_ints(void)
+{
+    CF;
+    __asm__ volatile("cpsie i");
+}
+static inline void arch_disable_ints(void)
+{
+    __asm__ volatile("cpsid i");
+    CF;
+}
+
+static inline bool arch_ints_disabled(void)
+{
+    unsigned int state;
+
+    __asm__ volatile("mrs %0, primask" : "=r"(state));
+    state &= 0x1;
+    return !!state;
+}
+static uint32_t _arch_critical_region_counter = 0;
+
+static inline void _arch_critical_region_enter(void)
+{
+     arch_disable_ints();
+     _arch_critical_region_counter++;
+}
+
+static inline void _arch_critical_region_exit(void)
+{
+     _arch_critical_region_counter--;
+     if (_arch_critical_region_counter == 0)
+     {
+        arch_enable_ints();
+     }
+}
+
+static inline int atomic_add(volatile int *ptr, int val)
+{
+    int temp;
+
+    _arch_critical_region_enter();
+    temp = *ptr;
+    *ptr = temp + val;
+    _arch_critical_region_exit();
+    return temp;
+}
+
+static inline  int atomic_and(volatile int *ptr, int val)
+{
+    int temp;
+
+    _arch_critical_region_enter();
+    temp = *ptr;
+    *ptr = temp & val;
+    _arch_critical_region_exit();
+    return temp;
+}
+
+static inline int atomic_or(volatile int *ptr, int val)
+{
+    int temp;
+
+    _arch_critical_region_enter();
+    temp = *ptr;
+    *ptr = temp | val;
+    _arch_critical_region_exit();
+    return temp;
+}
+static inline int atomic_swap(volatile int *ptr, int val)
+{
+    int temp;
+
+    _arch_critical_region_enter();
+    temp = *ptr;
+    *ptr = val;
+    _arch_critical_region_exit();
+    return temp;
+}
+
+static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
+{
+    int temp;
+
+    _arch_critical_region_enter();
+    temp = *ptr;
+    if (temp == oldval) {
+        *ptr = newval;
+    }
+    _arch_critical_region_exit();
+    return temp;
+}
+
+
+
+static inline uint32_t arch_cycle_count(void) { return 0; }
+
+static inline uint arch_curr_cpu_num(void)
+{
+    return 0;
+}
+
+/* use a global pointer to store the current_thread */
+extern struct thread *_current_thread;
+
+static inline struct thread *get_current_thread(void)
+{
+    return _current_thread;
+}
+
+static inline void set_current_thread(struct thread *t)
+{
+    _current_thread = t;
+}
 #endif
 
 #define mb()        DSB
@@ -322,4 +438,3 @@ static inline uint32_t arch_cycle_count(void) { return _arch_cycle_count(); }
 __END_CDECLS;
 
 #endif // ASSEMBLY
-

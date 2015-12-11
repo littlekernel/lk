@@ -13,6 +13,16 @@ GLOBAL_DEFINES += \
 
 # do set some options based on the cpu core
 HANDLED_CORE := false
+ifeq ($(ARM_CPU),cortex-m0)
+GLOBAL_DEFINES += \
+	ARM_CPU_CORTEX_M0=1 \
+	ARM_ISA_ARMV6=1 \
+	ARM_ISA_ARMV6M=1 \
+	ARM_WITH_THUMB=1
+HANDLED_CORE := true
+ENABLE_THUMB := true
+SUBARCH := arm-m
+endif
 ifeq ($(ARM_CPU),cortex-m3)
 GLOBAL_DEFINES += \
 	ARM_CPU_CORTEX_M3=1 \

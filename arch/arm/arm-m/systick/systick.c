@@ -109,7 +109,9 @@ lk_time_t current_time(void)
     do {
         t = ticks;
         delta = (volatile uint32_t)SysTick->VAL;
+#if       (__CORTEX_M >= 0x03)
         DMB;
+#endif
     } while (ticks != t);
 
     /* convert ticks to msec */
@@ -128,7 +130,9 @@ lk_bigtime_t current_time_hires(void)
     do {
         t = ticks;
         delta = (volatile uint32_t)SysTick->VAL;
+#if       (__CORTEX_M >= 0x03)
         DMB;
+#endif        
     } while (ticks != t);
 
     /* convert ticks to usec */

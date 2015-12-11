@@ -112,12 +112,31 @@ static void pendsv(struct arm_cm_exception_frame_long *frame)
 __NAKED void _pendsv(void)
 {
     __asm__ volatile(
+#if       (__CORTEX_M >= 0x03)
         "push	{ r4-r11, lr };"
         "mov	r0, sp;"
         "bl		%0;"
         "pop	{ r4-r11, lr };"
         "bx		lr;"
         :: "i" (pendsv)
+#else
+        "push   { lr };"
+        "mov    r0, r8;"
+        "mov    r1, r9;"
+        "mov    r2, r10;"
+        "mov    r3, r11;"
+        "push   { r0-r3 };"
+        "push   { r4-r7 };"
+        "mov	r0, sp;"
+        "bl		=pendsv;"
+        "pop    { r4-r7 };"
+        "pop    { r0-r3 };"
+        "mov    r8 , r0;"
+        "mov    r9 , r1;"
+        "mov    r10, r2;"
+        "mov    r11, r3;" 
+        "pop    { pc };"
+#endif
     );
     __UNREACHABLE;
 }
@@ -130,15 +149,28 @@ __NAKED void _svc(void)
 {
     __asm__ volatile(
         /* load the pointer to the original exception frame we want to restore */
+#if       (__CORTEX_M >= 0x03)
         "mov	sp, r4;"
         "pop	{ r4-r11, lr };"
         "bx		lr;"
+#else
+        "mov	sp, r4;"
+        "pop    { r4-r7 };"
+        "pop    { r0-r3 };"
+        "mov    r8 , r0;"
+        "mov    r9 , r1;"
+        "mov    r10, r2;"
+        "mov    r11, r3;" 
+        "pop	{ pc };"    
+#endif
     );
 }
 
 __NAKED static void _half_save_and_svc(vaddr_t *fromsp, vaddr_t tosp)
 {
     __asm__ volatile(
+#if       (__CORTEX_M >= 0x03)
+
         "push	{ r4-r11, lr };"
         "str	sp, [r0];"
 
@@ -150,6 +182,26 @@ __NAKED static void _half_save_and_svc(vaddr_t *fromsp, vaddr_t tosp)
 
         "mov	r4, r1;"
         "svc #0;" /* make a svc call to get us into handler mode */
+
+#else
+        "push   { lr };"
+        "mov    r2, r8;"
+        "mov    r3, r9;"
+        "push   { r2-r3 };"
+        "mov    r2, r10;"
+        "mov    r3, r11;"
+        "push   { r2-r3 };"
+        "push   { r4-r7 };"
+        
+        "mov    r3, sp;"
+        "str	r3, [r0];"
+
+        /* make sure we load the destination sp here before we reenable interrupts */
+        "mov	sp, r1;"    /* Seems like a double tap here, sp gets loaded with same */    
+        "cpsie 	i;"         /*   thing twice? */
+        "mov	r4, r1;"    /* supervisor call assumes new threads sp is in r4 */
+        "svc #0;"           /* make a svc call to get us into handler mode */
+#endif
     );
 }
 
@@ -157,6 +209,7 @@ __NAKED static void _half_save_and_svc(vaddr_t *fromsp, vaddr_t tosp)
 __NAKED static void _arch_non_preempt_context_switch(vaddr_t *fromsp, vaddr_t tosp)
 {
     __asm__ volatile(
+#if       (__CORTEX_M >= 0x03)
         "push	{ r4-r11, lr };"
         "str	sp, [r0];"
 
@@ -164,14 +217,46 @@ __NAKED static void _arch_non_preempt_context_switch(vaddr_t *fromsp, vaddr_t to
         "pop	{ r4-r11, lr };"
         "clrex;"
         "bx		lr;"
+#else
+        "push   { lr };"
+        "mov    r2, r8;"
+        "mov    r3, r9;"
+        "push   { r2-r3 };"
+        "mov    r2, r10;"
+        "mov    r3, r11;"
+        "push   { r2-r3 };"
+        "push   { r4-r7 };"
+
+        "mov    r3, sp;"
+        "str	r3, [r0];"
+        "mov	sp, r1;"
+
+        "pop    { r4-r7 };"
+        "pop    { r0-r3 };"
+        "mov    r8 , r0;"
+        "mov    r9 , r1;"
+        "mov    r10, r2;"
+        "mov    r11, r3;" 
+        "pop    { pc };"
+#endif
     );
 }
 
 __NAKED static void _thread_mode_bounce(void)
 {
     __asm__ volatile(
+#if       (__CORTEX_M >= 0x03)
         "pop	{ r4-r11, lr };"
         "bx		lr;"
+#else
+        "pop    { r4-r7 };"
+        "pop    { r0-r3 };"
+        "mov    r8 , r0;"
+        "mov    r9 , r1;"
+        "mov    r10, r2;"
+        "mov    r11, r3;" 
+        "pop    { pc };"
+#endif
     );
     __UNREACHABLE;
 }
@@ -198,10 +283,21 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
             /* return directly to the preempted thread's iframe */
             __asm__ volatile(
                 "mov	sp, %0;"
+#if       (__CORTEX_M >= 0x03)
                 "cpsie	i;"
                 "pop	{ r4-r11, lr };"
                 "clrex;"
                 "bx		lr;"
+#else
+                "cpsie	i;"                
+                "pop    { r4-r7 };"
+                "pop    { r0-r3 };"
+                "mov    r8 , r0;"
+                "mov    r9 , r1;"
+                "mov    r10, r2;"
+                "mov    r11, r3;" 
+                "pop    { pc };"
+#endif
                 :: "r"(newthread->arch.sp)
             );
             __UNREACHABLE;
@@ -219,7 +315,9 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
             //hexdump(frame, sizeof(*frame) + 64);
 
             __asm__ volatile(
-                "clrex;"
+#if       (__CORTEX_M >= 0x03)
+		"clrex;"
+#endif
                 "mov	sp, %0;"
                 "bx		%1;"
                 :: "r"(frame), "r"(0xfffffff9)
