@@ -1143,6 +1143,10 @@ static status_t spifs_ioctl_get_file_addr(filecookie *cookie, void** argp)
 {
     LTRACEF("cookie %p, argp %p\n", cookie, argp);
 
+    if (unlikely(!argp)) {
+        return ERR_INVALID_ARGS;
+    }
+
     status_t result;
 
     spifs_file_t *file = (spifs_file_t *)cookie;
@@ -1170,6 +1174,9 @@ static status_t spifs_file_ioctl(filecookie *cookie, int request, void *argp)
     switch (request) {
         case FS_IOCTL_GET_FILE_ADDR: {
             return spifs_ioctl_get_file_addr(cookie, (void**)argp);
+        }
+        default: {
+            return ERR_NOT_SUPPORTED;
         }
     }
     return ERR_NOT_SUPPORTED;

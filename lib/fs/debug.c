@@ -113,6 +113,10 @@ static int cmd_fs_ioctl(int argc, const cmd_args *argv)
             printf("%s is mapped at %p\n", argv[3].str, file_addr);
 
             return fs_close_file(handle);
+        break;
+        }
+        default: {
+            printf("error, unsupported ioctl: %d\n", request);
         }
     }
 

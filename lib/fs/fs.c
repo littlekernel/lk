@@ -249,6 +249,11 @@ status_t fs_file_ioctl(filehandle *handle, int request, void *argp)
 {
     LTRACEF("filehandle %p, request %d, argp, %p\n", handle, request, argp);
 
+    if (unlikely(!handle || !handle->mount ||
+                 !handle->mount->api || !handle->mount->api->file_ioctl)) {
+        return ERR_INVALID_ARGS;
+    }
+
     return handle->mount->api->file_ioctl(handle->cookie, request, argp);
 }
 
