@@ -9,6 +9,8 @@ PLATFORM := stm32f7xx
 SDRAM_SIZE := 0x00800000
 SDRAM_BASE := 0xc0000000
 
+DISPLAY := LS027B7DH01
+
 GLOBAL_DEFINES += \
     ENABLE_UART3=1 \
     ENABLE_SDRAM=1 \
@@ -29,9 +31,30 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/usb.c \
     $(LOCAL_DIR)/memory_lcd.c \
 
+ifeq ($(DISPLAY),LS013B7DH06)
 
 MODULE_DEPS += \
     lib/gfx
+
+GLOBAL_DEFINES += \
+    LCD_LS013B7DH06=1
+MODULE_SRCS += \
+    $(LOCAL_DIR)/memory_lcd.c \
+    $(LOCAL_DIR)/display/LS013B7DH06.c \
+
+else ifeq ($(DISPLAY),LS027B7DH01)
+
+MODULE_DEPS += \
+    lib/gfx
+
+GLOBAL_DEFINES += \
+    LCD_LS027B7DH01=1
+
+MODULE_SRCS += \
+    $(LOCAL_DIR)/memory_lcd.c \
+    $(LOCAL_DIR)/display/LS027B7DH01.c \
+
+endif
 
 include make/module.mk
 

@@ -31,13 +31,14 @@
 
 // different graphics formats
 typedef enum {
-	GFX_FORMAT_NONE,
-	GFX_FORMAT_RGB_565,
-	GFX_FORMAT_ARGB_8888,
-	GFX_FORMAT_RGB_x888,
-	GFX_FORMAT_MONO,
+    GFX_FORMAT_NONE,
+    GFX_FORMAT_RGB_565,
+    GFX_FORMAT_RGB_332,
+    GFX_FORMAT_ARGB_8888,
+    GFX_FORMAT_RGB_x888,
+    GFX_FORMAT_MONO,
 
-	GFX_FORMAT_MAX
+    GFX_FORMAT_MAX
 } gfx_format;
 
 #define MAX_ALPHA 255
@@ -52,22 +53,22 @@ typedef enum {
  * @ingroup graphics
  */
 typedef struct gfx_surface {
-	void *ptr;
-	bool free_on_destroy;
-	gfx_format format;
-	uint width;
-	uint height;
-	uint stride;
-	uint pixelsize;
-	size_t len;
-	uint alpha;
+    void *ptr;
+    bool free_on_destroy;
+    gfx_format format;
+    uint width;
+    uint height;
+    uint stride;
+    uint pixelsize;
+    size_t len;
+    uint alpha;
 
-	// function pointers
-	uint32_t (*translate_color)(uint32_t input);
-	void (*copyrect)(struct gfx_surface *, uint x, uint y, uint width, uint height, uint x2, uint y2);
-	void (*fillrect)(struct gfx_surface *, uint x, uint y, uint width, uint height, uint color);
-	void (*putpixel)(struct gfx_surface *, uint x, uint y, uint color);
-	void (*flush)(uint starty, uint endy);
+    // function pointers
+    uint32_t (*translate_color)(uint32_t input);
+    void (*copyrect)(struct gfx_surface *, uint x, uint y, uint width, uint height, uint x2, uint y2);
+    void (*fillrect)(struct gfx_surface *, uint x, uint y, uint width, uint height, uint color);
+    void (*putpixel)(struct gfx_surface *, uint x, uint y, uint color);
+    void (*flush)(uint starty, uint endy);
 } gfx_surface;
 
 // copy a rect from x,y with width x height to x2, y2
@@ -85,10 +86,10 @@ void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint col
 // clear the entire surface with a color
 static inline void gfx_clear(gfx_surface *surface, uint color)
 {
-	surface->fillrect(surface, 0, 0, surface->width, surface->height, color);
+    surface->fillrect(surface, 0, 0, surface->width, surface->height, color);
 
-	if (surface->flush)
-		surface->flush(0, surface->height-1);
+    if (surface->flush)
+        surface->flush(0, surface->height-1);
 }
 
 // blend between two surfaces
