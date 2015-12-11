@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
- // 2.7 Inch Monocromatic Sharp Memory LCD
+// 2.7 Inch Monocromatic Sharp Memory LCD
 
 #include <target/display/LS027B7DH01.h>
 #include <string.h>
@@ -30,15 +30,15 @@
 
 uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result)
 {
-	framebuffer += MLCD_WIDTH * idx;
+    framebuffer += MLCD_WIDTH * idx;
 
-	memset(result, 0, MLCD_BYTES_LINE);
+    memset(result, 0, MLCD_BYTES_LINE);
 
-	for (uint i = 0; i < MLCD_WIDTH; ++i) {
-		if (framebuffer[i] > 128) {
-			SET_BIT(result, i);
-		}
-	}
+    for (uint i = 0; i < MLCD_WIDTH; ++i) {
+        if (framebuffer[i] > 128) {
+            SET_BIT(result, i);
+        }
+    }
 
-	return MLCD_BYTES_LINE;
+    return MLCD_BYTES_LINE;
 }
