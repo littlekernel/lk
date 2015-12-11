@@ -39,10 +39,11 @@ unsigned int arm_cm_irq_pri_mask;
 
 void arch_early_init(void)
 {
-    uint i;
 
     arch_disable_ints();
 
+#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+    uint i;
     /* set the vector table base */
     SCB->VTOR = (uint32_t)&vectab;
 
@@ -83,7 +84,7 @@ void arch_early_init(void)
     /* set systick and debugmonitor to medium priority */
     NVIC_SetPriority(SysTick_IRQn, arm_cm_medium_priority());
     NVIC_SetPriority(DebugMonitor_IRQn, arm_cm_medium_priority());
-
+#endif
 #if ARM_WITH_CACHE
     arch_enable_cache(UCACHE);
 #endif
@@ -109,6 +110,7 @@ void arch_idle(void)
 
 void _arm_cm_set_irqpri(uint32_t pri)
 {
+#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
     if (pri == 0) {
         __disable_irq(); // cpsid i
         __set_BASEPRI(0);
@@ -124,6 +126,7 @@ void _arm_cm_set_irqpri(uint32_t pri)
             __set_BASEPRI(_pri);
         __enable_irq(); // cpsie i
     }
+#endif
 }
 
 void arm_cm_irq_entry(void)
@@ -142,13 +145,11 @@ void arm_cm_irq_entry(void)
 
 void arm_cm_irq_exit(bool reschedule)
 {
-    target_set_debug_led(1, false);
-
     if (reschedule)
         arm_cm_trigger_preempt();
 
     KEVLOG_IRQ_EXIT(__get_IPSR());
-
+#endif
     __enable_irq(); // clear PRIMASK
 }
 
