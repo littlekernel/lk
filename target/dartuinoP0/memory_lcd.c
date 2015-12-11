@@ -128,7 +128,7 @@ static void mlcd_flush(uint starty, uint endy)
     vcom_state = vcom_state == VCOM_HI ? VCOM_LO : VCOM_HI;
 
     // Send the image data.
-    for (uint i = starty; i < endy; ++i) {
+    for (uint j = starty; j <= endy; ++j) {
         *bufptr++ = (j + 1);
 
         bufptr += lcd_get_line(framebuffer, j, bufptr);
