@@ -23,8 +23,7 @@
 
 // 2.7 Inch Monocromatic Sharp Memory LCD
 
-#ifndef TARGET_DARTUINOP0_INCLUDE_TARGET_DISPLAY_LS027B7DH01
-#define TARGET_DARTUINOP0_INCLUDE_TARGET_DISPLAY_LS027B7DH01
+#pragma once
 
 #include <lib/gfx.h>
 
@@ -36,5 +35,3 @@
 #define MLCD_BYTES_LINE  (MLCD_WIDTH / 8)
 
 uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result);
-
-#endif  // TARGET_DARTUINOP0_INCLUDE_TARGET_DISPLAY_LS027B7DH01

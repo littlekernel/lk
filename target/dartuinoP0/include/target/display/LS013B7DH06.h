@@ -23,8 +23,7 @@
 
 // 1.33 Inch 3-Bit RGB Sharp Color LCD
 
-#ifndef TARGET_DARTUINOP0_INCLUDE_TARGET_DISPLAY_LS013B7DH06
-#define TARGET_DARTUINOP0_INCLUDE_TARGET_DISPLAY_LS013B7DH06
+#pragma once
 
 #include <lib/gfx.h>
 
@@ -36,5 +35,3 @@
 #define MLCD_BYTES_LINE  ((MLCD_WIDTH * 3) / 8)
 
 uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result);
-
-#endif  // TARGET_DARTUINOP0_INCLUDE_TARGET_DISPLAY_LS013B7DH06
