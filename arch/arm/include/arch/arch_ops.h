@@ -325,82 +325,83 @@ static inline bool arch_ints_disabled(void)
     state &= 0x1;
     return !!state;
 }
-static uint32_t _arch_critical_region_counter = 0;
-
-static inline void _arch_critical_region_enter(void)
-{
-     arch_disable_ints();
-     _arch_critical_region_counter++;
-}
-
-static inline void _arch_critical_region_exit(void)
-{
-     _arch_critical_region_counter--;
-     if (_arch_critical_region_counter == 0)
-     {
-        arch_enable_ints();
-     }
-}
 
 static inline int atomic_add(volatile int *ptr, int val)
 {
     int temp;
+    bool state;
 
-    _arch_critical_region_enter();
+    state = arch_ints_disabled();
+    arch_disable_ints();
     temp = *ptr;
     *ptr = temp + val;
-    _arch_critical_region_exit();
+    if (!state)
+        arch_enable_ints();
     return temp;
 }
 
 static inline  int atomic_and(volatile int *ptr, int val)
 {
     int temp;
+    bool state;
 
-    _arch_critical_region_enter();
+    state = arch_ints_disabled();
+    arch_disable_ints();
     temp = *ptr;
     *ptr = temp & val;
-    _arch_critical_region_exit();
+    if (!state)
+        arch_enable_ints();
     return temp;
 }
 
 static inline int atomic_or(volatile int *ptr, int val)
 {
     int temp;
+    bool state;
 
-    _arch_critical_region_enter();
+    state = arch_ints_disabled();
+    arch_disable_ints();
     temp = *ptr;
     *ptr = temp | val;
-    _arch_critical_region_exit();
+    if (!state)
+        arch_enable_ints();
     return temp;
 }
+
 static inline int atomic_swap(volatile int *ptr, int val)
 {
     int temp;
+    bool state;
 
-    _arch_critical_region_enter();
+    state = arch_ints_disabled();
+    arch_disable_ints();
     temp = *ptr;
     *ptr = val;
-    _arch_critical_region_exit();
+    if (!state)
+        arch_enable_ints();
     return temp;
 }
 
 static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 {
     int temp;
+    bool state;
 
-    _arch_critical_region_enter();
+    state = arch_ints_disabled();
+    arch_disable_ints();
     temp = *ptr;
     if (temp == oldval) {
         *ptr = newval;
     }
-    _arch_critical_region_exit();
+    if (!state)
+        arch_enable_ints();
     return temp;
 }
 
-
-
-static inline uint32_t arch_cycle_count(void) { return 0; }
+static inline uint32_t arch_cycle_count(void)
+{
+    return 0;
+}
 
 static inline uint arch_curr_cpu_num(void)
 {

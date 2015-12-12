@@ -73,18 +73,18 @@ void arch_early_init(void)
 
     /* set priority grouping to 0 */
     NVIC_SetPriorityGrouping(0);
-
     /* enable certain faults */
-    SCB->SHCSR |= (SCB_SHCSR_USGFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_MEMFAULTENA_Msk);
 
+    SCB->SHCSR |= (SCB_SHCSR_USGFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_MEMFAULTENA_Msk);
     /* set the svc and pendsv priority level to pretty low */
+#endif
     NVIC_SetPriority(SVCall_IRQn, arm_cm_lowest_priority());
     NVIC_SetPriority(PendSV_IRQn, arm_cm_lowest_priority());
 
     /* set systick and debugmonitor to medium priority */
     NVIC_SetPriority(SysTick_IRQn, arm_cm_medium_priority());
     NVIC_SetPriority(DebugMonitor_IRQn, arm_cm_medium_priority());
-#endif
+
 #if ARM_WITH_CACHE
     arch_enable_cache(UCACHE);
 #endif
@@ -108,9 +108,10 @@ void arch_idle(void)
     __asm__ volatile("wfi");
 }
 
+#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+
 void _arm_cm_set_irqpri(uint32_t pri)
 {
-#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
     if (pri == 0) {
         __disable_irq(); // cpsid i
         __set_BASEPRI(0);
@@ -126,8 +127,9 @@ void _arm_cm_set_irqpri(uint32_t pri)
             __set_BASEPRI(_pri);
         __enable_irq(); // cpsie i
     }
-#endif
 }
+#endif
+
 
 void arm_cm_irq_entry(void)
 {
@@ -145,11 +147,11 @@ void arm_cm_irq_entry(void)
 
 void arm_cm_irq_exit(bool reschedule)
 {
+
     if (reschedule)
         arm_cm_trigger_preempt();
 
     KEVLOG_IRQ_EXIT(__get_IPSR());
-#endif
     __enable_irq(); // clear PRIMASK
 }
 

@@ -49,5 +49,5 @@ void target_early_init(void)
 void target_init(void)
 {
 	nrf51_debug_init();
-    dprintf(SPEW,"Nordic PCA10028 DK for nRF51822...\n");
+    dprintf(SPEW,"Target: PCA10028 DK...\n");
 }

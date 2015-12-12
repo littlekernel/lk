@@ -113,6 +113,7 @@ static const unsigned int arm_cm_irq_pri_mask = ~((1 << __NVIC_PRIO_BITS) - 1) &
 #endif
 
 #if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+
 void _arm_cm_set_irqpri(uint32_t pri);
 
 static void arm_cm_set_irqpri(uint32_t pri)
@@ -137,6 +138,7 @@ static void arm_cm_set_irqpri(uint32_t pri)
         _arm_cm_set_irqpri(pri);
     }
 }
+#endif
 
 static inline uint32_t arm_cm_highest_priority(void)
 {
@@ -153,17 +155,21 @@ static inline uint32_t arm_cm_medium_priority(void)
     return (1 << (arm_cm_num_irq_pri_bits - 1));
 }
 
+#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
 static inline void arm_cm_trigger_interrupt(int vector)
 {
     NVIC->STIR = vector;
 }
+#endif
+
 
 static inline void arm_cm_trigger_preempt(void)
 {
     SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
-#endif
+
+
 /* systick */
 void arm_cm_systick_init(uint32_t mhz);
 /* extern void _systick(void); // override this */

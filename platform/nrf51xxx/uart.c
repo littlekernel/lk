@@ -114,7 +114,7 @@ int uart_getc(int port, bool wait)
                 return NRF_UART0->RXD;
         }
     } while (wait);
-    return 0;
+    return -1;
 }
 
 void uart_flush_tx(int port) {}

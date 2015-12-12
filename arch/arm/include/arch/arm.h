@@ -44,6 +44,7 @@ __BEGIN_CDECLS
 #elif ARM_ISA_ARMV6
 #define DSB __asm__ volatile("mcr p15, 0, %0, c7, c10, 4" :: "r" (0) : "memory")
 #define ISB __asm__ volatile("mcr p15, 0, %0, c7, c5, 4" :: "r" (0) : "memory")
+#define DMB __asm__ volatile("nop")
 #else
 #error unhandled arm isa
 #endif

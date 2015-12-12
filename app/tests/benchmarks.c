@@ -158,12 +158,14 @@ __NO_INLINE static void arm_bench_cset_stm(void)
 __NO_INLINE static void arm_bench_multi_issue(void)
 {
     uint32_t cycles;
+#if       (__CORTEX_M >= 0x03)
     uint32_t a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0, h = 0;
-
+#endif
 #define ITER 1000000
     uint count = ITER;
     cycles = arch_cycle_count();
     while (count--) {
+#if       (__CORTEX_M >= 0x03)
         asm volatile ("");
         asm volatile ("add %0, %0, %0" : "=r" (a) : "r" (a));
         asm volatile ("add %0, %0, %0" : "=r" (b) : "r" (b));
@@ -173,6 +175,17 @@ __NO_INLINE static void arm_bench_multi_issue(void)
         asm volatile ("add %0, %0, %0" : "=r" (f) : "r" (f));
         asm volatile ("and %0, %0, %0" : "=r" (g) : "r" (g));
         asm volatile ("mov %0, %0" : "=r" (h) : "r" (h));
+#else
+        asm volatile ("");
+        asm volatile ("add r0, r0":::"r0");
+        asm volatile ("add r0, r0":::"r0");
+        asm volatile ("and r0, r0":::"r0");
+        asm volatile ("mov r0, r0":::"r0");
+        asm volatile ("orr r0, r0":::"r0");
+        asm volatile ("add r0, r0":::"r0");
+        asm volatile ("and r0, r0":::"r0");
+        asm volatile ("mov r0, r0":::"r0");
+#endif
     }
     cycles = arch_cycle_count() - cycles;
 

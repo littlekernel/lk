@@ -152,6 +152,7 @@ void _usagefault(void)
 
 __NAKED void _hardfault(void)
 {
+    struct arm_cm_exception_frame * frame;
     __asm__ volatile(
         "push	{r4-r7};"
         "mov   r4, r8;"
@@ -159,14 +160,20 @@ __NAKED void _hardfault(void)
         "mov   r6, r10;"
         "mov   r7, r11;"
         "push   {r4-r7};"
-        "mov	r0, sp;"
-        "b		=hardfault;"
+        "mov	%0, sp;"
+        : "=r" (frame):
     );
+
+    printf("hardfault: ");
+    dump_frame(frame);
+
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
     __UNREACHABLE;
 }
 
 void _memmanage(void)
 {
+    struct arm_cm_exception_frame * frame;
     __asm__ volatile(
         "push	{r4-r7};"
         "mov   r4, r8;"
@@ -174,29 +181,19 @@ void _memmanage(void)
         "mov   r6, r10;"
         "mov   r7, r11;"
         "push   {r4-r7};"
-        "mov	r0, sp;"
-        "b		=memmanage;"
+        "mov	%0, sp;"
+        : "=r" (frame):
     );
+    printf("memmanage: ");
+    dump_frame(frame);
+
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
     __UNREACHABLE;
 }
 
 void _busfault(void)
 {
-    __asm__ volatile(
-        "push	{r4-r7};"
-        "mov   r4, r8;"
-        "mov   r5, r9;"
-        "mov   r6, r10;"
-        "mov   r7, r11;"
-        "push   {r4-r7};"        
-        "mov	r0, sp;"
-        "b		=busfault;"
-    );
-    __UNREACHABLE;
-}
-
-void _usagefault(void)
-{
+    struct arm_cm_exception_frame * frame;
     __asm__ volatile(
         "push	{r4-r7};"
         "mov   r4, r8;"
@@ -204,9 +201,32 @@ void _usagefault(void)
         "mov   r6, r10;"
         "mov   r7, r11;"
         "push   {r4-r7};"
-        "mov	r0, sp;"
-        "b		=usagefault;"
+        "mov	%0, sp;"
+        : "=r" (frame):
     );
+    printf("busfault: ");
+    dump_frame(frame);
+
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+    __UNREACHABLE;
+}
+
+void _usagefault(void)
+{
+    struct arm_cm_exception_frame * frame;
+    __asm__ volatile(
+        "push	{r4-r7};"
+        "mov   r4, r8;"
+        "mov   r5, r9;"
+        "mov   r6, r10;"
+        "mov   r7, r11;"
+        "push   {r4-r7};"
+        "mov	%0, sp;"
+        : "=r" (frame):
+    );
+    printf("usagefault: ");
+    dump_frame(frame);
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
     __UNREACHABLE;
 }
 #endif
