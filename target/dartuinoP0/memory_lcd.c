@@ -31,24 +31,27 @@
 #include <platform/gpio.h>
 #include <target/memory_lcd.h>
 
+#if defined (LCD_LS013B7DH06)
+#include <target/display/LS013B7DH06.h>
+#elif defined (LCD_LS027B7DH01)
+#include <target/display/LS027B7DH01.h>
+#endif
+
 #define LOCAL_TRACE 0
 
 SPI_HandleTypeDef SpiHandle;
-
-#define MLCD_WIDTH  ((uint16_t)400)
-#define MLCD_HEIGHT ((uint16_t)240)
 
 #define MLCD_WR 0x01  // LCD Write Command
 #define MLCD_CM 0x04  // LCD Clear Memory Command
 #define MLCD_NO 0x00  // LCD No-op command
 
-#define MLCD_BYTES_LINE       (MLCD_WIDTH / 8)
-#define MLCD_BUF_SIZE         (MLCD_HEIGHT * MLCD_BYTES_LINE + 5)
+// 5 bytes used as control bytes, MLCD_BYTES_LINE bytes used to data
+#define MLCD_BUF_SIZE  (MLCD_BYTES_LINE + 5)
 
 #define VCOM_HI 0x02
 #define VCOM_LO 0x00
 
-static uint8_t framebuffer[MLCD_HEIGHT][MLCD_WIDTH];
+static uint8_t framebuffer[MLCD_HEIGHT * MLCD_WIDTH];
 static uint8_t vcom_state;
 
 static void chip_select(bool s)
@@ -125,29 +128,18 @@ static void mlcd_flush(uint starty, uint endy)
     vcom_state = vcom_state == VCOM_HI ? VCOM_LO : VCOM_HI;
 
     // Send the image data.
-    for (uint i = starty; i <= endy; ++i) {
-        *bufptr++ = (i + 1);  // Preceed each write with the line number.
+    for (uint j = starty; j <= endy; ++j) {
+        *bufptr++ = (j + 1);
 
-        int ctr = 0;
-        uint8_t outpix = 0;
-        for (uint j = 0; j < MLCD_WIDTH; j++) {
-            uint8_t pixval = framebuffer[i][j] > 128 ? 0xFF : 0x0;
-            outpix |= (pixval & (0x1 << ctr++));
-            if (ctr == 8) {
-                *bufptr++ = outpix;
-                ctr = 0;
-                outpix = 0;
-            }
-        }
-
-        *bufptr++ = outpix;
-        *bufptr = 0x0;
+        bufptr += lcd_get_line(framebuffer, j, bufptr);
 
         if (HAL_SPI_Transmit(&SpiHandle, localbuf, bufptr - localbuf, HAL_MAX_DELAY) != HAL_OK) {
             goto finish;
         }
 
         bufptr = localbuf;
+
+        *bufptr++ = (j + 1);
     }
 
     uint8_t trailer = 0;
@@ -165,7 +157,7 @@ status_t display_get_info(struct display_info *info)
     LTRACEF("display_info %p\n", info);
 
     info->framebuffer = (void*)framebuffer;
-    info->format = GFX_FORMAT_MONO;
+    info->format = MLCD_GFX_FORMAT;
     info->width = MLCD_WIDTH;
     info->height = MLCD_HEIGHT;
     info->stride = MLCD_WIDTH;

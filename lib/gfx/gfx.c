@@ -61,7 +61,6 @@ static uint32_t ARGB8888_to_Luma(uint32_t in)
     return out;
 }
 
-
 static uint32_t ARGB8888_to_RGB565(uint32_t in)
 {
     uint16_t out;
@@ -69,6 +68,17 @@ static uint32_t ARGB8888_to_RGB565(uint32_t in)
     out = (in >> 3) & 0x1f;  // b
     out |= ((in >> 10) & 0x3f) << 5;  // g
     out |= ((in >> 19) & 0x1f) << 11;  // r
+
+    return out;
+}
+
+static uint32_t ARGB8888_to_RGB332(uint32_t in)
+{
+    uint8_t out = 0;
+
+    out = (in >> 6) & 0x3;  // b
+    out |= ((in >> 13) & 0x7) << 2;  // g
+    out |= ((in >> 21) & 0x7) << 5;  // r
 
     return out;
 }
@@ -575,6 +585,14 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
             break;
         case GFX_FORMAT_MONO:
             surface->translate_color = &ARGB8888_to_Luma;
+            surface->copyrect = &copyrect8;
+            surface->fillrect = &fillrect8;
+            surface->putpixel = &putpixel8;
+            surface->pixelsize = 1;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
+            break;
+        case GFX_FORMAT_RGB_332:
+            surface->translate_color = &ARGB8888_to_RGB332;
             surface->copyrect = &copyrect8;
             surface->fillrect = &fillrect8;
             surface->putpixel = &putpixel8;
