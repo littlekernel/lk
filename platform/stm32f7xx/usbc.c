@@ -101,6 +101,7 @@ void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
         t->bufpos = ep->xfer_count;
         t->result = 0;
         t->callback(epnum, t);
+        usbc.do_resched = true;
     }
 }
 
@@ -130,6 +131,7 @@ void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
             t->bufpos = ep->xfer_count;
             t->result = 0;
             t->callback(epnum, t);
+            usbc.do_resched = true;
         }
     }
 }
@@ -142,6 +144,7 @@ void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd)
     args.setup = (struct usb_setup *)hpcd->Setup;
 
     usbc_callback(USB_CB_SETUP_MSG, &args);
+    usbc.do_resched = true;
 }
 
 void HAL_PCD_SOFCallback(PCD_HandleTypeDef *hpcd)
@@ -170,18 +173,21 @@ void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd)
     }
 
     usbc_callback(USB_CB_RESET, NULL);
+    usbc.do_resched = true;
 }
 
 void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd)
 {
     LTRACE_ENTRY;
     usbc_callback(USB_CB_SUSPEND, NULL);
+    usbc.do_resched = true;
 }
 
 void HAL_PCD_ResumeCallback(PCD_HandleTypeDef *hpcd)
 {
     LTRACE_ENTRY;
     usbc_callback(USB_CB_RESUME, NULL);
+    usbc.do_resched = true;
 }
 
 void HAL_PCD_ISOOUTIncompleteCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
