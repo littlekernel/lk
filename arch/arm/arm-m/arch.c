@@ -28,6 +28,7 @@
 #include <kernel/debug.h>
 #include <platform.h>
 #include <arch/arm/cm.h>
+#include <target.h>
 
 extern void *vectab;
 
@@ -135,10 +136,14 @@ void arm_cm_irq_entry(void)
 
     THREAD_STATS_INC(interrupts);
     KEVLOG_IRQ_ENTER(__get_IPSR());
+
+    target_set_debug_led(1, true);
 }
 
 void arm_cm_irq_exit(bool reschedule)
 {
+    target_set_debug_led(1, false);
+
     if (reschedule)
         arm_cm_trigger_preempt();
 
