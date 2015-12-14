@@ -51,8 +51,6 @@ const sdram_config_t target_sdram_config = {
     .col_bits_num = SDRAM_COLUMN_BITS_8
 };
 
-
-
 void target_early_init(void)
 {
     GPIO_InitTypeDef gpio_init;
@@ -141,28 +139,6 @@ void target_init(void)
     // start usb
     target_usb_setup();
 }
-
-/*
-void target_init(void)
-{
-    uint8_t* mac_addr = gen_mac_address();
-    stm32_debug_init();
-
-    eth_init(mac_addr, PHY_KSZ8721);
-#if WITH_LIB_MINIP
-    minip_set_macaddr(mac_addr);
-
-    uint32_t ip_addr = IPV4(192, 168, 0, 98);
-    uint32_t ip_mask = IPV4(255, 255, 255, 0);
-    uint32_t ip_gateway = IPV4_NONE;
-    minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
-#endif
-
-    // start usb
-    target_usb_setup();
-
-}
-*/
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
 {
