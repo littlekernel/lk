@@ -545,7 +545,7 @@ void thread_resched(void)
 #endif
 
 	/* set some optional target debug leds */
-	target_set_debug_led(0, !thread_is_idle(&idle_threads[cpu]));
+	target_set_debug_led(0, !thread_is_idle(newthread));
 
 	/* do the switch */
 	set_current_thread(newthread);
