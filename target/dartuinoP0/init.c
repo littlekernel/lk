@@ -115,23 +115,8 @@ void target_early_init(void)
     target_set_debug_led(3, false);
 }
 
-static uint8_t* gen_mac_address(void)
-{
-    static uint8_t mac_addr[6];
-
-    for (size_t i = 0; i < sizeof(mac_addr); i++) {
-        mac_addr[i] = rand() & 0xff;
-    }
-    mac_addr[5] += 1;
-    /* unicast and locally administered */
-    mac_addr[0] &= ~(1<<0);
-    mac_addr[0] |= (1<<1);
-    return mac_addr;
-}
-
 void target_init(void)
 {
-
     stm32_debug_init();
 
     qspi_flash_init(N25Q128A_FLASH_SIZE);
