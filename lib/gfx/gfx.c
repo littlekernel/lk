@@ -505,6 +505,25 @@ void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, u
             dest += dest_stride_diff;
             src += source_stride_diff;
         }
+    } else if (source->format == GFX_FORMAT_MONO && target->format == GFX_FORMAT_MONO) {
+        // both are 8 bit modes, no alpha
+        const uint8_t *src = (const uint8_t *)source->ptr;
+        uint8_t *dest = &((uint8_t *)target->ptr)[destx + desty * target->stride];
+        uint dest_stride_diff = target->stride - width;
+        uint source_stride_diff = source->stride - width;
+
+        LTRACEF("w %u h %u dstride %u sstride %u\n", width, height, dest_stride_diff, source_stride_diff);
+
+        uint i, j;
+        for (i=0; i < height; i++) {
+            for (j=0; j < width; j++) {
+                *dest = *src;
+                dest++;
+                src++;
+            }
+            dest += dest_stride_diff;
+            src += source_stride_diff;
+        }
     } else {
         panic("gfx_surface_blend: unimplemented colorspace combination (source %d target %d)\n", source->format, target->format);
     }
