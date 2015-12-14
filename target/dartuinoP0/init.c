@@ -107,6 +107,12 @@ void target_early_init(void)
 
     // now that the uart gpios are configured, enable the debug uart.
     stm32_debug_early_init();
+
+    // default all the debug leds to off
+    target_set_debug_led(0, false);
+    target_set_debug_led(1, false);
+    target_set_debug_led(2, false);
+    target_set_debug_led(3, false);
 }
 
 static uint8_t* gen_mac_address(void)
@@ -467,3 +473,28 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd)
         HAL_NVIC_EnableIRQ(OTG_HS_IRQn);
     }
 }
+
+void target_set_debug_led(unsigned int led, bool on)
+{
+    uint32_t gpio;
+
+    switch (led) {
+        case 0:
+            gpio = GPIO_LED112;
+            break;
+        case 1:
+            gpio = GPIO_LED113;
+            break;
+        case 2:
+            gpio = GPIO_LED114;
+            break;
+        case 3:
+            gpio = GPIO_LED115;
+            break;
+        default:
+            return;
+    }
+
+    gpio_set(gpio, on ? GPIO_LED_ON : GPIO_LED_OFF);
+}
+
