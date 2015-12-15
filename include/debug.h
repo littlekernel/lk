@@ -44,8 +44,8 @@ __BEGIN_CDECLS
 
 typedef struct __print_callback print_callback_t;
 struct __print_callback {
-	struct list_node entry;
-	void (*print)(print_callback_t *cb, const char *str, size_t len);
+    struct list_node entry;
+    void (*print)(print_callback_t *cb, const char *str, size_t len);
 };
 
 #if !DISABLE_DEBUG_OUTPUT
@@ -73,7 +73,7 @@ static inline void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr_s
 
 static inline void hexdump8(const void *ptr, size_t len)
 {
-	hexdump8_ex(ptr, len, (uint64_t)((addr_t)ptr));
+    hexdump8_ex(ptr, len, (uint64_t)((addr_t)ptr));
 }
 
 /* register callback to receive debug prints */
