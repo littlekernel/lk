@@ -34,6 +34,8 @@
 #include <platform/debug.h>
 #include <kernel/thread.h>
 
+/* routines for dealing with main console io */
+
 #if WITH_LIB_SM
 #define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_IRQ_FIQ
 #else
@@ -88,34 +90,28 @@ void unregister_print_callback(print_callback_t *cb)
     spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 }
 
-static int __debug_stdio_write(void *ctx, const char *s, size_t len)
+static ssize_t __debug_stdio_write(void *ctx, const char *s, size_t len)
 {
     out_count(s, len);
     return len;
 }
 
-static int __debug_stdio_fgetc(void *ctx)
+static ssize_t __debug_stdio_read(void *ctx, char *s, size_t len)
 {
-    char c;
-    int err;
+    if (len == 0)
+        return 0;
 
-    err = platform_dgetc(&c, true);
+    int err = platform_dgetc(s, true);
     if (err < 0)
         return err;
-    return (unsigned char)c;
+
+    return 1;
 }
 
-#define DEFINE_STDIO_DESC(id)                       \
-    [(id)]  = {                         \
-        .ctx        = &__stdio_FILEs[(id)],         \
-        .write      = __debug_stdio_write,          \
-        .fgetc      = __debug_stdio_fgetc,          \
-    }
-
-FILE __stdio_FILEs[3] = {
-    DEFINE_STDIO_DESC(0), /* stdin */
-    DEFINE_STDIO_DESC(1), /* stdout */
-    DEFINE_STDIO_DESC(2), /* stderr */
+/* global console io handle */
+io_handle_t console_io = {
+    .write  = __debug_stdio_write,
+    .read   = __debug_stdio_read,
+    .ctx    = 0
 };
-#undef DEFINE_STDIO_DESC
 

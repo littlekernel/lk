@@ -52,6 +52,8 @@ void _panic(void *caller, const char *fmt, ...)
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
+#if !DISABLE_DEBUG_OUTPUT
+
 static int __panic_stdio_fgetc(void *ctx)
 {
     char c;
@@ -63,7 +65,19 @@ static int __panic_stdio_fgetc(void *ctx)
     return (unsigned char)c;
 }
 
-static int __panic_stdio_write(void *ctx, const char *s, size_t len)
+static ssize_t __panic_stdio_read(void *ctx, char *s, size_t len)
+{
+    if (len == 0)
+        return 0;
+
+    int err = platform_pgetc(s, false);
+    if (err < 0)
+        return err;
+
+    return 1;
+}
+
+static ssize_t __panic_stdio_write(void *ctx, const char *s, size_t len)
 {
     for (size_t i = 0; i < len; i++) {
         platform_pputc(s[i]);
@@ -71,14 +85,15 @@ static int __panic_stdio_write(void *ctx, const char *s, size_t len)
     return len;
 }
 
-#if !DISABLE_DEBUG_OUTPUT
-
 FILE *get_panic_fd(void)
 {
-    static FILE panic_fd = {
-        .ctx = 0,
-        .fgetc = __panic_stdio_fgetc,
+    static io_handle_t panic_io = {
         .write = __panic_stdio_write,
+        .read = __panic_stdio_read,
+        .ctx = 0
+    };
+    static FILE panic_fd = {
+        .io = &panic_io
     };
 
     return &panic_fd;

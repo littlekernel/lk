@@ -26,13 +26,12 @@
 #include <compiler.h>
 #include <printf.h>
 #include <sys/types.h>
+#include <sys/io.h>
 
 __BEGIN_CDECLS
 
 typedef struct FILE {
-    void *ctx;
-    int (*write)(void *ctx, const char *buf, size_t len);
-    int (*fgetc)(void *ctx);
+    io_handle_t *io;
 } FILE;
 
 extern FILE __stdio_FILEs[];

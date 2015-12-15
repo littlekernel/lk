@@ -26,7 +26,7 @@
 #include <list.h>
 #include <sys/types.h>
 
-/* LK specific calls to register to get input/output in/out of the main console */
+/* LK specific calls to register to get input/output of the main console */
 
 __BEGIN_CDECLS
 
@@ -39,5 +39,27 @@ struct __print_callback {
 /* register callback to receive debug prints */
 void register_print_callback(print_callback_t *cb);
 void unregister_print_callback(print_callback_t *cb);
+
+/* the underlying handle to talk to io devices */
+typedef struct io_handle {
+    ssize_t (*write)(void *ctx, const char *buf, size_t len);
+    ssize_t (*read)(void *ctx, char *buf, size_t len);
+
+    void *ctx;
+} io_handle_t;
+
+/* the main console io handle */
+extern io_handle_t console_io;
+
+/* convenience routines for the above */
+static inline ssize_t io_write(const io_handle_t *io, const char *buf, size_t len)
+{
+    return io->write(io->ctx, buf, len);
+}
+
+static inline ssize_t io_read(const io_handle_t *io, char *buf, size_t len)
+{
+    return io->read(io->ctx, buf, len);
+}
 
 __END_CDECLS
