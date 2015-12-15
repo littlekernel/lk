@@ -31,10 +31,8 @@ __BEGIN_CDECLS
 
 typedef struct FILE {
     void *ctx;
-    int (*fputc)(void *ctx, int c);
-    int (*fputs)(void *ctx, const char *s);
+    int (*write)(void *ctx, const char *buf, size_t len);
     int (*fgetc)(void *ctx);
-    int (*vfprintf)(void *ctx, const char *fmt, va_list ap);
 } FILE;
 
 extern FILE __stdio_FILEs[];

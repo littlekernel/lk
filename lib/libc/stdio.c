@@ -23,12 +23,14 @@
 #include <debug.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 #include <sys/types.h>
 #include <platform/debug.h>
 
-int fputc(int c, FILE *fp)
+int fputc(int _c, FILE *fp)
 {
-    return fp->fputc(fp->ctx, c);
+    unsigned char c = _c;
+    return fp->write(fp->ctx, (char *)&c, 1);
 }
 
 int putchar(int c)
@@ -46,7 +48,9 @@ int puts(const char *str)
 
 int fputs(const char *s, FILE *fp)
 {
-    return fp->fputs(fp->ctx, s);
+    size_t len = strlen(s);
+
+    return fp->write(fp->ctx, s, len);
 }
 
 int getc(FILE *fp)
@@ -59,9 +63,16 @@ int getchar(void)
     return getc(stdin);
 }
 
+static int _fprintf_output_func(const char *str, size_t len, void *state)
+{
+    FILE *fp = (FILE *)state;
+
+    return fp->write(fp->ctx, str, len);
+}
+
 int vfprintf(FILE *fp, const char *fmt, va_list ap)
 {
-    return fp->vfprintf(fp->ctx, fmt, ap);
+    return _printf_engine(&_fprintf_output_func, (void *)fp, fmt, ap);
 }
 
 int fprintf(FILE *fp, const char *fmt, ...)

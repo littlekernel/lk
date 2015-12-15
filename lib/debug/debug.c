@@ -113,17 +113,10 @@ void _panic(void *caller, const char *fmt, ...)
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
-static int __debug_stdio_fputc(void *ctx, int c)
+static int __debug_stdio_write(void *ctx, const char *s, size_t len)
 {
-    char x = c;
-    out_count(&x, 1);
-    return c;
-}
-
-static int __debug_stdio_fputs(void *ctx, const char *s)
-{
-    out_count(s, strlen(s));
-    return 0;
+    out_count(s, len);
+    return len;
 }
 
 static int __debug_stdio_fgetc(void *ctx)
@@ -148,18 +141,11 @@ static int __panic_stdio_fgetc(void *ctx)
     return (unsigned char)c;
 }
 
-static int __debug_stdio_vfprintf(void *ctx, const char *fmt, va_list ap)
-{
-    return _dvprintf(fmt, ap);
-}
-
 #define DEFINE_STDIO_DESC(id)                       \
     [(id)]  = {                         \
         .ctx        = &__stdio_FILEs[(id)],         \
-        .fputc      = __debug_stdio_fputc,          \
-        .fputs      = __debug_stdio_fputs,          \
+        .write      = __debug_stdio_write,          \
         .fgetc      = __debug_stdio_fgetc,          \
-        .vfprintf   = __debug_stdio_vfprintf,       \
     }
 
 FILE __stdio_FILEs[3] = {
@@ -173,10 +159,7 @@ FILE get_panic_fd(void)
 {
     FILE panic_fd;
     panic_fd.fgetc = __panic_stdio_fgetc;
-
-    panic_fd.fputc = __debug_stdio_fputc;
-    panic_fd.fputs = __debug_stdio_fputs;
-    panic_fd.vfprintf = __debug_stdio_vfprintf;
+    panic_fd.write = __debug_stdio_write;
     return panic_fd;
 }
 
@@ -274,5 +257,3 @@ void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr)
 }
 
 #endif // !DISABLE_DEBUG_OUTPUT
-
-// vim: set noexpandtab:

@@ -60,6 +60,50 @@ int snprintf(char *str, size_t len, const char *fmt, ...)
     return err;
 }
 
+int vsprintf(char *str, const char *fmt, va_list ap)
+{
+    return vsnprintf(str, INT_MAX, fmt, ap);
+}
+
+struct _output_args {
+    char *outstr;
+    size_t len;
+    size_t pos;
+};
+
+static int _vsnprintf_output(const char *str, size_t len, void *state)
+{
+    struct _output_args *args = state;
+
+    size_t count = 0;
+    while (count < len) {
+        if (args->pos < args->len) {
+            args->outstr[args->pos++] = *str;
+        }
+
+        str++;
+        count++;
+    }
+
+    return count;
+}
+
+int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
+{
+    struct _output_args args;
+    int wlen;
+
+    args.outstr = str;
+    args.len = len;
+    args.pos = 0;
+
+    wlen = _printf_engine(&_vsnprintf_output, (void *)&args, fmt, ap);
+    if (args.pos >= len)
+        str[len-1] = '\0';
+    else
+        str[wlen] = '\0';
+    return wlen;
+}
 
 #define LONGFLAG       0x00000001
 #define LONGLONGFLAG   0x00000002
@@ -358,51 +402,6 @@ __NO_INLINE static char *double_to_hexstring(char *buf, size_t len, double d, ui
 #undef OUTSTR
 
 #endif // FLOAT_PRINTF
-
-int vsprintf(char *str, const char *fmt, va_list ap)
-{
-    return vsnprintf(str, INT_MAX, fmt, ap);
-}
-
-struct _output_args {
-    char *outstr;
-    size_t len;
-    size_t pos;
-};
-
-static int _vsnprintf_output(const char *str, size_t len, void *state)
-{
-    struct _output_args *args = state;
-
-    size_t count = 0;
-    while (count < len) {
-        if (args->pos < args->len) {
-            args->outstr[args->pos++] = *str;
-        }
-
-        str++;
-        count++;
-    }
-
-    return count;
-}
-
-int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
-{
-    struct _output_args args;
-    int wlen;
-
-    args.outstr = str;
-    args.len = len;
-    args.pos = 0;
-
-    wlen = _printf_engine(&_vsnprintf_output, (void *)&args, fmt, ap);
-    if (args.pos >= len)
-        str[len-1] = '\0';
-    else
-        str[wlen] = '\0';
-    return wlen;
-}
 
 int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap)
 {
