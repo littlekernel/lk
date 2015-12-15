@@ -71,15 +71,18 @@ static int __panic_stdio_write(void *ctx, const char *s, size_t len)
     return len;
 }
 
-FILE get_panic_fd(void)
-{
-    FILE panic_fd;
-    panic_fd.fgetc = __panic_stdio_fgetc;
-    panic_fd.write = __panic_stdio_write;
-    return panic_fd;
-}
-
 #if !DISABLE_DEBUG_OUTPUT
+
+FILE *get_panic_fd(void)
+{
+    static FILE panic_fd = {
+        .ctx = 0,
+        .fgetc = __panic_stdio_fgetc,
+        .write = __panic_stdio_write,
+    };
+
+    return &panic_fd;
+}
 
 void hexdump(const void *ptr, size_t len)
 {

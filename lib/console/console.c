@@ -852,8 +852,9 @@ void panic_shell_start(void)
 
     // panic_fd allows us to do I/O using the polling drivers.
     // These drivers function even if interrupts are disabled.
-    FILE _panic_fd = get_panic_fd();
-    FILE *panic_fd = &_panic_fd;
+    FILE *panic_fd = get_panic_fd();
+    if (!panic_fd)
+        return;
 
     for (;;) {
         fputs("! ", panic_fd);
