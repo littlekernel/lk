@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,25 +20,24 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __LIB_PRINTF_H
-#define __LIB_PRINTF_H
+#pragma once
 
-#include <stdarg.h>
 #include <compiler.h>
-#include <stddef.h>
+#include <list.h>
+#include <sys/types.h>
+
+/* LK specific calls to register to get input/output in/out of the main console */
 
 __BEGIN_CDECLS
 
-/* printf engine that parses the format string and generates output */
+typedef struct __print_callback print_callback_t;
+struct __print_callback {
+    struct list_node entry;
+    void (*print)(print_callback_t *cb, const char *str, size_t len);
+};
 
-/* function pointer to pass the printf engine, called back during the formatting.
- * input is a string to output, length bytes to output,
- * return code is number of characters that would have been written, or error code (if negative)
- */
-typedef int (*_printf_engine_output_func)(const char *str, size_t len, void *state);
-
-int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap);
+/* register callback to receive debug prints */
+void register_print_callback(print_callback_t *cb);
+void unregister_print_callback(print_callback_t *cb);
 
 __END_CDECLS
-
-#endif

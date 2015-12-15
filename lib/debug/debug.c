@@ -27,71 +27,10 @@
 #include <printf.h>
 #include <stdio.h>
 #include <list.h>
-#include <string.h>
 #include <arch/ops.h>
 #include <platform.h>
 #include <platform/debug.h>
-#include <kernel/thread.h>
-
-#if !DISABLE_DEBUG_OUTPUT
-static int _dvprintf(const char *fmt, va_list ap);
-#else
-static inline int _dvprintf(const char *fmt, va_list ap) { return 0; }
-#endif
-
-#if WITH_LIB_SM
-#define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_IRQ_FIQ
-#else
-#define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_INTERRUPTS
-#endif
-
-static spin_lock_t print_spin_lock = 0;
-static struct list_node print_callbacks = LIST_INITIAL_VALUE(print_callbacks);
-
-/* print lock must be held when invoking out, outs, outc */
-static void out_count(const char *str, size_t len)
-{
-    print_callback_t *cb;
-    size_t i;
-
-    /* print to any registered loggers */
-    if (!list_is_empty(&print_callbacks)) {
-        spin_lock_saved_state_t state;
-        spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
-
-        list_for_every_entry(&print_callbacks, cb, print_callback_t, entry) {
-            if (cb->print)
-                cb->print(cb, str, len);
-        }
-
-        spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
-    }
-
-    /* write out the serial port */
-    for (i = 0; i < len; i++) {
-        platform_dputc(str[i]);
-    }
-}
-
-void register_print_callback(print_callback_t *cb)
-{
-    spin_lock_saved_state_t state;
-    spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
-
-    list_add_head(&print_callbacks, &cb->entry);
-
-    spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
-}
-
-void unregister_print_callback(print_callback_t *cb)
-{
-    spin_lock_saved_state_t state;
-    spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
-
-    list_delete(&cb->entry);
-
-    spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
-}
+#include <kernel/spinlock.h>
 
 void spin(uint32_t usecs)
 {
@@ -103,31 +42,14 @@ void spin(uint32_t usecs)
 
 void _panic(void *caller, const char *fmt, ...)
 {
-    dprintf(ALWAYS, "panic (caller %p): ", caller);
+    printf("panic (caller %p): ", caller);
 
     va_list ap;
     va_start(ap, fmt);
-    _dvprintf(fmt, ap);
+    vprintf(fmt, ap);
     va_end(ap);
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
-}
-
-static int __debug_stdio_write(void *ctx, const char *s, size_t len)
-{
-    out_count(s, len);
-    return len;
-}
-
-static int __debug_stdio_fgetc(void *ctx)
-{
-    char c;
-    int err;
-
-    err = platform_dgetc(&c, true);
-    if (err < 0)
-        return err;
-    return (unsigned char)c;
 }
 
 static int __panic_stdio_fgetc(void *ctx)
@@ -141,52 +63,23 @@ static int __panic_stdio_fgetc(void *ctx)
     return (unsigned char)c;
 }
 
-#define DEFINE_STDIO_DESC(id)                       \
-    [(id)]  = {                         \
-        .ctx        = &__stdio_FILEs[(id)],         \
-        .write      = __debug_stdio_write,          \
-        .fgetc      = __debug_stdio_fgetc,          \
+static int __panic_stdio_write(void *ctx, const char *s, size_t len)
+{
+    for (size_t i = 0; i < len; i++) {
+        platform_pputc(s[i]);
     }
-
-FILE __stdio_FILEs[3] = {
-    DEFINE_STDIO_DESC(0), /* stdin */
-    DEFINE_STDIO_DESC(1), /* stdout */
-    DEFINE_STDIO_DESC(2), /* stderr */
-};
-#undef DEFINE_STDIO_DESC
+    return len;
+}
 
 FILE get_panic_fd(void)
 {
     FILE panic_fd;
     panic_fd.fgetc = __panic_stdio_fgetc;
-    panic_fd.write = __debug_stdio_write;
+    panic_fd.write = __panic_stdio_write;
     return panic_fd;
 }
 
 #if !DISABLE_DEBUG_OUTPUT
-
-static int _dprintf_output_func(const char *str, size_t len, void *state)
-{
-    out_count(str, len);
-    return len;
-}
-
-int _dvprintf(const char *fmt, va_list ap)
-{
-    return _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
-}
-
-int _dprintf(const char *fmt, ...)
-{
-    int err;
-    va_list ap;
-
-    va_start(ap, fmt);
-    err = _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
-    va_end(ap);
-
-    return err;
-}
 
 void hexdump(const void *ptr, size_t len)
 {

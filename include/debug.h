@@ -20,15 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __DEBUG_H
-#define __DEBUG_H
+#pragma once
 
-#include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <compiler.h>
 #include <platform/debug.h>
-#include <list.h>
-#include <stdio.h>
 
 #if !defined(LK_DEBUGLEVEL)
 #define LK_DEBUGLEVEL 0
@@ -42,16 +39,7 @@
 
 __BEGIN_CDECLS
 
-typedef struct __print_callback print_callback_t;
-struct __print_callback {
-    struct list_node entry;
-    void (*print)(print_callback_t *cb, const char *str, size_t len);
-};
-
 #if !DISABLE_DEBUG_OUTPUT
-
-/* input/output */
-int _dprintf(const char *fmt, ...) __PRINTFLIKE(1, 2);
 
 // Obtain the panic file descriptor.
 FILE get_panic_fd(void);
@@ -61,9 +49,6 @@ void hexdump(const void *ptr, size_t len);
 void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr_start);
 
 #else
-
-/* input/output */
-static inline int __PRINTFLIKE(1, 2) _dprintf(const char *fmt, ...) { return 0; }
 
 /* dump memory */
 static inline void hexdump(const void *ptr, size_t len) { }
@@ -76,11 +61,7 @@ static inline void hexdump8(const void *ptr, size_t len)
     hexdump8_ex(ptr, len, (uint64_t)((addr_t)ptr));
 }
 
-/* register callback to receive debug prints */
-void register_print_callback(print_callback_t *cb);
-void unregister_print_callback(print_callback_t *cb);
-
-#define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { _dprintf(x); } } while (0)
+#define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { printf(x); } } while (0)
 
 /* systemwide halts */
 void _panic(void *caller, const char *fmt, ...) __PRINTFLIKE(2, 3) __NO_RETURN;
@@ -95,5 +76,3 @@ void spin(uint32_t usecs);
 void spin_cycles(uint32_t usecs);
 
 __END_CDECLS
-
-#endif

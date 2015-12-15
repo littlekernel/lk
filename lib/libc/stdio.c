@@ -97,3 +97,8 @@ int _printf(const char *fmt, ...)
 
     return err;
 }
+
+int _vprintf(const char *fmt, va_list ap)
+{
+    return vfprintf(stdout, fmt, ap);
+}

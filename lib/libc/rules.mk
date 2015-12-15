@@ -10,6 +10,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/bsearch.c \
 	$(LOCAL_DIR)/ctype.c \
 	$(LOCAL_DIR)/errno.c \
+	$(LOCAL_DIR)/io.c \
 	$(LOCAL_DIR)/printf.c \
 	$(LOCAL_DIR)/rand.c \
 	$(LOCAL_DIR)/strtol.c \
