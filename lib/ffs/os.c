@@ -231,6 +231,7 @@ int fclose(FILE *stream)
 	return 0;
 }
 
+#if 0
 size_t fread(void *ptr, size_t size, size_t count, FILE *stream)
 {
 	FRESULT res;
@@ -256,6 +257,7 @@ size_t fwrite(const void *ptr, size_t size, size_t count, FILE *stream)
 	
 	return bwrite;
 }
+#endif
 
 int fflush(FILE *stream)
 {

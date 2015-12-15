@@ -18,6 +18,6 @@ MODULE_SRCS += \
 
 MODULE_ARM_OVERRIDE_SRCS := \
 
-MODULE_COMPILEFLAGS += -Wno-format
+MODULE_COMPILEFLAGS += -Wno-format -fno-builtin
 
 include make/module.mk

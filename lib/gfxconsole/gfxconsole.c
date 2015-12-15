@@ -32,6 +32,7 @@
 
 #include <debug.h>
 #include <assert.h>
+#include <sys/io.h>
 #include <lk/init.h>
 #include <lib/gfx.h>
 #include <lib/gfxconsole.h>

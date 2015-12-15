@@ -267,9 +267,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
                 case 0x8:
                     if (pos > 0) {
                         pos--;
-                        fputc('\b', stdout);
-                        putchar(' ');
-                        fputc('\b', stdout); // move to the left one
+                        fputs("\b \b", stdout); // wipe out a character
                     }
                     break;
 
@@ -301,9 +299,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
                     if (pos > 0) {
                         pos--;
                         if (echo) {
-                            fputc('\b', stdout); // move to the left one
-                            putchar(' ');
-                            fputc('\b', stdout); // move to the left one
+                            fputs("\b \b", stdout); // wipe out a character
                         }
                     }
                     break;
@@ -314,9 +310,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
                     while (pos > 0) {
                         pos--;
                         if (echo) {
-                            fputc('\b', stdout); // move to the left one
-                            putchar(' ');
-                            fputc('\b', stdout); // move to the left one
+                            fputs("\b \b", stdout); // wipe out a character
                         }
                     }
 
@@ -825,9 +819,7 @@ static void read_line_panic(char* buffer, const size_t len, FILE* panic_fd)
             case 0x8:
                 if (pos > 0) {
                     pos--;
-                    fputc('\b', stdout);
-                    fputc(' ', panic_fd);
-                    fputc('\b', stdout); // move to the left one
+                    fputs("\b \b", panic_fd); // wipe out a character
                 }
                 break;
             default:

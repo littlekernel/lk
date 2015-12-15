@@ -53,6 +53,22 @@ int fputs(const char *s, FILE *fp)
     return fp->write(fp->ctx, s, len);
 }
 
+size_t fwrite(const void *ptr, size_t size, size_t count, FILE *fp)
+{
+    size_t bytes_written;
+
+    if (size == 0 || count == 0)
+        return 0;
+
+    // fast path for size == 1
+    if (likely(size == 1)) {
+        return fp->write(fp->ctx, ptr, count);
+    }
+
+    bytes_written = fp->write(fp->ctx, ptr, size * count);
+    return bytes_written / size;
+}
+
 int getc(FILE *fp)
 {
     return fp->fgetc(fp->ctx);
