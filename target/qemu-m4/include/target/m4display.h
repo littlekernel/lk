@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2015 Gurjant Kalsi <me@gurjantkalsi.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,32 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <trace.h>
-#include <target.h>
-#include <compiler.h>
-#include <dev/gpio.h>
-#include <stm32f4xx_usart.h>
-#include <stm32f4xx_rcc.h>
-#include <stm32f4xx_gpio.h>
-#include <platform/stm32.h>
-#include <platform/gpio.h>
-#include <target/debugconfig.h>
-#include <target/m4display.h>
 
-void target_early_init(void)
-{
-	stm32_debug_early_init();
-}
+#pragma once
 
-void target_init(void)
-{
-	TRACE_ENTRY;
-
-	stm32_debug_init();
-
-	init_display();
-
-	TRACE_EXIT;
-}
+void init_display(void);

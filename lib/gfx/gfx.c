@@ -83,6 +83,17 @@ static uint32_t ARGB8888_to_RGB332(uint32_t in)
     return out;
 }
 
+static uint32_t ARGB8888_to_RGB2220(uint32_t in)
+{
+    uint8_t out = 0;
+
+    out =  ((in >> 6) & 0x3) << 2;
+    out |= ((in >> 14) & 0x3) << 4;
+    out |= ((in >> 22)  & 0x3) << 6;
+
+    return out;
+}
+
 /**
  * @brief  Copy a rectangle of pixels from one part of the display to another.
  */
@@ -612,6 +623,14 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
             break;
         case GFX_FORMAT_RGB_332:
             surface->translate_color = &ARGB8888_to_RGB332;
+            surface->copyrect = &copyrect8;
+            surface->fillrect = &fillrect8;
+            surface->putpixel = &putpixel8;
+            surface->pixelsize = 1;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
+            break;
+        case GFX_FORMAT_RGB_2220:
+            surface->translate_color = &ARGB8888_to_RGB2220;
             surface->copyrect = &copyrect8;
             surface->fillrect = &fillrect8;
             surface->putpixel = &putpixel8;
