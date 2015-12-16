@@ -124,7 +124,7 @@ void target_init(void)
 #if WITH_LIB_MINIP
     uint8_t mac_addr[6];
     gen_random_mac_address(mac_addr);
-    eth_init(mac_addr, PHY_LAN8742A);
+    eth_init(mac_addr, PHY_KSZ8721);
 
     /* start minip */
     minip_set_macaddr(mac_addr);
