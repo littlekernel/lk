@@ -89,15 +89,15 @@ void setup_pins(void)
     GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
     GPIO_Init(GPIOA, &GPIO_InitStruct);
-    
+
     // connect SPI6 pins to SPI alternate function
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource5, GPIO_AF_SPI6);
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF_SPI6);
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource7, GPIO_AF_SPI6);
-    
+
     // enable clock for used IO pins
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
-    
+
     /* Configure the chip select pin
        in this case we will use PE7 */
     GPIO_InitStruct.GPIO_Pin = GPIO_Pin_8;
@@ -106,7 +106,7 @@ void setup_pins(void)
     GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(GPIOG, &GPIO_InitStruct);
-    
+
     GPIOE->BSRRL |= GPIO_Pin_7; // set PE7 high
 
     // Setup display CS Pin
@@ -114,7 +114,7 @@ void setup_pins(void)
 
     // Setup display reset pin
     gpio_config(GPIO(GPIO_PORT_G, 15), GPIO_OUTPUT);
-    
+
     // enable peripheral clock
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI6, ENABLE);
 }
@@ -206,7 +206,7 @@ status_t display_get_info(struct display_info *info)
 {
     LTRACEF("display_info %p\n", info);
 
-    info->framebuffer = (void*)framebuffer;
+    info->framebuffer = (void *)framebuffer;
     info->format = GFX_FORMAT_RGB_2220;
     info->width = M4DISPLAY_WIDTH;
     info->height = M4DISPLAY_HEIGHT;

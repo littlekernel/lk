@@ -344,7 +344,7 @@ static void fillrect32(gfx_surface *surface, uint x, uint y, uint width, uint he
     }
 }
 
-void gfx_line(gfx_surface* surface, uint x1, uint y1, uint x2, uint y2, uint color)
+void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint color)
 {
     if (unlikely(x1 >= surface->width))
         return;
@@ -660,7 +660,7 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
  */
 gfx_surface *gfx_create_surface_from_display(struct display_info *info)
 {
-    gfx_surface* surface;
+    gfx_surface *surface;
     surface = gfx_create_surface(info->framebuffer, info->width, info->height, info->stride, info->format);
 
     surface->flush = info->flush;

@@ -36,16 +36,16 @@
 
 void target_early_init(void)
 {
-	stm32_debug_early_init();
+    stm32_debug_early_init();
 }
 
 void target_init(void)
 {
-	TRACE_ENTRY;
+    TRACE_ENTRY;
 
-	stm32_debug_init();
+    stm32_debug_init();
 
-	init_display();
+    init_display();
 
-	TRACE_EXIT;
+    TRACE_EXIT;
 }
