@@ -56,9 +56,9 @@
 
 static uint8_t framebuffer[M4DISPLAY_HEIGHT][M4DISPLAY_WIDTH];
 
-const char programming_header[] = "  Lattice\0iCEcube2 2014.08.26723\0Part: iCE40LP1K-CM36\0Date: Jan 30 2015 15:11:";
+static const char programming_header[] = "  Lattice\0iCEcube2 2014.08.26723\0Part: iCE40LP1K-CM36\0Date: Jan 30 2015 15:11:";
 
-void chip_select(bool val)
+static void chip_select(bool val)
 {
     if (val) {
         gpio_set(GPIO(GPIO_PORT_G, 8), true);
@@ -67,7 +67,7 @@ void chip_select(bool val)
     }
 }
 
-void reset(bool val)
+static void reset(bool val)
 {
     if (val) {
         gpio_set(GPIO(GPIO_PORT_G, 15), true);
@@ -76,7 +76,7 @@ void reset(bool val)
     }
 }
 
-void setup_pins(void)
+static void setup_pins(void)
 {
 
     GPIO_InitTypeDef GPIO_InitStruct;
@@ -143,7 +143,7 @@ void init_display(void)
     reset(true);
     chip_select(false);
 
-    uint8_t draw_splash_cmds[] = { 0x04, 0x01 };
+    const uint8_t draw_splash_cmds[] = { 0x04, 0x01 };
 
     for (size_t i = 0; i < countof(draw_splash_cmds); i++) {
         SPI_I2S_SendData(SPI6, draw_splash_cmds[i]);

@@ -16,8 +16,8 @@ GLOBAL_DEFINES += \
     PKTBUF_POOL_SIZE=16
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/m4display.c \
-	$(LOCAL_DIR)/init.c
+	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/m4display.c
 
 MODULE_DEPS += \
     lib/gfx
