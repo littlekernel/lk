@@ -65,7 +65,7 @@ static int __panic_stdio_fgetc(void *ctx)
     return (unsigned char)c;
 }
 
-static ssize_t __panic_stdio_read(void *ctx, char *s, size_t len)
+static ssize_t __panic_stdio_read(io_handle_t *io, char *s, size_t len)
 {
     if (len == 0)
         return 0;
@@ -77,7 +77,7 @@ static ssize_t __panic_stdio_read(void *ctx, char *s, size_t len)
     return 1;
 }
 
-static ssize_t __panic_stdio_write(void *ctx, const char *s, size_t len)
+static ssize_t __panic_stdio_write(io_handle_t *io, const char *s, size_t len)
 {
     for (size_t i = 0; i < len; i++) {
         platform_pputc(s[i]);
@@ -87,10 +87,13 @@ static ssize_t __panic_stdio_write(void *ctx, const char *s, size_t len)
 
 FILE *get_panic_fd(void)
 {
-    static io_handle_t panic_io = {
+    static const io_handle_hooks_t panic_hooks = {
         .write = __panic_stdio_write,
         .read = __panic_stdio_read,
-        .ctx = 0
+    };
+    static io_handle_t panic_io = {
+        .magic = IO_HANDLE_MAGIC,
+        .hooks = &panic_hooks
     };
     static FILE panic_fd = {
         .io = &panic_io

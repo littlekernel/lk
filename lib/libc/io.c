@@ -22,11 +22,10 @@
  */
 #include <sys/io.h>
 
+#include <err.h>
 #include <ctype.h>
 #include <debug.h>
-#include <stdlib.h>
-#include <printf.h>
-#include <stdio.h>
+#include <assert.h>
 #include <list.h>
 #include <string.h>
 #include <arch/ops.h>
@@ -90,13 +89,13 @@ void unregister_print_callback(print_callback_t *cb)
     spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 }
 
-static ssize_t __debug_stdio_write(void *ctx, const char *s, size_t len)
+static ssize_t __debug_stdio_write(io_handle_t *io, const char *s, size_t len)
 {
     out_count(s, len);
     return len;
 }
 
-static ssize_t __debug_stdio_read(void *ctx, char *s, size_t len)
+static ssize_t __debug_stdio_read(io_handle_t *io, char *s, size_t len)
 {
     if (len == 0)
         return 0;
@@ -109,9 +108,33 @@ static ssize_t __debug_stdio_read(void *ctx, char *s, size_t len)
 }
 
 /* global console io handle */
-io_handle_t console_io = {
+static const io_handle_hooks_t console_io_hooks = {
     .write  = __debug_stdio_write,
     .read   = __debug_stdio_read,
-    .ctx    = 0
 };
+
+io_handle_t console_io = {
+    .magic = IO_HANDLE_MAGIC,
+    .hooks  = &console_io_hooks
+};
+
+ssize_t io_write(io_handle_t *io, const char *buf, size_t len)
+{
+    DEBUG_ASSERT(io->magic == IO_HANDLE_MAGIC);
+
+    if (!io->hooks->write)
+        return ERR_NOT_SUPPORTED;
+
+    return io->hooks->write(io, buf, len);
+}
+
+ssize_t io_read(io_handle_t *io, char *buf, size_t len)
+{
+    DEBUG_ASSERT(io->magic == IO_HANDLE_MAGIC);
+
+    if (!io->hooks->read)
+        return ERR_NOT_SUPPORTED;
+
+    return io->hooks->read(io, buf, len);
+}
 

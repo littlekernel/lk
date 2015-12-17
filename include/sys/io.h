@@ -41,25 +41,24 @@ void register_print_callback(print_callback_t *cb);
 void unregister_print_callback(print_callback_t *cb);
 
 /* the underlying handle to talk to io devices */
-typedef struct io_handle {
-    ssize_t (*write)(void *ctx, const char *buf, size_t len);
-    ssize_t (*read)(void *ctx, char *buf, size_t len);
+struct io_handle;
+typedef struct io_handle_hooks {
+    ssize_t (*write)(struct io_handle *handle, const char *buf, size_t len);
+    ssize_t (*read)(struct io_handle *handle, char *buf, size_t len);
+} io_handle_hooks_t;
 
-    void *ctx;
+#define IO_HANDLE_MAGIC 'ioh '
+
+typedef struct io_handle {
+    uint32_t magic;
+    const io_handle_hooks_t *hooks;
 } io_handle_t;
 
 /* the main console io handle */
 extern io_handle_t console_io;
 
-/* convenience routines for the above */
-static inline ssize_t io_write(const io_handle_t *io, const char *buf, size_t len)
-{
-    return io->write(io->ctx, buf, len);
-}
-
-static inline ssize_t io_read(const io_handle_t *io, char *buf, size_t len)
-{
-    return io->read(io->ctx, buf, len);
-}
+/* routines to call through the io handle */
+ssize_t io_write(io_handle_t *io, const char *buf, size_t len);
+ssize_t io_read(io_handle_t *io, char *buf, size_t len);
 
 __END_CDECLS
