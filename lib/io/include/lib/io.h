@@ -54,11 +54,20 @@ typedef struct io_handle {
     const io_handle_hooks_t *hooks;
 } io_handle_t;
 
-/* the main console io handle */
-extern io_handle_t console_io;
-
 /* routines to call through the io handle */
 ssize_t io_write(io_handle_t *io, const char *buf, size_t len);
 ssize_t io_read(io_handle_t *io, char *buf, size_t len);
+
+/* initialization routine */
+#define IO_HANDLE_INITIAL_VALUE(_hooks) { .magic = IO_HANDLE_MAGIC, .hooks = _hooks }
+
+static inline void io_handle_init(io_handle_t *io, io_handle_hooks_t *hooks)
+{
+    *io = (io_handle_t)IO_HANDLE_INITIAL_VALUE(hooks);
+}
+
+/* the main console io handle */
+extern io_handle_t console_io;
+
 
 __END_CDECLS

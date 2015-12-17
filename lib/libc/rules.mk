@@ -3,14 +3,14 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS := \
-	lib/heap
+	lib/heap \
+	lib/io
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/atoi.c \
 	$(LOCAL_DIR)/bsearch.c \
 	$(LOCAL_DIR)/ctype.c \
 	$(LOCAL_DIR)/errno.c \
-	$(LOCAL_DIR)/io.c \
 	$(LOCAL_DIR)/printf.c \
 	$(LOCAL_DIR)/rand.c \
 	$(LOCAL_DIR)/strtol.c \

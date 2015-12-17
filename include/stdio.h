@@ -26,7 +26,7 @@
 #include <compiler.h>
 #include <printf.h>
 #include <sys/types.h>
-#include <sys/io.h>
+#include <lib/io.h>
 
 __BEGIN_CDECLS
 

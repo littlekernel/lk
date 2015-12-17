@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <sys/io.h>
+#include <lib/io.h>
 
 #include <err.h>
 #include <ctype.h>
@@ -113,28 +113,4 @@ static const io_handle_hooks_t console_io_hooks = {
     .read   = __debug_stdio_read,
 };
 
-io_handle_t console_io = {
-    .magic = IO_HANDLE_MAGIC,
-    .hooks  = &console_io_hooks
-};
-
-ssize_t io_write(io_handle_t *io, const char *buf, size_t len)
-{
-    DEBUG_ASSERT(io->magic == IO_HANDLE_MAGIC);
-
-    if (!io->hooks->write)
-        return ERR_NOT_SUPPORTED;
-
-    return io->hooks->write(io, buf, len);
-}
-
-ssize_t io_read(io_handle_t *io, char *buf, size_t len)
-{
-    DEBUG_ASSERT(io->magic == IO_HANDLE_MAGIC);
-
-    if (!io->hooks->read)
-        return ERR_NOT_SUPPORTED;
-
-    return io->hooks->read(io, buf, len);
-}
-
+io_handle_t console_io = IO_HANDLE_INITIAL_VALUE(&console_io_hooks);
