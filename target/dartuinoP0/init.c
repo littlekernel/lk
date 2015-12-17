@@ -43,6 +43,11 @@
 #include <lib/minip.h>
 #endif
 
+#if WITH_LIB_FS_SPIFS
+#include <lib/fs.h>
+#include <target/fsconfig.h>
+#endif
+
 extern void target_usb_setup(void);
 
 const sdram_config_t target_sdram_config = {
@@ -134,6 +139,17 @@ void target_init(void)
     uint32_t ip_gateway = IPV4_NONE;
 
     minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+#endif
+
+#if WITH_LIB_FS_SPIFS
+    status_t mount_success =
+            fs_mount(SPIFS_MOUNT_POINT, SPIFS_NAME, SPIFS_TARGET_DEVICE);
+    if (mount_success != NO_ERROR) {
+        printf("failed to mount '%s' at path '%s' on '%s'."
+               " Make sure that device is formatted\n",
+               SPIFS_NAME, SPIFS_MOUNT_POINT, SPIFS_TARGET_DEVICE);
+    }
+
 #endif
 
     // start usb
