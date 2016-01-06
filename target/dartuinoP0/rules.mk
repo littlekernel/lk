@@ -25,10 +25,14 @@ GLOBAL_DEFINES += \
 \
     TARGET_HAS_DEBUG_LED=1
 
+MODULE_DEPS += \
+    app/accelerometer \
+
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/init.c \
+    $(LOCAL_DIR)/sensor_bus.c \
     $(LOCAL_DIR)/usb.c \
 
 ifneq ($(DISPLAY_PANEL_TYPE),)

@@ -28,15 +28,18 @@
 #include <compiler.h>
 #include <dev/gpio.h>
 #include <dev/usb.h>
+#include <dev/accelerometer.h>
 #include <platform/stm32.h>
 #include <platform/sdram.h>
 #include <platform/gpio.h>
 #include <platform/eth.h>
 #include <platform/qspi.h>
 #include <platform/n25q128a.h>
+#include <target/bmi055.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
 #include <target/memory_lcd.h>
+#include <target/sensor_bus.h>
 #include <reg.h>
 
 #if WITH_LIB_MINIP
@@ -86,7 +89,7 @@ void target_early_init(void)
     gpio_init.Pin  = GPIO_TO_PIN_MASK(GPIO_LED114) | GPIO_TO_PIN_MASK(GPIO_LED115);
     HAL_GPIO_Init(GPIOJ, &gpio_init);
 
-    // Initialize to a pattern just so we know we have something.
+    // Initialize to a pattern just so we know we have something
     gpio_set(GPIO_LED108, GPIO_LED_ON);
     gpio_set(GPIO_LED109, GPIO_LED_ON);
     gpio_set(GPIO_LED110, GPIO_LED_ON);
@@ -108,6 +111,9 @@ void target_early_init(void)
                       GPIO_TO_PIN_MASK(GPIO_SW102) | GPIO_TO_PIN_MASK(GPIO_SW103);
     HAL_GPIO_Init(GPIOJ, &gpio_init);
 
+    // Initialize Sensor bus (accelerometer / gyroscope / nrf51 spi bus
+    sensor_bus_init_early();
+
     // now that the uart gpios are configured, enable the debug uart.
     stm32_debug_early_init();
 
@@ -117,6 +123,7 @@ void target_early_init(void)
     target_set_debug_led(2, false);
     target_set_debug_led(3, false);
 }
+
 
 void target_init(void)
 {
@@ -154,6 +161,8 @@ void target_init(void)
 
     // start usb
     target_usb_setup();
+
+    sensor_bus_init();
 }
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
