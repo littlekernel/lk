@@ -27,6 +27,9 @@ unsigned swd_set_clock(unsigned khz);
 unsigned swo_set_clock(unsigned khz);
 void swd_hw_reset(int assert);
 
+void jtag_init(void);
+int jtag_io(unsigned count, unsigned tms, unsigned tdi, unsigned *tdo);
+
 // swdp_read/write() register codes
 
 // Park Stop Parity Addr3 Addr2 RnW APnDP Start
