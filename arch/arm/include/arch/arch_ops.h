@@ -277,6 +277,148 @@ static inline void set_current_thread(struct thread *t)
 
 #endif // !ARM_ISA_ARMV7M
 
+#elif ARM_ISA_ARMV6M // cortex-m0 cortex-m0+
+
+
+static inline void arch_enable_fiqs(void)
+{
+    CF;
+    __asm__ volatile("cpsie f");
+}
+
+static inline void arch_disable_fiqs(void)
+{
+    __asm__ volatile("cpsid f");
+    CF;
+}
+
+static inline bool arch_fiqs_disabled(void)
+{
+    unsigned int state;
+
+    __asm__ volatile("mrs %0, cpsr" : "=r"(state));
+    state &= (1<<6);
+
+    return !!state;
+}
+
+
+
+static inline void arch_enable_ints(void)
+{
+    CF;
+    __asm__ volatile("cpsie i");
+}
+static inline void arch_disable_ints(void)
+{
+    __asm__ volatile("cpsid i");
+    CF;
+}
+
+static inline bool arch_ints_disabled(void)
+{
+    unsigned int state;
+
+    __asm__ volatile("mrs %0, primask" : "=r"(state));
+    state &= 0x1;
+    return !!state;
+}
+
+static inline int atomic_add(volatile int *ptr, int val)
+{
+    int temp;
+    bool state;
+
+    state = arch_ints_disabled();
+    arch_disable_ints();
+    temp = *ptr;
+    *ptr = temp + val;
+    if (!state)
+        arch_enable_ints();
+    return temp;
+}
+
+static inline  int atomic_and(volatile int *ptr, int val)
+{
+    int temp;
+    bool state;
+
+    state = arch_ints_disabled();
+    arch_disable_ints();
+    temp = *ptr;
+    *ptr = temp & val;
+    if (!state)
+        arch_enable_ints();
+    return temp;
+}
+
+static inline int atomic_or(volatile int *ptr, int val)
+{
+    int temp;
+    bool state;
+
+    state = arch_ints_disabled();
+    arch_disable_ints();
+    temp = *ptr;
+    *ptr = temp | val;
+    if (!state)
+        arch_enable_ints();
+    return temp;
+}
+
+static inline int atomic_swap(volatile int *ptr, int val)
+{
+    int temp;
+    bool state;
+
+    state = arch_ints_disabled();
+    arch_disable_ints();
+    temp = *ptr;
+    *ptr = val;
+    if (!state)
+        arch_enable_ints();
+    return temp;
+}
+
+static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
+{
+    int temp;
+    bool state;
+
+    state = arch_ints_disabled();
+    arch_disable_ints();
+    temp = *ptr;
+    if (temp == oldval) {
+        *ptr = newval;
+    }
+    if (!state)
+        arch_enable_ints();
+    return temp;
+}
+
+static inline uint32_t arch_cycle_count(void)
+{
+    return 0;
+}
+
+static inline uint arch_curr_cpu_num(void)
+{
+    return 0;
+}
+
+/* use a global pointer to store the current_thread */
+extern struct thread *_current_thread;
+
+static inline struct thread *get_current_thread(void)
+{
+    return _current_thread;
+}
+
+static inline void set_current_thread(struct thread *t)
+{
+    _current_thread = t;
+}
+
 #else // pre-armv6 || (armv6 & thumb)
 
 /* for pre-armv6 the bodies of these are too big to inline, call an assembly stub version */
@@ -322,4 +464,3 @@ static inline uint32_t arch_cycle_count(void) { return _arch_cycle_count(); }
 __END_CDECLS;
 
 #endif // ASSEMBLY
-

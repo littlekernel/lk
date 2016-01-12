@@ -155,11 +155,11 @@ __NO_INLINE static void arm_bench_cset_stm(void)
     free(buf);
 }
 
+#if       (__CORTEX_M >= 0x03)
 __NO_INLINE static void arm_bench_multi_issue(void)
 {
     uint32_t cycles;
     uint32_t a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0, h = 0;
-
 #define ITER 1000000
     uint count = ITER;
     cycles = arch_cycle_count();
@@ -179,6 +179,7 @@ __NO_INLINE static void arm_bench_multi_issue(void)
     printf("took %u cycles to issue 8 integer ops (%f cycles/iteration)\n", cycles, (float)cycles / ITER);
 #undef ITER
 }
+#endif // __CORTEX_M
 #endif // ARCH_ARM
 
 #if WITH_LIB_LIBM
@@ -237,7 +238,9 @@ void benchmarks(void)
 #if ARCH_ARM
     arm_bench_cset_stm();
 
+#if       (__CORTEX_M >= 0x03)
     arm_bench_multi_issue();
+#endif
 #endif
 #if WITH_LIB_LIBM
     bench_sincos();
