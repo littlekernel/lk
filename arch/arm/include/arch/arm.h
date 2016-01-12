@@ -30,11 +30,11 @@
 
 /* due to the cp15 accessors below, you're gonna have a bad time if you try
  * to compile in thumb mode. Either compile in ARM only or get a thumb2 capable cpu.
- */
+
 #if defined(__thumb__) && !defined(__thumb2__)
 #error this file unsupported in thumb1 mode
 #endif
-
+*/
 __BEGIN_CDECLS
 
 #if ARM_ISA_ARMV7
@@ -44,6 +44,7 @@ __BEGIN_CDECLS
 #elif ARM_ISA_ARMV6
 #define DSB __asm__ volatile("mcr p15, 0, %0, c7, c10, 4" :: "r" (0) : "memory")
 #define ISB __asm__ volatile("mcr p15, 0, %0, c7, c5, 4" :: "r" (0) : "memory")
+#define DMB __asm__ volatile("nop")
 #else
 #error unhandled arm isa
 #endif

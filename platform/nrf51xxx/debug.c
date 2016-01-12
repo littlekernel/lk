@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,37 +20,45 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ARCH_CPU_H
-#define __ARCH_CPU_H
+#include <stdarg.h>
+#include <reg.h>
+#include <debug.h>
+#include <stdio.h>
+#include <kernel/thread.h>
+#include <dev/uart.h>
+#include <arch/ops.h>
+#include <arch/arm/cm.h>
+#include <platform/debug.h>
+#include <target/debugconfig.h>
 
-/* arm specific stuff */
-#define PAGE_SIZE 4096
-#define PAGE_SIZE_SHIFT 12
 
-#if ARM_CPU_ARM7
-/* irrelevant, no consistent cache */
-#define CACHE_LINE 32
-#elif ARM_CPU_ARM926
-#define CACHE_LINE 32
-#elif ARM_CPU_ARM1136
-#define CACHE_LINE 32
-#elif ARM_CPU_ARMEMU
-#define CACHE_LINE 32
-#elif ARM_CPU_CORTEX_A7
-#define CACHE_LINE 64 /* XXX L1 icache is 32 bytes */
-#elif ARM_CPU_CORTEX_A8
-#define CACHE_LINE 64
-#elif ARM_CPU_CORTEX_A9
-#define CACHE_LINE 32
-#elif ARM_CPU_CORTEX_M0 || ARM_CPU_CORTEX_M3 || ARM_CPU_CORTEX_M4
-#define CACHE_LINE 32 /* doesn't actually matter */
-#elif ARM_CPU_CORTEX_M7
-#define CACHE_LINE 32
-#elif ARM_CPU_CORTEX_A15
-#define CACHE_LINE 64
-#else
-#error unknown cpu
-#endif
 
-#endif
+void nrf51_debug_early_init(void)
+{
+	uart_init_early();
+}
+
+/* later in the init process */
+void nrf51_debug_init(void)
+{
+	uart_init();
+}
+
+
+
+void platform_dputc(char c)
+{
+	if (c == '\n')
+		uart_putc(DEBUG_UART, '\r');
+	uart_putc(DEBUG_UART, c);
+}
+
+int platform_dgetc(char *c, bool wait)
+{
+	int ret = uart_getc(DEBUG_UART, wait);
+	if (ret == -1)
+		return -1;
+	*c = ret;
+	return 0;
+}
 
