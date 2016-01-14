@@ -36,7 +36,7 @@
 #if !DISABLE_DEBUG_OUTPUT
 static int _dvprintf(const char *fmt, va_list ap);
 #else
-static inline int _dvprintf(const char *fmt, va_list ap) { }
+static inline int _dvprintf(const char *fmt, va_list ap) { return 0; }
 #endif
 
 #if WITH_LIB_SM
