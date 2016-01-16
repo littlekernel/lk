@@ -30,6 +30,7 @@
 #include <kernel/mutex.h>
 #include <lib/bio.h>
 #include <platform/n25qxxa.h>
+#include <platform/n25q128a.h>
 #include <platform/n25q512a.h>
 #include <platform/qspi.h>
 #include <trace.h>
@@ -60,6 +61,7 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
 static ssize_t qspi_bulk_erase(bdev_t *device);
 static ssize_t qspi_erase_sector(bdev_t *device, uint32_t block_addr);
 static ssize_t qspi_erase_subsector(bdev_t *device, uint32_t block_addr);
+static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi, uint8_t match, uint8_t mask);
 
 static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*);
 static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
@@ -75,6 +77,7 @@ static uint32_t get_address_size(uint32_t address);
 static event_t cmd_event;
 static event_t rx_event;
 static event_t tx_event;
+static event_t st_event;
 
 status_t hal_error_to_status(HAL_StatusTypeDef hal_status);
 
@@ -82,7 +85,6 @@ status_t hal_error_to_status(HAL_StatusTypeDef hal_status);
 static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef* hqspi)
 {
     QSPI_CommandTypeDef s_command;
-    QSPI_AutoPollingTypeDef s_config;
     HAL_StatusTypeDef status;
 
     /* Enable write operations */
@@ -101,18 +103,7 @@ static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef* hqspi)
         return hal_error_to_status(status);
     }
 
-    /* Configure automatic polling mode to wait for write enabling */
-    s_config.Match = N25QXXA_SR_WREN;
-    s_config.Mask = N25QXXA_SR_WREN;
-    s_config.MatchMode = QSPI_MATCH_MODE_AND;
-    s_config.StatusBytesSize = 1;
-    s_config.Interval = 0x10;
-    s_config.AutomaticStop = QSPI_AUTOMATIC_STOP_ENABLE;
-
-    s_command.Instruction = READ_STATUS_REG_CMD;
-    s_command.DataMode = QSPI_DATA_1_LINE;
-
-    status = HAL_QSPI_AutoPolling(hqspi, &s_command, &s_config, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status = qspi_auto_polling_mem_ready_unsafe(hqspi, N25QXXA_SR_WREN, N25QXXA_SR_WREN);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
@@ -179,7 +170,7 @@ static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef* hqspi)
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi)
+static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi, uint8_t match, uint8_t mask)
 {
     QSPI_CommandTypeDef s_command;
     QSPI_AutoPollingTypeDef s_config;
@@ -196,8 +187,8 @@ static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi)
     s_command.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
     s_command.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
 
-    s_config.Match = 0;
-    s_config.Mask = N25QXXA_SR_WIP;
+    s_config.Match = match;
+    s_config.Mask = mask;
     s_config.MatchMode = QSPI_MATCH_MODE_AND;
     s_config.StatusBytesSize = 1;
     s_config.Interval = 0x10;
@@ -207,6 +198,7 @@ static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi)
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
+    event_wait(&st_event);
 
     return NO_ERROR;
 }
@@ -229,20 +221,20 @@ static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef* hqspi)
     s_command.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
 
     /* Send the command */
-    status = qspi_cmd(hqspi, &s_command);
+    status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
 
     /* Send the reset memory command */
     s_command.Instruction = RESET_MEMORY_CMD;
-    status = qspi_cmd(hqspi, &s_command);
+    status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
 
     /* Configure automatic polling mode to wait the memory is ready */
-    status = qspi_auto_polling_mem_ready_unsafe(hqspi);
+    status = qspi_auto_polling_mem_ready_unsafe(hqspi, 0, N25QXXA_SR_WIP);
     if (status != NO_ERROR) {
         return hal_error_to_status(status);
     }
@@ -449,7 +441,7 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
     }
 
     status_t auto_polling_mem_ready_result =
-        qspi_auto_polling_mem_ready_unsafe(&qspi_handle);
+        qspi_auto_polling_mem_ready_unsafe(&qspi_handle, 0, N25QXXA_SR_WIP);
     if (auto_polling_mem_ready_result != NO_ERROR) {
         return auto_polling_mem_ready_result;
     }
@@ -465,6 +457,7 @@ status_t qspi_flash_init(size_t flash_size)
     event_init(&cmd_event, false, EVENT_FLAG_AUTOUNSIGNAL);
     event_init(&tx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
     event_init(&rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
+    event_init(&st_event, false, EVENT_FLAG_AUTOUNSIGNAL);
 
     mutex_init(&spiflash_mutex);
     result = mutex_acquire(&spiflash_mutex);
@@ -569,7 +562,6 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     }
 
     QSPI_CommandTypeDef erase_cmd;
-
     ssize_t num_erased_bytes;
     switch (instruction) {
         case SUBSECTOR_ERASE_CMD: {
@@ -618,13 +610,13 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     }
 
     /* Send the command */
-    if (qspi_cmd(&qspi_handle, &erase_cmd) != HAL_OK) {
+    if (HAL_QSPI_Command(&qspi_handle, &erase_cmd, HAL_QPSI_TIMEOUT_DEFAULT_VALUE) != HAL_OK) {
         return ERR_GENERIC;
     }
 
     /* Configure automatic polling mode to wait for end of erase */
     status_t auto_polling_mem_ready_result =
-        qspi_auto_polling_mem_ready_unsafe(&qspi_handle);
+        qspi_auto_polling_mem_ready_unsafe(&qspi_handle, 0, N25QXXA_SR_WIP);
     if (auto_polling_mem_ready_result != NO_ERROR) {
         return auto_polling_mem_ready_result;
     }
@@ -651,6 +643,11 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
                                   QSPI_CommandTypeDef* s_command)
 {
     HAL_StatusTypeDef result = HAL_QSPI_Command_IT(qspi_handle, s_command);
+
+    if (result != HAL_OK) {
+        return result;
+    }
+
     event_wait(&cmd_event);
     return result;
 }
@@ -662,6 +659,9 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_Comma
     arch_clean_cache_range((addr_t)buf, s_command->NbData);
 
     HAL_StatusTypeDef result = HAL_QSPI_Transmit_DMA(qspi_handle, buf);
+    if (result != HAL_OK) {
+        return result;
+    }
     event_wait(&tx_event);
 
     return result;
@@ -677,6 +677,10 @@ static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_Comma
     arch_invalidate_cache_range((addr_t)buf, s_command->NbData);
 
     HAL_StatusTypeDef result = HAL_QSPI_Receive_DMA(qspi_handle, buf);
+    if (result != HAL_OK) {
+        return result;
+    }
+
     event_wait(&rx_event);
 
     return result;
@@ -703,6 +707,12 @@ void HAL_QSPI_CmdCpltCallback(QSPI_HandleTypeDef *hqspi)
 }
 
 /* IRQ Context */
+void HAL_QSPI_StatusMatchCallback(QSPI_HandleTypeDef *hqspi)
+{
+    event_signal(&st_event, false);
+}
+
+/* IRQ Context */
 void HAL_QSPI_RxCpltCallback(QSPI_HandleTypeDef *hqspi)
 {
     event_signal(&rx_event, false);
@@ -712,6 +722,12 @@ void HAL_QSPI_RxCpltCallback(QSPI_HandleTypeDef *hqspi)
 void HAL_QSPI_TxCpltCallback(QSPI_HandleTypeDef *hqspi)
 {
     event_signal(&tx_event, false);
+}
+
+/* IRQ Context */
+void HAL_QSPI_ErrorCallback(QSPI_HandleTypeDef *hqspi)
+{
+    printf("HAL QSPI Error.\n");
 }
 
 status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
@@ -726,8 +742,8 @@ status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
     hdma.Init.MemDataAlignment    = DMA_MDATAALIGN_BYTE;
     hdma.Init.Mode                = DMA_NORMAL;
     hdma.Init.Priority            = DMA_PRIORITY_LOW;
-    hdma.Init.FIFOMode            = DMA_FIFOMODE_DISABLE;
-    hdma.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
+    hdma.Init.FIFOMode            = DMA_FIFOMODE_ENABLE;
+    hdma.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_HALFFULL;
     hdma.Init.MemBurst            = DMA_MBURST_SINGLE;
     hdma.Init.PeriphBurst         = DMA_PBURST_SINGLE;
     hdma.Instance                 = DMA2_Stream7;
