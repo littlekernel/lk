@@ -75,7 +75,7 @@ static int cmd_threads(int argc, const cmd_args *argv)
 static int cmd_threadstats(int argc, const cmd_args *argv)
 {
 	for (uint i = 0; i < SMP_MAX_CPUS; i++) {
-		if (!(mp.active_cpus & (1 << i)))
+		if (!mp_is_cpu_active(i))
 			continue;
 
 		printf("thread stats (cpu %d):\n", i);
@@ -103,13 +103,13 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
 
 	for (uint i = 0; i < SMP_MAX_CPUS; i++) {
 		/* dont display time for inactiv cpus */
-		if (!(mp.active_cpus & (1 << i)))
+		if (!mp_is_cpu_active(i))
 			continue;
 
 		lk_bigtime_t idle_time = thread_stats[i].idle_time;
 
 		/* if the cpu is currently idle, add the time since it went idle up until now to the idle counter */
-		bool is_idle = !!(mp.idle_cpus & (1 << i));
+		bool is_idle = !!mp_is_cpu_idle(i);
 		if (is_idle) {
 			idle_time += current_time_hires() - thread_stats[i].last_idle_timestamp;
 		}

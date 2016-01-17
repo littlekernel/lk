@@ -85,8 +85,10 @@ typedef struct thread {
 	enum thread_state state;
 	int remaining_quantum;
 	unsigned int flags;
+#if WITH_SMP
 	int curr_cpu;
 	int pinned_cpu; /* only run on pinned_cpu if >= 0 */
+#endif
 
 	/* if blocked, a pointer to the wait queue */
 	struct wait_queue *blocking_wait_queue;
@@ -112,6 +114,18 @@ typedef struct thread {
 
 	char name[32];
 } thread_t;
+
+#if WITH_SMP
+#define thread_curr_cpu(t) ((t)->curr_cpu)
+#define thread_pinned_cpu(t) ((t)->pinned_cpu)
+#define thread_set_curr_cpu(t,c) ((t)->curr_cpu = (c))
+#define thread_set_pinned_cpu(t, c) ((t)->pinned_cpu = (c))
+#else
+#define thread_curr_cpu(t) (0)
+#define thread_pinned_cpu(t) (-1)
+#define thread_set_curr_cpu(t,c) do {} while(0)
+#define thread_set_pinned_cpu(t, c) do {} while(0)
+#endif
 
 /* thread priority */
 #define NUM_PRIORITIES 32
