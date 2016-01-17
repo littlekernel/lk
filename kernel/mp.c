@@ -32,6 +32,7 @@
 
 #define LOCAL_TRACE 0
 
+#if WITH_SMP
 /* a global state structure, aligned on cpu cache line to minimize aliasing */
 struct mp_state mp __CPU_ALIGN;
 
@@ -41,7 +42,6 @@ void mp_init(void)
 
 void mp_reschedule(mp_cpu_mask_t target, uint flags)
 {
-#if WITH_SMP
 	uint local_cpu = arch_curr_cpu_num();
 
 	LTRACEF("local %d, target 0x%x\n", local_cpu, target);
@@ -58,7 +58,6 @@ void mp_reschedule(mp_cpu_mask_t target, uint flags)
 	LTRACEF("local %d, post mask target now 0x%x\n", local_cpu, target);
 
 	arch_mp_send_ipi(target, MP_IPI_RESCHEDULE);
-#endif
 }
 
 void mp_set_curr_cpu_active(bool active)
@@ -66,7 +65,6 @@ void mp_set_curr_cpu_active(bool active)
 	atomic_or((volatile int *)&mp.active_cpus, 1U << arch_curr_cpu_num());
 }
 
-#if WITH_SMP
 enum handler_return mp_mbx_reschedule_irq(void)
 {
 	uint cpu = arch_curr_cpu_num();
