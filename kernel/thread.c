@@ -69,7 +69,13 @@ static uint32_t run_queue_bitmap;
 STATIC_ASSERT(NUM_PRIORITIES <= sizeof(run_queue_bitmap) * 8);
 
 /* the idle thread(s) (statically allocated) */
-static thread_t idle_threads[SMP_MAX_CPUS];
+#if WITH_SMP
+static thread_t _idle_threads[SMP_MAX_CPUS];
+#define idle_thread(cpu) (&_idle_threads[cpu])
+#else
+static thread_t _idle_thread;
+#define idle_thread(cpu) (&_idle_thread)
+#endif
 
 /* local routines */
 static void thread_resched(void);
@@ -109,7 +115,7 @@ static void init_thread_struct(thread_t *t, const char *name)
 {
 	memset(t, 0, sizeof(thread_t));
 	t->magic = THREAD_MAGIC;
-	t->pinned_cpu = -1;
+	thread_set_pinned_cpu(t, -1);
 	strlcpy(t->name, name, sizeof(t->name));
 }
 
@@ -159,7 +165,7 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 	t->state = THREAD_SUSPENDED;
 	t->blocking_wait_queue = NULL;
 	t->wait_queue_block_ret = NO_ERROR;
-	t->curr_cpu = -1;
+	thread_set_curr_cpu(t, -1);
 
 	t->retcode = 0;
 	wait_queue_init(&t->retcode_wait_queue);
@@ -436,7 +442,10 @@ static thread_t *get_top_thread(int cpu)
 			- (sizeof(run_queue_bitmap) * 8 - NUM_PRIORITIES);
 
 		list_for_every_entry(&run_queue[next_queue], newthread, thread_t, queue_node) {
-			if (newthread->pinned_cpu < 0 || newthread->pinned_cpu == cpu) {
+#if WITH_SMP
+			if (newthread->pinned_cpu < 0 || newthread->pinned_cpu == cpu)
+#endif
+			{
 				list_delete(&newthread->queue_node);
 
 				if (list_is_empty(&run_queue[next_queue]))
@@ -449,7 +458,7 @@ static thread_t *get_top_thread(int cpu)
 		local_run_queue_bitmap &= ~(1<<next_queue);
 	}
 	/* no threads to run, select the idle thread for this cpu */
-	return &idle_threads[cpu];
+	return idle_thread(cpu);
 }
 
 /**
@@ -493,9 +502,10 @@ void thread_resched(void)
 	}
 
 	/* mark the cpu ownership of the threads */
-	oldthread->curr_cpu = -1;
-	newthread->curr_cpu = cpu;
+	thread_set_curr_cpu(oldthread, -1);
+	thread_set_curr_cpu(newthread, cpu);
 
+#if WITH_SMP
 	if (thread_is_idle(newthread)) {
 		mp_set_cpu_idle(cpu);
 	} else {
@@ -507,6 +517,7 @@ void thread_resched(void)
 	} else {
 		mp_set_cpu_non_realtime(cpu);
 	}
+#endif
 
 #if THREAD_STATS
 	THREAD_STATS_INC(context_switches);
@@ -773,15 +784,15 @@ void thread_init_early(void)
 	list_initialize(&thread_list);
 
 	/* create a thread to cover the current running state */
-	thread_t *t = &idle_threads[0];
+	thread_t *t = idle_thread(0);
 	init_thread_struct(t, "bootstrap");
 
 	/* half construct this thread, since we're already running */
 	t->priority = HIGHEST_PRIORITY;
 	t->state = THREAD_RUNNING;
 	t->flags = THREAD_FLAG_DETACHED;
-	t->curr_cpu = 0;
-	t->pinned_cpu = 0;
+	thread_set_curr_cpu(t, 0);
+	thread_set_pinned_cpu(t, 0);
 	wait_queue_init(&t->retcode_wait_queue);
 	list_add_head(&thread_list, &t->thread_list_node);
 	set_current_thread(t);
@@ -847,14 +858,18 @@ void thread_become_idle(void)
 
 	thread_t *t = get_current_thread();
 
+#if WITH_SMP
 	char name[16];
 	snprintf(name, sizeof(name), "idle %d", arch_curr_cpu_num());
 	thread_set_name(name);
+#else
+	thread_set_name("idle");
+#endif
 
 	/* mark ourself as idle */
 	t->priority = IDLE_PRIORITY;
 	t->flags |= THREAD_FLAG_IDLE;
-	t->pinned_cpu = arch_curr_cpu_num();
+	thread_set_pinned_cpu(t, arch_curr_cpu_num());
 
 	mp_set_curr_cpu_active(true);
 	mp_set_cpu_idle(arch_curr_cpu_num());
@@ -874,19 +889,19 @@ void thread_secondary_cpu_init_early(void)
 
 	/* construct an idle thread to cover our cpu */
 	uint cpu = arch_curr_cpu_num();
-	thread_t *t = &idle_threads[cpu];
+	thread_t *t = idle_thread(cpu);
 
 	char name[16];
 	snprintf(name, sizeof(name), "idle %u", cpu);
 	init_thread_struct(t, name);
-	t->pinned_cpu = cpu;
+	thread_set_pinned_cpu(t, cpu);
 
 	/* half construct this thread, since we're already running */
 	t->priority = HIGHEST_PRIORITY;
 	t->state = THREAD_RUNNING;
 	t->flags = THREAD_FLAG_DETACHED | THREAD_FLAG_IDLE;
-	t->curr_cpu = cpu;
-	t->pinned_cpu = cpu;
+	thread_set_curr_cpu(t, cpu);
+	thread_set_pinned_cpu(t, cpu);
 	wait_queue_init(&t->retcode_wait_queue);
 
 	THREAD_LOCK(state);
@@ -932,8 +947,13 @@ static const char *thread_state_to_str(enum thread_state state)
 void dump_thread(thread_t *t)
 {
 	dprintf(INFO, "dump_thread: t %p (%s)\n", t, t->name);
+#if WITH_SMP
 	dprintf(INFO, "\tstate %s, curr_cpu %d, pinned_cpu %d, priority %d, remaining quantum %d\n",
 				  thread_state_to_str(t->state), t->curr_cpu, t->pinned_cpu, t->priority, t->remaining_quantum);
+#else
+	dprintf(INFO, "\tstate %s, priority %d, remaining quantum %d\n",
+				  thread_state_to_str(t->state), t->priority, t->remaining_quantum);
+#endif
 	dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
 	dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
 	dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
