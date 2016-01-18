@@ -19,6 +19,12 @@ ASM_STRING_OPS :=
 
 MODULE_SRCS += \
 
+else ifeq ($(ARM_CPU),cortex-m0plus)
+
+ASM_STRING_OPS :=
+
+MODULE_SRCS += \
+
 else
 
 ASM_STRING_OPS := bcopy bzero memcpy memset

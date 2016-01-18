@@ -33,6 +33,8 @@
 
 #if ARM_CPU_CORTEX_M0
 #include <core_cm0.h>
+#elif ARM_CPU_CORTEX_M0_PLUS
+#include <core_cm0plus.h>
 #elif ARM_CPU_CORTEX_M3
 #include <core_cm3.h>
 #elif ARM_CPU_CORTEX_M4

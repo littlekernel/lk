@@ -63,7 +63,7 @@ void spin_cycles(uint32_t cycles)
 }
 
 #else
-/* Cortex-M0    */
+/* Cortex-M0 & Cortex-M0+    */
 void spin_cycles(uint32_t cycles)
 {
     asm (

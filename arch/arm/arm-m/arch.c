@@ -84,7 +84,10 @@ void arch_early_init(void)
 
     /* set systick and debugmonitor to medium priority */
     NVIC_SetPriority(SysTick_IRQn, arm_cm_medium_priority());
+
+#if (__CORTEX_M >= 0x03)
     NVIC_SetPriority(DebugMonitor_IRQn, arm_cm_medium_priority());
+#endif
 
 #if ARM_WITH_CACHE
     arch_enable_cache(UCACHE);
