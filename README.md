@@ -2,7 +2,7 @@
 
 The LK embedded kernel. An SMP-aware kernel designed for small systems.
 
-See travisg/lk for the latest version.
+See http://github.com/littlekernel/lk for the latest version.
 
 ## to build and test for ARM on linux
 
