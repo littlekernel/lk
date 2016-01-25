@@ -22,30 +22,17 @@
  */
 
 #include <asm.h>
-#include <platform/vexpress-a9.h>
 
 .section .text
 
-/* true reset vector, to catch non boot cpus and hold them until later */
-FUNCTION(platform_reset)
-    mrc     p15, 0, r12, c0, c0, 5 /* read MPIDR */
-
-    /* mask off the bottom 12 bits to test cluster number:cpu number */
-    ubfx    r12, r12, #0, #12
-
-    /* if we're cpu 0:0, continue to the usual arm reset vector */
-    cmp     r12, #0
-    beq     arm_reset
-
-    /* all other cpus, trap and wait to be released */
-1:
-    wfe
-    ldr     r12, =boot_cpu_lock
-    ldr     r12, [r12]
-    cmp     r12, #0
-    bne     1b
-
-    b       arm_secondary_reset
+/* used to call into PSCI firmware (Power State Coordination Firmware) */
+FUNCTION(psci_call)
+    hvc     #0
+#if ARCH_ARM
+    bx      lr
+#else
+    ret
+#endif
 
 .ltorg
 
