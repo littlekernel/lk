@@ -38,12 +38,12 @@
 
 #define FOUR_BYTE_ADDR_THRESHOLD (1 << 24)
 #define LOCAL_TRACE 0
-#define MAX_DMA_DISABLE_ATTEMPTS 4096 
+#define MAX_DMA_DISABLE_ATTEMPTS 4096
 
 typedef void (*CpltCallback)(void);
 
 static QSPI_HandleTypeDef qspi_handle;
-static DMA_Stream_TypeDef* dma2_stream7;
+static DMA_Stream_TypeDef *dma2_stream7;
 static CpltCallback cplt_callback;
 
 static const char device_name[] = "qspi-flash";
@@ -53,11 +53,11 @@ static bio_erase_geometry_info_t geometry;
 static mutex_t spiflash_mutex;
 
 // Functions exported to Block I/O handler.
-static ssize_t spiflash_bdev_read(struct bdev* device, void* buf, off_t offset, size_t len);
-static ssize_t spiflash_bdev_read_block(struct bdev* device, void* buf, bnum_t block, uint count);
-static ssize_t spiflash_bdev_write_block(struct bdev* device, const void* buf, bnum_t block, uint count);
-static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset, size_t len);
-static int spiflash_ioctl(struct bdev* device, int request, void* argp);
+static ssize_t spiflash_bdev_read(struct bdev *device, void *buf, off_t offset, size_t len);
+static ssize_t spiflash_bdev_read_block(struct bdev *device, void *buf, bnum_t block, uint count);
+static ssize_t spiflash_bdev_write_block(struct bdev *device, const void *buf, bnum_t block, uint count);
+static ssize_t spiflash_bdev_erase(struct bdev *device, off_t offset, size_t len);
+static int spiflash_ioctl(struct bdev *device, int request, void *argp);
 
 static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data);
 
@@ -65,11 +65,11 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
 static ssize_t qspi_bulk_erase(bdev_t *device);
 static ssize_t qspi_erase_sector(bdev_t *device, uint32_t block_addr);
 static ssize_t qspi_erase_subsector(bdev_t *device, uint32_t block_addr);
-static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi, uint8_t match, uint8_t mask);
+static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef *hqspi, uint8_t match, uint8_t mask);
 
-static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*);
-static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
-static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef*, QSPI_CommandTypeDef*, uint8_t*);
+static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef *, QSPI_CommandTypeDef *);
+static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *, QSPI_CommandTypeDef *, uint8_t *);
+static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *, QSPI_CommandTypeDef *, uint8_t *);
 
 status_t qspi_enable_linear(void);
 
@@ -85,7 +85,7 @@ static event_t st_event;
 
 status_t hal_error_to_status(HAL_StatusTypeDef hal_status);
 
-static status_t dma_disable(DMA_Stream_TypeDef* dma)
+static status_t dma_disable(DMA_Stream_TypeDef *dma)
 {
     // Unset the DMA Enable bit.
     dma->CR &= ~DMA_SxCR_EN;
@@ -93,9 +93,9 @@ static status_t dma_disable(DMA_Stream_TypeDef* dma)
     uint attempts = 0;
 
     while (dma->CR & DMA_SxCR_EN) {
-        
+
         thread_sleep(1);
-        
+
         dma->CR &= ~DMA_SxCR_EN;
 
         attempts++;
@@ -108,7 +108,7 @@ static status_t dma_disable(DMA_Stream_TypeDef* dma)
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef* hqspi)
+static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef *hqspi)
 {
     QSPI_CommandTypeDef s_command;
     HAL_StatusTypeDef status;
@@ -138,7 +138,7 @@ static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef* hqspi)
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef* hqspi)
+static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef *hqspi)
 {
     QSPI_CommandTypeDef s_command;
     uint8_t reg;
@@ -196,7 +196,7 @@ static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef* hqspi)
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi, uint8_t match, uint8_t mask)
+static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef *hqspi, uint8_t match, uint8_t mask)
 {
     QSPI_CommandTypeDef s_command;
     QSPI_AutoPollingTypeDef s_config;
@@ -230,7 +230,7 @@ static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef* hqspi, ui
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef* hqspi)
+static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef *hqspi)
 {
     QSPI_CommandTypeDef s_command;
     HAL_StatusTypeDef status;
@@ -268,7 +268,7 @@ static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef* hqspi)
     return NO_ERROR;
 }
 
-static ssize_t spiflash_bdev_read_block(struct bdev* device, void* buf,
+static ssize_t spiflash_bdev_read_block(struct bdev *device, void *buf,
                                         bnum_t block, uint count)
 {
     LTRACEF("device %p, buf %p, block %u, count %u\n",
@@ -332,7 +332,7 @@ err:
     return retcode;
 }
 
-static ssize_t spiflash_bdev_write_block(struct bdev* device, const void* _buf,
+static ssize_t spiflash_bdev_write_block(struct bdev *device, const void *_buf,
         bnum_t block, uint count)
 {
     count = bio_trim_block_range(device, block, count);
@@ -362,7 +362,7 @@ err:
     return total_bytes_written;
 }
 
-static ssize_t spiflash_bdev_erase(struct bdev* device, off_t offset,
+static ssize_t spiflash_bdev_erase(struct bdev *device, off_t offset,
                                    size_t len)
 {
     len = bio_trim_range(device, offset, len);
@@ -408,7 +408,7 @@ finish:
     return total_erased;
 }
 
-static int spiflash_ioctl(struct bdev* device, int request, void* argp)
+static int spiflash_ioctl(struct bdev *device, int request, void *argp)
 {
     int ret = NO_ERROR;
 
@@ -416,10 +416,10 @@ static int spiflash_ioctl(struct bdev* device, int request, void* argp)
         case BIO_IOCTL_GET_MEM_MAP:
             /* put the device into linear mode */
             ret = qspi_enable_linear();
-            // Fallthrough.
+        // Fallthrough.
         case BIO_IOCTL_GET_MAP_ADDR:
             if (argp)
-                *(void **)argp = (void*)QSPI_BASE;
+                *(void **)argp = (void *)QSPI_BASE;
             break;
         default:
             ret = ERR_NOT_SUPPORTED;
@@ -461,7 +461,7 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
         return hal_error_to_status(status);
     }
 
-    status = qspi_tx_dma(&qspi_handle, &s_command, (uint8_t*)data);
+    status = qspi_tx_dma(&qspi_handle, &s_command, (uint8_t *)data);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
@@ -544,7 +544,7 @@ status_t qspi_flash_init(size_t flash_size)
 
     bio_initialize_bdev(&qspi_flash_device, device_name, N25QXXA_PAGE_SIZE,
                         (flash_size / N25QXXA_PAGE_SIZE), 1, &geometry,
-                         BIO_FLAG_CACHE_ALIGNED_READS);
+                        BIO_FLAG_CACHE_ALIGNED_READS);
 
     // qspi_flash_device.read: Use default hook.
     qspi_flash_device.read_block = &spiflash_bdev_read_block;
@@ -665,8 +665,8 @@ static ssize_t qspi_erase_subsector(bdev_t *device, uint32_t block_addr)
     return qspi_erase(device, block_addr, SUBSECTOR_ERASE_CMD);
 }
 
-static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
-                                  QSPI_CommandTypeDef* s_command)
+static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef *qspi_handle,
+                                  QSPI_CommandTypeDef *s_command)
 {
     HAL_StatusTypeDef result = HAL_QSPI_Command_IT(qspi_handle, s_command);
 
@@ -679,7 +679,7 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
 }
 
 
-static void setup_dma(DMA_Stream_TypeDef* stream, uint32_t peripheral_address,
+static void setup_dma(DMA_Stream_TypeDef *stream, uint32_t peripheral_address,
                       uint32_t memory_address, uint32_t num_bytes,
                       uint32_t direction)
 {
@@ -729,7 +729,7 @@ void DMA_ErrorCallback(void)
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_CommandTypeDef* s_command, uint8_t* buf)
+static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_CommandTypeDef *s_command, uint8_t *buf)
 {
     MODIFY_REG(qspi_handle->Instance->CCR, QUADSPI_CCR_FMODE, 0);
 
@@ -761,7 +761,7 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_Comma
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_CommandTypeDef* s_command, uint8_t* buf)
+static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_CommandTypeDef *s_command, uint8_t *buf)
 {
     // Make sure the front and back of the buffer are cache aligned.
     DEBUG_ASSERT(IS_ALIGNED((uintptr_t)buf, CACHE_LINE));
