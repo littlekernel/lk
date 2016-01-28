@@ -38,9 +38,13 @@
 
 #define FOUR_BYTE_ADDR_THRESHOLD (1 << 24)
 #define LOCAL_TRACE 0
+#define MAX_DMA_DISABLE_ATTEMPTS 4096 
+
+typedef void (*CpltCallback)(void);
 
 static QSPI_HandleTypeDef qspi_handle;
-static DMA_HandleTypeDef hdma;
+static DMA_Stream_TypeDef* dma2_stream7;
+static CpltCallback cplt_callback;
 
 static const char device_name[] = "qspi-flash";
 static bdev_t qspi_flash_device;
@@ -80,6 +84,28 @@ static event_t tx_event;
 static event_t st_event;
 
 status_t hal_error_to_status(HAL_StatusTypeDef hal_status);
+
+static status_t dma_disable(DMA_Stream_TypeDef* dma)
+{
+    // Unset the DMA Enable bit.
+    dma->CR &= ~DMA_SxCR_EN;
+
+    uint attempts = 0;
+
+    while (dma->CR & DMA_SxCR_EN) {
+        
+        thread_sleep(1);
+        
+        dma->CR &= ~DMA_SxCR_EN;
+
+        attempts++;
+        if (attempts > MAX_DMA_DISABLE_ATTEMPTS) {
+            return ERR_TIMED_OUT;
+        }
+    }
+
+    return NO_ERROR;
+}
 
 // Must hold spiflash_mutex before calling.
 static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef* hqspi)
@@ -652,19 +678,86 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef* qspi_handle,
     return result;
 }
 
+
+static void setup_dma(DMA_Stream_TypeDef* stream, uint32_t peripheral_address,
+                      uint32_t memory_address, uint32_t num_bytes,
+                      uint32_t direction)
+{
+    stream->PAR = peripheral_address;
+    stream->M0AR = memory_address;
+    stream->NDTR = num_bytes;
+
+    uint32_t dma_cr = 0;
+
+    // Select Channel 3
+    dma_cr |= DMA_CHANNEL_3;
+
+    // Set the transfer priority.
+    dma_cr |= DMA_SxCR_PL;
+
+    // Enable auto memory pointer increment.
+    dma_cr |= DMA_SxCR_MINC;
+
+    if (direction == DMA_MEMORY_TO_PERIPH) {
+        dma_cr |= DMA_SxCR_DIR_0;
+    }
+
+    // Turn on transfer complete and error interrupts.
+    dma_cr |= DMA_SxCR_TCIE;
+    dma_cr |= DMA_SxCR_TEIE;
+    dma_cr |= DMA_SxCR_DMEIE;
+
+    stream->CR = dma_cr;
+}
+
+/* IRQ Context */
+void DMA_RxCpltCallback(void)
+{
+    event_signal(&rx_event, false);
+}
+
+/* IRQ Context */
+void DMA_TxCpltCallback(void)
+{
+    event_signal(&tx_event, false);
+}
+
+/* IRQ Context */
+void DMA_ErrorCallback(void)
+{
+    printf("DMA Error\n");
+}
+
 // Send data and wait for interrupt.
 static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_CommandTypeDef* s_command, uint8_t* buf)
 {
+    MODIFY_REG(qspi_handle->Instance->CCR, QUADSPI_CCR_FMODE, 0);
+
+    if (dma_disable(dma2_stream7) != NO_ERROR) {
+        printf("Timed out while waiting for DMA Engine to disable.\n");
+        return ERR_TIMED_OUT;
+    }
+
+    setup_dma(
+        dma2_stream7,
+        (uint32_t)&(qspi_handle->Instance->DR),
+        (uint32_t)buf,
+        s_command->NbData,
+        DMA_MEMORY_TO_PERIPH
+    );
+
     // Make sure cache is flushed to RAM before invoking the DMA controller.
     arch_clean_cache_range((addr_t)buf, s_command->NbData);
 
-    HAL_StatusTypeDef result = HAL_QSPI_Transmit_DMA(qspi_handle, buf);
-    if (result != HAL_OK) {
-        return result;
-    }
+    cplt_callback = DMA_TxCpltCallback;
+
+    // And we're off to the races...
+    dma2_stream7->CR |= DMA_SxCR_EN;
+    qspi_handle->Instance->CR |= QUADSPI_CR_DMAEN;
+
     event_wait(&tx_event);
 
-    return result;
+    return HAL_OK;
 }
 
 // Send data and wait for interrupt.
@@ -674,16 +767,34 @@ static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef* qspi_handle, QSPI_Comma
     DEBUG_ASSERT(IS_ALIGNED((uintptr_t)buf, CACHE_LINE));
     DEBUG_ASSERT(IS_ALIGNED(((uintptr_t)buf) + s_command->NbData, CACHE_LINE));
 
+    MODIFY_REG(qspi_handle->Instance->CCR, QUADSPI_CCR_FMODE, QUADSPI_CCR_FMODE_0);
+
+    if (dma_disable(dma2_stream7) != NO_ERROR) {
+        printf("Timed out while waiting for DMA Engine to disable.\n");
+        return ERR_TIMED_OUT;
+    }
+
+    setup_dma(
+        dma2_stream7,
+        (uint32_t)&(qspi_handle->Instance->DR),
+        (uint32_t)buf,
+        s_command->NbData,
+        DMA_PERIPH_TO_MEMORY
+    );
+
+    cplt_callback = DMA_RxCpltCallback;
+
     arch_invalidate_cache_range((addr_t)buf, s_command->NbData);
 
-    HAL_StatusTypeDef result = HAL_QSPI_Receive_DMA(qspi_handle, buf);
-    if (result != HAL_OK) {
-        return result;
-    }
+    // And we're off to the races...
+    dma2_stream7->CR |= DMA_SxCR_EN;
+    uint32_t addr_reg = qspi_handle->Instance->AR;
+    qspi_handle->Instance->AR = addr_reg;
+    qspi_handle->Instance->CR |= QUADSPI_CR_DMAEN;
 
     event_wait(&rx_event);
 
-    return result;
+    return HAL_OK;
 }
 
 void stm32_QUADSPI_IRQ(void)
@@ -696,7 +807,38 @@ void stm32_QUADSPI_IRQ(void)
 void stm32_DMA2_Stream7_IRQ(void)
 {
     arm_cm_irq_entry();
-    HAL_DMA_IRQHandler(&hdma);
+
+    // Make a copy of the interrupts that we're handling.
+    uint32_t hisr = DMA2->HISR;
+
+    // Xfer Complete?
+    if (hisr & DMA_FLAG_TCIF3_7) {
+        DMA2->HIFCR |= DMA_FLAG_TCIF3_7;
+
+        qspi_handle.Instance->CR &= ~QUADSPI_CR_DMAEN;
+
+        dma_disable(dma2_stream7);
+
+        __HAL_QSPI_CLEAR_FLAG((&qspi_handle), QSPI_FLAG_TC);
+
+        HAL_QSPI_Abort(&qspi_handle);
+        qspi_handle.State = HAL_QSPI_STATE_READY;
+
+        cplt_callback();
+    }
+
+    // Xfer Error?
+    if (hisr & DMA_FLAG_TEIF3_7) {
+        DMA2->HIFCR |= DMA_FLAG_TEIF3_7;
+        DMA_ErrorCallback();
+    }
+
+    // Direct mode error?
+    if (hisr & DMA_FLAG_DMEIF3_7) {
+        DMA2->HIFCR |= DMA_FLAG_DMEIF3_7;
+        DMA_ErrorCallback();
+    }
+
     arm_cm_irq_exit(true);
 }
 
@@ -713,18 +855,6 @@ void HAL_QSPI_StatusMatchCallback(QSPI_HandleTypeDef *hqspi)
 }
 
 /* IRQ Context */
-void HAL_QSPI_RxCpltCallback(QSPI_HandleTypeDef *hqspi)
-{
-    event_signal(&rx_event, false);
-}
-
-/* IRQ Context */
-void HAL_QSPI_TxCpltCallback(QSPI_HandleTypeDef *hqspi)
-{
-    event_signal(&tx_event, false);
-}
-
-/* IRQ Context */
 void HAL_QSPI_ErrorCallback(QSPI_HandleTypeDef *hqspi)
 {
     printf("HAL QSPI Error.\n");
@@ -735,24 +865,7 @@ status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
     /* QSPI DMA Controller Clock */
     __HAL_RCC_DMA2_CLK_ENABLE();
 
-    hdma.Init.Channel             = DMA_CHANNEL_3;
-    hdma.Init.PeriphInc           = DMA_PINC_DISABLE;
-    hdma.Init.MemInc              = DMA_MINC_ENABLE;
-    hdma.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma.Init.MemDataAlignment    = DMA_MDATAALIGN_BYTE;
-    hdma.Init.Mode                = DMA_NORMAL;
-    hdma.Init.Priority            = DMA_PRIORITY_LOW;
-    hdma.Init.FIFOMode            = DMA_FIFOMODE_ENABLE;
-    hdma.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_HALFFULL;
-    hdma.Init.MemBurst            = DMA_MBURST_SINGLE;
-    hdma.Init.PeriphBurst         = DMA_PBURST_SINGLE;
-    hdma.Instance                 = DMA2_Stream7;
-
-    __HAL_LINKDMA(hqspi, hdma, hdma);
-    HAL_StatusTypeDef hal_result = HAL_DMA_Init(&hdma);
-    if (hal_result != HAL_OK) {
-        return hal_error_to_status(hal_result);
-    }
+    dma2_stream7 = DMA2_Stream7;
 
     HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 
