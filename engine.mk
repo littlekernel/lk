@@ -31,6 +31,9 @@ make-make:
 endif
 endif
 
+# some additional rules to print some help
+include make/help.mk
+
 ifeq ($(do-nothing),)
 
 ifeq ($(PROJECT),)
@@ -38,7 +41,7 @@ ifeq ($(PROJECT),)
 ifneq ($(DEFAULT_PROJECT),)
 PROJECT := $(DEFAULT_PROJECT)
 else
-$(error No project specified.  Use "make projectname" or put "PROJECT := projectname" in local.mk)
+$(error No project specified. Use 'make list' for a list of projects or 'make help' for additional help)
 endif
 endif
 
