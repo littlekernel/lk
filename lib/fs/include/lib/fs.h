@@ -29,6 +29,8 @@
 #define FS_MAX_PATH_LEN 128
 #define FS_MAX_FILE_LEN 64
 
+__BEGIN_CDECLS;
+
 // Generic FS ioctls
 enum fs_ioctl_num {
     FS_IOCTL_NULL = 0,
@@ -125,3 +127,4 @@ struct fs_impl {
 #define STATIC_FS_IMPL(_name, _api) const struct fs_impl __fs_impl_##_name __ALIGNED(sizeof(void *)) __SECTION(".fs_impl") = \
     { .name = #_name, .api = _api }
 
+__END_CDECLS
