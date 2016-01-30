@@ -29,6 +29,7 @@
 #include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <lib/bio.h>
+#include <platform.h>
 #include <platform/n25qxxa.h>
 #include <platform/n25q128a.h>
 #include <platform/n25q512a.h>
@@ -38,7 +39,7 @@
 
 #define FOUR_BYTE_ADDR_THRESHOLD (1 << 24)
 #define LOCAL_TRACE 0
-#define MAX_DMA_DISABLE_ATTEMPTS 4096
+#define MAX_DMA_WAIT_MS 1024
 
 typedef void (*CpltCallback)(void);
 
@@ -94,16 +95,13 @@ static status_t dma_disable(DMA_Stream_TypeDef *dma)
     // Unset the DMA Enable bit.
     dma->CR &= ~DMA_SxCR_EN;
 
-    uint attempts = 0;
+    lk_time_t start_time = current_time();
 
     while (dma->CR & DMA_SxCR_EN) {
 
-        thread_sleep(1);
-
         dma->CR &= ~DMA_SxCR_EN;
 
-        attempts++;
-        if (attempts > MAX_DMA_DISABLE_ATTEMPTS) {
+        if (current_time() - start_time > MAX_DMA_WAIT_MS) {
             return ERR_TIMED_OUT;
         }
     }
