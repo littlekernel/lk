@@ -85,6 +85,10 @@ static event_t st_event;
 
 status_t hal_error_to_status(HAL_StatusTypeDef hal_status);
 
+// Unsetting the DMA Enable bit in the DMA Control register isn't enough to
+// disable the DMA Engine since DMA transfers may still be in progress.
+// We have to wait for the DMA Engine to acknowledge being disabled by watching
+// the DMA Enable bit.
 static status_t dma_disable(DMA_Stream_TypeDef *dma)
 {
     // Unset the DMA Enable bit.
