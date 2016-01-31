@@ -18,6 +18,7 @@ MODULE_DEPS := \
 	dev/timer/arm_cortex_a9
 
 MODULE_SRCS += \
+	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/uart.c \
