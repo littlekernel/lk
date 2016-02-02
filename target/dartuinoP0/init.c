@@ -48,7 +48,8 @@
 
 #if WITH_LIB_FS_SPIFS
 #include <lib/fs.h>
-#include <target/fsconfig.h>
+#include <lib/fs/spifs.h>
+#define SPIFS_TARGET_DEVICE "qspi-flash"
 #endif
 
 extern void target_usb_setup(void);
@@ -149,12 +150,13 @@ void target_init(void)
 #endif
 
 #if WITH_LIB_FS_SPIFS
-    status_t mount_success =
-            fs_mount(SPIFS_MOUNT_POINT, SPIFS_NAME, SPIFS_TARGET_DEVICE);
+    status_t mount_success = fs_mount(DEAULT_SPIFS_MOUNT_POINT,
+                                      DEAULT_SPIFS_NAME, SPIFS_TARGET_DEVICE);
     if (mount_success != NO_ERROR) {
         printf("failed to mount '%s' at path '%s' on '%s'."
                " Make sure that device is formatted\n",
-               SPIFS_NAME, SPIFS_MOUNT_POINT, SPIFS_TARGET_DEVICE);
+               DEAULT_SPIFS_NAME, DEAULT_SPIFS_MOUNT_POINT,
+               SPIFS_TARGET_DEVICE);
     }
 
 #endif
