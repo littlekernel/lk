@@ -1,0 +1,390 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head>
+
+
+
+
+
+
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<link rel="File-List" href="Release_Notes%20%28package%29_files/filelist.xml">
+<link rel="Edit-Time-Data" href="Release_Notes%20%28package%29_files/editdata.mso"><!--[if !mso]> <style> v\:* {behavior:url(#default#VML);} o\:* {behavior:url(#default#VML);} w\:* {behavior:url(#default#VML);} .shape {behavior:url(#default#VML);} </style> <![endif]--><title>Release Notes for STM32F0xx Standard Peripherals Library Drivers</title><!--[if gte mso 9]><xml> <o:DocumentProperties> <o:Author>STMicroelectronics</o:Author> <o:LastAuthor>tguilhot</o:LastAuthor> <o:Revision>145</o:Revision> <o:TotalTime>461</o:TotalTime> <o:Created>2009-02-27T19:26:00Z</o:Created> <o:LastSaved>2010-12-13T14:14:00Z</o:LastSaved> <o:Pages>1</o:Pages> <o:Words>358</o:Words> <o:Characters>2045</o:Characters> <o:Company>STMicroelectronics</o:Company> <o:Lines>17</o:Lines> <o:Paragraphs>4</o:Paragraphs> <o:CharactersWithSpaces>2399</o:CharactersWithSpaces> <o:Version>11.9999</o:Version> </o:DocumentProperties> </xml><![endif]--><!--[if gte mso 9]><xml> <w:WordDocument> <w:View>Normal</w:View> <w:SpellingState>Clean</w:SpellingState> <w:GrammarState>Clean</w:GrammarState> <w:ValidateAgainstSchemas/> <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid> <w:IgnoreMixedContent>false</w:IgnoreMixedContent> <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText> <w:Compatibility> <w:UseFELayout/> </w:Compatibility> <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel> </w:WordDocument> </xml><![endif]--><!--[if gte mso 9]><xml> <w:LatentStyles DefLockedState="false" LatentStyleCount="156"> </w:LatentStyles> </xml><![endif]-->
+
+
+
+<style>
+<!--
+/* Font Definitions */
+@font-face
+{font-family:Wingdings;
+panose-1:5 0 0 0 0 0 0 0 0 0;
+mso-font-charset:2;
+mso-generic-font-family:auto;
+mso-font-pitch:variable;
+mso-font-signature:0 268435456 0 0 -2147483648 0;}
+@font-face
+{font-family:"MS Mincho";
+panose-1:2 2 6 9 4 2 5 8 3 4;
+mso-font-alt:"Arial Unicode MS";
+mso-font-charset:128;
+mso-generic-font-family:roman;
+mso-font-format:other;
+mso-font-pitch:fixed;
+mso-font-signature:1 134676480 16 0 131072 0;}
+@font-face
+{font-family:Verdana;
+panose-1:2 11 6 4 3 5 4 4 2 4;
+mso-font-charset:0;
+mso-generic-font-family:swiss;
+mso-font-pitch:variable;
+mso-font-signature:536871559 0 0 0 415 0;}
+@font-face
+{font-family:"\@MS Mincho";
+panose-1:0 0 0 0 0 0 0 0 0 0;
+mso-font-charset:128;
+mso-generic-font-family:roman;
+mso-font-format:other;
+mso-font-pitch:fixed;
+mso-font-signature:1 134676480 16 0 131072 0;}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+{mso-style-parent:"";
+margin:0cm;
+margin-bottom:.0001pt;
+mso-pagination:widow-orphan;
+font-size:12.0pt;
+font-family:"Times New Roman";
+mso-fareast-font-family:"Times New Roman";}
+h1
+{mso-margin-top-alt:auto;
+margin-right:0cm;
+mso-margin-bottom-alt:auto;
+margin-left:0cm;
+mso-pagination:widow-orphan;
+mso-outline-level:1;
+font-size:24.0pt;
+font-family:"Times New Roman";
+mso-fareast-font-family:"MS Mincho";
+font-weight:bold;}
+h2
+{mso-style-next:Normal;
+margin-top:12.0pt;
+margin-right:0cm;
+margin-bottom:3.0pt;
+margin-left:0cm;
+mso-pagination:widow-orphan;
+page-break-after:avoid;
+mso-outline-level:2;
+font-size:14.0pt;
+font-family:Arial;
+mso-fareast-font-family:"MS Mincho";
+font-weight:bold;
+font-style:italic;}
+h3
+{mso-margin-top-alt:auto;
+margin-right:0cm;
+mso-margin-bottom-alt:auto;
+margin-left:0cm;
+mso-pagination:widow-orphan;
+mso-outline-level:3;
+font-size:13.5pt;
+font-family:"Times New Roman";
+mso-fareast-font-family:"MS Mincho";
+font-weight:bold;}
+a:link, span.MsoHyperlink
+{color:blue;
+text-decoration:underline;
+text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+{color:blue;
+text-decoration:underline;
+text-underline:single;}
+p
+{mso-margin-top-alt:auto;
+margin-right:0cm;
+mso-margin-bottom-alt:auto;
+margin-left:0cm;
+mso-pagination:widow-orphan;
+font-size:12.0pt;
+font-family:"Times New Roman";
+mso-fareast-font-family:"Times New Roman";}
+@page Section1
+{size:612.0pt 792.0pt;
+margin:72.0pt 90.0pt 72.0pt 90.0pt;
+mso-header-margin:36.0pt;
+mso-footer-margin:36.0pt;
+mso-paper-source:0;}
+div.Section1
+{page:Section1;}
+/* List Definitions */
+@list l0
+{mso-list-id:1315182333;
+mso-list-template-ids:555131286;}
+@list l0:level1
+{mso-level-tab-stop:36.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l0:level2
+{mso-level-tab-stop:72.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l0:level3
+{mso-level-tab-stop:108.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l0:level4
+{mso-level-tab-stop:144.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l0:level5
+{mso-level-tab-stop:180.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l0:level6
+{mso-level-tab-stop:216.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l0:level7
+{mso-level-tab-stop:252.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l0:level8
+{mso-level-tab-stop:288.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l0:level9
+{mso-level-tab-stop:324.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l1
+{mso-list-id:2024673066;
+mso-list-template-ids:154433278;}
+@list l1:level1
+{mso-level-number-format:bullet;
+mso-level-text:\F0A7;
+mso-level-tab-stop:36.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;
+mso-ansi-font-size:10.0pt;
+font-family:Wingdings;}
+@list l1:level2
+{mso-level-number-format:bullet;
+mso-level-text:\F0B7;
+mso-level-tab-stop:72.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;
+mso-ansi-font-size:10.0pt;
+font-family:Symbol;}
+@list l1:level3
+{mso-level-number-format:bullet;
+mso-level-text:\F0B0;
+mso-level-tab-stop:108.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;
+font-family:Symbol;}
+@list l1:level4
+{mso-level-tab-stop:144.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l1:level5
+{mso-level-tab-stop:180.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l1:level6
+{mso-level-tab-stop:216.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l1:level7
+{mso-level-tab-stop:252.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l1:level8
+{mso-level-tab-stop:288.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l1:level9
+{mso-level-tab-stop:324.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l2
+{mso-list-id:2095200852;
+mso-list-type:hybrid;
+mso-list-template-ids:-391638944 67698693 67698691 67698693 67698689 67698691 67698693 67698689 67698691 67698693;}
+@list l2:level1
+{mso-level-number-format:bullet;
+mso-level-text:\F0A7;
+mso-level-tab-stop:36.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;
+font-family:Wingdings;}
+@list l2:level2
+{mso-level-tab-stop:72.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l2:level3
+{mso-level-tab-stop:108.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l2:level4
+{mso-level-tab-stop:144.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l2:level5
+{mso-level-tab-stop:180.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l2:level6
+{mso-level-tab-stop:216.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l2:level7
+{mso-level-tab-stop:252.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l2:level8
+{mso-level-tab-stop:288.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+@list l2:level9
+{mso-level-tab-stop:324.0pt;
+mso-level-number-position:left;
+text-indent:-18.0pt;}
+ol
+{margin-bottom:0cm;}
+ul
+{margin-bottom:0cm;}
+-->
+</style><!--[if gte mso 10]> <style> /* Style Definitions */ table.MsoNormalTable {mso-style-name:"Table Normal"; mso-tstyle-rowband-size:0; mso-tstyle-colband-size:0; mso-style-noshow:yes; mso-style-parent:""; mso-padding-alt:0cm 5.4pt 0cm 5.4pt; mso-para-margin:0cm; mso-para-margin-bottom:.0001pt; mso-pagination:widow-orphan; font-size:10.0pt; font-family:"Times New Roman"; mso-fareast-font-family:"Times New Roman"; mso-ansi-language:#0400; mso-fareast-language:#0400; mso-bidi-language:#0400;} </style> <![endif]-->
+<style type="disc">
+</style><!--[if gte mso 9]><xml> <o:shapedefaults v:ext="edit" spidmax="45058"/> </xml><![endif]--><!--[if gte mso 9]><xml> <o:shapelayout v:ext="edit"> <o:idmap v:ext="edit" data="1"/> </o:shapelayout></xml><![endif]--><meta content="MCD Application Team" name="author"></head>
+<body link="blue" vlink="blue">
+<div class="Section1">
+<p class="MsoNormal"><span style="font-family: Arial;"><br>
+</span><span style="font-family: Arial;"><o:p></o:p></span></p>
+<div align="center">
+<table class="MsoNormalTable" style="width: 675pt;" border="0" cellpadding="0" cellspacing="0" width="900">
+<tbody>
+<tr style="">
+<td style="padding: 0cm;" valign="top">
+<table class="MsoNormalTable" style="width: 675pt;" border="0" cellpadding="0" cellspacing="0" width="900">
+<tbody>
+<tr style="">
+<td style="padding: 1.5pt;">
+
+<h1 style="margin-bottom: 18pt; text-align: center;" align="center"><span style="font-size: 20pt; font-family: Verdana; color: rgb(51, 102, 255);">Release
+Notes for<o:p></o:p> </span><span style="font-size: 20pt; color: rgb(51, 102, 255); font-family: Verdana;">STM32F0xx Standard Peripherals Drivers</span><span style="font-size: 20pt; font-family: Verdana;"><o:p></o:p></span><br>
+<span style="font-size: 20pt; font-family: Verdana;"><o:p></o:p></span></h1>
+<p class="MsoNormal" style="text-align: center;" align="center"><span style="font-size: 10pt; font-family: Arial; color: black;">Copyright
+© 2014 STMicroelectronics</span><span style="color: black;"><u1:p></u1:p><o:p></o:p></span></p>
+<p class="MsoNormal" style="text-align: center;" align="center"><span style="font-size: 10pt;"><img style="border: 0px solid ; width: 86px; height: 65px;" alt="" id="_x0000_i1025" src="../../_htmresc/st_logo.png"></span></p>
+</td>
+</tr>
+</tbody>
+</table>
+
+<table class="MsoNormalTable" style="width: 675pt;" border="0" cellpadding="0" width="900">
+<tbody>
+<tr style="">
+<td style="padding: 0cm;" valign="top">
+            <h2 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial;"><span style="font-size: 12pt; color: white;">Update history</span></h2><span style="font-size: 10pt; font-family: Verdana;"></span><span style="font-size: 10pt; font-family: Verdana;"></span><h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.5.0 / 05-December-2015</span></h3><p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+<ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add support of the <span style="font-weight: bold; font-style: italic;">STM32F070xB, </span></span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-weight: bold; font-style: italic;">STM32F070x6 </span><span style="font-style: italic;">and</span><span style="font-weight: bold; font-style: italic;"> </span></span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-weight: bold; font-style: italic;">STM32F030xC</span></span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-weight: bold; font-style: italic;">&nbsp;</span><span style="font-weight: bold;"> </span>devices.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_flash.c/.h: update for</span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">&nbsp;</span></span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F070xB, </span><span style="font-style: italic;">STM32F070x6 </span><span style="font-style: italic;">and</span><span style="font-style: italic;"> </span><span style="font-style: italic;">STM32F030xC</span><span style="font-style: italic;"></span></span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"> devices</span></span></li></ul><h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.4.0 / 24-July-2014</span></h3><p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+<ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add support of the <span style="font-weight: bold; font-style: italic;">STM32F091</span><span style="font-weight: bold;"> </span>devices.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_dma.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F091 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add the support of the DMA2 channels.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add new function <span style="font-style: italic;">"void DMA_RemapConfig(DMA_TypeDef* DMAy, uint32_t DMAx_CHy_RemapRequest);"</span><br></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_flash.c/.h: update for</span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"> STM32F091 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for new option bytes on the STM32F091 devices.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_gpio.c/.h:&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">update for</span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"> STM32F091 devices</span></span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"></span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update the GPIO_AF definition comments with the new supported alternate functions</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_rcc.c/.h:&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">update for</span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"> STM32F091 devices</span></span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"></span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add&nbsp;<span style="font-style: italic;">USART3CLK_Frequency&nbsp;</span><span style="font-style: italic;"></span>fields in the RCC_ClocksTypeDef structure.<br>
+  </span></li></ul><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for USART3 clock sources</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add USART4, USART5, USART6, USART7 and USART8 clock and reset configuration.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add DMA2 clock&nbsp;configuration.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_syscfg.c/.h:&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">update for</span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"> STM32F091 devices</span></span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"></span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add new function <span style="font-style: italic;">"void SYSCFG_IRDAEnvSelection(uint32_t SYSCFG_IRDAEnv);"</span></span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add new function <span style="font-style: italic;">"</span></span><span style="font-size: 10pt; font-family: Verdana; font-style: italic;">uint32_t SYSCFG_GetPendingIT(uint32_t ITSourceLine);"</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_usart.c/.h:&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">update for</span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"> STM32F091 devices</span></span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"></span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add support of the USART3,USART4, USART5, USART6, USART7 and USART8.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_pwr.c&nbsp;</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Fix
+PWR_EnterSTANDBYMode() to not clear Wakeup flag (WUF), this flag need
+to be cleared at application level before to call this function&nbsp;</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">PWR_EnterSleepMode():
+update usage of __WFE() in low power entry function. If there is a
+pending event, calling __WFE() instruction, the CortexM0 core will not
+enter to sleep mode. The solution is to make the call below: the first
+__WFE() is always ignored and clears the event if one was already
+pending, the second is always applied<br><br>__SEV()<br>__WFE()<br>__WFE() <br><br></span></li></ul></ul><h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.3.0 / 16-January-2014</span></h3><p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+<ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add support of the <span style="font-weight: bold; font-style: italic;">STM32042 and STM32F072</span><span style="font-weight: bold;"> </span>devices.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update to support the new STM32F0xx family devices names.</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-weight: bold;">STM32F0XX_MD</span> &nbsp;replaced by <span style="font-weight: bold;">STM32F051</span></span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-weight: bold;">STM32F0XX_LD</span> &nbsp;replaced by <span style="font-weight: bold;">STM32F031</span></span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt; font-weight: bold;"><span style="font-size: 10pt; font-family: Verdana;">STM32F030x8&nbsp;</span><span style="font-size: 10pt; font-family: Verdana; font-weight: normal;">and <span style="font-weight: bold;">STM32F030x6</span> replaced by <span style="font-weight: bold;">STM32F030</span></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add Clock Recovery System(CRS) driver.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add CAN driver.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update RCC driver to manage the High Speed Internal RC48MHz oscillator.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_adc.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add note to no more use the <span style="font-style: italic;">ADC_JitterOff </span>definition as obsolete and maintained for legacy purpose. They are replaced by <span style="font-style: italic;">ADC_ClockMode </span>definition.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add new <span style="font-style: italic;">ADC_ClockMode </span>definition for proper ADC clock configuration.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update <span style="font-style: italic;">ADC_FLAG_ADSTP</span> definition.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update <span style="font-style: italic;">ADC_FLAG_ADCAL </span>definition.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add <span style="font-style: italic;">ADC_ClockModeConfig() </span>function for proper ADC clock configuration.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add note to no more use the <span style="font-style: italic;">ADC_JitterCmd() </span>function as obsolete.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_comp.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add define for the COMP_InvertingInput_DAC2.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_crc.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for the&nbsp;CRC Polynomial Size.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add <span style="font-style: italic;">CRC_SetPolynomial(), CRC_CalcCRC16bits(), CRC_PolynomialSizeSelect(), CRC_CalcCRC16bits(), CRC_CalcCRC8bits() </span>functions for the polynomial configuration management.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_dac.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add <span style="font-style: italic;">DAC_WaveGeneration</span> and <span style="font-style: italic;">DAC_LFSRUnmask_TriangleAmplitude</span> fields in the DAC_InitTypeDef structure.&nbsp;</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add <span style="font-style: italic;">DAC_WaveGeneration </span>definitions.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add <span style="font-style: italic;">DAC_lfsrunmask_triangleamplitude</span> definitions.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for <span style="font-style: italic;">DAC_Channel_2</span>.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add <span style="font-style: italic;">DAC_DualSoftwareTriggerCmd(), DAC_WaveGenerationCmd(), DAC_SetChannel2Data(), DAC_SetDualChannelData() </span>for wave generation and dual channel management.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_dbgmcu.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add define for&nbsp;<span style="font-style: italic;">DBGMCU_TIM7_STOP</span>.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add define for <span style="font-style: italic;">DBGMCU_CAN1_STOP.</span></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_dma.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add the support of the DMA channel 6 and DMA Channel 7</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_exti.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add defines for EXTI Lines 18, 20, 26 and 31.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_flash.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for option bytes on the STM32F072 devices.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update <span style="font-style: italic;">IS_FLASH_CLEAR_FLAG </span>macro definition.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition of the BOOT0 and BOOT0_SW option bytes.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add <span style="font-style: italic;">FLASH_OB_BOOT0Config() </span>and <span style="font-style: italic;">FLASH_OB_BOOT0SWConfig() </span>function for the BOOT0 Option bytes configuration.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_gpio.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add the support of the PortE.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update the GPIO_AF definition comments with the new supported alternate functions</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_pwr.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for Wake up pins 3, 4, 5, 6, 7 and 8.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update <span style="font-style: italic;">PWR_EnterSTOPMode()</span> function to&nbsp;support of the SLEEPONEXIT entry mode.<br></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_rcc.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Replace references to <span style="font-style: italic;">STM32F0XX_MD</span> device definition by <span style="font-style: italic;">STM32F051</span>.<span style="font-style: italic;"><br></span></span></li></ul><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add&nbsp;<span style="font-style: italic;">USART2CLK_Frequency </span>and &nbsp;<span style="font-style: italic;">USBCLK_Frequency </span>fields in the RCC_ClocksTypeDef structure.<br>
+  </span></li></ul><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;"></span></span><span style="font-size: 10pt; font-family: Verdana;">Add&nbsp;definition of HSE, HSI48 and HSI clocks as new PLL clock sources.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition of HSI48 clock as system clock source.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for USB clock sources.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for USART2 clock sources</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for HSI48 and PLL clock as MCO sources</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add&nbsp;<span style="font-style: italic;">RCC_HSI48Cmd()</span> and<span style="font-style: italic;"> RCC_GetHSI48CalibrationValue() </span>functions for the HSI48 clock source management.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add <span style="font-style: italic;">RCC_USBCLKConfig() </span>function for USB clock management.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add note to no more use the&nbsp;<span style="font-style: italic;">RCC_ADCCLKConfig() </span>as obsolete, however maintained for legacy purpose. Proper ADC clock configuration is managed by new function <span style="font-style: italic;">ADC_ClockModeConfig() </span>available within the ADC driver.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_rtc.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition of the Tamper 3.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definiton for the Wake up counter in the RTC output selection</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add <span style="font-style: italic;">RTC_WakeUpClockConfig(), RTC_SetWakeUpCounter(), RTC_GetWakeUpCounter(), RTC_WakeUpCmd() </span>functions for the wakeup counter configuration.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_syscfg.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for EXTI_PortSourceGPIOE.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add DMA remap definition for TIM3, TIM2, TIM1, I2C1, USART3, USART2, SPI2.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add new DMA remap possibility definition for TIM17 and TIM16.</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add definition for SYSCFG_I2CFastModePlus_I2C2.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_tim.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add support of the TIM7.</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_usart.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F042 and STM32F072 devices</span></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add support of the USART3 and USART4.</span></li></ul></ul><span style="font-size: 10pt; font-family: Verdana;"></span><h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.2.1 / 22-November-2013<br>
+</span></h3>
+            <p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+
+            <ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update the&nbsp;support of <span style="font-style: italic; font-weight: bold;">STM32F030</span> devices by removing the references to<span style="font-style: italic;"> STM32F030x8 and STM32F030x6 devices </span>and replacing them in by STM32F030 in the SYSCFG and GPIO drivers&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;"><br>
+                </span></li></ul><h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.2.0 / 01-Agust-2013<br>
+</span></h3>
+            <p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+
+            <ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add support of <span style="font-weight: bold; font-style: italic;">STM32F030x8 and STM32F030x6 devices</span> (</span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F030</span></span><span style="font-size: 10pt; font-family: Verdana;"> devices are&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;"> microcontrollers where the Flash memory ranges between 16 and 32 Kbytes)<br>
+                </span></li></ul><h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.1.1 / 31-July-2013<br>
+</span></h3>
+
+            
+            <p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+
+
+            
+            <ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_tim.c</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">TIM_OC2Init()</span>: add configuration of OC2 output idle state for TIM15<br>
+                  </span></li></ul></ul>
+
+            <h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.1.0 / 10-May-2013<br>
+</span></h3>
+            <p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+
+            <ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add support of <span style="font-weight: bold; font-style: italic;">STM32F0xx Low-density devices</span> (</span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F0XX_LD</span></span><span style="font-size: 10pt; font-family: Verdana;"> devices, </span><span style="font-size: 10pt; font-family: Verdana;">STM32F050xx and STM32F060xx microcontrollers where the Flash memory ranges between 16 and 32 Kbytes) and miscellaneous update<br>
+                </span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_rcc.c/.h: update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F0XX_LD</span></span><span style="font-size: 10pt; font-family: Verdana;"> devices</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add new function <span style="font-style: italic;">RCC_MCOConfig(uint8_t RCC_MCOSource,
+uint32_t RCC_MCOPrescaler)</span><br>
+  </span></li></ul><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">RCC_DeInit()</span>: </span><span style="font-size: 10pt; font-family: Verdana;"> update to reset new bits added in </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">RCC_CFGR</span></span><span style="font-size: 10pt; font-family: Verdana;"> register</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_syscfg.c/.h: </span><span style="font-size: 10pt; font-family: Verdana;">update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F0XX_LD</span></span><span style="font-size: 10pt; font-family: Verdana;"> devices</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add defines for "I2C fast mode plus" new AF mapping: <span style="font-style: italic;">SYSCFG_I2CFastModePlus_PA9</span>, <span style="font-style: italic;">SYSCFG_I2CFastModePlus_PA10</span> and SYSCFG_I2CFastModePlus_I2C1</span><br>
+                  <span style="font-size: 10pt; font-family: Verdana;"></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_gpio.h: </span><span style="font-size: 10pt; font-family: Verdana;">update for </span><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">STM32F0XX_LD</span></span><span style="font-size: 10pt; font-family: Verdana;"> devices</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">GPIO_PinAFConfig(): in the </span><span style="font-size: 10pt; font-family: Verdana;">function header add reference to I2C1's new AF4 remapping</span><br>
+                  <span style="font-size: 10pt; font-family: Verdana;"></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_flash.h</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Swap the value of these defines <span style="font-style: italic;">OB_VDDA_ANALOG_ON</span> and <span style="font-style: italic;">OB_VDDA_ANALOG_OFF</span></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_misc.c</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">NVIC_Init()</span>: remove reference to <span style="font-style: italic;">NVIC_PriorityGroupConfig()</span> function (not available)<br>
+                  </span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_gpio.h</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Update <span style="font-style: italic;">GPIOSpeed_TypeDef</span> members naming to be in line w/ the Reference Manual  <br>
+                  </span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_exti.c<br>
+                </span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"></span><span style="font-size: 10pt; font-family: Verdana;">EXTI_GetITStatus() updated to remove test on IMR register to avoid corner case limitation</span></li></ul></ul>
+<h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.0.2 / 13-July-2012</span></h3><p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+<ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_i2c.c/.h</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">I2C_SoftwareResetCmd():</span> update function coding to be in line with </span><span style="font-size: 10pt; font-family: Verdana;">I2C software reset&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">procedure recommended in STM32F0xx lasted documentation. As consequence&nbsp;<span style="font-style: italic;">NewState</span> parameter was removed.<br></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_flash.c/.h</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Rename <span style="font-style: italic;">FLASH_ProgramOptionByteData()</span> to <span style="font-style: italic;">FLASH_OB_ProgramData()</span></span></li></ul><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add some legacy defines for compatibility with STM32F10x Flash driver</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_rtc.c</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">RTC_DeInit(): </span>remove unused variable <span style="font-style: italic;">&#8220;wutcounter&#8221;</span></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_spi.c&nbsp;</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">File header's comment: </span><span style="font-size: 10pt; font-family: Verdana;">add details how to configure the FIFO threshold&nbsp;</span></li></ul></ul><h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.0.1 / 20-April-2012</span></h3><p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+<ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">All drivers, function's header: update </span><span style="font-size: 10pt; font-family: Verdana;">comments&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">and Doxygen&nbsp;tags&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;"></span><span style="font-size: 10pt; font-family: Verdana;">formatting</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_pwr.c</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">PWR_PVDLevelConfig()</span>
+function: remove value of the voltage threshold corresponding to each
+PVD detection level, user should refer to the electrical
+characteristics of the STM32F0xx device&nbsp;datasheet to have the correct
+value</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_usart.c/.h</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">USART_Init() </span>function: update baudrate computation to be in line with the formula described in the Reference Manual (RM0091)</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">USART_AutoBaudRateNewRequest()</span> function removed<br></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_i2c.c</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"><span style="font-style: italic;">I2C_GetITStatus() </span>function: add test to check if the interrupt source is enabled or not</span></li></ul></ul><h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.0.0 / 23-March-2012</span></h3><p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+<ul style="margin-top: 0cm;" type="square"><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">First official release&nbsp;for <span style="font-weight: bold; font-style: italic;">STM32F0xx devices</span></span><span style="font-size: 10pt; font-family: Verdana;"></span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">All source files: license disclaimer text update and add link to the License file on ST Internet</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_comp.h</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">&nbsp;Correct values of <span style="font-style: italic;">COMP_Mode</span> parameter</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_rcc.c/.h</span><span style="font-size: 10pt; font-family: Verdana;"></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add new reset flag <span style="font-style: italic;">V18PWRRSTF</span> in the RCC CSR&nbsp;register</span></li></ul><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add new <span style="font-style: italic;">MCO clock sources (LSI and LSE)</span> and change value of <span style="font-style: italic;">RCC_MCOSource_HSI14&nbsp;</span></span><span style="font-size: 10pt; font-family: Verdana;"></span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_flash.c/.h</span><span style="font-size: 10pt; font-family: Verdana;"></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add new function <span style="font-style: italic;">FLASH_OB_SRAMParityConfig(</span>) to manage the SRAM parity enable option bit</span></li></ul><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Flash and OB keys&nbsp;moved to <span style="font-style: italic;">stm32f0xx.h</span> file</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_tim.c/.h</span><span style="font-size: 10pt; font-family: Verdana;"></span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">Add additional input for <span style="font-style: italic;">TIM14 clock&nbsp;</span> (HSE divided by 32 and MCO)&nbsp;</span></li><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"></span><span style="font-size: 10pt; font-family: Verdana;">Miscellaneous</span><span style="font-size: 10pt; font-family: Verdana;">&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">enhancement</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_adc.c/.h</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"></span><span style="font-size: 10pt; font-family: Verdana;">Miscellaneous</span><span style="font-size: 10pt; font-family: Verdana;">&nbsp;update to be in line with bits naming&nbsp;in the Reference Manual (update done also in&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx.h file)</span></li></ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;">stm32f0xx_i2c.c/.h</span></li><ul><li class="MsoNormal" style="color: black; margin-top: 4.5pt; margin-bottom: 4.5pt;"><span style="font-size: 10pt; font-family: Verdana;"></span><span style="font-size: 10pt; font-family: Verdana;">Miscellaneous</span><span style="font-size: 10pt; font-family: Verdana;">&nbsp;</span><span style="font-size: 10pt; font-family: Verdana;">enhancement</span><span style="font-size: 10pt; font-family: Verdana;"></span></li></ul></ul>
+
+            <h3 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; margin-right: 500pt; width: 200px;"><span style="font-size: 10pt; font-family: Arial; color: white;">V1.0.0RC1 / 27-January-2012</span></h3>
+            <p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt;"><b style=""><u><span style="font-size: 10pt; font-family: Verdana; color: black;">Main
+Changes<o:p></o:p></span></u></b></p>
+
+
+
+            
+            
+            <ul style="list-style-type: square;">
+              <li><span style="font-size: 10pt; font-family: Verdana;">Official version (V1.0.0) Release Candidate 1</span></li>
+              
+            </ul>
+            <span style="font-size: 10pt; font-family: Verdana;"></span><br><span style="font-size: 10pt; font-family: Verdana;"></span><ul style="margin-top: 0cm;" type="square"></ul>
+
+<h2 style="background: rgb(51, 102, 255) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial;"><a name="License"></a><span style="font-size: 12pt; color: white;">License<o:p></o:p></span></h2><p class="MsoNormal"><span style="font-size: 10pt; font-family: &quot;Verdana&quot;,&quot;sans-serif&quot;; color: black;">Licensed under MCD-ST Liberty SW License Agreement V2, (the "License"); You may not use this&nbsp;</span><span style="font-size: 10pt; font-family: &quot;Verdana&quot;,&quot;sans-serif&quot;; color: black;">package</span><span style="font-size: 10pt; font-family: &quot;Verdana&quot;,&quot;sans-serif&quot;; color: black;"> except in compliance with the License. You may obtain a copy of the License at:<br><br></span></p><div style="text-align: center;"><span style="font-size: 10pt; font-family: &quot;Verdana&quot;,&quot;sans-serif&quot;; color: black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a target="_blank" href="http://www.st.com/software_license_agreement_liberty_v2">http://www.st.com/software_license_agreement_liberty_v2</a></span><br><span style="font-size: 10pt; font-family: &quot;Verdana&quot;,&quot;sans-serif&quot;; color: black;"></span></div><span style="font-size: 10pt; font-family: &quot;Verdana&quot;,&quot;sans-serif&quot;; color: black;"><br>Unless
+required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, <br>WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See
+the License for the specific language governing permissions and
+limitations under the License.</span><div class="MsoNormal" style="text-align: center;" align="center"><span style="color: black;">
+<hr align="center" size="2" width="100%"></span></div>
+<p class="MsoNormal" style="margin: 4.5pt 0cm 4.5pt 18pt; text-align: center;" align="center"><span style="font-size: 10pt; font-family: &quot;Verdana&quot;,&quot;sans-serif&quot;; color: black;">For
+    complete documentation on </span><span style="font-size: 10pt; font-family: &quot;Verdana&quot;,&quot;sans-serif&quot;;">STM32<span style="color: black;">
+    Microcontrollers visit </span><u><span style="color: blue;"><a href="http://www.st.com/st-web-ui/active/en/catalog/mmc/FM141/SC1169" target="_blank">www.st.com/STM32</a></span></u></span><span style="font-size: 10pt; font-family: Verdana;"><a target="_blank" href="http://www.st.com/internet/mcu/family/141.jsp"><u><span style="color: blue;"></span></u></a></span><span style="color: black;"><o:p></o:p></span></p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="MsoNormal"><span style="font-size: 10pt;"><o:p></o:p></span></p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+</body></html>
