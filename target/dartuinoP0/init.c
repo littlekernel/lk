@@ -132,7 +132,9 @@ void target_init(void)
 
     qspi_flash_init(N25Q128A_FLASH_SIZE);
 
-    memory_lcd_init();
+    if (memory_lcd_init() != NO_ERROR) {
+        printf("error initializing memory_lcd\n");
+    }
 
 #if WITH_LIB_MINIP
     uint8_t mac_addr[6];
