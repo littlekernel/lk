@@ -43,6 +43,14 @@
 
 typedef void (*CpltCallback)(void);
 
+typedef enum {
+    QSPI_STATE_LINEAR,
+    QSPI_STATE_COMMAND,
+    QSPI_STATE_MAX
+} device_state_t;
+device_state_t device_state;
+
+
 static QSPI_HandleTypeDef qspi_handle;
 static DMA_Stream_TypeDef *dma2_stream7;
 static CpltCallback cplt_callback;
@@ -73,6 +81,7 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *, QSPI_CommandTypeDef *
 static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *, QSPI_CommandTypeDef *, uint8_t *);
 
 status_t qspi_enable_linear(void);
+status_t qspi_disable_linear(void);
 
 status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi);
 
@@ -423,6 +432,9 @@ static int spiflash_ioctl(struct bdev *device, int request, void *argp)
             if (argp)
                 *(void **)argp = (void *)QSPI_BASE;
             break;
+        case BIO_IOCTL_PUT_MEM_MAP:
+            ret = qspi_disable_linear();
+            break;
         default:
             ret = ERR_NOT_SUPPORTED;
     }
@@ -537,6 +549,8 @@ status_t qspi_flash_init(size_t flash_size)
     if (result != NO_ERROR) {
         goto err;
     }
+
+    device_state = QSPI_STATE_COMMAND;
 
     // Initialize the QSPI Flash and register it as a Block I/O device.
     geometry.erase_size = log2_uint(N25QXXA_SUBSECTOR_SIZE);
@@ -921,6 +935,11 @@ status_t qspi_enable_linear(void)
 
     mutex_acquire(&spiflash_mutex);
 
+    if (device_state == QSPI_STATE_LINEAR) {
+        // Device is already in linear mode, nothing to be done.
+        goto finish;
+    }
+
     result = qspi_dummy_cycles_cfg_unsafe(&qspi_handle);
 
     QSPI_CommandTypeDef s_command = {
@@ -943,10 +962,35 @@ status_t qspi_enable_linear(void)
     HAL_StatusTypeDef hal_result = HAL_QSPI_MemoryMapped(&qspi_handle, &s_command, &linear_mode_cfg);
     if (hal_result != HAL_OK) {
         result = hal_error_to_status(hal_result);
-        goto err;
+        goto finish;
     }
 
-err:
+    device_state = QSPI_STATE_LINEAR;
+
+finish:
+    mutex_release(&spiflash_mutex);
+    return result;
+}
+
+
+status_t qspi_disable_linear(void)
+{
+    status_t result = NO_ERROR;
+
+    mutex_acquire(&spiflash_mutex);
+
+    if (device_state == QSPI_STATE_COMMAND) {
+        // Device is already in Command mode, nothing to be done.
+        goto finish;
+    }
+
+    result = hal_error_to_status(HAL_QSPI_Abort(&qspi_handle));
+    if (result == NO_ERROR) {
+        device_state = QSPI_STATE_COMMAND;
+    }
+
+
+finish:
     mutex_release(&spiflash_mutex);
     return result;
 }
