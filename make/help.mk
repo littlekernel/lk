@@ -39,7 +39,7 @@ do-nothing=1
 
 # get a list of all the .mk files in the top level project directories
 PROJECTS:=$(basename $(strip $(foreach d,$(LKINC),$(wildcard $(d)/project/*.mk))))
-PROJECTS:=$(shell basename $(PROJECTS))
+PROJECTS:=$(shell basename -a $(PROJECTS))
 
 .PHONY: list
 list:
