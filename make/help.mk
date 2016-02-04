@@ -9,27 +9,27 @@ do-nothing=1
 
 .PHONY: help
 help:
-	@echo "LK build system quick help\n" \
-	"Individual projects are built into a build-<project> directory\n" \
-	"Output binary is located at build-<project>/lk.bin\n" \
-	"Environment or command line variables controlling build:\n" \
-	"PROJECT = <project name>\n" \
-	"TOOLCHAIN_PREFIX = <absolute path to toolchain or relative path with prefix>\n" \
-	"\n" \
-	"Special make targets:\n" \
-	"make help: This help\n" \
-	"make list: List of buildable projects\n" \
-	"make clean: cleans build of current project\n" \
-	"make spotless: removes all build directories\n" \
-	"make <project>: try to build project named <project>\n" \
-	"\n" \
-	"Examples:\n" \
-	"PROJECT=testproject make\n" \
-	"PROJECT=testproject make clean\n" \
-	"make testproject\n" \
-	"make testproject clean\n" \
-	"\n" \
-	"output will be in build-testproject/\n" \
+	@echo "LK build system quick help"
+	@echo "Individual projects are built into a build-<project> directory"
+	@echo "Output binary is located at build-<project>/lk.bin"
+	@echo "Environment or command line variables controlling build:"
+	@echo "PROJECT = <project name>"
+	@echo "TOOLCHAIN_PREFIX = <absolute path to toolchain or relative path with prefix>"
+	@echo ""
+	@echo "Special make targets:"
+	@echo "make help: This help"
+	@echo "make list: List of buildable projects"
+	@echo "make clean: cleans build of current project"
+	@echo "make spotless: removes all build directories"
+	@echo "make <project>: try to build project named <project>"
+	@echo ""
+	@echo "Examples:"
+	@echo "PROJECT=testproject make"
+	@echo "PROJECT=testproject make clean"
+	@echo "make testproject"
+	@echo "make testproject clean"
+	@echo ""
+	@echo "output will be in build-testproject/"
 
 endif
 
