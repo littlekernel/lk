@@ -26,6 +26,7 @@ GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 
 MODULE_SRCS += \
+	$(LOCAL_DIR)/can.c \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/init.c \
