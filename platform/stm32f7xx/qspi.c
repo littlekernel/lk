@@ -121,19 +121,19 @@ static status_t dma_disable(DMA_Stream_TypeDef *dma)
 // Must hold spiflash_mutex before calling.
 static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef *hqspi)
 {
-    QSPI_CommandTypeDef s_command;
     HAL_StatusTypeDef status;
 
-    /* Enable write operations */
-    s_command.InstructionMode = QSPI_INSTRUCTION_1_LINE;
-    s_command.Instruction = WRITE_ENABLE_CMD;
-    s_command.AddressMode = QSPI_ADDRESS_NONE;
-    s_command.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
-    s_command.DataMode = QSPI_DATA_NONE;
-    s_command.DummyCycles = 0;
-    s_command.DdrMode = QSPI_DDR_MODE_DISABLE;
-    s_command.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
-    s_command.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
+    static QSPI_CommandTypeDef s_command = {
+        .InstructionMode = QSPI_INSTRUCTION_1_LINE,
+        .Instruction = WRITE_ENABLE_CMD,
+        .AddressMode = QSPI_ADDRESS_NONE,
+        .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
+        .DataMode = QSPI_DATA_NONE,
+        .DummyCycles = 0,
+        .DdrMode = QSPI_DDR_MODE_DISABLE,
+        .DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY,
+        .SIOOMode = QSPI_SIOO_INST_EVERY_CMD
+    };
 
     status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
@@ -209,20 +209,20 @@ static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef *hqspi)
 // Must hold spiflash_mutex before calling.
 static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef *hqspi, uint8_t match, uint8_t mask)
 {
-    QSPI_CommandTypeDef s_command;
     QSPI_AutoPollingTypeDef s_config;
     HAL_StatusTypeDef status;
 
-    /* Configure automatic polling mode to wait for memory ready */
-    s_command.InstructionMode = QSPI_INSTRUCTION_1_LINE;
-    s_command.Instruction = READ_STATUS_REG_CMD;
-    s_command.AddressMode = QSPI_ADDRESS_NONE;
-    s_command.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
-    s_command.DataMode = QSPI_DATA_1_LINE;
-    s_command.DummyCycles = 0;
-    s_command.DdrMode = QSPI_DDR_MODE_DISABLE;
-    s_command.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
-    s_command.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
+    static QSPI_CommandTypeDef s_command = {
+        .InstructionMode = QSPI_INSTRUCTION_1_LINE,
+        .Instruction = READ_STATUS_REG_CMD,
+        .AddressMode = QSPI_ADDRESS_NONE,
+        .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
+        .DataMode = QSPI_DATA_1_LINE,
+        .DummyCycles = 0,
+        .DdrMode = QSPI_DDR_MODE_DISABLE,
+        .DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY,
+        .SIOOMode = QSPI_SIOO_INST_EVERY_CMD
+    };
 
     s_config.Match = match;
     s_config.Mask = mask;
@@ -942,7 +942,7 @@ status_t qspi_enable_linear(void)
 
     result = qspi_dummy_cycles_cfg_unsafe(&qspi_handle);
 
-    QSPI_CommandTypeDef s_command = {
+    static QSPI_CommandTypeDef s_command = {
         .InstructionMode   = QSPI_INSTRUCTION_1_LINE,
         .AddressSize       = QSPI_ADDRESS_24_BITS,
         .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
