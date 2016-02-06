@@ -123,7 +123,7 @@ static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef *hqspi)
 {
     HAL_StatusTypeDef status;
 
-    static QSPI_CommandTypeDef s_command = {
+    static const QSPI_CommandTypeDef s_command = {
         .InstructionMode = QSPI_INSTRUCTION_1_LINE,
         .Instruction = WRITE_ENABLE_CMD,
         .AddressMode = QSPI_ADDRESS_NONE,
@@ -151,24 +151,25 @@ static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef *hqspi)
 // Must hold spiflash_mutex before calling.
 static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef *hqspi)
 {
-    QSPI_CommandTypeDef s_command;
     uint8_t reg;
     HAL_StatusTypeDef status;
 
     /* Initialize the read volatile configuration register command */
-    s_command.InstructionMode = QSPI_INSTRUCTION_1_LINE;
-    s_command.Instruction = READ_VOL_CFG_REG_CMD;
-    s_command.AddressMode = QSPI_ADDRESS_NONE;
-    s_command.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
-    s_command.DataMode = QSPI_DATA_1_LINE;
-    s_command.DummyCycles = 0;
-    s_command.NbData = 1;
-    s_command.DdrMode = QSPI_DDR_MODE_DISABLE;
-    s_command.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
-    s_command.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
+    static const QSPI_CommandTypeDef init_rvcr_cmd = {
+        .InstructionMode = QSPI_INSTRUCTION_1_LINE,
+        .Instruction = READ_VOL_CFG_REG_CMD,
+        .AddressMode = QSPI_ADDRESS_NONE,
+        .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
+        .DataMode = QSPI_DATA_1_LINE,
+        .DummyCycles = 0,
+        .NbData = 1,
+        .DdrMode = QSPI_DDR_MODE_DISABLE,
+        .DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY,
+        .SIOOMode = QSPI_SIOO_INST_EVERY_CMD
+    };
 
     /* Configure the command */
-    status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status = HAL_QSPI_Command(hqspi, &init_rvcr_cmd, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
@@ -186,13 +187,24 @@ static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef *hqspi)
     }
 
     /* Update volatile configuration register (with new dummy cycles) */
-    s_command.Instruction = WRITE_VOL_CFG_REG_CMD;
+    static const QSPI_CommandTypeDef update_rvcr_cmd = {
+        .InstructionMode = QSPI_INSTRUCTION_1_LINE,
+        .Instruction = WRITE_VOL_CFG_REG_CMD,
+        .AddressMode = QSPI_ADDRESS_NONE,
+        .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
+        .DataMode = QSPI_DATA_1_LINE,
+        .DummyCycles = 0,
+        .NbData = 1,
+        .DdrMode = QSPI_DDR_MODE_DISABLE,
+        .DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY,
+        .SIOOMode = QSPI_SIOO_INST_EVERY_CMD
+    };
     MODIFY_REG(
         reg, N25QXXA_VCR_NB_DUMMY,
         (N25QXXA_DUMMY_CYCLES_READ_QUAD << POSITION_VAL(N25QXXA_VCR_NB_DUMMY)));
 
     /* Configure the write volatile configuration register command */
-    status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
+    status = HAL_QSPI_Command(hqspi, &update_rvcr_cmd, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
         return hal_error_to_status(status);
     }
@@ -212,7 +224,7 @@ static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef *hqspi, ui
     QSPI_AutoPollingTypeDef s_config;
     HAL_StatusTypeDef status;
 
-    static QSPI_CommandTypeDef s_command = {
+    static const QSPI_CommandTypeDef s_command = {
         .InstructionMode = QSPI_INSTRUCTION_1_LINE,
         .Instruction = READ_STATUS_REG_CMD,
         .AddressMode = QSPI_ADDRESS_NONE,
@@ -221,7 +233,8 @@ static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef *hqspi, ui
         .DummyCycles = 0,
         .DdrMode = QSPI_DDR_MODE_DISABLE,
         .DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY,
-        .SIOOMode = QSPI_SIOO_INST_EVERY_CMD
+        .SIOOMode = QSPI_SIOO_INST_EVERY_CMD,
+        .NbData = 1
     };
 
     s_config.Match = match;
@@ -942,7 +955,7 @@ status_t qspi_enable_linear(void)
 
     result = qspi_dummy_cycles_cfg_unsafe(&qspi_handle);
 
-    static QSPI_CommandTypeDef s_command = {
+    static const QSPI_CommandTypeDef s_command = {
         .InstructionMode   = QSPI_INSTRUCTION_1_LINE,
         .AddressSize       = QSPI_ADDRESS_24_BITS,
         .AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE,
