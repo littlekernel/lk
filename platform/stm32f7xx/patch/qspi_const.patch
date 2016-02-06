@@ -1,0 +1,138 @@
+diff --git a/platform/stm32f7xx/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_qspi.h b/platform/stm32f7xx/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_qspi.h
+index b9703b7..9571cd6 100644
+--- a/platform/stm32f7xx/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_qspi.h
++++ b/platform/stm32f7xx/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_qspi.h
+@@ -535,21 +535,21 @@ void                  HAL_QSPI_MspDeInit(QSPI_HandleTypeDef *hqspi);
+ void                  HAL_QSPI_IRQHandler(QSPI_HandleTypeDef *hqspi);
+ 
+ /* QSPI indirect mode */
+-HAL_StatusTypeDef     HAL_QSPI_Command      (QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, uint32_t Timeout);
++HAL_StatusTypeDef     HAL_QSPI_Command      (QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, uint32_t Timeout);
+ HAL_StatusTypeDef     HAL_QSPI_Transmit     (QSPI_HandleTypeDef *hqspi, uint8_t *pData, uint32_t Timeout);
+ HAL_StatusTypeDef     HAL_QSPI_Receive      (QSPI_HandleTypeDef *hqspi, uint8_t *pData, uint32_t Timeout);
+-HAL_StatusTypeDef     HAL_QSPI_Command_IT   (QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd);
++HAL_StatusTypeDef     HAL_QSPI_Command_IT   (QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd);
+ HAL_StatusTypeDef     HAL_QSPI_Transmit_IT  (QSPI_HandleTypeDef *hqspi, uint8_t *pData);
+ HAL_StatusTypeDef     HAL_QSPI_Receive_IT   (QSPI_HandleTypeDef *hqspi, uint8_t *pData);
+ HAL_StatusTypeDef     HAL_QSPI_Transmit_DMA (QSPI_HandleTypeDef *hqspi, uint8_t *pData);
+ HAL_StatusTypeDef     HAL_QSPI_Receive_DMA  (QSPI_HandleTypeDef *hqspi, uint8_t *pData);
+ 
+ /* QSPI status flag polling mode */
+-HAL_StatusTypeDef     HAL_QSPI_AutoPolling   (QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, QSPI_AutoPollingTypeDef *cfg, uint32_t Timeout);
+-HAL_StatusTypeDef     HAL_QSPI_AutoPolling_IT(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, QSPI_AutoPollingTypeDef *cfg);
++HAL_StatusTypeDef     HAL_QSPI_AutoPolling   (QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, QSPI_AutoPollingTypeDef *cfg, uint32_t Timeout);
++HAL_StatusTypeDef     HAL_QSPI_AutoPolling_IT(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, QSPI_AutoPollingTypeDef *cfg);
+ 
+ /* QSPI memory-mapped mode */
+-HAL_StatusTypeDef     HAL_QSPI_MemoryMapped(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, QSPI_MemoryMappedTypeDef *cfg);
++HAL_StatusTypeDef     HAL_QSPI_MemoryMapped(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, QSPI_MemoryMappedTypeDef *cfg);
+ /**
+   * @}
+   */
+diff --git a/platform/stm32f7xx/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_qspi.c b/platform/stm32f7xx/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_qspi.c
+index ae028c0..baafa7d 100644
+--- a/platform/stm32f7xx/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_qspi.c
++++ b/platform/stm32f7xx/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_qspi.c
+@@ -202,7 +202,7 @@ static void QSPI_DMARxHalfCplt(DMA_HandleTypeDef *hdma);
+ static void QSPI_DMATxHalfCplt(DMA_HandleTypeDef *hdma);
+ static void QSPI_DMAError(DMA_HandleTypeDef *hdma);
+ static HAL_StatusTypeDef QSPI_WaitFlagStateUntilTimeout(QSPI_HandleTypeDef *hqspi, uint32_t Flag, FlagStatus State, uint32_t Timeout);
+-static void QSPI_Config(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, uint32_t FunctionalMode);
++static void QSPI_Config(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, uint32_t FunctionalMode);
+ /**
+   * @}
+   */
+@@ -540,7 +540,7 @@ void HAL_QSPI_IRQHandler(QSPI_HandleTypeDef *hqspi)
+   * @note   This function is used only in Indirect Read or Write Modes
+   * @retval HAL status
+   */
+-HAL_StatusTypeDef HAL_QSPI_Command(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, uint32_t Timeout)
++HAL_StatusTypeDef HAL_QSPI_Command(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, uint32_t Timeout)
+ {
+     HAL_StatusTypeDef status = HAL_ERROR;
+ 
+@@ -618,7 +618,7 @@ HAL_StatusTypeDef HAL_QSPI_Command(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDe
+   * @note   This function is used only in Indirect Read or Write Modes
+   * @retval HAL status
+   */
+-HAL_StatusTypeDef HAL_QSPI_Command_IT(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd)
++HAL_StatusTypeDef HAL_QSPI_Command_IT(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd)
+ {
+     HAL_StatusTypeDef status = HAL_ERROR;
+ 
+@@ -1059,7 +1059,7 @@ HAL_StatusTypeDef HAL_QSPI_Receive_DMA(QSPI_HandleTypeDef *hqspi, uint8_t *pData
+   * @note   This function is used only in Automatic Polling Mode
+   * @retval HAL status
+   */
+-HAL_StatusTypeDef HAL_QSPI_AutoPolling(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, QSPI_AutoPollingTypeDef *cfg, uint32_t Timeout)
++HAL_StatusTypeDef HAL_QSPI_AutoPolling(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, QSPI_AutoPollingTypeDef *cfg, uint32_t Timeout)
+ {
+     HAL_StatusTypeDef status = HAL_ERROR;
+ 
+@@ -1118,8 +1118,18 @@ HAL_StatusTypeDef HAL_QSPI_AutoPolling(QSPI_HandleTypeDef *hqspi, QSPI_CommandTy
+             MODIFY_REG(hqspi->Instance->CR, (QUADSPI_CR_PMM | QUADSPI_CR_APMS),
+                        (cfg->MatchMode | QSPI_AUTOMATIC_STOP_ENABLE));
+ 
++            ////////////////////////////////////////////////////////////////////
++
++            // Removed by gkalsi <github.com/gkalsi> to permit const objects to
++            // be passed into this function.
++            // NOTE: The caller is now responsible for setting cmd->NbData ==
++            // cfg->StatusBytesSize prior to calling this function.
++
++            // cmd->NbData = cfg->StatusBytesSize;
++
++            ////////////////////////////////////////////////////////////////////
++
+             /* Call the configuration function */
+-            cmd->NbData = cfg->StatusBytesSize;
+             QSPI_Config(hqspi, cmd, QSPI_FUNCTIONAL_MODE_AUTO_POLLING);
+ 
+             /* Wait until SM flag is set to go back in idle state */
+@@ -1150,7 +1160,7 @@ HAL_StatusTypeDef HAL_QSPI_AutoPolling(QSPI_HandleTypeDef *hqspi, QSPI_CommandTy
+   * @note   This function is used only in Automatic Polling Mode
+   * @retval HAL status
+   */
+-HAL_StatusTypeDef HAL_QSPI_AutoPolling_IT(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, QSPI_AutoPollingTypeDef *cfg)
++HAL_StatusTypeDef HAL_QSPI_AutoPolling_IT(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, QSPI_AutoPollingTypeDef *cfg)
+ {
+     HAL_StatusTypeDef status = HAL_ERROR;
+ 
+@@ -1208,8 +1218,18 @@ HAL_StatusTypeDef HAL_QSPI_AutoPolling_IT(QSPI_HandleTypeDef *hqspi, QSPI_Comman
+             MODIFY_REG(hqspi->Instance->CR, (QUADSPI_CR_PMM | QUADSPI_CR_APMS),
+                        (cfg->MatchMode | cfg->AutomaticStop));
+ 
++            ////////////////////////////////////////////////////////////////////
++
++            // Removed by gkalsi <github.com/gkalsi> to permit const objects to
++            // be passed into this function.
++            // NOTE: The caller is now responsible for setting cmd->NbData ==
++            // cfg->StatusBytesSize prior to calling this function.
++
++            // cmd->NbData = cfg->StatusBytesSize;
++
++            ////////////////////////////////////////////////////////////////////
++
+             /* Call the configuration function */
+-            cmd->NbData = cfg->StatusBytesSize;
+             QSPI_Config(hqspi, cmd, QSPI_FUNCTIONAL_MODE_AUTO_POLLING);
+ 
+             /* Enable the QSPI Transfer Error, FIFO threshold and status match Interrupt */
+@@ -1234,7 +1254,7 @@ HAL_StatusTypeDef HAL_QSPI_AutoPolling_IT(QSPI_HandleTypeDef *hqspi, QSPI_Comman
+   * @note   This function is used only in Memory mapped Mode
+   * @retval HAL status
+   */
+-HAL_StatusTypeDef HAL_QSPI_MemoryMapped(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, QSPI_MemoryMappedTypeDef *cfg)
++HAL_StatusTypeDef HAL_QSPI_MemoryMapped(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, QSPI_MemoryMappedTypeDef *cfg)
+ {
+     HAL_StatusTypeDef status = HAL_ERROR;
+ 
+@@ -1647,7 +1667,7 @@ static HAL_StatusTypeDef QSPI_WaitFlagStateUntilTimeout(QSPI_HandleTypeDef *hqsp
+   *            @arg QSPI_FUNCTIONAL_MODE_MEMORY_MAPPED: Memory-mapped mode
+   * @retval None
+   */
+-static void QSPI_Config(QSPI_HandleTypeDef *hqspi, QSPI_CommandTypeDef *cmd, uint32_t FunctionalMode)
++static void QSPI_Config(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, uint32_t FunctionalMode)
+ {
+     assert_param(IS_QSPI_FUNCTIONAL_MODE(FunctionalMode));
+ 
