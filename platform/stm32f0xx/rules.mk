@@ -31,6 +31,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/dma.c \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/spi.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uart.c \
 	$(LOCAL_DIR)/vectab.c
