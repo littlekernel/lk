@@ -51,7 +51,7 @@ DEFAULT_HANDLER(EXTI4_15_IRQ)
 DEFAULT_HANDLER(TS_IRQ)
 DEFAULT_HANDLER(DMA1_Channel1_IRQ)
 DEFAULT_HANDLER(DMA1_Channel2_3_IRQ)
-DEFAULT_HANDLER(DMA1_Channel4_5_IRQ)
+DEFAULT_HANDLER(DMA1_Channel4_5_6_7_IRQ)
 DEFAULT_HANDLER(ADC1_COMP_IRQ)
 DEFAULT_HANDLER(TIM1_BRK_UP_TRG_COM_IRQ)
 DEFAULT_HANDLER(TIM1_CC_IRQ)
@@ -88,7 +88,7 @@ const void * const __SECTION(".text.boot.vectab2") vectab2[] = {
 	VECTAB_ENTRY(TS_IRQ),	                // Touch sense controller Interrupt
 	VECTAB_ENTRY(DMA1_Channel1_IRQ),	// DMA1 Channel 1 Interrupt
 	VECTAB_ENTRY(DMA1_Channel2_3_IRQ),	// DMA1 Channel 2 and Channel 3 Interrupts
-	VECTAB_ENTRY(DMA1_Channel4_5_IRQ),	// DMA1 Channel 4 and Channel 5 Interrupts
+	VECTAB_ENTRY(DMA1_Channel4_5_6_7_IRQ),	// DMA1 Channels 4-7 Interrupts
 	VECTAB_ENTRY(ADC1_COMP_IRQ),	        // ADC1, COMP1 and COMP2 Interrupts
 	VECTAB_ENTRY(TIM1_BRK_UP_TRG_COM_IRQ),  // TIM1 Break, Update, Trigger and Commutation Interrupts
 	VECTAB_ENTRY(TIM1_CC_IRQ),	        // TIM1 Capture Compare Interrupt
