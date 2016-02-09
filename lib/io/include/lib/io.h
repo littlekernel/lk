@@ -47,7 +47,7 @@ typedef struct io_handle_hooks {
     ssize_t (*read)(struct io_handle *handle, char *buf, size_t len);
 } io_handle_hooks_t;
 
-#define IO_HANDLE_MAGIC 'ioh '
+#define IO_HANDLE_MAGIC (0x696f6820)  // "ioh "
 
 typedef struct io_handle {
     uint32_t magic;

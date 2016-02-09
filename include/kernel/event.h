@@ -30,7 +30,7 @@
 
 __BEGIN_CDECLS;
 
-#define EVENT_MAGIC 'evnt'
+#define EVENT_MAGIC (0x65766E74)  // "evnt"
 
 typedef struct event {
 	int magic;
