@@ -73,7 +73,7 @@ enum thread_tls_list {
 #define THREAD_FLAG_IDLE                      (1<<4)
 #define THREAD_FLAG_DEBUG_STACK_BOUNDS_CHECK  (1<<5)
 
-#define THREAD_MAGIC 'thrd'
+#define THREAD_MAGIC (0x74687264) // 'thrd'
 
 typedef struct thread {
 	int magic;

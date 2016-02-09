@@ -33,7 +33,7 @@
 __BEGIN_CDECLS;
 
 /* wait queue stuff */
-#define WAIT_QUEUE_MAGIC 'wait'
+#define WAIT_QUEUE_MAGIC (0x77616974) // 'wait'
 
 typedef struct wait_queue {
 	int magic;

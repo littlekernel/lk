@@ -23,7 +23,7 @@
 
 __BEGIN_CDECLS;
 
-#define SEMAPHORE_MAGIC 'sema'
+#define SEMAPHORE_MAGIC (0x73656D61) // 'sema'
 
 typedef struct semaphore {
 	int magic;

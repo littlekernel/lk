@@ -40,11 +40,11 @@
 // write ports can be in two states, open and closed, which have a
 // different magic number.
 
-#define WRITEPORT_MAGIC_W 'prtw'
-#define WRITEPORT_MAGIC_X 'prtx'
+#define WRITEPORT_MAGIC_W (0x70727477) // 'prtw'
+#define WRITEPORT_MAGIC_X (0x70727478) // 'prtx'
 
-#define READPORT_MAGIC    'prtr'
-#define PORTGROUP_MAGIC   'prtg'
+#define READPORT_MAGIC  (0x70727472)  // 'prtr'
+#define PORTGROUP_MAGIC (0x70727467)  // 'prtg'
 
 #define PORT_BUFF_SIZE      8
 #define PORT_BUFF_SIZE_BIG 64

@@ -31,7 +31,7 @@
 
 __BEGIN_CDECLS;
 
-#define MUTEX_MAGIC 'mutx'
+#define MUTEX_MAGIC (0x6D757478)  // 'mutx'
 
 typedef struct mutex {
 	uint32_t magic;

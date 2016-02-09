@@ -34,7 +34,7 @@ void timer_init(void);
 struct timer;
 typedef enum handler_return (*timer_callback)(struct timer *, lk_time_t now, void *arg);
 
-#define TIMER_MAGIC 'timr'
+#define TIMER_MAGIC (0x74696D72)  //'timr'
 
 typedef struct timer {
 	int magic;

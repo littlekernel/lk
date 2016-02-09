@@ -48,7 +48,7 @@
 #define MINIHEAP_AUTOTRIM 0
 #endif
 
-#define HEAP_MAGIC 'HEAP'
+#define HEAP_MAGIC (0x48454150)  // 'HEAP'
 
 struct free_heap_chunk {
     struct list_node node;
