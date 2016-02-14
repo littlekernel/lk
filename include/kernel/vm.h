@@ -183,6 +183,9 @@ void *paddr_to_kvaddr(paddr_t pa);
 /* virtual to physical */
 paddr_t vaddr_to_paddr(void *va);
 
+/* virtual to container address space */
+struct vmm_aspace *vaddr_to_aspace(void *ptr);
+
 /* virtual allocator */
 typedef struct vmm_aspace {
     struct list_node node;
@@ -194,7 +197,11 @@ typedef struct vmm_aspace {
     size_t  size;
 
     struct list_node region_list;
+
+    arch_aspace_t arch_aspace;
 } vmm_aspace_t;
+
+#define VMM_ASPACE_FLAG_KERNEL 0x1
 
 typedef struct vmm_region {
     struct list_node node;
@@ -250,7 +257,8 @@ __NONNULL((1));
 status_t vmm_free_aspace(vmm_aspace_t *aspace)
 __NONNULL((1));
 
-#define VMM_FLAG_ASPACE_KERNEL 0x1
+/* internal routine by the scheduler to swap mmu contexts */
+void vmm_context_switch(vmm_aspace_t *oldspace, vmm_aspace_t *newaspace);
 
 __END_CDECLS
 

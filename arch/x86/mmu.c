@@ -502,9 +502,11 @@ status_t x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count)
     return NO_ERROR;
 }
 
-int arch_mmu_unmap(vaddr_t vaddr, uint count)
+int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count)
 {
     map_addr_t init_table_from_cr3;
+
+    DEBUG_ASSERT(aspace);
 
     if (!IS_ALIGNED(vaddr, PAGE_SIZE))
         return ERR_INVALID_ARGS;
@@ -557,12 +559,14 @@ status_t x86_mmu_map_range(map_addr_t init_table, struct map_range *range, arch_
     return NO_ERROR;
 }
 
-status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
+status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags)
 {
     uint32_t ret_level, current_cr3_val;
     map_addr_t last_valid_entry;
     arch_flags_t ret_flags;
     status_t stat;
+
+    DEBUG_ASSERT(aspace);
 
     if (!paddr)
         return ERR_INVALID_ARGS;
@@ -583,10 +587,12 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
     return NO_ERROR;
 }
 
-int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
+int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 {
     uint32_t current_cr3_val;
     struct map_range range;
+
+    DEBUG_ASSERT(aspace);
 
     if ((!IS_ALIGNED(paddr, PAGE_SIZE)) || (!IS_ALIGNED(vaddr, PAGE_SIZE)))
         return ERR_INVALID_ARGS;
@@ -634,3 +640,31 @@ void arch_mmu_init(void)
     write_msr(x86_MSR_EFER, efer_msr);
 #endif
 }
+
+/*
+ * x86 does not support multiple address spaces at the moment, so fail if these apis
+ * are used for it.
+ */
+status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags)
+{
+    DEBUG_ASSERT(aspace);
+
+    if ((flags & ARCH_ASPACE_FLAG_KERNEL) == 0) {
+        return ERR_NOT_SUPPORTED;
+    }
+
+    return NO_ERROR;
+}
+
+status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace)
+{
+    return NO_ERROR;
+}
+
+void arch_mmu_context_switch(arch_aspace_t *aspace)
+{
+    if (aspace != NULL) {
+        PANIC_UNIMPLEMENTED;
+    }
+}
+

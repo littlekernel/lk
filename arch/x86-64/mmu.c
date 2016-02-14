@@ -570,9 +570,11 @@ status_t x86_mmu_unmap(addr_t pml4, vaddr_t vaddr, uint count)
     return NO_ERROR;
 }
 
-int arch_mmu_unmap(vaddr_t vaddr, uint count)
+int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count)
 {
     addr_t current_cr3_val;
+
+    DEBUG_ASSERT(aspace);
 
     if (!(x86_mmu_check_vaddr(vaddr)))
         return ERR_INVALID_ARGS;
@@ -624,13 +626,15 @@ status_t x86_mmu_map_range(addr_t pml4, struct map_range *range, arch_flags_t fl
     return NO_ERROR;
 }
 
-status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
+status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags)
 {
     addr_t current_cr3_val;
     uint32_t ret_level;
     map_addr_t last_valid_entry;
     arch_flags_t ret_flags;
     status_t stat;
+
+    DEBUG_ASSERT(aspace);
 
     if (!paddr)
         return ERR_INVALID_ARGS;
@@ -651,10 +655,12 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
     return NO_ERROR;
 }
 
-int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
+int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 {
     addr_t current_cr3_val;
     struct map_range range;
+
+    DEBUG_ASSERT(aspace);
 
     if ((!x86_mmu_check_paddr(paddr)) || (!x86_mmu_check_vaddr(vaddr)))
         return ERR_INVALID_ARGS;
@@ -698,3 +704,31 @@ void arch_mmu_init(void)
     efer_msr |= x86_EFER_NXE;
     write_msr(x86_MSR_EFER, efer_msr);
 }
+
+/*
+ * x86-64 does not support multiple address spaces at the moment, so fail if these apis
+ * are used for it.
+ */
+status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags)
+{
+    DEBUG_ASSERT(aspace);
+
+    if ((flags & ARCH_ASPACE_FLAG_KERNEL) == 0) {
+        return ERR_NOT_SUPPORTED;
+    }
+
+    return NO_ERROR;
+}
+
+status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace)
+{
+    return NO_ERROR;
+}
+
+void arch_mmu_context_switch(arch_aspace_t *aspace)
+{
+    if (aspace != NULL) {
+        PANIC_UNIMPLEMENTED;
+    }
+}
+

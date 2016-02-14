@@ -33,6 +33,11 @@
 #include <kernel/spinlock.h>
 #include <debug.h>
 
+#if WITH_KERNEL_VM
+/* forward declaration */
+typedef struct vmm_aspace vmm_aspace_t;
+#endif
+
 __BEGIN_CDECLS;
 
 /* debug-enable runtime checks */
@@ -88,6 +93,9 @@ typedef struct thread {
 #if WITH_SMP
     int curr_cpu;
     int pinned_cpu; /* only run on pinned_cpu if >= 0 */
+#endif
+#if WITH_KERNEL_VM
+    vmm_aspace_t *aspace;
 #endif
 
     /* if blocked, a pointer to the wait queue */

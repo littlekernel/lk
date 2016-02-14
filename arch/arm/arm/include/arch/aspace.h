@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2015-2016 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -22,18 +22,22 @@
  */
 #pragma once
 
-#include <stdint.h>
-#include <sys/types.h>
-#include <kernel/vm.h>
+#include <compiler.h>
+#include <list.h>
 
-/* simple boot time allocator */
-void *boot_alloc_mem(size_t len) __MALLOC;
-extern uintptr_t boot_alloc_start;
-extern uintptr_t boot_alloc_end;
+__BEGIN_CDECLS
 
-paddr_t page_to_address(const vm_page_t *page);
-vm_page_t *address_to_page(paddr_t addr);
+struct arch_aspace {
+    /* pointer to the translation table */
+    paddr_t tt_phys;
+    uint32_t *tt_virt;
 
-void vmm_init_preheap(void);
-void vmm_init(void);
+    /* range of address space */
+    vaddr_t base;
+    size_t size;
 
+    /* list of pages allocated for these page tables */
+    struct list_node pt_page_list;
+};
+
+__END_CDECLS

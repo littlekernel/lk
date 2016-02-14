@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2016 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -22,18 +22,13 @@
  */
 #pragma once
 
-#include <stdint.h>
-#include <sys/types.h>
-#include <kernel/vm.h>
+#include <compiler.h>
 
-/* simple boot time allocator */
-void *boot_alloc_mem(size_t len) __MALLOC;
-extern uintptr_t boot_alloc_start;
-extern uintptr_t boot_alloc_end;
+__BEGIN_CDECLS
 
-paddr_t page_to_address(const vm_page_t *page);
-vm_page_t *address_to_page(paddr_t addr);
+struct arch_aspace {
+    // nothing for now, does not support address spaces other than the kernel
+};
 
-void vmm_init_preheap(void);
-void vmm_init(void);
+__END_CDECLS
 

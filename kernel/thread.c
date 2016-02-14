@@ -45,6 +45,9 @@
 #include <platform.h>
 #include <target.h>
 #include <lib/heap.h>
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
 
 #if THREAD_STATS
 struct thread_stats thread_stats[SMP_MAX_CPUS];
@@ -169,6 +172,10 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 
     t->retcode = 0;
     wait_queue_init(&t->retcode_wait_queue);
+
+#if WITH_KERNEL_VM
+    t->aspace = NULL;
+#endif
 
     /* create the stack */
     if (!stack) {
@@ -588,6 +595,15 @@ void thread_resched(void)
 #ifdef WITH_LIB_UTHREAD
     uthread_context_switch(oldthread, newthread);
 #endif
+
+#if WITH_KERNEL_VM
+    /* see if we need to swap mmu context */
+    if (newthread->aspace != oldthread->aspace) {
+        vmm_context_switch(oldthread->aspace, newthread->aspace);
+    }
+#endif
+
+    /* do the low level context switch */
     arch_context_switch(oldthread, newthread);
 }
 
@@ -932,7 +948,7 @@ static const char *thread_state_to_str(enum thread_state state)
 {
     switch (state) {
         case THREAD_SUSPENDED:
-                return "susp";
+            return "susp";
         case THREAD_READY:
             return "rdy";
         case THREAD_RUNNING:
