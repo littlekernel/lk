@@ -32,20 +32,20 @@
 
 void platform_early_init(void)
 {
-	// Crank up the clock before initing timers.
-	SystemInit();
+    // Crank up the clock before initing timers.
+    SystemInit();
 
-	// start the systick timer
-	RCC_ClocksTypeDef clocks;
-	RCC_GetClocksFreq(&clocks);
-	arm_cm_systick_init(clocks.SYSCLK_Frequency);
+    // start the systick timer
+    RCC_ClocksTypeDef clocks;
+    RCC_GetClocksFreq(&clocks);
+    arm_cm_systick_init(clocks.SYSCLK_Frequency);
 
-	stm32_timer_early_init();
-	stm32_gpio_early_init();
+    stm32_timer_early_init();
+    stm32_gpio_early_init();
 }
 
 void platform_init(void)
 {
-        dma_init();
-	stm32_timer_init();
+    dma_init();
+    stm32_timer_init();
 }

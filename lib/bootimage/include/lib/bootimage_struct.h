@@ -91,4 +91,4 @@ typedef union {
 // second entry must be:
 //   kind: KIND_BOOT_INFO
 
-// offsets should be multiple-of-4096 
+// offsets should be multiple-of-4096

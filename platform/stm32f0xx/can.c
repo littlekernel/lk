@@ -18,7 +18,7 @@ void stm32_CEC_IRQ(void)
     arm_cm_irq_entry();
     bool resched = false;
 
-    while(CAN_MessagePending(CAN, CAN_FIFO0)) {
+    while (CAN_MessagePending(CAN, CAN_FIFO0)) {
         // If there's no space left in the rx buffer, disable the RX interrupt.
         if (cbuf_space_avail(&can_rx_buf) < sizeof(can_msg_t)) {
             CAN_ITConfig(CAN, CAN_IT_FMP0, DISABLE);
@@ -47,7 +47,8 @@ void stm32_CEC_IRQ(void)
     arm_cm_irq_exit(resched);
 }
 
-void can_init(bool loopback) {
+void can_init(bool loopback)
+{
     // initialize the RX cbuf with enough room for 4 can frames
     cbuf_initialize(&can_rx_buf, round_up_pow2_u32(sizeof(can_msg_t) * 4));
 
@@ -95,7 +96,8 @@ void can_init(bool loopback) {
     NVIC_EnableIRQ(CEC_IRQn);
 }
 
-ssize_t can_send(const can_msg_t *msg) {
+ssize_t can_send(const can_msg_t *msg)
+{
     CanTxMsg CAN_msg;
     uint8_t mailbox;
     int i;
@@ -121,7 +123,8 @@ ssize_t can_send(const can_msg_t *msg) {
     }
 }
 
-ssize_t can_recv(can_msg_t *msg, bool block) {
+ssize_t can_recv(can_msg_t *msg, bool block)
+{
     size_t bytes_read;
 
     bytes_read = cbuf_read(&can_rx_buf, msg, sizeof(*msg), block);

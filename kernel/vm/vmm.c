@@ -44,8 +44,8 @@ void vmm_init(void)
     /* initialize the kernel address space */
     strlcpy(_kernel_aspace.name, "kernel", sizeof(_kernel_aspace.name));
     _kernel_aspace.base = KERNEL_ASPACE_BASE,
-    _kernel_aspace.size = KERNEL_ASPACE_SIZE,
-    _kernel_aspace.flags = VMM_FLAG_ASPACE_KERNEL;
+                   _kernel_aspace.size = KERNEL_ASPACE_SIZE,
+                                  _kernel_aspace.flags = VMM_FLAG_ASPACE_KERNEL;
     list_initialize(&_kernel_aspace.region_list);
 
     list_add_head(&aspace_list, &_kernel_aspace.node);
@@ -264,8 +264,8 @@ done:
 
 /* allocate a region structure and stick it in the address space */
 static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t size,
-        vaddr_t vaddr, uint8_t align_pow2,
-        uint vmm_flags, uint region_flags, uint arch_mmu_flags)
+                                  vaddr_t vaddr, uint8_t align_pow2,
+                                  uint vmm_flags, uint region_flags, uint arch_mmu_flags)
 {
     /* make a region struct for it and stick it in the list */
     vmm_region_t *r = alloc_region_struct(name, vaddr, size, region_flags, arch_mmu_flags);
@@ -377,7 +377,7 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
 
     /* allocate a region and put it in the aspace list */
     vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_log2, vmm_flags,
-            VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+                                   VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         ret = ERR_NO_MEMORY;
         goto err_alloc_region;
@@ -399,7 +399,7 @@ err_alloc_region:
 }
 
 status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr,
-        uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
+                              uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
 {
     status_t err = NO_ERROR;
 
@@ -444,7 +444,7 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
 
     /* allocate a region and put it in the aspace list */
     vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags,
-            VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+                                   VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         err = ERR_NO_MEMORY;
         goto err1;
@@ -474,7 +474,7 @@ err:
 }
 
 status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr,
-        uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
+                   uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
 {
     status_t err = NO_ERROR;
 
@@ -521,7 +521,7 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
 
     /* allocate a region and put it in the aspace list */
     vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_pow2, vmm_flags,
-            VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
+                                   VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         err = ERR_NO_MEMORY;
         goto err1;
@@ -677,13 +677,13 @@ status_t vmm_free_aspace(vmm_aspace_t *aspace)
 static void dump_region(const vmm_region_t *r)
 {
     printf("\tregion %p: name '%s' range 0x%lx - 0x%lx size 0x%zx flags 0x%x mmu_flags 0x%x\n",
-            r, r->name, r->base, r->base + r->size - 1, r->size, r->flags, r->arch_mmu_flags);
+           r, r->name, r->base, r->base + r->size - 1, r->size, r->flags, r->arch_mmu_flags);
 }
 
 static void dump_aspace(const vmm_aspace_t *a)
 {
     printf("aspace %p: name '%s' range 0x%lx - 0x%lx size 0x%zx flags 0x%x\n",
-            a, a->name, a->base, a->base + a->size - 1, a->size, a->flags);
+           a, a->name, a->base, a->base + a->size - 1, a->size, a->flags);
 
     printf("regions:\n");
     vmm_region_t *r;

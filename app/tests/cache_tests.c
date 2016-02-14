@@ -31,7 +31,7 @@
 #include <lib/console.h>
 #include <platform.h>
 
-static void bench_cache(size_t bufsize, uint8_t* buf)
+static void bench_cache(size_t bufsize, uint8_t *buf)
 {
     lk_bigtime_t t;
     bool do_free;
@@ -68,7 +68,7 @@ static void bench_cache(size_t bufsize, uint8_t* buf)
 
 static int cache_tests(int argc, const cmd_args *argv)
 {
-    uint8_t* buf;
+    uint8_t *buf;
     buf = (uint8_t *)((argc > 1) ? argv[1].u : 0UL);
 
     printf("testing cache\n");

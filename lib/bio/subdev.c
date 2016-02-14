@@ -96,7 +96,7 @@ status_t bio_publish_subdevice(const char *parent_dev,
     bdev_t *parent = NULL;
     subdev_t *sub = NULL;
     size_t geometry_count;
-    bio_erase_geometry_info_t* geometry;
+    bio_erase_geometry_info_t *geometry;
 
     LTRACEF("parent \"%s\", sub \"%s\", startblock %u, count %u\n", parent_dev, subdev, startblock, block_count);
 
@@ -123,7 +123,7 @@ status_t bio_publish_subdevice(const char *parent_dev,
     if (parent->geometry_count && parent->geometry) {
         uint64_t byte_start = ((uint64_t)startblock  << parent->block_shift);
         uint64_t byte_size  = ((uint64_t)block_count << parent->block_shift);
-        const bio_erase_geometry_info_t* geo = NULL;
+        const bio_erase_geometry_info_t *geo = NULL;
 
         LTRACEF("Searching geometry for region which contains @[0x%llx, 0x%llx)\n",
                 byte_start, byte_start + byte_size);

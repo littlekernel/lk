@@ -52,5 +52,5 @@ typedef struct _sdram_config {
 // Left to each target to define the GPIO to DRAM bus mapping.
 void stm_sdram_GPIO_init(void);
 
-uint8_t stm32_sdram_init(sdram_config_t* config);
+uint8_t stm32_sdram_init(sdram_config_t *config);
 

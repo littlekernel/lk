@@ -33,7 +33,7 @@
 #include <dev/usb.h>
 #include <lk/init.h>
 
-/* a simple demo usb class device that reflects data written to 
+/* a simple demo usb class device that reflects data written to
  * one endpoint to the other.
  */
 

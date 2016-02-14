@@ -76,7 +76,9 @@ static uint32_t get_cpu_input_freq(void)
 
     uint32_t srcclk;
     switch (srcsel) {
-        default: case 0: case 1: // arm pll
+        default:
+        case 0:
+        case 1: // arm pll
             srcclk = get_arm_pll_freq();
             break;
         case 2: // ddr pll
@@ -140,27 +142,48 @@ static addr_t periph_clk_ctrl_reg(enum zynq_periph periph)
     DEBUG_ASSERT(periph < _PERIPH_MAX);
 
     switch (periph) {
-        case PERIPH_USB0:   return (uintptr_t)&SLCR->USB0_CLK_CTRL;
-        case PERIPH_USB1:   return (uintptr_t)&SLCR->USB1_CLK_CTRL;
-        case PERIPH_GEM0:   return (uintptr_t)&SLCR->GEM0_CLK_CTRL;
-        case PERIPH_GEM1:   return (uintptr_t)&SLCR->GEM1_CLK_CTRL;
-        case PERIPH_SMC:    return (uintptr_t)&SLCR->SMC_CLK_CTRL;
-        case PERIPH_LQSPI:  return (uintptr_t)&SLCR->LQSPI_CLK_CTRL;
-        case PERIPH_SDIO0:  return (uintptr_t)&SLCR->SDIO_CLK_CTRL;
-        case PERIPH_SDIO1:  return (uintptr_t)&SLCR->SDIO_CLK_CTRL;
-        case PERIPH_UART0:  return (uintptr_t)&SLCR->UART_CLK_CTRL;
-        case PERIPH_UART1:  return (uintptr_t)&SLCR->UART_CLK_CTRL;
-        case PERIPH_SPI0:   return (uintptr_t)&SLCR->SPI_CLK_CTRL;
-        case PERIPH_SPI1:   return (uintptr_t)&SLCR->SPI_CLK_CTRL;
-        case PERIPH_CAN0:   return (uintptr_t)&SLCR->CAN_CLK_CTRL;
-        case PERIPH_CAN1:   return (uintptr_t)&SLCR->CAN_CLK_CTRL;
-        case PERIPH_DBG:    return (uintptr_t)&SLCR->DBG_CLK_CTRL;
-        case PERIPH_PCAP:   return (uintptr_t)&SLCR->PCAP_CLK_CTRL;
-        case PERIPH_FPGA0:  return (uintptr_t)&SLCR->FPGA0_CLK_CTRL;
-        case PERIPH_FPGA1:  return (uintptr_t)&SLCR->FPGA1_CLK_CTRL;
-        case PERIPH_FPGA2:  return (uintptr_t)&SLCR->FPGA2_CLK_CTRL;
-        case PERIPH_FPGA3:  return (uintptr_t)&SLCR->FPGA3_CLK_CTRL;
-        default: return 0;
+        case PERIPH_USB0:
+            return (uintptr_t)&SLCR->USB0_CLK_CTRL;
+        case PERIPH_USB1:
+            return (uintptr_t)&SLCR->USB1_CLK_CTRL;
+        case PERIPH_GEM0:
+            return (uintptr_t)&SLCR->GEM0_CLK_CTRL;
+        case PERIPH_GEM1:
+            return (uintptr_t)&SLCR->GEM1_CLK_CTRL;
+        case PERIPH_SMC:
+            return (uintptr_t)&SLCR->SMC_CLK_CTRL;
+        case PERIPH_LQSPI:
+            return (uintptr_t)&SLCR->LQSPI_CLK_CTRL;
+        case PERIPH_SDIO0:
+            return (uintptr_t)&SLCR->SDIO_CLK_CTRL;
+        case PERIPH_SDIO1:
+            return (uintptr_t)&SLCR->SDIO_CLK_CTRL;
+        case PERIPH_UART0:
+            return (uintptr_t)&SLCR->UART_CLK_CTRL;
+        case PERIPH_UART1:
+            return (uintptr_t)&SLCR->UART_CLK_CTRL;
+        case PERIPH_SPI0:
+            return (uintptr_t)&SLCR->SPI_CLK_CTRL;
+        case PERIPH_SPI1:
+            return (uintptr_t)&SLCR->SPI_CLK_CTRL;
+        case PERIPH_CAN0:
+            return (uintptr_t)&SLCR->CAN_CLK_CTRL;
+        case PERIPH_CAN1:
+            return (uintptr_t)&SLCR->CAN_CLK_CTRL;
+        case PERIPH_DBG:
+            return (uintptr_t)&SLCR->DBG_CLK_CTRL;
+        case PERIPH_PCAP:
+            return (uintptr_t)&SLCR->PCAP_CLK_CTRL;
+        case PERIPH_FPGA0:
+            return (uintptr_t)&SLCR->FPGA0_CLK_CTRL;
+        case PERIPH_FPGA1:
+            return (uintptr_t)&SLCR->FPGA1_CLK_CTRL;
+        case PERIPH_FPGA2:
+            return (uintptr_t)&SLCR->FPGA2_CLK_CTRL;
+        case PERIPH_FPGA3:
+            return (uintptr_t)&SLCR->FPGA3_CLK_CTRL;
+        default:
+            return 0;
     }
 }
 
@@ -168,10 +191,10 @@ static int periph_clk_ctrl_enable_bitpos(enum zynq_periph periph)
 {
     switch (periph) {
         case PERIPH_SDIO1:
-        case PERIPH_UART1:
-        case PERIPH_SPI1:
-        case PERIPH_CAN1:
-            return 1;
+            case PERIPH_UART1:
+                case PERIPH_SPI1:
+                    case PERIPH_CAN1:
+                            return 1;
         case PERIPH_FPGA0:
         case PERIPH_FPGA1:
         case PERIPH_FPGA2:
@@ -187,14 +210,14 @@ static uint periph_clk_ctrl_divisor_count(enum zynq_periph periph)
 {
     switch (periph) {
         case PERIPH_GEM0:
-        case PERIPH_GEM1:
-        case PERIPH_CAN0:
-        case PERIPH_CAN1:
-        case PERIPH_FPGA0:
-        case PERIPH_FPGA1:
-        case PERIPH_FPGA2:
-        case PERIPH_FPGA3:
-            return 2;
+            case PERIPH_GEM1:
+                case PERIPH_CAN0:
+                    case PERIPH_CAN1:
+                        case PERIPH_FPGA0:
+                            case PERIPH_FPGA1:
+                                case PERIPH_FPGA2:
+                                    case PERIPH_FPGA3:
+                                            return 2;
         default:
             // most peripherals have a single divisor
             return 1;
@@ -204,27 +227,48 @@ static uint periph_clk_ctrl_divisor_count(enum zynq_periph periph)
 static const char *periph_to_name(enum zynq_periph periph)
 {
     switch (periph) {
-        case PERIPH_USB0: return "USB0";
-        case PERIPH_USB1: return "USB1";
-        case PERIPH_GEM0: return "GEM0";
-        case PERIPH_GEM1: return "GEM1";
-        case PERIPH_SMC: return "SMC";
-        case PERIPH_LQSPI: return "LQSPI";
-        case PERIPH_SDIO0: return "SDIO0";
-        case PERIPH_SDIO1: return "SDIO1";
-        case PERIPH_UART0: return "UART0";
-        case PERIPH_UART1: return "UART1";
-        case PERIPH_SPI0: return "SPI0";
-        case PERIPH_SPI1: return "SPI1";
-        case PERIPH_CAN0: return "CAN0";
-        case PERIPH_CAN1: return "CAN1";
-        case PERIPH_DBG: return "DBG";
-        case PERIPH_PCAP: return "PCAP";
-        case PERIPH_FPGA0: return "FPGA0";
-        case PERIPH_FPGA1: return "FPGA1";
-        case PERIPH_FPGA2: return "FPGA2";
-        case PERIPH_FPGA3: return "FPGA3";
-        default: return "unknown";
+        case PERIPH_USB0:
+                return "USB0";
+        case PERIPH_USB1:
+            return "USB1";
+        case PERIPH_GEM0:
+            return "GEM0";
+        case PERIPH_GEM1:
+            return "GEM1";
+        case PERIPH_SMC:
+            return "SMC";
+        case PERIPH_LQSPI:
+            return "LQSPI";
+        case PERIPH_SDIO0:
+            return "SDIO0";
+        case PERIPH_SDIO1:
+            return "SDIO1";
+        case PERIPH_UART0:
+            return "UART0";
+        case PERIPH_UART1:
+            return "UART1";
+        case PERIPH_SPI0:
+            return "SPI0";
+        case PERIPH_SPI1:
+            return "SPI1";
+        case PERIPH_CAN0:
+            return "CAN0";
+        case PERIPH_CAN1:
+            return "CAN1";
+        case PERIPH_DBG:
+            return "DBG";
+        case PERIPH_PCAP:
+            return "PCAP";
+        case PERIPH_FPGA0:
+            return "FPGA0";
+        case PERIPH_FPGA1:
+            return "FPGA1";
+        case PERIPH_FPGA2:
+            return "FPGA2";
+        case PERIPH_FPGA3:
+            return "FPGA3";
+        default:
+            return "unknown";
     }
 }
 
@@ -294,7 +338,8 @@ uint32_t zynq_get_clock(enum zynq_periph periph)
     // get the source clock
     uint32_t srcclk;
     switch (BITS_SHIFT(*REG32(clk_reg), 5, 4)) {
-        case 0: case 1:
+        case 0:
+        case 1:
             srcclk = get_io_pll_freq();
             break;
         case 2:

@@ -106,58 +106,58 @@
 #define PCI_STATUS_PERR             0x8000
 
 typedef struct {
-	uint16_t vendor_id;
-	uint16_t device_id;
-	uint16_t command;
-	uint16_t status;
-	uint8_t revision_id_0;
-	uint8_t program_interface;
-	uint8_t sub_class;
-	uint8_t base_class;
-	uint8_t cache_line_size;
-	uint8_t latency_timer;
-	uint8_t header_type;
-	uint8_t bist;
-	uint32_t base_addresses[6];
-	uint32_t cardbus_cis_ptr;
-	uint16_t subsystem_vendor_id;
-	uint16_t subsystem_id;
-	uint32_t expansion_rom_address;
-	uint8_t capabilities_ptr;
-	uint8_t reserved_0[3];
-	uint32_t reserved_1;
-	uint8_t interrupt_line;
-	uint8_t interrupt_pin;
-	uint8_t min_grant;
-	uint8_t max_latency;
+    uint16_t vendor_id;
+    uint16_t device_id;
+    uint16_t command;
+    uint16_t status;
+    uint8_t revision_id_0;
+    uint8_t program_interface;
+    uint8_t sub_class;
+    uint8_t base_class;
+    uint8_t cache_line_size;
+    uint8_t latency_timer;
+    uint8_t header_type;
+    uint8_t bist;
+    uint32_t base_addresses[6];
+    uint32_t cardbus_cis_ptr;
+    uint16_t subsystem_vendor_id;
+    uint16_t subsystem_id;
+    uint32_t expansion_rom_address;
+    uint8_t capabilities_ptr;
+    uint8_t reserved_0[3];
+    uint32_t reserved_1;
+    uint8_t interrupt_line;
+    uint8_t interrupt_pin;
+    uint8_t min_grant;
+    uint8_t max_latency;
 } __PACKED pci_config_t;
 
 /*
  * PCI address structure
  */
 typedef struct {
-	uint8_t bus;
-	uint8_t dev_fn;
+    uint8_t bus;
+    uint8_t dev_fn;
 } pci_location_t;
 
 typedef struct {
-	uint8_t id;
-	uint8_t next;
+    uint8_t id;
+    uint8_t next;
 } __PACKED pci_capability_t;
 
 typedef struct {
-	uint8_t bus;
-	uint8_t device;
-	uint8_t link_int_a;
-	uint16_t irq_int_a;
-	uint8_t link_int_b;
-	uint16_t irq_int_b;
-	uint8_t link_int_c;
-	uint16_t irq_int_c;
-	uint8_t link_int_d;
-	uint16_t irq_int_d;
-	uint8_t slot;
-	uint8_t reserved;
+    uint8_t bus;
+    uint8_t device;
+    uint8_t link_int_a;
+    uint16_t irq_int_a;
+    uint8_t link_int_b;
+    uint16_t irq_int_b;
+    uint8_t link_int_c;
+    uint16_t irq_int_c;
+    uint8_t link_int_d;
+    uint16_t irq_int_d;
+    uint8_t slot;
+    uint8_t reserved;
 } __PACKED irq_routing_entry;
 
 void pci_init(void);

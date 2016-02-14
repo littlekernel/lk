@@ -233,7 +233,7 @@ static struct {
  */
 typedef struct {
     uint8_t magic[4];   // "_32_"
-    void * entry;       // entry point
+    void *entry;        // entry point
     uint8_t revision;
     uint8_t length;
     uint8_t checksum;
@@ -243,7 +243,7 @@ typedef struct {
 /*
  * scan for pci bios
  */
-static const char * pci_bios_magic = "_32_";
+static const char *pci_bios_magic = "_32_";
 static pci_bios_info *find_pci_bios_info(void)
 {
     uint32_t *head = (uint32_t *) 0x000e0000;
@@ -499,7 +499,7 @@ static int bios_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uin
 static const char *pci_signature = "PCI ";
 static int pci_bios_detect(void)
 {
-    pci_bios_info * pci = find_pci_bios_info();
+    pci_bios_info *pci = find_pci_bios_info();
 
     if (pci != NULL) {
         /*printf("Found PCI structure at %08x\n", (uint32_t) pci);

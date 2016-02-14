@@ -36,35 +36,35 @@ static void *display_fb;
 
 inline static int has_display(void)
 {
-	return *REG32(SYSINFO_FEATURES) & SYSINFO_FEATURE_DISPLAY;
+    return *REG32(SYSINFO_FEATURES) & SYSINFO_FEATURE_DISPLAY;
 }
 
 void platform_init_display(void)
 {
-	if (!has_display())
-		return;
+    if (!has_display())
+        return;
 
-	display_fb = (void *)DISPLAY_FRAMEBUFFER;
-	display_w = *REG32(DISPLAY_WIDTH);
-	display_h = *REG32(DISPLAY_HEIGHT);
+    display_fb = (void *)DISPLAY_FRAMEBUFFER;
+    display_w = *REG32(DISPLAY_WIDTH);
+    display_h = *REG32(DISPLAY_HEIGHT);
 
 #if DRAW_TEST_PATTERN
-	gfx_draw_pattern();
+    gfx_draw_pattern();
 #endif
 }
 
 status_t display_get_info(struct display_info *info)
 {
-	if (!has_display())
-		return ERR_NOT_FOUND;
+    if (!has_display())
+        return ERR_NOT_FOUND;
 
-	info->framebuffer = display_fb;
-	info->format = GFX_FORMAT_RGB_x888;
-	info->width = display_w;
-	info->height = display_h;
-	info->stride = display_w;
-	info->flush = NULL;
+    info->framebuffer = display_fb;
+    info->format = GFX_FORMAT_RGB_x888;
+    info->width = display_w;
+    info->height = display_h;
+    info->stride = display_w;
+    info->flush = NULL;
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
 

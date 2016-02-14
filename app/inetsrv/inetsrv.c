@@ -40,7 +40,7 @@ static int chargen_worker(void *socket)
     uint64_t count = 0;
     tcp_socket_t *s = socket;
 
-/* enough buffer to hold an entire defacto chargen sequences */
+    /* enough buffer to hold an entire defacto chargen sequences */
 #define CHARGEN_BUFSIZE (0x5f * 0x5f) // 9025 bytes
 
     uint8_t *buf = malloc(CHARGEN_BUFSIZE);
@@ -67,7 +67,7 @@ static int chargen_worker(void *socket)
     t = current_time() - t;
 
     TRACEF("chargen worker exiting, wrote %llu bytes in %u msecs (%llu bytes/sec)\n",
-        count, (uint32_t)t, count * 1000 / t);
+           count, (uint32_t)t, count * 1000 / t);
     free(buf);
     tcp_close(s);
 
@@ -126,7 +126,7 @@ static int discard_worker(void *socket)
     t = current_time() - t;
 
     TRACEF("discard worker exiting, read %llu bytes in %u msecs (%llu bytes/sec), crc32 0x%x\n",
-        count, (uint32_t)t, count * 1000 / t, crc);
+           count, (uint32_t)t, count * 1000 / t, crc);
     tcp_close(s);
 
     free(buf);
@@ -232,7 +232,7 @@ static void inetsrv_entry(const struct app_descriptor *app, void *args)
 }
 
 APP_START(inetsrv)
-    .init = inetsrv_init,
-    .entry = inetsrv_entry,
-    .flags = 0,
-APP_END
+.init = inetsrv_init,
+ .entry = inetsrv_entry,
+  .flags = 0,
+   APP_END

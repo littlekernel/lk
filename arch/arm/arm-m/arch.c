@@ -157,7 +157,7 @@ void arm_cm_irq_exit(bool reschedule)
         arm_cm_trigger_preempt();
 
     KEVLOG_IRQ_EXIT(__get_IPSR());
-    
+
     __enable_irq(); // clear PRIMASK
 }
 

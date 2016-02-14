@@ -54,7 +54,7 @@ typedef struct bdev {
     bnum_t block_count;
 
     size_t geometry_count;
-    const bio_erase_geometry_info_t* geometry;
+    const bio_erase_geometry_info_t *geometry;
 
     uint8_t erase_byte;
 
@@ -85,12 +85,12 @@ void bio_register_device(bdev_t *dev);
 void bio_unregister_device(bdev_t *dev);
 
 /* used during bdev construction */
-void bio_initialize_bdev(bdev_t* dev,
-                         const char* name,
+void bio_initialize_bdev(bdev_t *dev,
+                         const char *name,
                          size_t block_size,
                          bnum_t block_count,
                          size_t geometry_count,
-                         const bio_erase_geometry_info_t* geometry,
+                         const bio_erase_geometry_info_t *geometry,
                          const uint32_t flags);
 
 /* debug stuff */

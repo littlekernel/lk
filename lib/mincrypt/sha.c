@@ -35,13 +35,14 @@
 
 #define rol(bits, value) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
-static void SHA1_Transform(SHA_CTX* ctx) {
+static void SHA1_Transform(SHA_CTX *ctx)
+{
     uint32_t W[80];
     uint32_t A, B, C, D, E;
-    uint8_t* p = ctx->buf;
+    uint8_t *p = ctx->buf;
     int t;
 
-    for(t = 0; t < 16; ++t) {
+    for (t = 0; t < 16; ++t) {
         uint32_t tmp =  *p++ << 24;
         tmp |= *p++ << 16;
         tmp |= *p++ << 8;
@@ -49,7 +50,7 @@ static void SHA1_Transform(SHA_CTX* ctx) {
         W[t] = tmp;
     }
 
-    for(; t < 80; t++) {
+    for (; t < 80; t++) {
         W[t] = rol(1,W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16]);
     }
 
@@ -59,7 +60,7 @@ static void SHA1_Transform(SHA_CTX* ctx) {
     D = ctx->state[3];
     E = ctx->state[4];
 
-    for(t = 0; t < 80; t++) {
+    for (t = 0; t < 80; t++) {
         uint32_t tmp = rol(5,A) + E + W[t];
 
         if (t < 20)
@@ -93,7 +94,8 @@ static const HASH_VTAB SHA_VTAB = {
     SHA_DIGEST_SIZE
 };
 
-void SHA_init(SHA_CTX* ctx) {
+void SHA_init(SHA_CTX *ctx)
+{
     ctx->f = &SHA_VTAB;
     ctx->state[0] = 0x67452301;
     ctx->state[1] = 0xEFCDAB89;
@@ -104,9 +106,10 @@ void SHA_init(SHA_CTX* ctx) {
 }
 
 
-void SHA_update(SHA_CTX* ctx, const void* data, int len) {
+void SHA_update(SHA_CTX *ctx, const void *data, int len)
+{
     int i = (int) (ctx->count & 63);
-    const uint8_t* p = (const uint8_t*)data;
+    const uint8_t *p = (const uint8_t *)data;
 
     ctx->count += len;
 
@@ -120,14 +123,15 @@ void SHA_update(SHA_CTX* ctx, const void* data, int len) {
 }
 
 
-const uint8_t* SHA_final(SHA_CTX* ctx) {
+const uint8_t *SHA_final(SHA_CTX *ctx)
+{
     uint8_t *p = ctx->buf;
     uint64_t cnt = ctx->count * 8;
     int i;
 
-    SHA_update(ctx, (uint8_t*)"\x80", 1);
+    SHA_update(ctx, (uint8_t *)"\x80", 1);
     while ((ctx->count & 63) != 56) {
-        SHA_update(ctx, (uint8_t*)"\0", 1);
+        SHA_update(ctx, (uint8_t *)"\0", 1);
     }
     for (i = 0; i < 8; ++i) {
         uint8_t tmp = (uint8_t) (cnt >> ((7 - i) * 8));
@@ -146,7 +150,8 @@ const uint8_t* SHA_final(SHA_CTX* ctx) {
 }
 
 /* Convenience function */
-const uint8_t* SHA_hash(const void* data, int len, uint8_t* digest) {
+const uint8_t *SHA_hash(const void *data, int len, uint8_t *digest)
+{
     SHA_CTX ctx;
     SHA_init(&ctx);
     SHA_update(&ctx, data, len);

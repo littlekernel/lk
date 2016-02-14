@@ -106,8 +106,8 @@ void *paddr_to_kvaddr(paddr_t pa)
     struct mmu_initial_mapping *map = mmu_initial_mappings;
     while (map->size > 0) {
         if (!(map->flags & MMU_INITIAL_MAPPING_TEMPORARY) &&
-            pa >= map->phys &&
-            pa <= map->phys + map->size - 1) {
+                pa >= map->phys &&
+                pa <= map->phys + map->size - 1) {
             return (void *)(map->virt + (pa - map->phys));
         }
         map++;

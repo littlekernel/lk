@@ -50,42 +50,42 @@ __BEGIN_CDECLS;
 
 static inline int bitmap_set(unsigned long *bitmap, int bit)
 {
-	unsigned long mask = 1UL << BITMAP_BIT_IN_INT(bit);
-	return atomic_or(&((int*)bitmap)[BITMAP_INT(bit)], mask) & mask ? 1 : 0;
+    unsigned long mask = 1UL << BITMAP_BIT_IN_INT(bit);
+    return atomic_or(&((int *)bitmap)[BITMAP_INT(bit)], mask) & mask ? 1 : 0;
 }
 
 static inline int bitmap_clear(unsigned long *bitmap, int bit)
 {
-	unsigned long mask = 1UL << BITMAP_BIT_IN_INT(bit);
+    unsigned long mask = 1UL << BITMAP_BIT_IN_INT(bit);
 
-	return atomic_and(&((int*)bitmap)[BITMAP_INT(bit)], ~mask) & mask ? 1:0;
+    return atomic_and(&((int *)bitmap)[BITMAP_INT(bit)], ~mask) & mask ? 1:0;
 }
 
 static inline int bitmap_test(unsigned long *bitmap, int bit)
 {
-	return BIT_SET(bitmap[BITMAP_WORD(bit)], BITMAP_BIT_IN_WORD(bit));
+    return BIT_SET(bitmap[BITMAP_WORD(bit)], BITMAP_BIT_IN_WORD(bit));
 }
 
 /* find first zero bit starting from LSB */
 static inline unsigned long _ffz(unsigned long x)
 {
-	return __builtin_ffsl(~x) - 1;
+    return __builtin_ffsl(~x) - 1;
 }
 
 static inline int bitmap_ffz(unsigned long *bitmap, int numbits)
 {
-	uint i;
-	int bit;
+    uint i;
+    int bit;
 
-	for (i = 0; i < BITMAP_NUM_WORDS(numbits); i++) {
-		if (bitmap[i] == ~0UL)
-			continue;
-		bit = i * BITMAP_BITS_PER_WORD + _ffz(bitmap[i]);
-		if (bit < numbits)
-			return bit;
-		return -1;
-	}
-	return -1;
+    for (i = 0; i < BITMAP_NUM_WORDS(numbits); i++) {
+        if (bitmap[i] == ~0UL)
+            continue;
+        bit = i * BITMAP_BITS_PER_WORD + _ffz(bitmap[i]);
+        if (bit < numbits)
+            return bit;
+        return -1;
+    }
+    return -1;
 }
 
 __END_CDECLS;

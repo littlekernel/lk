@@ -30,9 +30,9 @@
 /* un-overridden irq handler */
 void stm32_dummy_irq(void)
 {
-	arm_cm_irq_entry();
+    arm_cm_irq_entry();
 
-	panic("unhandled irq\n");
+    panic("unhandled irq\n");
 }
 
 /* a list of default handlers that are simply aliases to the dummy handler */
@@ -154,7 +154,7 @@ DEFAULT_HANDLER(SPDIF_RX_IRQ);
 #define VECTAB_ENTRY(x) [x##n] = stm32_##x
 
 /* appended to the end of the main vector table */
-const void * const __SECTION(".text.boot.vectab2") vectab2[] = {
+const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(WWDG_IRQ),      /*!< Window WatchDog Interrupt                                         */
     VECTAB_ENTRY(PVD_IRQ),      /*!< PVD through EXTI Line detection Interrupt                         */
     VECTAB_ENTRY(TAMP_STAMP_IRQ),      /*!< Tamper and TimeStamp interrupts through the EXTI line             */
@@ -189,7 +189,7 @@ const void * const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(I2C1_EV_IRQ),     /*!< I2C1 Event Interrupt                                              */
     VECTAB_ENTRY(I2C1_ER_IRQ),     /*!< I2C1 Error Interrupt                                              */
     VECTAB_ENTRY(I2C2_EV_IRQ),     /*!< I2C2 Event Interrupt                                              */
-    VECTAB_ENTRY(I2C2_ER_IRQ),     /*!< I2C2 Error Interrupt                                              */  
+    VECTAB_ENTRY(I2C2_ER_IRQ),     /*!< I2C2 Error Interrupt                                              */
     VECTAB_ENTRY(SPI1_IRQ),     /*!< SPI1 global Interrupt                                             */
     VECTAB_ENTRY(SPI2_IRQ),     /*!< SPI2 global Interrupt                                             */
     VECTAB_ENTRY(USART1_IRQ),     /*!< USART1 global Interrupt                                           */
@@ -197,7 +197,7 @@ const void * const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(USART3_IRQ),     /*!< USART3 global Interrupt                                           */
     VECTAB_ENTRY(EXTI15_10_IRQ),     /*!< External Line[15:10] Interrupts                                   */
     VECTAB_ENTRY(RTC_Alarm_IRQ),     /*!< RTC Alarm (A and B) through EXTI Line Interrupt                   */
-    VECTAB_ENTRY(OTG_FS_WKUP_IRQ),     /*!< USB OTG FS Wakeup through EXTI line interrupt                     */    
+    VECTAB_ENTRY(OTG_FS_WKUP_IRQ),     /*!< USB OTG FS Wakeup through EXTI line interrupt                     */
     VECTAB_ENTRY(TIM8_BRK_TIM12_IRQ),     /*!< TIM8 Break Interrupt and TIM12 global interrupt                   */
     VECTAB_ENTRY(TIM8_UP_TIM13_IRQ),     /*!< TIM8 Update Interrupt and TIM13 global interrupt                  */
     VECTAB_ENTRY(TIM8_TRG_COM_TIM14_IRQ),     /*!< TIM8 Trigger and Commutation Interrupt and TIM14 global interrupt */

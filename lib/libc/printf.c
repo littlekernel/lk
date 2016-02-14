@@ -567,7 +567,7 @@ hex:
 #if FLOAT_PRINTF
             case 'F':
                 flags |= CAPSFLAG;
-            /* fallthrough */
+                /* fallthrough */
             case 'f': {
                 double d = va_arg(ap, double);
                 s = double_to_string(num_buffer, sizeof(num_buffer), d, flags);
@@ -575,7 +575,7 @@ hex:
             }
             case 'A':
                 flags |= CAPSFLAG;
-            /* fallthrough */
+                /* fallthrough */
             case 'a': {
                 double d = va_arg(ap, double);
                 s = double_to_hexstring(num_buffer, sizeof(num_buffer), d, flags);

@@ -45,7 +45,7 @@ struct novm_arena {
     // the first aligned page address, then we record it here and the heap will use
     // it.
 #define MINIMUM_USEFUL_UNALIGNED_SIZE 64
-    void* unaligned_area;
+    void *unaligned_area;
     size_t unaligned_size;
 };
 
@@ -78,7 +78,7 @@ void *novm_alloc_unaligned(size_t *size_return)
     return novm_alloc_pages(1, NOVM_ARENA_ANY);
 }
 
-static bool in_arena(struct novm_arena *n, void* p)
+static bool in_arena(struct novm_arena *n, void *p)
 {
     if (n->size == 0)
         return false;
@@ -88,9 +88,9 @@ static bool in_arena(struct novm_arena *n, void* p)
     return ptr >= base && ptr < base + n->size;
 }
 
-static void novm_init_helper(struct novm_arena* n, const char *name,
-    uintptr_t arena_start, uintptr_t arena_size,
-    char* default_map, size_t default_map_size)
+static void novm_init_helper(struct novm_arena *n, const char *name,
+                             uintptr_t arena_start, uintptr_t arena_size,
+                             char *default_map, size_t default_map_size)
 {
     uintptr_t start = ROUNDUP(arena_start, PAGE_SIZE);
     uintptr_t size = ROUNDDOWN(arena_start + arena_size, PAGE_SIZE) - start;
@@ -98,7 +98,7 @@ static void novm_init_helper(struct novm_arena* n, const char *name,
     mutex_init(&n->lock);
 
     size_t map_size = size >> PAGE_SIZE_SHIFT;
-    char* map = default_map;
+    char *map = default_map;
     if (map == NULL || default_map_size < map_size) {
         // allocate the map out of the arena itself
         map = (char *)arena_start;
@@ -171,7 +171,7 @@ void *novm_alloc_helper(struct novm_arena *n, size_t pages)
     return NULL;
 }
 
-void* novm_alloc_pages(size_t pages, uint32_t arena_bitmap)
+void *novm_alloc_pages(size_t pages, uint32_t arena_bitmap)
 {
     LTRACEF("pages %zu\n", pages);
 
@@ -187,7 +187,7 @@ void* novm_alloc_pages(size_t pages, uint32_t arena_bitmap)
     return NULL;
 }
 
-void novm_free_pages(void* address, size_t pages)
+void novm_free_pages(void *address, size_t pages)
 {
     LTRACEF("address %p, pages %zu\n", address, pages);
 
@@ -203,7 +203,7 @@ void novm_free_pages(void* address, size_t pages)
 
     DEBUG_ASSERT(in_arena(n, address));
 
-    size_t index = ((char *)address - (char*)(n->base)) >> PAGE_SIZE_SHIFT;
+    size_t index = ((char *)address - (char *)(n->base)) >> PAGE_SIZE_SHIFT;
     char *map = n->map;
 
     mutex_acquire(&n->lock);
@@ -225,7 +225,7 @@ status_t novm_alloc_specific_pages(void *address, size_t pages)
     if (!n)
         return ERR_NOT_FOUND;
 
-    size_t index = ((char *)address - (char*)(n->base)) >> PAGE_SIZE_SHIFT;
+    size_t index = ((char *)address - (char *)(n->base)) >> PAGE_SIZE_SHIFT;
     char *map = n->map;
 
     status_t err = NO_ERROR;

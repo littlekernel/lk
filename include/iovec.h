@@ -30,8 +30,8 @@
 __BEGIN_CDECLS;
 
 typedef struct iovec {
-	void *iov_base;
-	size_t iov_len;
+    void *iov_base;
+    size_t iov_len;
 } iovec_t;
 
 ssize_t iovec_size(const iovec_t *iov, uint iov_cnt);

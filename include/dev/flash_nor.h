@@ -26,10 +26,10 @@
 #include <sys/types.h>
 
 struct flash_nor_bank {
-	addr_t base;
-	size_t len;
-	size_t page_size;
-	uint flags;
+    addr_t base;
+    size_t len;
+    size_t page_size;
+    uint flags;
 };
 
 #define FLASH_NOR_FLAG_NONE 0

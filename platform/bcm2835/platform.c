@@ -42,24 +42,30 @@ extern void arm_reset(void);
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* 1GB of sdram space */
-    { .phys = SDRAM_BASE,
-      .virt = KERNEL_BASE,
-      .size = MEMSIZE,
-      .flags = 0,
-      .name = "memory" },
+    {
+        .phys = SDRAM_BASE,
+        .virt = KERNEL_BASE,
+        .size = MEMSIZE,
+        .flags = 0,
+        .name = "memory"
+    },
 
     /* peripherals */
-    { .phys = BCM_PERIPH_BASE_PHYS,
-      .virt = BCM_PERIPH_BASE_VIRT,
-      .size = BCM_PERIPH_SIZE,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "bcm peripherals" },
+    {
+        .phys = BCM_PERIPH_BASE_PHYS,
+        .virt = BCM_PERIPH_BASE_VIRT,
+        .size = BCM_PERIPH_SIZE,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "bcm peripherals"
+    },
 
     /* identity map to let the boot code run */
-    { .phys = SDRAM_BASE,
-      .virt = SDRAM_BASE,
-      .size = 16*1024*1024,
-      .flags = MMU_INITIAL_MAPPING_TEMPORARY },
+    {
+        .phys = SDRAM_BASE,
+        .virt = SDRAM_BASE,
+        .size = 16*1024*1024,
+        .flags = MMU_INITIAL_MAPPING_TEMPORARY
+    },
 
     /* null entry to terminate the list */
     { 0 }

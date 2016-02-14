@@ -34,11 +34,11 @@
 
 #define LOCAL_TRACE 0
 
-void* context1 = (void*) 0x53;
+void *context1 = (void *) 0x53;
 
-static void dump_port_result(const port_result_t* result)
+static void dump_port_result(const port_result_t *result)
 {
-    const port_packet_t* p = &result->packet;
+    const port_packet_t *p = &result->packet;
     LTRACEF("[%02x %02x %02x %02x %02x %02x %02x %02x]\n",
             p->value[0], p->value[1], p->value[2], p->value[3],
             p->value[4], p->value[5], p->value[6], p->value[7]);
@@ -300,9 +300,9 @@ int two_threads_basic(void)
         return __LINE__;
     }
 
-    thread_t* t1 = thread_create(
+    thread_t *t1 = thread_create(
                        "worker1", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
-    thread_t* t2 = thread_create(
+    thread_t *t2 = thread_create(
                        "worker2", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     thread_resume(t1);
     thread_resume(t2);
@@ -420,7 +420,7 @@ typedef struct {
 status_t send_watcher_cmd(port_t cmd_port, action_t action, port_t port)
 {
     watcher_cmd cmd  = {action, port};
-    return port_write(cmd_port, ((port_packet_t*) &cmd), 1);;
+    return port_write(cmd_port, ((port_packet_t *) &cmd), 1);;
 }
 
 static int group_watcher_thread(void *arg)
@@ -468,7 +468,7 @@ static int group_watcher_thread(void *arg)
         // at the top of the loop.
 
         port_close(group);
-        watcher_cmd* wc = (watcher_cmd*) &pr.packet;
+        watcher_cmd *wc = (watcher_cmd *) &pr.packet;
 
         if (wc->what == ADD_PORT) {
             watched[count++] = wc->port;
@@ -498,7 +498,7 @@ static int group_watcher_thread(void *arg)
     return 0;
 }
 
-static status_t make_port_pair(const char* name, void* ctx, port_t* write, port_t* read)
+static status_t make_port_pair(const char *name, void *ctx, port_t *write, port_t *read)
 {
     status_t st = port_create(name, PORT_MODE_UNICAST, write);
     if (st < 0)
@@ -517,7 +517,7 @@ int group_basic(void)
         return __LINE__;
     }
 
-    thread_t* wt = thread_create(
+    thread_t *wt = thread_create(
                        "g_watcher", &group_watcher_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     thread_resume(wt);
 

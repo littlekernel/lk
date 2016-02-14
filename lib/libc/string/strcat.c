@@ -28,7 +28,7 @@
 #include <sys/types.h>
 
 char *
-strcat(char *dest,  char const*src)
+strcat(char *dest,  char const *src)
 {
     char *tmp = dest;
 

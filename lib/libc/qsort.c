@@ -31,7 +31,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
-static __inline char    *med3(char *, char *, char *, int (*)(const void *, const void *));
+static __inline char    *med3(char *, char *, char *, int ( *)(const void *, const void *));
 static __inline void     swapfunc(char *, char *, int, int);
 
 #define min(a, b)   (a) < (b) ? a : b
@@ -77,7 +77,7 @@ med3(char *a, char *b, char *c, int (*cmp)(const void *, const void *))
 {
     return cmp(a, b) < 0 ?
            (cmp(b, c) < 0 ? b : (cmp(a, c) < 0 ? c : a ))
-           :(cmp(b, c) > 0 ? b : (cmp(a, c) < 0 ? a : c ));
+               :(cmp(b, c) > 0 ? b : (cmp(a, c) < 0 ? a : c ));
 }
 
 void

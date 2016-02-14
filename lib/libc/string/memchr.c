@@ -36,7 +36,7 @@ memchr(void const *buf, int c, size_t len)
 
     for (i= 0; i< len; i++) {
         if (b[i]== x) {
-            return (void*)(b+i);
+            return (void *)(b+i);
         }
     }
 

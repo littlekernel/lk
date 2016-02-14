@@ -38,10 +38,10 @@ struct ptable_entry {
 };
 
 bool     ptable_found_valid(void);
-bdev_t*  ptable_get_device(void);
-status_t ptable_scan(const char* bdev_name, uint64_t offset);
+bdev_t  *ptable_get_device(void);
+status_t ptable_scan(const char *bdev_name, uint64_t offset);
 status_t ptable_find(const char *name, struct ptable_entry *entry) __NONNULL((1));
-status_t ptable_create_default(const char* bdev_name, uint64_t offset) __NONNULL();
+status_t ptable_create_default(const char *bdev_name, uint64_t offset) __NONNULL();
 status_t ptable_add(const char *name, uint64_t min_len, uint32_t flags) __NONNULL();
 status_t ptable_remove(const char *name) __NONNULL();
 void     ptable_dump(void);

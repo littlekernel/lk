@@ -53,7 +53,7 @@ long long strtoll(const char *nptr, char **endptr, int base);
 
 /* allocate a buffer on the stack aligned and padded to the cpu's cache line size */
 #define STACKBUF_DMA_ALIGN(var, size) \
-	uint8_t var[ROUNDUP(size, CACHE_LINE)] __ALIGNED(CACHE_LINE);
+    uint8_t var[ROUNDUP(size, CACHE_LINE)] __ALIGNED(CACHE_LINE);
 void abort(void) __attribute__((noreturn));
 void qsort(void *aa, size_t n, size_t es, int (*cmp)(const void *, const void *));
 void *bsearch(const void *key, const void *base, size_t num_elems, size_t size,

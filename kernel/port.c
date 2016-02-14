@@ -64,7 +64,7 @@ typedef struct {
 typedef struct {
     int magic;
     struct list_node node;
-    port_buf_t* buf;
+    port_buf_t *buf;
     struct list_node rp_list;
     port_mode_t mode;
     char name[PORT_NAME_LEN];
@@ -80,21 +80,21 @@ typedef struct {
     int magic;
     struct list_node w_node;
     struct list_node g_node;
-    port_buf_t* buf;
-    void* ctx;
+    port_buf_t *buf;
+    void *ctx;
     wait_queue_t wait;
-    write_port_t* wport;
-    port_group_t* gport;
+    write_port_t *wport;
+    port_group_t *gport;
 } read_port_t;
 
 
 static struct list_node write_port_list;
 
 
-static port_buf_t* make_buf(uint pk_count)
+static port_buf_t *make_buf(uint pk_count)
 {
     uint size = sizeof(port_buf_t) + ((pk_count - 1) * sizeof(port_packet_t));
-    port_buf_t* buf = (port_buf_t*) malloc(size);
+    port_buf_t *buf = (port_buf_t *) malloc(size);
     if (!buf)
         return NULL;
     buf->log2 = log2_uint(pk_count);
@@ -103,7 +103,7 @@ static port_buf_t* make_buf(uint pk_count)
     return buf;
 }
 
-static status_t buf_write(port_buf_t* buf, const port_packet_t* packets, size_t count)
+static status_t buf_write(port_buf_t *buf, const port_packet_t *packets, size_t count)
 {
     if (buf->avail < count)
         return ERR_NOT_ENOUGH_BUFFER;
@@ -116,7 +116,7 @@ static status_t buf_write(port_buf_t* buf, const port_packet_t* packets, size_t 
     return NO_ERROR;
 }
 
-static status_t buf_read(port_buf_t* buf, port_result_t* pr)
+static status_t buf_read(port_buf_t *buf, port_result_t *pr)
 {
     if (buf->avail == valpow2(buf->log2))
         return ERR_NO_MSG;
@@ -132,7 +132,7 @@ void port_init(void)
     list_initialize(&write_port_list);
 }
 
-status_t port_create(const char* name, port_mode_t mode, port_t* port)
+status_t port_create(const char *name, port_mode_t mode, port_t *port)
 {
     if (!name || !port)
         return ERR_INVALID_ARGS;
@@ -147,7 +147,7 @@ status_t port_create(const char* name, port_mode_t mode, port_t* port)
         return ERR_INVALID_ARGS;
 
     // lookup for existing port, return that if found.
-    write_port_t* wp = NULL;
+    write_port_t *wp = NULL;
     THREAD_LOCK(state1);
     list_for_every_entry(&write_port_list, wp, write_port_t, node) {
         if (strcmp(wp->name, name) == 0) {
@@ -156,7 +156,7 @@ status_t port_create(const char* name, port_mode_t mode, port_t* port)
                 wp = NULL;
             THREAD_UNLOCK(state1);
             if (wp) {
-                *port = (void*) wp;
+                *port = (void *) wp;
                 return ERR_ALREADY_EXISTS;
             } else {
                 return ERR_BUSY;
@@ -188,17 +188,17 @@ status_t port_create(const char* name, port_mode_t mode, port_t* port)
     list_add_tail(&write_port_list, &wp->node);
     THREAD_UNLOCK(state2);
 
-    *port = (void*)wp;
+    *port = (void *)wp;
     return NO_ERROR;
 }
 
-status_t port_open(const char* name, void* ctx, port_t* port)
+status_t port_open(const char *name, void *ctx, port_t *port)
 {
     if (!name || !port)
         return ERR_INVALID_ARGS;
 
     // assume success; create the read port and buffer now.
-    read_port_t* rp = calloc(1, sizeof(read_port_t));
+    read_port_t *rp = calloc(1, sizeof(read_port_t));
     if (!rp)
         return ERR_NO_MEMORY;
 
@@ -209,7 +209,7 @@ status_t port_open(const char* name, void* ctx, port_t* port)
     // |buf| might not be needed, but we always allocate outside the lock.
     // this buffer is only needed for broadcast ports, but we don't know
     // that here.
-    port_buf_t* buf = make_buf(PORT_BUFF_SIZE);
+    port_buf_t *buf = make_buf(PORT_BUFF_SIZE);
     if (!buf) {
         free(rp);
         return ERR_NO_MEMORY;
@@ -219,7 +219,7 @@ status_t port_open(const char* name, void* ctx, port_t* port)
     status_t rc = ERR_NOT_FOUND;
 
     THREAD_LOCK(state);
-    write_port_t* wp = NULL;
+    write_port_t *wp = NULL;
     list_for_every_entry(&write_port_list, wp, write_port_t, node) {
         if (strcmp(wp->name, name) == 0) {
             // found; add read port to write port list.
@@ -255,14 +255,14 @@ status_t port_open(const char* name, void* ctx, port_t* port)
         free(buf);
 
     if (rc == NO_ERROR) {
-        *port = (void*)rp;
+        *port = (void *)rp;
     } else {
         free(rp);
     }
     return rc;
 }
 
-status_t port_group(port_t* ports, size_t count, port_t* group)
+status_t port_group(port_t *ports, size_t count, port_t *group)
 {
     if (count > MAX_PORT_GROUP_COUNT)
         return ERR_TOO_BIG;
@@ -271,7 +271,7 @@ status_t port_group(port_t* ports, size_t count, port_t* group)
         return ERR_INVALID_ARGS;
 
     // assume success; create port group now.
-    port_group_t* pg = calloc(1, sizeof(port_group_t));
+    port_group_t *pg = calloc(1, sizeof(port_group_t));
     if (!pg)
         return ERR_NO_MEMORY;
 
@@ -283,12 +283,12 @@ status_t port_group(port_t* ports, size_t count, port_t* group)
 
     THREAD_LOCK(state);
     for (size_t ix = 0; ix != count; ix++) {
-        read_port_t* rp = (read_port_t*)ports[ix];
+        read_port_t *rp = (read_port_t *)ports[ix];
         if ((rp->magic != READPORT_MAGIC) || rp->gport) {
             // wrong type of port, or port already part of a group,
             // in any case, undo the changes to the previous read ports.
             for (size_t jx = 0; jx != ix; jx++) {
-                ((read_port_t*)ports[jx])->gport = NULL;
+                ((read_port_t *)ports[jx])->gport = NULL;
             }
             rc = ERR_BAD_HANDLE;
             break;
@@ -300,19 +300,19 @@ status_t port_group(port_t* ports, size_t count, port_t* group)
     THREAD_UNLOCK(state);
 
     if (rc == NO_ERROR) {
-        *group = (port_t*)pg;
+        *group = (port_t *)pg;
     } else {
         free(pg);
     }
     return rc;
 }
 
-status_t port_write(port_t port, const port_packet_t* pk, size_t count)
+status_t port_write(port_t port, const port_packet_t *pk, size_t count)
 {
     if (!port || !pk)
         return ERR_INVALID_ARGS;
 
-    write_port_t* wp = (write_port_t*)port;
+    write_port_t *wp = (write_port_t *)port;
     THREAD_LOCK(state);
     if (wp->magic != WRITEPORT_MAGIC_W) {
         // wrong port type.
@@ -329,7 +329,7 @@ status_t port_write(port_t port, const port_packet_t* pk, size_t count)
     } else {
         // there are read ports. for each, write and attempt to wake a thread
         // from the port group or from the read port itself.
-        read_port_t* rp;
+        read_port_t *rp;
         list_for_every_entry(&wp->rp_list, rp, read_port_t, w_node) {
             if (buf_write(rp->buf, pk, count) < 0) {
                 // buffer full.
@@ -359,7 +359,7 @@ status_t port_write(port_t port, const port_packet_t* pk, size_t count)
     return status;
 }
 
-static inline status_t read_no_lock(read_port_t* rp, lk_time_t timeout, port_result_t* result)
+static inline status_t read_no_lock(read_port_t *rp, lk_time_t timeout, port_result_t *result)
 {
     status_t status = buf_read(rp->buf, result);
     result->ctx = rp->ctx;
@@ -378,13 +378,13 @@ static inline status_t read_no_lock(read_port_t* rp, lk_time_t timeout, port_res
     return read_no_lock(rp, timeout, result);
 }
 
-status_t port_read(port_t port, lk_time_t timeout, port_result_t* result)
+status_t port_read(port_t port, lk_time_t timeout, port_result_t *result)
 {
     if (!port || !result)
         return ERR_INVALID_ARGS;
 
     status_t rc = ERR_GENERIC;
-    read_port_t* rp = (read_port_t*)port;
+    read_port_t *rp = (read_port_t *)port;
 
     THREAD_LOCK(state);
     if (rp->magic == READPORT_MAGIC) {
@@ -392,7 +392,7 @@ status_t port_read(port_t port, lk_time_t timeout, port_result_t* result)
         rc = read_no_lock(rp, timeout, result);
     } else if (rp->magic == PORTGROUP_MAGIC) {
         // dealing with a port group.
-        port_group_t* pg = (port_group_t*)port;
+        port_group_t *pg = (port_group_t *)port;
         do {
             // read each port with no timeout.
             // todo: this order is fixed, probably a bad thing.
@@ -419,8 +419,8 @@ status_t port_destroy(port_t port)
     if (!port)
         return ERR_INVALID_ARGS;
 
-    write_port_t* wp = (write_port_t*) port;
-    port_buf_t* buf = NULL;
+    write_port_t *wp = (write_port_t *) port;
+    port_buf_t *buf = NULL;
 
     THREAD_LOCK(state);
     if (wp->magic != WRITEPORT_MAGIC_X) {
@@ -436,7 +436,7 @@ status_t port_destroy(port_t port)
         buf = wp->buf;
     } else {
         // for each reader:
-        read_port_t* rp;
+        read_port_t *rp;
         list_for_every_entry(&wp->rp_list, rp, read_port_t, w_node) {
             // wake the read and group ports.
             wait_queue_wake_all(&rp->wait, false, ERR_CANCELLED);
@@ -461,8 +461,8 @@ status_t port_close(port_t port)
     if (!port)
         return ERR_INVALID_ARGS;
 
-    read_port_t* rp = (read_port_t*) port;
-    port_buf_t* buf = NULL;
+    read_port_t *rp = (read_port_t *) port;
+    port_buf_t *buf = NULL;
 
     THREAD_LOCK(state);
     if (rp->magic == READPORT_MAGIC) {
@@ -487,7 +487,7 @@ status_t port_close(port_t port)
 
     } else if (rp->magic == PORTGROUP_MAGIC) {
         // dealing with a port group.
-        port_group_t* pg = (port_group_t*) port;
+        port_group_t *pg = (port_group_t *) port;
         // wake up waiters.
         wait_queue_destroy(&pg->wait, true);
         // remove self from reader ports.
@@ -499,7 +499,7 @@ status_t port_close(port_t port)
 
     } else if (rp->magic == WRITEPORT_MAGIC_W) {
         // dealing with a write port.
-        write_port_t* wp = (write_port_t*) port;
+        write_port_t *wp = (write_port_t *) port;
         // mark it as closed. Now it can be read but not written to.
         wp->magic = WRITEPORT_MAGIC_X;
         THREAD_UNLOCK(state);

@@ -335,18 +335,18 @@ static void WasteFreeMemory(void)
 // have to do many small allocations.
 static void *TestTrimHelper(ssize_t target)
 {
-   char *answer = NULL;
-   size_t remaining = theheap.remaining;
-   while (theheap.remaining - target > 512) {
-       char *next_block = cmpct_alloc(8 + ((theheap.remaining - target) >> 2));
-       *(char**)next_block = answer;
-       answer = next_block;
-       if (theheap.remaining > remaining) return answer;
-       // Abandon attemt to hit particular freelist entry size if we accidentally got more memory
-       // from the OS.
-       remaining = theheap.remaining;
-   }
-   return answer;
+    char *answer = NULL;
+    size_t remaining = theheap.remaining;
+    while (theheap.remaining - target > 512) {
+        char *next_block = cmpct_alloc(8 + ((theheap.remaining - target) >> 2));
+        *(char **)next_block = answer;
+        answer = next_block;
+        if (theheap.remaining > remaining) return answer;
+        // Abandon attemt to hit particular freelist entry size if we accidentally got more memory
+        // from the OS.
+        remaining = theheap.remaining;
+    }
+    return answer;
 }
 
 static void TestTrimFreeHelper(char *block)
@@ -664,7 +664,7 @@ void cmpct_trim(void)
     for (int bucket = size_to_index_freeing(PAGE_SIZE);
             bucket < NUMBER_OF_BUCKETS;
             bucket++) {
-        free_t * next;
+        free_t *next;
         for (free_t *free_area = theheap.free_lists[bucket];
                 free_area != NULL;
                 free_area = next) {
@@ -675,7 +675,7 @@ void cmpct_trim(void)
                 char *old_os_allocation_end = (char *)ROUNDUP((uintptr_t)right, PAGE_SIZE);
                 // The page will end with a smaller free list entry and a header-sized sentinel.
                 char *new_os_allocation_end = (char *)
-                    ROUNDUP((uintptr_t)free_area + sizeof(header_t) + sizeof(free_t), PAGE_SIZE);
+                                              ROUNDUP((uintptr_t)free_area + sizeof(header_t) + sizeof(free_t), PAGE_SIZE);
                 size_t freed_up = old_os_allocation_end - new_os_allocation_end;
                 DEBUG_ASSERT(IS_PAGE_ALIGNED(freed_up));
                 // Rare, because we only look at large freelist entries, but unlucky rounding

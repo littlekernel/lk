@@ -26,9 +26,9 @@
 
 /* ethernet driver public api */
 typedef enum {
-   PHY_LAN8742A,     // Microchip.
-   PHY_DP83848,      // Texas Instruments.
-   PHY_KSZ8721,      // Micrel
+    PHY_LAN8742A,     // Microchip.
+    PHY_DP83848,      // Texas Instruments.
+    PHY_KSZ8721,      // Micrel
 } eth_phy_itf;
 
 struct pktbuf;

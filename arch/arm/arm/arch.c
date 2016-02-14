@@ -54,7 +54,7 @@
 #endif
 
 /* initial and abort stacks */
-uint8_t abort_stack[ARCH_DEFAULT_STACK_SIZE * SMP_MAX_CPUS] __CPU_ALIGN;
+uint8_t abort_stack[ARCH_DEFAULT_STACK_SIZE *SMP_MAX_CPUS] __CPU_ALIGN;
 
 static void arm_basic_setup(void);
 static void spinlock_test(void);

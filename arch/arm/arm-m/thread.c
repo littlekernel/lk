@@ -317,7 +317,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 
             __asm__ volatile(
 #if       (__CORTEX_M >= 0x03)
-		"clrex;"
+                "clrex;"
 #endif
                 "mov	sp, %0;"
                 "bx		%1;"

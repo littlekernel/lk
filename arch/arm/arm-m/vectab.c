@@ -45,7 +45,7 @@ extern void _systick(void);
 extern struct __debugger_info__ _debugger_info;
 #endif
 
-const void * const __SECTION(".text.boot.vectab1") vectab[] = {
+const void *const __SECTION(".text.boot.vectab1") vectab[] = {
     /* arm exceptions */
     initial_stack + sizeof(initial_stack),
     _start,
@@ -56,7 +56,7 @@ const void * const __SECTION(".text.boot.vectab1") vectab[] = {
     _usagefault, // usage fault
     0, // reserved
 #if defined(WITH_DEBUGGER_INFO)
-    (void*) 0x52474244,
+    (void *) 0x52474244,
     &_debugger_info,
 #else
     0, // reserved

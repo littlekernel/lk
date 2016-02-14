@@ -32,14 +32,14 @@ void display_pre_freq_change(void);
 void display_post_freq_change(void);
 
 struct display_info {
-	void *framebuffer;
-	gfx_format format;
-	uint width;
-	uint height;
-	uint stride;
+    void *framebuffer;
+    gfx_format format;
+    uint width;
+    uint height;
+    uint stride;
 
-	// Update function
-	void (*flush)(uint starty, uint endy);
+    // Update function
+    void (*flush)(uint starty, uint endy);
 };
 
 status_t display_get_info(struct display_info *info);

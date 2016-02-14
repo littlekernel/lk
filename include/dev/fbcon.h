@@ -32,15 +32,15 @@
 #define FB_FORMAT_RGB565 0
 
 struct fbcon_config {
-	void        *base;
-	unsigned    width;
-	unsigned    height;
-	unsigned    stride;
-	unsigned    bpp;
-	unsigned    format;
+    void        *base;
+    unsigned    width;
+    unsigned    height;
+    unsigned    stride;
+    unsigned    bpp;
+    unsigned    format;
 
-	void        (*update_start)(void);
-	int     (*update_done)(void);
+    void        (*update_start)(void);
+    int     (*update_done)(void);
 };
 
 void fbcon_setup(struct fbcon_config *cfg);

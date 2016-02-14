@@ -83,7 +83,7 @@ static pte_t mmu_flags_to_pte_attr(uint flags)
     }
 
     if (flags & ARCH_MMU_FLAG_NS) {
-            attr |= MMU_PTE_ATTR_NON_SECURE;
+        attr |= MMU_PTE_ATTR_NON_SECURE;
     }
 
     return attr;
@@ -126,13 +126,13 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
             return ERR_NOT_FOUND;
 
         if (descriptor_type == ((index_shift > MMU_KERNEL_PAGE_SIZE_SHIFT) ?
-                                 MMU_PTE_L012_DESCRIPTOR_BLOCK :
-                                 MMU_PTE_L3_DESCRIPTOR_PAGE)) {
+                                MMU_PTE_L012_DESCRIPTOR_BLOCK :
+                                MMU_PTE_L3_DESCRIPTOR_PAGE)) {
             break;
         }
 
         if (index_shift <= MMU_KERNEL_PAGE_SIZE_SHIFT ||
-            descriptor_type != MMU_PTE_L012_DESCRIPTOR_TABLE) {
+                descriptor_type != MMU_PTE_L012_DESCRIPTOR_TABLE) {
             PANIC_UNIMPLEMENTED;
         }
 
@@ -231,31 +231,31 @@ static pte_t *arm64_mmu_get_page_table(vaddr_t index, uint page_size_shift, pte_
 
     pte = page_table[index];
     switch (pte & MMU_PTE_DESCRIPTOR_MASK) {
-    case MMU_PTE_DESCRIPTOR_INVALID:
-        ret = alloc_page_table(&paddr, page_size_shift);
-        if (ret) {
-            TRACEF("failed to allocate page table\n");
+        case MMU_PTE_DESCRIPTOR_INVALID:
+            ret = alloc_page_table(&paddr, page_size_shift);
+            if (ret) {
+                TRACEF("failed to allocate page table\n");
+                return NULL;
+            }
+            vaddr = paddr_to_kvaddr(paddr);
+            LTRACEF("allocated page table, vaddr %p, paddr 0x%lx\n", vaddr, paddr);
+            memset(vaddr, MMU_PTE_DESCRIPTOR_INVALID, 1U << page_size_shift);
+            __asm__ volatile("dmb ishst" ::: "memory");
+            pte = paddr | MMU_PTE_L012_DESCRIPTOR_TABLE;
+            page_table[index] = pte;
+            LTRACEF("pte %p[0x%lx] = 0x%llx\n", page_table, index, pte);
+            return vaddr;
+
+        case MMU_PTE_L012_DESCRIPTOR_TABLE:
+            paddr = pte & MMU_PTE_OUTPUT_ADDR_MASK;
+            LTRACEF("found page table 0x%lx\n", paddr);
+            return paddr_to_kvaddr(paddr);
+
+        case MMU_PTE_L012_DESCRIPTOR_BLOCK:
             return NULL;
-        }
-        vaddr = paddr_to_kvaddr(paddr);
-        LTRACEF("allocated page table, vaddr %p, paddr 0x%lx\n", vaddr, paddr);
-        memset(vaddr, MMU_PTE_DESCRIPTOR_INVALID, 1U << page_size_shift);
-        __asm__ volatile("dmb ishst" ::: "memory");
-        pte = paddr | MMU_PTE_L012_DESCRIPTOR_TABLE;
-        page_table[index] = pte;
-        LTRACEF("pte %p[0x%lx] = 0x%llx\n", page_table, index, pte);
-        return vaddr;
 
-    case MMU_PTE_L012_DESCRIPTOR_TABLE:
-        paddr = pte & MMU_PTE_OUTPUT_ADDR_MASK;
-        LTRACEF("found page table 0x%lx\n", paddr);
-        return paddr_to_kvaddr(paddr);
-
-    case MMU_PTE_L012_DESCRIPTOR_BLOCK:
-        return NULL;
-
-    default:
-        PANIC_UNIMPLEMENTED;
+        default:
+            PANIC_UNIMPLEMENTED;
     }
 }
 
@@ -305,7 +305,7 @@ static void arm64_mmu_unmap_pt(vaddr_t vaddr, vaddr_t vaddr_rel,
         pte = page_table[index];
 
         if (index_shift > page_size_shift &&
-            (pte & MMU_PTE_DESCRIPTOR_MASK) == MMU_PTE_L012_DESCRIPTOR_TABLE) {
+                (pte & MMU_PTE_DESCRIPTOR_MASK) == MMU_PTE_L012_DESCRIPTOR_TABLE) {
             page_table_paddr = pte & MMU_PTE_OUTPUT_ADDR_MASK;
             next_page_table = paddr_to_kvaddr(page_table_paddr);
             arm64_mmu_unmap_pt(vaddr, vaddr_rem, chunk_size,
@@ -313,7 +313,7 @@ static void arm64_mmu_unmap_pt(vaddr_t vaddr, vaddr_t vaddr_rel,
                                page_size_shift,
                                next_page_table, asid);
             if (chunk_size == block_size ||
-                page_table_is_clear(next_page_table, page_size_shift)) {
+                    page_table_is_clear(next_page_table, page_size_shift)) {
                 LTRACEF("pte %p[0x%lx] = 0 (was page table)\n", page_table, index);
                 page_table[index] = MMU_PTE_DESCRIPTOR_INVALID;
                 __asm__ volatile("dmb ishst" ::: "memory");
@@ -372,10 +372,10 @@ static int arm64_mmu_map_pt(vaddr_t vaddr_in, vaddr_t vaddr_rel_in,
         index = vaddr_rel >> index_shift;
 
         if (((vaddr_rel | paddr) & block_mask) ||
-            (chunk_size != block_size) ||
-            (index_shift > MMU_PTE_DESCRIPTOR_BLOCK_MAX_SHIFT)) {
+                (chunk_size != block_size) ||
+                (index_shift > MMU_PTE_DESCRIPTOR_BLOCK_MAX_SHIFT)) {
             next_page_table = arm64_mmu_get_page_table(index, page_size_shift,
-                                                       page_table);
+                              page_table);
             if (!next_page_table)
                 goto err;
 

@@ -25,7 +25,7 @@ void *bsearch(const void *key, const void *base, size_t num_elems, size_t size,
 
     for (;;) {
         size_t mid = low + ((high - low) / 2);
-        const void *mid_elem = ((unsigned char*) base) + mid*size;
+        const void *mid_elem = ((unsigned char *) base) + mid*size;
         int r = compare(key, mid_elem);
 
         if (r < 0) {
@@ -39,7 +39,7 @@ void *bsearch(const void *key, const void *base, size_t num_elems, size_t size,
                 return NULL;
             }
         } else {
-            return (void*) mid_elem;
+            return (void *) mid_elem;
         }
     }
 }

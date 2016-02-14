@@ -40,7 +40,7 @@ typedef bool(*test_func)(const char *);
 
 typedef struct {
     test_func func;
-    const char* name;
+    const char *name;
     uint32_t toc_pages;
 } test;
 
@@ -78,7 +78,7 @@ bool test_setup(const char *dev_name, uint32_t toc_pages)
         .toc_pages = toc_pages,
     };
 
-    status_t res = fs_format_device(FS_NAME, dev_name, (void*)&args);
+    status_t res = fs_format_device(FS_NAME, dev_name, (void *)&args);
     if (res != NO_ERROR) {
         printf("spifs_format failed dev = %s, toc_pages = %u, retcode = %d\n",
                dev_name, toc_pages, res);

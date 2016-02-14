@@ -59,7 +59,8 @@ typedef struct udp_hdr {
 } __PACKED udp_hdr_t;
 
 
-int udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
+int udp_listen(uint16_t port, udp_callback_t cb, void *arg)
+{
     struct udp_listener *entry, *temp;
 
     list_for_every_entry_safe(&udp_list, entry, temp, struct udp_listener, list) {
@@ -88,7 +89,7 @@ int udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
 status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle)
 {
     LTRACEF("host %u.%u.%u.%u sport %u dport %u handle %p\n",
-           IPV4_SPLIT(host), sport, dport, handle);
+            IPV4_SPLIT(host), sport, dport, handle);
     udp_socket_t *socket;
     const uint8_t *dst_mac;
 

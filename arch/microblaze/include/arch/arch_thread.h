@@ -56,5 +56,5 @@ struct arch_thread {
 };
 
 void microblaze_context_switch(struct microblaze_context_switch_frame *oldcs,
-    struct microblaze_context_switch_frame *newcs);
+                               struct microblaze_context_switch_frame *newcs);
 

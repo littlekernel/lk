@@ -50,18 +50,18 @@ uint16_t bytes_read_u16_be(const uint8_t *buf);
 uint32_t bytes_read_u24_be(const uint8_t *buf);
 uint32_t bytes_read_u32_be(const uint8_t *buf);
 
-uint8_t* bytes_write_u16_be(uint8_t *buf, uint16_t val);
-uint8_t* bytes_write_u24_be(uint8_t *buf, uint32_t val);
-uint8_t* bytes_write_u32_be(uint8_t *buf, uint32_t val);
+uint8_t *bytes_write_u16_be(uint8_t *buf, uint16_t val);
+uint8_t *bytes_write_u24_be(uint8_t *buf, uint32_t val);
+uint8_t *bytes_write_u32_be(uint8_t *buf, uint32_t val);
 
 // Little endian interfaces
 uint16_t bytes_read_u16_le(const uint8_t *buf);
 uint32_t bytes_read_u24_le(const uint8_t *buf);
 uint32_t bytes_read_u32_le(const uint8_t *buf);
 
-uint8_t* bytes_write_u16_le(uint8_t *buf, uint16_t val);
-uint8_t* bytes_write_u24_le(uint8_t *buf, uint32_t val);
-uint8_t* bytes_write_u32_le(uint8_t *buf, uint32_t val);
+uint8_t *bytes_write_u16_le(uint8_t *buf, uint16_t val);
+uint8_t *bytes_write_u24_le(uint8_t *buf, uint32_t val);
+uint8_t *bytes_write_u32_le(uint8_t *buf, uint32_t val);
 
 // Bit swapping interfaces
 uint8_t  bytes_swap_bits_u8(uint8_t val);

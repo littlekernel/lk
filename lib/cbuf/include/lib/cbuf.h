@@ -88,7 +88,7 @@ size_t cbuf_read(cbuf_t *cbuf, void *buf, size_t buflen, bool block);
  *
  * @return The number of bytes which were written (or skipped).
  */
-size_t cbuf_peek(cbuf_t *cbuf, iovec_t* regions);
+size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions);
 
 /**
  * cbuf_write

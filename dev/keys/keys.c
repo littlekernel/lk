@@ -38,30 +38,30 @@ static unsigned long key_bitmap[BITMAP_NUM_WORDS(MAX_KEYS)];
 
 void keys_init(void)
 {
-	memset(key_bitmap, 0, sizeof(key_bitmap));
+    memset(key_bitmap, 0, sizeof(key_bitmap));
 }
 
 void keys_post_event(uint16_t code, int16_t value)
 {
-	if (code >= MAX_KEYS) {
-		dprintf(INFO, "Invalid keycode posted: %d\n", code);
-		return;
-	}
+    if (code >= MAX_KEYS) {
+        dprintf(INFO, "Invalid keycode posted: %d\n", code);
+        return;
+    }
 
-	/* TODO: Implement an actual event queue if it becomes necessary */
-	if (value)
-		bitmap_set(key_bitmap, code);
-	else
-		bitmap_clear(key_bitmap, code);
+    /* TODO: Implement an actual event queue if it becomes necessary */
+    if (value)
+        bitmap_set(key_bitmap, code);
+    else
+        bitmap_clear(key_bitmap, code);
 
-//	dprintf(INFO, "key state change: %d %d\n", code, value);
+//  dprintf(INFO, "key state change: %d %d\n", code, value);
 }
 
 int keys_get_state(uint16_t code)
 {
-	if (code >= MAX_KEYS) {
-		dprintf(INFO, "Invalid keycode requested: %d\n", code);
-		return -1;
-	}
-	return bitmap_test(key_bitmap, code);
+    if (code >= MAX_KEYS) {
+        dprintf(INFO, "Invalid keycode requested: %d\n", code);
+        return -1;
+    }
+    return bitmap_test(key_bitmap, code);
 }

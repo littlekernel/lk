@@ -37,24 +37,24 @@ typedef enum handler_return (*timer_callback)(struct timer *, lk_time_t now, voi
 #define TIMER_MAGIC (0x74696D72)  //'timr'
 
 typedef struct timer {
-	int magic;
-	struct list_node node;
+    int magic;
+    struct list_node node;
 
-	lk_time_t scheduled_time;
-	lk_time_t periodic_time;
+    lk_time_t scheduled_time;
+    lk_time_t periodic_time;
 
-	timer_callback callback;
-	void *arg;
+    timer_callback callback;
+    void *arg;
 } timer_t;
 
 #define TIMER_INITIAL_VALUE(t) \
 { \
-	.magic = TIMER_MAGIC, \
-	.node = LIST_INITIAL_CLEARED_VALUE, \
-	.scheduled_time = 0, \
-	.periodic_time = 0, \
-	.callback = NULL, \
-	.arg = NULL, \
+    .magic = TIMER_MAGIC, \
+    .node = LIST_INITIAL_CLEARED_VALUE, \
+    .scheduled_time = 0, \
+    .periodic_time = 0, \
+    .callback = NULL, \
+    .arg = NULL, \
 }
 
 /* Rules for Timers:

@@ -46,7 +46,8 @@ void spi_init(spi_data_size_t data_size,
               spi_cpol_t cpol,
               spi_cpha_t cpha,
               spi_bit_order_t bit_order,
-              spi_prescaler_t prescaler) {
+              spi_prescaler_t prescaler)
+{
 
     spi_regs_t *regs = SPI1;
     uint16_t temp_reg;
@@ -56,8 +57,8 @@ void spi_init(spi_data_size_t data_size,
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
 
     regs->CR1 = cpol | cpha | bit_order | prescaler
-        | SPI_Direction_2Lines_FullDuplex
-      | SPI_NSS_Soft;
+                | SPI_Direction_2Lines_FullDuplex
+                | SPI_NSS_Soft;
 
 
     temp_reg = regs->CR2;
@@ -77,7 +78,8 @@ void spi_init(spi_data_size_t data_size,
     regs->CR1 = temp_reg;
 }
 
-ssize_t spi_xfer(const void *tx_buf, void *rx_buf, size_t len) {
+ssize_t spi_xfer(const void *tx_buf, void *rx_buf, size_t len)
+{
     // Assure only a single transaction is ever active.
     mutex_acquire(&spi_mutex);
 

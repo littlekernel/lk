@@ -26,16 +26,16 @@ __BEGIN_CDECLS;
 #define SEMAPHORE_MAGIC (0x73656D61) // 'sema'
 
 typedef struct semaphore {
-	int magic;
-	int count;
-	wait_queue_t wait;
+    int magic;
+    int count;
+    wait_queue_t wait;
 } semaphore_t;
 
 #define SEMAPHORE_INITIAL_VALUE(s, _count) \
 { \
-	.magic = SEMAPHORE_MAGIC, \
-	.count = _count, \
-	.wait = WAIT_QUEUE_INITIAL_VALUE((s).wait), \
+    .magic = SEMAPHORE_MAGIC, \
+    .count = _count, \
+    .wait = WAIT_QUEUE_INITIAL_VALUE((s).wait), \
 }
 
 void sem_init(semaphore_t *, unsigned int);

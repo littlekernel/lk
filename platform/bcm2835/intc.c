@@ -241,13 +241,13 @@ decoded:
         }
     } else
 #endif // WITH_SMP
-    if (vector == 0xffffffff) {
-        ret = INT_NO_RESCHEDULE;
-    } else if (int_handler_table[vector].handler) {
-        ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
-    } else {
-        panic("irq %u fired on cpu %u but no handler set!\n", vector, cpu);
-    }
+        if (vector == 0xffffffff) {
+            ret = INT_NO_RESCHEDULE;
+        } else if (int_handler_table[vector].handler) {
+            ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
+        } else {
+            panic("irq %u fired on cpu %u but no handler set!\n", vector, cpu);
+        }
 
     return ret;
 }

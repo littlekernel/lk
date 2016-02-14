@@ -35,22 +35,26 @@ typedef DMA_Channel_TypeDef dma_channel_regs_t;
 
 event_t dma_events[DMA_CHANNELS];
 
-static void dma_channel_assert(dma_channel_t chan) {
+static void dma_channel_assert(dma_channel_t chan)
+{
     assert(DMA_CHANNEL_1 <= chan && chan < DMA_CHANNEL_7);
 }
 
-static dma_channel_regs_t *dma_get_channel(dma_channel_t chan) {
+static dma_channel_regs_t *dma_get_channel(dma_channel_t chan)
+{
     unsigned long addr =
         DMA1_Channel1_BASE + (chan - 1) * 0x14;
     return (dma_channel_regs_t *)addr;
 }
 
-static event_t *dma_event(dma_channel_t chan) {
+static event_t *dma_event(dma_channel_t chan)
+{
     return &dma_events[chan - 1];
 }
 
 // TODO(konkers): Separate out DMA IRQ handling by channel group.
-void dma_irq(void) {
+void dma_irq(void)
+{
     arm_cm_irq_entry();
     bool resched = false;
 
@@ -70,15 +74,18 @@ void dma_irq(void) {
     arm_cm_irq_exit(resched);
 }
 
-void stm32_DMA1_Channel1_IRQ(void) {
+void stm32_DMA1_Channel1_IRQ(void)
+{
     dma_irq();
 }
 
-void stm32_DMA1_Channel2_3_IRQ(void) {
+void stm32_DMA1_Channel2_3_IRQ(void)
+{
     dma_irq();
 }
 
-void stm32_DMA1_Channel4_5_6_7_IRQ(void) {
+void stm32_DMA1_Channel4_5_6_7_IRQ(void)
+{
     dma_irq();
 }
 
@@ -86,7 +93,8 @@ void dma_transfer_start(dma_channel_t chan,
                         uint32_t periph_addr,
                         uint32_t mem_addr,
                         uint16_t count,
-                        uint32_t flags) {
+                        uint32_t flags)
+{
     dma_channel_assert(chan);
     event_unsignal(dma_event(chan));
 
@@ -99,13 +107,15 @@ void dma_transfer_start(dma_channel_t chan,
     chan_regs->CCR = flags | DMA_CCR_TEIE | DMA_CCR_TCIE | DMA_CCR_EN;
 }
 
-void dma_wait(dma_channel_t chan) {
+void dma_wait(dma_channel_t chan)
+{
     dma_channel_assert(chan);
 
     event_wait(dma_event(chan));
 }
 
-void dma_init(void) {
+void dma_init(void)
+{
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 
     size_t i;

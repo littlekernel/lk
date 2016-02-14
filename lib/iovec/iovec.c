@@ -60,8 +60,8 @@ ssize_t iovec_to_membuf (uint8_t *buf, uint buf_len, const iovec_t *iov, uint io
     for (uint i = 0; i < iov_cnt; i++, iov++) {
 
         if  (iov_pos >= iov->iov_len) {
-             iov_pos -= iov->iov_len; /* skip whole chunks */
-             continue;
+            iov_pos -= iov->iov_len; /* skip whole chunks */
+            continue;
         }
 
         /* calc number of bytes left in current iov */

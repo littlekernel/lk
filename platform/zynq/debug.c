@@ -58,7 +58,7 @@ int platform_dgetc(char *c, bool wait)
 
 /* zynq specific halt */
 void platform_halt(platform_halt_action suggested_action,
-                          platform_halt_reason reason)
+                   platform_halt_reason reason)
 {
     switch (suggested_action) {
         default:
@@ -66,7 +66,7 @@ void platform_halt(platform_halt_action suggested_action,
         case HALT_ACTION_HALT:
             printf("HALT: spinning forever... (reason = %d)\n", reason);
             arch_disable_ints();
-            for(;;)
+            for (;;)
                 arch_idle();
             break;
         case HALT_ACTION_REBOOT:

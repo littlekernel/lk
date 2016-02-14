@@ -138,7 +138,7 @@ struct vring {
 #define vring_avail_event(vr) (*(uint16_t *)&(vr)->used->ring[(vr)->num])
 
 static inline void vring_init(struct vring *vr, unsigned int num, void *p,
-                  unsigned long align)
+                              unsigned long align)
 {
     vr->num = num;
     vr->num_mask = (1 << log2_uint(num)) - 1;
@@ -148,14 +148,14 @@ static inline void vring_init(struct vring *vr, unsigned int num, void *p,
     vr->desc = p;
     vr->avail = p + num*sizeof(struct vring_desc);
     vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + sizeof(uint16_t)
-        + align-1) & ~(align - 1));
+                         + align-1) & ~(align - 1));
 }
 
 static inline unsigned vring_size(unsigned int num, unsigned long align)
 {
     return ((sizeof(struct vring_desc) * num + sizeof(uint16_t) * (3 + num)
-         + align - 1) & ~(align - 1))
-        + sizeof(uint16_t) * 3 + sizeof(struct vring_used_elem) * num;
+             + align - 1) & ~(align - 1))
+           + sizeof(uint16_t) * 3 + sizeof(struct vring_used_elem) * num;
 }
 
 /* The following is used with USED_EVENT_IDX and AVAIL_EVENT_IDX */

@@ -77,7 +77,7 @@ static struct uart_instance uart3;
 #error add support for additional uarts
 #endif
 
-static struct uart_instance * const uart[NUM_UARTS + 1] = {
+static struct uart_instance *const uart[NUM_UARTS + 1] = {
 #if ENABLE_UART1
     [1] = &uart1,
 #endif

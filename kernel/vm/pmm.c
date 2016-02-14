@@ -317,7 +317,7 @@ retry:
             /* search while we're still within the arena and have a chance of finding a slot
                (start + count < end of arena) */
             while ((start < a->size / PAGE_SIZE) &&
-                   ((start + count) <= a->size / PAGE_SIZE)) {
+                    ((start + count) <= a->size / PAGE_SIZE)) {
                 vm_page_t *p = &a->page_array[start];
                 for (uint i = 0; i < count; i++) {
                     if (p->flags & VM_PAGE_FLAG_NONFREE) {

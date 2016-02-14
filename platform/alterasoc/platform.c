@@ -36,24 +36,30 @@
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* 1GB of sdram space */
-    { .phys = 0x0,
-      .virt = KERNEL_BASE,
-      .size = 1024*1024*1024,
-      .flags = 0,
-      .name = "memory" },
+    {
+        .phys = 0x0,
+        .virt = KERNEL_BASE,
+        .size = 1024*1024*1024,
+        .flags = 0,
+        .name = "memory"
+    },
 
     /* HPS peripherals */
-    { .phys = 0xfc000000,
-      .virt = 0xfc000000,
-      .size = 0x04000000,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "hps_periphs" },
+    {
+        .phys = 0xfc000000,
+        .virt = 0xfc000000,
+        .size = 0x04000000,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "hps_periphs"
+    },
 
     /* identity map to let the boot code run */
-    { .phys = 0,
-      .virt = 0,
-      .size = 1024*1024*1024,
-      .flags = MMU_INITIAL_MAPPING_TEMPORARY },
+    {
+        .phys = 0,
+        .virt = 0,
+        .size = 1024*1024*1024,
+        .flags = MMU_INITIAL_MAPPING_TEMPORARY
+    },
 
     /* null entry to terminate the list */
     { 0 }

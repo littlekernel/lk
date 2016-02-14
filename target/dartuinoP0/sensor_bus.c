@@ -34,22 +34,20 @@ static SPI_HandleTypeDef spi_handle;
 static uint8_t tx_buff[16];
 static uint8_t rx_buff[16];
 
-status_t acc_read_xyz(position_vector_t * pos_vector_p)
+status_t acc_read_xyz(position_vector_t *pos_vector_p)
 {
     tx_buff[0] = BMI055_ADDRESS_READ( BMI055_ACC_ACCD_X_LSB );
-    if ( acc_flush(tx_buff, rx_buff, 7) == NO_ERROR )
-    {
-            pos_vector_p->x = 0.001*(((int8_t)rx_buff[2] << 4) | ( (rx_buff[1] >> 4) & 0x0F));
-            pos_vector_p->y = 0.001*(((int8_t)rx_buff[4] << 4) | ( (rx_buff[3] >> 4) & 0x0F));
-            pos_vector_p->z = 0.001*(((int8_t)rx_buff[6] << 4) | ( (rx_buff[5] >> 4) & 0x0F));
-            return NO_ERROR;
-    }
-    else {
-            return ERR_GENERIC;
+    if ( acc_flush(tx_buff, rx_buff, 7) == NO_ERROR ) {
+        pos_vector_p->x = 0.001*(((int8_t)rx_buff[2] << 4) | ( (rx_buff[1] >> 4) & 0x0F));
+        pos_vector_p->y = 0.001*(((int8_t)rx_buff[4] << 4) | ( (rx_buff[3] >> 4) & 0x0F));
+        pos_vector_p->z = 0.001*(((int8_t)rx_buff[6] << 4) | ( (rx_buff[5] >> 4) & 0x0F));
+        return NO_ERROR;
+    } else {
+        return ERR_GENERIC;
     }
 }
 
-status_t acc_flush(uint8_t * tbuff, uint8_t * rbuff, uint8_t numbytes)
+status_t acc_flush(uint8_t *tbuff, uint8_t *rbuff, uint8_t numbytes)
 {
     status_t ret_status;
 
@@ -92,22 +90,22 @@ status_t sensor_bus_init_early(void)
     gpio_set(GPIO_GYRO_nCS, GPIO_PIN_SET);
     gpio_set(GPIO_ACC_nCS, GPIO_PIN_SET);
 
-	spi_handle.Instance               = SPI5;
-	spi_handle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
-	spi_handle.Init.Direction         = SPI_DIRECTION_2LINES;
-	spi_handle.Init.CLKPhase          = SPI_PHASE_1EDGE;
-	spi_handle.Init.CLKPolarity       = SPI_POLARITY_LOW;
-	spi_handle.Init.DataSize          = SPI_DATASIZE_8BIT;
-	spi_handle.Init.FirstBit          = SPI_FIRSTBIT_MSB;
-	spi_handle.Init.TIMode            = SPI_TIMODE_DISABLE;
-	spi_handle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
-	spi_handle.Init.CRCPolynomial     = 7;
-	spi_handle.Init.NSS               = SPI_NSS_SOFT;
-	spi_handle.Init.Mode              = SPI_MODE_MASTER;
+    spi_handle.Instance               = SPI5;
+    spi_handle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+    spi_handle.Init.Direction         = SPI_DIRECTION_2LINES;
+    spi_handle.Init.CLKPhase          = SPI_PHASE_1EDGE;
+    spi_handle.Init.CLKPolarity       = SPI_POLARITY_LOW;
+    spi_handle.Init.DataSize          = SPI_DATASIZE_8BIT;
+    spi_handle.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+    spi_handle.Init.TIMode            = SPI_TIMODE_DISABLE;
+    spi_handle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+    spi_handle.Init.CRCPolynomial     = 7;
+    spi_handle.Init.NSS               = SPI_NSS_SOFT;
+    spi_handle.Init.Mode              = SPI_MODE_MASTER;
 
-	if (HAL_SPI_Init(&spi_handle) != HAL_OK) {
-		return ERR_GENERIC;
-	}
+    if (HAL_SPI_Init(&spi_handle) != HAL_OK) {
+        return ERR_GENERIC;
+    }
     return NO_ERROR;
 }
 

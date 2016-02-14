@@ -47,14 +47,14 @@ status_t norfs_remove_obj(uint32_t key);
  * be overwritten.
  */
 status_t norfs_put_obj_iovec(uint32_t key, const iovec_t *obj_iov, uint32_t iov_count,
-		uint8_t flags);
+                             uint8_t flags);
 
 /*
  * Put an object in filesystem.  Previous versions of the object will be
  * overwritten.
  */
 status_t norfs_put_obj(uint32_t key, unsigned char *obj, uint16_t obj_len,
-				 uint8_t flags);
+                       uint8_t flags);
 
 
 /*
@@ -64,13 +64,13 @@ status_t norfs_put_obj(uint32_t key, unsigned char *obj, uint16_t obj_len,
  * the amount of bytes in the object as per the object header.
  */
 status_t norfs_read_obj_iovec(uint32_t key, iovec_t *obj_iov, uint32_t iov_count,
-						size_t *bytes_read, uint8_t flags);
+                              size_t *bytes_read, uint8_t flags);
 
 /*
  * Equivalent to read_obj_iovec, but objects read into a single buffer.
  */
 status_t norfs_read_obj(uint32_t key, unsigned char *buffer, uint16_t buffer_len,
-				  size_t *bytes_read, uint8_t flags);
+                        size_t *bytes_read, uint8_t flags);
 
 /*
  * Wipe NVRAM.  Leaves filesystem unmounted.

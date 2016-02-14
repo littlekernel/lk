@@ -531,7 +531,7 @@ static void x86_mmu_unmap_entry(vaddr_t vaddr, int level, vaddr_t table_entry)
     x86_mmu_unmap_entry(vaddr, level,(vaddr_t)next_table_addr);
     level += 1;
 
-    next_table_addr = (vaddr_t*)((vaddr_t)(X86_VIRT_TO_PHYS(next_table_addr)) & X86_PG_FRAME);
+    next_table_addr = (vaddr_t *)((vaddr_t)(X86_VIRT_TO_PHYS(next_table_addr)) & X86_PG_FRAME);
     if (level > PT_L) {
         /* Check all entries of next level table for present bit */
         for (next_level_offset = 0; next_level_offset < (PAGE_SIZE/8); next_level_offset++) {

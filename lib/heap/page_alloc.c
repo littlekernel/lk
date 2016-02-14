@@ -50,7 +50,8 @@
 
 #endif
 
-void *page_alloc(size_t pages) {
+void *page_alloc(size_t pages)
+{
 #if WITH_KERNEL_VM
     void *result = pmm_alloc_kpages(pages, NULL);
     return result;
@@ -60,7 +61,8 @@ void *page_alloc(size_t pages) {
 #endif
 }
 
-void page_free(void *ptr, size_t pages) {
+void page_free(void *ptr, size_t pages)
+{
 #if WITH_KERNEL_VM
     DEBUG_ASSERT(IS_PAGE_ALIGNED((uintptr_t)ptr));
 
@@ -70,7 +72,8 @@ void page_free(void *ptr, size_t pages) {
 #endif
 }
 
-void *page_first_alloc(size_t *size_return) {
+void *page_first_alloc(size_t *size_return)
+{
 #if WITH_KERNEL_VM
     *size_return = PAGE_SIZE;
     return page_alloc(1);

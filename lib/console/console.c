@@ -534,7 +534,7 @@ static void convert_args(int argc, cmd_args *argv)
     for (i = 0; i < argc; i++) {
         unsigned long u = atoul(argv[i].str);
         argv[i].u = u;
-        argv[i].p = (void*)u;
+        argv[i].p = (void *)u;
         argv[i].i = atol(argv[i].str);
 
         if (!strcmp(argv[i].str, "true") || !strcmp(argv[i].str, "on")) {
@@ -800,7 +800,7 @@ static int cmd_echo(int argc, const cmd_args *argv)
     return NO_ERROR;
 }
 
-static void read_line_panic(char* buffer, const size_t len, FILE* panic_fd)
+static void read_line_panic(char *buffer, const size_t len, FILE *panic_fd)
 {
     size_t pos = 0;
 
@@ -853,7 +853,7 @@ void panic_shell_start(void)
         read_line_panic(input_buffer, PANIC_LINE_LEN, panic_fd);
 
         int argc;
-        char* tok = strtok(input_buffer, WHITESPACE);
+        char *tok = strtok(input_buffer, WHITESPACE);
         for (argc = 0; argc < MAX_NUM_ARGS; argc++) {
             if (tok == NULL) {
                 break;
@@ -868,7 +868,7 @@ void panic_shell_start(void)
 
         convert_args(argc, args);
 
-        const cmd* command = match_command(args[0].str, CMD_AVAIL_PANIC);
+        const cmd *command = match_command(args[0].str, CMD_AVAIL_PANIC);
         if (!command) {
             fputs("command not found\n", panic_fd);
             continue;

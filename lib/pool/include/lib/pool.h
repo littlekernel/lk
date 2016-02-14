@@ -57,7 +57,7 @@ __BEGIN_CDECLS
  */
 typedef struct {
     // Private:
-    void * next_free;
+    void *next_free;
 } pool_t;
 
 /**
@@ -106,11 +106,11 @@ typedef struct {
  * The DEFINE_POOL_STORAGE(...) makes this process simple for cases when the storage is to be
  * statically allocated.
  */
-void pool_init(pool_t * pool,
+void pool_init(pool_t *pool,
                size_t object_size,
                size_t object_align,
                size_t object_count,
-               void * storage);
+               void *storage);
 
 /**
  * Allocate an object from the pool.
@@ -118,12 +118,12 @@ void pool_init(pool_t * pool,
  * Otherwise, the return value is guarantee to be aligned at object_align and be at least of size
  * object_size.
  */
-void * pool_alloc(pool_t * pool);
+void *pool_alloc(pool_t *pool);
 
 /**
  * Free an object previously allocated with pool_alloc.
  */
-void pool_free(pool_t * pool, void * object);
+void pool_free(pool_t *pool, void *object);
 
 /**
  * This set of macros help in "specializing" the pool API to a specific object type.

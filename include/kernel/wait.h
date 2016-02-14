@@ -36,16 +36,16 @@ __BEGIN_CDECLS;
 #define WAIT_QUEUE_MAGIC (0x77616974) // 'wait'
 
 typedef struct wait_queue {
-	int magic;
-	struct list_node list;
-	int count;
+    int magic;
+    struct list_node list;
+    int count;
 } wait_queue_t;
 
 #define WAIT_QUEUE_INITIAL_VALUE(q) \
 { \
-	.magic = WAIT_QUEUE_MAGIC, \
-	.list = LIST_INITIAL_VALUE((q).list), \
-	.count = 0 \
+    .magic = WAIT_QUEUE_MAGIC, \
+    .list = LIST_INITIAL_VALUE((q).list), \
+    .count = 0 \
 }
 
 /* wait queue primitive */

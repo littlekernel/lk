@@ -207,7 +207,7 @@ static void mpu_init(void)
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
     MPU_InitStruct.BaseAddress = SDRAM_BASE;
 
-    MPU_InitStruct.Size = 
+    MPU_InitStruct.Size =
 #if   SDRAM_SIZE == 0x00100000
         MPU_REGION_SIZE_1MB;
 #elif SDRAM_SIZE == 0x00200000

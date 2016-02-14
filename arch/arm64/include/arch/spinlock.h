@@ -79,7 +79,7 @@ enum {
     SPIN_LOCK_FLAG_INTERRUPTS       = SPIN_LOCK_FLAG_IRQ,
 };
 
-    /* default arm flag is to just disable plain irqs */
+/* default arm flag is to just disable plain irqs */
 #define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS  SPIN_LOCK_FLAG_INTERRUPTS
 
 enum {

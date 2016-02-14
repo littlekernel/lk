@@ -43,51 +43,51 @@ void stellaris_usbc_init(void);
 
 void platform_early_init(void)
 {
-	//
-	// Enable lazy stacking for interrupt handlers.  This allows floating-point
-	// instructions to be used within interrupt handlers, but at the expense of
-	// extra stack usage.
-	//
+    //
+    // Enable lazy stacking for interrupt handlers.  This allows floating-point
+    // instructions to be used within interrupt handlers, but at the expense of
+    // extra stack usage.
+    //
 //  FPULazyStackingEnable();
 
-	//
-	// Set the clocking to run directly from the crystal.
-	//
-	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+    //
+    // Set the clocking to run directly from the crystal.
+    //
+    SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 
-	// start the generic systick timer
-	arm_cm_systick_init(SysCtlClockGet());
+    // start the generic systick timer
+    arm_cm_systick_init(SysCtlClockGet());
 
-	stellaris_gpio_early_init();
+    stellaris_gpio_early_init();
 
-	stellaris_debug_early_init();
+    stellaris_debug_early_init();
 
-	stellaris_usbc_early_init();
+    stellaris_usbc_early_init();
 }
 
 void platform_init(void)
 {
-	stellaris_gpio_init();
-	stellaris_debug_init();
-	stellaris_usbc_init();
+    stellaris_gpio_init();
+    stellaris_debug_init();
+    stellaris_usbc_init();
 
-	// print device information
-	printf("raw revision registers: 0x%lx 0x%lx\n", HWREG(SYSCTL_DID0), HWREG(SYSCTL_DID1));
+    // print device information
+    printf("raw revision registers: 0x%lx 0x%lx\n", HWREG(SYSCTL_DID0), HWREG(SYSCTL_DID1));
 
-	printf("stellaris device class: ");
-	if (CLASS_IS_SANDSTORM) printf("sandstorm");
-	if (CLASS_IS_FURY) printf("fury");
-	if (CLASS_IS_DUSTDEVIL) printf("dustdevil");
-	if (CLASS_IS_TEMPEST) printf("tempst");
-	if (CLASS_IS_FIRESTORM) printf("firestorm");
-	if (CLASS_IS_BLIZZARD) printf("blizzard");
-	printf("\n");
+    printf("stellaris device class: ");
+    if (CLASS_IS_SANDSTORM) printf("sandstorm");
+    if (CLASS_IS_FURY) printf("fury");
+    if (CLASS_IS_DUSTDEVIL) printf("dustdevil");
+    if (CLASS_IS_TEMPEST) printf("tempst");
+    if (CLASS_IS_FIRESTORM) printf("firestorm");
+    if (CLASS_IS_BLIZZARD) printf("blizzard");
+    printf("\n");
 
-	printf("revision register: ");
-	uint rev = (HWREG(SYSCTL_DID0) & SYSCTL_DID0_MAJ_M) >> 8;
-	printf("%c", rev + 'A');
-	printf("%ld", HWREG(SYSCTL_DID0) & (SYSCTL_DID0_MIN_M));
-	printf("\n");
+    printf("revision register: ");
+    uint rev = (HWREG(SYSCTL_DID0) & SYSCTL_DID0_MAJ_M) >> 8;
+    printf("%c", rev + 'A');
+    printf("%ld", HWREG(SYSCTL_DID0) & (SYSCTL_DID0_MIN_M));
+    printf("\n");
 
 }
 

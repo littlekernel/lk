@@ -83,35 +83,35 @@ void nrf51_UART0_IRQ(void)
 {
 //  char c;
     arm_cm_irq_entry();
-/*
-	bool resched = false;
-	while ( NRF_UART0->EVENTS_RXDRDY > 0 ) {
-        NRF_UART0->EVENTS_RXDRDY = 0;
-        c = NRF_UART0->RXD;
-		if (!cbuf_space_avail(&uart0_rx_buf)) {
-			break;
-		}
-		cbuf_write_char(&uart0_rx_buf, c, false);
-		resched = true;
-	}
-*/
-	arm_cm_irq_exit(false);
+    /*
+        bool resched = false;
+        while ( NRF_UART0->EVENTS_RXDRDY > 0 ) {
+            NRF_UART0->EVENTS_RXDRDY = 0;
+            c = NRF_UART0->RXD;
+            if (!cbuf_space_avail(&uart0_rx_buf)) {
+                break;
+            }
+            cbuf_write_char(&uart0_rx_buf, c, false);
+            resched = true;
+        }
+    */
+    arm_cm_irq_exit(false);
 }
 
 int uart_putc(int port, char c)
 {
-	while (NRF_UART0->EVENTS_TXDRDY == 0);
-	NRF_UART0->TXD = c;
+    while (NRF_UART0->EVENTS_TXDRDY == 0);
+    NRF_UART0->TXD = c;
     NRF_UART0->EVENTS_TXDRDY = 0;
-	return 1;
+    return 1;
 }
 
 int uart_getc(int port, bool wait)
 {
     do {
-	    if (NRF_UART0->EVENTS_RXDRDY > 0) {
-                NRF_UART0->EVENTS_RXDRDY=0;
-                return NRF_UART0->RXD;
+        if (NRF_UART0->EVENTS_RXDRDY > 0) {
+            NRF_UART0->EVENTS_RXDRDY=0;
+            return NRF_UART0->RXD;
         }
     } while (wait);
     return -1;
@@ -123,6 +123,6 @@ void uart_flush_rx(int port) {}
 
 void uart_init_port(int port, uint baud)
 {
-	// TODO - later
-	PANIC_UNIMPLEMENTED;
+    // TODO - later
+    PANIC_UNIMPLEMENTED;
 }

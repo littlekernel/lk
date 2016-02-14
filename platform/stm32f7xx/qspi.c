@@ -440,7 +440,7 @@ static int spiflash_ioctl(struct bdev *device, int request, void *argp)
         case BIO_IOCTL_GET_MEM_MAP:
             /* put the device into linear mode */
             ret = qspi_enable_linear();
-        // Fallthrough.
+            // Fallthrough.
         case BIO_IOCTL_GET_MAP_ADDR:
             if (argp)
                 *(void **)argp = (void *)QSPI_BASE;

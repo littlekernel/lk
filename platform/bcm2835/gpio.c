@@ -39,7 +39,7 @@ int gpio_config(unsigned nr, unsigned flags)
     unsigned register_number = nr / PINS_PER_REG;
     unsigned offset = (nr % PINS_PER_REG) * BITS_PER_PIN;
     unsigned shifted_mask = mask << offset;
-    volatile uint32_t* reg = REG32(GPIO_GPFSEL0) + register_number;
+    volatile uint32_t *reg = REG32(GPIO_GPFSEL0) + register_number;
     *reg = (*reg & ~shifted_mask) | (flags << offset);
     return 0;
 }

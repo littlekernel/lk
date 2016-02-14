@@ -51,7 +51,7 @@ SPI_HandleTypeDef SpiHandle;
 #define VCOM_HI 0x02
 #define VCOM_LO 0x00
 
-static uint8_t framebuffer[MLCD_HEIGHT * MLCD_WIDTH];
+static uint8_t framebuffer[MLCD_HEIGHT *MLCD_WIDTH];
 static uint8_t vcom_state;
 
 static void chip_select(bool s)
@@ -156,7 +156,7 @@ status_t display_get_info(struct display_info *info)
 {
     LTRACEF("display_info %p\n", info);
 
-    info->framebuffer = (void*)framebuffer;
+    info->framebuffer = (void *)framebuffer;
     info->format = MLCD_GFX_FORMAT;
     info->width = MLCD_WIDTH;
     info->height = MLCD_HEIGHT;

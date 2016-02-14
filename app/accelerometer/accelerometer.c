@@ -49,6 +49,6 @@ void read_xyz(void)
 }
 
 APP_START(accelerometer)
-	.flags = 0,
-APP_END
+.flags = 0,
+ APP_END
 

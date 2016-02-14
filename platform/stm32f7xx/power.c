@@ -30,7 +30,7 @@
 #include <arch/arm/cm.h>
 
 void platform_halt(platform_halt_action suggested_action,
-                          platform_halt_reason reason)
+                   platform_halt_reason reason)
 {
 #if ENABLE_PANIC_SHELL
     if (reason == HALT_REASON_SW_PANIC) {
@@ -46,7 +46,7 @@ void platform_halt(platform_halt_action suggested_action,
         case HALT_ACTION_HALT:
             dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
             arch_disable_ints();
-            for(;;)
+            for (;;)
                 arch_idle();
             break;
         case HALT_ACTION_REBOOT:
@@ -60,6 +60,6 @@ void platform_halt(platform_halt_action suggested_action,
 
     dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
     arch_disable_ints();
-    for(;;);
+    for (;;);
 }
 

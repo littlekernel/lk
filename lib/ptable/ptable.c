@@ -86,8 +86,8 @@ static status_t validate_entry(const struct ptable_entry *entry)
 
 static status_t ptable_write(void)
 {
-    uint8_t* buf = NULL;
-    bdev_t* bdev = NULL;
+    uint8_t *buf = NULL;
+    bdev_t *bdev = NULL;
     ssize_t err = ERR_GENERIC;
 
     if (!ptable_found_valid())
@@ -182,12 +182,12 @@ static void ptable_init(uint level)
 
 LK_INIT_HOOK(ptable, &ptable_init, LK_INIT_LEVEL_THREADING);
 
-static void ptable_unpublish(struct ptable_mem_entry* mentry)
+static void ptable_unpublish(struct ptable_mem_entry *mentry)
 {
     if (mentry) {
-        bdev_t* bdev;
+        bdev_t *bdev;
 
-        bdev = bio_open((char*)mentry->entry.name);
+        bdev = bio_open((char *)mentry->entry.name);
         if (bdev) {
             bio_unregister_device(bdev);
             bio_close(bdev);
@@ -240,7 +240,8 @@ static void ptable_push_entry (struct ptable_mem_entry *mentry)
     list_add_tail(&ptable.list, &mentry->node);
 }
 
-static status_t ptable_publish(const struct ptable_entry* entry) {
+static status_t ptable_publish(const struct ptable_entry *entry)
+{
     status_t err;
     struct ptable_mem_entry *mentry = NULL;
 
@@ -254,7 +255,7 @@ static status_t ptable_publish(const struct ptable_entry* entry) {
     }
 
     // Make sure the partition does not already exist.
-    const char* part_name = (const char*)entry->name;
+    const char *part_name = (const char *)entry->name;
     err = ptable_find(part_name, 0);
     if (err >= 0) {
         LTRACEF("entry \"%s\" already exists\n", part_name);
@@ -315,9 +316,9 @@ bailout:
 }
 
 static off_t ptable_adjust_request_for_erase_geometry(uint64_t  region_start,
-                                                      uint64_t  region_len,
-                                                      uint64_t* plength,
-                                                      bool      alloc_end)
+        uint64_t  region_len,
+        uint64_t *plength,
+        bool      alloc_end)
 {
     DEBUG_ASSERT(plength && ptable.bdev);
 
@@ -354,7 +355,7 @@ static off_t ptable_adjust_request_for_erase_geometry(uint64_t  region_start,
     // instead of front-to-back if alloc_end has been reqeusted.
     for (size_t i = 0; i < ptable.bdev->geometry_count; ++i) {
         size_t geo_index = alloc_end ?  (ptable.bdev->geometry_count - i - 1) : i;
-        const bio_erase_geometry_info_t* geo = ptable.bdev->geometry + geo_index;
+        const bio_erase_geometry_info_t *geo = ptable.bdev->geometry + geo_index;
         uint64_t erase_mask = ((uint64_t)0x1 << geo->erase_shift) - 1;
 
         LTRACEF("Considering erase region [0x%llx, 0x%llx) (erase size 0x%zx)\n",
@@ -407,7 +408,7 @@ static off_t ptable_adjust_request_for_erase_geometry(uint64_t  region_start,
     return ERR_INVALID_ARGS;
 }
 
-static off_t ptable_allocate(uint64_t* plength, uint flags)
+static off_t ptable_allocate(uint64_t *plength, uint flags)
 {
     DEBUG_ASSERT(plength);
 
@@ -426,9 +427,9 @@ static off_t ptable_allocate(uint64_t* plength, uint flags)
          * allocation.  Apply the erase geometry and return the result.
          */
         offset = ptable_adjust_request_for_erase_geometry(0,
-                                                          ptable.bdev->total_size,
-                                                          &length,
-                                                          alloc_end);
+                 ptable.bdev->total_size,
+                 &length,
+                 alloc_end);
         goto done;
     }
 
@@ -451,7 +452,7 @@ static off_t ptable_allocate(uint64_t* plength, uint flags)
         LTRACEF("Considering region [0x%llx, 0x%llx) between \"%s\" and \"%s\"\n",
                 region_start,
                 region_start + region_len,
-                lastentry ? (char*)lastentry->name : "<device start>",
+                lastentry ? (char *)lastentry->name : "<device start>",
                 entry->name);
         lastentry = entry;
 
@@ -461,9 +462,9 @@ static off_t ptable_allocate(uint64_t* plength, uint flags)
 
         test_len = length;
         test_offset = ptable_adjust_request_for_erase_geometry(region_start,
-                                                               region_len,
-                                                               &test_len,
-                                                               alloc_end);
+                      region_len,
+                      &test_len,
+                      alloc_end);
 
         // If this region was no good, move onto the next one.
         if (test_offset < 0)
@@ -496,9 +497,9 @@ static off_t ptable_allocate(uint64_t* plength, uint flags)
                 "<device end>");
         test_len = length;
         test_offset = ptable_adjust_request_for_erase_geometry(region_start,
-                                                               region_len,
-                                                               &test_len,
-                                                               alloc_end);
+                      region_len,
+                      &test_len,
+                      alloc_end);
         if (test_offset >= 0) {
             offset = test_offset;
             length = test_len;
@@ -518,7 +519,7 @@ done:
     return offset;
 }
 
-static status_t ptable_allocate_at(off_t _offset, uint64_t* plength)
+static status_t ptable_allocate_at(off_t _offset, uint64_t *plength)
 {
     if (!ptable.bdev)
         return ERR_BAD_STATE;
@@ -548,9 +549,9 @@ static status_t ptable_allocate_at(off_t _offset, uint64_t* plength)
      * move to accomadate the erase geometry, we cannot satisfy this request.
      */
     uint64_t new_offset = ptable_adjust_request_for_erase_geometry(offset,
-                                                                   ptable.bdev->total_size - offset,
-                                                                   plength,
-                                                                   false);
+                          ptable.bdev->total_size - offset,
+                          plength,
+                          false);
     if (new_offset != offset)
         return ERR_INVALID_ARGS;
 
@@ -570,7 +571,7 @@ static status_t ptable_allocate_at(off_t _offset, uint64_t* plength)
     return NO_ERROR;
 }
 
-status_t ptable_scan(const char* bdev_name, uint64_t offset)
+status_t ptable_scan(const char *bdev_name, uint64_t offset)
 {
     ssize_t err;
     DEBUG_ASSERT(bdev_name);
@@ -644,7 +645,7 @@ status_t ptable_scan(const char* bdev_name, uint64_t offset)
         }
 
         /* If this was the "ptable" entry, was it in the right place? */
-        if (!strncmp((char*)entry.name, PTABLE_PART_NAME, sizeof(entry.name))) {
+        if (!strncmp((char *)entry.name, PTABLE_PART_NAME, sizeof(entry.name))) {
             found_ptable = true;
 
             if (entry.offset != offset) {
@@ -708,7 +709,7 @@ status_t ptable_find(const char *name, struct ptable_entry *_entry)
     return ERR_NOT_FOUND;
 }
 
-status_t ptable_create_default(const char* bdev_name, uint64_t offset)
+status_t ptable_create_default(const char *bdev_name, uint64_t offset)
 {
     DEBUG_ASSERT(bdev_name);
 
@@ -737,7 +738,7 @@ status_t ptable_create_default(const char* bdev_name, uint64_t offset)
     ptable_entry.offset = offset;
     ptable_entry.length = len;
     ptable_entry.flags  = 0;
-    strncpy((char*)ptable_entry.name, PTABLE_PART_NAME, sizeof(ptable_entry.name));
+    strncpy((char *)ptable_entry.name, PTABLE_PART_NAME, sizeof(ptable_entry.name));
     err = ptable_publish(&ptable_entry);
     if (err < 0) {
         LTRACEF("Failed to publish ptable partition\n");
@@ -818,7 +819,7 @@ status_t ptable_add(const char *name, uint64_t min_len, uint32_t flags)
     ptable_entry.offset = part_loc;
     ptable_entry.length = min_len;
     ptable_entry.flags  = 0;
-    strncpy((char*)ptable_entry.name, name, sizeof(ptable_entry.name));
+    strncpy((char *)ptable_entry.name, name, sizeof(ptable_entry.name));
     status_t err = ptable_publish(&ptable_entry);
     if (err < 0) {
         LTRACEF("Failed to publish\n");
@@ -880,7 +881,7 @@ usage:
     } else if (!strcmp(argv[1].str, "list")) {
         ptable_dump();
     } else if (!strcmp(argv[1].str, "nuke")) {
-        bdev_t* ptable_dev = bio_open(PTABLE_PART_NAME);
+        bdev_t *ptable_dev = bio_open(PTABLE_PART_NAME);
 
         if (ptable_dev) {
             status_t err;
@@ -915,7 +916,7 @@ usage:
                    argv[1].str, argv[2].u, off);
         } else {
             printf("%s of 0x%lx gives [0x%llx, 0x%llx)\n",
-                    argv[1].str, argv[2].u, off, off + len);
+                   argv[1].str, argv[2].u, off, off + len);
         }
     } else if (!strcmp(argv[1].str, "write")) {
         printf("ptable_write result %d\n", ptable_write());

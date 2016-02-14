@@ -33,7 +33,7 @@
 
 typedef struct watchdog {
     uint32_t                magic;
-    const char*             name;
+    const char             *name;
     bool                    enabled;
     lk_time_t               timeout;
     timer_t                 expire_timer;
@@ -47,11 +47,11 @@ typedef struct watchdog {
  * platform_halt, or to replace the implementation of the watchdog handler with
  * their own appropriate implementation.
  */
-void watchdog_handler(watchdog_t* dog) __NO_RETURN;
+void watchdog_handler(watchdog_t *dog) __NO_RETURN;
 
-status_t watchdog_init(watchdog_t* dog, lk_time_t timeout, const char* name);
-void     watchdog_set_enabled(watchdog_t* dog, bool enabled);
-void     watchdog_pet(watchdog_t* dog);
+status_t watchdog_init(watchdog_t *dog, lk_time_t timeout, const char *name);
+void     watchdog_set_enabled(watchdog_t *dog, bool enabled);
+void     watchdog_pet(watchdog_t *dog);
 
 /* HW watchdog support.  This is nothing but a simple helper used to
  * automatically dismiss a platform's HW watchdog using LK timers.  Platforms
@@ -75,7 +75,7 @@ void     watchdog_pet(watchdog_t* dog);
  */
 
 extern status_t platform_watchdog_init(lk_time_t  target_timeout,
-                                       lk_time_t* recommended_pet_period);
+                                       lk_time_t *recommended_pet_period);
 extern void platform_watchdog_set_enabled(bool enabled);
 extern void platform_watchdog_pet(void);
 

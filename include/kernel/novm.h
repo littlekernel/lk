@@ -36,7 +36,7 @@
 #define NOVM_ARENA_SECONDARY (~NOVM_ARENA_MAIN)
 
 void *novm_alloc_pages(size_t pages, uint32_t arena_bitmap);
-void novm_free_pages(void* address, size_t pages);
+void novm_free_pages(void *address, size_t pages);
 status_t novm_alloc_specific_pages(void *address, size_t pages);
 
 // You can call this once and it will give you some possibly unaligned memory

@@ -36,18 +36,18 @@ extern "C" {
 struct HASH_CTX;  // forward decl
 
 typedef struct HASH_VTAB {
-  void (* const init)(struct HASH_CTX*);
-  void (* const update)(struct HASH_CTX*, const void*, int);
-  const uint8_t* (* const final)(struct HASH_CTX*);
-  const uint8_t* (* const hash)(const void*, int, uint8_t*);
-  int size;
+    void (* const init)(struct HASH_CTX *);
+    void (* const update)(struct HASH_CTX *, const void *, int);
+    const uint8_t *(* const final)(struct HASH_CTX *);
+    const uint8_t *(* const hash)(const void *, int, uint8_t *);
+    int size;
 } HASH_VTAB;
 
 typedef struct HASH_CTX {
-  const HASH_VTAB * f;
-  uint64_t count;
-  uint8_t buf[64];
-  uint32_t state[8];  // upto SHA2
+    const HASH_VTAB *f;
+    uint64_t count;
+    uint8_t buf[64];
+    uint32_t state[8];  // upto SHA2
 } HASH_CTX;
 
 #define HASH_init(ctx) (ctx)->f->init(ctx)

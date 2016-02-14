@@ -46,7 +46,7 @@ static void tests_init(const struct app_descriptor *app)
 }
 
 APP_START(tests)
-	.init = tests_init,
-	.flags = 0,
-APP_END
+.init = tests_init,
+ .flags = 0,
+  APP_END
 

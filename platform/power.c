@@ -48,7 +48,7 @@ __WEAK void platform_halt(platform_halt_action suggested_action,
 
     dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
     arch_disable_ints();
-    for(;;);
+    for (;;);
 }
 
 #if WITH_LIB_CONSOLE

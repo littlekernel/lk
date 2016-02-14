@@ -36,14 +36,14 @@ __BEGIN_CDECLS;
 
 #define PORT_NAME_LEN 12
 
-typedef void* port_t;
+typedef void *port_t;
 
 typedef struct {
     char value[8];
 } port_packet_t;
 
 typedef struct {
-    void* ctx;
+    void *ctx;
     port_packet_t packet;
 } port_result_t;
 
@@ -61,28 +61,28 @@ void port_init(void);
  * number of read-clients. |name| can be up to PORT_NAME_LEN chars. If
  * the write port exists it is returned even if the |mode| does not match.
  */
-status_t port_create(const char* name, port_mode_t mode, port_t* port);
+status_t port_create(const char *name, port_mode_t mode, port_t *port);
 
 /* Make a read-side port. Only non-destroyed existing write ports can
  * be opened with this api. Unicast ports can only be opened once. For
  * broadcast ports, each call if successful returns a new port.
  */
-status_t port_open(const char* name, void* ctx, port_t* port);
+status_t port_open(const char *name, void *ctx, port_t *port);
 
 /* Creates a read-side port group which behaves just like a regular
  * read-side port. A given port can only be assoicated with one port group.
  */
-status_t port_group(port_t* ports, size_t count, port_t* group);
+status_t port_group(port_t *ports, size_t count, port_t *group);
 
 /* Write to a port |count| packets, non-blocking, all or none atomic success.
  */
-status_t port_write(port_t port, const port_packet_t* pk, size_t count);
+status_t port_write(port_t port, const port_packet_t *pk, size_t count);
 
 /* Read one packet from the port or port group, blocking. The |result| contains
  * the port that the message was read from. If |timeout| is zero the call
  * does not block.
  */
-status_t port_read(port_t port, lk_time_t timeout, port_result_t* result);
+status_t port_read(port_t port, lk_time_t timeout, port_result_t *result);
 
 /* Destroy the write-side port, flush queued packets and release all resources,
  * all calls will now fail on that port. Only a closed port can be destroyed.

@@ -51,7 +51,7 @@ static int fp_supported;
 static thread_t *fp_owner;
 
 /* FXSAVE area comprises 512 bytes starting with 16-byte aligned */
-static uint8_t __ALIGNED(16) fpu_init_states[512]={0};
+static uint8_t __ALIGNED(16) fpu_init_states[512]= {0};
 
 static void get_cpu_cap(uint32_t *ecx, uint32_t *edx)
 {
