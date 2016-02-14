@@ -272,7 +272,7 @@ size_t pmm_free_kpages(void *_ptr, uint count)
     list_initialize(&list);
 
     while (count > 0) {
-        vm_page_t *p = address_to_page(kvaddr_to_paddr(ptr));
+        vm_page_t *p = address_to_page(vaddr_to_paddr(ptr));
         if (p) {
             list_add_tail(&list, &p->node);
         }

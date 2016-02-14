@@ -474,7 +474,7 @@ status_t gem_init(uintptr_t gem_base)
                                     sizeof(*gem.descs), &descs_vaddr, 0, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE)) < 0) {
         return ret;
     }
-    descs_paddr = kvaddr_to_paddr((void *)descs_vaddr);
+    descs_paddr = vaddr_to_paddr((void *)descs_vaddr);
 
     /* tx/rx descriptor tables and memory mapped registers */
     gem.descs = (void *)descs_vaddr;

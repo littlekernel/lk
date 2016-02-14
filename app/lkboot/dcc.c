@@ -33,7 +33,7 @@
 #include <lib/cbuf.h>
 #include <app/lkboot.h>
 #include <arch/arm/dcc.h>
-#include <arch/mmu.h>
+#include <kernel/vm.h>
 #include <kernel/mutex.h>
 
 #include "pdcc.h"
@@ -239,20 +239,20 @@ void lkboot_dcc_init(void)
 
     buffer_desc.version = PDCC_VERSION;
 
-    err = arch_mmu_query((vaddr_t)htod_buffer, &pa, NULL);
-    DEBUG_ASSERT(err == NO_ERROR);
+    pa = vaddr_to_paddr(htod_buffer);
+    DEBUG_ASSERT(pa);
 
     buffer_desc.htod_buffer_phys = pa;
     buffer_desc.htod_buffer_len = DCC_BUFLEN;
 
-    err = arch_mmu_query((vaddr_t)dtoh_buffer, &pa, NULL);
-    DEBUG_ASSERT(err == NO_ERROR);
+    pa = vaddr_to_paddr(dtoh_buffer);
+    DEBUG_ASSERT(pa);
 
     buffer_desc.dtoh_buffer_phys = pa;
     buffer_desc.dtoh_buffer_len = DCC_BUFLEN;
 
-    err = arch_mmu_query((vaddr_t)&buffer_desc, &buffer_desc_phys, NULL);
-    DEBUG_ASSERT(err == NO_ERROR);
+    buffer_desc_phys = vaddr_to_paddr(&buffer_desc);
+    DEBUG_ASSERT(buffer_desc_phys);
 
     arch_clean_cache_range((vaddr_t)&buffer_desc, sizeof(buffer_desc));
 }

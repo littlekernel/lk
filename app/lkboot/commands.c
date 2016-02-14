@@ -110,7 +110,7 @@ static int do_boot(lkb_t *lkb, size_t len, const char **result)
         *result = "not enough memory";
         return -1;
     }
-    arch_mmu_query((vaddr_t)buf, &buf_phys, NULL);
+    buf_phys = vaddr_to_paddr(buf);
     LTRACEF("iobuffer %p (phys 0x%lx)\n", buf, buf_phys);
 
     if (lkb_read(lkb, buf, len)) {
@@ -367,7 +367,7 @@ int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len,
         }
 
         /* translate to physical address */
-        paddr_t pa = kvaddr_to_paddr(buf);
+        paddr_t pa = vaddr_to_paddr(buf);
         if (pa == 0) {
             *result = "error allocating buffer";
             free(buf);

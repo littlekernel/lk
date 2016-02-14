@@ -349,8 +349,8 @@ status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len)
 
     /* compute the physical address */
     paddr_t pa;
-    err = arch_mmu_query((vaddr_t)vptr, &pa, NULL);
-    if (err < 0) {
+    pa = vaddr_to_paddr(vptr);
+    if (pa == 0) {
         return ERR_NO_MEMORY;
     }
 

@@ -110,7 +110,7 @@ void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz, uint32
      * stick with the address as presented to us.
      */
 #if WITH_KERNEL_VM
-    p->phys_base = kvaddr_to_paddr(buf) | (uintptr_t) buf % PAGE_SIZE;
+    p->phys_base = vaddr_to_paddr(buf) | (uintptr_t) buf % PAGE_SIZE;
 #else
     p->phys_base = (uintptr_t) buf;
 #endif

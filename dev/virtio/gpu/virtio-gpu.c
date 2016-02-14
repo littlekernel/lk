@@ -228,7 +228,7 @@ static status_t attach_backing(struct virtio_gpu_dev *gdev, uint32_t resource_id
     req.req.nr_entries = 1;
 
     paddr_t pa;
-    arch_mmu_query((vaddr_t)ptr, &pa, NULL);
+    pa = vaddr_to_paddr(ptr);
     req.mem.addr = pa;
     req.mem.length = buf_len;
 
@@ -445,7 +445,7 @@ status_t virtio_gpu_init(struct virtio_device *dev, uint32_t host_features)
     /* allocate memory for a gpu request */
 #if WITH_KERNEL_VM
     gdev->gpu_request = pmm_alloc_kpage();
-    gdev->gpu_request_phys = kvaddr_to_paddr(gdev->gpu_request);
+    gdev->gpu_request_phys = vaddr_to_paddr(gdev->gpu_request);
 #else
     gdev->gpu_request = malloc(sizeof(struct virtio_gpu_resp_display_info)); // XXX get size better
     gdev->gpu_request_phys = (paddr_t)gdev->gpu_request;

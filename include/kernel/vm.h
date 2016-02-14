@@ -181,7 +181,7 @@ size_t pmm_free_kpages(void *ptr, uint count);
 void *paddr_to_kvaddr(paddr_t pa);
 
 /* virtual to physical */
-paddr_t kvaddr_to_paddr(void *va);
+paddr_t vaddr_to_paddr(void *va);
 
 /* virtual allocator */
 typedef struct vmm_aspace {
