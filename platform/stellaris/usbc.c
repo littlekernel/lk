@@ -250,5 +250,3 @@ status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer)
 {
     PANIC_UNIMPLEMENTED;
 }
-
-// vim: set ts=4 sw=4 noexpandtab:

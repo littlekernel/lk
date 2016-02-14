@@ -1270,5 +1270,3 @@ const struct __debugger_info__ {
     .off_waitq = __builtin_offsetof(thread_t, blocking_wait_queue),
 };
 #endif
-
-/* vim: set ts=4 sw=4 noexpandtab: */

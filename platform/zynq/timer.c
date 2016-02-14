@@ -130,5 +130,3 @@ void platform_init_timer(void)
     register_int_handler(TTC0_C_INT, &platform_tick, NULL);
 }
 #endif
-
-/* vim: set ts=4 sw=4 expandtab: */

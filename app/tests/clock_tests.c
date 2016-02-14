@@ -114,5 +114,3 @@ void clock_tests(void)
         printf("%u cycles per second\n", cycles);
     }
 }
-
-// vim: set noexpandtab:

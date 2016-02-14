@@ -269,6 +269,3 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
 
     spin_unlock_irqrestore(&lock, state);
 }
-
-/* vim: set noexpandtab: */
-

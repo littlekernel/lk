@@ -76,6 +76,3 @@ enum handler_return mp_mbx_reschedule_irq(void)
     return (mp.active_cpus & (1U << cpu)) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 #endif
-
-// vim: set noexpandtab:
-

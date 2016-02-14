@@ -578,5 +578,3 @@ STATIC_COMMAND("spiflash", "spi flash manipulation utilities", cmd_spiflash)
 STATIC_COMMAND_END(qspi);
 
 #endif
-
-// vim: set ts=4 sw=4 noexpandtab:

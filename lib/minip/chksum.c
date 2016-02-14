@@ -96,5 +96,3 @@ uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp)
     return chksum;
 }
 #endif
-
-// vim: set ts=4 sw=4 expandtab:

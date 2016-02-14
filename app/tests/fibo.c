@@ -91,6 +91,3 @@ int fibo(int argc, const cmd_args *argv)
 
     return NO_ERROR;
 }
-
-// vim: set noexpandtab:
-

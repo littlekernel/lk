@@ -297,5 +297,3 @@ const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(pwm1_gen3),                // PWM 1 Generator 3
     VECTAB_ENTRY(pwm1_fault)                // PWM 1 Fault
 };
-
-// vim: ts=4 sw=4 noexpandtab:

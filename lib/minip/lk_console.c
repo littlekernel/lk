@@ -170,5 +170,3 @@ STATIC_COMMAND("arp", "arp commands", &cmd_arp)
 STATIC_COMMAND("mi", "minip commands", &cmd_minip)
 STATIC_COMMAND_END(minip);
 #endif
-
-// vim: set ts=4 sw=4 expandtab:

@@ -90,5 +90,3 @@ void platform_init(void)
     printf("\n");
 
 }
-
-// vim: set ts=4 sw=4 noexpandtab:

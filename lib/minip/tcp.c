@@ -1311,5 +1311,3 @@ STATIC_COMMAND_START
 STATIC_COMMAND("tcp", "tcp commands", &cmd_tcp)
 STATIC_COMMAND_END(tcp);
 
-
-// vim: set ts=4 sw=4 expandtab:

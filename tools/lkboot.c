@@ -122,5 +122,3 @@ int main(int argc, char **argv)
     }
     return lkboot_txn(host, cmd, fd, args);
 }
-
-// vim: noexpandtab

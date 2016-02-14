@@ -86,5 +86,3 @@ struct lk_init_struct {
 
 #define LK_INIT_HOOK(_name, _hook, _level) \
     LK_INIT_HOOK_FLAGS(_name, _hook, _level, LK_INIT_FLAG_PRIMARY_CPU)
-
-// vim: set ts=4 sw=4 expandtab:

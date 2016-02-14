@@ -209,5 +209,3 @@ void platform_stop_timer(void)
     outp(I8253_CONTROL_REG, 0x30);
     return;
 }
-
-/* vim: set noexpandtab */

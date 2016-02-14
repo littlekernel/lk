@@ -614,5 +614,3 @@ void sm_intc_fiq_exit(void)
     current_fiq[cpu] = 0x3ff;
 }
 #endif
-
-/* vim: set ts=4 sw=4 noexpandtab: */

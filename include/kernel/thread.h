@@ -239,5 +239,3 @@ extern struct thread_stats thread_stats[SMP_MAX_CPUS];
 __END_CDECLS;
 
 #endif
-
-/* vim: set ts=4 sw=4 noexpandtab: */

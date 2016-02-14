@@ -246,5 +246,3 @@ void platform_init(void)
     arch_mmu_init();
     platform_init_mmu_mappings();
 }
-
-/* vim: set noexpandtab: */

@@ -87,6 +87,3 @@ ssize_t iovec_to_membuf (uint8_t *buf, uint buf_len, const iovec_t *iov, uint io
 
     return (ssize_t) buf_pos;
 }
-
-
-// vim: set ts=4 sw=4 noexpandtab:

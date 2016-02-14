@@ -125,5 +125,3 @@ void pktbuf_create_bufs(void *ptr, size_t size);
 
 void pktbuf_dump(pktbuf_t *p);
 #endif
-
-// vim: set noexpandtab:

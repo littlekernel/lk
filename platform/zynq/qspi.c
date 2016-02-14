@@ -378,6 +378,3 @@ uint32_t qspi_rd1(struct qspi_ctxt *qspi, uint32_t cmd)
     qspi_cs(qspi, 1);
     return readl(QSPI_RXDATA);
 }
-
-// vim: set ts=4 sw=4 noexpandtab:
-

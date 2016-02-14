@@ -309,6 +309,3 @@ void timer_init(void)
     platform_set_periodic_timer(timer_tick, NULL, 10); /* 10ms */
 #endif
 }
-
-/* vim: set noexpandtab */
-

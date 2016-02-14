@@ -167,5 +167,3 @@ static int stmflash_ioctl(struct bdev *bdev, int request, void *argp)
     LTRACEF("dev %p, request %d, argp %p\n",bdev, request, argp);
     return ERR_NOT_SUPPORTED;
 }
-
-// vim: set ts=4 sw=4 noexpandtab:

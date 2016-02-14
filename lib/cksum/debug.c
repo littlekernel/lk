@@ -141,5 +141,3 @@ static int cmd_cksum_bench(int argc, const cmd_args *argv)
 }
 
 #endif // WITH_LIB_CONSOLE
-
-// vim: set noexpandtab:

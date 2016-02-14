@@ -374,5 +374,3 @@ static void arm_generic_timer_resume_cpu(uint level)
 
 LK_INIT_HOOK_FLAGS(arm_generic_timer_resume_cpu, arm_generic_timer_resume_cpu,
                    LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_CPU_RESUME);
-
-/* vim: set noexpandtab: */

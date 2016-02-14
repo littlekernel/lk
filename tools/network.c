@@ -125,5 +125,3 @@ int tcp_connect(in_addr_t addr, unsigned port)
 {
     return inet_connect(addr, SOCK_STREAM, port);
 }
-
-// vim: noexpandtab

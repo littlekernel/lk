@@ -97,5 +97,3 @@ status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout)
     THREAD_UNLOCK(state);
     return ret;
 }
-
-/* vim: set noexpandtab: */

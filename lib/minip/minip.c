@@ -499,5 +499,3 @@ uint32_t minip_parse_ipaddr(const char *ipaddr_str, size_t len)
 
     return IPV4_PACK(ip);
 }
-
-// vim: set ts=4 sw=4 expandtab:

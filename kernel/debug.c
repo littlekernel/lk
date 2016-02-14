@@ -240,5 +240,3 @@ static int cmd_kevlog(int argc, const cmd_args *argv)
 #endif
 
 #endif // WITH_KERNEL_EVLOG
-
-// vim: set noexpandtab:

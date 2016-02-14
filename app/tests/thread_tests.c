@@ -662,5 +662,3 @@ int spinner(int argc, const cmd_args *argv)
 
     return 0;
 }
-
-/* vim: set ts=4 sw=4 noexpandtab: */

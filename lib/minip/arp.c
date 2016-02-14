@@ -202,6 +202,3 @@ const uint8_t *arp_get_dest_mac(uint32_t host)
 
     return dst_mac;
 }
-
-// vim: set ts=4 sw=4 expandtab:
-

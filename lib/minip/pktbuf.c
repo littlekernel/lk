@@ -248,5 +248,3 @@ static void pktbuf_init(uint level)
 }
 
 LK_INIT_HOOK(pktbuf, pktbuf_init, LK_INIT_LEVEL_THREADING);
-
-// vim: set noexpandtab:

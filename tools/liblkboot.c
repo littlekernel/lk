@@ -321,5 +321,3 @@ out:
         close(fd_out);
     return ret;
 }
-
-// vim: noexpandtab

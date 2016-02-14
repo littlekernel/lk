@@ -821,5 +821,3 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 
 #endif
 #endif
-
-// vim: set noexpandtab:

@@ -64,5 +64,3 @@ void target_set_debug_led(unsigned int led, bool on)
             break;
     }
 }
-
-// vim: set ts=4 sw=4 noexpandtab:
