@@ -10,6 +10,7 @@ function HELP {
     echo "-d a virtio display"
     echo "-6 64bit arm"
     echo "-m <memory in MB>"
+    echo "-s <number of cpus>"
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
@@ -22,10 +23,11 @@ DO_64BIT=0
 DO_DISPLAY=0
 DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
+SMP=1
 MEMSIZE=512
 SUDO=""
 
-while getopts bdhm:cMnt6 FLAG; do
+while getopts bdhm:cMnt6s: FLAG; do
     case $FLAG in
         b) DO_BLOCK=1;;
         c) DO_CMPCTMALLOC=1;;
@@ -35,6 +37,7 @@ while getopts bdhm:cMnt6 FLAG; do
         t) DO_NET_TAP=1;;
         6) DO_64BIT=1;;
         m) MEMSIZE=$OPTARG;;
+        s) SMP=$OPTARG;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -52,7 +55,7 @@ else
     PROJECT="qemu-virt-a15-test"
 fi
 
-ARGS=" -m $MEMSIZE -kernel build-${PROJECT}/lk.elf"
+ARGS=" -m $MEMSIZE -smp $SMP -kernel build-${PROJECT}/lk.elf"
 BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
 NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
 NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"
