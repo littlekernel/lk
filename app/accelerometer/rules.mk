@@ -5,6 +5,9 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
     $(LOCAL_DIR)/accelerometer.c \
 
+MODULE_DEPS += \
+    dev/periph \
+
 MODULE_ARM_OVERRIDE_SRCS := \
 
 include make/module.mk

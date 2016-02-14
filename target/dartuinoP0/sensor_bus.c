@@ -34,6 +34,11 @@ static SPI_HandleTypeDef spi_handle;
 static uint8_t tx_buff[16];
 static uint8_t rx_buff[16];
 
+uint acc_exists(void)
+{
+    return ACCELEROMETER_PRESENT;
+}
+
 status_t acc_read_xyz(position_vector_t * pos_vector_p)
 {
     tx_buff[0] = BMI055_ADDRESS_READ( BMI055_ACC_ACCD_X_LSB );

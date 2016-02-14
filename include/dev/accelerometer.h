@@ -22,6 +22,13 @@
  */
 #ifndef __DEV_ACCELEROMETER_H
 #define __DEV_ACCELEROMETER_H
+
+#include <compiler.h>
+#include <sys/types.h>
+
+#define ACCELEROMETER_ABSENT  0x0
+#define ACCELEROMETER_PRESENT 0x1
+
 typedef struct
 {
         double x;
@@ -29,6 +36,8 @@ typedef struct
         double z;
 } position_vector_t;
 
+
+uint acc_exists(void);
 status_t acc_read_xyz(position_vector_t * pos_vector);
 
 #endif
