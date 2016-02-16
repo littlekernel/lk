@@ -183,8 +183,11 @@ void *paddr_to_kvaddr(paddr_t pa);
 /* virtual to physical */
 paddr_t vaddr_to_paddr(void *va);
 
-/* virtual to container address space */
-struct vmm_aspace *vaddr_to_aspace(void *ptr);
+/* vm_page_t to physical address */
+paddr_t vm_page_to_paddr(const vm_page_t *page);
+
+/* paddr to vm_page_t */
+vm_page_t *paddr_to_vm_page(paddr_t addr);
 
 /* virtual allocator */
 typedef struct vmm_aspace {
@@ -225,6 +228,9 @@ static inline vmm_aspace_t *vmm_get_kernel_aspace(void)
 {
     return &_kernel_aspace;
 }
+
+/* virtual to container address space */
+struct vmm_aspace *vaddr_to_aspace(void *ptr);
 
 /* reserve a chunk of address space to prevent allocations from that space */
 status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, vaddr_t vaddr)

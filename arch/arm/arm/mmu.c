@@ -437,8 +437,6 @@ static status_t get_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t *
 }
 
 
-vm_page_t *address_to_page(paddr_t addr); // move to common
-
 static void put_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t l2_pa)
 {
     DEBUG_ASSERT(aspace);
@@ -453,7 +451,7 @@ static void put_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t l2_pa
     }
 
     /* we can free this l2 table */
-    vm_page_t *page = address_to_page(l2_pa);
+    vm_page_t *page = paddr_to_vm_page(l2_pa);
     if (!page)
         panic("bad page table paddr 0x%lx\n", l2_pa);
 

@@ -545,7 +545,7 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     while ((p = list_remove_head_type(&page_list, vm_page_t, node))) {
         DEBUG_ASSERT(va <= r->base + r->size - 1);
 
-        paddr_t pa = page_to_address(p);
+        paddr_t pa = vm_page_to_paddr(p);
         DEBUG_ASSERT(IS_PAGE_ALIGNED(pa));
 
         arch_mmu_map(&aspace->arch_aspace, va, pa, 1, arch_mmu_flags);

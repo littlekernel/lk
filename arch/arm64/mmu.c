@@ -232,15 +232,13 @@ static int alloc_page_table(paddr_t *paddrp, uint page_size_shift)
 
 static void free_page_table(void *vaddr, paddr_t paddr, uint page_size_shift)
 {
-    vm_page_t *address_to_page(paddr_t addr); /* TODO: remove */
-
     LTRACEF("vaddr %p paddr 0x%lx page_size_shift %u\n", vaddr, paddr, page_size_shift);
 
     size_t size = 1U << page_size_shift;
     vm_page_t *page;
 
     if (size >= PAGE_SIZE) {
-        page = address_to_page(paddr);
+        page = paddr_to_vm_page(paddr);
         if (!page)
             panic("bad page table paddr 0x%lx\n", paddr);
         pmm_free_page(page);
