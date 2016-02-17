@@ -208,6 +208,19 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
         /*##-3- Configure the NVIC for SPI #########################################*/
         /* NVIC for SPI */
         HAL_NVIC_EnableIRQ(SPI2_IRQn);
+    } else if (hspi->Instance == SPI5) {
+        /* SPI5
+         * PF6 SPI5_NSS
+         * PF7 SPI5_SCK
+         * PF8 SPI5_MISO
+         * PF9 SPI5_MOSI
+         */
+        __HAL_RCC_GPIOF_CLK_ENABLE();
+        __HAL_RCC_SPI5_CLK_ENABLE();
+        gpio_config(GPIO_SPI5_SCK,  GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF5_SPI5) | GPIO_PULLUP);
+        gpio_config(GPIO_SPI5_MISO, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF5_SPI5) | GPIO_PULLUP);
+        gpio_config(GPIO_SPI5_MOSI, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF5_SPI5) | GPIO_PULLUP);
+        HAL_NVIC_EnableIRQ(SPI5_IRQn);
     }
 }
 
