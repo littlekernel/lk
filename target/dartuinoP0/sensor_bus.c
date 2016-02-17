@@ -23,12 +23,12 @@
 #include <err.h>
 #include <kernel/mutex.h>
 #include <platform/gpio.h>
+#include <platform/spi.h>
 #include <target/gpioconfig.h>
 #include <target/bmi055.h>
 #include <target/sensor_bus.h>
 #include <dev/accelerometer.h>
 
-static mutex_t sensorbus_mutex;
 static SPI_HandleTypeDef spi_handle;
 
 static uint8_t tx_buff[16];
@@ -49,19 +49,7 @@ status_t acc_read_xyz(position_vector_t *pos_vector_p)
 
 status_t acc_flush(uint8_t *tbuff, uint8_t *rbuff, uint8_t numbytes)
 {
-    status_t ret_status;
-
-    mutex_acquire(&sensorbus_mutex);
-
-    gpio_set(GPIO_ACC_nCS,GPIO_PIN_RESET);
-
-    ret_status = HAL_SPI_TransmitReceive(&spi_handle, tbuff, rbuff, numbytes, 5000);
-
-    gpio_set(GPIO_ACC_nCS,GPIO_PIN_SET);
-
-    mutex_release(&sensorbus_mutex);
-
-    return ret_status;
+    return spi_transaction(&spi_handle, tbuff, rbuff, numbytes, GPIO_ACC_nCS);
 }
 
 /**
@@ -71,11 +59,6 @@ status_t acc_flush(uint8_t *tbuff, uint8_t *rbuff, uint8_t numbytes)
 status_t sensor_bus_init_early(void)
 {
     __HAL_SENSOR_BUS_GPIO_CLK_ENABLE();
-    __HAL_RCC_SPI5_CLK_ENABLE();
-
-    gpio_config(GPIO_SPI5_SCK,  GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF5_SPI5) | GPIO_PULLUP);
-    gpio_config(GPIO_SPI5_MISO, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF5_SPI5) | GPIO_PULLUP);
-    gpio_config(GPIO_SPI5_MOSI, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF5_SPI5) | GPIO_PULLUP);
 
     gpio_config(GPIO_NRF_CS,    GPIO_OUTPUT );
     gpio_config(GPIO_NRF_INT,   GPIO_INPUT   | GPIO_PULLUP);
@@ -109,11 +92,8 @@ status_t sensor_bus_init_early(void)
     return NO_ERROR;
 }
 
-
-
 void sensor_bus_init(void)
 {
-    mutex_init(&sensorbus_mutex);
 }
 
 
