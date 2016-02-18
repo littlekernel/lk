@@ -32,10 +32,6 @@
 #include <string.h>
 #include <debug.h>
 
-#ifndef ARCH_X86_64
-#include <ffs.h>
-#endif
-
 #define LOCAL_TRACE 1
 
 static const struct platform_uart_config uart0_config = {
@@ -59,10 +55,5 @@ DEVICE_INSTANCE(ide, ide0, &ide0_config);
 void target_init(void)
 {
     //device_init_all();
-#ifndef ARCH_X86_64
-
-    device_init(device_get_by_name(ide, ide0));
-    ffs_mount(0, device_get_by_name(ide, ide0));
-#endif
 }
 
