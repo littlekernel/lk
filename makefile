@@ -14,6 +14,9 @@ ifneq ($(findstring $(LKROOT),$(LKINC)), $(LKROOT))
 LKINC := $(LKROOT) $(LKINC)
 endif
 
+# add the external path to LKINC
+LKINC += external
+
 export LKMAKEROOT
 export LKROOT
 export LKINC
