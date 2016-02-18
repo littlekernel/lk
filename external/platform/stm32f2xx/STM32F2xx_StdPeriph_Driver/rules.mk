@@ -1,5 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 GLOBAL_INCLUDES += $(LOCAL_DIR)/inc
 
 MODULE_SRCS += \
@@ -35,3 +37,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/src/stm32f2xx_hash_sha1.c \
 	$(LOCAL_DIR)/src/stm32f2xx_cryp.c \
 	$(LOCAL_DIR)/src/stm32f2xx_dac.c \
+
+include $(LOCAL_DIR)/CMSIS/rules.mk
+
+include make/module.mk
