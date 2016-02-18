@@ -269,14 +269,14 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm-m/thread.c \
 	$(LOCAL_DIR)/arm-m/vectab.c
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/arm-m/CMSIS/Include
-
 # we're building for small binaries
 GLOBAL_DEFINES += \
 	ARM_ONLY_THUMB=1 \
 	ARCH_DEFAULT_STACK_SIZE=1024 \
 	SMP_MAX_CPUS=1
+
+MODULE_DEPS += \
+	arch/arm/arm-m/CMSIS
 
 ARCH_OPTFLAGS := -Os
 WITH_LINKER_GC ?= 1
