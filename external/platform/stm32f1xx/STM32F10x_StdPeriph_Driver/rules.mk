@@ -1,5 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 GLOBAL_INCLUDES += $(LOCAL_DIR)/inc
 
 MODULE_SRCS += \
@@ -27,3 +29,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/src/stm32f10x_usart.c \
 	$(LOCAL_DIR)/src/stm32f10x_wwdg.c \
 	$(LOCAL_DIR)/src/system_stm32f10x.c
+
+include $(LOCAL_DIR)/CMSIS/rules.mk
+
+include make/module.mk
