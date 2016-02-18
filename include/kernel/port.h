@@ -29,7 +29,7 @@
 
 __BEGIN_CDECLS;
 
-/* Ports are named, opaque objects and come in tree flavors, the
+/* Ports are named, opaque objects and come in three flavors, the
  * write-side, the read-side and a port group which is a collection
  * of read-side ports.
  */
@@ -73,6 +73,14 @@ status_t port_open(const char *name, void *ctx, port_t *port);
  * read-side port. A given port can only be assoicated with one port group.
  */
 status_t port_group(port_t *ports, size_t count, port_t *group);
+
+/* Adds a read-side port to an existing port group.
+ */
+status_t port_group_add(port_t group, port_t port);
+
+/* Removes a read-side port to an existing port group.
+ */
+status_t port_group_remove(port_t group, port_t port);
 
 /* Write to a port |count| packets, non-blocking, all or none atomic success.
  */
