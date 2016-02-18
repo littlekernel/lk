@@ -60,9 +60,8 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	platform/stm32f2xx/STM32F2xx_StdPeriph_Driver \
 	arch/arm/arm-m/systick \
 	lib/cbuf
-
-include $(LOCAL_DIR)/STM32F2xx_StdPeriph_Driver/rules.mk $(LOCAL_DIR)/CMSIS/rules.mk
 
 include make/module.mk
