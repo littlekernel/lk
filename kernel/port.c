@@ -307,6 +307,68 @@ status_t port_group(port_t *ports, size_t count, port_t *group)
     return rc;
 }
 
+status_t port_group_add(port_t group, port_t port)
+{
+    if (!port || !group)
+        return ERR_INVALID_ARGS;
+
+    // Make sure the user has actually passed in a port group and a read-port.
+    port_group_t *pg = (port_group_t *)group;
+    if (pg->magic != PORTGROUP_MAGIC)
+        return ERR_INVALID_ARGS;
+
+    read_port_t *rp = (read_port_t *)port;
+    if (rp->magic != READPORT_MAGIC || rp->gport)
+        return ERR_BAD_HANDLE;
+
+    size_t pg_size = list_length(&pg->rp_list);
+    if (pg_size == MAX_PORT_GROUP_COUNT)
+        return ERR_TOO_BIG;
+
+    THREAD_LOCK(state);
+
+    rp->gport = pg;
+    list_add_tail(&pg->rp_list, &rp->g_node);
+
+    THREAD_UNLOCK(state);
+
+    return NO_ERROR;
+}
+
+status_t port_group_remove(port_t group, port_t port)
+{
+    if (!port || !group)
+        return ERR_INVALID_ARGS;
+
+    // Make sure the user has actually passed in a port group and a read-port.
+    port_group_t *pg = (port_group_t *)group;
+    if (pg->magic != PORTGROUP_MAGIC)
+        return ERR_INVALID_ARGS;
+
+    read_port_t *rp = (read_port_t *)port;
+    if (rp->magic != READPORT_MAGIC || rp->gport != pg)
+        return ERR_BAD_HANDLE;
+
+    THREAD_LOCK(state);
+
+    bool found = false;
+    read_port_t *current_rp;
+    list_for_every_entry(&pg->rp_list, current_rp, read_port_t, g_node) {
+        if (current_rp == rp) {
+            found = true;
+        }
+    }
+
+    if (!found)
+        return ERR_BAD_HANDLE;
+
+    list_delete(&rp->g_node);
+
+    THREAD_UNLOCK(state);
+
+    return NO_ERROR;
+}
+
 status_t port_write(port_t port, const port_packet_t *pk, size_t count)
 {
     if (!port || !pk)
