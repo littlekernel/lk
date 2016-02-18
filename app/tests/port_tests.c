@@ -583,6 +583,75 @@ int group_basic(void)
     return 0;
 }
 
+int group_dynamic(void)
+{
+    status_t st;
+
+    port_t w_test_port1, r_test_port1;
+    st = make_port_pair("tst_port1", TS1_PORT_CTX, &w_test_port1, &r_test_port1);
+    if (st < 0)
+        return __LINE__;
+
+    port_t w_test_port2, r_test_port2;
+    st = make_port_pair("tst_port2", TS2_PORT_CTX, &w_test_port2, &r_test_port2);
+    if (st < 0)
+        return __LINE__;
+
+    port_t pg;
+    st = port_group(&r_test_port1, 1, &pg);
+    if (st < 0)
+        return __LINE__;
+
+    port_packet_t pkt = { { 0 } };
+    st = port_write(w_test_port2, &pkt, 1);
+    if (st < 0)
+        return __LINE__;
+
+    port_result_t rslt;
+    st = port_read(pg, 0, &rslt);
+    if (st != ERR_TIMED_OUT)
+        return __LINE__;
+
+    // Attach the port that has been written to to the port group and ensure
+    // that we can read from it.
+    st = port_group_add(pg, r_test_port2);
+    if (st < 0)
+        return __LINE__;
+
+    st = port_read(pg, 0, &rslt);
+    if (st < 0)
+        return __LINE__;
+
+    // Write some data to a port then remove it from the port group and ensure
+    // that we can't read from it.
+    st = port_write(w_test_port1, &pkt, 1);
+    if (st < 0)
+        return __LINE__;
+
+    st = port_group_remove(pg, r_test_port1);
+    if (st < 0)
+        return __LINE__;
+
+    st = port_read(pg, 0, &rslt);
+    if (st != ERR_TIMED_OUT)
+        return __LINE__;
+
+    st = port_close(w_test_port1);
+    if (st < 0)
+        return __LINE__;
+    st = port_close(w_test_port2);
+    if (st < 0)
+        return __LINE__;
+    st = port_destroy(w_test_port1);
+    if (st < 0)
+        return __LINE__;
+    st = port_destroy(w_test_port2);
+    if (st < 0)
+        return __LINE__;
+
+    return 0;
+}
+
 #define RUN_TEST(t)  result = t(); if (result) goto fail
 
 int port_tests(void)
@@ -593,6 +662,7 @@ int port_tests(void)
         RUN_TEST(single_thread_basic);
         RUN_TEST(two_threads_basic);
         RUN_TEST(group_basic);
+        RUN_TEST(group_dynamic);
     }
 
     printf("all tests passed\n");
