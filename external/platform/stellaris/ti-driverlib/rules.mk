@@ -1,6 +1,11 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 GLOBAL_INCLUDES += $(LOCAL_DIR)
+
+# TI's driverlib wants this
+MODULE_COMPILEFLAGS += -Dgcc
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/driverlib/adc.c \
@@ -34,3 +39,6 @@ MODULE_SRCS += \
 
 # UNUSED
 #	$(LOCAL_DIR)/driverlib/systick.c
+
+include make/module.mk
+
