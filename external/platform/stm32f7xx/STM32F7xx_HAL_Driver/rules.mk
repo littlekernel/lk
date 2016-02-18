@@ -1,5 +1,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+MODULE := $(LOCAL_DIR)
+
 GLOBAL_INCLUDES += $(LOCAL_DIR)/Inc
 
 MODULE_SRCS += \
@@ -66,4 +68,8 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/Src/stm32f7xx_ll_fmc.c \
     $(LOCAL_DIR)/Src/stm32f7xx_ll_sdmmc.c \
     $(LOCAL_DIR)/Src/stm32f7xx_ll_usb.c
+
+include $(LOCAL_DIR)/CMSIS/rules.mk
+
+include make/module.mk
 

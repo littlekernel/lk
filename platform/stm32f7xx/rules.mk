@@ -59,12 +59,11 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	platform/stm32f7xx/STM32F7xx_HAL_Driver \
 	arch/arm/arm-m/systick \
 	dev/gpio \
 	dev/usb \
 	lib/bio \
 	lib/cbuf
-
-include $(LOCAL_DIR)/STM32F7xx_HAL_Driver/rules.mk $(LOCAL_DIR)/CMSIS/rules.mk
 
 include make/module.mk
