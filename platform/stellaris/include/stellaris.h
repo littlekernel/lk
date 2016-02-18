@@ -3,7 +3,8 @@
 
 /* an attempt at a CMSIS compatibility layer for Stellaris */
 
-#include "../ti/inc/hw_ints.h"
+/* from the ti driver library */
+#include <inc/hw_ints.h>
 
 typedef enum IRQn {
     // base Cortex IRQs
