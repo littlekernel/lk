@@ -15,7 +15,11 @@ LKINC := $(LKROOT) $(LKINC)
 endif
 
 # add the external path to LKINC
+ifneq ($(LKROOT),.)
+LKINC += $(LKROOT)/external
+else
 LKINC += external
+endif
 
 export LKMAKEROOT
 export LKROOT
