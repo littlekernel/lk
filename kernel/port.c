@@ -333,7 +333,6 @@ status_t port_group_add(port_t group, port_t port)
     status_t rc = NO_ERROR;
     THREAD_LOCK(state);
 
-    size_t pg_size = ;
     if (list_length(&pg->rp_list) == MAX_PORT_GROUP_COUNT) {
         rc = ERR_TOO_BIG;
     } else {
