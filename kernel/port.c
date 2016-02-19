@@ -103,6 +103,11 @@ static port_buf_t *make_buf(uint pk_count)
     return buf;
 }
 
+static inline bool buf_is_empty(port_buf_t *buf)
+{
+    return buf->avail == valpow2(buf->log2);
+}
+
 static status_t buf_write(port_buf_t *buf, const port_packet_t *packets, size_t count)
 {
     if (buf->avail < count)
@@ -118,7 +123,7 @@ static status_t buf_write(port_buf_t *buf, const port_packet_t *packets, size_t 
 
 static status_t buf_read(port_buf_t *buf, port_result_t *pr)
 {
-    if (buf->avail == valpow2(buf->log2))
+    if (buf_is_empty(buf))
         return ERR_NO_MSG;
     pr->packet = buf->packet[buf->head];
     buf->head = modpow2(++buf->head, buf->log2);
@@ -267,7 +272,11 @@ status_t port_group(port_t *ports, size_t count, port_t *group)
     if (count > MAX_PORT_GROUP_COUNT)
         return ERR_TOO_BIG;
 
-    if (!ports  || !group)
+    // Allow empty port groups.
+    if (count && !ports)
+        return ERR_INVALID_ARGS;
+
+    if (!group)
         return ERR_INVALID_ARGS;
 
     // assume success; create port group now.
@@ -321,18 +330,26 @@ status_t port_group_add(port_t group, port_t port)
     if (rp->magic != READPORT_MAGIC || rp->gport)
         return ERR_BAD_HANDLE;
 
-    size_t pg_size = list_length(&pg->rp_list);
-    if (pg_size == MAX_PORT_GROUP_COUNT)
-        return ERR_TOO_BIG;
-
+    status_t rc = NO_ERROR;
     THREAD_LOCK(state);
 
-    rp->gport = pg;
-    list_add_tail(&pg->rp_list, &rp->g_node);
+    size_t pg_size = ;
+    if (list_length(&pg->rp_list) == MAX_PORT_GROUP_COUNT) {
+        rc = ERR_TOO_BIG;
+    } else {
+        rp->gport = pg;
+        list_add_tail(&pg->rp_list, &rp->g_node);
+        
+        // If the new read port being added has messages available, try to wake
+        // any readers that might be present.
+        if (!buf_is_empty(rp->buf)) {
+            wait_queue_wake_one(&pg->wait, false, NO_ERROR);
+        }
+    }
 
     THREAD_UNLOCK(state);
 
-    return NO_ERROR;
+    return rc;
 }
 
 status_t port_group_remove(port_t group, port_t port)
