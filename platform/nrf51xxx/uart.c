@@ -101,8 +101,8 @@ void nrf51_UART0_IRQ(void)
 int uart_putc(int port, char c)
 {
     while (NRF_UART0->EVENTS_TXDRDY == 0);
-    NRF_UART0->TXD = c;
     NRF_UART0->EVENTS_TXDRDY = 0;
+    NRF_UART0->TXD = c;
     return 1;
 }
 
