@@ -31,6 +31,7 @@
 #include <dev/usb/class/bulktest.h>
 #include <hw/usb.h>
 #include <lk/init.h>
+#include <app/mocom/usb.h>
 
 #define LOCAL_TRACE 0
 
@@ -106,6 +107,9 @@ void target_usb_setup(void)
 
     /* add our bulk endpoint class device */
     usb_class_bulktest_init(1, 1, 1);
+
+    /* configure the mocom stuff */
+    mocom_configure_usb_endpoints(2, 2, 2);
 
     usb_start();
 }

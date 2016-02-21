@@ -1,12 +1,11 @@
 include project/target/stm32f746g-disco.mk
 include project/virtual/test.mk
 include project/virtual/minip.mk
+include project/virtual/mocom.mk
+include project/virtual/fs.mk
 
 MODULES += \
-	lib/fs \
     app/loader
-
-include project/virtual/fs.mk
 
 LK_HEAP_IMPLEMENTATION=cmpctmalloc
 
