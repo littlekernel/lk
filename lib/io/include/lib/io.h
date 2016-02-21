@@ -34,6 +34,7 @@ typedef struct __print_callback print_callback_t;
 struct __print_callback {
     struct list_node entry;
     void (*print)(print_callback_t *cb, const char *str, size_t len);
+    void *context;
 };
 
 /* register callback to receive debug prints */
