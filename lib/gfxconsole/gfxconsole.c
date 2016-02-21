@@ -116,8 +116,9 @@ void gfxconsole_print_callback(print_callback_t *cb, const char *str, size_t len
 }
 
 static print_callback_t cb = {
-    { 0 },
-    gfxconsole_print_callback
+    .entry = { 0 },
+    .print = gfxconsole_print_callback,
+    .context = NULL
 };
 
 /**
