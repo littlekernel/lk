@@ -23,9 +23,11 @@
 
 #if LK_DEBUGLEVEL > 1
 
-#include <string.h>
 #include <err.h>
+#include <math.h>
+#include <platform.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <lib/bio.h>
 #include <lib/console.h>
@@ -625,18 +627,12 @@ static bool test_rm_active_dirent(const char *dev_name)
     return success;
 }
 
-static int cmd_spifs(int argc, const cmd_args *argv)
+// Run the SPIFS test suite.
+static int spifs_test(int argc, const cmd_args *argv)
 {
-    if (argc < 3) {
-notenoughargs:
-        printf("not enough arguments:\n");
-usage:
-        printf("%s test <device>\n", argv[0].str);
+    if (argc != 3) {
+        printf("Expected 3 arguments, got %d.\n", argc);
         return -1;
-    }
-
-    if (strcmp(argv[1].str, "test")) {
-        goto usage;
     }
 
     // Make sure this block device is legit.
@@ -675,6 +671,139 @@ usage:
     }
 
     return countof(tests) - passed;
+}
+
+// Benchmark SPIFS.
+static int spifs_bench(int argc, const cmd_args *argv)
+{
+    if (argc != 3) {
+        printf("Expected 3 arguments, got %d.\n", argc);
+        return -1;
+    }
+
+    static const size_t test_buffer_length = 4096;
+    static const size_t min_bench_bytes = 0x40;      // 64b
+    static const size_t max_bench_bytes = 0x100000;  // 1MiB
+    const char *test_file_path = argv[2].str;
+
+    status_t st;
+    filehandle *handle;
+    int retcode = 0;
+    lk_bigtime_t start, end;
+
+    uint8_t *test_buffer = malloc(test_buffer_length);
+    memset(test_buffer, 0xAB, test_buffer_length);
+
+    for (size_t file_size = min_bench_bytes;
+         file_size <= max_bench_bytes;
+         file_size *= 2) {
+
+        printf(" == Benchmark for %zu bytes == \n", file_size);
+
+        // Create file benchmark
+        start = current_time_hires();
+        st = fs_create_file(test_file_path, &handle, file_size);
+        end = current_time_hires();
+        printf("\tfs_create_file = %llu usecs\n", end - start);
+
+        if (st != NO_ERROR) {
+            printf("SPIFS Benchmark Failed to create a %zu byte file at %s. "
+                   "Reason = %d.\n", file_size, test_file_path, st);
+            retcode = -1;
+            goto finish;
+        }
+
+
+        // Write File Benchmark
+        off_t offset = 0;
+        ssize_t n_bytes = 0;
+        start = current_time_hires();
+        do {
+            size_t write_length = MIN(
+                test_buffer_length,
+                file_size - offset
+            );
+            n_bytes = fs_write_file(handle, test_buffer, offset, write_length);
+            offset += n_bytes;
+        } while (n_bytes > 0);
+
+        end = current_time_hires();
+        printf("\tfs_write_file = %llu usecs\n", end - start);
+
+        if (n_bytes < 0) {
+            printf("SPIFS Benchmark Failed to write to file at %s. "
+                   "Reason = %ld.\n", test_file_path, n_bytes);
+            retcode = -1;
+            fs_close_file(handle);
+            goto finish;
+        }
+
+        // Read File Benchmark
+        offset = 0;
+        n_bytes = 0;
+        start = current_time_hires();
+        do {
+            n_bytes = fs_read_file(handle, test_buffer, offset,
+                                   test_buffer_length);
+            offset += n_bytes;
+        } while (n_bytes > 0);
+
+        end = current_time_hires();
+        printf("\tfs_read_file = %llu usecs\n", end - start);
+
+        if (n_bytes < 0) {
+            printf("SPIFS Benchmark Failed to read from file at %s. "
+                   "Reason = %ld.\n", test_file_path, n_bytes);
+            retcode = -1;
+            fs_close_file(handle);
+            goto finish;
+        }
+
+        st = fs_close_file(handle);
+        if (st != NO_ERROR) {
+            printf("SPIFS Benchmark Failed to close file at %s. "
+                   "Reason = %d.\n", test_file_path, st);
+            retcode = -1;
+            goto finish;
+        }
+
+        start = current_time_hires();
+        st = fs_remove_file(test_file_path);
+        end = current_time_hires();
+        printf("\tfs_remove_file = %llu usecs\n", end - start);
+
+        if (st != NO_ERROR) {
+            printf("SPIFS Benchmark Failed to remove file at %s. "
+                   "Reason = %d.\n", test_file_path, st);
+            retcode = -1;
+            goto finish;
+        }
+
+        printf("\n");
+    }
+finish:
+    free(test_buffer);
+    return retcode;
+}
+
+static int cmd_spifs(int argc, const cmd_args *argv)
+{
+    if (argc < 3) {
+        printf("not enough arguments:\n");
+usage:
+        printf("%s test <device>\n", argv[0].str);
+        printf("%s bench <path>\n", argv[0].str);
+        return -1;
+    }
+
+    if (!strcmp(argv[1].str, "test")) {
+         return spifs_test(argc, argv);
+    } else if (!strcmp(argv[1].str, "bench")) {
+        return spifs_bench(argc, argv);
+    }
+
+    // Command not found.
+    goto usage;
 }
 
 STATIC_COMMAND_START
