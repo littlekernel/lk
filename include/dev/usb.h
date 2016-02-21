@@ -26,6 +26,8 @@
 #include <sys/types.h>
 #include <compiler.h>
 
+__BEGIN_CDECLS
+
 /* top level initialization for usb client, abstracts away the interfaces */
 typedef struct {
     void *desc;
@@ -87,6 +89,8 @@ status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args
 
 /* callback api that anyone can register for */
 status_t usb_register_callback(usb_callback_t, void *cookie);
+
+__END_CDECLS
 
 #endif
 
