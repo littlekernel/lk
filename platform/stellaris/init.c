@@ -53,7 +53,17 @@ void platform_early_init(void)
     //
     // Set the clocking to run directly from the crystal.
     //
-    SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+
+    ulong config = SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN;
+#if !defined(CRYSTAL_FREQ) || CRYSTAL_FREQ == 16000000
+    config |= SYSCTL_XTAL_16MHZ;
+#elif CRYSTAL_FREQ == 8000000
+    config |= SYSCTL_XTAL_8MHZ;
+#else
+#error add more cases for additional frequencies
+#endif
+
+    SysCtlClockSet(config);
 
     // start the generic systick timer
     arm_cm_systick_init(SysCtlClockGet());

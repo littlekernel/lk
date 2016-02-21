@@ -11,8 +11,14 @@ MEMSIZE ?= 32768
 MEMBASE := 0x20000000
 ROMBASE := 0x00000000
 ARM_CPU := cortex-m3
-# should this be here?
 GLOBAL_DEFINES += TARGET_IS_BLIZZARD_RA1
+endif
+ifeq ($(STELLARIS_CHIP),LM3S6965)
+MEMSIZE ?= 65536
+MEMBASE := 0x20000000
+ROMBASE := 0x00000000
+ARM_CPU := cortex-m3
+GLOBAL_DEFINES += TARGET_IS_FURY_RA2
 endif
 
 GLOBAL_DEFINES += PART_$(STELLARIS_CHIP)
@@ -27,17 +33,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/usbc.c \
 	$(LOCAL_DIR)/vectab.c \
-
-
-#	$(LOCAL_DIR)/debug.c \
-	$(LOCAL_DIR)/interrupts.c \
-	$(LOCAL_DIR)/platform_early.c \
-	$(LOCAL_DIR)/platform.c \
-	$(LOCAL_DIR)/timer.c \
-	$(LOCAL_DIR)/init_clock.c \
-	$(LOCAL_DIR)/init_clock_48mhz.c \
-	$(LOCAL_DIR)/mux.c \
-	$(LOCAL_DIR)/emac_dev.c
 
 # use a two segment memory layout, where all of the read-only sections 
 # of the binary reside in rom, and the read/write are in memory. The 
