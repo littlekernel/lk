@@ -47,10 +47,12 @@ mocom_app::mocom_app(transport &t)
 :   m_transport(t),
     m_mux(m_transport)
 {
+    mutex_init(&m_workers_mutex);
 }
 
 mocom_app::~mocom_app()
 {
+    mutex_destroy(&m_workers_mutex);
 }
 
 status_t mocom_app::worker()
@@ -66,12 +68,14 @@ status_t mocom_app::worker()
             t = temp;
 
         // call all of the registered workers
+        mutex_acquire(&m_workers_mutex);
         worker_callback *cb;
         list_for_every_entry(&m_workers, cb, worker_callback, node) {
             temp = cb->work(cb->context);
             if (temp < t)
                 t = temp;
         }
+        mutex_release(&m_workers_mutex);
 
         // wait a cycle
         if (t > 0) {
@@ -85,12 +89,16 @@ status_t mocom_app::worker()
 
 void mocom_app::register_worker(worker_callback &cb)
 {
+    mutex_acquire(&m_workers_mutex);
     list_add_head(&m_workers, &cb.node);
+    mutex_release(&m_workers_mutex);
 }
 
 void mocom_app::unregister_worker(worker_callback &cb)
 {
+    mutex_acquire(&m_workers_mutex);
     list_delete(&cb.node);
+    mutex_release(&m_workers_mutex);
 }
 
 status_t mocom_app::init()

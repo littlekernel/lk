@@ -25,6 +25,7 @@
 #include <list.h>
 #include <sys/types.h>
 #include <kernel/event.h>
+#include <kernel/mutex.h>
 #include <lib/cpputils/nocopy.hpp>
 #include "transport.hpp"
 #include "mux.hpp"
@@ -62,6 +63,9 @@ private:
 
     // main app event
     event_t m_event;
+
+    // mutex to protect list of workers.
+    mutex_t m_workers_mutex;
 
     struct list_node m_workers = LIST_INITIAL_VALUE(m_workers);
 };
