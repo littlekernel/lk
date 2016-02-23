@@ -27,6 +27,7 @@ GLOBAL_DEFINES += \
 
 MODULE_DEPS += \
     app/accelerometer \
+    dev/usb/class/bulktest \
 
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
