@@ -107,7 +107,8 @@ static size_t trim_to_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr, size_t s
     return size;
 }
 
-static vmm_region_t *alloc_region_struct(const char *name, vaddr_t base, size_t size, uint flags, uint arch_mmu_flags)
+static vmm_region_t *alloc_region_struct(const char *name, vaddr_t base, size_t size,
+        uint flags, uint arch_mmu_flags)
 {
     DEBUG_ASSERT(name);
 
@@ -341,13 +342,15 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
     arch_mmu_query(&aspace->arch_aspace, vaddr, NULL, &arch_mmu_flags);
 
     /* build a new region structure */
-    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, 0, VMM_FLAG_VALLOC_SPECIFIC, VMM_REGION_FLAG_RESERVED, arch_mmu_flags);
+    vmm_region_t *r = alloc_region(aspace, name, size, vaddr, 0,
+                                   VMM_FLAG_VALLOC_SPECIFIC, VMM_REGION_FLAG_RESERVED, arch_mmu_flags);
 
     mutex_release(&vmm_lock);
     return r ? NO_ERROR : ERR_NO_MEMORY;
 }
 
-status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
+                            void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
 {
     status_t ret;
 
@@ -636,7 +639,7 @@ status_t vmm_create_aspace(vmm_aspace_t **_aspace, const char *name, uint flags)
 
     /* initialize the arch specific component to our address space */
     err = arch_mmu_init_aspace(&aspace->arch_aspace, aspace->base, aspace->size,
-            (aspace->flags & VMM_ASPACE_FLAG_KERNEL) ? ARCH_ASPACE_FLAG_KERNEL : 0);
+                               (aspace->flags & VMM_ASPACE_FLAG_KERNEL) ? ARCH_ASPACE_FLAG_KERNEL : 0);
     if (err < 0) {
         free(aspace);
         return err;
@@ -706,7 +709,27 @@ status_t vmm_free_aspace(vmm_aspace_t *aspace)
 
 void vmm_context_switch(vmm_aspace_t *oldspace, vmm_aspace_t *newaspace)
 {
+    DEBUG_ASSERT(thread_lock_held());
+
     arch_mmu_context_switch(newaspace ? &newaspace->arch_aspace : NULL);
+}
+
+void vmm_set_active_aspace(vmm_aspace_t *aspace)
+{
+    LTRACEF("aspace %p\n", aspace);
+
+    thread_t *t = get_current_thread();
+    DEBUG_ASSERT(t);
+
+    if (aspace == t->aspace)
+        return;
+
+    /* grab the thread lock and switch to the new address space */
+    THREAD_LOCK(state);
+    vmm_aspace_t *old = t->aspace;
+    t->aspace = aspace;
+    vmm_context_switch(old, t->aspace);
+    THREAD_UNLOCK(state);
 }
 
 static void dump_region(const vmm_region_t *r)
@@ -765,7 +788,8 @@ usage:
         if (argc < 4) goto notenoughargs;
 
         void *ptr = (void *)0x99;
-        status_t err = vmm_alloc_physical(test_aspace, "physical test", argv[3].u, &ptr, argv[4].u, argv[2].u, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+        status_t err = vmm_alloc_physical(test_aspace, "physical test", argv[3].u, &ptr,
+                                          argv[4].u, argv[2].u, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
         printf("vmm_alloc_physical returns %d, ptr %p\n", err, ptr);
     } else if (!strcmp(argv[1].str, "alloc_contig")) {
         if (argc < 4) goto notenoughargs;

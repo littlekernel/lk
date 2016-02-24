@@ -197,6 +197,11 @@ extern spin_lock_t thread_lock;
 #define THREAD_LOCK(state) spin_lock_saved_state_t state; spin_lock_irqsave(&thread_lock, state)
 #define THREAD_UNLOCK(state) spin_unlock_irqrestore(&thread_lock, state)
 
+static inline bool thread_lock_held(void)
+{
+    return spin_lock_held(&thread_lock);
+}
+
 /* thread local storage */
 static inline __ALWAYS_INLINE uintptr_t tls_get(uint entry)
 {

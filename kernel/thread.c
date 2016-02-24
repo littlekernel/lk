@@ -980,6 +980,9 @@ void dump_thread(thread_t *t)
     dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
     dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
     dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
+#if WITH_KERNEL_VM
+    dprintf(INFO, "\taspace %p\n", t->aspace);
+#endif
 #if (MAX_TLS_ENTRY > 0)
     dprintf(INFO, "\ttls:");
     int i;

@@ -118,7 +118,6 @@ static inline bool is_user_address(vaddr_t va)
     return (va >= USER_ASPACE_BASE && va <= (USER_ASPACE_BASE + USER_ASPACE_SIZE - 1));
 }
 
-
 /* physical allocator */
 typedef struct pmm_arena {
     struct list_node node;
@@ -265,6 +264,10 @@ __NONNULL((1));
 
 /* internal routine by the scheduler to swap mmu contexts */
 void vmm_context_switch(vmm_aspace_t *oldspace, vmm_aspace_t *newaspace);
+
+/* set the current user aspace as active on the current thread.
+   NULL is a valid argument, which unmaps the current user address space */
+void vmm_set_active_aspace(vmm_aspace_t *aspace);
 
 __END_CDECLS
 
