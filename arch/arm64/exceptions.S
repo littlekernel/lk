@@ -47,7 +47,7 @@ push x6, x7
 push x4, x5
 push x2, x3
 push x0, x1
-add  x0, sp, #regsave_long_offset
+mrs  x0, sp_el0
 mrs  x1, elr_el1
 mrs  x2, spsr_el1
 stp  lr, x0, [sp, #regsave_long_offset]
@@ -65,7 +65,7 @@ push x6, x7
 push x4, x5
 push x2, x3
 push x0, x1
-add  x0, sp, #regsave_short_offset
+mrs  x0, sp_el0
 mrs  x1, elr_el1
 mrs  x2, spsr_el1
 stp  lr, x0, [sp, #regsave_short_offset]
@@ -73,8 +73,9 @@ stp  x1, x2, [sp, #regsave_short_offset + 16]
 .endm
 
 .macro regrestore_long
-ldr  lr, [sp, #regsave_long_offset]
+ldp  lr, x0, [sp, #regsave_long_offset]
 ldp  x1, x2, [sp, #regsave_long_offset + 16]
+msr  sp_el0, x0
 msr  elr_el1, x1
 msr  spsr_el1, x2
 pop x0, x1
@@ -96,8 +97,9 @@ add sp, sp, #32
 .endm
 
 .macro regrestore_short
-ldr  lr, [sp, #regsave_short_offset]
+ldp  lr, x0, [sp, #regsave_short_offset]
 ldp  x1, x2, [sp, #regsave_short_offset + 16]
+msr  sp_el0, x0
 msr  elr_el1, x1
 msr  spsr_el1, x2
 pop x0, x1
@@ -176,15 +178,21 @@ LOCAL_FUNCTION(arm64_err_exc_current_el_SPx)
 /* exceptions from lower EL, running arm64 */
 .org 0x400
 LOCAL_FUNCTION(arm64_sync_exc_lower_el_64)
-    invalid_exception 0x20
+    regsave_long
+    mov x0, sp
+    bl  arm64_sync_exception
+    b  arm64_exc_shared_restore_long
 
 .org 0x480
 LOCAL_FUNCTION(arm64_irq_lower_el_64)
-    invalid_exception 0x21
+    irq_exception
 
 .org 0x500
 LOCAL_FUNCTION(arm64_fiq_lower_el_64)
-    invalid_exception 0x22
+    regsave_short
+    mov x0, sp
+    bl  platform_fiq
+    b  arm64_exc_shared_restore_short
 
 .org 0x580
 LOCAL_FUNCTION(arm64_err_exc_lower_el_64)
@@ -218,5 +226,5 @@ LOCAL_FUNCTION(arm64_exc_shared_restore_long)
     eret
 
 LOCAL_FUNCTION(arm64_exc_shared_restore_short)
-       regrestore_short
-       eret
+    regrestore_short
+    eret

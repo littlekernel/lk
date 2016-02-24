@@ -227,6 +227,8 @@ static int alloc_page_table(paddr_t *paddrp, uint page_size_shift)
             return ERR_NO_MEMORY;
         }
     }
+
+    LTRACEF("allocated 0x%lx\n", *paddrp);
     return 0;
 }
 
@@ -532,7 +534,7 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
                          mmu_flags_to_pte_attr(flags),
                          0, MMU_USER_SIZE_SHIFT,
                          MMU_USER_TOP_SHIFT, MMU_USER_PAGE_SIZE_SHIFT,
-                         aspace->tt_virt, MMU_ARM64_GLOBAL_ASID);
+                         aspace->tt_virt, MMU_ARM64_USER_ASID);
     }
 
     return ret;
@@ -566,7 +568,7 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count)
                            0, MMU_USER_SIZE_SHIFT,
                            MMU_USER_TOP_SHIFT, MMU_USER_PAGE_SIZE_SHIFT,
                            aspace->tt_virt,
-                           MMU_ARM64_GLOBAL_ASID);
+                           MMU_ARM64_USER_ASID);
     }
 
     return ret;
@@ -605,6 +607,10 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
 
         aspace->tt_virt = va;
         aspace->tt_phys = vaddr_to_paddr(aspace->tt_virt);
+
+        /* zero the top level translation table */
+        /* XXX remove when PMM starts returning pre-zeroed pages */
+        memset(aspace->tt_virt, 0, PAGE_SIZE);
     }
 
     LTRACEF("tt_phys 0x%lx tt_virt %p\n", aspace->tt_phys, aspace->tt_virt);
@@ -616,13 +622,22 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace)
 {
     LTRACEF("aspace %p\n", aspace);
 
+    DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) == 0);
+
+    // XXX make sure it's not mapped
+
+    vm_page_t *page = paddr_to_vm_page(aspace->tt_phys);
+    DEBUG_ASSERT(page);
+    pmm_free_page(page);
+
     return NO_ERROR;
 }
 
 void arch_mmu_context_switch(arch_aspace_t *aspace)
 {
-    if (LOCAL_TRACE && TRACE_CONTEXT_SWITCH)
-        LTRACEF("aspace %p\n", aspace);
+    if (TRACE_CONTEXT_SWITCH)
+        TRACEF("aspace %p\n", aspace);
 
     uint64_t tcr;
     uint64_t ttbr;
@@ -630,15 +645,19 @@ void arch_mmu_context_switch(arch_aspace_t *aspace)
         DEBUG_ASSERT((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) == 0);
 
         tcr = MMU_TCR_FLAGS_USER;
-        ttbr = aspace->tt_phys;
+        ttbr = ((uint64_t)MMU_ARM64_USER_ASID << 48) | aspace->tt_phys;
+        ARM64_WRITE_SYSREG(ttbr0_el1, ttbr);
+
+        if (TRACE_CONTEXT_SWITCH)
+            TRACEF("ttbr 0x%llx, tcr 0x%llx\n", ttbr, tcr);
+        ARM64_TLBI(aside1, MMU_ARM64_USER_ASID);
     } else {
         tcr = MMU_TCR_FLAGS_KERNEL;
-        ttbr = 0;
+
+        if (TRACE_CONTEXT_SWITCH)
+            TRACEF("tcr 0x%llx\n", tcr);
     }
 
-    if (LOCAL_TRACE && TRACE_CONTEXT_SWITCH)
-        LTRACEF("ttbr 0x%llx, tcr 0x%llx\n", ttbr, tcr);
-    ARM64_WRITE_SYSREG(ttbr0_el1, ttbr);
     ARM64_WRITE_SYSREG(tcr_el1, tcr);
 }
 
