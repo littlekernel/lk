@@ -166,7 +166,9 @@ unsigned long strtoul(const char *nptr, char **endptr, int base)
         }
 
         if (v < 0 || v >= base) {
-            *endptr = (char *) nptr;
+            if (endptr) {
+                *endptr = (char *) nptr;
+            }
             break;
         }
 
