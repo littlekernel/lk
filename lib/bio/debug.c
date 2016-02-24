@@ -422,14 +422,14 @@ static status_t memory_mapped_test(bdev_t *device)
 
     uint8_t *test_buffer = memalign(DMA_ALIGNMENT, device->block_size);
     if (!test_buffer) {
-        printf("Could not allocate %u bytes for a temporary buffer. "
+        printf("Could not allocate %zu bytes for a temporary buffer. "
                "Aborting.\n", device->block_size);
         return ERR_NO_MEMORY;
     }
 
     uint8_t *reference_buffer = memalign(DMA_ALIGNMENT, device->block_size);
     if (!reference_buffer) {
-        printf("Could not allocate %u bytes for a temporary reference "
+        printf("Could not allocate %zu bytes for a temporary reference "
                "buffer. Aborting.\n", device->block_size);
         free(test_buffer);
         return ERR_NO_MEMORY;
@@ -438,7 +438,7 @@ static status_t memory_mapped_test(bdev_t *device)
     // Erase the first page of the Device.
     ssize_t err = bio_erase(device, 0, device->block_size);
     if (err < (ssize_t)device->block_size) {
-        printf("Expected to erase at least %d bytes but only erased %ld. "
+        printf("Expected to erase at least %zu bytes but only erased %ld. "
                "Not continuing to test memory mapped mode.\n",
                device->block_size, err);
         retcode = ERR_IO;
@@ -455,7 +455,7 @@ static status_t memory_mapped_test(bdev_t *device)
     err = bio_write_block(device, test_buffer, 0, 1);
     if (err != (ssize_t)device->block_size) {
         printf("Error while writing test pattern to device. Expected to write "
-               "%d bytes but actually wrote %ld. Not continuing to test memory "
+               "%zu bytes but actually wrote %ld. Not continuing to test memory "
                "mapped mode.\n", device->block_size, err);
         retcode = ERR_IO;
         goto finish;
@@ -499,7 +499,7 @@ static status_t memory_mapped_test(bdev_t *device)
     // what we wrote back earlier.
     err = bio_read_block(device, reference_buffer, 0, 1);
     if (err != (ssize_t)device->block_size) {
-        printf("Expected to read %d bytes, actually read %ld. Aborting.\n",
+        printf("Expected to read %zu bytes, actually read %ld. Aborting.\n",
                device->block_size, err);
         retcode = ERR_IO;
         goto finish;
