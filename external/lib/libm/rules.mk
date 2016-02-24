@@ -18,6 +18,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/e_sqrtf.c \
 	$(LOCAL_DIR)/k_rem_pio2.c \
 	$(LOCAL_DIR)/s_floor.c \
+	$(LOCAL_DIR)/s_floorf.c \
 	$(LOCAL_DIR)/s_scalbn.c \
 	$(LOCAL_DIR)/s_scalbnf.c \
 	$(LOCAL_DIR)/s_copysign.c \
@@ -35,6 +36,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/e_exp.c \
 	$(LOCAL_DIR)/s_round.c \
 	$(LOCAL_DIR)/s_ceil.c \
+	$(LOCAL_DIR)/s_ceilf.c \
 	$(LOCAL_DIR)/s_trunc.c \
 	$(LOCAL_DIR)/s_atan.c \
 	$(LOCAL_DIR)/e_atan2.c \
