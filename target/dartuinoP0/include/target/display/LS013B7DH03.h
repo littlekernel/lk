@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Gurjant Kalsi <me@gurjantkalsi.com>
+ * Copyright (c) 2016 Craig Stout <cstout@chromium.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,24 +21,19 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-// 2.7 Inch Monocromatic Sharp Memory LCD
+// 1.28 Inch Monocromatic Sharp Memory LCD
 
-#include <target/display/LS027B7DH01.h>
-#include <string.h>
+#pragma once
 
-#define SET_BIT(BUF, BITNUM) ((BUF)[(BITNUM) >> 3] |= (0xff & (0x1 << ((BITNUM) & 0x07))))
+#include <dev/display.h>
 
-uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result)
-{
-    framebuffer += MLCD_WIDTH * idx;
+#define MLCD_WIDTH  ((uint16_t)128)
+#define MLCD_HEIGHT ((uint16_t)128)
 
-    memset(result, 0, MLCD_BYTES_LINE);
+// 1 bit per pixel divided by 8 bits per byte
+#define MLCD_BYTES_LINE  (MLCD_WIDTH / 8)
 
-    for (uint i = 0; i < MLCD_WIDTH; ++i) {
-        if (framebuffer[i] > 128) {
-            SET_BIT(result, i);
-        }
-    }
+#define FB_FORMAT               (DISPLAY_FORMAT_MONO_1)
+#define FB_STRIDE               (MLCD_BYTES_LINE)
 
-    return MLCD_BYTES_LINE;
-}
+uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result);

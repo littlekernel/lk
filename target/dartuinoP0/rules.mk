@@ -36,25 +36,31 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/usb.c \
 
 ifneq ($(DISPLAY_PANEL_TYPE),)
-MODULE_DEPS += \
-    lib/gfx
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/memory_lcd.c
+
 endif
 
 ifeq ($(DISPLAY_PANEL_TYPE),LS013B7DH06)
+
 GLOBAL_DEFINES += \
     LCD_LS013B7DH06=1
-
 MODULE_SRCS += \
     $(LOCAL_DIR)/display/LS013B7DH06.c
+
 else ifeq ($(DISPLAY_PANEL_TYPE),LS027B7DH01)
+
 GLOBAL_DEFINES += \
     LCD_LS027B7DH01=1
-
 MODULE_SRCS += \
-    $(LOCAL_DIR)/display/LS027B7DH01.c
+    $(LOCAL_DIR)/display/memory_lcd_mono.c
+
+else ifeq ($(DISPLAY_PANEL_TYPE),LS013B7DH03)
+GLOBAL_DEFINES += \
+    LCD_LS013B7DH03=1
+MODULE_SRCS += \
+    $(LOCAL_DIR)/display/memory_lcd_mono.c
 endif
 
 include make/module.mk

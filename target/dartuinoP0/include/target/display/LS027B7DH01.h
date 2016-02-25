@@ -25,13 +25,15 @@
 
 #pragma once
 
-#include <lib/gfx.h>
+#include <dev/display.h>
 
 #define MLCD_WIDTH  ((uint16_t)400)
 #define MLCD_HEIGHT ((uint16_t)240)
-#define MLCD_GFX_FORMAT (GFX_FORMAT_MONO)
 
 // 1 bit per pixel divided by 8 bits per byte
 #define MLCD_BYTES_LINE  (MLCD_WIDTH / 8)
+
+#define FB_FORMAT               (DISPLAY_FORMAT_MONO_8)
+#define FB_STRIDE               (MLCD_WIDTH)
 
 uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result);

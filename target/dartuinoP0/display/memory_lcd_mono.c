@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Gurjant Kalsi <me@gurjantkalsi.com>
+ * Copyright (c) 2016 Craig Stout <cstout@chromium.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,19 +21,37 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-// 1.33 Inch 3-Bit RGB Sharp Color LCD
+#if defined (LCD_LS027B7DH01)
+#include <target/display/LS027B7DH01.h>
+#elif defined (LCD_LS013B7DH03)
+#include <target/display/LS013B7DH03.h>
+#else
+#error Undefined display header
+#endif
 
-#pragma once
+#include <string.h>
+#include <assert.h>
 
-#include <dev/display.h>
+#define SET_BIT(BUF, BITNUM) ((BUF)[(BITNUM) >> 3] |= (0xff & (0x1 << ((BITNUM) & 0x07))))
 
-#define MLCD_WIDTH  ((uint16_t)128)
-#define MLCD_HEIGHT ((uint16_t)128)
+uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result)
+{
+    framebuffer += FB_STRIDE * idx;
 
-// 3 bits per pixel (1 for each of RBG) divided by 8 bits per byte.
-#define MLCD_BYTES_LINE  ((MLCD_WIDTH * 3) / 8)
+#if FB_FORMAT == DISPLAY_FORMAT_MONO_1
+    memcpy(result, framebuffer, MLCD_BYTES_LINE);
 
-#define FB_FORMAT               (DISPLAY_FORMAT_RGB_332)
-#define FB_STRIDE               (MLCD_WIDTH)
+#elif FB_FORMAT == DISPLAY_FORMAT_MONO_8
+    memset(result, 0, MLCD_BYTES_LINE);
+    for (uint i = 0; i < MLCD_WIDTH; ++i) {
+        if (framebuffer[i] > 128) {
+            SET_BIT(result, i);
+        }
+    }
 
-uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result);
+#else
+#error Unhandled FB_FORMAT
+#endif
+
+    return MLCD_BYTES_LINE;
+}

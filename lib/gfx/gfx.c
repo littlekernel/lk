@@ -44,7 +44,6 @@
 
 #define LOCAL_TRACE 0
 
-
 // Convert a 32bit ARGB image to its respective gamma corrected grayscale value.
 static uint32_t ARGB8888_to_Luma(uint32_t in)
 {
@@ -661,7 +660,33 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
 gfx_surface *gfx_create_surface_from_display(struct display_info *info)
 {
     gfx_surface *surface;
-    surface = gfx_create_surface(info->framebuffer, info->width, info->height, info->stride, info->format);
+    gfx_format format;
+    switch (info->format) {
+        case DISPLAY_FORMAT_RGB_565:
+            format = GFX_FORMAT_RGB_565;
+            break;
+        case DISPLAY_FORMAT_RGB_332:
+            format = GFX_FORMAT_RGB_332;
+            break;
+        case DISPLAY_FORMAT_RGB_2220:
+            format = GFX_FORMAT_RGB_2220;
+            break;
+        case DISPLAY_FORMAT_ARGB_8888:
+            format = GFX_FORMAT_ARGB_8888;
+            break;
+        case DISPLAY_FORMAT_RGB_x888:
+            format = GFX_FORMAT_RGB_x888;
+            break;
+        case DISPLAY_FORMAT_MONO_8:
+            format = GFX_FORMAT_MONO;
+            break;
+        default:
+            dprintf(INFO, "invalid graphics format)");
+            DEBUG_ASSERT(0);
+            return NULL;
+    }
+
+    surface = gfx_create_surface(info->framebuffer, info->width, info->height, info->stride, format);
 
     surface->flush = info->flush;
 

@@ -24,16 +24,26 @@
 #define __DEV_DISPLAY_H
 
 #include <stdbool.h>
-#include <lib/gfx.h>
+#include <sys/types.h>
+#include <inttypes.h>
 
 int display_init(void *framebuffer);
 int display_enable(bool enable);
 void display_pre_freq_change(void);
 void display_post_freq_change(void);
 
+#define DISPLAY_FORMAT_NONE         (-1)
+#define DISPLAY_FORMAT_RGB_565      (0)
+#define DISPLAY_FORMAT_RGB_332      (1)
+#define DISPLAY_FORMAT_RGB_2220     (2)
+#define DISPLAY_FORMAT_ARGB_8888    (3)
+#define DISPLAY_FORMAT_RGB_x888     (4)
+#define DISPLAY_FORMAT_MONO_1       (5)
+#define DISPLAY_FORMAT_MONO_8       (6)
+
 struct display_info {
     void *framebuffer;
-    gfx_format format;
+    int format;
     uint width;
     uint height;
     uint stride;

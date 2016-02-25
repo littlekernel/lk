@@ -29,7 +29,7 @@
 
 uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result)
 {
-    framebuffer += MLCD_WIDTH * idx;
+    framebuffer += FB_STRIDE * idx;
 
     memset(result, 0, MLCD_BYTES_LINE);
 

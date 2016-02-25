@@ -27,7 +27,6 @@
 #include <rand.h>
 
 #include <dev/display.h>
-#include <lib/gfx.h>
 #include <platform/gpio.h>
 #include <target/memory_lcd.h>
 
@@ -35,6 +34,8 @@
 #include <target/display/LS013B7DH06.h>
 #elif defined (LCD_LS027B7DH01)
 #include <target/display/LS027B7DH01.h>
+#elif defined (LCD_LS013B7DH03)
+#include <target/display/LS013B7DH03.h>
 #endif
 
 #define LOCAL_TRACE 0
@@ -51,7 +52,7 @@ SPI_HandleTypeDef SpiHandle;
 #define VCOM_HI 0x02
 #define VCOM_LO 0x00
 
-static uint8_t framebuffer[MLCD_HEIGHT *MLCD_WIDTH];
+static uint8_t framebuffer[MLCD_HEIGHT * FB_STRIDE];
 static uint8_t vcom_state;
 
 static void chip_select(bool s)
@@ -157,10 +158,10 @@ status_t display_get_info(struct display_info *info)
     LTRACEF("display_info %p\n", info);
 
     info->framebuffer = (void *)framebuffer;
-    info->format = MLCD_GFX_FORMAT;
+    info->format = FB_FORMAT;
     info->width = MLCD_WIDTH;
     info->height = MLCD_HEIGHT;
-    info->stride = MLCD_WIDTH;
+    info->stride = FB_STRIDE;
     info->flush = mlcd_flush;
 
     return NO_ERROR;
