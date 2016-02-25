@@ -32,21 +32,8 @@
 #include <arch/x86/descriptor.h>
 #include <arch/fpu.h>
 
-/*struct context_switch_frame {
-    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
-    uint32_t ds, es, fs, gs;
-    uint32_t eip, cs, eflags;
-};*/
-struct context_switch_frame {
-    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
-    uint32_t eflags;
-    uint32_t eip;
-};
-
 /* we're uniprocessor at this point for x86, so store a global pointer to the current thread */
 struct thread *_current_thread;
-
-extern void x86_context_switch(addr_t *old_sp, addr_t new_sp);
 
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void)
@@ -59,8 +46,6 @@ static void initial_thread_func(void)
 
     ret = _current_thread->entry(_current_thread->arg);
 
-//  dprintf("initial_thread_func: thread %p exiting with %d\n", _current_thread, ret);
-
     thread_exit(ret);
 }
 
@@ -69,38 +54,52 @@ void arch_thread_initialize(thread_t *t)
     // create a default stack frame on the stack
     vaddr_t stack_top = (vaddr_t)t->stack + t->stack_size;
 
-    // make sure the top of the stack is 8 byte aligned for EABI compliance
+#if ARCH_X86_32
+    // make sure the top of the stack is 8 byte aligned for ABI compliance
     stack_top = ROUNDDOWN(stack_top, 8);
+    struct x86_32_context_switch_frame *frame = (struct x86_32_context_switch_frame *)(stack_top);
+#endif
+#if ARCH_X86_64
+    // make sure the top of the stack is 16 byte aligned for ABI compliance
+    stack_top = ROUNDDOWN(stack_top, 16);
 
-    struct context_switch_frame *frame = (struct context_switch_frame *)(stack_top);
+    // make sure we start the frame 8 byte unaligned (relative to the 16 byte alignment) because
+    // of the way the context switch will pop the return address off the stack. After the first
+    // context switch, this leaves the stack in unaligned relative to how a called function expects it.
+    stack_top -= 8;
+    struct x86_64_context_switch_frame *frame = (struct x86_64_context_switch_frame *)(stack_top);
+#endif
+
+    // move down a frame size and zero it out
     frame--;
-
-    // fill it in
     memset(frame, 0, sizeof(*frame));
 
+#if ARCH_X86_32
     frame->eip = (vaddr_t) &initial_thread_func;
     frame->eflags = 0x3002; // IF = 0, NT = 0, IOPL = 3
-    //frame->cs = CODE_SELECTOR;
-    //frame->fs = DATA_SELECTOR;
-    //frame->gs = DATA_SELECTOR;
-    //frame->es = DATA_SELECTOR;
-    //frame->ds = DATA_SELECTOR;
+#endif
+
+#if ARCH_X86_64
+    frame->rip = (vaddr_t) &initial_thread_func;
+    frame->rflags = 0x3002; /* IF = 0, NT = 0, IOPL = 3 */
+#endif
+
+    // initialize the saved fpu state
+    fpu_init_thread_states(t);
 
     // set the stack pointer
-    t->arch.esp = (vaddr_t)frame;
-#if X86_WITH_FPU
-    memset(t->arch.fpu_buffer, 0, sizeof(t->arch.fpu_buffer));
-    t->arch.fpu_states = (vaddr_t *)ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
-#endif
+    t->arch.sp = (vaddr_t)frame;
 }
 
 void arch_dump_thread(thread_t *t)
 {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
-        dprintf(INFO, "sp 0x%lx\n", t->arch.esp);
+        dprintf(INFO, "sp 0x%lx\n", t->arch.sp);
     }
 }
+
+#if ARCH_X86_32
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
@@ -122,7 +121,7 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
         "1:					\n\t"
 
         :
-        : "d" (&oldthread->arch.esp), "a" (newthread->arch.esp)
+        : "d" (&oldthread->arch.sp), "a" (newthread->arch.sp)
     );
 
     /*__asm__ __volatile__ (
@@ -144,7 +143,20 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
         "iret               \n\t"
         "1: "
         :
-        : "d" (&oldthread->arch.esp), "a" (newthread->arch.esp)
+        : "d" (&oldthread->arch.sp), "a" (newthread->arch.sp)
     );*/
 }
+#endif
+
+#if ARCH_X86_64
+
+void arch_context_switch(thread_t *oldthread, thread_t *newthread)
+{
+#if X86_WITH_FPU
+    fpu_context_switch(oldthread, newthread);
+#endif
+
+    x86_64_context_switch(&oldthread->arch.sp, newthread->arch.sp);
+}
+#endif
 

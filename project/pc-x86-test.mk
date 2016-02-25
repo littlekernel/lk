@@ -3,6 +3,7 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 ARCH := x86
+SUBARCH := x86-32
 TARGET := pc-x86
 MODULES += \
 	app/shell \

@@ -32,8 +32,7 @@
 #include <string.h>
 #include <debug.h>
 
-#define LOCAL_TRACE 1
-
+#if 0
 static const struct platform_uart_config uart0_config = {
     .io_port = 0x3f8,
     .irq = 0x24,
@@ -43,6 +42,7 @@ static const struct platform_uart_config uart0_config = {
 };
 
 DEVICE_INSTANCE(uart, uart0, &uart0_config);
+#endif
 
 #ifndef ARCH_X86_64
 static const struct platform_ide_config ide0_config = {

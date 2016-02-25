@@ -55,9 +55,9 @@ void set_global_desc(seg_sel_t sel, void *base, uint32_t limit,
     _gdt[index].limit_15_0 = limit & 0x0000ffff;
     _gdt[index].limit_19_16 = (limit & 0x000f0000) >> 16;
 
-    _gdt[index].base_15_0 = ((uint32_t) base) & 0x0000ffff;
-    _gdt[index].base_23_16 = (((uint32_t) base) & 0x00ff0000) >> 16;
-    _gdt[index].base_31_24 = ((uint32_t) base) >> 24;
+    _gdt[index].base_15_0 = ((uintptr_t) base) & 0x0000ffff;
+    _gdt[index].base_23_16 = (((uintptr_t) base) & 0x00ff0000) >> 16;
+    _gdt[index].base_31_24 = ((uintptr_t) base) >> 24;
 
     _gdt[index].type = type & 0x0f; // segment type
     _gdt[index].p = present != 0;   // present

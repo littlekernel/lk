@@ -32,10 +32,10 @@
 #include <platform/keyboard.h>
 #include <platform/debug.h>
 
-static int uart_baud_rate = 115200;
-static int uart_io_port = 0x3f8;
+static const int uart_baud_rate = 115200;
+static const int uart_io_port = 0x3f8;
 
-static cbuf_t uart_rx_buf;
+cbuf_t console_input_buf;
 
 static enum handler_return uart_irq_handler(void *arg)
 {
@@ -44,14 +44,14 @@ static enum handler_return uart_irq_handler(void *arg)
 
     while (inp(uart_io_port + 5) & (1<<0)) {
         c = inp(uart_io_port + 0);
-        cbuf_write_char(&uart_rx_buf, c, false);
+        cbuf_write_char(&console_input_buf, c, false);
         resched = true;
     }
 
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-void platform_init_uart(void)
+void platform_init_debug_early(void)
 {
     /* configure the uart */
     int divisor = 115200 / uart_baud_rate;
@@ -64,10 +64,10 @@ void platform_init_uart(void)
     outp(uart_io_port + 2, 0x07); // enable FIFO, clear, 14-byte threshold
 }
 
-void uart_init(void)
+void platform_init_debug(void)
 {
     /* finish uart init to get rx going */
-    cbuf_initialize(&uart_rx_buf, 16);
+    cbuf_initialize(&console_input_buf, 1024);
 
     register_int_handler(0x24, uart_irq_handler, NULL);
     unmask_interrupt(0x24);
@@ -75,40 +75,25 @@ void uart_init(void)
     outp(uart_io_port + 1, 0x1); // enable receive data available interrupt
 }
 
-void uart_putc(char c)
+static void debug_uart_putc(char c)
 {
     while ((inp(uart_io_port + 5) & (1<<6)) == 0)
         ;
     outp(uart_io_port + 0, c);
 }
 
-int uart_getc(char *c, bool wait)
-{
-    return cbuf_read_char(&uart_rx_buf, c, wait);
-}
-
 void platform_dputc(char c)
 {
     if (c == '\n')
         platform_dputc('\r');
-#if WITH_CGA_CONSOLE
+
     cputc(c);
-#else
-    uart_putc(c);
-#endif
+    debug_uart_putc(c);
 }
 
 int platform_dgetc(char *c, bool wait)
 {
-#if WITH_CGA_CONSOLE
-    int ret =  platform_read_key(c);
-    //if (ret < 0)
-    //  arch_idle();
-#else
-    int ret = uart_getc(c, wait);
-#endif
-
-    return ret;
+    return cbuf_read_char(&console_input_buf, c, wait);
 }
 
 void platform_halt(void)

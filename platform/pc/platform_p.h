@@ -20,12 +20,14 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __PLATFORM_P_H
-#define __PLATFORM_P_H
+#pragma once
 
+#include <lib/cbuf.h>
+
+extern cbuf_t console_input_buf;
+
+void platform_init_debug_early(void);
+void platform_init_debug(void);
 void platform_init_interrupts(void);
 void platform_init_timer(void);
-void platform_init_uart(void);
-
-#endif
 

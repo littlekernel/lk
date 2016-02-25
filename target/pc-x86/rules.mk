@@ -6,7 +6,7 @@ MODULE := $(LOCAL_DIR)
 PLATFORM := pc
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/config.c \
+	$(LOCAL_DIR)/config.c
 
 include make/module.mk
 

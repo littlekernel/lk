@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
  * Copyright (c) 2015 Intel Corporation
+ * Copyright (c) 2016 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,6 +24,7 @@
  */
 
 #include <debug.h>
+#include <trace.h>
 #include <sys/types.h>
 #include <compiler.h>
 #include <arch.h>
@@ -34,8 +36,16 @@
 #include <assert.h>
 #include <err.h>
 #include <arch/arch_ops.h>
+#include <kernel/vm.h>
 
-extern map_addr_t g_CR3;
+#define LOCAL_TRACE 0
+
+/* top level kernel page tables, initialized in start.S */
+#ifdef PAE_MODE_ENABLED
+map_addr_t pdp[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+map_addr_t pdpt[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+#endif
+map_addr_t pd[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 
 #ifdef PAE_MODE_ENABLED
 /* PDP table address is 32 bit wide when on PAE mode, but the PDP entries are 64 bit wide */
@@ -281,13 +291,13 @@ static void update_pt_entry(vaddr_t vaddr, map_addr_t paddr, map_addr_t pt, arch
         pt_table[pt_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
 }
 
-static void update_pd_entry(vaddr_t vaddr, map_addr_t pdt, map_addr_t *m, arch_flags_t flags)
+static void update_pd_entry(vaddr_t vaddr, map_addr_t pdt, paddr_t m, arch_flags_t flags)
 {
     uint32_t pd_index;
 
     map_addr_t *pd_table = (map_addr_t *)(pdt & X86_PG_FRAME);
     pd_index = ((vaddr >> PD_SHIFT) & ((1 << ADDR_OFFSET) - 1));
-    pd_table[pd_index] = (map_addr_t)m;
+    pd_table[pd_index] = m;
     pd_table[pd_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
     if (flags & X86_MMU_PG_U)
         pd_table[pd_index] |= X86_MMU_PG_U;
@@ -300,39 +310,13 @@ static void update_pd_entry(vaddr_t vaddr, map_addr_t pdt, map_addr_t *m, arch_f
  */
 static map_addr_t *_map_alloc_page(void)
 {
-    map_addr_t *page_ptr = memalign(PAGE_SIZE, PAGE_SIZE);
+    map_addr_t *page_ptr = pmm_alloc_kpage();
+    DEBUG_ASSERT(page_ptr);
 
     if (page_ptr)
         memset(page_ptr, 0, PAGE_SIZE);
 
     return page_ptr;
-}
-
-addr_t *x86_create_new_cr3(void)
-{
-    map_addr_t *kernel_table, *new_table = NULL;
-
-    if (!g_CR3)
-        return 0;
-
-    kernel_table = (map_addr_t *)X86_PHYS_TO_VIRT(g_CR3);
-
-    /* Allocate a new Page to generate a new paging structure for a new CR3 */
-    new_table = _map_alloc_page();
-    ASSERT(new_table);
-
-    /* Copying the kernel mapping as-is */
-    memcpy(new_table, kernel_table, PAGE_SIZE);
-
-    return (addr_t *)new_table;
-}
-
-/**
- * @brief Returning the kernel CR3
- */
-map_addr_t get_kernel_cr3(void)
-{
-    return g_CR3;
 }
 
 /**
@@ -358,6 +342,7 @@ status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
         return ERR_INVALID_ARGS;
 
 #ifdef PAE_MODE_ENABLED
+#error fix map_alloc_page to translate to physical
     pdt = get_pdp_entry_from_pdp_table(vaddr, init_table);
     if ((pdt & X86_MMU_PG_P) == 0) {
         /* Creating a new pd table  */
@@ -397,7 +382,10 @@ status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
             goto clean;
         }
 
-        update_pd_entry(vaddr, init_table, m, get_x86_arch_flags(mmu_flags));
+        paddr_t pd_paddr = vaddr_to_paddr(m);
+        DEBUG_ASSERT(pd_paddr);
+
+        update_pd_entry(vaddr, init_table, pd_paddr, get_x86_arch_flags(mmu_flags));
         pt = (map_addr_t)m;
     }
 #endif
@@ -517,7 +505,7 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count)
     DEBUG_ASSERT(x86_get_cr3());
     init_table_from_cr3 = x86_get_cr3();
 
-    return (x86_mmu_unmap(init_table_from_cr3, vaddr, count));
+    return (x86_mmu_unmap(X86_PHYS_TO_VIRT(init_table_from_cr3), vaddr, count));
 }
 
 /**
@@ -530,6 +518,8 @@ status_t x86_mmu_map_range(map_addr_t init_table, struct map_range *range, arch_
     map_addr_t next_aligned_p_addr;
     status_t map_status;
     uint32_t no_of_pages, index;
+
+    TRACEF("table 0x%x, range vaddr 0x%lx paddr 0x%lx size %u\n", init_table, range->start_vaddr, range->start_paddr, range->size);
 
     DEBUG_ASSERT(init_table);
     if (!range)
@@ -566,6 +556,8 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
     arch_flags_t ret_flags;
     status_t stat;
 
+    LTRACEF("aspace %p, vaddr 0x%lx, paddr %p, flags %p\n", aspace, vaddr, paddr, flags);
+
     DEBUG_ASSERT(aspace);
 
     if (!paddr)
@@ -574,7 +566,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
     DEBUG_ASSERT(x86_get_cr3());
     current_cr3_val = (map_addr_t)x86_get_cr3();
 
-    stat = x86_mmu_get_mapping(current_cr3_val, vaddr, &ret_level, &ret_flags, &last_valid_entry);
+    stat = x86_mmu_get_mapping(X86_PHYS_TO_VIRT(current_cr3_val), vaddr, &ret_level, &ret_flags, &last_valid_entry);
     if (stat)
         return stat;
 
@@ -607,14 +599,10 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
     range.start_paddr = (map_addr_t)paddr;
     range.size = count * PAGE_SIZE;
 
-    return (x86_mmu_map_range(current_cr3_val, &range, flags));
+    return (x86_mmu_map_range(X86_PHYS_TO_VIRT(current_cr3_val), &range, flags));
 }
 
-/**
- * @brief  x86 MMU basic initialization
- *
- */
-void arch_mmu_init(void)
+void x86_mmu_early_init(void)
 {
     volatile uint32_t cr0;
 
@@ -639,6 +627,18 @@ void arch_mmu_init(void)
     efer_msr |= x86_EFER_NXE;
     write_msr(x86_MSR_EFER, efer_msr);
 #endif
+
+    /* unmap the lower identity mapping */
+    for (uint i = 0; i < (1024*1024*1024) / (4*1024*1024); i++) {
+        pd[i] = 0;
+    }
+
+    /* tlb flush */
+    x86_set_cr3(x86_get_cr3());
+}
+
+void x86_mmu_init(void)
+{
 }
 
 /*
