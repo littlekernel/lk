@@ -68,6 +68,10 @@ struct driver {
     const struct driver_ops *ops;
 };
 
+/* macro-expanding concat */
+#define concat(a, b) __ex_concat(a, b)
+#define __ex_concat(a, b) a ## b
+
 #define DRIVER_EXPORT(type_, ops_) \
     const struct driver concat(__driver_, type_) \
         __ALIGNED(sizeof(void *)) __SECTION(".drivers") = { \

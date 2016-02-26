@@ -158,10 +158,6 @@
 /* TODO: add type check */
 #define countof(a) (sizeof(a) / sizeof((a)[0]))
 
-/* macro-expanding concat */
-#define concat(a, b) __ex_concat(a, b)
-#define __ex_concat(a, b) a ## b
-
 /* CPP header guards */
 #ifdef __cplusplus
 #define __BEGIN_CDECLS  extern "C" {
