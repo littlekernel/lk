@@ -1032,6 +1032,34 @@ err:
     return len == 0 ? (ssize_t)size : err;
 }
 
+static status_t spifs_truncate(filecookie *fcookie, uint64_t len)
+{
+    LTRACEF("filecookie %p, len %llu\n", fcookie, len);
+
+    status_t rc = NO_ERROR;
+
+    spifs_file_t *file = (spifs_file_t *)fcookie;
+
+    mutex_acquire(&file->fs_handle->lock);
+
+    spifs_t *spifs = (spifs_t *)(file->fs_handle);
+
+    // Can't use truncate to grow a file.
+    if (len > file->metadata.length) {
+        rc = ERR_INVALID_ARGS;
+        goto finish;
+    }
+
+    file->metadata.length = len;
+
+    rc = spifs_commit_toc(spifs);
+
+finish:
+    mutex_release(&file->fs_handle->lock);
+
+    return rc;
+}
+
 static status_t spifs_stat(filecookie *fcookie, struct file_stat *stat)
 {
     LTRACEF("filecookie %p stat %p\n", fcookie, stat);
@@ -1194,6 +1222,7 @@ static const struct fs_api spifs_api = {
 
     .read = spifs_read,
     .write = spifs_write,
+    .truncate = spifs_truncate,
 
     .stat = spifs_stat,
 

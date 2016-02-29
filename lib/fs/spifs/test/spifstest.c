@@ -56,6 +56,7 @@ static bool test_corrupt_toc(const char *);
 static bool test_write_with_offset(const char *);
 static bool test_read_write_big(const char *);
 static bool test_rm_active_dirent(const char *);
+static bool test_truncate_file(const char *);
 
 static test tests[] = {
     {&test_empty_after_format, "Test no files in ToC after format.", 1},
@@ -70,6 +71,7 @@ static test tests[] = {
     {&test_write_with_offset, "Test that files can be written to at an offset.", 1},
     {&test_read_write_big, "Test that an unaligned ~10kb buffer can be written and read.", 1},
     {&test_rm_active_dirent, "Test that we can remove a file with an open dirent.", 1},
+    {&test_truncate_file, "Test that we can truncate a file.", 1},
 };
 
 bool test_setup(const char *dev_name, uint32_t toc_pages)
@@ -623,6 +625,39 @@ static bool test_rm_active_dirent(const char *dev_name)
     free(ent);
 
     return success;
+}
+
+static bool test_truncate_file(const char *dev_name)
+{
+    char test_message[] = "spifs test";
+    char test_buf[sizeof(test_message)];
+
+
+    filehandle *handle;
+    status_t status =
+        fs_create_file(TEST_FILE_PATH, &handle, 1024);
+    if (status != NO_ERROR) {
+        return false;
+    }
+
+    // File size is 1024?
+    struct file_stat stat;
+    fs_stat_file(handle, &stat);
+    if (stat.size != 1024) {
+        return false;
+    }
+
+    status = fs_truncate_file(handle, 512);
+    if (status != NO_ERROR) {
+        return false;
+    }
+
+    fs_stat_file(handle, &stat);
+    if (stat.size != 512) {
+        return false;
+    }
+
+    return fs_close_file(handle) == NO_ERROR;
 }
 
 static int cmd_spifs(int argc, const cmd_args *argv)
