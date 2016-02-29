@@ -253,6 +253,39 @@ static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
     return len;
 }
 
+static status_t memfs_truncate(filecookie *fcookie, uint64_t len)
+{
+    LTRACEF("filecookie %p, len %llu\n", fcookie, len);
+
+    status_t rc = NO_ERROR;
+
+    memfs_file_t *file = (memfs_file_t *)fcookie;
+
+    mutex_acquire(&file->fs->lock);
+
+    // Can't use truncate to grow a file.
+    if (len > file->len) {
+        rc = ERR_INVALID_ARGS;
+        goto finish;
+    }
+
+    // NOTE: Don't allow allocations smaller than 1b. Although realloc(..., 0)
+    // is okay, it may yield an invalid pointer (likely NULL) which might be
+    // dereferenced elsewhere.
+    void *ptr = realloc(file->ptr, len == 0 ? 1 : len);
+    if (unlikely(ptr == NULL)) {
+        rc = ERR_NO_MEMORY;
+        goto finish;
+    }
+
+    file->len = len;
+    file->ptr = ptr;
+
+finish:
+    mutex_release(&file->fs->lock);
+    return rc;
+}
+
 static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size_t len)
 {
     LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
@@ -378,6 +411,7 @@ static const struct fs_api memfs_api = {
     .open = memfs_open,
     .remove = memfs_remove,
     .close = memfs_close,
+    .truncate = memfs_truncate,
 
     .read = memfs_read,
     .write = memfs_write,
