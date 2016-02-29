@@ -264,14 +264,21 @@ static status_t memfs_truncate(filecookie *fcookie, uint64_t len)
     mutex_acquire(&file->fs->lock);
 
     // Can't use truncate to grow a file.
-    if (len > file->len)
-        return ERR_INVALID_ARGS;
+    if (len > file->len) {
+        rc = ERR_INVALID_ARGS;
+        goto finish;
+    }
 
-    void *ptr = realloc(file->ptr, len);
+    // NOTE: Don't allow allocations smaller than 1b. Although realloc(..., 0)
+    // is okay, it may yield an invalid pointer (likely NULL) which might be
+    // dereferenced elsewhere.
+    void *ptr = realloc(file->ptr, len == 0 ? 1 : len);
     if (unlikely(ptr == NULL)) {
         rc = ERR_NO_MEMORY;
         goto finish;
     }
+
+    file->len = len;
 
     // Fast-path: It's very likely that realloc won't move the allocated memory
     // block since we're shrinking an existing file. If the block hasn't been
