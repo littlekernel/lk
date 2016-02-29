@@ -253,6 +253,42 @@ static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
     return len;
 }
 
+static status_t memfs_truncate(filecookie *fcookie, uint64_t len)
+{
+    LTRACEF("filecookie %p, len %llu\n", fcookie, len);
+
+    status_t rc = NO_ERROR;
+
+    memfs_file_t *file = (memfs_file_t *)fcookie;
+
+    mutex_acquire(&file->fs->lock);
+
+    // Can't use truncate to grow a file.
+    if (len > file->len)
+        return ERR_INVALID_ARGS;
+
+    void *ptr = realloc(file->ptr, len);
+    if (unlikely(ptr == NULL)) {
+        rc = ERR_NO_MEMORY;
+        goto finish;
+    }
+
+    // Fast-path: It's very likely that realloc won't move the allocated memory
+    // block since we're shrinking an existing file. If the block hasn't been
+    // moved, we can terminate early.
+    if (ptr == file->ptr) {
+        rc = NO_ERROR;
+        goto finish;
+    }
+
+    // If we get a different pointer back, we need to move the file.
+    file->ptr = memmove(ptr, file->ptr, len);
+
+finish:
+    mutex_release(&file->fs->lock);
+    return rc;
+}
+
 static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size_t len)
 {
     LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
@@ -378,6 +414,7 @@ static const struct fs_api memfs_api = {
     .open = memfs_open,
     .remove = memfs_remove,
     .close = memfs_close,
+    .truncate = memfs_truncate,
 
     .read = memfs_read,
     .write = memfs_write,
