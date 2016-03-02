@@ -269,6 +269,8 @@ static status_t memfs_truncate(filecookie *fcookie, uint64_t len)
         goto finish;
     }
 
+    file->len = len;
+
     // NOTE: Don't allow allocations smaller than 1b. Although realloc(..., 0)
     // is okay, it may yield an invalid pointer (likely NULL) which might be
     // dereferenced elsewhere.
@@ -278,18 +280,7 @@ static status_t memfs_truncate(filecookie *fcookie, uint64_t len)
         goto finish;
     }
 
-    file->len = len;
-
-    // Fast-path: It's very likely that realloc won't move the allocated memory
-    // block since we're shrinking an existing file. If the block hasn't been
-    // moved, we can terminate early.
-    if (ptr == file->ptr) {
-        rc = NO_ERROR;
-        goto finish;
-    }
-
-    // If we get a different pointer back, we need to move the file.
-    file->ptr = memmove(ptr, file->ptr, len);
+    file->ptr = ptr;
 
 finish:
     mutex_release(&file->fs->lock);
