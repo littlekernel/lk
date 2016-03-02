@@ -269,8 +269,6 @@ static status_t memfs_truncate(filecookie *fcookie, uint64_t len)
         goto finish;
     }
 
-    file->len = len;
-
     // NOTE: Don't allow allocations smaller than 1b. Although realloc(..., 0)
     // is okay, it may yield an invalid pointer (likely NULL) which might be
     // dereferenced elsewhere.
@@ -280,6 +278,7 @@ static status_t memfs_truncate(filecookie *fcookie, uint64_t len)
         goto finish;
     }
 
+    file->len = len;
     file->ptr = ptr;
 
 finish:
