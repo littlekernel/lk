@@ -289,6 +289,16 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
     return 0;
 }
 
+status_t fs_truncate_file(filehandle *handle, uint64_t len)
+{
+    LTRACEF("filehandle %p, length %llu\n", handle, len);
+
+    if (unlikely(!handle))
+        return ERR_INVALID_ARGS;
+
+    return handle->mount->api->truncate(handle->cookie, len);
+}
+
 status_t fs_remove_file(const char *path)
 {
     char temppath[FS_MAX_PATH_LEN];
