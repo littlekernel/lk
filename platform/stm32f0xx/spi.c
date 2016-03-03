@@ -28,6 +28,7 @@
 #include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <platform/dma.h>
+#include <platform/rcc.h>
 
 #define SPI_SR_FRLVL_VAL(reg)  ((reg) >> 9 & 0x3)
 #define SPI_SR_FTLVL_VAL(reg)  ((reg) >> 11 & 0x3)
@@ -54,12 +55,9 @@ void spi_init(spi_data_size_t data_size,
 
     mutex_init(&spi_mutex);
 
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
+    stm32_rcc_set_enable(STM32_RCC_CLK_SPI1, true);
 
-    regs->CR1 = cpol | cpha | bit_order | prescaler
-                | SPI_Direction_2Lines_FullDuplex
-                | SPI_NSS_Soft;
-
+    regs->CR1 = cpol | cpha | bit_order | prescaler | SPI_CR1_SSM;
 
     temp_reg = regs->CR2;
     temp_reg &= ~(SPI_CR2_DS | SPI_CR2_FRXTH);
