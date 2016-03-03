@@ -27,6 +27,7 @@
 
 #include <arch/arm/cm.h>
 #include <kernel/event.h>
+#include <platform/rcc.h>
 #include <sys/types.h>
 
 #include <stm32f0xx.h>
@@ -116,7 +117,7 @@ void dma_wait(dma_channel_t chan)
 
 void dma_init(void)
 {
-    RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+    stm32_rcc_set_enable(STM32_RCC_CLK_DMA, true);
 
     size_t i;
     for (i = 0; i < countof(dma_events); i++) {
