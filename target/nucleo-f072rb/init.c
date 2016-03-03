@@ -26,11 +26,6 @@
 #include <compiler.h>
 #include <dev/gpio.h>
 #include <platform/gpio.h>
-#include <stm32f0xx_usart.h>
-#include <stm32f0xx_rcc.h>
-#include <stm32f0xx_gpio.h>
-#include <stm32f0xx_flash.h>
-#include <stm32f0xx_dbgmcu.h>
 #include <platform/stm32.h>
 #include <target/gpioconfig.h>
 
