@@ -44,20 +44,20 @@ static void dump_fault_frame(x86_iframe_t *frame)
 {
 #if ARCH_X86_32
     dprintf(CRITICAL, " CS:     %04x EIP: %08x EFL: %08x CR2: %08x\n",
-            frame->cs, frame->eip, frame->eflags, x86_get_cr2());
+            frame->cs, frame->ip, frame->flags, x86_get_cr2());
     dprintf(CRITICAL, "EAX: %08x ECX: %08x EDX: %08x EBX: %08x\n",
-            frame->eax, frame->ecx, frame->edx, frame->ebx);
+            frame->ax, frame->cx, frame->dx, frame->bx);
     dprintf(CRITICAL, "ESP: %08x EBP: %08x ESI: %08x EDI: %08x\n",
-            frame->esp, frame->ebp, frame->esi, frame->edi);
+            frame->sp, frame->bp, frame->si, frame->di);
     dprintf(CRITICAL, " DS:     %04x  ES:     %04x  FS:   %04x  GS:     %04x\n",
             frame->ds, frame->es, frame->fs, frame->gs);
 #elif ARCH_X86_64
     dprintf(CRITICAL, " CS:              %4llx RIP: %16llx EFL: %16llx CR2: %16llx\n",
-            frame->cs, frame->rip, frame->rflags, x86_get_cr2());
+            frame->cs, frame->ip, frame->flags, x86_get_cr2());
     dprintf(CRITICAL, " RAX: %16llx RBX: %16llx RCX: %16llx RDX: %16llx\n",
-            frame->rax, frame->rbx, frame->rcx, frame->rdx);
+            frame->ax, frame->bx, frame->cx, frame->dx);
     dprintf(CRITICAL, " RSI: %16llx RDI: %16llx RBP: %16llx RSP: %16llx\n",
-            frame->rsi, frame->rdi, frame->rbp, frame->user_rsp);
+            frame->si, frame->di, frame->bp, frame->user_sp);
     dprintf(CRITICAL, "  R8: %16llx  R9: %16llx R10: %16llx R11: %16llx\n",
             frame->r8, frame->r9, frame->r10, frame->r11);
     dprintf(CRITICAL, " R12: %16llx R13: %16llx R14: %16llx R15: %16llx\n",
@@ -119,9 +119,9 @@ void x86_pfe_handler(x86_iframe_t *frame)
     v_addr = x86_get_cr2();
 
     ssp = frame->user_ss & X86_8BYTE_MASK;
-    esp = frame->user_esp;
+    esp = frame->user_sp;
     ip  = frame->cs & X86_8BYTE_MASK;
-    rip = frame->eip;
+    rip = frame->ip;
 
     dprintf(CRITICAL, "<PAGE FAULT> Instruction Pointer   = 0x%x:0x%x\n",
             (unsigned int)ip,
@@ -191,10 +191,9 @@ void x86_exception_handler(x86_iframe_t *frame)
         case INT_INVALID_OP:
             x86_invop_handler(frame);
             break;
+
         case INT_PAGE_FAULT:
-#ifdef ARCH_X86_64
             x86_pfe_handler(frame);
-#endif
             break;
 
         case INT_DEV_NA_EX:
