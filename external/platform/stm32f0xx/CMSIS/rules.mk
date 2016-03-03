@@ -4,9 +4,6 @@ MODULE := $(LOCAL_DIR)
 
 GLOBAL_INCLUDES += $(LOCAL_DIR)/inc
 
-MODULE_SRCS += \
-	$(LOCAL_DIR)/src/system_stm32f0xx.c
-
-include $(LOCAL_DIR)/CMSIS/rules.mk
+MODULE_SRCS += $(LOCAL_DIR)/system_stm32f0xx.c
 
 include make/module.mk
