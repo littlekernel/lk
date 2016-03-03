@@ -26,6 +26,9 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <inttypes.h>
+#include <compiler.h>
+
+__BEGIN_CDECLS
 
 int display_init(void *framebuffer);
 int display_enable(bool enable);
@@ -53,6 +56,8 @@ struct display_info {
 };
 
 status_t display_get_info(struct display_info *info);
+
+__END_CDECLS
 
 #endif
 
