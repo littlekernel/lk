@@ -40,21 +40,21 @@ __BEGIN_CDECLS
 #define X86_CPUID_ADDR_WIDTH 0x80000008
 
 struct x86_32_iframe {
-    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;    // pushed by common handler using pusha
+    uint32_t di, si, bp, sp, bx, dx, cx, ax;            // pushed by common handler using pusha
     uint32_t ds, es, fs, gs;                            // pushed by common handler
     uint32_t vector;                                    // pushed by stub
     uint32_t err_code;                                  // pushed by interrupt or stub
-    uint32_t eip, cs, eflags;                           // pushed by interrupt
-    uint32_t user_esp, user_ss;                         // pushed by interrupt if priv change occurs
+    uint32_t ip, cs, flags;                             // pushed by interrupt
+    uint32_t user_sp, user_ss;                          // pushed by interrupt if priv change occurs
 };
 
 struct x86_64_iframe {
-    uint64_t rdi, rsi, rbp, rbx, rdx, rcx, rax;         // pushed by common handler
+    uint64_t di, si, bp, bx, dx, cx, ax;                // pushed by common handler
     uint64_t r8, r9, r10, r11, r12, r13, r14, r15;      // pushed by common handler
     uint64_t vector;                                    // pushed by stub
     uint64_t err_code;                                  // pushed by interrupt or stub
-    uint64_t rip, cs, rflags;                           // pushed by interrupt
-    uint64_t user_rsp, user_ss;                         // pushed by interrupt if priv change occurs
+    uint64_t ip, cs, flags;                             // pushed by interrupt
+    uint64_t user_sp, user_ss;                          // pushed by interrupt if priv change occurs
 };
 
 #if ARCH_X86_32
