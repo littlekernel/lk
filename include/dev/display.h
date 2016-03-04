@@ -41,8 +41,9 @@ void display_post_freq_change(void);
 #define DISPLAY_FORMAT_RGB_2220     (2)
 #define DISPLAY_FORMAT_ARGB_8888    (3)
 #define DISPLAY_FORMAT_RGB_x888     (4)
-#define DISPLAY_FORMAT_MONO_1       (5)
-#define DISPLAY_FORMAT_MONO_8       (6)
+#define DISPLAY_FORMAT_RGB_x111     (5)
+#define DISPLAY_FORMAT_MONO_1       (6)
+#define DISPLAY_FORMAT_MONO_8       (7)
 
 struct display_info {
     void *framebuffer;

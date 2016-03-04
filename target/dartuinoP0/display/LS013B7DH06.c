@@ -33,6 +33,7 @@ uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result)
 
     memset(result, 0, MLCD_BYTES_LINE);
 
+#if FB_FORMAT == DISPLAY_FORMAT_RGB_332
     for (int i = 0; i < MLCD_WIDTH; ++i) {
         uint8_t inpix = framebuffer[i];
 
@@ -47,7 +48,39 @@ uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result)
         if (inpix & 0x02) {
             SET_BIT(result, j + 2);
         }
-
     }
+#elif FB_FORMAT == DISPLAY_FORMAT_RGB_x111
+    for (int i = 0; i < FB_STRIDE; ++i) {
+        uint8_t val = framebuffer[i];
+        uint8_t inpix;
+
+        int j = i * 6;
+
+        inpix = val & 0xf;
+        if (inpix & 0x4) {
+            SET_BIT(result, j);
+        }
+        if (inpix & 0x2) {
+            SET_BIT(result, j + 1);
+        }
+        if (inpix & 0x1) {
+            SET_BIT(result, j + 2);
+        }
+
+        inpix = val >> 4;
+        if (inpix & 0x4) {
+            SET_BIT(result, j + 3);
+        }
+        if (inpix & 0x2) {
+            SET_BIT(result, j + 4);
+        }
+        if (inpix & 0x1) {
+            SET_BIT(result, j + 5);
+        }
+    }
+#else
+    #error Unhandled FB_FORMAT
+#endif
+
     return MLCD_BYTES_LINE;
 }

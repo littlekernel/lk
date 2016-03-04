@@ -33,7 +33,13 @@
 // 3 bits per pixel (1 for each of RBG) divided by 8 bits per byte.
 #define MLCD_BYTES_LINE  ((MLCD_WIDTH * 3) / 8)
 
+#if 0
+// For gbskia
+#define FB_FORMAT               (DISPLAY_FORMAT_RGB_x111)
+#define FB_STRIDE               ((MLCD_WIDTH + 1) >> 1)
+#else
 #define FB_FORMAT               (DISPLAY_FORMAT_RGB_332)
 #define FB_STRIDE               (MLCD_WIDTH)
+#endif
 
 uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result);
