@@ -89,6 +89,9 @@ real_start:
     movw %ax, %gs
     movw %ax, %ss
 
+    /* load inital stack pointer */
+    movl $PHYS(_kstack + 4096), %esp
+
     /*We jumped here in protected mode in a code segment that migh not longer
       be valid , do a long jump to our code segment, we use retf instead of
       ljmp to be able to use relative labels */
