@@ -122,6 +122,7 @@ static void mlcd_flush(uint starty, uint endy)
 
     static uint8_t localbuf[MLCD_BUF_SIZE];
     uint8_t *bufptr = localbuf;
+    uint8_t trailer = 0;
 
     // The first line is preceeded with a write command.
     *bufptr++ = MLCD_WR | vcom_state;
@@ -134,20 +135,19 @@ static void mlcd_flush(uint starty, uint endy)
 
         bufptr += lcd_get_line(framebuffer, j, bufptr);
 
+        // 8 bit trailer per line
+        *bufptr++ = trailer;
+        if (j == endy) {
+            // 16 bit trailer on the last line
+            *bufptr++ = trailer;
+        }
+
         if (HAL_SPI_Transmit(&SpiHandle, localbuf, bufptr - localbuf, HAL_MAX_DELAY) != HAL_OK) {
             goto finish;
         }
 
         bufptr = localbuf;
-
-        *bufptr++ = (j + 1);
     }
-
-    uint8_t trailer = 0;
-    if (HAL_SPI_Transmit(&SpiHandle, &trailer, 1, HAL_MAX_DELAY) != HAL_OK) {
-        goto finish;
-    }
-
 
 finish:
     chip_select(false);
