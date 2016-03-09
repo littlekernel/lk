@@ -196,6 +196,14 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
     } else {
         t->stack = stack;
     }
+#if THREAD_STACK_HIGHWATER
+    if (flags & THREAD_FLAG_DEBUG_STACK_BOUNDS_CHECK) {
+        memset(t->stack + THREAD_STACK_PADDING_SIZE, STACK_DEBUG_BYTE,
+               stack_size - THREAD_STACK_PADDING_SIZE);
+    } else {
+        memset(t->stack, STACK_DEBUG_BYTE, stack_size);
+    }
+#endif
 
     t->stack_size = stack_size;
 
@@ -964,6 +972,24 @@ static const char *thread_state_to_str(enum thread_state state)
     }
 }
 
+static size_t thread_stack_used(thread_t *t) {
+#ifdef THREAD_STACK_HIGHWATER
+    uint8_t *stack_base;
+    size_t stack_size;
+    size_t i;
+
+    stack_base = t->stack;
+    stack_size = t->stack_size;
+
+    for (i = 0; i < stack_size; i++) {
+        if (stack_base[i] != STACK_DEBUG_BYTE)
+            break;
+    }
+    return stack_size - i;
+#else
+    return 0;
+#endif
+}
 /**
  * @brief  Dump debugging info about the specified thread.
  */
@@ -977,7 +1003,12 @@ void dump_thread(thread_t *t)
     dprintf(INFO, "\tstate %s, priority %d, remaining quantum %d\n",
             thread_state_to_str(t->state), t->priority, t->remaining_quantum);
 #endif
+#ifdef THREAD_STACK_HIGHWATER
+    dprintf(INFO, "\tstack %p, stack_size %zd, stack_used %zd\n",
+            t->stack, t->stack_size, thread_stack_used(t));
+#else
     dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
+#endif
     dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
     dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
 #if WITH_KERNEL_VM
