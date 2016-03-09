@@ -4,6 +4,8 @@ include project/target/dartuinoP0.mk
 include project/virtual/fs.mk
 
 MODULES += \
+  app/moot \
   app/shell \
   lib/version \
   lib/buildsig \
+  target/dartuinoP0/bootloader
