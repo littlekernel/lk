@@ -29,8 +29,11 @@
 #include <lib/bootimage.h>
 #include <lib/fs.h>
 #include <stdio.h>
+#include <trace.h>
 
 #define MAX_FPATH_LEN 64
+
+#define LOCAL_TRACE 1
 
 // Attempt to boot from the filesystem.
 void attempt_fs_boot(void)
@@ -40,15 +43,18 @@ void attempt_fs_boot(void)
 
     status_t retcode = moot_mount_default_fs(&mount_path, &device_name);
     if (retcode != NO_ERROR) {
+        LTRACEF("Failed: Unable to mount default fs. retcode = %d\n", retcode);
         return;
     }
 
     char fpath[MAX_FPATH_LEN];
-
+    snprintf(fpath, MAX_FPATH_LEN, "%s/system.img", mount_path);
 
     filehandle *handle;
     retcode = fs_open_file(fpath, &handle);
     if (retcode != NO_ERROR) {
+        LTRACEF("Failed: to open recovery file: '%s'. retcode = %d\n",
+                fpath ,retcode);
         goto finish;
     }
 
@@ -56,6 +62,8 @@ void attempt_fs_boot(void)
     struct file_stat stat;
     retcode = fs_stat_file(handle, &stat);
     if (retcode != NO_ERROR) {
+        LTRACEF("Failed: to stat recovery file: '%s'. retcode = %d\n",
+                fpath ,retcode);
         goto finish;
     }
 
@@ -68,11 +76,15 @@ void attempt_fs_boot(void)
     fs_close_file(handle);
 
     if (retcode != NO_ERROR) {
+        LTRACEF("Failed: to get file memmap for '%s'. retcode = %d\n",
+                fpath ,retcode);
         goto finish;
     }
 
     bdev_t *secondary_flash = bio_open(device_name);
     if (!secondary_flash) {
+        LTRACEF("Failed: Unable to open secondary flash at '%s'. "
+                "retcode = %d\n", device_name ,retcode);
         goto finish;
     }
 
@@ -81,11 +93,14 @@ void attempt_fs_boot(void)
     bio_close(secondary_flash);
 
     if (retcode != NO_ERROR) {
+        LTRACEF("Failed: to get file memmap for '%s'. "
+                "retcode = %d\n", device_name ,retcode);
         goto finish;
     }
 
     retcode = bootimage_open(address, stat.size, &bi);
     if (retcode != NO_ERROR) {
+        LTRACEF("Failed: Unable to open bootimage. retcode = %d\n" ,retcode);
         goto finish;
     }
 
@@ -93,18 +108,23 @@ void attempt_fs_boot(void)
     const void *imgptr;
     retcode = bootimage_get_file_section(bi, TYPE_LK, &imgptr, &imglen);
     if (retcode != NO_ERROR) {
+        LTRACEF("Failed: Unable to find lk section. retcode = %d\n" ,retcode);
         goto finish;
     }
 
     // Flash the new image.
     bdev_t *system_flash = bio_open(moot_system_info.system_flash_name);
     if (!system_flash) {
+        LTRACEF("Failed: Unable to open system flash at '%s'.\n",
+                moot_system_info.system_flash_name);
         goto finish;
     }
 
     ssize_t n_bytes_erased =
         bio_erase(system_flash, moot_system_info.system_offset, imglen);
     if (n_bytes_erased < (ssize_t)imglen) {
+        LTRACEF("Failed: Unable to erase system flash at '%s'. retcode = %ld\n",
+                moot_system_info.system_flash_name, n_bytes_erased);
         bio_close(system_flash);
         goto finish;
     }
@@ -114,6 +134,8 @@ void attempt_fs_boot(void)
     bio_close(system_flash);
 
     if (written < (ssize_t)imglen) {
+        LTRACEF("Failed: Unable to write system flash at '%s'. retcode = %ld\n",
+                moot_system_info.system_flash_name, written);
         goto finish;
     }
 

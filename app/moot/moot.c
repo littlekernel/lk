@@ -53,12 +53,15 @@ static void moot_init(const struct app_descriptor *app)
 static void moot_entry(const struct app_descriptor *app, void *args)
 {
     // Wait a few seconds for the host to try to talk to us over USB.
+    printf("attempting usb boot...\n");
     attempt_usb_boot();
 
     // Check the SPIFlash for an upgrade image.
+    printf("attempting fs boot...\n");
     attempt_fs_boot();
 
     // Boot the main system image.
+    printf("proceeding to boot...\n");
     do_boot();
 }
 

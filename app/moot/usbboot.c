@@ -246,7 +246,6 @@ void init_usb_boot(void)
 
 void attempt_usb_boot(void)
 {
-    printf("attempting usb boot\n");
     uint8_t *buf = malloc(USB_XFER_SIZE);
 
     lk_time_t start = current_time();
