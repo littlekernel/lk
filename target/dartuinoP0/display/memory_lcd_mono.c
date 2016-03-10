@@ -32,26 +32,23 @@
 #include <string.h>
 #include <assert.h>
 
-#define SET_BIT(BUF, BITNUM) ((BUF)[(BITNUM) >> 3] |= (0xff & (0x1 << ((BITNUM) & 0x07))))
+#define SET_BIT(BUF, BITNUM) ((BUF)[(BITNUM) >> 3] |= (0x1 << ((BITNUM) & 0x07)))
 
-uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result)
+uint8_t lcd_get_line(struct display_image *image, uint8_t idx, uint8_t *result)
 {
-    framebuffer += FB_STRIDE * idx;
+    uint8_t *framebuffer = (uint8_t *) image->pixels + image->rowbytes * idx;
 
-#if FB_FORMAT == DISPLAY_FORMAT_MONO_1
-    memcpy(result, framebuffer, MLCD_BYTES_LINE);
-
-#elif FB_FORMAT == DISPLAY_FORMAT_MONO_8
-    memset(result, 0, MLCD_BYTES_LINE);
-    for (uint i = 0; i < MLCD_WIDTH; ++i) {
-        if (framebuffer[i] > 128) {
-            SET_BIT(result, i);
+    if (image->format == IMAGE_FORMAT_MONO_1) {
+        memcpy(result, framebuffer, MLCD_BYTES_LINE);
+    } else if (image->format == IMAGE_FORMAT_MONO_8) {
+        memset(result, 0, MLCD_BYTES_LINE);
+        for (uint i = 0; i < MLCD_WIDTH; ++i) {
+            if (framebuffer[i] > 128) {
+                SET_BIT(result, i);
+            }
         }
+    } else {
+        DEBUG_ASSERT(false);
     }
-
-#else
-#error Unhandled FB_FORMAT
-#endif
-
     return MLCD_BYTES_LINE;
 }

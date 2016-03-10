@@ -25,6 +25,8 @@
 #include <debug.h>
 #include <trace.h>
 #include <rand.h>
+#include <stdlib.h>
+#include <assert.h>
 
 #include <dev/display.h>
 #include <platform/gpio.h>
@@ -52,7 +54,7 @@ SPI_HandleTypeDef SpiHandle;
 #define VCOM_HI 0x02
 #define VCOM_LO 0x00
 
-static uint8_t framebuffer[MLCD_HEIGHT * FB_STRIDE];
+static struct display_framebuffer default_fb;
 static uint8_t vcom_state;
 
 static void chip_select(bool s)
@@ -114,10 +116,46 @@ status_t memory_lcd_init(void)
     return NO_ERROR;
 }
 
-
-
 static void mlcd_flush(uint starty, uint endy)
 {
+    display_present(&default_fb.image, starty, endy);
+}
+
+status_t display_get_framebuffer(struct display_framebuffer *fb)
+{
+    DEBUG_ASSERT(fb);
+    if (!default_fb.image.pixels) {
+        switch (MLCD_FORMAT) {
+            // Use closest match format supported by gfx lib
+            case DISPLAY_FORMAT_RGB_111:
+                default_fb.image.format = IMAGE_FORMAT_RGB_332;
+                default_fb.image.stride = MLCD_WIDTH;
+                default_fb.image.rowbytes = MLCD_WIDTH;
+                break;
+            case DISPLAY_FORMAT_MONO_1:
+                default_fb.image.format = IMAGE_FORMAT_MONO_8;
+                default_fb.image.stride = MLCD_WIDTH;
+                default_fb.image.rowbytes = MLCD_WIDTH;
+                break;
+            default:
+                DEBUG_ASSERT(false);
+                return ERR_NOT_SUPPORTED;
+        }
+        default_fb.image.pixels = malloc(MLCD_HEIGHT *
+            default_fb.image.rowbytes);
+        default_fb.image.width = MLCD_WIDTH;
+        default_fb.image.height = MLCD_HEIGHT;
+        default_fb.flush = mlcd_flush;
+        default_fb.format = MLCD_FORMAT;
+    }
+    *fb = default_fb;
+    return NO_ERROR;
+}
+
+status_t display_present(struct display_image *image, uint starty, uint endy)
+{
+    DEBUG_ASSERT(image);
+    status_t status = NO_ERROR;
     chip_select(true);
 
     static uint8_t localbuf[MLCD_BUF_SIZE];
@@ -133,7 +171,7 @@ static void mlcd_flush(uint starty, uint endy)
     for (uint j = starty; j <= endy; ++j) {
         *bufptr++ = (j + 1);
 
-        bufptr += lcd_get_line(framebuffer, j, bufptr);
+        bufptr += lcd_get_line(image, j, bufptr);
 
         // 8 bit trailer per line
         *bufptr++ = trailer;
@@ -142,7 +180,9 @@ static void mlcd_flush(uint starty, uint endy)
             *bufptr++ = trailer;
         }
 
-        if (HAL_SPI_Transmit(&SpiHandle, localbuf, bufptr - localbuf, HAL_MAX_DELAY) != HAL_OK) {
+        if (HAL_SPI_Transmit(&SpiHandle, localbuf, bufptr - localbuf,
+                HAL_MAX_DELAY) != HAL_OK) {
+            status = ERR_GENERIC;
             goto finish;
         }
 
@@ -151,18 +191,18 @@ static void mlcd_flush(uint starty, uint endy)
 
 finish:
     chip_select(false);
+
+    return status;
 }
 
 status_t display_get_info(struct display_info *info)
 {
+    DEBUG_ASSERT(info);
     LTRACEF("display_info %p\n", info);
 
-    info->framebuffer = (void *)framebuffer;
-    info->format = FB_FORMAT;
+    info->format = MLCD_FORMAT;
     info->width = MLCD_WIDTH;
     info->height = MLCD_HEIGHT;
-    info->stride = FB_STRIDE;
-    info->flush = mlcd_flush;
 
     return NO_ERROR;
 }

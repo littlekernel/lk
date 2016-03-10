@@ -103,9 +103,9 @@ void gfx_flush_rows(struct gfx_surface *surface, uint start, uint end);
 // surface setup
 gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride, gfx_format format);
 
-// utility routine to make a surface out of a display info
-struct display_info;
-gfx_surface *gfx_create_surface_from_display(struct display_info *);
+// utility routine to make a surface out of a display framebuffer
+struct display_framebuffer;
+gfx_surface *gfx_create_surface_from_display(struct display_framebuffer *) __NONNULL((1));
 
 // free the surface
 // optionally frees the buffer if the free bit is set

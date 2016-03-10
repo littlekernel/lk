@@ -657,27 +657,28 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
 /**
  * @brief  Create a new graphics surface object from a display
  */
-gfx_surface *gfx_create_surface_from_display(struct display_info *info)
+gfx_surface *gfx_create_surface_from_display(struct display_framebuffer *fb)
 {
+    DEBUG_ASSERT(fb);
     gfx_surface *surface;
     gfx_format format;
-    switch (info->format) {
-        case DISPLAY_FORMAT_RGB_565:
+    switch (fb->image.format) {
+        case IMAGE_FORMAT_RGB_565:
             format = GFX_FORMAT_RGB_565;
             break;
-        case DISPLAY_FORMAT_RGB_332:
+        case IMAGE_FORMAT_RGB_332:
             format = GFX_FORMAT_RGB_332;
             break;
-        case DISPLAY_FORMAT_RGB_2220:
+        case IMAGE_FORMAT_RGB_2220:
             format = GFX_FORMAT_RGB_2220;
             break;
-        case DISPLAY_FORMAT_ARGB_8888:
+        case IMAGE_FORMAT_ARGB_8888:
             format = GFX_FORMAT_ARGB_8888;
             break;
-        case DISPLAY_FORMAT_RGB_x888:
+        case IMAGE_FORMAT_RGB_x888:
             format = GFX_FORMAT_RGB_x888;
             break;
-        case DISPLAY_FORMAT_MONO_8:
+        case IMAGE_FORMAT_MONO_8:
             format = GFX_FORMAT_MONO;
             break;
         default:
@@ -686,9 +687,9 @@ gfx_surface *gfx_create_surface_from_display(struct display_info *info)
             return NULL;
     }
 
-    surface = gfx_create_surface(info->framebuffer, info->width, info->height, info->stride, format);
+    surface = gfx_create_surface(fb->image.pixels, fb->image.width, fb->image.height, fb->image.stride, format);
 
-    surface->flush = info->flush;
+    surface->flush = fb->flush;
 
     return surface;
 }
@@ -711,11 +712,11 @@ void gfx_surface_destroy(struct gfx_surface *surface)
  */
 void gfx_draw_pattern(void)
 {
-    struct display_info info;
-    if (display_get_info(&info) < 0)
+    struct display_framebuffer fb;
+    if (display_get_framebuffer(&fb) < 0)
         return;
 
-    gfx_surface *surface = gfx_create_surface_from_display(&info);
+    gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
     uint x, y;
     for (y = 0; y < surface->height; y++) {
@@ -740,11 +741,11 @@ void gfx_draw_pattern(void)
  */
 void gfx_draw_pattern_white(void)
 {
-    struct display_info info;
-    if (display_get_info(&info) < 0)
+    struct display_framebuffer fb;
+    if (display_get_framebuffer(&fb) < 0)
         return;
 
-    gfx_surface *surface = gfx_create_surface_from_display(&info);
+    gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
     uint x, y;
     for (y = 0; y < surface->height; y++) {
@@ -809,19 +810,19 @@ static int cmd_gfx(int argc, const cmd_args *argv)
         return -1;
     }
 
-    struct display_info info;
-    if (display_get_info(&info) < 0) {
+    struct display_framebuffer fb;
+    if (display_get_framebuffer(&fb) < 0) {
         printf("no display to draw on!\n");
         return -1;
     }
 
-    gfx_surface *surface = gfx_create_surface_from_display(&info);
+    gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
     if (!strcmp(argv[1].str, "display_info")) {
         printf("display:\n");
-        printf("\tframebuffer %p\n", info.framebuffer);
-        printf("\twidth %u height %u stride %u\n", info.width, info.height, info.stride);
-        printf("\tformat %u\n", info.format);
+        printf("\tframebuffer %p\n", fb.image.pixels);
+        printf("\twidth %u height %u stride %u\n", fb.image.width, fb.image.height, fb.image.stride);
+        printf("\tformat %u\n", fb.image.format);
     } else if (!strcmp(argv[1].str, "rgb_bars")) {
         gfx_draw_rgb_bars(surface);
     } else if (!strcmp(argv[1].str, "test_pattern")) {

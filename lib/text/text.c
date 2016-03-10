@@ -76,12 +76,12 @@ void text_draw(int x, int y, const char *string)
  */
 void text_update(void)
 {
-    struct display_info info;
-    if (display_get_info(&info) < 0)
+    struct display_framebuffer fb;
+    if (display_get_framebuffer(&fb) < 0)
         return;
 
     /* get the display's surface */
-    gfx_surface *surface = gfx_create_surface_from_display(&info);
+    gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
     struct text_line *line;
     list_for_every_entry(&text_list, line, struct text_line, node) {

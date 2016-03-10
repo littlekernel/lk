@@ -24,63 +24,77 @@
 // 1.33 Inch 3-Bit RGB Sharp Color LCD
 #include <target/display/LS013B7DH06.h>
 #include <string.h>
+#include <assert.h>
 
-#define SET_BIT(BUF, BITNUM) ((BUF)[(BITNUM) >> 3] |= (0xff & (0x1 << ((BITNUM) & 0x07))))
+#define SET_BIT(BUF, BITNUM) ((BUF)[(BITNUM) >> 3] |= (0x1 << ((BITNUM) & 0x07)))
 
-uint8_t lcd_get_line(uint8_t *framebuffer, uint8_t idx, uint8_t *result)
+uint8_t lcd_get_line(struct display_image *image, uint8_t idx, uint8_t *result)
 {
-    framebuffer += FB_STRIDE * idx;
+    uint8_t *framebuffer = (uint8_t *)image->pixels + image->rowbytes * idx;
 
     memset(result, 0, MLCD_BYTES_LINE);
 
-#if FB_FORMAT == DISPLAY_FORMAT_RGB_332
-    for (int i = 0; i < MLCD_WIDTH; ++i) {
-        uint8_t inpix = framebuffer[i];
+    if (image->format == IMAGE_FORMAT_RGB_332) {
+        for (int i = 0; i < MLCD_WIDTH; ++i) {
+            uint8_t inpix = framebuffer[i];
 
-        int j = i * 3;
+            int j = i * 3;
 
-        if (inpix & 0x80) {
-            SET_BIT(result, j);
+            if (inpix & 0x80) {
+                SET_BIT(result, j);
+            }
+            if (inpix & 0x10) {
+                SET_BIT(result, j + 1);
+            }
+            if (inpix & 0x02) {
+                SET_BIT(result, j + 2);
+            }
         }
-        if (inpix & 0x10) {
-            SET_BIT(result, j + 1);
+    } else if (image->format == IMAGE_FORMAT_RGB_x111) {
+        int j = 0;
+        for (uint i = 0; i < image->width; i += 2) {
+            uint8_t val = *framebuffer++;
+            uint8_t inpix = val & 0xf;
+
+            if (inpix & 0x4) {
+                SET_BIT(result, j);
+            }
+            if (inpix & 0x2) {
+                SET_BIT(result, j + 1);
+            }
+            if (inpix & 0x1) {
+                SET_BIT(result, j + 2);
+            }
+
+            inpix = val >> 4;
+            if (inpix & 0x4) {
+                SET_BIT(result, j + 3);
+            }
+            if (inpix & 0x2) {
+                SET_BIT(result, j + 4);
+            }
+            if (inpix & 0x1) {
+                SET_BIT(result, j + 5);
+            }
+            j += 6;
         }
-        if (inpix & 0x02) {
-            SET_BIT(result, j + 2);
+        if (image->width & 1) {
+            uint8_t val = *framebuffer;
+            uint8_t inpix = val & 0xf;
+
+            if (inpix & 0x4) {
+                SET_BIT(result, j);
+            }
+            if (inpix & 0x2) {
+                SET_BIT(result, j + 1);
+            }
+            if (inpix & 0x1) {
+                SET_BIT(result, j + 2);
+            }
         }
+    } else {
+        DEBUG_ASSERT(false);
     }
-#elif FB_FORMAT == DISPLAY_FORMAT_RGB_x111
-    for (int i = 0; i < FB_STRIDE; ++i) {
-        uint8_t val = framebuffer[i];
-        uint8_t inpix;
-
-        int j = i * 6;
-
-        inpix = val & 0xf;
-        if (inpix & 0x4) {
-            SET_BIT(result, j);
-        }
-        if (inpix & 0x2) {
-            SET_BIT(result, j + 1);
-        }
-        if (inpix & 0x1) {
-            SET_BIT(result, j + 2);
-        }
-
-        inpix = val >> 4;
-        if (inpix & 0x4) {
-            SET_BIT(result, j + 3);
-        }
-        if (inpix & 0x2) {
-            SET_BIT(result, j + 4);
-        }
-        if (inpix & 0x1) {
-            SET_BIT(result, j + 5);
-        }
-    }
-#else
-    #error Unhandled FB_FORMAT
-#endif
 
     return MLCD_BYTES_LINE;
 }

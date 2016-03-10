@@ -28,6 +28,7 @@
 #include <dev/display.h>
 #include <lib/gfx.h>
 #include <reg.h>
+#include <assert.h>
 
 #define DRAW_TEST_PATTERN 0
 
@@ -53,17 +54,33 @@ void platform_init_display(void)
 #endif
 }
 
-status_t display_get_info(struct display_info *info)
+status_t display_get_framebuffer(struct display_framebuffer *fb)
 {
+    DEBUG_ASSERT(fb);
     if (!has_display())
         return ERR_NOT_FOUND;
 
-    info->framebuffer = display_fb;
-    info->format = GFX_FORMAT_RGB_x888;
+    fb->image.format = IMAGE_FORMAT_RGB_x888;
+    fb->image.pixels = display_fb;
+    fb->image.width = display_w;
+    fb->image.height = display_h;
+    fb->image.stride = display_w;
+    fb->image.rowbytes = display_w * 4;
+    fb->flush = NULL;
+    fb->format = DISPLAY_FORMAT_RGB_x888;
+
+    return NO_ERROR;
+}
+
+status_t display_get_info(struct display_info *info)
+{
+    DEBUG_ASSERT(info);
+    if (!has_display())
+        return ERR_NOT_FOUND;
+
+    info->format = DISPLAY_FORMAT_RGB_x888;
     info->width = display_w;
     info->height = display_h;
-    info->stride = display_w;
-    info->flush = NULL;
 
     return NO_ERROR;
 }

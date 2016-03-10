@@ -34,8 +34,8 @@
 
 #include <dev/display.h>
 #include <dev/gpio.h>
-#include <lib/gfx.h>
 #include <platform/gpio.h>
+#include <assert.h>
 
 #define LOCAL_TRACE 0
 
@@ -202,16 +202,31 @@ static void s4lcd_flush(uint starty, uint endy)
     chip_select(true);
 }
 
+status_t display_get_framebuffer(struct display_framebuffer *fb)
+{
+    DEBUG_ASSERT(fb);
+    LTRACEF("display_get_framebuffer %p\n", fb);
+
+    fb->image.pixels = (void *)framebuffer;
+    fb->image.format = IMAGE_FORMAT_RGB_2220;
+    fb->image.width = M4DISPLAY_WIDTH;
+    fb->image.height = M4DISPLAY_HEIGHT;
+    fb->image.stride = M4DISPLAY_WIDTH;
+    fb->image.rowbytes = M4DISPLAY_WIDTH;
+    fb->flush = s4lcd_flush;
+    fb->format = DISPLAY_FORMAT_UNKNOWN; //TODO
+
+    return NO_ERROR;
+}
+
 status_t display_get_info(struct display_info *info)
 {
+    DEBUG_ASSERT(info);
     LTRACEF("display_info %p\n", info);
 
-    info->framebuffer = (void *)framebuffer;
-    info->format = GFX_FORMAT_RGB_2220;
+    info->format = DISPLAY_FORMAT_UNKNOWN; //TODO
     info->width = M4DISPLAY_WIDTH;
     info->height = M4DISPLAY_HEIGHT;
-    info->stride = M4DISPLAY_WIDTH;
-    info->flush = s4lcd_flush;
 
     return NO_ERROR;
 }

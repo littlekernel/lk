@@ -164,11 +164,11 @@ void gfxconsole_start_on_display(void)
         return;
 
     /* pop up the console */
-    struct display_info info;
-    if (display_get_info(&info) < 0)
+    struct display_framebuffer fb;
+    if (display_get_framebuffer(&fb) < 0)
         return;
 
-    gfx_surface *s = gfx_create_surface_from_display(&info);
+    gfx_surface *s = gfx_create_surface_from_display(&fb);
     gfxconsole_start(s);
     started = true;
 }

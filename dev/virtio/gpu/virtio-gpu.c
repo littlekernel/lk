@@ -33,7 +33,6 @@
 #include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <kernel/vm.h>
-#include <lib/gfx.h>
 #include <dev/display.h>
 
 #include "virtio_gpu.h"
@@ -557,21 +556,37 @@ void virtio_gpu_gfx_flush(uint starty, uint endy)
     event_signal(&the_gdev->flush_event, !arch_ints_disabled());
 }
 
+status_t display_get_framebuffer(struct display_framebuffer *fb)
+{
+    DEBUG_ASSERT(fb);
+    memset(fb, 0, sizeof(*fb));
+
+    if (!the_gdev)
+        return ERR_NOT_FOUND;
+
+    fb->image.pixels = the_gdev->fb;
+    fb->image.format = IMAGE_FORMAT_RGB_x888;
+    fb->image.width = the_gdev->pmode.r.width;
+    fb->image.height = the_gdev->pmode.r.height;
+    fb->image.stride = fb->image.width;
+    fb->image.rowbytes = fb->image.width * 4;
+    fb->flush = virtio_gpu_gfx_flush;
+    fb->format = DISPLAY_FORMAT_RGB_x888;
+
+    return NO_ERROR;
+}
+
 status_t display_get_info(struct display_info *info)
 {
+    DEBUG_ASSERT(info);
     memset(info, 0, sizeof(*info));
 
     if (!the_gdev)
         return ERR_NOT_FOUND;
 
-    info->framebuffer = the_gdev->fb;
-    info->format = GFX_FORMAT_RGB_x888;
+    info->format = DISPLAY_FORMAT_RGB_x888;
     info->width = the_gdev->pmode.r.width;
     info->height = the_gdev->pmode.r.height;
-    info->stride = info->width;
-    info->flush = virtio_gpu_gfx_flush;
 
     return NO_ERROR;
 }
-
-
