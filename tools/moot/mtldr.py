@@ -1,5 +1,6 @@
 """
- Copyright (c) 2016 Gurjant Kalsi <me@gurjantkalsi.com>
+ Copyright 2016 Google Inc. All Rights Reserved.
+ Author: gkalsi@google.com (Gurjant Kalsi)
 
  Permission is hereby granted, free of charge, to any person obtaining
  a copy of this software and associated documentation files
