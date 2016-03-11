@@ -33,7 +33,7 @@
 
 #define MAX_FPATH_LEN 64
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 // Attempt to boot from the filesystem.
 void attempt_fs_boot(void)

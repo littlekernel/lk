@@ -21,10 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
-
-#ifndef APP_MOOT_FS_BOOT_H_
-#define APP_MOOT_FS_BOOT_H_
+#pragma once
 
 // The platform/target should implement this routine by mouting the default
 // filesystem and returning a string that points to the mount point. If NULL is
@@ -32,5 +29,3 @@
 // boot or that (2) mounting the default filesystem failed in which case the
 // system proceeds to boot without FSBoot.
 void attempt_fs_boot(void);
-
-#endif  // APP_MOOT_FS_BOOT_H_

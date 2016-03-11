@@ -49,6 +49,7 @@
 
 // How long should we wait for activity on USB before we continue to boot?
 #define USB_BOOT_TIMEOUT (3000)
+#define USB_READ_TIMEOUT (10000)
 
 static const uint8_t if_descriptor[] = {
     0x09,           /* length */
@@ -94,6 +95,7 @@ static const uint8_t if_descriptor[] = {
 #define USB_RESP_ERR_ERASE_SYS_FLASH  (0xFFF3)
 #define USB_RESP_ERR_WRITE_SYS_FLASH  (0xFFF4)
 #define USB_RESP_CANT_FIND_BUILDSIG   (0xFFF5)
+#define USB_RESP_USB_READ_ERROR       (0xFFF6)
 
 /* Bootloader commands */
 #define USB_CMD_FLASH    (0x01)
@@ -114,20 +116,23 @@ typedef struct cmd_response {
 
 // USB Functions
 static void usb_xmit(void *data, size_t len);
-static status_t usb_recv(void *data, size_t len, lk_time_t timeout, size_t *actual);
+static status_t usb_recv(void *data, size_t len, lk_time_t timeout,
+                         size_t *actual);
 static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t);
 static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t);
 static status_t usb_register_cb(
     void *cookie, usb_callback_op_t op, const union usb_callback_args *args);
 
-static uint8_t buffer[4096];
 static event_t txevt = EVENT_INITIAL_VALUE(txevt, 0, EVENT_FLAG_AUTOUNSIGNAL);
 static event_t rxevt = EVENT_INITIAL_VALUE(rxevt, 0, EVENT_FLAG_AUTOUNSIGNAL);
-static volatile bool online = false;
+static volatile bool usb_online = false;
 
 // Command processor that handles USB boot commands.
-static bool handle(const void *data, const size_t n, cmd_response_t *resp)
-{
+static bool handle_usb_cmd(
+    const void *data, const size_t n, cmd_response_t *resp
+) {
+    static uint8_t buffer[4096];
+
     DEBUG_ASSERT(resp);
 
     resp->magic = RESP_MAGIC;
@@ -164,7 +169,8 @@ static bool handle(const void *data, const size_t n, cmd_response_t *resp)
                 break;
             }
 
-            ssize_t n_bytes_erased = bio_erase(dev, moot_system_info.system_offset, image_length);
+            ssize_t n_bytes_erased =
+                bio_erase(dev, moot_system_info.system_offset, image_length);
             if (n_bytes_erased < image_length) {
                 resp->code = USB_RESP_ERR_ERASE_SYS_FLASH;
                 goto close_and_exit;
@@ -181,7 +187,16 @@ static bool handle(const void *data, const size_t n, cmd_response_t *resp)
                                (ssize_t)sizeof(buffer) : image_length;
 
                 size_t bytes_received;
-                usb_recv(buffer, xfer, INFINITE_TIME, &bytes_received);
+                st = usb_recv(buffer, xfer, USB_READ_TIMEOUT, &bytes_received);
+                if (st != NO_ERROR) {
+                    resp->code = USB_RESP_USB_READ_ERROR;
+                    goto close_and_exit;
+                }
+
+                if (xfer != (ssize_t)bytes_received) {
+                    resp->code = USB_RESP_BAD_DATA_LEN;
+                    goto close_and_exit;
+                }
 
                 ssize_t written = bio_write(dev, buffer, addr, bytes_received);
                 if (written != (ssize_t)bytes_received) {
@@ -251,14 +266,14 @@ void append_usb_interfaces(void)
 
 void attempt_usb_boot(void)
 {
-    uint8_t *buf = malloc(USB_XFER_SIZE);
+    static uint8_t buf[USB_XFER_SIZE];
 
     lk_time_t start = current_time();
     lk_time_t timeout = USB_BOOT_TIMEOUT;
     size_t bytes_received;
 
     while (current_time() - start < timeout) {
-        if (!online) {
+        if (!usb_online) {
             thread_yield();
             continue;
         }
@@ -269,7 +284,7 @@ void attempt_usb_boot(void)
         } else if (r == NO_ERROR) {
             // Somebody tried to talk to us over USB, they own the boot now.
             cmd_response_t response;
-            bool should_boot = handle(buf, bytes_received, &response);
+            bool should_boot = handle_usb_cmd(buf, bytes_received, &response);
             usb_xmit((void *)&response, sizeof(response));
             timeout = INFINITE_TIME;
             if (should_boot) {
@@ -279,7 +294,6 @@ void attempt_usb_boot(void)
     }
 
 finish:
-    free(buf);
     return;
 }
 
@@ -292,7 +306,7 @@ static status_t usb_register_cb(
     if (op == USB_CB_ONLINE) {
         usbc_setup_endpoint(1, USB_IN, 0x40);
         usbc_setup_endpoint(1, USB_OUT, 0x40);
-        online = true;
+        usb_online = true;
     }
     return NO_ERROR;
 }
@@ -324,8 +338,9 @@ static void usb_xmit(void *data, size_t len)
     event_wait(&txevt);
 }
 
-static status_t usb_recv(void *data, size_t len, lk_time_t timeout, size_t *actual)
-{
+static status_t usb_recv(
+    void *data, size_t len, lk_time_t timeout, size_t *actual
+) {
     usbc_transfer_t transfer = {
         .callback = &usb_recv_cplt_cb,
         .result = 0,
@@ -339,7 +354,6 @@ static status_t usb_recv(void *data, size_t len, lk_time_t timeout, size_t *actu
     status_t res = event_wait_timeout(&rxevt, timeout);
 
     if (res != NO_ERROR) {
-        // TODO(gkalsi): Cancel the USB txn?
         return res;
     }
 

@@ -59,6 +59,7 @@ class Retcode:
     err_erase_sys_flash = (0xFFF3)
     err_write_sys_flash = (0xFFF4)
     cant_find_buildsig  = (0xFFF5)
+    usb_read_error      = (0xFFF6)
 
 
 class CommandParam:
