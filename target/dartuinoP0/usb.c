@@ -36,6 +36,8 @@
 #define W(w) (w & 0xff), (w >> 8)
 #define W3(w) (w & 0xff), ((w >> 8) & 0xff), ((w >> 16) & 0xff)
 
+extern void append_usb_interfaces(void);
+
 /* top level device descriptor */
 static const uint8_t dev_descr[] = {
     0x12,           /* descriptor length */
@@ -98,7 +100,9 @@ usb_config config = {
 void target_usb_setup(void)
 {
     usb_setup(&config);
+
     printf("appending interfaces\n");
+    append_usb_interfaces();
 
     usb_add_string("LK", 1);
     usb_add_string("LK Industries", 2);

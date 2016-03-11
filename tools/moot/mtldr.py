@@ -1,5 +1,6 @@
 """
- Copyright (c) 2016 Gurjant Kalsi <me@gurjantkalsi.com>
+ Copyright 2016 Google Inc. All Rights Reserved.
+ Author: gkalsi@google.com (Gurjant Kalsi)
 
  Permission is hereby granted, free of charge, to any person obtaining
  a copy of this software and associated documentation files
@@ -59,6 +60,7 @@ class Retcode:
     err_erase_sys_flash = (0xFFF3)
     err_write_sys_flash = (0xFFF4)
     cant_find_buildsig  = (0xFFF5)
+    usb_read_error      = (0xFFF6)
 
 
 class CommandParam:

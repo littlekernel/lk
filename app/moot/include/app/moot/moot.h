@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2016 Gurjant Kalsi <me@gurjantkalsi.com>
+ * Copyright 2016 Google Inc. All Rights Reserved.
+ * Author: gkalsi@google.com (Gurjant Kalsi)
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,12 +22,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef APP_MOOT_MOOT_H_
-#define APP_MOOT_MOOT_H_
+#pragma once
 
 typedef enum {
     BOOT_NOW,
     NEXT_BOOT_STRATEGY
 } next_boot_action_t;
 
-#endif  // APP_MOOT_MOOT_H_
