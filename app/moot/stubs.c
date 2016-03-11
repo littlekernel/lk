@@ -21,8 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <compiler.h>
 #include <app/moot/stubs.h>
+#include <compiler.h>
 #include <err.h>
 
 // Fail by default. System must override this.

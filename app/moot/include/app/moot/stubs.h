@@ -21,8 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef APP_MOOT_STUBS_H_
-#define APP_MOOT_STUBS_H_
+#pragma once
 
 #include <sys/types.h>
 
@@ -46,5 +45,3 @@ extern const moot_sysinfo_t moot_system_info;
 // populated to reflect the path at which the FS was mounted and the name of
 // the BIO device that hosts the FS.
 status_t moot_mount_default_fs(char **mount_path, char **device_name);
-
-#endif  // APP_MOOT_STUBS_H_

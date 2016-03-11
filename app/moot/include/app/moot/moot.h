@@ -21,12 +21,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef APP_MOOT_MOOT_H_
-#define APP_MOOT_MOOT_H_
+#pragma once
 
 typedef enum {
     BOOT_NOW,
     NEXT_BOOT_STRATEGY
 } next_boot_action_t;
 
-#endif  // APP_MOOT_MOOT_H_

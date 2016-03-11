@@ -53,7 +53,7 @@
 static const uint8_t if_descriptor[] = {
     0x09,           /* length */
     INTERFACE,      /* type */
-    0x01,           /* interface num */ // TODO(gkalsi)
+    0x01,           /* interface num */
     0x00,           /* alternates */
     0x02,           /* endpoint count */
     0xff,           /* interface class */
@@ -64,7 +64,7 @@ static const uint8_t if_descriptor[] = {
     /* endpoint 1 IN */
     0x07,           /* length */
     ENDPOINT,       /* type */
-    0x1 | 0x80,     /* address: 1 IN */ // TODO(gkalsi)
+    0x1 | 0x80,     /* address: 1 IN */
     0x02,           /* type: bulk */
     W(64),          /* max packet size: 64 */
     00,             /* interval */
@@ -72,7 +72,7 @@ static const uint8_t if_descriptor[] = {
     /* endpoint 1 OUT */
     0x07,           /* length */
     ENDPOINT,       /* type */
-    0x1,            /* address: 1 OUT */ // TODO(gkalsi)
+    0x1,            /* address: 1 OUT */
     0x02,           /* type: bulk */
     W(64),          /* max packet size: 64 */
     00,             /* interval */
@@ -167,7 +167,7 @@ static bool handle(const void *data, const size_t n, cmd_response_t *resp)
             ssize_t n_bytes_erased = bio_erase(dev, moot_system_info.system_offset, image_length);
             if (n_bytes_erased < image_length) {
                 resp->code = USB_RESP_ERR_ERASE_SYS_FLASH;
-                break;
+                goto close_and_exit;
             }
 
             // Signal to the host to start sending the image over.
@@ -186,7 +186,7 @@ static bool handle(const void *data, const size_t n, cmd_response_t *resp)
                 ssize_t written = bio_write(dev, buffer, addr, bytes_received);
                 if (written != (ssize_t)bytes_received) {
                     resp->code = USB_RESP_ERR_WRITE_SYS_FLASH;
-                    goto finish;
+                    goto close_and_exit;
                 }
 
                 addr += written;
@@ -195,6 +195,8 @@ static bool handle(const void *data, const size_t n, cmd_response_t *resp)
 
             resp->code = USB_RESP_NO_ERROR;
 
+close_and_exit:
+            bio_close(dev);
             break;
         case USB_CMD_BOOT:
             resp->code = USB_RESP_NO_ERROR;
@@ -238,10 +240,13 @@ finish:
 
 void init_usb_boot(void)
 {
+    usb_register_callback(&usb_register_cb, NULL);
+}
+
+void append_usb_interfaces(void)
+{
     usb_append_interface_lowspeed(if_descriptor, sizeof(if_descriptor));
     usb_append_interface_highspeed(if_descriptor, sizeof(if_descriptor));
-
-    usb_register_callback(&usb_register_cb, NULL);
 }
 
 void attempt_usb_boot(void)

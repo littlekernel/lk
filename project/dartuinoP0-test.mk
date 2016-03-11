@@ -8,6 +8,9 @@ include project/virtual/fs.mk
 
 DISPLAY_PANEL_TYPE ?= LS013B7DH06
 
+MODULES += \
+  target/dartuinoP0/projects/system
+
 MODULE_DEPS += \
     app/accelerometer \
 

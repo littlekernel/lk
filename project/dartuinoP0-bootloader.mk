@@ -7,4 +7,4 @@ MODULES += \
   app/moot \
   lib/version \
   lib/buildsig \
-  target/dartuinoP0/bootloader
+  target/dartuinoP0/projects/bootloader
