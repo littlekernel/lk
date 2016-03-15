@@ -65,6 +65,11 @@ static void *port_to_pointer(unsigned int port)
 
 void stellaris_gpio_early_init(void)
 {
+    /* Disable hitting the AHB bits on this target, which
+     * is probably qemu emulated. QEMU does not implement
+     * these registers and will crash.
+     */
+#if !TARGET_LM3S6965EVB
     SysCtlGPIOAHBEnable(SYSCTL_PERIPH_GPIOA);
     SysCtlGPIOAHBEnable(SYSCTL_PERIPH_GPIOB);
     SysCtlGPIOAHBEnable(SYSCTL_PERIPH_GPIOC);
@@ -73,6 +78,7 @@ void stellaris_gpio_early_init(void)
     SysCtlGPIOAHBEnable(SYSCTL_PERIPH_GPIOF);
     SysCtlGPIOAHBEnable(SYSCTL_PERIPH_GPIOG);
     SysCtlGPIOAHBEnable(SYSCTL_PERIPH_GPIOH);
+#endif
 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
