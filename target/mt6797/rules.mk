@@ -1,0 +1,19 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+MODULE := $(LOCAL_DIR)
+
+PLATFORM := mediatek
+SUB_PLATFORM := mt6797
+
+MEMBASE := 0x46000000
+
+MEMSIZE := 0x00400000
+
+GLOBAL_DEFINES += \
+	MEMBASE=$(MEMBASE)
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c
+
+include make/module.mk
+
