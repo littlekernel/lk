@@ -104,6 +104,12 @@ static void vm_init_postheap(uint level)
     }
 }
 
+void *kvaddr_get_range(size_t* size_return)
+{
+    *size_return = mmu_initial_mappings->size;
+    return (void*)mmu_initial_mappings->virt;
+}
+
 void *paddr_to_kvaddr(paddr_t pa)
 {
     /* slow path to do reverse lookup */

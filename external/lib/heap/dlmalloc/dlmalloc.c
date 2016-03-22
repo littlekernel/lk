@@ -1669,7 +1669,7 @@ unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
 static inline void *mmap(size_t len) {
     DEBUG_ASSERT(IS_PAGE_ALIGNED(len));
 
-    void *ptr = page_alloc(len / PAGE_SIZE);
+    void *ptr = page_alloc(len / PAGE_SIZE, PAGE_ALLOC_ANY_ARENA);
     if (!ptr)
         return MFAIL;
     return ptr;

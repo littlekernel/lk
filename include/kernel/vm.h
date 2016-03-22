@@ -179,6 +179,9 @@ size_t pmm_free_kpages(void *ptr, uint count);
 /* physical to virtual */
 void *paddr_to_kvaddr(paddr_t pa);
 
+/* a hint as to which virtual addresses will be returned by pmm_alloc_kpages */
+void *kvaddr_get_range(size_t* size_return);
+
 /* virtual to physical */
 paddr_t vaddr_to_paddr(void *va);
 
