@@ -64,6 +64,17 @@ extern int _end_of_ram;
 #endif
 struct novm_arena arena[NOVM_MAX_ARENAS];
 
+int novm_get_arenas(struct page_range* ranges, int number_of_ranges)
+{
+    int ranges_found = 0;
+    for (int i = 0; i < number_of_ranges && i < NOVM_MAX_ARENAS; i++) {
+        if (arena[i].pages > 0) ranges_found = i + 1;
+        ranges[i].address = (void*)arena[i].base;
+        ranges[i].size = arena[i].pages << PAGE_SIZE_SHIFT;
+    }
+    return ranges_found;
+}
+
 void *novm_alloc_unaligned(size_t *size_return)
 {
     /* only do the unaligned thing in the first arena */

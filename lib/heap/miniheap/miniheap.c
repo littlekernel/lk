@@ -485,7 +485,7 @@ void miniheap_get_stats(struct miniheap_stats *ptr)
 static ssize_t heap_grow(size_t size)
 {
     size = ROUNDUP(size, PAGE_SIZE);
-    void *ptr = page_alloc(size / PAGE_SIZE);
+    void *ptr = page_alloc(size / PAGE_SIZE, PAGE_ALLOC_ANY_ARENA);
     if (!ptr) {
         TRACEF("failed to grow kernel heap by 0x%zx bytes\n", size);
         return ERR_NO_MEMORY;

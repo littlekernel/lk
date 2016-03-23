@@ -881,7 +881,7 @@ static ssize_t heap_grow(size_t size, free_t **bucket)
     // sentinels) so we need to grow the gross heap size by this much more.
     size += 2 * sizeof(header_t);
     size = ROUNDUP(size, PAGE_SIZE);
-    void *ptr = page_alloc(size >> PAGE_SIZE_SHIFT);
+    void *ptr = page_alloc(size >> PAGE_SIZE_SHIFT, PAGE_ALLOC_ANY_ARENA);
     theheap.size += size;
     if (ptr == NULL) return -1;
     LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
