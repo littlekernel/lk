@@ -24,7 +24,6 @@
 #include <err.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
-#include <lib/fs/fat32.h>
 #include <trace.h>
 #include <malloc.h>
 #include <stdlib.h>
@@ -32,6 +31,7 @@
 #include <debug.h>
 
 #include "fat_fs.h"
+#include "fat32_priv.h"
 
 #define DIR_ENTRY_LENGTH 32
 #define USE_CACHE 1
@@ -136,15 +136,15 @@ char *fat32_dir_get_filename(uint8_t *dir, off_t offset, int lfn_sequences) {
   return result;
 }
 
-int fat32_open_file(fscookie cookie, const char *path, fsfilecookie *fcookie) {
+status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcookie) {
   fat_fs_t *fat = (fat_fs_t *)cookie;
-  int result = ERR_GENERIC;
+  status_t result = ERR_GENERIC;
   
   uint8_t *dir = malloc(fat->bytes_per_cluster);
   uint32_t dir_cluster = fat->root_cluster;
   fat_file_t *file = NULL;
   
-  char *ptr;
+  const char *ptr;
   /* chew up leading slashes */
   ptr = &path[0];
   while (*ptr == '/') {
@@ -233,12 +233,12 @@ int fat32_open_file(fscookie cookie, const char *path, fsfilecookie *fcookie) {
   } while(true);
   
 out:
-  *fcookie = file;
+  *fcookie = (filecookie *)file;
   free(dir);
   return result;
 }
 
-int fat32_read_file(fsfilecookie fcookie, void *buf, off_t offset, size_t len) {
+ssize_t fat32_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len) {
   fat_file_t *file = (fat_file_t *)fcookie;
   fat_fs_t *fat = file->fat_fs;
   bdev_t *dev = fat->dev;
@@ -250,7 +250,7 @@ int fat32_read_file(fsfilecookie fcookie, void *buf, off_t offset, size_t len) {
   else {
     // XXX: support non-0 offsets
     TRACE;
-    return ERR_GENERIC;
+    return -1;
   }
   
   uint32_t length = file->length;
@@ -285,29 +285,18 @@ int fat32_read_file(fsfilecookie fcookie, void *buf, off_t offset, size_t len) {
   }
   while(amount_read < length);
   
-  return NO_ERROR;
+  return amount_read;
 }
 
-int fat32_close_file(fsfilecookie fcookie) {
+status_t fat32_close_file(filecookie *fcookie) {
   fat_file_t *file = (fat_file_t *)fcookie;
   free(file);
   return NO_ERROR;
 }
 
-int fat32_stat_file(fsfilecookie cookie, struct file_stat *stat) {
-  fat_file_t *file = (fat_file_t *)cookie;
+status_t fat32_stat_file(filecookie *fcookie, struct file_stat *stat) {
+  fat_file_t *file = (fat_file_t *)fcookie;
   stat->size = file->length;
   stat->is_dir = (file->attributes == fat_attribute_directory);
   return NO_ERROR;
 }
-
-int fat32_create_file(fscookie cookie, const char *path, filecookie *fcookie) {
-  TRACE;
-  return ERR_NOT_ALLOWED;
-}
-
-int fat32_write_file(filecookie fcookie, const void *buf, off_t offset, size_t len) {
-  TRACE;
-  return ERR_NOT_ALLOWED;
-}
-

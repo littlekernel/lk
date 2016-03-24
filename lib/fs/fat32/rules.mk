@@ -9,7 +9,6 @@ MODULE_DEPS += \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/fat.c \
-	$(LOCAL_DIR)/dir.c \
 	$(LOCAL_DIR)/file.c
 
 include make/module.mk

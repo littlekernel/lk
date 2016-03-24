@@ -24,13 +24,13 @@
 #include <err.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
-#include <lib/fs/fat32.h>
 #include <trace.h>
 #include <debug.h>
 #include <malloc.h>
 #include <string.h>
 #include <endian.h>
 
+#include "fat32_priv.h"
 #include "fat_fs.h"
 
 void fat32_dump(fat_fs_t *fat) {
@@ -50,11 +50,15 @@ void fat32_dump(fat_fs_t *fat) {
     printf("root_start=%i\n", fat->root_start);
 }
 
-int fat32_mount(bdev_t *dev, fscookie *cookie) {
-  int result = NO_ERROR;
+status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
+  status_t result = NO_ERROR;
   
   uint8_t *bs = malloc(512);
   int err = bio_read(dev, bs, 1024, 512);
+  if (err < 0) {
+	  result = ERR_GENERIC;
+	  goto end;
+  }
   
   if (((bs[0x1fe] != 0x55) || (bs[0x1ff] != 0xaa)) && (bs[0x15] == 0xf8)) {
     printf("missing boot signature\n");
@@ -160,15 +164,26 @@ int fat32_mount(bdev_t *dev, fscookie *cookie) {
   fat->bytes_per_cluster = fat->sectors_per_cluster * fat->bytes_per_sector;
   fat->cache = bcache_create(fat->dev, fat->bytes_per_sector, 4);
   
-  *cookie = fat;
+  *cookie = (fscookie *)fat;
 end:
   free(bs);
   return result;
 }
 
-int fat32_unmount(fscookie cookie) {
+status_t fat32_unmount(fscookie *cookie) {
   fat_fs_t *fat = (fat_fs_t *)cookie;
   bcache_destroy(fat->cache);
   free(fat);
   return NO_ERROR;
 }
+
+static const struct fs_api fat32_api = {
+    .mount = fat32_mount,
+    .unmount = fat32_unmount,
+    .open = fat32_open_file,
+    .stat = fat32_stat_file,
+    .read = fat32_read_file,
+    .close = fat32_close_file,
+};
+
+STATIC_FS_IMPL(fat32, &fat32_api);
