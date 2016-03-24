@@ -91,7 +91,7 @@ static void mlcd_clear(void)
 status_t memory_lcd_init(void)
 {
     SpiHandle.Instance               = SPI2;
-    SpiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+    SpiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
     SpiHandle.Init.Direction         = SPI_DIRECTION_1LINE;
     SpiHandle.Init.CLKPhase          = SPI_PHASE_1EDGE;
     SpiHandle.Init.CLKPolarity       = SPI_POLARITY_LOW;
