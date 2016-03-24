@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -40,10 +40,11 @@
  * @{
  */
 
+#include <kernel/event.h>
 #include <debug.h>
 #include <assert.h>
 #include <err.h>
-#include <kernel/event.h>
+#include <kernel/thread.h>
 
 /**
  * @brief  Initialize an event object
@@ -54,7 +55,7 @@
  */
 void event_init(event_t *e, bool initial, uint flags)
 {
-	*e = (event_t)EVENT_INITIAL_VALUE(*e, initial, flags);
+    *e = (event_t)EVENT_INITIAL_VALUE(*e, initial, flags);
 }
 
 /**
@@ -68,16 +69,16 @@ void event_init(event_t *e, bool initial, uint flags)
  */
 void event_destroy(event_t *e)
 {
-	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
+    DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
-	e->magic = 0;
-	e->signalled = false;
-	e->flags = 0;
-	wait_queue_destroy(&e->wait, true);
+    e->magic = 0;
+    e->signalled = false;
+    e->flags = 0;
+    wait_queue_destroy(&e->wait, true);
 
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 }
 
 /**
@@ -97,29 +98,26 @@ void event_destroy(event_t *e)
  */
 status_t event_wait_timeout(event_t *e, lk_time_t timeout)
 {
-	status_t ret = NO_ERROR;
+    status_t ret = NO_ERROR;
 
-	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
+    DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
-	if (e->signalled) {
-		/* signalled, we're going to fall through */
-		if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
-			/* autounsignal flag lets one thread fall through before unsignalling */
-			e->signalled = false;
-		}
-	} else {
-		/* unsignalled, block here */
-		ret = wait_queue_block(&e->wait, timeout);
-		if (ret < 0)
-			goto err;
-	}
+    if (e->signalled) {
+        /* signalled, we're going to fall through */
+        if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
+            /* autounsignal flag lets one thread fall through before unsignalling */
+            e->signalled = false;
+        }
+    } else {
+        /* unsignalled, block here */
+        ret = wait_queue_block(&e->wait, timeout);
+    }
 
-err:
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 
-	return ret;
+    return ret;
 }
 
 /**
@@ -141,31 +139,31 @@ err:
  */
 status_t event_signal(event_t *e, bool reschedule)
 {
-	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
+    DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-	enter_critical_section();
+    THREAD_LOCK(state);
 
-	if (!e->signalled) {
-		if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
-			/* try to release one thread and leave unsignalled if successful */
-			if (wait_queue_wake_one(&e->wait, reschedule, NO_ERROR) <= 0) {
-				/*
-				 * if we didn't actually find a thread to wake up, go to
-				 * signalled state and let the next call to event_wait
-				 * unsignal the event.
-				 */
-				e->signalled = true;
-			}
-		} else {
-			/* release all threads and remain signalled */
-			e->signalled = true;
-			wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
-		}
-	}
+    if (!e->signalled) {
+        if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
+            /* try to release one thread and leave unsignalled if successful */
+            if (wait_queue_wake_one(&e->wait, reschedule, NO_ERROR) <= 0) {
+                /*
+                 * if we didn't actually find a thread to wake up, go to
+                 * signalled state and let the next call to event_wait
+                 * unsignal the event.
+                 */
+                e->signalled = true;
+            }
+        } else {
+            /* release all threads and remain signalled */
+            e->signalled = true;
+            wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
+        }
+    }
 
-	exit_critical_section();
+    THREAD_UNLOCK(state);
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
 
 /**
@@ -182,10 +180,10 @@ status_t event_signal(event_t *e, bool reschedule)
  */
 status_t event_unsignal(event_t *e)
 {
-	DEBUG_ASSERT(e->magic == EVENT_MAGIC);
+    DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-	e->signalled = false;
+    e->signalled = false;
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
 

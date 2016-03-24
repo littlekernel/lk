@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2012 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -27,162 +27,147 @@
 #include <printf.h>
 #include <stdio.h>
 #include <list.h>
-#include <string.h>
 #include <arch/ops.h>
 #include <platform.h>
 #include <platform/debug.h>
-#include <kernel/thread.h>
+#include <kernel/spinlock.h>
 
 void spin(uint32_t usecs)
 {
-	lk_bigtime_t start = current_time_hires();
+    lk_bigtime_t start = current_time_hires();
 
-	while ((current_time_hires() - start) < usecs)
-		;
-}
-
-void halt(void)
-{
-	enter_critical_section(); // disable ints
-	platform_halt();
+    while ((current_time_hires() - start) < usecs)
+        ;
 }
 
 void _panic(void *caller, const char *fmt, ...)
 {
-	dprintf(ALWAYS, "panic (caller %p): ", caller);
+    printf("panic (caller %p): ", caller);
 
-	va_list ap;
-	va_start(ap, fmt);
-	_dvprintf(fmt, ap);
-	va_end(ap);
+    va_list ap;
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
 
-	halt();
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
-
-static int __debug_stdio_fputc(void *ctx, int c)
-{
-	_dputc(c);
-	return 0;
-}
-
-static int __debug_stdio_fputs(void *ctx, const char *s)
-{
-	return _dputs(s);
-}
-
-static int __debug_stdio_fgetc(void *ctx)
-{
-	char c;
-	int err;
-
-	err = platform_dgetc(&c, true);
-	if (err < 0)
-		return err;
-	return (unsigned char)c;
-}
-
-static int __debug_stdio_vfprintf(void *ctx, const char *fmt, va_list ap)
-{
-	return _dvprintf(fmt, ap);
-}
-
-#define DEFINE_STDIO_DESC(id)						\
-	[(id)]	= {							\
-		.ctx		= &__stdio_FILEs[(id)],			\
-		.fputc		= __debug_stdio_fputc,			\
-		.fputs		= __debug_stdio_fputs,			\
-		.fgetc		= __debug_stdio_fgetc,			\
-		.vfprintf	= __debug_stdio_vfprintf,		\
-	}
-
-FILE __stdio_FILEs[3] = {
-	DEFINE_STDIO_DESC(0), /* stdin */
-	DEFINE_STDIO_DESC(1), /* stdout */
-	DEFINE_STDIO_DESC(2), /* stderr */
-};
-#undef DEFINE_STDIO_DESC
 
 #if !DISABLE_DEBUG_OUTPUT
 
-int _dputs(const char *str)
+static int __panic_stdio_fgetc(void *ctx)
 {
-	while (*str != 0) {
-		_dputc(*str++);
-	}
+    char c;
+    int err;
 
-	return 0;
+    err = platform_pgetc(&c, false);
+    if (err < 0)
+        return err;
+    return (unsigned char)c;
 }
 
-static int _dprintf_output_func(const char *str, size_t len, void *state)
+static ssize_t __panic_stdio_read(io_handle_t *io, char *s, size_t len)
 {
-	size_t count = 0;
-	while (count < len && *str) {
-		_dputc(*str);
-		str++;
-		count++;
-	}
+    if (len == 0)
+        return 0;
 
-	return count;
+    int err = platform_pgetc(s, false);
+    if (err < 0)
+        return err;
+
+    return 1;
 }
 
-int _dprintf(const char *fmt, ...)
+static ssize_t __panic_stdio_write(io_handle_t *io, const char *s, size_t len)
 {
-	int err;
-
-	va_list ap;
-	va_start(ap, fmt);
-	err = _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
-	va_end(ap);
-
-	return err;
+    for (size_t i = 0; i < len; i++) {
+        platform_pputc(s[i]);
+    }
+    return len;
 }
 
-int _dvprintf(const char *fmt, va_list ap)
+FILE *get_panic_fd(void)
 {
-	int err;
+    static const io_handle_hooks_t panic_hooks = {
+        .write = __panic_stdio_write,
+        .read = __panic_stdio_read,
+    };
+    static io_handle_t panic_io = {
+        .magic = IO_HANDLE_MAGIC,
+        .hooks = &panic_hooks
+    };
+    static FILE panic_fd = {
+        .io = &panic_io
+    };
 
-	err = _printf_engine(&_dprintf_output_func, NULL, fmt, ap);
-
-	return err;
+    return &panic_fd;
 }
 
 void hexdump(const void *ptr, size_t len)
 {
-	addr_t address = (addr_t)ptr;
-	size_t count;
-	int i;
+    addr_t address = (addr_t)ptr;
+    size_t count;
 
-	for (count = 0 ; count < len; count += 16) {
-		printf("0x%08lx: ", address);
-		printf("%08x %08x %08x %08x |", *(const uint32_t *)address, *(const uint32_t *)(address + 4), *(const uint32_t *)(address + 8), *(const uint32_t *)(address + 12));
-		for (i=0; i < 16; i++) {
-			char c = *(const char *)(address + i);
-			if (isalpha(c)) {
-				printf("%c", c);
-			} else {
-				printf(".");
-			}
-		}
-		printf("|\n");
-		address += 16;
-	}
+    for (count = 0 ; count < len; count += 16) {
+        union {
+            uint32_t buf[4];
+            uint8_t  cbuf[16];
+        } u;
+        size_t s = ROUNDUP(MIN(len - count, 16), 4);
+        size_t i;
+
+        printf("0x%08lx: ", address);
+        for (i = 0; i < s / 4; i++) {
+            u.buf[i] = ((const uint32_t *)address)[i];
+            printf("%08x ", u.buf[i]);
+        }
+        for (; i < 4; i++) {
+            printf("         ");
+        }
+        printf("|");
+
+        for (i=0; i < 16; i++) {
+            char c = u.cbuf[i];
+            if (i < s && isprint(c)) {
+                printf("%c", c);
+            } else {
+                printf(".");
+            }
+        }
+        printf("|\n");
+        address += 16;
+    }
 }
 
-void hexdump8(const void *ptr, size_t len)
+void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr)
 {
-	addr_t address = (addr_t)ptr;
-	size_t count;
-	int i;
+    addr_t address = (addr_t)ptr;
+    size_t count;
+    size_t i;
+    const char *addr_fmt = ((disp_addr + len) > 0xFFFFFFFF)
+                           ? "0x%016llx: "
+                           : "0x%08llx: ";
 
-	for (count = 0 ; count < len; count += 16) {
-		printf("0x%08lx: ", address);
-		for (i=0; i < 16; i++) {
-			printf("0x%02hhx ", *(const uint8_t *)(address + i));
-		}
-		printf("\n");
-		address += 16;
-	}
+    for (count = 0 ; count < len; count += 16) {
+        printf(addr_fmt, disp_addr + count);
+
+        for (i=0; i < MIN(len - count, 16); i++) {
+            printf("%02hhx ", *(const uint8_t *)(address + i));
+        }
+
+        for (; i < 16; i++) {
+            printf("   ");
+        }
+
+        printf("|");
+
+        for (i=0; i < MIN(len - count, 16); i++) {
+            char c = ((const char *)address)[i];
+            printf("%c", isprint(c) ? c : '.');
+        }
+
+        printf("\n");
+        address += 16;
+    }
 }
 
 #endif // !DISABLE_DEBUG_OUTPUT
-

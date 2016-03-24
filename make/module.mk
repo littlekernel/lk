@@ -11,6 +11,7 @@
 # MODULE_CFLAGS : CFLAGS local to this module
 # MODULE_CPPFLAGS : CPPFLAGS local to this module
 # MODULE_ASMFLAGS : ASMFLAGS local to this module
+# MODULE_INCLUDES : include directories local to this module
 # MODULE_SRCDEPS : extra dependencies that all of this module's files depend on
 # MODULE_EXTRA_OBJS : extra .o files that should be linked with the module
 
@@ -38,6 +39,9 @@ endif
 MODULE_SRCDIR := $(MODULE)
 MODULE_BUILDDIR := $(call TOBUILDDIR,$(MODULE_SRCDIR))
 
+# add a local include dir to the global include path
+GLOBAL_INCLUDES += $(MODULE_SRCDIR)/include
+
 # add the listed module deps to the global list
 MODULES += $(MODULE_DEPS)
 
@@ -56,6 +60,7 @@ MODULE_DEFINES += MODULE_OPTFLAGS=\"$(subst $(SPACE),_,$(MODULE_OPTFLAGS))\"
 MODULE_DEFINES += MODULE_INCLUDES=\"$(subst $(SPACE),_,$(MODULE_INCLUDES))\"
 MODULE_DEFINES += MODULE_SRCDEPS=\"$(subst $(SPACE),_,$(MODULE_SRCDEPS))\"
 MODULE_DEFINES += MODULE_DEPS=\"$(subst $(SPACE),_,$(MODULE_DEPS))\"
+MODULE_DEFINES += MODULE_SRCS=\"$(subst $(SPACE),_,$(MODULE_SRCS))\"
 
 # generate a per-module config.h file
 MODULE_CONFIG := $(MODULE_BUILDDIR)/module_config.h
@@ -70,6 +75,8 @@ MODULE_COMPILEFLAGS += --include $(MODULE_CONFIG)
 
 MODULE_SRCDEPS += $(MODULE_CONFIG)
 
+MODULE_INCLUDES := $(addprefix -I,$(MODULE_INCLUDES))
+
 # include the rules to compile the module's object files
 include make/compile.mk
 
@@ -81,7 +88,10 @@ MODULE_OBJECT := $(call TOBUILDDIR,$(MODULE_SRCDIR).mod.o)
 $(MODULE_OBJECT): $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
 	@$(MKDIR)
 	@echo linking $@
-	$(NOECHO)$(LD) -r $^ -o $@
+	$(NOECHO)$(LD) $(GLOBAL_MODULE_LDFLAGS) -r $^ -o $@
+
+# track all of the source files compiled
+ALLSRCS += $(MODULE_SRCS)
 
 # track all the objects built
 ALLOBJS += $(MODULE_OBJS)
@@ -106,6 +116,7 @@ MODULE_CFLAGS :=
 MODULE_CPPFLAGS :=
 MODULE_ASMFLAGS :=
 MODULE_SRCDEPS :=
+MODULE_INCLUDES :=
 MODULE_EXTRA_OBJS :=
 MODULE_CONFIG :=
 MODULE_OBJECT :=

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,12 +24,15 @@
 #define __ARCH_H
 
 #include <compiler.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
 
 void arch_early_init(void);
 void arch_init(void);
 void arch_quiesce(void);
+void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN;
+void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) __NO_RETURN;
 
 __END_CDECLS
 

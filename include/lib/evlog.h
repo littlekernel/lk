@@ -27,10 +27,10 @@
 #include <sys/types.h>
 
 typedef struct evlog {
-	uint head;
-	uint unitsize;
-	uint len_pow2;
-	uintptr_t *items;
+    uint head;
+    uint unitsize;
+    uint len_pow2;
+    uintptr_t *items;
 } evlog_t;
 
 status_t evlog_init_etc(evlog_t *e, uint len, uint unitsize, uintptr_t *items);
@@ -50,10 +50,10 @@ uint evlog_bump_head(evlog_t *e);
  *
 void evlog_add2(evlog_t *e, uintptr_t a, uintptr_t b)
 {
-	uint index = evlog_bump_head(e);
+    uint index = evlog_bump_head(e);
 
-	e->items[index] = a;
-	e->items[index + 1] = b;
+    e->items[index] = a;
+    e->items[index + 1] = b;
 }
 */
 

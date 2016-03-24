@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Travis Geiselbrecht
+ * Copyright (c) 2007-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -26,6 +26,7 @@
 
 #include <lib/bio.h>
 #include <lib/bcache.h>
+#include <lib/fs.h>
 #include "ext2_fs.h"
 
 typedef uint32_t blocknum_t;
@@ -33,26 +34,26 @@ typedef uint32_t inodenum_t;
 typedef uint32_t groupnum_t;
 
 typedef struct {
-	bdev_t *dev;
-	bcache_t cache;
+    bdev_t *dev;
+    bcache_t cache;
 
-	struct ext2_super_block sb;
-	int s_group_count;
-	struct ext2_group_desc *gd;
-	struct ext2_inode root_inode;
+    struct ext2_super_block sb;
+    int s_group_count;
+    struct ext2_group_desc *gd;
+    struct ext2_inode root_inode;
 } ext2_t;
 
 struct cache_block {
-	blocknum_t num;
-	void *ptr;
+    blocknum_t num;
+    void *ptr;
 };
 
 /* open file handle */
 typedef struct {
-	ext2_t *ext2;
+    ext2_t *ext2;
 
-	struct cache_block ind_cache[3]; // cache of indirect blocks as they're scanned
-	struct ext2_inode inode;
+    struct cache_block ind_cache[3]; // cache of indirect blocks as they're scanned
+    struct ext2_inode inode;
 } ext2_file_t;
 
 /* internal routines */
@@ -65,8 +66,16 @@ int ext2_get_block(ext2_t *ext2, void **ptr, blocknum_t bnum);
 int ext2_put_block(ext2_t *ext2, blocknum_t bnum);
 
 off_t ext2_file_len(ext2_t *ext2, struct ext2_inode *inode);
-int ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *buf, off_t offset, size_t len);
+ssize_t ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *buf, off_t offset, size_t len);
 int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len);
+
+/* fs api */
+status_t ext2_mount(bdev_t *dev, fscookie **cookie);
+status_t ext2_unmount(fscookie *cookie);
+status_t ext2_open_file(fscookie *cookie, const char *path, filecookie **fcookie);
+ssize_t ext2_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len);
+status_t ext2_close_file(filecookie *fcookie);
+status_t ext2_stat_file(filecookie *fcookie, struct file_stat *);
 
 /* mode stuff */
 #define S_IFMT      0170000

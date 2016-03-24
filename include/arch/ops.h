@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -36,6 +36,7 @@ __BEGIN_CDECLS
 static void arch_enable_ints(void);
 static void arch_disable_ints(void);
 static bool arch_ints_disabled(void);
+static bool arch_in_int_handler(void);
 
 static int atomic_swap(volatile int *ptr, int val);
 static int atomic_add(volatile int *ptr, int val);
@@ -43,6 +44,11 @@ static int atomic_and(volatile int *ptr, int val);
 static int atomic_or(volatile int *ptr, int val);
 
 static uint32_t arch_cycle_count(void);
+
+static uint arch_curr_cpu_num(void);
+
+/* Use to align structures on cache lines to avoid cpu aliasing. */
+#define __CPU_ALIGN __ALIGNED(CACHE_LINE)
 
 #endif // !ASSEMBLY
 #define ICACHE 1
@@ -60,17 +66,10 @@ void arch_sync_cache_range(addr_t start, size_t len);
 
 void arch_idle(void);
 
-void arch_disable_mmu(void);
-
 __END_CDECLS
 
 #endif // !ASSEMBLY
 
-#if ARCH_ARM
-#include <arch/arm/ops.h>
-#endif
-#if ARCH_X86
-#include <arch/x86/ops.h>
-#endif
+#include <arch/arch_ops.h>
 
 #endif

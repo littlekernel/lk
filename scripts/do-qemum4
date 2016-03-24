@@ -1,0 +1,58 @@
+#!/bin/bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DEFAULT_TOOLPATH="$DIR/toolpaths.default"
+if [ -e "$DEFAULT_TOOLPATH" ]
+then
+  source $DEFAULT_TOOLPATH
+fi
+
+function HELP {
+    echo "help:"
+    echo "-c cmpctmalloc instead of dlmalloc"
+    echo "-M miniheap instead of dlmalloc"
+    echo "-h for help"
+    echo "all arguments after -- are passed to qemu directly"
+    exit 1
+}
+
+DO_CMPCTMALLOC=0
+DO_MINIHEAP=0
+MEMSIZE=8
+
+while getopts bdhm:cMnt6 FLAG; do
+    case $FLAG in
+        c) DO_CMPCTMALLOC=1;;
+        M) DO_MINIHEAP=1;;
+        M) DO_MINIHEAP=1;;
+        h) HELP;;
+        \?)
+            echo unrecognized option
+            HELP
+    esac
+done
+
+shift $((OPTIND-1))
+
+if [ -z "$QEMUM4" ]; then 
+    echo "QEMUM4 is not defined. Set QEMUM4='path/to/qemu-m4' inside scripts/toolpaths.local"
+    exit 1
+fi
+
+PROJECT="qemu-m4-test"
+
+ARGS=" -serial tcp::12345,server,nowait "       # Logs
+ARGS+=" -serial tcp::12344,server,nowait "      # Debug
+ARGS+=" -serial stdio"                        # Console
+ARGS+=" -machine pebble-s4-bb -cpu cortex-m4"
+ARGS+=" -pflash build-${PROJECT}/lk.bin "
+ARGS+=" -monitor tcp::12346,server,nowait"
+
+if [ $DO_CMPCTMALLOC == 1 ]; then
+	MAKE_VARS=LK_HEAP_IMPLEMENTATION=cmpctmalloc
+elif [ $DO_MINIHEAP == 1 ]; then
+	MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
+fi
+
+make $MAKE_VARS $PROJECT -j4 &&
+echo $QEMUM4 $ARGS $@ &&
+$QEMUM4 $ARGS $@

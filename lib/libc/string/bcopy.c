@@ -29,6 +29,6 @@
 
 void bcopy(void const *src, void *dest, size_t count)
 {
-	memcpy(dest, src, count);
+    memcpy(dest, src, count);
 }
 

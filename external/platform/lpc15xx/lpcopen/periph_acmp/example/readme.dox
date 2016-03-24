@@ -1,0 +1,62 @@
+/*
+ * @brief Analog Comparator example.
+ *
+ * @note
+ * Copyright(C) NXP Semiconductors, 2014
+ * All rights reserved.
+ *
+ * @par
+ * Software that is described herein is for illustrative purposes only
+ * which provides customers with programming information regarding the
+ * LPC products.  This software is supplied "AS IS" without any warranties of
+ * any kind, and NXP Semiconductors and its licensor disclaim any and
+ * all warranties, express or implied, including all implied warranties of
+ * merchantability, fitness for a particular purpose and non-infringement of
+ * intellectual property rights.  NXP Semiconductors assumes no responsibility
+ * or liability for the use of the software, conveys no license or rights under any
+ * patent, copyright, mask work right, or any other intellectual property rights in
+ * or to any products. NXP Semiconductors reserves the right to make changes
+ * in the software without notification. NXP Semiconductors also makes no
+ * representation or warranty that such application will be suitable for the
+ * specified use without further testing or modification.
+ *
+ * @par
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation is hereby granted, under NXP Semiconductors' and its
+ * licensor's relevant copyrights in the software, without fee, provided that it
+ * is used in conjunction with NXP Semiconductors microcontrollers.  This
+ * copyright, permission, and disclaimer notice must appear in all copies of
+ * this code.
+ */
+
+/** @defgroup EXAMPLES_PERIPH_15XX_ACMP LPC15xx Analog Comparator example
+ * @ingroup EXAMPLES_PERIPH_15XX
+ * <b>Example description</b><br>
+ * The ACMP example demonstrates using the analog comparator.<br>
+ *
+ * This example configures the positive voltage input as the voltage
+ * found on ADC1_1/PIN0.9, which is trimmed through the potentiometer.
+ * The negative voltage input is obtained from the voltage ladder, the
+ * voltage ladder output is set to around 50% of Vdd.
+ * Adjust the POT up and down to adjust the voltage into the analog
+ * comparator. When the voltage crosses the negative voltage input,
+ * a CMP IRQ is fired. Based on which side of the voltage is in
+ * reference to the bandgap, the LED state will change.<br>
+ *
+ * <b>Special connection requirements</b><br>
+ * There are no special connection requirements for this example.<br>
+ *
+ * <b>Build procedures:</b><br>
+ * Visit the <a href="http://www.lpcware.com/content/project/lpcopen-platform-nxp-lpc-microcontrollers/lpcopen-v200-quickstart-guides">LPCOpen quickstart guides</a>
+ * to get started building LPCOpen projects.
+ *
+ * <b>Supported boards and board setup:</b><br>
+ * @ref LPCOPEN_15XX_BOARD_LPCXPRESSO_1549<br>
+ *
+ * <b>Submitting LPCOpen issues:</b><br>
+ * @ref LPCOPEN_COMMUNITY
+ */
+
+/**
+ * @}
+ */

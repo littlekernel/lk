@@ -39,9 +39,6 @@ endif
 GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
-
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/debug.c \
@@ -70,8 +67,8 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	platform/stm32f1xx/STM32F10x_StdPeriph_Driver \
+	arch/arm/arm-m/systick \
 	lib/cbuf
-
-include $(LOCAL_DIR)/STM32F10x_StdPeriph_Driver/rules.mk $(LOCAL_DIR)/CMSIS/rules.mk
 
 include make/module.mk

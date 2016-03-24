@@ -1,0 +1,6 @@
+#!/bin/sh
+
+PROJECT=uzed-test
+
+make $PROJECT -j &&
+xmd -tcl scripts/xmd.tcl $PROJECT

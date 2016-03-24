@@ -23,7 +23,7 @@ GLOBAL_DEFINES += \
 	STM32F407=1	\
 	STM32F4XX=1
 FOUND_CHIP := true
-ARM_CPU := cortex-m4f
+ARM_CPU := cortex-m4
 endif
 
 ifeq ($(FOUND_CHIP),)
@@ -32,9 +32,6 @@ endif
 
 GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
-
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
@@ -63,8 +60,8 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	platform/stm32f2xx/STM32F2xx_StdPeriph_Driver \
+	arch/arm/arm-m/systick \
 	lib/cbuf
-
-include $(LOCAL_DIR)/STM32F2xx_StdPeriph_Driver/rules.mk $(LOCAL_DIR)/CMSIS/rules.mk
 
 include make/module.mk

@@ -4,7 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/string_tests.c \
-	$(LOCAL_DIR)/mymemcpy.S \
-	$(LOCAL_DIR)/mymemset.S
+
+# put arch local .S files here if developing memcpy/memmove
 
 include make/module.mk

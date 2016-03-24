@@ -122,8 +122,8 @@ static void usbtest_entry(const struct app_descriptor *app, void *args)
 }
 
 APP_START(usbtest)
-    .init = usbtest_init,
-    .entry = usbtest_entry,
-APP_END
+.init = usbtest_init,
+ .entry = usbtest_entry,
+  APP_END
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,6 +24,6 @@
 /* nulled out atexit. static object constructors call this */
 int atexit(void (*func)(void))
 {
-	return 0;
+    return 0;
 }
 

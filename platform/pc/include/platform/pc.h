@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -43,21 +44,8 @@
 #define INT_IDE0            0x2e
 #define INT_IDE1            0x2f
 
-/* exceptions */
-#define INT_DIVIDE_0        0x00
-#define INT_DEBUG_EX        0x01
-#define INT_INVALID_OP      0x06
-#define INT_DEV_NA_EX       0x07
-
-/* faults */
-#define INT_STACK_FAULT     0x0c
-#define INT_GP_FAULT        0x0d
-#define INT_PAGE_FAULT      0x0e
-
 /* APIC vectors */
 #define INT_APIC_TIMER      0x22
-
-#define INT_SYSCALL         0x30
 
 /* PIC remap bases */
 #define PIC1_BASE 0x20

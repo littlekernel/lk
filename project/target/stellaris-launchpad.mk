@@ -1,0 +1,2 @@
+TARGET := stellaris-launchpad
+

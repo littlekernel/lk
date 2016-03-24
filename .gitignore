@@ -3,10 +3,12 @@ build-*
 *~
 tags
 TAGS
-cscope.out
 local.mk
 *.orig
 cscope.*
 doit
 t
 tagit
+blk.bin
+*.dSYM
+scripts/toolpaths.local

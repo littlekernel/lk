@@ -83,8 +83,8 @@
 #define IFNAME1 'n'
 
 struct ethernetif {
-	struct eth_addr *ethaddr;
-	/* Add whatever per-interface state that is needed here. */
+    struct eth_addr *ethaddr;
+    /* Add whatever per-interface state that is needed here. */
 };
 
 static const struct eth_addr ethbroadcast = {{0xff,0xff,0xff,0xff,0xff,0xff}};
@@ -97,26 +97,26 @@ static err_t ethernetif_output(struct netif *netif, struct pbuf *p,
 static void
 low_level_init(struct netif *netif)
 {
-	struct ethernetif *ethernetif = netif->state;
+    struct ethernetif *ethernetif = netif->state;
 
-	/* set MAC hardware address length */
-	netif->hwaddr_len = 6;
+    /* set MAC hardware address length */
+    netif->hwaddr_len = 6;
 
-	/* set MAC hardware address */
-	netif->hwaddr[0] = 0;
-	netif->hwaddr[1] = 0x01;
-	netif->hwaddr[2] = 0x02;
-	netif->hwaddr[3] = 0x03;
-	netif->hwaddr[4] = 0x04;
-	netif->hwaddr[5] = 0x05;
+    /* set MAC hardware address */
+    netif->hwaddr[0] = 0;
+    netif->hwaddr[1] = 0x01;
+    netif->hwaddr[2] = 0x02;
+    netif->hwaddr[3] = 0x03;
+    netif->hwaddr[4] = 0x04;
+    netif->hwaddr[5] = 0x05;
 
-	/* maximum transfer unit */
-	netif->mtu = 1500;
+    /* maximum transfer unit */
+    netif->mtu = 1500;
 
-	/* broadcast capability */
-	netif->flags = NETIF_FLAG_BROADCAST;
+    /* broadcast capability */
+    netif->flags = NETIF_FLAG_BROADCAST;
 
-	/* Do whatever else is needed to initialize interface. */
+    /* Do whatever else is needed to initialize interface. */
 }
 
 /*
@@ -131,43 +131,43 @@ low_level_init(struct netif *netif)
 static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
-	struct ethernetif *ethernetif = netif->state;
-	struct pbuf *q;
-	int i;
-	int j;
+    struct ethernetif *ethernetif = netif->state;
+    struct pbuf *q;
+    int i;
+    int j;
 
 #if ETH_PAD_SIZE
-	pbuf_header(p, -ETH_PAD_SIZE);            /* drop the padding word */
+    pbuf_header(p, -ETH_PAD_SIZE);            /* drop the padding word */
 #endif
 
-	/* XXX maybe just a mutex? */
-	enter_critical_section();
+    /* XXX maybe just a mutex? */
+    enter_critical_section();
 
-	i = 0;
-	for (q = p; q != NULL; q = q->next) {
-		/* Send the data from the pbuf to the interface, one pbuf at a
-		   time. The size of the data in each pbuf is kept in the ->len
-		   variable. */
-//	debug_dump_memory_bytes(q->payload, q->len);
-		for (j = 0; j < q->len; j++)
-			*REG8(NET_OUT_BUF + i + j) = ((unsigned char *)q->payload)[j];
-		i += q->len;
-	}
+    i = 0;
+    for (q = p; q != NULL; q = q->next) {
+        /* Send the data from the pbuf to the interface, one pbuf at a
+           time. The size of the data in each pbuf is kept in the ->len
+           variable. */
+//  debug_dump_memory_bytes(q->payload, q->len);
+        for (j = 0; j < q->len; j++)
+            *REG8(NET_OUT_BUF + i + j) = ((unsigned char *)q->payload)[j];
+        i += q->len;
+    }
 
-	*REG(NET_SEND_LEN) = i;
-	*REG(NET_SEND) = 1;
+    *REG(NET_SEND_LEN) = i;
+    *REG(NET_SEND) = 1;
 
-	exit_critical_section();
+    exit_critical_section();
 
 #if ETH_PAD_SIZE
-	pbuf_header(p, ETH_PAD_SIZE);         /* reclaim the padding word */
+    pbuf_header(p, ETH_PAD_SIZE);         /* reclaim the padding word */
 #endif
 
 #if LINK_STATS
-	lwip_stats.link.xmit++;
+    lwip_stats.link.xmit++;
 #endif /* LINK_STATS */
 
-	return ERR_OK;
+    return ERR_OK;
 }
 
 /*
@@ -179,67 +179,68 @@ low_level_output(struct netif *netif, struct pbuf *p)
  */
 
 static struct pbuf *
-low_level_input(struct netif *netif) {
-	struct ethernetif *ethernetif = netif->state;
-	struct pbuf *p, *q;
-	u16_t len;
-	int i;
-	int head, tail;
+low_level_input(struct netif *netif)
+{
+    struct ethernetif *ethernetif = netif->state;
+    struct pbuf *p, *q;
+    u16_t len;
+    int i;
+    int head, tail;
 
-	/* get the head and tail pointers from the ethernet interface */
-	head = *REG(NET_HEAD);
-	tail = *REG(NET_TAIL);
+    /* get the head and tail pointers from the ethernet interface */
+    head = *REG(NET_HEAD);
+    tail = *REG(NET_TAIL);
 
-	if (tail == head)
-		return NULL; // false alarm
+    if (tail == head)
+        return NULL; // false alarm
 
-	/* Obtain the size of the packet and put it into the "len"
-	   variable. */
-	len = *REG(NET_IN_BUF_LEN);
+    /* Obtain the size of the packet and put it into the "len"
+       variable. */
+    len = *REG(NET_IN_BUF_LEN);
 
 #if ETH_PAD_SIZE
-	len += ETH_PAD_SIZE;                      /* allow room for Ethernet padding */
+    len += ETH_PAD_SIZE;                      /* allow room for Ethernet padding */
 #endif
 
-	/* We allocate a pbuf chain of pbufs from the pool. */
-	p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
-	if (p != NULL) {
+    /* We allocate a pbuf chain of pbufs from the pool. */
+    p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
+    if (p != NULL) {
 
 #if ETH_PAD_SIZE
-		pbuf_header(p, -ETH_PAD_SIZE);          /* drop the padding word */
+        pbuf_header(p, -ETH_PAD_SIZE);          /* drop the padding word */
 #endif
 
-		/* We iterate over the pbuf chain until we have read the entire
-		 * packet into the pbuf. */
-		int pos = 0;
-		for (q = p; q != NULL; q = q->next) {
-			/* Read enough bytes to fill this pbuf in the chain. The
-			 * available data in the pbuf is given by the q->len
-			 * variable. */
-			for (i=0; i < q->len; i++) {
-				((unsigned char *)q->payload)[i] = *REG8(NET_IN_BUF + pos);
-				pos++;
-			}
-		}
+        /* We iterate over the pbuf chain until we have read the entire
+         * packet into the pbuf. */
+        int pos = 0;
+        for (q = p; q != NULL; q = q->next) {
+            /* Read enough bytes to fill this pbuf in the chain. The
+             * available data in the pbuf is given by the q->len
+             * variable. */
+            for (i=0; i < q->len; i++) {
+                ((unsigned char *)q->payload)[i] = *REG8(NET_IN_BUF + pos);
+                pos++;
+            }
+        }
 
 #if ETH_PAD_SIZE
-		pbuf_header(p, ETH_PAD_SIZE);           /* reclaim the padding word */
+        pbuf_header(p, ETH_PAD_SIZE);           /* reclaim the padding word */
 #endif
 
 #if LINK_STATS
-		lwip_stats.link.recv++;
+        lwip_stats.link.recv++;
 #endif /* LINK_STATS */
-	} else {
+    } else {
 #if LINK_STATS
-		lwip_stats.link.memerr++;
-		lwip_stats.link.drop++;
+        lwip_stats.link.memerr++;
+        lwip_stats.link.drop++;
 #endif /* LINK_STATS */
-	}
+    }
 
-	/* push the tail pointer up by one, giving the buffer back to the hardware */
-	*REG(NET_TAIL) = (tail + 1) % NET_IN_BUF_COUNT;
+    /* push the tail pointer up by one, giving the buffer back to the hardware */
+    *REG(NET_TAIL) = (tail + 1) % NET_IN_BUF_COUNT;
 
-	return p;
+    return p;
 }
 
 /*
@@ -255,10 +256,10 @@ static err_t
 ethernetif_output(struct netif *netif, struct pbuf *p,
                   struct ip_addr *ipaddr)
 {
-//	dprintf("ethernetif_output: netif %p, pbuf %p, ipaddr %p\n", netif, p, ipaddr);
+//  dprintf("ethernetif_output: netif %p, pbuf %p, ipaddr %p\n", netif, p, ipaddr);
 
-	/* resolve hardware address, then send (or queue) packet */
-	return etharp_output(netif, ipaddr, p);
+    /* resolve hardware address, then send (or queue) packet */
+    return etharp_output(netif, ipaddr, p);
 
 }
 
@@ -275,56 +276,56 @@ ethernetif_output(struct netif *netif, struct pbuf *p,
 static void
 ethernetif_input(struct netif *netif)
 {
-	struct ethernetif *ethernetif;
-	struct eth_hdr *ethhdr;
-	struct pbuf *p;
+    struct ethernetif *ethernetif;
+    struct eth_hdr *ethhdr;
+    struct pbuf *p;
 
-	ethernetif = netif->state;
+    ethernetif = netif->state;
 
-	/* move received packet into a new pbuf */
-	p = low_level_input(netif);
-	/* no packet could be read, silently ignore this */
-	if (p == NULL) return;
-	/* points to packet payload, which starts with an Ethernet header */
-	ethhdr = p->payload;
+    /* move received packet into a new pbuf */
+    p = low_level_input(netif);
+    /* no packet could be read, silently ignore this */
+    if (p == NULL) return;
+    /* points to packet payload, which starts with an Ethernet header */
+    ethhdr = p->payload;
 
 #if LINK_STATS
-	lwip_stats.link.recv++;
+    lwip_stats.link.recv++;
 #endif /* LINK_STATS */
 
-	ethhdr = p->payload;
+    ethhdr = p->payload;
 
 //  dprintf("ethernetif_input: type 0x%x\n", htons(ethhdr->type));
 
-	switch (htons(ethhdr->type)) {
-			/* IP packet? */
-		case ETHTYPE_IP:
-			/* update ARP table */
-			etharp_ip_input(netif, p);
-			/* skip Ethernet header */
-			pbuf_header(p, -sizeof(struct eth_hdr));
-			/* pass to network layer */
-			netif->input(p, netif);
-			break;
+    switch (htons(ethhdr->type)) {
+            /* IP packet? */
+        case ETHTYPE_IP:
+            /* update ARP table */
+            etharp_ip_input(netif, p);
+            /* skip Ethernet header */
+            pbuf_header(p, -sizeof(struct eth_hdr));
+            /* pass to network layer */
+            netif->input(p, netif);
+            break;
 
-		case ETHTYPE_ARP:
-			/* pass p to ARP module  */
-			etharp_arp_input(netif, ethernetif->ethaddr, p);
-			break;
-		default:
-			pbuf_free(p);
-			p = NULL;
-			break;
-	}
+        case ETHTYPE_ARP:
+            /* pass p to ARP module  */
+            etharp_arp_input(netif, ethernetif->ethaddr, p);
+            break;
+        default:
+            pbuf_free(p);
+            p = NULL;
+            break;
+    }
 }
 
 static enum handler_return ethernet_int(void *arg)
 {
-	struct netif *netif = (struct netif *)arg;
+    struct netif *netif = (struct netif *)arg;
 
-	ethernetif_input(netif);
+    ethernetif_input(netif);
 
-	return INT_RESCHEDULE;
+    return INT_RESCHEDULE;
 }
 
 
@@ -341,56 +342,56 @@ static enum handler_return ethernet_int(void *arg)
 static err_t
 ethernetif_init(struct netif *netif)
 {
-	struct ethernetif *ethernetif;
+    struct ethernetif *ethernetif;
 
-	ethernetif = mem_malloc(sizeof(struct ethernetif));
+    ethernetif = mem_malloc(sizeof(struct ethernetif));
 
-	if (ethernetif == NULL) {
-		LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_init: out of memory\n"));
-		return ERR_MEM;
-	}
+    if (ethernetif == NULL) {
+        LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_init: out of memory\n"));
+        return ERR_MEM;
+    }
 
-	netif->state = ethernetif;
-	netif->name[0] = IFNAME0;
-	netif->name[1] = IFNAME1;
-	netif->output = ethernetif_output;
-	netif->linkoutput = low_level_output;
+    netif->state = ethernetif;
+    netif->name[0] = IFNAME0;
+    netif->name[1] = IFNAME1;
+    netif->output = ethernetif_output;
+    netif->linkoutput = low_level_output;
 
-	ethernetif->ethaddr = (struct eth_addr *)&(netif->hwaddr[0]);
+    ethernetif->ethaddr = (struct eth_addr *)&(netif->hwaddr[0]);
 
-	low_level_init(netif);
+    low_level_init(netif);
 
-	return ERR_OK;
+    return ERR_OK;
 }
 
 status_t ethernet_init(void)
 {
-	/* check to see if the ethernet feature is turned on */
-	if ((*REG(SYSINFO_FEATURES) & SYSINFO_FEATURE_NETWORK) == 0)
-		return ERR_NOT_FOUND;
+    /* check to see if the ethernet feature is turned on */
+    if ((*REG(SYSINFO_FEATURES) & SYSINFO_FEATURE_NETWORK) == 0)
+        return ERR_NOT_FOUND;
 
-	struct netif *netif = calloc(sizeof(struct netif), 1);
-	struct ip_addr *ipaddr = calloc(sizeof(struct ip_addr), 1);
-	struct ip_addr *netmask = calloc(sizeof(struct ip_addr), 1);
-	struct ip_addr *gw = calloc(sizeof(struct ip_addr), 1);
+    struct netif *netif = calloc(sizeof(struct netif), 1);
+    struct ip_addr *ipaddr = calloc(sizeof(struct ip_addr), 1);
+    struct ip_addr *netmask = calloc(sizeof(struct ip_addr), 1);
+    struct ip_addr *gw = calloc(sizeof(struct ip_addr), 1);
 
-	struct netif *netifret = netif_add(netif, ipaddr, netmask, gw, NULL, &ethernetif_init, &ip_input);
-	if (netifret == NULL) {
-		free(netif);
-		free(ipaddr);
-		free(netmask);
-		free(gw);
-		return ERR_NOT_FOUND;
-	}
+    struct netif *netifret = netif_add(netif, ipaddr, netmask, gw, NULL, &ethernetif_init, &ip_input);
+    if (netifret == NULL) {
+        free(netif);
+        free(ipaddr);
+        free(netmask);
+        free(gw);
+        return ERR_NOT_FOUND;
+    }
 
-	/* register for interrupt handlers */
-	register_int_handler(INT_NET, ethernet_int, netif);
+    /* register for interrupt handlers */
+    register_int_handler(INT_NET, ethernet_int, netif);
 
-	netif_set_default(netif);
+    netif_set_default(netif);
 
-	unmask_interrupt(INT_NET, NULL);
+    unmask_interrupt(INT_NET, NULL);
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
 
 #endif // WITH_LWIP

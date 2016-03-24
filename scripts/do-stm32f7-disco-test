@@ -1,0 +1,7 @@
+#!/bin/sh
+
+export PROJECT=stm32f746g-disco-test
+
+make -j8 &&
+openocd -f interface/stlink-v2-1.cfg -f board/stm32756g_eval.cfg \
+    -c "program build-$PROJECT/lk.bin reset exit 0x08000000"

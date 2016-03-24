@@ -2,9 +2,10 @@
 #
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
+ARCH := x86
+SUBARCH := x86-32
 TARGET := pc-x86
 MODULES += \
-	app/tests \
 	app/shell \
 	app/pcitests
 
@@ -15,3 +16,5 @@ MODULES += \
 
 #EXTRA_BUILDDEPS += $(BUILDDIR)/pc-x86.conf
 #GENERATED += $(BUILDDIR)/pc-x86.conf
+
+include project/virtual/test.mk

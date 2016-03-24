@@ -1,0 +1,40 @@
+TI SmartRF06 Evaluation Base Board
+
+TI CC13xx Evaluation Module
+
+
+
+DIO   EM Conn   BaseBoard
+1     RF1.5     NC
+2     RF1.7     UART_RX
+3     RF1.9     UART_TX
+4     RF1.11    LCD_MODE
+5     RF1.13    LCD_nRESET
+6     RF1.4     LED4
+7     RF1.2     LED3
+8     RF1.20    SPI_MISO
+9     RF1.18    SPI_MOSI
+10    RF1.16    SPI_SCK
+11    RF1.14    BTN_SELECT
+12    RF1.12    BTN_DOWN
+13    RF1.15    EN_3V3
+14    RF1.17    LCD_nCS
+15    RF1.6     BTN_LEFT
+16    RF2.19    JTAG_TDO
+17    RF2.17    JTAG_TDI
+18    RF1.8     BTN_RIGHT
+19    RF1.10    BTN_UP
+20    RF2.8     ACC_PWR
+21    RF2.18    UART_RTS
+22    RF1.3     UART_CTS
+23    RF2.5     ALS_OUT
+24    RF2.10    ACC_nCS
+25    RF2.11    LED1
+26    RF2.6     ALS_PWR
+27    RF2.13    LED2
+28    RF2.16    ACC_INT1
+29    RF2.14    ACC_INT2
+30    RF2.12    SDCARD_nCS
+      RF2.1     JTAG_TCK
+      RF2.15    nRESET
+      RF2.4     JTAG_TMS

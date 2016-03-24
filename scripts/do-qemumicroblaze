@@ -1,0 +1,4 @@
+#!/bin/sh
+
+make qemu-microblaze-test -j4 &&
+qemu-system-microblaze -kernel build-qemu-microblaze-test/lk.elf -nographic $@

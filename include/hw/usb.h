@@ -95,11 +95,11 @@
 
 /* general USB defines */
 struct usb_setup {
-	uint8_t request_type;
-	uint8_t request;
-	uint16_t value;
-	uint16_t index;
-	uint16_t length;
+    uint8_t request_type;
+    uint8_t request;
+    uint16_t value;
+    uint16_t index;
+    uint16_t length;
 } __PACKED;
 
 #endif

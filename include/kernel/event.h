@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,27 +23,30 @@
 #ifndef __KERNEL_EVENT_H
 #define __KERNEL_EVENT_H
 
+#include <compiler.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <kernel/thread.h>
 
-#define EVENT_MAGIC 'evnt'
+__BEGIN_CDECLS;
+
+#define EVENT_MAGIC (0x65766E74)  // "evnt"
 
 typedef struct event {
-	int magic;
-	bool signalled;
-	uint flags;
-	wait_queue_t wait;
+    int magic;
+    bool signalled;
+    uint flags;
+    wait_queue_t wait;
 } event_t;
 
 #define EVENT_FLAG_AUTOUNSIGNAL 1
 
 #define EVENT_INITIAL_VALUE(e, initial, _flags) \
 { \
-	.magic = EVENT_MAGIC, \
-	.signalled = initial, \
-	.flags = _flags, \
-	.wait = WAIT_QUEUE_INITIAL_VALUE((e).wait), \
+    .magic = EVENT_MAGIC, \
+    .signalled = initial, \
+    .flags = _flags, \
+    .wait = WAIT_QUEUE_INITIAL_VALUE((e).wait), \
 }
 
 /* Rules for Events:
@@ -68,9 +71,17 @@ status_t event_wait_timeout(event_t *, lk_time_t); /* wait on the event with a t
 status_t event_signal(event_t *, bool reschedule);
 status_t event_unsignal(event_t *);
 
-static inline status_t event_wait(event_t *e) {
-	return event_wait_timeout(e, INFINITE_TIME);
+static inline bool event_initialized(event_t *e)
+{
+    return e->magic == EVENT_MAGIC;
 }
+
+static inline status_t event_wait(event_t *e)
+{
+    return event_wait_timeout(e, INFINITE_TIME);
+}
+
+__END_CDECLS;
 
 #endif
 

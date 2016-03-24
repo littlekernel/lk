@@ -1,0 +1,14 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+MODULE := $(LOCAL_DIR)
+
+STELLARIS_CHIP := LM3S6965
+PLATFORM := stellaris
+
+GLOBAL_DEFINES += \
+	CRYSTAL_FREQ=8000000
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c
+
+include make/module.mk

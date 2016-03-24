@@ -5,11 +5,8 @@ MODULE := $(LOCAL_DIR)
 
 PLATFORM := pc
 
-MODULE_DEPS := \
-	lib/ffs \
-
 MODULE_SRCS += \
-	$(LOCAL_DIR)/config.c \
+	$(LOCAL_DIR)/config.c
 
 include make/module.mk
 

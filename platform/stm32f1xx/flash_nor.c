@@ -39,25 +39,25 @@ struct flash_nor_bank flash[1];
 
 void stm32_flash_nor_early_init(void)
 {
-	FLASH_Lock(); // make sure it's locked
+    FLASH_Lock(); // make sure it's locked
 
-	flash[0].base = 0x08000000;
-	flash[0].len = FLASH_SIZE;
-	flash[0].page_size = FLASH_PAGE_SIZE;
-	flash[0].flags = 0;
+    flash[0].base = 0x08000000;
+    flash[0].len = FLASH_SIZE;
+    flash[0].page_size = FLASH_PAGE_SIZE;
+    flash[0].flags = 0;
 }
 
 void stm32_flash_nor_init(void)
 {
-	TRACEF("flash size %zu\n", FLASH_SIZE);
-	TRACEF("page size %zu\n", FLASH_PAGE_SIZE);
+    TRACEF("flash size %zu\n", FLASH_SIZE);
+    TRACEF("page size %zu\n", FLASH_PAGE_SIZE);
 }
 
 const struct flash_nor_bank *flash_nor_get_bank(unsigned int bank)
 {
-	if (bank != 0)
-		return NULL;
+    if (bank != 0)
+        return NULL;
 
-	return &flash[0];
+    return &flash[0];
 }
 

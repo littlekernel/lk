@@ -15,6 +15,13 @@ MODULE_SRCS := \
 	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/semaphore.c \
-	
+	$(LOCAL_DIR)/mp.c \
+	$(LOCAL_DIR)/port.c
+
+ifeq ($(WITH_KERNEL_VM),1)
+MODULE_DEPS += kernel/vm
+else
+MODULE_DEPS += kernel/novm
+endif
 
 include make/module.mk

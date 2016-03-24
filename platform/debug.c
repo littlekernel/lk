@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Travis Geiselbrecht
+ * Copyright (c) 2008-2015 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,4 +21,20 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <compiler.h>
+#include <debug.h>
+#include <trace.h>
 
+/* Default implementation of panic time getc/putc.
+ * Just calls through to the underlying dputc/dgetc implementation
+ * unless the platform overrides it.
+ */
+__WEAK void platform_pputc(char c)
+{
+    return platform_dputc(c);
+}
+
+__WEAK int platform_pgetc(char *c, bool wait)
+{
+    return platform_dgetc(c, wait);
+}

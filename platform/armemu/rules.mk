@@ -3,14 +3,11 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 ARCH := arm
-ARM_CPU := arm1136j-s
+ARM_CPU := armemu
 CPU := generic
 
-# emulater doesn't support thumb properly
-ENABLE_THUMB := false
-
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/include
+WITH_KERNEL_VM := 0
+KERNEL_BASE := 0x0
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
@@ -31,10 +28,6 @@ MODULE_DEPS += \
 
 MEMBASE := 0x0
 MEMSIZE := 0x400000	# 4MB
-
-GLOBAL_DEFINES += \
-	MEMBASE=$(MEMBASE) \
-	MEMSIZE=$(MEMSIZE)
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld

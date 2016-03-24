@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2015 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,16 +21,15 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __X86_ARCH_THREAD_H
-#define __X86_ARCH_THREAD_H
+#pragma once
 
 #include <sys/types.h>
 
 struct arch_thread {
-	vaddr_t esp;
-
-	// TODO: fpu context
-};
-
+    vaddr_t sp;
+#if X86_WITH_FPU
+    vaddr_t *fpu_states;
+    uint8_t fpu_buffer[512 + 16];
 #endif
+};
 

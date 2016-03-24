@@ -30,10 +30,12 @@
 
 __BEGIN_CDECLS
 
-void platform_halt(void) __NO_RETURN;
-
 void platform_dputc(char c);
 int platform_dgetc(char *c, bool wait);
+
+// Should be available even if the system has panicked.
+void platform_pputc(char c);
+int platform_pgetc(char *c, bool wait);
 
 __END_CDECLS
 

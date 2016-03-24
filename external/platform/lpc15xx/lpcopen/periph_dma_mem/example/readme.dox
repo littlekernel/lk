@@ -1,0 +1,67 @@
+/*
+ * @brief DMA memory to memory transfer example
+ *
+ * @note
+ * Copyright(C) NXP Semiconductors, 2013
+ * All rights reserved.
+ *
+ * @par
+ * Software that is described herein is for illustrative purposes only
+ * which provides customers with programming information regarding the
+ * LPC products.  This software is supplied "AS IS" without any warranties of
+ * any kind, and NXP Semiconductors and its licensor disclaim any and
+ * all warranties, express or implied, including all implied warranties of
+ * merchantability, fitness for a particular purpose and non-infringement of
+ * intellectual property rights.  NXP Semiconductors assumes no responsibility
+ * or liability for the use of the software, conveys no license or rights under any
+ * patent, copyright, mask work right, or any other intellectual property rights in
+ * or to any products. NXP Semiconductors reserves the right to make changes
+ * in the software without notification. NXP Semiconductors also makes no
+ * representation or warranty that such application will be suitable for the
+ * specified use without further testing or modification.
+ *
+ * @par
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation is hereby granted, under NXP Semiconductors' and its
+ * licensor's relevant copyrights in the software, without fee, provided that it
+ * is used in conjunction with NXP Semiconductors microcontrollers.  This
+ * copyright, permission, and disclaimer notice must appear in all copies of
+ * this code.
+ */
+
+/** @defgroup EXAMPLES_PERIPH_15XX_DMA_MEM LPC15xx DMA memory to memory transfer example
+ * @ingroup EXAMPLES_PERIPH_15XX
+ * <b>Example description</b><br>
+ * This example shows how to setup and use the DMA controller for a limited
+ * software triggered memory to memory transfer. Because of the limited burst
+ * transfer size of the DMA (1024 transfers max) and limited burst size, DMA
+ * M2M operations are somewhat specialized, but they do have a good performance
+ * boost over memcpy() and memmove() functions. They would work best for
+ * smaller transfers.<br>
+ *
+ * Time measurement for performance is in milliSeconds. Lower values indicate
+ * higher data transfer performance. A time 50% smaller than another time would
+ * mean the same operation was about 2x faster. Times are provided for similar
+ * memmove(), memcpy(), and DMA data move operations.<br>
+ *
+ * The example also includes a test enable definition (XFERTEST) that will
+ * also perform data testing when it is defined.<br>
+ *
+ * <b>Special connection requirements</b><br>
+ * There are no special connection requirements for this example.<br>
+ *
+ * <b>Build procedures:</b><br>
+ * Visit the <a href="http://www.lpcware.com/content/project/lpcopen-platform-nxp-lpc-microcontrollers/lpcopen-v200-quickstart-guides">LPCOpen quickstart guides</a>
+ * to get started building LPCOpen projects.
+ *
+ * <b>Supported boards and board setup:</b><br>
+ * @ref LPCOPEN_15XX_BOARD_LPCXPRESSO_1549<br>
+ *
+ * <b>Submitting LPCOpen issues:</b><br>
+ * @ref LPCOPEN_COMMUNITY
+ * @{
+ */
+
+/**
+ * @}
+ */

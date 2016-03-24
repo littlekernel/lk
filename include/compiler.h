@@ -48,6 +48,7 @@
 #define __SRAM __NO_INLINE __SECTION(".sram.text")
 #define __CONSTRUCTOR __attribute__((constructor))
 #define __DESTRUCTOR __attribute__((destructor))
+#define __OPTIMIZE(x) __attribute__((optimize(x)))
 
 #define INCBIN(symname, sizename, filename, section)                    \
     __asm__ (".section " section "; .align 4; .globl "#symname);        \
@@ -110,7 +111,11 @@
 #endif
 
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#ifdef __cplusplus
+#define STATIC_ASSERT(e) static_assert(e, #e)
+#else
 #define STATIC_ASSERT(e) _Static_assert(e, #e)
+#endif
 #else
 #define STATIC_ASSERT(e) extern char (*ct_assert(void)) [sizeof(char[1 - 2*!(e)])]
 #endif
@@ -152,10 +157,6 @@
 
 /* TODO: add type check */
 #define countof(a) (sizeof(a) / sizeof((a)[0]))
-
-/* macro-expanding concat */
-#define concat(a, b) __ex_concat(a, b)
-#define __ex_concat(a, b) a ## b
 
 /* CPP header guards */
 #ifdef __cplusplus
