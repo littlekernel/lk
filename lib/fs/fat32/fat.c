@@ -52,7 +52,10 @@ void fat32_dump(fat_fs_t *fat) {
 
 status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
   status_t result = NO_ERROR;
-  
+
+  if (!dev)
+      return ERR_NOT_VALID;
+
   uint8_t *bs = malloc(512);
   int err = bio_read(dev, bs, 1024, 512);
   if (err < 0) {
