@@ -26,8 +26,11 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <inttypes.h>
+#include <compiler.h>
 
 // gfx library
+
+__BEGIN_CDECLS
 
 // different graphics formats
 typedef enum {
@@ -113,6 +116,8 @@ void gfx_surface_destroy(struct gfx_surface *surface);
 
 // utility routine to fill the display with a little moire pattern
 void gfx_draw_pattern(void);
+
+__END_CDECLS
 
 #endif
 
