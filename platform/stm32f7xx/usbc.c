@@ -256,13 +256,13 @@ void usbc_ep0_recv(void *buf, size_t len, ep_callback cb)
     PANIC_UNIMPLEMENTED;
 }
 
-status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width)
+status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type)
 {
     LTRACEF("ep %u dir %u width %u\n", ep, dir, width);
 
     DEBUG_ASSERT(ep <= NUM_EP);
 
-    HAL_StatusTypeDef ret = HAL_PCD_EP_Open(&usbc.handle, ep | ((dir == USB_IN) ? 0x80 : 0), width, EP_TYPE_BULK);
+    HAL_StatusTypeDef ret = HAL_PCD_EP_Open(&usbc.handle, ep | ((dir == USB_IN) ? 0x80 : 0), width, type);
 
     // XXX be a little smarter here
     if (dir == USB_IN) {
