@@ -305,8 +305,8 @@ static status_t usb_register_cb(
 )
 {
     if (op == USB_CB_ONLINE) {
-        usbc_setup_endpoint(1, USB_IN, 0x40);
-        usbc_setup_endpoint(1, USB_OUT, 0x40);
+        usbc_setup_endpoint(1, USB_IN, 0x40, USB_BULK);
+        usbc_setup_endpoint(1, USB_OUT, 0x40, USB_BULK);
         usb_online = true;
     }
     return NO_ERROR;

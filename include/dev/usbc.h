@@ -40,6 +40,14 @@ typedef enum {
     USB_OUT
 } ep_dir_t;
 
+typedef enum {
+    USB_CTRL = 0x00,
+    USB_ISOC = 0x01,
+    USB_BULK = 0x02,
+    USB_INTR = 0x03,
+} ep_type_t;
+
+
 struct usbc_transfer;
 typedef status_t (*ep_callback)(ep_t endpoint, struct usbc_transfer *transfer);
 
@@ -58,7 +66,7 @@ enum {
     USB_TRANSFER_RESULT_CANCELLED = -2,
 };
 
-status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width);
+status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type);
 status_t usbc_queue_rx(ep_t ep, usbc_transfer_t *transfer);
 status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer);
 

@@ -236,7 +236,7 @@ status_t usbc_set_active(bool active)
     return NO_ERROR;
 }
 
-status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width)
+status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type)
 {
     PANIC_UNIMPLEMENTED;
 }
