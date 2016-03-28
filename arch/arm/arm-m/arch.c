@@ -105,6 +105,9 @@ void arch_init(void)
 
 void arch_quiesce(void)
 {
+#if ARM_WITH_CACHE
+    arch_disable_cache(UCACHE);
+#endif
 }
 
 void arch_idle(void)
@@ -163,5 +166,29 @@ void arm_cm_irq_exit(bool reschedule)
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
+#if (__CORTEX_M >= 0x03)
+
+    uint32_t *vectab = (uint32_t *)entry;
+
+    __asm__ volatile(
+        "mov r0,  %[arg0]; "
+        "mov r1,  %[arg1]; "
+        "mov r2,  %[arg2]; "
+        "mov r3,  %[arg3]; "
+        "mov sp,  %[SP]; "
+        "bx  %[entry]; "
+        :
+        : [arg0]"r"(arg0),
+          [arg1]"r"(arg1),
+          [arg2]"r"(arg2),
+          [arg3]"r"(arg3),
+          [SP]"r"(vectab[0]),
+          [entry]"r"(vectab[1])
+        : "r0", "r1", "r2", "r3"
+    );
+
+    __UNREACHABLE;
+#else
     PANIC_UNIMPLEMENTED;
+#endif
 }

@@ -38,9 +38,15 @@
 #include <target/bmi055.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
-#include <target/memory_lcd.h>
-#include <target/sensor_bus.h>
 #include <reg.h>
+
+#if ENABLE_LCD
+#include <target/memory_lcd.h>
+#endif
+
+#if ENABLE_SENSORBUS
+#include <target/sensor_bus.h>
+#endif
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
@@ -90,16 +96,6 @@ void target_early_init(void)
     gpio_init.Pin  = GPIO_TO_PIN_MASK(GPIO_LED114) | GPIO_TO_PIN_MASK(GPIO_LED115);
     HAL_GPIO_Init(GPIOJ, &gpio_init);
 
-    // Initialize to a pattern just so we know we have something
-    gpio_set(GPIO_LED108, GPIO_LED_ON);
-    gpio_set(GPIO_LED109, GPIO_LED_ON);
-    gpio_set(GPIO_LED110, GPIO_LED_ON);
-    gpio_set(GPIO_LED111, GPIO_LED_ON);
-    gpio_set(GPIO_LED112, GPIO_LED_ON);
-    gpio_set(GPIO_LED113, GPIO_LED_ON);
-    gpio_set(GPIO_LED114, GPIO_LED_ON);
-    gpio_set(GPIO_LED115, GPIO_LED_ON);
-
     // Initialize the switches GPIOs for interrupt on raising edge. In order
     // to use stm32_EXTI15_10_IRQ() handler needs to be provided and EXTI15_10_IRQn
     // needs to be enabled.
@@ -112,8 +108,10 @@ void target_early_init(void)
                       GPIO_TO_PIN_MASK(GPIO_SW102) | GPIO_TO_PIN_MASK(GPIO_SW103);
     HAL_GPIO_Init(GPIOJ, &gpio_init);
 
+#if ENABLE_SENSORBUS
     // Initialize Sensor bus (accelerometer / gyroscope / nrf51 spi bus
     sensor_bus_init_early();
+#endif
 
     // now that the uart gpios are configured, enable the debug uart.
     stm32_debug_early_init();
@@ -132,7 +130,9 @@ void target_init(void)
 
     qspi_flash_init(N25Q128A_FLASH_SIZE);
 
+#if ENABLE_LCD
     memory_lcd_init();
+#endif
 
 #if WITH_LIB_MINIP
     uint8_t mac_addr[6];
@@ -164,7 +164,9 @@ void target_init(void)
     // start usb
     target_usb_setup();
 
+#if ENABLE_SENSORBUS
     sensor_bus_init();
+#endif
 }
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
@@ -202,7 +204,6 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
         /* LCD_CS Pin configuration */
         GPIO_InitStruct.Pin = GPIO_PIN_12;
         HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
 
         /*##-3- Configure the NVIC for SPI #########################################*/
         /* NVIC for SPI */
