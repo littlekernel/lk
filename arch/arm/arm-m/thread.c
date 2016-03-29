@@ -147,7 +147,7 @@ void arch_thread_initialize(struct thread *t)
     t->arch.sp = (addr_t)frame;
     t->arch.was_preempted = false;
 
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
     /* zero the fpu register state */
     memset(t->arch.fpregs, 0, sizeof(t->arch.fpregs));
     t->arch.fpused = false;
@@ -202,14 +202,14 @@ __NAKED void _svc(void)
     );
 }
 
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
 __NAKED static void _half_save_and_svc(struct thread *oldthread, struct thread *newthread, bool fpu_save, bool restore_fpu)
 #else
 __NAKED static void _half_save_and_svc(struct thread *oldthread, struct thread *newthread)
 #endif
 {
     __asm__ volatile(
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         /* see if we need to save fpu context */
         "cmp    r2, #1;"
         "beq    0f;"
@@ -233,7 +233,7 @@ __NAKED static void _half_save_and_svc(struct thread *oldthread, struct thread *
         /* restore the new thread's stack pointer, but not the integer state (yet) */
         LOAD_SP(r1, r2, %[sp_off])
 
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         /* see if we need to restore fpu context */
         "cmp    r3, #1;"
         "beq    0f;"
@@ -259,7 +259,7 @@ __NAKED static void _half_save_and_svc(struct thread *oldthread, struct thread *
         "mov    r4, sp;"
         "svc    #0;"
         ::  [sp_off] "i"(offsetof(thread_t, arch.sp))
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             ,[fp_off] "i"(offsetof(thread_t, arch.fpregs))
             ,[fp_exc_off] "i"(sizeof(struct arm_cm_exception_frame_long))
 #endif
@@ -267,14 +267,14 @@ __NAKED static void _half_save_and_svc(struct thread *oldthread, struct thread *
 }
 
 /* simple scenario where the to and from thread yielded */
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
 __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, struct thread *newthread, bool save_fpu, bool restore_fpu)
 #else
 __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, struct thread *newthread)
 #endif
 {
     __asm__ volatile(
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         /* see if we need to save fpu context */
         "cmp    r2, #1;"
         "beq    0f;"
@@ -299,7 +299,7 @@ __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, s
         LOAD_SP(r0, r2, %[sp_off])
         RESTORE_REGS
 
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         /* see if we need to restore fpu context */
         "cmp    r3, #1;"
         "beq    0f;"
@@ -318,7 +318,7 @@ __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, s
         CLREX
         "bx     lr;"
         ::  [sp_off] "i"(offsetof(thread_t, arch.sp))
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             , [fp_off] "i"(offsetof(thread_t, arch.fpregs))
 #endif
     );
@@ -330,7 +330,7 @@ __NAKED static void _thread_mode_bounce(bool fpused)
         /* restore main context */
         RESTORE_REGS
 
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         /* see if we need to restore fpu context */
         "tst    r0, #1;"
         "beq    0f;"
@@ -356,7 +356,7 @@ __NAKED static void _thread_mode_bounce(bool fpused)
 void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 {
     //LTRACE_ENTRY;
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
     LTRACEF("FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
             FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
 
@@ -369,7 +369,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
         LTRACEF("we're preempted, old frame %p, old lr 0x%x, pc 0x%x, new preempted bool %d\n",
                 preempt_frame, preempt_frame->lr, preempt_frame->pc, newthread->arch.was_preempted);
 
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         /* see if extended fpu frame was pushed */
         if ((preempt_frame->lr & (1<<4)) == 0) {
             /* force a context save if it hasn't already */
@@ -391,7 +391,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
         oldthread->arch.sp = (addr_t)preempt_frame;
         preempt_frame = NULL;
 
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         if (newthread->arch.fpused) {
             /* restore the old fpu state */
             DEBUG_ASSERT((FPU->FPCCR & FPU_FPCCR_LSPACT_Msk) == 0);
@@ -405,7 +405,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 #endif
         if (newthread->arch.was_preempted) {
             /* return directly to the preempted thread's iframe */
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             LTRACEF("newthread2 FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
                     FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
 #endif
@@ -426,11 +426,11 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
             frame->pc = (uint32_t)&_thread_mode_bounce;
             frame->psr = (1 << 24); /* thread bit set, IPSR 0 */
             frame->r0 = frame->r1 = frame->r2 = frame->r3 = frame->r12 = frame->lr = 0;
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             frame->r0 = newthread->arch.fpused;
 #endif
 
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             LTRACEF("iretting to user space, fpused %u\n", newthread->arch.fpused);
 #else
             LTRACEF("iretting to user space\n");
@@ -447,7 +447,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
     } else {
         oldthread->arch.was_preempted = false;
 
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         /* see if we have fpu state we need to save */
         if (oldthread->arch.fpused || __get_CONTROL() & CONTROL_FPCA_Msk) {
             /* mark this thread as using float */
@@ -457,7 +457,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 
         if (newthread->arch.was_preempted) {
             LTRACEF("not being preempted, but switching to preempted thread\n");
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             _half_save_and_svc(oldthread, newthread, oldthread->arch.fpused, newthread->arch.fpused);
 #else
             _half_save_and_svc(oldthread, newthread);
@@ -465,7 +465,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
         } else {
             /* fast path, both sides did not preempt */
             LTRACEF("both sides are not preempted newsp 0x%lx\n", newthread->arch.sp);
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             _arch_non_preempt_context_switch(oldthread, newthread, oldthread->arch.fpused,newthread->arch.fpused);
 #else
             _arch_non_preempt_context_switch(oldthread, newthread);
@@ -480,7 +480,7 @@ void arch_dump_thread(thread_t *t)
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
         dprintf(INFO, "sp 0x%lx, was preempted %u\n", t->arch.sp, t->arch.was_preempted);
-#if __FPU_PRESENT
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         dprintf(INFO, "\tfpused %u\n", t->arch.fpused);
 
 #endif
