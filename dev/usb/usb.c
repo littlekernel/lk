@@ -51,6 +51,8 @@ typedef struct {
     void *cookie;
 } usb_callback_container_t;
 
+static usb_callback_t class_setup_callback;
+
 static void usb_do_callbacks(usb_callback_op_t op, const union usb_callback_args *args);
 
 static void append_desc_data(usb_descriptor *desc, const void *dat, size_t len)
@@ -336,7 +338,15 @@ status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args
                     LTRACEF("unhandled standard request 0x%x\n", setup->request);
             }
         } else {
-            LTRACEF("unhandled nonstandard request 0x%x\n", setup->request);
+            status_t setup_callback_rslt = ERR_NOT_IMPLEMENTED;
+
+            if (class_setup_callback) {
+                setup_callback_rslt = class_setup_callback(NULL, op, args);
+            }
+            if (setup_callback_rslt != NO_ERROR) {
+                LTRACEF("unhandled nonstandard request 0x%x. Retcode = %d\n",
+                        setup->request, setup_callback_rslt);
+            }
         }
 
         if (!setup_handled) {
@@ -355,10 +365,12 @@ status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args
     return NO_ERROR;
 }
 
-status_t usb_setup(usb_config *config)
+status_t usb_setup(usb_config *config, usb_callback_t setup_callback)
 {
     DEBUG_ASSERT(config);
     DEBUG_ASSERT(usb.active == false);
+
+    class_setup_callback = setup_callback;
 
     usb.config = config;
 

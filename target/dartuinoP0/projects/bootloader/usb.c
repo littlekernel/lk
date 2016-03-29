@@ -99,7 +99,7 @@ usb_config config = {
 
 void target_usb_setup(void)
 {
-    usb_setup(&config);
+    usb_setup(&config, NULL);
 
     printf("appending interfaces\n");
     append_usb_interfaces();

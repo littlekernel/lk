@@ -2,10 +2,9 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULE_SRCS += \
-	$(LOCAL_DIR)/usb.c
+MODULE_DEPS += dev/usb
 
-MODULE_DEPS += \
-	app/cdcserialtest
+MODULE_SRCS += \
+	$(LOCAL_DIR)/cdcserial.c
 
 include make/module.mk
