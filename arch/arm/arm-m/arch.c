@@ -42,7 +42,7 @@ void arch_early_init(void)
 
     arch_disable_ints();
 
-#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+#if (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
     uint i;
     /* set the vector table base */
     SCB->VTOR = (uint32_t)&vectab;
@@ -107,8 +107,10 @@ void arch_init(void)
     *REG32(DWT_CTRL) |= 1; // enable cycle counter
 #endif
     printf("CONTROL 0x%x\n", __get_CONTROL());
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
     printf("FPSCR 0x%x\n", __get_FPSCR());
     printf("FPCCR 0x%x\n", FPU->FPCCR);
+#endif
 }
 
 void arch_quiesce(void)

@@ -30,7 +30,7 @@ struct arch_thread {
     vaddr_t sp;
     bool was_preempted;
 
-#if __FPU_PRESENT
+#if ARM_WITH_VFP
     /* has this thread ever used the floating point state? */
     bool fpused;
 

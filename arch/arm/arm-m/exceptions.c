@@ -91,6 +91,7 @@ static void usagefault(struct arm_cm_exception_frame *frame)
     printf("usagefault: ");
     dump_frame(frame);
 
+#if  (__CORTEX_M >= 0x03)
     uint32_t ufsr = BITS_SHIFT(SCB->CFSR, 31, 16);
     printf("UFSR 0x%x: ", ufsr);
 
@@ -106,6 +107,7 @@ static void usagefault(struct arm_cm_exception_frame *frame)
         printf("unaligned error\n");
     if (ufsr & (1<<9))
         printf("division by zero\n");
+#endif
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
