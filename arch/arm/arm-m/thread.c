@@ -100,7 +100,7 @@ struct arm_cm_context_switch_frame {
         "str    " #tempreg ", [" #basereg "," #offset "];"
 #define LOAD_SP(basereg, tempreg, offset) \
         "ldr    " #tempreg ", [" #basereg "," #offset "];" \
-        "mov    " #tempreg ", sp;"
+        "mov    sp, " #tempreg ";"
 
 /* there is no clrex on armv6m devices */
 #define CLREX           ""
