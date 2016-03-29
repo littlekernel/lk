@@ -155,6 +155,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f7xx_hal.h"
+#include <trace.h>
+
+#define LOCAL_TRACE 0
 
 /** @addtogroup STM32F7xx_HAL_Driver
   * @{
@@ -542,6 +545,8 @@ void HAL_QSPI_IRQHandler(QSPI_HandleTypeDef *hqspi)
   */
 HAL_StatusTypeDef HAL_QSPI_Command(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, uint32_t Timeout)
 {
+    LTRACEF("cmd = %d, state = %d\n", cmd->Instruction, hqspi->State);
+
     HAL_StatusTypeDef status = HAL_ERROR;
 
     /* Check the parameters */
@@ -620,6 +625,8 @@ HAL_StatusTypeDef HAL_QSPI_Command(QSPI_HandleTypeDef *hqspi, const QSPI_Command
   */
 HAL_StatusTypeDef HAL_QSPI_Command_IT(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd)
 {
+    LTRACEF("cmd = %d, state = %d\n", cmd->Instruction, hqspi->State);
+
     HAL_StatusTypeDef status = HAL_ERROR;
 
     /* Check the parameters */
@@ -694,6 +701,8 @@ HAL_StatusTypeDef HAL_QSPI_Command_IT(QSPI_HandleTypeDef *hqspi, const QSPI_Comm
   */
 HAL_StatusTypeDef HAL_QSPI_Transmit(QSPI_HandleTypeDef *hqspi, uint8_t *pData, uint32_t Timeout)
 {
+    LTRACEF("buf = %p, state = %d\n", pData, hqspi->State);
+
     HAL_StatusTypeDef status = HAL_OK;
     __IO uint32_t *data_reg = &hqspi->Instance->DR;
 
@@ -765,6 +774,8 @@ HAL_StatusTypeDef HAL_QSPI_Transmit(QSPI_HandleTypeDef *hqspi, uint8_t *pData, u
   */
 HAL_StatusTypeDef HAL_QSPI_Receive(QSPI_HandleTypeDef *hqspi, uint8_t *pData, uint32_t Timeout)
 {
+    LTRACEF("buf = %p, state = %d\n", pData, hqspi->State);
+
     HAL_StatusTypeDef status = HAL_OK;
     uint32_t addr_reg = READ_REG(hqspi->Instance->AR);
     __IO uint32_t *data_reg = &hqspi->Instance->DR;
@@ -838,6 +849,8 @@ HAL_StatusTypeDef HAL_QSPI_Receive(QSPI_HandleTypeDef *hqspi, uint8_t *pData, ui
   */
 HAL_StatusTypeDef HAL_QSPI_Transmit_IT(QSPI_HandleTypeDef *hqspi, uint8_t *pData)
 {
+    LTRACEF("buf = %p, state = %d\n", pData, hqspi->State);
+
     HAL_StatusTypeDef status = HAL_OK;
 
     /* Process locked */
@@ -883,6 +896,8 @@ HAL_StatusTypeDef HAL_QSPI_Transmit_IT(QSPI_HandleTypeDef *hqspi, uint8_t *pData
   */
 HAL_StatusTypeDef HAL_QSPI_Receive_IT(QSPI_HandleTypeDef *hqspi, uint8_t *pData)
 {
+    LTRACEF("buf = %p, state = %d\n", pData, hqspi->State);
+
     HAL_StatusTypeDef status = HAL_OK;
     uint32_t addr_reg = READ_REG(hqspi->Instance->AR);
 
@@ -931,6 +946,8 @@ HAL_StatusTypeDef HAL_QSPI_Receive_IT(QSPI_HandleTypeDef *hqspi, uint8_t *pData)
   */
 HAL_StatusTypeDef HAL_QSPI_Transmit_DMA(QSPI_HandleTypeDef *hqspi, uint8_t *pData)
 {
+    LTRACEF("buf = %p, state = %d\n", pData, hqspi->State);
+
     HAL_StatusTypeDef status = HAL_OK;
     uint32_t *tmp;
 
@@ -993,6 +1010,8 @@ HAL_StatusTypeDef HAL_QSPI_Transmit_DMA(QSPI_HandleTypeDef *hqspi, uint8_t *pDat
   */
 HAL_StatusTypeDef HAL_QSPI_Receive_DMA(QSPI_HandleTypeDef *hqspi, uint8_t *pData)
 {
+    LTRACEF("buf = %p, state = %d\n", pData, hqspi->State);
+
     HAL_StatusTypeDef status = HAL_OK;
     uint32_t *tmp;
     uint32_t addr_reg = READ_REG(hqspi->Instance->AR);
@@ -1256,6 +1275,8 @@ HAL_StatusTypeDef HAL_QSPI_AutoPolling_IT(QSPI_HandleTypeDef *hqspi, const QSPI_
   */
 HAL_StatusTypeDef HAL_QSPI_MemoryMapped(QSPI_HandleTypeDef *hqspi, const QSPI_CommandTypeDef *cmd, QSPI_MemoryMappedTypeDef *cfg)
 {
+    LTRACEF("state = %d\n", hqspi->State);
+
     HAL_StatusTypeDef status = HAL_ERROR;
 
     /* Check the parameters */

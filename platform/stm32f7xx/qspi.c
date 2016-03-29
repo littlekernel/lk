@@ -36,6 +36,7 @@
 #include <platform/qspi.h>
 #include <trace.h>
 
+#define LOCAL_TRACE 0
 
 #define FOUR_BYTE_ADDR_THRESHOLD (1 << 24)
 #define LOCAL_TRACE 0
@@ -137,11 +138,15 @@ static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef *hqspi)
 
     status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Command failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
 
     status = qspi_auto_polling_mem_ready_unsafe(hqspi, N25QXXA_SR_WREN, N25QXXA_SR_WREN);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: auto_polling_mem_ready failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
 
@@ -171,18 +176,24 @@ static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef *hqspi)
     /* Configure the command */
     status = HAL_QSPI_Command(hqspi, &init_rvcr_cmd, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Command(init_rvcr_cmd) failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
 
     /* Reception of the data */
     status = HAL_QSPI_Receive(hqspi, &reg, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Receive failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
 
     /* Enable write operations */
     status = qspi_write_enable_unsafe(hqspi);
     if (status != NO_ERROR) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Receive failed with err = %d\n",
+                __func__, status);
         return status;
     }
 
@@ -206,12 +217,16 @@ static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef *hqspi)
     /* Configure the write volatile configuration register command */
     status = HAL_QSPI_Command(hqspi, &update_rvcr_cmd, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Command(update_rvcr_cmd) failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
 
     /* Transmission of the data */
     status = HAL_QSPI_Transmit(hqspi, &reg, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Transmit failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
 
@@ -246,6 +261,8 @@ static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef *hqspi, ui
 
     status = HAL_QSPI_AutoPolling_IT(hqspi, &s_command, &s_config);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_AutoPolling_IT failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
     event_wait(&st_event);
@@ -273,6 +290,8 @@ static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef *hqspi)
     /* Send the command */
     status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Command(RESET_ENABLE_CMD) failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
 
@@ -280,12 +299,16 @@ static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef *hqspi)
     s_command.Instruction = RESET_MEMORY_CMD;
     status = HAL_QSPI_Command(hqspi, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Command(RESET_MEMORY_CMD) failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
 
     /* Configure automatic polling mode to wait the memory is ready */
     status = qspi_auto_polling_mem_ready_unsafe(hqspi, 0, N25QXXA_SR_WIP);
     if (status != NO_ERROR) {
+        dprintf(CRITICAL, "%s: auto_polling_mem_ready failed with err = %d\n",
+                __func__, status);
         return hal_error_to_status(status);
     }
 
@@ -336,6 +359,8 @@ static ssize_t spiflash_bdev_read_block(struct bdev *device, void *buf,
         status = HAL_QSPI_Command(&qspi_handle, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
         if (status != HAL_OK) {
             retcode = hal_error_to_status(status);
+            dprintf(CRITICAL, "%s: HAL_QSPI_Command failed with err = %ld\n",
+                    __func__, retcode);
             goto err;
         }
 
@@ -343,6 +368,8 @@ static ssize_t spiflash_bdev_read_block(struct bdev *device, void *buf,
         status = qspi_rx_dma(&qspi_handle, &s_command, buf);
         if (status != HAL_OK) {
             retcode = hal_error_to_status(status);
+            dprintf(CRITICAL, "%s: qspi_rx_dma failed with err = %ld\n",
+                    __func__, retcode);
             goto err;
         }
 
@@ -372,7 +399,8 @@ static ssize_t spiflash_bdev_write_block(struct bdev *device, const void *_buf,
     for (; count > 0; count--, block++) {
         ssize_t bytes_written = qspi_write_page_unsafe(block * N25QXXA_PAGE_SIZE, buf);
         if (bytes_written < 0) {
-            printf("qspi_write_page_unsafe failed\n");
+            dprintf(CRITICAL, "%s: qspi_write_page_unsafe failed with err = %ld\n",
+                    __func__, bytes_written);
             total_bytes_written = bytes_written;
             goto err;
         }
@@ -480,22 +508,30 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 
     status_t write_enable_result = qspi_write_enable_unsafe(&qspi_handle);
     if (write_enable_result != NO_ERROR) {
+        dprintf(CRITICAL, "%s: qspi_write_enable_unsafe failed with err = %d\n",
+                    __func__, write_enable_result);
         return write_enable_result;
     }
 
     status = HAL_QSPI_Command(&qspi_handle, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Command failed with err = %d\n",
+                    __func__, status);
         return hal_error_to_status(status);
     }
 
     status = qspi_tx_dma(&qspi_handle, &s_command, (uint8_t *)data);
     if (status != HAL_OK) {
+        dprintf(CRITICAL, "%s: qspi_tx_dma failed with err = %d\n",
+                    __func__, status);
         return hal_error_to_status(status);
     }
 
     status_t auto_polling_mem_ready_result =
         qspi_auto_polling_mem_ready_unsafe(&qspi_handle, 0, N25QXXA_SR_WIP);
     if (auto_polling_mem_ready_result != NO_ERROR) {
+        dprintf(CRITICAL, "%s: auto_polling_mem_ready failed with err = %d\n",
+                __func__, auto_polling_mem_ready_result);
         return auto_polling_mem_ready_result;
     }
 
@@ -542,6 +578,8 @@ status_t qspi_flash_init(size_t flash_size)
     status = HAL_QSPI_Init(&qspi_handle);
     if (status != HAL_OK) {
         result = hal_error_to_status(status);
+        dprintf(CRITICAL, "%s: HAL_QSPI_Init failed with err = %d\n",
+                __func__, result);
         goto err;
     }
 
@@ -550,19 +588,31 @@ status_t qspi_flash_init(size_t flash_size)
 
     result = qspi_reset_memory_unsafe(&qspi_handle);
     if (result != NO_ERROR) {
+        dprintf(CRITICAL, "%s: qspi_reset_memory_unsafe failed with err = %d\n",
+                __func__, result);
         goto err;
     }
 
     result = qspi_dummy_cycles_cfg_unsafe(&qspi_handle);
     if (result != NO_ERROR) {
+        dprintf(CRITICAL, "%s: qspi_dummy_cycles_cfg_unsafe failed with err = %d\n",
+                __func__, result);
         goto err;
     }
 
     result = qspi_dma_init(&qspi_handle);
     if (result != NO_ERROR) {
+        dprintf(CRITICAL, "%s: qspi_dma_init failed with err = %d\n",
+                __func__, result);
         goto err;
     }
 
+    result = hal_error_to_status(HAL_QSPI_Abort(&qspi_handle));
+    if (result != NO_ERROR) {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Abort failed with err = %d\n",
+                __func__, result);
+        goto err;
+    }
     device_state = QSPI_STATE_COMMAND;
 
     // Initialize the QSPI Flash and register it as a Block I/O device.
@@ -661,6 +711,8 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     /* Enable write operations */
     status_t qspi_write_enable_result = qspi_write_enable_unsafe(&qspi_handle);
     if (qspi_write_enable_result != NO_ERROR) {
+        dprintf(CRITICAL, "%s: qspi_write_enable_unsafe failed with err = %d\n",
+                __func__, qspi_write_enable_result);
         return qspi_write_enable_result;
     }
 
@@ -673,6 +725,8 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     status_t auto_polling_mem_ready_result =
         qspi_auto_polling_mem_ready_unsafe(&qspi_handle, 0, N25QXXA_SR_WIP);
     if (auto_polling_mem_ready_result != NO_ERROR) {
+        dprintf(CRITICAL, "%s: auto_polling_mem_ready failed with err = %d\n",
+                __func__, auto_polling_mem_ready_result);
         return auto_polling_mem_ready_result;
     }
 
@@ -763,7 +817,7 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_Comma
     MODIFY_REG(qspi_handle->Instance->CCR, QUADSPI_CCR_FMODE, 0);
 
     if (dma_disable(dma2_stream7) != NO_ERROR) {
-        printf("Timed out while waiting for DMA Engine to disable.\n");
+        dprintf(CRITICAL, "%s: timed out while waiting for DMA to disable.\n", __func__);
         return ERR_TIMED_OUT;
     }
 
@@ -799,7 +853,7 @@ static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_Comma
     MODIFY_REG(qspi_handle->Instance->CCR, QUADSPI_CCR_FMODE, QUADSPI_CCR_FMODE_0);
 
     if (dma_disable(dma2_stream7) != NO_ERROR) {
-        printf("Timed out while waiting for DMA Engine to disable.\n");
+        dprintf(CRITICAL, "%s: timed out while waiting for DMA to disable.\n", __func__);
         return ERR_TIMED_OUT;
     }
 
@@ -886,7 +940,7 @@ void HAL_QSPI_StatusMatchCallback(QSPI_HandleTypeDef *hqspi)
 /* IRQ Context */
 void HAL_QSPI_ErrorCallback(QSPI_HandleTypeDef *hqspi)
 {
-    printf("HAL QSPI Error.\n");
+    dprintf(CRITICAL, "%s: HAL QSPI Error.\n", __func__);
 }
 
 status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
@@ -975,6 +1029,8 @@ status_t qspi_enable_linear(void)
     HAL_StatusTypeDef hal_result = HAL_QSPI_MemoryMapped(&qspi_handle, &s_command, &linear_mode_cfg);
     if (hal_result != HAL_OK) {
         result = hal_error_to_status(hal_result);
+        dprintf(CRITICAL, "%s: HAL_QSPI_MemoryMapped failed with err = %d\n",
+                __func__, hal_result);
         goto finish;
     }
 
@@ -1000,6 +1056,9 @@ status_t qspi_disable_linear(void)
     result = hal_error_to_status(HAL_QSPI_Abort(&qspi_handle));
     if (result == NO_ERROR) {
         device_state = QSPI_STATE_COMMAND;
+    } else {
+        dprintf(CRITICAL, "%s: HAL_QSPI_Abort failed with err = %d\n",
+                __func__, result);
     }
 
 
