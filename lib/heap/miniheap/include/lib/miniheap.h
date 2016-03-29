@@ -27,7 +27,7 @@
 __BEGIN_CDECLS;
 
 struct miniheap_stats {
-    void* heap_start;
+    void *heap_start;
     size_t heap_len;
     size_t heap_free;
     size_t heap_max_chunk;

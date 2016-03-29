@@ -93,7 +93,6 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 #endif
 
     arm_context_switch(&oldthread->arch.sp, newthread->arch.sp);
-
 }
 
 void arch_dump_thread(thread_t *t)

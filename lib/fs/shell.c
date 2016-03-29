@@ -20,6 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include <err.h>
 #include <debug.h>
 #include <string.h>
 #include <stdio.h>
@@ -44,8 +46,9 @@ static void set_cwd(const char *path)
     }
 
     size_t len = strlen(path) + 1;
-    cwd = realloc(cwd, len);
-    if (cwd) {
+    char *new_cwd = realloc(cwd, len);
+    if (new_cwd) {
+        cwd = new_cwd;
         memcpy(cwd, path, len);
     }
 }
@@ -75,27 +78,30 @@ static char *prepend_cwd(char *path, size_t len, const char *arg)
 
 static int cmd_ls(int argc, const cmd_args *argv)
 {
+    status_t status = NO_ERROR;
+
     // construct the path
-    char path[FS_MAX_PATH_LEN];
-    prepend_cwd(path, sizeof(path), (argc >= 2) ? argv[1].str : NULL);
+    char *path = malloc(FS_MAX_PATH_LEN);
+    prepend_cwd(path, FS_MAX_PATH_LEN, (argc >= 2) ? argv[1].str : NULL);
 
     dirhandle *dhandle;
-    status_t err = fs_open_dir(path, &dhandle);
-    if (err < 0) {
-        printf("error %d opening dir '%s'\n", err, path);
-        return err;
+    status = fs_open_dir(path, &dhandle);
+    if (status < 0) {
+        printf("error %d opening dir '%s'\n", status, path);
+        goto err;
     }
 
     size_t pathlen = strlen(path);
 
+    status_t err;
     struct dirent ent;
     while ((err = fs_read_dir(dhandle, &ent)) >= 0) {
         struct file_stat stat;
         filehandle *handle;
 
         // append our filename to the path
-        strlcat(path, "/", sizeof(path));
-        strlcat(path, ent.name, sizeof(path));
+        strlcat(path, "/", FS_MAX_PATH_LEN);
+        strlcat(path, ent.name, FS_MAX_PATH_LEN);
 
         err = fs_open_file(path, &handle);
 
@@ -120,7 +126,9 @@ static int cmd_ls(int argc, const cmd_args *argv)
 
     fs_close_dir(dhandle);
 
-    return 0;
+err:
+    free(path);
+    return status;;
 }
 
 static int cmd_cd(int argc, const cmd_args *argv)
@@ -128,8 +136,8 @@ static int cmd_cd(int argc, const cmd_args *argv)
     if (argc < 2) {
         set_cwd(NULL);
     } else {
-        char path[FS_MAX_PATH_LEN];
-        prepend_cwd(path, sizeof(path), (argc >= 2) ? argv[1].str : NULL);
+        char *path = malloc(FS_MAX_PATH_LEN);
+        prepend_cwd(path, FS_MAX_PATH_LEN, (argc >= 2) ? argv[1].str : NULL);
         fs_normalize_path(path);
 
         if (strlen(path) == 0) {
@@ -137,6 +145,7 @@ static int cmd_cd(int argc, const cmd_args *argv)
         } else {
             set_cwd(path);
         }
+        free(path);
     }
     puts(get_cwd());
 
@@ -158,15 +167,15 @@ static int cmd_mkdir(int argc, const cmd_args *argv)
         return -1;
     }
 
-    char path[FS_MAX_PATH_LEN];
+    char *path = malloc(FS_MAX_PATH_LEN);
 
-    int err = fs_make_dir(prepend_cwd(path, sizeof(path), argv[1].str));
-    if (err < 0) {
-        printf("error %d making directory '%s'\n", err, path);
-        return err;
+    int status = fs_make_dir(prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str));
+    if (status < 0) {
+        printf("error %d making directory '%s'\n", status, path);
     }
 
-    return 0;
+    free(path);
+    return status;
 }
 
 static int cmd_mkfile(int argc, const cmd_args *argv)
@@ -177,19 +186,21 @@ static int cmd_mkfile(int argc, const cmd_args *argv)
         return -1;
     }
 
-    char path[FS_MAX_PATH_LEN];
-    prepend_cwd(path, sizeof(path), argv[1].str);
+    char *path = malloc(FS_MAX_PATH_LEN);
+    prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
 
     filehandle *handle;
-    status_t err = fs_create_file(path, &handle, (argc >= 2) ? argv[2].u : 0);
-    if (err < 0) {
-        printf("error %d making file '%s'\n", err, path);
-        return err;
+    status_t status = fs_create_file(path, &handle, (argc >= 2) ? argv[2].u : 0);
+    if (status < 0) {
+        printf("error %d making file '%s'\n", status, path);
+        goto err;
     }
 
     fs_close_file(handle);
 
-    return 0;
+err:
+    free(path);
+    return status;
 }
 
 static int cmd_rm(int argc, const cmd_args *argv)
@@ -200,8 +211,8 @@ static int cmd_rm(int argc, const cmd_args *argv)
         return -1;
     }
 
-    char path[FS_MAX_PATH_LEN];
-    prepend_cwd(path, sizeof(path), argv[1].str);
+    char *path = malloc(FS_MAX_PATH_LEN);
+    prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
 
     status_t err = fs_remove_file(path);
     if (err < 0) {
@@ -220,51 +231,56 @@ static int cmd_stat(int argc, const cmd_args *argv)
         return -1;
     }
 
-    int err;
+    int status;
     struct file_stat stat;
     filehandle *handle;
 
-    char path[FS_MAX_PATH_LEN];
-    prepend_cwd(path, sizeof(path), argv[1].str);
+    char *path = malloc(FS_MAX_PATH_LEN);
+    prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
 
-    err = fs_open_file(path, &handle);
-    if (err < 0) {
-        printf("error %d opening file '%s'\n", err, path);
-        return err;
+    status = fs_open_file(path, &handle);
+    if (status < 0) {
+        printf("error %d opening file '%s'\n", status, path);
+        goto err;
     }
 
-    err = fs_stat_file(handle, &stat);
+    status = fs_stat_file(handle, &stat);
 
     fs_close_file(handle);
 
-    if (err < 0) {
-        printf("error %d statting file\n", err);
-        return err;
+    if (status < 0) {
+        printf("error %d statting file\n", status);
+        goto err;
     }
 
     printf("stat successful:\n");
     printf("\tis_dir: %d\n", stat.is_dir ? 1 : 0);
     printf("\tsize: %lld\n", stat.size);
 
-    return 0;
+
+err:
+    free(path);
+    return status;
 }
 
 static int cmd_cat(int argc, const cmd_args *argv)
 {
+    status_t status = NO_ERROR;
+
     if (argc < 2) {
         printf("not enough arguments\n");
         printf("usage: %s <path>\n", argv[0].str);
         return -1;
     }
 
-    char path[FS_MAX_PATH_LEN];
-    prepend_cwd(path, sizeof(path), argv[1].str);
+    char *path = malloc(FS_MAX_PATH_LEN);
+    prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
 
     filehandle *handle;
-    status_t err = fs_open_file(path, &handle);
-    if (err < 0) {
-        printf("error %d opening file '%s'\n", err, path);
-        return err;
+    status = fs_open_file(path, &handle);
+    if (status < 0) {
+        printf("error %d opening file '%s'\n", status, path);
+        goto err;
     }
 
     char buf[64];
@@ -280,7 +296,9 @@ static int cmd_cat(int argc, const cmd_args *argv)
 
     fs_close_file(handle);
 
-    return 0;
+err:
+    free(path);
+    return status;
 }
 
 STATIC_COMMAND_START

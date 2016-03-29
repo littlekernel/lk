@@ -156,7 +156,7 @@ static void add_socket_to_list(tcp_socket_t *s);
 static void remove_socket_from_list(tcp_socket_t *s);
 static tcp_socket_t *create_tcp_socket(bool alloc_buffers);
 static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip, uint16_t src_port, const void *buf,
-    size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size);
+                         size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size);
 static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t sequence);
 static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t sequence);
 static void send_ack(tcp_socket_t *s);
@@ -178,47 +178,58 @@ static uint16_t cksum_pheader(const tcp_pseudo_header_t *pheader, const void *bu
 __NO_INLINE static void dump_tcp_header(const tcp_header_t *header)
 {
     printf("TCP: src_port %u, dest_port %u, seq %u, ack %u, win %u, flags %c%c%c%c%c%c\n",
-        ntohs(header->source_port), ntohs(header->dest_port), ntohl(header->seq_num), ntohl(header->ack_num),
-        ntohs(header->win_size),
-        (ntohs(header->length_flags) & PKT_FIN) ? 'F' : ' ',
-        (ntohs(header->length_flags) & PKT_SYN) ? 'S' : ' ',
-        (ntohs(header->length_flags) & PKT_RST) ? 'R' : ' ',
-        (ntohs(header->length_flags) & PKT_PSH) ? 'P' : ' ',
-        (ntohs(header->length_flags) & PKT_ACK) ? 'A' : ' ',
-        (ntohs(header->length_flags) & PKT_URG) ? 'U' : ' ');
+           ntohs(header->source_port), ntohs(header->dest_port), ntohl(header->seq_num), ntohl(header->ack_num),
+           ntohs(header->win_size),
+           (ntohs(header->length_flags) & PKT_FIN) ? 'F' : ' ',
+           (ntohs(header->length_flags) & PKT_SYN) ? 'S' : ' ',
+           (ntohs(header->length_flags) & PKT_RST) ? 'R' : ' ',
+           (ntohs(header->length_flags) & PKT_PSH) ? 'P' : ' ',
+           (ntohs(header->length_flags) & PKT_ACK) ? 'A' : ' ',
+           (ntohs(header->length_flags) & PKT_URG) ? 'U' : ' ');
 }
 
 static const char *tcp_state_to_string(tcp_state_t state)
 {
     switch (state) {
         default:
-        case STATE_CLOSED: return "CLOSED";
-        case STATE_LISTEN: return "LISTEN";
-        case STATE_SYN_SENT: return "SYN_SENT";
-        case STATE_SYN_RCVD: return "SYN_RCVD";
-        case STATE_ESTABLISHED: return "ESTABLISHED";
-        case STATE_CLOSE_WAIT: return "CLOSE_WAIT";
-        case STATE_LAST_ACK: return "LAST_ACK";
-        case STATE_CLOSING: return "CLOSING";
-        case STATE_FIN_WAIT_1: return "FIN_WAIT_1";
-        case STATE_FIN_WAIT_2: return "FIN_WAIT_2";
-        case STATE_TIME_WAIT: return "TIME_WAIT";
+        case STATE_CLOSED:
+            return "CLOSED";
+        case STATE_LISTEN:
+            return "LISTEN";
+        case STATE_SYN_SENT:
+            return "SYN_SENT";
+        case STATE_SYN_RCVD:
+            return "SYN_RCVD";
+        case STATE_ESTABLISHED:
+            return "ESTABLISHED";
+        case STATE_CLOSE_WAIT:
+            return "CLOSE_WAIT";
+        case STATE_LAST_ACK:
+            return "LAST_ACK";
+        case STATE_CLOSING:
+            return "CLOSING";
+        case STATE_FIN_WAIT_1:
+            return "FIN_WAIT_1";
+        case STATE_FIN_WAIT_2:
+            return "FIN_WAIT_2";
+        case STATE_TIME_WAIT:
+            return "TIME_WAIT";
     }
 }
 
 static void dump_socket(tcp_socket_t *s)
 {
     printf("socket %p: state %d (%s), local 0x%x:%hu, remote 0x%x:%hu, ref %d\n",
-            s, s->state, tcp_state_to_string(s->state),
-            s->local_ip, s->local_port, s->remote_ip, s->remote_port, s->ref);
+           s, s->state, tcp_state_to_string(s->state),
+           s->local_ip, s->local_port, s->remote_ip, s->remote_port, s->ref);
     if (s->state == STATE_ESTABLISHED || s->state == STATE_CLOSE_WAIT) {
         printf("\trx: wsize %u wlo %u whi %u (%u)\n",
-                s->rx_win_size, s->rx_win_low, s->rx_win_high,
-                s->rx_win_high - s->rx_win_low);
+               s->rx_win_size, s->rx_win_low, s->rx_win_high,
+               s->rx_win_high - s->rx_win_low);
         printf("\ttx: wlo %u whi %u (%u) highest_seq %u (%u) bufsize %u bufoff %u\n",
-                s->tx_win_low, s->tx_win_high, s->tx_win_high - s->tx_win_low,
-                s->tx_highest_seq, s->tx_highest_seq - s->tx_win_low,
-                s->tx_buffer_size, s->tx_buffer_offset);
+               s->tx_win_low, s->tx_win_high, s->tx_win_high - s->tx_win_low,
+               s->tx_highest_seq, s->tx_highest_seq - s->tx_win_low,
+               s->tx_buffer_size, s->tx_buffer_offset);
     }
 }
 
@@ -236,9 +247,9 @@ static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint
         } else {
             /* full check */
             if (s->remote_ip == remote_ip &&
-                s->local_ip == local_ip &&
-                s->remote_port == remote_port &&
-                s->local_port == local_port) {
+                    s->local_ip == local_ip &&
+                    s->remote_port == remote_port &&
+                    s->local_port == local_port) {
                 goto out;
             }
         }
@@ -374,7 +385,7 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
         pheader.tcp_length = htons(p->dlen);
 
         uint16_t checksum = cksum_pheader(&pheader, p->data, p->dlen);
-        if(checksum != 0) {
+        if (checksum != 0) {
             TRACEF("REJECT: failed checksum, header says 0x%x, we got 0x%x\n", header->checksum, checksum);
             return;
         }
@@ -466,7 +477,7 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
 
             /* send a response */
             tcp_socket_send(accept_socket, NULL, 0, PKT_ACK|PKT_SYN, &mss_option, sizeof(mss_option),
-                accept_socket->tx_win_low);
+                            accept_socket->tx_win_low);
 
             /* SYN consumed a sequence */
             accept_socket->tx_win_low++;
@@ -599,7 +610,7 @@ send_reset:
     LTRACEF("SEND RST\n");
     if (!(packet_flags & PKT_RST)) {
         tcp_send(src_ip, header->source_port, dst_ip, header->dest_port,
-            NULL, 0, PKT_RST, NULL, 0, 0, header->ack_num, 0);
+                 NULL, 0, PKT_RST, NULL, 0, 0, header->ack_num, 0);
     }
 }
 
@@ -640,7 +651,7 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
 
         /* immediately ack if we're more than halfway into our buffer or they've sent 2 or more full packets */
         if (s->rx_full_mss_count >= 2 ||
-            (int)(s->rx_win_low + s->rx_win_size - s->rx_win_high) > (int)s->rx_win_size / 2) {
+                (int)(s->rx_win_low + s->rx_win_size - s->rx_win_high) > (int)s->rx_win_size / 2) {
             send_ack(s);
             s->rx_full_mss_count = 0;
         } else {
@@ -653,8 +664,8 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
     }
 }
 
-static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, tcp_flags_t flags, 
-    const void *options, size_t options_length, uint32_t sequence)
+static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, tcp_flags_t flags,
+                                const void *options, size_t options_length, uint32_t sequence)
 {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
@@ -666,7 +677,7 @@ static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, t
     uint32_t rx_win_high = s->rx_win_low + s->rx_win_size - cbuf_space_used(&s->rx_buffer) - 1;
 
     LTRACEF("rx_win_low %u rx_win_size %u read_buf_len %zu, new win high %u\n",
-        s->rx_win_low, s->rx_win_size, cbuf_space_used(&s->rx_buffer), rx_win_high);
+            s->rx_win_low, s->rx_win_size, cbuf_space_used(&s->rx_buffer), rx_win_high);
 
     uint16_t win_size;
     if (SEQUENCE_GTE(rx_win_high, s->rx_win_high)) {
@@ -684,7 +695,7 @@ static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, t
     }
 
     status_t err = tcp_send(s->remote_ip, s->remote_port, s->local_ip, s->local_port, data, len, flags,
-            options, options_length, (flags & PKT_ACK) ? s->rx_win_low : 0, sequence, win_size);
+                            options, options_length, (flags & PKT_ACK) ? s->rx_win_low : 0, sequence, win_size);
 
     return err;
 }
@@ -701,7 +712,7 @@ static void send_ack(tcp_socket_t *s)
 }
 
 static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip, uint16_t src_port, const void *buf,
-    size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size)
+                         size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size)
 {
     DEBUG_ASSERT(len == 0 || buf);
     DEBUG_ASSERT(options_length == 0 || options);
@@ -1300,5 +1311,3 @@ STATIC_COMMAND_START
 STATIC_COMMAND("tcp", "tcp commands", &cmd_tcp)
 STATIC_COMMAND_END(tcp);
 
-
-// vim: set ts=4 sw=4 expandtab:

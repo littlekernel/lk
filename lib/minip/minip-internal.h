@@ -146,10 +146,8 @@ bool net_timer_cancel(net_timer_t *) __NONNULL();
 
 void net_timer_init(void);
 
-static inline void mac_addr_copy(uint8_t *dest, const uint8_t *src) {
+static inline void mac_addr_copy(uint8_t *dest, const uint8_t *src)
+{
     *(uint32_t *)dest = *(const uint32_t *)src;
     *(uint16_t *)(dest + 4) = *(const uint16_t *)(src + 4);
 }
-
-// vim: set ts=4 sw=4 expandtab:
-

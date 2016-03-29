@@ -136,7 +136,7 @@ static void zynq_common_target_init(uint level)
                 /* we have a fpga image */
 
                 /* lookup the physical address of the bitfile */
-                paddr_t pa = kvaddr_to_paddr((void *)fpga_ptr);
+                paddr_t pa = vaddr_to_paddr((void *)fpga_ptr);
                 if (pa != 0) {
                     /* program the fpga with it*/
                     printf("loading fpga image at %p (phys 0x%lx), len %zx\n", fpga_ptr, pa, fpga_len);

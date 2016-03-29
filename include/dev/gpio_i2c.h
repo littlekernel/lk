@@ -1,4 +1,3 @@
-/* vim: set expandtab ts=4 sw=4 tw=100: */
 /*
  * Copyright (c) 2013 Google Inc.
  *
@@ -45,13 +44,13 @@ static const gpio_i2c_info_t _name = {         \
     .qcd            = ((_clk_ticks + 3) >> 2), \
 }
 
-void gpio_i2c_add_bus(uint32_t bus_id, const gpio_i2c_info_t* info);
+void gpio_i2c_add_bus(uint32_t bus_id, const gpio_i2c_info_t *info);
 
 void gpio_i2c_init_early(void);
 void gpio_i2c_init(void);
-status_t gpio_i2c_transmit(int, uint8_t, const void*, size_t);
-status_t gpio_i2c_receive(int, uint8_t, void*, size_t);
-status_t gpio_i2c_write_reg_bytes(int, uint8_t, uint8_t, const uint8_t*, size_t);
-status_t gpio_i2c_read_reg_bytes(int, uint8_t, uint8_t, uint8_t*, size_t);
+status_t gpio_i2c_transmit(int, uint8_t, const void *, size_t);
+status_t gpio_i2c_receive(int, uint8_t, void *, size_t);
+status_t gpio_i2c_write_reg_bytes(int, uint8_t, uint8_t, const uint8_t *, size_t);
+status_t gpio_i2c_read_reg_bytes(int, uint8_t, uint8_t, uint8_t *, size_t);
 
 #endif  // __GPIO_I2C__

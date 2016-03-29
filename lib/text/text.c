@@ -50,9 +50,9 @@
 static struct list_node text_list = LIST_INITIAL_VALUE(text_list);
 
 struct text_line {
-	struct list_node node;
-	const char *str;
-	int x, y;
+    struct list_node node;
+    const char *str;
+    int x, y;
 };
 
 /**
@@ -60,15 +60,15 @@ struct text_line {
  */
 void text_draw(int x, int y, const char *string)
 {
-	struct text_line *line = malloc(sizeof(struct text_line));
+    struct text_line *line = malloc(sizeof(struct text_line));
 
-	line->str = strdup(string);
-	line->x = x;
-	line->y = y;
+    line->str = strdup(string);
+    line->x = x;
+    line->y = y;
 
-	list_add_head(&text_list, &line->node);
+    list_add_head(&text_list, &line->node);
 
-	text_update();
+    text_update();
 }
 
 /**
@@ -76,25 +76,25 @@ void text_draw(int x, int y, const char *string)
  */
 void text_update(void)
 {
-	struct display_info info;
-	if (display_get_info(&info) < 0)
-		return;
+    struct display_framebuffer fb;
+    if (display_get_framebuffer(&fb) < 0)
+        return;
 
-	/* get the display's surface */
-	gfx_surface *surface = gfx_create_surface_from_display(&info);
+    /* get the display's surface */
+    gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
-	struct text_line *line;
-	list_for_every_entry(&text_list, line, struct text_line, node) {
-		const char *c;
-		int x = line->x;
-		for (c = line->str; *c; c++) {
-			font_draw_char(surface, *c, x, line->y, TEXT_COLOR);
-			x += FONT_X;
-		}
-	}
+    struct text_line *line;
+    list_for_every_entry(&text_list, line, struct text_line, node) {
+        const char *c;
+        int x = line->x;
+        for (c = line->str; *c; c++) {
+            font_draw_char(surface, *c, x, line->y, TEXT_COLOR);
+            x += FONT_X;
+        }
+    }
 
-	gfx_flush(surface);
+    gfx_flush(surface);
 
-	gfx_surface_destroy(surface);
+    gfx_surface_destroy(surface);
 }
 

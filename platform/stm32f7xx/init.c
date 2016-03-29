@@ -203,7 +203,7 @@ static void mpu_init(void)
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
     MPU_InitStruct.BaseAddress = SDRAM_BASE;
 
-    MPU_InitStruct.Size = 
+    MPU_InitStruct.Size =
 #if   SDRAM_SIZE == 0x00100000
         MPU_REGION_SIZE_1MB;
 #elif SDRAM_SIZE == 0x00200000
@@ -281,6 +281,7 @@ void platform_early_init(void)
     stm32_gpio_early_init();
     stm32_flash_early_init();
     stm32_rng_init();
+    stm32_usbc_early_init();
 
     /* clear the reboot reason */
     RCC->CSR |= (1<<24);
@@ -309,5 +310,7 @@ void platform_init(void)
     stm32_timer_init();
 
     stm32_flash_init();
+
+    stm32_usbc_init();
 }
 

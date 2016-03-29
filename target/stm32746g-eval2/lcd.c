@@ -54,7 +54,6 @@
 #include <target.h>
 #include <compiler.h>
 #include <string.h>
-#include <lib/gfx.h>
 #include <dev/gpio.h>
 #include <dev/display.h>
 #include <arch/ops.h>
@@ -389,14 +388,37 @@ uint8_t BSP_LCD_Init(void)
 }
 
 /* LK display api here */
-status_t display_get_info(struct display_info *info)
+status_t display_get_framebuffer(struct display_framebuffer *fb)
 {
-    info->framebuffer = (void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress;
+    fb->image.pixels = (void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress;
 
     if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) {
-        info->format = GFX_FORMAT_ARGB_8888;
+        fb->format = DISPLAY_FORMAT_ARGB_8888;
+        fb->image.format = IMAGE_FORMAT_ARGB_8888;
+        fb->image.rowbytes = BSP_LCD_GetXSize() * 4;
     } else if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_RGB565) {
-        info->format = GFX_FORMAT_RGB_565;
+        fb->format = DISPLAY_FORMAT_RGB_565;
+        fb->image.format = IMAGE_FORMAT_RGB_565;
+        fb->image.rowbytes = BSP_LCD_GetXSize() * 2;
+    } else {
+        panic("unhandled pixel format\n");
+        return ERR_NOT_FOUND;
+    }
+
+    fb->image.width = BSP_LCD_GetXSize();
+    fb->image.height = BSP_LCD_GetYSize();
+    fb->image.stride = BSP_LCD_GetXSize();
+    fb->flush = NULL;
+
+    return NO_ERROR;
+}
+
+status_t display_get_info(struct display_info *info)
+{
+    if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) {
+        info->format = DISPLAY_FORMAT_ARGB_8888;
+    } else if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_RGB565) {
+        info->format = DISPLAY_FORMAT_RGB_565;
     } else {
         panic("unhandled pixel format\n");
         return ERR_NOT_FOUND;
@@ -404,9 +426,6 @@ status_t display_get_info(struct display_info *info)
 
     info->width = BSP_LCD_GetXSize();
     info->height = BSP_LCD_GetYSize();
-    info->stride = BSP_LCD_GetXSize();
-    info->flush = NULL;
 
     return NO_ERROR;
 }
-

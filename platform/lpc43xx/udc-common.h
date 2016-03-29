@@ -57,24 +57,24 @@
 typedef struct udc_descriptor udc_descriptor_t;
 
 union setup_packet {
-	struct {
-		uint8_t type;
-		uint8_t request;
-		uint16_t value;
-		uint16_t index;
-		uint16_t length;
-	};
-	struct {
-		uint32_t w0;
-		uint32_t w1;
-	};
+    struct {
+        uint8_t type;
+        uint8_t request;
+        uint16_t value;
+        uint16_t index;
+        uint16_t length;
+    };
+    struct {
+        uint32_t w0;
+        uint32_t w1;
+    };
 } __attribute__ ((packed));
 
 struct udc_descriptor {
-	udc_descriptor_t *next;
-	uint16_t tag; /* ((TYPE << 8) | NUM) */
-	uint16_t len; /* total length */
-	uint8_t data[4];
+    udc_descriptor_t *next;
+    uint16_t tag; /* ((TYPE << 8) | NUM) */
+    uint16_t len; /* total length */
+    uint8_t data[4];
 };
 
 // driver calls this to build descriptors from device and gadgets

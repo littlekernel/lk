@@ -1,6 +1,4 @@
 MODULES += \
-	app/shell \
-	app/tests \
-	lib/debugcommands
 
-include project/stellaris-launchpad.mk
+include project/virtual/test.mk
+include project/target/stellaris-launchpad.mk

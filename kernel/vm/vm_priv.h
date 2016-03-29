@@ -31,8 +31,6 @@ void *boot_alloc_mem(size_t len) __MALLOC;
 extern uintptr_t boot_alloc_start;
 extern uintptr_t boot_alloc_end;
 
-paddr_t page_to_address(const vm_page_t *page);
-vm_page_t *address_to_page(paddr_t addr);
-
+void vmm_init_preheap(void);
 void vmm_init(void);
 

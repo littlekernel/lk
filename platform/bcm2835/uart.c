@@ -58,7 +58,8 @@ static inline uintptr_t uart_to_ptr(unsigned int n)
 {
     switch (n) {
         default:
-        case 0: return UART0_BASE;
+        case 0:
+            return UART0_BASE;
     }
 }
 

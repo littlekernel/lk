@@ -91,6 +91,9 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
 {
     LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
     arm64_fpu_pre_context_switch(oldthread);
+#if WITH_SMP
+    DSB; /* broadcast tlb operations in case the thread moves to another cpu */
+#endif
     arm64_context_switch(&oldthread->arch.sp, newthread->arch.sp);
 }
 

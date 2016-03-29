@@ -29,6 +29,7 @@
 #include <lk/init.h>
 #include <lib/console.h>
 #include <arch/mmu.h>
+#include <kernel/thread.h>
 #include <debug.h>
 
 #define LOCAL_TRACE 0
@@ -55,7 +56,7 @@ static void mark_pages_in_use(vaddr_t va, size_t len)
         uint flags;
         paddr_t pa;
 
-        status_t err = arch_mmu_query(va + offset, &pa, &flags);
+        status_t err = arch_mmu_query(&vmm_get_kernel_aspace()->arch_aspace, va + offset, &pa, &flags);
         if (err >= 0) {
             //LTRACEF("va 0x%x, pa 0x%x, flags 0x%x, err %d\n", va + offset, pa, flags, err);
 
@@ -70,6 +71,9 @@ static void mark_pages_in_use(vaddr_t va, size_t len)
 static void vm_init_preheap(uint level)
 {
     LTRACE_ENTRY;
+
+    /* allow the vmm a shot at initializing some of its data structures */
+    vmm_init_preheap();
 
     /* mark all of the kernel pages in use */
     LTRACEF("marking all kernel pages as used\n");
@@ -100,14 +104,20 @@ static void vm_init_postheap(uint level)
     }
 }
 
+void *kvaddr_get_range(size_t* size_return)
+{
+    *size_return = mmu_initial_mappings->size;
+    return (void*)mmu_initial_mappings->virt;
+}
+
 void *paddr_to_kvaddr(paddr_t pa)
 {
     /* slow path to do reverse lookup */
     struct mmu_initial_mapping *map = mmu_initial_mappings;
     while (map->size > 0) {
         if (!(map->flags & MMU_INITIAL_MAPPING_TEMPORARY) &&
-            pa >= map->phys &&
-            pa <= map->phys + map->size - 1) {
+                pa >= map->phys &&
+                pa <= map->phys + map->size - 1) {
             return (void *)(map->virt + (pa - map->phys));
         }
         map++;
@@ -115,15 +125,29 @@ void *paddr_to_kvaddr(paddr_t pa)
     return NULL;
 }
 
-paddr_t kvaddr_to_paddr(void *ptr)
+paddr_t vaddr_to_paddr(void *ptr)
 {
-    status_t rc;
-    paddr_t  pa;
+    vmm_aspace_t *aspace = vaddr_to_aspace(ptr);
+    if (!aspace)
+        return (paddr_t)NULL;
 
-    rc = arch_mmu_query((vaddr_t)ptr, &pa, NULL);
+    paddr_t pa;
+    status_t rc = arch_mmu_query(&aspace->arch_aspace, (vaddr_t)ptr, &pa, NULL);
     if (rc)
-        return (paddr_t) NULL;
+        return (paddr_t)NULL;
+
     return pa;
+}
+
+vmm_aspace_t *vaddr_to_aspace(void *ptr)
+{
+    if (is_kernel_address((vaddr_t)ptr)) {
+        return vmm_get_kernel_aspace();
+    } else if (is_user_address((vaddr_t)ptr)) {
+        return get_current_thread()->aspace;
+    } else {
+        return NULL;
+    }
 }
 
 static int cmd_vm(int argc, const cmd_args *argv)
@@ -143,14 +167,20 @@ usage:
     if (!strcmp(argv[1].str, "phys2virt")) {
         if (argc < 3) goto notenoughargs;
 
-        void *ptr = paddr_to_kvaddr(argv[2].u);
+        void *ptr = paddr_to_kvaddr((paddr_t)argv[2].u);
         printf("paddr_to_kvaddr returns %p\n", ptr);
     } else if (!strcmp(argv[1].str, "virt2phys")) {
         if (argc < 3) goto notenoughargs;
 
+        vmm_aspace_t *aspace = vaddr_to_aspace((void *)argv[2].u);
+        if (!aspace) {
+            printf("ERROR: outside of any address space\n");
+            return -1;
+        }
+
         paddr_t pa;
         uint flags;
-        status_t err = arch_mmu_query(argv[2].u, &pa, &flags);
+        status_t err = arch_mmu_query(&aspace->arch_aspace, argv[2].u, &pa, &flags);
         printf("arch_mmu_query returns %d\n", err);
         if (err >= 0) {
             printf("\tpa 0x%lx, flags 0x%x\n", pa, flags);
@@ -158,12 +188,24 @@ usage:
     } else if (!strcmp(argv[1].str, "map")) {
         if (argc < 6) goto notenoughargs;
 
-        int err = arch_mmu_map(argv[3].u, argv[2].u, argv[4].u, argv[5].u);
+        vmm_aspace_t *aspace = vaddr_to_aspace((void *)argv[2].u);
+        if (!aspace) {
+            printf("ERROR: outside of any address space\n");
+            return -1;
+        }
+
+        int err = arch_mmu_map(&aspace->arch_aspace, argv[3].u, argv[2].u, argv[4].u, argv[5].u);
         printf("arch_mmu_map returns %d\n", err);
     } else if (!strcmp(argv[1].str, "unmap")) {
         if (argc < 4) goto notenoughargs;
 
-        int err = arch_mmu_unmap(argv[2].u, argv[3].u);
+        vmm_aspace_t *aspace = vaddr_to_aspace((void *)argv[2].u);
+        if (!aspace) {
+            printf("ERROR: outside of any address space\n");
+            return -1;
+        }
+
+        int err = arch_mmu_unmap(&aspace->arch_aspace, argv[2].u, argv[3].u);
         printf("arch_mmu_unmap returns %d\n", err);
     } else {
         printf("unknown command\n");

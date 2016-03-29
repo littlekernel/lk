@@ -69,7 +69,7 @@ bool run_all_tests(void)
         struct test_case_element *failed = failed_test_case_list;
         while (failed) {
             struct test_case_element *failed_next =
-                failed->failed_next;
+                        failed->failed_next;
             failed->failed_next = NULL;
             failed = failed_next;
             n_failed++;
@@ -80,7 +80,7 @@ bool run_all_tests(void)
 
     unittest_printf("\n====================================================\n");
     unittest_printf  ("    CASES:  %d     SUCCESS:  %d     FAILED:  %d   ",
-                    n_tests, n_success, n_failed);
+                      n_tests, n_success, n_failed);
     unittest_printf("\n====================================================\n");
 
     return all_success;

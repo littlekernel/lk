@@ -123,7 +123,8 @@ static void debug_rx_handler(pktbuf_t *p)
     putchar('\n');
 }
 
-static int free_completed_pbuf_frames(void) {
+static int free_completed_pbuf_frames(void)
+{
     int ret = 0;
 
     gem.regs->tx_status = gem.regs->tx_status;
@@ -146,7 +147,8 @@ static int free_completed_pbuf_frames(void) {
     return ret;
 }
 
-void queue_pkts_in_tx_tbl(void) {
+void queue_pkts_in_tx_tbl(void)
+{
     pktbuf_t *p;
     unsigned int cur_pos;
 
@@ -211,7 +213,8 @@ err:
 }
 
 
-enum handler_return gem_int_handler(void *arg) {
+enum handler_return gem_int_handler(void *arg)
+{
     uint32_t intr_status;
     bool resched = false;
 
@@ -287,7 +290,8 @@ static bool wait_for_phy_idle(void)
     return true;
 }
 
-static bool gem_phy_init(void) {
+static bool gem_phy_init(void)
+{
     return wait_for_phy_idle();
 }
 
@@ -298,8 +302,8 @@ static status_t gem_cfg_buffer_descs(void)
 
 
     if ((ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_rx_bufs",
-            GEM_RX_DESC_CNT * GEM_RX_BUF_SIZE,  (void **) &rx_buf_vaddr, 0, 0,
-            ARCH_MMU_FLAG_CACHED)) < 0) {
+                                    GEM_RX_DESC_CNT * GEM_RX_BUF_SIZE,  (void **) &rx_buf_vaddr, 0, 0,
+                                    ARCH_MMU_FLAG_CACHED)) < 0) {
         return ret;
     }
 
@@ -353,7 +357,7 @@ static void gem_cfg_ints(void)
 
     /* Enable all interrupts */
     gem.regs->intr_en = INTR_RX_COMPLETE | INTR_TX_COMPLETE | INTR_HRESP_NOT_OK | INTR_MGMT_SENT |
-                    INTR_RX_USED_READ | INTR_TX_CORRUPT | INTR_TX_USED_READ | INTR_RX_OVERRUN;
+                        INTR_RX_USED_READ | INTR_TX_CORRUPT | INTR_TX_USED_READ | INTR_RX_OVERRUN;
 }
 
 int gem_rx_thread(void *arg)
@@ -407,7 +411,8 @@ int gem_rx_thread(void *arg)
 }
 
 
-int gem_stat_thread(void *arg) {
+int gem_stat_thread(void *arg)
+{
     volatile bool *run = ((bool *)arg);
     static uint32_t frames_rx = 0, frames_tx = 0;
 
@@ -415,7 +420,7 @@ int gem_stat_thread(void *arg) {
         frames_tx += gem.regs->frames_tx;
         frames_rx += gem.regs->frames_rx;
         printf("GEM tx_head %u, tx_tail %u, tx_count %u, tx_frames %u, rx_frames %u\n",
-                gem.tx_head, gem.tx_tail, gem.tx_count, frames_tx, frames_rx);
+               gem.tx_head, gem.tx_tail, gem.tx_count, frames_tx, frames_rx);
         thread_sleep(1000);
     }
 
@@ -466,10 +471,10 @@ status_t gem_init(uintptr_t gem_base)
 
     /* allocate a block of uncached contiguous memory for the peripheral descriptors */
     if ((ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_desc",
-            sizeof(*gem.descs), &descs_vaddr, 0, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE)) < 0) {
+                                    sizeof(*gem.descs), &descs_vaddr, 0, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE)) < 0) {
         return ret;
     }
-    descs_paddr = kvaddr_to_paddr((void *)descs_vaddr);
+    descs_paddr = vaddr_to_paddr((void *)descs_vaddr);
 
     /* tx/rx descriptor tables and memory mapped registers */
     gem.descs = (void *)descs_vaddr;
@@ -538,7 +543,8 @@ void gem_set_callback(gem_cb_t rx)
     gem.rx_callback = rx;
 }
 
-void gem_set_macaddr(uint8_t mac[6]) {
+void gem_set_macaddr(uint8_t mac[6])
+{
     uint32_t en = gem.regs->net_ctrl &= NET_CTRL_RX_EN | NET_CTRL_TX_EN;
 
     if (en) {
@@ -589,8 +595,8 @@ static int cmd_gem(int argc, const cmd_args *argv)
         uint32_t mac_top = gem.regs->spec_addr1_top;
         uint32_t mac_bot = gem.regs->spec_addr1_bot;
         printf("mac addr: %02x:%02x:%02x:%02x:%02x:%02x\n",
-            mac_top >> 8, mac_top & 0xFF, mac_bot >> 24, (mac_bot >> 16) & 0xFF,
-            (mac_bot >> 8) & 0xFF, mac_bot & 0xFF);
+               mac_top >> 8, mac_top & 0xFF, mac_bot >> 24, (mac_bot >> 16) & 0xFF,
+               (mac_bot >> 8) & 0xFF, mac_bot & 0xFF);
         uint32_t rx_used = 0, tx_used = 0;
         for (int i = 0; i < GEM_RX_DESC_CNT; i++) {
             rx_used += !!(gem.descs->rx_tbl[i].addr & RX_DESC_USED);
@@ -603,28 +609,28 @@ static int cmd_gem(int argc, const cmd_args *argv)
         frames_tx += gem.regs->frames_tx;
         frames_rx += gem.regs->frames_rx;
         printf("rx usage: %u/%u, tx usage %u/%u\n",
-            rx_used, GEM_RX_DESC_CNT, tx_used, GEM_TX_DESC_CNT);
+               rx_used, GEM_RX_DESC_CNT, tx_used, GEM_TX_DESC_CNT);
         printf("frames rx: %u, frames tx: %u\n",
-            frames_rx, frames_tx);
+               frames_rx, frames_tx);
         printf("tx:\n");
-            for (size_t i = 0; i < GEM_TX_DESC_CNT; i++) {
-                uint32_t ctrl = gem.descs->tx_tbl[i].ctrl;
-                uint32_t addr = gem.descs->tx_tbl[i].addr;
+        for (size_t i = 0; i < GEM_TX_DESC_CNT; i++) {
+            uint32_t ctrl = gem.descs->tx_tbl[i].ctrl;
+            uint32_t addr = gem.descs->tx_tbl[i].addr;
 
-                printf("%3zu 0x%08X 0x%08X: len %u, %s%s%s %s%s\n",
-                    i, addr, ctrl, TX_BUF_LEN(ctrl),
-                    (ctrl & TX_DESC_USED) ? "driver " : "controller ",
-                    (ctrl & TX_DESC_WRAP) ? "wrap " : "",
-                    (ctrl & TX_LAST_BUF) ? "eof " : "",
-                    (i == gem.tx_head) ? "<-- HEAD " : "",
-                    (i == gem.tx_tail) ? "<-- TAIL " : "");
-            }
+            printf("%3zu 0x%08X 0x%08X: len %u, %s%s%s %s%s\n",
+                   i, addr, ctrl, TX_BUF_LEN(ctrl),
+                   (ctrl & TX_DESC_USED) ? "driver " : "controller ",
+                   (ctrl & TX_DESC_WRAP) ? "wrap " : "",
+                   (ctrl & TX_LAST_BUF) ? "eof " : "",
+                   (i == gem.tx_head) ? "<-- HEAD " : "",
+                   (i == gem.tx_tail) ? "<-- TAIL " : "");
+        }
 
     } else if (strncmp(argv[1].str, "stats", sizeof("stats")) == 0) {
         run_stats = !run_stats;
         if (run_stats) {
             stat_thread = thread_create("gem_stat",
-                    gem_stat_thread, &run_stats, LOW_PRIORITY, DEFAULT_STACK_SIZE);
+                                        gem_stat_thread, &run_stats, LOW_PRIORITY, DEFAULT_STACK_SIZE);
             thread_resume(stat_thread);
         }
     } else if (argv[1].str[0] == 'd') {

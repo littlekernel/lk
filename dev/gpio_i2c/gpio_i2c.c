@@ -1,4 +1,3 @@
-/* vim: set expandtab ts=4 sw=4 tw=100: */
 /*
  * Copyright (c) 2013 Google Inc.
  *
@@ -38,7 +37,7 @@
 
 typedef struct gpio_i2c_state {
     mutex_t                 lock;
-    const gpio_i2c_info_t*  info;
+    const gpio_i2c_info_t  *info;
 } gpio_i2c_state_t;
 
 static gpio_i2c_state_t gpio_i2c_states[GPIO_I2C_BUS_COUNT];
@@ -48,7 +47,7 @@ static gpio_i2c_state_t gpio_i2c_states[GPIO_I2C_BUS_COUNT];
  * Internal implementation.
  *
  ******************************************************************************/
-static inline void send_start(const gpio_i2c_info_t* i)
+static inline void send_start(const gpio_i2c_info_t *i)
 {
     gpio_config(i->sda, GPIO_OUTPUT);
     spin_cycles(i->qcd);
@@ -56,7 +55,7 @@ static inline void send_start(const gpio_i2c_info_t* i)
     spin_cycles(i->hcd);
 }
 
-static inline void send_stop(const gpio_i2c_info_t* i)
+static inline void send_stop(const gpio_i2c_info_t *i)
 {
     gpio_config(i->sda, GPIO_OUTPUT);
     gpio_config(i->scl, GPIO_INPUT);
@@ -64,14 +63,14 @@ static inline void send_stop(const gpio_i2c_info_t* i)
     gpio_config(i->sda, GPIO_INPUT);
 }
 
-static inline void send_restart(const gpio_i2c_info_t* i)
+static inline void send_restart(const gpio_i2c_info_t *i)
 {
     gpio_config(i->scl, GPIO_INPUT);
     spin_cycles(i->qcd);
     send_start(i);
 }
 
-static inline void send_nack(const gpio_i2c_info_t* i)
+static inline void send_nack(const gpio_i2c_info_t *i)
 {
     spin_cycles(i->hcd);
     gpio_config(i->scl, GPIO_INPUT);
@@ -80,13 +79,13 @@ static inline void send_nack(const gpio_i2c_info_t* i)
     gpio_config(i->sda, GPIO_INPUT);
 }
 
-static inline void send_ack(const gpio_i2c_info_t* i)
+static inline void send_ack(const gpio_i2c_info_t *i)
 {
     gpio_config(i->sda, GPIO_OUTPUT);
     send_nack(i);
 }
 
-static inline bool send_byte(const gpio_i2c_info_t* i, uint32_t b)
+static inline bool send_byte(const gpio_i2c_info_t *i, uint32_t b)
 {
     bool ret;
 
@@ -119,7 +118,7 @@ static inline bool send_byte(const gpio_i2c_info_t* i, uint32_t b)
     return ret;
 }
 
-static inline void recv_byte(const gpio_i2c_info_t* i, uint8_t* b)
+static inline void recv_byte(const gpio_i2c_info_t *i, uint8_t *b)
 {
     uint32_t tmp = 0;
 
@@ -142,13 +141,13 @@ static inline void recv_byte(const gpio_i2c_info_t* i, uint8_t* b)
     *b = (uint8_t)tmp;
 }
 
-static status_t gpio_i2c_tx_common(gpio_i2c_state_t* s,
+static status_t gpio_i2c_tx_common(gpio_i2c_state_t *s,
                                    uint8_t address,
-                                   const uint8_t* reg,
-                                   const void* buf,
+                                   const uint8_t *reg,
+                                   const void *buf,
                                    size_t cnt)
 {
-    const gpio_i2c_info_t* i = s->info;
+    const gpio_i2c_info_t *i = s->info;
     status_t ret = ERR_I2C_NACK;
 
     DEBUG_ASSERT(buf || !cnt);
@@ -162,7 +161,7 @@ static status_t gpio_i2c_tx_common(gpio_i2c_state_t* s,
         goto finished;
 
     for (size_t j = 0; j < cnt; ++j)
-        if (!send_byte(i, ((const uint8_t*)buf)[j]))
+        if (!send_byte(i, ((const uint8_t *)buf)[j]))
             goto finished;
 
     ret = NO_ERROR;
@@ -173,13 +172,13 @@ finished:
     return ret;
 }
 
-static status_t gpio_i2c_rx_common(gpio_i2c_state_t* s,
+static status_t gpio_i2c_rx_common(gpio_i2c_state_t *s,
                                    uint8_t address,
-                                   const uint8_t* reg,
-                                   void* buf,
+                                   const uint8_t *reg,
+                                   void *buf,
                                    size_t cnt)
 {
-    const gpio_i2c_info_t* i = s->info;
+    const gpio_i2c_info_t *i = s->info;
     status_t ret = ERR_I2C_NACK;
 
     DEBUG_ASSERT(buf && cnt);
@@ -215,9 +214,9 @@ finished:
     return ret;
 }
 
-void gpio_i2c_add_bus(uint32_t bus_id, const gpio_i2c_info_t* info)
+void gpio_i2c_add_bus(uint32_t bus_id, const gpio_i2c_info_t *info)
 {
-    gpio_i2c_state_t* s = gpio_i2c_states + bus_id;
+    gpio_i2c_state_t *s = gpio_i2c_states + bus_id;
 
     DEBUG_ASSERT(info);
     DEBUG_ASSERT(bus_id < GPIO_I2C_BUS_COUNT);
@@ -240,36 +239,36 @@ void gpio_i2c_add_bus(uint32_t bus_id, const gpio_i2c_info_t* info)
 void gpio_i2c_init_early(void) { }
 void gpio_i2c_init(void) { }
 
-status_t gpio_i2c_transmit(int bus, uint8_t address, const void* buf, size_t cnt)
+status_t gpio_i2c_transmit(int bus, uint8_t address, const void *buf, size_t cnt)
 {
-    gpio_i2c_state_t* s = gpio_i2c_states + bus;
+    gpio_i2c_state_t *s = gpio_i2c_states + bus;
     if (((unsigned)bus >= countof(gpio_i2c_states)) || !s->info)
         return ERR_NOT_FOUND;
 
     return gpio_i2c_tx_common(s, address, NULL, buf, cnt);
 }
 
-status_t gpio_i2c_receive(int bus, uint8_t address, void* buf, size_t cnt)
+status_t gpio_i2c_receive(int bus, uint8_t address, void *buf, size_t cnt)
 {
-    gpio_i2c_state_t* s = gpio_i2c_states + bus;
+    gpio_i2c_state_t *s = gpio_i2c_states + bus;
     if (((unsigned)bus >= countof(gpio_i2c_states)) || !s->info)
         return ERR_NOT_FOUND;
 
     return gpio_i2c_rx_common(s, address, NULL, buf, cnt);
 }
 
-status_t gpio_i2c_write_reg_bytes(int bus, uint8_t address, uint8_t reg, const uint8_t* buf, size_t cnt)
+status_t gpio_i2c_write_reg_bytes(int bus, uint8_t address, uint8_t reg, const uint8_t *buf, size_t cnt)
 {
-    gpio_i2c_state_t* s = gpio_i2c_states + bus;
+    gpio_i2c_state_t *s = gpio_i2c_states + bus;
     if (((unsigned)bus >= countof(gpio_i2c_states)) || !s->info)
         return ERR_NOT_FOUND;
 
     return gpio_i2c_tx_common(s, address, &reg, buf, cnt);
 }
 
-status_t gpio_i2c_read_reg_bytes(int bus, uint8_t address, uint8_t reg, uint8_t* buf, size_t cnt)
+status_t gpio_i2c_read_reg_bytes(int bus, uint8_t address, uint8_t reg, uint8_t *buf, size_t cnt)
 {
-    gpio_i2c_state_t* s = gpio_i2c_states + bus;
+    gpio_i2c_state_t *s = gpio_i2c_states + bus;
     if (((unsigned)bus >= countof(gpio_i2c_states)) || !s->info) {
         return ERR_NOT_FOUND;
     }
@@ -279,9 +278,9 @@ status_t gpio_i2c_read_reg_bytes(int bus, uint8_t address, uint8_t reg, uint8_t*
 
 void i2c_init_early(void) __WEAK_ALIAS("gpio_i2c_init_early");
 void i2c_init(void) __WEAK_ALIAS("gpio_i2c_init");
-status_t i2c_transmit(int, uint8_t, const void*, size_t) __WEAK_ALIAS("gpio_i2c_transmit");
-status_t i2c_receive(int, uint8_t, void*, size_t) __WEAK_ALIAS("gpio_i2c_receive");
+status_t i2c_transmit(int, uint8_t, const void *, size_t) __WEAK_ALIAS("gpio_i2c_transmit");
+status_t i2c_receive(int, uint8_t, void *, size_t) __WEAK_ALIAS("gpio_i2c_receive");
 status_t i2c_write_reg_bytes(int, uint8_t, uint8_t,
-                             const uint8_t*, size_t) __WEAK_ALIAS("gpio_i2c_write_reg_bytes");
+                             const uint8_t *, size_t) __WEAK_ALIAS("gpio_i2c_write_reg_bytes");
 status_t i2c_read_reg_bytes(int, uint8_t, uint8_t,
-                            uint8_t*, size_t) __WEAK_ALIAS("gpio_i2c_read_reg_bytes");
+                            uint8_t *, size_t) __WEAK_ALIAS("gpio_i2c_read_reg_bytes");

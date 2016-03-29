@@ -1,0 +1,24 @@
+
+Notes on the STM32F4 Discovery Board
+------------------------------------
+
+http://www.st.com/web/catalog/tools/FM116/SC959/SS1532/PF252419
+http://www.digikey.com/product-detail/en/STM32F4DISCOVERY/497-11455-ND/2711743
+
+
+LK Debug/Console UART
+---------------------
+- USART2 is used
+- TX is A2
+- RX is A3
+- both are on the P1 header near the top
+
+
+Using external SWD debug
+------------------------
+- Remove jumpers from CN3 4-pin header (near mini-usb connector)
+- CN3 pin2 is SWCLK
+- CN2 pin4 is SWDIO
+- GND is available on P2, nearby
+
+

@@ -216,7 +216,6 @@ void arm_data_abort_handler(struct arm_fault_frame *frame)
         case 0b01000: // synchronous external abort
             dprintf(CRITICAL, "synchronous external abort on %s\n", write ? "write" : "read");
             break;
-            break;
         case 0b10110: // asynchronous external abort
             dprintf(CRITICAL, "asynchronous external abort on %s\n", write ? "write" : "read");
             break;
@@ -274,7 +273,6 @@ void arm_prefetch_abort_handler(struct arm_fault_frame *frame)
             break;
         case 0b01000: // synchronous external abort
             dprintf(CRITICAL, "synchronous external abort\n");
-            break;
             break;
         case 0b10110: // asynchronous external abort
             dprintf(CRITICAL, "asynchronous external abort\n");

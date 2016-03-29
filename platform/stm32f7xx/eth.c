@@ -78,6 +78,8 @@
 #define LAN8742A_PHY_ADDRESS            0x00
 /* DP83848 PHY Address*/
 #define DP83848_PHY_ADDRESS             0x01
+/* KSZ8721 PHY Address*/
+#define KSZ8721_PHY_ADDRESS             0x01
 
 struct eth_status {
     ETH_HandleTypeDef EthHandle;
@@ -116,13 +118,26 @@ status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
     eth.EthHandle.Init.AutoNegotiation = ETH_AUTONEGOTIATION_ENABLE;
     eth.EthHandle.Init.Speed = ETH_SPEED_100M;
     eth.EthHandle.Init.DuplexMode = ETH_MODE_FULLDUPLEX;
-    eth.EthHandle.Init.MediaInterface =
-        eth_phy == PHY_DP83848 ? ETH_MEDIA_INTERFACE_MII : ETH_MEDIA_INTERFACE_RMII;
+    switch (eth_phy) {
+        case PHY_DP83848:
+            eth.EthHandle.Init.MediaInterface = ETH_MEDIA_INTERFACE_MII;
+            eth.EthHandle.Init.PhyAddress = DP83848_PHY_ADDRESS;
+            break;
+        case PHY_LAN8742A:
+            eth.EthHandle.Init.MediaInterface = ETH_MEDIA_INTERFACE_RMII;
+            eth.EthHandle.Init.PhyAddress = LAN8742A_PHY_ADDRESS;
+            break;
+        case PHY_KSZ8721:
+            eth.EthHandle.Init.MediaInterface = ETH_MEDIA_INTERFACE_RMII;
+            eth.EthHandle.Init.PhyAddress = KSZ8721_PHY_ADDRESS;
+            break;
+        default:
+            return ERR_NOT_CONFIGURED;
+    }
+
     eth.EthHandle.Init.RxMode = ETH_RXINTERRUPT_MODE;
     //eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE; // XXX icmp checksums corrupted if stack stuff valid checksum
     eth.EthHandle.Init.ChecksumMode = ETH_CHECKSUM_BY_SOFTWARE;
-    eth.EthHandle.Init.PhyAddress =
-        eth_phy == PHY_DP83848 ? DP83848_PHY_ADDRESS : LAN8742A_PHY_ADDRESS;
 
     /* configure ethernet peripheral (GPIOs, clocks, MAC, DMA) */
     if (HAL_ETH_Init(&eth.EthHandle) != HAL_OK)
@@ -288,7 +303,7 @@ static int eth_rx_worker(void *arg)
                 pktbuf_t *p = pktbuf_alloc_empty();
                 if (p) {
                     pktbuf_add_buffer(p, (void *)eth.EthHandle.RxFrameInfos.buffer, eth.EthHandle.RxFrameInfos.length,
-                            0, 0, NULL, NULL);
+                                      0, 0, NULL, NULL);
                     p->dlen = eth.EthHandle.RxFrameInfos.length;
 
                     minip_rx_driver_callback(p);

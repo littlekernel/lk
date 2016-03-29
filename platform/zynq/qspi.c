@@ -95,289 +95,286 @@
 
 int qspi_set_speed(struct qspi_ctxt *qspi, uint32_t khz)
 {
-	uint32_t n;
+    uint32_t n;
 
-	if (khz >= 100000) {
-		n = CFG_BAUD_DIV_2;
-		khz = 100000;
-	} else if (khz >= 50000) {
-		n = CFG_BAUD_DIV_4;
-		khz = 50000;
-	} else if (khz >= 25000) {
-		n = CFG_BAUD_DIV_8;
-		khz = 25000;
-	} else {
-		return -1;
-	}
+    if (khz >= 100000) {
+        n = CFG_BAUD_DIV_2;
+        khz = 100000;
+    } else if (khz >= 50000) {
+        n = CFG_BAUD_DIV_4;
+        khz = 50000;
+    } else if (khz >= 25000) {
+        n = CFG_BAUD_DIV_8;
+        khz = 25000;
+    } else {
+        return -1;
+    }
 
-	if (khz == qspi->khz)
-		return 0;
+    if (khz == qspi->khz)
+        return 0;
 
-	qspi->khz = khz;
+    qspi->khz = khz;
 
-	writel(0, QSPI_ENABLE);
-	if (n == CFG_BAUD_DIV_2) {
-		writel(0x20, QSPI_LPBK_DLY_ADJ);
-	} else {
-		writel(0, QSPI_LPBK_DLY_ADJ);
-	}
+    writel(0, QSPI_ENABLE);
+    if (n == CFG_BAUD_DIV_2) {
+        writel(0x20, QSPI_LPBK_DLY_ADJ);
+    } else {
+        writel(0, QSPI_LPBK_DLY_ADJ);
+    }
 
-	qspi->cfg &= ~CFG_BAUD_MASK;
-	qspi->cfg |= n;
+    qspi->cfg &= ~CFG_BAUD_MASK;
+    qspi->cfg |= n;
 
-	writel(qspi->cfg, QSPI_CONFIG);
-	writel(1, QSPI_ENABLE);
+    writel(qspi->cfg, QSPI_CONFIG);
+    writel(1, QSPI_ENABLE);
 
-	return 0;
+    return 0;
 }
 
 int qspi_init(struct qspi_ctxt *qspi, uint32_t khz)
 {
-	writel(0, QSPI_ENABLE);
-	writel(0, QSPI_LINEAR_CONFIG);
+    writel(0, QSPI_ENABLE);
+    writel(0, QSPI_LINEAR_CONFIG);
 
-	// flush rx fifo
-	while (readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)
-		readl(QSPI_RXDATA);
+    // flush rx fifo
+    while (readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)
+        readl(QSPI_RXDATA);
 
-	qspi->cfg = (readl(QSPI_CONFIG) & CFG_NO_MODIFY_MASK) |
-	            CFG_IFMODE |
-	            CFG_HOLDB_DR |
-	            CFG_FIFO_WIDTH_32 |
-	            CFG_CPHA | CFG_CPOL |
-	            CFG_MASTER_MODE |
-	            CFG_BAUD_DIV_2 |
-	            CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS;
+    qspi->cfg = (readl(QSPI_CONFIG) & CFG_NO_MODIFY_MASK) |
+                CFG_IFMODE |
+                CFG_HOLDB_DR |
+                CFG_FIFO_WIDTH_32 |
+                CFG_CPHA | CFG_CPOL |
+                CFG_MASTER_MODE |
+                CFG_BAUD_DIV_2 |
+                CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS;
 
-	writel(qspi->cfg, QSPI_CONFIG);
-	qspi->khz = 100000;
-	qspi->linear_mode = false;
+    writel(qspi->cfg, QSPI_CONFIG);
+    qspi->khz = 100000;
+    qspi->linear_mode = false;
 
-	writel(1, QSPI_ENABLE);
+    writel(1, QSPI_ENABLE);
 
-	// clear sticky irqs
-	writel(TX_UNDERFLOW | RX_OVERFLOW, QSPI_IRQ_STATUS);
+    // clear sticky irqs
+    writel(TX_UNDERFLOW | RX_OVERFLOW, QSPI_IRQ_STATUS);
 
-	return 0;
+    return 0;
 }
 
 int qspi_enable_linear(struct qspi_ctxt *qspi)
 {
-	if (qspi->linear_mode)
-		return 0;
+    if (qspi->linear_mode)
+        return 0;
 
-	/* disable the controller */
-	writel(0, QSPI_ENABLE);
-	writel(0, QSPI_LINEAR_CONFIG);
+    /* disable the controller */
+    writel(0, QSPI_ENABLE);
+    writel(0, QSPI_LINEAR_CONFIG);
 
-	/* put the controller in auto chip select mode and assert chip select */
-	qspi->cfg &= ~(CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS);
-	writel(qspi->cfg, QSPI_CONFIG);
+    /* put the controller in auto chip select mode and assert chip select */
+    qspi->cfg &= ~(CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS);
+    writel(qspi->cfg, QSPI_CONFIG);
 
 #if 1
-	// uses Quad I/O mode
-	// should be 0x82FF02EB according to xilinx manual for spansion flashes
-	writel(LCFG_ENABLE |
-			LCFG_MODE_EN |
-			LCFG_MODE_BITS(0xff) |
-			LCFG_DUMMY_BYTES(2) |
-			LCFG_INST_CODE(0xeb),
-			QSPI_LINEAR_CONFIG);
+    // uses Quad I/O mode
+    // should be 0x82FF02EB according to xilinx manual for spansion flashes
+    writel(LCFG_ENABLE |
+           LCFG_MODE_EN |
+           LCFG_MODE_BITS(0xff) |
+           LCFG_DUMMY_BYTES(2) |
+           LCFG_INST_CODE(0xeb),
+           QSPI_LINEAR_CONFIG);
 #else
-	// uses Quad Output Read mode
-	// should be 0x8000016B according to xilinx manual for spansion flashes
-	writel(LCFG_ENABLE |
-			LCFG_MODE_BITS(0) |
-			LCFG_DUMMY_BYTES(1) |
-			LCFG_INST_CODE(0x6b),
-			QSPI_LINEAR_CONFIG);
+    // uses Quad Output Read mode
+    // should be 0x8000016B according to xilinx manual for spansion flashes
+    writel(LCFG_ENABLE |
+           LCFG_MODE_BITS(0) |
+           LCFG_DUMMY_BYTES(1) |
+           LCFG_INST_CODE(0x6b),
+           QSPI_LINEAR_CONFIG);
 #endif
 
-	/* enable the controller */
-	writel(1, QSPI_ENABLE);
+    /* enable the controller */
+    writel(1, QSPI_ENABLE);
 
-	qspi->linear_mode = true;
+    qspi->linear_mode = true;
 
-	DSB;
+    DSB;
 
-	return 0;
+    return 0;
 }
 
 int qspi_disable_linear(struct qspi_ctxt *qspi)
 {
-	if (!qspi->linear_mode)
-		return 0;
+    if (!qspi->linear_mode)
+        return 0;
 
-	/* disable the controller */
-	writel(0, QSPI_ENABLE);
-	writel(0, QSPI_LINEAR_CONFIG);
+    /* disable the controller */
+    writel(0, QSPI_ENABLE);
+    writel(0, QSPI_LINEAR_CONFIG);
 
-	/* put the controller back into manual chip select mode */
-	qspi->cfg |= (CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS);
-	writel(qspi->cfg, QSPI_CONFIG);
+    /* put the controller back into manual chip select mode */
+    qspi->cfg |= (CFG_MANUAL_START_EN | CFG_MANUAL_CS_EN | CFG_MANUAL_CS);
+    writel(qspi->cfg, QSPI_CONFIG);
 
-	/* enable the controller */
-	writel(1, QSPI_ENABLE);
+    /* enable the controller */
+    writel(1, QSPI_ENABLE);
 
-	qspi->linear_mode = false;
+    qspi->linear_mode = false;
 
-	DSB;
+    DSB;
 
-	return 0;
+    return 0;
 }
 
 void qspi_cs(struct qspi_ctxt *qspi, unsigned int cs)
 {
-	DEBUG_ASSERT(cs <= 1);
+    DEBUG_ASSERT(cs <= 1);
 
-	if (cs == 0)
-		qspi->cfg &= ~(CFG_MANUAL_CS);
-	else
-		qspi->cfg |= CFG_MANUAL_CS;
-	writel(qspi->cfg, QSPI_CONFIG);
+    if (cs == 0)
+        qspi->cfg &= ~(CFG_MANUAL_CS);
+    else
+        qspi->cfg |= CFG_MANUAL_CS;
+    writel(qspi->cfg, QSPI_CONFIG);
 }
 
 static inline void qspi_xmit(struct qspi_ctxt *qspi)
 {
-	// start txn
-	writel(qspi->cfg | CFG_MANUAL_START, QSPI_CONFIG);
+    // start txn
+    writel(qspi->cfg | CFG_MANUAL_START, QSPI_CONFIG);
 
-	// wait for command to transmit and TX fifo to be empty
-	while ((readl(QSPI_IRQ_STATUS) & TX_FIFO_NOT_FULL) == 0) ;
+    // wait for command to transmit and TX fifo to be empty
+    while ((readl(QSPI_IRQ_STATUS) & TX_FIFO_NOT_FULL) == 0) ;
 }
 
 static inline void qspi_flush_rx(void)
 {
-	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
-	readl(QSPI_RXDATA);
+    while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
+    readl(QSPI_RXDATA);
 }
 
 static const uint32_t TXFIFO[] = { QSPI_TXD1, QSPI_TXD2, QSPI_TXD3, QSPI_TXD0, QSPI_TXD0, QSPI_TXD0 };
 
 void qspi_rd(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count)
 {
-	uint32_t sent = 0;
-	uint32_t rcvd = 0;
+    uint32_t sent = 0;
+    uint32_t rcvd = 0;
 
-	DEBUG_ASSERT(qspi);
-	DEBUG_ASSERT(asize < 6);
+    DEBUG_ASSERT(qspi);
+    DEBUG_ASSERT(asize < 6);
 
-	qspi_cs(qspi, 0);
+    qspi_cs(qspi, 0);
 
-	writel(cmd, TXFIFO[asize]);
-	qspi_xmit(qspi);
+    writel(cmd, TXFIFO[asize]);
+    qspi_xmit(qspi);
 
-	if (asize == 4) { // dummy byte
-		writel(0, QSPI_TXD1);
-		qspi_xmit(qspi);
-		qspi_flush_rx();
-	}
+    if (asize == 4) { // dummy byte
+        writel(0, QSPI_TXD1);
+        qspi_xmit(qspi);
+        qspi_flush_rx();
+    }
 
-	qspi_flush_rx();
+    qspi_flush_rx();
 
-	while (rcvd < count) {
-		while (readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY) {
-			*data++ = readl(QSPI_RXDATA);
-			rcvd++;
-		}
-		while ((readl(QSPI_IRQ_STATUS) & TX_FIFO_NOT_FULL) && (sent < count)) {
-			writel(0, QSPI_TXD0);
-			sent++;
-		}
-		qspi_xmit(qspi);
-	}
-	qspi_cs(qspi, 1);
+    while (rcvd < count) {
+        while (readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY) {
+            *data++ = readl(QSPI_RXDATA);
+            rcvd++;
+        }
+        while ((readl(QSPI_IRQ_STATUS) & TX_FIFO_NOT_FULL) && (sent < count)) {
+            writel(0, QSPI_TXD0);
+            sent++;
+        }
+        qspi_xmit(qspi);
+    }
+    qspi_cs(qspi, 1);
 }
 
 void qspi_wr(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count)
 {
-	uint32_t sent = 0;
-	uint32_t rcvd = 0;
+    uint32_t sent = 0;
+    uint32_t rcvd = 0;
 
-	DEBUG_ASSERT(qspi);
-	DEBUG_ASSERT(asize < 6);
+    DEBUG_ASSERT(qspi);
+    DEBUG_ASSERT(asize < 6);
 
-	qspi_cs(qspi, 0);
+    qspi_cs(qspi, 0);
 
-	writel(cmd, TXFIFO[asize]);
-	qspi_xmit(qspi);
+    writel(cmd, TXFIFO[asize]);
+    qspi_xmit(qspi);
 
-	if (asize == 4) { // dummy byte
-		writel(0, QSPI_TXD1);
-		qspi_xmit(qspi);
-		qspi_flush_rx();
-	}
+    if (asize == 4) { // dummy byte
+        writel(0, QSPI_TXD1);
+        qspi_xmit(qspi);
+        qspi_flush_rx();
+    }
 
-	qspi_flush_rx();
+    qspi_flush_rx();
 
-	while (rcvd < count) {
-		while (readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY) {
-			readl(QSPI_RXDATA); // discard
-			rcvd++;
-		}
-		while ((readl(QSPI_IRQ_STATUS) & TX_FIFO_NOT_FULL) && (sent < count)) {
-			writel(*data++, QSPI_TXD0);
-			sent++;
-		}
-		qspi_xmit(qspi);
-	}
+    while (rcvd < count) {
+        while (readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY) {
+            readl(QSPI_RXDATA); // discard
+            rcvd++;
+        }
+        while ((readl(QSPI_IRQ_STATUS) & TX_FIFO_NOT_FULL) && (sent < count)) {
+            writel(*data++, QSPI_TXD0);
+            sent++;
+        }
+        qspi_xmit(qspi);
+    }
 
-	qspi_cs(qspi, 1);
+    qspi_cs(qspi, 1);
 }
 
 void qspi_wr1(struct qspi_ctxt *qspi, uint32_t cmd)
 {
-	DEBUG_ASSERT(qspi);
+    DEBUG_ASSERT(qspi);
 
-	qspi_cs(qspi, 0);
-	writel(cmd, QSPI_TXD1);
-	qspi_xmit(qspi);
+    qspi_cs(qspi, 0);
+    writel(cmd, QSPI_TXD1);
+    qspi_xmit(qspi);
 
-	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
+    while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
 
-	readl(QSPI_RXDATA);
-	qspi_cs(qspi, 1);
+    readl(QSPI_RXDATA);
+    qspi_cs(qspi, 1);
 }
 
 void qspi_wr2(struct qspi_ctxt *qspi, uint32_t cmd)
 {
-	DEBUG_ASSERT(qspi);
+    DEBUG_ASSERT(qspi);
 
-	qspi_cs(qspi, 0);
-	writel(cmd, QSPI_TXD2);
-	qspi_xmit(qspi);
+    qspi_cs(qspi, 0);
+    writel(cmd, QSPI_TXD2);
+    qspi_xmit(qspi);
 
-	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
+    while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
 
-	readl(QSPI_RXDATA);
-	qspi_cs(qspi, 1);
+    readl(QSPI_RXDATA);
+    qspi_cs(qspi, 1);
 }
 
 void qspi_wr3(struct qspi_ctxt *qspi, uint32_t cmd)
 {
-	DEBUG_ASSERT(qspi);
+    DEBUG_ASSERT(qspi);
 
-	qspi_cs(qspi, 0);
-	writel(cmd, QSPI_TXD3);
-	qspi_xmit(qspi);
+    qspi_cs(qspi, 0);
+    writel(cmd, QSPI_TXD3);
+    qspi_xmit(qspi);
 
-	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
+    while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
 
-	readl(QSPI_RXDATA);
-	qspi_cs(qspi, 1);
+    readl(QSPI_RXDATA);
+    qspi_cs(qspi, 1);
 }
 
 uint32_t qspi_rd1(struct qspi_ctxt *qspi, uint32_t cmd)
 {
-	qspi_cs(qspi, 0);
-	writel(cmd, QSPI_TXD2);
-	qspi_xmit(qspi);
+    qspi_cs(qspi, 0);
+    writel(cmd, QSPI_TXD2);
+    qspi_xmit(qspi);
 
-	while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
+    while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
 
-	qspi_cs(qspi, 1);
-	return readl(QSPI_RXDATA);
+    qspi_cs(qspi, 1);
+    return readl(QSPI_RXDATA);
 }
-
-// vim: set ts=4 sw=4 noexpandtab:
-

@@ -267,9 +267,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
                 case 0x8:
                     if (pos > 0) {
                         pos--;
-                        fputc('\b', stdout);
-                        putchar(' ');
-                        fputc('\b', stdout); // move to the left one
+                        fputs("\b \b", stdout); // wipe out a character
                     }
                     break;
 
@@ -301,9 +299,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
                     if (pos > 0) {
                         pos--;
                         if (echo) {
-                            fputc('\b', stdout); // move to the left one
-                            putchar(' ');
-                            fputc('\b', stdout); // move to the left one
+                            fputs("\b \b", stdout); // wipe out a character
                         }
                     }
                     break;
@@ -314,9 +310,7 @@ static int read_debug_line(const char **outbuffer, void *cookie)
                     while (pos > 0) {
                         pos--;
                         if (echo) {
-                            fputc('\b', stdout); // move to the left one
-                            putchar(' ');
-                            fputc('\b', stdout); // move to the left one
+                            fputs("\b \b", stdout); // wipe out a character
                         }
                     }
 
@@ -540,7 +534,7 @@ static void convert_args(int argc, cmd_args *argv)
     for (i = 0; i < argc; i++) {
         unsigned long u = atoul(argv[i].str);
         argv[i].u = u;
-        argv[i].p = (void*)u;
+        argv[i].p = (void *)u;
         argv[i].i = atol(argv[i].str);
 
         if (!strcmp(argv[i].str, "true") || !strcmp(argv[i].str, "on")) {
@@ -806,7 +800,7 @@ static int cmd_echo(int argc, const cmd_args *argv)
     return NO_ERROR;
 }
 
-static void read_line_panic(char* buffer, const size_t len, FILE* panic_fd)
+static void read_line_panic(char *buffer, const size_t len, FILE *panic_fd)
 {
     size_t pos = 0;
 
@@ -825,9 +819,7 @@ static void read_line_panic(char* buffer, const size_t len, FILE* panic_fd)
             case 0x8:
                 if (pos > 0) {
                     pos--;
-                    fputc('\b', stdout);
-                    fputc(' ', panic_fd);
-                    fputc('\b', stdout); // move to the left one
+                    fputs("\b \b", panic_fd); // wipe out a character
                 }
                 break;
             default:
@@ -852,15 +844,16 @@ void panic_shell_start(void)
 
     // panic_fd allows us to do I/O using the polling drivers.
     // These drivers function even if interrupts are disabled.
-    FILE _panic_fd = get_panic_fd();
-    FILE *panic_fd = &_panic_fd;
+    FILE *panic_fd = get_panic_fd();
+    if (!panic_fd)
+        return;
 
     for (;;) {
         fputs("! ", panic_fd);
         read_line_panic(input_buffer, PANIC_LINE_LEN, panic_fd);
 
         int argc;
-        char* tok = strtok(input_buffer, WHITESPACE);
+        char *tok = strtok(input_buffer, WHITESPACE);
         for (argc = 0; argc < MAX_NUM_ARGS; argc++) {
             if (tok == NULL) {
                 break;
@@ -875,7 +868,7 @@ void panic_shell_start(void)
 
         convert_args(argc, args);
 
-        const cmd* command = match_command(args[0].str, CMD_AVAIL_PANIC);
+        const cmd *command = match_command(args[0].str, CMD_AVAIL_PANIC);
         if (!command) {
             fputs("command not found\n", panic_fd);
             continue;

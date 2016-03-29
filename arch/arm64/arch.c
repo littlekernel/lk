@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Travis Geiselbrecht
+ * Copyright (c) 2014-2016 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,6 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <debug.h>
+#include <stdlib.h>
 #include <arch.h>
 #include <arch/ops.h>
 #include <arch/arm64.h>
@@ -93,6 +94,41 @@ void arch_idle(void)
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
     PANIC_UNIMPLEMENTED;
+}
+
+/* switch to user mode, set the user stack pointer to user_stack_top, put the svc stack pointer to the top of the kernel stack */
+void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top)
+{
+    DEBUG_ASSERT(IS_ALIGNED(user_stack_top, 16));
+
+    thread_t *ct = get_current_thread();
+
+    vaddr_t kernel_stack_top = (uintptr_t)ct->stack + ct->stack_size;
+    kernel_stack_top = ROUNDDOWN(kernel_stack_top, 16);
+
+    /* set up a default spsr to get into 64bit user space:
+     * zeroed NZCV
+     * no SS, no IL, no D
+     * all interrupts enabled
+     * mode 0: EL0t
+     */
+    uint32_t spsr = 0;
+
+    arch_disable_ints();
+
+    asm volatile(
+        "mov    sp, %[kstack];"
+        "msr    sp_el0, %[ustack];"
+        "msr    elr_el1, %[entry];"
+        "msr    spsr_el1, %[spsr];"
+        "eret;"
+        :
+        : [ustack]"r"(user_stack_top),
+        [kstack]"r"(kernel_stack_top),
+        [entry]"r"(entry_point),
+        [spsr]"r"(spsr)
+        : "memory");
+    __UNREACHABLE;
 }
 
 #if WITH_SMP

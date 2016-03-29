@@ -28,13 +28,13 @@
 
 /* i2c interface */
 struct i2c_ops {
-	struct driver_ops std;
+    struct driver_ops std;
 
-	status_t (*write)(struct device *dev, uint8_t addr, const void *buf, size_t len);
-	status_t (*read)(struct device *dev, uint8_t addr, void *buf, size_t len);
+    status_t (*write)(struct device *dev, uint8_t addr, const void *buf, size_t len);
+    status_t (*read)(struct device *dev, uint8_t addr, void *buf, size_t len);
 
-	status_t (*write_reg)(struct device *dev, uint8_t addr, uint8_t reg, uint8_t value);
-	status_t (*read_reg)(struct device *dev, uint8_t addr, uint8_t reg, void *value);
+    status_t (*write_reg)(struct device *dev, uint8_t addr, uint8_t reg, uint8_t value);
+    status_t (*read_reg)(struct device *dev, uint8_t addr, uint8_t reg, void *value);
 };
 
 __BEGIN_CDECLS

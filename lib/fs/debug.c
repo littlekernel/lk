@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <platform.h>
+#include <err.h>
 
 static void test_normalize(const char *in)
 {
@@ -38,32 +39,32 @@ static void test_normalize(const char *in)
 }
 
 #if 0
-    test_normalize("/");
-    test_normalize("/test");
-    test_normalize("/test/");
-    test_normalize("test/");
-    test_normalize("test");
-    test_normalize("/test//");
-    test_normalize("/test/foo");
-    test_normalize("/test/foo/");
-    test_normalize("/test/foo/bar");
-    test_normalize("/test/foo/bar//");
-    test_normalize("/test//foo/bar//");
-    test_normalize("/test//./foo/bar//");
-    test_normalize("/test//./.foo/bar//");
-    test_normalize("/test//./..foo/bar//");
-    test_normalize("/test//./../foo/bar//");
-    test_normalize("/test/../foo");
-    test_normalize("/test/bar/../foo");
-    test_normalize("../foo");
-    test_normalize("../foo/");
-    test_normalize("/../foo");
-    test_normalize("/../foo/");
-    test_normalize("/../../foo");
-    test_normalize("/bleh/../../foo");
-    test_normalize("/bleh/bar/../../foo");
-    test_normalize("/bleh/bar/../../foo/..");
-    test_normalize("/bleh/bar/../../foo/../meh");
+test_normalize("/");
+test_normalize("/test");
+test_normalize("/test/");
+test_normalize("test/");
+test_normalize("test");
+test_normalize("/test//");
+test_normalize("/test/foo");
+test_normalize("/test/foo/");
+test_normalize("/test/foo/bar");
+test_normalize("/test/foo/bar//");
+test_normalize("/test//foo/bar//");
+test_normalize("/test//./foo/bar//");
+test_normalize("/test//./.foo/bar//");
+test_normalize("/test//./..foo/bar//");
+test_normalize("/test//./../foo/bar//");
+test_normalize("/test/../foo");
+test_normalize("/test/bar/../foo");
+test_normalize("../foo");
+test_normalize("../foo/");
+test_normalize("/../foo");
+test_normalize("/../foo/");
+test_normalize("/../../foo");
+test_normalize("/bleh/../../foo");
+test_normalize("/bleh/bar/../../foo");
+test_normalize("/bleh/bar/../../foo/..");
+test_normalize("/bleh/bar/../../foo/../meh");
 #endif
 
 #if defined(WITH_LIB_CONSOLE)
@@ -77,6 +78,51 @@ STATIC_COMMAND_END(fs);
 
 extern int fs_mount_type(const char *path, const char *device, const char *name);
 
+static int cmd_fs_ioctl(int argc, const cmd_args *argv)
+{
+    if (argc < 3) {
+        printf("not enough arguments\n");
+        return ERR_INVALID_ARGS;
+    }
+
+    int request = argv[2].u;
+
+    switch (request) {
+        case FS_IOCTL_GET_FILE_ADDR: {
+            if (argc < 4) {
+                printf("%s %s %lu <path>\n", argv[0].str, argv[1].str,
+                       argv[2].u);
+                return ERR_INVALID_ARGS;
+            }
+
+            int err;
+            filehandle *handle;
+            err = fs_open_file(argv[3].str, &handle);
+            if (err != NO_ERROR) {
+                printf("error %d opening file\n", err);
+                return err;
+            }
+
+            void *file_addr;
+            err = fs_file_ioctl(handle, request, &file_addr);
+            if (err != NO_ERROR) {
+                fs_close_file(handle);
+                return err;
+            }
+
+            printf("%s is mapped at %p\n", argv[3].str, file_addr);
+
+            return fs_close_file(handle);
+            break;
+        }
+        default: {
+            printf("error, unsupported ioctl: %d\n", request);
+        }
+    }
+
+    return ERR_NOT_SUPPORTED;
+}
+
 static int cmd_fs(int argc, const cmd_args *argv)
 {
     int rc = 0;
@@ -88,6 +134,9 @@ usage:
         printf("%s mount <path> <type> [device]\n", argv[0].str);
         printf("%s unmount <path>\n", argv[0].str);
         printf("%s write <path> <string> [<offset>]\n", argv[0].str);
+        printf("%s format <type> [device]\n", argv[0].str);
+        printf("%s stat <path>\n", argv[0].str);
+        printf("%s ioctl <request> [args...]\n", argv[0].str);
         return -1;
     }
 
@@ -98,7 +147,7 @@ usage:
             goto notenoughargs;
 
         err = fs_mount(argv[2].str, argv[3].str,
-                (argc >= 5) ? argv[4].str : NULL);
+                       (argc >= 5) ? argv[4].str : NULL);
 
         if (err < 0) {
             printf("error %d mounting device\n", err);
@@ -115,6 +164,47 @@ usage:
             printf("error %d unmounting device\n", err);
             return err;
         }
+    } else if (!strcmp(argv[1].str, "format")) {
+        int err;
+
+        if (argc < 3) {
+            goto notenoughargs;
+        }
+
+        err = fs_format_device(
+                  argv[2].str,
+                  (argc >= 4) ? argv[3].str : NULL,
+                  NULL
+              );
+
+        if (err != NO_ERROR) {
+            printf("error %d formatting device\n", err);
+            return err;
+        }
+
+    } else if (!strcmp(argv[1].str, "stat")) {
+        int err;
+
+        if (argc < 3) {
+            goto notenoughargs;
+        }
+
+        struct fs_stat stat;
+        err = fs_stat_fs(argv[2].str, &stat);
+
+        if (err != NO_ERROR) {
+            printf("error %d statting filesystem\n", err);
+            return err;
+        }
+
+        printf("\ttotal bytes: %llu\n", stat.total_space);
+        printf("\tfree bytes: %llu\n", stat.free_space);
+        printf("\n");
+        printf("\ttotal inodes: %d\n", stat.total_inodes);
+        printf("\tfree inodes: %d\n", stat.free_inodes);
+
+    } else if (!strcmp(argv[1].str, "ioctl")) {
+        return cmd_fs_ioctl(argc, argv);
     } else if (!strcmp(argv[1].str, "write")) {
         int err;
         off_t off;

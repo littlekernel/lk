@@ -1,0 +1,16 @@
+
+This directory contains TI cc13xxware 2.03.00.16456 as downloaded from the TI
+website listed below, with the doc/, linker_files, and driverlib/bin/ directories
+and their contents removed (leaving only the source code).
+
+
+http://www.ti.com/tool/cc13xxware
+http://processors.wiki.ti.com/index.php/CC13xxWare
+
+"The CC13xxWare software bundle is a collection of software libraries and
+ collateral for the SimpleLink™ ultra-low power platform of devices (CC13xx).
+ ...
+ The code is provided in source code and is licensed under a TI BSD open
+ source software license."
+
+

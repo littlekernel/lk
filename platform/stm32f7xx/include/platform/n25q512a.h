@@ -33,26 +33,26 @@
   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   *
   ******************************************************************************
-  */ 
+  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __N25Q512A_H
 #define __N25Q512A_H
 
 #ifdef __cplusplus
- extern "C" {
-#endif 
+extern "C" {
+#endif
 
 /* Includes ------------------------------------------------------------------*/
 
 /** @addtogroup BSP
   * @{
-  */ 
+  */
 
 /** @addtogroup Components
   * @{
-  */ 
-  
+  */
+
 /** @addtogroup n25q512a
   * @{
   */
@@ -60,18 +60,18 @@
 /** @defgroup N25Q512A_Exported_Types
   * @{
   */
-   
+
 /**
   * @}
-  */ 
+  */
 
 /** @defgroup N25Q512A_Exported_Constants
   * @{
   */
-   
-/** 
-  * @brief  N25Q512A Configuration  
-  */  
+
+/**
+  * @brief  N25Q512A Configuration
+  */
 #define N25Q512A_FLASH_SIZE                  0x4000000 /* 512 MBits => 64MBytes */
 #define N25Q512A_SECTOR_SIZE                 0x10000   /* 1024 sectors of 64KBytes */
 #define N25Q512A_SUBSECTOR_SIZE              0x1000    /* 16384 subsectors of 4kBytes */
@@ -86,9 +86,9 @@
 #define N25Q512A_SECTOR_ERASE_MAX_TIME       3000
 #define N25Q512A_SUBSECTOR_ERASE_MAX_TIME    800
 
-/** 
-  * @brief  N25Q512A Commands  
-  */  
+/**
+  * @brief  N25Q512A Commands
+  */
 /* Reset Operations */
 #define RESET_ENABLE_CMD                     0x66
 #define RESET_MEMORY_CMD                     0x99
@@ -183,10 +183,10 @@
 /* Quad Operations */
 #define ENTER_QUAD_CMD                       0x35
 #define EXIT_QUAD_CMD                        0xF5
-   
-/** 
-  * @brief  N25Q512A Registers  
-  */ 
+
+/**
+  * @brief  N25Q512A Registers
+  */
 /* Status Register */
 #define N25Q512A_SR_WIP                      ((uint8_t)0x01)    /*!< Write in progress */
 #define N25Q512A_SR_WREN                     ((uint8_t)0x02)    /*!< Write enable latch */
@@ -232,14 +232,14 @@
 /**
   * @}
   */
-  
+
 /** @defgroup N25Q512A_Exported_Functions
   * @{
-  */ 
+  */
 /**
   * @}
-  */ 
-      
+  */
+
 #ifdef __cplusplus
 }
 #endif
@@ -248,14 +248,14 @@
 
 /**
   * @}
-  */ 
-
-/**
-  * @}
-  */ 
+  */
 
 /**
   * @}
   */
-  
+
+/**
+  * @}
+  */
+
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

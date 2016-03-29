@@ -22,6 +22,7 @@
  */
 #include <stdio.h>
 #include <debug.h>
+#include <bits.h>
 #include <arch/arch_ops.h>
 #include <arch/arm64.h>
 
@@ -45,51 +46,75 @@ static void dump_iframe(const struct arm64_iframe_long *iframe)
     printf("x16 0x%16llx x17 0x%16llx x18 0x%16llx x19 0x%16llx\n", iframe->r[16], iframe->r[17], iframe->r[18], iframe->r[19]);
     printf("x20 0x%16llx x21 0x%16llx x22 0x%16llx x23 0x%16llx\n", iframe->r[20], iframe->r[21], iframe->r[22], iframe->r[23]);
     printf("x24 0x%16llx x25 0x%16llx x26 0x%16llx x27 0x%16llx\n", iframe->r[24], iframe->r[25], iframe->r[26], iframe->r[27]);
-    printf("x28 0x%16llx x29 0x%16llx lr  0x%16llx sp  0x%16llx\n", iframe->r[28], iframe->r[29], iframe->r[30], iframe->r[31]);
+    printf("x28 0x%16llx x29 0x%16llx lr  0x%16llx usp 0x%16llx\n", iframe->r[28], iframe->r[29], iframe->lr, iframe->usp);
     printf("elr 0x%16llx\n", iframe->elr);
     printf("spsr 0x%16llx\n", iframe->spsr);
+}
+
+__WEAK void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit)
+{
+    panic("unhandled syscall vector\n");
 }
 
 void arm64_sync_exception(struct arm64_iframe_long *iframe)
 {
     struct fault_handler_table_entry *fault_handler;
     uint32_t esr = ARM64_READ_SYSREG(esr_el1);
-    uint32_t ec = esr >> 26;
-    uint32_t il = (esr >> 25) & 0x1;
-    uint32_t iss = esr & ((1<<24) - 1);
+    uint32_t ec = BITS_SHIFT(esr, 31, 26);
+    uint32_t il = BIT(esr, 25);
+    uint32_t iss = BITS(esr, 24, 0);
 
-#ifdef WITH_LIB_SYSCALL
-    if (ec == 0x15 || ec == 0x11) { // syscall 64/32
-        void arm64_syscall(struct arm64_iframe_long *iframe);
-        arch_enable_fiqs();
-        arm64_syscall(iframe);
-        arch_disable_fiqs();
-        return;
-    }
-#endif
-
-    /* floating point */
-    if (ec == 0x07) {
-        arm64_fpu_exception(iframe);
-        return;
-    }
-
-    for (fault_handler = __fault_handler_table_start; fault_handler < __fault_handler_table_end; fault_handler++) {
-        if (fault_handler->pc == iframe->elr) {
-            iframe->elr = fault_handler->fault_handler;
+    switch (ec) {
+        case 0b000111: /* floating point */
+            arm64_fpu_exception(iframe);
             return;
+        case 0b010001: /* syscall from arm32 */
+        case 0b010101: /* syscall from arm64 */
+#ifdef WITH_LIB_SYSCALL
+            void arm64_syscall(struct arm64_iframe_long *iframe);
+            arch_enable_fiqs();
+            arm64_syscall(iframe);
+            arch_disable_fiqs();
+            return;
+#else
+            arm64_syscall(iframe, (ec == 0x15) ? true : false);
+            return;
+#endif
+        case 0b100000: /* instruction abort from lower level */
+        case 0b100001: /* instruction abort from same level */
+            printf("instruction abort: PC at 0x%llx\n", iframe->elr);
+            break;
+        case 0b100100: /* data abort from lower level */
+        case 0b100101: { /* data abort from same level */
+            for (fault_handler = __fault_handler_table_start;
+                    fault_handler < __fault_handler_table_end;
+                    fault_handler++) {
+                if (fault_handler->pc == iframe->elr) {
+                    iframe->elr = fault_handler->fault_handler;
+                    return;
+                }
+            }
+
+            /* read the FAR register */
+            uint64_t far = ARM64_READ_SYSREG(far_el1);
+
+            /* decode the iss */
+            if (BIT(iss, 24)) { /* ISV bit */
+                printf("data fault: PC at 0x%llx, FAR 0x%llx, iss 0x%x (DFSC 0x%lx)\n",
+                       iframe->elr, far, iss, BITS(iss, 5, 0));
+            } else {
+                printf("data fault: PC at 0x%llx, FAR 0x%llx, iss 0x%x\n", iframe->elr, far, iss);
+            }
+
+            break;
         }
+        default:
+            printf("unhandled synchronous exception\n");
     }
 
-    printf("sync_exception\n");
-    dump_iframe(iframe);
-
+    /* unhandled exception, die here */
     printf("ESR 0x%x: ec 0x%x, il 0x%x, iss 0x%x\n", esr, ec, il, iss);
-
-    if (ec == 0x15) { // syscall
-        printf("syscall\n");
-        return;
-    }
+    dump_iframe(iframe);
 
     panic("die\n");
 }

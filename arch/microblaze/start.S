@@ -77,6 +77,3 @@ FUNCTION(unhandled_exception)
 LOCAL_DATA(default_stack)
     .skip 4096
 LOCAL_DATA(default_stack_top)
-
-/* vim: set ts=4 sw=4 expandtab: */
-

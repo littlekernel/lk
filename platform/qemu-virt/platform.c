@@ -76,6 +76,8 @@ static pmm_arena_t arena = {
     .flags = PMM_ARENA_FLAG_KMAP,
 };
 
+extern void psci_call(ulong arg0, ulong arg1, ulong arg2, ulong arg3);
+
 void platform_early_init(void)
 {
     /* initialize the interrupt controller */
@@ -132,6 +134,15 @@ void platform_early_init(void)
     /* reserve the first 64k of ram, which should be holding the fdt */
     struct list_node list = LIST_INITIAL_VALUE(list);
     pmm_alloc_range(MEMBASE, 0x10000 / PAGE_SIZE, &list);
+
+    /* boot the secondary cpus using the Power State Coordintion Interface */
+    ulong psci_call_num = 0x84000000 + 3; /* SMC32 CPU_ON */
+#if ARCH_ARM64
+    psci_call_num += 0x40000000; /* SMC64 */
+#endif
+    for (uint i = 1; i < SMP_MAX_CPUS; i++) {
+        psci_call(psci_call_num, i, MEMBASE + KERNEL_LOAD_OFFSET, 0);
+    }
 }
 
 void platform_init(void)

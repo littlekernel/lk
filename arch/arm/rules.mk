@@ -13,6 +13,24 @@ GLOBAL_DEFINES += \
 
 # do set some options based on the cpu core
 HANDLED_CORE := false
+ifeq ($(ARM_CPU),cortex-m0)
+GLOBAL_DEFINES += \
+	ARM_CPU_CORTEX_M0=1 \
+	ARM_ISA_ARMV6M=1 \
+	ARM_WITH_THUMB=1
+HANDLED_CORE := true
+ENABLE_THUMB := true
+SUBARCH := arm-m
+endif
+ifeq ($(ARM_CPU),cortex-m0plus)
+GLOBAL_DEFINES += \
+	ARM_CPU_CORTEX_M0_PLUS=1 \
+	ARM_ISA_ARMV6M=1 \
+	ARM_WITH_THUMB=1
+HANDLED_CORE := true
+ENABLE_THUMB := true
+SUBARCH := arm-m
+endif
 ifeq ($(ARM_CPU),cortex-m3)
 GLOBAL_DEFINES += \
 	ARM_CPU_CORTEX_M3=1 \
@@ -266,14 +284,14 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arm-m/thread.c \
 	$(LOCAL_DIR)/arm-m/vectab.c
 
-GLOBAL_INCLUDES += \
-	$(LOCAL_DIR)/arm-m/CMSIS/Include
-
 # we're building for small binaries
 GLOBAL_DEFINES += \
 	ARM_ONLY_THUMB=1 \
 	ARCH_DEFAULT_STACK_SIZE=1024 \
 	SMP_MAX_CPUS=1
+
+MODULE_DEPS += \
+	arch/arm/arm-m/CMSIS
 
 ARCH_OPTFLAGS := -Os
 WITH_LINKER_GC ?= 1
@@ -336,9 +354,9 @@ linkerscript.phony:
 
 # arm specific script to try to guess stack usage
 $(OUTELF).stack: LOCAL_DIR:=$(LOCAL_DIR)
-$(OUTELF).stack: $(OUTELF).lst
+$(OUTELF).stack: $(OUTELF)
 	$(NOECHO)echo generating stack usage $@
-	$(NOECHO)$(LOCAL_DIR)/stackusage < $< | sort -n -k 1 -r > $@
+	$(NOECHO)$(OBJDUMP) -Mreg-names-raw -d $< | $(LOCAL_DIR)/stackusage | $(CPPFILT) | sort -n -k 1 -r > $@
 
 EXTRA_BUILDDEPS += $(OUTELF).stack
 GENERATED += $(OUTELF).stack

@@ -61,8 +61,8 @@ const struct buildsig buildsig __SECTION(".text.boot") = {
 #else
     .buildtype = 0,
 #endif
-    .start = (uint32_t)&__rom_start,
-    .end = (uint32_t)&__rom_end,
+    .start = (uint32_t) &__rom_start,
+    .end = (uint32_t) &__rom_end,
     .crc32 = 0, /* filled in via an external tool */
     .magic3 = MAGIC3
 };
@@ -142,7 +142,7 @@ usage:
 
         printf("found signature:\n");
         printf("\tarch: %s\n\tplatform: %s\n\ttarget: %s\n\tproject: %s\n\tbuildid: %s\n",
-            v->arch, v->platform, v->target, v->project, v->buildid);
+               v->arch, v->platform, v->target, v->project, v->buildid);
     } else {
         goto usage;
     }
@@ -153,7 +153,7 @@ usage:
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 1
-    STATIC_COMMAND("buildsig", "scan for and dump build signature", &cmd_buildsig)
+STATIC_COMMAND("buildsig", "scan for and dump build signature", &cmd_buildsig)
 #endif
 STATIC_COMMAND_END(buildid);
 

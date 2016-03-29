@@ -63,7 +63,8 @@
 // 4. set dma src, dst, srclen, dstlen (in that specific order)
 // 5. wait for PCFG_DONE_INT==1
 
-status_t zynq_program_fpga(paddr_t physaddr, size_t length) {
+status_t zynq_program_fpga(paddr_t physaddr, size_t length)
+{
     LTRACEF("phys 0x%lx, len 0x%zx\n", physaddr, length);
 
     lk_bigtime_t bt = current_time_hires();
@@ -74,7 +75,7 @@ status_t zynq_program_fpga(paddr_t physaddr, size_t length) {
     lk_time_t t;
 
     t = current_time();
-    while(!(readl(DEVCFG_STATUS) & PCFG_INIT)) {
+    while (!(readl(DEVCFG_STATUS) & PCFG_INIT)) {
         if (current_time() - t > FPGA_TIMEOUT) {
             TRACEF("timeout waiting for PCFG_INIT\n");
             return ERR_TIMED_OUT;
@@ -114,11 +115,13 @@ status_t zynq_program_fpga(paddr_t physaddr, size_t length) {
     return NO_ERROR;
 }
 
-bool zync_fpga_config_done(void) {
+bool zync_fpga_config_done(void)
+{
     return (0 != (readl(DEVCFG_INT_STS) & PCFG_DONE_INT));
 }
 
-void zynq_reset_fpga(void) {
+void zynq_reset_fpga(void)
+{
     writel(readl(DEVCFG_CTRL) & (~PCFG_PROG_B), DEVCFG_CTRL);
     writel(readl(DEVCFG_CTRL) | PCFG_PROG_B, DEVCFG_CTRL);
 }

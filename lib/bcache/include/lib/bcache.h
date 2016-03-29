@@ -24,7 +24,7 @@
 
 #include <lib/bio.h>
 
-typedef void * bcache_t;
+typedef void *bcache_t;
 
 bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count);
 void bcache_destroy(bcache_t);

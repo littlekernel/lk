@@ -32,6 +32,7 @@
 
 #define LOCAL_TRACE 0
 
+#if WITH_SMP
 /* a global state structure, aligned on cpu cache line to minimize aliasing */
 struct mp_state mp __CPU_ALIGN;
 
@@ -41,43 +42,37 @@ void mp_init(void)
 
 void mp_reschedule(mp_cpu_mask_t target, uint flags)
 {
-#if WITH_SMP
-	uint local_cpu = arch_curr_cpu_num();
+    uint local_cpu = arch_curr_cpu_num();
 
-	LTRACEF("local %d, target 0x%x\n", local_cpu, target);
+    LTRACEF("local %d, target 0x%x\n", local_cpu, target);
 
-	/* mask out cpus that are not active and the local cpu */
-	target &= mp.active_cpus;
+    /* mask out cpus that are not active and the local cpu */
+    target &= mp.active_cpus;
 
-	/* mask out cpus that are currently running realtime code */
-	if ((flags & MP_RESCHEDULE_FLAG_REALTIME) == 0) {
-		target &= ~mp.realtime_cpus;
-	}
-	target &= ~(1U << local_cpu);
+    /* mask out cpus that are currently running realtime code */
+    if ((flags & MP_RESCHEDULE_FLAG_REALTIME) == 0) {
+        target &= ~mp.realtime_cpus;
+    }
+    target &= ~(1U << local_cpu);
 
-	LTRACEF("local %d, post mask target now 0x%x\n", local_cpu, target);
+    LTRACEF("local %d, post mask target now 0x%x\n", local_cpu, target);
 
-	arch_mp_send_ipi(target, MP_IPI_RESCHEDULE);
-#endif
+    arch_mp_send_ipi(target, MP_IPI_RESCHEDULE);
 }
 
 void mp_set_curr_cpu_active(bool active)
 {
-	atomic_or((volatile int *)&mp.active_cpus, 1U << arch_curr_cpu_num());
+    atomic_or((volatile int *)&mp.active_cpus, 1U << arch_curr_cpu_num());
 }
 
-#if WITH_SMP
 enum handler_return mp_mbx_reschedule_irq(void)
 {
-	uint cpu = arch_curr_cpu_num();
+    uint cpu = arch_curr_cpu_num();
 
-	LTRACEF("cpu %u\n", cpu);
+    LTRACEF("cpu %u\n", cpu);
 
-	THREAD_STATS_INC(reschedule_ipis);
+    THREAD_STATS_INC(reschedule_ipis);
 
-	return (mp.active_cpus & (1U << cpu)) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
+    return (mp.active_cpus & (1U << cpu)) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 #endif
-
-// vim: set noexpandtab:
-

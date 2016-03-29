@@ -41,7 +41,7 @@
  */
 void mutex_init(mutex_t *m)
 {
-	*m = (mutex_t)MUTEX_INITIAL_VALUE(*m);
+    *m = (mutex_t)MUTEX_INITIAL_VALUE(*m);
 }
 
 /**
@@ -52,19 +52,19 @@ void mutex_init(mutex_t *m)
  */
 void mutex_destroy(mutex_t *m)
 {
-	DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
+    DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
 #if LK_DEBUGLEVEL > 0
-	if (unlikely(m->holder != 0 && get_current_thread() != m->holder))
-		panic("mutex_destroy: thread %p (%s) tried to release mutex %p it doesn't own. owned by %p (%s)\n",
-		      get_current_thread(), get_current_thread()->name, m, m->holder, m->holder->name);
+    if (unlikely(m->holder != 0 && get_current_thread() != m->holder))
+        panic("mutex_destroy: thread %p (%s) tried to release mutex %p it doesn't own. owned by %p (%s)\n",
+              get_current_thread(), get_current_thread()->name, m, m->holder, m->holder->name);
 #endif
 
-	THREAD_LOCK(state);
-	m->magic = 0;
-	m->count = 0;
-	wait_queue_destroy(&m->wait, true);
-	THREAD_UNLOCK(state);
+    THREAD_LOCK(state);
+    m->magic = 0;
+    m->count = 0;
+    wait_queue_destroy(&m->wait, true);
+    THREAD_UNLOCK(state);
 }
 
 /**
@@ -79,41 +79,41 @@ void mutex_destroy(mutex_t *m)
  */
 status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
 {
-	DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
+    DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
 #if LK_DEBUGLEVEL > 0
-	if (unlikely(get_current_thread() == m->holder))
-		panic("mutex_acquire_timeout: thread %p (%s) tried to acquire mutex %p it already owns.\n",
-		      get_current_thread(), get_current_thread()->name, m);
+    if (unlikely(get_current_thread() == m->holder))
+        panic("mutex_acquire_timeout: thread %p (%s) tried to acquire mutex %p it already owns.\n",
+              get_current_thread(), get_current_thread()->name, m);
 #endif
 
-	THREAD_LOCK(state);
+    THREAD_LOCK(state);
 
-	status_t ret = NO_ERROR;
-	if (unlikely(++m->count > 1)) {
-		ret = wait_queue_block(&m->wait, timeout);
-		if (unlikely(ret < NO_ERROR)) {
-			/* if the acquisition timed out, back out the acquire and exit */
-			if (likely(ret == ERR_TIMED_OUT)) {
-				/*
-				 * race: the mutex may have been destroyed after the timeout,
-				 * but before we got scheduled again which makes messing with the
-				 * count variable dangerous.
-				 */
-				m->count--;
-			}
-			/* if there was a general error, it may have been destroyed out from
-			 * underneath us, so just exit (which is really an invalid state anyway)
-			 */
-			goto err;
-		}
-	}
+    status_t ret = NO_ERROR;
+    if (unlikely(++m->count > 1)) {
+        ret = wait_queue_block(&m->wait, timeout);
+        if (unlikely(ret < NO_ERROR)) {
+            /* if the acquisition timed out, back out the acquire and exit */
+            if (likely(ret == ERR_TIMED_OUT)) {
+                /*
+                 * race: the mutex may have been destroyed after the timeout,
+                 * but before we got scheduled again which makes messing with the
+                 * count variable dangerous.
+                 */
+                m->count--;
+            }
+            /* if there was a general error, it may have been destroyed out from
+             * underneath us, so just exit (which is really an invalid state anyway)
+             */
+            goto err;
+        }
+    }
 
-	m->holder = get_current_thread();
+    m->holder = get_current_thread();
 
 err:
-	THREAD_UNLOCK(state);
-	return ret;
+    THREAD_UNLOCK(state);
+    return ret;
 }
 
 /**
@@ -121,25 +121,25 @@ err:
  */
 status_t mutex_release(mutex_t *m)
 {
-	DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
+    DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
 #if LK_DEBUGLEVEL > 0
-	if (unlikely(get_current_thread() != m->holder)) {
-		panic("mutex_release: thread %p (%s) tried to release mutex %p it doesn't own. owned by %p (%s)\n",
-		      get_current_thread(), get_current_thread()->name, m, m->holder, m->holder ? m->holder->name : "none");
-	}
+    if (unlikely(get_current_thread() != m->holder)) {
+        panic("mutex_release: thread %p (%s) tried to release mutex %p it doesn't own. owned by %p (%s)\n",
+              get_current_thread(), get_current_thread()->name, m, m->holder, m->holder ? m->holder->name : "none");
+    }
 #endif
 
-	THREAD_LOCK(state);
+    THREAD_LOCK(state);
 
-	m->holder = 0;
+    m->holder = 0;
 
-	if (unlikely(--m->count >= 1)) {
-		/* release a thread */
-		wait_queue_wake_one(&m->wait, true, NO_ERROR);
-	}
+    if (unlikely(--m->count >= 1)) {
+        /* release a thread */
+        wait_queue_wake_one(&m->wait, true, NO_ERROR);
+    }
 
-	THREAD_UNLOCK(state);
-	return NO_ERROR;
+    THREAD_UNLOCK(state);
+    return NO_ERROR;
 }
 

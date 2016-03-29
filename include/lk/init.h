@@ -59,11 +59,13 @@ enum lk_init_flags {
 
 void lk_init_level(enum lk_init_flags flags, uint start_level, uint stop_level);
 
-static inline void lk_primary_cpu_init_level(uint start_level, uint stop_level) {
+static inline void lk_primary_cpu_init_level(uint start_level, uint stop_level)
+{
     lk_init_level(LK_INIT_FLAG_PRIMARY_CPU, start_level, stop_level);
 }
 
-static inline void lk_init_level_all(enum lk_init_flags flags) {
+static inline void lk_init_level_all(enum lk_init_flags flags)
+{
     lk_init_level(flags, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_LAST);
 }
 
@@ -84,5 +86,3 @@ struct lk_init_struct {
 
 #define LK_INIT_HOOK(_name, _hook, _level) \
     LK_INIT_HOOK_FLAGS(_name, _hook, _level, LK_INIT_FLAG_PRIMARY_CPU)
-
-// vim: set ts=4 sw=4 expandtab:

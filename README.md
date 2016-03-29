@@ -2,7 +2,9 @@
 
 The LK embedded kernel. An SMP-aware kernel designed for small systems.
 
-See travisg/lk for the latest version.
+See https://github.com/littlekernel/lk for the latest version.
+
+See https://github.com/littlekernel/lk/wiki for documentation.
 
 ## to build and test for ARM on linux
 
@@ -17,4 +19,4 @@ arm machine 'virt' emulation. type 'help' for commands.
 note 1: for ubuntu:
 sudo apt-get install gcc-arm-none-eabi
 or fetch a prebuilt toolchain from
-http://newos.org/toolchains/arm-eabi-5.2.0-Linux-x86_64.tar.xz
+http://newos.org/toolchains/arm-eabi-5.3.0-Linux-x86_64.tar.xz

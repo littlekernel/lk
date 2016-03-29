@@ -32,21 +32,17 @@
 #include <string.h>
 #include <debug.h>
 
-#ifndef ARCH_X86_64
-#include <ffs.h>
-#endif
-
-#define LOCAL_TRACE 1
-
+#if 0
 static const struct platform_uart_config uart0_config = {
-	.io_port = 0x3f8,
-	.irq = 0x24,
-	.baud_rate = 115200,
-	.rx_buf_len = 1024,
-	.tx_buf_len = 1024,
+    .io_port = 0x3f8,
+    .irq = 0x24,
+    .baud_rate = 115200,
+    .rx_buf_len = 1024,
+    .tx_buf_len = 1024,
 };
 
 DEVICE_INSTANCE(uart, uart0, &uart0_config);
+#endif
 
 #ifndef ARCH_X86_64
 static const struct platform_ide_config ide0_config = {
@@ -56,12 +52,8 @@ DEVICE_INSTANCE(ide, ide0, &ide0_config);
 
 #endif
 
-void target_init(void) {
-	//device_init_all();
-#ifndef ARCH_X86_64
-
-	device_init(device_get_by_name(ide, ide0));
-	ffs_mount(0, device_get_by_name(ide, ide0));
-#endif
+void target_init(void)
+{
+    //device_init_all();
 }
 

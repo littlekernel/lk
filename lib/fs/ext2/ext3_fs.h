@@ -496,7 +496,7 @@ struct ext3_super_block {
 #ifdef __KERNEL__
 #include <linux/ext3_fs_i.h>
 #include <linux/ext3_fs_sb.h>
-static inline struct ext3_sb_info * EXT3_SB(struct super_block *sb)
+static inline struct ext3_sb_info *EXT3_SB(struct super_block *sb)
 {
     return sb->s_fs_info;
 }
@@ -768,9 +768,9 @@ extern void ext3_free_blocks_sb (handle_t *handle, struct super_block *sb,
                                  unsigned long *pdquot_freed_blocks);
 extern ext3_fsblk_t ext3_count_free_blocks (struct super_block *);
 extern void ext3_check_blocks_bitmap (struct super_block *);
-extern struct ext3_group_desc * ext3_get_group_desc(struct super_block * sb,
+extern struct ext3_group_desc *ext3_get_group_desc(struct super_block *sb,
         unsigned int block_group,
-        struct buffer_head ** bh);
+        struct buffer_head **bh);
 extern int ext3_should_retry_alloc(struct super_block *sb, int *retries);
 extern void ext3_init_block_alloc_info(struct inode *);
 extern void ext3_rsv_window_add(struct super_block *sb, struct ext3_reserve_window_node *rsv);
@@ -792,9 +792,9 @@ extern int ext3fs_dirhash(const char *name, int len, struct
                           dx_hash_info *hinfo);
 
 /* ialloc.c */
-extern struct inode * ext3_new_inode (handle_t *, struct inode *, int);
+extern struct inode *ext3_new_inode (handle_t *, struct inode *, int);
 extern void ext3_free_inode (handle_t *, struct inode *);
-extern struct inode * ext3_orphan_get (struct super_block *, unsigned long);
+extern struct inode *ext3_orphan_get (struct super_block *, unsigned long);
 extern unsigned long ext3_count_free_inodes (struct super_block *);
 extern unsigned long ext3_count_dirs (struct super_block *);
 extern void ext3_check_inodes_bitmap (struct super_block *);
@@ -804,8 +804,8 @@ extern unsigned long ext3_count_free (struct buffer_head *, unsigned);
 /* inode.c */
 int ext3_forget(handle_t *handle, int is_metadata, struct inode *inode,
                 struct buffer_head *bh, ext3_fsblk_t blocknr);
-struct buffer_head * ext3_getblk (handle_t *, struct inode *, long, int, int *);
-struct buffer_head * ext3_bread (handle_t *, struct inode *, int, int, int *);
+struct buffer_head *ext3_getblk (handle_t *, struct inode *, long, int, int *);
+struct buffer_head *ext3_bread (handle_t *, struct inode *, int, int, int *);
 int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
                            sector_t iblock, unsigned long maxblocks, struct buffer_head *bh_result,
                            int create, int extend_disksize);

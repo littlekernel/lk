@@ -8,8 +8,8 @@ lkboot: $(LKBOOT_SRCS) $(LKBOOT_DEPS)
 	gcc -Wall -o $@ $(LKBOOT_INCS) $(LKBOOT_SRCS)
 
 MKIMAGE_DEPS := bootimage.h ../lib/bootimage/include/lib/bootimage_struct.h
-MKIMAGE_SRCS := mkimage.c bootimage.c ../lib/mincrypt/sha256.c
-MKIMAGE_INCS := -I../lib/mincrypt/include -I../lib/bootimage/include
+MKIMAGE_SRCS := mkimage.c bootimage.c ../external/lib/mincrypt/sha256.c
+MKIMAGE_INCS := -I../external/lib/mincrypt/include -I../lib/bootimage/include
 mkimage: $(MKIMAGE_SRCS) $(MKIMAGE_DEPS)
 	gcc -Wall -g -o $@ $(MKIMAGE_INCS) $(MKIMAGE_SRCS)
 

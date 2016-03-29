@@ -105,7 +105,7 @@ static SDRAM_HandleTypeDef sdramHandle;
   * @retval None
   */
 static void BSP_SDRAM_Initialization_sequence(uint32_t RefreshCount,
-                                              uint32_t CasLatency)
+        uint32_t CasLatency)
 {
     __IO uint32_t tmpmrd = 0;
     FMC_SDRAM_CommandTypeDef Command;
@@ -161,43 +161,56 @@ static void BSP_SDRAM_Initialization_sequence(uint32_t RefreshCount,
     HAL_SDRAM_ProgramRefreshRate(&sdramHandle, RefreshCount);
 }
 
-static uint32_t GetMemoryWidth(sdram_config_t* config)
+static uint32_t GetMemoryWidth(sdram_config_t *config)
 {
     switch (config->bus_width) {
-        case SDRAM_BUS_WIDTH_8 : return FMC_SDRAM_MEM_BUS_WIDTH_8;
-        case SDRAM_BUS_WIDTH_16 : return FMC_SDRAM_MEM_BUS_WIDTH_16;
-        case SDRAM_BUS_WIDTH_32 : return FMC_SDRAM_MEM_BUS_WIDTH_32;
+        case SDRAM_BUS_WIDTH_8 :
+            return FMC_SDRAM_MEM_BUS_WIDTH_8;
+        case SDRAM_BUS_WIDTH_16 :
+            return FMC_SDRAM_MEM_BUS_WIDTH_16;
+        case SDRAM_BUS_WIDTH_32 :
+            return FMC_SDRAM_MEM_BUS_WIDTH_32;
     }
     return 0;
 }
 
-static uint32_t GetColumnBitsNumber(sdram_config_t* config)
+static uint32_t GetColumnBitsNumber(sdram_config_t *config)
 {
     switch (config->col_bits_num) {
-        case SDRAM_COLUMN_BITS_8 : return FMC_SDRAM_COLUMN_BITS_NUM_8;
-        case SDRAM_COLUMN_BITS_9 : return FMC_SDRAM_COLUMN_BITS_NUM_9;
-        case SDRAM_COLUMN_BITS_10 : return FMC_SDRAM_COLUMN_BITS_NUM_10;
-        case SDRAM_COLUMN_BITS_11 : return FMC_SDRAM_COLUMN_BITS_NUM_11;
+        case SDRAM_COLUMN_BITS_8 :
+            return FMC_SDRAM_COLUMN_BITS_NUM_8;
+        case SDRAM_COLUMN_BITS_9 :
+            return FMC_SDRAM_COLUMN_BITS_NUM_9;
+        case SDRAM_COLUMN_BITS_10 :
+            return FMC_SDRAM_COLUMN_BITS_NUM_10;
+        case SDRAM_COLUMN_BITS_11 :
+            return FMC_SDRAM_COLUMN_BITS_NUM_11;
     }
     return 0;
 }
 
-static uint32_t GetCasLatencyFMC(sdram_config_t* config)
+static uint32_t GetCasLatencyFMC(sdram_config_t *config)
 {
     switch (config->cas_latency) {
-        case SDRAM_CAS_LATENCY_1 : return FMC_SDRAM_CAS_LATENCY_1;
-        case SDRAM_CAS_LATENCY_2 : return FMC_SDRAM_CAS_LATENCY_2;
-        case SDRAM_CAS_LATENCY_3 : return FMC_SDRAM_CAS_LATENCY_3;
+        case SDRAM_CAS_LATENCY_1 :
+            return FMC_SDRAM_CAS_LATENCY_1;
+        case SDRAM_CAS_LATENCY_2 :
+            return FMC_SDRAM_CAS_LATENCY_2;
+        case SDRAM_CAS_LATENCY_3 :
+            return FMC_SDRAM_CAS_LATENCY_3;
     }
     return 0;
 }
 
-static uint32_t GetCasLatencyModeReg(sdram_config_t* config)
+static uint32_t GetCasLatencyModeReg(sdram_config_t *config)
 {
     switch (config->cas_latency) {
-        case SDRAM_CAS_LATENCY_1 : return SDRAM_MODEREG_CAS_LATENCY_1;
-        case SDRAM_CAS_LATENCY_2 : return SDRAM_MODEREG_CAS_LATENCY_2;
-        case SDRAM_CAS_LATENCY_3 : return SDRAM_MODEREG_CAS_LATENCY_3;
+        case SDRAM_CAS_LATENCY_1 :
+            return SDRAM_MODEREG_CAS_LATENCY_1;
+        case SDRAM_CAS_LATENCY_2 :
+            return SDRAM_MODEREG_CAS_LATENCY_2;
+        case SDRAM_CAS_LATENCY_3 :
+            return SDRAM_MODEREG_CAS_LATENCY_3;
     }
     return 0;
 }
@@ -206,7 +219,7 @@ static uint32_t GetCasLatencyModeReg(sdram_config_t* config)
   * @brief  Initializes the SDRAM device.
   * @retval SDRAM status
   */
-uint8_t stm32_sdram_init(sdram_config_t* config)
+uint8_t stm32_sdram_init(sdram_config_t *config)
 {
     static uint8_t sdramstatus = SDRAM_ERROR;
     static DMA_HandleTypeDef dma_handle;

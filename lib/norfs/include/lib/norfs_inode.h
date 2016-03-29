@@ -27,9 +27,9 @@
 #include <stdint.h>
 
 struct norfs_inode {
-	struct list_node lnode;
-	uint32_t location;
-	uint32_t reference_count;
+    struct list_node lnode;
+    uint32_t location;
+    uint32_t reference_count;
 };
 
 #endif

@@ -11,6 +11,7 @@
  */
 tmp                     .req x9
 tmp2                    .req x10
+wtmp2                   .req w10
 index                   .req x11
 index_shift             .req x12
 page_table              .req x13
@@ -240,8 +241,8 @@ FUNCTION(_start)
 .Lmmu_enable_secondary:
     adr     tmp, page_tables_not_ready
 .Lpage_tables_not_ready:
-    ldr     tmp2, [tmp]
-    cbnz    tmp2, .Lpage_tables_not_ready
+    ldr     wtmp2, [tmp]
+    cbnz    wtmp2, .Lpage_tables_not_ready
 .Lpage_tables_ready:
 #endif
 
@@ -352,8 +353,6 @@ FUNCTION(_start)
 .data
 DATA(page_tables_not_ready)
     .long       1
-DATA(secondary_cpu_allocated_stack)
-    .quad       0
 #endif
 
 .section .bss.prebss.stack

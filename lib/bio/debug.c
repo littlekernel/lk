@@ -44,7 +44,7 @@
 
 #if LK_DEBUGLEVEL > 0
 static int cmd_bio(int argc, const cmd_args *argv);
-static int bio_test_device(bdev_t* device);
+static int bio_test_device(bdev_t *device);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("bio", "block io debug commands", &cmd_bio)
@@ -134,7 +134,7 @@ usage:
             return -1;
         }
 
-        uint8_t* buf = memalign(CACHE_LINE, 256);
+        uint8_t *buf = memalign(CACHE_LINE, 256);
         ssize_t err = 0;
         while (len > 0) {
             size_t  amt = MIN(256, len);
@@ -290,7 +290,7 @@ usage:
 #endif
 
 // Returns the number of blocks that do not match the reference pattern.
-static bool is_valid_block(bdev_t *device, bnum_t block_num, uint8_t* pattern,
+static bool is_valid_block(bdev_t *device, bnum_t block_num, uint8_t *pattern,
                            size_t pattern_length)
 {
     uint8_t *block_contents = memalign(DMA_ALIGNMENT, device->block_size);
@@ -336,7 +336,7 @@ static ssize_t erase_test(bdev_t *device)
     return num_invalid_blocks;
 }
 
-static bool test_erase_block(bdev_t* device, uint32_t block_addr)
+static bool test_erase_block(bdev_t *device, uint32_t block_addr)
 {
     bool success = false;
     uint8_t valid_byte[1];
@@ -370,7 +370,7 @@ finish:
 }
 
 // Ensure that (sub)sector erase work.
-static bool sub_erase_test(bdev_t* device, uint32_t n_samples)
+static bool sub_erase_test(bdev_t *device, uint32_t n_samples)
 {
     printf("Sampling the device %d times.\n", n_samples);
     for (uint32_t i = 0; i < n_samples; i++) {
@@ -384,7 +384,7 @@ static bool sub_erase_test(bdev_t* device, uint32_t n_samples)
 
 static uint8_t get_signature(uint32_t word)
 {
-    uint8_t* sigptr = (uint8_t*)(&word);
+    uint8_t *sigptr = (uint8_t *)(&word);
     return sigptr[0] ^ sigptr[1] ^ sigptr[2] ^ sigptr[3];
 }
 
@@ -416,7 +416,114 @@ static ssize_t write_test(bdev_t *device)
     return num_errors;
 }
 
-static int bio_test_device(bdev_t* device)
+static status_t memory_mapped_test(bdev_t *device)
+{
+    status_t retcode = NO_ERROR;
+
+    uint8_t *test_buffer = memalign(DMA_ALIGNMENT, device->block_size);
+    if (!test_buffer) {
+        printf("Could not allocate %zu bytes for a temporary buffer. "
+               "Aborting.\n", device->block_size);
+        return ERR_NO_MEMORY;
+    }
+
+    uint8_t *reference_buffer = memalign(DMA_ALIGNMENT, device->block_size);
+    if (!reference_buffer) {
+        printf("Could not allocate %zu bytes for a temporary reference "
+               "buffer. Aborting.\n", device->block_size);
+        free(test_buffer);
+        return ERR_NO_MEMORY;
+    }
+
+    // Erase the first page of the Device.
+    ssize_t err = bio_erase(device, 0, device->block_size);
+    if (err < (ssize_t)device->block_size) {
+        printf("Expected to erase at least %zu bytes but only erased %ld. "
+               "Not continuing to test memory mapped mode.\n",
+               device->block_size, err);
+        retcode = ERR_IO;
+        goto finish;
+    }
+
+    // Write a pattern to the first page of the device.
+    uint8_t pattern_seed = (uint8_t)(rand() % 256);
+
+    for (size_t i = 0; i < device->block_size; i++) {
+        test_buffer[i] = (uint8_t)((pattern_seed + i) % 256);
+    }
+
+    err = bio_write_block(device, test_buffer, 0, 1);
+    if (err != (ssize_t)device->block_size) {
+        printf("Error while writing test pattern to device. Expected to write "
+               "%zu bytes but actually wrote %ld. Not continuing to test memory "
+               "mapped mode.\n", device->block_size, err);
+        retcode = ERR_IO;
+        goto finish;
+    }
+
+    // Put the device into linear mode if possible.
+    uint8_t *devaddr;
+    int ioctl_result = bio_ioctl(device, BIO_IOCTL_GET_MEM_MAP, (void *)&devaddr);
+    if (ioctl_result == ERR_NOT_SUPPORTED) {
+        printf("Device does not support linear mode. Aborting.\n");
+        retcode = ERR_NOT_SUPPORTED;
+        goto finish;
+    } else if (ioctl_result != NO_ERROR) {
+        printf("BIO_IOCTL_GET_MEM_MAP returned error %d. Aborting.\n",
+               ioctl_result);
+        retcode = ioctl_result;
+        goto finish;
+    }
+
+    uint8_t *testptr = test_buffer;
+    for (uint i = 0; i < device->block_size; i++) {
+        if (*testptr != *devaddr) {
+            printf("Data mismatch at position %d. Expected %d got %d. "
+                   "Aborting.\n", i, *testptr, *devaddr);
+            goto finish;
+        }
+        testptr++;
+        devaddr++;
+    }
+
+    // Put the device back into command mode.
+    ioctl_result = bio_ioctl(device, BIO_IOCTL_PUT_MEM_MAP, NULL);
+    if (ioctl_result != NO_ERROR) {
+        printf("BIO_IOCTL_GET_MEM_MAP returned error %d. Aborting.\n",
+               ioctl_result);
+        retcode = ioctl_result;
+        goto finish;
+    }
+
+    // Read the first page into memory using command mode and compare it with
+    // what we wrote back earlier.
+    err = bio_read_block(device, reference_buffer, 0, 1);
+    if (err != (ssize_t)device->block_size) {
+        printf("Expected to read %zu bytes, actually read %ld. Aborting.\n",
+               device->block_size, err);
+        retcode = ERR_IO;
+        goto finish;
+    }
+
+    uint8_t *expected = test_buffer;
+    uint8_t *actual = reference_buffer;
+    for (uint i = 0; i < device->block_size; i++) {
+        if (*actual != *expected) {
+            printf("Data mismatch at position %d. Expected %d got %d. "
+                   "Aborting.\n", i, *expected, *actual);
+            goto finish;
+        }
+        expected++;
+        actual++;
+    }
+
+finish:
+    free(test_buffer);
+    free(reference_buffer);
+    return retcode;
+}
+
+static int bio_test_device(bdev_t *device)
 {
     ssize_t num_errors = erase_test(device);
     if (num_errors < 0) {
@@ -443,6 +550,14 @@ static int bio_test_device(bdev_t* device)
         return -1;
     } else {
         printf("No errors while testing sub-erase.\n");
+    }
+
+    printf("Testing memory mapped mode...\n");
+    status_t test_result = memory_mapped_test(device);
+    if (test_result != NO_ERROR) {
+        printf("Memory mapped test returned error %d\n", test_result);
+    } else {
+        printf("Memory mapped mode tests returned successfully\n");
     }
 
     return 0;

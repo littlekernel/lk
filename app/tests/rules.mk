@@ -14,9 +14,10 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/printf_tests.c \
     $(LOCAL_DIR)/tests.c \
     $(LOCAL_DIR)/thread_tests.c \
+    $(LOCAL_DIR)/port_tests.c \
 
 MODULE_ARM_OVERRIDE_SRCS := \
 
-MODULE_COMPILEFLAGS += -Wno-format
+MODULE_COMPILEFLAGS += -Wno-format -fno-builtin
 
 include make/module.mk

@@ -56,7 +56,7 @@
 
 #define TFTP_PORT 69
 
-#define	RD_U16(ptr)	\
+#define RD_U16(ptr) \
     (uint16_t)(((uint16_t)*((uint8_t*)(ptr)+1)<<8)|(uint16_t)*(uint8_t*)(ptr))
 
 static struct list_node tftp_list = LIST_INITIAL_VALUE(tftp_list);
@@ -66,11 +66,11 @@ static struct list_node tftp_list = LIST_INITIAL_VALUE(tftp_list);
 typedef struct {
     struct list_node list;
     // Registration info.
-    const char* file_name;
+    const char *file_name;
     tftp_callback_t callback;
     void *arg;
     // Current job info.
-    udp_socket_t* socket;
+    udp_socket_t *socket;
     uint32_t src_addr;
     uint16_t src_port;
     uint16_t listen_port;
@@ -79,7 +79,7 @@ typedef struct {
 
 uint16_t next_port = 2224;
 
-static void send_ack(udp_socket_t* socket, uint16_t count) 
+static void send_ack(udp_socket_t *socket, uint16_t count)
 {
     // Packet is [4][count].
     status_t st;
@@ -90,20 +90,21 @@ static void send_ack(udp_socket_t* socket, uint16_t count)
     }
 }
 
-static void send_error(udp_socket_t* socket, uint16_t code)
+static void send_error(udp_socket_t *socket, uint16_t code)
 {
     // Packet is [5][error code][error in ascii-string][0].
     status_t st;
     uint16_t ncode = htons(code);
     uint16_t err[] = { htons(TFTP_OPCODE_ERROR), ncode,
-                      0x7245, 0x2072, 0x3030 + ncode, 0 };
+                       0x7245, 0x2072, 0x3030 + ncode, 0
+                     };
     st = udp_send(err, sizeof(err), socket);
     if (st < 0) {
         LTRACEF("send_err failed: %d\n", st);
     }
 }
 
-static void end_transfer(tftp_job_t* job, bool do_callback)
+static void end_transfer(tftp_job_t *job, bool do_callback)
 {
     udp_listen(job->listen_port, NULL, NULL);
     udp_close(job->socket);
@@ -117,11 +118,11 @@ static void end_transfer(tftp_job_t* job, bool do_callback)
 static void udp_wrq_callback(void *data, size_t len,
                              uint32_t srcaddr, uint16_t srcport,
                              void *arg)
-{ 
+{
     // Packet is [3][count][data]. All packets but the last have 512
     // bytes of data, including zero data.
-    char* data_c = data;
-    tftp_job_t* job = arg;
+    char *data_c = data;
+    tftp_job_t *job = arg;
     job->pkt_count++;
 
     if (len < 4) {
@@ -156,7 +157,7 @@ static void udp_wrq_callback(void *data, size_t len,
         send_error(job->socket, TFTP_ERROR_FULL);
         end_transfer(job, true);
     }
-    
+
     // 512 bytes payload plus 4 of fixed header. The last packet.
     // has always less than 512 bytes of payload.
     if (len != 516) {
@@ -164,9 +165,9 @@ static void udp_wrq_callback(void *data, size_t len,
     }
 }
 
-static tftp_job_t* get_job_by_name(const char* file_name) 
+static tftp_job_t *get_job_by_name(const char *file_name)
 {
-    DEBUG_ASSERT(file_name);    
+    DEBUG_ASSERT(file_name);
     tftp_job_t *entry;
     list_for_every_entry(&tftp_list, entry, tftp_job_t, list) {
         if (strcmp(entry->file_name, file_name) == 0) {
@@ -182,8 +183,8 @@ static void udp_svc_callback(void *data, size_t len,
 {
     status_t st;
     uint16_t opcode;
-    udp_socket_t* socket;
-    tftp_job_t* job;
+    udp_socket_t *socket;
+    tftp_job_t *job;
 
     st = udp_open(srcaddr, next_port, srcport, &socket);
     if (st < 0) {
@@ -193,8 +194,7 @@ static void udp_svc_callback(void *data, size_t len,
 
     opcode = ntohs(RD_U16(data));
 
-    if (opcode != TFTP_OPCODE_WRQ)
-    {
+    if (opcode != TFTP_OPCODE_WRQ) {
         // Operation not suported.
         LTRACEF("op not supported, opcode: %d\n", opcode);
         send_error(socket, TFTP_ERROR_ACCESS);
@@ -204,14 +204,14 @@ static void udp_svc_callback(void *data, size_t len,
 
     // Look for a client that can hadle the file. TODO: |data|
     // needs to be null terminated. A malicious client can crash us.
-    job = get_job_by_name(((char*)data) + 2);
+    job = get_job_by_name(((char *)data) + 2);
 
     if (!job) {
         // Nobody claims to handle that file.
         LTRACEF("no client registered for file\n");
         send_error(socket, TFTP_ERROR_UNKNOWN_XFER);
         udp_close(socket);
-        return;      
+        return;
     }
 
     if (job->socket) {
@@ -221,7 +221,7 @@ static void udp_svc_callback(void *data, size_t len,
         LTRACEF("existing job in progress\n");
         send_error(socket, TFTP_ERROR_EXISTS);
         udp_close(socket);
-        return;      
+        return;
     }
 
     LTRACEF("write op accepted, port %d\n", srcport);
@@ -244,7 +244,7 @@ static void udp_svc_callback(void *data, size_t len,
     next_port++;
 }
 
-int tftp_set_write_client(const char* file_name, tftp_callback_t cb, void* arg)
+int tftp_set_write_client(const char *file_name, tftp_callback_t cb, void *arg)
 {
     DEBUG_ASSERT(file_name);
     DEBUG_ASSERT(cb);

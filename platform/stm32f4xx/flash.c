@@ -55,12 +55,12 @@ status_t stmflash_init(uint32_t start, uint32_t length)
     sg_flash.start  = start;
     /* construct the block device */
     bio_initialize_bdev(&sg_flash.bdev,
-               "flash0",
-                       1,
-                  length,
-                       0,
-                       NULL,
-                       BIO_FLAGS_NONE);
+                        "flash0",
+                        1,
+                        length,
+                        0,
+                        NULL,
+                        BIO_FLAGS_NONE);
 
     /* override our block device hooks */
     sg_flash.bdev.read        = &stmflash_bdev_read;
@@ -84,7 +84,7 @@ static ssize_t stmflash_bdev_read(struct bdev *bdev, void *buf, off_t offset, si
         return 0;
     }
     startAddress += offset;
-    memcpy(buf, (uint32_t*)(startAddress), len);
+    memcpy(buf, (uint32_t *)(startAddress), len);
     return len;
 }
 
@@ -107,7 +107,7 @@ static ssize_t stmflash_bdev_write(struct bdev *bdev, const void *buf, off_t off
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
                     FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
     const uint32_t *_buf = buf;
-    for (i = 0; i < len / 4;i++) {
+    for (i = 0; i < len / 4; i++) {
         if (FLASH_COMPLETE == FLASH_ProgramWord(start_address,_buf[i])) {
             start_address += 4;
         } else {
@@ -134,7 +134,7 @@ static ssize_t stmflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
     if (0 == len) {
         return 0;
     }
-    for (n = 0; n < SECTORS; n++){
+    for (n = 0; n < SECTORS; n++) {
         if (sectors[n] == sg_flash.start+offset) {
             break;
         }
@@ -144,8 +144,8 @@ static ssize_t stmflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
     }
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
-                  FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR|FLASH_FLAG_PGSERR);
-    for(;;){
+                    FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR|FLASH_FLAG_PGSERR);
+    for (;;) {
         if (FLASH_EraseSector(n<<3, VoltageRange_3) != FLASH_COMPLETE) {
             FLASH_Lock();
             return 0;
@@ -167,5 +167,3 @@ static int stmflash_ioctl(struct bdev *bdev, int request, void *argp)
     LTRACEF("dev %p, request %d, argp %p\n",bdev, request, argp);
     return ERR_NOT_SUPPORTED;
 }
-
-// vim: set ts=4 sw=4 noexpandtab:

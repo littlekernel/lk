@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2016 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,9 +25,13 @@
 #include <platform/pc.h>
 #include <platform/console.h>
 #include <string.h>
+#include <lib/io.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+
+/* memory mapped framebuffer */
+#define FB (0xB8000U + KERNEL_ASPACE_BASE)
 
 /* CGA values */
 #define CURSOR_START        0x0A
@@ -41,7 +46,7 @@ static unsigned char curr_x;
 static unsigned char curr_y;
 static unsigned char curr_start;
 static unsigned char curr_end;
-static unsigned char curr_attr;
+static unsigned char curr_attr = 0x7;
 
 /* video page buffer */
 #define VPAGE_SIZE      2048
@@ -123,19 +128,23 @@ void cursor(int start,int end)
 
 void curr_save(void)
 {
+#if 0
     /* grab some info from the bios data area (these should be defined in memmap.h */
-    curr_attr = *((unsigned char *)0xB8000 + 159);
+    curr_attr = *((unsigned char *)FB + 159);
     curr_x = *((unsigned char *)0x00450);
     curr_y = *((unsigned char *)0x00451);
     curr_end = *((unsigned char *)0x00460);
     curr_start = *((unsigned char *)0x00461);
+#endif
     active_page = visual_page = 0;
 }
 
 void curr_restore(void)
 {
+#if 0
     *((unsigned char *)0x00450) = curr_x;
     *((unsigned char *)0x00451) = curr_y;
+#endif
 
     place(curr_x, curr_y);
     cursor(curr_start, curr_end);
@@ -160,7 +169,7 @@ void _clear(char c,char attr,int x1,int y1,int x2,int y2)
     w |= c;
     for (i = x1; i <= x2; i++) {
         for (j = y1; j <= y2; j++) {
-            *((unsigned short *)(uintptr_t)(0xB8000 + 2*i+160*j + 2 * active_page * VPAGE_SIZE)) = w;
+            *((unsigned short *)(uintptr_t)(FB + 2*i+160*j + 2 * active_page * VPAGE_SIZE)) = w;
         }
     }
 
@@ -179,7 +188,7 @@ void _scroll(char attr, int x1, int y1, int x2, int y2)
 {
     register int x,y;
     unsigned short xattr = attr << 8,w;
-    unsigned char *v = (unsigned char *)(uintptr_t)(0xB8000 + active_page*(2*VPAGE_SIZE));
+    unsigned char *v = (unsigned char *)(uintptr_t)(FB + active_page*(2*VPAGE_SIZE));
 
     for (y = y1+1; y <= y2; y++) {
         for (x = x1; x <= x2; x++) {
@@ -202,7 +211,7 @@ void scroll(void)
 void cputc(char c)
 {
     static unsigned short scan_x, x, y;
-    unsigned char *v = (unsigned char *)(uintptr_t)(0xB8000 + active_page*(2*VPAGE_SIZE));
+    unsigned char *v = (unsigned char *)(uintptr_t)(FB + active_page*(2*VPAGE_SIZE));
     x = curr_x;
     y = curr_y;
 
@@ -272,7 +281,7 @@ void cputs(char *s)
 
 void puts_xy(int x,int y,char attr,char *s)
 {
-    unsigned char *v = (unsigned char *)(uintptr_t)(0xB8000 + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
+    unsigned char *v = (unsigned char *)(uintptr_t)(FB + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
     while (*s != 0) {
         *v = *s;
         s++;
@@ -284,7 +293,7 @@ void puts_xy(int x,int y,char attr,char *s)
 
 void putc_xy(int x, int y, char attr, char c)
 {
-    unsigned char *v = (unsigned char *)(uintptr_t)(0xB8000 + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
+    unsigned char *v = (unsigned char *)(uintptr_t)(FB + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
     *v = c;
     v++;
     *v = attr;

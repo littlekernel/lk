@@ -31,20 +31,7 @@
 
 #include "rswdp.h"
 
-#define PIN_LED		PIN(1,1)
-#define PIN_RESET	PIN(2,5)
-#define PIN_RESET_TXEN	PIN(2,6)
-#define PIN_SWDIO_TXEN	PIN(1,5)	// SGPIO15=6
-#define PIN_SWDIO	PIN(1,6)	// SGPIO14=6
-#define PIN_SWO		PIN(1,14)	// U1_RXD=1
-#define PIN_SWCLK	PIN(1,17)	// SGPIO11=6
-
-#define GPIO_LED	GPIO(0,8)
-#define GPIO_RESET	GPIO(5,5)
-#define GPIO_RESET_TXEN	GPIO(5,6)
-#define GPIO_SWDIO_TXEN	GPIO(1,8)
-#define GPIO_SWDIO	GPIO(1,9)
-#define GPIO_SWCLK	GPIO(0,12)
+#include "lpclink2.h"
 
 static void gpio_init(void) {
 	pin_config(PIN_LED, PIN_MODE(0) | PIN_PLAIN);
@@ -86,17 +73,17 @@ static unsigned parity(unsigned n) {
 #define RESET_CTRL0		0x40053100
 #define M0_SUB_RST		(1 << 12)
 
-#define COMM_CMD	0x18004000
-#define COMM_ARG1	0x18004004
-#define COMM_ARG2	0x18004008
-#define COMM_RESP	0x1800400C
+#define COMM_CMD		0x18004000
+#define COMM_ARG1		0x18004004
+#define COMM_ARG2		0x18004008
+#define COMM_RESP		0x1800400C
 
-#define CMD_ERR		0
-#define CMD_NOP		1
-#define CMD_READ	2
-#define CMD_WRITE	3
-#define CMD_RESET	4
-#define CMD_SETCLOCK	5
+#define M0_CMD_ERR		0
+#define M0_CMD_NOP		1
+#define M0_CMD_READ		2
+#define M0_CMD_WRITE		3
+#define M0_CMD_RESET		4
+#define M0_CMD_SETCLOCK		5
 
 #define RSP_BUSY	0xFFFFFFFF
 
@@ -129,7 +116,7 @@ void swd_init(void) {
 int swd_write(unsigned hdr, unsigned data) {
 	unsigned n;
 	unsigned p = parity(data);
-	writel(CMD_WRITE, COMM_CMD);
+	writel(M0_CMD_WRITE, COMM_CMD);
 	writel((hdr << 8) | (p << 16), COMM_ARG1);
 	writel(data, COMM_ARG2);
 	writel(RSP_BUSY, COMM_RESP);
@@ -142,7 +129,7 @@ int swd_write(unsigned hdr, unsigned data) {
 
 int swd_read(unsigned hdr, unsigned *val) {
 	unsigned n, data, p;
-	writel(CMD_READ, COMM_CMD);
+	writel(M0_CMD_READ, COMM_CMD);
 	writel(hdr << 8, COMM_ARG1);
 	writel(RSP_BUSY, COMM_RESP);
 	DSB;
@@ -163,7 +150,7 @@ int swd_read(unsigned hdr, unsigned *val) {
 
 void swd_reset(void) {
 	unsigned n;
-	writel(CMD_RESET, COMM_CMD);
+	writel(M0_CMD_RESET, COMM_CMD);
 	writel(RSP_BUSY, COMM_RESP);
 	DSB;
 	asm("sev");
@@ -175,7 +162,7 @@ unsigned swd_set_clock(unsigned khz) {
 	if (khz > 8000) {
 		khz = 8000;
 	}
-	writel(CMD_SETCLOCK, COMM_CMD);
+	writel(M0_CMD_SETCLOCK, COMM_CMD);
 	writel(khz/1000, COMM_ARG1);
 	writel(RSP_BUSY, COMM_RESP);
 	DSB;

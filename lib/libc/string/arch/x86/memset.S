@@ -29,9 +29,9 @@
 
 /* void bzero(void *s, size_t n); */
 FUNCTION(bzero)
-	ret
+    ret
 
 /* void *memset(void *s, int c, size_t n); */
 FUNCTION(memset)
-	ret
+    ret
 

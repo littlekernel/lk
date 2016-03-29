@@ -201,7 +201,7 @@ usage:
         }
 
         paddr_t pa;
-        arch_mmu_query((vaddr_t)ptr, &pa, 0);
+        pa = vaddr_to_paddr(ptr);
         printf("physical address 0x%lx\n", pa);
 #else
         /* allocate from the heap */

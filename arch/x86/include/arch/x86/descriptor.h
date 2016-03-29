@@ -21,10 +21,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ARCH_DESCRIPTOR_H
-#define __ARCH_DESCRIPTOR_H
-
-#include <sys/types.h>
+#pragma once
 
 /*
  * System Selectors
@@ -36,15 +33,15 @@
 #define DATA_SELECTOR       0x10
 #define USER_CODE_32_SELECTOR   0x18
 #define USER_DATA_32_SELECTOR   0x20
-#define NULL_2_SELECTOR     0x28
 
 /******* x86-64 selectors ********/
-#define CODE_64_SELECTOR    0x30
-#define STACK_64_SELECTOR   0x38
-#define USER_CODE_64_SELECTOR   0x50
-#define USER_DATA_64_SELECTOR   0x58
+#define CODE_64_SELECTOR    0x28
+#define STACK_64_SELECTOR   0x30
+#define USER_CODE_64_SELECTOR   0x38
+#define USER_DATA_64_SELECTOR   0x40
 
-#define TSS_SELECTOR        0x60
+#define TSS_SELECTOR        0x48
+
 /*
  * Descriptor Types
  */
@@ -54,6 +51,10 @@
 #define SEG_TYPE_INT_GATE   0xe     // 32 bit
 #define SEG_TYPE_DATA_RW    0x2
 #define SEG_TYPE_CODE_RW    0xa
+
+#ifndef ASSEMBLY
+
+#include <sys/types.h>
 
 typedef uint16_t seg_sel_t;
 

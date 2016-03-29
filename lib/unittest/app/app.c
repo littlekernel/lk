@@ -31,4 +31,4 @@ void unittest_entry(const struct app_descriptor *app, void *args)
 
 APP_START(unittest)
 .entry = unittest_entry,
-APP_END
+ APP_END

@@ -41,7 +41,8 @@ struct {
     void *args;
 } irq_callbacks[MAX_GPIO];
 
-static enum handler_return gpio_int_handler(void *arg) {
+static enum handler_return gpio_int_handler(void *arg)
+{
 
     /* The mask register uses 1 to respresent masked, 0 for unmasked. Comparing that
      * register with the interrupt status register is the only way to determine
@@ -225,7 +226,7 @@ int gpio_config(unsigned gpio, unsigned flags)
         }
     }
 
-	return 0;
+    return 0;
 }
 
 void gpio_set(unsigned gpio, unsigned on)

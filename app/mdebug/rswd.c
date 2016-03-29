@@ -60,6 +60,10 @@ static void _reboot(void) {
 	platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
 }
 
+#define MODE_SWD	0
+#define MODE_JTAG	1
+static unsigned mode = MODE_SWD;
+
 /* TODO bounds checking -- we trust the host far too much */
 void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 	unsigned msg, op, n;
@@ -113,8 +117,76 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
 			}
 			continue;
 		case CMD_ATTACH:
+			if (mode != MODE_SWD) {
+				mode = MODE_SWD;
+				swd_init();
+			}
 			swd_reset();
 			continue;
+		case CMD_JTAG_IO:
+			if (mode != MODE_JTAG) {
+				mode = MODE_JTAG;
+				jtag_init();
+			}
+			tx[txc++] = RSWD_MSG(CMD_JTAG_DATA, 0, n);
+			while (n > 0) {
+				unsigned xfer = (n > 32) ? 32 : n;
+				jtag_io(xfer, rx[0], rx[1], tx + txc);
+				rx += 2;
+				rxc -= 2;
+				txc += 1;
+				n -= xfer;
+			}
+			continue;
+		case CMD_JTAG_VRFY:
+			if (mode != MODE_JTAG) {
+				mode = MODE_JTAG;
+				jtag_init();
+			}
+			// (n/32) x 4 words: TMS, TDI, DATA, MASK
+			while (n > 0) {
+				unsigned xfer = (n > 32) ? 32 : n;
+				jtag_io(xfer, rx[0], rx[1], tx + txc);
+				if ((tx[txc] & rx[3]) != rx[2]) {
+					status = ERR_BAD_MATCH;
+					goto done;
+				}
+				rx += 4;
+				rxc -= 4;
+				n -= xfer;
+			}
+			continue;
+		case CMD_JTAG_TX: {
+			unsigned tms = (op & 1) ? 0xFFFFFFFF : 0;
+			if (mode != MODE_JTAG) {
+				mode = MODE_JTAG;
+				jtag_init();
+			}
+			while (n > 0) {
+				unsigned xfer = (n > 32) ? 32 : n;
+				jtag_io(xfer, tms, rx[0], rx);
+				rx++;
+				rxc--;
+				n -= xfer;
+			}
+			continue;
+		}
+		case CMD_JTAG_RX: {
+			unsigned tms = (op & 1) ? 0xFFFFFFFF : 0;
+			unsigned tdi = (op & 2) ? 0xFFFFFFFF : 0;
+			if (mode != MODE_JTAG) {
+				mode = MODE_JTAG;
+				jtag_init();
+			}
+			tx[txc++] = RSWD_MSG(CMD_JTAG_DATA, 0, n);
+			while (n > 0) {
+				unsigned xfer = (n > 32) ? 32 : n;
+				jtag_io(xfer, tms, tdi, tx + txc);
+				txc++;
+				n -= xfer;
+			}
+			continue;
+		}
 		case CMD_RESET:
 			swd_hw_reset(n);
 			continue;

@@ -20,11 +20,10 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __PLATFORM_KEYBOARD_H
-#define __PLATFORM_KEYBOARD_H
+#pragma once
 
-void platform_init_keyboard(void);
+#include <lib/cbuf.h>
+
+void platform_init_keyboard(cbuf_t *buffer);
 
 int platform_read_key(char *c);
-
-#endif

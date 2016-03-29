@@ -175,7 +175,7 @@ retry:
     return ret;
 }
 
-size_t cbuf_peek(cbuf_t *cbuf, iovec_t* regions)
+size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions)
 {
     DEBUG_ASSERT(cbuf && regions);
 

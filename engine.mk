@@ -31,6 +31,9 @@ make-make:
 endif
 endif
 
+# some additional rules to print some help
+include make/help.mk
+
 ifeq ($(do-nothing),)
 
 ifeq ($(PROJECT),)
@@ -38,7 +41,7 @@ ifeq ($(PROJECT),)
 ifneq ($(DEFAULT_PROJECT),)
 PROJECT := $(DEFAULT_PROJECT)
 else
-$(error No project specified.  Use "make projectname" or put "PROJECT := projectname" in local.mk)
+$(error No project specified. Use 'make list' for a list of projects or 'make help' for additional help)
 endif
 endif
 
@@ -51,11 +54,11 @@ CONFIGHEADER := $(BUILDDIR)/config.h
 
 GLOBAL_INCLUDES := $(BUILDDIR) $(addsuffix /include,$(LKINC))
 GLOBAL_OPTFLAGS ?= $(ARCH_OPTFLAGS)
-GLOBAL_COMPILEFLAGS := -g -fno-builtin -finline -include $(CONFIGHEADER)
+GLOBAL_COMPILEFLAGS := -g -finline -include $(CONFIGHEADER)
 GLOBAL_COMPILEFLAGS += -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Wno-unused-label -Werror=return-type
-GLOBAL_CFLAGS := --std=gnu99 -Werror-implicit-function-declaration -Wstrict-prototypes -Wwrite-strings
+GLOBAL_CFLAGS := --std=gnu11 -Werror-implicit-function-declaration -Wstrict-prototypes -Wwrite-strings
 #GLOBAL_CFLAGS += -Werror
-GLOBAL_CPPFLAGS := -fno-exceptions -fno-rtti -fno-threadsafe-statics
+GLOBAL_CPPFLAGS := --std=c++11 -fno-exceptions -fno-rtti -fno-threadsafe-statics
 #GLOBAL_CPPFLAGS += -Weffc++
 GLOBAL_ASMFLAGS := -DASSEMBLY
 GLOBAL_LDFLAGS :=
@@ -76,6 +79,9 @@ ALLOBJS_MODULE :=
 
 # master object list (for dep generation)
 ALLOBJS :=
+
+# master source file list
+ALLSRCS :=
 
 # a linker script needs to be declared in one of the project/target/platform files
 LINKER_SCRIPT :=
@@ -208,6 +214,10 @@ GLOBAL_DEFINES += GLOBAL_CFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_CPPFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CPPFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_ASMFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_ASMFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_LDFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LDFLAGS))\"
+GLOBAL_DEFINES += ARCH_COMPILEFLAGS=\"$(subst $(SPACE),_,$(ARCH_COMPILEFLAGS))\"
+GLOBAL_DEFINES += ARCH_CFLAGS=\"$(subst $(SPACE),_,$(ARCH_CFLAGS))\"
+GLOBAL_DEFINES += ARCH_CPPFLAGS=\"$(subst $(SPACE),_,$(ARCH_CPPFLAGS))\"
+GLOBAL_DEFINES += ARCH_ASMFLAGS=\"$(subst $(SPACE),_,$(ARCH_ASMFLAGS))\"
 
 ifneq ($(OBJS),)
 $(warning OBJS=$(OBJS))

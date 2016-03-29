@@ -40,6 +40,7 @@
 #include <platform.h>
 #include <target.h>
 #include <kernel/thread.h>
+#include <kernel/vm.h>
 
 #define LOCAL_TRACE 0
 
@@ -54,7 +55,7 @@
 #endif
 
 /* initial and abort stacks */
-uint8_t abort_stack[ARCH_DEFAULT_STACK_SIZE * SMP_MAX_CPUS] __CPU_ALIGN;
+uint8_t abort_stack[ARCH_DEFAULT_STACK_SIZE *SMP_MAX_CPUS] __CPU_ALIGN;
 
 static void arm_basic_setup(void);
 static void spinlock_test(void);
@@ -358,7 +359,7 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
             &arm_chain_load, loader_pa, loader_pa_section);
 
     /* using large pages, map around the target location */
-    arch_mmu_map(loader_pa_section, loader_pa_section, (2 * SECTION_SIZE / PAGE_SIZE), 0);
+    arch_mmu_map(&vmm_get_kernel_aspace()->arch_aspace, loader_pa_section, loader_pa_section, (2 * SECTION_SIZE / PAGE_SIZE), 0);
 #else
     /* for non vm case, just branch directly into it */
     entry_pa = (paddr_t)entry;

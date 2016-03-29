@@ -51,13 +51,17 @@ void arm64_context_switch(vaddr_t *old_sp, vaddr_t new_sp);
 
 /* exception handling */
 struct arm64_iframe_long {
-    uint64_t r[32];
+    uint64_t r[30];
+    uint64_t lr;
+    uint64_t usp;
     uint64_t elr;
     uint64_t spsr;
 };
 
 struct arm64_iframe_short {
-    uint64_t r[20];
+    uint64_t r[18];
+    uint64_t lr;
+    uint64_t usp;
     uint64_t elr;
     uint64_t spsr;
 };
@@ -77,6 +81,9 @@ static inline void arm64_fpu_pre_context_switch(struct thread *thread)
         ARM64_WRITE_SYSREG(cpacr_el1, cpacr);
     }
 }
+
+/* overridable syscall handler */
+void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit);
 
 __END_CDECLS
 

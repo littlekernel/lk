@@ -54,7 +54,8 @@ static inline void *HEAP_MALLOC(size_t s) { return miniheap_alloc(s, 0); }
 static inline void *HEAP_REALLOC(void *ptr, size_t s) { return miniheap_realloc(ptr, s); }
 static inline void *HEAP_MEMALIGN(size_t boundary, size_t s) { return miniheap_alloc(s, boundary); }
 #define HEAP_FREE miniheap_free
-static inline void *HEAP_CALLOC(size_t n, size_t s) {
+static inline void *HEAP_CALLOC(size_t n, size_t s)
+{
     size_t realsize = n * s;
 
     void *ptr = miniheap_alloc(realsize, 0);
@@ -62,7 +63,8 @@ static inline void *HEAP_CALLOC(size_t n, size_t s) {
         memset(ptr, 0, realsize);
     return ptr;
 }
-static inline void HEAP_INIT(void) {
+static inline void HEAP_INIT(void)
+{
     /* start the heap off with some spare memory in the page allocator */
     size_t len;
     void *ptr = page_first_alloc(&len);
@@ -105,7 +107,8 @@ static inline void *HEAP_CALLOC(size_t n, size_t s)
 #define HEAP_FREE(p) dlfree(p)
 static inline void HEAP_INIT(void) {}
 
-static inline void HEAP_DUMP(void) {
+static inline void HEAP_DUMP(void)
+{
     struct mallinfo minfo = dlmallinfo();
 
     printf("\tmallinfo (dlmalloc):\n");
@@ -269,7 +272,7 @@ static void heap_dump(void)
 static void heap_test(void)
 {
 #if WITH_LIB_HEAP_CMPCTMALLOC
-	cmpct_test();
+    cmpct_test();
 #else
     void *ptr[16];
 

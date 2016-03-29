@@ -99,7 +99,9 @@ void arm64_fpu_exception(struct arm64_iframe_long *iframe)
     if (((cpacr >> 20) & 3) != 3) {
         cpacr |= 3 << 20;
         ARM64_WRITE_SYSREG(cpacr_el1, cpacr);
-        arm64_fpu_load_state(get_current_thread());
+        thread_t *t = get_current_thread();
+        if (likely(t))
+            arm64_fpu_load_state(t);
         return;
     }
 }

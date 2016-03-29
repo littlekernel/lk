@@ -29,10 +29,10 @@
 
 /* void bcopy(const void *src, void *dest, size_t n); */
 FUNCTION(bcopy)
-	ret
+    ret
 
 /* void *memcpy(void *dest, const void *src, size_t n); */
 FUNCTION(memmove)
 FUNCTION(memcpy)
-	ret
+    ret
 

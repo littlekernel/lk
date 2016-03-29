@@ -221,7 +221,5 @@ static void arm_cortex_a9_timer_init_percpu(uint level)
 
 /* secondary cpu initialize the timer just before the kernel starts with interrupts enabled */
 LK_INIT_HOOK_FLAGS(arm_cortex_a9_timer_init_percpu,
-       arm_cortex_a9_timer_init_percpu,
-       LK_INIT_LEVEL_THREADING - 1, LK_INIT_FLAG_SECONDARY_CPUS);
-
-/* vim: set ts=4 sw=4 expandtab: */
+                   arm_cortex_a9_timer_init_percpu,
+                   LK_INIT_LEVEL_THREADING - 1, LK_INIT_FLAG_SECONDARY_CPUS);

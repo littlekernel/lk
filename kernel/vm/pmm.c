@@ -53,7 +53,7 @@ static inline bool page_is_free(const vm_page_t *page)
     return !(page->flags & VM_PAGE_FLAG_NONFREE);
 }
 
-paddr_t page_to_address(const vm_page_t *page)
+paddr_t vm_page_to_paddr(const vm_page_t *page)
 {
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
@@ -64,7 +64,7 @@ paddr_t page_to_address(const vm_page_t *page)
     return -1;
 }
 
-vm_page_t *address_to_page(paddr_t addr)
+vm_page_t *paddr_to_vm_page(paddr_t addr)
 {
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
@@ -272,7 +272,7 @@ size_t pmm_free_kpages(void *_ptr, uint count)
     list_initialize(&list);
 
     while (count > 0) {
-        vm_page_t *p = address_to_page(kvaddr_to_paddr(ptr));
+        vm_page_t *p = paddr_to_vm_page(vaddr_to_paddr(ptr));
         if (p) {
             list_add_tail(&list, &p->node);
         }
@@ -317,7 +317,7 @@ retry:
             /* search while we're still within the arena and have a chance of finding a slot
                (start + count < end of arena) */
             while ((start < a->size / PAGE_SIZE) &&
-                   ((start + count) <= a->size / PAGE_SIZE)) {
+                    ((start + count) <= a->size / PAGE_SIZE)) {
                 vm_page_t *p = &a->page_array[start];
                 for (uint i = 0; i < count; i++) {
                     if (p->flags & VM_PAGE_FLAG_NONFREE) {
@@ -365,7 +365,7 @@ retry:
 
 static void dump_page(const vm_page_t *page)
 {
-    printf("page %p: address 0x%lx flags 0x%x\n", page, page_to_address(page), page->flags);
+    printf("page %p: address 0x%lx flags 0x%x\n", page, vm_page_to_paddr(page), page->flags);
 }
 
 static void dump_arena(const pmm_arena_t *arena, bool dump_pages)
@@ -438,7 +438,7 @@ usage:
 
         vm_page_t *p;
         list_for_every_entry(&list, p, vm_page_t, node) {
-            printf("\tpage %p, address 0x%lx\n", p, page_to_address(p));
+            printf("\tpage %p, address 0x%lx\n", p, vm_page_to_paddr(p));
         }
 
         /* add the pages to the local allocated list */
@@ -463,7 +463,7 @@ usage:
 
         vm_page_t *p;
         list_for_every_entry(&list, p, vm_page_t, node) {
-            printf("\tpage %p, address 0x%lx\n", p, page_to_address(p));
+            printf("\tpage %p, address 0x%lx\n", p, vm_page_to_paddr(p));
         }
 
         /* add the pages to the local allocated list */

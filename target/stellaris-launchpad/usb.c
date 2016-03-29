@@ -128,5 +128,3 @@ void target_usb_setup(void)
 
     usb_start();
 }
-
-// vim: set ts=4 sw=4 expandtab:

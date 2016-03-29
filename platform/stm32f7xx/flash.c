@@ -129,7 +129,7 @@ static ssize_t stm32_flash_bdev_write_block(struct bdev *bdev, const void *buf, 
 
     HAL_FLASH_Unlock();
 
-    ssize_t written_bytes = 0;
+    ssize_t written_bytes = count * bdev->block_size;
     const uint32_t *buf32 = (const uint32_t *)buf;
     while (count > 0) {
         if (HAL_FLASH_Program(TYPEPROGRAM_WORD, FLASHAXI_BASE + block * bdev->block_size, *buf32) != HAL_OK) {
@@ -238,6 +238,7 @@ static int stm32_flash_ioctl(struct bdev *bdev, int request, void *argp)
 
     int ret = ERR_NOT_SUPPORTED;
     switch (request) {
+        case BIO_IOCTL_GET_MAP_ADDR:
         case BIO_IOCTL_GET_MEM_MAP:
             /* we're already mapped */
             if (argp)

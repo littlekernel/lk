@@ -112,14 +112,14 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features)
 
     bdev->blk_req = memalign(sizeof(struct virtio_blk_req), sizeof(struct virtio_blk_req));
 #if WITH_KERNEL_VM
-    arch_mmu_query((vaddr_t)bdev->blk_req, &bdev->blk_req_phys, NULL);
+    bdev->blk_req_phys = vaddr_to_paddr(bdev->blk_req);
 #else
     bdev->blk_freq_phys = (uint64_t)(uintptr_t)bdev->blk_req;
 #endif
     LTRACEF("blk_req structure at %p (0x%lx phys)\n", bdev->blk_req, bdev->blk_req_phys);
 
 #if WITH_KERNEL_VM
-    arch_mmu_query((vaddr_t)&bdev->blk_response, &bdev->blk_response_phys, NULL);
+    bdev->blk_response_phys = vaddr_to_paddr(&bdev->blk_response);
 #else
     bdev->blk_response_phys = (uint64_t)(uintptr_t)&bdev->blk_response;
 #endif
@@ -237,7 +237,7 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
     desc = virtio_desc_index_to_desc(dev, 0, desc->next);
 #if WITH_KERNEL_VM
     /* translate the first buffer */
-    arch_mmu_query(va, &pa, NULL);
+    pa = vaddr_to_paddr((void *)va);
     desc->addr = (uint64_t)pa;
     /* desc->len is filled in below */
 #else
@@ -259,7 +259,7 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
 
         /* translate the next page in the buffer */
         va = PAGE_ALIGN(va + 1);
-        arch_mmu_query(va, &pa, NULL);
+        pa = vaddr_to_paddr((void *)va);
         LTRACEF("va now 0x%lx, pa 0x%lx, next_pa 0x%lx, remaining len %zu\n", va, pa, next_pa, len);
 
         /* is the new translated physical address contiguous to the last one? */

@@ -26,6 +26,8 @@
 #include <sys/types.h>
 #include <list.h>
 
+__BEGIN_CDECLS;
+
 #define BIO_FLAGS_NONE                (0 << 0)
 #define BIO_FLAG_CACHE_ALIGNED_READS  (1 << 0)
 #define BIO_FLAG_CACHE_ALIGNED_WRITES (1 << 1)
@@ -52,7 +54,7 @@ typedef struct bdev {
     bnum_t block_count;
 
     size_t geometry_count;
-    const bio_erase_geometry_info_t* geometry;
+    const bio_erase_geometry_info_t *geometry;
 
     uint8_t erase_byte;
 
@@ -83,12 +85,12 @@ void bio_register_device(bdev_t *dev);
 void bio_unregister_device(bdev_t *dev);
 
 /* used during bdev construction */
-void bio_initialize_bdev(bdev_t* dev,
-                         const char* name,
+void bio_initialize_bdev(bdev_t *dev,
+                         const char *name,
                          size_t block_size,
                          bnum_t block_count,
                          size_t geometry_count,
-                         const bio_erase_geometry_info_t* geometry,
+                         const bio_erase_geometry_info_t *geometry,
                          const uint32_t flags);
 
 /* debug stuff */
@@ -139,6 +141,9 @@ static inline bool bio_contains_range(uint64_t container_start, uint64_t contain
 /* generic bio ioctls */
 enum bio_ioctl_num {
     BIO_IOCTL_NULL = 0,
-    BIO_IOCTL_GET_MEM_MAP, /* if supported, request a pointer to the memory map of the device */
-    BIO_IOCTL_PUT_MEM_MAP, /* if needed, return the pointer (to 'close' the map) */
+    BIO_IOCTL_GET_MEM_MAP,  /* if supported, request a pointer to the memory map of the device */
+    BIO_IOCTL_PUT_MEM_MAP,  /* if needed, return the pointer (to 'close' the map) */
+    BIO_IOCTL_GET_MAP_ADDR, /* if supported, request a pointer to the memory map without putting the device into linear mode */
 };
+
+__END_CDECLS;

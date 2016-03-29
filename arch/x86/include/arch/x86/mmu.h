@@ -21,13 +21,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#pragma once
 
-#include <sys/types.h>
-#include <compiler.h>
-
-__BEGIN_CDECLS
-
-void x86_mmu_init(void);
+/* top level defines for the x86 mmu */
+/* NOTE: the top part can be included from assembly */
+#define KB                (1024UL)
+#define MB                (1024UL*1024UL)
+#define GB                (1024UL*1024UL*1024UL)
 
 #define X86_MMU_PG_P        0x001           /* P    Valid                   */
 #define X86_MMU_PG_RW       0x002           /* R/W  Read/Write              */
@@ -39,13 +39,19 @@ void x86_mmu_init(void);
 #define X86_DIRTY_ACCESS_MASK   0xf9f
 #define X86_MMU_CACHE_DISABLE   0x010       /* C Cache disable */
 
+/* default flags for inner page directory entries */
+#define X86_KERNEL_PD_FLAGS (X86_MMU_PG_G | X86_MMU_PG_RW | X86_MMU_PG_P)
+
+/* default flags for 2MB/4MB/1GB page directory entries */
+#define X86_KERNEL_PD_LP_FLAGS (X86_MMU_PG_G | X86_MMU_PG_PS | X86_MMU_PG_RW | X86_MMU_PG_P)
+
 #define PAGE_SIZE       4096
 #define PAGE_DIV_SHIFT      12
 
-#ifdef PAE_MODE_ENABLED
+#if defined(PAE_MODE_ENABLED) || ARCH_X86_64
 /* PAE mode */
 #define X86_PDPT_ADDR_MASK  (0x00000000ffffffe0ul)
-#define X86_PG_FRAME        (0x000ffffffffff000ul)
+#define X86_PG_FRAME        (0xfffffffffffff000ul)
 #define X86_PHY_ADDR_MASK   (0x000ffffffffffffful)
 #define X86_FLAGS_MASK      (0x0000000000000ffful)  /* NX Bit is ignored in the PAE mode */
 #define X86_PTE_NOT_PRESENT (0xFFFFFFFFFFFFFFFEul)
@@ -53,13 +59,22 @@ void x86_mmu_init(void);
 #define PAGE_OFFSET_MASK_4KB    (0x0000000000000ffful)
 #define PAGE_OFFSET_MASK_2MB    (0x00000000001ffffful)
 #define X86_MMU_PG_NX       (1ul << 63)
-#define X86_PAE_PAGING_LEVELS   3
+
+#if ARCH_X86_64
+#define X86_PAGING_LEVELS   4
+#define PML4_SHIFT      39
+#else
+#define X86_PAGING_LEVELS   3
+#endif
+
 #define PDP_SHIFT       30
 #define PD_SHIFT        21
 #define PT_SHIFT        12
 #define ADDR_OFFSET     9
 #define PDPT_ADDR_OFFSET    2
 #define NO_OF_PT_ENTRIES    512
+
+#define X86_SET_FLAG(x)     (x=1)
 
 #else
 /* non PAE mode */
@@ -77,23 +92,35 @@ void x86_mmu_init(void);
 
 #endif
 
-#define X86_PHYS_TO_VIRT(x)     (x)
-#define X86_VIRT_TO_PHYS(x)     (x)
+/* on both x86-32 and x86-64 physical memory is mapped at the base of the kernel address space */
+#define X86_PHYS_TO_VIRT(x)     ((uintptr_t)(x) + KERNEL_ASPACE_BASE)
+#define X86_VIRT_TO_PHYS(x)     ((uintptr_t)(x) - KERNEL_ASPACE_BASE)
+
+/* C defines below */
+#ifndef ASSEMBLY
+
+#include <sys/types.h>
+#include <compiler.h>
+
+__BEGIN_CDECLS
 
 /* Different page table levels in the page table mgmt hirerachy */
 enum page_table_levels {
     PF_L,
     PT_L,
     PD_L,
-#ifdef PAE_MODE_ENABLED
-    PDP_L
+#if defined(PAE_MODE_ENABLED) || ARCH_X86_64
+    PDP_L,
+#endif
+#if ARCH_X86_64
+    PML4_L
 #endif
 } page_level;
 
 
 struct map_range {
     vaddr_t start_vaddr;
-#ifdef PAE_MODE_ENABLED
+#if defined(PAE_MODE_ENABLED) || ARCH_X86_64
     uint64_t start_paddr; /* Physical address in the PAE mode is 64 bits wide */
 #else
     paddr_t start_paddr; /* Physical address in the PAE mode is 32 bits wide */
@@ -101,7 +128,7 @@ struct map_range {
     uint32_t size;
 };
 
-#ifdef PAE_MODE_ENABLED
+#if defined(PAE_MODE_ENABLED) || ARCH_X86_64
 typedef uint64_t map_addr_t;
 typedef uint64_t arch_flags_t;
 #else
@@ -109,13 +136,24 @@ typedef uint32_t map_addr_t;
 typedef uint32_t arch_flags_t;
 #endif
 
-status_t x86_mmu_map_range (map_addr_t pdpt, struct map_range *range, arch_flags_t flags);
-status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
-                             vaddr_t vaddr, arch_flags_t flags);
+#if ARCH_X86_64
+status_t x86_mmu_check_mapping (addr_t pml4, paddr_t paddr,
+                                vaddr_t vaddr, arch_flags_t in_flags,
+                                uint32_t *ret_level, arch_flags_t *ret_flags,
+                                map_addr_t *last_valid_entry);
+#endif
+
 status_t x86_mmu_get_mapping(map_addr_t init_table, vaddr_t vaddr, uint32_t *ret_level,
                              arch_flags_t *mmu_flags, map_addr_t *last_valid_entry);
+
+status_t x86_mmu_map_range (map_addr_t pt, struct map_range *range, arch_flags_t flags);
+status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
+                             vaddr_t vaddr, arch_flags_t flags);
 status_t x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count);
-addr_t *x86_create_new_cr3(void);
-map_addr_t get_kernel_cr3(void);
+
+void x86_mmu_early_init(void);
+void x86_mmu_init(void);
 
 __END_CDECLS
+
+#endif // !ASSEMBLY

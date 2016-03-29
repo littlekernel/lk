@@ -1,0 +1,2 @@
+TARGET := qemu-mips
+

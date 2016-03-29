@@ -469,7 +469,7 @@ void bio_initialize_bdev(bdev_t *dev,
                          size_t block_size,
                          bnum_t block_count,
                          size_t geometry_count,
-                         const bio_erase_geometry_info_t* geometry,
+                         const bio_erase_geometry_info_t *geometry,
                          const uint32_t flags)
 {
     DEBUG_ASSERT(dev);
@@ -495,7 +495,7 @@ void bio_initialize_bdev(bdev_t *dev,
     // check it in debug bulids.
     if (geometry_count && geometry) {
         for (size_t i = 0; i < geometry_count; ++i) {
-            bio_erase_geometry_info_t* info = geometry + i;
+            bio_erase_geometry_info_t *info = geometry + i;
 
             // Erase sizes must be powers of two and agree with the supplied erase shift.
             DEBUG_ASSERT(info->erase_size);
@@ -519,12 +519,12 @@ void bio_initialize_bdev(bdev_t *dev,
         // Make sure that none of the regions overlap each other and that they are
         // listed in ascending order.
         for (size_t i = 0; (i + 1) < geometry_count; ++i) {
-            bio_geometry_info_t* r1 = dev->geometry + i;
-            bio_geometry_info_t* r2 = dev->geometry + i + 1;
+            bio_geometry_info_t *r1 = dev->geometry + i;
+            bio_geometry_info_t *r2 = dev->geometry + i + 1;
             DEBUG_ASSERT(r1->start <= r2->start);
 
             for (size_t j = (i + 1); j < geometry_count; ++j) {
-                bio_geometry_info_t* r2 = dev->geometry + j;
+                bio_geometry_info_t *r2 = dev->geometry + j;
                 DEBUG_ASSERT(!bio_does_overlap(r1->start, r1->size, r2->start, r2->size));
             }
         }
@@ -581,7 +581,7 @@ void bio_dump_devices(void)
             printf(" (no erase geometry)\n");
         } else {
             for (size_t i = 0; i < entry->geometry_count; ++i) {
-                const bio_erase_geometry_info_t* geo = entry->geometry + i;
+                const bio_erase_geometry_info_t *geo = entry->geometry + i;
                 printf("\n\t\terase_region[%zu] : start %lld size %lld erase size %zu",
                        i, geo->start, geo->size, geo->erase_size);
 

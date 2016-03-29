@@ -233,7 +233,7 @@ static struct {
  */
 typedef struct {
     uint8_t magic[4];   // "_32_"
-    void * entry;       // entry point
+    void *entry;        // entry point
     uint8_t revision;
     uint8_t length;
     uint8_t checksum;
@@ -243,14 +243,14 @@ typedef struct {
 /*
  * scan for pci bios
  */
-static const char * pci_bios_magic = "_32_";
+static const char *pci_bios_magic = "_32_";
 static pci_bios_info *find_pci_bios_info(void)
 {
-    uint32_t *head = (uint32_t *) 0x000e0000;
+    uint32_t *head = (uint32_t *) (0x000e0000 + KERNEL_BASE);
     int8_t sum, *b;
     uint i;
 
-    while (head < (uint32_t *) 0x000ffff0) {
+    while (head < (uint32_t *) (0x000ffff0 + KERNEL_BASE)) {
         if (*head == *(uint32_t *) pci_bios_magic) {
             // perform the checksum
             sum = 0;
@@ -499,22 +499,24 @@ static int bios_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uin
 static const char *pci_signature = "PCI ";
 static int pci_bios_detect(void)
 {
-    pci_bios_info * pci = find_pci_bios_info();
+    // XXX disable for now
+    return 0;
 
+    pci_bios_info *pci = find_pci_bios_info();
     if (pci != NULL) {
-        /*printf("Found PCI structure at %08x\n", (uint32_t) pci);
+        printf("Found PCI structure at %08x\n", (uint32_t) pci);
 
         printf("\nPCI header info:\n");
         printf("%c%c%c%c\n", pci->magic[0], pci->magic[1], pci->magic[2],
             pci->magic[3]);
         printf("%08x\n", (uint32_t) pci->entry);
         printf("%d\n", pci->length * 16);
-        printf("%d\n", pci->checksum);*/
+        printf("%d\n", pci->checksum);
 
         uint32_t adr, temp, len;
         uint8_t err;
 
-        bios32_entry.offset = (uint32_t) pci->entry;
+        bios32_entry.offset = (uint32_t)pci->entry + KERNEL_BASE;
         bios32_entry.selector = CODE_SELECTOR;
 
         __asm__(

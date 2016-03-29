@@ -165,6 +165,27 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
 
 }
 
+status_t fs_format_device(const char *fsname, const char *device, const void *args)
+{
+    const struct fs_impl *fs = find_fs(fsname);
+    if (!fs) {
+        return ERR_NOT_FOUND;
+    }
+
+    if (fs->api->format == NULL) {
+        return ERR_NOT_SUPPORTED;
+    }
+
+    bdev_t *dev = NULL;
+    if (device && device[0] != '\0') {
+        dev = bio_open(device);
+        if (!dev)
+            return ERR_NOT_FOUND;
+    }
+
+    return fs->api->format(dev, args);
+}
+
 status_t fs_mount(const char *path, const char *fsname, const char *device)
 {
     const struct fs_impl *fs = find_fs(fsname);
@@ -224,6 +245,18 @@ status_t fs_open_file(const char *path, filehandle **handle)
     return 0;
 }
 
+status_t fs_file_ioctl(filehandle *handle, int request, void *argp)
+{
+    LTRACEF("filehandle %p, request %d, argp, %p\n", handle, request, argp);
+
+    if (unlikely(!handle || !handle->mount ||
+                 !handle->mount->api || !handle->mount->api->file_ioctl)) {
+        return ERR_INVALID_ARGS;
+    }
+
+    return handle->mount->api->file_ioctl(handle->cookie, request, argp);
+}
+
 status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
 {
     char temppath[FS_MAX_PATH_LEN];
@@ -254,6 +287,16 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len)
     *handle = f;
 
     return 0;
+}
+
+status_t fs_truncate_file(filehandle *handle, uint64_t len)
+{
+    LTRACEF("filehandle %p, length %llu\n", handle, len);
+
+    if (unlikely(!handle))
+        return ERR_INVALID_ARGS;
+
+    return handle->mount->api->truncate(handle->cookie, len);
 }
 
 status_t fs_remove_file(const char *path)
@@ -391,6 +434,33 @@ status_t fs_close_dir(dirhandle *handle)
     return 0;
 }
 
+status_t fs_stat_fs(const char *mountpoint, struct fs_stat *stat)
+{
+    LTRACEF("mountpoint %s stat %p\n", mountpoint, stat);
+
+    if (!stat) {
+        return ERR_INVALID_ARGS;
+    }
+
+    const char *newpath;
+    struct fs_mount *mount = find_mount(mountpoint, &newpath);
+    if (!mount) {
+        return ERR_NOT_FOUND;
+    }
+
+    if (!mount->api->fs_stat) {
+        put_mount(mount);
+        return ERR_NOT_SUPPORTED;
+    }
+
+    status_t result = mount->api->fs_stat(mount->cookie, stat);
+
+    put_mount(mount);
+
+    return result;
+}
+
+
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen)
 {
     filehandle *handle;
@@ -410,6 +480,21 @@ ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen)
 
     return read_bytes;
 }
+
+const char *trim_name(const char *_name)
+{
+    const char *name = &_name[0];
+    // chew up leading spaces
+    while (*name == ' ')
+        name++;
+
+    // chew up leading slashes
+    while (*name == '/')
+        name++;
+
+    return name;
+}
+
 
 void fs_normalize_path(char *path)
 {

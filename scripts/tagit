@@ -1,7 +1,17 @@
 #!/bin/sh
 
-FILES=`find . -type f -regex ".*\.[chS]\|.*\.cpp"`
-
-echo running ctags
-exuberant-ctags $FILES
-
+if [ "$#" -lt 1 ]; then
+    FILES=`find . -type f -regex ".*\.[chS]\|.*\.cpp"`
+    echo running ctags
+    rm -f tags
+    echo $FILES | xargs ctags -a
+else
+    if [ ! -d build-$1 ]; then
+        echo "directory build-$1 does not exist"
+        exit 1
+    fi
+    echo running ctags on project $1
+    rm -f tags
+    ctags -L build-$1/srcfiles.txt
+    ctags -a --recurse -L build-$1/include_paths.txt 2> /dev/null
+fi

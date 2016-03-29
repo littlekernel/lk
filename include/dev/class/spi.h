@@ -28,25 +28,25 @@
 
 /* spi transaction flags */
 enum spi_flags {
-	SPI_READ        = (1<<0),
-	SPI_WRITE       = (1<<1),
-	SPI_CS_ASSERT   = (1<<2),
-	SPI_CS_DEASSERT = (1<<3),
+    SPI_READ        = (1<<0),
+    SPI_WRITE       = (1<<1),
+    SPI_CS_ASSERT   = (1<<2),
+    SPI_CS_DEASSERT = (1<<3),
 };
 
 /* spi transaction */
 struct spi_transaction {
-	enum spi_flags flags;
-	void *tx_buf;
-	void *rx_buf;
-	size_t len;
+    enum spi_flags flags;
+    void *tx_buf;
+    void *rx_buf;
+    size_t len;
 };
 
 /* spi interface */
 struct spi_ops {
-	struct driver_ops std;
+    struct driver_ops std;
 
-	ssize_t (*transaction)(struct device *dev, struct spi_transaction *txn, size_t count);
+    ssize_t (*transaction)(struct device *dev, struct spi_transaction *txn, size_t count);
 };
 
 __BEGIN_CDECLS

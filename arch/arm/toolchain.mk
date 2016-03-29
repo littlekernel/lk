@@ -50,7 +50,14 @@ ifeq ($(FOUNDTOOL),)
 $(error cannot find toolchain, please set ARCH_arm_TOOLCHAIN_PREFIX or add it to your path)
 endif
 
-
+ifeq ($(ARM_CPU),cortex-m0)
+ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+ARCH_arm_COMPILEFLAGS += -mthumb -mfloat-abi=soft
+endif
+ifeq ($(ARM_CPU),cortex-m0plus)
+ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+ARCH_arm_COMPILEFLAGS += -mthumb -mfloat-abi=soft
+endif
 ifeq ($(ARM_CPU),cortex-m3)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 endif

@@ -158,10 +158,10 @@ const uint32_t zynq_mio_cfg[ZYNQ_MIO_CNT] = {
 
 const zynq_clk_cfg_t zynq_clk_cfg = {
     .arm_clk    = ARM_CLK_CTRL_DIVISOR(2) | ARM_CLK_CTRL_CPU_6OR4XCLKACT |
-                    ARM_CLK_CTRL_CPU_3OR2XCLKACT | ARM_CLK_CTRL_CPU_2XCLKACT |
-                    ARM_CLK_CTRL_CPU_1XCLKACT |ARM_CLK_CTRL_PERI_CLKACT,
+    ARM_CLK_CTRL_CPU_3OR2XCLKACT | ARM_CLK_CTRL_CPU_2XCLKACT |
+    ARM_CLK_CTRL_CPU_1XCLKACT |ARM_CLK_CTRL_PERI_CLKACT,
     .ddr_clk    = DDR_CLK_CTRL_DDR_3XCLKACT | DDR_CLK_CTRL_DDR_2XCLKACT |
-                    DDR_CLK_CTRL_DDR_3XCLK_DIV(2) | DDR_CLK_CTRL_DDR_2XCLK_DIV(3),
+    DDR_CLK_CTRL_DDR_3XCLK_DIV(2) | DDR_CLK_CTRL_DDR_2XCLK_DIV(3),
     .dci_clk    = CLK_CTRL_CLKACT | CLK_CTRL_DIVISOR0(52) | CLK_CTRL_DIVISOR1(2),
     .gem0_clk   = CLK_CTRL_CLKACT | CLK_CTRL_DIVISOR0(8) | CLK_CTRL_DIVISOR1(1),
     .gem0_rclk  = CLK_CTRL_CLKACT,
@@ -174,9 +174,9 @@ const zynq_clk_cfg_t zynq_clk_cfg = {
     .fpga2_clk  = CLK_CTRL_SRCSEL(2) | CLK_CTRL_DIVISOR0(53) | CLK_CTRL_DIVISOR1(2),
     .fpga3_clk  = CLK_CTRL_DIVISOR1(1),
     .aper_clk   = DMA_CPU_CLK_EN | USB0_CPU_CLK_EN | USB1_CPU_CLK_EN |
-                    GEM0_CPU_CLK_EN | SDI0_CPU_CLK_EN | I2C0_CPU_CLK_EN |
-                    I2C1_CPU_CLK_EN | UART1_CPU_CLK_EN | GPIO_CPU_CLK_EN |
-                    LQSPI_CPU_CLK_EN | SMC_CPU_CLK_EN,
+    GEM0_CPU_CLK_EN | SDI0_CPU_CLK_EN | I2C0_CPU_CLK_EN |
+    I2C1_CPU_CLK_EN | UART1_CPU_CLK_EN | GPIO_CPU_CLK_EN |
+    LQSPI_CPU_CLK_EN | SMC_CPU_CLK_EN,
     .clk_621_true = CLK_621_ENABLE,
 };
 
@@ -186,7 +186,8 @@ void target_early_init(void)
     gpio_set(GPIO_LEDY, 0);
 }
 
-static enum handler_return toggle_ledy(void *arg) {
+static enum handler_return toggle_ledy(void *arg)
+{
     static bool on = false;
 
     gpio_set(GPIO_LEDY, on);

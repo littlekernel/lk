@@ -18,6 +18,7 @@ LK_HEAP_IMPLEMENTATION ?= dlmalloc
 MODULE_SRCS += \
     $(LOCAL_DIR)/debug.c \
     $(LOCAL_DIR)/platform.c \
+    $(LOCAL_DIR)/secondary_boot.S \
     $(LOCAL_DIR)/uart.c
 
 MEMBASE := 0x40000000
@@ -38,7 +39,7 @@ GLOBAL_DEFINES += \
     MEMSIZE=$(MEMSIZE) \
     PLATFORM_SUPPORTS_PANIC_SHELL=1
 
-GLOBAL_DEFINES += MMU_WITH_TRAMPOLINE=1 \ # use the trampoline translation table in start.S
+GLOBAL_DEFINES += MMU_WITH_TRAMPOLINE=1 \
 
 LINKER_SCRIPT += \
     $(BUILDDIR)/system-onesegment.ld

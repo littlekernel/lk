@@ -43,7 +43,7 @@
 
 /* routines called from lib/watchdog */
 status_t platform_watchdog_init(lk_time_t  target_timeout,
-                                lk_time_t* recommended_pet_period)
+                                lk_time_t *recommended_pet_period)
 {
     LTRACEF("target_timeout %u\n", (uint32_t)target_timeout);
 

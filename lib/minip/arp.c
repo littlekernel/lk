@@ -87,8 +87,8 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6])
 
     if (!found) {
         LTRACEF("Adding %u.%u.%u.%u -> %02x:%02x:%02x:%02x:%02x:%02x to cache\n",
-            ip.b[0], ip.b[1], ip.b[2], ip.b[3],
-            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+                ip.b[0], ip.b[1], ip.b[2], ip.b[3],
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         arp = malloc(sizeof(arp_entry_t));
         if (arp == NULL) {
             goto err;
@@ -131,13 +131,13 @@ void arp_cache_dump(void)
     arp_entry_t *arp;
 
     if (!list_is_empty(&arp_list)) {
-            list_for_every_entry(&arp_list, arp, arp_entry_t, node) {
+        list_for_every_entry(&arp_list, arp, arp_entry_t, node) {
             ipv4_t ip;
             ip.u = arp->addr;
             printf("%2d: %u.%u.%u.%u -> %02x:%02x:%02x:%02x:%02x:%02x\n",
-                i++, ip.b[0], ip.b[1], ip.b[2], ip.b[3],
-                arp->mac[0], arp->mac[1], arp->mac[2], arp->mac[3], arp->mac[4], arp->mac[5]);
-            }
+                   i++, ip.b[0], ip.b[1], ip.b[2], ip.b[3],
+                   arp->mac[0], arp->mac[1], arp->mac[2], arp->mac[3], arp->mac[4], arp->mac[5]);
+        }
     } else {
         printf("The arp table is empty\n");
     }
@@ -171,7 +171,8 @@ int arp_send_request(uint32_t addr)
     return 0;
 }
 
-static void handle_arp_timeout_cb(void *arg) {
+static void handle_arp_timeout_cb(void *arg)
+{
     *(bool *)arg = true;
 }
 
@@ -201,6 +202,3 @@ const uint8_t *arp_get_dest_mac(uint32_t host)
 
     return dst_mac;
 }
-
-// vim: set ts=4 sw=4 expandtab:
-

@@ -30,8 +30,6 @@
 
 __BEGIN_CDECLS;
 
-void mp_init(void);
-
 typedef uint32_t mp_cpu_mask_t;
 
 #define MP_CPU_ALL_BUT_LOCAL (UINT32_MAX)
@@ -41,13 +39,16 @@ typedef uint32_t mp_cpu_mask_t;
  */
 #define MP_RESCHEDULE_FLAG_REALTIME (0x1)
 
-void mp_reschedule(mp_cpu_mask_t target, uint flags);
-void mp_set_curr_cpu_active(bool active);
-
 typedef enum {
     MP_IPI_GENERIC,
     MP_IPI_RESCHEDULE,
 } mp_ipi_t;
+
+#ifdef WITH_SMP
+void mp_init(void);
+
+void mp_reschedule(mp_cpu_mask_t target, uint flags);
+void mp_set_curr_cpu_active(bool active);
 
 /* called from arch code during reschedule irq */
 enum handler_return mp_mbx_reschedule_irq(void);
@@ -62,6 +63,16 @@ struct mp_state {
 };
 
 extern struct mp_state mp;
+
+static inline int mp_is_cpu_active(uint cpu)
+{
+    return mp.active_cpus & (1 << cpu);
+}
+
+static inline int mp_is_cpu_idle(uint cpu)
+{
+    return mp.idle_cpus & (1 << cpu);
+}
 
 /* must be called with the thread lock held */
 static inline void mp_set_cpu_idle(uint cpu)
@@ -93,5 +104,26 @@ static inline mp_cpu_mask_t mp_get_realtime_mask(void)
 {
     return mp.realtime_cpus;
 }
+#else
+static inline void mp_init(void) {}
+static inline void mp_reschedule(mp_cpu_mask_t target, uint flags) {}
+static inline void mp_set_curr_cpu_active(bool active) {}
+
+static inline enum handler_return mp_mbx_reschedule_irq(void) { return 0; }
+
+// only one cpu exists in UP and if you're calling these functions, it's active...
+static inline int mp_is_cpu_active(uint cpu) { return 1; }
+static inline int mp_is_cpu_idle(uint cpu) { return (get_current_thread()->flags & THREAD_FLAG_IDLE) != 0; }
+
+static inline void mp_set_cpu_idle(uint cpu) {}
+static inline void mp_set_cpu_busy(uint cpu) {}
+
+static inline mp_cpu_mask_t mp_get_idle_mask(void) { return 0; }
+
+static inline void mp_set_cpu_realtime(uint cpu) {}
+static inline void mp_set_cpu_non_realtime(uint cpu) {}
+
+static inline mp_cpu_mask_t mp_get_realtime_mask(void) { return 0; }
+#endif
 
 __END_CDECLS;

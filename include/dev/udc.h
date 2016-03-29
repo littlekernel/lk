@@ -40,10 +40,10 @@ typedef struct udc_endpoint udc_endpoint_t;
 
 /* USB Device Controller Transfer Request */
 struct udc_request {
-	void *buffer;
-	unsigned length;
-	void (*complete)(udc_request_t *req, unsigned actual, int status);
-	void *context;
+    void *buffer;
+    unsigned length;
+    void (*complete)(udc_request_t *req, unsigned actual, int status);
+    void *context;
 };
 
 udc_request_t *udc_request_alloc(void);
@@ -61,29 +61,29 @@ void udc_endpoint_free(udc_endpoint_t *ept);
 #define UDC_EVENT_OFFLINE   2
 
 struct udc_gadget {
-	void (*notify)(udc_gadget_t *gadget, unsigned event);
-	void *context;
+    void (*notify)(udc_gadget_t *gadget, unsigned event);
+    void *context;
 
-	struct udc_gadget *next; // do not modify
+    struct udc_gadget *next; // do not modify
 
-	uint8_t ifc_class;
-	uint8_t ifc_subclass;
-	uint8_t ifc_protocol;
-	uint8_t ifc_endpoints;
-	const char *ifc_string;
-	unsigned flags;
+    uint8_t ifc_class;
+    uint8_t ifc_subclass;
+    uint8_t ifc_protocol;
+    uint8_t ifc_endpoints;
+    const char *ifc_string;
+    unsigned flags;
 
-	udc_endpoint_t **ept;
+    udc_endpoint_t **ept;
 };
 
 struct udc_device {
-	uint16_t vendor_id;
-	uint16_t product_id;
-	uint16_t version_id;
+    uint16_t vendor_id;
+    uint16_t product_id;
+    uint16_t version_id;
 
-	const char *manufacturer;
-	const char *product;
-	const char *serialno;
+    const char *manufacturer;
+    const char *product;
+    const char *serialno;
 };
 
 int udc_init(udc_device_t *devinfo);

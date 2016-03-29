@@ -33,6 +33,7 @@
 #define LOCAL_TRACE 0
 
 struct arm_cm_context_switch_frame {
+#if  (__CORTEX_M >= 0x03)
     uint32_t r4;
     uint32_t r5;
     uint32_t r6;
@@ -42,7 +43,66 @@ struct arm_cm_context_switch_frame {
     uint32_t r10;
     uint32_t r11;
     uint32_t lr;
+#else
+    /* frame format is slightly different due to ordering of push/pops */
+    uint32_t r8;
+    uint32_t r9;
+    uint32_t r10;
+    uint32_t r11;
+    uint32_t r4;
+    uint32_t r5;
+    uint32_t r6;
+    uint32_t r7;
+    uint32_t lr;
+#endif
 };
+
+/* macros for saving and restoring a context switch frame, depending on what version of
+ * the architecture you are */
+#if  (__CORTEX_M >= 0x03)
+
+/* cortex-m3 and above (armv7-m) */
+#define SAVE_REGS       "push   { r4-r11, lr };"
+#define RESTORE_REGS    "pop    { r4-r11, lr };"
+#define RESTORE_REGS_PC "pop    { r4-r11, pc };"
+#define SAVE_SP(basereg, tempreg) \
+                        "str   sp, [" #basereg "];"
+#define CLREX           "clrex;"
+
+#else
+
+/* cortex-m0 and cortex-m0+ (armv6-m) */
+#define SAVE_REGS \
+        "push   { r4-r7, lr };" \
+        "mov    r4, r8;" \
+        "mov    r5, r9;" \
+        "mov    r6, r10;" \
+        "mov    r7, r11;" \
+        "push   { r4-r7 };"
+#define RESTORE_REGS \
+        "pop    { r4-r7 };" \
+        "mov    r8 , r4;" \
+        "mov    r9 , r5;" \
+        "mov    r10, r6;" \
+        "mov    r11, r7;" \
+        "pop    { r4-r7 };" \
+        "pop    { r0 };" \
+        "mov    lr, r0;" /* NOTE: trashes r0 */
+#define RESTORE_REGS_PC \
+        "pop    { r4-r7 };" \
+        "mov    r8 , r4;" \
+        "mov    r9 , r5;" \
+        "mov    r10, r6;" \
+        "mov    r11, r7;" \
+        "pop    { r4-r7, pc };"
+#define SAVE_SP(basereg, tempreg) \
+        "mov    " #tempreg ", sp;" \
+        "str    " #tempreg ", [" #basereg "];"
+
+/* there is no clrex on armv6m devices */
+#define CLREX           ""
+
+#endif
 
 /* since we're implicitly uniprocessor, store a pointer to the current thread here */
 thread_t *_current_thread;
@@ -91,7 +151,7 @@ void arch_thread_initialize(struct thread *t)
 #endif
 }
 
-volatile struct arm_cm_exception_frame_long *preempt_frame;
+static volatile struct arm_cm_exception_frame_long *preempt_frame;
 
 static void pendsv(struct arm_cm_exception_frame_long *frame)
 {
@@ -118,16 +178,14 @@ static void pendsv(struct arm_cm_exception_frame_long *frame)
 __NAKED void _pendsv(void)
 {
     __asm__ volatile(
-        "push   { r4-r11, lr };"
+        SAVE_REGS
         "mov    r0, sp;"
-        "bl     %0;"
-        "pop    { r4-r11, lr };"
-        "bx     lr;"
+        "bl     %c0;"
+        RESTORE_REGS_PC
         :: "i" (pendsv)
     );
     __UNREACHABLE;
 }
-
 /*
  * svc handler, used to hard switch the cpu into exception mode to return
  * to preempted thread.
@@ -137,10 +195,7 @@ __NAKED void _svc(void)
     __asm__ volatile(
         /* load the pointer to the original exception frame we want to restore */
         "mov    sp, r4;"
-        "pop    { r4-r11, lr };"
-        "bx     lr;"
-        ::  [FPCCR] "i"(&FPU->FPCCR),
-            [LSPACT] "i"(FPU_FPCCR_LSPACT_Msk)
+        RESTORE_REGS_PC
     );
 }
 
@@ -161,7 +216,8 @@ __NAKED static void _half_save_and_svc(struct thread *oldthread, struct thread *
         "vstm   r2, { s16-s31 };"
 
         /* save regular context */
-        "0: push   { r4-r11, lr };"
+        "0:"
+        SAVE_REGS
         "str    sp, [r0, %[sp_off]];"
 
         /* restore the new thread's stack pointer, but not the integer state (yet) */
@@ -181,11 +237,13 @@ __NAKED static void _half_save_and_svc(struct thread *oldthread, struct thread *
         "ldr    r3, [r3];"
         "vmsr   fpscr, r3;"
 
-        "clrex;"
+        CLREX
         "cpsie  i;"
 
+        /* make a svc call to get us into handler mode.
+         * use r4 as an arg, since r0 is saved on the stack for the svc */
         "mov    r4, sp;"
-        "svc    #0;" /* make a svc call to get us into handler mode */
+        "svc    #0;"
         ::  [sp_off] "i"(offsetof(thread_t, arch.sp)),
             [fp_off] "i"(offsetof(thread_t, arch.fpregs)),
             [fp_exc_off] "i"(sizeof(struct arm_cm_exception_frame_long))
@@ -210,12 +268,14 @@ __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, s
         "vstm   r2, { s16-s31 };"
 
         /* save regular context */
-        "0: push   { r4-r11, lr };"
+        "0:"
+        SAVE_REGS
+        // XXX not okqy on m0
         "str    sp, [r0, %[sp_off]];"
 
         /* restore new context */
         "ldr    sp, [r1, %[sp_off]];"
-        "pop    { r4-r11, lr };"
+        RESTORE_REGS
 
         /* see if we need to restore fpu context */
         "tst    r3, #1;"
@@ -229,7 +289,9 @@ __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, s
         "pop    { r3 };"
         "vmsr   fpscr, r3;"
 
-        "0: clrex;"
+        "0:"
+        CLREX
+
         "bx     lr;"
         ::  [sp_off] "i"(offsetof(thread_t, arch.sp)),
             [fp_off] "i"(offsetof(thread_t, arch.fpregs))
@@ -240,7 +302,7 @@ __NAKED static void _thread_mode_bounce(void)
 {
     __asm__ volatile(
         /* restore main context */
-        "pop    { r4-r11, lr };"
+        RESTORE_REGS
 
         /* see if we need to restore fpu context */
         "tst    r0, #1;"
@@ -318,9 +380,8 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
             __asm__ volatile(
                 "mov    sp, %0;"
                 "cpsie  i;"
-                "pop    { r4-r11, lr };"
-                "clrex;"
-                "bx     lr;"
+                CLREX
+                RESTORE_REGS_PC
                 :: "r"(newthread->arch.sp)
             );
             __UNREACHABLE;
@@ -339,7 +400,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
             //hexdump(frame, 128+32);
 
             __asm__ volatile(
-                "clrex;"
+                CLREX
                 "mov    sp, %0;"
                 "bx     %1;"
                 :: "r"(frame), "r"(0xfffffff9)

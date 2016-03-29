@@ -30,7 +30,7 @@
 
 typedef unsigned long spin_lock_t;
 
-typedef uint32_t spin_lock_saved_state_t;
+typedef x86_flags_t spin_lock_saved_state_t;
 typedef uint spin_lock_save_flags_t;
 
 /* simple implementation of spinlocks for no smp support */
@@ -65,14 +65,14 @@ static inline void arch_spin_unlock(spin_lock_t *lock)
 static inline void
 arch_interrupt_save(spin_lock_saved_state_t *statep, spin_lock_save_flags_t flags)
 {
-    *statep = x86_save_eflags();
+    *statep = x86_save_flags();
     arch_disable_ints();
 }
 
 static inline void
 arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t flags)
 {
-    x86_restore_eflags(old_state);
+    x86_restore_flags(old_state);
 }
 
 

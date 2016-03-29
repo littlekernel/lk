@@ -76,11 +76,12 @@ static inline int reg_poll(uint32_t addr,uint32_t mask)
  * before doing a reset to switch to the new values. Then bypass is removed to switch back to using
  * the PLL once its locked.
  */
-int zynq_pll_init(void) {
+int zynq_pll_init(void)
+{
     const zynq_pll_cfg_tree_t *cfg = &zynq_pll_cfg;
 
     SLCR_REG(ARM_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->arm.lock_cnt) | PLL_CFG_PLL_CP(cfg->arm.cp) |
-                                PLL_CFG_PLL_RES(cfg->arm.res);
+                             PLL_CFG_PLL_RES(cfg->arm.res);
     SLCR_REG(ARM_PLL_CTRL) = PLL_FDIV(cfg->arm.fdiv) | PLL_BYPASS_FORCE | PLL_RESET;
     SLCR_REG(ARM_PLL_CTRL) &= ~PLL_RESET;
 
@@ -93,7 +94,7 @@ int zynq_pll_init(void) {
 
 #if ZYNQ_SDRAM_INIT
     SLCR_REG(DDR_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->ddr.lock_cnt) | PLL_CFG_PLL_CP(cfg->ddr.cp) |
-                                PLL_CFG_PLL_RES(cfg->ddr.res);
+                             PLL_CFG_PLL_RES(cfg->ddr.res);
     SLCR_REG(DDR_PLL_CTRL) = PLL_FDIV(cfg->ddr.fdiv) | PLL_BYPASS_FORCE | PLL_RESET;
     SLCR_REG(DDR_PLL_CTRL) &= ~PLL_RESET;
 
@@ -109,7 +110,7 @@ int zynq_pll_init(void) {
     SLCR_REG(DDR_PLL_CTRL) |= PLL_PWRDOWN;
 #endif
     SLCR_REG(IO_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->io.lock_cnt) | PLL_CFG_PLL_CP(cfg->io.cp) |
-                                PLL_CFG_PLL_RES(cfg->io.res);
+                            PLL_CFG_PLL_RES(cfg->io.res);
     SLCR_REG(IO_PLL_CTRL) = PLL_FDIV(cfg->io.fdiv) | PLL_BYPASS_FORCE | PLL_RESET;
     SLCR_REG(IO_PLL_CTRL) &= ~PLL_RESET;
 
@@ -233,64 +234,82 @@ STATIC_ASSERT(IS_ALIGNED(SDRAM_SIZE, MB));
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* 1GB of sram + sdram space */
-    { .phys = SRAM_BASE,
-      .virt = KERNEL_BASE,
-      .size = RAM_SIZE,
-      .flags = 0,
-      .name = "memory" },
+    {
+        .phys = SRAM_BASE,
+        .virt = KERNEL_BASE,
+        .size = RAM_SIZE,
+        .flags = 0,
+        .name = "memory"
+    },
 
     /* AXI fpga fabric bus 0 */
-    { .phys = 0x40000000,
-      .virt = 0x40000000,
-      .size = (128*1024*1024),
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "axi0" },
+    {
+        .phys = 0x40000000,
+        .virt = 0x40000000,
+        .size = (128*1024*1024),
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "axi0"
+    },
 
     /* AXI fpga fabric bus 1 */
-    { .phys = 0x80000000,
-      .virt = 0x80000000,
-      .size = (16*1024*1024),
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "axi1" },
+    {
+        .phys = 0x80000000,
+        .virt = 0x80000000,
+        .size = (16*1024*1024),
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "axi1"
+    },
     /* 0xe0000000 hardware devices */
-    { .phys = 0xe0000000,
-      .virt = 0xe0000000,
-      .size = 0x00300000,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "hw-e0000000" },
+    {
+        .phys = 0xe0000000,
+        .virt = 0xe0000000,
+        .size = 0x00300000,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "hw-e0000000"
+    },
 
     /* 0xe1000000 hardware devices */
-    { .phys = 0xe1000000,
-      .virt = 0xe1000000,
-      .size = 0x05000000,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "hw-e1000000" },
+    {
+        .phys = 0xe1000000,
+        .virt = 0xe1000000,
+        .size = 0x05000000,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "hw-e1000000"
+    },
 
     /* 0xf8000000 hardware devices */
-    { .phys = 0xf8000000,
-      .virt = 0xf8000000,
-      .size = 0x01000000,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "hw-f8000000" },
+    {
+        .phys = 0xf8000000,
+        .virt = 0xf8000000,
+        .size = 0x01000000,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "hw-f8000000"
+    },
 
     /* 0xfc000000 hardware devices */
-    { .phys = 0xfc000000,
-      .virt = 0xfc000000,
-      .size = 0x02000000,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-      .name = "hw-fc000000" },
+    {
+        .phys = 0xfc000000,
+        .virt = 0xfc000000,
+        .size = 0x02000000,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "hw-fc000000"
+    },
 
     /* sram high aperture */
-    { .phys = 0xfff00000,
-      .virt = 0xfff00000,
-      .size = 0x00100000,
-      .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE },
+    {
+        .phys = 0xfff00000,
+        .virt = 0xfff00000,
+        .size = 0x00100000,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE
+    },
 
     /* identity map to let the boot code run */
-    { .phys = SRAM_BASE,
-      .virt = SRAM_BASE,
-      .size = RAM_SIZE,
-      .flags = MMU_INITIAL_MAPPING_TEMPORARY },
+    {
+        .phys = SRAM_BASE,
+        .virt = SRAM_BASE,
+        .size = RAM_SIZE,
+        .flags = MMU_INITIAL_MAPPING_TEMPORARY
+    },
 
     /* null entry to terminate the list */
     { 0 }

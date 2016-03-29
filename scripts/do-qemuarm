@@ -8,8 +8,10 @@ function HELP {
     echo "-n a virtio network device"
     echo "-t a virtio tap network device"
     echo "-d a virtio display"
+    echo "-3 cortex-m3 based platform"
     echo "-6 64bit arm"
     echo "-m <memory in MB>"
+    echo "-s <number of cpus>"
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
@@ -19,13 +21,15 @@ DO_NET=0
 DO_NET_TAP=0
 DO_BLOCK=0
 DO_64BIT=0
+DO_CORTEX_M3=0
 DO_DISPLAY=0
 DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
+SMP=1
 MEMSIZE=512
 SUDO=""
 
-while getopts bdhm:cMnt6 FLAG; do
+while getopts bdhm:cMnt36s: FLAG; do
     case $FLAG in
         b) DO_BLOCK=1;;
         c) DO_CMPCTMALLOC=1;;
@@ -33,8 +37,10 @@ while getopts bdhm:cMnt6 FLAG; do
         M) DO_MINIHEAP=1;;
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
+        3) DO_CORTEX_M3=1;;
         6) DO_64BIT=1;;
         m) MEMSIZE=$OPTARG;;
+        s) SMP=$OPTARG;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -47,12 +53,15 @@ shift $((OPTIND-1))
 if [ $DO_64BIT == 1 ]; then
     QEMU="qemu-system-aarch64 -machine virt -cpu cortex-a53"
     PROJECT="qemu-virt-a53-test"
+elif [ $DO_CORTEX_M3 == 1 ]; then
+    QEMU="qemu-system-arm -machine lm3s6965evb -cpu cortex-m3"
+    PROJECT="lm3s6965evb-test"
 else
     QEMU="qemu-system-arm -machine virt -cpu cortex-a15"
     PROJECT="qemu-virt-a15-test"
 fi
 
-ARGS=" -m $MEMSIZE -kernel build-${PROJECT}/lk.elf"
+ARGS=" -m $MEMSIZE -smp $SMP -kernel build-${PROJECT}/lk.elf"
 BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
 NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
 NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"

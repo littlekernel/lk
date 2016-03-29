@@ -30,7 +30,7 @@ uint16_t ones_sum16(uint32_t sum, const void *_buf, int len)
 
     while (len >= 2) {
         sum += *buf++;
-        if(sum & 0x80000000)
+        if (sum & 0x80000000)
             sum = (sum & 0xffff) + (sum >> 16);
         len -= 2;
     }
@@ -96,5 +96,3 @@ uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp)
     return chksum;
 }
 #endif
-
-// vim: set ts=4 sw=4 expandtab:

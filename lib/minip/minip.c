@@ -56,12 +56,14 @@ static char minip_hostname[32] = "";
 static void dump_mac_address(const uint8_t *mac);
 static void dump_ipv4_addr(uint32_t addr);
 
-void minip_set_hostname(const char *name) {
+void minip_set_hostname(const char *name)
+{
     strlcpy(minip_hostname, name, sizeof(minip_hostname));
 }
 
-const char *minip_get_hostname(void) {
-   return minip_hostname;
+const char *minip_get_hostname(void)
+{
+    return minip_hostname;
 }
 
 static void compute_broadcast_address(void)
@@ -69,19 +71,23 @@ static void compute_broadcast_address(void)
     minip_broadcast = (minip_ip & minip_netmask) | (IPV4_BCAST & ~minip_netmask);
 }
 
-void minip_get_macaddr(uint8_t *addr) {
+void minip_get_macaddr(uint8_t *addr)
+{
     mac_addr_copy(addr, minip_mac);
 }
 
-void minip_set_macaddr(const uint8_t *addr) {
+void minip_set_macaddr(const uint8_t *addr)
+{
     mac_addr_copy(minip_mac, addr);
 }
 
-uint32_t minip_get_ipaddr(void) {
+uint32_t minip_get_ipaddr(void)
+{
     return minip_ip;
 }
 
-void minip_set_ipaddr(const uint32_t addr) {
+void minip_set_ipaddr(const uint32_t addr)
+{
     minip_ip = addr;
     compute_broadcast_address();
 }
@@ -101,7 +107,7 @@ tx_func_t minip_tx_handler;
 void *minip_tx_arg;
 
 void minip_init(tx_func_t tx_handler, void *tx_arg,
-    uint32_t ip, uint32_t mask, uint32_t gateway)
+                uint32_t ip, uint32_t mask, uint32_t gateway)
 {
     minip_tx_handler = tx_handler;
     minip_tx_arg = tx_arg;
@@ -172,7 +178,8 @@ int send_arp_request(uint32_t addr)
     return 0;
 }
 
-static void handle_arp_timeout_cb(void *arg) {
+static void handle_arp_timeout_cb(void *arg)
+{
     *(bool *)arg = true;
 }
 
@@ -284,7 +291,7 @@ static void dump_ipv4_packet(const struct ipv4_hdr *ip)
     printf(" -> ");
     dump_ipv4_addr(ip->dst_addr);
     printf(" hlen 0x%x, prot 0x%x, cksum 0x%x, len 0x%x, ident 0x%x, frag offset 0x%x\n",
-        (ip->ver_ihl & 0xf) * 4, ip->proto, ntohs(ip->chksum), ntohs(ip->len), ntohs(ip->id), ntohs(ip->flags_frags) & 0x1fff);
+           (ip->ver_ihl & 0xf) * 4, ip->proto, ntohs(ip->chksum), ntohs(ip->len), ntohs(ip->id), ntohs(ip->flags_frags) & 0x1fff);
 }
 
 __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
@@ -363,11 +370,11 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
 
         case IP_PROTO_UDP:
             udp_input(p, ip->src_addr);
-        break;
+            break;
 
         case IP_PROTO_TCP:
             tcp_input(p, ip->src_addr, ip->dst_addr);
-        break;
+            break;
     }
 }
 
@@ -376,13 +383,13 @@ __NO_INLINE static int handle_arp_pkt(pktbuf_t *p)
     struct eth_hdr *eth;
     struct arp_pkt *arp;
 
-    eth = (void*) (p->data - sizeof(struct eth_hdr));
+    eth = (void *) (p->data - sizeof(struct eth_hdr));
 
     if ((arp = pktbuf_consume(p, sizeof(struct arp_pkt))) == NULL) {
         return -1;
     }
 
-    switch(ntohs(arp->oper)) {
+    switch (ntohs(arp->oper)) {
         case ARP_OPER_REQUEST: {
             pktbuf_t *rp;
             struct eth_hdr *reth;
@@ -429,7 +436,7 @@ __NO_INLINE static int handle_arp_pkt(pktbuf_t *p)
 static void dump_mac_address(const uint8_t *mac)
 {
     printf("%02x:%02x:%02x:%02x:%02x:%02x",
-        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
 static void dump_eth_packet(const struct eth_hdr *eth)
@@ -445,7 +452,7 @@ void minip_rx_driver_callback(pktbuf_t *p)
 {
     struct eth_hdr *eth;
 
-    if ((eth = (void*) pktbuf_consume(p, sizeof(struct eth_hdr))) == NULL) {
+    if ((eth = (void *) pktbuf_consume(p, sizeof(struct eth_hdr))) == NULL) {
         return;
     }
 
@@ -454,12 +461,12 @@ void minip_rx_driver_callback(pktbuf_t *p)
     }
 
     if (memcmp(eth->dst_mac, minip_mac, 6) != 0 &&
-        memcmp(eth->dst_mac, broadcast_mac, 6) != 0) {
+            memcmp(eth->dst_mac, broadcast_mac, 6) != 0) {
         /* not for us */
         return;
     }
 
-    switch(htons(eth->type)) {
+    switch (htons(eth->type)) {
         case ETH_TYPE_IPV4:
             LTRACEF("ipv4 pkt\n");
             handle_ipv4_packet(p, eth->src_mac);
@@ -472,7 +479,7 @@ void minip_rx_driver_callback(pktbuf_t *p)
     }
 }
 
-uint32_t minip_parse_ipaddr(const char* ipaddr_str, size_t len)
+uint32_t minip_parse_ipaddr(const char *ipaddr_str, size_t len)
 {
     uint8_t ip[4] = { 0, 0, 0, 0 };
     uint8_t pos = 0, i = 0;
@@ -492,5 +499,3 @@ uint32_t minip_parse_ipaddr(const char* ipaddr_str, size_t len)
 
     return IPV4_PACK(ip);
 }
-
-// vim: set ts=4 sw=4 expandtab:

@@ -53,7 +53,8 @@ uint32_t str_ip_to_int(const char *s, size_t len)
     return IPV4_PACK(ip);
 }
 
-void arp_usage(void) {
+void arp_usage(void)
+{
     printf("arp list                        print arp table\n");
     printf("arp query <ipv4 address>        query arp address\n");
 }
@@ -91,7 +92,7 @@ minip_usage:
         printf("mi [s]tatus                     print ip status\n");
         printf("mi [t]est [dest] [port] [cnt]   send <cnt> test packets to the dest:port\n");
     } else {
-        switch(argv[1].str[0]) {
+        switch (argv[1].str[0]) {
 
             case 'a':
                 arp_cache_dump();
@@ -149,15 +150,15 @@ minip_usage:
                 printf("%d pkts failed\n", failures);
                 uint64_t total_count = (uint64_t)count * BUFSIZE;
                 printf("wrote %llu bytes in %u msecs (%llu bytes/sec)\n",
-                    total_count, (uint32_t)t, total_count * 1000 / t);
+                       total_count, (uint32_t)t, total_count * 1000 / t);
 
                 free(buf);
                 udp_close(handle);
 #undef BUFSIZE
             }
             break;
-        default:
-            goto minip_usage;
+            default:
+                goto minip_usage;
         }
     }
 
@@ -169,5 +170,3 @@ STATIC_COMMAND("arp", "arp commands", &cmd_arp)
 STATIC_COMMAND("mi", "minip commands", &cmd_minip)
 STATIC_COMMAND_END(minip);
 #endif
-
-// vim: set ts=4 sw=4 expandtab:

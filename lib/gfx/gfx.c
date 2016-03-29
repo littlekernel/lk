@@ -44,13 +44,51 @@
 
 #define LOCAL_TRACE 0
 
-static uint16_t ARGB8888_to_RGB565(uint32_t in)
+// Convert a 32bit ARGB image to its respective gamma corrected grayscale value.
+static uint32_t ARGB8888_to_Luma(uint32_t in)
+{
+    uint8_t out;
+
+    uint32_t blue  = (in & 0xFF) * 74;
+    uint32_t green = ((in >> 8) & 0xFF) * 732;
+    uint32_t red   = ((in >> 16) & 0xFF) * 218;
+
+    uint32_t intensity = red + blue + green;
+
+    out = (intensity >> 10) & 0xFF;
+
+    return out;
+}
+
+static uint32_t ARGB8888_to_RGB565(uint32_t in)
 {
     uint16_t out;
 
     out = (in >> 3) & 0x1f;  // b
     out |= ((in >> 10) & 0x3f) << 5;  // g
     out |= ((in >> 19) & 0x1f) << 11;  // r
+
+    return out;
+}
+
+static uint32_t ARGB8888_to_RGB332(uint32_t in)
+{
+    uint8_t out = 0;
+
+    out = (in >> 6) & 0x3;  // b
+    out |= ((in >> 13) & 0x7) << 2;  // g
+    out |= ((in >> 21) & 0x7) << 5;  // r
+
+    return out;
+}
+
+static uint32_t ARGB8888_to_RGB2220(uint32_t in)
+{
+    uint8_t out = 0;
+
+    out =  ((in >> 6) & 0x3) << 2;
+    out |= ((in >> 14) & 0x3) << 4;
+    out |= ((in >> 22)  & 0x3) << 6;
 
     return out;
 }
@@ -130,7 +168,7 @@ static void putpixel16(gfx_surface *surface, uint x, uint y, uint color)
     uint16_t *dest = &((uint16_t *)surface->ptr)[x + y * surface->stride];
 
     // colors come in in ARGB 8888 form, flatten them
-    *dest = ARGB8888_to_RGB565(color);
+    *dest = (uint16_t)(surface->translate_color(color));
 }
 
 static void putpixel32(gfx_surface *surface, uint x, uint y, uint color)
@@ -138,6 +176,67 @@ static void putpixel32(gfx_surface *surface, uint x, uint y, uint color)
     uint32_t *dest = &((uint32_t *)surface->ptr)[x + y * surface->stride];
 
     *dest = color;
+}
+
+static void putpixel8(gfx_surface *surface, uint x, uint y, uint color)
+{
+    uint8_t *dest = &((uint8_t *)surface->ptr)[x + y * surface->stride];
+
+    // colors come in in ARGB 8888 form, flatten them
+    *dest = (uint8_t)(surface->translate_color(color));
+}
+
+static void copyrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2)
+{
+    // copy
+    const uint8_t *src = &((const uint8_t *)surface->ptr)[x + y * surface->stride];
+    uint8_t *dest = &((uint8_t *)surface->ptr)[x2 + y2 * surface->stride];
+    uint stride_diff = surface->stride - width;
+
+    if (dest < src) {
+        uint i, j;
+        for (i=0; i < height; i++) {
+            for (j=0; j < width; j++) {
+                *dest = *src;
+                dest++;
+                src++;
+            }
+            dest += stride_diff;
+            src += stride_diff;
+        }
+    } else {
+        // copy backwards
+        src += height * surface->stride + width;
+        dest += height * surface->stride + width;
+
+        uint i, j;
+        for (i=0; i < height; i++) {
+            for (j=0; j < width; j++) {
+                *dest = *src;
+                dest--;
+                src--;
+            }
+            dest -= stride_diff;
+            src -= stride_diff;
+        }
+    }
+}
+
+static void fillrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color)
+{
+    uint8_t *dest = &((uint8_t *)surface->ptr)[x + y * surface->stride];
+    uint stride_diff = surface->stride - width;
+
+    uint8_t color8 = (uint8_t)(surface->translate_color(color));
+
+    uint i, j;
+    for (i=0; i < height; i++) {
+        for (j=0; j < width; j++) {
+            *dest = color8;
+            dest++;
+        }
+        dest += stride_diff;
+    }
 }
 
 static void copyrect16(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2)
@@ -181,7 +280,7 @@ static void fillrect16(gfx_surface *surface, uint x, uint y, uint width, uint he
     uint16_t *dest = &((uint16_t *)surface->ptr)[x + y * surface->stride];
     uint stride_diff = surface->stride - width;
 
-    uint16_t color16 = ARGB8888_to_RGB565(color);
+    uint16_t color16 = (uint16_t)(surface->translate_color(color));
 
     uint i, j;
     for (i=0; i < height; i++) {
@@ -244,7 +343,7 @@ static void fillrect32(gfx_surface *surface, uint x, uint y, uint width, uint he
     }
 }
 
-void gfx_line(gfx_surface* surface, uint x1, uint y1, uint x2, uint y2, uint color)
+void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint color)
 {
     if (unlikely(x1 >= surface->width))
         return;
@@ -273,7 +372,7 @@ void gfx_line(gfx_surface* surface, uint x1, uint y1, uint x2, uint y2, uint col
 
     if (dxabs >= dyabs) {
         // mostly horizontal line.
-        for(uint i = 0; i < dxabs; i++) {
+        for (uint i = 0; i < dxabs; i++) {
             y += dyabs;
             if (y >= dxabs) {
                 y -= dxabs;
@@ -284,7 +383,7 @@ void gfx_line(gfx_surface* surface, uint x1, uint y1, uint x2, uint y2, uint col
         }
     } else {
         // mostly vertical line.
-        for(uint i = 0; i < dyabs; i++) {
+        for (uint i = 0; i < dyabs; i++) {
             x += dxabs;
             if (x >= dyabs) {
                 x -= dyabs;
@@ -416,6 +515,25 @@ void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, u
             dest += dest_stride_diff;
             src += source_stride_diff;
         }
+    } else if (source->format == GFX_FORMAT_MONO && target->format == GFX_FORMAT_MONO) {
+        // both are 8 bit modes, no alpha
+        const uint8_t *src = (const uint8_t *)source->ptr;
+        uint8_t *dest = &((uint8_t *)target->ptr)[destx + desty * target->stride];
+        uint dest_stride_diff = target->stride - width;
+        uint source_stride_diff = source->stride - width;
+
+        LTRACEF("w %u h %u dstride %u sstride %u\n", width, height, dest_stride_diff, source_stride_diff);
+
+        uint i, j;
+        for (i=0; i < height; i++) {
+            for (j=0; j < width; j++) {
+                *dest = *src;
+                dest++;
+                src++;
+            }
+            dest += dest_stride_diff;
+            src += source_stride_diff;
+        }
     } else {
         panic("gfx_surface_blend: unimplemented colorspace combination (source %d target %d)\n", source->format, target->format);
     }
@@ -448,7 +566,8 @@ void gfx_flush_rows(struct gfx_surface *surface, uint start, uint end)
     if (end >= surface->height)
         end = surface->height - 1;
 
-    arch_clean_cache_range((addr_t)surface->ptr + start * surface->stride * surface->pixelsize, (end - start + 1) * surface->stride * surface->pixelsize);
+    uint32_t runlen = surface->stride * surface->pixelsize;
+    arch_clean_cache_range((addr_t)surface->ptr + start * runlen, (end - start + 1) * runlen);
 
     if (surface->flush)
         surface->flush(start, end);
@@ -477,19 +596,45 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
     // set up some function pointers
     switch (format) {
         case GFX_FORMAT_RGB_565:
+            surface->translate_color = &ARGB8888_to_RGB565;
             surface->copyrect = &copyrect16;
             surface->fillrect = &fillrect16;
             surface->putpixel = &putpixel16;
             surface->pixelsize = 2;
-            surface->len = surface->height * surface->stride * surface->pixelsize;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
             break;
         case GFX_FORMAT_RGB_x888:
         case GFX_FORMAT_ARGB_8888:
+            surface->translate_color = NULL;
             surface->copyrect = &copyrect32;
             surface->fillrect = &fillrect32;
             surface->putpixel = &putpixel32;
             surface->pixelsize = 4;
-            surface->len = surface->height * surface->stride * surface->pixelsize;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
+            break;
+        case GFX_FORMAT_MONO:
+            surface->translate_color = &ARGB8888_to_Luma;
+            surface->copyrect = &copyrect8;
+            surface->fillrect = &fillrect8;
+            surface->putpixel = &putpixel8;
+            surface->pixelsize = 1;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
+            break;
+        case GFX_FORMAT_RGB_332:
+            surface->translate_color = &ARGB8888_to_RGB332;
+            surface->copyrect = &copyrect8;
+            surface->fillrect = &fillrect8;
+            surface->putpixel = &putpixel8;
+            surface->pixelsize = 1;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
+            break;
+        case GFX_FORMAT_RGB_2220:
+            surface->translate_color = &ARGB8888_to_RGB2220;
+            surface->copyrect = &copyrect8;
+            surface->fillrect = &fillrect8;
+            surface->putpixel = &putpixel8;
+            surface->pixelsize = 1;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
             break;
         default:
             dprintf(INFO, "invalid graphics format\n");
@@ -512,12 +657,39 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
 /**
  * @brief  Create a new graphics surface object from a display
  */
-gfx_surface *gfx_create_surface_from_display(struct display_info *info)
+gfx_surface *gfx_create_surface_from_display(struct display_framebuffer *fb)
 {
-    gfx_surface* surface;
-    surface = gfx_create_surface(info->framebuffer, info->width, info->height, info->stride, info->format);
+    DEBUG_ASSERT(fb);
+    gfx_surface *surface;
+    gfx_format format;
+    switch (fb->image.format) {
+        case IMAGE_FORMAT_RGB_565:
+            format = GFX_FORMAT_RGB_565;
+            break;
+        case IMAGE_FORMAT_RGB_332:
+            format = GFX_FORMAT_RGB_332;
+            break;
+        case IMAGE_FORMAT_RGB_2220:
+            format = GFX_FORMAT_RGB_2220;
+            break;
+        case IMAGE_FORMAT_ARGB_8888:
+            format = GFX_FORMAT_ARGB_8888;
+            break;
+        case IMAGE_FORMAT_RGB_x888:
+            format = GFX_FORMAT_RGB_x888;
+            break;
+        case IMAGE_FORMAT_MONO_8:
+            format = GFX_FORMAT_MONO;
+            break;
+        default:
+            dprintf(INFO, "invalid graphics format)");
+            DEBUG_ASSERT(0);
+            return NULL;
+    }
 
-    surface->flush = info->flush;
+    surface = gfx_create_surface(fb->image.pixels, fb->image.width, fb->image.height, fb->image.stride, format);
+
+    surface->flush = fb->flush;
 
     return surface;
 }
@@ -540,11 +712,11 @@ void gfx_surface_destroy(struct gfx_surface *surface)
  */
 void gfx_draw_pattern(void)
 {
-    struct display_info info;
-    if (display_get_info(&info) < 0)
+    struct display_framebuffer fb;
+    if (display_get_framebuffer(&fb) < 0)
         return;
 
-    gfx_surface *surface = gfx_create_surface_from_display(&info);
+    gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
     uint x, y;
     for (y = 0; y < surface->height; y++) {
@@ -569,11 +741,11 @@ void gfx_draw_pattern(void)
  */
 void gfx_draw_pattern_white(void)
 {
-    struct display_info info;
-    if (display_get_info(&info) < 0)
+    struct display_framebuffer fb;
+    if (display_get_framebuffer(&fb) < 0)
         return;
 
-    gfx_surface *surface = gfx_create_surface_from_display(&info);
+    gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
     uint x, y;
     for (y = 0; y < surface->height; y++) {
@@ -638,19 +810,19 @@ static int cmd_gfx(int argc, const cmd_args *argv)
         return -1;
     }
 
-    struct display_info info;
-    if (display_get_info(&info) < 0) {
+    struct display_framebuffer fb;
+    if (display_get_framebuffer(&fb) < 0) {
         printf("no display to draw on!\n");
         return -1;
     }
 
-    gfx_surface *surface = gfx_create_surface_from_display(&info);
+    gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
     if (!strcmp(argv[1].str, "display_info")) {
         printf("display:\n");
-        printf("\tframebuffer %p\n", info.framebuffer);
-        printf("\twidth %u height %u stride %u\n", info.width, info.height, info.stride);
-        printf("\tformat %u\n", info.format);
+        printf("\tframebuffer %p\n", fb.image.pixels);
+        printf("\twidth %u height %u stride %u\n", fb.image.width, fb.image.height, fb.image.stride);
+        printf("\tformat %u\n", fb.image.format);
     } else if (!strcmp(argv[1].str, "rgb_bars")) {
         gfx_draw_rgb_bars(surface);
     } else if (!strcmp(argv[1].str, "test_pattern")) {
@@ -675,5 +847,3 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 
 #endif
 #endif
-
-// vim: set noexpandtab:

@@ -38,11 +38,11 @@
 
 typedef int (*tx_func_t)(pktbuf_t *p);
 typedef void (*udp_callback_t)(void *data, size_t len,
-    uint32_t srcaddr, uint16_t srcport, void *arg);
+                               uint32_t srcaddr, uint16_t srcport, void *arg);
 
 /* initialize minip with static configuration */
 void minip_init(tx_func_t tx_func, void *tx_arg,
-    uint32_t ip, uint32_t netmask, uint32_t gateway);
+                uint32_t ip, uint32_t netmask, uint32_t gateway);
 
 /* initialize minip with DHCP configuration */
 void minip_init_dhcp(tx_func_t tx_func, void *tx_arg);
@@ -86,5 +86,3 @@ static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **ac
 
 /* utilities */
 void gen_random_mac_address(uint8_t *mac_addr);
-
-// vim: set ts=4 sw=4 expandtab:

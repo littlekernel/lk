@@ -2,22 +2,31 @@
 
 function HELP {
     echo "help:"
-    echo "-6 x86-64"
+    echo "-6                  : x86-64"
     echo "-m <memory in MB>"
+    echo "-s <number of cpus>"
+    echo "-g                  : with graphics"
+    echo "-k                  : use KVM"
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
 }
 
 DO_64BIT=0
+DO_GRAPHICS=0
+DO_KVM=0
 MEMSIZE=512
+SMP=1
 SUDO=""
 MAKE_VARS=""
 
-while getopts bdhm:cMnt6 FLAG; do
+while getopts 6gkm:s:h FLAG; do
     case $FLAG in
         6) DO_64BIT=1;;
+        g) DO_GRAPHICS=1;;
+        k) DO_KVM=1;;
         m) MEMSIZE=$OPTARG;;
+        s) SMP=$OPTARG;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -35,7 +44,16 @@ else
     PROJECT="pc-x86-test"
 fi
 
-ARGS=" -m $MEMSIZE -kernel build-${PROJECT}/lk.elf -nographic"
+ARGS=" -m $MEMSIZE -smp $SMP -machine q35 -kernel build-${PROJECT}/lk.elf"
+
+if [ $DO_GRAPHICS == 0 ]; then
+    ARGS+=" -nographic"
+else
+    ARGS+=" -serial stdio"
+fi
+if [ $DO_KVM != 0 ]; then
+    ARGS+=" -enable-kvm -cpu host"
+fi
 
 make $MAKE_VARS $PROJECT -j4 &&
 echo $SUDO $QEMU $ARGS $@ &&

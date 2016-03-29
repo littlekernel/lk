@@ -54,7 +54,6 @@
 #include <target.h>
 #include <compiler.h>
 #include <string.h>
-#include <lib/gfx.h>
 #include <dev/gpio.h>
 #include <dev/display.h>
 #include <kernel/novm.h>
@@ -67,15 +66,15 @@
  * This code only applies to The RK043FN48H LCD 480x272.
  */
 
-/** 
-  * @brief  RK043FN48H Size  
-  */     
+/**
+  * @brief  RK043FN48H Size
+  */
 #define  RK043FN48H_WIDTH    ((uint16_t)480)    /* LCD PIXEL WIDTH            */
 #define  RK043FN48H_HEIGHT   ((uint16_t)272)    /* LCD PIXEL HEIGHT           */
 
-/** 
-  * @brief  RK043FN48H Timing  
-  */     
+/**
+  * @brief  RK043FN48H Timing
+  */
 #define  RK043FN48H_HSYNC      ((uint16_t)41)   /* Horizontal synchronization */
 #define  RK043FN48H_HBP        ((uint16_t)13)   /* Horizontal back porch      */
 #define  RK043FN48H_HFP        ((uint16_t)32)   /* Horizontal front porch     */
@@ -99,22 +98,22 @@
 #define LCD_BL_CTRL_GPIO_CLK_ENABLE()    __HAL_RCC_GPIOK_CLK_ENABLE()
 #define LCD_BL_CTRL_GPIO_CLK_DISABLE()   __HAL_RCC_GPIOK_CLK_DISABLE()
 
-/** 
-  * @brief  RK043FN48H frequency divider  
-  */    
+/**
+  * @brief  RK043FN48H frequency divider
+  */
 #define  RK043FN48H_FREQUENCY_DIVIDER    5      /* LCD Frequency divider      */
 
 /** @defgroup STM32746G_DISCOVERY_LCD_Exported_Constants
   * @{
-  */ 
+  */
 #define MAX_LAYER_NUMBER       ((uint32_t)2)
 
 #define LCD_LayerCfgTypeDef    LTDC_LayerCfgTypeDef
 
-#define LTDC_ACTIVE_LAYER	     ((uint32_t)1)   /* Layer 1 */
-/** 
-  * @brief  LCD status structure definition  
-  */     
+#define LTDC_ACTIVE_LAYER        ((uint32_t)1)   /* Layer 1 */
+/**
+  * @brief  LCD status structure definition
+  */
 #define LCD_OK                 ((uint8_t)0x00)
 #define LCD_ERROR              ((uint8_t)0x01)
 #define LCD_TIMEOUT            ((uint8_t)0x02)
@@ -156,14 +155,14 @@ static size_t BSP_LCD_PixelSize(void)
   * @retval None
   */
 static void BSP_LCD_LayerDefaultInit(uint16_t LayerIndex, uint32_t FB_Address)
-{     
+{
     LCD_LayerCfgTypeDef  layer_cfg;
 
     /* Layer Init */
     layer_cfg.WindowX0 = 0;
     layer_cfg.WindowX1 = BSP_LCD_GetXSize();
     layer_cfg.WindowY0 = 0;
-    layer_cfg.WindowY1 = BSP_LCD_GetYSize(); 
+    layer_cfg.WindowY1 = BSP_LCD_GetYSize();
     layer_cfg.PixelFormat = LTDC_PIXEL_FORMAT_ARGB8888;
     layer_cfg.FBStartAdress = FB_Address;
     layer_cfg.Alpha = 255;
@@ -175,8 +174,8 @@ static void BSP_LCD_LayerDefaultInit(uint16_t LayerIndex, uint32_t FB_Address)
     layer_cfg.BlendingFactor2 = LTDC_BLENDING_FACTOR2_PAxCA;
     layer_cfg.ImageWidth = BSP_LCD_GetXSize();
     layer_cfg.ImageHeight = BSP_LCD_GetYSize();
-    
-    HAL_LTDC_ConfigLayer(&ltdc_handle, &layer_cfg, LayerIndex); 
+
+    HAL_LTDC_ConfigLayer(&ltdc_handle, &layer_cfg, LayerIndex);
 }
 
 /**
@@ -187,7 +186,7 @@ static void BSP_LCD_LayerDefaultInit(uint16_t LayerIndex, uint32_t FB_Address)
 void BSP_LCD_SelectLayer(uint32_t LayerIndex)
 {
     active_layer = LayerIndex;
-} 
+}
 
 /**
   * @brief  Sets an LCD Layer visible
@@ -195,23 +194,23 @@ void BSP_LCD_SelectLayer(uint32_t LayerIndex)
   * @param  State: New state of the specified layer
   *          This parameter can be one of the following values:
   *            @arg  ENABLE
-  *            @arg  DISABLE 
+  *            @arg  DISABLE
   * @retval None
   */
 void BSP_LCD_SetLayerVisible(uint32_t LayerIndex, FunctionalState State)
 {
-    if(State == ENABLE) {
+    if (State == ENABLE) {
         __HAL_LTDC_LAYER_ENABLE(&ltdc_handle, LayerIndex);
     } else {
         __HAL_LTDC_LAYER_DISABLE(&ltdc_handle, LayerIndex);
     }
     __HAL_LTDC_RELOAD_CONFIG(&ltdc_handle);
-} 
+}
 
 /**
   * @brief  Sets an LCD layer frame buffer address.
   * @param  LayerIndex: Layer foreground or background
-  * @param  Address: New LCD frame buffer value      
+  * @param  Address: New LCD frame buffer value
   * @retval None
   */
 void BSP_LCD_SetLayerAddress(uint32_t LayerIndex, uint32_t Address)
@@ -227,7 +226,7 @@ void BSP_LCD_DisplayOn(void)
 {
     /* Display On */
     __HAL_LTDC_ENABLE(&ltdc_handle);
-    HAL_GPIO_WritePin(LCD_DISP_GPIO_PORT, LCD_DISP_PIN, GPIO_PIN_SET); 
+    HAL_GPIO_WritePin(LCD_DISP_GPIO_PORT, LCD_DISP_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_PORT, LCD_BL_CTRL_PIN, GPIO_PIN_SET);
 }
 
@@ -252,11 +251,11 @@ void BSP_LCD_DisplayOff(void)
 static void BSP_LCD_MspInit(LTDC_HandleTypeDef *hltdc, void *Params)
 {
     GPIO_InitTypeDef gpio_init_structure;
-    
+
     /* Enable the LTDC and DMA2D clocks */
     __HAL_RCC_LTDC_CLK_ENABLE();
     __HAL_RCC_DMA2D_CLK_ENABLE();
-    
+
     /* Enable GPIOs clock */
     __HAL_RCC_GPIOE_CLK_ENABLE();
     __HAL_RCC_GPIOG_CLK_ENABLE();
@@ -272,7 +271,7 @@ static void BSP_LCD_MspInit(LTDC_HandleTypeDef *hltdc, void *Params)
     gpio_init_structure.Mode      = GPIO_MODE_AF_PP;
     gpio_init_structure.Pull      = GPIO_NOPULL;
     gpio_init_structure.Speed     = GPIO_SPEED_FAST;
-    gpio_init_structure.Alternate = GPIO_AF14_LTDC;  
+    gpio_init_structure.Alternate = GPIO_AF14_LTDC;
     HAL_GPIO_Init(GPIOE, &gpio_init_structure);
 
     /* GPIOG configuration */
@@ -288,30 +287,30 @@ static void BSP_LCD_MspInit(LTDC_HandleTypeDef *hltdc, void *Params)
     gpio_init_structure.Alternate = GPIO_AF14_LTDC;
     HAL_GPIO_Init(GPIOI, &gpio_init_structure);
 
-    /* GPIOJ configuration */  
+    /* GPIOJ configuration */
     gpio_init_structure.Pin       = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | \
                                     GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | \
                                     GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | \
                                     GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
     gpio_init_structure.Mode      = GPIO_MODE_AF_PP;
     gpio_init_structure.Alternate = GPIO_AF14_LTDC;
-    HAL_GPIO_Init(GPIOJ, &gpio_init_structure);  
+    HAL_GPIO_Init(GPIOJ, &gpio_init_structure);
 
-    /* GPIOK configuration */  
+    /* GPIOK configuration */
     gpio_init_structure.Pin       = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_4 | \
                                     GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
     gpio_init_structure.Mode      = GPIO_MODE_AF_PP;
     gpio_init_structure.Alternate = GPIO_AF14_LTDC;
     HAL_GPIO_Init(GPIOK, &gpio_init_structure);
 
-    /* LCD_DISP GPIO configuration 
+    /* LCD_DISP GPIO configuration
        Note that LCD_DISP pin has to be manually controlled.
      */
     gpio_init_structure.Pin       = LCD_DISP_PIN;
     gpio_init_structure.Mode      = GPIO_MODE_OUTPUT_PP;
     HAL_GPIO_Init(LCD_DISP_GPIO_PORT, &gpio_init_structure);
 
-    /* LCD_BL_CTRL GPIO configuration 
+    /* LCD_BL_CTRL GPIO configuration
        Note that LCD_BL_CTRL pin has to be manually controlled.
      */
     gpio_init_structure.Pin       = LCD_BL_CTRL_PIN;
@@ -347,7 +346,7 @@ static void BSP_LCD_ClockConfig(LTDC_HandleTypeDef *hltdc, void *Params)
   * @retval LCD state
   */
 uint8_t BSP_LCD_Init(void)
-{    
+{
     /* Timing Configuration */
     ltdc_handle.Init.HorizontalSync = (RK043FN48H_HSYNC - 1);
     ltdc_handle.Init.VerticalSync = (RK043FN48H_VSYNC - 1);
@@ -357,7 +356,7 @@ uint8_t BSP_LCD_Init(void)
     ltdc_handle.Init.AccumulatedActiveW = (RK043FN48H_WIDTH + RK043FN48H_HSYNC + RK043FN48H_HBP - 1);
     ltdc_handle.Init.TotalHeigh = (RK043FN48H_HEIGHT + RK043FN48H_VSYNC + RK043FN48H_VBP + RK043FN48H_VFP - 1);
     ltdc_handle.Init.TotalWidth = (RK043FN48H_WIDTH + RK043FN48H_HSYNC + RK043FN48H_HBP + RK043FN48H_HFP - 1);
-    
+
     /* LCD clock configuration */
     BSP_LCD_ClockConfig(&ltdc_handle, NULL);
 
@@ -369,11 +368,11 @@ uint8_t BSP_LCD_Init(void)
     ltdc_handle.Init.Backcolor.Blue = 0;
     ltdc_handle.Init.Backcolor.Green = 0;
     ltdc_handle.Init.Backcolor.Red = 0;
-    
+
     /* Polarity */
     ltdc_handle.Init.HSPolarity = LTDC_HSPOLARITY_AL;
-    ltdc_handle.Init.VSPolarity = LTDC_VSPOLARITY_AL; 
-    ltdc_handle.Init.DEPolarity = LTDC_DEPOLARITY_AL;  
+    ltdc_handle.Init.VSPolarity = LTDC_VSPOLARITY_AL;
+    ltdc_handle.Init.DEPolarity = LTDC_DEPOLARITY_AL;
     ltdc_handle.Init.PCPolarity = LTDC_PCPOLARITY_IPC;
     ltdc_handle.Instance = LTDC;
 
@@ -402,14 +401,37 @@ uint8_t BSP_LCD_Init(void)
 }
 
 /* LK display (lib/gfx.h) calls this function */
-status_t display_get_info(struct display_info *info)
+status_t display_get_framebuffer(struct display_framebuffer *fb)
 {
-    info->framebuffer = (void *)ltdc_handle.LayerCfg[active_layer].FBStartAdress;
+    fb->image.pixels = (void *)ltdc_handle.LayerCfg[active_layer].FBStartAdress;
 
     if (ltdc_handle.LayerCfg[active_layer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) {
-        info->format = GFX_FORMAT_ARGB_8888;
+        fb->format = DISPLAY_FORMAT_ARGB_8888;
+        fb->image.format = IMAGE_FORMAT_ARGB_8888;
+        fb->image.rowbytes = BSP_LCD_GetXSize() * 4;
     } else if (ltdc_handle.LayerCfg[active_layer].PixelFormat == LTDC_PIXEL_FORMAT_RGB565) {
-        info->format = GFX_FORMAT_RGB_565;
+        fb->format = DISPLAY_FORMAT_RGB_565;
+        fb->image.format = IMAGE_FORMAT_RGB_565;
+        fb->image.rowbytes = BSP_LCD_GetXSize() * 2;
+    } else {
+        panic("unhandled pixel format\n");
+        return ERR_NOT_FOUND;
+    }
+
+    fb->image.width = BSP_LCD_GetXSize();
+    fb->image.height = BSP_LCD_GetYSize();
+    fb->image.stride = BSP_LCD_GetXSize();
+    fb->flush = NULL;
+
+    return NO_ERROR;
+}
+
+status_t display_get_info(struct display_info *info)
+{
+    if (ltdc_handle.LayerCfg[active_layer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) {
+        info->format = DISPLAY_FORMAT_ARGB_8888;
+    } else if (ltdc_handle.LayerCfg[active_layer].PixelFormat == LTDC_PIXEL_FORMAT_RGB565) {
+        info->format = DISPLAY_FORMAT_RGB_565;
     } else {
         panic("unhandled pixel format\n");
         return ERR_NOT_FOUND;
@@ -417,9 +439,6 @@ status_t display_get_info(struct display_info *info)
 
     info->width = BSP_LCD_GetXSize();
     info->height = BSP_LCD_GetYSize();
-    info->stride = BSP_LCD_GetXSize();
-    info->flush = NULL;
 
     return NO_ERROR;
 }
-

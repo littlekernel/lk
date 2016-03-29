@@ -1,0 +1,24 @@
+Makefile Include Diagram
+
+              /---> project/$(PROJECT).mk
+              |
+              |---> target/$(TARGET)/rules.mk
+              |
+              |---> platform/$(PLATFORM)/rules.mk
+              |
+              |---> arch/$(ARCH)/rules.mk
+              |
+              |---> top/rules.mk
+              |
+engine.mk --->|
+              |                         /---> rules.mk ---> make/module.mk ---> make/compile.mk
+              |                         |
+              |                         |
+              |---> make/recurse.mk --->|
+              |            ^            |
+              |            |            |
+              |            |            |
+              |            \____________/            
+              |
+              |
+              \---> make/build.mk

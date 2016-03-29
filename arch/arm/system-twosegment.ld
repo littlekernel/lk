@@ -5,6 +5,7 @@ ENTRY(_start)
 SECTIONS
 {
     . = %ROMBASE%;
+    __rom_start = .;
 
     /* text/read-only data */
     .text : {
@@ -61,6 +62,7 @@ SECTIONS
     .dummy_post_rodata : {
         /* end of rodata, start of data area */
         __rodata_end = . ;
+        __rom_end = . ;
         __data_start_rom = .;
     }
 

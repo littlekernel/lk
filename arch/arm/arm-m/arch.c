@@ -28,6 +28,7 @@
 #include <kernel/debug.h>
 #include <platform.h>
 #include <arch/arm/cm.h>
+#include <target.h>
 
 extern void *vectab;
 
@@ -38,10 +39,11 @@ unsigned int arm_cm_irq_pri_mask;
 
 void arch_early_init(void)
 {
-    uint i;
 
     arch_disable_ints();
 
+#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+    uint i;
     /* set the vector table base */
     SCB->VTOR = (uint32_t)&vectab;
 
@@ -76,12 +78,16 @@ void arch_early_init(void)
     SCB->SHCSR |= (SCB_SHCSR_USGFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_MEMFAULTENA_Msk);
 
     /* set the svc and pendsv priority level to pretty low */
+#endif
     NVIC_SetPriority(SVCall_IRQn, arm_cm_lowest_priority());
     NVIC_SetPriority(PendSV_IRQn, arm_cm_lowest_priority());
 
     /* set systick and debugmonitor to medium priority */
     NVIC_SetPriority(SysTick_IRQn, arm_cm_medium_priority());
+
+#if (__CORTEX_M >= 0x03)
     NVIC_SetPriority(DebugMonitor_IRQn, arm_cm_medium_priority());
+#endif
 
     /* FPU settings ------------------------------------------------------------*/
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
@@ -107,12 +113,17 @@ void arch_init(void)
 
 void arch_quiesce(void)
 {
+#if ARM_WITH_CACHE
+    arch_disable_cache(UCACHE);
+#endif
 }
 
 void arch_idle(void)
 {
     __asm__ volatile("wfi");
 }
+
+#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
 
 void _arm_cm_set_irqpri(uint32_t pri)
 {
@@ -132,6 +143,8 @@ void _arm_cm_set_irqpri(uint32_t pri)
         __enable_irq(); // cpsie i
     }
 }
+#endif
+
 
 void arm_cm_irq_entry(void)
 {
@@ -143,10 +156,14 @@ void arm_cm_irq_entry(void)
 
     THREAD_STATS_INC(interrupts);
     KEVLOG_IRQ_ENTER(__get_IPSR());
+
+    target_set_debug_led(1, true);
 }
 
 void arm_cm_irq_exit(bool reschedule)
 {
+    target_set_debug_led(1, false);
+
     if (reschedule)
         arm_cm_trigger_preempt();
 
@@ -157,5 +174,29 @@ void arm_cm_irq_exit(bool reschedule)
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
+#if (__CORTEX_M >= 0x03)
+
+    uint32_t *vectab = (uint32_t *)entry;
+
+    __asm__ volatile(
+        "mov r0,  %[arg0]; "
+        "mov r1,  %[arg1]; "
+        "mov r2,  %[arg2]; "
+        "mov r3,  %[arg3]; "
+        "mov sp,  %[SP]; "
+        "bx  %[entry]; "
+        :
+        : [arg0]"r"(arg0),
+          [arg1]"r"(arg1),
+          [arg2]"r"(arg2),
+          [arg3]"r"(arg3),
+          [SP]"r"(vectab[0]),
+          [entry]"r"(vectab[1])
+        : "r0", "r1", "r2", "r3"
+    );
+
+    __UNREACHABLE;
+#else
     PANIC_UNIMPLEMENTED;
+#endif
 }

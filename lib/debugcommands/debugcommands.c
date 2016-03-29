@@ -37,7 +37,6 @@
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
-#include <arch/mmu.h>
 #endif
 
 static int cmd_display_mem(int argc, const cmd_args *argv);
@@ -123,7 +122,7 @@ static int cmd_display_mem(int argc, const cmd_args *argv)
 
 #if WITH_KERNEL_VM
     /* preflight the start address to see if it's mapped */
-    if (arch_mmu_query((vaddr_t)address, NULL, NULL) < 0) {
+    if (vaddr_to_paddr((void *)address) == 0) {
         printf("ERROR: address 0x%lx is unmapped\n", address);
         return -1;
     }

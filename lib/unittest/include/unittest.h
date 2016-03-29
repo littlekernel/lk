@@ -161,9 +161,9 @@ void unittest_set_output_function (test_output_func fun, void *arg);
         typeof(actual) _e = expected;                                      \
         typeof(actual) _a = actual;                                        \
         if (_e != _a) {                                                    \
-            UNITTEST_TRACEF (EXPECTED_STRING #expected " (%d), "           \
-                   "actual " #actual " (%d)\n",                            \
-                   msg, (int)_e, (int)_a);                                 \
+            UNITTEST_TRACEF (EXPECTED_STRING "%s (%d), "                   \
+                   "actual %s (%d)\n",                                     \
+                   msg, #expected, (int)_e, #actual, (int)_a);             \
             all_ok = false;                                                \
         }                                                                  \
     }
@@ -172,9 +172,9 @@ void unittest_set_output_function (test_output_func fun, void *arg);
     {                                                                      \
         const typeof(expected) _e = expected;                              \
         if (_e == actual) {                                                \
-            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d), " #actual    \
+            UNITTEST_TRACEF(EXPECTED_STRING "%s (%d), %s"                  \
                    " to differ, but they are the same %d\n",               \
-                   msg, (int)_e);                                          \
+                   msg, #expected, (int)_e, #actual);                      \
             all_ok = false;                                                \
         }                                                                  \
     }
@@ -184,10 +184,9 @@ void unittest_set_output_function (test_output_func fun, void *arg);
         const typeof(actual) _e = expected;                                \
         const typeof(actual) _a = actual;                                  \
         if (_e > _a) {                                                     \
-            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d) to be"        \
-                   " less-than-or-equal-to actual "                        \
-                   #actual  " (%d)\n",                                     \
-                   msg, (int)_e, (int)_a);                                 \
+            UNITTEST_TRACEF(EXPECTED_STRING "%s (%d) to be"                \
+                   " less-than-or-equal-to actual %s (%d)\n",              \
+                   msg, #expected, (int)_e, #actual, (int)_a);             \
             all_ok = false;                                                \
         }                                                                  \
     }
@@ -197,10 +196,9 @@ void unittest_set_output_function (test_output_func fun, void *arg);
         const typeof(actual) _e = expected;                               \
         const typeof(actual) _a = actual;                                 \
         if (_e >= _a) {                                                   \
-            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d) to be"       \
-                   " less-than actual "                                   \
-                   #actual  " (%d)\n",                                    \
-                   msg, (int)_e, (int)_a);                                \
+            UNITTEST_TRACEF(EXPECTED_STRING "%s (%d) to be"               \
+                   " less-than actual %s (%d)\n",                         \
+                   msg, #expected, (int)_e, #actual, (int)_a);             \
             all_ok = false;                                               \
         }                                                                 \
     }
@@ -210,10 +208,9 @@ void unittest_set_output_function (test_output_func fun, void *arg);
         const typeof(actual) _e = expected;                               \
         const typeof(actual) _a = actual;                                 \
         if (_e < _a) {                                                    \
-            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d) to be"       \
-                   " greater-than-or-equal-to actual "                    \
-                   #actual " (%d)\n",                                     \
-                   msg, (int)_e, (int)_a);                                \
+            UNITTEST_TRACEF(EXPECTED_STRING "%s (%d) to be"               \
+                   " greater-than-or-equal-to actual %s (%d)\n",          \
+                   msg, #expected, (int)_e, #actual, (int)_a);             \
             all_ok = false;                                               \
         }                                                                 \
     }
@@ -223,23 +220,22 @@ void unittest_set_output_function (test_output_func fun, void *arg);
         const typeof(actual) _e = expected;                               \
         const typeof(actual) _a = actual;                                 \
         if (_e <= _a) {                                                   \
-            UNITTEST_TRACEF(EXPECTED_STRING #expected " (%d) to be"       \
-                   " greater-than actual "                                \
-                   #actual " (%d)\n",                                     \
-                   msg, (int)_e, (int)_a);                                \
+            UNITTEST_TRACEF(EXPECTED_STRING "%s (%d) to be"               \
+                   " greater-than actual %s (%d)\n",                      \
+                   msg, #expected, (int)_e, #actual, (int)_a);             \
             all_ok = false;                                               \
         }                                                                 \
     }
 
 #define EXPECT_TRUE(actual, msg)                                          \
     if (!(actual)) {                                                      \
-        UNITTEST_TRACEF("%s: " #actual " is false\n", msg);               \
+        UNITTEST_TRACEF("%s: %s is false\n", msg, #actual);               \
         all_ok = false;                                                   \
     }
 
 #define EXPECT_FALSE(actual, msg)                                         \
     if (actual) {                                                         \
-        UNITTEST_TRACEF("%s: " #actual " is true\n", msg);                \
+        UNITTEST_TRACEF("%s: %s is true\n", msg, #actual);                \
         all_ok = false;                                                   \
     }
 
@@ -250,8 +246,8 @@ void unittest_set_output_function (test_output_func fun, void *arg);
 
 #define EXPECT_BYTES_NE(bytes1, bytes2, length, msg)                      \
     if (!memcmp(bytes1, bytes2, length)) {                                \
-        UNITTEST_TRACEF(#bytes1 " and " #bytes2 " are the same; "         \
-               "expected different\n");                                   \
+        UNITTEST_TRACEF("%s and %s are the same; "                        \
+               "expected different\n", #bytes1, #bytes2);                 \
         hexdump8(bytes1, length);                                         \
         all_ok = false;                                                   \
     }

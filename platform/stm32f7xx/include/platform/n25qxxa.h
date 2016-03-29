@@ -33,26 +33,26 @@
   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   *
   ******************************************************************************
-  */ 
+  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __N25QXXA_H
 #define __N25QXXA_H
 
 #ifdef __cplusplus
- extern "C" {
-#endif 
+extern "C" {
+#endif
 
 /* Includes ------------------------------------------------------------------*/
 
 /** @addtogroup BSP
   * @{
-  */ 
+  */
 
 /** @addtogroup Components
   * @{
-  */ 
-  
+  */
+
 /** @addtogroup n25qXXA
   * @{
   */
@@ -60,18 +60,18 @@
 /** @defgroup N25QXXA_Exported_Types
   * @{
   */
-   
+
 /**
   * @}
-  */ 
+  */
 
 /** @defgroup N25QXXA_Exported_Constants
   * @{
   */
-   
-/** 
-  * @brief  N25QXXA Configuration  
-  */  
+
+/**
+  * @brief  N25QXXA Configuration
+  */
 #define N25QXXA_SECTOR_SIZE                 0x10000   /* 1024 sectors of 64KBytes */
 #define N25QXXA_SUBSECTOR_SIZE              0x1000    /* 16384 subsectors of 4kBytes */
 #define N25QXXA_PAGE_SIZE                   0x100     /* 262144 pages of 256 bytes */
@@ -82,9 +82,9 @@
 #define N25QXXA_SECTOR_ERASE_MAX_TIME       3000
 #define N25QXXA_SUBSECTOR_ERASE_MAX_TIME    800
 
-/** 
-  * @brief  N25QXXA Commands  
-  */  
+/**
+  * @brief  N25QXXA Commands
+  */
 /* Reset Operations */
 #define RESET_ENABLE_CMD                     0x66
 #define RESET_MEMORY_CMD                     0x99
@@ -145,9 +145,9 @@
 #define READ_OTP_ARRAY_CMD                   0x4B
 #define PROG_OTP_ARRAY_CMD                   0x42
 
-/** 
-  * @brief  N25QXXA Registers  
-  */ 
+/**
+  * @brief  N25QXXA Registers
+  */
 /* Status Register */
 #define N25QXXA_SR_WIP                      ((uint8_t)0x01)    /*!< Write in progress */
 #define N25QXXA_SR_WREN                     ((uint8_t)0x02)    /*!< Write enable latch */
@@ -187,14 +187,14 @@
 /**
   * @}
   */
-  
+
 /** @defgroup N25QXXA_Exported_Functions
   * @{
-  */ 
+  */
 /**
   * @}
-  */ 
-      
+  */
+
 #ifdef __cplusplus
 }
 #endif
@@ -203,14 +203,14 @@
 
 /**
   * @}
-  */ 
-
-/**
-  * @}
-  */ 
+  */
 
 /**
   * @}
   */
-  
+
+/**
+  * @}
+  */
+
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

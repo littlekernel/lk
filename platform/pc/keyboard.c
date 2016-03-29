@@ -20,9 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <platform/keyboard.h>
+
 #include <sys/types.h>
 #include <err.h>
 #include <reg.h>
+#include <trace.h>
 #include <debug.h>
 #include <kernel/thread.h>
 #include <platform.h>
@@ -164,7 +167,7 @@ static const int KeyCodeMultiUpper[] = {
 static bool key_lshift;
 static bool key_rshift;
 
-static cbuf_t key_buf;
+static cbuf_t *key_buf;
 
 static void i8042_process_scode(uint8_t scode, unsigned int flags)
 {
@@ -198,7 +201,7 @@ static void i8042_process_scode(uint8_t scode, unsigned int flags)
 
     if (keyCode != -1 && !keyUpBit) {
         char c = (char) keyCode;
-        cbuf_write_char(&key_buf, c, false);
+        cbuf_write_char(key_buf, c, false);
     }
 
     // update the last received code
@@ -285,6 +288,7 @@ static int i8042_command(uint8_t *param, int command)
 static enum handler_return i8042_interrupt(void *arg)
 {
     uint8_t str, data = 0;
+    bool resched = false;
 
     //enter_critical_section();
     str = i8042_read_status();
@@ -297,24 +301,25 @@ static enum handler_return i8042_interrupt(void *arg)
         i8042_process_scode(data,
                             ((str & I8042_STR_PARITY) ? I8042_STR_PARITY : 0) |
                             ((str & I8042_STR_TIMEOUT) ? I8042_STR_TIMEOUT : 0));
+        resched = true;
     }
 
-    return INT_NO_RESCHEDULE;
+    return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
 int platform_read_key(char *c)
 {
     ssize_t len;
 
-    len = cbuf_read_char(&key_buf, c, true);
+    len = cbuf_read_char(key_buf, c, true);
     return len;
 }
 
-void platform_init_keyboard(void)
+void platform_init_keyboard(cbuf_t *buffer)
 {
     uint8_t ctr;
 
-    cbuf_initialize(&key_buf, 32);
+    key_buf = buffer;
 
     i8042_flush();
 

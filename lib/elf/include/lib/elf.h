@@ -26,6 +26,13 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
+/* based on our bitness, support 32 or 64 bit elf */
+#if IS_64BIT
+#define WITH_ELF64 1
+#else
+#define WITH_ELF32 1
+#endif
+
 /* api */
 struct elf_handle;
 typedef ssize_t (*elf_read_hook_t)(struct elf_handle *, void *buf, uint64_t offset, size_t len);
@@ -44,8 +51,13 @@ typedef struct elf_handle {
     void *mem_alloc_hook_arg;
 
     // loaded info about the elf file
+#if WITH_ELF32
     struct Elf32_Ehdr eheader;    // a copy of the main elf header
     struct Elf32_Phdr *pheaders;  // a pointer to a buffer of program headers
+#else
+    struct Elf64_Ehdr eheader;    // a copy of the main elf header
+    struct Elf64_Phdr *pheaders;  // a pointer to a buffer of program headers
+#endif
 
     addr_t load_address;
     addr_t entry;

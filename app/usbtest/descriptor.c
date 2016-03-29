@@ -106,5 +106,3 @@ void usbtest_usb_setup(void)
     usbc_setup_endpoint(1, USB_OUT, 64);
     usbc_setup_endpoint(1, USB_IN, 64);
 }
-
-// vim: set ts=4 sw=4 expandtab:

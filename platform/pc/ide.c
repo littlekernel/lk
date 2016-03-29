@@ -38,7 +38,7 @@
 #include <dev/class/block.h>
 #include <kernel/event.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 // status register bits
 #define IDE_CTRL_BSY   0x80

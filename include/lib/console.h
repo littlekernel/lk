@@ -30,11 +30,11 @@
 
 /* command args */
 typedef struct {
-	const char *str;
-	unsigned long u;
-	void* p;
-	long i;
-	bool b;
+    const char *str;
+    unsigned long u;
+    void *p;
+    long i;
+    bool b;
 } cmd_args;
 
 typedef int (*console_cmd)(int argc, const cmd_args *argv);
@@ -45,16 +45,16 @@ typedef int (*console_cmd)(int argc, const cmd_args *argv);
 
 /* a block of commands to register */
 typedef struct {
-	const char *cmd_str;
-	const char *help_str;
-	const console_cmd cmd_callback;
-	uint8_t availability_mask;
+    const char *cmd_str;
+    const char *help_str;
+    const console_cmd cmd_callback;
+    uint8_t availability_mask;
 } cmd;
 
 typedef struct _cmd_block {
-	struct _cmd_block *next;
-	size_t count;
-	const cmd *list;
+    struct _cmd_block *next;
+    size_t count;
+    const cmd *list;
 } cmd_block;
 
 /* register a static block of commands at init time */
