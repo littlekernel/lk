@@ -39,6 +39,10 @@ const uint ITER = 1024;
 __NO_INLINE static void bench_set_overhead(void)
 {
     uint32_t *buf = malloc(BUFSIZE);
+    if (!buf) {
+        printf("failed to allocate buffer\n");
+        return;
+    }
 
     uint count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
@@ -55,6 +59,10 @@ __NO_INLINE static void bench_set_overhead(void)
 __NO_INLINE static void bench_memset(void)
 {
     void *buf = malloc(BUFSIZE);
+    if (!buf) {
+        printf("failed to allocate buffer\n");
+        return;
+    }
 
     uint count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
@@ -72,6 +80,10 @@ __NO_INLINE static void bench_memset(void)
 __NO_INLINE static void bench_cset_##type(void) \
 { \
     type *buf = malloc(BUFSIZE); \
+    if (!buf) { \
+        printf("failed to allocate buffer\n"); \
+        return; \
+    } \
  \
     uint count = arch_cycle_count(); \
     for (uint i = 0; i < ITER; i++) { \
@@ -95,6 +107,10 @@ bench_cset(uint64_t)
 __NO_INLINE static void bench_cset_wide(void)
 {
     uint32_t *buf = malloc(BUFSIZE);
+    if (!buf) {
+        printf("failed to allocate buffer\n");
+        return;
+    }
 
     uint count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
@@ -119,7 +135,11 @@ __NO_INLINE static void bench_cset_wide(void)
 
 __NO_INLINE static void bench_memcpy(void)
 {
-    uint8_t *buf = calloc(1, BUFSIZE);
+    uint8_t *buf = malloc(BUFSIZE);
+    if (!buf) {
+        printf("failed to allocate buffer\n");
+        return;
+    }
 
     uint count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
@@ -137,6 +157,10 @@ __NO_INLINE static void bench_memcpy(void)
 __NO_INLINE static void arm_bench_cset_stm(void)
 {
     uint32_t *buf = malloc(BUFSIZE);
+    if (!buf) {
+        printf("failed to allocate buffer\n");
+        return;
+    }
 
     uint count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {

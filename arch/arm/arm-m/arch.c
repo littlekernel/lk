@@ -42,7 +42,7 @@ void arch_early_init(void)
 
     arch_disable_ints();
 
-#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+#if (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
     uint i;
     /* set the vector table base */
     SCB->VTOR = (uint32_t)&vectab;
@@ -89,6 +89,11 @@ void arch_early_init(void)
     NVIC_SetPriority(DebugMonitor_IRQn, arm_cm_medium_priority());
 #endif
 
+    /* FPU settings ------------------------------------------------------------*/
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+    SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
+#endif
+
 #if ARM_WITH_CACHE
     arch_enable_cache(UCACHE);
 #endif
@@ -100,6 +105,11 @@ void arch_init(void)
     *REG32(SCB_DEMCR) |= 0x01000000; // global trace enable
     *REG32(DWT_CYCCNT) = 0;
     *REG32(DWT_CTRL) |= 1; // enable cycle counter
+#endif
+    printf("CONTROL 0x%x\n", __get_CONTROL());
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+    printf("FPSCR 0x%x\n", __get_FPSCR());
+    printf("FPCCR 0x%x\n", FPU->FPCCR);
 #endif
 }
 

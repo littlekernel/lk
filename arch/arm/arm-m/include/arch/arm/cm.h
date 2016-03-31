@@ -100,6 +100,12 @@ struct arm_cm_exception_frame_long {
     uint32_t psr;
 };
 
+/* when fpu context save is enabled, this goes just above psr in the previous structs */
+struct arm_cm_exception_frame_fpu {
+    float    s[16];
+    uint32_t fpscr;
+};
+
 #if ARM_CM_DYNAMIC_PRIORITY_SIZE
 extern unsigned int arm_cm_num_irq_pri_bits;
 extern unsigned int arm_cm_irq_pri_mask;

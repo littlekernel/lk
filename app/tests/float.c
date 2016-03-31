@@ -38,25 +38,31 @@ extern void float_vfp_thumb_instruction_test(void);
 extern void float_neon_arm_instruction_test(void);
 extern void float_neon_thumb_instruction_test(void);
 
+#if !ARM_WITH_VFP_SP_ONLY
+#define FLOAT float
+#else
+#define FLOAT float
+#endif
+
 /* optimize this function to cause it to try to use a lot of registers */
 __OPTIMIZE("O3")
 static int float_thread(void *arg)
 {
-    double *val = arg;
+    FLOAT *val = arg;
     uint i, j;
 
-    double a[16];
+    FLOAT a[16];
 
     /* do a bunch of work with floating point to test context switching */
     a[0] = *val;
     for (i = 1; i < countof(a); i++) {
-        a[i] = a[i-1] * 1.01;
+        a[i] = a[i-1] * 1.01f;
     }
 
     for (i = 0; i < 1000000; i++) {
-        a[0] += i;
+        a[0] += 0.001f;
         for (j = 1; j < countof(a); j++) {
-            a[j] += a[j-1] * 0.00001;
+            a[j] += a[j-1] * 0.00001f;
         }
     }
 
@@ -65,7 +71,7 @@ static int float_thread(void *arg)
     return 1;
 }
 
-#if ARCH_ARM
+#if ARCH_ARM && !ARM_ISA_ARMV7M
 static void arm_float_instruction_trap_test(void)
 {
     printf("testing fpu trap\n");
@@ -87,12 +93,14 @@ static void float_tests(void)
 
     /* test lazy fpu load on separate thread */
     thread_t *t[8];
-    double val[countof(t)];
+    FLOAT val[countof(t)];
 
     printf("creating %u floating point threads\n", countof(t));
     for (uint i = 0; i < countof(t); i++) {
         val[i] = i;
-        t[i] = thread_create("float", &float_thread, &val[i], LOW_PRIORITY, DEFAULT_STACK_SIZE);
+        char name[32];
+        snprintf(name, sizeof(name), "float %u", i);
+        t[i] = thread_create(name, &float_thread, &val[i], LOW_PRIORITY, DEFAULT_STACK_SIZE);
         thread_resume(t[i]);
     }
 
@@ -103,7 +111,7 @@ static void float_tests(void)
     }
     printf("the above values should be close\n");
 
-#if ARCH_ARM
+#if ARCH_ARM && !ARM_ISA_ARMV7M
     /* test all the instruction traps */
     arm_float_instruction_trap_test();
 #endif

@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <compiler.h>
 #include <stdint.h>
+#include <bits.h>
 #include <kernel/thread.h>
 #include <arch/arm/cm.h>
 #include <platform.h>
@@ -89,6 +90,24 @@ static void usagefault(struct arm_cm_exception_frame *frame)
 {
     printf("usagefault: ");
     dump_frame(frame);
+
+#if  (__CORTEX_M >= 0x03)
+    uint32_t ufsr = BITS_SHIFT(SCB->CFSR, 31, 16);
+    printf("UFSR 0x%x: ", ufsr);
+
+    if (ufsr & (1<<0))
+        printf("undefined instruction\n");
+    if (ufsr & (1<<1))
+        printf("ESPR invalid\n");
+    if (ufsr & (1<<2))
+        printf("integrity check failed on EXC_RETURN\n");
+    if (ufsr & (1<<3))
+        printf("coprocessor access error\n");
+    if (ufsr & (1<<8))
+        printf("unaligned error\n");
+    if (ufsr & (1<<9))
+        printf("division by zero\n");
+#endif
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
