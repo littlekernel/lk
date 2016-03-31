@@ -27,18 +27,17 @@
 #include <dev/usb/class/cdcserial.h>
 #include <kernel/thread.h>
 
-uint8_t rxbuf[64];
+static uint8_t rxbuf[64];
 
 static void cdctest_init(const struct app_descriptor *app)
 {
-    cdcserial_start();
 }
 
 // Read bytes from CDC Serial and write them back to the stream.
 static void cdctest_entry(const struct app_descriptor *app, void *args)
 {
     while (true) {
-        ssize_t bytes = cdcserial_read(64, rxbuf);
+        ssize_t bytes = cdcserial_read(sizeof(rxbuf), rxbuf);
         if (bytes == ERR_NOT_READY) {
             // USB is not ready yet.
             thread_sleep(100);

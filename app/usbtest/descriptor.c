@@ -99,7 +99,7 @@ static usb_config config = {
 
 void usbtest_usb_setup(void)
 {
-    usb_setup(&config, NULL);
+    usb_setup(&config);
     printf("appending interfaces\n");
     usb_append_interface_lowspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));
     usb_append_interface_highspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));

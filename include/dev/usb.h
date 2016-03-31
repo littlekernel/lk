@@ -73,7 +73,12 @@ typedef struct {
 } usb_config;
 
 /* external code needs to set up the usb stack via the following calls */
-status_t usb_setup(usb_config *config, usb_callback_t setup_callback);
+status_t usb_setup(usb_config *config);
+
+/* Returns the Interface Number that will be assigned to the next interface that
+   is registered using usb_append_interface_(.*) */
+uint8_t usb_get_current_iface_num_highspeed(void);
+uint8_t usb_get_current_iface_num_lowspeed(void);
 
 /* apped new interface descriptors to the existing config if desired */
 status_t usb_append_interface_highspeed(const uint8_t *int_descr, size_t len);

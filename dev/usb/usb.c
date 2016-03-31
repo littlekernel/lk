@@ -51,8 +51,6 @@ typedef struct {
     void *cookie;
 } usb_callback_container_t;
 
-static usb_callback_t class_setup_callback;
-
 static void usb_do_callbacks(usb_callback_op_t op, const union usb_callback_args *args);
 
 static void append_desc_data(usb_descriptor *desc, const void *dat, size_t len)
@@ -71,6 +69,23 @@ static void append_desc_data(usb_descriptor *desc, const void *dat, size_t len)
     desc->len += len;
 }
 
+static uint8_t usb_get_current_iface_num(const usb_descriptor *desc)
+{
+    DEBUG_ASSERT(desc);
+
+    return ((uint8_t *)desc->desc)[4];
+}
+
+uint8_t usb_get_current_iface_num_highspeed(void)
+{
+    return usb_get_current_iface_num(&usb.config->highspeed.config);
+}
+
+uint8_t usb_get_current_iface_num_lowspeed(void)
+{
+    return usb_get_current_iface_num(&usb.config->lowspeed.config);
+}
+
 /* returns the interface number assigned */
 static int usb_append_interface(usb_descriptor *desc, const uint8_t *int_descr, size_t len)
 {
@@ -81,7 +96,7 @@ static int usb_append_interface(usb_descriptor *desc, const uint8_t *int_descr, 
     memcpy(ptr, int_descr, len);
 
     // find the last interface used
-    interface_num = ((uint8_t *)desc->desc)[4]; // current interface
+    interface_num = usb_get_current_iface_num(desc);  // current interface
 
     // patch our interface descriptor with the new id
     ptr[2] = interface_num;
@@ -337,16 +352,6 @@ status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args
                 default:
                     LTRACEF("unhandled standard request 0x%x\n", setup->request);
             }
-        } else {
-            status_t setup_callback_rslt = ERR_NOT_IMPLEMENTED;
-
-            if (class_setup_callback) {
-                setup_callback_rslt = class_setup_callback(NULL, op, args);
-            }
-            if (setup_callback_rslt != NO_ERROR) {
-                LTRACEF("unhandled nonstandard request 0x%x. Retcode = %d\n",
-                        setup->request, setup_callback_rslt);
-            }
         }
 
         if (!setup_handled) {
@@ -365,12 +370,10 @@ status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args
     return NO_ERROR;
 }
 
-status_t usb_setup(usb_config *config, usb_callback_t setup_callback)
+status_t usb_setup(usb_config *config)
 {
     DEBUG_ASSERT(config);
     DEBUG_ASSERT(usb.active == false);
-
-    class_setup_callback = setup_callback;
 
     usb.config = config;
 

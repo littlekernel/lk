@@ -26,7 +26,9 @@
 
 #include <sys/types.h>
 
-status_t cdcserial_start(void);
+status_t cdcserial_init(void);
+
+void cdcserial_create_channel(int data_ep_addr, int ctrl_ep_addr);
 
 // Write len bytes to the CDC Serial Virtual Com Port. 
 status_t cdcserial_write(size_t len, uint8_t *buf);
