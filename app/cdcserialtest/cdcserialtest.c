@@ -22,7 +22,36 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-void append_usb_interfaces(void)
+#include <app.h>
+#include <err.h>
+#include <dev/usb/class/cdcserial.h>
+#include <kernel/thread.h>
+
+static uint8_t rxbuf[64];
+
+static void cdctest_init(const struct app_descriptor *app)
 {
-	// no-op
 }
+
+// Read bytes from CDC Serial and write them back to the stream.
+static void cdctest_entry(const struct app_descriptor *app, void *args)
+{
+    while (true) {
+        ssize_t bytes = cdcserial_read(sizeof(rxbuf), rxbuf);
+        if (bytes == ERR_NOT_READY) {
+            // USB is not ready yet.
+            thread_sleep(100);
+            continue;
+        } else if (bytes < 0) {
+            printf("Error reading bytes from CDC Serial: %ld\n", bytes);
+            break;
+        }
+
+        cdcserial_write(bytes, rxbuf);
+    }
+}
+
+APP_START(usbtest)
+ .init = cdctest_init,
+ .entry = cdctest_entry,
+APP_END

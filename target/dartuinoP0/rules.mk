@@ -28,7 +28,6 @@ GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/init.c \
-    $(LOCAL_DIR)/usb.c \
 
 MODULE_DEPS += \
     dev/usb
