@@ -30,6 +30,7 @@
 #include <dev/usbc.h>
 #include <hw/usb.h>
 #include <lk/init.h>
+#include <lib/ndebug.h>
 
 #define LOCAL_TRACE 0
 
@@ -101,8 +102,7 @@ void target_usb_setup(void)
 {
     usb_setup(&config);
 
-    printf("appending interfaces\n");
-    append_usb_interfaces();
+    ndbug_init();
 
     usb_add_string("LK", 1);
     usb_add_string("LK Industries", 2);
