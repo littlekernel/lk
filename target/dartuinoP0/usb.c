@@ -20,16 +20,17 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <stdio.h>
-#include <trace.h>
-#include <target.h>
 #include <compiler.h>
+#include <debug.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
+#include <err.h>
 #include <hw/usb.h>
+#include <lib/ndebug/ndebug.h>
 #include <lk/init.h>
+#include <stdio.h>
+#include <target.h>
+#include <trace.h>
 
 #define LOCAL_TRACE 0
 
@@ -101,8 +102,7 @@ void target_usb_setup(void)
 {
     usb_setup(&config);
 
-    printf("appending interfaces\n");
-    append_usb_interfaces();
+    ndebug_init();
 
     usb_add_string("LK", 1);
     usb_add_string("LK Industries", 2);
