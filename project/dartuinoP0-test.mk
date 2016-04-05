@@ -19,35 +19,3 @@ MODULE_SRCS += \
 
 GLOBAL_DEFINES += \
 	ENABLE_SENSORBUS=1
-
-
-ifneq ($(DISPLAY_PANEL_TYPE),)
-
-MODULE_SRCS += \
-    $(LOCAL_DIR)/memory_lcd.c
-
-GLOBAL_DEFINES += \
-    ENABLE_LCD=1
-
-endif
-
-ifeq ($(DISPLAY_PANEL_TYPE),LS013B7DH06)
-
-GLOBAL_DEFINES += \
-    LCD_LS013B7DH06=1
-MODULE_SRCS += \
-    $(LOCAL_DIR)/display/LS013B7DH06.c
-
-else ifeq ($(DISPLAY_PANEL_TYPE),LS027B7DH01)
-
-GLOBAL_DEFINES += \
-    LCD_LS027B7DH01=1
-MODULE_SRCS += \
-    $(LOCAL_DIR)/display/memory_lcd_mono.c
-
-else ifeq ($(DISPLAY_PANEL_TYPE),LS013B7DH03)
-GLOBAL_DEFINES += \
-    LCD_LS013B7DH03=1
-MODULE_SRCS += \
-    $(LOCAL_DIR)/display/memory_lcd_mono.c
-endif
