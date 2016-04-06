@@ -32,6 +32,7 @@ MODULE_SRCS += \
 
 MODULE_DEPS += \
     dev/usb \
+    app/ndebugtest \
     lib/ndebug
 
 include make/module.mk

@@ -18,18 +18,18 @@
 
 #define CH_TO_ADDR(CH) ((CH) + 1)
 #define CHECK_CHANNEL(CH) \
-		do { DEBUG_ASSERT((CH) < NDBUG_CHANNEL_COUNT); } while (false);
+		do { DEBUG_ASSERT((CH) < NDEBUG_CHANNEL_COUNT); } while (false);
 
-#define SYS_EP_ADDR (CH_TO_ADDR(NDBUG_CHANNEL_SYS))
-#define USR_EP_ADDR (CH_TO_ADDR(NDBUG_CHANNEL_USR))
+#define SYS_EP_ADDR (CH_TO_ADDR(NDEBUG_CHANNEL_SYS))
+#define USR_EP_ADDR (CH_TO_ADDR(NDEBUG_CHANNEL_USR))
 
 #define NDEBUG_SUBCLASS (0x02)
 
 #define NDEBUG_PROTOCOL_LK_SYSTEM (0x01)
 #define NDEBUG_PROTOCOL_SERIAL_PIPE (0x02)
 
-static event_t rx_event[NDBUG_CHANNEL_COUNT];
-static event_t tx_event[NDBUG_CHANNEL_COUNT];
+static event_t rx_event[NDEBUG_CHANNEL_COUNT];
+static event_t tx_event[NDEBUG_CHANNEL_COUNT];
 
 static const uint8_t bulk_pair_descriptor_template[] = {
     0x09,           /* length */
@@ -90,16 +90,16 @@ static status_t ndebug_register_cb(
 )
 {
     if (op == USB_CB_ONLINE) {
-    	for (channel_t ch = 0; ch < NDBUG_CHANNEL_COUNT; ++ch) {
+        for (channel_t ch = 0; ch < NDEBUG_CHANNEL_COUNT; ++ch) {
     		setup_usb_endpoint(CH_TO_ADDR(ch));
     	}
     }
     return NO_ERROR;
 }
 
-void ndbug_init(void)
+void ndebug_init(void)
 {
-	for (channel_t ch = 0; ch < NDBUG_CHANNEL_COUNT; ++ch) {
+	for (channel_t ch = 0; ch < NDEBUG_CHANNEL_COUNT; ++ch) {
 		event_init(&rx_event[ch], 0, EVENT_FLAG_AUTOUNSIGNAL);
 		event_init(&tx_event[ch], 0, EVENT_FLAG_AUTOUNSIGNAL);
     }
@@ -128,7 +128,7 @@ static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
     return 0;
 }
 
-ssize_t ndbug_read(const channel_t ch, const size_t n, uint8_t *buf)
+ssize_t ndebug_read(const channel_t ch, const size_t n, uint8_t *buf)
 {
 	CHECK_CHANNEL(ch);
 
@@ -151,7 +151,7 @@ ssize_t ndbug_read(const channel_t ch, const size_t n, uint8_t *buf)
     return transfer.bufpos;
 }
 
-ssize_t ndbug_write(const channel_t ch, const size_t n, uint8_t *buf)
+ssize_t ndebug_write(const channel_t ch, const size_t n, uint8_t *buf)
 {
 	CHECK_CHANNEL(ch);
 

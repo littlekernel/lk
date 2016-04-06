@@ -102,7 +102,7 @@ void target_usb_setup(void)
 {
     usb_setup(&config);
 
-    ndbug_init();
+    ndebug_init();
 
     usb_add_string("LK", 1);
     usb_add_string("LK Industries", 2);
