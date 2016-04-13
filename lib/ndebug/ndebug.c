@@ -1,12 +1,12 @@
-#include <lib/ndebug.h>
+#include <lib/ndebug/ndebug.h>
 
+#include <assert.h>
 #include <dev/udc.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
+#include <err.h>
 #include <kernel/event.h>
 #include <string.h>
-#include <err.h>
-#include <assert.h>
 
 #define W(w) (w & 0xff), (w >> 8)
 #define W3(w) (w & 0xff), ((w >> 8) & 0xff), ((w >> 16) & 0xff)
@@ -30,6 +30,8 @@
 
 static event_t rx_event[NDEBUG_CHANNEL_COUNT];
 static event_t tx_event[NDEBUG_CHANNEL_COUNT];
+
+static event_t usb_online_event;
 
 static const uint8_t bulk_pair_descriptor_template[] = {
     0x09,           /* length */
@@ -93,6 +95,10 @@ static status_t ndebug_register_cb(
         for (channel_t ch = 0; ch < NDEBUG_CHANNEL_COUNT; ++ch) {
             setup_usb_endpoint(CH_TO_ADDR(ch));
         }
+        event_signal(&usb_online_event, false);
+    } else if (op == USB_CB_RESET || op == USB_CB_DISCONNECT ||
+               op == USB_CB_OFFLINE) {
+        event_unsignal(&usb_online_event);
     }
     return NO_ERROR;
 }
@@ -106,6 +112,8 @@ void ndebug_init(void)
 
     init_channel(NDEBUG_SUBCLASS, NDEBUG_PROTOCOL_LK_SYSTEM, SYS_EP_ADDR);
     init_channel(NDEBUG_SUBCLASS, NDEBUG_PROTOCOL_SERIAL_PIPE, USR_EP_ADDR);
+
+    event_init(&usb_online_event, 0, 0);
 
     usb_register_callback(&ndebug_register_cb, NULL);
 }
@@ -128,7 +136,8 @@ static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
     return 0;
 }
 
-ssize_t ndebug_read(const channel_t ch, const size_t n, uint8_t *buf)
+ssize_t ndebug_usb_read(const channel_t ch, const size_t n,
+                        const lk_time_t timeout, uint8_t *buf)
 {
     CHECK_CHANNEL(ch);
 
@@ -142,7 +151,7 @@ ssize_t ndebug_read(const channel_t ch, const size_t n, uint8_t *buf)
     };
 
     usbc_queue_rx(CH_TO_ADDR(ch), &transfer);
-    status_t res = event_wait(&rx_event[ch]);
+    status_t res = event_wait_timeout(&rx_event[ch], timeout);
 
     if (res != NO_ERROR) {
         return res;
@@ -151,7 +160,8 @@ ssize_t ndebug_read(const channel_t ch, const size_t n, uint8_t *buf)
     return transfer.bufpos;
 }
 
-ssize_t ndebug_write(const channel_t ch, const size_t n, uint8_t *buf)
+ssize_t ndebug_usb_write(const channel_t ch, const size_t n,
+                         const lk_time_t timeout, uint8_t *buf)
 {
     CHECK_CHANNEL(ch);
 
@@ -165,11 +175,16 @@ ssize_t ndebug_write(const channel_t ch, const size_t n, uint8_t *buf)
     };
 
     usbc_queue_tx(CH_TO_ADDR(ch), &transfer);
-    status_t res = event_wait(&tx_event[ch]);
+    status_t res = event_wait_timeout(&tx_event[ch], timeout);
 
     if (res != NO_ERROR) {
         return res;
     }
 
     return n;
+}
+
+status_t await_usb_online(lk_time_t timeout)
+{
+    return event_wait_timeout(&usb_online_event, timeout);
 }

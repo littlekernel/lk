@@ -2,11 +2,10 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-# MODULE_DEPS := \
-
 MODULE_SRCS += \
-  $(LOCAL_DIR)/ndebug.c \
-  $(LOCAL_DIR)/user.c \
+	$(LOCAL_DIR)/ndebugtest.c \
 
+MODULE_DEPS += \
+	lib/ndebug
 
 include make/module.mk
