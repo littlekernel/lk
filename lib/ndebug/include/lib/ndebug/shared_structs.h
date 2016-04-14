@@ -24,7 +24,9 @@
 
 #pragma once
 
-struct __attribute__((__packed__)) ndebug_ctrl_packet_t {
+#include <stdint.h>
+
+struct __attribute__((packed)) ndebug_ctrl_packet_t {
     uint32_t magic;
     uint32_t type;
 };

@@ -24,8 +24,11 @@
 
 #pragma once
 
+#include <compiler.h>
 #include <lib/ndebug/ndebug.h>
 #include <lib/ndebug/shared_structs.h>
+
+__BEGIN_CDECLS
 
 typedef struct {
     uint32_t magic;
@@ -42,3 +45,5 @@ ssize_t ndebug_write_usr(uint8_t *buf, const size_t n, const lk_time_t timeout);
 
 // Wait for the host to establish a connection on the usr channel.
 status_t ndebugusr_await_host(lk_time_t timeout);
+
+__END_CDECLS

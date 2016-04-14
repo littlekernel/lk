@@ -24,10 +24,13 @@
 
 #pragma once
 
+#include <compiler.h>
 #include <stdint.h>
 #include <sys/types.h>
 
 #define NDEBUG_MAX_PACKET_SIZE (64)
+
+__BEGIN_CDECLS
 
 typedef enum {
     NDEBUG_CHANNEL_SYS,
@@ -44,3 +47,5 @@ ssize_t ndebug_usb_write(const channel_t ch, const size_t n,
                          const lk_time_t timeout, uint8_t *buf);
 
 status_t await_usb_online(lk_time_t timeout);
+
+__END_CDECLS

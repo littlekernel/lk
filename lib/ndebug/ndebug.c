@@ -52,6 +52,9 @@
 #define NDEBUG_PROTOCOL_LK_SYSTEM (0x01)
 #define NDEBUG_PROTOCOL_SERIAL_PIPE (0x02)
 
+static usbc_transfer_t rx_transfer[NDEBUG_CHANNEL_COUNT];
+static usbc_transfer_t tx_transfer[NDEBUG_CHANNEL_COUNT];
+
 static event_t rx_event[NDEBUG_CHANNEL_COUNT];
 static event_t tx_event[NDEBUG_CHANNEL_COUNT];
 
@@ -165,23 +168,27 @@ ssize_t ndebug_usb_read(const channel_t ch, const size_t n,
 {
     CHECK_CHANNEL(ch);
 
-    usbc_transfer_t transfer = {
-        .callback = &usb_recv_cplt_cb,
-        .result = 0,
-        .buf = buf,
-        .buflen = n,
-        .bufpos = 0,
-        .extra = (void *)ch,
-    };
+    usbc_transfer_t *transfer = &rx_transfer[ch];
 
-    usbc_queue_rx(CH_TO_ADDR(ch), &transfer);
+    transfer->callback = &usb_recv_cplt_cb;
+    transfer->result = 0;
+    transfer->buf = buf;
+    transfer->buflen = n;
+    transfer->bufpos = 0;
+    transfer->extra = (void *)ch;
+
+    usbc_queue_rx(CH_TO_ADDR(ch), transfer);
     status_t res = event_wait_timeout(&rx_event[ch], timeout);
 
     if (res != NO_ERROR) {
         return res;
     }
 
-    return transfer.bufpos;
+    if (transfer->result != NO_ERROR) {
+        return transfer->result;
+    }
+
+    return transfer->bufpos;
 }
 
 ssize_t ndebug_usb_write(const channel_t ch, const size_t n,
@@ -189,20 +196,24 @@ ssize_t ndebug_usb_write(const channel_t ch, const size_t n,
 {
     CHECK_CHANNEL(ch);
 
-    usbc_transfer_t transfer = {
-        .callback = &usb_xmit_cplt_cb,
-        .result = 0,
-        .buf = buf,
-        .buflen = n,
-        .bufpos = 0,
-        .extra = (void *)ch,
-    };
+    usbc_transfer_t *transfer = &tx_transfer[ch];
 
-    usbc_queue_tx(CH_TO_ADDR(ch), &transfer);
+    transfer->callback = &usb_xmit_cplt_cb,
+    transfer->result = 0,
+    transfer->buf = buf,
+    transfer->buflen = n,
+    transfer->bufpos = 0,
+    transfer->extra = (void *)ch,
+
+    usbc_queue_tx(CH_TO_ADDR(ch), transfer);
     status_t res = event_wait_timeout(&tx_event[ch], timeout);
 
     if (res != NO_ERROR) {
         return res;
+    }
+
+    if (transfer->result != NO_ERROR) {
+        return transfer->result;
     }
 
     return n;
