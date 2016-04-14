@@ -87,7 +87,7 @@ static void ndebugtest_entry(const struct app_descriptor *app, void *args)
                 printf("Channel reset during read.\n");
                 break;
             } else if (bytes_read < 0) {
-                printf("Error while reading. Retcode = %d\n", bytes_read);
+                printf("Error while reading. Retcode = %ld\n", bytes_read);
                 break;
             }
 
@@ -103,7 +103,7 @@ static void ndebugtest_entry(const struct app_descriptor *app, void *args)
                 printf("Channel reset during write.\n");
                 break;
             } else if (bytes_written < 0) {
-                printf("Error while writing. Retcode = %d\n", bytes_written);
+                printf("Error while writing. Retcode = %ld\n", bytes_written);
                 break;
             }
 
