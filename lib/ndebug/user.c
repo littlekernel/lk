@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <err.h>
 #include <kernel/mutex.h>
+#include <stdlib.h>
 #include <string.h>
 #include <trace.h>
 
@@ -174,11 +175,6 @@ ssize_t ndebug_write_usr(uint8_t *buf, const size_t n, const lk_time_t timeout)
         return ERR_CHANNEL_CLOSED;
     }
 
-    // TODO(gkalsi): Packetize the packet that's too big and send the data
-    //               anyway.
-    if (n > NDEBUG_USR_MAX_PACKET_SIZE)
-        return ERR_TOO_BIG;
-
     mutex_acquire(&usr_mutex);
 
     uint8_t *cursor = scratch_buffer;
@@ -187,14 +183,34 @@ ssize_t ndebug_write_usr(uint8_t *buf, const size_t n, const lk_time_t timeout)
 
     cursor += sizeof(ndebug_ctrl_packet_t);
 
-    memcpy(cursor, buf, n);
+    ssize_t res;
+    size_t bytes_remaining = n;
+    do {
+        size_t bytes_to_copy = MIN(NDEBUG_USR_MAX_PACKET_SIZE, bytes_remaining);
 
-    ssize_t res = ndebug_usb_write(NDEBUG_CHANNEL_USR,
-                                   n + sizeof(ndebug_ctrl_packet_t),
-                                   timeout,
-                                   scratch_buffer);
+        memcpy(cursor, buf, bytes_to_copy);
+
+        buf += bytes_to_copy;
+        bytes_remaining -= bytes_to_copy;
+
+        res = ndebug_usb_write(
+            NDEBUG_CHANNEL_USR,
+            bytes_to_copy + sizeof(ndebug_ctrl_packet_t),
+            timeout,
+            scratch_buffer
+        );
+
+        if (res < 0) {
+            break;
+        }
+
+    } while (bytes_remaining > 0);
 
     mutex_release(&usr_mutex);
 
-    return res;
+    if (res < 0) {
+        return res;
+    } else {
+        return (ssize_t)n;
+    }
 }
