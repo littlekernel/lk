@@ -17,7 +17,7 @@ NDEBUG_DEPS :=
 NDEBUG_SRCS := ndebug/ndebug.cc ndebug/usbionode.cc ndebug/tcpionode.cc
 NDEBUG_INCS := -I./ndebug/include -I../lib/ndebug/include
 ndbg: $(NDEBUG_SRCS) $(NDEBUG_DEPS)
-	c++ -Wall -Werror -g  -std=c++11 -o $@ $(NDEBUG_INCS) $(NDEBUG_SRCS) -lusb-1.0
+	c++ -Wall -Werror -g -std=c++11 -o $@ $(NDEBUG_INCS) $(NDEBUG_SRCS) -lusb-1.0
 
 clean::
 	rm -f lkboot mkimage ndbg

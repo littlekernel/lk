@@ -26,10 +26,10 @@
 
 #include <stdint.h>
 
-struct __attribute__((packed)) ndebug_ctrl_packet_t {
+typedef struct __attribute__((packed)) {
     uint32_t magic;
     uint32_t type;
-};
+} ndebug_ctrl_packet_t;
 
 #define NDEBUG_CTRL_PACKET_MAGIC (0x4354524C)
 

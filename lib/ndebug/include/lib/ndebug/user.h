@@ -30,13 +30,7 @@
 
 __BEGIN_CDECLS
 
-typedef struct {
-    uint32_t magic;
-    uint32_t type;
-} ndebug_ctrl_packet_t;
-
 #define NDEBUG_USR_MAX_PACKET_SIZE (NDEBUG_MAX_PACKET_SIZE - sizeof(ndebug_ctrl_packet_t))
-
 
 // Read and write to the NDebug user channel.
 ssize_t ndebug_read_usr(uint8_t *buf, const lk_time_t timeout);
