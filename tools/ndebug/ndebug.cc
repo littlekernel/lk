@@ -66,18 +66,22 @@ int main(int argc, char *argv[])
     }
 
     NDebug::TCPIONode tcp(kListenPort);
-    if (!tcp.listenAndConnect()) {
-        std::cerr << "Could not establish TCP connection." << std::endl;
+    if (!tcp.open()) {
+        std::cerr << "Could not open TCP connection." << std::endl;
         return -1;
     }
 
-    // Create two worker threads. One that pushes bytes from the host to the
-    // device and the other which works in the reverse direction.
     std::thread deviceToHost(IOWorkerThread, &usb, &tcp);
-    std::thread hostToDevice(IOWorkerThread, &tcp, &usb);
+    std::thread hostToDevice;
+
+    while (true) {
+        tcp.listenAndAccept();
+
+        hostToDevice = std::thread(IOWorkerThread, &tcp, &usb);
+        hostToDevice.join();
+    }
 
     deviceToHost.join();
-    hostToDevice.join();
 
     return 0;
 }

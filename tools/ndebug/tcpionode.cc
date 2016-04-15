@@ -39,14 +39,20 @@ const int kSockFdClosed = -1;
 
 TCPIONode::TCPIONode(uint16_t port)
     : port_(port),
-      socket_(kSockFdClosed) {}
+      connectionSocket_(kSockFdClosed),
+      listenerSocket_(kSockFdClosed) {}
 
 TCPIONode::~TCPIONode()
 {
-    if (socket_ >= 0) {
-        shutdown(socket_, SHUT_RDWR);
-        close(socket_);
-        socket_ = kSockFdClosed;
+    if (connectionSocket_ >= 0) {
+        shutdown(connectionSocket_, SHUT_RDWR);
+        close(connectionSocket_);
+        connectionSocket_ = kSockFdClosed;
+    }
+    if (listenerSocket_ >= 0) {
+        shutdown(listenerSocket_, SHUT_RDWR);
+        close(listenerSocket_);
+        listenerSocket_ = kSockFdClosed;
     }
 }
 
@@ -54,15 +60,17 @@ IONodeResult TCPIONode::readBuf(std::vector<uint8_t> *buf)
 {
     std::lock_guard<std::mutex> g(lock_);
 
-    if (socket_ == kSockFdClosed) {
+    if (connectionSocket_ == kSockFdClosed) {
         return IONodeResult::NotConnected;
     }
 
     buf->clear();
     buf->resize(64);
 
-    ssize_t bytes = read(socket_, &(*buf)[0], 64);
-    if (bytes >= 0) {
+    ssize_t bytes = read(connectionSocket_, &(*buf)[0], 64);
+    if (bytes == 0) {
+        return IONodeResult::Finished;
+    } else if (bytes > 0) {
         buf->resize(bytes);
         return IONodeResult::Success;
     }
@@ -74,15 +82,17 @@ IONodeResult TCPIONode::writeBuf(const std::vector<uint8_t> &buf)
 {
     std::lock_guard<std::mutex> g(lock_);
 
-    if (socket_ == kSockFdClosed) {
+    if (connectionSocket_ == kSockFdClosed) {
         return IONodeResult::NotConnected;
     }
 
     size_t written = 0;
     do {
-        ssize_t bytes = write(socket_, &buf[written], buf.size() - written);
+        ssize_t bytes = write(connectionSocket_, &buf[written], buf.size() - written);
         if (bytes < 0) {
             return IONodeResult::Failure;
+        } else if (bytes == 0) {
+            return IONodeResult::Finished;
         }
         written += bytes;
     } while (written < buf.size());
@@ -90,13 +100,11 @@ IONodeResult TCPIONode::writeBuf(const std::vector<uint8_t> &buf)
     return IONodeResult::Success;
 }
 
-bool TCPIONode::listenAndConnect()
+bool TCPIONode::open()
 {
-    std::lock_guard<std::mutex> g(lock_);
-
     struct sockaddr_in sa;
-    int sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == -1) {
+    listenerSocket_ = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (listenerSocket_ == -1) {
         return false;
     }
 
@@ -106,25 +114,43 @@ bool TCPIONode::listenAndConnect()
     sa.sin_port = htons(port_);
     sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-    if (bind(sock,(struct sockaddr *)&sa, sizeof sa) == -1) {
-        close(sock);
+    if (bind(listenerSocket_, (struct sockaddr *)&sa, sizeof sa) == -1) {
+        close(listenerSocket_);
+        listenerSocket_ = kSockFdClosed;
         return false;
     }
 
-    if (listen(sock, 1) == -1) {
-        close(sock);
+    return true;
+}
+
+void TCPIONode::swapConnectionSocket(const int newSocket)
+{
+    std::lock_guard<std::mutex> g(lock_);
+
+    if (connectionSocket_ != -1) {
+        // Drop the previous connection.
+        shutdown(connectionSocket_, SHUT_RDWR);
+        close(connectionSocket_);
+    }
+
+    connectionSocket_ = newSocket;
+}
+
+bool TCPIONode::listenAndAccept()
+{
+    if (kSockFdClosed == listenerSocket_)
+        return false;
+
+    if (listen(listenerSocket_, 1) == -1) {
         return false;
     }
 
-    int client = accept(sock, NULL, NULL);
+    int client = accept(listenerSocket_, NULL, NULL);
     if (client < 0) {
-        close(sock);
         return false;
     }
 
-    socket_ = client;
-
-    close(sock);
+    swapConnectionSocket(client);
 
     return true;
 }

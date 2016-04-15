@@ -38,14 +38,18 @@ public:
     IONodeResult readBuf(std::vector<uint8_t> *buf) override;
     IONodeResult writeBuf(const std::vector<uint8_t> &buf) override;
 
-    bool listenAndConnect();
+    bool listenAndAccept();
+    bool open();
 
 private:
+    void swapConnectionSocket(const int newSocket);
+
     // All public methods are protected by this global lock.
     std::mutex lock_;
 
     const uint16_t port_;
-    int socket_;
+    int connectionSocket_;
+    int listenerSocket_;
 };
 
 }  // namespace ndebug
