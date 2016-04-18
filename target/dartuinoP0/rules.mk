@@ -32,7 +32,8 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/usb.c \
 
 MODULE_DEPS += \
-    dev/usb
+    dev/usb \
+    lib/ndebug
 
 ifneq ($(DISPLAY_PANEL_TYPE),)
 
