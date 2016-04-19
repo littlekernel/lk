@@ -39,6 +39,24 @@ typedef struct {
 
 #define USB_DESC_STATIC(x) { .desc = (void *)(x), .len = sizeof(x), .flags = USB_DESC_FLAG_STATIC }
 
+/* callbacks from usbc and usb layers */
+typedef enum {
+    USB_CB_RESET,
+    USB_CB_SUSPEND,
+    USB_CB_RESUME,
+    USB_CB_DISCONNECT,
+    USB_CB_ONLINE,
+    USB_CB_OFFLINE,
+    USB_CB_SETUP_MSG,
+} usb_callback_op_t;
+
+/* setup arg is valid during CB_SETUP_MSG */
+union usb_callback_args {
+    const struct usb_setup *setup;
+};
+
+typedef status_t (*usb_callback_t)(void *cookie, usb_callback_op_t op, const union usb_callback_args *args);
+
 typedef struct {
     usb_descriptor string;
     uint8_t id;
@@ -57,6 +75,11 @@ typedef struct {
 /* external code needs to set up the usb stack via the following calls */
 status_t usb_setup(usb_config *config);
 
+/* Returns the Interface Number that will be assigned to the next interface that
+   is registered using usb_append_interface_(.*) */
+uint8_t usb_get_current_iface_num_highspeed(void);
+uint8_t usb_get_current_iface_num_lowspeed(void);
+
 /* apped new interface descriptors to the existing config if desired */
 status_t usb_append_interface_highspeed(const uint8_t *int_descr, size_t len);
 status_t usb_append_interface_lowspeed(const uint8_t *int_descr, size_t len);
@@ -65,24 +88,6 @@ status_t usb_add_string(const char *string, uint8_t id);
 
 status_t usb_start(void);
 status_t usb_stop(void);
-
-/* callbacks from usbc and usb layers */
-typedef enum {
-    USB_CB_RESET,
-    USB_CB_SUSPEND,
-    USB_CB_RESUME,
-    USB_CB_DISCONNECT,
-    USB_CB_ONLINE,
-    USB_CB_OFFLINE,
-    USB_CB_SETUP_MSG,
-} usb_callback_op_t;
-
-/* setup arg is valid during CB_SETUP_MSG */
-union usb_callback_args {
-    const struct usb_setup *setup;
-};
-
-typedef status_t (*usb_callback_t)(void *cookie, usb_callback_op_t op, const union usb_callback_args *args);
 
 /* callback api the usbc driver uses */
 status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args);

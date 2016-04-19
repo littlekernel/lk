@@ -253,7 +253,9 @@ void usbc_ep0_send(const void *buf, size_t len, size_t maxlen)
 
 void usbc_ep0_recv(void *buf, size_t len, ep_callback cb)
 {
-    PANIC_UNIMPLEMENTED;
+    LTRACEF("buf %p, len %zu\n", buf, len);
+
+    HAL_PCD_EP_Receive(&usbc.handle, 0, (void *)buf, len);
 }
 
 status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type)
