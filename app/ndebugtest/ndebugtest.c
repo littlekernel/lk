@@ -68,7 +68,7 @@ static void ndebugtest_entry(const struct app_descriptor *app, void *args)
     while (true) {
         // Wait for USB to connect and somebody to answer the phone on the other
         // end of the line.
-        status_t result = ndebugusr_await_host(INFINITE_TIME);
+        status_t result = ndebug_await_connection_usr(INFINITE_TIME);
         if (result != NO_ERROR) {
             printf("Error %d while awaiting host. Retrying...\n", result);
             continue;

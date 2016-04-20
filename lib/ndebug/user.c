@@ -43,81 +43,19 @@ static mutex_t usr_mutex = MUTEX_INITIAL_VALUE(usr_mutex);
 
 static uint8_t scratch_buffer[NDEBUG_MAX_PACKET_SIZE];
 
-static bool is_valid_connection_request(ssize_t n, const uint8_t *buf)
-{
-    LTRACEF("length: %ld, buf: 0x%p\n", n, buf);
-
-    if (n < (ssize_t)sizeof(ndebug_ctrl_packet_t)) {
-        dprintf(INFO, "Malformed Packet. Expected at least %u bytes, got %ld\n",
-                sizeof(ndebug_ctrl_packet_t), n);
-        return false;
-    }
-
-    ndebug_ctrl_packet_t *pkt = (ndebug_ctrl_packet_t *)buf;
-
-    return pkt->magic == NDEBUG_CTRL_PACKET_MAGIC &&
-           pkt->type == NDEBUG_CTRL_CMD_RESET;
-}
-
-static void write_buffer(const uint32_t message, uint8_t *buf)
-{
-    ndebug_ctrl_packet_t *pkt = (ndebug_ctrl_packet_t *)scratch_buffer;
-
-    pkt->magic = NDEBUG_CTRL_PACKET_MAGIC;
-    pkt->type = message;
-}
-
-static status_t send_message_to_host(const uint32_t message)
-{
-    LTRACEF("message: %d\n", message);
-
-    write_buffer(message, scratch_buffer);
-
-    ssize_t res = ndebug_usb_write(NDEBUG_CHANNEL_USR,
-                                   sizeof(ndebug_ctrl_packet_t),
-                                   HOST_MSG_TIMEOUT,
-                                   scratch_buffer);
-
-    if (res == ERR_TIMED_OUT) {
-        dprintf(INFO, "send message %d timed out\n", message);
-    } else if (res < 0) {
-        dprintf(INFO, "send message %d failed with error %ld\n", message, res);
-    }
-    return res;
-}
-
-status_t ndebugusr_await_host(lk_time_t timeout)
+status_t ndebug_await_connection_usr(lk_time_t timeout)
 {
     LTRACEF("timeout: %u\n", timeout);
 
-    status_t result = await_usb_online(timeout);
-    if (result != NO_ERROR) {
-        return result;
+    status_t result = ndebug_await_connection(NDEBUG_CHANNEL_USR, timeout);
+
+    if (result == NO_ERROR) {
+        connected = true;
+    } else {
+        connected = false;
     }
 
-    while (true) {
-        ssize_t bytes = ndebug_usb_read(NDEBUG_CHANNEL_USR,
-                                        NDEBUG_MAX_PACKET_SIZE,
-                                        timeout, scratch_buffer);
-        if (bytes < 0) {
-            return bytes;
-        } else if (bytes < (ssize_t)sizeof(ndebug_ctrl_packet_t)) {
-            continue;
-        }
-
-        if (is_valid_connection_request(bytes, scratch_buffer)) {
-            // Connection established.
-            if (send_message_to_host(NDEBUG_CTRL_CMD_ESTABLISHED) < 0) {
-                continue;
-            }
-            connected = true;
-            return NO_ERROR;
-        } else {
-            // Tell the host that it needs to reset the connection before
-            // attempting any further communication.
-            send_message_to_host(NDEBUG_CTRL_CMD_RESET);
-        }
-    }
+    return result;
 }
 
 ssize_t ndebug_read_usr(uint8_t *buf, const lk_time_t timeout)
@@ -149,7 +87,8 @@ ssize_t ndebug_read_usr(uint8_t *buf, const lk_time_t timeout)
         }
 
         if (ctrl->type == NDEBUG_CTRL_CMD_RESET) {
-            send_message_to_host(NDEBUG_CTRL_CMD_RESET);
+            msg_host(NDEBUG_CHANNEL_USR, NDEBUG_CTRL_CMD_RESET, timeout,
+                     scratch_buffer);
             connected = false;
             mutex_release(&usr_mutex);
             return ERR_CHANNEL_CLOSED;
@@ -179,7 +118,9 @@ ssize_t ndebug_write_usr(uint8_t *buf, const size_t n, const lk_time_t timeout)
 
     uint8_t *cursor = scratch_buffer;
 
-    write_buffer(NDEBUG_CTRL_CMD_DATA, cursor);
+    ndebug_ctrl_packet_t *pkt = (ndebug_ctrl_packet_t *)cursor;
+    pkt->magic = NDEBUG_CTRL_PACKET_MAGIC;
+    pkt->type = NDEBUG_CTRL_CMD_DATA;
 
     cursor += sizeof(ndebug_ctrl_packet_t);
 
@@ -194,11 +135,11 @@ ssize_t ndebug_write_usr(uint8_t *buf, const size_t n, const lk_time_t timeout)
         bytes_remaining -= bytes_to_copy;
 
         res = ndebug_usb_write(
-            NDEBUG_CHANNEL_USR,
-            bytes_to_copy + sizeof(ndebug_ctrl_packet_t),
-            timeout,
-            scratch_buffer
-        );
+                  NDEBUG_CHANNEL_USR,
+                  bytes_to_copy + sizeof(ndebug_ctrl_packet_t),
+                  timeout,
+                  scratch_buffer
+              );
 
         if (res < 0) {
             break;

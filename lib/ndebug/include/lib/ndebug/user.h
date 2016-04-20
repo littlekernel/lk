@@ -38,6 +38,6 @@ ssize_t ndebug_write_usr(uint8_t *buf, const size_t n, const lk_time_t timeout);
 
 
 // Wait for the host to establish a connection on the usr channel.
-status_t ndebugusr_await_host(lk_time_t timeout);
+status_t ndebug_await_connection_usr(lk_time_t timeout);
 
 __END_CDECLS

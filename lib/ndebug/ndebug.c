@@ -30,7 +30,11 @@
 #include <dev/usbc.h>
 #include <err.h>
 #include <kernel/event.h>
+#include <lib/ndebug/shared_structs.h>
 #include <string.h>
+#include <trace.h>
+
+#define LOCAL_TRACE 0
 
 #define W(w) (w & 0xff), (w >> 8)
 #define W3(w) (w & 0xff), ((w >> 8) & 0xff), ((w >> 16) & 0xff)
@@ -198,12 +202,12 @@ ssize_t ndebug_usb_write(const channel_t ch, const size_t n,
 
     usbc_transfer_t *transfer = &tx_transfer[ch];
 
-    transfer->callback = &usb_xmit_cplt_cb,
-    transfer->result = 0,
-    transfer->buf = buf,
-    transfer->buflen = n,
-    transfer->bufpos = 0,
-    transfer->extra = (void *)ch,
+    transfer->callback = &usb_xmit_cplt_cb;
+    transfer->result = 0;
+    transfer->buf = buf;
+    transfer->buflen = n;
+    transfer->bufpos = 0;
+    transfer->extra = (void *)ch;
 
     usbc_queue_tx(CH_TO_ADDR(ch), transfer);
     status_t res = event_wait_timeout(&tx_event[ch], timeout);
@@ -219,7 +223,70 @@ ssize_t ndebug_usb_write(const channel_t ch, const size_t n,
     return n;
 }
 
-status_t await_usb_online(lk_time_t timeout)
+static bool is_valid_connection_request(ssize_t n, const uint8_t *buf)
 {
-    return event_wait_timeout(&usb_online_event, timeout);
+    LTRACEF("length: %ld, buf: 0x%p\n", n, buf);
+
+    if (n < (ssize_t)sizeof(ndebug_ctrl_packet_t)) {
+        dprintf(INFO, "Malformed Packet. Expected at least %u bytes, got %ld\n",
+                sizeof(ndebug_ctrl_packet_t), n);
+        return false;
+    }
+
+    ndebug_ctrl_packet_t *pkt = (ndebug_ctrl_packet_t *)buf;
+
+    return pkt->magic == NDEBUG_CTRL_PACKET_MAGIC &&
+           pkt->type == NDEBUG_CTRL_CMD_RESET;
+}
+
+status_t msg_host(
+    const channel_t ch, const uint32_t message,
+    const lk_time_t timeout, uint8_t *buf
+)
+{
+    LTRACEF("message: %d\n", message);
+
+    ndebug_ctrl_packet_t *pkt = (ndebug_ctrl_packet_t *)buf;
+    pkt->magic = NDEBUG_CTRL_PACKET_MAGIC;
+    pkt->type = message;
+
+    ssize_t res =
+        ndebug_usb_write(ch, sizeof(ndebug_ctrl_packet_t), timeout, buf);
+
+    if (res == ERR_TIMED_OUT) {
+        dprintf(INFO, "send message %d timed out\n", message);
+    } else if (res < 0) {
+        dprintf(INFO, "send message %d failed with error %ld\n", message, res);
+    }
+    return res;
+}
+
+status_t ndebug_await_connection(const channel_t ch, const lk_time_t timeout)
+{
+    LTRACEF("channel: %u, timeout: %u\n", ch, timeout);
+
+    uint8_t buf[NDEBUG_MAX_PACKET_SIZE];
+
+    status_t result = event_wait_timeout(&usb_online_event, timeout);
+    if (result != NO_ERROR) {
+        return result;
+    }
+
+    while (true) {
+        ssize_t bytes =
+            ndebug_usb_read(ch, NDEBUG_MAX_PACKET_SIZE, timeout, buf);
+
+        if (bytes < 0) return bytes;
+        if (bytes < (ssize_t)sizeof(ndebug_ctrl_packet_t)) continue;
+        if (!is_valid_connection_request(bytes, buf)) {
+            msg_host(ch, NDEBUG_CTRL_CMD_RESET, timeout, buf);
+            continue;
+        }
+
+        if (msg_host(ch, NDEBUG_CTRL_CMD_ESTABLISHED, timeout, buf) < 0) {
+            continue;
+        }
+
+        return NO_ERROR;
+    }
 }
