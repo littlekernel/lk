@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 """
  Copyright 2016 Google Inc. All Rights Reserved.
  Author: gkalsi@google.com (Gurjant Kalsi)
@@ -67,14 +69,14 @@ class CommandParam:
     def __init__(self, data_phase_type):
         self.data_phase_type = data_phase_type
 
-VENDOR_ID = 0x9999
-PRODUCT_ID = 0x9999
+VENDOR_ID = 0x18D1
+PRODUCT_ID = 0xA010
 CLASS_VENDOR_SPECIFIC = 0xFF
 SUBCLASS_MTLDR_DEBUG = 0x01
 
 # create logger
 logger = logging.getLogger('mtldr')
-logger.setLevel(logging.WARN)
+logger.setLevel(logging.INFO)
 
 
 class FindByDeviceClass(object):

@@ -22,7 +22,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <lib/ndebug/ndebug.h>
 void append_usb_interfaces(void)
 {
-	// no-op
+	ndebug_init();
 }

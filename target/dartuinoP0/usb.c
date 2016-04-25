@@ -26,7 +26,6 @@
 #include <dev/usbc.h>
 #include <err.h>
 #include <hw/usb.h>
-#include <lib/ndebug/ndebug.h>
 #include <lk/init.h>
 #include <stdio.h>
 #include <target.h>
@@ -48,8 +47,8 @@ static const uint8_t dev_descr[] = {
     0xff,           /* subclass */
     0xff,           /* protocol */
     64,             /* max packet size, ept0 */
-    W(0x9999),      /* vendor */
-    W(0x9999),      /* product */
+    W(0x18D1),      /* vendor */
+    W(0xA010),      /* product */
     W(0x9999),      /* release */
     0x2,            /* manufacturer string */
     0x1,            /* product string */
@@ -102,7 +101,7 @@ void target_usb_setup(void)
 {
     usb_setup(&config);
 
-    ndebug_init();
+    append_usb_interfaces();
 
     usb_add_string("LK", 1);
     usb_add_string("LK Industries", 2);

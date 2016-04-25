@@ -1,0 +1,8 @@
+ACTION!="add|change", GOTO="coral_rules_end"
+SUBSYSTEM!="usb", GOTO="coral_rules_end"
+ENV{DEVTYPE}!="usb_device", GOTO="coral_rules_end"
+
+# ST-LINK/V2
+ATTRS{idVendor}=="18D1", ATTRS{idProduct}=="A010", MODE="777"
+
+LABEL="coral_rules_end"
