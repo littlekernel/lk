@@ -31,8 +31,8 @@
 #include "tcpionode.h"
 #include "usbionode.h"
 
-const uint16_t kVendorId = 0x9999;
-const uint16_t kProductId = 0x9999;
+const uint16_t kVendorId = 0x18D1;
+const uint16_t kProductId = 0xA010;
 
 const uint16_t kListenPort = 9091;
 
