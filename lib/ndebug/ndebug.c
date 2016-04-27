@@ -31,6 +31,7 @@
 #include <err.h>
 #include <kernel/event.h>
 #include <lib/ndebug/shared_structs.h>
+#include <lib/ndebug/system/mux.h>
 #include <string.h>
 #include <trace.h>
 
@@ -145,6 +146,8 @@ void ndebug_init(void)
     init_channel(NDEBUG_SUBCLASS, NDEBUG_PROTOCOL_SERIAL_PIPE, USR_EP_ADDR);
 
     event_init(&usb_online_event, 0, 0);
+
+    ndebug_sys_init();
 
     usb_register_callback(&ndebug_register_cb, NULL);
 }
