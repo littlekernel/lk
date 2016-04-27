@@ -30,6 +30,7 @@
 #include "ionode.h"
 #include "tcpionode.h"
 #include "usbionode.h"
+#include "lib/ndebug/shared_structs.h"
 
 const uint16_t kVendorId = 0x18D1;
 const uint16_t kProductId = 0xA010;
@@ -59,7 +60,7 @@ void IOWorkerThread(NDebug::IONode *in, NDebug::IONode *out)
 
 int main(int argc, char *argv[])
 {
-    NDebug::USBIONode usb(kVendorId, kProductId);
+    NDebug::USBIONode usb(kVendorId, kProductId, NDEBUG_PROTOCOL_SERIAL_PIPE);
     if (!usb.connect()) {
         std::cerr << "Could not connect to USB device." << std::endl;
         return -1;
