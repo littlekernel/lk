@@ -34,7 +34,8 @@ namespace NDebug {
 
 class USBIONode : public IONode {
 public:
-    USBIONode(const uint16_t vendorId, const uint16_t productId);
+    USBIONode(const uint16_t vendorId, const uint16_t productId,
+              const uint8_t protocol);
     virtual ~USBIONode();
 
     IONodeResult readBuf(std::vector<uint8_t> *buf) override;
@@ -44,12 +45,11 @@ public:
 
 private:
     bool openDeviceByParams(const uint16_t vid, const uint16_t pid,
-                            const uint8_t interfaceClass,
-                            const uint8_t interfaceSubClass,
                             const uint8_t interfaceProtocol);
 
     const uint16_t vendorId_;
     const uint16_t productId_;
+    const uint8_t protocol_;
 
     uint8_t epOut_;
     uint8_t epIn_;

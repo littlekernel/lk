@@ -37,9 +37,12 @@ const size_t kConnectRetryLimit = 5;
 const unsigned int kDefaultUSBTimeoutMS = 5000;
 const size_t kMaxUSBPacketSize = 64;
 
-USBIONode::USBIONode(const uint16_t vendorId, const uint16_t productId)
+USBIONode::USBIONode(const uint16_t vendorId,
+                     const uint16_t productId,
+                     const uint8_t protocol)
     : vendorId_(vendorId),
       productId_(productId),
+      protocol_(protocol),
       ctx_(nullptr),
       dev_(nullptr) {}
 
@@ -141,9 +144,8 @@ bool USBIONode::connect()
         return false;
     }
 
-    bool success = openDeviceByParams(
-                       vendorId_, productId_, NDEBUG_USB_CLASS_USER_DEFINED,
-                       NDEBUG_SUBCLASS, NDEBUG_PROTOCOL_SERIAL_PIPE);
+    bool success =
+        openDeviceByParams(vendorId_, productId_, protocol_);
     if (!success) {
         return false;
     }
@@ -181,8 +183,6 @@ bool USBIONode::connect()
 }
 
 bool USBIONode::openDeviceByParams(const uint16_t vid, const uint16_t pid,
-                                   const uint8_t interfaceClass,
-                                   const uint8_t interfaceSubClass,
                                    const uint8_t interfaceProtocol)
 {
     libusb_device *device = nullptr;
@@ -206,8 +206,8 @@ bool USBIONode::openDeviceByParams(const uint16_t vid, const uint16_t pid,
             for (size_t k = 0; k < cfg->bNumInterfaces; k++) {
                 libusb_interface_descriptor iface =
                     cfg->interface[k].altsetting[0];
-                if (iface.bInterfaceClass == interfaceClass &&
-                        iface.bInterfaceSubClass == interfaceSubClass &&
+                if (iface.bInterfaceClass == NDEBUG_USB_CLASS_USER_DEFINED &&
+                        iface.bInterfaceSubClass == NDEBUG_SUBCLASS &&
                         iface.bInterfaceProtocol == interfaceProtocol) {
                     iface_ = k;
                     device = deviceList[i];
