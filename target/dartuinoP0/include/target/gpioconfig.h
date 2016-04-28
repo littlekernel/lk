@@ -78,16 +78,20 @@
             __HAL_RCC_GPIOK_CLK_ENABLE(); \
             __HAL_RCC_GPIOF_CLK_ENABLE()
 
+#define GPIO_NRF_RST        GPIO(GPIO_PORT_A, 13)
+#define GPIO_NRF_SWDIO      GPIO(GPIO_PORT_A, 13)
+#define GPIO_NRF_SWCLK      GPIO(GPIO_PORT_A, 14)
 #define GPIO_NRF_CS         GPIO(GPIO_PORT_K, 0)
 #define GPIO_NRF_INT        GPIO(GPIO_PORT_K, 1)
 #define GPIO_GYRO_nCS       GPIO(GPIO_PORT_K, 4)
 #define GPIO_GYRO_INT       GPIO(GPIO_PORT_K, 5)
 #define GPIO_ACC_nCS        GPIO(GPIO_PORT_K, 2)
 #define GPIO_ACC_INT        GPIO(GPIO_PORT_K, 3)
+#define GPIO_SPI2_SCK       GPIO(GPIO_PORT_B, 15)
+#define GPIO_SPI2_MISO      GPIO(GPIO_PORT_I, 2)
+#define GPIO_SPI2_MOSI      GPIO(GPIO_PORT_B, 12)
 #define GPIO_SPI5_SCK       GPIO(GPIO_PORT_F, 7)
 #define GPIO_SPI5_MISO      GPIO(GPIO_PORT_F, 8)
 #define GPIO_SPI5_MOSI      GPIO(GPIO_PORT_F, 9)
-
-
 
 #endif
