@@ -158,3 +158,42 @@ int gpio_get(unsigned nr)
     return HAL_GPIO_ReadPin(port_to_pointer(GPIO_PORT(nr)), 1 << GPIO_PIN(nr));
 }
 
+#ifdef WITH_LIB_CONSOLE
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <lib/console.h>
+
+static int cmd_stgpio(int argc, const cmd_args *argv)
+{
+    if (argc >= 3) {
+        char port = toupper(argv[2].str[0]);
+        int pin = atoi(&argv[2].str[1]);
+        uint32_t nr = ((port - 'A') << 8) | (pin & 0xff);
+
+        if (argc == 4 && !strcmp(argv[1].str,"set")) {
+            unsigned int value = argv[3].u;
+
+            gpio_set(nr, value);
+            return 0;
+        } else if (argc == 3 && !strcmp(argv[1].str,"get")) {
+            printf("gpio %c%d: %d\n", port, pin, gpio_get(nr));
+            return 0;
+        } else {
+            goto print_usage;
+        }
+    }
+
+print_usage:
+    printf("stgpio set <gpio [A-K][0-15]> <value>\n");
+    printf("stgpio get <gpio [A-K][0-15]>\n");
+    putchar('\n');
+
+    return 0;
+}
+STATIC_COMMAND_START
+STATIC_COMMAND("stgpio", "wrapper for gpio commands with ST gpio naming conventions of [A-K][1-15]", &cmd_stgpio)
+STATIC_COMMAND_END(stgpio);
+
+#endif
