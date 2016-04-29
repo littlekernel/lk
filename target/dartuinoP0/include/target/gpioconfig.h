@@ -96,5 +96,8 @@
 #define GPIO_DISP_CS        GPIO(GPIO_PORT_B, 12)
 #define GPIO_DISP_SCK       GPIO(GPIO_PORT_D, 3)
 #define GPIO_DISP_MOSI      GPIO(GPIO_PORT_B, 15)
+#define GPIO_DISP_BUSY      GPIO(GPIO_PORT_I, 4)
+#define GPIO_DISP_DC        GPIO(GPIO_PORT_I, 5)
+#define GPIO_DISP_RST       GPIO(GPIO_PORT_K, 6)
 
 #endif

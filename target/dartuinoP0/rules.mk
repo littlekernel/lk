@@ -29,6 +29,7 @@ GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/display/eink.c \
     $(LOCAL_DIR)/sensor_bus.c \
     $(LOCAL_DIR)/usb.c \
 
@@ -42,7 +43,7 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/memory_lcd.c
 
 GLOBAL_DEFINES += \
-    ENABLE_LCD=1
+    ENABLE_LCD=0
 
 endif
 
