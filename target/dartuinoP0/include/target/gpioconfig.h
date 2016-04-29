@@ -87,11 +87,14 @@
 #define GPIO_GYRO_INT       GPIO(GPIO_PORT_K, 5)
 #define GPIO_ACC_nCS        GPIO(GPIO_PORT_K, 2)
 #define GPIO_ACC_INT        GPIO(GPIO_PORT_K, 3)
-#define GPIO_SPI2_SCK       GPIO(GPIO_PORT_B, 15)
+#define GPIO_SPI2_SCK       GPIO(GPIO_PORT_D, 3)
 #define GPIO_SPI2_MISO      GPIO(GPIO_PORT_I, 2)
-#define GPIO_SPI2_MOSI      GPIO(GPIO_PORT_B, 12)
+#define GPIO_SPI2_MOSI      GPIO(GPIO_PORT_B, 15)
 #define GPIO_SPI5_SCK       GPIO(GPIO_PORT_F, 7)
 #define GPIO_SPI5_MISO      GPIO(GPIO_PORT_F, 8)
 #define GPIO_SPI5_MOSI      GPIO(GPIO_PORT_F, 9)
+#define GPIO_DISP_CS        GPIO(GPIO_PORT_B, 12)
+#define GPIO_DISP_SCK       GPIO(GPIO_PORT_D, 3)
+#define GPIO_DISP_MOSI      GPIO(GPIO_PORT_B, 15)
 
 #endif
