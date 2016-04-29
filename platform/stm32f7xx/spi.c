@@ -67,30 +67,32 @@ status_t spi_write(SPI_HandleTypeDef *handle, uint8_t *data, size_t len, uint32_
 
     status_t ret = NO_ERROR;
     int bus = get_bus_idx(handle->Instance);
+    int cs_val;
+    bool use_soft_nss = (handle->Init.NSS == SPI_NSS_SOFT);
 
     if (bus == INVALID_SPI_BUS) {
         return ERR_NOT_FOUND;
     }
 
     mutex_acquire(&(spi_busses[bus].lock));
-    if (handle->Init.NSS == SPI_NSS_SOFT) {
-        gpio_set(cs, (handle->Init.CLKPolarity == 0) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    if (use_soft_nss) {
+        cs_val = gpio_get(cs);
+        gpio_set(cs, !cs_val);
     }
 
     HAL_StatusTypeDef foo;
 
     /* The lock may have been released while the hardware is still processing a transaction */
-    /*if (!wait_for_bus_ready(handle)) {
+    if (!wait_for_bus_ready(handle)) {
         ret = ERR_BUSY;
-    } else {*/
+    } else {
         if ((foo = HAL_SPI_Transmit(handle, data, len, HAL_MAX_DELAY)) != HAL_OK) {
-            printf("foo %d\n", foo);
             ret = ERR_IO;
         }
-//    }
+    }
 
-    if (handle->Init.NSS == SPI_NSS_SOFT) {
-        gpio_set(cs, (handle->Init.CLKPolarity == 0) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    if (use_soft_nss) {
+        gpio_set(cs, cs_val);
     }
     mutex_release(&(spi_busses[bus].lock));
 
@@ -105,22 +107,25 @@ status_t spi_read(SPI_HandleTypeDef *handle, uint8_t *data, size_t len, uint32_t
 
     status_t ret = NO_ERROR;
     int bus = get_bus_idx(handle->Instance);
+    int cs_val;
+    bool use_soft_nss = (handle->Init.NSS == SPI_NSS_SOFT);
 
     if (bus == INVALID_SPI_BUS) {
         return ERR_NOT_FOUND;
     }
 
     mutex_acquire(&(spi_busses[bus].lock));
-    if (handle->Init.NSS == SPI_NSS_SOFT) {
-        gpio_set(cs, (handle->Init.CLKPolarity == 0) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    if (use_soft_nss) {
+        cs_val = gpio_get(cs);
+        gpio_set(cs, !cs_val);
     }
 
     if (HAL_SPI_Receive(handle, data, len, HAL_MAX_DELAY) != HAL_OK) {
         ret = ERR_IO;
     }
 
-    if (handle->Init.NSS == SPI_NSS_SOFT) {
-        gpio_set(cs, (handle->Init.CLKPolarity == 0) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    if (use_soft_nss) {
+        gpio_set(cs, cs_val);
     }
     mutex_release(&(spi_busses[bus].lock));
 
