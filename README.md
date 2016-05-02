@@ -6,7 +6,11 @@ See https://github.com/littlekernel/lk for the latest version.
 
 See https://github.com/littlekernel/lk/wiki for documentation.
 
-## to build and test for ARM on linux
+## Builds
+
+[![Build Status](https://travis-ci.org/littlekernel/lk?branch=master)](https://travis-ci.org/littlekernel/lk?branch=master)
+
+## To build and test for ARM on linux
 
 1. install or build qemu. v2.4 and above is recommended.
 2. install gcc for embedded arm (see note 1)
