@@ -8,7 +8,7 @@ See https://github.com/littlekernel/lk/wiki for documentation.
 
 ## Builds
 
-[![Build Status](https://travis-ci.org/littlekernel/lk?branch=master)](https://travis-ci.org/littlekernel/lk?branch=master)
+[![Build Status](https://travis-ci.org/littlekernel/lk.svg?branch=master)](https://travis-ci.org/littlekernel/lk)
 
 ## To build and test for ARM on linux
 
