@@ -509,6 +509,8 @@ HAL_StatusTypeDef HAL_SPI_Transmit(SPI_HandleTypeDef *hspi, uint8_t *pData, uint
   * @param  Timeout: Timeout duration
   * @retval HAL status
   */
+#include <stdio.h>
+#include <trace.h>
 HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint16_t Size, uint32_t Timeout)
 {
     __IO uint16_t tmpreg;
@@ -527,8 +529,11 @@ HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint1
         return HAL_SPI_TransmitReceive(hspi,pData,pData,Size,Timeout);
     }
 
+    TRACE;
     /* Process Locked */
     __HAL_LOCK(hspi);
+
+    TRACE;
 
     hspi->State       = HAL_SPI_STATE_BUSY_RX;
     hspi->ErrorCode   = HAL_SPI_ERROR_NONE;
@@ -546,6 +551,9 @@ HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint1
         hspi->RxXferCount--;
     }
 
+
+    TRACE;
+
     /* Set the Rx Fido threshold */
     if (hspi->Init.DataSize > SPI_DATASIZE_8BIT) {
         /* set fiforxthreshold according the reception data length: 16bit */
@@ -555,10 +563,16 @@ HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint1
         SET_BIT(hspi->Instance->CR2, SPI_RXFIFO_THRESHOLD);
     }
 
+
+    TRACE;
+
     /* Configure communication direction 1Line and enabled SPI if needed */
     if (hspi->Init.Direction == SPI_DIRECTION_1LINE) {
         SPI_1LINE_RX(hspi);
     }
+
+
+    TRACE;
 
     /* Check if the SPI is already enabled */
     if ((hspi->Instance->CR1 & SPI_CR1_SPE) != SPI_CR1_SPE) {
@@ -566,9 +580,18 @@ HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint1
         __HAL_SPI_ENABLE(hspi);
     }
 
+
+    TRACE;
+
     /* Receive data in 8 Bit mode */
     if (hspi->Init.DataSize <= SPI_DATASIZE_8BIT) {
+
+    TRACE;
+
         while (hspi->RxXferCount > 1) {
+
+    TRACE;
+
             /* Wait until the RXNE flag */
             if (SPI_WaitFlagStateUntilTimeout(hspi, SPI_FLAG_RXNE, SPI_FLAG_RXNE, Timeout) != HAL_OK) {
                 return HAL_TIMEOUT;
@@ -588,6 +611,9 @@ HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint1
         }
     }
 
+
+    TRACE;
+
     /* Enable CRC Transmission */
     if (hspi->Init.CRCCalculation == SPI_CRCCALCULATION_ENABLE) {
         hspi->Instance->CR1 |= SPI_CR1_CRCNEXT;
@@ -597,6 +623,9 @@ HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint1
     if (SPI_WaitFlagStateUntilTimeout(hspi, SPI_FLAG_RXNE, SPI_FLAG_RXNE, Timeout) != HAL_OK) {
         return HAL_TIMEOUT;
     }
+
+
+    TRACE;
 
     /* Receive last data in 16 Bit mode */
     if (hspi->Init.DataSize > SPI_DATASIZE_8BIT) {

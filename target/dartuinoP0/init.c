@@ -205,7 +205,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
         GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
         GPIO_InitStruct.Pin       = GPIO_PIN_12;
         HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 
         /* DISP_DC pin configuration (general output GPIO) */
         GPIO_InitStruct.Pin       = GPIO_PIN_5;

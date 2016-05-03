@@ -184,19 +184,51 @@ enum {
   };
 
 typedef struct {
+    // Gate power selection
+    // 0: External gate power from VGH/VGL pins
+    // 1: Internal DC/DC function for generating VGH/VGL
     uint8_t vg_en:1;
+    // Source power selection
+    // 0: External source power from VDH/VDL pins
+    // 1: Internal DC/DC function for generating VDH/VDL
     uint8_t vs_en:1;
     uint8_t __rs0:6;
+    //---- new byte
+    // VG_LVL[1:0]: Gate Voltage Level selection
+    //  Bit definitions in power settings enum.
     uint8_t vg_lvl:2;
+    // VCOM_HV: VCOM Voltage Level
+    //  0: VCOMH=VSH+VCOMDC, VCOML=VSL+VCOMDC (default)
+    //  1: VCOML=VGH, VCOML=VGL
     uint8_t vcom_hv:1;
     uint8_t __rs1:5;
+    //---- new byte
+    // VSH_LVL[5:0]: Internal positive source voltage level for K/W
+    // (range: +2.4V ~ +11.0V / step:0.2V / default : +10.0V)
     uint8_t vsh_lvl:6;
     uint8_t __rs2:2;
+    //---- new byte
+    // VSL_LVL[5:0]: Internal negative source voltage level for K/W
+    // (range: -2.4V ~ -11.0V / step:0.2V / default : -10.0V)
     uint8_t vsl_lvl:6;
     uint8_t __rs3:2;
+    //---- new byte
     uint8_t vshr_lvl:6;
     uint8_t __rs4:2;
 } pwr_settings_t;
+
+typedef struct {
+    uint8_t btpha_min_off:3;
+    uint8_t btpha_drive_strength:3;
+    uint8_t btpha_soft_start:2;
+    //---- new byte
+    uint8_t btphb_min_off:3;
+    uint8_t btphb_drive_strength:3;
+    uint8_t btphb_soft_start:2;
+    //---- new byte
+    uint8_t btphc_min_off:3;
+    uint8_t btphc_drive_strength:3;
+} booster_settings_t;
 
 typedef struct {
     uint8_t busy_n:1;
@@ -206,7 +238,76 @@ typedef struct {
     uint8_t i2c_busyn:1;
     uint8_t i2c_err:1;
     uint8_t __rs0:2;
-} get_status_t;
+} eink_status_t;
+
+typedef struct {
+    // DDX[1:0]: Data polarity
+    //  0: Inverted
+    //  1: Normal (default)
+    uint8_t ddx:1;
+    uint8_t __rs0:3;
+    // VBD[1:0]: Border output selection
+    uint8_t bdd:2;
+    // BDV: Border DC Voltage control
+    //  0: Border Output DC Voltage Function disabled (default)
+    //  1: Border Output DC Voltage Function enabled
+    uint8_t bdv:1;
+    // BDZ: Border Hi-Z control
+    //  0: Border Output Hi-Z disabled (default)
+    //  1: Border Output Hi-Z enabled
+    uint8_t bdz:1;
+    //---- new byte
+    // CDI[9:0]: VCOM to Source interval. Interval time setting from VCOM to
+    // source dat.
+    //  000 0000 000b ~ 11 1111 1111b: 1 Hsync ~ 1023 Hsync, respectively.
+    //  (Default: 018h: 25 Hsync)
+    uint8_t cdi_high:2;
+    uint8_t __rs1:2;
+    // DCI[3:0]: Source to VCOM interval. Interval time setting from source
+    // data to VCOM.
+    //  0000b ~ 1111b: 1 Hsync ~ 16 Hsync, respectively. (Default: 011b: 4
+    //  Hsync)
+    uint8_t dci:4;
+    //---- new byte
+    uint8_t cdi_low;
+} vcom_data_int_settings_t;
+
+typedef struct {
+    uint8_t __rs0:2;
+    // HRES[7:2]: Horizontal display resolution.
+    //  00000b ~ 11111b: 4 ~ 256 lines
+    uint8_t hres:6;
+    //---- new byte
+    // VRES[9:0]: Vertical display resolution
+    //  0000000000b ~ 1111111111b: 1 ~ 1024 lines
+    uint8_t vres_high:2;
+    uint8_t __rs1:6;
+    //---- new byte
+    uint8_t vres_low;
+} resolution_settings_t;
+
+
+enum booster_soft_start_min_off {
+    BOOSTER_0p27us = 0b000,
+    BOOSTER_0p34us = 0b001,
+    BOOSTER_0p40us = 0b010,
+    BOOSTER_0p50us = 0b011,
+    BOOSTER_0p80us = 0b100,
+    BOOSTER_1p54us = 0b101,
+    BOOSTER_3p34us = 0b110,
+    BOOSTER_6p58us = 0b111,
+};
+
+enum start_drive_strength {
+    SDS_1 = 0b000,
+    SDS_2 = 0b001,
+    SDS_3 = 0b010,
+    SDS_4 = 0b011,
+    SDS_5 = 0b100,
+    SDS_6 = 0b101,
+    SDS_7 = 0b110,
+    SDS_8 = 0b111,  // (strongest)
+};
 
 static bool poll_gpio(uint32_t gpio, bool desired, uint8_t timeout)
 {
@@ -255,6 +356,11 @@ void read_data(uint8_t *buf, size_t len) {
     spi_read(&SpiHandle, buf, len, GPIO_DISP_CS);
 }
 
+void get_status(void) {
+    // NOT IMPLEMENTED, just wait and pray the busy-ness works out :D
+    thread_sleep(50);
+}
+
   // SpiBus must be configured in half-duplex mode. Display supports up to 6600
   // Kb/s baud rate. All GPIO should be configured active high. The orientation
   // parameter represents the virtual display orientation relative to the
@@ -272,6 +378,9 @@ void read_data(uint8_t *buf, size_t len) {
   //  busy - BUSY_N - Indicates timing controller status (active low):
   //   L: Driver is busy, data/VCOM is transforming.
   //   H: Not busy. Host side can send command/data to driver.
+
+#define PHYSICAL_WIDTH  240
+#define PHYSICAL_HEIGHT 240
 
 static int cmd_eink(int argc, const cmd_args *argv)
 {
@@ -301,12 +410,37 @@ static int cmd_eink(int argc, const cmd_args *argv)
     }
 
     /* Documented driver steps */
+    pwr_settings_t pwr = {
+        .vsh_lvl  = 0x1C, // +8V
+        .vsl_lvl  = 0x1C, // -8V
+        .vshr_lvl = 0x00, // +2.4V
+    };
+
+    booster_settings_t booster = {
+        .btpha_min_off          = BOOSTER_3p34us,
+        .btpha_drive_strength   = SDS_5,
+        .btphb_min_off          = BOOSTER_3p34us,
+        .btphb_drive_strength   = SDS_5,
+        .btphc_min_off          = BOOSTER_3p34us,
+        .btphc_drive_strength   = SDS_5,
+    };
+
+    vcom_data_int_settings_t vdi = {
+        .bdd     = 0x00, // PC30
+        .dci     = 0x02, // 3 Hsync
+        .cdi_low = 0x10, // 17 Hsync
+    };
+
+    resolution_settings_t rs = {
+        .hres     = (PHYSICAL_WIDTH - 1) >> 2,
+        .vres_low = PHYSICAL_HEIGHT - 1,
+    };
 
     // Hold Display in reset
     assert_reset();
 
     // Pull down chip select
-    gpio_set(GPIO_DISP_CS, 0);
+    gpio_set(GPIO_DISP_CS, 1);
 
     // Set data_command to 'Command'
     gpio_set(GPIO_DISP_DC, 0);
@@ -325,21 +459,26 @@ static int cmd_eink(int argc, const cmd_args *argv)
         goto err;
     }
 
-    pwr_settings_t pwr = {
-        .vsh_lvl  = 0x1C, // +8V
-        .vsl_lvl  = 0x1C, // -8V
-        .vshr_lvl = 0x00, // +2.4V
-    };
-
     write_cmd(PowerSetting);
-    write_data(&pwr, sizeof(pwr));
+    write_data((uint8_t *)&pwr, sizeof(pwr));
 
-    /*
-    get_status_t status;
+    // TODO: Need to get half duplex working for status checks
+    get_status();
 
-    write_cmd(GetStatus);
-    read_data(&status, sizeof(status));
-    */
+    write_cmd(PowerOn);
+    if (!poll_gpio(GPIO_DISP_BUSY, 1, 1)) {
+        printf("err: Display should not be BUSY after power_on\n");
+        goto err;
+    }
+
+    write_cmd(BoosterSoftStart);
+    write_data((uint8_t *)&booster, sizeof(booster));
+
+    write_cmd(VcomAndDataIntervalSetting);
+    write_data((uint8_t *)&vdi, sizeof(vdi));
+
+    write_cmd(ResolutionSetting);
+    write_data((uint8_t *)&rs, sizeof(rs));
 
 err:
     return err;
