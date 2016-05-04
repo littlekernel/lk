@@ -8,6 +8,7 @@
 #include <platform/timer.h>
 #include <platform/gpio.h>
 #include <target/gpioconfig.h>
+#include <string.h>
 // TODO The eink driver should not include stm headers. We likely need INIT to store
 // a spihandle and then spi functions use it some other way
 #include <stm32f7xx.h>
@@ -149,40 +150,6 @@ static uint8_t lut_kwg[512] = {
 SPI_HandleTypeDef SpiHandle;
 bool spi_inited = false;
 
-enum {
-    PanelSetting = 0x00,
-    PowerSetting = 0x01,
-    PowerOff = 0x02,
-    PowerOffSequenceSetting = 0x03,
-    PowerOn = 0x04,
-    BoosterSoftStart = 0x06,
-    DeepSleep = 0x07,
-    DisplayRefresh = 0x12,
-    DataStartTransmission2 = 0x13,
-    DataStartTransmissionWindow = 0x14,
-    KwgVcomLutRegister = 0x20,
-    KwgLutRegister = 0x22,
-    FtLutRegister = 0x26,
-    PllControl = 0x30,
-    TemperatureSensor = 0x40,
-    TemperatureSensorEnable = 0x41,
-    TemperatureSensorWrite = 0x42,
-    TemperatureSensorRead = 0x43,
-    VcomAndDataIntervalSetting = 0x50,
-    LowPowerDetection = 0x51,
-    ResolutionSetting = 0x61,
-    GateGroupSetting = 0x62,
-    GateBlockSetting = 0x63,
-    GateSelectSetting = 0x64,
-    Revision = 0x70,
-    GetStatus = 0x71,
-    AutoMeasureVcom = 0x80,
-    VcomValue = 0x81,
-    VcomDcSetting = 0x82,
-    BorderDcVoltageSetting = 0x84,
-    LpdSelect = 0xE4,
-  };
-
 typedef struct {
     // Gate power selection
     // 0: External gate power from VGH/VGL pins
@@ -238,7 +205,7 @@ typedef struct {
     uint8_t i2c_busyn:1;
     uint8_t i2c_err:1;
     uint8_t __rs0:2;
-} eink_status_t;
+} et011tt2_status_t;
 
 typedef struct {
     // DDX[1:0]: Data polarity
@@ -286,28 +253,208 @@ typedef struct {
     uint8_t vres_low;
 } resolution_settings_t;
 
+typedef struct {
+    // G1~4NUM[3:0]: Channel Number used for Gate Group 1~4. For example:
+    //  2: GGx[2:0] ON
+    //  15: GGx[15:0] ON
+    uint8_t g1num:4;
+    uint8_t __rs0:1;
+    // G1~4UD: Gate Group 1~4 Up/Down Selection
+    //  0: Down scan within Gate Group
+    //  1: Up scan within Gate Group (default)
+    uint8_t g1ud:1;
+    // G1~4BS: Gate Group 1~4 Block/Select Selection
+    //  0: Gate Select
+    //  1: Gate Block
+    uint8_t g1bs:1;
+    // G1~4EN: Gate Group 1~4 Enable
+    //  0: Disable
+    //  1: Enable
+    uint8_t g1en:1;
+    //---- new byte
+    uint8_t g2num:4;
+    uint8_t __rs1:1;
+    uint8_t g2ud:1;
+    uint8_t g2bs:1;
+    uint8_t g2en:1;
+    //---- new byte
+    uint8_t g3num:4;
+    uint8_t __rs2:1;
+    uint8_t g3ud:1;
+    uint8_t g3bs:1;
+    uint8_t g3en:1;
+    //---- new byte
+    uint8_t g4num:4;
+    uint8_t __rs3:1;
+    uint8_t g4ud:1;
+    uint8_t g4bs:1;
+    uint8_t g4en:1;
+    //---- new byte
+    // GSFB: Gate Select Forward/Backward
+    //  0: Gate select backward
+    //  1: Gate select forward
+    uint8_t gsfb:1;
+    // GBFB: Gate Block Forward/Backward
+    //  0: Gate block backward
+    //  1: Gate block forward
+    uint8_t gbfb:1;
+    uint8_t __rs4:2;
+    // XOPT: XON Option
+    //  0: No all gate on during vertical blanking in XON mode (default)
+    //  1: All gate on during vertical blanking in XON mode
+    uint8_t xopt:1;
+    uint8_t __rs5:3;
+} gate_group_settings_t;
+
+typedef struct {
+    uint8_t vbds:7;
+    uint8_t __rs0:1;
+} border_dc_v_settings_t;
+
+typedef struct {
+    // Low Power Voltage Selection
+    uint8_t lpd_sel:2;
+    uint8_t __rs0:6;
+} lpdselect_t;
+
+typedef struct {
+    uint8_t pixel3:2;
+    uint8_t pixel2:2;
+    uint8_t pixel1:2;
+    uint8_t pixel0:2;
+} data_tranmission_t;
+
+typedef struct {
+    // X[7:0]: X-axis Start Point. X-axis start point for update display window.
+    // NOTE: The X-axis start point needs to be a multiple of 4.
+    uint8_t x;
+    // Y[9:0]: Y-axis Start Point. Y-axis start point for update display window.
+    uint8_t y_high:2;
+    uint8_t __rs0:6;
+    uint8_t y_low;
+    // W[7:0]: X-axis Window Width. X-axis width for update display window.
+    // NOTE: The width needs to be a multiple of 4.
+    // NOTE: This needs to be set to W - 1.
+    uint8_t w;
+    uint8_t l_high:2;
+    uint8_t __rs1:6;
+    // L[9:0]: Y-axis Window Width. Y-axis width for update display window
+    // NOTE: This needs to be set to L - 1.
+    uint8_t l_low;
+} data_transmission_window_t;
+
+typedef struct {
+    uint8_t mode:2;
+    // DN_EN: Do-nothing function enabled
+    //  0: Data follow VCOM function disable
+    //  1: Data output follows VCOM LUT if new pixel data equal to old pixel
+    //     data inside Update Display Area
+    // NOTE: Do-nothing function is always active outside Update Display Area.
+    uint8_t dn_en:1;
+    // RGL_EN: REGAL function control
+    //  0: REGAL function disable
+    //  1: REGAL function enable
+    uint8_t rgl_en:1;
+    // PSCAN: Partial Scan control
+    //  0: Partial Scan disable
+    //  1: Partial Scan enable (Gate Scan within Display Window only)
+    uint8_t pscan:1;
+    uint8_t __rs0:3;
+    //---- new byte
+    // X[7:0]: X-axis Start Point. X-axis start point for update display window.
+    // NOTE: The X-axis start point needs to be a multiple of 4.
+    uint8_t x;
+    // Y[9:0]: Y-axis Start Point. Y-axis start point for update display window.
+    uint8_t y_high:2;
+    uint8_t __rs1:6;
+    //---- new byte
+    uint8_t y_low;
+    // W[7:0]: X-axis Window Width. X-axis width for update display window.
+    // NOTE: The width needs to be a multiple of 4.
+    // NOTE: This needs to be set to W - 1.
+    uint8_t w;
+    // L[9:0]: Y-axis Window Width. Y-axis width for update display window
+    // NOTE: This needs to be set to L - 1.
+    uint8_t l_high:2;
+    uint8_t __rs2:6;
+    uint8_t l_low;
+} display_refresh_t;
+
+enum {
+    PanelSetting                = 0x00,
+    PowerSetting                = 0x01,
+    PowerOff                    = 0x02,
+    PowerOffSequenceSetting     = 0x03,
+    PowerOn                     = 0x04,
+    BoosterSoftStart            = 0x06,
+    DeepSleep                   = 0x07,
+    DisplayRefresh              = 0x12,
+    DataStartTransmission2      = 0x13,
+    DataStartTransmissionWindow = 0x14,
+    KwgVcomLutRegister          = 0x20,
+    KwgLutRegister              = 0x22,
+    FtLutRegister               = 0x26,
+    PllControl                  = 0x30,
+    TemperatureSensor           = 0x40,
+    TemperatureSensorEnable     = 0x41,
+    TemperatureSensorWrite      = 0x42,
+    TemperatureSensorRead       = 0x43,
+    VcomAndDataIntervalSetting  = 0x50,
+    LowPowerDetection           = 0x51,
+    ResolutionSetting           = 0x61,
+    GateGroupSetting            = 0x62,
+    GateBlockSetting            = 0x63,
+    GateSelectSetting           = 0x64,
+    Revision                    = 0x70,
+    GetStatus                   = 0x71,
+    AutoMeasureVcom             = 0x80,
+    VcomValue                   = 0x81,
+    VcomDcSetting               = 0x82,
+    BorderDcVoltageSetting      = 0x84,
+    LpdSelect                   = 0xE4,
+  };
+
 
 enum booster_soft_start_min_off {
-    BOOSTER_0p27us = 0b000,
-    BOOSTER_0p34us = 0b001,
-    BOOSTER_0p40us = 0b010,
-    BOOSTER_0p50us = 0b011,
-    BOOSTER_0p80us = 0b100,
-    BOOSTER_1p54us = 0b101,
-    BOOSTER_3p34us = 0b110,
-    BOOSTER_6p58us = 0b111,
+    soft_start_min_off_0p27us = 0b000,
+    soft_start_min_off_0p34us = 0b001,
+    soft_start_min_off_0p40us = 0b010,
+    soft_start_min_off_0p50us = 0b011,
+    soft_start_min_off_0p80us = 0b100,
+    soft_start_min_off_1p54us = 0b101,
+    soft_start_min_off_3p34us = 0b110,
+    soft_start_min_off_6p58us = 0b111,
 };
 
-enum start_drive_strength {
-    SDS_1 = 0b000,
-    SDS_2 = 0b001,
-    SDS_3 = 0b010,
-    SDS_4 = 0b011,
-    SDS_5 = 0b100,
-    SDS_6 = 0b101,
-    SDS_7 = 0b110,
-    SDS_8 = 0b111,  // (strongest)
+enum drive_strength {
+    drive_strength_1 = 0b000,
+    drive_strength_2 = 0b001,
+    drive_strength_3 = 0b010,
+    drive_strength_4 = 0b011,
+    drive_strength_5 = 0b100,
+    drive_strength_6 = 0b101,
+    drive_strength_7 = 0b110,
+    drive_strength_8 = 0b111,  // (strongest)
 };
+
+enum soft_start_period {
+    soft_start_period_10ms = 0b00,
+    soft_start_period_20ms = 0b01,
+    soft_start_period_30ms = 0b10,
+    soft_start_period_40ms = 0b11,
+};
+
+enum lpd_select_lpdsel {
+    LPDSEL_2p2v = 0b00,
+    LPDSEL_2p3v = 0b01,
+    LPDSEL_2p4v = 0b10,
+    LPDSEL_2p5v = 0b11, // (default)
+};
+
+#define PHYSICAL_WIDTH  240
+#define PHYSICAL_HEIGHT 240
+#define EINK_WHITE      0xFF
+#define EINK_BLACK      0x00
 
 static bool poll_gpio(uint32_t gpio, bool desired, uint8_t timeout)
 {
@@ -321,6 +468,11 @@ static bool poll_gpio(uint32_t gpio, bool desired, uint8_t timeout)
     }
 
     return (current == desired);
+}
+
+/* The display pulls the BUSY line low while BUSY and releases it when done */
+static bool check_busy(void) {
+    return poll_gpio(GPIO_DISP_BUSY, 1, 50);
 }
 
 static inline void assert_reset(void) {
@@ -344,21 +496,43 @@ void write_cmd(uint8_t cmd) {
 
     cmd_buf[0] = cmd;
     set_data_command_mode();
+#if 0
+    gpio_set(GPIO_DISP_CS, 0);
+    HAL_SPI_Transmit(&SpiHandle, cmd_buf, sizeof(cmd_buf), HAL_MAX_DELAY);
+    gpio_set(GPIO_DISP_CS, 1);
+#else
     spi_write(&SpiHandle, cmd_buf, sizeof(cmd_buf), GPIO_DISP_CS);
-    set_data_parameter_mode();
+#endif
 }
 
 void write_data(uint8_t *buf, size_t len) {
+    set_data_parameter_mode();
+    //enter_critical_section;
+#if 0
+    gpio_set(GPIO_DISP_CS, 0);
+    HAL_SPI_Transmit(&SpiHandle, buf, len, HAL_MAX_DELAY);
+    gpio_set(GPIO_DISP_CS, 1);
+#else
     spi_write(&SpiHandle, buf, len, GPIO_DISP_CS);
+#endif
+    //exit_critical_section;
 }
 
-void read_data(uint8_t *buf, size_t len) {
-    spi_read(&SpiHandle, buf, len, GPIO_DISP_CS);
+status_t read_data(uint8_t *buf, size_t len) {
+    return spi_read(&SpiHandle, buf, len, GPIO_DISP_CS);
 }
 
-void get_status(void) {
-    // NOT IMPLEMENTED, just wait and pray the busy-ness works out :D
-    thread_sleep(50);
+status_t get_status(et011tt2_status_t *status) {
+    status_t err;
+
+    if (status == NULL) {
+        return ERR_INVALID_ARGS;
+    }
+
+    write_cmd(GetStatus);
+    err = read_data((uint8_t *) status, sizeof(et011tt2_status_t));
+
+    return err;
 }
 
   // SpiBus must be configured in half-duplex mode. Display supports up to 6600
@@ -379,13 +553,29 @@ void get_status(void) {
   //   L: Driver is busy, data/VCOM is transforming.
   //   H: Not busy. Host side can send command/data to driver.
 
-#define PHYSICAL_WIDTH  240
-#define PHYSICAL_HEIGHT 240
 
 static int cmd_eink(int argc, const cmd_args *argv)
 {
     status_t err = NO_ERROR;
-    TRACE_ENTRY;
+/*
+    volatile stm32f7_spi_t *spi = (stm32f7_spi_t *)SPI2;
+    SPIx_CR1_t CR1 = {
+        .br          = fpclk_div_256;
+        .cpha        = cpha_first_transition;
+        .cpol        = cpol_clk_idle_low;
+        .mstr        = mstr_spi_master;
+        .rxonly      = rxonly_full_duplex;
+        .crcen       = hw_crc_disable;
+        .bidi_mode   = bidi_mode_1;
+        .bidi_output = bidi_output_enable;
+        .lsb_first   = 0;
+        .ssm         = ssm_disabled;
+        .ssi         = 0;
+     cr1 = spi->CR1;
+    uint16_t cr2 = spi->CR2;
+    uint16_t sr = spi->SR;*/
+
+
 
     if (!spi_inited) {
         SpiHandle.Instance               = SPI2;
@@ -417,12 +607,14 @@ static int cmd_eink(int argc, const cmd_args *argv)
     };
 
     booster_settings_t booster = {
-        .btpha_min_off          = BOOSTER_3p34us,
-        .btpha_drive_strength   = SDS_5,
-        .btphb_min_off          = BOOSTER_3p34us,
-        .btphb_drive_strength   = SDS_5,
-        .btphc_min_off          = BOOSTER_3p34us,
-        .btphc_drive_strength   = SDS_5,
+        .btpha_min_off          = soft_start_min_off_3p34us,
+        .btpha_drive_strength   = drive_strength_8,
+        .btpha_soft_start       = soft_start_period_10ms,
+        .btphb_min_off          = soft_start_min_off_3p34us,
+        .btphb_drive_strength   = drive_strength_8,
+        .btphb_soft_start       = soft_start_period_10ms,
+        .btphc_min_off          = soft_start_min_off_3p34us,
+        .btphc_drive_strength   = drive_strength_8,
     };
 
     vcom_data_int_settings_t vdi = {
@@ -436,50 +628,139 @@ static int cmd_eink(int argc, const cmd_args *argv)
         .vres_low = PHYSICAL_HEIGHT - 1,
     };
 
-    // Hold Display in reset
-    assert_reset();
+    border_dc_v_settings_t bdvs = {
+        .vbds = 0x4e, // -4.0V
+    };
 
-    // Pull down chip select
-    gpio_set(GPIO_DISP_CS, 1);
+    gate_group_settings_t ggs = {
+        .g1num = 0x09,  // GG1[9:0] ON
+        .g1ud = 0,      // GG1[9] -> GG1[0]
+        .g2num = 0x09,  // GG2[9:0] ON
+        .g2ud = 0,      // GG2[9] -> GG2[0]
+        .g3num = 0x0B,  // GG3[11:0] ON
+        .g3ud = 0,      // GG3[11] -> GG3[0]
+        .g3bs = 1,      // Gate block
+        .g4num = 0x0B,  // GG4[11:0] ON
+        .g4ud = 0,      // GG4[11] -> GG4[0]
+        .g4bs = 1,      // Gate block
+    };
 
-    // Set data_command to 'Command'
-    gpio_set(GPIO_DISP_DC, 0);
+    lpdselect_t lpds = {
+        .lpd_sel = LPDSEL_2p4v,
+    };
 
-    if (!poll_gpio(GPIO_DISP_BUSY, 0, 50)) {
-        printf("err: Display should be BUSY while held in RST.\n");
-        goto err;
+    display_refresh_t dr = {
+        .dn_en  = 1,
+        .pscan  = 0,
+        .rgl_en = 0,
+        .x      = 0,
+        .y_low  = 0,
+        .w      = 240,
+        .l_high = 0,
+        .l_low  = 240,
+    };
+
+    data_transmission_window_t dtw = {
+        .x = 0,
+        .y_low = 0,
+        .w = 240,
+        .l_high = 0,
+        .l_low = 240,
+    };
+
+    // VDD (wired straight to 3v3)
+    spin(2000);         // Delay 2 ms
+    assert_reset();     // RST_LOW
+    spin(30);           // Delay 30 us
+    release_reset();    // RST_HIGH
+
+    if (!check_busy()) {
+        printf("Device is still busy after initial reset!\n");
+        return ERR_GENERIC;
     }
 
-    // Pull display out of reset
-    release_reset();
-
-    // datasheet says to wait 1ms coming out of reset
-    if (!poll_gpio(GPIO_DISP_BUSY, 1, 1)) {
-        printf("err: Display should not be BUSY after coming out of reset.\n");
-        goto err;
-    }
-
-    write_cmd(PowerSetting);
-    write_data((uint8_t *)&pwr, sizeof(pwr));
-
-    // TODO: Need to get half duplex working for status checks
-    get_status();
-
-    write_cmd(PowerOn);
-    if (!poll_gpio(GPIO_DISP_BUSY, 1, 1)) {
-        printf("err: Display should not be BUSY after power_on\n");
-        goto err;
-    }
-
+    // Configure Boost
     write_cmd(BoosterSoftStart);
     write_data((uint8_t *)&booster, sizeof(booster));
 
+    // Power on display
+    write_cmd(PowerOn);
+
+    // Initialize -> Check_Busy
+    if (!check_busy()) {
+        printf("Device is still busy after Power On!\n");
+        return ERR_GENERIC;
+    }
+
+    /* Quick buffer to toss at it */
+    uint8_t buf[128];
+    for (size_t i = 0; i < sizeof(buf); i++) {
+        buf[i] = i % 255;
+    }
+
+    // DTMW
+    write_cmd(DataStartTransmissionWindow);
+    write_data((uint8_t *) &dtw, sizeof(dtw));
+
+    // DTM2
+    write_cmd(DataStartTransmission2);
+    write_data(buf, sizeof(buf));
+
+    // DRF
+    write_cmd(DisplayRefresh);
+    write_data((uint8_t *)&dr, sizeof(dr));
+
+    // Check_Busy
+    if (!check_busy()) {
+        printf("Device is still busy after Display Refresh!\n");
+        return ERR_GENERIC;
+    }
+
+    // POF
+    write_cmd(PowerOff);
+
+    // Check_Busy
+    if (!check_busy()) {
+        printf("Device is still busy after Power Off!\n");
+        return ERR_GENERIC;
+    }
+
+    // DSLP
+    uint8_t sleepbuf = 0b10100101;
+    write_cmd(DeepSleep);
+    write_data(&sleepbuf, sizeof(sleepbuf));
+    //
+    return 0;
+
+
+/*
+ *  Config writes that need to be verified against the tables and defaults to ensure
+ *  I'm not missing important predefined bits.
     write_cmd(VcomAndDataIntervalSetting);
     write_data((uint8_t *)&vdi, sizeof(vdi));
 
     write_cmd(ResolutionSetting);
     write_data((uint8_t *)&rs, sizeof(rs));
 
+    write_cmd(GateGroupSetting);
+    write_data((uint8_t *)&ggs, sizeof(ggs));
+
+    write_cmd(BorderDcVoltageSetting);
+    write_data((uint8_t *)&bdvs, sizeof(bdvs));
+
+    write_cmd(LpdSelect);
+    write_data((uint8_t *)&lpds, sizeof(lpds));
+
+    write_cmd(FtLutRegister);
+    write_data(lut_ft, sizeof(lut_ft));
+
+    write_cmd(KwgVcomLutRegister);
+    write_data(lut_kwg_vcom, sizeof(lut_kwg_vcom));
+
+    write_cmd(KwgLutRegister);
+    write_data(lut_kwg, sizeof(lut_kwg));
+
+*/
 err:
     return err;
 }
