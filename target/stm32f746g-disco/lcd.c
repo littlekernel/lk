@@ -48,6 +48,7 @@
  ******************************************************************************
  */
 
+#include <assert.h>
 #include <err.h>
 #include <debug.h>
 #include <trace.h>
@@ -441,4 +442,11 @@ status_t display_get_info(struct display_info *info)
     info->height = BSP_LCD_GetYSize();
 
     return NO_ERROR;
+}
+
+status_t display_present(struct display_image *image, uint starty, uint endy)
+{
+  TRACEF("display_present - not implemented");
+  DEBUG_ASSERT(false);
+  return NO_ERROR;
 }
