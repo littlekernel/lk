@@ -70,6 +70,9 @@ IONodeResult USBIONode::readBuf(std::vector<uint8_t> *buf)
     int rc = libusb_bulk_transfer(dev_, epIn_, &readBuffer[0],
                                   kMaxUSBPacketSize, &xfer,
                                   kDefaultUSBTimeoutMS);
+    if (rc == LIBUSB_ERROR_NO_DEVICE) {
+        return IONodeResult::Finished;
+    }
     if (rc < 0) {
         return IONodeResult::Failure;
     }

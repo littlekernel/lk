@@ -37,7 +37,11 @@ MuxUSBIONode::~MuxUSBIONode() {}
 IONodeResult MuxUSBIONode::readBuf(std::vector<uint8_t> *buf)
 {
     *buf = queue_.pop();
-    return IONodeResult::Success;
+    if (buf->empty()) {
+        return IONodeResult::Finished;
+    } else {
+        return IONodeResult::Success;
+    }
 }
 
 IONodeResult MuxUSBIONode::writeBuf(const std::vector<uint8_t> &buf)
@@ -58,6 +62,8 @@ IONodeResult MuxUSBIONode::writeBuf(const std::vector<uint8_t> &buf)
 
 void MuxUSBIONode::queueBuf(const std::vector<uint8_t> &buf)
 {
+    if (buf.empty()) return;
+
     queue_.push(buf);
 }
 
@@ -65,5 +71,12 @@ void MuxUSBIONode::signalBufAvail()
 {
     sem_.signal();
 }
+
+void MuxUSBIONode::signalFinished()
+{
+    std::vector<uint8_t> empty;
+    queue_.push(empty);
+}
+
 
 }  // namespace
