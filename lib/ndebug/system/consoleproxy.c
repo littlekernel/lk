@@ -42,7 +42,7 @@ void consoleproxy_print_callback(print_callback_t *cb,
         size_t chunk_len = MIN(len, MAX_MUX_PACKET_SIZE);
 
         ssize_t result = ndebug_write_sys(
-                             str + written,
+                             (uint8_t *)(str + written),
                              chunk_len,
                              NDEBUG_SYS_CHANNEL_CONSOLE,
                              CONSOLE_IO_DEADLINE_MS
