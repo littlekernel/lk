@@ -24,36 +24,33 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
-typedef struct __attribute__((packed)) {
-    uint32_t magic;
-    uint32_t type;
-} ndebug_ctrl_packet_t;
+#include "boundedblockingqueue.h"
+#include "ionode.h"
+#include "semaphore.h"
+#include "lib/ndebug/shared_structs.h"
 
-typedef struct __attribute__((packed)) {
-    ndebug_ctrl_packet_t ctrl;
-    uint32_t channel;
-} ndebug_system_packet_t;
+namespace NDebug {
 
-typedef enum {
-    NDEBUG_SYS_CHANNEL_CONSOLE,
-    NDEBUG_SYS_CHANNEL_COMMAND,
+class USBIONode;
 
-    NDEBUG_SYS_CHANNEL_COUNT,   // Count: always last.
-} sys_channel_t;
+class MuxUSBIONode : public IONode {
+public:
+    MuxUSBIONode(const sys_channel_t ch, USBIONode *usb);
+    virtual ~MuxUSBIONode();
 
-#define NDEBUG_CTRL_PACKET_MAGIC (0x4354524C)
+    IONodeResult readBuf(std::vector<uint8_t> *buf) override;
+    IONodeResult writeBuf(const std::vector<uint8_t> &buf) override;
 
-#define NDEBUG_CTRL_CMD_RESET (0x01)
-#define NDEBUG_CTRL_CMD_DATA (0x02)
-#define NDEBUG_CTRL_CMD_ESTABLISHED (0x03)
-#define NDEBUG_CTRL_CMD_FLOWCTRL (0x04)
+    void queueBuf(const std::vector<uint8_t> &buf);
+    void signalBufAvail();
 
-#define NDEBUG_SYS_CHANNEL_READY (0x01)
+private:
+    BoundedBlockingQueue<std::vector<uint8_t> > queue_;
+    const sys_channel_t ch_;
+    USBIONode *usb_;
+    Semaphore sem_;
+};
 
-#define NDEBUG_USB_CLASS_USER_DEFINED (0xFF)
-#define NDEBUG_SUBCLASS (0x02)
-
-#define NDEBUG_PROTOCOL_LK_SYSTEM (0x01)
-#define NDEBUG_PROTOCOL_SERIAL_PIPE (0x02)
+}  // namespace ndebug

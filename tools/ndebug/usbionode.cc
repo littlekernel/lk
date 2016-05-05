@@ -34,7 +34,7 @@
 namespace NDebug {
 
 const size_t kConnectRetryLimit = 5;
-const unsigned int kDefaultUSBTimeoutMS = 5000;
+const unsigned int kDefaultUSBTimeoutMS = 2500;
 const size_t kMaxUSBPacketSize = 64;
 
 USBIONode::USBIONode(const uint16_t vendorId,
@@ -74,7 +74,7 @@ IONodeResult USBIONode::readBuf(std::vector<uint8_t> *buf)
         return IONodeResult::Failure;
     }
 
-    // Packet must be long enought to contain at least the header.
+    // Packet must be long enough to contain at least the header.
     if (xfer < (int)sizeof(ndebug_ctrl_packet_t)) {
         return IONodeResult::Failure;
     }
@@ -88,17 +88,34 @@ IONodeResult USBIONode::readBuf(std::vector<uint8_t> *buf)
 
     if (pkt->type == NDEBUG_CTRL_CMD_RESET) {
         return IONodeResult::Finished;
-    } else if (pkt->type != NDEBUG_CTRL_CMD_DATA) {
-        return IONodeResult::Failure;
+    } else if (pkt->type == NDEBUG_CTRL_CMD_DATA ||
+               pkt->type == NDEBUG_CTRL_CMD_FLOWCTRL) {
+        switch (protocol_) {
+            case NDEBUG_PROTOCOL_LK_SYSTEM: {
+                // Pass along the raw packet.
+                readBuffer.resize(xfer);
+                *buf = readBuffer;
+                break;
+            }
+            case NDEBUG_PROTOCOL_SERIAL_PIPE: {
+                // Deframe the packet.
+                buf->clear();
+                buf->reserve(xfer);
+
+                std::copy(readBuffer.begin() + sizeof(ndebug_ctrl_packet_t),
+                          readBuffer.begin() + xfer, std::back_inserter(*buf));
+                break;
+            }
+            default: {
+                // Unsupported Protocol?
+                assert(false);
+            }
+        }
+
+        return IONodeResult::Success;
     }
 
-    buf->clear();
-    buf->reserve(xfer);
-
-    std::copy(readBuffer.begin() + sizeof(ndebug_ctrl_packet_t),
-              readBuffer.begin() + xfer, std::back_inserter(*buf));
-
-    return IONodeResult::Success;
+    return IONodeResult::Failure;
 }
 
 IONodeResult USBIONode::writeBuf(const std::vector<uint8_t> &buf)
@@ -157,24 +174,49 @@ bool USBIONode::connect()
         return false;
     }
 
-    ndebug_ctrl_packet_t pkt;
-    uint8_t *buf = reinterpret_cast<uint8_t *>(&pkt);
+    ndebug_system_packet_t outpkt;
+    std::vector<uint8_t> readBuffer(kMaxUSBPacketSize);
+    uint8_t *buf = reinterpret_cast<uint8_t *>(&outpkt);
 
     for (size_t i = 0; i < kConnectRetryLimit; i++) {
         // Send a connection RESET packet to the device.
-        int xfer = sizeof(pkt);
+        int xfer = sizeof(outpkt);
 
-        pkt.magic = NDEBUG_CTRL_PACKET_MAGIC;
-        pkt.type = NDEBUG_CTRL_CMD_RESET;
-        rc = libusb_bulk_transfer(dev_, epOut_, buf, sizeof(pkt), &xfer,
+        outpkt.ctrl.magic = NDEBUG_CTRL_PACKET_MAGIC;
+        outpkt.ctrl.type = NDEBUG_CTRL_CMD_RESET;
+        rc = libusb_bulk_transfer(dev_, epOut_, buf, sizeof(outpkt), &xfer,
                                   kDefaultUSBTimeoutMS);
+
+        if (rc < 0) {
+            // retry.
+            continue;
+        }
 
         // Allow the device to ACK the connection request.
-        rc = libusb_bulk_transfer(dev_, epIn_, buf, sizeof(pkt), &xfer,
+        rc = libusb_bulk_transfer(dev_, epIn_, &readBuffer[0],
+                                  kMaxUSBPacketSize, &xfer,
                                   kDefaultUSBTimeoutMS);
+        if (rc < 0) {
+            // retry.
+            continue;
+        }
 
-        if (pkt.magic == NDEBUG_CTRL_PACKET_MAGIC &&
-                pkt.type == NDEBUG_CTRL_CMD_ESTABLISHED) {
+        ndebug_system_packet_t *inpkt =
+            reinterpret_cast<ndebug_system_packet_t *>(&readBuffer[0]);
+
+
+        if (inpkt->ctrl.magic == NDEBUG_CTRL_PACKET_MAGIC &&
+            inpkt->ctrl.type == NDEBUG_CTRL_CMD_ESTABLISHED) {
+            if (protocol_ == NDEBUG_PROTOCOL_LK_SYSTEM) {
+                inpkt->ctrl.type = NDEBUG_CTRL_CMD_FLOWCTRL;
+                inpkt->channel = NDEBUG_SYS_CHANNEL_CONSOLE;
+                rc = libusb_bulk_transfer(dev_, epOut_, &readBuffer[0],
+                                          sizeof(*inpkt), &xfer,
+                                          kDefaultUSBTimeoutMS);
+                if (rc < 0) {
+                    continue;
+                }
+            }
             return true;
         }
     }

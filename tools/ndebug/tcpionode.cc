@@ -58,8 +58,6 @@ TCPIONode::~TCPIONode()
 
 IONodeResult TCPIONode::readBuf(std::vector<uint8_t> *buf)
 {
-    std::lock_guard<std::mutex> g(lock_);
-
     if (connectionSocket_ == kSockFdClosed) {
         return IONodeResult::NotConnected;
     }
@@ -80,8 +78,6 @@ IONodeResult TCPIONode::readBuf(std::vector<uint8_t> *buf)
 
 IONodeResult TCPIONode::writeBuf(const std::vector<uint8_t> &buf)
 {
-    std::lock_guard<std::mutex> g(lock_);
-
     if (connectionSocket_ == kSockFdClosed) {
         return IONodeResult::NotConnected;
     }
@@ -108,6 +104,9 @@ bool TCPIONode::open()
         return false;
     }
 
+    int enable = 1;
+    setsockopt(listenerSocket_, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+
     memset(&sa, 0, sizeof sa);
 
     sa.sin_family = AF_INET;
@@ -125,8 +124,6 @@ bool TCPIONode::open()
 
 void TCPIONode::swapConnectionSocket(const int newSocket)
 {
-    std::lock_guard<std::mutex> g(lock_);
-
     if (connectionSocket_ != -1) {
         // Drop the previous connection.
         shutdown(connectionSocket_, SHUT_RDWR);
