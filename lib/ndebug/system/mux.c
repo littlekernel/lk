@@ -48,9 +48,9 @@ mutex_t write_sys_internal_lock = MUTEX_INITIAL_VALUE(write_sys_internal_lock);
 #define FLOWCTRL_PKT_TIMEOUT 1000
 
 static ssize_t ndebug_write_sys_internal(uint8_t *buf, const size_t n,
-                                         const sys_channel_t ch,
-                                         const lk_time_t timeout,
-                                         const uint32_t type)
+        const sys_channel_t ch,
+        const lk_time_t timeout,
+        const uint32_t type)
 {
     DEBUG_ASSERT(buf);
 
@@ -74,11 +74,11 @@ static ssize_t ndebug_write_sys_internal(uint8_t *buf, const size_t n,
     memcpy(cursor, buf, n);
 
     ssize_t written = ndebug_usb_write(
-        NDEBUG_CHANNEL_SYS, 
-        n + sizeof(ndebug_system_packet_t),
-        timeout,
-        write_buf
-    );
+                          NDEBUG_CHANNEL_SYS,
+                          n + sizeof(ndebug_system_packet_t),
+                          timeout,
+                          write_buf
+                      );
 
     if (written < 0) {
         connected = false;
@@ -104,7 +104,7 @@ static int reader_thread(void *argv)
 
         while (true) {
             ssize_t bytes_read = ndebug_usb_read(
-                NDEBUG_CHANNEL_SYS, sizeof(buf), INFINITE_TIME, buf);
+                                     NDEBUG_CHANNEL_SYS, sizeof(buf), INFINITE_TIME, buf);
 
             if (bytes_read < 0) break;
 
@@ -117,8 +117,8 @@ static int reader_thread(void *argv)
                 case NDEBUG_CTRL_CMD_RESET: {
                     // We got a reset packet, unblock all the reader channels
                     // and go back to waiting for a connection attempt.
-                    for (sys_channel_t ch = NDEBUG_SYS_CHANNEL_CONSOLE; 
-                         ch != NDEBUG_SYS_CHANNEL_COUNT; ch++) {
+                    for (sys_channel_t ch = NDEBUG_SYS_CHANNEL_CONSOLE;
+                            ch != NDEBUG_SYS_CHANNEL_COUNT; ch++) {
                         channels[ch].retcode = ERR_CHANNEL_CLOSED;
                         event_signal(&channels[ch].event, true);
                     }
@@ -130,38 +130,38 @@ static int reader_thread(void *argv)
                     ch_t *channel = &channels[pkt->channel];
 
                     // Flow control: If this channel never signalled to the host
-                    // that it was ready, then the packet is dropped on the 
+                    // that it was ready, then the packet is dropped on the
                     // floor.
                     if (!channel->ready) continue;
 
                     // Deframe the packet.
-                    memcpy(channel->buf, buf + sizeof(ndebug_system_packet_t), 
+                    memcpy(channel->buf, buf + sizeof(ndebug_system_packet_t),
                            bytes_read - sizeof(ndebug_system_packet_t));
-                    
+
                     // Set the return code and signal to the blocked reader that
                     // it can pick up the packet.
                     channel->retcode =
                         bytes_read - sizeof(ndebug_system_packet_t);
                     channel->ready = false;
                     event_signal(&channel->event, true);
-                    
+
                     break;
                 }
                 case NDEBUG_CTRL_CMD_FLOWCTRL: {
                     // The host has requested an inventory of all "ready"
-                    // channels. 
-                    for (sys_channel_t ch = NDEBUG_SYS_CHANNEL_CONSOLE; 
-                         ch != NDEBUG_SYS_CHANNEL_COUNT; ch++) {
+                    // channels.
+                    for (sys_channel_t ch = NDEBUG_SYS_CHANNEL_CONSOLE;
+                            ch != NDEBUG_SYS_CHANNEL_COUNT; ch++) {
                         ch_t *channel = &channels[ch];
 
                         if (!channel->ready) continue;
                         uint32_t rdych = (uint32_t)ch;
                         ssize_t written =
-                            ndebug_write_sys_internal((uint8_t *)(&rdych), 
-                                                      sizeof(rdych), 
-                                                      ch, FLOWCTRL_PKT_TIMEOUT, 
+                            ndebug_write_sys_internal((uint8_t *)(&rdych),
+                                                      sizeof(rdych),
+                                                      ch, FLOWCTRL_PKT_TIMEOUT,
                                                       NDEBUG_CTRL_CMD_FLOWCTRL);
-                    }                    
+                    }
                     break;
                 }
                 default: {
@@ -176,14 +176,14 @@ static int reader_thread(void *argv)
 void ndebug_sys_init(void)
 {
     // Initialize the Channels.
-    for (sys_channel_t ch = NDEBUG_SYS_CHANNEL_CONSOLE; 
-         ch != NDEBUG_SYS_CHANNEL_COUNT; ch++) {
+    for (sys_channel_t ch = NDEBUG_SYS_CHANNEL_CONSOLE;
+            ch != NDEBUG_SYS_CHANNEL_COUNT; ch++) {
         event_init(&channels[ch].event, false, EVENT_FLAG_AUTOUNSIGNAL);
         channels[ch].buf = malloc(NDEBUG_MAX_PACKET_SIZE);
         channels[ch].retcode = 0;
         channels[ch].ready = false;
     }
-    
+
     // Start the reader thread.
     thread_resume(
         thread_create("ndebug mux reader", &reader_thread, NULL,
@@ -195,7 +195,7 @@ void ndebug_sys_init(void)
 }
 
 
-ssize_t ndebug_write_sys(const uint8_t *buf, const size_t n, 
+ssize_t ndebug_write_sys(const uint8_t *buf, const size_t n,
                          const sys_channel_t ch, const lk_time_t timeout)
 {
     ssize_t result =
@@ -203,7 +203,7 @@ ssize_t ndebug_write_sys(const uint8_t *buf, const size_t n,
     return result;
 }
 
-ssize_t ndebug_read_sys(uint8_t **buf, const sys_channel_t ch, 
+ssize_t ndebug_read_sys(uint8_t **buf, const sys_channel_t ch,
                         const lk_time_t timeout)
 {
     DEBUG_ASSERT(ch < NDEBUG_SYS_CHANNEL_COUNT);
@@ -214,8 +214,8 @@ ssize_t ndebug_read_sys(uint8_t **buf, const sys_channel_t ch,
         data[0] = NDEBUG_SYS_CHANNEL_READY;
         data[1] = ch;
         ssize_t written =
-            ndebug_write_sys_internal((uint8_t *)data, sizeof(data), 
-                                      ch, FLOWCTRL_PKT_TIMEOUT, 
+            ndebug_write_sys_internal((uint8_t *)data, sizeof(data),
+                                      ch, FLOWCTRL_PKT_TIMEOUT,
                                       NDEBUG_CTRL_CMD_FLOWCTRL);
         if (written < 0) {
             return written;

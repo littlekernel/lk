@@ -38,7 +38,8 @@
 const uint16_t kConsoleProxyPort = 9092;
 const uint16_t kSystemCommandPort = 9093;
 
-void IOWorkerThread(NDebug::IONode *in, NDebug::IONode *out) {
+void IOWorkerThread(NDebug::IONode *in, NDebug::IONode *out)
+{
     assert(in != nullptr);
     assert(out != nullptr);
 
@@ -61,7 +62,8 @@ void IOWorkerThread(NDebug::IONode *in, NDebug::IONode *out) {
     }
 }
 
-void ConnectionWorkerThread(NDebug::TCPIONode *tcp, NDebug::MuxUSBIONode *usb) {
+void ConnectionWorkerThread(NDebug::TCPIONode *tcp, NDebug::MuxUSBIONode *usb)
+{
     assert(usb);
     assert(tcp);
 
@@ -81,7 +83,8 @@ void ConnectionWorkerThread(NDebug::TCPIONode *tcp, NDebug::MuxUSBIONode *usb) {
 // Thread responsible for reading packets from the USB device and queueing them
 // on the approrpriate MuxUSBIONode.
 void USBMuxReaderThread(NDebug::USBIONode *usbSource,
-                        const std::vector<NDebug::MuxUSBIONode *>& muxionodes) {
+                        const std::vector<NDebug::MuxUSBIONode *> &muxionodes)
+{
     assert(muxionodes.size() == NDEBUG_SYS_CHANNEL_COUNT);
 
     while (true) {
@@ -100,8 +103,8 @@ void USBMuxReaderThread(NDebug::USBIONode *usbSource,
         if (channel >= NDEBUG_SYS_CHANNEL_COUNT) continue;
 
         if (pkt->ctrl.type == NDEBUG_CTRL_CMD_DATA) {
-            buf.erase(buf.begin(), 
-                buf.begin() + sizeof(ndebug_system_packet_t));
+            buf.erase(buf.begin(),
+                      buf.begin() + sizeof(ndebug_system_packet_t));
             muxionodes[channel]->queueBuf(buf);
         } else if (pkt->ctrl.type == NDEBUG_CTRL_CMD_FLOWCTRL) {
             muxionodes[channel]->signalBufAvail();
@@ -109,11 +112,12 @@ void USBMuxReaderThread(NDebug::USBIONode *usbSource,
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     NDebug::USBIONode usb(NDebug::Constants::kVendorId,
                           NDebug::Constants::kProductId,
                           NDEBUG_PROTOCOL_LK_SYSTEM);
-    
+
     if (!usb.connect()) {
         std::cerr << "Could not connect to USB device." << std::endl;
         return -1;
@@ -135,7 +139,7 @@ int main(int argc, char *argv[]) {
 
     NDebug::MuxUSBIONode consoleMuxUSBIONode(NDEBUG_SYS_CHANNEL_CONSOLE, &usb);
     NDebug::MuxUSBIONode commandMuxUSBIONode(NDEBUG_SYS_CHANNEL_COMMAND, &usb);
-    
+
     std::vector<NDebug::MuxUSBIONode *> muxUSBIONodes {
         &consoleMuxUSBIONode,
         &commandMuxUSBIONode

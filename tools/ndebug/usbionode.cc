@@ -206,7 +206,7 @@ bool USBIONode::connect()
 
 
         if (inpkt->ctrl.magic == NDEBUG_CTRL_PACKET_MAGIC &&
-            inpkt->ctrl.type == NDEBUG_CTRL_CMD_ESTABLISHED) {
+                inpkt->ctrl.type == NDEBUG_CTRL_CMD_ESTABLISHED) {
             if (protocol_ == NDEBUG_PROTOCOL_LK_SYSTEM) {
                 inpkt->ctrl.type = NDEBUG_CTRL_CMD_FLOWCTRL;
                 inpkt->channel = NDEBUG_SYS_CHANNEL_CONSOLE;

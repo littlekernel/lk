@@ -42,12 +42,12 @@ typedef enum {
 void ndebug_init(void);
 
 ssize_t ndebug_usb_read(const channel_t ch, const size_t n,
-						const lk_time_t timeout, uint8_t *buf);
+                        const lk_time_t timeout, uint8_t *buf);
 ssize_t ndebug_usb_write(const channel_t ch, const size_t n,
-						 const lk_time_t timeout, uint8_t *buf);
+                         const lk_time_t timeout, uint8_t *buf);
 
 status_t ndebug_await_connection(const channel_t ch, const lk_time_t timeout);
 
 status_t msg_host(const channel_t ch, const uint32_t message,
-				  const lk_time_t timeout, uint8_t *buf);
+                  const lk_time_t timeout, uint8_t *buf);
 __END_CDECLS
