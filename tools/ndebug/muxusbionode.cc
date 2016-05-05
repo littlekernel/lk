@@ -22,38 +22,44 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#pragma once
+#include "muxusbionode.h"
+#include "usbionode.h"
 
-#include <stdint.h>
+namespace NDebug {
 
-typedef struct __attribute__((packed)) {
-    uint32_t magic;
-    uint32_t type;
-} ndebug_ctrl_packet_t;
+MuxUSBIONode::MuxUSBIONode(const sys_channel_t ch, USBIONode *usb) 
+    : ch_(ch),
+      usb_(usb),
+      sem_(0) {}
 
-typedef struct __attribute__((packed)) {
-    ndebug_ctrl_packet_t ctrl;
-    uint32_t channel;
-} ndebug_system_packet_t;
+MuxUSBIONode::~MuxUSBIONode() {}
 
-typedef enum {
-    NDEBUG_SYS_CHANNEL_CONSOLE,
-    NDEBUG_SYS_CHANNEL_COMMAND,
+IONodeResult MuxUSBIONode::readBuf(std::vector<uint8_t> *buf) {
+    *buf = queue_.pop();
+    return IONodeResult::Success;
+}
 
-    NDEBUG_SYS_CHANNEL_COUNT,   // Count: always last.
-} sys_channel_t;
+IONodeResult MuxUSBIONode::writeBuf(const std::vector<uint8_t> &buf) {
+    sem_.wait();
+    // Write the channel as the first byte of the result.
+    uint32_t channel = ch_;
 
-#define NDEBUG_CTRL_PACKET_MAGIC (0x4354524C)
+    std::vector<uint8_t> outBuf(
+        reinterpret_cast<uint8_t *>(&channel),
+        reinterpret_cast<uint8_t *>(&channel) + sizeof(channel)
+    );
 
-#define NDEBUG_CTRL_CMD_RESET (0x01)
-#define NDEBUG_CTRL_CMD_DATA (0x02)
-#define NDEBUG_CTRL_CMD_ESTABLISHED (0x03)
-#define NDEBUG_CTRL_CMD_FLOWCTRL (0x04)
+    std::copy(buf.begin(), buf.end(), std::back_inserter(outBuf));
 
-#define NDEBUG_SYS_CHANNEL_READY (0x01)
+    return usb_->writeBuf(outBuf);
+}
 
-#define NDEBUG_USB_CLASS_USER_DEFINED (0xFF)
-#define NDEBUG_SUBCLASS (0x02)
+void MuxUSBIONode::queueBuf(const std::vector<uint8_t> &buf) {
+    queue_.push(buf);
+}
 
-#define NDEBUG_PROTOCOL_LK_SYSTEM (0x01)
-#define NDEBUG_PROTOCOL_SERIAL_PIPE (0x02)
+void MuxUSBIONode::signalBufAvail() {
+    sem_.signal();
+}
+
+}  // namespace
