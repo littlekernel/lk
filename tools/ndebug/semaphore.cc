@@ -5,16 +5,18 @@ namespace NDebug {
 
 Semaphore::Semaphore(int count) : count_(count) {}
 
-void Semaphore::signal() {
+void Semaphore::signal()
+{
     std::unique_lock<std::mutex> lck(mtx_);
     ++count_;
     cv_.notify_one();
 }
 
-void Semaphore::wait() {
+void Semaphore::wait()
+{
     std::unique_lock<std::mutex> lck(mtx_);
-    while(count_ == 0) {
-      cv_.wait(lck);
+    while (count_ == 0) {
+        cv_.wait(lck);
     }
 
     --count_;

@@ -26,15 +26,19 @@
 
 #include <stdint.h>
 
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
     uint32_t magic;
     uint32_t type;
-} ndebug_ctrl_packet_t;
+}
+ndebug_ctrl_packet_t;
 
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
     ndebug_ctrl_packet_t ctrl;
     uint32_t channel;
-} ndebug_system_packet_t;
+}
+ndebug_system_packet_t;
 
 typedef enum {
     NDEBUG_SYS_CHANNEL_CONSOLE,
