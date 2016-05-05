@@ -71,7 +71,9 @@ void ConnectionWorkerThread(NDebug::TCPIONode *tcp, NDebug::MuxUSBIONode *usb)
     std::thread hostToDevice;
 
     while (true) {
-        tcp->listenAndAccept();
+        if (!tcp->listenAndAccept()) {
+            break;
+        }
 
         hostToDevice = std::thread(IOWorkerThread, tcp, usb);
         hostToDevice.join();
@@ -91,11 +93,16 @@ void USBMuxReaderThread(NDebug::USBIONode *usbSource,
         std::vector<uint8_t> buf;
         NDebug::IONodeResult result = usbSource->readBuf(&buf);
 
-        if (result != NDebug::IONodeResult::Success) continue;
-
+        if (result == NDebug::IONodeResult::Failure) continue;
+        if (result == NDebug::IONodeResult::Finished) {
+            // Shutdown all client channels.
+            for (NDebug::MuxUSBIONode *muxionode : muxionodes) {
+                muxionode->signalFinished();
+            }
+            return;
+        }
 
         if (buf.size() < sizeof(ndebug_system_packet_t)) continue;
-
 
         ndebug_system_packet_t *pkt =
             reinterpret_cast<ndebug_system_packet_t *>(&buf[0]);
@@ -152,7 +159,14 @@ int main(int argc, char *argv[])
     std::thread commandConnectionWorkerThread(
         ConnectionWorkerThread, &commandTCP, &commandMuxUSBIONode);
 
+    // If this thread joins, the USB device has finished.
     muxReaderThread.join();
+
+    // Shutdown the sockets.
+    consoleTCP.stop();
+    commandTCP.stop();
+
+    // Wait for the connection threads to clean up.
     consoleConnectionWorkerThread.join();
     commandConnectionWorkerThread.join();
 

@@ -44,16 +44,7 @@ TCPIONode::TCPIONode(uint16_t port)
 
 TCPIONode::~TCPIONode()
 {
-    if (connectionSocket_ >= 0) {
-        shutdown(connectionSocket_, SHUT_RDWR);
-        close(connectionSocket_);
-        connectionSocket_ = kSockFdClosed;
-    }
-    if (listenerSocket_ >= 0) {
-        shutdown(listenerSocket_, SHUT_RDWR);
-        close(listenerSocket_);
-        listenerSocket_ = kSockFdClosed;
-    }
+    stop();
 }
 
 IONodeResult TCPIONode::readBuf(std::vector<uint8_t> *buf)
@@ -120,6 +111,20 @@ bool TCPIONode::open()
     }
 
     return true;
+}
+
+void TCPIONode::stop()
+{
+    if (connectionSocket_ >= 0) {
+        shutdown(connectionSocket_, SHUT_RDWR);
+        close(connectionSocket_);
+        connectionSocket_ = kSockFdClosed;
+    }
+    if (listenerSocket_ >= 0) {
+        shutdown(listenerSocket_, SHUT_RDWR);
+        close(listenerSocket_);
+        listenerSocket_ = kSockFdClosed;
+    }
 }
 
 void TCPIONode::swapConnectionSocket(const int newSocket)
