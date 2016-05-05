@@ -45,6 +45,7 @@ public:
 
     void queueBuf(const std::vector<uint8_t> &buf);
     void signalBufAvail();
+    void signalFinished();
 
 private:
     BoundedBlockingQueue<std::vector<uint8_t> > queue_;
