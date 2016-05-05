@@ -47,7 +47,7 @@ mutex_t write_sys_internal_lock = MUTEX_INITIAL_VALUE(write_sys_internal_lock);
 
 #define FLOWCTRL_PKT_TIMEOUT 1000
 
-static ssize_t ndebug_write_sys_internal(uint8_t *buf, const size_t n,
+static ssize_t ndebug_write_sys_internal(const uint8_t *buf, const size_t n,
         const sys_channel_t ch,
         const lk_time_t timeout,
         const uint32_t type)
@@ -156,11 +156,10 @@ static int reader_thread(void *argv)
 
                         if (!channel->ready) continue;
                         uint32_t rdych = (uint32_t)ch;
-                        ssize_t written =
-                            ndebug_write_sys_internal((uint8_t *)(&rdych),
-                                                      sizeof(rdych),
-                                                      ch, FLOWCTRL_PKT_TIMEOUT,
-                                                      NDEBUG_CTRL_CMD_FLOWCTRL);
+                        ndebug_write_sys_internal((uint8_t *)(&rdych),
+                                                  sizeof(rdych),
+                                                  ch, FLOWCTRL_PKT_TIMEOUT,
+                                                  NDEBUG_CTRL_CMD_FLOWCTRL);
                     }
                     break;
                 }
