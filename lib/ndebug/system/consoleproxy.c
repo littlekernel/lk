@@ -32,7 +32,7 @@
 
 #define CONSOLE_IO_DEADLINE_MS 500
 
-void consoleproxy_print_callback(print_callback_t *cb, 
+void consoleproxy_print_callback(print_callback_t *cb,
                                  const char *str, size_t len)
 {
     if (!ndebug_sys_connected()) return;
@@ -42,11 +42,11 @@ void consoleproxy_print_callback(print_callback_t *cb,
         size_t chunk_len = MIN(len, MAX_MUX_PACKET_SIZE);
 
         ssize_t result = ndebug_write_sys(
-            str + written,
-            chunk_len,
-            NDEBUG_SYS_CHANNEL_CONSOLE,
-            CONSOLE_IO_DEADLINE_MS
-        );
+                             str + written,
+                             chunk_len,
+                             NDEBUG_SYS_CHANNEL_CONSOLE,
+                             CONSOLE_IO_DEADLINE_MS
+                         );
 
         if (result < 0) break;
         written += result;
@@ -59,7 +59,8 @@ static print_callback_t cb = {
     .context = NULL
 };
 
-static int console_input_thread(void *arg) {
+static int console_input_thread(void *arg)
+{
     uint8_t *buf;
     while (true) {
         ssize_t bytes =

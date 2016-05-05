@@ -6,12 +6,12 @@
 namespace NDebug {
 
 class Semaphore {
- public:
+public:
     Semaphore(int count);
     void signal();
     void wait();
 
- private:
+private:
     std::mutex mtx_;
     std::condition_variable cv_;
     int count_;

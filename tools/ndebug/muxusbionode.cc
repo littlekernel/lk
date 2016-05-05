@@ -27,19 +27,21 @@
 
 namespace NDebug {
 
-MuxUSBIONode::MuxUSBIONode(const sys_channel_t ch, USBIONode *usb) 
+MuxUSBIONode::MuxUSBIONode(const sys_channel_t ch, USBIONode *usb)
     : ch_(ch),
       usb_(usb),
       sem_(0) {}
 
 MuxUSBIONode::~MuxUSBIONode() {}
 
-IONodeResult MuxUSBIONode::readBuf(std::vector<uint8_t> *buf) {
+IONodeResult MuxUSBIONode::readBuf(std::vector<uint8_t> *buf)
+{
     *buf = queue_.pop();
     return IONodeResult::Success;
 }
 
-IONodeResult MuxUSBIONode::writeBuf(const std::vector<uint8_t> &buf) {
+IONodeResult MuxUSBIONode::writeBuf(const std::vector<uint8_t> &buf)
+{
     sem_.wait();
     // Write the channel as the first byte of the result.
     uint32_t channel = ch_;
@@ -54,11 +56,13 @@ IONodeResult MuxUSBIONode::writeBuf(const std::vector<uint8_t> &buf) {
     return usb_->writeBuf(outBuf);
 }
 
-void MuxUSBIONode::queueBuf(const std::vector<uint8_t> &buf) {
+void MuxUSBIONode::queueBuf(const std::vector<uint8_t> &buf)
+{
     queue_.push(buf);
 }
 
-void MuxUSBIONode::signalBufAvail() {
+void MuxUSBIONode::signalBufAvail()
+{
     sem_.signal();
 }
 
