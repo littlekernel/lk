@@ -27,6 +27,13 @@
 #include <platform/stm32.h>
 #include <platform/gpio.h>
 
+/**
+  * workaround for conflict in LK vs STM HAL defines for pullup and pulldown config
+  */
+#define  STM_GPIO_PULLUP        ((uint32_t)0x00000001)   /*!< Pull-up activation                  */
+#define  STM_GPIO_PULLDOWN      ((uint32_t)0x00000002)   /*!< Pull-down activation                */
+#define  STM_GPIO_NOPULL        ((uint32_t)0x00000000)   /*!< No Pull-up or Pull-down activation  */
+
 static GPIO_TypeDef *port_to_pointer(unsigned int port)
 {
     DEBUG_ASSERT(port <= GPIO_PORT_K);
@@ -136,11 +143,11 @@ int gpio_config(unsigned nr, unsigned flags)
     }
 
     if (flags & GPIO_PULLUP) {
-        init.Pull = GPIO_PULLUP;
+        init.Pull = STM_GPIO_PULLUP;
     } else if (flags & GPIO_PULLDOWN) {
-        init.Pull = GPIO_PULLDOWN;
+        init.Pull = STM_GPIO_PULLDOWN;
     } else {
-        init.Pull = GPIO_NOPULL;
+        init.Pull = STM_GPIO_NOPULL;
     }
 
     HAL_GPIO_Init(port_to_pointer(port), &init);

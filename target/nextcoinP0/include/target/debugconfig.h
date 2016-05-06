@@ -1,6 +1,5 @@
 /*
- * Copyright 2016 Google Inc. All Rights Reserved.
- * Author: gkalsi@google.com (Gurjant Kalsi)
+ * Copyright (c) 2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,42 +20,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#ifndef __TARGET_DEBUGCONFIG_H
+#define __TARGET_DEBUGCONFIG_H
 
-#pragma once
+#define DEBUG_UART 3
 
-#include <cstdint>
-#include "ionode.h"
-
-struct libusb_context;
-struct libusb_device_handle;
-
-namespace NDebug {
-
-class USBIONode : public IONode {
-public:
-    USBIONode(const uint16_t vendorId, const uint16_t productId,
-              const uint8_t protocol);
-    virtual ~USBIONode();
-
-    IONodeResult readBuf(std::vector<uint8_t> *buf) override;
-    IONodeResult writeBuf(const std::vector<uint8_t> &buf) override;
-
-    bool connect();
-
-private:
-    bool openDeviceByParams(const uint16_t vid, const uint16_t pid,
-                            const uint8_t interfaceProtocol);
-
-    const uint16_t vendorId_;
-    const uint16_t productId_;
-    const uint8_t protocol_;
-
-    uint8_t epOut_;
-    uint8_t epIn_;
-    uint8_t iface_;
-
-    libusb_context *ctx_;
-    libusb_device_handle *dev_;
-};
-
-}  // namespace ndebug
+#endif

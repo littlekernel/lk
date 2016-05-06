@@ -40,6 +40,7 @@ public:
 
     bool listenAndAccept();
     bool open();
+    void stop();
 
 private:
     void swapConnectionSocket(const int newSocket);

@@ -1,6 +1,5 @@
 /*
- * Copyright 2016 Google Inc. All Rights Reserved.
- * Author: gkalsi@google.com (Gurjant Kalsi)
+ * Copyright (c) 2015 Gurjant Kalsi <me@gurjantkalsi.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -22,41 +21,12 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#pragma once
+#ifndef __TARGET_DARTUINOP0_MEMORY_LCD_H_
+#define __TARGET_DARTUINOP0_MEMORY_LCD_H_
 
-#include <cstdint>
-#include "ionode.h"
+#include <stm32f7xx.h>
 
-struct libusb_context;
-struct libusb_device_handle;
+// Initialize the QSPI Flash device.
+status_t memory_lcd_init(void);
 
-namespace NDebug {
-
-class USBIONode : public IONode {
-public:
-    USBIONode(const uint16_t vendorId, const uint16_t productId,
-              const uint8_t protocol);
-    virtual ~USBIONode();
-
-    IONodeResult readBuf(std::vector<uint8_t> *buf) override;
-    IONodeResult writeBuf(const std::vector<uint8_t> &buf) override;
-
-    bool connect();
-
-private:
-    bool openDeviceByParams(const uint16_t vid, const uint16_t pid,
-                            const uint8_t interfaceProtocol);
-
-    const uint16_t vendorId_;
-    const uint16_t productId_;
-    const uint8_t protocol_;
-
-    uint8_t epOut_;
-    uint8_t epIn_;
-    uint8_t iface_;
-
-    libusb_context *ctx_;
-    libusb_device_handle *dev_;
-};
-
-}  // namespace ndebug
+#endif  // __TARGET_DARTUINOP0_MEMORY_LCD_H_

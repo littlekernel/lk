@@ -1,6 +1,5 @@
 /*
- * Copyright 2016 Google Inc. All Rights Reserved.
- * Author: gkalsi@google.com (Gurjant Kalsi)
+ * Copyright (c) 2015 Eric Holland
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -21,42 +20,19 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#ifndef __SENSOR_BUS_H
+#define __SENSOR_BUS_H
 
-#pragma once
+#include <sys/types.h>
+#include <dev/accelerometer.h>
 
-#include <cstdint>
-#include "ionode.h"
+status_t sensor_bus_init_early(void);
 
-struct libusb_context;
-struct libusb_device_handle;
+void sensor_bus_init(void);
 
-namespace NDebug {
+status_t acc_read(uint8_t address, uint8_t *data);
 
-class USBIONode : public IONode {
-public:
-    USBIONode(const uint16_t vendorId, const uint16_t productId,
-              const uint8_t protocol);
-    virtual ~USBIONode();
+status_t acc_flush(uint8_t *tbuff, uint8_t *rbuff, uint8_t numbytes);
 
-    IONodeResult readBuf(std::vector<uint8_t> *buf) override;
-    IONodeResult writeBuf(const std::vector<uint8_t> &buf) override;
 
-    bool connect();
-
-private:
-    bool openDeviceByParams(const uint16_t vid, const uint16_t pid,
-                            const uint8_t interfaceProtocol);
-
-    const uint16_t vendorId_;
-    const uint16_t productId_;
-    const uint8_t protocol_;
-
-    uint8_t epOut_;
-    uint8_t epIn_;
-    uint8_t iface_;
-
-    libusb_context *ctx_;
-    libusb_device_handle *dev_;
-};
-
-}  // namespace ndebug
+#endif

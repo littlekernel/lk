@@ -31,6 +31,7 @@
 #include <err.h>
 #include <kernel/event.h>
 #include <lib/ndebug/shared_structs.h>
+#include <lib/ndebug/system/mux.h>
 #include <string.h>
 #include <trace.h>
 
@@ -56,11 +57,13 @@
 #define NDEBUG_PROTOCOL_LK_SYSTEM (0x01)
 #define NDEBUG_PROTOCOL_SERIAL_PIPE (0x02)
 
-static usbc_transfer_t rx_transfer[NDEBUG_CHANNEL_COUNT];
-static usbc_transfer_t tx_transfer[NDEBUG_CHANNEL_COUNT];
+typedef struct {
+    usbc_transfer_t transfer;
+    event_t event;
+} channel_context_t;
 
-static event_t rx_event[NDEBUG_CHANNEL_COUNT];
-static event_t tx_event[NDEBUG_CHANNEL_COUNT];
+static channel_context_t rx_ctx[NDEBUG_CHANNEL_COUNT];
+static channel_context_t tx_ctx[NDEBUG_CHANNEL_COUNT];
 
 static event_t usb_online_event;
 
@@ -137,8 +140,8 @@ static status_t ndebug_register_cb(
 void ndebug_init(void)
 {
     for (channel_t ch = 0; ch < NDEBUG_CHANNEL_COUNT; ++ch) {
-        event_init(&rx_event[ch], 0, EVENT_FLAG_AUTOUNSIGNAL);
-        event_init(&tx_event[ch], 0, EVENT_FLAG_AUTOUNSIGNAL);
+        event_init(&rx_ctx[ch].event, 0, EVENT_FLAG_AUTOUNSIGNAL);
+        event_init(&tx_ctx[ch].event, 0, EVENT_FLAG_AUTOUNSIGNAL);
     }
 
     init_channel(NDEBUG_SUBCLASS, NDEBUG_PROTOCOL_LK_SYSTEM, SYS_EP_ADDR);
@@ -146,24 +149,17 @@ void ndebug_init(void)
 
     event_init(&usb_online_event, 0, 0);
 
+    ndebug_sys_init();
+
     usb_register_callback(&ndebug_register_cb, NULL);
-}
-
-static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
-{
-    uint32_t channel = (uint32_t)t->extra;
-    CHECK_CHANNEL(channel);
-
-    event_signal(&tx_event[channel], false);
-    return 0;
 }
 
 static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
 {
-    uint32_t channel = (uint32_t)t->extra;
-    CHECK_CHANNEL(channel);
+    uint32_t ch = (uint32_t)t->extra;
+    CHECK_CHANNEL(ch);
 
-    event_signal(&rx_event[channel], false);
+    event_signal(&rx_ctx[ch].event, false);
     return 0;
 }
 
@@ -172,7 +168,7 @@ ssize_t ndebug_usb_read(const channel_t ch, const size_t n,
 {
     CHECK_CHANNEL(ch);
 
-    usbc_transfer_t *transfer = &rx_transfer[ch];
+    usbc_transfer_t *transfer = &rx_ctx[ch].transfer;
 
     transfer->callback = &usb_recv_cplt_cb;
     transfer->result = 0;
@@ -182,7 +178,7 @@ ssize_t ndebug_usb_read(const channel_t ch, const size_t n,
     transfer->extra = (void *)ch;
 
     usbc_queue_rx(CH_TO_ADDR(ch), transfer);
-    status_t res = event_wait_timeout(&rx_event[ch], timeout);
+    status_t res = event_wait_timeout(&rx_ctx[ch].event, timeout);
 
     if (res != NO_ERROR) {
         return res;
@@ -195,12 +191,21 @@ ssize_t ndebug_usb_read(const channel_t ch, const size_t n,
     return transfer->bufpos;
 }
 
+static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
+{
+    uint32_t ch = (uint32_t)t->extra;
+    CHECK_CHANNEL(ch);
+
+    event_signal(&tx_ctx[ch].event, false);
+    return 0;
+}
+
 ssize_t ndebug_usb_write(const channel_t ch, const size_t n,
                          const lk_time_t timeout, uint8_t *buf)
 {
     CHECK_CHANNEL(ch);
 
-    usbc_transfer_t *transfer = &tx_transfer[ch];
+    usbc_transfer_t *transfer = &tx_ctx[ch].transfer;
 
     transfer->callback = &usb_xmit_cplt_cb;
     transfer->result = 0;
@@ -210,7 +215,7 @@ ssize_t ndebug_usb_write(const channel_t ch, const size_t n,
     transfer->extra = (void *)ch;
 
     usbc_queue_tx(CH_TO_ADDR(ch), transfer);
-    status_t res = event_wait_timeout(&tx_event[ch], timeout);
+    status_t res = event_wait_timeout(&tx_ctx[ch].event, timeout);
 
     if (res != NO_ERROR) {
         return res;
@@ -272,6 +277,11 @@ status_t ndebug_await_connection(const channel_t ch, const lk_time_t timeout)
         return result;
     }
 
+    usbc_flush_ep(SYS_EP_ADDR);
+    usbc_flush_ep(USR_EP_ADDR);
+    usbc_flush_ep(SYS_EP_ADDR | 0x80);
+    usbc_flush_ep(USR_EP_ADDR | 0x80);
+
     while (true) {
         ssize_t bytes =
             ndebug_usb_read(ch, NDEBUG_MAX_PACKET_SIZE, timeout, buf);
@@ -279,11 +289,11 @@ status_t ndebug_await_connection(const channel_t ch, const lk_time_t timeout)
         if (bytes < 0) return bytes;
         if (bytes < (ssize_t)sizeof(ndebug_ctrl_packet_t)) continue;
         if (!is_valid_connection_request(bytes, buf)) {
-            msg_host(ch, NDEBUG_CTRL_CMD_RESET, timeout, buf);
+            msg_host(ch, NDEBUG_CTRL_CMD_RESET, 1000, buf);
             continue;
         }
 
-        if (msg_host(ch, NDEBUG_CTRL_CMD_ESTABLISHED, timeout, buf) < 0) {
+        if (msg_host(ch, NDEBUG_CTRL_CMD_ESTABLISHED, 1000, buf) < 0) {
             continue;
         }
 

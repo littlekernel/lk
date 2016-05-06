@@ -24,39 +24,20 @@
 
 #pragma once
 
-#include <cstdint>
-#include "ionode.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 
-struct libusb_context;
-struct libusb_device_handle;
+#include <lib/ndebug/ndebug.h>
+#include <lib/ndebug/shared_structs.h>
 
-namespace NDebug {
+#define MAX_MUX_PACKET_SIZE (NDEBUG_MAX_PACKET_SIZE - sizeof(ndebug_system_packet_t))
 
-class USBIONode : public IONode {
-public:
-    USBIONode(const uint16_t vendorId, const uint16_t productId,
-              const uint8_t protocol);
-    virtual ~USBIONode();
+void ndebug_sys_init(void);
+bool ndebug_sys_connected(void);
 
-    IONodeResult readBuf(std::vector<uint8_t> *buf) override;
-    IONodeResult writeBuf(const std::vector<uint8_t> &buf) override;
+ssize_t ndebug_read_sys(uint8_t **buf, const sys_channel_t ch,
+                        const lk_time_t timeout);
 
-    bool connect();
-
-private:
-    bool openDeviceByParams(const uint16_t vid, const uint16_t pid,
-                            const uint8_t interfaceProtocol);
-
-    const uint16_t vendorId_;
-    const uint16_t productId_;
-    const uint8_t protocol_;
-
-    uint8_t epOut_;
-    uint8_t epIn_;
-    uint8_t iface_;
-
-    libusb_context *ctx_;
-    libusb_device_handle *dev_;
-};
-
-}  // namespace ndebug
+ssize_t ndebug_write_sys(const uint8_t *buf, const size_t n,
+                         const sys_channel_t ch, const lk_time_t timeout);

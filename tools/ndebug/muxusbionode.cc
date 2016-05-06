@@ -22,41 +22,61 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#pragma once
-
-#include <cstdint>
-#include "ionode.h"
-
-struct libusb_context;
-struct libusb_device_handle;
+#include "muxusbionode.h"
+#include "usbionode.h"
 
 namespace NDebug {
 
-class USBIONode : public IONode {
-public:
-    USBIONode(const uint16_t vendorId, const uint16_t productId,
-              const uint8_t protocol);
-    virtual ~USBIONode();
+MuxUSBIONode::MuxUSBIONode(const sys_channel_t ch, USBIONode *usb)
+    : ch_(ch),
+      usb_(usb),
+      sem_(0) {}
 
-    IONodeResult readBuf(std::vector<uint8_t> *buf) override;
-    IONodeResult writeBuf(const std::vector<uint8_t> &buf) override;
+MuxUSBIONode::~MuxUSBIONode() {}
 
-    bool connect();
+IONodeResult MuxUSBIONode::readBuf(std::vector<uint8_t> *buf)
+{
+    *buf = queue_.pop();
+    if (buf->empty()) {
+        return IONodeResult::Finished;
+    } else {
+        return IONodeResult::Success;
+    }
+}
 
-private:
-    bool openDeviceByParams(const uint16_t vid, const uint16_t pid,
-                            const uint8_t interfaceProtocol);
+IONodeResult MuxUSBIONode::writeBuf(const std::vector<uint8_t> &buf)
+{
+    sem_.wait();
+    // Write the channel as the first byte of the result.
+    uint32_t channel = ch_;
 
-    const uint16_t vendorId_;
-    const uint16_t productId_;
-    const uint8_t protocol_;
+    std::vector<uint8_t> outBuf(
+        reinterpret_cast<uint8_t *>(&channel),
+        reinterpret_cast<uint8_t *>(&channel) + sizeof(channel)
+    );
 
-    uint8_t epOut_;
-    uint8_t epIn_;
-    uint8_t iface_;
+    std::copy(buf.begin(), buf.end(), std::back_inserter(outBuf));
 
-    libusb_context *ctx_;
-    libusb_device_handle *dev_;
-};
+    return usb_->writeBuf(outBuf);
+}
 
-}  // namespace ndebug
+void MuxUSBIONode::queueBuf(const std::vector<uint8_t> &buf)
+{
+    if (buf.empty()) return;
+
+    queue_.push(buf);
+}
+
+void MuxUSBIONode::signalBufAvail()
+{
+    sem_.signal();
+}
+
+void MuxUSBIONode::signalFinished()
+{
+    std::vector<uint8_t> empty;
+    queue_.push(empty);
+}
+
+
+}  // namespace
