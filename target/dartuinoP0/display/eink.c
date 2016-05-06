@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <trace.h>
 #include <dev/display.h>
+#include <kernel/spinlock.h>
 #include <platform/timer.h>
 #include <platform/gpio.h>
 #include <target/gpioconfig.h>
@@ -149,52 +150,126 @@ static uint8_t lut_kwg[512] = {
 #include <lib/console.h>
 SPI_HandleTypeDef SpiHandle;
 bool spi_inited = false;
+spin_lock_t lock;
+spin_lock_saved_state_t state;
 
 typedef struct {
-    // Gate power selection
-    // 0: External gate power from VGH/VGL pins
-    // 1: Internal DC/DC function for generating VGH/VGL
-    uint8_t vg_en:1;
-    // Source power selection
-    // 0: External source power from VDH/VDL pins
-    // 1: Internal DC/DC function for generating VDH/VDL
-    uint8_t vs_en:1;
-    uint8_t __rs0:6;
-    //---- new byte
-    // VG_LVL[1:0]: Gate Voltage Level selection
-    //  Bit definitions in power settings enum.
-    uint8_t vg_lvl:2;
-    // VCOM_HV: VCOM Voltage Level
-    //  0: VCOMH=VSH+VCOMDC, VCOML=VSL+VCOMDC (default)
-    //  1: VCOML=VGH, VCOML=VGL
-    uint8_t vcom_hv:1;
-    uint8_t __rs1:5;
-    //---- new byte
-    // VSH_LVL[5:0]: Internal positive source voltage level for K/W
-    // (range: +2.4V ~ +11.0V / step:0.2V / default : +10.0V)
-    uint8_t vsh_lvl:6;
-    uint8_t __rs2:2;
-    //---- new byte
-    // VSL_LVL[5:0]: Internal negative source voltage level for K/W
-    // (range: -2.4V ~ -11.0V / step:0.2V / default : -10.0V)
-    uint8_t vsl_lvl:6;
-    uint8_t __rs3:2;
-    //---- new byte
-    uint8_t vshr_lvl:6;
-    uint8_t __rs4:2;
+    union {
+        uint8_t byte0;
+        // RST_N: Soft Reset
+        //  0: Assert reset function : Booster OFF and Register data reset to its
+        //  default value
+        //  1: No effect (default)
+        uint8_t rst_n:1;
+        // SHD_N: Booster Shutdown
+        //  0: Booster shutdown and register data kept
+        //  1: No booster shutdown (default)
+        uint8_t shd_n:1;
+        // SHL: Shift Left
+        //  0: Shift right
+        //  1: Shift left (default)
+        uint8_t shl:1;
+        // SDMD: Source Driver Mode Selection
+        //  0: Rectangular mode
+        //  1: Circle mode (default)
+        uint8_t sdmd:1;
+        // GDMD: Gate Driver Mode Selection
+        //  0: Multiplexing gate mode (default)
+        //  1: Normal mode
+        uint8_t gdmd:1;
+        uint8_t __rs0:1;
+        // RES[1:0]: Resolution Setting
+        //  Bit definitions in PanelSettingRes enum.
+        uint8_t res:2;
+    };
+    union {
+        uint8_t byte1;
+        // SFT[1:0]: Cardinal Neighbors setting. Set cardinal neighbors number for
+        // REAGAL.
+        //  Bit definitions in PanelSettingsSft enum.
+        uint8_t sft:2;
+        // IMCP: Image copy setting
+        //  0: “Copy new data to old data storage” disabled after display
+        //  1: “Copy new data to old data storage” enabled after display (default)
+        uint8_t imcp:1;
+        uint8_t __rs1:4;
+        // REG_EN: LUT selection
+        //  0: Using LUT from OTP (default)
+        //  1: Using LUT from internal register
+        uint8_t reg_en:1;
+    };
+} panel_setting_t;
+
+typedef struct {
+    union {
+        uint8_t byte0;
+        // Gate power selection
+        // 0: External gate power from VGH/VGL pins
+        // 1: Internal DC/DC function for generating VGH/VGL
+        uint8_t vg_en:1;
+        // Source power selection
+        // 0: External source power from VDH/VDL pins
+        // 1: Internal DC/DC function for generating VDH/VDL
+        uint8_t vs_en:1;
+        uint8_t __rs0:6;
+    };
+
+    union {
+        uint8_t byte1;
+        // VG_LVL[1:0]: Gate Voltage Level selection
+        //  Bit definitions in power settings enum.
+        uint8_t vg_lvl:2;
+        // VCOM_HV: VCOM Voltage Level
+        //  0: VCOMH=VSH+VCOMDC, VCOML=VSL+VCOMDC (default)
+        //  1: VCOML=VGH, VCOML=VGL
+        uint8_t vcom_hv:1;
+        uint8_t __rs1:5;
+    };
+
+    union {
+        uint8_t byte2;
+        // VSH_LVL[5:0]: Internal positive source voltage level for K/W
+        // (range: +2.4V ~ +11.0V / step:0.2V / default : +10.0V)
+        uint8_t vsh_lvl:6;
+        uint8_t __rs2:2;
+    };
+
+    union {
+        uint8_t byte3;
+        // VSL_LVL[5:0]: Internal negative source voltage level for K/W
+        // (range: -2.4V ~ -11.0V / step:0.2V / default : -10.0V)
+        uint8_t vsl_lvl:6;
+        uint8_t __rs3:2;
+    };
+
+    union {
+        uint8_t byte4;
+        uint8_t vshr_lvl:6;
+        uint8_t __rs4:2;
+    };
 } pwr_settings_t;
 
 typedef struct {
-    uint8_t btpha_min_off:3;
-    uint8_t btpha_drive_strength:3;
-    uint8_t btpha_soft_start:2;
-    //---- new byte
-    uint8_t btphb_min_off:3;
-    uint8_t btphb_drive_strength:3;
-    uint8_t btphb_soft_start:2;
-    //---- new byte
-    uint8_t btphc_min_off:3;
-    uint8_t btphc_drive_strength:3;
+    union {
+        uint8_t byte0;
+        uint8_t btpha_min_off:3;
+        uint8_t btpha_drive_strength:3;
+        uint8_t btpha_soft_start:2;
+    };
+
+    union {
+        uint8_t byte1;
+        uint8_t btphb_min_off:3;
+        uint8_t btphb_drive_strength:3;
+        uint8_t btphb_soft_start:2;
+    };
+
+    union {
+        uint8_t byte2;
+        uint8_t btphc_min_off:3;
+        uint8_t btphc_drive_strength:3;
+        uint8_t __rs0:2;
+    };
 } booster_settings_t;
 
 typedef struct {
@@ -208,113 +283,146 @@ typedef struct {
 } et011tt2_status_t;
 
 typedef struct {
-    // DDX[1:0]: Data polarity
-    //  0: Inverted
-    //  1: Normal (default)
-    uint8_t ddx:1;
-    uint8_t __rs0:3;
-    // VBD[1:0]: Border output selection
-    uint8_t bdd:2;
-    // BDV: Border DC Voltage control
-    //  0: Border Output DC Voltage Function disabled (default)
-    //  1: Border Output DC Voltage Function enabled
-    uint8_t bdv:1;
-    // BDZ: Border Hi-Z control
-    //  0: Border Output Hi-Z disabled (default)
-    //  1: Border Output Hi-Z enabled
-    uint8_t bdz:1;
-    //---- new byte
-    // CDI[9:0]: VCOM to Source interval. Interval time setting from VCOM to
-    // source dat.
-    //  000 0000 000b ~ 11 1111 1111b: 1 Hsync ~ 1023 Hsync, respectively.
-    //  (Default: 018h: 25 Hsync)
-    uint8_t cdi_high:2;
-    uint8_t __rs1:2;
-    // DCI[3:0]: Source to VCOM interval. Interval time setting from source
-    // data to VCOM.
-    //  0000b ~ 1111b: 1 Hsync ~ 16 Hsync, respectively. (Default: 011b: 4
-    //  Hsync)
-    uint8_t dci:4;
-    //---- new byte
+    union {
+        uint8_t byte0;
+        // DDX[1:0]: Data polarity
+        //  0: Inverted
+        //  1: Normal (default)
+        uint8_t ddx:1;
+        uint8_t __rs0:3;
+        // VBD[1:0]: Border output selection
+        uint8_t bdd:2;
+        // BDV: Border DC Voltage control
+        //  0: Border Output DC Voltage Function disabled (default)
+        //  1: Border Output DC Voltage Function enabled
+        uint8_t bdv:1;
+        // BDZ: Border Hi-Z control
+        //  0: Border Output Hi-Z disabled (default)
+        //  1: Border Output Hi-Z enabled
+        uint8_t bdz:1;
+    };
+
+    union {
+        uint8_t byte1;
+        // CDI[9:0]: VCOM to Source interval. Interval time setting from VCOM to
+        // source dat.
+        //  000 0000 000b ~ 11 1111 1111b: 1 Hsync ~ 1023 Hsync, respectively.
+        //  (Default: 018h: 25 Hsync)
+        uint8_t cdi_high:2;
+        uint8_t __rs1:2;
+        // DCI[3:0]: Source to VCOM interval. Interval time setting from source
+        // data to VCOM.
+        //  0000b ~ 1111b: 1 Hsync ~ 16 Hsync, respectively. (Default: 011b: 4
+        //  Hsync)
+        uint8_t dci:4;
+    };
+
     uint8_t cdi_low;
 } vcom_data_int_settings_t;
 
 typedef struct {
-    uint8_t __rs0:2;
-    // HRES[7:2]: Horizontal display resolution.
-    //  00000b ~ 11111b: 4 ~ 256 lines
-    uint8_t hres:6;
-    //---- new byte
-    // VRES[9:0]: Vertical display resolution
-    //  0000000000b ~ 1111111111b: 1 ~ 1024 lines
-    uint8_t vres_high:2;
-    uint8_t __rs1:6;
-    //---- new byte
+    union {
+        uint8_t byte0;
+        uint8_t __rs0:2;
+        // HRES[7:2]: Horizontal display resolution.
+        //  00000b ~ 11111b: 4 ~ 256 lines
+        uint8_t hres:6;
+    };
+
+    union {
+        uint8_t byte1;
+        // VRES[9:0]: Vertical display resolution
+        //  0000000000b ~ 1111111111b: 1 ~ 1024 lines
+        uint8_t vres_high:2;
+        uint8_t __rs1:6;
+    };
+
     uint8_t vres_low;
 } resolution_settings_t;
 
 typedef struct {
-    // G1~4NUM[3:0]: Channel Number used for Gate Group 1~4. For example:
-    //  2: GGx[2:0] ON
-    //  15: GGx[15:0] ON
-    uint8_t g1num:4;
-    uint8_t __rs0:1;
-    // G1~4UD: Gate Group 1~4 Up/Down Selection
-    //  0: Down scan within Gate Group
-    //  1: Up scan within Gate Group (default)
-    uint8_t g1ud:1;
-    // G1~4BS: Gate Group 1~4 Block/Select Selection
-    //  0: Gate Select
-    //  1: Gate Block
-    uint8_t g1bs:1;
-    // G1~4EN: Gate Group 1~4 Enable
-    //  0: Disable
-    //  1: Enable
-    uint8_t g1en:1;
-    //---- new byte
-    uint8_t g2num:4;
-    uint8_t __rs1:1;
-    uint8_t g2ud:1;
-    uint8_t g2bs:1;
-    uint8_t g2en:1;
-    //---- new byte
-    uint8_t g3num:4;
-    uint8_t __rs2:1;
-    uint8_t g3ud:1;
-    uint8_t g3bs:1;
-    uint8_t g3en:1;
-    //---- new byte
-    uint8_t g4num:4;
-    uint8_t __rs3:1;
-    uint8_t g4ud:1;
-    uint8_t g4bs:1;
-    uint8_t g4en:1;
-    //---- new byte
-    // GSFB: Gate Select Forward/Backward
-    //  0: Gate select backward
-    //  1: Gate select forward
-    uint8_t gsfb:1;
-    // GBFB: Gate Block Forward/Backward
-    //  0: Gate block backward
-    //  1: Gate block forward
-    uint8_t gbfb:1;
-    uint8_t __rs4:2;
-    // XOPT: XON Option
-    //  0: No all gate on during vertical blanking in XON mode (default)
-    //  1: All gate on during vertical blanking in XON mode
-    uint8_t xopt:1;
-    uint8_t __rs5:3;
+    union {
+        uint8_t byte0;
+        // G1~4NUM[3:0]: Channel Number used for Gate Group 1~4. For example:
+        //  2: GGx[2:0] ON
+        //  15: GGx[15:0] ON
+        uint8_t g1num:4;
+        uint8_t __rs0:1;
+        // G1~4UD: Gate Group 1~4 Up/Down Selection
+        //  0: Down scan within Gate Group
+        //  1: Up scan within Gate Group (default)
+        uint8_t g1ud:1;
+        // G1~4BS: Gate Group 1~4 Block/Select Selection
+        //  0: Gate Select
+        //  1: Gate Block
+        uint8_t g1bs:1;
+        // G1~4EN: Gate Group 1~4 Enable
+        //  0: Disable
+        //  1: Enable
+        uint8_t g1en:1;
+    };
+
+    union {
+        uint8_t byte1;
+        uint8_t g2num:4;
+        uint8_t __rs1:1;
+        uint8_t g2ud:1;
+        uint8_t g2bs:1;
+        uint8_t g2en:1;
+    };
+
+    union {
+        uint8_t byte2;
+        uint8_t g3num:4;
+        uint8_t __rs2:1;
+        uint8_t g3ud:1;
+        uint8_t g3bs:1;
+        uint8_t g3en:1;
+    };
+
+    union {
+        uint8_t byte3;
+        uint8_t g4num:4;
+        uint8_t __rs3:1;
+        uint8_t g4ud:1;
+        uint8_t g4bs:1;
+        uint8_t g4en:1;
+    };
+
+    union {
+        uint8_t byte4;
+        // GSFB: Gate Select Forward/Backward
+        //  0: Gate select backward
+        //  1: Gate select forward
+        uint8_t gsfb:1;
+        // GBFB: Gate Block Forward/Backward
+        //  0: Gate block backward
+        //  1: Gate block forward
+        uint8_t gbfb:1;
+        uint8_t __rs4:2;
+        // XOPT: XON Option
+        //  0: No all gate on during vertical blanking in XON mode (default)
+        //  1: All gate on during vertical blanking in XON mode
+        uint8_t xopt:1;
+        uint8_t __rs5:3;
+    };
 } gate_group_settings_t;
 
 typedef struct {
-    uint8_t vbds:7;
-    uint8_t __rs0:1;
+    union {
+        uint8_t byte0;
+        uint8_t vbds:7;
+        uint8_t __rs0:1;
+    };
 } border_dc_v_settings_t;
 
 typedef struct {
     // Low Power Voltage Selection
-    uint8_t lpd_sel:2;
-    uint8_t __rs0:6;
+    union {
+        uint8_t byte0;
+        uint8_t lpd_sel:2;
+        uint8_t __rs0:6;
+    };
 } lpdselect_t;
 
 typedef struct {
@@ -329,44 +437,57 @@ typedef struct {
     // NOTE: The X-axis start point needs to be a multiple of 4.
     uint8_t x;
     // Y[9:0]: Y-axis Start Point. Y-axis start point for update display window.
-    uint8_t y_high:2;
-    uint8_t __rs0:6;
+    union {
+        uint8_t byte1;
+        uint8_t y_high:2;
+        uint8_t __rs0:6;
+    };
     uint8_t y_low;
     // W[7:0]: X-axis Window Width. X-axis width for update display window.
     // NOTE: The width needs to be a multiple of 4.
     // NOTE: This needs to be set to W - 1.
     uint8_t w;
-    uint8_t l_high:2;
-    uint8_t __rs1:6;
+    union {
+        uint8_t byte4;
+        uint8_t l_high:2;
+        uint8_t __rs1:6;
+    };
     // L[9:0]: Y-axis Window Width. Y-axis width for update display window
     // NOTE: This needs to be set to L - 1.
     uint8_t l_low;
 } data_transmission_window_t;
 
 typedef struct {
-    uint8_t mode:2;
-    // DN_EN: Do-nothing function enabled
-    //  0: Data follow VCOM function disable
-    //  1: Data output follows VCOM LUT if new pixel data equal to old pixel
-    //     data inside Update Display Area
-    // NOTE: Do-nothing function is always active outside Update Display Area.
-    uint8_t dn_en:1;
-    // RGL_EN: REGAL function control
-    //  0: REGAL function disable
-    //  1: REGAL function enable
-    uint8_t rgl_en:1;
-    // PSCAN: Partial Scan control
-    //  0: Partial Scan disable
-    //  1: Partial Scan enable (Gate Scan within Display Window only)
-    uint8_t pscan:1;
-    uint8_t __rs0:3;
+    union {
+        uint8_t byte0;
+        uint8_t mode:2;
+        // DN_EN: Do-nothing function enabled
+        //  0: Data follow VCOM function disable
+        //  1: Data output follows VCOM LUT if new pixel data equal to old pixel
+        //     data inside Update Display Area
+        // NOTE: Do-nothing function is always active outside Update Display Area.
+        uint8_t dn_en:1;
+        // RGL_EN: REGAL function control
+        //  0: REGAL function disable
+        //  1: REGAL function enable
+        uint8_t rgl_en:1;
+        // PSCAN: Partial Scan control
+        //  0: Partial Scan disable
+        //  1: Partial Scan enable (Gate Scan within Display Window only)
+        uint8_t pscan:1;
+        uint8_t __rs0:3;
+    };
+
     //---- new byte
     // X[7:0]: X-axis Start Point. X-axis start point for update display window.
     // NOTE: The X-axis start point needs to be a multiple of 4.
     uint8_t x;
     // Y[9:0]: Y-axis Start Point. Y-axis start point for update display window.
-    uint8_t y_high:2;
-    uint8_t __rs1:6;
+    union {
+        uint8_t byte2;
+        uint8_t y_high:2;
+        uint8_t __rs1:6;
+    };
     //---- new byte
     uint8_t y_low;
     // W[7:0]: X-axis Window Width. X-axis width for update display window.
@@ -375,8 +496,11 @@ typedef struct {
     uint8_t w;
     // L[9:0]: Y-axis Window Width. Y-axis width for update display window
     // NOTE: This needs to be set to L - 1.
-    uint8_t l_high:2;
-    uint8_t __rs2:6;
+    union {
+        uint8_t byte5;
+        uint8_t l_high:2;
+        uint8_t __rs2:6;
+    };
     uint8_t l_low;
 } display_refresh_t;
 
@@ -472,7 +596,7 @@ static bool poll_gpio(uint32_t gpio, bool desired, uint8_t timeout)
 
 /* The display pulls the BUSY line low while BUSY and releases it when done */
 static bool check_busy(void) {
-    return poll_gpio(GPIO_DISP_BUSY, 1, 50);
+    return poll_gpio(GPIO_DISP_BUSY, 1, 100);
 }
 
 static inline void assert_reset(void) {
@@ -513,7 +637,29 @@ void write_data(uint8_t *buf, size_t len) {
     HAL_SPI_Transmit(&SpiHandle, buf, len, HAL_MAX_DELAY);
     gpio_set(GPIO_DISP_CS, 1);
 #else
+    //spin_lock_irqsave(&lock, state);
     spi_write(&SpiHandle, buf, len, GPIO_DISP_CS);
+    //spin_unlock_irqrestore(&lock, state);
+#endif
+    //exit_critical_section;
+}
+
+void write_burst_data(uint8_t *buf, size_t len) {
+    set_data_parameter_mode();
+    //enter_critical_section;
+#if 0
+    gpio_set(GPIO_DISP_CS, 0);
+    HAL_SPI_Transmit(&SpiHandle, buf, len, HAL_MAX_DELAY);
+    gpio_set(GPIO_DISP_CS, 1);
+#else
+    int chunk = 256;
+    spin_lock_irqsave(&lock, state);
+    gpio_set(GPIO_DISP_CS, 0);
+    for (size_t off = 0; off < len; off += chunk) {
+        spi_write(&SpiHandle, buf + off, chunk, 0);
+    }
+    gpio_set(GPIO_DISP_CS, 1);
+    spin_unlock_irqrestore(&lock, state);
 #endif
     //exit_critical_section;
 }
@@ -554,32 +700,14 @@ status_t get_status(et011tt2_status_t *status) {
   //   H: Not busy. Host side can send command/data to driver.
 
 
-static int cmd_eink(int argc, const cmd_args *argv)
-{
+status_t eink_init(void) {
+    TRACE_ENTRY;
     status_t err = NO_ERROR;
-/*
-    volatile stm32f7_spi_t *spi = (stm32f7_spi_t *)SPI2;
-    SPIx_CR1_t CR1 = {
-        .br          = fpclk_div_256;
-        .cpha        = cpha_first_transition;
-        .cpol        = cpol_clk_idle_low;
-        .mstr        = mstr_spi_master;
-        .rxonly      = rxonly_full_duplex;
-        .crcen       = hw_crc_disable;
-        .bidi_mode   = bidi_mode_1;
-        .bidi_output = bidi_output_enable;
-        .lsb_first   = 0;
-        .ssm         = ssm_disabled;
-        .ssi         = 0;
-     cr1 = spi->CR1;
-    uint16_t cr2 = spi->CR2;
-    uint16_t sr = spi->SR;*/
-
-
+    spin_lock_init(&lock);
 
     if (!spi_inited) {
         SpiHandle.Instance               = SPI2;
-        SpiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+        SpiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
         SpiHandle.Init.Direction         = SPI_DIRECTION_1LINE;
         SpiHandle.Init.CLKPhase          = SPI_PHASE_1EDGE;
         SpiHandle.Init.CLKPolarity       = SPI_POLARITY_LOW;
@@ -599,74 +727,99 @@ static int cmd_eink(int argc, const cmd_args *argv)
         spi_inited = true;
     }
 
-    /* Documented driver steps */
-    pwr_settings_t pwr = {
-        .vsh_lvl  = 0x1C, // +8V
-        .vsl_lvl  = 0x1C, // -8V
-        .vshr_lvl = 0x00, // +2.4V
+    panel_setting_t panel = {
+        .byte0 = 0x0F, .byte1 = 0x06,
     };
+
+    panel.reg_en = 1;
+
+    pwr_settings_t pwr = {
+        .byte0 = 0x03, .byte1 = 0x00, .byte2 = 0x26, .byte3 = 0x26, .byte4 = 0x03,
+    };
+
+    pwr.vsh_lvl  = 0x1C; // +8V
+    pwr.vsl_lvl  = 0x1C; // -8V
+    pwr.vshr_lvl = 0x00; // +2.4V
 
     booster_settings_t booster = {
-        .btpha_min_off          = soft_start_min_off_3p34us,
-        .btpha_drive_strength   = drive_strength_8,
-        .btpha_soft_start       = soft_start_period_10ms,
-        .btphb_min_off          = soft_start_min_off_3p34us,
-        .btphb_drive_strength   = drive_strength_8,
-        .btphb_soft_start       = soft_start_period_10ms,
-        .btphc_min_off          = soft_start_min_off_3p34us,
-        .btphc_drive_strength   = drive_strength_8,
+        .byte0 = 0x1F, .byte1 = 0x1E, .byte2 = 0x25,
+
     };
+
+    booster.btpha_min_off          = soft_start_min_off_3p34us;
+    booster.btpha_drive_strength   = drive_strength_8;
+    booster.btpha_soft_start       = soft_start_period_10ms;
+    booster.btphb_min_off          = soft_start_min_off_3p34us;
+    booster.btphb_drive_strength   = drive_strength_8;
+    booster.btphb_soft_start       = soft_start_period_10ms;
+    booster.btphc_min_off          = soft_start_min_off_3p34us;
+    booster.btphc_drive_strength   = drive_strength_8;
 
     vcom_data_int_settings_t vdi = {
-        .bdd     = 0x00, // PC30
-        .dci     = 0x02, // 3 Hsync
-        .cdi_low = 0x10, // 17 Hsync
+        .byte0 = 0x31, .byte1 = 0x30, .cdi_low = 0x18,
     };
+
+    vdi.bdd     = 0x00; // PC30
+    vdi.dci     = 0x02; // 3 Hsync
+    vdi.cdi_low = 0x10; // 17 Hsync
 
     resolution_settings_t rs = {
-        .hres     = (PHYSICAL_WIDTH - 1) >> 2,
-        .vres_low = PHYSICAL_HEIGHT - 1,
+        .byte0 = 0x03, .byte1 = 0x00, .vres_low = 0xEF,
     };
+
+    rs.hres     = (PHYSICAL_WIDTH - 1) >> 2;
+    rs.vres_low = PHYSICAL_HEIGHT - 1;
 
     border_dc_v_settings_t bdvs = {
-        .vbds = 0x4e, // -4.0V
+        .byte0 = 0x00,
     };
+
+    bdvs.vbds = 0x4e; // -4.0V
 
     gate_group_settings_t ggs = {
-        .g1num = 0x09,  // GG1[9:0] ON
-        .g1ud = 0,      // GG1[9] -> GG1[0]
-        .g2num = 0x09,  // GG2[9:0] ON
-        .g2ud = 0,      // GG2[9] -> GG2[0]
-        .g3num = 0x0B,  // GG3[11:0] ON
-        .g3ud = 0,      // GG3[11] -> GG3[0]
-        .g3bs = 1,      // Gate block
-        .g4num = 0x0B,  // GG4[11:0] ON
-        .g4ud = 0,      // GG4[11] -> GG4[0]
-        .g4bs = 1,      // Gate block
+        .byte0 = 0xAF, .byte1 = 0xAF, .byte2 = 0xEF, .byte3 = 0xEF, .byte4 = 0x03,
     };
+
+    ggs.g1num = 0x09;  // GG1[9:0] ON
+    ggs.g1ud  = 0;      // GG1[9] -> GG1[0]
+    ggs.g2num = 0x09;  // GG2[9:0] ON
+    ggs.g2ud  = 0;      // GG2[9] -> GG2[0]
+    ggs.g3num = 0x0B;  // GG3[11:0] ON
+    ggs.g3ud  = 0;      // GG3[11] -> GG3[0]
+    ggs.g3bs  = 1;      // Gate block
+    ggs.g4num = 0x0B;  // GG4[11:0] ON
+    ggs.g4ud  = 0;      // GG4[11] -> GG4[0]
+    ggs.g4bs  = 1;      // Gate block
 
     lpdselect_t lpds = {
-        .lpd_sel = LPDSEL_2p4v,
+        .byte0 = 0x03,
+
     };
+
+    lpds.lpd_sel = LPDSEL_2p4v;
 
     display_refresh_t dr = {
-        .dn_en  = 1,
-        .pscan  = 0,
-        .rgl_en = 0,
-        .x      = 0,
-        .y_low  = 0,
-        .w      = 240,
-        .l_high = 0,
-        .l_low  = 240,
+        .byte0 = 0x0, .x = 0x0, .byte2 = 0x0, .y_low = 0x0, .w = 0xFF, .byte5 = 0x01, .l_low = 0xFF,
+
     };
 
+    /*dr.x      = 0;
+    dr.y_low  = 0;
+    dr.w      = 240-1;
+    dr.l_high = 0;
+    dr.l_low  = 240-1;*/
+
     data_transmission_window_t dtw = {
-        .x = 0,
-        .y_low = 0,
-        .w = 240,
-        .l_high = 0,
-        .l_low = 240,
+        .x = 0x0, .byte1 = 0x0, .y_low = 0x0, .w = 0x7F, .byte4 = 0x03, .l_low = 0xFF,
     };
+
+    /*dtw.x     = 0;
+    dtw.y_low = 0;
+    dtw.w     = 240-1;
+    dtw.l_high = 0;
+    dtw.l_low  = 240-1;*/
+
+    set_data_command_mode();
 
     // VDD (wired straight to 3v3)
     spin(2000);         // Delay 2 ms
@@ -679,63 +832,22 @@ static int cmd_eink(int argc, const cmd_args *argv)
         return ERR_GENERIC;
     }
 
-    // Configure Boost
-    write_cmd(BoosterSoftStart);
-    write_data((uint8_t *)&booster, sizeof(booster));
+    // Configure power settings
+    write_cmd(PowerSetting);
+    write_data((uint8_t *)&pwr, sizeof(pwr));
 
     // Power on display
     write_cmd(PowerOn);
 
+    // Configure panel settings
+    write_cmd(PanelSetting);
+    write_data((uint8_t *)&panel, sizeof(panel));
+
+    // Configure Boost
+    write_cmd(BoosterSoftStart);
+    write_data((uint8_t *)&booster, sizeof(booster));
+
     // Initialize -> Check_Busy
-    if (!check_busy()) {
-        printf("Device is still busy after Power On!\n");
-        return ERR_GENERIC;
-    }
-
-    /* Quick buffer to toss at it */
-    uint8_t buf[128];
-    for (size_t i = 0; i < sizeof(buf); i++) {
-        buf[i] = i % 255;
-    }
-
-    // DTMW
-    write_cmd(DataStartTransmissionWindow);
-    write_data((uint8_t *) &dtw, sizeof(dtw));
-
-    // DTM2
-    write_cmd(DataStartTransmission2);
-    write_data(buf, sizeof(buf));
-
-    // DRF
-    write_cmd(DisplayRefresh);
-    write_data((uint8_t *)&dr, sizeof(dr));
-
-    // Check_Busy
-    if (!check_busy()) {
-        printf("Device is still busy after Display Refresh!\n");
-        return ERR_GENERIC;
-    }
-
-    // POF
-    write_cmd(PowerOff);
-
-    // Check_Busy
-    if (!check_busy()) {
-        printf("Device is still busy after Power Off!\n");
-        return ERR_GENERIC;
-    }
-
-    // DSLP
-    uint8_t sleepbuf = 0b10100101;
-    write_cmd(DeepSleep);
-    write_data(&sleepbuf, sizeof(sleepbuf));
-    //
-    return 0;
-
-
-/*
- *  Config writes that need to be verified against the tables and defaults to ensure
- *  I'm not missing important predefined bits.
     write_cmd(VcomAndDataIntervalSetting);
     write_data((uint8_t *)&vdi, sizeof(vdi));
 
@@ -760,9 +872,60 @@ static int cmd_eink(int argc, const cmd_args *argv)
     write_cmd(KwgLutRegister);
     write_data(lut_kwg, sizeof(lut_kwg));
 
-*/
+    if (!check_busy()) {
+        printf("Device is still busy after Power On and configuration\n");
+        return ERR_GENERIC;
+    }
+
+    /* Quick buffer to toss at it */
+    #define fbsize (240 * 240 / 4)
+    uint8_t *buf = malloc(fbsize);
+    if (!buf) {
+        printf("Couldn't allocate framebuffer\n");
+        return ERR_GENERIC;
+    }
+    memset(buf, 0b00011011, fbsize);
+
+    // DTMW
+    write_cmd(DataStartTransmissionWindow);
+    write_data((uint8_t *) &dtw, sizeof(dtw));
+
+    // DTM2
+    write_cmd(DataStartTransmission2);
+    write_burst_data(buf, fbsize);
+
+    // DRF
+    write_cmd(DisplayRefresh);
+    write_data((uint8_t *)&dr, sizeof(dr));
+
+    // Check_Busy
+    if (!check_busy()) {
+        printf("Device is still busy after Display Refresh!\n");
+        return ERR_GENERIC;
+    }
+
+    // POF
+    write_cmd(PowerOff);
+
+    // Check_Busy
+    if (!check_busy()) {
+        printf("Device is still busy after Power Off!\n");
+        return ERR_GENERIC;
+    }
+
+    // DSLP
+    uint8_t sleepbuf = 0b10100101;
+    write_cmd(DeepSleep);
+    write_data(&sleepbuf, sizeof(sleepbuf));
+
 err:
+    TRACE_EXIT;
     return err;
+}
+
+static int cmd_eink(int argc, const cmd_args *argv)
+{
+    return eink_init();
 }
 
 STATIC_COMMAND_START

@@ -128,13 +128,13 @@ void target_init(void)
 {
     stm32_debug_init();
 
-    qspi_flash_init(N25Q128A_FLASH_SIZE);
+    //qspi_flash_init(N25Q128A_FLASH_SIZE);
 
-#if ENABLE_LCD
+#if 0 //ENABLE_LCD
     memory_lcd_init();
 #endif
 
-#if WITH_LIB_MINIP
+#if 0 //WITH_LIB_MINIP
     uint8_t mac_addr[6];
     gen_random_mac_address(mac_addr);
     eth_init(mac_addr, PHY_KSZ8721);
@@ -149,7 +149,7 @@ void target_init(void)
     minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
 #endif
 
-#if WITH_LIB_FS_SPIFS
+#if 0 //WITH_LIB_FS_SPIFS
     status_t mount_success = fs_mount(DEAULT_SPIFS_MOUNT_POINT,
                                       DEAULT_SPIFS_NAME, SPIFS_TARGET_DEVICE);
     if (mount_success != NO_ERROR) {
@@ -162,9 +162,9 @@ void target_init(void)
 #endif
 
     // start usb
-    target_usb_setup();
+    //target_usb_setup();
 
-#if ENABLE_SENSORBUS
+#if 0 //ENABLE_SENSORBUS
     sensor_bus_init();
 #endif
 }
