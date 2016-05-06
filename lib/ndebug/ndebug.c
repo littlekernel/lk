@@ -277,6 +277,11 @@ status_t ndebug_await_connection(const channel_t ch, const lk_time_t timeout)
         return result;
     }
 
+    usbc_flush_ep(SYS_EP_ADDR);
+    usbc_flush_ep(USR_EP_ADDR);
+    usbc_flush_ep(SYS_EP_ADDR | 0x80);
+    usbc_flush_ep(USR_EP_ADDR | 0x80);
+
     while (true) {
         ssize_t bytes =
             ndebug_usb_read(ch, NDEBUG_MAX_PACKET_SIZE, timeout, buf);
@@ -284,11 +289,11 @@ status_t ndebug_await_connection(const channel_t ch, const lk_time_t timeout)
         if (bytes < 0) return bytes;
         if (bytes < (ssize_t)sizeof(ndebug_ctrl_packet_t)) continue;
         if (!is_valid_connection_request(bytes, buf)) {
-            msg_host(ch, NDEBUG_CTRL_CMD_RESET, timeout, buf);
+            msg_host(ch, NDEBUG_CTRL_CMD_RESET, 1000, buf);
             continue;
         }
 
-        if (msg_host(ch, NDEBUG_CTRL_CMD_ESTABLISHED, timeout, buf) < 0) {
+        if (msg_host(ch, NDEBUG_CTRL_CMD_ESTABLISHED, 1000, buf) < 0) {
             continue;
         }
 
