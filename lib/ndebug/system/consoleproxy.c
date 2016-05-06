@@ -36,6 +36,7 @@ void consoleproxy_print_callback(print_callback_t *cb,
                                  const char *str, size_t len)
 {
     if (!ndebug_sys_connected()) return;
+    if (!str) return;
 
     size_t written = 0;
     while (written < len) {

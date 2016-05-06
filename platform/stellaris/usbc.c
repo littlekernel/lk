@@ -250,3 +250,8 @@ status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer)
 {
     PANIC_UNIMPLEMENTED;
 }
+
+status_t usbc_flush_ep(ep_t ep)
+{
+    PANIC_UNIMPLEMENTED;
+}
