@@ -305,6 +305,14 @@ status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer)
     return NO_ERROR;
 }
 
+status_t usbc_flush_ep(ep_t ep)
+{
+    if (HAL_PCD_EP_Flush(&usbc.handle, ep) != HAL_OK) {
+        return ERR_GENERIC;
+    }
+    return NO_ERROR;
+}
+
 void stm32_OTG_FS_IRQ(void)
 {
     arm_cm_irq_entry();
