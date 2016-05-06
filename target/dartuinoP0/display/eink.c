@@ -638,7 +638,9 @@ void write_data(uint8_t *buf, size_t len) {
     gpio_set(GPIO_DISP_CS, 1);
 #else
     //spin_lock_irqsave(&lock, state);
-    spi_write(&SpiHandle, buf, len, GPIO_DISP_CS);
+    for (size_t i = 0; i < len; i++) {
+        spi_write(&SpiHandle, buf + i, 1, GPIO_DISP_CS);
+    }
     //spin_unlock_irqrestore(&lock, state);
 #endif
     //exit_critical_section;
@@ -680,25 +682,6 @@ status_t get_status(et011tt2_status_t *status) {
 
     return err;
 }
-
-  // SpiBus must be configured in half-duplex mode. Display supports up to 6600
-  // Kb/s baud rate. All GPIO should be configured active high. The orientation
-  // parameter represents the virtual display orientation relative to the
-  // physical display.
-  //
-  // The parameter disconnect_reset indicates if reset should float when
-  // inactive.
-  //
-  // GPIO:
-  //  chip_select - CSB - SPI chip select pin (active low).
-  //  data_command - DC - Command/parameter select for 4-wire serial mode:
-  //   L: command
-  //   H: parameter
-  //  reset - RST_N - Global reset pin (active low).
-  //  busy - BUSY_N - Indicates timing controller status (active low):
-  //   L: Driver is busy, data/VCOM is transforming.
-  //   H: Not busy. Host side can send command/data to driver.
-
 
 status_t eink_init(void) {
     TRACE_ENTRY;
@@ -803,21 +786,21 @@ status_t eink_init(void) {
 
     };
 
-    /*dr.x      = 0;
+    dr.x      = 0;
     dr.y_low  = 0;
     dr.w      = 240-1;
     dr.l_high = 0;
-    dr.l_low  = 240-1;*/
+    dr.l_low  = 240-1;
 
     data_transmission_window_t dtw = {
         .x = 0x0, .byte1 = 0x0, .y_low = 0x0, .w = 0x7F, .byte4 = 0x03, .l_low = 0xFF,
     };
 
-    /*dtw.x     = 0;
+    dtw.x     = 0;
     dtw.y_low = 0;
     dtw.w     = 240-1;
     dtw.l_high = 0;
-    dtw.l_low  = 240-1;*/
+    dtw.l_low  = 240-1;
 
     set_data_command_mode();
 
@@ -884,7 +867,7 @@ status_t eink_init(void) {
         printf("Couldn't allocate framebuffer\n");
         return ERR_GENERIC;
     }
-    memset(buf, 0b00011011, fbsize);
+    memset(buf, 0b00001111, fbsize);
 
     // DTMW
     write_cmd(DataStartTransmissionWindow);
@@ -892,7 +875,7 @@ status_t eink_init(void) {
 
     // DTM2
     write_cmd(DataStartTransmission2);
-    write_burst_data(buf, fbsize);
+    write_data(buf, fbsize);
 
     // DRF
     write_cmd(DisplayRefresh);
