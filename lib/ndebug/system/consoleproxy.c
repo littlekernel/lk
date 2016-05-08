@@ -24,6 +24,7 @@
 
 #include <lib/ndebug/system/consoleproxy.h>
 
+#include <arch/arch_ops.h>
 #include <kernel/thread.h>
 #include <lib/cbuf.h>
 #include <lib/io.h>
@@ -35,6 +36,8 @@
 void consoleproxy_print_callback(print_callback_t *cb,
                                  const char *str, size_t len)
 {
+    if (arch_in_int_handler()) return;
+
     if (!ndebug_sys_connected()) return;
     if (!str) return;
 
