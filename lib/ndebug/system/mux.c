@@ -224,7 +224,12 @@ ssize_t ndebug_read_sys(uint8_t **buf, const sys_channel_t ch,
     // Block on an event and wait for the reader thread to signal us
     ch_t *channel = &channels[ch];
     channel->ready = true;
-    event_wait_timeout(&channel->event, timeout);
+
+    status_t result = event_wait_timeout(&channel->event, timeout);
+    if (result != NO_ERROR) {
+        return result;
+    }
+
 
     *buf = channel->buf;
 
