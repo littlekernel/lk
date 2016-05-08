@@ -203,9 +203,11 @@ static void stm32_usart_shared_irq(struct uart_instance *u, const unsigned int i
 
         cbuf_t *target_buf = &u->rx_buf;
 
-        if (CONSOLE_HAS_INPUT_BUFFER && id == DEBUG_UART) {
+#if CONSOLE_HAS_INPUT_BUFFER
+        if (id == DEBUG_UART) {
             target_buf = &console_input_cbuf;
         }
+#endif
 
         if (cbuf_write_char(target_buf, c, false) != 1) {
             printf("WARNING: uart cbuf overrun!\n");
