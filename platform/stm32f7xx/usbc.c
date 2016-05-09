@@ -307,9 +307,18 @@ status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer)
 
 status_t usbc_flush_ep(ep_t ep)
 {
+    DEBUG_ASSERT((ep & 0x7F) <= NUM_EP);
+
     if (HAL_PCD_EP_Flush(&usbc.handle, ep) != HAL_OK) {
         return ERR_GENERIC;
     }
+
+    if (ep & 0x80) {
+        usbc.ep_in[ep & 0x7F].transfer = NULL;
+    } else {
+        usbc.ep_out[ep].transfer = NULL;
+    }
+
     return NO_ERROR;
 }
 
