@@ -31,6 +31,7 @@
 #include <lib/ndebug/ndebug.h>
 #include <lib/ndebug/shared_structs.h>
 #include <lib/ndebug/system/consoleproxy.h>
+#include <lib/ndebug/system/cmdhdlr.h>
 #include <string.h>
 
 typedef struct {
@@ -191,6 +192,7 @@ void ndebug_sys_init(void)
 
     // Initialize subsystems.
     consoleproxy_init();
+    cmdhdlr_init();
 }
 
 
