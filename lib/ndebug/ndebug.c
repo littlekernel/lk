@@ -133,6 +133,10 @@ static status_t ndebug_register_cb(
     } else if (op == USB_CB_RESET || op == USB_CB_DISCONNECT ||
                op == USB_CB_OFFLINE) {
         event_unsignal(&usb_online_event);
+        usbc_flush_ep(SYS_EP_ADDR);
+        usbc_flush_ep(USR_EP_ADDR);
+        usbc_flush_ep(SYS_EP_ADDR | 0x80);
+        usbc_flush_ep(USR_EP_ADDR | 0x80);
     }
     return NO_ERROR;
 }
@@ -276,11 +280,6 @@ status_t ndebug_await_connection(const channel_t ch, const lk_time_t timeout)
     if (result != NO_ERROR) {
         return result;
     }
-
-    usbc_flush_ep(SYS_EP_ADDR);
-    usbc_flush_ep(USR_EP_ADDR);
-    usbc_flush_ep(SYS_EP_ADDR | 0x80);
-    usbc_flush_ep(USR_EP_ADDR | 0x80);
 
     while (true) {
         ssize_t bytes =
