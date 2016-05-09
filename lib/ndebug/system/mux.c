@@ -117,12 +117,12 @@ static int reader_thread(void *argv)
                 case NDEBUG_CTRL_CMD_RESET: {
                     // We got a reset packet, unblock all the reader channels
                     // and go back to waiting for a connection attempt.
+                    connected = false;
                     for (sys_channel_t ch = NDEBUG_SYS_CHANNEL_CONSOLE;
                             ch != NDEBUG_SYS_CHANNEL_COUNT; ch++) {
                         channels[ch].retcode = ERR_CHANNEL_CLOSED;
                         event_signal(&channels[ch].event, true);
                     }
-                    connected = false;
                     break;
                 }
                 case NDEBUG_CTRL_CMD_DATA: {
