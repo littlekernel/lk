@@ -35,7 +35,8 @@ MODULE_SRCS += \
 MODULE_DEPS += \
     dev/usb \
     app/ndebugtest \
-    lib/ndebug
+    lib/ndebug \
+    lib/ndebug/system/handlers/fs
 
 ifneq ($(DISPLAY_PANEL_TYPE),)
 
