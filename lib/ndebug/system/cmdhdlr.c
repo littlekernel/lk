@@ -30,6 +30,10 @@
 #include <lib/ndebug/system/mux.h>
 #include <list.h>
 
+#if WITH_LIB_NDEBUG_SYSTEM_HANDLERS_FS
+#include <lib/ndebug/system/handlers/fs/fs.h>
+#endif
+
 typedef struct {
     struct list_node node;
     uint32_t opcode;
@@ -108,6 +112,10 @@ void cmdhdlr_register_handler(const uint32_t opcode, cmdhdlr_callback_t cb)
 
 void cmdhdlr_init(void)
 {
+#if WITH_LIB_NDEBUG_SYSTEM_HANDLERS_FS
+    cmdhdlr_fs_init();
+#endif
+
     thread_resume(
         thread_create("cmdhdlr dispatcher", &cmdhdlr_dispatcher_thread, NULL,
                       DEFAULT_PRIORITY, DEFAULT_STACK_SIZE)
