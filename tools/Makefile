@@ -1,5 +1,5 @@
 
-all: lkboot mkimage ndbg sdbgd
+all: lkboot mkimage ndbg sdbgd sdbg
 
 LKBOOT_SRCS := lkboot.c liblkboot.c network.c
 LKBOOT_DEPS := network.h liblkboot.h ../app/lkboot/lkboot_protocol.h
@@ -25,5 +25,11 @@ SDEBUGD_INCS := -I./ndebug/include -I../lib/ndebug/include
 sdbgd: $(SDEBUGD_SRCS) $(SDEBUGD_DEPS)
 	c++ -Wall -Werror -g -std=c++11 -o $@ $(SDEBUGD_INCS) $(SDEBUGD_SRCS) -lusb-1.0 -lpthread
 
+SDEBUG_DEPS :=
+SDEBUG_SRCS := ndebug/sdebug.cc ndebug/usbionode.cc ndebug/tcpionode.cc ndebug/muxusbionode.cc ndebug/semaphore.cc
+SDEBUG_INCS := -I./ndebug/include -I../lib/ndebug/include
+sdbg: $(SDEBUG_SRCS) $(SDEBUG_DEPS)
+	c++ -Wall -Werror -g -std=c++11 -o $@ $(SDEBUG_INCS) $(SDEBUG_SRCS) -lusb-1.0 -lpthread
+
 clean::
-	rm -f lkboot mkimage ndbg sdbgd
+	rm -f lkboot mkimage ndbg sdbgd sdbg
