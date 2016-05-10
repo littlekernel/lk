@@ -22,8 +22,11 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <algorithm>
+
 #include "muxusbionode.h"
 #include "usbionode.h"
+#include "lib/ndebug/shared_structs.h"
 
 namespace NDebug {
 
@@ -46,7 +49,6 @@ IONodeResult MuxUSBIONode::readBuf(std::vector<uint8_t> *buf)
 
 IONodeResult MuxUSBIONode::writeBuf(const std::vector<uint8_t> &buf)
 {
-    sem_.wait();
     // Write the channel as the first byte of the result.
     uint32_t channel = ch_;
 
@@ -55,9 +57,23 @@ IONodeResult MuxUSBIONode::writeBuf(const std::vector<uint8_t> &buf)
         reinterpret_cast<uint8_t *>(&channel) + sizeof(channel)
     );
 
-    std::copy(buf.begin(), buf.end(), std::back_inserter(outBuf));
+    size_t copied = 0;
+    while (copied < buf.size()) {
+        outBuf.resize(sizeof(channel));
+        size_t toCopy = std::min(
+            buf.size() - copied,
+            (size_t)(64 - (sizeof(ndebug_system_packet_t) + sizeof(channel)))
+        );
+        std::copy_n(buf.begin() + copied, toCopy, std::back_inserter(outBuf));
+        sem_.wait();
+        IONodeResult res = usb_->writeBuf(outBuf);
+        if (res != IONodeResult::Success) {
+            return res;
+        }
+        copied += toCopy;
+    }
 
-    return usb_->writeBuf(outBuf);
+    return IONodeResult::Success;
 }
 
 void MuxUSBIONode::queueBuf(const std::vector<uint8_t> &buf)
