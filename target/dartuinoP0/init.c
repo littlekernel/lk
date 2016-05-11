@@ -38,6 +38,7 @@
 #include <target/bmi055.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
+#include <target/et011tt2v1.h>
 #include <reg.h>
 
 #if ENABLE_LCD
@@ -167,6 +168,8 @@ void target_init(void)
 #if 0 //ENABLE_SENSORBUS
     sensor_bus_init();
 #endif
+
+    eink_init();
 }
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)

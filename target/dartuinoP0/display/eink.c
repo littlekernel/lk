@@ -10,6 +10,7 @@
 #include <platform/gpio.h>
 #include <target/gpioconfig.h>
 #include <target/tqlogo.h>
+#include <target/et011tt2v1.h>
 #include <string.h>
 // TODO The eink driver should not include stm headers. We likely need INIT to store
 // a spihandle and then spi functions use it some other way
@@ -18,7 +19,7 @@
 #include <platform.h>
 
 
-#define FBSIZE ((240*240>>2)  )
+
 
 
 static uint8_t framebuffer[FBSIZE];
@@ -932,78 +933,14 @@ status_t eink_init(void) {
         return ERR_GENERIC;
     }
 
-    /* Quick buffer to toss at it */
-    #define fbsize (240 * 240 / 4)
-    uint8_t *buf = malloc(fbsize);
-    if (!buf) {
-        printf("Couldn't allocate framebuffer\n");
-        return ERR_GENERIC;
-    }
-    memset(buf, 0xff, fbsize);
+    memset(framebuffer, 0xff, sizeof(framebuffer));
+    return eink_refresh();
 
-    // DTMW
-    write_cmd(DataStartTransmissionWindow);
-    data = 0x00;
-    write_data(&data,1);
-    data = 0x00;
-    write_data(&data,1);
-    data = 0x00;
-    write_data(&data,1);
-    data = 240-1;
-    write_data(&data,1);
-    data = 0x00;
-    write_data(&data,1);
-    data = 240-1;
-    write_data(&data,1);
-
-
-    // DTM2
-    write_cmd(DataStartTransmission2);
-    write_data(buf, fbsize);
-
-    // DRF
-    write_cmd(DisplayRefresh);
-    data = 0x00;
-    write_data(&data,1);
-    data = 0x00;
-    write_data(&data,1);
-    data = 0x00;
-    write_data(&data,1);
-    data = 0x00;
-    write_data(&data,1);
-    data = 240-1;
-    write_data(&data,1);
-    data = 0x00;
-    write_data(&data,1);
-    data = 240-1;
-    write_data(&data,1);
-
-
-
-    // Check_Busy
-    if (!check_busy()) {
-        printf("Device is still busy after Display Refresh!\n");
-        return ERR_GENERIC;
-    }
-/*
-    // POF
-    write_cmd(PowerOff);
-
-    // Check_Busy
-    if (!check_busy()) {
-        printf("Device is still busy after Power Off!\n");
-        return ERR_GENERIC;
-    }
-
-    // DSLP
-    uint8_t sleepbuf = 0b10100101;
-    write_cmd(DeepSleep);
-    write_data(&sleepbuf, sizeof(sleepbuf));
-*/
 err:
     TRACE_EXIT;
     return err;
 }
+
 static int eink_dumpfb(uint8_t * buff, uint32_t count)
 {
     uint8_t data;
@@ -1066,24 +1003,22 @@ static int cmd_eink_fill(int argc, const cmd_args *argv)
 static int cmd_eink1(int argc, const cmd_args *argv)
 {
     memset(framebuffer, 0xff, FBSIZE);
-    memset(framebuffer, 0xcc, 240);
-    memset(framebuffer+(240>>4)*10, 0xcc, 10 );
-    eink_dumpfb(framebuffer, FBSIZE);
-    return 0;
+    return eink_dumpfb(framebuffer, FBSIZE);
 }
 
 static int cmd_eink0(int argc, const cmd_args *argv)
 {
     memset(framebuffer, 0x00, sizeof(framebuffer));
-    eink_dumpfb(framebuffer,sizeof(framebuffer));
-    return 0;
+    return eink_dumpfb(framebuffer,sizeof(framebuffer));
 }
 
+int eink_refresh(void) {
+    return eink_dumpfb(framebuffer, sizeof(framebuffer));
+}
 
 static int cmd_eink_logo(int argc, const cmd_args *argv)
 {
-    eink_dumpfb(logo,sizeof(logo));
-    return 0;
+    return eink_dumpfb(logo,sizeof(logo));
 }
 
 static int cmd_eink(int argc, const cmd_args *argv)
@@ -1091,10 +1026,14 @@ static int cmd_eink(int argc, const cmd_args *argv)
     return eink_init();
 }
 
+uint8_t * get_eink_framebuffer(void) {
+    return framebuffer;
+}
+
 STATIC_COMMAND_START
-STATIC_COMMAND("eink", "eink commands", &cmd_eink)
-STATIC_COMMAND("eink1", "eink 1's", &cmd_eink1)
-STATIC_COMMAND("eink0", "eink 0's", &cmd_eink0)
+STATIC_COMMAND("eink", "eink init", &cmd_eink)
+STATIC_COMMAND("eink1", "eink fill white", &cmd_eink1)
+STATIC_COMMAND("eink0", "eink fill black", &cmd_eink0)
 STATIC_COMMAND("einkfill", "eink fill x y val count", &cmd_eink_fill)
 STATIC_COMMAND("einklogo", "tqlogo", &cmd_eink_logo)
 STATIC_COMMAND_END(eink);
