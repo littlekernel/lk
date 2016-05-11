@@ -153,10 +153,17 @@ void target_init(void)
     status_t mount_success = fs_mount(DEAULT_SPIFS_MOUNT_POINT,
                                       DEAULT_SPIFS_NAME, SPIFS_TARGET_DEVICE);
     if (mount_success != NO_ERROR) {
-        printf("failed to mount '%s' at path '%s' on '%s'."
-               " Make sure that device is formatted\n",
+        printf("************************************************************\n");
+        printf("failed to mount '%s' at path '%s' on '%s'.\n"
+               "Make sure that device is formatted.\n",
                DEAULT_SPIFS_NAME, DEAULT_SPIFS_MOUNT_POINT,
                SPIFS_TARGET_DEVICE);
+        printf("Run the following command to format the device then reboot\n"
+               "the device to mount the filesystem:\n");
+        printf("\t] fs format %s %s\n", DEAULT_SPIFS_NAME,
+               SPIFS_TARGET_DEVICE);
+        printf("************************************************************\n");
+
     }
 
 #endif
