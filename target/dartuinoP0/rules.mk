@@ -39,9 +39,6 @@ MODULE_DEPS += \
 
 ifneq ($(DISPLAY_PANEL_TYPE),)
 
-MODULE_SRCS += \
-    $(LOCAL_DIR)/memory_lcd.c
-
 GLOBAL_DEFINES += \
     ENABLE_LCD=0
 

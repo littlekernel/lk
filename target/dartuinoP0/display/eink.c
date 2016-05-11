@@ -1032,6 +1032,73 @@ uint8_t * get_eink_framebuffer(void) {
     return framebuffer;
 }
 
+static struct display_framebuffer eink_framebuffer;
+
+static uint8_t clamp_px(uint8_t px)
+{
+    if (px) return 0x3;
+    return 0x0;
+}
+
+status_t display_present(struct display_image *image, uint starty, uint endy)
+{
+    DEBUG_ASSERT(image);
+
+    // Convert the framebuffer into something that the e-ink display will
+    // understand.
+    // TODO(gkalsi): Note that we're ignoring starty and endy right now. Just
+    //               dump the whole display for now and we can worry about
+    //               partial updates later.
+
+    // memset(framebuffer, 0, FBSIZE);
+    uint8_t *fb = (uint8_t *)framebuffer;
+    uint8_t *px = (uint8_t *)image->pixels;
+    for (unsigned int col = 0; col < 60; col++) {
+        for (unsigned int row = 0; row < 240; row++) {
+            fb[col + row * 60]  = clamp_px((px[col * 2 + row * 120] & 0xC0) >> 6) << 6;
+            fb[col + row * 60] |= clamp_px((px[col * 2 + row * 120] & 0x0C) >> 2) << 4;
+            fb[col + row * 60] |= clamp_px((px[col * 2 + row * 120 + 1] & 0xC0) >> 6) << 2;
+            fb[col + row * 60] |= clamp_px((px[col * 2 + row * 120 + 1] & 0x0C) >> 2);
+        }
+    }
+
+    return eink_dumpfb(framebuffer, FBSIZE);
+}
+
+static void eink_flush(uint starty, uint endy)
+{
+    display_present(&eink_framebuffer.image, starty, endy);
+}
+
+status_t display_get_framebuffer(struct display_framebuffer *fb)
+{
+    DEBUG_ASSERT(fb);
+    // Build the framebuffer.
+
+    eink_framebuffer.image.format = IMAGE_FORMAT_MONO_8;
+    eink_framebuffer.image.stride = PHYSICAL_WIDTH;
+    eink_framebuffer.image.rowbytes = PHYSICAL_WIDTH;
+
+    eink_framebuffer.image.pixels = malloc(PHYSICAL_WIDTH * PHYSICAL_HEIGHT);
+    eink_framebuffer.image.width = PHYSICAL_WIDTH;
+    eink_framebuffer.image.height = PHYSICAL_WIDTH;
+    eink_framebuffer.flush = eink_flush;
+    eink_framebuffer.format = DISPLAY_FORMAT_RGB_111;   // TODO(gkalsi): This is not RGB, we're lying
+    *fb = eink_framebuffer;
+    return NO_ERROR;
+}
+
+status_t display_get_info(struct display_info *info)
+{
+    DEBUG_ASSERT(info);
+
+    info->format = IMAGE_FORMAT_MONO_8;
+    info->width = PHYSICAL_WIDTH;
+    info->height = PHYSICAL_WIDTH;
+
+    return NO_ERROR;
+}
+
 STATIC_COMMAND_START
 STATIC_COMMAND("eink", "eink init", &cmd_eink)
 STATIC_COMMAND("eink1", "eink fill white", &cmd_eink1)
