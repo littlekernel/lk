@@ -608,21 +608,22 @@ static inline void set_data_parameter_mode(void) {
 }
 
 void write_cmd(uint8_t cmd) {
-    uint8_t cmd_buf[1];
+    uint16_t cmd16;
 
-    cmd_buf[0] = cmd;
+    cmd16 = (uint16_t) cmd;
     set_data_command_mode();
 #if 0
     gpio_set(GPIO_DISP_CS, 0);
     HAL_SPI_Transmit(&SpiHandle, cmd_buf, sizeof(cmd_buf), HAL_MAX_DELAY);
     gpio_set(GPIO_DISP_CS, 1);
 #else
-    spi_write(&SpiHandle, cmd_buf, sizeof(cmd_buf), GPIO_DISP_CS);
+    spi_write(&SpiHandle, (uint8_t *)&cmd16,1, GPIO_DISP_CS);
 #endif
 }
 
 void write_data(uint8_t *buf, size_t len) {
-    set_data_parameter_mode();
+    //set_data_parameter_mode();
+    uint16_t txbyte;
     //enter_critical_section;
 #if 0
     gpio_set(GPIO_DISP_CS, 0);
@@ -631,7 +632,8 @@ void write_data(uint8_t *buf, size_t len) {
 #else
     //spin_lock_irqsave(&lock, state);
     for (size_t i = 0; i < len; i++) {
-        spi_write(&SpiHandle, buf + i, 1, GPIO_DISP_CS);
+        txbyte = ((uint16_t) buf[i]) | 0x0100;
+        spi_write(&SpiHandle, (uint8_t *)&txbyte, 1, GPIO_DISP_CS);
     }
     //spin_unlock_irqrestore(&lock, state);
 #endif
@@ -686,7 +688,7 @@ status_t eink_init(void) {
         SpiHandle.Init.Direction         = SPI_DIRECTION_1LINE;
         SpiHandle.Init.CLKPhase          = SPI_PHASE_1EDGE;
         SpiHandle.Init.CLKPolarity       = SPI_POLARITY_LOW;
-        SpiHandle.Init.DataSize          = SPI_DATASIZE_8BIT;
+        SpiHandle.Init.DataSize          = SPI_DATASIZE_9BIT;
         SpiHandle.Init.FirstBit          = SPI_FIRSTBIT_MSB;
         SpiHandle.Init.TIMode            = SPI_TIMODE_DISABLE;
         SpiHandle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
@@ -962,7 +964,7 @@ static int eink_dumpfb(uint8_t * buff, uint32_t count)
 
     // DTM2
     write_cmd(DataStartTransmission2);
-    write_burst_data(buff, count);
+    write_data(buff, count);
 
     // DRF
     write_cmd(DisplayRefresh);
