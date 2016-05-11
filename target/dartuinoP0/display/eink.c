@@ -9,6 +9,7 @@
 #include <platform/timer.h>
 #include <platform/gpio.h>
 #include <target/gpioconfig.h>
+#include <target/tqlogo.h>
 #include <string.h>
 // TODO The eink driver should not include stm headers. We likely need INIT to store
 // a spihandle and then spi functions use it some other way
@@ -16,6 +17,11 @@
 #include <platform/spi.h>
 #include <platform.h>
 
+
+#define FBSIZE ((240*240>>2)  )
+
+
+static uint8_t framebuffer[FBSIZE];
 /* The following tables are copied verbatim with comments from the verily driver */
 // TODO(nicholasewalt): Update LUTs once they are provided by Eink.
 // TODO(nicholasewalt): Investigate truncating and compressing LUTs. Current
@@ -201,75 +207,59 @@ typedef struct {
 } panel_setting_t;
 
 typedef struct {
-    union {
-        uint8_t byte0;
-        // Gate power selection
-        // 0: External gate power from VGH/VGL pins
-        // 1: Internal DC/DC function for generating VGH/VGL
-        uint8_t vg_en:1;
-        // Source power selection
-        // 0: External source power from VDH/VDL pins
-        // 1: Internal DC/DC function for generating VDH/VDL
-        uint8_t vs_en:1;
-        uint8_t __rs0:6;
-    };
-
-    union {
-        uint8_t byte1;
-        // VG_LVL[1:0]: Gate Voltage Level selection
-        //  Bit definitions in power settings enum.
-        uint8_t vg_lvl:2;
-        // VCOM_HV: VCOM Voltage Level
-        //  0: VCOMH=VSH+VCOMDC, VCOML=VSL+VCOMDC (default)
-        //  1: VCOML=VGH, VCOML=VGL
-        uint8_t vcom_hv:1;
-        uint8_t __rs1:5;
-    };
-
-    union {
-        uint8_t byte2;
-        // VSH_LVL[5:0]: Internal positive source voltage level for K/W
-        // (range: +2.4V ~ +11.0V / step:0.2V / default : +10.0V)
-        uint8_t vsh_lvl:6;
-        uint8_t __rs2:2;
-    };
-
-    union {
-        uint8_t byte3;
-        // VSL_LVL[5:0]: Internal negative source voltage level for K/W
-        // (range: -2.4V ~ -11.0V / step:0.2V / default : -10.0V)
-        uint8_t vsl_lvl:6;
-        uint8_t __rs3:2;
-    };
-
-    union {
-        uint8_t byte4;
-        uint8_t vshr_lvl:6;
-        uint8_t __rs4:2;
-    };
+        union {
+            struct {
+                // Gate power selection
+                // 0: External gate power from VGH/VGL pins
+                // 1: Internal DC/DC function for generating VGH/VGL
+                uint8_t vg_en:1;
+                // Source power selection
+                // 0: External source power from VDH/VDL pins
+                // 1: Internal DC/DC function for generating VDH/VDL
+                uint8_t vs_en:1;
+                uint8_t __rs0:6;
+                // VG_LVL[1:0]: Gate Voltage Level selection
+                //  Bit definitions in power settings enum.
+                uint8_t vg_lvl:2;
+                // VCOM_HV: VCOM Voltage Level
+                //  0: VCOMH=VSH+VCOMDC, VCOML=VSL+VCOMDC (default)
+                //  1: VCOML=VGH, VCOML=VGL
+                uint8_t vcom_hv:1;
+                uint8_t __rs1:5;
+                // VSH_LVL[5:0]: Internal positive source voltage level for K/W
+                // (range: +2.4V ~ +11.0V / step:0.2V / default : +10.0V)
+                uint8_t vsh_lvl:6;
+                uint8_t __rs2:2;
+                // VSL_LVL[5:0]: Internal negative source voltage level for K/W
+                // (range: -2.4V ~ -11.0V / step:0.2V / default : -10.0V)
+                uint8_t vsl_lvl:6;
+                uint8_t __rs3:2;
+                uint8_t vshr_lvl:6;
+                uint8_t __rs4:2;
+            } bits;
+            struct {
+                uint8_t byte0;
+                uint8_t byte1;
+                uint8_t byte2;
+                uint8_t byte3;
+                uint8_t byte4;
+            } bytes;
+        };
 } pwr_settings_t;
 
 typedef struct {
-    union {
-        uint8_t byte0;
         uint8_t btpha_min_off:3;
         uint8_t btpha_drive_strength:3;
         uint8_t btpha_soft_start:2;
-    };
 
-    union {
-        uint8_t byte1;
         uint8_t btphb_min_off:3;
         uint8_t btphb_drive_strength:3;
         uint8_t btphb_soft_start:2;
-    };
 
-    union {
-        uint8_t byte2;
         uint8_t btphc_min_off:3;
         uint8_t btphc_drive_strength:3;
         uint8_t __rs0:2;
-    };
+
 } booster_settings_t;
 
 typedef struct {
@@ -512,6 +502,7 @@ enum {
     PowerOn                     = 0x04,
     BoosterSoftStart            = 0x06,
     DeepSleep                   = 0x07,
+    DataStartTranmission1       = 0x10,
     DisplayRefresh              = 0x12,
     DataStartTransmission2      = 0x13,
     DataStartTransmissionWindow = 0x14,
@@ -710,24 +701,38 @@ status_t eink_init(void) {
         spi_inited = true;
     }
 
+// kPanelSetting
+
     panel_setting_t panel = {
         .byte0 = 0x0F, .byte1 = 0x06,
     };
-
     panel.reg_en = 1;
 
-    pwr_settings_t pwr = {
-        .byte0 = 0x03, .byte1 = 0x00, .byte2 = 0x26, .byte3 = 0x26, .byte4 = 0x03,
-    };
 
-    pwr.vsh_lvl  = 0x1C; // +8V
-    pwr.vsl_lvl  = 0x1C; // -8V
-    pwr.vshr_lvl = 0x00; // +2.4V
 
-    booster_settings_t booster = {
-        .byte0 = 0x1F, .byte1 = 0x1E, .byte2 = 0x25,
 
-    };
+    pwr_settings_t pwr;
+        pwr.bytes.byte0 = 0x03;
+        pwr.bytes.byte1 = 0x00;
+        pwr.bytes.byte2 = 0x26;
+        pwr.bytes.byte3 = 0x26;
+        pwr.bytes.byte4 = 0x03;
+
+
+    pwr.bits.vsh_lvl  = 0x1C; // +8V
+    pwr.bits.vsl_lvl  = 0x1C; // -8V
+    pwr.bits.vshr_lvl = 0x00; // +2.4V
+
+
+// kBoosterSoftStart
+    booster_settings_t booster ;//= {
+        //.byte0 = 0x1F, .byte1 = 0x1E, .byte2 = 0x25,
+
+     //   .byte0 = 0x00, .byte1 = 0x00, .byte2 = 0x00,
+
+
+
+    //};
 
     booster.btpha_min_off          = soft_start_min_off_3p34us;
     booster.btpha_drive_strength   = drive_strength_8;
@@ -737,6 +742,13 @@ status_t eink_init(void) {
     booster.btphb_soft_start       = soft_start_period_10ms;
     booster.btphc_min_off          = soft_start_min_off_3p34us;
     booster.btphc_drive_strength   = drive_strength_8;
+
+
+    uint8_t * temp;
+    temp = &booster;
+    printf("booster bytes: %02X  %02X  %02X\n",temp[0], temp[1], temp[2]);
+
+
 
     vcom_data_int_settings_t vdi = {
         .byte0 = 0x31, .byte1 = 0x30, .cdi_low = 0x18,
@@ -815,45 +827,105 @@ status_t eink_init(void) {
         return ERR_GENERIC;
     }
 
+    uint8_t data;
+
     // Configure power settings
     write_cmd(PowerSetting);
-    write_data((uint8_t *)&pwr, sizeof(pwr));
+    data = 0x03;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x1C;
+    write_data(&data,1);
+    data = 0x1C;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
 
     // Power on display
     write_cmd(PowerOn);
 
+    //printf("Power On\n");
+    //return 0;
+
     // Configure panel settings
     write_cmd(PanelSetting);
-    write_data((uint8_t *)&panel, sizeof(panel));
+    data = 0x0F;
+    write_data(&data,1);
+    data = 0x86; //was 86
+    write_data(&data,1);
+
 
     // Configure Boost
     write_cmd(BoosterSoftStart);
-    write_data((uint8_t *)&booster, sizeof(booster));
+    data = 0x3e;
+    write_data(&data,1);
+    data = 0x3e;
+    write_data(&data,1);
+    data = 0x3e;
+    write_data(&data,1);
 
     // Initialize -> Check_Busy
     write_cmd(VcomAndDataIntervalSetting);
-    write_data((uint8_t *)&vdi, sizeof(vdi));
+    data = 0x01;
+    write_data(&data,1);
+    data = 0x20;
+    write_data(&data,1);
+    data = 0x10;
+    write_data(&data,1);
+
+
 
     write_cmd(ResolutionSetting);
-    write_data((uint8_t *)&rs, sizeof(rs));
+    data = (240-1);
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 240-1;
+    write_data(&data,1);
+
 
     write_cmd(GateGroupSetting);
-    write_data((uint8_t *)&ggs, sizeof(ggs));
+    data = 0x89;
+    write_data(&data,1);
+    data = 0x89;
+    write_data(&data,1);
+    data = 0xcb;
+    write_data(&data,1);
+    data = 0xcb;
+    write_data(&data,1);
+    data = 0x03;
+    write_data(&data,1);
+
+
 
     write_cmd(BorderDcVoltageSetting);
-    write_data((uint8_t *)&bdvs, sizeof(bdvs));
+    data = 0x4e;
+    write_data(&data,1);
+
 
     write_cmd(LpdSelect);
-    write_data((uint8_t *)&lpds, sizeof(lpds));
+    data = 0x02;
+    write_data(&data,1);
+
 
     write_cmd(FtLutRegister);
     write_data(lut_ft, sizeof(lut_ft));
 
+
     write_cmd(KwgVcomLutRegister);
     write_data(lut_kwg_vcom, sizeof(lut_kwg_vcom));
 
+
     write_cmd(KwgLutRegister);
     write_data(lut_kwg, sizeof(lut_kwg));
+
+
+
+    uint8_t vcominit;
+    vcominit = 0x02;
+    write_cmd(VcomDcSetting);
+    write_data(&vcominit,1);
 
     if (!check_busy()) {
         printf("Device is still busy after Power On and configuration\n");
@@ -867,11 +939,23 @@ status_t eink_init(void) {
         printf("Couldn't allocate framebuffer\n");
         return ERR_GENERIC;
     }
-    memset(buf, 0b00001111, fbsize);
+    memset(buf, 0xff, fbsize);
 
     // DTMW
     write_cmd(DataStartTransmissionWindow);
-    write_data((uint8_t *) &dtw, sizeof(dtw));
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 240-1;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 240-1;
+    write_data(&data,1);
+
 
     // DTM2
     write_cmd(DataStartTransmission2);
@@ -879,14 +963,29 @@ status_t eink_init(void) {
 
     // DRF
     write_cmd(DisplayRefresh);
-    write_data((uint8_t *)&dr, sizeof(dr));
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 240-1;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 240-1;
+    write_data(&data,1);
+
+
 
     // Check_Busy
     if (!check_busy()) {
         printf("Device is still busy after Display Refresh!\n");
         return ERR_GENERIC;
     }
-
+/*
     // POF
     write_cmd(PowerOff);
 
@@ -900,10 +999,91 @@ status_t eink_init(void) {
     uint8_t sleepbuf = 0b10100101;
     write_cmd(DeepSleep);
     write_data(&sleepbuf, sizeof(sleepbuf));
-
+*/
 err:
     TRACE_EXIT;
     return err;
+}
+static int eink_dumpfb(uint8_t * buff, uint32_t count)
+{
+    uint8_t data;
+    // DTMW
+    write_cmd(DataStartTransmissionWindow);
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 240-1;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 240-1;
+    write_data(&data,1);
+
+
+    // DTM2
+    write_cmd(DataStartTransmission2);
+    write_burst_data(buff, count);
+
+    // DRF
+    write_cmd(DisplayRefresh);
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 240-1;
+    write_data(&data,1);
+    data = 0x00;
+    write_data(&data,1);
+    data = 240-1;
+    write_data(&data,1);
+    return 0;
+}
+static int cmd_eink_fill(int argc, const cmd_args *argv)
+{
+    uint16_t x,y,count,val;
+
+    x = argv[1].i;
+    y = argv[2].i;
+    val = argv[3].i;
+    count = argv[4].i;
+
+    memset(framebuffer, 0xff, FBSIZE);
+    memset(framebuffer+ x + y*(240>>2), val,count);
+    //memset(framebuffer+(240>>4)*10, 0xcc, 10 );
+    eink_dumpfb(framebuffer,FBSIZE);
+
+
+    return 0;
+}
+
+static int cmd_eink1(int argc, const cmd_args *argv)
+{
+    memset(framebuffer, 0xff, FBSIZE);
+    memset(framebuffer, 0xcc, 240);
+    memset(framebuffer+(240>>4)*10, 0xcc, 10 );
+    eink_dumpfb(framebuffer, FBSIZE);
+    return 0;
+}
+
+static int cmd_eink0(int argc, const cmd_args *argv)
+{
+    memset(framebuffer, 0x00, sizeof(framebuffer));
+    eink_dumpfb(framebuffer,sizeof(framebuffer));
+    return 0;
+}
+
+
+static int cmd_eink_logo(int argc, const cmd_args *argv)
+{
+    eink_dumpfb(logo,sizeof(logo));
+    return 0;
 }
 
 static int cmd_eink(int argc, const cmd_args *argv)
@@ -913,6 +1093,10 @@ static int cmd_eink(int argc, const cmd_args *argv)
 
 STATIC_COMMAND_START
 STATIC_COMMAND("eink", "eink commands", &cmd_eink)
+STATIC_COMMAND("eink1", "eink 1's", &cmd_eink1)
+STATIC_COMMAND("eink0", "eink 0's", &cmd_eink0)
+STATIC_COMMAND("einkfill", "eink fill x y val count", &cmd_eink_fill)
+STATIC_COMMAND("einklogo", "tqlogo", &cmd_eink_logo)
 STATIC_COMMAND_END(eink);
 
 #endif
