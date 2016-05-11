@@ -1193,6 +1193,27 @@ static status_t spifs_ioctl_get_file_addr(filecookie *cookie, void **argp)
     return NO_ERROR;
 }
 
+static status_t spifs_ioctl_is_linear(filecookie *cookie, void **argp)
+{
+    LTRACEF("cookie %p, argp %p\n", cookie, argp);
+
+    if (unlikely(!argp)) {
+        return ERR_INVALID_ARGS;
+    }
+
+    spifs_file_t *file = (spifs_file_t *)cookie;
+    spifs_t *spifs = file->fs_handle;
+    bdev_t *dev = spifs->dev;
+
+    // Get the base address of the underlying BIO device.
+    status_t result = bio_ioctl(dev, BIO_IOCTL_IS_MAPPED, argp);
+    if (result != NO_ERROR) {
+        return result;
+    }
+
+    return NO_ERROR;
+}
+
 static status_t spifs_file_ioctl(filecookie *cookie, int request, void *argp)
 {
     LTRACEF("request %d, argp %p\n", request, argp);
@@ -1200,6 +1221,9 @@ static status_t spifs_file_ioctl(filecookie *cookie, int request, void *argp)
     switch (request) {
         case FS_IOCTL_GET_FILE_ADDR: {
             return spifs_ioctl_get_file_addr(cookie, (void **)argp);
+        }
+        case FS_IOCTL_IS_LINEAR: {
+            return spifs_ioctl_is_linear(cookie, (void **)argp);
         }
         default: {
             return ERR_NOT_SUPPORTED;
