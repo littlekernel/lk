@@ -115,6 +115,37 @@ static int cmd_fs_ioctl(int argc, const cmd_args *argv)
             return fs_close_file(handle);
             break;
         }
+        case FS_IOCTL_IS_LINEAR: {
+            if (argc < 4) {
+                printf("%s %s %lu <path>\n", argv[0].str, argv[1].str,
+                       argv[2].u);
+                return ERR_INVALID_ARGS;
+            }
+
+            int err;
+            filehandle *handle;
+            err = fs_open_file(argv[3].str, &handle);
+            if (err != NO_ERROR) {
+                printf("error %d opening file\n", err);
+                return err;
+            }
+
+            bool is_mapped;
+            err = fs_file_ioctl(handle, request, (void **)&is_mapped);
+            if (err != NO_ERROR) {
+                fs_close_file(handle);
+                return err;
+            }
+
+            if (is_mapped) {
+                printf("file at %s is memory mapped\n", argv[3].str);
+            } else {
+                printf("file at %s is not memory mapped\n", argv[3].str);
+            }
+
+            return fs_close_file(handle);
+            break;
+        }
         default: {
             printf("error, unsupported ioctl: %d\n", request);
         }

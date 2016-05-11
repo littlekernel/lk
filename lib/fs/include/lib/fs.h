@@ -35,6 +35,7 @@ __BEGIN_CDECLS;
 enum fs_ioctl_num {
     FS_IOCTL_NULL = 0,
     FS_IOCTL_GET_FILE_ADDR,
+    FS_IOCTL_IS_LINEAR,         // If supported, determine if the underlying device is in linear mode.
 };
 
 struct file_stat {
