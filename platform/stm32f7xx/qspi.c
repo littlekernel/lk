@@ -81,8 +81,9 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef *, QSPI_CommandTypeDef *);
 static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *, QSPI_CommandTypeDef *, uint8_t *);
 static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *, QSPI_CommandTypeDef *, uint8_t *);
 
-status_t qspi_enable_linear(void);
-status_t qspi_disable_linear(void);
+static status_t qspi_enable_linear(void);
+static status_t qspi_disable_linear(void);
+static bool qspi_is_linear(void);
 
 status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi);
 
@@ -475,6 +476,10 @@ static int spiflash_ioctl(struct bdev *device, int request, void *argp)
             break;
         case BIO_IOCTL_PUT_MEM_MAP:
             ret = qspi_disable_linear();
+            break;
+        case BIO_IOCTL_IS_MAPPED:
+            if (argp)
+                *(void **)argp = (void *)qspi_is_linear();
             break;
         default:
             ret = ERR_NOT_SUPPORTED;
@@ -996,7 +1001,7 @@ static uint32_t get_specialized_instruction(uint32_t instruction, uint32_t addre
     return instruction;
 }
 
-status_t qspi_enable_linear(void)
+static status_t qspi_enable_linear(void)
 {
     status_t result = NO_ERROR;
 
@@ -1042,7 +1047,7 @@ finish:
 }
 
 
-status_t qspi_disable_linear(void)
+static status_t qspi_disable_linear(void)
 {
     status_t result = NO_ERROR;
 
@@ -1063,6 +1068,15 @@ status_t qspi_disable_linear(void)
 
 
 finish:
+    mutex_release(&spiflash_mutex);
+    return result;
+}
+
+static bool qspi_is_linear(void)
+{
+    bool result;
+    mutex_acquire(&spiflash_mutex);
+    result = (QSPI_STATE_LINEAR == device_state);
     mutex_release(&spiflash_mutex);
     return result;
 }
