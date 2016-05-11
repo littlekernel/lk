@@ -144,6 +144,7 @@ enum bio_ioctl_num {
     BIO_IOCTL_GET_MEM_MAP,  /* if supported, request a pointer to the memory map of the device */
     BIO_IOCTL_PUT_MEM_MAP,  /* if needed, return the pointer (to 'close' the map) */
     BIO_IOCTL_GET_MAP_ADDR, /* if supported, request a pointer to the memory map without putting the device into linear mode */
+    BIO_IOCTL_IS_MAPPED,    /* if supported, returns whether or not the device is memory mapped. */
 };
 
 __END_CDECLS;
