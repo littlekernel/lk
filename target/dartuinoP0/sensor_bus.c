@@ -103,7 +103,7 @@ status_t sensor_bus_init_early(void)
     spi_handle.Init.NSS               = SPI_NSS_SOFT;
     spi_handle.Init.Mode              = SPI_MODE_MASTER;
 
-    if (HAL_SPI_Init(&spi_handle) != HAL_OK) {
+    if (spi_init(&spi_handle) != HAL_OK) {
         return ERR_GENERIC;
     }
     return NO_ERROR;
