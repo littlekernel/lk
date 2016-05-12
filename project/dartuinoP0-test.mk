@@ -13,6 +13,7 @@ MODULES += \
 
 MODULE_DEPS += \
     app/accelerometer \
+	app/nrf_sensors \
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/sensor_bus.c \
