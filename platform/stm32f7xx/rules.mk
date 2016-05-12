@@ -48,6 +48,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/usbc.c \
 	$(LOCAL_DIR)/vectab.c \
 	$(LOCAL_DIR)/sdram.c \
+	$(LOCAL_DIR)/spi.c \
 	$(LOCAL_DIR)/qspi.c
 
 # use a two segment memory layout, where all of the read-only sections 

@@ -20,25 +20,27 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <stdlib.h>
-#include <debug.h>
-#include <trace.h>
-#include <target.h>
 #include <compiler.h>
+#include <debug.h>
+#include <err.h>
+#include <reg.h>
+#include <stdlib.h>
+#include <target.h>
+#include <trace.h>
+
+#include <dev/accelerometer.h>
 #include <dev/gpio.h>
 #include <dev/usb.h>
-#include <dev/accelerometer.h>
-#include <platform/stm32.h>
-#include <platform/sdram.h>
-#include <platform/gpio.h>
 #include <platform/eth.h>
-#include <platform/qspi.h>
+#include <platform/gpio.h>
 #include <platform/n25q128a.h>
+#include <platform/qspi.h>
+#include <platform/sdram.h>
+#include <platform/stm32.h>
 #include <target/bmi055.h>
 #include <target/debugconfig.h>
+#include <target/et011tt2v1.h>
 #include <target/gpioconfig.h>
-#include <reg.h>
 
 #if ENABLE_LCD
 #include <target/memory_lcd.h>
@@ -174,47 +176,80 @@ void target_init(void)
 #if ENABLE_SENSORBUS
     sensor_bus_init();
 #endif
+
+    eink_init();
 }
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
     if (hspi->Instance == SPI2) {
-        /*##-1- Enable peripherals and GPIO Clocks #################################*/
-        /* Enable GPIO TX/RX clock */
-        __HAL_RCC_GPIOD_CLK_ENABLE();
-        __HAL_RCC_GPIOK_CLK_ENABLE();
+        /* SPI2
+         * PB15 MOSI
+         * PD3 SCK
+         * PB12 CS (soft)
+         */
+        printf("Configuring SPI2.\n");
         __HAL_RCC_GPIOB_CLK_ENABLE();
-        /* Enable SPI clock */
+        __HAL_RCC_GPIOD_CLK_ENABLE();
+        __HAL_RCC_GPIOI_CLK_ENABLE();
+        __HAL_RCC_GPIOK_CLK_ENABLE();
         __HAL_RCC_SPI2_CLK_ENABLE();
 
-        /*##-2- Configure peripheral GPIO ##########################################*/
-        /* SPI SCK GPIO pin configuration  */
-        GPIO_InitStruct.Pin       = GPIO_PIN_3;
+        /* Common SPI2 AF config */
         GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Pull      = GPIO_PULLDOWN;
+        GPIO_InitStruct.Pull      = 0x2; // GPIO_PULLDOWN
         GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
         GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+
+        /* SPI2 MOSI GPIO pin configuration  */
+        GPIO_InitStruct.Pin       = GPIO_PIN_15;
+        HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+        /* SPI2 SCK GPIO pin configuration */
+        GPIO_InitStruct.Pin       = GPIO_PIN_3;
         HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-        /* SPI MOSI GPIO pin configuration  */
-        GPIO_InitStruct.Pin = GPIO_PIN_15;
-        HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+        /* SPI2 CS GPIO pin configuration (general output GPIO) */
         GPIO_InitStruct.Mode      = GPIO_MODE_OUTPUT_PP;
-        GPIO_InitStruct.Pull      = GPIO_NOPULL;
-
-        /* LCD_ON Pin configuration */
-        GPIO_InitStruct.Pin = GPIO_PIN_6;
-        HAL_GPIO_Init(GPIOK, &GPIO_InitStruct);
-
-        /* LCD_CS Pin configuration */
-        GPIO_InitStruct.Pin = GPIO_PIN_12;
+        GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+        GPIO_InitStruct.Pin       = GPIO_PIN_12;
         HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 
-        /*##-3- Configure the NVIC for SPI #########################################*/
+        /* DISP_DC pin configuration (general output GPIO) */
+        GPIO_InitStruct.Pin       = GPIO_PIN_5;
+        HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
+        HAL_GPIO_WritePin(GPIOI, GPIO_PIN_5, GPIO_PIN_RESET);
+
+        /* DISP_RESET pin configuration (general output GPIO) */
+        GPIO_InitStruct.Pin       = GPIO_PIN_6;
+        HAL_GPIO_Init(GPIOK, &GPIO_InitStruct);
+        HAL_GPIO_WritePin(GPIOK, GPIO_PIN_6, GPIO_PIN_RESET);
+
+        /* DISP_BUSY GPIO pin configuration (general output GPIO) */
+        GPIO_InitStruct.Mode      = GPIO_MODE_INPUT;
+        GPIO_InitStruct.Pull      = GPIO_NOPULL;
+        GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+        GPIO_InitStruct.Pin       = GPIO_PIN_4;
+        HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
+
         /* NVIC for SPI */
         HAL_NVIC_EnableIRQ(SPI2_IRQn);
+    } else if (hspi->Instance == SPI5) {
+        /* SPI5
+         * PF6 SPI5_NSS
+         * PF7 SPI5_SCK
+         * PF8 SPI5_MISO
+         * PF9 SPI5_MOSI
+         */
+        __HAL_RCC_GPIOF_CLK_ENABLE();
+        __HAL_RCC_SPI5_CLK_ENABLE();
+        gpio_config(GPIO_SPI5_SCK,  GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF5_SPI5) | GPIO_PULLUP);
+        gpio_config(GPIO_SPI5_MISO, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF5_SPI5) | GPIO_PULLUP);
+        gpio_config(GPIO_SPI5_MOSI, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF5_SPI5) | GPIO_PULLUP);
+        HAL_NVIC_EnableIRQ(SPI5_IRQn);
     }
 }
 

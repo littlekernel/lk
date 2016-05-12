@@ -6,7 +6,7 @@ include project/virtual/minip.mk
 
 include project/virtual/fs.mk
 
-DISPLAY_PANEL_TYPE ?= LS013B7DH06
+# DISPLAY_PANEL_TYPE ?= LS013B7DH06
 
 MODULES += \
   target/dartuinoP0/projects/system
