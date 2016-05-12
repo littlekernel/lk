@@ -1,3 +1,3 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-TARGET := nextcoinP0
+TARGET := nextcoin
