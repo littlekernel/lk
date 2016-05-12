@@ -45,7 +45,7 @@ static status_t reply(status_t status)
     response |= 0x52455400;  // RET<status>
 
     return ndebug_write_sys((uint8_t *)(&response), sizeof(response),
-                            NDEBUG_SYS_CHANNEL_COMMAND, 5000);
+                            NDEBUG_SYS_CHANNEL_COMMAND, 10000);
 }
 
 
@@ -75,7 +75,7 @@ static status_t putfile_handler(char *path, size_t length)
 
     while (length) {
         uint8_t *buf;
-        ssize_t read = ndebug_read_sys(&buf, NDEBUG_SYS_CHANNEL_COMMAND, 5000);
+        ssize_t read = ndebug_read_sys(&buf, NDEBUG_SYS_CHANNEL_COMMAND, 10000);
 
         if (read < 0) {
             rc = read;
@@ -143,7 +143,7 @@ static status_t cmdhdlr_fs_handler(uint8_t *data, const size_t len)
     memset(path, 0, sizeof(path));
     while (header.path_len) {
         uint8_t *buf;
-        ssize_t read = ndebug_read_sys(&buf, NDEBUG_SYS_CHANNEL_COMMAND, 5000);
+        ssize_t read = ndebug_read_sys(&buf, NDEBUG_SYS_CHANNEL_COMMAND, 10000);
         if (read < 0) {
             return read;
         }
