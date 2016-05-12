@@ -45,7 +45,7 @@ static status_t reply(status_t status)
     response |= 0x52455400;  // RET<status>
 
     return ndebug_write_sys((uint8_t *)(&response), sizeof(response),
-                            NDEBUG_SYS_CHANNEL_COMMAND, 1000);
+                            NDEBUG_SYS_CHANNEL_COMMAND, 5000);
 }
 
 
@@ -75,7 +75,7 @@ static status_t putfile_handler(char *path, size_t length)
 
     while (length) {
         uint8_t *buf;
-        ssize_t read = ndebug_read_sys(&buf, NDEBUG_SYS_CHANNEL_COMMAND, 1000);
+        ssize_t read = ndebug_read_sys(&buf, NDEBUG_SYS_CHANNEL_COMMAND, 5000);
 
         if (read < 0) {
             rc = read;
@@ -143,7 +143,7 @@ static status_t cmdhdlr_fs_handler(uint8_t *data, const size_t len)
     memset(path, 0, sizeof(path));
     while (header.path_len) {
         uint8_t *buf;
-        ssize_t read = ndebug_read_sys(&buf, NDEBUG_SYS_CHANNEL_COMMAND, 1000);
+        ssize_t read = ndebug_read_sys(&buf, NDEBUG_SYS_CHANNEL_COMMAND, 5000);
         if (read < 0) {
             return read;
         }
@@ -154,12 +154,9 @@ static status_t cmdhdlr_fs_handler(uint8_t *data, const size_t len)
     }
 
     // TODO(gkalsi): Find a better way to do this.
-    bool is_mapped;
+    // XXX(gkalsi): Shouldn't need this long term.
     bdev_t *dev = bio_open("qspi-flash");
-    bio_ioctl(dev, BIO_IOCTL_IS_MAPPED, &is_mapped);
-    if (is_mapped) {
-        bio_ioctl(dev, BIO_IOCTL_PUT_MEM_MAP, NULL);
-    }
+    bio_ioctl(dev, BIO_IOCTL_PUT_MEM_MAP, NULL);
 
     status_t retcode = ERR_NOT_SUPPORTED;
 
@@ -178,9 +175,9 @@ static status_t cmdhdlr_fs_handler(uint8_t *data, const size_t len)
             break;
     }
 
-    if (is_mapped) {
-        bio_ioctl(dev, BIO_IOCTL_GET_MEM_MAP, NULL);
-    }
+    // TODO(gkalsi): Find a better way to do this.
+    // XXX(gkalsi): Shouldn't need this long term.
+    bio_ioctl(dev, BIO_IOCTL_GET_MEM_MAP, NULL);
     bio_close(dev);
 
     return retcode;
