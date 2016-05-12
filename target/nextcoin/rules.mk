@@ -22,6 +22,7 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/init.c \
     $(LOCAL_DIR)/sensor_bus.c \
     $(LOCAL_DIR)/usb.c \
+    $(LOCAL_DIR)/eink.c \
 
 MODULE_DEPS += \
     dev/usb \
