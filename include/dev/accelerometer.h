@@ -23,9 +23,9 @@
 #ifndef __DEV_ACCELEROMETER_H
 #define __DEV_ACCELEROMETER_H
 typedef struct {
-    double x;
-    double y;
-    double z;
+    float x;
+    float y;
+    float z;
 } position_vector_t;
 
 status_t acc_read_xyz(position_vector_t *pos_vector);
