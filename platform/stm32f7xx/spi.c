@@ -67,7 +67,7 @@ status_t spi_write(SPI_HandleTypeDef *handle, uint8_t *data, size_t len, uint32_
 
     status_t ret = NO_ERROR;
     int bus = get_bus_idx(handle->Instance);
-    int cs_val;
+    int cs_val = 0;
     bool use_soft_nss = ((handle->Init.NSS == SPI_NSS_SOFT) && cs);
 
     if (bus == INVALID_SPI_BUS) {
