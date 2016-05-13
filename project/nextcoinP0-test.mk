@@ -7,7 +7,8 @@ include project/virtual/fs.mk
 
 
 MODULES += \
-  target/nextcoin/projects/system
+	target/nextcoin/projects/system \
+	app/nrf_sensors
 
 MODULE_DEPS += \
     app/accelerometer \
