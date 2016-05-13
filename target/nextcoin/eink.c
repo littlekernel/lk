@@ -212,7 +212,7 @@ void write_cmd(uint8_t disp_num, uint8_t cmd) {
     spi_write(&SpiHandle, (uint8_t *)&cmd16,1, get_cs_pin(disp_num));
 }
 
-void write_data(uint8_t disp_num, uint8_t *buf, size_t len) {
+void write_data(uint8_t disp_num, const uint8_t *buf, size_t len) {
     //set_data_parameter_mode();
     uint16_t txbyte;
     //enter_critical_section;
