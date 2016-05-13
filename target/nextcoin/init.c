@@ -115,7 +115,9 @@ void target_init(void)
 #if ENABLE_SENSORBUS
     sensor_bus_init();
 #endif
+#if WITH_LIB_CONSOLE    
     eink_init();
+#endif
 }
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
