@@ -36,6 +36,7 @@
 #include <target/bmi055.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
+#include <target/et011tt2v1.h>
 #include <reg.h>
 
 #if ENABLE_SENSORBUS
@@ -114,6 +115,7 @@ void target_init(void)
 #if ENABLE_SENSORBUS
     sensor_bus_init();
 #endif
+    eink_init();
 }
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
@@ -163,13 +165,15 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
 
 
         /* DISP_BUSY0/1 GPIO pin configuration (general output GPIO) */
-        GPIO_InitStruct.Mode      = GPIO_MODE_INPUT;
+        //GPIO_InitStruct.Mode      = GPIO_MODE_INPUT;
         GPIO_InitStruct.Pull      = GPIO_NOPULL;
         GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
         GPIO_InitStruct.Pin       = GPIO_PIN_4;
         HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4, GPIO_PIN_RESET);
         GPIO_InitStruct.Pin       = GPIO_PIN_11;
         HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_RESET);
 
 
         /* Common SPI2 AF config */
