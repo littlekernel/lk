@@ -23,6 +23,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <sys/types.h>
 
 /* ethernet driver public api */
 typedef enum {
