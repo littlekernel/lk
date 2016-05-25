@@ -161,7 +161,7 @@ void uart_init(void)
 #endif
 }
 
-static void stm32_usart_shared_irq(struct uart_instance *u)
+static void stm32_usart_shared_irq(struct uart_instance *u, const unsigned int id)
 {
     bool resched = false;
 
@@ -200,7 +200,16 @@ static void stm32_usart_shared_irq(struct uart_instance *u)
 
         /* we got a character */
         uint8_t c = (uint8_t)(u->handle.Instance->RDR & 0xff);
-        if (cbuf_write_char(&u->rx_buf, c, false) != 1) {
+
+        cbuf_t *target_buf = &u->rx_buf;
+
+#if CONSOLE_HAS_INPUT_BUFFER
+        if (id == DEBUG_UART) {
+            target_buf = &console_input_cbuf;
+        }
+#endif
+
+        if (cbuf_write_char(target_buf, c, false) != 1) {
             printf("WARNING: uart cbuf overrun!\n");
         }
         resched = true;
@@ -225,14 +234,14 @@ static void stm32_usart_shared_irq(struct uart_instance *u)
 #if ENABLE_UART1
 void stm32_USART1_IRQ(void)
 {
-    stm32_usart_shared_irq(uart[1]);
+    stm32_usart_shared_irq(uart[1], 1);
 }
 #endif
 
 #if ENABLE_UART3
 void stm32_USART3_IRQ(void)
 {
-    stm32_usart_shared_irq(uart[3]);
+    stm32_usart_shared_irq(uart[3], 3);
 }
 #endif
 

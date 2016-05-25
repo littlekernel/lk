@@ -28,6 +28,7 @@
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/qemu-virt.h>
+#include <target/debugconfig.h>
 
 /* PL011 implementation */
 #define UART_DR    (0x00)
@@ -75,14 +76,22 @@ static enum handler_return uart_irq(void *arg)
 
         /* while fifo is not empty, read chars out of it */
         while ((UARTREG(base, UART_TFR) & (1<<4)) == 0) {
-            /* if we're out of rx buffer, mask the irq instead of handling it */
-            if (cbuf_space_avail(rxbuf) == 0) {
-                UARTREG(base, UART_IMSC) &= ~(1<<4); // !rxim
-                break;
-            }
+#if CONSOLE_HAS_INPUT_BUFFER
+            if (port == DEBUG_UART) {
+                char c = UARTREG(base, UART_DR);
+                cbuf_write_char(&console_input_cbuf, c, false);
+            } else
+#endif
+            {
+                /* if we're out of rx buffer, mask the irq instead of handling it */
+                if (cbuf_space_avail(rxbuf) == 0) {
+                    UARTREG(base, UART_IMSC) &= ~(1<<4); // !rxim
+                    break;
+                }
 
-            char c = UARTREG(base, UART_DR);
-            cbuf_write_char(rxbuf, c, false);
+                char c = UARTREG(base, UART_DR);
+                cbuf_write_char(rxbuf, c, false);
+            }
 
             resched = true;
         }

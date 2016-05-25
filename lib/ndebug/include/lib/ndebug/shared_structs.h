@@ -26,16 +26,35 @@
 
 #include <stdint.h>
 
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
     uint32_t magic;
     uint32_t type;
-} ndebug_ctrl_packet_t;
+}
+ndebug_ctrl_packet_t;
+
+typedef struct __attribute__((packed))
+{
+    ndebug_ctrl_packet_t ctrl;
+    uint32_t channel;
+}
+ndebug_system_packet_t;
+
+typedef enum {
+    NDEBUG_SYS_CHANNEL_CONSOLE,
+    NDEBUG_SYS_CHANNEL_COMMAND,
+
+    NDEBUG_SYS_CHANNEL_COUNT,   // Count: always last.
+} sys_channel_t;
 
 #define NDEBUG_CTRL_PACKET_MAGIC (0x4354524C)
 
 #define NDEBUG_CTRL_CMD_RESET (0x01)
 #define NDEBUG_CTRL_CMD_DATA (0x02)
 #define NDEBUG_CTRL_CMD_ESTABLISHED (0x03)
+#define NDEBUG_CTRL_CMD_FLOWCTRL (0x04)
+
+#define NDEBUG_SYS_CHANNEL_READY (0x01)
 
 #define NDEBUG_USB_CLASS_USER_DEFINED (0xFF)
 #define NDEBUG_SUBCLASS (0x02)

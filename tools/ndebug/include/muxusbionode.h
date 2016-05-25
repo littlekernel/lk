@@ -25,38 +25,33 @@
 #pragma once
 
 #include <cstdint>
-#include "ionode.h"
 
-struct libusb_context;
-struct libusb_device_handle;
+#include "boundedblockingqueue.h"
+#include "ionode.h"
+#include "semaphore.h"
+#include "lib/ndebug/shared_structs.h"
 
 namespace NDebug {
 
-class USBIONode : public IONode {
+class USBIONode;
+
+class MuxUSBIONode : public IONode {
 public:
-    USBIONode(const uint16_t vendorId, const uint16_t productId,
-              const uint8_t protocol);
-    virtual ~USBIONode();
+    MuxUSBIONode(const sys_channel_t ch, USBIONode *usb);
+    virtual ~MuxUSBIONode();
 
     IONodeResult readBuf(std::vector<uint8_t> *buf) override;
     IONodeResult writeBuf(const std::vector<uint8_t> &buf) override;
 
-    bool connect();
+    void queueBuf(const std::vector<uint8_t> &buf);
+    void signalBufAvail();
+    void signalFinished();
 
 private:
-    bool openDeviceByParams(const uint16_t vid, const uint16_t pid,
-                            const uint8_t interfaceProtocol);
-
-    const uint16_t vendorId_;
-    const uint16_t productId_;
-    const uint8_t protocol_;
-
-    uint8_t epOut_;
-    uint8_t epIn_;
-    uint8_t iface_;
-
-    libusb_context *ctx_;
-    libusb_device_handle *dev_;
+    BoundedBlockingQueue<std::vector<uint8_t> > queue_;
+    const sys_channel_t ch_;
+    USBIONode *usb_;
+    Semaphore sem_;
 };
 
 }  // namespace ndebug

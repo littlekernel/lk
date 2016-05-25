@@ -70,5 +70,14 @@ static inline void io_handle_init(io_handle_t *io, io_handle_hooks_t *hooks)
 /* the main console io handle */
 extern io_handle_t console_io;
 
+#ifndef CONSOLE_HAS_INPUT_BUFFER
+#define CONSOLE_HAS_INPUT_BUFFER 0
+#endif
+
+#if CONSOLE_HAS_INPUT_BUFFER
+/* main input circular buffer that acts as the default input queue */
+typedef struct cbuf cbuf_t;
+extern cbuf_t console_input_cbuf;
+#endif
 
 __END_CDECLS

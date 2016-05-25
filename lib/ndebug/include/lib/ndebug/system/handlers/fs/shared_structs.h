@@ -24,39 +24,18 @@
 
 #pragma once
 
-#include <cstdint>
-#include "ionode.h"
+#include <stdint.h>
 
-struct libusb_context;
-struct libusb_device_handle;
+#define CMDHDLR_FS_OPCODE 0x44424653  // DBFS
 
-namespace NDebug {
+// Supported opcodes
+#define OPCODE_PUTFILE 0x1 // Write a file to the Filesystem
+#define OPCODE_GETFILE 0x2  // Read and return a file from the filesystem.
+#define OPCODE_REMFILE 0x3  // Delete a file from the filesystem.
+#define OPCODE_EXISTS  0x4  // Determine if a file exists on the filesystem.
 
-class USBIONode : public IONode {
-public:
-    USBIONode(const uint16_t vendorId, const uint16_t productId,
-              const uint8_t protocol);
-    virtual ~USBIONode();
-
-    IONodeResult readBuf(std::vector<uint8_t> *buf) override;
-    IONodeResult writeBuf(const std::vector<uint8_t> &buf) override;
-
-    bool connect();
-
-private:
-    bool openDeviceByParams(const uint16_t vid, const uint16_t pid,
-                            const uint8_t interfaceProtocol);
-
-    const uint16_t vendorId_;
-    const uint16_t productId_;
-    const uint8_t protocol_;
-
-    uint8_t epOut_;
-    uint8_t epIn_;
-    uint8_t iface_;
-
-    libusb_context *ctx_;
-    libusb_device_handle *dev_;
-};
-
-}  // namespace ndebug
+ typedef struct {
+    uint8_t opcode;
+    uint16_t path_len;
+    uint32_t data_len;
+ } __attribute__((__packed__)) cmdhdlr_fs_header_t;
