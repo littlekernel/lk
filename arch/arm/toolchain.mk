@@ -4,11 +4,16 @@ ARCH_arm_TOOLCHAIN_INCLUDED := 1
 # try to find the toolchain
 ifndef ARCH_arm_TOOLCHAIN_PREFIX
 
+FOUNDTOOL=
+
 $(info $(TOOLCHAIN_PREFIX))
-# if TOOLCHAIN_PREFIX is not empty, try to use it first
+# if TOOLCHAIN_PREFIX is not empty and ARCH_arm64_TOOLCHAIN_PREFIX is empty,
+# try to use TOOLCHAIN_PREFIX first
 ifneq ($(TOOLCHAIN_PREFIX),)
+ifeq ($(ARCH_arm64_TOOLCHAIN_PREFIX),)
 ARCH_arm_TOOLCHAIN_PREFIX := $(TOOLCHAIN_PREFIX)
 FOUNDTOOL=$(shell which $(ARCH_arm_TOOLCHAIN_PREFIX)gcc)
+endif
 endif
 
 # try a series of common arm toolchain prefixes in the path
