@@ -34,6 +34,7 @@
 #include <arch/arm.h>
 #include <arch/arm/mmu.h>
 #include <kernel/vm.h>
+#include <lk/init.h>
 
 #define LOCAL_TRACE 0
 #define TRACE_CONTEXT_SWITCH 0
@@ -224,6 +225,13 @@ void arm_mmu_init(void)
     uint32_t n = __builtin_clz(KERNEL_ASPACE_BASE) + 1;
     DEBUG_ASSERT(n <= 7);
 
+    /*
+     * TODO: support other sizes, arch_mmu_init_aspace below allocates a
+     * page table for a 1GB user address space, so ttbcr should match.
+     */
+    DEBUG_ASSERT(n <= 2);
+    n = 2;
+
     uint32_t ttbcr = (1<<4) | n; /* disable TTBCR0 and set the split between TTBR0 and TTBR1 */
 
     arm_write_ttbr1(arm_read_ttbr0());
@@ -234,6 +242,28 @@ void arm_mmu_init(void)
     ISB;
 #endif
 }
+
+static void arm_secondary_mmu_init(uint level)
+{
+    uint32_t cur_ttbr0;
+
+    cur_ttbr0 = arm_read_ttbr0();
+
+    /* push out kernel mappings to ttbr1 */
+    arm_write_ttbr1(cur_ttbr0);
+
+    /*
+     * TODO: support other sizes, arch_mmu_init_aspace below allocates a
+     * page table for a 1GB user address space, so ttbcr should match.
+     */
+    /* setup a user-kernel split */
+    arm_write_ttbcr(2);
+
+    arm_invalidate_tlb_global();
+}
+
+LK_INIT_HOOK_FLAGS(archarmmmu, arm_secondary_mmu_init,
+                   LK_INIT_LEVEL_ARCH_EARLY, LK_INIT_FLAG_SECONDARY_CPUS);
 
 void arch_disable_mmu(void)
 {
@@ -259,6 +289,7 @@ void arch_mmu_context_switch(arch_aspace_t *aspace)
         LTRACEF("ttbr 0x%x, ttbcr 0x%x\n", ttbr, ttbcr);
     arm_write_ttbr0(ttbr);
     arm_write_ttbcr(ttbcr);
+    arm_invalidate_tlb_global();
 }
 
 status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags)
@@ -738,6 +769,10 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
 
         aspace->tt_virt = va;
         aspace->tt_phys = vaddr_to_paddr(aspace->tt_virt);
+
+        /* zero the top level translation table */
+        /* XXX remove when PMM starts returning pre-zeroed pages */
+        memset(aspace->tt_virt, 0, PAGE_SIZE);
     }
 
     LTRACEF("tt_phys 0x%lx tt_virt %p\n", aspace->tt_phys, aspace->tt_virt);

@@ -531,7 +531,7 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
                          aspace->tt_virt, MMU_ARM64_GLOBAL_ASID);
     } else {
         ret = arm64_mmu_map(vaddr, paddr, count * PAGE_SIZE,
-                         mmu_flags_to_pte_attr(flags),
+                         mmu_flags_to_pte_attr(flags) | MMU_PTE_ATTR_NON_GLOBAL,
                          0, MMU_USER_SIZE_SHIFT,
                          MMU_USER_TOP_SHIFT, MMU_USER_PAGE_SIZE_SHIFT,
                          aspace->tt_virt, MMU_ARM64_USER_ASID);
@@ -595,13 +595,14 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
         aspace->tt_virt = arm64_kernel_translation_table;
         aspace->tt_phys = vaddr_to_paddr(aspace->tt_virt);
     } else {
+        size_t page_table_size = MMU_USER_PAGE_TABLE_ENTRIES_TOP * sizeof(pte_t);
         //DEBUG_ASSERT(base >= 0);
         DEBUG_ASSERT(base + size <= 1UL << MMU_USER_SIZE_SHIFT);
 
         aspace->base = base;
         aspace->size = size;
 
-        pte_t *va = pmm_alloc_kpages(1, NULL);
+        pte_t *va = memalign(page_table_size, page_table_size);
         if (!va)
             return ERR_NO_MEMORY;
 
@@ -609,8 +610,7 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
         aspace->tt_phys = vaddr_to_paddr(aspace->tt_virt);
 
         /* zero the top level translation table */
-        /* XXX remove when PMM starts returning pre-zeroed pages */
-        memset(aspace->tt_virt, 0, PAGE_SIZE);
+        memset(aspace->tt_virt, 0, page_table_size);
     }
 
     LTRACEF("tt_phys 0x%lx tt_virt %p\n", aspace->tt_phys, aspace->tt_virt);
@@ -627,9 +627,7 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace)
 
     // XXX make sure it's not mapped
 
-    vm_page_t *page = paddr_to_vm_page(aspace->tt_phys);
-    DEBUG_ASSERT(page);
-    pmm_free_page(page);
+    free(aspace->tt_virt);
 
     return NO_ERROR;
 }
@@ -651,6 +649,7 @@ void arch_mmu_context_switch(arch_aspace_t *aspace)
         if (TRACE_CONTEXT_SWITCH)
             TRACEF("ttbr 0x%llx, tcr 0x%llx\n", ttbr, tcr);
         ARM64_TLBI(aside1, (uint64_t)MMU_ARM64_USER_ASID << 48);
+        DSB;
     } else {
         tcr = MMU_TCR_FLAGS_KERNEL;
 
