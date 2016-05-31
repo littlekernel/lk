@@ -156,8 +156,8 @@ static uint8_t *cursor_get(cursor_t *cursor)
     spifs_t *spifs = cursor->spifs;
 
     uint8_t *page_end = spifs->page + spifs->page_size;
-#endif
     DEBUG_ASSERT(cursor->data < page_end);
+#endif
 
     return cursor->data;
 }
@@ -341,8 +341,8 @@ static status_t spifs_commit_toc(spifs_t *spifs)
 #if LK_DEBUGLEVEL > 1
     uint8_t *expected_cursor_location =
         (spifs->page + spifs->page_size) - SPIFS_ENTRY_LENGTH;
-#endif
     DEBUG_ASSERT(cursor == expected_cursor_location);
+#endif
 
     toc_footer_t *footer = (toc_footer_t *)cursor;
     memset(footer, 0, SPIFS_ENTRY_LENGTH);
