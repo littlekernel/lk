@@ -28,6 +28,7 @@
 #include <compiler.h>
 #include <reg.h>
 #include <arch/arm.h>
+#include <arch/arm/cm.h>
 
 __BEGIN_CDECLS;
 
@@ -90,7 +91,7 @@ static inline bool arch_in_int_handler(void)
 #if ARM_ISA_ARMV7M
     uint32_t ipsr;
     __asm volatile ("MRS %0, ipsr" : "=r" (ipsr) );
-    return (ipsr & 0x1);
+    return (ipsr & IPSR_ISR_Msk);
 #else
     /* set by the interrupt glue to track that the cpu is inside a handler */
     extern bool __arm_in_handler;
