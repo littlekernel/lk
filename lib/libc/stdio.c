@@ -32,7 +32,7 @@
         .io = &console_io,      \
     }
 
-FILE __stdio_FILEs[3] = {
+__WEAK FILE __stdio_FILEs[3] = {
     DEFINE_STDIO_DESC(0), /* stdin */
     DEFINE_STDIO_DESC(1), /* stdout */
     DEFINE_STDIO_DESC(2), /* stderr */
