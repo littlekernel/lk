@@ -305,6 +305,26 @@ status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer)
     return NO_ERROR;
 }
 
+status_t usbc_flush_ep(ep_t ep)
+{
+    // Make sure The endpoint is in range.
+    DEBUG_ASSERT((ep & 0x7F) <= NUM_EP);
+
+    // Flush the FIFOs for the endpoint.
+    if (HAL_PCD_EP_Flush(&usbc.handle, ep) != HAL_OK) {
+        return ERR_GENERIC;
+    }
+
+    // Clear any transfers that we may have been waiting on.
+    if (ep & 0x80) {
+        usbc.ep_in[ep & 0x7F].transfer = NULL;
+    } else {
+        usbc.ep_out[ep].transfer = NULL;
+    }
+
+    return NO_ERROR;
+}
+
 void stm32_OTG_FS_IRQ(void)
 {
     arm_cm_irq_entry();
