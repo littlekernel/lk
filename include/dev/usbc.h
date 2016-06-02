@@ -69,6 +69,7 @@ enum {
 status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type);
 status_t usbc_queue_rx(ep_t ep, usbc_transfer_t *transfer);
 status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer);
+status_t usbc_flush_ep(ep_t ep);
 
 status_t usbc_set_active(bool active);
 void usbc_set_address(uint8_t address);
