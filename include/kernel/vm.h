@@ -240,8 +240,16 @@ __NONNULL((1));
 
 /* allocate a region of virtual space that maps a physical piece of address space.
    the physical pages that back this are not allocated from the pmm. */
-status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc_physical_etc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, paddr_t *paddr, uint paddr_count, uint vmm_flags, uint arch_mmu_flags)
 __NONNULL((1));
+
+/* allocate a region of virtual space that maps a physical piece of address space.
+   the physical pages that back this are not allocated from the pmm. */
+static inline status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
+{
+    return vmm_alloc_physical_etc(aspace, name, size, ptr, align_log2,
+                                  &paddr, 1, vmm_flags, arch_mmu_flags);
+} __NONNULL((1))
 
 /* allocate a region of memory backed by newly allocated contiguous physical memory  */
 status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, uint vmm_flags, uint arch_mmu_flags)

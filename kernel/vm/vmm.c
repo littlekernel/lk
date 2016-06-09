@@ -349,16 +349,21 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
     return r ? NO_ERROR : ERR_NO_MEMORY;
 }
 
-status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
-                            void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
+status_t vmm_alloc_physical_etc(vmm_aspace_t *aspace, const char *name, size_t size,
+                                void **ptr, uint8_t align_log2, paddr_t *paddr, uint paddr_count,
+                                uint vmm_flags, uint arch_mmu_flags)
 {
     status_t ret;
+    uint i;
+    size_t page_size;
 
-    LTRACEF("aspace %p name '%s' size 0x%zx ptr %p paddr 0x%lx vmm_flags 0x%x arch_mmu_flags 0x%x\n",
-            aspace, name, size, ptr ? *ptr : 0, paddr, vmm_flags, arch_mmu_flags);
+    LTRACEF("aspace %p name '%s' size 0x%zx ptr %p paddr 0x%lx... vmm_flags 0x%x arch_mmu_flags 0x%x\n",
+            aspace, name, size, ptr ? *ptr : 0, paddr[0], vmm_flags, arch_mmu_flags);
 
     DEBUG_ASSERT(aspace);
-    DEBUG_ASSERT(IS_PAGE_ALIGNED(paddr));
+    for (i = 0; i < paddr_count; i++) {
+        DEBUG_ASSERT(IS_PAGE_ALIGNED(paddr[i]));
+    }
     DEBUG_ASSERT(IS_PAGE_ALIGNED(size));
 
     if (!name)
@@ -368,7 +373,10 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
         return ERR_INVALID_ARGS;
     if (size == 0)
         return NO_ERROR;
-    if (!IS_PAGE_ALIGNED(paddr) || !IS_PAGE_ALIGNED(size))
+    if (!paddr_count)
+        return ERR_INVALID_ARGS;
+    page_size = size / paddr_count;
+    if (!IS_PAGE_ALIGNED(paddr[0]) || !IS_PAGE_ALIGNED(page_size))
         return ERR_INVALID_ARGS;
 
     vaddr_t vaddr = 0;
@@ -397,8 +405,11 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
         *ptr = (void *)r->base;
 
     /* map all of the pages */
-    int err = arch_mmu_map(&aspace->arch_aspace, r->base, paddr, size / PAGE_SIZE, arch_mmu_flags);
-    LTRACEF("arch_mmu_map returns %d\n", err);
+    for (i = 0; i < paddr_count; i++) {
+        int err = arch_mmu_map(&aspace->arch_aspace, r->base + i * page_size,
+                               paddr[i], page_size / PAGE_SIZE, arch_mmu_flags);
+        LTRACEF("arch_mmu_map returns %d\n", err);
+    }
 
     ret = NO_ERROR;
 
