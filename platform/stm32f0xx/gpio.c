@@ -187,7 +187,7 @@ void gpio_set(unsigned nr, unsigned on)
 
 int gpio_get(unsigned nr)
 {
-    stm32_gpio_t *gpio = stm32_gpio_port_to_pointer(nr);
+    stm32_gpio_t *gpio = stm32_gpio_port_to_pointer(GPIO_PORT(nr));
     return (gpio->IDR & (1 << GPIO_PIN(nr))) != 0;
 }
 
