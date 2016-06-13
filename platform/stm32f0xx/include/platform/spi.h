@@ -61,8 +61,8 @@ typedef enum {
 } spi_cpol_t;
 
 typedef enum {
-    SPI_CPHA_1 = 0x0,
-    SPI_CPHA_2 = SPI_CR1_CPHA,
+    SPI_CPHA_0 = 0x0,  // Data capture on first clock transition.
+    SPI_CPHA_1 = SPI_CR1_CPHA,  // Data capture on second clock transition.
 } spi_cpha_t;
 
 typedef enum {
