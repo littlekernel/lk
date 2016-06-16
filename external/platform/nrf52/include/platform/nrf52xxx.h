@@ -54,7 +54,7 @@
 
 #ifndef NRF52_H
 #define NRF52_H
-
+#include <platform/nrf52_bitfields.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -498,7 +498,7 @@ typedef struct {                                    /*!< FICR Structure         
   __I  uint32_t  DEVICEADDRTYPE;                    /*!< Device address type                                                   */
   __I  uint32_t  DEVICEADDR[2];                     /*!< Description collection[0]: Device address 0                           */
   __I  uint32_t  RESERVED3[21];
-  FICR_INFO_Type INFO;                              /*!< Device info                                                           */
+  FICR_INFO_Type DEVICEINFO;                              /*!< Device info                                                           */
   __I  uint32_t  RESERVED4[185];
   FICR_TEMP_Type TEMP;                              /*!< Registers storing factory TEMP module linearization coefficients      */
   __I  uint32_t  RESERVED5[2];

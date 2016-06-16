@@ -59,7 +59,7 @@ void uart_init_early(void)
     NRF_UART0->BAUDRATE =   UART_BAUDRATE_BAUDRATE_Baud115200   <<  UART_BAUDRATE_BAUDRATE_Pos;
     NRF_UART0->CONFIG   =   UART_CONFIG_HWFC_Disabled << UART_CONFIG_HWFC_Pos | \
                             UART_CONFIG_PARITY_Excluded << UART_CONFIG_PARITY_Pos;
-    NVIC_DisableIRQ(UART0_IRQn);
+    NVIC_DisableIRQ(UARTE0_UART0_IRQn);
     NRF_UART0->ENABLE   =   UART_ENABLE_ENABLE_Enabled << UART_ENABLE_ENABLE_Pos;
     NRF_UART0->TXD      = 'E';
     NRF_UART0->TASKS_STARTTX=1;
@@ -79,7 +79,7 @@ void uart_init(void)
 #endif //ENABLE_UART0
 }
 
-void nrf52_UART0_IRQ(void)
+void nrf52_UARTE0_UART0_IRQ(void)
 {
 //  char c;
     arm_cm_irq_entry();

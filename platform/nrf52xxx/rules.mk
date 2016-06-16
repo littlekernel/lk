@@ -10,27 +10,19 @@ MEMBASE := 0x20000000
 ARCH := arm
 ARM_CPU := cortex-m4
 
-ifeq ($(NRF51_CHIP),nrf51822-qfaa)
+ifeq ($(NRF52_CHIP),nrf52832-qfaa)
 GLOBAL_DEFINES +=
-MEMSIZE ?= 16384
+MEMSIZE ?= 65536
 endif
-ifeq ($(NRF51_CHIP),nrf51822-ceaa)
-GLOBAL_DEFINES +=
-MEMSIZE ?= 16384
-endif
-ifeq ($(NRF51_CHIP),nrf51822-qfab)
-GLOBAL_DEFINES +=
-MEMSIZE ?= 16384
-endif
-ifeq ($(NRF51_CHIP),nrf51822-cdab)
-GLOBAL_DEFINES +=
-MEMSIZE ?= 16384
-endif
-ifeq ($(NRF51_CHIP),nrf51822-qfac)
+ifeq ($(NRF52_CHIP),nrf52832-qfab)
 GLOBAL_DEFINES +=
 MEMSIZE ?= 32768
 endif
-ifeq ($(NRF51_CHIP),nrf51822-cfac)
+ifeq ($(NRF52_CHIP),nrf52832-chaa)
+GLOBAL_DEFINES +=
+MEMSIZE ?= 65536
+endif
+ifeq ($(NRF52_CHIP),nrf52832-chab)
 GLOBAL_DEFINES +=
 MEMSIZE ?= 32768
 endif
@@ -47,7 +39,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/vectab.c \
 	$(LOCAL_DIR)/gpio.c \
     $(LOCAL_DIR)/timer.c \
-
 
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld

@@ -34,7 +34,7 @@ int gpio_config(unsigned nr, unsigned flags)
 
     if (flags & GPIO_OUTPUT) {
 
-        NRF_GPIO->PIN_CNF[nr] = GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos     | \
+        NRF_P0->PIN_CNF[nr] = GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos     | \
                                 GPIO_PIN_CNF_PULL_Disabled << GPIO_PIN_CNF_PULL_Pos  | \
                                 GPIO_PIN_CNF_DRIVE_S0S1 << GPIO_PIN_CNF_DRIVE_Pos   | \
                                 GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos;
@@ -46,7 +46,7 @@ int gpio_config(unsigned nr, unsigned flags)
         } else {
             init    =   GPIO_PIN_CNF_PULL_Disabled << GPIO_PIN_CNF_PULL_Pos;
         }
-        NRF_GPIO->PIN_CNF[nr] = GPIO_PIN_CNF_DIR_Input      <<  GPIO_PIN_CNF_DIR_Pos    | \
+        NRF_P0->PIN_CNF[nr] = GPIO_PIN_CNF_DIR_Input      <<  GPIO_PIN_CNF_DIR_Pos    | \
                                 GPIO_PIN_CNF_INPUT_Connect  <<  GPIO_PIN_CNF_INPUT_Pos  | \
                                 init;
     }
@@ -58,9 +58,9 @@ void gpio_set(unsigned nr, unsigned on)
     DEBUG_ASSERT(nr <= NRF_MAX_PIN_NUMBER);
 
     if (on > 0) {
-        NRF_GPIO->OUTSET = 1 << nr;
+        NRF_P0->OUTSET = 1 << nr;
     } else {
-        NRF_GPIO->OUTCLR = 1 << nr;
+        NRF_P0->OUTCLR = 1 << nr;
     }
 }
 
@@ -68,7 +68,7 @@ int gpio_get(unsigned nr)
 {
     DEBUG_ASSERT( nr <= NRF_MAX_PIN_NUMBER );
 
-    if ( NRF_GPIO->IN & ( 1 << nr) ) {
+    if ( NRF_P0->IN & ( 1 << nr) ) {
         return 1;
     } else {
         return 0;

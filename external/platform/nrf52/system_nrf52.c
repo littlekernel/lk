@@ -30,8 +30,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "nrf.h"
-#include "system_nrf52.h"
+#include <platform/nrf52.h>
+#include <platform/system_nrf52.h>
 
 /*lint ++flb "Enter library region" */
 
