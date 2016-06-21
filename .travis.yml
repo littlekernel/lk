@@ -11,6 +11,7 @@ env:
     - PROJECT=stm32f4-discovery-test    TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
     - PROJECT=stellaris-launchpad-test  TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
     - PROJECT=nrf51-pca10028-test       TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
+    - PROJECT=nucleo-f072rb             TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
     - PROJECT=qemu-microblaze-test      TOOLCHAIN=microblaze-elf-5.3.0-Linux-x86_64
     - PROJECT=qemu-mips-test            TOOLCHAIN=mips-elf-5.3.0-Linux-x86_64
     - PROJECT=pc-x86-test               TOOLCHAIN=i386-elf-5.3.0-Linux-x86_64
