@@ -638,7 +638,9 @@ static void *large_alloc(size_t size)
     size = ROUNDUP(size, 8);
     free_t *free_area = NULL;
     lock();
-    heap_grow(size, &free_area);
+    if (heap_grow(size, &free_area) < 0) {
+      return 0;
+    }
     void *result =
         create_allocation_header(free_area, 0, free_area->header.size, free_area->header.left);
     // Normally the 'remaining free space' counter would be decremented when we
@@ -650,7 +652,8 @@ static void *large_alloc(size_t size)
     unlock();
 #ifdef CMPCT_DEBUG
     memset(result, ALLOC_FILL, requested_size);
-    memset((char *)result + requested_size, PADDING_FILL, free_area->header.size - requested_size);
+    memset((char *)result + requested_size, PADDING_FILL,
+        free_area->header.size - (requested_size + sizeof(header_t)));
 #endif
     return result;
 }
@@ -882,8 +885,8 @@ static ssize_t heap_grow(size_t size, free_t **bucket)
     size += 2 * sizeof(header_t);
     size = ROUNDUP(size, PAGE_SIZE);
     void *ptr = page_alloc(size >> PAGE_SIZE_SHIFT, PAGE_ALLOC_ANY_ARENA);
-    theheap.size += size;
     if (ptr == NULL) return -1;
+    theheap.size += size;
     LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
     add_to_heap(ptr, size, bucket);
     return size;
