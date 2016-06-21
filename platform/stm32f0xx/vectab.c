@@ -48,7 +48,7 @@ DEFAULT_HANDLER(RCC_IRQ)
 DEFAULT_HANDLER(EXTI0_1_IRQ)
 DEFAULT_HANDLER(EXTI2_3_IRQ)
 DEFAULT_HANDLER(EXTI4_15_IRQ)
-DEFAULT_HANDLER(TS_IRQ)
+DEFAULT_HANDLER(TSC_IRQ)
 DEFAULT_HANDLER(DMA1_Channel1_IRQ)
 DEFAULT_HANDLER(DMA1_Channel2_3_IRQ)
 DEFAULT_HANDLER(DMA1_Channel4_5_6_7_IRQ)
@@ -70,7 +70,7 @@ DEFAULT_HANDLER(SPI2_IRQ)
 DEFAULT_HANDLER(USART1_IRQ)
 DEFAULT_HANDLER(USART2_IRQ)
 DEFAULT_HANDLER(USART3_4_IRQ)
-DEFAULT_HANDLER(CEC_IRQ)
+DEFAULT_HANDLER(CEC_CAN_IRQ)
 DEFAULT_HANDLER(USB_IRQ)
 
 #define VECTAB_ENTRY(x) [x##n] = stm32_##x
@@ -85,7 +85,7 @@ const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(EXTI0_1_IRQ),          // EXTI Line 0 and 1 Interrupts
     VECTAB_ENTRY(EXTI2_3_IRQ),          // EXTI Line 2 and 3 Interrupts
     VECTAB_ENTRY(EXTI4_15_IRQ),         // EXTI Line 4 to 15 Interrupts
-    VECTAB_ENTRY(TS_IRQ),                   // Touch sense controller Interrupt
+    VECTAB_ENTRY(TSC_IRQ),                   // Touch sense controller Interrupt
     VECTAB_ENTRY(DMA1_Channel1_IRQ),    // DMA1 Channel 1 Interrupt
     VECTAB_ENTRY(DMA1_Channel2_3_IRQ),  // DMA1 Channel 2 and Channel 3 Interrupts
     VECTAB_ENTRY(DMA1_Channel4_5_6_7_IRQ),  // DMA1 Channels 4-7 Interrupts
@@ -107,6 +107,6 @@ const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(USART1_IRQ),               // USART1 Interrupt
     VECTAB_ENTRY(USART2_IRQ),           // USART2 Interrupt
     VECTAB_ENTRY(USART3_4_IRQ),         // USART3 and USART4 Interrupts
-    VECTAB_ENTRY(CEC_IRQ),              // CEC Interrupt
+    VECTAB_ENTRY(CEC_CAN_IRQ),              // CEC Interrupt
     VECTAB_ENTRY(USB_IRQ),                  // USB Low Priority global Interrupt
 };

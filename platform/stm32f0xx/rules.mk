@@ -35,6 +35,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/spi.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uart.c \
+	$(LOCAL_DIR)/usbc.c \
 	$(LOCAL_DIR)/vectab.c
 
 # use a two segment memory layout, where all of the read-only sections 
@@ -46,8 +47,10 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
-	platform/stm32f0xx/STM32F0xx_StdPeriph_Driver \
+	platform/stm32f0xx/CMSIS \
+	platform/stm32f0xx/STM32F0xx_HAL_Driver \
 	arch/arm/arm-m/systick \
+	dev/usb \
 	lib/cbuf
 
 include make/module.mk

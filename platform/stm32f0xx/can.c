@@ -27,7 +27,7 @@ typedef enum {
 static cbuf_t can_rx_buf;
 static mutex_t can_tx_mutex;
 
-void stm32_CEC_IRQ(void)
+void stm32_CEC_CAN_IRQ(void)
 {
     arm_cm_irq_entry();
     bool resched = false;
@@ -181,7 +181,7 @@ void can_init(bool loopback) {
 
     // Enable FIFO 0 message pending interrupt
     can->IER |= CAN_IER_FMPIE0;
-    NVIC_EnableIRQ(CEC_IRQn);
+    NVIC_EnableIRQ(CEC_CAN_IRQn);
 }
 
 ssize_t can_send(const can_msg_t *msg)

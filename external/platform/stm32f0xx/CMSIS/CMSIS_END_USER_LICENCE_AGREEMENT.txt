@@ -1,0 +1,84 @@
+END USER LICENCE AGREEMENT FOR THE CORTEX MICROCONTROLLER SOFTWARE INTERFACE STANDARD (CMSIS) DELIVERABLES 
+THIS END USER LICENCE AGREEMENT ("LICENCE") IS A LEGAL AGREEMENT BETWEEN YOU (EITHER A SINGLE INDIVIDUAL, OR SINGLE LEGAL ENTITY) AND ARM LIMITED ("ARM") FOR THE USE OF THE CMSIS DELIVERABLES. ARM IS ONLY WILLING TO LICENSE THE CMSIS DELIVERABLES TO YOU ON CONDITION THAT YOU ACCEPT ALL OF THE TERMS IN THIS LICENCE. BY CLICKING "I AGREE", OR BY INSTALLING OR OTHERWISE USING OR COPYING THE CMSIS DELIVERABLES YOU INDICATE THAT YOU AGREE TO BE BOUND BY ALL THE TERMS OF THIS LICENCE. IF YOU DO NOT AGREE TO THE TERMS OF THIS LICENCE, ARM IS UNWILLING TO LICENSE YOU TO USE OF THE CMSIS DELIVERABLES AND YOU MAY NOT INSTALL, USE OR COPY THE CMSIS DELIVERABLES.
+“Deliverables” means (i) the CMSIS Deliverables; (ii) CMSIS-DAP Specification; (iii) CMSIS-DAP Firmware; and (iv) RDDI DLL.
+“CMSIS-DAP Specification” means any documentation defining the application programming interface, naming and coding conventions of the Cortex Microcontroller Software Interface Standard Debug Access Port (“CMSIS-DAP”). Notwithstanding the foregoing, “CMSIS-DAP Specification” shall not include: (i) the implementation of other published specifications referenced in the CMSIS-DAP Specification; and (ii) any enabling technologies that may be necessary to make or use any product or portions thereof that complies with the CMSIS-DAP Specification, but are not themselves expressly set forth in the CMSIS-DAP Specification (e.g. compiler front ends, code generators, back ends, libraries or other compiler, assembler or linker technologies; validation or debug software or hardware; applications, operating system or driver software; RISC architecture; and processor microarchitecture).  
+“CMSIS-DAP Firmware” means the C programming language source code accompanying this Licence which implements the functionality of the application programming interface as defined in the CMSIS-DAP Specification and any updates, patches and modifications ARM may make available under the terms of this Licence.
+“CMSIS Deliverables” means the following components: (i) CMSIS-CORE; (ii) CMSIS-DRIVER; (iii) CMSIS-DSP; (iv) CMSIS-PACK; (v) CMSIS-RTOS API; and (vi) CMSIS-SVD . 
+“CMSIS-CORE” means the specification defining the application programming interface, naming and coding conventions for the Cortex-M processor cores.
+”CMSIS-DRIVER” means the specification defining a generic peripheral driver application programming interface, naming and coding conventions.
+ “CMSIS-DSP” means the digital signal process (DSP) library specification defining the application programming interface of a DSP library implementation.
+“CMSIS-PACK” means the specification defining a software pack file format, verification utility, and the associated XML schema file.
+“CMSIS-RTOS API” means the real-time operating system (RTOS) specification defining a generic application programming interface layer for a RTOS system. 
+“CMSIS-SVD” means the specification defining the System View Description (SVD), verification utility, and associated XML schema files. 
+“Firmware” means firmware that complies with the CMSIS-DAP Specification. 
+“RDDI DLL” means the reference implementation of a device driver accompanying this Licence in object code form and any updates, patches and modifications ARM may agree to make available under the terms of this Licence and is used with targets containing microprocessors manufactured or simulated under licence from ARM.                    
+“Separate Files” means the components identified in the Schedule.. 
+“Target Connection Product” means a target connection product that complies with the CMSIS-DAP Specification and is used on or with a target containing microprocessors manufactured or simulated under licence from ARM.                    
+Notwithstanding the foregoing, the Deliverables shall not include: (i) the implementation of other published specifications referenced in the Deliverables; (ii) any enabling technologies that may be necessary to make or use any product or portion thereof that complies with the Deliverables, but are not themselves expressly set forth in the Deliverables  (e.g. compiler front ends, code generators, back ends, libraries or other compiler, assembler or linker technologies; validation or debug software or hardware; applications, operating system or driver software; RISC architecture; processor microarchitecture); (iii) maskworks and physical layouts of integrated circuit designs; or (iv) RTL or other high level representations of integrated circuit designs.
+
+1. LICENCE GRANTS.
+1.1 CMSIS DELIVERABLES 
+ARM hereby grants to you, subject to the terms and conditions of this Licence, a non-exclusive, non-transferable licence, to use and copy the CMSIS Deliverables for the purpose of: 
+
+(i) subject to clause 1.5(i), developing, having developed, manufacturing, having manufactured, offering to sell, selling, supplying or otherwise distributing products that comply with the CMSIS Deliverables; and 
+(ii) distributing and having distributed (directly or through your customers and authorised distributors) the CMSIS-Deliverables unmodified, with the products you have developed under Clause 1.1 (i) provided you preserve any copyright notices which are included with the CMSIS Deliverables. 
+1.2 CMSIS-DAP SPECIFICATION
+ARM hereby grants to you, subject to the terms and conditions of this Licence, a non-exclusive, non-transferable licence, to use and copy the CMSIS-DAP Specification for the purposes of:
+(a)	developing, having developed, manufacturing, having manufactured, offering to sell, selling, supplying, distributing or having distributed a Target Connection Product;  
+(b)	developing, having developed, subject to clause 1.5(ii) offering to sell, selling, supplying, distributing or having distributed (directly or through your customers and authorised distributors) Firmware to run on a Target Connection Product; and
+(c)	subject to clause 1.5(ii), distributing and having distributed (directly or through your customers and authorised distributors) the CMSIS-DAP Specification unmodified, with either or both the Target Connection Products and Firmware, developed under the licences granted in this Clause 1.2. 
+
+1.3 CMSIS-DAP FIRMWARE
+ARM hereby grants to you, subject to the terms and conditions of this Licence, a non-exclusive, non-transferable licence, to: 
+(a)	use, copy, and modify the CMSIS-DAP Firmware for the purposes of developing and having developed firmware to run on a Target Connection Product; and
+(b)	subject to clause 1.5(ii), offer to sell, selling, supply, supplying, distributing or having distributed (directly or through your customers and authorised distributors) CMSIS-DAP Firmware or any modified version created under Clause 1.3 (a) in object code form only to run on a Target Connection Product.  
+
+ 1.4 RDDI DLL
+ARM hereby grants to you, subject to the terms and conditions of this Licence, a non-exclusive, non-transferable licence, to: 
+(a)	use and copy the RDDI DLL for the purpose of connecting a Target Connection Product running CMSIS-DAP compatible firmware (either the Firmware or the firmware created pursuant to Clause 1.3) to software debug tools installed on a host computer running a Windows platform; and 
+(b)	subject to clause 1.5(ii), offer to sell, selling, supplying, distributing or having distributed (directly or through your customers and authorised distributors) the RDDI DLL in object code form only.  
+
+1.5 CONDITIONS ON REDISTRIBUTION. 
+
+(i) If you distribute (directly or through your customers and authorised distributors) the products you have created pursuant to Clause 1.1 (i) you agree: (a) not to use ARM’s name, logo or trademarks to market any or all of the products created under Clause 1.1 (i); (b) to preserve any copyright notices included in the CMSIS Deliverables; and (c) to ensure your customers and authorised distributors comply with this Clause 1.5(i).    
+(ii) If you are authorised and choose to distribute (directly or through your customers and authorised distributors) the CMSIS-DAP Specification, Firmware, CMSIS-DAP Firmware or any modified version thereof, or the RDDI DLL, you agree; (a) to ensure that they are licensed for use with targets containing microprocessors manufactured or simulated under licence from ARM; (b) to preserve any copyright notices which are included with the CMSIS-DAP Specification, CMSIS-DAP Firmware, and include valid copyright notices in; (i) any modified version of the CMSIS-DAP Firmware; and (ii) the Firmware; (c) not to use ARM’s name, logo or trademarks to market -any or all of the CMSIS-DAP Specification, Firmware, CMSIS-DAP Firmware or any modified version therof, the RDDI DLL or the Target Connection Products; and (d) to ensure your customers and authorised distributors comply with this Clause 1.5(ii).    
+
+2. RESTRICTIONS ON USE OF THE DELIVERABLES.
+PERMITTED USERS: The Deliverables shall be used only by you (either a single individual, or single legal entity) your employees, or by your on-site bona fide sub-contractors for whose acts and omissions you hereby agree to be responsible to ARM for to the same extent as you are for your employees, and provided always that such sub-contractors: (i) are contractually obligated to use the Deliverables only for your benefit; and (ii) agree to assign all their work product and any rights they create therein in the supply of such work to you.
+COPYRIGHT AND RESERVATION OF RIGHTS: The Deliverables are owned by ARM or its licensors and are protected by copyright and other intellectual property laws and international treaties. The Deliverables are licensed not sold. Except as expressly licensed herein, you acquire no right, title or interest in the Deliverables or any intellectual property therein. In no event shall the licences granted herein be construed as granting you, expressly or by implication, estoppels or otherwise, a licence to use any ARM technology except the Deliverables.
+ 3. SUPPORT.
+ARM is not obligated to support the Deliverables but may do so entirely at ARM's discretion. 
+4. NO WARRANTY.
+YOU AGREE THAT THE DELIVERABLES ARE LICENSED "AS IS", AND THAT ARM EXPRESSLY DISCLAIMS ALL REPRESENTATIONS, WARRANTIES, CONDITIONS OR OTHER TERMS, EXPRESS, IMPLIED OR STATUTORY, INCLUDING WITHOUT LIMITATION THE IMPLIED WARRANTIES OF NON-INFRINGEMENT, SATISFACTORY QUALITY, AND FITNESS FOR A PARTICULAR PURPOSE. THE DELIVERABLES MAY CONTAIN ERRORS.  
+5. LIMITATION OF LIABILITY.
+THE MAXIMUM LIABILITY OF ARM TO YOU IN AGGREGATE FOR ALL CLAIMS MADE AGAINST ARM IN CONTRACT, TORT OR OTHERWISE UNDER OR IN CONNECTION WITH THE SUBJECT MATTER OF THIS LICENCE SHALL NOT EXCEED THE GREATER OF (I) THE TOTAL OF SUMS PAID BY YOU TO ARM (IF ANY) FOR THIS LICENCE AND (II) US$10.00.  THE LIMITATIONS, EXCLUSIONS AND DISCLAIMERS IN THIS LICENCE SHALL APPLY TO THE MAXIMUM EXTENT ALLOWED BY APPLICABLE LAW.
+6. THIRD PARTY RIGHTS.
+The Separate Files are delivered subject to and your use is governed by their own separate licence agreements. This Licence does not apply to such Separate Files and they are not included in the term “Deliverables” under this Licence. You agree to comply with all terms and conditions imposed on you in respect of such Separate Files including those identified in the Schedule (“Third Party Terms”).  
+ARM HEREBY DISCLAIMS ANY AND ALL WARRANTIES EXPRESS OR IMPLIED FROM ANY THIRD PARTIES REGARDING ANY SEPARATE FILES, ANY THIRD PARTY MATERIALS INCLUDED IN THE SOFTWARE, ANY THIRD PARTY MATERIALS FROM WHICH THE SOFTWARE IS DERIVED (COLLECTIVELY “OTHER CODE”), AND THE USE OF ANY OR ALL THE OTHER CODE IN CONNECTION WITH THE SOFTWARE, INCLUDING (WITHOUT LIMITATION) ANY WARRANTIES OF SATISFACTORY QUALITY OR FITNESS FOR A PARTICULAR PURPOSE.
+NO THIRD PARTY LICENSORS OF OTHER CODE SHALL HAVE ANY LIABILITY FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND WHETHER MADE UNDER CONTRACT, TORT OR OTHER LEGAL THEORY, ARISING IN ANY WAY OUT OF THE USE OR DISTRIBUTION OF THE OTHER CODE OR THE EXERCISE OF ANY RIGHTS GRANTED UNDER EITHER OR BOTH THIS LICENCE AND THE LEGAL TERMS APPLICABLE TO ANY SEPARATE FILES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+7. U.S. GOVERNMENT END USERS.
+US Government Restrictions: Use, duplication, reproduction, release, modification, disclosure or transfer of this commercial product and accompanying documentation is restricted in accordance with the terms of this Licence.
+8. TERM AND TERMINATION.
+8.1 This Licence shall remain in force until terminated in accordance with the terms of Clause 8.2 or Clause 8.3 below. 
+8.2 Without prejudice to any of its other rights if you are in breach of any of the terms and conditions of this Licence then ARM may terminate this Licence immediately upon giving written notice to you.  You may terminate this Licence at any time. 
+8.3 This Licence shall immediately terminate and shall be unavailable to you if you or any party affiliated to you asserts any patents against ARM, ARM affiliates, third parties who have a valid licence from ARM for the Deliverables, or any customers or distributors of any of them based upon a claim that your (or your affiliate) patent is Necessary to implement the Deliverables. In this Licence: (i) "affiliate" means any entity controlling, controlled by or under common control with a party (in fact or in law, via voting securities, management control or otherwise) and "affiliated" shall be construed accordingly; (ii) "assert" means to allege infringement in legal or administrative proceedings, or proceedings before any other competent trade, arbitral or international authority; and (iii) “Necessary” means with respect to any claims of any patent, those claims which, without the appropriate permission of the patent owner, will be infringed when implementing the Deliverables because no alternative, commercially reasonable, non-infringing way of implementing the Deliverables is known. 
+8.4 Upon termination of this Licence, you shall stop using the Deliverables and destroy all copies of the Deliverables in your possession. The provisions of clauses 5, 6, 7, 8 and 9 shall survive termination of this Licence.  
+9. GENERAL.
+This Licence is governed by English Law. Except where ARM agrees otherwise in a written contract signed by you and ARM, this is the only agreement between you and ARM relating to the Deliverables and it may only be modified by written agreement between you and ARM. Except as expressly agreed in writing, this Licence may not be modified by purchase orders, advertising or other representation by any person. If any clause or sentence in this Licence is held by a court of law to be illegal or unenforceable the remaining provisions of this Licence shall not be affected thereby. The failure by ARM to enforce any of the provisions of this Licence, unless waived in writing, shall not constitute a waiver of ARM's rights to enforce such provision or any other provision of this Licence in the future.  This Licence may not be assigned without the prior written consent of ARM.
+SCHEDULE
+Separate Files
+The package also includes the components contained in the following directories:
+(a)	./CMSIS/DSP_Lib -  DSP Library sources and examples; 
+(b)	./CMSIS/Include - Header files; 
+(c)	./CMSIS/Lib - DSP Library build for various toolchains; 
+(d)	./CMSIS/RTOS - Header file template for CMSIS-RTOS implementation; and 
+(e)	./Device - Template files and implementations for Cortex-M class processors. 
+
+All of the above components (a– e) are licensed to you under the terms of the BSD licence, which is incorporated within or alongside the above components.  
+  (f)   ./CMSIS/Driver – CMSIS-Driver header files
+  (g)  ./CMSIS/Pack – Example Device Family Pack
+
+The above components (f – g) are licensed to you under the terms of the zlib licence, which is incorporated within or alongside the above components.
+
+
+ARM contract reference LEC-PRE-00489- v4.0
