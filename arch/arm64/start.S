@@ -30,7 +30,13 @@ attr                    .req x27
 
 .section .text.boot
 FUNCTION(_start)
+.globl arm_reset
+arm_reset:
+
 #if WITH_KERNEL_VM
+
+    bl      arm64_elX_to_el1
+
     /* enable caches so atomics and spinlocks work */
     mrs     tmp, sctlr_el1
     orr     tmp, tmp, #(1<<12) /* Enable icache */

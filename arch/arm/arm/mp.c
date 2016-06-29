@@ -33,6 +33,8 @@
 #elif PLATFORM_BCM2835
 /* bcm2835 has a weird custom interrupt controller for MP */
 extern void bcm2835_send_ipi(uint irq, uint cpu_mask);
+#elif PLATFORM_BCM2837
+extern void bcm2835_send_ipi(uint irq, uint cpu_mask);
 #else
 #error need other implementation of interrupt controller that can ipi
 #endif
