@@ -25,7 +25,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c \
-	$(LOCAL_DIR)/uart.c \
+	$(LOCAL_DIR)/miniuart.c \
 
 MEMBASE := 0x00000000
 MEMSIZE ?= 0x40000000 # 256MB
