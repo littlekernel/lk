@@ -128,9 +128,9 @@ void platform_early_init(void)
 
     intc_init();
 
-    arm_generic_timer_init(INTERRUPT_ARM_LOCAL_CNTPNSIRQ, 1000000);
-
 #if BCM2837
+    arm_generic_timer_init(INTERRUPT_ARM_LOCAL_CNTPNSIRQ, 0);
+
    /* look for a flattened device tree just before the kernel */
     const void *fdt = (void *)KERNEL_BASE;
     int err = fdt_check_header(fdt);
@@ -173,6 +173,10 @@ void platform_early_init(void)
         }
     }
 
+#elif BCM2836
+    arm_generic_timer_init(INTERRUPT_ARM_LOCAL_CNTPNSIRQ, 1000000);
+#else
+#error Unknown BCM28XX Variant
 #endif
 
     /* add the main memory arena */
