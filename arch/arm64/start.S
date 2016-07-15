@@ -100,6 +100,11 @@ arm_reset:
 .Lnot_device:
 
 .Lmapping_size_loop:
+    ldr     attr, =MMU_PTE_KERNEL_DATA_FLAGS
+    ldr     tmp, =arm_reset
+    subs    size, tmp, vaddr
+    b.hi    .Lmem_type_done
+
     ldr     attr, =MMU_PTE_KERNEL_RO_FLAGS
     ldr     tmp, =__rodata_start
     subs    size, tmp, vaddr
