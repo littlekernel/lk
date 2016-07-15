@@ -103,6 +103,6 @@ void usbtest_usb_setup(void)
     printf("appending interfaces\n");
     usb_append_interface_lowspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));
     usb_append_interface_highspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));
-    usbc_setup_endpoint(1, USB_OUT, 64);
-    usbc_setup_endpoint(1, USB_IN, 64);
+    usbc_setup_endpoint(1, USB_OUT, 64, USB_BULK);
+    usbc_setup_endpoint(1, USB_IN, 64, USB_BULK);
 }

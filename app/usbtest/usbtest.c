@@ -3,6 +3,7 @@
 #include <err.h>
 #include <string.h>
 #include <stdlib.h>
+#include <trace.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
 #include <kernel/debug.h>
