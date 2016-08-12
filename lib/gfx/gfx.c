@@ -770,6 +770,44 @@ STATIC_COMMAND_START
 STATIC_COMMAND("gfx", "gfx commands", &cmd_gfx)
 STATIC_COMMAND_END(gfx);
 
+static int gfx_draw_mandlebrot(gfx_surface * surface){
+    double a,b, dx, dy, mag, c, ci;
+    uint32_t color,iter,x,y;
+
+    dx= 3.0/((double)surface->width);
+    dy= 3.0/((double)surface->height);
+    c = -2.0;
+    ci = -1.5;
+    for (y = 0; y < surface->height; y++) {
+        c = -2.0;
+        for (x = 0; x < surface->width; x++) {
+            a=0;
+            b=0;
+            mag=0;
+            iter = 0;
+            while ((mag < 4.0) && (iter < 200) ){
+                double a1;
+                a1 = a*a - b*b + c;
+                b = 2.0 * a * b + ci;
+                a=a1;
+                mag = a*a + b*b;
+                iter++;
+            }
+            c = c + dx;
+            if (iter == 200) {
+                color = 0;
+            } else {
+                color = 0x231AF9 * iter;
+            }
+            gfx_putpixel(surface, x, y, color);            
+        }
+        ci = ci + dy;
+    }
+    
+    return 0;
+}
+
+
 static int gfx_draw_rgb_bars(gfx_surface *surface)
 {
     uint x, y;
@@ -806,6 +844,7 @@ static int cmd_gfx(int argc, const cmd_args *argv)
         printf("%s rgb_bars   : Fill frame buffer with rgb bars\n", argv[0].str);
         printf("%s test_pattern : Fill frame with test pattern\n", argv[0].str);
         printf("%s fill r g b   : Fill frame buffer with RGB888 value and force update\n", argv[0].str);
+        printf("%s mandelbrot   : Fill frame buffer with Mandelbrot fractal\n", argv[0].str);
 
         return -1;
     }
@@ -836,6 +875,8 @@ static int cmd_gfx(int argc, const cmd_args *argv)
                 gfx_putpixel(surface, x, y, (0xff << 24) | (argv[2].i << 16) | (argv[3].i << 8) | argv[4].i);
             }
         }
+    } else if (!strcmp(argv[1].str, "mandelbrot")) {
+        gfx_draw_mandlebrot(surface);
     }
 
     gfx_flush(surface);
