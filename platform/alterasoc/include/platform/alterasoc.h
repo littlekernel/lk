@@ -24,7 +24,7 @@
 
 #include <reg.h>
 
-/* common addres space regions */
+/* common address space regions */
 #define FPGASLAVES_BASE   (0xc0000000)
 #define PERIPH_BASE       (0xfc000000)
 #define LWPFGASLAVES_BASE (0xff200000)

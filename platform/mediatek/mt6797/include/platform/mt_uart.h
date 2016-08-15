@@ -73,7 +73,7 @@ typedef enum {
 
 
 /* IER */
-#define UART_IER_ERBFI              (1 << 0) /* RX buffer conatins data int. */
+#define UART_IER_ERBFI              (1 << 0) /* RX buffer contains data int. */
 #define UART_IER_ETBEI              (1 << 1) /* TX FIFO threshold trigger int. */
 #define UART_IER_ELSI               (1 << 2) /* BE, FE, PE, or OE int. */
 #define UART_IER_EDSSI              (1 << 3) /* CTS change (DCTS) int. */

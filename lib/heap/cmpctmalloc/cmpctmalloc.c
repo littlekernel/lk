@@ -342,7 +342,7 @@ static void *TestTrimHelper(ssize_t target)
         *(char **)next_block = answer;
         answer = next_block;
         if (theheap.remaining > remaining) return answer;
-        // Abandon attemt to hit particular freelist entry size if we accidentally got more memory
+        // Abandon attempt to hit particular freelist entry size if we accidentally got more memory
         // from the OS.
         remaining = theheap.remaining;
     }

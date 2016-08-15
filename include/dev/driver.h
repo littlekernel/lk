@@ -89,7 +89,7 @@ struct driver {
     }
 
 /*
- * returns the driver specific ops pointer given the device instance, specifc
+ * returns the driver specific ops pointer given the device instance, specific
  * ops type, and generic ops member name within the specific ops structure.
  */
 #define device_get_driver_ops(dev, type, member) ({ \

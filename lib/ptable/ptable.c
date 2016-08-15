@@ -351,7 +351,7 @@ static off_t ptable_adjust_request_for_erase_geometry(uint64_t  region_start,
     // Intersect each of the erase regions with the region being proposed and
     // see if we can fit the allocation request in the intersection, after
     // adjusting the intersection and requested length to multiples of and
-    // alligned to the erase block size.  Test the geometries back-to-front
+    // aligned to the erase block size.  Test the geometries back-to-front
     // instead of front-to-back if alloc_end has been reqeusted.
     for (size_t i = 0; i < ptable.bdev->geometry_count; ++i) {
         size_t geo_index = alloc_end ?  (ptable.bdev->geometry_count - i - 1) : i;

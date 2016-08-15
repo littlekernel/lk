@@ -366,7 +366,7 @@ static bool test_deletion(void)
         return false;
     EXPECT_EQ(2, (inode)->reference_count,
               "Reference count should count one non-deleted version of object");
-    EXPECT_EQ(24, (inode)->location, "Not pointing to current verison");
+    EXPECT_EQ(24, (inode)->location, "Not pointing to current version");
     write_pointer = FLASH_PAGE_SIZE + sizeof(erase_header);
     write_pointer += flash_nor_write(0, write_pointer, sizeof(erase_header),
                                      erase_header);

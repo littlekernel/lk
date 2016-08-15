@@ -110,7 +110,7 @@ struct arm_cm_exception_frame_fpu {
 extern unsigned int arm_cm_num_irq_pri_bits;
 extern unsigned int arm_cm_irq_pri_mask;
 #else
-/* if we don't want to calculate the nubmer of priority bits, then assume
+/* if we don't want to calculate the number of priority bits, then assume
  * the cpu implements 3 (8 priority levels), which is the minimum according to spec.
  */
 #ifndef __NVIC_PRIO_BITS

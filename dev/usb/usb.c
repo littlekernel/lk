@@ -101,7 +101,7 @@ static int usb_append_interface(usb_descriptor *desc, const uint8_t *int_descr, 
     // patch our interface descriptor with the new id
     ptr[2] = interface_num;
 
-    // append it to our config desriptor
+    // append it to our config descriptor
     append_desc_data(desc, ptr, len);
     free(ptr);
 

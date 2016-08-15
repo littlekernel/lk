@@ -154,7 +154,7 @@ void arch_init(void)
     //spinlock_test();
 
 #if ARM_WITH_MMU
-    /* finish intializing the mmu */
+    /* finish initializing the mmu */
     arm_mmu_init();
 #endif
 }
@@ -258,7 +258,7 @@ static void arm_basic_setup(void)
     arm_fpu_set_enable(false);
 #endif
 
-    /* set the vector base to our exception vectors so we dont need to double map at 0 */
+    /* set the vector base to our exception vectors so we don't need to double map at 0 */
 #if ARM_ISA_ARMV7
     arm_write_vbar(KERNEL_BASE + KERNEL_LOAD_OFFSET);
 #endif

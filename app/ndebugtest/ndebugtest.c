@@ -38,7 +38,7 @@
  * read/write API.
  *
  * Any subsequent read/write operation may return ERR_CHANNEL_CLOSED. This is
- * because we must be able to accomodate the possibility of the device becoming
+ * because we must be able to accommodate the possibility of the device becoming
  * disconnected.
  * If ERR_CHANNEL_CLOSED is received, the client MUST assume that the connection
  * has closed and will not be recovered.

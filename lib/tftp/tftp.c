@@ -195,7 +195,7 @@ static void udp_svc_callback(void *data, size_t len,
     opcode = ntohs(RD_U16(data));
 
     if (opcode != TFTP_OPCODE_WRQ) {
-        // Operation not suported.
+        // Operation not supported.
         LTRACEF("op not supported, opcode: %d\n", opcode);
         send_error(socket, TFTP_ERROR_ACCESS);
         udp_close(socket);

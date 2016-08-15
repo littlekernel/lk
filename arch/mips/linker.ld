@@ -112,7 +112,7 @@ SECTIONS
         _sbss_end__ = .;
     }
 
-    /* unintialized data (in same segment as writable data) */
+    /* uninitialized data (in same segment as writable data) */
     .bss : {
         /* regular bss */
         *(.dynbss)

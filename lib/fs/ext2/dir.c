@@ -173,10 +173,10 @@ nextcomponent:
         }
 
         if (!done) {
-            /* move to the next seperator */
+            /* move to the next separator */
             ptr = next_sep + 1;
 
-            /* consume multiple seperators */
+            /* consume multiple separators */
             while (*ptr == '/')
                 ptr++;
         }

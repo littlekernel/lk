@@ -49,7 +49,7 @@ STATIC const PINMUX_GRP_T ioconSetup[] = {
     {0, 3,   (IOCON_MODE_INACT | IOCON_DIGMODE_EN)},        /* PIO0_3-SCT1_OUT4-GRN */
     {1, 1,   (IOCON_MODE_INACT | IOCON_DIGMODE_EN)},        /* PIO1_1-BREAK_STS1-BLUE */
 
-    /* QEI, motor controler, I2C, CAN */
+    /* QEI, motor controller, I2C, CAN */
     {0, 2,   (IOCON_MODE_INACT | IOCON_DIGMODE_EN)},        /* PIO0_2-QEI-SCT0_IN */
     {0, 30,  (IOCON_MODE_INACT | IOCON_DIGMODE_EN)},        /* PIO0_30-QEI-SCT0_IN */
     {0, 17,  (IOCON_MODE_INACT | IOCON_DIGMODE_EN)},        /* PIO0_17-QEI-SCT0_IN */
@@ -138,7 +138,7 @@ void Board_SetupMuxing(void)
 /* Initialize debug output via UART for board */
 void Board_Debug_Init(void)
 {
-    /* Disables pullups/pulldowns and enable digitial mode */
+    /* Disables pullups/pulldowns and enable digital mode */
     Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 13, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
     Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 18, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
 
