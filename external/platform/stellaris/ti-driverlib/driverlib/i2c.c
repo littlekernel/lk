@@ -55,7 +55,7 @@
 
 //*****************************************************************************
 //
-// A mapping of I2C base address to interupt number.
+// A mapping of I2C base address to interrupt number.
 //
 //*****************************************************************************
 static const unsigned long g_ppulI2CIntMap[][2] =
@@ -359,7 +359,7 @@ I2CMasterEnable(unsigned long ulBase)
 //!
 //! \param ulBase is the base address of the I2C Slave module.
 //!
-//! This fucntion enables operation of the I2C Slave block.
+//! This function enables operation of the I2C Slave block.
 //!
 //! \return None.
 //

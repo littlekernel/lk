@@ -78,7 +78,7 @@
 //!
 //! This function determines if a PWM generator number is valid.
 //!
-//! \return Returnes \b true if the generator number is valid and \b false
+//! \return Returns \b true if the generator number is valid and \b false
 //! otherwise.
 //
 //*****************************************************************************
@@ -1345,7 +1345,7 @@ PWMGenIntStatus(unsigned long ulBase, unsigned long ulGen, tBoolean bMasked)
 //! \b PWM_GEN_0, \b PWM_GEN_1, \b PWM_GEN_2, or \b PWM_GEN_3.
 //! \param ulInts specifies the interrupts to be cleared.
 //!
-//! This funciton clears the specified interrupt(s) by writing a 1 to the
+//! This function clears the specified interrupt(s) by writing a 1 to the
 //! specified bits of the interrupt status register for the specified PWM
 //! generator.  The \e ulInts parameter is the logical OR of
 //! \b PWM_INT_CNT_ZERO, \b PWM_INT_CNT_LOAD, \b PWM_INT_CNT_AU,

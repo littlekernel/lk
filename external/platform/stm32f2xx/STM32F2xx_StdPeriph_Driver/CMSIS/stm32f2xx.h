@@ -6840,7 +6840,7 @@ typedef struct
   #define ETH_DMASR_RPS_Waiting         ((uint32_t)0x00060000)  /* Running - waiting for packet */
   #define ETH_DMASR_RPS_Suspended       ((uint32_t)0x00080000)  /* Suspended - Rx Descriptor unavailable */
   #define ETH_DMASR_RPS_Closing         ((uint32_t)0x000A0000)  /* Running - closing descriptor */
-  #define ETH_DMASR_RPS_Queuing         ((uint32_t)0x000E0000)  /* Running - queuing the recieve frame into host memory */
+  #define ETH_DMASR_RPS_Queuing         ((uint32_t)0x000E0000)  /* Running - queuing the receive frame into host memory */
 #define ETH_DMASR_NIS        ((uint32_t)0x00010000)  /* Normal interrupt summary */
 #define ETH_DMASR_AIS        ((uint32_t)0x00008000)  /* Abnormal interrupt summary */
 #define ETH_DMASR_ERS        ((uint32_t)0x00004000)  /* Early receive status */

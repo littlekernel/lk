@@ -453,7 +453,7 @@
 
 // Field:     [8] AHB_MST1_BIGEND
 //
-// Endianess for the AHB master
+// Endianness for the AHB master
 // ENUMs:
 // BIG_ENDIAN               Big Endian
 // LITTLE_ENDIAN            Little Endian

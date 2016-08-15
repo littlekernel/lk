@@ -1346,7 +1346,7 @@ void TIM_CCxChannelCmd(TIM_TypeDef* TIMx, uint32_t Channel, uint32_t ChannelStat
   * @brief  Indicates whether or not the TIM Counter is used as downcounter
   * @param  __HANDLE__: TIM handle.
   * @retval False (Counter used as upcounter) or True (Counter used as downcounter)
-  * @note This macro is particularly usefull to get the counting mode when the timer operates in Center-aligned mode or Encoder
+  * @note This macro is particularly useful to get the counting mode when the timer operates in Center-aligned mode or Encoder
 mode.
   */
 #define __HAL_TIM_IS_TIM_COUNTING_DOWN(__HANDLE__)            (((__HANDLE__)->Instance->CR1 & (TIM_CR1_DIR)) == (TIM_CR1_DIR))

@@ -102,7 +102,7 @@ typedef struct
 }UART_InitTypeDef;
 
 /**
-  * @brief  UART Advanced Features initalization structure definition
+  * @brief  UART Advanced Features initialization structure definition
   */
 typedef struct
 {
@@ -945,7 +945,7 @@ typedef struct
 
 /**
   * @brief Ensure that Address Length detection parameter is valid.
-  * @param __ADDRESS__: UART Adress length value. 
+  * @param __ADDRESS__: UART Address length value. 
   * @retval SET (__ADDRESS__ is valid) or RESET (__ADDRESS__ is invalid)
   */
 #define IS_UART_ADDRESSLENGTH_DETECT(__ADDRESS__) (((__ADDRESS__) == UART_ADDRESS_DETECT_4B) || \

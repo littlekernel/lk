@@ -195,7 +195,7 @@ HAL_StatusTypeDef HAL_PCD_Init(PCD_HandleTypeDef *hpcd)
  /*Clear pending interrupts*/
  hpcd->Instance->ISTR = 0;
  
-  /*Set Btable Adress*/
+  /*Set Btable Address*/
  hpcd->Instance->BTABLE = BTABLE_ADDRESS;
   
   /*set wInterrupt_Mask global variable*/

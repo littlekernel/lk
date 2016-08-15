@@ -1142,7 +1142,7 @@
 //
 //
 // 0: No registred event
-// 1: A system CPU LOCKUP event has occured since last SW clear of the
+// 1: A system CPU LOCKUP event has occurred since last SW clear of the
 // register.
 //
 // A read of this register clears both  WDT_STAT and LOCKUP_STAT.
@@ -1155,7 +1155,7 @@
 //
 //
 // 0: No registered event
-// 1: A WDT event has occured since last SW clear of the register.
+// 1: A WDT event has occurred since last SW clear of the register.
 //
 // A read of this register clears both WDT_STAT and LOCKUP_STAT.
 #define PRCM_WARMRESET_WDT_STAT                                     0x00000001

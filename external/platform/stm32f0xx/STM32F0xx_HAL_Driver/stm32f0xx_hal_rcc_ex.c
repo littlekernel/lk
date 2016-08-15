@@ -14,7 +14,7 @@
                       ##### How to use this driver #####
   ==============================================================================
     [..]
-      For CRS, RCC Extention HAL driver can be used as follows:
+      For CRS, RCC Extension HAL driver can be used as follows:
 
       (#) In System clock config, HSI48 need to be enabled
 

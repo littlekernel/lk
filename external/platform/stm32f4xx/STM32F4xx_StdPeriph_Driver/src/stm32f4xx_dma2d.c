@@ -322,7 +322,7 @@ void DMA2D_FGConfig(DMA2D_FG_InitTypeDef* DMA2D_FG_InitStruct)
   DMA2D->FGOR &= ~(uint32_t)DMA2D_FGOR_LO;
   DMA2D->FGOR |= (DMA2D_FG_InitStruct->DMA2D_FGO);
 
-  /* Configures foreground Pixel Format Convertor */
+  /* Configures foreground Pixel Format Converter */
   DMA2D->FGPFCCR &= (uint32_t)PFCCR_MASK;
   fg_clutcolormode = DMA2D_FG_InitStruct->DMA2D_FG_CLUT_CM << 4;
   fg_clutsize = DMA2D_FG_InitStruct->DMA2D_FG_CLUT_SIZE << 8;
@@ -419,7 +419,7 @@ void DMA2D_BGConfig(DMA2D_BG_InitTypeDef* DMA2D_BG_InitStruct)
   DMA2D->BGOR &= ~(uint32_t)DMA2D_BGOR_LO;
   DMA2D->BGOR |= (DMA2D_BG_InitStruct->DMA2D_BGO);
 
-  /* Configures background Pixel Format Convertor */
+  /* Configures background Pixel Format Converter */
   DMA2D->BGPFCCR &= (uint32_t)PFCCR_MASK;
   bg_clutcolormode = DMA2D_BG_InitStruct->DMA2D_BG_CLUT_CM << 4;
   bg_clutsize = DMA2D_BG_InitStruct->DMA2D_BG_CLUT_SIZE << 8;

@@ -150,7 +150,7 @@ ErrorCode_t usb_hid_init(USBD_HANDLE_T hUsb,
 	hid_param.report_data  = reports_data;
 
 	ret = USBD_API->hid->init(hUsb, &hid_param);
-	/* allocate USB accessable memory space for report data */
+	/* allocate USB accessible memory space for report data */
 	loopback_report =  (uint8_t *) hid_param.mem_base;
 	hid_param.mem_base += 4;
 	hid_param.mem_size += 4;

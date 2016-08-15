@@ -157,7 +157,7 @@ static void readI2CMaster(uint16_t AddressI2C, uint8_t *readPtr, bool address10B
 	/* Function is non-blocking, returned error should be LPC_OK, but isn't checked here */
 	error_code = LPC_I2CD_API->i2c_master_tx_rx_poll(i2cHandleMaster, &param, &result);
 
-	/* Completed without erors? */
+	/* Completed without errors? */
 	if (error_code != LPC_OK) {
 		/* Likely cause is NAK */
 		DEBUGOUT("i2c_master_receive error code : %x\r\b", error_code);

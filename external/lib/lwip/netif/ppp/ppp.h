@@ -180,7 +180,7 @@ u_short pppMTU(int pd);
 #if PPPOS_SUPPORT && !PPP_INPROC_OWNTHREAD
 /*
  * PPP over Serial: this is the input function to be called for received data.
- * If PPP_INPROC_OWNTHREAD==1, a seperate input thread using the blocking
+ * If PPP_INPROC_OWNTHREAD==1, a separate input thread using the blocking
  * sio_read() is used, so this is deactivated.
  */
 void pppos_input(int pd, u_char* data, int len);

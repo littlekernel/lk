@@ -433,7 +433,7 @@ typedef struct
   *      the end of the byte transmission. The two events I2C_EVENT_SLAVE_BYTE_TRANSMITTED and
   *      I2C_EVENT_SLAVE_BYTE_TRANSMITTING are similar. The second one can optionally be 
   *      used when the user software doesn't guarantee the EV3 is managed before the
-  *      current byte end of tranfer.
+  *      current byte end of transfer.
   *    - EV3_2: When the master sends a NACK in order to tell slave that data transmission 
   *      shall end (before sending the STOP condition). In this case slave has to stop sending 
   *      data bytes and expect a Stop condition on the bus.
@@ -580,7 +580,7 @@ void I2C_FastModeDutyCycleConfig(I2C_TypeDef* I2Cx, uint16_t I2C_DutyCycle);
  *          - I2Cx_ER_IRQHandler() which is called when the error interurpt occurs.
  *            Where x is the peripheral instance (I2C1, I2C2 ...)
  *          - I2C_GetFlagStatus() or I2C_GetITStatus() to be called into I2Cx_ER_IRQHandler()
- *            in order to determine which error occured.
+ *            in order to determine which error occurred.
  *          - I2C_ClearFlag() or I2C_ClearITPendingBit() and/or I2C_SoftwareResetCmd()
  *            and/or I2C_GenerateStop() in order to clear the error flag and source,
  *            and return to correct communication status.

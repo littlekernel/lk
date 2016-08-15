@@ -62,7 +62,7 @@ typedef void (* FPTR_VOID_UINT8_T) (uint8_t);
 
 //*****************************************************************************
 //
-// C99 types only allows bitfield defintions on certain datatypes.
+// C99 types only allows bitfield definitions on certain datatypes.
 //
 //*****************************************************************************
 typedef unsigned int  __UINT32;

@@ -84,7 +84,7 @@
 #define AUTOIP_RANGE_END   (AUTOIP_NET | 0xFEFF)
 
 
-/** Pseudo random macro based on netif informations.
+/** Pseudo random macro based on netif information.
  * You could use "rand()" from the C Library if you define LWIP_AUTOIP_RAND in lwipopts.h */
 #ifndef LWIP_AUTOIP_RAND
 #define LWIP_AUTOIP_RAND(netif) ( (((u32_t)((netif->hwaddr[5]) & 0xff) << 24) | \
@@ -342,7 +342,7 @@ autoip_start_probing(struct netif *netif)
       ip4_addr3_16(&netif->autoip->llipaddr), ip4_addr4_16(&netif->autoip->llipaddr)));
 
   /* time to wait to first probe, this is randomly
-   * choosen out of 0 to PROBE_WAIT seconds.
+   * chosen out of 0 to PROBE_WAIT seconds.
    * compliant to RFC 3927 Section 2.2.1
    */
   autoip->ttw = (u16_t)(LWIP_AUTOIP_RAND(netif) % (PROBE_WAIT * AUTOIP_TICKS_PER_SECOND));

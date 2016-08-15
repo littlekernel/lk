@@ -438,7 +438,7 @@ sys_timeouts_mbox_fetch(sys_mbox_t *mbox, void **msg)
     }
 
     if (time_needed == SYS_ARCH_TIMEOUT) {
-      /* If time == SYS_ARCH_TIMEOUT, a timeout occured before a message
+      /* If time == SYS_ARCH_TIMEOUT, a timeout occurred before a message
          could be fetched. We should now call the timeout handler and
          deallocate the memory allocated for the timeout. */
       tmptimeout = next_timeout;
@@ -465,7 +465,7 @@ sys_timeouts_mbox_fetch(sys_mbox_t *mbox, void **msg)
       goto again;
     } else {
       /* If time != SYS_ARCH_TIMEOUT, a message was received before the timeout
-         occured. The time variable is set to the number of
+         occurred. The time variable is set to the number of
          milliseconds we waited for the message. */
       if (time_needed < next_timeout->time) {
         next_timeout->time -= time_needed;

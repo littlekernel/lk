@@ -677,7 +677,7 @@
 // 0x3 Both edges
 // Note: If PWM output inversion is enabled, edge detection interrupt
 // behavior is reversed. Thus, if a positive-edge interrupt trigger
-// has been set and the PWM inversion generates a postive
+// has been set and the PWM inversion generates a positive
 // edge, no event-trigger interrupt asserts. Instead, the interrupt
 // is generated on the negative edge of the PWM signal.
 // ENUMs:
@@ -745,7 +745,7 @@
 // 0x3 Both edges
 // Note: If PWM output inversion is enabled, edge detection interrupt
 // behavior is reversed. Thus, if a positive-edge interrupt trigger
-// has been set and the PWM inversion generates a postive
+// has been set and the PWM inversion generates a positive
 // edge, no event-trigger interrupt asserts. Instead, the interrupt
 // is generated on the negative edge of the PWM signal.
 // ENUMs:
@@ -1035,8 +1035,8 @@
 //
 // GPT Timer B Capture Mode Event Raw Interrupt
 //
-// 0:  The event has not occured.
-// 1:  The event has occured.
+// 0:  The event has not occurred.
+// 1:  The event has occurred.
 //
 // This interrupt asserts when the subtimer is configured in Input Edge-Time
 // mode
@@ -1105,8 +1105,8 @@
 //
 // GPT Timer A Capture Mode Event Raw Interrupt
 //
-// 0:  The event has not occured.
-// 1:  The event has occured.
+// 0:  The event has not occurred.
+// 1:  The event has occurred.
 //
 // This interrupt asserts when the subtimer is configured in Input Edge-Time
 // mode
@@ -1676,7 +1676,7 @@
 // 0 : PWM outputs of Timer A and Timer B are the internal generated PWM
 // signals of the respective timers.
 // 1 : PWM output of Timer A is ANDed version of Timer A and Timer B PWM
-// signals and Timer B PWM ouput is Timer B PWM signal only.
+// signals and Timer B PWM output is Timer B PWM signal only.
 #define GPT_ANDCCP_CCP_AND_EN                                       0x00000001
 #define GPT_ANDCCP_CCP_AND_EN_BITN                                           0
 #define GPT_ANDCCP_CCP_AND_EN_M                                     0x00000001

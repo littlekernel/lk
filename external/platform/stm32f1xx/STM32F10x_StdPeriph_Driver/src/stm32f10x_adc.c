@@ -999,9 +999,9 @@ void ADC_InjectedSequencerLengthConfig(ADC_TypeDef* ADCx, uint8_t Length)
   
   /* Get the old register value */
   tmpreg1 = ADCx->JSQR;
-  /* Clear the old injected sequnence lenght JL bits */
+  /* Clear the old injected sequnence length JL bits */
   tmpreg1 &= JSQR_JL_Reset;
-  /* Set the injected sequnence lenght JL bits */
+  /* Set the injected sequnence length JL bits */
   tmpreg2 = Length - 1; 
   tmpreg1 |= tmpreg2 << 20;
   /* Store the new register value */

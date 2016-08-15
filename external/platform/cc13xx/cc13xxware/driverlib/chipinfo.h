@@ -444,7 +444,7 @@ ChipInfo_HwRevisionIs_GTEQ_2_3( void )
 
 //*****************************************************************************
 //
-//! \brief Verifies that curent chip is built for CC13xx HwRev 2.0 or later and never returns if violated.
+//! \brief Verifies that current chip is built for CC13xx HwRev 2.0 or later and never returns if violated.
 //!
 //! \return None
 //

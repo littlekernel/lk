@@ -279,7 +279,7 @@ void RTC_ClearFlag(uint16_t RTC_FLAG)
 }
 
 /**
-  * @brief  Checks whether the specified RTC interrupt has occured or not.
+  * @brief  Checks whether the specified RTC interrupt has occurred or not.
   * @param  RTC_IT: specifies the RTC interrupts sources to check.
   *   This parameter can be one of the following values:
   *     @arg RTC_IT_OW: Overflow interrupt

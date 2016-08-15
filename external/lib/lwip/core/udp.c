@@ -443,7 +443,7 @@ end:
  * automatically be bound to a random port.
  *
  * @return lwIP error code.
- * - ERR_OK. Successful. No error occured.
+ * - ERR_OK. Successful. No error occurred.
  * - ERR_MEM. Out of memory.
  * - ERR_RTE. Could not find route to destination address.
  * - More errors could be returned by lower protocol layers.
@@ -728,7 +728,7 @@ udp_sendto_if_chksum(struct udp_pcb *pcb, struct pbuf *p, ip_addr_t *dst_ip,
     err = ip_output_if(q, src_ip, dst_ip, pcb->ttl, pcb->tos, IP_PROTO_UDP, netif);
     NETIF_SET_HWADDRHINT(netif, NULL);
   }
-  /* TODO: must this be increased even if error occured? */
+  /* TODO: must this be increased even if error occurred? */
   snmp_inc_udpoutdatagrams();
 
   /* did we chain a separate header pbuf earlier? */
@@ -756,7 +756,7 @@ udp_sendto_if_chksum(struct udp_pcb *pcb, struct pbuf *p, ip_addr_t *dst_ip,
  * ipaddr & port are expected to be in the same byte order as in the pcb.
  *
  * @return lwIP error code.
- * - ERR_OK. Successful. No error occured.
+ * - ERR_OK. Successful. No error occurred.
  * - ERR_USE. The specified ipaddr and port are already bound to by
  * another UDP PCB.
  *
@@ -922,7 +922,7 @@ udp_disconnect(struct udp_pcb *pcb)
  *
  * This callback will be called when receiving a datagram for the pcb.
  *
- * @param pcb the pcb for wich to set the recv callback
+ * @param pcb the pcb for which to set the recv callback
  * @param recv function pointer of the callback function
  * @param recv_arg additional argument to pass to the callback function
  */

@@ -197,7 +197,7 @@ HAL_StatusTypeDef USB_DevInit (USB_OTG_GlobalTypeDef *USBx, USB_OTG_CfgTypeDef c
     USBx->GCCFG |= USB_OTG_GCCFG_VBDEN;
 
     if (cfg.vbus_sensing_enable == 0) {
-        /*Desactivate VBUS Sensing B */
+        /*Deactivate VBUS Sensing B */
         USBx->GCCFG &= ~ USB_OTG_GCCFG_VBDEN;
 
         /* B-peripheral session valid override enable*/

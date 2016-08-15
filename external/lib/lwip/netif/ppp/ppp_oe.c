@@ -124,7 +124,7 @@ static void pppoe_clear_softc(struct pppoe_softc *, const char *);
 /* internal timeout handling */
 static void pppoe_timeout(void *);
 
-/* sending actual protocol controll packets */
+/* sending actual protocol control packets */
 static err_t pppoe_send_padi(struct pppoe_softc *);
 static err_t pppoe_send_padr(struct pppoe_softc *);
 #ifdef PPPOE_SERVER

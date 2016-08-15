@@ -665,7 +665,7 @@ tcp_process(struct tcp_pcb *pcb)
         pcb->nrtx = 0;
       }
 
-      /* Call the user specified function to call when sucessfully
+      /* Call the user specified function to call when successfully
        * connected. */
       TCP_EVENT_CONNECTED(pcb, ERR_OK, err);
       if (err == ERR_ABRT) {
@@ -1406,7 +1406,7 @@ tcp_receive(struct tcp_pcb *pcb)
                 }
                 break;
               } else {
-                /* Either the lenghts are the same or the incoming
+                /* Either the lengths are the same or the incoming
                    segment was smaller than the old one; in either
                    case, we ditch the incoming segment. */
                 break;
@@ -1516,7 +1516,7 @@ tcp_receive(struct tcp_pcb *pcb)
 #endif /* TCP_QUEUE_OOSEQ */
       }
     } else {
-      /* The incoming segment is not withing the window. */
+      /* The incoming segment is not within the window. */
       tcp_send_empty_ack(pcb);
     }
   } else {

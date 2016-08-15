@@ -153,7 +153,7 @@
 // 0: Wakeup occurred from cold reset or brown out as seen in RESET_SRC
 // 1: A wakeup has occurred from SHUTDOWN
 //
-// Note: This flag can not be cleared and will therefor remain valid untill
+// Note: This flag can not be cleared and will therefor remain valid until
 // poweroff/reset
 #define AON_SYSCTL_RESETCTL_WU_FROM_SD                              0x00008000
 #define AON_SYSCTL_RESETCTL_WU_FROM_SD_BITN                                 15
@@ -174,7 +174,7 @@
 // only occur in a debug session. The boot code will not proceed with wakeup
 // from SHUTDOWN procedure until this bitfield is asserted as well.
 //
-// Note: This flag can not be cleared and will therefor remain valid untill
+// Note: This flag can not be cleared and will therefor remain valid until
 // poweroff/reset
 #define AON_SYSCTL_RESETCTL_GPIO_WU_FROM_SD                         0x00004000
 #define AON_SYSCTL_RESETCTL_GPIO_WU_FROM_SD_BITN                            14
@@ -279,7 +279,7 @@
 //
 // Note: Clock loss reset generation must be disabled before SCLK_LF clock
 // source is changed in  DDI_0_OSC:CTL0.SCLK_LF_SRC_SEL and remain disabled
-// untill the change is confirmed in DDI_0_OSC:STAT0.SCLK_LF_SRC. Failure to do
+// until the change is confirmed in DDI_0_OSC:STAT0.SCLK_LF_SRC. Failure to do
 // so may result in a spurious system reset. Clock loss reset generation can be
 // disabled through this bitfield or by clearing  DDI_0_OSC:CTL0.CLK_LOSS_EN
 //

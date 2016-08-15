@@ -323,7 +323,7 @@ EthernetMACAddrGet(unsigned long ulBase, unsigned char *pucMACAddr)
     //
     // Read the MAC address from the device.  The first four bytes of the
     // MAC address are read from the IA0 register.  The remaining two bytes
-    // of the MAC addres
+    // of the MAC address
     //
     ulTemp = HWREG(ulBase + MAC_O_IA0);
     pucMACAddr[0] = pucTemp[0];

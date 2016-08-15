@@ -274,7 +274,7 @@ pbuf_alloc(pbuf_layer layer, u16_t length, pbuf_type type)
         PBUF_POOL_IS_EMPTY();
         /* free chain so far allocated */
         pbuf_free(p);
-        /* bail out unsuccesfully */
+        /* bail out unsuccessfully */
         return NULL;
       }
       q->type = type;
@@ -499,7 +499,7 @@ pbuf_realloc(struct pbuf *p, u16_t new_len)
  * @param header_size_increment Number of bytes to increment header size which
  * increases the size of the pbuf. New space is on the front.
  * (Using a negative value decreases the header size.)
- * If hdr_size_inc is 0, this function does nothing and returns succesful.
+ * If hdr_size_inc is 0, this function does nothing and returns successful.
  *
  * PBUF_ROM and PBUF_REF type buffers cannot have their sizes increased, so
  * the call will fail. A check is made that the increase in header size does
@@ -552,7 +552,7 @@ pbuf_header(struct pbuf *p, s16_t header_size_increment)
         (void *)p->payload, (void *)(p + 1)));
       /* restore old payload pointer */
       p->payload = payload;
-      /* bail out unsuccesfully */
+      /* bail out unsuccessfully */
       return 1;
     }
   /* pbuf types refering to external payloads? */
@@ -563,7 +563,7 @@ pbuf_header(struct pbuf *p, s16_t header_size_increment)
       p->payload = (u8_t *)p->payload - header_size_increment;
     } else {
       /* cannot expand payload to front (yet!)
-       * bail out unsuccesfully */
+       * bail out unsuccessfully */
       return 1;
     }
   } else {
@@ -1094,7 +1094,7 @@ pbuf_get_at(struct pbuf* p, u16_t offset)
 /** Compare pbuf contents at specified offset with memory s2, both of length n
  *
  * @param p pbuf to compare
- * @param offset offset into p at wich to start comparing
+ * @param offset offset into p at which to start comparing
  * @param s2 buffer to compare
  * @param n length of buffer to compare
  * @return zero if equal, nonzero otherwise

@@ -101,7 +101,7 @@ typedef struct {
 } UART_InitTypeDef;
 
 /**
-  * @brief  UART Advanced Features initalization structure definition
+  * @brief  UART Advanced Features initialization structure definition
   */
 typedef struct {
     uint32_t AdvFeatureInit;        /*!< Specifies which advanced UART features is initialized. Several

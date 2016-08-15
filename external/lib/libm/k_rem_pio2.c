@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
  *          64-bit  precision   2
  *          113-bit precision   3
  *      The actual value is the sum of them. Thus for 113-bit
- *      precison, one may have to do something like:
+ *      precision, one may have to do something like:
  *
  *      long double t,w,r_head, r_tail;
  *      t = (long double)y[2] + (long double)y[1];
@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
  *      jk+1 must be 2 larger than you might expect so that our
  *      recomputation test works. (Up to 24 bits in the integer
  *      part (the 24 bits of it that we compute) and 23 bits in
- *      the fraction part may be lost to cancelation before we
+ *      the fraction part may be lost to cancellation before we
  *      recompute.)
  *
  *  jz  local integer variable indicating the number of

@@ -5,7 +5,7 @@
   * @version V1.1.2
   * @date    05-March-2012 
   * @brief   This file provides firmware functions to manage the following 
-  *          functionalities of the Analog to Digital Convertor (ADC) peripheral:
+  *          functionalities of the Analog to Digital Converter (ADC) peripheral:
   *           - Initialization and Configuration (in addition to ADC multi mode 
   *             selection)
   *           - Analog Watchdog configuration

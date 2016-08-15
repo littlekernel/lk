@@ -122,7 +122,7 @@ void Chip_SCTIPU_ConfigSample(uint8_t ch, uint8_t useb, uint8_t sampIn, uint8_t 
 /**
  * @brief	Selects multiple abort input enables that will be enabled to contribute to the ORed output
  * @param	ch			: SCTIPU channel, 0-3
- * @param	srcAbort	: Or'ed values of SCTIPU_ABTENA_* defintions used for OR'ed abort enables
+ * @param	srcAbort	: Or'ed values of SCTIPU_ABTENA_* definitions used for OR'ed abort enables
  * @return	Nothing
  * @note	Example: Chip_SCTIPU_ConfigSample(0, SCTIPU_ABTENA_ACMP0_O | SCTIPU_ABTENA_ACMP1_O);<br>
  */
@@ -146,7 +146,7 @@ STATIC INLINE uint32_t Chip_SCTIPU_GetActiveAbortSrc(uint8_t ch)
 /**
  * @brief	Clears activated SCT abort sources
  * @param	ch			: SCTIPU channel, 0-3
- * @param	srcClear	: Or'ed values of SCTIPU_ABTENA_* defintions used for clearing activated states
+ * @param	srcClear	: Or'ed values of SCTIPU_ABTENA_* definitions used for clearing activated states
  * @return	Nothing
  */
 STATIC INLINE void Chip_SCTIPU_ClearActiveAbortSrc(uint8_t ch, uint32_t srcClear)

@@ -412,7 +412,7 @@ ComparatorIntStatus(unsigned long ulBase, unsigned long ulComp,
 //! \param ulComp is the index of the comparator.
 //!
 //! The comparator interrupt is cleared, so that it no longer asserts.  This
-//! fucntion must be called in the interrupt handler to keep the handler from
+//! function must be called in the interrupt handler to keep the handler from
 //! being called again immediately upon exit.  Note that for a level-triggered
 //! interrupt, the interrupt cannot be cleared until it stops asserting.
 //!

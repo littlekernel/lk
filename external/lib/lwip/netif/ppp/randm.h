@@ -53,7 +53,7 @@ void avRandomInit(void);
 void avChurnRand(char *randData, u32_t randLen);
 
 /*
- * Randomize our random seed value.  To be called for truely random events
+ * Randomize our random seed value.  To be called for truly random events
  * such as user operations and network traffic.
  */
 #if MD5_SUPPORT

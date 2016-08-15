@@ -526,7 +526,7 @@
 // register.
 //
 //*****************************************************************************
-#define CAN_TST_TX_MSK          0x00000060  // Overide control of CAN_TX pin
+#define CAN_TST_TX_MSK          0x00000060  // Override control of CAN_TX pin
 
 //*****************************************************************************
 //

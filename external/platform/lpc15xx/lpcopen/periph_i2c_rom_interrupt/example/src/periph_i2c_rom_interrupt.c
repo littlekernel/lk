@@ -180,7 +180,7 @@ static void readI2CMaster(uint16_t AddressI2C, uint8_t *readPtr, bool address10B
 	/* Cast saved error code from callback */
 	error_code = (ErrorCode_t) intErrCode;
 
-	/* Completed without erors? */
+	/* Completed without errors? */
 	if (error_code != LPC_OK) {
 		/* Likely cause is NAK */
 		DEBUGOUT("i2c_master_receive error code : %x\r\b", error_code);

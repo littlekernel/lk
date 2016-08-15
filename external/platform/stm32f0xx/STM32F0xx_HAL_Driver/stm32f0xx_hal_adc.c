@@ -5,7 +5,7 @@
   * @version V1.3.1
   * @date    29-January-2016
   * @brief   This file provides firmware functions to manage the following 
-  *          functionalities of the Analog to Digital Convertor (ADC)
+  *          functionalities of the Analog to Digital Converter (ADC)
   *          peripheral:
   *           + Initialization and de-initialization functions
   *             ++ Initialization and Configuration of ADC

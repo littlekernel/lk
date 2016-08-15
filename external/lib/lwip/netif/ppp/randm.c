@@ -157,7 +157,7 @@ avRandom()
 /*****************************/
 /*** LOCAL DATA STRUCTURES ***/
 /*****************************/
-static int  avRandomized = 0;       /* Set when truely randomized. */
+static int  avRandomized = 0;       /* Set when truly randomized. */
 static u32_t avRandomSeed = 0;      /* Seed used for random number generation. */
 
 
@@ -208,7 +208,7 @@ avRandomInit()
 
 /*
  * Randomize our random seed value.  Here we use the fact that
- * this function is called at *truely random* times by the polling
+ * this function is called at *truly random* times by the polling
  * and network functions.  Here we only get 16 bits of new random
  * value but we use the previous value to randomize the other 16
  * bits.
@@ -232,9 +232,9 @@ avRandomize(void)
 /*
  * Return a new random number.
  * Here we use the Borland rand() function to supply a pseudo random
- * number which we make truely random by combining it with our own
- * seed which is randomized by truely random events. 
- * Thus the numbers will be truely random unless there have been no
+ * number which we make truly random by combining it with our own
+ * seed which is randomized by truly random events. 
+ * Thus the numbers will be truly random unless there have been no
  * operator or network events in which case it will be pseudo random
  * seeded by the real time clock.
  */

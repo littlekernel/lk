@@ -219,7 +219,7 @@ typedef struct _HID_DESCRIPTOR HID_DESCRIPTOR;
 #define HID_USAGE_KEYBOARD_ESCAPE               0x29
 #define HID_USAGE_KEYBOARD_DELETE               0x2A
 
-/** Funtion keys */
+/** Function keys */
 #define HID_USAGE_KEYBOARD_F1                   0x3A
 #define HID_USAGE_KEYBOARD_F12                  0x45
 

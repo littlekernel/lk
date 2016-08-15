@@ -1411,11 +1411,11 @@ tcp_sent(struct tcp_pcb *pcb, tcp_sent_fn sent)
 
 /**
  * Used to specify the function that should be called when a fatal error
- * has occured on the connection.
+ * has occurred on the connection.
  *
  * @param pcb tcp_pcb to set the err callback
  * @param err callback function to call for this pcb when a fatal error
- *        has occured on the connection
+ *        has occurred on the connection
  */ 
 void
 tcp_err(struct tcp_pcb *pcb, tcp_err_fn err)

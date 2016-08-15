@@ -532,7 +532,7 @@ LPCIntRegister(unsigned long ulBase, void (*pfnHandler)(void))
 //! \param ulBase specifies the LPC module base address.
 //!
 //! This function unregisters the handler to be called when an LPC interrupt
-//! occurs.  This fucntion also masks off the interrupt in the interrupt
+//! occurs.  This function also masks off the interrupt in the interrupt
 //! controller so that the interrupt handler is no longer called.
 //!
 //! \sa IntRegister() for important information about registering interrupt

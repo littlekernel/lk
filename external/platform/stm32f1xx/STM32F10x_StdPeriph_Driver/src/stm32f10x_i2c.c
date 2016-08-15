@@ -748,7 +748,7 @@ void I2C_PECPositionConfig(I2C_TypeDef* I2Cx, uint16_t I2C_PECPosition)
 }
 
 /**
-  * @brief  Enables or disables the PEC value calculation of the transfered bytes.
+  * @brief  Enables or disables the PEC value calculation of the transferred bytes.
   * @param  I2Cx: where x can be 1 or 2 to select the I2C peripheral.
   * @param  NewState: new state of the I2Cx PEC value calculation.
   *   This parameter can be: ENABLE or DISABLE.
@@ -895,7 +895,7 @@ void I2C_FastModeDutyCycleConfig(I2C_TypeDef* I2Cx, uint16_t I2C_DutyCycle)
  *          - I2Cx_ER_IRQHandler() which is called when the error interurpt occurs.
  *            Where x is the peripheral instance (I2C1, I2C2 ...)
  *          - I2C_GetFlagStatus() or I2C_GetITStatus() to be called into I2Cx_ER_IRQHandler() 
- *            in order to determine which error occured.
+ *            in order to determine which error occurred.
  *          - I2C_ClearFlag() or I2C_ClearITPendingBit() and/or I2C_SoftwareResetCmd()
  *            and/or I2C_GenerateStop() in order to clear the error flag and source,
  *            and return to correct communication status.
@@ -907,7 +907,7 @@ void I2C_FastModeDutyCycleConfig(I2C_TypeDef* I2Cx, uint16_t I2C_DutyCycle)
  *     by 16 bits and concatenated to Status Register 1).
  *     - When to use:
  *       - This function is suitable for the same applications above but it allows to
- *         overcome the mentionned limitation of I2C_GetFlagStatus() function.
+ *         overcome the mentioned limitation of I2C_GetFlagStatus() function.
  *         The returned value could be compared to events already defined in the 
  *         library (stm32f10x_i2c.h) or to custom values defiend by user.
  *       - This function is suitable when multiple flags are monitored at the same time.
