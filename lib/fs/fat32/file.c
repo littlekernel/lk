@@ -207,10 +207,10 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
             if (done == true) {
                 break;
             } else {
-                /* move to the next seperator */
+                /* move to the next separator */
                 ptr = next_sep + 1;
 
-                /* consume multiple seperators */
+                /* consume multiple separators */
                 while (*ptr == '/') {
                     ptr++;
                 }

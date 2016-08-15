@@ -51,7 +51,7 @@ static uint16_t divisor;
 #define INTERNAL_FREQ_3X 3579546ULL
 
 /* Maximum amount of time that can be program on the timer to schedule the next
- *  interrupt, in miliseconds */
+ *  interrupt, in milliseconds */
 #define MAX_TIMER_INTERVAL 55
 
 
@@ -190,7 +190,7 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback,
 
     divisor = count & 0xffff;
     timer_delta_time = (3685982306ULL * count) >> 10;
-    /* Program PIT in teh software strobe configuration, to send one pulse
+    /* Program PIT in the software strobe configuration, to send one pulse
      * after the count reach 0 */
     outp(I8253_CONTROL_REG, 0x38);
     outp(I8253_DATA_REG, divisor & 0xff); // LSB

@@ -94,7 +94,7 @@ static int semaphore_consumer(void *unused)
 static int semaphore_test(void)
 {
     static semaphore_t isem = SEMAPHORE_INITIAL_VALUE(isem, 99);
-    printf("preinitialized sempahore:\n");
+    printf("preinitialized semaphore:\n");
     hexdump(&isem, sizeof(isem));
 
     sem_init(&sem, sem_start_value);

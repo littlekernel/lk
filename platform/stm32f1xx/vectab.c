@@ -329,7 +329,7 @@ const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(DMA2_Channel3_IRQ),         /*!< DMA2 Channel 3 global Interrupt                      */
     VECTAB_ENTRY(DMA2_Channel4_5_IRQ),       /*!< DMA2 Channel 4 and Channel 5 global Interrupt        */
     VECTAB_ENTRY(DMA2_Channel5_IRQ),         /*!< DMA2 Channel 5 global Interrupt (DMA2 Channel 5 is
-                                             mapped at postion 60 only if the MISC_REMAP bit in
+                                             mapped at position 60 only if the MISC_REMAP bit in
                                              the AFIO_MAPR2 register is set)                      */
 #endif /* STM32F10X_HD_VL */
 

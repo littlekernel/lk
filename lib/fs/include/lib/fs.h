@@ -86,7 +86,7 @@ status_t fs_stat_fs(const char *mountpoint, struct fs_stat *stat) __NONNULL((1))
 /* convenience routines */
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen) __NONNULL();
 
-/* walk through a path string, removing duplicate path seperators, flattening . and .. references */
+/* walk through a path string, removing duplicate path separators, flattening . and .. references */
 void fs_normalize_path(char *path) __NONNULL();
 
 /* Remove any leading spaces or slashes */

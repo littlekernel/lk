@@ -162,7 +162,7 @@ status_t display_present(struct display_image *image, uint starty, uint endy)
     uint8_t *bufptr = localbuf;
     uint8_t trailer = 0;
 
-    // The first line is preceeded with a write command.
+    // The first line is preceded with a write command.
     *bufptr++ = MLCD_WR | vcom_state;
 
     vcom_state = vcom_state == VCOM_HI ? VCOM_LO : VCOM_HI;

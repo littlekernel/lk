@@ -519,7 +519,7 @@ void fs_normalize_path(char *path)
     outpos = 0;
     done = false;
 
-    /* remove duplicate path seperators, flatten empty fields (only composed of .), backtrack fields with .., remove trailing slashes */
+    /* remove duplicate path separators, flatten empty fields (only composed of .), backtrack fields with .., remove trailing slashes */
     while (!done) {
         c = path[pos];
         switch (state) {
@@ -623,7 +623,7 @@ void fs_normalize_path(char *path)
         }
     }
 
-    /* dont end with trailing slashes */
+    /* don't end with trailing slashes */
     if (outpos > 0 && path[outpos - 1] == '/')
         outpos--;
 

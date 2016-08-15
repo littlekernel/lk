@@ -350,7 +350,7 @@ static ssize_t spiflash_bdev_read(struct bdev *bdev, void *buf, off_t offset, si
     if (len == 0)
         return 0;
 
-    // XXX handle not mulitple of 4
+    // XXX handle not multiple of 4
     qspi_rd32(&flash.qspi, offset, buf, len / 4);
 
     return len;

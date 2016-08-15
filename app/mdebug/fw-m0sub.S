@@ -131,7 +131,7 @@ snooze_8m:
 	movs r1, r2		// save bit 1
 	add r2, r2, r10		// combine with CLK1
 	DELAY
-	str r2, [r7, #OFF_OUT]	// commit negative egde
+	str r2, [r7, #OFF_OUT]	// commit negative edge
 	lsrs r3, r3, #1		// advance to next bit
 	add r1, r1, r11		// combine with CLK1
 	nop

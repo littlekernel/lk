@@ -88,7 +88,7 @@ static void free_pktbuf_buf_cb(void *buf, void *arg)
  *
  * It's important to note that there is a flag to note that the buffer is cached and should
  * be properly handled via the appropriate driver when it's time to deal with buffer
- * descriptiors.
+ * descriptors.
  */
 void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz, uint32_t flags,
                        pktbuf_free_callback cb, void *cb_args)

@@ -94,7 +94,7 @@ real_start:
     movw %ax, %gs
     movw %ax, %ss
 
-    /* load inital stack pointer */
+    /* load initial stack pointer */
     movl $PHYS(_kstack + 4096), %esp
 
     /* We need to jump to our sane 32 bit CS */
