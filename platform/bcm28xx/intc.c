@@ -32,8 +32,10 @@
 
 #if defined (BCM2836)
 #include <arch/arm.h>
+typedef struct arm_iframe arm_platform_iframe_t;
 #elif defined (BCM2837)
 #include <arch/arm64.h>
+typedef struct arm64_iframe_long arm_platform_iframe_t;
 #else
 #error Unknown BCM28XX Variant
 #endif
@@ -175,7 +177,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
     spin_unlock_irqrestore(&lock, state);
 }
 
-enum handler_return platform_irq(struct arm_iframe *frame)
+enum handler_return platform_irq(arm_platform_iframe_t *frame)
 {
     uint vector;
     uint cpu = arch_curr_cpu_num();
@@ -260,7 +262,7 @@ decoded:
     return ret;
 }
 
-enum handler_return platform_fiq(struct arm_iframe *frame)
+enum handler_return platform_fiq(arm_platform_iframe_t *frame)
 {
     PANIC_UNIMPLEMENTED;
 }
