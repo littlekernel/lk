@@ -265,7 +265,7 @@ enum handler_return platform_fiq(struct arm_iframe *frame)
     PANIC_UNIMPLEMENTED;
 }
 
-void bcm2835_send_ipi(uint irq, uint cpu_mask)
+void bcm28xx_send_ipi(uint irq, uint cpu_mask)
 {
     LTRACEF("irq %u, cpu_mask 0x%x\n", irq, cpu_mask);
 

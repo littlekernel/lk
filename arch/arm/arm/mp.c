@@ -32,7 +32,7 @@
 #include <dev/interrupt/arm_gic.h>
 #elif PLATFORM_BCM28XX
 /* bcm28xx has a weird custom interrupt controller for MP */
-extern void bcm2835_send_ipi(uint irq, uint cpu_mask);
+extern void bcm28xx_send_ipi(uint irq, uint cpu_mask);
 #else
 #error need other implementation of interrupt controller that can ipi
 #endif
@@ -62,7 +62,7 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi)
     /* filter out targets outside of the range of cpus we care about */
     target &= ((1UL << SMP_MAX_CPUS) - 1);
     if (target != 0) {
-        bcm2835_send_ipi(ipi, target);
+        bcm28xx_send_ipi(ipi, target);
     }
 #endif
 
