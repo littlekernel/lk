@@ -190,7 +190,7 @@ void platform_early_init(void)
 
 #if WITH_SMP
 #if BCM2837
-    uintptr_t sec_entry = &arm_reset - KERNEL_ASPACE_BASE;
+    uintptr_t sec_entry = (uintptr_t)(&arm_reset - KERNEL_ASPACE_BASE);
     unsigned long long *spin_table = (void *)(KERNEL_ASPACE_BASE + 0xd8);
 
     for (uint i = 1; i <= 3; i++) {
