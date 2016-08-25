@@ -32,11 +32,9 @@ attr                    .req x27
 FUNCTION(_start)
 .globl arm_reset
 arm_reset:
-
-#if WITH_KERNEL_VM
-
     bl      arm64_elX_to_el1
 
+#if WITH_KERNEL_VM
     /* enable caches so atomics and spinlocks work */
     mrs     tmp, sctlr_el1
     orr     tmp, tmp, #(1<<12) /* Enable icache */
@@ -75,6 +73,7 @@ arm_reset:
     add     mmu_initial_mapping, mmu_initial_mapping, #:lo12:mmu_initial_mappings
 
 .Linitial_mapping_loop:
+/* Read entry of mmu_initial_mappings (likely defined in platform.c) */
     ldp     paddr, vaddr, [mmu_initial_mapping, #__MMU_INITIAL_MAPPING_PHYS_OFFSET]
     ldp     size, tmp, [mmu_initial_mapping, #__MMU_INITIAL_MAPPING_SIZE_OFFSET]
 
@@ -85,7 +84,7 @@ arm_reset:
     str     size, [mmu_initial_mapping, #__MMU_INITIAL_MAPPING_SIZE_OFFSET]
 
 .Lnot_dynamic:
-    /* if size == 0, end of list */
+    /* if size == 0, end of list, done with initial mapping */
     cbz     size, .Linitial_mapping_done
     mov     mapping_size, size
 
@@ -93,16 +92,34 @@ arm_reset:
     tbzmask tmp, MMU_INITIAL_MAPPING_FLAG_UNCACHED, .Lnot_uncached
     ldr     attr, =MMU_INITIAL_MAP_STRONGLY_ORDERED
     b       .Lmem_type_done
+
 .Lnot_uncached:
+    /* is this memory mapped to device/peripherals? */
     tbzmask tmp, MMU_INITIAL_MAPPING_FLAG_DEVICE, .Lnot_device
     ldr     attr, =MMU_INITIAL_MAP_DEVICE
     b       .Lmem_type_done
 .Lnot_device:
 
+/* Determine the segment in which the memory resides and set appropriate
+ *  attributes.  In order to handle offset kernels, the following rules are
+ *  implemented below:
+ *      KERNEL_BASE    to __code_start             -read/write (see note below)
+ *      __code_start   to __rodata_start (.text)   -read only
+ *      __rodata_start to __data_start   (.rodata) -read only, execute never
+ *      __data_start   to .....          (.data)   -read/write
+ *
+ *  The space below __code_start is presently left as read/write (same as .data)
+ *   mainly as a workaround for the raspberry pi boot process.  Boot vectors for
+ *   secondary CPUs are in this area and need to be updated by cpu0 once the system
+ *   is ready to boot the secondary processors.
+ *   TODO: handle this via mmu_initial_mapping entries, which may need to be
+ *         extended with additional flag types
+ */
 .Lmapping_size_loop:
     ldr     attr, =MMU_PTE_KERNEL_DATA_FLAGS
-    ldr     tmp, =arm_reset
+    ldr     tmp, =__code_start
     subs    size, tmp, vaddr
+    /* If page is below  the entry point (_start) mark as kernel data */
     b.hi    .Lmem_type_done
 
     ldr     attr, =MMU_PTE_KERNEL_RO_FLAGS
@@ -145,6 +162,10 @@ arm_reset:
 
     lsr     index, vaddr, index_shift
 
+
+/* determine the type of page table entry to use given alignment and size
+ *  of the chunk of memory we are mapping
+ */
 .Lmap_range_one_table_loop:
     /* Check if current level allow block descriptors */
     cmp     index_shift, #MMU_PTE_DESCRIPTOR_BLOCK_MAX_SHIFT
@@ -245,12 +266,14 @@ arm_reset:
     str     tmp2, [page_table0, tmp, lsl #3]     /* tt_trampoline[paddr index] = pt entry */
 
 #if WITH_SMP
-    adr     tmp, page_tables_not_ready
+    adrp    tmp, page_tables_not_ready
+    add     tmp, tmp, #:lo12:page_tables_not_ready
     str     wzr, [tmp]
     b       .Lpage_tables_ready
 
 .Lmmu_enable_secondary:
-    adr     tmp, page_tables_not_ready
+    adrp    tmp, page_tables_not_ready
+    add     tmp, tmp, #:lo12:page_tables_not_ready
 .Lpage_tables_not_ready:
     ldr     wtmp2, [tmp]
     cbnz    wtmp2, .Lpage_tables_not_ready
@@ -318,9 +341,9 @@ arm_reset:
 
     /* clear bss */
 .L__do_bss:
-    /* clear out the bss */
-    /* NOTE: relies on __bss_start and __bss_end being 8 byte aligned */
-    ldr     tmp, =__bss_start
+    /* clear out the bss excluding the stack and kernel translation table  */
+    /* NOTE: relies on __post_prebss_bss_start and __bss_end being 8 byte aligned */
+    ldr     tmp, =__post_prebss_bss_start
     ldr     tmp2, =__bss_end
     sub     tmp2, tmp2, tmp
     cbz     tmp2, .L__bss_loop_done
