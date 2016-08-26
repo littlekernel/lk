@@ -27,7 +27,7 @@
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
-#include <platform/bcm2835.h>
+#include <platform/bcm28xx.h>
 
 /* TODO: extract this into a generic PL011 driver */
 

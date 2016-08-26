@@ -30,6 +30,9 @@
 
 #if WITH_DEV_INTERRUPT_ARM_GIC
 #include <dev/interrupt/arm_gic.h>
+#elif PLATFORM_BCM28XX
+/* bcm28xx has a weird custom interrupt controller for MP */
+extern void bcm28xx_send_ipi(uint irq, uint cpu_mask);
 #else
 #error need other implementation of interrupt controller that can ipi
 #endif
@@ -50,6 +53,12 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi)
     if (target != 0) {
         LTRACEF("target 0x%x, gic_ipi %u\n", target, gic_ipi_num);
         arm_gic_sgi(gic_ipi_num, ARM_GIC_SGI_FLAG_NS, target);
+    }
+#elif PLATFORM_BCM28XX
+    /* filter out targets outside of the range of cpus we care about */
+    target &= ((1UL << SMP_MAX_CPUS) - 1);
+    if (target != 0) {
+        bcm28xx_send_ipi(ipi, target);
     }
 #endif
 

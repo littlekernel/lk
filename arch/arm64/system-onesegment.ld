@@ -9,6 +9,7 @@ SECTIONS
     /* text/read-only data */
     /* set the load address to physical MEMBASE */
     .text : AT(%MEMBASE% + %KERNEL_LOAD_OFFSET%) {
+        __code_start = .;
         KEEP(*(.text.boot))
         KEEP(*(.text.boot.vectab))
         *(.text* .sram.text.glue_7* .gnu.linkonce.t.*)
@@ -45,6 +46,10 @@ SECTIONS
     __exidx_start = .;
     .ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
     __exidx_end = .;
+
+    .dummy_post_text : {
+	    __code_end = .;
+    }
 
     .rodata : ALIGN(4096) {
         __rodata_start = .;
@@ -93,11 +98,12 @@ SECTIONS
         __data_end = .;
     }
 
-    /* uninitialized data (in same segment as writable data) */
-    .bss : ALIGN(8) {
+    /* unintialized data (in same segment as writable data) */
+    .bss : ALIGN(4096) {
+        __bss_start = .;
         KEEP(*(.bss.prebss.*))
         . = ALIGN(8);
-        __bss_start = .;
+        __post_prebss_bss_start = .;
         *(.bss .bss.*)
         *(.gnu.linkonce.b.*)
         *(COMMON)
@@ -105,7 +111,8 @@ SECTIONS
         __bss_end = .;
     }
 
-    . = ALIGN(8);
+    /* Align the end to ensure anything after the kernel ends up on its own pages */
+    . = ALIGN(4096);
     _end = .;
 
     . = %KERNEL_BASE% + %MEMSIZE%;

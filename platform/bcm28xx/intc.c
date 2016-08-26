@@ -24,12 +24,22 @@
 #include <assert.h>
 #include <err.h>
 #include <bits.h>
-#include <arch/arm.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <kernel/mp.h>
 #include <platform/interrupts.h>
-#include <platform/bcm2835.h>
+#include <platform/bcm28xx.h>
+
+#if defined (BCM2836)
+#include <arch/arm.h>
+typedef struct arm_iframe arm_platform_iframe_t;
+#elif defined (BCM2837)
+#include <arch/arm64.h>
+typedef struct arm64_iframe_long arm_platform_iframe_t;
+#else
+#error Unknown BCM28XX Variant
+#endif
+
 
 #define LOCAL_TRACE 0
 
@@ -167,7 +177,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
     spin_unlock_irqrestore(&lock, state);
 }
 
-enum handler_return platform_irq(struct arm_iframe *frame)
+enum handler_return platform_irq(arm_platform_iframe_t *frame)
 {
     uint vector;
     uint cpu = arch_curr_cpu_num();
@@ -252,12 +262,12 @@ decoded:
     return ret;
 }
 
-enum handler_return platform_fiq(struct arm_iframe *frame)
+enum handler_return platform_fiq(arm_platform_iframe_t *frame)
 {
     PANIC_UNIMPLEMENTED;
 }
 
-void bcm2835_send_ipi(uint irq, uint cpu_mask)
+void bcm28xx_send_ipi(uint irq, uint cpu_mask)
 {
     LTRACEF("irq %u, cpu_mask 0x%x\n", irq, cpu_mask);
 

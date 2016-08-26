@@ -23,10 +23,18 @@
 #pragma once
 
 #define SDRAM_BASE 0
-
+/* Note: BCM2836/BCM2837 use different peripheral base than BCM2835 */
 #define BCM_PERIPH_BASE_PHYS    (0x3f000000U)
 #define BCM_PERIPH_SIZE         (0x01100000U)
+
+#if BCM2836
 #define BCM_PERIPH_BASE_VIRT    (0xe0000000U)
+#elif BCM2837
+#define BCM_PERIPH_BASE_VIRT    (0xffffffffc0000000ULL)
+#define MEMORY_APERTURE_SIZE    (1024 * 1024 * 1024)
+#else
+#error Unknown BCM28XX Variant
+#endif
 
 /* pointer to 'local' peripherals at 0x40000000 */
 #define BCM_LOCAL_PERIPH_BASE_VIRT (BCM_PERIPH_BASE_VIRT + 0x01000000)
@@ -45,7 +53,8 @@
 #define I2S_BASE                (BCM_PERIPH_BASE_VIRT + 0x203000)
 #define SPI0_BASE               (BCM_PERIPH_BASE_VIRT + 0x204000)
 #define BSC0_BASE               (BCM_PERIPH_BASE_VIRT + 0x205000)
-#define UART1_BASE              (BCM_PERIPH_BASE_VIRT + 0x215000)
+#define AUX_BASE                (BCM_PERIPH_BASE_VIRT + 0x215000)
+#define MINIUART_BASE           (BCM_PERIPH_BASE_VIRT + 0x215040)
 #define EMMC_BASE               (BCM_PERIPH_BASE_VIRT + 0x300000)
 #define SMI_BASE                (BCM_PERIPH_BASE_VIRT + 0x600000)
 #define BSC1_BASE               (BCM_PERIPH_BASE_VIRT + 0x804000)

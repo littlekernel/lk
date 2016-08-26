@@ -22,7 +22,7 @@
  */
 #include <dev/gpio.h>
 #include <errno.h>
-#include <platform/bcm2835.h>
+#include <platform/bcm28xx.h>
 #include <reg.h>
 
 #define NUM_PINS     54
