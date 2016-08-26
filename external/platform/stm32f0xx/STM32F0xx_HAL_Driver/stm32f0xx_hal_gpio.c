@@ -329,7 +329,7 @@ void HAL_GPIO_DeInit(GPIO_TypeDef  *GPIOx, uint32_t GPIO_Pin)
     if (iocurrent)
     {
       /*------------------------- GPIO Mode Configuration --------------------*/
-      /* Configure IO Direction in Input Floting Mode */
+      /* Configure IO Direction in Input Floating Mode */
       CLEAR_BIT(GPIOx->MODER, GPIO_MODER_MODER0 << (position * 2)); 
   
       /* Configure the default Alternate Function in current IO */ 

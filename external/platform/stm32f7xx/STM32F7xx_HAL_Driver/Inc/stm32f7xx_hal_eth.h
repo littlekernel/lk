@@ -606,7 +606,7 @@ typedef struct {
 
 
 /**
-  * @brief  Received Frame Informations structure definition
+  * @brief  Received Frame Information structure definition
   */
 typedef struct {
     ETH_DMADescTypeDef *FSRxDesc;          /*!< First Segment Rx Desc */

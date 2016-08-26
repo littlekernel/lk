@@ -59,7 +59,7 @@ enum USBD_EVENT_T {
   USB_EVT_IN_DMA_NDR,  /**< 11  DMA  IN EP - New Descriptor Request */
   USB_EVT_OUT_DMA_ERR, /**< 12  DMA OUT EP - Error */
   USB_EVT_IN_DMA_ERR,  /**< 13  DMA  IN EP - Error */
-  USB_EVT_RESET,       /**< 14  Reset event recieved */
+  USB_EVT_RESET,       /**< 14  Reset event received */
   USB_EVT_SOF,         /**< 15  Start of Frame event */
   USB_EVT_DEV_STATE,   /**< 16  Device status events */
   USB_EVT_DEV_ERROR   /**< 17  Device error events */

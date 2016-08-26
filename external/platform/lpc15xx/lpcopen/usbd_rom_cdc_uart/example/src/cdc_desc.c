@@ -170,7 +170,7 @@ ALIGNED(4) const uint8_t USB_StringDescriptor[] = {
 	USB_STRING_DESCRIPTOR_TYPE,			/* bDescriptorType */
 	WBVAL(0x0409),	/* US English */    /* wLANGID */
 	/* Index 0x01: Manufacturer */
-	(3 * 2 + 2),						/* bLength (13 Char + Type + lenght) */
+	(3 * 2 + 2),						/* bLength (13 Char + Type + length) */
 	USB_STRING_DESCRIPTOR_TYPE,			/* bDescriptorType */
 	'N', 0,
 	'X', 0,
@@ -188,7 +188,7 @@ ALIGNED(4) const uint8_t USB_StringDescriptor[] = {
 	'r', 0,
 	't', 0,
 	/* Index 0x03: Serial Number */
-	(6 * 2 + 2),						/* bLength (8 Char + Type + lenght) */
+	(6 * 2 + 2),						/* bLength (8 Char + Type + length) */
 	USB_STRING_DESCRIPTOR_TYPE,			/* bDescriptorType */
 	'N', 0,
 	'X', 0,
@@ -197,7 +197,7 @@ ALIGNED(4) const uint8_t USB_StringDescriptor[] = {
 	'7', 0,
 	'7', 0,
 	/* Index 0x04: Interface 1, Alternate Setting 0 */
-	( 4 * 2 + 2),						/* bLength (4 Char + Type + lenght) */
+	( 4 * 2 + 2),						/* bLength (4 Char + Type + length) */
 	USB_STRING_DESCRIPTOR_TYPE,			/* bDescriptorType */
 	'V', 0,
 	'C', 0,

@@ -916,7 +916,7 @@ I2SMasterClockSelect(unsigned long ulBase, unsigned long ulMClock)
     ASSERT((ulMClock & (I2S_TX_MCLK_EXT | I2S_RX_MCLK_EXT)) == ulMClock);
 
     //
-    // Set the clock selection bits in the configuation word.
+    // Set the clock selection bits in the configuration word.
     //
     ulConfig = HWREG(ulBase + I2S_O_CFG) &
                    ~(I2S_TX_MCLK_EXT | I2S_RX_MCLK_EXT);

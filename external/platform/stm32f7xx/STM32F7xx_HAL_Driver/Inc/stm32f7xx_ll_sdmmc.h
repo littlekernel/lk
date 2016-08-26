@@ -277,7 +277,7 @@ typedef struct {
   * @}
   */
 
-/** @defgroup SDMMC_LL_Data_Length Data Lenght
+/** @defgroup SDMMC_LL_Data_Length Data Length
   * @{
   */
 #define IS_SDMMC_DATA_LENGTH(LENGTH) ((LENGTH) <= 0x01FFFFFF)

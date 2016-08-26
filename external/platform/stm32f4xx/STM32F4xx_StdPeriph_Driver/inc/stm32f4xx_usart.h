@@ -75,7 +75,7 @@ typedef struct
   uint16_t USART_Mode;                /*!< Specifies whether the Receive or Transmit mode is enabled or disabled.
                                            This parameter can be a value of @ref USART_Mode */
 
-  uint16_t USART_HardwareFlowControl; /*!< Specifies wether the hardware flow control mode is enabled
+  uint16_t USART_HardwareFlowControl; /*!< Specifies whether the hardware flow control mode is enabled
                                            or disabled.
                                            This parameter can be a value of @ref USART_Hardware_Flow_Control */
 } USART_InitTypeDef;

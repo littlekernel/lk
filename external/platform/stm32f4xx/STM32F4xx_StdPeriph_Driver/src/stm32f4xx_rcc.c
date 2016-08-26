@@ -2533,7 +2533,7 @@ void RCC_CECClockSourceConfig(uint8_t RCC_ClockSource)
   * @param RCC_ClockSource: specifies the FMPI2C1 clock Source.
   *          This parameter can be one of the following values:
   *            @arg RCC_FMPI2C1CLKSource_APB1: FMPI2C1 clock from APB1 selected.
-  *            @arg RCC_FMPI2C1CLKSource_SYSCLK: FMPI2C1 clock from Sytem clock selected.
+  *            @arg RCC_FMPI2C1CLKSource_SYSCLK: FMPI2C1 clock from System clock selected.
   *            @arg RCC_FMPI2C1CLKSource_HSI: FMPI2C1 clock from HSI selected.
   * @retval None
   */

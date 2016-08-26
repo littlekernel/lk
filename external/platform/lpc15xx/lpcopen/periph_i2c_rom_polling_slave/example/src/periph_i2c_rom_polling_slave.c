@@ -134,7 +134,7 @@ static void sendI2CSlave(void)
 	/* Polling function is blocking */
 	error_code = LPC_I2CD_API->i2c_slave_transmit_poll(i2cHandleSlave, &paramTX, &resultTX);
 
-	/* Completed without erors? */
+	/* Completed without errors? */
 	if (error_code != LPC_OK) {
 		DEBUGOUT("i2c_slave_transmit_poll error code : %x\r\b", error_code);
 		errorI2C();
@@ -154,7 +154,7 @@ static void readI2CSlave(void)
 	/* Function is blocking */
 	error_code = LPC_I2CD_API->i2c_slave_receive_poll(i2cHandleSlave, &paramRX, &resultRX);
 
-	/* Completed without erors? */
+	/* Completed without errors? */
 	if (error_code != LPC_OK) {
 		DEBUGOUT("i2c_slave_receive_poll error code : %x\r\b", error_code);
 	}

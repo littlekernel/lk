@@ -653,7 +653,7 @@ void SPI_TransmitCRC(SPI_TypeDef* SPIx)
 }
 
 /**
-  * @brief  Enables or disables the CRC value calculation of the transfered bytes.
+  * @brief  Enables or disables the CRC value calculation of the transferred bytes.
   * @param  SPIx: where x can be 1, 2 or 3 to select the SPI peripheral.
   * @param  NewState: new state of the SPIx CRC value calculation.
   *   This parameter can be: ENABLE or DISABLE.

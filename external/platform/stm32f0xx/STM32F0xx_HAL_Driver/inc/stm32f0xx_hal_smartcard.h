@@ -125,7 +125,7 @@ typedef struct
 }SMARTCARD_InitTypeDef;
 
 /**
-  * @brief  SMARTCARD advanced features initalization structure definition
+  * @brief  SMARTCARD advanced features initialization structure definition
   */
 typedef struct
 {

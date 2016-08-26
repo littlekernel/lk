@@ -151,7 +151,7 @@ static void sendI2CSlave(void)
 	/* Interrupt function is non-blocking */
 	error_code = LPC_I2CD_API->i2c_slave_transmit_intr(i2cHandleSlave, &paramTX, &resultTX);
 
-	/* Completed without erors? */
+	/* Completed without errors? */
 	if (error_code != LPC_OK) {
 		DEBUGOUT("i2c_slave_transmit_intr error code : %x\r\b", error_code);
 		errorI2C();
@@ -181,7 +181,7 @@ static void readI2CSlave(void)
 	/* Function is non-blocking */
 	error_code = LPC_I2CD_API->i2c_slave_receive_intr(i2cHandleSlave, &paramRX, &resultRX);
 
-	/* Completed without erors? */
+	/* Completed without errors? */
 	if (error_code != LPC_OK) {
 		DEBUGOUT("i2c_slave_receive_intr error code : %x\r\b", error_code);
 		errorI2C();

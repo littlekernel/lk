@@ -342,7 +342,7 @@ extern uint8_t SHA256_runFullAlgorithm(SHA256_memory_t *memory, uint8_t *pBufIn,
 
 //*****************************************************************************
 /*!
- * \brief Intializes the SHA256 engine.
+ * \brief Initializes the SHA256 engine.
  *
  * This function must be called once before all other SHA256 functions other than
  * \ref SHA256_runFullAlgorithm().

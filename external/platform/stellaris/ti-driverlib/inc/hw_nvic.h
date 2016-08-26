@@ -1227,7 +1227,7 @@
 //*****************************************************************************
 #define NVIC_APINT_VECTKEY_M    0xFFFF0000  // Register Key
 #define NVIC_APINT_VECTKEY      0x05FA0000  // Vector key
-#define NVIC_APINT_ENDIANESS    0x00008000  // Data Endianess
+#define NVIC_APINT_ENDIANESS    0x00008000  // Data Endianness
 #define NVIC_APINT_PRIGROUP_M   0x00000700  // Interrupt Priority Grouping
 #define NVIC_APINT_PRIGROUP_7_1 0x00000000  // Priority group 7.1 split
 #define NVIC_APINT_PRIGROUP_6_2 0x00000100  // Priority group 6.2 split

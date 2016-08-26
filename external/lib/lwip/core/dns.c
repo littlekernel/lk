@@ -368,7 +368,7 @@ dns_lookup_local(const char *hostname)
 
 #if DNS_LOCAL_HOSTLIST_IS_DYNAMIC
 /** Remove all entries from the local host-list for a specific hostname
- * and/or IP addess
+ * and/or IP address
  *
  * @param hostname hostname for which entries shall be removed from the local
  *                 host-list

@@ -545,7 +545,7 @@ ErrorStatus CRYP_SaveContext(CRYP_Context* CRYP_ContextSave,
 
 /**
   * @brief  Restores the CRYP peripheral Context.
-  * @note   Since teh DMA transfer is stopped in CRYP_SaveContext() function,
+  * @note   Since the DMA transfer is stopped in CRYP_SaveContext() function,
   *         after restoring the context, you have to enable the DMA again (if the
   *         DMA was previously used).  
   * @param  CRYP_ContextRestore: pointer to a CRYP_Context structure that contains

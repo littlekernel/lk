@@ -95,7 +95,7 @@ typedef struct
   uint32_t DMA2D_OutputOffset;                   /*!< Specifies the Offset value. This parameter must be range from
                                                  0x0000 to 0x3FFF. */
 
-  uint32_t DMA2D_NumberOfLine;                   /*!< Configures the number of line of the area to be transfered.
+  uint32_t DMA2D_NumberOfLine;                   /*!< Configures the number of line of the area to be transferred.
                                                  This parameter must range from 0x0000 to 0xFFFF */
             
   uint32_t DMA2D_PixelPerLine;                   /*!< Configures the number pixel per line of the area to be transferred.

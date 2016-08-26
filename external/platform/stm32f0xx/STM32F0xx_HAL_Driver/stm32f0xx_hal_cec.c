@@ -386,7 +386,7 @@ HAL_StatusTypeDef HAL_CEC_Transmit(CEC_HandleTypeDef *hcec, uint8_t DestinationA
           }
         }        
 
-        /* check whether error occured while waiting for TXBR to be set:
+        /* check whether error occurred while waiting for TXBR to be set:
          * has Tx underrun occurred ?
          * has Tx error occurred ?
          * has Tx Missing Acknowledge error occurred ? 
@@ -790,56 +790,56 @@ void HAL_CEC_IRQHandler(CEC_HandleTypeDef *hcec)
     hcec->State = HAL_CEC_STATE_ERROR;
   }
   
-  /* CEC transmit error interrupt occured --------------------------------------*/
+  /* CEC transmit error interrupt occurred --------------------------------------*/
   if((__HAL_CEC_GET_FLAG(hcec, CEC_FLAG_TXERR) != RESET) && (__HAL_CEC_GET_IT_SOURCE(hcec, CEC_IT_TXERR) != RESET))
   { 
     __HAL_CEC_CLEAR_FLAG(hcec, CEC_FLAG_TXERR);
     hcec->State = HAL_CEC_STATE_ERROR;
   }
   
-  /* CEC TX underrun error interrupt occured --------------------------------------*/
+  /* CEC TX underrun error interrupt occurred --------------------------------------*/
   if((__HAL_CEC_GET_FLAG(hcec, CEC_FLAG_TXUDR) != RESET) && (__HAL_CEC_GET_IT_SOURCE(hcec, CEC_IT_TXUDR) != RESET))
   { 
     __HAL_CEC_CLEAR_FLAG(hcec, CEC_FLAG_TXUDR);
     hcec->State = HAL_CEC_STATE_ERROR;
   }
   
-  /* CEC TX arbitration error interrupt occured --------------------------------------*/
+  /* CEC TX arbitration error interrupt occurred --------------------------------------*/
   if((__HAL_CEC_GET_FLAG(hcec, CEC_FLAG_ARBLST) != RESET) && (__HAL_CEC_GET_IT_SOURCE(hcec, CEC_IT_ARBLST) != RESET))
   { 
     __HAL_CEC_CLEAR_FLAG(hcec, CEC_FLAG_ARBLST);
     hcec->State = HAL_CEC_STATE_ERROR;
   }
   
-  /* CEC RX overrun error interrupt occured --------------------------------------*/
+  /* CEC RX overrun error interrupt occurred --------------------------------------*/
   if((__HAL_CEC_GET_FLAG(hcec, CEC_FLAG_RXOVR) != RESET) && (__HAL_CEC_GET_IT_SOURCE(hcec, CEC_IT_RXOVR) != RESET))
   { 
     __HAL_CEC_CLEAR_FLAG(hcec, CEC_FLAG_RXOVR);
     hcec->State = HAL_CEC_STATE_ERROR;
   } 
   
-  /* CEC RX bit rising error interrupt occured --------------------------------------*/
+  /* CEC RX bit rising error interrupt occurred --------------------------------------*/
   if((__HAL_CEC_GET_FLAG(hcec, CEC_FLAG_BRE) != RESET) && (__HAL_CEC_GET_IT_SOURCE(hcec, CEC_IT_BRE) != RESET))
   { 
     __HAL_CEC_CLEAR_FLAG(hcec, CEC_FLAG_BRE);
     hcec->State = HAL_CEC_STATE_ERROR;
   }   
   
-  /* CEC RX short bit period error interrupt occured --------------------------------------*/
+  /* CEC RX short bit period error interrupt occurred --------------------------------------*/
   if((__HAL_CEC_GET_FLAG(hcec, CEC_FLAG_SBPE) != RESET) && (__HAL_CEC_GET_IT_SOURCE(hcec, CEC_IT_SBPE) != RESET))
   { 
     __HAL_CEC_CLEAR_FLAG(hcec, CEC_FLAG_SBPE);
     hcec->State = HAL_CEC_STATE_ERROR;
   }   
   
-  /* CEC RX long bit period error interrupt occured --------------------------------------*/
+  /* CEC RX long bit period error interrupt occurred --------------------------------------*/
   if((__HAL_CEC_GET_FLAG(hcec, CEC_FLAG_LBPE) != RESET) && (__HAL_CEC_GET_IT_SOURCE(hcec, CEC_IT_LBPE) != RESET))
   { 
     __HAL_CEC_CLEAR_FLAG(hcec, CEC_FLAG_LBPE);
     hcec->State = HAL_CEC_STATE_ERROR;
   }   
   
-  /* CEC RX missing acknowledge error interrupt occured --------------------------------------*/
+  /* CEC RX missing acknowledge error interrupt occurred --------------------------------------*/
   if((__HAL_CEC_GET_FLAG(hcec, CEC_FLAG_RXACKE) != RESET) && (__HAL_CEC_GET_IT_SOURCE(hcec, CEC_IT_RXACKE) != RESET))
   { 
     __HAL_CEC_CLEAR_FLAG(hcec, CEC_FLAG_RXACKE);

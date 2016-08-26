@@ -260,7 +260,7 @@ void QSPI_Init(QSPI_InitTypeDef* QSPI_InitStruct)
   * @brief  Initializes the QSPI CCR according to the specified 
   *         parameters in the QSPI_ComConfig_InitStruct.
   * @param  QSPI_ComConfig_InitStruct: pointer to a QSPI_ComConfig_InitTypeDef structure that
-  *         contains the communication configuration informations about QSPI peripheral.
+  *         contains the communication configuration information about QSPI peripheral.
   * @retval None
   */
 void QSPI_ComConfig_Init(QSPI_ComConfig_InitTypeDef* QSPI_ComConfig_InitStruct)

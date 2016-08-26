@@ -54,7 +54,7 @@
 
 //*****************************************************************************
 //
-// A mapping of timer base address to interupt number.
+// A mapping of timer base address to interrupt number.
 //
 //*****************************************************************************
 static const unsigned long g_ppulSSIIntMap[][2] =

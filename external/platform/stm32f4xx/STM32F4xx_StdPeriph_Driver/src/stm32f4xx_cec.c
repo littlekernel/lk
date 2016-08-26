@@ -50,7 +50,7 @@
            (#) Configure the Signal Free Time, Rx Tolerance, Stop reception generation 
                and Bit error generation using the CEC_Init() function.
                The function CEC_Init() must be called when the CEC peripheral is disabled.
-           (#) Configure the CEC own address by calling the fuction CEC_OwnAddressConfig().
+           (#) Configure the CEC own address by calling the function CEC_OwnAddressConfig().
            (#) Optionally, you can configure the Listen mode using the function CEC_ListenModeCmd().
            (#) Enable the NVIC and the corresponding interrupt using the function 
                CEC_ITConfig() if you need to use interrupt mode.

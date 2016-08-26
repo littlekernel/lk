@@ -87,7 +87,7 @@ void Board_UARTPutSTR(char *str)
 void Board_Debug_Init(void)
 {
 #if defined(DEBUG_UART)
-	/* Disables pullups/pulldowns and enable digitial mode */
+	/* Disables pullups/pulldowns and enable digital mode */
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 13, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 18, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
 

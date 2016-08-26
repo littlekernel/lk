@@ -446,7 +446,7 @@ ADCSequenceConfigure(unsigned long ulBase, unsigned long ulSequenceNum,
                      unsigned long ulTrigger, unsigned long ulPriority)
 {
     //
-    // Check the arugments.
+    // Check the arguments.
     //
     ASSERT((ulBase == ADC0_BASE) || (ulBase == ADC1_BASE));
     ASSERT(ulSequenceNum < 4);

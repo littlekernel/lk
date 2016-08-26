@@ -685,9 +685,9 @@ void FSMC_ITConfig(uint32_t FSMC_Bank, uint32_t FSMC_IT, FunctionalState NewStat
   *     @arg FSMC_Bank4_PCCARD: FSMC Bank4 PCCARD
   * @param  FSMC_FLAG: specifies the flag to check.
   *   This parameter can be one of the following values:
-  *     @arg FSMC_FLAG_RisingEdge: Rising egde detection Flag.
+  *     @arg FSMC_FLAG_RisingEdge: Rising edge detection Flag.
   *     @arg FSMC_FLAG_Level: Level detection Flag.
-  *     @arg FSMC_FLAG_FallingEdge: Falling egde detection Flag.
+  *     @arg FSMC_FLAG_FallingEdge: Falling edge detection Flag.
   *     @arg FSMC_FLAG_FEMPT: Fifo empty Flag. 
   * @retval The new state of FSMC_FLAG (SET or RESET).
   */
@@ -736,9 +736,9 @@ FlagStatus FSMC_GetFlagStatus(uint32_t FSMC_Bank, uint32_t FSMC_FLAG)
   *     @arg FSMC_Bank4_PCCARD: FSMC Bank4 PCCARD
   * @param  FSMC_FLAG: specifies the flag to clear.
   *   This parameter can be any combination of the following values:
-  *     @arg FSMC_FLAG_RisingEdge: Rising egde detection Flag.
+  *     @arg FSMC_FLAG_RisingEdge: Rising edge detection Flag.
   *     @arg FSMC_FLAG_Level: Level detection Flag.
-  *     @arg FSMC_FLAG_FallingEdge: Falling egde detection Flag.
+  *     @arg FSMC_FLAG_FallingEdge: Falling edge detection Flag.
   * @retval None
   */
 void FSMC_ClearFlag(uint32_t FSMC_Bank, uint32_t FSMC_FLAG)

@@ -277,7 +277,7 @@ uint32_t Chip_I2CM_XferHandler(LPC_I2C_T *pI2C, I2CM_XFER_T *xfer);
  * no code (like event handler) must change the content of the memory
  * pointed to by @a xfer. The member of @a xfer, @a txBuff and @a txSz be
  * initialized to the memory from which the I2C must pick the data to be
- * transfered to slave and the number of bytes to send respectively, similarly
+ * transferred to slave and the number of bytes to send respectively, similarly
  * @a rxBuff and @a rxSz must have pointer to memroy where data received
  * from slave be stored and the number of data to get from slave respectilvely.
  * Following types of transfers are possible:
@@ -309,7 +309,7 @@ void Chip_I2CM_Xfer(LPC_I2C_T *pI2C, I2CM_XFER_T *xfer);
  * @brief	Transmit and Receive data in master mode
  * @param	pI2C	: Pointer to selected I2C peripheral
  * @param	xfer	: Pointer to a I2CM_XFER_T structure see notes below
- * @return Returns non-zero value on succesful completion of transfer.
+ * @return Returns non-zero value on successful completion of transfer.
  * @note
  * This function operates same as Chip_I2CM_Xfer(), but is a blocking call.
  */

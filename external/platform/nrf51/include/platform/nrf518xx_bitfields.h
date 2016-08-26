@@ -2921,7 +2921,7 @@
 /* Bit 0 : Result of last compare. Decision point SAMPLE task. */
 #define LPCOMP_RESULT_RESULT_Pos (0UL) /*!< Position of RESULT field. */
 #define LPCOMP_RESULT_RESULT_Msk (0x1UL << LPCOMP_RESULT_RESULT_Pos) /*!< Bit mask of RESULT field. */
-#define LPCOMP_RESULT_RESULT_Bellow (0UL) /*!< Input voltage is bellow the reference threshold. */
+#define LPCOMP_RESULT_RESULT_Bellow (0UL) /*!< Input voltage is below the reference threshold. */
 #define LPCOMP_RESULT_RESULT_Above (1UL) /*!< Input voltage is above the reference threshold. */
 
 /* Register: LPCOMP_ENABLE */

@@ -93,7 +93,7 @@ struct addrinfo {
 #endif /* LWIP_DNS_API_DECLARE_STRUCTS */
 
 #if LWIP_DNS_API_DECLARE_H_ERRNO
-/* application accessable error code set by the DNS API functions */
+/* application accessible error code set by the DNS API functions */
 extern int h_errno;
 #endif /* LWIP_DNS_API_DECLARE_H_ERRNO*/
 

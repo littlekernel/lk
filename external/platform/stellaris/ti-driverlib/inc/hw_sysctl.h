@@ -3490,7 +3490,7 @@
 //
 //*****************************************************************************
 #define SYSCTL_RCC_SYSDIV_MASK  0x07800000  // System clock divider
-#define SYSCTL_RCC_USE_SYSDIV   0x00400000  // Use sytem clock divider
+#define SYSCTL_RCC_USE_SYSDIV   0x00400000  // Use system clock divider
 #define SYSCTL_RCC_USE_PWMDIV   0x00100000  // Use PWM clock divider
 #define SYSCTL_RCC_PWMDIV_MASK  0x000E0000  // PWM clock divider
 #define SYSCTL_RCC_OE           0x00001000  // PLL output enable

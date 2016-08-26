@@ -122,7 +122,7 @@ typedef struct {
 } SMARTCARD_InitTypeDef;
 
 /**
-  * @brief  SMARTCARD advanced features initalization structure definition
+  * @brief  SMARTCARD advanced features initialization structure definition
   */
 typedef struct {
     uint32_t AdvFeatureInit;            /*!< Specifies which advanced SMARTCARD features is initialized. Several

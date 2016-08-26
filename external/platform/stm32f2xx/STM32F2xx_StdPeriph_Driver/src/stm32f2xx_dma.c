@@ -688,7 +688,7 @@ uint16_t DMA_GetCurrDataCounter(DMA_Stream_TypeDef* DMAy_Streamx)
   
    
   Two functions can be called dynamically when the transfer is ongoing (or when the DMA Stream is 
-  stopped) to modify on of the target Memories addresses or to check wich Memory target is currently
+  stopped) to modify on of the target Memories addresses or to check which Memory target is currently
    used:
     - void DMA_MemoryTargetConfig(DMA_Stream_TypeDef* DMAy_Streamx, uint32_t MemoryBaseAddr,
                             uint32_t DMA_MemoryTarget);

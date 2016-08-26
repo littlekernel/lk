@@ -704,7 +704,7 @@
 //
 // Read only selection value
 // ENUMs:
-// CRYPTO_RESULT_AVAIL_IRQ  CRYPTO result available interupt event, the
+// CRYPTO_RESULT_AVAIL_IRQ  CRYPTO result available interrupt event, the
 //                          corresponding flag is found here
 //                          CRYPTO:IRQSTAT.RESULT_AVAIL. Controlled by
 //                          CRYPTO:IRQSTAT.RESULT_AVAIL
@@ -845,9 +845,9 @@
 // CRYPTO_DMA_DONE_IRQ      CRYPTO DMA input done event, the correspondingg
 //                          flag is CRYPTO:IRQSTAT.DMA_IN_DONE. Controlled
 //                          by CRYPTO:IRQEN.DMA_IN_DONE
-// DMA_CH18_DONE            DMA done for software tiggered UDMA channel 18,
+// DMA_CH18_DONE            DMA done for software triggered UDMA channel 18,
 //                          see UDMA0:SOFTREQ
-// DMA_CH0_DONE             DMA done for software tiggered UDMA channel 0, see
+// DMA_CH0_DONE             DMA done for software triggered UDMA channel 0, see
 //                          UDMA0:SOFTREQ
 // AON_AUX_SWEV0            AUX Software event 0, AUX_EVCTL:SWEVSET.SWEV0
 // I2S_IRQ                  Interrupt event from I2S
@@ -1103,7 +1103,7 @@
 //                          AUX_EVCTL:EVTOMCUFLAGS.AON_WU_EV
 // SWEV1                    Software event 1, triggered by SWEV.SWEV1
 // SWEV0                    Software event 0, triggered by SWEV.SWEV0
-// CRYPTO_RESULT_AVAIL_IRQ  CRYPTO result available interupt event, the
+// CRYPTO_RESULT_AVAIL_IRQ  CRYPTO result available interrupt event, the
 //                          corresponding flag is found here
 //                          CRYPTO:IRQSTAT.RESULT_AVAIL. Controlled by
 //                          CRYPTO:IRQSTAT.RESULT_AVAIL
@@ -2466,7 +2466,7 @@
 // CRYPTO_DMA_DONE_IRQ      CRYPTO DMA input done event, the correspondingg
 //                          flag is CRYPTO:IRQSTAT.DMA_IN_DONE. Controlled
 //                          by CRYPTO:IRQEN.DMA_IN_DONE
-// CRYPTO_RESULT_AVAIL_IRQ  CRYPTO result available interupt event, the
+// CRYPTO_RESULT_AVAIL_IRQ  CRYPTO result available interrupt event, the
 //                          corresponding flag is found here
 //                          CRYPTO:IRQSTAT.RESULT_AVAIL. Controlled by
 //                          CRYPTO:IRQSTAT.RESULT_AVAIL
@@ -2566,12 +2566,12 @@
 //                          equvialent to RFC_DBELL:RFACKIFG.ACKFLAG
 // WDT_IRQ                  Watchdog interrupt event, controlled by
 //                          WDT:CTL.INTEN
-// DMA_CH18_DONE            DMA done for software tiggered UDMA channel 18,
+// DMA_CH18_DONE            DMA done for software triggered UDMA channel 18,
 //                          see UDMA0:SOFTREQ
 // FLASH                    FLASH controller error event,  the status flags
 //                          are FLASH:FEDACSTAT.FSM_DONE and
 //                          FLASH:FEDACSTAT.RVF_INT
-// DMA_CH0_DONE             DMA done for software tiggered UDMA channel 0, see
+// DMA_CH0_DONE             DMA done for software triggered UDMA channel 0, see
 //                          UDMA0:SOFTREQ
 // GPT1B                    GPT1B interrupt event, controlled by GPT1:TBMR
 // GPT1A                    GPT1A interrupt event, controlled by GPT1:TAMR

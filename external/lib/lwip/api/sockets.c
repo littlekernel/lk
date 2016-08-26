@@ -1163,7 +1163,7 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
     }
 
     /* Call lwip_selscan again: there could have been events between
-       the last scan (whithout us on the list) and putting us on the list! */
+       the last scan (without us on the list) and putting us on the list! */
     nready = lwip_selscan(maxfdp1, readset, writeset, exceptset, &lreadset, &lwriteset, &lexceptset);
     if (!nready) {
       /* Still none ready, just wait to be woken */
@@ -1307,7 +1307,7 @@ event_callback(struct netconn *conn, enum netconn_evt evt, u16_t len)
   }
 
   if (sock->select_waiting == 0) {
-    /* noone is waiting for this socket, no need to check select_cb_list */
+    /* no one is waiting for this socket, no need to check select_cb_list */
     SYS_ARCH_UNPROTECT(lev);
     return;
   }

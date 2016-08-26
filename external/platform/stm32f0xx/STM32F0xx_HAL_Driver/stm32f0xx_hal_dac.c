@@ -83,7 +83,7 @@
          (#) 12-bit left alignment using DAC_ALIGN_12B_L
          (#) 12-bit right alignment using DAC_ALIGN_12B_R
   
-       *** DAC data value to voltage correspondance ***  
+       *** DAC data value to voltage correspondence ***  
        ================================================ 
        [..] 
        The analog output voltage on each DAC channel pin is determined

@@ -132,7 +132,7 @@ raw_input(struct pbuf *p, struct netif *inp)
  * bind to all local interfaces.
  *
  * @return lwIP error code.
- * - ERR_OK. Successful. No error occured.
+ * - ERR_OK. Successful. No error occurred.
  * - ERR_USE. The specified IP address is already bound to by
  * another RAW PCB.
  *

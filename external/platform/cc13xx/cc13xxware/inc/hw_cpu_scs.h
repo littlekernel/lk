@@ -271,7 +271,7 @@
 // Field:     [0] DISMCYCINT
 //
 // Disables interruption of multi-cycle instructions. This increases the
-// interrupt latency of the processor becuase LDM/STM completes before
+// interrupt latency of the processor because LDM/STM completes before
 // interrupt stacking occurs.
 #define CPU_SCS_ACTLR_DISMCYCINT                                    0x00000001
 #define CPU_SCS_ACTLR_DISMCYCINT_BITN                                        0
@@ -2603,7 +2603,7 @@
 #define CPU_SCS_AIRCR_VECTKEY_M                                     0xFFFF0000
 #define CPU_SCS_AIRCR_VECTKEY_S                                             16
 
-// Field:    [15] ENDIANESS
+// Field:    [15] ENDIANNESS
 //
 // Data endianness bit
 // ENUMs:

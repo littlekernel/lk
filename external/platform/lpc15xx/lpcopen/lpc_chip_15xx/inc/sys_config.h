@@ -30,7 +30,7 @@
 #ifndef __SYS_CONFIG_H_
 #define __SYS_CONFIG_H_
 
-/* LPC15xx chip familiy is suppored */
+/* LPC15xx chip familiy is supported */
 #define CHIP_LPC15XX
 
 #endif /* __SYS_CONFIG_H_ */

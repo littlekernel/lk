@@ -152,7 +152,7 @@ void sys_sem_free(sys_sem_t *sem);
 /** Wait for a semaphore - forever/no timeout */
 #define sys_sem_wait(sem)                  sys_arch_sem_wait(sem, 0)
 #ifndef sys_sem_valid
-/** Check if a sempahore is valid/allocated: return 1 for valid, 0 for invalid */
+/** Check if a semaphore is valid/allocated: return 1 for valid, 0 for invalid */
 int sys_sem_valid(sys_sem_t *sem);
 #endif
 #ifndef sys_sem_set_invalid
@@ -189,7 +189,7 @@ err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg);
            or SYS_ARCH_TIMEOUT on timeout
  *         The returned time has to be accurate to prevent timer jitter! */
 u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout);
-/* Allow port to override with a macro, e.g. special timout for sys_arch_mbox_fetch() */
+/* Allow port to override with a macro, e.g. special timeout for sys_arch_mbox_fetch() */
 #ifndef sys_arch_mbox_tryfetch
 /** Wait for a new message to arrive in the mbox
  * @param mbox mbox to get a message from

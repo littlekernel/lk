@@ -78,7 +78,7 @@
 #define INT_GPT2B                       36 // GPT2B interrupt event
 #define INT_GPT3A                       37 // GPT3A interrupt event
 #define INT_GPT3B                       38 // GPT3B interrupt event
-#define INT_CRYPTO_RESULT_AVAIL_IRQ     39 // CRYPTO result available interupt
+#define INT_CRYPTO_RESULT_AVAIL_IRQ     39 // CRYPTO result available interrupt
                                            // event
 #define INT_DMA_DONE_COMB               40 // Combined DMA done
 #define INT_DMA_ERR                     41 // DMA bus error

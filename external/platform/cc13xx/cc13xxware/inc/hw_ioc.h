@@ -201,12 +201,12 @@
 // OPENSRC_INV              Open Source
 //                          Inverted input/output
 // OPENSRC                  Open Source
-//                          Normal input / outut
+//                          Normal input / output
 // OPENDR_INV               Open Drain
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG0_IOMODE_W                                                  3
 #define IOC_IOCFG0_IOMODE_M                                         0x07000000
@@ -509,7 +509,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG1_IOMODE_W                                                  3
 #define IOC_IOCFG1_IOMODE_M                                         0x07000000
@@ -812,7 +812,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG2_IOMODE_W                                                  3
 #define IOC_IOCFG2_IOMODE_M                                         0x07000000
@@ -1115,7 +1115,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG3_IOMODE_W                                                  3
 #define IOC_IOCFG3_IOMODE_M                                         0x07000000
@@ -1418,7 +1418,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG4_IOMODE_W                                                  3
 #define IOC_IOCFG4_IOMODE_M                                         0x07000000
@@ -1721,7 +1721,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG5_IOMODE_W                                                  3
 #define IOC_IOCFG5_IOMODE_M                                         0x07000000
@@ -2024,7 +2024,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG6_IOMODE_W                                                  3
 #define IOC_IOCFG6_IOMODE_M                                         0x07000000
@@ -2327,7 +2327,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG7_IOMODE_W                                                  3
 #define IOC_IOCFG7_IOMODE_M                                         0x07000000
@@ -2630,7 +2630,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG8_IOMODE_W                                                  3
 #define IOC_IOCFG8_IOMODE_M                                         0x07000000
@@ -2933,7 +2933,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG9_IOMODE_W                                                  3
 #define IOC_IOCFG9_IOMODE_M                                         0x07000000
@@ -3236,7 +3236,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG10_IOMODE_W                                                 3
 #define IOC_IOCFG10_IOMODE_M                                        0x07000000
@@ -3539,7 +3539,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG11_IOMODE_W                                                 3
 #define IOC_IOCFG11_IOMODE_M                                        0x07000000
@@ -3842,7 +3842,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG12_IOMODE_W                                                 3
 #define IOC_IOCFG12_IOMODE_M                                        0x07000000
@@ -4145,7 +4145,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG13_IOMODE_W                                                 3
 #define IOC_IOCFG13_IOMODE_M                                        0x07000000
@@ -4448,7 +4448,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG14_IOMODE_W                                                 3
 #define IOC_IOCFG14_IOMODE_M                                        0x07000000
@@ -4751,7 +4751,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG15_IOMODE_W                                                 3
 #define IOC_IOCFG15_IOMODE_M                                        0x07000000
@@ -5054,7 +5054,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG16_IOMODE_W                                                 3
 #define IOC_IOCFG16_IOMODE_M                                        0x07000000
@@ -5357,7 +5357,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG17_IOMODE_W                                                 3
 #define IOC_IOCFG17_IOMODE_M                                        0x07000000
@@ -5660,7 +5660,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG18_IOMODE_W                                                 3
 #define IOC_IOCFG18_IOMODE_M                                        0x07000000
@@ -5963,7 +5963,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG19_IOMODE_W                                                 3
 #define IOC_IOCFG19_IOMODE_M                                        0x07000000
@@ -6266,7 +6266,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG20_IOMODE_W                                                 3
 #define IOC_IOCFG20_IOMODE_M                                        0x07000000
@@ -6569,7 +6569,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG21_IOMODE_W                                                 3
 #define IOC_IOCFG21_IOMODE_M                                        0x07000000
@@ -6872,7 +6872,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG22_IOMODE_W                                                 3
 #define IOC_IOCFG22_IOMODE_M                                        0x07000000
@@ -7175,7 +7175,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG23_IOMODE_W                                                 3
 #define IOC_IOCFG23_IOMODE_M                                        0x07000000
@@ -7478,7 +7478,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG24_IOMODE_W                                                 3
 #define IOC_IOCFG24_IOMODE_M                                        0x07000000
@@ -7781,7 +7781,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG25_IOMODE_W                                                 3
 #define IOC_IOCFG25_IOMODE_M                                        0x07000000
@@ -8084,7 +8084,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG26_IOMODE_W                                                 3
 #define IOC_IOCFG26_IOMODE_M                                        0x07000000
@@ -8387,7 +8387,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG27_IOMODE_W                                                 3
 #define IOC_IOCFG27_IOMODE_M                                        0x07000000
@@ -8690,7 +8690,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG28_IOMODE_W                                                 3
 #define IOC_IOCFG28_IOMODE_M                                        0x07000000
@@ -8993,7 +8993,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG29_IOMODE_W                                                 3
 #define IOC_IOCFG29_IOMODE_M                                        0x07000000
@@ -9296,7 +9296,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG30_IOMODE_W                                                 3
 #define IOC_IOCFG30_IOMODE_M                                        0x07000000
@@ -9599,7 +9599,7 @@
 //                          Inverted input / output
 // OPENDR                   Open Drain,
 //                          Normal input / output
-// INV                      Inverted input / ouput
+// INV                      Inverted input / output
 // NORMAL                   Normal input / output
 #define IOC_IOCFG31_IOMODE_W                                                 3
 #define IOC_IOCFG31_IOMODE_M                                        0x07000000

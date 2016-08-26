@@ -3,7 +3,7 @@
 *  Revised:        $Date: 2015-07-16 12:12:04 +0200 (Thu, 16 Jul 2015) $
 *  Revision:       $Revision: 44151 $
 *
-*  Description:    Provides macros for ensuring that a specfic release of
+*  Description:    Provides macros for ensuring that a specific release of
 *                  DriverLib is used.
 *
 *  Copyright (c) 2015, Texas Instruments Incorporated

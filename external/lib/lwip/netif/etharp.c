@@ -438,7 +438,7 @@ etharp_send_ip(struct netif *netif, struct pbuf *p, struct eth_addr *src, struct
  * @param flags @see definition of ETHARP_FLAG_*
  *
  * @return
- * - ERR_OK Succesfully updated ARP cache.
+ * - ERR_OK Successfully updated ARP cache.
  * - ERR_MEM If we could not add a new ARP entry when ETHARP_FLAG_TRY_HARD was set.
  * - ERR_ARG Non-unicast address given, those will not appear in ARP cache.
  *
@@ -699,7 +699,7 @@ etharp_arp_input(struct netif *netif, struct eth_addr *ethaddr, struct pbuf *p)
   LWIP_ERROR("netif != NULL", (netif != NULL), return;);
 
   /* drop short ARP packets: we have to check for p->len instead of p->tot_len here
-     since a struct etharp_hdr is pointed to p->payload, so it musn't be chained! */
+     since a struct etharp_hdr is pointed to p->payload, so it mustn't be chained! */
   if (p->len < SIZEOF_ETHARP_PACKET) {
     LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_LEVEL_WARNING,
       ("etharp_arp_input: packet dropped, too short (%"S16_F"/%"S16_F")\n", p->tot_len,
@@ -735,7 +735,7 @@ etharp_arp_input(struct netif *netif, struct eth_addr *ethaddr, struct pbuf *p)
 
 #if LWIP_AUTOIP
   /* We have to check if a host already has configured our random
-   * created link local address and continously check if there is
+   * created link local address and continuously check if there is
    * a host with this IP-address so we can detect collisions */
   autoip_arp_reply(netif, hdr);
 #endif /* LWIP_AUTOIP */

@@ -1179,7 +1179,7 @@ auth_ip_addr(int unit, u32_t addr)
   return ip_addr_check(addr, addresses[unit]);
 }
 
-static int /* @todo: integrate this funtion into auth_ip_addr()*/
+static int /* @todo: integrate this function into auth_ip_addr()*/
 ip_addr_check(u32_t addr, struct wordlist *addrs)
 {
   /* don't allow loopback or multicast address */

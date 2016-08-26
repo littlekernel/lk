@@ -1,5 +1,5 @@
 /*
- * @brief Vitual communication port example
+ * @brief Virtual communication port example
  *
  * @note
  * Copyright(C) NXP Semiconductors, 2013

@@ -162,7 +162,7 @@ int RingBuffer_InsertMult(RINGBUFF_T *RingBuff, const void *data, int num);
  * @brief	Pop an item from the ring buffer
  * @param	RingBuff	: Pointer to ring buffer
  * @param	data		: Pointer to memory where popped item be stored
- * @return	1 when item popped successfuly onto @a data,
+ * @return	1 when item popped successfully onto @a data,
  * 			0 When error (Buffer not initialized using
  * 			RingBuffer_Init() or attempted to pop item when
  * 			the buffer is empty)
