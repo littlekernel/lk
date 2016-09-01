@@ -32,7 +32,10 @@ FUNCTION(arm64_context_switch)
     push x22, x23
     push x20, x21
     push x18, x19
-    str  x30, [sp,#-8]!
+    mrs  x18, tpidr_el0
+    mrs  x19, tpidrro_el0
+    push x18, x19
+    push x30, xzr
 
     /* save old sp */
     mov  x15, sp
@@ -42,7 +45,10 @@ FUNCTION(arm64_context_switch)
     mov  sp, x1
 
     /* restore new frame */
-    ldr  x30, [sp], #8
+    pop  x30, xzr
+    pop  x18, x19
+    msr  tpidr_el0, x18
+    msr  tpidrro_el0, x19
     pop  x18, x19
     pop  x20, x21
     pop  x22, x23
@@ -114,7 +120,7 @@ FUNCTION(arm64_elX_to_el1)
     msr elr_el2, x4
     mov x4, #((0b1111 << 6) | (0b0101)) /* EL1h runlevel */
     msr spsr_el2, x4
-   
+
 
 
 .confEL1:
