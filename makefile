@@ -10,7 +10,7 @@ DEFAULT_PROJECT ?=
 TOOLCHAIN_PREFIX ?=
 
 # check if LKROOT is already a part of LKINC list and add it only if it is not
-ifneq ($(findstring $(LKROOT),$(LKINC)), $(LKROOT))
+ifeq ($(filter $(LKROOT),$(LKINC)), )
 LKINC := $(LKROOT) $(LKINC)
 endif
 
