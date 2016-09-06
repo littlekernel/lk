@@ -32,6 +32,9 @@
 
 struct context_switch_frame {
     vaddr_t lr;
+    vaddr_t pad;                // Padding to keep frame size a multiple of
+    vaddr_t tpidr_el0;          //  sp alignment requirements (16 bytes)
+    vaddr_t tpidrro_el0;
     vaddr_t r18;
     vaddr_t r19;
     vaddr_t r20;
