@@ -52,8 +52,8 @@ void ti_cc_rfc_cpe_0_irq(void) {
 	// disable IRQ until thread handles and re-enables them in response to event
 	NVIC_DisableIRQ(rfc_cpe_0_IRQn);
 
-	// reschedule if we woke a thread (indicated by !signalled)
-	arm_cm_irq_exit(!cpe0_evt.signalled);
+	// reschedule if we woke a thread (indicated by !signaled)
+	arm_cm_irq_exit(!cpe0_evt.signaled);
 }
 
 static inline uint32_t cpe0_reason(void) {
@@ -76,8 +76,8 @@ void ti_cc_rfc_cmd_ack_irq(void) {
 	arm_cm_irq_entry();
 	HWREG(RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG) = 0;
 	event_signal(&ack_evt, false);
-	// reschedule if we woke a thread (indicated by !signalled)
-	arm_cm_irq_exit(!ack_evt.signalled);
+	// reschedule if we woke a thread (indicated by !signaled)
+	arm_cm_irq_exit(!ack_evt.signaled);
 }
 
 uint32_t radio_send_cmd(uint32_t cmd) {

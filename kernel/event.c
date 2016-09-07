@@ -74,7 +74,7 @@ void event_destroy(event_t *e)
     THREAD_LOCK(state);
 
     e->magic = 0;
-    e->signalled = false;
+    e->signaled = false;
     e->flags = 0;
     wait_queue_destroy(&e->wait, true);
 
@@ -104,14 +104,14 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout)
 
     THREAD_LOCK(state);
 
-    if (e->signalled) {
-        /* signalled, we're going to fall through */
+    if (e->signaled) {
+        /* signaled, we're going to fall through */
         if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
-            /* autounsignal flag lets one thread fall through before unsignalling */
-            e->signalled = false;
+            /* autounsignal flag lets one thread fall through before unsignaling */
+            e->signaled = false;
         }
     } else {
-        /* unsignalled, block here */
+        /* unsignaled, block here */
         ret = wait_queue_block(&e->wait, timeout);
     }
 
@@ -143,20 +143,20 @@ status_t event_signal(event_t *e, bool reschedule)
 
     THREAD_LOCK(state);
 
-    if (!e->signalled) {
+    if (!e->signaled) {
         if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
-            /* try to release one thread and leave unsignalled if successful */
+            /* try to release one thread and leave unsignaled if successful */
             if (wait_queue_wake_one(&e->wait, reschedule, NO_ERROR) <= 0) {
                 /*
                  * if we didn't actually find a thread to wake up, go to
-                 * signalled state and let the next call to event_wait
+                 * signaled state and let the next call to event_wait
                  * unsignal the event.
                  */
-                e->signalled = true;
+                e->signaled = true;
             }
         } else {
-            /* release all threads and remain signalled */
-            e->signalled = true;
+            /* release all threads and remain signaled */
+            e->signaled = true;
             wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
         }
     }
@@ -182,7 +182,7 @@ status_t event_unsignal(event_t *e)
 {
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-    e->signalled = false;
+    e->signaled = false;
 
     return NO_ERROR;
 }
