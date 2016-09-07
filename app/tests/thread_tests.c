@@ -242,15 +242,15 @@ int mutex_test(void)
 
 static event_t e;
 
-static int event_signaller(void *arg)
+static int event_signaler(void *arg)
 {
-    printf("event signaller pausing\n");
+    printf("event signaler pausing\n");
     thread_sleep(1000);
 
 //  for (;;) {
-    printf("signalling event\n");
+    printf("signaling event\n");
     event_signal(&e, true);
-    printf("done signalling event\n");
+    printf("done signaling event\n");
     thread_yield();
 //  }
 
@@ -287,9 +287,9 @@ void event_test(void)
 
     printf("event tests starting\n");
 
-    /* make sure signalling the event wakes up all the threads */
+    /* make sure signaling the event wakes up all the threads */
     event_init(&e, false, 0);
-    threads[0] = thread_create("event signaller", &event_signaller, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    threads[0] = thread_create("event signaler", &event_signaler, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     threads[1] = thread_create("event waiter 0", &event_waiter, (void *)2, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     threads[2] = thread_create("event waiter 1", &event_waiter, (void *)2, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     threads[3] = thread_create("event waiter 2", &event_waiter, (void *)2, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
@@ -305,9 +305,9 @@ void event_test(void)
     for (uint i = 0; i < countof(threads); i++)
         thread_join(threads[i], NULL, INFINITE_TIME);
 
-    /* make sure signalling the event wakes up precisely one thread */
+    /* make sure signaling the event wakes up precisely one thread */
     event_init(&e, false, EVENT_FLAG_AUTOUNSIGNAL);
-    threads[0] = thread_create("event signaller", &event_signaller, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    threads[0] = thread_create("event signaler", &event_signaler, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     threads[1] = thread_create("event waiter 0", &event_waiter, (void *)99, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     threads[2] = thread_create("event waiter 1", &event_waiter, (void *)99, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     threads[3] = thread_create("event waiter 2", &event_waiter, (void *)99, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
