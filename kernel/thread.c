@@ -453,8 +453,7 @@ static thread_t *get_top_thread(int cpu)
 
     while (local_run_queue_bitmap) {
         /* find the first (remaining) queue with a thread in it */
-        uint next_queue = HIGHEST_PRIORITY - __builtin_clz(local_run_queue_bitmap)
-                          - (sizeof(run_queue_bitmap) * 8 - NUM_PRIORITIES);
+        uint next_queue = sizeof(run_queue_bitmap) * 8 - 1 - __builtin_clz(local_run_queue_bitmap);
 
         list_for_every_entry(&run_queue[next_queue], newthread, thread_t, queue_node) {
 #if WITH_SMP
