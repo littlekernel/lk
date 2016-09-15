@@ -24,6 +24,7 @@ ifneq ($(project-name),)
 ifneq ($(strip $(foreach d,$(LKINC),$(wildcard $(d)/project/$(project-name).mk))),)
 do-nothing := 1
 $(MAKECMDGOALS) _all: make-make
+	@:
 make-make:
 	@PROJECT=$(project-name) $(MAKE) -rR -f $(LOCAL_MAKEFILE) $(filter-out $(project-name), $(MAKECMDGOALS))
 

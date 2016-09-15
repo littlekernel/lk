@@ -28,9 +28,16 @@ export BUILDROOT
 export DEFAULT_PROJECT
 export TOOLCHAIN_PREFIX
 
-# vaneer makefile that calls into the engine with lk as the build root
+# veneer makefile that calls into the engine with lk as the build root
 # if we're the top level invocation, call ourselves with additional args
-$(MAKECMDGOALS) _top:
+_top:
 	@$(MAKE) -C $(LKMAKEROOT) -rR -f $(LKROOT)/engine.mk $(addprefix -I,$(LKINC)) $(MAKECMDGOALS)
+
+# If any arguments were provided, create a recipe for them that depends
+# on the _top rule (thus calling it), but otherwise do nothing.
+# "@:" (vs empty rule ";") prevents extra "'foo' is up to date." messages from
+# being emitted.
+$(MAKECMDGOALS): _top
+	@:
 
 .PHONY: _top
