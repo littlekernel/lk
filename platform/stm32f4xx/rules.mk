@@ -47,6 +47,7 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	platform/stm32 \
 	platform/stm32f4xx/STM32F4xx_StdPeriph_Driver \
 	arch/arm/arm-m/systick \
 	lib/cbuf \

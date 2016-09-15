@@ -43,7 +43,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/flash.c \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/init.c \
-	$(LOCAL_DIR)/power.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/uart.c \
 	$(LOCAL_DIR)/usbc.c \
@@ -60,6 +59,7 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	platform/stm32 \
 	platform/stm32f7xx/STM32F7xx_HAL_Driver \
 	arch/arm/arm-m/systick \
 	dev/gpio \
