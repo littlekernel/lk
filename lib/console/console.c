@@ -39,6 +39,11 @@
 #define CONSOLE_ENABLE_HISTORY 1
 #endif
 
+// Whether to enable "repeat" command.
+#ifndef CONSOLE_ENABLE_REPEAT
+#define CONSOLE_ENABLE_REPEAT 1
+#endif
+
 #define LINE_LEN 128
 
 #define PANIC_LINE_LEN 32
@@ -91,6 +96,9 @@ static int cmd_test(int argc, const cmd_args *argv);
 #if CONSOLE_ENABLE_HISTORY
 static int cmd_history(int argc, const cmd_args *argv);
 #endif
+#if CONSOLE_ENABLE_REPEAT
+static int cmd_repeat(int argc, const cmd_args *argv);
+#endif
 
 STATIC_COMMAND_START
 STATIC_COMMAND("help", "this list", &cmd_help)
@@ -100,6 +108,9 @@ STATIC_COMMAND("echo", NULL, &cmd_echo)
 STATIC_COMMAND("test", "test the command processor", &cmd_test)
 #if CONSOLE_ENABLE_HISTORY
 STATIC_COMMAND("history", "command history", &cmd_history)
+#endif
+#if CONSOLE_ENABLE_REPEAT
+STATIC_COMMAND("repeat", "repeats command multiple times", &cmd_repeat)
 #endif
 #endif
 STATIC_COMMAND_END(help);
@@ -215,7 +226,52 @@ static const char *prev_history(uint *cursor)
     *cursor = i;
     return str;
 }
-#endif
+#endif  // CONSOLE_ENABLE_HISTORY
+
+#if CONSOLE_ENABLE_REPEAT
+static int cmd_repeat(int argc, const cmd_args* argv)
+{
+    if (argc < 4) goto usage;
+    int times = argv[1].i;
+    int delay = argv[2].i;
+    if (times <= 0) goto usage;
+    if (delay < 0) goto usage;
+
+    // Worst case line length with quoting.
+    char line[LINE_LEN + MAX_NUM_ARGS * 3];
+
+    // Paste together all arguments, and quote them.
+    int idx = 0;
+    for (int i = 3; i < argc; ++i) {
+        if (i != 3) {
+            // Add a space before all args but the first.
+            line[idx++] = ' ';
+        }
+        line[idx++] = '"';
+        for (const char* src = argv[i].str; *src != '\0'; src++) {
+            line[idx++] = *src;
+        }
+        line[idx++] = '"';
+    }
+    line[idx] = '\0';
+
+    for (int i = 0; i < times; ++i) {
+        printf("[%d/%d]\n", i + 1, times);
+        int result = console_run_script_locked(line);
+        if (result != 0) {
+            printf("terminating repeat loop, command exited with status %d\n",
+                    result);
+            return result;
+        }
+        thread_sleep(delay);
+    }
+    return NO_ERROR;
+
+usage:
+    printf("Usage: repeat <times> <delay in ms> <cmd> [args..]\n");
+    return ERR_INVALID_ARGS;
+}
+#endif  // CONSOLE_ENABLE_REPEAT
 
 static const cmd *match_command(const char *command, const uint8_t availability_mask)
 {
