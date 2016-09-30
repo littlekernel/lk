@@ -35,6 +35,12 @@
 #error ERROR: Must define GPIO_I2C_BUS_COUNT
 #endif
 
+#if GPIO_I2C_PULLUPS
+#define GPIO_I2C_INPUT (GPIO_INPUT | GPIO_PULLUP)
+#else
+#define GPIO_I2C_INPUT (GPIO_INPUT)
+#endif  // GPIO_I2C_PULLUPS
+
 typedef struct gpio_i2c_state {
     mutex_t                 lock;
     const gpio_i2c_info_t  *info;
@@ -58,14 +64,14 @@ static inline void send_start(const gpio_i2c_info_t *i)
 static inline void send_stop(const gpio_i2c_info_t *i)
 {
     gpio_config(i->sda, GPIO_OUTPUT);
-    gpio_config(i->scl, GPIO_INPUT);
+    gpio_config(i->scl, GPIO_I2C_INPUT);
     spin_cycles(i->qcd);
-    gpio_config(i->sda, GPIO_INPUT);
+    gpio_config(i->sda, GPIO_I2C_INPUT);
 }
 
 static inline void send_restart(const gpio_i2c_info_t *i)
 {
-    gpio_config(i->scl, GPIO_INPUT);
+    gpio_config(i->scl, GPIO_I2C_INPUT);
     spin_cycles(i->qcd);
     send_start(i);
 }
@@ -73,10 +79,10 @@ static inline void send_restart(const gpio_i2c_info_t *i)
 static inline void send_nack(const gpio_i2c_info_t *i)
 {
     spin_cycles(i->hcd);
-    gpio_config(i->scl, GPIO_INPUT);
+    gpio_config(i->scl, GPIO_I2C_INPUT);
     spin_cycles(i->hcd);
     gpio_config(i->scl, GPIO_OUTPUT);
-    gpio_config(i->sda, GPIO_INPUT);
+    gpio_config(i->sda, GPIO_I2C_INPUT);
 }
 
 static inline void send_ack(const gpio_i2c_info_t *i)
@@ -91,7 +97,7 @@ static inline bool send_byte(const gpio_i2c_info_t *i, uint32_t b)
 
     for (size_t j = 0; j < 8; ++j) {
         if (b & 0x80)
-            gpio_config(i->sda, GPIO_INPUT);
+            gpio_config(i->sda, GPIO_I2C_INPUT);
         else
             gpio_config(i->sda, GPIO_OUTPUT);
         b <<= 1;
@@ -102,14 +108,14 @@ static inline bool send_byte(const gpio_i2c_info_t *i, uint32_t b)
          * right here.
          */
         spin_cycles(i->hcd);
-        gpio_config(i->scl, GPIO_INPUT);
+        gpio_config(i->scl, GPIO_I2C_INPUT);
         spin_cycles(i->hcd);
         gpio_config(i->scl, GPIO_OUTPUT);
     }
 
-    gpio_config(i->sda, GPIO_INPUT);
+    gpio_config(i->sda, GPIO_I2C_INPUT);
     spin_cycles(i->hcd);
-    gpio_config(i->scl, GPIO_INPUT);
+    gpio_config(i->scl, GPIO_I2C_INPUT);
     spin_cycles(i->hcd);
     ret = (0 == gpio_get(i->sda));
     gpio_config(i->scl, GPIO_OUTPUT);
@@ -123,7 +129,7 @@ static inline void recv_byte(const gpio_i2c_info_t *i, uint8_t *b)
     uint32_t tmp = 0;
 
     for (size_t j = 0; j < 7; ++j) {
-        gpio_config(i->scl, GPIO_INPUT);
+        gpio_config(i->scl, GPIO_I2C_INPUT);
         spin_cycles(i->hcd);
         if (gpio_get(i->sda))
             tmp |= 1;
@@ -132,7 +138,7 @@ static inline void recv_byte(const gpio_i2c_info_t *i, uint8_t *b)
         spin_cycles(i->hcd);
     }
 
-    gpio_config(i->scl, GPIO_INPUT);
+    gpio_config(i->scl, GPIO_I2C_INPUT);
     spin_cycles(i->hcd);
     if (gpio_get(i->sda))
         tmp |= 1;
@@ -222,8 +228,8 @@ void gpio_i2c_add_bus(uint32_t bus_id, const gpio_i2c_info_t *info)
     DEBUG_ASSERT(bus_id < GPIO_I2C_BUS_COUNT);
     DEBUG_ASSERT(!s->info);
 
-    gpio_config(info->scl, GPIO_INPUT);
-    gpio_config(info->sda, GPIO_INPUT);
+    gpio_config(info->scl, GPIO_I2C_INPUT);
+    gpio_config(info->sda, GPIO_I2C_INPUT);
     gpio_set(info->scl, 0);
     gpio_set(info->sda, 0);
 
