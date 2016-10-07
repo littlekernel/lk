@@ -16,13 +16,14 @@ BUILDID := "$(shell $(LOCAL_DIR)/buildid.sh)_LOCAL"
 endif
 endif
 
-# Generate a buildid.h file, lazy evaulated BUILDID_DEFINE at the end
+# Generate a buildid.h file, lazy evaluate BUILDID_DEFINE at the end
 # of the first make pass. This lets modules that haven't been
 # included yet set BUILDID.
 BUILDID_DEFINE="BUILDID=\"$(BUILDID)\""
 BUILDID_H := $(BUILDDIR)/buildid.h
-$(BUILDID_H): .PHONY
+$(BUILDID_H):
 	@$(call MAKECONFIGHEADER,$@,BUILDID_DEFINE)
+.PHONY: $(BUILDID_H)
 
 GENERATED += $(BUILDID_H)
 
