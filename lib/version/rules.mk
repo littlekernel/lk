@@ -21,9 +21,13 @@ endif
 # included yet set BUILDID.
 BUILDID_DEFINE="BUILDID=\"$(BUILDID)\""
 BUILDID_H := $(BUILDDIR)/buildid.h
-$(BUILDID_H):
+$(BUILDID_H): buildid_h.phony
 	@$(call MAKECONFIGHEADER,$@,BUILDID_DEFINE)
-.PHONY: $(BUILDID_H)
+
+# Moving the phony to an extra dependency allows version.o not to be
+# rebuilt if buildid.h doesn't change.
+buildid_h.phony:
+.PHONY: buildid_h.phony
 
 GENERATED += $(BUILDID_H)
 
