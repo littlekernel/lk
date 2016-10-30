@@ -37,6 +37,7 @@ STATIC_COMMAND("clock_tests", "test clocks", (console_cmd)&clock_tests)
 STATIC_COMMAND("bench", "miscellaneous benchmarks", (console_cmd)&benchmarks)
 STATIC_COMMAND("fibo", "threaded fibonacci", (console_cmd)&fibo)
 STATIC_COMMAND("spinner", "create a spinning thread", (console_cmd)&spinner)
+STATIC_COMMAND("cbuf_tests", "test lib/cbuf", &cbuf_tests)
 STATIC_COMMAND_END(tests);
 
 #endif
