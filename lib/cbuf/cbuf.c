@@ -84,8 +84,19 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
 
     while (pos < len && cbuf_space_avail(cbuf) > 0) {
         if (cbuf->head >= cbuf->tail) {
-            write_len = MIN(valpow2(cbuf->len_pow2) - cbuf->head, len - pos);
+            if (cbuf->tail == 0) {
+                // Special case - if tail is at position 0, we can't write all
+                // the way to the end of the buffer. Otherwise, head ends up at
+                // 0, head == tail, and buffer is considered "empty" again.
+                write_len =
+                    MIN(valpow2(cbuf->len_pow2) - cbuf->head - 1, len - pos);
+            } else {
+                // Write to the end of the buffer.
+                write_len =
+                    MIN(valpow2(cbuf->len_pow2) - cbuf->head, len - pos);
+            }
         } else {
+            // Write from head to tail-1.
             write_len = MIN(cbuf->tail - cbuf->head - 1, len - pos);
         }
 
@@ -260,4 +271,3 @@ retry:
 
     return ret;
 }
-
