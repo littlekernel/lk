@@ -24,21 +24,21 @@ for line in sys.stdin:
         # match the address
         match = hexcolonrule.match(t[0])
         if match:
-            #print "%s %s" % (match, match.group(1))
+            #print("%s %s" % (match, match.group(1)))
             curraddress = int(match.group(1), 16)
-            #print "curraddress 0x%x" % curraddress
+            #print("curraddress 0x%x" % curraddress)
 
         # see if this is a symbol declaration
         match = symbolrule.match(t[1])
         if match:
-            # print the previous count
+            # print(the previous count)
             if count > 0:
-                print "%d %s" % (count, currsymbol)
+                print("%d %s" % (count, currsymbol))
             count = 0
 
-            #print "%s %s" % (match, match.group(1))
+            #print("%s %s" % (match, match.group(1)))
             currsymbol = str(match.group(1))
-            #print "current symbol is now '%s'" % currsymbol
+            #print("current symbol is now '%s'" % currsymbol)
             continue
 
         # see if it's a one or two byte opcode
@@ -48,28 +48,28 @@ for line in sys.stdin:
             continue
         match = hex2byterule.match(t[2])
         if match:
-            #print "match %s, %s" % (match, match.group(0))
+            #print("match %s, %s" % (match, match.group(0)))
             iindex = 3
 
-        #print "instruction starts at index %d: '%s'" % (iindex, t[iindex])
+        #print("instruction starts at index %d: '%s'" % (iindex, t[iindex]))
 
         # match the instruction string
         insmatch = insrule.match(t[iindex])
         if not insmatch:
             continue
         ins = insmatch.group(1)
-        #print "instruction '%s'" % ins
+        #print("instruction '%s'" % ins)
 
         # look for a few special instructions
         if ins == "push":
             c = (len(t) - 1 - iindex) * 4
-            #print "%d bytes pushed" % c
+            #print("%d bytes pushed" % c)
             count += c
 
         # look for a few special instructions
         if ins == "stmdb":
             c = (len(t) - 2 - iindex) * 4
-            #print "%d bytes stmed" % c
+            #print("%d bytes stmed" % c)
             count += c
 
         if ins == "sub":
@@ -77,16 +77,16 @@ for line in sys.stdin:
             if reg == "sp,":
                 conststr = t[iindex+2]
                 c = int(conststr[1:])
-                #print "subtracting from sp, val %d" % c
+                #print("subtracting from sp, val %d" % c)
                 count += c
 
     except IndexError:
         continue
     except Exception as e:
-        print "Exception %s" % e
+        print("Exception %s" % e)
         continue
 
-# print the last count
+# print(the last count)
 if count > 0:
-    print "%d %s" % (count, currsymbol)
+    print("%d %s" % (count, currsymbol))
 
