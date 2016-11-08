@@ -514,6 +514,7 @@ static ssize_t hexstr_to_val(const char *str, uint8_t **buf)
         uint8_t c = str[pos];
 
         if (!isxdigit(c)) {
+            free(hexbuffer);
             return ERR_NOT_VALID;
         }
 
