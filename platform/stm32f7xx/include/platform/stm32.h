@@ -41,4 +41,4 @@ int stm32_uart_getc_poll(int port);
 
 
 /* unique id of device */
-uint32_t stm32_unique_id[3];
+extern uint32_t stm32_unique_id[3];

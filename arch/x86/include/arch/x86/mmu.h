@@ -115,7 +115,7 @@ enum page_table_levels {
 #if ARCH_X86_64
     PML4_L
 #endif
-} page_level;
+};
 
 
 struct map_range {
