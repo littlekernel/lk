@@ -50,11 +50,11 @@ $(OUTELF).size: $(OUTELF)
 	$(NOECHO)$(NM) -S --size-sort $< > $@
 
 # print some information about the build
-$(BUILDDIR)/srcfiles.txt:
+$(BUILDDIR)/srcfiles.txt: $(OUTELF)
 	@echo generating $@
 	$(NOECHO)echo $(sort $(ALLSRCS)) | tr ' ' '\n' > $@
 
-$(BUILDDIR)/include_paths.txt:
+$(BUILDDIR)/include_paths.txt: $(OUTELF)
 	@echo generating $@
 	$(NOECHO)echo $(subst -I,,$(sort $(GLOBAL_INCLUDES))) | tr ' ' '\n' > $@
 
