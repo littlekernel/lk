@@ -20,6 +20,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c \
+	$(LOCAL_DIR)/mailbox.c \
+
 
 MEMBASE := 0x00000000
 
@@ -47,7 +49,7 @@ else ifeq ($(TARGET),rpi3)
 ARCH := arm64
 ARM_CPU := cortex-a53
 
-KERNEL_LOAD_OFFSET := 0x00080000 
+KERNEL_LOAD_OFFSET := 0x00080000
 MEMSIZE ?= 0x40000000 # 1GB
 
 GLOBAL_DEFINES += \

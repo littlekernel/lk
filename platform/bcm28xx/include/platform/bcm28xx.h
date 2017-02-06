@@ -36,6 +36,9 @@
 #error Unknown BCM28XX Variant
 #endif
 
+#define BCM_SDRAM_BUS_ADDR_BASE_NO_L2 0xc0000000
+#define BCM_SDRAM_BUS_ADDR_BASE (BCM_SDRAM_BUS_ADDR_BASE_NO_L2)
+
 /* pointer to 'local' peripherals at 0x40000000 */
 #define BCM_LOCAL_PERIPH_BASE_VIRT (BCM_PERIPH_BASE_VIRT + 0x01000000)
 
@@ -65,6 +68,14 @@
 #define ARMCTRL_INTC_BASE       (ARM_BASE + 0x200)
 #define ARMCTRL_TIMER0_1_BASE   (ARM_BASE + 0x400)
 #define ARMCTRL_0_SBM_BASE      (ARM_BASE + 0x800)
+
+/* Videocore (GPU) mailbox registers for core0 */
+#define ARM0_MAILBOX_BASE       (ARM_BASE + 0x0880)
+#define ARM0_MAILBOX_READ       (ARM0_MAILBOX_BASE + 0x00)
+#define ARM0_MAILBOX_PEEK       (ARM0_MAILBOX_BASE + 0x10)
+#define ARM0_MAILBOX_CONFIG     (ARM0_MAILBOX_BASE + 0x1C)
+#define ARM0_MAILBOX_STATUS     (ARM0_MAILBOX_BASE + 0x18)
+#define ARM0_MAILBOX_WRITE      (ARM0_MAILBOX_BASE + 0x20)
 
 #define ARM_LOCAL_BASE          (BCM_LOCAL_PERIPH_BASE_VIRT)
 
