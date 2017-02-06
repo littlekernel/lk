@@ -8,4 +8,10 @@ MODULES += \
 	app/tests \
 	lib/cksum \
 	lib/debugcommands \
+    lib/gfx \
+    lib/gfxconsole \
+
+
+
+
 

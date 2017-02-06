@@ -76,6 +76,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 #include <libfdt.h>
 #include <arch/arm64.h>
 #include <arch/arm64/mmu.h>
+#include <platform/mailbox.h>
 
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
@@ -213,6 +214,9 @@ void platform_early_init(void)
 void platform_init(void)
 {
     uart_init();
+#if BCM2837
+    init_framebuffer();
+#endif
 }
 
 void platform_dputc(char c)
