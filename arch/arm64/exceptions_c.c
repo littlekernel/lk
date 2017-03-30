@@ -71,9 +71,8 @@ void arm64_sync_exception(struct arm64_iframe_long *iframe)
         case 0b010001: /* syscall from arm32 */
         case 0b010101: /* syscall from arm64 */
 #ifdef WITH_LIB_SYSCALL
-            void arm64_syscall(struct arm64_iframe_long *iframe);
             arch_enable_fiqs();
-            arm64_syscall(iframe);
+            arm64_syscall(iframe, (ec == 0x15) ? true : false);
             arch_disable_fiqs();
             return;
 #else
