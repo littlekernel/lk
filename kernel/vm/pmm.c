@@ -43,7 +43,7 @@ static mutex_t lock = MUTEX_INITIAL_VALUE(lock);
      ((uintptr_t)(page) < ((uintptr_t)(arena)->page_array + (arena)->size / PAGE_SIZE * sizeof(vm_page_t))))
 
 #define PAGE_ADDRESS_FROM_ARENA(page, arena) \
-    (paddr_t)(((uintptr_t)page - (uintptr_t)a->page_array) / sizeof(vm_page_t)) * PAGE_SIZE + a->base;
+    (paddr_t)(((uintptr_t)page - (uintptr_t)(arena)->page_array) / sizeof(vm_page_t)) * PAGE_SIZE + (arena)->base;
 
 #define ADDRESS_IN_ARENA(address, arena) \
     ((address) >= (arena)->base && (address) <= (arena)->base + (arena)->size - 1)
