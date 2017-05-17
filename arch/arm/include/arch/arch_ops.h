@@ -28,6 +28,7 @@
 #include <compiler.h>
 #include <reg.h>
 #include <arch/arm.h>
+#include <arch/arm/cm.h>
 
 #if ARM_ISA_ARMV7M
 #include <arch/arm/cm.h>
