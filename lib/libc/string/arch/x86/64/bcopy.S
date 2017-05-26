@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2017 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -29,10 +29,4 @@
 
 /* void bcopy(const void *src, void *dest, size_t n); */
 FUNCTION(bcopy)
-    ret
-
-/* void *memcpy(void *dest, const void *src, size_t n); */
-FUNCTION(memmove)
-FUNCTION(memcpy)
-    ret
-
+	ret

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2017 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -27,11 +27,5 @@
 .text
 .align 2
 
-/* void bzero(void *s, size_t n); */
-FUNCTION(bzero)
-    ret
-
-/* void *memset(void *s, int c, size_t n); */
-FUNCTION(memset)
-    ret
-
+FUNCTION(memmove)
+	ret
