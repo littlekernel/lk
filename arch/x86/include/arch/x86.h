@@ -38,6 +38,8 @@ __BEGIN_CDECLS
 #define PFEX_I 0x10
 #define X86_8BYTE_MASK 0xFFFFFFFF
 #define X86_CPUID_ADDR_WIDTH 0x80000008
+#define X86_CPUID_SMEP_BIT 0x07
+#define X86_CPUID_SMAP_BIT 0x14
 
 struct x86_32_iframe {
     uint32_t di, si, bp, sp, bx, dx, cx, ax;            // pushed by common handler using pusha
@@ -497,7 +499,7 @@ static inline uint32_t check_smep_avail(void)
         "cpuid \n\t"
         :"=b" (reg_b)
         :"a" (reg_a),"c" (reg_c));
-    return ((reg_b>>0x06) & 0x1);
+    return ((reg_b >> X86_CPUID_SMEP_BIT) & 0x1);
 }
 
 static inline uint32_t check_smap_avail(void)
@@ -509,7 +511,7 @@ static inline uint32_t check_smap_avail(void)
         "cpuid \n\t"
         :"=b" (reg_b)
         :"a" (reg_a),"c" (reg_c));
-    return ((reg_b>>0x13) & 0x1);
+    return ((reg_b >> X86_CPUID_SMAP_BIT) & 0x1);
 }
 #endif // ARCH_X86_32
 
@@ -828,7 +830,7 @@ static inline uint64_t check_smep_avail(void)
         "cpuid \n\t"
         :"=b" (reg_b)
         :"a" (reg_a),"c" (reg_c));
-    return ((reg_b>>0x06) & 0x1);
+    return ((reg_b >> X86_CPUID_SMEP_BIT) & 0x1);
 }
 
 static inline uint64_t check_smap_avail(void)
@@ -840,7 +842,7 @@ static inline uint64_t check_smap_avail(void)
         "cpuid \n\t"
         :"=b" (reg_b)
         :"a" (reg_a),"c" (reg_c));
-    return ((reg_b>>0x13) & 0x1);
+    return ((reg_b >> X86_CPUID_SMAP_BIT) & 0x1);
 }
 
 #endif // ARCH_X86_64
