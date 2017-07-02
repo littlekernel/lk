@@ -23,7 +23,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/src/stm32f4xx_flash.c \
 	$(LOCAL_DIR)/src/stm32f4xx_flash_ramfunc.c \
 	$(LOCAL_DIR)/src/stm32f4xx_fmpi2c.c \
-	$(LOCAL_DIR)/src/stm32f4xx_fsmc.c \
 	$(LOCAL_DIR)/src/stm32f4xx_gpio.c \
 	$(LOCAL_DIR)/src/stm32f4xx_hash.c \
 	$(LOCAL_DIR)/src/stm32f4xx_hash_md5.c \
@@ -45,6 +44,12 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/src/stm32f4xx_usart.c \
 	$(LOCAL_DIR)/src/stm32f4xx_wwdg.c \
 	$(LOCAL_DIR)/src/system_stm32f4xx.c
+
+ifeq ($(STM32_CHIP),stm32f429)
+	MODULE_SRCS += $(LOCAL_DIR)/src/stm32f4xx_fmc.c
+else
+	MODULE_SRCS += $(LOCAL_DIR)/src/stm32f4xx_fsmc.c
+endif
 
 include $(LOCAL_DIR)/CMSIS/rules.mk
 
