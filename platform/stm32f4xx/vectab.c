@@ -95,7 +95,13 @@ DEFAULT_HANDLER(TIM8_UP_TIM13_IRQ);
 DEFAULT_HANDLER(TIM8_TRG_COM_TIM14_IRQ);
 DEFAULT_HANDLER(TIM8_CC_IRQ);
 DEFAULT_HANDLER(DMA1_Stream7_IRQ);
+
+#ifdef STM32F40_41xxx
 DEFAULT_HANDLER(FSMC_IRQ);
+#else
+DEFAULT_HANDLER(FMC_IRQ);
+#endif
+
 DEFAULT_HANDLER(SDIO_IRQ);
 DEFAULT_HANDLER(TIM5_IRQ);
 DEFAULT_HANDLER(SPI3_IRQ);
@@ -183,7 +189,11 @@ const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(TIM8_TRG_COM_TIM14_IRQ),   /* TIM8 Trigger and Commutation Interrupt and TIM14 global interrupt */
     VECTAB_ENTRY(TIM8_CC_IRQ),              /* TIM8 Capture Compare Interrupt                                    */
     VECTAB_ENTRY(DMA1_Stream7_IRQ),         /* DMA1 Stream7 Interrupt                                            */
+#ifdef STM32F40_41xxx
     VECTAB_ENTRY(FSMC_IRQ),                 /* FSMC global Interrupt                                             */
+#else
+    VECTAB_ENTRY(FMC_IRQ),                  /* FSMC global Interrupt                                             */
+#endif
     VECTAB_ENTRY(SDIO_IRQ),                 /* SDIO global Interrupt                                             */
     VECTAB_ENTRY(TIM5_IRQ),                 /* TIM5 global Interrupt                                             */
     VECTAB_ENTRY(SPI3_IRQ),                 /* SPI3 global Interrupt                                             */
