@@ -91,12 +91,12 @@ enum {
     MB_INFO_CMD_LINE    = 0x004,
     MB_INFO_MODS        = 0x008,
     MB_INFO_SYMS        = 0x010,
-    MB_INFO_MMAP        = 0x020,
-    MB_INFO_DRIVES      = 0x040,
-    MB_INFO_CONFIG      = 0x080,
-    MB_INFO_BOOT_LOADER = 0x100,
-    MB_INFO_APM_TABLE   = 0x200,
-    MB_INFO_VBE         = 0x400,
+    MB_INFO_MMAP        = 0x040,
+    MB_INFO_DRIVES      = 0x080,
+    MB_INFO_CONFIG      = 0x100,
+    MB_INFO_BOOT_LOADER = 0x200,
+    MB_INFO_APM_TABLE   = 0x400,
+    MB_INFO_VBE         = 0x800,
 };
 
 /* module structure */
