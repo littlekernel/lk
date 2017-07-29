@@ -191,7 +191,7 @@ void platform_init_multiboot_info(void)
         }
 
         if (_multiboot_info->flags & MB_INFO_MMAP) {
-            memory_map_t *mmap = (memory_map_t *)(uintptr_t)(_multiboot_info->mmap_addr - 4);
+            memory_map_t *mmap = (memory_map_t *)(uintptr_t)_multiboot_info->mmap_addr;
             mmap = (void *)((uintptr_t)mmap + KERNEL_BASE);
 
             LTRACEF("memory map:\n");
