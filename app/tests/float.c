@@ -38,6 +38,17 @@ extern void float_vfp_thumb_instruction_test(void);
 extern void float_neon_arm_instruction_test(void);
 extern void float_neon_thumb_instruction_test(void);
 
+static float test_result[] = {
+    47822.828125,
+    69934.515625,
+    92046.062500,
+    114157.406250,
+    136270.421875,
+    158378.812500,
+    180492.656250,
+    202600.265625,
+};
+
 #if !ARM_WITH_VFP_SP_ONLY
 #define FLOAT float
 #else
@@ -107,9 +118,8 @@ static void float_tests(void)
     int res;
     for (uint i = 0; i < countof(t); i++) {
         thread_join(t[i], &res, INFINITE_TIME);
-        printf("float thread %u returns %d, val %f\n", i, res, val[i]);
+        printf("float thread %u returns %d, val %f, expected:%f\n", i, res, val[i], test_result[i]);
     }
-    printf("the above values should be close\n");
 
 #if ARCH_ARM && !ARM_ISA_ARMV7M
     /* test all the instruction traps */
