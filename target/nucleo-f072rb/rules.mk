@@ -15,7 +15,11 @@ GLOBAL_DEFINES += \
 	PLL_P_VALUE=2
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/init.c
+	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/usb.c
+
+MODULE_DEPS += \
+    dev/usb/class/cdcserial
 
 include make/module.mk
 

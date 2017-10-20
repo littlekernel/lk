@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2017 The Fuchsia Authors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,43 +20,10 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <target.h>
-#include <compiler.h>
-#include <dev/gpio.h>
-#include <platform/gpio.h>
-#include <platform/stm32.h>
-#include <platform/usbc.h>
-#include <target/gpioconfig.h>
-#include <target/usb.h>
 
-void target_early_init(void)
-{
-    /* configure the usart2 pins */
-    gpio_config(GPIO(GPIO_PORT_A, 2), GPIO_STM32_AF | GPIO_STM32_AFn(1));
-    gpio_config(GPIO(GPIO_PORT_A, 3), GPIO_STM32_AF | GPIO_STM32_AFn(1));
+#ifndef __TARGET_USB_H
+#define __TARGET_USB_H
 
-    stm32_debug_early_init();
+void target_usb_setup(void);
 
-    /* configure some status leds */
-    gpio_set(GPIO_LED0, 1);
-    gpio_config(GPIO_LED0, GPIO_OUTPUT);
-}
-
-void target_init(void)
-{
-    stm32_debug_init();
-    stm32_usbc_init();
-    target_usb_setup();
-}
-
-void target_set_debug_led(unsigned int led, bool on)
-{
-    switch (led) {
-        case 0:
-            gpio_set(GPIO_LED0, on);
-            break;
-    }
-}
-
+#endif
