@@ -143,9 +143,12 @@ void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
     LTRACEF("epnum %u, xfer count %u len %u\n", epnum, ep->xfer_count, ep->xfer_len);
 
     if (epnum == 0) {
-        // TODO(konkers): implement multi packet.
-        struct ep_status *ep = &usbc.ep_in[0];
-        if (ep->ack_ep0_in) {
+        struct ep_status *ep_stat = &usbc.ep_in[0];
+        if (ep->xfer_len > 0) {
+            // The STM32 Cube PCD lib does not handle multi-packet EP0 IN
+            // transactions.  Handle them here ourselves.
+            HAL_PCD_EP_Transmit(&usbc.handle, 0, ep->xfer_buff, ep->xfer_len);
+        } else if (ep_stat->ack_ep0_in) {
             // in transfer done, ready for receive status
             HAL_PCD_EP_Receive(&usbc.handle, 0, 0, 0);
         }
