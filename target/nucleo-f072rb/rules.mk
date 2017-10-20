@@ -11,7 +11,11 @@ GLOBAL_DEFINES += \
 	TARGET_HAS_DEBUG_LED=1
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/init.c
+	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/usb.c
+
+MODULE_DEPS += \
+    dev/usb/class/cdcserial
 
 include make/module.mk
 
