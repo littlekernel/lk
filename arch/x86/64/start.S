@@ -218,6 +218,11 @@ farjump64:
     jmp  *%rax
 
 highaddr:
+	/* set TR now, since lk_main check cpu_id when initialing thread */
+	xorq %rax, %rax
+	mov $TSS_SELECTOR, %ax
+	ltr %ax
+
     /* load the high kernel stack */
     mov  $(_kstack + 4096), %rsp
 

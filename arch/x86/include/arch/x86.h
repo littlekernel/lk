@@ -136,24 +136,27 @@ typedef tss_32_t tss_t;
 typedef tss_64_t tss_t;
 #endif
 
-#define X86_CR0_PE 0x00000001 /* protected mode enable */
-#define X86_CR0_MP 0x00000002 /* monitor coprocessor */
-#define X86_CR0_EM 0x00000004 /* emulation */
-#define X86_CR0_TS 0x00000008 /* task switched */
-#define X86_CR0_NE 0x00000020 /* enable x87 exception */
-#define X86_CR0_WP 0x00010000 /* supervisor write protect */
-#define X86_CR0_NW 0x20000000 /* not write-through */
-#define X86_CR0_CD 0x40000000 /* cache disable */
-#define X86_CR0_PG 0x80000000 /* enable paging */
-#define X86_CR4_PAE 0x00000020 /* PAE paging */
-#define X86_CR4_OSFXSR 0x00000200 /* os supports fxsave */
-#define X86_CR4_OSXMMEXPT 0x00000400 /* os supports xmm exception */
-#define X86_CR4_OSXSAVE 0x00040000 /* os supports xsave */
-#define X86_CR4_SMEP 0x00100000 /* SMEP protection enabling */
-#define X86_CR4_SMAP 0x00200000 /* SMAP protection enabling */
-#define x86_EFER_NXE 0x00000800 /* to enable execute disable bit */
-#define x86_MSR_EFER 0xc0000080 /* EFER Model Specific Register id */
-#define X86_CR4_PSE 0xffffffef /* Disabling PSE bit in the CR4 */
+#define X86_CR0_PE              0x00000001 /* protected mode enable */
+#define X86_CR0_MP              0x00000002 /* monitor coprocessor */
+#define X86_CR0_EM              0x00000004 /* emulation */
+#define X86_CR0_TS              0x00000008 /* task switched */
+#define X86_CR0_NE              0x00000020 /* enable x87 exception */
+#define X86_CR0_WP              0x00010000 /* supervisor write protect */
+#define X86_CR0_NW              0x20000000 /* not write-through */
+#define X86_CR0_CD              0x40000000 /* cache disable */
+#define X86_CR0_PG              0x80000000 /* enable paging */
+#define X86_CR4_PAE             0x00000020 /* PAE paging */
+#define X86_CR4_OSFXSR          0x00000200 /* os supports fxsave */
+#define X86_CR4_OSXMMEXPT       0x00000400 /* os supports xmm exception */
+#define X86_CR4_FSGSBASE        0x00010000 /* gsbase/fsbase instruction enable bit */
+#define X86_CR4_OSXSAVE         0x00040000 /* os supports xsave */
+#define X86_CR4_SMEP            0x00100000 /* SMEP protection enabling */
+#define X86_CR4_SMAP            0x00200000 /* SMAP protection enabling */
+#define x86_EFER_NXE            0x00000800 /* to enable execute disable bit */
+#define x86_MSR_EFER            0xc0000080 /* EFER Model Specific Register id */
+#define x86_MSR_GS_BASE         0xc0000080 /* Map of base address of GS */
+#define x86_MSR_KRNL_GS_BASE    0xc0000080 /* Swap target of base address of GS */
+#define X86_CR4_PSE             0xffffffef /* Disabling PSE bit in the CR4 */
 
 #if ARCH_X86_32
 static inline void set_in_cr0(uint32_t mask)
@@ -382,7 +385,7 @@ static inline uint64_t read_msr (uint32_t msr_id)
 
     __asm__ __volatile__ (
         "rdmsr \n\t"
-        : "=a" (low_val), "=d"(high_val)
+        : "=a" (low_val), "=d" (high_val)
         : "c" (msr_id));
 
     msr_read_val = high_val;
@@ -398,7 +401,7 @@ static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val)
 
     __asm__ __volatile__ (
         "wrmsr \n\t"
-        : : "c" (msr_id), "a" (low_val), "d"(high_val));
+        : : "c" (msr_id), "a" (low_val), "d" (high_val));
 }
 
 static inline uint32_t x86_get_cr3(void)
@@ -497,7 +500,7 @@ static inline uint32_t check_smep_avail(void)
         "cpuid \n\t"
         :"=b" (reg_b)
         :"a" (reg_a),"c" (reg_c));
-    return ((reg_b>>0x06) & 0x1);
+    return ((reg_b>>0x07) & 0x1);
 }
 
 static inline uint32_t check_smap_avail(void)
@@ -509,7 +512,7 @@ static inline uint32_t check_smap_avail(void)
         "cpuid \n\t"
         :"=b" (reg_b)
         :"a" (reg_a),"c" (reg_c));
-    return ((reg_b>>0x13) & 0x1);
+    return ((reg_b>>0x14) & 0x1);
 }
 #endif // ARCH_X86_32
 
@@ -729,7 +732,7 @@ static inline uint64_t read_msr (uint32_t msr_id)
 
     __asm__ __volatile__ (
         "rdmsr \n\t"
-        : "=a" (low_val), "=d"(high_val)
+        : "=a" (low_val), "=d" (high_val)
         : "c" (msr_id));
 
     msr_read_val = high_val;
@@ -745,7 +748,7 @@ static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val)
 
     __asm__ __volatile__ (
         "wrmsr \n\t"
-        : : "c" (msr_id), "a" (low_val), "d"(high_val));
+        : : "c" (msr_id), "a" (low_val), "d" (high_val));
 }
 
 static inline uint64_t x86_get_cr3(void)
@@ -828,7 +831,7 @@ static inline uint64_t check_smep_avail(void)
         "cpuid \n\t"
         :"=b" (reg_b)
         :"a" (reg_a),"c" (reg_c));
-    return ((reg_b>>0x06) & 0x1);
+    return ((reg_b>>0x07) & 0x1);
 }
 
 static inline uint64_t check_smap_avail(void)
@@ -840,7 +843,28 @@ static inline uint64_t check_smap_avail(void)
         "cpuid \n\t"
         :"=b" (reg_b)
         :"a" (reg_a),"c" (reg_c));
-    return ((reg_b>>0x13) & 0x1);
+    return ((reg_b>>0x14) & 0x1);
+}
+
+static inline uint64_t x86_read_gs_with_offset(uintptr_t offset)
+{
+    uint64_t ret;
+
+    __asm__ __volatile__ (
+        "movq %%gs:%1, %0"
+        :"=r" (ret)
+        :"m" (*(uint64_t *)offset));
+
+    return ret;
+}
+
+static inline void x86_write_gs_with_offset(uint64_t offset, uint64_t val)
+{
+    __asm__ __volatile__ (
+        "movq %0, %%gs:%1"
+        :
+        :"ir" (val), "m" (*(uint64_t *)offset)
+        :"memory");
 }
 
 #endif // ARCH_X86_64
