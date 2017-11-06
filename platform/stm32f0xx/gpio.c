@@ -177,7 +177,7 @@ int gpio_config(unsigned nr, unsigned flags)
 
 void gpio_set(unsigned nr, unsigned on)
 {
-    stm32_gpio_t *gpio = stm32_gpio_port_to_pointer(nr);
+    stm32_gpio_t *gpio = stm32_gpio_port_to_pointer(GPIO_PORT(nr));
     if (on) {
         gpio->BSRR = 1 << GPIO_PIN(nr);
     } else {
