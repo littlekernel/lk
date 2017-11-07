@@ -115,13 +115,15 @@ static void stm32_i2c_early_init(stm32_i2c_dev_t *i2c) {
     // Standard Mode (100 KHz): 0x2000090e
     // Fast Mode (400 KHz):     0x0000020b
     // Fast Mode Plus:          0x00000001
-    i2c->regs->TIMINGR = 0x2000090E;
+    //i2c->regs->TIMINGR = 0x2000090E;
+    i2c->regs->TIMINGR = 0x0000020b;
 
     // Configure NOSTRETCH in CR1.
     // Must be kept cleared in master mode.
 
     // Set PE
-    i2c->regs->CR1 |= I2C_CR1_PE | I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_NACKIE | I2C_CR1_ERRIE;
+    i2c->regs->CR1 |= I2C_CR1_PE | I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_NACKIE | I2C_CR1_ERRIE
+        | I2C_CR1_TCIE;
 
     i2c->state = STM32_I2C_STATE_IDLE;
     mutex_init(&i2c->lock);
@@ -204,15 +206,7 @@ static void stm32_i2c_irq(stm32_i2c_dev_t *i2c) {
         case STM32_I2C_STATE_REG:
             if (isr & I2C_ISR_TXIS) {
                 i2c->regs->TXDR = i2c->reg;
-                if (!stm32_i2c_buf_is_done(&i2c->tx_buf)) {
-                    i2c->state = STM32_I2C_STATE_TX;
-                } else if (!stm32_i2c_buf_is_done(&i2c->rx_buf)) {
-                    i2c->state = STM32_I2C_STATE_RX;
-                    stm32_i2c_do_repeated_start(i2c);
-                } else {
-                    i2c->state = STM32_I2C_STATE_IDLE;
-                    stm32_i2c_do_stop(i2c);
-                }
+                i2c->state = STM32_I2C_STATE_TX;
             }
             break;
 
@@ -220,7 +214,10 @@ static void stm32_i2c_irq(stm32_i2c_dev_t *i2c) {
             if (isr & I2C_ISR_TXIS) {
                 if (!stm32_i2c_buf_is_done(&i2c->tx_buf)) {
                     i2c->regs->TXDR = stm32_i2c_buf_pop(&i2c->tx_buf);
-                } else if (!stm32_i2c_buf_is_done(&i2c->rx_buf)) {
+                }
+            }
+            if (isr & I2C_ISR_TC) {
+                if (!stm32_i2c_buf_is_done(&i2c->rx_buf)) {
                     i2c->state = STM32_I2C_STATE_RX;
                     stm32_i2c_do_repeated_start(i2c);
                 } else {
@@ -233,6 +230,8 @@ static void stm32_i2c_irq(stm32_i2c_dev_t *i2c) {
         case STM32_I2C_STATE_RX:
             if (isr & I2C_ISR_RXNE) {
                 stm32_i2c_buf_push(&i2c->rx_buf, i2c->regs->RXDR);
+            }
+            if (isr & I2C_ISR_TC) {
                 if (stm32_i2c_buf_is_done(&i2c->rx_buf)) {
                     i2c->state = STM32_I2C_STATE_IDLE;
                     stm32_i2c_do_stop(i2c);
