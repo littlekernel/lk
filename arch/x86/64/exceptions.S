@@ -25,12 +25,18 @@
 #include <asm.h>
 #include <arch/x86/descriptor.h>
 
-#define NUM_INT 0x31
+#define NUM_INT 0x100
 #define NUM_EXC 0x14
 
 .text
 
 /* interrupt service routine stubs */
+
+/*
+ * pushq $i occupies 5 bytes when i >= 0x80 compare to
+ * 2 bytes when i < 0x80, use align to fill the gap
+ * to make sure isr_stub_len correct for each interrupts
+ */
 _isr:
 .set i, 0
 .rept NUM_INT
@@ -38,14 +44,18 @@ _isr:
 .set isr_stub_start, .
 
 .if i == 8 || (i >= 10 && i <= 14) || i == 17
-        nop                                     /* error code pushed by exception */
-        nop                                     /* 2 nops are the same length as push byte */
-        pushq $i                                /* interrupt number */
-        jmp interrupt_common
+.align 16
+    nop             /* error code pushed by exception */
+    nop             /* 2 nops are the same length as push byte */
+    pushq $i        /* interrupt number */
+    jmp interrupt_common
+.align 16
 .else
-        pushq $0                                /* fill in error code in iframe */
-        pushq $i                                /* interrupt number */
-        jmp interrupt_common
+.align 16
+    pushq $0        /* fill in error code in iframe */
+    pushq $i        /* interrupt number */
+    jmp interrupt_common
+.align 16
 .endif
 
 /* figure out the length of a single isr stub (usually 6 or 9 bytes) */
@@ -137,7 +147,7 @@ DATA(_idtr)
 DATA(_idt)
 
 .set i, 0
-.rept NUM_INT-1
+.rept NUM_INT
     .short 0        /* low 16 bits of ISR offset (_isr#i & 0FFFFh) */
     .short CODE_64_SELECTOR   /* selector */
     .byte  0
