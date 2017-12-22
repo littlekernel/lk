@@ -291,13 +291,17 @@ bail:
     return __LINE__;
 }
 
-const char *kStatusPortNames[] = {
+static const char *kStatusPortNames[] = {
   "status0",
   "status1",
 };
-port_packet_t kRepeat = {{'R', 'E', 'P', 'E', 'A', 'T', 0, 0}};
-port_packet_t kQuit = {{'Q', 'U', 'I', 'T', 0, 0, 0, 0}};
-const char *kRacePortName = "racer_port";
+static const char *kRacePortName = "racer_port";
+
+static const port_packet_t kRepeat = 
+        {{'R', 'E', 'P', 'E', 'A', 'T', 0, 0}};
+static const port_packet_t kQuit =
+        {{'Q', 'U', 'I', 'T', 0, 0, 0, 0}};
+
 event_t race_evt;
 
 static int race_thread(void *arg)
@@ -336,7 +340,7 @@ static int race_thread(void *arg)
 
         port_t race_port;
         while(true) {
-            st = port_create("racer_port", PORT_MODE_UNICAST, &race_port);
+            st = port_create(kRacePortName, PORT_MODE_UNICAST, &race_port);
             if (st != ERR_BUSY)
                 break;
             thread_sleep(25);
