@@ -91,8 +91,9 @@ typedef struct {
 static struct list_node write_port_list;
 
 
-static port_buf_t *make_buf(uint pk_count)
+static port_buf_t *make_buf(bool big)
 {
+    uint pk_count = big ? PORT_BUFF_SIZE_BIG : PORT_BUFF_SIZE;
     uint size = sizeof(port_buf_t) + ((pk_count - 1) * sizeof(port_packet_t));
     port_buf_t *buf = (port_buf_t *) malloc(size);
     if (!buf)
@@ -180,8 +181,7 @@ status_t port_create(const char *name, port_mode_t mode, port_t *port)
     strlcpy(wp->name, name, sizeof(wp->name));
     list_initialize(&wp->rp_list);
 
-    uint size = (mode & PORT_MODE_BIG_BUFFER) ?  PORT_BUFF_SIZE_BIG : PORT_BUFF_SIZE;
-    wp->buf = make_buf(size);
+    wp->buf = make_buf(mode & PORT_MODE_BIG_BUFFER);
     if (!wp->buf) {
         free(wp);
         return ERR_NO_MEMORY;
@@ -214,7 +214,7 @@ status_t port_open(const char *name, void *ctx, port_t *port)
     // |buf| might not be needed, but we always allocate outside the lock.
     // this buffer is only needed for broadcast ports, but we don't know
     // that here.
-    port_buf_t *buf = make_buf(PORT_BUFF_SIZE);
+    port_buf_t *buf = make_buf(false);  // Small is enough.
     if (!buf) {
         free(rp);
         return ERR_NO_MEMORY;
