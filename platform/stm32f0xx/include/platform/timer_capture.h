@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Travis Geiselbrecht
+ * Copyright (c) 2017 The Fuchsia Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,61 +20,38 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
-#include <trace.h>
+
+#ifndef __PLATFORM_STM32_TIMER_CAPTURE_H
+#define __PLATFORM_STM32_TIMER_CAPTURE_H
+
 #include <err.h>
-#include <sys/types.h>
-#include <kernel/thread.h>
-#include <platform.h>
-#include <platform/timer.h>
-#include <arch/arm/cm.h>
+#include <kernel/spinlock.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stm32f0xx.h>
 
-#define LOCAL_TRACE 0
+#define STM32_TIMER_CAPTURE_CHAN_FLAG_ENABLE  (1 << 0)
+#define STM32_TIMER_CAPTURE_CHAN_FLAG_RISING  (1 << 1)
+#define STM32_TIMER_CAPTURE_CHAN_FLAG_FALLING (1 << 2)
 
-#define TIME_BASE_COUNT 0xffff
-#define TICK_RATE 1000000
+typedef struct {
+    uint32_t flags;
+    bool (*cb)(uint64_t val);
+} stm32_timer_capture_channel_t;
 
-static void stm32_tim_irq(uint num)
-{
-    TRACEF("tim irq %d\n", num);
-    PANIC_UNIMPLEMENTED;
-}
+typedef struct stm32_timer_config_ stm32_timer_config_t;
 
-void stm32_TIM3_IRQ(void)
-{
-    stm32_tim_irq(3);
-}
+typedef struct {
+    const stm32_timer_config_t    *config;
+    stm32_timer_capture_channel_t chan[4];
 
-void stm32_TIM4_IRQ(void)
-{
-    stm32_tim_irq(4);
-}
+    volatile uint64_t overflow;
+    spin_lock_t overflow_lock;
+} stm32_timer_capture_t;
 
-void stm32_TIM5_IRQ(void)
-{
-    stm32_tim_irq(5);
-}
+// Set tc->chan[] cb and flags before calling.
+status_t stm32_timer_capture_setup(stm32_timer_capture_t *tc, int timer, uint16_t prescaler);
 
-void stm32_TIM6_IRQ(void)
-{
-    stm32_tim_irq(6);
-}
+uint64_t stm32_timer_capture_get_counter(stm32_timer_capture_t *tc);
 
-void stm32_TIM7_IRQ(void)
-{
-    stm32_tim_irq(7);
-}
-
-/* time base */
-void stm32_TIM2_IRQ(void)
-{
-    stm32_tim_irq(2);
-}
-
-void stm32_timer_early_init(void)
-{
-}
-
-void stm32_timer_init(void)
-{
-}
+#endif  // __PLATFORM_STM32_TIMER_CAPTURE_H
