@@ -335,7 +335,12 @@ static int race_thread(void *arg)
       }
 
       port_t race_port;
-      st = port_create("racer_port", PORT_MODE_UNICAST, &race_port);
+      while(true) {
+        st = port_create("racer_port", PORT_MODE_UNICAST, &race_port);
+        if (st != ERR_BUSY)
+          break;
+        thread_sleep(25);
+      } // EINTR all over again . . .
       LTRACEF_LEVEL(1, "thread %d: sampling chronochip (%x)\n", tid, race_port);
       if (st == ERR_ALREADY_EXISTS) {
           // lost the race to create the port.
@@ -344,7 +349,7 @@ static int race_thread(void *arg)
           ret = __LINE__;
           break;
       } else { // Dispose of it now.
-        thread_sleep(50);
+        thread_sleep(25);
         port_close(race_port);
         port_destroy(race_port);
       }
@@ -453,7 +458,7 @@ int two_threads_race(void)
     // control port says:  0 "REPEAT, or 1 "QUIT"
     int ret = 0;
     int count = 0;
-    while (ret == 0 && count++ < 256) {
+    while (ret == 0) {
       LTRACEF_LEVEL(1, "Go!\n");
       printf(".");
       event_signal(&race_evt, false);
@@ -476,14 +481,18 @@ int two_threads_race(void)
         ret = __LINE__;
       }
       event_unsignal(&race_evt);
-      LTRACEF_LEVEL(1, "Telling threads to %s\n", (ret == 0 ? "repeat" : "quit"));
-      st = port_write(w_port, (ret == 0 ? &kRepeat : &kQuit), 1);
+      int repeat = (ret == 0 && count++ < 99 ? 1 : 0);
+      LTRACEF_LEVEL(1, "Telling threads to %s\n", (repeat ? "repeat" : "quit"));
+      st = port_write(w_port, (repeat ? &kRepeat : &kQuit), 1);
       if (st < 0) {
         printf("could not write port, status = %d\n", st);
         ret = __LINE__;
        }
+       if (!repeat) {
+         break;
+       }
    }
-   printf("\n");
+   printf("%d passes completed with result %d\n", count, ret);
 
     st = port_close(r_port0);
     if (st < 0) {
@@ -503,12 +512,6 @@ int two_threads_race(void)
         ret = __LINE__;
     }
 
-    st = port_destroy(w_port);
-    if (st < 0) {
-        printf("could not destroy port, status = %d\n", st);
-        ret = __LINE__;
-    }
-
     int retcode = -1;
     thread_join(t1, &retcode, INFINITE_TIME);
     if (retcode)
@@ -517,6 +520,14 @@ int two_threads_race(void)
     thread_join(t2,  &retcode, INFINITE_TIME);
     if (retcode)
       ret = retcode;
+
+
+
+    st = port_destroy(w_port);
+    if (st < 0) {
+        printf("could not destroy port, status = %d\n", st);
+        ret = __LINE__;
+    }
 
     printf("two_thread_race: %d\n", ret);
 
