@@ -35,14 +35,14 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/i2c.c \
 	$(LOCAL_DIR)/rcc.c \
 	$(LOCAL_DIR)/spi.c \
-	$(LOCAL_DIR)/timer.c \
+	$(LOCAL_DIR)/timer_capture.c \
 	$(LOCAL_DIR)/uart.c \
 	$(LOCAL_DIR)/usbc.c \
 	$(LOCAL_DIR)/vectab.c
 
-# use a two segment memory layout, where all of the read-only sections 
-# of the binary reside in rom, and the read/write are in memory. The 
-# ROMBASE, MEMBASE, and MEMSIZE make variables are required to be set 
+# use a two segment memory layout, where all of the read-only sections
+# of the binary reside in rom, and the read/write are in memory. The
+# ROMBASE, MEMBASE, and MEMSIZE make variables are required to be set
 # for the linker script to be generated properly.
 #
 LINKER_SCRIPT += \
