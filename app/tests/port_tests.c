@@ -328,79 +328,77 @@ static int race_thread(void *arg)
     // It then waits for a repeat or quit message.
     int ret = -1;
     while (ret < 0) {
-      LTRACEF_LEVEL(1, "thread %d: waiting at the starting line\n", tid);
-      if (event_wait_timeout(&race_evt, INFINITE_TIME) != NO_ERROR) {
-        ret = __LINE__;
-        break;
-      }
+        LTRACEF_LEVEL(1, "thread %d: waiting at the starting line\n", tid);
+        if (event_wait_timeout(&race_evt, INFINITE_TIME) != NO_ERROR) {
+            ret = __LINE__;
+            break;
+        }
 
-      port_t race_port;
-      while(true) {
-        st = port_create("racer_port", PORT_MODE_UNICAST, &race_port);
-        if (st != ERR_BUSY)
-          break;
-        thread_sleep(25);
-      } // EINTR all over again . . .
-      LTRACEF_LEVEL(1, "thread %d: sampling chronochip (%x)\n", tid, race_port);
-      if (st == ERR_ALREADY_EXISTS) {
-          // lost the race to create the port.
-      } else if (st < 0) {
-          LTRACEF_LEVEL(1, "thread %d: could not open port, status = %d\n", tid, st);
-          ret = __LINE__;
-          break;
-      } else { // Dispose of it now.
-        thread_sleep(25);
-        port_close(race_port);
-        port_destroy(race_port);
-      }
+        port_t race_port;
+        while(true) {
+            st = port_create("racer_port", PORT_MODE_UNICAST, &race_port);
+            if (st != ERR_BUSY)
+                break;
+            thread_sleep(25);
+        } // EINTR all over again . . .
+        LTRACEF_LEVEL(1, "thread %d: sampling chronochip (%x)\n", tid, race_port);
+        if (st == ERR_ALREADY_EXISTS) {
+            // lost the race to create the port.
+        } else if (st < 0) {
+            LTRACEF_LEVEL(1, "thread %d: could not open port, status = %d\n", tid, st);
+            ret = __LINE__;
+            break;
+        } else { // Dispose of it now.
+            thread_sleep(25);
+            port_close(race_port);
+            port_destroy(race_port);
+        }
 
-      // Now send the stale pointer address as a status.
-      port_packet_t claimed_port = {{0}};
-      int len = sizeof(claimed_port.value);
-      if (sizeof(race_port) < (size_t)len)
-        len = sizeof(race_port);
-      for (int i = 0; i < len; ++i) {
-        claimed_port.value[i] = 0xff & ((int)race_port) >> (i * 8);
-      }
-      LTRACEF_LEVEL(1, "thread %d: reporting status\n", tid);
-      st = port_write(w_port, &claimed_port, 1);
-      if (st < 0) {
-          printf("thread %d: could not write port, status = %d\n", tid, st);
-          ret = __LINE__;
-          break;
-      }
+        // Now send the stale pointer address as a status.
+        port_packet_t claimed_port = {{0}};
+        int len = sizeof(claimed_port.value);
+        if (sizeof(race_port) < (size_t)len)
+            len = sizeof(race_port);
+        for (int i = 0; i < len; ++i) {
+            claimed_port.value[i] = 0xff & ((int)race_port) >> (i * 8);
+        }
+        LTRACEF_LEVEL(1, "thread %d: reporting status\n", tid);
+        st = port_write(w_port, &claimed_port, 1);
+        if (st < 0) {
+            printf("thread %d: could not write port, status = %d\n", tid, st);
+            ret = __LINE__;
+            break;
+        }
 
-      LTRACEF_LEVEL(1, "thread %d: awaiting instructions\n", tid);
-      port_result_t pr;
-      st = port_read(r_port, INFINITE_TIME, &pr);
-      if (st == ERR_CANCELLED) {
-        printf("thread %d: could not read port, status = %d (CANCELLED)\n", tid, st);
+        LTRACEF_LEVEL(1, "thread %d: awaiting instructions\n", tid);
+        port_result_t pr;
+        st = port_read(r_port, INFINITE_TIME, &pr);
+        if (st == ERR_CANCELLED) {
+            printf("thread %d: could not read port, status = %d (CANCELLED)\n", tid, st);
+            ret = __LINE__;
+            break;
+        } else if (st < 0) {
+            printf("thread %d: could not read port, status = %d\n", tid, st);
+            ret = __LINE__;
+            break;
+        }
+        if (memcmp(pr.packet.value, kQuit.value, sizeof(pr.packet.value)) == 0) {
+            ret = 0;
+            break;
+        }
+        if (memcmp(pr.packet.value, kRepeat.value, sizeof(pr.packet.value)) == 0) {
+            continue;
+        }
+        printf("thread %d: got a weird message from the control port\n", tid);
         ret = __LINE__;
-        break;
-      } else if (st < 0) {
-        printf("thread %d: could not read port, status = %d\n", tid, st);
-        ret = __LINE__;
-        break;
-      }
-      if (memcmp(pr.packet.value, kQuit.value, sizeof(pr.packet.value)) == 0) {
-        ret = 0;
-        break;
-      }
-      if (memcmp(pr.packet.value, kRepeat.value, sizeof(pr.packet.value)) == 0) {
-        continue;
-      }
-      printf("thread %d: got a weird message from the control port\n", tid);
-      ret = __LINE__;
     }
+    thread_sleep((1+tid) * 5); // Make console output orderly.
     printf("thread %d: shutting down (ret=%d)\n", tid, ret);
 
     port_close(r_port);
     port_close(w_port);
     port_destroy(w_port);
     return ret;
-
-bail:
-    return __LINE__;
 }
 
 
@@ -459,40 +457,40 @@ int two_threads_race(void)
     int ret = 0;
     int count = 0;
     while (ret == 0) {
-      LTRACEF_LEVEL(1, "Go!\n");
-      printf(".");
-      event_signal(&race_evt, false);
-      port_result_t pr0, pr1;
-      LTRACEF_LEVEL(1, "Collecting status from thread 0 . . .\n");
-      st = port_read(r_port0, INFINITE_TIME, &pr0);
-      if (st < 0) {
-        printf("could not read port, status = %d\n", st);
-        ret = __LINE__;
-      }
-      LTRACEF_LEVEL(1, "Collecting status from thread 1 . . .\n");
-      st = port_read(r_port1, INFINITE_TIME, &pr1);
-      if (st < 0) {
-        printf("could not read port, status = %d\n", st);
-        ret = __LINE__;
-      }
-      LTRACEF_LEVEL(1, "Checking responses . . .\n");
-      if (memcmp(pr0.packet.value, pr1.packet.value, sizeof(pr0.packet.value)) != 0) {
-        printf("Race detected on iteration %d!\n", count);
-        ret = __LINE__;
-      }
-      event_unsignal(&race_evt);
-      int repeat = (ret == 0 && count++ < 99 ? 1 : 0);
-      LTRACEF_LEVEL(1, "Telling threads to %s\n", (repeat ? "repeat" : "quit"));
-      st = port_write(w_port, (repeat ? &kRepeat : &kQuit), 1);
-      if (st < 0) {
-        printf("could not write port, status = %d\n", st);
-        ret = __LINE__;
-       }
-       if (!repeat) {
-         break;
-       }
-   }
-   printf("%d passes completed with result %d\n", count, ret);
+        LTRACEF_LEVEL(1, "Go!\n");
+        printf(".");
+        event_signal(&race_evt, false);
+        port_result_t pr0, pr1;
+        LTRACEF_LEVEL(1, "Collecting status from thread 0 . . .\n");
+        st = port_read(r_port0, INFINITE_TIME, &pr0);
+        if (st < 0) {
+            printf("could not read port, status = %d\n", st);
+            ret = __LINE__;
+        }
+        LTRACEF_LEVEL(1, "Collecting status from thread 1 . . .\n");
+        st = port_read(r_port1, INFINITE_TIME, &pr1);
+        if (st < 0) {
+            printf("could not read port, status = %d\n", st);
+            ret = __LINE__;
+        }
+        LTRACEF_LEVEL(1, "Checking responses . . .\n");
+        if (memcmp(pr0.packet.value, pr1.packet.value, sizeof(pr0.packet.value)) != 0) {
+            printf("Race detected on iteration %d!\n", count);
+            ret = __LINE__;
+        }
+        event_unsignal(&race_evt);
+        int repeat = (ret == 0 && count++ < 99 ? 1 : 0);
+        LTRACEF_LEVEL(1, "Telling threads to %s\n", (repeat ? "repeat" : "quit"));
+        st = port_write(w_port, (repeat ? &kRepeat : &kQuit), 1);
+        if (st < 0) {
+            printf("could not write port, status = %d\n", st);
+            ret = __LINE__;
+        }
+        if (!repeat) {
+            break;
+        }
+    }
+    printf("\n%d passes completed with result %d\n", count, ret);
 
     st = port_close(r_port0);
     if (st < 0) {
@@ -515,13 +513,11 @@ int two_threads_race(void)
     int retcode = -1;
     thread_join(t1, &retcode, INFINITE_TIME);
     if (retcode)
-      ret = retcode;
+        ret = retcode;
 
     thread_join(t2,  &retcode, INFINITE_TIME);
     if (retcode)
-      ret = retcode;
-
-
+        ret = retcode;
 
     st = port_destroy(w_port);
     if (st < 0) {
@@ -530,7 +526,6 @@ int two_threads_race(void)
     }
 
     printf("two_thread_race: %d\n", ret);
-
     return ret;
 }
 
