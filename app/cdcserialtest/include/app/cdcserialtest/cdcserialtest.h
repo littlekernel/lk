@@ -1,6 +1,5 @@
 /*
- * Copyright 2016 Google Inc. All Rights Reserved.
- * Author: gkalsi@google.com (Gurjant Kalsi)
+ * Copyright 2018 The Fuchsia Authors. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,31 +23,7 @@
 
 #pragma once
 
-#include <kernel/event.h>
-#include <sys/types.h>
+#include <dev/usb/class/cdcserial.h>
 
-typedef struct {
-    int data_ep_addr;
-    int ctrl_ep_addr;
-
-    event_t txevt;
-    event_t rxevt;
-
-    volatile bool usb_online;
-
-    // A bitfield corresponding to the registered endpoints. When we get a
-    // USB_ONLINE event, these are the endpoints that we need to setup.
-    volatile uint16_t registered_bulk_eps_in;
-    volatile uint16_t registered_bulk_eps_out;
-    volatile uint16_t registered_intr_eps_in;
-    volatile uint16_t registered_intr_eps_out;
-} cdcserial_channel_t;
-
-void cdcserial_create_channel(cdcserial_channel_t *chan, int data_ep_addr, int ctrl_ep_addr);
-
-// Write len bytes to the CDC Serial Virtual Com Port.
-status_t cdcserial_write(cdcserial_channel_t *chan, size_t len, uint8_t *buf);
-
-// Read at most len bytes from the CDC Serial virtual Com Port. Returns the
-// actual number of bytes read.
-ssize_t cdcserial_read(cdcserial_channel_t *chan, size_t len, uint8_t *buf);
+/* This needs to be called before app_init. */
+void cdctest_setup(cdcserial_channel_t *chan);
