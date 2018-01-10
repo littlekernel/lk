@@ -20,6 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <app/cdcserialtest/cdcserialtest.h>
 #include <err.h>
 #include <debug.h>
 #include <stdio.h>
@@ -127,6 +128,8 @@ usb_config config = {
 static status_t ep_cb_rx(ep_t endpoint, usbc_transfer_t *t);
 static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t);
 
+static cdcserial_channel_t cdc_channel;
+
 static void queue_rx(void)
 {
     static usbc_transfer_t transfer;
@@ -209,8 +212,8 @@ void target_usb_setup(void)
 {
     usb_setup(&config);
     printf("appending interfaces\n");
-    cdcserial_create_channel(0x1, 0x2);
-    cdcserial_init();
+    cdcserial_create_channel(&cdc_channel, 0x1, 0x2);
+    cdctest_setup(&cdc_channel);
 
     usb_append_interface_lowspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));
     usb_append_interface_highspeed(if_descriptor_lowspeed, sizeof(if_descriptor_lowspeed));

@@ -30,7 +30,6 @@
 #include <dev/usbc.h>
 #include <dev/usbc.h>
 #include <err.h>
-#include <kernel/event.h>
 #include <sys/types.h>
 #include <trace.h>
 
@@ -58,18 +57,6 @@
 #define DATA_OUT_EP_ADDR_OFFSET (0x12)
 #define LEADER_EP_NUMBER_OFFSET (0x1C)
 #define FOLLOWER_EP_NUMBER_OFFSET (0x1D)
-
-static event_t txevt = EVENT_INITIAL_VALUE(txevt, 0, EVENT_FLAG_AUTOUNSIGNAL);
-static event_t rxevt = EVENT_INITIAL_VALUE(rxevt, 0, EVENT_FLAG_AUTOUNSIGNAL);
-
-static volatile bool usb_online = false;
-
-// A bitfield corresponding to the registered endpoints. When we get a
-// USB_ONLINE event, these are the endpoints that we need to setup.
-static volatile uint16_t registered_bulk_eps_in;
-static volatile uint16_t registered_bulk_eps_out;
-static volatile uint16_t registered_intr_eps_in;
-static volatile uint16_t registered_intr_eps_out;
 
 static uint8_t ctrl_if_descriptor[] = {
     0x09,           /* length */
@@ -149,23 +136,25 @@ static status_t usb_register_cb(
     const union usb_callback_args *args
 )
 {
+    cdcserial_channel_t *chan = cookie;
+
     if (op == USB_CB_ONLINE) {
         for (int i = 0; i < MAX_USB_ENDPOINT_PAIRS; i++) {
-            if ((0x1 << i) & registered_bulk_eps_in) {
+            if ((0x1 << i) & chan->registered_bulk_eps_in) {
                 usbc_setup_endpoint(i, USB_IN, 0x40, USB_BULK);
             }
-            if ((0x1 << i) & registered_bulk_eps_out) {
+            if ((0x1 << i) & chan->registered_bulk_eps_out) {
                 usbc_setup_endpoint(i, USB_OUT, 0x40, USB_BULK);
             }
-            if ((0x1 << i) & registered_intr_eps_in) {
+            if ((0x1 << i) & chan->registered_intr_eps_in) {
                 usbc_setup_endpoint(i, USB_IN, 0x40, USB_INTR);
             }
-            if ((0x1 << i) & registered_intr_eps_out) {
+            if ((0x1 << i) & chan->registered_intr_eps_out) {
                 usbc_setup_endpoint(i, USB_OUT, 0x40, USB_INTR);
             }
         }
 
-        usb_online = true;
+        chan->usb_online = true;
     } else if (op == USB_CB_SETUP_MSG) {
         static uint8_t buf[EP0_MTU];
         const struct usb_setup *setup = args->setup;
@@ -201,14 +190,19 @@ static status_t usb_register_cb(
     return NO_ERROR;
 }
 
-status_t cdcserial_init(void)
+void cdcserial_create_channel(cdcserial_channel_t *chan, int data_ep_addr, int ctrl_ep_addr)
 {
-    usb_register_callback(&usb_register_cb, NULL);
-    return NO_ERROR;
-}
+    event_init(&chan->txevt, 0, EVENT_FLAG_AUTOUNSIGNAL);
+    event_init(&chan->rxevt, 0, EVENT_FLAG_AUTOUNSIGNAL);
+    chan->usb_online = false;
+    chan->registered_bulk_eps_in = 0;
+    chan->registered_bulk_eps_out = 0;
+    chan->registered_intr_eps_in = 0;
+    chan->registered_intr_eps_out = 0;
 
-void cdcserial_create_channel(int data_ep_addr, int ctrl_ep_addr)
-{
+    chan->data_ep_addr = data_ep_addr;
+    chan->ctrl_ep_addr = ctrl_ep_addr;
+
     ctrl_if_descriptor[CTRL_IN_EP_ADDR_OFFSET]  = ctrl_ep_addr | 0x80;
     data_if_descriptor[DATA_IN_EP_ADDR_OFFSET]  = data_ep_addr | 0x80;
     data_if_descriptor[DATA_OUT_EP_ADDR_OFFSET] = data_ep_addr;
@@ -229,31 +223,35 @@ void cdcserial_create_channel(int data_ep_addr, int ctrl_ep_addr)
     usb_append_interface_highspeed(ctrl_if_descriptor, sizeof(ctrl_if_descriptor));
     usb_append_interface_highspeed(data_if_descriptor, sizeof(data_if_descriptor));
 
-    registered_bulk_eps_in |= (0x1 << data_ep_addr);
-    registered_bulk_eps_out |= (0x1 << data_ep_addr);
-    registered_intr_eps_in |= (0x1 << ctrl_ep_addr);
+    chan->registered_bulk_eps_in |= (0x1 << data_ep_addr);
+    chan->registered_bulk_eps_out |= (0x1 << data_ep_addr);
+    chan->registered_intr_eps_in |= (0x1 << ctrl_ep_addr);
+
+    usb_register_callback(&usb_register_cb, chan);
 }
 
 static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
 {
-    event_signal(&txevt, false);
+    cdcserial_channel_t *chan = t->extra;
+    event_signal(&chan->txevt, false);
     return 0;
 }
 
 static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
 {
-    event_signal(&rxevt, false);
+    cdcserial_channel_t *chan = t->extra;
+    event_signal(&chan->rxevt, false);
     return 0;
 }
 
 // Write len bytes to the CDC Serial Virtual Com Port.
-status_t cdcserial_write(size_t len, uint8_t *buf)
+status_t cdcserial_write(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
 {
     LTRACEF("len = %d, buf = %p\n", len, buf);
 
     DEBUG_ASSERT(buf);
 
-    if (!usb_online) {
+    if (!chan->usb_online) {
         return ERR_NOT_READY;
     }
 
@@ -263,24 +261,24 @@ status_t cdcserial_write(size_t len, uint8_t *buf)
         .buf      = buf,
         .buflen   = len,
         .bufpos   = 0,
-        .extra    = 0,
+        .extra    = chan,
     };
 
-    usbc_queue_tx(1, &transfer);
-    event_wait(&txevt);
+    usbc_queue_tx(chan->data_ep_addr, &transfer);
+    event_wait(&chan->txevt);
 
     return NO_ERROR;
 }
 
 // Read at most len bytes from the CDC Serial virtual Com Port. Returns the
 // actual number of bytes read.
-ssize_t cdcserial_read(size_t len, uint8_t *buf)
+ssize_t cdcserial_read(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
 {
     LTRACEF("len = %d, buf = %p\n", len, buf);
 
     DEBUG_ASSERT(buf);
 
-    if (!usb_online) {
+    if (!chan->usb_online) {
         return ERR_NOT_READY;
     }
 
@@ -290,11 +288,11 @@ ssize_t cdcserial_read(size_t len, uint8_t *buf)
         .buf = buf,
         .buflen = len,
         .bufpos = 0,
-        .extra = 0,
+        .extra = chan,
     };
 
-    usbc_queue_rx(1, &transfer);
-    event_wait(&rxevt);
+    usbc_queue_rx(chan->data_ep_addr, &transfer);
+    event_wait(&chan->rxevt);
 
     return transfer.bufpos;
 }
