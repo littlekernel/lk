@@ -26,9 +26,11 @@
 #include <assert.h>
 #include <dev/uart.h>
 #include <lib/cbuf.h>
+#include <lib/io.h>
 #include <platform/rcc.h>
 #include <stdint.h>
 #include <stm32f0xx.h>
+#include <target/debugconfig.h>
 
 typedef USART_TypeDef stm32_usart_t;
 
@@ -162,24 +164,50 @@ static void stm32_uart_rx_irq(stm32_usart_t *usart, cbuf_t *rxbuf)
     arm_cm_irq_exit(resched);
 }
 
+static cbuf_t *stm32_get_rxbuf(int port)
+{
+#if CONSOLE_HAS_INPUT_BUFFER
+    if (DEBUG_UART == port) {
+        return &console_input_cbuf;
+    }
+#endif
+    switch (port) {
+#ifdef ENABLE_UART1
+        case 1:
+            return &uart1_rx_buf;
+#endif
+#ifdef ENABLE_UART2
+        case 2:
+            return &uart2_rx_buf;
+#endif
+#ifdef ENABLE_UART3
+        case 3:
+            return &uart3_rx_buf;
+#endif
+        default:
+            ASSERT(false);
+            return 0;
+    }
+}
+
 #ifdef ENABLE_UART1
 void stm32_USART1_IRQ(void)
 {
-    stm32_uart_rx_irq(USART1, &uart1_rx_buf);
+    stm32_uart_rx_irq(USART1, stm32_get_rxbuf(1));
 }
 #endif
 
 #ifdef ENABLE_UART2
 void stm32_USART2_IRQ(void)
 {
-    stm32_uart_rx_irq(USART2, &uart2_rx_buf);
+    stm32_uart_rx_irq(USART2, stm32_get_rxbuf(2));
 }
 #endif
 
 #ifdef ENABLE_UART3
 void stm32_USART3_IRQ(void)
 {
-    stm32_uart_rx_irq(USART3, &uart3_rx_buf);
+    stm32_uart_rx_irq(USART3, stm32_get_rxbuf(3));
 }
 #endif
 
@@ -215,28 +243,6 @@ static stm32_usart_t *stm32_get_usart(int port)
 #ifdef ENABLE_UART3
         case 3:
             return USART3;
-#endif
-        default:
-            ASSERT(false);
-            return 0;
-    }
-
-}
-
-static cbuf_t *stm32_get_rxbuf(int port)
-{
-    switch (port) {
-#ifdef ENABLE_UART1
-        case 1:
-            return &uart1_rx_buf;
-#endif
-#ifdef ENABLE_UART2
-        case 2:
-            return &uart2_rx_buf;
-#endif
-#ifdef ENABLE_UART3
-        case 3:
-            return &uart3_rx_buf;
 #endif
         default:
             ASSERT(false);
