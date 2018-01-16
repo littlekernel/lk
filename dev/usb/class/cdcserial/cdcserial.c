@@ -155,6 +155,9 @@ static status_t usb_register_cb(
         }
 
         chan->usb_online = true;
+        if (chan->online_cb) {
+            chan->online_cb(chan, true);
+        }
     } else if (op == USB_CB_SETUP_MSG) {
         static uint8_t buf[EP0_MTU];
         const struct usb_setup *setup = args->setup;
@@ -245,7 +248,8 @@ static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
 }
 
 // Write len bytes to the CDC Serial Virtual Com Port.
-status_t cdcserial_write(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
+status_t cdcserial_write_async(cdcserial_channel_t *chan, usbc_transfer_t *transfer, ep_callback cb,
+                               size_t len, uint8_t *buf)
 {
     LTRACEF("len = %d, buf = %p\n", len, buf);
 
@@ -255,16 +259,25 @@ status_t cdcserial_write(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
         return ERR_NOT_READY;
     }
 
-    usbc_transfer_t transfer = {
-        .callback = &usb_xmit_cplt_cb,
-        .result   = 0,
-        .buf      = buf,
-        .buflen   = len,
-        .bufpos   = 0,
-        .extra    = chan,
-    };
+    transfer->callback = cb;
+    transfer->result   = 0;
+    transfer->buf      = buf;
+    transfer->buflen   = len;
+    transfer->bufpos   = 0;
+    transfer->extra    = chan;
 
-    usbc_queue_tx(chan->data_ep_addr, &transfer);
+    usbc_queue_tx(chan->data_ep_addr, transfer);
+    return NO_ERROR;
+}
+
+status_t cdcserial_write(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
+{
+    usbc_transfer_t transfer;
+    status_t ret = cdcserial_write_async(chan, &transfer, &usb_xmit_cplt_cb, len, buf);
+    if (ret != NO_ERROR) {
+        return ret;
+    }
+
     event_wait(&chan->txevt);
 
     return NO_ERROR;
@@ -272,7 +285,8 @@ status_t cdcserial_write(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
 
 // Read at most len bytes from the CDC Serial virtual Com Port. Returns the
 // actual number of bytes read.
-ssize_t cdcserial_read(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
+ssize_t cdcserial_read_async(cdcserial_channel_t *chan, usbc_transfer_t *transfer, ep_callback cb,
+                             size_t len, uint8_t *buf)
 {
     LTRACEF("len = %d, buf = %p\n", len, buf);
 
@@ -282,16 +296,25 @@ ssize_t cdcserial_read(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
         return ERR_NOT_READY;
     }
 
-    usbc_transfer_t transfer = {
-        .callback = &usb_recv_cplt_cb,
-        .result = 0,
-        .buf = buf,
-        .buflen = len,
-        .bufpos = 0,
-        .extra = chan,
-    };
+    transfer->callback = cb;
+    transfer->result   = 0;
+    transfer->buf      = buf;
+    transfer->buflen   = len;
+    transfer->bufpos   = 0;
+    transfer->extra    = chan;
 
-    usbc_queue_rx(chan->data_ep_addr, &transfer);
+    usbc_queue_rx(chan->data_ep_addr, transfer);
+    return NO_ERROR;
+}
+
+ssize_t cdcserial_read(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
+{
+    usbc_transfer_t transfer;
+    status_t ret = cdcserial_write_async(chan, &transfer, &usb_recv_cplt_cb, len, buf);
+    if (ret != NO_ERROR) {
+        return ret;
+    }
+
     event_wait(&chan->rxevt);
 
     return transfer.bufpos;
