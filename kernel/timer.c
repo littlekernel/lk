@@ -149,7 +149,7 @@ void timer_set_oneshot(timer_t *timer, lk_time_t delay, timer_callback callback,
  * delay.  The function will be called repeatedly.
  *
  * @param  timer The timer to use
- * @param  delay The delay, in ms, before the timer is executed
+ * @param  period The delay, in ms, between timer executions (first execution occurs one period after timer set)
  * @param  callback  The function to call when the timer expires
  * @param  arg  The argument to pass to the callback
  *
