@@ -397,7 +397,8 @@ status_t x86_mmu_add_mapping(map_addr_t pml4, map_addr_t paddr,
                              vaddr_t vaddr, arch_flags_t mmu_flags)
 {
     uint32_t pd_new = 0, pdp_new = 0;
-    uint64_t pml4e, pdpe, pde;
+    uint64_t pml4e, pdpe;
+    uint64_t pde = 0;
     map_addr_t *m = NULL;
     status_t ret = NO_ERROR;
 
@@ -445,12 +446,30 @@ status_t x86_mmu_add_mapping(map_addr_t pml4, map_addr_t paddr,
 
     if (pd_new || (pde & X86_MMU_PG_P) == 0) {
         /* Creating a new pt */
+        bool need_expand = !!(pde & X86_MMU_PG_PS);
+
         m  = _map_alloc_page();
         if (m == NULL) {
             ret = ERR_NO_MEMORY;
             if (pd_new)
                 goto clean_pd;
             goto clean;
+        }
+
+        /* If previous one is 2M page leaf, expand to 4K page leaves */
+        if (need_expand) {
+            uint64_t pd_paddr = X86_VIRT_TO_PHYS(pde) & X86_PG_FRAME;
+            arch_flags_t flag = get_x86_arch_flags(pde);
+            uint64_t *pt_table = (uint64_t *)((uint64_t)m & X86_PG_FRAME);
+            uint32_t index;
+
+            for (index = 0; index < 512; index++) {
+                pt_table[index] = (uint64_t)pd_paddr;
+                pt_table[index] |= flag | X86_MMU_PG_P;
+                if (!(flag & X86_MMU_PG_U))
+                    pt_table[index] |= X86_MMU_PG_G;
+                pd_paddr += 4096;
+            }
         }
 
         update_pd_entry(vaddr, pdpe, X86_VIRT_TO_PHYS(m), get_x86_arch_flags(mmu_flags));
