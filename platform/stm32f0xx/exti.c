@@ -128,7 +128,7 @@ void stm32_EXTI2_3_IRQ(void) {
 void stm32_EXTI4_15_IRQ(void) {
     arm_cm_irq_entry();
 
-    uint32_t pr = EXTI->PR & ~0xfU;
+    uint32_t pr = EXTI->PR & 0xfff0U;
     EXTI->PR = pr;
 
     bool resched = false;
@@ -154,11 +154,11 @@ void stm32_setup_ext_interrupt(int interrupt, stm32_ext_interrupt_port_t port,
                                bool rising_edge, bool falling_edge) {
     assert(0 <= interrupt && interrupt <= 15);
 
-    uint32_t cfg = SYSCFG->EXTICR[interrupt >> 4];
-    cfg &= SYSCFG_EXTICR1_EXTI0 << (interrupt & 0x3);
-    cfg |= port << (interrupt & 0x3);
-
-    EXTI->IMR |= 1 << interrupt;
+    uint32_t cfg = SYSCFG->EXTICR[interrupt >> 2];
+    uint shift = 4 * (interrupt & 0x3);
+    cfg &= SYSCFG_EXTICR1_EXTI0 << shift;
+    cfg |= port << shift;
+    SYSCFG->EXTICR[interrupt >> 2] = cfg;
 
     if (rising_edge) {
         EXTI->RTSR |= 1 << interrupt;
@@ -171,6 +171,9 @@ void stm32_setup_ext_interrupt(int interrupt, stm32_ext_interrupt_port_t port,
     } else {
         EXTI->FTSR &= ~(1 << interrupt);
     }
+
+    EXTI->IMR |= 1 << interrupt;
+    EXTI->PR = 1 << interrupt;
 
     if (0 <= interrupt && interrupt <= 1) {
         NVIC_EnableIRQ(EXTI0_1_IRQn);
