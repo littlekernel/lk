@@ -154,6 +154,8 @@ void stm32_setup_ext_interrupt(int interrupt, stm32_ext_interrupt_port_t port,
                                bool rising_edge, bool falling_edge) {
     assert(0 <= interrupt && interrupt <= 15);
 
+    stm32_rcc_set_enable(STM32_RCC_CLK_SYSCFGCOMP, true);
+
     uint32_t cfg = SYSCFG->EXTICR[interrupt >> 2];
     uint shift = 4 * (interrupt & 0x3);
     cfg &= SYSCFG_EXTICR1_EXTI0 << shift;
