@@ -155,9 +155,6 @@ static status_t usb_register_cb(
         }
 
         chan->usb_online = true;
-        if (chan->online_cb) {
-            chan->online_cb(chan, true);
-        }
     } else if (op == USB_CB_SETUP_MSG) {
         static uint8_t buf[EP0_MTU];
         const struct usb_setup *setup = args->setup;
@@ -174,6 +171,12 @@ static status_t usb_register_cb(
             }
         } else {
             switch (setup->request) {
+                case CDC_REQ_SET_CONTROL_LINE_STATE:
+                    usbc_ep0_ack();
+                    if (chan->online_cb) {
+                        chan->online_cb(chan, setup->value & 0x1);
+                    }
+                    break;
                 case CDC_REQ_SEND_CMD:
                 case CDC_REQ_GET_RESP:
                 case CDC_REQ_SET_COMM_FEATURE:
@@ -181,7 +184,6 @@ static status_t usb_register_cb(
                 case CDC_REQ_CLEAR_COMM_FEATURE:
                 case CDC_REQ_SET_LINE_CODING:
                 case CDC_REQ_GET_LINE_CODING:
-                case CDC_REQ_SET_CONTROL_LINE_STATE:
                 case CDC_REQ_SEND_BREAK:
                     // Ack any command that we understand.
                     usbc_ep0_ack();
