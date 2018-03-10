@@ -1,31 +1,32 @@
 language: c
 script: ./scripts/travis-build.sh
 env:
-    - PROJECT=qemu-virt-a15-test        TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=qemu-virt-a53-test        TOOLCHAIN=aarch64-elf-5.3.0-Linux-x86_64
-    - PROJECT=zybo-test                 TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=rpi2-test                 TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=uzed-test                 TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=stm32746g-eval2-test      TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=stm32f746g-disco-test     TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=stm32f4-discovery-test    TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=stellaris-launchpad-test  TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=nrf51-pca10028-test       TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=nucleo-f072rb             TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
-    - PROJECT=qemu-microblaze-test      TOOLCHAIN=microblaze-elf-5.3.0-Linux-x86_64
-    - PROJECT=qemu-mips-test            TOOLCHAIN=mips-elf-5.3.0-Linux-x86_64
-    - PROJECT=pc-x86-test               TOOLCHAIN=i386-elf-5.3.0-Linux-x86_64
-    - PROJECT=pc-x86-64-test            TOOLCHAIN=x86_64-elf-5.3.0-Linux-x86_64
+    - PROJECT=qemu-virt-a15-test        TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=qemu-virt-a53-test        TOOLCHAIN=aarch64-elf-7.3.0-Linux-x86_64
+    - PROJECT=zybo-test                 TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=rpi2-test                 TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=uzed-test                 TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=stm32746g-eval2-test      TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=stm32f746g-disco-test     TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=stm32f4-discovery-test    TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=stellaris-launchpad-test  TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=nrf51-pca10028-test       TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=nucleo-f072rb             TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=qemu-microblaze-test      TOOLCHAIN=microblaze-elf-7.3.0-Linux-x86_64
+    - PROJECT=qemu-mips-test            TOOLCHAIN=mips-elf-7.3.0-Linux-x86_64
+    - PROJECT=pc-x86-test               TOOLCHAIN=i386-elf-7.3.0-Linux-x86_64
+    - PROJECT=pc-x86-64-test            TOOLCHAIN=x86_64-elf-7.3.0-Linux-x86_64
 
     # do one build with an older toolchain
+    - PROJECT=qemu-virt-a15-test        TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64
     - PROJECT=qemu-virt-a15-test        TOOLCHAIN=arm-eabi-4.8.2-Linux-x86_64
 
     # a few release mode builds
-    - PROJECT=qemu-virt-a15-test        TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64       DEBUG=0
-    - PROJECT=qemu-virt-a53-test        TOOLCHAIN=aarch64-elf-5.3.0-Linux-x86_64    DEBUG=0
-    - PROJECT=stm32f746g-disco-test     TOOLCHAIN=arm-eabi-5.3.0-Linux-x86_64       DEBUG=0
-    - PROJECT=pc-x86-test               TOOLCHAIN=i386-elf-5.3.0-Linux-x86_64       DEBUG=0
-    - PROJECT=pc-x86-64-test            TOOLCHAIN=x86_64-elf-5.3.0-Linux-x86_64     DEBUG=0
+    - PROJECT=qemu-virt-a15-test        TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64       DEBUG=0
+    - PROJECT=qemu-virt-a53-test        TOOLCHAIN=aarch64-elf-7.3.0-Linux-x86_64    DEBUG=0
+    - PROJECT=stm32f746g-disco-test     TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64       DEBUG=0
+    - PROJECT=pc-x86-test               TOOLCHAIN=i386-elf-7.3.0-Linux-x86_64       DEBUG=0
+    - PROJECT=pc-x86-64-test            TOOLCHAIN=x86_64-elf-7.3.0-Linux-x86_64     DEBUG=0
 
 # run in a container
 sudo: false
