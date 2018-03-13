@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Google Inc. All rights reserved.
+ * Copyright (c) 2018 The Fuchsia Authors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,38 +20,16 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __DEV_INTERRUPT_ARM_GIC_H
-#define __DEV_INTERRUPT_ARM_GIC_H
 
-#include <sys/types.h>
 
-void arm_gic_init(void);
+#pragma once
 
-#define GIC_BASE_SGI 0
-#define GIC_BASE_PPI 16
-#define GIC_BASE_SPI 32
+#define SDRAM_BASE                      (0x0U)
+#define AML_S912D_PERIPH_BASE_PHYS      (0xC0000000U)
+#define AML_S912D_PERIPH_BASE_SIZE      (0x20000000U)
+#define AML_S912D_PERIPH_BASE_VIRT      (0xFFFFFFFFC0000000ULL)
 
-enum interrupt_trigger_mode {
-    IRQ_TRIGGER_MODE_EDGE = 0,
-    IRQ_TRIGGER_MODE_LEVEL = 1,
-};
+#define UART0_AO_BASE                   (AML_S912D_PERIPH_BASE_VIRT + 0x81004c0)
+#define GIC_BASE                        (AML_S912D_PERIPH_BASE_VIRT + 0x4300000)
 
-enum interrupt_polarity {
-    IRQ_POLARITY_ACTIVE_HIGH = 0,
-    IRQ_POLARITY_ACTIVE_LOW = 1,
-};
-
-enum {
-    /* Ignore cpu_mask and forward interrupt to all CPUs other than the current cpu */
-    ARM_GIC_SGI_FLAG_TARGET_FILTER_NOT_SENDER = 0x1,
-    /* Ignore cpu_mask and forward interrupt to current CPU only */
-    ARM_GIC_SGI_FLAG_TARGET_FILTER_SENDER = 0x2,
-    ARM_GIC_SGI_FLAG_TARGET_FILTER_MASK = 0x3,
-
-    /* Only forward the interrupt to CPUs that has the interrupt configured as group 1 (non-secure) */
-    ARM_GIC_SGI_FLAG_NS = 0x4,
-};
-status_t arm_gic_sgi(u_int irq, u_int flags, u_int cpu_mask);
-
-#endif
-
+#define UART0_IRQ                       225

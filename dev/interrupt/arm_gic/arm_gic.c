@@ -234,6 +234,36 @@ static int arm_gic_max_cpu(void)
     return (GICREG(0, GICD_TYPER) >> 5) & 0x7;
 }
 
+static status_t gic_configure_interrupt(unsigned int vector,
+                                        enum interrupt_trigger_mode tm,
+                                        enum interrupt_polarity pol)
+{
+    //Only configurable for SPI interrupts
+    if ((vector >= MAX_INT) || (vector < GIC_BASE_SPI)) {
+        return ERR_INVALID_ARGS;
+    }
+
+    if (pol != IRQ_POLARITY_ACTIVE_HIGH) {
+        // TODO: polarity should actually be configure through a GPIO controller
+        return ERR_NOT_SUPPORTED;
+    }
+
+    // type is encoded with two bits, MSB of the two determine type
+    // 16 irqs encoded per ICFGR register
+    uint32_t reg_ndx = vector >> 4;
+    uint32_t bit_shift = ((vector & 0xf) << 1) + 1;
+    uint32_t reg_val   = GICREG(0, GICD_ICFGR(reg_ndx));
+    if (tm == IRQ_TRIGGER_MODE_EDGE) {
+        reg_val |= (1 << bit_shift);
+    }
+    else {
+        reg_val &= ~(1 << bit_shift);
+    }
+    GICREG(0, GICD_ICFGR(reg_ndx)) = reg_val;
+
+    return NO_ERROR;
+}
+
 void arm_gic_init(void)
 {
     int i;
@@ -249,6 +279,12 @@ void arm_gic_init(void)
             GICREG(0, GICD_ITARGETSR(i / 4)) = gicd_itargetsr[i / 4];
         }
     }
+
+    // Initialize all the SPIs to edge triggered
+    for (i = 32; i < MAX_INT; i++) {
+        gic_configure_interrupt(i, IRQ_TRIGGER_MODE_EDGE, IRQ_POLARITY_ACTIVE_HIGH);
+    }
+
 
     GICREG(0, GICD_CTLR) = 1; // enable GIC0
 #if WITH_LIB_SM

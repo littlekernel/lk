@@ -1,0 +1,16 @@
+
+Notes on the KHADAS VIM2 Board
+-------------------------------
+
+http://docs.khadas.com/
+
+Run LK on VIM2
+---------------
+Below commands assume the VIM2 board is able to boot into U-Boot.
+
+- Copy lk.bin from build-vim2-test to a USB flash drive
+- Connect the USB flash drive to VIM2 USB-A port
+- Boot VIM2 and press enter or space to stop autoboot
+- Run the following commands from U-Boot prompt:
+  usb start; fatload usb 0 0x01080000 lk.bin; go 0x01080000
+
