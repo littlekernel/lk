@@ -239,7 +239,7 @@ static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
 
     mutex_acquire(&file->fs->lock);
 
-    if (off >= file->len) {
+    if (off >= (off_t)file->len) {
         len = 0;
     } else if (off + len > file->len) {
         len = file->len - off;

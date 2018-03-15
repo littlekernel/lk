@@ -185,7 +185,7 @@ usage:
         if (argc < 4) goto notenoughargs;
 
         int request = argv[3].u;
-        int arg = (argc == 5) ? argv[4].u : 0;
+        unsigned long arg = (argc == 5) ? argv[4].u : 0;
 
         bdev_t *dev = bio_open(argv[2].str);
         if (!dev) {
@@ -238,7 +238,7 @@ usage:
     } else if (!strcmp(argv[1].str, "crc32")) {
         if (argc < 5) goto notenoughargs;
 
-        off_t offset = argv[3].u; // XXX use long
+        unsigned long offset = argv[3].u;
         size_t len = argv[4].u;
 
         bdev_t *dev = bio_open(argv[2].str);
@@ -256,12 +256,12 @@ usage:
 
         do {
             ulong crc = 0;
-            off_t pos = offset;
+            unsigned long pos = offset;
             while (pos < offset + len) {
                 ssize_t err = bio_read(dev, buf, pos, MIN(len - (pos - offset), dev->block_size));
 
                 if (err <= 0) {
-                    printf("error reading at offset 0x%llx\n", offset + pos);
+                    printf("error reading at offset 0x%lx\n", offset + pos);
                     break;
                 }
 

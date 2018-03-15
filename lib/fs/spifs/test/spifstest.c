@@ -695,10 +695,10 @@ static int spifs_test(int argc, const cmd_args *argv)
             break;
         }
     }
-    printf("\nPassed %u of %u tests.\n", passed, attempted);
+    printf("\nPassed %zu of %zu tests.\n", passed, attempted);
 
     if (attempted != countof(tests)) {
-        printf("(Skipped %u)\n", countof(tests) - attempted);
+        printf("(Skipped %zu)\n", countof(tests) - attempted);
     }
 
     return countof(tests) - passed;

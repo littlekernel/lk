@@ -323,6 +323,7 @@ void platform_init_keyboard(cbuf_t *buffer)
 
     i8042_flush();
 
+    ctr = 0;
     if (i8042_command(&ctr, I8042_CMD_CTL_RCTR)) {
         dprintf(SPEW, "Failed to read CTR while initializing i8042\n");
         return;

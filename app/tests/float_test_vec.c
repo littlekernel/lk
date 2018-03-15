@@ -69,7 +69,7 @@ static const union double_int float_test_vec[] = {
 };
 
 #define countof(a) (sizeof(a) / sizeof((a)[0]))
-static const unsigned int float_test_vec_size = countof(float_test_vec);
+__attribute__((unused)) static const unsigned int float_test_vec_size = countof(float_test_vec);
 
 #define PRINT_FLOAT \
         printf("0x%016llx %f %F %a %A\n", \

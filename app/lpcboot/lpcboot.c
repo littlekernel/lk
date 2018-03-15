@@ -251,6 +251,7 @@ void handle(u32 magic, u32 cmd, u32 arg) {
 		return;
 	case 'A':
 		boot_app();
+		/* fallthrough */
 	case 'R':
 		/* reboot "normally" */
 		reply[1] = 0;

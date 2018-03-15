@@ -112,6 +112,7 @@ static int lkb_send(lkb_t *lkb, u8 opcode, const void *data, size_t len) {
             break;
         }
         len = 0;
+        // fallthrough
     default:
         lkb->state = STATE_ERROR;
         opcode = MSG_FAIL;

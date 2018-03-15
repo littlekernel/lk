@@ -114,8 +114,10 @@ minip_usage:
                 switch (argc) {
                     case 5:
                         count = argv[4].u;
+                        /* fallthrough */
                     case 4:
                         port = argv[3].u;
+                        /* fallthrough */
                     case 3:
                         host = str_ip_to_int(argv[2].str, strlen(argv[2].str));
                         break;

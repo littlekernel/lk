@@ -194,7 +194,7 @@ ssize_t ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_
     /* trim the read */
     if (offset > file_size)
         return 0;
-    if (offset + len >= file_size)
+    if ((off_t)(offset + len) >= file_size)
         len = file_size - offset;
     if (len == 0)
         return 0;

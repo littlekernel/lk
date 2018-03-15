@@ -125,7 +125,7 @@ int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len
 
     off_t linklen = ext2_file_len(ext2, inode);
 
-    if ((linklen < 0) || (linklen + 1 > len))
+    if ((linklen < 0) || (linklen + 1 > (off_t)len))
         return ERR_NO_MEMORY;
 
     if (linklen > 60) {

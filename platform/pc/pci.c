@@ -504,19 +504,19 @@ static int pci_bios_detect(void)
 
     pci_bios_info *pci = find_pci_bios_info();
     if (pci != NULL) {
-        printf("Found PCI structure at %08x\n", (uint32_t) pci);
+        printf("Found PCI structure at %p\n", pci);
 
         printf("\nPCI header info:\n");
         printf("%c%c%c%c\n", pci->magic[0], pci->magic[1], pci->magic[2],
             pci->magic[3]);
-        printf("%08x\n", (uint32_t) pci->entry);
+        printf("%p\n", pci->entry);
         printf("%d\n", pci->length * 16);
         printf("%d\n", pci->checksum);
 
         uint32_t adr, temp, len;
         uint8_t err;
 
-        bios32_entry.offset = (uint32_t)pci->entry + KERNEL_BASE;
+        bios32_entry.offset = (uint32_t)(uintptr_t)pci->entry + KERNEL_BASE;
         bios32_entry.selector = CODE_SELECTOR;
 
         __asm__(
