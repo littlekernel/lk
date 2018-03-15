@@ -12,8 +12,8 @@
 tmp                     .req x9
 tmp2                    .req x10
 wtmp2                   .req w10
-index                   .req x11
-index_shift             .req x12
+idx                     .req x11
+idx_shift               .req x12
 page_table              .req x13
 new_page_table          .req x14
 phys_offset             .req x15
@@ -160,9 +160,9 @@ arm_reset:
 .Lmap_range_top_loop:
     /* Select top level page table */
     mov     page_table, page_table1
-    mov     index_shift, #MMU_KERNEL_TOP_SHIFT
+    mov     idx_shift, #MMU_KERNEL_TOP_SHIFT
 
-    lsr     index, vaddr, index_shift
+    lsr     idx, vaddr, idx_shift
 
 
 /* determine the type of page table entry to use given alignment and size
@@ -170,34 +170,34 @@ arm_reset:
  */
 .Lmap_range_one_table_loop:
     /* Check if current level allow block descriptors */
-    cmp     index_shift, #MMU_PTE_DESCRIPTOR_BLOCK_MAX_SHIFT
+    cmp     idx_shift, #MMU_PTE_DESCRIPTOR_BLOCK_MAX_SHIFT
     b.hi    .Lmap_range_need_page_table
 
     /* Check if paddr and vaddr alignment allows a block descriptor */
     orr     tmp2, vaddr, paddr
-    lsr     tmp, tmp2, index_shift
-    lsl     tmp, tmp, index_shift
+    lsr     tmp, tmp2, idx_shift
+    lsl     tmp, tmp, idx_shift
     cmp     tmp, tmp2
     b.ne    .Lmap_range_need_page_table
 
     /* Check if size is large enough for a block mapping */
-    lsr     tmp, size, index_shift
+    lsr     tmp, size, idx_shift
     cbz     tmp, .Lmap_range_need_page_table
 
     /* Select descriptor type, page for level 3, block for level 0-2 */
     orr     tmp, attr, #MMU_PTE_L3_DESCRIPTOR_PAGE
-    cmp     index_shift, MMU_KERNEL_PAGE_SIZE_SHIFT
+    cmp     idx_shift, MMU_KERNEL_PAGE_SIZE_SHIFT
     beq     .Lmap_range_l3
     orr     tmp, attr, #MMU_PTE_L012_DESCRIPTOR_BLOCK
 .Lmap_range_l3:
 
     /* Write page table entry */
     orr     tmp, tmp, paddr
-    str     tmp, [page_table, index, lsl #3]
+    str     tmp, [page_table, idx, lsl #3]
 
     /* Move to next page table entry */
     mov     tmp, #1
-    lsl     tmp, tmp, index_shift
+    lsl     tmp, tmp, idx_shift
     add     vaddr, vaddr, tmp
     add     paddr, paddr, tmp
     subs    size, size, tmp
@@ -215,7 +215,7 @@ arm_reset:
 
 .Lmap_range_need_page_table:
     /* Check if page table entry is unused */
-    ldr     new_page_table, [page_table, index, lsl #3]
+    ldr     new_page_table, [page_table, idx, lsl #3]
     cbnz    new_page_table, .Lmap_range_has_page_table
 
     /* Calculate phys offset (needed for memory allocation) */
@@ -229,7 +229,7 @@ arm_reset:
 
     /* Write page table entry (with allocated page table) */
     orr     new_page_table, new_page_table, #MMU_PTE_L012_DESCRIPTOR_TABLE
-    str     new_page_table, [page_table, index, lsl #3]
+    str     new_page_table, [page_table, idx, lsl #3]
 
 .Lmap_range_has_page_table:
     /* Check descriptor type */
@@ -240,10 +240,10 @@ arm_reset:
     /* switch to next page table level */
     bic     page_table, new_page_table, #MMU_PTE_DESCRIPTOR_MASK
     mov     tmp, #~0
-    lsl     tmp, tmp, index_shift
+    lsl     tmp, tmp, idx_shift
     bic     tmp, vaddr, tmp
-    sub     index_shift, index_shift, #(MMU_KERNEL_PAGE_SIZE_SHIFT - 3)
-    lsr     index, tmp, index_shift
+    sub     idx_shift, idx_shift, #(MMU_KERNEL_PAGE_SIZE_SHIFT - 3)
+    lsr     idx, tmp, idx_shift
 
     b       .Lmap_range_one_table_loop
 
@@ -261,11 +261,11 @@ arm_reset:
 
     /* Setup mapping at phys -> phys */
     adr     tmp, .Lmmu_on_pc
-    lsr     tmp, tmp, #MMU_IDENT_TOP_SHIFT    /* tmp = paddr index */
+    lsr     tmp, tmp, #MMU_IDENT_TOP_SHIFT    /* tmp = paddr idx */
     ldr     tmp2, =MMU_PTE_IDENT_FLAGS
     add     tmp2, tmp2, tmp, lsl #MMU_IDENT_TOP_SHIFT  /* tmp2 = pt entry */
 
-    str     tmp2, [page_table0, tmp, lsl #3]     /* tt_trampoline[paddr index] = pt entry */
+    str     tmp2, [page_table0, tmp, lsl #3]     /* tt_trampoline[paddr idx] = pt entry */
 
 #if WITH_SMP
     adrp    tmp, page_tables_not_ready
