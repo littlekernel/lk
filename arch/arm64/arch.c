@@ -31,7 +31,9 @@
 #include <lk/init.h>
 #include <lk/main.h>
 #include <platform.h>
+#include <target.h>
 #include <trace.h>
+#include <kernel/vm.h>
 
 #define LOCAL_TRACE 0
 
@@ -40,6 +42,8 @@
 static spin_lock_t arm_boot_cpu_lock = 1;
 static volatile int secondaries_to_init = 0;
 #endif
+
+#define SECTION_SIZE (1024 * 1024)
 
 static void arm64_cpu_early_init(void)
 {
@@ -93,7 +97,76 @@ void arch_idle(void)
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
 {
-    PANIC_UNIMPLEMENTED;
+    int ret;
+    LTRACEF("entry %p, args 0x%lx 0x%lx 0x%lx 0x%lx\n", entry, arg0, arg1, arg2, arg3);
+
+    /* we are going to shut down the system, start by disabling interrupts */
+    arch_disable_ints();
+
+    /* give target and platform a chance to put hardware into a suitable
+     * state for chain loading.
+     */
+    target_quiesce();
+    platform_quiesce();
+
+    paddr_t entry_pa;
+    paddr_t loader_pa;
+    paddr_t loader_payam;
+
+#if WITH_KERNEL_VM
+    /* get the physical address of the entry point we're going to branch to */
+    entry_pa = vaddr_to_paddr((addr_t)entry);
+    if (entry_pa == 0) {
+        panic("error translating entry physical address\n");
+    }
+
+    /* add the low bits of the virtual address back */
+    entry_pa |= ((addr_t)entry & 0xfff);
+
+    LTRACEF("entry pa 0x%lx\n", entry_pa);
+
+    /* figure out the mapping for the chain load routine */
+    loader_pa = vaddr_to_paddr((addr_t)&arm_chain_load);
+    if (loader_pa == 0) {
+        panic("error translating loader physical address\n");
+    }
+
+    /* add the low bits of the virtual address back */
+    loader_pa |= ((addr_t)&arm_chain_load & 0xfff);
+
+    paddr_t loader_pa_section = ROUNDDOWN(loader_pa, SECTION_SIZE);
+
+    LTRACEF("loader address %p, phys 0x%lx, surrounding large page 0x%lx\n",
+            &arm_chain_load, loader_pa, loader_pa_section);
+
+    vmm_aspace_t *myspace;
+    ret = vmm_create_aspace(&myspace, "bootload", 0);
+    if (ret != 0) {
+        panic("Could not create new aspace %d\n", ret);
+    }
+
+    get_current_thread()->aspace = myspace;
+    thread_sleep(1);
+
+    /* using large pages, map around the target location */
+    if ((ret = arch_mmu_map(&myspace->arch_aspace, loader_pa_section,
+        loader_pa_section, (2 * SECTION_SIZE / PAGE_SIZE), 0)) != 0) {
+        panic("Could not map loader into new space %d\n", ret);
+    }
+#else
+    /* for non vm case, just branch directly into it */
+    entry_pa = (paddr_t)entry;
+    loader_pa = (paddr_t)&arm_chain_load;
+#endif
+
+    LTRACEF("disabling instruction/data cache\n");
+    arch_disable_cache(UCACHE);
+
+    LTRACEF("branching to physical address of loader, (va --> pa) (%p --> %p)\n",
+        loader_pa,          vaddr_to_paddr((addr_t)loader_pa));
+
+    void (*loader)(paddr_t entry, ulong, ulong, ulong, ulong) __NO_RETURN = (void *)loader_pa;
+    loader(entry_pa, arg0, arg1, arg2, arg3);
 }
 
 /* switch to user mode, set the user stack pointer to user_stack_top, put the svc stack pointer to the top of the kernel stack */

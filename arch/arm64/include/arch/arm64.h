@@ -49,6 +49,8 @@ __BEGIN_CDECLS
 
 void arm64_context_switch(vaddr_t *old_sp, vaddr_t new_sp);
 
+void arm_chain_load(paddr_t entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN;
+
 /* exception handling */
 struct arm64_iframe_long {
     uint64_t r[30];

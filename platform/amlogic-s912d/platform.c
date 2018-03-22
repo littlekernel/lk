@@ -107,5 +107,9 @@ void platform_early_init(void)
     pmm_add_arena(&arena);
 
     // TODO: Reserve memory regions if needed
+    struct list_node list = LIST_INITIAL_VALUE(list);
+    pmm_alloc_range(0x01080000, 0x01A80000 / PAGE_SIZE, &list);
+
+
 }
 
