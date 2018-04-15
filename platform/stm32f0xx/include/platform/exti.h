@@ -5,12 +5,24 @@
 #include <stm32f0xx.h>
 
 typedef enum {
+#ifdef SYSCFG_EXTICR1_EXTI0_PA
     EXT_INTERRUPT_PORT_A = SYSCFG_EXTICR1_EXTI0_PA,
+#endif
+#ifdef SYSCFG_EXTICR1_EXTI0_PB
     EXT_INTERRUPT_PORT_B = SYSCFG_EXTICR1_EXTI0_PB,
+#endif
+#ifdef SYSCFG_EXTICR1_EXTI0_PC
     EXT_INTERRUPT_PORT_C = SYSCFG_EXTICR1_EXTI0_PC,
+#endif
+#ifdef SYSCFG_EXTICR1_EXTI0_PD
     EXT_INTERRUPT_PORT_D = SYSCFG_EXTICR1_EXTI0_PD,
+#endif
+#ifdef SYSCFG_EXTICR1_EXTI0_PE
     EXT_INTERRUPT_PORT_E = SYSCFG_EXTICR1_EXTI0_PE,
+#endif
+#ifdef SYSCFG_EXTICR1_EXTI0_PF
     EXT_INTERRUPT_PORT_F = SYSCFG_EXTICR1_EXTI0_PF,
+#endif
 } stm32_ext_interrupt_port_t;
 
 void stm32_setup_ext_interrupt(int interrupt, stm32_ext_interrupt_port_t port,

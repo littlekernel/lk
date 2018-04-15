@@ -10,6 +10,10 @@ MEMBASE := 0x20000000
 ARCH := arm
 ARM_CPU := cortex-m0
 
+ifeq ($(STM32_CHIP),stm32f070_xB)
+GLOBAL_DEFINES += STM32F070
+MEMSIZE ?= 16384
+endif
 ifeq ($(STM32_CHIP),stm32f072_x8)
 GLOBAL_DEFINES += \
         STM32F072

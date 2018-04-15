@@ -1,3 +1,5 @@
+#if defined(STM32F072xB)
+
 #include <platform/can.h>
 
 #include <assert.h>
@@ -208,3 +210,5 @@ ssize_t can_recv(can_msg_t *msg, bool block)
 
     return bytes_read > 0 ? msg->dlc : -EWOULDBLOCK;
 }
+
+#endif // STM32F072xB

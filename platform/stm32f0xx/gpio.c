@@ -60,18 +60,30 @@ static stm32_gpio_t *stm32_gpio_port_to_pointer(unsigned int port)
 {
     switch (port) {
         default:
+#ifdef GPIOA
         case GPIO_PORT_A:
             return GPIOA;
+#endif
+#ifdef GPIOB
         case GPIO_PORT_B:
             return GPIOB;
+#endif
+#ifdef GPIOC
         case GPIO_PORT_C:
             return GPIOC;
+#endif
+#ifdef GPIOD
         case GPIO_PORT_D:
             return GPIOD;
+#endif
+#ifdef GPIOE
         case GPIO_PORT_E:
             return GPIOE;
+#endif
+#ifdef GPIOF
         case GPIO_PORT_F:
             return GPIOF;
+#endif
     }
 }
 
@@ -81,30 +93,36 @@ static void stm32_gpio_enable_port(unsigned int port)
 
     switch (port) {
         default:
+#ifdef GPIOA
         case GPIO_PORT_A:
             stm32_rcc_set_enable(STM32_RCC_CLK_IOPA, true);
             break;
-
+#endif
+#ifdef GPIOB
         case GPIO_PORT_B:
             stm32_rcc_set_enable(STM32_RCC_CLK_IOPB, true);
             break;
-
+#endif
+#ifdef GPIOC
         case GPIO_PORT_C:
             stm32_rcc_set_enable(STM32_RCC_CLK_IOPC, true);
             break;
-
+#endif
+#ifdef GPIOD
         case GPIO_PORT_D:
             stm32_rcc_set_enable(STM32_RCC_CLK_IOPD, true);
             break;
-
+#endif
+#ifdef GPIOE
         case GPIO_PORT_E:
             stm32_rcc_set_enable(STM32_RCC_CLK_IOPE, true);
             break;
-
+#endif
+#ifdef GPIOF
         case GPIO_PORT_F:
             stm32_rcc_set_enable(STM32_RCC_CLK_IOPF, true);
             break;
-
+#endif
     }
 }
 
