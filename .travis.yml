@@ -42,6 +42,5 @@ notifications:
   irc:
     channels:
       - "chat.freenode.net#lk"
-      - "chat.freenode.net#fnlk"
     skip_join: true
     use_notice: true
