@@ -75,6 +75,9 @@
 #ifdef STM32F072
 #define STM32F072xB
 #endif
+#ifdef STM32F070
+#define STM32F070xB
+#endif
 
 /* Uncomment the line below according to the target STM32 device used in your
    application 

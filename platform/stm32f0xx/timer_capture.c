@@ -52,6 +52,7 @@ typedef struct stm32_timer_config_ {
 } stm32_timer_config_t;
 
 static const stm32_timer_config_t stm32_timer_config[] = {
+#ifdef TIM1
     [STM32_TIM1_INDEX] = {
         .regs = TIM1,
         .flags = 0,
@@ -61,54 +62,71 @@ static const stm32_timer_config_t stm32_timer_config[] = {
         // supported.
         .irq = TIM1_CC_IRQn,
     },
+#endif
+#ifdef TIM2
     [STM32_TIM2_INDEX] = {
         .regs = TIM2,
         .flags = STM32_TIMER_FLAGS_32_BIT,
         .clock = STM32_RCC_CLK_TIM2,
         .irq = TIM2_IRQn,
     },
+#endif
+#ifdef TIM3
     [STM32_TIM3_INDEX] = {
         .regs = TIM3,
         .flags = 0,
         .clock = STM32_RCC_CLK_TIM3,
         .irq = TIM3_IRQn,
     },
+#endif
+#ifdef TIM6
     [STM32_TIM6_INDEX] = {
         .regs = TIM6,
         .flags = 0,
         .clock = STM32_RCC_CLK_TIM6,
         .irq = TIM6_IRQn,
     },
+#endif
+#ifdef TIM7
     [STM32_TIM7_INDEX] = {
         .regs = TIM7,
         .flags = 0,
         .clock = STM32_RCC_CLK_TIM7,
         .irq = TIM7_IRQn,
     },
+#endif
+#ifdef TIM14
     [STM32_TIM14_INDEX] = {
         .regs = TIM14,
         .flags = 0,
         .clock = STM32_RCC_CLK_TIM14,
         .irq = TIM14_IRQn,
     },
+#endif
+#ifdef TIM15
     [STM32_TIM15_INDEX] = {
         .regs = TIM15,
         .flags = 0,
         .clock = STM32_RCC_CLK_TIM15,
         .irq = TIM15_IRQn,
     },
+#endif
+#ifdef TIM16
     [STM32_TIM16_INDEX] = {
         .regs = TIM16,
         .flags = 0,
         .clock = STM32_RCC_CLK_TIM16,
         .irq = TIM16_IRQn,
     },
+#endif
+#ifdef TIM17
     [STM32_TIM17_INDEX] = {
         .regs = TIM17,
         .flags = 0,
         .clock = STM32_RCC_CLK_TIM17,
         .irq = TIM17_IRQn,
     },
+#endif
 };
 
 static stm32_timer_capture_t *stm32_timer_capture_data[STM32_NUM_TIMERS];
