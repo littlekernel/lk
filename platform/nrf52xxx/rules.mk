@@ -26,6 +26,10 @@ ifeq ($(NRF52_CHIP),nrf52832-chab)
 GLOBAL_DEFINES +=
 MEMSIZE ?= 32768
 endif
+ifeq ($(NRF52_CHIP),nrf52840-qiaa)
+GLOBAL_DEFINES +=
+MEMSIZE ?= 262144
+endif
 
 GLOBAL_INCLUDES += $(LOCAL_DIR)
 

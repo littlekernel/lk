@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Eric Holland
+ * Copyright (c) 2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,44 +20,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <stdarg.h>
-#include <reg.h>
-#include <debug.h>
-#include <stdio.h>
-#include <kernel/thread.h>
-#include <dev/uart.h>
-#include <arch/ops.h>
-#include <arch/arm/cm.h>
-#include <platform/debug.h>
-#include <target/debugconfig.h>
+#ifndef __TARGET_DEBUGCONFIG_H
+#define __TARGET_DEBUGCONFIG_H
 
+#define DEBUG_UART 0
 
-void nrf52_debug_early_init(void)
-{
-    uart_init_early();
-}
-
-/* later in the init process */
-void nrf52_debug_init(void)
-{
-    uart_init();
-}
-
-
-
-void platform_dputc(char c)
-{
-    if (c == '\n')
-        uart_putc(DEBUG_UART, '\r');
-    uart_putc(DEBUG_UART, c);
-}
-
-int platform_dgetc(char *c, bool wait)
-{
-    int ret = uart_getc(DEBUG_UART, wait);
-    if (ret == -1)
-        return -1;
-    *c = ret;
-    return 0;
-}
-
+#endif

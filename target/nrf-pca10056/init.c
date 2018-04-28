@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Eric Holland
+ * Copyright (c) 2012 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,44 +20,33 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <stdarg.h>
-#include <reg.h>
+#include <err.h>
 #include <debug.h>
-#include <stdio.h>
-#include <kernel/thread.h>
-#include <dev/uart.h>
-#include <arch/ops.h>
-#include <arch/arm/cm.h>
-#include <platform/debug.h>
-#include <target/debugconfig.h>
+#include <target.h>
+#include <compiler.h>
+#include <dev/gpio.h>
+#include <platform/gpio.h>
+#include <platform/nrf52.h>
+#include <target/gpioconfig.h>
 
-
-void nrf52_debug_early_init(void)
+void target_early_init(void)
 {
-    uart_init_early();
+    gpio_config(GPIO_LED1, GPIO_OUTPUT);
+    gpio_config(GPIO_LED2, GPIO_OUTPUT);
+    gpio_config(GPIO_LED3, GPIO_OUTPUT);
+    gpio_config(GPIO_LED4, GPIO_OUTPUT);
+
+    gpio_set(GPIO_LED1,0);
+    gpio_set(GPIO_LED2,0);
+    gpio_set(GPIO_LED3,0);
+    gpio_set(GPIO_LED4,0);
+
+    nrf52_debug_early_init();
 }
 
-/* later in the init process */
-void nrf52_debug_init(void)
+
+void target_init(void)
 {
-    uart_init();
+    nrf52_debug_init();
+    dprintf(SPEW,"Target: PCA10056 DK...\n");
 }
-
-
-
-void platform_dputc(char c)
-{
-    if (c == '\n')
-        uart_putc(DEBUG_UART, '\r');
-    uart_putc(DEBUG_UART, c);
-}
-
-int platform_dgetc(char *c, bool wait)
-{
-    int ret = uart_getc(DEBUG_UART, wait);
-    if (ret == -1)
-        return -1;
-    *c = ret;
-    return 0;
-}
-

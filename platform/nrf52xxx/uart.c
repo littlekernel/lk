@@ -39,7 +39,7 @@
 
 #define RXBUF_SIZE 16
 
-//cbuf_t uart0_rx_buf;
+cbuf_t uart0_rx_buf;
 
 
 
@@ -61,7 +61,6 @@ void uart_init_early(void)
                             UART_CONFIG_PARITY_Excluded << UART_CONFIG_PARITY_Pos;
     NVIC_DisableIRQ(UARTE0_UART0_IRQn);
     NRF_UART0->ENABLE   =   UART_ENABLE_ENABLE_Enabled << UART_ENABLE_ENABLE_Pos;
-    NRF_UART0->TXD      = 'E';
     NRF_UART0->TASKS_STARTTX=1;
     NRF_UART0->TASKS_STARTRX=1;
 #endif //ENABLE_UART0
@@ -70,10 +69,10 @@ void uart_init_early(void)
 void uart_init(void)
 {
 #ifdef ENABLE_UART0
-//    cbuf_initialize(&uart0_rx_buf, RXBUF_SIZE);
-//    NRF_UART0->INTENSET = UART_INTENSET_RXDRDY_Enabled << UART_INTENSET_RXDRDY_Pos;
+    cbuf_initialize(&uart0_rx_buf, RXBUF_SIZE);
+    NRF_UART0->INTENSET = UART_INTENSET_RXDRDY_Enabled << UART_INTENSET_RXDRDY_Pos;
     NRF_UART0->EVENTS_RXDRDY = 0;
-//    NVIC_EnableIRQ(UART0_IRQn);
+    NVIC_EnableIRQ(UARTE0_UART0_IRQn);
     char c = NRF_UART0->RXD;
     (void)c;
 #endif //ENABLE_UART0
@@ -81,21 +80,21 @@ void uart_init(void)
 
 void nrf52_UARTE0_UART0_IRQ(void)
 {
-//  char c;
+    char c;
     arm_cm_irq_entry();
-    /*
-        bool resched = false;
-        while ( NRF_UART0->EVENTS_RXDRDY > 0 ) {
-            NRF_UART0->EVENTS_RXDRDY = 0;
-            c = NRF_UART0->RXD;
-            if (!cbuf_space_avail(&uart0_rx_buf)) {
-                break;
-            }
-            cbuf_write_char(&uart0_rx_buf, c, false);
-            resched = true;
+
+    bool resched = false;
+    while ( NRF_UART0->EVENTS_RXDRDY > 0 ) {
+        NRF_UART0->EVENTS_RXDRDY = 0;
+        c = NRF_UART0->RXD;
+        if (!cbuf_space_avail(&uart0_rx_buf)) {
+            break;
         }
-    */
-    arm_cm_irq_exit(false);
+        cbuf_write_char(&uart0_rx_buf, c, false);
+        resched = true;
+    }
+
+    arm_cm_irq_exit(resched);
 }
 
 int uart_putc(int port, char c)
@@ -108,12 +107,12 @@ int uart_putc(int port, char c)
 
 int uart_getc(int port, bool wait)
 {
-    do {
-        if (NRF_UART0->EVENTS_RXDRDY > 0) {
-            NRF_UART0->EVENTS_RXDRDY=0;
-            return NRF_UART0->RXD;
-        }
-    } while (wait);
+    cbuf_t *rxbuf = &uart0_rx_buf;
+
+    char c;
+    if (cbuf_read_char(rxbuf, &c, wait) == 1)
+        return c;
+
     return -1;
 }
 
