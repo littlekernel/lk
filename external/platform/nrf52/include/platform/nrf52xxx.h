@@ -61,7 +61,11 @@ extern "C" {
 
 
 /* -------------------------  Interrupt Number Definition  ------------------------ */
-
+/* Note: Interrupt numbers are same as peripheral ID, which can be determined by
+          base address of the peripheral's register block.  This applies to
+          peripherals with base address of 0x400xx000, where xx is the id. Be
+          mindful that some peripherals share ids.
+*/
 typedef enum {
 /* -------------------  Cortex-M4 Processor Exceptions Numbers  ------------------- */
   Reset_IRQn                    = -15,              /*!<   1  Reset Vector, invoked on Power up and warm reset                 */
@@ -113,7 +117,12 @@ typedef enum {
   SPIM2_SPIS2_SPI2_IRQn         =  35,              /*!<  35  SPIM2_SPIS2_SPI2                                                 */
   RTC2_IRQn                     =  36,              /*!<  36  RTC2                                                             */
   I2S_IRQn                      =  37,              /*!<  37  I2S                                                              */
-  FPU_IRQn                      =  38               /*!<  38  FPU                                                              */
+  FPU_IRQn                      =  38,              /*!<  38  FPU                                                              */
+  USBD_IRQn                     =  39,              /*!<  39  USBD                                                             */
+  UARTE1_IRQn                   =  40,              /*!<  40  UARTE1                                                           */
+  QSPI_IRQn                     =  41,              /*!<  41  QSPI                                                             */
+  PWM3_IRQn                     =  45,              /*!<  45  PWM3                                                             */
+  SPIM3_IRQn                    =  47,              /*!<  47  SPIM3                                                            */
 } IRQn_Type;
 
 
@@ -1950,6 +1959,29 @@ typedef struct {                                    /*!< GPIO Structure         
 } NRF_GPIO_Type;
 
 
+/* ================================================================================ */
+/* ================                      USBD                      ================ */
+/* ================================================================================ */
+typedef struct {
+  /* TODO - replace with register descriptors */
+ __IO uint32_t  REGS[491];
+} NRF_USBD_Type;
+
+
+/* ================================================================================ */
+/* ================                      QSPI                      ================ */
+/* ================================================================================ */
+typedef struct {
+  /* TODO - replace with register descriptors */
+ __IO uint32_t  REGS[401];
+} NRF_QSPI_Type;
+
+
+/**
+  * @brief GPIO Port 1 (GPIO)
+  */
+
+
 /* --------------------  End of section using anonymous unions  ------------------- */
 #if defined(__CC_ARM)
   #pragma pop
@@ -2037,6 +2069,11 @@ typedef struct {                                    /*!< GPIO Structure         
 #define NRF_RTC2_BASE                   0x40024000UL
 #define NRF_I2S_BASE                    0x40025000UL
 #define NRF_FPU_BASE                    0x40026000UL
+#define NRF_USBD_BASE                   0x40027000UL
+#define NRF_UARTE1_BASE                 0x40028000UL
+#define NRF_QSPI_BASE                   0x40029000UL
+#define NRF_PWM3_BASE                   0x4002D000UL
+#define NRF_SPIM3_BASE                  0x4002F000UL
 #define NRF_P0_BASE                     0x50000000UL
 
 
@@ -2109,6 +2146,11 @@ typedef struct {                                    /*!< GPIO Structure         
 #define NRF_RTC2                        ((NRF_RTC_Type            *) NRF_RTC2_BASE)
 #define NRF_I2S                         ((NRF_I2S_Type            *) NRF_I2S_BASE)
 #define NRF_FPU                         ((NRF_FPU_Type            *) NRF_FPU_BASE)
+#define NRF_USBD                        ((NRF_USBD_Type           *) NRF_USBD_BASE)
+#define NRF_UARTE1                      ((NRF_UARTE_Type          *) NRF_UARTE1_BASE)
+#define NRF_QSPI                        ((NRF_QSPI_Type           *) NRF_QSPI_BASE)
+#define NRF_PWM3                        ((NRF_PWM_Type            *) NRF_PWM3_BASE)
+#define NRF_SPIM3                       ((NRF_SPIM_Type           *) NRF_SPIM3_BASE)
 #define NRF_P0                          ((NRF_GPIO_Type           *) NRF_P0_BASE)
 
 
