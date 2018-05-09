@@ -222,14 +222,14 @@ void stm32_USART2_IRQ(void)
 #endif
 
 #ifdef ENABLE_UART3
-void stm32_USART3_IRQ(void)
+void stm32_USART3_4_IRQ(void)
 {
     stm32_uart_rx_irq(USART3, stm32_get_rxbuf(3));
 }
 #endif
 
 #ifdef ENABLE_UART4
-void stm32_USART4_IRQ(void)
+void stm32_USART3_4_IRQ(void)
 {
     stm32_uart_rx_irq(USART4, stm32_get_rxbuf(4));
 }
