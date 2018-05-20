@@ -61,6 +61,7 @@ void uart_init_early(void)
                             UART_CONFIG_PARITY_Excluded << UART_CONFIG_PARITY_Pos;
     NVIC_DisableIRQ(UARTE0_UART0_IRQn);
     NRF_UART0->ENABLE   =   UART_ENABLE_ENABLE_Enabled << UART_ENABLE_ENABLE_Pos;
+    NRF_UART0->TXD = 'L';       //Must prime the tx queue with a character to start operation
     NRF_UART0->TASKS_STARTTX=1;
     NRF_UART0->TASKS_STARTRX=1;
 #endif //ENABLE_UART0
