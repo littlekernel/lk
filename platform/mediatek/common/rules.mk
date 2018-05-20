@@ -3,6 +3,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 GLOBAL_INCLUDES += \
 	$(LOCAL_DIR)/include
 
+ifeq ($(SUB_PLATFORM),mt6797)
 MODULE_DEPS += \
 	$(LOCAL_DIR)/gic
+endif
 
