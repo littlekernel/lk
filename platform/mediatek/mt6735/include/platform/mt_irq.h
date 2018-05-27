@@ -116,3 +116,5 @@ void mt_irq_unmask(unsigned int irq);
 void mt_irq_ack(unsigned int irq);
 
 void platform_init_interrupts(void);
+
+#endif
