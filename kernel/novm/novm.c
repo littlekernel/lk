@@ -247,7 +247,9 @@ status_t novm_alloc_specific_pages(void *address, size_t pages)
             err = ERR_NO_MEMORY;
             break;
         }
-        map[index + i] = 1;
+    }
+    if (err == NO_ERROR) {
+        memset(map + index, 1, pages);
     }
     mutex_release(&n->lock);
 
