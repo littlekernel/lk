@@ -286,8 +286,8 @@ arm_reset:
 
     /* Invalidate TLB */
     tlbi    vmalle1is
-    isb
     dsb     sy
+    isb
 
     /* Initialize Memory Attribute Indirection Register */
     ldr     tmp, =MMU_MAIR_VAL
@@ -331,6 +331,7 @@ arm_reset:
 
     /* Invalidate TLB */
     tlbi    vmalle1
+    dsb     sy
     isb
 
 #if WITH_SMP
