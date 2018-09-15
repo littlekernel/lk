@@ -282,9 +282,9 @@ arm_reset:
        r8 == final translation table physical (if using trampoline)
     */
 .Lmmu_setup:
-    /* Invalidate TLB */
-    mov     r12, #0
-    mcr     p15, 0, r12, c8, c7, 0
+    /* Invalidate TLB. The value in r0 is ignored */
+    mcr     p15, 0, r0, c8, c7, 0
+    dsb     sy
     isb
 
     /* Write 0 to TTBCR */
@@ -326,9 +326,9 @@ arm_reset:
     isb
 #endif
 
-    /* Invalidate TLB */
-    mov     r12, #0
-    mcr     p15, 0, r12, c8, c7, 0
+    /* Invalidate TLB. The value in r0 is ignored */
+    mcr     p15, 0, r0, c8, c7, 0
+    dsb     sy
     isb
 
     /* assume lr was in physical memory, adjust it before returning */
