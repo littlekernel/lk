@@ -28,6 +28,8 @@ env:
     - PROJECT=stm32f746g-disco-test     TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64       DEBUG=0
     - PROJECT=pc-x86-test               TOOLCHAIN=i386-elf-7.3.0-Linux-x86_64       DEBUG=0
     - PROJECT=pc-x86-64-test            TOOLCHAIN=x86_64-elf-7.3.0-Linux-x86_64     DEBUG=0
+    - PROJECT=qemu-microblaze-test      TOOLCHAIN=microblaze-elf-7.3.0-Linux-x86_64 DEBUG=0
+    - PROJECT=qemu-mips-test            TOOLCHAIN=mips-elf-7.3.0-Linux-x86_64       DEBUG=0
 
 # run in a container
 sudo: false
