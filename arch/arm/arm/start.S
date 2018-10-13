@@ -288,6 +288,7 @@ arm_reset:
     isb
 
     /* Write 0 to TTBCR */
+    mov     r12, #0
     mcr     p15, 0, r12, c2, c0, 2
     isb
 
