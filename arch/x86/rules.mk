@@ -74,27 +74,27 @@ $(warning ARCH_x86_TOOLCHAIN_PREFIX = $(ARCH_x86_TOOLCHAIN_PREFIX))
 $(warning ARCH_x86_64_TOOLCHAIN_PREFIX = $(ARCH_x86_64_TOOLCHAIN_PREFIX))
 $(warning TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(CFLAGS) -print-libgcc-file-name)
-
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
 	then echo "$(2)"; else echo "$(3)"; fi ;)
 
 # disable SSP if the compiler supports it; it will break stuff
 GLOBAL_CFLAGS += $(call cc-option,$(CC),-fno-stack-protector,)
 
-GLOBAL_COMPILEFLAGS += -fasynchronous-unwind-tables
-GLOBAL_COMPILEFLAGS += -gdwarf-2
-GLOBAL_COMPILEFLAGS += -fno-pic
-GLOBAL_LDFLAGS += -z max-page-size=4096
+ARCH_COMPILEFLAGS += -fasynchronous-unwind-tables
+ARCH_COMPILEFLAGS += -gdwarf-2
+ARCH_COMPILEFLAGS += -fno-pic
+ARCH_LDFLAGS += -z max-page-size=4096
 
 ifeq ($(SUBARCH),x86-64)
-GLOBAL_COMPILEFLAGS += -fno-stack-protector
-GLOBAL_COMPILEFLAGS += -mcmodel=kernel
-GLOBAL_COMPILEFLAGS += -mno-red-zone
+ARCH_COMPILEFLAGS += -fno-stack-protector
+ARCH_COMPILEFLAGS += -mcmodel=kernel
+ARCH_COMPILEFLAGS += -mno-red-zone
 endif # SUBARCH x86-64
 
-
 ARCH_OPTFLAGS := -O2
+
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
+$(warning LIBGCC = $(LIBGCC))
 
 LINKER_SCRIPT += $(SUBARCH_BUILDDIR)/kernel.ld
 

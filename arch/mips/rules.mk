@@ -30,13 +30,13 @@ WITH_LINKER_GC ?= 0
 LITTLE_ENDIAN ?= 0
 
 ifneq ($(LITTLE_ENDIAN),0)
-GLOBAL_COMPILEFLAGS += -EL
-GLOBAL_ASFLAGS += -EL
-GLOBAL_LDFLAGS += -EL
+ARCH_COMPILEFLAGS += -EL
+ARCH_ASFLAGS += -EL
+ARCH_LDFLAGS += -EL
 GLOBAL_MODULE_LDFLAGS += -EL
 endif
 
-ARCH_COMPILEFLAGS := -mno-gpopt
+ARCH_COMPILEFLAGS += -mno-gpopt
 ARCH_OPTFLAGS := -O2
 
 ifeq ($(MIPS_CPU),m14k)
@@ -46,7 +46,7 @@ ifeq ($(MIPS_CPU),microaptiv-uc)
 ARCH_COMPILEFLAGS += -march=m14k
 endif
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))
 
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \

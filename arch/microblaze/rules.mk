@@ -29,21 +29,20 @@ WITH_LINKER_GC ?= 0
 LITTLE_ENDIAN ?= 0
 
 ifneq ($(LITTLE_ENDIAN),0)
-GLOBAL_COMPILEFLAGS += -mlittle-endian
-GLOBAL_LDFLAGS += -EL
+ARCH_COMPILEFLAGS += -mlittle-endian
+ARCH_LDFLAGS += -EL
 GLOBAL_MODULE_LDFLAGS += -EL
 endif
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))
 
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
 	then echo "$(2)"; else echo "$(3)"; fi ;)
 
-ARCH_COMPILEFLAGS :=
 ARCH_OPTFLAGS := -O2
 
-GLOBAL_LDFLAGS += -relax
+ARCH_LDFLAGS += -relax
 
 KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0

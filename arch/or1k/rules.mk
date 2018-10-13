@@ -20,15 +20,15 @@ ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := or1k-elf-
 endif
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(CFLAGS) -print-libgcc-file-name)
-$(info LIBGCC = $(LIBGCC))
-
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
 	then echo "$(2)"; else echo "$(3)"; fi ;)
 
 ARCH_OPTFLAGS := -O2
 
-GLOBAL_LDFLAGS += -relax
+ARCH_LDFLAGS += -relax
+
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
+$(info LIBGCC = $(LIBGCC))
 
 KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0

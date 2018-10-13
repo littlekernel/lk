@@ -92,9 +92,9 @@ $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
 ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
 
-GLOBAL_LDFLAGS += -z max-page-size=4096
+ARCH_LDFLAGS += -z max-page-size=4096
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
 
 # make sure some bits were set up
 MEMVARS_SET := 0
