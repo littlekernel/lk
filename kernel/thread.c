@@ -114,7 +114,7 @@ static void insert_in_run_queue_tail(thread_t *t)
     run_queue_bitmap |= (1<<t->priority);
 }
 
-static void init_thread_struct(thread_t *t, const char *name)
+void init_thread_struct(thread_t *t, const char *name)
 {
     memset(t, 0, sizeof(thread_t));
     t->magic = THREAD_MAGIC;

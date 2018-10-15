@@ -15,6 +15,7 @@ env:
     - PROJECT=nucleo-f072rb             TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
     - PROJECT=qemu-microblaze-test      TOOLCHAIN=microblaze-elf-7.3.0-Linux-x86_64
     - PROJECT=qemu-mips-test            TOOLCHAIN=mips-elf-7.3.0-Linux-x86_64
+    - PROJECT=qemu-riscv32-test         TOOLCHAIN=riscv32-elf-7.3.0-Linux-x86_64
     - PROJECT=pc-x86-test               TOOLCHAIN=i386-elf-7.3.0-Linux-x86_64
     - PROJECT=pc-x86-64-test            TOOLCHAIN=x86_64-elf-7.3.0-Linux-x86_64
 
@@ -30,6 +31,7 @@ env:
     - PROJECT=pc-x86-64-test            TOOLCHAIN=x86_64-elf-7.3.0-Linux-x86_64     DEBUG=0
     - PROJECT=qemu-microblaze-test      TOOLCHAIN=microblaze-elf-7.3.0-Linux-x86_64 DEBUG=0
     - PROJECT=qemu-mips-test            TOOLCHAIN=mips-elf-7.3.0-Linux-x86_64       DEBUG=0
+    - PROJECT=qemu-riscv32-test         TOOLCHAIN=riscv32-elf-7.3.0-Linux-x86_64    DEBUG=0
 
 # run in a container
 sudo: false
