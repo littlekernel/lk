@@ -44,7 +44,7 @@ PROJECTS:=$(shell basename -a $(PROJECTS))
 .PHONY: list
 list:
 	@echo 'List of all buildable projects: (look in project/ directory)'; \
-	for p in $(PROJECTS); do \
+	for p in $(sort $(PROJECTS)); do \
 		echo $$p; \
 	done
 
