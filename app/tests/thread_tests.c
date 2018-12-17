@@ -616,7 +616,7 @@ static void spinlock_test(void)
 #undef COUNT
 }
 
-int thread_tests(void)
+int thread_tests(int argc, const cmd_args *argv)
 {
     mutex_test();
     semaphore_test();

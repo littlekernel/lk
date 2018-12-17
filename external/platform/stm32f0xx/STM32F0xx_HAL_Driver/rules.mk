@@ -46,4 +46,6 @@ MODULE_SRCS += $(LOCAL_DIR)/stm32f0xx_hal.c \
 							 $(LOCAL_DIR)/stm32f0xx_hal_usart.c \
 							 $(LOCAL_DIR)/stm32f0xx_hal_wwdg.c
 
+MODULE_COMPILEFLAGS += -Wno-error
+
 include make/module.mk

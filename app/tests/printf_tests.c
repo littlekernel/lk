@@ -21,11 +21,12 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app/tests.h>
+#include <err.h>
 #include <stdio.h>
 #include <string.h>
 #include <debug.h>
 
-void printf_tests(void)
+int printf_tests(int argc, const cmd_args *argv)
 {
     printf("printf tests\n");
 
@@ -116,11 +117,13 @@ void printf_tests(void)
     err = snprintf(buf, 15, "0123456789abcdef012345678");
     printf("snprintf returns %d\n", err);
     hexdump8(buf, sizeof(buf));
+
+    return NO_ERROR;
 }
 
 #include "float_test_vec.c"
 
-void printf_tests_float(void)
+int printf_tests_float(int argc, const cmd_args *argv)
 {
     printf("floating point printf tests\n");
 
@@ -128,6 +131,7 @@ void printf_tests_float(void)
         PRINT_FLOAT;
     }
 
+    return NO_ERROR;
 }
 
 

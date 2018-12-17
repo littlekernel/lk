@@ -32,7 +32,6 @@
 
 #include <kernel/thread.h>
 
-static lk_time_t system_time = 0;
 static volatile lk_time_t ticks = 0;
 static lk_time_t tick_interval;
 

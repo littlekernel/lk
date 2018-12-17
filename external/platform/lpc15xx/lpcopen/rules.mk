@@ -35,5 +35,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/lpc_chip_15xx/src/uart_15xx.c \
 	$(LOCAL_DIR)/lpc_chip_15xx/src/wwdt_15xx.c \
 
+MODULE_COMPILEFLAGS += -Wno-error
+
 include make/module.mk
 

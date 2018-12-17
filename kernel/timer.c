@@ -291,7 +291,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
 
     /* let the scheduler have a shot to do quantum expiration, etc */
     /* in case of dynamic timer, the scheduler will set up a periodic timer */
-    if (thread_timer_tick() == INT_RESCHEDULE)
+    if (thread_timer_tick(NULL, now, NULL) == INT_RESCHEDULE)
         ret = INT_RESCHEDULE;
 #endif
 

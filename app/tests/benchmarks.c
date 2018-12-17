@@ -247,7 +247,7 @@ __NO_INLINE static void bench_sincos(void)
 
 #endif // WITH_LIB_LIBM
 
-void benchmarks(void)
+int benchmarks(int argc, const cmd_args *argv)
 {
     bench_set_overhead();
     bench_memset();
@@ -269,5 +269,7 @@ void benchmarks(void)
 #if WITH_LIB_LIBM
     bench_sincos();
 #endif
+
+    return NO_ERROR;
 }
 

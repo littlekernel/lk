@@ -30,7 +30,7 @@
 #include <kernel/event.h>
 #include <platform.h>
 
-void clock_tests(void)
+int clock_tests(int argc, const cmd_args *argv)
 {
     uint32_t c;
     lk_time_t t;
@@ -118,4 +118,6 @@ void clock_tests(void)
         cycles = arch_cycle_count() - cycles;
         printf("%u cycles per second\n", cycles);
     }
+
+    return NO_ERROR;
 }

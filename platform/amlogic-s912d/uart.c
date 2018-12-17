@@ -106,7 +106,7 @@ int uart_getc(int port, bool wait)
     }
 }
 
-void uart_irq_handler(void)
+enum handler_return uart_irq_handler(void *arg)
 {
     while ( (UARTREG(uart_base, S912D_UART_STATUS) & S912D_UART_STATUS_RXCOUNT_MASK) > 0 ) {
         if (cbuf_space_avail(&uart_rx_buf) == 0) {
@@ -115,6 +115,8 @@ void uart_irq_handler(void)
         char c = UARTREG(uart_base, S912D_UART_RFIFO);
         cbuf_write_char(&uart_rx_buf, c,false);
     }
+
+    return INT_RESCHEDULE;
 }
 
 void uart_init_early(void)

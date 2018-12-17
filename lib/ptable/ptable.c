@@ -735,10 +735,11 @@ status_t ptable_create_default(const char *bdev_name, uint64_t offset)
 
     /* Publish the ptable partition */
     struct ptable_entry ptable_entry;
+    memset(&ptable_entry, 0, sizeof(ptable_entry));
     ptable_entry.offset = offset;
     ptable_entry.length = len;
     ptable_entry.flags  = 0;
-    strncpy((char *)ptable_entry.name, PTABLE_PART_NAME, sizeof(ptable_entry.name));
+    strlcpy((char *)ptable_entry.name, PTABLE_PART_NAME, sizeof(ptable_entry.name));
     err = ptable_publish(&ptable_entry);
     if (err < 0) {
         LTRACEF("Failed to publish ptable partition\n");
@@ -816,10 +817,11 @@ status_t ptable_add(const char *name, uint64_t min_len, uint32_t flags)
 
     /* Attempt to publish the partition */
     struct ptable_entry ptable_entry;
+    memset(&ptable_entry, 0, sizeof(ptable_entry));
     ptable_entry.offset = part_loc;
     ptable_entry.length = min_len;
     ptable_entry.flags  = 0;
-    strncpy((char *)ptable_entry.name, name, sizeof(ptable_entry.name));
+    strlcpy((char *)ptable_entry.name, name, sizeof(ptable_entry.name));
     status_t err = ptable_publish(&ptable_entry);
     if (err < 0) {
         LTRACEF("Failed to publish\n");

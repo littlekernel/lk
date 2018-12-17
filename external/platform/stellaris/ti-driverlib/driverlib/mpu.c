@@ -323,7 +323,7 @@ MPURegionSet(unsigned long ulRegion, unsigned long ulAddr,
     // Check the arguments.
     //
     ASSERT(ulRegion < 8);
-    ASSERT((ulAddr & ~0 << (((ulFlags & NVIC_MPU_ATTR_SIZE_M) >> 1) + 1))
+    ASSERT((ulAddr & ~0u << (((ulFlags & NVIC_MPU_ATTR_SIZE_M) >> 1) + 1))
             == ulAddr);
 
     //

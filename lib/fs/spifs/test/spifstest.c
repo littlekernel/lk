@@ -265,9 +265,9 @@ static bool test_full_toc(const char *dev_name)
         filenum[1] += (i / 10) % 10;
         filenum[2] += i % 10;
 
-        strncat(test_file_name, MNT_PATH, strlen(MNT_PATH));
-        strncat(test_file_name, "/", 1);
-        strncat(test_file_name, filenum, strlen(filenum));
+        strlcat(test_file_name, MNT_PATH, sizeof(test_file_name));
+        strlcat(test_file_name, "/", sizeof(test_file_name));
+        strlcat(test_file_name, filenum, sizeof(test_file_name));
 
         status_t status =
             fs_create_file(test_file_name, &handle, 1);

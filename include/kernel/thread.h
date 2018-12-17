@@ -186,7 +186,8 @@ void uthread_context_switch(thread_t *oldthread, thread_t *newthread);
 #endif
 
 /* called on every timer tick for the scheduler to do quantum expiration */
-enum handler_return thread_timer_tick(void);
+struct timer;
+enum handler_return thread_timer_tick(struct timer *, lk_time_t now, void *arg);
 
 /* the current thread */
 thread_t *get_current_thread(void);
