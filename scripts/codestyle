@@ -1,3 +1,7 @@
 #!/bin/sh
 
-astyle --style=k/r --align-pointer=name --lineend=linux --indent=tab=4 --indent-switches --keep-one-line-blocks --pad-header --convert-tabs $@
+# formatting script using the astyle tool
+# use -A2 (java style braces)
+# 4 space indents, convert tabs to spaces
+
+astyle -A2 --align-pointer=name --indent=spaces=4 --indent-switches --keep-one-line-blocks --pad-header --convert-tabs $@

@@ -1,3 +1,0 @@
-#!/bin/sh
-
-astyle -A2 --align-pointer=name --indent=spaces=4 --indent-switches --keep-one-line-blocks --pad-header --convert-tabs $@
