@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <compiler.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 typedef enum {
     HALT_ACTION_HALT = 0,       // Spin forever.
@@ -84,6 +84,6 @@ void platform_halt(platform_halt_action suggested_action,
 /* called during chain loading to make sure drivers and platform is put into a stopped state */
 void platform_quiesce(void);
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif

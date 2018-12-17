@@ -33,7 +33,7 @@
 #include <arch/arm/cm.h>
 #endif
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 #if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
 #define USE_GCC_ATOMICS 0
@@ -471,6 +471,6 @@ static inline uint32_t arch_cycle_count(void) { return _arch_cycle_count(); }
 #define smp_rmb()   CF
 #endif
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif // ASSEMBLY

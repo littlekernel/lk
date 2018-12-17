@@ -24,7 +24,7 @@
 
 #include <compiler.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 void *cmpct_alloc(size_t);
 void *cmpct_realloc(void *, size_t);
@@ -36,4 +36,4 @@ void cmpct_dump(void);
 void cmpct_test(void);
 void cmpct_trim(void);
 
-__END_CDECLS;
+__END_CDECLS

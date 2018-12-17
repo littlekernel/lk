@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <compiler.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 /* app support api */
 void apps_init(void); /* one time setup */
@@ -53,7 +53,7 @@ struct app_descriptor {
 
 #define APP_END };
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif
 

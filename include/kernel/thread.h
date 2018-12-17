@@ -38,7 +38,7 @@
 typedef struct vmm_aspace vmm_aspace_t;
 #endif
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 /* debug-enable runtime checks */
 #if LK_DEBUGLEVEL > 1
@@ -250,6 +250,6 @@ extern struct thread_stats thread_stats[SMP_MAX_CPUS];
 
 #endif
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif

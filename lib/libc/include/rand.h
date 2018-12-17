@@ -26,7 +26,7 @@
 #include <compiler.h>
 #include <sys/types.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 int rand(void);
 void srand(unsigned int seed);
@@ -34,7 +34,7 @@ void srand(unsigned int seed);
 /* non standard extension to add some entropy to the seed */
 void rand_add_entropy(const void *buf, size_t len);
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif
 

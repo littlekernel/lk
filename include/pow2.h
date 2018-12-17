@@ -28,7 +28,7 @@
 #include <stdint.h>
 #include <compiler.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 /* routines for dealing with power of 2 values for efficiency */
 static inline __ALWAYS_INLINE bool ispow2(uint val)
@@ -72,7 +72,7 @@ static inline __ALWAYS_INLINE uint32_t round_up_pow2_u32(uint32_t v)
     v++;
     return v;
 }
-__END_CDECLS;
+__END_CDECLS
 
 #endif
 

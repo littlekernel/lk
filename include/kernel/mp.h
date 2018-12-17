@@ -28,7 +28,7 @@
 #include <stdint.h>
 #include <kernel/thread.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 typedef uint32_t mp_cpu_mask_t;
 
@@ -126,4 +126,4 @@ static inline void mp_set_cpu_non_realtime(uint cpu) {}
 static inline mp_cpu_mask_t mp_get_realtime_mask(void) { return 0; }
 #endif
 
-__END_CDECLS;
+__END_CDECLS

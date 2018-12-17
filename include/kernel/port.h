@@ -27,7 +27,7 @@
 #include <compiler.h>
 
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 /* Ports are named, opaque objects and come in three flavors, the
  * write-side, the read-side and a port group which is a collection
@@ -103,7 +103,7 @@ status_t port_destroy(port_t port);
  */
 status_t port_close(port_t port);
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif
 

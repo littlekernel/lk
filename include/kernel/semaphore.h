@@ -21,7 +21,7 @@
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 #define SEMAPHORE_MAGIC (0x73656D61) // 'sema'
 
@@ -45,5 +45,5 @@ status_t sem_wait(semaphore_t *);
 status_t sem_trywait(semaphore_t *);
 status_t sem_timedwait(semaphore_t *, lk_time_t);
 
-__END_CDECLS;
+__END_CDECLS
 #endif

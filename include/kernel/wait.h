@@ -30,7 +30,7 @@
 #include <arch/ops.h>
 #include <arch/thread.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 /* wait queue stuff */
 #define WAIT_QUEUE_MAGIC (0x77616974) // 'wait'
@@ -81,7 +81,7 @@ int wait_queue_wake_all(wait_queue_t *, bool reschedule, status_t wait_queue_err
  */
 status_t thread_unblock_from_wait_queue(struct thread *t, status_t wait_queue_error);
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif
 

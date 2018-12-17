@@ -29,7 +29,7 @@
 #include <stdint.h>
 #include <kernel/thread.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 #define MUTEX_MAGIC (0x6D757478)  // 'mutx'
 
@@ -69,6 +69,6 @@ static bool is_mutex_held(mutex_t *m)
     return m->holder == get_current_thread();
 }
 
-__END_CDECLS;
+__END_CDECLS
 #endif
 

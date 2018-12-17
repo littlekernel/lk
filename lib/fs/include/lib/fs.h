@@ -29,7 +29,7 @@
 #define FS_MAX_PATH_LEN 128
 #define FS_MAX_FILE_LEN 64
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 // Generic FS ioctls
 enum fs_ioctl_num {

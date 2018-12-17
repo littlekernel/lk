@@ -40,7 +40,7 @@
  * specific apis.
  */
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 #define PAGE_ALLOC_ANY_ARENA (-1)
 
@@ -64,6 +64,6 @@ int page_get_arenas(struct page_range* ranges, int number_of_ranges);
 // will return some non-page-aligned memory that would otherwise go to waste.
 void *page_first_alloc(size_t *size_return);
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif

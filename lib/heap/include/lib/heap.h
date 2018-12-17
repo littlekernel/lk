@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <compiler.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 /* standard heap definitions */
 void *malloc(size_t size) __MALLOC;
@@ -43,4 +43,4 @@ void heap_delayed_free(void *);
 /* tell the heap to return any free pages it can find */
 void heap_trim(void);
 
-__END_CDECLS;
+__END_CDECLS

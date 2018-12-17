@@ -3,10 +3,10 @@
 
 #include <compiler.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 int strcasecmp(const char *s1, const char *s2);
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif  /* !__STRINGS_H */

@@ -24,7 +24,7 @@
 
 #include <compiler.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 struct miniheap_stats {
     void *heap_start;
@@ -44,4 +44,4 @@ void miniheap_init(void *ptr, size_t len);
 void miniheap_dump(void);
 void miniheap_trim(void);
 
-__END_CDECLS;
+__END_CDECLS

@@ -25,7 +25,7 @@
 
 #include <compiler.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 #include <debug.h>
 
@@ -69,7 +69,7 @@ enum {
 #define KEVLOG_IRQ_ENTER(irqn) kernel_evlog_add(KERNEL_EVLOG_IRQ_ENTER, (uintptr_t)irqn, 0)
 #define KEVLOG_IRQ_EXIT(irqn) kernel_evlog_add(KERNEL_EVLOG_IRQ_EXIT, (uintptr_t)irqn, 0)
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif
 

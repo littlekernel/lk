@@ -25,7 +25,7 @@
 
 #include <compiler.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 int isalnum(int c);
 int isalpha(int c);
@@ -43,7 +43,7 @@ int isxdigit(int c);
 int tolower(int c);
 int toupper(int c);
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif
 

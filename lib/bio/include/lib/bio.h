@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <list.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 #define BIO_FLAGS_NONE                (0 << 0)
 #define BIO_FLAG_CACHE_ALIGNED_READS  (1 << 0)
@@ -147,4 +147,4 @@ enum bio_ioctl_num {
     BIO_IOCTL_IS_MAPPED,    /* if supported, returns whether or not the device is memory mapped. */
 };
 
-__END_CDECLS;
+__END_CDECLS

@@ -27,7 +27,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 #define containerof(ptr, type, member) \
     ((type *)((addr_t)(ptr) - offsetof(type, member)))
@@ -282,6 +282,6 @@ static inline size_t list_length(struct list_node *list)
     return cnt;
 }
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif

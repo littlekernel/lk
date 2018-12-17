@@ -28,7 +28,7 @@
 #include <sys/types.h>
 #include <kernel/thread.h>
 
-__BEGIN_CDECLS;
+__BEGIN_CDECLS
 
 #define EVENT_MAGIC (0x65766E74)  // "evnt"
 
@@ -81,7 +81,7 @@ static inline status_t event_wait(event_t *e)
     return event_wait_timeout(e, INFINITE_TIME);
 }
 
-__END_CDECLS;
+__END_CDECLS
 
 #endif
 
