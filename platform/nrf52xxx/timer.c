@@ -24,7 +24,6 @@
 #include <debug.h>
 #include <err.h>
 #include <platform.h>
-//#include <trace.h>
 #include <arch/arm/cm.h>
 #include <platform/nrf52.h>
 #include <platform/system_nrf52.h>
@@ -94,7 +93,7 @@ lk_bigtime_t current_time_hires(void)
     // base_counter only gets updated once every tick, regain extra
     //  precision by adding in elapsed counts since last tick interrupt
     //  Note: counter is only 24 bits
-    t = (t + (NRF_RTC1->COUNTER - (t & 0x00ffffff))) & 0x00ffffff;
+    t = t + ((NRF_RTC1->COUNTER - (t & 0x00ffffff)) & 0x00ffffff);
     return (t * 1000000 / clock_rate);
 }
 
