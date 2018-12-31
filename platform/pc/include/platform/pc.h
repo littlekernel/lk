@@ -37,6 +37,8 @@
 #define INT_PIT             0x20
 #define INT_KEYBOARD        0x21
 #define INT_PIC2            0x22
+#define INT_COM2_COM4       0x23
+#define INT_COM1_COM3       0x24
 
 #define INT_BASE2           0x28
 #define INT_CMOSRTC         0x28

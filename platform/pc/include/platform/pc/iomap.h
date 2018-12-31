@@ -33,7 +33,13 @@
 #define I8042_DATA_REG      0x60
 
 /* CGA registers */
-#define CGA_INDEX_REG       0x3D4
-#define CGA_DATA_REG        0x3D5
+#define CGA_INDEX_REG       0x3d4
+#define CGA_DATA_REG        0x3d5
+
+/* COM (serial) ports */
+#define COM1_REG            0x3f8
+#define COM2_REG            0x2f8
+#define COM3_REG            0x3e8
+#define COM4_REG            0x2e8
 
 #endif

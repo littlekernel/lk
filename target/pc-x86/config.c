@@ -46,14 +46,21 @@ DEVICE_INSTANCE(uart, uart0, &uart0_config);
 
 #ifndef ARCH_X86_64
 static const struct platform_ide_config ide0_config = {
+    .legacy_index = 0,
 };
 
 DEVICE_INSTANCE(ide, ide0, &ide0_config);
+
+static const struct platform_ide_config ide1_config = {
+    .legacy_index = 1,
+};
+
+DEVICE_INSTANCE(ide, ide1, &ide1_config);
 
 #endif
 
 void target_init(void)
 {
-    //device_init_all();
+    device_init_all();
 }
 

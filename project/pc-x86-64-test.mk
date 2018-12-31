@@ -2,8 +2,6 @@
 #
 ARCH := x86
 SUBARCH := x86-64
-TARGET := pc-x86
-MODULES += \
-	app/shell
 
+include project/target/pc.mk
 include project/virtual/test.mk

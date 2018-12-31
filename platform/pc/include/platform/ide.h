@@ -25,6 +25,7 @@
 #define __PLATFORM_IDE_H
 
 struct platform_ide_config {
+    int legacy_index; // -1 for pci detection, 0 or 1 for legacy ISA IDE
 };
 
 #endif

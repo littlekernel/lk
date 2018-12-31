@@ -84,8 +84,10 @@ void arch_thread_initialize(thread_t *t)
     frame->rflags = 0x3002; /* IF = 0, NT = 0, IOPL = 3 */
 #endif
 
+#if X86_WITH_FPU
     // initialize the saved fpu state
     fpu_init_thread_states(t);
+#endif
 
     // set the stack pointer
     t->arch.sp = (vaddr_t)frame;

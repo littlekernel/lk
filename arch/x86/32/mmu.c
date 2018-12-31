@@ -44,6 +44,9 @@
 #ifdef PAE_MODE_ENABLED
 map_addr_t pdp[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 map_addr_t pdpt[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+#elif X86_LEGACY
+/* enough page tables to map 16MB ram */
+map_addr_t pt[NO_OF_PT_ENTRIES][4] __ALIGNED(PAGE_SIZE);
 #endif
 map_addr_t pd[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 

@@ -95,10 +95,14 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) { re
 
 static inline uint32_t arch_cycle_count(void)
 {
+#if !X86_LEGACY
     uint32_t timestamp;
     rdtscl(timestamp);
 
     return timestamp;
+#else
+    return 0;
+#endif
 }
 
 /* use a global pointer to store the current_thread */

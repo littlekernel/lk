@@ -39,11 +39,17 @@
 #define X86_DIRTY_ACCESS_MASK   0xf9f
 #define X86_MMU_CACHE_DISABLE   0x010       /* C Cache disable */
 
+#ifndef X86_LEGACY
 /* default flags for inner page directory entries */
 #define X86_KERNEL_PD_FLAGS (X86_MMU_PG_G | X86_MMU_PG_RW | X86_MMU_PG_P)
 
 /* default flags for 2MB/4MB/1GB page directory entries */
 #define X86_KERNEL_PD_LP_FLAGS (X86_MMU_PG_G | X86_MMU_PG_PS | X86_MMU_PG_RW | X86_MMU_PG_P)
+#else
+/* default flags for page dir and page table entries in legacy (386) format */
+#define X86_KERNEL_PT_FLAGS (X86_MMU_PG_RW | X86_MMU_PG_P)
+#endif
+
 
 #define PAGE_SIZE       4096
 #define PAGE_DIV_SHIFT      12

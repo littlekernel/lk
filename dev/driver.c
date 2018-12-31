@@ -35,6 +35,7 @@ status_t device_init_all(void)
 
     struct device *dev = __devices;
     while (dev != __devices_end) {
+        dprintf(INFO, "dev: initializing device %s:%s\n", dev->driver->type, dev->name);
         status_t code = device_init(dev);
 
         if (code < 0) {

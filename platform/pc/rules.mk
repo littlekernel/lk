@@ -2,9 +2,12 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-CPU := generic
+# two implementations, generic and legacy
+# legacy implies older hardware, pre pentium, pre pci
+CPU ?= generic
 
 MODULE_DEPS += \
+    lib/bio \
     lib/cbuf \
 
 MODULE_SRCS += \
@@ -17,7 +20,6 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/pci.c \
     $(LOCAL_DIR)/ide.c \
     $(LOCAL_DIR)/uart.c \
-
 
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
 

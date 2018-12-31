@@ -150,8 +150,48 @@ fill_pdp:
     btsl $(31), %eax
     mov %eax,  %cr0
 
+#elif X86_LEGACY
+    /* map the first 16MB 1:1 with 4KB pages and again at 0x8000.0000 */
+
+    /* set up 4 page tables worth of entries */
+    movl $PHYS(pt), %edi
+    movl $1024*4,%ecx
+    movl $X86_KERNEL_PT_FLAGS, %eax
+
+.Lfill_pt:
+    movl %eax, (%edi)
+    addl $4, %edi
+    addl $4096, %eax
+    loop .Lfill_pt
+
+    /* set up the page dir with 4 entries at 0 and 0x8000.0000 pointing
+     * to 4 page tables that will map physical address 0 - 16MB
+     */
+    movl $PHYS(pd), %esi
+    movl $PHYS(pd) + 512*4, %edi
+    movl $PHYS(pt) + X86_KERNEL_PT_FLAGS, %eax
+    movl %eax, (%esi)
+    movl %eax, (%edi)
+    addl $4096, %eax
+    movl %eax, 4(%esi)
+    movl %eax, 4(%edi)
+    addl $4096, %eax
+    movl %eax, 8(%esi)
+    movl %eax, 8(%edi)
+    addl $4096, %eax
+    movl %eax, 12(%esi)
+    movl %eax, 12(%edi)
+
+    /* Set PD in CR3 */
+    movl $PHYS(pd), %eax
+    mov %eax, %cr3
+
+    /* Enabling Paging and from this point we are in */
+    mov %cr0,  %eax
+    btsl $(31), %eax
+    mov %eax, %cr0
 #else
-    /* map the first 1GB 1:1 */
+    /* map the first 1GB 1:1 using 4MB pages */
     movl $PHYS(pd), %esi
     movl $0x100, %ecx
     xor  %eax, %eax

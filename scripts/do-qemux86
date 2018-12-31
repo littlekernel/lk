@@ -3,6 +3,7 @@
 function HELP {
     echo "help:"
     echo "-6                  : x86-64"
+    echo "-l                  : legacy mode build (386 emulated machine)"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
     echo "-g                  : with graphics"
@@ -13,18 +14,20 @@ function HELP {
 }
 
 DO_64BIT=0
+DO_LEGACY=0
 DO_GRAPHICS=0
 DO_KVM=0
-MEMSIZE=512
+MEMSIZE=0
 SMP=1
 SUDO=""
 MAKE_VARS=""
 
-while getopts 6gkm:s:h FLAG; do
+while getopts 6gklm:s:h FLAG; do
     case $FLAG in
         6) DO_64BIT=1;;
         g) DO_GRAPHICS=1;;
         k) DO_KVM=1;;
+        l) DO_LEGACY=1;;
         m) MEMSIZE=$OPTARG;;
         s) SMP=$OPTARG;;
         h) HELP;;
@@ -36,22 +39,43 @@ done
 
 shift $((OPTIND-1))
 
-if [ $DO_64BIT == 1 ]; then
+# pick the appropriate qemu and project
+if (( $DO_64BIT )); then
     QEMU="qemu-system-x86_64"
     PROJECT="pc-x86-64-test"
+    CPU=qemu64
+    MACHINE=q35
+elif (( $DO_LEGACY )); then
+    QEMU="qemu-system-i386"
+    PROJECT="pc-x86-legacy-test"
+    CPU=486
+    MACHINE=isapc
 else
     QEMU="qemu-system-i386"
     PROJECT="pc-x86-test"
+    CPU=qemu32
+    MACHINE=q35
 fi
 
-ARGS=" -m $MEMSIZE -smp $SMP -machine q35 -kernel build-${PROJECT}/lk.elf"
+if (( $DO_LEGACY )); then
+    if (( ! $MEMSIZE )); then
+        MEMSIZE=4
+    fi
+else
+    if (( ! $MEMSIZE )); then
+        MEMSIZE=512
+    fi
+fi
 
-if [ $DO_GRAPHICS == 0 ]; then
+ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
+
+if (( ! $DO_GRAPHICS )); then
     ARGS+=" -nographic"
 else
     ARGS+=" -serial stdio"
 fi
-if [ $DO_KVM != 0 ]; then
+
+if (( $DO_KVM )); then
     ARGS+=" -enable-kvm -cpu host"
 fi
 

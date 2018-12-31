@@ -215,8 +215,6 @@ static void ide_lba_setup(struct device *dev, uint32_t addr, int index);
 
 static status_t ide_init(struct device *dev)
 {
-    pci_location_t loc;
-    pci_config_t pci_config;
     status_t res = NO_ERROR;
     uint32_t i;
     int err;
@@ -229,40 +227,60 @@ static status_t ide_init(struct device *dev)
 
     __UNUSED const struct platform_ide_config *config = dev->config;
 
-    err = pci_find_pci_class_code(&loc, 0x010180, 0);
-    if (err != _PCI_SUCCESSFUL) {
-        LTRACEF("Failed to find IDE device\n");
-        res = ERR_NOT_FOUND;
-    }
+    LTRACEF("entry: dev %p, config %p\n", dev, config);
 
-    LTRACEF("Found IDE device at %02x:%02x\n", loc.bus, loc.dev_fn);
-
-    for (i=0; i < sizeof(pci_config) / sizeof(uint32_t); i++) {
-        uint32_t reg = sizeof(uint32_t) * i;
-
-        err = pci_read_config_word(&loc, reg, ((uint32_t *) &pci_config) + i);
-        if (err != _PCI_SUCCESSFUL) {
-            LTRACEF("Failed to read config reg %d: 0x%02x\n", reg, err);
-            res = ERR_NOT_CONFIGURED;
-            goto done;
-        }
-    }
-
-    for (i=0; i < 6; i++) {
-        LTRACEF("BAR[%d]: 0x%08x\n", i, pci_config.base_addresses[i]);
-    }
-
-    struct ide_driver_state *state = malloc(sizeof(struct ide_driver_state));
+    struct ide_driver_state *state = calloc(1, sizeof(struct ide_driver_state));
     if (!state) {
         res = ERR_NO_MEMORY;
-        goto done;
+        goto err;
     }
-    dev->state = state;
 
-    /* TODO: select io regs and irq based on device index */
-    state->irq = ide_device_irqs[0];
-    state->regs = ide_device_regs[0];
-    state->type[0] = state->type[1] = TYPE_NONE;
+    // attempt pci detection
+    if (config->legacy_index < 0) {
+        pci_location_t loc;
+        pci_config_t pci_config;
+
+        err = pci_find_pci_class_code(&loc, 0x010180, 0);
+        if (err != _PCI_SUCCESSFUL) {
+            LTRACEF("Failed to find IDE device\n");
+            res = ERR_NOT_FOUND;
+            goto err;
+        }
+
+        LTRACEF("Found IDE device at %02x:%02x\n", loc.bus, loc.dev_fn);
+
+        for (i=0; i < sizeof(pci_config) / sizeof(uint32_t); i++) {
+            uint32_t reg = sizeof(uint32_t) * i;
+
+            err = pci_read_config_word(&loc, reg, ((uint32_t *) &pci_config) + i);
+            if (err != _PCI_SUCCESSFUL) {
+                LTRACEF("Failed to read config reg %d: 0x%02x\n", reg, err);
+                res = ERR_NOT_CONFIGURED;
+                goto err;
+            }
+        }
+
+        for (i=0; i < 6; i++) {
+            LTRACEF("BAR[%d]: 0x%08x\n", i, pci_config.base_addresses[i]);
+        }
+
+        // TODO: fill this in from the bars
+        //state->irq = ide_device_irqs[0];
+        //state->regs = ide_device_regs[0];
+        //state->type[0] = state->type[1] = TYPE_NONE;
+        res = ERR_NOT_CONFIGURED;
+        goto err;
+    } else {
+        // legacy isa
+        DEBUG_ASSERT(config->legacy_index < 2);
+
+        /* select io regs and irq based on device index */
+        state->irq = ide_device_irqs[config->legacy_index];
+        state->regs = ide_device_regs[config->legacy_index];
+        state->type[0] = state->type[1] = TYPE_NONE;
+    }
+
+    dev->state = state;
 
     event_init(&state->completion, false, EVENT_FLAG_AUTOUNSIGNAL);
 
@@ -275,7 +293,10 @@ static status_t ide_init(struct device *dev)
     /* detect drives */
     ide_detect_drives(dev);
 
-done:
+    return NO_ERROR;
+
+err:
+    free(state);
     return res;
 }
 
@@ -772,6 +793,8 @@ static void ide_detect_drives(struct device *dev)
         cl = ide_read_reg8(dev, IDE_REG_CYLINDER_LOW);
         ch = ide_read_reg8(dev, IDE_REG_CYLINDER_HIGH);
 
+        LTRACEF("sc %hhu sn %hhu st %hhu cl %hhu ch %hhu\n", sc, sn, st, cl, ch);
+
         // PATAPI or SATAPI respectively
         if ((cl == 0x14 && ch == 0xeb) || (cl == 0x69 && ch == 0x96)) {
             state->type[0] = TYPE_IDECDROM;
@@ -792,6 +815,8 @@ static void ide_detect_drives(struct device *dev)
         cl = ide_read_reg8(dev, IDE_REG_CYLINDER_LOW);
         ch = ide_read_reg8(dev, IDE_REG_CYLINDER_HIGH);
 
+        LTRACEF("sc %hhu sn %hhu st %hhu cl %hhu ch %hhu\n", sc, sn, st, cl, ch);
+
         // PATAPI or SATAPI respectively
         if ((cl == 0x14 && ch == 0xeb) || (cl == 0x69 && ch == 0x96)) {
             state->type[1] = TYPE_IDECDROM;
@@ -800,8 +825,8 @@ static void ide_detect_drives(struct device *dev)
         }
     }
 
-    LTRACEF("Detected drive 0: %s\n", ide_type_str[state->type[0]]);
-    LTRACEF("Detected drive 1: %s\n", ide_type_str[state->type[1]]);
+    dprintf(INFO, "ide: Detected drive 0: %s\n", ide_type_str[state->type[0]]);
+    dprintf(INFO, "ide: Detected drive 1: %s\n", ide_type_str[state->type[1]]);
 
     switch (state->type[0]) {
         case TYPE_IDEDISK:
@@ -838,7 +863,7 @@ static status_t ide_detect_ata(struct device *dev, int index)
 {
     struct ide_driver_state *state = dev->state;
     status_t res = NO_ERROR;
-    uint8_t *info = NULL;
+    uint16_t *info = NULL;
     int err;
 
     ide_device_select(dev, index);
@@ -876,7 +901,7 @@ static status_t ide_detect_ata(struct device *dev, int index)
         goto error;
     }
 
-    info = malloc(512);
+    info = calloc(1, 512);
     if (!info) {
         res = ERR_NO_MEMORY;
         goto error;
@@ -886,11 +911,32 @@ static status_t ide_detect_ata(struct device *dev, int index)
 
     ide_read_reg16_array(dev, IDE_REG_DATA, info, 256);
 
-    state->drive[index].sectors = *((uint32_t *) (info + 120));
-    state->drive[index].sector_size = 512;
+    uint32_t lba28_sectors = *((uint32_t *) (&info[60]));
+    if (lba28_sectors > 0) {
+        state->drive[index].sectors = lba28_sectors;
+        state->drive[index].sector_size = 512;
+    } else {
+        // detect ancient devices pre lba28
+        uint16_t cyls, heads, sectors;
+        cyls = info[1];
+        heads = info[3];
+        sectors = info[6];
 
-    LTRACEF("Disk supports %u sectors for a total of %u bytes\n", state->drive[index].sectors,
+        if (!cyls || !heads || !sectors) {
+            res = ERR_NOT_CONFIGURED;
+            goto error;
+        }
+
+        LTRACEF("pre LBA CHS %hu:%hu:%hu\n", cyls, heads, sectors);
+
+        state->drive[index].sectors = cyls * heads * sectors;
+        state->drive[index].sector_size = 512;
+    }
+
+    dprintf(INFO, "ide: Disk %d supports %u sectors for a total of %u bytes\n", index, state->drive[index].sectors,
             state->drive[index].sectors * 512);
+
+    res = NO_ERROR;
 
 error:
     free(info);

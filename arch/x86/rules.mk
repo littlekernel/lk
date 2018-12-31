@@ -39,7 +39,6 @@ GLOBAL_DEFINES += \
 	KERNEL_ASPACE_BASE=$(KERNEL_ASPACE_BASE) \
 	KERNEL_ASPACE_SIZE=$(KERNEL_ASPACE_SIZE) \
 	SMP_MAX_CPUS=1 \
-	X86_WITH_FPU=1
 
 MODULE_SRCS += \
 	$(SUBARCH_DIR)/start.S \
@@ -54,7 +53,15 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/faults.c \
 	$(LOCAL_DIR)/descriptor.c \
+
+# legacy x86's dont have fpu support
+ifneq ($(CPU),legacy)
+GLOBAL_DEFINES += \
+	X86_WITH_FPU=1
+
+MODULE_SRCS += \
 	$(LOCAL_DIR)/fpu.c
+endif
 
 include $(LOCAL_DIR)/toolchain.mk
 
@@ -92,6 +99,13 @@ ARCH_COMPILEFLAGS += -mno-red-zone
 endif # SUBARCH x86-64
 
 ARCH_OPTFLAGS := -O2
+
+# compile for 386 when selecting 'legacy' cpu support
+ifeq ($(CPU),legacy)
+ARCH_COMPILEFLAGS += -march=i386
+ARCH_OPTFLAGS := -Os
+GLOBAL_DEFINES += X86_LEGACY=1 WITH_NO_FP=1
+endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
 $(warning LIBGCC = $(LIBGCC))

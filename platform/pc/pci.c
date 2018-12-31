@@ -66,6 +66,10 @@ int (*g_pci_set_irq_hw_int)(const pci_location_t *state, uint8_t int_pin, uint8_
 
 int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index)
 {
+    if (unlikely(!g_pci_find_pci_device)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     spin_lock_saved_state_t irqstate;
     spin_lock_irqsave(&lock, irqstate);
 
@@ -78,6 +82,10 @@ int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vend
 
 int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index)
 {
+    if (unlikely(!g_pci_find_pci_class_code)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     spin_lock_saved_state_t irqstate;
     spin_lock_irqsave(&lock, irqstate);
 
@@ -90,6 +98,10 @@ int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t
 
 int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value)
 {
+    if (unlikely(!g_pci_read_config_byte)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     spin_lock_saved_state_t irqstate;
     spin_lock_irqsave(&lock, irqstate);
 
@@ -101,6 +113,10 @@ int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *val
 }
 int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value)
 {
+    if (unlikely(!g_pci_read_config_half)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     spin_lock_saved_state_t irqstate;
     spin_lock_irqsave(&lock, irqstate);
 
@@ -113,6 +129,10 @@ int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *va
 
 int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value)
 {
+    if (unlikely(!g_pci_read_config_word)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     spin_lock_saved_state_t irqstate;
     spin_lock_irqsave(&lock, irqstate);
 
@@ -125,6 +145,10 @@ int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *va
 
 int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value)
 {
+    if (unlikely(!g_pci_write_config_byte)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     spin_lock_saved_state_t irqstate;
     spin_lock_irqsave(&lock, irqstate);
 
@@ -137,6 +161,10 @@ int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t val
 
 int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value)
 {
+    if (unlikely(!g_pci_write_config_half)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     spin_lock_saved_state_t irqstate;
     spin_lock_irqsave(&lock, irqstate);
 
@@ -149,6 +177,10 @@ int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t va
 
 int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value)
 {
+    if (unlikely(!g_pci_write_config_word)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     spin_lock_saved_state_t irqstate;
     spin_lock_irqsave(&lock, irqstate);
 
@@ -162,6 +194,10 @@ int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t va
 
 int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs)
 {
+    if (unlikely(!g_pci_get_irq_routing_options)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     irq_routing_options_t options;
     options.size = sizeof(irq_routing_entry) **count;
     options.selector = DATA_SELECTOR;
@@ -181,6 +217,10 @@ int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uin
 
 int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq)
 {
+    if (unlikely(!g_pci_set_irq_hw_int)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
     spin_lock_saved_state_t irqstate;
     spin_lock_irqsave(&lock, irqstate);
 
@@ -499,7 +539,8 @@ static int bios_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uin
 static const char *pci_signature = "PCI ";
 static int pci_bios_detect(void)
 {
-    // XXX disable for now
+    // disable for now, pci bios32 doesn't work without a temporary identity map
+    // set up on the mmu
     return 0;
 
     pci_bios_info *pci = find_pci_bios_info();
