@@ -624,7 +624,7 @@ static const struct platform_pcnet_config pcnet0_config = {
     .index = 0,
 };
 
-DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config);
+DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config, 0);
 
 static void pcnet_init_hook(uint level)
 {

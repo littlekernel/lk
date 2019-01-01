@@ -252,9 +252,8 @@ void platform_init(void)
     platform_init_debug();
 
     platform_init_keyboard(&console_input_buf);
-#if defined(ARCH_X86)
+
     pci_init();
-#endif
 
     platform_init_mmu_mappings();
 }

@@ -28,6 +28,9 @@
 #include <kernel/spinlock.h>
 #include <arch/x86/descriptor.h>
 #include <dev/pci.h>
+#include <trace.h>
+
+#define LOCAL_TRACE 0
 
 static int last_bus = 0;
 static spin_lock_t lock;
@@ -234,8 +237,8 @@ int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq
 void pci_init(void)
 {
     if (!pci_bios_detect()) {
-        dprintf(INFO, "pci bios functions installed\n");
-        dprintf(INFO, "last pci bus is %d\n", last_bus);
+        dprintf(INFO, "PCI: pci bios functions installed\n");
+        dprintf(INFO, "PCI: last pci bus is %d\n", last_bus);
     }
 }
 
@@ -539,95 +542,96 @@ static int bios_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uin
 static const char *pci_signature = "PCI ";
 static int pci_bios_detect(void)
 {
-    // disable for now, pci bios32 doesn't work without a temporary identity map
-    // set up on the mmu
-    return 0;
+#if !ARCH_X86_32
+    // disable for x86-64 because of bios32
+    return ERR_NOT_SUPPORTED;
+#endif
 
     pci_bios_info *pci = find_pci_bios_info();
-    if (pci != NULL) {
-        printf("Found PCI structure at %p\n", pci);
-
-        printf("\nPCI header info:\n");
-        printf("%c%c%c%c\n", pci->magic[0], pci->magic[1], pci->magic[2],
-            pci->magic[3]);
-        printf("%p\n", pci->entry);
-        printf("%d\n", pci->length * 16);
-        printf("%d\n", pci->checksum);
-
-        uint32_t adr, temp, len;
-        uint8_t err;
-
-        bios32_entry.offset = (uint32_t)(uintptr_t)pci->entry + KERNEL_BASE;
-        bios32_entry.selector = CODE_SELECTOR;
-
-        __asm__(
-            "lcall *(%%edi)"
-            : "=a"(err),    /* AL out=status */
-            "=b"(adr),    /* EBX out=code segment base adr */
-            "=c"(len),    /* ECX out=code segment size */
-            "=d"(temp)    /* EDX out=entry pt offset in code */
-            : "0"(0x49435024),/* EAX in=service="$PCI" */
-            "1"(0),   /* EBX in=0=get service entry pt */
-            "D"(&bios32_entry)
-        );
-
-        if (err == 0x80) {
-            dprintf(INFO, "BIOS32 found, but no PCI BIOS\n");
-            return -1;
-        }
-
-        if (err != 0) {
-            dprintf(INFO, "BIOS32 call to locate PCI BIOS returned %x\n", err);
-            return -1;
-        }
-
-        bios32_entry.offset = adr + temp;
-
-        // now call PCI_BIOS_PRESENT to get version, hw mechanism, and last bus
-        uint16_t present, version, busses;
-        uint32_t signature;
-        __asm__(
-            "lcall *(%%edi)		\n\t"
-            "jc 1f				\n\t"
-            "xor %%ah,%%ah		\n"
-            "1:"
-            : "=a"(present),
-            "=b"(version),
-            "=c"(busses),
-            "=d"(signature)
-            : "0"(PCIBIOS_PRESENT),
-            "D"(&bios32_entry)
-        );
-
-        if (present & 0xff00) {
-            dprintf(INFO, "PCI_BIOS_PRESENT call returned ah=%02x\n", present >> 8);
-            return -1;
-        }
-
-        if (signature != *(uint32_t *)pci_signature) {
-            dprintf(INFO, "PCI_BIOS_PRESENT call returned edx=%08x\n", signature);
-            return -1;
-        }
-
-        //dprintf(DEBUG, "busses=%04x\n", busses);
-        last_bus = busses & 0xff;
-
-        g_pci_find_pci_device = bios_find_pci_device;
-        g_pci_find_pci_class_code = bios_find_pci_class_code;
-
-        g_pci_read_config_word = bios_read_config_word;
-        g_pci_read_config_half = bios_read_config_half;
-        g_pci_read_config_byte = bios_read_config_byte;
-
-        g_pci_write_config_word = bios_write_config_word;
-        g_pci_write_config_half = bios_write_config_half;
-        g_pci_write_config_byte = bios_write_config_byte;
-
-        g_pci_get_irq_routing_options = bios_get_irq_routing_options;
-        g_pci_set_irq_hw_int = bios_set_irq_hw_int;
-
-        return 0;
+    if (!pci) {
+        return ERR_NOT_CONFIGURED;
     }
 
-    return -1;
+    dprintf(INFO, "PCI: found BIOS32 structure at %p\n", pci);
+
+    LTRACEF("BIOS32 header info:\n");
+    LTRACEF("magic '%c%c%c%c' entry %p len %d checksum %#hhx\n",
+            pci->magic[0], pci->magic[1], pci->magic[2], pci->magic[3],
+            pci->entry, pci->length * 16, pci->checksum);
+
+    uint32_t adr, temp, len;
+    uint8_t err;
+
+    bios32_entry.offset = (uint32_t)(uintptr_t)pci->entry + KERNEL_BASE;
+    bios32_entry.selector = CODE_SELECTOR;
+
+    __asm__(
+        "lcall *(%%edi)"
+        : "=a"(err),    /* AL out=status */
+        "=b"(adr),    /* EBX out=code segment base adr */
+        "=c"(len),    /* ECX out=code segment size */
+        "=d"(temp)    /* EDX out=entry pt offset in code */
+        : "0"(0x49435024),/* EAX in=service="$PCI" */
+        "1"(0),   /* EBX in=0=get service entry pt */
+        "D"(&bios32_entry)
+    );
+
+    if (err == 0x80) {
+        dprintf(INFO, "BIOS32 found, but no PCI BIOS\n");
+        return ERR_NOT_CONFIGURED;
+    }
+
+    if (err != 0) {
+        dprintf(INFO, "BIOS32 call to locate PCI BIOS returned %x\n", err);
+        return ERR_NOT_CONFIGURED;
+    }
+
+    LTRACEF("BIOS32 entry segment base %#x offset %#x\n", adr, temp);
+
+    bios32_entry.offset = adr + temp + KERNEL_BASE;
+
+    // now call PCI_BIOS_PRESENT to get version, hw mechanism, and last bus
+    uint16_t present, version, busses;
+    uint32_t signature;
+    __asm__(
+        "lcall *(%%edi)		\n\t"
+        "jc 1f				\n\t"
+        "xor %%ah,%%ah		\n"
+        "1:"
+        : "=a"(present),
+        "=b"(version),
+        "=c"(busses),
+        "=d"(signature)
+        : "0"(PCIBIOS_PRESENT),
+        "D"(&bios32_entry)
+    );
+    LTRACEF("PCI_BIOS_PRESENT returns present %#x\n", present);
+
+    if (present & 0xff00) {
+        dprintf(INFO, "PCI_BIOS_PRESENT call returned ah=%#02x\n", present >> 8);
+        return ERR_NOT_CONFIGURED;
+    }
+
+    if (signature != *(uint32_t *)pci_signature) {
+        dprintf(INFO, "PCI_BIOS_PRESENT call returned edx=%#08x\n", signature);
+        return ERR_NOT_CONFIGURED;
+    }
+
+    last_bus = busses & 0xff;
+
+    g_pci_find_pci_device = bios_find_pci_device;
+    g_pci_find_pci_class_code = bios_find_pci_class_code;
+
+    g_pci_read_config_word = bios_read_config_word;
+    g_pci_read_config_half = bios_read_config_half;
+    g_pci_read_config_byte = bios_read_config_byte;
+
+    g_pci_write_config_word = bios_write_config_word;
+    g_pci_write_config_half = bios_write_config_half;
+    g_pci_write_config_byte = bios_write_config_byte;
+
+    g_pci_get_irq_routing_options = bios_get_irq_routing_options;
+    g_pci_set_irq_hw_int = bios_set_irq_hw_int;
+
+    return NO_ERROR;
 }

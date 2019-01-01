@@ -8,7 +8,7 @@ CPU ?= generic
 
 MODULE_DEPS += \
     lib/bio \
-    lib/cbuf \
+    lib/cbuf
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/interrupts.c \
@@ -22,6 +22,8 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/uart.c \
 
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
+
+MODULE_DEPS += app/pcitests
 
 include make/module.mk
 

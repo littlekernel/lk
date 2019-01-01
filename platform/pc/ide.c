@@ -236,18 +236,18 @@ static status_t ide_init(struct device *dev)
     }
 
     // attempt pci detection
-    if (config->legacy_index < 0) {
+    if (config->legacy_index == 0x80 || config->legacy_index == 0x81) {
         pci_location_t loc;
         pci_config_t pci_config;
 
         err = pci_find_pci_class_code(&loc, 0x010180, 0);
         if (err != _PCI_SUCCESSFUL) {
-            LTRACEF("Failed to find IDE device\n");
+            LTRACEF("Failed to find PCI IDE device\n");
             res = ERR_NOT_FOUND;
             goto err;
         }
 
-        LTRACEF("Found IDE device at %02x:%02x\n", loc.bus, loc.dev_fn);
+        LTRACEF("Found PCI IDE device at %02x:%02x\n", loc.bus, loc.dev_fn);
 
         for (i=0; i < sizeof(pci_config) / sizeof(uint32_t); i++) {
             uint32_t reg = sizeof(uint32_t) * i;
@@ -265,11 +265,9 @@ static status_t ide_init(struct device *dev)
         }
 
         // TODO: fill this in from the bars
-        //state->irq = ide_device_irqs[0];
-        //state->regs = ide_device_regs[0];
-        //state->type[0] = state->type[1] = TYPE_NONE;
-        res = ERR_NOT_CONFIGURED;
-        goto err;
+        state->irq = ide_device_irqs[config->legacy_index & 0x7f];
+        state->regs = ide_device_regs[config->legacy_index & 0x7f];
+        state->type[0] = state->type[1] = TYPE_NONE;
     } else {
         // legacy isa
         DEBUG_ASSERT(config->legacy_index < 2);

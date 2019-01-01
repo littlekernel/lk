@@ -27,6 +27,8 @@
 #include <list.h> // for containerof
 #include <compiler.h>
 
+__BEGIN_CDECLS
+
 struct driver;
 
 /*
@@ -37,6 +39,8 @@ struct device {
     const char *name;
     const struct driver *driver;
 
+    uint32_t flags;
+
     /* instance specific config data populated at instantiation */
     const void *config;
 
@@ -44,7 +48,15 @@ struct device {
     void *state;
 
     // TODO: add generic state, such as suspend/resume state, etc...
+    enum {
+        DEVICE_UNINITIALIZED,
+        DEVICE_INITIALIZED,
+        DEVICE_INITIALIZED_FAILED,
+    } device_state;
 };
+
+/* set this flag to auto initialize the device when device_init_all is called */
+#define DEVICE_FLAG_AUTOINIT 0x1
 
 /* device class, mainly used as a unique magic pointer to validate ops */
 struct device_class {
@@ -79,13 +91,16 @@ struct driver {
         .ops = ops_, \
     }
 
-#define DEVICE_INSTANCE(type_, name_, config_) \
+#define DEVICE_INSTANCE(type_, name_, config_, flags_) \
     extern struct driver concat(__driver_, type_); \
     struct device concat(__device_, concat(type_, concat(_, name_))) \
         __ALIGNED(sizeof(void *)) __SECTION(".devices") = { \
         .name = #name_, \
         .driver = &concat(__driver_, type_), \
+        .flags = flags_, \
         .config = config_, \
+        .state = NULL, \
+        .device_state = DEVICE_UNINITIALIZED, \
     }
 
 /*
@@ -104,7 +119,9 @@ struct driver {
     &concat(__device_, concat(type_, concat(_, name_))); \
 })
 
+/* initialize all static devices with AUTOINIT flag set */
 status_t device_init_all(void);
+
 status_t device_fini_all(void);
 
 status_t device_init(struct device *dev);
@@ -112,6 +129,8 @@ status_t device_fini(struct device *dev);
 
 status_t device_suspend(struct device *dev);
 status_t device_resume(struct device *dev);
+
+__END_CDECLS
 
 #endif
 

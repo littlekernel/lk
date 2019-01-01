@@ -54,7 +54,7 @@ else
     QEMU="qemu-system-i386"
     PROJECT="pc-x86-test"
     CPU=qemu32
-    MACHINE=q35
+    MACHINE=pc
 fi
 
 if (( $DO_LEGACY )); then
