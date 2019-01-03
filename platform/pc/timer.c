@@ -147,7 +147,6 @@ static void platform_halt_timers(void) {
 
 status_t platform_set_oneshot_timer(platform_timer_callback callback,
                                     void *arg, lk_time_t interval) {
-
     uint32_t count;
 
     spin_lock_saved_state_t state;

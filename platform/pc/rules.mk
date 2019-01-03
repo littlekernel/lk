@@ -17,6 +17,7 @@ MODULE_DEPS += dev/net/e1000
 endif
 
 MODULE_SRCS += \
+    $(LOCAL_DIR)/cmos.c \
     $(LOCAL_DIR)/console.c \
     $(LOCAL_DIR)/debug.c \
     $(LOCAL_DIR)/ide.c \

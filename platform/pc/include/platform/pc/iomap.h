@@ -16,6 +16,10 @@
 #define I8042_STATUS_REG    0x64
 #define I8042_DATA_REG      0x60
 
+/* CMOS/RTC registers */
+#define CMOS_CONTROL_REG    0x70
+#define CMOS_DATA_REG       0x71
+
 /* CGA registers */
 #define CGA_INDEX_REG       0x3d4
 #define CGA_DATA_REG        0x3d5
