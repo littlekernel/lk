@@ -43,6 +43,7 @@ GLOBAL_DEFINES += \
 
 MODULE_SRCS += \
 	$(SUBARCH_DIR)/start.S \
+\
 	$(SUBARCH_DIR)/asm.S \
 	$(SUBARCH_DIR)/exceptions.S \
 	$(SUBARCH_DIR)/mmu.c \
@@ -50,10 +51,11 @@ MODULE_SRCS += \
 \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/cache.c \
+	$(LOCAL_DIR)/descriptor.c \
+	$(LOCAL_DIR)/faults.c \
+	$(LOCAL_DIR)/feature.c \
 	$(LOCAL_DIR)/gdt.S \
 	$(LOCAL_DIR)/thread.c \
-	$(LOCAL_DIR)/faults.c \
-	$(LOCAL_DIR)/descriptor.c \
 
 # legacy x86's dont have fpu support
 ifneq ($(CPU),legacy)

@@ -13,6 +13,7 @@
 #include <arch/x86.h>
 #include <arch/x86/mmu.h>
 #include <arch/x86/descriptor.h>
+#include <arch/x86/feature.h>
 #include <arch/fpu.h>
 #include <arch/mmu.h>
 #include <platform.h>
@@ -47,6 +48,8 @@ void arch_early_init(void) {
 
     set_global_desc(TSS_SELECTOR, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
     x86_ltr(TSS_SELECTOR);
+
+    x86_feature_init();
 
     x86_mmu_early_init();
 }
