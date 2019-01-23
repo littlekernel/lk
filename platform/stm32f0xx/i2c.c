@@ -111,12 +111,24 @@ static void stm32_i2c_early_init(stm32_i2c_dev_t *i2c) {
 
     // Leave the default analog filter enabled.
 
-    // Magic timing value for I2C from an 8Mhz clock.  Calculated by STM32CubeMX.
-    // Standard Mode (100 KHz): 0x2000090e
-    // Fast Mode (400 KHz):     0x0000020b
-    // Fast Mode Plus:          0x00000001
-    //i2c->regs->TIMINGR = 0x2000090E;
+    // Magic timing value for I2C.  Calculated by STM32CubeMX.
+    //
+    // 8Mhz clock:
+    //   Standard Mode (100 KHz): 0x2000090e
+    //   Fast Mode (400 KHz):     0x0000020b
+    //   Fast Mode Plus:          0x00000001
+
+    // 48Mhz clock:
+    //   Standard Mode (100 KHz): 0x20303e5d
+    //   Fast Mode (400 KHz):     0x2010091a
+    //   Fast Mode Plus:          0x20000209
+#ifdef USE_USB_CLKSOURCE_CRSHSI48
+    // i2c->regs->TIMINGR = 0x20303e5d;
+    i2c->regs->TIMINGR = 0x2010091a;
+#else
+    // i2c->regs->TIMINGR = 0x2000090e;
     i2c->regs->TIMINGR = 0x0000020b;
+#endif
 
     // Configure NOSTRETCH in CR1.
     // Must be kept cleared in master mode.
