@@ -75,10 +75,18 @@ DEFAULT_HANDLER(USB_IRQ)
 
 #define VECTAB_ENTRY(x) [x##n] = stm32_##x
 
-/* appended to the end of the main vector table */
+/*
+ * Appended to the end of the main vector table.
+ *
+ * The STM32F072 and STM32F070 have different vector tables.  We can't
+ * #ifdef on the existance of the constans like PVD_IRQn because they
+ * are enum values.  Right now, since we only have two supported variants,
+ * we're switching on the variant.  This will likely not scale.
+ */
+
 const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(WWDG_IRQ),                 // Window WatchDog Interrupt
-#ifdef PVD_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(PVD_IRQ),                  // PVD through EXTI Line detect Interrupt
 #endif
     VECTAB_ENTRY(RTC_IRQ),              // RTC through EXTI Line Interrupt
@@ -87,7 +95,7 @@ const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(EXTI0_1_IRQ),          // EXTI Line 0 and 1 Interrupts
     VECTAB_ENTRY(EXTI2_3_IRQ),          // EXTI Line 2 and 3 Interrupts
     VECTAB_ENTRY(EXTI4_15_IRQ),         // EXTI Line 4 to 15 Interrupts
-#ifdef TSC_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(TSC_IRQ),                   // Touch sense controller Interrupt
 #endif
     VECTAB_ENTRY(DMA1_Channel1_IRQ),    // DMA1 Channel 1 Interrupt
@@ -96,26 +104,26 @@ const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(ADC1_COMP_IRQ),            // ADC1, COMP1 and COMP2 Interrupts
     VECTAB_ENTRY(TIM1_BRK_UP_TRG_COM_IRQ),  // TIM1 Break, Update, Trigger and Commutation Interrupts
     VECTAB_ENTRY(TIM1_CC_IRQ),          // TIM1 Capture Compare Interrupt
-#ifdef TIM2_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(TIM2_IRQ),                 // TIM2 Interrupt
 #endif
-#ifdef TIM3_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(TIM3_IRQ),                 // TIM3 Interrupt
 #endif
     VECTAB_ENTRY(TIM6_DAC_IRQ),         // TIM6 and DAC Interrupts
-#ifdef TIM7_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(TIM7_IRQ),                 // TIM7 Interrupts
 #endif
-#ifdef TIM14_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(TIM14_IRQ),            // TIM14 Interrupt
 #endif
-#ifdef TIM15_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(TIM15_IRQ),            // TIM15 Interrupt
 #endif
-#ifdef TIM16_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(TIM16_IRQ),            // TIM16 Interrupt
 #endif
-#ifdef TIM17_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(TIM17_IRQ),            // TIM17 Interrupt
 #endif
     VECTAB_ENTRY(I2C1_IRQ),                 // I2C1 Interrupt
@@ -125,7 +133,7 @@ const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
     VECTAB_ENTRY(USART1_IRQ),               // USART1 Interrupt
     VECTAB_ENTRY(USART2_IRQ),           // USART2 Interrupt
     VECTAB_ENTRY(USART3_4_IRQ),         // USART3 and USART4 Interrupts
-#ifdef CEC_CAN_IRQ
+#ifdef STM32F072
     VECTAB_ENTRY(CEC_CAN_IRQ),              // CEC Interrupt
 #endif
     VECTAB_ENTRY(USB_IRQ),                  // USB Low Priority global Interrupt
