@@ -36,11 +36,11 @@ $(OUTELF).sym.sorted: $(OUTELF)
 
 $(OUTELF).lst: $(OUTELF)
 	$(info generating listing: $@)
-	$(NOECHO)$(OBJDUMP) -Mreg-names-raw -d $< | $(CPPFILT) > $@
+	$(NOECHO)$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -d $< | $(CPPFILT) > $@
 
 $(OUTELF).debug.lst: $(OUTELF)
 	$(info generating listing: $@)
-	$(NOECHO)$(OBJDUMP) -Mreg-names-raw -S $< | $(CPPFILT) > $@
+	$(NOECHO)$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -S $< | $(CPPFILT) > $@
 
 $(OUTELF).dump: $(OUTELF)
 	$(info generating objdump: $@)

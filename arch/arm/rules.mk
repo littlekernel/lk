@@ -231,6 +231,9 @@ GLOBAL_DEFINES += \
 ARCH_OPTFLAGS := -O2
 WITH_LINKER_GC ?= 1
 
+# use the numeric registers when disassembling code
+ARCH_OBJDUMP_FLAGS := -Mreg-names-raw
+
 # we have a mmu and want the vmm/pmm
 WITH_KERNEL_VM ?= 1
 
@@ -355,7 +358,7 @@ linkerscript.phony:
 $(OUTELF).stack: LOCAL_DIR:=$(LOCAL_DIR)
 $(OUTELF).stack: $(OUTELF)
 	$(NOECHO)echo generating stack usage $@
-	$(NOECHO)$(OBJDUMP) -Mreg-names-raw -d $< | $(LOCAL_DIR)/stackusage | $(CPPFILT) | sort -n -k 1 -r > $@
+	$(NOECHO)$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -d $< | $(LOCAL_DIR)/stackusage | $(CPPFILT) | sort -n -k 1 -r > $@
 
 EXTRA_BUILDDEPS += $(OUTELF).stack
 GENERATED += $(OUTELF).stack
