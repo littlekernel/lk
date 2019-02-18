@@ -67,6 +67,7 @@ SECTIONS
         /* in one segment binaries, the rom data address is on top of the ram data address */
         __data_start = .;
         *(.data .data.* .gnu.linkonce.d.*)
+        PROVIDE( __global_pointer$ = . + (4K / 2) );
         *(.sdata .sdata.*)
         __ctor_list = .;
         KEEP(*(.ctors .init_array))

@@ -44,6 +44,12 @@ _vectab:
 
 .section ".text.boot"
 FUNCTION(_start)
+.option push
+.option norelax
+    # set the global pointer
+    la      gp, __global_pointer$
+.option pop
+
     # set the default stack
     la      sp, default_stack_top
 
