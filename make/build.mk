@@ -11,7 +11,7 @@ endif
 $(EXTRA_LINKER_SCRIPTS):
 
 $(OUTBIN): $(OUTELF)
-	$(info agenerating image: $@)
+	$(info generating image: $@)
 	$(NOECHO)$(SIZE) $<
 	$(NOECHO)$(OBJCOPY) -O binary $< $@
 
