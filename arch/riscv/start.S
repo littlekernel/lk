@@ -80,39 +80,8 @@ FUNCTION(_start)
     # call main
     jal     lk_main
 
+    # should never return here
     j       .
-
-#if 0
-    # set the default stack
-    addik   r1, r0, default_stack_top
-
-    # set up small data pointers
-    addik   r2, r0, _SDATA2_START__
-    addik   r13, r0, _SDATA_START__
-
-    # set the processor mode to default
-    mts     rmsr, r0
-
-    # zero out bss sections
-    addik   r5, r0, __bss_start
-    addik   r6, r0, 0
-    rsubik  r7, r5, __bss_end
-    brlid   r15, memset
-    nop
-
-    # arguments to main
-    addik   r5, r0, 1
-    addik   r6, r0, 2
-    addik   r7, r0, 3
-    brlid   r15, lk_main
-    addik   r8, r0, 4
-
-    # shouldn't be here
-    bri     .
-
-FUNCTION(unhandled_exception)
-    bri     .
-#endif
 
 .bss
 .align 4

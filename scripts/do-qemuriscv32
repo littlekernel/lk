@@ -1,4 +1,4 @@
 #!/bin/sh
 
-make qemu-riscv32-test -j4 &&
-qemu-system-riscv32 -machine sifive_e -kernel build-qemu-riscv32-test/lk.elf -nographic $@
+make sifive-e-test -j4 &&
+qemu-system-riscv32 -machine sifive_e -kernel build-sifive-e-test/lk.elf -nographic $@
