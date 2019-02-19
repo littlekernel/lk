@@ -47,6 +47,18 @@
         : "memory"); \
 })
 
+#define riscv_csr_read_clear(csr, bits) \
+({ \
+    ulong __val = bits; \
+    ulong __val_out; \
+    __asm__ volatile( \
+        "csrrc   %0, " #csr ", %1" \
+        : "=r"(__val_out) \
+        : "rK" (__val) \
+        : "memory"); \
+    __val_out; \
+})
+
 #define riscv_csr_set(csr, bits) \
 ({ \
     ulong __val = bits; \

@@ -26,13 +26,15 @@
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/timer.h>
+#include <platform/sifive.h>
 #include <sys/types.h>
 
 #include "platform_p.h"
 
 void platform_early_init(void) {
-    plic_early_init();
     sifive_uart_early_init();
+
+    plic_early_init();
 }
 
 void platform_init(void) {

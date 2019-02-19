@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+set -x
+set -e
+
+
+export PROJECT=sifive-e-test
+TARGET=`pwd`/build-${PROJECT}/lk.elf
+
+make -j4
+
+SDK_DIR=${HOME}/src/freedom-e-sdk
+OPENOCD_DIR=${SDK_DIR}/riscv-openocd-0.10.0-2018.12.0-x86_64-linux-ubuntu14/bin
+
+${OPENOCD_DIR}/openocd -f ${SDK_DIR}/bsp/sifive-hifive1/openocd.cfg &
+
+${SDK_DIR}/riscv64-unknown-elf-gcc-8.1.0-2019.01.0-x86_64-linux-ubuntu14/bin/riscv64-unknown-elf-gdb \
+    ${TARGET} \
+    --batch -ex "set remotetimeout 240" \
+    -ex "target extended-remote localhost:3333" \
+    -ex "monitor reset halt" \
+    -ex "monitor flash protect 0 64 last off" \
+    -ex "load" \
+    -ex "monitor resume" \
+    -ex "monitor shutdown" \
+    -ex "quit"
+
+kill %1
+

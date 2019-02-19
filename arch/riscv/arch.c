@@ -20,10 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <assert.h>
 #include <trace.h>
 #include <debug.h>
 #include <stdint.h>
 #include <arch/riscv.h>
+#include <arch/ops.h>
 
 #define LOCAL_TRACE 0
 
@@ -35,17 +37,24 @@ void arch_early_init(void) {
     riscv_csr_clear(mstatus, RISCV_STATUS_MIE);
     riscv_csr_clear(mie, RISCV_MIE_MTIE | RISCV_MIE_MSIE | RISCV_MIE_SEIE | RISCV_MIE_MEIE);
 
-    // enable cycle counter
-    riscv_csr_set(mcounteren, 1);
+    // enable cycle counter (disabled for now, unimplemented on sifive-e)
+    //riscv_csr_set(mcounteren, 1);
 }
 
 void arch_init(void) {
+    // print some arch info
+    dprintf(INFO, "RISCV: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#lx\n",
+            riscv_csr_read(mvendorid), riscv_csr_read(marchid),
+            riscv_csr_read(mimpid), riscv_csr_read(mhartid));
+    dprintf(INFO, "RISCV: misa %#lx\n", riscv_csr_read(misa));
+
     // enable external interrupts
     riscv_csr_set(mie, RISCV_MIE_MEIE);
 }
 
 void arch_idle(void) {
     // disabled for now, QEMU seems to have some trouble emulating wfi properly
+    // also have trouble breaking into sifive-e board with openocd when wfi
 //    __asm__ volatile("wfi");
 }
 

@@ -34,7 +34,6 @@
 
 #define LOCAL_TRACE 0
 
-static volatile unsigned int *const gpio_base = (unsigned int *)GPIO_BASE;
 static volatile unsigned int *const uart_base = (unsigned int *)UART0_BASE;
 
 #define UART_TXDATA 0
@@ -50,6 +49,9 @@ static char uart_rx_buf_data[RXBUF_SIZE];
 static struct cbuf uart_rx_buf;
 
 void sifive_uart_write(int c) {
+    // wait for tx fifo to clear
+    while (uart_base[UART_TXDATA] & (1<<31))
+        ;
     uart_base[UART_TXDATA] = (c & 0xff);
 }
 
@@ -78,9 +80,7 @@ static enum handler_return sifive_uart_irq(void *unused) {
 }
 
 void sifive_uart_early_init(void) {
-    gpio_base[14] = (3<<16); // io function enable for pin 16/17
-
-    uart_base[UART_DIV] = 0x9be; // divisor
+    uart_base[UART_DIV] = SIFIVE_FREQ / 115200;
     uart_base[UART_TXCTRL] = 1; // txen
 }
 

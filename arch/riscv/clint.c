@@ -44,7 +44,11 @@
 #define CLINT_MTIME (ARCH_RISCV_CLINT_BASE + 0xbff8)
 
 lk_bigtime_t current_time_hires(void) {
+#if ARCH_RISCV_MTIME_RATE < 10000000
+    return current_time() * 1000llu; // hack to deal with slow clocks
+#else
     return *REG64(CLINT_MTIME) / (ARCH_RISCV_MTIME_RATE / 1000000u);
+#endif
 }
 
 lk_time_t current_time(void) {
@@ -64,7 +68,7 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     timer_arg = arg;
 
     // convert interval to ticks
-    uint64_t ticks = interval * (ARCH_RISCV_MTIME_RATE / 1000u);
+    uint64_t ticks = (interval * ARCH_RISCV_MTIME_RATE) / 1000u;
     *REG64(CLINT_MTIMECMP(0)) = *REG64(CLINT_MTIME) + ticks;
 
     // enable the timer

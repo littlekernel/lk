@@ -20,6 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <assert.h>
 #include <compiler.h>
 #include <trace.h>
 #include <arch/riscv.h>
@@ -30,6 +31,7 @@
 // keep in sync with asm.S
 struct riscv_short_iframe {
     ulong  mepc;
+    ulong  mstatus;
     ulong  ra;
     ulong  a0;
     ulong  a1;
@@ -53,6 +55,9 @@ extern enum handler_return riscv_platform_irq(void);
 void riscv_exception_handler(ulong cause, ulong epc, struct riscv_short_iframe *frame) {
     LTRACEF("cause %#lx epc %#lx\n", cause, epc);
 
+    DEBUG_ASSERT(arch_ints_disabled());
+    DEBUG_ASSERT(frame->mstatus & RISCV_STATUS_MPIE);
+
     enum handler_return ret = INT_NO_RESCHEDULE;
     switch (cause) {
         case 0x80000007: // machine timer interrupt
@@ -62,11 +67,17 @@ void riscv_exception_handler(ulong cause, ulong epc, struct riscv_short_iframe *
             ret = riscv_platform_irq();
             break;
         default:
-            TRACEF("unhandled cause %#lx, epc %#lx\n", cause, epc);
+            TRACEF("unhandled cause %#lx, epc %#lx, mtval %#lx\n", cause, epc, riscv_csr_read(mtval));
             panic("stopping");
     }
+
+    DEBUG_ASSERT(arch_ints_disabled());
+    DEBUG_ASSERT(frame->mstatus & RISCV_STATUS_MPIE);
 
     if (ret == INT_RESCHEDULE) {
         thread_preempt();
     }
+
+    DEBUG_ASSERT(arch_ints_disabled());
+    DEBUG_ASSERT(frame->mstatus & RISCV_STATUS_MPIE);
 }

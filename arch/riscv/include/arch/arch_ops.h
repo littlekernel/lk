@@ -69,7 +69,8 @@ static inline void set_current_thread(struct thread *t) {
 static inline uint32_t arch_cycle_count(void) {
     uint32_t count;
 
-    __asm__("rdcycle %0" : "=r"(count));
+    //__asm__("rdcycle %0" : "=r"(count));
+    count = riscv_csr_read(mcycle);
     return count;
 }
 

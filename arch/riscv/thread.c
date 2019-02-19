@@ -20,6 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <assert.h>
 #include <debug.h>
 #include <trace.h>
 #include <sys/types.h>
@@ -34,6 +35,8 @@ struct thread *_current_thread;
 
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void) {
+    DEBUG_ASSERT(arch_ints_disabled());
+
     thread_t *ct = get_current_thread();
 
 #if LOCAL_TRACE
@@ -63,6 +66,8 @@ void arch_thread_initialize(thread_t *t) {
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
+    DEBUG_ASSERT(arch_ints_disabled());
+
     LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
 
     riscv32_context_switch(&oldthread->arch.cs_frame, &newthread->arch.cs_frame);

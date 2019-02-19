@@ -29,6 +29,14 @@
 
 #define CLINT_BASE 0x02000000
 #define PLIC_BASE  0x0c000000
+#define PRCI_BASE  0x10008000
 #define GPIO_BASE  0x10012000
 #define UART0_BASE 0x10013000
+
+#define GPIO_REG_VALUE      0
+#define GPIO_REG_INPUT_EN   1
+#define GPIO_REG_OUTPUT_EN  2
+#define GPIO_REG_PORT       3
+#define GPIO_REG_IOF_EN     14
+#define GPIO_REG_IOF_SEL    15
 
