@@ -122,12 +122,14 @@ static void stm32_i2c_early_init(stm32_i2c_dev_t *i2c) {
     //   Standard Mode (100 KHz): 0x20303e5d
     //   Fast Mode (400 KHz):     0x2010091a
     //   Fast Mode Plus:          0x20000209
-#ifdef USE_USB_CLKSOURCE_CRSHSI48
-    // i2c->regs->TIMINGR = 0x20303e5d;
-    i2c->regs->TIMINGR = 0x2010091a;
+#ifdef STM32_I2C_TIMINGR
+    i2c->regs->TIMINGR = STM32_I2C_TIMINGR;
 #else
-    // i2c->regs->TIMINGR = 0x2000090e;
+#  ifdef USE_USB_CLKSOURCE_CRSHSI48
+    i2c->regs->TIMINGR = 0x2010091a;
+#  else
     i2c->regs->TIMINGR = 0x0000020b;
+#  endif
 #endif
 
     // Configure NOSTRETCH in CR1.
