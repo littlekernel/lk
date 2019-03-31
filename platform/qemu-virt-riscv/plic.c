@@ -15,11 +15,11 @@
 #include <kernel/debug.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
-#include <platform/sifive.h>
+#include <platform/virt.h>
 
 #define LOCAL_TRACE 0
 
-// Driver for PLIC implementation in SiFive E and U boards
+// Driver for PLIC implementation for qemu riscv virt machine
 
 #define PLIC_PRIORITY(x) (PLIC_BASE + 4 * (x))
 #define PLIC_PENDING(x)  (PLIC_BASE + 0x1000 + 4 * ((x) / 32))
@@ -31,11 +31,11 @@
 static struct int_handlers {
     int_handler handler;
     void *arg;
-} handlers[SIFIVE_NUM_IRQS];
+} handlers[NUM_IRQS];
 
 void plic_early_init(void) {
     // mask all irqs and set their priority to 1
-    for (int i = 1; i < SIFIVE_NUM_IRQS; i++) {
+    for (int i = 1; i < NUM_IRQS; i++) {
         *REG32(PLIC_ENABLE(i)) &= ~(1 << (i % 32));
         *REG32(PLIC_PRIORITY(i)) = 1;
     }
@@ -60,7 +60,7 @@ status_t unmask_interrupt(unsigned int vector) {
 void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     LTRACEF("vector %u handler %p arg %p\n", vector, handler, arg);
 
-    DEBUG_ASSERT(vector < SIFIVE_NUM_IRQS);
+    DEBUG_ASSERT(vector < NUM_IRQS);
 
     handlers[vector].handler = handler;
     handlers[vector].arg = arg;

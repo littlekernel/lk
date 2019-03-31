@@ -38,7 +38,7 @@ struct riscv_short_iframe {
 extern enum handler_return riscv_platform_irq(void);
 
 void riscv_exception_handler(ulong cause, ulong epc, struct riscv_short_iframe *frame) {
-    LTRACEF("cause %#lx epc %#lx\n", cause, epc);
+    LTRACEF("cause %#lx epc %#lx mstatus %#lx\n", cause, epc, frame->mstatus);
 
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(frame->mstatus & RISCV_STATUS_MPIE);

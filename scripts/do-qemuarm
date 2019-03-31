@@ -103,9 +103,9 @@ fi
 MAKE_VARS=""
 
 if [ $DO_CMPCTMALLOC == 1 ]; then
-	MAKE_VARS=LK_HEAP_IMPLEMENTATION=cmpctmalloc
+    MAKE_VARS=LK_HEAP_IMPLEMENTATION=cmpctmalloc
 elif [ $DO_MINIHEAP == 1 ]; then
-	MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
+    MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
 fi
 
 $DIR/make-parallel $MAKE_VARS $PROJECT &&

@@ -9,8 +9,8 @@ MODULE_SRCS += $(LOCAL_DIR)/clint.c
 MODULE_SRCS += $(LOCAL_DIR)/exceptions.c
 MODULE_SRCS += $(LOCAL_DIR)/thread.c
 
-GLOBAL_DEFINES += \
-	SMP_MAX_CPUS=1
+GLOBAL_DEFINES += SMP_MAX_CPUS=1
+GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1
 
 # set the default toolchain to riscv32 elf and set a #define
 ifndef TOOLCHAIN_PREFIX
@@ -39,10 +39,11 @@ GLOBAL_DEFINES += \
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
-	$(BUILDDIR)/linker.ld
+	$(BUILDDIR)/linker-onesegment.ld \
+	$(BUILDDIR)/linker-twosegment.ld
 
-# rules for generating the linker
-$(BUILDDIR)/linker.ld: $(LOCAL_DIR)/linker.ld $(wildcard arch/*.ld) linkerscript.phony
+# rules for generating the linker script
+$(BUILDDIR)/linker-%.ld: $(LOCAL_DIR)/linker-%.ld $(wildcard arch/*.ld) linkerscript.phony
 	@echo generating $@
 	@$(MKDIR)
 	$(NOECHO)sed "s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/;s/%VECTOR_BASE_PHYS%/$(VECTOR_BASE_PHYS)/" < $< > $@.tmp
@@ -51,6 +52,11 @@ $(BUILDDIR)/linker.ld: $(LOCAL_DIR)/linker.ld $(wildcard arch/*.ld) linkerscript
 linkerscript.phony:
 .PHONY: linkerscript.phony
 
-LINKER_SCRIPT += $(BUILDDIR)/linker.ld
+# select the appropriate linker script based on if we're a one or two segment system
+ifeq (true,$(call TOBOOL,$(ARCH_RISCV_TWOSEGMENT)))
+LINKER_SCRIPT += $(BUILDDIR)/linker-twosegment.ld
+else
+LINKER_SCRIPT += $(BUILDDIR)/linker-onesegment.ld
+endif
 
 include make/module.mk
