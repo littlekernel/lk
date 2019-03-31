@@ -54,13 +54,13 @@ shift $((OPTIND-1))
 
 if [ $DO_64BIT == 1 ]; then
     QEMU="qemu-system-aarch64 -machine virt -cpu cortex-a53"
-    PROJECT="qemu-virt-a53-test"
+    PROJECT="qemu-virt-arm64-test"
 elif [ $DO_CORTEX_M3 == 1 ]; then
     QEMU="qemu-system-arm -machine lm3s6965evb -cpu cortex-m3"
     PROJECT="lm3s6965evb-test"
 else
     QEMU="qemu-system-arm -machine virt -cpu cortex-a15"
-    PROJECT="qemu-virt-a15-test"
+    PROJECT="qemu-virt-arm32-test"
 fi
 
 ARGS=" -m $MEMSIZE -smp $SMP -kernel build-${PROJECT}/lk.elf"
