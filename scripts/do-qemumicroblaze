@@ -1,4 +1,9 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-make qemu-microblaze-test -j4 &&
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+set -e
+set -x
+
+$DIR/make-parallel qemu-microblaze-test
 qemu-system-microblaze -kernel build-qemu-microblaze-test/lk.elf -nographic $@

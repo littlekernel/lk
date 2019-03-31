@@ -1,6 +1,0 @@
-#!/bin/sh
-
-export PROJECT=osk5912-test
-
-make && 
-scp build-osk5912-test/lk.bin four:/tftproot

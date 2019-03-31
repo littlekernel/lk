@@ -1,25 +1,17 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # build everything in the projects directory
-PROJECTS=`echo project/*.mk | xargs -n1 basename | sed 's/\.mk//'`
+PROJECTS=$(echo project/*.mk | xargs -n1 basename | sed 's/\.mk//')
 FAILED=""
 
-case `uname` in
-Linux)
-	N=`cat /proc/cpuinfo | grep processor | wc -l`
-	PARALLEL=-j`expr $N + $N`
-	;;
-*)
-	PARALLEL=-j4
-	;;
-esac
-
 for p in $PROJECTS; do
-	PROJECT=$p nice make $PARALLEL || FAILED="$FAILED $p"
+    PROJECT=$p nice $DIR/make-parallel || FAILED="$FAILED $p"
 done
 
 if [ "$FAILED" != "" ]; then
-	echo
-	echo some projects have failed to build:
-	echo $FAILED
+    echo
+    echo some projects have failed to build:
+    echo $FAILED
 fi

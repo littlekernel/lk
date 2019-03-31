@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 function HELP {
     echo "help:"
@@ -95,6 +97,6 @@ elif [ $DO_MINIHEAP == 1 ]; then
 	MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
 fi
 
-make $MAKE_VARS $PROJECT -j4 &&
+$DIR/make-parallel $MAKE_VARS $PROJECT &&
 echo $SUDO $QEMU $ARGS $@ &&
 $SUDO $QEMU $ARGS $@

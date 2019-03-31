@@ -1,5 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 DEFAULT_TOOLPATH="$DIR/toolpaths.default"
 if [ -e "$DEFAULT_TOOLPATH" ]
 then
@@ -53,6 +55,6 @@ elif [ $DO_MINIHEAP == 1 ]; then
 	MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
 fi
 
-make $MAKE_VARS $PROJECT -j4 &&
+$DIR/make-parallel $MAKE_VARS $PROJECT &&
 echo $QEMUM4 $ARGS $@ &&
 $QEMUM4 $ARGS $@

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 set -x
 set -e
-
 
 export PROJECT=sifive-e-test
 TARGET=`pwd`/build-${PROJECT}/lk.elf
 
-make -j4
+$DIR/make-parallel
 
 SDK_DIR=${HOME}/src/freedom-e-sdk
 OPENOCD_DIR=${SDK_DIR}/riscv-openocd-0.10.0-2018.12.0-x86_64-linux-ubuntu14/bin

@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 function HELP {
     echo "help:"
@@ -79,7 +81,7 @@ if (( $DO_KVM )); then
     ARGS+=" -enable-kvm -cpu host"
 fi
 
-make $MAKE_VARS $PROJECT -j4 &&
+$DIR/make-parallel $MAKE_VARS $PROJECT &&
 echo $SUDO $QEMU $ARGS $@ &&
 $SUDO $QEMU $ARGS $@
 

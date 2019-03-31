@@ -1,6 +1,8 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 PROJECT=zybo-test
 
-make $PROJECT -j &&
+$DIR/make-parallel $PROJECT -j &&
 xmd -tcl scripts/xmd.tcl $PROJECT

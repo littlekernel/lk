@@ -1,4 +1,9 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-make qemu-mips-test -j4 &&
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+set -e
+set -x
+
+$DIR/make-parallel qemu-mips-test
 qemu-system-mips -machine mips -cpu M14K -kernel build-qemu-mips-test/lk.elf -nographic $@

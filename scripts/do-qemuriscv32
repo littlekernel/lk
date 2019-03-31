@@ -1,4 +1,9 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-make sifive-e-test -j4 &&
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+set -e
+set -x
+
+$DIR/make-parallel sifive-e-test
 qemu-system-riscv32 -machine sifive_e -kernel build-sifive-e-test/lk.elf -nographic $@
