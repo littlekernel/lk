@@ -175,6 +175,7 @@ status_t bio_publish_subdevice(const char *parent_dev,
                         geometry_count, geometry, BIO_FLAGS_NONE);
 
     sub->parent = parent;
+    sub->dev.erase_byte = parent->erase_byte;
     sub->offset = startblock;
 
     sub->dev.read = &subdev_read;
