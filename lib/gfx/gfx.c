@@ -799,11 +799,11 @@ static int gfx_draw_mandlebrot(gfx_surface * surface){
             } else {
                 color = 0x231AF9 * iter;
             }
-            gfx_putpixel(surface, x, y, color);            
+            gfx_putpixel(surface, x, y, 0xff << 24 | color);
         }
         ci = ci + dy;
     }
-    
+
     return 0;
 }
 
