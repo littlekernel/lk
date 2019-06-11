@@ -614,6 +614,10 @@ static status_t spifs_mount(bdev_t *dev, fscookie **cookie)
 
     LTRACEF("dev %p, cookie %p\n", dev, cookie);
 
+    if (!dev) {
+        return ERR_INVALID_ARGS;
+    }
+
     spifs_t *spifs = malloc(sizeof(*spifs));
     if (!spifs) {
         return ERR_NO_MEMORY;
