@@ -43,7 +43,7 @@ static void dump_frame(const struct arm_cm_exception_frame *frame)
            frame->lr, frame->pc, frame->psr);
 }
 
-static void hardfault(struct arm_cm_exception_frame *frame)
+void hardfault(struct arm_cm_exception_frame *frame)
 {
     printf("hardfault: ");
     dump_frame(frame);
@@ -55,7 +55,7 @@ static void hardfault(struct arm_cm_exception_frame *frame)
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
-static void memmanage(struct arm_cm_exception_frame *frame)
+void memmanage(struct arm_cm_exception_frame *frame)
 {
     printf("memmanage: ");
     dump_frame(frame);
@@ -86,7 +86,7 @@ static void memmanage(struct arm_cm_exception_frame *frame)
 }
 
 
-static void usagefault(struct arm_cm_exception_frame *frame)
+void usagefault(struct arm_cm_exception_frame *frame)
 {
     printf("usagefault: ");
     dump_frame(frame);
@@ -112,7 +112,7 @@ static void usagefault(struct arm_cm_exception_frame *frame)
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
-static void busfault(struct arm_cm_exception_frame *frame)
+void busfault(struct arm_cm_exception_frame *frame)
 {
     printf("busfault: ");
     dump_frame(frame);
@@ -127,133 +127,69 @@ void _nmi(void)
     printf("nmi\n");
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
+
+/* Declare two versions of the assembly to push the extra registers
+ * not already saved by the exception delivery hardware. For armv6-m
+ * based hardware we cannot directly push the higher registers so we
+ * need to move them into lower registers before pushing.
+ */
 #if     (__CORTEX_M >= 0X03) || (__CORTEX_SC >= 300)
-
-__NAKED void _hardfault(void)
-{
-    __asm__ volatile(
+#define PUSH_REGS \
         "push	{r4-r11};"
-        "mov	r0, sp;"
-        "b		%0;"
-        :: "i" (hardfault)
-    );
-    __UNREACHABLE;
-}
-
-void _memmanage(void)
-{
-    __asm__ volatile(
-        "push	{r4-r11};"
-        "mov	r0, sp;"
-        "b		%0;"
-        :: "i" (memmanage)
-    );
-    __UNREACHABLE;
-}
-
-void _busfault(void)
-{
-    __asm__ volatile(
-        "push	{r4-r11};"
-        "mov	r0, sp;"
-        "b		%0;"
-        :: "i" (busfault)
-    );
-    __UNREACHABLE;
-}
-
-void _usagefault(void)
-{
-    __asm__ volatile(
-        "push	{r4-r11};"
-        "mov	r0, sp;"
-        "b		%0;"
-        :: "i" (usagefault)
-    );
-    __UNREACHABLE;
-}
 #else
+#define PUSH_REGS \
+        "push	{r4-r7};" \
+        "mov   r4, r8;" \
+        "mov   r5, r9;" \
+        "mov   r6, r10;" \
+        "mov   r7, r11;" \
+        "push   {r4-r7};"
+#endif
 
 __NAKED void _hardfault(void)
 {
-    struct arm_cm_exception_frame *frame;
     __asm__ volatile(
-        "push	{r4-r7};"
-        "mov   r4, r8;"
-        "mov   r5, r9;"
-        "mov   r6, r10;"
-        "mov   r7, r11;"
-        "push   {r4-r7};"
-        "mov	%0, sp;"
-        : "=r" (frame):
+        PUSH_REGS
+        "mov	r0, sp;"
+        "b		hardfault;"
     );
-
-    printf("hardfault: ");
-    dump_frame(frame);
-
-    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
     __UNREACHABLE;
 }
 
-void _memmanage(void)
+__NAKED void _memmanage(void)
 {
-    struct arm_cm_exception_frame *frame;
     __asm__ volatile(
-        "push	{r4-r7};"
-        "mov   r4, r8;"
-        "mov   r5, r9;"
-        "mov   r6, r10;"
-        "mov   r7, r11;"
-        "push   {r4-r7};"
-        "mov	%0, sp;"
-        : "=r" (frame):
+        PUSH_REGS
+        "mov	r0, sp;"
+        "b		memmanage;"
     );
-    printf("memmanage: ");
-    dump_frame(frame);
-
-    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
     __UNREACHABLE;
 }
 
-void _busfault(void)
+__NAKED void _busfault(void)
 {
-    struct arm_cm_exception_frame *frame;
     __asm__ volatile(
-        "push	{r4-r7};"
-        "mov   r4, r8;"
-        "mov   r5, r9;"
-        "mov   r6, r10;"
-        "mov   r7, r11;"
-        "push   {r4-r7};"
-        "mov	%0, sp;"
-        : "=r" (frame):
+        PUSH_REGS
+        "mov	r0, sp;"
+        "b		busfault;"
     );
-    printf("busfault: ");
-    dump_frame(frame);
-
-    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
     __UNREACHABLE;
 }
 
-void _usagefault(void)
+__NAKED void _usagefault(void)
 {
-    struct arm_cm_exception_frame *frame;
     __asm__ volatile(
-        "push	{r4-r7};"
-        "mov   r4, r8;"
-        "mov   r5, r9;"
-        "mov   r6, r10;"
-        "mov   r7, r11;"
-        "push   {r4-r7};"
-        "mov	%0, sp;"
-        : "=r" (frame):
+        PUSH_REGS
+        "mov	r0, sp;"
+        "b		usagefault;"
     );
-    printf("usagefault: ");
-    dump_frame(frame);
-    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
     __UNREACHABLE;
 }
-#endif
+
+#undef PUSH_REGS
+
+/* declared weak so these can be overridden elsewhere */
+
 /* systick handler */
 void __WEAK _systick(void)
 {
