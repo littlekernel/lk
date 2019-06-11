@@ -25,6 +25,9 @@
 #ifndef __CMSIS_GCC_H
 #define __CMSIS_GCC_H
 
+/* LK: include lk's compiler.h first, which has some of the same #defines */
+#include <compiler.h>
+
 /* ignore some GCC warnings */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
