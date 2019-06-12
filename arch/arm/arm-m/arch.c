@@ -102,9 +102,9 @@ void arch_early_init(void)
 void arch_init(void)
 {
 #if ENABLE_CYCLE_COUNTER
-    *REG32(SCB_DEMCR) |= 0x01000000; // global trace enable
-    *REG32(DWT_CYCCNT) = 0;
-    *REG32(DWT_CTRL) |= 1; // enable cycle counter
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk; // enable cycle counter
 #endif
     printf("CONTROL 0x%x\n", __get_CONTROL());
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
