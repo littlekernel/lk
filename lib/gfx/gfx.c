@@ -770,12 +770,12 @@ STATIC_COMMAND_START
 STATIC_COMMAND("gfx", "gfx commands", &cmd_gfx)
 STATIC_COMMAND_END(gfx);
 
-static int gfx_draw_mandlebrot(gfx_surface * surface){
-    double a,b, dx, dy, mag, c, ci;
+static int gfx_draw_mandelbrot(gfx_surface * surface){
+    float a,b, dx, dy, mag, c, ci;
     uint32_t color,iter,x,y;
 
-    dx= 3.0/((double)surface->width);
-    dy= 3.0/((double)surface->height);
+    dx= 3.0f/((float)surface->width);
+    dy= 3.0f/((float)surface->height);
     c = -2.0;
     ci = -1.5;
     for (y = 0; y < surface->height; y++) {
@@ -786,9 +786,9 @@ static int gfx_draw_mandlebrot(gfx_surface * surface){
             mag=0;
             iter = 0;
             while ((mag < 4.0) && (iter < 200) ){
-                double a1;
+                float a1;
                 a1 = a*a - b*b + c;
-                b = 2.0 * a * b + ci;
+                b = 2.0f * a * b + ci;
                 a=a1;
                 mag = a*a + b*b;
                 iter++;
@@ -800,6 +800,9 @@ static int gfx_draw_mandlebrot(gfx_surface * surface){
                 color = 0x231AF9 * iter;
             }
             gfx_putpixel(surface, x, y, 0xff << 24 | color);
+        }
+        if (y > 0) {
+            gfx_flush_rows(surface, y - 1, y);
         }
         ci = ci + dy;
     }
@@ -840,6 +843,7 @@ static int cmd_gfx(int argc, const cmd_args *argv)
 {
     if (argc < 2) {
         printf("not enough arguments:\n");
+usage:
         printf("%s display_info : output information bout the current display\n", argv[0].str);
         printf("%s rgb_bars   : Fill frame buffer with rgb bars\n", argv[0].str);
         printf("%s test_pattern : Fill frame with test pattern\n", argv[0].str);
@@ -876,7 +880,11 @@ static int cmd_gfx(int argc, const cmd_args *argv)
             }
         }
     } else if (!strcmp(argv[1].str, "mandelbrot")) {
-        gfx_draw_mandlebrot(surface);
+        gfx_draw_mandelbrot(surface);
+    } else {
+        printf("unrecognized subcommand\n");
+        gfx_surface_destroy(surface);
+        goto usage;
     }
 
     gfx_flush(surface);
