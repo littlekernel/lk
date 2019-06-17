@@ -20,8 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __TRACE_H
-#define __TRACE_H
+#pragma once
 
 #include <stdio.h>
 
@@ -39,5 +38,3 @@
 #define LTRACE do { if (LOCAL_TRACE) { TRACE; } } while (0)
 #define LTRACEF(x...) do { if (LOCAL_TRACE) { TRACEF(x); } } while (0)
 #define LTRACEF_LEVEL(level, x...) do { if (LOCAL_TRACE >= (level)) { TRACEF(x); } } while (0)
-
-#endif

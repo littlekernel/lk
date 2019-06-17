@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
+ * Copyright (c) 2008 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,59 +20,22 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __POW2_H
-#define __POW2_H
+#pragma once
 
-#include <sys/types.h>
-#include <stdbool.h>
 #include <stdint.h>
-#include <compiler.h>
 
-__BEGIN_CDECLS
+/* low level macros for accessing memory mapped hardware registers */
+#define REG64(addr) ((volatile uint64_t *)(uintptr_t)(addr))
+#define REG32(addr) ((volatile uint32_t *)(uintptr_t)(addr))
+#define REG16(addr) ((volatile uint16_t *)(uintptr_t)(addr))
+#define REG8(addr) ((volatile uint8_t *)(uintptr_t)(addr))
 
-/* routines for dealing with power of 2 values for efficiency */
-static inline __ALWAYS_INLINE bool ispow2(uint val)
-{
-    return ((val - 1) & val) == 0;
-}
+#define RMWREG64(addr, startbit, width, val) *REG64(addr) = (*REG64(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
+#define RMWREG32(addr, startbit, width, val) *REG32(addr) = (*REG32(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
+#define RMWREG16(addr, startbit, width, val) *REG16(addr) = (*REG16(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
+#define RMWREG8(addr, startbit, width, val) *REG8(addr) = (*REG8(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
 
-static inline __ALWAYS_INLINE uint log2_uint(uint val)
-{
-    if (val == 0)
-        return 0; // undefined
-
-    return (sizeof(val) * 8) - 1 - __builtin_clz(val);
-}
-
-static inline __ALWAYS_INLINE uint valpow2(uint valp2)
-{
-    return 1U << valp2;
-}
-
-static inline __ALWAYS_INLINE uint divpow2(uint val, uint divp2)
-{
-    return val >> divp2;
-}
-
-static inline __ALWAYS_INLINE uint modpow2(uint val, uint modp2)
-{
-    return val & ((1UL << modp2) - 1);
-}
-
-// Cribbed from:
-// http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
-static inline __ALWAYS_INLINE uint32_t round_up_pow2_u32(uint32_t v)
-{
-    v--;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    v++;
-    return v;
-}
-__END_CDECLS
-
-#endif
-
+#define writel(v, a) (*REG32(a) = (v))
+#define readl(a) (*REG32(a))
+#define writeb(v, a) (*REG8(a) = (v))
+#define readb(a) (*REG8(a))

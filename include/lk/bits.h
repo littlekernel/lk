@@ -20,11 +20,10 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __BITS_H
-#define __BITS_H
+#pragma once
 
-#include <compiler.h>
 #include <arch/ops.h>
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 
@@ -89,5 +88,3 @@ static inline int bitmap_ffz(unsigned long *bitmap, int numbits)
 }
 
 __END_CDECLS
-
-#endif

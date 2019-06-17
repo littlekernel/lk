@@ -20,8 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ERR_H
-#define __ERR_H
+#pragma once
 
 #ifndef ASSEMBLY
 #include <sys/types.h> // for status_t
@@ -74,5 +73,3 @@
 #define ERR_PARTIAL_WRITE       (-44)
 
 #define ERR_USER_BASE           (-16384)
-
-#endif

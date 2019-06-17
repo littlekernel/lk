@@ -20,25 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __REG_H
-#define __REG_H
+#pragma once
 
-#include <stdint.h>
+#include <lk/compiler.h>
+#include <sys/types.h>
 
-/* low level macros for accessing memory mapped hardware registers */
-#define REG64(addr) ((volatile uint64_t *)(uintptr_t)(addr))
-#define REG32(addr) ((volatile uint32_t *)(uintptr_t)(addr))
-#define REG16(addr) ((volatile uint16_t *)(uintptr_t)(addr))
-#define REG8(addr) ((volatile uint8_t *)(uintptr_t)(addr))
 
-#define RMWREG64(addr, startbit, width, val) *REG64(addr) = (*REG64(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
-#define RMWREG32(addr, startbit, width, val) *REG32(addr) = (*REG32(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
-#define RMWREG16(addr, startbit, width, val) *REG16(addr) = (*REG16(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
-#define RMWREG8(addr, startbit, width, val) *REG8(addr) = (*REG8(addr) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit))
-
-#define writel(v, a) (*REG32(a) = (v))
-#define readl(a) (*REG32(a))
-#define writeb(v, a) (*REG8(a) = (v))
-#define readb(a) (*REG8(a))
-
-#endif
+void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN __EXTERNALLY_VISIBLE;
+void lk_secondary_cpu_entry(void);
+void lk_init_secondary_cpus(uint secondary_cpu_count);

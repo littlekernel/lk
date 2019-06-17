@@ -22,9 +22,9 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <compiler.h>
 #include <platform/debug.h>
 
 #if !defined(LK_DEBUGLEVEL)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
+ * Copyright (c) 2008-2014 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -20,14 +20,55 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __ASM_H
-#define __ASM_H
+#pragma once
 
-#define FUNCTION(x) .global x; .type x,STT_FUNC; x:
-#define DATA(x) .global x; .type x,STT_OBJECT; x:
+#include <lk/compiler.h>
+#include <sys/types.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-#define LOCAL_FUNCTION(x) .type x,STT_FUNC; x:
-#define LOCAL_DATA(x) .type x,STT_OBJECT; x:
+__BEGIN_CDECLS
 
-#endif
+/* routines for dealing with power of 2 values for efficiency */
+static inline __ALWAYS_INLINE bool ispow2(uint val)
+{
+    return ((val - 1) & val) == 0;
+}
 
+static inline __ALWAYS_INLINE uint log2_uint(uint val)
+{
+    if (val == 0)
+        return 0; // undefined
+
+    return (sizeof(val) * 8) - 1 - __builtin_clz(val);
+}
+
+static inline __ALWAYS_INLINE uint valpow2(uint valp2)
+{
+    return 1U << valp2;
+}
+
+static inline __ALWAYS_INLINE uint divpow2(uint val, uint divp2)
+{
+    return val >> divp2;
+}
+
+static inline __ALWAYS_INLINE uint modpow2(uint val, uint modp2)
+{
+    return val & ((1UL << modp2) - 1);
+}
+
+// Cribbed from:
+// http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+static inline __ALWAYS_INLINE uint32_t round_up_pow2_u32(uint32_t v)
+{
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    return v;
+}
+__END_CDECLS

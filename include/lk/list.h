@@ -20,10 +20,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __LIST_H
-#define __LIST_H
+#pragma once
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -283,5 +282,3 @@ static inline size_t list_length(struct list_node *list)
 }
 
 __END_CDECLS
-
-#endif

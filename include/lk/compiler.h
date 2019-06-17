@@ -20,8 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __COMPILER_H
-#define __COMPILER_H
+#pragma once
 
 #ifndef __ASSEMBLY__
 
@@ -165,6 +164,4 @@
 #else
 #define __BEGIN_CDECLS
 #define __END_CDECLS
-#endif
-
 #endif
