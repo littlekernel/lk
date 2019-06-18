@@ -95,7 +95,7 @@ FUNCTION(arm64_elX_to_el1)
     cmp x4, #(0b01 << 2)
     bne .notEL1
     /* Already in EL1 */
-    ret 
+    ret
 
 .notEL1:
     cmp x4, #(0b10 << 2)
@@ -146,3 +146,25 @@ FUNCTION(arm64_elX_to_el1)
 
 .Ltarget:
     ret
+
+/* void arm_chain_load(paddr_t entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN; */
+/* shut down the system, branching into the secondary system */
+FUNCTION(arm_chain_load)
+    /* shuffle the args around */
+    mov x5, x0
+    mov x0, x1
+    mov x1, x2
+    mov x2, x3
+    mov x3, x4
+
+    /* Turn off MMU */
+    // LK runs in EL1
+    /* Disable MMU */
+    mrs x6, sctlr_el1
+    bic x6, x6, #(1 << 0) // Disable MMU
+    msr sctlr_el1, x6
+    isb
+    br x5
+    b . // should never reach here
+
+
