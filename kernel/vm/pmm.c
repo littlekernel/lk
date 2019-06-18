@@ -23,13 +23,13 @@
 #include <kernel/vm.h>
 #include "vm_priv.h"
 
-#include <trace.h>
+#include <lk/trace.h>
 #include <assert.h>
-#include <list.h>
+#include <lk/list.h>
 #include <stdlib.h>
-#include <err.h>
+#include <lk/err.h>
 #include <string.h>
-#include <pow2.h>
+#include <lk/pow2.h>
 #include <lib/console.h>
 #include <kernel/mutex.h>
 

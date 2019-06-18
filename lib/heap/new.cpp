@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <new.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <lib/heap.h>
 
 void *operator new(size_t s)

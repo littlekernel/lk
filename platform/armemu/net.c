@@ -63,8 +63,8 @@
 
 #include <malloc.h>
 #include <dev/ethernet.h>
-#include <err.h>
-#include <reg.h>
+#include <lk/err.h>
+#include <lk/reg.h>
 #include <string.h>
 #include <platform/interrupts.h>
 #include <platform/armemu/memmap.h>

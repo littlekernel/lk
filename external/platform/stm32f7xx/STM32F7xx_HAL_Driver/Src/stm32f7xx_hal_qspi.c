@@ -155,7 +155,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f7xx_hal.h"
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

@@ -22,8 +22,8 @@
  */
 #pragma once
 
-#include <compiler.h>
-#include <list.h>
+#include <lk/compiler.h>
+#include <lk/list.h>
 #include <sys/types.h>
 
 /* LK specific calls to register to get input/output of the main console */

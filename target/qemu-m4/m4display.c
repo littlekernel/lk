@@ -24,8 +24,8 @@
 #include <target/m4display.h>
 
 #include <stdio.h>
-#include <trace.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/err.h>
 
 #include <stm32f4xx.h>
 #include <stm32f4xx_spi.h>

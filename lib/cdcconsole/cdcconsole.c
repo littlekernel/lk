@@ -23,8 +23,8 @@
 
 #include <lib/cdcconsole/cdcconsole.h>
 
-#include <compiler.h>
-#include <err.h>
+#include <lk/compiler.h>
+#include <lk/err.h>
 #include <string.h>
 
 #if !CONSOLE_HAS_INPUT_BUFFER

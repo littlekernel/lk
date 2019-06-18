@@ -20,16 +20,16 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <compiler.h>
-#include <debug.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
-#include <err.h>
+#include <lk/err.h>
 #include <hw/usb.h>
 #include <lk/init.h>
 #include <stdio.h>
 #include <target.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

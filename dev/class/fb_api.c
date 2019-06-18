@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <err.h>
+#include <lk/err.h>
 #include <dev/class/fb.h>
 
 status_t class_fb_set_mode(struct device *dev, size_t width, size_t height, size_t bpp)

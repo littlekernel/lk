@@ -26,7 +26,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <inttypes.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 // gfx library
 

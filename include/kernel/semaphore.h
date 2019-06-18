@@ -17,7 +17,7 @@
 #ifndef __KERNEL_SEMAPHORE_H
 #define __KERNEL_SEMAPHORE_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 

@@ -20,10 +20,10 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
+#include <lk/err.h>
+#include <lk/debug.h>
 #include <target.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 /*
  * default implementations of these routines, if the target code

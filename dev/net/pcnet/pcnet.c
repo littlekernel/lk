@@ -22,11 +22,11 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <reg.h>
-#include <err.h>
+#include <lk/reg.h>
+#include <lk/err.h>
 #include <pcnet.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <assert.h>
 #include <arch/x86.h>
 #include <platform/pc.h>

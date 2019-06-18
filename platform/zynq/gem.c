@@ -22,18 +22,18 @@
  */
 #include <assert.h>
 #include <lib/console.h>
-#include <debug.h>
-#include <list.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/list.h>
+#include <lk/err.h>
 #include <errno.h>
-#include <reg.h>
+#include <lk/reg.h>
 #include <endian.h>
 #include <stdio.h>
 #include <string.h>
 #include <malloc.h>
-#include <trace.h>
-#include <bits.h>
-#include <pow2.h>
+#include <lk/trace.h>
+#include <lk/bits.h>
+#include <lk/pow2.h>
 #include <sys/types.h>
 #include <lib/cbuf.h>
 #include <kernel/timer.h>

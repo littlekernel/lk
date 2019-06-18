@@ -24,7 +24,7 @@
 #define __MALLOC_H
 
 #include <sys/types.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stddef.h>
 
 /* lib/heap provides malloc/free definitions */

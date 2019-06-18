@@ -23,8 +23,8 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <kernel/thread.h>
 #include <arch/arm64.h>
 

@@ -22,9 +22,9 @@
  */
 
 #include <platform/fpga.h>
-#include <trace.h>
-#include <reg.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/reg.h>
+#include <lk/err.h>
 #include <platform.h>
 #include <kernel/thread.h>
 

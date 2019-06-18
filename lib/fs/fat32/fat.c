@@ -21,11 +21,11 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <err.h>
+#include <lk/err.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
-#include <trace.h>
-#include <debug.h>
+#include <lk/trace.h>
+#include <lk/debug.h>
 #include <malloc.h>
 #include <string.h>
 #include <endian.h>

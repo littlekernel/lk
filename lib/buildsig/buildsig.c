@@ -22,12 +22,12 @@
  */
 #include <lib/buildsig.h>
 
-#include <debug.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <lib/version.h>
 
 #define MAGIC  ((uint32_t)'BSIG')

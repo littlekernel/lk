@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <kernel/debug.h>
 
 __ALIGNED(8) __NAKED

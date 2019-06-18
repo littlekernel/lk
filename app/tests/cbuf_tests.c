@@ -1,6 +1,6 @@
 #include <assert.h>
-#include <debug.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <lib/cbuf.h>
 #include <lib/console.h>
 #include <lib/heap.h>

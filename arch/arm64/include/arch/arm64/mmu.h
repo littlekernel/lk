@@ -315,7 +315,7 @@
 
 #include <sys/types.h>
 #include <assert.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <arch/arm64.h>
 
 typedef uint64_t pte_t;

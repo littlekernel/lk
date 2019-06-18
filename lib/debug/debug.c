@@ -22,11 +22,11 @@
  */
 
 #include <ctype.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <stdlib.h>
 #include <printf.h>
 #include <stdio.h>
-#include <list.h>
+#include <lk/list.h>
 #include <arch/ops.h>
 #include <platform.h>
 #include <platform/debug.h>

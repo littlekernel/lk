@@ -23,11 +23,11 @@
 #ifndef __KERNEL_DEBUG_H
 #define __KERNEL_DEBUG_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 
-#include <debug.h>
+#include <lk/debug.h>
 
 /* kernel event log */
 #if WITH_KERNEL_EVLOG

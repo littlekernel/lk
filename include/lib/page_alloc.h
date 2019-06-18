@@ -25,7 +25,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 // to pick up PAGE_SIZE, PAGE_ALIGN, etc
 #if WITH_KERNEL_VM

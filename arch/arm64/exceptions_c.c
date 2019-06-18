@@ -21,8 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <stdio.h>
-#include <debug.h>
-#include <bits.h>
+#include <lk/debug.h>
+#include <lk/bits.h>
 #include <arch/arch_ops.h>
 #include <arch/arm64.h>
 

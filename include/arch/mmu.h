@@ -24,7 +24,7 @@
 
 #include <arch.h>
 #include <sys/types.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 /* to bring in definition of arch_aspace */
 #include <arch/aspace.h>

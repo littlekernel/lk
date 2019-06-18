@@ -21,11 +21,11 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <assert.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
+#include <lk/err.h>
 #include <lib/console.h>
 #include <lib/bio.h>
 #include <lib/partition.h>

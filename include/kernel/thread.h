@@ -24,14 +24,14 @@
 #define __KERNEL_THREAD_H
 
 #include <sys/types.h>
-#include <list.h>
-#include <compiler.h>
+#include <lk/list.h>
+#include <lk/compiler.h>
 #include <arch/defines.h>
 #include <arch/ops.h>
 #include <arch/thread.h>
 #include <kernel/wait.h>
 #include <kernel/spinlock.h>
-#include <debug.h>
+#include <lk/debug.h>
 
 #if WITH_KERNEL_VM
 /* forward declaration */

@@ -20,13 +20,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <reg.h>
+#include <lk/reg.h>
 #include <platform/mt_typedefs.h>
 #include <platform/mt_reg_base.h>
 #include <platform/mt_irq.h>
 #include <mt_gic.h>
 #include <sync_write.h>
-#include <debug.h>
+#include <lk/debug.h>
 
 #define GICD_CTLR_RWP       (1 << 31)
 #define GICD_CTLR_ARE       (1 << 4)

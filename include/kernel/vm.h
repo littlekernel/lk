@@ -47,8 +47,8 @@
 
 #include <sys/types.h>
 #include <stdint.h>
-#include <compiler.h>
-#include <list.h>
+#include <lk/compiler.h>
+#include <lk/list.h>
 #include <stdlib.h>
 #include <arch.h>
 #include <arch/mmu.h>

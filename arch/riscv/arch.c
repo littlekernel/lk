@@ -21,8 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <assert.h>
-#include <trace.h>
-#include <debug.h>
+#include <lk/trace.h>
+#include <lk/debug.h>
 #include <stdint.h>
 #include <arch/riscv.h>
 #include <arch/ops.h>

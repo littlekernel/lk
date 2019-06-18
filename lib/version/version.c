@@ -22,7 +22,7 @@
  */
 #include <lib/version.h>
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <stdio.h>
 #include <lk/init.h>
 
@@ -57,7 +57,7 @@ void print_version(void)
 
 #if WITH_LIB_CONSOLE
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <lib/console.h>
 
 static int cmd_version(int argc, const cmd_args *argv)

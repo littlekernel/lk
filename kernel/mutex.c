@@ -31,9 +31,9 @@
  */
 
 #include <kernel/mutex.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <err.h>
+#include <lk/err.h>
 #include <kernel/thread.h>
 
 /**

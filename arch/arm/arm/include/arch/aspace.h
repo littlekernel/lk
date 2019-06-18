@@ -22,8 +22,8 @@
  */
 #pragma once
 
-#include <compiler.h>
-#include <list.h>
+#include <lk/compiler.h>
+#include <lk/list.h>
 
 __BEGIN_CDECLS
 

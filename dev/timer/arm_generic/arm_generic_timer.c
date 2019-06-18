@@ -27,7 +27,7 @@
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

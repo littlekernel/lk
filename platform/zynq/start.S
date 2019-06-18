@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <asm.h>
+#include <lk/asm.h>
 #include <platform/zynq.h>
 
 /* code run at the very beginning of the system, attempting to trap the 2nd cpu */

@@ -23,7 +23,7 @@
 #ifndef __RAND_H
 #define __RAND_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <sys/types.h>
 
 __BEGIN_CDECLS

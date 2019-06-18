@@ -22,9 +22,9 @@
  */
 #pragma once
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <assert.h>
-#include <list.h>
+#include <lk/list.h>
 #include <sys/types.h>
 #include <dev/virtio/virtio_ring.h>
 

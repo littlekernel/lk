@@ -16,7 +16,7 @@
  */
 
 #include <app.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <string.h>
 #include <stdlib.h>
 #include <printf.h>

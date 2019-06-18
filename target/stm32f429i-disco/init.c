@@ -20,17 +20,17 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <trace.h>
-#include <target.h>
-#include <compiler.h>
+#include <lk/err.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
+#include <lk/compiler.h>
 #include <dev/gpio.h>
 #include <stm32f4xx_usart.h>
 #include <stm32f4xx_rcc.h>
 #include <stm32f4xx_gpio.h>
 #include <platform/stm32.h>
 #include <platform/gpio.h>
+#include <target.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
 

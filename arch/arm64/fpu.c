@@ -23,7 +23,7 @@
 
 #include <arch/arm64.h>
 #include <kernel/thread.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

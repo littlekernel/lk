@@ -24,7 +24,7 @@
 
 #include <app.h>
 #include <assert.h>
-#include <err.h>
+#include <lk/err.h>
 #include <dev/usb/class/cdcserial.h>
 #include <kernel/thread.h>
 

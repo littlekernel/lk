@@ -23,7 +23,7 @@
 #ifndef __DEV_CLASS_I2C_H
 #define __DEV_CLASS_I2C_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <dev/driver.h>
 
 /* i2c interface */

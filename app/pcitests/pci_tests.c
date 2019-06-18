@@ -21,12 +21,12 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <platform.h>
 #include <dev/pci.h>
 

@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdint.h>
 
 struct virtio_mmio_config {

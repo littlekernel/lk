@@ -22,10 +22,10 @@
  */
 #include <lib/elf.h>
 #include <assert.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <endian.h>
-#include <err.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <stdlib.h>
 #include <string.h>
 #include <arch/ops.h>

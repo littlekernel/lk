@@ -112,9 +112,9 @@
 
 #ifndef ASSEMBLY
 
-#include <reg.h>
-#include <compiler.h>
-#include <bits.h>
+#include <lk/reg.h>
+#include <lk/compiler.h>
+#include <lk/bits.h>
 #include <stdbool.h>
 #include <sys/types.h>
 

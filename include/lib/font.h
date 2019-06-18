@@ -24,7 +24,7 @@
 #define __LIB_FONT_H
 
 #include <lib/gfx.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 #define FONT_X  6
 #define FONT_Y  12

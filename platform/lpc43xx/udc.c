@@ -26,8 +26,8 @@
 #include <stdlib.h>
 #include <printf.h>
 #include <assert.h>
-#include <debug.h>
-#include <reg.h>
+#include <lk/debug.h>
+#include <lk/reg.h>
 #include <arch/arm/cm.h>
 #include <kernel/thread.h>
 #include <kernel/spinlock.h>

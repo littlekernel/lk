@@ -30,7 +30,7 @@
 #include <string.h>
 #include <platform.h>
 #include <kernel/timer.h>
-#include <err.h>
+#include <lk/err.h>
 
 #if WITH_LIB_CONSOLE
 

@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <err.h>
+#include <lk/err.h>
 #include <dev/class/i2c.h>
 
 status_t class_i2c_write(struct device *dev, uint8_t addr, const void *buf, size_t len)

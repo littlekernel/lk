@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include <reg.h>
+#include <lk/reg.h>
 
 /* timer */
 #define TIMER_CLOCK_FREQ    50000000

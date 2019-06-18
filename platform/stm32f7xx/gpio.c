@@ -20,8 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <assert.h>
 #include <dev/gpio.h>
 #include <platform/stm32.h>

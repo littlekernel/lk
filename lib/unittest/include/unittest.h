@@ -73,7 +73,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <stdarg.h>
 
 #define PRINT_BUFFER_SIZE                                       (512)

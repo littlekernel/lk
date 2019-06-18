@@ -23,7 +23,7 @@
 #ifndef __TARGET_H
 #define __TARGET_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdbool.h>
 
 __BEGIN_CDECLS

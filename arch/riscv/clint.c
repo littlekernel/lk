@@ -20,14 +20,14 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <reg.h>
-#include <debug.h>
-#include <trace.h>
-#include <err.h>
+#include <lk/reg.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
+#include <lk/err.h>
 #include <platform.h>
 #include <platform/timer.h>
 #include <arch/riscv.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

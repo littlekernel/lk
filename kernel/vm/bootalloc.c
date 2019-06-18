@@ -26,7 +26,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

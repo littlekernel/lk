@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>

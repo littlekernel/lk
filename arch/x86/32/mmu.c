@@ -23,10 +23,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <sys/types.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <arch.h>
 #include <arch/x86.h>
 #include <arch/x86/mmu.h>
@@ -34,7 +34,7 @@
 #include <string.h>
 #include <arch/mmu.h>
 #include <assert.h>
-#include <err.h>
+#include <lk/err.h>
 #include <arch/arch_ops.h>
 #include <kernel/vm.h>
 

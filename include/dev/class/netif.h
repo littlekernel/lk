@@ -23,8 +23,8 @@
 #ifndef __DEV_CLASS_NETIF_H
 #define __DEV_CLASS_NETIF_H
 
-#include <list.h>
-#include <compiler.h>
+#include <lk/list.h>
+#include <lk/compiler.h>
 #include <dev/driver.h>
 
 struct netstack_state;

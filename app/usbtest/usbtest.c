@@ -1,9 +1,9 @@
 #include <app.h>
-#include <debug.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <string.h>
 #include <stdlib.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
 #include <kernel/debug.h>

@@ -20,15 +20,15 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <platform.h>
 #include "platform_p.h"
 #include <platform/armemu.h>
 #include <dev/display.h>
 #include <lib/gfx.h>
-#include <reg.h>
+#include <lk/reg.h>
 #include <assert.h>
 
 #define DRAW_TEST_PATTERN 0

@@ -23,10 +23,10 @@
 
 #include "minip-internal.h"
 
-#include <err.h>
+#include <lk/err.h>
 #include <platform.h>
 #include <stdio.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <malloc.h>
 
 #include <kernel/thread.h>

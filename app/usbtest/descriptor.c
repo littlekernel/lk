@@ -1,8 +1,8 @@
-#include <err.h>
-#include <debug.h>
+#include <lk/err.h>
+#include <lk/debug.h>
 #include <stdio.h>
 #include <target.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
 #include <hw/usb.h>

@@ -31,7 +31,7 @@
  * @ingroup graphics
  */
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <lib/gfx.h>
 #include <lib/font.h>
 

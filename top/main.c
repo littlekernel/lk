@@ -25,8 +25,8 @@
  * Main entry point to the OS. Initializes modules in order and creates
  * the default thread.
  */
-#include <compiler.h>
-#include <debug.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
 #include <string.h>
 #include <app.h>
 #include <arch.h>

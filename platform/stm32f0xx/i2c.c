@@ -22,7 +22,7 @@
  */
 #include <arch/arm/cm.h>
 #include <dev/i2c.h>
-#include <err.h>
+#include <lk/err.h>
 #include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <platform/rcc.h>

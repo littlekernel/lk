@@ -16,8 +16,8 @@
  */
 
 #include <string.h>
-#include <debug.h>
-#include <reg.h>
+#include <lk/debug.h>
+#include <lk/reg.h>
 #include <kernel/thread.h>
 
 #include <dev/udc.h>

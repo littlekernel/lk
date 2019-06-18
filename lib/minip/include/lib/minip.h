@@ -24,7 +24,7 @@
 #pragma once
 
 #include <endian.h>
-#include <list.h>
+#include <lk/list.h>
 #include <stdint.h>
 #include <sys/types.h>
 

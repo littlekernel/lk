@@ -24,7 +24,7 @@
  * Functions for unit tests.  See lib/unittest/include/unittest.h for usage.
  */
 #include <unittest.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>

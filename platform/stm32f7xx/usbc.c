@@ -20,14 +20,14 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <reg.h>
-#include <trace.h>
-#include <debug.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
+#include <lk/debug.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <err.h>
+#include <lk/err.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
 #include <arch/arm/cm.h>

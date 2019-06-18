@@ -21,12 +21,12 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <arch/mips.h>
-#include <err.h>
-#include <trace.h>
-#include <debug.h>
+#include <lk/err.h>
+#include <lk/trace.h>
+#include <lk/debug.h>
 #include <assert.h>
 #include <stdint.h>
-#include <bits.h>
+#include <lk/bits.h>
 #include <arch/ops.h>
 #include <platform.h>
 #include <platform/timer.h>

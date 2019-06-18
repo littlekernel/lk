@@ -49,11 +49,11 @@
  */
 
 #include <assert.h>
-#include <err.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <target.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <string.h>
 #include <dev/gpio.h>
 #include <dev/display.h>

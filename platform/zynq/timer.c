@@ -20,12 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
+#include <lk/debug.h>
 #include <sys/types.h>
-#include <err.h>
+#include <lk/err.h>
 #include <stdio.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/interrupts.h>

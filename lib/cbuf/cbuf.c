@@ -21,9 +21,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <stdlib.h>
-#include <debug.h>
-#include <trace.h>
-#include <pow2.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
+#include <lk/pow2.h>
 #include <string.h>
 #include <assert.h>
 #include <lib/cbuf.h>

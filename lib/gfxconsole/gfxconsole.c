@@ -30,7 +30,7 @@
  * @ingroup graphics
  */
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
 #include <lib/io.h>
 #include <lk/init.h>

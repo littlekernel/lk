@@ -28,12 +28,12 @@
  *
  */
 
-#include <debug.h>
-#include <list.h>
+#include <lk/debug.h>
+#include <lk/list.h>
 #include <malloc.h>
 #include <string.h>
-#include <pow2.h>
-#include <err.h>
+#include <lk/pow2.h>
+#include <lk/err.h>
 #include <kernel/thread.h>
 #include <kernel/port.h>
 

@@ -21,12 +21,12 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app.h>
-#include <err.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <kernel/thread.h>
 #include <lib/minip.h>
 #include <lib/tftp.h>

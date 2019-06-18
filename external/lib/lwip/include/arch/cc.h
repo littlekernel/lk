@@ -26,7 +26,7 @@
 #include <stdint.h>
 #include <endian.h>
 #include <stdio.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 typedef uint8_t u8_t;
 typedef uint16_t u16_t;

@@ -23,15 +23,15 @@
 #include <dev/virtio.h>
 #include <dev/virtio/virtio_ring.h>
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <trace.h>
-#include <compiler.h>
-#include <list.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/compiler.h>
+#include <lk/list.h>
+#include <lk/err.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pow2.h>
+#include <lk/pow2.h>
 #include <lk/init.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>

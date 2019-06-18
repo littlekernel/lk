@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <arch/x86/descriptor.h>
 
 /* not the best way to do this, but easy for now */

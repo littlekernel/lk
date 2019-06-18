@@ -22,13 +22,13 @@
  */
 #include <lib/heap.h>
 
-#include <trace.h>
-#include <debug.h>
+#include <lk/trace.h>
+#include <lk/debug.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
-#include <list.h>
+#include <lk/err.h>
+#include <lk/list.h>
 #include <kernel/spinlock.h>
 #include <lib/console.h>
 #include <lib/page_alloc.h>

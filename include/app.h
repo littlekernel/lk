@@ -24,7 +24,7 @@
 #define __APP_H
 
 #include <stddef.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 

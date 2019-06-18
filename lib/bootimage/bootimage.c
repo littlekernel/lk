@@ -22,9 +22,9 @@
  */
 
 #include <lib/bootimage.h>
-#include <trace.h>
-#include <err.h>
-#include <debug.h>
+#include <lk/trace.h>
+#include <lk/err.h>
+#include <lk/debug.h>
 #include <stdlib.h>
 #include <string.h>
 

@@ -25,7 +25,7 @@
 
 #include <arch/arm/cm.h>
 #include <assert.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <platform/rcc.h>
 #include <stdint.h>
 

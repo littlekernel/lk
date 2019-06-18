@@ -28,7 +28,7 @@
 #include <dev/udc.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
-#include <err.h>
+#include <lk/err.h>
 #include <kernel/event.h>
 #include <kernel/thread.h>
 #include <lib/bio.h>
@@ -38,7 +38,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 #define COMMAND_MAGIC (0x4d4f4f54)  // MOOT

@@ -20,12 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
+#include <lk/err.h>
 #include <stdlib.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <target.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <dev/gpio.h>
 #include <dev/usb.h>
 #include <dev/accelerometer.h>
@@ -38,7 +38,7 @@
 #include <target/bmi055.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
-#include <reg.h>
+#include <lk/reg.h>
 
 #if ENABLE_LCD
 #include <target/memory_lcd.h>

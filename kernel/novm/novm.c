@@ -23,9 +23,9 @@
 
 #include "kernel/novm.h"
 
-#include <err.h>
+#include <lk/err.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <stdlib.h>
 #include <string.h>
 #include <lk/init.h>

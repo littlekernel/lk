@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include <compiler.h>
+#include <lk/compiler.h>
 
 #define USE_MSRSET 1
 

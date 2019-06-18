@@ -30,9 +30,9 @@
 #include <lk/init.h>
 
 #include <assert.h>
-#include <compiler.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 #define TRACE_INIT (LK_DEBUGLEVEL >= 2)

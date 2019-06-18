@@ -21,8 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <arch/arm.h>
-#include <reg.h>
-#include <debug.h>
+#include <lk/reg.h>
+#include <lk/debug.h>
 #include <kernel/thread.h>
 #include <mt_gic.h>
 #include <platform/mt_typedefs.h>

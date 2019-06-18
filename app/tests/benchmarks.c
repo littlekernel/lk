@@ -23,7 +23,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <rand.h>
-#include <err.h>
+#include <lk/err.h>
 #include <stdlib.h>
 #include <string.h>
 #include <app/tests.h>

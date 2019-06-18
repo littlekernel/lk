@@ -23,7 +23,7 @@
 #ifndef __KERNEL_EVENT_H
 #define __KERNEL_EVENT_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <kernel/thread.h>

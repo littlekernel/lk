@@ -25,7 +25,7 @@
 
 /* support header for all cortex-m class cpus */
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>

@@ -22,10 +22,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <sys/types.h>
-#include <debug.h>
-#include <trace.h>
-#include <err.h>
-#include <reg.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
+#include <lk/err.h>
+#include <lk/reg.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
 #include <arch/ops.h>

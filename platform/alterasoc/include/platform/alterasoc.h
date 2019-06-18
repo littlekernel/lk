@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include <reg.h>
+#include <lk/reg.h>
 
 /* common address space regions */
 #define FPGASLAVES_BASE   (0xc0000000)

@@ -30,13 +30,13 @@
  * @defgroup thread Threads
  * @{
  */
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <list.h>
+#include <lk/list.h>
 #include <malloc.h>
 #include <string.h>
 #include <printf.h>
-#include <err.h>
+#include <lk/err.h>
 #include <lib/dpc.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>

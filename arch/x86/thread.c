@@ -25,7 +25,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <kernel/thread.h>
 #include <kernel/spinlock.h>
 #include <arch/x86.h>

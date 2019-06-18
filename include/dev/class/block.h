@@ -23,7 +23,7 @@
 #ifndef __DEV_CLASS_BLOCK_H
 #define __DEV_CLASS_BLOCK_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <dev/driver.h>
 
 /* block interface */

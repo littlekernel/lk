@@ -24,8 +24,8 @@
 #ifndef __KERNEL_MUTEX_H
 #define __KERNEL_MUTEX_H
 
-#include <compiler.h>
-#include <debug.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
 #include <stdint.h>
 #include <kernel/thread.h>
 

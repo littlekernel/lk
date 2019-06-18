@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
+#include <lk/debug.h>
 #include <stdlib.h>
 #include <arch.h>
 #include <arch/ops.h>
@@ -31,7 +31,7 @@
 #include <lk/init.h>
 #include <lk/main.h>
 #include <platform.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

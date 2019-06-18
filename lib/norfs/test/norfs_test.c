@@ -28,7 +28,7 @@
 #include <dev/flash_nor.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <err.h>
+#include <lk/err.h>
 #include <platform/flash_nor_config.h>
 #include <platform.h>
 #include <rand.h>

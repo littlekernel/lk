@@ -34,10 +34,10 @@
  *
  * @{
  */
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <assert.h>
-#include <list.h>
+#include <lk/list.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
 #include <kernel/debug.h>

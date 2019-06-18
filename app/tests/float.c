@@ -24,7 +24,7 @@
 
 #include <stdio.h>
 #include <rand.h>
-#include <err.h>
+#include <lk/err.h>
 #include <lib/console.h>
 #include <app/tests.h>
 #include <kernel/thread.h>

@@ -23,14 +23,14 @@
 #include <kernel/vm.h>
 #include "vm_priv.h"
 
-#include <trace.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/err.h>
 #include <string.h>
 #include <lk/init.h>
 #include <lib/console.h>
 #include <arch/mmu.h>
 #include <kernel/thread.h>
-#include <debug.h>
+#include <lk/debug.h>
 
 #define LOCAL_TRACE 0
 

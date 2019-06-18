@@ -20,13 +20,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <list.h>
+#include <lk/list.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 #include <sys/types.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <lib/bcache.h>
 #include <lib/bio.h>
 

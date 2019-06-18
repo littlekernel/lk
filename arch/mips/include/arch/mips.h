@@ -23,7 +23,7 @@
 #pragma once
 
 #ifndef ASSEMBLY
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdint.h>
 #include <sys/types.h>
 

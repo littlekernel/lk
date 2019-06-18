@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdarg.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 

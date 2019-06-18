@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <reg.h>
+#include <lk/reg.h>
 #include <platform/lpc43xx-gpio.h>
 
 inline int gpio_config(unsigned nr, unsigned flags)

@@ -23,8 +23,8 @@
 #ifndef __ASSERT_H
 #define __ASSERT_H
 
-#include <compiler.h>
-#include <debug.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
 
 #define ASSERT(x) \
     do { if (unlikely(!(x))) { panic("ASSERT FAILED at (%s:%d): %s\n", __FILE__, __LINE__, #x); } } while (0)

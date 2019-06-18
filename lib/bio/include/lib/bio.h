@@ -24,7 +24,7 @@
 
 #include <assert.h>
 #include <sys/types.h>
-#include <list.h>
+#include <lk/list.h>
 
 __BEGIN_CDECLS
 

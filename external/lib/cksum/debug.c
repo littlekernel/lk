@@ -23,7 +23,7 @@
 #if WITH_LIB_CONSOLE
 
 #include <ctype.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <kernel/thread.h>

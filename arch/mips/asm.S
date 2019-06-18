@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <asm.h>
+#include <lk/asm.h>
 
 /* void mips_context_switch(
     struct mips_context_switch_frame *oldcs,

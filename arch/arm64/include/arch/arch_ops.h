@@ -25,8 +25,8 @@
 #ifndef ASSEMBLY
 
 #include <stdbool.h>
-#include <compiler.h>
-#include <reg.h>
+#include <lk/compiler.h>
+#include <lk/reg.h>
 #include <arch/arm64.h>
 
 #define USE_GCC_ATOMICS 1

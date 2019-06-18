@@ -20,13 +20,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <reg.h>
+#include <lk/reg.h>
 #include <stdio.h>
 #include <kernel/thread.h>
 #include <dev/uart.h>
 #include <platform/debug.h>
 #include <target/debugconfig.h>
-#include <reg.h>
+#include <lk/reg.h>
 
 void platform_dputc(char c)
 {

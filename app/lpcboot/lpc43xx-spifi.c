@@ -21,11 +21,11 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <string.h>
 #include <stdlib.h>
 #include <printf.h>
-#include <reg.h>
+#include <lk/reg.h>
 
 #include <platform/lpc43xx-spifi.h>
 

@@ -25,7 +25,7 @@
 #define _NET_PKTBUF_H_
 
 #include <sys/types.h>
-#include <list.h>
+#include <lk/list.h>
 
 /* PAGE_SIZE minus 16 bytes of metadata in pktbuf_buf */
 #ifndef PKTBUF_POOL_SIZE

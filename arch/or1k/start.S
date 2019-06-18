@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <asm.h>
+#include <lk/asm.h>
 #include <arch/ops.h>
 #include <arch/or1k/mmu.h>
 #include <kernel/vm.h>

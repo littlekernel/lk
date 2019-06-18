@@ -23,10 +23,10 @@
 #include <platform/keyboard.h>
 
 #include <sys/types.h>
-#include <err.h>
-#include <reg.h>
-#include <trace.h>
-#include <debug.h>
+#include <lk/err.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
+#include <lk/debug.h>
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/interrupts.h>

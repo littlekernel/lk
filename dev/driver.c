@@ -23,8 +23,8 @@
 
 #include <dev/driver.h>
 #include <assert.h>
-#include <err.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 
 /* static list of devices constructed with DEVICE_INSTANCE macros */
 extern struct device __devices[];

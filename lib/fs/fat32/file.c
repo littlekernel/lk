@@ -21,14 +21,14 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <err.h>
+#include <lk/err.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <malloc.h>
 #include <stdlib.h>
 #include <string.h>
-#include <debug.h>
+#include <lk/debug.h>
 
 #include "fat_fs.h"
 #include "fat32_priv.h"

@@ -21,8 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <debug.h>
-#include <compiler.h>
+#include <lk/debug.h>
+#include <lk/compiler.h>
 #include <arch/arm/cm.h>
 
 /* from cmsis.h */

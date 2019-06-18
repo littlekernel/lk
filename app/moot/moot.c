@@ -30,12 +30,12 @@
 #include <app.h>
 #include <arch.h>
 #include <assert.h>
-#include <debug.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <kernel/event.h>
 #include <lk/init.h>
 #include <stdlib.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 static void do_boot(void)
 {

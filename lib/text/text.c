@@ -36,8 +36,8 @@
  * Output is to the default graphics display
  */
 
-#include <debug.h>
-#include <list.h>
+#include <lk/debug.h>
+#include <lk/list.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dev/display.h>

@@ -25,9 +25,9 @@
 
 #include <lib/minip.h>
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <endian.h>
-#include <list.h>
+#include <lk/list.h>
 #include <stdint.h>
 #include <string.h>
 

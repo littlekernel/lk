@@ -22,8 +22,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <stdarg.h>
-#include <reg.h>
-#include <trace.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
 #include <stdio.h>
 #include <kernel/thread.h>
 #include <lib/cbuf.h>

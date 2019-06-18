@@ -23,8 +23,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <err.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <arch/x86/mmu.h>
 #include <platform.h>
 #include "platform_p.h"

@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-#include <reg.h>
-#include <debug.h>
+#include <lk/reg.h>
+#include <lk/debug.h>
 #include <string.h>
 #include <stdlib.h>
 #include <printf.h>

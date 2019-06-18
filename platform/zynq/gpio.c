@@ -22,8 +22,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <assert.h>
-#include <debug.h>
-#include <reg.h>
+#include <lk/debug.h>
+#include <lk/reg.h>
 #include <stdio.h>
 #include <string.h>
 #include <dev/gpio.h>

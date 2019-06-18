@@ -22,10 +22,10 @@
  */
 #include <lib/bootargs.h>
 
-#include <trace.h>
+#include <lk/trace.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <err.h>
+#include <lk/err.h>
 #include <string.h>
 #include <lk/init.h>
 

@@ -23,9 +23,9 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <debug.h>
-#include <err.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <lk/init.h>
 #include <lib/fs.h>
 #include "ext2_priv.h"

@@ -23,7 +23,7 @@
 #ifndef __DEV_CLASS_FB_H
 #define __DEV_CLASS_FB_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <dev/driver.h>
 
 struct fb_info {

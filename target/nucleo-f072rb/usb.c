@@ -21,12 +21,12 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app/cdcserialtest/cdcserialtest.h>
-#include <err.h>
-#include <debug.h>
+#include <lk/err.h>
+#include <lk/debug.h>
 #include <stdio.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <target.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <dev/usb.h>
 #include <dev/usbc.h>
 #include <dev/usb/class/cdcserial.h>

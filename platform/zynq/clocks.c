@@ -20,17 +20,17 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <reg.h>
-#include <bits.h>
+#include <lk/reg.h>
+#include <lk/bits.h>
 #include <stdio.h>
 #include <assert.h>
-#include <trace.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/err.h>
 #include <kernel/thread.h>
 #include <platform/debug.h>
 #include <platform/zynq.h>
 #include <target/debugconfig.h>
-#include <reg.h>
+#include <lk/reg.h>
 
 #define LOCAL_TRACE 0
 

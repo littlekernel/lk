@@ -20,8 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <pow2.h>
+#include <lk/err.h>
+#include <lk/pow2.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -34,7 +34,7 @@
 #include <platform/n25q128a.h>
 #include <platform/n25q512a.h>
 #include <platform/qspi.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

@@ -26,7 +26,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 /* command args */
 typedef struct {

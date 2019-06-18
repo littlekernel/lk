@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <err.h>
+#include <lk/err.h>
 #include <dev/class/netif.h>
 
 status_t class_netif_set_state(struct device *dev, struct netstack_state *state)

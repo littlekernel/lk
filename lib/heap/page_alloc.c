@@ -23,10 +23,10 @@
 
 #include <lib/page_alloc.h>
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
 #include <string.h>
-#include <trace.h>
+#include <lk/trace.h>
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #else

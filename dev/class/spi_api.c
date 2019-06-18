@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <err.h>
+#include <lk/err.h>
 #include <dev/class/spi.h>
 
 ssize_t class_spi_transaction(struct device *dev, struct spi_transaction *txn, size_t count)

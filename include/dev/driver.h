@@ -24,8 +24,8 @@
 #define __DEV_DRIVER_H
 
 #include <sys/types.h>
-#include <list.h> // for containerof
-#include <compiler.h>
+#include <lk/list.h> // for containerof
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 

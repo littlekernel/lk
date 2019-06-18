@@ -22,7 +22,7 @@
  */
 #include <arch/arm.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <stdbool.h>
 #include <string.h>
 #include <kernel/thread.h>

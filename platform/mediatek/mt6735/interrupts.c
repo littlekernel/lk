@@ -30,7 +30,7 @@
  */
 
 #include <arch/arm.h>
-#include <reg.h>
+#include <lk/reg.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
 #include <sync_write.h>
@@ -39,7 +39,7 @@
 #include <platform/mt_gpt.h>
 #include <platform/mt_irq.h>
 
-#include <debug.h>
+#include <lk/debug.h>
 
 #define GIC_ICDISER0    (GIC_DIST_BASE + 0x100)
 #define GIC_ICDISER1    (GIC_DIST_BASE + 0x104)

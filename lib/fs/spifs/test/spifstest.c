@@ -23,7 +23,7 @@
 
 #if LK_DEBUGLEVEL > 1
 
-#include <err.h>
+#include <lk/err.h>
 #include <math.h>
 #include <platform.h>
 #include <stdlib.h>

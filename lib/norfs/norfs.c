@@ -26,13 +26,13 @@
 #include <lib/norfs_config.h>
 #include <iovec.h>
 #include <stdlib.h>
-#include <err.h>
+#include <lk/err.h>
 #include <string.h>
 #include <platform.h>
 #include <lib/cksum.h>
 #include <platform/flash_nor_config.h>
-#include <list.h>
-#include <debug.h>
+#include <lk/list.h>
+#include <lk/debug.h>
 
 /* FRIEND_TEST non-static if unit testing, in order to
  * allow functions to be exposed by a test header file.

@@ -24,13 +24,13 @@
 
 #include <app/moot/fsboot.h>
 #include <app/moot/stubs.h>
-#include <compiler.h>
-#include <err.h>
+#include <lk/compiler.h>
+#include <lk/err.h>
 #include <lib/bio.h>
 #include <lib/bootimage.h>
 #include <lib/fs.h>
 #include <stdio.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define MAX_FPATH_LEN 64
 

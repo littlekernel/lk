@@ -55,8 +55,8 @@
 #include <lib/ndebug/user.h>
 
 #include <app.h>
-#include <debug.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <string.h>
 
 static void ndebugtest_entry(const struct app_descriptor *app, void *args)

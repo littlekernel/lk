@@ -23,7 +23,7 @@
 #include <platform/dma.h>
 
 #include <assert.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 #include <arch/arm/cm.h>
 #include <kernel/event.h>

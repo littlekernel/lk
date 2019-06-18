@@ -22,14 +22,14 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <lib/ptable.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <assert.h>
-#include <err.h>
+#include <lk/err.h>
 #include <string.h>
 #include <malloc.h>
 #include <stdlib.h>
-#include <list.h>
+#include <lk/list.h>
 #include <lib/bio.h>
 #include <lib/cksum.h>
 #include <lk/init.h>

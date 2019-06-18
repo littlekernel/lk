@@ -21,10 +21,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <stdio.h>
 #include <dev/accelerometer.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 
 #if defined(WITH_LIB_CONSOLE)

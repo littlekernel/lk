@@ -23,13 +23,13 @@
 
 #include "minip-internal.h"
 
-#include <list.h>
+#include <lk/list.h>
 #include <string.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 typedef union {
     uint32_t u;

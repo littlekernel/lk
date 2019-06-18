@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <debug.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <kernel/semaphore.h>
 #include <kernel/thread.h>
 

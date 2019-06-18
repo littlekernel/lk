@@ -23,7 +23,7 @@
 #include <dev/gpio.h>
 #include <errno.h>
 #include <platform/bcm28xx.h>
-#include <reg.h>
+#include <lk/reg.h>
 
 #define NUM_PINS     54
 #define BITS_PER_REG 32

@@ -20,8 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
-#include <compiler.h>
+#include <lk/debug.h>
+#include <lk/compiler.h>
 #include <stm32f2xx.h>
 #include <arch/arm/cm.h>
 #include <platform/stm32.h>

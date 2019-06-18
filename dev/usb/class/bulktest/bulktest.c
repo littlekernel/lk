@@ -22,13 +22,13 @@
  */
 #include <dev/usb/class/bulktest.h>
 
-#include <debug.h>
-#include <trace.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
+#include <lk/err.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <list.h>
+#include <lk/list.h>
 #include <dev/usbc.h>
 #include <dev/usb.h>
 #include <lk/init.h>

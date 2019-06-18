@@ -4,7 +4,7 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <pow2.h>
+#include <lk/pow2.h>
 #include <stdbool.h>
 
 #include <arch/arm/cm.h>

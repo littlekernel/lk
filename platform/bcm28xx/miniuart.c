@@ -30,9 +30,9 @@
 #include <platform/bcm28xx.h>
 #include <platform/debug.h>
 #include <platform/interrupts.h>
-#include <reg.h>
+#include <lk/reg.h>
 #include <stdio.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define RXBUF_SIZE 16
 

@@ -23,7 +23,7 @@
 #ifndef __KERNEL_DPC_H
 #define __KERNEL_DPC_H
 
-#include <list.h>
+#include <lk/list.h>
 #include <sys/types.h>
 
 typedef void (*dpc_callback)(void *arg);

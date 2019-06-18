@@ -23,8 +23,8 @@
  */
 
 #include <assert.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <printf.h>
 #include <string.h>
 #include <malloc.h>

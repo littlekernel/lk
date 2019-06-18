@@ -23,12 +23,12 @@
 #include "lkboot.h"
 
 #include <stdio.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <string.h>
-#include <compiler.h>
-#include <err.h>
+#include <lk/compiler.h>
+#include <lk/err.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <stdlib.h>
 #include <lib/cbuf.h>
 #include <app/lkboot.h>

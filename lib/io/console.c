@@ -22,11 +22,11 @@
  */
 #include <lib/io.h>
 
-#include <err.h>
+#include <lk/err.h>
 #include <ctype.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <list.h>
+#include <lk/list.h>
 #include <string.h>
 #include <lib/cbuf.h>
 #include <arch/ops.h>

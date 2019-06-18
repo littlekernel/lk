@@ -21,14 +21,14 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <debug.h>
-#include <err.h>
-#include <pow2.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/pow2.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #include <kernel/mutex.h>
 #include <lib/bio.h>
@@ -36,7 +36,7 @@
 #include <lib/console.h>
 #include <lib/fs.h>
 #include <lib/fs/spifs.h>
-#include <list.h>
+#include <lk/list.h>
 #include <lk/init.h>
 
 #define LOCAL_TRACE 0

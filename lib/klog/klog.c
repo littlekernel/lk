@@ -22,10 +22,10 @@
  */
 #include <lib/klog.h>
 
-#include <err.h>
-#include <debug.h>
+#include <lk/err.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

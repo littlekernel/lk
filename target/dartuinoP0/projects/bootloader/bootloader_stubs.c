@@ -27,7 +27,7 @@ static char bootloader_secondary_flash_name[] = "qspi-flash";
 static char bootloader_mount_point[] = "/spifs";
 
 #include <lib/fs.h>
-#include <err.h>
+#include <lk/err.h>
 #include <app/moot/stubs.h>
 #include <stdio.h>
 

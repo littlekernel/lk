@@ -21,19 +21,19 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <assert.h>
-#include <bits.h>
-#include <err.h>
+#include <lk/bits.h>
+#include <lk/err.h>
 #include <sys/types.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <dev/interrupt/arm_gic.h>
-#include <reg.h>
+#include <lk/reg.h>
 #include <kernel/thread.h>
 #include <kernel/debug.h>
 #include <lk/init.h>
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <platform/gic.h>
-#include <trace.h>
+#include <lk/trace.h>
 #if WITH_LIB_SM
 #include <lib/sm.h>
 #include <lib/sm/sm_err.h>

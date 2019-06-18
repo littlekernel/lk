@@ -23,11 +23,11 @@
 
 #include "minip-internal.h"
 
-#include <trace.h>
+#include <lk/trace.h>
 #include <assert.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdlib.h>
-#include <err.h>
+#include <lk/err.h>
 #include <string.h>
 #include <sys/types.h>
 #include <lib/console.h>

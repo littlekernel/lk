@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <arch/spinlock.h>
 
 __BEGIN_CDECLS

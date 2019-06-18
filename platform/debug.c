@@ -21,9 +21,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <compiler.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 
 /* Default implementation of panic time getc/putc.
  * Just calls through to the underlying dputc/dgetc implementation

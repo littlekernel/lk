@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#include <debug.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <dev/fbcon.h>

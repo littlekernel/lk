@@ -21,9 +21,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <app/tests.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 #if defined(WITH_LIB_CONSOLE)
 #include <lib/console.h>

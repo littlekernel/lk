@@ -25,14 +25,14 @@
 #include <platform.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <string.h>
 #include <endian.h>
 #include <malloc.h>
 #include <arch.h>
-#include <err.h>
-#include <trace.h>
-#include <pow2.h>
+#include <lk/err.h>
+#include <lk/trace.h>
+#include <lk/pow2.h>
 
 #include <kernel/thread.h>
 #include <kernel/vm.h>

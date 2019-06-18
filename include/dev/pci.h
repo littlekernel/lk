@@ -24,7 +24,7 @@
 #define __PCI_H
 
 #include <sys/types.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 /*
  * PCI access return codes

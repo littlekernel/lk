@@ -20,14 +20,14 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
+#include <lk/debug.h>
 #include <string.h>
 #include <lib/console.h>
 #include <lib/fs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <platform.h>
-#include <err.h>
+#include <lk/err.h>
 
 static void test_normalize(const char *in)
 {

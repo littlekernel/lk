@@ -21,9 +21,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <sys/types.h>
-#include <err.h>
-#include <reg.h>
-#include <debug.h>
+#include <lk/err.h>
+#include <lk/reg.h>
+#include <lk/debug.h>
 #include <kernel/thread.h>
 #include <kernel/spinlock.h>
 #include <platform.h>

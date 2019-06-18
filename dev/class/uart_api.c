@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <err.h>
+#include <lk/err.h>
 #include <dev/class/uart.h>
 
 ssize_t class_uart_read(struct device *dev, void *buf, size_t len)

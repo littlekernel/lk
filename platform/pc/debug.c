@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <stdarg.h>
-#include <reg.h>
+#include <lk/reg.h>
 #include <stdio.h>
 #include <kernel/thread.h>
 #include <arch/x86.h>

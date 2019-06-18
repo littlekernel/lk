@@ -23,12 +23,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
+#include <lk/err.h>
 #include <arch.h>
 #include <arch/ops.h>
 #include <lib/console.h>
 #include <platform.h>
-#include <debug.h>
+#include <lk/debug.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>

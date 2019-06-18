@@ -23,8 +23,8 @@
 #ifndef __KERNEL_TIMER_H
 #define __KERNEL_TIMER_H
 
-#include <compiler.h>
-#include <list.h>
+#include <lk/compiler.h>
+#include <lk/list.h>
 #include <sys/types.h>
 
 __BEGIN_CDECLS

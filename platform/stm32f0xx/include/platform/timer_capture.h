@@ -24,7 +24,7 @@
 #ifndef __PLATFORM_STM32_TIMER_CAPTURE_H
 #define __PLATFORM_STM32_TIMER_CAPTURE_H
 
-#include <err.h>
+#include <lk/err.h>
 #include <kernel/spinlock.h>
 #include <stdbool.h>
 #include <stdint.h>

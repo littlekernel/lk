@@ -21,9 +21,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <arch.h>
-#include <err.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_generic.h>
 #include <dev/uart.h>

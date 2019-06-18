@@ -22,9 +22,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <trace.h>
-#include <debug.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <string.h>
 #include <arch/mmu.h>
 #include <arch/or1k.h>

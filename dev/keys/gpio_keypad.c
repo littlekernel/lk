@@ -30,7 +30,7 @@
  */
 
 #include <assert.h>
-#include <bits.h>
+#include <lk/bits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dev/keys.h>

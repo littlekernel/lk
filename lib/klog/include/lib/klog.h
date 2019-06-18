@@ -26,7 +26,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <iovec.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdarg.h>
 
 #if WITH_LIB_KLOG

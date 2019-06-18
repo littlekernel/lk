@@ -23,8 +23,8 @@
  */
 
 #include <assert.h>
-#include <compiler.h>
-#include <err.h>
+#include <lk/compiler.h>
+#include <lk/err.h>
 #include <platform.h>
 
 #include <kernel/thread.h>

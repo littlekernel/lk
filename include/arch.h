@@ -23,7 +23,7 @@
 #ifndef __ARCH_H
 #define __ARCH_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <sys/types.h>
 
 __BEGIN_CDECLS

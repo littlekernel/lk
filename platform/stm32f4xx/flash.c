@@ -1,14 +1,14 @@
 // Copyright (C) 2015 Playground Global LLC.  All rights reserved.
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <trace.h>
-#include <compiler.h>
+#include <lk/trace.h>
+#include <lk/compiler.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <err.h>
+#include <lk/err.h>
 #include <string.h>
-#include <reg.h>
+#include <lk/reg.h>
 #include <lib/bio.h>
 #include <lib/console.h>
 #include <kernel/thread.h>

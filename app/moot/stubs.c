@@ -23,8 +23,8 @@
  */
 
 #include <app/moot/stubs.h>
-#include <compiler.h>
-#include <err.h>
+#include <lk/compiler.h>
+#include <lk/err.h>
 
 // Fail by default. System must override this.
 __WEAK status_t moot_mount_default_fs(char **mount_path, char **device_name)

@@ -21,7 +21,7 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <trace.h>
+#include <lk/trace.h>
 #include <arch/x86.h>
 #include <arch/fpu.h>
 #include <string.h>

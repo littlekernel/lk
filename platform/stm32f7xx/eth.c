@@ -48,12 +48,12 @@
  ******************************************************************************
  */
 
-#include <err.h>
-#include <debug.h>
+#include <lk/err.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <target.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdlib.h>
 #include <string.h>
 #include <lib/gfx.h>

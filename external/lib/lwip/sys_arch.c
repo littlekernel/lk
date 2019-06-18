@@ -3,8 +3,8 @@
 #include <lwip/sys.h>
 #include <platform.h>
 #include <assert.h>
-#include <trace.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/err.h>
 #include <stdbool.h>
 #include <lk/init.h>
 

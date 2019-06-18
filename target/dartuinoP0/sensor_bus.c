@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
+#include <lk/err.h>
 #include <kernel/mutex.h>
 #include <platform/gpio.h>
 #include <target/gpioconfig.h>

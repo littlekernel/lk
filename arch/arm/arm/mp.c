@@ -23,8 +23,8 @@
 #include <arch/mp.h>
 
 #include <assert.h>
-#include <trace.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/err.h>
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 

@@ -23,10 +23,10 @@
 
 #include <dev/driver.h>
 #include <dev/class/uart.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
 #include <malloc.h>
-#include <err.h>
+#include <lk/err.h>
 #include <lib/cbuf.h>
 #include <platform/uart.h>
 #include <arch/x86.h>

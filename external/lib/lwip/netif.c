@@ -4,11 +4,11 @@
 #include <netif/etharp.h>
 #include <lwip/netif.h>
 #include <lwip/dhcp.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <assert.h>
-#include <list.h>
-#include <err.h>
+#include <lk/list.h>
+#include <lk/err.h>
 
 #define LOCAL_TRACE 0
 

@@ -7,8 +7,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <platform.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <arch/ops.h>
 #include <lib/console.h>
 

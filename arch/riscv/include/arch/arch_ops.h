@@ -22,8 +22,8 @@
  */
 #pragma once
 
-#include <compiler.h>
-#include <debug.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
 #include <arch/riscv.h>
 
 static inline void arch_enable_ints(void) {

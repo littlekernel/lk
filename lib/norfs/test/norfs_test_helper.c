@@ -24,7 +24,7 @@
 #include <lib/norfs.h>
 #include <dev/flash_nor.h>
 #include <platform/flash_nor_config.h>
-#include <debug.h>
+#include <lk/debug.h>
 
 void dump_bank(void)
 {

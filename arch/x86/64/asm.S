@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <asm.h>
+#include <lk/asm.h>
 
 /* void x86_64_context_switch(uint64_t *oldsp, uint64_t newsp) */
 FUNCTION(x86_64_context_switch)

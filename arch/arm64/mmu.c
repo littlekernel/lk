@@ -23,14 +23,14 @@
 
 #include <arch/arm64/mmu.h>
 #include <assert.h>
-#include <debug.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <kernel/vm.h>
 #include <lib/heap.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 #define TRACE_CONTEXT_SWITCH 0

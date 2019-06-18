@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <arch/arm/cm.h>
 #include <kernel/thread.h>
 #include <platform.h>

@@ -23,12 +23,12 @@
  */
 #include <dev/qspi.h>
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <printf.h>
 #include <string.h>
-#include <reg.h>
+#include <lk/reg.h>
 
 #include <lib/console.h>
 

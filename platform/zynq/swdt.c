@@ -20,9 +20,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <stdio.h>
 #include <string.h>
 #include <lib/watchdog.h>

@@ -22,10 +22,10 @@
  */
 
 #include <assert.h>
-#include <compiler.h>
-#include <debug.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
 #include <printf.h>
-#include <err.h>
+#include <lk/err.h>
 
 #include <dev/gpio.h>
 #include <dev/gpio_i2c.h>

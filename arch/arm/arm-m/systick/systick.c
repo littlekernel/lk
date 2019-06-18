@@ -29,10 +29,10 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <trace.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/err.h>
 #include <kernel/thread.h>
 #include <arch/arm.h>
 #include <arch/arm/cm.h>

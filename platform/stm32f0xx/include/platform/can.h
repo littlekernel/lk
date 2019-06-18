@@ -1,7 +1,7 @@
 #ifndef __PLATFORM_STM32_CAN_H
 #define __PLATFORM_STM32_CAN_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdbool.h>
 #include <stdint.h>
 

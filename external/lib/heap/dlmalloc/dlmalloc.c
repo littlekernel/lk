@@ -543,7 +543,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #include <sys/types.h>
 #include <lib/page_alloc.h>
 #include <assert.h>
-#include <debug.h>
+#include <lk/debug.h>
 #define MMAP(s) mmap(s)
 #define DIRECT_MMAP(s) mmap(s)
 #define MUNMAP(b, s) munmap(b, s)

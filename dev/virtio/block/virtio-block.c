@@ -22,12 +22,12 @@
  */
 #include <dev/virtio/block.h>
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <trace.h>
-#include <compiler.h>
-#include <list.h>
-#include <err.h>
+#include <lk/trace.h>
+#include <lk/compiler.h>
+#include <lk/list.h>
+#include <lk/err.h>
 #include <kernel/thread.h>
 #include <kernel/event.h>
 #include <kernel/mutex.h>

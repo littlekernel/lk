@@ -23,10 +23,10 @@
 #include "platform_p.h"
 
 #include <assert.h>
-#include <err.h>
-#include <debug.h>
-#include <reg.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/debug.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
 #include <platform/interrupts.h>
 #include <platform/sifive.h>
 

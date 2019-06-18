@@ -28,10 +28,10 @@
  * @ingroup graphics
  */
 
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <assert.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <lib/tga.h>
 
 #define LOCAL_TRACE 0

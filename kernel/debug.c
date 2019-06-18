@@ -31,13 +31,13 @@
  * @brief  Debug console functions.
  */
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <stdio.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
 #include <kernel/debug.h>
 #include <kernel/mp.h>
-#include <err.h>
+#include <lk/err.h>
 #include <platform.h>
 
 #if WITH_LIB_CONSOLE

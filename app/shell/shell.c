@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <lib/console.h>
 
 static void shell_init(const struct app_descriptor *app)

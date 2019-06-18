@@ -23,7 +23,7 @@
 #ifndef __PLATFORM_PC_PCNET_H
 #define __PLATFORM_PC_PCNET_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stdint.h>
 
 #define REG_APROM 0x00

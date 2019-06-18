@@ -29,9 +29,9 @@
 #include <dev/usb.h>
 #include <dev/usbc.h>
 #include <dev/usbc.h>
-#include <err.h>
+#include <lk/err.h>
 #include <sys/types.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

@@ -24,7 +24,7 @@
 
 #include <stdbool.h>
 #include <sys/types.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 

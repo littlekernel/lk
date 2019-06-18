@@ -21,13 +21,13 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <err.h>
-#include <trace.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <list.h>
-#include <compiler.h>
+#include <lk/list.h>
+#include <lk/compiler.h>
 #include <endian.h>
 #include <stdbool.h>
 #include <lib/minip.h>

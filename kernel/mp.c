@@ -24,9 +24,9 @@
 #include <kernel/mp.h>
 
 #include <stdlib.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <arch/mp.h>
 #include <kernel/spinlock.h>
 

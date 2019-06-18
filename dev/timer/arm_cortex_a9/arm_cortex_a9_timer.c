@@ -22,12 +22,12 @@
  */
 #include <dev/timer/arm_cortex_a9.h>
 
-#include <debug.h>
+#include <lk/debug.h>
 #include <sys/types.h>
-#include <err.h>
+#include <lk/err.h>
 #include <stdio.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <lib/fixed_point.h>
 #include <kernel/thread.h>
 #include <kernel/spinlock.h>

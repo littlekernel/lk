@@ -23,7 +23,7 @@
 #ifndef __CTYPE_H
 #define __CTYPE_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 

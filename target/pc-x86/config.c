@@ -30,7 +30,7 @@
 #include <platform.h>
 #include <malloc.h>
 #include <string.h>
-#include <debug.h>
+#include <lk/debug.h>
 
 #if 0
 static const struct platform_uart_config uart0_config = {

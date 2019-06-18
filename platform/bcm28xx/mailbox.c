@@ -20,10 +20,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <reg.h>
-#include <err.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/reg.h>
+#include <lk/err.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 
 #include <arch.h>
 #include <platform.h>

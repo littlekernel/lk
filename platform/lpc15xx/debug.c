@@ -21,10 +21,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <stdarg.h>
-#include <reg.h>
-#include <debug.h>
+#include <lk/reg.h>
+#include <lk/debug.h>
 #include <stdio.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <lib/cbuf.h>
 #include <kernel/thread.h>
 #include <platform/debug.h>

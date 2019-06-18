@@ -20,12 +20,12 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
+#include <lk/err.h>
 #include <stdlib.h>
-#include <debug.h>
-#include <trace.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <target.h>
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <lib/gfx.h>
 #include <dev/gpio.h>
 #include <platform/stm32.h>
@@ -36,7 +36,7 @@
 #include <platform/n25q512a.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
-#include <reg.h>
+#include <lk/reg.h>
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>

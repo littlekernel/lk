@@ -23,12 +23,12 @@
 
 #include "minip-internal.h"
 
-#include <trace.h>
-#include <debug.h>
-#include <compiler.h>
+#include <lk/trace.h>
+#include <lk/debug.h>
+#include <lk/compiler.h>
 #include <stdlib.h>
-#include <list.h>
-#include <err.h>
+#include <lk/list.h>
+#include <lk/err.h>
 #include <sys/types.h>
 #include <kernel/thread.h>
 #include <kernel/event.h>

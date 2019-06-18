@@ -21,10 +21,10 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <app/tests.h>
-#include <err.h>
+#include <lk/err.h>
 #include <stdio.h>
 #include <string.h>
-#include <debug.h>
+#include <lk/debug.h>
 
 int printf_tests(int argc, const cmd_args *argv)
 {

@@ -29,8 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#include <bits.h>
-#include <debug.h>
+#include <lk/bits.h>
+#include <lk/debug.h>
 #include <string.h>
 #include <dev/keys.h>
 

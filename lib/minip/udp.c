@@ -25,13 +25,13 @@
 
 #include "minip-internal.h"
 
-#include <err.h>
+#include <lk/err.h>
 #include <errno.h>
 #include <iovec.h>
-#include <list.h>
+#include <lk/list.h>
 #include <malloc.h>
 #include <stdint.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 

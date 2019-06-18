@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include <compiler.h>
+#include <lk/compiler.h>
 
 // trigger control byte (TRM 23.3.2.5.1)
 

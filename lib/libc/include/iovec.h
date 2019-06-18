@@ -23,7 +23,7 @@
 #ifndef __IOVEC_H
 #define __IOVEC_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <stddef.h>
 #include <sys/types.h>
 

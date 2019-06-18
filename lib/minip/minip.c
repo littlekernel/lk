@@ -24,17 +24,17 @@
 
 #include "minip-internal.h"
 
-#include <err.h>
+#include <lk/err.h>
 #include <stdio.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <endian.h>
 #include <errno.h>
 #include <iovec.h>
 #include <stdlib.h>
 #include <string.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <malloc.h>
-#include <list.h>
+#include <lk/list.h>
 #include <kernel/thread.h>
 
 static struct list_node arp_list = LIST_INITIAL_VALUE(arp_list);

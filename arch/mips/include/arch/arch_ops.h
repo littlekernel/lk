@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <arch/mips.h>
 
 static inline void arch_enable_ints(void)

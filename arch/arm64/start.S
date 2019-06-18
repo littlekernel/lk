@@ -1,4 +1,4 @@
-#include <asm.h>
+#include <lk/asm.h>
 #include <arch/arm64/mmu.h>
 #include <arch/asm_macros.h>
 #include <kernel/vm.h>

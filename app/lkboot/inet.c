@@ -26,12 +26,12 @@
 
 #include <platform.h>
 #include <stdio.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <string.h>
-#include <pow2.h>
-#include <err.h>
+#include <lk/pow2.h>
+#include <lk/err.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 
 #include <app/lkboot.h>
 

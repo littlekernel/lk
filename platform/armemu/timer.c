@@ -21,7 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <sys/types.h>
-#include <err.h>
+#include <lk/err.h>
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/interrupts.h>

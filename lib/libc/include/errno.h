@@ -23,7 +23,7 @@
 #ifndef __ERRNO_H
 #define __ERRNO_H
 
-#include <compiler.h>
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 

@@ -23,10 +23,10 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <debug.h>
-#include <err.h>
-#include <trace.h>
-#include <list.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/trace.h>
+#include <lk/list.h>
 #include <lk/init.h>
 #include <lib/fs.h>
 #include <kernel/mutex.h>

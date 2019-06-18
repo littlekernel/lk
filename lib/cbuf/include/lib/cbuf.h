@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include <compiler.h>
+#include <lk/compiler.h>
 #include <sys/types.h>
 #include <kernel/event.h>
 #include <kernel/spinlock.h>

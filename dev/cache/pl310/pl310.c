@@ -23,9 +23,9 @@
 #include <dev/cache/pl310.h>
 
 #include <assert.h>
-#include <trace.h>
-#include <err.h>
-#include <reg.h>
+#include <lk/trace.h>
+#include <lk/err.h>
+#include <lk/reg.h>
 #include <stdlib.h>
 #include <arch.h>
 #include <arch/arm/mmu.h>

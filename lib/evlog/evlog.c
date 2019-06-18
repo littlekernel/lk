@@ -20,10 +20,10 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <debug.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <err.h>
-#include <pow2.h>
+#include <lk/err.h>
+#include <lk/pow2.h>
 #include <stdlib.h>
 #include <lib/evlog.h>
 

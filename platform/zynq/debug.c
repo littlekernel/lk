@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <reg.h>
+#include <lk/reg.h>
 #include <stdio.h>
 #include <kernel/thread.h>
 #include <dev/uart.h>
@@ -28,7 +28,7 @@
 #include <platform/debug.h>
 #include <platform/zynq.h>
 #include <target/debugconfig.h>
-#include <reg.h>
+#include <lk/reg.h>
 
 /* DEBUG_UART must be defined to 0 or 1 */
 #if defined(DEBUG_UART) && DEBUG_UART == 0

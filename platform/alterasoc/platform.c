@@ -20,10 +20,10 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <err.h>
-#include <debug.h>
+#include <lk/err.h>
+#include <lk/debug.h>
 #include <assert.h>
-#include <trace.h>
+#include <lk/trace.h>
 #include <arch/arm/mmu.h>
 #include <dev/uart.h>
 #include <dev/interrupt/arm_gic.h>

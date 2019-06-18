@@ -22,9 +22,9 @@
  */
 #include <string.h>
 #include <stdlib.h>
-#include <debug.h>
-#include <trace.h>
-#include <err.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
+#include <lk/err.h>
 #include "ext2_priv.h"
 
 #define LOCAL_TRACE 0

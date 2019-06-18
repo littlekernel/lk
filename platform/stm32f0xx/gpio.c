@@ -23,7 +23,7 @@
  */
 
 #include <assert.h>
-#include <debug.h>
+#include <lk/debug.h>
 #include <dev/gpio.h>
 #include <platform/gpio.h>
 #include <platform/rcc.h>
