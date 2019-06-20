@@ -28,12 +28,14 @@
 #include <lk/err.h>
 #include <lib/console.h>
 #include <lib/bio.h>
-#include <lib/partition.h>
 #include <platform.h>
 #include <kernel/thread.h>
 
 #if WITH_LIB_CKSUM
 #include <lib/cksum.h>
+#endif
+#if WITH_LIB_PARTITION
+#include <lib/partition.h>
 #endif
 
 #define DMA_ALIGNMENT (CACHE_LINE)

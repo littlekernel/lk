@@ -56,9 +56,7 @@
 #include <lk/compiler.h>
 #include <stdlib.h>
 #include <string.h>
-#include <lib/gfx.h>
 #include <dev/gpio.h>
-#include <dev/display.h>
 #include <kernel/event.h>
 #include <kernel/thread.h>
 #include <arch/ops.h>

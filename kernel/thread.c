@@ -37,7 +37,6 @@
 #include <string.h>
 #include <printf.h>
 #include <lk/err.h>
-#include <lib/dpc.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
 #include <kernel/debug.h>
