@@ -27,8 +27,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-void bcopy(void const *src, void *dest, size_t count)
-{
+void bcopy(void const *src, void *dest, size_t count) {
     memcpy(dest, src, count);
 }
 

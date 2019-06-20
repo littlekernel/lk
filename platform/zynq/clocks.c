@@ -34,8 +34,7 @@
 
 #define LOCAL_TRACE 0
 
-static uint32_t get_arm_pll_freq(void)
-{
+static uint32_t get_arm_pll_freq(void) {
     LTRACEF("ARM_PLL_CTRL 0x%x\n", SLCR_REG(ARM_PLL_CTRL));
 
     // XXX test that the pll is actually enabled
@@ -45,8 +44,7 @@ static uint32_t get_arm_pll_freq(void)
     return EXTERNAL_CLOCK_FREQ * fdiv;
 }
 
-static uint32_t get_ddr_pll_freq(void)
-{
+static uint32_t get_ddr_pll_freq(void) {
     LTRACEF("DDR_PLL_CTRL 0x%x\n", SLCR_REG(DDR_PLL_CTRL));
 
     // XXX test that the pll is actually enabled
@@ -56,8 +54,7 @@ static uint32_t get_ddr_pll_freq(void)
     return EXTERNAL_CLOCK_FREQ * fdiv;
 }
 
-static uint32_t get_io_pll_freq(void)
-{
+static uint32_t get_io_pll_freq(void) {
     LTRACEF("IO_PLL_CTRL 0x%x\n", SLCR_REG(IO_PLL_CTRL));
 
     // XXX test that the pll is actually enabled
@@ -67,8 +64,7 @@ static uint32_t get_io_pll_freq(void)
     return EXTERNAL_CLOCK_FREQ * fdiv;
 }
 
-static uint32_t get_cpu_input_freq(void)
-{
+static uint32_t get_cpu_input_freq(void) {
     LTRACEF("ARM_CLK_CTRL 0x%x\n", SLCR_REG(ARM_CLK_CTRL));
 
     uint32_t divisor = BITS_SHIFT(SLCR_REG(ARM_CLK_CTRL), 13, 8);
@@ -93,42 +89,35 @@ static uint32_t get_cpu_input_freq(void)
     return srcclk / divisor;
 }
 
-static uint32_t get_cpu_6x4x_freq(void)
-{
+static uint32_t get_cpu_6x4x_freq(void) {
     // cpu 6x4x is the post divided frequency in the cpu clock block
     return get_cpu_input_freq();
 }
 
-static uint32_t get_cpu_3x2x_freq(void)
-{
+static uint32_t get_cpu_3x2x_freq(void) {
     // cpu 3x2x is always half the speed of 6x4x
     return get_cpu_input_freq() / 2;
 }
 
-static uint32_t get_cpu_2x_freq(void)
-{
+static uint32_t get_cpu_2x_freq(void) {
     // cpu 2x is either /3 or /2 the speed of 6x4x
     return get_cpu_input_freq() / ((SLCR_REG(CLK_621_TRUE) & 1) ? 3 : 2);
 }
 
-static uint32_t get_cpu_1x_freq(void)
-{
+static uint32_t get_cpu_1x_freq(void) {
     // cpu 1x is either /6 or /4 the speed of 6x4x
     return get_cpu_input_freq() / ((SLCR_REG(CLK_621_TRUE) & 1) ? 6 : 4);
 }
 
-uint32_t zynq_get_arm_freq(void)
-{
+uint32_t zynq_get_arm_freq(void) {
     return get_cpu_6x4x_freq();
 }
 
-uint32_t zynq_get_arm_timer_freq(void)
-{
+uint32_t zynq_get_arm_timer_freq(void) {
     return get_cpu_3x2x_freq();
 }
 
-uint32_t zynq_get_swdt_freq(void)
-{
+uint32_t zynq_get_swdt_freq(void) {
     return get_cpu_1x_freq();
 }
 
@@ -137,8 +126,7 @@ struct periph_clock {
     uint enable_bit_pos;
 };
 
-static addr_t periph_clk_ctrl_reg(enum zynq_periph periph)
-{
+static addr_t periph_clk_ctrl_reg(enum zynq_periph periph) {
     DEBUG_ASSERT(periph < _PERIPH_MAX);
 
     switch (periph) {
@@ -187,14 +175,13 @@ static addr_t periph_clk_ctrl_reg(enum zynq_periph periph)
     }
 }
 
-static int periph_clk_ctrl_enable_bitpos(enum zynq_periph periph)
-{
+static int periph_clk_ctrl_enable_bitpos(enum zynq_periph periph) {
     switch (periph) {
         case PERIPH_SDIO1:
-            case PERIPH_UART1:
-                case PERIPH_SPI1:
-                    case PERIPH_CAN1:
-                            return 1;
+        case PERIPH_UART1:
+        case PERIPH_SPI1:
+        case PERIPH_CAN1:
+            return 1;
         case PERIPH_FPGA0:
         case PERIPH_FPGA1:
         case PERIPH_FPGA2:
@@ -206,29 +193,27 @@ static int periph_clk_ctrl_enable_bitpos(enum zynq_periph periph)
     }
 }
 
-static uint periph_clk_ctrl_divisor_count(enum zynq_periph periph)
-{
+static uint periph_clk_ctrl_divisor_count(enum zynq_periph periph) {
     switch (periph) {
         case PERIPH_GEM0:
-            case PERIPH_GEM1:
-                case PERIPH_CAN0:
-                    case PERIPH_CAN1:
-                        case PERIPH_FPGA0:
-                            case PERIPH_FPGA1:
-                                case PERIPH_FPGA2:
-                                    case PERIPH_FPGA3:
-                                            return 2;
+        case PERIPH_GEM1:
+        case PERIPH_CAN0:
+        case PERIPH_CAN1:
+        case PERIPH_FPGA0:
+        case PERIPH_FPGA1:
+        case PERIPH_FPGA2:
+        case PERIPH_FPGA3:
+            return 2;
         default:
             // most peripherals have a single divisor
             return 1;
     }
 }
 
-static const char *periph_to_name(enum zynq_periph periph)
-{
+static const char *periph_to_name(enum zynq_periph periph) {
     switch (periph) {
         case PERIPH_USB0:
-                return "USB0";
+            return "USB0";
         case PERIPH_USB1:
             return "USB1";
         case PERIPH_GEM0:
@@ -272,8 +257,7 @@ static const char *periph_to_name(enum zynq_periph periph)
     }
 }
 
-status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_source source, uint32_t divisor, uint32_t divisor2)
-{
+status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_source source, uint32_t divisor, uint32_t divisor2) {
     DEBUG_ASSERT(periph < _PERIPH_MAX);
     DEBUG_ASSERT(!enable || (divisor > 0 && divisor <= 0x3f));
     DEBUG_ASSERT(source < 4);
@@ -315,8 +299,7 @@ status_t zynq_set_clock(enum zynq_periph periph, bool enable, enum zynq_clock_so
     return NO_ERROR;
 }
 
-uint32_t zynq_get_clock(enum zynq_periph periph)
-{
+uint32_t zynq_get_clock(enum zynq_periph periph) {
     DEBUG_ASSERT(periph < _PERIPH_MAX);
 
     // get the clock control register base
@@ -367,8 +350,7 @@ uint32_t zynq_get_clock(enum zynq_periph periph)
     return clk;
 }
 
-void zynq_dump_clocks(void)
-{
+void zynq_dump_clocks(void) {
     printf("zynq clocks:\n");
     printf("\tarm pll %d\n", get_arm_pll_freq());
     printf("\tddr pll %d\n", get_ddr_pll_freq());

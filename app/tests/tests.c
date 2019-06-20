@@ -42,8 +42,7 @@ STATIC_COMMAND_END(tests);
 
 #endif
 
-static void tests_init(const struct app_descriptor *app)
-{
+static void tests_init(const struct app_descriptor *app) {
 }
 
 APP_START(tests)

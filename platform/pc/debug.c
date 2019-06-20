@@ -43,13 +43,12 @@ static const int uart_baud_rate = DEBUG_BAUD_RATE;
 static const int uart_io_port = (DEBUG_COM_PORT == 1) ? COM1_REG :
                                 (DEBUG_COM_PORT == 2) ? COM2_REG :
                                 (DEBUG_COM_PORT == 3) ? COM3_REG :
-                                                        COM4_REG;
+                                COM4_REG;
 static const int uart_irq = (DEBUG_COM_PORT == 1 || DEBUG_COM_PORT == 3) ? INT_COM1_COM3 : INT_COM2_COM4;
 
 cbuf_t console_input_buf;
 
-static enum handler_return uart_irq_handler(void *arg)
-{
+static enum handler_return uart_irq_handler(void *arg) {
     unsigned char c;
     bool resched = false;
 
@@ -62,8 +61,7 @@ static enum handler_return uart_irq_handler(void *arg)
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-void platform_init_debug_early(void)
-{
+void platform_init_debug_early(void) {
     /* configure the uart */
     const int divisor = 115200 / uart_baud_rate;
 
@@ -77,8 +75,7 @@ void platform_init_debug_early(void)
     outp(uart_io_port + 4, 0x3); // drive flow control bits high
 }
 
-void platform_init_debug(void)
-{
+void platform_init_debug(void) {
     /* finish uart init to get rx going */
     cbuf_initialize(&console_input_buf, 1024);
 
@@ -92,15 +89,13 @@ void platform_init_debug(void)
     outp(uart_io_port + 4, mcr | 0x8);
 }
 
-static void debug_uart_putc(char c)
-{
+static void debug_uart_putc(char c) {
     while ((inp(uart_io_port + 5) & (1<<6)) == 0)
         ;
     outp(uart_io_port + 0, c);
 }
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     if (c == '\n')
         platform_dputc('\r');
 
@@ -108,13 +103,11 @@ void platform_dputc(char c)
     debug_uart_putc(c);
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
     return cbuf_read_char(&console_input_buf, c, wait);
 }
 
-void platform_halt(void)
-{
+void platform_halt(void) {
     for (;;) {
         x86_cli();
         x86_hlt();

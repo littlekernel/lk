@@ -49,8 +49,7 @@ static ssize_t stmflash_bdev_write_block(struct bdev *, const void *buf, bnum_t 
 static ssize_t stmflash_bdev_erase(struct bdev *, off_t offset, size_t len);
 static int stmflash_ioctl(struct bdev *, int request, void *argp);
 
-status_t stmflash_init(uint32_t start, uint32_t length)
-{
+status_t stmflash_init(uint32_t start, uint32_t length) {
     memset(&sg_flash, 0, sizeof(intflash_t));
     sg_flash.start  = start;
     /* construct the block device */
@@ -75,8 +74,7 @@ status_t stmflash_init(uint32_t start, uint32_t length)
 }
 
 // bio layer hooks
-static ssize_t stmflash_bdev_read(struct bdev *bdev, void *buf, off_t offset, size_t len)
-{
+static ssize_t stmflash_bdev_read(struct bdev *bdev, void *buf, off_t offset, size_t len) {
     uint32_t startAddress = sg_flash.start;
     LTRACEF("dev %p, buf %p, offset 0x%llx, len 0x%zx\n", bdev, buf, offset, len);
     len = bio_trim_range(bdev, offset, len);
@@ -88,14 +86,12 @@ static ssize_t stmflash_bdev_read(struct bdev *bdev, void *buf, off_t offset, si
     return len;
 }
 
-static ssize_t stmflash_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count)
-{
+static ssize_t stmflash_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count) {
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n",bdev, buf, block, count);
     return 0;
 }
 
-static ssize_t stmflash_bdev_write(struct bdev *bdev, const void *buf, off_t offset, size_t len)
-{
+static ssize_t stmflash_bdev_write(struct bdev *bdev, const void *buf, off_t offset, size_t len) {
     uint32_t i, start_address;
     LTRACEF("dev %p, buf %p, offset 0x%llx, len 0x%zx\n",bdev, buf, offset, len);
     len = bio_trim_range(bdev, offset, len);
@@ -119,15 +115,13 @@ static ssize_t stmflash_bdev_write(struct bdev *bdev, const void *buf, off_t off
     return len;
 }
 
-static ssize_t stmflash_bdev_write_block(struct bdev *bdev, const void *_buf, bnum_t block, uint count)
-{
+static ssize_t stmflash_bdev_write_block(struct bdev *bdev, const void *_buf, bnum_t block, uint count) {
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n",bdev, _buf, block, count);
     count = bio_trim_block_range(bdev, block, count);
     return 0;
 }
 
-static ssize_t stmflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
-{
+static ssize_t stmflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len) {
     uint8_t  n;
     LTRACEF("dev %p, offset 0x%llx, len 0x%zx\n",bdev, offset, len);
     len = bio_trim_range(bdev, offset, len);
@@ -162,8 +156,7 @@ static ssize_t stmflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
     return len;
 }
 
-static int stmflash_ioctl(struct bdev *bdev, int request, void *argp)
-{
+static int stmflash_ioctl(struct bdev *bdev, int request, void *argp) {
     LTRACEF("dev %p, request %d, argp %p\n",bdev, request, argp);
     return ERR_NOT_SUPPORTED;
 }

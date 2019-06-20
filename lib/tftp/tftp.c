@@ -79,8 +79,7 @@ typedef struct {
 
 uint16_t next_port = 2224;
 
-static void send_ack(udp_socket_t *socket, uint16_t count)
-{
+static void send_ack(udp_socket_t *socket, uint16_t count) {
     // Packet is [4][count].
     status_t st;
     uint16_t ack[] = {htons(TFTP_OPCODE_ACK), htons(count)};
@@ -90,8 +89,7 @@ static void send_ack(udp_socket_t *socket, uint16_t count)
     }
 }
 
-static void send_error(udp_socket_t *socket, uint16_t code)
-{
+static void send_error(udp_socket_t *socket, uint16_t code) {
     // Packet is [5][error code][error in ascii-string][0].
     status_t st;
     uint16_t ncode = htons(code);
@@ -104,8 +102,7 @@ static void send_error(udp_socket_t *socket, uint16_t code)
     }
 }
 
-static void end_transfer(tftp_job_t *job, bool do_callback)
-{
+static void end_transfer(tftp_job_t *job, bool do_callback) {
     udp_listen(job->listen_port, NULL, NULL);
     udp_close(job->socket);
     job->socket = NULL;
@@ -117,8 +114,7 @@ static void end_transfer(tftp_job_t *job, bool do_callback)
 
 static void udp_wrq_callback(void *data, size_t len,
                              uint32_t srcaddr, uint16_t srcport,
-                             void *arg)
-{
+                             void *arg) {
     // Packet is [3][count][data]. All packets but the last have 512
     // bytes of data, including zero data.
     char *data_c = data;
@@ -165,8 +161,7 @@ static void udp_wrq_callback(void *data, size_t len,
     }
 }
 
-static tftp_job_t *get_job_by_name(const char *file_name)
-{
+static tftp_job_t *get_job_by_name(const char *file_name) {
     DEBUG_ASSERT(file_name);
     tftp_job_t *entry;
     list_for_every_entry(&tftp_list, entry, tftp_job_t, list) {
@@ -179,8 +174,7 @@ static tftp_job_t *get_job_by_name(const char *file_name)
 
 static void udp_svc_callback(void *data, size_t len,
                              uint32_t srcaddr, uint16_t srcport,
-                             void *arg)
-{
+                             void *arg) {
     status_t st;
     uint16_t opcode;
     udp_socket_t *socket;
@@ -244,8 +238,7 @@ static void udp_svc_callback(void *data, size_t len,
     next_port++;
 }
 
-int tftp_set_write_client(const char *file_name, tftp_callback_t cb, void *arg)
-{
+int tftp_set_write_client(const char *file_name, tftp_callback_t cb, void *arg) {
     DEBUG_ASSERT(file_name);
     DEBUG_ASSERT(cb);
 
@@ -275,8 +268,7 @@ int tftp_set_write_client(const char *file_name, tftp_callback_t cb, void *arg)
     return 0;
 }
 
-int tftp_server_init(void *arg)
-{
+int tftp_server_init(void *arg) {
     status_t st = udp_listen(TFTP_PORT, &udp_svc_callback, 0);
     return st;
 }

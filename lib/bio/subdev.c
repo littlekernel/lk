@@ -43,43 +43,37 @@ typedef struct {
     bnum_t offset;
 } subdev_t;
 
-static ssize_t subdev_read(struct bdev *_dev, void *buf, off_t offset, size_t len)
-{
+static ssize_t subdev_read(struct bdev *_dev, void *buf, off_t offset, size_t len) {
     subdev_t *subdev = (subdev_t *)_dev;
 
     return bio_read(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len);
 }
 
-static ssize_t subdev_read_block(struct bdev *_dev, void *buf, bnum_t block, uint count)
-{
+static ssize_t subdev_read_block(struct bdev *_dev, void *buf, bnum_t block, uint count) {
     subdev_t *subdev = (subdev_t *)_dev;
 
     return bio_read_block(subdev->parent, buf, block + subdev->offset, count);
 }
 
-static ssize_t subdev_write(struct bdev *_dev, const void *buf, off_t offset, size_t len)
-{
+static ssize_t subdev_write(struct bdev *_dev, const void *buf, off_t offset, size_t len) {
     subdev_t *subdev = (subdev_t *)_dev;
 
     return bio_write(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len);
 }
 
-static ssize_t subdev_write_block(struct bdev *_dev, const void *buf, bnum_t block, uint count)
-{
+static ssize_t subdev_write_block(struct bdev *_dev, const void *buf, bnum_t block, uint count) {
     subdev_t *subdev = (subdev_t *)_dev;
 
     return bio_write_block(subdev->parent, buf, block + subdev->offset, count);
 }
 
-static ssize_t subdev_erase(struct bdev *_dev, off_t offset, size_t len)
-{
+static ssize_t subdev_erase(struct bdev *_dev, off_t offset, size_t len) {
     subdev_t *subdev = (subdev_t *)_dev;
 
     return bio_erase(subdev->parent, offset + subdev->offset * subdev->dev.block_size, len);
 }
 
-static void subdev_close(struct bdev *_dev)
-{
+static void subdev_close(struct bdev *_dev) {
     subdev_t *subdev = (subdev_t *)_dev;
 
     bio_close(subdev->parent);
@@ -90,8 +84,7 @@ static void subdev_close(struct bdev *_dev)
 status_t bio_publish_subdevice(const char *parent_dev,
                                const char *subdev,
                                bnum_t startblock,
-                               bnum_t block_count)
-{
+                               bnum_t block_count) {
     status_t err = NO_ERROR;
     bdev_t *parent = NULL;
     subdev_t *sub = NULL;

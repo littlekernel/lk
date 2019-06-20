@@ -78,8 +78,7 @@ static pmm_arena_t arena = {
 
 extern void psci_call(ulong arg0, ulong arg1, ulong arg2, ulong arg3);
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     /* initialize the interrupt controller */
     arm_gic_init();
 
@@ -145,8 +144,7 @@ void platform_early_init(void)
     }
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     uart_init();
 
     /* detect any virtio devices */

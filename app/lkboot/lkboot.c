@@ -95,30 +95,30 @@ static int lkb_send(lkb_t *lkb, u8 opcode, const void *data, size_t len) {
     if (lkb->state >= STATE_DONE) return -1;
 
     switch (opcode) {
-    case MSG_OKAY:
-    case MSG_FAIL:
-        lkb->state = STATE_DONE;
-        if (len > 0xFFFF) return -1;
-        break;
-    case MSG_LOG:
-        if (len > 0xFFFF) return -1;
-        break;
-    case MSG_SEND_DATA:
-        if (len > 0x10000) return -1;
-        break;
-    case MSG_GO_AHEAD:
-        if (lkb->state == STATE_OPEN) {
-            lkb->state = STATE_DATA;
+        case MSG_OKAY:
+        case MSG_FAIL:
+            lkb->state = STATE_DONE;
+            if (len > 0xFFFF) return -1;
             break;
-        }
-        len = 0;
+        case MSG_LOG:
+            if (len > 0xFFFF) return -1;
+            break;
+        case MSG_SEND_DATA:
+            if (len > 0x10000) return -1;
+            break;
+        case MSG_GO_AHEAD:
+            if (lkb->state == STATE_OPEN) {
+                lkb->state = STATE_DATA;
+                break;
+            }
+            len = 0;
         // fallthrough
-    default:
-        lkb->state = STATE_ERROR;
-        opcode = MSG_FAIL;
-        data = "internal error";
-        len = 14;
-        break;
+        default:
+            lkb->state = STATE_ERROR;
+            opcode = MSG_FAIL;
+            data = "internal error";
+            len = 14;
+            break;
     }
 
     hdr.opcode = opcode;
@@ -191,8 +191,7 @@ fail:
     return -1;
 }
 
-status_t lkboot_process_command(lkb_t *lkb)
-{
+status_t lkboot_process_command(lkb_t *lkb) {
     msg_hdr_t hdr;
     char cmd[128];
     char *arg;
@@ -229,8 +228,7 @@ fail:
     return ERR_IO;
 }
 
-static status_t lkboot_server(lk_time_t timeout)
-{
+static status_t lkboot_server(lk_time_t timeout) {
     lkboot_dcc_init();
 
 #if WITH_LIB_MINIP
@@ -296,13 +294,11 @@ static status_t lkboot_server(lk_time_t timeout)
 }
 
 /* platform code can override this to conditionally abort autobooting from flash */
-__WEAK bool platform_abort_autoboot(void)
-{
+__WEAK bool platform_abort_autoboot(void) {
     return false;
 }
 
-static void lkboot_task(const struct app_descriptor *app, void *args)
-{
+static void lkboot_task(const struct app_descriptor *app, void *args) {
     /* read a few sysparams to decide if we're going to autoboot */
     uint8_t autoboot = 1;
     sysparam_read("lkboot.autoboot", &autoboot, sizeof(autoboot));
@@ -350,6 +346,6 @@ static void lkboot_task(const struct app_descriptor *app, void *args)
 }
 
 APP_START(lkboot)
-    .entry = lkboot_task,
-    .flags = 0,
+.entry = lkboot_task,
+.flags = 0,
 APP_END

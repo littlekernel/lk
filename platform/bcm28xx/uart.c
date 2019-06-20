@@ -54,8 +54,7 @@
 
 static cbuf_t uart_rx_buf[NUM_UART];
 
-static inline uintptr_t uart_to_ptr(unsigned int n)
-{
+static inline uintptr_t uart_to_ptr(unsigned int n) {
     switch (n) {
         default:
         case 0:
@@ -63,8 +62,7 @@ static inline uintptr_t uart_to_ptr(unsigned int n)
     }
 }
 
-static enum handler_return uart_irq(void *arg)
-{
+static enum handler_return uart_irq(void *arg) {
     bool resched = false;
     uint port = (uint)arg;
     uintptr_t base = uart_to_ptr(port);
@@ -88,8 +86,7 @@ static enum handler_return uart_irq(void *arg)
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
     for (size_t i = 0; i < NUM_UART; i++) {
         // create circular buffer to hold received data
         cbuf_initialize(&uart_rx_buf[i], RXBUF_SIZE);
@@ -114,15 +111,13 @@ void uart_init(void)
     }
 }
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
     for (size_t i = 0; i < NUM_UART; i++) {
         UARTREG(uart_to_ptr(i), UART_CR) = (1<<8)|(1<<0); // tx_enable, uarten
     }
 }
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     uintptr_t base = uart_to_ptr(port);
 
     /* spin while fifo is full */
@@ -133,8 +128,7 @@ int uart_putc(int port, char c)
     return 1;
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     cbuf_t *rxbuf = &uart_rx_buf[port];
 
     char c;
@@ -144,16 +138,13 @@ int uart_getc(int port, bool wait)
     return -1;
 }
 
-void uart_flush_tx(int port)
-{
+void uart_flush_tx(int port) {
 }
 
-void uart_flush_rx(int port)
-{
+void uart_flush_rx(int port) {
 }
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
 }
 
 

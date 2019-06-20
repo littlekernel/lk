@@ -42,8 +42,7 @@ static event_t dpc_event;
 
 static int dpc_thread_routine(void *arg);
 
-status_t dpc_queue(dpc_callback cb, void *arg, uint flags)
-{
+status_t dpc_queue(dpc_callback cb, void *arg, uint flags) {
     struct dpc *dpc;
 
     dpc = malloc(sizeof(struct dpc));
@@ -61,8 +60,7 @@ status_t dpc_queue(dpc_callback cb, void *arg, uint flags)
     return NO_ERROR;
 }
 
-static int dpc_thread_routine(void *arg)
-{
+static int dpc_thread_routine(void *arg) {
     for (;;) {
         event_wait(&dpc_event);
 
@@ -83,8 +81,7 @@ static int dpc_thread_routine(void *arg)
     return 0;
 }
 
-static void dpc_init(uint level)
-{
+static void dpc_init(uint level) {
     event_init(&dpc_event, false, 0);
 
     thread_detach_and_resume(thread_create("dpc", &dpc_thread_routine, NULL, DPC_PRIORITY, DEFAULT_STACK_SIZE));

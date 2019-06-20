@@ -254,19 +254,16 @@ finish:
     return false;
 }
 
-void init_usb_boot(void)
-{
+void init_usb_boot(void) {
     usb_register_callback(&usb_register_cb, NULL);
 }
 
-void append_usb_interfaces(void)
-{
+void append_usb_interfaces(void) {
     usb_append_interface_lowspeed(if_descriptor, sizeof(if_descriptor));
     usb_append_interface_highspeed(if_descriptor, sizeof(if_descriptor));
 }
 
-void attempt_usb_boot(void)
-{
+void attempt_usb_boot(void) {
     static uint8_t buf[USB_XFER_SIZE];
 
     lk_time_t start = current_time();
@@ -302,8 +299,7 @@ static status_t usb_register_cb(
     void *cookie,
     usb_callback_op_t op,
     const union usb_callback_args *args
-)
-{
+) {
     if (op == USB_CB_ONLINE) {
         usbc_setup_endpoint(1, USB_IN, 0x40, USB_BULK);
         usbc_setup_endpoint(1, USB_OUT, 0x40, USB_BULK);
@@ -312,20 +308,17 @@ static status_t usb_register_cb(
     return NO_ERROR;
 }
 
-static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
-{
+static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t) {
     event_signal(&txevt, false);
     return 0;
 }
 
-static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
-{
+static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t) {
     event_signal(&rxevt, false);
     return 0;
 }
 
-static void usb_xmit(void *data, size_t len)
-{
+static void usb_xmit(void *data, size_t len) {
     usbc_transfer_t transfer = {
         .callback = &usb_xmit_cplt_cb,
         .result   = 0,

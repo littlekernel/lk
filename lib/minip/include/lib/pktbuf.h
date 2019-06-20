@@ -68,20 +68,17 @@ typedef struct pktbuf_pool_object {
 #define PKTBUF_FLAG_CACHED         (1<<4)
 
 /* Return the physical address offset of data in the packet */
-static inline u32 pktbuf_data_phys(pktbuf_t *p)
-{
+static inline u32 pktbuf_data_phys(pktbuf_t *p) {
     return p->phys_base + (p->data - p->buffer);
 }
 
 // number of bytes available for _prepend
-static inline u32 pktbuf_avail_head(pktbuf_t *p)
-{
+static inline u32 pktbuf_avail_head(pktbuf_t *p) {
     return p->data - p->buffer;
 }
 
 // number of bytes available for _append or _append_data
-static inline u32 pktbuf_avail_tail(pktbuf_t *p)
-{
+static inline u32 pktbuf_avail_tail(pktbuf_t *p) {
     return p->blen - (p->data - p->buffer) - p->dlen;
 }
 

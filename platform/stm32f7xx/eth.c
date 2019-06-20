@@ -102,8 +102,7 @@ static int eth_rx_worker(void *arg);
 static int eth_send_raw_pkt(pktbuf_t *p);
 #endif
 
-status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
-{
+status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy) {
     LTRACE_ENTRY;
 
     DEBUG_ASSERT(mac_addr);
@@ -204,8 +203,7 @@ status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy)
     return NO_ERROR;
 }
 
-void stm32_ETH_IRQ(void)
-{
+void stm32_ETH_IRQ(void) {
     arm_cm_irq_entry();
 
     HAL_ETH_IRQHandler(&eth.EthHandle);
@@ -218,13 +216,11 @@ void stm32_ETH_IRQ(void)
   * @param  heth: ETH handle
   * @retval None
   */
-void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth)
-{
+void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth) {
     event_signal(&eth.rx_event, false);
 }
 
-static status_t eth_send(const void *buf, size_t len)
-{
+static status_t eth_send(const void *buf, size_t len) {
     status_t err;
     __IO ETH_DMADescTypeDef *DmaTxDesc;
 
@@ -259,8 +255,7 @@ error:
     return err;
 }
 
-static int eth_rx_worker(void *arg)
-{
+static int eth_rx_worker(void *arg) {
     for (;;) {
 #if 0
         status_t event_err = event_wait_timeout(&eth.rx_event, 1000);
@@ -342,8 +337,7 @@ static int eth_rx_worker(void *arg)
 
 #if WITH_LIB_MINIP
 
-status_t stm32_eth_send_minip_pkt(pktbuf_t *p)
-{
+status_t stm32_eth_send_minip_pkt(pktbuf_t *p) {
     LTRACEF("p %p, dlen %zu, eof %u\n", p, p->dlen, p->flags & PKTBUF_FLAG_EOF);
 
     DEBUG_ASSERT(p && p->dlen);

@@ -78,8 +78,7 @@ extern uint32_t __lpc43xx_main_clock_mhz;
 #define DEMCR       0xE000EDFC
 #define DEMCR_TRCENA    (1 << 24)
 
-void lpc43xx_debug_early_init(void)
-{
+void lpc43xx_debug_early_init(void) {
     // ensure ITM and DWT are enabled
     writel(readl(DEMCR) | DEMCR_TRCENA, DEMCR);
 
@@ -118,14 +117,12 @@ void lpc43xx_debug_early_init(void)
 #endif
 }
 
-void lpc43xx_debug_init(void)
-{
+void lpc43xx_debug_init(void) {
     cbuf_initialize(&console_rx_buf, 64);
 }
 
 #ifdef UART_BASE
-void UART_IRQ (void)
-{
+void UART_IRQ (void) {
     arm_cm_irq_entry();
     while (readl(UART_BASE + REG_LSR) & LSR_RDR) {
         unsigned c = readl(UART_BASE + REG_RBR);
@@ -137,8 +134,7 @@ void UART_IRQ (void)
 }
 #endif
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     // if ITM is enabled, send character to STIM0
     if (readl(ITM_TCR) & 1) {
         while (!readl(ITM_STIM0)) ;
@@ -150,8 +146,7 @@ void platform_dputc(char c)
 #endif
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
     if (cbuf_read_char(&console_rx_buf, c, wait) == 0)
         return -1;
     return 0;
@@ -159,8 +154,7 @@ int platform_dgetc(char *c, bool wait)
 
 #define DCRDR 0xE000EDF8
 
-void _debugmonitor(void)
-{
+void _debugmonitor(void) {
     u32 n;
     arm_cm_irq_entry();
     n = readl(DCRDR);

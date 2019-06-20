@@ -37,23 +37,19 @@
 #include <arch/x86.h>
 #include <lib/cbuf.h>
 
-static inline int i8042_read_data(void)
-{
+static inline int i8042_read_data(void) {
     return inp(I8042_DATA_REG);
 }
 
-static inline int i8042_read_status(void)
-{
+static inline int i8042_read_status(void) {
     return inp(I8042_STATUS_REG);
 }
 
-static inline void i8042_write_data(int val)
-{
+static inline void i8042_write_data(int val) {
     outp(I8042_DATA_REG, val);
 }
 
-static inline void i8042_write_command(int val)
-{
+static inline void i8042_write_command(int val) {
     outp(I8042_COMMAND_REG, val);
 }
 
@@ -101,8 +97,7 @@ static inline void i8042_write_command(int val)
  */
 #define I8042_BUFFER_LENGTH 32
 
-static inline void delay(lk_time_t delay)
-{
+static inline void delay(lk_time_t delay) {
     lk_time_t start = current_time();
 
     while (start + delay > current_time());
@@ -116,50 +111,50 @@ static inline void delay(lk_time_t delay)
 static const int KeyCodeSingleLower[] = {
 // 0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
     -1,  -1, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=','\b','\t', // 0
-    'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']','\n',  -1, 'a', 's', // 1
-    'd', 'f', 'g', 'h', 'j', 'k', 'l', ';','\'', '`',  -1,'\\', 'z', 'x', 'c', 'v', // 2
-    'b', 'n', 'm', ',', '.', '/',  -1, '*',  -1, ' ',  -1,  -1,  -1,  -1,  -1,  -1, // 3
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 4
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 5
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 6
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 7
-};
+        'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']','\n',  -1, 'a', 's', // 1
+        'd', 'f', 'g', 'h', 'j', 'k', 'l', ';','\'', '`',  -1,'\\', 'z', 'x', 'c', 'v', // 2
+        'b', 'n', 'm', ',', '.', '/',  -1, '*',  -1, ' ',  -1,  -1,  -1,  -1,  -1,  -1, // 3
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 4
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 5
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 6
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 7
+    };
 
 static const int KeyCodeMultiLower[] = {
 // 0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
     -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 0
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 1
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 2
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 3
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 4
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 5
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 6
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 7
-};
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 1
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 2
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 3
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 4
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 5
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 6
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 7
+    };
 
 static const int KeyCodeSingleUpper[] = {
 // 0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
     -1,  -1, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+','\b','\t', // 0
-    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}','\n',  -1, 'A', 'S', // 1
-    'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~',  -1, '|', 'Z', 'X', 'C', 'V', // 2
-    'B', 'N', 'M', '<', '>', '?',  -1, '*',  -1, ' ',  -1,  -1,  -1,  -1,  -1,  -1, // 3
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 4
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 5
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 6
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 7
-};
+        'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}','\n',  -1, 'A', 'S', // 1
+        'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~',  -1, '|', 'Z', 'X', 'C', 'V', // 2
+        'B', 'N', 'M', '<', '>', '?',  -1, '*',  -1, ' ',  -1,  -1,  -1,  -1,  -1,  -1, // 3
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 4
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 5
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 6
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 7
+    };
 
 static const int KeyCodeMultiUpper[] = {
 // 0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
     -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 0
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 1
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 2
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 3
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 4
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 5
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 6
-    -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 7
-};
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 1
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 2
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 3
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 4
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 5
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 6
+        -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 7
+    };
 
 /*
  * state key flags
@@ -169,8 +164,7 @@ static bool key_rshift;
 
 static cbuf_t *key_buf;
 
-static void i8042_process_scode(uint8_t scode, unsigned int flags)
-{
+static void i8042_process_scode(uint8_t scode, unsigned int flags) {
     static int lastCode = 0;
     int keyCode;
     uint8_t keyUpBit;
@@ -208,8 +202,7 @@ static void i8042_process_scode(uint8_t scode, unsigned int flags)
     lastCode = scode;
 }
 
-static int i8042_wait_read(void)
-{
+static int i8042_wait_read(void) {
     int i = 0;
     while ((~i8042_read_status() & I8042_STR_OBF) && (i < I8042_CTL_TIMEOUT)) {
         delay(1);
@@ -218,8 +211,7 @@ static int i8042_wait_read(void)
     return -(i == I8042_CTL_TIMEOUT);
 }
 
-static int i8042_wait_write(void)
-{
+static int i8042_wait_write(void) {
     int i = 0;
     while ((i8042_read_status() & I8042_STR_IBF) && (i < I8042_CTL_TIMEOUT)) {
         delay(1);
@@ -228,8 +220,7 @@ static int i8042_wait_write(void)
     return -(i == I8042_CTL_TIMEOUT);
 }
 
-static int i8042_flush(void)
-{
+static int i8042_flush(void) {
     unsigned char data __UNUSED;
     int i = 0;
 
@@ -245,8 +236,7 @@ static int i8042_flush(void)
     return i;
 }
 
-static int i8042_command(uint8_t *param, int command)
-{
+static int i8042_command(uint8_t *param, int command) {
     int retval = 0, i = 0;
 
     //enter_critical_section();
@@ -285,8 +275,7 @@ static int i8042_command(uint8_t *param, int command)
     return retval;
 }
 
-static enum handler_return i8042_interrupt(void *arg)
-{
+static enum handler_return i8042_interrupt(void *arg) {
     uint8_t str, data = 0;
     bool resched = false;
 
@@ -307,16 +296,14 @@ static enum handler_return i8042_interrupt(void *arg)
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-int platform_read_key(char *c)
-{
+int platform_read_key(char *c) {
     ssize_t len;
 
     len = cbuf_read_char(key_buf, c, true);
     return len;
 }
 
-void platform_init_keyboard(cbuf_t *buffer)
-{
+void platform_init_keyboard(cbuf_t *buffer) {
     uint8_t ctr;
 
     key_buf = buffer;

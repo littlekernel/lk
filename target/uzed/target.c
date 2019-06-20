@@ -175,19 +175,16 @@ const zynq_clk_cfg_t zynq_clk_cfg = {
     .clk_621_true = CLK_621_ENABLE,
 };
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     gpio_config(GPIO_LEDR, GPIO_OUTPUT);
     gpio_set(GPIO_LEDR, 0);
 }
 
-void target_init(void)
-{
+void target_init(void) {
     gem_init(GEM0_BASE);
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     if (led == 0)
         gpio_set(GPIO_LEDR, on);
 }

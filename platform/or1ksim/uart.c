@@ -36,13 +36,11 @@ static struct uart_stat uart[1] = {
     { UART1_BASE, UART1_CLOCK_FREQ, 0 },
 };
 
-static inline void write_uart_reg(int port, uint reg, unsigned char data)
-{
+static inline void write_uart_reg(int port, uint reg, unsigned char data) {
     *(volatile unsigned char *)(uart[port].base + (reg << uart[port].shift)) = data;
 }
 
-static inline unsigned char read_uart_reg(int port, uint reg)
-{
+static inline unsigned char read_uart_reg(int port, uint reg) {
     return *(volatile unsigned char *)(uart[port].base + (reg << uart[port].shift));
 }
 
@@ -116,8 +114,7 @@ static inline unsigned char read_uart_reg(int port, uint reg)
 #define MCRVAL (MCR_DTR | MCR_RTS)      /* RTS/DTR */
 #define FCRVAL (FCR_FIFO_EN | FCR_RXSR | FCR_TXSR)  /* Clear & enable FIFOs */
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
     /* clear the tx & rx fifo and disable */
     uint16_t baud_divisor = (uart[port].clk_freq / 16 / baud);
 
@@ -130,25 +127,21 @@ void uart_init_port(int port, uint baud)
     write_uart_reg(port, UART_FCR, FCRVAL);
 }
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
     uart_init_port(DEBUG_UART, 115200);
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
 }
 
-int uart_putc(int port, char c )
-{
+int uart_putc(int port, char c ) {
     while (!(read_uart_reg(port, UART_LSR) & (1<<6))) // wait for the last char to get out
         ;
     write_uart_reg(port, UART_THR, c);
     return 0;
 }
 
-int uart_getc(int port, bool wait)  /* returns -1 if no data available */
-{
+int uart_getc(int port, bool wait) { /* returns -1 if no data available */
     if (wait) {
         while (!(read_uart_reg(port, UART_LSR) & (1<<0))) // wait for data to show up in the rx fifo
             ;
@@ -159,14 +152,12 @@ int uart_getc(int port, bool wait)  /* returns -1 if no data available */
     return read_uart_reg(port, UART_RHR);
 }
 
-void uart_flush_tx(int port)
-{
+void uart_flush_tx(int port) {
     while (!(read_uart_reg(port, UART_LSR) & (1<<6))) // wait for the last char to get out
         ;
 }
 
-void uart_flush_rx(int port)
-{
+void uart_flush_rx(int port) {
     // empty the rx fifo
     while (read_uart_reg(port, UART_LSR) & (1<<0)) {
         volatile char c = read_uart_reg(port, UART_RHR);

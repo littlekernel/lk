@@ -31,8 +31,7 @@
 #include <lib/console.h>
 #include <platform.h>
 
-static void bench_cache(size_t bufsize, uint8_t *buf)
-{
+static void bench_cache(size_t bufsize, uint8_t *buf) {
     lk_bigtime_t t;
     bool do_free;
 
@@ -66,8 +65,7 @@ static void bench_cache(size_t bufsize, uint8_t *buf)
     printf("took %llu usecs to clean %d bytes (hot)\n", t, bufsize);
 }
 
-static int cache_tests(int argc, const cmd_args *argv)
-{
+static int cache_tests(int argc, const cmd_args *argv) {
     uint8_t *buf;
     buf = (uint8_t *)((argc > 1) ? argv[1].u : 0UL);
 

@@ -87,8 +87,7 @@ static FMC_NORSRAM_TimingTypeDef Timing;
   * @param  hsram: SRAM handle
   * @retval None
   */
-static void BSP_SRAM_MspInit(SRAM_HandleTypeDef  *hsram, void *Params)
-{
+static void BSP_SRAM_MspInit(SRAM_HandleTypeDef  *hsram, void *Params) {
     static DMA_HandleTypeDef dma_handle;
     GPIO_InitTypeDef gpio_init_structure;
 
@@ -166,8 +165,7 @@ static void BSP_SRAM_MspInit(SRAM_HandleTypeDef  *hsram, void *Params)
   * @brief  Initializes the SRAM device.
   * @retval SRAM status
   */
-uint8_t BSP_SRAM_Init(void)
-{
+uint8_t BSP_SRAM_Init(void) {
     static uint8_t sram_status = SRAM_ERROR;
     /* SRAM device configuration */
     sramHandle.Instance = FMC_NORSRAM_DEVICE;

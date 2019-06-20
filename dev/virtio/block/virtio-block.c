@@ -95,8 +95,7 @@ struct virtio_block_dev {
     paddr_t blk_response_phys;
 };
 
-status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features)
-{
+status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
     LTRACEF("dev %p, host_features 0x%x\n", dev, host_features);
 
     /* allocate a new block device */
@@ -167,8 +166,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features)
     return NO_ERROR;
 }
 
-static enum handler_return virtio_block_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e)
-{
+static enum handler_return virtio_block_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e) {
     struct virtio_block_dev *bdev = (struct virtio_block_dev *)dev->priv;
 
     LTRACEF("dev %p, ring %u, e %p, id %u, len %u\n", dev, ring, e, e->id, e->len);
@@ -201,8 +199,7 @@ static enum handler_return virtio_block_irq_driver_callback(struct virtio_device
     return INT_RESCHEDULE;
 }
 
-ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offset, size_t len, bool write)
-{
+ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offset, size_t len, bool write) {
     struct virtio_block_dev *bdev = (struct virtio_block_dev *)dev->priv;
 
     uint16_t i;
@@ -310,8 +307,7 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
     return len;
 }
 
-static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count)
-{
+static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count) {
     struct virtio_block_dev *dev = containerof(bdev, struct virtio_block_dev, bdev);
 
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
@@ -324,8 +320,7 @@ static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block
     }
 }
 
-static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count)
-{
+static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count) {
     struct virtio_block_dev *dev = containerof(bdev, struct virtio_block_dev, bdev);
 
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);

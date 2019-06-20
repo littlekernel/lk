@@ -72,12 +72,10 @@ static pmm_arena_t sdram_arena = {
     .flags = PMM_ARENA_FLAG_KMAP
 };
 
-void platform_init_mmu_mappings(void)
-{
+void platform_init_mmu_mappings(void) {
 }
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     uart_init_early();
 
     printf("stat 0x%x\n", *REG32(0xffd05000));
@@ -94,8 +92,7 @@ void platform_early_init(void)
     *REG32(0xffd05010) = 0;
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     uart_init();
 }
 

@@ -74,7 +74,7 @@ struct display_image {
 };
 
 status_t display_present(struct display_image *image, uint starty, uint endy)
-    __NONNULL((1));
+__NONNULL((1));
 
 struct display_framebuffer {
     enum display_format format;
@@ -84,7 +84,7 @@ struct display_framebuffer {
 };
 
 status_t display_get_framebuffer(struct display_framebuffer *fb)
-    __NONNULL((1));
+__NONNULL((1));
 
 __END_CDECLS
 

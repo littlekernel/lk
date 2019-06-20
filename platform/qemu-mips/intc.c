@@ -78,8 +78,7 @@ static uint8_t irqMask[2];
 /*
  * init the PICs and remap them
  */
-static void map(uint32_t pic1, uint32_t pic2)
-{
+static void map(uint32_t pic1, uint32_t pic2) {
     /* send ICW1 */
     isa_write_8(PIC1, ICW1);
     isa_write_8(PIC2, ICW1);
@@ -104,8 +103,7 @@ static void map(uint32_t pic1, uint32_t pic2)
     irqMask[1] = 0xff;
 }
 
-static void enable(unsigned int vector, bool enable)
-{
+static void enable(unsigned int vector, bool enable) {
     if (vector < 8) {
         uint8_t bit = 1 << vector;
 
@@ -153,8 +151,7 @@ static void enable(unsigned int vector, bool enable)
     }
 }
 
-static void issueEOI(unsigned int vector)
-{
+static void issueEOI(unsigned int vector) {
     if (vector < 8) {
         isa_write_8(PIC1, 0x20);
     } else if (vector < 16) {
@@ -164,8 +161,7 @@ static void issueEOI(unsigned int vector)
 }
 
 /* Helper func */
-static uint16_t __pic_get_irq_reg(uint ocw3)
-{
+static uint16_t __pic_get_irq_reg(uint ocw3) {
     /* OCW3 to PIC CMD to get the register values.  PIC2 is chained, and
      * represents IRQs 8-15.  PIC1 is IRQs 0-7, with 2 being the chain */
     isa_write_8(PIC1_CMD, ocw3);
@@ -174,25 +170,21 @@ static uint16_t __pic_get_irq_reg(uint ocw3)
 }
 
 /* Returns the combined value of the cascaded PICs irq request register */
-static uint16_t pic_get_irr(void)
-{
+static uint16_t pic_get_irr(void) {
     return __pic_get_irq_reg(PIC_READ_IRR);
 }
 
 /* Returns the combined value of the cascaded PICs in-service register */
-static uint16_t pic_get_isr(void)
-{
+static uint16_t pic_get_isr(void) {
     return __pic_get_irq_reg(PIC_READ_ISR);
 }
 
-void platform_init_interrupts(void)
-{
+void platform_init_interrupts(void) {
     // rebase the PIC out of the way of processor exceptions
     map(0, 8);
 }
 
-status_t mask_interrupt(unsigned int vector)
-{
+status_t mask_interrupt(unsigned int vector) {
     if (vector >= INT_VECTORS)
         return ERR_INVALID_ARGS;
 
@@ -208,8 +200,7 @@ status_t mask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-void platform_mask_irqs(void)
-{
+void platform_mask_irqs(void) {
     irqMask[0] = isa_read_8(PIC1 + 1);
     irqMask[1] = isa_read_8(PIC2 + 1);
 
@@ -220,8 +211,7 @@ void platform_mask_irqs(void)
     irqMask[1] = isa_read_8(PIC2 + 1);
 }
 
-status_t unmask_interrupt(unsigned int vector)
-{
+status_t unmask_interrupt(unsigned int vector) {
     if (vector >= INT_VECTORS)
         return ERR_INVALID_ARGS;
 
@@ -237,8 +227,7 @@ status_t unmask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-enum handler_return platform_irq(struct mips_iframe *iframe, uint vector)
-{
+enum handler_return platform_irq(struct mips_iframe *iframe, uint vector) {
     // figure out which irq is pending
     // issue OCW3 poll commands to PIC1 and (potentially) PIC2
     isa_write_8(PIC1_CMD, (1<<3) | (1<<2));
@@ -271,8 +260,7 @@ enum handler_return platform_irq(struct mips_iframe *iframe, uint vector)
     return ret;
 }
 
-void register_int_handler(unsigned int vector, int_handler handler, void *arg)
-{
+void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     if (vector >= INT_VECTORS)
         panic("register_int_handler: vector out of range %d\n", vector);
 

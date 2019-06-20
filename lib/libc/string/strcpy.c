@@ -28,8 +28,7 @@
 #include <sys/types.h>
 
 char *
-strcpy(char *dest, char const *src)
-{
+strcpy(char *dest, char const *src) {
     char *tmp = dest;
 
     while ((*dest++ = *src++) != '\0')

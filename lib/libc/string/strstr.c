@@ -28,8 +28,7 @@
 #include <sys/types.h>
 
 char *
-strstr(char const *s1, char const *s2)
-{
+strstr(char const *s1, char const *s2) {
     int l1, l2;
 
     l2 = strlen(s2);

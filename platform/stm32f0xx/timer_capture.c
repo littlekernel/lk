@@ -229,23 +229,23 @@ static uint64_t stm32_timer_inc_overflow(stm32_timer_capture_t *tc, uint64_t ove
 
 static uint32_t stm32_timer_median_val(stm32_timer_capture_t *tc) {
     if (tc->config->flags & STM32_TIMER_FLAGS_32_BIT) {
-     return 0x7fffffff;
+        return 0x7fffffff;
     } else {
-     return 0x7fff;
+        return 0x7fff;
     }
 }
 
 // Assumes interrupts are disabled.
 static uint64_t stm32_timer_calc_value(stm32_timer_capture_t *tc, uint32_t sr, uint32_t val) {
-        uint32_t overflow = tc->overflow;
-        // Since we could be processing an overflow and capture interrupts at the
-        // same time, we don't know the ordering of the two.  Here we assume
-        // that if the capture event occurred in the lower half of the counter
-        // range, the overflow happened before the capture.
-        if (sr & TIM_SR_UIF && val < stm32_timer_median_val(tc)) {
-            overflow = stm32_timer_inc_overflow(tc, overflow);
-        }
-        return overflow | val;
+    uint32_t overflow = tc->overflow;
+    // Since we could be processing an overflow and capture interrupts at the
+    // same time, we don't know the ordering of the two.  Here we assume
+    // that if the capture event occurred in the lower half of the counter
+    // range, the overflow happened before the capture.
+    if (sr & TIM_SR_UIF && val < stm32_timer_median_val(tc)) {
+        overflow = stm32_timer_inc_overflow(tc, overflow);
+    }
+    return overflow | val;
 }
 
 static bool stm32_timer_capture_chan_irq(stm32_timer_capture_t *tc, uint32_t sr, int chan) {

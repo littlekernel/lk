@@ -43,8 +43,7 @@ static void *cb_args;
 
 typedef enum handler_return (*platform_timer_callback)(void *arg, lk_time_t now);
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     ASSERT(clock_rate > 0);
 
     cb = callback;
@@ -70,8 +69,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 }
 
 // time in msec
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     uint64_t t;
 
     do {
@@ -82,8 +80,7 @@ lk_time_t current_time(void)
 }
 
 // time in usec
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     uint64_t t;
 
     do {
@@ -97,8 +94,7 @@ lk_bigtime_t current_time_hires(void)
     return (t * 1000000 / clock_rate);
 }
 
-void nrf52_RTC1_IRQ(void)
-{
+void nrf52_RTC1_IRQ(void) {
     // update to this point in time
     base_counter += cycles_per_tick;
     arm_cm_irq_entry();
@@ -116,8 +112,7 @@ void nrf52_RTC1_IRQ(void)
     arm_cm_irq_exit(resched);
 }
 
-void arm_cm_systick_init(uint32_t hz)
-{
+void arm_cm_systick_init(uint32_t hz) {
     clock_rate = hz;
 }
 

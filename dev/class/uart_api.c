@@ -24,8 +24,7 @@
 #include <lk/err.h>
 #include <dev/class/uart.h>
 
-ssize_t class_uart_read(struct device *dev, void *buf, size_t len)
-{
+ssize_t class_uart_read(struct device *dev, void *buf, size_t len) {
     struct uart_ops *ops = device_get_driver_ops(dev, struct uart_ops, std);
 
     if (!ops)
@@ -37,8 +36,7 @@ ssize_t class_uart_read(struct device *dev, void *buf, size_t len)
         return ERR_NOT_SUPPORTED;
 }
 
-ssize_t class_uart_write(struct device *dev, const void *buf, size_t len)
-{
+ssize_t class_uart_write(struct device *dev, const void *buf, size_t len) {
     struct uart_ops *ops = device_get_driver_ops(dev, struct uart_ops, std);
 
     if (!ops)

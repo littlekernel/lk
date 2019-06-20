@@ -36,8 +36,7 @@
 /*
  * enumerates pci devices
  */
-static void pci_list(void)
-{
+static void pci_list(void) {
     pci_location_t state;
     uint16_t device_id, vendor_id;
     uint8_t header_type;
@@ -107,8 +106,7 @@ error:
  * a somewhat fugly pci config space examine/modify command. this should probably
  * be broken up a bit.
  */
-static int pci_config(int argc, const cmd_args *argv)
-{
+static int pci_config(int argc, const cmd_args *argv) {
     pci_location_t loc;
     pci_config_t config;
     uint32_t offset;
@@ -223,8 +221,7 @@ error:
     return -2;
 }
 
-static int pci_cmd(int argc, const cmd_args *argv)
-{
+static int pci_cmd(int argc, const cmd_args *argv) {
     if (argc < 2) {
         printf("pci commands:\n");
 usage:

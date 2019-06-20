@@ -45,8 +45,7 @@ const lk_version_t version = {
     .buildid = BUILDID
 };
 
-void print_version(void)
-{
+void print_version(void) {
     printf("version:\n");
     printf("\tarch:     %s\n", version.arch);
     printf("\tplatform: %s\n", version.platform);
@@ -60,8 +59,7 @@ void print_version(void)
 #include <lk/debug.h>
 #include <lib/console.h>
 
-static int cmd_version(int argc, const cmd_args *argv)
-{
+static int cmd_version(int argc, const cmd_args *argv) {
     print_version();
     return 0;
 }

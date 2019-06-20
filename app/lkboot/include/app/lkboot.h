@@ -35,8 +35,8 @@ int lkb_write(lkb_t *lkb, const void *data, size_t len);
 // len is the number of bytes the host has declared that it will send
 // use lkb_read() to read some or all of this data
 // return NULL on success, or an asciiz string (message) for error
-typedef const char* (*lkb_handler_t)(lkb_t *lkb,
-    const char *arg, unsigned len, void *cookie);
+typedef const char *(*lkb_handler_t)(lkb_t *lkb,
+                                     const char *arg, unsigned len, void *cookie);
 
 // cmd must be a string constant
 void lkb_register(const char *cmd, lkb_handler_t handler, void *cookie);

@@ -37,8 +37,7 @@ void lpc_gpio_init(void);
 void lpc_usbc_early_init(void);
 void lpc_usbc_init(void);
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     /* set up clocking for a board with an external oscillator */
     Chip_SetupXtalClocking();
 
@@ -65,8 +64,7 @@ void platform_early_init(void)
     lpc_debug_early_init();
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     lpc_debug_init();
 }
 

@@ -45,8 +45,7 @@
 #define LOCAL_TRACE 0
 
 // Convert a 32bit ARGB image to its respective gamma corrected grayscale value.
-static uint32_t ARGB8888_to_Luma(uint32_t in)
-{
+static uint32_t ARGB8888_to_Luma(uint32_t in) {
     uint8_t out;
 
     uint32_t blue  = (in & 0xFF) * 74;
@@ -60,8 +59,7 @@ static uint32_t ARGB8888_to_Luma(uint32_t in)
     return out;
 }
 
-static uint32_t ARGB8888_to_RGB565(uint32_t in)
-{
+static uint32_t ARGB8888_to_RGB565(uint32_t in) {
     uint16_t out;
 
     out = (in >> 3) & 0x1f;  // b
@@ -71,8 +69,7 @@ static uint32_t ARGB8888_to_RGB565(uint32_t in)
     return out;
 }
 
-static uint32_t ARGB8888_to_RGB332(uint32_t in)
-{
+static uint32_t ARGB8888_to_RGB332(uint32_t in) {
     uint8_t out = 0;
 
     out = (in >> 6) & 0x3;  // b
@@ -82,8 +79,7 @@ static uint32_t ARGB8888_to_RGB332(uint32_t in)
     return out;
 }
 
-static uint32_t ARGB8888_to_RGB2220(uint32_t in)
-{
+static uint32_t ARGB8888_to_RGB2220(uint32_t in) {
     uint8_t out = 0;
 
     out =  ((in >> 6) & 0x3) << 2;
@@ -96,8 +92,7 @@ static uint32_t ARGB8888_to_RGB2220(uint32_t in)
 /**
  * @brief  Copy a rectangle of pixels from one part of the display to another.
  */
-void gfx_copyrect(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2)
-{
+void gfx_copyrect(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2) {
     // trim
     if (x >= surface->width)
         return;
@@ -128,8 +123,7 @@ void gfx_copyrect(gfx_surface *surface, uint x, uint y, uint width, uint height,
 /**
  * @brief  Fill a rectangle on the screen with a constant color.
  */
-void gfx_fillrect(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color)
-{
+void gfx_fillrect(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color) {
     LTRACEF("surface %p, x %u y %u w %u h %u c %u\n", surface, x, y, width, height, color);
     // trim
     if (unlikely(x >= surface->width))
@@ -153,8 +147,7 @@ void gfx_fillrect(gfx_surface *surface, uint x, uint y, uint width, uint height,
 /**
  * @brief  Write a single pixel to the screen.
  */
-void gfx_putpixel(gfx_surface *surface, uint x, uint y, uint color)
-{
+void gfx_putpixel(gfx_surface *surface, uint x, uint y, uint color) {
     if (unlikely(x >= surface->width))
         return;
     if (y >= surface->height)
@@ -163,31 +156,27 @@ void gfx_putpixel(gfx_surface *surface, uint x, uint y, uint color)
     surface->putpixel(surface, x, y, color);
 }
 
-static void putpixel16(gfx_surface *surface, uint x, uint y, uint color)
-{
+static void putpixel16(gfx_surface *surface, uint x, uint y, uint color) {
     uint16_t *dest = &((uint16_t *)surface->ptr)[x + y * surface->stride];
 
     // colors come in in ARGB 8888 form, flatten them
     *dest = (uint16_t)(surface->translate_color(color));
 }
 
-static void putpixel32(gfx_surface *surface, uint x, uint y, uint color)
-{
+static void putpixel32(gfx_surface *surface, uint x, uint y, uint color) {
     uint32_t *dest = &((uint32_t *)surface->ptr)[x + y * surface->stride];
 
     *dest = color;
 }
 
-static void putpixel8(gfx_surface *surface, uint x, uint y, uint color)
-{
+static void putpixel8(gfx_surface *surface, uint x, uint y, uint color) {
     uint8_t *dest = &((uint8_t *)surface->ptr)[x + y * surface->stride];
 
     // colors come in in ARGB 8888 form, flatten them
     *dest = (uint8_t)(surface->translate_color(color));
 }
 
-static void copyrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2)
-{
+static void copyrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2) {
     // copy
     const uint8_t *src = &((const uint8_t *)surface->ptr)[x + y * surface->stride];
     uint8_t *dest = &((uint8_t *)surface->ptr)[x2 + y2 * surface->stride];
@@ -222,8 +211,7 @@ static void copyrect8(gfx_surface *surface, uint x, uint y, uint width, uint hei
     }
 }
 
-static void fillrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color)
-{
+static void fillrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color) {
     uint8_t *dest = &((uint8_t *)surface->ptr)[x + y * surface->stride];
     uint stride_diff = surface->stride - width;
 
@@ -239,8 +227,7 @@ static void fillrect8(gfx_surface *surface, uint x, uint y, uint width, uint hei
     }
 }
 
-static void copyrect16(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2)
-{
+static void copyrect16(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2) {
     // copy
     const uint16_t *src = &((const uint16_t *)surface->ptr)[x + y * surface->stride];
     uint16_t *dest = &((uint16_t *)surface->ptr)[x2 + y2 * surface->stride];
@@ -275,8 +262,7 @@ static void copyrect16(gfx_surface *surface, uint x, uint y, uint width, uint he
     }
 }
 
-static void fillrect16(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color)
-{
+static void fillrect16(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color) {
     uint16_t *dest = &((uint16_t *)surface->ptr)[x + y * surface->stride];
     uint stride_diff = surface->stride - width;
 
@@ -292,8 +278,7 @@ static void fillrect16(gfx_surface *surface, uint x, uint y, uint width, uint he
     }
 }
 
-static void copyrect32(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2)
-{
+static void copyrect32(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2) {
     // copy
     const uint32_t *src = &((const uint32_t *)surface->ptr)[x + y * surface->stride];
     uint32_t *dest = &((uint32_t *)surface->ptr)[x2 + y2 * surface->stride];
@@ -328,8 +313,7 @@ static void copyrect32(gfx_surface *surface, uint x, uint y, uint width, uint he
     }
 }
 
-static void fillrect32(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color)
-{
+static void fillrect32(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color) {
     uint32_t *dest = &((uint32_t *)surface->ptr)[x + y * surface->stride];
     uint stride_diff = surface->stride - width;
 
@@ -343,8 +327,7 @@ static void fillrect32(gfx_surface *surface, uint x, uint y, uint width, uint he
     }
 }
 
-void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint color)
-{
+void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint color) {
     if (unlikely(x1 >= surface->width))
         return;
     if (unlikely(x2 >= surface->width))
@@ -395,8 +378,7 @@ void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint col
     }
 }
 
-uint32_t alpha32_add_ignore_destalpha(uint32_t dest, uint32_t src)
-{
+uint32_t alpha32_add_ignore_destalpha(uint32_t dest, uint32_t src) {
     uint32_t cdest[3];
     uint32_t csrc[3];
 
@@ -437,8 +419,7 @@ uint32_t alpha32_add_ignore_destalpha(uint32_t dest, uint32_t src)
  *
  * Currently does not support alpha channel.
  */
-void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, uint destx, uint desty)
-{
+void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, uint destx, uint desty) {
     DEBUG_ASSERT(target->format == source->format);
 
     LTRACEF("target %p, source %p, destx %u, desty %u\n", target, source, destx, desty);
@@ -542,8 +523,7 @@ void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, u
 /**
  * @brief  Ensure all graphics rendering is sent to display
  */
-void gfx_flush(gfx_surface *surface)
-{
+void gfx_flush(gfx_surface *surface) {
     arch_clean_cache_range((addr_t)surface->ptr, surface->len);
 
     if (surface->flush)
@@ -553,8 +533,7 @@ void gfx_flush(gfx_surface *surface)
 /**
  * @brief  Ensure that a sub-region of the display is up to date.
  */
-void gfx_flush_rows(struct gfx_surface *surface, uint start, uint end)
-{
+void gfx_flush_rows(struct gfx_surface *surface, uint start, uint end) {
     if (start > end) {
         uint temp = start;
         start = end;
@@ -577,8 +556,7 @@ void gfx_flush_rows(struct gfx_surface *surface, uint start, uint end)
 /**
  * @brief  Create a new graphics surface object
  */
-gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride, gfx_format format)
-{
+gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride, gfx_format format) {
     DEBUG_ASSERT(width > 0);
     DEBUG_ASSERT(height > 0);
     DEBUG_ASSERT(stride >= width);
@@ -657,8 +635,7 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
 /**
  * @brief  Create a new graphics surface object from a display
  */
-gfx_surface *gfx_create_surface_from_display(struct display_framebuffer *fb)
-{
+gfx_surface *gfx_create_surface_from_display(struct display_framebuffer *fb) {
     DEBUG_ASSERT(fb);
     gfx_surface *surface;
     gfx_format format;
@@ -700,8 +677,7 @@ gfx_surface *gfx_create_surface_from_display(struct display_framebuffer *fb)
  * @param  surface  Surface to destroy.  This pointer is no longer valid after
  *    this call.
  */
-void gfx_surface_destroy(struct gfx_surface *surface)
-{
+void gfx_surface_destroy(struct gfx_surface *surface) {
     if (surface->free_on_destroy)
         free(surface->ptr);
     free(surface);
@@ -710,8 +686,7 @@ void gfx_surface_destroy(struct gfx_surface *surface)
 /**
  * @brief  Write a test pattern to the default display.
  */
-void gfx_draw_pattern(void)
-{
+void gfx_draw_pattern(void) {
     struct display_framebuffer fb;
     if (display_get_framebuffer(&fb) < 0)
         return;
@@ -739,8 +714,7 @@ void gfx_draw_pattern(void)
 /**
  * @brief  Fill default display with white
  */
-void gfx_draw_pattern_white(void)
-{
+void gfx_draw_pattern_white(void) {
     struct display_framebuffer fb;
     if (display_get_framebuffer(&fb) < 0)
         return;
@@ -770,7 +744,7 @@ STATIC_COMMAND_START
 STATIC_COMMAND("gfx", "gfx commands", &cmd_gfx)
 STATIC_COMMAND_END(gfx);
 
-static int gfx_draw_mandelbrot(gfx_surface * surface){
+static int gfx_draw_mandelbrot(gfx_surface *surface) {
     float a,b, dx, dy, mag, c, ci;
     uint32_t color,iter,x,y;
 
@@ -785,7 +759,7 @@ static int gfx_draw_mandelbrot(gfx_surface * surface){
             b=0;
             mag=0;
             iter = 0;
-            while ((mag < 4.0) && (iter < 200) ){
+            while ((mag < 4.0) && (iter < 200) ) {
                 float a1;
                 a1 = a*a - b*b + c;
                 b = 2.0f * a * b + ci;
@@ -811,8 +785,7 @@ static int gfx_draw_mandelbrot(gfx_surface * surface){
 }
 
 
-static int gfx_draw_rgb_bars(gfx_surface *surface)
-{
+static int gfx_draw_rgb_bars(gfx_surface *surface) {
     uint x, y;
 
     uint step = surface->height*100 / 256;
@@ -839,8 +812,7 @@ static int gfx_draw_rgb_bars(gfx_surface *surface)
     return 0;
 }
 
-static int cmd_gfx(int argc, const cmd_args *argv)
-{
+static int cmd_gfx(int argc, const cmd_args *argv) {
     if (argc < 2) {
         printf("not enough arguments:\n");
 usage:

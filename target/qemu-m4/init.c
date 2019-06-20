@@ -34,13 +34,11 @@
 #include <target/debugconfig.h>
 #include <target/m4display.h>
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     stm32_debug_early_init();
 }
 
-void target_init(void)
-{
+void target_init(void) {
     TRACE_ENTRY;
 
     stm32_debug_init();

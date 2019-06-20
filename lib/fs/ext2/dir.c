@@ -30,8 +30,7 @@
 #define LOCAL_TRACE 0
 
 /* read in the dir, look for the entry */
-static int ext2_dir_lookup(ext2_t *ext2, struct ext2_inode *dir_inode, const char *name, inodenum_t *inum)
-{
+static int ext2_dir_lookup(ext2_t *ext2, struct ext2_inode *dir_inode, const char *name, inodenum_t *inum) {
     uint file_blocknum;
     int err;
     uint8_t *buf;
@@ -86,8 +85,7 @@ static int ext2_dir_lookup(ext2_t *ext2, struct ext2_inode *dir_inode, const cha
 }
 
 /* note, trashes path */
-static int ext2_walk(ext2_t *ext2, char *path, struct ext2_inode *start_inode, inodenum_t *inum, int recurse)
-{
+static int ext2_walk(ext2_t *ext2, char *path, struct ext2_inode *start_inode, inodenum_t *inum, int recurse) {
     char *ptr;
     struct ext2_inode inode;
     struct ext2_inode dir_inode;
@@ -186,8 +184,7 @@ nextcomponent:
 }
 
 /* do a path parse, looking up each component */
-int ext2_lookup(ext2_t *ext2, const char *_path, inodenum_t *inum)
-{
+int ext2_lookup(ext2_t *ext2, const char *_path, inodenum_t *inum) {
     LTRACEF("path '%s', inum %p\n", _path, inum);
 
     char path[512];

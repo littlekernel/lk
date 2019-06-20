@@ -56,44 +56,36 @@ static char minip_hostname[32] = "";
 static void dump_mac_address(const uint8_t *mac);
 static void dump_ipv4_addr(uint32_t addr);
 
-void minip_set_hostname(const char *name)
-{
+void minip_set_hostname(const char *name) {
     strlcpy(minip_hostname, name, sizeof(minip_hostname));
 }
 
-const char *minip_get_hostname(void)
-{
+const char *minip_get_hostname(void) {
     return minip_hostname;
 }
 
-static void compute_broadcast_address(void)
-{
+static void compute_broadcast_address(void) {
     minip_broadcast = (minip_ip & minip_netmask) | (IPV4_BCAST & ~minip_netmask);
 }
 
-void minip_get_macaddr(uint8_t *addr)
-{
+void minip_get_macaddr(uint8_t *addr) {
     mac_addr_copy(addr, minip_mac);
 }
 
-void minip_set_macaddr(const uint8_t *addr)
-{
+void minip_set_macaddr(const uint8_t *addr) {
     mac_addr_copy(minip_mac, addr);
 }
 
-uint32_t minip_get_ipaddr(void)
-{
+uint32_t minip_get_ipaddr(void) {
     return minip_ip;
 }
 
-void minip_set_ipaddr(const uint32_t addr)
-{
+void minip_set_ipaddr(const uint32_t addr) {
     minip_ip = addr;
     compute_broadcast_address();
 }
 
-void gen_random_mac_address(uint8_t *mac_addr)
-{
+void gen_random_mac_address(uint8_t *mac_addr) {
     for (size_t i = 0; i < 6; i++) {
         mac_addr[i] = rand() & 0xff;
     }
@@ -107,8 +99,7 @@ tx_func_t minip_tx_handler;
 void *minip_tx_arg;
 
 void minip_init(tx_func_t tx_handler, void *tx_arg,
-                uint32_t ip, uint32_t mask, uint32_t gateway)
-{
+                uint32_t ip, uint32_t mask, uint32_t gateway) {
     minip_tx_handler = tx_handler;
     minip_tx_arg = tx_arg;
 
@@ -121,20 +112,17 @@ void minip_init(tx_func_t tx_handler, void *tx_arg,
     net_timer_init();
 }
 
-uint16_t ipv4_payload_len(struct ipv4_hdr *pkt)
-{
+uint16_t ipv4_payload_len(struct ipv4_hdr *pkt) {
     return (pkt->len - ((pkt->ver_ihl >> 4) * 5));
 }
 
-void minip_build_mac_hdr(struct eth_hdr *pkt, const uint8_t *dst, uint16_t type)
-{
+void minip_build_mac_hdr(struct eth_hdr *pkt, const uint8_t *dst, uint16_t type) {
     mac_addr_copy(pkt->dst_mac, dst);
     mac_addr_copy(pkt->src_mac, minip_mac);
     pkt->type = htons(type);
 }
 
-void minip_build_ipv4_hdr(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, uint16_t len)
-{
+void minip_build_ipv4_hdr(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, uint16_t len) {
     ipv4->ver_ihl       = 0x45;
     ipv4->dscp_ecn      = 0;
     ipv4->len           = htons(20 + len); // 5 * 4 from ihl, plus payload length
@@ -150,8 +138,7 @@ void minip_build_ipv4_hdr(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, ui
     ipv4->chksum = rfc1701_chksum((uint8_t *) ipv4, sizeof(struct ipv4_hdr));
 }
 
-int send_arp_request(uint32_t addr)
-{
+int send_arp_request(uint32_t addr) {
     pktbuf_t *p;
     struct eth_hdr *eth;
     struct arp_pkt *arp;
@@ -178,13 +165,11 @@ int send_arp_request(uint32_t addr)
     return 0;
 }
 
-static void handle_arp_timeout_cb(void *arg)
-{
+static void handle_arp_timeout_cb(void *arg) {
     *(bool *)arg = true;
 }
 
-const uint8_t *get_dest_mac(uint32_t host)
-{
+const uint8_t *get_dest_mac(uint32_t host) {
     uint8_t *dst_mac = NULL;
     bool arp_timeout = false;
     net_timer_t arp_timeout_timer;
@@ -210,8 +195,7 @@ const uint8_t *get_dest_mac(uint32_t host)
     return dst_mac;
 }
 
-status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto)
-{
+status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto) {
     status_t ret = 0;
     size_t data_len = p->dlen;
     const uint8_t *dst_mac;
@@ -246,8 +230,7 @@ err:
  * According to spec the data portion doesn't matter, but ping itself validates that
  * the payload is identical
  */
-void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdatalen)
-{
+void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdatalen) {
     pktbuf_t *p;
     size_t len;
     struct eth_hdr *eth;
@@ -277,15 +260,13 @@ void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdatalen)
     minip_tx_handler(p);
 }
 
-static void dump_ipv4_addr(uint32_t addr)
-{
+static void dump_ipv4_addr(uint32_t addr) {
     const uint8_t *a = (void *)&addr;
 
     printf("%hhu.%hhu.%hhu.%hhu", a[0], a[1], a[2], a[3]);
 }
 
-static void dump_ipv4_packet(const struct ipv4_hdr *ip)
-{
+static void dump_ipv4_packet(const struct ipv4_hdr *ip) {
     printf("IP ");
     dump_ipv4_addr(ip->src_addr);
     printf(" -> ");
@@ -294,8 +275,7 @@ static void dump_ipv4_packet(const struct ipv4_hdr *ip)
            (ip->ver_ihl & 0xf) * 4, ip->proto, ntohs(ip->chksum), ntohs(ip->len), ntohs(ip->id), ntohs(ip->flags_frags) & 0x1fff);
 }
 
-__NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
-{
+__NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac) {
     struct ipv4_hdr *ip;
 
     ip = (struct ipv4_hdr *)p->data;
@@ -378,8 +358,7 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac)
     }
 }
 
-__NO_INLINE static int handle_arp_pkt(pktbuf_t *p)
-{
+__NO_INLINE static int handle_arp_pkt(pktbuf_t *p) {
     struct eth_hdr *eth;
     struct arp_pkt *arp;
 
@@ -433,14 +412,12 @@ __NO_INLINE static int handle_arp_pkt(pktbuf_t *p)
     return 0;
 }
 
-static void dump_mac_address(const uint8_t *mac)
-{
+static void dump_mac_address(const uint8_t *mac) {
     printf("%02x:%02x:%02x:%02x:%02x:%02x",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
-static void dump_eth_packet(const struct eth_hdr *eth)
-{
+static void dump_eth_packet(const struct eth_hdr *eth) {
     printf("ETH src ");
     dump_mac_address(eth->src_mac);
     printf(" dst ");
@@ -448,8 +425,7 @@ static void dump_eth_packet(const struct eth_hdr *eth)
     printf(" type 0x%hx\n", htons(eth->type));
 }
 
-void minip_rx_driver_callback(pktbuf_t *p)
-{
+void minip_rx_driver_callback(pktbuf_t *p) {
     struct eth_hdr *eth;
 
     if ((eth = (void *) pktbuf_consume(p, sizeof(struct eth_hdr))) == NULL) {
@@ -479,8 +455,7 @@ void minip_rx_driver_callback(pktbuf_t *p)
     }
 }
 
-uint32_t minip_parse_ipaddr(const char *ipaddr_str, size_t len)
-{
+uint32_t minip_parse_ipaddr(const char *ipaddr_str, size_t len) {
     uint8_t ip[4] = { 0, 0, 0, 0 };
     uint8_t pos = 0, i = 0;
 

@@ -36,8 +36,7 @@
 #define FLOAT_PRINTF 1
 #endif
 
-int sprintf(char *str, const char *fmt, ...)
-{
+int sprintf(char *str, const char *fmt, ...) {
     int err;
 
     va_list ap;
@@ -48,8 +47,7 @@ int sprintf(char *str, const char *fmt, ...)
     return err;
 }
 
-int snprintf(char *str, size_t len, const char *fmt, ...)
-{
+int snprintf(char *str, size_t len, const char *fmt, ...) {
     int err;
 
     va_list ap;
@@ -60,8 +58,7 @@ int snprintf(char *str, size_t len, const char *fmt, ...)
     return err;
 }
 
-int vsprintf(char *str, const char *fmt, va_list ap)
-{
+int vsprintf(char *str, const char *fmt, va_list ap) {
     return vsnprintf(str, INT_MAX, fmt, ap);
 }
 
@@ -71,8 +68,7 @@ struct _output_args {
     size_t pos;
 };
 
-static int _vsnprintf_output(const char *str, size_t len, void *state)
-{
+static int _vsnprintf_output(const char *str, size_t len, void *state) {
     struct _output_args *args = state;
 
     size_t count = 0;
@@ -88,8 +84,7 @@ static int _vsnprintf_output(const char *str, size_t len, void *state)
     return count;
 }
 
-int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
-{
+int vsnprintf(char *str, size_t len, const char *fmt, va_list ap) {
     struct _output_args args;
     int wlen;
 
@@ -120,8 +115,7 @@ int vsnprintf(char *str, size_t len, const char *fmt, va_list ap)
 #define LEADZEROFLAG   0x00001000
 #define BLANKPOSFLAG   0x00002000
 
-__NO_INLINE static char *longlong_to_string(char *buf, unsigned long long n, size_t len, uint flag, char *signchar)
-{
+__NO_INLINE static char *longlong_to_string(char *buf, unsigned long long n, size_t len, uint flag, char *signchar) {
     size_t pos = len;
     int negative = 0;
 
@@ -157,8 +151,7 @@ __NO_INLINE static char *longlong_to_string(char *buf, unsigned long long n, siz
 static const char hextable[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 static const char hextable_caps[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
-__NO_INLINE static char *longlong_to_hexstring(char *buf, unsigned long long u, size_t len, uint flag)
-{
+__NO_INLINE static char *longlong_to_hexstring(char *buf, unsigned long long u, size_t len, uint flag) {
     size_t pos = len;
     const char *table = (flag & CAPSFLAG) ? hextable_caps : hextable;
 
@@ -183,8 +176,7 @@ union double_int {
 #define OUTSTR(str) do { for (size_t i = 0; (str)[i] != 0; i++) OUT((str)[i]); } while (0)
 
 /* print up to a 4 digit exponent as string, with sign */
-__NO_INLINE static size_t exponent_to_string(char *buf, int32_t exponent)
-{
+__NO_INLINE static size_t exponent_to_string(char *buf, int32_t exponent) {
     size_t pos = 0;
 
     /* handle sign */
@@ -215,8 +207,7 @@ __NO_INLINE static size_t exponent_to_string(char *buf, int32_t exponent)
     return pos;
 }
 
-__NO_INLINE static char *double_to_string(char *buf, size_t len, double d, uint flag)
-{
+__NO_INLINE static char *double_to_string(char *buf, size_t len, double d, uint flag) {
     size_t pos = 0;
     union double_int u = { d };
 
@@ -315,8 +306,7 @@ done:
     return buf;
 }
 
-__NO_INLINE static char *double_to_hexstring(char *buf, size_t len, double d, uint flag)
-{
+__NO_INLINE static char *double_to_hexstring(char *buf, size_t len, double d, uint flag) {
     size_t pos = 0;
     union double_int u = { d };
 
@@ -403,8 +393,7 @@ __NO_INLINE static char *double_to_hexstring(char *buf, size_t len, double d, ui
 
 #endif // FLOAT_PRINTF
 
-int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap)
-{
+int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap) {
     int err = 0;
     char c;
     unsigned char uc;
@@ -567,7 +556,7 @@ hex:
 #if FLOAT_PRINTF
             case 'F':
                 flags |= CAPSFLAG;
-                /* fallthrough */
+            /* fallthrough */
             case 'f': {
                 double d = va_arg(ap, double);
                 s = double_to_string(num_buffer, sizeof(num_buffer), d, flags);
@@ -575,7 +564,7 @@ hex:
             }
             case 'A':
                 flags |= CAPSFLAG;
-                /* fallthrough */
+            /* fallthrough */
             case 'a': {
                 double d = va_arg(ap, double);
                 s = double_to_hexstring(num_buffer, sizeof(num_buffer), d, flags);

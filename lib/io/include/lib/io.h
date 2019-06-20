@@ -62,8 +62,7 @@ ssize_t io_read(io_handle_t *io, char *buf, size_t len);
 /* initialization routine */
 #define IO_HANDLE_INITIAL_VALUE(_hooks) { .magic = IO_HANDLE_MAGIC, .hooks = _hooks }
 
-static inline void io_handle_init(io_handle_t *io, io_handle_hooks_t *hooks)
-{
+static inline void io_handle_init(io_handle_t *io, io_handle_hooks_t *hooks) {
     *io = (io_handle_t)IO_HANDLE_INITIAL_VALUE(hooks);
 }
 

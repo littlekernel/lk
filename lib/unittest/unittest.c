@@ -38,8 +38,7 @@
  * \param[in] len is the length of the buffer to dump
  * \param[in] arg can be any kind of arguments needed to dump the values
  */
-static void default_printf (const char *line, int len, void *arg)
-{
+static void default_printf (const char *line, int len, void *arg) {
     printf (line);
 }
 
@@ -53,8 +52,7 @@ static void *out_func_arg = NULL;
  *
  * This function will call the out_func callback
  */
-void unittest_printf (const char *format, ...)
-{
+void unittest_printf (const char *format, ...) {
     static char print_buffer[PRINT_BUFFER_SIZE];
 
     va_list argp;
@@ -70,8 +68,7 @@ void unittest_printf (const char *format, ...)
 }
 
 bool expect_bytes_eq(const uint8_t *expected, const uint8_t *actual, size_t len,
-                     const char *msg)
-{
+                     const char *msg) {
     if (memcmp(expected, actual, len)) {
         printf("%s. expected\n", msg);
         hexdump8(expected, len);
@@ -82,8 +79,7 @@ bool expect_bytes_eq(const uint8_t *expected, const uint8_t *actual, size_t len,
     return true;
 }
 
-void unittest_set_output_function (test_output_func fun, void *arg)
-{
+void unittest_set_output_function (test_output_func fun, void *arg) {
     out_func = fun;
     out_func_arg = arg;
 }

@@ -38,8 +38,7 @@ extern int _end;
 uintptr_t boot_alloc_start = (uintptr_t) &_end;
 uintptr_t boot_alloc_end = (uintptr_t) &_end;
 
-void *boot_alloc_mem(size_t len)
-{
+void *boot_alloc_mem(size_t len) {
     uintptr_t ptr;
 
     ptr = ALIGN(boot_alloc_end, 8);

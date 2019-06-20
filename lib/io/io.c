@@ -27,8 +27,7 @@
 #include <lk/debug.h>
 #include <assert.h>
 
-ssize_t io_write(io_handle_t *io, const char *buf, size_t len)
-{
+ssize_t io_write(io_handle_t *io, const char *buf, size_t len) {
     DEBUG_ASSERT(io->magic == IO_HANDLE_MAGIC);
 
     if (!io->hooks->write)
@@ -37,8 +36,7 @@ ssize_t io_write(io_handle_t *io, const char *buf, size_t len)
     return io->hooks->write(io, buf, len);
 }
 
-ssize_t io_read(io_handle_t *io, char *buf, size_t len)
-{
+ssize_t io_read(io_handle_t *io, char *buf, size_t len) {
     DEBUG_ASSERT(io->magic == IO_HANDLE_MAGIC);
 
     if (!io->hooks->read)

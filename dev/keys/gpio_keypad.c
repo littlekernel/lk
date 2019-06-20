@@ -51,8 +51,7 @@ struct gpio_kp {
 /* TODO: Support multiple keypads? */
 static struct gpio_kp *keypad;
 
-static void check_output(struct gpio_kp *kp, int out, int polarity)
-{
+static void check_output(struct gpio_kp *kp, int out, int polarity) {
     struct gpio_keypad_info *kpinfo = kp->keypad_info;
     int key_index;
     int in;
@@ -85,8 +84,7 @@ static void check_output(struct gpio_kp *kp, int out, int polarity)
 }
 
 static enum handler_return
-gpio_keypad_timer_func(struct timer *timer, time_t now, void *arg)
-{
+gpio_keypad_timer_func(struct timer *timer, time_t now, void *arg) {
     struct gpio_kp *kp = keypad;
     struct gpio_keypad_info *kpinfo = kp->keypad_info;
     int polarity = !!(kpinfo->flags & GPIOKPF_ACTIVE_HIGH);
@@ -138,8 +136,7 @@ done:
     return INT_RESCHEDULE;
 }
 
-void gpio_keypad_init(struct gpio_keypad_info *kpinfo)
-{
+void gpio_keypad_init(struct gpio_keypad_info *kpinfo) {
     int key_count;
     int output_val;
     int output_cfg;

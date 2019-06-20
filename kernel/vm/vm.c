@@ -39,8 +39,7 @@ extern int _end;
 
 /* mark the physical pages backing a range of virtual as in use.
  * allocate the physical pages and throw them away */
-static void mark_pages_in_use(vaddr_t va, size_t len)
-{
+static void mark_pages_in_use(vaddr_t va, size_t len) {
     LTRACEF("va 0x%lx, len 0x%zx\n", va, len);
 
     struct list_node list;
@@ -68,8 +67,7 @@ static void mark_pages_in_use(vaddr_t va, size_t len)
     }
 }
 
-static void vm_init_preheap(uint level)
-{
+static void vm_init_preheap(uint level) {
     LTRACE_ENTRY;
 
     /* allow the vmm a shot at initializing some of its data structures */
@@ -87,8 +85,7 @@ static void vm_init_preheap(uint level)
     }
 }
 
-static void vm_init_postheap(uint level)
-{
+static void vm_init_postheap(uint level) {
     LTRACE_ENTRY;
 
     vmm_init();
@@ -104,14 +101,12 @@ static void vm_init_postheap(uint level)
     }
 }
 
-void *kvaddr_get_range(size_t* size_return)
-{
+void *kvaddr_get_range(size_t *size_return) {
     *size_return = mmu_initial_mappings->size;
-    return (void*)mmu_initial_mappings->virt;
+    return (void *)mmu_initial_mappings->virt;
 }
 
-void *paddr_to_kvaddr(paddr_t pa)
-{
+void *paddr_to_kvaddr(paddr_t pa) {
     /* slow path to do reverse lookup */
     struct mmu_initial_mapping *map = mmu_initial_mappings;
     while (map->size > 0) {
@@ -125,8 +120,7 @@ void *paddr_to_kvaddr(paddr_t pa)
     return NULL;
 }
 
-paddr_t vaddr_to_paddr(void *ptr)
-{
+paddr_t vaddr_to_paddr(void *ptr) {
     vmm_aspace_t *aspace = vaddr_to_aspace(ptr);
     if (!aspace)
         return (paddr_t)NULL;
@@ -139,8 +133,7 @@ paddr_t vaddr_to_paddr(void *ptr)
     return pa;
 }
 
-vmm_aspace_t *vaddr_to_aspace(void *ptr)
-{
+vmm_aspace_t *vaddr_to_aspace(void *ptr) {
     if (is_kernel_address((vaddr_t)ptr)) {
         return vmm_get_kernel_aspace();
     } else if (is_user_address((vaddr_t)ptr)) {
@@ -150,8 +143,7 @@ vmm_aspace_t *vaddr_to_aspace(void *ptr)
     }
 }
 
-static int cmd_vm(int argc, const cmd_args *argv)
-{
+static int cmd_vm(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

@@ -130,23 +130,19 @@ struct fp_32_64 cntpct_per_ms;
 struct fp_32_64 ms_per_cntpct;
 struct fp_32_64 us_per_cntpct;
 
-static uint64_t lk_time_to_cntpct(lk_time_t lk_time)
-{
+static uint64_t lk_time_to_cntpct(lk_time_t lk_time) {
     return u64_mul_u32_fp32_64(lk_time, cntpct_per_ms);
 }
 
-static lk_time_t cntpct_to_lk_time(uint64_t cntpct)
-{
+static lk_time_t cntpct_to_lk_time(uint64_t cntpct) {
     return u32_mul_u64_fp32_64(cntpct, ms_per_cntpct);
 }
 
-static lk_bigtime_t cntpct_to_lk_bigtime(uint64_t cntpct)
-{
+static lk_bigtime_t cntpct_to_lk_bigtime(uint64_t cntpct) {
     return u64_mul_u64_fp32_64(cntpct, us_per_cntpct);
 }
 
-static uint32_t read_cntfrq(void)
-{
+static uint32_t read_cntfrq(void) {
     uint32_t cntfrq;
 
     cntfrq = READ_TIMER_REG32(TIMER_REG_CNTFRQ);
@@ -154,34 +150,29 @@ static uint32_t read_cntfrq(void)
     return cntfrq;
 }
 
-static uint32_t read_cntp_ctl(void)
-{
+static uint32_t read_cntp_ctl(void) {
     uint32_t cntp_ctl;
 
     cntp_ctl = READ_TIMER_REG32(TIMER_REG_CTL);
     return cntp_ctl;
 }
 
-static void write_cntp_ctl(uint32_t cntp_ctl)
-{
+static void write_cntp_ctl(uint32_t cntp_ctl) {
     LTRACEF_LEVEL(3, "cntp_ctl: 0x%x %x\n", cntp_ctl, read_cntp_ctl());
     WRITE_TIMER_REG32(TIMER_REG_CTL, cntp_ctl);
 }
 
-static void write_cntp_cval(uint64_t cntp_cval)
-{
+static void write_cntp_cval(uint64_t cntp_cval) {
     LTRACEF_LEVEL(3, "cntp_cval: 0x%016llx, %llu\n", cntp_cval, cntp_cval);
     WRITE_TIMER_REG64(TIMER_REG_CVAL, cntp_cval);
 }
 
-static void write_cntp_tval(int32_t cntp_tval)
-{
+static void write_cntp_tval(int32_t cntp_tval) {
     LTRACEF_LEVEL(3, "cntp_tval: 0x%08x, %d\n", cntp_tval, cntp_tval);
     WRITE_TIMER_REG32(TIMER_REG_TVAL, cntp_tval);
 }
 
-static uint64_t read_cntpct(void)
-{
+static uint64_t read_cntpct(void) {
     uint64_t cntpct;
 
     cntpct = READ_TIMER_REG64(TIMER_REG_CT);
@@ -189,8 +180,7 @@ static uint64_t read_cntpct(void)
     return cntpct;
 }
 
-static enum handler_return platform_tick(void *arg)
-{
+static enum handler_return platform_tick(void *arg) {
     write_cntp_ctl(0);
     if (t_callback) {
         return t_callback(arg, current_time());
@@ -199,8 +189,7 @@ static enum handler_return platform_tick(void *arg)
     }
 }
 
-status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     uint64_t cntpct_interval = lk_time_to_cntpct(interval);
 
     ASSERT(arg == NULL);
@@ -215,33 +204,27 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg,
     return 0;
 }
 
-void platform_stop_timer(void)
-{
+void platform_stop_timer(void) {
     write_cntp_ctl(0);
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     return cntpct_to_lk_bigtime(read_cntpct());
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     return cntpct_to_lk_time(read_cntpct());
 }
 
-static uint32_t abs_int32(int32_t a)
-{
+static uint32_t abs_int32(int32_t a) {
     return (a > 0) ? a : -a;
 }
 
-static uint64_t abs_int64(int64_t a)
-{
+static uint64_t abs_int64(int64_t a) {
     return (a > 0) ? a : -a;
 }
 
-static void test_time_conversion_check_result(uint64_t a, uint64_t b, uint64_t limit, bool is32)
-{
+static void test_time_conversion_check_result(uint64_t a, uint64_t b, uint64_t limit, bool is32) {
     if (a != b) {
         uint64_t diff = is32 ? abs_int32(a - b) : abs_int64(a - b);
         if (diff <= limit)
@@ -251,8 +234,7 @@ static void test_time_conversion_check_result(uint64_t a, uint64_t b, uint64_t l
     }
 }
 
-static void test_lk_time_to_cntpct(uint32_t cntfrq, lk_time_t lk_time)
-{
+static void test_lk_time_to_cntpct(uint32_t cntfrq, lk_time_t lk_time) {
     uint64_t cntpct = lk_time_to_cntpct(lk_time);
     uint64_t expected_cntpct = ((uint64_t)cntfrq * lk_time + 500) / 1000;
 
@@ -260,8 +242,7 @@ static void test_lk_time_to_cntpct(uint32_t cntfrq, lk_time_t lk_time)
     LTRACEF_LEVEL(2, "lk_time_to_cntpct(%u): got %llu, expect %llu\n", lk_time, cntpct, expected_cntpct);
 }
 
-static void test_cntpct_to_lk_time(uint32_t cntfrq, lk_time_t expected_lk_time, uint32_t wrap_count)
-{
+static void test_cntpct_to_lk_time(uint32_t cntfrq, lk_time_t expected_lk_time, uint32_t wrap_count) {
     lk_time_t lk_time;
     uint64_t cntpct;
 
@@ -276,8 +257,7 @@ static void test_cntpct_to_lk_time(uint32_t cntfrq, lk_time_t expected_lk_time, 
     LTRACEF_LEVEL(2, "cntpct_to_lk_time(%llu): got %u, expect %u\n", cntpct, lk_time, expected_lk_time);
 }
 
-static void test_cntpct_to_lk_bigtime(uint32_t cntfrq, uint64_t expected_s)
-{
+static void test_cntpct_to_lk_bigtime(uint32_t cntfrq, uint64_t expected_s) {
     lk_bigtime_t expected_lk_bigtime = expected_s * 1000 * 1000;
     uint64_t cntpct = (uint64_t)cntfrq * expected_s;
     lk_bigtime_t lk_bigtime = cntpct_to_lk_bigtime(cntpct);
@@ -286,8 +266,7 @@ static void test_cntpct_to_lk_bigtime(uint32_t cntfrq, uint64_t expected_s)
     LTRACEF_LEVEL(2, "cntpct_to_lk_bigtime(%llu): got %llu, expect %llu\n", cntpct, lk_bigtime, expected_lk_bigtime);
 }
 
-static void test_time_conversions(uint32_t cntfrq)
-{
+static void test_time_conversions(uint32_t cntfrq) {
     test_lk_time_to_cntpct(cntfrq, 0);
     test_lk_time_to_cntpct(cntfrq, 1);
     test_lk_time_to_cntpct(cntfrq, INT_MAX);
@@ -309,8 +288,7 @@ static void test_time_conversions(uint32_t cntfrq)
     test_cntpct_to_lk_bigtime(cntfrq, 60ULL * 60 * 24 * (365 * 100 + 2));
 }
 
-static void arm_generic_timer_init_conversion_factors(uint32_t cntfrq)
-{
+static void arm_generic_timer_init_conversion_factors(uint32_t cntfrq) {
     fp_32_64_div_32_32(&cntpct_per_ms, cntfrq, 1000);
     fp_32_64_div_32_32(&ms_per_cntpct, 1000, cntfrq);
     fp_32_64_div_32_32(&us_per_cntpct, 1000 * 1000, cntfrq);
@@ -319,8 +297,7 @@ static void arm_generic_timer_init_conversion_factors(uint32_t cntfrq)
     LTRACEF("us_per_cntpct: %08x.%08x%08x\n", us_per_cntpct.l0, us_per_cntpct.l32, us_per_cntpct.l64);
 }
 
-void arm_generic_timer_init(int irq, uint32_t freq_override)
-{
+void arm_generic_timer_init(int irq, uint32_t freq_override) {
     uint32_t cntfrq;
 
     if (freq_override == 0) {
@@ -353,8 +330,7 @@ void arm_generic_timer_init(int irq, uint32_t freq_override)
     timer_irq = irq;
 }
 
-static void arm_generic_timer_init_secondary_cpu(uint level)
-{
+static void arm_generic_timer_init_secondary_cpu(uint level) {
     LTRACEF("register irq %d on cpu %d\n", timer_irq, arch_curr_cpu_num());
     register_int_handler(timer_irq, &platform_tick, NULL);
     unmask_interrupt(timer_irq);
@@ -365,8 +341,7 @@ LK_INIT_HOOK_FLAGS(arm_generic_timer_init_secondary_cpu,
                    arm_generic_timer_init_secondary_cpu,
                    LK_INIT_LEVEL_THREADING - 1, LK_INIT_FLAG_SECONDARY_CPUS);
 
-static void arm_generic_timer_resume_cpu(uint level)
-{
+static void arm_generic_timer_resume_cpu(uint level) {
     /* Always trigger a timer interrupt on each cpu for now */
     write_cntp_tval(0);
     write_cntp_ctl(1);

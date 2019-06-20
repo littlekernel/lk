@@ -37,13 +37,11 @@ static uint8_t mac_addr[6];
 #define SMC_REG16(reg) ((volatile uint16_t *)(smc91c96_base + (reg)))
 #define SMC_REG8(reg) ((volatile uint8_t *)(smc91c96_base + (reg)))
 
-static inline void smc_bank(int bank)
-{
+static inline void smc_bank(int bank) {
     *SMC_REG16(SMC_BSR) = bank;
 }
 
-void smc91c96_init(void)
-{
+void smc91c96_init(void) {
     int i;
 
     TRACE;

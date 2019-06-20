@@ -40,8 +40,7 @@
 
 extern enum handler_return platform_irq(x86_iframe_t *frame);
 
-static void dump_fault_frame(x86_iframe_t *frame)
-{
+static void dump_fault_frame(x86_iframe_t *frame) {
 #if ARCH_X86_32
     dprintf(CRITICAL, " CS:     %04x EIP: %08x EFL: %08x CR2: %08x\n",
             frame->cs, frame->ip, frame->flags, x86_get_cr2());
@@ -75,8 +74,7 @@ static void dump_fault_frame(x86_iframe_t *frame)
     }
 }
 
-static void exception_die(x86_iframe_t *frame, const char *msg)
-{
+static void exception_die(x86_iframe_t *frame, const char *msg) {
     dprintf(CRITICAL, msg);
     dump_fault_frame(frame);
 
@@ -86,29 +84,24 @@ static void exception_die(x86_iframe_t *frame, const char *msg)
     }
 }
 
-void x86_syscall_handler(x86_iframe_t *frame)
-{
+void x86_syscall_handler(x86_iframe_t *frame) {
     exception_die(frame, "unhandled syscall, halting\n");
 }
 
-void x86_gpf_handler(x86_iframe_t *frame)
-{
+void x86_gpf_handler(x86_iframe_t *frame) {
     exception_die(frame, "unhandled gpf, halting\n");
 }
 
-void x86_invop_handler(x86_iframe_t *frame)
-{
+void x86_invop_handler(x86_iframe_t *frame) {
     exception_die(frame, "unhandled invalid op, halting\n");
 }
 
-void x86_unhandled_exception(x86_iframe_t *frame)
-{
+void x86_unhandled_exception(x86_iframe_t *frame) {
     printf("vector %u\n", (uint)frame->vector);
     exception_die(frame, "unhandled exception, halting\n");
 }
 
-void x86_pfe_handler(x86_iframe_t *frame)
-{
+void x86_pfe_handler(x86_iframe_t *frame) {
     /* Handle a page fault exception */
     uint32_t error_code;
     thread_t *current_thread;
@@ -173,8 +166,7 @@ void x86_pfe_handler(x86_iframe_t *frame)
 }
 
 /* top level x86 exception handler for most exceptions and irqs */
-void x86_exception_handler(x86_iframe_t *frame)
-{
+void x86_exception_handler(x86_iframe_t *frame) {
     // get the current vector
     unsigned int vector = frame->vector;
 

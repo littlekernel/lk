@@ -52,8 +52,7 @@ static ssize_t tcp_readx(void *s, void *_data, size_t len) {
     return 0;
 }
 
-lkb_t *lkboot_tcp_opened(void *s)
-{
+lkb_t *lkboot_tcp_opened(void *s) {
     lkb_t *lkb;
 
     lkb = lkboot_create_lkb(s, tcp_readx, (void *)tcp_write);

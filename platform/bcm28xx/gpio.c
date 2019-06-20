@@ -31,8 +31,7 @@
 #define PINS_PER_REG (BITS_PER_REG / BITS_PER_PIN)
 #define GPIOREG(base, nr) (REG32(base) + (nr / BITS_PER_REG))
 
-int gpio_config(unsigned nr, unsigned flags)
-{
+int gpio_config(unsigned nr, unsigned flags) {
     unsigned mask = 0x7;
     if (nr >= NUM_PINS || flags & ~mask)
         return -EINVAL;
@@ -44,14 +43,12 @@ int gpio_config(unsigned nr, unsigned flags)
     return 0;
 }
 
-void gpio_set(unsigned nr, unsigned on)
-{
+void gpio_set(unsigned nr, unsigned on) {
     unsigned offset = nr % BITS_PER_REG;
     *GPIOREG(on ? GPIO_GPSET0 : GPIO_GPCLR0, nr) = 1 << offset;
 }
 
-int gpio_get(unsigned nr)
-{
+int gpio_get(unsigned nr) {
     unsigned offset = nr % BITS_PER_REG;
     return (*GPIOREG(GPIO_GPLEV0, nr) & (1 << offset)) >> offset;
 }

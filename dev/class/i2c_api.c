@@ -24,8 +24,7 @@
 #include <lk/err.h>
 #include <dev/class/i2c.h>
 
-status_t class_i2c_write(struct device *dev, uint8_t addr, const void *buf, size_t len)
-{
+status_t class_i2c_write(struct device *dev, uint8_t addr, const void *buf, size_t len) {
     struct i2c_ops *ops = device_get_driver_ops(dev, struct i2c_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -36,8 +35,7 @@ status_t class_i2c_write(struct device *dev, uint8_t addr, const void *buf, size
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_i2c_read(struct device *dev, uint8_t addr, void *buf, size_t len)
-{
+status_t class_i2c_read(struct device *dev, uint8_t addr, void *buf, size_t len) {
     struct i2c_ops *ops = device_get_driver_ops(dev, struct i2c_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -48,8 +46,7 @@ status_t class_i2c_read(struct device *dev, uint8_t addr, void *buf, size_t len)
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_i2c_write_reg(struct device *dev, uint8_t addr, uint8_t reg, uint8_t value)
-{
+status_t class_i2c_write_reg(struct device *dev, uint8_t addr, uint8_t reg, uint8_t value) {
     struct i2c_ops *ops = device_get_driver_ops(dev, struct i2c_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -60,8 +57,7 @@ status_t class_i2c_write_reg(struct device *dev, uint8_t addr, uint8_t reg, uint
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_i2c_read_reg(struct device *dev, uint8_t addr, uint8_t reg, void *value)
-{
+status_t class_i2c_read_reg(struct device *dev, uint8_t addr, uint8_t reg, void *value) {
     struct i2c_ops *ops = device_get_driver_ops(dev, struct i2c_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;

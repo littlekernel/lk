@@ -39,8 +39,7 @@
 extern enum handler_return lk_scheduler(void);
 extern uint32_t mt_mpidr_read(void);
 
-uint64_t mt_irq_get_affinity(void)
-{
+uint64_t mt_irq_get_affinity(void) {
     uint64_t mpidr, aff = 0;
 
     mpidr = (uint64_t) mt_mpidr_read();
@@ -54,13 +53,11 @@ uint64_t mt_irq_get_affinity(void)
     return aff;
 }
 
-uint32_t mt_interrupt_needed_for_secure(void)
-{
+uint32_t mt_interrupt_needed_for_secure(void) {
     return 0;
 }
 
-enum handler_return platform_irq(struct arm_iframe *frame)
-{
+enum handler_return platform_irq(struct arm_iframe *frame) {
     enum handler_return ret = INT_NO_RESCHEDULE;
     unsigned int irq = mt_irq_get();
 
@@ -70,7 +67,6 @@ enum handler_return platform_irq(struct arm_iframe *frame)
     return ret;
 }
 
-void platform_fiq(struct arm_iframe *frame)
-{
+void platform_fiq(struct arm_iframe *frame) {
 }
 

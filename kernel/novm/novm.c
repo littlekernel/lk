@@ -64,19 +64,17 @@ extern int _end_of_ram;
 #endif
 struct novm_arena arena[NOVM_MAX_ARENAS];
 
-int novm_get_arenas(struct page_range* ranges, int number_of_ranges)
-{
+int novm_get_arenas(struct page_range *ranges, int number_of_ranges) {
     int ranges_found = 0;
     for (int i = 0; i < number_of_ranges && i < NOVM_MAX_ARENAS; i++) {
         if (arena[i].pages > 0) ranges_found = i + 1;
-        ranges[i].address = (void*)arena[i].base;
+        ranges[i].address = (void *)arena[i].base;
         ranges[i].size = arena[i].pages << PAGE_SIZE_SHIFT;
     }
     return ranges_found;
 }
 
-void *novm_alloc_unaligned(size_t *size_return)
-{
+void *novm_alloc_unaligned(size_t *size_return) {
     /* only do the unaligned thing in the first arena */
     if (arena[0].unaligned_area != NULL) {
         *size_return = arena[0].unaligned_size;
@@ -89,8 +87,7 @@ void *novm_alloc_unaligned(size_t *size_return)
     return novm_alloc_pages(1, NOVM_ARENA_ANY);
 }
 
-static bool in_arena(struct novm_arena *n, void *p)
-{
+static bool in_arena(struct novm_arena *n, void *p) {
     if (n->size == 0)
         return false;
 
@@ -101,8 +98,7 @@ static bool in_arena(struct novm_arena *n, void *p)
 
 static void novm_init_helper(struct novm_arena *n, const char *name,
                              uintptr_t arena_start, uintptr_t arena_size,
-                             char *default_map, size_t default_map_size)
-{
+                             char *default_map, size_t default_map_size) {
     uintptr_t start = ROUNDUP(arena_start, PAGE_SIZE);
     uintptr_t size = ROUNDDOWN(arena_start + arena_size, PAGE_SIZE) - start;
 
@@ -137,8 +133,7 @@ static void novm_init_helper(struct novm_arena *n, const char *name,
     n->size = size;
 }
 
-void novm_add_arena(const char *name, uintptr_t arena_start, uintptr_t arena_size)
-{
+void novm_add_arena(const char *name, uintptr_t arena_start, uintptr_t arena_size) {
     for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
         if (arena[i].pages == 0) {
             novm_init_helper(&arena[i], name, arena_start, arena_size, NULL, 0);
@@ -148,16 +143,14 @@ void novm_add_arena(const char *name, uintptr_t arena_start, uintptr_t arena_siz
     panic("novm_add_arena: too many arenas added, bump NOVM_MAX_ARENAS!\n");
 }
 
-static void novm_init(uint level)
-{
+static void novm_init(uint level) {
     static char mem_allocation_map[DEFAULT_MAP_SIZE];
     novm_init_helper(&arena[0], "main", MEM_START, MEM_SIZE, mem_allocation_map, DEFAULT_MAP_SIZE);
 }
 
 LK_INIT_HOOK(novm, &novm_init, LK_INIT_LEVEL_PLATFORM_EARLY - 1);
 
-void *novm_alloc_helper(struct novm_arena *n, size_t pages)
-{
+void *novm_alloc_helper(struct novm_arena *n, size_t pages) {
     if (pages == 0 || pages > n->pages)
         return NULL;
 
@@ -182,8 +175,7 @@ void *novm_alloc_helper(struct novm_arena *n, size_t pages)
     return NULL;
 }
 
-void *novm_alloc_pages(size_t pages, uint32_t arena_bitmap)
-{
+void *novm_alloc_pages(size_t pages, uint32_t arena_bitmap) {
     LTRACEF("pages %zu\n", pages);
 
     /* allocate from any arena */
@@ -198,8 +190,7 @@ void *novm_alloc_pages(size_t pages, uint32_t arena_bitmap)
     return NULL;
 }
 
-void novm_free_pages(void *address, size_t pages)
-{
+void novm_free_pages(void *address, size_t pages) {
     LTRACEF("address %p, pages %zu\n", address, pages);
 
     struct novm_arena *n = NULL;
@@ -222,8 +213,7 @@ void novm_free_pages(void *address, size_t pages)
     mutex_release(&n->lock);
 }
 
-status_t novm_alloc_specific_pages(void *address, size_t pages)
-{
+status_t novm_alloc_specific_pages(void *address, size_t pages) {
     LTRACEF("address %p, pages %zu\n", address, pages);
 
     struct novm_arena *n = NULL;
@@ -269,8 +259,7 @@ STATIC_COMMAND_START
 STATIC_COMMAND("novm", "page allocator (for devices without VM support) debug commands", &cmd_novm)
 STATIC_COMMAND_END(novm);
 
-static int cmd_novm(int argc, const cmd_args *argv)
-{
+static int cmd_novm(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");
@@ -303,8 +292,7 @@ usage:
     return 0;
 }
 
-static void novm_dump_arena(struct novm_arena *n)
-{
+static void novm_dump_arena(struct novm_arena *n) {
     if (n->pages == 0) {
         return;
     }
@@ -330,8 +318,7 @@ static void novm_dump_arena(struct novm_arena *n)
     mutex_release(&n->lock);
 }
 
-static void novm_dump(void)
-{
+static void novm_dump(void) {
     for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
         novm_dump_arena(&arena[i]);
     }

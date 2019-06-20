@@ -34,8 +34,7 @@ extern void platform_init_interrupts(void);
 extern void platform_init_uart(void);
 extern void uart_init(void);
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     platform_init_interrupts();
     platform_init_uart();
 
@@ -43,8 +42,7 @@ void platform_early_init(void)
     mips_enable_irq(2);
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     uart_init();
 }
 

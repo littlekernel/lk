@@ -48,13 +48,11 @@ status_t i2c_receive(int bus, uint8_t address, void *buf, size_t count);
 status_t i2c_write_reg_bytes(int bus, uint8_t address, uint8_t reg, const uint8_t *val, size_t cnt);
 status_t i2c_read_reg_bytes(int bus, uint8_t address, uint8_t reg, uint8_t *val, size_t cnt);
 
-static inline status_t i2c_write_reg(int bus, uint8_t address, uint8_t reg, uint8_t val)
-{
+static inline status_t i2c_write_reg(int bus, uint8_t address, uint8_t reg, uint8_t val) {
     return i2c_write_reg_bytes(bus, address, reg, &val, 1);
 }
 
-static inline status_t i2c_read_reg(int bus, uint8_t address, uint8_t reg, uint8_t *val)
-{
+static inline status_t i2c_read_reg(int bus, uint8_t address, uint8_t reg, uint8_t *val) {
     return i2c_read_reg_bytes(bus, address, reg, val, 1);
 }
 #endif

@@ -64,16 +64,14 @@ static struct {
     0, 0, 79, 24
 };
 
-void platform_init_console(void)
-{
+void platform_init_console(void) {
     curr_save();
     window(0, 0, 79, 24);
     clear();
     place(0, 0);
 }
 
-void set_visual_page(int page)
-{
+void set_visual_page(int page) {
     unsigned short page_offset = page*VPAGE_SIZE;
     visual_page = page;
 
@@ -83,8 +81,7 @@ void set_visual_page(int page)
     outp(CGA_DATA_REG, (page_offset >> 8) & 0xFF);
 }
 
-void set_active_page(int page)
-{
+void set_active_page(int page) {
     curs_x[active_page] = curr_x;
     curs_y[active_page] = curr_y;
     curr_x = curs_x[page];
@@ -92,18 +89,15 @@ void set_active_page(int page)
     active_page = page;
 }
 
-int get_visual_page(void)
-{
+int get_visual_page(void) {
     return visual_page;
 }
 
-int get_active_page(void)
-{
+int get_active_page(void) {
     return active_page;
 }
 
-void place(int x,int y)
-{
+void place(int x,int y) {
     unsigned short cursor_word = x + y*80 + active_page*VPAGE_SIZE;
 
     /*
@@ -118,16 +112,14 @@ void place(int x,int y)
     curr_y = y;
 }
 
-void cursor(int start,int end)
-{
+void cursor(int start,int end) {
     outp(CGA_INDEX_REG, CURSOR_START);
     outp(CGA_DATA_REG, start);
     outp(CGA_INDEX_REG, CURSOR_END);
     outp(CGA_DATA_REG, end);
 }
 
-void curr_save(void)
-{
+void curr_save(void) {
 #if 0
     /* grab some info from the bios data area (these should be defined in memmap.h */
     curr_attr = *((unsigned char *)FB + 159);
@@ -139,8 +131,7 @@ void curr_save(void)
     active_page = visual_page = 0;
 }
 
-void curr_restore(void)
-{
+void curr_restore(void) {
 #if 0
     *((unsigned char *)0x00450) = curr_x;
     *((unsigned char *)0x00451) = curr_y;
@@ -150,8 +141,7 @@ void curr_restore(void)
     cursor(curr_start, curr_end);
 }
 
-void window(int x1, int y1, int x2, int y2)
-{
+void window(int x1, int y1, int x2, int y2) {
     view_window.x1 = x1;
     view_window.y1 = y1;
     view_window.x2 = x2;
@@ -160,8 +150,7 @@ void window(int x1, int y1, int x2, int y2)
     //place(x1, y1);
 }
 
-void _clear(char c,char attr,int x1,int y1,int x2,int y2)
-{
+void _clear(char c,char attr,int x1,int y1,int x2,int y2) {
     register int i,j;
     unsigned short w = attr;
 
@@ -178,14 +167,12 @@ void _clear(char c,char attr,int x1,int y1,int x2,int y2)
     curr_x = x1;
 }
 
-void clear()
-{
+void clear() {
     _clear(' ', curr_attr, view_window.x1, view_window.y1, view_window.x2,
            view_window.y2);
 }
 
-void _scroll(char attr, int x1, int y1, int x2, int y2)
-{
+void _scroll(char attr, int x1, int y1, int x2, int y2) {
     register int x,y;
     unsigned short xattr = attr << 8,w;
     unsigned char *v = (unsigned char *)(uintptr_t)(FB + active_page*(2*VPAGE_SIZE));
@@ -202,14 +189,12 @@ void _scroll(char attr, int x1, int y1, int x2, int y2)
     }
 }
 
-void scroll(void)
-{
+void scroll(void) {
     _scroll(curr_attr, view_window.x1, view_window.y1, view_window.x2,
             view_window.y2);
 }
 
-void cputc(char c)
-{
+void cputc(char c) {
     static unsigned short scan_x, x, y;
     unsigned char *v = (unsigned char *)(uintptr_t)(FB + active_page*(2*VPAGE_SIZE));
     x = curr_x;
@@ -270,8 +255,7 @@ void cputc(char c)
     place(x, y);
 }
 
-void cputs(char *s)
-{
+void cputs(char *s) {
     char c;
     while (*s != '\0') {
         c = *s++;
@@ -279,8 +263,7 @@ void cputs(char *s)
     }
 }
 
-void puts_xy(int x,int y,char attr,char *s)
-{
+void puts_xy(int x,int y,char attr,char *s) {
     unsigned char *v = (unsigned char *)(uintptr_t)(FB + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
     while (*s != 0) {
         *v = *s;
@@ -291,16 +274,14 @@ void puts_xy(int x,int y,char attr,char *s)
     }
 }
 
-void putc_xy(int x, int y, char attr, char c)
-{
+void putc_xy(int x, int y, char attr, char c) {
     unsigned char *v = (unsigned char *)(uintptr_t)(FB + (80*y+x)*2 + active_page*(2*VPAGE_SIZE));
     *v = c;
     v++;
     *v = attr;
 }
 
-int printf_xy(int x, int y, char attr, char *fmt, ...)
-{
+int printf_xy(int x, int y, char attr, char *fmt, ...) {
     char cbuf[200];
     va_list parms;
     int result;

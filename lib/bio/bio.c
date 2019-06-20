@@ -43,8 +43,7 @@ static struct {
 };
 
 /* default implementation is to use the read_block hook to 'deblock' the device */
-static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size_t len)
-{
+static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size_t len) {
     uint8_t *buf = (uint8_t *)_buf;
     ssize_t bytes_read = 0;
     bnum_t block;
@@ -140,8 +139,7 @@ err:
     return (err >= 0) ? bytes_read : err;
 }
 
-static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offset, size_t len)
-{
+static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offset, size_t len) {
     const uint8_t *buf = (const uint8_t *)_buf;
     ssize_t bytes_written = 0;
     bnum_t block;
@@ -259,8 +257,7 @@ err:
     return (err >= 0) ? bytes_written : err;
 }
 
-static ssize_t bio_default_erase(struct bdev *dev, off_t offset, size_t len)
-{
+static ssize_t bio_default_erase(struct bdev *dev, off_t offset, size_t len) {
     /* default erase operation is to just write zeros over the device */
     STACKBUF_DMA_ALIGN(erase_buf, dev->block_size);
 
@@ -287,24 +284,20 @@ static ssize_t bio_default_erase(struct bdev *dev, off_t offset, size_t len)
     return erased;
 }
 
-static ssize_t bio_default_read_block(struct bdev *dev, void *buf, bnum_t block, uint count)
-{
+static ssize_t bio_default_read_block(struct bdev *dev, void *buf, bnum_t block, uint count) {
     return ERR_NOT_SUPPORTED;
 }
 
-static ssize_t bio_default_write_block(struct bdev *dev, const void *buf, bnum_t block, uint count)
-{
+static ssize_t bio_default_write_block(struct bdev *dev, const void *buf, bnum_t block, uint count) {
     return ERR_NOT_SUPPORTED;
 }
 
-static void bdev_inc_ref(bdev_t *dev)
-{
+static void bdev_inc_ref(bdev_t *dev) {
     LTRACEF("Add ref \"%s\" %d -> %d\n", dev->name, dev->ref, dev->ref + 1);
     atomic_add(&dev->ref, 1);
 }
 
-static void bdev_dec_ref(bdev_t *dev)
-{
+static void bdev_dec_ref(bdev_t *dev) {
     int oldval = atomic_add(&dev->ref, -1);
 
     LTRACEF("Dec ref \"%s\" %d -> %d\n", dev->name, oldval, dev->ref);
@@ -323,8 +316,7 @@ static void bdev_dec_ref(bdev_t *dev)
     }
 }
 
-size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len)
-{
+size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len) {
     /* range check */
     if (offset < 0)
         return 0;
@@ -338,8 +330,7 @@ size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len)
     return len;
 }
 
-uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count)
-{
+uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count) {
     if (block > dev->block_count)
         return 0;
     if (count == 0)
@@ -350,8 +341,7 @@ uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count)
     return count;
 }
 
-bdev_t *bio_open(const char *name)
-{
+bdev_t *bio_open(const char *name) {
     bdev_t *bdev = NULL;
 
     LTRACEF(" '%s'\n", name);
@@ -372,15 +362,13 @@ bdev_t *bio_open(const char *name)
     return bdev;
 }
 
-void bio_close(bdev_t *dev)
-{
+void bio_close(bdev_t *dev) {
     DEBUG_ASSERT(dev);
     LTRACEF(" '%s'\n", dev->name);
     bdev_dec_ref(dev);
 }
 
-ssize_t bio_read(bdev_t *dev, void *buf, off_t offset, size_t len)
-{
+ssize_t bio_read(bdev_t *dev, void *buf, off_t offset, size_t len) {
     LTRACEF("dev '%s', buf %p, offset %lld, len %zd\n", dev->name, buf, offset, len);
 
     DEBUG_ASSERT(dev && dev->ref > 0);
@@ -394,8 +382,7 @@ ssize_t bio_read(bdev_t *dev, void *buf, off_t offset, size_t len)
     return dev->read(dev, buf, offset, len);
 }
 
-ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count)
-{
+ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count) {
     LTRACEF("dev '%s', buf %p, block %d, count %u\n", dev->name, buf, block, count);
 
     DEBUG_ASSERT(dev && dev->ref > 0);
@@ -409,8 +396,7 @@ ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count)
     return dev->read_block(dev, buf, block, count);
 }
 
-ssize_t bio_write(bdev_t *dev, const void *buf, off_t offset, size_t len)
-{
+ssize_t bio_write(bdev_t *dev, const void *buf, off_t offset, size_t len) {
     LTRACEF("dev '%s', buf %p, offset %lld, len %zd\n", dev->name, buf, offset, len);
 
     DEBUG_ASSERT(dev && dev->ref > 0);
@@ -424,8 +410,7 @@ ssize_t bio_write(bdev_t *dev, const void *buf, off_t offset, size_t len)
     return dev->write(dev, buf, offset, len);
 }
 
-ssize_t bio_write_block(bdev_t *dev, const void *buf, bnum_t block, uint count)
-{
+ssize_t bio_write_block(bdev_t *dev, const void *buf, bnum_t block, uint count) {
     LTRACEF("dev '%s', buf %p, block %d, count %u\n", dev->name, buf, block, count);
 
     DEBUG_ASSERT(dev && dev->ref > 0);
@@ -439,8 +424,7 @@ ssize_t bio_write_block(bdev_t *dev, const void *buf, bnum_t block, uint count)
     return dev->write_block(dev, buf, block, count);
 }
 
-ssize_t bio_erase(bdev_t *dev, off_t offset, size_t len)
-{
+ssize_t bio_erase(bdev_t *dev, off_t offset, size_t len) {
     LTRACEF("dev '%s', offset %lld, len %zd\n", dev->name, offset, len);
 
     DEBUG_ASSERT(dev && dev->ref > 0);
@@ -453,8 +437,7 @@ ssize_t bio_erase(bdev_t *dev, off_t offset, size_t len)
     return dev->erase(dev, offset, len);
 }
 
-int bio_ioctl(bdev_t *dev, int request, void *argp)
-{
+int bio_ioctl(bdev_t *dev, int request, void *argp) {
     LTRACEF("dev '%s', request %08x, argp %p\n", dev->name, request, argp);
 
     if (dev->ioctl == NULL) {
@@ -470,8 +453,7 @@ void bio_initialize_bdev(bdev_t *dev,
                          bnum_t block_count,
                          size_t geometry_count,
                          const bio_erase_geometry_info_t *geometry,
-                         const uint32_t flags)
-{
+                         const uint32_t flags) {
     DEBUG_ASSERT(dev);
     DEBUG_ASSERT(name);
 
@@ -540,8 +522,7 @@ void bio_initialize_bdev(bdev_t *dev,
     dev->close = NULL;
 }
 
-void bio_register_device(bdev_t *dev)
-{
+void bio_register_device(bdev_t *dev) {
     DEBUG_ASSERT(dev);
 
     LTRACEF(" '%s'\n", dev->name);
@@ -553,8 +534,7 @@ void bio_register_device(bdev_t *dev)
     mutex_release(&bdevs.lock);
 }
 
-void bio_unregister_device(bdev_t *dev)
-{
+void bio_unregister_device(bdev_t *dev) {
     DEBUG_ASSERT(dev);
 
     LTRACEF(" '%s'\n", dev->name);
@@ -567,8 +547,7 @@ void bio_unregister_device(bdev_t *dev)
     bdev_dec_ref(dev); // remove the ref the list used to have
 }
 
-void bio_dump_devices(void)
-{
+void bio_dump_devices(void) {
     printf("block devices:\n");
     bdev_t *entry;
     mutex_acquire(&bdevs.lock);

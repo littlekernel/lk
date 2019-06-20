@@ -54,8 +54,7 @@ struct int_handler_struct {
 
 static struct int_handler_struct int_handler_table[MAX_INT];
 
-void register_int_handler(unsigned int vector, int_handler handler, void *arg)
-{
+void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     LTRACEF("vector %u, handler %p, arg %p\n", vector, handler, arg);
 
     if (vector >= MAX_INT)
@@ -70,8 +69,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
     spin_unlock_irqrestore(&lock, state);
 }
 
-status_t mask_interrupt(unsigned int vector)
-{
+status_t mask_interrupt(unsigned int vector) {
     LTRACEF("vector %u\n", vector);
 
     INTC_REG(R_CIE) = 1 << vector;
@@ -79,8 +77,7 @@ status_t mask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-status_t unmask_interrupt(unsigned int vector)
-{
+status_t unmask_interrupt(unsigned int vector) {
     LTRACEF("vector %u\n", vector);
 
     INTC_REG(R_SIE) = 1 << vector;
@@ -88,8 +85,7 @@ status_t unmask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-enum handler_return platform_irq_handler(void)
-{
+enum handler_return platform_irq_handler(void) {
     enum handler_return ret = INT_NO_RESCHEDULE;
 
     uint irq = INTC_REG(R_IVR);
@@ -103,8 +99,7 @@ enum handler_return platform_irq_handler(void)
     return ret;
 }
 
-static void intc_init(uint level)
-{
+static void intc_init(uint level) {
     LTRACE;
 
     INTC_REG(R_CIE) = 0xffffffff;

@@ -84,14 +84,12 @@ static bool block_free[NORFS_NUM_BLOCKS];
 static status_t collect_garbage(void);
 static status_t load_and_verify_obj(uint32_t *ptr, struct norfs_header *header);
 
-FRIEND_TEST uint8_t block_num(uint32_t flash_pointer)
-{
+FRIEND_TEST uint8_t block_num(uint32_t flash_pointer) {
     return flash_pointer/FLASH_PAGE_SIZE;
 }
 
 /* Update pointer to a free block.  If no free blocks, return error. */
-FRIEND_TEST status_t find_free_block(uint32_t *ptr)
-{
+FRIEND_TEST status_t find_free_block(uint32_t *ptr) {
     uint8_t i = block_num(*ptr) + 1;
     uint8_t imod;
     for (uint8_t j = 0;  j < NORFS_NUM_BLOCKS; i++, j++) {
@@ -106,48 +104,40 @@ FRIEND_TEST status_t find_free_block(uint32_t *ptr)
     return ERR_NO_MEMORY;
 }
 
-static uint32_t curr_block_free_space(uint32_t pointer)
-{
+static uint32_t curr_block_free_space(uint32_t pointer) {
     return (block_num(pointer) + 1) * FLASH_PAGE_SIZE - pointer;
 }
 
-static bool block_full(uint8_t block, uint32_t ptr)
-{
+static bool block_full(uint8_t block, uint32_t ptr) {
     if (block != block_num(ptr)) {
         return true;
     }
     return curr_block_free_space(ptr) < NORFS_OBJ_OFFSET;
 }
 
-static uint8_t select_garbage_block(uint32_t ptr)
-{
+static uint8_t select_garbage_block(uint32_t ptr) {
     return (block_num(ptr) + 1) % 8;
 }
 
-static ssize_t nvram_read(size_t offset, size_t length, void *ptr)
-{
+static ssize_t nvram_read(size_t offset, size_t length, void *ptr) {
     return flash_nor_read(NORFS_BANK, offset + norfs_nvram_offset, length, ptr);
 }
 
-static ssize_t nvram_write(size_t offset, size_t length, const void *ptr)
-{
+static ssize_t nvram_write(size_t offset, size_t length, const void *ptr) {
     return flash_nor_write(NORFS_BANK, offset + norfs_nvram_offset, length,
                            ptr);
 }
 
-static ssize_t nvram_erase_pages(size_t offset, size_t length)
-{
+static ssize_t nvram_erase_pages(size_t offset, size_t length) {
     return flash_nor_erase_pages(NORFS_BANK, offset + norfs_nvram_offset,
                                  length);
 }
 
-unsigned char *nvram_flash_pointer(uint32_t loc)
-{
+unsigned char *nvram_flash_pointer(uint32_t loc) {
     return FLASH_PTR(flash_nor_get_bank(NORFS_BANK), loc + norfs_nvram_offset);
 }
 
-FRIEND_TEST bool get_inode(uint32_t key, struct norfs_inode **inode)
-{
+FRIEND_TEST bool get_inode(uint32_t key, struct norfs_inode **inode) {
     struct list_node *curr_lnode;
     struct norfs_inode *curr_inode;
     uint32_t curr_key;
@@ -169,8 +159,7 @@ FRIEND_TEST bool get_inode(uint32_t key, struct norfs_inode **inode)
 }
 
 static uint16_t calculate_header_crc(uint32_t key, uint16_t version,
-                                     uint16_t len, uint8_t flags)
-{
+                                     uint16_t len, uint8_t flags) {
     uint16_t crc = crc16((unsigned char *) &key, sizeof(key));
     crc = update_crc16(crc, (unsigned char *) &version, sizeof(version));
     crc = update_crc16(crc, (unsigned char *) &len, sizeof(len));
@@ -179,8 +168,7 @@ static uint16_t calculate_header_crc(uint32_t key, uint16_t version,
 }
 
 /* Read header into parameter buffers. Return bytes written. */
-static ssize_t read_header(uint32_t ptr, struct norfs_header *header)
-{
+static ssize_t read_header(uint32_t ptr, struct norfs_header *header) {
     ssize_t total_bytes_read = 0;
     ssize_t bytes_read = 0;
     bytes_read = nvram_read(ptr + NORFS_KEY_OFFSET,
@@ -221,8 +209,7 @@ static ssize_t read_header(uint32_t ptr, struct norfs_header *header)
 }
 
 status_t norfs_read_obj_iovec(uint32_t key, iovec_t *obj_iov,
-                              uint32_t iov_count, size_t *bytes_read, uint8_t flags)
-{
+                              uint32_t iov_count, size_t *bytes_read, uint8_t flags) {
     if (!fs_mounted)
         return ERR_NOT_MOUNTED;
 
@@ -274,8 +261,7 @@ status_t norfs_read_obj_iovec(uint32_t key, iovec_t *obj_iov,
 }
 
 static status_t write_obj_header(uint32_t *ptr, uint32_t key, uint16_t version,
-                                 uint16_t len, uint8_t flags, uint16_t crc)
-{
+                                 uint16_t len, uint8_t flags, uint16_t crc) {
     unsigned char buff[WORD_SIZE];
     int bytes_written;
 
@@ -305,8 +291,7 @@ static status_t write_obj_header(uint32_t *ptr, uint32_t key, uint16_t version,
 }
 
 static status_t copy_iovec_to_disk(const struct iovec *iov, uint16_t iov_count,
-                                   uint32_t *location, uint16_t *crc)
-{
+                                   uint32_t *location, uint16_t *crc) {
     unsigned char word[4] = {0};
     uint16_t iov_ptr = 0;
     uint16_t word_ptr = 0;
@@ -355,8 +340,7 @@ static status_t copy_iovec_to_disk(const struct iovec *iov, uint16_t iov_count,
     return NO_ERROR;
 }
 
-static status_t initialize_next_block(uint32_t *ptr)
-{
+static status_t initialize_next_block(uint32_t *ptr) {
     uint32_t header_pointer;
     ssize_t bytes_written;
     status_t status;
@@ -403,8 +387,7 @@ static status_t initialize_next_block(uint32_t *ptr)
 }
 
 status_t write_obj_iovec(const iovec_t *iov, uint iov_count, uint *location,
-                         uint32_t key, uint16_t version, uint8_t flags)
-{
+                         uint32_t key, uint16_t version, uint8_t flags) {
     uint16_t crc = 0;
     uint16_t len = iovec_size(iov, iov_count);
     status_t status;
@@ -433,8 +416,7 @@ status_t write_obj_iovec(const iovec_t *iov, uint iov_count, uint *location,
 
 status_t norfs_read_obj(uint32_t key, unsigned char *buffer,
                         uint16_t buffer_len, size_t *bytes_read,
-                        uint8_t flags)
-{
+                        uint8_t flags) {
     if (!fs_mounted)
         return ERR_NOT_MOUNTED;
 
@@ -447,8 +429,7 @@ status_t norfs_read_obj(uint32_t key, unsigned char *buffer,
 }
 
 status_t norfs_put_obj(uint32_t key, unsigned char *obj, uint16_t len,
-                       uint8_t flags)
-{
+                       uint8_t flags) {
     if (!fs_mounted)
         return ERR_NOT_MOUNTED;
 
@@ -461,15 +442,13 @@ status_t norfs_put_obj(uint32_t key, unsigned char *obj, uint16_t len,
     return status;
 }
 
-bool is_deleted(uint32_t loc)
-{
+bool is_deleted(uint32_t loc) {
     uint8_t flags;
     nvram_read(loc + NORFS_FLAGS_OFFSET, sizeof(flags), &flags);
     return NORFS_DELETED_MASK & flags;
 }
 
-status_t norfs_remove_obj(uint32_t key)
-{
+status_t norfs_remove_obj(uint32_t key) {
     if (!fs_mounted)
         return ERR_NOT_MOUNTED;
 
@@ -502,8 +481,7 @@ status_t norfs_remove_obj(uint32_t key)
     return status;
 }
 
-static status_t find_space_for_object(uint16_t obj_len, uint32_t *ptr)
-{
+static status_t find_space_for_object(uint16_t obj_len, uint32_t *ptr) {
     status_t status;
     uint8_t initial_block_num = block_num(*ptr);
     while (curr_block_free_space(*ptr) < (uint16_t) NORFS_FLASH_SIZE(obj_len)) {
@@ -526,8 +504,7 @@ static status_t find_space_for_object(uint16_t obj_len, uint32_t *ptr)
  * blocks.  Which is a lot of write attempts.
  */
 status_t norfs_put_obj_iovec(uint32_t key, const iovec_t *iov,
-                             uint32_t iov_count, uint8_t flags)
-{
+                             uint32_t iov_count, uint8_t flags) {
     if (!fs_mounted)
         return ERR_NOT_MOUNTED;
 
@@ -618,8 +595,7 @@ status_t norfs_put_obj_iovec(uint32_t key, const iovec_t *iov,
     return status;
 }
 
-static void remove_inode(struct norfs_inode *inode)
-{
+static void remove_inode(struct norfs_inode *inode) {
     if (!inode)
         return;
     list_delete(&inode->lnode);
@@ -629,8 +605,7 @@ static void remove_inode(struct norfs_inode *inode)
 
 /*  Verifies objects, and copies to new block if it is the latest version. */
 static status_t collect_garbage_object(uint32_t *garbage_read_pointer,
-                                       uint32_t *garbage_write_pointer)
-{
+                                       uint32_t *garbage_write_pointer) {
     struct norfs_inode *inode;
     struct norfs_header header;
     bool inode_found;
@@ -676,8 +651,7 @@ static status_t collect_garbage_object(uint32_t *garbage_read_pointer,
     return ERR_NOT_FOUND;
 }
 
-static status_t erase_block(uint8_t block)
-{
+static status_t erase_block(uint8_t block) {
     ssize_t bytes_erased;
     ssize_t bytes_written;
     status_t status;
@@ -717,8 +691,7 @@ static status_t erase_block(uint8_t block)
 }
 
 FRIEND_TEST status_t collect_block(uint32_t garbage_block,
-                                   uint32_t *garbage_write_ptr)
-{
+                                   uint32_t *garbage_write_ptr) {
     status_t status;
     uint32_t garbage_read_ptr = garbage_block * FLASH_PAGE_SIZE +
                                 NORFS_BLOCK_HEADER_SIZE;
@@ -732,8 +705,7 @@ FRIEND_TEST status_t collect_block(uint32_t garbage_block,
     return erase_block(garbage_block);
 }
 
-static status_t collect_garbage(void)
-{
+static status_t collect_garbage(void) {
     status_t status;
     uint8_t garbage_read_block = select_garbage_block(write_pointer);
     status = collect_block(garbage_read_block, &write_pointer);
@@ -745,8 +717,7 @@ static status_t collect_garbage(void)
  * Load object into buffer and verify object's integrity via crc.  ptr parameter
  * is updated upon successful verification.
  */
-static status_t load_and_verify_obj(uint32_t *ptr, struct norfs_header *header)
-{
+static status_t load_and_verify_obj(uint32_t *ptr, struct norfs_header *header) {
     uint16_t calculated_crc;
     ssize_t bytes;
     ssize_t total_bytes_read = 0;
@@ -784,11 +755,10 @@ static status_t load_and_verify_obj(uint32_t *ptr, struct norfs_header *header)
     return NO_ERROR;
 }
 
-status_t read_block_verification(uint32_t *ptr)
-{
+status_t read_block_verification(uint32_t *ptr) {
     unsigned char block_header[sizeof(NORFS_BLOCK_HEADER) +
-                               sizeof(NORFS_BLOCK_GC_STARTED_HEADER) +
-                               sizeof(NORFS_BLOCK_GC_FINISHED_HEADER)];
+                                                          sizeof(NORFS_BLOCK_GC_STARTED_HEADER) +
+                                                          sizeof(NORFS_BLOCK_GC_FINISHED_HEADER)];
     int bytes_read = nvram_read(*ptr, sizeof(block_header),
                                 block_header);
 
@@ -829,8 +799,7 @@ status_t read_block_verification(uint32_t *ptr)
     return NO_ERROR;
 }
 
-static status_t mount_next_obj(void)
-{
+static status_t mount_next_obj(void) {
     uint16_t curr_obj_loc;
     uint16_t inode_version, inode_len;
     curr_obj_loc = write_pointer;
@@ -874,8 +843,7 @@ static status_t mount_next_obj(void)
  * references show up in later blocks.  However, these references need to be
  * pruned prior to usage.
  */
-static void purge_unreferenced_inodes(void)
-{
+static void purge_unreferenced_inodes(void) {
     struct list_node *curr_lnode, *temp_node;
     struct norfs_inode *curr_inode;
     list_for_every_safe(&inode_list, curr_lnode, temp_node) {
@@ -886,8 +854,7 @@ static void purge_unreferenced_inodes(void)
     }
 }
 
-status_t norfs_mount_fs(uint32_t offset)
-{
+status_t norfs_mount_fs(uint32_t offset) {
     if (fs_mounted) {
         TRACEF("Filesystem already mounted.\n");
         return ERR_ALREADY_MOUNTED;
@@ -942,8 +909,7 @@ status_t norfs_mount_fs(uint32_t offset)
     return NO_ERROR;
 }
 
-void norfs_unmount_fs(void)
-{
+void norfs_unmount_fs(void) {
     TRACEF("Unmounting NOR file system\n");
     struct list_node *curr_lnode;
     struct norfs_inode *curr_inode;
@@ -970,8 +936,7 @@ void norfs_unmount_fs(void)
     fs_mounted = false;
 }
 
-void norfs_wipe_fs(void)
-{
+void norfs_wipe_fs(void) {
     norfs_unmount_fs();
     flash_nor_begin(0);
     nvram_erase_pages(0, 8 * FLASH_PAGE_SIZE);

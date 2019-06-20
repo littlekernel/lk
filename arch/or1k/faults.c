@@ -25,8 +25,7 @@
 #include <kernel/thread.h>
 #include <platform.h>
 
-static void dump_fault_frame(struct or1k_iframe *frame)
-{
+static void dump_fault_frame(struct or1k_iframe *frame) {
     addr_t stack = (addr_t)((char *)frame + 128 + sizeof(frame));
 
     dprintf(CRITICAL, "r0:  0x%08x r1:  0x%08x: r2:  0x%08x r3:  0x%08x\n",
@@ -53,8 +52,7 @@ static void dump_fault_frame(struct or1k_iframe *frame)
 
 }
 
-static void exception_die(struct or1k_iframe *frame, const char *msg)
-{
+static void exception_die(struct or1k_iframe *frame, const char *msg) {
     dprintf(CRITICAL, msg);
     dump_fault_frame(frame);
 
@@ -62,43 +60,36 @@ static void exception_die(struct or1k_iframe *frame, const char *msg)
     for (;;);
 }
 
-void or1k_busfault_handler(struct or1k_iframe *frame, uint32_t addr)
-{
+void or1k_busfault_handler(struct or1k_iframe *frame, uint32_t addr) {
     dprintf(CRITICAL, "unhandled busfault (EEAR: 0x%08x)", addr);
     exception_die(frame, ", halting\n");
 }
 
-void or1k_data_pagefault_handler(struct or1k_iframe *frame, uint32_t addr)
-{
+void or1k_data_pagefault_handler(struct or1k_iframe *frame, uint32_t addr) {
     dprintf(CRITICAL, "unhandled data pagefault (EEAR: 0x%08x)", addr);
     exception_die(frame, ", halting\n");
 }
 
-void or1k_instruction_pagefault_handler(struct or1k_iframe *frame, uint32_t addr)
-{
+void or1k_instruction_pagefault_handler(struct or1k_iframe *frame, uint32_t addr) {
     dprintf(CRITICAL, "unhandled instruction pagefault (EEAR: 0x%08x)", addr);
     exception_die(frame, ", halting\n");
 }
 
-void or1k_alignment_handler(struct or1k_iframe *frame, uint32_t addr)
-{
+void or1k_alignment_handler(struct or1k_iframe *frame, uint32_t addr) {
     dprintf(CRITICAL, "unhandled unaligned access (EEAR: 0x%08x)", addr);
     exception_die(frame, ", halting\n");
 }
 
-void or1k_illegal_instruction_handler(struct or1k_iframe *frame, uint32_t addr)
-{
+void or1k_illegal_instruction_handler(struct or1k_iframe *frame, uint32_t addr) {
     dprintf(CRITICAL, "unhandled illegal instruction (EEAR: 0x%08x)", addr);
     exception_die(frame, ", halting\n");
 }
 
-void or1k_syscall_handler(struct or1k_iframe *frame)
-{
+void or1k_syscall_handler(struct or1k_iframe *frame) {
     exception_die(frame, "unhandled syscall, halting\n");
 }
 
-void or1k_unhandled_exception(struct or1k_iframe *frame, uint32_t vector)
-{
+void or1k_unhandled_exception(struct or1k_iframe *frame, uint32_t vector) {
     dprintf(CRITICAL, "unhandled exception (vector: 0x%08x)", vector);
     exception_die(frame, ", halting\n");
 }

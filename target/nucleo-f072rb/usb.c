@@ -130,8 +130,7 @@ static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t);
 
 static cdcserial_channel_t cdc_channel;
 
-static void queue_rx(void)
-{
+static void queue_rx(void) {
     static usbc_transfer_t transfer;
     static uint8_t buf[512];
 
@@ -145,8 +144,7 @@ static void queue_rx(void)
     usbc_queue_rx(3, &transfer);
 }
 
-static void queue_tx(void)
-{
+static void queue_tx(void) {
     static usbc_transfer_t transfer;
     static uint8_t buf[512];
 
@@ -164,8 +162,7 @@ static void queue_tx(void)
     usbc_queue_tx(3, &transfer);
 }
 
-static status_t ep_cb_rx(ep_t endpoint, usbc_transfer_t *t)
-{
+static status_t ep_cb_rx(ep_t endpoint, usbc_transfer_t *t) {
 #if LOCAL_TRACE
     LTRACEF("ep %u transfer %p\n", endpoint, t);
     usbc_dump_transfer(t);
@@ -181,8 +178,7 @@ static status_t ep_cb_rx(ep_t endpoint, usbc_transfer_t *t)
     return NO_ERROR;
 }
 
-static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t)
-{
+static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t) {
 #if LOCAL_TRACE
     LTRACEF("ep %u transfer %p\n", endpoint, t);
     usbc_dump_transfer(t);
@@ -194,8 +190,7 @@ static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t)
     return NO_ERROR;
 }
 
-static status_t usb_cb(void *cookie, usb_callback_op_t op, const union usb_callback_args *args)
-{
+static status_t usb_cb(void *cookie, usb_callback_op_t op, const union usb_callback_args *args) {
     LTRACEF("cookie %p, op %u, args %p\n", cookie, op, args);
 
     if (op == USB_CB_ONLINE) {
@@ -208,8 +203,7 @@ static status_t usb_cb(void *cookie, usb_callback_op_t op, const union usb_callb
     return NO_ERROR;
 }
 
-void target_usb_setup(void)
-{
+void target_usb_setup(void) {
     usb_setup(&config);
     printf("appending interfaces\n");
     cdcserial_create_channel(&cdc_channel, 0x1, 0x2);

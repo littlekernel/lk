@@ -50,8 +50,7 @@ static lk_bigtime_t tick_interval_us;
 static platform_timer_callback cb;
 static void *cb_args;
 
-static void arm_cm_systick_set_periodic(lk_time_t period)
-{
+static void arm_cm_systick_set_periodic(lk_time_t period) {
     LTRACEF("clk_freq %u, period %u\n", tick_rate, (uint)period);
 
     uint32_t ticks = tick_rate / (1000 / period);
@@ -62,14 +61,12 @@ static void arm_cm_systick_set_periodic(lk_time_t period)
     SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
 }
 
-static void arm_cm_systick_cancel_periodic(void)
-{
+static void arm_cm_systick_cancel_periodic(void) {
     SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
 }
 
 /* main systick irq handler */
-void _systick(void)
-{
+void _systick(void) {
     ticks++;
 
     arm_cm_irq_entry();
@@ -84,8 +81,7 @@ void _systick(void)
     arm_cm_irq_exit(resched);
 }
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
     DEBUG_ASSERT(tick_rate != 0 && tick_rate_mhz != 0);
@@ -100,8 +96,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     uint32_t reload = SysTick->LOAD  & SysTick_LOAD_RELOAD_Msk;
 
     uint64_t t;
@@ -119,8 +114,7 @@ lk_time_t current_time(void)
     return res;
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     uint32_t reload = SysTick->LOAD  & SysTick_LOAD_RELOAD_Msk;
 
     uint64_t t;
@@ -138,8 +132,7 @@ lk_bigtime_t current_time_hires(void)
     return res;
 }
 
-void arm_cm_systick_init(uint32_t mhz)
-{
+void arm_cm_systick_init(uint32_t mhz) {
     tick_rate = mhz;
     tick_rate_mhz = mhz / 1000000;
 }

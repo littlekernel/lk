@@ -50,8 +50,7 @@
 
 #endif
 
-void *page_alloc(size_t pages, int arena)
-{
+void *page_alloc(size_t pages, int arena) {
 #if WITH_KERNEL_VM
     void *result = pmm_alloc_kpages(pages, NULL);
     return result;
@@ -61,8 +60,7 @@ void *page_alloc(size_t pages, int arena)
 #endif
 }
 
-void page_free(void *ptr, size_t pages)
-{
+void page_free(void *ptr, size_t pages) {
 #if WITH_KERNEL_VM
     DEBUG_ASSERT(IS_PAGE_ALIGNED((uintptr_t)ptr));
 
@@ -72,8 +70,7 @@ void page_free(void *ptr, size_t pages)
 #endif
 }
 
-int page_get_arenas(struct page_range *ranges, int number_of_ranges)
-{
+int page_get_arenas(struct page_range *ranges, int number_of_ranges) {
 #if WITH_KERNEL_VM
     ranges[0].address = kvaddr_get_range(&ranges[0].size);
     return 1;
@@ -82,8 +79,7 @@ int page_get_arenas(struct page_range *ranges, int number_of_ranges)
 #endif  // WITH_KERNEL_VM
 }
 
-void *page_first_alloc(size_t *size_return)
-{
+void *page_first_alloc(size_t *size_return) {
 #if WITH_KERNEL_VM
     *size_return = PAGE_SIZE;
     return page_alloc(1, PAGE_ALLOC_ANY_ARENA);
@@ -104,8 +100,7 @@ STATIC_COMMAND_START
 STATIC_COMMAND("page_alloc", "page allocator debug commands", &cmd_page_alloc)
 STATIC_COMMAND_END(page_alloc);
 
-static int cmd_page_alloc(int argc, const cmd_args *argv)
-{
+static int cmd_page_alloc(int argc, const cmd_args *argv) {
     if (argc != 2) {
 notenoughargs:
         printf("not enough arguments\n");
@@ -125,8 +120,7 @@ usage:
     return 0;
 }
 
-static void page_alloc_dump(void)
-{
+static void page_alloc_dump(void) {
 #ifdef WITH_KERNEL_VM
     dprintf(INFO, "Page allocator is based on pmm\n");
 #else

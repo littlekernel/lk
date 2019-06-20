@@ -36,8 +36,7 @@ struct fault_handler_table_entry {
 extern struct fault_handler_table_entry __fault_handler_table_start[];
 extern struct fault_handler_table_entry __fault_handler_table_end[];
 
-static void dump_iframe(const struct arm64_iframe_long *iframe)
-{
+static void dump_iframe(const struct arm64_iframe_long *iframe) {
     printf("iframe %p:\n", iframe);
     printf("x0  0x%16llx x1  0x%16llx x2  0x%16llx x3  0x%16llx\n", iframe->r[0], iframe->r[1], iframe->r[2], iframe->r[3]);
     printf("x4  0x%16llx x5  0x%16llx x6  0x%16llx x7  0x%16llx\n", iframe->r[4], iframe->r[5], iframe->r[6], iframe->r[7]);
@@ -51,13 +50,11 @@ static void dump_iframe(const struct arm64_iframe_long *iframe)
     printf("spsr 0x%16llx\n", iframe->spsr);
 }
 
-__WEAK void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit)
-{
+__WEAK void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit) {
     panic("unhandled syscall vector\n");
 }
 
-void arm64_sync_exception(struct arm64_iframe_long *iframe)
-{
+void arm64_sync_exception(struct arm64_iframe_long *iframe) {
     struct fault_handler_table_entry *fault_handler;
     uint32_t esr = ARM64_READ_SYSREG(esr_el1);
     uint32_t ec = BITS_SHIFT(esr, 31, 26);
@@ -119,8 +116,7 @@ void arm64_sync_exception(struct arm64_iframe_long *iframe)
     panic("die\n");
 }
 
-void arm64_invalid_exception(struct arm64_iframe_long *iframe, unsigned int which)
-{
+void arm64_invalid_exception(struct arm64_iframe_long *iframe, unsigned int which) {
     printf("invalid exception, which 0x%x\n", which);
     dump_iframe(iframe);
 

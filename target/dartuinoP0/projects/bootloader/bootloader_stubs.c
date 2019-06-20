@@ -34,8 +34,7 @@ static char bootloader_mount_point[] = "/spifs";
 #define BOOTLOADER_SIZE_KB (64)
 #define SYSTEM_FLASH_SIZE_KB (1024)
 
-status_t moot_mount_default_fs(char **mount_path, char **device_name)
-{
+status_t moot_mount_default_fs(char **mount_path, char **device_name) {
     *mount_path = bootloader_mount_point;
     *device_name = bootloader_secondary_flash_name;
     return NO_ERROR;

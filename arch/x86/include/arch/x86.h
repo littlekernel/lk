@@ -156,8 +156,7 @@ typedef tss_64_t tss_t;
 #define X86_CR4_PSE 0xffffffef /* Disabling PSE bit in the CR4 */
 
 #if ARCH_X86_32
-static inline void set_in_cr0(uint32_t mask)
-{
+static inline void set_in_cr0(uint32_t mask) {
     __asm__ __volatile__ (
         "movl %%cr0,%%eax	\n\t"
         "orl %0,%%eax		\n\t"
@@ -166,8 +165,7 @@ static inline void set_in_cr0(uint32_t mask)
         :"ax");
 }
 
-static inline void clear_in_cr0(uint32_t mask)
-{
+static inline void clear_in_cr0(uint32_t mask) {
     __asm__ __volatile__ (
         "movl %%cr0, %%eax	\n\t"
         "andl %0, %%eax		\n\t"
@@ -180,13 +178,11 @@ static inline void x86_clts(void) {__asm__ __volatile__ ("clts"); }
 static inline void x86_hlt(void) {__asm__ __volatile__ ("hlt"); }
 static inline void x86_sti(void) {__asm__ __volatile__ ("sti"); }
 static inline void x86_cli(void) {__asm__ __volatile__ ("cli"); }
-static inline void x86_ltr(uint16_t sel)
-{
+static inline void x86_ltr(uint16_t sel) {
     __asm__ __volatile__ ("ltr %%ax" :: "a" (sel));
 }
 
-static inline uint32_t x86_get_cr2(void)
-{
+static inline uint32_t x86_get_cr2(void) {
     uint32_t rv;
 
     __asm__ __volatile__ (
@@ -199,8 +195,7 @@ static inline uint32_t x86_get_cr2(void)
 
 typedef uint32_t x86_flags_t;
 
-static inline uint32_t x86_save_flags(void)
-{
+static inline uint32_t x86_save_flags(void) {
     unsigned int state;
 
     __asm__ volatile(
@@ -212,8 +207,7 @@ static inline uint32_t x86_save_flags(void)
     return state;
 }
 
-static inline void x86_restore_flags(uint32_t flags)
-{
+static inline void x86_restore_flags(uint32_t flags) {
     __asm__ volatile(
         "pushl %0;"
         "popfl"
@@ -230,8 +224,7 @@ static inline void x86_restore_flags(uint32_t flags)
 #define rdtscll(val) \
      __asm__ __volatile__("rdtsc" : "=A" (val))
 
-static inline uint8_t inp(uint16_t _port)
-{
+static inline uint8_t inp(uint16_t _port) {
     uint8_t rv;
     __asm__ __volatile__ ("inb %1, %0"
                           : "=a" (rv)
@@ -239,8 +232,7 @@ static inline uint8_t inp(uint16_t _port)
     return (rv);
 }
 
-static inline uint16_t inpw (uint16_t _port)
-{
+static inline uint16_t inpw (uint16_t _port) {
     uint16_t rv;
     __asm__ __volatile__ ("inw %1, %0"
                           : "=a" (rv)
@@ -248,8 +240,7 @@ static inline uint16_t inpw (uint16_t _port)
     return (rv);
 }
 
-static inline uint32_t inpd(uint16_t _port)
-{
+static inline uint32_t inpd(uint16_t _port) {
     uint32_t rv;
     __asm__ __volatile__ ("inl %1, %0"
                           : "=a" (rv)
@@ -257,32 +248,28 @@ static inline uint32_t inpd(uint16_t _port)
     return (rv);
 }
 
-static inline void outp(uint16_t _port, uint8_t _data)
-{
+static inline void outp(uint16_t _port, uint8_t _data) {
     __asm__ __volatile__ ("outb %1, %0"
                           :
                           : "d" (_port),
                           "a" (_data));
 }
 
-static inline void outpw(uint16_t _port, uint16_t _data)
-{
+static inline void outpw(uint16_t _port, uint16_t _data) {
     __asm__ __volatile__ ("outw %1, %0"
                           :
                           : "d" (_port),
                           "a" (_data));
 }
 
-static inline void outpd(uint16_t _port, uint32_t _data)
-{
+static inline void outpd(uint16_t _port, uint32_t _data) {
     __asm__ __volatile__ ("outl %1, %0"
                           :
                           : "d" (_port),
                           "a" (_data));
 }
 
-static inline void inprep(uint16_t _port, uint8_t *_buffer, uint32_t _reads)
-{
+static inline void inprep(uint16_t _port, uint8_t *_buffer, uint32_t _reads) {
     __asm__ __volatile__ ("pushal \n\t"
                           "pushfl \n\t"
                           "cli \n\t"
@@ -296,8 +283,7 @@ static inline void inprep(uint16_t _port, uint8_t *_buffer, uint32_t _reads)
                           "c" (_reads));
 }
 
-static inline void outprep(uint16_t _port, uint8_t *_buffer, uint32_t _writes)
-{
+static inline void outprep(uint16_t _port, uint8_t *_buffer, uint32_t _writes) {
     __asm__ __volatile__ ("pushal \n\t"
                           "pushfl \n\t"
                           "cli \n\t"
@@ -311,8 +297,7 @@ static inline void outprep(uint16_t _port, uint8_t *_buffer, uint32_t _writes)
                           "c" (_writes));
 }
 
-static inline void inpwrep(uint16_t _port, uint16_t *_buffer, uint32_t _reads)
-{
+static inline void inpwrep(uint16_t _port, uint16_t *_buffer, uint32_t _reads) {
     __asm__ __volatile__ ("pushal \n\t"
                           "pushfl \n\t"
                           "cli \n\t"
@@ -327,8 +312,7 @@ static inline void inpwrep(uint16_t _port, uint16_t *_buffer, uint32_t _reads)
 }
 
 static inline void outpwrep(uint16_t _port, uint16_t *_buffer,
-                            uint32_t _writes)
-{
+                            uint32_t _writes) {
     __asm__ __volatile__ ("pushal \n\t"
                           "pushfl \n\t"
                           "cli \n\t"
@@ -343,8 +327,7 @@ static inline void outpwrep(uint16_t _port, uint16_t *_buffer,
 }
 
 static inline void inpdrep(uint16_t _port, uint32_t *_buffer,
-                           uint32_t _reads)
-{
+                           uint32_t _reads) {
     __asm__ __volatile__ ("pushal \n\t"
                           "pushfl \n\t"
                           "cli \n\t"
@@ -359,8 +342,7 @@ static inline void inpdrep(uint16_t _port, uint32_t *_buffer,
 }
 
 static inline void outpdrep(uint16_t _port, uint32_t *_buffer,
-                            uint32_t _writes)
-{
+                            uint32_t _writes) {
     __asm__ __volatile__ ("pushal \n\t"
                           "pushfl \n\t"
                           "cli \n\t"
@@ -374,8 +356,7 @@ static inline void outpdrep(uint16_t _port, uint32_t *_buffer,
                           "c" (_writes));
 }
 
-static inline uint64_t read_msr (uint32_t msr_id)
-{
+static inline uint64_t read_msr (uint32_t msr_id) {
     uint64_t msr_read_val = 0;
     uint32_t low_val = 0;
     uint32_t high_val = 0;
@@ -391,8 +372,7 @@ static inline uint64_t read_msr (uint32_t msr_id)
     return msr_read_val;
 }
 
-static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val)
-{
+static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val) {
     uint32_t low_val = (uint32_t)msr_write_val;
     uint32_t high_val = (uint32_t)(msr_write_val >> 32);
 
@@ -401,8 +381,7 @@ static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val)
         : : "c" (msr_id), "a" (low_val), "d"(high_val));
 }
 
-static inline uint32_t x86_get_cr3(void)
-{
+static inline uint32_t x86_get_cr3(void) {
     uint32_t rv;
 
     __asm__ __volatile__ (
@@ -411,16 +390,14 @@ static inline uint32_t x86_get_cr3(void)
     return rv;
 }
 
-static inline void x86_set_cr3(uint32_t in_val)
-{
+static inline void x86_set_cr3(uint32_t in_val) {
     __asm__ __volatile__ (
         "mov %0,%%cr3 \n\t"
         :
         :"r" (in_val));
 }
 
-static inline uint32_t x86_get_cr0(void)
-{
+static inline uint32_t x86_get_cr0(void) {
     uint32_t rv;
 
     __asm__ __volatile__ (
@@ -429,8 +406,7 @@ static inline uint32_t x86_get_cr0(void)
     return rv;
 }
 
-static inline uint32_t x86_get_cr4(void)
-{
+static inline uint32_t x86_get_cr4(void) {
     uint32_t rv;
 
     __asm__ __volatile__ (
@@ -440,24 +416,21 @@ static inline uint32_t x86_get_cr4(void)
 }
 
 
-static inline void x86_set_cr0(uint32_t in_val)
-{
+static inline void x86_set_cr0(uint32_t in_val) {
     __asm__ __volatile__ (
         "mov %0,%%cr0 \n\t"
         :
         :"r" (in_val));
 }
 
-static inline void x86_set_cr4(uint32_t in_val)
-{
+static inline void x86_set_cr4(uint32_t in_val) {
     __asm__ __volatile__ (
         "mov %0,%%cr4 \n\t"
         :
         :"r" (in_val));
 }
 
-static inline uint32_t x86_get_address_width(void)
-{
+static inline uint32_t x86_get_address_width(void) {
     uint32_t rv;
 
     __asm__ __volatile__ (
@@ -469,16 +442,14 @@ static inline uint32_t x86_get_address_width(void)
     return ((rv >> 8) & 0x0ff);
 }
 
-static inline bool x86_is_paging_enabled(void)
-{
+static inline bool x86_is_paging_enabled(void) {
     if (x86_get_cr0() & X86_CR0_PG)
         return true;
 
     return false;
 }
 
-static inline uint32_t x86_is_PAE_enabled(void)
-{
+static inline uint32_t x86_is_PAE_enabled(void) {
     if (x86_is_paging_enabled() == false)
         return false;
 
@@ -488,8 +459,7 @@ static inline uint32_t x86_is_PAE_enabled(void)
     return true;
 }
 
-static inline uint32_t check_smep_avail(void)
-{
+static inline uint32_t check_smep_avail(void) {
     uint32_t reg_a = 0x07;
     uint32_t reg_b = 0x0;
     uint32_t reg_c = 0x0;
@@ -500,8 +470,7 @@ static inline uint32_t check_smep_avail(void)
     return ((reg_b>>0x06) & 0x1);
 }
 
-static inline uint32_t check_smap_avail(void)
-{
+static inline uint32_t check_smap_avail(void) {
     uint32_t reg_a = 0x07;
     uint32_t reg_b = 0x0;
     uint32_t reg_c = 0x0;
@@ -515,8 +484,7 @@ static inline uint32_t check_smap_avail(void)
 
 #if ARCH_X86_64
 
-static inline void set_in_cr0(uint32_t mask)
-{
+static inline void set_in_cr0(uint32_t mask) {
     __asm__ __volatile__ (
         "movl %%cr0,%%eax	\n\t"
         "orl %0,%%eax		\n\t"
@@ -525,8 +493,7 @@ static inline void set_in_cr0(uint32_t mask)
         :"ax");
 }
 
-static inline void clear_in_cr0(uint32_t mask)
-{
+static inline void clear_in_cr0(uint32_t mask) {
     __asm__ __volatile__ (
         "movq %%cr0, %%rax	\n\t"
         "andq %0, %%rax		\n\t"
@@ -539,13 +506,11 @@ static inline void x86_clts(void) {__asm__ __volatile__ ("clts"); }
 static inline void x86_hlt(void) {__asm__ __volatile__ ("hlt"); }
 static inline void x86_sti(void) {__asm__ __volatile__ ("sti"); }
 static inline void x86_cli(void) {__asm__ __volatile__ ("cli"); }
-static inline void x86_ltr(uint16_t sel)
-{
+static inline void x86_ltr(uint16_t sel) {
     __asm__ __volatile__ ("ltr %%ax" :: "a" (sel));
 }
 
-static inline uint64_t x86_get_cr2(void)
-{
+static inline uint64_t x86_get_cr2(void) {
     uint64_t rv;
 
     __asm__ __volatile__ (
@@ -558,8 +523,7 @@ static inline uint64_t x86_get_cr2(void)
 
 typedef uint64_t x86_flags_t;
 
-static inline uint64_t x86_save_flags(void)
-{
+static inline uint64_t x86_save_flags(void) {
     uint64_t state;
 
     __asm__ volatile(
@@ -571,8 +535,7 @@ static inline uint64_t x86_save_flags(void)
     return state;
 }
 
-static inline void x86_restore_flags(uint64_t flags)
-{
+static inline void x86_restore_flags(uint64_t flags) {
     __asm__ volatile(
         "pushq %0;"
         "popfq"
@@ -589,8 +552,7 @@ static inline void x86_restore_flags(uint64_t flags)
 #define rdtscll(val) \
      __asm__ __volatile__("rdtsc" : "=A" (val))
 
-static inline uint8_t inp(uint16_t _port)
-{
+static inline uint8_t inp(uint16_t _port) {
     uint8_t rv;
     __asm__ __volatile__ ("inb %1, %0"
                           : "=a" (rv)
@@ -598,8 +560,7 @@ static inline uint8_t inp(uint16_t _port)
     return (rv);
 }
 
-static inline uint16_t inpw (uint16_t _port)
-{
+static inline uint16_t inpw (uint16_t _port) {
     uint16_t rv;
     __asm__ __volatile__ ("inw %1, %0"
                           : "=a" (rv)
@@ -607,8 +568,7 @@ static inline uint16_t inpw (uint16_t _port)
     return (rv);
 }
 
-static inline uint32_t inpd(uint16_t _port)
-{
+static inline uint32_t inpd(uint16_t _port) {
     uint32_t rv;
     __asm__ __volatile__ ("inl %1, %0"
                           : "=a" (rv)
@@ -616,32 +576,28 @@ static inline uint32_t inpd(uint16_t _port)
     return (rv);
 }
 
-static inline void outp(uint16_t _port, uint8_t _data)
-{
+static inline void outp(uint16_t _port, uint8_t _data) {
     __asm__ __volatile__ ("outb %1, %0"
                           :
                           : "d" (_port),
                           "a" (_data));
 }
 
-static inline void outpw(uint16_t _port, uint16_t _data)
-{
+static inline void outpw(uint16_t _port, uint16_t _data) {
     __asm__ __volatile__ ("outw %1, %0"
                           :
                           : "d" (_port),
                           "a" (_data));
 }
 
-static inline void outpd(uint16_t _port, uint32_t _data)
-{
+static inline void outpd(uint16_t _port, uint32_t _data) {
     __asm__ __volatile__ ("outl %1, %0"
                           :
                           : "d" (_port),
                           "a" (_data));
 }
 
-static inline void inprep(uint16_t _port, uint8_t *_buffer, uint32_t _reads)
-{
+static inline void inprep(uint16_t _port, uint8_t *_buffer, uint32_t _reads) {
     __asm__ __volatile__ ("pushfq \n\t"
                           "cli \n\t"
                           "cld \n\t"
@@ -653,8 +609,7 @@ static inline void inprep(uint16_t _port, uint8_t *_buffer, uint32_t _reads)
                           "c" (_reads));
 }
 
-static inline void outprep(uint16_t _port, uint8_t *_buffer, uint32_t _writes)
-{
+static inline void outprep(uint16_t _port, uint8_t *_buffer, uint32_t _writes) {
     __asm__ __volatile__ ("pushfq \n\t"
                           "cli \n\t"
                           "cld \n\t"
@@ -666,8 +621,7 @@ static inline void outprep(uint16_t _port, uint8_t *_buffer, uint32_t _writes)
                           "c" (_writes));
 }
 
-static inline void inpwrep(uint16_t _port, uint16_t *_buffer, uint32_t _reads)
-{
+static inline void inpwrep(uint16_t _port, uint16_t *_buffer, uint32_t _reads) {
     __asm__ __volatile__ ("pushfq \n\t"
                           "cli \n\t"
                           "cld \n\t"
@@ -680,8 +634,7 @@ static inline void inpwrep(uint16_t _port, uint16_t *_buffer, uint32_t _reads)
 }
 
 static inline void outpwrep(uint16_t _port, uint16_t *_buffer,
-                            uint32_t _writes)
-{
+                            uint32_t _writes) {
     __asm__ __volatile__ ("pushfq \n\t"
                           "cli \n\t"
                           "cld \n\t"
@@ -694,8 +647,7 @@ static inline void outpwrep(uint16_t _port, uint16_t *_buffer,
 }
 
 static inline void inpdrep(uint16_t _port, uint32_t *_buffer,
-                           uint32_t _reads)
-{
+                           uint32_t _reads) {
     __asm__ __volatile__ ("pushfq \n\t"
                           "cli \n\t"
                           "cld \n\t"
@@ -708,8 +660,7 @@ static inline void inpdrep(uint16_t _port, uint32_t *_buffer,
 }
 
 static inline void outpdrep(uint16_t _port, uint32_t *_buffer,
-                            uint32_t _writes)
-{
+                            uint32_t _writes) {
     __asm__ __volatile__ ("pushfq \n\t"
                           "cli \n\t"
                           "cld \n\t"
@@ -721,8 +672,7 @@ static inline void outpdrep(uint16_t _port, uint32_t *_buffer,
                           "c" (_writes));
 }
 
-static inline uint64_t read_msr (uint32_t msr_id)
-{
+static inline uint64_t read_msr (uint32_t msr_id) {
     uint64_t msr_read_val = 0;
     uint32_t low_val = 0;
     uint32_t high_val = 0;
@@ -738,8 +688,7 @@ static inline uint64_t read_msr (uint32_t msr_id)
     return msr_read_val;
 }
 
-static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val)
-{
+static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val) {
     uint32_t low_val = (uint32_t)msr_write_val;
     uint32_t high_val = (uint32_t)(msr_write_val >> 32);
 
@@ -748,8 +697,7 @@ static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val)
         : : "c" (msr_id), "a" (low_val), "d"(high_val));
 }
 
-static inline uint64_t x86_get_cr3(void)
-{
+static inline uint64_t x86_get_cr3(void) {
     uint64_t rv;
 
     __asm__ __volatile__ (
@@ -758,16 +706,14 @@ static inline uint64_t x86_get_cr3(void)
     return rv;
 }
 
-static inline void x86_set_cr3(uint64_t in_val)
-{
+static inline void x86_set_cr3(uint64_t in_val) {
     __asm__ __volatile__ (
         "movq %0,%%cr3 \n\t"
         :
         :"r" (in_val));
 }
 
-static inline uint64_t x86_get_cr4(void)
-{
+static inline uint64_t x86_get_cr4(void) {
     uint64_t rv;
 
     __asm__ __volatile__ (
@@ -776,16 +722,14 @@ static inline uint64_t x86_get_cr4(void)
     return rv;
 }
 
-static inline void x86_set_cr4(uint64_t in_val)
-{
+static inline void x86_set_cr4(uint64_t in_val) {
     __asm__ __volatile__ (
         "movq %0,%%cr4 \n\t"
         :
         :"r" (in_val));
 }
 
-static inline uint64_t x86_get_cr0(void)
-{
+static inline uint64_t x86_get_cr0(void) {
     uint64_t rv;
 
     __asm__ __volatile__ (
@@ -794,16 +738,14 @@ static inline uint64_t x86_get_cr0(void)
     return rv;
 }
 
-static inline void x86_set_cr0(uint64_t in_val)
-{
+static inline void x86_set_cr0(uint64_t in_val) {
     __asm__ __volatile__ (
         "movq %0,%%cr0 \n\t"
         :
         :"r" (in_val));
 }
 
-static inline uint32_t x86_get_address_width(void)
-{
+static inline uint32_t x86_get_address_width(void) {
     uint32_t rv;
 
     __asm__ __volatile__ (
@@ -819,8 +761,7 @@ static inline uint32_t x86_get_address_width(void)
     return (rv & 0x0000ffff);
 }
 
-static inline uint64_t check_smep_avail(void)
-{
+static inline uint64_t check_smep_avail(void) {
     uint64_t reg_a = 0x07;
     uint64_t reg_b = 0x0;
     uint64_t reg_c = 0x0;
@@ -831,8 +772,7 @@ static inline uint64_t check_smep_avail(void)
     return ((reg_b>>0x06) & 0x1);
 }
 
-static inline uint64_t check_smap_avail(void)
-{
+static inline uint64_t check_smap_avail(void) {
     uint64_t reg_a = 0x07;
     uint64_t reg_b = 0x0;
     uint64_t reg_c = 0x0;

@@ -89,8 +89,7 @@ RTC_WAKE_IRQn                 = 46,     /*!< RTC wake-up interrupt              
 #endif
 
 /* un-overridden irq handler */
-void lpc_dummy_irq(void)
-{
+void lpc_dummy_irq(void) {
     arm_cm_irq_entry();
 
     panic("unhandled irq\n");

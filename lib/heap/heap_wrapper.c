@@ -54,8 +54,7 @@ static inline void *HEAP_MALLOC(size_t s) { return miniheap_alloc(s, 0); }
 static inline void *HEAP_REALLOC(void *ptr, size_t s) { return miniheap_realloc(ptr, s); }
 static inline void *HEAP_MEMALIGN(size_t boundary, size_t s) { return miniheap_alloc(s, boundary); }
 #define HEAP_FREE miniheap_free
-static inline void *HEAP_CALLOC(size_t n, size_t s)
-{
+static inline void *HEAP_CALLOC(size_t n, size_t s) {
     size_t realsize = n * s;
 
     void *ptr = miniheap_alloc(realsize, 0);
@@ -63,8 +62,7 @@ static inline void *HEAP_CALLOC(size_t n, size_t s)
         memset(ptr, 0, realsize);
     return ptr;
 }
-static inline void HEAP_INIT(void)
-{
+static inline void HEAP_INIT(void) {
     /* start the heap off with some spare memory in the page allocator */
     size_t len;
     void *ptr = page_first_alloc(&len);
@@ -85,8 +83,7 @@ static inline void HEAP_INIT(void)
 #define HEAP_INIT cmpct_init
 #define HEAP_DUMP cmpct_dump
 #define HEAP_TRIM cmpct_trim
-static inline void *HEAP_CALLOC(size_t n, size_t s)
-{
+static inline void *HEAP_CALLOC(size_t n, size_t s) {
     size_t realsize = n * s;
 
     void *ptr = cmpct_alloc(realsize);
@@ -107,8 +104,7 @@ static inline void *HEAP_CALLOC(size_t n, size_t s)
 #define HEAP_FREE(p) dlfree(p)
 static inline void HEAP_INIT(void) {}
 
-static inline void HEAP_DUMP(void)
-{
+static inline void HEAP_DUMP(void) {
     struct mallinfo minfo = dlmallinfo();
 
     printf("\tmallinfo (dlmalloc):\n");
@@ -135,8 +131,7 @@ static inline void HEAP_TRIM(void) { dlmalloc_trim(0); }
 #error need to select valid heap implementation or provide wrapper
 #endif
 
-static void heap_free_delayed_list(void)
-{
+static void heap_free_delayed_list(void) {
     struct list_node list;
 
     list_initialize(&list);
@@ -156,13 +151,11 @@ static void heap_free_delayed_list(void)
     }
 }
 
-void heap_init(void)
-{
+void heap_init(void) {
     HEAP_INIT();
 }
 
-void heap_trim(void)
-{
+void heap_trim(void) {
     // deal with the pending free list
     if (unlikely(!list_is_empty(&delayed_free_list))) {
         heap_free_delayed_list();
@@ -171,8 +164,7 @@ void heap_trim(void)
     HEAP_TRIM();
 }
 
-void *malloc(size_t size)
-{
+void *malloc(size_t size) {
     LTRACEF("size %zd\n", size);
 
     // deal with the pending free list
@@ -186,8 +178,7 @@ void *malloc(size_t size)
     return ptr;
 }
 
-void *memalign(size_t boundary, size_t size)
-{
+void *memalign(size_t boundary, size_t size) {
     LTRACEF("boundary %zu, size %zd\n", boundary, size);
 
     // deal with the pending free list
@@ -201,8 +192,7 @@ void *memalign(size_t boundary, size_t size)
     return ptr;
 }
 
-void *calloc(size_t count, size_t size)
-{
+void *calloc(size_t count, size_t size) {
     LTRACEF("count %zu, size %zd\n", count, size);
 
     // deal with the pending free list
@@ -216,8 +206,7 @@ void *calloc(size_t count, size_t size)
     return ptr;
 }
 
-void *realloc(void *ptr, size_t size)
-{
+void *realloc(void *ptr, size_t size) {
     LTRACEF("ptr %p, size %zd\n", ptr, size);
 
     // deal with the pending free list
@@ -231,8 +220,7 @@ void *realloc(void *ptr, size_t size)
     return ptr2;
 }
 
-void free(void *ptr)
-{
+void free(void *ptr) {
     LTRACEF("ptr %p\n", ptr);
     if (heap_trace)
         printf("caller %p free %p\n", __GET_CALLER(), ptr);
@@ -241,8 +229,7 @@ void free(void *ptr)
 }
 
 /* critical section time delayed free */
-void heap_delayed_free(void *ptr)
-{
+void heap_delayed_free(void *ptr) {
     LTRACEF("ptr %p\n", ptr);
 
     /* throw down a structure on the free block */
@@ -255,8 +242,7 @@ void heap_delayed_free(void *ptr)
     spin_unlock_irqrestore(&delayed_free_lock, state);
 }
 
-static void heap_dump(void)
-{
+static void heap_dump(void) {
     HEAP_DUMP();
 
     printf("\tdelayed free list:\n");
@@ -269,8 +255,7 @@ static void heap_dump(void)
     spin_unlock_irqrestore(&delayed_free_lock, state);
 }
 
-static void heap_test(void)
-{
+static void heap_test(void) {
 #if WITH_LIB_HEAP_CMPCTMALLOC
     cmpct_test();
 #else
@@ -337,8 +322,7 @@ STATIC_COMMAND_START
 STATIC_COMMAND("heap", "heap debug commands", &cmd_heap)
 STATIC_COMMAND_END(heap);
 
-static int cmd_heap(int argc, const cmd_args *argv)
-{
+static int cmd_heap(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

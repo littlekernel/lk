@@ -35,10 +35,10 @@
 #include <platform/mailbox.h>
 
 
-static volatile uint32_t* mailbox_regs = (uint32_t*)ARM0_MAILBOX_BASE;
+static volatile uint32_t *mailbox_regs = (uint32_t *)ARM0_MAILBOX_BASE;
 static fb_mbox_t fb_desc __ALIGNED(16);
 
-static inline void* vc_bus_to_kvaddr(uint32_t bus_addr) {
+static inline void *vc_bus_to_kvaddr(uint32_t bus_addr) {
     return (paddr_to_kvaddr(bus_addr & 0x3fffffff));
 }
 
@@ -67,7 +67,7 @@ static status_t mailbox_write(const enum mailbox_channel ch, uint32_t value) {
     return NO_ERROR;
 }
 
-static status_t mailbox_read(enum mailbox_channel ch, uint32_t* result) {
+static status_t mailbox_read(enum mailbox_channel ch, uint32_t *result) {
     uint32_t local_result = 0;
     uint32_t attempts = 0;
 
@@ -92,21 +92,21 @@ static status_t mailbox_read(enum mailbox_channel ch, uint32_t* result) {
 }
 
 
-static status_t mailbox_get_framebuffer(fb_mbox_t* fb_desc) {
+static status_t mailbox_get_framebuffer(fb_mbox_t *fb_desc) {
     status_t ret = NO_ERROR;
 
-        arch_clean_cache_range((addr_t)fb_desc,sizeof(fb_mbox_t));
+    arch_clean_cache_range((addr_t)fb_desc,sizeof(fb_mbox_t));
 
-        ret = mailbox_write(ch_framebuffer, kvaddr_to_vc_bus((addr_t)fb_desc));
-        if (ret != NO_ERROR)
-            return ret;
+    ret = mailbox_write(ch_framebuffer, kvaddr_to_vc_bus((addr_t)fb_desc));
+    if (ret != NO_ERROR)
+        return ret;
 
-        uint32_t ack = 0x0;
-        ret = mailbox_read(ch_framebuffer, &ack);
-        if (ret != NO_ERROR)
-            return ret;
+    uint32_t ack = 0x0;
+    ret = mailbox_read(ch_framebuffer, &ack);
+    if (ret != NO_ERROR)
+        return ret;
 
-        arch_invalidate_cache_range((addr_t)fb_desc,sizeof(fb_mbox_t));
+    arch_invalidate_cache_range((addr_t)fb_desc,sizeof(fb_mbox_t));
 
     return ret;
 }
@@ -136,8 +136,7 @@ void dispflush(void) {
 }
 
 /* LK display (lib/gfx.h) calls this function */
-status_t display_get_framebuffer(struct display_framebuffer *fb)
-{
+status_t display_get_framebuffer(struct display_framebuffer *fb) {
     // VideoCore returns 32-bit bus address, which needs to be converted to kernel virtual
     fb->image.pixels = paddr_to_kvaddr(fb_desc.fb_p & 0x3fffffff);
 
@@ -153,8 +152,7 @@ status_t display_get_framebuffer(struct display_framebuffer *fb)
     return NO_ERROR;
 }
 
-status_t display_get_info(struct display_info *info)
-{
+status_t display_get_info(struct display_info *info) {
     info->format = DISPLAY_FORMAT_ARGB_8888;
     info->width = fb_desc.phys_width;
     info->height = fb_desc.phys_height;
@@ -162,9 +160,8 @@ status_t display_get_info(struct display_info *info)
     return NO_ERROR;
 }
 
-status_t display_present(struct display_image *image, uint starty, uint endy)
-{
-  return NO_ERROR;
+status_t display_present(struct display_image *image, uint starty, uint endy) {
+    return NO_ERROR;
 }
 
 

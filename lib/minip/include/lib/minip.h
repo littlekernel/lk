@@ -79,8 +79,7 @@ status_t tcp_close(tcp_socket_t *socket);
 ssize_t tcp_read(tcp_socket_t *socket, void *buf, size_t len);
 ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len);
 
-static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket)
-{
+static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket) {
     return tcp_accept_timeout(listen_socket, accept_socket, INFINITE_TIME);
 }
 

@@ -41,8 +41,7 @@ static struct list_node net_timer_list = LIST_INITIAL_VALUE(net_timer_list);
 static event_t net_timer_event = EVENT_INITIAL_VALUE(net_timer_event, false, 0);
 static mutex_t net_timer_lock = MUTEX_INITIAL_VALUE(net_timer_lock);
 
-static void add_to_queue(net_timer_t *t)
-{
+static void add_to_queue(net_timer_t *t) {
     net_timer_t *e;
     list_for_every_entry(&net_timer_list, e, net_timer_t, node) {
         if (TIME_GT(e->sched_time, t->sched_time)) {
@@ -54,8 +53,7 @@ static void add_to_queue(net_timer_t *t)
     list_add_tail(&net_timer_list, &t->node);
 }
 
-bool net_timer_set(net_timer_t *t, net_timer_callback_t cb, void *callback_args, lk_time_t delay)
-{
+bool net_timer_set(net_timer_t *t, net_timer_callback_t cb, void *callback_args, lk_time_t delay) {
     bool newly_queued = true;
 
     lk_time_t now = current_time();
@@ -80,8 +78,7 @@ bool net_timer_set(net_timer_t *t, net_timer_callback_t cb, void *callback_args,
     return newly_queued;
 }
 
-bool net_timer_cancel(net_timer_t *t)
-{
+bool net_timer_cancel(net_timer_t *t) {
     bool was_queued = false;
 
     mutex_acquire(&net_timer_lock);
@@ -97,8 +94,7 @@ bool net_timer_cancel(net_timer_t *t)
 }
 
 /* returns the delay to the next event */
-static lk_time_t net_timer_work_routine(void)
-{
+static lk_time_t net_timer_work_routine(void) {
     lk_time_t now = current_time();
     lk_time_t delay = INFINITE_TIME;
 
@@ -136,8 +132,7 @@ done:
     return delay;
 }
 
-int net_timer_work_thread(void *args)
-{
+int net_timer_work_thread(void *args) {
     for (;;) {
         event_wait(&net_timer_event);
 
@@ -150,8 +145,7 @@ int net_timer_work_thread(void *args)
     return 0;
 }
 
-void net_timer_init(void)
-{
+void net_timer_init(void) {
     thread_detach_and_resume(thread_create("net timer", &net_timer_work_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 }
 

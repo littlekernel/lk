@@ -30,8 +30,7 @@
 static char *___strtok = NULL;
 
 char *
-strtok(char *s, char const *ct)
-{
+strtok(char *s, char const *ct) {
     char *sbegin, *send;
 
     sbegin  = s ? s : ___strtok;

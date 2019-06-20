@@ -35,8 +35,7 @@ static int uart_io_port = 0x3f8;
 
 static cbuf_t uart_rx_buf;
 
-static enum handler_return uart_irq_handler(void *arg)
-{
+static enum handler_return uart_irq_handler(void *arg) {
     unsigned char c;
     bool resched = false;
 
@@ -49,8 +48,7 @@ static enum handler_return uart_irq_handler(void *arg)
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-void platform_init_uart(void)
-{
+void platform_init_uart(void) {
     /* configure the uart */
     int divisor = 115200 / uart_baud_rate;
 
@@ -62,8 +60,7 @@ void platform_init_uart(void)
     isa_write_8(uart_io_port + 2, 0x07); // enable FIFO, clear, 14-byte threshold
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
     /* finish uart init to get rx going */
     cbuf_initialize(&uart_rx_buf, 16);
 
@@ -73,20 +70,17 @@ void uart_init(void)
     isa_write_8(uart_io_port + 1, 0x1); // enable receive data available interrupt
 }
 
-void uart_putc(char c)
-{
+void uart_putc(char c) {
     while ((isa_read_8(uart_io_port + 5) & (1<<6)) == 0)
         ;
     isa_write_8(uart_io_port + 0, c);
 }
 
-int uart_getc(char *c, bool wait)
-{
+int uart_getc(char *c, bool wait) {
     return cbuf_read_char(&uart_rx_buf, c, wait);
 }
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     if (c == '\n')
         platform_dputc('\r');
 #if WITH_CGA_CONSOLE
@@ -96,8 +90,7 @@ void platform_dputc(char c)
 #endif
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
 #if WITH_CGA_CONSOLE
     int ret =  platform_read_key(c);
     //if (ret < 0)

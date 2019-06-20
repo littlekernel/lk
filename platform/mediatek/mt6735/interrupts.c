@@ -61,15 +61,13 @@
 
 #define INT_POL_CTL0  (MCUCFG_BASE + 0x620)
 
-static void mt_gic_cpu_init(void)
-{
+static void mt_gic_cpu_init(void) {
     DRV_WriteReg32(GIC_CPU_BASE + GIC_CPU_PRIMASK, 0xF0);
     DRV_WriteReg32(GIC_CPU_BASE + GIC_CPU_CTRL, 0x1);
     dsb();
 }
 
-static void mt_gic_dist_init(void)
-{
+static void mt_gic_dist_init(void) {
     unsigned int i;
 #ifndef MTK_FORCE_CLUSTER1
     unsigned int cpumask = 1 << 0;
@@ -103,41 +101,39 @@ static void mt_gic_dist_init(void)
         DRV_WriteReg32(GIC_DIST_BASE + GIC_DIST_PRI + i * 4 / 4, 0xA0A0A0A0);
     }
 
-	  /*
-	  * Disable all interrupts.
-	  */
-	  for (i = 0; i < NR_IRQ_LINE; i += 32) {
+    /*
+    * Disable all interrupts.
+    */
+    for (i = 0; i < NR_IRQ_LINE; i += 32) {
         DRV_WriteReg32(GIC_DIST_BASE + GIC_DIST_ENABLE_CLEAR + i * 4 / 32, 0xFFFFFFFF);
     }
 
-dsb();
+    dsb();
 
     DRV_WriteReg32(GIC_DIST_BASE + GIC_DIST_CTRL, 1);
 }
 
-void platform_init_interrupts(void)
-{
-	mt_gic_dist_init();
-	mt_gic_cpu_init();
+void platform_init_interrupts(void) {
+    mt_gic_dist_init();
+    mt_gic_cpu_init();
 }
 
-void platform_deinit_interrupts(void)
-{
-        unsigned int irq;
+void platform_deinit_interrupts(void) {
+    unsigned int irq;
 
-        DRV_WriteReg32(GIC_ICDICER0, 0xFFFFFFFF);
-        DRV_WriteReg32(GIC_ICDICER1, 0xFFFFFFFF);
-        DRV_WriteReg32(GIC_ICDICER2, 0xFFFFFFFF);
-        DRV_WriteReg32(GIC_ICDICER3, 0xFFFFFFFF);
-        DRV_WriteReg32(GIC_ICDICER4, 0xFFFFFFFF);
-        DRV_WriteReg32(GIC_ICDICER5, 0xFFFFFFFF);
-        DRV_WriteReg32(GIC_ICDICER6, 0xFFFFFFFF);
-        DRV_WriteReg32(GIC_ICDICER7, 0xFFFFFFFF);
-        dsb();
+    DRV_WriteReg32(GIC_ICDICER0, 0xFFFFFFFF);
+    DRV_WriteReg32(GIC_ICDICER1, 0xFFFFFFFF);
+    DRV_WriteReg32(GIC_ICDICER2, 0xFFFFFFFF);
+    DRV_WriteReg32(GIC_ICDICER3, 0xFFFFFFFF);
+    DRV_WriteReg32(GIC_ICDICER4, 0xFFFFFFFF);
+    DRV_WriteReg32(GIC_ICDICER5, 0xFFFFFFFF);
+    DRV_WriteReg32(GIC_ICDICER6, 0xFFFFFFFF);
+    DRV_WriteReg32(GIC_ICDICER7, 0xFFFFFFFF);
+    dsb();
 
-        while((irq = DRV_Reg32(GIC_CPU_BASE + GIC_CPU_INTACK)) != 1023 ) {
-            DRV_WriteReg32(GIC_CPU_BASE + GIC_CPU_EOI, irq);
-        }
+    while ((irq = DRV_Reg32(GIC_CPU_BASE + GIC_CPU_INTACK)) != 1023 ) {
+        DRV_WriteReg32(GIC_CPU_BASE + GIC_CPU_EOI, irq);
+    }
 }
 
 extern void lk_scheduler(void);
@@ -148,36 +144,33 @@ extern void lk_nand_irq_handler(unsigned int irq);
 extern void dummy_ap_irq_handler(unsigned int irq);
 #endif
 
-enum handler_return platform_irq(struct arm_iframe *frame)
-{
-	unsigned int irq = DRV_Reg32(GIC_CPU_BASE + GIC_CPU_INTACK);
+enum handler_return platform_irq(struct arm_iframe *frame) {
+    unsigned int irq = DRV_Reg32(GIC_CPU_BASE + GIC_CPU_INTACK);
 
-	if(irq == MT_GPT_IRQ_ID)
-		lk_scheduler();
-//	else if(irq == MT_USB0_IRQ_ID)
-//		lk_usb_scheduler();
+    if (irq == MT_GPT_IRQ_ID)
+        lk_scheduler();
+//  else if(irq == MT_USB0_IRQ_ID)
+//      lk_usb_scheduler();
 #ifndef MTK_EMMC_SUPPORT
-//	else if(irq == MT_NFI_IRQ_ID)
-//		lk_nand_irq_handler(irq);
+//  else if(irq == MT_NFI_IRQ_ID)
+//      lk_nand_irq_handler(irq);
 #endif
-//	else if(irq == MT_MSDC0_IRQ_ID || irq == MT_MSDC1_IRQ_ID)
-//		lk_msdc_irq_handler(irq);
+//  else if(irq == MT_MSDC0_IRQ_ID || irq == MT_MSDC1_IRQ_ID)
+//      lk_msdc_irq_handler(irq);
 
 #ifdef DUMMY_AP
-	dummy_ap_irq_handler(irq);
+    dummy_ap_irq_handler(irq);
 #endif
 
-	//return INT_NO_RESCHEDULE;
-	return INT_RESCHEDULE;
+    //return INT_NO_RESCHEDULE;
+    return INT_RESCHEDULE;
 }
 
-void platform_fiq(struct arm_iframe *frame)
-{
+void platform_fiq(struct arm_iframe *frame) {
 
 }
 
-void mt_irq_set_polarity(unsigned int irq, unsigned int polarity)
-{
+void mt_irq_set_polarity(unsigned int irq, unsigned int polarity) {
     unsigned int offset;
     unsigned int reg_index;
     unsigned int value;
@@ -193,22 +186,21 @@ void mt_irq_set_polarity(unsigned int irq, unsigned int polarity)
         value = DRV_Reg32(INT_POL_CTL0 + (reg_index * 4));
         value |= (1 << offset); // always invert the incoming IRQ's polarity
         DRV_WriteReg32((INT_POL_CTL0 + (reg_index * 4)), value);
-    }else {
+    } else {
         value = DRV_Reg32(INT_POL_CTL0 + (reg_index * 4));
         value &= ~(0x1 << offset);
         DRV_WriteReg32(INT_POL_CTL0 + (reg_index * 4), value);
     }
 }
 
-void mt_irq_set_sens(unsigned int irq, unsigned int sens)
-{
+void mt_irq_set_sens(unsigned int irq, unsigned int sens) {
     unsigned int config;
 
     if (sens == MT65xx_EDGE_SENSITIVE) {
         config = DRV_Reg32(GIC_DIST_BASE + GIC_DIST_CONFIG + (irq / 16) * 4);
         config |= (0x2 << (irq % 16) * 2);
         DRV_WriteReg32(GIC_DIST_BASE + GIC_DIST_CONFIG + (irq / 16) * 4, config);
-    }else {
+    } else {
         config = DRV_Reg32(GIC_DIST_BASE + GIC_DIST_CONFIG + (irq / 16) * 4);
         config &= ~(0x2 << (irq % 16) * 2);
         DRV_WriteReg32( GIC_DIST_BASE + GIC_DIST_CONFIG + (irq / 16) * 4, config);
@@ -220,8 +212,7 @@ void mt_irq_set_sens(unsigned int irq, unsigned int sens)
  * mt_irq_mask: mask one IRQ
  * @irq: IRQ line of the IRQ to mask
  */
-void mt_irq_mask(unsigned int irq)
-{
+void mt_irq_mask(unsigned int irq) {
     unsigned int mask = 1 << (irq % 32);
 
     DRV_WriteReg32(GIC_DIST_BASE + GIC_DIST_ENABLE_CLEAR + irq / 32 * 4, mask);
@@ -232,8 +223,7 @@ void mt_irq_mask(unsigned int irq)
  * mt_irq_unmask: unmask one IRQ
  * @irq: IRQ line of the IRQ to unmask
  */
-void mt_irq_unmask(unsigned int irq)
-{
+void mt_irq_unmask(unsigned int irq) {
     unsigned int mask = 1 << (irq % 32);
 
     DRV_WriteReg32(GIC_DIST_BASE + GIC_DIST_ENABLE_SET + irq / 32 * 4, mask);
@@ -244,8 +234,7 @@ void mt_irq_unmask(unsigned int irq)
  * mt_irq_mask: mask one IRQ
  * @irq: IRQ line of the IRQ to mask
  */
-void mt_irq_ack(unsigned int irq)
-{
+void mt_irq_ack(unsigned int irq) {
     DRV_WriteReg32(GIC_CPU_BASE + GIC_CPU_EOI, irq);
     dsb();
 }
@@ -255,8 +244,7 @@ void mt_irq_ack(unsigned int irq)
  * @mask: pointer to struct mtk_irq_mask for storing the original mask value.
  * Return 0 for success; return negative values for failure.
  */
-int mt_irq_mask_all(struct mtk_irq_mask *mask)
-{
+int mt_irq_mask_all(struct mtk_irq_mask *mask) {
     if (mask) {
 
         mask->mask0 = DRV_Reg32(GIC_ICDISER0);
@@ -293,8 +281,7 @@ int mt_irq_mask_all(struct mtk_irq_mask *mask)
  * @mask: pointer to struct mtk_irq_mask for storing the original mask value.
  * Return 0 for success; return negative values for failure.
  */
-int mt_irq_mask_restore(struct mtk_irq_mask *mask)
-{
+int mt_irq_mask_restore(struct mtk_irq_mask *mask) {
     if (!mask) {
         return -1;
     }

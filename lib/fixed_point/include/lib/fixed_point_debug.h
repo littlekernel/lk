@@ -24,8 +24,7 @@
 #pragma once
 
 static const char *
-fpd_shift_prefix_32(int shift)
-{
+fpd_shift_prefix_32(int shift) {
     switch (shift) {
         case 32:
             return "";
@@ -41,8 +40,7 @@ fpd_shift_prefix_32(int shift)
 }
 
 static const char *
-fpd_shift_prefix_64(int shift)
-{
+fpd_shift_prefix_64(int shift) {
     switch (shift) {
         case 32:
             return "";
@@ -58,8 +56,7 @@ fpd_shift_prefix_64(int shift)
 }
 
 static const char *
-fpd_shift_suffix(int shift)
-{
+fpd_shift_suffix(int shift) {
     switch (shift) {
         case 32:
             return " 00000000                  ";
@@ -75,8 +72,7 @@ fpd_shift_suffix(int shift)
 }
 
 static void
-debug_mul_u32_u32(uint32_t a, uint32_t b, int a_shift, int b_shift, uint64_t ret)
-{
+debug_mul_u32_u32(uint32_t a, uint32_t b, int a_shift, int b_shift, uint64_t ret) {
 #if DEBUG_FIXED_POINT
     TRACEF("         %s%08x%s * %s%08x%s = %s%08x%s%08x%s\n",
            fpd_shift_prefix_32(a_shift), a, fpd_shift_suffix(a_shift),
@@ -90,8 +86,7 @@ debug_mul_u32_u32(uint32_t a, uint32_t b, int a_shift, int b_shift, uint64_t ret
 }
 
 static void
-debug_u64_mul_u32_fp32_64(uint32_t a, struct fp_32_64 b, uint64_t res_0, uint32_t res_l32_32, uint64_t ret)
-{
+debug_u64_mul_u32_fp32_64(uint32_t a, struct fp_32_64 b, uint64_t res_0, uint32_t res_l32_32, uint64_t ret) {
 #if DEBUG_FIXED_POINT
     TRACEF("          %08x                   *          %08x.%08x %08x"
            " =          %08x %08x.%08x\n",
@@ -105,8 +100,7 @@ debug_u64_mul_u32_fp32_64(uint32_t a, struct fp_32_64 b, uint64_t res_0, uint32_
 }
 
 static void
-debug_u32_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b, uint64_t res_l32, uint32_t ret)
-{
+debug_u32_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b, uint64_t res_l32, uint32_t ret) {
 #if DEBUG_FIXED_POINT
     TRACEF("%08x %08x                   *          %08x.%08x %08x"
            " =                   %08x.%08x\n",
@@ -120,8 +114,7 @@ debug_u32_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b, uint64_t res_l32, uint3
 }
 
 static void
-debug_u64_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b, uint64_t res_0, uint32_t res_l32_32, uint64_t ret)
-{
+debug_u64_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b, uint64_t res_0, uint32_t res_l32_32, uint64_t ret) {
 #if DEBUG_FIXED_POINT
     TRACEF("%08x %08x                   *          %08x.%08x %08x"
            " =          %08x %08x.%08x\n",

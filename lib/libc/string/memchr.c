@@ -28,8 +28,7 @@
 #include <sys/types.h>
 
 void *
-memchr(void const *buf, int c, size_t len)
-{
+memchr(void const *buf, int c, size_t len) {
     size_t i;
     unsigned char const *b= buf;
     unsigned char        x= (c&0xff);

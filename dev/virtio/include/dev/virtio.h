@@ -71,8 +71,7 @@ uint16_t virtio_alloc_desc(struct virtio_device *dev, uint ring_index);
 /* allocate a descriptor chain the free list */
 struct vring_desc *virtio_alloc_desc_chain(struct virtio_device *dev, uint ring_index, size_t count, uint16_t *start_index);
 
-static inline struct vring_desc *virtio_desc_index_to_desc(struct virtio_device *dev, uint ring_index, uint16_t desc_index)
-{
+static inline struct vring_desc *virtio_desc_index_to_desc(struct virtio_device *dev, uint ring_index, uint16_t desc_index) {
     DEBUG_ASSERT(desc_index != 0xffff);
     return &dev->ring[ring_index].desc[desc_index];
 }

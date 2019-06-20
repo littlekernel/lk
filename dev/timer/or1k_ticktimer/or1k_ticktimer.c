@@ -37,8 +37,7 @@ static uint32_t timer_freq;
 
 static volatile uint64_t ticks = 0;
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     LTRACEF("cb %p, arg %p, interval %ld\n", callback, arg, interval);
 
     uint32_t ttmr = (uint64_t)timer_freq * interval / 1000;
@@ -59,18 +58,15 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     return (lk_bigtime_t)ticks * 10000;
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     return (lk_time_t)ticks * 10;
 }
 
-enum handler_return platform_tick(void)
-{
+enum handler_return platform_tick(void) {
     ticks++;
 
     /* clear pending interrupt flag */
@@ -80,8 +76,7 @@ enum handler_return platform_tick(void)
     return timer_cb(timer_arg, ticks * 10);
 }
 
-void or1k_ticktimer_init(uint32_t freq)
-{
+void or1k_ticktimer_init(uint32_t freq) {
     timer_freq = freq;
     /* disable timer */
     mtspr(OR1K_SPR_TICK_TTMR_ADDR, 0);

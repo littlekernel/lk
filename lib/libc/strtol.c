@@ -41,8 +41,7 @@
  * alphabets and digits are each contiguous.
  */
 long
-strtol(const char *nptr, char **endptr, int base)
-{
+strtol(const char *nptr, char **endptr, int base) {
     const char *s;
     long acc, cutoff;
     int c;

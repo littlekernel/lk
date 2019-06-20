@@ -33,8 +33,7 @@
 #include <kernel/event.h>
 #include <platform.h>
 
-static int sleep_thread(void *arg)
-{
+static int sleep_thread(void *arg) {
     for (;;) {
         printf("sleeper %p\n", get_current_thread());
         thread_sleep(rand() % 500);
@@ -42,8 +41,7 @@ static int sleep_thread(void *arg)
     return 0;
 }
 
-int sleep_test(void)
-{
+int sleep_test(void) {
     int i;
     for (i=0; i < 16; i++)
         thread_detach_and_resume(thread_create("sleeper", &sleep_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
@@ -58,8 +56,7 @@ static int sem_remaining_its = 0;
 static int sem_threads = 0;
 static mutex_t sem_test_mutex;
 
-static int semaphore_producer(void *unused)
-{
+static int semaphore_producer(void *unused) {
     printf("semaphore producer %p starting up, running for %d iterations\n", get_current_thread(), sem_total_its);
 
     for (int x = 0; x < sem_total_its; x++) {
@@ -69,8 +66,7 @@ static int semaphore_producer(void *unused)
     return 0;
 }
 
-static int semaphore_consumer(void *unused)
-{
+static int semaphore_consumer(void *unused) {
     unsigned int iterations = 0;
 
     mutex_acquire(&sem_test_mutex);
@@ -91,8 +87,7 @@ static int semaphore_consumer(void *unused)
     return 0;
 }
 
-static int semaphore_test(void)
-{
+static int semaphore_test(void) {
     static semaphore_t isem = SEMAPHORE_INITIAL_VALUE(isem, 99);
     printf("preinitialized semaphore:\n");
     hexdump(&isem, sizeof(isem));
@@ -129,8 +124,7 @@ static int semaphore_test(void)
     return 0;
 }
 
-static int mutex_thread(void *arg)
-{
+static int mutex_thread(void *arg) {
     int i;
     const int iterations = 1000000;
 
@@ -157,8 +151,7 @@ static int mutex_thread(void *arg)
     return 0;
 }
 
-static int mutex_timeout_thread(void *arg)
-{
+static int mutex_timeout_thread(void *arg) {
     mutex_t *timeout_mutex = (mutex_t *)arg;
     status_t err;
 
@@ -172,8 +165,7 @@ static int mutex_timeout_thread(void *arg)
     return err;
 }
 
-static int mutex_zerotimeout_thread(void *arg)
-{
+static int mutex_zerotimeout_thread(void *arg) {
     mutex_t *timeout_mutex = (mutex_t *)arg;
     status_t err;
 
@@ -187,8 +179,7 @@ static int mutex_zerotimeout_thread(void *arg)
     return err;
 }
 
-int mutex_test(void)
-{
+int mutex_test(void) {
     static mutex_t imutex = MUTEX_INITIAL_VALUE(imutex);
     printf("preinitialized mutex:\n");
     hexdump(&imutex, sizeof(imutex));
@@ -242,8 +233,7 @@ int mutex_test(void)
 
 static event_t e;
 
-static int event_signaler(void *arg)
-{
+static int event_signaler(void *arg) {
     printf("event signaler pausing\n");
     thread_sleep(1000);
 
@@ -257,8 +247,7 @@ static int event_signaler(void *arg)
     return 0;
 }
 
-static int event_waiter(void *arg)
-{
+static int event_waiter(void *arg) {
     int count = (intptr_t)arg;
 
     printf("event waiter starting\n");
@@ -277,8 +266,7 @@ static int event_waiter(void *arg)
     return 0;
 }
 
-void event_test(void)
-{
+void event_test(void) {
     thread_t *threads[5];
 
     static event_t ievent = EVENT_INITIAL_VALUE(ievent, true, 0x1234);
@@ -325,16 +313,14 @@ void event_test(void)
     printf("event tests done\n");
 }
 
-static int quantum_tester(void *arg)
-{
+static int quantum_tester(void *arg) {
     for (;;) {
         printf("%p: in this thread. rq %d\n", get_current_thread(), get_current_thread()->remaining_quantum);
     }
     return 0;
 }
 
-void quantum_test(void)
-{
+void quantum_test(void) {
     thread_detach_and_resume(thread_create("quantum tester 0", &quantum_tester, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_detach_and_resume(thread_create("quantum tester 1", &quantum_tester, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_detach_and_resume(thread_create("quantum tester 2", &quantum_tester, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
@@ -344,8 +330,7 @@ void quantum_test(void)
 static event_t context_switch_event;
 static event_t context_switch_done_event;
 
-static int context_switch_tester(void *arg)
-{
+static int context_switch_tester(void *arg) {
     int i;
     uint total_count = 0;
     const int iter = 100000;
@@ -367,8 +352,7 @@ static int context_switch_tester(void *arg)
     return 0;
 }
 
-void context_switch_test(void)
-{
+void context_switch_test(void) {
     event_init(&context_switch_event, false, 0);
     event_init(&context_switch_done_event, false, 0);
 
@@ -402,8 +386,7 @@ void context_switch_test(void)
 static volatile int atomic;
 static volatile int atomic_count;
 
-static int atomic_tester(void *arg)
-{
+static int atomic_tester(void *arg) {
     int add = (intptr_t)arg;
     int i;
 
@@ -421,8 +404,7 @@ static int atomic_tester(void *arg)
     return 0;
 }
 
-static void atomic_test(void)
-{
+static void atomic_test(void) {
     atomic = 0;
     atomic_count = 8;
 
@@ -452,8 +434,7 @@ static void atomic_test(void)
 
 static volatile int preempt_count;
 
-static int preempt_tester(void *arg)
-{
+static int preempt_tester(void *arg) {
     spin(1000000);
 
     printf("exiting ts %lld\n", current_time_hires());
@@ -464,8 +445,7 @@ static int preempt_tester(void *arg)
     return 0;
 }
 
-static void preempt_test(void)
-{
+static void preempt_test(void) {
     /* create 5 threads, let them run. If the system is properly timer preempting,
      * the threads should interleave each other at a fine enough granularity so
      * that they complete at roughly the same time. */
@@ -502,8 +482,7 @@ static void preempt_test(void)
     printf("done with real-time preempt test, above time stamps should be 1 second apart\n");
 }
 
-static int join_tester(void *arg)
-{
+static int join_tester(void *arg) {
     long val = (long)arg;
 
     printf("\t\tjoin tester starting\n");
@@ -513,8 +492,7 @@ static int join_tester(void *arg)
     return val;
 }
 
-static int join_tester_server(void *arg)
-{
+static int join_tester_server(void *arg) {
     int ret;
     status_t err;
     thread_t *t;
@@ -560,8 +538,7 @@ static int join_tester_server(void *arg)
     return 55;
 }
 
-static void join_test(void)
-{
+static void join_test(void) {
     int ret;
     status_t err;
     thread_t *t;
@@ -576,8 +553,7 @@ static void join_test(void)
     printf("thread_join returns err %d, retval %d (should be 0 and 55)\n", err, ret);
 }
 
-static void spinlock_test(void)
-{
+static void spinlock_test(void) {
     spin_lock_saved_state_t state;
     spin_lock_t lock;
 
@@ -616,8 +592,7 @@ static void spinlock_test(void)
 #undef COUNT
 }
 
-int thread_tests(int argc, const cmd_args *argv)
-{
+int thread_tests(int argc, const cmd_args *argv) {
     mutex_test();
     semaphore_test();
     event_test();
@@ -635,16 +610,14 @@ int thread_tests(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int spinner_thread(void *arg)
-{
+static int spinner_thread(void *arg) {
     for (;;)
         ;
 
     return 0;
 }
 
-int spinner(int argc, const cmd_args *argv)
-{
+int spinner(int argc, const cmd_args *argv) {
     if (argc < 2) {
         printf("not enough args\n");
         printf("usage: %s <priority> <rt>\n", argv[0].str);

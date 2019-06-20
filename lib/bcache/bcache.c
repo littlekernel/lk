@@ -60,8 +60,7 @@ struct bcache {
     struct bcache_block *blocks;
 };
 
-bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count)
-{
+bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count) {
     struct bcache *cache;
 
     cache = malloc(sizeof(struct bcache));
@@ -87,8 +86,7 @@ bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count)
     return (bcache_t)cache;
 }
 
-static int flush_block(struct bcache *cache, struct bcache_block *block)
-{
+static int flush_block(struct bcache *cache, struct bcache_block *block) {
     int rc;
 
     rc = bio_write(cache->dev, block->ptr,
@@ -104,8 +102,7 @@ exit:
     return (rc);
 }
 
-void bcache_destroy(bcache_t _cache)
-{
+void bcache_destroy(bcache_t _cache) {
     struct bcache *cache = _cache;
     int i;
 
@@ -123,8 +120,7 @@ void bcache_destroy(bcache_t _cache)
 }
 
 /* find a block if it's already present */
-static struct bcache_block *find_block(struct bcache *cache, uint blocknum)
-{
+static struct bcache_block *find_block(struct bcache *cache, uint blocknum) {
     uint32_t depth = 0;
     struct bcache_block *block;
 
@@ -149,8 +145,7 @@ static struct bcache_block *find_block(struct bcache *cache, uint blocknum)
 }
 
 /* allocate a new block */
-static struct bcache_block *alloc_block(struct bcache *cache)
-{
+static struct bcache_block *alloc_block(struct bcache *cache) {
     int err;
     struct bcache_block *block;
 
@@ -183,8 +178,7 @@ static struct bcache_block *alloc_block(struct bcache *cache)
     return NULL;
 }
 
-static struct bcache_block *find_or_fill_block(struct bcache *cache, uint blocknum)
-{
+static struct bcache_block *find_or_fill_block(struct bcache *cache, uint blocknum) {
     int err;
 
     LTRACEF("block %u\n", blocknum);
@@ -216,8 +210,7 @@ static struct bcache_block *find_or_fill_block(struct bcache *cache, uint blockn
     return block;
 }
 
-int bcache_read_block(bcache_t _cache, void *buf, uint blocknum)
-{
+int bcache_read_block(bcache_t _cache, void *buf, uint blocknum) {
     struct bcache *cache = _cache;
 
     LTRACEF("buf %p, blocknum %u\n", buf, blocknum);
@@ -232,8 +225,7 @@ int bcache_read_block(bcache_t _cache, void *buf, uint blocknum)
     return 0;
 }
 
-int bcache_get_block(bcache_t _cache, void **ptr, uint blocknum)
-{
+int bcache_get_block(bcache_t _cache, void **ptr, uint blocknum) {
     struct bcache *cache = _cache;
 
     LTRACEF("ptr %p, blocknum %u\n", ptr, blocknum);
@@ -253,8 +245,7 @@ int bcache_get_block(bcache_t _cache, void **ptr, uint blocknum)
     return 0;
 }
 
-int bcache_put_block(bcache_t _cache, uint blocknum)
-{
+int bcache_put_block(bcache_t _cache, uint blocknum) {
     struct bcache *cache = _cache;
 
     LTRACEF("blocknum %u\n", blocknum);
@@ -270,8 +261,7 @@ int bcache_put_block(bcache_t _cache, uint blocknum)
     return 0;
 }
 
-int bcache_mark_block_dirty(bcache_t priv, uint blocknum)
-{
+int bcache_mark_block_dirty(bcache_t priv, uint blocknum) {
     int err;
     struct bcache *cache = priv;
     struct bcache_block *block;
@@ -288,8 +278,7 @@ exit:
     return (err);
 }
 
-int bcache_zero_block(bcache_t priv, uint blocknum)
-{
+int bcache_zero_block(bcache_t priv, uint blocknum) {
     int err;
     struct bcache *cache = priv;
     struct bcache_block *block;
@@ -312,8 +301,7 @@ exit:
     return (err);
 }
 
-int bcache_flush(bcache_t priv)
-{
+int bcache_flush(bcache_t priv) {
     int err;
     struct bcache *cache = priv;
     struct bcache_block *block;
@@ -331,8 +319,7 @@ exit:
     return (err);
 }
 
-void bcache_dump(bcache_t priv, const char *name)
-{
+void bcache_dump(bcache_t priv, const char *name) {
     uint32_t finds;
     struct bcache *cache = priv;
 

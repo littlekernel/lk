@@ -134,8 +134,7 @@ static status_t usb_register_cb(
     void *cookie,
     usb_callback_op_t op,
     const union usb_callback_args *args
-)
-{
+) {
     cdcserial_channel_t *chan = cookie;
 
     if (op == USB_CB_ONLINE) {
@@ -195,8 +194,7 @@ static status_t usb_register_cb(
     return NO_ERROR;
 }
 
-void cdcserial_create_channel(cdcserial_channel_t *chan, int data_ep_addr, int ctrl_ep_addr)
-{
+void cdcserial_create_channel(cdcserial_channel_t *chan, int data_ep_addr, int ctrl_ep_addr) {
     event_init(&chan->txevt, 0, EVENT_FLAG_AUTOUNSIGNAL);
     event_init(&chan->rxevt, 0, EVENT_FLAG_AUTOUNSIGNAL);
     chan->usb_online = false;
@@ -235,15 +233,13 @@ void cdcserial_create_channel(cdcserial_channel_t *chan, int data_ep_addr, int c
     usb_register_callback(&usb_register_cb, chan);
 }
 
-static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
-{
+static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t) {
     cdcserial_channel_t *chan = t->extra;
     event_signal(&chan->txevt, false);
     return 0;
 }
 
-static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
-{
+static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t) {
     cdcserial_channel_t *chan = t->extra;
     event_signal(&chan->rxevt, false);
     return 0;
@@ -251,8 +247,7 @@ static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t)
 
 // Write len bytes to the CDC Serial Virtual Com Port.
 status_t cdcserial_write_async(cdcserial_channel_t *chan, usbc_transfer_t *transfer, ep_callback cb,
-                               size_t len, uint8_t *buf)
-{
+                               size_t len, uint8_t *buf) {
     LTRACEF("len = %d, buf = %p\n", len, buf);
 
     DEBUG_ASSERT(buf);
@@ -272,8 +267,7 @@ status_t cdcserial_write_async(cdcserial_channel_t *chan, usbc_transfer_t *trans
     return NO_ERROR;
 }
 
-status_t cdcserial_write(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
-{
+status_t cdcserial_write(cdcserial_channel_t *chan, size_t len, uint8_t *buf) {
     usbc_transfer_t transfer;
     status_t ret = cdcserial_write_async(chan, &transfer, &usb_xmit_cplt_cb, len, buf);
     if (ret != NO_ERROR) {
@@ -288,8 +282,7 @@ status_t cdcserial_write(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
 // Read at most len bytes from the CDC Serial virtual Com Port. Returns the
 // actual number of bytes read.
 ssize_t cdcserial_read_async(cdcserial_channel_t *chan, usbc_transfer_t *transfer, ep_callback cb,
-                             size_t len, uint8_t *buf)
-{
+                             size_t len, uint8_t *buf) {
     LTRACEF("len = %d, buf = %p\n", len, buf);
 
     DEBUG_ASSERT(buf);
@@ -309,8 +302,7 @@ ssize_t cdcserial_read_async(cdcserial_channel_t *chan, usbc_transfer_t *transfe
     return NO_ERROR;
 }
 
-ssize_t cdcserial_read(cdcserial_channel_t *chan, size_t len, uint8_t *buf)
-{
+ssize_t cdcserial_read(cdcserial_channel_t *chan, size_t len, uint8_t *buf) {
     usbc_transfer_t transfer;
     status_t ret = cdcserial_write_async(chan, &transfer, &usb_recv_cplt_cb, len, buf);
     if (ret != NO_ERROR) {

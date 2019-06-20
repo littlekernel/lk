@@ -30,19 +30,15 @@
  * chooses not to implement.
  */
 
-__WEAK void target_early_init(void)
-{
+__WEAK void target_early_init(void) {
 }
 
-__WEAK void target_init(void)
-{
+__WEAK void target_init(void) {
 }
 
-__WEAK void target_set_led(unsigned int led, bool on)
-{
+__WEAK void target_set_led(unsigned int led, bool on) {
 }
 
-__WEAK void target_quiesce(void)
-{
+__WEAK void target_quiesce(void) {
 }
 

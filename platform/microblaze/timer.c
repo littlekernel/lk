@@ -58,8 +58,7 @@ static void *timer_arg;
 
 static uint32_t ticks = 0;
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     LTRACEF("cb %p, arg %p, interval %u\n", callback, arg, interval);
 
     uint32_t count = ((uint64_t)TIMER_RATE * interval / 1000);
@@ -76,18 +75,15 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     return (lk_bigtime_t)ticks * 10000;
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     return (lk_time_t)ticks * 10;
 }
 
-enum handler_return timer_irq(void *arg)
-{
+enum handler_return timer_irq(void *arg) {
     LTRACE;
 
     TIMER_REG(R_TCSR) |= TCSR_TINT;
@@ -99,8 +95,7 @@ enum handler_return timer_irq(void *arg)
     return ret;
 }
 
-static void timer_init(uint level)
-{
+static void timer_init(uint level) {
     LTRACE;
 
     register_int_handler(TIMER_IRQ, timer_irq, NULL);

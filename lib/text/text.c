@@ -58,8 +58,7 @@ struct text_line {
 /**
  * @brief  Add a string to the console text
  */
-void text_draw(int x, int y, const char *string)
-{
+void text_draw(int x, int y, const char *string) {
     struct text_line *line = malloc(sizeof(struct text_line));
 
     line->str = strdup(string);
@@ -74,8 +73,7 @@ void text_draw(int x, int y, const char *string)
 /**
  * @brief  Refresh the display
  */
-void text_update(void)
-{
+void text_update(void) {
     struct display_framebuffer fb;
     if (display_get_framebuffer(&fb) < 0)
         return;

@@ -22,6 +22,7 @@
  */
 #pragma once
 
+/* *INDENT-OFF* */
 .macro push ra, rb
 stp \ra, \rb, [sp,#-16]!
 .endm

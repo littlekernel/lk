@@ -46,13 +46,11 @@ typedef struct {
 
 static mutex_t arp_mutex = MUTEX_INITIAL_VALUE(arp_mutex);
 
-void arp_cache_init(void)
-{
+void arp_cache_init(void) {
     list_initialize(&arp_list);
 }
 
-static inline void mru_update(struct list_node *entry)
-{
+static inline void mru_update(struct list_node *entry) {
     if (arp_list.next == entry)
         return;
 
@@ -60,8 +58,7 @@ static inline void mru_update(struct list_node *entry)
     list_add_head(&arp_list, entry);
 }
 
-void arp_cache_update(uint32_t addr, const uint8_t mac[6])
-{
+void arp_cache_update(uint32_t addr, const uint8_t mac[6]) {
     arp_entry_t *arp;
     ipv4_t ip;
     bool found = false;
@@ -105,8 +102,7 @@ err:
 }
 
 /* Looks up and returns a MAC address based on the provided ip addr */
-uint8_t *arp_cache_lookup(uint32_t addr)
-{
+uint8_t *arp_cache_lookup(uint32_t addr) {
     arp_entry_t *arp = NULL;
     uint8_t *ret = NULL;
 
@@ -125,8 +121,7 @@ uint8_t *arp_cache_lookup(uint32_t addr)
     return ret;
 }
 
-void arp_cache_dump(void)
-{
+void arp_cache_dump(void) {
     int i = 0;
     arp_entry_t *arp;
 
@@ -143,8 +138,7 @@ void arp_cache_dump(void)
     }
 }
 
-int arp_send_request(uint32_t addr)
-{
+int arp_send_request(uint32_t addr) {
     pktbuf_t *p;
     struct eth_hdr *eth;
     struct arp_pkt *arp;
@@ -171,13 +165,11 @@ int arp_send_request(uint32_t addr)
     return 0;
 }
 
-static void handle_arp_timeout_cb(void *arg)
-{
+static void handle_arp_timeout_cb(void *arg) {
     *(bool *)arg = true;
 }
 
-const uint8_t *arp_get_dest_mac(uint32_t host)
-{
+const uint8_t *arp_get_dest_mac(uint32_t host) {
     const uint8_t *dst_mac = NULL;
     bool arp_timeout = false;
     net_timer_t arp_timeout_timer;

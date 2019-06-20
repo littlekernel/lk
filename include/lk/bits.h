@@ -47,32 +47,27 @@ __BEGIN_CDECLS
 
 #define BIT_MASK(x) (((x) >= sizeof(unsigned long) * 8) ? (0UL-1) : ((1UL << (x)) - 1))
 
-static inline int bitmap_set(unsigned long *bitmap, int bit)
-{
+static inline int bitmap_set(unsigned long *bitmap, int bit) {
     unsigned long mask = 1UL << BITMAP_BIT_IN_INT(bit);
     return atomic_or(&((int *)bitmap)[BITMAP_INT(bit)], mask) & mask ? 1 : 0;
 }
 
-static inline int bitmap_clear(unsigned long *bitmap, int bit)
-{
+static inline int bitmap_clear(unsigned long *bitmap, int bit) {
     unsigned long mask = 1UL << BITMAP_BIT_IN_INT(bit);
 
     return atomic_and(&((int *)bitmap)[BITMAP_INT(bit)], ~mask) & mask ? 1:0;
 }
 
-static inline int bitmap_test(unsigned long *bitmap, int bit)
-{
+static inline int bitmap_test(unsigned long *bitmap, int bit) {
     return BIT_SET(bitmap[BITMAP_WORD(bit)], BITMAP_BIT_IN_WORD(bit));
 }
 
 /* find first zero bit starting from LSB */
-static inline unsigned long _ffz(unsigned long x)
-{
+static inline unsigned long _ffz(unsigned long x) {
     return __builtin_ffsl(~x) - 1;
 }
 
-static inline int bitmap_ffz(unsigned long *bitmap, int numbits)
-{
+static inline int bitmap_ffz(unsigned long *bitmap, int numbits) {
     uint i;
     int bit;
 

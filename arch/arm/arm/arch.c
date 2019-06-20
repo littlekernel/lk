@@ -67,8 +67,7 @@ spin_lock_t arm_boot_cpu_lock = 1;
 volatile int secondaries_to_init = 0;
 #endif
 
-void arch_early_init(void)
-{
+void arch_early_init(void) {
     /* turn off the cache */
     arch_disable_cache(UCACHE);
 #if WITH_DEV_CACHE_PL310
@@ -96,8 +95,7 @@ void arch_early_init(void)
     arch_enable_cache(UCACHE);
 }
 
-void arch_init(void)
-{
+void arch_init(void) {
 #if WITH_SMP
     arch_mp_init_percpu();
 
@@ -160,8 +158,7 @@ void arch_init(void)
 }
 
 #if WITH_SMP
-void arm_secondary_entry(uint asm_cpu_num)
-{
+void arm_secondary_entry(uint asm_cpu_num) {
     uint cpu = arch_curr_cpu_num();
     if (cpu != asm_cpu_num)
         return;
@@ -195,8 +192,7 @@ void arm_secondary_entry(uint asm_cpu_num)
 }
 #endif
 
-static void arm_basic_setup(void)
-{
+static void arm_basic_setup(void) {
     uint32_t sctlr = arm_read_sctlr();
 
     /* ARMV7 bits */
@@ -266,8 +262,7 @@ static void arm_basic_setup(void)
 #endif
 }
 
-void arch_quiesce(void)
-{
+void arch_quiesce(void) {
 #if ENABLE_CYCLE_COUNTER
 #if ARM_ISA_ARMV7
     /* disable the cycle count and performance counters */
@@ -298,8 +293,7 @@ void arch_quiesce(void)
 
 #if ARM_ISA_ARMV7
 /* virtual to physical translation */
-status_t arm_vtop(addr_t va, addr_t *pa)
-{
+status_t arm_vtop(addr_t va, addr_t *pa) {
     spin_lock_saved_state_t irqstate;
 
     arch_interrupt_save(&irqstate, SPIN_LOCK_FLAG_INTERRUPTS);
@@ -320,8 +314,7 @@ status_t arm_vtop(addr_t va, addr_t *pa)
 }
 #endif
 
-void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
-{
+void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
     LTRACEF("entry %p, args 0x%lx 0x%lx 0x%lx 0x%lx\n", entry, arg0, arg1, arg2, arg3);
 
     /* we are going to shut down the system, start by disabling interrupts */
@@ -386,8 +379,7 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 
 static spin_lock_t lock = 0;
 
-static void spinlock_test(void)
-{
+static void spinlock_test(void) {
     TRACE_ENTRY;
 
     spin_lock_saved_state_t state;
@@ -402,8 +394,7 @@ static void spinlock_test(void)
     spin(1000000);
 }
 
-static void spinlock_test_secondary(void)
-{
+static void spinlock_test_secondary(void) {
     TRACE_ENTRY;
 
     spin(500000);
@@ -418,8 +409,7 @@ static void spinlock_test_secondary(void)
 }
 
 /* switch to user mode, set the user stack pointer to user_stack_top, put the svc stack pointer to the top of the kernel stack */
-void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top)
-{
+void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     DEBUG_ASSERT(IS_ALIGNED(user_stack_top, 8));
 
     thread_t *ct = get_current_thread();

@@ -65,8 +65,7 @@ static spin_lock_t gicd_lock;
 #if WITH_LIB_SM
 static bool arm_gic_non_secure_interrupts_frozen;
 
-static bool arm_gic_interrupt_change_allowed(int irq)
-{
+static bool arm_gic_interrupt_change_allowed(int irq) {
     if (!arm_gic_non_secure_interrupts_frozen)
         return true;
 
@@ -76,13 +75,11 @@ static bool arm_gic_interrupt_change_allowed(int irq)
 
 static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd);
 #else
-static bool arm_gic_interrupt_change_allowed(int irq)
-{
+static bool arm_gic_interrupt_change_allowed(int irq) {
     return true;
 }
 
-static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd)
-{
+static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd) {
 }
 #endif
 
@@ -95,16 +92,14 @@ struct int_handler_struct {
 static struct int_handler_struct int_handler_table_per_cpu[GIC_MAX_PER_CPU_INT][SMP_MAX_CPUS];
 static struct int_handler_struct int_handler_table_shared[MAX_INT-GIC_MAX_PER_CPU_INT];
 
-static struct int_handler_struct *get_int_handler(unsigned int vector, uint cpu)
-{
+static struct int_handler_struct *get_int_handler(unsigned int vector, uint cpu) {
     if (vector < GIC_MAX_PER_CPU_INT)
         return &int_handler_table_per_cpu[vector][cpu];
     else
         return &int_handler_table_shared[vector - GIC_MAX_PER_CPU_INT];
 }
 
-void register_int_handler(unsigned int vector, int_handler handler, void *arg)
-{
+void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     struct int_handler_struct *h;
     uint cpu = arch_curr_cpu_num();
 
@@ -175,8 +170,7 @@ static DEFINE_GIC_SHADOW_REG(gicd_igroupr, 32, ~0U, 0);
 #endif
 static DEFINE_GIC_SHADOW_REG(gicd_itargetsr, 4, 0x01010101, 32);
 
-static void gic_set_enable(uint vector, bool enable)
-{
+static void gic_set_enable(uint vector, bool enable) {
     int reg = vector / 32;
     uint32_t mask = 1ULL << (vector % 32);
 
@@ -186,8 +180,7 @@ static void gic_set_enable(uint vector, bool enable)
         GICREG(0, GICD_ICENABLER(reg)) = mask;
 }
 
-static void arm_gic_init_percpu(uint level)
-{
+static void arm_gic_init_percpu(uint level) {
 #if WITH_LIB_SM
     GICREG(0, GICC_CTLR) = 0xb; // enable GIC0 and select fiq mode for secure
     GICREG(0, GICD_IGROUPR(0)) = ~0U; /* GICD_IGROUPR0 is banked */
@@ -201,16 +194,14 @@ LK_INIT_HOOK_FLAGS(arm_gic_init_percpu,
                    arm_gic_init_percpu,
                    LK_INIT_LEVEL_PLATFORM_EARLY, LK_INIT_FLAG_SECONDARY_CPUS);
 
-static void arm_gic_suspend_cpu(uint level)
-{
+static void arm_gic_suspend_cpu(uint level) {
     suspend_resume_fiq(false, false);
 }
 
 LK_INIT_HOOK_FLAGS(arm_gic_suspend_cpu, arm_gic_suspend_cpu,
                    LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_CPU_SUSPEND);
 
-static void arm_gic_resume_cpu(uint level)
-{
+static void arm_gic_resume_cpu(uint level) {
     spin_lock_saved_state_t state;
     bool resume_gicd = false;
 
@@ -229,15 +220,13 @@ static void arm_gic_resume_cpu(uint level)
 LK_INIT_HOOK_FLAGS(arm_gic_resume_cpu, arm_gic_resume_cpu,
                    LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_CPU_RESUME);
 
-static int arm_gic_max_cpu(void)
-{
+static int arm_gic_max_cpu(void) {
     return (GICREG(0, GICD_TYPER) >> 5) & 0x7;
 }
 
 static status_t gic_configure_interrupt(unsigned int vector,
                                         enum interrupt_trigger_mode tm,
-                                        enum interrupt_polarity pol)
-{
+                                        enum interrupt_polarity pol) {
     //Only configurable for SPI interrupts
     if ((vector >= MAX_INT) || (vector < GIC_BASE_SPI)) {
         return ERR_INVALID_ARGS;
@@ -255,8 +244,7 @@ static status_t gic_configure_interrupt(unsigned int vector,
     uint32_t reg_val   = GICREG(0, GICD_ICFGR(reg_ndx));
     if (tm == IRQ_TRIGGER_MODE_EDGE) {
         reg_val |= (1 << bit_shift);
-    }
-    else {
+    } else {
         reg_val &= ~(1 << bit_shift);
     }
     GICREG(0, GICD_ICFGR(reg_ndx)) = reg_val;
@@ -264,8 +252,7 @@ static status_t gic_configure_interrupt(unsigned int vector,
     return NO_ERROR;
 }
 
-void arm_gic_init(void)
-{
+void arm_gic_init(void) {
     int i;
 
     for (i = 0; i < MAX_INT; i+= 32) {
@@ -302,8 +289,7 @@ void arm_gic_init(void)
     arm_gic_init_percpu(0);
 }
 
-static status_t arm_gic_set_secure_locked(u_int irq, bool secure)
-{
+static status_t arm_gic_set_secure_locked(u_int irq, bool secure) {
 #if WITH_LIB_SM
     int reg = irq / 32;
     uint32_t mask = 1ULL << (irq % 32);
@@ -321,8 +307,7 @@ static status_t arm_gic_set_secure_locked(u_int irq, bool secure)
     return NO_ERROR;
 }
 
-static status_t arm_gic_set_target_locked(u_int irq, u_int cpu_mask, u_int enable_mask)
-{
+static status_t arm_gic_set_target_locked(u_int irq, u_int cpu_mask, u_int enable_mask) {
     u_int reg = irq / 4;
     u_int shift = 8 * (irq % 4);
     u_int old_val;
@@ -340,15 +325,13 @@ static status_t arm_gic_set_target_locked(u_int irq, u_int cpu_mask, u_int enabl
     return NO_ERROR;
 }
 
-static status_t arm_gic_get_priority(u_int irq)
-{
+static status_t arm_gic_get_priority(u_int irq) {
     u_int reg = irq / 4;
     u_int shift = 8 * (irq % 4);
     return (GICREG(0, GICD_IPRIORITYR(reg)) >> shift) & 0xff;
 }
 
-static status_t arm_gic_set_priority_locked(u_int irq, uint8_t priority)
-{
+static status_t arm_gic_set_priority_locked(u_int irq, uint8_t priority) {
     u_int reg = irq / 4;
     u_int shift = 8 * (irq % 4);
     u_int mask = 0xff << shift;
@@ -364,8 +347,7 @@ static status_t arm_gic_set_priority_locked(u_int irq, uint8_t priority)
     return 0;
 }
 
-status_t arm_gic_sgi(u_int irq, u_int flags, u_int cpu_mask)
-{
+status_t arm_gic_sgi(u_int irq, u_int flags, u_int cpu_mask) {
     u_int val =
         ((flags & ARM_GIC_SGI_FLAG_TARGET_FILTER_MASK) << 24) |
         ((cpu_mask & 0xff) << 16) |
@@ -382,8 +364,7 @@ status_t arm_gic_sgi(u_int irq, u_int flags, u_int cpu_mask)
     return NO_ERROR;
 }
 
-status_t mask_interrupt(unsigned int vector)
-{
+status_t mask_interrupt(unsigned int vector) {
     if (vector >= MAX_INT)
         return ERR_INVALID_ARGS;
 
@@ -393,8 +374,7 @@ status_t mask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-status_t unmask_interrupt(unsigned int vector)
-{
+status_t unmask_interrupt(unsigned int vector) {
     if (vector >= MAX_INT)
         return ERR_INVALID_ARGS;
 
@@ -405,8 +385,7 @@ status_t unmask_interrupt(unsigned int vector)
 }
 
 static
-enum handler_return __platform_irq(struct iframe *frame)
-{
+enum handler_return __platform_irq(struct iframe *frame) {
     // get the current vector
     uint32_t iar = GICREG(0, GICC_IAR);
     unsigned int vector = iar & 0x3ff;
@@ -441,8 +420,7 @@ enum handler_return __platform_irq(struct iframe *frame)
     return ret;
 }
 
-enum handler_return platform_irq(struct iframe *frame)
-{
+enum handler_return platform_irq(struct iframe *frame) {
 #if WITH_LIB_SM
     uint32_t ahppir = GICREG(0, GICC_AHPPIR);
     uint32_t pending_irq = ahppir & 0x3ff;
@@ -484,8 +462,7 @@ enum handler_return platform_irq(struct iframe *frame)
 #endif
 }
 
-void platform_fiq(struct iframe *frame)
-{
+void platform_fiq(struct iframe *frame) {
 #if WITH_LIB_SM
     sm_handle_fiq();
 #else
@@ -494,8 +471,7 @@ void platform_fiq(struct iframe *frame)
 }
 
 #if WITH_LIB_SM
-static status_t arm_gic_get_next_irq_locked(u_int min_irq, bool per_cpu)
-{
+static status_t arm_gic_get_next_irq_locked(u_int min_irq, bool per_cpu) {
     u_int irq;
     u_int max_irq = per_cpu ? GIC_MAX_PER_CPU_INT : MAX_INT;
     uint cpu = arch_curr_cpu_num();
@@ -510,8 +486,7 @@ static status_t arm_gic_get_next_irq_locked(u_int min_irq, bool per_cpu)
     return SM_ERR_END_OF_INPUT;
 }
 
-long smc_intc_get_next_irq(smc32_args_t *args)
-{
+long smc_intc_get_next_irq(smc32_args_t *args) {
     status_t ret;
     spin_lock_saved_state_t state;
 
@@ -529,8 +504,7 @@ long smc_intc_get_next_irq(smc32_args_t *args)
 
 static u_long enabled_fiq_mask[BITMAP_NUM_WORDS(MAX_INT)];
 
-static void bitmap_update_locked(u_long *bitmap, u_int bit, bool set)
-{
+static void bitmap_update_locked(u_long *bitmap, u_int bit, bool set) {
     u_long mask = 1UL << BITMAP_BIT_IN_WORD(bit);
 
     bitmap += BITMAP_WORD(bit);
@@ -540,8 +514,7 @@ static void bitmap_update_locked(u_long *bitmap, u_int bit, bool set)
         *bitmap &= ~mask;
 }
 
-long smc_intc_request_fiq(smc32_args_t *args)
-{
+long smc_intc_request_fiq(smc32_args_t *args) {
     u_int fiq = args->params[0];
     bool enable = args->params[1];
     spin_lock_saved_state_t state;
@@ -565,8 +538,7 @@ long smc_intc_request_fiq(smc32_args_t *args)
 
 static u_int current_fiq[8] = { 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff, 0x3ff };
 
-static bool update_fiq_targets(u_int cpu, bool enable, u_int triggered_fiq, bool resume_gicd)
-{
+static bool update_fiq_targets(u_int cpu, bool enable, u_int triggered_fiq, bool resume_gicd) {
     u_int i, j;
     u_long mask;
     u_int fiq;
@@ -593,8 +565,7 @@ static bool update_fiq_targets(u_int cpu, bool enable, u_int triggered_fiq, bool
     return ret;
 }
 
-static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd)
-{
+static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd) {
     u_int cpu = arch_curr_cpu_num();
 
     ASSERT(cpu < 8);
@@ -602,8 +573,7 @@ static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd)
     update_fiq_targets(cpu, resume_gicc, ~0, resume_gicd);
 }
 
-status_t sm_intc_fiq_enter(void)
-{
+status_t sm_intc_fiq_enter(void) {
     u_int cpu = arch_curr_cpu_num();
     u_int irq = GICREG(0, GICC_IAR) & 0x3ff;
     bool fiq_enabled;
@@ -635,8 +605,7 @@ status_t sm_intc_fiq_enter(void)
     return 0;
 }
 
-void sm_intc_fiq_exit(void)
-{
+void sm_intc_fiq_exit(void) {
     u_int cpu = arch_curr_cpu_num();
 
     ASSERT(cpu < 8);

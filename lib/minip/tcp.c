@@ -169,14 +169,12 @@ static void tcp_wakeup_waiters(tcp_socket_t *s);
 static void inc_socket_ref(tcp_socket_t *s);
 static bool dec_socket_ref(tcp_socket_t *s);
 
-static uint16_t cksum_pheader(const tcp_pseudo_header_t *pheader, const void *buf, size_t len)
-{
+static uint16_t cksum_pheader(const tcp_pseudo_header_t *pheader, const void *buf, size_t len) {
     uint16_t checksum = ones_sum16(0, pheader, sizeof(*pheader));
     return ~ones_sum16(checksum, buf, len);
 }
 
-__NO_INLINE static void dump_tcp_header(const tcp_header_t *header)
-{
+__NO_INLINE static void dump_tcp_header(const tcp_header_t *header) {
     printf("TCP: src_port %u, dest_port %u, seq %u, ack %u, win %u, flags %c%c%c%c%c%c\n",
            ntohs(header->source_port), ntohs(header->dest_port), ntohl(header->seq_num), ntohl(header->ack_num),
            ntohs(header->win_size),
@@ -188,8 +186,7 @@ __NO_INLINE static void dump_tcp_header(const tcp_header_t *header)
            (ntohs(header->length_flags) & PKT_URG) ? 'U' : ' ');
 }
 
-static const char *tcp_state_to_string(tcp_state_t state)
-{
+static const char *tcp_state_to_string(tcp_state_t state) {
     switch (state) {
         default:
         case STATE_CLOSED:
@@ -217,8 +214,7 @@ static const char *tcp_state_to_string(tcp_state_t state)
     }
 }
 
-static void dump_socket(tcp_socket_t *s)
-{
+static void dump_socket(tcp_socket_t *s) {
     printf("socket %p: state %d (%s), local 0x%x:%hu, remote 0x%x:%hu, ref %d\n",
            s, s->state, tcp_state_to_string(s->state),
            s->local_ip, s->local_port, s->remote_ip, s->remote_port, s->ref);
@@ -233,8 +229,7 @@ static void dump_socket(tcp_socket_t *s)
     }
 }
 
-static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint16_t remote_port, uint16_t local_port)
-{
+static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint16_t remote_port, uint16_t local_port) {
     LTRACEF("remote ip 0x%x local ip 0x%x remote port %u local port %u\n", remote_ip, local_ip, remote_port, local_port);
 
     mutex_acquire(&tcp_socket_list_lock);
@@ -278,8 +273,7 @@ out:
     return s;
 }
 
-static void add_socket_to_list(tcp_socket_t *s)
-{
+static void add_socket_to_list(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(s->ref > 0); // we should have implicitly bumped the ref when creating the socket
 
@@ -290,8 +284,7 @@ static void add_socket_to_list(tcp_socket_t *s)
     mutex_release(&tcp_socket_list_lock);
 }
 
-static void remove_socket_from_list(tcp_socket_t *s)
-{
+static void remove_socket_from_list(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(s->ref > 0);
 
@@ -303,8 +296,7 @@ static void remove_socket_from_list(tcp_socket_t *s)
     mutex_release(&tcp_socket_list_lock);
 }
 
-static void inc_socket_ref(tcp_socket_t *s)
-{
+static void inc_socket_ref(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
 
     __UNUSED int oldval = atomic_add(&s->ref, 1);
@@ -312,8 +304,7 @@ static void inc_socket_ref(tcp_socket_t *s)
     DEBUG_ASSERT(oldval > 0);
 }
 
-static bool dec_socket_ref(tcp_socket_t *s)
-{
+static bool dec_socket_ref(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
 
     int oldval = atomic_add(&s->ref, -1);
@@ -332,8 +323,7 @@ static bool dec_socket_ref(tcp_socket_t *s)
     return (oldval == 1);
 }
 
-static void tcp_timer_set(tcp_socket_t *s, net_timer_t *timer, net_timer_callback_t cb, lk_time_t delay)
-{
+static void tcp_timer_set(tcp_socket_t *s, net_timer_t *timer, net_timer_callback_t cb, lk_time_t delay) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(timer);
 
@@ -341,8 +331,7 @@ static void tcp_timer_set(tcp_socket_t *s, net_timer_t *timer, net_timer_callbac
         inc_socket_ref(s);
 }
 
-static void tcp_timer_cancel(tcp_socket_t *s, net_timer_t *timer)
-{
+static void tcp_timer_cancel(tcp_socket_t *s, net_timer_t *timer) {
 
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(timer);
@@ -351,8 +340,7 @@ static void tcp_timer_cancel(tcp_socket_t *s, net_timer_t *timer)
         dec_socket_ref(s);
 }
 
-void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
-{
+void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
     if (unlikely(tcp_debug))
         TRACEF("p %p (len %u), src_ip 0x%x, dst_ip 0x%x\n", p, p->dlen, src_ip, dst_ip);
 
@@ -433,7 +421,7 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip)
             /* socket closed, send RST */
             goto send_reset;
 
-            /* passive connect states */
+        /* passive connect states */
         case STATE_LISTEN: {
             /* we're in listen and they want to talk to us */
             if (!(packet_flags & PKT_SYN)) {
@@ -614,8 +602,7 @@ send_reset:
     }
 }
 
-static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t sequence)
-{
+static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t sequence) {
     if (unlikely(tcp_debug))
         TRACEF("data %p, len %zu, sequence %u\n", data, len, sequence);
 
@@ -665,8 +652,7 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
 }
 
 static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, tcp_flags_t flags,
-                                const void *options, size_t options_length, uint32_t sequence)
-{
+                                const void *options, size_t options_length, uint32_t sequence) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
     DEBUG_ASSERT(len == 0 || data);
@@ -700,8 +686,7 @@ static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, t
     return err;
 }
 
-static void send_ack(tcp_socket_t *s)
-{
+static void send_ack(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
@@ -712,8 +697,7 @@ static void send_ack(tcp_socket_t *s)
 }
 
 static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip, uint16_t src_port, const void *buf,
-                         size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size)
-{
+                         size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size) {
     DEBUG_ASSERT(len == 0 || buf);
     DEBUG_ASSERT(options_length == 0 || options);
     DEBUG_ASSERT((options_length % 4) == 0);
@@ -764,8 +748,7 @@ static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip
     return err;
 }
 
-static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size)
-{
+static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
     LTRACEF("socket %p ack sequence %u, win_size %u\n", s, sequence, win_size);
 
     DEBUG_ASSERT(s);
@@ -808,8 +791,7 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size)
     }
 }
 
-static ssize_t tcp_write_pending_data(tcp_socket_t *s)
-{
+static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
     LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %u offset %u\n",
             s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, s->tx_buffer_size, s->tx_buffer_offset);
 
@@ -841,8 +823,7 @@ static ssize_t tcp_write_pending_data(tcp_socket_t *s)
     return offset;
 }
 
-static ssize_t tcp_retransmit(tcp_socket_t *s)
-{
+static ssize_t tcp_retransmit(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
@@ -862,8 +843,7 @@ static ssize_t tcp_retransmit(tcp_socket_t *s)
     return tosend;
 }
 
-static void handle_retransmit_timeout(void *_s)
-{
+static void handle_retransmit_timeout(void *_s) {
     tcp_socket_t *s = _s;
 
     LTRACEF("s %p\n", s);
@@ -882,8 +862,7 @@ done:
     dec_socket_ref(s);
 }
 
-static void handle_delayed_ack_timeout(void *_s)
-{
+static void handle_delayed_ack_timeout(void *_s) {
     tcp_socket_t *s = _s;
 
     LTRACEF("s %p\n", s);
@@ -896,8 +875,7 @@ static void handle_delayed_ack_timeout(void *_s)
     dec_socket_ref(s);
 }
 
-static void handle_time_wait_timeout(void *_s)
-{
+static void handle_time_wait_timeout(void *_s) {
     tcp_socket_t *s = _s;
 
     LTRACEF("s %p\n", s);
@@ -916,8 +894,7 @@ static void handle_time_wait_timeout(void *_s)
     dec_socket_ref(s);
 }
 
-static void tcp_wakeup_waiters(tcp_socket_t *s)
-{
+static void tcp_wakeup_waiters(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
@@ -926,8 +903,7 @@ static void tcp_wakeup_waiters(tcp_socket_t *s)
     event_signal(&s->tx_event, true);
 }
 
-static void tcp_remote_close(tcp_socket_t *s)
-{
+static void tcp_remote_close(tcp_socket_t *s) {
     LTRACEF("s %p, ref %d\n", s, s->ref);
 
     DEBUG_ASSERT(s);
@@ -945,8 +921,7 @@ static void tcp_remote_close(tcp_socket_t *s)
     tcp_wakeup_waiters(s);
 }
 
-static tcp_socket_t *create_tcp_socket(bool alloc_buffers)
-{
+static tcp_socket_t *create_tcp_socket(bool alloc_buffers) {
     tcp_socket_t *s;
 
     s = calloc(1, sizeof(tcp_socket_t));
@@ -983,8 +958,7 @@ static tcp_socket_t *create_tcp_socket(bool alloc_buffers)
 
 /* user api */
 
-status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port)
-{
+status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port) {
     tcp_socket_t *s;
 
     if (!handle)
@@ -1008,8 +982,7 @@ status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port)
     return NO_ERROR;
 }
 
-status_t tcp_accept_timeout(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket, lk_time_t timeout)
-{
+status_t tcp_accept_timeout(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket, lk_time_t timeout) {
     if (!listen_socket || !accept_socket)
         return ERR_INVALID_ARGS;
 
@@ -1035,8 +1008,7 @@ status_t tcp_accept_timeout(tcp_socket_t *listen_socket, tcp_socket_t **accept_s
     return NO_ERROR;
 }
 
-ssize_t tcp_read(tcp_socket_t *socket, void *buf, size_t len)
-{
+ssize_t tcp_read(tcp_socket_t *socket, void *buf, size_t len) {
     LTRACEF("socket %p, buf %p, len %zu\n", socket, buf, len);
     if (!socket)
         return ERR_INVALID_ARGS;
@@ -1090,8 +1062,7 @@ out:
     return ret;
 }
 
-ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len)
-{
+ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len) {
     LTRACEF("socket %p, buf %p, len %zu\n", socket, buf, len);
     if (!socket)
         return ERR_INVALID_ARGS;
@@ -1151,8 +1122,7 @@ ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len)
     return len;
 }
 
-status_t tcp_close(tcp_socket_t *socket)
-{
+status_t tcp_close(tcp_socket_t *socket) {
     if (!socket)
         return ERR_INVALID_ARGS;
 
@@ -1221,8 +1191,7 @@ out:
 }
 
 /* debug stuff */
-static int cmd_tcp(int argc, const cmd_args *argv)
-{
+static int cmd_tcp(int argc, const cmd_args *argv) {
     status_t err;
 
     if (argc < 2) {

@@ -26,8 +26,7 @@
 #include <arch/arm/cm.h>
 
 /* un-overridden irq handler */
-void stellaris_dummy_irq(void)
-{
+void stellaris_dummy_irq(void) {
     arm_cm_irq_entry();
 
     panic("unhandled irq\n");

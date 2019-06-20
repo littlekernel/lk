@@ -51,8 +51,7 @@ static void arm_mmu_unmap_section(arch_aspace_t *aspace, addr_t vaddr);
 uint32_t arm_kernel_translation_table[TT_ENTRY_COUNT] __ALIGNED(16384) __SECTION(".bss.prebss.translation_table");
 
 /* convert user level mmu flags to flags that go in L1 descriptors */
-static uint32_t mmu_flags_to_l1_arch_flags(uint flags)
-{
+static uint32_t mmu_flags_to_l1_arch_flags(uint flags) {
     uint32_t arch_flags = 0;
     switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
         case ARCH_MMU_FLAG_CACHED:
@@ -100,8 +99,7 @@ static uint32_t mmu_flags_to_l1_arch_flags(uint flags)
 }
 
 /* convert user level mmu flags to flags that go in L2 descriptors */
-static uint32_t mmu_flags_to_l2_arch_flags_small_page(uint flags)
-{
+static uint32_t mmu_flags_to_l2_arch_flags_small_page(uint flags) {
     uint32_t arch_flags = 0;
     switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
         case ARCH_MMU_FLAG_CACHED:
@@ -149,13 +147,11 @@ static uint32_t mmu_flags_to_l2_arch_flags_small_page(uint flags)
     return arch_flags;
 }
 
-static inline bool is_valid_vaddr(arch_aspace_t *aspace, vaddr_t vaddr)
-{
+static inline bool is_valid_vaddr(arch_aspace_t *aspace, vaddr_t vaddr) {
     return (vaddr >= aspace->base && vaddr <= aspace->base + aspace->size - 1);
 }
 
-static void arm_mmu_map_section(arch_aspace_t *aspace, addr_t paddr, addr_t vaddr, uint flags)
-{
+static void arm_mmu_map_section(arch_aspace_t *aspace, addr_t paddr, addr_t vaddr, uint flags) {
     int index;
 
     LTRACEF("aspace %p tt %p pa 0x%lx va 0x%lx flags 0x%x\n", aspace, aspace->tt_virt, paddr, vaddr, flags);
@@ -177,8 +173,7 @@ static void arm_mmu_map_section(arch_aspace_t *aspace, addr_t paddr, addr_t vadd
     aspace->tt_virt[index] = (paddr & ~(MB-1)) | (MMU_MEMORY_DOMAIN_MEM << 5) | MMU_MEMORY_L1_DESCRIPTOR_SECTION | flags;
 }
 
-static void arm_mmu_unmap_l1_entry(uint32_t *translation_table, uint32_t index)
-{
+static void arm_mmu_unmap_l1_entry(uint32_t *translation_table, uint32_t index) {
     DEBUG_ASSERT(translation_table);
     DEBUG_ASSERT(index < TT_ENTRY_COUNT);
 
@@ -187,19 +182,16 @@ static void arm_mmu_unmap_l1_entry(uint32_t *translation_table, uint32_t index)
     arm_invalidate_tlb_mva_no_barrier((vaddr_t)index * SECTION_SIZE);
 }
 
-static void arm_mmu_unmap_section(arch_aspace_t *aspace, addr_t vaddr)
-{
+static void arm_mmu_unmap_section(arch_aspace_t *aspace, addr_t vaddr) {
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(IS_SECTION_ALIGNED(vaddr));
     arm_mmu_unmap_l1_entry(aspace->tt_virt, vaddr / SECTION_SIZE);
 }
 
-void arm_mmu_early_init(void)
-{
+void arm_mmu_early_init(void) {
 }
 
-void arm_mmu_init(void)
-{
+void arm_mmu_init(void) {
     /* unmap the initial mapings that are marked temporary */
     struct mmu_initial_mapping *map = mmu_initial_mappings;
     while (map->size > 0) {
@@ -235,13 +227,11 @@ void arm_mmu_init(void)
 #endif
 }
 
-void arch_disable_mmu(void)
-{
+void arch_disable_mmu(void) {
     arm_write_sctlr(arm_read_sctlr() & ~(1<<0)); // mmu disabled
 }
 
-void arch_mmu_context_switch(arch_aspace_t *aspace)
-{
+void arch_mmu_context_switch(arch_aspace_t *aspace) {
     if (LOCAL_TRACE && TRACE_CONTEXT_SWITCH)
         LTRACEF("aspace %p\n", aspace);
 
@@ -261,8 +251,7 @@ void arch_mmu_context_switch(arch_aspace_t *aspace)
     arm_write_ttbcr(ttbcr);
 }
 
-status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags)
-{
+status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) {
     LTRACEF("aspace %p, vaddr 0x%lx\n", aspace, vaddr);
 
     DEBUG_ASSERT(aspace);
@@ -394,8 +383,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
  */
 #define L1E_PER_PAGE 4
 
-static status_t get_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t *ppa)
-{
+static status_t get_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t *ppa) {
     status_t ret;
     paddr_t pa;
     uint32_t tt_entry;
@@ -437,8 +425,7 @@ static status_t get_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t *
 }
 
 
-static void put_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t l2_pa)
-{
+static void put_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t l2_pa) {
     DEBUG_ASSERT(aspace);
 
     /* check if any l1 entry points to this l2 table */
@@ -467,8 +454,7 @@ static void put_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t l2_pa
 #if WITH_ARCH_MMU_PICK_SPOT
 
 static inline bool are_regions_compatible(uint new_region_flags,
-        uint adjacent_region_flags)
-{
+        uint adjacent_region_flags) {
     /*
      * Two regions are compatible if NS flag matches.
      */
@@ -483,8 +469,7 @@ static inline bool are_regions_compatible(uint new_region_flags,
 
 vaddr_t arch_mmu_pick_spot(vaddr_t base, uint prev_region_flags,
                            vaddr_t end,  uint next_region_flags,
-                           vaddr_t align, size_t size, uint flags)
-{
+                           vaddr_t align, size_t size, uint flags) {
     LTRACEF("base 0x%lx, end 0x%lx, align %ld, size %zd, flags 0x%x\n",
             base, end, align, size, flags);
 
@@ -511,8 +496,7 @@ vaddr_t arch_mmu_pick_spot(vaddr_t base, uint prev_region_flags,
 #endif  /* WITH_ARCH_MMU_PICK_SPOT */
 
 
-int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count, uint flags)
-{
+int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count, uint flags) {
     LTRACEF("vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", vaddr, paddr, count, flags);
 
     DEBUG_ASSERT(aspace);
@@ -577,7 +561,7 @@ int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count,
 
                     aspace->tt_virt[l1_index] = tt_entry;
                 }
-                    /* fallthrough */
+                /* fallthrough */
                 case MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE: {
                     uint32_t *l2_table = paddr_to_kvaddr(MMU_MEMORY_L1_PAGE_TABLE_ADDR(tt_entry));
                     LTRACEF("l2_table at %p\n", l2_table);
@@ -610,8 +594,7 @@ done:
     return mapped;
 }
 
-int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count)
-{
+int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->tt_virt);
 
@@ -705,8 +688,7 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count)
     return unmapped;
 }
 
-status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags)
-{
+status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) {
     LTRACEF("aspace %p, base 0x%lx, size 0x%zx, flags 0x%x\n", aspace, base, size, flags);
 
     DEBUG_ASSERT(aspace);
@@ -744,8 +726,7 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
     return NO_ERROR;
 }
 
-status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace)
-{
+status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
     LTRACEF("aspace %p\n", aspace);
 
     // XXX free all of the pages allocated in aspace->pt_page_list

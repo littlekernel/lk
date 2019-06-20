@@ -35,13 +35,11 @@
 #define INC_POINTER(cbuf, ptr, inc) \
     modpow2(((ptr) + (inc)), (cbuf)->len_pow2)
 
-void cbuf_initialize(cbuf_t *cbuf, size_t len)
-{
+void cbuf_initialize(cbuf_t *cbuf, size_t len) {
     cbuf_initialize_etc(cbuf, len, malloc(len));
 }
 
-void cbuf_initialize_etc(cbuf_t *cbuf, size_t len, void *buf)
-{
+void cbuf_initialize_etc(cbuf_t *cbuf, size_t len, void *buf) {
     DEBUG_ASSERT(cbuf);
     DEBUG_ASSERT(len > 0);
     DEBUG_ASSERT(ispow2(len));
@@ -56,19 +54,16 @@ void cbuf_initialize_etc(cbuf_t *cbuf, size_t len, void *buf)
     LTRACEF("len %zd, len_pow2 %u\n", len, cbuf->len_pow2);
 }
 
-size_t cbuf_space_avail(cbuf_t *cbuf)
-{
+size_t cbuf_space_avail(cbuf_t *cbuf) {
     uint consumed = modpow2((uint)(cbuf->head - cbuf->tail), cbuf->len_pow2);
     return valpow2(cbuf->len_pow2) - consumed - 1;
 }
 
-size_t cbuf_space_used(cbuf_t *cbuf)
-{
+size_t cbuf_space_used(cbuf_t *cbuf) {
     return modpow2((uint)(cbuf->head - cbuf->tail), cbuf->len_pow2);
 }
 
-size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule)
-{
+size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule) {
     const char *buf = (const char *)_buf;
 
     LTRACEF("len %zd\n", len);
@@ -127,8 +122,7 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
     return pos;
 }
 
-size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block)
-{
+size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block) {
     char *buf = (char *)_buf;
 
     DEBUG_ASSERT(cbuf);
@@ -186,8 +180,7 @@ retry:
     return ret;
 }
 
-size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions)
-{
+size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions) {
     DEBUG_ASSERT(cbuf && regions);
 
     spin_lock_saved_state_t state;
@@ -214,8 +207,7 @@ size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions)
     return ret;
 }
 
-size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule)
-{
+size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule) {
     DEBUG_ASSERT(cbuf);
 
     spin_lock_saved_state_t state;
@@ -237,8 +229,7 @@ size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule)
     return ret;
 }
 
-size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block)
-{
+size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block) {
     DEBUG_ASSERT(cbuf);
     DEBUG_ASSERT(c);
 

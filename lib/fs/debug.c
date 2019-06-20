@@ -29,8 +29,7 @@
 #include <platform.h>
 #include <lk/err.h>
 
-static void test_normalize(const char *in)
-{
+static void test_normalize(const char *in) {
     char path[1024];
 
     strlcpy(path, in, sizeof(path));
@@ -78,8 +77,7 @@ STATIC_COMMAND_END(fs);
 
 extern int fs_mount_type(const char *path, const char *device, const char *name);
 
-static int cmd_fs_ioctl(int argc, const cmd_args *argv)
-{
+static int cmd_fs_ioctl(int argc, const cmd_args *argv) {
     if (argc < 3) {
         printf("not enough arguments\n");
         return ERR_INVALID_ARGS;
@@ -154,8 +152,7 @@ static int cmd_fs_ioctl(int argc, const cmd_args *argv)
     return ERR_NOT_SUPPORTED;
 }
 
-static int cmd_fs(int argc, const cmd_args *argv)
-{
+static int cmd_fs(int argc, const cmd_args *argv) {
     int rc = 0;
 
     if (argc < 2) {

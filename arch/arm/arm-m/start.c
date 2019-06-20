@@ -30,8 +30,7 @@ extern unsigned int __bss_start, __bss_end;
 
 extern void lk_main(void) __NO_RETURN __EXTERNALLY_VISIBLE;
 
-void _start(void)
-{
+void _start(void) {
     /* copy data from rom */
     if (&__data_start != &__data_start_rom) {
         unsigned int *src = &__data_start_rom;

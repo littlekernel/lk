@@ -31,8 +31,7 @@
 
 static platform_timer_callback t_callback;
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     t_callback = callback;
 
     *REG(PIT_CLEAR) = 1;
@@ -44,8 +43,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     lk_bigtime_t time;
     *REG(SYSINFO_TIME_LATCH) = 1;
     time = *REG(SYSINFO_TIME_SECS) * 1000000ULL;
@@ -54,8 +52,7 @@ lk_bigtime_t current_time_hires(void)
     return time;
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     lk_time_t time;
     *REG(SYSINFO_TIME_LATCH) = 1;
     time = *REG(SYSINFO_TIME_SECS) * 1000;
@@ -64,8 +61,7 @@ lk_time_t current_time(void)
     return time;
 }
 
-static enum handler_return platform_tick(void *arg)
-{
+static enum handler_return platform_tick(void *arg) {
     *REG(PIT_CLEAR_INT) = 1;
     if (t_callback) {
         return t_callback(arg, current_time());
@@ -74,8 +70,7 @@ static enum handler_return platform_tick(void *arg)
     }
 }
 
-void platform_init_timer(void)
-{
+void platform_init_timer(void) {
     register_int_handler(INT_PIT, &platform_tick, NULL);
 }
 

@@ -19,21 +19,18 @@
 #include <kernel/semaphore.h>
 #include <kernel/thread.h>
 
-void sem_init(semaphore_t *sem, unsigned int value)
-{
+void sem_init(semaphore_t *sem, unsigned int value) {
     *sem = (semaphore_t)SEMAPHORE_INITIAL_VALUE(*sem, value);
 }
 
-void sem_destroy(semaphore_t *sem)
-{
+void sem_destroy(semaphore_t *sem) {
     THREAD_LOCK(state);
     sem->count = 0;
     wait_queue_destroy(&sem->wait, true);
     THREAD_UNLOCK(state);
 }
 
-int sem_post(semaphore_t *sem, bool resched)
-{
+int sem_post(semaphore_t *sem, bool resched) {
     int ret = 0;
 
     THREAD_LOCK(state);
@@ -50,8 +47,7 @@ int sem_post(semaphore_t *sem, bool resched)
     return ret;
 }
 
-status_t sem_wait(semaphore_t *sem)
-{
+status_t sem_wait(semaphore_t *sem) {
     status_t ret = NO_ERROR;
     THREAD_LOCK(state);
 
@@ -66,8 +62,7 @@ status_t sem_wait(semaphore_t *sem)
     return ret;
 }
 
-status_t sem_trywait(semaphore_t *sem)
-{
+status_t sem_trywait(semaphore_t *sem) {
     status_t ret = NO_ERROR;
     THREAD_LOCK(state);
 
@@ -80,8 +75,7 @@ status_t sem_trywait(semaphore_t *sem)
     return ret;
 }
 
-status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout)
-{
+status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout) {
     status_t ret = NO_ERROR;
     THREAD_LOCK(state);
 

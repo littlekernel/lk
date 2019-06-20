@@ -37,8 +37,7 @@
 #define LOCAL_TRACE 0
 
 // Attempt to boot from the filesystem.
-void attempt_fs_boot(void)
-{
+void attempt_fs_boot(void) {
     char *mount_path, *device_name;
     bootimage_t *bi;
 
@@ -55,7 +54,7 @@ void attempt_fs_boot(void)
     retcode = fs_open_file(fpath, &handle);
     if (retcode != NO_ERROR) {
         LTRACEF("Failed: to open recovery file: '%s'. retcode = %d\n",
-                fpath ,retcode);
+                fpath,retcode);
         goto finish;
     }
 
@@ -64,7 +63,7 @@ void attempt_fs_boot(void)
     retcode = fs_stat_file(handle, &stat);
     if (retcode != NO_ERROR) {
         LTRACEF("Failed: to stat recovery file: '%s'. retcode = %d\n",
-                fpath ,retcode);
+                fpath,retcode);
         goto finish;
     }
 
@@ -78,14 +77,14 @@ void attempt_fs_boot(void)
 
     if (retcode != NO_ERROR) {
         LTRACEF("Failed: to get file memmap for '%s'. retcode = %d\n",
-                fpath ,retcode);
+                fpath,retcode);
         goto finish;
     }
 
     bdev_t *secondary_flash = bio_open(device_name);
     if (!secondary_flash) {
         LTRACEF("Failed: Unable to open secondary flash at '%s'. "
-                "retcode = %d\n", device_name ,retcode);
+                "retcode = %d\n", device_name,retcode);
         goto finish;
     }
 
@@ -95,13 +94,13 @@ void attempt_fs_boot(void)
 
     if (retcode != NO_ERROR) {
         LTRACEF("Failed: to get file memmap for '%s'. "
-                "retcode = %d\n", device_name ,retcode);
+                "retcode = %d\n", device_name,retcode);
         goto finish;
     }
 
     retcode = bootimage_open(address, stat.size, &bi);
     if (retcode != NO_ERROR) {
-        LTRACEF("Failed: Unable to open bootimage. retcode = %d\n" ,retcode);
+        LTRACEF("Failed: Unable to open bootimage. retcode = %d\n",retcode);
         goto finish;
     }
 
@@ -109,7 +108,7 @@ void attempt_fs_boot(void)
     const void *imgptr;
     retcode = bootimage_get_file_section(bi, TYPE_LK, &imgptr, &imglen);
     if (retcode != NO_ERROR) {
-        LTRACEF("Failed: Unable to find lk section. retcode = %d\n" ,retcode);
+        LTRACEF("Failed: Unable to find lk section. retcode = %d\n",retcode);
         goto finish;
     }
 

@@ -93,8 +93,7 @@
 #define QSPI_LINEAR_STATUS      0xE000D0A4
 #define QSPI_MODULE_ID          0xE000D0FC
 
-int qspi_set_speed(struct qspi_ctxt *qspi, uint32_t khz)
-{
+int qspi_set_speed(struct qspi_ctxt *qspi, uint32_t khz) {
     uint32_t n;
 
     if (khz >= 100000) {
@@ -131,8 +130,7 @@ int qspi_set_speed(struct qspi_ctxt *qspi, uint32_t khz)
     return 0;
 }
 
-int qspi_init(struct qspi_ctxt *qspi, uint32_t khz)
-{
+int qspi_init(struct qspi_ctxt *qspi, uint32_t khz) {
     writel(0, QSPI_ENABLE);
     writel(0, QSPI_LINEAR_CONFIG);
 
@@ -161,8 +159,7 @@ int qspi_init(struct qspi_ctxt *qspi, uint32_t khz)
     return 0;
 }
 
-int qspi_enable_linear(struct qspi_ctxt *qspi)
-{
+int qspi_enable_linear(struct qspi_ctxt *qspi) {
     if (qspi->linear_mode)
         return 0;
 
@@ -203,8 +200,7 @@ int qspi_enable_linear(struct qspi_ctxt *qspi)
     return 0;
 }
 
-int qspi_disable_linear(struct qspi_ctxt *qspi)
-{
+int qspi_disable_linear(struct qspi_ctxt *qspi) {
     if (!qspi->linear_mode)
         return 0;
 
@@ -226,8 +222,7 @@ int qspi_disable_linear(struct qspi_ctxt *qspi)
     return 0;
 }
 
-void qspi_cs(struct qspi_ctxt *qspi, unsigned int cs)
-{
+void qspi_cs(struct qspi_ctxt *qspi, unsigned int cs) {
     DEBUG_ASSERT(cs <= 1);
 
     if (cs == 0)
@@ -237,8 +232,7 @@ void qspi_cs(struct qspi_ctxt *qspi, unsigned int cs)
     writel(qspi->cfg, QSPI_CONFIG);
 }
 
-static inline void qspi_xmit(struct qspi_ctxt *qspi)
-{
+static inline void qspi_xmit(struct qspi_ctxt *qspi) {
     // start txn
     writel(qspi->cfg | CFG_MANUAL_START, QSPI_CONFIG);
 
@@ -246,16 +240,14 @@ static inline void qspi_xmit(struct qspi_ctxt *qspi)
     while ((readl(QSPI_IRQ_STATUS) & TX_FIFO_NOT_FULL) == 0) ;
 }
 
-static inline void qspi_flush_rx(void)
-{
+static inline void qspi_flush_rx(void) {
     while (!(readl(QSPI_IRQ_STATUS) & RX_FIFO_NOT_EMPTY)) ;
     readl(QSPI_RXDATA);
 }
 
 static const uint32_t TXFIFO[] = { QSPI_TXD1, QSPI_TXD2, QSPI_TXD3, QSPI_TXD0, QSPI_TXD0, QSPI_TXD0 };
 
-void qspi_rd(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count)
-{
+void qspi_rd(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count) {
     uint32_t sent = 0;
     uint32_t rcvd = 0;
 
@@ -289,8 +281,7 @@ void qspi_rd(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *dat
     qspi_cs(qspi, 1);
 }
 
-void qspi_wr(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count)
-{
+void qspi_wr(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *data, uint32_t count) {
     uint32_t sent = 0;
     uint32_t rcvd = 0;
 
@@ -325,8 +316,7 @@ void qspi_wr(struct qspi_ctxt *qspi, uint32_t cmd, uint32_t asize, uint32_t *dat
     qspi_cs(qspi, 1);
 }
 
-void qspi_wr1(struct qspi_ctxt *qspi, uint32_t cmd)
-{
+void qspi_wr1(struct qspi_ctxt *qspi, uint32_t cmd) {
     DEBUG_ASSERT(qspi);
 
     qspi_cs(qspi, 0);
@@ -339,8 +329,7 @@ void qspi_wr1(struct qspi_ctxt *qspi, uint32_t cmd)
     qspi_cs(qspi, 1);
 }
 
-void qspi_wr2(struct qspi_ctxt *qspi, uint32_t cmd)
-{
+void qspi_wr2(struct qspi_ctxt *qspi, uint32_t cmd) {
     DEBUG_ASSERT(qspi);
 
     qspi_cs(qspi, 0);
@@ -353,8 +342,7 @@ void qspi_wr2(struct qspi_ctxt *qspi, uint32_t cmd)
     qspi_cs(qspi, 1);
 }
 
-void qspi_wr3(struct qspi_ctxt *qspi, uint32_t cmd)
-{
+void qspi_wr3(struct qspi_ctxt *qspi, uint32_t cmd) {
     DEBUG_ASSERT(qspi);
 
     qspi_cs(qspi, 0);
@@ -367,8 +355,7 @@ void qspi_wr3(struct qspi_ctxt *qspi, uint32_t cmd)
     qspi_cs(qspi, 1);
 }
 
-uint32_t qspi_rd1(struct qspi_ctxt *qspi, uint32_t cmd)
-{
+uint32_t qspi_rd1(struct qspi_ctxt *qspi, uint32_t cmd) {
     qspi_cs(qspi, 0);
     writel(cmd, QSPI_TXD2);
     qspi_xmit(qspi);

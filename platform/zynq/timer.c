@@ -61,8 +61,7 @@ static platform_timer_callback t_callback;
 static volatile uint ticks = 0;
 static lk_time_t periodic_interval;
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     enter_critical_section();
 
     LTRACEF("callback %p, arg %p, interval %lu\n", callback, arg, interval);
@@ -85,8 +84,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     lk_bigtime_t time;
 
     time = ticks * periodic_interval * 1000ULL;
@@ -94,8 +92,7 @@ lk_bigtime_t current_time_hires(void)
     return time;
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     lk_time_t time;
 
     time = ticks * periodic_interval;
@@ -103,8 +100,7 @@ lk_time_t current_time(void)
     return time;
 }
 
-static enum handler_return platform_tick(void *arg)
-{
+static enum handler_return platform_tick(void *arg) {
     ticks++;
 
     volatile uint32_t hole = TIMREG(ISR(0)); // ack the irq
@@ -116,8 +112,7 @@ static enum handler_return platform_tick(void *arg)
     }
 }
 
-void platform_init_timer(void)
-{
+void platform_init_timer(void) {
     /* disable timers */
     TIMREG(CNT_CTRL(0)) = 0x1;
     TIMREG(CNT_CTRL(1)) = 0x1;

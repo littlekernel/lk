@@ -31,15 +31,13 @@
 #define ISA_IO_BASE ((volatile uint8_t *)0x14000000 + 0x80000000)
 #define UART_PORT_BASE (0x3f8)
 
-static inline void isa_write_8(uint16_t port, uint8_t val)
-{
+static inline void isa_write_8(uint16_t port, uint8_t val) {
     volatile uint8_t *addr = ISA_IO_BASE + port;
 
     *addr = val;
 }
 
-static inline uint8_t isa_read_8(uint16_t port)
-{
+static inline uint8_t isa_read_8(uint16_t port) {
     volatile uint8_t *addr = ISA_IO_BASE + port;
 
     return *addr;

@@ -72,12 +72,10 @@ static pmm_arena_t arena = {
     .flags = PMM_ARENA_FLAG_KMAP,
 };
 
-void platform_init_mmu_mappings(void)
-{
+void platform_init_mmu_mappings(void) {
 }
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     uart_init_early();
 
     platform_init_interrupts();
@@ -90,6 +88,5 @@ void platform_early_init(void)
     pmm_add_arena(&arena);
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
 }

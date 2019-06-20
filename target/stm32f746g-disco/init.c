@@ -52,8 +52,7 @@ const sdram_config_t target_sdram_config = {
     .col_bits_num = SDRAM_COLUMN_BITS_8
 };
 
-void target_early_init(void)
-{
+void target_early_init(void) {
 #if DEBUG_UART == 1
     /* configure usart 1 pins */
     gpio_config(GPIO_USART1_TX, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF7_USART1) | GPIO_PULLUP);
@@ -69,8 +68,7 @@ void target_early_init(void)
     BSP_LCD_Init();
 }
 
-void target_init(void)
-{
+void target_init(void) {
     stm32_debug_init();
 
     qspi_flash_init(N25Q128A_FLASH_SIZE);
@@ -98,8 +96,7 @@ void target_init(void)
   * @brief  Initializes SDRAM GPIO.
   * called back from stm32_sdram_init
   */
-void stm_sdram_GPIO_init(void)
-{
+void stm_sdram_GPIO_init(void) {
     GPIO_InitTypeDef gpio_init_structure;
 
     /* Enable GPIOs clock */
@@ -154,8 +151,7 @@ void stm_sdram_GPIO_init(void)
   * @retval None
   */
 /* called back from the HAL_ETH_Init routine */
-void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
-{
+void HAL_ETH_MspInit(ETH_HandleTypeDef *heth) {
     GPIO_InitTypeDef GPIO_InitStructure;
 
     /* Enable GPIOs clocks */
@@ -193,8 +189,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
     HAL_GPIO_Init(GPIOG, &GPIO_InitStructure);
 }
 
-void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
-{
+void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
     /*##-1- Enable peripherals and GPIO Clocks #################################*/
@@ -244,8 +239,7 @@ void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
   * @param  hpcd: PCD handle
   * @retval None
   */
-void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd) {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
     if (hpcd->Instance == USB_OTG_FS) {

@@ -66,8 +66,7 @@ static const struct platform_ide_config pci_ide1_config = {
 };
 DEVICE_INSTANCE(ide, pci_ide1, &pci_ide1_config, 0);
 
-void target_init(void)
-{
+void target_init(void) {
     // initialize static devices
     device_init_all();
 

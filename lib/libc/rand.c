@@ -25,13 +25,11 @@
 
 static unsigned int randseed = 12345;
 
-void srand(unsigned int seed)
-{
+void srand(unsigned int seed) {
     randseed = seed;
 }
 
-void rand_add_entropy(const void *buf, size_t len)
-{
+void rand_add_entropy(const void *buf, size_t len) {
     if (len == 0)
         return;
 
@@ -43,7 +41,6 @@ void rand_add_entropy(const void *buf, size_t len)
     randseed ^= enp;
 }
 
-int rand(void)
-{
+int rand(void) {
     return (randseed = randseed * 1664525 + 1013904223);
 }

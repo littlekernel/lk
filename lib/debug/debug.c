@@ -32,16 +32,14 @@
 #include <platform/debug.h>
 #include <kernel/spinlock.h>
 
-void spin(uint32_t usecs)
-{
+void spin(uint32_t usecs) {
     lk_bigtime_t start = current_time_hires();
 
     while ((current_time_hires() - start) < usecs)
         ;
 }
 
-void _panic(void *caller, const char *fmt, ...)
-{
+void _panic(void *caller, const char *fmt, ...) {
     printf("panic (caller %p): ", caller);
 
     va_list ap;
@@ -54,8 +52,7 @@ void _panic(void *caller, const char *fmt, ...)
 
 #if !DISABLE_DEBUG_OUTPUT
 
-static int __panic_stdio_fgetc(void *ctx)
-{
+static int __panic_stdio_fgetc(void *ctx) {
     char c;
     int err;
 
@@ -65,8 +62,7 @@ static int __panic_stdio_fgetc(void *ctx)
     return (unsigned char)c;
 }
 
-static ssize_t __panic_stdio_read(io_handle_t *io, char *s, size_t len)
-{
+static ssize_t __panic_stdio_read(io_handle_t *io, char *s, size_t len) {
     if (len == 0)
         return 0;
 
@@ -77,16 +73,14 @@ static ssize_t __panic_stdio_read(io_handle_t *io, char *s, size_t len)
     return 1;
 }
 
-static ssize_t __panic_stdio_write(io_handle_t *io, const char *s, size_t len)
-{
+static ssize_t __panic_stdio_write(io_handle_t *io, const char *s, size_t len) {
     for (size_t i = 0; i < len; i++) {
         platform_pputc(s[i]);
     }
     return len;
 }
 
-FILE *get_panic_fd(void)
-{
+FILE *get_panic_fd(void) {
     static const io_handle_hooks_t panic_hooks = {
         .write = __panic_stdio_write,
         .read = __panic_stdio_read,
@@ -102,8 +96,7 @@ FILE *get_panic_fd(void)
     return &panic_fd;
 }
 
-void hexdump(const void *ptr, size_t len)
-{
+void hexdump(const void *ptr, size_t len) {
     addr_t address = (addr_t)ptr;
     size_t count;
 
@@ -138,8 +131,7 @@ void hexdump(const void *ptr, size_t len)
     }
 }
 
-void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr)
-{
+void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr) {
     addr_t address = (addr_t)ptr;
     size_t count;
     size_t i;

@@ -33,22 +33,19 @@
 #include <stm32f4xx_usart.h>
 #include <arch/arm/cm.h>
 
-void stm32_debug_early_init(void)
-{
+void stm32_debug_early_init(void) {
     uart_init_early();
 }
 
 /* later in the init process */
-void stm32_debug_init(void)
-{
+void stm32_debug_init(void) {
     uart_init();
 }
 
 #define ITM_STIM0   0xE0000000
 #define ITM_TCR     0xE0000E80
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     // if ITM is enabled, send character to STIM0
     if (readl(ITM_TCR) & 1) {
         while (!readl(ITM_STIM0)) ;
@@ -60,8 +57,7 @@ void platform_dputc(char c)
     uart_putc(DEBUG_UART, c);
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
     int ret = uart_getc(DEBUG_UART, wait);
     if (ret == -1)
         return -1;
@@ -73,8 +69,7 @@ void __debugger_console_putc(char c);
 
 #define DCRDR 0xE000EDF8
 
-void _debugmonitor(void)
-{
+void _debugmonitor(void) {
     u32 n;
     arm_cm_irq_entry();
     n = readl(DCRDR);

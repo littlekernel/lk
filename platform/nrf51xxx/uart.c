@@ -43,8 +43,7 @@
 
 
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
 #ifdef ENABLE_UART0
 
 #ifdef  UART0_TX_PIN
@@ -67,8 +66,7 @@ void uart_init_early(void)
 #endif //ENABLE_UART0
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
 #ifdef ENABLE_UART0
 //    cbuf_initialize(&uart0_rx_buf, RXBUF_SIZE);
 //    NRF_UART0->INTENSET = UART_INTENSET_RXDRDY_Enabled << UART_INTENSET_RXDRDY_Pos;
@@ -79,8 +77,7 @@ void uart_init(void)
 #endif //ENABLE_UART0
 }
 
-void nrf51_UART0_IRQ(void)
-{
+void nrf51_UART0_IRQ(void) {
 //  char c;
     arm_cm_irq_entry();
     /*
@@ -98,16 +95,14 @@ void nrf51_UART0_IRQ(void)
     arm_cm_irq_exit(false);
 }
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     while (NRF_UART0->EVENTS_TXDRDY == 0);
     NRF_UART0->EVENTS_TXDRDY = 0;
     NRF_UART0->TXD = c;
     return 1;
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     do {
         if (NRF_UART0->EVENTS_RXDRDY > 0) {
             NRF_UART0->EVENTS_RXDRDY=0;
@@ -121,8 +116,7 @@ void uart_flush_tx(int port) {}
 
 void uart_flush_rx(int port) {}
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
     // TODO - later
     PANIC_UNIMPLEMENTED;
 }

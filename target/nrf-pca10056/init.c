@@ -29,8 +29,7 @@
 #include <platform/nrf52.h>
 #include <target/gpioconfig.h>
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     gpio_config(GPIO_LED1, GPIO_OUTPUT);
     gpio_config(GPIO_LED2, GPIO_OUTPUT);
     gpio_config(GPIO_LED3, GPIO_OUTPUT);
@@ -45,8 +44,7 @@ void target_early_init(void)
 }
 
 
-void target_init(void)
-{
+void target_init(void) {
     nrf52_debug_init();
     dprintf(SPEW,"Target: PCA10056 DK...\n");
 }

@@ -27,8 +27,7 @@ static volatile bool txqueued;
 static event_t testevent;
 
 /* RX */
-static void queue_rx_transfer(void)
-{
+static void queue_rx_transfer(void) {
     rx.callback = rx_callback;
     rx.result = 0;
     rx.buf = rxbuf;
@@ -42,8 +41,7 @@ static void queue_rx_transfer(void)
     usbc_queue_rx(1, &rx);
 }
 
-static status_t rx_callback(ep_t endpoint, struct usbc_transfer *transfer)
-{
+static status_t rx_callback(ep_t endpoint, struct usbc_transfer *transfer) {
     LTRACEF("ep %u, transfer %p\n", endpoint, transfer);
 
     rxqueued = false;
@@ -53,8 +51,7 @@ static status_t rx_callback(ep_t endpoint, struct usbc_transfer *transfer)
 }
 
 /* TX */
-static void queue_tx_transfer(void)
-{
+static void queue_tx_transfer(void) {
     tx.callback = tx_callback;
     tx.result = 0;
     tx.buf = txbuf;
@@ -69,8 +66,7 @@ static void queue_tx_transfer(void)
     usbc_queue_tx(1, &tx);
 }
 
-static status_t tx_callback(ep_t endpoint, struct usbc_transfer *transfer)
-{
+static status_t tx_callback(ep_t endpoint, struct usbc_transfer *transfer) {
     LTRACEF("ep %u, transfer %p\n", endpoint, transfer);
 
     txqueued = false;
@@ -79,16 +75,14 @@ static status_t tx_callback(ep_t endpoint, struct usbc_transfer *transfer)
     return NO_ERROR;
 }
 
-static void usbtest_init(const struct app_descriptor *app)
-{
+static void usbtest_init(const struct app_descriptor *app) {
     LTRACE_ENTRY;
     event_init(&testevent, false, EVENT_FLAG_AUTOUNSIGNAL);
     usbtest_usb_setup();
     LTRACE_EXIT;
 }
 
-static void usbtest_entry(const struct app_descriptor *app, void *args)
-{
+static void usbtest_entry(const struct app_descriptor *app, void *args) {
     LTRACE_ENTRY;
 
     TRACEF("starting usb stack\n");
@@ -124,7 +118,7 @@ static void usbtest_entry(const struct app_descriptor *app, void *args)
 
 APP_START(usbtest)
 .init = usbtest_init,
- .entry = usbtest_entry,
-  APP_END
+.entry = usbtest_entry,
+APP_END
 
 

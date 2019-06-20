@@ -28,8 +28,7 @@
 #include <sys/types.h>
 
 int
-memcmp(const void *cs, const void *ct, size_t count)
-{
+memcmp(const void *cs, const void *ct, size_t count) {
     const unsigned char *su1, *su2;
     signed char res = 0;
 

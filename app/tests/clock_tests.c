@@ -30,8 +30,7 @@
 #include <kernel/event.h>
 #include <platform.h>
 
-int clock_tests(int argc, const cmd_args *argv)
-{
+int clock_tests(int argc, const cmd_args *argv) {
     uint32_t c;
     lk_time_t t;
     lk_bigtime_t t2;

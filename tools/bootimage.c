@@ -42,8 +42,7 @@ struct bootimage {
     uint32_t next_offset;
 };
 
-bootimage *bootimage_init(void)
-{
+bootimage *bootimage_init(void) {
     bootimage *img;
 
     if ((img = malloc(sizeof(bootimage))) == NULL) {
@@ -63,8 +62,7 @@ bootimage *bootimage_init(void)
     return img;
 }
 
-bootentry_data *bootimage_add_string(bootimage *img, unsigned kind, const char *s)
-{
+bootentry_data *bootimage_add_string(bootimage *img, unsigned kind, const char *s) {
     unsigned n = img->count;
     int len = strlen(s);
     if (img->count == 64) return NULL;
@@ -76,8 +74,7 @@ bootentry_data *bootimage_add_string(bootimage *img, unsigned kind, const char *
     return &(img->entry[n].data);
 }
 
-bootentry_file *bootimage_add_filedata(bootimage *img, unsigned type, void *data, unsigned len)
-{
+bootentry_file *bootimage_add_filedata(bootimage *img, unsigned type, void *data, unsigned len) {
     unsigned n = img->count;
     if (img->count == 64) return NULL;
     img->count++;
@@ -100,8 +97,7 @@ bootentry_file *bootimage_add_filedata(bootimage *img, unsigned type, void *data
     return &(img->entry[n].file);
 }
 
-void bootimage_done(bootimage *img)
-{
+void bootimage_done(bootimage *img) {
     unsigned sz = img->next_offset;
     if (sz & 4095) {
         sz += (4096 - (sz & 4095));
@@ -111,8 +107,7 @@ void bootimage_done(bootimage *img)
     SHA256_hash((void *) &(img->entry[1]), 4096 - 64, img->entry[0].file.sha256);
 }
 
-static int writex(int fd, void *data, size_t len)
-{
+static int writex(int fd, void *data, size_t len) {
     int r;
     char *x = data;
     while (len > 0) {
@@ -131,8 +126,7 @@ static int writex(int fd, void *data, size_t len)
 
 static uint8_t filler[4096] = { 0, };
 
-int bootimage_write(bootimage *img, int fd)
-{
+int bootimage_write(bootimage *img, int fd) {
     unsigned off = 4096;
     unsigned n, s;
     if (writex(fd, img->entry, 4096)) {
@@ -158,8 +152,7 @@ int bootimage_write(bootimage *img, int fd)
     return 0;
 }
 
-static void *load_file(const char *fn, size_t *len)
-{
+static void *load_file(const char *fn, size_t *len) {
     off_t sz;
     void *data = NULL;
     char *x;
@@ -205,8 +198,7 @@ fail:
     return NULL;
 }
 
-bootentry_file *bootimage_add_file(bootimage *img, unsigned type, const char *fn)
-{
+bootentry_file *bootimage_add_file(bootimage *img, unsigned type, const char *fn) {
     unsigned char *data;
     size_t len;
 

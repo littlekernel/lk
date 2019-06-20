@@ -27,29 +27,29 @@
 #include <sys/types.h>
 
 typedef struct dt_slice {
-	u8 *data;
-	u32 size;
+    u8 *data;
+    u32 size;
 } dt_slice_t;
 
 struct devicetree_header {
-	u32 magic;
-	u32 size;
-	u32 off_struct;		// offset from start to DT 'structure'
-	u32 off_strings;	// offset from start to stringdata
-	u32 off_reserve;	// offset from start to reserve memory map
-	u32 version;
-	u32 version_compat;	// last compatible version
-	u32 boot_cpuid;
-	u32 sz_strings;		// size of stringdata
-	u32 sz_struct;		// size of DT 'structure'
+    u32 magic;
+    u32 size;
+    u32 off_struct;     // offset from start to DT 'structure'
+    u32 off_strings;    // offset from start to stringdata
+    u32 off_reserve;    // offset from start to reserve memory map
+    u32 version;
+    u32 version_compat; // last compatible version
+    u32 boot_cpuid;
+    u32 sz_strings;     // size of stringdata
+    u32 sz_struct;      // size of DT 'structure'
 };
 
 typedef struct devicetree {
-	dt_slice_t top;
-	dt_slice_t dt;
-	dt_slice_t ds;
-	struct devicetree_header hdr;
-	void (*error)(const char *msg);
+    dt_slice_t top;
+    dt_slice_t dt;
+    dt_slice_t ds;
+    struct devicetree_header hdr;
+    void (*error)(const char *msg);
 } devicetree_t;
 
 typedef int (*dt_node_cb)(int depth, const char *name, void *cookie);

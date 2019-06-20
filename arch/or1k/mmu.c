@@ -39,8 +39,7 @@ uint32_t or1k_kernel_translation_table[256] __ALIGNED(8192) __SECTION(".bss.preb
 
 /* Pessimistic tlb invalidation, which rather invalidate too much.
  * TODO: make it more precise. */
-void or1k_invalidate_tlb(vaddr_t vaddr, uint count)
-{
+void or1k_invalidate_tlb(vaddr_t vaddr, uint count) {
     uint32_t dmmucfgr = mfspr(OR1K_SPR_SYS_DMMUCFGR_ADDR);
     uint32_t immucfgr = mfspr(OR1K_SPR_SYS_IMMUCFGR_ADDR);
     uint32_t num_dtlb_ways = OR1K_SPR_SYS_DMMUCFGR_NTW_GET(dmmucfgr) + 1;
@@ -77,8 +76,7 @@ void or1k_invalidate_tlb(vaddr_t vaddr, uint count)
     }
 }
 
-status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
-{
+status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags) {
     uint index = vaddr / SECTION_SIZE;
     uint32_t pte = or1k_kernel_translation_table[index];
     uint32_t vmask = SECTION_SIZE-1;
@@ -112,8 +110,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
     return NO_ERROR;
 }
 
-int arch_mmu_unmap(vaddr_t vaddr, uint count)
-{
+int arch_mmu_unmap(vaddr_t vaddr, uint count) {
     LTRACEF("vaddr = 0x%x, count = %d\n", vaddr, count);
 
     if (!IS_PAGE_ALIGNED(vaddr))
@@ -142,8 +139,7 @@ int arch_mmu_unmap(vaddr_t vaddr, uint count)
     return unmapped;
 }
 
-int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
-{
+int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
     uint l1_index;
     uint32_t pte;
     uint32_t arch_flags = 0;

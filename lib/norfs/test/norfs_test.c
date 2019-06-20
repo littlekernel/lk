@@ -84,8 +84,7 @@ const unsigned char NORFS_BLOCK_GC_FINISHED_HEADER[2] = {'U', 'P'};
 const int NORFS_OBJ_HEADER_SIZE = 12;
 
 /* Stores the current bank for future retrieval. */
-static void save_bank(void)
-{
+static void save_bank(void) {
     free(norfs_test_bank);
     norfs_test_bank = malloc(8 * FLASH_PAGE_SIZE);
     const struct flash_nor_bank *bank;
@@ -94,8 +93,7 @@ static void save_bank(void)
     norfs_test_bank_len = bank->len;
 }
 
-static void write_block_header(uint *ptr)
-{
+static void write_block_header(uint *ptr) {
     *ptr += flash_nor_write(0, *ptr, sizeof(NORFS_BLOCK_HEADER),
                             NORFS_BLOCK_HEADER);
     *ptr += flash_nor_write(0, *ptr, sizeof(NORFS_BLOCK_GC_STARTED_HEADER),
@@ -104,8 +102,7 @@ static void write_block_header(uint *ptr)
                             NORFS_BLOCK_GC_FINISHED_HEADER);
 }
 
-static bool test_basic_read_write(void)
-{
+static bool test_basic_read_write(void) {
     BEGIN_TEST;
     unsigned char char_array[5] = {4, 6, 7, 2, 1};
     uint32_t char_key = 47;
@@ -276,8 +273,7 @@ static bool test_basic_read_write(void)
  * collection, since there will be no guarantee the block containing the
  * object with key 4 has been collected.
  */
-static bool test_garbage_collection(void)
-{
+static bool test_garbage_collection(void) {
     BEGIN_TEST;
     int size = FLASH_PAGE_SIZE/16;
     unsigned char array[size];
@@ -319,8 +315,7 @@ static bool test_garbage_collection(void)
     END_TEST;
 }
 
-static bool test_total_remaining_space(void)
-{
+static bool test_total_remaining_space(void) {
     BEGIN_TEST;
     uint32_t prev_remaining_space;
 
@@ -343,8 +338,7 @@ static bool test_total_remaining_space(void)
     END_TEST;
 }
 
-static bool test_deletion(void)
-{
+static bool test_deletion(void) {
     BEGIN_TEST;
 
     status_t status;
@@ -389,8 +383,7 @@ static bool test_deletion(void)
     END_TEST;
 }
 
-static bool test_corruption(void)
-{
+static bool test_corruption(void) {
     BEGIN_TEST;
 
     unsigned char buff[4];
@@ -432,8 +425,7 @@ static bool test_corruption(void)
     END_TEST;
 }
 
-static bool test_deletion_objects_retained_during_gc(void)
-{
+static bool test_deletion_objects_retained_during_gc(void) {
     BEGIN_TEST;
     static const uint16_t BLOCK_HEADER_SIZE = 8, OBJ_HEADER_LENGTH = 12;
 
@@ -474,8 +466,7 @@ static bool test_deletion_objects_retained_during_gc(void)
     END_TEST;
 }
 
-static bool test_garbage_collection_interruption(void)
-{
+static bool test_garbage_collection_interruption(void) {
     BEGIN_TEST;
     wipe_fs();
     size_t obj_len;
@@ -506,8 +497,7 @@ static bool test_garbage_collection_interruption(void)
     END_TEST;
 }
 
-static bool test_thrash_fs(void)
-{
+static bool test_thrash_fs(void) {
     status_t status;
     size_t bytes_read;
     int int_buff;
@@ -614,8 +604,7 @@ static bool test_thrash_fs(void)
     END_TEST;
 }
 
-static bool test_overflow_filesystem(void)
-{
+static bool test_overflow_filesystem(void) {
     BEGIN_TEST;
 
     wipe_fs();
@@ -652,8 +641,7 @@ static bool test_overflow_filesystem(void)
     END_TEST;
 }
 
-static bool test_wrapping(void)
-{
+static bool test_wrapping(void) {
     BEGIN_TEST;
     size_t bytes_read;
     unsigned char buffer[4];
@@ -705,8 +693,7 @@ static bool test_wrapping(void)
     END_TEST;
 }
 
-static void init_tests(void)
-{
+static void init_tests(void) {
     platform_init();
     wipe_fs();
 }

@@ -43,8 +43,7 @@
 extern const struct lk_init_struct __lk_init[];
 extern const struct lk_init_struct __lk_init_end[];
 
-void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop_level)
-{
+void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop_level) {
     LTRACEF("flags %#x, start_level %#x, stop_level %#x\n",
             required_flag, start_level, stop_level);
 
@@ -105,24 +104,19 @@ void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop
 }
 
 #if 0
-void test_hook(uint level)
-{
+void test_hook(uint level) {
     LTRACEF("level %#x\n", level);
 }
-void test_hook1(uint level)
-{
+void test_hook1(uint level) {
     LTRACEF("level %#x\n", level);
 }
-void test_hook1a(uint level)
-{
+void test_hook1a(uint level) {
     LTRACEF("level %#x\n", level);
 }
-void test_hook1b(uint level)
-{
+void test_hook1b(uint level) {
     LTRACEF("level %#x\n", level);
 }
-void test_hook2(uint level)
-{
+void test_hook2(uint level) {
     LTRACEF("level %#x\n", level);
 }
 

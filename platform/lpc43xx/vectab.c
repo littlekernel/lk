@@ -25,8 +25,7 @@
 #include <lk/compiler.h>
 #include <arch/arm/cm.h>
 
-void lpc43xx_dummy_irq(void)
-{
+void lpc43xx_dummy_irq(void) {
     arm_cm_irq_entry();
     panic("unhandled irq\n");
 }

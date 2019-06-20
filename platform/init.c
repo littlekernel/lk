@@ -29,19 +29,15 @@
  * chooses not to implement.
  */
 
-__WEAK void platform_init_mmu_mappings(void)
-{
+__WEAK void platform_init_mmu_mappings(void) {
 }
 
-__WEAK void platform_early_init(void)
-{
+__WEAK void platform_early_init(void) {
 }
 
-__WEAK void platform_init(void)
-{
+__WEAK void platform_init(void) {
 }
 
-__WEAK void platform_quiesce(void)
-{
+__WEAK void platform_quiesce(void) {
 }
 

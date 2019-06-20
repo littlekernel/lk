@@ -86,8 +86,7 @@ udp_socket_t *dhcp_udp_handle;
 
 static u8 mac[6];
 
-static void printip(const char *name, u32 x)
-{
+static void printip(const char *name, u32 x) {
     union {
         u32 u;
         u8 b[4];
@@ -99,8 +98,7 @@ static void printip(const char *name, u32 x)
 static volatile int configured = 0;
 static int cfgstate = 0;
 
-static void dhcp_discover(u32 xid)
-{
+static void dhcp_discover(u32 xid) {
     struct {
         dhcp_msg_t msg;
         u8 opt[128];
@@ -136,8 +134,7 @@ static void dhcp_discover(u32 xid)
     }
 }
 
-static void dhcp_request(u32 xid, u32 server, u32 reqip)
-{
+static void dhcp_request(u32 xid, u32 server, u32 reqip) {
     struct {
         dhcp_msg_t msg;
         u8 opt[128];
@@ -182,8 +179,7 @@ static void dhcp_request(u32 xid, u32 server, u32 reqip)
     }
 }
 
-static void dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, void *arg)
-{
+static void dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, void *arg) {
     dhcp_msg_t *msg = data;
     u8 *opt;
     u32 netmask = 0;
@@ -271,8 +267,7 @@ done:
     }
 }
 
-static int dhcp_thread(void *arg)
-{
+static int dhcp_thread(void *arg) {
     for (;;) {
         if (configured) break;
         thread_sleep(500);
@@ -284,8 +279,7 @@ static int dhcp_thread(void *arg)
 
 static thread_t *dhcp_thr;
 
-void minip_init_dhcp(tx_func_t tx_func, void *tx_arg)
-{
+void minip_init_dhcp(tx_func_t tx_func, void *tx_arg) {
     minip_get_macaddr(mac);
 
     minip_init(tx_func, tx_arg, IPV4_NONE, IPV4_NONE, IPV4_NONE);

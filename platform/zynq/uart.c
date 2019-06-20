@@ -39,8 +39,7 @@ static inline uint uart_to_irq(unsigned int n) { return (n == 0) ? UART0_INT : U
 
 #define UART_REG(base, reg)  (*REG32((base)  + (reg)))
 
-static enum handler_return uart_irq(void *arg)
-{
+static enum handler_return uart_irq(void *arg) {
     bool resched = false;
     uint port = (uint)arg;
     uintptr_t base = uart_to_ptr(port);
@@ -63,8 +62,7 @@ static enum handler_return uart_irq(void *arg)
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
     for (uint i = 0; i < NUM_UARTS; i++) {
         cbuf_initialize(&uart_rx_buf[i], RXBUF_SIZE);
 
@@ -89,8 +87,7 @@ void uart_init(void)
     }
 }
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
     for (uint i = 0; i < NUM_UARTS; i++) {
         uintptr_t base = uart_to_ptr(i);
 
@@ -116,8 +113,7 @@ void uart_init_early(void)
     /*UART_REG(UART1_BASE, UART_MR) = 0x00000020;*/
 }
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
 
     uintptr_t base = uart_to_ptr(port);
@@ -130,8 +126,7 @@ int uart_putc(int port, char c)
     return 1;
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
 
     char c;
@@ -141,18 +136,15 @@ int uart_getc(int port, bool wait)
     return -1;
 }
 
-void uart_flush_tx(int port)
-{
+void uart_flush_tx(int port) {
     DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
 }
 
-void uart_flush_rx(int port)
-{
+void uart_flush_rx(int port) {
     DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
 }
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
     DEBUG_ASSERT(port >= 0 && port < NUM_UARTS);
 
     PANIC_UNIMPLEMENTED;

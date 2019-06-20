@@ -33,8 +33,7 @@ static struct test_case_element *failed_test_case_list = NULL;
 /*
  * Registers a test case with the unit test framework.
  */
-void unittest_register_test_case(struct test_case_element *elem)
-{
+void unittest_register_test_case(struct test_case_element *elem) {
     DEBUG_ASSERT(elem);
     DEBUG_ASSERT(elem->next == NULL);
     elem->next = test_case_list;
@@ -44,8 +43,7 @@ void unittest_register_test_case(struct test_case_element *elem)
 /*
  * Runs all registered test cases.
  */
-bool run_all_tests(void)
-{
+bool run_all_tests(void) {
     unsigned int n_tests   = 0;
     unsigned int n_success = 0;
     unsigned int n_failed  = 0;
@@ -69,7 +67,7 @@ bool run_all_tests(void)
         struct test_case_element *failed = failed_test_case_list;
         while (failed) {
             struct test_case_element *failed_next =
-                        failed->failed_next;
+                    failed->failed_next;
             failed->failed_next = NULL;
             failed = failed_next;
             n_failed++;

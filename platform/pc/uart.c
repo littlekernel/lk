@@ -61,8 +61,7 @@ static struct uart_ops the_ops = {
 
 DRIVER_EXPORT(uart, &the_ops.std);
 
-static status_t uart_init(struct device *dev)
-{
+static status_t uart_init(struct device *dev) {
     status_t res = NO_ERROR;
 
     if (!dev)
@@ -107,8 +106,7 @@ done:
     return res;
 }
 
-static enum handler_return uart_irq_handler(void *arg)
-{
+static enum handler_return uart_irq_handler(void *arg) {
     bool resched = false;
     struct device *dev = arg;
 
@@ -128,8 +126,7 @@ static enum handler_return uart_irq_handler(void *arg)
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-static int uart_write_thread(void *arg)
-{
+static int uart_write_thread(void *arg) {
     struct device *dev = arg;
 
     DEBUG_ASSERT(dev);
@@ -153,8 +150,7 @@ static int uart_write_thread(void *arg)
     return 0;
 }
 
-static ssize_t uart_read(struct device *dev, void *buf, size_t len)
-{
+static ssize_t uart_read(struct device *dev, void *buf, size_t len) {
     if (!dev || !buf)
         return ERR_INVALID_ARGS;
 
@@ -164,8 +160,7 @@ static ssize_t uart_read(struct device *dev, void *buf, size_t len)
     return cbuf_read(&state->rx_buf, buf, len, true);
 }
 
-static ssize_t uart_write(struct device *dev, const void *buf, size_t len)
-{
+static ssize_t uart_write(struct device *dev, const void *buf, size_t len) {
     if (!dev || !buf)
         return ERR_INVALID_ARGS;
 

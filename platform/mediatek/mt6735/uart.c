@@ -35,8 +35,7 @@ static volatile unsigned int g_uart;
 // output uart baudrate
 static unsigned int g_brg;
 
-static void uart_setbrg(void)
-{
+static void uart_setbrg(void) {
     unsigned int byte,speed;
     unsigned int highspeed;
     unsigned int quot, divisor, remainder;
@@ -101,18 +100,15 @@ static void uart_setbrg(void)
     }
 }
 
-void mtk_set_current_uart(MTK_UART uart_base)
-{
+void mtk_set_current_uart(MTK_UART uart_base) {
     g_uart = uart_base;
 }
 
-int mtk_get_current_uart(void)
-{
+int mtk_get_current_uart(void) {
     return g_uart;
 }
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
     mtk_set_current_uart(UART1);
 
     DRV_SetReg32(UART_FCR(g_uart), UART_FCR_FIFO_INIT); /* clear fifo */
@@ -121,24 +117,19 @@ void uart_init_early(void)
     uart_setbrg();
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
 }
 
-void uart_flush_tx(int port)
-{
+void uart_flush_tx(int port) {
 }
 
-void uart_flush_rx(int port)
-{
+void uart_flush_rx(int port) {
 }
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
 }
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     while (!(DRV_Reg32(UART_LSR(port)) & UART_LSR_THRE));
 
     if (c == '\n')
@@ -149,8 +140,7 @@ int uart_putc(int port, char c)
     return 0;
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     while (!(DRV_Reg32(UART_LSR(port)) & UART_LSR_DR));
     return (int)DRV_Reg32(UART_RBR(port));
 }

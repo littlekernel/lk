@@ -114,8 +114,7 @@ struct gem_state {
 
 struct gem_state gem;
 
-static void debug_rx_handler(pktbuf_t *p)
-{
+static void debug_rx_handler(pktbuf_t *p) {
     static uint32_t pkt = 0;
 
     printf("[%10u] packet %u, %zu bytes:\n", (uint32_t)current_time(), ++pkt, p->dlen);
@@ -123,8 +122,7 @@ static void debug_rx_handler(pktbuf_t *p)
     putchar('\n');
 }
 
-static int free_completed_pbuf_frames(void)
-{
+static int free_completed_pbuf_frames(void) {
     int ret = 0;
 
     gem.regs->tx_status = gem.regs->tx_status;
@@ -147,8 +145,7 @@ static int free_completed_pbuf_frames(void)
     return ret;
 }
 
-void queue_pkts_in_tx_tbl(void)
-{
+void queue_pkts_in_tx_tbl(void) {
     pktbuf_t *p;
     unsigned int cur_pos;
 
@@ -187,8 +184,7 @@ void queue_pkts_in_tx_tbl(void)
     gem.regs->net_ctrl |= NET_CTRL_START_TX;
 }
 
-int gem_send_raw_pkt(struct pktbuf *p)
-{
+int gem_send_raw_pkt(struct pktbuf *p) {
     status_t ret = NO_ERROR;
 
     if (!p || !p->dlen) {
@@ -213,8 +209,7 @@ err:
 }
 
 
-enum handler_return gem_int_handler(void *arg)
-{
+enum handler_return gem_int_handler(void *arg) {
     uint32_t intr_status;
     bool resched = false;
 
@@ -276,8 +271,7 @@ enum handler_return gem_int_handler(void *arg)
     return (resched) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-static bool wait_for_phy_idle(void)
-{
+static bool wait_for_phy_idle(void) {
     int iters = 1000;
     while (iters && !(gem.regs->net_status & NET_STATUS_PHY_MGMT_IDLE)) {
         iters--;
@@ -290,13 +284,11 @@ static bool wait_for_phy_idle(void)
     return true;
 }
 
-static bool gem_phy_init(void)
-{
+static bool gem_phy_init(void) {
     return wait_for_phy_idle();
 }
 
-static status_t gem_cfg_buffer_descs(void)
-{
+static status_t gem_cfg_buffer_descs(void) {
     void *rx_buf_vaddr;
     status_t ret;
 
@@ -340,8 +332,7 @@ static status_t gem_cfg_buffer_descs(void)
     return NO_ERROR;
 }
 
-static void gem_cfg_ints(void)
-{
+static void gem_cfg_ints(void) {
     uint32_t gem_base = (uintptr_t)gem.regs;
 
     if (gem_base == GEM0_BASE) {
@@ -360,8 +351,7 @@ static void gem_cfg_ints(void)
                         INTR_RX_USED_READ | INTR_TX_CORRUPT | INTR_TX_USED_READ | INTR_RX_OVERRUN;
 }
 
-int gem_rx_thread(void *arg)
-{
+int gem_rx_thread(void *arg) {
     pktbuf_t *p;
     int bp = 0;
 
@@ -411,8 +401,7 @@ int gem_rx_thread(void *arg)
 }
 
 
-int gem_stat_thread(void *arg)
-{
+int gem_stat_thread(void *arg) {
     volatile bool *run = ((bool *)arg);
     static uint32_t frames_rx = 0, frames_tx = 0;
 
@@ -427,8 +416,7 @@ int gem_stat_thread(void *arg)
     return 0;
 }
 
-void gem_deinit(uintptr_t base)
-{
+void gem_deinit(uintptr_t base) {
     /* reset the gem peripheral */
     uint32_t rst_mask;
     if (base == GEM0_BASE) {
@@ -453,8 +441,7 @@ void gem_deinit(uintptr_t base)
     gem.regs->tx_qbar = 0;
 }
 
-status_t gem_init(uintptr_t gem_base)
-{
+status_t gem_init(uintptr_t gem_base) {
     status_t ret;
     uint32_t reg_val;
     thread_t *rx_thread;
@@ -528,8 +515,7 @@ status_t gem_init(uintptr_t gem_base)
     return NO_ERROR;
 }
 
-void gem_disable(void)
-{
+void gem_disable(void) {
     /* disable all the interrupts */
     gem.regs->intr_en = 0;
     mask_interrupt(ETH0_INT);
@@ -538,13 +524,11 @@ void gem_disable(void)
     gem.regs->net_ctrl = 0;
 }
 
-void gem_set_callback(gem_cb_t rx)
-{
+void gem_set_callback(gem_cb_t rx) {
     gem.rx_callback = rx;
 }
 
-void gem_set_macaddr(uint8_t mac[6])
-{
+void gem_set_macaddr(uint8_t mac[6]) {
     uint32_t en = gem.regs->net_ctrl &= NET_CTRL_RX_EN | NET_CTRL_TX_EN;
 
     if (en) {
@@ -562,8 +546,7 @@ void gem_set_macaddr(uint8_t mac[6])
 
 
 /* Debug console commands */
-static int cmd_gem(int argc, const cmd_args *argv)
-{
+static int cmd_gem(int argc, const cmd_args *argv) {
     static uint32_t frames_rx = 0;
     static uint32_t frames_tx = 0;
     static bool run_stats = false;

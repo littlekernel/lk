@@ -25,8 +25,7 @@
 #include <sys/types.h>
 
 char const *
-strerror(int errnum)
-{
+strerror(int errnum) {
     if (errnum < 0) {
         return "General Error";
     } else {

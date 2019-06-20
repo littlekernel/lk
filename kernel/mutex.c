@@ -39,8 +39,7 @@
 /**
  * @brief  Initialize a mutex_t
  */
-void mutex_init(mutex_t *m)
-{
+void mutex_init(mutex_t *m) {
     *m = (mutex_t)MUTEX_INITIAL_VALUE(*m);
 }
 
@@ -50,8 +49,7 @@ void mutex_init(mutex_t *m)
  * This function frees any resources that were allocated
  * in mutex_init().  The mutex_t object itself is not freed.
  */
-void mutex_destroy(mutex_t *m)
-{
+void mutex_destroy(mutex_t *m) {
     DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
 #if LK_DEBUGLEVEL > 0
@@ -77,8 +75,7 @@ void mutex_destroy(mutex_t *m)
  * @return  NO_ERROR on success, ERR_TIMED_OUT on timeout,
  * other values on error
  */
-status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout)
-{
+status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout) {
     DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
 #if LK_DEBUGLEVEL > 0
@@ -119,8 +116,7 @@ err:
 /**
  * @brief  Release mutex
  */
-status_t mutex_release(mutex_t *m)
-{
+status_t mutex_release(mutex_t *m) {
     DEBUG_ASSERT(m->magic == MUTEX_MAGIC);
 
 #if LK_DEBUGLEVEL > 0

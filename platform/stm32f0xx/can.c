@@ -29,8 +29,7 @@ typedef enum {
 static cbuf_t can_rx_buf;
 static mutex_t can_tx_mutex;
 
-void stm32_CEC_CAN_IRQ(void)
-{
+void stm32_CEC_CAN_IRQ(void) {
     arm_cm_irq_entry();
     bool resched = false;
     stm32_can_t *can = CAN;
@@ -102,7 +101,7 @@ int stm32_can_transmit(stm32_can_t *can, const can_msg_t *msg) {
     if (msg->ide) {
         // Extended IDs untested.
         mailbox->TIR = (msg->id << 21) | (msg->id_ex << 3) | CAN_TI0R_IDE
-            | (msg->rtr ? CAN_TI0R_RTR : 0);
+                       | (msg->rtr ? CAN_TI0R_RTR : 0);
     } else {
         mailbox->TIR = (msg->id << 21) | (msg->rtr ? CAN_TI0R_RTR : 0);
     }
@@ -113,9 +112,9 @@ int stm32_can_transmit(stm32_can_t *can, const can_msg_t *msg) {
 
     /* Set up the data field */
     mailbox->TDLR = msg->data[3] << 24 | msg->data[2] << 16
-        | msg->data[1] << 8 | msg->data[0];
+                    | msg->data[1] << 8 | msg->data[0];
     mailbox->TDHR = msg->data[7] << 24 | msg->data[6] << 16
-        | msg->data[5] << 8 | msg->data[4];
+                    | msg->data[5] << 8 | msg->data[4];
 
     mailbox->TIR |= CAN_TI0R_TXRQ;
     return 0;
@@ -186,8 +185,7 @@ void can_init(bool loopback) {
     NVIC_EnableIRQ(CEC_CAN_IRQn);
 }
 
-ssize_t can_send(const can_msg_t *msg)
-{
+ssize_t can_send(const can_msg_t *msg) {
     stm32_can_t *can = CAN;
     ssize_t ret;
 
@@ -198,8 +196,7 @@ ssize_t can_send(const can_msg_t *msg)
     return ret;
 }
 
-ssize_t can_recv(can_msg_t *msg, bool block)
-{
+ssize_t can_recv(can_msg_t *msg, bool block) {
     stm32_can_t *can = CAN;
     size_t bytes_read;
 

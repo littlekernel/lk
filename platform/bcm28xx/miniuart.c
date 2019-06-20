@@ -68,8 +68,7 @@ struct bcm283x_aux_regs {
 
 #define MU_LSR_TX_EMPTY      (1 << 5)
 
-static enum handler_return aux_irq(void *arg)
-{
+static enum handler_return aux_irq(void *arg) {
     volatile struct bcm283x_mu_regs *mu_regs =
         (struct bcm283x_mu_regs *)MINIUART_BASE;
     volatile struct bcm283x_aux_regs *aux_regs =
@@ -95,8 +94,7 @@ static enum handler_return aux_irq(void *arg)
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     // There's only one UART for now.
     // TODO(gkalsi): Unify the two UART code paths using the port.
     struct bcm283x_mu_regs *regs = (struct bcm283x_mu_regs *)MINIUART_BASE;
@@ -106,13 +104,12 @@ int uart_putc(int port, char c)
         ;
 
     /* Send the character */
-    writel(c, &regs->io);    
+    writel(c, &regs->io);
 
     return 1;
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
     volatile struct bcm283x_mu_regs *mu_regs =
         (struct bcm283x_mu_regs *)MINIUART_BASE;
     volatile struct bcm283x_aux_regs *aux_regs =
@@ -131,20 +128,18 @@ void uart_init(void)
     writel(MU_IIR_CLR_RECV_FIFO | MU_IIR_CLR_XMIT_FIFO, &mu_regs->iir);
 
     // Enable the miniuart peripheral. This also enables Miniuart register
-    // access. It's likely that the VideoCore chip already enables this 
+    // access. It's likely that the VideoCore chip already enables this
     // peripheral for us, but we hit the enable bit just to be sure.
     writel(AUX_ENB_MINIUART, &aux_regs->auxenb);
 
-    // Enable the receive interrupt on the UART peripheral. 
+    // Enable the receive interrupt on the UART peripheral.
     writel(MU_IIR_EN_RX_IRQ, &mu_regs->ier);
 }
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     cbuf_t *rxbuf = &uart_rx_buf;
 
     char c;
@@ -154,22 +149,19 @@ int uart_getc(int port, bool wait)
     return -1;
 }
 
-void uart_flush_tx(int port)
-{
+void uart_flush_tx(int port) {
     volatile struct bcm283x_mu_regs *mu_regs =
         (struct bcm283x_mu_regs *)MINIUART_BASE;
     writel(MU_IIR_CLR_XMIT_FIFO, &mu_regs->iir);
 }
 
-void uart_flush_rx(int port)
-{
+void uart_flush_rx(int port) {
     volatile struct bcm283x_mu_regs *mu_regs =
         (struct bcm283x_mu_regs *)MINIUART_BASE;
     writel(MU_IIR_CLR_RECV_FIFO, &mu_regs->iir);
 }
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
 }
 
 

@@ -88,8 +88,7 @@ void gfx_putpixel(gfx_surface *surface, uint x, uint y, uint color);
 void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint color);
 
 // clear the entire surface with a color
-static inline void gfx_clear(gfx_surface *surface, uint color)
-{
+static inline void gfx_clear(gfx_surface *surface, uint color) {
     surface->fillrect(surface, 0, 0, surface->width, surface->height, color);
 
     if (surface->flush)

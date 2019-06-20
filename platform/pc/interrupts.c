@@ -64,8 +64,7 @@ static uint8_t irqMask[2];
 /*
  * init the PICs and remap them
  */
-static void map(uint32_t pic1, uint32_t pic2)
-{
+static void map(uint32_t pic1, uint32_t pic2) {
     /* send ICW1 */
     outp(PIC1, ICW1);
     outp(PIC2, ICW1);
@@ -90,8 +89,7 @@ static void map(uint32_t pic1, uint32_t pic2)
     irqMask[1] = 0xff;
 }
 
-static void enable(unsigned int vector, bool enable)
-{
+static void enable(unsigned int vector, bool enable) {
     if (vector >= PIC1_BASE && vector < PIC1_BASE + 8) {
         vector -= PIC1_BASE;
 
@@ -143,8 +141,7 @@ static void enable(unsigned int vector, bool enable)
     }
 }
 
-void issueEOI(unsigned int vector)
-{
+void issueEOI(unsigned int vector) {
     if (vector >= PIC1_BASE && vector <= PIC1_BASE + 7) {
         outp(PIC1, 0x20);
     } else if (vector >= PIC2_BASE && vector <= PIC2_BASE + 7) {
@@ -153,14 +150,12 @@ void issueEOI(unsigned int vector)
     }
 }
 
-void platform_init_interrupts(void)
-{
+void platform_init_interrupts(void) {
     // rebase the PIC out of the way of processor exceptions
     map(PIC1_BASE, PIC2_BASE);
 }
 
-status_t mask_interrupt(unsigned int vector)
-{
+status_t mask_interrupt(unsigned int vector) {
     if (vector >= INT_VECTORS)
         return ERR_INVALID_ARGS;
 
@@ -177,8 +172,7 @@ status_t mask_interrupt(unsigned int vector)
 }
 
 
-void platform_mask_irqs(void)
-{
+void platform_mask_irqs(void) {
     irqMask[0] = inp(PIC1 + 1);
     irqMask[1] = inp(PIC2 + 1);
 
@@ -189,8 +183,7 @@ void platform_mask_irqs(void)
     irqMask[1] = inp(PIC2 + 1);
 }
 
-status_t unmask_interrupt(unsigned int vector)
-{
+status_t unmask_interrupt(unsigned int vector) {
     if (vector >= INT_VECTORS)
         return ERR_INVALID_ARGS;
 
@@ -206,8 +199,7 @@ status_t unmask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-enum handler_return platform_irq(x86_iframe_t *frame)
-{
+enum handler_return platform_irq(x86_iframe_t *frame) {
     // get the current vector
     unsigned int vector = frame->vector;
 
@@ -225,8 +217,7 @@ enum handler_return platform_irq(x86_iframe_t *frame)
     return ret;
 }
 
-void register_int_handler(unsigned int vector, int_handler handler, void *arg)
-{
+void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     if (vector >= INT_VECTORS)
         panic("register_int_handler: vector out of range %d\n", vector);
 

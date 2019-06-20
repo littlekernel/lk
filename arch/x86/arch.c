@@ -44,8 +44,7 @@ __SECTION(".data") void *_multiboot_info;
 /* main tss */
 static tss_t system_tss;
 
-void arch_early_init(void)
-{
+void arch_early_init(void) {
     /* enable caches here for now */
     clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
 
@@ -67,8 +66,7 @@ void arch_early_init(void)
     x86_mmu_early_init();
 }
 
-void arch_init(void)
-{
+void arch_init(void) {
     x86_mmu_init();
 
 #ifdef X86_WITH_FPU
@@ -76,13 +74,11 @@ void arch_init(void)
 #endif
 }
 
-void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
-{
+void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
     PANIC_UNIMPLEMENTED;
 }
 
-void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top)
-{
+void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     PANIC_UNIMPLEMENTED;
 #if 0
     DEBUG_ASSERT(IS_ALIGNED(user_stack_top, 16));

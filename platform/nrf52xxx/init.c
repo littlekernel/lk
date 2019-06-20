@@ -30,15 +30,13 @@
 
 
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     // Crank up the clock before initing timers.
     SystemInit();
     arm_cm_systick_init(32768);
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     dprintf(SPEW, "Nordic nrf52xxx platform for lk...\n");
     dprintf(SPEW, "\tFlash: %d pages of %d bytes each (%dk bytes total)\n", \
             NRF_FICR->CODESIZE, NRF_FICR->CODEPAGESIZE, \

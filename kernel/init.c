@@ -28,8 +28,7 @@
 #include <kernel/mp.h>
 #include <kernel/port.h>
 
-void kernel_init(void)
-{
+void kernel_init(void) {
     // if enabled, configure the kernel's event log
     kernel_evlog_init();
 

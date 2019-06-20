@@ -39,8 +39,7 @@
 static bool pending_addr_change = false;
 static uint8_t addr;
 
-static void usbc_dump_regs(void)
-{
+static void usbc_dump_regs(void) {
     printf("USB0 reg dump:\n");
 #define DUMPREG8(r) printf("\t" #r ": 0x%hhx\n", *REG8(USB0_BASE + (r)));
 #define DUMPREG16(r) printf("\t" #r ": 0x%hx\n", *REG16(USB0_BASE + (r)));
@@ -85,14 +84,12 @@ static void usbc_dump_regs(void)
 #undef DUMPREG32
 }
 
-void stellaris_usbc_early_init(void)
-{
+void stellaris_usbc_early_init(void) {
     LTRACE_ENTRY;
     LTRACE_EXIT;
 }
 
-void stellaris_usbc_init(void)
-{
+void stellaris_usbc_init(void) {
     LTRACE_ENTRY;
 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
@@ -118,8 +115,7 @@ void stellaris_usbc_init(void)
     LTRACE_EXIT;
 }
 
-static void ep0_irq(void)
-{
+static void ep0_irq(void) {
     uint status = USBEndpointStatus(USB0_BASE, USB_EP_0);
 
     LTRACEF("ep0 status 0x%x\n", status);
@@ -151,8 +147,7 @@ static void ep0_irq(void)
     }
 }
 
-void stellaris_usb0_irq(void)
-{
+void stellaris_usb0_irq(void) {
     arm_cm_irq_entry();
 
     uint status = USBIntStatusControl(USB0_BASE);
@@ -181,22 +176,19 @@ void stellaris_usb0_irq(void)
     arm_cm_irq_exit(true);
 }
 
-void usbc_ep0_ack(void)
-{
+void usbc_ep0_ack(void) {
     LTRACE_ENTRY;
 
     USBDevEndpointDataAck(USB0_BASE, USB_EP_0, true);
 }
 
-void usbc_ep0_stall(void)
-{
+void usbc_ep0_stall(void) {
     LTRACE_ENTRY;
 
     USBDevEndpointStall(USB0_BASE, USB_EP_0, 0);
 }
 
-void usbc_ep0_send(const void *buf, size_t len, size_t maxlen)
-{
+void usbc_ep0_send(const void *buf, size_t len, size_t maxlen) {
     LTRACEF("buf %p, len %zu, maxlen %zu\n", buf, len, maxlen);
 
     USBEndpointDataPut(USB0_BASE, USB_EP_0, (void *)buf, MIN(len, maxlen));
@@ -204,26 +196,22 @@ void usbc_ep0_send(const void *buf, size_t len, size_t maxlen)
     USBEndpointDataSend(USB0_BASE, USB_EP_0, USB_TRANS_SETUP);
 }
 
-void usbc_set_address(uint8_t address)
-{
+void usbc_set_address(uint8_t address) {
     LTRACEF("address 0x%hhx\n", address);
 
     addr = address;
     pending_addr_change = true;
 }
 
-void usbc_ep0_recv(void *buf, size_t len, ep_callback cb)
-{
+void usbc_ep0_recv(void *buf, size_t len, ep_callback cb) {
     PANIC_UNIMPLEMENTED;
 }
 
-bool usbc_is_highspeed(void)
-{
+bool usbc_is_highspeed(void) {
     return false;
 }
 
-status_t usbc_set_active(bool active)
-{
+status_t usbc_set_active(bool active) {
     LTRACEF("active %d\n", active);
     if (active) {
         USBIntEnableControl(USB0_BASE, USB_INTCTRL_CONNECT | USB_INTCTRL_RESET);
@@ -236,22 +224,18 @@ status_t usbc_set_active(bool active)
     return NO_ERROR;
 }
 
-status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type)
-{
+status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type) {
     PANIC_UNIMPLEMENTED;
 }
 
-status_t usbc_queue_rx(ep_t ep, usbc_transfer_t *transfer)
-{
+status_t usbc_queue_rx(ep_t ep, usbc_transfer_t *transfer) {
     PANIC_UNIMPLEMENTED;
 }
 
-status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer)
-{
+status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer) {
     PANIC_UNIMPLEMENTED;
 }
 
-status_t usbc_flush_ep(ep_t ep)
-{
+status_t usbc_flush_ep(ep_t ep) {
     PANIC_UNIMPLEMENTED;
 }

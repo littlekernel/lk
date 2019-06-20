@@ -54,8 +54,7 @@ static struct pos       cur_pos;
 static struct pos       max_pos;
 
 static void fbcon_drawglyph(uint16_t *pixels, uint16_t paint, unsigned stride,
-                            unsigned *glyph)
-{
+                            unsigned *glyph) {
     unsigned x, y, data;
     stride -= FONT_WIDTH;
 
@@ -82,8 +81,7 @@ static void fbcon_drawglyph(uint16_t *pixels, uint16_t paint, unsigned stride,
     }
 }
 
-static void fbcon_flush(void)
-{
+static void fbcon_flush(void) {
     if (config->update_start)
         config->update_start();
     if (config->update_done)
@@ -91,8 +89,7 @@ static void fbcon_flush(void)
 }
 
 /* TODO: Take stride into account */
-static void fbcon_scroll_up(void)
-{
+static void fbcon_scroll_up(void) {
     unsigned short *dst = config->base;
     unsigned short *src = dst + (config->width * FONT_HEIGHT);
     unsigned count = config->width * (config->height - FONT_HEIGHT);
@@ -110,8 +107,7 @@ static void fbcon_scroll_up(void)
 }
 
 /* TODO: take stride into account */
-static void fbcon_clear(void)
-{
+static void fbcon_clear(void) {
     uint16_t *dst = config->base;
     unsigned count = config->width * config->height;
 
@@ -123,14 +119,12 @@ static void fbcon_clear(void)
 }
 
 
-static void fbcon_set_colors(unsigned bg, unsigned fg)
-{
+static void fbcon_set_colors(unsigned bg, unsigned fg) {
     BGCOLOR = bg;
     FGCOLOR = fg;
 }
 
-void fbcon_putc(char c)
-{
+void fbcon_putc(char c) {
     uint16_t *pixels;
 
     /* ignore anything that happens before fbcon is initialized */
@@ -167,8 +161,7 @@ newline:
         fbcon_flush();
 }
 
-void fbcon_setup(struct fbcon_config *_config)
-{
+void fbcon_setup(struct fbcon_config *_config) {
     uint32_t bg;
     uint32_t fg;
 

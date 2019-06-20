@@ -111,8 +111,7 @@ struct arm_cm_context_switch_frame {
 thread_t *_current_thread;
 
 static void initial_thread_func(void) __NO_RETURN;
-static void initial_thread_func(void)
-{
+static void initial_thread_func(void) {
     int ret;
 
     LTRACEF("thread %p calling %p with arg %p\n", _current_thread, _current_thread->entry, _current_thread->arg);
@@ -131,8 +130,7 @@ static void initial_thread_func(void)
     thread_exit(ret);
 }
 
-void arch_thread_initialize(struct thread *t)
-{
+void arch_thread_initialize(struct thread *t) {
     LTRACEF("thread %p, stack %p\n", t, t->stack);
 
     /* find the top of the stack and align it on an 8 byte boundary */
@@ -156,8 +154,7 @@ void arch_thread_initialize(struct thread *t)
 
 static volatile struct arm_cm_exception_frame_long *preempt_frame;
 
-static void pendsv(struct arm_cm_exception_frame_long *frame)
-{
+static void pendsv(struct arm_cm_exception_frame_long *frame) {
     arch_disable_ints();
 
     LTRACEF("preempting thread %p (%s)\n", _current_thread, _current_thread->name);
@@ -178,8 +175,7 @@ static void pendsv(struct arm_cm_exception_frame_long *frame)
  * raw pendsv exception handler, triggered by interrupt glue to schedule
  * a preemption check.
  */
-__NAKED void _pendsv(void)
-{
+__NAKED void _pendsv(void) {
     __asm__ volatile(
         SAVE_REGS
         "mov    r0, sp;"
@@ -193,8 +189,7 @@ __NAKED void _pendsv(void)
  * svc handler, used to hard switch the cpu into exception mode to return
  * to preempted thread.
  */
-__NAKED void _svc(void)
-{
+__NAKED void _svc(void) {
     __asm__ volatile(
         /* load the pointer to the original exception frame we want to restore */
         "mov    sp, r4;"
@@ -268,8 +263,8 @@ __NAKED static void _half_save_and_svc(struct thread *oldthread, struct thread *
         "svc    #0;"
         ::  [sp_off] "i"(offsetof(thread_t, arch.sp))
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-            ,[fp_off] "i"(offsetof(thread_t, arch.fpregs))
-            ,[fp_exc_off] "i"(sizeof(struct arm_cm_exception_frame_long))
+        ,[fp_off] "i"(offsetof(thread_t, arch.fpregs))
+        ,[fp_exc_off] "i"(sizeof(struct arm_cm_exception_frame_long))
 #endif
     );
 }
@@ -335,13 +330,12 @@ __NAKED static void _arch_non_preempt_context_switch(struct thread *oldthread, s
         "bx     lr;"
         ::  [sp_off] "i"(offsetof(thread_t, arch.sp))
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-            , [fp_off] "i"(offsetof(thread_t, arch.fpregs))
+        , [fp_off] "i"(offsetof(thread_t, arch.fpregs))
 #endif
     );
 }
 
-__NAKED static void _thread_mode_bounce(bool fpused)
-{
+__NAKED static void _thread_mode_bounce(bool fpused) {
     __asm__ volatile(
         /* restore main context */
         RESTORE_REGS
@@ -379,8 +373,7 @@ __NAKED static void _thread_mode_bounce(bool fpused)
  * (interrupts disabled, in handler mode). If preempt_frame is set the thread
  * is being preempted.
  */
-void arch_context_switch(struct thread *oldthread, struct thread *newthread)
-{
+void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
     LTRACEF("FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
             FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
@@ -505,8 +498,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread)
 
 }
 
-void arch_dump_thread(thread_t *t)
-{
+void arch_dump_thread(thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
         dprintf(INFO, "sp 0x%lx, was preempted %u", t->arch.sp, t->arch.was_preempted);

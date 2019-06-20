@@ -42,17 +42,15 @@ STATIC_ASSERT(MMU_KERNEL_SIZE_SHIFT >= 25);
 
 /* the main translation table */
 pte_t arm64_kernel_translation_table[MMU_KERNEL_PAGE_TABLE_ENTRIES_TOP]
-    __ALIGNED(MMU_KERNEL_PAGE_TABLE_ENTRIES_TOP * 8)
-    __SECTION(".bss.prebss.translation_table");
+__ALIGNED(MMU_KERNEL_PAGE_TABLE_ENTRIES_TOP * 8)
+__SECTION(".bss.prebss.translation_table");
 
-static inline bool is_valid_vaddr(arch_aspace_t *aspace, vaddr_t vaddr)
-{
+static inline bool is_valid_vaddr(arch_aspace_t *aspace, vaddr_t vaddr) {
     return (vaddr >= aspace->base && vaddr <= aspace->base + aspace->size - 1);
 }
 
 /* convert user level mmu flags to flags that go in L1 descriptors */
-static pte_t mmu_flags_to_pte_attr(uint flags)
-{
+static pte_t mmu_flags_to_pte_attr(uint flags) {
     pte_t attr = MMU_PTE_ATTR_AF;
 
     switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
@@ -97,8 +95,7 @@ static pte_t mmu_flags_to_pte_attr(uint flags)
     return attr;
 }
 
-status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags)
-{
+status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) {
     uint index;
     uint index_shift;
     uint page_size_shift;
@@ -206,8 +203,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
     return 0;
 }
 
-static int alloc_page_table(paddr_t *paddrp, uint page_size_shift)
-{
+static int alloc_page_table(paddr_t *paddrp, uint page_size_shift) {
     size_t size = 1U << page_size_shift;
 
     LTRACEF("page_size_shift %u\n", page_size_shift);
@@ -232,8 +228,7 @@ static int alloc_page_table(paddr_t *paddrp, uint page_size_shift)
     return 0;
 }
 
-static void free_page_table(void *vaddr, paddr_t paddr, uint page_size_shift)
-{
+static void free_page_table(void *vaddr, paddr_t paddr, uint page_size_shift) {
     LTRACEF("vaddr %p paddr 0x%lx page_size_shift %u\n", vaddr, paddr, page_size_shift);
 
     size_t size = 1U << page_size_shift;
@@ -249,8 +244,7 @@ static void free_page_table(void *vaddr, paddr_t paddr, uint page_size_shift)
     }
 }
 
-static pte_t *arm64_mmu_get_page_table(vaddr_t index, uint page_size_shift, pte_t *page_table)
-{
+static pte_t *arm64_mmu_get_page_table(vaddr_t index, uint page_size_shift, pte_t *page_table) {
     pte_t pte;
     paddr_t paddr;
     void *vaddr;
@@ -289,8 +283,7 @@ static pte_t *arm64_mmu_get_page_table(vaddr_t index, uint page_size_shift, pte_
     }
 }
 
-static bool page_table_is_clear(pte_t *page_table, uint page_size_shift)
-{
+static bool page_table_is_clear(pte_t *page_table, uint page_size_shift) {
     int i;
     int count = 1U << (page_size_shift - 3);
     pte_t pte;
@@ -311,8 +304,7 @@ static bool page_table_is_clear(pte_t *page_table, uint page_size_shift)
 static void arm64_mmu_unmap_pt(vaddr_t vaddr, vaddr_t vaddr_rel,
                                size_t size,
                                uint index_shift, uint page_size_shift,
-                               pte_t *page_table, uint asid)
-{
+                               pte_t *page_table, uint asid) {
     pte_t *next_page_table;
     vaddr_t index;
     size_t chunk_size;
@@ -370,8 +362,7 @@ static int arm64_mmu_map_pt(vaddr_t vaddr_in, vaddr_t vaddr_rel_in,
                             paddr_t paddr_in,
                             size_t size_in, pte_t attrs,
                             uint index_shift, uint page_size_shift,
-                            pte_t *page_table, uint asid)
-{
+                            pte_t *page_table, uint asid) {
     int ret;
     pte_t *next_page_table;
     vaddr_t index;
@@ -449,8 +440,7 @@ err:
 int arm64_mmu_map(vaddr_t vaddr, paddr_t paddr, size_t size, pte_t attrs,
                   vaddr_t vaddr_base, uint top_size_shift,
                   uint top_index_shift, uint page_size_shift,
-                  pte_t *top_page_table, uint asid)
-{
+                  pte_t *top_page_table, uint asid) {
     int ret;
     vaddr_t vaddr_rel = vaddr - vaddr_base;
     vaddr_t vaddr_rel_max = 1UL << top_size_shift;
@@ -478,8 +468,7 @@ int arm64_mmu_map(vaddr_t vaddr, paddr_t paddr, size_t size, pte_t attrs,
 int arm64_mmu_unmap(vaddr_t vaddr, size_t size,
                     vaddr_t vaddr_base, uint top_size_shift,
                     uint top_index_shift, uint page_size_shift,
-                    pte_t *top_page_table, uint asid)
-{
+                    pte_t *top_page_table, uint asid) {
     vaddr_t vaddr_rel = vaddr - vaddr_base;
     vaddr_t vaddr_rel_max = 1UL << top_size_shift;
 
@@ -502,8 +491,7 @@ int arm64_mmu_unmap(vaddr_t vaddr, size_t size,
     return 0;
 }
 
-int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
-{
+int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
     LTRACEF("vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", vaddr, paddr, count, flags);
 
     DEBUG_ASSERT(aspace);
@@ -525,23 +513,22 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
     int ret;
     if (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) {
         ret = arm64_mmu_map(vaddr, paddr, count * PAGE_SIZE,
-                         mmu_flags_to_pte_attr(flags),
-                         ~0UL << MMU_KERNEL_SIZE_SHIFT, MMU_KERNEL_SIZE_SHIFT,
-                         MMU_KERNEL_TOP_SHIFT, MMU_KERNEL_PAGE_SIZE_SHIFT,
-                         aspace->tt_virt, MMU_ARM64_GLOBAL_ASID);
+                            mmu_flags_to_pte_attr(flags),
+                            ~0UL << MMU_KERNEL_SIZE_SHIFT, MMU_KERNEL_SIZE_SHIFT,
+                            MMU_KERNEL_TOP_SHIFT, MMU_KERNEL_PAGE_SIZE_SHIFT,
+                            aspace->tt_virt, MMU_ARM64_GLOBAL_ASID);
     } else {
         ret = arm64_mmu_map(vaddr, paddr, count * PAGE_SIZE,
-                         mmu_flags_to_pte_attr(flags),
-                         0, MMU_USER_SIZE_SHIFT,
-                         MMU_USER_TOP_SHIFT, MMU_USER_PAGE_SIZE_SHIFT,
-                         aspace->tt_virt, MMU_ARM64_USER_ASID);
+                            mmu_flags_to_pte_attr(flags),
+                            0, MMU_USER_SIZE_SHIFT,
+                            MMU_USER_TOP_SHIFT, MMU_USER_PAGE_SIZE_SHIFT,
+                            aspace->tt_virt, MMU_ARM64_USER_ASID);
     }
 
     return ret;
 }
 
-int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count)
-{
+int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
     LTRACEF("vaddr 0x%lx count %u\n", vaddr, count);
 
     DEBUG_ASSERT(aspace);
@@ -559,23 +546,22 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count)
     int ret;
     if (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) {
         ret = arm64_mmu_unmap(vaddr, count * PAGE_SIZE,
-                           ~0UL << MMU_KERNEL_SIZE_SHIFT, MMU_KERNEL_SIZE_SHIFT,
-                           MMU_KERNEL_TOP_SHIFT, MMU_KERNEL_PAGE_SIZE_SHIFT,
-                           aspace->tt_virt,
-                           MMU_ARM64_GLOBAL_ASID);
+                              ~0UL << MMU_KERNEL_SIZE_SHIFT, MMU_KERNEL_SIZE_SHIFT,
+                              MMU_KERNEL_TOP_SHIFT, MMU_KERNEL_PAGE_SIZE_SHIFT,
+                              aspace->tt_virt,
+                              MMU_ARM64_GLOBAL_ASID);
     } else {
         ret = arm64_mmu_unmap(vaddr, count * PAGE_SIZE,
-                           0, MMU_USER_SIZE_SHIFT,
-                           MMU_USER_TOP_SHIFT, MMU_USER_PAGE_SIZE_SHIFT,
-                           aspace->tt_virt,
-                           MMU_ARM64_USER_ASID);
+                              0, MMU_USER_SIZE_SHIFT,
+                              MMU_USER_TOP_SHIFT, MMU_USER_PAGE_SIZE_SHIFT,
+                              aspace->tt_virt,
+                              MMU_ARM64_USER_ASID);
     }
 
     return ret;
 }
 
-status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags)
-{
+status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) {
     LTRACEF("aspace %p, base 0x%lx, size 0x%zx, flags 0x%x\n", aspace, base, size, flags);
 
     DEBUG_ASSERT(aspace);
@@ -618,8 +604,7 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
     return NO_ERROR;
 }
 
-status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace)
-{
+status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
     LTRACEF("aspace %p\n", aspace);
 
     DEBUG_ASSERT(aspace);
@@ -634,8 +619,7 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace)
     return NO_ERROR;
 }
 
-void arch_mmu_context_switch(arch_aspace_t *aspace)
-{
+void arch_mmu_context_switch(arch_aspace_t *aspace) {
     if (TRACE_CONTEXT_SWITCH)
         TRACEF("aspace %p\n", aspace);
 

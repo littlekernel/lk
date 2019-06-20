@@ -113,40 +113,35 @@ static struct netif_ops pcnet_ops = {
 
 DRIVER_EXPORT(netif, &pcnet_ops.std);
 
-static inline uint32_t pcnet_read_csr(struct device *dev, uint8_t rap)
-{
+static inline uint32_t pcnet_read_csr(struct device *dev, uint8_t rap) {
     struct pcnet_state *state = dev->state;
 
     outpd(state->base + REG_RAP, rap);
     return inpd(state->base + REG_RDP);
 }
 
-static inline void pcnet_write_csr(struct device *dev, uint8_t rap, uint16_t data)
-{
+static inline void pcnet_write_csr(struct device *dev, uint8_t rap, uint16_t data) {
     struct pcnet_state *state = dev->state;
 
     outpd(state->base + REG_RAP, rap);
     outpd(state->base + REG_RDP, data);
 }
 
-static inline uint32_t pcnet_read_bcr(struct device *dev, uint8_t rap)
-{
+static inline uint32_t pcnet_read_bcr(struct device *dev, uint8_t rap) {
     struct pcnet_state *state = dev->state;
 
     outpd(state->base + REG_RAP, rap);
     return inpd(state->base + REG_BDP);
 }
 
-static inline void pcnet_write_bcr(struct device *dev, uint8_t rap, uint16_t data)
-{
+static inline void pcnet_write_bcr(struct device *dev, uint8_t rap, uint16_t data) {
     struct pcnet_state *state = dev->state;
 
     outpd(state->base + REG_RAP, rap);
     outpd(state->base + REG_BDP, data);
 }
 
-static status_t pcnet_init(struct device *dev)
-{
+static status_t pcnet_init(struct device *dev) {
     status_t res = NO_ERROR;
     pci_location_t loc;
     int i;
@@ -288,8 +283,7 @@ error:
     return res;
 }
 
-static status_t pcnet_read_pci_config(struct device *dev, pci_location_t *loc)
-{
+static status_t pcnet_read_pci_config(struct device *dev, pci_location_t *loc) {
     status_t res = NO_ERROR;
     pci_config_t config;
     uint8_t *buf = (uint8_t *) &config;
@@ -337,8 +331,7 @@ error:
     return res;
 }
 
-static enum handler_return pcnet_irq_handler(void *arg)
-{
+static enum handler_return pcnet_irq_handler(void *arg) {
     struct device *dev = arg;
     struct pcnet_state *state = dev->state;
 
@@ -353,8 +346,7 @@ static enum handler_return pcnet_irq_handler(void *arg)
     return INT_RESCHEDULE;
 }
 
-static int pcnet_thread(void *arg)
-{
+static int pcnet_thread(void *arg) {
     DEBUG_ASSERT(arg);
 
     struct device *dev = arg;
@@ -416,8 +408,7 @@ static int pcnet_thread(void *arg)
     return 0;
 }
 
-static bool pcnet_service_tx(struct device *dev)
-{
+static bool pcnet_service_tx(struct device *dev) {
     LTRACE_ENTRY;
 
     struct pcnet_state *state = dev->state;
@@ -463,8 +454,7 @@ static bool pcnet_service_tx(struct device *dev)
     }
 }
 
-static bool pcnet_service_rx(struct device *dev)
-{
+static bool pcnet_service_rx(struct device *dev) {
     LTRACE_ENTRY;
 
     struct pcnet_state *state = dev->state;
@@ -523,8 +513,7 @@ static bool pcnet_service_rx(struct device *dev)
     return false;
 }
 
-static status_t pcnet_set_state(struct device *dev, struct netstack_state *netstack_state)
-{
+static status_t pcnet_set_state(struct device *dev, struct netstack_state *netstack_state) {
     if (!dev)
         return ERR_INVALID_ARGS;
 
@@ -538,8 +527,7 @@ static status_t pcnet_set_state(struct device *dev, struct netstack_state *netst
     return NO_ERROR;
 }
 
-static ssize_t pcnet_get_hwaddr(struct device *dev, void *buf, size_t max_len)
-{
+static ssize_t pcnet_get_hwaddr(struct device *dev, void *buf, size_t max_len) {
     if (!dev || !buf)
         return ERR_INVALID_ARGS;
 
@@ -553,16 +541,14 @@ static ssize_t pcnet_get_hwaddr(struct device *dev, void *buf, size_t max_len)
     return sizeof(state->padr);
 }
 
-static ssize_t pcnet_get_mtu(struct device *dev)
-{
+static ssize_t pcnet_get_mtu(struct device *dev) {
     if (!dev)
         return ERR_INVALID_ARGS;
 
     return 1500;
 }
 
-static status_t pcnet_output(struct device *dev, struct pbuf *p)
-{
+static status_t pcnet_output(struct device *dev, struct pbuf *p) {
     LTRACE_ENTRY;
 
     if (!dev || !p)
@@ -626,8 +612,7 @@ static const struct platform_pcnet_config pcnet0_config = {
 
 DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config, 0);
 
-static void pcnet_init_hook(uint level)
-{
+static void pcnet_init_hook(uint level) {
     device_init(device_get_by_name(netif, pcnet0));
     class_netif_add(device_get_by_name(netif, pcnet0));
 }

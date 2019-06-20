@@ -28,8 +28,7 @@
 #include <sys/types.h>
 
 size_t
-strspn(char const *s, char const *accept)
-{
+strspn(char const *s, char const *accept) {
     const char *p;
     const char *a;
     size_t count = 0;

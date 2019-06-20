@@ -41,8 +41,7 @@ extern void bcm28xx_send_ipi(uint irq, uint cpu_mask);
 
 #define GIC_IPI_BASE (14)
 
-status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi)
-{
+status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
     LTRACEF("target 0x%x, ipi %u\n", target, ipi);
 
 #if WITH_DEV_INTERRUPT_ARM_GIC
@@ -65,22 +64,19 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi)
     return NO_ERROR;
 }
 
-enum handler_return arm_ipi_generic_handler(void *arg)
-{
+enum handler_return arm_ipi_generic_handler(void *arg) {
     LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
 
     return INT_NO_RESCHEDULE;
 }
 
-enum handler_return arm_ipi_reschedule_handler(void *arg)
-{
+enum handler_return arm_ipi_reschedule_handler(void *arg) {
     LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
 
     return mp_mbx_reschedule_irq();
 }
 
-void arch_mp_init_percpu(void)
-{
+void arch_mp_init_percpu(void) {
     register_int_handler(MP_IPI_GENERIC + GIC_IPI_BASE, &arm_ipi_generic_handler, 0);
     register_int_handler(MP_IPI_RESCHEDULE + GIC_IPI_BASE, &arm_ipi_reschedule_handler, 0);
 

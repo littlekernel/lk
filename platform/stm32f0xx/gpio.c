@@ -56,8 +56,7 @@ typedef enum {
     STM32_GPIO_PUPD_DOWN = 0x2,
 } stm32_gpio_pupd_t;
 
-static stm32_gpio_t *stm32_gpio_port_to_pointer(unsigned int port)
-{
+static stm32_gpio_t *stm32_gpio_port_to_pointer(unsigned int port) {
     switch (port) {
         default:
 #ifdef GPIOA
@@ -87,8 +86,7 @@ static stm32_gpio_t *stm32_gpio_port_to_pointer(unsigned int port)
     }
 }
 
-static void stm32_gpio_enable_port(unsigned int port)
-{
+static void stm32_gpio_enable_port(unsigned int port) {
     DEBUG_ASSERT(port <= GPIO_PORT_F);
 
     switch (port) {
@@ -126,22 +124,20 @@ static void stm32_gpio_enable_port(unsigned int port)
     }
 }
 
-void stm32_gpio_early_init(void)
-{
+void stm32_gpio_early_init(void) {
 }
 
 static void stm32_gpio_af_config(stm32_gpio_t *gpio, uint32_t pin,
                                  uint32_t af_num) {
-  // 8 AF entries per register
-  uint32_t reg_index = pin >> 3;
-  uint32_t entry_shift = (pin & 0x7) * 4;
+    // 8 AF entries per register
+    uint32_t reg_index = pin >> 3;
+    uint32_t entry_shift = (pin & 0x7) * 4;
 
-  gpio->AFR[reg_index] &= ~(0xf << entry_shift);
-  gpio->AFR[reg_index] |= (af_num & 0xf) << entry_shift;
+    gpio->AFR[reg_index] &= ~(0xf << entry_shift);
+    gpio->AFR[reg_index] |= (af_num & 0xf) << entry_shift;
 }
 
-int gpio_config(unsigned nr, unsigned flags)
-{
+int gpio_config(unsigned nr, unsigned flags) {
     uint32_t port = GPIO_PORT(nr);
     uint32_t pin = GPIO_PIN(nr);
     stm32_gpio_t *gpio = stm32_gpio_port_to_pointer(port);
@@ -193,8 +189,7 @@ int gpio_config(unsigned nr, unsigned flags)
     return 0;
 }
 
-void gpio_set(unsigned nr, unsigned on)
-{
+void gpio_set(unsigned nr, unsigned on) {
     stm32_gpio_t *gpio = stm32_gpio_port_to_pointer(GPIO_PORT(nr));
     if (on) {
         gpio->BSRR = 1 << GPIO_PIN(nr);
@@ -203,8 +198,7 @@ void gpio_set(unsigned nr, unsigned on)
     }
 }
 
-int gpio_get(unsigned nr)
-{
+int gpio_get(unsigned nr) {
     stm32_gpio_t *gpio = stm32_gpio_port_to_pointer(GPIO_PORT(nr));
     return (gpio->IDR & (1 << GPIO_PIN(nr))) != 0;
 }

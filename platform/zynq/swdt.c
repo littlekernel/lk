@@ -43,8 +43,7 @@
 
 /* routines called from lib/watchdog */
 status_t platform_watchdog_init(lk_time_t  target_timeout,
-                                lk_time_t *recommended_pet_period)
-{
+                                lk_time_t *recommended_pet_period) {
     LTRACEF("target_timeout %u\n", (uint32_t)target_timeout);
 
     /* make sure the swdt is stopped */
@@ -86,8 +85,7 @@ status_t platform_watchdog_init(lk_time_t  target_timeout,
     return NO_ERROR;
 }
 
-void platform_watchdog_set_enabled(bool enabled)
-{
+void platform_watchdog_set_enabled(bool enabled) {
     LTRACEF("enabled %u\n", enabled);
 
     if (enabled) {
@@ -103,8 +101,7 @@ void platform_watchdog_set_enabled(bool enabled)
     DMB;
 }
 
-void platform_watchdog_pet(void)
-{
+void platform_watchdog_pet(void) {
     //LTRACEF("pet\n");
     SWDT->RESTART = SWDT_RESTART_RSTKEY;
     DMB;

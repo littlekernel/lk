@@ -35,8 +35,7 @@
 
 #include "inetsrv.h"
 
-static int chargen_worker(void *socket)
-{
+static int chargen_worker(void *socket) {
     uint64_t count = 0;
     tcp_socket_t *s = socket;
 
@@ -74,8 +73,7 @@ static int chargen_worker(void *socket)
     return 0;
 }
 
-static int chargen_server(void *arg)
-{
+static int chargen_server(void *arg) {
     status_t err;
     tcp_socket_t *listen_socket;
 
@@ -100,8 +98,7 @@ static int chargen_server(void *arg)
     }
 }
 
-static int discard_worker(void *socket)
-{
+static int discard_worker(void *socket) {
     uint64_t count = 0;
     uint32_t crc = 0;
     tcp_socket_t *s = socket;
@@ -134,8 +131,7 @@ static int discard_worker(void *socket)
     return 0;
 }
 
-static int discard_server(void *arg)
-{
+static int discard_server(void *arg) {
     status_t err;
     tcp_socket_t *listen_socket;
 
@@ -160,8 +156,7 @@ static int discard_server(void *arg)
     }
 }
 
-static int echo_worker(void *socket)
-{
+static int echo_worker(void *socket) {
     tcp_socket_t *s = socket;
 
 #define ECHO_BUFSIZE 1024
@@ -189,8 +184,7 @@ static int echo_worker(void *socket)
     return 0;
 }
 
-static int echo_server(void *arg)
-{
+static int echo_server(void *arg) {
     status_t err;
     tcp_socket_t *listen_socket;
 
@@ -215,12 +209,10 @@ static int echo_server(void *arg)
     }
 }
 
-static void inetsrv_init(const struct app_descriptor *app)
-{
+static void inetsrv_init(const struct app_descriptor *app) {
 }
 
-static void inetsrv_entry(const struct app_descriptor *app, void *args)
-{
+static void inetsrv_entry(const struct app_descriptor *app, void *args) {
     /* XXX wait for the stack to initialize */
 
     printf("starting internet servers\n");
@@ -233,6 +225,6 @@ static void inetsrv_entry(const struct app_descriptor *app, void *args)
 
 APP_START(inetsrv)
 .init = inetsrv_init,
- .entry = inetsrv_entry,
-  .flags = 0,
-   APP_END
+.entry = inetsrv_entry,
+.flags = 0,
+APP_END

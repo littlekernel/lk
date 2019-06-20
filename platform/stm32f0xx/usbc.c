@@ -69,8 +69,7 @@ uint32_t stm32_usbc_pma_alloc(uint32_t size) {
     return addr;
 }
 
-void stm32_usbc_early_init(stm32_usb_clk_t clock_source)
-{
+void stm32_usbc_early_init(stm32_usb_clk_t clock_source) {
     // TODO(konkers): add usb clock source to rcc.
 #if 0
     if (clock_source == STM32_USB_CLK_HSI48) {
@@ -82,8 +81,7 @@ void stm32_usbc_early_init(stm32_usb_clk_t clock_source)
 #endif
 }
 
-void stm32_usbc_init(void)
-{
+void stm32_usbc_init(void) {
     LTRACE_ENTRY;
 
     usbc.pma_highwater = 0x40;
@@ -108,16 +106,14 @@ void stm32_usbc_init(void)
 
 }
 
-void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd) {
     LTRACE_ENTRY;
     // Enable USB FS Clock
     stm32_rcc_set_enable(STM32_RCC_CLK_USB, true);
     NVIC_EnableIRQ(USB_IRQn);
 }
 
-void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
-{
+void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
     LTRACEF("epnum %u\n", epnum);
 
     if (epnum == 0) {
@@ -137,8 +133,7 @@ void HAL_PCD_DataOutStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
     }
 }
 
-void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
-{
+void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
     PCD_EPTypeDef *ep = &hpcd->IN_ep[epnum];
     LTRACEF("epnum %u, xfer count %u len %u\n", epnum, ep->xfer_count, ep->xfer_len);
 
@@ -170,8 +165,7 @@ void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
     }
 }
 
-void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd) {
     //LTRACE_ENTRY;
 
     union usb_callback_args args;
@@ -181,13 +175,11 @@ void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd)
     usbc.do_resched = true;
 }
 
-void HAL_PCD_SOFCallback(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_SOFCallback(PCD_HandleTypeDef *hpcd) {
     //LTRACE_ENTRY;
 }
 
-void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd) {
     LTRACE_ENTRY;
 
 
@@ -214,40 +206,33 @@ void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd)
     usbc.do_resched = true;
 }
 
-void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd) {
     LTRACE_ENTRY;
     usbc_callback(USB_CB_SUSPEND, NULL);
 }
 
-void HAL_PCD_ResumeCallback(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_ResumeCallback(PCD_HandleTypeDef *hpcd) {
     LTRACE_ENTRY;
     usbc_callback(USB_CB_RESUME, NULL);
 }
 
-void HAL_PCD_ISOOUTIncompleteCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
-{
+void HAL_PCD_ISOOUTIncompleteCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
     LTRACEF("epnum %u\n", epnum);
 }
 
-void HAL_PCD_ISOINIncompleteCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum)
-{
+void HAL_PCD_ISOINIncompleteCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
     LTRACEF("epnum %u\n", epnum);
 }
 
-void HAL_PCD_ConnectCallback(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_ConnectCallback(PCD_HandleTypeDef *hpcd) {
     LTRACE_ENTRY;
 }
 
-void HAL_PCD_DisconnectCallback(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_DisconnectCallback(PCD_HandleTypeDef *hpcd) {
     LTRACE_ENTRY;
 }
 
-status_t usbc_set_active(bool active)
-{
+status_t usbc_set_active(bool active) {
     LTRACEF("active %u\n", active);
 
     if (active) {
@@ -259,14 +244,12 @@ status_t usbc_set_active(bool active)
     return NO_ERROR;
 }
 
-void usbc_set_address(uint8_t address)
-{
+void usbc_set_address(uint8_t address) {
     LTRACEF("address %u\n", address);
     HAL_PCD_SetAddress(&usbc.handle, address);
 }
 
-void usbc_ep0_ack(void)
-{
+void usbc_ep0_ack(void) {
     LTRACE;
 
     struct ep_status *ep = &usbc.ep_in[0];
@@ -274,15 +257,13 @@ void usbc_ep0_ack(void)
     HAL_PCD_EP_Transmit(&usbc.handle, 0, 0, 0);
 }
 
-void usbc_ep0_stall(void)
-{
+void usbc_ep0_stall(void) {
     LTRACE;
 
     HAL_PCD_EP_SetStall(&usbc.handle, 0x80);
 }
 
-void usbc_ep0_send(const void *buf, size_t len, size_t maxlen)
-{
+void usbc_ep0_send(const void *buf, size_t len, size_t maxlen) {
     LTRACEF("buf %p, len %zu, maxlen %zu\n", buf, len, maxlen);
 
     struct ep_status *ep = &usbc.ep_in[0];
@@ -290,13 +271,11 @@ void usbc_ep0_send(const void *buf, size_t len, size_t maxlen)
     HAL_PCD_EP_Transmit(&usbc.handle, 0, (void *)buf, MIN(len, maxlen));
 }
 
-void usbc_ep0_recv(void *buf, size_t len, ep_callback cb)
-{
+void usbc_ep0_recv(void *buf, size_t len, ep_callback cb) {
     HAL_PCD_EP_Receive(&usbc.handle, 0, (void *)buf, len);
 }
 
-status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type)
-{
+status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type) {
     LTRACEF("ep %u dir %u width %u\n", ep, dir, width);
 
     DEBUG_ASSERT(ep <= NUM_EP);
@@ -317,13 +296,11 @@ status_t usbc_setup_endpoint(ep_t ep, ep_dir_t dir, uint width, ep_type_t type)
     return (ret == HAL_OK) ? NO_ERROR : ERR_GENERIC;
 }
 
-bool usbc_is_highspeed(void)
-{
+bool usbc_is_highspeed(void) {
     return false;
 }
 
-status_t usbc_queue_rx(ep_t ep, usbc_transfer_t *transfer)
-{
+status_t usbc_queue_rx(ep_t ep, usbc_transfer_t *transfer) {
     LTRACEF("ep %u, transfer %p (buf %p, buflen %zu)\n", ep, transfer, transfer->buf, transfer->buflen);
 
     DEBUG_ASSERT(ep <= NUM_EP);
@@ -335,8 +312,7 @@ status_t usbc_queue_rx(ep_t ep, usbc_transfer_t *transfer)
     return NO_ERROR;
 }
 
-status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer)
-{
+status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer) {
     LTRACEF("ep %u, transfer %p (buf %p, buflen %zu)\n", ep, transfer, transfer->buf, transfer->buflen);
 
     DEBUG_ASSERT(ep <= NUM_EP);
@@ -348,8 +324,7 @@ status_t usbc_queue_tx(ep_t ep, usbc_transfer_t *transfer)
     return NO_ERROR;
 }
 
-void stm32_USB_IRQ(void)
-{
+void stm32_USB_IRQ(void) {
     arm_cm_irq_entry();
     //LTRACE_ENTRY;
 

@@ -39,8 +39,7 @@ vmm_aspace_t _kernel_aspace;
 static void dump_aspace(const vmm_aspace_t *a);
 static void dump_region(const vmm_region_t *r);
 
-void vmm_init_preheap(void)
-{
+void vmm_init_preheap(void) {
     /* initialize the kernel address space */
     strlcpy(_kernel_aspace.name, "kernel", sizeof(_kernel_aspace.name));
     _kernel_aspace.base = KERNEL_ASPACE_BASE;
@@ -53,17 +52,14 @@ void vmm_init_preheap(void)
     list_add_head(&aspace_list, &_kernel_aspace.node);
 }
 
-void vmm_init(void)
-{
+void vmm_init(void) {
 }
 
-static inline bool is_inside_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr)
-{
+static inline bool is_inside_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr) {
     return (vaddr >= aspace->base && vaddr <= aspace->base + aspace->size - 1);
 }
 
-static bool is_region_inside_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr, size_t size)
-{
+static bool is_region_inside_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr, size_t size) {
     /* is the starting address within the address space*/
     if (!is_inside_aspace(aspace, vaddr))
         return false;
@@ -82,8 +78,7 @@ static bool is_region_inside_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr, s
     return true;
 }
 
-static size_t trim_to_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr, size_t size)
-{
+static size_t trim_to_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr, size_t size) {
     DEBUG_ASSERT(is_inside_aspace(aspace, vaddr));
 
     if (size == 0)
@@ -108,8 +103,7 @@ static size_t trim_to_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr, size_t s
 }
 
 static vmm_region_t *alloc_region_struct(const char *name, vaddr_t base, size_t size,
-        uint flags, uint arch_mmu_flags)
-{
+        uint flags, uint arch_mmu_flags) {
     DEBUG_ASSERT(name);
 
     vmm_region_t *r = calloc(1, sizeof(vmm_region_t));
@@ -128,8 +122,7 @@ static vmm_region_t *alloc_region_struct(const char *name, vaddr_t base, size_t 
 
 /* add a region to the appropriate spot in the address space list,
  * testing to see if there's a space */
-static status_t add_region_to_aspace(vmm_aspace_t *aspace, vmm_region_t *r)
-{
+static status_t add_region_to_aspace(vmm_aspace_t *aspace, vmm_region_t *r) {
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(r);
 
@@ -178,8 +171,7 @@ static status_t add_region_to_aspace(vmm_aspace_t *aspace, vmm_region_t *r)
  */
 __WEAK vaddr_t arch_mmu_pick_spot(arch_aspace_t *aspace, vaddr_t base, uint prev_region_arch_mmu_flags,
                                   vaddr_t end,  uint next_region_arch_mmu_flags,
-                                  vaddr_t align, size_t size, uint arch_mmu_flags)
-{
+                                  vaddr_t align, size_t size, uint arch_mmu_flags) {
     /* just align it by default */
     return ALIGN(base, align);
 }
@@ -190,8 +182,7 @@ __WEAK vaddr_t arch_mmu_pick_spot(arch_aspace_t *aspace, vaddr_t base, uint prev
 static inline bool check_gap(vmm_aspace_t *aspace,
                              vmm_region_t *prev, vmm_region_t *next,
                              vaddr_t *pva, vaddr_t align, size_t size,
-                             uint arch_mmu_flags)
-{
+                             uint arch_mmu_flags) {
     vaddr_t gap_beg; /* first byte of a gap */
     vaddr_t gap_end; /* last byte of a gap */
 
@@ -232,8 +223,7 @@ not_found:
 }
 
 static vaddr_t alloc_spot(vmm_aspace_t *aspace, size_t size, uint8_t align_pow2,
-                          uint arch_mmu_flags, struct list_node **before)
-{
+                          uint arch_mmu_flags, struct list_node **before) {
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(size > 0 && IS_PAGE_ALIGNED(size));
 
@@ -272,8 +262,7 @@ done:
 /* allocate a region structure and stick it in the address space */
 static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t size,
                                   vaddr_t vaddr, uint8_t align_pow2,
-                                  uint vmm_flags, uint region_flags, uint arch_mmu_flags)
-{
+                                  uint vmm_flags, uint region_flags, uint arch_mmu_flags) {
     /* make a region struct for it and stick it in the list */
     vmm_region_t *r = alloc_region_struct(name, vaddr, size, region_flags, arch_mmu_flags);
     if (!r)
@@ -311,8 +300,7 @@ static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t
     return r;
 }
 
-status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, vaddr_t vaddr)
-{
+status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, vaddr_t vaddr) {
     LTRACEF("aspace %p name '%s' size 0x%zx vaddr 0x%lx\n", aspace, name, size, vaddr);
 
     DEBUG_ASSERT(aspace);
@@ -350,8 +338,7 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
 }
 
 status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
-                            void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
-{
+                            void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags) {
     status_t ret;
 
     LTRACEF("aspace %p name '%s' size 0x%zx ptr %p paddr 0x%lx vmm_flags 0x%x arch_mmu_flags 0x%x\n",
@@ -408,8 +395,7 @@ err_alloc_region:
 }
 
 status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr,
-                              uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
-{
+                              uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags) {
     status_t err = NO_ERROR;
 
     LTRACEF("aspace %p name '%s' size 0x%zx ptr %p align %hhu vmm_flags 0x%x arch_mmu_flags 0x%x\n",
@@ -483,8 +469,7 @@ err:
 }
 
 status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr,
-                   uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags)
-{
+                   uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags) {
     status_t err = NO_ERROR;
 
     LTRACEF("aspace %p name '%s' size 0x%zx ptr %p align %hhu vmm_flags 0x%x arch_mmu_flags 0x%x\n",
@@ -569,8 +554,7 @@ err:
     return err;
 }
 
-static vmm_region_t *vmm_find_region(const vmm_aspace_t *aspace, vaddr_t vaddr)
-{
+static vmm_region_t *vmm_find_region(const vmm_aspace_t *aspace, vaddr_t vaddr) {
     vmm_region_t *r;
 
     DEBUG_ASSERT(aspace);
@@ -587,8 +571,7 @@ static vmm_region_t *vmm_find_region(const vmm_aspace_t *aspace, vaddr_t vaddr)
     return NULL;
 }
 
-status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr)
-{
+status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr) {
     mutex_acquire(&vmm_lock);
 
     vmm_region_t *r = vmm_find_region (aspace, vaddr);
@@ -614,8 +597,7 @@ status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr)
     return NO_ERROR;
 }
 
-status_t vmm_create_aspace(vmm_aspace_t **_aspace, const char *name, uint flags)
-{
+status_t vmm_create_aspace(vmm_aspace_t **_aspace, const char *name, uint flags) {
     status_t err;
 
     vmm_aspace_t *aspace = calloc(1, sizeof(vmm_aspace_t));
@@ -657,8 +639,7 @@ status_t vmm_create_aspace(vmm_aspace_t **_aspace, const char *name, uint flags)
     return NO_ERROR;
 }
 
-status_t vmm_free_aspace(vmm_aspace_t *aspace)
-{
+status_t vmm_free_aspace(vmm_aspace_t *aspace) {
     /* pop it out of the global aspace list */
     mutex_acquire(&vmm_lock);
     if (!list_in_list(&aspace->node)) {
@@ -707,15 +688,13 @@ status_t vmm_free_aspace(vmm_aspace_t *aspace)
     return NO_ERROR;
 }
 
-void vmm_context_switch(vmm_aspace_t *oldspace, vmm_aspace_t *newaspace)
-{
+void vmm_context_switch(vmm_aspace_t *oldspace, vmm_aspace_t *newaspace) {
     DEBUG_ASSERT(thread_lock_held());
 
     arch_mmu_context_switch(newaspace ? &newaspace->arch_aspace : NULL);
 }
 
-void vmm_set_active_aspace(vmm_aspace_t *aspace)
-{
+void vmm_set_active_aspace(vmm_aspace_t *aspace) {
     LTRACEF("aspace %p\n", aspace);
 
     thread_t *t = get_current_thread();
@@ -732,14 +711,12 @@ void vmm_set_active_aspace(vmm_aspace_t *aspace)
     THREAD_UNLOCK(state);
 }
 
-static void dump_region(const vmm_region_t *r)
-{
+static void dump_region(const vmm_region_t *r) {
     printf("\tregion %p: name '%s' range 0x%lx - 0x%lx size 0x%zx flags 0x%x mmu_flags 0x%x\n",
            r, r->name, r->base, r->base + r->size - 1, r->size, r->flags, r->arch_mmu_flags);
 }
 
-static void dump_aspace(const vmm_aspace_t *a)
-{
+static void dump_aspace(const vmm_aspace_t *a) {
     printf("aspace %p: name '%s' range 0x%lx - 0x%lx size 0x%zx flags 0x%x\n",
            a, a->name, a->base, a->base + a->size - 1, a->size, a->flags);
 
@@ -750,8 +727,7 @@ static void dump_aspace(const vmm_aspace_t *a)
     }
 }
 
-static int cmd_vmm(int argc, const cmd_args *argv)
-{
+static int cmd_vmm(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

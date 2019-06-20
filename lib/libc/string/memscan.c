@@ -27,8 +27,7 @@
 #include <libc/string.h>
 #include <libc/ctype.h>
 
-void *memscan(void *addr, int c, size_t size)
-{
+void *memscan(void *addr, int c, size_t size) {
     unsigned char *p = (unsigned char *)addr;
 
     while (size) {

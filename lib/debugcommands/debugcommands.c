@@ -73,8 +73,7 @@ STATIC_COMMAND("sleep", "sleep number of seconds", &cmd_sleep)
 STATIC_COMMAND("sleepm", "sleep number of milliseconds", &cmd_sleep)
 STATIC_COMMAND_END(mem);
 
-static int cmd_display_mem(int argc, const cmd_args *argv)
-{
+static int cmd_display_mem(int argc, const cmd_args *argv) {
     /* save the last address and len so we can continue where we left off */
     static unsigned long address;
     static size_t len;
@@ -163,8 +162,7 @@ static int cmd_display_mem(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_modify_mem(int argc, const cmd_args *argv)
-{
+static int cmd_modify_mem(int argc, const cmd_args *argv) {
     int size;
 
     if (argc < 3) {
@@ -204,8 +202,7 @@ static int cmd_modify_mem(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_fill_mem(int argc, const cmd_args *argv)
-{
+static int cmd_fill_mem(int argc, const cmd_args *argv) {
     int size;
 
     if (argc < 4) {
@@ -249,8 +246,7 @@ static int cmd_fill_mem(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_copy_mem(int argc, const cmd_args *argv)
-{
+static int cmd_copy_mem(int argc, const cmd_args *argv) {
     if (argc < 4) {
         printf("not enough arguments\n");
         printf("%s <source address> <target address> <len>\n", argv[0].str);
@@ -266,8 +262,7 @@ static int cmd_copy_mem(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_memtest(int argc, const cmd_args *argv)
-{
+static int cmd_memtest(int argc, const cmd_args *argv) {
     if (argc < 3) {
         printf("not enough arguments\n");
         printf("%s <base> <len>\n", argv[0].str);
@@ -299,8 +294,7 @@ static int cmd_memtest(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_chain(int argc, const cmd_args *argv)
-{
+static int cmd_chain(int argc, const cmd_args *argv) {
     if (argc < 2) {
         printf("not enough arguments\n");
         printf("%s <address>\n", argv[0].str);
@@ -312,8 +306,7 @@ static int cmd_chain(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_sleep(int argc, const cmd_args *argv)
-{
+static int cmd_sleep(int argc, const cmd_args *argv) {
     lk_time_t t = 1000; /* default to 1 second */
 
     if (argc >= 2) {
@@ -327,8 +320,7 @@ static int cmd_sleep(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_crash(int argc, const cmd_args *argv)
-{
+static int cmd_crash(int argc, const cmd_args *argv) {
     /* should crash */
     volatile uint32_t *ptr = (void *)1;
     *ptr = 1;
@@ -339,8 +331,7 @@ static int cmd_crash(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_stackstomp(int argc, const cmd_args *argv)
-{
+static int cmd_stackstomp(int argc, const cmd_args *argv) {
     for (size_t i = 0; i < DEFAULT_STACK_SIZE * 2; i++) {
         uint8_t death[i];
 

@@ -57,8 +57,7 @@ SPI_HandleTypeDef SpiHandle;
 static struct display_framebuffer default_fb;
 static uint8_t vcom_state;
 
-static void chip_select(bool s)
-{
+static void chip_select(bool s) {
     if (s) {
         gpio_set(GPIO(GPIO_PORT_B, 12), GPIO_PIN_SET);
     } else {
@@ -66,8 +65,7 @@ static void chip_select(bool s)
     }
 }
 
-static void lcd_power(bool s)
-{
+static void lcd_power(bool s) {
     if (s) {
         gpio_set(GPIO(GPIO_PORT_K, 6), GPIO_PIN_SET);
     } else {
@@ -75,8 +73,7 @@ static void lcd_power(bool s)
     }
 }
 
-static void mlcd_clear(void)
-{
+static void mlcd_clear(void) {
 
     uint8_t clear[2];
     clear[0] = MLCD_CM;
@@ -88,8 +85,7 @@ static void mlcd_clear(void)
 }
 
 
-status_t memory_lcd_init(void)
-{
+status_t memory_lcd_init(void) {
     SpiHandle.Instance               = SPI2;
     SpiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
     SpiHandle.Init.Direction         = SPI_DIRECTION_1LINE;
@@ -116,13 +112,11 @@ status_t memory_lcd_init(void)
     return NO_ERROR;
 }
 
-static void mlcd_flush(uint starty, uint endy)
-{
+static void mlcd_flush(uint starty, uint endy) {
     display_present(&default_fb.image, starty, endy);
 }
 
-status_t display_get_framebuffer(struct display_framebuffer *fb)
-{
+status_t display_get_framebuffer(struct display_framebuffer *fb) {
     DEBUG_ASSERT(fb);
     if (!default_fb.image.pixels) {
         switch (MLCD_FORMAT) {
@@ -142,7 +136,7 @@ status_t display_get_framebuffer(struct display_framebuffer *fb)
                 return ERR_NOT_SUPPORTED;
         }
         default_fb.image.pixels = malloc(MLCD_HEIGHT *
-            default_fb.image.rowbytes);
+                                         default_fb.image.rowbytes);
         default_fb.image.width = MLCD_WIDTH;
         default_fb.image.height = MLCD_HEIGHT;
         default_fb.flush = mlcd_flush;
@@ -152,8 +146,7 @@ status_t display_get_framebuffer(struct display_framebuffer *fb)
     return NO_ERROR;
 }
 
-status_t display_present(struct display_image *image, uint starty, uint endy)
-{
+status_t display_present(struct display_image *image, uint starty, uint endy) {
     DEBUG_ASSERT(image);
     status_t status = NO_ERROR;
     chip_select(true);
@@ -181,7 +174,7 @@ status_t display_present(struct display_image *image, uint starty, uint endy)
         }
 
         if (HAL_SPI_Transmit(&SpiHandle, localbuf, bufptr - localbuf,
-                HAL_MAX_DELAY) != HAL_OK) {
+                             HAL_MAX_DELAY) != HAL_OK) {
             status = ERR_GENERIC;
             goto finish;
         }
@@ -195,8 +188,7 @@ finish:
     return status;
 }
 
-status_t display_get_info(struct display_info *info)
-{
+status_t display_get_info(struct display_info *info) {
     DEBUG_ASSERT(info);
     LTRACEF("display_info %p\n", info);
 

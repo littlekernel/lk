@@ -39,26 +39,22 @@ struct list_node {
 #define LIST_INITIAL_VALUE(list) { &(list), &(list) }
 #define LIST_INITIAL_CLEARED_VALUE { NULL, NULL }
 
-static inline void list_initialize(struct list_node *list)
-{
+static inline void list_initialize(struct list_node *list) {
     list->prev = list->next = list;
 }
 
-static inline void list_clear_node(struct list_node *item)
-{
+static inline void list_clear_node(struct list_node *item) {
     item->prev = item->next = 0;
 }
 
-static inline bool list_in_list(struct list_node *item)
-{
+static inline bool list_in_list(struct list_node *item) {
     if (item->prev == 0 && item->next == 0)
         return false;
     else
         return true;
 }
 
-static inline void list_add_head(struct list_node *list, struct list_node *item)
-{
+static inline void list_add_head(struct list_node *list, struct list_node *item) {
     item->next = list->next;
     item->prev = list;
     list->next->prev = item;
@@ -67,8 +63,7 @@ static inline void list_add_head(struct list_node *list, struct list_node *item)
 
 #define list_add_after(entry, new_entry) list_add_head(entry, new_entry)
 
-static inline void list_add_tail(struct list_node *list, struct list_node *item)
-{
+static inline void list_add_tail(struct list_node *list, struct list_node *item) {
     item->prev = list->prev;
     item->next = list;
     list->prev->next = item;
@@ -77,15 +72,13 @@ static inline void list_add_tail(struct list_node *list, struct list_node *item)
 
 #define list_add_before(entry, new_entry) list_add_tail(entry, new_entry)
 
-static inline void list_delete(struct list_node *item)
-{
+static inline void list_delete(struct list_node *item) {
     item->next->prev = item->prev;
     item->prev->next = item->next;
     item->prev = item->next = 0;
 }
 
-static inline struct list_node *list_remove_head(struct list_node *list)
-{
+static inline struct list_node *list_remove_head(struct list_node *list) {
     if (list->next != list) {
         struct list_node *item = list->next;
         list_delete(item);
@@ -105,8 +98,7 @@ static inline struct list_node *list_remove_head(struct list_node *list)
     __t;\
 })
 
-static inline struct list_node *list_remove_tail(struct list_node *list)
-{
+static inline struct list_node *list_remove_tail(struct list_node *list) {
     if (list->prev != list) {
         struct list_node *item = list->prev;
         list_delete(item);
@@ -126,8 +118,7 @@ static inline struct list_node *list_remove_tail(struct list_node *list)
     __t;\
 })
 
-static inline struct list_node *list_peek_head(struct list_node *list)
-{
+static inline struct list_node *list_peek_head(struct list_node *list) {
     if (list->next != list) {
         return list->next;
     } else {
@@ -145,8 +136,7 @@ static inline struct list_node *list_peek_head(struct list_node *list)
     __t;\
 })
 
-static inline struct list_node *list_peek_tail(struct list_node *list)
-{
+static inline struct list_node *list_peek_tail(struct list_node *list) {
     if (list->prev != list) {
         return list->prev;
     } else {
@@ -164,8 +154,7 @@ static inline struct list_node *list_peek_tail(struct list_node *list)
     __t;\
 })
 
-static inline struct list_node *list_prev(struct list_node *list, struct list_node *item)
-{
+static inline struct list_node *list_prev(struct list_node *list, struct list_node *item) {
     if (item->prev != list)
         return item->prev;
     else
@@ -182,8 +171,7 @@ static inline struct list_node *list_prev(struct list_node *list, struct list_no
     __t;\
 })
 
-static inline struct list_node *list_prev_wrap(struct list_node *list, struct list_node *item)
-{
+static inline struct list_node *list_prev_wrap(struct list_node *list, struct list_node *item) {
     if (item->prev != list)
         return item->prev;
     else if (item->prev->prev != list)
@@ -202,8 +190,7 @@ static inline struct list_node *list_prev_wrap(struct list_node *list, struct li
     __t;\
 })
 
-static inline struct list_node *list_next(struct list_node *list, struct list_node *item)
-{
+static inline struct list_node *list_next(struct list_node *list, struct list_node *item) {
     if (item->next != list)
         return item->next;
     else
@@ -220,8 +207,7 @@ static inline struct list_node *list_next(struct list_node *list, struct list_no
     __t;\
 })
 
-static inline struct list_node *list_next_wrap(struct list_node *list, struct list_node *item)
-{
+static inline struct list_node *list_next_wrap(struct list_node *list, struct list_node *item) {
     if (item->next != list)
         return item->next;
     else if (item->next->next != list)
@@ -265,13 +251,11 @@ static inline struct list_node *list_next_wrap(struct list_node *list, struct li
         &(entry)->member != (list);\
         entry = temp_entry, temp_entry = containerof((temp_entry)->member.next, type, member))
 
-static inline bool list_is_empty(struct list_node *list)
-{
+static inline bool list_is_empty(struct list_node *list) {
     return (list->next == list) ? true : false;
 }
 
-static inline size_t list_length(struct list_node *list)
-{
+static inline size_t list_length(struct list_node *list) {
     size_t cnt = 0;
     struct list_node *node = list;
     list_for_every(list, node) {

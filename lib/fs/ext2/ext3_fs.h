@@ -496,17 +496,14 @@ struct ext3_super_block {
 #ifdef __KERNEL__
 #include <linux/ext3_fs_i.h>
 #include <linux/ext3_fs_sb.h>
-static inline struct ext3_sb_info *EXT3_SB(struct super_block *sb)
-{
+static inline struct ext3_sb_info *EXT3_SB(struct super_block *sb) {
     return sb->s_fs_info;
 }
-static inline struct ext3_inode_info *EXT3_I(struct inode *inode)
-{
+static inline struct ext3_inode_info *EXT3_I(struct inode *inode) {
     return container_of(inode, struct ext3_inode_info, vfs_inode);
 }
 
-static inline int ext3_valid_inum(struct super_block *sb, unsigned long ino)
-{
+static inline int ext3_valid_inum(struct super_block *sb, unsigned long ino) {
     return ino == EXT3_ROOT_INO ||
            ino == EXT3_JOURNAL_INO ||
            ino == EXT3_RESIZE_INO ||
@@ -709,8 +706,7 @@ struct ext3_iloc {
     unsigned long block_group;
 };
 
-static inline struct ext3_inode *ext3_raw_inode(struct ext3_iloc *iloc)
-{
+static inline struct ext3_inode *ext3_raw_inode(struct ext3_iloc *iloc) {
     return (struct ext3_inode *) (iloc->bh->b_data + iloc->offset);
 }
 
@@ -731,8 +727,7 @@ struct dir_private_info {
 
 /* calculate the first block number of the group */
 static inline ext3_fsblk_t
-ext3_group_first_block_no(struct super_block *sb, unsigned long group_no)
-{
+ext3_group_first_block_no(struct super_block *sb, unsigned long group_no) {
     return group_no * (ext3_fsblk_t)EXT3_BLOCKS_PER_GROUP(sb) +
            le32_to_cpu(EXT3_SB(sb)->s_es->s_first_data_block);
 }

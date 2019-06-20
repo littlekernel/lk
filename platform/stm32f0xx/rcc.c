@@ -45,7 +45,7 @@ void stm32_rcc_set_enable(stm32_rcc_clk_t clock, bool enable) {
 }
 
 void stm32_rcc_set_reset(stm32_rcc_clk_t clock, bool reset) {
-    switch(clock) {
+    switch (clock) {
         // These clocks to not have reset bits.
         case STM32_RCC_CLK_DMA:
         case STM32_RCC_CLK_DMA2:

@@ -65,8 +65,7 @@ cbuf_t uart3_rx_buf;
 #ifdef ENABLE_UART3
 #endif
 
-static void usart_init1_early(USART_TypeDef *usart, uint16_t flowcontrol, int irqn)
-{
+static void usart_init1_early(USART_TypeDef *usart, uint16_t flowcontrol, int irqn) {
     USART_InitTypeDef init;
 
     init.USART_BaudRate = 115200;
@@ -82,16 +81,14 @@ static void usart_init1_early(USART_TypeDef *usart, uint16_t flowcontrol, int ir
     USART_Cmd(usart, ENABLE);
 }
 
-static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf)
-{
+static void usart_init1(USART_TypeDef *usart, int irqn, cbuf_t *rxbuf) {
     cbuf_initialize(rxbuf, RXBUF_SIZE);
     USART_ITConfig(usart, USART_IT_RXNE, ENABLE);
     NVIC_EnableIRQ(irqn);
     USART_Cmd(usart, ENABLE);
 }
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
 #ifdef ENABLE_UART1
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 #endif
@@ -113,8 +110,7 @@ void uart_init_early(void)
 #endif
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
 #ifdef ENABLE_UART1
     usart_init1(USART1, USART1_IRQn, &uart1_rx_buf);
 #endif
@@ -126,8 +122,7 @@ void uart_init(void)
 #endif
 }
 
-void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
-{
+void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf) {
     arm_cm_irq_entry();
 
     bool resched = false;
@@ -148,36 +143,31 @@ void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf)
 }
 
 #ifdef ENABLE_UART1
-void stm32_USART1_IRQ(void)
-{
+void stm32_USART1_IRQ(void) {
     uart_rx_irq(USART1, &uart1_rx_buf);
 }
 #endif
 
 #ifdef ENABLE_UART2
-void stm32_USART2_IRQ(void)
-{
+void stm32_USART2_IRQ(void) {
     uart_rx_irq(USART2, &uart2_rx_buf);
 }
 #endif
 
 #ifdef ENABLE_UART3
-void stm32_USART3_IRQ(void)
-{
+void stm32_USART3_IRQ(void) {
     uart_rx_irq(USART3, &uart3_rx_buf);
 }
 #endif
 
 
-static void usart_putc(USART_TypeDef *usart, char c)
-{
+static void usart_putc(USART_TypeDef *usart, char c) {
     while (USART_GetFlagStatus(usart, USART_FLAG_TXE) == 0);
     USART_SendData(usart, c);
     while (USART_GetFlagStatus(usart, USART_FLAG_TC) == 0);
 }
 
-static int usart_getc(USART_TypeDef *usart, cbuf_t *rxbuf, bool wait)
-{
+static int usart_getc(USART_TypeDef *usart, cbuf_t *rxbuf, bool wait) {
     char c;
     cbuf_read_char(rxbuf, &c, wait);
     if (cbuf_space_avail(rxbuf) > RXBUF_SIZE/2)
@@ -186,8 +176,7 @@ static int usart_getc(USART_TypeDef *usart, cbuf_t *rxbuf, bool wait)
     return c;
 }
 
-static USART_TypeDef *get_usart(int port)
-{
+static USART_TypeDef *get_usart(int port) {
     switch (port) {
 #ifdef ENABLE_UART1
         case 1:
@@ -208,8 +197,7 @@ static USART_TypeDef *get_usart(int port)
 
 }
 
-static cbuf_t *get_rxbuf(int port)
-{
+static cbuf_t *get_rxbuf(int port) {
     switch (port) {
 #ifdef ENABLE_UART1
         case 1:
@@ -230,15 +218,13 @@ static cbuf_t *get_rxbuf(int port)
 
 }
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     USART_TypeDef *usart = get_usart(port);
     usart_putc(usart, c);
     return 1;
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     cbuf_t *rxbuf = get_rxbuf(port);
     USART_TypeDef *usart = get_usart(port);
 
@@ -249,8 +235,7 @@ void uart_flush_tx(int port) {}
 
 void uart_flush_rx(int port) {}
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
     // TODO - later
     PANIC_UNIMPLEMENTED;
 }

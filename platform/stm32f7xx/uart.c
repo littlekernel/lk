@@ -87,8 +87,7 @@ static struct uart_instance *const uart[NUM_UARTS + 1] = {
 };
 
 // This function is called by HAL_UART_Init().
-void HAL_UART_MspInit(UART_HandleTypeDef *huart)
-{
+void HAL_UART_MspInit(UART_HandleTypeDef *huart) {
     RCC_PeriphCLKInitTypeDef RCC_PeriphClkInit;
 
     /* Select SysClk as source of UART clocks */
@@ -112,8 +111,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
     }
 }
 
-static void usart_init_early(struct uart_instance *u, USART_TypeDef *usart, uint32_t baud, uint16_t flowcontrol)
-{
+static void usart_init_early(struct uart_instance *u, USART_TypeDef *usart, uint32_t baud, uint16_t flowcontrol) {
     u->handle.Instance = usart;
     u->handle.Init.BaudRate = baud;
     u->handle.Init.WordLength = UART_WORDLENGTH_8B;
@@ -125,8 +123,7 @@ static void usart_init_early(struct uart_instance *u, USART_TypeDef *usart, uint
     HAL_UART_Init(&u->handle);
 }
 
-static void usart_init(struct uart_instance *u, USART_TypeDef *usart, uint irqn, size_t rxsize)
-{
+static void usart_init(struct uart_instance *u, USART_TypeDef *usart, uint irqn, size_t rxsize) {
     cbuf_initialize(&u->rx_buf, rxsize);
 
     /* Enable the UART Parity Error Interrupt */
@@ -141,8 +138,7 @@ static void usart_init(struct uart_instance *u, USART_TypeDef *usart, uint irqn,
     HAL_NVIC_EnableIRQ(irqn);
 }
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
 #if ENABLE_UART1
     usart_init_early(uart[1], USART1, UART1_BAUDRATE, UART1_FLOWCONTROL);
 #endif
@@ -151,8 +147,7 @@ void uart_init_early(void)
 #endif
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
 #ifdef ENABLE_UART1
     usart_init(uart[1], USART1, USART1_IRQn, UART1_RXBUF_SIZE);
 #endif
@@ -161,8 +156,7 @@ void uart_init(void)
 #endif
 }
 
-static void stm32_usart_shared_irq(struct uart_instance *u, const unsigned int id)
-{
+static void stm32_usart_shared_irq(struct uart_instance *u, const unsigned int id) {
     bool resched = false;
 
     arm_cm_irq_entry();
@@ -232,21 +226,18 @@ static void stm32_usart_shared_irq(struct uart_instance *u, const unsigned int i
 }
 
 #if ENABLE_UART1
-void stm32_USART1_IRQ(void)
-{
+void stm32_USART1_IRQ(void) {
     stm32_usart_shared_irq(uart[1], 1);
 }
 #endif
 
 #if ENABLE_UART3
-void stm32_USART3_IRQ(void)
-{
+void stm32_USART3_IRQ(void) {
     stm32_usart_shared_irq(uart[3], 3);
 }
 #endif
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     struct uart_instance *u = uart[port];
     if (port < 0 || port > NUM_UARTS || !u)
         return ERR_BAD_HANDLE;
@@ -258,8 +249,7 @@ int uart_putc(int port, char c)
     return 1;
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     struct uart_instance *u = uart[port];
     if (port < 0 || port > NUM_UARTS || !u)
         return ERR_BAD_HANDLE;
@@ -270,13 +260,11 @@ int uart_getc(int port, bool wait)
     return c;
 }
 
-int uart_pputc(int port, char c)
-{
+int uart_pputc(int port, char c) {
     return uart_putc(port, c);
 }
 
-int uart_pgetc(int port)
-{
+int uart_pgetc(int port) {
     struct uart_instance *u = uart[port];
     if (port < 0 || port > NUM_UARTS || !u)
         return ERR_BAD_HANDLE;
@@ -292,8 +280,7 @@ void uart_flush_tx(int port) {}
 
 void uart_flush_rx(int port) {}
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
     // TODO - later
     PANIC_UNIMPLEMENTED;
 }

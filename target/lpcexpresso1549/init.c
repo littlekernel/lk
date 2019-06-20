@@ -112,8 +112,7 @@ STATIC const SWM_GRP_T swmSetup[] = {
 #define PINENABLE1_VAL 0x00FFFFFF
 
 /* Sets up system pin muxing */
-void Board_SetupMuxing(void)
-{
+void Board_SetupMuxing(void) {
     /* Enable SWM and IOCON clocks */
     Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
     Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_SWM);
@@ -136,8 +135,7 @@ void Board_SetupMuxing(void)
 }
 
 /* Initialize debug output via UART for board */
-void Board_Debug_Init(void)
-{
+void Board_Debug_Init(void) {
     /* Disables pullups/pulldowns and enable digital mode */
     Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 13, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
     Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 18, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
@@ -152,8 +150,7 @@ static const uint8_t ledpins[MAXLEDS] = {25, 3, 1};
 static const uint8_t ledports[MAXLEDS] = {0, 0, 1};
 
 /* Initializes board LED(s) */
-static void Board_LED_Init(void)
-{
+static void Board_LED_Init(void) {
     int idx;
 
     Chip_GPIO_Init(LPC_GPIO);
@@ -166,8 +163,7 @@ static void Board_LED_Init(void)
 }
 
 /* Sets the state of a board LED to on or off */
-void Board_LED_Set(uint8_t LEDNumber, bool On)
-{
+void Board_LED_Set(uint8_t LEDNumber, bool On) {
     if (LEDNumber < MAXLEDS) {
         /* Toggle state, low is on, high is off */
         Chip_GPIO_SetPinState(LPC_GPIO, ledports[LEDNumber], ledpins[LEDNumber], !On);
@@ -175,8 +171,7 @@ void Board_LED_Set(uint8_t LEDNumber, bool On)
 }
 
 /* Returns the current state of a board LED */
-bool Board_LED_Test(uint8_t LEDNumber)
-{
+bool Board_LED_Test(uint8_t LEDNumber) {
     bool state = false;
 
     if (LEDNumber < MAXLEDS) {
@@ -187,26 +182,22 @@ bool Board_LED_Test(uint8_t LEDNumber)
 }
 
 /* Toggles the current state of a board LED */
-void Board_LED_Toggle(uint8_t LEDNumber)
-{
+void Board_LED_Toggle(uint8_t LEDNumber) {
     Chip_GPIO_SetPinToggle(LPC_GPIO, ledports[LEDNumber], ledpins[LEDNumber]);
 }
 
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     Board_SetupMuxing();
 
     Board_Debug_Init();
     Board_LED_Init();
 }
 
-void target_init(void)
-{
+void target_init(void) {
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     if (led < 3)
         Board_LED_Set(led, on);
 }

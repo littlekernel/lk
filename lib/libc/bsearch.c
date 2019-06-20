@@ -15,8 +15,7 @@
 #include <stdlib.h>
 
 void *bsearch(const void *key, const void *base, size_t num_elems, size_t size,
-              int (*compare)(const void *, const void *))
-{
+              int (*compare)(const void *, const void *)) {
     size_t low = 0, high = num_elems - 1;
 
     if (num_elems == 0) {

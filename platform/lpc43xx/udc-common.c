@@ -29,8 +29,7 @@
 
 #include "udc-common.h"
 
-static udc_descriptor_t *udc_descriptor_alloc(unsigned type, unsigned num, unsigned len)
-{
+static udc_descriptor_t *udc_descriptor_alloc(unsigned type, unsigned num, unsigned len) {
     struct udc_descriptor *desc;
     if ((len > 255) || (len < 2) || (num > 255) || (type > 255))
         return 0;
@@ -56,8 +55,7 @@ static udc_descriptor_t langid_list = {
 static struct udc_descriptor *desc_list = &langid_list;
 static unsigned next_string_id = 1;
 
-udc_descriptor_t *udc_descriptor_find(unsigned tag)
-{
+udc_descriptor_t *udc_descriptor_find(unsigned tag) {
     udc_descriptor_t *desc = desc_list;
     while (desc != NULL) {
         if (desc->tag == tag) {
@@ -69,14 +67,12 @@ udc_descriptor_t *udc_descriptor_find(unsigned tag)
     return NULL;
 }
 
-static void udc_descriptor_register(struct udc_descriptor *desc)
-{
+static void udc_descriptor_register(struct udc_descriptor *desc) {
     desc->next = desc_list;
     desc_list = desc;
 }
 
-static unsigned udc_string_desc_alloc(const char *str)
-{
+static unsigned udc_string_desc_alloc(const char *str) {
     unsigned len;
     struct udc_descriptor *desc;
     unsigned char *data;
@@ -105,13 +101,11 @@ static unsigned udc_string_desc_alloc(const char *str)
 }
 
 
-static unsigned udc_ifc_desc_size(udc_gadget_t *g)
-{
+static unsigned udc_ifc_desc_size(udc_gadget_t *g) {
     return 9 + g->ifc_endpoints * 7;
 }
 
-static void udc_ifc_desc_fill(udc_gadget_t *g, unsigned ifcn, unsigned char *data)
-{
+static void udc_ifc_desc_fill(udc_gadget_t *g, unsigned ifcn, unsigned char *data) {
     unsigned n;
 
     data[0] = 0x09;
@@ -131,8 +125,7 @@ static void udc_ifc_desc_fill(udc_gadget_t *g, unsigned ifcn, unsigned char *dat
     }
 }
 
-void udc_create_descriptors(udc_device_t *device, udc_gadget_t *gadgetlist)
-{
+void udc_create_descriptors(udc_device_t *device, udc_gadget_t *gadgetlist) {
     udc_descriptor_t *desc;
     udc_gadget_t *gadget;
     unsigned size;

@@ -36,13 +36,11 @@
 static int display_w, display_h;
 static void *display_fb;
 
-inline static int has_display(void)
-{
+inline static int has_display(void) {
     return *REG32(SYSINFO_FEATURES) & SYSINFO_FEATURE_DISPLAY;
 }
 
-void platform_init_display(void)
-{
+void platform_init_display(void) {
     if (!has_display())
         return;
 
@@ -55,8 +53,7 @@ void platform_init_display(void)
 #endif
 }
 
-status_t display_get_framebuffer(struct display_framebuffer *fb)
-{
+status_t display_get_framebuffer(struct display_framebuffer *fb) {
     DEBUG_ASSERT(fb);
     if (!has_display())
         return ERR_NOT_FOUND;
@@ -73,8 +70,7 @@ status_t display_get_framebuffer(struct display_framebuffer *fb)
     return NO_ERROR;
 }
 
-status_t display_get_info(struct display_info *info)
-{
+status_t display_get_info(struct display_info *info) {
     DEBUG_ASSERT(info);
     if (!has_display())
         return ERR_NOT_FOUND;
@@ -86,9 +82,8 @@ status_t display_get_info(struct display_info *info)
     return NO_ERROR;
 }
 
-status_t display_present(struct display_image *image, uint starty, uint endy)
-{
-  TRACEF("display_present - not implemented");
-  DEBUG_ASSERT(false);
-  return NO_ERROR;
+status_t display_present(struct display_image *image, uint starty, uint endy) {
+    TRACEF("display_present - not implemented");
+    DEBUG_ASSERT(false);
+    return NO_ERROR;
 }

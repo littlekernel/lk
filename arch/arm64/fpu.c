@@ -29,8 +29,7 @@
 
 static struct fpstate *current_fpstate[SMP_MAX_CPUS];
 
-static void arm64_fpu_load_state(struct thread *t)
-{
+static void arm64_fpu_load_state(struct thread *t) {
     uint cpu = arch_curr_cpu_num();
     struct fpstate *fpstate = &t->arch.fpstate;
 
@@ -66,8 +65,7 @@ static void arm64_fpu_load_state(struct thread *t)
                      :: "r"(fpstate), "r"(fpstate->fpcr), "r"(fpstate->fpsr));
 }
 
-void arm64_fpu_save_state(struct thread *t)
-{
+void arm64_fpu_save_state(struct thread *t) {
     struct fpstate *fpstate = &t->arch.fpstate;
     __asm__ volatile("stp     q0, q1, [%2, #(0 * 32)]\n"
                      "stp     q2, q3, [%2, #(1 * 32)]\n"
@@ -93,8 +91,7 @@ void arm64_fpu_save_state(struct thread *t)
     LTRACEF("thread %s, fpcr %x, fpsr %x\n", t->name, fpstate->fpcr, fpstate->fpsr);
 }
 
-void arm64_fpu_exception(struct arm64_iframe_long *iframe)
-{
+void arm64_fpu_exception(struct arm64_iframe_long *iframe) {
     uint32_t cpacr = ARM64_READ_SYSREG(cpacr_el1);
     if (((cpacr >> 20) & 3) != 3) {
         cpacr |= 3 << 20;

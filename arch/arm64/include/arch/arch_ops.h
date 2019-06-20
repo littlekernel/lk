@@ -33,20 +33,17 @@
 #define ENABLE_CYCLE_COUNTER 1
 
 // override of some routines
-static inline void arch_enable_ints(void)
-{
+static inline void arch_enable_ints(void) {
     CF;
     __asm__ volatile("msr daifclr, #2" ::: "memory");
 }
 
-static inline void arch_disable_ints(void)
-{
+static inline void arch_disable_ints(void) {
     __asm__ volatile("msr daifset, #2" ::: "memory");
     CF;
 }
 
-static inline bool arch_ints_disabled(void)
-{
+static inline bool arch_ints_disabled(void) {
     unsigned int state;
 
     __asm__ volatile("mrs %0, daif" : "=r"(state));
@@ -55,21 +52,18 @@ static inline bool arch_ints_disabled(void)
     return !!state;
 }
 
-static inline void arch_enable_fiqs(void)
-{
+static inline void arch_enable_fiqs(void) {
     CF;
     __asm__ volatile("msr daifclr, #1" ::: "memory");
 }
 
-static inline void arch_disable_fiqs(void)
-{
+static inline void arch_disable_fiqs(void) {
     __asm__ volatile("msr daifset, #1" ::: "memory");
     CF;
 }
 
 // XXX
-static inline bool arch_fiqs_disabled(void)
-{
+static inline bool arch_fiqs_disabled(void) {
     unsigned int state;
 
     __asm__ volatile("mrs %0, daif" : "=r"(state));
@@ -92,8 +86,7 @@ static inline bool arch_fiqs_disabled(void)
 #define smp_rmb()   CF
 #endif
 
-static inline int atomic_add(volatile int *ptr, int val)
-{
+static inline int atomic_add(volatile int *ptr, int val) {
 #if USE_GCC_ATOMICS
     return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
 #else
@@ -116,8 +109,7 @@ static inline int atomic_add(volatile int *ptr, int val)
 #endif
 }
 
-static inline int atomic_or(volatile int *ptr, int val)
-{
+static inline int atomic_or(volatile int *ptr, int val) {
 #if USE_GCC_ATOMICS
     return __atomic_fetch_or(ptr, val, __ATOMIC_RELAXED);
 #else
@@ -140,8 +132,7 @@ static inline int atomic_or(volatile int *ptr, int val)
 #endif
 }
 
-static inline int atomic_and(volatile int *ptr, int val)
-{
+static inline int atomic_and(volatile int *ptr, int val) {
 #if USE_GCC_ATOMICS
     return __atomic_fetch_and(ptr, val, __ATOMIC_RELAXED);
 #else
@@ -164,8 +155,7 @@ static inline int atomic_and(volatile int *ptr, int val)
 #endif
 }
 
-static inline int atomic_swap(volatile int *ptr, int val)
-{
+static inline int atomic_swap(volatile int *ptr, int val) {
 #if USE_GCC_ATOMICS
     return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
 #else
@@ -186,8 +176,7 @@ static inline int atomic_swap(volatile int *ptr, int val)
 #endif
 }
 
-static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
-{
+static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) {
 #if USE_GCC_ATOMICS
     __atomic_compare_exchange_n(ptr, &oldval, newval, false,
                                 __ATOMIC_RELAXED, __ATOMIC_RELAXED);
@@ -218,8 +207,7 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 #endif
 }
 
-static inline uint32_t arch_cycle_count(void)
-{
+static inline uint32_t arch_cycle_count(void) {
 #if ARM_ISA_ARM7M
 #if ENABLE_CYCLE_COUNTER
 #define DWT_CYCCNT (0xE0001004)
@@ -240,25 +228,21 @@ static inline uint32_t arch_cycle_count(void)
 }
 
 /* use the cpu local thread context pointer to store current_thread */
-static inline struct thread *get_current_thread(void)
-{
+static inline struct thread *get_current_thread(void) {
     return (struct thread *)ARM64_READ_SYSREG(tpidr_el1);
 }
 
-static inline void set_current_thread(struct thread *t)
-{
+static inline void set_current_thread(struct thread *t) {
     ARM64_WRITE_SYSREG(tpidr_el1, (uint64_t)t);
 }
 
 #if WITH_SMP
-static inline uint arch_curr_cpu_num(void)
-{
+static inline uint arch_curr_cpu_num(void) {
     uint64_t mpidr =  ARM64_READ_SYSREG(mpidr_el1);
     return ((mpidr & ((1U << SMP_CPU_ID_BITS) - 1)) >> 8 << SMP_CPU_CLUSTER_SHIFT) | (mpidr & 0xff);
 }
 #else
-static inline uint arch_curr_cpu_num(void)
-{
+static inline uint arch_curr_cpu_num(void) {
     return 0;
 }
 #endif

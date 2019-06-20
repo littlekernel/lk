@@ -37,8 +37,7 @@ unsigned int arm_cm_num_irq_pri_bits;
 unsigned int arm_cm_irq_pri_mask;
 #endif
 
-void arch_early_init(void)
-{
+void arch_early_init(void) {
 
     arch_disable_ints();
 
@@ -99,8 +98,7 @@ void arch_early_init(void)
 #endif
 }
 
-void arch_init(void)
-{
+void arch_init(void) {
 #if ENABLE_CYCLE_COUNTER
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0;
@@ -113,22 +111,19 @@ void arch_init(void)
 #endif
 }
 
-void arch_quiesce(void)
-{
+void arch_quiesce(void) {
 #if ARM_WITH_CACHE
     arch_disable_cache(UCACHE);
 #endif
 }
 
-void arch_idle(void)
-{
+void arch_idle(void) {
     __asm__ volatile("wfi");
 }
 
 #if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
 
-void _arm_cm_set_irqpri(uint32_t pri)
-{
+void _arm_cm_set_irqpri(uint32_t pri) {
     if (pri == 0) {
         __disable_irq(); // cpsid i
         __set_BASEPRI(0);
@@ -148,8 +143,7 @@ void _arm_cm_set_irqpri(uint32_t pri)
 #endif
 
 
-void arm_cm_irq_entry(void)
-{
+void arm_cm_irq_entry(void) {
     // Set PRIMASK to 1
     // This is so that later calls to arch_ints_disabled() returns true while we're inside the int handler
     // Note: this will probably screw up future efforts to stack higher priority interrupts since we're setting
@@ -162,8 +156,7 @@ void arm_cm_irq_entry(void)
     target_set_debug_led(1, true);
 }
 
-void arm_cm_irq_exit(bool reschedule)
-{
+void arm_cm_irq_exit(bool reschedule) {
     target_set_debug_led(1, false);
 
     if (reschedule)
@@ -174,8 +167,7 @@ void arm_cm_irq_exit(bool reschedule)
     __enable_irq(); // clear PRIMASK
 }
 
-void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3)
-{
+void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
 #if (__CORTEX_M >= 0x03)
 
     uint32_t *vectab = (uint32_t *)entry;
@@ -189,11 +181,11 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
         "bx  %[entry]; "
         :
         : [arg0]"r"(arg0),
-          [arg1]"r"(arg1),
-          [arg2]"r"(arg2),
-          [arg3]"r"(arg3),
-          [SP]"r"(vectab[0]),
-          [entry]"r"(vectab[1])
+        [arg1]"r"(arg1),
+        [arg2]"r"(arg2),
+        [arg3]"r"(arg3),
+        [SP]"r"(vectab[0]),
+        [entry]"r"(vectab[1])
         : "r0", "r1", "r2", "r3"
     );
 

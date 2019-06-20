@@ -96,8 +96,7 @@ usb_config config = {
     .langid = USB_DESC_STATIC(langid),
 };
 
-void target_usb_setup(void)
-{
+void target_usb_setup(void) {
     usb_setup(&config);
     printf("appending interfaces\n");
 

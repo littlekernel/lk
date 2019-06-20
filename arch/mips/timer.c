@@ -46,8 +46,7 @@ static uint32_t tick_interval;
 static platform_timer_callback cb;
 static void *cb_args;
 
-enum handler_return mips_timer_irq(void)
-{
+enum handler_return mips_timer_irq(void) {
     LTRACEF("count   0x%x\n", mips_read_c0_count());
     LTRACEF("compare 0x%x\n", mips_read_c0_compare());
 
@@ -74,8 +73,7 @@ retry:
     return ret;
 }
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     TRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
     DEBUG_ASSERT(interval > 0);
@@ -98,8 +96,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     uint64_t t;
     uint32_t last_compare;
     uint32_t delta;
@@ -118,8 +115,7 @@ lk_time_t current_time(void)
     return res;
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     uint64_t t;
     uint32_t last_compare;
     uint32_t delta;
@@ -138,8 +134,7 @@ lk_bigtime_t current_time_hires(void)
     return res;
 }
 
-void mips_init_timer(uint32_t freq)
-{
+void mips_init_timer(uint32_t freq) {
     tick_rate = freq;
     tick_rate_mhz = freq / 1000000;
 

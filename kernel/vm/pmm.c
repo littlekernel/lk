@@ -48,13 +48,11 @@ static mutex_t lock = MUTEX_INITIAL_VALUE(lock);
 #define ADDRESS_IN_ARENA(address, arena) \
     ((address) >= (arena)->base && (address) <= (arena)->base + (arena)->size - 1)
 
-static inline bool page_is_free(const vm_page_t *page)
-{
+static inline bool page_is_free(const vm_page_t *page) {
     return !(page->flags & VM_PAGE_FLAG_NONFREE);
 }
 
-paddr_t vm_page_to_paddr(const vm_page_t *page)
-{
+paddr_t vm_page_to_paddr(const vm_page_t *page) {
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
         if (PAGE_BELONGS_TO_ARENA(page, a)) {
@@ -64,8 +62,7 @@ paddr_t vm_page_to_paddr(const vm_page_t *page)
     return -1;
 }
 
-vm_page_t *paddr_to_vm_page(paddr_t addr)
-{
+vm_page_t *paddr_to_vm_page(paddr_t addr) {
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
         if (addr >= a->base && addr <= a->base + a->size - 1) {
@@ -76,8 +73,7 @@ vm_page_t *paddr_to_vm_page(paddr_t addr)
     return NULL;
 }
 
-status_t pmm_add_arena(pmm_arena_t *arena)
-{
+status_t pmm_add_arena(pmm_arena_t *arena) {
     LTRACEF("arena %p name '%s' base 0x%lx size 0x%zx\n", arena, arena->name, arena->base, arena->size);
 
     DEBUG_ASSERT(IS_PAGE_ALIGNED(arena->base));
@@ -121,8 +117,7 @@ done_add:
     return NO_ERROR;
 }
 
-size_t pmm_alloc_pages(uint count, struct list_node *list)
-{
+size_t pmm_alloc_pages(uint count, struct list_node *list) {
     LTRACEF("count %u\n", count);
 
     /* list must be initialized prior to calling this */
@@ -156,8 +151,7 @@ done:
     return allocated;
 }
 
-size_t pmm_alloc_range(paddr_t address, uint count, struct list_node *list)
-{
+size_t pmm_alloc_range(paddr_t address, uint count, struct list_node *list) {
     LTRACEF("address 0x%lx, count %u\n", address, count);
 
     DEBUG_ASSERT(list);
@@ -203,8 +197,7 @@ size_t pmm_alloc_range(paddr_t address, uint count, struct list_node *list)
     return allocated;
 }
 
-size_t pmm_free(struct list_node *list)
-{
+size_t pmm_free(struct list_node *list) {
     LTRACEF("list %p\n", list);
 
     DEBUG_ASSERT(list);
@@ -236,8 +229,7 @@ size_t pmm_free(struct list_node *list)
     return count;
 }
 
-size_t pmm_free_page(vm_page_t *page)
-{
+size_t pmm_free_page(vm_page_t *page) {
     struct list_node list;
     list_initialize(&list);
 
@@ -247,8 +239,7 @@ size_t pmm_free_page(vm_page_t *page)
 }
 
 /* physically allocate a run from arenas marked as KMAP */
-void *pmm_alloc_kpages(uint count, struct list_node *list)
-{
+void *pmm_alloc_kpages(uint count, struct list_node *list) {
     LTRACEF("count %u\n", count);
 
     // XXX do fast path for single page
@@ -262,8 +253,7 @@ void *pmm_alloc_kpages(uint count, struct list_node *list)
     return paddr_to_kvaddr(pa);
 }
 
-size_t pmm_free_kpages(void *_ptr, uint count)
-{
+size_t pmm_free_kpages(void *_ptr, uint count) {
     LTRACEF("ptr %p, count %u\n", _ptr, count);
 
     uint8_t *ptr = (uint8_t *)_ptr;
@@ -284,8 +274,7 @@ size_t pmm_free_kpages(void *_ptr, uint count)
     return pmm_free(&list);
 }
 
-size_t pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struct list_node *list)
-{
+size_t pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struct list_node *list) {
     LTRACEF("count %u, align %u\n", count, alignment_log2);
 
     if (count == 0)
@@ -363,13 +352,11 @@ retry:
     return 0;
 }
 
-static void dump_page(const vm_page_t *page)
-{
+static void dump_page(const vm_page_t *page) {
     printf("page %p: address 0x%lx flags 0x%x\n", page, vm_page_to_paddr(page), page->flags);
 }
 
-static void dump_arena(const pmm_arena_t *arena, bool dump_pages)
-{
+static void dump_arena(const pmm_arena_t *arena, bool dump_pages) {
     printf("arena %p: name '%s' base 0x%lx size 0x%zx priority %u flags 0x%x\n",
            arena, arena->name, arena->base, arena->size, arena->priority, arena->flags);
     printf("\tpage_array %p, free_count %zu\n",
@@ -403,8 +390,7 @@ static void dump_arena(const pmm_arena_t *arena, bool dump_pages)
     }
 }
 
-static int cmd_pmm(int argc, const cmd_args *argv)
-{
+static int cmd_pmm(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

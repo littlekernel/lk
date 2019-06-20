@@ -72,8 +72,7 @@ void arm64_el3_to_el1(void);
 void arm64_fpu_exception(struct arm64_iframe_long *iframe);
 void arm64_fpu_save_state(struct thread *thread);
 
-static inline void arm64_fpu_pre_context_switch(struct thread *thread)
-{
+static inline void arm64_fpu_pre_context_switch(struct thread *thread) {
     uint32_t cpacr = ARM64_READ_SYSREG(cpacr_el1);
     if ((cpacr >> 20) & 3) {
         arm64_fpu_save_state(thread);

@@ -26,8 +26,7 @@
 #include <platform/gpio.h>
 #include "ti_driverlib.h"
 
-static void *port_to_pointer(unsigned int port)
-{
+static void *port_to_pointer(unsigned int port) {
     switch (port) {
         default:
         case GPIO_PORT_A:
@@ -63,8 +62,7 @@ static void *port_to_pointer(unsigned int port)
     }
 }
 
-void stellaris_gpio_early_init(void)
-{
+void stellaris_gpio_early_init(void) {
     /* Disable hitting the AHB bits on this target, which
      * is probably qemu emulated. QEMU does not implement
      * these registers and will crash.
@@ -91,13 +89,11 @@ void stellaris_gpio_early_init(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOJ);
 }
 
-void stellaris_gpio_init(void)
-{
+void stellaris_gpio_init(void) {
 }
 
 #if 0
-int gpio_config(unsigned nr, unsigned flags)
-{
+int gpio_config(unsigned nr, unsigned flags) {
     uint port = GPIO_PORT(nr);
     uint pin = GPIO_PIN(nr);
 
@@ -134,13 +130,11 @@ int gpio_config(unsigned nr, unsigned flags)
 }
 #endif
 
-void gpio_set(unsigned nr, unsigned on)
-{
+void gpio_set(unsigned nr, unsigned on) {
     GPIOPinWrite((unsigned int)port_to_pointer(GPIO_PORT(nr)), 1 << GPIO_PIN(nr), on ? (1 << GPIO_PIN(nr)) : 0);
 }
 
-int gpio_get(unsigned nr)
-{
+int gpio_get(unsigned nr) {
     return GPIOPinRead((unsigned int)port_to_pointer(GPIO_PORT(nr)), 1 << GPIO_PIN(nr));
 }
 

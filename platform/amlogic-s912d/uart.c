@@ -86,8 +86,7 @@ static uintptr_t uart_base = 0;
 static uint32_t uart_irq = 0;
 
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     while (UARTREG(uart_base, S912D_UART_STATUS) & S912D_UART_STATUS_TXFULL)
         ;
     UARTREG(uart_base, S912D_UART_WFIFO) = c;
@@ -95,19 +94,16 @@ int uart_putc(int port, char c)
     return 0;
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     char c;
     if (cbuf_read_char(&uart_rx_buf, &c, wait) == 1) {
         return c;
-    }
-    else {
+    } else {
         return -1;
     }
 }
 
-enum handler_return uart_irq_handler(void *arg)
-{
+enum handler_return uart_irq_handler(void *arg) {
     while ( (UARTREG(uart_base, S912D_UART_STATUS) & S912D_UART_STATUS_RXCOUNT_MASK) > 0 ) {
         if (cbuf_space_avail(&uart_rx_buf) == 0) {
             break;
@@ -119,8 +115,7 @@ enum handler_return uart_irq_handler(void *arg)
     return INT_RESCHEDULE;
 }
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
     uart_base = UART0_AO_BASE;
     uart_irq = UART0_IRQ;
 
@@ -141,8 +136,7 @@ void uart_init_early(void)
             S912D_UART_CONTROL_TWOWIRE;
 
 }
-void uart_init(void)
-{
+void uart_init(void) {
     uart_base = UART0_AO_BASE;
     uart_irq = UART0_IRQ;
 

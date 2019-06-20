@@ -101,8 +101,7 @@ status_t hal_error_to_status(HAL_StatusTypeDef hal_status);
 // disable the DMA Engine since DMA transfers may still be in progress.
 // We have to wait for the DMA Engine to acknowledge being disabled by watching
 // the DMA Enable bit.
-static status_t dma_disable(DMA_Stream_TypeDef *dma)
-{
+static status_t dma_disable(DMA_Stream_TypeDef *dma) {
     // Unset the DMA Enable bit.
     dma->CR &= ~DMA_SxCR_EN;
 
@@ -121,8 +120,7 @@ static status_t dma_disable(DMA_Stream_TypeDef *dma)
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef *hqspi)
-{
+static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef *hqspi) {
     HAL_StatusTypeDef status;
 
     static const QSPI_CommandTypeDef s_command = {
@@ -155,8 +153,7 @@ static status_t qspi_write_enable_unsafe(QSPI_HandleTypeDef *hqspi)
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef *hqspi)
-{
+static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef *hqspi) {
     uint8_t reg;
     HAL_StatusTypeDef status;
 
@@ -235,8 +232,7 @@ static status_t qspi_dummy_cycles_cfg_unsafe(QSPI_HandleTypeDef *hqspi)
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef *hqspi, uint8_t match, uint8_t mask)
-{
+static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef *hqspi, uint8_t match, uint8_t mask) {
     QSPI_AutoPollingTypeDef s_config;
     HAL_StatusTypeDef status;
 
@@ -272,8 +268,7 @@ static status_t qspi_auto_polling_mem_ready_unsafe(QSPI_HandleTypeDef *hqspi, ui
 }
 
 // Must hold spiflash_mutex before calling.
-static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef *hqspi)
-{
+static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef *hqspi) {
     QSPI_CommandTypeDef s_command;
     HAL_StatusTypeDef status;
 
@@ -317,8 +312,7 @@ static status_t qspi_reset_memory_unsafe(QSPI_HandleTypeDef *hqspi)
 }
 
 static ssize_t spiflash_bdev_read_block(struct bdev *device, void *buf,
-                                        bnum_t block, uint count)
-{
+                                        bnum_t block, uint count) {
     LTRACEF("device %p, buf %p, block %u, count %u\n",
             device, buf, block, count);
 
@@ -385,8 +379,7 @@ err:
 }
 
 static ssize_t spiflash_bdev_write_block(struct bdev *device, const void *_buf,
-        bnum_t block, uint count)
-{
+        bnum_t block, uint count) {
     count = bio_trim_block_range(device, block, count);
     if (count == 0) {
         return 0;
@@ -416,8 +409,7 @@ err:
 }
 
 static ssize_t spiflash_bdev_erase(struct bdev *device, off_t offset,
-                                   size_t len)
-{
+                                   size_t len) {
     len = bio_trim_range(device, offset, len);
     if (len == 0) {
         return 0;
@@ -461,15 +453,14 @@ finish:
     return total_erased;
 }
 
-static int spiflash_ioctl(struct bdev *device, int request, void *argp)
-{
+static int spiflash_ioctl(struct bdev *device, int request, void *argp) {
     int ret = NO_ERROR;
 
     switch (request) {
         case BIO_IOCTL_GET_MEM_MAP:
             /* put the device into linear mode */
             ret = qspi_enable_linear();
-            // Fallthrough.
+        // Fallthrough.
         case BIO_IOCTL_GET_MAP_ADDR:
             if (argp)
                 *(void **)argp = (void *)QSPI_BASE;
@@ -488,8 +479,7 @@ static int spiflash_ioctl(struct bdev *device, int request, void *argp)
     return ret;
 }
 
-static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
-{
+static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data) {
     if (!IS_ALIGNED(addr, N25QXXA_PAGE_SIZE)) {
         return ERR_INVALID_ARGS;
     }
@@ -514,21 +504,21 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
     status_t write_enable_result = qspi_write_enable_unsafe(&qspi_handle);
     if (write_enable_result != NO_ERROR) {
         dprintf(CRITICAL, "%s: qspi_write_enable_unsafe failed with err = %d\n",
-                    __func__, write_enable_result);
+                __func__, write_enable_result);
         return write_enable_result;
     }
 
     status = HAL_QSPI_Command(&qspi_handle, &s_command, HAL_QPSI_TIMEOUT_DEFAULT_VALUE);
     if (status != HAL_OK) {
         dprintf(CRITICAL, "%s: HAL_QSPI_Command failed with err = %d\n",
-                    __func__, status);
+                __func__, status);
         return hal_error_to_status(status);
     }
 
     status = qspi_tx_dma(&qspi_handle, &s_command, (uint8_t *)data);
     if (status != HAL_OK) {
         dprintf(CRITICAL, "%s: qspi_tx_dma failed with err = %d\n",
-                    __func__, status);
+                __func__, status);
         return hal_error_to_status(status);
     }
 
@@ -544,8 +534,7 @@ static ssize_t qspi_write_page_unsafe(uint32_t addr, const uint8_t *data)
 }
 
 
-status_t qspi_flash_init(size_t flash_size)
-{
+status_t qspi_flash_init(size_t flash_size) {
     status_t result = NO_ERROR;
 
     event_init(&cmd_event, false, EVENT_FLAG_AUTOUNSIGNAL);
@@ -647,8 +636,7 @@ err:
     return result;
 }
 
-status_t hal_error_to_status(HAL_StatusTypeDef hal_status)
-{
+status_t hal_error_to_status(HAL_StatusTypeDef hal_status) {
     switch (hal_status) {
         case HAL_OK:
             return NO_ERROR;
@@ -663,8 +651,7 @@ status_t hal_error_to_status(HAL_StatusTypeDef hal_status)
     }
 }
 
-static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruction)
-{
+static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruction) {
     if (instruction == BULK_ERASE_CMD && block_addr != 0) {
         // This call was probably not what the user intended since the
         // block_addr is irrelevant when performing a bulk erase.
@@ -738,24 +725,20 @@ static ssize_t qspi_erase(bdev_t *device, uint32_t block_addr, uint32_t instruct
     return num_erased_bytes;
 }
 
-static ssize_t qspi_bulk_erase(bdev_t *device)
-{
+static ssize_t qspi_bulk_erase(bdev_t *device) {
     return qspi_erase(device, 0, BULK_ERASE_CMD);
 }
 
-static ssize_t qspi_erase_sector(bdev_t *device, uint32_t block_addr)
-{
+static ssize_t qspi_erase_sector(bdev_t *device, uint32_t block_addr) {
     return qspi_erase(device, block_addr, SECTOR_ERASE_CMD);
 }
 
-static ssize_t qspi_erase_subsector(bdev_t *device, uint32_t block_addr)
-{
+static ssize_t qspi_erase_subsector(bdev_t *device, uint32_t block_addr) {
     return qspi_erase(device, block_addr, SUBSECTOR_ERASE_CMD);
 }
 
 static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef *qspi_handle,
-                                  QSPI_CommandTypeDef *s_command)
-{
+                                  QSPI_CommandTypeDef *s_command) {
     HAL_StatusTypeDef result = HAL_QSPI_Command_IT(qspi_handle, s_command);
 
     if (result != HAL_OK) {
@@ -769,8 +752,7 @@ static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef *qspi_handle,
 
 static void setup_dma(DMA_Stream_TypeDef *stream, uint32_t peripheral_address,
                       uint32_t memory_address, uint32_t num_bytes,
-                      uint32_t direction)
-{
+                      uint32_t direction) {
     stream->PAR = peripheral_address;
     stream->M0AR = memory_address;
     stream->NDTR = num_bytes;
@@ -799,26 +781,22 @@ static void setup_dma(DMA_Stream_TypeDef *stream, uint32_t peripheral_address,
 }
 
 /* IRQ Context */
-void DMA_RxCpltCallback(void)
-{
+void DMA_RxCpltCallback(void) {
     event_signal(&rx_event, false);
 }
 
 /* IRQ Context */
-void DMA_TxCpltCallback(void)
-{
+void DMA_TxCpltCallback(void) {
     event_signal(&tx_event, false);
 }
 
 /* IRQ Context */
-void DMA_ErrorCallback(void)
-{
+void DMA_ErrorCallback(void) {
     printf("DMA Error\n");
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_CommandTypeDef *s_command, uint8_t *buf)
-{
+static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_CommandTypeDef *s_command, uint8_t *buf) {
     MODIFY_REG(qspi_handle->Instance->CCR, QUADSPI_CCR_FMODE, 0);
 
     if (dma_disable(dma2_stream7) != NO_ERROR) {
@@ -849,8 +827,7 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_Comma
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_CommandTypeDef *s_command, uint8_t *buf)
-{
+static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_CommandTypeDef *s_command, uint8_t *buf) {
     // Make sure the front and back of the buffer are cache aligned.
     DEBUG_ASSERT(IS_ALIGNED((uintptr_t)buf, CACHE_LINE));
     DEBUG_ASSERT(IS_ALIGNED(((uintptr_t)buf) + s_command->NbData, CACHE_LINE));
@@ -885,15 +862,13 @@ static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_Comma
     return HAL_OK;
 }
 
-void stm32_QUADSPI_IRQ(void)
-{
+void stm32_QUADSPI_IRQ(void) {
     arm_cm_irq_entry();
     HAL_QSPI_IRQHandler(&qspi_handle);
     arm_cm_irq_exit(true);
 }
 
-void stm32_DMA2_Stream7_IRQ(void)
-{
+void stm32_DMA2_Stream7_IRQ(void) {
     arm_cm_irq_entry();
 
     // Make a copy of the interrupts that we're handling.
@@ -931,25 +906,21 @@ void stm32_DMA2_Stream7_IRQ(void)
 }
 
 /* IRQ Context */
-void HAL_QSPI_CmdCpltCallback(QSPI_HandleTypeDef *hqspi)
-{
+void HAL_QSPI_CmdCpltCallback(QSPI_HandleTypeDef *hqspi) {
     event_signal(&cmd_event, false);
 }
 
 /* IRQ Context */
-void HAL_QSPI_StatusMatchCallback(QSPI_HandleTypeDef *hqspi)
-{
+void HAL_QSPI_StatusMatchCallback(QSPI_HandleTypeDef *hqspi) {
     event_signal(&st_event, false);
 }
 
 /* IRQ Context */
-void HAL_QSPI_ErrorCallback(QSPI_HandleTypeDef *hqspi)
-{
+void HAL_QSPI_ErrorCallback(QSPI_HandleTypeDef *hqspi) {
     dprintf(CRITICAL, "%s: HAL QSPI Error.\n", __func__);
 }
 
-status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
-{
+status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi) {
     /* QSPI DMA Controller Clock */
     __HAL_RCC_DMA2_CLK_ENABLE();
 
@@ -960,8 +931,7 @@ status_t qspi_dma_init(QSPI_HandleTypeDef *hqspi)
     return NO_ERROR;
 }
 
-static uint32_t get_address_size(uint32_t address)
-{
+static uint32_t get_address_size(uint32_t address) {
     if (address >= FOUR_BYTE_ADDR_THRESHOLD) {
         return QSPI_ADDRESS_32_BITS;
     }
@@ -969,8 +939,7 @@ static uint32_t get_address_size(uint32_t address)
 }
 
 // Converts a 3 byte instruction into a 4 byte instruction if necessary.
-static uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address)
-{
+static uint32_t get_specialized_instruction(uint32_t instruction, uint32_t address) {
     if (address < FOUR_BYTE_ADDR_THRESHOLD) {
         return instruction;
     }
@@ -1001,8 +970,7 @@ static uint32_t get_specialized_instruction(uint32_t instruction, uint32_t addre
     return instruction;
 }
 
-static status_t qspi_enable_linear(void)
-{
+static status_t qspi_enable_linear(void) {
     status_t result = NO_ERROR;
 
     mutex_acquire(&spiflash_mutex);
@@ -1047,8 +1015,7 @@ finish:
 }
 
 
-static status_t qspi_disable_linear(void)
-{
+static status_t qspi_disable_linear(void) {
     status_t result = NO_ERROR;
 
     mutex_acquire(&spiflash_mutex);
@@ -1072,8 +1039,7 @@ finish:
     return result;
 }
 
-static bool qspi_is_linear(void)
-{
+static bool qspi_is_linear(void) {
     bool result;
     mutex_acquire(&spiflash_mutex);
     result = (QSPI_STATE_LINEAR == device_state);

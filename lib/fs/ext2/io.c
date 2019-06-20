@@ -29,23 +29,19 @@
 
 #define LOCAL_TRACE 0
 
-int ext2_read_block(ext2_t *ext2, void *buf, blocknum_t bnum)
-{
+int ext2_read_block(ext2_t *ext2, void *buf, blocknum_t bnum) {
     return bcache_read_block(ext2->cache, buf, bnum);
 }
 
-int ext2_get_block(ext2_t *ext2, void **ptr, blocknum_t bnum)
-{
+int ext2_get_block(ext2_t *ext2, void **ptr, blocknum_t bnum) {
     return bcache_get_block(ext2->cache, ptr, bnum);
 }
 
-int ext2_put_block(ext2_t *ext2, blocknum_t bnum)
-{
+int ext2_put_block(ext2_t *ext2, blocknum_t bnum) {
     return bcache_put_block(ext2->cache, bnum);
 }
 
-static int ext2_calculate_block_pointer_pos(ext2_t *ext2, blocknum_t block_to_find, uint32_t *level, uint32_t pos[])
-{
+static int ext2_calculate_block_pointer_pos(ext2_t *ext2, blocknum_t block_to_find, uint32_t *level, uint32_t pos[]) {
     uint32_t block_ptr_per_block, block_ptr_per_2nd_block;
 
     // XXX optimize this
@@ -94,8 +90,7 @@ static int ext2_calculate_block_pointer_pos(ext2_t *ext2, blocknum_t block_to_fi
 }
 
 // This function returns a pointer to the cache block that corresponds to the indirect block pointer.
-int ext2_get_indirect_block_pointer_cache_block(ext2_t *ext2, struct ext2_inode *inode, blocknum_t **cache_block, uint32_t level, uint32_t pos[], uint *block_loaded)
-{
+int ext2_get_indirect_block_pointer_cache_block(ext2_t *ext2, struct ext2_inode *inode, blocknum_t **cache_block, uint32_t level, uint32_t pos[], uint *block_loaded) {
     uint32_t current_level = 0;
     uint current_block = 0, last_block;
     blocknum_t *block = NULL;
@@ -143,8 +138,7 @@ error:
 }
 
 /* translate a file block to a physical block */
-static blocknum_t file_block_to_fs_block(ext2_t *ext2, struct ext2_inode *inode, uint fileblock)
-{
+static blocknum_t file_block_to_fs_block(ext2_t *ext2, struct ext2_inode *inode, uint fileblock) {
     int err;
     blocknum_t block;
 
@@ -180,8 +174,7 @@ static blocknum_t file_block_to_fs_block(ext2_t *ext2, struct ext2_inode *inode,
     return block;
 }
 
-ssize_t ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_t offset, size_t len)
-{
+ssize_t ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_t offset, size_t len) {
     int err = 0;
     size_t bytes_read = 0;
     uint8_t *buf = _buf;

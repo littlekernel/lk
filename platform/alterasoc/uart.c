@@ -60,8 +60,7 @@ static inline cbuf_t *uart_to_rxbuf(unsigned int n) { return (n == 0) ? &uart0_r
 
 static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
-static enum handler_return uart_irq(void *arg)
-{
+static enum handler_return uart_irq(void *arg) {
     bool resched = false;
     uint port = (uint)arg;
     uintptr_t base = uart_to_ptr(port);
@@ -85,8 +84,7 @@ static enum handler_return uart_irq(void *arg)
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
     cbuf_initialize(&uart0_rx_buf, RXBUF_SIZE);
     cbuf_initialize(&uart1_rx_buf, RXBUF_SIZE);
 
@@ -105,16 +103,14 @@ void uart_init(void)
     unmask_interrupt(UART1_INT);
 }
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
 #if 0
     UARTREG(uart_to_ptr(0), UART_CR) = (1<<4); // txen
     UARTREG(uart_to_ptr(1), UART_CR) = (1<<4); // txen
 #endif
 }
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     uintptr_t base = uart_to_ptr(port);
 
     spin_lock_saved_state_t state;
@@ -130,8 +126,7 @@ int uart_putc(int port, char c)
     return 1;
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     cbuf_t *rxbuf = uart_to_rxbuf(port);
 
     char c;
@@ -141,15 +136,12 @@ int uart_getc(int port, bool wait)
     return -1;
 }
 
-void uart_flush_tx(int port)
-{
+void uart_flush_tx(int port) {
 }
 
-void uart_flush_rx(int port)
-{
+void uart_flush_rx(int port) {
 }
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
 }
 

@@ -59,8 +59,7 @@
 #include <lk/err.h>
 #include <string.h>
 
-static void ndebugtest_entry(const struct app_descriptor *app, void *args)
-{
+static void ndebugtest_entry(const struct app_descriptor *app, void *args) {
     // Pad the buffer with one extra byte to acommodate a NULL character for
     // printing using printf(...)
     static uint8_t buf[NDEBUG_USR_MAX_PACKET_SIZE + 1];
@@ -112,5 +111,5 @@ static void ndebugtest_entry(const struct app_descriptor *app, void *args)
 }
 
 APP_START(ndebugtest)
-  .entry = ndebugtest_entry,
+.entry = ndebugtest_entry,
 APP_END

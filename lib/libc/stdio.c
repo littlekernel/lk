@@ -39,34 +39,29 @@ FILE __stdio_FILEs[3] = {
 };
 #undef DEFINE_STDIO_DESC
 
-int fputc(int _c, FILE *fp)
-{
+int fputc(int _c, FILE *fp) {
     unsigned char c = _c;
     return io_write(fp->io, (char *)&c, 1);
 }
 
-int putchar(int c)
-{
+int putchar(int c) {
     return fputc(c, stdout);
 }
 
-int puts(const char *str)
-{
+int puts(const char *str) {
     int err = fputs(str, stdout);
     if (err >= 0)
         err = fputc('\n', stdout);
     return err;
 }
 
-int fputs(const char *s, FILE *fp)
-{
+int fputs(const char *s, FILE *fp) {
     size_t len = strlen(s);
 
     return io_write(fp->io, s, len);
 }
 
-size_t fwrite(const void *ptr, size_t size, size_t count, FILE *fp)
-{
+size_t fwrite(const void *ptr, size_t size, size_t count, FILE *fp) {
     size_t bytes_written;
 
     if (size == 0 || count == 0)
@@ -81,33 +76,28 @@ size_t fwrite(const void *ptr, size_t size, size_t count, FILE *fp)
     return bytes_written / size;
 }
 
-int getc(FILE *fp)
-{
+int getc(FILE *fp) {
     char c;
     ssize_t ret = io_read(fp->io, &c, sizeof(c));
 
     return (ret > 0) ? c : ret;
 }
 
-int getchar(void)
-{
+int getchar(void) {
     return getc(stdin);
 }
 
-static int _fprintf_output_func(const char *str, size_t len, void *state)
-{
+static int _fprintf_output_func(const char *str, size_t len, void *state) {
     FILE *fp = (FILE *)state;
 
     return io_write(fp->io, str, len);
 }
 
-int vfprintf(FILE *fp, const char *fmt, va_list ap)
-{
+int vfprintf(FILE *fp, const char *fmt, va_list ap) {
     return _printf_engine(&_fprintf_output_func, (void *)fp, fmt, ap);
 }
 
-int fprintf(FILE *fp, const char *fmt, ...)
-{
+int fprintf(FILE *fp, const char *fmt, ...) {
     va_list ap;
     int err;
 
@@ -117,8 +107,7 @@ int fprintf(FILE *fp, const char *fmt, ...)
     return err;
 }
 
-int _printf(const char *fmt, ...)
-{
+int _printf(const char *fmt, ...) {
     va_list ap;
     int err;
 
@@ -129,7 +118,6 @@ int _printf(const char *fmt, ...)
     return err;
 }
 
-int _vprintf(const char *fmt, va_list ap)
-{
+int _vprintf(const char *fmt, va_list ap) {
     return vfprintf(stdout, fmt, ap);
 }

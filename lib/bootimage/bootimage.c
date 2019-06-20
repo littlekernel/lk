@@ -38,8 +38,7 @@ struct bootimage {
     size_t len;
 };
 
-static status_t validate_bootimage(bootimage_t *bi)
-{
+static status_t validate_bootimage(bootimage_t *bi) {
     if (!bi)
         return ERR_INVALID_ARGS;
 
@@ -149,8 +148,7 @@ static status_t validate_bootimage(bootimage_t *bi)
     return NO_ERROR;
 }
 
-status_t bootimage_open(const void *ptr, size_t len, bootimage_t **bi)
-{
+status_t bootimage_open(const void *ptr, size_t len, bootimage_t **bi) {
     LTRACEF("ptr %p, len %zu\n", ptr, len);
 
     if (!bi)
@@ -173,16 +171,14 @@ status_t bootimage_open(const void *ptr, size_t len, bootimage_t **bi)
     return NO_ERROR;
 }
 
-status_t bootimage_close(bootimage_t *bi)
-{
+status_t bootimage_close(bootimage_t *bi) {
     if (bi)
         free(bi);
 
     return NO_ERROR;
 }
 
-status_t bootimage_get_range(bootimage_t *bi, const void **ptr, size_t *len)
-{
+status_t bootimage_get_range(bootimage_t *bi, const void **ptr, size_t *len) {
     if (!bi)
         return ERR_INVALID_ARGS;
 
@@ -194,8 +190,7 @@ status_t bootimage_get_range(bootimage_t *bi, const void **ptr, size_t *len)
     return NO_ERROR;
 }
 
-status_t bootimage_get_file_section(bootimage_t *bi, uint32_t type, const void **ptr, size_t *len)
-{
+status_t bootimage_get_file_section(bootimage_t *bi, uint32_t type, const void **ptr, size_t *len) {
     if (!bi)
         return ERR_INVALID_ARGS;
 

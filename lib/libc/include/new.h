@@ -25,11 +25,11 @@
 
 #include <sys/types.h>
 
-void *operator new(size_t);
-void *operator new(size_t, void *ptr);
+void *operator new (size_t);
+void *operator new (size_t, void *ptr);
 void *operator new[](size_t);
 void *operator new[](size_t, void *ptr);
-void operator delete(void *p);
+void operator delete (void *p);
 void operator delete[](void *p);
 
 #endif

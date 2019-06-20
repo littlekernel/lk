@@ -36,8 +36,7 @@ typedef struct mem_bdev {
     void *ptr;
 } mem_bdev_t;
 
-static ssize_t mem_bdev_read(bdev_t *bdev, void *buf, off_t offset, size_t len)
-{
+static ssize_t mem_bdev_read(bdev_t *bdev, void *buf, off_t offset, size_t len) {
     mem_bdev_t *mem = (mem_bdev_t *)bdev;
 
     LTRACEF("bdev %s, buf %p, offset %lld, len %zu\n", bdev->name, buf, offset, len);
@@ -47,8 +46,7 @@ static ssize_t mem_bdev_read(bdev_t *bdev, void *buf, off_t offset, size_t len)
     return len;
 }
 
-static ssize_t mem_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count)
-{
+static ssize_t mem_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count) {
     mem_bdev_t *mem = (mem_bdev_t *)bdev;
 
     LTRACEF("bdev %s, buf %p, block %u, count %u\n", bdev->name, buf, block, count);
@@ -58,8 +56,7 @@ static ssize_t mem_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, u
     return count * BLOCKSIZE;
 }
 
-static ssize_t mem_bdev_write(bdev_t *bdev, const void *buf, off_t offset, size_t len)
-{
+static ssize_t mem_bdev_write(bdev_t *bdev, const void *buf, off_t offset, size_t len) {
     mem_bdev_t *mem = (mem_bdev_t *)bdev;
 
     LTRACEF("bdev %s, buf %p, offset %lld, len %zu\n", bdev->name, buf, offset, len);
@@ -69,8 +66,7 @@ static ssize_t mem_bdev_write(bdev_t *bdev, const void *buf, off_t offset, size_
     return len;
 }
 
-static ssize_t mem_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count)
-{
+static ssize_t mem_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count) {
     mem_bdev_t *mem = (mem_bdev_t *)bdev;
 
     LTRACEF("bdev %s, buf %p, block %u, count %u\n", bdev->name, buf, block, count);
@@ -80,8 +76,7 @@ static ssize_t mem_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t b
     return count * BLOCKSIZE;
 }
 
-int create_membdev(const char *name, void *ptr, size_t len)
-{
+int create_membdev(const char *name, void *ptr, size_t len) {
     mem_bdev_t *mem = malloc(sizeof(mem_bdev_t));
 
     /* set up the base device */

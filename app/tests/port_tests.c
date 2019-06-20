@@ -37,16 +37,14 @@
 
 void *context1 = (void *) 0x53;
 
-static void dump_port_result(const port_result_t *result)
-{
+static void dump_port_result(const port_result_t *result) {
     const port_packet_t *p = &result->packet;
     LTRACEF("[%02x %02x %02x %02x %02x %02x %02x %02x]\n",
             p->value[0], p->value[1], p->value[2], p->value[3],
             p->value[4], p->value[5], p->value[6], p->value[7]);
 }
 
-static int single_thread_basic(void)
-{
+static int single_thread_basic(void) {
     port_t w_port;
     status_t st = port_create("sh_prt1", PORT_MODE_UNICAST, &w_port);
     if (st < 0) {
@@ -234,8 +232,7 @@ static int single_thread_basic(void)
     return 0;
 }
 
-static int ping_pong_thread(void *arg)
-{
+static int ping_pong_thread(void *arg) {
     port_t r_port;
     status_t st = port_open("ping_port", NULL, &r_port);
     if (st < 0) {
@@ -292,8 +289,7 @@ bail:
 }
 
 
-int two_threads_basic(void)
-{
+int two_threads_basic(void) {
     port_t w_port;
     status_t st = port_create("ping_port", PORT_MODE_BROADCAST, &w_port);
     if (st < 0) {
@@ -418,14 +414,12 @@ typedef struct {
     port_t port;
 } watcher_cmd;
 
-status_t send_watcher_cmd(port_t cmd_port, action_t action, port_t port)
-{
+status_t send_watcher_cmd(port_t cmd_port, action_t action, port_t port) {
     watcher_cmd cmd  = {action, port};
     return port_write(cmd_port, ((port_packet_t *) &cmd), 1);;
 }
 
-static int group_watcher_thread(void *arg)
-{
+static int group_watcher_thread(void *arg) {
     port_t watched[8] = {0};
     status_t st = port_open("grp_ctrl", CMD_PORT_CTX, &watched[0]);
     if (st < 0) {
@@ -499,16 +493,14 @@ static int group_watcher_thread(void *arg)
     return 0;
 }
 
-static status_t make_port_pair(const char *name, void *ctx, port_t *write, port_t *read)
-{
+static status_t make_port_pair(const char *name, void *ctx, port_t *write, port_t *read) {
     status_t st = port_create(name, PORT_MODE_UNICAST, write);
     if (st < 0)
         return st;
     return port_open(name,ctx, read);
 }
 
-int group_basic(void)
-{
+int group_basic(void) {
     // we spin a thread that connects to a well known port, then we
     // send two ports that it will add to a group port.
     port_t cmd_port;
@@ -584,8 +576,7 @@ int group_basic(void)
     return 0;
 }
 
-int group_dynamic(void)
-{
+int group_dynamic(void) {
     status_t st;
 
     port_t w_test_port1, r_test_port1;
@@ -655,12 +646,11 @@ int group_dynamic(void)
 
 event_t group_waiting_sync_evt;
 
-static int receive_thread(void *arg)
-{
+static int receive_thread(void *arg) {
     port_t pg = (port_t)arg;
 
     // Try to read from an empty port group. When the other thread adds a port
-    // to this port group, we should wake up and 
+    // to this port group, we should wake up and
     port_result_t rslt;
     status_t st = port_read(pg, 500, &rslt);
     if (st == ERR_TIMED_OUT)
@@ -674,8 +664,7 @@ static int receive_thread(void *arg)
 /* Test the edge case where a read port with data available is added to a port
  * group that has a read-blocked receiver.
  */
-int group_waiting(void)
-{
+int group_waiting(void) {
     status_t st;
 
     event_init(&group_waiting_sync_evt, false, EVENT_FLAG_AUTOUNSIGNAL);
@@ -697,14 +686,14 @@ int group_waiting(void)
     if (st < 0)
         return __LINE__;
 
-    
+
     thread_t *t1 = thread_create(
-        "receiver", 
-        &receive_thread, 
-        (void *)pg, 
-        DEFAULT_PRIORITY, 
-        DEFAULT_STACK_SIZE
-    );
+                       "receiver",
+                       &receive_thread,
+                       (void *)pg,
+                       DEFAULT_PRIORITY,
+                       DEFAULT_STACK_SIZE
+                   );
 
     thread_resume(t1);
 
@@ -731,8 +720,7 @@ int group_waiting(void)
 
 #define RUN_TEST(t)  result = t(); if (result) goto fail
 
-int port_tests(void)
-{
+int port_tests(void) {
     int result;
     int count = 3;
     while (count--) {

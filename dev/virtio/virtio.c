@@ -53,8 +53,7 @@
 
 static struct virtio_device *devices;
 
-static void dump_mmio_config(const volatile struct virtio_mmio_config *mmio)
-{
+static void dump_mmio_config(const volatile struct virtio_mmio_config *mmio) {
     printf("mmio at %p\n", mmio);
     printf("\tmagic 0x%x\n", mmio->magic);
     printf("\tversion 0x%x\n", mmio->version);
@@ -69,8 +68,7 @@ static void dump_mmio_config(const volatile struct virtio_mmio_config *mmio)
     printf("\tstatus 0x%x\n", mmio->status);
 }
 
-void virtio_dump_desc(const struct vring_desc *desc)
-{
+void virtio_dump_desc(const struct vring_desc *desc) {
     printf("vring descriptor %p\n", desc);
     printf("\taddr  0x%llx\n", desc->addr);
     printf("\tlen   0x%x\n", desc->len);
@@ -78,8 +76,7 @@ void virtio_dump_desc(const struct vring_desc *desc)
     printf("\tnext  0x%hhx\n", desc->next);
 }
 
-static enum handler_return virtio_mmio_irq(void *arg)
-{
+static enum handler_return virtio_mmio_irq(void *arg) {
     struct virtio_device *dev = (struct virtio_device *)arg;
     LTRACEF("dev %p, index %u\n", dev, dev->index);
 
@@ -127,8 +124,7 @@ static enum handler_return virtio_mmio_irq(void *arg)
     return ret;
 }
 
-int virtio_mmio_detect(void *ptr, uint count, const uint irqs[])
-{
+int virtio_mmio_detect(void *ptr, uint count, const uint irqs[]) {
     LTRACEF("ptr %p, count %u\n", ptr, count);
 
     DEBUG_ASSERT(ptr);
@@ -240,16 +236,14 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[])
     return found;
 }
 
-void virtio_free_desc(struct virtio_device *dev, uint ring_index, uint16_t desc_index)
-{
+void virtio_free_desc(struct virtio_device *dev, uint ring_index, uint16_t desc_index) {
     LTRACEF("dev %p ring %u index %u free_count %u\n", dev, ring_index, desc_index, dev->ring[ring_index].free_count);
     dev->ring[ring_index].desc[desc_index].next = dev->ring[ring_index].free_list;
     dev->ring[ring_index].free_list = desc_index;
     dev->ring[ring_index].free_count++;
 }
 
-uint16_t virtio_alloc_desc(struct virtio_device *dev, uint ring_index)
-{
+uint16_t virtio_alloc_desc(struct virtio_device *dev, uint ring_index) {
     if (dev->ring[ring_index].free_count == 0)
         return 0xffff;
 
@@ -264,8 +258,7 @@ uint16_t virtio_alloc_desc(struct virtio_device *dev, uint ring_index)
     return i;
 }
 
-struct vring_desc *virtio_alloc_desc_chain(struct virtio_device *dev, uint ring_index, size_t count, uint16_t *start_index)
-{
+struct vring_desc *virtio_alloc_desc_chain(struct virtio_device *dev, uint ring_index, size_t count, uint16_t *start_index) {
     if (dev->ring[ring_index].free_count < count)
         return NULL;
 
@@ -298,8 +291,7 @@ struct vring_desc *virtio_alloc_desc_chain(struct virtio_device *dev, uint ring_
     return last;
 }
 
-void virtio_submit_chain(struct virtio_device *dev, uint ring_index, uint16_t desc_index)
-{
+void virtio_submit_chain(struct virtio_device *dev, uint ring_index, uint16_t desc_index) {
     LTRACEF("dev %p, ring %u, desc %u\n", dev, ring_index, desc_index);
 
     /* add the chain to the available list */
@@ -314,16 +306,14 @@ void virtio_submit_chain(struct virtio_device *dev, uint ring_index, uint16_t de
 #endif
 }
 
-void virtio_kick(struct virtio_device *dev, uint ring_index)
-{
+void virtio_kick(struct virtio_device *dev, uint ring_index) {
     LTRACEF("dev %p, ring %u\n", dev, ring_index);
 
     dev->mmio_config->queue_notify = ring_index;
     DSB;
 }
 
-status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len)
-{
+status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len) {
     LTRACEF("dev %p, index %u, len %u\n", dev, index, len);
 
     DEBUG_ASSERT(dev);
@@ -391,23 +381,19 @@ status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len)
     return NO_ERROR;
 }
 
-void virtio_reset_device(struct virtio_device *dev)
-{
+void virtio_reset_device(struct virtio_device *dev) {
     dev->mmio_config->status = 0;
 }
 
-void virtio_status_acknowledge_driver(struct virtio_device *dev)
-{
+void virtio_status_acknowledge_driver(struct virtio_device *dev) {
     dev->mmio_config->status |= VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER;
 }
 
-void virtio_status_driver_ok(struct virtio_device *dev)
-{
+void virtio_status_driver_ok(struct virtio_device *dev) {
     dev->mmio_config->status |= VIRTIO_STATUS_DRIVER_OK;
 }
 
-void virtio_init(uint level)
-{
+void virtio_init(uint level) {
 }
 
 LK_INIT_HOOK(virtio, &virtio_init, LK_INIT_LEVEL_THREADING);

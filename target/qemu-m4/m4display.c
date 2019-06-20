@@ -58,8 +58,7 @@ static uint8_t framebuffer[M4DISPLAY_HEIGHT][M4DISPLAY_WIDTH];
 
 static const char programming_header[] = "  Lattice\0iCEcube2 2014.08.26723\0Part: iCE40LP1K-CM36\0Date: Jan 30 2015 15:11:";
 
-static void chip_select(bool val)
-{
+static void chip_select(bool val) {
     if (val) {
         gpio_set(GPIO(GPIO_PORT_G, 8), true);
     } else {
@@ -67,8 +66,7 @@ static void chip_select(bool val)
     }
 }
 
-static void reset(bool val)
-{
+static void reset(bool val) {
     if (val) {
         gpio_set(GPIO(GPIO_PORT_G, 15), true);
     } else {
@@ -76,8 +74,7 @@ static void reset(bool val)
     }
 }
 
-static void setup_pins(void)
-{
+static void setup_pins(void) {
 
     GPIO_InitTypeDef GPIO_InitStruct;
 
@@ -119,8 +116,7 @@ static void setup_pins(void)
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI6, ENABLE);
 }
 
-void init_display(void)
-{
+void init_display(void) {
     // Setting up pins.
     setup_pins();
 
@@ -171,8 +167,7 @@ void init_display(void)
     chip_select(true);
 }
 
-static void s4lcd_flush(uint starty, uint endy)
-{
+static void s4lcd_flush(uint starty, uint endy) {
 
     chip_select(false);
 
@@ -202,8 +197,7 @@ static void s4lcd_flush(uint starty, uint endy)
     chip_select(true);
 }
 
-status_t display_get_framebuffer(struct display_framebuffer *fb)
-{
+status_t display_get_framebuffer(struct display_framebuffer *fb) {
     DEBUG_ASSERT(fb);
     LTRACEF("display_get_framebuffer %p\n", fb);
 
@@ -219,8 +213,7 @@ status_t display_get_framebuffer(struct display_framebuffer *fb)
     return NO_ERROR;
 }
 
-status_t display_get_info(struct display_info *info)
-{
+status_t display_get_info(struct display_info *info) {
     DEBUG_ASSERT(info);
     LTRACEF("display_info %p\n", info);
 
@@ -231,9 +224,8 @@ status_t display_get_info(struct display_info *info)
     return NO_ERROR;
 }
 
-status_t display_present(struct display_image *image, uint starty, uint endy)
-{
-  TRACEF("display_present - not implemented");
-  DEBUG_ASSERT(false);
-  return NO_ERROR;
+status_t display_present(struct display_image *image, uint starty, uint endy) {
+    TRACEF("display_present - not implemented");
+    DEBUG_ASSERT(false);
+    return NO_ERROR;
 }

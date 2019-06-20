@@ -34,8 +34,7 @@
 #include <platform/stm32.h>
 #include <target/gpioconfig.h>
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     /* configure the usart1 pins */
     gpio_config(GPIO(GPIO_PORT_A, 9), GPIO_STM32_AF);
     gpio_config(GPIO(GPIO_PORT_A, 10), GPIO_INPUT);
@@ -48,13 +47,11 @@ void target_early_init(void)
     gpio_config(GPIO_LED0, GPIO_OUTPUT);
 }
 
-void target_init(void)
-{
+void target_init(void) {
     stm32_debug_init();
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     switch (led) {
         case 0:
             gpio_set(GPIO_LED0, !on);

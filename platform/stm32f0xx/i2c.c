@@ -137,7 +137,7 @@ static void stm32_i2c_early_init(stm32_i2c_dev_t *i2c) {
 
     // Set PE
     i2c->regs->CR1 |= I2C_CR1_PE | I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_NACKIE | I2C_CR1_ERRIE
-        | I2C_CR1_TCIE;
+                      | I2C_CR1_TCIE;
 
     i2c->state = STM32_I2C_STATE_IDLE;
     mutex_init(&i2c->lock);
@@ -168,7 +168,7 @@ static uint8_t stm32_i2c_buf_pop(stm32_i2c_buf_t *buf) {
 }
 
 static void stm32_i2c_buf_push(stm32_i2c_buf_t *buf, uint8_t data) {
-   buf->data[buf->pos++] = data;
+    buf->data[buf->pos++] = data;
 }
 
 static bool stm32_i2c_check_error(stm32_i2c_dev_t *i2c,
@@ -268,15 +268,13 @@ out:
 }
 
 #ifdef ENABLE_I2C1
-void stm32_I2C1_IRQ(void)
-{
+void stm32_I2C1_IRQ(void) {
     stm32_i2c_irq(&i2c1);
 }
 #endif
 
 #ifdef ENABLE_I2C2
-void stm32_I2C2_IRQ(void)
-{
+void stm32_I2C2_IRQ(void) {
     stm32_i2c_irq(&i2c2);
 }
 #endif
@@ -290,9 +288,9 @@ static void stm32_i2c_setup_buf(stm32_i2c_buf_t *buf, uint8_t *data, size_t coun
 // 10 bit addressing not supported.
 // Transfers > 255 bytes not supported.
 static status_t stm32_i2c_txn(stm32_i2c_dev_t *i2c, uint8_t address,
-                                uint8_t *reg_addr,
-                                uint8_t *tx_data, size_t tx_count,
-                                uint8_t *rx_data, size_t rx_count) {
+                              uint8_t *reg_addr,
+                              uint8_t *tx_data, size_t tx_count,
+                              uint8_t *rx_data, size_t rx_count) {
     mutex_acquire(&i2c->lock);
     stm32_i2c_setup_buf(&i2c->tx_buf, tx_data, tx_count);
     stm32_i2c_setup_buf(&i2c->rx_buf, rx_data, rx_count);
@@ -317,7 +315,7 @@ static status_t stm32_i2c_txn(stm32_i2c_dev_t *i2c, uint8_t address,
 
     event_unsignal(&i2c->txn_complete);
     i2c->regs->CR2 = (address & 0x7f) << 1 | dir | (count & 0xff) << I2C_CR2_NBYTES_SHIFT
-        | I2C_CR2_START;
+                     | I2C_CR2_START;
     event_wait(&i2c->txn_complete);
 
     stm32_i2c_state_t state = i2c->state;

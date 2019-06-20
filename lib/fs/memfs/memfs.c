@@ -60,8 +60,7 @@ struct dircookie {
     memfs_file_t *next_file;
 };
 
-static memfs_file_t *find_file(memfs_t *mem, const char *name)
-{
+static memfs_file_t *find_file(memfs_t *mem, const char *name) {
     memfs_file_t *file;
     list_for_every_entry(&mem->files, file, memfs_file_t, node) {
         if (!strcmp(name, file->name))
@@ -71,8 +70,7 @@ static memfs_file_t *find_file(memfs_t *mem, const char *name)
     return NULL;
 }
 
-static status_t memfs_mount(struct bdev *dev, fscookie **cookie)
-{
+static status_t memfs_mount(struct bdev *dev, fscookie **cookie) {
     LTRACEF("dev %p, cookie %p\n", dev, cookie);
 
     memfs_t *mem = malloc(sizeof(*mem));
@@ -88,15 +86,13 @@ static status_t memfs_mount(struct bdev *dev, fscookie **cookie)
     return NO_ERROR;
 }
 
-static void free_file(memfs_file_t *file)
-{
+static void free_file(memfs_file_t *file) {
     free(file->ptr);
     free(file->name);
     free(file);
 }
 
-static status_t memfs_unmount(fscookie *cookie)
-{
+static status_t memfs_unmount(fscookie *cookie) {
     LTRACEF("cookie %p\n", cookie);
 
     memfs_t *mem = (memfs_t *)cookie;
@@ -116,8 +112,7 @@ static status_t memfs_unmount(fscookie *cookie)
     return NO_ERROR;
 }
 
-static status_t memfs_create(fscookie *cookie, const char *name, filecookie **fcookie, uint64_t len)
-{
+static status_t memfs_create(fscookie *cookie, const char *name, filecookie **fcookie, uint64_t len) {
     status_t err;
 
     LTRACEF("cookie %p name '%s' filecookie %p len %llu\n", cookie, name, fcookie, len);
@@ -174,8 +169,7 @@ out:
     return err;
 }
 
-static status_t memfs_open(fscookie *cookie, const char *name, filecookie **fcookie)
-{
+static status_t memfs_open(fscookie *cookie, const char *name, filecookie **fcookie) {
     LTRACEF("cookie %p name '%s' filecookie %p\n", cookie, name, fcookie);
 
     memfs_t *mem = (memfs_t *)cookie;
@@ -195,8 +189,7 @@ static status_t memfs_open(fscookie *cookie, const char *name, filecookie **fcoo
     return NO_ERROR;
 }
 
-static status_t memfs_remove(fscookie *cookie, const char *name)
-{
+static status_t memfs_remove(fscookie *cookie, const char *name) {
     LTRACEF("cookie %p name '%s'\n", cookie, name);
 
     memfs_t *mem = (memfs_t *)cookie;
@@ -219,8 +212,7 @@ static status_t memfs_remove(fscookie *cookie, const char *name)
     return NO_ERROR;
 }
 
-static status_t memfs_close(filecookie *fcookie)
-{
+static status_t memfs_close(filecookie *fcookie) {
     memfs_file_t *file = (memfs_file_t *)fcookie;
 
     LTRACEF("cookie %p name '%s'\n", fcookie, file->name);
@@ -228,8 +220,7 @@ static status_t memfs_close(filecookie *fcookie)
     return NO_ERROR;
 }
 
-static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
-{
+static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len) {
     LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
 
     memfs_file_t *file = (memfs_file_t *)fcookie;
@@ -253,8 +244,7 @@ static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
     return len;
 }
 
-static status_t memfs_truncate(filecookie *fcookie, uint64_t len)
-{
+static status_t memfs_truncate(filecookie *fcookie, uint64_t len) {
     LTRACEF("filecookie %p, len %llu\n", fcookie, len);
 
     status_t rc = NO_ERROR;
@@ -286,8 +276,7 @@ finish:
     return rc;
 }
 
-static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size_t len)
-{
+static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size_t len) {
     LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
 
     memfs_file_t *file = (memfs_file_t *)fcookie;
@@ -316,8 +305,7 @@ static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size
     return len;
 }
 
-static status_t memfs_stat(filecookie *fcookie, struct file_stat *stat)
-{
+static status_t memfs_stat(filecookie *fcookie, struct file_stat *stat) {
     LTRACEF("filecookie %p stat %p\n", fcookie, stat);
 
     memfs_file_t *file = (memfs_file_t *)fcookie;
@@ -334,8 +322,7 @@ static status_t memfs_stat(filecookie *fcookie, struct file_stat *stat)
     return NO_ERROR;
 }
 
-static status_t memfs_opendir(fscookie *cookie, const char *name, dircookie **dcookie)
-{
+static status_t memfs_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
     LTRACEF("cookie %p name '%s' dircookie %p\n", cookie, name, dcookie);
 
     memfs_t *mem = (memfs_t *)cookie;
@@ -364,8 +351,7 @@ static status_t memfs_opendir(fscookie *cookie, const char *name, dircookie **dc
     return NO_ERROR;
 }
 
-static status_t memfs_readdir(dircookie *dcookie, struct dirent *ent)
-{
+static status_t memfs_readdir(dircookie *dcookie, struct dirent *ent) {
     status_t err;
 
     LTRACEF("dircookie %p ent %p\n", dcookie, ent);
@@ -389,8 +375,7 @@ static status_t memfs_readdir(dircookie *dcookie, struct dirent *ent)
     return err;
 }
 
-static status_t memfs_closedir(dircookie *dcookie)
-{
+static status_t memfs_closedir(dircookie *dcookie) {
     LTRACEF("dircookie %p\n", dcookie);
 
     // free the dircookie

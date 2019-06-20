@@ -41,8 +41,7 @@ static void *cb_args;
 
 typedef enum handler_return (*platform_timer_callback)(void *arg, lk_time_t now);
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
 
     cb = callback;
     cb_args = arg;
@@ -64,8 +63,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     uint64_t t;
 
     do {
@@ -75,13 +73,11 @@ lk_time_t current_time(void)
     return t * tick_interval_ms;
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     return current_time() * 1000;
 }
 
-void nrf51_RTC1_IRQ(void)
-{
+void nrf51_RTC1_IRQ(void) {
     ticks++;
     arm_cm_irq_entry();
 
@@ -96,8 +92,7 @@ void nrf51_RTC1_IRQ(void)
     arm_cm_irq_exit(resched);
 }
 
-void arm_cm_systick_init(uint32_t mhz)
-{
+void arm_cm_systick_init(uint32_t mhz) {
     tick_rate = mhz;
     tick_rate_mhz = mhz / 1000000;
 }

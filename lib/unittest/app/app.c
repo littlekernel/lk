@@ -24,11 +24,10 @@
 #include <unittest.h>
 #include <platform.h>
 
-void unittest_entry(const struct app_descriptor *app, void *args)
-{
+void unittest_entry(const struct app_descriptor *app, void *args) {
     bool success = run_all_tests();
 }
 
 APP_START(unittest)
 .entry = unittest_entry,
- APP_END
+APP_END

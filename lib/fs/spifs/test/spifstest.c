@@ -76,8 +76,7 @@ static test tests[] = {
     {&test_truncate_file, "Test that we can truncate a file.", 1},
 };
 
-bool test_setup(const char *dev_name, uint32_t toc_pages)
-{
+bool test_setup(const char *dev_name, uint32_t toc_pages) {
     spifs_format_args_t args = {
         .toc_pages = toc_pages,
     };
@@ -99,8 +98,7 @@ bool test_setup(const char *dev_name, uint32_t toc_pages)
     return true;
 }
 
-bool test_teardown(void)
-{
+bool test_teardown(void) {
     if (fs_unmount(MNT_PATH) != NO_ERROR) {
         printf("Unmount failed\n");
         return false;
@@ -109,8 +107,7 @@ bool test_teardown(void)
     return true;;
 }
 
-static bool test_empty_after_format(const char *dev_name)
-{
+static bool test_empty_after_format(const char *dev_name) {
     dirhandle *dhandle;
     status_t err = fs_open_dir(MNT_PATH, &dhandle);
     if (err != NO_ERROR) {
@@ -127,8 +124,7 @@ static bool test_empty_after_format(const char *dev_name)
     return true;
 }
 
-static bool test_double_create_file(const char *dev_name)
-{
+static bool test_double_create_file(const char *dev_name) {
     status_t status;
 
     struct dirent *ent = malloc(sizeof(*ent));
@@ -168,8 +164,7 @@ err:
     return status == NO_ERROR ? num_files == 1 : false;
 }
 
-static bool test_write_read_normal(const char *dev_name)
-{
+static bool test_write_read_normal(const char *dev_name) {
     char test_message[] = "spifs test";
     char test_buf[sizeof(test_message)];
 
@@ -219,8 +214,7 @@ static bool test_write_read_normal(const char *dev_name)
     return strncmp(test_message, test_buf, sizeof(test_message)) == 0;
 }
 
-static bool test_write_past_eof(const char *dev_name)
-{
+static bool test_write_past_eof(const char *dev_name) {
     char test_message[] = "spifs test";
 
     // Create a 0 length file.
@@ -248,8 +242,7 @@ static bool test_write_past_eof(const char *dev_name)
     return true;
 }
 
-static bool test_full_toc(const char *dev_name)
-{
+static bool test_full_toc(const char *dev_name) {
     struct fs_stat stat;
 
     fs_stat_fs(MNT_PATH, &stat);
@@ -290,8 +283,7 @@ static bool test_full_toc(const char *dev_name)
     return true;
 }
 
-static bool test_rm_reclaim(const char *dev_name)
-{
+static bool test_rm_reclaim(const char *dev_name) {
     // Create some number of files that's a power of 2;
     size_t n_files = 4;
 
@@ -362,8 +354,7 @@ static bool test_rm_reclaim(const char *dev_name)
     return true;
 }
 
-static bool test_full_fs(const char *dev_name)
-{
+static bool test_full_fs(const char *dev_name) {
     struct fs_stat stat;
 
     fs_stat_fs(MNT_PATH, &stat);
@@ -391,8 +382,7 @@ static bool test_full_fs(const char *dev_name)
     return true;
 }
 
-static bool test_write_past_end_of_capacity(const char *dev_name)
-{
+static bool test_write_past_end_of_capacity(const char *dev_name) {
     filehandle *handle;
     status_t status = fs_create_file(TEST_FILE_PATH, &handle, 0);
     if (status != NO_ERROR) {
@@ -419,8 +409,7 @@ finish:
     return status == NO_ERROR;
 }
 
-static bool test_corrupt_toc(const char *dev_name)
-{
+static bool test_corrupt_toc(const char *dev_name) {
     // Create a zero byte file.
     filehandle *handle;
     status_t status = fs_create_file(TEST_FILE_PATH, &handle, 0);
@@ -496,8 +485,7 @@ static bool test_corrupt_toc(const char *dev_name)
     return true;
 }
 
-static bool test_write_with_offset(const char *dev_name)
-{
+static bool test_write_with_offset(const char *dev_name) {
     size_t repeats = 3;
     char test_message[] = "test";
     size_t msg_len = strnlen(test_message, sizeof(test_message));
@@ -536,8 +524,7 @@ static bool test_write_with_offset(const char *dev_name)
     return success;
 }
 
-static bool test_read_write_big(const char *dev_name)
-{
+static bool test_read_write_big(const char *dev_name) {
     bool success = true;
 
     size_t buflen = 10013;
@@ -591,8 +578,7 @@ err:
     return success;
 }
 
-static bool test_rm_active_dirent(const char *dev_name)
-{
+static bool test_rm_active_dirent(const char *dev_name) {
     filehandle *handle;
     status_t status = fs_create_file(TEST_FILE_PATH, &handle, 0);
     if (status != NO_ERROR) {
@@ -629,8 +615,7 @@ static bool test_rm_active_dirent(const char *dev_name)
     return success;
 }
 
-static bool test_truncate_file(const char *dev_name)
-{
+static bool test_truncate_file(const char *dev_name) {
     filehandle *handle;
     status_t status =
         fs_create_file(TEST_FILE_PATH, &handle, 1024);
@@ -659,8 +644,7 @@ static bool test_truncate_file(const char *dev_name)
 }
 
 // Run the SPIFS test suite.
-static int spifs_test(int argc, const cmd_args *argv)
-{
+static int spifs_test(int argc, const cmd_args *argv) {
     if (argc != 3) {
         printf("Expected 3 arguments, got %d.\n", argc);
         return -1;
@@ -705,8 +689,7 @@ static int spifs_test(int argc, const cmd_args *argv)
 }
 
 // Benchmark SPIFS.
-static int spifs_bench(int argc, const cmd_args *argv)
-{
+static int spifs_bench(int argc, const cmd_args *argv) {
     if (argc != 3) {
         printf("Expected 3 arguments, got %d.\n", argc);
         return -1;
@@ -726,8 +709,8 @@ static int spifs_bench(int argc, const cmd_args *argv)
     memset(test_buffer, 0xAB, test_buffer_length);
 
     for (size_t file_size = min_bench_bytes;
-         file_size <= max_bench_bytes;
-         file_size *= 2) {
+            file_size <= max_bench_bytes;
+            file_size *= 2) {
 
         printf(" == Benchmark for %zu bytes == \n", file_size);
 
@@ -751,9 +734,9 @@ static int spifs_bench(int argc, const cmd_args *argv)
         start = current_time_hires();
         do {
             size_t write_length = MIN(
-                test_buffer_length,
-                file_size - offset
-            );
+                                      test_buffer_length,
+                                      file_size - offset
+                                  );
             n_bytes = fs_write_file(handle, test_buffer, offset, write_length);
             offset += n_bytes;
         } while (n_bytes > 0);
@@ -817,8 +800,7 @@ finish:
     return retcode;
 }
 
-static int cmd_spifs(int argc, const cmd_args *argv)
-{
+static int cmd_spifs(int argc, const cmd_args *argv) {
     if (argc < 3) {
         printf("not enough arguments:\n");
 usage:
@@ -828,7 +810,7 @@ usage:
     }
 
     if (!strcmp(argv[1].str, "test")) {
-         return spifs_test(argc, argv);
+        return spifs_test(argc, argv);
     } else if (!strcmp(argv[1].str, "bench")) {
         return spifs_bench(argc, argv);
     }

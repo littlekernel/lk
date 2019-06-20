@@ -57,8 +57,7 @@ static uint8_t console_cbuf_buf[CONSOLE_BUF_LEN];
 #endif // CONSOLE_HAS_INPUT_BUFFER
 
 /* print lock must be held when invoking out, outs, outc */
-static void out_count(const char *str, size_t len)
-{
+static void out_count(const char *str, size_t len) {
     print_callback_t *cb;
     size_t i;
 
@@ -81,8 +80,7 @@ static void out_count(const char *str, size_t len)
     }
 }
 
-void register_print_callback(print_callback_t *cb)
-{
+void register_print_callback(print_callback_t *cb) {
     spin_lock_saved_state_t state;
     spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
 
@@ -91,8 +89,7 @@ void register_print_callback(print_callback_t *cb)
     spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 }
 
-void unregister_print_callback(print_callback_t *cb)
-{
+void unregister_print_callback(print_callback_t *cb) {
     spin_lock_saved_state_t state;
     spin_lock_save(&print_spin_lock, &state, PRINT_LOCK_FLAGS);
 
@@ -101,14 +98,12 @@ void unregister_print_callback(print_callback_t *cb)
     spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
 }
 
-static ssize_t __debug_stdio_write(io_handle_t *io, const char *s, size_t len)
-{
+static ssize_t __debug_stdio_write(io_handle_t *io, const char *s, size_t len) {
     out_count(s, len);
     return len;
 }
 
-static ssize_t __debug_stdio_read(io_handle_t *io, char *s, size_t len)
-{
+static ssize_t __debug_stdio_read(io_handle_t *io, char *s, size_t len) {
     if (len == 0)
         return 0;
 
@@ -125,8 +120,7 @@ static ssize_t __debug_stdio_read(io_handle_t *io, char *s, size_t len)
 }
 
 #if CONSOLE_HAS_INPUT_BUFFER
-void console_init_hook(uint level)
-{
+void console_init_hook(uint level) {
     cbuf_initialize_etc(&console_input_cbuf, sizeof(console_cbuf_buf), console_cbuf_buf);
 }
 

@@ -24,8 +24,7 @@
 #include "minip-internal.h"
 
 /* XXX alternate implementation, merge */
-uint16_t ones_sum16(uint32_t sum, const void *_buf, int len)
-{
+uint16_t ones_sum16(uint32_t sum, const void *_buf, int len) {
     const uint16_t *buf = _buf;
 
     while (len >= 2) {
@@ -46,8 +45,7 @@ uint16_t ones_sum16(uint32_t sum, const void *_buf, int len)
     return sum;
 }
 
-uint16_t rfc1701_chksum(const uint8_t *buf, size_t len)
-{
+uint16_t rfc1701_chksum(const uint8_t *buf, size_t len) {
     uint32_t total = 0;
     uint16_t chksum = 0;
     const uint16_t *p = (const uint16_t *) buf;
@@ -64,8 +62,7 @@ uint16_t rfc1701_chksum(const uint8_t *buf, size_t len)
 }
 
 #if MINIP_USE_UDP_CHECKSUM
-uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp)
-{
+uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, struct udp_hdr *udp) {
     uint32_t total = 0;
     uint16_t chksum = 0;
     size_t len = ntohs(udp->len);

@@ -85,28 +85,26 @@ struct chainload_args {
     ulong args[4];
 };
 
-static int chainload_thread(void *arg)
-{
+static int chainload_thread(void *arg) {
     struct chainload_args *args = (struct chainload_args *)arg;
 
     thread_sleep(250);
 
     TRACEF("chain loading address %p, args 0x%lx 0x%lx 0x%lx 0x%lx\n",
-            args->func, args->args[0], args->args[1], args->args[2], args->args[3]);
+           args->func, args->args[0], args->args[1], args->args[2], args->args[3]);
     arch_chain_load((void *)args->func, args->args[0], args->args[1], args->args[2], args->args[3]);
 
     for (;;);
 }
 
-static int do_boot(lkb_t *lkb, size_t len, const char **result)
-{
+static int do_boot(lkb_t *lkb, size_t len, const char **result) {
     LTRACEF("lkb %p, len %zu, result %p\n", lkb, len, result);
 
     void *buf;
     paddr_t buf_phys;
 
     if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "lkboot_iobuf",
-        len, &buf, log2_uint(1024*1024), 0, ARCH_MMU_FLAG_UNCACHED) < 0) {
+                             len, &buf, log2_uint(1024*1024), 0, ARCH_MMU_FLAG_UNCACHED) < 0) {
         *result = "not enough memory";
         return -1;
     }
@@ -178,14 +176,13 @@ static int do_boot(lkb_t *lkb, size_t len, const char **result)
     cl_args.args[3] = lk_args[3];
 
     thread_resume(thread_create("boot", &chainload_thread, &cl_args,
-        DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+                                DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 
     return 0;
 }
 
 /* try to boot the system from a flash partition */
-status_t do_flash_boot(void)
-{
+status_t do_flash_boot(void) {
     status_t err;
 
     LTRACE_ENTRY;
@@ -276,8 +273,7 @@ status_t do_flash_boot(void)
 }
 
 // return NULL for success, error string for failure
-int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len, const char **result)
-{
+int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len, const char **result) {
     *result = NULL;
 
     struct lkb_command *lcmd;
@@ -403,7 +399,7 @@ int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len,
         }
     } else if (!strcmp(cmd, "reboot")) {
         thread_resume(thread_create("reboot", &do_reboot, NULL,
-            DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+                                    DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     } else {
         *result = "unknown command";
         return -1;

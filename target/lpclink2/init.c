@@ -28,8 +28,7 @@
 
 #include <platform/lpc43xx-gpio.h>
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     // UART2 on P2.10 (TX) and P2.11 (RX)
     pin_config(PIN(2,10), PIN_MODE(2) | PIN_PLAIN);
     pin_config(PIN(2,11), PIN_MODE(2) | PIN_PLAIN | PIN_INPUT);
@@ -43,7 +42,6 @@ void target_early_init(void)
     pin_config(PIN(3,8), PIN_MODE(3) | PIN_PLAIN); // SPIFI_CS
 }
 
-void target_init(void)
-{
+void target_init(void) {
 }
 

@@ -34,8 +34,7 @@
 
 #if WITH_LIB_CONSOLE
 
-uint32_t str_ip_to_int(const char *s, size_t len)
-{
+uint32_t str_ip_to_int(const char *s, size_t len) {
     uint8_t ip[4] = { 0, 0, 0, 0 };
     uint8_t pos = 0, i = 0;
 
@@ -53,14 +52,12 @@ uint32_t str_ip_to_int(const char *s, size_t len)
     return IPV4_PACK(ip);
 }
 
-void arp_usage(void)
-{
+void arp_usage(void) {
     printf("arp list                        print arp table\n");
     printf("arp query <ipv4 address>        query arp address\n");
 }
 
-static int cmd_arp(int argc, const cmd_args *argv)
-{
+static int cmd_arp(int argc, const cmd_args *argv) {
     const char *cmd;
 
     if (argc == 1) {
@@ -83,8 +80,7 @@ static int cmd_arp(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_minip(int argc, const cmd_args *argv)
-{
+static int cmd_minip(int argc, const cmd_args *argv) {
     if (argc == 1) {
 minip_usage:
         printf("minip commands\n");
@@ -114,10 +110,10 @@ minip_usage:
                 switch (argc) {
                     case 5:
                         count = argv[4].u;
-                        /* fallthrough */
+                    /* fallthrough */
                     case 4:
                         port = argv[3].u;
-                        /* fallthrough */
+                    /* fallthrough */
                     case 3:
                         host = str_ip_to_int(argv[2].str, strlen(argv[2].str));
                         break;

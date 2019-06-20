@@ -31,8 +31,7 @@
 
 #define LOCAL_TRACE 0
 
-int ext2_open_file(fscookie *cookie, const char *path, filecookie **fcookie)
-{
+int ext2_open_file(fscookie *cookie, const char *path, filecookie **fcookie) {
     ext2_t *ext2 = (ext2_t *)cookie;
     int err;
 
@@ -59,8 +58,7 @@ int ext2_open_file(fscookie *cookie, const char *path, filecookie **fcookie)
     return 0;
 }
 
-ssize_t ext2_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len)
-{
+ssize_t ext2_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len) {
     ext2_file_t *file = (ext2_file_t *)fcookie;
     int err;
 
@@ -76,8 +74,7 @@ ssize_t ext2_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len)
     return err;
 }
 
-int ext2_close_file(filecookie *fcookie)
-{
+int ext2_close_file(filecookie *fcookie) {
     ext2_file_t *file = (ext2_file_t *)fcookie;
 
     // see if we need to free any of the cache blocks
@@ -93,8 +90,7 @@ int ext2_close_file(filecookie *fcookie)
     return 0;
 }
 
-off_t ext2_file_len(ext2_t *ext2, struct ext2_inode *inode)
-{
+off_t ext2_file_len(ext2_t *ext2, struct ext2_inode *inode) {
     /* calculate the file size */
     off_t len = inode->i_size;
     if ((ext2->sb.s_feature_ro_compat & EXT2_FEATURE_RO_COMPAT_LARGE_FILE) && (S_ISREG(inode->i_mode))) {
@@ -105,8 +101,7 @@ off_t ext2_file_len(ext2_t *ext2, struct ext2_inode *inode)
     return len;
 }
 
-int ext2_stat_file(filecookie *fcookie, struct file_stat *stat)
-{
+int ext2_stat_file(filecookie *fcookie, struct file_stat *stat) {
     ext2_file_t *file = (ext2_file_t *)fcookie;
 
     stat->size = ext2_file_len(file->ext2, &file->inode);
@@ -119,8 +114,7 @@ int ext2_stat_file(filecookie *fcookie, struct file_stat *stat)
     return 0;
 }
 
-int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len)
-{
+int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len) {
     LTRACEF("inode %p, str %p, len %zu\n", inode, str, len);
 
     off_t linklen = ext2_file_len(ext2, inode);

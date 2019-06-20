@@ -52,42 +52,36 @@ static uint htod_index;
 static uint htod_pos;
 static bool dtoh_filled;
 
-static void send_pdcc_command(uint32_t opcode, uint32_t data)
-{
+static void send_pdcc_command(uint32_t opcode, uint32_t data) {
     uint32_t word;
 
     word = PDCC_VALID |
-        ((opcode & 0x7f) << PDCC_OPCODE_SHIFT) |
-        (data & 0x00ffffff);
+           ((opcode & 0x7f) << PDCC_OPCODE_SHIFT) |
+           (data & 0x00ffffff);
 
     // XXX may block forever
     LTRACEF("sending 0x%x\n", word);
     arm_dcc_write(&word, 1, INFINITE_TIME);
 }
 
-static void send_buffer_header(void)
-{
+static void send_buffer_header(void) {
     send_pdcc_command(PDCC_OP_BUF_HEADER, buffer_desc_phys / 256);
 }
 
-static void send_reset(void)
-{
+static void send_reset(void) {
     send_pdcc_command(PDCC_OP_RESET, 0);
 }
 
-static void send_out_index_update(uint32_t index)
-{
+static void send_out_index_update(uint32_t index) {
     send_pdcc_command(PDCC_OP_UPDATE_OUT_INDEX, index);
 }
 
-static void send_buffer_consumed(void)
-{
+static void send_buffer_consumed(void) {
     send_pdcc_command(PDCC_OP_CONSUMED_IN, 0);
 }
 
 #define DCC_PROCESS_RESET 1
-static int dcc_process_opcode(uint32_t word)
-{
+static int dcc_process_opcode(uint32_t word) {
     int ret = 0;
 
     if (word & PDCC_VALID) {
@@ -132,8 +126,7 @@ static int dcc_process_opcode(uint32_t word)
     return ret;
 }
 
-static ssize_t dcc_read(void *unused, void *_data, size_t len)
-{
+static ssize_t dcc_read(void *unused, void *_data, size_t len) {
     unsigned char *data = _data;
     size_t pos = 0;
     uint32_t dcc;
@@ -174,8 +167,7 @@ static ssize_t dcc_read(void *unused, void *_data, size_t len)
     return 0;
 }
 
-static ssize_t dcc_write(void *unused, const void *_data, size_t len)
-{
+static ssize_t dcc_write(void *unused, const void *_data, size_t len) {
     const unsigned char *data = _data;
     size_t pos = 0;
 
@@ -210,8 +202,7 @@ static ssize_t dcc_write(void *unused, const void *_data, size_t len)
     return pos;
 }
 
-lkb_t *lkboot_check_dcc_open(void)
-{
+lkb_t *lkboot_check_dcc_open(void) {
     lkb_t *lkb = NULL;
 
     // read a dcc op and process it
@@ -232,8 +223,7 @@ lkb_t *lkboot_check_dcc_open(void)
     return lkb;
 }
 
-void lkboot_dcc_init(void)
-{
+void lkboot_dcc_init(void) {
     paddr_t pa;
     __UNUSED status_t err;
 

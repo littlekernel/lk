@@ -90,13 +90,11 @@
 #define REG15_PREFETCH_CTRL        0xf60
 #define REG15_POWER_CTRL           0xf80
 
-static inline bool pl310_enabled(void)
-{
+static inline bool pl310_enabled(void) {
     return !!(PL310_REG(REG1_CONTROL) & 1);
 }
 
-static void pl310_init(uint level)
-{
+static void pl310_init(uint level) {
     /* make sure it's already disabled */
     DEBUG_ASSERT(!pl310_enabled());
 
@@ -117,8 +115,7 @@ static void pl310_init(uint level)
  */
 LK_INIT_HOOK(pl310_init, pl310_init, LK_INIT_LEVEL_ARCH_EARLY - 1);
 
-status_t pl310_set_enable(bool enable)
-{
+status_t pl310_set_enable(bool enable) {
     LTRACEF("enable %d\n", enable);
 
     if (enable) {
@@ -142,8 +139,7 @@ status_t pl310_set_enable(bool enable)
     return NO_ERROR;
 }
 
-void pl310_invalidate(void)
-{
+void pl310_invalidate(void) {
     if (unlikely(!pl310_enabled()))
         return;
     PL310_REG(REG7_INV_WAY) = 0xffff;
@@ -151,8 +147,7 @@ void pl310_invalidate(void)
         ;
 }
 
-void pl310_flush_invalidate(void)
-{
+void pl310_flush_invalidate(void) {
     if (unlikely(!pl310_enabled()))
         return;
     PL310_REG(REG7_CLEAN_INV_WAY) = 0xffff;
@@ -160,8 +155,7 @@ void pl310_flush_invalidate(void)
         ;
 }
 
-void pl310_sync_range(void)
-{
+void pl310_sync_range(void) {
     if (unlikely(!pl310_enabled()))
         return;
 
@@ -191,26 +185,22 @@ void pl310_sync_range(void)
 \
     PL310_REG(REG7_CACHE_SYNC) = 1;
 
-void pl310_clean_range(addr_t start, size_t len)
-{
+void pl310_clean_range(addr_t start, size_t len) {
     LTRACEF("start 0x%lx, len %zd\n", start, len);
     PL310_LOOP_BODY(REG7_CLEAN_PA);
 }
 
-void pl310_clean_invalidate_range(addr_t start, size_t len)
-{
+void pl310_clean_invalidate_range(addr_t start, size_t len) {
     LTRACEF("start 0x%lx, len %zd\n", start, len);
     PL310_LOOP_BODY(REG7_CLEAN_INV_PA);
 }
 
-void pl310_invalidate_range(addr_t start, size_t len)
-{
+void pl310_invalidate_range(addr_t start, size_t len) {
     LTRACEF("start 0x%lx, len %zd\n", start, len);
     PL310_LOOP_BODY(REG7_INV_PA);
 }
 
-void pl310_pin_cache_range(addr_t start, size_t len)
-{
+void pl310_pin_cache_range(addr_t start, size_t len) {
     len = ROUNDUP(len, CACHE_LINE);
 
     arch_disable_ints();

@@ -35,15 +35,13 @@
 
 static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
-__WEAK void watchdog_handler(watchdog_t *dog)
-{
+__WEAK void watchdog_handler(watchdog_t *dog) {
     dprintf(INFO, "Watchdog \"%s\" (timeout %u mSec) just fired!!\n",
             dog->name, (uint32_t)dog->timeout);
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_WATCHDOG);
 }
 
-static enum handler_return watchdog_timer_callback(struct timer *timer, lk_time_t now, void *arg)
-{
+static enum handler_return watchdog_timer_callback(struct timer *timer, lk_time_t now, void *arg) {
     watchdog_handler((watchdog_t *)arg);
 
     /* We should never get here; watchdog handlers should always be fatal. */
@@ -52,8 +50,7 @@ static enum handler_return watchdog_timer_callback(struct timer *timer, lk_time_
     return INT_NO_RESCHEDULE;
 }
 
-status_t watchdog_init(watchdog_t *dog, lk_time_t timeout, const char *name)
-{
+status_t watchdog_init(watchdog_t *dog, lk_time_t timeout, const char *name) {
     DEBUG_ASSERT(NULL != dog);
     DEBUG_ASSERT(INFINITE_TIME != timeout);
 
@@ -66,8 +63,7 @@ status_t watchdog_init(watchdog_t *dog, lk_time_t timeout, const char *name)
     return NO_ERROR;
 }
 
-void watchdog_set_enabled(watchdog_t *dog, bool enabled)
-{
+void watchdog_set_enabled(watchdog_t *dog, bool enabled) {
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 
@@ -86,8 +82,7 @@ done:
     spin_unlock_irqrestore(&lock, state);
 }
 
-void watchdog_pet(watchdog_t *dog)
-{
+void watchdog_pet(watchdog_t *dog) {
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 
@@ -108,21 +103,18 @@ static timer_t   hw_watchdog_timer;
 static bool      hw_watchdog_enabled;
 static lk_time_t hw_watchdog_pet_timeout;
 
-static enum handler_return hw_watchdog_timer_callback(struct timer *timer, lk_time_t now, void *arg)
-{
+static enum handler_return hw_watchdog_timer_callback(struct timer *timer, lk_time_t now, void *arg) {
     platform_watchdog_pet();
     return INT_NO_RESCHEDULE;
 }
 
-status_t watchdog_hw_init(lk_time_t timeout)
-{
+status_t watchdog_hw_init(lk_time_t timeout) {
     DEBUG_ASSERT(INFINITE_TIME != timeout);
     timer_initialize(&hw_watchdog_timer);
     return platform_watchdog_init(timeout, &hw_watchdog_pet_timeout);
 }
 
-void watchdog_hw_set_enabled(bool enabled)
-{
+void watchdog_hw_set_enabled(bool enabled) {
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 

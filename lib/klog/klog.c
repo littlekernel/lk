@@ -65,8 +65,7 @@ static struct klog_buffer_header *klog_buf;
 /* current klog */
 static struct klog_header *klog;
 
-static struct klog_header *find_nth_log(uint log)
-{
+static struct klog_header *find_nth_log(uint log) {
     DEBUG_ASSERT(klog_buf);
     DEBUG_ASSERT(klog_buf->magic == KLOG_BUFFER_HEADER_MAGIC);
     DEBUG_ASSERT(log < klog_buf->log_count);
@@ -85,16 +84,14 @@ static struct klog_header *find_nth_log(uint log)
     return k;
 }
 
-static uint32_t get_checksum_klog_buffer_header(const struct klog_buffer_header *kb)
-{
+static uint32_t get_checksum_klog_buffer_header(const struct klog_buffer_header *kb) {
     DEBUG_ASSERT(kb);
     DEBUG_ASSERT(kb->magic == KLOG_BUFFER_HEADER_MAGIC);
 
     return crc32(0, (const void *)(&kb->header_crc32 + 1), sizeof(*kb) - 8);
 }
 
-static uint32_t get_checksum_klog_data(const struct klog_header *k)
-{
+static uint32_t get_checksum_klog_data(const struct klog_header *k) {
     DEBUG_ASSERT(k);
     DEBUG_ASSERT(k->magic == KLOG_HEADER_MAGIC);
 
@@ -106,28 +103,24 @@ static uint32_t get_checksum_klog_data(const struct klog_header *k)
     return sum;
 }
 
-static void checksum_klog_buffer_header(struct klog_buffer_header *kb)
-{
+static void checksum_klog_buffer_header(struct klog_buffer_header *kb) {
     DEBUG_ASSERT(kb);
     DEBUG_ASSERT(kb->magic == KLOG_BUFFER_HEADER_MAGIC);
 
     kb->header_crc32 = get_checksum_klog_buffer_header(kb);
 }
 
-static void checksum_klog_data(struct klog_header *k)
-{
+static void checksum_klog_data(struct klog_header *k) {
     DEBUG_ASSERT(k);
     DEBUG_ASSERT(k->magic == KLOG_HEADER_MAGIC);
 
     k->data_checksum = get_checksum_klog_data(k);
 }
 
-void klog_init(void)
-{
+void klog_init(void) {
 }
 
-status_t klog_create(void *_ptr, size_t len, uint count)
-{
+status_t klog_create(void *_ptr, size_t len, uint count) {
     uint8_t *ptr = _ptr;
     LTRACEF("ptr %p len %zu count %u\n", ptr, len, count);
 
@@ -175,8 +168,7 @@ status_t klog_create(void *_ptr, size_t len, uint count)
     return NO_ERROR;
 }
 
-ssize_t klog_recover(void *_ptr)
-{
+ssize_t klog_recover(void *_ptr) {
     uint8_t *ptr = _ptr;
     LTRACEF("ptr %p\n", ptr);
 
@@ -236,8 +228,7 @@ ssize_t klog_recover(void *_ptr)
     return NO_ERROR;
 }
 
-uint klog_buffer_count(void)
-{
+uint klog_buffer_count(void) {
     if (!klog_buf)
         return 0;
 
@@ -247,8 +238,7 @@ uint klog_buffer_count(void)
     return klog_buf->log_count;
 }
 
-uint klog_current_buffer(void)
-{
+uint klog_current_buffer(void) {
     if (!klog_buf)
         return 0;
 
@@ -258,8 +248,7 @@ uint klog_current_buffer(void)
     return klog_buf->current_log;
 }
 
-status_t klog_set_current_buffer(uint buffer)
-{
+status_t klog_set_current_buffer(uint buffer) {
     if (!klog_buf)
         return ERR_NOT_FOUND;
 
@@ -283,8 +272,7 @@ status_t klog_set_current_buffer(uint buffer)
 
 #include <arch/ops.h>
 
-ssize_t klog_read(char *buf, size_t len, int buf_id)
-{
+ssize_t klog_read(char *buf, size_t len, int buf_id) {
     size_t offset = 0;
     size_t tmp_len;
     iovec_t vec[2];
@@ -320,29 +308,25 @@ ssize_t klog_read(char *buf, size_t len, int buf_id)
     return offset;
 }
 
-char klog_getc(int buf_id)
-{
+char klog_getc(int buf_id) {
     char c = '\0';
     int err = klog_read(&c, 1, buf_id);
 
     return (err < 0) ? err : c;
 }
 
-char klog_getchar(void)
-{
+char klog_getchar(void) {
     return klog_getc(-1);
 }
 
 /* Returns whether the currently selected klog contains data */
-bool klog_has_data(void)
-{
+bool klog_has_data(void) {
     DEBUG_ASSERT(klog);
 
     return (klog->head != klog->tail);
 }
 
-static size_t klog_puts_len(const char *str, size_t len)
-{
+static size_t klog_puts_len(const char *str, size_t len) {
     LTRACEF("puts '%s'\n", str);
 
     DEBUG_ASSERT(klog);
@@ -388,26 +372,22 @@ static size_t klog_puts_len(const char *str, size_t len)
     return count;
 }
 
-void klog_putchar(char c)
-{
+void klog_putchar(char c) {
     klog_puts_len(&c, 1);
 }
 
-void klog_puts(const char *str)
-{
+void klog_puts(const char *str) {
     if (!klog_buf)
         return;
 
     klog_puts_len(str, SIZE_MAX);
 }
 
-static int _klog_output_func(const char *str, size_t len, void *state)
-{
+static int _klog_output_func(const char *str, size_t len, void *state) {
     return klog_puts_len(str, len);
 }
 
-void klog_printf(const char *fmt, ...)
-{
+void klog_printf(const char *fmt, ...) {
     if (!klog_buf)
         return;
 
@@ -417,16 +397,14 @@ void klog_printf(const char *fmt, ...)
     va_end(ap);
 }
 
-void klog_vprintf(const char *fmt, va_list ap)
-{
+void klog_vprintf(const char *fmt, va_list ap) {
     if (!klog_buf)
         return;
 
     _printf_engine(&_klog_output_func, NULL, fmt, ap);
 }
 
-int klog_get_buffer(int buffer, iovec_t *vec)
-{
+int klog_get_buffer(int buffer, iovec_t *vec) {
     if (!klog_buf)
         return 0;
     if (!vec)
@@ -462,8 +440,7 @@ int klog_get_buffer(int buffer, iovec_t *vec)
     }
 }
 
-void klog_dump(int buffer)
-{
+void klog_dump(int buffer) {
     iovec_t vec[2];
 
     int err = klog_get_buffer(buffer, vec);
@@ -489,8 +466,7 @@ void klog_dump(int buffer)
 _RETENTION_NOCLEAR(static uint8_t klog_test_buf[512]);
 #endif
 
-static int cmd_klog(int argc, const cmd_args *argv)
-{
+static int cmd_klog(int argc, const cmd_args *argv) {
     status_t err;
 
     if (argc < 2) {

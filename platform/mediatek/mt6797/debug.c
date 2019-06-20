@@ -27,8 +27,7 @@
 #include <platform/mt_uart.h>
 #include <platform.h>
 
-void _dputc(char c)
-{
+void _dputc(char c) {
     int port = mtk_get_current_uart();
 
     if (c == '\n') {
@@ -38,8 +37,7 @@ void _dputc(char c)
     uart_putc(port, c);
 }
 
-int dgetc(char *c, bool wait)
-{
+int dgetc(char *c, bool wait) {
     int _c;
     int port = mtk_get_current_uart();
 
@@ -51,19 +49,16 @@ int dgetc(char *c, bool wait)
     return 0;
 }
 
-void platform_halt(platform_halt_action suggested_action, platform_halt_reason reason)
-{
+void platform_halt(platform_halt_action suggested_action, platform_halt_reason reason) {
     arch_disable_ints();
     for (;;);
 }
 
-uint32_t debug_cycle_count(void)
-{
+uint32_t debug_cycle_count(void) {
     PANIC_UNIMPLEMENTED;
 }
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     if (c == '\n') {
         _dputc('\r');
     }
@@ -71,8 +66,7 @@ void platform_dputc(char c)
     _dputc(c);
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
     return dgetc(c, wait);
 }
 

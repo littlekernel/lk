@@ -30,8 +30,7 @@
 #include <arch/arm/cm.h>
 
 void platform_halt(platform_halt_action suggested_action,
-                   platform_halt_reason reason)
-{
+                   platform_halt_reason reason) {
 #if ENABLE_PANIC_SHELL
     if (reason == HALT_REASON_SW_PANIC) {
         dprintf(ALWAYS, "CRASH: starting debug shell... (reason = %d)\n", reason);

@@ -24,8 +24,7 @@
 #include <lk/err.h>
 #include <dev/class/netif.h>
 
-status_t class_netif_set_state(struct device *dev, struct netstack_state *state)
-{
+status_t class_netif_set_state(struct device *dev, struct netstack_state *state) {
     struct netif_ops *ops = device_get_driver_ops(dev, struct netif_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -36,8 +35,7 @@ status_t class_netif_set_state(struct device *dev, struct netstack_state *state)
         return ERR_NOT_SUPPORTED;
 }
 
-ssize_t class_netif_get_hwaddr(struct device *dev, void *buf, size_t max_len)
-{
+ssize_t class_netif_get_hwaddr(struct device *dev, void *buf, size_t max_len) {
     struct netif_ops *ops = device_get_driver_ops(dev, struct netif_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -48,8 +46,7 @@ ssize_t class_netif_get_hwaddr(struct device *dev, void *buf, size_t max_len)
         return ERR_NOT_SUPPORTED;
 }
 
-ssize_t class_netif_get_mtu(struct device *dev)
-{
+ssize_t class_netif_get_mtu(struct device *dev) {
     struct netif_ops *ops = device_get_driver_ops(dev, struct netif_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -60,8 +57,7 @@ ssize_t class_netif_get_mtu(struct device *dev)
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_netif_set_status(struct device *dev, bool up)
-{
+status_t class_netif_set_status(struct device *dev, bool up) {
     struct netif_ops *ops = device_get_driver_ops(dev, struct netif_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -72,8 +68,7 @@ status_t class_netif_set_status(struct device *dev, bool up)
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_netif_output(struct device *dev, struct pbuf *p)
-{
+status_t class_netif_output(struct device *dev, struct pbuf *p) {
     struct netif_ops *ops = device_get_driver_ops(dev, struct netif_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -84,8 +79,7 @@ status_t class_netif_output(struct device *dev, struct pbuf *p)
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_netif_mcast_filter(struct device *dev, const uint8_t *mac, int action)
-{
+status_t class_netif_mcast_filter(struct device *dev, const uint8_t *mac, int action) {
     struct netif_ops *ops = device_get_driver_ops(dev, struct netif_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;

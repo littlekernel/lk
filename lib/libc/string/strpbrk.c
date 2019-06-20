@@ -28,8 +28,7 @@
 #include <sys/types.h>
 
 char *
-strpbrk(char const *cs, char const *ct)
-{
+strpbrk(char const *cs, char const *ct) {
     const char *sc1;
     const char *sc2;
 

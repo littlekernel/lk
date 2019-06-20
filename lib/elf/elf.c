@@ -58,8 +58,7 @@ struct read_hook_memory_args {
     size_t len;
 };
 
-static ssize_t elf_read_hook_memory(struct elf_handle *handle, void *buf, uint64_t offset, size_t len)
-{
+static ssize_t elf_read_hook_memory(struct elf_handle *handle, void *buf, uint64_t offset, size_t len) {
     LTRACEF("handle %p, buf %p, offset %lld, len %zu\n", handle, buf, offset, len);
 
     struct read_hook_memory_args *args = handle->read_hook_arg;
@@ -82,8 +81,7 @@ static ssize_t elf_read_hook_memory(struct elf_handle *handle, void *buf, uint64
     return toread;
 }
 
-status_t elf_open_handle(elf_handle_t *handle, elf_read_hook_t read_hook, void *read_hook_arg, bool free_read_hook_arg)
-{
+status_t elf_open_handle(elf_handle_t *handle, elf_read_hook_t read_hook, void *read_hook_arg, bool free_read_hook_arg) {
     if (!handle)
         return ERR_INVALID_ARGS;
     if (!read_hook)
@@ -100,8 +98,7 @@ status_t elf_open_handle(elf_handle_t *handle, elf_read_hook_t read_hook, void *
     return NO_ERROR;
 }
 
-status_t elf_open_handle_memory(elf_handle_t *handle, const void *ptr, size_t len)
-{
+status_t elf_open_handle_memory(elf_handle_t *handle, const void *ptr, size_t len) {
     struct read_hook_memory_args *args = malloc(sizeof(struct read_hook_memory_args));
 
     args->ptr = ptr;
@@ -114,8 +111,7 @@ status_t elf_open_handle_memory(elf_handle_t *handle, const void *ptr, size_t le
     return err;
 }
 
-void elf_close_handle(elf_handle_t *handle)
-{
+void elf_close_handle(elf_handle_t *handle) {
     if (!handle || !handle->open)
         return;
 
@@ -127,8 +123,7 @@ void elf_close_handle(elf_handle_t *handle)
     free(handle->pheaders);
 }
 
-static int verify_eheader(const void *header)
-{
+static int verify_eheader(const void *header) {
     const elf_ehdr_t *eheader = header;
 
     if (memcmp(eheader->e_ident, ELF_MAGIC, 4) != 0)
@@ -181,8 +176,7 @@ static int verify_eheader(const void *header)
     return NO_ERROR;
 }
 
-status_t elf_load(elf_handle_t *handle)
-{
+status_t elf_load(elf_handle_t *handle) {
     if (!handle)
         return ERR_INVALID_ARGS;
     if (!handle->open)

@@ -34,8 +34,7 @@ void lpc43xx_debug_init(void);
 uint8_t __lpc43xx_main_clock_sel;
 uint32_t __lpc43xx_main_clock_mhz;
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
 #ifndef WITH_NO_CLOCK_INIT
     unsigned cfg;
     // Different boot modes will enable different sets of clocks.
@@ -111,15 +110,13 @@ void platform_early_init(void)
 
 void lpc43xx_usb_init(u32 dmabase, size_t dmasize);
 
-void platform_init(void)
-{
+void platform_init(void) {
     lpc43xx_debug_init();
     lpc43xx_usb_init(0x20000000, 4096);
 }
 
 void platform_halt(platform_halt_action suggested_action,
-                   platform_halt_reason reason)
-{
+                   platform_halt_reason reason) {
     arch_disable_ints();
     if (suggested_action == HALT_ACTION_REBOOT) {
         // CORE reset

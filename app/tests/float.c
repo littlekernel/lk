@@ -46,8 +46,7 @@ extern void float_neon_thumb_instruction_test(void);
 
 /* optimize this function to cause it to try to use a lot of registers */
 __OPTIMIZE("O3")
-static int float_thread(void *arg)
-{
+static int float_thread(void *arg) {
     FLOAT *val = arg;
     uint i, j;
 
@@ -72,8 +71,7 @@ static int float_thread(void *arg)
 }
 
 #if ARCH_ARM && !ARM_ISA_ARMV7M
-static void arm_float_instruction_trap_test(void)
-{
+static void arm_float_instruction_trap_test(void) {
     printf("testing fpu trap\n");
 
 #if !ARM_ONLY_THUMB
@@ -87,8 +85,7 @@ static void arm_float_instruction_trap_test(void)
 }
 #endif
 
-static void float_tests(void)
-{
+static void float_tests(void) {
     printf("floating point test:\n");
 
     /* test lazy fpu load on separate thread */

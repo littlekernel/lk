@@ -80,26 +80,26 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
- /* 1GB of sdram space */
- {
-     .phys = SDRAM_BASE,
-     .virt = KERNEL_BASE,
-     .size = MEMORY_APERTURE_SIZE,
-     .flags = 0,
-     .name = "memory"
- },
+    /* 1GB of sdram space */
+    {
+        .phys = SDRAM_BASE,
+        .virt = KERNEL_BASE,
+        .size = MEMORY_APERTURE_SIZE,
+        .flags = 0,
+        .name = "memory"
+    },
 
- /* peripherals */
- {
-     .phys = BCM_PERIPH_BASE_PHYS,
-     .virt = BCM_PERIPH_BASE_VIRT,
-     .size = BCM_PERIPH_SIZE,
-     .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-     .name = "bcm peripherals"
- },
+    /* peripherals */
+    {
+        .phys = BCM_PERIPH_BASE_PHYS,
+        .virt = BCM_PERIPH_BASE_VIRT,
+        .size = BCM_PERIPH_SIZE,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "bcm peripherals"
+    },
 
- /* null entry to terminate the list */
- { 0 }
+    /* null entry to terminate the list */
+    { 0 }
 };
 
 #define DEBUG_UART 1
@@ -119,12 +119,10 @@ static pmm_arena_t arena = {
     .flags = PMM_ARENA_FLAG_KMAP,
 };
 
-void platform_init_mmu_mappings(void)
-{
+void platform_init_mmu_mappings(void) {
 }
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     uart_init_early();
 
     intc_init();
@@ -132,7 +130,7 @@ void platform_early_init(void)
 #if BCM2837
     arm_generic_timer_init(INTERRUPT_ARM_LOCAL_CNTPNSIRQ, 0);
 
-   /* look for a flattened device tree just before the kernel */
+    /* look for a flattened device tree just before the kernel */
     const void *fdt = (void *)KERNEL_BASE;
     int err = fdt_check_header(fdt);
     if (err >= 0) {
@@ -211,23 +209,20 @@ void platform_early_init(void)
 #endif
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     uart_init();
 #if BCM2837
     init_framebuffer();
 #endif
 }
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     if (c == '\n')
         uart_putc(DEBUG_UART, '\r');
     uart_putc(DEBUG_UART, c);
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
     int ret = uart_getc(DEBUG_UART, wait);
     if (ret == -1)
         return -1;

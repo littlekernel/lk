@@ -74,48 +74,40 @@ static ssize_t spiflash_bdev_erase(struct bdev *, off_t offset, size_t len);
 static int spiflash_ioctl(struct bdev *, int request, void *argp);
 
 // adjust 24 bit address to be correct-byte-order for 32bit qspi commands
-static uint32_t qspi_fix_addr(uint32_t addr)
-{
+static uint32_t qspi_fix_addr(uint32_t addr) {
     DEBUG_ASSERT((addr & ~(0x00ffffff)) == 0); // only dealing with 24bit addresses
 
     return ((addr & 0xff) << 24) | ((addr&0xff00) << 8) | ((addr>>8) & 0xff00);
 }
 
-static void qspi_rd32(struct qspi_ctxt *qspi, uint32_t addr, uint32_t *data, uint32_t count)
-{
+static void qspi_rd32(struct qspi_ctxt *qspi, uint32_t addr, uint32_t *data, uint32_t count) {
     qspi_rd(qspi, qspi_fix_addr(addr) | 0x6B, 4, data, count);
 }
 
-static inline void qspi_wren(struct qspi_ctxt *qspi)
-{
+static inline void qspi_wren(struct qspi_ctxt *qspi) {
     qspi_wr1(qspi, 0x06);
 }
 
-static inline void qspi_clsr(struct qspi_ctxt *qspi)
-{
+static inline void qspi_clsr(struct qspi_ctxt *qspi) {
     qspi_wr1(qspi, 0x30);
 }
 
-static inline uint32_t qspi_rd_cr1(struct qspi_ctxt *qspi)
-{
+static inline uint32_t qspi_rd_cr1(struct qspi_ctxt *qspi) {
     return qspi_rd1(qspi, 0x35) >> 24;
 }
 
-static inline uint32_t qspi_rd_status(struct qspi_ctxt *qspi)
-{
+static inline uint32_t qspi_rd_status(struct qspi_ctxt *qspi) {
     return qspi_rd1(qspi, 0x05) >> 24;
 }
 
-static inline void qspi_wr_status_cr1(struct qspi_ctxt *qspi, uint8_t status, uint8_t cr1)
-{
+static inline void qspi_wr_status_cr1(struct qspi_ctxt *qspi, uint8_t status, uint8_t cr1) {
     uint32_t cmd = (cr1 << 16) | (status << 8) | 0x01;
 
     qspi_wren(qspi);
     qspi_wr3(qspi, cmd);
 }
 
-static ssize_t qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr)
-{
+static ssize_t qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr) {
     uint32_t cmd;
     uint32_t status;
     ssize_t toerase;
@@ -159,8 +151,7 @@ static ssize_t qspi_erase_sector(struct qspi_ctxt *qspi, uint32_t addr)
     return toerase;
 }
 
-static ssize_t qspi_write_page(struct qspi_ctxt *qspi, uint32_t addr, const uint8_t *data)
-{
+static ssize_t qspi_write_page(struct qspi_ctxt *qspi, uint32_t addr, const uint8_t *data) {
     uint32_t oldkhz, status;
 
     LTRACEF("addr 0x%x, data %p\n", addr, data);
@@ -190,8 +181,7 @@ static ssize_t qspi_write_page(struct qspi_ctxt *qspi, uint32_t addr, const uint
     return PAGE_PROGRAM_SIZE;
 }
 
-static ssize_t spiflash_read_cfi(void *buf, size_t len)
-{
+static ssize_t spiflash_read_cfi(void *buf, size_t len) {
     DEBUG_ASSERT(len > 0 && (len % 4) == 0);
 
     qspi_rd(&flash.qspi, 0x9f, 0, buf, len / 4);
@@ -209,8 +199,7 @@ static ssize_t spiflash_read_cfi(void *buf, size_t len)
     return MIN(len, cfi_len);
 }
 
-static ssize_t spiflash_read_otp(void *buf, uint32_t addr, size_t len)
-{
+static ssize_t spiflash_read_otp(void *buf, uint32_t addr, size_t len) {
     DEBUG_ASSERT(len > 0 && (len % 4) == 0);
 
     if (len > 1024)
@@ -224,8 +213,7 @@ static ssize_t spiflash_read_otp(void *buf, uint32_t addr, size_t len)
     return len;
 }
 
-status_t spiflash_detect(void)
-{
+status_t spiflash_detect(void) {
     if (flash.detected)
         return NO_ERROR;
 
@@ -340,8 +328,7 @@ nodetect:
 }
 
 // bio layer hooks
-static ssize_t spiflash_bdev_read(struct bdev *bdev, void *buf, off_t offset, size_t len)
-{
+static ssize_t spiflash_bdev_read(struct bdev *bdev, void *buf, off_t offset, size_t len) {
     LTRACEF("dev %p, buf %p, offset 0x%llx, len 0x%zx\n", bdev, buf, offset, len);
 
     DEBUG_ASSERT(flash.detected);
@@ -356,8 +343,7 @@ static ssize_t spiflash_bdev_read(struct bdev *bdev, void *buf, off_t offset, si
     return len;
 }
 
-static ssize_t spiflash_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count)
-{
+static ssize_t spiflash_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count) {
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
     count = bio_trim_block_range(bdev, block, count);
@@ -367,8 +353,7 @@ static ssize_t spiflash_bdev_read_block(struct bdev *bdev, void *buf, bnum_t blo
     return spiflash_bdev_read(bdev, buf, block << bdev->block_shift, count << bdev->block_shift);
 }
 
-static ssize_t spiflash_bdev_write_block(struct bdev *bdev, const void *_buf, bnum_t block, uint count)
-{
+static ssize_t spiflash_bdev_write_block(struct bdev *bdev, const void *_buf, bnum_t block, uint count) {
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, _buf, block, count);
 
     DEBUG_ASSERT(bdev->block_size == PAGE_PROGRAM_SIZE);
@@ -394,8 +379,7 @@ static ssize_t spiflash_bdev_write_block(struct bdev *bdev, const void *_buf, bn
     return written;
 }
 
-static ssize_t spiflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
-{
+static ssize_t spiflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len) {
     LTRACEF("dev %p, offset 0x%llx, len 0x%zx\n", bdev, offset, len);
 
     len = bio_trim_range(bdev, offset, len);
@@ -415,8 +399,7 @@ static ssize_t spiflash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
     return erased;
 }
 
-static int spiflash_ioctl(struct bdev *bdev, int request, void *argp)
-{
+static int spiflash_ioctl(struct bdev *bdev, int request, void *argp) {
     LTRACEF("dev %p, request %d, argp %p\n", bdev, request, argp);
 
     int ret = NO_ERROR;
@@ -424,7 +407,7 @@ static int spiflash_ioctl(struct bdev *bdev, int request, void *argp)
         case BIO_IOCTL_GET_MEM_MAP:
             /* put the device into linear mode */
             ret = qspi_enable_linear(&flash.qspi);
-            // Fallthrough.
+        // Fallthrough.
         case BIO_IOCTL_GET_MAP_ADDR:
             if (argp)
                 *(void **)argp = (void *)QSPI_LINEAR_BASE;
@@ -441,8 +424,7 @@ static int spiflash_ioctl(struct bdev *bdev, int request, void *argp)
 }
 
 // debug tests
-int cmd_spiflash(int argc, const cmd_args *argv)
-{
+int cmd_spiflash(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

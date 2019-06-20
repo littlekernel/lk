@@ -37,8 +37,7 @@
 
 struct flash_nor_bank flash[1];
 
-void stm32_flash_nor_early_init(void)
-{
+void stm32_flash_nor_early_init(void) {
     FLASH_Lock(); // make sure it's locked
 
     flash[0].base = 0x08000000;
@@ -47,14 +46,12 @@ void stm32_flash_nor_early_init(void)
     flash[0].flags = 0;
 }
 
-void stm32_flash_nor_init(void)
-{
+void stm32_flash_nor_init(void) {
     TRACEF("flash size %zu\n", FLASH_SIZE);
     TRACEF("page size %zu\n", FLASH_PAGE_SIZE);
 }
 
-const struct flash_nor_bank *flash_nor_get_bank(unsigned int bank)
-{
+const struct flash_nor_bank *flash_nor_get_bank(unsigned int bank) {
     if (bank != 0)
         return NULL;
 

@@ -31,8 +31,7 @@
 
 extern void target_usb_setup(void);
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     GPIOPinWrite(GPIO_PORTF_AHB_BASE, GPIO_PIN_1, 0);
     GPIOPinWrite(GPIO_PORTF_AHB_BASE, GPIO_PIN_2, 0);
     GPIOPinWrite(GPIO_PORTF_AHB_BASE, GPIO_PIN_3, 0);
@@ -45,13 +44,11 @@ void target_early_init(void)
     GPIODirModeSet(GPIO_PORTF_AHB_BASE, GPIO_PIN_3, GPIO_DIR_MODE_OUT);
 }
 
-void target_init(void)
-{
+void target_init(void) {
     target_usb_setup();
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     switch (led) {
         case 0:
             gpio_set(GPIO(GPIO_PORT_F, 1), on);

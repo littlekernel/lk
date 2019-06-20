@@ -70,8 +70,7 @@ struct lk_boot_arg_bootimage {
     char device[];
 };
 
-static void *find_end(void *buf, size_t buf_len)
-{
+static void *find_end(void *buf, size_t buf_len) {
     uint8_t *ptr = (uint8_t *)buf;
     struct lk_boot_arg *arg = (struct lk_boot_arg *)ptr;
 
@@ -87,8 +86,7 @@ static void *find_end(void *buf, size_t buf_len)
     return ptr;
 }
 
-status_t bootargs_start(void *buf, size_t buf_len)
-{
+status_t bootargs_start(void *buf, size_t buf_len) {
     if (buf_len < sizeof(struct lk_boot_arg))
         return ERR_NO_MEMORY;
 
@@ -101,8 +99,7 @@ status_t bootargs_start(void *buf, size_t buf_len)
     return NO_ERROR;
 }
 
-status_t bootargs_add_command_line(void *buf, size_t buf_len, const char *str)
-{
+status_t bootargs_add_command_line(void *buf, size_t buf_len, const char *str) {
     struct lk_boot_arg *arg = find_end(buf, buf_len);
     if (!arg)
         return ERR_NO_MEMORY;
@@ -115,8 +112,7 @@ status_t bootargs_add_command_line(void *buf, size_t buf_len, const char *str)
     return NO_ERROR;
 }
 
-status_t bootargs_add_bootimage_pointer(void *buf, size_t buf_len, const char *device, uint64_t offset, size_t len)
-{
+status_t bootargs_add_bootimage_pointer(void *buf, size_t buf_len, const char *device, uint64_t offset, size_t len) {
     struct lk_boot_arg *arg = find_end(buf, buf_len);
     if (!arg)
         return ERR_NO_MEMORY;
@@ -137,16 +133,14 @@ status_t bootargs_add_bootimage_pointer(void *buf, size_t buf_len, const char *d
     return NO_ERROR;
 }
 
-void bootargs_generate_lk_arg_values(ulong buf, ulong args[4])
-{
+void bootargs_generate_lk_arg_values(ulong buf, ulong args[4]) {
     args[0] = LK_BOOT_ARG_MAGIC;
     args[1] = buf;
     args[2] = 0;
     args[3] = ULONG_MAX ^ args[0] ^ args[1] ^ args[2];
 }
 
-static void bootargs_init_hook(uint level)
-{
+static void bootargs_init_hook(uint level) {
     LTRACE_ENTRY;
 
     /* see if there are any lk style boot arguments here */
@@ -184,13 +178,11 @@ static void bootargs_init_hook(uint level)
     LTRACEF("valid args found\n");
 }
 
-bool bootargs_are_valid(void)
-{
+bool bootargs_are_valid(void) {
     return boot_args_valid;
 }
 
-static struct lk_boot_arg *find_tag(uint32_t tag)
-{
+static struct lk_boot_arg *find_tag(uint32_t tag) {
     if (!boot_args_valid)
         return NULL;
 
@@ -206,8 +198,7 @@ static struct lk_boot_arg *find_tag(uint32_t tag)
     return NULL;
 }
 
-const char *bootargs_get_command_line(void)
-{
+const char *bootargs_get_command_line(void) {
     struct lk_boot_arg *arg = find_tag(LK_BOOT_ARG_TYPE_COMMAND_LINE);
     if (!arg)
         return NULL;
@@ -217,8 +208,7 @@ const char *bootargs_get_command_line(void)
     return (const char *)arg->data;
 }
 
-status_t bootargs_get_bootimage_pointer(uint64_t *offset, size_t *len, const char **device)
-{
+status_t bootargs_get_bootimage_pointer(uint64_t *offset, size_t *len, const char **device) {
     struct lk_boot_arg *arg = find_tag(LK_BOOT_ARG_TYPE_BOOTIMAGE);
     if (!arg)
         return ERR_NOT_FOUND;

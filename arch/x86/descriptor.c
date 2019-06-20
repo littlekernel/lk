@@ -54,8 +54,7 @@ typedef union {
 extern seg_desc_t _gdt[];
 
 void set_global_desc(seg_sel_t sel, void *base, uint32_t limit,
-                     uint8_t present, uint8_t ring, uint8_t sys, uint8_t type, uint8_t gran, uint8_t bits)
-{
+                     uint8_t present, uint8_t ring, uint8_t sys, uint8_t type, uint8_t gran, uint8_t bits) {
     // convert selector into index
     uint16_t index = sel >> 3;
 

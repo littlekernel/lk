@@ -53,8 +53,7 @@ typedef struct {
 
 static void usb_do_callbacks(usb_callback_op_t op, const union usb_callback_args *args);
 
-static void append_desc_data(usb_descriptor *desc, const void *dat, size_t len)
-{
+static void append_desc_data(usb_descriptor *desc, const void *dat, size_t len) {
     uint8_t *ptr = malloc(desc->len + len);
 
     memcpy(ptr, desc->desc, desc->len);
@@ -69,26 +68,22 @@ static void append_desc_data(usb_descriptor *desc, const void *dat, size_t len)
     desc->len += len;
 }
 
-static uint8_t usb_get_current_iface_num(const usb_descriptor *desc)
-{
+static uint8_t usb_get_current_iface_num(const usb_descriptor *desc) {
     DEBUG_ASSERT(desc);
 
     return ((uint8_t *)desc->desc)[4];
 }
 
-uint8_t usb_get_current_iface_num_highspeed(void)
-{
+uint8_t usb_get_current_iface_num_highspeed(void) {
     return usb_get_current_iface_num(&usb.config->highspeed.config);
 }
 
-uint8_t usb_get_current_iface_num_lowspeed(void)
-{
+uint8_t usb_get_current_iface_num_lowspeed(void) {
     return usb_get_current_iface_num(&usb.config->lowspeed.config);
 }
 
 /* returns the interface number assigned */
-static int usb_append_interface(usb_descriptor *desc, const uint8_t *int_descr, size_t len)
-{
+static int usb_append_interface(usb_descriptor *desc, const uint8_t *int_descr, size_t len) {
     uint8_t *ptr = malloc(len);
     int interface_num;
 
@@ -113,18 +108,15 @@ static int usb_append_interface(usb_descriptor *desc, const uint8_t *int_descr, 
     return interface_num - 1;
 }
 
-int usb_append_interface_highspeed(const uint8_t *int_descr, size_t len)
-{
+int usb_append_interface_highspeed(const uint8_t *int_descr, size_t len) {
     return usb_append_interface(&usb.config->highspeed.config, int_descr, len);
 }
 
-int usb_append_interface_lowspeed(const uint8_t *int_descr, size_t len)
-{
+int usb_append_interface_lowspeed(const uint8_t *int_descr, size_t len) {
     return usb_append_interface(&usb.config->lowspeed.config, int_descr, len);
 }
 
-void usb_set_string_descriptor(usb_descriptor *desc, const char *string)
-{
+void usb_set_string_descriptor(usb_descriptor *desc, const char *string) {
     int len = strlen(string);
     ushort *data;
     int datalen = len * 2 + 2;
@@ -144,8 +136,7 @@ void usb_set_string_descriptor(usb_descriptor *desc, const char *string)
     desc->len = datalen;
 }
 
-static void set_usb_id(uint16_t vendor, uint16_t product)
-{
+static void set_usb_id(uint16_t vendor, uint16_t product) {
     // patch the current configuration to with the vendor/product id
     ((uint16_t *)usb.config->lowspeed.device.desc)[4] = vendor;
     ((uint16_t *)usb.config->lowspeed.device.desc)[5] = product;
@@ -154,8 +145,7 @@ static void set_usb_id(uint16_t vendor, uint16_t product)
     ((uint16_t *)usb.config->highspeed.device.desc)[5] = product;
 }
 
-status_t usb_add_string(const char *string, uint8_t id)
-{
+status_t usb_add_string(const char *string, uint8_t id) {
     uint i;
     size_t len = strlen(string);
 
@@ -184,8 +174,7 @@ status_t usb_add_string(const char *string, uint8_t id)
     return ERR_NO_MEMORY;
 }
 
-static void usb_set_active_config(uint8_t config)
-{
+static void usb_set_active_config(uint8_t config) {
     if (config != usb.active_config) {
         usb.active_config = config;
         if (usb.active_config != 0) {
@@ -198,8 +187,7 @@ static void usb_set_active_config(uint8_t config)
     }
 }
 
-status_t usb_register_callback(usb_callback_t cb, void *cookie)
-{
+status_t usb_register_callback(usb_callback_t cb, void *cookie) {
     DEBUG_ASSERT(cb);
 
     usb_callback_container_t *c = malloc(sizeof(usb_callback_container_t));
@@ -213,16 +201,14 @@ status_t usb_register_callback(usb_callback_t cb, void *cookie)
     return NO_ERROR;
 }
 
-static void usb_do_callbacks(usb_callback_op_t op, const union usb_callback_args *args)
-{
+static void usb_do_callbacks(usb_callback_op_t op, const union usb_callback_args *args) {
     usb_callback_container_t *c;
     list_for_every_entry(&usb.cb_list, c, usb_callback_container_t, node) {
         c->cb(c->cookie, op, args);
     }
 }
 
-status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args)
-{
+status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args) {
     LTRACEF("op %d, args %p\n", op, args);
 
     /* start looking for specific things to handle */
@@ -370,8 +356,7 @@ status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args
     return NO_ERROR;
 }
 
-status_t usb_setup(usb_config *config)
-{
+status_t usb_setup(usb_config *config) {
     DEBUG_ASSERT(config);
     DEBUG_ASSERT(usb.active == false);
 
@@ -380,8 +365,7 @@ status_t usb_setup(usb_config *config)
     return NO_ERROR;
 }
 
-status_t usb_start(void)
-{
+status_t usb_start(void) {
     DEBUG_ASSERT(usb.config);
     DEBUG_ASSERT(usb.active == false);
 
@@ -392,8 +376,7 @@ status_t usb_start(void)
     return NO_ERROR;
 }
 
-status_t usb_stop(void)
-{
+status_t usb_stop(void) {
     DEBUG_ASSERT(usb.active == true);
 
     usb.active = false;
@@ -402,8 +385,7 @@ status_t usb_stop(void)
     return NO_ERROR;
 }
 
-static void usb_init(uint level)
-{
+static void usb_init(uint level) {
     list_initialize(&usb.cb_list);
 }
 

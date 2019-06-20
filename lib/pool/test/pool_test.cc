@@ -13,15 +13,15 @@ TEST(Pool, Basic) {
     DOUBLE_POOL_INIT(&pool, 3, storage);
 
     // First 3 allocations should succeed.
-    double * d0 = DOUBLE_POOL_ALLOC(&pool);
+    double *d0 = DOUBLE_POOL_ALLOC(&pool);
     EXPECT_NE(nullptr, d0);
     EXPECT_EQ(0, (intptr_t) d0 % __alignof(double));
 
-    double * d1 = DOUBLE_POOL_ALLOC(&pool);
+    double *d1 = DOUBLE_POOL_ALLOC(&pool);
     EXPECT_NE(nullptr, d1);
     EXPECT_EQ(0, (intptr_t) d1 % __alignof(double));
 
-    double * d2 = DOUBLE_POOL_ALLOC(&pool);
+    double *d2 = DOUBLE_POOL_ALLOC(&pool);
     EXPECT_NE(nullptr, d2);
     EXPECT_EQ(0, (intptr_t) d2 % __alignof(double));
 
@@ -31,7 +31,7 @@ TEST(Pool, Basic) {
     EXPECT_NE(d2, d1);
 
     // Next allocation should fail.
-    double * d3 = DOUBLE_POOL_ALLOC(&pool);
+    double *d3 = DOUBLE_POOL_ALLOC(&pool);
     EXPECT_EQ(nullptr, d3);
 
     // But after we free something it should succeed.

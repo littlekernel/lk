@@ -65,8 +65,7 @@ cbuf_t uart4_rx_buf;
 #endif
 
 static void stm32_usart_init1_early(stm32_usart_t *usart,
-                                    uint16_t flow_control, int irqn)
-{
+                                    uint16_t flow_control, int irqn) {
     uint32_t baud_rate = 115200;
 
     // Ensure USART is disabled before configuring it.
@@ -96,8 +95,7 @@ static void stm32_usart_init1_early(stm32_usart_t *usart,
     usart->CR1 |= USART_CR1_UE;
 }
 
-static void stm32_usart_init1(stm32_usart_t *usart, int irqn, cbuf_t *rxbuf)
-{
+static void stm32_usart_init1(stm32_usart_t *usart, int irqn, cbuf_t *rxbuf) {
     cbuf_initialize(rxbuf, RXBUF_SIZE);
     // Enable RX not empty interrupt.
     usart->CR1 |= USART_CR1_RXNEIE;
@@ -108,8 +106,7 @@ static void stm32_usart_init1(stm32_usart_t *usart, int irqn, cbuf_t *rxbuf)
 #error UART3 and 4 share an interrupt; not supported
 #endif
 
-void uart_init_early(void)
-{
+void uart_init_early(void) {
 #ifdef ENABLE_UART1
     stm32_rcc_set_enable(STM32_RCC_CLK_USART1, true);
 #endif
@@ -137,8 +134,7 @@ void uart_init_early(void)
 #endif
 }
 
-void uart_init(void)
-{
+void uart_init(void) {
 #ifdef ENABLE_UART1
     stm32_usart_init1(USART1, USART1_IRQn, &uart1_rx_buf);
 #endif
@@ -156,8 +152,7 @@ void uart_init(void)
 // I'm seeing a weird issue with my nucleo-f072rb board where rx interrupts
 // don't fire right after a reset by the on board programmer.  If I hit
 // the reset button, rx works fine.  I can live with this. YMMV.
-static void stm32_uart_rx_irq(stm32_usart_t *usart, cbuf_t *rxbuf)
-{
+static void stm32_uart_rx_irq(stm32_usart_t *usart, cbuf_t *rxbuf) {
     arm_cm_irq_entry();
 
     bool resched = false;
@@ -177,8 +172,7 @@ static void stm32_uart_rx_irq(stm32_usart_t *usart, cbuf_t *rxbuf)
     arm_cm_irq_exit(resched);
 }
 
-static cbuf_t *stm32_get_rxbuf(int port)
-{
+static cbuf_t *stm32_get_rxbuf(int port) {
 #if CONSOLE_HAS_INPUT_BUFFER
     if (DEBUG_UART == port) {
         return &console_input_cbuf;
@@ -208,43 +202,37 @@ static cbuf_t *stm32_get_rxbuf(int port)
 }
 
 #ifdef ENABLE_UART1
-void stm32_USART1_IRQ(void)
-{
+void stm32_USART1_IRQ(void) {
     stm32_uart_rx_irq(USART1, stm32_get_rxbuf(1));
 }
 #endif
 
 #ifdef ENABLE_UART2
-void stm32_USART2_IRQ(void)
-{
+void stm32_USART2_IRQ(void) {
     stm32_uart_rx_irq(USART2, stm32_get_rxbuf(2));
 }
 #endif
 
 #ifdef ENABLE_UART3
-void stm32_USART3_4_IRQ(void)
-{
+void stm32_USART3_4_IRQ(void) {
     stm32_uart_rx_irq(USART3, stm32_get_rxbuf(3));
 }
 #endif
 
 #ifdef ENABLE_UART4
-void stm32_USART3_4_IRQ(void)
-{
+void stm32_USART3_4_IRQ(void) {
     stm32_uart_rx_irq(USART4, stm32_get_rxbuf(4));
 }
 #endif
 
 
-static void stm32_usart_putc(stm32_usart_t *usart, char c)
-{
+static void stm32_usart_putc(stm32_usart_t *usart, char c) {
     while ((usart->ISR & USART_ISR_TXE) == 0);
     usart->TDR = c;
     while ((usart->ISR & USART_ISR_TC) == 0);
 }
 
-static int stm32_usart_getc(stm32_usart_t *usart, cbuf_t *rxbuf, bool wait)
-{
+static int stm32_usart_getc(stm32_usart_t *usart, cbuf_t *rxbuf, bool wait) {
     char c;
     cbuf_read_char(rxbuf, &c, wait);
     if (cbuf_space_avail(rxbuf) > RXBUF_SIZE/2)
@@ -253,8 +241,7 @@ static int stm32_usart_getc(stm32_usart_t *usart, cbuf_t *rxbuf, bool wait)
     return c;
 }
 
-static stm32_usart_t *stm32_get_usart(int port)
-{
+static stm32_usart_t *stm32_get_usart(int port) {
     switch (port) {
 #ifdef ENABLE_UART1
         case 1:
@@ -279,15 +266,13 @@ static stm32_usart_t *stm32_get_usart(int port)
 
 }
 
-int uart_putc(int port, char c)
-{
+int uart_putc(int port, char c) {
     stm32_usart_t *usart = stm32_get_usart(port);
     stm32_usart_putc(usart, c);
     return 1;
 }
 
-int uart_getc(int port, bool wait)
-{
+int uart_getc(int port, bool wait) {
     cbuf_t *rxbuf = stm32_get_rxbuf(port);
     stm32_usart_t *usart = stm32_get_usart(port);
 
@@ -298,8 +283,7 @@ void uart_flush_tx(int port) {}
 
 void uart_flush_rx(int port) {}
 
-void uart_init_port(int port, uint baud)
-{
+void uart_init_port(int port, uint baud) {
     // TODO - later
     PANIC_UNIMPLEMENTED;
 }

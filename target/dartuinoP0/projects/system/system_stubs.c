@@ -22,6 +22,5 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-void append_usb_interfaces(void)
-{
+void append_usb_interfaces(void) {
 }

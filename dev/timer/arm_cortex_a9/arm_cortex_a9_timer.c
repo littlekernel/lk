@@ -82,8 +82,7 @@ static struct fp_32_64 timer_freq_msec_conversion_inverse;
 
 static void arm_cortex_a9_timer_init_percpu(uint level);
 
-uint64_t get_global_val(void)
-{
+uint64_t get_global_val(void) {
     uint32_t lo, hi;
 
 retry:
@@ -95,8 +94,7 @@ retry:
     return ((uint64_t)hi << 32 | lo);
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     lk_bigtime_t time;
 
     time = u64_mul_u64_fp32_64(get_global_val(), timer_freq_usec_conversion_inverse);
@@ -104,8 +102,7 @@ lk_bigtime_t current_time_hires(void)
     return time;
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     lk_time_t time;
 
     time = u32_mul_u64_fp32_64(get_global_val(), timer_freq_msec_conversion_inverse);
@@ -113,8 +110,7 @@ lk_time_t current_time(void)
     return time;
 }
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
     uint64_t ticks = u64_mul_u64_fp32_64(interval, timer_freq_msec_conversion);
@@ -141,8 +137,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg, lk_time_t interval) {
     LTRACEF("callback %p, arg %p, timeout %u\n", callback, arg, interval);
 
     uint64_t ticks = u64_mul_u64_fp32_64(interval, timer_freq_msec_conversion);
@@ -168,15 +163,13 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-void platform_stop_timer(void)
-{
+void platform_stop_timer(void) {
     LTRACE;
 
     TIMREG(TIMER_CONTROL) = 0;
 }
 
-static enum handler_return platform_tick(void *arg)
-{
+static enum handler_return platform_tick(void *arg) {
     LTRACE;
 
     TIMREG(TIMER_ISR) = 1; // ack the irq
@@ -188,8 +181,7 @@ static enum handler_return platform_tick(void *arg)
     }
 }
 
-void arm_cortex_a9_timer_init(addr_t _scu_control_base, uint32_t freq)
-{
+void arm_cortex_a9_timer_init(addr_t _scu_control_base, uint32_t freq) {
     scu_control_base = _scu_control_base;
 
     arm_cortex_a9_timer_init_percpu(0);
@@ -203,8 +195,7 @@ void arm_cortex_a9_timer_init(addr_t _scu_control_base, uint32_t freq)
     fp_32_64_div_32_32(&timer_freq_msec_conversion_inverse, 1000, timer_freq);
 }
 
-static void arm_cortex_a9_timer_init_percpu(uint level)
-{
+static void arm_cortex_a9_timer_init_percpu(uint level) {
     /* disable timer */
     TIMREG(TIMER_CONTROL) = 0;
 

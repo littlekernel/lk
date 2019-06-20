@@ -37,22 +37,19 @@
 #include <stdlib.h>
 #include <lk/trace.h>
 
-static void do_boot(void)
-{
+static void do_boot(void) {
     arch_disable_ints();
     arch_quiesce();
     arch_chain_load((void *)(moot_system_info.sys_base_addr), 0, 0, 0, 0);
 }
 
-static void moot_init(const struct app_descriptor *app)
-{
+static void moot_init(const struct app_descriptor *app) {
     // Initialize our boot subsystems.
     init_usb_boot();
 
 }
 
-static void moot_entry(const struct app_descriptor *app, void *args)
-{
+static void moot_entry(const struct app_descriptor *app, void *args) {
     // Wait a few seconds for the host to try to talk to us over USB.
     printf("attempting usb boot...\n");
     attempt_usb_boot();
@@ -67,6 +64,6 @@ static void moot_entry(const struct app_descriptor *app, void *args)
 }
 
 APP_START(moot)
- .init = moot_init,
- .entry = moot_entry,
+.init = moot_init,
+.entry = moot_entry,
 APP_END

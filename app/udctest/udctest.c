@@ -36,24 +36,21 @@ udc_endpoint_t *rxept;
 
 static char rxbuf[4096];
 
-static void rx_complete(udc_request_t *req, unsigned actual, int status)
-{
+static void rx_complete(udc_request_t *req, unsigned actual, int status) {
     //printf("rx done %d %d\n", actual, status);
     if (status == 0) {
         udc_request_queue(rxept, rxreq);
     }
 }
 
-static void tx_complete(udc_request_t *req, unsigned actual, int status)
-{
+static void tx_complete(udc_request_t *req, unsigned actual, int status) {
     //printf("tx done %d %d\n", actual, status);
     if (status == 0) {
         udc_request_queue(txept, txreq);
     }
 }
 
-static void udctest_notify(udc_gadget_t *gadget, unsigned event)
-{
+static void udctest_notify(udc_gadget_t *gadget, unsigned event) {
     printf("event %d\n", event);
     if (event == UDC_EVENT_ONLINE) {
         udc_request_queue(rxept, rxreq);
@@ -82,8 +79,7 @@ static udc_gadget_t udctest_gadget = {
     .ept = udctest_endpoints,
 };
 
-static void udctest_init(const struct app_descriptor *app)
-{
+static void udctest_init(const struct app_descriptor *app) {
     printf("usbtest_init()\n");
     udc_init(&udctest_device);
     udctest_endpoints[0] = txept = udc_endpoint_alloc(UDC_BULK_IN, 512);
@@ -99,15 +95,14 @@ static void udctest_init(const struct app_descriptor *app)
     udc_register_gadget(&udctest_gadget);
 }
 
-static void udctest_entry(const struct app_descriptor *app, void *args)
-{
+static void udctest_entry(const struct app_descriptor *app, void *args) {
     printf("udctest_entry()\n");
     udc_start();
 }
 
 APP_START(usbtest)
 .init = udctest_init,
- .entry = udctest_entry,
-  APP_END
+.entry = udctest_entry,
+APP_END
 
 

@@ -180,14 +180,12 @@ const zynq_clk_cfg_t zynq_clk_cfg = {
     .clk_621_true = CLK_621_ENABLE,
 };
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     gpio_config(GPIO_LEDY, GPIO_OUTPUT);
     gpio_set(GPIO_LEDY, 0);
 }
 
-static enum handler_return toggle_ledy(void *arg)
-{
+static enum handler_return toggle_ledy(void *arg) {
     static bool on = false;
 
     gpio_set(GPIO_LEDY, on);
@@ -196,14 +194,12 @@ static enum handler_return toggle_ledy(void *arg)
     return INT_NO_RESCHEDULE;
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     if (led == 0) {
         gpio_set(GPIO_LEDY, on);
     }
 }
-void target_init(void)
-{
+void target_init(void) {
     gem_init(GEM0_BASE);
 
     register_gpio_int_handler(ZYBO_BTN5, toggle_ledy, NULL);

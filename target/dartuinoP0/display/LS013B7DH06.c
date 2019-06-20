@@ -28,8 +28,7 @@
 
 #define SET_BIT(BUF, BITNUM) ((BUF)[(BITNUM) >> 3] |= (0x1 << ((BITNUM) & 0x07)))
 
-uint8_t lcd_get_line(struct display_image *image, uint8_t idx, uint8_t *result)
-{
+uint8_t lcd_get_line(struct display_image *image, uint8_t idx, uint8_t *result) {
     uint8_t *framebuffer = (uint8_t *)image->pixels + image->rowbytes * idx;
 
     memset(result, 0, MLCD_BYTES_LINE);

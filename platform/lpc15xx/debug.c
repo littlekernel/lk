@@ -39,8 +39,7 @@ static cbuf_t debug_rx_buf;
 /* this code is only set up to handle UART0 as the debug uart */
 STATIC_ASSERT(DEBUG_UART == LPC_USART0);
 
-void lpc_debug_early_init(void)
-{
+void lpc_debug_early_init(void) {
     /* Use main clock rate as base for UART baud rate divider */
     Chip_Clock_SetUARTBaseClockRate(Chip_Clock_GetMainClockRate(), false);
 
@@ -52,8 +51,7 @@ void lpc_debug_early_init(void)
     Chip_UART_TXEnable(DEBUG_UART);
 }
 
-void lpc_debug_init(void)
-{
+void lpc_debug_init(void) {
     cbuf_initialize(&debug_rx_buf, 16);
 
     /* enable uart interrupts */
@@ -62,8 +60,7 @@ void lpc_debug_init(void)
     NVIC_EnableIRQ(UART0_IRQn);
 }
 
-void lpc_UART0_irq(void)
-{
+void lpc_UART0_irq(void) {
     arm_cm_irq_entry();
 
     /* read the rx buffer until it's empty */
@@ -75,8 +72,7 @@ void lpc_UART0_irq(void)
     arm_cm_irq_exit(true);
 }
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     if (c == '\n') {
         platform_dputc('\r');
     }
@@ -84,8 +80,7 @@ void platform_dputc(char c)
     Chip_UART_SendBlocking(DEBUG_UART, &c, 1);
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
 #if 1
     return cbuf_read_char(&debug_rx_buf, c, wait);
 #else

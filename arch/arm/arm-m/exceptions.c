@@ -29,8 +29,7 @@
 #include <arch/arm/cm.h>
 #include <platform.h>
 
-static void dump_frame(const struct arm_cm_exception_frame *frame)
-{
+static void dump_frame(const struct arm_cm_exception_frame *frame) {
 
     printf("exception frame at %p\n", frame);
     printf("\tr0  0x%08x r1  0x%08x r2  0x%08x r3 0x%08x r4 0x%08x\n",
@@ -43,8 +42,7 @@ static void dump_frame(const struct arm_cm_exception_frame *frame)
            frame->lr, frame->pc, frame->psr);
 }
 
-void hardfault(struct arm_cm_exception_frame *frame)
-{
+void hardfault(struct arm_cm_exception_frame *frame) {
     printf("hardfault: ");
     dump_frame(frame);
 
@@ -55,8 +53,7 @@ void hardfault(struct arm_cm_exception_frame *frame)
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
-void memmanage(struct arm_cm_exception_frame *frame)
-{
+void memmanage(struct arm_cm_exception_frame *frame) {
     printf("memmanage: ");
     dump_frame(frame);
 
@@ -86,8 +83,7 @@ void memmanage(struct arm_cm_exception_frame *frame)
 }
 
 
-void usagefault(struct arm_cm_exception_frame *frame)
-{
+void usagefault(struct arm_cm_exception_frame *frame) {
     printf("usagefault: ");
     dump_frame(frame);
 
@@ -112,8 +108,7 @@ void usagefault(struct arm_cm_exception_frame *frame)
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
-void busfault(struct arm_cm_exception_frame *frame)
-{
+void busfault(struct arm_cm_exception_frame *frame) {
     printf("busfault: ");
     dump_frame(frame);
 
@@ -122,8 +117,7 @@ void busfault(struct arm_cm_exception_frame *frame)
 
 /* raw exception vectors */
 
-void _nmi(void)
-{
+void _nmi(void) {
     printf("nmi\n");
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
@@ -146,8 +140,7 @@ void _nmi(void)
         "push   {r4-r7};"
 #endif
 
-__NAKED void _hardfault(void)
-{
+__NAKED void _hardfault(void) {
     __asm__ volatile(
         PUSH_REGS
         "mov	r0, sp;"
@@ -156,8 +149,7 @@ __NAKED void _hardfault(void)
     __UNREACHABLE;
 }
 
-__NAKED void _memmanage(void)
-{
+__NAKED void _memmanage(void) {
     __asm__ volatile(
         PUSH_REGS
         "mov	r0, sp;"
@@ -166,8 +158,7 @@ __NAKED void _memmanage(void)
     __UNREACHABLE;
 }
 
-__NAKED void _busfault(void)
-{
+__NAKED void _busfault(void) {
     __asm__ volatile(
         PUSH_REGS
         "mov	r0, sp;"
@@ -176,8 +167,7 @@ __NAKED void _busfault(void)
     __UNREACHABLE;
 }
 
-__NAKED void _usagefault(void)
-{
+__NAKED void _usagefault(void) {
     __asm__ volatile(
         PUSH_REGS
         "mov	r0, sp;"
@@ -191,14 +181,12 @@ __NAKED void _usagefault(void)
 /* declared weak so these can be overridden elsewhere */
 
 /* systick handler */
-void __WEAK _systick(void)
-{
+void __WEAK _systick(void) {
     printf("systick\n");
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
-void __WEAK _debugmonitor(void)
-{
+void __WEAK _debugmonitor(void) {
     printf("debugmonitor\n");
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }

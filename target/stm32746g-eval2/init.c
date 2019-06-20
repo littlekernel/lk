@@ -51,8 +51,7 @@ const sdram_config_t target_sdram_config = {
     .col_bits_num = SDRAM_COLUMN_BITS_8
 };
 
-void target_early_init(void)
-{
+void target_early_init(void) {
 #if DEBUG_UART == 1
     /* configure usart 1 pins */
     gpio_config(GPIO_USART1_TX, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF7_USART1) | GPIO_PULLUP);
@@ -71,8 +70,7 @@ void target_early_init(void)
     BSP_LCD_Init();
 }
 
-void target_init(void)
-{
+void target_init(void) {
     TRACE_ENTRY;
     stm32_debug_init();
 
@@ -97,8 +95,7 @@ void target_init(void)
 }
 
 #if 0
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     switch (led) {
         case 0:
             gpio_set(GPIO_LED0, on);
@@ -122,8 +119,7 @@ void target_set_debug_led(unsigned int led, bool on)
   * @retval None
   */
 /* called back from the HAL_ETH_Init routine */
-void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
-{
+void HAL_ETH_MspInit(ETH_HandleTypeDef *heth) {
     GPIO_InitTypeDef GPIO_InitStructure;
 
     /* Enable GPIOs clocks */
@@ -235,8 +231,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
   * @retval None
   */
 /* called back from BSP_SDRAM_Init */
-void stm_sdram_GPIO_init(void)
-{
+void stm_sdram_GPIO_init(void) {
     GPIO_InitTypeDef gpio_init_structure;
 
     /* Enable GPIOs clock */
@@ -287,8 +282,7 @@ void stm_sdram_GPIO_init(void)
     HAL_GPIO_Init(GPIOI, &gpio_init_structure);
 }
 
-void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
-{
+void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
     /*##-1- Enable peripherals and GPIO Clocks #################################*/

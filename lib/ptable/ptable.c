@@ -61,13 +61,11 @@ static struct ptable_state {
 #define PTABLE_HEADER_NUM_ENTRIES(header) (((header).total_length - sizeof(struct ptable_header)) / sizeof(struct ptable_entry))
 #define BAIL(__err) do { err = __err; goto bailout; } while (0)
 
-static inline size_t ptable_length(size_t entry_cnt)
-{
+static inline size_t ptable_length(size_t entry_cnt) {
     return sizeof(struct ptable_header) + (sizeof(struct ptable_entry) * entry_cnt);
 }
 
-static status_t validate_entry(const struct ptable_entry *entry)
-{
+static status_t validate_entry(const struct ptable_entry *entry) {
     if (entry->offset > entry->offset + entry->length)
         return ERR_GENERIC;
     if (entry->offset + entry->length > (uint64_t)ptable.bdev->total_size)
@@ -84,8 +82,7 @@ static status_t validate_entry(const struct ptable_entry *entry)
     return NO_ERROR;
 }
 
-static status_t ptable_write(void)
-{
+static status_t ptable_write(void) {
     uint8_t *buf = NULL;
     bdev_t *bdev = NULL;
     ssize_t err = ERR_GENERIC;
@@ -174,16 +171,14 @@ bailout:
     return err;
 }
 
-static void ptable_init(uint level)
-{
+static void ptable_init(uint level) {
     memset(&ptable, 0, sizeof(ptable));
     list_initialize(&ptable.list);
 }
 
 LK_INIT_HOOK(ptable, &ptable_init, LK_INIT_LEVEL_THREADING);
 
-static void ptable_unpublish(struct ptable_mem_entry *mentry)
-{
+static void ptable_unpublish(struct ptable_mem_entry *mentry) {
     if (mentry) {
         bdev_t *bdev;
 
@@ -200,8 +195,7 @@ static void ptable_unpublish(struct ptable_mem_entry *mentry)
     }
 }
 
-static void ptable_reset(void)
-{
+static void ptable_reset(void) {
     /* walk through the partition list, clearing any entries */
     struct ptable_mem_entry *mentry;
     struct ptable_mem_entry *temp;
@@ -217,8 +211,7 @@ static void ptable_reset(void)
     ptable_init(LK_INIT_LEVEL_THREADING);
 }
 
-static void ptable_push_entry (struct ptable_mem_entry *mentry)
-{
+static void ptable_push_entry (struct ptable_mem_entry *mentry) {
     DEBUG_ASSERT (mentry);
 
     // iterator for the list
@@ -240,8 +233,7 @@ static void ptable_push_entry (struct ptable_mem_entry *mentry)
     list_add_tail(&ptable.list, &mentry->node);
 }
 
-static status_t ptable_publish(const struct ptable_entry *entry)
-{
+static status_t ptable_publish(const struct ptable_entry *entry) {
     status_t err;
     struct ptable_mem_entry *mentry = NULL;
 
@@ -318,8 +310,7 @@ bailout:
 static off_t ptable_adjust_request_for_erase_geometry(uint64_t  region_start,
         uint64_t  region_len,
         uint64_t *plength,
-        bool      alloc_end)
-{
+        bool      alloc_end) {
     DEBUG_ASSERT(plength && ptable.bdev);
 
     LTRACEF("[0x%llx, 0x%llx) len 0x%llx%s\n",
@@ -408,8 +399,7 @@ static off_t ptable_adjust_request_for_erase_geometry(uint64_t  region_start,
     return ERR_INVALID_ARGS;
 }
 
-static off_t ptable_allocate(uint64_t *plength, uint flags)
-{
+static off_t ptable_allocate(uint64_t *plength, uint flags) {
     DEBUG_ASSERT(plength);
 
     if (!ptable.bdev)
@@ -519,8 +509,7 @@ done:
     return offset;
 }
 
-static status_t ptable_allocate_at(off_t _offset, uint64_t *plength)
-{
+static status_t ptable_allocate_at(off_t _offset, uint64_t *plength) {
     if (!ptable.bdev)
         return ERR_BAD_STATE;
 
@@ -571,8 +560,7 @@ static status_t ptable_allocate_at(off_t _offset, uint64_t *plength)
     return NO_ERROR;
 }
 
-status_t ptable_scan(const char *bdev_name, uint64_t offset)
-{
+status_t ptable_scan(const char *bdev_name, uint64_t offset) {
     ssize_t err;
     DEBUG_ASSERT(bdev_name);
 
@@ -681,18 +669,15 @@ bailout:
     return (status_t)err;
 }
 
-bool ptable_found_valid(void)
-{
+bool ptable_found_valid(void) {
     return (NULL != ptable.bdev);
 }
 
-bdev_t *ptable_get_device(void)
-{
+bdev_t *ptable_get_device(void) {
     return ptable.bdev;
 }
 
-status_t ptable_find(const char *name, struct ptable_entry *_entry)
-{
+status_t ptable_find(const char *name, struct ptable_entry *_entry) {
     struct ptable_mem_entry *mentry;
     list_for_every_entry(&ptable.list, mentry, struct ptable_mem_entry, node) {
         const struct ptable_entry *entry = &mentry->entry;
@@ -709,8 +694,7 @@ status_t ptable_find(const char *name, struct ptable_entry *_entry)
     return ERR_NOT_FOUND;
 }
 
-status_t ptable_create_default(const char *bdev_name, uint64_t offset)
-{
+status_t ptable_create_default(const char *bdev_name, uint64_t offset) {
     DEBUG_ASSERT(bdev_name);
 
     /* Reset the system */
@@ -761,8 +745,7 @@ bailout:
     return err;
 }
 
-status_t ptable_remove(const char *name)
-{
+status_t ptable_remove(const char *name) {
     DEBUG_ASSERT(ptable.bdev);
 
     LTRACEF("name %s\n", name);
@@ -795,8 +778,7 @@ status_t ptable_remove(const char *name)
     return err;
 }
 
-status_t ptable_add(const char *name, uint64_t min_len, uint32_t flags)
-{
+status_t ptable_add(const char *name, uint64_t min_len, uint32_t flags) {
     LTRACEF("name %s min_len 0x%llx flags 0x%x\n", name, min_len, flags);
 
     if (!ptable_found_valid())
@@ -837,8 +819,7 @@ status_t ptable_add(const char *name, uint64_t min_len, uint32_t flags)
     return err;
 }
 
-void ptable_dump(void)
-{
+void ptable_dump(void) {
     int i = 0;
     struct ptable_mem_entry *mentry;
     list_for_every_entry(&ptable.list, mentry, struct ptable_mem_entry, node) {
@@ -854,8 +835,7 @@ void ptable_dump(void)
 
 #include <lib/console.h>
 
-static int cmd_ptable(int argc, const cmd_args *argv)
-{
+static int cmd_ptable(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

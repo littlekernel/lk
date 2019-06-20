@@ -35,8 +35,7 @@
 #include <platform/gpio.h>
 #include <target/gpioconfig.h>
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     /* configure the usart3 pins */
     GPIO_PinRemapConfig(GPIO_FullRemap_USART3, ENABLE);
 
@@ -53,8 +52,7 @@ void target_early_init(void)
     gpio_config(GPIO_LED1, GPIO_OUTPUT);
 }
 
-void target_init(void)
-{
+void target_init(void) {
     TRACE_ENTRY;
 
     stm32_debug_init();
@@ -62,8 +60,7 @@ void target_init(void)
     TRACE_EXIT;
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     switch (led) {
         case 0:
             gpio_set(GPIO_LED0, on);

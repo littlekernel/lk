@@ -36,8 +36,7 @@
 const size_t BUFSIZE = (1024*1024);
 const uint ITER = 1024;
 
-__NO_INLINE static void bench_set_overhead(void)
-{
+__NO_INLINE static void bench_set_overhead(void) {
     uint32_t *buf = malloc(BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
@@ -56,8 +55,7 @@ __NO_INLINE static void bench_set_overhead(void)
     free(buf);
 }
 
-__NO_INLINE static void bench_memset(void)
-{
+__NO_INLINE static void bench_memset(void) {
     void *buf = malloc(BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
@@ -104,8 +102,7 @@ bench_cset(uint16_t)
 bench_cset(uint32_t)
 bench_cset(uint64_t)
 
-__NO_INLINE static void bench_cset_wide(void)
-{
+__NO_INLINE static void bench_cset_wide(void) {
     uint32_t *buf = malloc(BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
@@ -133,8 +130,7 @@ __NO_INLINE static void bench_cset_wide(void)
     free(buf);
 }
 
-__NO_INLINE static void bench_memcpy(void)
-{
+__NO_INLINE static void bench_memcpy(void) {
     uint8_t *buf = malloc(BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
@@ -154,8 +150,7 @@ __NO_INLINE static void bench_memcpy(void)
 }
 
 #if ARCH_ARM
-__NO_INLINE static void arm_bench_cset_stm(void)
-{
+__NO_INLINE static void arm_bench_cset_stm(void) {
     uint32_t *buf = malloc(BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
@@ -180,8 +175,7 @@ __NO_INLINE static void arm_bench_cset_stm(void)
 }
 
 #if       (__CORTEX_M >= 0x03)
-__NO_INLINE static void arm_bench_multi_issue(void)
-{
+__NO_INLINE static void arm_bench_multi_issue(void) {
     uint32_t cycles;
     uint32_t a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0, h = 0;
 #define ITER 1000000
@@ -209,8 +203,7 @@ __NO_INLINE static void arm_bench_multi_issue(void)
 #if WITH_LIB_LIBM
 #include <math.h>
 
-__NO_INLINE static void bench_sincos(void)
-{
+__NO_INLINE static void bench_sincos(void) {
     printf("touching the floating point unit\n");
     __UNUSED volatile double _hole = sin(0);
 
@@ -247,8 +240,7 @@ __NO_INLINE static void bench_sincos(void)
 
 #endif // WITH_LIB_LIBM
 
-int benchmarks(int argc, const cmd_args *argv)
-{
+int benchmarks(int argc, const cmd_args *argv) {
     bench_set_overhead();
     bench_memset();
     bench_memcpy();

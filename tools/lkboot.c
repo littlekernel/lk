@@ -31,8 +31,7 @@
 
 #include "liblkboot.h"
 
-void usage(void)
-{
+void usage(void) {
     fprintf(stderr,
             "usage: lkboot <hostname> <command> ...\n"
             "\n"
@@ -53,8 +52,7 @@ void usage(void)
     exit(1);
 }
 
-void printsysparam(void *data, int len)
-{
+void printsysparam(void *data, int len) {
     unsigned char *x = data;
     int i;
     for (i = 0; i < len; i++) {
@@ -70,8 +68,7 @@ printhex:
     fprintf(stderr, " ]\n");
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     const char *host = argv[1];
     const char *cmd = argv[2];
     const char *args = argv[3];

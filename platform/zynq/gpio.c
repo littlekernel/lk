@@ -41,8 +41,7 @@ struct {
     void *args;
 } irq_callbacks[MAX_GPIO];
 
-static enum handler_return gpio_int_handler(void *arg)
-{
+static enum handler_return gpio_int_handler(void *arg) {
 
     /* The mask register uses 1 to respresent masked, 0 for unmasked. Comparing that
      * register with the interrupt status register is the only way to determine
@@ -75,8 +74,7 @@ static enum handler_return gpio_int_handler(void *arg)
     return 0;
 }
 
-void zynq_unmask_gpio_interrupt(unsigned gpio)
-{
+void zynq_unmask_gpio_interrupt(unsigned gpio) {
     uint16_t bank = extract_bank(gpio);
     uint16_t bit  = extract_bit(gpio);
 
@@ -84,8 +82,7 @@ void zynq_unmask_gpio_interrupt(unsigned gpio)
     RMWREG32(GPIO_INT_STAT(bank), bit, 1, 1);
 }
 
-void zynq_mask_gpio_interrupt(unsigned gpio)
-{
+void zynq_mask_gpio_interrupt(unsigned gpio) {
     uint16_t bank = extract_bank(gpio);
     uint16_t bit  = extract_bit(gpio);
 
@@ -93,8 +90,7 @@ void zynq_mask_gpio_interrupt(unsigned gpio)
 }
 
 
-void zynq_gpio_init(void)
-{
+void zynq_gpio_init(void) {
     register_int_handler(GPIO_INT, gpio_int_handler, NULL);
     unmask_interrupt(GPIO_INT);
 
@@ -142,12 +138,10 @@ void zynq_gpio_init(void)
     }
 }
 
-void zynq_gpio_early_init(void)
-{
+void zynq_gpio_early_init(void) {
 }
 
-void register_gpio_int_handler(unsigned gpio, int_handler handler, void *args)
-{
+void register_gpio_int_handler(unsigned gpio, int_handler handler, void *args) {
     DEBUG_ASSERT(gpio < MAX_GPIO);
     DEBUG_ASSERT(handler);
 
@@ -155,16 +149,14 @@ void register_gpio_int_handler(unsigned gpio, int_handler handler, void *args)
     irq_callbacks[gpio].args = args;
 }
 
-void unregister_gpio_int_handler(unsigned gpio)
-{
+void unregister_gpio_int_handler(unsigned gpio) {
     DEBUG_ASSERT(gpio < MAX_GPIO);
 
     irq_callbacks[gpio].callback = NULL;
     irq_callbacks[gpio].args = NULL;
 }
 
-int gpio_config(unsigned gpio, unsigned flags)
-{
+int gpio_config(unsigned gpio, unsigned flags) {
     DEBUG_ASSERT(gpio < MAX_GPIO);
 
     uint16_t bank = extract_bank(gpio);
@@ -229,8 +221,7 @@ int gpio_config(unsigned gpio, unsigned flags)
     return 0;
 }
 
-void gpio_set(unsigned gpio, unsigned on)
-{
+void gpio_set(unsigned gpio, unsigned on) {
     DEBUG_ASSERT(gpio < MAX_GPIO);
 
     uint16_t bank = extract_bank(gpio);
@@ -247,8 +238,7 @@ void gpio_set(unsigned gpio, unsigned on)
     *REG32(reg) = (~(1 << bit) << 16) | (!!on << bit);
 }
 
-int gpio_get(unsigned gpio)
-{
+int gpio_get(unsigned gpio) {
     DEBUG_ASSERT(gpio < MAX_GPIO);
 
     uint16_t bank = extract_bank(gpio);
@@ -259,8 +249,7 @@ int gpio_get(unsigned gpio)
 
 #include <lib/console.h>
 #ifdef WITH_LIB_CONSOLE
-static int cmd_zynq_gpio(int argc, const cmd_args *argv)
-{
+static int cmd_zynq_gpio(int argc, const cmd_args *argv) {
     for (unsigned int bank = 0; bank < 4; bank++) {
         printf("DIRM_%u (0x%08x):           0x%08x\n", bank, GPIO_DIRM(bank), *REG32(GPIO_DIRM(bank)));
         printf("OEN_%u (0x%08x):            0x%08x\n", bank, GPIO_OEN(bank), *REG32(GPIO_OEN(bank)));

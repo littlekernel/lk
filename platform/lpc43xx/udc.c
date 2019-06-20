@@ -103,8 +103,7 @@ struct udc_endpoint {
 #endif
 
 static udc_endpoint_t *_udc_endpoint_alloc(usb_t *usb,
-        unsigned num, unsigned in, unsigned max_pkt)
-{
+        unsigned num, unsigned in, unsigned max_pkt) {
     udc_endpoint_t *ept;
     unsigned cfg;
 
@@ -138,8 +137,7 @@ static udc_endpoint_t *_udc_endpoint_alloc(usb_t *usb,
     return ept;
 }
 
-udc_endpoint_t *udc_endpoint_alloc(unsigned type, unsigned maxpkt)
-{
+udc_endpoint_t *udc_endpoint_alloc(unsigned type, unsigned maxpkt) {
     udc_endpoint_t *ept;
     unsigned n;
     unsigned in = !!(type & 0x80);
@@ -161,15 +159,13 @@ udc_endpoint_t *udc_endpoint_alloc(unsigned type, unsigned maxpkt)
     return 0;
 }
 
-void udc_endpoint_free(struct udc_endpoint *ept)
-{
+void udc_endpoint_free(struct udc_endpoint *ept) {
     // todo
 }
 
 static void handle_ept_complete(struct udc_endpoint *ept);
 
-static void endpoint_flush(usb_t *usb, udc_endpoint_t *ept)
-{
+static void endpoint_flush(usb_t *usb, udc_endpoint_t *ept) {
     if (ept->req) {
         // flush outstanding transfers
         writel(ept->bit, usb->base + USB_ENDPTFLUSH);
@@ -180,15 +176,13 @@ static void endpoint_flush(usb_t *usb, udc_endpoint_t *ept)
     }
 }
 
-static void endpoint_reset(usb_t *usb, udc_endpoint_t *ept)
-{
+static void endpoint_reset(usb_t *usb, udc_endpoint_t *ept) {
     unsigned n = readl(usb->base + USB_ENDPTCTRL(ept->num));
     n |= ept->in ? EPCTRL_TXR : EPCTRL_RXR;
     writel(n, usb->base + USB_ENDPTCTRL(ept->num));
 }
 
-static void endpoint_enable(usb_t *usb, udc_endpoint_t *ept, unsigned yes)
-{
+static void endpoint_enable(usb_t *usb, udc_endpoint_t *ept, unsigned yes) {
     unsigned n = readl(usb->base + USB_ENDPTCTRL(ept->num));
 
     if (yes) {
@@ -212,8 +206,7 @@ static void endpoint_enable(usb_t *usb, udc_endpoint_t *ept, unsigned yes)
 
 // ---- request management
 
-udc_request_t *udc_request_alloc(void)
-{
+udc_request_t *udc_request_alloc(void) {
     spin_lock_saved_state_t state;
     usb_request_t *req;
     if ((req = malloc(sizeof(*req))) == NULL) {
@@ -236,14 +229,12 @@ udc_request_t *udc_request_alloc(void)
     }
 }
 
-void udc_request_free(struct udc_request *req)
-{
+void udc_request_free(struct udc_request *req) {
     // todo: check if active?
     free(req);
 }
 
-int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req)
-{
+int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req) {
     spin_lock_saved_state_t state;
     usb_request_t *req = (usb_request_t *) _req;
     usb_dtd_t *dtd = req->dtd;
@@ -281,8 +272,7 @@ int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req)
     return ret;
 }
 
-static void handle_ept_complete(struct udc_endpoint *ept)
-{
+static void handle_ept_complete(struct udc_endpoint *ept) {
     usb_request_t *req;
     usb_dtd_t *dtd;
     unsigned actual;
@@ -319,15 +309,13 @@ static void handle_ept_complete(struct udc_endpoint *ept)
     }
 }
 
-static void setup_ack(usb_t *usb)
-{
+static void setup_ack(usb_t *usb) {
     usb->ep0req->complete = 0;
     usb->ep0req->length = 0;
     udc_request_queue(usb->ep0in, usb->ep0req);
 }
 
-static void ep0in_complete(struct udc_request *req, unsigned actual, int status)
-{
+static void ep0in_complete(struct udc_request *req, unsigned actual, int status) {
     usb_t *usb = (usb_t *) req->context;
     DBG("ep0in_complete %p %d %d\n", req, actual, status);
     if (status == 0) {
@@ -337,8 +325,7 @@ static void ep0in_complete(struct udc_request *req, unsigned actual, int status)
     }
 }
 
-static void setup_tx(usb_t *usb, void *buf, unsigned len)
-{
+static void setup_tx(usb_t *usb, void *buf, unsigned len) {
     DBG("setup_tx %p %d\n", buf, len);
     usb->ep0req->buffer = buf;
     usb->ep0req->complete = ep0in_complete;
@@ -346,8 +333,7 @@ static void setup_tx(usb_t *usb, void *buf, unsigned len)
     udc_request_queue(usb->ep0in, usb->ep0req);
 }
 
-static void notify_gadgets(udc_gadget_t *gadget, unsigned event)
-{
+static void notify_gadgets(udc_gadget_t *gadget, unsigned event) {
     while (gadget) {
         if (gadget->notify) {
             gadget->notify(gadget, event);
@@ -358,8 +344,7 @@ static void notify_gadgets(udc_gadget_t *gadget, unsigned event)
 
 #define SETUP(type,request) (((type) << 8) | (request))
 
-static void handle_setup(usb_t *usb)
-{
+static void handle_setup(usb_t *usb) {
     union setup_packet s;
 
     // setup procedure, per databook
@@ -465,8 +450,7 @@ stall:
     writel(EPCTRL_RXS | EPCTRL_TXS, usb->base + USB_ENDPTCTRL(0));
 }
 
-int lpc43xx_usb_init(u32 dmabase, size_t dmasize)
-{
+int lpc43xx_usb_init(u32 dmabase, size_t dmasize) {
     usb_t *usb = &USB;
     printf("usb_init()\n");
     if ((dmabase & 0x7FF) || (dmasize < 1024)) {
@@ -503,8 +487,7 @@ int lpc43xx_usb_init(u32 dmabase, size_t dmasize)
     return 0;
 }
 
-static void usb_enable(usb_t *usb, int yes)
-{
+static void usb_enable(usb_t *usb, int yes) {
     if (yes) {
         writel(INTR_UE | INTR_UEE | INTR_PCE | INTR_SEE | INTR_URE,
                usb->base + USB_INTR);
@@ -518,8 +501,7 @@ static void usb_enable(usb_t *usb, int yes)
 }
 
 
-void lpc43xx_USB0_IRQ(void)
-{
+void lpc43xx_USB0_IRQ(void) {
     udc_endpoint_t *ept;
     usb_t *usb = &USB;
     int ret = 0;
@@ -582,8 +564,7 @@ void lpc43xx_USB0_IRQ(void)
 
 // ---- UDC API
 
-int udc_init(struct udc_device *dev)
-{
+int udc_init(struct udc_device *dev) {
     USB.device = dev;
     USB.ep0out = _udc_endpoint_alloc(&USB, 0, 0, 64);
     USB.ep0in = _udc_endpoint_alloc(&USB, 0, 1, 64);
@@ -593,8 +574,7 @@ int udc_init(struct udc_device *dev)
     return 0;
 }
 
-int udc_register_gadget(udc_gadget_t *gadget)
-{
+int udc_register_gadget(udc_gadget_t *gadget) {
     if (USB.gadget) {
         udc_gadget_t *last = USB.gadget;
         while (last->next) {
@@ -608,8 +588,7 @@ int udc_register_gadget(udc_gadget_t *gadget)
     return 0;
 }
 
-void udc_ept_desc_fill(udc_endpoint_t *ept, unsigned char *data)
-{
+void udc_ept_desc_fill(udc_endpoint_t *ept, unsigned char *data) {
     data[0] = 7;
     data[1] = TYPE_ENDPOINT;
     data[2] = ept->num | (ept->in ? 0x80 : 0x00);
@@ -619,8 +598,7 @@ void udc_ept_desc_fill(udc_endpoint_t *ept, unsigned char *data)
     data[6] = ept->in ? 0x00 : 0x01;
 }
 
-int udc_start(void)
-{
+int udc_start(void) {
     usb_t *usb = &USB;
 
     dprintf(INFO, "udc_start()\n");
@@ -639,8 +617,7 @@ int udc_start(void)
     return 0;
 }
 
-int udc_stop(void)
-{
+int udc_stop(void) {
     usb_enable(&USB, 0);
     thread_sleep(10);
     return 0;

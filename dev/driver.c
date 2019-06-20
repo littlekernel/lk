@@ -30,8 +30,7 @@
 extern struct device __devices[];
 extern struct device __devices_end[];
 
-status_t device_init_all(void)
-{
+status_t device_init_all(void) {
     status_t res = NO_ERROR;
 
     struct device *dev = __devices;
@@ -53,8 +52,7 @@ status_t device_init_all(void)
     return res;
 }
 
-status_t device_fini_all(void)
-{
+status_t device_fini_all(void) {
     status_t res = NO_ERROR;
 
     struct device *dev = __devices;
@@ -74,8 +72,7 @@ status_t device_fini_all(void)
     return res;
 }
 
-status_t device_init(struct device *dev)
-{
+status_t device_init(struct device *dev) {
     if (!dev)
         return ERR_INVALID_ARGS;
 
@@ -97,8 +94,7 @@ status_t device_init(struct device *dev)
     }
 }
 
-status_t device_fini(struct device *dev)
-{
+status_t device_fini(struct device *dev) {
     if (!dev)
         return ERR_INVALID_ARGS;
 
@@ -112,8 +108,7 @@ status_t device_fini(struct device *dev)
         return ERR_NOT_SUPPORTED;
 }
 
-status_t device_suspend(struct device *dev)
-{
+status_t device_suspend(struct device *dev) {
     if (!dev)
         return ERR_NOT_SUPPORTED;
 
@@ -127,8 +122,7 @@ status_t device_suspend(struct device *dev)
         return ERR_NOT_SUPPORTED;
 }
 
-status_t device_resume(struct device *dev)
-{
+status_t device_resume(struct device *dev) {
     if (!dev)
         return ERR_NOT_SUPPORTED;
 

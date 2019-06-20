@@ -33,8 +33,7 @@
 
 /* cache flushing routines for cortex-m cores that support it */
 
-void arch_disable_cache(uint flags)
-{
+void arch_disable_cache(uint flags) {
     if (flags & DCACHE)
         SCB_DisableDCache();
 
@@ -42,8 +41,7 @@ void arch_disable_cache(uint flags)
         SCB_DisableICache();
 }
 
-void arch_enable_cache(uint flags)
-{
+void arch_enable_cache(uint flags) {
     if (flags & DCACHE)
         SCB_EnableDCache();
 
@@ -52,8 +50,7 @@ void arch_enable_cache(uint flags)
 }
 
 /* clean (writeback) data in the data cache on the range */
-void arch_clean_cache_range(addr_t start, size_t len)
-{
+void arch_clean_cache_range(addr_t start, size_t len) {
     addr_t end = start + len;
 
     /* align the start address on CACHE_LINE boundary */
@@ -63,8 +60,7 @@ void arch_clean_cache_range(addr_t start, size_t len)
 }
 
 /* clean (writeback) and then evict data from the data cache on the range */
-void arch_clean_invalidate_cache_range(addr_t start, size_t len)
-{
+void arch_clean_invalidate_cache_range(addr_t start, size_t len) {
     addr_t end = start + len;
 
     /* align the start address on CACHE_LINE boundary */
@@ -74,8 +70,7 @@ void arch_clean_invalidate_cache_range(addr_t start, size_t len)
 }
 
 /* evict data from the data cache on the range */
-void arch_invalidate_cache_range(addr_t start, size_t len)
-{
+void arch_invalidate_cache_range(addr_t start, size_t len) {
     addr_t end = start + len;
 
     /* align the start address on CACHE_LINE boundary */
@@ -88,8 +83,7 @@ void arch_invalidate_cache_range(addr_t start, size_t len)
  * clean (writeback) data on the range and then throw away the instruction cache,
  * ensuring that new instructions fetched from the range are not stale.
  */
-void arch_sync_cache_range(addr_t start, size_t len)
-{
+void arch_sync_cache_range(addr_t start, size_t len) {
     /* flush the dcache and invalidate the icache, ensuring fresh instructions */
     arch_clean_cache_range(start, len);
     SCB_InvalidateICache();
@@ -99,35 +93,29 @@ void arch_sync_cache_range(addr_t start, size_t len)
 
 /* doesn't support cache flush, just nop */
 
-void arch_disable_cache(uint flags)
-{
+void arch_disable_cache(uint flags) {
 }
 
-void arch_enable_cache(uint flags)
-{
+void arch_enable_cache(uint flags) {
 }
 
 /* clean (writeback) data in the data cache on the range */
-void arch_clean_cache_range(addr_t start, size_t len)
-{
+void arch_clean_cache_range(addr_t start, size_t len) {
 }
 
 /* clean (writeback) and then evict data from the data cache on the range */
-void arch_clean_invalidate_cache_range(addr_t start, size_t len)
-{
+void arch_clean_invalidate_cache_range(addr_t start, size_t len) {
 }
 
 /* evict data from the data cache on the range */
-void arch_invalidate_cache_range(addr_t start, size_t len)
-{
+void arch_invalidate_cache_range(addr_t start, size_t len) {
 }
 
 /*
  * clean (writeback) data on the range and then throw away the instruction cache,
  * ensuring that new instructions fetched from the range are not stale.
  */
-void arch_sync_cache_range(addr_t start, size_t len)
-{
+void arch_sync_cache_range(addr_t start, size_t len) {
 }
 
 #endif // !ARM_WITH_CACHE

@@ -60,8 +60,7 @@ extern const zynq_pll_cfg_tree_t zynq_pll_cfg;
 extern const zynq_clk_cfg_t zynq_clk_cfg;
 extern const zynq_ddriob_cfg_t zynq_ddriob_cfg;
 
-static inline int reg_poll(uint32_t addr,uint32_t mask)
-{
+static inline int reg_poll(uint32_t addr,uint32_t mask) {
     uint32_t iters = UINT_MAX;
     while (iters-- && !(*REG32(addr) & mask)) ;
 
@@ -76,8 +75,7 @@ static inline int reg_poll(uint32_t addr,uint32_t mask)
  * before doing a reset to switch to the new values. Then bypass is removed to switch back to using
  * the PLL once its locked.
  */
-int zynq_pll_init(void)
-{
+int zynq_pll_init(void) {
     const zynq_pll_cfg_tree_t *cfg = &zynq_pll_cfg;
 
     SLCR_REG(ARM_PLL_CFG)  = PLL_CFG_LOCK_CNT(cfg->arm.lock_cnt) | PLL_CFG_PLL_CP(cfg->arm.cp) |
@@ -122,8 +120,7 @@ int zynq_pll_init(void)
     return 0;
 }
 
-int zynq_mio_init(void)
-{
+int zynq_mio_init(void) {
 
     /* This DDRIOB configuration applies to both zybo and uzed, but it's possible
      * it may not work for all boards in the future. Just something to keep in mind
@@ -142,8 +139,7 @@ int zynq_mio_init(void)
     return 0;
 }
 
-void zynq_clk_init(void)
-{
+void zynq_clk_init(void) {
     SLCR_REG(DCI_CLK_CTRL)   = zynq_clk_cfg.dci_clk;
     SLCR_REG(GEM0_CLK_CTRL)  = zynq_clk_cfg.gem0_clk;
     SLCR_REG(GEM0_RCLK_CTRL) = zynq_clk_cfg.gem0_rclk;
@@ -168,8 +164,7 @@ void zynq_clk_init(void)
 }
 
 #if ZYNQ_SDRAM_INIT
-void zynq_ddr_init(void)
-{
+void zynq_ddr_init(void) {
     SLCR_REG(DDRIOB_ADDR0) = zynq_ddriob_cfg.addr0;
     SLCR_REG(DDRIOB_ADDR1) = zynq_ddriob_cfg.addr1;
     SLCR_REG(DDRIOB_DATA0) = zynq_ddriob_cfg.data0;
@@ -332,12 +327,10 @@ static pmm_arena_t sram_arena = {
     .flags = PMM_ARENA_FLAG_KMAP
 };
 
-void platform_init_mmu_mappings(void)
-{
+void platform_init_mmu_mappings(void) {
 }
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
 #if 0
     ps7_init();
 #else
@@ -434,8 +427,7 @@ void platform_early_init(void)
     pmm_add_arena(&sram_arena);
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     uart_init();
 
     /* enable if we want to see some hardware boot status */
@@ -454,8 +446,7 @@ void platform_init(void)
 #endif
 }
 
-void platform_quiesce(void)
-{
+void platform_quiesce(void) {
 #if ZYNQ_WITH_GEM_ETH
     gem_disable();
 #endif
@@ -470,8 +461,7 @@ void platform_quiesce(void)
  * having the BOOT_MODE pins set to JTAG should cause us to hang out in
  * whatever binary is loaded at the time.
  */
-bool platform_abort_autoboot(void)
-{
+bool platform_abort_autoboot(void) {
     /* test BOOT_MODE pins to see if we want to skip the autoboot stuff */
     uint32_t boot_mode = zynq_get_boot_mode();
     if (boot_mode == ZYNQ_BOOT_MODE_JTAG) {
@@ -483,8 +473,7 @@ bool platform_abort_autoboot(void)
 }
 
 #if WITH_LIB_CONSOLE
-static int cmd_zynq(int argc, const cmd_args *argv)
-{
+static int cmd_zynq(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

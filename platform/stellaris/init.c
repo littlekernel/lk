@@ -41,8 +41,7 @@ void stellaris_gpio_init(void);
 void stellaris_usbc_early_init(void);
 void stellaris_usbc_init(void);
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     //
     // Enable lazy stacking for interrupt handlers.  This allows floating-point
     // instructions to be used within interrupt handlers, but at the expense of
@@ -75,8 +74,7 @@ void platform_early_init(void)
     stellaris_usbc_early_init();
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     stellaris_gpio_init();
     stellaris_debug_init();
     stellaris_usbc_init();

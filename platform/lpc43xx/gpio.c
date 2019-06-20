@@ -24,8 +24,7 @@
 #include <lk/reg.h>
 #include <platform/lpc43xx-gpio.h>
 
-inline int gpio_config(unsigned nr, unsigned flags)
-{
+inline int gpio_config(unsigned nr, unsigned flags) {
     unsigned m = _GPIOm(nr);
     unsigned n = _GPIOn(nr);
     if (flags & GPIO_INPUT) {
@@ -36,12 +35,10 @@ inline int gpio_config(unsigned nr, unsigned flags)
     return 0;
 }
 
-inline void gpio_set(unsigned nr, unsigned on)
-{
+inline void gpio_set(unsigned nr, unsigned on) {
     writel(on, GPIO_WORD(nr));
 }
 
-inline int gpio_get(unsigned nr)
-{
+inline int gpio_get(unsigned nr) {
     return readl(GPIO_WORD(nr)) & 1;
 }

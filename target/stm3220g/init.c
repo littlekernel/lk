@@ -35,8 +35,7 @@
 #include <platform/gpio.h>
 #include <target/gpioconfig.h>
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     /* configure the usart3 pins */
     gpio_config(GPIO_USART3_TX, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF_USART3) | GPIO_PULLUP);
     gpio_config(GPIO_USART3_RX, GPIO_STM32_AF | GPIO_STM32_AFn(GPIO_AF_USART3) | GPIO_PULLUP);
@@ -52,8 +51,7 @@ void target_early_init(void)
     stm3220g_set_led_bits(1);
 }
 
-void target_init(void)
-{
+void target_init(void) {
     TRACE_ENTRY;
 
     stm32_debug_init();
@@ -61,8 +59,7 @@ void target_init(void)
     TRACE_EXIT;
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     switch (led) {
         case 0:
             gpio_set(GPIO_LED0, on);
@@ -79,8 +76,7 @@ void target_set_debug_led(unsigned int led, bool on)
     }
 }
 
-void stm3220g_set_led_bits(unsigned int nr)
-{
+void stm3220g_set_led_bits(unsigned int nr) {
     gpio_set(GPIO_LED0, nr & 1);
     gpio_set(GPIO_LED1, nr & 2);
     gpio_set(GPIO_LED2, nr & 4);

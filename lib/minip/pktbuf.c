@@ -48,8 +48,7 @@ static spin_lock_t lock;
 
 
 /* Take an object from the pool of pktbuf objects to act as a header or buffer.  */
-static void *get_pool_object(void)
-{
+static void *get_pool_object(void) {
     pool_t *entry;
     spin_lock_saved_state_t state;
 
@@ -63,8 +62,7 @@ static void *get_pool_object(void)
 }
 
 /* Return an object to thje pktbuf object pool. */
-static void free_pool_object(pktbuf_pool_object_t *entry, bool reschedule)
-{
+static void free_pool_object(pktbuf_pool_object_t *entry, bool reschedule) {
     DEBUG_ASSERT(entry);
     spin_lock_saved_state_t state;
 
@@ -77,8 +75,7 @@ static void free_pool_object(pktbuf_pool_object_t *entry, bool reschedule)
 /* Callback used internally to place a pktbuf_pool_object back in the pool after
  * it was used as a buffer for another pktbuf
  */
-static void free_pktbuf_buf_cb(void *buf, void *arg)
-{
+static void free_pktbuf_buf_cb(void *buf, void *arg) {
     free_pool_object((pktbuf_pool_object_t *)buf, true);
 }
 
@@ -91,8 +88,7 @@ static void free_pktbuf_buf_cb(void *buf, void *arg)
  * descriptors.
  */
 void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz, uint32_t flags,
-                       pktbuf_free_callback cb, void *cb_args)
-{
+                       pktbuf_free_callback cb, void *cb_args) {
     DEBUG_ASSERT(p);
     DEBUG_ASSERT(buf);
     DEBUG_ASSERT(header_sz < len);
@@ -116,8 +112,7 @@ void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz, uint32
 #endif
 }
 
-pktbuf_t *pktbuf_alloc(void)
-{
+pktbuf_t *pktbuf_alloc(void) {
     pktbuf_t *p = NULL;
     void *buf = NULL;
 
@@ -137,16 +132,14 @@ pktbuf_t *pktbuf_alloc(void)
     return p;
 }
 
-pktbuf_t *pktbuf_alloc_empty(void)
-{
+pktbuf_t *pktbuf_alloc_empty(void) {
     pktbuf_t *p = (pktbuf_t *) get_pool_object();
 
     p->flags = PKTBUF_FLAG_EOF;
     return p;
 }
 
-int pktbuf_free(pktbuf_t *p, bool reschedule)
-{
+int pktbuf_free(pktbuf_t *p, bool reschedule) {
     DEBUG_ASSERT(p);
 
     if (p->cb) {
@@ -157,8 +150,7 @@ int pktbuf_free(pktbuf_t *p, bool reschedule)
     return 1;
 }
 
-void pktbuf_append_data(pktbuf_t *p, const void *data, size_t sz)
-{
+void pktbuf_append_data(pktbuf_t *p, const void *data, size_t sz) {
     if (pktbuf_avail_tail(p) < sz) {
         panic("pktbuf_append_data: overflow");
     }
@@ -167,8 +159,7 @@ void pktbuf_append_data(pktbuf_t *p, const void *data, size_t sz)
     p->dlen += sz;
 }
 
-void *pktbuf_append(pktbuf_t *p, size_t sz)
-{
+void *pktbuf_append(pktbuf_t *p, size_t sz) {
     if (pktbuf_avail_tail(p) < sz) {
         panic("pktbuf_append: overflow");
     }
@@ -179,8 +170,7 @@ void *pktbuf_append(pktbuf_t *p, size_t sz)
     return data;
 }
 
-void *pktbuf_prepend(pktbuf_t *p, size_t sz)
-{
+void *pktbuf_prepend(pktbuf_t *p, size_t sz) {
     if (pktbuf_avail_head(p) < sz) {
         panic("pktbuf_prepend: not enough space");
     }
@@ -191,8 +181,7 @@ void *pktbuf_prepend(pktbuf_t *p, size_t sz)
     return p->data;
 }
 
-void *pktbuf_consume(pktbuf_t *p, size_t sz)
-{
+void *pktbuf_consume(pktbuf_t *p, size_t sz) {
     void *data = p->data;
 
     if (sz > p->dlen) {
@@ -205,8 +194,7 @@ void *pktbuf_consume(pktbuf_t *p, size_t sz)
     return data;
 }
 
-void pktbuf_consume_tail(pktbuf_t *p, size_t sz)
-{
+void pktbuf_consume_tail(pktbuf_t *p, size_t sz) {
     if (sz > p->dlen) {
         p->dlen = 0;
         return;
@@ -215,15 +203,13 @@ void pktbuf_consume_tail(pktbuf_t *p, size_t sz)
     p->dlen -= sz;
 }
 
-void pktbuf_dump(pktbuf_t *p)
-{
+void pktbuf_dump(pktbuf_t *p) {
     printf("pktbuf data %p, buffer %p, dlen %u, data offset %lu, phys_base %p\n",
            p->data, p->buffer, p->dlen, (uintptr_t) p->data - (uintptr_t) p->buffer,
            (void *)p->phys_base);
 }
 
-static void pktbuf_init(uint level)
-{
+static void pktbuf_init(uint level) {
     void *slab;
 
 #if LK_DEBUGLEVEL > 0

@@ -54,8 +54,7 @@ static __inline void     swapfunc(char *, char *, int, int);
     es % sizeof(long) ? 2 : es == sizeof(long)? 0 : 1;
 
 static __inline void
-swapfunc(char *a, char *b, int n, int swaptype)
-{
+swapfunc(char *a, char *b, int n, int swaptype) {
     if (swaptype <= 1)
         swapcode(long, a, b, n)
         else
@@ -73,16 +72,14 @@ swapfunc(char *a, char *b, int n, int swaptype)
 #define vecswap(a, b, n)    if ((n) > 0) swapfunc(a, b, n, swaptype)
 
 static __inline char *
-med3(char *a, char *b, char *c, int (*cmp)(const void *, const void *))
-{
+med3(char *a, char *b, char *c, int (*cmp)(const void *, const void *)) {
     return cmp(a, b) < 0 ?
            (cmp(b, c) < 0 ? b : (cmp(a, c) < 0 ? c : a ))
-               :(cmp(b, c) > 0 ? b : (cmp(a, c) < 0 ? a : c ));
+           :(cmp(b, c) > 0 ? b : (cmp(a, c) < 0 ? a : c ));
 }
 
 void
-qsort(void *aa, size_t n, size_t es, int (*cmp)(const void *, const void *))
-{
+qsort(void *aa, size_t n, size_t es, int (*cmp)(const void *, const void *)) {
     char *pa, *pb, *pc, *pd, *pl, *pm, *pn;
     int d, r, swaptype, swap_cnt;
     char *a = aa;

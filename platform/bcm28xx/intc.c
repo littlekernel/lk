@@ -97,8 +97,7 @@ static struct int_handler_struct int_handler_table[MAX_INT];
 
 static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
-status_t mask_interrupt(unsigned int vector)
-{
+status_t mask_interrupt(unsigned int vector) {
     LTRACEF("vector %u\n", vector);
 
     spin_lock_saved_state_t state;
@@ -130,8 +129,7 @@ status_t mask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-status_t unmask_interrupt(unsigned int vector)
-{
+status_t unmask_interrupt(unsigned int vector) {
     LTRACEF("vector %u\n", vector);
 
     spin_lock_saved_state_t state;
@@ -163,8 +161,7 @@ status_t unmask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-void register_int_handler(unsigned int vector, int_handler handler, void *arg)
-{
+void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     if (vector >= MAX_INT)
         panic("register_int_handler: vector out of range %d\n", vector);
 
@@ -177,8 +174,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
     spin_unlock_irqrestore(&lock, state);
 }
 
-enum handler_return platform_irq(arm_platform_iframe_t *frame)
-{
+enum handler_return platform_irq(arm_platform_iframe_t *frame) {
     uint vector;
     uint cpu = arch_curr_cpu_num();
 
@@ -262,13 +258,11 @@ decoded:
     return ret;
 }
 
-enum handler_return platform_fiq(arm_platform_iframe_t *frame)
-{
+enum handler_return platform_fiq(arm_platform_iframe_t *frame) {
     PANIC_UNIMPLEMENTED;
 }
 
-void bcm28xx_send_ipi(uint irq, uint cpu_mask)
-{
+void bcm28xx_send_ipi(uint irq, uint cpu_mask) {
     LTRACEF("irq %u, cpu_mask 0x%x\n", irq, cpu_mask);
 
     for (uint i = 0; i < 4; i++) {
@@ -279,8 +273,7 @@ void bcm28xx_send_ipi(uint irq, uint cpu_mask)
     }
 }
 
-void intc_init(void)
-{
+void intc_init(void) {
     // mask everything
     *REG32(INTC_DISABLE1) = 0xffffffff;
     *REG32(INTC_DISABLE2) = 0xffffffff;

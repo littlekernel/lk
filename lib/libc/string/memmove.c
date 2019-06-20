@@ -35,8 +35,7 @@ typedef long word;
 #define lmask (lsize - 1)
 
 void *
-memmove(void *dest, void const *src, size_t count)
-{
+memmove(void *dest, void const *src, size_t count) {
     char *d = (char *)dest;
     const char *s = (const char *)src;
     int len;

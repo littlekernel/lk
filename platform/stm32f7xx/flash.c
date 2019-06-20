@@ -60,14 +60,12 @@ static ssize_t stm32_flash_bdev_write_block(struct bdev *, const void *buf, bnum
 static ssize_t stm32_flash_bdev_erase(struct bdev *, off_t offset, size_t len);
 static int stm32_flash_ioctl(struct bdev *, int request, void *argp);
 
-void stm32_flash_early_init(void)
-{
+void stm32_flash_early_init(void) {
     /* Enable FLASH clock  */
     __HAL_RCC_ETH_CLK_ENABLE();
 }
 
-void stm32_flash_init(void)
-{
+void stm32_flash_init(void) {
     // XXX detect here
     flash.size = 1024*1024;
 
@@ -105,8 +103,7 @@ void stm32_flash_init(void)
     bio_register_device(&flash.bdev);
 }
 
-static ssize_t stm32_flash_bdev_read(struct bdev *bdev, void *buf, off_t offset, size_t len)
-{
+static ssize_t stm32_flash_bdev_read(struct bdev *bdev, void *buf, off_t offset, size_t len) {
     LTRACEF("dev %p, buf %p, offset 0x%llx, len 0x%zx\n", bdev, buf, offset, len);
 
     memcpy(buf, (uint8_t *)FLASHAXI_BASE + offset, len);
@@ -114,8 +111,7 @@ static ssize_t stm32_flash_bdev_read(struct bdev *bdev, void *buf, off_t offset,
     return len;
 }
 
-static ssize_t stm32_flash_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count)
-{
+static ssize_t stm32_flash_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count) {
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
     memcpy(buf, (uint8_t *)FLASHAXI_BASE + block * bdev->block_size, count * bdev->block_size);
@@ -123,8 +119,7 @@ static ssize_t stm32_flash_bdev_read_block(struct bdev *bdev, void *buf, bnum_t 
     return count * bdev->block_size;
 }
 
-static ssize_t stm32_flash_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count)
-{
+static ssize_t stm32_flash_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count) {
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
     HAL_FLASH_Unlock();
@@ -147,8 +142,7 @@ static ssize_t stm32_flash_bdev_write_block(struct bdev *bdev, const void *buf, 
     return written_bytes;
 }
 
-static status_t offset_to_sector(off_t offset, uint32_t *sector, off_t *sector_offset, off_t *next_offset)
-{
+static status_t offset_to_sector(off_t offset, uint32_t *sector, off_t *sector_offset, off_t *next_offset) {
     if (offset < 0) {
         return -1;
     } else if (offset < ERASE_RANGE0_END) {
@@ -174,8 +168,7 @@ static status_t offset_to_sector(off_t offset, uint32_t *sector, off_t *sector_o
     return NO_ERROR;
 }
 
-static ssize_t stm32_flash_bdev_erase(struct bdev *bdev, off_t offset, size_t len)
-{
+static ssize_t stm32_flash_bdev_erase(struct bdev *bdev, off_t offset, size_t len) {
     LTRACEF("dev %p, offset 0x%llx, len 0x%zx\n", bdev, offset, len);
 
     ssize_t total_erased = 0;
@@ -232,8 +225,7 @@ static ssize_t stm32_flash_bdev_erase(struct bdev *bdev, off_t offset, size_t le
     return total_erased;
 }
 
-static int stm32_flash_ioctl(struct bdev *bdev, int request, void *argp)
-{
+static int stm32_flash_ioctl(struct bdev *bdev, int request, void *argp) {
     LTRACEF("dev %p, request %d, argp %p\n", bdev, request, argp);
 
     int ret = ERR_NOT_SUPPORTED;

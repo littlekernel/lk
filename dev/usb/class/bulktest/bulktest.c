@@ -47,8 +47,7 @@ static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t);
 
 #define TRANSFER_SIZE 512
 
-static void queue_rx(void)
-{
+static void queue_rx(void) {
     static usbc_transfer_t transfer;
     static uint8_t buf[TRANSFER_SIZE];
 
@@ -62,8 +61,7 @@ static void queue_rx(void)
     usbc_queue_rx(1, &transfer);
 }
 
-static void queue_tx(void)
-{
+static void queue_tx(void) {
     static usbc_transfer_t transfer;
     static uint8_t buf[TRANSFER_SIZE];
 
@@ -82,8 +80,7 @@ static void queue_tx(void)
 }
 
 
-static status_t ep_cb_rx(ep_t endpoint, usbc_transfer_t *t)
-{
+static status_t ep_cb_rx(ep_t endpoint, usbc_transfer_t *t) {
 #if LOCAL_TRACE
     LTRACEF("ep %u transfer %p\n", endpoint, t);
     usbc_dump_transfer(t);
@@ -99,8 +96,7 @@ static status_t ep_cb_rx(ep_t endpoint, usbc_transfer_t *t)
     return NO_ERROR;
 }
 
-static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t)
-{
+static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t) {
 #if LOCAL_TRACE
     LTRACEF("ep %u transfer %p\n", endpoint, t);
     usbc_dump_transfer(t);
@@ -112,8 +108,7 @@ static status_t ep_cb_tx(ep_t endpoint, usbc_transfer_t *t)
     return NO_ERROR;
 }
 
-static status_t bulktest_usb_cb(void *cookie, usb_callback_op_t op, const union usb_callback_args *args)
-{
+static status_t bulktest_usb_cb(void *cookie, usb_callback_op_t op, const union usb_callback_args *args) {
     LTRACEF("cookie %p, op %u, args %p\n", cookie, op, args);
 
     if (op == USB_CB_ONLINE) {
@@ -126,8 +121,7 @@ static status_t bulktest_usb_cb(void *cookie, usb_callback_op_t op, const union 
     return NO_ERROR;
 }
 
-status_t usb_class_bulktest_init(uint interface_num, ep_t epin, ep_t epout)
-{
+status_t usb_class_bulktest_init(uint interface_num, ep_t epin, ep_t epout) {
     LTRACEF("epin %u, epout %u\n", epin, epout);
 
     /* build a descriptor for it */

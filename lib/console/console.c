@@ -115,8 +115,7 @@ STATIC_COMMAND("repeat", "repeats command multiple times", &cmd_repeat)
 #endif
 STATIC_COMMAND_END(help);
 
-int console_init(void)
-{
+int console_init(void) {
     LTRACE_ENTRY;
 
     command_lock = calloc(sizeof(mutex_t), 1);
@@ -136,29 +135,24 @@ int console_init(void)
 }
 
 #if CONSOLE_ENABLE_HISTORY
-static int cmd_history(int argc, const cmd_args *argv)
-{
+static int cmd_history(int argc, const cmd_args *argv) {
     dump_history();
     return 0;
 }
 
-static inline char *history_line(uint line)
-{
+static inline char *history_line(uint line) {
     return history + line * LINE_LEN;
 }
 
-static inline uint ptrnext(uint ptr)
-{
+static inline uint ptrnext(uint ptr) {
     return (ptr + 1) % HISTORY_LEN;
 }
 
-static inline uint ptrprev(uint ptr)
-{
+static inline uint ptrprev(uint ptr) {
     return (ptr - 1) % HISTORY_LEN;
 }
 
-static void dump_history(void)
-{
+static void dump_history(void) {
     printf("command history:\n");
     uint ptr = ptrprev(history_next);
     int i;
@@ -169,15 +163,13 @@ static void dump_history(void)
     }
 }
 
-static void init_history(void)
-{
+static void init_history(void) {
     /* allocate and set up the history buffer */
     history = calloc(1, HISTORY_LEN * LINE_LEN);
     history_next = 0;
 }
 
-static void add_history(const char *line)
-{
+static void add_history(const char *line) {
     // reject some stuff
     if (line[0] == 0)
         return;
@@ -190,13 +182,11 @@ static void add_history(const char *line)
     history_next = ptrnext(history_next);
 }
 
-static uint start_history_cursor(void)
-{
+static uint start_history_cursor(void) {
     return ptrprev(history_next);
 }
 
-static const char *next_history(uint *cursor)
-{
+static const char *next_history(uint *cursor) {
     uint i = ptrnext(*cursor);
 
     if (i == history_next)
@@ -206,8 +196,7 @@ static const char *next_history(uint *cursor)
     return history_line(i);
 }
 
-static const char *prev_history(uint *cursor)
-{
+static const char *prev_history(uint *cursor) {
     uint i;
     const char *str = history_line(*cursor);
 
@@ -229,8 +218,7 @@ static const char *prev_history(uint *cursor)
 #endif  // CONSOLE_ENABLE_HISTORY
 
 #if CONSOLE_ENABLE_REPEAT
-static int cmd_repeat(int argc, const cmd_args* argv)
-{
+static int cmd_repeat(int argc, const cmd_args *argv) {
     if (argc < 4) goto usage;
     int times = argv[1].i;
     int delay = argv[2].i;
@@ -248,7 +236,7 @@ static int cmd_repeat(int argc, const cmd_args* argv)
             line[idx++] = ' ';
         }
         line[idx++] = '"';
-        for (const char* src = argv[i].str; *src != '\0'; src++) {
+        for (const char *src = argv[i].str; *src != '\0'; src++) {
             line[idx++] = *src;
         }
         line[idx++] = '"';
@@ -260,7 +248,7 @@ static int cmd_repeat(int argc, const cmd_args* argv)
         int result = console_run_script_locked(line);
         if (result != 0) {
             printf("terminating repeat loop, command exited with status %d\n",
-                    result);
+                   result);
             return result;
         }
         thread_sleep(delay);
@@ -273,8 +261,7 @@ usage:
 }
 #endif  // CONSOLE_ENABLE_REPEAT
 
-static const cmd *match_command(const char *command, const uint8_t availability_mask)
-{
+static const cmd *match_command(const char *command, const uint8_t availability_mask) {
     cmd_block *block;
     size_t i;
 
@@ -293,8 +280,7 @@ static const cmd *match_command(const char *command, const uint8_t availability_
     return NULL;
 }
 
-static int read_debug_line(const char **outbuffer, void *cookie)
-{
+static int read_debug_line(const char **outbuffer, void *cookie) {
     int pos = 0;
     int escape_level = 0;
 #if CONSOLE_ENABLE_HISTORY
@@ -410,8 +396,7 @@ done:
     return pos;
 }
 
-static int tokenize_command(const char *inbuffer, const char **continuebuffer, char *buffer, size_t buflen, cmd_args *args, int arg_count)
-{
+static int tokenize_command(const char *inbuffer, const char **continuebuffer, char *buffer, size_t buflen, cmd_args *args, int arg_count) {
     int inpos;
     int outpos;
     int arg;
@@ -583,8 +568,7 @@ done:
     return arg;
 }
 
-static void convert_args(int argc, cmd_args *argv)
-{
+static void convert_args(int argc, cmd_args *argv) {
     int i;
 
     for (i = 0; i < argc; i++) {
@@ -604,8 +588,7 @@ static void convert_args(int argc, cmd_args *argv)
 }
 
 
-static status_t command_loop(int (*get_line)(const char **, void *), void *get_line_cookie, bool showprompt, bool locked)
-{
+static status_t command_loop(int (*get_line)(const char **, void *), void *get_line_cookie, bool showprompt, bool locked) {
     bool exit;
 #if WITH_LIB_ENV
     bool report_result;
@@ -717,13 +700,11 @@ no_mem_error:
     return ERR_NO_MEMORY;
 }
 
-void console_abort_script(void)
-{
+void console_abort_script(void) {
     abort_script = true;
 }
 
-void console_start(void)
-{
+void console_start(void) {
     debug_buffer = malloc(LINE_LEN);
 
     dprintf(INFO, "entering main console loop\n");
@@ -744,8 +725,7 @@ struct line_read_struct {
     size_t buflen;
 };
 
-static int fetch_next_line(const char **buffer, void *cookie)
-{
+static int fetch_next_line(const char **buffer, void *cookie) {
     struct line_read_struct *lineread = (struct line_read_struct *)cookie;
 
     // we're done
@@ -771,8 +751,7 @@ static int fetch_next_line(const char **buffer, void *cookie)
     return bufpos;
 }
 
-static int console_run_script_etc(const char *string, bool locked)
-{
+static int console_run_script_etc(const char *string, bool locked) {
     struct line_read_struct lineread;
 
     lineread.string = string;
@@ -787,18 +766,15 @@ static int console_run_script_etc(const char *string, bool locked)
     return lastresult;
 }
 
-int console_run_script(const char *string)
-{
+int console_run_script(const char *string) {
     return console_run_script_etc(string, false);
 }
 
-int console_run_script_locked(const char *string)
-{
+int console_run_script_locked(const char *string) {
     return console_run_script_etc(string, true);
 }
 
-console_cmd console_get_command_handler(const char *commandstr)
-{
+console_cmd console_get_command_handler(const char *commandstr) {
     const cmd *command = match_command(commandstr, CMD_AVAIL_NORMAL);
 
     if (command)
@@ -807,8 +783,7 @@ console_cmd console_get_command_handler(const char *commandstr)
         return NULL;
 }
 
-void console_register_commands(cmd_block *block)
-{
+void console_register_commands(cmd_block *block) {
     DEBUG_ASSERT(block);
     DEBUG_ASSERT(block->next == NULL);
 
@@ -817,8 +792,7 @@ void console_register_commands(cmd_block *block)
 }
 
 
-static int cmd_help_impl(uint8_t availability_mask)
-{
+static int cmd_help_impl(uint8_t availability_mask) {
     printf("command list:\n");
 
     cmd_block *block;
@@ -839,25 +813,21 @@ static int cmd_help_impl(uint8_t availability_mask)
     return 0;
 }
 
-static int cmd_help(int argc, const cmd_args *argv)
-{
+static int cmd_help(int argc, const cmd_args *argv) {
     return cmd_help_impl(CMD_AVAIL_NORMAL);
 }
 
-static int cmd_help_panic(int argc, const cmd_args *argv)
-{
+static int cmd_help_panic(int argc, const cmd_args *argv) {
     return cmd_help_impl(CMD_AVAIL_PANIC);
 }
 
-static int cmd_echo(int argc, const cmd_args *argv)
-{
+static int cmd_echo(int argc, const cmd_args *argv) {
     if (argc > 1)
         echo = argv[1].b;
     return NO_ERROR;
 }
 
-static void read_line_panic(char *buffer, const size_t len, FILE *panic_fd)
-{
+static void read_line_panic(char *buffer, const size_t len, FILE *panic_fd) {
     size_t pos = 0;
 
     for (;;) {
@@ -892,8 +862,7 @@ done:
     buffer[pos] = 0;
 }
 
-void panic_shell_start(void)
-{
+void panic_shell_start(void) {
     dprintf(INFO, "entering panic shell loop\n");
     char input_buffer[PANIC_LINE_LEN];
     cmd_args args[MAX_NUM_ARGS];
@@ -935,8 +904,7 @@ void panic_shell_start(void)
 }
 
 #if LK_DEBUGLEVEL > 1
-static int cmd_test(int argc, const cmd_args *argv)
-{
+static int cmd_test(int argc, const cmd_args *argv) {
     int i;
 
     printf("argc %d, argv %p\n", argc, argv);

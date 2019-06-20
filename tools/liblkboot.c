@@ -32,8 +32,7 @@
 #include "network.h"
 #include "../app/lkboot/lkboot_protocol.h"
 
-static int readx(int s, void *_data, int len)
-{
+static int readx(int s, void *_data, int len) {
     char *data = _data;
     int r;
     while (len > 0) {
@@ -53,8 +52,7 @@ static int readx(int s, void *_data, int len)
     return 0;
 }
 
-static int upload(int s, int txfd, size_t txlen, int do_endian_swap)
-{
+static int upload(int s, int txfd, size_t txlen, int do_endian_swap) {
     int err = 0;
     msg_hdr_t hdr;
 
@@ -117,8 +115,7 @@ done:
     return err;
 }
 
-static off_t trim_fpga_image(int fd, off_t len)
-{
+static off_t trim_fpga_image(int fd, off_t len) {
     /* fd should be at start of bitfile, seek until the
      * ff ff ff ff aa 99 55 66 pattern is found and subtract
      * the number of bytes read until pattern found.
@@ -148,8 +145,7 @@ static off_t trim_fpga_image(int fd, off_t len)
 
 #define DCC_SUBPROCESS "zynq-dcc"
 
-static int start_dcc_subprocess(int *fd_in, int *fd_out)
-{
+static int start_dcc_subprocess(int *fd_in, int *fd_out) {
     int outpipe[2];
     if (pipe(outpipe) != 0)
         return -1;
@@ -191,14 +187,12 @@ static int start_dcc_subprocess(int *fd_in, int *fd_out)
 static unsigned char replybuf[REPLYMAX];
 static unsigned replylen = 0;
 
-unsigned lkboot_get_reply(void **ptr)
-{
+unsigned lkboot_get_reply(void **ptr) {
     *ptr = replybuf;
     return replylen;
 }
 
-int lkboot_txn(const char *host, const char *_cmd, int txfd, const char *args)
-{
+int lkboot_txn(const char *host, const char *_cmd, int txfd, const char *args) {
     msg_hdr_t hdr;
     char cmd[128];
     char tmp[65536];

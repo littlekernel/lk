@@ -28,8 +28,7 @@
 #include <sys/types.h>
 
 char *
-strncpy(char *dest, char const *src, size_t count)
-{
+strncpy(char *dest, char const *src, size_t count) {
     char *tmp = dest;
 
     size_t i;

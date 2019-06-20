@@ -26,12 +26,12 @@
 #include <arch/arm/cm.h>
 
 static void ti_cc_dummy_irq(void) {
-	arm_cm_irq_entry();
-	panic("unhandled irq");
+    arm_cm_irq_entry();
+    panic("unhandled irq");
 }
 
 #define DEFAULT_HANDLER(x) \
-	void ti_cc_##x##_irq(void) __WEAK_ALIAS("ti_cc_dummy_irq")
+    void ti_cc_##x##_irq(void) __WEAK_ALIAS("ti_cc_dummy_irq")
 
 #define DEFIRQ(n) DEFAULT_HANDLER(n);
 #include <platform/defirq.h>
@@ -39,7 +39,7 @@ static void ti_cc_dummy_irq(void) {
 
 #define VECTAB_ENTRY(x) ti_cc_##x##_irq
 
-const void * const __SECTION(".text.boot.vectab2") vectab2[] = {
+const void *const __SECTION(".text.boot.vectab2") vectab2[] = {
 #define DEFIRQ(n) VECTAB_ENTRY(n),
 #include <platform/defirq.h>
 #undef DEFIRQ

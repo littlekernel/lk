@@ -51,8 +51,7 @@ struct tga_header {
     uint8_t  imagedescriptor;
 } __PACKED;
 
-static void print_tga_info(const struct tga_header *header)
-{
+static void print_tga_info(const struct tga_header *header) {
     LTRACEF("idlength %hhd\n", header->idlength);
     LTRACEF("colormaptype %hhd\n", header->colormaptype);
     LTRACEF("datatypecode %hhd\n", header->datatypecode);
@@ -68,8 +67,7 @@ static void print_tga_info(const struct tga_header *header)
 
 }
 
-static void decode_2byte(gfx_surface *surface, uint x, uint y, const void *input)
-{
+static void decode_2byte(gfx_surface *surface, uint x, uint y, const void *input) {
     const uint8_t *in = (const uint8_t *)input;
 
 //  printf("in 0x%hhx 0x%hhx\n", in[0], in[1]);
@@ -82,8 +80,7 @@ static void decode_2byte(gfx_surface *surface, uint x, uint y, const void *input
     gfx_putpixel(surface, x, y, 0xff000000 | r << 16 | g << 8 | b);
 }
 
-static void decode_3byte(gfx_surface *surface, uint x, uint y, const void *input)
-{
+static void decode_3byte(gfx_surface *surface, uint x, uint y, const void *input) {
     const uint8_t *in = (const uint8_t *)input;
 
 //  printf("in 0x%hhx 0x%hhx\n", in[0], in[1]);
@@ -91,8 +88,7 @@ static void decode_3byte(gfx_surface *surface, uint x, uint y, const void *input
     gfx_putpixel(surface, x, y, 0xff000000 | in[2] << 16 | in[1] << 8 | in[0]);
 }
 
-static void decode_4byte(gfx_surface *surface, uint x, uint y, const void *input)
-{
+static void decode_4byte(gfx_surface *surface, uint x, uint y, const void *input) {
     const uint8_t *in = (const uint8_t *)input;
 
 //  printf("in 0x%hhx 0x%hhx 0x%hhx 0x%hhx\n", in[0], in[1], in[2], in[3]);
@@ -114,8 +110,7 @@ static void decode_4byte(gfx_surface *surface, uint x, uint y, const void *input
  *
  * @ingroup graphics
  */
-gfx_surface *tga_decode(const void *ptr, size_t len, gfx_format format)
-{
+gfx_surface *tga_decode(const void *ptr, size_t len, gfx_format format) {
     const struct tga_header *header = (const struct tga_header *)ptr;
 
     LTRACEF("ptr %p, len %zu\n", ptr, len);

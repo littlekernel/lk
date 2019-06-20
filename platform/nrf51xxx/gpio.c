@@ -26,8 +26,7 @@
 #include <platform/nrf51.h>
 #include <platform/gpio.h>
 
-int gpio_config(unsigned nr, unsigned flags)
-{
+int gpio_config(unsigned nr, unsigned flags) {
     DEBUG_ASSERT(nr <= NRF_MAX_PIN_NUMBER);
 
     unsigned init;
@@ -53,8 +52,7 @@ int gpio_config(unsigned nr, unsigned flags)
     return 0;
 }
 
-void gpio_set(unsigned nr, unsigned on)
-{
+void gpio_set(unsigned nr, unsigned on) {
     DEBUG_ASSERT(nr <= NRF_MAX_PIN_NUMBER);
 
     if (on > 0) {
@@ -64,8 +62,7 @@ void gpio_set(unsigned nr, unsigned on)
     }
 }
 
-int gpio_get(unsigned nr)
-{
+int gpio_get(unsigned nr) {
     DEBUG_ASSERT( nr <= NRF_MAX_PIN_NUMBER );
 
     if ( NRF_GPIO->IN & ( 1 << nr) ) {

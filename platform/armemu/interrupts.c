@@ -39,14 +39,12 @@ struct int_handler_struct {
 
 static struct int_handler_struct int_handler_table[PIC_MAX_INT];
 
-void platform_init_interrupts(void)
-{
+void platform_init_interrupts(void) {
     // mask all the interrupts
     *REG32(PIC_MASK_LATCH) = 0xffffffff;
 }
 
-status_t mask_interrupt(unsigned int vector)
-{
+status_t mask_interrupt(unsigned int vector) {
     if (vector >= PIC_MAX_INT)
         return ERR_INVALID_ARGS;
 
@@ -57,8 +55,7 @@ status_t mask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-status_t unmask_interrupt(unsigned int vector)
-{
+status_t unmask_interrupt(unsigned int vector) {
     if (vector >= PIC_MAX_INT)
         return ERR_INVALID_ARGS;
 
@@ -69,8 +66,7 @@ status_t unmask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-enum handler_return platform_irq(struct arm_iframe *frame)
-{
+enum handler_return platform_irq(struct arm_iframe *frame) {
     // get the current vector
     unsigned int vector = *REG32(PIC_CURRENT_NUM);
     if (vector == 0xffffffff)
@@ -95,13 +91,11 @@ enum handler_return platform_irq(struct arm_iframe *frame)
     return ret;
 }
 
-void platform_fiq(struct arm_iframe *frame)
-{
+void platform_fiq(struct arm_iframe *frame) {
     panic("FIQ: unimplemented\n");
 }
 
-void register_int_handler(unsigned int vector, int_handler handler, void *arg)
-{
+void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     if (vector >= PIC_MAX_INT)
         panic("register_int_handler: vector out of range %d\n", vector);
 

@@ -119,8 +119,7 @@ static uint32_t            ActiveLayer = 0;
   * @brief  Gets the LCD X size.
   * @retval Used LCD X size
   */
-uint32_t BSP_LCD_GetXSize(void)
-{
+uint32_t BSP_LCD_GetXSize(void) {
     return hLtdcEval.LayerCfg[ActiveLayer].ImageWidth;
 }
 
@@ -128,8 +127,7 @@ uint32_t BSP_LCD_GetXSize(void)
   * @brief  Gets the LCD Y size.
   * @retval Used LCD Y size
   */
-uint32_t BSP_LCD_GetYSize(void)
-{
+uint32_t BSP_LCD_GetYSize(void) {
     return hLtdcEval.LayerCfg[ActiveLayer].ImageHeight;
 }
 
@@ -138,8 +136,7 @@ uint32_t BSP_LCD_GetYSize(void)
   * @param  imageWidthPixels : image width in pixels unit
   * @retval None
   */
-void BSP_LCD_SetXSize(uint32_t imageWidthPixels)
-{
+void BSP_LCD_SetXSize(uint32_t imageWidthPixels) {
     hLtdcEval.LayerCfg[ActiveLayer].ImageWidth = imageWidthPixels;
 }
 
@@ -148,13 +145,11 @@ void BSP_LCD_SetXSize(uint32_t imageWidthPixels)
   * @param  imageHeightPixels : image height in lines unit
   * @retval None
   */
-void BSP_LCD_SetYSize(uint32_t imageHeightPixels)
-{
+void BSP_LCD_SetYSize(uint32_t imageHeightPixels) {
     hLtdcEval.LayerCfg[ActiveLayer].ImageHeight = imageHeightPixels;
 }
 
-static size_t BSP_LCD_PixelSize(void)
-{
+static size_t BSP_LCD_PixelSize(void) {
     return (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) ? 4 : 2;
 }
 
@@ -164,8 +159,7 @@ static size_t BSP_LCD_PixelSize(void)
   * @param  FB_Address: Layer frame buffer
   * @retval None
   */
-void BSP_LCD_LayerDefaultInit(uint16_t LayerIndex, uint32_t FB_Address)
-{
+void BSP_LCD_LayerDefaultInit(uint16_t LayerIndex, uint32_t FB_Address) {
     LCD_LayerCfgTypeDef  layer_cfg;
 
     /* Layer Init */
@@ -194,8 +188,7 @@ void BSP_LCD_LayerDefaultInit(uint16_t LayerIndex, uint32_t FB_Address)
   * @param  LayerIndex: Layer foreground or background
   * @retval None
   */
-void BSP_LCD_SelectLayer(uint32_t LayerIndex)
-{
+void BSP_LCD_SelectLayer(uint32_t LayerIndex) {
     ActiveLayer = LayerIndex;
 }
 
@@ -208,8 +201,7 @@ void BSP_LCD_SelectLayer(uint32_t LayerIndex)
   *            @arg  DISABLE
   * @retval None
   */
-void BSP_LCD_SetLayerVisible(uint32_t LayerIndex, FunctionalState State)
-{
+void BSP_LCD_SetLayerVisible(uint32_t LayerIndex, FunctionalState State) {
     if (State == ENABLE) {
         __HAL_LTDC_LAYER_ENABLE(&hLtdcEval, LayerIndex);
     } else {
@@ -225,8 +217,7 @@ void BSP_LCD_SetLayerVisible(uint32_t LayerIndex, FunctionalState State)
   *           This parameter must be a number between Min_Data = 0x00 and Max_Data = 0xFF
   * @retval None
   */
-void BSP_LCD_SetTransparency(uint32_t LayerIndex, uint8_t Transparency)
-{
+void BSP_LCD_SetTransparency(uint32_t LayerIndex, uint8_t Transparency) {
     HAL_LTDC_SetAlpha(&hLtdcEval, Transparency, LayerIndex);
 }
 
@@ -236,8 +227,7 @@ void BSP_LCD_SetTransparency(uint32_t LayerIndex, uint8_t Transparency)
   * @param  Address: New LCD frame buffer value
   * @retval None
   */
-void BSP_LCD_SetLayerAddress(uint32_t LayerIndex, uint32_t Address)
-{
+void BSP_LCD_SetLayerAddress(uint32_t LayerIndex, uint32_t Address) {
     HAL_LTDC_SetAddress(&hLtdcEval, Address, LayerIndex);
 }
 
@@ -245,8 +235,7 @@ void BSP_LCD_SetLayerAddress(uint32_t LayerIndex, uint32_t Address)
   * @brief  Enables the display.
   * @retval None
   */
-void BSP_LCD_DisplayOn(void)
-{
+void BSP_LCD_DisplayOn(void) {
     /* Display On */
     __HAL_LTDC_ENABLE(&hLtdcEval);
 }
@@ -255,8 +244,7 @@ void BSP_LCD_DisplayOn(void)
   * @brief  Disables the display.
   * @retval None
   */
-void BSP_LCD_DisplayOff(void)
-{
+void BSP_LCD_DisplayOff(void) {
     /* Display Off */
     __HAL_LTDC_DISABLE(&hLtdcEval);
 }
@@ -266,8 +254,7 @@ void BSP_LCD_DisplayOff(void)
   * @param  hltdc: LTDC handle
   * @retval None
   */
-static void BSP_LCD_MspInit(LTDC_HandleTypeDef *hltdc, void *Params)
-{
+static void BSP_LCD_MspInit(LTDC_HandleTypeDef *hltdc, void *Params) {
     GPIO_InitTypeDef gpio_init_structure;
 
     /* Enable the LTDC and DMA2D clocks */
@@ -316,8 +303,7 @@ static void BSP_LCD_MspInit(LTDC_HandleTypeDef *hltdc, void *Params)
   *         Being __weak it can be overwritten by the application
   * @retval None
   */
-static void BSP_LCD_ClockConfig(LTDC_HandleTypeDef *hltdc, void *Params)
-{
+static void BSP_LCD_ClockConfig(LTDC_HandleTypeDef *hltdc, void *Params) {
     static RCC_PeriphCLKInitTypeDef  periph_clk_init_struct;
 
     /* AMPIRE640480 LCD clock configuration */
@@ -336,8 +322,7 @@ static void BSP_LCD_ClockConfig(LTDC_HandleTypeDef *hltdc, void *Params)
   * @brief  Initializes the LCD.
   * @retval LCD state
   */
-uint8_t BSP_LCD_Init(void)
-{
+uint8_t BSP_LCD_Init(void) {
     /* Select the used LCD */
     /* The LCD AMPIRE 640x480 is selected */
     /* Timing configuration */
@@ -389,8 +374,7 @@ uint8_t BSP_LCD_Init(void)
 }
 
 /* LK display api here */
-status_t display_get_framebuffer(struct display_framebuffer *fb)
-{
+status_t display_get_framebuffer(struct display_framebuffer *fb) {
     fb->image.pixels = (void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress;
 
     if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) {
@@ -414,8 +398,7 @@ status_t display_get_framebuffer(struct display_framebuffer *fb)
     return NO_ERROR;
 }
 
-status_t display_get_info(struct display_info *info)
-{
+status_t display_get_info(struct display_info *info) {
     if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_ARGB8888) {
         info->format = DISPLAY_FORMAT_ARGB_8888;
     } else if (hLtdcEval.LayerCfg[ActiveLayer].PixelFormat == LTDC_PIXEL_FORMAT_RGB565) {
@@ -431,9 +414,8 @@ status_t display_get_info(struct display_info *info)
     return NO_ERROR;
 }
 
-status_t display_present(struct display_image *image, uint starty, uint endy)
-{
-  TRACEF("display_present - not implemented");
-  DEBUG_ASSERT(false);
-  return NO_ERROR;
+status_t display_present(struct display_image *image, uint starty, uint endy) {
+    TRACEF("display_present - not implemented");
+    DEBUG_ASSERT(false);
+    return NO_ERROR;
 }

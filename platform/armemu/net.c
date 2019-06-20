@@ -95,8 +95,7 @@ static err_t ethernetif_output(struct netif *netif, struct pbuf *p,
                                struct ip_addr *ipaddr);
 
 static void
-low_level_init(struct netif *netif)
-{
+low_level_init(struct netif *netif) {
     struct ethernetif *ethernetif = netif->state;
 
     /* set MAC hardware address length */
@@ -129,8 +128,7 @@ low_level_init(struct netif *netif)
  */
 
 static err_t
-low_level_output(struct netif *netif, struct pbuf *p)
-{
+low_level_output(struct netif *netif, struct pbuf *p) {
     struct ethernetif *ethernetif = netif->state;
     struct pbuf *q;
     int i;
@@ -179,8 +177,7 @@ low_level_output(struct netif *netif, struct pbuf *p)
  */
 
 static struct pbuf *
-low_level_input(struct netif *netif)
-{
+low_level_input(struct netif *netif) {
     struct ethernetif *ethernetif = netif->state;
     struct pbuf *p, *q;
     u16_t len;
@@ -254,8 +251,7 @@ low_level_input(struct netif *netif)
 
 static err_t
 ethernetif_output(struct netif *netif, struct pbuf *p,
-                  struct ip_addr *ipaddr)
-{
+                  struct ip_addr *ipaddr) {
 //  dprintf("ethernetif_output: netif %p, pbuf %p, ipaddr %p\n", netif, p, ipaddr);
 
     /* resolve hardware address, then send (or queue) packet */
@@ -274,8 +270,7 @@ ethernetif_output(struct netif *netif, struct pbuf *p,
  */
 
 static void
-ethernetif_input(struct netif *netif)
-{
+ethernetif_input(struct netif *netif) {
     struct ethernetif *ethernetif;
     struct eth_hdr *ethhdr;
     struct pbuf *p;
@@ -298,7 +293,7 @@ ethernetif_input(struct netif *netif)
 //  dprintf("ethernetif_input: type 0x%x\n", htons(ethhdr->type));
 
     switch (htons(ethhdr->type)) {
-            /* IP packet? */
+        /* IP packet? */
         case ETHTYPE_IP:
             /* update ARP table */
             etharp_ip_input(netif, p);
@@ -319,8 +314,7 @@ ethernetif_input(struct netif *netif)
     }
 }
 
-static enum handler_return ethernet_int(void *arg)
-{
+static enum handler_return ethernet_int(void *arg) {
     struct netif *netif = (struct netif *)arg;
 
     ethernetif_input(netif);
@@ -340,8 +334,7 @@ static enum handler_return ethernet_int(void *arg)
  */
 
 static err_t
-ethernetif_init(struct netif *netif)
-{
+ethernetif_init(struct netif *netif) {
     struct ethernetif *ethernetif;
 
     ethernetif = mem_malloc(sizeof(struct ethernetif));
@@ -364,8 +357,7 @@ ethernetif_init(struct netif *netif)
     return ERR_OK;
 }
 
-status_t ethernet_init(void)
-{
+status_t ethernet_init(void) {
     /* check to see if the ethernet feature is turned on */
     if ((*REG(SYSINFO_FEATURES) & SYSINFO_FEATURE_NETWORK) == 0)
         return ERR_NOT_FOUND;

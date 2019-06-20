@@ -39,8 +39,7 @@ uint32_t stm32_unique_id[3];
 extern const sdram_config_t target_sdram_config;
 #endif
 
-void SystemInit(void)
-{
+void SystemInit(void) {
     /* Reset the RCC clock configuration to the default reset state ------------*/
     /* Set HSION bit */
     RCC->CR |= (uint32_t)0x00000001;
@@ -87,8 +86,7 @@ void SystemInit(void)
   * @param  None
   * @retval None
   */
-static void SystemClock_Config(void)
-{
+static void SystemClock_Config(void) {
     RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
     HAL_StatusTypeDef ret = HAL_OK;
@@ -145,8 +143,7 @@ static void SystemClock_Config(void)
     }
 }
 
-void stm32_rng_init(void)
-{
+void stm32_rng_init(void) {
     RNG_HandleTypeDef rng_handle = { 0 };
 
     __HAL_RCC_RNG_CLK_ENABLE();
@@ -177,8 +174,7 @@ void stm32_rng_init(void)
 }
 
 /* set up the mpu to enable caching in the appropriate areas */
-static void mpu_init(void)
-{
+static void mpu_init(void) {
     MPU_Region_InitTypeDef MPU_InitStruct;
     HAL_MPU_Disable();
 
@@ -255,8 +251,7 @@ static void mpu_init(void)
     HAL_MPU_Enable(MPU_HFNMI_PRIVDEF);
 }
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     // Do general system init
     SystemInit();
     SystemClock_Config();
@@ -297,8 +292,7 @@ void platform_early_init(void)
     mpu_init();
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     printf("clocks:\n");
     printf("\tsysclk %u\n", HAL_RCC_GetSysClockFreq());
     printf("\thclk %u\n", HAL_RCC_GetHCLKFreq());

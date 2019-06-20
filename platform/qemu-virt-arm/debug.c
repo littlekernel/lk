@@ -39,15 +39,13 @@
 #error define DEBUG_UART to something valid
 #endif
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     if (c == '\n')
         uart_putc(DEBUG_UART, '\r');
     uart_putc(DEBUG_UART, c);
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
     int ret = uart_getc(DEBUG_UART, wait);
     if (ret == -1)
         return -1;
@@ -55,15 +53,13 @@ int platform_dgetc(char *c, bool wait)
     return 0;
 }
 
-void platform_pputc(char c)
-{
+void platform_pputc(char c) {
     if (c == '\n')
         uart_pputc(DEBUG_UART, '\r');
     uart_pputc(DEBUG_UART, c);
 }
 
-int platform_pgetc(char *c, bool wait)
-{
+int platform_pgetc(char *c, bool wait) {
     int ret = uart_pgetc(DEBUG_UART);
     if (ret < 0)
         return ret;

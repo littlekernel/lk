@@ -34,8 +34,7 @@ static SPI_HandleTypeDef spi_handle;
 static uint8_t tx_buff[16];
 static uint8_t rx_buff[16];
 
-status_t acc_read_xyz(position_vector_t *pos_vector_p)
-{
+status_t acc_read_xyz(position_vector_t *pos_vector_p) {
     tx_buff[0] = BMI055_ADDRESS_READ( BMI055_ACC_ACCD_X_LSB );
     if ( acc_flush(tx_buff, rx_buff, 7) == NO_ERROR ) {
         pos_vector_p->x = 0.001*(((int8_t)rx_buff[2] << 4) | ( (rx_buff[1] >> 4) & 0x0F));
@@ -47,8 +46,7 @@ status_t acc_read_xyz(position_vector_t *pos_vector_p)
     }
 }
 
-status_t acc_flush(uint8_t *tbuff, uint8_t *rbuff, uint8_t numbytes)
-{
+status_t acc_flush(uint8_t *tbuff, uint8_t *rbuff, uint8_t numbytes) {
     status_t ret_status;
 
     mutex_acquire(&sensorbus_mutex);
@@ -68,8 +66,7 @@ status_t acc_flush(uint8_t *tbuff, uint8_t *rbuff, uint8_t numbytes)
  * @brief Initiale SPI5 module and IO for control of spi bus linking nrf51, accelerometer, and gyroscope.
  *
  */
-status_t sensor_bus_init_early(void)
-{
+status_t sensor_bus_init_early(void) {
     __HAL_SENSOR_BUS_GPIO_CLK_ENABLE();
     __HAL_RCC_SPI5_CLK_ENABLE();
 
@@ -111,8 +108,7 @@ status_t sensor_bus_init_early(void)
 
 
 
-void sensor_bus_init(void)
-{
+void sensor_bus_init(void) {
     mutex_init(&sensorbus_mutex);
 }
 

@@ -70,8 +70,7 @@ struct virtio_gpu_dev {
 
 static struct virtio_gpu_dev *the_gdev;
 
-static status_t send_command_response(struct virtio_gpu_dev *gdev, const void *cmd, size_t cmd_len, void **_res, size_t res_len)
-{
+static status_t send_command_response(struct virtio_gpu_dev *gdev, const void *cmd, size_t cmd_len, void **_res, size_t res_len) {
     DEBUG_ASSERT(gdev);
     DEBUG_ASSERT(cmd);
     DEBUG_ASSERT(_res);
@@ -114,8 +113,7 @@ static status_t send_command_response(struct virtio_gpu_dev *gdev, const void *c
     return NO_ERROR;
 }
 
-static status_t get_display_info(struct virtio_gpu_dev *gdev)
-{
+static status_t get_display_info(struct virtio_gpu_dev *gdev) {
     status_t err;
 
     LTRACEF("gdev %p\n", gdev);
@@ -165,8 +163,7 @@ static status_t get_display_info(struct virtio_gpu_dev *gdev)
     return NO_ERROR;
 }
 
-static status_t allocate_2d_resource(struct virtio_gpu_dev *gdev, uint32_t *resource_id, uint32_t width, uint32_t height)
-{
+static status_t allocate_2d_resource(struct virtio_gpu_dev *gdev, uint32_t *resource_id, uint32_t width, uint32_t height) {
     status_t err;
 
     LTRACEF("gdev %p\n", gdev);
@@ -203,8 +200,7 @@ static status_t allocate_2d_resource(struct virtio_gpu_dev *gdev, uint32_t *reso
     return err;
 }
 
-static status_t attach_backing(struct virtio_gpu_dev *gdev, uint32_t resource_id, void *ptr, size_t buf_len)
-{
+static status_t attach_backing(struct virtio_gpu_dev *gdev, uint32_t resource_id, void *ptr, size_t buf_len) {
     status_t err;
 
     LTRACEF("gdev %p, resource_id %u, ptr %p, buf_len %zu\n", gdev, resource_id, ptr, buf_len);
@@ -246,8 +242,7 @@ static status_t attach_backing(struct virtio_gpu_dev *gdev, uint32_t resource_id
     return err;
 }
 
-static status_t set_scanout(struct virtio_gpu_dev *gdev, uint32_t scanout_id, uint32_t resource_id, uint32_t width, uint32_t height)
-{
+static status_t set_scanout(struct virtio_gpu_dev *gdev, uint32_t scanout_id, uint32_t resource_id, uint32_t width, uint32_t height) {
     status_t err;
 
     LTRACEF("gdev %p, scanout_id %u, resource_id %u, width %u, height %u\n", gdev, scanout_id, resource_id, width, height);
@@ -281,8 +276,7 @@ static status_t set_scanout(struct virtio_gpu_dev *gdev, uint32_t scanout_id, ui
     return err;
 }
 
-static status_t flush_resource(struct virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t width, uint32_t height)
-{
+static status_t flush_resource(struct virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t width, uint32_t height) {
     status_t err;
 
     LTRACEF("gdev %p, resource_id %u, width %u, height %u\n", gdev, resource_id, width, height);
@@ -315,8 +309,7 @@ static status_t flush_resource(struct virtio_gpu_dev *gdev, uint32_t resource_id
     return err;
 }
 
-static status_t transfer_to_host_2d(struct virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t width, uint32_t height)
-{
+static status_t transfer_to_host_2d(struct virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t width, uint32_t height) {
     status_t err;
 
     LTRACEF("gdev %p, resource_id %u, width %u, height %u\n", gdev, resource_id, width, height);
@@ -350,8 +343,7 @@ static status_t transfer_to_host_2d(struct virtio_gpu_dev *gdev, uint32_t resour
     return err;
 }
 
-status_t virtio_gpu_start(struct virtio_device *dev)
-{
+status_t virtio_gpu_start(struct virtio_device *dev) {
     status_t err;
 
     LTRACEF("dev %p\n", dev);
@@ -414,16 +406,14 @@ status_t virtio_gpu_start(struct virtio_device *dev)
 }
 
 
-static void dump_gpu_config(const volatile struct virtio_gpu_config *config)
-{
+static void dump_gpu_config(const volatile struct virtio_gpu_config *config) {
     LTRACEF("events_read 0x%x\n", config->events_read);
     LTRACEF("events_clear 0x%x\n", config->events_clear);
     LTRACEF("num_scanouts 0x%x\n", config->num_scanouts);
     LTRACEF("reserved 0x%x\n", config->reserved);
 }
 
-status_t virtio_gpu_init(struct virtio_device *dev, uint32_t host_features)
-{
+status_t virtio_gpu_init(struct virtio_device *dev, uint32_t host_features) {
     LTRACEF("dev %p, host_features 0x%x\n", dev, host_features);
 
     /* allocate a new gpu device */
@@ -479,8 +469,7 @@ status_t virtio_gpu_init(struct virtio_device *dev, uint32_t host_features)
     return NO_ERROR;
 }
 
-static enum handler_return virtio_gpu_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e)
-{
+static enum handler_return virtio_gpu_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e) {
     struct virtio_gpu_dev *gdev = (struct virtio_gpu_dev *)dev->priv;
 
     LTRACEF("dev %p, ring %u, e %p, id %u, len %u\n", dev, ring, e, e->id, e->len);
@@ -513,8 +502,7 @@ static enum handler_return virtio_gpu_irq_driver_callback(struct virtio_device *
     return INT_RESCHEDULE;
 }
 
-static enum handler_return virtio_gpu_config_change_callback(struct virtio_device *dev)
-{
+static enum handler_return virtio_gpu_config_change_callback(struct virtio_device *dev) {
     struct virtio_gpu_dev *gdev = (struct virtio_gpu_dev *)dev->priv;
 
     LTRACEF("gdev %p\n", gdev);
@@ -525,8 +513,7 @@ static enum handler_return virtio_gpu_config_change_callback(struct virtio_devic
     return INT_RESCHEDULE;
 }
 
-static int virtio_gpu_flush_thread(void *arg)
-{
+static int virtio_gpu_flush_thread(void *arg) {
     struct virtio_gpu_dev *gdev = (struct virtio_gpu_dev *)arg;
     status_t err;
 
@@ -551,13 +538,11 @@ static int virtio_gpu_flush_thread(void *arg)
     return 0;
 }
 
-void virtio_gpu_gfx_flush(uint starty, uint endy)
-{
+void virtio_gpu_gfx_flush(uint starty, uint endy) {
     event_signal(&the_gdev->flush_event, !arch_ints_disabled());
 }
 
-status_t display_get_framebuffer(struct display_framebuffer *fb)
-{
+status_t display_get_framebuffer(struct display_framebuffer *fb) {
     DEBUG_ASSERT(fb);
     memset(fb, 0, sizeof(*fb));
 
@@ -576,8 +561,7 @@ status_t display_get_framebuffer(struct display_framebuffer *fb)
     return NO_ERROR;
 }
 
-status_t display_get_info(struct display_info *info)
-{
+status_t display_get_info(struct display_info *info) {
     DEBUG_ASSERT(info);
     memset(info, 0, sizeof(*info));
 
@@ -591,9 +575,8 @@ status_t display_get_info(struct display_info *info)
     return NO_ERROR;
 }
 
-status_t display_present(struct display_image *image, uint starty, uint endy)
-{
-  TRACEF("display_present - not implemented");
-  DEBUG_ASSERT(false);
-  return NO_ERROR;
+status_t display_present(struct display_image *image, uint starty, uint endy) {
+    TRACEF("display_present - not implemented");
+    DEBUG_ASSERT(false);
+    return NO_ERROR;
 }

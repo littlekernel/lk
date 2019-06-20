@@ -56,8 +56,7 @@ static uint16_t divisor;
 
 
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval)
-{
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     t_callback = callback;
     callback_arg = arg;
 
@@ -67,8 +66,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_time_t current_time(void)
-{
+lk_time_t current_time(void) {
     lk_time_t time;
 
     // XXX slight race
@@ -77,8 +75,7 @@ lk_time_t current_time(void)
     return time;
 }
 
-lk_bigtime_t current_time_hires(void)
-{
+lk_bigtime_t current_time_hires(void) {
     lk_bigtime_t time;
 
     // XXX slight race
@@ -86,8 +83,7 @@ lk_bigtime_t current_time_hires(void)
 
     return time;
 }
-static enum handler_return os_timer_tick(void *arg)
-{
+static enum handler_return os_timer_tick(void *arg) {
     uint64_t delta;
 
     timer_current_time += timer_delta_time;
@@ -107,8 +103,7 @@ static enum handler_return os_timer_tick(void *arg)
     }
 }
 
-static void set_pit_frequency(uint32_t frequency)
-{
+static void set_pit_frequency(uint32_t frequency) {
     uint32_t count, remainder;
 
     /* figure out the correct divisor for the desired frequency */
@@ -152,8 +147,7 @@ static void set_pit_frequency(uint32_t frequency)
     outp(I8253_DATA_REG, divisor >> 8); // MSB
 }
 
-void platform_init_timer(void)
-{
+void platform_init_timer(void) {
 
     timer_current_time = 0;
     ticks_per_ms = INTERNAL_FREQ/1000;
@@ -162,16 +156,14 @@ void platform_init_timer(void)
     unmask_interrupt(INT_PIT);
 }
 
-void platform_halt_timers(void)
-{
+void platform_halt_timers(void) {
     mask_interrupt(INT_PIT);
 }
 
 
 
 status_t platform_set_oneshot_timer(platform_timer_callback callback,
-                                    void *arg, lk_time_t interval)
-{
+                                    void *arg, lk_time_t interval) {
 
     uint32_t count;
 
@@ -203,8 +195,7 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback,
     return NO_ERROR;
 }
 
-void platform_stop_timer(void)
-{
+void platform_stop_timer(void) {
     /* Enable interrupt mode that will stop the decreasing counter of the PIT */
     outp(I8253_CONTROL_REG, 0x30);
     return;

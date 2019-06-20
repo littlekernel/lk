@@ -38,8 +38,7 @@ STATIC_COMMAND_END(accelerometer);
 
 #endif
 
-void read_xyz(void)
-{
+void read_xyz(void) {
     position_vector_t pos_vector;
     acc_read_xyz(&pos_vector);
     printf("X value = %f\n",pos_vector.x);
@@ -50,5 +49,5 @@ void read_xyz(void)
 
 APP_START(accelerometer)
 .flags = 0,
- APP_END
+APP_END
 

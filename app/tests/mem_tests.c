@@ -34,16 +34,14 @@
 #include <kernel/vm.h>
 #endif
 
-static void mem_test_fail(void *ptr, uint32_t should, uint32_t is)
-{
+static void mem_test_fail(void *ptr, uint32_t should, uint32_t is) {
     printf("ERROR at %p: should be 0x%x, is 0x%x\n", ptr, should, is);
 
     ptr = (void *)ROUNDDOWN((uintptr_t)ptr, 64);
     hexdump(ptr, 128);
 }
 
-static status_t do_pattern_test(void *ptr, size_t len, uint32_t pat)
-{
+static status_t do_pattern_test(void *ptr, size_t len, uint32_t pat) {
     volatile uint32_t *vbuf32 = ptr;
     size_t i;
 
@@ -62,8 +60,7 @@ static status_t do_pattern_test(void *ptr, size_t len, uint32_t pat)
     return NO_ERROR;
 }
 
-static status_t do_moving_inversion_test(void *ptr, size_t len, uint32_t pat)
-{
+static status_t do_moving_inversion_test(void *ptr, size_t len, uint32_t pat) {
     volatile uint32_t *vbuf32 = ptr;
     size_t i;
 
@@ -108,8 +105,7 @@ static status_t do_moving_inversion_test(void *ptr, size_t len, uint32_t pat)
     return NO_ERROR;
 }
 
-static void do_mem_tests(void *ptr, size_t len)
-{
+static void do_mem_tests(void *ptr, size_t len) {
     size_t i;
 
     /* test 1: simple write address to memory, read back */
@@ -171,8 +167,7 @@ out:
     printf("done with tests\n");
 }
 
-static int mem_test(int argc, const cmd_args *argv)
-{
+static int mem_test(int argc, const cmd_args *argv) {
     if (argc < 2) {
         printf("not enough arguments\n");
 usage:

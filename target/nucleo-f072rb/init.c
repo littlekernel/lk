@@ -33,8 +33,7 @@
 #include <target/gpioconfig.h>
 #include <target/usb.h>
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     /* configure the usart2 pins */
     gpio_config(GPIO(GPIO_PORT_A, 2), GPIO_STM32_AF | GPIO_STM32_AFn(1));
     gpio_config(GPIO(GPIO_PORT_A, 3), GPIO_STM32_AF | GPIO_STM32_AFn(1));
@@ -53,16 +52,14 @@ void target_early_init(void)
     i2c_init_early();
 }
 
-void target_init(void)
-{
+void target_init(void) {
     stm32_debug_init();
     i2c_init();
     stm32_usbc_init();
     target_usb_setup();
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     switch (led) {
         case 0:
             gpio_set(GPIO_LED0, on);

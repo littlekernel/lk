@@ -40,8 +40,7 @@
 
 static cbuf_t debug_rx_buf;
 
-void stellaris_uart0_irq(void)
-{
+void stellaris_uart0_irq(void) {
     arm_cm_irq_entry();
 
     //
@@ -71,8 +70,7 @@ void stellaris_uart0_irq(void)
     arm_cm_irq_exit(resched);
 }
 
-void stellaris_debug_early_init(void)
-{
+void stellaris_debug_early_init(void) {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
 
     /* we only support UART0 right now */
@@ -92,8 +90,7 @@ void stellaris_debug_early_init(void)
     UARTEnable(DEBUG_UART);
 }
 
-void stellaris_debug_init(void)
-{
+void stellaris_debug_init(void) {
     cbuf_initialize(&debug_rx_buf, 16);
 
     /* Enable the UART interrupt. */
@@ -103,8 +100,7 @@ void stellaris_debug_init(void)
 
 }
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     if (c == '\n') {
         platform_dputc('\r');
     }
@@ -112,8 +108,7 @@ void platform_dputc(char c)
     UARTCharPut(DEBUG_UART, c);
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
     return cbuf_read_char(&debug_rx_buf, c, wait);
 }
 

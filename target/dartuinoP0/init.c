@@ -66,8 +66,7 @@ const sdram_config_t target_sdram_config = {
     .col_bits_num = SDRAM_COLUMN_BITS_8
 };
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     GPIO_InitTypeDef gpio_init;
 
     __HAL_RCC_GPIOE_CLK_ENABLE();
@@ -124,8 +123,7 @@ void target_early_init(void)
 }
 
 
-void target_init(void)
-{
+void target_init(void) {
     stm32_debug_init();
 
     qspi_flash_init(N25Q128A_FLASH_SIZE);
@@ -176,8 +174,7 @@ void target_init(void)
 #endif
 }
 
-void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
-{
+void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi) {
     GPIO_InitTypeDef  GPIO_InitStruct;
     if (hspi->Instance == SPI2) {
         /*##-1- Enable peripherals and GPIO Clocks #################################*/
@@ -222,8 +219,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
   * @brief  Initializes SDRAM GPIO.
   * called back from stm32_sdram_init
   */
-void stm_sdram_GPIO_init(void)
-{
+void stm_sdram_GPIO_init(void) {
     GPIO_InitTypeDef gpio_init_structure;
 
     /* Enable GPIOs clock */
@@ -278,8 +274,7 @@ void stm_sdram_GPIO_init(void)
   * @retval None
   */
 /* called back from the HAL_ETH_Init routine */
-void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
-{
+void HAL_ETH_MspInit(ETH_HandleTypeDef *heth) {
     GPIO_InitTypeDef GPIO_InitStructure;
 
     /* Enable GPIOs clocks */
@@ -317,8 +312,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
     HAL_GPIO_Init(GPIOG, &GPIO_InitStructure);
 }
 
-void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
-{
+void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi) {
     GPIO_InitTypeDef GPIO_InitStruct;
 
     /*##-1- Enable peripherals and GPIO Clocks #################################*/
@@ -368,8 +362,7 @@ void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
   * @param  hpcd: PCD handle
   * @retval None
   */
-void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd)
-{
+void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd) {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
     if (hpcd->Instance == USB_OTG_FS) {
@@ -470,8 +463,7 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd)
     }
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     uint32_t gpio;
 
     switch (led) {

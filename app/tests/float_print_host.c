@@ -4,8 +4,7 @@
 
 #include "float_test_vec.c"
 
-int main(void)
-{
+int main(void) {
     printf("floating point printf tests\n");
 
     for (size_t i = 0; i < float_test_vec_size; i++) {

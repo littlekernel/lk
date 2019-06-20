@@ -50,8 +50,7 @@ STATIC_COMMAND_START
 STATIC_COMMAND("bio", "block io debug commands", &cmd_bio)
 STATIC_COMMAND_END(bio);
 
-static int cmd_bio(int argc, const cmd_args *argv)
-{
+static int cmd_bio(int argc, const cmd_args *argv) {
     int rc = 0;
 
     if (argc < 2) {
@@ -291,8 +290,7 @@ usage:
 
 // Returns the number of blocks that do not match the reference pattern.
 static bool is_valid_block(bdev_t *device, bnum_t block_num, uint8_t *pattern,
-                           size_t pattern_length)
-{
+                           size_t pattern_length) {
     uint8_t *block_contents = memalign(DMA_ALIGNMENT, device->block_size);
 
     ssize_t n_bytes = device->read_block(device, block_contents, block_num, 1);
@@ -315,8 +313,7 @@ static bool is_valid_block(bdev_t *device, bnum_t block_num, uint8_t *pattern,
     return true;
 }
 
-static ssize_t erase_test(bdev_t *device)
-{
+static ssize_t erase_test(bdev_t *device) {
     printf("erasing device...\n");
 
     ssize_t err = bio_erase(device, 0, device->total_size);
@@ -336,8 +333,7 @@ static ssize_t erase_test(bdev_t *device)
     return num_invalid_blocks;
 }
 
-static bool test_erase_block(bdev_t *device, uint32_t block_addr)
-{
+static bool test_erase_block(bdev_t *device, uint32_t block_addr) {
     bool success = false;
     uint8_t valid_byte[1];
 
@@ -370,8 +366,7 @@ finish:
 }
 
 // Ensure that (sub)sector erase work.
-static bool sub_erase_test(bdev_t *device, uint32_t n_samples)
-{
+static bool sub_erase_test(bdev_t *device, uint32_t n_samples) {
     printf("Sampling the device %d times.\n", n_samples);
     for (uint32_t i = 0; i < n_samples; i++) {
         bnum_t block_addr = rand() % device->block_count;
@@ -382,15 +377,13 @@ static bool sub_erase_test(bdev_t *device, uint32_t n_samples)
     return true;
 }
 
-static uint8_t get_signature(uint32_t word)
-{
+static uint8_t get_signature(uint32_t word) {
     uint8_t *sigptr = (uint8_t *)(&word);
     return sigptr[0] ^ sigptr[1] ^ sigptr[2] ^ sigptr[3];
 }
 
 // returns the number of blocks where the write was not successful.
-static ssize_t write_test(bdev_t *device)
-{
+static ssize_t write_test(bdev_t *device) {
     uint8_t *test_buffer = memalign(DMA_ALIGNMENT, device->block_size);
 
     for (bnum_t bnum = 0; bnum < device->block_count; bnum++) {
@@ -416,8 +409,7 @@ static ssize_t write_test(bdev_t *device)
     return num_errors;
 }
 
-static status_t memory_mapped_test(bdev_t *device)
-{
+static status_t memory_mapped_test(bdev_t *device) {
     status_t retcode = NO_ERROR;
 
     uint8_t *test_buffer = memalign(DMA_ALIGNMENT, device->block_size);
@@ -523,8 +515,7 @@ finish:
     return retcode;
 }
 
-static int bio_test_device(bdev_t *device)
-{
+static int bio_test_device(bdev_t *device) {
     ssize_t num_errors = erase_test(device);
     if (num_errors < 0) {
         printf("error %ld performing erase test\n", num_errors);

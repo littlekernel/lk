@@ -32,8 +32,7 @@
 
 #define LOCAL_TRACE 0
 
-static void endian_swap_superblock(struct ext2_super_block *sb)
-{
+static void endian_swap_superblock(struct ext2_super_block *sb) {
     LE32SWAP(sb->s_inodes_count);
     LE32SWAP(sb->s_blocks_count);
     LE32SWAP(sb->s_r_blocks_count);
@@ -75,8 +74,7 @@ static void endian_swap_superblock(struct ext2_super_block *sb)
     LE32SWAP(sb->s_first_meta_bg);
 }
 
-static void endian_swap_inode(struct ext2_inode *inode)
-{
+static void endian_swap_inode(struct ext2_inode *inode) {
     LE16SWAP(inode->i_mode);
     LE16SWAP(inode->i_uid_low);
     LE32SWAP(inode->i_size);
@@ -100,8 +98,7 @@ static void endian_swap_inode(struct ext2_inode *inode)
     LE16SWAP(inode->i_gid_high);
 }
 
-static void endian_swap_group_desc(struct ext2_group_desc *gd)
-{
+static void endian_swap_group_desc(struct ext2_group_desc *gd) {
     LE32SWAP(gd->bg_block_bitmap);
     LE32SWAP(gd->bg_inode_bitmap);
     LE32SWAP(gd->bg_inode_table);
@@ -110,8 +107,7 @@ static void endian_swap_group_desc(struct ext2_group_desc *gd)
     LE16SWAP(gd->bg_used_dirs_count);
 }
 
-status_t ext2_mount(bdev_t *dev, fscookie **cookie)
-{
+status_t ext2_mount(bdev_t *dev, fscookie **cookie) {
     int err;
 
     LTRACEF("dev %p\n", dev);
@@ -204,8 +200,7 @@ err:
     return err;
 }
 
-status_t ext2_unmount(fscookie *cookie)
-{
+status_t ext2_unmount(fscookie *cookie) {
     // free it up
     ext2_t *ext2 = (ext2_t *)cookie;
 
@@ -216,8 +211,7 @@ status_t ext2_unmount(fscookie *cookie)
     return 0;
 }
 
-static void get_inode_addr(ext2_t *ext2, inodenum_t num, blocknum_t *block, size_t *block_offset)
-{
+static void get_inode_addr(ext2_t *ext2, inodenum_t num, blocknum_t *block, size_t *block_offset) {
     num--;
 
     uint32_t group = num / ext2->sb.s_inodes_per_group;
@@ -231,8 +225,7 @@ static void get_inode_addr(ext2_t *ext2, inodenum_t num, blocknum_t *block, size
     *block += offset / EXT2_BLOCK_SIZE(ext2->sb);
 }
 
-int ext2_load_inode(ext2_t *ext2, inodenum_t num, struct ext2_inode *inode)
-{
+int ext2_load_inode(ext2_t *ext2, inodenum_t num, struct ext2_inode *inode) {
     int err;
 
     LTRACEF("num %d, inode %p\n", num, inode);

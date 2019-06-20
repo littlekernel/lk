@@ -140,8 +140,7 @@ size_t cbuf_space_used(cbuf_t *cbuf);
  *
  * @return The size of the cbuf's underlying data buffer.
  */
-static inline size_t cbuf_size(cbuf_t *cbuf)
-{
+static inline size_t cbuf_size(cbuf_t *cbuf) {
     return (1UL << cbuf->len_pow2);
 }
 
@@ -153,8 +152,7 @@ static inline size_t cbuf_size(cbuf_t *cbuf)
  *
  * @param[in] cbuf The cbuf instance to reset.
  */
-static inline void cbuf_reset(cbuf_t *cbuf)
-{
+static inline void cbuf_reset(cbuf_t *cbuf) {
     cbuf_read(cbuf, NULL, cbuf_size(cbuf), false);
 }
 

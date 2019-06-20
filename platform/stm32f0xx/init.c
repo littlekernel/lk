@@ -34,8 +34,7 @@
 #define USE_USB_CLKSOURCE_PLL
 #endif
 
-static void SystemClock_Config(void)
-{
+static void SystemClock_Config(void) {
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
     RCC_OscInitTypeDef RCC_OscInitStruct;
     RCC_PeriphCLKInitTypeDef  PeriphClkInitStruct;
@@ -110,8 +109,7 @@ static void SystemClock_Config(void)
 #endif /*USE_USB_CLKSOURCE_CRSHSI48*/
 }
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     HAL_Init();
     SystemInit();
     SystemClock_Config();
@@ -124,8 +122,7 @@ void platform_early_init(void)
     stm32_gpio_early_init();
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     dma_init();
     stm32_timer_init();
 }

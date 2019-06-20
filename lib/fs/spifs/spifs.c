@@ -132,8 +132,7 @@ static status_t get_device_page_info(bdev_t *dev, uint32_t *page_size,
 static status_t cursor_init(
     cursor_t *cursor, spifs_t *spifs, int32_t direction, uint32_t page_id,
     uint32_t entry_length
-)
-{
+) {
     // Make sure the cursor can only be advanced an integer number of times
     // per page.
     DEBUG_ASSERT(ispow2(entry_length));
@@ -150,8 +149,7 @@ static status_t cursor_init(
     return spifs_read_page(spifs, page_id);
 }
 
-static uint8_t *cursor_get(cursor_t *cursor)
-{
+static uint8_t *cursor_get(cursor_t *cursor) {
 #if LK_DEBUGLEVEL > 1
     spifs_t *spifs = cursor->spifs;
 
@@ -162,8 +160,7 @@ static uint8_t *cursor_get(cursor_t *cursor)
     return cursor->data;
 }
 
-static status_t cursor_advance(cursor_t *cursor)
-{
+static status_t cursor_advance(cursor_t *cursor) {
     spifs_t *spifs = cursor->spifs;
 
     uint8_t *page_end = spifs->page + spifs->page_size;
@@ -185,8 +182,7 @@ static status_t cursor_advance(cursor_t *cursor)
     return NO_ERROR;
 }
 
-static spifs_file_t *find_file(spifs_t *spifs, const char *name)
-{
+static spifs_file_t *find_file(spifs_t *spifs, const char *name) {
     spifs_file_t *file;
 
     list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
@@ -204,8 +200,7 @@ static spifs_file_t *find_file(spifs_t *spifs, const char *name)
     return NULL;
 }
 
-static uint32_t find_open_run(spifs_t *spifs, uint32_t requested_length)
-{
+static uint32_t find_open_run(spifs_t *spifs, uint32_t requested_length) {
     spifs_file_t *file;
     list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
         // Number of pages that this file occupies
@@ -235,8 +230,7 @@ static uint32_t find_open_run(spifs_t *spifs, uint32_t requested_length)
     return NO_OPEN_RUNS;
 }
 
-static uint64_t used_space(spifs_t *spifs)
-{
+static uint64_t used_space(spifs_t *spifs) {
     uint64_t result = 0;
 
     spifs_file_t *file;
@@ -247,8 +241,7 @@ static uint64_t used_space(spifs_t *spifs)
     return result;
 }
 
-static bool consistency_check(spifs_t *spifs)
-{
+static bool consistency_check(spifs_t *spifs) {
     /* Return true iff the ToC is in a consistent state. */
     spifs_file_t *file;
     list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
@@ -276,8 +269,7 @@ static bool consistency_check(spifs_t *spifs)
     return true;
 }
 
-static status_t spifs_commit_toc(spifs_t *spifs)
-{
+static status_t spifs_commit_toc(spifs_t *spifs) {
     status_t err;
 
     // Get the next logical ToC.
@@ -361,8 +353,7 @@ static status_t spifs_commit_toc(spifs_t *spifs)
     return NO_ERROR;
 }
 
-static void spifs_add_ascending(spifs_t *spifs, spifs_file_t *target)
-{
+static void spifs_add_ascending(spifs_t *spifs, spifs_file_t *target) {
     spifs_file_t *file;
     list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
         if (file->metadata.page_idx > target->metadata.page_idx) {
@@ -375,8 +366,7 @@ static void spifs_add_ascending(spifs_t *spifs, spifs_file_t *target)
 }
 
 
-static status_t spifs_read_page(spifs_t *spifs, uint32_t page_addr)
-{
+static status_t spifs_read_page(spifs_t *spifs, uint32_t page_addr) {
     off_t block_addr = page_addr * spifs->blocks_per_page;
 
     ssize_t bytes = bio_read_block(spifs->dev, spifs->page, block_addr,
@@ -389,8 +379,7 @@ static status_t spifs_read_page(spifs_t *spifs, uint32_t page_addr)
     return NO_ERROR;
 }
 
-static status_t spifs_write_page(spifs_t *spifs, uint32_t page_addr)
-{
+static status_t spifs_write_page(spifs_t *spifs, uint32_t page_addr) {
     off_t block_addr = page_addr * spifs->blocks_per_page;
     off_t device_addr = block_addr * spifs->dev->block_size;
 
@@ -412,8 +401,7 @@ static status_t spifs_write_page(spifs_t *spifs, uint32_t page_addr)
     return NO_ERROR;
 }
 
-static uint32_t get_toc_generation(spifs_t *spifs, toc_position_t toc_pos)
-{
+static uint32_t get_toc_generation(spifs_t *spifs, toc_position_t toc_pos) {
     LTRACEF("spifs %p\n", spifs);
 
     uint32_t candidate_generation;
@@ -469,8 +457,7 @@ static uint32_t get_toc_generation(spifs_t *spifs, toc_position_t toc_pos)
 
 // page_size will be populated with the device's page size if this function
 // returns NO_ERROR, otherwise the contents of page_size are undefined.
-static status_t get_device_page_info(bdev_t *dev, uint32_t *page_size, uint32_t *page_count)
-{
+static status_t get_device_page_info(bdev_t *dev, uint32_t *page_size, uint32_t *page_count) {
     LTRACEF("dev %p, page_size %p\n", dev, page_size);
 
     switch (dev->geometry_count) {
@@ -501,8 +488,7 @@ static status_t get_device_page_info(bdev_t *dev, uint32_t *page_size, uint32_t 
     }
 }
 
-static status_t spifs_format(bdev_t *dev, const void *args)
-{
+static status_t spifs_format(bdev_t *dev, const void *args) {
     status_t err = NO_ERROR;
 
     LTRACEF("dev %p, args %p\n", dev, args);
@@ -608,8 +594,7 @@ err:
     return err;
 }
 
-static status_t spifs_mount(bdev_t *dev, fscookie **cookie)
-{
+static status_t spifs_mount(bdev_t *dev, fscookie **cookie) {
     status_t status;
 
     LTRACEF("dev %p, cookie %p\n", dev, cookie);
@@ -714,8 +699,7 @@ err:
     return status;
 }
 
-static status_t spifs_unmount(fscookie *cookie)
-{
+static status_t spifs_unmount(fscookie *cookie) {
     LTRACEF("cookie %p\n", cookie);
 
     spifs_t *spifs = (spifs_t *)cookie;
@@ -736,8 +720,7 @@ static status_t spifs_unmount(fscookie *cookie)
     return NO_ERROR;
 }
 
-static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fcookie, uint64_t len)
-{
+static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fcookie, uint64_t len) {
     status_t status = NO_ERROR;
 
     LTRACEF("cookie %p name '%s' filecookie %p len %llu\n", cookie, name, fcookie, len);
@@ -831,8 +814,7 @@ err:
     return status;
 }
 
-static status_t spifs_open(fscookie *cookie, const char *name, filecookie **fcookie)
-{
+static status_t spifs_open(fscookie *cookie, const char *name, filecookie **fcookie) {
     LTRACEF("cookie %p name '%s' filecookie %p\n", cookie, name, fcookie);
 
     spifs_t *spifs = (spifs_t *)cookie;
@@ -853,8 +835,7 @@ static status_t spifs_open(fscookie *cookie, const char *name, filecookie **fcoo
     return NO_ERROR;
 }
 
-static status_t spifs_close(filecookie *fcookie)
-{
+static status_t spifs_close(filecookie *fcookie) {
     spifs_file_t *file = (spifs_file_t *)fcookie;
 
     LTRACEF("cookie %p name '%s'\n", fcookie, file->metadata.filename);
@@ -862,8 +843,7 @@ static status_t spifs_close(filecookie *fcookie)
     return NO_ERROR;
 }
 
-static status_t spifs_remove(fscookie *cookie, const char *name)
-{
+static status_t spifs_remove(fscookie *cookie, const char *name) {
     status_t status;
 
     LTRACEF("cookie %p name '%s'\n", cookie, name);
@@ -904,8 +884,7 @@ err:
     return status;
 }
 
-static ssize_t spifs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
-{
+static ssize_t spifs_read(filecookie *fcookie, void *buf, off_t off, size_t len) {
     LTRACEF("filecookie %p buf %p offset %lld len %zu\n", fcookie, buf, off, len);
 
     spifs_file_t *file = (spifs_file_t *)fcookie;
@@ -937,8 +916,7 @@ static ssize_t spifs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
     return result;
 }
 
-static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size_t size)
-{
+static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size_t size) {
     status_t err = NO_ERROR;
     size_t len = size;
 
@@ -1040,8 +1018,7 @@ err:
     return len == 0 ? (ssize_t)size : err;
 }
 
-static status_t spifs_truncate(filecookie *fcookie, uint64_t len)
-{
+static status_t spifs_truncate(filecookie *fcookie, uint64_t len) {
     LTRACEF("filecookie %p, len %llu\n", fcookie, len);
 
     status_t rc = NO_ERROR;
@@ -1068,8 +1045,7 @@ finish:
     return rc;
 }
 
-static status_t spifs_stat(filecookie *fcookie, struct file_stat *stat)
-{
+static status_t spifs_stat(filecookie *fcookie, struct file_stat *stat) {
     LTRACEF("filecookie %p stat %p\n", fcookie, stat);
 
     spifs_file_t *file = (spifs_file_t *)fcookie;
@@ -1087,8 +1063,7 @@ static status_t spifs_stat(filecookie *fcookie, struct file_stat *stat)
     return NO_ERROR;
 }
 
-static status_t spifs_opendir(fscookie *cookie, const char *name, dircookie **dcookie)
-{
+static status_t spifs_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
     LTRACEF("cookie %p name '%s' dircookie %p\n", cookie, name, dcookie);
 
     spifs_t *spifs = (spifs_t *)cookie;
@@ -1119,8 +1094,7 @@ static status_t spifs_opendir(fscookie *cookie, const char *name, dircookie **dc
     return NO_ERROR;
 }
 
-static status_t spifs_readdir(dircookie *dcookie, struct dirent *ent)
-{
+static status_t spifs_readdir(dircookie *dcookie, struct dirent *ent) {
     status_t err;
 
     LTRACEF("dircookie %p ent %p\n", dcookie, ent);
@@ -1145,8 +1119,7 @@ static status_t spifs_readdir(dircookie *dcookie, struct dirent *ent)
     return err;
 }
 
-static status_t spifs_closedir(dircookie *dcookie)
-{
+static status_t spifs_closedir(dircookie *dcookie) {
     LTRACEF("dircookie %p\n", dcookie);
 
     mutex_acquire(&dcookie->fs->lock);
@@ -1158,8 +1131,7 @@ static status_t spifs_closedir(dircookie *dcookie)
     return NO_ERROR;
 }
 
-static status_t spifs_fs_stat(fscookie *cookie, struct fs_stat *stat)
-{
+static status_t spifs_fs_stat(fscookie *cookie, struct fs_stat *stat) {
     LTRACEF("cookie %p, stat %p\n", cookie, stat);
 
     spifs_t *spifs = (spifs_t *)cookie;
@@ -1173,8 +1145,7 @@ static status_t spifs_fs_stat(fscookie *cookie, struct fs_stat *stat)
     return NO_ERROR;
 }
 
-static status_t spifs_ioctl_get_file_addr(filecookie *cookie, void **argp)
-{
+static status_t spifs_ioctl_get_file_addr(filecookie *cookie, void **argp) {
     LTRACEF("cookie %p, argp %p\n", cookie, argp);
 
     if (unlikely(!argp)) {
@@ -1201,8 +1172,7 @@ static status_t spifs_ioctl_get_file_addr(filecookie *cookie, void **argp)
     return NO_ERROR;
 }
 
-static status_t spifs_ioctl_is_linear(filecookie *cookie, void **argp)
-{
+static status_t spifs_ioctl_is_linear(filecookie *cookie, void **argp) {
     LTRACEF("cookie %p, argp %p\n", cookie, argp);
 
     if (unlikely(!argp)) {
@@ -1222,8 +1192,7 @@ static status_t spifs_ioctl_is_linear(filecookie *cookie, void **argp)
     return NO_ERROR;
 }
 
-static status_t spifs_file_ioctl(filecookie *cookie, int request, void *argp)
-{
+static status_t spifs_file_ioctl(filecookie *cookie, int request, void *argp) {
     LTRACEF("request %d, argp %p\n", request, argp);
 
     switch (request) {

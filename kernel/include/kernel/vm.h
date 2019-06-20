@@ -98,8 +98,7 @@ typedef struct vm_page {
 
 STATIC_ASSERT(KERNEL_ASPACE_BASE + (KERNEL_ASPACE_SIZE - 1) > KERNEL_ASPACE_BASE);
 
-static inline bool is_kernel_address(vaddr_t va)
-{
+static inline bool is_kernel_address(vaddr_t va) {
     return (va >= (vaddr_t)KERNEL_ASPACE_BASE && va <= ((vaddr_t)KERNEL_ASPACE_BASE + ((vaddr_t)KERNEL_ASPACE_SIZE - 1)));
 }
 
@@ -113,8 +112,7 @@ static inline bool is_kernel_address(vaddr_t va)
 
 STATIC_ASSERT(USER_ASPACE_BASE + (USER_ASPACE_SIZE - 1) > USER_ASPACE_BASE);
 
-static inline bool is_user_address(vaddr_t va)
-{
+static inline bool is_user_address(vaddr_t va) {
     return (va >= USER_ASPACE_BASE && va <= (USER_ASPACE_BASE + (USER_ASPACE_SIZE - 1)));
 }
 
@@ -180,7 +178,7 @@ size_t pmm_free_kpages(void *ptr, uint count);
 void *paddr_to_kvaddr(paddr_t pa);
 
 /* a hint as to which virtual addresses will be returned by pmm_alloc_kpages */
-void *kvaddr_get_range(size_t* size_return);
+void *kvaddr_get_range(size_t *size_return);
 
 /* virtual to physical */
 paddr_t vaddr_to_paddr(void *va);
@@ -226,8 +224,7 @@ typedef struct vmm_region {
 
 /* grab a handle to the kernel address space */
 extern vmm_aspace_t _kernel_aspace;
-static inline vmm_aspace_t *vmm_get_kernel_aspace(void)
-{
+static inline vmm_aspace_t *vmm_get_kernel_aspace(void) {
     return &_kernel_aspace;
 }
 

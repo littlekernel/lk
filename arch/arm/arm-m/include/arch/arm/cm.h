@@ -124,8 +124,7 @@ static const unsigned int arm_cm_irq_pri_mask = ~((1 << __NVIC_PRIO_BITS) - 1) &
 
 void _arm_cm_set_irqpri(uint32_t pri);
 
-static void arm_cm_set_irqpri(uint32_t pri)
-{
+static void arm_cm_set_irqpri(uint32_t pri) {
     if (__ISCONSTANT(pri)) {
         if (pri == 0) {
             __disable_irq(); // cpsid i
@@ -148,31 +147,26 @@ static void arm_cm_set_irqpri(uint32_t pri)
 }
 #endif
 
-static inline uint32_t arm_cm_highest_priority(void)
-{
+static inline uint32_t arm_cm_highest_priority(void) {
     return 0;
 }
 
-static inline uint32_t arm_cm_lowest_priority(void)
-{
+static inline uint32_t arm_cm_lowest_priority(void) {
     return (1 << arm_cm_num_irq_pri_bits) - 1;
 }
 
-static inline uint32_t arm_cm_medium_priority(void)
-{
+static inline uint32_t arm_cm_medium_priority(void) {
     return (1 << (arm_cm_num_irq_pri_bits - 1));
 }
 
 #if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
-static inline void arm_cm_trigger_interrupt(int vector)
-{
+static inline void arm_cm_trigger_interrupt(int vector) {
     NVIC->STIR = vector;
 }
 #endif
 
 
-static inline void arm_cm_trigger_preempt(void)
-{
+static inline void arm_cm_trigger_preempt(void) {
     SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 

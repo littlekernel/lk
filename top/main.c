@@ -56,8 +56,7 @@ static int bootstrap2(void *arg);
 
 extern void kernel_init(void);
 
-static void call_constructors(void)
-{
+static void call_constructors(void) {
     void **ctor;
 
     ctor = &__ctor_list;
@@ -72,8 +71,7 @@ static void call_constructors(void)
 }
 
 /* called from arch code */
-void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
-{
+void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
     // save the boot args
     lk_boot_args[0] = arg0;
     lk_boot_args[1] = arg1;
@@ -129,8 +127,7 @@ void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3)
     thread_become_idle();
 }
 
-static int bootstrap2(void *arg)
-{
+static int bootstrap2(void *arg) {
     dprintf(SPEW, "top of bootstrap2()\n");
 
     lk_primary_cpu_init_level(LK_INIT_LEVEL_THREADING, LK_INIT_LEVEL_ARCH - 1);
@@ -156,8 +153,7 @@ static int bootstrap2(void *arg)
 }
 
 #if WITH_SMP
-void lk_secondary_cpu_entry(void)
-{
+void lk_secondary_cpu_entry(void) {
     uint cpu = arch_curr_cpu_num();
 
     if (cpu > secondary_bootstrap_thread_count) {
@@ -173,16 +169,14 @@ void lk_secondary_cpu_entry(void)
     thread_secondary_cpu_entry();
 }
 
-static int secondary_cpu_bootstrap2(void *arg)
-{
+static int secondary_cpu_bootstrap2(void *arg) {
     /* secondary cpu initialize from threading level up. 0 to threading was handled in arch */
     lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_THREADING, LK_INIT_LEVEL_LAST);
 
     return 0;
 }
 
-void lk_init_secondary_cpus(uint secondary_cpu_count)
-{
+void lk_init_secondary_cpus(uint secondary_cpu_count) {
     if (secondary_cpu_count >= SMP_MAX_CPUS) {
         dprintf(CRITICAL, "Invalid secondary_cpu_count %d, SMP_MAX_CPUS %d\n",
                 secondary_cpu_count, SMP_MAX_CPUS);

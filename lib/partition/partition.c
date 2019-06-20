@@ -44,8 +44,7 @@ struct mbr_part {
     uint32_t lba_length;
 } __PACKED;
 
-static status_t validate_mbr_partition(bdev_t *dev, const struct mbr_part *part)
-{
+static status_t validate_mbr_partition(bdev_t *dev, const struct mbr_part *part) {
     /* check for invalid types */
     if (part->type == 0)
         return -1;
@@ -64,8 +63,7 @@ static status_t validate_mbr_partition(bdev_t *dev, const struct mbr_part *part)
     return 0;
 }
 
-int partition_publish(const char *device, off_t offset)
-{
+int partition_publish(const char *device, off_t offset) {
     int err = 0;
     int count = 0;
 
@@ -128,8 +126,7 @@ err:
     return (err < 0) ? err : count;
 }
 
-int partition_unpublish(const char *device)
-{
+int partition_unpublish(const char *device) {
     int i;
     int count;
     bdev_t *dev;

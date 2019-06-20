@@ -36,30 +36,29 @@
 #ifndef __MT_IRQ_H__
 #define __MT_IRQ_H__
 
-#define GIC_CPU_CTRL			0x00
-#define GIC_CPU_PRIMASK			0x04
-#define GIC_CPU_BINPOINT		0x08
-#define GIC_CPU_INTACK			0x0c
-#define GIC_CPU_EOI			0x10
-#define GIC_CPU_RUNNINGPRI		0x14
-#define GIC_CPU_HIGHPRI			0x18
+#define GIC_CPU_CTRL            0x00
+#define GIC_CPU_PRIMASK         0x04
+#define GIC_CPU_BINPOINT        0x08
+#define GIC_CPU_INTACK          0x0c
+#define GIC_CPU_EOI         0x10
+#define GIC_CPU_RUNNINGPRI      0x14
+#define GIC_CPU_HIGHPRI         0x18
 
-#define GIC_DIST_CTRL			0x000
-#define GIC_DIST_CTR			0x004
-#define GIC_DIST_ENABLE_SET		0x100
-#define GIC_DIST_ENABLE_CLEAR		0x180
-#define GIC_DIST_PENDING_SET		0x200
-#define GIC_DIST_PENDING_CLEAR		0x280
-#define GIC_DIST_ACTIVE_BIT		0x300
-#define GIC_DIST_PRI			0x400
-#define GIC_DIST_TARGET			0x800
-#define GIC_DIST_CONFIG			0xc00
-#define GIC_DIST_SOFTINT		0xf00
-#define GIC_DIST_ICDISR  		0x80
+#define GIC_DIST_CTRL           0x000
+#define GIC_DIST_CTR            0x004
+#define GIC_DIST_ENABLE_SET     0x100
+#define GIC_DIST_ENABLE_CLEAR       0x180
+#define GIC_DIST_PENDING_SET        0x200
+#define GIC_DIST_PENDING_CLEAR      0x280
+#define GIC_DIST_ACTIVE_BIT     0x300
+#define GIC_DIST_PRI            0x400
+#define GIC_DIST_TARGET         0x800
+#define GIC_DIST_CONFIG         0xc00
+#define GIC_DIST_SOFTINT        0xf00
+#define GIC_DIST_ICDISR         0x80
 enum {IRQ_MASK_HEADER = 0xF1F1F1F1, IRQ_MASK_FOOTER = 0xF2F2F2F2};
 
-struct mtk_irq_mask
-{
+struct mtk_irq_mask {
     unsigned int header;   /* for error checking */
     unsigned int mask0;
     unsigned int mask1;

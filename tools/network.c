@@ -28,8 +28,7 @@
 
 #include "network.h"
 
-in_addr_t lookup_hostname(const char *hostname)
-{
+in_addr_t lookup_hostname(const char *hostname) {
     int err;
     struct addrinfo *info, *temp;
     in_addr_t addr = 0;
@@ -61,8 +60,7 @@ in_addr_t lookup_hostname(const char *hostname)
     return addr;
 }
 
-static int inet_listen(in_addr_t addr, int type, unsigned port, int shared)
-{
+static int inet_listen(in_addr_t addr, int type, unsigned port, int shared) {
     struct sockaddr_in sa;
     int s;
     if ((s = socket(AF_INET, type, 0)) < 0) {
@@ -84,8 +82,7 @@ static int inet_listen(in_addr_t addr, int type, unsigned port, int shared)
     return s;
 }
 
-static int inet_connect(in_addr_t addr, int type, unsigned port)
-{
+static int inet_connect(in_addr_t addr, int type, unsigned port) {
     struct sockaddr_in sa;
     int s;
     if ((s = socket(AF_INET, type, 0)) < 0) {
@@ -106,22 +103,18 @@ static int inet_connect(in_addr_t addr, int type, unsigned port)
     return s;
 }
 
-int udp_listen(in_addr_t addr, unsigned port, int shared)
-{
+int udp_listen(in_addr_t addr, unsigned port, int shared) {
     return inet_listen(addr, SOCK_DGRAM, port, shared);
 }
 
-int udp_connect(in_addr_t addr, unsigned port)
-{
+int udp_connect(in_addr_t addr, unsigned port) {
     return inet_connect(addr, SOCK_DGRAM, port);
 }
 
-int tcp_listen(in_addr_t addr, unsigned port)
-{
+int tcp_listen(in_addr_t addr, unsigned port) {
     return inet_listen(addr, SOCK_STREAM, port, 0);
 }
 
-int tcp_connect(in_addr_t addr, unsigned port)
-{
+int tcp_connect(in_addr_t addr, unsigned port) {
     return inet_connect(addr, SOCK_STREAM, port);
 }

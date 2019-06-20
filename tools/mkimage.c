@@ -47,8 +47,7 @@ static struct {
     { NULL, 0 },
 };
 
-void usage(const char *binary)
-{
+void usage(const char *binary) {
     unsigned n;
     fprintf(stderr, "usage:\n");
     fprintf(stderr, "%s [-h] [-o <output file] section:file ...\n\n", binary);
@@ -68,8 +67,7 @@ void usage(const char *binary)
     }
 }
 
-int process(bootimage *img, char *cmd, char *arg)
-{
+int process(bootimage *img, char *cmd, char *arg) {
     unsigned n;
 
     for (n = 0; types[n].cmd != NULL; n++) {
@@ -92,8 +90,7 @@ int process(bootimage *img, char *cmd, char *arg)
     return -1;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     const char *binary = argv[0];
     bootimage *img;
     int fd;

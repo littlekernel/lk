@@ -31,13 +31,11 @@
 
 static bdev_t dev;
 
-static uint64_t get_blkdev_len(void)
-{
+static uint64_t get_blkdev_len(void) {
     return *REG64(BDEV_LEN);
 }
 
-ssize_t read_block(struct bdev *dev, void *buf, bnum_t block, uint count)
-{
+ssize_t read_block(struct bdev *dev, void *buf, bnum_t block, uint count) {
     /* assume args have been validated by layer above */
     *REG32(BDEV_CMD_ADDR) = (uint32_t)buf;
     *REG64(BDEV_CMD_OFF) = (uint64_t)((uint64_t)block * dev->block_size);
@@ -52,8 +50,7 @@ ssize_t read_block(struct bdev *dev, void *buf, bnum_t block, uint count)
         return ERR_IO;
 }
 
-ssize_t write_block(struct bdev *dev, const void *buf, bnum_t block, uint count)
-{
+ssize_t write_block(struct bdev *dev, const void *buf, bnum_t block, uint count) {
     /* assume args have been validated by layer above */
     *REG32(BDEV_CMD_ADDR) = (uint32_t)buf;
     *REG64(BDEV_CMD_OFF) = (uint64_t)((uint64_t)block * dev->block_size);
@@ -68,8 +65,7 @@ ssize_t write_block(struct bdev *dev, const void *buf, bnum_t block, uint count)
         return ERR_IO;
 }
 
-void platform_init_blkdev(void)
-{
+void platform_init_blkdev(void) {
     if ((*REG32(SYSINFO_FEATURES) & SYSINFO_FEATURE_BLOCKDEV) == 0)
         return; // no block device
 

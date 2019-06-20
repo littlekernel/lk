@@ -21,8 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-void dev_init(void)
-{
+void dev_init(void) {
 
 }
 

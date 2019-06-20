@@ -60,8 +60,7 @@ extern uint64_t __bss_end;
 
 extern void pci_init(void);
 
-void platform_init_mmu_mappings(void)
-{
+void platform_init_mmu_mappings(void) {
     // XXX move into arch/x86 setup
 #if 0
     struct map_range range;
@@ -167,8 +166,7 @@ static pmm_arena_t mem_arena = {
 /* set up the size of the physical memory map based on the end of memory we detected in
  * platform_init_multiboot_info()
  */
-void mem_arena_init(void)
-{
+void mem_arena_init(void) {
     uintptr_t mem_base = (uintptr_t)MEMBASE;
     uintptr_t mem_size = mem_top;
 
@@ -177,8 +175,7 @@ void mem_arena_init(void)
 }
 #endif
 
-void platform_init_multiboot_info(void)
-{
+void platform_init_multiboot_info(void) {
     LTRACEF("_multiboot_info %p\n", _multiboot_info);
     if (_multiboot_info) {
         /* bump the multiboot pointer up to the kernel mapping */
@@ -198,8 +195,8 @@ void platform_init_multiboot_info(void)
             for (uint i = 0; i < _multiboot_info->mmap_length / sizeof(memory_map_t); i++) {
 
                 LTRACEF("\ttype %u addr 0x%x %x len 0x%x %x\n",
-                    mmap[i].type, mmap[i].base_addr_high, mmap[i].base_addr_low,
-                    mmap[i].length_high, mmap[i].length_low);
+                        mmap[i].type, mmap[i].base_addr_high, mmap[i].base_addr_low,
+                        mmap[i].length_high, mmap[i].length_low);
                 if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE && mmap[i].base_addr_low >= mem_top) {
                     mem_top = mmap[i].base_addr_low + mmap[i].length_low;
                 } else if (mmap[i].type != MB_MMAP_TYPE_AVAILABLE && mmap[i].base_addr_low >= mem_top) {
@@ -224,8 +221,7 @@ void platform_init_multiboot_info(void)
     LTRACEF("mem_top 0x%lx\n", mem_top);
 }
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     /* get the debug output working */
     platform_init_debug_early();
 
@@ -247,8 +243,7 @@ void platform_early_init(void)
 #endif
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     platform_init_debug();
 
     platform_init_keyboard(&console_input_buf);

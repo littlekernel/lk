@@ -38,8 +38,7 @@ struct fp_32_64 {
 #include "fixed_point_debug.h"
 
 static void
-fp_32_64_div_32_32(struct fp_32_64 *result, uint32_t dividend, uint32_t divisor)
-{
+fp_32_64_div_32_32(struct fp_32_64 *result, uint32_t dividend, uint32_t divisor) {
     uint64_t tmp;
     uint32_t rem;
 
@@ -52,16 +51,14 @@ fp_32_64_div_32_32(struct fp_32_64 *result, uint32_t dividend, uint32_t divisor)
 }
 
 static uint64_t
-mul_u32_u32(uint32_t a, uint32_t b, int a_shift, int b_shift)
-{
+mul_u32_u32(uint32_t a, uint32_t b, int a_shift, int b_shift) {
     uint64_t ret = (uint64_t)a * b;
     debug_mul_u32_u32(a, b, a_shift, b_shift, ret);
     return ret;
 }
 
 static uint64_t
-u64_mul_u32_fp32_64(uint32_t a, struct fp_32_64 b)
-{
+u64_mul_u32_fp32_64(uint32_t a, struct fp_32_64 b) {
     uint64_t tmp;
     uint64_t res_0;
     uint64_t res_l32;
@@ -83,8 +80,7 @@ u64_mul_u32_fp32_64(uint32_t a, struct fp_32_64 b)
 }
 
 static uint32_t
-u32_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b)
-{
+u32_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b) {
     uint32_t a_r32 = a >> 32;
     uint32_t a_0 = a;
     uint64_t res_l32;
@@ -104,8 +100,7 @@ u32_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b)
 }
 
 static uint64_t
-u64_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b)
-{
+u64_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b) {
     uint32_t a_r32 = a >> 32;
     uint32_t a_0 = a;
     uint64_t res_0;

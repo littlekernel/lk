@@ -91,8 +91,7 @@ typedef struct {
 static struct list_node write_port_list;
 
 
-static port_buf_t *make_buf(bool big)
-{
+static port_buf_t *make_buf(bool big) {
     uint pk_count = big ? PORT_BUFF_SIZE_BIG : PORT_BUFF_SIZE;
     uint size = sizeof(port_buf_t) + ((pk_count - 1) * sizeof(port_packet_t));
     port_buf_t *buf = (port_buf_t *) malloc(size);
@@ -104,13 +103,11 @@ static port_buf_t *make_buf(bool big)
     return buf;
 }
 
-static inline bool buf_is_empty(port_buf_t *buf)
-{
+static inline bool buf_is_empty(port_buf_t *buf) {
     return buf->avail == valpow2(buf->log2);
 }
 
-static status_t buf_write(port_buf_t *buf, const port_packet_t *packets, size_t count)
-{
+static status_t buf_write(port_buf_t *buf, const port_packet_t *packets, size_t count) {
     if (buf->avail < count)
         return ERR_NOT_ENOUGH_BUFFER;
 
@@ -122,8 +119,7 @@ static status_t buf_write(port_buf_t *buf, const port_packet_t *packets, size_t 
     return NO_ERROR;
 }
 
-static status_t buf_read(port_buf_t *buf, port_result_t *pr)
-{
+static status_t buf_read(port_buf_t *buf, port_result_t *pr) {
     if (buf_is_empty(buf))
         return ERR_NO_MSG;
     pr->packet = buf->packet[buf->head];
@@ -133,13 +129,11 @@ static status_t buf_read(port_buf_t *buf, port_result_t *pr)
 }
 
 // must be called before any use of ports.
-void port_init(void)
-{
+void port_init(void) {
     list_initialize(&write_port_list);
 }
 
-status_t port_create(const char *name, port_mode_t mode, port_t *port)
-{
+status_t port_create(const char *name, port_mode_t mode, port_t *port) {
     if (!name || !port)
         return ERR_INVALID_ARGS;
 
@@ -197,8 +191,7 @@ status_t port_create(const char *name, port_mode_t mode, port_t *port)
     return NO_ERROR;
 }
 
-status_t port_open(const char *name, void *ctx, port_t *port)
-{
+status_t port_open(const char *name, void *ctx, port_t *port) {
     if (!name || !port)
         return ERR_INVALID_ARGS;
 
@@ -267,8 +260,7 @@ status_t port_open(const char *name, void *ctx, port_t *port)
     return rc;
 }
 
-status_t port_group(port_t *ports, size_t count, port_t *group)
-{
+status_t port_group(port_t *ports, size_t count, port_t *group) {
     if (count > MAX_PORT_GROUP_COUNT)
         return ERR_TOO_BIG;
 
@@ -316,8 +308,7 @@ status_t port_group(port_t *ports, size_t count, port_t *group)
     return rc;
 }
 
-status_t port_group_add(port_t group, port_t port)
-{
+status_t port_group_add(port_t group, port_t port) {
     if (!port || !group)
         return ERR_INVALID_ARGS;
 
@@ -338,7 +329,7 @@ status_t port_group_add(port_t group, port_t port)
     } else {
         rp->gport = pg;
         list_add_tail(&pg->rp_list, &rp->g_node);
-        
+
         // If the new read port being added has messages available, try to wake
         // any readers that might be present.
         if (!buf_is_empty(rp->buf)) {
@@ -351,8 +342,7 @@ status_t port_group_add(port_t group, port_t port)
     return rc;
 }
 
-status_t port_group_remove(port_t group, port_t port)
-{
+status_t port_group_remove(port_t group, port_t port) {
     if (!port || !group)
         return ERR_INVALID_ARGS;
 
@@ -385,8 +375,7 @@ status_t port_group_remove(port_t group, port_t port)
     return NO_ERROR;
 }
 
-status_t port_write(port_t port, const port_packet_t *pk, size_t count)
-{
+status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
     if (!port || !pk)
         return ERR_INVALID_ARGS;
 
@@ -437,8 +426,7 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count)
     return status;
 }
 
-static inline status_t read_no_lock(read_port_t *rp, lk_time_t timeout, port_result_t *result)
-{
+static inline status_t read_no_lock(read_port_t *rp, lk_time_t timeout, port_result_t *result) {
     status_t status = buf_read(rp->buf, result);
     result->ctx = rp->ctx;
 
@@ -456,8 +444,7 @@ static inline status_t read_no_lock(read_port_t *rp, lk_time_t timeout, port_res
     return read_no_lock(rp, timeout, result);
 }
 
-status_t port_read(port_t port, lk_time_t timeout, port_result_t *result)
-{
+status_t port_read(port_t port, lk_time_t timeout, port_result_t *result) {
     if (!port || !result)
         return ERR_INVALID_ARGS;
 
@@ -492,8 +479,7 @@ read_exit:
     return rc;
 }
 
-status_t port_destroy(port_t port)
-{
+status_t port_destroy(port_t port) {
     if (!port)
         return ERR_INVALID_ARGS;
 
@@ -534,8 +520,7 @@ status_t port_destroy(port_t port)
     return NO_ERROR;
 }
 
-status_t port_close(port_t port)
-{
+status_t port_close(port_t port) {
     if (!port)
         return ERR_INVALID_ARGS;
 

@@ -33,8 +33,7 @@
 #include "fat32_priv.h"
 #include "fat_fs.h"
 
-void fat32_dump(fat_fs_t *fat)
-{
+void fat32_dump(fat_fs_t *fat) {
     printf("bytes_per_sector=%i\n", fat->bytes_per_sector);
     printf("sectors_per_cluster=%i\n", fat->sectors_per_cluster);
     printf("bytes_per_cluster=%i\n", fat->bytes_per_cluster);
@@ -51,8 +50,7 @@ void fat32_dump(fat_fs_t *fat)
     printf("root_start=%i\n", fat->root_start);
 }
 
-status_t fat32_mount(bdev_t *dev, fscookie **cookie)
-{
+status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
     status_t result = NO_ERROR;
 
     if (!dev)
@@ -174,8 +172,7 @@ end:
     return result;
 }
 
-status_t fat32_unmount(fscookie *cookie)
-{
+status_t fat32_unmount(fscookie *cookie) {
     fat_fs_t *fat = (fat_fs_t *)cookie;
     bcache_destroy(fat->cache);
     free(fat);

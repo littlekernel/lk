@@ -38,13 +38,11 @@
 extern uint32_t mt_interrupt_needed_for_secure(void);
 extern uint64_t mt_irq_get_affinity(void);
 
-static void mt_gic_icc_primask_write(uint32_t reg)
-{
+static void mt_gic_icc_primask_write(uint32_t reg) {
     __asm__ volatile("MCR p15, 0, %0, c4, c6, 0" :: "r" (reg));
 }
 
-static uint32_t mt_gic_icc_primask_read(void)
-{
+static uint32_t mt_gic_icc_primask_read(void) {
     uint32_t reg;
 
     __asm__ volatile("MRC p15, 0, %0, c4, c6, 0" : "=r" (reg));
@@ -52,13 +50,11 @@ static uint32_t mt_gic_icc_primask_read(void)
     return reg;
 }
 
-static void mt_gic_icc_igrpen1_write(uint32_t reg)
-{
+static void mt_gic_icc_igrpen1_write(uint32_t reg) {
     __asm__ volatile("MCR p15, 0, %0, c12, c12, 7" :: "r" (reg));
 }
 
-static uint32_t mt_gic_icc_igrpen1_read(void)
-{
+static uint32_t mt_gic_icc_igrpen1_read(void) {
     uint32_t reg;
 
     __asm__ volatile("MRC p15, 0, %0, c12, c12, 7" : "=r" (reg));
@@ -66,8 +62,7 @@ static uint32_t mt_gic_icc_igrpen1_read(void)
     return reg;
 }
 
-static uint32_t mt_gic_icc_iar1_read(void)
-{
+static uint32_t mt_gic_icc_iar1_read(void) {
     uint32_t reg;
 
     __asm__ volatile("MRC p15, 0, %0, c12, c12, 0" : "=r" (reg));
@@ -75,8 +70,7 @@ static uint32_t mt_gic_icc_iar1_read(void)
     return reg;
 }
 
-static void mt_gic_icc_msre_write(void)
-{
+static void mt_gic_icc_msre_write(void) {
     uint32_t reg;
 
 #define MON_MODE    "#22"
@@ -94,14 +88,12 @@ static void mt_gic_icc_msre_write(void)
     dsb();
 }
 
-static void mt_gic_icc_sre_write(uint32_t reg)
-{
+static void mt_gic_icc_sre_write(uint32_t reg) {
     __asm__ volatile("MCR p15, 0, %0, c12, c12, 5" :: "r" (reg));
     dsb();
 }
 
-static uint32_t mt_gic_icc_sre_read(void)
-{
+static uint32_t mt_gic_icc_sre_read(void) {
     uint32_t reg;
 
     __asm__ volatile("MRC p15, 0, %0, c12, c12, 5" : "=r" (reg));
@@ -109,13 +101,11 @@ static uint32_t mt_gic_icc_sre_read(void)
     return reg;
 }
 
-static void mt_gic_icc_eoir1_write(uint32_t reg)
-{
+static void mt_gic_icc_eoir1_write(uint32_t reg) {
     __asm__ volatile("MCR p15, 0, %0, c12, c12, 1" :: "r" (reg));
 }
 
-uint32_t mt_mpidr_read(void)
-{
+uint32_t mt_mpidr_read(void) {
     uint32_t reg;
 
     __asm__ volatile("MRC p15, 0, %0, c0, c0, 5" : "=r" (reg));
@@ -123,16 +113,14 @@ uint32_t mt_mpidr_read(void)
     return reg;
 }
 
-static void mt_gic_cpu_init(void)
-{
+static void mt_gic_cpu_init(void) {
     mt_gic_icc_sre_write(0x01);
     mt_gic_icc_primask_write(0xF0);
     mt_gic_icc_igrpen1_write(0x01);
     dsb();
 }
 
-static void mt_gic_redist_init(void)
-{
+static void mt_gic_redist_init(void) {
     unsigned int value;
 
     /* Wake up this CPU redistributor */
@@ -143,8 +131,7 @@ static void mt_gic_redist_init(void)
     while (DRV_Reg32(GIC_REDIS_BASE + GIC_REDIS_WAKER) & GICR_WAKER_ChildrenAsleep);
 }
 
-static void mt_git_dist_rwp(void)
-{
+static void mt_git_dist_rwp(void) {
     /*
      * check GICD_CTLR.RWP for done check
      */
@@ -153,8 +140,7 @@ static void mt_git_dist_rwp(void)
     }
 }
 
-static void mt_gic_dist_init(void)
-{
+static void mt_gic_dist_init(void) {
     unsigned int i;
     uint64_t affinity;
 
@@ -221,8 +207,7 @@ static void mt_gic_dist_init(void)
     mt_git_dist_rwp();
 }
 
-void platform_init_interrupts(void)
-{
+void platform_init_interrupts(void) {
     uint32_t sec;
 
     sec = mt_interrupt_needed_for_secure();
@@ -238,8 +223,7 @@ void platform_init_interrupts(void)
     mt_gic_cpu_init();
 }
 
-void platform_deinit_interrupts(void)
-{
+void platform_deinit_interrupts(void) {
     unsigned int irq;
 
     for (irq = 0; irq < NR_IRQ_LINE; irq += 32) {
@@ -253,13 +237,11 @@ void platform_deinit_interrupts(void)
     }
 }
 
-uint32_t mt_irq_get(void)
-{
+uint32_t mt_irq_get(void) {
     return mt_gic_icc_iar1_read();
 }
 
-void mt_irq_set_polarity(unsigned int irq, unsigned int polarity)
-{
+void mt_irq_set_polarity(unsigned int irq, unsigned int polarity) {
     unsigned int offset;
     unsigned int reg_index;
     unsigned int value;
@@ -282,8 +264,7 @@ void mt_irq_set_polarity(unsigned int irq, unsigned int polarity)
     }
 }
 
-void mt_irq_set_sens(unsigned int irq, unsigned int sens)
-{
+void mt_irq_set_sens(unsigned int irq, unsigned int sens) {
     unsigned int config;
 
     if (sens == MT65xx_EDGE_SENSITIVE) {
@@ -302,8 +283,7 @@ void mt_irq_set_sens(unsigned int irq, unsigned int sens)
  * mt_irq_mask: mask one IRQ
  * @irq: IRQ line of the IRQ to mask
  */
-void mt_irq_mask(unsigned int irq)
-{
+void mt_irq_mask(unsigned int irq) {
     unsigned int mask = 1 << (irq % 32);
 
     DRV_WriteReg32(GIC_DIST_BASE + GIC_DIST_ENABLE_CLEAR + irq / 32 * 4, mask);
@@ -314,8 +294,7 @@ void mt_irq_mask(unsigned int irq)
  * mt_irq_unmask: unmask one IRQ
  * @irq: IRQ line of the IRQ to unmask
  */
-void mt_irq_unmask(unsigned int irq)
-{
+void mt_irq_unmask(unsigned int irq) {
     unsigned int mask = 1 << (irq % 32);
 
     DRV_WriteReg32(GIC_DIST_BASE + GIC_DIST_ENABLE_SET + irq / 32 * 4, mask);
@@ -326,8 +305,7 @@ void mt_irq_unmask(unsigned int irq)
  * mt_irq_ack: ack IRQ
  * @irq: IRQ line of the IRQ to mask
  */
-void mt_irq_ack(unsigned int irq)
-{
+void mt_irq_ack(unsigned int irq) {
     mt_gic_icc_eoir1_write(irq);
     dsb();
 }
@@ -337,8 +315,7 @@ void mt_irq_ack(unsigned int irq)
  * @mask: pointer to struct mtk_irq_mask for storing the original mask value.
  * Return 0 for success; return negative values for failure.
  */
-int mt_irq_mask_all(struct mtk_irq_mask *mask)
-{
+int mt_irq_mask_all(struct mtk_irq_mask *mask) {
     unsigned int i;
 
     if (mask) {
@@ -363,8 +340,7 @@ int mt_irq_mask_all(struct mtk_irq_mask *mask)
  * @mask: pointer to struct mtk_irq_mask for storing the original mask value.
  * Return 0 for success; return negative values for failure.
  */
-int mt_irq_mask_restore(struct mtk_irq_mask *mask)
-{
+int mt_irq_mask_restore(struct mtk_irq_mask *mask) {
     unsigned int i;
 
     if (!mask) {
@@ -387,8 +363,7 @@ int mt_irq_mask_restore(struct mtk_irq_mask *mask)
     return 0;
 }
 
-void mt_irq_register_dump(void)
-{
+void mt_irq_register_dump(void) {
     int i;
     uint32_t reg, reg2;
 

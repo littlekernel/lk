@@ -53,8 +53,7 @@
  * @param initial  Initial value for "signaled" state
  * @param flags    0 or EVENT_FLAG_AUTOUNSIGNAL
  */
-void event_init(event_t *e, bool initial, uint flags)
-{
+void event_init(event_t *e, bool initial, uint flags) {
     *e = (event_t)EVENT_INITIAL_VALUE(*e, initial, flags);
 }
 
@@ -67,8 +66,7 @@ void event_init(event_t *e, bool initial, uint flags)
  *
  * @param e        Event object to initialize
  */
-void event_destroy(event_t *e)
-{
+void event_destroy(event_t *e) {
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
     THREAD_LOCK(state);
@@ -96,8 +94,7 @@ void event_destroy(event_t *e)
  * @return  0 on success, ERR_TIMED_OUT on timeout,
  *         other values on other errors.
  */
-status_t event_wait_timeout(event_t *e, lk_time_t timeout)
-{
+status_t event_wait_timeout(event_t *e, lk_time_t timeout) {
     status_t ret = NO_ERROR;
 
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
@@ -137,8 +134,7 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout)
  *
  * @return  Returns NO_ERROR on success.
  */
-status_t event_signal(event_t *e, bool reschedule)
-{
+status_t event_signal(event_t *e, bool reschedule) {
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
     THREAD_LOCK(state);
@@ -178,8 +174,7 @@ status_t event_signal(event_t *e, bool reschedule)
  *
  * @return  Returns NO_ERROR on success.
  */
-status_t event_unsignal(event_t *e)
-{
+status_t event_unsignal(event_t *e) {
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
     e->signaled = false;

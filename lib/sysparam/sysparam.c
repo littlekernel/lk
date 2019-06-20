@@ -83,20 +83,17 @@ static struct {
     size_t len;
 } params;
 
-static void sysparam_init(uint level)
-{
+static void sysparam_init(uint level) {
     list_initialize(&params.list);
 }
 
 LK_INIT_HOOK(sysparam, &sysparam_init, LK_INIT_LEVEL_THREADING);
 
-static inline bool sysparam_is_locked(const struct sysparam *param)
-{
+static inline bool sysparam_is_locked(const struct sysparam *param) {
     return param->flags & SYSPARAM_FLAG_LOCK;
 }
 
-static inline size_t sysparam_len(const struct sysparam_phys *sp)
-{
+static inline size_t sysparam_len(const struct sysparam_phys *sp) {
     size_t len = sizeof(struct sysparam_phys);
 
     len += ROUNDUP(sp->namelen, 4);
@@ -105,8 +102,7 @@ static inline size_t sysparam_len(const struct sysparam_phys *sp)
     return len;
 }
 
-static inline uint32_t sysparam_crc32(const struct sysparam_phys *sp)
-{
+static inline uint32_t sysparam_crc32(const struct sysparam_phys *sp) {
     size_t len = sysparam_len(sp);
 
     LTRACEF("len %d\n", len);
@@ -116,8 +112,7 @@ static inline uint32_t sysparam_crc32(const struct sysparam_phys *sp)
     return sum;
 }
 
-static struct sysparam *sysparam_create(const char *name, size_t namelen, const void *data, size_t datalen, uint32_t flags)
-{
+static struct sysparam *sysparam_create(const char *name, size_t namelen, const void *data, size_t datalen, uint32_t flags) {
     struct sysparam *param = malloc(sizeof(struct sysparam));
     if (!param)
         return NULL;
@@ -151,13 +146,11 @@ static struct sysparam *sysparam_create(const char *name, size_t namelen, const 
     return param;
 }
 
-static struct sysparam *sysparam_read_phys(const struct sysparam_phys *sp)
-{
+static struct sysparam *sysparam_read_phys(const struct sysparam_phys *sp) {
     return sysparam_create((const char *)sp->namedata, sp->namelen, sp->namedata + ROUNDUP(sp->namelen, 4), sp->datalen, sp->flags);
 }
 
-static struct sysparam *sysparam_find(const char *name)
-{
+static struct sysparam *sysparam_find(const char *name) {
     struct sysparam *param;
     list_for_every_entry(&params.list, param, struct sysparam, node) {
         if (strcmp(name, param->name) == 0)
@@ -167,8 +160,7 @@ static struct sysparam *sysparam_find(const char *name)
     return NULL;
 }
 
-status_t sysparam_scan(bdev_t *bdev, off_t offset, size_t len)
-{
+status_t sysparam_scan(bdev_t *bdev, off_t offset, size_t len) {
     status_t err = NO_ERROR;
 
     LTRACEF("bdev %p (%s), offset 0x%llx, len 0x%zx\n", bdev, bdev->name, offset, len);
@@ -249,8 +241,7 @@ err:
     return err;
 }
 
-status_t sysparam_reload(void)
-{
+status_t sysparam_reload(void) {
     if (params.bdev == NULL)
         return ERR_INVALID_ARGS;
     if (params.len == 0)
@@ -275,8 +266,7 @@ status_t sysparam_reload(void)
     return err;
 }
 
-ssize_t sysparam_read(const char *name, void *data, size_t len)
-{
+ssize_t sysparam_read(const char *name, void *data, size_t len) {
     struct sysparam *param;
 
     param = sysparam_find(name);
@@ -289,8 +279,7 @@ ssize_t sysparam_read(const char *name, void *data, size_t len)
     return toread;
 }
 
-ssize_t sysparam_length(const char *name)
-{
+ssize_t sysparam_length(const char *name) {
     struct sysparam *param;
 
     param = sysparam_find(name);
@@ -300,8 +289,7 @@ ssize_t sysparam_length(const char *name)
     return param->datalen;
 }
 
-status_t sysparam_get_ptr(const char *name, const void **ptr, size_t *len)
-{
+status_t sysparam_get_ptr(const char *name, const void **ptr, size_t *len) {
     struct sysparam *param;
 
     param = sysparam_find(name);
@@ -319,8 +307,7 @@ status_t sysparam_get_ptr(const char *name, const void **ptr, size_t *len)
 #if SYSPARAM_ALLOW_WRITE
 
 /* write all of the parameters in memory to the space reserved in flash */
-status_t sysparam_write(void)
-{
+status_t sysparam_write(void) {
     if (params.bdev == NULL)
         return ERR_INVALID_ARGS;
     if (params.len == 0)
@@ -404,8 +391,7 @@ status_t sysparam_write(void)
     return NO_ERROR;
 }
 
-status_t sysparam_add(const char *name, const void *value, size_t len)
-{
+status_t sysparam_add(const char *name, const void *value, size_t len) {
     struct sysparam *param;
 
     param = sysparam_find(name);
@@ -423,8 +409,7 @@ status_t sysparam_add(const char *name, const void *value, size_t len)
     return NO_ERROR;
 }
 
-status_t sysparam_remove(const char *name)
-{
+status_t sysparam_remove(const char *name) {
     struct sysparam *param;
 
     param = sysparam_find(name);
@@ -445,8 +430,7 @@ status_t sysparam_remove(const char *name)
     return NO_ERROR;
 }
 
-status_t sysparam_lock(const char *name)
-{
+status_t sysparam_lock(const char *name) {
     struct sysparam *param;
 
     param = sysparam_find(name);
@@ -466,8 +450,7 @@ status_t sysparam_lock(const char *name)
 
 #define MAX_DUMP_LEN  16
 
-void sysparam_dump(bool show_all)
-{
+void sysparam_dump(bool show_all) {
     printf("system parameters:\n");
 
     size_t total_memlen = 0;
@@ -505,8 +488,7 @@ void sysparam_dump(bool show_all)
 #include <lib/console.h>
 #include <ctype.h>
 
-static ssize_t hexstr_to_val(const char *str, uint8_t **buf)
-{
+static ssize_t hexstr_to_val(const char *str, uint8_t **buf) {
     /* parse the value parameter as a hex code */
     uint8_t *hexbuffer = calloc(1, strlen(str) / 2 + 1);
     uint pos;
@@ -533,8 +515,7 @@ static ssize_t hexstr_to_val(const char *str, uint8_t **buf)
     return pos;
 }
 
-static int cmd_sysparam(int argc, const cmd_args *argv)
-{
+static int cmd_sysparam(int argc, const cmd_args *argv) {
     status_t err;
 
     if (argc < 2) {

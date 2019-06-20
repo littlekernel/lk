@@ -29,8 +29,7 @@
 #include <sys/types.h>
 
 void *
-memset(void *s, int c, size_t count)
-{
+memset(void *s, int c, size_t count) {
     char *xs = (char *) s;
     size_t len = (-(size_t)s) & (sizeof(size_t)-1);
     size_t cc = c & 0xff;

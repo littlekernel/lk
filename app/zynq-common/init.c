@@ -44,8 +44,7 @@
 
 #define BLOCK_DEVICE_NAME "spi0"
 
-static void zynq_common_target_init(uint level)
-{
+static void zynq_common_target_init(uint level) {
     status_t err;
 
     /* zybo has a spiflash on qspi */
@@ -205,8 +204,7 @@ static void zynq_common_target_init(uint level)
 LK_INIT_HOOK(app_zynq_common, &zynq_common_target_init, LK_INIT_LEVEL_TARGET);
 
 /* watchdog setup, as early as possible */
-static void zynq_watchdog_init(uint level)
-{
+static void zynq_watchdog_init(uint level) {
     /* start the watchdog timer */
     watchdog_hw_set_enabled(true);
 }

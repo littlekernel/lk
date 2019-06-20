@@ -57,8 +57,7 @@ static struct {
     uint32_t back_color;
 } gfxconsole;
 
-static void gfxconsole_putc(char c)
-{
+static void gfxconsole_putc(char c) {
     static enum { NORMAL, ESCAPE } state = NORMAL;
     static uint32_t p_num = 0;
 
@@ -108,8 +107,7 @@ static void gfxconsole_putc(char c)
     }
 }
 
-void gfxconsole_print_callback(print_callback_t *cb, const char *str, size_t len)
-{
+void gfxconsole_print_callback(print_callback_t *cb, const char *str, size_t len) {
     for (size_t i = 0; i < len; i++) {
         gfxconsole_putc(str[i]);
     }
@@ -127,8 +125,7 @@ static print_callback_t cb = {
  * The graphics console subsystem is initialized, and registered as
  * an output device for debug output.
  */
-void gfxconsole_start(gfx_surface *surface)
-{
+void gfxconsole_start(gfx_surface *surface) {
     DEBUG_ASSERT(gfxconsole.surface == NULL);
 
     // set up the surface
@@ -156,8 +153,7 @@ void gfxconsole_start(gfx_surface *surface)
 /**
  * @brief  Initialize graphics console on default display
  */
-void gfxconsole_start_on_display(void)
-{
+void gfxconsole_start_on_display(void) {
     static bool started = false;
 
     if (started)
@@ -173,8 +169,7 @@ void gfxconsole_start_on_display(void)
     started = true;
 }
 
-static void gfxconsole_init_hook(uint level)
-{
+static void gfxconsole_init_hook(uint level) {
     gfxconsole_start_on_display();
 }
 

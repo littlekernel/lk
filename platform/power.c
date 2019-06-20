@@ -34,8 +34,7 @@
  * chooses not to implement.
  */
 __WEAK void platform_halt(platform_halt_action suggested_action,
-                          platform_halt_reason reason)
-{
+                          platform_halt_reason reason) {
 #if ENABLE_PANIC_SHELL
 
     if (reason == HALT_REASON_SW_PANIC) {
@@ -55,14 +54,12 @@ __WEAK void platform_halt(platform_halt_action suggested_action,
 
 #include <lib/console.h>
 
-static int cmd_reboot(int argc, const cmd_args *argv)
-{
+static int cmd_reboot(int argc, const cmd_args *argv) {
     platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
     return 0;
 }
 
-static int cmd_poweroff(int argc, const cmd_args *argv)
-{
+static int cmd_poweroff(int argc, const cmd_args *argv) {
     platform_halt(HALT_ACTION_SHUTDOWN, HALT_REASON_SW_RESET);
     return 0;
 }

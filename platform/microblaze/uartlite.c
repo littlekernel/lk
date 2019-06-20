@@ -56,15 +56,13 @@
 #define RXBUF_SIZE 128
 static cbuf_t uart_rx_buf;
 
-void uartlite_putc(char c)
-{
+void uartlite_putc(char c) {
     while (UART_REG(R_STATUS) & STATUS_TXFULL)
         ;
     UART_REG(R_TX) = c;
 }
 
-int uartlite_getc(bool wait)
-{
+int uartlite_getc(bool wait) {
 #if 0
     char c;
     if (cbuf_read_char(&uart_rx_buf, &c, wait) == 1)
@@ -81,8 +79,7 @@ int uartlite_getc(bool wait)
     return -1;
 }
 
-enum handler_return uartlite_irq(void *arg)
-{
+enum handler_return uartlite_irq(void *arg) {
     bool resched = false;
 
     /* while receive fifo not empty, read a char */
@@ -96,8 +93,7 @@ enum handler_return uartlite_irq(void *arg)
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-static void uartlite_init(uint level)
-{
+static void uartlite_init(uint level) {
     TRACE;
 
     //UART_REG(R_CTRL) = CONTROL_RST_TX | CONTROL_RST_RX;

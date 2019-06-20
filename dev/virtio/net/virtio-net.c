@@ -111,8 +111,7 @@ static status_t virtio_net_queue_rx(struct virtio_net_dev *ndev, pktbuf_t *p);
 // XXX remove need for this
 static struct virtio_net_dev *the_ndev;
 
-static void dump_feature_bits(uint32_t feature)
-{
+static void dump_feature_bits(uint32_t feature) {
     printf("virtio-net host features (0x%x):", feature);
     if (feature & VIRTIO_NET_F_CSUM) printf(" CSUM");
     if (feature & VIRTIO_NET_F_GUEST_CSUM) printf(" GUEST_CSUM");
@@ -138,8 +137,7 @@ static void dump_feature_bits(uint32_t feature)
     printf("\n");
 }
 
-status_t virtio_net_init(struct virtio_device *dev, uint32_t host_features)
-{
+status_t virtio_net_init(struct virtio_device *dev, uint32_t host_features) {
     LTRACEF("dev %p, host_features 0x%x\n", dev, host_features);
 
     /* allocate a new net device */
@@ -178,8 +176,7 @@ status_t virtio_net_init(struct virtio_device *dev, uint32_t host_features)
     return NO_ERROR;
 }
 
-status_t virtio_net_start(void)
-{
+status_t virtio_net_start(void) {
     if (the_ndev->started)
         return ERR_ALREADY_STARTED;
 
@@ -199,8 +196,7 @@ status_t virtio_net_start(void)
     return NO_ERROR;
 }
 
-static status_t virtio_net_queue_tx_pktbuf(struct virtio_net_dev *ndev, pktbuf_t *p2)
-{
+static status_t virtio_net_queue_tx_pktbuf(struct virtio_net_dev *ndev, pktbuf_t *p2) {
     struct virtio_device *vdev = ndev->dev;
 
     uint16_t i;
@@ -267,8 +263,7 @@ nodesc:
 }
 
 /* variant of the above function that copies the buffer into a pktbuf before sending */
-static status_t virtio_net_queue_tx(struct virtio_net_dev *ndev, const void *buf, size_t len)
-{
+static status_t virtio_net_queue_tx(struct virtio_net_dev *ndev, const void *buf, size_t len) {
     DEBUG_ASSERT(ndev);
     DEBUG_ASSERT(buf);
 
@@ -290,8 +285,7 @@ static status_t virtio_net_queue_tx(struct virtio_net_dev *ndev, const void *buf
     return err;
 }
 
-static status_t virtio_net_queue_rx(struct virtio_net_dev *ndev, pktbuf_t *p)
-{
+static status_t virtio_net_queue_rx(struct virtio_net_dev *ndev, pktbuf_t *p) {
     struct virtio_device *vdev = ndev->dev;
 
     DEBUG_ASSERT(ndev);
@@ -332,8 +326,7 @@ static status_t virtio_net_queue_rx(struct virtio_net_dev *ndev, pktbuf_t *p)
     return NO_ERROR;
 }
 
-static enum handler_return virtio_net_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e)
-{
+static enum handler_return virtio_net_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e) {
     struct virtio_net_dev *ndev = (struct virtio_net_dev *)dev->priv;
 
     LTRACEF("dev %p, ring %u, e %p, id %u, len %u\n", dev, ring, e, e->id, e->len);
@@ -399,8 +392,7 @@ static enum handler_return virtio_net_irq_driver_callback(struct virtio_device *
     return INT_RESCHEDULE;
 }
 
-static int virtio_net_rx_worker(void *arg)
-{
+static int virtio_net_rx_worker(void *arg) {
     struct virtio_net_dev *ndev = (struct virtio_net_dev *)arg;
 
     for (;;) {
@@ -434,13 +426,11 @@ static int virtio_net_rx_worker(void *arg)
     return 0;
 }
 
-int virtio_net_found(void)
-{
+int virtio_net_found(void) {
     return the_ndev ? 1 : 0;
 }
 
-status_t virtio_net_get_mac_addr(uint8_t mac_addr[6])
-{
+status_t virtio_net_get_mac_addr(uint8_t mac_addr[6]) {
     if (!the_ndev)
         return ERR_NOT_FOUND;
 
@@ -449,8 +439,7 @@ status_t virtio_net_get_mac_addr(uint8_t mac_addr[6])
     return NO_ERROR;
 }
 
-status_t virtio_net_send_minip_pkt(pktbuf_t *p)
-{
+status_t virtio_net_send_minip_pkt(pktbuf_t *p) {
     LTRACEF("p %p, dlen %u, flags 0x%x\n", p, p->dlen, p->flags);
 
     DEBUG_ASSERT(p && p->dlen);

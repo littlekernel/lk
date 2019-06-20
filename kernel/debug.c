@@ -62,8 +62,7 @@ STATIC_COMMAND_MASKED("kevlog", "dump kernel event log", &cmd_kevlog, CMD_AVAIL_
 STATIC_COMMAND_END(kernel);
 
 #if LK_DEBUGLEVEL > 1
-static int cmd_threads(int argc, const cmd_args *argv)
-{
+static int cmd_threads(int argc, const cmd_args *argv) {
     printf("thread list:\n");
     dump_all_threads();
 
@@ -72,8 +71,7 @@ static int cmd_threads(int argc, const cmd_args *argv)
 #endif
 
 #if THREAD_STATS
-static int cmd_threadstats(int argc, const cmd_args *argv)
-{
+static int cmd_threadstats(int argc, const cmd_args *argv) {
     for (uint i = 0; i < SMP_MAX_CPUS; i++) {
         if (!mp_is_cpu_active(i))
             continue;
@@ -96,8 +94,7 @@ static int cmd_threadstats(int argc, const cmd_args *argv)
     return 0;
 }
 
-static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
-{
+static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg) {
     static struct thread_stats old_stats[SMP_MAX_CPUS];
     static lk_bigtime_t last_idle_time[SMP_MAX_CPUS];
 
@@ -146,8 +143,7 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
     return INT_NO_RESCHEDULE;
 }
 
-static int cmd_threadload(int argc, const cmd_args *argv)
-{
+static int cmd_threadload(int argc, const cmd_args *argv) {
     static bool showthreadload = false;
     static timer_t tltimer;
 
@@ -175,15 +171,13 @@ static int cmd_threadload(int argc, const cmd_args *argv)
 static evlog_t kernel_evlog;
 volatile bool kernel_evlog_enable;
 
-void kernel_evlog_init(void)
-{
+void kernel_evlog_init(void) {
     evlog_init(&kernel_evlog, KERNEL_EVLOG_LEN, 4);
 
     kernel_evlog_enable = true;
 }
 
-void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1)
-{
+void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1) {
     if (kernel_evlog_enable) {
         uint index = evlog_bump_head(&kernel_evlog);
 
@@ -196,8 +190,7 @@ void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1)
 
 #if WITH_LIB_CONSOLE
 
-static void kevdump_cb(const uintptr_t *i)
-{
+static void kevdump_cb(const uintptr_t *i) {
     switch (i[1] & 0xffff) {
         case KERNEL_EVLOG_CONTEXT_SWITCH:
             printf("%lu.%lu: context switch from %p to %p\n", i[0], i[1] >> 16, (void *)i[2], (void *)i[3]);
@@ -222,15 +215,13 @@ static void kevdump_cb(const uintptr_t *i)
     }
 }
 
-void kernel_evlog_dump(void)
-{
+void kernel_evlog_dump(void) {
     kernel_evlog_enable = false;
     evlog_dump(&kernel_evlog, &kevdump_cb);
     kernel_evlog_enable = true;
 }
 
-static int cmd_kevlog(int argc, const cmd_args *argv)
-{
+static int cmd_kevlog(int argc, const cmd_args *argv) {
     printf("kernel event log:\n");
     kernel_evlog_dump();
 

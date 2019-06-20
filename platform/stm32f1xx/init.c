@@ -29,8 +29,7 @@
 #include <stm32f10x_rcc.h>
 #include "system_stm32f10x.h"
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     // Crank up the clock before initing timers.
     SystemInit();
 
@@ -44,8 +43,7 @@ void platform_early_init(void)
     stm32_flash_nor_early_init();
 }
 
-void platform_init(void)
-{
+void platform_init(void) {
     stm32_timer_init();
     stm32_flash_nor_init();
 }

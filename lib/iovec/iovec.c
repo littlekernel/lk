@@ -33,8 +33,7 @@
 /*
  *  Calc total size of iovec buffers
  */
-ssize_t iovec_size (const iovec_t *iov, uint iov_cnt)
-{
+ssize_t iovec_size (const iovec_t *iov, uint iov_cnt) {
     if (!iov)
         return (ssize_t) ERR_INVALID_ARGS;
 
@@ -49,8 +48,7 @@ ssize_t iovec_size (const iovec_t *iov, uint iov_cnt)
  *  Copy out portion of iovec started from given position
  *  into single buffer
  */
-ssize_t iovec_to_membuf (uint8_t *buf, uint buf_len, const iovec_t *iov, uint iov_cnt, uint iov_pos)
-{
+ssize_t iovec_to_membuf (uint8_t *buf, uint buf_len, const iovec_t *iov, uint iov_cnt, uint iov_pos) {
     uint buf_pos = 0;
 
     if (!buf || !iov)

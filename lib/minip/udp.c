@@ -59,8 +59,7 @@ typedef struct udp_hdr {
 } __PACKED udp_hdr_t;
 
 
-int udp_listen(uint16_t port, udp_callback_t cb, void *arg)
-{
+int udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
     struct udp_listener *entry, *temp;
 
     list_for_every_entry_safe(&udp_list, entry, temp, struct udp_listener, list) {
@@ -86,8 +85,7 @@ int udp_listen(uint16_t port, udp_callback_t cb, void *arg)
     return 0;
 }
 
-status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle)
-{
+status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle) {
     LTRACEF("host %u.%u.%u.%u sport %u dport %u handle %p\n",
             IPV4_SPLIT(host), sport, dport, handle);
     udp_socket_t *socket;
@@ -118,8 +116,7 @@ status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **
     return NO_ERROR;
 }
 
-status_t udp_close(udp_socket_t *handle)
-{
+status_t udp_close(udp_socket_t *handle) {
     if (handle == NULL) {
         return -EINVAL;
     }
@@ -128,8 +125,7 @@ status_t udp_close(udp_socket_t *handle)
     return NO_ERROR;
 }
 
-status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle)
-{
+status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle) {
     pktbuf_t *p;
     struct eth_hdr *eth;
     struct ipv4_hdr *ip;
@@ -172,8 +168,7 @@ status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle
     return ret;
 }
 
-status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
-{
+status_t udp_send(void *buf, size_t len, udp_socket_t *handle) {
     iovec_t iov;
 
     LTRACEF("buf %p, len %zu, handle %p\n", buf, len, handle);
@@ -188,8 +183,7 @@ status_t udp_send(void *buf, size_t len, udp_socket_t *handle)
     return udp_send_iovec(&iov, 1, handle);
 }
 
-void udp_input(pktbuf_t *p, uint32_t src_ip)
-{
+void udp_input(pktbuf_t *p, uint32_t src_ip) {
     udp_hdr_t *udp;
     struct udp_listener *e;
     uint16_t port;

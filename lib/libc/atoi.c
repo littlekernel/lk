@@ -31,8 +31,7 @@
 
 #define LONG_IS_INT 1
 
-static int hexval(char c)
-{
+static int hexval(char c) {
     if (c >= '0' && c <= '9')
         return c - '0';
     else if (c >= 'a' && c <= 'f')
@@ -43,8 +42,7 @@ static int hexval(char c)
     return 0;
 }
 
-int atoi(const char *num)
-{
+int atoi(const char *num) {
 #if !LONG_IS_INT
     // XXX fail
 #else
@@ -52,8 +50,7 @@ int atoi(const char *num)
 #endif
 }
 
-unsigned int atoui(const char *num)
-{
+unsigned int atoui(const char *num) {
 #if !LONG_IS_INT
     // XXX fail
 #else
@@ -61,8 +58,7 @@ unsigned int atoui(const char *num)
 #endif
 }
 
-long atol(const char *num)
-{
+long atol(const char *num) {
     long value = 0;
     int neg = 0;
 
@@ -87,8 +83,7 @@ long atol(const char *num)
     return value;
 }
 
-unsigned long atoul(const char *num)
-{
+unsigned long atoul(const char *num) {
     unsigned long value = 0;
     if (num[0] == '0' && num[1] == 'x') {
         // hex
@@ -104,8 +99,7 @@ unsigned long atoul(const char *num)
     return value;
 }
 
-unsigned long long atoull(const char *num)
-{
+unsigned long long atoull(const char *num) {
     unsigned long long value = 0;
     if (num[0] == '0' && num[1] == 'x') {
         // hex
@@ -121,8 +115,7 @@ unsigned long long atoull(const char *num)
     return value;
 }
 
-unsigned long strtoul(const char *nptr, char **endptr, int base)
-{
+unsigned long strtoul(const char *nptr, char **endptr, int base) {
     int neg = 0;
     unsigned long ret = 0;
 

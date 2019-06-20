@@ -34,8 +34,7 @@
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
 
-void target_early_init(void)
-{
+void target_early_init(void) {
 #ifdef DEBUG_UART
 #if DEBUG_UART == 2
     gpio_config(GPIO_USART2_TX, GPIO_STM32_AF |
@@ -56,8 +55,7 @@ void target_early_init(void)
     gpio_config(GPIO_LED3, GPIO_OUTPUT);
 }
 
-void target_init(void)
-{
+void target_init(void) {
     TRACE_ENTRY;
 
     stm32_debug_init();
@@ -65,8 +63,7 @@ void target_init(void)
     TRACE_EXIT;
 }
 
-void target_set_debug_led(unsigned int led, bool on)
-{
+void target_set_debug_led(unsigned int led, bool on) {
     switch (led) {
         case 0:
             gpio_set(GPIO_LED0, on);

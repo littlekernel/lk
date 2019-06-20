@@ -28,8 +28,7 @@
 #include <stm32f10x_gpio.h>
 #include <stm32f10x_rcc.h>
 
-static GPIO_TypeDef *port_to_pointer(unsigned int port)
-{
+static GPIO_TypeDef *port_to_pointer(unsigned int port) {
     switch (port) {
         default:
         case GPIO_PORT_A:
@@ -49,21 +48,18 @@ static GPIO_TypeDef *port_to_pointer(unsigned int port)
     }
 }
 
-static void enable_port(unsigned int port)
-{
+static void enable_port(unsigned int port) {
     DEBUG_ASSERT(port <= GPIO_PORT_G);
 
     /* happens to be the RCC ids are sequential bits, so we can start from A and shift */
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA << port, ENABLE);
 }
 
-void stm32_gpio_early_init(void)
-{
+void stm32_gpio_early_init(void) {
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 }
 
-int gpio_config(unsigned nr, unsigned flags)
-{
+int gpio_config(unsigned nr, unsigned flags) {
     uint port = GPIO_PORT(nr);
     uint pin = GPIO_PIN(nr);
 
@@ -99,13 +95,11 @@ int gpio_config(unsigned nr, unsigned flags)
     return 0;
 }
 
-void gpio_set(unsigned nr, unsigned on)
-{
+void gpio_set(unsigned nr, unsigned on) {
     GPIO_WriteBit(port_to_pointer(GPIO_PORT(nr)), 1 << GPIO_PIN(nr), on);
 }
 
-int gpio_get(unsigned nr)
-{
+int gpio_get(unsigned nr) {
     return GPIO_ReadInputDataBit(port_to_pointer(GPIO_PORT(nr)), 1 << GPIO_PIN(nr));
 }
 

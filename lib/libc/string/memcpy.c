@@ -35,8 +35,7 @@ typedef long word;
 #define lsize sizeof(word)
 #define lmask (lsize - 1)
 
-void *memcpy(void *dest, const void *src, size_t count)
-{
+void *memcpy(void *dest, const void *src, size_t count) {
     char *d = (char *)dest;
     const char *s = (const char *)src;
     int len;

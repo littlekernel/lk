@@ -113,8 +113,7 @@ uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count);
 
 /* utility routine */
 static inline bool bio_does_overlap(uint64_t start1, uint64_t len1,
-                                    uint64_t start2, uint64_t len2)
-{
+                                    uint64_t start2, uint64_t len2) {
     uint64_t end1 = start1 + len1;
     uint64_t end2 = start2 + len2;
 
@@ -126,8 +125,7 @@ static inline bool bio_does_overlap(uint64_t start1, uint64_t len1,
 }
 
 static inline bool bio_contains_range(uint64_t container_start, uint64_t container_len,
-                                      uint64_t contained_start, uint64_t contained_len)
-{
+                                      uint64_t contained_start, uint64_t contained_len) {
     uint64_t container_end = container_start + container_len;
     uint64_t contained_end = contained_start + contained_len;
 

@@ -59,16 +59,14 @@ static thread_t *fp_owner;
 /* FXSAVE area comprises 512 bytes starting with 16-byte aligned */
 static uint8_t __ALIGNED(16) fpu_init_states[512]= {0};
 
-static void get_cpu_cap(uint32_t *ecx, uint32_t *edx)
-{
+static void get_cpu_cap(uint32_t *ecx, uint32_t *edx) {
     uint32_t eax = 1;
 
     __asm__ __volatile__
     ("cpuid" : "=c" (*ecx), "=d" (*edx) : "a" (eax));
 }
 
-void fpu_init(void)
-{
+void fpu_init(void) {
     uint32_t ecx = 0, edx = 0;
     uint16_t fcw;
     uint32_t mxcsr;
@@ -133,14 +131,12 @@ void fpu_init(void)
     return;
 }
 
-void fpu_init_thread_states(thread_t *t)
-{
+void fpu_init_thread_states(thread_t *t) {
     t->arch.fpu_states = (vaddr_t *)ROUNDUP(((vaddr_t)t->arch.fpu_buffer), 16);
     memcpy(t->arch.fpu_states, fpu_init_states, sizeof(fpu_init_states));
 }
 
-void fpu_context_switch(thread_t *old_thread, thread_t *new_thread)
-{
+void fpu_context_switch(thread_t *old_thread, thread_t *new_thread) {
     if (fp_supported == 0)
         return;
 
@@ -152,8 +148,7 @@ void fpu_context_switch(thread_t *old_thread, thread_t *new_thread)
     return;
 }
 
-void fpu_dev_na_handler(void)
-{
+void fpu_dev_na_handler(void) {
     thread_t *self;
 
     x86_set_cr0(x86_get_cr0() & ~X86_CR0_TS);

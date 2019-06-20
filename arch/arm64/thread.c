@@ -52,8 +52,7 @@ struct context_switch_frame {
 extern void arm64_context_switch(addr_t *old_sp, addr_t new_sp);
 
 static void initial_thread_func(void) __NO_RETURN;
-static void initial_thread_func(void)
-{
+static void initial_thread_func(void) {
     int ret;
 
     thread_t *current_thread = get_current_thread();
@@ -71,8 +70,7 @@ static void initial_thread_func(void)
     thread_exit(ret);
 }
 
-void arch_thread_initialize(thread_t *t)
-{
+void arch_thread_initialize(thread_t *t) {
     // create a default stack frame on the stack
     vaddr_t stack_top = (vaddr_t)t->stack + t->stack_size;
 
@@ -90,8 +88,7 @@ void arch_thread_initialize(thread_t *t)
     t->arch.sp = (vaddr_t)frame;
 }
 
-void arch_context_switch(thread_t *oldthread, thread_t *newthread)
-{
+void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
     LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
     arm64_fpu_pre_context_switch(oldthread);
 #if WITH_SMP
@@ -100,8 +97,7 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread)
     arm64_context_switch(&oldthread->arch.sp, newthread->arch.sp);
 }
 
-void arch_dump_thread(thread_t *t)
-{
+void arch_dump_thread(thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
         dprintf(INFO, "sp 0x%lx\n", t->arch.sp);

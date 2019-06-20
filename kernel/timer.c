@@ -60,13 +60,11 @@ static enum handler_return timer_tick(void *arg, lk_time_t now);
 /**
  * @brief  Initialize a timer object
  */
-void timer_initialize(timer_t *timer)
-{
+void timer_initialize(timer_t *timer) {
     *timer = (timer_t)TIMER_INITIAL_VALUE(*timer);
 }
 
-static void insert_timer_in_queue(uint cpu, timer_t *timer)
-{
+static void insert_timer_in_queue(uint cpu, timer_t *timer) {
     timer_t *entry;
 
     DEBUG_ASSERT(arch_ints_disabled());
@@ -84,8 +82,7 @@ static void insert_timer_in_queue(uint cpu, timer_t *timer)
     list_add_tail(&timers[cpu].timer_queue, &timer->node);
 }
 
-static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_callback callback, void *arg)
-{
+static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_callback callback, void *arg) {
     lk_time_t now;
 
     LTRACEF("timer %p, delay %u, period %u, callback %p, arg %p\n", timer, delay, period, callback, arg);
@@ -135,8 +132,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
  * The timer function is declared as:
  *   enum handler_return callback(struct timer *, lk_time_t now, void *arg) { ... }
  */
-void timer_set_oneshot(timer_t *timer, lk_time_t delay, timer_callback callback, void *arg)
-{
+void timer_set_oneshot(timer_t *timer, lk_time_t delay, timer_callback callback, void *arg) {
     if (delay == 0)
         delay = 1;
     timer_set(timer, delay, 0, callback, arg);
@@ -156,8 +152,7 @@ void timer_set_oneshot(timer_t *timer, lk_time_t delay, timer_callback callback,
  * The timer function is declared as:
  *   enum handler_return callback(struct timer *, lk_time_t now, void *arg) { ... }
  */
-void timer_set_periodic(timer_t *timer, lk_time_t period, timer_callback callback, void *arg)
-{
+void timer_set_periodic(timer_t *timer, lk_time_t period, timer_callback callback, void *arg) {
     if (period == 0)
         period = 1;
     timer_set(timer, period, period, callback, arg);
@@ -166,8 +161,7 @@ void timer_set_periodic(timer_t *timer, lk_time_t period, timer_callback callbac
 /**
  * @brief  Cancel a pending timer
  */
-void timer_cancel(timer_t *timer)
-{
+void timer_cancel(timer_t *timer) {
     DEBUG_ASSERT(timer->magic == TIMER_MAGIC);
 
     spin_lock_saved_state_t state;
@@ -213,8 +207,7 @@ void timer_cancel(timer_t *timer)
 }
 
 /* called at interrupt time to process any pending timers */
-static enum handler_return timer_tick(void *arg, lk_time_t now)
-{
+static enum handler_return timer_tick(void *arg, lk_time_t now) {
     timer_t *timer;
     enum handler_return ret = INT_NO_RESCHEDULE;
 
@@ -298,8 +291,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now)
     return ret;
 }
 
-void timer_init(void)
-{
+void timer_init(void) {
     timer_lock = SPIN_LOCK_INITIAL_VALUE;
     for (uint i = 0; i < SMP_MAX_CPUS; i++) {
         list_initialize(&timers[i].timer_queue);

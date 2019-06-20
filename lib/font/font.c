@@ -42,8 +42,7 @@
  *
  * @ingroup graphics
  */
-void font_draw_char(gfx_surface *surface, unsigned char c, int x, int y, uint32_t color)
-{
+void font_draw_char(gfx_surface *surface, unsigned char c, int x, int y, uint32_t color) {
     uint i,j;
     uint line;
 

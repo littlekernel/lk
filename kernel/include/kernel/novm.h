@@ -46,10 +46,10 @@ void *novm_alloc_unaligned(size_t *size_return);
 void novm_add_arena(const char *name, uintptr_t arena_start, uintptr_t arena_size);
 
 struct page_range {
-    void* address;
+    void *address;
     size_t size;
 };
 
-int novm_get_arenas(struct page_range* ranges, int number_of_ranges);
+int novm_get_arenas(struct page_range *ranges, int number_of_ranges);
 
 #endif

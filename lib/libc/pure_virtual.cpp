@@ -22,13 +22,11 @@
  */
 #include <lk/debug.h>
 
-extern "C" void __cxa_pure_virtual(void)
-{
+extern "C" void __cxa_pure_virtual(void) {
     panic("pure virtual called\n");
 }
 
-extern "C" int __cxa_atexit(void (*destructor)(void *), void *arg, void *__dso_handle)
-{
+extern "C" int __cxa_atexit(void (*destructor)(void *), void *arg, void *__dso_handle) {
     return 0;
 }
 

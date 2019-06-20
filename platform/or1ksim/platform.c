@@ -71,15 +71,13 @@ static pmm_arena_t ram_arena = {
     .flags = PMM_ARENA_FLAG_KMAP
 };
 
-void platform_dputc(char c)
-{
+void platform_dputc(char c) {
     if (c == '\n')
         uart_putc(DEBUG_UART, '\r');
     uart_putc(DEBUG_UART, c);
 }
 
-int platform_dgetc(char *c, bool wait)
-{
+int platform_dgetc(char *c, bool wait) {
     int _c;
 
     if ((_c = uart_getc(DEBUG_UART, false)) < 0)
@@ -89,8 +87,7 @@ int platform_dgetc(char *c, bool wait)
     return 0;
 }
 
-void platform_early_init(void)
-{
+void platform_early_init(void) {
     uart_init_early();
     or1k_ticktimer_init(TIMER_CLOCK_FREQ);
 #if WITH_KERNEL_VM

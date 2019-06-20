@@ -24,8 +24,7 @@
 #include <lk/err.h>
 #include <dev/class/fb.h>
 
-status_t class_fb_set_mode(struct device *dev, size_t width, size_t height, size_t bpp)
-{
+status_t class_fb_set_mode(struct device *dev, size_t width, size_t height, size_t bpp) {
     struct fb_ops *ops = device_get_driver_ops(dev, struct fb_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -36,8 +35,7 @@ status_t class_fb_set_mode(struct device *dev, size_t width, size_t height, size
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_fb_get_info(struct device *dev, struct fb_info *info)
-{
+status_t class_fb_get_info(struct device *dev, struct fb_info *info) {
     struct fb_ops *ops = device_get_driver_ops(dev, struct fb_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -48,8 +46,7 @@ status_t class_fb_get_info(struct device *dev, struct fb_info *info)
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_fb_update(struct device *dev)
-{
+status_t class_fb_update(struct device *dev) {
     struct fb_ops *ops = device_get_driver_ops(dev, struct fb_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -60,8 +57,7 @@ status_t class_fb_update(struct device *dev)
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_fb_update_region(struct device *dev, size_t x, size_t y, size_t width, size_t height)
-{
+status_t class_fb_update_region(struct device *dev, size_t x, size_t y, size_t width, size_t height) {
     struct fb_ops *ops = device_get_driver_ops(dev, struct fb_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;

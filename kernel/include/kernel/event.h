@@ -71,13 +71,11 @@ status_t event_wait_timeout(event_t *, lk_time_t); /* wait on the event with a t
 status_t event_signal(event_t *, bool reschedule);
 status_t event_unsignal(event_t *);
 
-static inline bool event_initialized(event_t *e)
-{
+static inline bool event_initialized(event_t *e) {
     return e->magic == EVENT_MAGIC;
 }
 
-static inline status_t event_wait(event_t *e)
-{
+static inline status_t event_wait(event_t *e) {
     return event_wait_timeout(e, INFINITE_TIME);
 }
 

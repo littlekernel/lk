@@ -67,8 +67,7 @@ const struct buildsig buildsig __SECTION(".text.boot") = {
     .magic3 = MAGIC3
 };
 
-status_t buildsig_search(const void *_ptr, size_t search_len, size_t max_len, const lk_version_t **version)
-{
+status_t buildsig_search(const void *_ptr, size_t search_len, size_t max_len, const lk_version_t **version) {
     if (max_len < search_len)
         return ERR_INVALID_ARGS;
 
@@ -117,8 +116,7 @@ status_t buildsig_search(const void *_ptr, size_t search_len, size_t max_len, co
 
 extern char __rom_start;
 
-static int cmd_buildsig(int argc, const cmd_args *argv)
-{
+static int cmd_buildsig(int argc, const cmd_args *argv) {
     if (argc < 2) {
 //notenoughargs:
         printf("not enough args\n");

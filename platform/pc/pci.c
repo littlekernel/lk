@@ -44,8 +44,7 @@ typedef struct {
 static int pci_type1_detect(void);
 static int pci_bios_detect(void);
 
-int pci_get_last_bus(void)
-{
+int pci_get_last_bus(void) {
     return last_bus;
 }
 
@@ -67,8 +66,7 @@ int (*g_pci_get_irq_routing_options)(irq_routing_options_t *options, uint16_t *p
 int (*g_pci_set_irq_hw_int)(const pci_location_t *state, uint8_t int_pin, uint8_t irq);
 
 
-int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index)
-{
+int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index) {
     if (unlikely(!g_pci_find_pci_device)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -83,8 +81,7 @@ int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vend
     return res;
 }
 
-int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index)
-{
+int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index) {
     if (unlikely(!g_pci_find_pci_class_code)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -99,8 +96,7 @@ int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t
     return res;
 }
 
-int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value)
-{
+int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value) {
     if (unlikely(!g_pci_read_config_byte)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -114,8 +110,7 @@ int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *val
 
     return res;
 }
-int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value)
-{
+int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value) {
     if (unlikely(!g_pci_read_config_half)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -130,8 +125,7 @@ int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *va
     return res;
 }
 
-int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value)
-{
+int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value) {
     if (unlikely(!g_pci_read_config_word)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -146,8 +140,7 @@ int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *va
     return res;
 }
 
-int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value)
-{
+int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value) {
     if (unlikely(!g_pci_write_config_byte)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -162,8 +155,7 @@ int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t val
     return res;
 }
 
-int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value)
-{
+int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value) {
     if (unlikely(!g_pci_write_config_half)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -178,8 +170,7 @@ int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t va
     return res;
 }
 
-int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value)
-{
+int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value) {
     if (unlikely(!g_pci_write_config_word)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -195,8 +186,7 @@ int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t va
 }
 
 
-int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs)
-{
+int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs) {
     if (unlikely(!g_pci_get_irq_routing_options)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -218,8 +208,7 @@ int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uin
     return res;
 }
 
-int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq)
-{
+int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq) {
     if (unlikely(!g_pci_set_irq_hw_int)) {
         return ERR_NOT_CONFIGURED;
     }
@@ -234,8 +223,7 @@ int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq
     return res;
 }
 
-void pci_init(void)
-{
+void pci_init(void) {
     if (!pci_bios_detect()) {
         dprintf(INFO, "PCI: pci bios functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", last_bus);
@@ -287,8 +275,7 @@ typedef struct {
  * scan for pci bios
  */
 static const char *pci_bios_magic = "_32_";
-static pci_bios_info *find_pci_bios_info(void)
-{
+static pci_bios_info *find_pci_bios_info(void) {
     uint32_t *head = (uint32_t *) (0x000e0000 + KERNEL_BASE);
     int8_t sum, *b;
     uint i;
@@ -316,8 +303,7 @@ static pci_bios_info *find_pci_bios_info(void)
 /*
  * local BIOS32 PCI routines
  */
-static int bios_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index)
-{
+static int bios_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index) {
     uint32_t bx, ret;
 
     __asm__(
@@ -340,8 +326,7 @@ static int bios_find_pci_device(pci_location_t *state, uint16_t device_id, uint1
     return ret & 0xFF;
 }
 
-static int bios_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index)
-{
+static int bios_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index) {
     uint32_t bx, ret;
 
     __asm__(
@@ -364,8 +349,7 @@ static int bios_find_pci_class_code(pci_location_t *state, uint32_t class_code, 
 }
 
 
-static int bios_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value)
-{
+static int bios_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value) {
     uint32_t bx, ret;
 
     bx = state->bus;
@@ -386,8 +370,7 @@ static int bios_read_config_byte(const pci_location_t *state, uint32_t reg, uint
     return ret & 0xFF;
 }
 
-static int bios_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value)
-{
+static int bios_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value) {
     uint32_t bx, ret;
 
     bx = state->bus;
@@ -408,8 +391,7 @@ static int bios_read_config_half(const pci_location_t *state, uint32_t reg, uint
     return ret & 0xFF;
 }
 
-static int bios_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value)
-{
+static int bios_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value) {
     uint32_t bx, ret;
 
     bx = state->bus;
@@ -430,8 +412,7 @@ static int bios_read_config_word(const pci_location_t *state, uint32_t reg, uint
     return ret & 0xFF;
 }
 
-static int bios_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value)
-{
+static int bios_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value) {
     uint32_t bx, ret;
 
     bx = state->bus;
@@ -452,8 +433,7 @@ static int bios_write_config_byte(const pci_location_t *state, uint32_t reg, uin
     return ret & 0xFF;
 }
 
-static int bios_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value)
-{
+static int bios_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value) {
     uint32_t bx, ret;
 
     bx = state->bus;
@@ -474,8 +454,7 @@ static int bios_write_config_half(const pci_location_t *state, uint32_t reg, uin
     return ret & 0xFF;
 }
 
-static int bios_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value)
-{
+static int bios_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value) {
     uint32_t bx, ret;
 
     bx = state->bus;
@@ -496,8 +475,7 @@ static int bios_write_config_word(const pci_location_t *state, uint32_t reg, uin
     return ret & 0xFF;
 }
 
-static int bios_get_irq_routing_options(irq_routing_options_t *route_buffer, uint16_t *pciIrqs)
-{
+static int bios_get_irq_routing_options(irq_routing_options_t *route_buffer, uint16_t *pciIrqs) {
     uint32_t ret;
 
     __asm__(
@@ -515,8 +493,7 @@ static int bios_get_irq_routing_options(irq_routing_options_t *route_buffer, uin
     return ret & 0xff;
 }
 
-static int bios_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq)
-{
+static int bios_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq) {
     uint32_t bx, cx, ret;
 
     bx = state->bus;
@@ -540,8 +517,7 @@ static int bios_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uin
 }
 
 static const char *pci_signature = "PCI ";
-static int pci_bios_detect(void)
-{
+static int pci_bios_detect(void) {
 #if !ARCH_X86_32
     // disable for x86-64 because of bios32
     return ERR_NOT_SUPPORTED;

@@ -26,8 +26,7 @@
 #include <platform/flash_nor_config.h>
 #include <lk/debug.h>
 
-void dump_bank(void)
-{
+void dump_bank(void) {
     const struct flash_nor_bank *bank;
     bank = flash_nor_get_bank(0);
     printf("\n\n**DUMP BANK**\n");
@@ -40,8 +39,7 @@ void dump_bank(void)
     }
 }
 
-void wipe_fs(void)
-{
+void wipe_fs(void) {
     norfs_unmount_fs();
     flash_nor_begin(0);
     flash_nor_erase_pages(0, 0 + norfs_nvram_offset, 8 * FLASH_PAGE_SIZE);

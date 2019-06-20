@@ -36,12 +36,10 @@
 /* a global state structure, aligned on cpu cache line to minimize aliasing */
 struct mp_state mp __CPU_ALIGN;
 
-void mp_init(void)
-{
+void mp_init(void) {
 }
 
-void mp_reschedule(mp_cpu_mask_t target, uint flags)
-{
+void mp_reschedule(mp_cpu_mask_t target, uint flags) {
     uint local_cpu = arch_curr_cpu_num();
 
     LTRACEF("local %d, target 0x%x\n", local_cpu, target);
@@ -60,13 +58,11 @@ void mp_reschedule(mp_cpu_mask_t target, uint flags)
     arch_mp_send_ipi(target, MP_IPI_RESCHEDULE);
 }
 
-void mp_set_curr_cpu_active(bool active)
-{
+void mp_set_curr_cpu_active(bool active) {
     atomic_or((volatile int *)&mp.active_cpus, 1U << arch_curr_cpu_num());
 }
 
-enum handler_return mp_mbx_reschedule_irq(void)
-{
+enum handler_return mp_mbx_reschedule_irq(void) {
     uint cpu = arch_curr_cpu_num();
 
     LTRACEF("cpu %u\n", cpu);

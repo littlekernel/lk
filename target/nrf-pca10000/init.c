@@ -30,8 +30,7 @@
 #include <platform/nrf51.h>
 #include <target/gpioconfig.h>
 
-void target_early_init(void)
-{
+void target_early_init(void) {
     NRF_CLOCK->XTALFREQ = CLOCK_XTALFREQ_XTALFREQ_16MHz;
 
     /* configure the usart1 pins */
@@ -49,8 +48,7 @@ void target_early_init(void)
     nrf51_debug_early_init();
 }
 
-void target_init(void)
-{
+void target_init(void) {
     nrf51_debug_init();
     dprintf(SPEW,"Target: PCA10000 DK...\n");
 }

@@ -34,8 +34,7 @@ struct fault_handler_table_entry {
 extern struct fault_handler_table_entry __fault_handler_table_start[];
 extern struct fault_handler_table_entry __fault_handler_table_end[];
 
-static void dump_mode_regs(uint32_t spsr, uint32_t svc_r13, uint32_t svc_r14)
-{
+static void dump_mode_regs(uint32_t spsr, uint32_t svc_r13, uint32_t svc_r14) {
     struct arm_mode_regs regs;
     arm_save_mode_regs(&regs);
 
@@ -75,8 +74,7 @@ static void dump_mode_regs(uint32_t spsr, uint32_t svc_r13, uint32_t svc_r14)
     }
 }
 
-static void dump_fault_frame(struct arm_fault_frame *frame)
-{
+static void dump_fault_frame(struct arm_fault_frame *frame) {
     struct thread *current_thread = get_current_thread();
 
     dprintf(CRITICAL, "current_thread %p, name %s\n",
@@ -91,8 +89,7 @@ static void dump_fault_frame(struct arm_fault_frame *frame)
     dump_mode_regs(frame->spsr, (uintptr_t)(frame + 1), frame->lr);
 }
 
-static void dump_iframe(struct arm_iframe *frame)
-{
+static void dump_iframe(struct arm_iframe *frame) {
     dprintf(CRITICAL, "r0  0x%08x r1  0x%08x r2  0x%08x r3  0x%08x\n", frame->r0, frame->r1, frame->r2, frame->r3);
     dprintf(CRITICAL, "r12 0x%08x usp 0x%08x ulr 0x%08x pc  0x%08x\n", frame->r12, frame->usp, frame->ulr, frame->pc);
     dprintf(CRITICAL, "spsr 0x%08x\n", frame->spsr);
@@ -100,8 +97,7 @@ static void dump_iframe(struct arm_iframe *frame)
     dump_mode_regs(frame->spsr, (uintptr_t)(frame + 1), frame->lr);
 }
 
-static void exception_die(struct arm_fault_frame *frame, const char *msg)
-{
+static void exception_die(struct arm_fault_frame *frame, const char *msg) {
     dprintf(CRITICAL, msg);
     dump_fault_frame(frame);
 
@@ -109,8 +105,7 @@ static void exception_die(struct arm_fault_frame *frame, const char *msg)
     for (;;);
 }
 
-static void exception_die_iframe(struct arm_iframe *frame, const char *msg)
-{
+static void exception_die_iframe(struct arm_iframe *frame, const char *msg) {
     dprintf(CRITICAL, msg);
     dump_iframe(frame);
 
@@ -118,13 +113,11 @@ static void exception_die_iframe(struct arm_iframe *frame, const char *msg)
     for (;;);
 }
 
-__WEAK void arm_syscall_handler(struct arm_fault_frame *frame)
-{
+__WEAK void arm_syscall_handler(struct arm_fault_frame *frame) {
     exception_die(frame, "unhandled syscall, halting\n");
 }
 
-void arm_undefined_handler(struct arm_iframe *frame)
-{
+void arm_undefined_handler(struct arm_iframe *frame) {
     /* look at the undefined instruction, figure out if it's something we can handle */
     bool in_thumb = frame->spsr & (1<<5);
     if (in_thumb) {
@@ -171,8 +164,7 @@ fpu:
 #endif
 }
 
-void arm_data_abort_handler(struct arm_fault_frame *frame)
-{
+void arm_data_abort_handler(struct arm_fault_frame *frame) {
     struct fault_handler_table_entry *fault_handler;
     uint32_t fsr = arm_read_dfsr();
     uint32_t far = arm_read_dfar();
@@ -238,8 +230,7 @@ void arm_data_abort_handler(struct arm_fault_frame *frame)
     exception_die(frame, "halting\n");
 }
 
-void arm_prefetch_abort_handler(struct arm_fault_frame *frame)
-{
+void arm_prefetch_abort_handler(struct arm_fault_frame *frame) {
     uint32_t fsr = arm_read_ifsr();
     uint32_t far = arm_read_ifar();
 

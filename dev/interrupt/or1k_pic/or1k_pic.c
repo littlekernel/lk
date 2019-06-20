@@ -41,8 +41,7 @@ struct int_handler_struct {
 
 static struct int_handler_struct int_handler_table[MAX_INT];
 
-void register_int_handler(unsigned int vector, int_handler handler, void *arg)
-{
+void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     spin_lock_saved_state_t state;
 
     if (vector >= MAX_INT)
@@ -56,8 +55,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg)
     spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
 }
 
-status_t mask_interrupt(unsigned int vector)
-{
+status_t mask_interrupt(unsigned int vector) {
     if (vector >= MAX_INT)
         return ERR_INVALID_ARGS;
 
@@ -66,8 +64,7 @@ status_t mask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-status_t unmask_interrupt(unsigned int vector)
-{
+status_t unmask_interrupt(unsigned int vector) {
     if (vector >= MAX_INT)
         return ERR_INVALID_ARGS;
 
@@ -76,8 +73,7 @@ status_t unmask_interrupt(unsigned int vector)
     return NO_ERROR;
 }
 
-enum handler_return platform_irq(void)
-{
+enum handler_return platform_irq(void) {
     enum handler_return ret = INT_NO_RESCHEDULE;
 
     uint irq = __builtin_ffs(mfspr(OR1K_SPR_PIC_PICSR_ADDR)) - 1;

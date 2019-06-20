@@ -36,8 +36,7 @@
 #define DIR_ENTRY_LENGTH 32
 #define USE_CACHE 1
 
-uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster)
-{
+uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
     uint32_t fat_sector = (cluster) >> 7;
     uint32_t fat_index = (cluster ) & 127;
 
@@ -73,14 +72,12 @@ uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster)
     return next_cluster;
 }
 
-static inline off_t fat32_offset_for_cluster(fat_fs_t *fat, uint32_t cluster)
-{
+static inline off_t fat32_offset_for_cluster(fat_fs_t *fat, uint32_t cluster) {
     off_t cluster_begin_lba = fat->reserved_sectors + (fat->fat_count * fat->sectors_per_fat);
     return fat->lba_start + (cluster_begin_lba + (cluster - 2) * fat->sectors_per_cluster) * fat->bytes_per_sector;
 }
 
-char *fat32_dir_get_filename(uint8_t *dir, off_t offset, int lfn_sequences)
-{
+char *fat32_dir_get_filename(uint8_t *dir, off_t offset, int lfn_sequences) {
     int result_len = 1 + (lfn_sequences == 0 ? 12 : (lfn_sequences * 26));
     char *result = malloc(result_len);
     int j = 0;
@@ -133,8 +130,7 @@ char *fat32_dir_get_filename(uint8_t *dir, off_t offset, int lfn_sequences)
     return result;
 }
 
-status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcookie)
-{
+status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcookie) {
     fat_fs_t *fat = (fat_fs_t *)cookie;
     status_t result = ERR_GENERIC;
 
@@ -231,8 +227,7 @@ out:
     return result;
 }
 
-ssize_t fat32_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len)
-{
+ssize_t fat32_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len) {
     fat_file_t *file = (fat_file_t *)fcookie;
     fat_fs_t *fat = file->fat_fs;
     bdev_t *dev = fat->dev;
@@ -280,15 +275,13 @@ ssize_t fat32_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len
     return amount_read;
 }
 
-status_t fat32_close_file(filecookie *fcookie)
-{
+status_t fat32_close_file(filecookie *fcookie) {
     fat_file_t *file = (fat_file_t *)fcookie;
     free(file);
     return NO_ERROR;
 }
 
-status_t fat32_stat_file(filecookie *fcookie, struct file_stat *stat)
-{
+status_t fat32_stat_file(filecookie *fcookie, struct file_stat *stat) {
     fat_file_t *file = (fat_file_t *)fcookie;
     stat->size = file->length;
     stat->is_dir = (file->attributes == fat_attribute_directory);

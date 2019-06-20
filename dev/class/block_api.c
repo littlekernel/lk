@@ -24,8 +24,7 @@
 #include <lk/err.h>
 #include <dev/class/block.h>
 
-ssize_t class_block_get_size(struct device *dev)
-{
+ssize_t class_block_get_size(struct device *dev) {
     struct block_ops *ops = device_get_driver_ops(dev, struct block_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -36,8 +35,7 @@ ssize_t class_block_get_size(struct device *dev)
         return ERR_NOT_SUPPORTED;
 }
 
-ssize_t class_block_get_count(struct device *dev)
-{
+ssize_t class_block_get_count(struct device *dev) {
     struct block_ops *ops = device_get_driver_ops(dev, struct block_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -48,8 +46,7 @@ ssize_t class_block_get_count(struct device *dev)
         return ERR_NOT_SUPPORTED;
 }
 
-ssize_t class_block_write(struct device *dev, off_t offset, const void *buf, size_t count)
-{
+ssize_t class_block_write(struct device *dev, off_t offset, const void *buf, size_t count) {
     struct block_ops *ops = device_get_driver_ops(dev, struct block_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -60,8 +57,7 @@ ssize_t class_block_write(struct device *dev, off_t offset, const void *buf, siz
         return ERR_NOT_SUPPORTED;
 }
 
-ssize_t class_block_read(struct device *dev, off_t offset, void *buf, size_t count)
-{
+ssize_t class_block_read(struct device *dev, off_t offset, void *buf, size_t count) {
     struct block_ops *ops = device_get_driver_ops(dev, struct block_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
@@ -72,8 +68,7 @@ ssize_t class_block_read(struct device *dev, off_t offset, void *buf, size_t cou
         return ERR_NOT_SUPPORTED;
 }
 
-status_t class_block_flush(struct device *dev)
-{
+status_t class_block_flush(struct device *dev) {
     struct block_ops *ops = device_get_driver_ops(dev, struct block_ops, std);
     if (!ops)
         return ERR_NOT_CONFIGURED;
