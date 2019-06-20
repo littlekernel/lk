@@ -69,6 +69,9 @@ _isr:
 
 interrupt_common:
 
+    /* clear the direction bit */
+    cld
+
     /* save general purpose registers */
     pushq %r15
     pushq %r14
@@ -86,7 +89,8 @@ interrupt_common:
     pushq %rsi
     pushq %rdi
 
-    movq %rsp, %rdi     /* pass the  iframe using rdi */
+    /* pass the  iframe using rdi */
+    movq %rsp, %rdi
 
     call x86_exception_handler
 

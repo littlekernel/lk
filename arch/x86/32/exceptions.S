@@ -59,6 +59,7 @@ _isr:
 .fill 256
 
 FUNCTION(interrupt_common)
+    cld
     pushl %gs               /* save segment registers */
     pushl %fs
     pushl %es
