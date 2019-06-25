@@ -63,6 +63,10 @@
 #define STM32F40_41xxx
 #endif
 
+#ifdef STM32F401XX
+#define STM32F401xx
+#endif
+
 #define assert_param(x)
  
 /** @addtogroup Library_configuration_section

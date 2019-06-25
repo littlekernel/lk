@@ -1,0 +1,18 @@
+
+Notes on the STM32F401CCU6 Board
+------------------------------------
+
+https://www.aliexpress.com/item/33011237530.html?spm=a2g0s.9042311.0.0.61624c4dPco7ux
+https://www.electrodragon.com/w/images/d/d4/STM32_Mini_F401_STM32F401CCU6_SCH.jpg
+
+LK Debug/Console UART
+---------------------
+- USART2 is used
+- TX is A2
+- RX is A3
+
+Using external SWD debug
+------------------------
+- SWCLK, SWDIO and GND pins are available on the SWD debug port (opposite the USB-C port)
+
+
