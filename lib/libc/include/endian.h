@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __ENDIAN_H
-#define __ENDIAN_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -77,5 +76,3 @@
 #define WRITE_MEM_BYTE(ptr, data)   (*(byte *)(ptr) = (data))
 #endif
 
-
-#endif

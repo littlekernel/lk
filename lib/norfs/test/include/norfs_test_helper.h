@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __NORFS_TEST_HELPER_H
-#define __NORFS_TEST_HELPER_H
+#pragma once
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -24,4 +23,3 @@ void wipe_fs(void);
 status_t collect_block(uint32_t garbage_block, uint32_t *garbage_write_ptr);
 bool get_inode(uint32_t key, struct norfs_inode **inode);
 
-#endif

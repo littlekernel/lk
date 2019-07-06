@@ -1,5 +1,4 @@
-#ifndef __stellaris_h__
-#define __stellaris_h__
+#pragma once
 
 /* an attempt at a CMSIS compatibility layer for Stellaris */
 
@@ -21,4 +20,3 @@ typedef enum IRQn {
 // based on datasheet page 159?
 #define __NVIC_PRIO_BITS 3
 
-#endif

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __LIB_BUILDSIG_H
-#define __LIB_BUILDSIG_H
+#pragma once
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -17,6 +16,4 @@ status_t buildsig_search(const void *ptr, size_t search_len, size_t max_len,
                          const lk_version_t **version);
 
 #define DEFAULT_BUILDSIG_SEARCH_LEN 1024
-
-#endif
 

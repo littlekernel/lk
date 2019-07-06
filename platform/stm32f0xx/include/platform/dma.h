@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_STM32_DMA_H
-#define __PLATFORM_STM32_DMA_H
+#pragma once
 
 #include <stdint.h>
 
@@ -70,4 +69,3 @@ void dma_transfer_start(dma_channel_t chan,
  */
 void dma_wait(dma_channel_t chan);
 
-#endif  // __PLATFORM_STM32_DMA_H

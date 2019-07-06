@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __NEW_H
-#define __NEW_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -17,4 +16,3 @@ void *operator new[](size_t, void *ptr);
 void operator delete (void *p);
 void operator delete[](void *p);
 
-#endif

@@ -5,9 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef LIB_FS_SPIFS_H_
-#define LIB_FS_SPIFS_H_
+#pragma once
 
 #include <lib/fs.h>
 
@@ -18,4 +16,3 @@ typedef struct {
     uint32_t toc_pages;
 } spifs_format_args_t;
 
-#endif  // LIB_FS_SPIFS_H_

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __LIB_FONT_H
-#define __LIB_FONT_H
+#pragma once
 
 #include <lib/gfx.h>
 #include <lk/compiler.h>
@@ -19,6 +18,4 @@ __BEGIN_CDECLS
 void font_draw_char(gfx_surface *surface, unsigned char c, int x, int y, uint32_t color);
 
 __END_CDECLS
-
-#endif
 

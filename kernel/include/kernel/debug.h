@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __KERNEL_DEBUG_H
-#define __KERNEL_DEBUG_H
+#pragma once
 
 #include <lk/compiler.h>
 
@@ -55,6 +54,3 @@ enum {
 #define KEVLOG_IRQ_EXIT(irqn) kernel_evlog_add(KERNEL_EVLOG_IRQ_EXIT, (uintptr_t)irqn, 0)
 
 __END_CDECLS
-
-#endif
-

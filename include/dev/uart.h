@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_UART_H
-#define __DEV_UART_H
+#pragma once
 
 #include <stdbool.h>
 #include <sys/types.h>
@@ -23,6 +22,4 @@ void uart_init_port(int port, uint baud);
 /* panic-time uart accessors, intended to be run with interrupts disabled */
 int uart_pputc(int port, char c);
 int uart_pgetc(int port);
-
-#endif
 

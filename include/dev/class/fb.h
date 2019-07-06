@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_CLASS_FB_H
-#define __DEV_CLASS_FB_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <dev/driver.h>
@@ -37,7 +36,4 @@ status_t class_fb_update(struct device *dev);
 status_t class_fb_update_region(struct device *dev, size_t x, size_t y, size_t width, size_t height);
 
 __END_CDECLS
-
-#endif
-
 

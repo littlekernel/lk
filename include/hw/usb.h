@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __HW_USB_H
-#define __HW_USB_H
+#pragma once
 
 #include <sys/types.h>
 #include <lk/compiler.h>
@@ -86,6 +85,3 @@ struct usb_setup {
     uint16_t index;
     uint16_t length;
 } __PACKED;
-
-#endif
-

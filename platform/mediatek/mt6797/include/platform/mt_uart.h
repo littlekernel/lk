@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef ___MTK_UART_H__
-#define ___MTK_UART_H__
+#pragma once
 
 #include <platform/mt_reg_base.h>
 
@@ -201,6 +200,4 @@ control */
 
 extern void mtk_set_current_uart(MTK_UART uart_base);
 extern int mtk_get_current_uart(void);
-
-#endif /* !___MTK_UART_H__ */
 

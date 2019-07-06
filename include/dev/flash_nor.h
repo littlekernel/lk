@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_FLASH_NOR_H
-#define __DEV_FLASH_NOR_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -20,6 +19,4 @@ struct flash_nor_bank {
 #define FLASH_NOR_FLAG_NONE 0
 
 const struct flash_nor_bank *flash_nor_get_bank(unsigned int bank);
-
-#endif
 

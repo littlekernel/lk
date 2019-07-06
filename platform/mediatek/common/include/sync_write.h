@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __SYNC_WRITE_H__
-#define __SYNC_WRITE_H__
+#pragma once
 
 #include <arch/arm.h>
 
@@ -29,6 +28,4 @@
             *(volatile unsigned char *)(a) = (v);    \
             dsb(); \
         } while (0)
-
-#endif /* !__SYNC_WRITE_H__ */
 

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __KERNEL_NOVM_H
-#define __KERNEL_NOVM_H
+#pragma once
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -36,5 +35,3 @@ struct page_range {
 };
 
 int novm_get_arenas(struct page_range *ranges, int number_of_ranges);
-
-#endif

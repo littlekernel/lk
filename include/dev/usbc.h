@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_USBC_H
-#define __DEV_USBC_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <stdbool.h>
@@ -72,6 +71,4 @@ static inline void usbc_dump_transfer(const usbc_transfer_t *t) {
 }
 
 __END_CDECLS
-
-#endif
 

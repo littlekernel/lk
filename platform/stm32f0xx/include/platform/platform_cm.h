@@ -5,11 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_CM_H
-#define __PLATFORM_CM_H
+#pragma once
 
 #include <stm32f0xx.h>
 #define SVCall_IRQn SVC_IRQn
-
-#endif
 

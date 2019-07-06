@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_INTERRUPTS_H
-#define __PLATFORM_INTERRUPTS_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -16,5 +15,3 @@ status_t unmask_interrupt(unsigned int vector);
 typedef enum handler_return (*int_handler)(void *arg);
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg);
-
-#endif

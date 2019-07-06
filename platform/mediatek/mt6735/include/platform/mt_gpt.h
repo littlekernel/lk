@@ -5,8 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __MT_GPT_H__
-#define __MT_GPT_H__
+#pragma once
+
 #include <platform/mt_typedefs.h>
 #include <sys/types.h>
 #include <stdbool.h>
@@ -53,4 +53,3 @@
 
 extern void gpt_init(void);
 
-#endif  /* !__MT_GPT_H__ */

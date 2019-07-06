@@ -5,10 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_CM_H
-#define __PLATFORM_CM_H
+#pragma once
 
 #include <stm32f10x.h>
-
-#endif
 

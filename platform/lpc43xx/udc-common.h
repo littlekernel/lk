@@ -6,9 +6,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef __PRIVATE_UDC_H__
-#define __PRIVATE_UDC_H__
+#pragma once
 
 #define GET_STATUS           0
 #define CLEAR_FEATURE        1
@@ -71,4 +69,3 @@ udc_descriptor_t *udc_descriptor_find(unsigned tag);
 // driver provides this
 void udc_ept_desc_fill(udc_endpoint_t *ept, unsigned char *data);
 
-#endif

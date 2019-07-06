@@ -32,9 +32,7 @@
  * have been modified by MediaTek Inc. All revisions are subject to any receiver's
  * applicable license agreements with MediaTek Inc.
  */
-
-#ifndef __MT_IRQ_H__
-#define __MT_IRQ_H__
+#pragma once
 
 #define GIC_CPU_CTRL            0x00
 #define GIC_CPU_PRIMASK         0x04
@@ -116,4 +114,3 @@ void mt_irq_ack(unsigned int irq);
 
 void platform_init_interrupts(void);
 
-#endif

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __KERNEL_PORT_H
-#define __KERNEL_PORT_H
+#pragma once
 
 #include <sys/types.h>
 #include <lk/compiler.h>
@@ -89,6 +88,3 @@ status_t port_destroy(port_t port);
 status_t port_close(port_t port);
 
 __END_CDECLS
-
-#endif
-

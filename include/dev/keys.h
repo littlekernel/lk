@@ -29,8 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __DEV_KEYS_H
-#define __DEV_KEYS_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -86,4 +85,3 @@ void keys_init(void);
 void keys_post_event(uint16_t code, int16_t value);
 int keys_get_state(uint16_t code);
 
-#endif /* __DEV_KEYS_H */

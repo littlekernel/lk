@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_CLASS_BLOCK_H
-#define __DEV_CLASS_BLOCK_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <dev/driver.h>
@@ -33,6 +32,4 @@ ssize_t class_block_read(struct device *dev, off_t offset, void *buf, size_t cou
 status_t class_block_flush(struct device *dev);
 
 __END_CDECLS
-
-#endif
 

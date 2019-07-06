@@ -5,9 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef _FAT_FS_H
-#define _FAT_FS_H
+#pragma once
 
 #include <lib/bio.h>
 #include <lib/bcache.h>
@@ -58,4 +56,3 @@ typedef enum {
 #define fat_read16(buffer,off) \
 (((uint8_t *)buffer)[(off)] + (((uint8_t *)buffer)[(off)+1] << 8))
 
-#endif

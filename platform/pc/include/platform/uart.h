@@ -5,9 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef __PLATFORM_UART_H
-#define __PLATFORM_UART_H
+#pragma once
 
 struct platform_uart_config {
     int baud_rate;
@@ -16,6 +14,4 @@ struct platform_uart_config {
     int rx_buf_len;
     int tx_buf_len;
 };
-
-#endif
 

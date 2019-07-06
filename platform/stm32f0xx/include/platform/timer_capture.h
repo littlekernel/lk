@@ -5,9 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef __PLATFORM_STM32_TIMER_CAPTURE_H
-#define __PLATFORM_STM32_TIMER_CAPTURE_H
+#pragma once
 
 #include <lk/err.h>
 #include <kernel/spinlock.h>
@@ -39,4 +37,3 @@ status_t stm32_timer_capture_setup(stm32_timer_capture_t *tc, int timer, uint16_
 
 uint64_t stm32_timer_capture_get_counter(stm32_timer_capture_t *tc);
 
-#endif  // __PLATFORM_STM32_TIMER_CAPTURE_H

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_CLASS_UART_H
-#define __DEV_CLASS_UART_H
+#pragma once
 
 #include <dev/driver.h>
 
@@ -21,6 +20,4 @@ struct uart_ops {
 
 ssize_t class_uart_read(struct device *dev, void *buf, size_t len);
 ssize_t class_uart_write(struct device *dev, const void *buf, size_t len);
-
-#endif
 

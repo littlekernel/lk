@@ -26,8 +26,7 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __DEV_UDC_H
-#define __DEV_UDC_H
+#pragma once
 
 #include <stdint.h>
 
@@ -91,4 +90,3 @@ int udc_register_gadget(udc_gadget_t *gadget);
 int udc_start(void);
 int udc_stop(void);
 
-#endif

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_MULTIBOOT_H
-#define __PLATFORM_MULTIBOOT_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -112,4 +111,3 @@ enum {
 
 #endif
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef __PLATFORM_STM32_GPIO_H
-#define __PLATFORM_STM32_GPIO_H
+#pragma once
 
 #include <stm32f0xx.h>
 
@@ -34,7 +33,5 @@
 #endif
 #ifdef GPIOF
 #define GPIO_PORT_F 5
-#endif
-
 #endif
 

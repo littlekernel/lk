@@ -5,10 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef __PLATFORM_NRF52_GPIO_H
-#define __PLATFORM_NRF52_GPIO_H
+#pragma once
 
 #define NRF_MAX_PIN_NUMBER 31
 
-#endif

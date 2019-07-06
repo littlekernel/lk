@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __NORFS_CONFIG_H
-#define __NORFS_CONFIG_H
+#pragma once
 
 #include <platform/flash_nor_config.h>
 
@@ -30,4 +29,3 @@
 
 #define NORFS_DELETED_MASK 1
 
-#endif

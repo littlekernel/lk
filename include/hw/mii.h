@@ -6,8 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 
-#ifndef __HW_MII_H
-#define __HW_MII_H
+#pragma once
 
 #define MII_REG_BCR           0x00
 #define MII_REG_BSR           0x01
@@ -56,5 +55,3 @@
 #define MII_100TX_MODE_ISOLATE 0x001C
 #define MII_100TX_SQE_TEST     0x0002
 #define MII_100TX_NO_SCRAMBLE  0x0001
-
-#endif

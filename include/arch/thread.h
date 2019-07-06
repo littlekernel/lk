@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __ARCH_THREAD_H
-#define __ARCH_THREAD_H
+#pragma once
 
 // give the arch code a chance to declare the arch_thread struct
 #include <arch/arch_thread.h>
@@ -16,4 +15,3 @@ struct thread;
 void arch_thread_initialize(struct thread *);
 void arch_context_switch(struct thread *oldthread, struct thread *newthread);
 
-#endif

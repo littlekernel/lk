@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __LIB_VERSION_H
-#define __LIB_VERSION_H
+#pragma once
 
 #include <lk/compiler.h>
 
@@ -28,6 +27,4 @@ extern const lk_version_t version;
 void print_version(void);
 
 __END_CDECLS
-
-#endif
 

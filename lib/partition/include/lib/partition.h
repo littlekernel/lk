@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __LIB_PARTITION_H
-#define __LIB_PARTITION_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -15,6 +14,4 @@ int partition_publish(const char *device, off_t offset);
 
 /* remove any published subdevices on this device */
 int partition_unpublish(const char *device);
-
-#endif
 

@@ -1,5 +1,4 @@
-#ifndef __PLATFORM_STM32_CAN_H
-#define __PLATFORM_STM32_CAN_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <stdbool.h>
@@ -49,4 +48,3 @@ ssize_t can_send(const can_msg_t *msg);
  */
 ssize_t can_recv(can_msg_t *msg, bool block);
 
-#endif  // __PLATFORM_STM32_CAN_H

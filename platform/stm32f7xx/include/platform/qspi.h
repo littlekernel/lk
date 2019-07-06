@@ -5,13 +5,10 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef __PLATFORM_STM32_QSPI_H
-#define __PLATFORM_STM32_QSPI_H
+#pragma once
 
 #include <stm32f7xx.h>
 
 // Initialize the QSPI Flash device.
 status_t qspi_flash_init(size_t flash_size);
 
-#endif  // __PLATFORM_STM32_QSPI_H

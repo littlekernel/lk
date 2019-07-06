@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_ETHERNET_H
-#define __DEV_ETHERNET_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -22,4 +21,3 @@ int ethernet_send(void *data, unsigned length);
 
 status_t ethernet_init(void); /* initialize the ethernet device */
 
-#endif

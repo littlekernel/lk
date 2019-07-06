@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PCI_H
-#define __PCI_H
+#pragma once
 
 #include <sys/types.h>
 #include <lk/compiler.h>
@@ -163,4 +162,3 @@ int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t va
 int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs);
 int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq);
 
-#endif

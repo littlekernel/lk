@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __MEMMAP_H
-#define __MEMMAP_H
+#pragma once
 
 #define MEMBANK_SIZE (4*1024*1024)
 
@@ -157,4 +156,3 @@
 #define BDEV_CMD_ERR_GENERAL (1 << BDEV_CMD_ERRSHIFT)
 #define BDEV_CMD_ERR_BAD_OFFSET (2 << BDEV_CMD_ERRSHIFT)
 
-#endif

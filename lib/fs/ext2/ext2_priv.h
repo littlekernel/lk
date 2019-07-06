@@ -5,9 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef __EXT2_PRIV_H
-#define __EXT2_PRIV_H
+#pragma once
 
 #include <lib/bio.h>
 #include <lib/bcache.h>
@@ -79,6 +77,4 @@ status_t ext2_stat_file(filecookie *fcookie, struct file_stat *);
 #define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
 #define S_ISLNK(mode) (((mode) & S_IFMT) == S_IFLNK)
 #define S_ISSOCK(mode) (((mode) & S_IFMT) == S_IFSOCK)
-
-#endif
 

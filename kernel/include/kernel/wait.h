@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __KERNEL_WAIT_H
-#define __KERNEL_WAIT_H
+#pragma once
 
 #include <sys/types.h>
 #include <lk/list.h>
@@ -67,6 +66,3 @@ int wait_queue_wake_all(wait_queue_t *, bool reschedule, status_t wait_queue_err
 status_t thread_unblock_from_wait_queue(struct thread *t, status_t wait_queue_error);
 
 __END_CDECLS
-
-#endif
-

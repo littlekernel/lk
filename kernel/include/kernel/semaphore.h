@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef __KERNEL_SEMAPHORE_H
-#define __KERNEL_SEMAPHORE_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <kernel/thread.h>
@@ -46,4 +45,3 @@ status_t sem_trywait(semaphore_t *);
 status_t sem_timedwait(semaphore_t *, lk_time_t);
 
 __END_CDECLS
-#endif

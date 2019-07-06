@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __STDINT_H
-#define __STDINT_H
+#pragma once
 
 #include <limits.h> // for ULONG_MAX
 
@@ -123,6 +122,4 @@ typedef unsigned long long uintmax_t;
 
 #define INTMAX_C(c)       INT64_C(c)
 #define UINTMAX_C(c)      UINT64_C(c)
-
-#endif
 

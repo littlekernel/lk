@@ -5,9 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef _DEVICETREE_H_
-#define _DEVICETREE_H_
+#pragma once
 
 #include <sys/types.h>
 
@@ -45,6 +43,4 @@ int dt_walk(devicetree_t *dt, dt_node_cb ncb, dt_prop_cb pcb, void *cookie);
 
 u32 dt_rd32(u8 *data);
 void dt_wr32(u32 n, u8 *data);
-
-#endif
 

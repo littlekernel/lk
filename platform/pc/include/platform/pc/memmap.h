@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __MEMMAP_H
-#define __MEMMAP_H
+#pragma once
 
 /* some helpful macros */
 #define REG(x) ((volatile unsigned int *)(x))
@@ -15,4 +14,3 @@
 
 /* TODO: put fixed memory address definitions here */
 
-#endif

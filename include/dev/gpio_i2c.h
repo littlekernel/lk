@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __GPIO_I2C__
-#define __GPIO_I2C__
+#pragma once
 
 #include <stdint.h>
 #include <dev/i2c.h>
@@ -38,4 +37,3 @@ status_t gpio_i2c_receive(int, uint8_t, void *, size_t);
 status_t gpio_i2c_write_reg_bytes(int, uint8_t, uint8_t, const uint8_t *, size_t);
 status_t gpio_i2c_read_reg_bytes(int, uint8_t, uint8_t, uint8_t *, size_t);
 
-#endif  // __GPIO_I2C__

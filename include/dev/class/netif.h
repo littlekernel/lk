@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_CLASS_NETIF_H
-#define __DEV_CLASS_NETIF_H
+#pragma once
 
 #include <lk/list.h>
 #include <lk/compiler.h>
@@ -46,6 +45,4 @@ status_t class_netstack_input(struct device *dev, struct netstack_state *state, 
 status_t class_netstack_wait_for_network(lk_time_t timeout);
 
 __END_CDECLS
-
-#endif
 

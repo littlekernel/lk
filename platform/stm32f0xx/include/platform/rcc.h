@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_STM32_RCC_H
-#define __PLATFORM_STM32_RCC_H
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -81,4 +80,3 @@ typedef enum {
 
 void stm32_rcc_set_enable(stm32_rcc_clk_t clock, bool enable);
 void stm32_rcc_set_reset(stm32_rcc_clk_t clock, bool reset);
-#endif  // __PLATFORM_STM32_RCC_H

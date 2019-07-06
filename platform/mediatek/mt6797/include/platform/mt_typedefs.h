@@ -10,8 +10,7 @@
  *   Type definition.
  */
 
-#ifndef __MT_TYPEDEFS_H__
-#define __MT_TYPEDEFS_H__
+#pragma once
 
 
 /*==== CONSTANTS ==================================================*/
@@ -144,6 +143,4 @@ typedef signed long long    S64;
 #define DRV_WriteReg32(addr, data)  OUTREG32(addr, data)
 #define DRV_SetReg32(addr, data)    SETREG32(addr, data)
 #define DRV_ClrReg32(addr, data)    CLRREG32(addr, data)
-
-#endif /* !__MT_TYPEDEFS_H__ */
 

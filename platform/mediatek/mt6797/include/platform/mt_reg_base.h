@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __MT_REG_BASE_H__
-#define __MT_REG_BASE_H__
+#pragma once
 
 #define BOOTROM_BASE (0x00000000)
 #define BOOTSRAM_BASE (0x00100000)
@@ -493,6 +492,4 @@
 #define APSW_VER            (VER_BASE + 0x0C)
 
 ////////////////////////////////////////
-
-#endif /* !__MT_REG_BASE_H__ */
 

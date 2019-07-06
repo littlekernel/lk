@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_STM32_SPI_H
-#define __PLATFORM_STM32_SPI_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -89,4 +88,3 @@ void spi_init(spi_data_size_t data_size,
  */
 ssize_t spi_xfer(const void *tx_buf, void *rx_buf, size_t len);
 
-#endif  // __PLATFORM_STM32_SPI_H

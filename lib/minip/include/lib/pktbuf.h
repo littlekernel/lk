@@ -5,9 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef _NET_PKTBUF_H_
-#define _NET_PKTBUF_H_
+#pragma once
 
 #include <sys/types.h>
 #include <lk/list.h>
@@ -106,4 +104,3 @@ void pktbuf_create(void *ptr, size_t size);
 void pktbuf_create_bufs(void *ptr, size_t size);
 
 void pktbuf_dump(pktbuf_t *p);
-#endif

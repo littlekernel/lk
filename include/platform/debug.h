@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_DEBUG_H
-#define __PLATFORM_DEBUG_H
+#pragma once
 
 #include <sys/types.h>
 #include <stdbool.h>
@@ -23,6 +22,3 @@ void platform_pputc(char c);
 int platform_pgetc(char *c, bool wait);
 
 __END_CDECLS
-
-#endif
-

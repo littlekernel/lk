@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __KERNEL_EVENT_H
-#define __KERNEL_EVENT_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <stdbool.h>
@@ -65,6 +64,3 @@ static inline status_t event_wait(event_t *e) {
 }
 
 __END_CDECLS
-
-#endif
-

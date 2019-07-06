@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __BYTES_H
-#define __BYTES_H
+#pragma once
 
 #include <endian.h>
 #include <stdint.h>
@@ -53,6 +52,4 @@ uint8_t  bytes_swap_bits_u8(uint8_t val);
 uint16_t bytes_swap_bits_u16(uint16_t val);
 uint32_t bytes_swap_bits_u24(uint32_t val);
 uint32_t bytes_swap_bits_u32(uint32_t val);
-
-#endif
 

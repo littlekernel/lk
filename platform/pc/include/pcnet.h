@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_PC_PCNET_H
-#define __PLATFORM_PC_PCNET_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <stdint.h>
@@ -111,6 +110,4 @@ struct rd_style3 {
 
     uint32_t reserved_1;
 } __PACKED;
-
-#endif
 

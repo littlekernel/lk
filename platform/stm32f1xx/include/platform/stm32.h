@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_STM32_H
-#define __PLATFORM_STM32_H
+#pragma once
 
 void stm32_debug_early_init(void);
 void stm32_debug_init(void);
@@ -15,6 +14,4 @@ void stm32_timer_init(void);
 void stm32_gpio_early_init(void);
 void stm32_flash_nor_early_init(void);
 void stm32_flash_nor_init(void);
-
-#endif
 

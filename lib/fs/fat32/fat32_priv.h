@@ -5,9 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef __FAT32_H
-#define __FAT32_H
+#pragma once
 
 #include <lib/bio.h>
 #include <lib/fs.h>
@@ -22,6 +20,4 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
 ssize_t fat32_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len);
 status_t fat32_close_file(filecookie *fcookie);
 status_t fat32_stat_file(filecookie *fcookie, struct file_stat *stat);
-
-#endif
 

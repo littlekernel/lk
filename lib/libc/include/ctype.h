@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __CTYPE_H
-#define __CTYPE_H
+#pragma once
 
 #include <lk/compiler.h>
 
@@ -29,6 +28,4 @@ int tolower(int c);
 int toupper(int c);
 
 __END_CDECLS
-
-#endif
 

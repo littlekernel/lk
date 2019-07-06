@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __SYS_TYPES_H
-#define __SYS_TYPES_H
+#pragma once
 
 #include <limits.h>
 #include <stdint.h>
@@ -62,4 +61,3 @@ typedef uint16_t u_int16_t;
 typedef uint32_t u_int32_t;
 typedef uint64_t u_int64_t;
 
-#endif

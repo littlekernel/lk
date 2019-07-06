@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __LIB_PAGE_ALLOC_H
-#define __LIB_PAGE_ALLOC_H
+#pragma once
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -50,5 +49,3 @@ int page_get_arenas(struct page_range *ranges, int number_of_ranges);
 void *page_first_alloc(size_t *size_return);
 
 __END_CDECLS
-
-#endif

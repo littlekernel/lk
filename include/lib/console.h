@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __LIB_CONSOLE_H
-#define __LIB_CONSOLE_H
+#pragma once
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -91,4 +90,3 @@ void panic_shell_start(void);
 
 extern int lastresult;
 
-#endif

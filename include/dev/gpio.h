@@ -26,9 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-#ifndef __DEV_GPIO_H
-#define __DEV_GPIO_H
+#pragma once
 
 enum gpio_flags {
     GPIO_INPUT      = (1 << 0),
@@ -50,4 +48,3 @@ int gpio_config(unsigned nr, unsigned flags);
 void gpio_set(unsigned nr, unsigned on);
 int gpio_get(unsigned nr);
 
-#endif

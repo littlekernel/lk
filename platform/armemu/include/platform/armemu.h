@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_ARMEMU_H
-#define __PLATFORM_ARMEMU_H
+#pragma once
 
 #include <platform/armemu/memmap.h>
 
@@ -17,6 +16,4 @@ void debug_dump_memory_halfwords(void *mem, int len);
 void debug_dump_memory_words(void *mem, int len);
 
 void debug_set_trace_level(int trace_type, int level);
-
-#endif
 

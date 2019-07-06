@@ -1,5 +1,4 @@
-#ifndef __PLATFORM_STM32_EXTI_H
-#define __PLATFORM_STM32_EXTI_H
+#pragma once
 
 #include <stdbool.h>
 #include <stm32f0xx.h>
@@ -47,4 +46,3 @@ bool stm32_exti13_irq(void);
 bool stm32_exti14_irq(void);
 bool stm32_exti15_irq(void);
 
-#endif  // __PLATFORM_STM32_EXTI_H

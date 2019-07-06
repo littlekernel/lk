@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_H
-#define __PLATFORM_H
+#pragma once
 
 #include <sys/types.h>
 #include <lk/compiler.h>
@@ -71,4 +70,3 @@ void platform_quiesce(void);
 
 __END_CDECLS
 
-#endif

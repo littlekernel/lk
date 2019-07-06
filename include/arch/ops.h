@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __ARCH_OPS_H
-#define __ARCH_OPS_H
+#pragma once
 
 #ifndef ASSEMBLY
 
@@ -57,4 +56,3 @@ __END_CDECLS
 
 #include <arch/arch_ops.h>
 
-#endif

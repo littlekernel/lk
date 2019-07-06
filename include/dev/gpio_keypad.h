@@ -28,9 +28,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-#ifndef __DEV_GPIO_KEYPAD_H
-#define __DEV_GPIO_KEYPAD_H
+#pragma once
 
 #include <sys/types.h>
 
@@ -53,4 +51,3 @@ struct gpio_keypad_info {
 
 void gpio_keypad_init(struct gpio_keypad_info *kpinfo);
 
-#endif /* __DEV_GPIO_KEYPAD_H */

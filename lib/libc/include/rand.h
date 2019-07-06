@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __RAND_H
-#define __RAND_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <sys/types.h>
@@ -20,6 +19,4 @@ void srand(unsigned int seed);
 void rand_add_entropy(const void *buf, size_t len);
 
 __END_CDECLS
-
-#endif
 

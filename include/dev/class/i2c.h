@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_CLASS_I2C_H
-#define __DEV_CLASS_I2C_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <dev/driver.h>
@@ -31,4 +30,3 @@ status_t class_i2c_read_reg(struct device *dev, uint8_t addr, uint8_t reg, void 
 
 __END_CDECLS
 
-#endif

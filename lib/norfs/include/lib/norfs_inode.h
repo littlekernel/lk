@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __NORFS_INODE_H
-#define __NORFS_INODE_H
+#pragma once
 
 #include <lk/list.h>
 #include <stdint.h>
@@ -17,4 +16,3 @@ struct norfs_inode {
     uint32_t reference_count;
 };
 
-#endif

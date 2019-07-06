@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __STDLIB_H
-#define __STDLIB_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <sys/types.h>
@@ -47,6 +46,4 @@ unsigned long int strtoul(const char *nptr, char **endptr, int base);
 char *getenv(const char *name);
 
 __END_CDECLS
-
-#endif
 

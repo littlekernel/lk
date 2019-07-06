@@ -11,8 +11,7 @@
  * and
  *   https://github.com/alexgoussev/AP7350_MDK-kernel
  */
-#ifndef __MT_REG_BASE_H__
-#define __MT_REG_BASE_H__
+#pragma once
 
 #define BOOTROM_BASE    (0x00000000)
 #define BOOTSRAM_BASE   (0x00100000)
@@ -622,4 +621,3 @@
 
 ////////////////////////////////////////
 
-#endif /* !__MT_REG_BASE_H__ */

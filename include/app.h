@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __APP_H
-#define __APP_H
+#pragma once
 
 #include <stddef.h>
 #include <lk/compiler.h>
@@ -39,6 +38,4 @@ struct app_descriptor {
 #define APP_END };
 
 __END_CDECLS
-
-#endif
 

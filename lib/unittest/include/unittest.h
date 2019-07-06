@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef _LIB_UNITTEST_INCLUDE_UNITTEST_H_
-#define _LIB_UNITTEST_INCLUDE_UNITTEST_H_
+#pragma once
 /*
  * Macros for writing unit tests.
  *
@@ -286,5 +285,3 @@ bool run_all_tests(void);
  */
 bool expect_bytes_eq(const uint8_t *expected, const uint8_t *actual, size_t len,
                      const char *msg);
-
-#endif  /* _LIB_UNITTEST_INCLUDE_UNITTEST_H_ */

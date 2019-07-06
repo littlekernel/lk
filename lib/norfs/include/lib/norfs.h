@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __NORFS_H
-#define __NORFS_H
+#pragma once
 
 #include <iovec.h>
 #include <sys/types.h>
@@ -62,4 +61,3 @@ status_t norfs_read_obj(uint32_t key, unsigned char *buffer, uint16_t buffer_len
  */
 void norfs_wipe_fs(void);
 
-#endif

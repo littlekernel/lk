@@ -5,9 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
-#ifndef __LIB_WATCHDOG_H__
-#define __LIB_WATCHDOG_H__
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -66,5 +64,3 @@ extern void platform_watchdog_pet(void);
 
 status_t watchdog_hw_init(lk_time_t timeout);
 void watchdog_hw_set_enabled(bool enabled);
-
-#endif  // __LIB_WATCHDOG_H__

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __LIB_PRINTF_H
-#define __LIB_PRINTF_H
+#pragma once
 
 #include <stdarg.h>
 #include <lk/compiler.h>
@@ -26,4 +25,3 @@ int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt,
 
 __END_CDECLS
 
-#endif

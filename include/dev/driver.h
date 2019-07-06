@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_DRIVER_H
-#define __DEV_DRIVER_H
+#pragma once
 
 #include <sys/types.h>
 #include <lk/list.h> // for containerof
@@ -116,6 +115,4 @@ status_t device_suspend(struct device *dev);
 status_t device_resume(struct device *dev);
 
 __END_CDECLS
-
-#endif
 

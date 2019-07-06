@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __KERNEL_TIMER_H
-#define __KERNEL_TIMER_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <lk/list.h>
@@ -54,6 +53,3 @@ void timer_set_periodic(timer_t *, lk_time_t period, timer_callback, void *arg);
 void timer_cancel(timer_t *);
 
 __END_CDECLS
-
-#endif
-

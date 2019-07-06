@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __MALLOC_H
-#define __MALLOC_H
+#pragma once
 
 #include <sys/types.h>
 #include <lk/compiler.h>
@@ -14,6 +13,4 @@
 
 /* lib/heap provides malloc/free definitions */
 #include <lib/heap.h>
-
-#endif
 

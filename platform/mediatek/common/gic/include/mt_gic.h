@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef _MT_GIC_H_
-#define _MT_GIC_H_
+#pragma once
 
 #include "platform/mt_irq.h"
 
@@ -32,6 +31,4 @@ void mt_irq_ack(unsigned int irq);
 void platform_init_interrupts(void);
 void platform_deinit_interrupts(void);
 void mt_irq_register_dump(void);
-
-#endif /* !_MT_GIC_H_ */
 

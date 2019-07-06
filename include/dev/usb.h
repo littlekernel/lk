@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_USB_H
-#define __DEV_USB_H
+#pragma once
 
 #include <sys/types.h>
 #include <lk/compiler.h>
@@ -81,6 +80,4 @@ status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args
 status_t usb_register_callback(usb_callback_t, void *cookie);
 
 __END_CDECLS
-
-#endif
 

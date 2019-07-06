@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __ARCH_H
-#define __ARCH_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <sys/types.h>
@@ -24,4 +23,3 @@ __END_CDECLS
 /* arch specific bits */
 #include <arch/defines.h>
 
-#endif

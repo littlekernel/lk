@@ -25,9 +25,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-#ifndef __DEV_FBCON_H
-#define __DEV_FBCON_H
+#pragma once
 
 #define FB_FORMAT_RGB565 0
 
@@ -46,4 +44,3 @@ struct fbcon_config {
 void fbcon_setup(struct fbcon_config *cfg);
 void fbcon_putc(char c);
 
-#endif /* __DEV_FBCON_H */

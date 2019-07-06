@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __KERNEL_THREAD_H
-#define __KERNEL_THREAD_H
+#pragma once
 
 #include <sys/types.h>
 #include <lk/list.h>
@@ -234,5 +233,3 @@ extern struct thread_stats thread_stats[SMP_MAX_CPUS];
 #endif
 
 __END_CDECLS
-
-#endif

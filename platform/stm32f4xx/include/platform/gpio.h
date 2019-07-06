@@ -1,5 +1,4 @@
-#ifndef __PLATFORM_STM32_GPIO_H
-#define __PLATFORM_STM32_GPIO_H
+#pragma once
 
 /* helper defines for STM32 platforms */
 
@@ -24,6 +23,4 @@
 #define GPIO_PORT_G 6
 #define GPIO_PORT_H 7
 #define GPIO_PORT_I 8
-
-#endif
 

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __LIB_EVLOG_H
-#define __LIB_EVLOG_H
+#pragma once
 
 #include <inttypes.h>
 #include <sys/types.h>
@@ -41,6 +40,4 @@ void evlog_add2(evlog_t *e, uintptr_t a, uintptr_t b)
     e->items[index + 1] = b;
 }
 */
-
-#endif
 

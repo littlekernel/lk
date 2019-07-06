@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __MT_IRQ_H__
-#define __MT_IRQ_H__
+#pragma once
 
 #include <stdint.h>
 
@@ -55,4 +54,3 @@
 #define MT65xx_POLARITY_LOW   0
 #define MT65xx_POLARITY_HIGH  1
 
-#endif  /* !__MT_IRQ_H__ */

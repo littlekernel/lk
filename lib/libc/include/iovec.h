@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __IOVEC_H
-#define __IOVEC_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <stddef.h>
@@ -25,6 +24,4 @@ ssize_t iovec_to_membuf(uint8_t *buf, uint buf_len,
                         const iovec_t *iov, uint iov_cnt, uint iov_pos);
 
 __END_CDECLS
-
-#endif
 

@@ -1,5 +1,4 @@
-#ifndef __PLATFORM_STM32_USB_H
-#define __PLATFORM_STM32_USB_H
+#pragma once
 
 typedef enum {
     STM32_USB_CLK_PLL = 0,
@@ -9,4 +8,3 @@ typedef enum {
 void stm32_usbc_early_init(stm32_usb_clk_t clock_source);
 void stm32_usbc_init(void);
 
-#endif // __PLATFORM_STM32_USB_H

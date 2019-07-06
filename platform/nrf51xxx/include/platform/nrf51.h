@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_NRF51_H
-#define __PLATFORM_NRF51_H
+#pragma once
 
 #include <platform/nrf518xx.h>
 
@@ -17,6 +16,4 @@ void nrf51_timer_init(void);
 void nrf51_gpio_early_init(void);
 void nrf51_flash_nor_early_init(void);
 void nrf51_flash_nor_init(void);
-
-#endif
 

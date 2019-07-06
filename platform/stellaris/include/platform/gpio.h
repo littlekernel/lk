@@ -1,5 +1,4 @@
-#ifndef __PLATFORM_STELLARIS_GPIO_H
-#define __PLATFORM_STELLARIS_GPIO_H
+#pragma once
 
 /* helper defines for Stellaris platforms */
 
@@ -32,6 +31,4 @@
 /* discontinuity */
 #define GPIO_PORT_P 13
 #define GPIO_PORT_Q 14
-
-#endif
 

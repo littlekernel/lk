@@ -6,8 +6,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __KERNEL_MUTEX_H
-#define __KERNEL_MUTEX_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <lk/debug.h>
@@ -53,5 +52,3 @@ static bool is_mutex_held(mutex_t *m) {
 }
 
 __END_CDECLS
-#endif
-

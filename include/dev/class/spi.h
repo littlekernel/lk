@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_CLASS_SPI_H
-#define __DEV_CLASS_SPI_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <dev/driver.h>
@@ -39,6 +38,4 @@ __BEGIN_CDECLS
 ssize_t class_spi_transaction(struct device *dev, struct spi_transaction *txn, size_t count);
 
 __END_CDECLS
-
-#endif
 

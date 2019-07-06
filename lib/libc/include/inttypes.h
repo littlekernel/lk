@@ -5,13 +5,10 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __INTTYPES_H
-#define __INTTYPES_H
+#pragma once
 
 #define PRIu32 "u"
 #define PRIx32 "x"
 
 #include <stdint.h>
-
-#endif
 

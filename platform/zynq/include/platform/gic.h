@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __PLATFORM_GIC_H
-#define __PLATFORM_GIC_H
+#pragma once
 
 #include <platform/zynq.h>
 
@@ -14,4 +13,3 @@
 #define GICC_OFFSET (0x0100)
 #define GICD_OFFSET (0x1000)
 
-#endif

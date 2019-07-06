@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __TARGET_H
-#define __TARGET_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <stdbool.h>
@@ -33,4 +32,3 @@ void target_set_debug_led(unsigned int led, bool on);
 
 __END_CDECLS
 
-#endif

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __ASSERT_H
-#define __ASSERT_H
+#pragma once
 
 #include <lk/compiler.h>
 #include <lk/debug.h>
@@ -28,4 +27,3 @@
 #define static_assert(e) STATIC_ASSERT(e)
 #endif
 
-#endif

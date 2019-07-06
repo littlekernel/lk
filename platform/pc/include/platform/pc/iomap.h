@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __IOMAP_H
-#define __IOMAP_H
+#pragma once
 
 /* i8253/i8254 programmable interval timer registers */
 #define I8253_CONTROL_REG   0x43
@@ -27,4 +26,3 @@
 #define COM3_REG            0x3e8
 #define COM4_REG            0x2e8
 
-#endif

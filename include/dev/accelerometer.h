@@ -5,8 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __DEV_ACCELEROMETER_H
-#define __DEV_ACCELEROMETER_H
+#pragma once
+
 typedef struct {
     double x;
     double y;
@@ -15,4 +15,3 @@ typedef struct {
 
 status_t acc_read_xyz(position_vector_t *pos_vector);
 
-#endif

@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __ERRNO_H
-#define __ERRNO_H
+#pragma once
 
 #include <lk/compiler.h>
 
@@ -145,4 +144,3 @@ extern int *__geterrno(void);
 
 __END_CDECLS
 
-#endif

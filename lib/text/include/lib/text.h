@@ -5,8 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#ifndef __LIB_TEXT_H
-#define __LIB_TEXT_H
+#pragma once
 
 #include <lib/font.h>
 
@@ -16,6 +15,4 @@ void text_draw(int x, int y, const char *string);
 
 /* super dumb, someone has to call this to refresh everything */
 void text_update(void);
-
-#endif
 
