@@ -144,11 +144,17 @@ $(error couldn't find target or target doesn't define platform)
 endif
 include platform/$(PLATFORM)/rules.mk
 
+ifndef ARCH
+$(error couldn't find arch or platform doesn't define arch)
+endif
+include arch/$(ARCH)/rules.mk
+
 $(info PROJECT = $(PROJECT))
 $(info PLATFORM = $(PLATFORM))
 $(info TARGET = $(TARGET))
+$(info ARCH = $(ARCH))
 
-include arch/$(ARCH)/rules.mk
+# include the top level module that includes basic always-there modules
 include top/rules.mk
 
 # recursively include any modules in the MODULE variable, leaving a trail of included
