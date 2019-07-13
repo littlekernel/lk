@@ -3,11 +3,12 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS := \
-	platform \
-	target \
 	app \
+	arch \
 	dev \
-	kernel
+	kernel \
+	platform \
+	target
 
 MODULE_SRCS := \
 	$(LOCAL_DIR)/init.c \
