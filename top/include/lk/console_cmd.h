@@ -41,7 +41,10 @@ typedef struct _cmd_block {
     const cmd *list;
 } cmd_block;
 
-/* register a static block of commands at init time */
+/* Register a static block of commands at init time when lib/console is
+ * paret of the build. Otherwise stub out these definitions so that they do
+ * not get included.
+ */
 #if WITH_LIB_CONSOLE
 
 /* enable the panic shell if we're being built */
@@ -71,22 +74,8 @@ typedef struct _cmd_block {
 #define STATIC_COMMAND_END_NAMED(name)
 
 #define STATIC_COMMAND(command_str, help_str, func)
+#define STATIC_COMMAND_MASKED(command_str, help_str, func, availability_mask)
 
 #endif
 
 #define COMMAND_BLOCK_INIT_ITEM(cmd_block_ptr, cmd_ptr) {(cmd_block_ptr)->next = NULL; (cmd_block_ptr)->count = 1; (cmd_block_ptr)->list = cmd_ptr;}
-
-/* external api */
-int console_init(void);
-void console_start(void);
-void console_register_commands(cmd_block *block);
-int console_run_script(const char *string);
-int console_run_script_locked(const char *string); // special case from inside a command
-console_cmd console_get_command_handler(const char *command);
-void console_abort_script(void);
-
-/* panic shell api */
-void panic_shell_start(void);
-
-extern int lastresult;
-

@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <string.h>
 #include <lk/trace.h>
+#include <lk/console_cmd.h>
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #else
@@ -74,9 +75,6 @@ void *page_first_alloc(size_t *size_return) {
 }
 
 #if LK_DEBUGLEVEL > 1
-#if WITH_LIB_CONSOLE
-
-#include <lib/console.h>
 
 static int cmd_page_alloc(int argc, const cmd_args *argv);
 static void page_alloc_dump(void);
@@ -113,5 +111,4 @@ static void page_alloc_dump(void) {
 #endif
 }
 
-#endif
 #endif

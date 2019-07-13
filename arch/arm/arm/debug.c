@@ -14,6 +14,8 @@
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <platform.h>
+#include <lk/console_cmd.h>
+#include <string.h>
 
 struct dcc_state {
     dcc_rx_callback_t rx_callback;
@@ -127,10 +129,6 @@ ssize_t arm_dcc_write(const uint32_t *buf, size_t len, lk_time_t timeout) {
     return count;
 }
 
-#if WITH_LIB_CONSOLE
-#include <lib/console.h>
-#include <string.h>
-
 static void dcc_rx_callback(uint32_t val) {
     static int count = 0;
     count += 4;
@@ -183,6 +181,4 @@ STATIC_COMMAND_START
 STATIC_COMMAND("dcc", "dcc stuff", &cmd_dcc)
 #endif
 STATIC_COMMAND_END(dcc);
-
-#endif
 

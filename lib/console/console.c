@@ -5,6 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <lib/console.h>
+
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <assert.h>
@@ -15,7 +17,6 @@
 #include <stdlib.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
-#include <lib/console.h>
 #if WITH_LIB_ENV
 #include <lib/env.h>
 #endif

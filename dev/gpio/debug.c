@@ -7,11 +7,9 @@
  */
 
 #include <dev/gpio.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <string.h>
 #include <stdio.h>
-
-#if WITH_LIB_CONSOLE
 
 struct flag_labels {
     unsigned id;
@@ -79,5 +77,3 @@ static int cmd_gpio(int argc, const cmd_args *argv) {
 STATIC_COMMAND_START
 STATIC_COMMAND("gpio", "commands for manipulating system gpios", &cmd_gpio)
 STATIC_COMMAND_END(gpio);
-
-#endif

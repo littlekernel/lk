@@ -11,6 +11,7 @@
 #include <app.h>
 #include <platform.h>
 #include <kernel/thread.h>
+#include <lk/console_cmd.h>
 
 static uint8_t *src;
 static uint8_t *dst;
@@ -273,9 +274,6 @@ static void validate_memset(void) {
     }
 }
 
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
-
 static int string_tests(int argc, const cmd_args *argv) {
     src = memalign(64, BUFFER_SIZE + 256);
     dst = memalign(64, BUFFER_SIZE + 256);
@@ -326,8 +324,6 @@ out:
 STATIC_COMMAND_START
 STATIC_COMMAND("string", "memcpy tests", &string_tests)
 STATIC_COMMAND_END(stringtests);
-
-#endif
 
 APP_START(stringtests)
 APP_END

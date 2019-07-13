@@ -19,7 +19,7 @@
 #include <lk/pow2.h>
 
 #include <lib/bio.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <dev/qspi.h>
 #include <kernel/thread.h>
 
@@ -537,11 +537,6 @@ usage:
     return 0;
 }
 
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
-
 STATIC_COMMAND_START
 STATIC_COMMAND("spiflash", "spi flash manipulation utilities", cmd_spiflash)
 STATIC_COMMAND_END(qspi);
-
-#endif

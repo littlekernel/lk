@@ -8,7 +8,7 @@
 #ifndef __APP_TESTS_H
 #define __APP_TESTS_H
 
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 int cbuf_tests(int argc, const cmd_args *argv);
 int fibo(int argc, const cmd_args *argv);

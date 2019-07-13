@@ -15,6 +15,7 @@
 #include <string.h>
 #include <lk/init.h>
 #include <kernel/mutex.h>
+#include <lk/console_cmd.h>
 
 #define LOCAL_TRACE 0
 
@@ -233,9 +234,6 @@ status_t novm_alloc_specific_pages(void *address, size_t pages) {
 
 
 #if LK_DEBUGLEVEL > 1
-#if WITH_LIB_CONSOLE
-
-#include <lib/console.h>
 
 static int cmd_novm(int argc, const cmd_args *argv);
 static void novm_dump(void);
@@ -309,6 +307,5 @@ static void novm_dump(void) {
     }
 }
 
-#endif
 #endif
 

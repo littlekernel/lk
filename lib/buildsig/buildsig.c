@@ -14,6 +14,7 @@
 #include <string.h>
 #include <lk/compiler.h>
 #include <lib/version.h>
+#include <lk/console_cmd.h>
 
 #define MAGIC  ((uint32_t)'BSIG')
 #define MAGIC2 (~MAGIC)
@@ -95,10 +96,6 @@ status_t buildsig_search(const void *_ptr, size_t search_len, size_t max_len, co
     return ERR_NOT_FOUND;
 }
 
-#if WITH_LIB_CONSOLE
-
-#include <lib/console.h>
-
 extern char __rom_start;
 
 static int cmd_buildsig(int argc, const cmd_args *argv) {
@@ -139,6 +136,4 @@ STATIC_COMMAND_START
 STATIC_COMMAND("buildsig", "scan for and dump build signature", &cmd_buildsig)
 #endif
 STATIC_COMMAND_END(buildid);
-
-#endif
 

@@ -12,7 +12,11 @@
 #include <platform/debug.h>
 #include <kernel/thread.h>
 #include <stdio.h>
+#include <lk/console_cmd.h>
+
+#if WITH_LIB_CONSOLE
 #include <lib/console.h>
+#endif
 
 /*
  * default implementations of these routines, if the platform code
@@ -20,7 +24,7 @@
  */
 __WEAK void platform_halt(platform_halt_action suggested_action,
                           platform_halt_reason reason) {
-#if ENABLE_PANIC_SHELL
+#if WITH_LIB_CONSOLE && ENABLE_PANIC_SHELL
 
     if (reason == HALT_REASON_SW_PANIC) {
         dprintf(ALWAYS, "CRASH: starting debug shell... (reason = %d)\n", reason);
@@ -34,10 +38,6 @@ __WEAK void platform_halt(platform_halt_action suggested_action,
     arch_disable_ints();
     for (;;);
 }
-
-#if WITH_LIB_CONSOLE
-
-#include <lib/console.h>
 
 static int cmd_reboot(int argc, const cmd_args *argv) {
     platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
@@ -55,5 +55,3 @@ STATIC_COMMAND("reboot", "soft reset", &cmd_reboot)
 STATIC_COMMAND("poweroff", "powerdown", &cmd_poweroff)
 #endif
 STATIC_COMMAND_END(platform_power);
-
-#endif

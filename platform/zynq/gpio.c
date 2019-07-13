@@ -15,6 +15,7 @@
 #include <platform/gpio.h>
 #include <platform/interrupts.h>
 #include <target/gpioconfig.h>
+#include <lk/console_cmd.h>
 
 #define MAX_GPIO 128
 
@@ -232,8 +233,6 @@ int gpio_get(unsigned gpio) {
     return ((*REG32(GPIO_DATA_RO(bank)) & (1 << bit)) > 0);
 }
 
-#include <lib/console.h>
-#ifdef WITH_LIB_CONSOLE
 static int cmd_zynq_gpio(int argc, const cmd_args *argv) {
     for (unsigned int bank = 0; bank < 4; bank++) {
         printf("DIRM_%u (0x%08x):           0x%08x\n", bank, GPIO_DIRM(bank), *REG32(GPIO_DIRM(bank)));
@@ -255,5 +254,3 @@ STATIC_COMMAND_START
 STATIC_COMMAND("zynq_gpio", "Dump Zynq GPIO registers", &cmd_zynq_gpio)
 #endif
 STATIC_COMMAND_END(zynq_gpio);
-
-#endif

@@ -15,7 +15,7 @@
 #include <lk/err.h>
 #include <string.h>
 #include <lk/pow2.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <kernel/mutex.h>
 
 #define LOCAL_TRACE 0

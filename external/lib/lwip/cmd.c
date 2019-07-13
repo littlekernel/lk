@@ -21,8 +21,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -65,6 +64,4 @@ out:
 STATIC_COMMAND_START
 STATIC_COMMAND("net", "net toolbox", &net_cmd)
 STATIC_COMMAND_END(net);
-
-#endif
 

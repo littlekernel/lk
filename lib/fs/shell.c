@@ -13,12 +13,10 @@
 #include <lk/trace.h>
 #include <stdlib.h>
 #include <platform.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <lib/fs.h>
 
 /* shell console hooks for manipulating the file system */
-
-#if WITH_LIB_CONSOLE
 
 static char *cwd = NULL;
 
@@ -285,6 +283,3 @@ STATIC_COMMAND("rm", "remove file", &cmd_rm)
 STATIC_COMMAND("stat", "stat file", &cmd_stat)
 STATIC_COMMAND("cat", "cat file", &cmd_cat)
 STATIC_COMMAND_END(fs_shell);
-
-#endif
-

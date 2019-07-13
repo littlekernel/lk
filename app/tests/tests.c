@@ -10,8 +10,7 @@
 #include <app/tests.h>
 #include <lk/compiler.h>
 
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 STATIC_COMMAND_START
 STATIC_COMMAND("printf_tests", "test printf", &printf_tests)
@@ -24,8 +23,6 @@ STATIC_COMMAND("fibo", "threaded fibonacci", &fibo)
 STATIC_COMMAND("spinner", "create a spinning thread", &spinner)
 STATIC_COMMAND("cbuf_tests", "test lib/cbuf", &cbuf_tests)
 STATIC_COMMAND_END(tests);
-
-#endif
 
 static void tests_init(const struct app_descriptor *app) {
 }

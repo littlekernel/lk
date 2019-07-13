@@ -8,6 +8,7 @@ MODULE_SRCS += \
 
 MODULE_DEPS := \
     lib/cksum \
+    lib/console \
     lib/tftp  \
     lib/elf
 

@@ -18,7 +18,7 @@
 #include <kernel/thread.h>
 #include <arch.h>
 
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>

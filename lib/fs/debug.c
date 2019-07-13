@@ -7,7 +7,7 @@
  */
 #include <lk/debug.h>
 #include <string.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <lib/fs.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,8 +50,6 @@ test_normalize("/bleh/bar/../../foo");
 test_normalize("/bleh/bar/../../foo/..");
 test_normalize("/bleh/bar/../../foo/../meh");
 #endif
-
-#if defined(WITH_LIB_CONSOLE)
 
 #if LK_DEBUGLEVEL > 1
 static int cmd_fs(int argc, const cmd_args *argv);
@@ -262,6 +260,3 @@ usage:
 }
 
 #endif
-
-#endif
-

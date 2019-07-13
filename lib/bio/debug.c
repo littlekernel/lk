@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <lk/err.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <lib/bio.h>
 #include <platform.h>
 #include <kernel/thread.h>
@@ -26,8 +26,6 @@
 #define DMA_ALIGNMENT (CACHE_LINE)
 #define THREE_BYTE_ADDR_BOUNDARY (16777216)
 #define SUB_ERASE_TEST_SAMPLES (32)
-
-#if defined(WITH_LIB_CONSOLE)
 
 #if LK_DEBUGLEVEL > 0
 static int cmd_bio(int argc, const cmd_args *argv);
@@ -270,8 +268,6 @@ usage:
 
     return rc;
 }
-
-#endif
 
 #endif
 

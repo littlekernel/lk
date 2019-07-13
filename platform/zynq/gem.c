@@ -6,7 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <assert.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <lk/debug.h>
 #include <lk/list.h>
 #include <lk/err.h>

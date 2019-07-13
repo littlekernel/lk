@@ -11,7 +11,7 @@
 #include <lk/err.h>
 #include <arch.h>
 #include <arch/ops.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <platform.h>
 #include <lk/debug.h>
 

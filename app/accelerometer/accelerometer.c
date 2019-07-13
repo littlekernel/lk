@@ -10,18 +10,13 @@
 #include <stdio.h>
 #include <dev/accelerometer.h>
 #include <lk/compiler.h>
-
-
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 void read_xyz(void);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("read_xyz", "read xyz vectors", (console_cmd)&read_xyz)
 STATIC_COMMAND_END(accelerometer);
-
-#endif
 
 void read_xyz(void) {
     position_vector_t pos_vector;

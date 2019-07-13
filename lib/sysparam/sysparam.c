@@ -18,6 +18,7 @@
 #include <lib/cksum.h>
 #include <lib/sysparam.h>
 #include <lk/init.h>
+#include <lk/console_cmd.h>
 
 /* implementation of system parameter block, stored on a block device */
 /* sysparams are simple name/value pairs, with the data unstructured */
@@ -468,9 +469,6 @@ void sysparam_dump(bool show_all) {
     printf("total in-memory usage: %zu bytes\n", total_memlen);
 }
 
-#if WITH_LIB_CONSOLE
-
-#include <lib/console.h>
 #include <ctype.h>
 
 static ssize_t hexstr_to_val(const char *str, uint8_t **buf) {
@@ -678,5 +676,3 @@ done:
 STATIC_COMMAND_START
 STATIC_COMMAND("sysparam", "commands for manipulating system parameters", &cmd_sysparam)
 STATIC_COMMAND_END(sysparam);
-
-#endif // WITH_LIB_CONSOLE

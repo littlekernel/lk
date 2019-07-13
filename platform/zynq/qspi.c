@@ -15,7 +15,7 @@
 #include <string.h>
 #include <lk/reg.h>
 
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 #include <platform/zynq.h>
 

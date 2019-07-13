@@ -2,7 +2,7 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lib/cbuf.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <lib/heap.h>
 #include <rand.h>
 #include <stdlib.h>

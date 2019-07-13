@@ -12,7 +12,7 @@
 #include <lk/err.h>
 #include <string.h>
 #include <lk/init.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <arch/mmu.h>
 #include <kernel/thread.h>
 #include <lk/debug.h>

@@ -18,6 +18,7 @@
 #include <lib/bio.h>
 #include <lib/cksum.h>
 #include <lk/init.h>
+#include <lk/console_cmd.h>
 
 #define LOCAL_TRACE 0
 
@@ -816,10 +817,6 @@ void ptable_dump(void) {
     }
 }
 
-#if WITH_LIB_CONSOLE
-
-#include <lib/console.h>
-
 static int cmd_ptable(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
@@ -897,6 +894,3 @@ usage:
 STATIC_COMMAND_START
 STATIC_COMMAND("ptable", "commands for manipulating the flash partition table", &cmd_ptable)
 STATIC_COMMAND_END(ptable);
-
-#endif // WITH_LIB_CONSOLE
-

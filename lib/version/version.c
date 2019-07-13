@@ -10,6 +10,7 @@
 #include <lk/debug.h>
 #include <stdio.h>
 #include <lk/init.h>
+#include <lk/console_cmd.h>
 
 /* generated for us */
 #include <buildid.h>
@@ -39,11 +40,6 @@ void print_version(void) {
     printf("\tbuildid:  %s\n", version.buildid);
 }
 
-#if WITH_LIB_CONSOLE
-
-#include <lk/debug.h>
-#include <lib/console.h>
-
 static int cmd_version(int argc, const cmd_args *argv) {
     print_version();
     return 0;
@@ -53,10 +49,7 @@ STATIC_COMMAND_START
 STATIC_COMMAND("version", "print version", &cmd_version)
 STATIC_COMMAND_END(version);
 
-#endif // WITH_LIB_CONSOLE
-
 #if LK_DEBUGLEVEL > 0
 // print the version string if any level of debug is set
 LK_INIT_HOOK(version, (void *)&print_version, LK_INIT_LEVEL_HEAP - 1);
 #endif
-

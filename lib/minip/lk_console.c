@@ -8,7 +8,7 @@
 
 #include "minip-internal.h"
 
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <kernel/thread.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -16,8 +16,6 @@
 #include <platform.h>
 #include <kernel/timer.h>
 #include <lk/err.h>
-
-#if WITH_LIB_CONSOLE
 
 uint32_t str_ip_to_int(const char *s, size_t len) {
     uint8_t ip[4] = { 0, 0, 0, 0 };
@@ -152,4 +150,3 @@ STATIC_COMMAND_START
 STATIC_COMMAND("arp", "arp commands", &cmd_arp)
 STATIC_COMMAND("mi", "minip commands", &cmd_minip)
 STATIC_COMMAND_END(minip);
-#endif

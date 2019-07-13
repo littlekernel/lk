@@ -14,7 +14,7 @@
 #include <dev/uart.h>
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_cortex_a9.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <lib/watchdog.h>
 #include <platform.h>
 #include <platform/zynq.h>
@@ -457,7 +457,6 @@ bool platform_abort_autoboot(void) {
     return false;
 }
 
-#if WITH_LIB_CONSOLE
 static int cmd_zynq(int argc, const cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
@@ -518,4 +517,3 @@ STATIC_COMMAND_START
 STATIC_COMMAND("zynq", "zynq configuration commands", &cmd_zynq)
 #endif
 STATIC_COMMAND_END(zynq);
-#endif // WITH_LIB_CONSOLE

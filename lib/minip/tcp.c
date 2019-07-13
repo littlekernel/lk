@@ -15,7 +15,7 @@
 #include <lk/err.h>
 #include <string.h>
 #include <sys/types.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <lib/cbuf.h>
 #include <kernel/mutex.h>
 #include <kernel/semaphore.h>

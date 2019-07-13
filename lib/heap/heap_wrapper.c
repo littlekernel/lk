@@ -15,7 +15,7 @@
 #include <lk/err.h>
 #include <lk/list.h>
 #include <kernel/spinlock.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <lib/page_alloc.h>
 
 #define LOCAL_TRACE 0
@@ -297,9 +297,6 @@ static void heap_test(void) {
 
 
 #if LK_DEBUGLEVEL > 1
-#if WITH_LIB_CONSOLE
-
-#include <lib/console.h>
 
 static int cmd_heap(int argc, const cmd_args *argv);
 
@@ -353,7 +350,6 @@ usage:
     return 0;
 }
 
-#endif
 #endif
 
 

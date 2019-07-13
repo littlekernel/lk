@@ -24,9 +24,7 @@
 #include <kernel/mp.h>
 #include <lk/err.h>
 #include <platform.h>
-
-#if WITH_LIB_CONSOLE
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 static int cmd_threads(int argc, const cmd_args *argv);
 static int cmd_threadstats(int argc, const cmd_args *argv);
@@ -147,8 +145,6 @@ static int cmd_threadload(int argc, const cmd_args *argv) {
 
 #endif // THREAD_STATS
 
-#endif // WITH_LIB_CONSOLE
-
 #if WITH_KERNEL_EVLOG
 
 #include <lib/evlog.h>
@@ -172,8 +168,6 @@ void kernel_evlog_add(uintptr_t id, uintptr_t arg0, uintptr_t arg1) {
         kernel_evlog.items[index+3] = arg1;
     }
 }
-
-#if WITH_LIB_CONSOLE
 
 static void kevdump_cb(const uintptr_t *i) {
     switch (i[1] & 0xffff) {
@@ -212,7 +206,5 @@ static int cmd_kevlog(int argc, const cmd_args *argv) {
 
     return NO_ERROR;
 }
-
-#endif
 
 #endif // WITH_KERNEL_EVLOG

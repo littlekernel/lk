@@ -10,7 +10,7 @@
 #include <string.h>
 #include <lk/reg.h>
 #include <lib/bio.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <kernel/thread.h>
 #include <stm32f4xx_flash.h>
 

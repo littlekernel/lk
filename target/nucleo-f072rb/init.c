@@ -11,12 +11,12 @@
 #include <lk/compiler.h>
 #include <dev/gpio.h>
 #include <dev/i2c.h>
-#include <lib/console.h>
 #include <platform/gpio.h>
 #include <platform/stm32.h>
 #include <platform/usbc.h>
 #include <target/gpioconfig.h>
 #include <target/usb.h>
+#include <lk/console_cmd.h>
 
 void target_early_init(void) {
     /* configure the usart2 pins */

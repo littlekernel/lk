@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <platform.h>
 #include <lib/cksum.h>
+#include <lk/console_cmd.h>
 
 #define LOCAL_TRACE 0
 
@@ -440,10 +441,6 @@ void klog_dump(int buffer) {
     }
 }
 
-#if WITH_LIB_CONSOLE
-
-#include <lib/console.h>
-
 #define KLOG_RETENTION_TEST 0
 #if KLOG_RETENTION_TEST
 #include <platform/retention.h>
@@ -572,6 +569,3 @@ usage:
 STATIC_COMMAND_START
 STATIC_COMMAND("klog", "commands for manipulating klog", &cmd_klog)
 STATIC_COMMAND_END(klog);
-
-#endif // WITH_LIB_CONSOLE
-

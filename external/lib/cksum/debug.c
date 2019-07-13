@@ -20,8 +20,6 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#if WITH_LIB_CONSOLE
-
 #include <ctype.h>
 #include <lk/debug.h>
 #include <stdlib.h>
@@ -30,7 +28,7 @@
 #include <platform.h>
 #include <lib/cksum.h>
 
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 static int cmd_crc16(int argc, const cmd_args *argv);
 static int cmd_crc32(int argc, const cmd_args *argv);
@@ -139,5 +137,3 @@ static int cmd_cksum_bench(int argc, const cmd_args *argv)
         free(buf);
     return 0;
 }
-
-#endif // WITH_LIB_CONSOLE

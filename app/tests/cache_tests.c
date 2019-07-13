@@ -13,7 +13,7 @@
 #include <string.h>
 #include <arch.h>
 #include <arch/ops.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <platform.h>
 
 static void bench_cache(size_t bufsize, uint8_t *buf) {

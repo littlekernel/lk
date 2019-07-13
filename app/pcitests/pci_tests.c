@@ -14,9 +14,7 @@
 #include <lk/compiler.h>
 #include <platform.h>
 #include <dev/pci.h>
-
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 /*
  * enumerates pci devices
@@ -234,8 +232,6 @@ out:
 STATIC_COMMAND_START
 STATIC_COMMAND("pci", "pci toolbox", &pci_cmd)
 STATIC_COMMAND_END(pcitests);
-
-#endif
 
 APP_START(pcitests)
 APP_END

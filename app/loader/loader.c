@@ -18,11 +18,7 @@
 
 #include <kernel/thread.h>
 
-#if defined(WITH_LIB_CONSOLE)
-#include <lib/console.h>
-#else
-#error "loader app needs a console"
-#endif
+#include <lk/console_cmd.h>
 
 #if defined(SDRAM_BASE)
 #define DOWNLOAD_BASE ((void*)SDRAM_BASE)

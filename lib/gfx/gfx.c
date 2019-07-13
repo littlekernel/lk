@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <lib/gfx.h>
 #include <dev/display.h>
+#include <lk/console_cmd.h>
 
 #define LOCAL_TRACE 0
 
@@ -718,10 +719,7 @@ void gfx_draw_pattern_white(void) {
     gfx_surface_destroy(surface);
 }
 
-#if defined(WITH_LIB_CONSOLE)
-
 #if LK_DEBUGLEVEL > 1
-#include <lib/console.h>
 
 static int cmd_gfx(int argc, const cmd_args *argv);
 
@@ -851,5 +849,4 @@ usage:
     return 0;
 }
 
-#endif
 #endif

@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <rand.h>
 #include <lk/err.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <app/tests.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>

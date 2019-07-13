@@ -10,7 +10,7 @@
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <arch/ops.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 
 /*
  * These sample values come from publication "FIPS-197", Appendix C.1

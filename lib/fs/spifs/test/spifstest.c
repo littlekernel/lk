@@ -13,9 +13,9 @@
 #include <platform.h>
 #include <stdlib.h>
 #include <string.h>
+#include <lk/console_cmd.h>
 
 #include <lib/bio.h>
-#include <lib/console.h>
 #include <lib/fs/spifs.h>
 
 #define FS_NAME "spifs"

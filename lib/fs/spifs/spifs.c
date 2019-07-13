@@ -18,7 +18,7 @@
 #include <kernel/mutex.h>
 #include <lib/bio.h>
 #include <lib/cksum.h>
-#include <lib/console.h>
+#include <lk/console_cmd.h>
 #include <lib/fs.h>
 #include <lib/fs/spifs.h>
 #include <lk/list.h>
