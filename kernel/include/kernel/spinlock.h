@@ -7,8 +7,8 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
 #include <arch/spinlock.h>
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 

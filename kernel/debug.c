@@ -16,15 +16,16 @@
  * @brief  Debug console functions.
  */
 
-#include <lk/debug.h>
-#include <stdio.h>
+#include <kernel/debug.h>
+
+#include <kernel/mp.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
-#include <kernel/debug.h>
-#include <kernel/mp.h>
+#include <lk/console_cmd.h>
+#include <lk/debug.h>
 #include <lk/err.h>
 #include <platform.h>
-#include <lk/console_cmd.h>
+#include <stdio.h>
 
 static int cmd_threads(int argc, const cmd_args *argv);
 static int cmd_threadstats(int argc, const cmd_args *argv);

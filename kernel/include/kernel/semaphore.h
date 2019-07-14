@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <lk/compiler.h>
-#include <kernel/thread.h>
 #include <kernel/mutex.h>
+#include <kernel/thread.h>
+#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 

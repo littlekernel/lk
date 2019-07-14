@@ -8,14 +8,14 @@
 
 #include "kernel/novm.h"
 
-#include <lk/err.h>
 #include <assert.h>
+#include <kernel/mutex.h>
+#include <lk/console_cmd.h>
+#include <lk/err.h>
+#include <lk/init.h>
 #include <lk/trace.h>
 #include <stdlib.h>
 #include <string.h>
-#include <lk/init.h>
-#include <kernel/mutex.h>
-#include <lk/console_cmd.h>
 
 #define LOCAL_TRACE 0
 

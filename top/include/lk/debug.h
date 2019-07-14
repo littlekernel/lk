@@ -8,9 +8,9 @@
 #pragma once
 
 #include <lk/compiler.h>
+#include <platform/debug.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <platform/debug.h>
 
 #if !defined(LK_DEBUGLEVEL)
 #define LK_DEBUGLEVEL 0

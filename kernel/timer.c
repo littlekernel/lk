@@ -19,16 +19,17 @@
  *
  * @{
  */
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <assert.h>
-#include <lk/list.h>
-#include <kernel/thread.h>
 #include <kernel/timer.h>
+
+#include <assert.h>
 #include <kernel/debug.h>
 #include <kernel/spinlock.h>
-#include <platform/timer.h>
+#include <kernel/thread.h>
+#include <lk/debug.h>
+#include <lk/list.h>
+#include <lk/trace.h>
 #include <platform.h>
+#include <platform/timer.h>
 
 #define LOCAL_TRACE 0
 

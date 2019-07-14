@@ -30,13 +30,13 @@
 
 #ifndef ASSEMBLY
 
-#include <sys/types.h>
-#include <stdint.h>
-#include <lk/compiler.h>
-#include <lk/list.h>
-#include <stdlib.h>
 #include <arch.h>
 #include <arch/mmu.h>
+#include <lk/compiler.h>
+#include <lk/list.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
 

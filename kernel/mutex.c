@@ -16,10 +16,11 @@
  */
 
 #include <kernel/mutex.h>
-#include <lk/debug.h>
+
 #include <assert.h>
-#include <lk/err.h>
 #include <kernel/thread.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 
 /**
  * @brief  Initialize a mutex_t

@@ -25,11 +25,11 @@
  * @{
  */
 
-#include <kernel/event.h>
-#include <lk/debug.h>
 #include <assert.h>
-#include <lk/err.h>
+#include <kernel/event.h>
 #include <kernel/thread.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 
 /**
  * @brief  Initialize an event object

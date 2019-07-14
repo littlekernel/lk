@@ -8,12 +8,12 @@
 
 #include <kernel/mp.h>
 
-#include <stdlib.h>
-#include <lk/debug.h>
-#include <assert.h>
-#include <lk/trace.h>
 #include <arch/mp.h>
+#include <assert.h>
 #include <kernel/spinlock.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
+#include <stdlib.h>
 
 #define LOCAL_TRACE 0
 

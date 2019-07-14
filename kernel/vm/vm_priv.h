@@ -7,9 +7,9 @@
  */
 #pragma once
 
+#include <kernel/vm.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <kernel/vm.h>
 
 /* simple boot time allocator */
 void *boot_alloc_mem(size_t len) __MALLOC;

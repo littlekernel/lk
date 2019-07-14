@@ -6,12 +6,13 @@
  * https://opensource.org/licenses/MIT
  */
 #include <kernel/vm.h>
-#include "vm_priv.h"
 
+#include <lk/trace.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <lk/trace.h>
+
+#include "vm_priv.h"
 
 #define LOCAL_TRACE 0
 

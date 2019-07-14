@@ -6,17 +6,18 @@
  * https://opensource.org/licenses/MIT
  */
 #include <kernel/vm.h>
-#include "vm_priv.h"
 
-#include <lk/trace.h>
 #include <assert.h>
-#include <lk/list.h>
-#include <stdlib.h>
-#include <lk/err.h>
-#include <string.h>
-#include <lk/pow2.h>
-#include <lk/console_cmd.h>
 #include <kernel/mutex.h>
+#include <lk/console_cmd.h>
+#include <lk/err.h>
+#include <lk/list.h>
+#include <lk/pow2.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "vm_priv.h"
 
 #define LOCAL_TRACE 0
 

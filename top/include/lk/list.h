@@ -8,8 +8,8 @@
 #pragma once
 
 #include <lk/compiler.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 __BEGIN_CDECLS
 

@@ -10,19 +10,20 @@
  * Main entry point to the OS. Initializes modules in order and creates
  * the default thread.
  */
-#include <lk/compiler.h>
-#include <lk/debug.h>
-#include <string.h>
+#include <lk/main.h>
+
 #include <app.h>
 #include <arch.h>
-#include <platform.h>
-#include <target.h>
-#include <lib/heap.h>
 #include <kernel/mutex.h>
 #include <kernel/novm.h>
 #include <kernel/thread.h>
+#include <lib/heap.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
 #include <lk/init.h>
-#include <lk/main.h>
+#include <platform.h>
+#include <string.h>
+#include <target.h>
 
 /* saved boot arguments from whoever loaded the system */
 ulong lk_boot_args[4];

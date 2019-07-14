@@ -5,13 +5,13 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/compiler.h>
-#include <lk/debug.h>
 #include <kernel/debug.h>
-#include <kernel/thread.h>
-#include <kernel/timer.h>
 #include <kernel/mp.h>
 #include <kernel/port.h>
+#include <kernel/thread.h>
+#include <kernel/timer.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
 
 void kernel_init(void) {
     // if enabled, configure the kernel's event log

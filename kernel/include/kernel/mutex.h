@@ -8,10 +8,10 @@
  */
 #pragma once
 
+#include <kernel/thread.h>
 #include <lk/compiler.h>
 #include <lk/debug.h>
 #include <stdint.h>
-#include <kernel/thread.h>
 
 __BEGIN_CDECLS
 

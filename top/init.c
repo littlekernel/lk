@@ -11,9 +11,9 @@
  * a init hook that is called at increasing init levels as the system is
  * initialized.
  */
-#include <arch/ops.h>
 #include <lk/init.h>
 
+#include <arch/ops.h>
 #include <assert.h>
 #include <lk/compiler.h>
 #include <lk/debug.h>

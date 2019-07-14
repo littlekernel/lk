@@ -7,10 +7,10 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <lk/compiler.h>
 
 /* command args */
 typedef struct {

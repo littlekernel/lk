@@ -15,20 +15,21 @@
  * @defgroup thread Threads
  * @{
  */
-#include <lk/debug.h>
-#include <assert.h>
-#include <lk/list.h>
-#include <malloc.h>
-#include <string.h>
-#include <printf.h>
-#include <lk/err.h>
 #include <kernel/thread.h>
-#include <kernel/timer.h>
+
+#include <assert.h>
 #include <kernel/debug.h>
 #include <kernel/mp.h>
-#include <platform.h>
-#include <target.h>
+#include <kernel/timer.h>
 #include <lib/heap.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/list.h>
+#include <malloc.h>
+#include <platform.h>
+#include <printf.h>
+#include <string.h>
+#include <target.h>
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #endif

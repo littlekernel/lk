@@ -7,12 +7,12 @@
  */
 #pragma once
 
-#include <sys/types.h>
-#include <lk/list.h>
-#include <lk/compiler.h>
 #include <arch/defines.h>
 #include <arch/ops.h>
 #include <arch/thread.h>
+#include <lk/compiler.h>
+#include <lk/list.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
 

@@ -5,13 +5,13 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/trace.h>
 #include <assert.h>
-#include <lk/err.h>
-#include <string.h>
-#include <lk/console_cmd.h>
-#include <kernel/vm.h>
 #include <kernel/mutex.h>
+#include <kernel/vm.h>
+#include <lk/console_cmd.h>
+#include <lk/err.h>
+#include <lk/trace.h>
+#include <string.h>
 #include "vm_priv.h"
 
 #define LOCAL_TRACE 0

@@ -8,9 +8,9 @@
 #pragma once
 
 #include <lk/compiler.h>
-#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
 

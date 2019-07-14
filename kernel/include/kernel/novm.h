@@ -7,9 +7,9 @@
  */
 #pragma once
 
+#include <arch.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <arch.h>
 
 #define PAGE_ALIGN(x) ALIGN(x, PAGE_SIZE)
 #define IS_PAGE_ALIGNED(x) IS_ALIGNED(x, PAGE_SIZE)

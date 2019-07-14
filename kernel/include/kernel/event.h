@@ -7,10 +7,10 @@
  */
 #pragma once
 
+#include <kernel/thread.h>
 #include <lk/compiler.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <kernel/thread.h>
 
 __BEGIN_CDECLS
 

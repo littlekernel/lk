@@ -7,15 +7,15 @@
  */
 #pragma once
 
-#include <sys/types.h>
-#include <lk/list.h>
-#include <lk/compiler.h>
 #include <arch/defines.h>
 #include <arch/ops.h>
 #include <arch/thread.h>
-#include <kernel/wait.h>
 #include <kernel/spinlock.h>
+#include <kernel/wait.h>
+#include <lk/compiler.h>
 #include <lk/debug.h>
+#include <lk/list.h>
+#include <sys/types.h>
 
 #if WITH_KERNEL_VM
 /* forward declaration */

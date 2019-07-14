@@ -7,11 +7,11 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
+#include <kernel/thread.h>
 #include <limits.h>
+#include <lk/compiler.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <kernel/thread.h>
 
 __BEGIN_CDECLS
 

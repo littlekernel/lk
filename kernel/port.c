@@ -13,14 +13,15 @@
  *
  */
 
+#include <kernel/port.h>
+
+#include <kernel/thread.h>
 #include <lk/debug.h>
+#include <lk/err.h>
 #include <lk/list.h>
+#include <lk/pow2.h>
 #include <malloc.h>
 #include <string.h>
-#include <lk/pow2.h>
-#include <lk/err.h>
-#include <kernel/thread.h>
-#include <kernel/port.h>
 
 // write ports can be in two states, open and closed, which have a
 // different magic number.

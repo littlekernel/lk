@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
+#include <kernel/semaphore.h>
+
+#include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/err.h>
-#include <kernel/semaphore.h>
-#include <kernel/thread.h>
 
 void sem_init(semaphore_t *sem, unsigned int value) {
     *sem = (semaphore_t)SEMAPHORE_INITIAL_VALUE(*sem, value);
