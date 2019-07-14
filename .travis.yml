@@ -3,6 +3,7 @@ script: ./scripts/travis-build.sh
 env:
     - PROJECT=qemu-virt-arm32-test      TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
     - PROJECT=qemu-virt-arm64-test      TOOLCHAIN=aarch64-elf-7.3.0-Linux-x86_64
+    - PROJECT=qemu-virt-arm32-minimal   TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
     - PROJECT=vim2-test                 TOOLCHAIN=aarch64-elf-7.3.0-Linux-x86_64
     - PROJECT=zybo-test                 TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
     - PROJECT=rpi2-test                 TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64

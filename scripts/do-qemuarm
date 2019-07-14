@@ -30,8 +30,9 @@ DO_MINIHEAP=0
 SMP=1
 MEMSIZE=512
 SUDO=""
+PROJECT=""
 
-while getopts bdhm:cMnt36s: FLAG; do
+while getopts bdhm:cMnt36p:s: FLAG; do
     case $FLAG in
         b) DO_BLOCK=1;;
         c) DO_CMPCTMALLOC=1;;
@@ -43,6 +44,7 @@ while getopts bdhm:cMnt36s: FLAG; do
         6) DO_64BIT=1;;
         m) MEMSIZE=$OPTARG;;
         s) SMP=$OPTARG;;
+        p) PROJECT=$OPTARG;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -54,13 +56,16 @@ shift $((OPTIND-1))
 
 if [ $DO_64BIT == 1 ]; then
     QEMU="qemu-system-aarch64 -machine virt -cpu cortex-a53"
-    PROJECT="qemu-virt-arm64-test"
+    _PROJECT="qemu-virt-arm64-test"
 elif [ $DO_CORTEX_M3 == 1 ]; then
     QEMU="qemu-system-arm -machine lm3s6965evb -cpu cortex-m3"
-    PROJECT="lm3s6965evb-test"
+    _PROJECT="lm3s6965evb-test"
 else
     QEMU="qemu-system-arm -machine virt -cpu cortex-a15"
-    PROJECT="qemu-virt-arm32-test"
+    _PROJECT="qemu-virt-arm32-test"
+fi
+if [ "$PROJECT" == "" ]; then
+    PROJECT=$_PROJECT
 fi
 
 ARGS=" -m $MEMSIZE -smp $SMP -kernel build-${PROJECT}/lk.elf"
