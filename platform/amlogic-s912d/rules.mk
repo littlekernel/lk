@@ -26,6 +26,4 @@ MODULE_DEPS += \
 		app/shell \
 
 
-WITH_CPP_SUPPORT=true
-
 include make/module.mk

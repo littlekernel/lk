@@ -8,7 +8,4 @@ MODULES += \
   lib/aes/test \
   lib/cksum \
   lib/debugcommands \
-  lib/version \
-
-WITH_CPP_SUPPORT=true
-
+  lib/version

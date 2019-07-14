@@ -7,6 +7,7 @@ MODULE_DEPS := \
 	lib/io
 
 MODULE_SRCS += \
+	$(LOCAL_DIR)/atexit.c \
 	$(LOCAL_DIR)/atoi.c \
 	$(LOCAL_DIR)/bsearch.c \
 	$(LOCAL_DIR)/ctype.c \
@@ -19,11 +20,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/qsort.c \
 	$(LOCAL_DIR)/eabi.c
 
-ifeq ($(WITH_CPP_SUPPORT),true)
 MODULE_SRCS += \
-	$(LOCAL_DIR)/atexit.c \
 	$(LOCAL_DIR)/pure_virtual.cpp
-endif
 
 include $(LOCAL_DIR)/string/rules.mk
 

@@ -66,8 +66,6 @@ MODULE_DEPS += \
 	    app/tests \
 	    lib/fdt
 
-WITH_CPP_SUPPORT=true
-
 endif
 
 include make/module.mk
