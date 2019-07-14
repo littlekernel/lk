@@ -32,11 +32,12 @@ _Unwind_Reason_Code __aeabi_unwind_cpp_pr2(_Unwind_State state, _Unwind_Control_
 void raise(void) {
 }
 
-extern int __cxa_atexit(void (*func)(void *), void *arg, void *d);
+int __cxa_atexit(void (*destructor)(void *), void *arg, void *__dso_handle) {
+    return 0;
+}
 
 int __aeabi_atexit(void *arg, void (*func)(void *), void *d) {
     return __cxa_atexit(func, arg, d);
 }
-
 
 
