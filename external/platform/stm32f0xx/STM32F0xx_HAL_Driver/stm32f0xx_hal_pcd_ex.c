@@ -2,8 +2,6 @@
   ******************************************************************************
   * @file    stm32f0xx_hal_pcd_ex.c
   * @author  MCD Application Team
-  * @version V1.3.1
-  * @date    29-January-2016
   * @brief   Extended PCD HAL module driver.
   *          This file provides firmware functions to manage the following 
   *          functionalities of the USB Peripheral Controller:
@@ -42,13 +40,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f0xx_hal.h"
 
-/** @addtogroup STM32F0xx_HAL_Driver
-  * @{
-  */
-
 #ifdef HAL_PCD_MODULE_ENABLED
 
 #if defined(STM32F042x6) || defined(STM32F048xx) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F070xB)|| defined(STM32F070x6)
+
+/** @addtogroup STM32F0xx_HAL_Driver
+  * @{
+  */
 
 /** @defgroup PCDEx PCDEx
   * @brief PCD Extended HAL module driver
@@ -81,12 +79,12 @@
 
 /**
   * @brief Configure PMA for EP
-  * @param  hpcd: PCD handle
-  * @param  ep_addr: endpoint address
-  * @param  ep_kind: endpoint Kind
+  * @param  hpcd PCD handle
+  * @param  ep_addr endpoint address
+  * @param  ep_kind endpoint Kind
   *                @arg USB_SNG_BUF: Single Buffer used
   *                @arg USB_DBL_BUF: Double Buffer used
-  * @param  pmaadress: EP address in The PMA: In case of single buffer endpoint
+  * @param  pmaadress EP address in The PMA: In case of single buffer endpoint
   *                   this parameter is 16-bit value providing the address
   *                   in PMA allocated to endpoint.
   *                   In case of double buffer endpoint this parameter
@@ -105,9 +103,9 @@ HAL_StatusTypeDef  HAL_PCDEx_PMAConfig(PCD_HandleTypeDef *hpcd,
   PCD_EPTypeDef *ep;
   
   /* initialize ep structure*/
-  if ((0x80 & ep_addr) == 0x80)
+  if ((0x80U & ep_addr) == 0x80U)
   {
-    ep = &hpcd->IN_ep[ep_addr & 0x7F];
+    ep = &hpcd->IN_ep[ep_addr & 0x7FU];
   }
   else
   {
@@ -118,17 +116,17 @@ HAL_StatusTypeDef  HAL_PCDEx_PMAConfig(PCD_HandleTypeDef *hpcd,
   if (ep_kind == PCD_SNG_BUF)
   {
     /*Single Buffer*/
-    ep->doublebuffer = 0;
+    ep->doublebuffer = 0U;
     /*Configure the PMA*/
     ep->pmaadress = (uint16_t)pmaadress;
   }
   else /*USB_DBL_BUF*/
   {
     /*Double Buffer Endpoint*/
-    ep->doublebuffer = 1;
+    ep->doublebuffer = 1U;
     /*Configure the PMA*/
-    ep->pmaaddr0 =  pmaadress & 0xFFFF;
-    ep->pmaaddr1 =  (pmaadress & 0xFFFF0000U) >> 16;
+    ep->pmaaddr0 =  pmaadress & 0xFFFFU;
+    ep->pmaaddr1 =  (pmaadress & 0xFFFF0000U) >> 16U;
   }
   
   return HAL_OK;

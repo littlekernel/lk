@@ -29,6 +29,7 @@ static void SystemClock_Config(void) {
 #endif
 
 #if defined (USE_USB_CLKSOURCE_CRSHSI48)
+
     /* Enable HSI48 Oscillator to be used as system clock source */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
     HAL_RCC_OscConfig(&RCC_OscInitStruct);
@@ -39,7 +40,7 @@ static void SystemClock_Config(void) {
     HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
 
     /* Select HSI48 as system clock source and configure the HCLK and PCLK1
-       clock dividers */
+    clock dividers */
     RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1);
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI48;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
@@ -58,7 +59,7 @@ static void SystemClock_Config(void) {
     RCC_CRSInitStruct.Source = RCC_CRS_SYNC_SOURCE_USB;
 
     /* HSI48 is synchronized with USB SOF at 1KHz rate */
-    RCC_CRSInitStruct.ReloadValue =  __HAL_RCC_CRS_CALCULATE_RELOADVALUE(48000000, 1000);
+    RCC_CRSInitStruct.ReloadValue =  __HAL_RCC_CRS_RELOADVALUE_CALCULATE(48000000, 1000);
     RCC_CRSInitStruct.ErrorLimitValue = RCC_CRS_ERRORLIMIT_DEFAULT;
 
     /* Set the TRIM[5:0] to the default value*/
@@ -66,11 +67,11 @@ static void SystemClock_Config(void) {
 
     /* Start automatic synchronization */
     HAL_RCCEx_CRSConfig (&RCC_CRSInitStruct);
+
 #elif defined (USE_USB_CLKSOURCE_PLL)
-    /* This code assumes that there is an 8MHz crystal. */
 
     /* Enable HSE Oscillator and activate PLL with HSE as source
-       PLLCLK = (8 * 6) / 1) = 48 MHz */
+    PLLCLK = (8 * 6) / 1) = 48 MHz */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
     RCC_OscInitStruct.HSEState = RCC_HSE_ON;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -81,17 +82,19 @@ static void SystemClock_Config(void) {
 
     /*Select PLL 48 MHz output as USB clock source */
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
-    PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLLCLK;
+    PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL;
     HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
 
     /* Select PLL as system clock source and configure the HCLK and PCLK1
-       clock dividers */
+    clock dividers */
     RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1);
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
     HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1);
+
 #endif /*USE_USB_CLKSOURCE_CRSHSI48*/
+
 }
 
 void platform_early_init(void) {
