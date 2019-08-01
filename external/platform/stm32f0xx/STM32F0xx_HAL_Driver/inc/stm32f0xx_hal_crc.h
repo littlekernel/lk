@@ -2,8 +2,6 @@
   ******************************************************************************
   * @file    stm32f0xx_hal_crc.h
   * @author  MCD Application Team
-  * @version V1.3.1
-  * @date    29-January-2016
   * @brief   Header file of CRC HAL module.
   ******************************************************************************
   * @attention
@@ -63,11 +61,11 @@
   */ 
 typedef enum
 {                                            
-  HAL_CRC_STATE_RESET     = 0x00,  /*!< CRC not yet initialized or disabled */
-  HAL_CRC_STATE_READY     = 0x01,  /*!< CRC initialized and ready for use   */
-  HAL_CRC_STATE_BUSY      = 0x02,  /*!< CRC internal process is ongoing     */
-  HAL_CRC_STATE_TIMEOUT   = 0x03,  /*!< CRC timeout state                   */
-  HAL_CRC_STATE_ERROR     = 0x04   /*!< CRC error state                     */
+  HAL_CRC_STATE_RESET     = 0x00U,  /*!< CRC not yet initialized or disabled */
+  HAL_CRC_STATE_READY     = 0x01U,  /*!< CRC initialized and ready for use   */
+  HAL_CRC_STATE_BUSY      = 0x02U,  /*!< CRC internal process is ongoing     */
+  HAL_CRC_STATE_TIMEOUT   = 0x03U,  /*!< CRC timeout state                   */
+  HAL_CRC_STATE_ERROR     = 0x04U   /*!< CRC error state                     */
 }HAL_CRC_StateTypeDef;
 
 
@@ -166,11 +164,17 @@ typedef struct
 /** @defgroup CRC_Default_Polynomial Indicates whether or not default polynomial is used
   * @{
   */
-#define DEFAULT_POLYNOMIAL_ENABLE       ((uint8_t)0x00)
-#define DEFAULT_POLYNOMIAL_DISABLE      ((uint8_t)0x01)
+#if defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx)
+#define DEFAULT_POLYNOMIAL_ENABLE       ((uint8_t)0x00U)
+#define DEFAULT_POLYNOMIAL_DISABLE      ((uint8_t)0x01U)
 
 #define IS_DEFAULT_POLYNOMIAL(DEFAULT) (((DEFAULT) == DEFAULT_POLYNOMIAL_ENABLE) || \
                                         ((DEFAULT) == DEFAULT_POLYNOMIAL_DISABLE))
+#else
+#define DEFAULT_POLYNOMIAL_ENABLE       ((uint8_t)0x00U)
+
+#define IS_DEFAULT_POLYNOMIAL(DEFAULT)  ((DEFAULT) == DEFAULT_POLYNOMIAL_ENABLE)
+#endif /* defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) */
 
 /**
   * @}
@@ -179,8 +183,8 @@ typedef struct
 /** @defgroup CRC_Default_InitValue_Use    Indicates whether or not default init value is used
   * @{
   */                                      
-#define DEFAULT_INIT_VALUE_ENABLE      ((uint8_t)0x00)
-#define DEFAULT_INIT_VALUE_DISABLE     ((uint8_t)0x01)
+#define DEFAULT_INIT_VALUE_ENABLE      ((uint8_t)0x00U)
+#define DEFAULT_INIT_VALUE_DISABLE     ((uint8_t)0x01U)
 
 #define IS_DEFAULT_INIT_VALUE(VALUE)  (((VALUE) == DEFAULT_INIT_VALUE_ENABLE) || \
                                        ((VALUE) == DEFAULT_INIT_VALUE_DISABLE))
@@ -195,10 +199,10 @@ typedef struct
  * an error is triggered in HAL_CRC_Init() if InputDataFormat field is set 
  * to CRC_INPUT_FORMAT_UNDEFINED: the format MUST be defined by the user for 
  * the CRC APIs to provide a correct result */   
-#define CRC_INPUTDATA_FORMAT_UNDEFINED             ((uint32_t)0x00000000)
-#define CRC_INPUTDATA_FORMAT_BYTES                 ((uint32_t)0x00000001)
-#define CRC_INPUTDATA_FORMAT_HALFWORDS             ((uint32_t)0x00000002)
-#define CRC_INPUTDATA_FORMAT_WORDS                 ((uint32_t)0x00000003)
+#define CRC_INPUTDATA_FORMAT_UNDEFINED             (0x00000000U)
+#define CRC_INPUTDATA_FORMAT_BYTES                 (0x00000001U)
+#define CRC_INPUTDATA_FORMAT_HALFWORDS             (0x00000002U)
+#define CRC_INPUTDATA_FORMAT_WORDS                 (0x00000003U)
 
 #define IS_CRC_INPUTDATA_FORMAT(FORMAT)           (((FORMAT) == CRC_INPUTDATA_FORMAT_BYTES) || \
                                                    ((FORMAT) == CRC_INPUTDATA_FORMAT_HALFWORDS) || \
@@ -218,37 +222,37 @@ typedef struct
   */
 
 /** @brief Reset CRC handle state
-  * @param  __HANDLE__: CRC handle.
+  * @param  __HANDLE__ CRC handle.
   * @retval None
   */
 #define __HAL_CRC_RESET_HANDLE_STATE(__HANDLE__) ((__HANDLE__)->State = HAL_CRC_STATE_RESET)
 
 /**
   * @brief  Reset CRC Data Register.
-  * @param  __HANDLE__: CRC handle
+  * @param  __HANDLE__ CRC handle
   * @retval None.
   */
 #define __HAL_CRC_DR_RESET(__HANDLE__) ((__HANDLE__)->Instance->CR |= CRC_CR_RESET)
 
 /**
   * @brief  Set CRC INIT non-default value
-  * @param  __HANDLE__    : CRC handle
-  * @param  __INIT__      : 32-bit initial value  
+  * @param  __HANDLE__ CRC handle
+  * @param  __INIT__   32-bit initial value  
   * @retval None.
   */
 #define __HAL_CRC_INITIALCRCVALUE_CONFIG(__HANDLE__, __INIT__) ((__HANDLE__)->Instance->INIT = (__INIT__))    
 
 /**
   * @brief Stores a 8-bit data in the Independent Data(ID) register.
-  * @param __HANDLE__: CRC handle
-  * @param __VALUE__: 8-bit value to be stored in the ID register
+  * @param __HANDLE__ CRC handle
+  * @param __VALUE__ 8-bit value to be stored in the ID register
   * @retval None
   */
 #define __HAL_CRC_SET_IDR(__HANDLE__, __VALUE__) (WRITE_REG((__HANDLE__)->Instance->IDR, (__VALUE__)))
 
 /**
   * @brief Returns the 8-bit data stored in the Independent Data(ID) register.
-  * @param __HANDLE__: CRC handle
+  * @param __HANDLE__ CRC handle
   * @retval 8-bit value of the ID register 
   */
 #define __HAL_CRC_GET_IDR(__HANDLE__) (((__HANDLE__)->Instance->IDR) & CRC_IDR_IDR)

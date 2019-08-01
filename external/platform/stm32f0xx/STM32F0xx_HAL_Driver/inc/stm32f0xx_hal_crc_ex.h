@@ -2,8 +2,6 @@
   ******************************************************************************
   * @file    stm32f0xx_hal_crc_ex.h
   * @author  MCD Application Team
-  * @version V1.3.1
-  * @date    29-January-2016
   * @brief   Header file of CRC HAL extension module.
   ******************************************************************************
   * @attention
@@ -62,7 +60,7 @@
 /** @defgroup CRCEx_Input_Data_Inversion Input Data Inversion Modes
   * @{
   */
-#define CRC_INPUTDATA_INVERSION_NONE              ((uint32_t)0x00000000)
+#define CRC_INPUTDATA_INVERSION_NONE              (0x00000000U)
 #define CRC_INPUTDATA_INVERSION_BYTE              ((uint32_t)CRC_CR_REV_IN_0)
 #define CRC_INPUTDATA_INVERSION_HALFWORD          ((uint32_t)CRC_CR_REV_IN_1)
 #define CRC_INPUTDATA_INVERSION_WORD              ((uint32_t)CRC_CR_REV_IN)
@@ -78,7 +76,7 @@
 /** @defgroup CRCEx_Output_Data_Inversion Output Data Inversion Modes
   * @{
   */
-#define CRC_OUTPUTDATA_INVERSION_DISABLE         ((uint32_t)0x00000000)
+#define CRC_OUTPUTDATA_INVERSION_DISABLE         (0x00000000U)
 #define CRC_OUTPUTDATA_INVERSION_ENABLE          ((uint32_t)CRC_CR_REV_OUT)
 
 #define IS_CRC_OUTPUTDATA_INVERSION_MODE(MODE)    (((MODE) == CRC_OUTPUTDATA_INVERSION_DISABLE) || \
@@ -91,7 +89,7 @@
   * @{
   */
 #if defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx)
-#define CRC_POLYLENGTH_32B                  ((uint32_t)0x00000000)
+#define CRC_POLYLENGTH_32B                  (0x00000000U)
 #define CRC_POLYLENGTH_16B                  ((uint32_t)CRC_CR_POLYSIZE_0)
 #define CRC_POLYLENGTH_8B                   ((uint32_t)CRC_CR_POLYSIZE_1)
 #define CRC_POLYLENGTH_7B                   ((uint32_t)CRC_CR_POLYSIZE)
@@ -100,7 +98,7 @@
                                        ((LENGTH) == CRC_POLYLENGTH_8B)  || \
                                        ((LENGTH) == CRC_POLYLENGTH_7B))  
 #else
-#define CRC_POLYLENGTH_32B                  ((uint32_t)0x00000000)
+#define CRC_POLYLENGTH_32B                  (0x00000000U)
 #define IS_CRC_POL_LENGTH(LENGTH)     ((LENGTH) == CRC_POLYLENGTH_32B)  
 #endif /* defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) */
 /**
@@ -111,13 +109,13 @@
   * @{
   */
 #if defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx)
-#define HAL_CRC_LENGTH_32B     32
-#define HAL_CRC_LENGTH_16B     16
-#define HAL_CRC_LENGTH_8B       8
-#define HAL_CRC_LENGTH_7B       7
+#define HAL_CRC_LENGTH_32B     32U
+#define HAL_CRC_LENGTH_16B     16U
+#define HAL_CRC_LENGTH_8B       8U
+#define HAL_CRC_LENGTH_7B       7U
 #else
-#define HAL_CRC_LENGTH_32B     32
-#endif /* defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) */   
+#define HAL_CRC_LENGTH_32B     32U
+#endif /* defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) */
 /**
   * @}
   */  
@@ -133,27 +131,27 @@
     
 /**
   * @brief  Set CRC output reversal
-  * @param  __HANDLE__    : CRC handle
+  * @param  __HANDLE__ CRC handle
   * @retval None.
   */
 #define  __HAL_CRC_OUTPUTREVERSAL_ENABLE(__HANDLE__) ((__HANDLE__)->Instance->CR |= CRC_CR_REV_OUT)   
 
 /**
   * @brief  Unset CRC output reversal
-  * @param  __HANDLE__    : CRC handle
+  * @param  __HANDLE__ CRC handle
   * @retval None.
   */
 #define __HAL_CRC_OUTPUTREVERSAL_DISABLE(__HANDLE__) ((__HANDLE__)->Instance->CR &= ~(CRC_CR_REV_OUT))   
 
-#if defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) || defined(STM32F070xB) || defined(STM32F030xC)
+#if defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx)
 /**
   * @brief  Set CRC non-default polynomial
-  * @param  __HANDLE__    : CRC handle
-  * @param  __POLYNOMIAL__: 7, 8, 16 or 32-bit polynomial  
+  * @param  __HANDLE__ CRC handle
+  * @param  __POLYNOMIAL__ 7, 8, 16 or 32-bit polynomial  
   * @retval None.
   */
 #define __HAL_CRC_POLYNOMIAL_CONFIG(__HANDLE__, __POLYNOMIAL__) ((__HANDLE__)->Instance->POL = (__POLYNOMIAL__))
-#endif /* defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) || defined(STM32F070xB) || defined(STM32F030xC) */ 
+#endif /* defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) */
 /**
   * @}
   */
@@ -173,9 +171,9 @@ HAL_StatusTypeDef HAL_CRCEx_Init(CRC_HandleTypeDef *hcrc);
 HAL_StatusTypeDef HAL_CRCEx_Input_Data_Reverse(CRC_HandleTypeDef *hcrc, uint32_t InputReverseMode);
 HAL_StatusTypeDef HAL_CRCEx_Output_Data_Reverse(CRC_HandleTypeDef *hcrc, uint32_t OutputReverseMode);
 
-#if defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) || defined(STM32F070xB) || defined(STM32F030xC)
+#if defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx)
 HAL_StatusTypeDef HAL_CRCEx_Polynomial_Set(CRC_HandleTypeDef *hcrc, uint32_t Pol, uint32_t PolyLength);
-#endif /* defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) || defined(STM32F070xB) || defined(STM32F030xC) */ 
+#endif /* defined(STM32F071xB) || defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) || defined(STM32F098xx) */
 /**
   * @}
   */

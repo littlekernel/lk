@@ -2,8 +2,6 @@
   ******************************************************************************
   * @file    stm32f0xx_hal_pwr_ex.c
   * @author  MCD Application Team
-  * @version V1.3.1
-  * @date    29-January-2016
   * @brief   Extended PWR HAL module driver.
   *          This file provides firmware functions to manage the following
   *          functionalities of the Power Controller (PWR) peripheral:
@@ -59,10 +57,10 @@
 /** @defgroup PWREx_Private_Constants PWREx Private Constants
   * @{
   */
-#define PVD_MODE_IT               ((uint32_t)0x00010000)
-#define PVD_MODE_EVT              ((uint32_t)0x00020000)
-#define PVD_RISING_EDGE           ((uint32_t)0x00000001)
-#define PVD_FALLING_EDGE          ((uint32_t)0x00000002)
+#define PVD_MODE_IT               (0x00010000U)
+#define PVD_MODE_EVT              (0x00020000U)
+#define PVD_RISING_EDGE           (0x00000001U)
+#define PVD_FALLING_EDGE          (0x00000002U)
 /**
   * @}
   */
@@ -116,7 +114,7 @@
     defined (STM32F042x6) || defined (STM32F072xB)
 /**
   * @brief Configures the voltage threshold detected by the Power Voltage Detector(PVD).
-  * @param sConfigPVD: pointer to an PWR_PVDTypeDef structure that contains the configuration
+  * @param sConfigPVD pointer to an PWR_PVDTypeDef structure that contains the configuration
   *        information for the PVD.
   * @note Refer to the electrical characteristics of your device datasheet for
   *         more details about the voltage threshold corresponding to each

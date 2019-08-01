@@ -2,8 +2,6 @@
   ******************************************************************************
   * @file    stm32f0xx_hal_def.h
   * @author  MCD Application Team
-  * @version V1.3.1
-  * @date    29-January-2016
   * @brief   This file contains HAL common defines, enumeration, macros and 
   *          structures definitions. 
   ******************************************************************************
@@ -46,7 +44,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f0xx.h"
-#include "Legacy/stm32_hal_legacy.h"
+#if defined(USE_HAL_LEGACY)
+  #include "Legacy/stm32_hal_legacy.h"
+#endif
 #include <stdio.h>
 
 /* Exported types ------------------------------------------------------------*/
@@ -56,10 +56,10 @@
   */  
 typedef enum 
 {
-  HAL_OK       = 0x00,
-  HAL_ERROR    = 0x01,
-  HAL_BUSY     = 0x02,
-  HAL_TIMEOUT  = 0x03
+  HAL_OK       = 0x00U,
+  HAL_ERROR    = 0x01U,
+  HAL_BUSY     = 0x02U,
+  HAL_TIMEOUT  = 0x03U
 } HAL_StatusTypeDef;
 
 /** 
@@ -67,8 +67,8 @@ typedef enum
   */
 typedef enum 
 {
-  HAL_UNLOCKED = 0x00,
-  HAL_LOCKED   = 0x01  
+  HAL_UNLOCKED = 0x00U,
+  HAL_LOCKED   = 0x01U  
 } HAL_LockTypeDef;
 
 /* Exported macro ------------------------------------------------------------*/
@@ -87,7 +87,7 @@ typedef enum
 #define UNUSED(x) ((void)(x))                            
                             
 /** @brief Reset the Handle's State field.
-  * @param __HANDLE__: specifies the Peripheral Handle.
+  * @param __HANDLE__ specifies the Peripheral Handle.
   * @note  This macro can be used for the following purpose:
   *          - When the Handle is declared as local variable; before passing it as parameter
   *            to HAL_PPP_Init() for the first time, it is mandatory to use this macro

@@ -2,9 +2,7 @@
   ******************************************************************************
   * @file    stm32f0xx_hal_usart_ex.h
   * @author  MCD Application Team
-  * @version V1.3.1
-  * @date    29-January-2016
-  * @brief   Header file of USART HAL Extension module.
+  * @brief   Header file of USART HAL Extended module.
   ******************************************************************************
   * @attention
   *
@@ -50,9 +48,9 @@
   * @{
   */
 
-/** @defgroup USARTEx USARTEx 
+/** @addtogroup USARTEx
   * @{
-  */ 
+  */
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
@@ -67,10 +65,10 @@
     defined (STM32F071xB) || defined (STM32F072xB) || defined (STM32F078xx) || defined (STM32F070xB) || \
     defined (STM32F091xC) || defined (STM32F098xx) || defined (STM32F030xC)
 #define USART_WORDLENGTH_7B                  ((uint32_t)USART_CR1_M1)   /*!< 7-bit long USART frame */ 
-#define USART_WORDLENGTH_8B                  ((uint32_t)0x00000000)     /*!< 8-bit long USART frame */ 
+#define USART_WORDLENGTH_8B                  (0x00000000U)              /*!< 8-bit long USART frame */ 
 #define USART_WORDLENGTH_9B                  ((uint32_t)USART_CR1_M0)   /*!< 9-bit long USART frame */ 
 #else
-#define USART_WORDLENGTH_8B                  ((uint32_t)0x00000000)     /*!< 8-bit long USART frame */ 
+#define USART_WORDLENGTH_8B                  (0x00000000U)              /*!< 8-bit long USART frame */ 
 #define USART_WORDLENGTH_9B                  ((uint32_t)USART_CR1_M)    /*!< 9-bit long USART frame */ 
 #endif /* defined (STM32F042x6) || defined (STM32F048xx) || defined (STM32F070x6) || defined (STM32F070xB) || \
           defined (STM32F071xB) || defined (STM32F072xB) || defined (STM32F078xx) || \
@@ -82,7 +80,7 @@
 /** @defgroup USART_Request_Parameters USARTEx Request Parameters
   * @{
   */
-#define USART_RXDATA_FLUSH_REQUEST        ((uint32_t)USART_RQR_RXFRQ)        /*!< Receive Data flush Request */ 
+#define USART_RXDATA_FLUSH_REQUEST        ((uint32_t)USART_RQR_RXFRQ)        /*!< Receive Data flush Request  */
 #if !defined(STM32F030x6) && !defined(STM32F030x8) && !defined(STM32F070x6)  && !defined(STM32F070xB)  && !defined(STM32F030xC)
 #define USART_TXDATA_FLUSH_REQUEST        ((uint32_t)USART_RQR_TXFRQ)        /*!< Transmit data flush Request */
 #else
@@ -97,20 +95,20 @@
   * @{
   */
 #if !defined(STM32F030x6) && !defined(STM32F030x8) && !defined(STM32F070x6)  && !defined(STM32F070xB)  && !defined(STM32F030xC)
-#define USART_FLAG_REACK                     ((uint32_t)0x00400000)    /*!< USART receive enable acknowledge flag  */  
-#endif /* !defined(STM32F030x6) && !defined(STM32F030x8) && !defined(STM32F070x6)  && !defined(STM32F070xB)  && !defined(STM32F030xC) */ 
-#define USART_FLAG_TEACK                     ((uint32_t)0x00200000)    /*!< USART transmit enable acknowledge flag */  
-#define USART_FLAG_BUSY                      ((uint32_t)0x00010000)    /*!< USART busy flag                        */  
-#define USART_FLAG_CTS                       ((uint32_t)0x00000400)    /*!< USART clear to send flag               */  
-#define USART_FLAG_CTSIF                     ((uint32_t)0x00000200)    /*!< USART clear to send interrupt flag     */  
-#define USART_FLAG_TXE                       ((uint32_t)0x00000080)    /*!< USART transmit data register empty     */  
-#define USART_FLAG_TC                        ((uint32_t)0x00000040)    /*!< USART transmission complete            */  
-#define USART_FLAG_RXNE                      ((uint32_t)0x00000020)    /*!< USART read data register not empty     */  
-#define USART_FLAG_IDLE                      ((uint32_t)0x00000010)    /*!< USART idle flag                        */  
-#define USART_FLAG_ORE                       ((uint32_t)0x00000008)    /*!< USART overrun error                    */  
-#define USART_FLAG_NE                        ((uint32_t)0x00000004)    /*!< USART noise error                      */  
-#define USART_FLAG_FE                        ((uint32_t)0x00000002)    /*!< USART frame error                      */  
-#define USART_FLAG_PE                        ((uint32_t)0x00000001)    /*!< USART parity error                     */  
+#define USART_FLAG_REACK                     (0x00400000U)    /*!< USART receive enable acknowledge flag  */
+#endif /* !defined(STM32F030x6) && !defined(STM32F030x8) && !defined(STM32F070x6)  && !defined(STM32F070xB)  && !defined(STM32F030xC) */
+#define USART_FLAG_TEACK                     (0x00200000U)    /*!< USART transmit enable acknowledge flag */
+#define USART_FLAG_BUSY                      (0x00010000U)    /*!< USART busy flag                        */
+#define USART_FLAG_CTS                       (0x00000400U)    /*!< USART clear to send flag               */
+#define USART_FLAG_CTSIF                     (0x00000200U)    /*!< USART clear to send interrupt flag     */
+#define USART_FLAG_TXE                       (0x00000080U)    /*!< USART transmit data register empty     */
+#define USART_FLAG_TC                        (0x00000040U)    /*!< USART transmission complete            */
+#define USART_FLAG_RXNE                      (0x00000020U)    /*!< USART read data register not empty     */
+#define USART_FLAG_IDLE                      (0x00000010U)    /*!< USART idle flag                        */
+#define USART_FLAG_ORE                       (0x00000008U)    /*!< USART overrun error                    */
+#define USART_FLAG_NE                        (0x00000004U)    /*!< USART noise error                      */
+#define USART_FLAG_FE                        (0x00000002U)    /*!< USART frame error                      */
+#define USART_FLAG_PE                        (0x00000001U)    /*!< USART parity error                     */
 /**
   * @}
   */
@@ -125,7 +123,7 @@
   */
 
 /** @brief  Flush the USART Data registers.
-  * @param  __HANDLE__: specifies the USART Handle.
+  * @param  __HANDLE__ specifies the USART Handle.
   * @retval None  
   */
 #if !defined(STM32F030x6) && !defined(STM32F030x8) && !defined(STM32F070x6)  && !defined(STM32F070xB)  && !defined(STM32F030xC)
@@ -150,9 +148,9 @@
   * @{
   */
 
-/** @brief  Reports the USART clock source.
-  * @param  __HANDLE__: specifies the USART Handle
-  * @param  __CLOCKSOURCE__ : output variable   
+/** @brief  Report the USART clock source.
+  * @param  __HANDLE__ specifies the USART Handle.
+  * @param  __CLOCKSOURCE__ output variable.
   * @retval the USART clocking source, written in __CLOCKSOURCE__.
   */
 #if defined(STM32F030x6) || defined(STM32F031x6) || defined(STM32F038xx)
@@ -460,7 +458,7 @@
   *         by the reception API().
   *         This masking operation is not carried out in the case of
   *         DMA transfers.
-  * @param  __HANDLE__: specifies the USART Handle.
+  * @param  __HANDLE__ specifies the USART Handle.
   * @retval None, the mask to apply to USART RDR register is stored in (__HANDLE__)->Mask field.
   */
 #if defined (STM32F042x6) || defined (STM32F048xx) || defined (STM32F070x6) || \
@@ -472,33 +470,33 @@
   {                                                                   \
      if ((__HANDLE__)->Init.Parity == USART_PARITY_NONE)              \
      {                                                                \
-        (__HANDLE__)->Mask = 0x01FF ;                                 \
+        (__HANDLE__)->Mask = 0x01FFU;                                 \
      }                                                                \
      else                                                             \
      {                                                                \
-        (__HANDLE__)->Mask = 0x00FF ;                                 \
+        (__HANDLE__)->Mask = 0x00FFU;                                 \
      }                                                                \
   }                                                                   \
   else if ((__HANDLE__)->Init.WordLength == USART_WORDLENGTH_8B)      \
   {                                                                   \
      if ((__HANDLE__)->Init.Parity == USART_PARITY_NONE)              \
      {                                                                \
-        (__HANDLE__)->Mask = 0x00FF ;                                 \
+        (__HANDLE__)->Mask = 0x00FFU;                                 \
      }                                                                \
      else                                                             \
      {                                                                \
-        (__HANDLE__)->Mask = 0x007F ;                                 \
+        (__HANDLE__)->Mask = 0x007FU;                                 \
      }                                                                \
   }                                                                   \
   else if ((__HANDLE__)->Init.WordLength == USART_WORDLENGTH_7B)      \
   {                                                                   \
      if ((__HANDLE__)->Init.Parity == USART_PARITY_NONE)              \
      {                                                                \
-        (__HANDLE__)->Mask = 0x007F ;                                 \
+        (__HANDLE__)->Mask = 0x007FU;                                 \
      }                                                                \
      else                                                             \
      {                                                                \
-        (__HANDLE__)->Mask = 0x003F ;                                 \
+        (__HANDLE__)->Mask = 0x003FU;                                 \
      }                                                                \
   }                                                                   \
 } while(0)
@@ -509,22 +507,22 @@
   {                                                                   \
      if ((__HANDLE__)->Init.Parity == USART_PARITY_NONE)              \
      {                                                                \
-        (__HANDLE__)->Mask = 0x01FF ;                                 \
+        (__HANDLE__)->Mask = 0x01FFU;                                 \
      }                                                                \
      else                                                             \
      {                                                                \
-        (__HANDLE__)->Mask = 0x00FF ;                                 \
+        (__HANDLE__)->Mask = 0x00FFU;                                 \
      }                                                                \
   }                                                                   \
   else if ((__HANDLE__)->Init.WordLength == USART_WORDLENGTH_8B)      \
   {                                                                   \
      if ((__HANDLE__)->Init.Parity == USART_PARITY_NONE)              \
      {                                                                \
-        (__HANDLE__)->Mask = 0x00FF ;                                 \
+        (__HANDLE__)->Mask = 0x00FFU;                                 \
      }                                                                \
      else                                                             \
      {                                                                \
-        (__HANDLE__)->Mask = 0x007F ;                                 \
+        (__HANDLE__)->Mask = 0x007FU;                                 \
      }                                                                \
   }                                                                   \
 } while(0)
@@ -535,7 +533,7 @@
 
 /**
   * @brief Ensure that USART frame length is valid.
-  * @param __LENGTH__: USART frame length. 
+  * @param __LENGTH__ USART frame length. 
   * @retval SET (__LENGTH__ is valid) or RESET (__LENGTH__ is invalid)
   */
 #if defined (STM32F042x6) || defined (STM32F048xx) || defined (STM32F070x6) || \
@@ -553,7 +551,7 @@
 
 /**
   * @brief Ensure that USART request parameter is valid.
-  * @param __PARAM__: USART request parameter. 
+  * @param __PARAM__ USART request parameter. 
   * @retval SET (__PARAM__ is valid) or RESET (__PARAM__ is invalid)
   */
 #if !defined(STM32F030x6) && !defined(STM32F030x8) && !defined(STM32F070x6)  && !defined(STM32F070xB)  && !defined(STM32F030xC)
