@@ -1250,7 +1250,6 @@ static HAL_StatusTypeDef PCD_EP_ISR_Handler(PCD_HandleTypeDef *hpcd)
         
         else if ((wEPVal & USB_EP_CTR_RX) != 0U)
         {
-          PCD_CLEAR_RX_EP_CTR(hpcd->Instance, PCD_ENDP0);
           /* Get Control Data OUT Packet*/
           ep->xfer_count = PCD_GET_EP_RX_CNT(hpcd->Instance, ep->num);
           
@@ -1264,6 +1263,7 @@ static HAL_StatusTypeDef PCD_EP_ISR_Handler(PCD_HandleTypeDef *hpcd)
            HAL_PCD_DataOutStageCallback(hpcd, 0U);
           
           PCD_SET_EP_RX_CNT(hpcd->Instance, PCD_ENDP0, ep->maxpacket)
+          PCD_CLEAR_RX_EP_CTR(hpcd->Instance, PCD_ENDP0);
           PCD_SET_EP_RX_STATUS(hpcd->Instance, PCD_ENDP0, USB_EP_RX_VALID)
         }
       }
