@@ -37,18 +37,21 @@ _start:
     sobgtr  %r2,1b
 
     // branch to our new spot
+    // TODO: use a REI to make sure the cpu dumps the pipeline
     movl    $relocated, %r0
     jmp     (%r0)
 
 relocated:
     // set the stack to the end of us
-    moval    stack_end,%sp
+    moval    irq_stack_end,%sp
 
     // branch into main and we're done
     calls   $0, lk_main
     halt
 
 .section .data
+// declare bootargs here to make sure it goes in the data segment, since it's
+// saved before the bss is zeroed out.
 .align 4
 .globl bootargs
 bootargs:
@@ -57,6 +60,6 @@ bootargs_end:
 
 .section .bss
 .align 4
-stack:
+irq_stack:
     .skip 1024
-stack_end:
+irq_stack_end:

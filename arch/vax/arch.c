@@ -14,6 +14,8 @@
 
 #define LOCAL_TRACE 0
 
+extern uint8_t irq_stack[1024];
+
 void arch_early_init(void) {
     // set the top level exception handler
     //riscv_csr_write(mtvec, (uintptr_t)&riscv_exception_entry);
@@ -38,8 +40,6 @@ void arch_init(void) {
 }
 
 void arch_idle(void) {
-    // disabled for now, QEMU seems to have some trouble emulating wfi properly
-    // also have trouble breaking into sifive-e board with openocd when wfi
 //    __asm__ volatile("wfi");
 }
 

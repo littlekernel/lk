@@ -7,4 +7,11 @@
  */
 #pragma once
 
-#include <arch/vax/mtpr.h>
+#include <lib/cbuf.h>
+
+// super simple cheesy system detection mechanism
+// mostly cribbed from netbsd
+extern uint32_t vax_cputype;
+extern uint32_t vax_boardtype;
+
+void platform_early_console_init(void);

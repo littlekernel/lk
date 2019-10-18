@@ -9,12 +9,24 @@
 #include <platform.h>
 #include <platform/debug.h>
 
-// todo: move to .S file
-unsigned int rom_putchar_addr = 0x20040068;
-extern int rom_putchar(int c);
+#include "platform_p.h"
+
+// Console io via rom routine
+unsigned int rom_putchar_addr;
+extern void rom_putchar(int c);
+
+// PR version
+void putchar_mtfr(int c) {
+    // wait until ready
+    while ((mfpr(PR_TXCS) & 0x80) == 0)
+        ;
+
+    // output char
+    mtpr((char)c, PR_TXDB);
+}
 
 // select the above routine
-int (*putchar_func)(int c) = &rom_putchar;
+void (*putchar_func)(int c);
 
 void platform_dputc(char c) {
     if (c == '\n')
@@ -35,5 +47,19 @@ int platform_pgetc(char *c, bool wait) {
     return platform_dgetc(c, wait);
 }
 
+void platform_early_console_init(void) {
+    // TODO: decide what type of console to use based on vax machine
+
+    // Only understand a few at the moment
+    switch (vax_boardtype) {
+        case 0x14000004: // Microvax 3100/40
+            rom_putchar_addr = 0x20040068;
+            putchar_func = &rom_putchar;
+            break;
+        default:
+            // default is to use the pr routines
+            putchar_func = &putchar_mtfr;
+    }
+}
 
 
