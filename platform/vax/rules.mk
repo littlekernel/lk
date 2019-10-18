@@ -37,17 +37,21 @@ KERNEL_LOAD_OFFSET := 0x00100000 # loaded 1MB into physical space
 #KERNEL_BASE = 0x80000000
 KERNEL_BASE = 0
 
-#LINKER_SCRIPT += \
-#	$(BUILDDIR)/system-onesegment.ld
+# tool to add a mop header to the output binary to be net bootable
+MKMOPHEADER := $(call TOBUILDDIR,$(LOCAL_DIR)/mkmopheader)
+$(MKMOPHEADER): $(LOCAL_DIR)/mkmopheader.c
+	@$(MKDIR)
+	$(NOECHO)echo compiling host tool $@; \
+	cc -O -Wall $< -o $@
 
-# python script to generate the zynq's bootrom bootheader
-#MKBOOTHEADER := $(LOCAL_DIR)/mkbootheader.py
-#EXTRA_BUILDDEPS += $(BOOTHEADERBIN)
-#GENERATED += $(BOOTHEADERBIN)
+GENERATED += $(MKMOPHEADER)
 
-#$(BOOTHEADERBIN): $(OUTBIN) $(MKBOOTHEADER)
-#	@$(MKDIR)
-#	$(NOECHO)echo generating $@; \
-#	$(MKBOOTHEADER) $(OUTBIN) $@
+$(OUTBIN).mop: $(MKMOPHEADER) $(OUTBIN)
+	@$(MKDIR)
+	$(NOECHO)echo generating $@; \
+	$(MKMOPHEADER) $(OUTBIN) $@
+
+EXTRA_BUILDDEPS += $(OUTBIN).mop
+GENERATED += $(OUTBIN).mop
 
 include make/module.mk
