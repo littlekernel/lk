@@ -14,7 +14,7 @@
 #include <kernel/thread.h>
 #include <arch/vax.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 struct thread *_current_thread;
 

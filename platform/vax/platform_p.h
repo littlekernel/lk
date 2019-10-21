@@ -15,3 +15,5 @@ extern uint32_t vax_cputype;
 extern uint32_t vax_boardtype;
 
 void platform_early_console_init(void);
+void platform_console_init(void);
+void platform_early_timer_init(void);

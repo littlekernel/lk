@@ -40,14 +40,10 @@ void platform_early_init(void) {
     printf("VAX: sid %#x\n", sid);
     printf("VAX: cputype %#x\n", vax_cputype);
     printf("VAX: boardtype %#x\n", vax_boardtype);
+
+    platform_early_timer_init();
 }
 
-// stubbed out time
-static lk_time_t t = 0;
-lk_time_t current_time() {
-    return ++t;
-}
-
-lk_bigtime_t current_time_hires() {
-    return (++t) * 1000;
+void platform_init(void) {
+    platform_console_init();
 }

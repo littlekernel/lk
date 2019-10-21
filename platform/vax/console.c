@@ -82,4 +82,6 @@ void platform_early_console_init(void) {
     }
 }
 
+void platform_console_init(void) {
+}
 

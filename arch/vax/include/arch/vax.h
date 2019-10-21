@@ -7,22 +7,21 @@
  */
 #pragma once
 
-#include <assert.h>
 #include <arch/vax/mtpr.h>
 
-// Indexes (in units of a long word) into the SCB for various vectors
-// that we care about. Many are not used yet, so dont fill all of them.
-enum vax_scb_index {
-    foo = 0,
+// Offsets into the SCB for various vectors  that we care about.
+// Many are not used yet, so dont fill all of them.
 
-    scb_adaptor_base_index = 0x100/4,
+#define SCB_ADAPTER_BASE        (0x100)
+#define SCB_DEVICE_BASE         (0x200)
+#define SCB_MAX_OFFSET          (0x600) // according to the 1987 vax arch manual
 
-    scb_device_base_index = 0x200/4,
-    scb_max_index = 0x600/4
-};
+#define SCB_FLAG_KERNEL_STACK   (0b00)
+#define SCB_FLAG_INT_STACK      (0b01)
 
-#define SCB_FLAG_KERNEL_STACK (0b00)
-#define SCB_FLAG_INT_STACK    (0b01)
+#ifndef __ASSEMBLER__
+
+#include <assert.h>
 
 struct vax_pcb {
     uint32_t ksp;
@@ -39,4 +38,5 @@ struct vax_pcb {
 };
 
 static_assert(sizeof(struct vax_pcb) == 96);
+#endif // __ASSEMBLER__
 

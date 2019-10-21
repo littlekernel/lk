@@ -10,7 +10,7 @@
 #define PAGE_SIZE 512
 #define PAGE_SIZE_SHIFT 9
 
-// XXX is this right?
+// is this right?
 #define CACHE_LINE 32
 
-#define ARCH_DEFAULT_STACK_SIZE 1024
+#define ARCH_DEFAULT_STACK_SIZE 4096

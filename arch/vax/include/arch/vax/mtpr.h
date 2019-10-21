@@ -27,8 +27,7 @@
 
  /* All bugs are subject to removal without further notice */
 
-#ifndef _VAX_MTPR_H_
-#define _VAX_MTPR_H_
+#pragma once
 
 /******************************************************************************
 
@@ -159,7 +158,7 @@
 #define AST_NO    4
 #define AST_OK    3
 
-#ifndef _LOCORE
+#ifndef __ASSEMBLER__
 
 typedef unsigned int register_t;
 
@@ -183,6 +182,4 @@ mfpr(int reg)
         : "g" (reg));
     return __val;
 }
-#endif  /* _LOCORE */
-
-#endif /* _VAX_MTPR_H_ */
+#endif  /* __ASSEMBLY__ */

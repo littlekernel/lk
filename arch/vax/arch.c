@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <arch/ops.h>
 #include <arch/vax.h>
+#include <kernel/thread.h>
 
 #define LOCAL_TRACE 0
 
@@ -19,8 +20,8 @@
 extern uint8_t boot_stack[1024];
 static uint8_t irq_stack[512] __ALIGNED(4);
 
-static uint32_t SCB[scb_max_index] __ALIGNED(512);
-static struct vax_pcb pcb;
+// defined in assembly
+extern uint32_t SCB[];
 
 extern void vax_undefined_exception(void);
 extern void vax_exception_table(void);
@@ -56,16 +57,19 @@ static void dump_regs(void) {
 
 void arch_early_init(void) {
 
-    // initialize the SCB
-    for (int i = 0; i < scb_max_index; i++) {
-        SCB[i] = ((uint32_t)&vax_exception_table + (i * 16)) | SCB_FLAG_KERNEL_STACK;
+    // initialize any empty slots in the SCB
+    for (int i = 0; i < SCB_MAX_OFFSET / 4; i++) {
+        if (SCB[i] == 0) {
+            SCB[i] = ((uint32_t)&vax_exception_table + (i * 16)) | SCB_FLAG_KERNEL_STACK;
+        }
 
     }
     mtpr((uint32_t)SCB, PR_SCBB);
 
-    // point the pcb base register at an initial, empty PCB.
+    // point the pcb base register at the bootstrap thread's empty pcb.
     // we'll switch from it later when starting the threading system.
-    mtpr((uint32_t)&pcb, PR_PCBB);
+    mtpr((uint32_t)&get_current_thread()->arch.pcb, PR_PCBB);
+    get_current_thread()->arch.pcb.p0lr = (4<<24); // set the AST level to 4
 
     // set the interrupt stack. currently unused, but set it to something safe for now.
     mtpr((uint32_t)irq_stack + sizeof(irq_stack), PR_ISP);
