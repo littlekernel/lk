@@ -17,10 +17,10 @@
 
 // initial boot stack that start.S leaves us on
 extern uint8_t boot_stack[1024];
+static uint8_t irq_stack[512] __ALIGNED(4);
 
-uint32_t SCB[scb_max_index] __ALIGNED(512);
-
-struct vax_pcb pcb;
+static uint32_t SCB[scb_max_index] __ALIGNED(512);
+static struct vax_pcb pcb;
 
 extern void vax_undefined_exception(void);
 extern void vax_exception_table(void);
@@ -62,7 +62,22 @@ void arch_early_init(void) {
 
     }
     mtpr((uint32_t)SCB, PR_SCBB);
+
+    // point the pcb base register at an initial, empty PCB.
+    // we'll switch from it later when starting the threading system.
     mtpr((uint32_t)&pcb, PR_PCBB);
+
+    // set the interrupt stack. currently unused, but set it to something safe for now.
+    mtpr((uint32_t)irq_stack + sizeof(irq_stack), PR_ISP);
+
+    // null out the mmu registers
+    mtpr(0, PR_MAPEN);
+    mtpr(0, PR_SBR);
+    mtpr(0, PR_SLR);
+    mtpr(0, PR_P0BR);
+    mtpr(0, PR_P0LR);
+    mtpr(0, PR_P1BR);
+    mtpr(0, PR_P1LR);
 
     dump_regs();
 }
