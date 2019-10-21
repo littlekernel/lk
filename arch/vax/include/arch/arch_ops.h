@@ -13,12 +13,12 @@
 
 static inline void arch_enable_ints(void) {
     // set the IPL to 0
-    mtpr(PR_IPL, 0);
+    mtpr(0, PR_IPL);
 }
 
 static inline void arch_disable_ints(void) {
     // set the IPL to 31
-    mtpr(PR_IPL, 31);
+    mtpr(31, PR_IPL);
 }
 
 static inline bool arch_ints_disabled(void) {

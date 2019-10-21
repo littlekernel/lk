@@ -14,12 +14,14 @@
 #include <kernel/thread.h>
 #include <arch/vax.h>
 
-#define LOCAL_TRACE 0
+#define LOCAL_TRACE 1
 
 struct thread *_current_thread;
 
-static void initial_thread_func(void) __NO_RETURN;
-static void initial_thread_func(void) {
+extern void vax_initial_thread_func(void);
+
+void initial_thread_func(void) __NO_RETURN;
+void initial_thread_func(void) {
     DEBUG_ASSERT(arch_ints_disabled());
 
     thread_t *ct = get_current_thread();
@@ -29,7 +31,7 @@ static void initial_thread_func(void) {
     dump_thread(ct);
 #endif
 
-    /* release the thread lock that was implicitly held across the reschedule */
+    // release the thread lock that was implicitly held across the reschedule
     spin_unlock(&thread_lock);
     arch_enable_ints();
 
@@ -43,26 +45,37 @@ static void initial_thread_func(void) {
 void arch_thread_initialize(thread_t *t) {
     LTRACEF("t %p (%s)\n", t, t->name);
 
-    /* zero out the thread context */
+    // zero out the arch thread context, including the PCB
     memset(&t->arch, 0, sizeof(t->arch));
 
-    //t->arch.cs_frame.sp = (vaddr_t)t->stack + t->stack_size;
-    //t->arch.cs_frame.ra = (vaddr_t)&initial_thread_func;
+    // initialize the top of the stack
+    uint32_t *stack_top = (uint32_t *)((uintptr_t)t->stack + t->stack_size);
+    t->arch.pcb.ksp = (uint32_t)stack_top;
+
+    // set the initial address to the initial_thread_func
+    t->arch.pcb.pc = (uint32_t)&vax_initial_thread_func;
+    t->arch.pcb.psl = (31 << 16); // IPL 31
+    t->arch.pcb.p0lr = (4 << 24); // ASTLVL 4
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
     DEBUG_ASSERT(arch_ints_disabled());
 
-    LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
+    LTRACEF("old %p (%s) pcb %p, new %p (%s) pcb %p\n",
+            oldthread, oldthread->name, &oldthread->arch.pcb,
+            newthread, newthread->name, &newthread->arch.pcb);
 
-    PANIC_UNIMPLEMENTED;
-    //riscv32_context_switch(&oldthread->arch.cs_frame, &newthread->arch.cs_frame);
+    if (LOCAL_TRACE) {
+        hexdump(&newthread->arch.pcb, sizeof(struct vax_pcb));
+    }
+
+    vax_context_switch(&newthread->arch.pcb);
 }
 
 void arch_dump_thread(thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
-        //dprintf(INFO, "sp 0x%x\n", t->arch.cs_frame.sp);
+        dprintf(INFO, "pcb %p, sp %#x\n", &t->arch.pcb, t->arch.pcb.ksp);
     }
 }
 

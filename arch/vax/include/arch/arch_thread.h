@@ -8,36 +8,12 @@
 #pragma once
 
 #include <sys/types.h>
+#include <arch/vax.h>
 
-#if 0
-struct riscv32_context_switch_frame {
-    uint32_t ra; // return address (x1)
-    uint32_t sp; // stack pointer (x2)
-    uint32_t tp; // thread pointer (x4)
-
-    uint32_t s0; // x8-x9
-    uint32_t s1;
-
-    uint32_t s2; // x18-x27
-    uint32_t s3;
-    uint32_t s4;
-    uint32_t s5;
-    uint32_t s6;
-    uint32_t s7;
-    uint32_t s8;
-    uint32_t s9;
-    uint32_t s10;
-    uint32_t s11;
-};
+void vax_context_switch(struct vax_pcb *newpcb);
 
 struct arch_thread {
-    struct riscv32_context_switch_frame cs_frame;
-};
-
-void riscv32_context_switch(struct riscv32_context_switch_frame *oldcs,
-                            struct riscv32_context_switch_frame *newcs);
-#endif
-
-struct arch_thread {
+    // main process control block
+    struct vax_pcb pcb;
 };
 

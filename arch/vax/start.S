@@ -37,13 +37,23 @@ _start:
     sobgtr  %r2,1b
 
     // branch to our new spot
-    // TODO: use a REI to make sure the cpu dumps the pipeline
-    movl    $relocated, %r0
-    jmp     (%r0)
+    // use a REI to make sure the cpu dumps the pipeline
+    moval   boot_stack_end,%sp  // set the stack temporarily in the current memory spot
+    movpsl  -(%sp)
+    movl    $relocated, -(%sp)
+    rei
 
 relocated:
-    // set the stack to the end of us
-    moval    irq_stack_end,%sp
+    // switch to kernel stack
+    moval   boot_stack_end,%sp  // set the interrupt stack in the relocated spot
+    movpsl  -(%sp)              // push the psl on the stack
+    bicl2   $(1<<26),(%sp)      // clear bit 26 (IS)
+    moval   1f,-(%sp)           // push the address of the end of this routine
+    rei                         // rei to it, loading the new PSL
+1:
+
+    // now we should be using the kernel stack pointer, so re-set it
+    moval    boot_stack_end,%sp
 
     // branch into main and we're done
     calls   $0, lk_main
@@ -52,14 +62,14 @@ relocated:
 .section .data
 // declare bootargs here to make sure it goes in the data segment, since it's
 // saved before the bss is zeroed out.
-.align 4
+.balign 4
 .globl bootargs
 bootargs:
     .skip 13*4
 bootargs_end:
 
 .section .bss
-.align 4
-irq_stack:
+.balign 4
+boot_stack:
     .skip 1024
-irq_stack_end:
+boot_stack_end:

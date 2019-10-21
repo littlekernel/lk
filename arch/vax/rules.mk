@@ -5,6 +5,7 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += $(LOCAL_DIR)/start.S
 MODULE_SRCS += $(LOCAL_DIR)/arch.c
 MODULE_SRCS += $(LOCAL_DIR)/asm.S
+MODULE_SRCS += $(LOCAL_DIR)/exceptions.S
 MODULE_SRCS += $(LOCAL_DIR)/thread.c
 
 GLOBAL_DEFINES += \

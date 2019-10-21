@@ -18,7 +18,7 @@
 
 typedef unsigned int spin_lock_t;
 
-typedef unsigned long spin_lock_saved_state_t;
+typedef unsigned int spin_lock_saved_state_t;
 typedef unsigned int spin_lock_save_flags_t;
 
 static inline void arch_spin_lock(spin_lock_t *lock) {
@@ -46,13 +46,12 @@ static inline bool arch_spin_lock_held(spin_lock_t *lock) {
 
 static inline void
 arch_interrupt_save(spin_lock_saved_state_t *statep, spin_lock_save_flags_t flags) {
-    /* disable interrupts by clearing the MIE bit while atomically saving the old state */
-    //*statep = riscv_csr_read_clear(mstatus, RISCV_STATUS_MIE) & RISCV_STATUS_MIE;
+    *statep = mfpr(PR_IPL);
+    mtpr(31, PR_IPL);
 }
 
 static inline void
 arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t flags) {
-    /* drop the old MIE flag into the status register */
-    //riscv_csr_set(mstatus, old_state);
+    mtpr(old_state, PR_IPL);
 }
 
