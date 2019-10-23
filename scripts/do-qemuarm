@@ -55,20 +55,26 @@ done
 shift $((OPTIND-1))
 
 if [ $DO_64BIT == 1 ]; then
-    QEMU="qemu-system-aarch64 -machine virt -cpu cortex-a53"
+    QEMU="qemu-system-aarch64"
+    CPU="cortex-a53"
+    MACHINE="virt"
     _PROJECT="qemu-virt-arm64-test"
 elif [ $DO_CORTEX_M3 == 1 ]; then
-    QEMU="qemu-system-arm -machine lm3s6965evb -cpu cortex-m3"
+    QEMU="qemu-system-arm"
+    CPU="cortex-m3"
+    MACHINE="lm3s6965evb"
     _PROJECT="lm3s6965evb-test"
 else
-    QEMU="qemu-system-arm -machine virt -cpu cortex-a15"
+    QEMU="qemu-system-arm"
+    CPU="cortex-a15"
+    MACHINE="virt"
     _PROJECT="qemu-virt-arm32-test"
 fi
 if [ "$PROJECT" == "" ]; then
     PROJECT=$_PROJECT
 fi
 
-ARGS=" -m $MEMSIZE -smp $SMP -kernel build-${PROJECT}/lk.elf"
+ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
 BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
 NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
 NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"
