@@ -6,6 +6,7 @@ ARCH := riscv
 SUBARCH ?= 32
 
 MODULE_DEPS += lib/cbuf
+MODULE_DEPS += lib/fdt
 
 MODULE_SRCS += $(LOCAL_DIR)/platform.c
 MODULE_SRCS += $(LOCAL_DIR)/plic.c
@@ -21,5 +22,8 @@ GLOBAL_DEFINES += PLATFORM_${VARIANT}=1
 # set some global defines based on capability
 GLOBAL_DEFINES += ARCH_RISCV_CLINT_BASE=0x02000000
 GLOBAL_DEFINES += ARCH_RISCV_MTIME_RATE=10000000
+
+# we're going to read the default memory map from a FDT
+GLOBAL_DEFINES += NOVM_DEFAULT_ARENA=0
 
 include make/module.mk

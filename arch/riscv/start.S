@@ -11,15 +11,19 @@
 FUNCTION(_start)
 .option push
 .option norelax
-    # set the global pointer
+    // set the global pointer
     la      gp, __global_pointer$
 .option pop
 
-    # set the default stack
+    // if our hart isnt 0, trap the cpu
+    csrr    t0, mhartid
+    bnez    t0, .Lsecondary_trap
+
+    // set the default stack
     la      sp, default_stack_top
 
 #if ARCH_RISCV_TWOSEGMENT
-    # copy preinitialized data from flash to memory
+    // copy preinitialized data from flash to memory
     la      t0, __data_start_rom
     la      t1, __data_start
     la      t2, __data_end
@@ -33,7 +37,7 @@ FUNCTION(_start)
     bne     t1, t2, 0b
 #endif
 
-    # zero bss
+    // zero bss
 1:
     la      t0, __bss_start
     la      t1, __bss_end
@@ -42,10 +46,15 @@ FUNCTION(_start)
     add     t0, t0, 4
     bne     t0, t1, 0b
 
-    # call main
+    // call main
     jal     lk_main
 
-    # should never return here
+    // should never return here
+    j       .
+
+    // secondary cpus are trapped here (for now)
+.Lsecondary_trap:
+    wfi
     j       .
 
 .bss

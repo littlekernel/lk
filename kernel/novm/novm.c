@@ -40,7 +40,8 @@ struct novm_arena {
 extern int _end;
 extern int _end_of_ram;
 
-#define MEM_START ((uintptr_t)&_end)
+#define END_OF_KERNEL ((uintptr_t)&_end)
+#define MEM_START END_OF_KERNEL
 #define MEM_SIZE ((MEMBASE + MEMSIZE) - MEM_START)
 #define DEFAULT_MAP_SIZE (MEMSIZE >> PAGE_SIZE_SHIFT)
 
@@ -49,6 +50,11 @@ extern int _end_of_ram;
 #define NOVM_MAX_ARENAS 1
 #endif
 struct novm_arena arena[NOVM_MAX_ARENAS];
+
+/* construct a default arena based on platform #defines at boot */
+#ifndef NOVM_DEFAULT_ARENA
+#define NOVM_DEFAULT_ARENA 1
+#endif
 
 int novm_get_arenas(struct page_range *ranges, int number_of_ranges) {
     int ranges_found = 0;
@@ -120,8 +126,16 @@ static void novm_init_helper(struct novm_arena *n, const char *name,
 }
 
 void novm_add_arena(const char *name, uintptr_t arena_start, uintptr_t arena_size) {
+    LTRACEF("name '%s' start %#lx size %#lx\n", name, arena_start, arena_size);
     for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
         if (arena[i].pages == 0) {
+            // if this arena covers where the kernel is, bump start to MEM_START
+            if (arena_start < END_OF_KERNEL && arena_start + arena_size > END_OF_KERNEL) {
+                arena_size -= END_OF_KERNEL - arena_start;
+                arena_start = END_OF_KERNEL;
+                LTRACEF("trimming arena to %#lx size %#lx\n", arena_start, arena_size);
+            }
+
             novm_init_helper(&arena[i], name, arena_start, arena_size, NULL, 0);
             return;
         }
@@ -129,12 +143,14 @@ void novm_add_arena(const char *name, uintptr_t arena_start, uintptr_t arena_siz
     panic("novm_add_arena: too many arenas added, bump NOVM_MAX_ARENAS!\n");
 }
 
+#if NOVM_DEFAULT_ARENA
 static void novm_init(uint level) {
     static char mem_allocation_map[DEFAULT_MAP_SIZE];
     novm_init_helper(&arena[0], "main", MEM_START, MEM_SIZE, mem_allocation_map, DEFAULT_MAP_SIZE);
 }
 
 LK_INIT_HOOK(novm, &novm_init, LK_INIT_LEVEL_PLATFORM_EARLY - 1);
+#endif
 
 void *novm_alloc_helper(struct novm_arena *n, size_t pages) {
     if (pages == 0 || pages > n->pages)
