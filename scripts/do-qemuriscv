@@ -55,12 +55,10 @@ done
 shift $((OPTIND-1))
 
 if (( $DO_64BIT )); then
-    echo unsupported now
-    exit 1
     QEMU="qemu-system-riscv64"
-    #CPU="cortex-a53"
+    CPU="any"
     MACHINE="virt"
-    _PROJECT="qemu-virt-arm64-test"
+    _PROJECT="qemu-virt-riscv64-test"
 elif (( $DO_EMBEDDED == 1 )); then
     QEMU="qemu-system-riscv32"
     MACHINE="sifive_e"

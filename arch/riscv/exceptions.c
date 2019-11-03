@@ -43,12 +43,15 @@ void riscv_exception_handler(ulong cause, ulong epc, struct riscv_short_iframe *
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(frame->mstatus & RISCV_STATUS_MPIE);
 
+    // top bit of the cause register determines if it's an interrupt or not
+    const ulong int_bit = (__riscv_xlen == 32) ? (1ul<<31) : (1ul<<63);
+
     enum handler_return ret = INT_NO_RESCHEDULE;
     switch (cause) {
-        case 0x80000007: // machine timer interrupt
+        case int_bit | 0x7: // machine timer interrupt
             ret = riscv_timer_exception();
             break;
-        case 0x8000000b: // machine external interrupt
+        case int_bit | 0xb: // machine external interrupt
             ret = riscv_platform_irq();
             break;
         default:

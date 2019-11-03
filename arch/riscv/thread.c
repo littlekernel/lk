@@ -55,13 +55,13 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
 
     LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
 
-    riscv32_context_switch(&oldthread->arch.cs_frame, &newthread->arch.cs_frame);
+    riscv_context_switch(&oldthread->arch.cs_frame, &newthread->arch.cs_frame);
 }
 
 void arch_dump_thread(thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
-        dprintf(INFO, "sp 0x%x\n", t->arch.cs_frame.sp);
+        dprintf(INFO, "sp %#lx\n", t->arch.cs_frame.sp);
     }
 }
 

@@ -16,8 +16,12 @@ ROMBASE ?= 0x20400000 # if running from rom, start here
 MEMBASE ?= 0x80000000
 MEMSIZE ?= 0x00100000 # default to 1MB
 
+ifeq ($(VARIANT),sifive_e)
 # uses a two segment layout, select the appropriate linker script
 ARCH_RISCV_TWOSEGMENT := 1
+# sets a few options in the riscv arch
+ARCH_RISCV_EMBEDDED := 1
+endif
 
 # sifive_e or _u?
 GLOBAL_DEFINES += PLATFORM_${VARIANT}=1

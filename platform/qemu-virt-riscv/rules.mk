@@ -4,7 +4,6 @@ MODULE := $(LOCAL_DIR)
 
 ARCH := riscv
 SUBARCH ?= 32
-VARIANT ?= sifive_u
 
 MODULE_DEPS += lib/cbuf
 

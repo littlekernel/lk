@@ -13,4 +13,8 @@
 // XXX is this right?
 #define CACHE_LINE 32
 
+#if ARCH_RISCV_EMBEDDED
 #define ARCH_DEFAULT_STACK_SIZE 1024
+#else
+#define ARCH_DEFAULT_STACK_SIZE 4096
+#endif

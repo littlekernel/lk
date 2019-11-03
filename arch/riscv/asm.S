@@ -7,43 +7,55 @@
  */
 #include <lk/asm.h>
 
-/* void riscv32_context_switch(
-    struct riscv32_context_switch_frame *oldcs,
-    struct riscv32_context_switch_frame *newcs); */
-FUNCTION(riscv32_context_switch)
+// based on 32 or 64bit register widths, select the 32 or 64 bit
+// wide load/stores
+#if __riscv_xlen == 32
+#define REGOFF(x) ((x) * 4)
+#define STR       sw
+#define LDR       lw
+#else
+#define REGOFF(x) ((x) * 8)
+#define STR       sd
+#define LDR       ld
+#endif
+
+/* void riscv_context_switch(
+    struct riscv_context_switch_frame *oldcs,
+    struct riscv_context_switch_frame *newcs); */
+FUNCTION(riscv_context_switch)
     # a0 = oldcs
     # a1 = newcs
-    sw     ra, 0(a0)
-    sw     sp, 4(a0)
-    sw     tp, 8(a0)
-    sw     s0, 12(a0)
-    sw     s1, 16(a0)
-    sw     s2, 20(a0)
-    sw     s3, 24(a0)
-    sw     s4, 28(a0)
-    sw     s5, 32(a0)
-    sw     s6, 36(a0)
-    sw     s7, 40(a0)
-    sw     s8, 44(a0)
-    sw     s9, 48(a0)
-    sw     s10, 52(a0)
-    sw     s11, 56(a0)
+    STR    ra, REGOFF(0)(a0)
+    STR    sp, REGOFF(1)(a0)
+    STR    tp, REGOFF(2)(a0)
+    STR    s0, REGOFF(3)(a0)
+    STR    s1, REGOFF(4)(a0)
+    STR    s2, REGOFF(5)(a0)
+    STR    s3, REGOFF(6)(a0)
+    STR    s4, REGOFF(7)(a0)
+    STR    s5, REGOFF(8)(a0)
+    STR    s6, REGOFF(9)(a0)
+    STR    s7, REGOFF(10)(a0)
+    STR    s8, REGOFF(11)(a0)
+    STR    s9, REGOFF(12)(a0)
+    STR    s10, REGOFF(13)(a0)
+    STR    s11, REGOFF(14)(a0)
 
-    lw     s11, 56(a1)
-    lw     s10, 52(a1)
-    lw     s9, 48(a1)
-    lw     s8, 44(a1)
-    lw     s7, 40(a1)
-    lw     s6, 36(a1)
-    lw     s5, 32(a1)
-    lw     s4, 28(a1)
-    lw     s3, 24(a1)
-    lw     s2, 20(a1)
-    lw     s1, 16(a1)
-    lw     s0, 12(a1)
-    lw     tp, 8(a1)
-    lw     sp, 4(a1)
-    lw     ra, 0(a1)
+    LDR    s11, REGOFF(14)(a1)
+    LDR    s10, REGOFF(13)(a1)
+    LDR    s9, REGOFF(12)(a1)
+    LDR    s8, REGOFF(11)(a1)
+    LDR    s7, REGOFF(10)(a1)
+    LDR    s6, REGOFF(9)(a1)
+    LDR    s5, REGOFF(8)(a1)
+    LDR    s4, REGOFF(7)(a1)
+    LDR    s3, REGOFF(6)(a1)
+    LDR    s2, REGOFF(5)(a1)
+    LDR    s1, REGOFF(4)(a1)
+    LDR    s0, REGOFF(3)(a1)
+    LDR    tp, REGOFF(2)(a1)
+    LDR    sp, REGOFF(1)(a1)
+    LDR    ra, REGOFF(0)(a1)
 
     ret
 
@@ -51,54 +63,54 @@ FUNCTION(riscv32_context_switch)
 .balign 4
 FUNCTION(riscv_exception_entry)
     /* dump all the callee trashed regs on the stack */
-    addi   sp, sp, -80 // subtract a multiple of 16 to align the stack
-    sw     t6, 68(sp)
-    sw     t5, 64(sp)
-    sw     t4, 60(sp)
-    sw     t3, 56(sp)
-    sw     t2, 52(sp)
-    sw     t1, 48(sp)
-    sw     t0, 44(sp)
-    sw     a7, 40(sp)
-    sw     a6, 36(sp)
-    sw     a5, 32(sp)
-    sw     a4, 28(sp)
-    sw     a3, 24(sp)
-    sw     a2, 20(sp)
-    sw     a1, 16(sp)
-    sw     a0, 12(sp)
-    sw     ra, 8(sp)
+    addi   sp, sp, -REGOFF(20) // subtract a multiple of 16 to align the stack in 32bit
+    STR    t6, REGOFF(17)(sp)
+    STR    t5, REGOFF(16)(sp)
+    STR    t4, REGOFF(15)(sp)
+    STR    t3, REGOFF(14)(sp)
+    STR    t2, REGOFF(13)(sp)
+    STR    t1, REGOFF(12)(sp)
+    STR    t0, REGOFF(11)(sp)
+    STR    a7, REGOFF(10)(sp)
+    STR    a6, REGOFF(9)(sp)
+    STR    a5, REGOFF(8)(sp)
+    STR    a4, REGOFF(7)(sp)
+    STR    a3, REGOFF(6)(sp)
+    STR    a2, REGOFF(5)(sp)
+    STR    a1, REGOFF(4)(sp)
+    STR    a0, REGOFF(3)(sp)
+    STR    ra, REGOFF(2)(sp)
     csrr   t0, mstatus
-    sw     t0, 4(sp)
+    STR    t0, REGOFF(1)(sp)
     csrr   a0, mcause
     csrr   a1, mepc
-    sw     a1, 0(sp)
+    STR    a1, REGOFF(0)(sp)
     mv     a2, sp
 
     jal    riscv_exception_handler
 
     /* put everything back */
-    lw     t0, 0(sp)
+    LDR    t0, REGOFF(0)(sp)
     csrw   mepc, t0
-    lw     t0, 4(sp)
+    LDR    t0, REGOFF(1)(sp)
     csrw   mstatus, t0
 
-    lw     ra, 8(sp)
-    lw     a0, 12(sp)
-    lw     a1, 16(sp)
-    lw     a2, 20(sp)
-    lw     a3, 24(sp)
-    lw     a4, 28(sp)
-    lw     a5, 32(sp)
-    lw     a6, 36(sp)
-    lw     a7, 40(sp)
-    lw     t0, 44(sp)
-    lw     t1, 48(sp)
-    lw     t2, 52(sp)
-    lw     t3, 56(sp)
-    lw     t4, 60(sp)
-    lw     t5, 64(sp)
-    lw     t6, 68(sp)
-    addi   sp, sp, 80
+    LDR    ra, REGOFF(2)(sp)
+    LDR    a0, REGOFF(3)(sp)
+    LDR    a1, REGOFF(4)(sp)
+    LDR    a2, REGOFF(5)(sp)
+    LDR    a3, REGOFF(6)(sp)
+    LDR    a4, REGOFF(7)(sp)
+    LDR    a5, REGOFF(8)(sp)
+    LDR    a6, REGOFF(9)(sp)
+    LDR    a7, REGOFF(10)(sp)
+    LDR    t0, REGOFF(11)(sp)
+    LDR    t1, REGOFF(12)(sp)
+    LDR    t2, REGOFF(13)(sp)
+    LDR    t3, REGOFF(14)(sp)
+    LDR    t4, REGOFF(15)(sp)
+    LDR    t5, REGOFF(16)(sp)
+    LDR    t6, REGOFF(17)(sp)
+    addi   sp, sp, REGOFF(20)
 
     mret

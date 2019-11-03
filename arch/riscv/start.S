@@ -7,26 +7,6 @@
  */
 #include <lk/asm.h>
 
-#if 0
-.section ".vectors", "ax"
-.globl _vectab
-_vectab:
-/* vector table here */
-    # start vector
-    brai start
-    # user exception
-    brai unhandled_exception
-    # interrupt
-    brai microblaze_irq
-    # break
-    brai unhandled_exception
-    # hardware exception
-    brai unhandled_exception
-
-    # reserved for future
-.fill (0x50 - 0x28)
-#endif
-
 .section ".text.boot"
 FUNCTION(_start)
 .option push
@@ -38,7 +18,7 @@ FUNCTION(_start)
     # set the default stack
     la      sp, default_stack_top
 
-#if 1
+#if ARCH_RISCV_TWOSEGMENT
     # copy preinitialized data from flash to memory
     la      t0, __data_start_rom
     la      t1, __data_start

@@ -1,4 +1,4 @@
-OUTPUT_FORMAT("elf32-littleriscv", "elf32-littleriscv", "elf32-littleriscv")
+OUTPUT_FORMAT("elf%BITS%-littleriscv", "elf%BITS%-bigriscv", "elf%BITS%-littleriscv")
 OUTPUT_ARCH(riscv)
 
 ENTRY(_start)

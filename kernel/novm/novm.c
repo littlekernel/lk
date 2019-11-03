@@ -281,7 +281,7 @@ static void novm_dump_arena(struct novm_arena *n) {
     }
 
     mutex_acquire(&n->lock);
-    printf("name '%s', %d pages, each %zdk (%zdk in all)\n", n->name, n->pages, PAGE_SIZE >> 10, (PAGE_SIZE * n->pages) >> 10);
+    printf("name '%s', %zu pages, each %zdk (%zdk in all)\n", n->name, n->pages, (size_t)PAGE_SIZE >> 10, (size_t)(PAGE_SIZE * n->pages) >> 10);
     printf("  range: %p-%p\n", (void *)n->base, (char *)n->base + n->size);
     printf("  unaligned range: %p-%p\n", n->unaligned_area, n->unaligned_area + n->unaligned_size);
     unsigned i;
