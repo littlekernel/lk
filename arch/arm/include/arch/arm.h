@@ -123,11 +123,36 @@ static inline __ALWAYS_INLINE void arm_write_##reg##_relaxed(uint32_t val) { \
     __asm__ volatile("mcr " #cp ", " #op1 ", %0, " #c1 ","  #c2 "," #op2 :: "r" (val)); \
 }
 
+#define GEN_CP_REG64_FUNCS(cp, reg, op1, crm) \
+static inline __ALWAYS_INLINE uint32_t arm_read_##reg(void) { \
+    uint64_t _val; \
+    __asm__ volatile("mrrc " #cp ", " #op1 ", %0, %H0, " #crm : "=r" (_val)); \
+    return _val; \
+} \
+\
+static inline __ALWAYS_INLINE uint32_t arm_read_##reg##_relaxed(void) { \
+    uint64_t _val; \
+    __asm__("mrrc " #cp ", " #op1 ", %0, %H0, " #crm : "=r" (_val)); \
+    return _val; \
+} \
+\
+static inline __ALWAYS_INLINE void arm_write_##reg(uint64_t val) { \
+    __asm__ volatile("mcrr " #cp ", " #op1 ", %0, %H0, " #crm :: "r" (val)); \
+    ISB; \
+} \
+\
+static inline __ALWAYS_INLINE void arm_write_##reg##_relaxed(uint64_t val) { \
+    __asm__ volatile("mcrr " #cp ", " #op1 ", %0, %H0, " #crm :: "r" (val)); \
+}
+
 #define GEN_CP15_REG_FUNCS(reg, op1, c1, c2, op2) \
     GEN_CP_REG_FUNCS(p15, reg, op1, c1, c2, op2)
 
 #define GEN_CP14_REG_FUNCS(reg, op1, c1, c2, op2) \
     GEN_CP_REG_FUNCS(p14, reg, op1, c1, c2, op2)
+
+#define GEN_CP15_REG64_FUNCS(reg, op1, crm) \
+    GEN_CP_REG64_FUNCS(p15, reg, op1, crm)
 
 /* armv6+ control regs */
 GEN_CP15_REG_FUNCS(sctlr, 0, c1, c0, 0);
