@@ -183,6 +183,15 @@ GLOBAL_DEFINES += \
 	ARM_CPU_ARM1136=1
 HANDLED_CORE := true
 endif
+ifeq ($(ARM_CPU),cortex-r4f)
+GLOBAL_DEFINES += \
+	ARM_CPU_CORTEX_R4F=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_WITH_VFP=1 \
+	ARM_WITH_THUMB=1
+	ENABLE_THUMB := true
+	HANDLED_CORE := true
+endif
 ifeq ($(ARM_CPU),armemu)
 # flavor of emulated cpu by the armemu project
 GLOBAL_DEFINES += \
