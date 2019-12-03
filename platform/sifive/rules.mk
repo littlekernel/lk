@@ -26,9 +26,4 @@ endif
 # sifive_e or _u?
 GLOBAL_DEFINES += PLATFORM_${VARIANT}=1
 
-# set some global defines based on capability
-GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1
-GLOBAL_DEFINES += ARCH_RISCV_CLINT_BASE=0x02000000
-GLOBAL_DEFINES += ARCH_RISCV_MTIME_RATE=32768
-
 include make/module.mk
