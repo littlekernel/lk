@@ -38,7 +38,7 @@ else ifeq ($(SUBARCH),64)
 ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := riscv64-elf-
 endif
-ARCH_COMPILEFLAGS := -march=rv64imafdc -mabi=lp64d -mcmodel=medany
+ARCH_COMPILEFLAGS := -march=rv64imac -mabi=lp64 -mcmodel=medany
 
 else
 $(error SUBARCH not set or set to something unknown)
