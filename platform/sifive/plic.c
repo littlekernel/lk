@@ -21,12 +21,12 @@
 
 // Driver for PLIC implementation in SiFive E and U boards
 
-#define PLIC_PRIORITY(x) (PLIC_BASE + 4 * (x))
-#define PLIC_PENDING(x)  (PLIC_BASE + 0x1000 + 4 * ((x) / 32))
-#define PLIC_ENABLE(x)   (PLIC_BASE + 0x2000 + 4 * ((x) / 32))
-#define PLIC_THRESHOLD   (PLIC_BASE + 0x200000)
-#define PLIC_COMPLETE    (PLIC_BASE + 0x200004)
-#define PLIC_CLAIM       PLIC_COMPLETE
+#define PLIC_PRIORITY(irq) (PLIC_BASE + 4 * (irq))
+#define PLIC_PENDING(irq)  (PLIC_BASE + 0x1000 + (4 * ((irq) / 32)))
+#define PLIC_ENABLE(irq, hart)      (PLIC_BASE + 0x2000 + (0x80 * PLIC_HART_IDX(hart)) + (4 * ((irq) / 32)))
+#define PLIC_THRESHOLD(hart)        (PLIC_BASE + 0x200000 + (0x1000 * PLIC_HART_IDX(hart)))
+#define PLIC_COMPLETE(hart)         (PLIC_BASE + 0x200004 + (0x1000 * PLIC_HART_IDX(hart)))
+#define PLIC_CLAIM(hart)            PLIC_COMPLETE(hart)
 
 static struct int_handlers {
     int_handler handler;
@@ -36,24 +36,24 @@ static struct int_handlers {
 void plic_early_init(void) {
     // mask all irqs and set their priority to 1
     for (int i = 1; i < SIFIVE_NUM_IRQS; i++) {
-        *REG32(PLIC_ENABLE(i)) &= ~(1 << (i % 32));
+        *REG32(PLIC_ENABLE(i, riscv_current_hart())) &= ~(1 << (i % 32));
         *REG32(PLIC_PRIORITY(i)) = 1;
     }
 
     // set global priority threshold to 0
-    *REG32(PLIC_THRESHOLD) = 0;
+    *REG32(PLIC_THRESHOLD(riscv_current_hart())) = 0;
 }
 
 void plic_init(void) {
 }
 
 status_t mask_interrupt(unsigned int vector) {
-    *REG32(PLIC_ENABLE(vector)) &= ~(1 << (vector % 32));
+    *REG32(PLIC_ENABLE(vector, riscv_current_hart())) &= ~(1 << (vector % 32));
     return NO_ERROR;
 }
 
 status_t unmask_interrupt(unsigned int vector) {
-    *REG32(PLIC_ENABLE(vector)) |= (1 << (vector % 32));
+    *REG32(PLIC_ENABLE(vector, riscv_current_hart())) |= (1 << (vector % 32));
     return NO_ERROR;
 }
 
@@ -68,7 +68,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
 
 enum handler_return riscv_platform_irq(void) {
     // see what irq triggered it
-    uint32_t vector = *REG32(PLIC_CLAIM);
+    uint32_t vector = *REG32(PLIC_CLAIM(riscv_current_hart()));
     LTRACEF("vector %u\n", vector);
 
     if (unlikely(vector == 0)) {
@@ -85,7 +85,7 @@ enum handler_return riscv_platform_irq(void) {
     }
 
     // ack the interrupt
-    *REG32(PLIC_COMPLETE) = vector;
+    *REG32(PLIC_COMPLETE(riscv_current_hart())) = vector;
 
     KEVLOG_IRQ_EXIT(vector);
 

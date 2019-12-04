@@ -96,6 +96,8 @@ SECTIONS
         __bss_end = .;
     }
 
+    /* Align the end to ensure anything after the kernel ends up on its own pages */
+    . = ALIGN(4096);
     _end = .;
 
     . = %KERNEL_BASE% + %MEMSIZE%;

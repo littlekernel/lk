@@ -40,15 +40,14 @@ static inline int atomic_swap(volatile int *ptr, int val) {
     return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
 }
 
-/* use a global pointer to store the current_thread */
-extern struct thread *_current_thread;
-
 static inline struct thread *get_current_thread(void) {
-    return _current_thread;
+    struct thread *current_thread;
+    __asm__ volatile("mv %0,tp" : "=r"(current_thread));
+    return current_thread;
 }
 
 static inline void set_current_thread(struct thread *t) {
-    _current_thread = t;
+    __asm__ volatile("mv tp,%0" : : "r"(t) : "tp");
 }
 
 static inline uint32_t arch_cycle_count(void) {
@@ -60,6 +59,6 @@ static inline uint32_t arch_cycle_count(void) {
 }
 
 static inline uint arch_curr_cpu_num(void) {
-    return 0;
+    return riscv_csr_read(mhartid);
 }
 
