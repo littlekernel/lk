@@ -73,5 +73,7 @@
     __val; \
 })
 
+#define riscv_current_hart()  riscv_csr_read(mhartid)
+
 void riscv_exception_entry(void);
 enum handler_return riscv_timer_exception(void);

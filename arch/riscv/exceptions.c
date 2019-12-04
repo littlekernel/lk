@@ -36,18 +36,22 @@ struct riscv_short_iframe {
 };
 
 extern enum handler_return riscv_platform_irq(void);
+extern enum handler_return riscv_software_exception(void);
 
 void riscv_exception_handler(ulong cause, ulong epc, struct riscv_short_iframe *frame) {
     LTRACEF("cause %#lx epc %#lx mstatus %#lx\n", cause, epc, frame->mstatus);
 
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(frame->mstatus & RISCV_STATUS_MPIE);
+    // DEBUG_ASSERT(frame->mstatus & RISCV_STATUS_MPIE);
 
     // top bit of the cause register determines if it's an interrupt or not
     const ulong int_bit = (__riscv_xlen == 32) ? (1ul<<31) : (1ul<<63);
 
     enum handler_return ret = INT_NO_RESCHEDULE;
     switch (cause) {
+        case int_bit | 0x3: // machine software interrupt
+            ret = riscv_software_exception();
+            break;
         case int_bit | 0x7: // machine timer interrupt
             ret = riscv_timer_exception();
             break;

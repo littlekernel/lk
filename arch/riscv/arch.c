@@ -11,8 +11,16 @@
 #include <stdint.h>
 #include <arch/riscv.h>
 #include <arch/ops.h>
+#include <arch/mp.h>
+#include <lk/init.h>
+#include <lk/main.h>
 
 #define LOCAL_TRACE 0
+
+#if WITH_SMP
+static spin_lock_t boot_cpu_lock = 1;
+static volatile int secondaries_to_init = SMP_MAX_CPUS - 1;
+#endif
 
 void arch_early_init(void) {
     // set the top level exception handler
@@ -35,7 +43,48 @@ void arch_init(void) {
 
     // enable external interrupts
     riscv_csr_set(mie, RISCV_MIE_MEIE);
+
+#if WITH_SMP
+    arch_mp_init_percpu();
+
+    lk_init_secondary_cpus(secondaries_to_init);
+
+    LTRACEF("RISCV: Waiting for %d secondary harts to come up\n", secondaries_to_init);
+    /* release the secondary cpus */
+    spin_unlock(&boot_cpu_lock);
+    // while (secondaries_to_init) arch_idle();
+    // spin_lock(&boot_cpu_lock);
+#endif
 }
+
+#if WITH_SMP
+void riscv_secondary_entry(void) {
+    arch_early_init();
+
+    if (unlikely(riscv_csr_read(mhartid) >= SMP_MAX_CPUS))
+        while (1) arch_idle();
+
+    spin_lock(&boot_cpu_lock);
+    spin_unlock(&boot_cpu_lock);
+
+    // enable external interrupts
+    riscv_csr_set(mie, RISCV_MIE_MEIE);
+
+    /* run early secondary cpu init routines up to the threading level */
+    lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
+
+    arch_mp_init_percpu();
+
+    dprintf(INFO, "RISCV: secondary hart coming up: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#lx\n",
+            riscv_csr_read(mvendorid), riscv_csr_read(marchid),
+            riscv_csr_read(mimpid), riscv_csr_read(mhartid));
+
+    // atomic_add(&secondaries_to_init, -1);
+    // arch_mp_send_ipi(1 << 0, MP_IPI_GENERIC); // wake up hart0 to let it know this CPU has come up
+
+    lk_secondary_cpu_entry();
+}
+#endif
 
 void arch_idle(void) {
     // disabled for now, QEMU seems to have some trouble emulating wfi properly

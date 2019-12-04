@@ -25,3 +25,4 @@
 #define GPIO_REG_IOF_EN     14
 #define GPIO_REG_IOF_SEL    15
 
+#define PLIC_HART_IDX(hart)    0

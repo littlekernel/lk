@@ -12,7 +12,6 @@
 struct riscv_context_switch_frame {
     unsigned long ra; // return address (x1)
     unsigned long sp; // stack pointer (x2)
-    unsigned long tp; // thread pointer (x4)
 
     unsigned long s0; // x8-x9
     unsigned long s1;

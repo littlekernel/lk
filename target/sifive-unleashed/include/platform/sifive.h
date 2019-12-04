@@ -20,3 +20,5 @@
 #define PWM0_BASE  0x10020000
 #define PWM1_BASE  0x10021000
 #define GPIO_BASE  0x10060000
+
+#define PLIC_HART_IDX(hart)    ((hart) ? ((2 * (hart)) - 1) : 0)

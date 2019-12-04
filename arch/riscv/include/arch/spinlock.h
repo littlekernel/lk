@@ -10,23 +10,32 @@
 #include <arch/ops.h>
 #include <stdbool.h>
 
-#if WITH_SMP
-#error microblaze does not support SMP
-#endif
-
 #define SPIN_LOCK_INITIAL_VALUE (0)
 
-typedef unsigned int spin_lock_t;
+typedef volatile unsigned int spin_lock_t;
 
 typedef unsigned long spin_lock_saved_state_t;
 typedef unsigned int spin_lock_save_flags_t;
 
-static inline void arch_spin_lock(spin_lock_t *lock) {
-    *lock = 1;
+static inline int arch_spin_trylock(spin_lock_t *lock) {
+    int tmp = 1, busy;
+
+    __asm__ __volatile__(
+        "   amoswap.w %0, %2, %1\n"
+        "   fence r , rw\n"
+        : "=r"(busy), "+A"(*lock)
+        : "r" (tmp)
+        : "memory"
+    );
+
+    return !busy;
 }
 
-static inline int arch_spin_trylock(spin_lock_t *lock) {
-    return 0;
+static inline void arch_spin_lock(spin_lock_t *lock) {
+    while (1) {
+        if (*lock) continue;
+        if (arch_spin_trylock(lock)) break;
+    }
 }
 
 static inline void arch_spin_unlock(spin_lock_t *lock) {
