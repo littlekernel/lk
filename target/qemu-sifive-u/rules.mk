@@ -7,7 +7,13 @@ VARIANT := sifive_u
 
 GLOBAL_DEFINES += SIFIVE_FREQ=5000000 # 5 MHz
 
+RISCV_MODE ?= machine
+
+ifeq ($(RISCV_MODE),supervisor)
+MEMBASE ?= 0x080200000
+else
 MEMBASE ?= 0x080000000
+endif
 MEMSIZE ?= 0x200000000 # 8 GiB
 
 WITH_SMP := 0

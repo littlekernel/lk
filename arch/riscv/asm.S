@@ -6,6 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <lk/asm.h>
+#include <arch/riscv.h>
 
 // based on 32 or 64bit register widths, select the 32 or 64 bit
 // wide load/stores
@@ -78,10 +79,10 @@ FUNCTION(riscv_exception_entry)
     STR    a1, REGOFF(4)(sp)
     STR    a0, REGOFF(3)(sp)
     STR    ra, REGOFF(2)(sp)
-    csrr   t0, mstatus
+    csrr   t0, RISCV_CSR_XSTATUS
     STR    t0, REGOFF(1)(sp)
-    csrr   a0, mcause
-    csrr   a1, mepc
+    csrr   a0, RISCV_CSR_XCAUSE
+    csrr   a1, RISCV_CSR_XEPC
     STR    a1, REGOFF(0)(sp)
     mv     a2, sp
 
@@ -89,9 +90,9 @@ FUNCTION(riscv_exception_entry)
 
     /* put everything back */
     LDR    t0, REGOFF(0)(sp)
-    csrw   mepc, t0
+    csrw   RISCV_CSR_XEPC, t0
     LDR    t0, REGOFF(1)(sp)
-    csrw   mstatus, t0
+    csrw   RISCV_CSR_XSTATUS, t0
 
     LDR    ra, REGOFF(2)(sp)
     LDR    a0, REGOFF(3)(sp)
@@ -111,4 +112,4 @@ FUNCTION(riscv_exception_entry)
     LDR    t6, REGOFF(17)(sp)
     addi   sp, sp, REGOFF(20)
 
-    mret
+    RISCV_XRET

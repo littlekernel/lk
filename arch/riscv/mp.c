@@ -11,10 +11,12 @@
 #include <lk/trace.h>
 #include <lk/err.h>
 
+#include <arch/ops.h>
 #include <arch/mp.h>
 
 #define LOCAL_TRACE 0
 
+int hart_cpu_map[SMP_MAX_CPUS] = { [0 ... SMP_MAX_CPUS-1] = -1 };
 static mp_ipi_t ipi_data[SMP_MAX_CPUS];
 
 extern void clint_ipi_send(unsigned long target_hart);
@@ -23,26 +25,32 @@ extern void clint_ipi_clear(unsigned long target_hart);
 status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
 	LTRACEF("target 0x%x, ipi %u\n", target, ipi);
 
-	unsigned long cur_hart = riscv_csr_read(mhartid);
-	unsigned long h = 0;
+	unsigned long hart_mask = 0;
+	unsigned long c = 0, h;
 	mp_cpu_mask_t m = target;
-	for (; h < SMP_MAX_CPUS && m; h++, m >>= 1) {
-		if ((m & 1) && (h != cur_hart)) {
-			ipi_data[h] = ipi;
-			asm volatile("	fence iorw,iorw");
-			clint_ipi_send(h);
+	for (; c < SMP_MAX_CPUS && m; c++, m >>= 1) {
+		h = hart_cpu_map[c];
+		if (m & 1) {
+			hart_mask |= (1 << h);
 		}
 	}
 
-	if(target & (1 << cur_hart)) {
-		clint_ipi_send(cur_hart);
-	}
+	asm volatile("	fence iorw,iorw");
+#if RISCV_M_MODE
+	clint_send_ipis(&hart_mask);
+#else
+	sbi_send_ipis(&hart_mask);
+#endif
 
 	return NO_ERROR;
 }
 
 enum handler_return riscv_software_exception(void) {
-	clint_ipi_clear(riscv_csr_read(mhartid));
+#if RISCV_M_MODE
+	clint_ipi_clear(riscv_current_hart());
+#else
+	sbi_clear_ipi();
+#endif
 	asm volatile("	fence ir,ir");
 	mp_ipi_t reason = ipi_data[riscv_current_hart()];
 	ipi_data[riscv_current_hart()] = 0;
@@ -52,7 +60,7 @@ enum handler_return riscv_software_exception(void) {
 		case MP_IPI_GENERIC:
 			break;
 		default:
-			TRACEF("unhandled ipi cause %#x, hartid %#lx\n", reason, riscv_current_hart());
+			TRACEF("unhandled ipi cause %#x, hartid %#x\n", reason, riscv_current_hart());
 			panic("stopping");
 			break;
 	}
@@ -62,5 +70,6 @@ enum handler_return riscv_software_exception(void) {
 }
 
 void arch_mp_init_percpu(void) {
-	riscv_csr_set(mie, RISCV_MIE_MSIE);
+	dprintf(INFO, "\nRISCV: Booting hart%d (cpu%d)\n", riscv_current_hart(), arch_curr_cpu_num());
+	riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_SIE);
 }

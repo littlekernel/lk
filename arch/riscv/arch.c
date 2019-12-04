@@ -14,6 +14,7 @@
 #include <arch/mp.h>
 #include <lk/init.h>
 #include <lk/main.h>
+#include <platform.h>
 
 #define LOCAL_TRACE 0
 
@@ -24,11 +25,11 @@ static volatile int secondaries_to_init = SMP_MAX_CPUS - 1;
 
 void arch_early_init(void) {
     // set the top level exception handler
-    riscv_csr_write(mtvec, (uintptr_t)&riscv_exception_entry);
+    riscv_csr_write(RISCV_CSR_XTVEC, (uintptr_t)&riscv_exception_entry);
 
     // mask all exceptions, just in case
-    riscv_csr_clear(mstatus, RISCV_STATUS_MIE);
-    riscv_csr_clear(mie, RISCV_MIE_MTIE | RISCV_MIE_MSIE | RISCV_MIE_SEIE | RISCV_MIE_MEIE);
+    riscv_csr_clear(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_IE);
+    riscv_csr_clear(RISCV_CSR_XIE, RISCV_CSR_XIE_SIE | RISCV_CSR_XIE_TIE | RISCV_CSR_XIE_EIE);
 
     // enable cycle counter (disabled for now, unimplemented on sifive-e)
     //riscv_csr_set(mcounteren, 1);
@@ -36,13 +37,17 @@ void arch_early_init(void) {
 
 void arch_init(void) {
     // print some arch info
-    dprintf(INFO, "RISCV: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#lx\n",
-            riscv_csr_read(mvendorid), riscv_csr_read(marchid),
-            riscv_csr_read(mimpid), riscv_csr_read(mhartid));
-    dprintf(INFO, "RISCV: misa %#lx\n", riscv_csr_read(misa));
+    dprintf(INFO, "RISCV: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#x\n",
+            riscv_get_mvendorid(), riscv_get_marchid(),
+            riscv_get_mimpid(), riscv_current_hart());
+#if RISCV_M_MODE
+    dprintf(INFO, "RISCV: misa %#lx\n", riscv_csr_read(RISCV_CSR_MISA));
+#else
+    dprintf(INFO, "RISCV: sbi %#lx (%#lx)\n", sbi_call(SBI_GET_SBI_IMPL_ID).value, sbi_call(SBI_GET_SBI_IMPL_VERSION).value);
+#endif
 
     // enable external interrupts
-    riscv_csr_set(mie, RISCV_MIE_MEIE);
+    riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_EIE);
 
 #if WITH_SMP
     arch_mp_init_percpu();
@@ -61,23 +66,25 @@ void arch_init(void) {
 void riscv_secondary_entry(void) {
     arch_early_init();
 
-    if (unlikely(riscv_csr_read(mhartid) >= SMP_MAX_CPUS))
+    if (unlikely(arch_curr_cpu_num() >= SMP_MAX_CPUS))
         while (1) arch_idle();
 
     spin_lock(&boot_cpu_lock);
     spin_unlock(&boot_cpu_lock);
 
     // enable external interrupts
-    riscv_csr_set(mie, RISCV_MIE_MEIE);
+    riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_EIE);
 
     /* run early secondary cpu init routines up to the threading level */
     lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
 
     arch_mp_init_percpu();
 
-    dprintf(INFO, "RISCV: secondary hart coming up: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#lx\n",
+# if RISCV_M_MODE
+    dprintf(INFO, "RISCV: secondary hart coming up: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#x\n",
             riscv_csr_read(mvendorid), riscv_csr_read(marchid),
-            riscv_csr_read(mimpid), riscv_csr_read(mhartid));
+            riscv_csr_read(mimpid), riscv_current_hart());
+# endif /* RISCV_M_MODE */
 
     // atomic_add(&secondaries_to_init, -1);
     // arch_mp_send_ipi(1 << 0, MP_IPI_GENERIC); // wake up hart0 to let it know this CPU has come up

@@ -9,19 +9,20 @@
 
 #include <lk/compiler.h>
 #include <lk/debug.h>
+#include <arch/csr.h>
 #include <arch/riscv.h>
+#include <arch/clint.h>
 
 static inline void arch_enable_ints(void) {
-    riscv_csr_set(mstatus, RISCV_STATUS_MIE);
+    riscv_csr_set(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_IE);
 }
 
 static inline void arch_disable_ints(void) {
-    riscv_csr_clear(mstatus, RISCV_STATUS_MIE);
+    riscv_csr_clear(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_IE);
 }
 
 static inline bool arch_ints_disabled(void) {
-    ulong val = riscv_csr_read(mstatus);
-    return !(val & RISCV_STATUS_MIE);
+    return !(riscv_csr_read(RISCV_CSR_XSTATUS) & RISCV_CSR_XSTATUS_IE);
 }
 
 static inline int atomic_add(volatile int *ptr, int val) {
@@ -51,14 +52,21 @@ static inline void set_current_thread(struct thread *t) {
 }
 
 static inline uint32_t arch_cycle_count(void) {
-    uint32_t count;
-
-    //__asm__("rdcycle %0" : "=r"(count));
-    count = riscv_csr_read(mcycle);
-    return count;
+    return riscv_csr_read(RISCV_CSR_CYCLE);
 }
 
 static inline uint arch_curr_cpu_num(void) {
-    return riscv_csr_read(mhartid);
+    const uint hart = riscv_current_hart();
+    for (size_t i = 0; i < SMP_MAX_CPUS; i++) {
+        if (hart_cpu_map[i] == (int)hart)
+            return i;
+        else if (unlikely(hart_cpu_map[i] == -1)) {
+            if(i != 0 || hart == BOOT_HART) {
+                hart_cpu_map[i] = hart;
+                return i;
+            }
+        }
+    }
+    return -1;
 }
 
