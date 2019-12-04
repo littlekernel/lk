@@ -7,27 +7,74 @@
  */
 #pragma once
 
-#define RISCV_STATUS_SIE        (1u << 2)
-#define RISCV_STATUS_MIE        (1u << 3)
-#define RISCV_STATUS_MPIE       (1u << 7)
-#define RISCV_STATUS_MPP_MASK   (3u << 11)
+#include <config.h>
 
-#define RISCV_MIE_MSIE          (1u << 3)
-#define RISCV_MIE_MTIE          (1u << 7)
-#define RISCV_MIE_SEIE          (1u << 9)
-#define RISCV_MIE_MEIE          (1u << 11)
+#define RISCV_USER_OFFSET   (0u)
+#define RISCV_SUPER_OFFSET  (1u)
+#define RISCV_HYPER_OFFSET  (2u)
+#define RISCV_MACH_OFFSET   (3u)
 
-#define RISCV_MIP_MSIP          (1u << 3)
-#define RISCV_MIP_MTIP          (1u << 7)
-#define RISCV_MIP_MEIP          (1u << 11)
+#if RISCV_M_MODE
+# define RISCV_XMODE_OFFSET     (RISCV_MACH_OFFSET)
+# define RISCV_XRET             mret
+#elif RISCV_S_MODE
+# define RISCV_XMODE_OFFSET     (RISCV_SUPER_OFFSET)
+# define RISCV_XRET             sret
+#else
+# error Unrecognized RISC-V privilege level selected
+#endif
 
-#define RISCV_MCAUSE_INT        (1u << 31)
+#define RISCV_CSR_XMODE_BITS     (RISCV_XMODE_OFFSET << 8)
+
+// These CSRs are only in user CSR space (still readable by all modes though)
+#define RISCV_CSR_CYCLE     (0xc00)
+#define RISCV_CSR_TIME      (0xc01)
+#define RISCV_CSR_INSRET    (0xc02)
+#define RISCV_CSR_CYCLEH    (0xc80)
+#define RISCV_CSR_TIMEH     (0xc81)
+#define RISCV_CSR_INSRETH   (0xc82)
+
+#define RISCV_CSR_XSTATUS   (0x000 | RISCV_CSR_XMODE_BITS)
+#define RISCV_CSR_XIE       (0x004 | RISCV_CSR_XMODE_BITS)
+#define RISCV_CSR_XTVEC     (0x005 | RISCV_CSR_XMODE_BITS)
+#define RISCV_CSR_XSCRATCH  (0x040 | RISCV_CSR_XMODE_BITS)
+#define RISCV_CSR_XEPC      (0x041 | RISCV_CSR_XMODE_BITS)
+#define RISCV_CSR_XCAUSE    (0x042 | RISCV_CSR_XMODE_BITS)
+#define RISCV_CSR_XTVAL     (0x043 | RISCV_CSR_XMODE_BITS)
+#define RISCV_CSR_XIP       (0x044 | RISCV_CSR_XMODE_BITS)
+
+#if RISCV_M_MODE // Machine-mode only CSRs
+#define RISCV_CSR_MVENDORID (0xf11)
+#define RISCV_CSR_MARCHID   (0xf12)
+#define RISCV_CSR_MIMPID    (0xf13)
+#define RISCV_CSR_MHARTID   (0xf14)
+#define RISCV_CSR_MISA      (0x301)
+#endif /* RISCV_M_MODE */
+
+#define RISCV_CSR_XSTATUS_IE    (1u << (RISCV_XMODE_OFFSET + 0))
+#define RISCV_CSR_XSTATUS_PIE   (1u << (RISCV_XMODE_OFFSET + 4))
+
+#define RISCV_CSR_XIE_SIE       (1u << (RISCV_XMODE_OFFSET + 0))
+#define RISCV_CSR_XIE_TIE       (1u << (RISCV_XMODE_OFFSET + 4))
+#define RISCV_CSR_XIE_EIE       (1u << (RISCV_XMODE_OFFSET + 8))
+
+#define RISCV_CSR_XIP_SIP       (1u << (RISCV_XMODE_OFFSET + 0))
+#define RISCV_CSR_XIP_TIP       (1u << (RISCV_XMODE_OFFSET + 4))
+#define RISCV_CSR_XIP_EIP       (1u << (RISCV_XMODE_OFFSET + 8))
+
+#define RISCV_EXCEPTION_XSWI        (RISCV_XMODE_OFFSET)
+
+#define RISCV_EXCEPTION_XTIM        (4 + RISCV_XMODE_OFFSET)
+#define RISCV_EXCEPTION_XEXT        (8 + RISCV_XMODE_OFFSET)
+
+#ifndef ASSEMBLY
+#define __ASM_STR(x)	#x
 
 #define riscv_csr_clear(csr, bits) \
 ({ \
     ulong __val = bits; \
     __asm__ volatile( \
-        "csrc   " #csr ", %0" \
+        "csrc   " __ASM_STR(csr) ", %0" \
         :: "rK" (__val) \
         : "memory"); \
 })
@@ -37,7 +84,7 @@
     ulong __val = bits; \
     ulong __val_out; \
     __asm__ volatile( \
-        "csrrc   %0, " #csr ", %1" \
+        "csrrc   %0, " __ASM_STR(csr) ", %1" \
         : "=r"(__val_out) \
         : "rK" (__val) \
         : "memory"); \
@@ -48,7 +95,7 @@
 ({ \
     ulong __val = bits; \
     __asm__ volatile( \
-        "csrs   " #csr ", %0" \
+        "csrs   " __ASM_STR(csr) ", %0" \
         :: "rK" (__val) \
         : "memory"); \
 })
@@ -57,7 +104,7 @@
 ({ \
     ulong __val; \
     __asm__ volatile( \
-        "csrr   %0, " #csr \
+        "csrr   %0, " __ASM_STR(csr) \
         : "=r" (__val) \
         :: "memory"); \
     __val; \
@@ -67,13 +114,13 @@
 ({ \
     ulong __val = (ulong)val; \
     __asm__ volatile( \
-        "csrw   " #csr ", %0" \
+        "csrw   " __ASM_STR(csr) ", %0" \
         :: "rK" (__val) \
         : "memory"); \
     __val; \
 })
 
-#define riscv_current_hart()  riscv_csr_read(mhartid)
-
+extern int hart_cpu_map[SMP_MAX_CPUS];
 void riscv_exception_entry(void);
 enum handler_return riscv_timer_exception(void);
+#endif /* ASSEMBLY */

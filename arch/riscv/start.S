@@ -17,8 +17,11 @@ FUNCTION(_start)
     la      gp, __global_pointer$
 .option pop
 
-    // if our hart isnt 0, trap the cpu
-    csrr    t0, mhartid
+#if RISCV_M_MODE
+    csrr    a0, mhartid
+#else
+    csrw    sscratch, a0
+#endif
 
     // set the default stack
     la      sp, default_stack_top
@@ -33,7 +36,9 @@ FUNCTION(_start)
     la      t5, _boot_status
     sw      zero, (t5)
 
-    bnez    t0, .Lsecondary_trap
+    // if our hart isnt BOOT_HART, trap the cpu
+    li      t2, BOOT_HART
+    bne     t2, a0, .Lsecondary_trap
 
 #if ARCH_RISCV_TWOSEGMENT
     // copy preinitialized data from flash to memory

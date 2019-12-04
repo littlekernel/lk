@@ -21,4 +21,8 @@
 #define PWM1_BASE  0x10021000
 #define GPIO_BASE  0x10060000
 
+#if RISCV_XMODE_OFFSET == RISCV_MACH_OFFSET
 #define PLIC_HART_IDX(hart)    ((hart) ? ((2 * (hart)) - 1) : 0)
+#elif RISCV_XMODE_OFFSET == RISCV_SUPER_OFFSET
+#define PLIC_HART_IDX(hart)    ((hart) ? (2 * (hart)) : ~0U)
+#endif

@@ -5,21 +5,37 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += $(LOCAL_DIR)/start.S
 MODULE_SRCS += $(LOCAL_DIR)/arch.c
 MODULE_SRCS += $(LOCAL_DIR)/asm.S
-MODULE_SRCS += $(LOCAL_DIR)/clint.c
 MODULE_SRCS += $(LOCAL_DIR)/exceptions.c
 MODULE_SRCS += $(LOCAL_DIR)/thread.c
 MODULE_SRCS += $(LOCAL_DIR)/mp.c
+MODULE_SRCS += $(LOCAL_DIR)/time.c
 
 SMP_MAX_CPUS ?= 1
+BOOT_HART ?= 0
 
 GLOBAL_DEFINES += SMP_MAX_CPUS=$(SMP_MAX_CPUS)
 GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1
+GLOBAL_DEFINES += BOOT_HART=$(BOOT_HART)
 
 ifeq ($(WITH_SMP),1)
 GLOBAL_DEFINES += WITH_SMP=1
 endif
 
 SUBARCH ?= 32
+
+RISCV_MODE ?= machine
+
+ifeq ($(strip $(RISCV_MODE)),machine)
+$(info RISCV: Machine Mode)
+GLOBAL_DEFINES += RISCV_M_MODE=1
+else
+ifeq ($(strip $(RISCV_MODE)),supervisor)
+$(info RISCV: Supervisor Mode)
+GLOBAL_DEFINES += RISCV_S_MODE=1
+else
+$(error Unknown RISC-V mode: "$(strip $(RISCV_MODE))" (valid values are "machine", "supervisor"))
+endif
+endif
 
 WITH_LINKER_GC ?= 0
 

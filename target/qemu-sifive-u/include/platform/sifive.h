@@ -18,4 +18,8 @@
 #define UART0_BASE 0x10010000
 #define UART1_BASE 0x10011000
 
+#if RISCV_XMODE_OFFSET == RISCV_MACH_OFFSET
 #define PLIC_HART_IDX(hart)    (2 * (hart))
+#elif RISCV_XMODE_OFFSET == RISCV_SUPER_OFFSET
+#define PLIC_HART_IDX(hart)    ((2 * (hart)) + 1)
+#endif
