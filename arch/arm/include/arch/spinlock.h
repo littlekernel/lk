@@ -50,6 +50,8 @@ static inline void arch_spin_unlock(spin_lock_t *lock) {
 
 #endif
 
+#if !ARM_ISA_ARMV7M
+
 /* ARM specific flags */
 #define SPIN_LOCK_FLAG_IRQ                      0x40000000
 #define SPIN_LOCK_FLAG_FIQ                      0x80000000 /* Do not use unless IRQs are already disabled */
@@ -85,5 +87,43 @@ arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t
     if ((flags & SPIN_LOCK_FLAG_IRQ) && (old_state & SPIN_LOCK_STATE_RESTORE_IRQ))
         arch_enable_ints();
 }
+
+#else
+
+/*
+ * slightly more optimized version of the interrupt save/restore bits for cortex-m
+ * processors.
+ */
+
+/* arm-m flags are mostly meaningless */
+#define ARCH_INTERRUPT_SAVE_IRQ                 1
+
+#define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS  ARCH_INTERRUPT_SAVE_IRQ
+
+__ALWAYS_INLINE
+static inline void
+arch_interrupt_save(spin_lock_saved_state_t *statep, spin_lock_save_flags_t flags) {
+    unsigned int state = 0;
+
+    if (flags == ARCH_INTERRUPT_SAVE_IRQ) {
+        __asm__ volatile("mrs %0, primask" : "=r"(state));
+        /* always disable ints, may be faster than testing and branching around it */
+        arch_disable_ints();
+    }
+    *statep = state;
+}
+
+__ALWAYS_INLINE
+static inline void
+arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t flags) {
+    /* test the PRIMASK's one bit */
+    if (flags == ARCH_INTERRUPT_SAVE_IRQ) {
+        if ((old_state & 0x1) == 0) {
+            arch_enable_ints();
+        }
+    }
+}
+
+#endif
 
 __END_CDECLS
