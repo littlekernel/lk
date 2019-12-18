@@ -44,10 +44,10 @@ static inline bool arch_spin_lock_held(spin_lock_t *lock) {
 /* default arm flag is to just disable plain irqs */
 #define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS  0
 
-static inline void
-arch_interrupt_save(spin_lock_saved_state_t *statep, spin_lock_save_flags_t flags) {
+static inline spin_lock_saved_state_t
+arch_interrupt_save(spin_lock_save_flags_t flags) {
     /* disable interrupts by clearing the MIE bit while atomically saving the old state */
-    *statep = riscv_csr_read_clear(mstatus, RISCV_STATUS_MIE) & RISCV_STATUS_MIE;
+    return riscv_csr_read_clear(mstatus, RISCV_STATUS_MIE) & RISCV_STATUS_MIE;
 }
 
 static inline void

@@ -13,6 +13,7 @@
 #ifndef ASSEMBLY
 
 #include <arch/x86.h>
+#include <arch/types.h>
 
 /* override of some routines */
 static inline void arch_enable_ints(void) {
@@ -40,6 +41,19 @@ static inline bool arch_ints_disabled(void) {
         :: "memory");
 
     return !(state & (1<<9));
+}
+
+/* flags are unused on x86 */
+static inline arch_interrupt_save_state_t
+arch_interrupt_save(arch_interrupt_save_flags_t flags) {
+    arch_interrupt_save_state_t state = x86_save_flags();
+    arch_disable_ints();
+    return state;
+}
+
+static inline void
+arch_interrupt_restore(arch_interrupt_save_state_t old_state, arch_interrupt_save_flags_t flags) {
+    x86_restore_flags(old_state);
 }
 
 int _atomic_and(volatile int *ptr, int val);

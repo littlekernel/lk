@@ -57,6 +57,41 @@ static inline bool arch_fiqs_disabled(void) {
     return !!state;
 }
 
+enum {
+    /* ARM specific flags */
+    ARCH_INTERRUPT_SAVE_IRQ              = 0x1,
+    ARCH_INTERRUPT_SAVE_FIQ              = 0x2, /* Do not use unless IRQs are already disabled */
+};
+
+enum {
+    /* private */
+    ARCH_INTERRUPT_RESTORE_IRQ = 1,
+    ARCH_INTERRUPT_RESTORE_FIQ = 2,
+};
+
+static inline arch_interrupt_save_state_t
+arch_interrupt_save(arch_interrupt_save_flags_t flags) {
+    arch_interrupt_save_state_t state = 0;
+    if ((flags & ARCH_INTERRUPT_SAVE_IRQ) && !arch_ints_disabled()) {
+        state |= ARCH_INTERRUPT_RESTORE_IRQ;
+        arch_disable_ints();
+    }
+    if ((flags & ARCH_INTERRUPT_SAVE_FIQ) && !arch_fiqs_disabled()) {
+        state |= ARCH_INTERRUPT_RESTORE_FIQ;
+        arch_disable_fiqs();
+    }
+    return state;
+}
+
+static inline void
+arch_interrupt_restore(arch_interrupt_save_state_t old_state, arch_interrupt_save_flags_t flags) {
+    if ((flags & ARCH_INTERRUPT_SAVE_FIQ) && (old_state & ARCH_INTERRUPT_RESTORE_FIQ))
+        arch_enable_fiqs();
+    if ((flags & ARCH_INTERRUPT_SAVE_IRQ) && (old_state & ARCH_INTERRUPT_RESTORE_IRQ))
+        arch_enable_ints();
+}
+
+
 #define mb()        __asm__ volatile("dsb sy" : : : "memory")
 #define rmb()       __asm__ volatile("dsb ld" : : : "memory")
 #define wmb()       __asm__ volatile("dsb st" : : : "memory")

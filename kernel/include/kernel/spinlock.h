@@ -35,23 +35,19 @@ static inline bool spin_lock_held(spin_lock_t *lock) {
     return arch_spin_lock_held(lock);
 }
 
-/* spin lock irq save flags: */
-
-/* Possible future flags:
- * SPIN_LOCK_FLAG_PMR_MASK         = 0x000000ff
- * SPIN_LOCK_FLAG_PREEMPTION       = 0x00000100
- * SPIN_LOCK_FLAG_SET_PMR          = 0x00000200
- */
-
-/* Generic flags */
+/* flags to the arch_interrupt_save routine */
 #define SPIN_LOCK_FLAG_INTERRUPTS ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS
+
+/* spin lock saved state is just an alias to the arch interrupt saved state */
+typedef arch_interrupt_save_state_t spin_lock_saved_state_t;
 
 /* same as spin lock, but save disable and save interrupt state first */
 static inline void spin_lock_save(
     spin_lock_t *lock,
     spin_lock_saved_state_t *statep,
-    spin_lock_save_flags_t flags) {
-    arch_interrupt_save(statep, flags);
+    arch_interrupt_save_flags_t flags) {
+
+    *statep = arch_interrupt_save(flags);
     spin_lock(lock);
 }
 
@@ -59,7 +55,7 @@ static inline void spin_lock_save(
 static inline void spin_unlock_restore(
     spin_lock_t *lock,
     spin_lock_saved_state_t old_state,
-    spin_lock_save_flags_t flags) {
+    arch_interrupt_save_flags_t flags) {
     spin_unlock(lock);
     arch_interrupt_restore(old_state, flags);
 }

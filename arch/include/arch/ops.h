@@ -9,6 +9,7 @@
 
 #ifndef ASSEMBLY
 
+#include <arch/types.h>
 #include <sys/types.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -21,6 +22,8 @@ static void arch_enable_ints(void);
 static void arch_disable_ints(void);
 static bool arch_ints_disabled(void);
 static bool arch_in_int_handler(void);
+static arch_interrupt_save_state_t arch_interrupt_save(arch_interrupt_save_flags_t flags);
+static void arch_interrupt_restore(arch_interrupt_save_state_t old_state, arch_interrupt_save_flags_t flags);
 
 static int atomic_swap(volatile int *ptr, int val);
 static int atomic_add(volatile int *ptr, int val);
