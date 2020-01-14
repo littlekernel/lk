@@ -23,6 +23,7 @@
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/bcm28xx.h>
+#include <platform/bcm28xx/pll_read.h>
 
 #if BCM2836
 #include <arch/arm.h>
@@ -114,6 +115,9 @@ void platform_init_mmu_mappings(void) {
 }
 
 void platform_early_init(void) {
+    // 19.2mhz for most models
+    // 54mhz for rpi4
+    xtal_freq = CRYSTAL;
     uart_init_early();
 
     intc_init();

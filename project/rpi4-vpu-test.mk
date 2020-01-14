@@ -1,6 +1,6 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-TARGET := rpi3-vpu
+TARGET := rpi4-vpu
 ARCH := vc4
 
 MODULES += \

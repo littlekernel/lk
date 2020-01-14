@@ -8,11 +8,13 @@
 #include <lk/reg.h>
 #include <stdio.h>
 #include <lk/trace.h>
+#include <lk/console_cmd.h>
 #include <lib/cbuf.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/bcm28xx.h>
+#include <platform/bcm28xx/pll_read.h>
 #include <assert.h>
 
 /* TODO: extract this into a generic PL011 driver */
@@ -40,12 +42,24 @@
 
 static cbuf_t uart_rx_buf[NUM_UART];
 
+static int cmd_uart_dump(int argc, const cmd_args *argv);
+
+STATIC_COMMAND_START
+STATIC_COMMAND("dump_uart_state", "print uart state relating to baud", &cmd_uart_dump)
+STATIC_COMMAND_END(uart);
+
 static inline uintptr_t uart_to_ptr(unsigned int n) {
     switch (n) {
         default:
         case 0:
             return UART0_BASE;
     }
+}
+
+static uint32_t calculate_baud_divisor(uint32_t baud) {
+  uint32_t uart_freq = get_uart_base_freq();
+  uint32_t divisor = (uart_freq << 6) / baud / 16;
+  return divisor;
 }
 
 static enum handler_return uart_irq(void *arg) {
@@ -72,17 +86,37 @@ static enum handler_return uart_irq(void *arg) {
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
+static void uart_flush(int port) {
+  uintptr_t base = uart_to_ptr(port);
+  while (UARTREG(base, UART_TFR) & 0x20);
+}
+
 void uart_init(void) {
     for (size_t i = 0; i < NUM_UART; i++) {
+        uintptr_t base = uart_to_ptr(i);
+
         // create circular buffer to hold received data
         cbuf_initialize(&uart_rx_buf[i], RXBUF_SIZE);
         DEBUG_ASSERT(uart_rx_buf[i].event.magic == EVENT_MAGIC);
 
         // assumes interrupts are contiguous
         register_int_handler(INTERRUPT_VC_UART + i, &uart_irq, (void *)i);
+        uint32_t divisor = calculate_baud_divisor(115200);
+        dprintf(INFO, "changing divisor to %d\n", divisor);
+
+        uart_flush(i);
+
+        UARTREG(base, UART_CR) = 0; // shutdown the entire uart
 
         // clear all irqs
         UARTREG(uart_to_ptr(i), UART_ICR) = 0x3ff;
+
+        UARTREG(base, UART_LCRH) = 0x70; // fifo enable, 8bit mode
+
+        if (divisor > 0) {
+          UARTREG(base, UART_IBRD) = (divisor >> 6) & 0xffff;
+          UARTREG(base, UART_FBRD) = divisor & 0x3f;
+        }
 
         // set fifo trigger level
         UARTREG(uart_to_ptr(i), UART_IFLS) = 0; // 1/8 rxfifo, 1/8 txfifo
@@ -91,7 +125,7 @@ void uart_init(void) {
         UARTREG(uart_to_ptr(i), UART_IMSC) = (1<<6)|(1<<4); // rtim, rxim
 
         // enable receive
-        UARTREG(uart_to_ptr(i), UART_CR) |= (1<<9); // rxen
+        UARTREG(uart_to_ptr(i), UART_CR) |= (1<<9) | (1<<8) | (1<<0); // rxen, tx_enable, uarten
 
         // enable interrupt
         unmask_interrupt(INTERRUPT_VC_UART + i);
@@ -135,4 +169,20 @@ void uart_flush_rx(int port) {
 void uart_init_port(int port, uint baud) {
 }
 
+static int cmd_uart_dump(int argc, const cmd_args *argv) {
+  uintptr_t base = uart_to_ptr(0);
+  uint32_t baud = 115200;
 
+  if (argc >= 2) {
+    baud = argv[1].u;
+  }
+
+  dprintf(INFO, "CM_UARTDIV: 0x%x\nCM_UARTCTL: 0x%x\n", *REG32(CM_UARTDIV), *REG32(CM_UARTCTL));
+  dprintf(INFO, "UART_IBRD: 0x%x\nUART_FBRD: 0x%x\n", UARTREG(base, UART_IBRD), UARTREG(base, UART_FBRD));
+  uint32_t uart_freq = get_uart_base_freq();
+  dprintf(INFO, "uart input clock is %d\n", uart_freq);
+  uint32_t divisor = calculate_baud_divisor(baud);
+
+  dprintf(INFO, "want a uart divisor of 0x%x / 64\n", divisor);
+  return 0;
+}

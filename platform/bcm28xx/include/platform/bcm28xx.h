@@ -40,6 +40,7 @@
 #define DMA_BASE                (BCM_PERIPH_BASE_VIRT + 0x7000)
 #define ARM_BASE                (BCM_PERIPH_BASE_VIRT + 0xB000)
 #define PM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x100000)
+#define CM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x101000)
 #define PCM_CLOCK_BASE          (BCM_PERIPH_BASE_VIRT + 0x101098)
 #define RNG_BASE                (BCM_PERIPH_BASE_VIRT + 0x104000)
 #define GPIO_BASE               (BCM_PERIPH_BASE_VIRT + 0x200000)
@@ -60,6 +61,9 @@
 #define ST_CLO                  (ST_BASE + 0x4)
 #define ST_CHI                  (ST_BASE + 0x8)
 #define ST_C0                   (ST_BASE + 0xc)
+
+#define CM_UARTCTL              (CM_BASE + 0xf0)
+#define CM_UARTDIV              (CM_BASE + 0xf4)
 
 #define IC0_C                   (IC0_BASE + 0x0)
 #define IC0_S                   (IC0_BASE + 0x4)
