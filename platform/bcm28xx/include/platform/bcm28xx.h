@@ -41,6 +41,7 @@
 #define ARM_BASE                (BCM_PERIPH_BASE_VIRT + 0xB000)
 #define PM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x100000)
 #define CM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x101000)
+#define A2W_BASE                (BCM_PERIPH_BASE_VIRT + 0x102000)
 #define PCM_CLOCK_BASE          (BCM_PERIPH_BASE_VIRT + 0x101098)
 #define RNG_BASE                (BCM_PERIPH_BASE_VIRT + 0x104000)
 #define GPIO_BASE               (BCM_PERIPH_BASE_VIRT + 0x200000)
@@ -55,6 +56,7 @@
 #define SMI_BASE                (BCM_PERIPH_BASE_VIRT + 0x600000)
 #define BSC1_BASE               (BCM_PERIPH_BASE_VIRT + 0x804000)
 #define USB_BASE                (BCM_PERIPH_BASE_VIRT + 0x980000)
+#define GENET_BASE              (0x7d580000) // TODO, this is before the normal BCM_PERIPH_BASE_VIRT bank
 #define MCORE_BASE              (BCM_PERIPH_BASE_VIRT + 0x0000)
 
 #define ST_CS                   (ST_BASE + 0x0)
@@ -62,6 +64,8 @@
 #define ST_CHI                  (ST_BASE + 0x8)
 #define ST_C0                   (ST_BASE + 0xc)
 
+#define CM_VPUCTL               (CM_BASE + 0x008)
+#define CM_VPUDIV               (CM_BASE + 0x00c)
 #define CM_UARTCTL              (CM_BASE + 0xf0)
 #define CM_UARTDIV              (CM_BASE + 0xf4)
 
@@ -70,18 +74,43 @@
 #define IC0_SRC0                (IC0_BASE + 0x8)
 #define IC0_SRC1                (IC0_BASE + 0xc)
 #define IC0_VADDR               (IC0_BASE + 0x30)
+#define IC0_WAKEUP              (IC0_BASE + 0x34)
 
 #define IC1_C                   (IC1_BASE + 0x0)
 #define IC1_S                   (IC1_BASE + 0x4)
 #define IC1_SRC0                (IC1_BASE + 0x8)
 #define IC1_SRC1                (IC1_BASE + 0xc)
 #define IC1_VADDR               (IC1_BASE + 0x30)
+#define IC1_WAKEUP              (IC1_BASE + 0x34)
 
 #define PM_PASSWORD 0x5a000000
 #define PM_RSTC                 (PM_BASE + 0x1c)
 #define PM_RSTC_WRCFG_CLR       0xffffffcf // mask to keep everything but the watchdog config
 #define PM_WDOG                 (PM_BASE + 0x24)
 #define PM_WDOG_MASK            0x00000fff
+
+#define A2W_PASSWORD                                             0x5a000000
+#define A2W_PLLA_CTRL           (A2W_BASE + 0x100)
+#define A2W_PLLC_CTRL           (A2W_BASE + 0x120)
+#define A2W_PLLC_CTRL_PDIV_SET                             0x00007000
+#define A2W_PLLC_CTRL_NDIV_SET                             0x000003ff
+#define A2W_PLLC_CTRL_PDIV_LSB                             12
+#define A2W_PLLD_CTRL           (A2W_BASE + 0x140)
+#define A2W_PLLH_CTRL           (A2W_BASE + 0x160)
+#define A2W_PLLB_CTRL           (A2W_BASE + 0x1e0)
+#define A2W_PLLA_FRAC           (A2W_BASE + 0x200)
+#define A2W_PLLC_FRAC           (A2W_BASE + 0x220)
+#define A2W_PLLD_FRAC           (A2W_BASE + 0x240)
+#define A2W_PLLH_FRAC           (A2W_BASE + 0x260)
+#define A2W_PLLB_FRAC           (A2W_BASE + 0x2e0)
+#define A2W_PLLC_CORE1          (A2W_BASE + 0x420)
+#define A2W_PLLC_CORE0          (A2W_BASE + 0x620)
+#define A2W_PLLC_CORE0_DIV_SET                             0x000000ff
+#define A2W_PLLA_FRAC_MASK                                    0x000fffff
+#define A2W_PLLB_FRAC_MASK                                    0x000fffff
+#define A2W_PLLC_FRAC_MASK                                    0x000fffff
+#define A2W_PLLD_FRAC_MASK                                    0x000fffff
+#define A2W_PLLH_FRAC_MASK                                    0x000fffff
 
 #define ARMCTRL_BASE            (ARM_BASE + 0x000)
 #define ARMCTRL_INTC_BASE       (ARM_BASE + 0x200)

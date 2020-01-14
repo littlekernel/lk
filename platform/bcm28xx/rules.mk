@@ -5,12 +5,28 @@ MODULE := $(LOCAL_DIR)
 WITH_SMP := 1
 #LK_HEAP_IMPLEMENTATION ?= dlmalloc
 
-ifeq ($(ARCJ),arm)
-MODULE_DEPS := \
+# 1st pass to set arch
+ifeq ($(TARGET),rpi2)
+  ARCH := arm
+  ARM_CPU := cortex-a7
+  GLOBAL_DEFINES += CRYSTAL=19200000
+else ifeq ($(TARGET),rpi3)
+  ARCH := arm64
+  ARM_CPU := cortex-a53
+  GLOBAL_DEFINES += CRYSTAL=19200000
+else ifeq ($(TARGET),rpi4-vpu)
+  ARCH ?= vc4
+  GLOBAL_DEFINES += CRYSTAL=54000000
+endif
+
+
+ifeq ($(ARCH),arm)
+MODULE_DEPS += \
 	dev/timer/arm_generic \
 	lib/cbuf
-MODULE_SRCS +=
+MODULE_SRCS += \
 	$(LOCAL_DIR)/mailbox.c \
+	$(LOCAL_DIR)/intc.c \
 
 endif
 
@@ -24,7 +40,7 @@ endif
 MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/platform.c \
-	#$(LOCAL_DIR)/intc.c \
+	$(LOCAL_DIR)/pll_read.c \
 
 
 MEMBASE := 0x00000000
@@ -36,8 +52,6 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
 
 ifeq ($(TARGET),rpi2)
-ARCH := arm
-ARM_CPU := cortex-a7
 # put our kernel at 0x80000000
 KERNEL_BASE = 0x80000000
 KERNEL_LOAD_OFFSET := 0x00008000
@@ -50,8 +64,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/uart.c
 
 else ifeq ($(TARGET),rpi3)
-ARCH := arm64
-ARM_CPU := cortex-a53
 
 KERNEL_LOAD_OFFSET := 0x00080000
 MEMSIZE ?= 0x40000000 # 1GB
@@ -70,18 +82,16 @@ MODULE_DEPS += \
 	    app/tests \
 	    lib/fdt
 else ifeq ($(TARGET),rpi4-vpu)
-ARCH ?= vc4
 MEMSIZE ?= 0x1400000 # 20MB
 MEMBASE ?= 0
 GLOBAL_DEFINES += \
     BCM2XXX_VPU=1 SMP_MAX_CPUS=1 \
     MEMSIZE=$(MEMSIZE) \
     MEMBASE=$(MEMBASE) \
-    CRYSTAL=54000000 \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/uart.c \
-	$(LOCAL_DIR)/pll_read.c \
+	$(LOCAL_DIR)/genet.c \
 
 endif
 

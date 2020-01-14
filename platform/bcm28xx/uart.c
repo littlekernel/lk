@@ -102,7 +102,6 @@ void uart_init(void) {
         // assumes interrupts are contiguous
         register_int_handler(INTERRUPT_VC_UART + i, &uart_irq, (void *)i);
         uint32_t divisor = calculate_baud_divisor(115200);
-        dprintf(INFO, "changing divisor to %d\n", divisor);
 
         uart_flush(i);
 

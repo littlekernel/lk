@@ -10,11 +10,11 @@ static enum handler_return timer0_irq(void *arg);
 
 lk_bigtime_t current_time_hires(void) {
   //TODO, deal with rollover
-  return ( ((lk_bigtime_t)*REG32(ST_CHI)) << 32) | *REG32(ST_CLO);
+  return (( ((lk_bigtime_t)*REG32(ST_CHI)) << 32) | *REG32(ST_CLO)) / 1000;
 }
 
 lk_time_t current_time(void) {
-  return *REG32(ST_CLO);
+  return current_time_hires();
 }
 
 static platform_timer_callback timer_cb = 0;;
