@@ -5,9 +5,14 @@ MODULE := $(LOCAL_DIR)
 WITH_SMP := 1
 #LK_HEAP_IMPLEMENTATION ?= dlmalloc
 
+ifeq ($(ARCJ),arm)
 MODULE_DEPS := \
 	dev/timer/arm_generic \
 	lib/cbuf
+MODULE_SRCS +=
+	$(LOCAL_DIR)/mailbox.c \
+
+endif
 
 
 #lib/bio \
@@ -18,9 +23,8 @@ MODULE_DEPS := \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
-	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c \
-	$(LOCAL_DIR)/mailbox.c \
+	#$(LOCAL_DIR)/intc.c \
 
 
 MEMBASE := 0x00000000
@@ -65,6 +69,17 @@ MODULE_DEPS += \
 		app/shell \
 	    app/tests \
 	    lib/fdt
+else ifeq ($(TARGET),rpi3-vpu)
+ARCH ?= vc4
+MEMSIZE ?= 0x1400000 # 20MB
+MEMBASE ?= 0
+GLOBAL_DEFINES += \
+    BCM2XXX_VPU=1 SMP_MAX_CPUS=1 \
+    MEMSIZE=$(MEMSIZE) \
+    MEMBASE=$(MEMBASE) \
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/uart.c
 
 endif
 

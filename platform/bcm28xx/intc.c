@@ -14,13 +14,15 @@
 #include <kernel/mp.h>
 #include <platform/interrupts.h>
 #include <platform/bcm28xx.h>
+#include <lk/reg.h>
 
 #if defined (BCM2836)
-#include <arch/arm.h>
-typedef struct arm_iframe arm_platform_iframe_t;
+  #include <arch/arm.h>
+  typedef struct arm_iframe arm_platform_iframe_t;
 #elif defined (BCM2837)
-#include <arch/arm64.h>
-typedef struct arm64_iframe_long arm_platform_iframe_t;
+  #include <arch/arm64.h>
+  typedef struct arm64_iframe_long arm_platform_iframe_t;
+#elif defined BCM2XXX_VPU
 #else
 #error Unknown BCM28XX Variant
 #endif

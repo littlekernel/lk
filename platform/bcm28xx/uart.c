@@ -13,6 +13,7 @@
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/bcm28xx.h>
+#include <assert.h>
 
 /* TODO: extract this into a generic PL011 driver */
 
@@ -75,6 +76,7 @@ void uart_init(void) {
     for (size_t i = 0; i < NUM_UART; i++) {
         // create circular buffer to hold received data
         cbuf_initialize(&uart_rx_buf[i], RXBUF_SIZE);
+        DEBUG_ASSERT(uart_rx_buf[i].event.magic == EVENT_MAGIC);
 
         // assumes interrupts are contiguous
         register_int_handler(INTERRUPT_VC_UART + i, &uart_irq, (void *)i);
@@ -117,6 +119,7 @@ int uart_getc(int port, bool wait) {
     cbuf_t *rxbuf = &uart_rx_buf[port];
 
     char c;
+    assert(port < NUM_UART);
     if (cbuf_read_char(rxbuf, &c, wait) == 1)
         return c;
 

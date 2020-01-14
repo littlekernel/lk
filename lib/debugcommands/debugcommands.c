@@ -310,6 +310,8 @@ static int cmd_crash(int argc, const cmd_args *argv) {
     volatile uint32_t *ptr = (void *)1;
     *ptr = 1;
 
+    volatile int a = 1 / 0;
+
     /* if it didn't, panic the system */
     panic("crash");
 
