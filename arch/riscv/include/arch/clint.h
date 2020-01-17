@@ -23,9 +23,9 @@
 #error Platform must define ARCH_RISCV_MTIME_RATE
 #endif
 
-#define CLINT_MSIP(h)	(ARCH_RISCV_CLINT_BASE + (4 * (h)))
-#define CLINT_MTIMECMP(h)	(ARCH_RISCV_CLINT_BASE + 0x4000 + (8 * (h)))
-#define CLINT_MTIME	(ARCH_RISCV_CLINT_BASE + 0xbff8)
+#define CLINT_MSIP(h)   (ARCH_RISCV_CLINT_BASE + (4 * (h)))
+#define CLINT_MTIMECMP(h)   (ARCH_RISCV_CLINT_BASE + 0x4000 + (8 * (h)))
+#define CLINT_MTIME (ARCH_RISCV_CLINT_BASE + 0xbff8)
 
 static inline void clint_ipi_send(unsigned long target_hart) {
     if (target_hart >= SMP_MAX_CPUS)
@@ -51,16 +51,16 @@ static inline uint64_t riscv_get_time(void) {
 }
 
 static inline void clint_send_ipis(const unsigned long *hart_mask) {
-	unsigned long cur_hart = riscv_current_hart(), h, m = *hart_mask;
-	for (h = 0; h < SMP_MAX_CPUS && m; h++, m >>= 1) {
-		if ((m & 1) && (h != cur_hart)) {
-			clint_ipi_send(h);
-		}
-	}
+    unsigned long cur_hart = riscv_current_hart(), h, m = *hart_mask;
+    for (h = 0; h < SMP_MAX_CPUS && m; h++, m >>= 1) {
+        if ((m & 1) && (h != cur_hart)) {
+            clint_ipi_send(h);
+        }
+    }
 
-	if(*hart_mask & (1 << riscv_current_hart())) {
-		clint_ipi_send(cur_hart);
-	}
+    if (*hart_mask & (1 << riscv_current_hart())) {
+        clint_ipi_send(cur_hart);
+    }
 }
 
 #endif

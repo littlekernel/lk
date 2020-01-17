@@ -68,7 +68,7 @@
 #define RISCV_EXCEPTION_XEXT        (8 + RISCV_XMODE_OFFSET)
 
 #ifndef ASSEMBLY
-#define __ASM_STR(x)	#x
+#define __ASM_STR(x)    #x
 
 #define riscv_csr_clear(csr, bits) \
 ({ \

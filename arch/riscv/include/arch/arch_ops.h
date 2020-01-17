@@ -61,7 +61,7 @@ static inline uint arch_curr_cpu_num(void) {
         if (hart_cpu_map[i] == (int)hart)
             return i;
         else if (unlikely(hart_cpu_map[i] == -1)) {
-            if(i != 0 || hart == BOOT_HART) {
+            if (i != 0 || hart == BOOT_HART) {
                 hart_cpu_map[i] = hart;
                 return i;
             }

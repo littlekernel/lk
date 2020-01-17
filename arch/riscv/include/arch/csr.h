@@ -12,41 +12,41 @@
 
 #if RISCV_M_MODE
 static inline uint riscv_current_hart(void) {
-	return riscv_csr_read(RISCV_CSR_MHARTID);
+    return riscv_csr_read(RISCV_CSR_MHARTID);
 }
 
 static inline long riscv_get_mvendorid(void) {
-	return riscv_csr_read(RISCV_CSR_MVENDORID);
+    return riscv_csr_read(RISCV_CSR_MVENDORID);
 }
 
 static inline long riscv_get_marchid(void) {
-	return riscv_csr_read(RISCV_CSR_MARCHID);
+    return riscv_csr_read(RISCV_CSR_MARCHID);
 }
 
 static inline long riscv_get_mimpid(void) {
-	return riscv_csr_read(RISCV_CSR_MIMPID);
+    return riscv_csr_read(RISCV_CSR_MIMPID);
 }
 
 #elif RISCV_S_MODE
 #include <arch/sbi.h>
 
 static inline uint riscv_current_hart(void) {
-	return riscv_csr_read(RISCV_CSR_XSCRATCH);
+    return riscv_csr_read(RISCV_CSR_XSCRATCH);
 }
 
 static inline long riscv_get_mvendorid(void) {
-	struct sbiret ret = sbi_call(SBI_GET_MVENDORID);
-	return ret.value;
+    struct sbiret ret = sbi_call(SBI_GET_MVENDORID);
+    return ret.value;
 }
 
 static inline long riscv_get_marchid(void) {
-	struct sbiret ret = sbi_call(SBI_GET_MARCHID);
-	return ret.value;
+    struct sbiret ret = sbi_call(SBI_GET_MARCHID);
+    return ret.value;
 }
 
 static inline long riscv_get_mimpid(void) {
-	struct sbiret ret = sbi_call(SBI_GET_MIMPID);
-	return ret.value;
+    struct sbiret ret = sbi_call(SBI_GET_MIMPID);
+    return ret.value;
 }
 
 #endif
