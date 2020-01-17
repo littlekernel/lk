@@ -48,7 +48,11 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
 
 
 lk_bigtime_t current_time_hires(void) {
+#if ARCH_RISCV_MTIME_RATE < 10000000
+    return current_time() * 1000llu; // hack to deal with slow clocks
+#else
     return riscv_get_time() / (ARCH_RISCV_MTIME_RATE / 1000000u);
+#endif
 }
 
 lk_time_t current_time(void) {
