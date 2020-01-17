@@ -151,6 +151,7 @@ try_merge:
 
 static struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len, bool allow_debug) {
     DEBUG_ASSERT((len % sizeof(void *)) == 0); // size must be aligned on pointer boundary
+    DEBUG_ASSERT(len > sizeof(struct free_heap_chunk));
 
 #if DEBUG_HEAP
     if (allow_debug)
@@ -490,6 +491,18 @@ void miniheap_init(void *ptr, size_t len) {
 
     // initialize the free list
     list_initialize(&theheap.free_list);
+
+    // align the buffer to a ptr
+    if (((uintptr_t)ptr % sizeof(uintptr_t)) > 0) {
+        uintptr_t aligned_ptr = ROUNDUP((uintptr_t)ptr, sizeof(uintptr_t));
+
+        DEBUG_ASSERT((aligned_ptr - (uintptr_t)ptr) < len);
+
+        len -= aligned_ptr - (uintptr_t)ptr;
+        ptr = (void *)aligned_ptr;
+
+        LTRACEF("(aligned) ptr %p, len %zu\n", ptr, len);
+    }
 
     // set the heap range
     theheap.base = ptr;
