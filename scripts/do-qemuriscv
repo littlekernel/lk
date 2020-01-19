@@ -12,6 +12,8 @@ function HELP {
     echo "-d a virtio display"
     echo "-e embeded platform"
     echo "-6 64bit"
+    echo "-u supervisor mode (using OpenSBI)"
+    echo "   currently only works in 64bit mode"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
     echo "-h for help"
@@ -27,12 +29,14 @@ DO_EMBEDDED=0
 DO_DISPLAY=0
 DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
+DO_SUPERVISOR=0
 SMP=1
 MEMSIZE=512
 SUDO=""
 PROJECT=""
+BIOS="none"
 
-while getopts bdhm:cMnte6p:s: FLAG; do
+while getopts bdhm:cMmnte6p:s:u FLAG; do
     case $FLAG in
         b) DO_BLOCK=1;;
         c) DO_CMPCTMALLOC=1;;
@@ -45,6 +49,7 @@ while getopts bdhm:cMnte6p:s: FLAG; do
         m) MEMSIZE=$OPTARG;;
         s) SMP=$OPTARG;;
         p) PROJECT=$OPTARG;;
+        u) DO_SUPERVISOR=1;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -56,16 +61,21 @@ shift $((OPTIND-1))
 
 if (( $DO_64BIT )); then
     QEMU="qemu-system-riscv64"
-    CPU="any"
+    CPU="rv64"
     MACHINE="virt"
-    _PROJECT="qemu-virt-riscv64-test"
+    if (( $DO_SUPERVISOR )); then
+        _PROJECT="qemu-virt-riscv64-supervisor-test"
+        BIOS="default"
+    else
+        _PROJECT="qemu-virt-riscv64-test"
+    fi
 elif (( $DO_EMBEDDED == 1 )); then
     QEMU="qemu-system-riscv32"
     MACHINE="sifive_e"
     _PROJECT="sifive-e-test"
 else
     QEMU="qemu-system-riscv32"
-    CPU="any"
+    CPU="rv32"
     MACHINE="virt"
     _PROJECT="qemu-virt-riscv32-test"
 fi
@@ -82,7 +92,7 @@ DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
 # the following args only really make sense on non embedded versions
 if (( ! $DO_EMBEDDED )); then
     ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
-    ARGS+=" -bios none"
+    ARGS+=" -bios $BIOS"
     if (( $DO_BLOCK )); then
         ARGS+=$BLOCK_ARGS
     fi

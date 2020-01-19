@@ -14,11 +14,17 @@
 #define IRQ_VIRTIO_BASE 1
 #define IRQ_UART0       10
 #define IRQ_PCIE_BASE   0x20
-#define NUM_IRQS        0x35
+#define NUM_IRQS        127
 
 #define CLINT_BASE  0x02000000
 #define PLIC_BASE   0x0c000000
 #define UART0_BASE  0x10000000
 #define VIRTIO_BASE 0x10001000
 #define DRAM_BASE   0x80000000
+
+#if RISCV_XMODE_OFFSET == RISCV_MACH_OFFSET
+#define PLIC_HART_IDX(hart)    (2 * (hart))
+#elif RISCV_XMODE_OFFSET == RISCV_SUPER_OFFSET
+#define PLIC_HART_IDX(hart)    ((2 * (hart)) + 1)
+#endif
 
