@@ -121,6 +121,8 @@
 })
 
 extern int hart_cpu_map[SMP_MAX_CPUS];
+void riscv_set_secondary_count(int count);
+
 void riscv_exception_entry(void);
 enum handler_return riscv_timer_exception(void);
 #endif /* ASSEMBLY */

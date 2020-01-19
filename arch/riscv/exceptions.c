@@ -39,7 +39,8 @@ extern enum handler_return riscv_platform_irq(void);
 extern enum handler_return riscv_software_exception(void);
 
 void riscv_exception_handler(ulong cause, ulong epc, struct riscv_short_iframe *frame) {
-    LTRACEF("cause %#lx epc %#lx status %#lx\n", cause, epc, frame->status);
+    LTRACEF("hart %u cause %#lx epc %#lx status %#lx\n",
+            riscv_current_hart(), cause, epc, frame->status);
 
     // top bit of the cause register determines if it's an interrupt or not
     const ulong int_bit = (__riscv_xlen == 32) ? (1ul<<31) : (1ul<<63);

@@ -32,10 +32,6 @@ FUNCTION(_start)
     mul     t1, t1, a0
     sub     sp, sp, t1
 
-    // everyone stores zero in _boot_status
-    la      t5, _boot_status
-    sw      zero, (t5)
-
     // if our hart isnt BOOT_HART, trap the cpu
     li      t2, BOOT_HART
     bne     t2, a0, .Lsecondary_trap
@@ -64,10 +60,13 @@ FUNCTION(_start)
     add     t0, t0, 4
     bne     t0, t1, 0b
 
+#if WITH_SMP
     // Release any other harts into riscv_secondary_entry
     fence   w, w
-    add     t0, zero, 1
-    sw      t0, (t5)
+    la      t5, _boot_status
+    li      t0, 1
+    sb      t0, (t5)
+#endif
 
     // call main
     jal     lk_main
@@ -78,7 +77,8 @@ FUNCTION(_start)
 .Lsecondary_trap:
 #if WITH_SMP
     // wait for _boot_status to be nonzero, then go into riscv_secondary_entry
-    lw      t0, (t5)
+    la      t5, _boot_status
+    lb      t0, (t5)
     beqz    t0, .Lsecondary_trap
     jal     riscv_secondary_entry
 #else
@@ -91,5 +91,8 @@ FUNCTION(_start)
 LOCAL_DATA(default_stack)
     .skip ARCH_DEFAULT_STACK_SIZE * SMP_MAX_CPUS
 LOCAL_DATA(default_stack_top)
+
+// put boot status in .data so it doesn't get paved over during BSS initialization
+.data
 LOCAL_DATA(_boot_status)
-    .dword
+    .byte  0

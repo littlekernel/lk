@@ -20,7 +20,7 @@
 
 #if WITH_SMP
 static spin_lock_t boot_cpu_lock = 1;
-static volatile int secondaries_to_init = SMP_MAX_CPUS - 1;
+volatile int secondaries_to_init = SMP_MAX_CPUS - 1;
 #endif
 
 void arch_early_init(void) {
@@ -66,8 +66,11 @@ void arch_init(void) {
 void riscv_secondary_entry(void) {
     arch_early_init();
 
-    if (unlikely(arch_curr_cpu_num() >= SMP_MAX_CPUS))
-        while (1) arch_idle();
+    if (unlikely(arch_curr_cpu_num() >= SMP_MAX_CPUS)) {
+        while (1) {
+            arch_idle();
+        }
+    }
 
     spin_lock(&boot_cpu_lock);
     spin_unlock(&boot_cpu_lock);
@@ -90,6 +93,14 @@ void riscv_secondary_entry(void) {
     // arch_mp_send_ipi(1 << 0, MP_IPI_GENERIC); // wake up hart0 to let it know this CPU has come up
 
     lk_secondary_cpu_entry();
+}
+
+// platform can detect and set the number of cores to boot (optional)
+void riscv_set_secondary_count(int count) {
+    if (count > SMP_MAX_CPUS - 1) {
+        count = SMP_MAX_CPUS - 1;
+    }
+    secondaries_to_init = count;
 }
 #endif
 
