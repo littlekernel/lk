@@ -9,9 +9,9 @@
 
 #include <lk/compiler.h>
 #include <lk/debug.h>
-#include <arch/csr.h>
 #include <arch/riscv.h>
-#include <arch/clint.h>
+#include <arch/riscv/csr.h>
+#include <arch/riscv/clint.h>
 
 static inline void arch_enable_ints(void) {
     riscv_csr_set(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_IE);

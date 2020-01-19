@@ -13,7 +13,7 @@
 
 #include <arch/ops.h>
 #include <arch/mp.h>
-#include <arch/clint.h>
+#include <arch/riscv/clint.h>
 
 #if WITH_SMP
 

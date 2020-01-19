@@ -28,7 +28,7 @@ static inline long riscv_get_mimpid(void) {
 }
 
 #elif RISCV_S_MODE
-#include <arch/sbi.h>
+#include <arch/riscv/sbi.h>
 
 static inline uint riscv_current_hart(void) {
     return riscv_csr_read(RISCV_CSR_XSCRATCH);
