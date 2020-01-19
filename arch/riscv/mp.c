@@ -13,32 +13,32 @@
 
 #include <arch/ops.h>
 #include <arch/mp.h>
+#include <arch/clint.h>
 
 #if WITH_SMP
 
 #define LOCAL_TRACE 0
 
 int hart_cpu_map[SMP_MAX_CPUS] = { [0 ... SMP_MAX_CPUS-1] = -1 };
-static mp_ipi_t ipi_data[SMP_MAX_CPUS];
 
-extern void clint_ipi_send(unsigned long target_hart);
-extern void clint_ipi_clear(unsigned long target_hart);
+// bitmap of IPIs queued per cpu
+static volatile int ipi_data[SMP_MAX_CPUS];
 
 status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
     LTRACEF("target 0x%x, ipi %u\n", target, ipi);
 
-    unsigned long hart_mask = 0;
-    unsigned long c = 0, h;
     mp_cpu_mask_t m = target;
-    for (; c < SMP_MAX_CPUS && m; c++, m >>= 1) {
-        h = hart_cpu_map[c];
+    ulong hart_mask = 0;
+    for (uint c = 0; c < SMP_MAX_CPUS && m; c++, m >>= 1) {
+        int h = hart_cpu_map[c];
         if (m & 1) {
-            hart_mask |= (1 << h);
+            hart_mask |= (1ul << h);
         }
-        // TODO: set the ipi_data based on the incoming ipi
+        // set the ipi_data based on the incoming ipi
+        atomic_or(&ipi_data[c], (1u << ipi));
     }
 
-    asm volatile("	fence iorw,iorw");
+    asm volatile("fence iorw,iorw");
 #if RISCV_M_MODE
     clint_send_ipis(&hart_mask);
 #else
@@ -49,31 +49,38 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
 }
 
 enum handler_return riscv_software_exception(void) {
+    uint ch = riscv_current_hart();
+
 #if RISCV_M_MODE
-    clint_ipi_clear(riscv_current_hart());
+    clint_ipi_clear(ch);
 #else
     sbi_clear_ipi();
 #endif
-    asm volatile("	fence ir,ir");
-    mp_ipi_t reason = ipi_data[riscv_current_hart()];
-    ipi_data[riscv_current_hart()] = 0;
-    switch (reason) {
-        case MP_IPI_RESCHEDULE:
-            return INT_RESCHEDULE;
-        case MP_IPI_GENERIC:
-            break;
-        default:
-            TRACEF("unhandled ipi cause %#x, hartid %#x\n", reason, riscv_current_hart());
-            panic("stopping");
-            break;
+
+    asm volatile("fence ir,ir");
+    int reason = atomic_swap(&ipi_data[ch], 0);
+    LTRACEF("reason %#x\n", reason);
+
+    enum handler_return ret = INT_NO_RESCHEDULE;
+    if (reason & (1u << MP_IPI_RESCHEDULE)) {
+        ret = mp_mbx_reschedule_irq();
+        reason &= ~(1u << MP_IPI_RESCHEDULE);
+    }
+    if (reason & (1u << MP_IPI_GENERIC)) {
+        panic("unimplemented MP_IPI_GENERIC\n");
+        reason &= ~(1u << MP_IPI_GENERIC);
     }
 
-    return INT_NO_RESCHEDULE;
+    if (unlikely(reason)) {
+        TRACEF("unhandled ipi cause %#x, hartid %#x\n", reason, ch);
+        panic("stopping");
+    }
 
+    return ret;
 }
 
 void arch_mp_init_percpu(void) {
-    dprintf(INFO, "\nRISCV: Booting hart%d (cpu%d)\n", riscv_current_hart(), arch_curr_cpu_num());
+    dprintf(INFO, "RISCV: Booting hart%d (cpu%d)\n", riscv_current_hart(), arch_curr_cpu_num());
     riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_SIE);
 }
 
