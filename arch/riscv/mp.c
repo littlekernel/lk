@@ -14,6 +14,8 @@
 #include <arch/ops.h>
 #include <arch/mp.h>
 
+#if WITH_SMP
+
 #define LOCAL_TRACE 0
 
 int hart_cpu_map[SMP_MAX_CPUS] = { [0 ... SMP_MAX_CPUS-1] = -1 };
@@ -33,6 +35,7 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
         if (m & 1) {
             hart_mask |= (1 << h);
         }
+        // TODO: set the ipi_data based on the incoming ipi
     }
 
     asm volatile("	fence iorw,iorw");
@@ -73,3 +76,5 @@ void arch_mp_init_percpu(void) {
     dprintf(INFO, "\nRISCV: Booting hart%d (cpu%d)\n", riscv_current_hart(), arch_curr_cpu_num());
     riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_SIE);
 }
+
+#endif

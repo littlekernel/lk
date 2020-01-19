@@ -44,6 +44,7 @@
 #define RISCV_CSR_XIP       (0x044 | RISCV_CSR_XMODE_BITS)
 
 #if RISCV_M_MODE // Machine-mode only CSRs
+#define RISCV_CSR_MCYCLE    (0xb00)
 #define RISCV_CSR_MVENDORID (0xf11)
 #define RISCV_CSR_MARCHID   (0xf12)
 #define RISCV_CSR_MIMPID    (0xf13)
@@ -63,7 +64,6 @@
 #define RISCV_CSR_XIP_EIP       (1u << (RISCV_XMODE_OFFSET + 8))
 
 #define RISCV_EXCEPTION_XSWI        (RISCV_XMODE_OFFSET)
-
 #define RISCV_EXCEPTION_XTIM        (4 + RISCV_XMODE_OFFSET)
 #define RISCV_EXCEPTION_XEXT        (8 + RISCV_XMODE_OFFSET)
 

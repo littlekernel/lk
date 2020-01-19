@@ -21,6 +21,10 @@ ifeq ($(VARIANT),sifive_e)
 ARCH_RISCV_TWOSEGMENT := 1
 # sets a few options in the riscv arch
 ARCH_RISCV_EMBEDDED := 1
+
+# disable WFI during idle. Have trouble breaking into a WFIed board
+# with openocd.
+GLOBAL_DEFINES += RISCV_DISABLE_WFI=1
 endif
 
 # sifive_e or _u?

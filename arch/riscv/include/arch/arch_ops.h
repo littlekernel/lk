@@ -52,10 +52,17 @@ static inline void set_current_thread(struct thread *t) {
 }
 
 static inline uint32_t arch_cycle_count(void) {
+#if RISCV_M_MODE
+    // use M version of the cycle if we're in machine mode. Some
+    // cpus dont have a U mode alias for this.
+    return riscv_csr_read(RISCV_CSR_MCYCLE);
+#else
     return riscv_csr_read(RISCV_CSR_CYCLE);
+#endif
 }
 
 static inline uint arch_curr_cpu_num(void) {
+#if WITH_SMP
     const uint hart = riscv_current_hart();
     for (size_t i = 0; i < SMP_MAX_CPUS; i++) {
         if (hart_cpu_map[i] == (int)hart)
@@ -68,5 +75,8 @@ static inline uint arch_curr_cpu_num(void) {
         }
     }
     return -1;
+#else
+    return 0;
+#endif
 }
 

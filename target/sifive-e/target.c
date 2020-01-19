@@ -26,6 +26,8 @@ void target_early_init(void) {
     // program the pll bypass, we should be running at 16Mhz now
     prci_base[2] = 0x00070df1;
 
+    // lfclock is a 32768Hz crystal, strapped externally
+
     // io function enable for pin 16/17, no IOF for all others
     gpio_base[14] = (3<<16);
 

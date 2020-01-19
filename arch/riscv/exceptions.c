@@ -46,9 +46,11 @@ void riscv_exception_handler(ulong cause, ulong epc, struct riscv_short_iframe *
 
     enum handler_return ret = INT_NO_RESCHEDULE;
     switch (cause) {
+#if WITH_SMP
         case int_bit | RISCV_EXCEPTION_XSWI: // machine software interrupt
             ret = riscv_software_exception();
             break;
+#endif
         case int_bit | RISCV_EXCEPTION_XTIM: // machine timer interrupt
             ret = riscv_timer_exception();
             break;
