@@ -79,3 +79,12 @@ int platform_dgetc(char *c, bool wait) {
     return ret;
 }
 
+/* panic-time getc/putc */
+int platform_pgetc(char *c, bool wait) {
+    if (uart_read_8(5) & (1<<0)) {
+        *c = uart_read_8(0);
+        return 0;
+    }
+    return -1;
+}
+

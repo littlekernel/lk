@@ -16,6 +16,11 @@
 #include <platform/virt.h>
 #include <sys/types.h>
 #include <libfdt.h>
+#include <dev/virtio.h>
+#include <dev/virtio/net.h>
+#if WITH_LIB_MINIP
+#include <lib/minip.h>
+#endif
 
 #include "platform_p.h"
 
@@ -89,6 +94,35 @@ void platform_early_init(void) {
 void platform_init(void) {
     plic_init();
     uart_init();
-}
 
+    /* detect any virtio devices */
+    uint virtio_irqs[NUM_VIRTIO_TRANSPORTS];
+    for (int i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
+        virtio_irqs[i] = IRQ_VIRTIO_BASE + i;
+    }
+
+    virtio_mmio_detect((void *)VIRTIO_BASE, NUM_VIRTIO_TRANSPORTS, virtio_irqs, VIRTIO_STRIDE);
+
+#if WITH_LIB_MINIP
+    if (virtio_net_found() > 0) {
+        uint8_t mac_addr[6];
+
+        virtio_net_get_mac_addr(mac_addr);
+
+        TRACEF("found virtio networking interface\n");
+
+        /* start minip */
+        minip_set_macaddr(mac_addr);
+
+        __UNUSED uint32_t ip_addr = IPV4(192, 168, 0, 99);
+        __UNUSED uint32_t ip_mask = IPV4(255, 255, 255, 0);
+        __UNUSED uint32_t ip_gateway = IPV4_NONE;
+
+        //minip_init(virtio_net_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+        minip_init_dhcp(virtio_net_send_minip_pkt, NULL);
+
+        virtio_net_start();
+    }
+#endif
+}
 

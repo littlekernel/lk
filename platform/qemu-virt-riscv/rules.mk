@@ -10,6 +10,9 @@ SMP_MAX_CPUS ?= 8
 
 MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/fdt
+MODULE_DEPS += dev/virtio/block
+MODULE_DEPS += dev/virtio/gpu
+MODULE_DEPS += dev/virtio/net
 
 MODULE_SRCS += $(LOCAL_DIR)/platform.c
 MODULE_SRCS += $(LOCAL_DIR)/plic.c
@@ -32,5 +35,12 @@ GLOBAL_DEFINES += ARCH_RISCV_MTIME_RATE=10000000
 
 # we're going to read the default memory map from a FDT
 GLOBAL_DEFINES += NOVM_DEFAULT_ARENA=0
+
+# we can revert to a poll based uart spin routine
+GLOBAL_DEFINES += PLATFORM_SUPPORTS_PANIC_SHELL=1
+
+# do not need to implement any cache ops
+# (for now, since there are no hw accellerated qemu machines)
+GLOBAL_DEFINES += RISCV_NO_CACHE_OPS=1
 
 include make/module.mk
