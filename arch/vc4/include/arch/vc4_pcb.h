@@ -20,7 +20,7 @@ Process control block.
 #pragma once
 
 typedef struct {
-        uint32_t r23;
+        uint32_t r23; // 0
         uint32_t r22;
         uint32_t r21;
         uint32_t r20;
@@ -37,18 +37,18 @@ typedef struct {
         uint32_t r9;
         uint32_t r8;
         uint32_t r7;
-        uint32_t r6;
+        uint32_t r6; // +68
 
         uint32_t r5;
         uint32_t r4;
         uint32_t r3;
         uint32_t r2;
         uint32_t r1;
-        uint32_t r0;
+        uint32_t r0; // +92
 
-        uint32_t lr;
+        uint32_t lr; // +96
 
-        uint32_t sr;
-        uint32_t pc;
+        uint32_t sr; // +100
+        uint32_t pc; // +104
 } vc4_saved_state_t;
 

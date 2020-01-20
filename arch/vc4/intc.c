@@ -21,6 +21,8 @@ struct handlerArgPair irq_handlers[64];
 // if the highest bit on this addr is set, the cpu will switch into supervisor mode
 irqType __attribute__ ((aligned (512))) vectorTable[144]; // might only need to be 128 entries
 
+uint8_t irq_stack0[4096];
+
 static const char* g_ExceptionNames[] = {
   "Zero",
   "Misaligned",
@@ -50,6 +52,10 @@ void set_interrupt(int intno, bool enable, int core) {
 
 
 void intc_init(void) {
+  uint32_t r28, sp;
+  __asm__ volatile ("mov %0, r28" : "=r"(r28));
+  __asm__ volatile ("mov %0, sp" : "=r"(sp));
+  dprintf(INFO, "intc_init\nr28: 0x%x\nsp: 0x%x\n", r28, sp);
   // TODO
   for (int i=0; i<64; i++) {
     irq_handlers[0].h = 0; // is this needed? maybe .bss already took care of it?
@@ -77,18 +83,23 @@ void intc_init(void) {
   }
   // swi opcode handler
   for (int i=32; i<=63; i++) {
-    vectorTable[i] = fleh_irq;
+    vectorTable[i] = (uint32_t)fleh_irq | 1;
   }
   // external interrupts
   for (int i=64; i<=127; i++) {
-    vectorTable[i] = fleh_irq;
+    vectorTable[i] = (uint32_t)fleh_irq | 1;
   }
+
+  uint32_t irq_sp = (irq_stack0 + sizeof(irq_stack0)) - 4;
+  dprintf(INFO, "r28 = 0x%x\nirq_stack0: %p\nsizeof(irq_stack0): %d\n", irq_sp, irq_stack0, sizeof(irq_stack0));
+
+  __asm__ volatile ("mov r28, 0xdeadbeef": :"r"(irq_sp));
 
   *REG32(IC0_VADDR) = vectorTable;
   *REG32(IC1_VADDR) = vectorTable;
 
   if (*REG32(IC0_VADDR) != vectorTable) {
-    printf("vector table now at 0x%08lx 0x%08lx\n", *REG32(IC0_VADDR), (uint32_t)vectorTable);
+    printf("vector table now at 0x%08x 0x%08x\n", *REG32(IC0_VADDR), (uint32_t)vectorTable);
     panic("vector table failed to install");
   }
 }
@@ -182,11 +193,25 @@ void sleh_fatal(vc4_saved_state_t* pcb, uint32_t n) {
   while(true) __asm__ volatile ("nop");
 }
 
+// upon entry to this function(before its prologue runs), sp and r0 point to a `struct vc4_saved_state_t`
+// r0 (which lands in pcb) contains a copy of that sp from before the prologue
+// some common values and offsets:
+// r0 +   0: r23
+// ...
+// r0 +  92: r0
+// r0 +  96: lr
+// r0 + 100: sr
+// r0 + 104: pc
 void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp) {
   uint32_t status = *REG32(IC0_S);
   uint32_t source = status & 0xFF;
-  uint32_t cs;
-  int ret;
+  enum handler_return ret = INT_NO_RESCHEDULE;
+
+  uint32_t r28, sp, sr;
+  __asm__ volatile ("mov %0, r28" : "=r"(r28));
+  __asm__ volatile ("mov %0, sp" : "=r"(sp));
+  __asm__ volatile ("mov %0, sr" : "=r"(sr));
+  //dprintf(INFO, "sleh_irq\nr28: 0x%x\nsp: 0x%x\nsr: 0x%x\n", r28, sp, sr);
 
   //dprintf(INFO, "VPU Received interrupt from source %d\n", source);
 
@@ -195,7 +220,11 @@ void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp) {
   case 121: // uart
     assert(irq_handlers[source - 64].h);
     ret = irq_handlers[source - 64].h(irq_handlers[source - 64].arg);
-    if (ret == INT_RESCHEDULE) thread_preempt();
+    if (ret == INT_RESCHEDULE) {
+      //dprintf(INFO, "pre-emptying\n");
+      thread_preempt();
+      //dprintf(INFO, "done preempt\n");
+    }
     break;
   case INTERRUPT_ARM:
     // fired when the arm cpu writes to the arm->vpu mailbox

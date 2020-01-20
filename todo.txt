@@ -1,0 +1,4 @@
+use TARGET_HAS_DEBUG_LED on rpi
+
+fix \r\n issues
+an IRQ between \r and \n can lead to text getting overwritten

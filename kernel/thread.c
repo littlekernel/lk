@@ -461,6 +461,8 @@ void thread_resched(void) {
     thread_t *current_thread = get_current_thread();
     uint cpu = arch_curr_cpu_num();
 
+    //dprintf(INFO, "thread_resched called on thread %p(%s) on core %d\n", current_thread, current_thread->name, cpu);
+
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(spin_lock_held(&thread_lock));
     DEBUG_ASSERT(current_thread->state != THREAD_RUNNING);
@@ -600,6 +602,8 @@ void thread_yield(void) {
     THREAD_LOCK(state);
 
     THREAD_STATS_INC(yields);
+
+    dprintf(INFO, "thread_yield\n");
 
     /* we are yielding the cpu, so stick ourselves into the tail of the run queue and reschedule */
     current_thread->state = THREAD_READY;

@@ -48,7 +48,6 @@ fleh_irq:
   SaveRegsAll
   mov r0, sp
   mov r1, r29
-  di
   bl sleh_irq
 return_from_exception:
   ldm r16-r23, (sp++)
