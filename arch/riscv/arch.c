@@ -116,6 +116,15 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 }
 
 /* unimplemented cache operations */
+#if RISCV_NO_CACHE_OPS
+void arch_disable_cache(uint flags) { }
+void arch_enable_cache(uint flags) { }
+
+void arch_clean_cache_range(addr_t start, size_t len) { }
+void arch_clean_invalidate_cache_range(addr_t start, size_t len) { }
+void arch_invalidate_cache_range(addr_t start, size_t len) { }
+void arch_sync_cache_range(addr_t start, size_t len) { }
+#else
 void arch_disable_cache(uint flags) { PANIC_UNIMPLEMENTED; }
 void arch_enable_cache(uint flags) { PANIC_UNIMPLEMENTED; }
 
@@ -123,3 +132,4 @@ void arch_clean_cache_range(addr_t start, size_t len) { PANIC_UNIMPLEMENTED; }
 void arch_clean_invalidate_cache_range(addr_t start, size_t len) { PANIC_UNIMPLEMENTED; }
 void arch_invalidate_cache_range(addr_t start, size_t len) { PANIC_UNIMPLEMENTED; }
 void arch_sync_cache_range(addr_t start, size_t len) { PANIC_UNIMPLEMENTED; }
+#endif

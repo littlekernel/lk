@@ -80,3 +80,22 @@ static inline uint arch_curr_cpu_num(void) {
 #endif
 }
 
+// XXX fix
+#define DSB
+#define DMB
+
+#define mb()        DSB
+#define wmb()       DSB
+#define rmb()       DSB
+
+#ifdef WITH_SMP
+#define smp_mb()    DMB
+#define smp_wmb()   DMB
+#define smp_rmb()   DMB
+#else
+#define smp_mb()    CF
+#define smp_wmb()   CF
+#define smp_rmb()   CF
+#endif
+
+
