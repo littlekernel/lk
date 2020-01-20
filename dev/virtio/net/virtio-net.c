@@ -7,6 +7,7 @@
  */
 #include <dev/virtio/net.h>
 
+#include <stdlib.h>
 #include <lk/debug.h>
 #include <assert.h>
 #include <lk/trace.h>
@@ -17,7 +18,6 @@
 #include <kernel/thread.h>
 #include <kernel/event.h>
 #include <kernel/spinlock.h>
-#include <kernel/vm.h>
 #include <lib/pktbuf.h>
 #include <lib/minip.h>
 

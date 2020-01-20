@@ -15,7 +15,7 @@
 
 /* detect a virtio mmio hardware block
  * returns number of devices found */
-int virtio_mmio_detect(void *ptr, uint count, const uint irqs[]);
+int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride);
 
 #define MAX_VIRTIO_RINGS 4
 

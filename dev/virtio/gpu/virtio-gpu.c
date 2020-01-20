@@ -7,6 +7,7 @@
  */
 #include <dev/virtio/gpu.h>
 
+#include <stdlib.h>
 #include <lk/debug.h>
 #include <assert.h>
 #include <lk/trace.h>
@@ -17,8 +18,11 @@
 #include <kernel/thread.h>
 #include <kernel/event.h>
 #include <kernel/mutex.h>
-#include <kernel/vm.h>
 #include <dev/display.h>
+
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
 
 #include "virtio_gpu.h"
 
@@ -208,7 +212,11 @@ static status_t attach_backing(struct virtio_gpu_dev *gdev, uint32_t resource_id
     req.req.nr_entries = 1;
 
     paddr_t pa;
+#if WITH_KERNEL_VM
     pa = vaddr_to_paddr(ptr);
+#else
+    pa = (paddr_t)ptr;
+#endif
     req.mem.addr = pa;
     req.mem.length = buf_len;
 
@@ -356,7 +364,11 @@ status_t virtio_gpu_start(struct virtio_device *dev) {
 
     /* attach a backing store to the resource */
     size_t len = gdev->pmode.r.width * gdev->pmode.r.height * 4;
+#if WITH_KERNEL_VM
     gdev->fb = pmm_alloc_kpages(ROUNDUP(len, PAGE_SIZE) / PAGE_SIZE, NULL);
+#else
+    gdev->fb = memalign(PAGE_SIZE, ROUNDUP(len, PAGE_SIZE));
+#endif
     if (!gdev->fb) {
         TRACEF("failed to allocate framebuffer, wanted 0x%zx bytes\n", len);
         return ERR_NO_MEMORY;

@@ -19,8 +19,10 @@
 #include <lk/pow2.h>
 #include <lk/init.h>
 #include <kernel/thread.h>
-#include <kernel/vm.h>
 #include <platform/interrupts.h>
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
 
 #include "virtio_priv.h"
 
@@ -109,7 +111,7 @@ static enum handler_return virtio_mmio_irq(void *arg) {
     return ret;
 }
 
-int virtio_mmio_detect(void *ptr, uint count, const uint irqs[]) {
+int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) {
     LTRACEF("ptr %p, count %u\n", ptr, count);
 
     DEBUG_ASSERT(ptr);
@@ -123,7 +125,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[]) {
 
     int found = 0;
     for (uint i = 0; i < count; i++) {
-        volatile struct virtio_mmio_config *mmio = (struct virtio_mmio_config *)((uint8_t *)ptr + i * 0x200);
+        volatile struct virtio_mmio_config *mmio = (struct virtio_mmio_config *)((uint8_t *)ptr + i * stride);
         struct virtio_device *dev = &devices[i];
 
         dev->index = i;
@@ -132,8 +134,8 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[]) {
         mask_interrupt(irqs[i]);
         register_int_handler(irqs[i], &virtio_mmio_irq, (void *)dev);
 
-        LTRACEF("looking at magic 0x%x version 0x%x did 0x%x vid 0x%x\n",
-                mmio->magic, mmio->version, mmio->device_id, mmio->vendor_id);
+        LTRACEF("looking at %p: magic 0x%x version 0x%x did 0x%x vid 0x%x\n",
+                mmio, mmio->magic, mmio->version, mmio->device_id, mmio->vendor_id);
 
         if (mmio->magic != VIRTIO_MMIO_MAGIC) {
             continue;
@@ -283,7 +285,7 @@ void virtio_submit_chain(struct virtio_device *dev, uint ring_index, uint16_t de
     struct vring_avail *avail = dev->ring[ring_index].avail;
 
     avail->ring[avail->idx & dev->ring[ring_index].num_mask] = desc_index;
-    DSB;
+    mb();
     avail->idx++;
 
 #if LOCAL_TRACE
@@ -295,7 +297,7 @@ void virtio_kick(struct virtio_device *dev, uint ring_index) {
     LTRACEF("dev %p, ring %u\n", dev, ring_index);
 
     dev->mmio_config->queue_notify = ring_index;
-    DSB;
+    mb();
 }
 
 status_t virtio_alloc_ring(struct virtio_device *dev, uint index, uint16_t len) {

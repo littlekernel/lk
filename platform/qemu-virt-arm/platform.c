@@ -138,7 +138,7 @@ void platform_init(void) {
         virtio_irqs[i] = VIRTIO0_INT + i;
     }
 
-    virtio_mmio_detect((void *)VIRTIO_BASE, NUM_VIRTIO_TRANSPORTS, virtio_irqs);
+    virtio_mmio_detect((void *)VIRTIO_BASE, NUM_VIRTIO_TRANSPORTS, virtio_irqs, 0x200);
 
 #if WITH_LIB_MINIP
     if (virtio_net_found() > 0) {

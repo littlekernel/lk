@@ -7,6 +7,7 @@
  */
 #include <dev/virtio/block.h>
 
+#include <stdlib.h>
 #include <lk/debug.h>
 #include <assert.h>
 #include <lk/trace.h>
@@ -16,8 +17,11 @@
 #include <kernel/thread.h>
 #include <kernel/event.h>
 #include <kernel/mutex.h>
-#include <kernel/vm.h>
 #include <lib/bio.h>
+
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -98,7 +102,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
 #if WITH_KERNEL_VM
     bdev->blk_req_phys = vaddr_to_paddr(bdev->blk_req);
 #else
-    bdev->blk_freq_phys = (uint64_t)(uintptr_t)bdev->blk_req;
+    bdev->blk_req_phys = (uint64_t)(uintptr_t)bdev->blk_req;
 #endif
     LTRACEF("blk_req structure at %p (0x%lx phys)\n", bdev->blk_req, bdev->blk_req_phys);
 
@@ -189,8 +193,6 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
 
     uint16_t i;
     struct vring_desc *desc;
-    paddr_t pa;
-    vaddr_t va = (vaddr_t)buf;
 
     LTRACEF("dev %p, buf %p, offset 0x%llx, len %zu\n", dev, buf, offset, len);
 
@@ -219,7 +221,8 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
     desc = virtio_desc_index_to_desc(dev, 0, desc->next);
 #if WITH_KERNEL_VM
     /* translate the first buffer */
-    pa = vaddr_to_paddr((void *)va);
+    vaddr_t va = (vaddr_t)buf;
+    paddr_t pa = vaddr_to_paddr((void *)va);
     desc->addr = (uint64_t)pa;
     /* desc->len is filled in below */
 #else
