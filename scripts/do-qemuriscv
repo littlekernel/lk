@@ -14,6 +14,7 @@ function HELP {
     echo "-6 64bit"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
+    echo "-S supervisor mode"
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
@@ -29,10 +30,11 @@ DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
 SMP=1
 MEMSIZE=512
+S_MODE=0
 SUDO=""
 PROJECT=""
 
-while getopts bdhm:cMnte6p:s: FLAG; do
+while getopts bdhm:cMnte6Sp:s: FLAG; do
     case $FLAG in
         b) DO_BLOCK=1;;
         c) DO_CMPCTMALLOC=1;;
@@ -42,6 +44,7 @@ while getopts bdhm:cMnte6p:s: FLAG; do
         t) DO_NET_TAP=1;;
         e) DO_EMBEDDED=1;;
         6) DO_64BIT=1;;
+        S) S_MODE=1;;
         m) MEMSIZE=$OPTARG;;
         s) SMP=$OPTARG;;
         p) PROJECT=$OPTARG;;
@@ -56,7 +59,7 @@ shift $((OPTIND-1))
 
 if (( $DO_64BIT )); then
     QEMU="qemu-system-riscv64"
-    CPU="any"
+    CPU="rv64"
     MACHINE="virt"
     _PROJECT="qemu-virt-riscv64-test"
 elif (( $DO_EMBEDDED == 1 )); then
@@ -65,7 +68,7 @@ elif (( $DO_EMBEDDED == 1 )); then
     _PROJECT="sifive-e-test"
 else
     QEMU="qemu-system-riscv32"
-    CPU="any"
+    CPU="rv32"
     MACHINE="virt"
     _PROJECT="qemu-virt-riscv32-test"
 fi
@@ -78,11 +81,17 @@ NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=
 NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"
 NO_DISPLAY_ARGS=" -nographic"
 DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
+S_MODE_ARGS=" -bios default"
+M_MODE_ARGS=" -bios none"
 
 # the following args only really make sense on non embedded versions
 if (( ! $DO_EMBEDDED )); then
     ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
-    ARGS+=" -bios none"
+    if (( $S_MODE )); then
+        ARGS+=$S_MODE_ARGS
+    else
+        ARGS+=$M_MODE_ARGS
+    fi
     if (( $DO_BLOCK )); then
         ARGS+=$BLOCK_ARGS
     fi
@@ -110,6 +119,12 @@ if (( $DO_CMPCTMALLOC )); then
     MAKE_VARS=LK_HEAP_IMPLEMENTATION=cmpctmalloc
 elif (( $DO_MINIHEAP )); then
     MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
+fi
+
+if (( $S_MODE )); then
+    MAKE_VARS+=" RISCV_MODE=supervisor"
+else
+    MAKE_VARS+=" RISCV_MODE=machine"
 fi
 
 $DIR/make-parallel $MAKE_VARS $PROJECT &&
