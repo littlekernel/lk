@@ -38,7 +38,7 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
         atomic_or(&ipi_data[c], (1u << ipi));
     }
 
-    asm volatile("fence iorw,iorw");
+    mb();
 #if RISCV_M_MODE
     clint_send_ipis(&hart_mask);
 #else
@@ -57,7 +57,7 @@ enum handler_return riscv_software_exception(void) {
     sbi_clear_ipi();
 #endif
 
-    asm volatile("fence ir,ir");
+    rmb();
     int reason = atomic_swap(&ipi_data[ch], 0);
     LTRACEF("reason %#x\n", reason);
 
