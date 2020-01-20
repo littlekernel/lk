@@ -13,7 +13,11 @@ MODULE_SRCS += $(LOCAL_DIR)/plic.c
 MODULE_SRCS += $(LOCAL_DIR)/uart.c
 
 #ROMBASE ?= 0x20400000 # if running from rom, start here
-MEMBASE ?= 0x80000000
+ifeq ($(RISCV_MODE),supervisor)
+MEMBASE ?= 0x080200000
+else
+MEMBASE ?= 0x080000000
+endif
 MEMSIZE ?= 0x00100000 # default to 1MB
 
 # sifive_e or _u?
