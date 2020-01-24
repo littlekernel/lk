@@ -82,12 +82,14 @@ MODULE_DEPS += \
 	    app/tests \
 	    lib/fdt
 else ifeq ($(TARGET),rpi4-vpu)
-MEMSIZE ?= 0x1400000 # 20MB
-MEMBASE ?= 0
+MEMSIZE ?= 0x01400000 # 20MB
+MEMBASE := 0xc0000000
 GLOBAL_DEFINES += \
     BCM2XXX_VPU=1 SMP_MAX_CPUS=1 \
     MEMSIZE=$(MEMSIZE) \
     MEMBASE=$(MEMBASE) \
+    RPI4=1 \
+    VPU=1 \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/uart.c \
