@@ -12,7 +12,7 @@ function HELP {
     echo "-d a virtio display"
     echo "-e embeded platform"
     echo "-6 64bit"
-    echo "-u supervisor mode (using OpenSBI)"
+    echo "-S supervisor mode (using OpenSBI)"
     echo "   currently only works in 64bit mode"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
@@ -36,7 +36,7 @@ SUDO=""
 PROJECT=""
 BIOS="none"
 
-while getopts bdhm:cMmnte6p:s:u FLAG; do
+while getopts bdhm:cMmnte6p:s:S FLAG; do
     case $FLAG in
         b) DO_BLOCK=1;;
         c) DO_CMPCTMALLOC=1;;
@@ -48,8 +48,8 @@ while getopts bdhm:cMmnte6p:s:u FLAG; do
         6) DO_64BIT=1;;
         m) MEMSIZE=$OPTARG;;
         s) SMP=$OPTARG;;
+        S) DO_SUPERVISOR=1;;
         p) PROJECT=$OPTARG;;
-        u) DO_SUPERVISOR=1;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -109,7 +109,7 @@ if (( ! $DO_EMBEDDED )); then
         ARGS+=$NO_DISPLAY_ARGS
     fi
 else
-    # embedded machine is more fixed and only gets these options
+    # embedded machine is more fixed and only get these options
     ARGS="-machine $MACHINE -kernel build-${PROJECT}/lk.elf"
     ARGS+=$NO_DISPLAY_ARGS
 fi
