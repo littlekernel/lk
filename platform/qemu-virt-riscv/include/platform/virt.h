@@ -30,3 +30,24 @@
 #define PLIC_HART_IDX(hart)    ((2 * (hart)) + 1)
 #endif
 
+#define MEMORY_BASE_PHYS     (0x80000000)
+#if __riscv_xlen == 64
+// up to 64 GB of ram, which seems to be a soft cap
+#define MEMORY_APERTURE_SIZE (64ULL * 1024 * 1024 * 1024)
+#else
+// cap after 1GB
+#define MEMORY_APERTURE_SIZE (1UL * 1024 * 1024 * 1024)
+#endif
+
+// map all of 0-1GB into kernel space in one shot
+#define PERIPHERAL_BASE_PHYS (0)
+#define PERIPHERAL_BASE_SIZE (0x40000000UL) // 1GB
+
+// XXX clean up
+#if __riscv_xlen == 64
+#define PERIPHERAL_BASE_VIRT (0xffffffffc0000000ULL) // -1GB
+#else
+#define PERIPHERAL_BASE_VIRT (0xc0000000UL) // -1GB
+#endif
+
+

@@ -8,6 +8,14 @@ RISCV_MODE ?= machine
 WITH_SMP ?= 1
 SMP_MAX_CPUS ?= 8
 
+ifeq ($(RISCV_MODE),supervisor)
+ifeq ($(SUBARCH),32)
+RISCV_MMU ?= sv32
+else
+RISCV_MMU ?= sv48
+endif
+endif
+
 MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/fdt
 MODULE_DEPS += lib/fdtwalk
@@ -19,7 +27,6 @@ MODULE_SRCS += $(LOCAL_DIR)/platform.c
 MODULE_SRCS += $(LOCAL_DIR)/plic.c
 MODULE_SRCS += $(LOCAL_DIR)/uart.c
 
-#ROMBASE ?= 0x20400000 # if running from rom, start here
 MEMBASE ?= 0x80000000
 MEMSIZE ?= 0x01000000 # default to 16MB
 ifeq ($(RISCV_MODE),supervisor)

@@ -67,12 +67,17 @@ void arch_init(void) {
     riscv_init_percpu();
 
     // print some arch info
+#if RISCV_M_MODE
+    dprintf(INFO, "RISCV: Machine mode\n");
     dprintf(INFO, "RISCV: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#x\n",
             riscv_get_mvendorid(), riscv_get_marchid(),
             riscv_get_mimpid(), riscv_current_hart());
-#if RISCV_M_MODE
     dprintf(INFO, "RISCV: misa %#lx\n", riscv_csr_read(RISCV_CSR_MISA));
 #else
+    dprintf(INFO, "RISCV: Supervisor mode\n");
+#if RISCV_MMU
+    dprintf(INFO, "RISCV: MMU enabled sv%u\n", RISCV_MMU);
+#endif
     dprintf(INFO, "RISCV: SBI impl id %#lx version %#lx\n", sbi_call(SBI_GET_SBI_IMPL_ID).value, sbi_call(SBI_GET_SBI_IMPL_VERSION).value);
 
     // probe some SBI extensions

@@ -54,6 +54,7 @@ static inline void hexdump8(const void *ptr, size_t len) {
 void panic(const char *fmt, ...) __PRINTFLIKE(1, 2) __NO_RETURN;
 
 #define PANIC_UNIMPLEMENTED panic("%s unimplemented\n", __PRETTY_FUNCTION__)
+#define PANIC_UNIMPLEMENTED_MSG(x...) panic("%s unimplemented: %s\n", __PRETTY_FUNCTION__, x)
 
 /* spin the cpu for a period of (short) time */
 void spin(uint32_t usecs);

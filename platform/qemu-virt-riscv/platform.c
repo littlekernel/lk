@@ -8,7 +8,6 @@
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <kernel/thread.h>
-#include <kernel/novm.h>
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
@@ -21,6 +20,11 @@
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#else
+#include <kernel/novm.h>
+#endif
 
 #include "platform_p.h"
 
@@ -28,16 +32,33 @@
 
 extern ulong lk_boot_args[4];
 
+#if WITH_KERNEL_VM
+#define DEFAULT_MEMORY_SIZE (MEMSIZE) /* try to fetch from the emulator via the fdt */
+
+static pmm_arena_t arena = {
+    .name = "ram",
+    .base = MEMORY_BASE_PHYS,
+    .size = DEFAULT_MEMORY_SIZE,
+    .flags = PMM_ARENA_FLAG_KMAP,
+};
+#endif
+
 // callbacks to the fdt_walk routine
 static void memcallback(uint64_t base, uint64_t len, void *cookie) {
     bool *found_mem = (bool *)cookie;
 
     LTRACEF("base %#llx len %#llx cookie %p\n", base, len, cookie);
 
-    /* add another novm arena */
+    /* add another vm arena */
     if (!*found_mem) {
         printf("FDT: found memory arena, base %#llx size %#llx\n", base, len);
+#if WITH_KERNEL_VM
+        arena.base = base;
+        arena.size = len;
+        pmm_add_arena(&arena);
+#else
         novm_add_arena("fdt", base, len);
+#endif
         *found_mem = true; // stop searching after the first one
     }
 }
@@ -75,13 +96,24 @@ void platform_early_init(void) {
     }
 
     if (!found_mem) {
+#if WITH_KERNEL_VM
+        pmm_add_arena(&arena);
+#else
         novm_add_arena("default", MEMBASE, MEMSIZE);
+#endif
     }
 
     if (cpu_count > 0) {
         printf("FDT: found %d cpus\n", cpu_count);
         riscv_set_secondary_count(cpu_count - 1);
     }
+
+#if WITH_KERNEL_VM
+    /* reserve the first 128K of ram which is marked protected by the PMP in firmware */
+    struct list_node list = LIST_INITIAL_VALUE(list);
+    pmm_alloc_range(MEMBASE, 0x20000 / PAGE_SIZE, &list);
+#endif
+
 
     LTRACEF("done scanning FDT\n");
 }
