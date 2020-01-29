@@ -55,14 +55,17 @@ arch_interrupt_save(spin_lock_saved_state_t *statep, spin_lock_save_flags_t flag
     if (!arch_ints_disabled()) {
         state |= SPIN_LOCK_STATE_RESTORE_IRQ;
         arch_disable_ints();
+        //printf("irq was on, disabled\n");
     }
     *statep = state;
 }
 
 static inline void
 arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t flags) {
-    if (old_state & SPIN_LOCK_STATE_RESTORE_IRQ)
+    if (old_state & SPIN_LOCK_STATE_RESTORE_IRQ) {
+        //printf("restoring ints\n");
         arch_enable_ints();
+    }
 }
 
 

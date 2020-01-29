@@ -19,7 +19,7 @@ struct handlerArgPair irq_handlers[64];
 // it will then push pc and sr onto the new stack
 // it will then read an entry from this vector table, and set the PC to that entry
 // if the highest bit on this addr is set, the cpu will switch into supervisor mode
-irqType __attribute__ ((aligned (512))) vectorTable[144]; // might only need to be 128 entries
+irqType __attribute__ ((aligned (512))) vectorTable[128]; // might only need to be 128 entries
 
 uint8_t irq_stack0[4096];
 
@@ -83,7 +83,7 @@ void intc_init(void) {
   }
   // swi opcode handler
   for (int i=32; i<=63; i++) {
-    vectorTable[i] = (uint32_t)fleh_irq | 1;
+    vectorTable[i] = (uint32_t)fleh_swi;
   }
   // external interrupts
   for (int i=64; i<=127; i++) {
@@ -93,12 +93,12 @@ void intc_init(void) {
   uint32_t irq_sp = (irq_stack0 + sizeof(irq_stack0)) - 4;
   dprintf(INFO, "r28 = 0x%x\nirq_stack0: %p\nsizeof(irq_stack0): %d\n", irq_sp, irq_stack0, sizeof(irq_stack0));
 
-  __asm__ volatile ("mov r28, 0xdeadbeef": :"r"(irq_sp));
+  __asm__ volatile ("mov r28, %0": :"r"(irq_sp));
 
-  *REG32(IC0_VADDR) = vectorTable;
-  *REG32(IC1_VADDR) = vectorTable;
+  *REG32(IC0_VADDR) = (uint32_t)vectorTable;
+  *REG32(IC1_VADDR) = (uint32_t)vectorTable;
 
-  if (*REG32(IC0_VADDR) != vectorTable) {
+  if (((void *)*REG32(IC0_VADDR)) != vectorTable) {
     printf("vector table now at 0x%08x 0x%08x\n", *REG32(IC0_VADDR), (uint32_t)vectorTable);
     panic("vector table failed to install");
   }
@@ -233,4 +233,9 @@ void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp) {
     print_vpu_state(pcb);
     panic("unknown interrupt source!");
   }
+}
+
+void sleh_swi(vc4_saved_state_t* pcb) {
+  dprintf(INFO, "got SWI\n");
+  print_vpu_state(pcb);
 }

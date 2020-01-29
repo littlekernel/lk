@@ -18,10 +18,10 @@ static inline bool arch_ints_disabled(void) {
   return !(state & 0x40000000);
 }
 
+int vc4_atomic_add(volatile int *ptr, int val);
+
 static inline int atomic_add(volatile int *ptr, int val) {
-  // TODO
-  *ptr += val;
-  return *ptr;
+  return vc4_atomic_add(ptr, val);
 }
 
 static inline int atomic_or(volatile int *ptr, int val) {
@@ -36,7 +36,7 @@ static inline int atomic_swap(volatile int *ptr, int val) {
     return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
 }
 static inline struct thread *get_current_thread(void) {
-  uint32_t thread_reg;
+  struct thread *thread_reg;
   __asm__ volatile("mov %0, r29" : "=r"(thread_reg));
   return thread_reg;
 }
@@ -51,5 +51,6 @@ static inline uint arch_curr_cpu_num(void) {
   uint32_t cpuid;
   __asm__("version %0" : "=r"(cpuid));
   // TODO, one of the bits in the cpuid is the cpu#, dont remember which one
+  // a pdf for an older ARC model says the cpuid contains a 16bit vendor id, 8bit coreid, and 8bit cpuid
   return 0;
 }

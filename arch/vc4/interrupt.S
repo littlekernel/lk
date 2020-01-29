@@ -1,6 +1,14 @@
 .macro SaveRegsLower
   stm lr, (--sp)
+  nop
+  nop
+  nop
+  nop
   stm r0-r5, (--sp)
+  nop
+  nop
+  nop
+  nop
 .endm
 
 .macro SaveRegsUpper
@@ -50,6 +58,20 @@ fleh_irq:
   mov r1, r29
   bl sleh_irq
 return_from_exception:
+  ldm r16-r23, (sp++)
+  ldm r6-r15, (sp++)
+  ldm r0-r5, (sp++)
+  ld lr, (sp++)
+  rti
+
+.global fleh_swi
+fleh_swi:
+  stm lr, (--sp)
+  stm r0-r5, (--sp)
+  stm r6-r15, (--sp)
+  stm r16-r23, (--sp)
+  mov r0, sp
+  bl sleh_swi
   ldm r16-r23, (sp++)
   ldm r6-r15, (sp++)
   ldm r0-r5, (sp++)

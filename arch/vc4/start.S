@@ -1,6 +1,6 @@
 #include <lk/asm.h>
 
-.text
+.section .text.start
 FUNCTION(_start)
 .global _start
 _start:
@@ -20,3 +20,11 @@ core2_start:
   bl core2_entry
 loop2:
   b loop2
+
+.global testit
+testit:
+  st r1, (r0)
+  st r2, (r0+4)
+  st r3, (r0+8)
+  st r4, (r0+12)
+  rts
