@@ -16,7 +16,7 @@ let
   vc4 = pkgs.pkgsCross.vc4.extend overlay;
   x86_64 = pkgs.extend overlay;
   arm7 = pkgs.pkgsCross.armv7l-hf-multiplatform.extend overlay;
-in {
+in lib.fix (self: {
   arm7 = {
     inherit (arm7) littlekernel;
   };
@@ -28,4 +28,9 @@ in {
   x86_64 = {
     inherit (x86_64) uart-manager;
   };
-}
+  testcycle = pkgs.writeShellScript "testcycle" ''
+    set -e
+    scp ${self.vc4.rpi3.bootcode}/lk.bin root@router.localnet:/tftproot/open-firmware/bootcode.bin
+    exec ${x86_64.uart-manager}/bin/uart-manager
+  '';
+})
