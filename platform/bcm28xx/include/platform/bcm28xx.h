@@ -21,7 +21,7 @@
 #elif BCM2837
   #define BCM_PERIPH_BASE_VIRT    (0xffffffffc0000000ULL)
   #define MEMORY_APERTURE_SIZE    (1024 * 1024 * 1024)
-#elif BCM2XXX_VPU
+#elif VPU
   #define BCM_PERIPH_BASE_VIRT    (0x7e000000U)
 #else
 #error Unknown BCM28XX Variant
@@ -84,6 +84,10 @@
 #define IC1_WAKEUP              (IC1_BASE + 0x34)
 
 #define PM_PASSWORD 0x5a000000
+#define CM_PASSWORD 0x5a000000
+#define CM_SRC_OSC                    1
+#define CM_UARTCTL_FRAC_SET                                0x00000200
+#define CM_UARTCTL_ENAB_SET                                0x00000010
 #define PM_RSTC                 (PM_BASE + 0x1c)
 #define PM_RSTC_WRCFG_CLR       0xffffffcf // mask to keep everything but the watchdog config
 #define PM_WDOG                 (PM_BASE + 0x24)
@@ -267,3 +271,6 @@
 #define GPIO_GPPUD     (GPIO_BASE + 0x94)
 #define GPIO_GPPUDCLK0 (GPIO_BASE + 0x98)
 #define GPIO_GPPUDCLK1 (GPIO_BASE + 0x9C)
+#define GPIO_2711_PULL (GPIO_BASE + 0xe4)
+// 2 bits per reg, 16 pins per reg, 4 regs total
+// 0=none, 1=up, 2=down

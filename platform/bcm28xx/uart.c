@@ -16,6 +16,7 @@
 #include <platform/bcm28xx.h>
 #include <platform/bcm28xx/pll_read.h>
 #include <assert.h>
+#include <dev/gpio.h>
 
 /* TODO: extract this into a generic PL011 driver */
 
@@ -92,6 +93,8 @@ static void uart_flush(int port) {
 }
 
 void uart_init(void) {
+    gpio_config(14, 4);
+    gpio_config(15, 4);
     for (size_t i = 0; i < NUM_UART; i++) {
         uintptr_t base = uart_to_ptr(i);
 
@@ -131,10 +134,29 @@ void uart_init(void) {
     }
 }
 
+int uart_putc(int port, char c);
+
 void uart_init_early(void) {
-    for (size_t i = 0; i < NUM_UART; i++) {
-        UARTREG(uart_to_ptr(i), UART_CR) = (1<<8)|(1<<0); // tx_enable, uarten
+    if (*REG32(CM_UARTDIV) == 0) {
+      // CM_UARTDIV can range from 0 to 1023 with a fractional resolution of 1/4096th
+      // on the rpi1-3, this sets the freq to 19.2 / (0x3900 / 0x1000) == ~5.3mhz
+      // TODO, have a better default for other models?
+      *REG32(CM_UARTDIV) = CM_PASSWORD | 0x3900;
+      *REG32(CM_UARTCTL) = CM_PASSWORD | CM_SRC_OSC | CM_UARTCTL_FRAC_SET | CM_UARTCTL_ENAB_SET;
     }
+
+    for (size_t i = 0; i < NUM_UART; i++) {
+        uintptr_t base = uart_to_ptr(i);
+        uint32_t divisor = calculate_baud_divisor(115200);
+        UARTREG(base, UART_CR) = 0; // shutdown the entire uart
+        UARTREG(base, UART_LCRH) = 0x70; // fifo enable, 8bit mode
+        if (divisor > 0) {
+          UARTREG(base, UART_IBRD) = (divisor >> 6) & 0xffff;
+          UARTREG(base, UART_FBRD) = divisor & 0x3f;
+        }
+        UARTREG(base, UART_CR) = (1<<8)|(1<<0); // tx_enable, uarten
+    }
+    gpio_config(14, 4);
 }
 
 int uart_putc(int port, char c) {
