@@ -19,7 +19,7 @@ struct handlerArgPair irq_handlers[64];
 // it will then push pc and sr onto the new stack
 // it will then read an entry from this vector table, and set the PC to that entry
 // if the highest bit on this addr is set, the cpu will switch into supervisor mode
-irqType __attribute__ ((aligned (512))) vectorTable[128]; // might only need to be 128 entries
+irqType __attribute__ ((aligned (512))) vectorTable[128];
 
 uint8_t irq_stack0[4096];
 

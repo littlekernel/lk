@@ -21,7 +21,9 @@ in {
     inherit (arm7) littlekernel;
   };
   vc4 = {
-    inherit (vc4) littlekernel;
+    shell = vc4.littlekernel;
+    rpi3.bootcode = vc4.callPackage ./lk.nix { project = "rpi3-bootcode"; };
+    rpi4.start4 = vc4.callPackage ./lk.nix { project = "rpi4-start4"; };
   };
   x86_64 = {
     inherit (x86_64) uart-manager;
