@@ -3,9 +3,11 @@ MEMORY {
 }
 GROUP(-lgcc)
 SECTIONS {
-  .text : {
+  .vectorTable : {
     . = 0x0;
-    . = 0x200;
+    *(.data.vectorTable)
+  }
+  .text : {
     _text = .;
     *(.text.start)
     *(.text)
