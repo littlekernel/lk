@@ -43,6 +43,10 @@ SECTIONS {
     __ctor_end = .;
   } >ram
 
+  .vectorTable : ALIGN(512) {
+    *(.data.vectorTable)
+  } >ram
+
   .data : {
     . = ALIGN(4);
     _fdata = .;

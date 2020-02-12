@@ -23,6 +23,7 @@ in lib.fix (self: {
   vc4 = {
     shell = vc4.littlekernel;
     rpi3.bootcode = vc4.callPackage ./lk.nix { project = "rpi3-bootcode"; };
+    rpi3.start = vc4.callPackage ./lk.nix { project = "rpi3-start"; };
     rpi4.start4 = vc4.callPackage ./lk.nix { project = "rpi4-start4"; };
   };
   x86_64 = {

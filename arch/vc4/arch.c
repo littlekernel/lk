@@ -5,6 +5,7 @@
 #include <lk/reg.h>
 #include <platform/bcm28xx.h>
 #include <kernel/thread.h>
+#include <string.h>
 
 static int cmd_boot_other_core(int argc, const cmd_args *argv);
 static int cmd_testit(int argc, const cmd_args *argv);
@@ -16,6 +17,13 @@ STATIC_COMMAND_START
 STATIC_COMMAND("boot_other_core", "boot the 2nd vpu core", &cmd_boot_other_core)
 STATIC_COMMAND("testit", "do some asm tests", &cmd_testit)
 STATIC_COMMAND_END(arch);
+
+extern uint8_t _fbss;
+extern uint8_t _ebss;
+
+void zero_bss() {
+  bzero(&_fbss, &_ebss - &_fbss);
+}
 
 void arch_early_init(void) {
   uint32_t r28, sp, sr;

@@ -50,7 +50,6 @@ void set_interrupt(int intno, bool enable, int core) {
   *REG32(base + offset) = enable ? v | slot : v;
 }
 
-
 void intc_init(void) {
   uint32_t r28, sp;
   __asm__ volatile ("mov %0, r28" : "=r"(r28));

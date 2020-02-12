@@ -77,10 +77,20 @@ static enum handler_return uart_irq(void *arg) {
 
         /* while fifo is not empty, read chars out of it */
         while ((UARTREG(base, UART_TFR) & (1<<4)) == 0) {
-            char c = UARTREG(base, UART_DR);
-            cbuf_write_char(rxbuf, c, false);
+            uint32_t data = UARTREG(base, UART_DR);
+            char c = data & 0xff;
+            if (data & 0x400) {
+              dprintf(INFO, "UART break detected\n");
+            } else if (data & 0x100) {
+              dprintf(INFO, "UART framing error\n");
+            } else {
+              if (data & 0x800) {
+                dprintf(INFO, "UART input overflow\n");
+              }
+              cbuf_write_char(rxbuf, c, false);
 
-            resched = true;
+              resched = true;
+            }
         }
     }
 
