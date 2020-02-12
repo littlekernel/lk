@@ -603,7 +603,7 @@ void thread_yield(void) {
 
     THREAD_STATS_INC(yields);
 
-    dprintf(INFO, "thread_yield\n");
+    //dprintf(INFO, "thread_yield\n");
 
     /* we are yielding the cpu, so stick ourselves into the tail of the run queue and reschedule */
     current_thread->state = THREAD_READY;

@@ -59,9 +59,14 @@ void intc_init(void) {
   // TODO
   for (int i=0; i<64; i++) {
     irq_handlers[0].h = 0; // is this needed? maybe .bss already took care of it?
-    set_interrupt(i, false, 0);
-    set_interrupt(i, false, 1);
   }
+  // rather then call set_interrupt for each bit in each byte, just blanket clear all
+  // this will disable every hardware irq
+  volatile uint32_t *maskreg = IC0_BASE + 0x10;
+  for (int i=0; i<8; i++) maskreg[i] = 0;
+  maskreg = IC1_BASE + 0x10;
+  for (int i=0; i<8; i++) maskreg[i] = 0;
+
   // https://github.com/hermanhermitage/videocoreiv/wiki/VideoCore-IV-Programmers-Manual#interrupts
   // processor internal exceptions
   vectorTable[0] = fleh_zero;
@@ -100,7 +105,7 @@ void intc_init(void) {
 
   if (((void *)*REG32(IC0_VADDR)) != vectorTable) {
     printf("vector table now at 0x%08x 0x%08x\n", *REG32(IC0_VADDR), (uint32_t)vectorTable);
-    panic("vector table failed to install");
+    panic("vector table failed to install\n");
   }
 }
 

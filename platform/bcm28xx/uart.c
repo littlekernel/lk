@@ -135,6 +135,7 @@ void uart_init(void) {
 }
 
 int uart_putc(int port, char c);
+void udelay(uint32_t t);
 
 void uart_init_early(void) {
     if (*REG32(CM_UARTDIV) == 0) {
@@ -144,6 +145,7 @@ void uart_init_early(void) {
       *REG32(CM_UARTDIV) = CM_PASSWORD | 0x3900;
       *REG32(CM_UARTCTL) = CM_PASSWORD | CM_SRC_OSC | CM_UARTCTL_FRAC_SET | CM_UARTCTL_ENAB_SET;
     }
+    udelay(100);
 
     for (size_t i = 0; i < NUM_UART; i++) {
         uintptr_t base = uart_to_ptr(i);
@@ -157,6 +159,7 @@ void uart_init_early(void) {
         UARTREG(base, UART_CR) = (1<<8)|(1<<0); // tx_enable, uarten
     }
     gpio_config(14, 4);
+    printf("uart early init done\n");
 }
 
 int uart_putc(int port, char c) {

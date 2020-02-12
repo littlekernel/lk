@@ -26,7 +26,7 @@ VideoCoreIV SDRAM initialization code.
 #include <lk/debug.h>
 #include <app.h>
 
-#include "sdram.h"
+#include <platform/bcm28xx/sdram.h>
 #include "ddr2.h"
 
 #define ALWAYS_INLINE __attribute__((always_inline)) inline
@@ -71,16 +71,6 @@ enum RamSize g_RAMSize = kRamSizeUnknown;
 #define PVT_calibrate_request 0x1
 
 #define logf(fmt, ...) print_timestamp(); printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
-
-// TODO, move this to a better place
-void udelay(uint32_t t) {
-  uint32_t tv = *REG32(ST_CLO);
-  for (;;) {
-    /* nop still takes a cycle i think? */
-    __asm__ __volatile__ ("nop" :::);
-    if ((*REG32(ST_CLO) - tv) > t) return;
-  }
-}
 
 void print_timestamp() {
   uint32_t clock_lo = *REG32(ST_CLO);
@@ -609,15 +599,3 @@ void sdram_init() {
   init_late();
   selftest();
 }
-
-static void ddr2_init(const struct app_descriptor *app) {
-}
-
-static void ddr2_entry(const struct app_descriptor *app, void *args) {
-  sdram_init();
-}
-
-APP_START(ddr2)
-  .init = ddr2_init,
-  .entry = ddr2_entry,
-APP_END

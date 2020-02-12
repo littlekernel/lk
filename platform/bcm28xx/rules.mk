@@ -100,6 +100,7 @@ else ifeq ($(TARGET),rpi3-vpu)
 
   MODULE_SRCS += \
     $(LOCAL_DIR)/uart.c \
+    $(LOCAL_DIR)/udelay.c \
 
 else ifeq ($(TARGET),rpi4-vpu)
 MEMSIZE ?= 0x01400000 # 20MB

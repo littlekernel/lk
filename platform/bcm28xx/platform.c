@@ -215,7 +215,10 @@ void platform_init(void) {
   __asm__ volatile ("mov %0, sp" : "=r"(sp));
   dprintf(INFO, "platform_init\nr28: 0x%x\nsp: 0x%x\n", r28, sp);
 #endif
+
+#ifdef RPI4
   gpio_config(42, 1);
+#endif
     uart_init();
 #if BCM2837
     init_framebuffer();

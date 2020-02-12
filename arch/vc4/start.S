@@ -1,11 +1,17 @@
 #include <lk/asm.h>
 
+#define MANUAL_UART
+
 .section .text.start
 FUNCTION(_start)
 .global _start
 _start:
   di
   mov sp, _fstack
+#ifdef MANUAL_UART
+  bl manual_uart_cfg
+#endif
+  bl zero_bss
   bl lk_main
 loop:
   b loop
@@ -28,3 +34,35 @@ testit:
   st r3, (r0+8)
   st r4, (r0+12)
   rts
+
+#ifdef MANUAL_UART
+manual_uart_cfg:
+  mov r0, 0x7e200004
+  mov r1, 0x00004000
+  st r1, (r0)
+  mov r0, 0x7e1010f4
+  mov r1, 0x5a003900
+  st r1, (r0)
+  mov r0, 0x7e1010f0
+  mov r1, 0x5a000211
+  st r1, (r0)
+  mov r0, 0x7e201044
+  mov r1, 0x000007ff
+  st r1, (r0)
+  mov r0, 0x7e20102c
+  mov r1, 0x00000070
+  st r1, (r0)
+  mov r0, 0x7e201024
+  mov r1, 0x00000002
+  st r1, (r0)
+  mov r0, 0x7e201028
+  mov r1, 0x0000003b
+  st r1, (r0)
+  mov r0, 0x7e201030
+  mov r1, 0x00000301
+  st r1, (r0)
+  mov r0, 0x7e201000
+  mov r1, 'U'
+  st r1, (r0)
+  rts
+#endif
