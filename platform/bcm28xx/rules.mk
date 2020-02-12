@@ -115,6 +115,7 @@ GLOBAL_DEFINES += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/uart.c \
 	$(LOCAL_DIR)/genet.c \
+	$(LOCAL_DIR)/udelay.c \
 
 endif
 

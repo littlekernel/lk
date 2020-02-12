@@ -25,7 +25,7 @@ VideoCoreIV SDRAM initialization code.
 #include <stdio.h>
 #include <lk/debug.h>
 #include <app.h>
-
+#include <platform/bcm28xx/udelay.h>
 #include <platform/bcm28xx/sdram.h>
 #include "ddr2.h"
 

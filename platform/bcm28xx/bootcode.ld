@@ -39,10 +39,11 @@ SECTIONS {
 
   .bss : {
     . = ALIGN(4);
-    __bss_start = .;
+    _fbss = .;
     *(.bss)
     *(COMMON)
     . = ALIGN(4);
+    _ebss = .;
     _end = .;
   }
   _fstack = ORIGIN(ram) + LENGTH(ram) - 4;
