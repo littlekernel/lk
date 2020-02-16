@@ -4,10 +4,12 @@
 #include <lk/console_cmd.h>
 
 static int cmd_otp_pretty(int argc, const cmd_args *argv);
+static int cmd_otp_full(int argc, const cmd_args *argv);
 uint32_t otp_read_internal(uint32_t addr);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("otp_pretty_print", "pretty-print all known otp values", &cmd_otp_pretty)
+STATIC_COMMAND("otp_dump_all","dump all OTP values", &cmd_otp_full)
 STATIC_COMMAND_END(otp);
 
 uint32_t otp_read(uint8_t addr) {
@@ -20,6 +22,11 @@ void dump_all_otp(void) {
     uint32_t value = otp_read(addr);
     printf("%02d:%08x\n", addr, value);
   }
+}
+
+static int cmd_otp_full(int argc, const cmd_args *argv) {
+  dump_all_otp();
+  return 0;
 }
 
 void otp_pretty_print(void) {

@@ -23,6 +23,7 @@ endif
 
 
 ifeq ($(ARCH),arm)
+MEMBASE := 0x00000000
 MODULE_DEPS += \
 	dev/timer/arm_generic \
 	lib/cbuf
@@ -34,8 +35,12 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
 else # VPU
   ifeq ($(BOOTCODE),1)
+    MEMBASE := 0x80000000 # in the 8 alias
+    MEMSIZE := 0x20000 # 128kb
     LINKER_SCRIPT += $(LOCAL_DIR)/bootcode.ld
   else
+    MEMBASE := 0xc0000000
+    MEMSIZE ?= 0x01400000 # 20MB
     LINKER_SCRIPT += $(LOCAL_DIR)/start.ld
   endif
 endif
@@ -53,7 +58,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/pll_read.c \
 
 
-MEMBASE := 0x00000000
 
 GLOBAL_DEFINES += \
 	ARM_ARCH_WAIT_FOR_SECONDARIES=1
@@ -89,8 +93,6 @@ MODULE_DEPS += \
 	    app/tests \
 	    lib/fdt
 else ifeq ($(TARGET),rpi3-vpu)
-  MEMSIZE := 0x20000 # 128kb
-  MEMBASE := 0x80000000 # in the 8 alias
   GLOBAL_DEFINES += \
     MEMSIZE=$(MEMSIZE) \
     MEMBASE=$(MEMBASE) \
@@ -101,10 +103,13 @@ else ifeq ($(TARGET),rpi3-vpu)
   MODULE_SRCS += \
     $(LOCAL_DIR)/uart.c \
     $(LOCAL_DIR)/udelay.c \
+    $(LOCAL_DIR)/sdhost_impl.cpp \
+    $(LOCAL_DIR)/print_timestamp.c \
+
+  MODULES += \
+	lib/bio \
 
 else ifeq ($(TARGET),rpi4-vpu)
-MEMSIZE ?= 0x01400000 # 20MB
-MEMBASE := 0xc0000000
 GLOBAL_DEFINES += \
     BCM2XXX_VPU=1 SMP_MAX_CPUS=1 \
     MEMSIZE=$(MEMSIZE) \

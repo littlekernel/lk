@@ -21,7 +21,7 @@ STATIC_COMMAND_END(arch);
 extern uint8_t _fbss;
 extern uint8_t _ebss;
 
-void zero_bss() {
+void zero_bss(void) {
   bzero(&_fbss, &_ebss - &_fbss);
 }
 
@@ -57,7 +57,7 @@ static int cmd_boot_other_core(int argc, const cmd_args *argv) {
   return 0;
 }
 
-void core2_entry() {
+void core2_entry(void) {
   dprintf(INFO, "core2 says hello\n");
   for (;;);
 }

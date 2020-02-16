@@ -7,12 +7,20 @@
  */
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+void print_timestamp(void);
+#ifdef __cplusplus
+}
+#endif
+
 #define SDRAM_BASE 0
-#ifdef BCM2XXX_VPU
-#define BCM_PERIPH_BASE_PHYS (0x7e000000U)
+#ifdef VPU
+  #define BCM_PERIPH_BASE_PHYS (0x7e000000U)
 #else
-/* Note: BCM2836/BCM2837 use different peripheral base than BCM2835 */
-#define BCM_PERIPH_BASE_PHYS    (0x3f000000U)
+  /* Note: BCM2836/BCM2837 use different peripheral base than BCM2835 */
+  #define BCM_PERIPH_BASE_PHYS    (0x3f000000U)
 #endif
 #define BCM_PERIPH_SIZE         (0x01100000U)
 

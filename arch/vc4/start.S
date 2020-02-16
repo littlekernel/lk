@@ -37,13 +37,14 @@ testit:
 
 #ifdef MANUAL_UART
 manual_uart_cfg:
-  mov r0, 0x7e200004
+  mov r0, 0x7e200004 // GP_FSEL1
   mov r1, 0x00004000
   st r1, (r0)
-  mov r0, 0x7e1010f4
-  mov r1, 0x5a003900
+  mov r0, 0x7e1010f4 // CM_UARTDIV
+  //mov r1, 0x5a003900 19.2mhz divisor
+  mov r1, 0x5a00a050 // 54mhz divisor
   st r1, (r0)
-  mov r0, 0x7e1010f0
+  mov r0, 0x7e1010f0 // CM_UARTCTL
   mov r1, 0x5a000211
   st r1, (r0)
   mov r0, 0x7e201044

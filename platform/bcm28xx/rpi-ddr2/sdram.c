@@ -72,12 +72,6 @@ enum RamSize g_RAMSize = kRamSizeUnknown;
 
 #define logf(fmt, ...) print_timestamp(); printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
 
-void print_timestamp() {
-  uint32_t clock_lo = *REG32(ST_CLO);
-
-  printf("%3ld.%06ld ", clock_lo / 1000000, clock_lo % 1000000);
-}
-
 static const char* lpddr2_manufacturer_name(uint32_t mr) {
   switch (mr) {
   case 1:
