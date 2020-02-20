@@ -3,8 +3,8 @@
 import sys, os, struct
 
 if len(sys.argv) < 2:
-    print "not enough args, usage:"
-    print "%s <binfile>" % sys.argv[0]
+    print ("not enough args, usage:")
+    print ("%s <binfile>" % sys.argv[0])
     sys.exit(1)
 
 f = open(sys.argv[1], "r+b")

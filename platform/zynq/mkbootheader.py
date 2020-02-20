@@ -5,8 +5,8 @@
 import sys, os, array
 
 if len(sys.argv) < 3:
-    print "not enough args, usage:"
-    print "%s <binfile> <outfile>" % sys.argv[0]
+    print ("not enough args, usage:")
+    print ("%s <binfile> <outfile>" % sys.argv[0])
     sys.exit(1)
 
 fin = open(sys.argv[1], "r+b")

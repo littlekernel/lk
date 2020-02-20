@@ -13,18 +13,18 @@ parser.add_option("-a", "--after", dest="after", action="append",
 
 if options.before and len(options.before) > 0:
     for b in options.before:
-        print b
+        print (b)
 
 offset = 0
-f = bytearray(sys.stdin.read())
+f = bytearray(sys.stdin.read(), 'utf-8')
 for c in f:
     if offset != 0 and offset % 16 == 0:
-        print ""
-    print "%#04x," % c,
+        print ("")
+    sys.stdout.write("%#04x," % c)
     offset = offset + 1
-print ""
+print ("")
 
 if options.after and len(options.after) > 0:
     for a in options.after:
-        print a
+        print (a)
 
