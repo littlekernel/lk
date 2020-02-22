@@ -5,7 +5,7 @@
 OUTPUT_FORMAT("elf32-vc4", "elf32-vc4", "elf32-vc4")
 OUTPUT_ARCH(vc4)
 ENTRY(_start)
-GROUP(-lgloss -lc -lteststub -lgcc)
+GROUP(-lgcc)
 
 MEMORY {
   /* in the C alias, direct uncached
