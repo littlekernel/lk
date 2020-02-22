@@ -1,19 +1,88 @@
 #include <stdint.h>
+#include <lk/reg.h>
+#include <platform/bcm28xx.h>
 #include <platform/bcm28xx/otp.h>
+#include <platform/bcm28xx/udelay.h>
 #include <stdio.h>
 #include <lk/console_cmd.h>
 
+#define OTP_MAX_CMD_WAIT 1000
+
+enum otp_command {
+  OTP_CMD_READ = 0,
+};
+
+/* OTP_CTRL_LO Bits */
+#define OTP_CMD_START 1
+
+/* OTP Status Bits */
+#ifdef RPI4
+# define OTP_STAT_CMD_DONE 2
+#else
+# define OTP_STAT_CMD_DONE 1
+#endif
+
 static int cmd_otp_pretty(int argc, const cmd_args *argv);
 static int cmd_otp_full(int argc, const cmd_args *argv);
-uint32_t otp_read_internal(uint32_t addr);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("otp_pretty_print", "pretty-print all known otp values", &cmd_otp_pretty)
 STATIC_COMMAND("otp_dump_all","dump all OTP values", &cmd_otp_full)
 STATIC_COMMAND_END(otp);
 
+static inline void otp_delay(void) {
+  udelay(1);
+}
+
+static void otp_open(void) {
+  // TODO: Is this really needed? The code seems to work
+  // without this block, at least on BCM2711 B0 silicon.
+  *REG32(OTP_CONFIG) = 3;
+  otp_delay();
+
+  *REG32(OTP_CTRL_HI) = 0;
+  *REG32(OTP_CTRL_LO) = 0;
+  *REG32(OTP_ADDR) = 0;
+  *REG32(OTP_DATA) = 0;
+  *REG32(OTP_CONFIG) = 2;
+}
+
+static void otp_close(void) {
+  *REG32(OTP_CTRL_HI) = 0;
+  *REG32(OTP_CTRL_LO) = 0;
+  *REG32(OTP_CONFIG) = 0;
+}
+
+static int otp_wait_status(uint32_t mask, int retry) {
+  int i = retry;
+  do {
+    otp_delay();
+    if (*REG32(OTP_STATUS) & mask)
+      return 0;
+  } while (--i);
+  return -1;
+}
+
+static int otp_set_command(enum otp_command cmd) {
+  *REG32(OTP_CTRL_HI) = 0;
+  *REG32(OTP_CTRL_LO) = cmd << 1;
+  if (otp_wait_status(OTP_STAT_CMD_DONE, OTP_MAX_CMD_WAIT))
+    return -1;
+  *REG32(OTP_CTRL_LO) = (cmd << 1) | OTP_CMD_START;
+  return otp_wait_status(OTP_STAT_CMD_DONE, OTP_MAX_CMD_WAIT);
+}
+
+static uint32_t otp_read_open(uint8_t addr) {
+  *REG32(OTP_ADDR) = addr;
+  return (uint32_t) otp_set_command(OTP_CMD_READ) ?: *REG32(OTP_DATA);
+}
+
 uint32_t otp_read(uint8_t addr) {
-  return otp_read_internal(addr);
+  uint32_t val;
+  otp_open();
+  val = otp_read_open(addr);
+  otp_close();
+  return val;
 }
 
 void dump_all_otp(void) {
