@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <inttypes.h>
 #include <lk/reg.h>
 #include <platform/bcm28xx.h>
 #include <platform/bcm28xx/otp.h>
@@ -7,13 +8,18 @@
 #include <lk/console_cmd.h>
 
 #define OTP_MAX_CMD_WAIT 1000
+#define OTP_MAX_PROG_WAIT 32000
 
 enum otp_command {
   OTP_CMD_READ = 0,
+  OTP_CMD_PROG_ENABLE  = 0x2,
+  OTP_CMD_PROG_DISABLE = 0x3,
+  OTP_CMD_PROGRAM_WORD = 0xa,
 };
 
 /* OTP_CTRL_LO Bits */
 #define OTP_CMD_START 1
+#define OTP_STAT_PROG_OK 4
 
 /* OTP Status Bits */
 #ifdef RPI4
@@ -22,12 +28,16 @@ enum otp_command {
 # define OTP_STAT_CMD_DONE 1
 #endif
 
+#define OTP_PROG_EN_SEQ { 0xf, 0x4, 0x8, 0xd };
+
 static int cmd_otp_pretty(int argc, const cmd_args *argv);
 static int cmd_otp_full(int argc, const cmd_args *argv);
+static int cmd_otp_write(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("otp_pretty_print", "pretty-print all known otp values", &cmd_otp_pretty)
 STATIC_COMMAND("otp_dump_all","dump all OTP values", &cmd_otp_full)
+STATIC_COMMAND("otp_write","write new OTP value", &cmd_otp_write)
 STATIC_COMMAND_END(otp);
 
 static inline void otp_delay(void) {
@@ -84,6 +94,62 @@ uint32_t otp_read(uint8_t addr) {
   otp_close();
   return val;
 }
+
+#ifdef RPI4
+
+static int otp_enable_program(void)
+{
+  static const uint32_t seq[] = OTP_PROG_EN_SEQ;
+  unsigned i;
+
+  for (i = 0; i < countof(seq); ++i) {
+    *REG32(OTP_DATA) = seq[i];
+    if (otp_set_command(OTP_CMD_PROG_ENABLE))
+      return -1;
+  }
+  return otp_wait_status(OTP_STAT_PROG_OK, OTP_MAX_PROG_WAIT);
+}
+
+static int otp_disable_program(void)
+{
+  return otp_set_command(OTP_CMD_PROG_DISABLE);
+}
+
+static int otp_write_enabled(uint8_t addr, uint32_t newval)
+{
+  uint32_t oldval = otp_read_open(addr);
+  if (oldval == 0xffffffffL)    // This check guards against read failures
+    return 0;
+  *REG32(OTP_DATA) = newval | oldval;
+  otp_delay();
+  *REG32(OTP_ADDR) = addr;
+  otp_delay();
+  return otp_set_command(OTP_CMD_PROGRAM_WORD);
+}
+
+static int otp_write_open(uint8_t addr, uint32_t val)
+{
+  int err;
+  if (otp_enable_program())
+    return OTP_ERR_ENABLE;
+  err = otp_write_enabled(addr, val);
+  if (err)
+    err = OTP_ERR_PROGRAM;
+  if (otp_disable_program())
+    err = err ?: OTP_ERR_DISABLE;
+  return err;
+}
+
+int otp_write(uint8_t addr, uint32_t val)
+{
+  int err;
+  otp_open();
+  err = otp_write_open(addr, val);
+  otp_close();
+  return err;
+}
+
+#endif  /* RPI4 */
 
 void dump_all_otp(void) {
   printf("full otp dump\n");
@@ -144,5 +210,31 @@ void otp_pretty_print(void) {
 
 int cmd_otp_pretty(int argc, const cmd_args *argv) {
   otp_pretty_print();
+  return 0;
+}
+
+static int cmd_otp_write(int argc, const cmd_args *argv) {
+  uint32_t addr, val;
+  if (argc != 3) {
+    printf("usage: otp_write 36 0x20\n");
+    return -1;
+  }
+  addr = argv[1].u;
+  val = argv[2].u;
+  otp_open();
+  printf("old value: 0x%08"PRIx32"\n", otp_read_open(addr));
+  switch (otp_write_open(addr, val)) {
+    case OTP_ERR_ENABLE:
+      printf("cannot %s OTP programming\n", "enable");
+      break;
+    case OTP_ERR_PROGRAM:
+      printf("programming command failed\n");
+      break;
+    case OTP_ERR_DISABLE:
+      printf("cannot %s OTP programming\n", "disable");
+      break;
+  }
+  printf("new value: 0x%08"PRIx32"\n", otp_read_open(addr));
+  otp_close();
   return 0;
 }
