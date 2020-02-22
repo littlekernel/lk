@@ -19,7 +19,7 @@ enum otp_command {
 
 /* OTP_CTRL_LO Bits */
 #define OTP_CMD_START 1
-#define OTP_STAT_PROG_OK 4
+#define OTP_STAT_PROG_ENABLE 4
 
 /* OTP Status Bits */
 #ifdef RPI4
@@ -107,7 +107,7 @@ static int otp_enable_program(void)
     if (otp_set_command(OTP_CMD_PROG_ENABLE))
       return -1;
   }
-  return otp_wait_status(OTP_STAT_PROG_OK, OTP_MAX_PROG_WAIT);
+  return otp_wait_status(OTP_STAT_PROG_ENABLE, OTP_MAX_PROG_WAIT);
 }
 
 static int otp_disable_program(void)
