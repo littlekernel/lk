@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <platform/bcm28xx/pll_read.h>
+#include <platform/bcm28xx/pll.h>
 #include <platform/bcm28xx.h>
 #include <lk/reg.h>
 #include <lk/console_cmd.h>

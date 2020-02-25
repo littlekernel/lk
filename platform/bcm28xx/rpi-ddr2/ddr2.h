@@ -101,8 +101,6 @@
 
 #define A2W_PASSWORD                                             0x5a000000
 
-#define A2W_XOSC_CTRL  0x7e102190
-#define A2W_XOSC_CTRL_DDREN_SET                            0x00000010
 #define A2W_XOSC_CTRLR                                           HW_REGISTER_RW( 0x7e102990 )
 #define A2W_SMPS_LDO0                                            0x7e1020d0
 #define A2W_SMPS_LDO1 0x7e1020d4

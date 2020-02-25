@@ -6,6 +6,7 @@
 #include <platform/bcm28xx.h>
 #include <kernel/thread.h>
 #include <string.h>
+#include <platform/bcm28xx/pll.h>
 
 static int cmd_boot_other_core(int argc, const cmd_args *argv);
 static int cmd_testit(int argc, const cmd_args *argv);

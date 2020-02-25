@@ -7,7 +7,8 @@ MODULES += \
 	app/shell \
 	lib/cksum \
 	platform/bcm28xx/otp \
-	#lib/debugcommands \
+	lib/debugcommands \
 	app/stringtests \
 	app/tests \
+	platform/bcm28xx/arm_control \
 

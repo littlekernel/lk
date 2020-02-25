@@ -49,7 +49,6 @@ void print_timestamp(void);
 #define ARM_BASE                (BCM_PERIPH_BASE_VIRT + 0xB000)
 #define PM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x100000)
 #define CM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x101000)
-#define A2W_BASE                (BCM_PERIPH_BASE_VIRT + 0x102000)
 #define PCM_CLOCK_BASE          (BCM_PERIPH_BASE_VIRT + 0x101098)
 #define RNG_BASE                (BCM_PERIPH_BASE_VIRT + 0x104000)
 #define GPIO_BASE               (BCM_PERIPH_BASE_VIRT + 0x200000)
@@ -100,29 +99,6 @@ void print_timestamp(void);
 #define PM_RSTC_WRCFG_CLR       0xffffffcf // mask to keep everything but the watchdog config
 #define PM_WDOG                 (PM_BASE + 0x24)
 #define PM_WDOG_MASK            0x00000fff
-
-#define A2W_PASSWORD                                             0x5a000000
-#define A2W_PLLA_CTRL           (A2W_BASE + 0x100)
-#define A2W_PLLC_CTRL           (A2W_BASE + 0x120)
-#define A2W_PLLC_CTRL_PDIV_SET                             0x00007000
-#define A2W_PLLC_CTRL_NDIV_SET                             0x000003ff
-#define A2W_PLLC_CTRL_PDIV_LSB                             12
-#define A2W_PLLD_CTRL           (A2W_BASE + 0x140)
-#define A2W_PLLH_CTRL           (A2W_BASE + 0x160)
-#define A2W_PLLB_CTRL           (A2W_BASE + 0x1e0)
-#define A2W_PLLA_FRAC           (A2W_BASE + 0x200)
-#define A2W_PLLC_FRAC           (A2W_BASE + 0x220)
-#define A2W_PLLD_FRAC           (A2W_BASE + 0x240)
-#define A2W_PLLH_FRAC           (A2W_BASE + 0x260)
-#define A2W_PLLB_FRAC           (A2W_BASE + 0x2e0)
-#define A2W_PLLC_CORE1          (A2W_BASE + 0x420)
-#define A2W_PLLC_CORE0          (A2W_BASE + 0x620)
-#define A2W_PLLC_CORE0_DIV_SET                             0x000000ff
-#define A2W_PLLA_FRAC_MASK                                    0x000fffff
-#define A2W_PLLB_FRAC_MASK                                    0x000fffff
-#define A2W_PLLC_FRAC_MASK                                    0x000fffff
-#define A2W_PLLD_FRAC_MASK                                    0x000fffff
-#define A2W_PLLH_FRAC_MASK                                    0x000fffff
 
 #define ARMCTRL_BASE            (ARM_BASE + 0x000)
 #define ARMCTRL_INTC_BASE       (ARM_BASE + 0x200)

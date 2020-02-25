@@ -56,6 +56,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/pll_read.c \
+	$(LOCAL_DIR)/pll_control.c \
 
 
 
