@@ -57,6 +57,7 @@ void print_timestamp(void);
 #define I2S_BASE                (BCM_PERIPH_BASE_VIRT + 0x203000)
 #define SPI0_BASE               (BCM_PERIPH_BASE_VIRT + 0x204000)
 #define BSC0_BASE               (BCM_PERIPH_BASE_VIRT + 0x205000)
+#define OTP_BASE                (BCM_PERIPH_BASE_VIRT + 0x20f000)
 #define AUX_BASE                (BCM_PERIPH_BASE_VIRT + 0x215000)
 #define MINIUART_BASE           (BCM_PERIPH_BASE_VIRT + 0x215040)
 #define EMMC_BASE               (BCM_PERIPH_BASE_VIRT + 0x300000)
@@ -258,3 +259,14 @@ void print_timestamp(void);
 #define GPIO_2711_PULL (GPIO_BASE + 0xe4)
 // 2 bits per reg, 16 pins per reg, 4 regs total
 // 0=none, 1=up, 2=down
+
+#define OTP_BOOTMODE        (OTP_BASE + 0x00)
+#define OTP_CONFIG          (OTP_BASE + 0x04)
+#define OTP_CTRL_LO         (OTP_BASE + 0x08)
+#define OTP_CTRL_HI         (OTP_BASE + 0x0c)
+#define OTP_STATUS          (OTP_BASE + 0x10)
+#define OTP_BITSEL          (OTP_BASE + 0x14)
+#define OTP_DATA            (OTP_BASE + 0x18)
+#define OTP_ADDR            (OTP_BASE + 0x1c)
+#define OTP_WRITE_DATA_READ (OTP_BASE + 0x20)
+#define OTP_INIT_STATUS     (OTP_BASE + 0x24)
