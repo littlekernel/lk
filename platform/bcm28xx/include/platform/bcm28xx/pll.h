@@ -115,22 +115,60 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define A2W_PLLB_CTRL_NDIV_SET                             0x000003ff
 #define A2W_PLLB_CTRL_PDIV_LSB                             12
 
-#define A2W_PLLB_ARM            (A2W_BASE + 0x3e0)
+#define A2W_PLLA_DSI0           (A2W_BASE + 0x300)
+#define A2W_PLLA_DSI0_CHENB_LSB                            8
+#define A2W_PLLA_DSI0_DIV_SET                              0x000000ff
 #define A2W_PLLC_CORE2          (A2W_BASE + 0x320)
 #define A2W_PLLC_CORE2_CHENB_LSB                           8
 #define A2W_PLLC_CORE2_DIV_SET                             0x000000ff
+#define A2W_PLLD_DSI0           (A2W_BASE + 0x340)
+#define A2W_PLLD_DSI0_CHENB_LSB                            8
+#define A2W_PLLD_DSI0_DIV_SET                              0x000000ff
 #define A2W_PLLH_AUX            (A2W_BASE + 0x360)
 #define A2W_PLLH_AUX_CHENB_LSB                             8
 #define A2W_PLLH_AUX_DIV_SET                               0x000000ff
+#define A2W_PLLB_ARM            (A2W_BASE + 0x3e0)
+#define A2W_PLLB_ARM_CHENB_LSB                             8
+#define A2W_PLLB_ARM_DIV_SET                               0x000000ff
 #define A2W_PLLA_CORE           (A2W_BASE + 0x400)
 #define A2W_PLLA_CORE_CHENB_LSB                            8
 #define A2W_PLLA_CORE_DIV_SET                              0x000000ff
+#define A2W_PLLD_CORE           (A2W_BASE + 0x440)
+#define A2W_PLLD_CORE_CHENB_LSB                            8
+#define A2W_PLLD_CORE_DIV_SET                              0x000000ff
+#define A2W_PLLH_RCAL           (A2W_BASE + 0x460)
+#define A2W_PLLH_RCAL_CHENB_LSB                            8
+#define A2W_PLLH_RCAL_DIV_SET                              0x000000ff
+#define A2W_PLLB_SP0            (A2W_BASE + 0x4e0)
+#define A2W_PLLB_SP0_CHENB_LSB                             8
+#define A2W_PLLB_SP0_DIV_SET                               0x000000ff
+#define A2W_PLLA_PER            (A2W_BASE + 0x500)
+#define A2W_PLLA_PER_CHENB_LSB                             8
+#define A2W_PLLA_PER_DIV_SET                               0x000000ff
+#define A2W_PLLC_PER            (A2W_BASE + 0x520)
+#define A2W_PLLC_PER_CHENB_LSB                             8
+#define A2W_PLLC_PER_DIV_SET                               0x000000ff
 #define A2W_PLLD_PER            (A2W_BASE + 0x540)
 #define A2W_PLLD_PER_CHENB_LSB                             8
 #define A2W_PLLD_PER_DIV_SET                               0x000000ff
+#define A2W_PLLH_PIX            (A2W_BASE + 0x560)
+#define A2W_PLLH_PIX_CHENB_LSB                             8
+#define A2W_PLLH_PIX_DIV_SET                               0x000000ff
 #define A2W_PLLC_CORE1          (A2W_BASE + 0x420)
 #define A2W_PLLC_CORE1_CHENB_LSB                           8
 #define A2W_PLLC_CORE1_DIV_SET                             0x000000ff
+#define A2W_PLLB_SP1            (A2W_BASE + 0x5e0)
+#define A2W_PLLB_SP1_CHENB_LSB                             8
+#define A2W_PLLB_SP1_DIV_SET                               0x000000ff
+#define A2W_PLLA_CCP2           (A2W_BASE + 0x600)
+#define A2W_PLLA_CCP2_CHENB_LSB                            8
+#define A2W_PLLA_CCP2_DIV_SET                              0x000000ff
 #define A2W_PLLC_CORE0          (A2W_BASE + 0x620)
 #define A2W_PLLC_CORE0_CHENB_LSB                           8
 #define A2W_PLLC_CORE0_DIV_SET                             0x000000ff
+#define A2W_PLLD_DSI1           (A2W_BASE + 0x640)
+#define A2W_PLLD_DSI1_CHENB_LSB                            8
+#define A2W_PLLD_DSI1_DIV_SET                              0x000000ff
+#define A2W_PLLB_SP2            (A2W_BASE + 0x6e0)
+#define A2W_PLLB_SP2_CHENB_LSB                             8
+#define A2W_PLLB_SP2_DIV_SET                               0x000000ff
