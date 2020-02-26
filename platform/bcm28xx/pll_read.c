@@ -37,26 +37,6 @@ uint32_t get_pll_freq(enum pll pll) {
   return freq;
 }
 
-uint32_t plla() {
-  return get_pll_freq(PLL_A);
-}
-
-uint32_t pllb() {
-  return get_pll_freq(PLL_B);
-}
-
-uint32_t pllc() {
-  return get_pll_freq(PLL_C);
-}
-
-uint32_t plld() {
-  return get_pll_freq(PLL_D);
-}
-
-uint32_t pllh() {
-  return get_pll_freq(PLL_H);
-}
-
 uint32_t get_pll_chan_freq(enum pll_chan chan) {
   const struct pll_chan_def *def = &pll_chan_def[chan];
   uint32_t ctrl_val = *def->ctrl;
@@ -64,10 +44,6 @@ uint32_t get_pll_chan_freq(enum pll_chan chan) {
   if (BIT_SET(ctrl_val, def->chenb_bit) || div == 0)
     return 0;
   return get_pll_freq(def->pll) / div;
-}
-
-uint32_t pllc_core0(void) {
-  return get_pll_chan_freq(PLL_CHAN_CCORE0);
 }
 
 uint32_t clk_get_freq(uint32_t divreg, uint32_t ctlreg) {
@@ -90,7 +66,7 @@ uint32_t clk_get_input_freq(uint32_t ctlreg) {
   case 4: // plla
     return 0;
   case 5: // pllc_core0
-    return pllc_core0();
+    return get_pll_chan_freq(PLL_CHAN_CCORE0);
   case 6: // plld_per
     return 0;
   case 7: // pllh_aux
