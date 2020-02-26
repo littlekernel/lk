@@ -107,15 +107,16 @@ static void dump_plldiv2_state(const char *prefix, uint32_t ctrl, uint32_t div) 
 }
 
 static int cmd_pll_dump(int argc, const cmd_args *argv) {
-  dump_pll_state(PLL_A);
-  dump_pll_state(PLL_B);
-  uint32_t pllc_freq = dump_pll_state(PLL_C);
-  if (pllc_freq > 0) {
-    dump_pll_chan_state(PLL_CHAN_CCORE0);
-    dump_pll_chan_state(PLL_CHAN_CCORE1);
+  enum pll pll;
+  for (pll = 0; pll < PLL_NUM; ++pll) {
+    uint32_t freq = dump_pll_state(pll);
+    if (freq > 0) {
+      enum pll_chan pll_chan;
+      for (pll_chan = 0; pll_chan < PLL_CHAN_NUM; ++pll_chan)
+	if (pll_chan_def[pll_chan].pll == pll)
+	  dump_pll_chan_state(pll_chan);
+    }
   }
-  dump_pll_state(PLL_D);
-  dump_pll_state(PLL_H);
 
   dump_plldiv2_state("VPU", CM_VPUCTL, CM_VPUDIV);
   return 0;
