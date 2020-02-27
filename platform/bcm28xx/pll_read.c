@@ -34,26 +34,26 @@ uint32_t compute_pll_freq(uint32_t ctrl, uint32_t frac) {
 }
 
 uint32_t plla() {
-  return compute_pll_freq(*REG32(A2W_PLLA_CTRL), *REG32(A2W_PLLA_FRAC) & A2W_PLLA_FRAC_MASK);
+  return compute_pll_freq(*REG32(A2W_PLLA_CTRL), *REG32(A2W_PLLA_FRAC) & A2W_PLL_FRAC_MASK);
 }
 
 uint32_t pllb() {
-  return compute_pll_freq(*REG32(A2W_PLLB_CTRL), *REG32(A2W_PLLB_FRAC) & A2W_PLLB_FRAC_MASK);
+  return compute_pll_freq(*REG32(A2W_PLLB_CTRL), *REG32(A2W_PLLB_FRAC) & A2W_PLL_FRAC_MASK);
 }
 
 uint32_t pllc() {
   //uint32_t ana1 = A2W_PLLC_ANA1;
   uint32_t ctrl = *REG32(A2W_PLLC_CTRL);
-  uint32_t frac = *REG32(A2W_PLLC_FRAC) & A2W_PLLC_FRAC_MASK;
+  uint32_t frac = *REG32(A2W_PLLC_FRAC) & A2W_PLL_FRAC_MASK;
   return compute_pll_freq(ctrl, frac);
 }
 
 uint32_t plld() {
-  return compute_pll_freq(*REG32(A2W_PLLD_CTRL), *REG32(A2W_PLLD_FRAC) & A2W_PLLD_FRAC_MASK);
+  return compute_pll_freq(*REG32(A2W_PLLD_CTRL), *REG32(A2W_PLLD_FRAC) & A2W_PLL_FRAC_MASK);
 }
 
 uint32_t pllh() {
-  return compute_pll_freq(*REG32(A2W_PLLH_CTRL), *REG32(A2W_PLLH_FRAC) & A2W_PLLH_FRAC_MASK);
+  return compute_pll_freq(*REG32(A2W_PLLH_CTRL), *REG32(A2W_PLLH_FRAC) & A2W_PLL_FRAC_MASK);
 }
 
 uint32_t pllc_core0(void) {

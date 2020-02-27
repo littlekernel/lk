@@ -37,11 +37,6 @@ extern const struct pll_def pll_def[PLL_NUM];
 #define A2W_BASE                (BCM_PERIPH_BASE_VIRT + 0x102000)
 
 #define A2W_PASSWORD                                             0x5a000000
-#define A2W_PLLA_FRAC_MASK                                    0x000fffff
-#define A2W_PLLB_FRAC_MASK                                    0x000fffff
-#define A2W_PLLC_FRAC_MASK                                    0x000fffff
-#define A2W_PLLD_FRAC_MASK                                    0x000fffff
-#define A2W_PLLH_FRAC_MASK                                    0x000fffff
 
 #define A2W_PLLA_ANA0           (A2W_BASE + 0x010)
 #define A2W_PLLC_ANA0           (A2W_BASE + 0x030)
@@ -54,6 +49,8 @@ extern const struct pll_def pll_def[PLL_NUM];
 #define A2W_PLLD_FRAC           (A2W_BASE + 0x240)
 #define A2W_PLLH_FRAC           (A2W_BASE + 0x260)
 #define A2W_PLLB_FRAC           (A2W_BASE + 0x2e0)
+#define A2W_PLL_FRAC_MASK                                     0x000fffff
+
 #define A2W_PLLB_ARM            0x7e1023e0
 #define A2W_PLLC_CORE1          (A2W_BASE + 0x420)
 #define A2W_PLLC_CORE0          (A2W_BASE + 0x620)
