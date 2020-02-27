@@ -61,6 +61,23 @@ const struct pll_def pll_def[] = {
   },
 };
 
+const struct pll_chan_def pll_chan_def[] = {
+  [PLL_CHAN_CCORE0] = {
+    .name = "PLLC_CORE0",
+    .ctrl = REG32(A2W_PLLC_CORE0),
+    .chenb_bit = A2W_PLLC_CORE0_CHENB_LSB,
+    .div_mask = A2W_PLLC_CORE0_DIV_SET,
+    .pll = PLL_C,
+  },
+  [PLL_CHAN_CCORE1] = {
+    .name = "PLLC_CORE1",
+    .ctrl = REG32(A2W_PLLC_CORE1),
+    .chenb_bit = A2W_PLLC_CORE1_CHENB_LSB,
+    .div_mask = A2W_PLLC_CORE1_DIV_SET,
+    .pll = PLL_C,
+  },
+};
+
 void configure_pll_b(uint32_t freq) {
   const struct pll_def *def = &pll_def[PLL_B];
   *REG32(A2W_XOSC_CTRL) |= A2W_PASSWORD | def->enable_bit;

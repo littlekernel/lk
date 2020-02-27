@@ -24,6 +24,44 @@ struct pll_def {
 
 extern const struct pll_def pll_def[PLL_NUM];
 
+enum pll_chan {
+  PLL_CHAN_ACORE,
+  PLL_CHAN_APER,
+  PLL_CHAN_ADSI0,
+  PLL_CHAN_ACCP2,
+
+  PLL_CHAN_BARM,
+  PLL_CHAN_BSP0,
+  PLL_CHAN_BSP1,
+  PLL_CHAN_BSP2,
+
+  PLL_CHAN_CCORE0,
+  PLL_CHAN_CCORE1,
+  PLL_CHAN_CCORE2,
+  PLL_CHAN_CPER,
+
+  PLL_CHAN_DCORE,
+  PLL_CHAN_DPER,
+  PLL_CHAN_DDSI0,
+  PLL_CHAN_DDSI1,
+
+  PLL_CHAN_HPIX,
+  PLL_CHAN_HRCAL,
+  PLL_CHAN_HAUX,
+
+  PLL_CHAN_NUM,
+};
+
+struct pll_chan_def {
+  char name[12];
+  volatile uint32_t *ctrl;
+  int chenb_bit;
+  uint32_t div_mask;
+  enum pll pll;
+};
+
+extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
+
 #define CM_PLLB                 0x7e101170
 #define CM_PLLB_LOADARM_SET                                0x00000001
 #define CM_PLLB_HOLDARM_SET                                0x00000002
@@ -56,11 +94,6 @@ extern const struct pll_def pll_def[PLL_NUM];
 #define A2W_PLLB_FRAC           (A2W_BASE + 0x2e0)
 #define A2W_PLL_FRAC_MASK                                     0x000fffff
 
-#define A2W_PLLB_ARM            0x7e1023e0
-#define A2W_PLLC_CORE1          (A2W_BASE + 0x420)
-#define A2W_PLLC_CORE0          (A2W_BASE + 0x620)
-#define A2W_PLLC_CORE0_DIV_SET                             0x000000ff
-
 #define A2W_PLLA_CTRL           (A2W_BASE + 0x100)
 #define A2W_PLLA_CTRL_PDIV_SET                             0x00007000
 #define A2W_PLLA_CTRL_NDIV_SET                             0x000003ff
@@ -81,3 +114,11 @@ extern const struct pll_def pll_def[PLL_NUM];
 #define A2W_PLLB_CTRL_PDIV_SET                             0x00007000
 #define A2W_PLLB_CTRL_NDIV_SET                             0x000003ff
 #define A2W_PLLB_CTRL_PDIV_LSB                             12
+
+#define A2W_PLLB_ARM            (A2W_BASE + 0x3e0)
+#define A2W_PLLC_CORE1          (A2W_BASE + 0x420)
+#define A2W_PLLC_CORE1_CHENB_LSB                           8
+#define A2W_PLLC_CORE1_DIV_SET                             0x000000ff
+#define A2W_PLLC_CORE0          (A2W_BASE + 0x620)
+#define A2W_PLLC_CORE0_CHENB_LSB                           8
+#define A2W_PLLC_CORE0_DIV_SET                             0x000000ff

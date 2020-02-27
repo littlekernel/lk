@@ -57,11 +57,17 @@ uint32_t pllh() {
   return get_pll_freq(PLL_H);
 }
 
+uint32_t get_pll_chan_freq(enum pll_chan chan) {
+  const struct pll_chan_def *def = &pll_chan_def[chan];
+  uint32_t ctrl_val = *def->ctrl;
+  uint32_t div = ctrl_val & def->div_mask;
+  if (BIT_SET(ctrl_val, def->chenb_bit) || div == 0)
+    return 0;
+  return get_pll_freq(def->pll) / div;
+}
+
 uint32_t pllc_core0(void) {
-  uint32_t ctrl = *REG32(A2W_PLLC_CORE0);
-  uint32_t div = ctrl & A2W_PLLC_CORE0_DIV_SET;
-  uint32_t pllc_freq = pllc();
-  return pllc_freq / div;
+  return get_pll_chan_freq(PLL_CHAN_CCORE0);
 }
 
 uint32_t clk_get_freq(uint32_t divreg, uint32_t ctlreg) {
@@ -109,13 +115,12 @@ static uint32_t dump_pll_state(enum pll pll) {
   return freq;
 }
 
-static void dump_plldiv_state(const char *prefix, uint32_t ctrl, uint32_t input) {
-  uint32_t ctrl_val = *REG32(ctrl);
-  dprintf(INFO, "\tA2W_%s: 0x%x\n", prefix, ctrl_val);
-  uint8_t div = ctrl_val & 0xff;
-  if (div == 0) return;
-  uint32_t freq = input / div;
-  dprintf(INFO, "\t%s freq: %u\n", prefix, freq);
+static void dump_pll_chan_state(enum pll_chan pll_chan) {
+  const struct pll_chan_def *def = &pll_chan_def[pll_chan];
+  uint32_t ctrl_val = *def->ctrl;
+  dprintf(INFO, "\tA2W_%s: 0x%x\n", def->name, ctrl_val);
+  uint32_t freq = get_pll_chan_freq(pll_chan);
+  dprintf(INFO, "\t%s freq: %u\n", def->name, freq);
 }
 
 static void dump_plldiv2_state(const char *prefix, uint32_t ctrl, uint32_t div) {
@@ -130,8 +135,8 @@ static int cmd_pll_dump(int argc, const cmd_args *argv) {
   dump_pll_state(PLL_B);
   uint32_t pllc_freq = dump_pll_state(PLL_C);
   if (pllc_freq > 0) {
-    dump_plldiv_state("PLLC_CORE0", A2W_PLLC_CORE0, pllc_freq);
-    dump_plldiv_state("PLLC_CORE1", A2W_PLLC_CORE1, pllc_freq);
+    dump_pll_chan_state(PLL_CHAN_CCORE0);
+    dump_pll_chan_state(PLL_CHAN_CCORE1);
   }
   dump_pll_state(PLL_D);
   dump_pll_state(PLL_H);
