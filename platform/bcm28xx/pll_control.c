@@ -3,14 +3,7 @@
 #include <platform/bcm28xx/pll.h>
 #include <stdint.h>
 
-struct pll_stage1 {
-  volatile uint32_t *ana;
-  uint32_t enable_bit; // the bit to enable it within A2W_XOSC_CTRL
-  volatile uint32_t *frac;
-  volatile uint32_t *ctrl;
-};
-
-static const struct pll_stage1 pll_def[] = {
+const struct pll_def pll_def[] = {
   [PLL_A] = {
     .ana = REG32(A2W_PLLA_ANA0),
     .enable_bit = A2W_XOSC_CTRL_PLLAEN_SET,
@@ -44,7 +37,7 @@ static const struct pll_stage1 pll_def[] = {
 };
 
 void configure_pll_b(uint32_t freq) {
-  const struct pll_stage1 *def = &pll_def[PLL_B];
+  const struct pll_def *def = &pll_def[PLL_B];
   *REG32(A2W_XOSC_CTRL) |= A2W_PASSWORD | def->enable_bit;
   *def->frac = A2W_PASSWORD | 0xeaaa8; // out of 0x100000
   *def->ctrl = A2W_PASSWORD | 48 | 0x1000;

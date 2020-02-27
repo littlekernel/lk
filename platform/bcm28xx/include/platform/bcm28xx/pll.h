@@ -6,7 +6,18 @@ enum pll {
   PLL_C,
   PLL_D,
   PLL_H,
+
+  PLL_NUM,
 };
+
+struct pll_def {
+  volatile uint32_t *ana;
+  uint32_t enable_bit; // the bit to enable it within A2W_XOSC_CTRL
+  volatile uint32_t *frac;
+  volatile uint32_t *ctrl;
+};
+
+extern const struct pll_def pll_def[PLL_NUM];
 
 #define CM_PLLB                 0x7e101170
 #define CM_PLLB_LOADARM_SET                                0x00000001
