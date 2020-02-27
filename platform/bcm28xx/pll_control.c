@@ -13,6 +13,7 @@ const struct pll_def pll_def[] = {
     .ndiv_mask = A2W_PLLA_CTRL_NDIV_SET,
     .pdiv_mask = A2W_PLLA_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLA_CTRL_PDIV_LSB,
+    .ana1_pdiv_bit = 14,
   },
   [PLL_B] = {
     .name = "PLLB",
@@ -23,6 +24,7 @@ const struct pll_def pll_def[] = {
     .ndiv_mask = A2W_PLLB_CTRL_NDIV_SET,
     .pdiv_mask = A2W_PLLB_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLB_CTRL_PDIV_LSB,
+    .ana1_pdiv_bit = 14,
   },
   [PLL_C] = {
     .name = "PLLC",
@@ -33,6 +35,7 @@ const struct pll_def pll_def[] = {
     .ndiv_mask = A2W_PLLC_CTRL_NDIV_SET,
     .pdiv_mask = A2W_PLLC_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLC_CTRL_PDIV_LSB,
+    .ana1_pdiv_bit = 14,
   },
   [PLL_D] = {
     .name = "PLLD",
@@ -43,6 +46,7 @@ const struct pll_def pll_def[] = {
     .ndiv_mask = A2W_PLLD_CTRL_NDIV_SET,
     .pdiv_mask = A2W_PLLD_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLD_CTRL_PDIV_LSB,
+    .ana1_pdiv_bit = 14,
   },
   [PLL_H] = {
     .name = "PLLH",
@@ -53,6 +57,7 @@ const struct pll_def pll_def[] = {
     .ndiv_mask = A2W_PLLH_CTRL_NDIV_SET,
     .pdiv_mask = A2W_PLLH_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLH_CTRL_PDIV_LSB,
+    .ana1_pdiv_bit = 11,
   },
 };
 

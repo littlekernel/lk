@@ -19,6 +19,7 @@ struct pll_def {
   uint32_t ndiv_mask;
   uint32_t pdiv_mask;
   unsigned short pdiv_shift;
+  unsigned short ana1_pdiv_bit;
 };
 
 extern const struct pll_def pll_def[PLL_NUM];

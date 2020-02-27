@@ -3,6 +3,7 @@
 #include <platform/bcm28xx/pll.h>
 #include <platform/bcm28xx.h>
 #include <lk/reg.h>
+#include <lk/bits.h>
 #include <lk/console_cmd.h>
 #include <lk/debug.h>
 
@@ -30,8 +31,9 @@ uint32_t get_pll_freq(enum pll pll) {
   uint32_t frac = *def->frac & A2W_PLL_FRAC_MASK;
   uint64_t mult1 = (ndiv << 20) | frac;
   mult1 *= pdiv;
-  // TODO, the optional /2 phase
   uint32_t freq = (xtal_freq * mult1) >> 20;
+  if (BIT_SET(def->ana[1], def->ana1_pdiv_bit))
+    freq >>= 1;
   return freq;
 }
 
