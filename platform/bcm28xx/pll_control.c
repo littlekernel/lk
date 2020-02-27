@@ -11,14 +11,14 @@ struct pll_stage1 {
 };
 
 static struct pll_stage1 plla = {
-  .ana = REG32(0x7e102010),
+  .ana = REG32(A2W_PLLA_ANA0),
   .enable_bit = A2W_XOSC_CTRL_PLLAEN_SET,
   .frac = REG32(A2W_PLLA_FRAC),
   .ctrl = REG32(A2W_PLLA_CTRL)
 };
 
 static struct pll_stage1 pllb = {
-  .ana = REG32(0x7e1020f0),
+  .ana = REG32(A2W_PLLB_ANA0),
   .enable_bit = A2W_XOSC_CTRL_PLLBEN_SET,
   .frac = REG32(A2W_PLLB_FRAC),
   .ctrl = REG32(A2W_PLLB_CTRL)
