@@ -1,3 +1,13 @@
+#pragma once
+
+enum pll {
+  PLL_A,
+  PLL_B,
+  PLL_C,
+  PLL_D,
+  PLL_H,
+};
+
 #define CM_PLLB                 0x7e101170
 #define CM_PLLB_LOADARM_SET                                0x00000001
 #define CM_PLLB_HOLDARM_SET                                0x00000002
@@ -10,6 +20,8 @@
 #define A2W_XOSC_CTRL_DDREN_SET                            0x00000010
 #define A2W_XOSC_CTRL_PLLAEN_SET                           0x00000040
 #define A2W_XOSC_CTRL_PLLBEN_SET                           0x00000080
+#define A2W_XOSC_CTRL_PLLCEN_SET                           0x00000001
+#define A2W_XOSC_CTRL_PLLDEN_SET                           0x00000020
 
 #define A2W_BASE                (BCM_PERIPH_BASE_VIRT + 0x102000)
 
