@@ -63,18 +63,18 @@ uint32_t clk_get_input_freq(uint32_t ctlreg) {
   case 2: // test debug 0
   case 3: // test debug 1
     return 0;
-  case 4: // plla
-    return 0;
+  case 4: // plla_core
+    return get_pll_chan_freq(PLL_CHAN_ACORE);
   case 5: // pllc_core0
     return get_pll_chan_freq(PLL_CHAN_CCORE0);
   case 6: // plld_per
-    return 0;
+    return get_pll_chan_freq(PLL_CHAN_DPER);
   case 7: // pllh_aux
-    return 0;
-  case 8: // pllc_core1?
-    return 0;
-  case 9: // pllc_core2?
-    return 0;
+    return get_pll_chan_freq(PLL_CHAN_HAUX);
+  case 8: // pllc_core1
+    return get_pll_chan_freq(PLL_CHAN_CCORE1);
+  case 9: // pllc_core2
+    return get_pll_chan_freq(PLL_CHAN_CCORE2);
   default:
     return 0;
   }

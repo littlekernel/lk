@@ -116,6 +116,18 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define A2W_PLLB_CTRL_PDIV_LSB                             12
 
 #define A2W_PLLB_ARM            (A2W_BASE + 0x3e0)
+#define A2W_PLLC_CORE2          (A2W_BASE + 0x320)
+#define A2W_PLLC_CORE2_CHENB_LSB                           8
+#define A2W_PLLC_CORE2_DIV_SET                             0x000000ff
+#define A2W_PLLH_AUX            (A2W_BASE + 0x360)
+#define A2W_PLLH_AUX_CHENB_LSB                             8
+#define A2W_PLLH_AUX_DIV_SET                               0x000000ff
+#define A2W_PLLA_CORE           (A2W_BASE + 0x400)
+#define A2W_PLLA_CORE_CHENB_LSB                            8
+#define A2W_PLLA_CORE_DIV_SET                              0x000000ff
+#define A2W_PLLD_PER            (A2W_BASE + 0x540)
+#define A2W_PLLD_PER_CHENB_LSB                             8
+#define A2W_PLLD_PER_DIV_SET                               0x000000ff
 #define A2W_PLLC_CORE1          (A2W_BASE + 0x420)
 #define A2W_PLLC_CORE1_CHENB_LSB                           8
 #define A2W_PLLC_CORE1_DIV_SET                             0x000000ff

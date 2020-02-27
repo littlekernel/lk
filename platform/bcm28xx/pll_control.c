@@ -62,6 +62,13 @@ const struct pll_def pll_def[] = {
 };
 
 const struct pll_chan_def pll_chan_def[] = {
+  [PLL_CHAN_ACORE] = {
+    .name = "PLLA_CORE",
+    .ctrl = REG32(A2W_PLLA_CORE),
+    .chenb_bit = A2W_PLLA_CORE_CHENB_LSB,
+    .div_mask = A2W_PLLA_CORE_DIV_SET,
+    .pll = PLL_A,
+  },
   [PLL_CHAN_CCORE0] = {
     .name = "PLLC_CORE0",
     .ctrl = REG32(A2W_PLLC_CORE0),
@@ -75,6 +82,27 @@ const struct pll_chan_def pll_chan_def[] = {
     .chenb_bit = A2W_PLLC_CORE1_CHENB_LSB,
     .div_mask = A2W_PLLC_CORE1_DIV_SET,
     .pll = PLL_C,
+  },
+  [PLL_CHAN_CCORE2] = {
+    .name = "PLLC_CORE2",
+    .ctrl = REG32(A2W_PLLC_CORE2),
+    .chenb_bit = A2W_PLLC_CORE2_CHENB_LSB,
+    .div_mask = A2W_PLLC_CORE2_DIV_SET,
+    .pll = PLL_C,
+  },
+  [PLL_CHAN_DPER] = {
+    .name = "PLLD_PER",
+    .ctrl = REG32(A2W_PLLD_PER),
+    .chenb_bit = A2W_PLLD_PER_CHENB_LSB,
+    .div_mask = A2W_PLLD_PER_DIV_SET,
+    .pll = PLL_D,
+  },
+  [PLL_CHAN_HAUX] = {
+    .name = "PLLH_AUX",
+    .ctrl = REG32(A2W_PLLH_AUX),
+    .chenb_bit = A2W_PLLH_AUX_CHENB_LSB,
+    .div_mask = A2W_PLLH_AUX_DIV_SET,
+    .pll = PLL_H,
   },
 };
 
