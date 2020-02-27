@@ -22,11 +22,13 @@ uint32_t get_uart_base_freq() {
   return clk_get_freq(CM_UARTDIV, CM_UARTCTL);
 }
 
-uint32_t compute_pll_freq(uint32_t ctrl, uint32_t frac) {
-  // FIXME, ignores the addr passed in
-  uint32_t ndiv = *REG32(ctrl) & A2W_PLLC_CTRL_NDIV_SET;
-  uint32_t pdiv = (*REG32(ctrl) & A2W_PLLC_CTRL_PDIV_SET) >> A2W_PLLC_CTRL_PDIV_LSB;
-  uint64_t mult1 = (ndiv << 20) | *REG32(frac);
+uint32_t get_pll_freq(enum pll pll) {
+  const struct pll_def *def = &pll_def[pll];
+  uint32_t ctrl = *def->ctrl;
+  uint32_t ndiv = ctrl & def->ndiv_mask;
+  uint32_t pdiv = (ctrl & def->pdiv_mask) >> def->pdiv_shift;
+  uint32_t frac = *def->frac & A2W_PLL_FRAC_MASK;
+  uint64_t mult1 = (ndiv << 20) | frac;
   mult1 *= pdiv;
   // TODO, the optional /2 phase
   uint32_t freq = (xtal_freq * mult1) >> 20;
@@ -34,26 +36,23 @@ uint32_t compute_pll_freq(uint32_t ctrl, uint32_t frac) {
 }
 
 uint32_t plla() {
-  return compute_pll_freq(*REG32(A2W_PLLA_CTRL), *REG32(A2W_PLLA_FRAC) & A2W_PLL_FRAC_MASK);
+  return get_pll_freq(PLL_A);
 }
 
 uint32_t pllb() {
-  return compute_pll_freq(*REG32(A2W_PLLB_CTRL), *REG32(A2W_PLLB_FRAC) & A2W_PLL_FRAC_MASK);
+  return get_pll_freq(PLL_B);
 }
 
 uint32_t pllc() {
-  //uint32_t ana1 = A2W_PLLC_ANA1;
-  uint32_t ctrl = *REG32(A2W_PLLC_CTRL);
-  uint32_t frac = *REG32(A2W_PLLC_FRAC) & A2W_PLL_FRAC_MASK;
-  return compute_pll_freq(ctrl, frac);
+  return get_pll_freq(PLL_C);
 }
 
 uint32_t plld() {
-  return compute_pll_freq(*REG32(A2W_PLLD_CTRL), *REG32(A2W_PLLD_FRAC) & A2W_PLL_FRAC_MASK);
+  return get_pll_freq(PLL_D);
 }
 
 uint32_t pllh() {
-  return compute_pll_freq(*REG32(A2W_PLLH_CTRL), *REG32(A2W_PLLH_FRAC) & A2W_PLL_FRAC_MASK);
+  return get_pll_freq(PLL_H);
 }
 
 uint32_t pllc_core0(void) {
@@ -97,13 +96,14 @@ uint32_t clk_get_input_freq(uint32_t ctlreg) {
   }
 }
 
-static uint32_t dump_pll_state(const char *prefix, uint32_t ctrl, uint32_t frac) {
-  uint32_t ctrl_val = *REG32(ctrl);
-  uint32_t frac_value = *REG32(frac);
-  dprintf(INFO, "A2W_%s_CTRL: 0x%x\n", prefix, ctrl_val);
-  dprintf(INFO, "A2W_%s_FRAC: 0x%x\n", prefix, frac_value);
-  uint32_t freq = compute_pll_freq(ctrl, frac);
-  dprintf(INFO, "%s freq: %u\n", prefix, freq);
+static uint32_t dump_pll_state(enum pll pll) {
+  const struct pll_def *def = &pll_def[pll];
+  uint32_t ctrl_val = *def->ctrl;
+  uint32_t frac_value = *def->frac;
+  dprintf(INFO, "A2W_%s_CTRL: 0x%x\n", def->name, ctrl_val);
+  dprintf(INFO, "A2W_%s_FRAC: 0x%x\n", def->name, frac_value);
+  uint32_t freq = get_pll_freq(pll);
+  dprintf(INFO, "%s freq: %u\n", def->name, freq);
   return freq;
 }
 
@@ -124,15 +124,15 @@ static void dump_plldiv2_state(const char *prefix, uint32_t ctrl, uint32_t div) 
 }
 
 static int cmd_pll_dump(int argc, const cmd_args *argv) {
-  dump_pll_state("PLLA", A2W_PLLA_CTRL, A2W_PLLA_FRAC);
-  dump_pll_state("PLLB", A2W_PLLB_CTRL, A2W_PLLB_FRAC);
-  uint32_t pllc_freq = dump_pll_state("PLLC", A2W_PLLC_CTRL, A2W_PLLC_FRAC);
+  dump_pll_state(PLL_A);
+  dump_pll_state(PLL_B);
+  uint32_t pllc_freq = dump_pll_state(PLL_C);
   if (pllc_freq > 0) {
     dump_plldiv_state("PLLC_CORE0", A2W_PLLC_CORE0, pllc_freq);
     dump_plldiv_state("PLLC_CORE1", A2W_PLLC_CORE1, pllc_freq);
   }
-  dump_pll_state("PLLD", A2W_PLLD_CTRL, A2W_PLLD_FRAC);
-  dump_pll_state("PLLH", A2W_PLLH_CTRL, A2W_PLLH_FRAC);
+  dump_pll_state(PLL_D);
+  dump_pll_state(PLL_H);
 
   dump_plldiv2_state("VPU", CM_VPUCTL, CM_VPUDIV);
   return 0;

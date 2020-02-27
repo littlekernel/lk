@@ -5,34 +5,54 @@
 
 const struct pll_def pll_def[] = {
   [PLL_A] = {
+    .name = "PLLA",
     .ana = REG32(A2W_PLLA_ANA0),
     .enable_bit = A2W_XOSC_CTRL_PLLAEN_SET,
     .frac = REG32(A2W_PLLA_FRAC),
     .ctrl = REG32(A2W_PLLA_CTRL),
+    .ndiv_mask = A2W_PLLA_CTRL_NDIV_SET,
+    .pdiv_mask = A2W_PLLA_CTRL_PDIV_SET,
+    .pdiv_shift = A2W_PLLA_CTRL_PDIV_LSB,
   },
   [PLL_B] = {
+    .name = "PLLB",
     .ana = REG32(A2W_PLLB_ANA0),
     .enable_bit = A2W_XOSC_CTRL_PLLBEN_SET,
     .frac = REG32(A2W_PLLB_FRAC),
     .ctrl = REG32(A2W_PLLB_CTRL),
+    .ndiv_mask = A2W_PLLB_CTRL_NDIV_SET,
+    .pdiv_mask = A2W_PLLB_CTRL_PDIV_SET,
+    .pdiv_shift = A2W_PLLB_CTRL_PDIV_LSB,
   },
   [PLL_C] = {
+    .name = "PLLC",
     .ana = REG32(A2W_PLLC_ANA0),
     .enable_bit = A2W_XOSC_CTRL_PLLCEN_SET,
     .frac = REG32(A2W_PLLC_FRAC),
     .ctrl = REG32(A2W_PLLC_CTRL),
+    .ndiv_mask = A2W_PLLC_CTRL_NDIV_SET,
+    .pdiv_mask = A2W_PLLC_CTRL_PDIV_SET,
+    .pdiv_shift = A2W_PLLC_CTRL_PDIV_LSB,
   },
   [PLL_D] = {
+    .name = "PLLD",
     .ana = REG32(A2W_PLLD_ANA0),
     .enable_bit = A2W_XOSC_CTRL_PLLDEN_SET,
     .frac = REG32(A2W_PLLD_FRAC),
     .ctrl = REG32(A2W_PLLD_CTRL),
+    .ndiv_mask = A2W_PLLD_CTRL_NDIV_SET,
+    .pdiv_mask = A2W_PLLD_CTRL_PDIV_SET,
+    .pdiv_shift = A2W_PLLD_CTRL_PDIV_LSB,
   },
   [PLL_H] = {
+    .name = "PLLH",
     .ana = REG32(A2W_PLLH_ANA0),
     .enable_bit = A2W_XOSC_CTRL_PLLCEN_SET, // official firmware does this (?)
     .frac = REG32(A2W_PLLH_FRAC),
     .ctrl = REG32(A2W_PLLH_CTRL),
+    .ndiv_mask = A2W_PLLH_CTRL_NDIV_SET,
+    .pdiv_mask = A2W_PLLH_CTRL_PDIV_SET,
+    .pdiv_shift = A2W_PLLH_CTRL_PDIV_LSB,
   },
 };
 

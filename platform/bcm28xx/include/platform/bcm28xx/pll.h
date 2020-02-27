@@ -11,10 +11,14 @@ enum pll {
 };
 
 struct pll_def {
+  char name[8];
   volatile uint32_t *ana;
   uint32_t enable_bit; // the bit to enable it within A2W_XOSC_CTRL
   volatile uint32_t *frac;
   volatile uint32_t *ctrl;
+  uint32_t ndiv_mask;
+  uint32_t pdiv_mask;
+  unsigned short pdiv_shift;
 };
 
 extern const struct pll_def pll_def[PLL_NUM];
