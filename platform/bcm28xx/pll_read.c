@@ -28,13 +28,14 @@ uint32_t get_pll_freq(enum pll pll) {
   uint32_t ctrl = *def->ctrl;
   uint32_t ndiv = ctrl & def->ndiv_mask;
   uint32_t pdiv = (ctrl & def->pdiv_mask) >> def->pdiv_shift;
+  if (pdiv == 0)
+	  return 0;
   uint32_t frac = *def->frac & A2W_PLL_FRAC_MASK;
-  uint64_t mult1 = (ndiv << 20) | frac;
-  mult1 *= pdiv;
-  uint32_t freq = (xtal_freq * mult1) >> 20;
-  if (BIT_SET(def->ana[1], def->ana1_pdiv_bit))
-    freq >>= 1;
-  return freq;
+  uint32_t div = (ndiv << 20) | frac;
+  uint64_t mult1 = (uint64_t)div * xtal_freq / pdiv;
+  return (BIT_SET(def->ana[1], def->ana1_pdiv_bit))
+    ? mult1 >> 19
+    : mult1 >> 20;
 }
 
 uint32_t get_pll_chan_freq(enum pll_chan chan) {
