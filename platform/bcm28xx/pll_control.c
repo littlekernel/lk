@@ -7,6 +7,7 @@ const struct pll_def pll_def[] = {
   [PLL_A] = {
     .name = "PLLA",
     .ana = REG32(A2W_PLLA_ANA0),
+    .dig = REG32(A2W_PLLA_DIG0),
     .enable_bit = A2W_XOSC_CTRL_PLLAEN_SET,
     .frac = REG32(A2W_PLLA_FRAC),
     .ctrl = REG32(A2W_PLLA_CTRL),
@@ -14,10 +15,12 @@ const struct pll_def pll_def[] = {
     .pdiv_mask = A2W_PLLA_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLA_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 14,
+    .cm_pll = REG32(CM_PLLA),
   },
   [PLL_B] = {
     .name = "PLLB",
     .ana = REG32(A2W_PLLB_ANA0),
+    .dig = REG32(A2W_PLLB_DIG0),
     .enable_bit = A2W_XOSC_CTRL_PLLBEN_SET,
     .frac = REG32(A2W_PLLB_FRAC),
     .ctrl = REG32(A2W_PLLB_CTRL),
@@ -25,10 +28,12 @@ const struct pll_def pll_def[] = {
     .pdiv_mask = A2W_PLLB_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLB_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 14,
+    .cm_pll = REG32(CM_PLLB),
   },
   [PLL_C] = {
     .name = "PLLC",
     .ana = REG32(A2W_PLLC_ANA0),
+    .dig = REG32(A2W_PLLC_DIG0),
     .enable_bit = A2W_XOSC_CTRL_PLLCEN_SET,
     .frac = REG32(A2W_PLLC_FRAC),
     .ctrl = REG32(A2W_PLLC_CTRL),
@@ -36,10 +41,12 @@ const struct pll_def pll_def[] = {
     .pdiv_mask = A2W_PLLC_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLC_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 14,
+    .cm_pll = REG32(CM_PLLC),
   },
   [PLL_D] = {
     .name = "PLLD",
     .ana = REG32(A2W_PLLD_ANA0),
+    .dig = REG32(A2W_PLLD_DIG0),
     .enable_bit = A2W_XOSC_CTRL_PLLDEN_SET,
     .frac = REG32(A2W_PLLD_FRAC),
     .ctrl = REG32(A2W_PLLD_CTRL),
@@ -47,10 +54,12 @@ const struct pll_def pll_def[] = {
     .pdiv_mask = A2W_PLLD_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLD_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 14,
+    .cm_pll = REG32(CM_PLLD),
   },
   [PLL_H] = {
     .name = "PLLH",
     .ana = REG32(A2W_PLLH_ANA0),
+    .dig = REG32(A2W_PLLH_DIG0),
     .enable_bit = A2W_XOSC_CTRL_PLLCEN_SET, // official firmware does this (?)
     .frac = REG32(A2W_PLLH_FRAC),
     .ctrl = REG32(A2W_PLLH_CTRL),
@@ -58,6 +67,7 @@ const struct pll_def pll_def[] = {
     .pdiv_mask = A2W_PLLH_CTRL_PDIV_SET,
     .pdiv_shift = A2W_PLLH_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 11,
+    .cm_pll = REG32(CM_PLLH),
   },
 };
 
@@ -197,8 +207,41 @@ const struct pll_chan_def pll_chan_def[] = {
   },
 };
 
+static void pll_start(enum pll pll)
+{
+  const struct pll_def *def = &pll_def[pll];
+  uint32_t dig[4];
+
+  dig[3] = def->dig[3];
+  dig[2] = def->dig[2];
+  dig[1] = def->dig[1];
+  dig[0] = def->dig[0];
+
+  if (pll == PLL_H) {
+    // CM_PLLH does not contain any HOLD bits
+    def->dig[3] = A2W_PASSWORD | dig[3];
+    def->dig[2] = A2W_PASSWORD | (dig[2] & 0xffffff57);
+    def->dig[1] = A2W_PASSWORD | dig[1];
+  } else {
+    // set all HOLD bits
+    *def->cm_pll = CM_PASSWORD | (*def->cm_pll | 0xaa);
+    def->dig[3] = A2W_PASSWORD | dig[3];
+    def->dig[2] = A2W_PASSWORD | (dig[2] & 0xffeffbfe);
+    def->dig[1] = A2W_PASSWORD | (dig[1] & 0xffffbfff);
+  }
+  def->dig[0] = A2W_PASSWORD | dig[0];
+
+  *def->ctrl = A2W_PASSWORD | (*def->ctrl | A2W_PLL_CTRL_PRSTN_SET);
+
+  def->dig[3] = A2W_PASSWORD | (dig[3] | 0x42);
+  def->dig[2] = A2W_PASSWORD | dig[2];
+  def->dig[1] = A2W_PASSWORD | dig[1];
+  def->dig[0] = A2W_PASSWORD | dig[0];
+}
+
 void configure_pll_b(uint32_t freq) {
   const struct pll_def *def = &pll_def[PLL_B];
+  uint32_t orig_ctrl = *def->ctrl;
   *REG32(A2W_XOSC_CTRL) |= A2W_PASSWORD | def->enable_bit;
   *def->frac = A2W_PASSWORD | 0xeaaa8; // out of 0x100000
   *def->ctrl = A2W_PASSWORD | 48 | 0x1000;
@@ -219,4 +262,7 @@ void configure_pll_b(uint32_t freq) {
   *REG32(CM_PLLB) = CM_PASSWORD;
 
   *REG32(CM_ARMCTL) = CM_PASSWORD | 4 | CM_ARMCTL_ENAB_SET;
+
+  if ((orig_ctrl & A2W_PLL_CTRL_PRSTN_SET) == 0)
+    pll_start(PLL_B);
 }

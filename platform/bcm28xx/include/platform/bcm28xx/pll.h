@@ -13,6 +13,7 @@ enum pll {
 struct pll_def {
   char name[8];
   volatile uint32_t *ana;
+  volatile uint32_t *dig;
   uint32_t enable_bit; // the bit to enable it within A2W_XOSC_CTRL
   volatile uint32_t *frac;
   volatile uint32_t *ctrl;
@@ -20,6 +21,7 @@ struct pll_def {
   uint32_t pdiv_mask;
   unsigned short pdiv_shift;
   unsigned short ana1_pdiv_bit;
+  volatile uint32_t *cm_pll;
 };
 
 extern const struct pll_def pll_def[PLL_NUM];
@@ -62,7 +64,12 @@ struct pll_chan_def {
 
 extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 
-#define CM_PLLB                 0x7e101170
+#define CM_PLLA                 (CM_BASE + 0x104)
+#define CM_PLLC                 (CM_BASE + 0x108)
+#define CM_PLLD                 (CM_BASE + 0x10C)
+#define CM_PLLH                 (CM_BASE + 0x110)
+#define CM_PLLB                 (CM_BASE + 0x170)
+
 #define CM_PLLB_LOADARM_SET                                0x00000001
 #define CM_PLLB_HOLDARM_SET                                0x00000002
 #define CM_PLLB_ANARST_SET                                 0x00000100
@@ -80,6 +87,12 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define A2W_BASE                (BCM_PERIPH_BASE_VIRT + 0x102000)
 
 #define A2W_PASSWORD                                             0x5a000000
+
+#define A2W_PLLA_DIG0           (A2W_BASE + 0x000)
+#define A2W_PLLC_DIG0           (A2W_BASE + 0x020)
+#define A2W_PLLD_DIG0           (A2W_BASE + 0x040)
+#define A2W_PLLH_DIG0           (A2W_BASE + 0x060)
+#define A2W_PLLB_DIG0           (A2W_BASE + 0x0e0)
 
 #define A2W_PLLA_ANA0           (A2W_BASE + 0x010)
 #define A2W_PLLC_ANA0           (A2W_BASE + 0x030)
@@ -114,6 +127,7 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define A2W_PLLB_CTRL_PDIV_SET                             0x00007000
 #define A2W_PLLB_CTRL_NDIV_SET                             0x000003ff
 #define A2W_PLLB_CTRL_PDIV_LSB                             12
+#define A2W_PLL_CTRL_PRSTN_SET                             0x00020000
 
 #define A2W_PLLA_DSI0           (A2W_BASE + 0x300)
 #define A2W_PLLA_DSI0_CHENB_LSB                            8
