@@ -32,10 +32,12 @@ uint32_t get_pll_freq(enum pll pll) {
 	  return 0;
   uint32_t frac = *def->frac & A2W_PLL_FRAC_MASK;
   uint32_t div = (ndiv << 20) | frac;
+#ifndef RPI4
+  if (BIT_SET(def->ana[1], def->ana1_pdiv_bit))
+    div <<= 1;
+#endif
   uint64_t mult1 = (uint64_t)div * xtal_freq / pdiv;
-  return (BIT_SET(def->ana[1], def->ana1_pdiv_bit))
-    ? mult1 >> 19
-    : mult1 >> 20;
+  return mult1 >> 20;
 }
 
 uint32_t get_pll_chan_freq(enum pll_chan chan) {
