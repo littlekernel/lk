@@ -18,8 +18,6 @@ struct pll_def {
   volatile uint32_t *frac;
   volatile uint32_t *ctrl;
   uint32_t ndiv_mask;
-  uint32_t pdiv_mask;
-  unsigned short pdiv_shift;
   unsigned short ana1_pdiv_bit;
   volatile uint32_t *cm_pll;
 };
@@ -109,27 +107,21 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define A2W_PLLB_FRAC           (A2W_BASE + 0x2e0)
 #define A2W_PLL_FRAC_MASK                                     0x000fffff
 
+// Common A2W_PLL_CTRL bits
+#define A2W_PLL_CTRL_PDIV_MASK  0x00007000
+#define A2W_PLL_CTRL_PDIV_LSB   12
+#define A2W_PLL_CTRL_PRSTN      0x00020000
+
 #define A2W_PLLA_CTRL           (A2W_BASE + 0x100)
-#define A2W_PLLA_CTRL_PDIV_SET                             0x00007000
 #define A2W_PLLA_CTRL_NDIV_SET                             0x000003ff
-#define A2W_PLLA_CTRL_PDIV_LSB                             12
 #define A2W_PLLC_CTRL           (A2W_BASE + 0x120)
-#define A2W_PLLC_CTRL_PDIV_SET                             0x00007000
 #define A2W_PLLC_CTRL_NDIV_SET                             0x000003ff
-#define A2W_PLLC_CTRL_PDIV_LSB                             12
 #define A2W_PLLD_CTRL           (A2W_BASE + 0x140)
-#define A2W_PLLD_CTRL_PDIV_SET                             0x00007000
 #define A2W_PLLD_CTRL_NDIV_SET                             0x000003ff
-#define A2W_PLLD_CTRL_PDIV_LSB                             12
 #define A2W_PLLH_CTRL           (A2W_BASE + 0x160)
-#define A2W_PLLH_CTRL_PDIV_SET                             0x00007000
 #define A2W_PLLH_CTRL_NDIV_SET                             0x000000ff
-#define A2W_PLLH_CTRL_PDIV_LSB                             12
 #define A2W_PLLB_CTRL           (A2W_BASE + 0x1e0)
-#define A2W_PLLB_CTRL_PDIV_SET                             0x00007000
 #define A2W_PLLB_CTRL_NDIV_SET                             0x000003ff
-#define A2W_PLLB_CTRL_PDIV_LSB                             12
-#define A2W_PLL_CTRL_PRSTN_SET                             0x00020000
 
 #define A2W_PLLA_DSI0           (A2W_BASE + 0x300)
 #define A2W_PLLA_DSI0_CHENB_LSB                            8

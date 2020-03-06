@@ -27,7 +27,7 @@ uint32_t get_pll_freq(enum pll pll) {
   const struct pll_def *def = &pll_def[pll];
   uint32_t ctrl = *def->ctrl;
   uint32_t ndiv = ctrl & def->ndiv_mask;
-  uint32_t pdiv = (ctrl & def->pdiv_mask) >> def->pdiv_shift;
+  uint32_t pdiv = (ctrl & A2W_PLL_CTRL_PDIV_MASK) >> A2W_PLL_CTRL_PDIV_LSB;
   if (pdiv == 0)
 	  return 0;
   uint32_t frac = *def->frac & A2W_PLL_FRAC_MASK;

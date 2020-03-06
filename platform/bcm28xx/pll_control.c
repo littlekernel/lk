@@ -12,8 +12,6 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLA_FRAC),
     .ctrl = REG32(A2W_PLLA_CTRL),
     .ndiv_mask = A2W_PLLA_CTRL_NDIV_SET,
-    .pdiv_mask = A2W_PLLA_CTRL_PDIV_SET,
-    .pdiv_shift = A2W_PLLA_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 14,
     .cm_pll = REG32(CM_PLLA),
   },
@@ -25,8 +23,6 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLB_FRAC),
     .ctrl = REG32(A2W_PLLB_CTRL),
     .ndiv_mask = A2W_PLLB_CTRL_NDIV_SET,
-    .pdiv_mask = A2W_PLLB_CTRL_PDIV_SET,
-    .pdiv_shift = A2W_PLLB_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 14,
     .cm_pll = REG32(CM_PLLB),
   },
@@ -38,8 +34,6 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLC_FRAC),
     .ctrl = REG32(A2W_PLLC_CTRL),
     .ndiv_mask = A2W_PLLC_CTRL_NDIV_SET,
-    .pdiv_mask = A2W_PLLC_CTRL_PDIV_SET,
-    .pdiv_shift = A2W_PLLC_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 14,
     .cm_pll = REG32(CM_PLLC),
   },
@@ -51,8 +45,6 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLD_FRAC),
     .ctrl = REG32(A2W_PLLD_CTRL),
     .ndiv_mask = A2W_PLLD_CTRL_NDIV_SET,
-    .pdiv_mask = A2W_PLLD_CTRL_PDIV_SET,
-    .pdiv_shift = A2W_PLLD_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 14,
     .cm_pll = REG32(CM_PLLD),
   },
@@ -64,8 +56,6 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLH_FRAC),
     .ctrl = REG32(A2W_PLLH_CTRL),
     .ndiv_mask = A2W_PLLH_CTRL_NDIV_SET,
-    .pdiv_mask = A2W_PLLH_CTRL_PDIV_SET,
-    .pdiv_shift = A2W_PLLH_CTRL_PDIV_LSB,
     .ana1_pdiv_bit = 11,
     .cm_pll = REG32(CM_PLLH),
   },
@@ -231,7 +221,7 @@ static void pll_start(enum pll pll)
   }
   def->dig[0] = A2W_PASSWORD | dig[0];
 
-  *def->ctrl = A2W_PASSWORD | (*def->ctrl | A2W_PLL_CTRL_PRSTN_SET);
+  *def->ctrl = A2W_PASSWORD | (*def->ctrl | A2W_PLL_CTRL_PRSTN);
 
   def->dig[3] = A2W_PASSWORD | (dig[3] | 0x42);
   def->dig[2] = A2W_PASSWORD | dig[2];
@@ -245,8 +235,8 @@ void configure_pll_b(uint32_t freq) {
   *REG32(A2W_XOSC_CTRL) |= A2W_PASSWORD | def->enable_bit;
   *def->frac = A2W_PASSWORD | 0xeaaa8; // out of 0x100000
   *def->ctrl = A2W_PASSWORD | 48 | 0x1000;
-  *REG32(CM_PLLB) = CM_PASSWORD | CM_PLLB_DIGRST_SET | CM_PLLB_ANARST_SET;
-  *REG32(CM_PLLB) = CM_PASSWORD | CM_PLLB_DIGRST_SET | CM_PLLB_ANARST_SET | CM_PLLB_HOLDARM_SET;
+  *REG32(CM_PLLB) = CM_PASSWORD | CM_PLL_DIGRST | CM_PLL_ANARST;
+  *REG32(CM_PLLB) = CM_PASSWORD | CM_PLL_DIGRST | CM_PLL_ANARST | CM_PLLB_HOLDARM_SET;
 
   def->ana[3] = A2W_PASSWORD | 0x100;
   def->ana[2] = A2W_PASSWORD | 0x0;
@@ -263,6 +253,6 @@ void configure_pll_b(uint32_t freq) {
 
   *REG32(CM_ARMCTL) = CM_PASSWORD | 4 | CM_ARMCTL_ENAB_SET;
 
-  if ((orig_ctrl & A2W_PLL_CTRL_PRSTN_SET) == 0)
+  if ((orig_ctrl & A2W_PLL_CTRL_PRSTN) == 0)
     pll_start(PLL_B);
 }
