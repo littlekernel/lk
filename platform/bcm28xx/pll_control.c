@@ -12,7 +12,7 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLA_FRAC),
     .ctrl = REG32(A2W_PLLA_CTRL),
     .ndiv_mask = A2W_PLLA_CTRL_NDIV_SET,
-    .ana1_pdiv_bit = 14,
+    .ana1_prescale_bit = 14,
     .cm_pll = REG32(CM_PLLA),
   },
   [PLL_B] = {
@@ -23,7 +23,7 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLB_FRAC),
     .ctrl = REG32(A2W_PLLB_CTRL),
     .ndiv_mask = A2W_PLLB_CTRL_NDIV_SET,
-    .ana1_pdiv_bit = 14,
+    .ana1_prescale_bit = 14,
     .cm_pll = REG32(CM_PLLB),
   },
   [PLL_C] = {
@@ -34,7 +34,7 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLC_FRAC),
     .ctrl = REG32(A2W_PLLC_CTRL),
     .ndiv_mask = A2W_PLLC_CTRL_NDIV_SET,
-    .ana1_pdiv_bit = 14,
+    .ana1_prescale_bit = 14,
     .cm_pll = REG32(CM_PLLC),
   },
   [PLL_D] = {
@@ -45,7 +45,7 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLD_FRAC),
     .ctrl = REG32(A2W_PLLD_CTRL),
     .ndiv_mask = A2W_PLLD_CTRL_NDIV_SET,
-    .ana1_pdiv_bit = 14,
+    .ana1_prescale_bit = 14,
     .cm_pll = REG32(CM_PLLD),
   },
   [PLL_H] = {
@@ -56,7 +56,7 @@ const struct pll_def pll_def[] = {
     .frac = REG32(A2W_PLLH_FRAC),
     .ctrl = REG32(A2W_PLLH_CTRL),
     .ndiv_mask = A2W_PLLH_CTRL_NDIV_SET,
-    .ana1_pdiv_bit = 11,
+    .ana1_prescale_bit = 11,
     .cm_pll = REG32(CM_PLLH),
   },
 };

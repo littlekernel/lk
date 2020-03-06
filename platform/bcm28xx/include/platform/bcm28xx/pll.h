@@ -18,7 +18,7 @@ struct pll_def {
   volatile uint32_t *frac;
   volatile uint32_t *ctrl;
   uint32_t ndiv_mask;
-  unsigned short ana1_pdiv_bit;
+  unsigned short ana1_prescale_bit;
   volatile uint32_t *cm_pll;
 };
 
