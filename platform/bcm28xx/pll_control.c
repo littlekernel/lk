@@ -1,7 +1,17 @@
 #include <lk/reg.h>
+#include <lk/bits.h>
+#include <lk/console_cmd.h>
 #include <platform/bcm28xx.h>
 #include <platform/bcm28xx/pll.h>
 #include <stdint.h>
+
+#define PLL_MAX_LOCKWAIT 1000
+
+static int cmd_set_pll_freq(int argc, const cmd_args *argv);
+
+STATIC_COMMAND_START
+STATIC_COMMAND("set_pll_freq", "set pll frequency", &cmd_set_pll_freq)
+STATIC_COMMAND_END(pll_control);
 
 const struct pll_def pll_def[] = {
   [PLL_A] = {
@@ -244,6 +254,161 @@ static void pll_start(enum pll pll)
   def->dig[0] = A2W_PASSWORD | dig[0];
 }
 
+#ifdef RPI4
+static uint32_t saved_ana_vco[PLL_NUM] = {
+  [PLL_A] = 2,
+  [PLL_B] = 2,
+  [PLL_C] = 2,
+  [PLL_D] = 2,
+};
+#endif
+
+int set_pll_freq(enum pll pll, uint32_t freq) {
+  const struct pll_def *def = &pll_def[pll];
+  bool was_prescaled;
+  bool is_prescaled;
+  bool was_off;
+
+  if (!freq) {
+    *def->cm_pll = CM_PASSWORD | CM_PLL_ANARST;
+    *def->ctrl = A2W_PASSWORD | A2W_PLL_CTRL_PWRDN;
+    return 0;
+  }
+
+  was_off = !(*def->ctrl & A2W_PLL_CTRL_PRSTN);
+
+#if RPI4
+  uint32_t ana_vco = saved_ana_vco[pll];
+  was_prescaled = BIT_SET(ana_vco, 4);
+#else
+  uint32_t ana3 = def->ana[3];
+  uint32_t ana2 = def->ana[2];
+  uint32_t ana1 = def->ana[1];
+  uint32_t ana0 = def->ana[0];
+  was_prescaled = BIT_SET(ana1, def->ana1_prescale_bit);
+#endif
+
+  /* Divider is a fixed-point number with a 20-bit fractional part */
+  uint32_t div = (((uint64_t)freq << 20) + xtal_freq / 2) / xtal_freq;
+
+#if RPI4
+  is_prescaled = freq > MHZ_TO_HZ(1600);
+#else
+  is_prescaled = freq > MHZ_TO_HZ(1750);
+  if (is_prescaled)
+    div = (div + 1) >> 1;
+#endif
+
+  *REG32(A2W_XOSC_CTRL) |= A2W_PASSWORD | def->enable_bit;
+
+#ifdef RPI4
+  if (!was_off) {
+    ana_vco |= 0x10000UL;
+    *def->ana_vco = A2W_PASSWORD | ana_vco;
+  }
+#endif
+
+#ifndef RPI4
+  // PLLs with a prescaler will set all ANA registers, because there
+  // is no other way to manipulate the prescaler enable bit.  Since
+  // these registers also contain KA, KI and KP, their new values
+  // must be set here, not through a write to A2W_PLLx_ANA_KAIP.
+  if (pll == PLL_H) {
+    ana0 = (ana0 & ~A2W_PLLH_ANA0_KA_MASK & ~A2W_PLLH_ANA0_KI_LO_MASK)
+      | (2UL << A2W_PLLH_ANA0_KA_LSB)
+      | (2UL << A2W_PLLH_ANA0_KI_LO_LSB);
+    ana1 = (ana1 & ~A2W_PLLH_ANA1_KI_HI_MASK & ~A2W_PLLH_ANA1_KP_MASK)
+      | (0UL << A2W_PLLH_ANA1_KI_HI_MASK)
+      | (6UL << A2W_PLLH_ANA1_KP_LSB);
+  } else {
+    ana3 = (ana3 & ~A2W_PLL_ANA3_KA_MASK)
+      | (2UL << A2W_PLL_ANA3_KA_LSB);
+    ana1 = (ana1 & A2W_PLL_ANA1_KI_MASK & ~A2W_PLL_ANA1_KP_MASK)
+      | (2UL << A2W_PLL_ANA1_KI_LSB)
+      | (8UL << A2W_PLL_ANA1_KP_LSB);
+  }
+#endif
+
+  if (!was_prescaled || is_prescaled) {
+#ifdef RPI4
+    if (is_prescaled) {
+      *def->ana_kaip = A2W_PASSWORD
+	| (0 << A2W_PLL_ANA_KAIP_KA_LSB)
+	| (2 << A2W_PLL_ANA_KAIP_KI_LSB)
+	| (3 << A2W_PLL_ANA_KAIP_KP_LSB);
+      ana_vco |= 0x10UL;
+      *def->ana_vco = A2W_PASSWORD | ana_vco;
+    } else {
+      *def->ana_kaip = A2W_PASSWORD
+	| (0 << A2W_PLL_ANA_KAIP_KA_LSB)
+	| (2 << A2W_PLL_ANA_KAIP_KI_LSB)
+	| (5 << A2W_PLL_ANA_KAIP_KP_LSB);
+      ana_vco &= ~0x10UL;
+      *def->ana_vco = A2W_PASSWORD | ana_vco;
+    }
+#else
+    if (is_prescaled)
+      ana1 |= 1UL << def->ana1_prescale_bit;
+    def->ana[3] = A2W_PASSWORD | ana3;
+    def->ana[2] = A2W_PASSWORD | ana2;
+    def->ana[1] = A2W_PASSWORD | ana1;
+    def->ana[0] = A2W_PASSWORD | ana0;
+#endif
+  }
+
+  *def->ctrl = A2W_PASSWORD
+    | (*def->ctrl
+       & ~A2W_PLL_CTRL_PWRDN
+       & ~A2W_PLL_CTRL_PDIV_MASK
+       & ~def->ndiv_mask)
+    | (div >> 20)
+    | (1 << A2W_PLL_CTRL_PDIV_LSB);
+  *def->frac = A2W_PASSWORD | (div & A2W_PLL_FRAC_MASK);
+
+  if (was_prescaled && !is_prescaled) {
+#ifdef RPI4
+    *def->ana_kaip = A2W_PASSWORD
+      | (0 << A2W_PLL_ANA_KAIP_KA_LSB)
+      | (2 << A2W_PLL_ANA_KAIP_KI_LSB)
+      | (5 << A2W_PLL_ANA_KAIP_KP_LSB);
+    ana_vco &= ~0x10UL;
+    *def->ana_vco = A2W_PASSWORD | ana_vco;
+#else
+    ana1 &= ~(1UL << def->ana1_prescale_bit);
+    def->ana[3] = A2W_PASSWORD | ana3;
+    def->ana[2] = A2W_PASSWORD | ana2;
+    def->ana[1] = A2W_PASSWORD | ana1;
+    def->ana[0] = A2W_PASSWORD | ana0;
+#endif
+  }
+
+  *def->cm_pll = CM_PASSWORD | (*def->cm_pll & ~CM_PLL_ANARST);
+  unsigned lockwait = PLL_MAX_LOCKWAIT;
+  while (!BIT_SET(*REG32(CM_LOCK), def->cm_flock_bit))
+    if (--lockwait == 0)
+      break;
+
+#ifdef RPI4
+  if (!was_off) {
+    ana_vco &= ~0x10000UL;
+    *def->ana_vco = A2W_PASSWORD | ana_vco;
+  }
+  saved_ana_vco[pll] = ana_vco;
+#endif
+
+  if (!lockwait) {
+    dprintf(INFO, "%s won't lock\n", def->name);
+    return -1;
+  }
+
+  if (was_off)
+    pll_start(pll);
+
+  dprintf(SPEW, "%s frequency locked after %u iterations\n",
+	  def->name, PLL_MAX_LOCKWAIT - lockwait);
+  return 0;
+}
+
 void configure_pll_b(uint32_t freq) {
   const struct pll_def *def = &pll_def[PLL_B];
   uint32_t orig_ctrl = *def->ctrl;
@@ -270,4 +435,14 @@ void configure_pll_b(uint32_t freq) {
 
   if ((orig_ctrl & A2W_PLL_CTRL_PRSTN) == 0)
     pll_start(PLL_B);
+}
+
+static int cmd_set_pll_freq(int argc, const cmd_args *argv) {
+  if (argc != 3) {
+    printf("usage: set_pll_freq <pll> <freq>\n");
+    return -1;
+  }
+  enum pll pll = argv[1].u;
+  uint32_t freq = argv[2].u;
+  return set_pll_freq(pll, freq);
 }

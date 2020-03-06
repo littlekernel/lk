@@ -1,5 +1,7 @@
 #pragma once
 
+#define MHZ_TO_HZ(f) ((f)*1000*1000)
+
 enum pll {
   PLL_A,
   PLL_B,
@@ -105,6 +107,25 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define A2W_PLLH_DIG0           (A2W_BASE + 0x060)
 #define A2W_PLLB_DIG0           (A2W_BASE + 0x0e0)
 
+#define A2W_PLL_ANA3_KA_LSB     7
+#define A2W_PLL_ANA3_KA_MASK    (BIT_MASK(3) << A2W_PLL_ANA3_KA_LSB)
+#define A2W_PLL_ANA1_KI_LSB     19
+#define A2W_PLL_ANA1_KI_MASK    (BIT_MASK(3) << A2W_PLL_ANA1_KI_LSB)
+#define A2W_PLL_ANA1_KP_LSB     15
+#define A2W_PLL_ANA1_KP_MASK    (BIT_MASK(4) << A2W_PLL_ANA1_KP_LSB)
+
+// PLLH is special
+#define A2W_PLLH_ANA0_KA_LSB       19
+#define A2W_PLLH_ANA0_KA_MASK      (BIT_MASK(3) << A2W_PLLH_ANA0_KA_LSB)
+#define A2W_PLLH_ANA0_KI_LO_LSB    22
+#define A2W_PLLH_ANA1_KI_LO_BITS   2
+#define A2W_PLLH_ANA0_KI_LO_MASK   (BIT_MASK(A2W_PLLH_ANA1_KI_LO_BITS) \
+                                    << A2W_PLLH_ANA0_KI_LO_LSB)
+#define A2W_PLLH_ANA1_KI_HI_LSB    0
+#define A2W_PLLH_ANA1_KI_HI_MASK   (BIT_MASK(1) << A2W_PLLH_ANA1_KI_HI_LSB)
+#define A2W_PLLH_ANA1_KP_LSB       1
+#define A2W_PLLH_ANA1_KP_MASK      (BIT_MASK(4) << A2W_PLLH_ANA1_KP_LSB)
+
 #define A2W_PLLA_ANA0           (A2W_BASE + 0x010)
 #define A2W_PLLC_ANA0           (A2W_BASE + 0x030)
 #define A2W_PLLD_ANA0           (A2W_BASE + 0x050)
@@ -121,6 +142,7 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 // Common A2W_PLL_CTRL bits
 #define A2W_PLL_CTRL_PDIV_MASK  0x00007000
 #define A2W_PLL_CTRL_PDIV_LSB   12
+#define A2W_PLL_CTRL_PWRDN      0x00010000
 #define A2W_PLL_CTRL_PRSTN      0x00020000
 
 #define A2W_PLLA_CTRL           (A2W_BASE + 0x100)
