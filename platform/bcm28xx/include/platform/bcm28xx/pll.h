@@ -70,10 +70,12 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define CM_PLLH                 (CM_BASE + 0x110)
 #define CM_PLLB                 (CM_BASE + 0x170)
 
+// Common CM_PLL bits
+#define CM_PLL_ANARST           0x00000100
+#define CM_PLL_DIGRST           0x00000200
+
 #define CM_PLLB_LOADARM_SET                                0x00000001
 #define CM_PLLB_HOLDARM_SET                                0x00000002
-#define CM_PLLB_ANARST_SET                                 0x00000100
-#define CM_PLLB_DIGRST_SET                                 0x00000200
 #define CM_ARMCTL               0x7e1011b0
 #define CM_ARMCTL_ENAB_SET                                 0x00000010
 
