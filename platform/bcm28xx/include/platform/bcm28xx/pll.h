@@ -19,7 +19,10 @@ struct pll_def {
   volatile uint32_t *ctrl;
   uint32_t ndiv_mask;
   unsigned short ana1_prescale_bit;
+  unsigned short cm_flock_bit;
   volatile uint32_t *cm_pll;
+  volatile uint32_t *ana_kaip;
+  volatile uint32_t *ana_vco;
 };
 
 extern const struct pll_def pll_def[PLL_NUM];
@@ -68,6 +71,13 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define CM_PLLD                 (CM_BASE + 0x10C)
 #define CM_PLLH                 (CM_BASE + 0x110)
 #define CM_PLLB                 (CM_BASE + 0x170)
+
+#define CM_LOCK                 (CM_BASE + 0x114)
+#define CM_LOCK_FLOCKA_BIT      8
+#define CM_LOCK_FLOCKB_BIT      9
+#define CM_LOCK_FLOCKC_BIT      10
+#define CM_LOCK_FLOCKD_BIT      11
+#define CM_LOCK_FLOCKH_BIT      12
 
 // Common CM_PLL bits
 #define CM_PLL_ANARST           0x00000100
@@ -181,3 +191,20 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define A2W_PLLB_SP2            (A2W_BASE + 0x6e0)
 #define A2W_PLLB_SP2_CHENB_LSB                             8
 #define A2W_PLLB_SP2_DIV_SET                               0x000000ff
+
+// Common A2W_PLL_ANA_KAIP bits
+#define A2W_PLL_ANA_KAIP_KA_LSB 8
+#define A2W_PLL_ANA_KAIP_KI_LSB 4
+#define A2W_PLL_ANA_KAIP_KP_LSB 0
+
+#define A2W_PLLA_ANA_KAIP       (A2W_BASE + 0x310)
+#define A2W_PLLC_ANA_KAIP       (A2W_BASE + 0x330)
+#define A2W_PLLD_ANA_KAIP       (A2W_BASE + 0x350)
+#define A2W_PLLH_ANA_KAIP       (A2W_BASE + 0x370)
+#define A2W_PLLB_ANA_KAIP       (A2W_BASE + 0x3f0)
+
+#define A2W_PLLA_ANA_VCO        (A2W_BASE + 0x610)
+#define A2W_PLLC_ANA_VCO        (A2W_BASE + 0x630)
+#define A2W_PLLD_ANA_VCO        (A2W_BASE + 0x650)
+#define A2W_PLLH_ANA_VCO        (A2W_BASE + 0x670)
+#define A2W_PLLB_ANA_VCO        (A2W_BASE + 0x6f0)

@@ -13,7 +13,10 @@ const struct pll_def pll_def[] = {
     .ctrl = REG32(A2W_PLLA_CTRL),
     .ndiv_mask = A2W_PLLA_CTRL_NDIV_SET,
     .ana1_prescale_bit = 14,
+    .cm_flock_bit = CM_LOCK_FLOCKA_BIT,
     .cm_pll = REG32(CM_PLLA),
+    .ana_kaip = REG32(A2W_PLLA_ANA_KAIP),
+    .ana_vco = REG32(A2W_PLLA_ANA_VCO),
   },
   [PLL_B] = {
     .name = "PLLB",
@@ -24,7 +27,10 @@ const struct pll_def pll_def[] = {
     .ctrl = REG32(A2W_PLLB_CTRL),
     .ndiv_mask = A2W_PLLB_CTRL_NDIV_SET,
     .ana1_prescale_bit = 14,
+    .cm_flock_bit = CM_LOCK_FLOCKB_BIT,
     .cm_pll = REG32(CM_PLLB),
+    .ana_kaip = REG32(A2W_PLLB_ANA_KAIP),
+    .ana_vco = REG32(A2W_PLLB_ANA_VCO),
   },
   [PLL_C] = {
     .name = "PLLC",
@@ -35,7 +41,10 @@ const struct pll_def pll_def[] = {
     .ctrl = REG32(A2W_PLLC_CTRL),
     .ndiv_mask = A2W_PLLC_CTRL_NDIV_SET,
     .ana1_prescale_bit = 14,
+    .cm_flock_bit = CM_LOCK_FLOCKC_BIT,
     .cm_pll = REG32(CM_PLLC),
+    .ana_kaip = REG32(A2W_PLLC_ANA_KAIP),
+    .ana_vco = REG32(A2W_PLLC_ANA_VCO),
   },
   [PLL_D] = {
     .name = "PLLD",
@@ -46,7 +55,10 @@ const struct pll_def pll_def[] = {
     .ctrl = REG32(A2W_PLLD_CTRL),
     .ndiv_mask = A2W_PLLD_CTRL_NDIV_SET,
     .ana1_prescale_bit = 14,
+    .cm_flock_bit = CM_LOCK_FLOCKD_BIT,
     .cm_pll = REG32(CM_PLLD),
+    .ana_kaip = REG32(A2W_PLLD_ANA_KAIP),
+    .ana_vco = REG32(A2W_PLLD_ANA_VCO),
   },
   [PLL_H] = {
     .name = "PLLH",
@@ -57,7 +69,10 @@ const struct pll_def pll_def[] = {
     .ctrl = REG32(A2W_PLLH_CTRL),
     .ndiv_mask = A2W_PLLH_CTRL_NDIV_SET,
     .ana1_prescale_bit = 11,
+    .cm_flock_bit = CM_LOCK_FLOCKH_BIT,
     .cm_pll = REG32(CM_PLLH),
+    .ana_kaip = REG32(A2W_PLLH_ANA_KAIP),
+    .ana_vco = REG32(A2W_PLLH_ANA_VCO),
   },
 };
 
