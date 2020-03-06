@@ -60,6 +60,7 @@ struct pll_chan_def {
   enum pll pll;
 };
 
+extern uint32_t xtal_freq;
 extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 
 #define CM_PLLA                 (CM_BASE + 0x104)
