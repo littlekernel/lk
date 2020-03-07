@@ -235,14 +235,14 @@ static void pll_start(enum pll pll)
   if (pll == PLL_H) {
     // CM_PLLH does not contain any HOLD bits
     def->dig[3] = A2W_PASSWORD | dig[3];
-    def->dig[2] = A2W_PASSWORD | (dig[2] & 0xffffff57);
+    def->dig[2] = A2W_PASSWORD | (dig[2] & ~0xa8UL);
     def->dig[1] = A2W_PASSWORD | dig[1];
   } else {
     // set all HOLD bits
     *def->cm_pll = CM_PASSWORD | (*def->cm_pll | 0xaa);
     def->dig[3] = A2W_PASSWORD | dig[3];
-    def->dig[2] = A2W_PASSWORD | (dig[2] & 0xffeffbfe);
-    def->dig[1] = A2W_PASSWORD | (dig[1] & 0xffffbfff);
+    def->dig[2] = A2W_PASSWORD | (dig[2] & ~0x100401UL);
+    def->dig[1] = A2W_PASSWORD | (dig[1] & ~0x4000UL);
   }
   def->dig[0] = A2W_PASSWORD | dig[0];
 
@@ -288,17 +288,22 @@ int set_pll_freq(enum pll pll, uint32_t freq) {
   was_prescaled = BIT_SET(ana1, def->ana1_prescale_bit);
 #endif
 
-  /* Divider is a fixed-point number with a 20-bit fractional part */
+  // Divider is a fixed-point number with a 20-bit fractional part.
   uint32_t div = (((uint64_t)freq << 20) + xtal_freq / 2) / xtal_freq;
 
 #if RPI4
   is_prescaled = freq > MHZ_TO_HZ(1600);
 #else
   is_prescaled = freq > MHZ_TO_HZ(1750);
-  if (is_prescaled)
+  if (is_prescaled) {
     div = (div + 1) >> 1;
+    ana1 |= 1UL << def->ana1_prescale_bit;
+  } else {
+    ana1 &= ~(1UL << def->ana1_prescale_bit);
+  }
 #endif
 
+  // Unmask the reference clock from the crystal oscillator.
   *REG32(A2W_XOSC_CTRL) |= A2W_PASSWORD | def->enable_bit;
 
 #ifdef RPI4
@@ -329,6 +334,18 @@ int set_pll_freq(enum pll pll, uint32_t freq) {
   }
 #endif
 
+  // The Linux driver manipulates the prescaler bit before setting
+  // a new NDIV if the prescaler is being turned _OFF_.
+  // I believe it is a bug.
+  // The programmable divider in a BCM283x apparently cannot cope
+  // with frequencies above 1750 MHz. This is the reason for adding
+  // an optional prescaler in the feedback path, so the maximum PLL
+  // frequency can go up to 3.5 GHz, albeit at the cost of precision.
+  // If the prescaler is turned off, the divider counter will be
+  // exposed to the full VCO frequency (i.e. above 1750 MHz).
+  // On BCM2711, bit 4 of ANA_VCO is manipulated after setting the
+  // new divider if and only if the rate is going from a frequency
+  // above 1.6 GHz to a frequency less than or equal 1.6 GHz.
   if (!was_prescaled || is_prescaled) {
 #ifdef RPI4
     if (is_prescaled) {
@@ -347,8 +364,6 @@ int set_pll_freq(enum pll pll, uint32_t freq) {
       *def->ana_vco = A2W_PASSWORD | ana_vco;
     }
 #else
-    if (is_prescaled)
-      ana1 |= 1UL << def->ana1_prescale_bit;
     def->ana[3] = A2W_PASSWORD | ana3;
     def->ana[2] = A2W_PASSWORD | ana2;
     def->ana[1] = A2W_PASSWORD | ana1;
@@ -356,6 +371,8 @@ int set_pll_freq(enum pll pll, uint32_t freq) {
 #endif
   }
 
+  // Set the PLL multiplier from the oscillator.
+  *def->frac = A2W_PASSWORD | (div & A2W_PLL_FRAC_MASK);
   *def->ctrl = A2W_PASSWORD
     | (*def->ctrl
        & ~A2W_PLL_CTRL_PWRDN
@@ -363,7 +380,6 @@ int set_pll_freq(enum pll pll, uint32_t freq) {
        & ~def->ndiv_mask)
     | (div >> 20)
     | (1 << A2W_PLL_CTRL_PDIV_LSB);
-  *def->frac = A2W_PASSWORD | (div & A2W_PLL_FRAC_MASK);
 
   if (was_prescaled && !is_prescaled) {
 #ifdef RPI4
@@ -374,7 +390,6 @@ int set_pll_freq(enum pll pll, uint32_t freq) {
     ana_vco &= ~0x10UL;
     *def->ana_vco = A2W_PASSWORD | ana_vco;
 #else
-    ana1 &= ~(1UL << def->ana1_prescale_bit);
     def->ana[3] = A2W_PASSWORD | ana3;
     def->ana[2] = A2W_PASSWORD | ana2;
     def->ana[1] = A2W_PASSWORD | ana1;
@@ -382,7 +397,10 @@ int set_pll_freq(enum pll pll, uint32_t freq) {
 #endif
   }
 
+  // Take the PLL out of reset.
   *def->cm_pll = CM_PASSWORD | (*def->cm_pll & ~CM_PLL_ANARST);
+
+  // Wait for the PLL to lock.
   unsigned lockwait = PLL_MAX_LOCKWAIT;
   while (!BIT_SET(*REG32(CM_LOCK), def->cm_flock_bit))
     if (--lockwait == 0)
@@ -424,6 +442,8 @@ void configure_pll_b(uint32_t freq) {
   def->ana[0] = A2W_PASSWORD | 0x0;
 
   // set dig values
+  if ((orig_ctrl & A2W_PLL_CTRL_PRSTN) == 0)
+    pll_start(PLL_B);
 
   *REG32(A2W_PLLB_ARM) = A2W_PASSWORD | 2;
 
@@ -432,9 +452,6 @@ void configure_pll_b(uint32_t freq) {
   *REG32(CM_PLLB) = CM_PASSWORD;
 
   *REG32(CM_ARMCTL) = CM_PASSWORD | 4 | CM_ARMCTL_ENAB_SET;
-
-  if ((orig_ctrl & A2W_PLL_CTRL_PRSTN) == 0)
-    pll_start(PLL_B);
 }
 
 static int cmd_set_pll_freq(int argc, const cmd_args *argv) {
