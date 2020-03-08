@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2020 Travis Geiseblrecht
  *
  * Use of this source code is governed by a MIT-style
  * license that can be found in the LICENSE file or at
