@@ -54,15 +54,17 @@ static void pci_list(void) {
             if (ret != _PCI_SUCCESSFUL) goto error;
 
             if (vendor_id != 0xffff) {
-                printf("%02x:%02x vendor_id=%04x device_id=%04x, header_type=%02x "
-                       "base_class=%02x, sub_class=%02x, interface=%02x\n", state.bus, state.dev_fn,
+                printf("%02x:%02x.%0x vendor_id=%04x device_id=%04x, header_type=%02x "
+                       "base_class=%02x, sub_class=%02x, interface=%02x\n",
+                       state.bus, state.dev_fn >> 3, state.dev_fn & 7,
                        vendor_id, device_id, header_type, base_class, sub_class, interface);
                 devices++;
                 lines++;
             }
 
-            if (~header_type & PCI_HEADER_TYPE_MULTI_FN) {
+            if (((devfn & 7) == 0) && ~header_type & PCI_HEADER_TYPE_MULTI_FN) {
                 // this is not a multi-function device, so advance to the next device
+                // only check when looking at function 0 of a device
                 devfn |= 7;
             }
 
@@ -109,8 +111,8 @@ static int pci_config(int argc, const cmd_args *argv) {
             if (ret != _PCI_SUCCESSFUL) goto error;
         }
 
-        printf("Device at %02x:%02x vendor id=%04x device id=%04x\n", loc.bus,
-               loc.dev_fn, config.vendor_id, config.device_id);
+        printf("Device at %02x:%02x.%1x vendor id=%04x device id=%04x\n", loc.bus,
+               loc.dev_fn >> 3, loc.dev_fn & 7, config.vendor_id, config.device_id);
         printf("command=%04x status=%04x pi=%02x sub cls=%02x base cls=%02x\n",
                config.command, config.status, config.program_interface,
                config.sub_class, config.base_class);

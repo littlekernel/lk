@@ -204,6 +204,8 @@ int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq
 
 void pci_init(void) {
     // try a series of detection mechanisms
+
+    // try to BIOS32 access first, if present
     if (pci_bios_detect() >= 0) {
         dprintf(INFO, "PCI: pci bios functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", last_bus);

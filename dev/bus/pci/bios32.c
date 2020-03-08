@@ -312,6 +312,8 @@ static int bios_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uin
 
 static const char *pci_signature = "PCI ";
 int pci_bios_detect(void) {
+    LTRACE_ENTRY;
+
     pci_bios_info *pci = find_pci_bios_info();
     if (!pci) {
         return ERR_NOT_CONFIGURED;
