@@ -96,6 +96,10 @@ ifeq ($(SUBARCH),x86-64)
 ARCH_COMPILEFLAGS += -fno-stack-protector
 ARCH_COMPILEFLAGS += -mcmodel=kernel
 ARCH_COMPILEFLAGS += -mno-red-zone
+
+# disable builtins to keep the compiler from generating sse instructions
+# for load/stores
+ARCH_COMPILEFLAGS += -fno-builtin
 endif # SUBARCH x86-64
 
 ARCH_OPTFLAGS := -O2
