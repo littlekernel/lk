@@ -17,7 +17,7 @@
 #include <platform/multiboot.h>
 #include <platform/console.h>
 #include <platform/keyboard.h>
-#include <dev/pci.h>
+#include <dev/bus/pci.h>
 #include <dev/uart.h>
 #include <arch/x86.h>
 #include <arch/mmu.h>

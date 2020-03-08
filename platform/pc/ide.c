@@ -18,7 +18,7 @@
 #include <platform/ide.h>
 #include <platform/pc.h>
 #include <platform.h>
-#include <dev/pci.h>
+#include <dev/bus/pci.h>
 #include <dev/driver.h>
 #include <dev/class/block.h>
 #include <kernel/event.h>

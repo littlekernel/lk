@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2020 Travis Geiselbrecht
  *
  * Use of this source code is governed by a MIT-style
  * license that can be found in the LICENSE file or at
@@ -12,7 +13,7 @@
 #include <kernel/thread.h>
 #include <kernel/spinlock.h>
 #include <arch/x86/descriptor.h>
-#include <dev/pci.h>
+#include <dev/bus/pci.h>
 #include <lk/trace.h>
 
 #define LOCAL_TRACE 0

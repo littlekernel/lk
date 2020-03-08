@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <lk/compiler.h>
 #include <platform.h>
-#include <dev/pci.h>
+#include <dev/bus/pci.h>
 #include <lk/console_cmd.h>
 
 /*
