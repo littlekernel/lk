@@ -27,6 +27,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+void i2c_set_rate(unsigned busnum, unsigned long rate);
 int i2c_xfer(unsigned busnum, unsigned addr,
 	     char *sendbuf, size_t sendsz,
 	     char *recvbuf, size_t recvsz);

@@ -3,6 +3,7 @@
 #include <lk/console_cmd.h>
 #include <lk/debug.h>
 #include <platform/bcm28xx/i2c.h>
+#include <platform/bcm28xx/pll_read.h>
 
 struct i2c_regs {
   uint32_t ctrl;
@@ -15,10 +16,12 @@ struct i2c_regs {
   uint32_t clkt;
 };
 
+static int cmd_i2c_set_rate(int argc, const cmd_args *argv);
 static int cmd_i2c_xfer(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("i2c_xfer", "I2C transfer", &cmd_i2c_xfer)
+STATIC_COMMAND("i2c_set_rate", "Set I2C rate", &cmd_i2c_set_rate)
 STATIC_COMMAND_END(i2c);
 
 static int unhex(char c) {
@@ -35,6 +38,30 @@ static uint32_t i2c_base[] = {
   I2C0_BASE, I2C1_BASE, I2C2_BASE, I2C3_BASE,
   I2C4_BASE, I2C5_BASE, I2C6_BASE, I2C7_BASE,
 };
+
+void i2c_set_rate(unsigned busnum, unsigned long rate)
+{
+  volatile struct i2c_regs *regs = (struct i2c_regs*) i2c_base[busnum];
+  uint32_t base_freq = get_vpu_per_freq();
+  uint32_t div = base_freq / rate;
+  if (div >= (1UL << 16))
+    div = 0xffff;
+  uint32_t fedl = (div >> 4) ?: 1;
+  uint32_t redl = (div >> 2) ?: 1;
+  regs->div = div & 0xffffUL;
+  regs->del = (fedl << 16) | redl;
+}
+
+static int cmd_i2c_set_rate(int argc, const cmd_args *argv) {
+  if (argc != 3) {
+    printf("usage: i2c_set_rate <bus> <rate>\n");
+    return -1;
+  }
+  unsigned busnum = argv[1].u;
+  unsigned long rate = argv[2].u;
+  i2c_set_rate(busnum, rate);
+  return 0;
+}
 
 static void i2c_clear_fifo(unsigned busnum) {
   volatile struct i2c_regs *regs = (struct i2c_regs*) i2c_base[busnum];
