@@ -16,14 +16,12 @@
 #include <lk/main.h>
 #include <platform.h>
 
+#include "riscv_priv.h"
+
 #define LOCAL_TRACE 0
 
-#if WITH_SMP
-static spin_lock_t boot_cpu_lock = 1;
-volatile int secondaries_to_init = SMP_MAX_CPUS - 1;
-#endif
-
-void arch_early_init(void) {
+// first C level code to initialize each cpu
+void riscv_early_init_percpu(void) {
     // set the top level exception handler
     riscv_csr_write(RISCV_CSR_XTVEC, (uintptr_t)&riscv_exception_entry);
 
@@ -35,7 +33,26 @@ void arch_early_init(void) {
     //riscv_csr_set(mcounteren, 1);
 }
 
+// called very early just after entering C code on boot processor
+void arch_early_init(void) {
+    riscv_early_init_percpu();
+}
+
+// later init per cpu
+void riscv_init_percpu(void) {
+#if WITH_SMP
+    // enable software interrupts, used for inter-processor-interrupts
+    riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_SIE);
+#endif
+
+    // enable external interrupts
+    riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_EIE);
+}
+
+// called later once the kernel is running before platform and target init
 void arch_init(void) {
+    riscv_init_percpu();
+
     // print some arch info
     dprintf(INFO, "RISCV: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#x\n",
             riscv_get_mvendorid(), riscv_get_marchid(),
@@ -46,63 +63,10 @@ void arch_init(void) {
     dprintf(INFO, "RISCV: sbi %#lx (%#lx)\n", sbi_call(SBI_GET_SBI_IMPL_ID).value, sbi_call(SBI_GET_SBI_IMPL_VERSION).value);
 #endif
 
-    // enable external interrupts
-    riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_EIE);
-
 #if WITH_SMP
-    arch_mp_init_percpu();
-
-    lk_init_secondary_cpus(secondaries_to_init);
-
-    LTRACEF("RISCV: Waiting for %d secondary harts to come up\n", secondaries_to_init);
-    /* release the secondary cpus */
-    spin_unlock(&boot_cpu_lock);
-    // while (secondaries_to_init) arch_idle();
-    // spin_lock(&boot_cpu_lock);
+    riscv_boot_secondaries();
 #endif
 }
-
-#if WITH_SMP
-void riscv_secondary_entry(void) {
-    arch_early_init();
-
-    if (unlikely(arch_curr_cpu_num() >= SMP_MAX_CPUS)) {
-        while (1) {
-            arch_idle();
-        }
-    }
-
-    spin_lock(&boot_cpu_lock);
-    spin_unlock(&boot_cpu_lock);
-
-    // enable external interrupts
-    riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_EIE);
-
-    /* run early secondary cpu init routines up to the threading level */
-    lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
-
-    arch_mp_init_percpu();
-
-# if RISCV_M_MODE
-    dprintf(INFO, "RISCV: secondary hart coming up: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#x\n",
-            riscv_csr_read(mvendorid), riscv_csr_read(marchid),
-            riscv_csr_read(mimpid), riscv_current_hart());
-# endif /* RISCV_M_MODE */
-
-    // atomic_add(&secondaries_to_init, -1);
-    // arch_mp_send_ipi(1 << 0, MP_IPI_GENERIC); // wake up hart0 to let it know this CPU has come up
-
-    lk_secondary_cpu_entry();
-}
-
-// platform can detect and set the number of cores to boot (optional)
-void riscv_set_secondary_count(int count) {
-    if (count > SMP_MAX_CPUS - 1) {
-        count = SMP_MAX_CPUS - 1;
-    }
-    secondaries_to_init = count;
-}
-#endif
 
 void arch_idle(void) {
     // let the platform/target disable wfi

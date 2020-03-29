@@ -23,7 +23,11 @@ FUNCTION(_start)
     csrw    sscratch, a0
 #endif
 
-    // set the default stack
+    // if the hart is too high, trap it
+    li      t0, RISCV_MAX_HARTS
+    ble     t0, a0, .Lhart_trap
+
+    // set the default stack per cpu
     la      sp, default_stack_top
     // default stack locations for each hart:
     // LOW ------------ HIGH
@@ -32,8 +36,8 @@ FUNCTION(_start)
     mul     t1, t1, a0
     sub     sp, sp, t1
 
-    // if our hart isnt BOOT_HART, trap the cpu
-    li      t2, BOOT_HART
+    // if our hart isnt RISCV_BOOT_HART, trap the cpu
+    li      t2, RISCV_BOOT_HART
     bne     t2, a0, .Lsecondary_trap
 
 #if ARCH_RISCV_TWOSEGMENT
@@ -56,16 +60,16 @@ FUNCTION(_start)
     la      t0, __bss_start
     la      t1, __bss_end
 0:
-    sw      x0, (t0)
+    sw      zero, (t0)
     add     t0, t0, 4
     bne     t0, t1, 0b
 
 #if WITH_SMP
     // Release any other harts into riscv_secondary_entry
     fence   w, w
-    la      t5, _boot_status
+    la      t1, _boot_status
     li      t0, 1
-    sb      t0, (t5)
+    sb      t0, (t1)
 #endif
 
     // call main
@@ -86,10 +90,15 @@ FUNCTION(_start)
     j       .
 #endif
 
+.Lhart_trap:
+    // cpus with too high of a hart id go here and spin forever
+    wfi
+    j       .
+
 .bss
 .align 4
 LOCAL_DATA(default_stack)
-    .skip ARCH_DEFAULT_STACK_SIZE * SMP_MAX_CPUS
+    .skip ARCH_DEFAULT_STACK_SIZE * RISCV_MAX_HARTS;
 LOCAL_DATA(default_stack_top)
 
 // put boot status in .data so it doesn't get paved over during BSS initialization

@@ -63,17 +63,12 @@ static inline uint32_t arch_cycle_count(void) {
 
 static inline uint arch_curr_cpu_num(void) {
 #if WITH_SMP
-    const uint hart = riscv_current_hart();
-    for (size_t i = 0; i < SMP_MAX_CPUS; i++) {
-        if (hart_cpu_map[i] == (int)hart)
-            return i;
-        else if (unlikely(hart_cpu_map[i] == -1)) {
-            if (i != 0 || hart == BOOT_HART) {
-                hart_cpu_map[i] = hart;
-                return i;
-            }
-        }
+    uint hart = riscv_current_hart();
+    int cpu = hart_to_cpu_map[hart];
+    if (likely(cpu >= 0)) {
+        return cpu;
     }
+    panic("hart %u not assigned a cpu\n", hart);
     return -1;
 #else
     return 0;
