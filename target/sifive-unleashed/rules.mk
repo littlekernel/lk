@@ -5,19 +5,23 @@ PLATFORM := sifive
 VARIANT := sifive_u
 
 WITH_SMP := 1
-BOOT_HART := 1
+RISCV_BOOT_HART := 1
+# Hart 0 on this board is disabled in supervisor mode, so make sure
+# there are enough hart slots for it
+RISCV_MAX_HARTS := 5
 
 GLOBAL_DEFINES += SIFIVE_FREQ=500000000 # 500 MHz
 
-RISCV_MODE ?= machine
+RISCV_MODE ?= supervisor
 
 ifeq ($(RISCV_MODE),supervisor)
-MEMBASE ?= 0x080200000
+MEMBASE ?= 0x080300000
 SMP_MAX_CPUS := 4
 else
 MEMBASE ?= 0x080000000
 SMP_MAX_CPUS := 5
 endif
+
 MEMSIZE ?= 0x200000000 # 8 GiB
 
 MODULE_SRCS := $(LOCAL_DIR)/target.c

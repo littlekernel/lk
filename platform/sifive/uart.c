@@ -18,6 +18,7 @@
 #include "platform_p.h"
 
 #define LOCAL_TRACE 0
+#define POLLING_RX 0
 
 static volatile unsigned int *const uart_base = (unsigned int *)UART0_BASE;
 
@@ -32,19 +33,34 @@ static volatile unsigned int *const uart_base = (unsigned int *)UART0_BASE;
 #define RXBUF_SIZE 128
 static char uart_rx_buf_data[RXBUF_SIZE];
 static struct cbuf uart_rx_buf;
+static spin_lock_t uart_tx_spin_lock = 0;
 
 void sifive_uart_write(int c) {
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&uart_tx_spin_lock, state);
+
     // wait for tx fifo to clear
     while (uart_base[UART_TXDATA] & (1<<31))
         ;
     uart_base[UART_TXDATA] = (c & 0xff);
+
+    spin_unlock_irqrestore(&uart_tx_spin_lock, state);
 }
 
 int sifive_uart_read(char *c, bool wait) {
+#if !POLLING_RX
     if (cbuf_read_char(&uart_rx_buf, c, wait) == 1) {
         return 0;
     }
     return -1;
+#else
+    // full polling mode for reads
+    int i = uart_base[UART_RXDATA];
+    if (i & (1<<31))
+        return -1;
+    *c = i & 0xff;
+    return 0;
+#endif
 }
 
 static enum handler_return sifive_uart_irq(void *unused) {
@@ -77,6 +93,8 @@ void sifive_uart_init(void) {
     uart_base[UART_RXCTRL] = 1; // rxen, rxcnt = 0
     uart_base[UART_IE] |= (1<<1); // rxwvm
 
+#if !POLLING_RX
     unmask_interrupt(SIFIVE_IRQ_UART0);
+#endif
 }
 
