@@ -5,7 +5,9 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
     $(LOCAL_DIR)/fdt.c \
     $(LOCAL_DIR)/fdt_addresses.c \
+    $(LOCAL_DIR)/fdt_check.c \
     $(LOCAL_DIR)/fdt_empty_tree.c \
+    $(LOCAL_DIR)/fdt_overlay.c \
     $(LOCAL_DIR)/fdt_ro.c \
     $(LOCAL_DIR)/fdt_rw.c \
     $(LOCAL_DIR)/fdt_strerror.c \
