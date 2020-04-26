@@ -14,6 +14,7 @@
 #include <dev/uart.h>
 #include <dev/virtio.h>
 #include <dev/virtio/net.h>
+#include <lib/fdtwalk.h>
 #include <lk/init.h>
 #include <kernel/vm.h>
 #include <kernel/spinlock.h>
@@ -21,12 +22,13 @@
 #include <platform/gic.h>
 #include <platform/interrupts.h>
 #include <platform/qemu-virt.h>
-#include <libfdt.h>
 #include "platform_p.h"
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
+
+#define LOCAL_TRACE 0
 
 #define DEFAULT_MEMORY_SIZE (MEMSIZE) /* try to fetch from the emulator via the fdt */
 
@@ -63,6 +65,39 @@ static pmm_arena_t arena = {
 
 extern void psci_call(ulong arg0, ulong arg1, ulong arg2, ulong arg3);
 
+// callbacks to the fdt_walk routine
+static void memcallback(uint64_t base, uint64_t len, void *cookie) {
+    bool *found_mem = (bool *)cookie;
+
+    LTRACEF("base %#llx len %#llx cookie %p\n", base, len, cookie);
+
+    /* add another novm arena */
+    if (!*found_mem) {
+        printf("FDT: found memory arena, base %#llx size %#llx\n", base, len);
+
+        /* trim size on certain platforms */
+#if ARCH_ARM
+        if (len > 1024*1024*1024U) {
+            len = 1024*1024*1024; /* only use the first 1GB on ARM32 */
+            printf("trimming memory to 1GB\n");
+        }
+#endif
+
+        /* set the size in the pmm arena */
+        arena.size = len;
+
+        *found_mem = true; // stop searching after the first one
+    }
+}
+
+static void cpucallback(uint64_t id, void *cookie) {
+    int *cpu_count = (int *)cookie;
+
+    LTRACEF("id %#llx cookie %p\n", id, cookie);
+
+    (*cpu_count)++;
+}
+
 void platform_early_init(void) {
     /* initialize the interrupt controller */
     arm_gic_init();
@@ -71,45 +106,21 @@ void platform_early_init(void) {
 
     uart_init_early();
 
-    /* look for a flattened device tree just before the kernel */
+    int cpu_count = 0;
+    bool found_mem = false;
+    struct fdt_walk_callbacks cb = {
+        .mem = memcallback,
+        .memcookie = &found_mem,
+        .cpu = cpucallback,
+        .cpucookie = &cpu_count,
+    };
+
     const void *fdt = (void *)KERNEL_BASE;
-    int err = fdt_check_header(fdt);
-    if (err >= 0) {
-        /* walk the nodes, looking for 'memory' */
-        int depth = 0;
-        int offset = 0;
-        for (;;) {
-            offset = fdt_next_node(fdt, offset, &depth);
-            if (offset < 0)
-                break;
+    status_t err = fdt_walk(fdt, &cb);
+    LTRACEF("fdt_walk returns %d\n", err);
 
-            /* get the name */
-            const char *name = fdt_get_name(fdt, offset, NULL);
-            if (!name)
-                continue;
-
-            /* look for the 'memory' property */
-            if (strcmp(name, "memory") == 0) {
-                int lenp;
-                const void *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
-                if (prop_ptr && lenp == 0x10) {
-                    /* we're looking at a memory descriptor */
-                    //uint64_t base = fdt64_to_cpu(*(uint64_t *)prop_ptr);
-                    uint64_t len = fdt64_to_cpu(*((const uint64_t *)prop_ptr + 1));
-
-                    /* trim size on certain platforms */
-#if ARCH_ARM
-                    if (len > 1024*1024*1024U) {
-                        len = 1024*1024*1024; /* only use the first 1GB on ARM32 */
-                        printf("trimming memory to 1GB\n");
-                    }
-#endif
-
-                    /* set the size in the pmm arena */
-                    arena.size = len;
-                }
-            }
-        }
+    if (err != 0) {
+        printf("FDT: error finding FDT at %p, using default memory & cpu count\n", fdt);
     }
 
     /* add the main memory arena */
@@ -119,12 +130,23 @@ void platform_early_init(void) {
     struct list_node list = LIST_INITIAL_VALUE(list);
     pmm_alloc_range(MEMBASE, 0x10000 / PAGE_SIZE, &list);
 
+    /* count the number of secondary cpus */
+    if (cpu_count == 0) {
+        /* if we didn't find any in the FDT, assume max number */
+        cpu_count = SMP_MAX_CPUS;
+    } else if (cpu_count > 0) {
+        printf("FDT: found %d cpus\n", cpu_count);
+        cpu_count = MIN(cpu_count, SMP_MAX_CPUS);
+    }
+
+    LTRACEF("booting %d cpus\n", cpu_count);
+
     /* boot the secondary cpus using the Power State Coordintion Interface */
     ulong psci_call_num = 0x84000000 + 3; /* SMC32 CPU_ON */
 #if ARCH_ARM64
     psci_call_num += 0x40000000; /* SMC64 */
 #endif
-    for (uint i = 1; i < SMP_MAX_CPUS; i++) {
+    for (int i = 1; i < cpu_count; i++) {
         psci_call(psci_call_num, i, MEMBASE + KERNEL_LOAD_OFFSET, 0);
     }
 }
