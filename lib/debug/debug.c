@@ -24,8 +24,8 @@ void spin(uint32_t usecs) {
         ;
 }
 
-void _panic(void *caller, const char *fmt, ...) {
-    printf("panic (caller %p): ", caller);
+void panic(const char *fmt, ...) {
+    printf("panic (caller %p): ", __GET_CALLER());
 
     va_list ap;
     va_start(ap, fmt);
