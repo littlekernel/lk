@@ -49,15 +49,12 @@ int getc(FILE *fp);
 int getchar(void);
 
 #if !DISABLE_DEBUG_OUTPUT
-#define printf(x...) _printf(x)
-#define vprintf(x...) _vprintf(x)
+int printf(const char *fmt, ...) __PRINTFLIKE(1, 2);
+int vprintf(const char *fmt, va_list ap);
 #else
 static inline int __PRINTFLIKE(1, 2) printf(const char *fmt, ...) { return 0; }
 static inline int vprintf(const char *fmt, va_list ap) { return 0; }
 #endif
-
-int _printf(const char *fmt, ...) __PRINTFLIKE(1, 2);
-int _vprintf(const char *fmt, va_list ap);
 
 int fprintf(FILE *fp, const char *fmt, ...) __PRINTFLIKE(2, 3);
 int vfprintf(FILE *fp, const char *fmt, va_list ap);
