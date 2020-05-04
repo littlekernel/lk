@@ -35,14 +35,8 @@ STATIC_ASSERT(RISCV_BOOT_HART < RISCV_MAX_HARTS);
 
 // mapping of cpu -> hart
 int cpu_to_hart_map[SMP_MAX_CPUS] = {
-    [0 ... SMP_MAX_CPUS-1] = -1, // other hart cpus are assigned dynamically
     [0] = RISCV_BOOT_HART,       // boot cpu is always logical 0
-};
-
-// mapping of hart -> cpu
-int hart_to_cpu_map[RISCV_MAX_HARTS] = {
-    [0 ... RISCV_MAX_HARTS-1] = -1,
-    [RISCV_BOOT_HART] = 0,       // boot hart is cpu 0
+    [1 ... SMP_MAX_CPUS-1] = -1, // other hart cpus are assigned dynamically
 };
 
 // list of IPIs queued per cpu
@@ -110,7 +104,7 @@ enum handler_return riscv_software_exception(void) {
     return ret;
 }
 
-void riscv_secondary_entry(int cpu_id) {
+void riscv_secondary_entry(void) {
     // basic bootstrapping of this cpu
     riscv_early_init_percpu();
 
@@ -120,7 +114,7 @@ void riscv_secondary_entry(int cpu_id) {
     int myid = atomic_add(&secondary_cpu_id, 1);
     uint hart = riscv_current_hart();
     cpu_to_hart_map[myid] = hart;
-    hart_to_cpu_map[hart] = myid;
+    riscv_get_percpu()->cpu_num = myid;
     wmb();
 
     if (unlikely(arch_curr_cpu_num() >= SMP_MAX_CPUS)) {
@@ -129,6 +123,7 @@ void riscv_secondary_entry(int cpu_id) {
         }
     }
 
+    // spin here waiting for the main cpu to release us
     spin_lock(&boot_cpu_lock);
     spin_unlock(&boot_cpu_lock);
 

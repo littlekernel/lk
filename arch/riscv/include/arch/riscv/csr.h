@@ -10,11 +10,11 @@
 
 #include <arch/riscv.h>
 
-#if RISCV_M_MODE
-static inline uint riscv_current_hart(void) {
-    return riscv_csr_read(RISCV_CSR_MHARTID);
+static inline ulong riscv_get_scratch(void) {
+    return riscv_csr_read(RISCV_CSR_XSCRATCH);
 }
 
+#if RISCV_M_MODE
 static inline long riscv_get_mvendorid(void) {
     return riscv_csr_read(RISCV_CSR_MVENDORID);
 }
@@ -29,10 +29,6 @@ static inline long riscv_get_mimpid(void) {
 
 #elif RISCV_S_MODE
 #include <arch/riscv/sbi.h>
-
-static inline uint riscv_current_hart(void) {
-    return riscv_csr_read(RISCV_CSR_XSCRATCH);
-}
 
 static inline long riscv_get_mvendorid(void) {
     struct sbiret ret = sbi_call(SBI_GET_MVENDORID);

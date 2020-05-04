@@ -18,9 +18,9 @@ FUNCTION(_start)
 .option pop
 
 #if RISCV_M_MODE
+    // copy the hart id into a0 which we'll use later
+    // supervisor mode should already have hart id in a0
     csrr    a0, mhartid
-#else
-    csrw    sscratch, a0
 #endif
 
     // if the hart is too high, trap it
@@ -72,6 +72,17 @@ FUNCTION(_start)
     sb      t0, (t1)
 #endif
 
+    // call into early C code to set up the percpu structure
+    mv      s0, a0
+    mv      s1, a1
+    mv      s2, a2
+    mv      s3, a3
+    jal     riscv_configure_percpu_early
+    mv      a0, s0
+    mv      a1, s1
+    mv      a2, s2
+    mv      a3, s3
+
     // call main
     jal     lk_main
 
@@ -84,6 +95,11 @@ FUNCTION(_start)
     la      t5, _boot_status
     lb      t0, (t5)
     beqz    t0, .Lsecondary_trap
+
+    // set the per cpu structure before getting into the secondary boot path
+    jal     riscv_configure_percpu_early
+
+    // bootstrap the secondary cpus
     jal     riscv_secondary_entry
 #else
     wfi

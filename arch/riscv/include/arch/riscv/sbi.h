@@ -26,6 +26,10 @@ enum sbi_return_code {
     SBI_ERR_INVALID_ADDRESS = -5,
 };
 
+// make a SBI call according to the SBI spec at https://github.com/riscv/riscv-sbi-doc
+// Note: it seems ambigious whether or not a2-a7 are trashed in the call, but the
+// OpenSBI and linux implementations seem to assume that all of the regs are restored
+// aside from a0 and a1 which are used for return values.
 #define _sbi_call(extension, function, arg0, arg1, arg2, arg3, arg4, arg5, ...) ({  \
     register unsigned long a0 asm("a0") = (unsigned long)arg0;      \
     register unsigned long a1 asm("a1") = (unsigned long)arg1;      \
@@ -63,6 +67,11 @@ enum sbi_return_code {
 #define SBI_GET_MVENDORID           0x10, 4
 #define SBI_GET_MARCHID             0x10, 5
 #define SBI_GET_MIMPID              0x10, 6
+
+#define SBI_EXT_TIMER               0x54494d45
+#define SBI_EXT_IPI                 0x00735049
+#define SBI_EXT_RFENCE              0x52464e43
+#define SBI_EXT_HSM                 0x0048534d
 
 static inline void sbi_set_timer(uint64_t stime_value) {
     sbi_call(SBI_SET_TIMER, stime_value);

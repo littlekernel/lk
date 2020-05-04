@@ -8,6 +8,7 @@
 #pragma once
 
 #include <config.h>
+#include <arch/defines.h>
 
 #define RISCV_USER_OFFSET   (0u)
 #define RISCV_SUPER_OFFSET  (1u)
@@ -121,7 +122,25 @@
 })
 
 extern int cpu_to_hart_map[];
-extern int hart_to_cpu_map[];
+
+struct riscv_percpu {
+    uint cpu_num;
+    uint hart_id;
+} __ALIGNED(CACHE_LINE);
+
+extern struct riscv_percpu percpu[RISCV_MAX_HARTS];
+
+static inline struct riscv_percpu *riscv_get_percpu(void) {
+    return (struct riscv_percpu *)riscv_csr_read(RISCV_CSR_XSCRATCH);
+}
+
+static inline uint riscv_current_hart(void) {
+#if RISCV_M_MODE
+    return riscv_csr_read(RISCV_CSR_MHARTID);
+#else
+    return riscv_get_percpu()->hart_id;
+#endif
+}
 
 void riscv_set_secondary_count(int count);
 

@@ -20,6 +20,19 @@
 
 #define LOCAL_TRACE 0
 
+// per cpu structure, pointed to by xscratch
+struct riscv_percpu percpu[RISCV_MAX_HARTS];
+
+// called extremely early from start.S prior to getting into any other C code on
+// both the boot cpu and the secondaries
+void riscv_configure_percpu_early(uint hart_id) {
+    // point xscratch at the current cpu
+    // on the first cpu cpu_num should be set to 0 so we'll leave it alone
+    // on secondary cpus the secondary boot code will fill in the cpu number
+    riscv_csr_write(RISCV_CSR_XSCRATCH, &percpu[hart_id]);
+    percpu[hart_id].hart_id = hart_id;
+}
+
 // first C level code to initialize each cpu
 void riscv_early_init_percpu(void) {
     // set the top level exception handler
@@ -60,7 +73,13 @@ void arch_init(void) {
 #if RISCV_M_MODE
     dprintf(INFO, "RISCV: misa %#lx\n", riscv_csr_read(RISCV_CSR_MISA));
 #else
-    dprintf(INFO, "RISCV: sbi %#lx (%#lx)\n", sbi_call(SBI_GET_SBI_IMPL_ID).value, sbi_call(SBI_GET_SBI_IMPL_VERSION).value);
+    dprintf(INFO, "RISCV: SBI impl id %#lx version %#lx\n", sbi_call(SBI_GET_SBI_IMPL_ID).value, sbi_call(SBI_GET_SBI_IMPL_VERSION).value);
+
+    // probe some SBI extensions
+    dprintf(INFO, "RISCV: SBI extension TIMER %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_TIMER).value);
+    dprintf(INFO, "RISCV: SBI extension IPI %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_IPI).value);
+    dprintf(INFO, "RISCV: SBI extension RFENCE %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_RFENCE).value);
+    dprintf(INFO, "RISCV: SBI extension HSM %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_HSM).value);
 #endif
 
 #if WITH_SMP

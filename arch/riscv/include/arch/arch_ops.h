@@ -63,13 +63,7 @@ static inline uint32_t arch_cycle_count(void) {
 
 static inline uint arch_curr_cpu_num(void) {
 #if WITH_SMP
-    uint hart = riscv_current_hart();
-    int cpu = hart_to_cpu_map[hart];
-    if (likely(cpu >= 0)) {
-        return cpu;
-    }
-    panic("hart %u not assigned a cpu\n", hart);
-    return -1;
+    return riscv_get_percpu()->cpu_num;
 #else
     return 0;
 #endif
