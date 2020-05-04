@@ -41,14 +41,16 @@ static inline int atomic_swap(volatile int *ptr, int val) {
     return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
 }
 
+// store the current thread in the tp register which is reserved in the ABI
+// as pointing to thread local storage.
+register struct thread *__current_thread asm("tp");
+
 static inline struct thread *get_current_thread(void) {
-    struct thread *current_thread;
-    __asm__ volatile("mv %0,tp" : "=r"(current_thread));
-    return current_thread;
+    return __current_thread;
 }
 
 static inline void set_current_thread(struct thread *t) {
-    __asm__ volatile("mv tp,%0" : : "r"(t) : "tp");
+    __current_thread = t;
 }
 
 static inline uint32_t arch_cycle_count(void) {
