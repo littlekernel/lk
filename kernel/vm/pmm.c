@@ -137,6 +137,19 @@ done:
     return allocated;
 }
 
+vm_page_t *pmm_alloc_page(void) {
+    struct list_node list = LIST_INITIAL_VALUE(list);
+
+    size_t ret = pmm_alloc_pages(1, &list);
+    if (ret == 0) {
+        return NULL;
+    }
+
+    DEBUG_ASSERT(ret == 1);
+
+    return list_peek_head_type(&list, vm_page_t, node);
+}
+
 size_t pmm_alloc_range(paddr_t address, uint count, struct list_node *list) {
     LTRACEF("address 0x%lx, count %u\n", address, count);
 
@@ -228,8 +241,15 @@ size_t pmm_free_page(vm_page_t *page) {
 void *pmm_alloc_kpages(uint count, struct list_node *list) {
     LTRACEF("count %u\n", count);
 
-    // XXX do fast path for single page
+    /* fast path for single page */
+    if (count == 1) {
+        vm_page_t *p = pmm_alloc_page();
+        if (!p) {
+            return NULL;
+        }
 
+        return paddr_to_kvaddr(vm_page_to_paddr(p));
+    }
 
     paddr_t pa;
     size_t alloc_count = pmm_alloc_contiguous(count, PAGE_SIZE_SHIFT, &pa, list);
