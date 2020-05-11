@@ -47,16 +47,12 @@ typedef struct _cmd_block {
  */
 #if WITH_LIB_CONSOLE
 
-/* enable the panic shell if we're being built */
-#if !defined(ENABLE_PANIC_SHELL) && PLATFORM_SUPPORTS_PANIC_SHELL
-#define ENABLE_PANIC_SHELL 1
-#endif
-
 #define STATIC_COMMAND_START static const cmd _cmd_list[] = {
 
 #define STATIC_COMMAND_END(name) }; cmd_block _cmd_block_##name __ALIGNED(sizeof(void *)) __SECTION(".commands") = \
     { NULL, sizeof(_cmd_list) / sizeof(_cmd_list[0]), _cmd_list }
 
+/* same as above but with a suffixed name to make the list unique within the file */
 #define STATIC_COMMAND_START_NAMED(name) static const cmd _cmd_list_##name[] = {
 
 #define STATIC_COMMAND_END_NAMED(name) }; cmd_block _cmd_block_##name __ALIGNED(sizeof(void *)) __SECTION(".commands") = \

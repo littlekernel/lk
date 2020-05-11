@@ -8,11 +8,16 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/compiler.h>
+#include <lk/console_cmd.h>
 #include <stdio.h>
 #include <platform.h>
 #include <platform/debug.h>
 #include <arch/ops.h>
 #include <arch/arm/cm.h>
+
+#if WITH_LIB_CONSOLE
+#include <lib/console.h>
+#endif
 
 void platform_halt(platform_halt_action suggested_action,
                    platform_halt_reason reason) {

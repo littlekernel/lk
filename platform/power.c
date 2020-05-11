@@ -8,11 +8,11 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/compiler.h>
+#include <lk/console_cmd.h>
 #include <platform.h>
 #include <platform/debug.h>
 #include <kernel/thread.h>
 #include <stdio.h>
-#include <lk/console_cmd.h>
 
 #if WITH_LIB_CONSOLE
 #include <lib/console.h>
@@ -24,19 +24,18 @@
  */
 __WEAK void platform_halt(platform_halt_action suggested_action,
                           platform_halt_reason reason) {
-#if WITH_LIB_CONSOLE && ENABLE_PANIC_SHELL
-
+#if ENABLE_PANIC_SHELL
     if (reason == HALT_REASON_SW_PANIC) {
         dprintf(ALWAYS, "CRASH: starting debug shell... (reason = %d)\n", reason);
         arch_disable_ints();
         panic_shell_start();
     }
-
 #endif  // ENABLE_PANIC_SHELL
 
     dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
     arch_disable_ints();
-    for (;;);
+    for (;;)
+        arch_idle();
 }
 
 static int cmd_reboot(int argc, const cmd_args *argv) {

@@ -29,3 +29,9 @@ void panic_shell_start(void);
 
 extern int lastresult;
 
+/* enable the panic shell if we're being built */
+#if !defined(ENABLE_PANIC_SHELL) && PLATFORM_SUPPORTS_PANIC_SHELL
+#define ENABLE_PANIC_SHELL 1
+#endif
+
+
