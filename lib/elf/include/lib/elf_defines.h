@@ -42,6 +42,7 @@
 #define EM_OR1K     92
 #define EM_AARCH64  183
 #define EM_MICROBLAZE 189
+#define EM_RISCV    243
 #define EM_ALPHA    0x9026
 
 /* e_ident[EI_CLASS] */
@@ -86,6 +87,15 @@
 #define EF_ARM_SOFT_FLOAT       0x00000200
 #define EF_ARM_VFP_FLOAT        0x00000400
 #define EF_ARM_MAVERICK_FLOAT   0x00000800
+
+#define EF_RISCV_RVC            0x1
+#define EF_RISCV_FLOAT_ABI_SOFT 0x0
+#define EF_RISCV_FLOAT_ABI_SINGLE 0x2
+#define EF_RISCV_FLOAT_ABI_DOUBLE 0x4
+#define EF_RISCV_FLOAT_ABI_QUAD 0x6
+#define EF_RISCV_FLOAT_ABI      0x6
+#define EF_RISCV_RVE            0x8
+#define EF_RISCV_TSO            0x10
 
 #define SHT_NULL 0
 #define SHT_PROGBITS 1
