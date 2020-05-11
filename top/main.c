@@ -129,7 +129,7 @@ static int bootstrap2(void *arg) {
     lk_primary_cpu_init_level(LK_INIT_LEVEL_PLATFORM, LK_INIT_LEVEL_TARGET - 1);
     target_init();
 
-    dprintf(SPEW, "calling apps_init()\n");
+    dprintf(SPEW, "initializing apps\n");
     lk_primary_cpu_init_level(LK_INIT_LEVEL_TARGET, LK_INIT_LEVEL_APPS - 1);
     apps_init();
 
