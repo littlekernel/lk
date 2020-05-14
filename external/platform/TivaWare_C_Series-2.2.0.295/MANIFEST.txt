@@ -1,0 +1,304 @@
+Manifest for Texas Instruments TivaWare Clickwrap License Agreement
+
+TivaWare version 2.2.0.295
+
+Legend (explanation of the fields in the Manifest table below)
+
+Software Name: The name of the application or file
+
+Version: Version of the application or file
+
+License Type: Type of license(s) under which TI will be providing software to 
+the licensee (e.g. BSD, GPLv2, TI TSPA License, TI Commercial License). See 
+Open Source Reference License Disclaimer in the Disclaimers Section. Whenever 
+possible, TI will use an SPDX Short Identifier for an Open Source License. TI 
+Commercial license terms are not usually included in the manifest and are 
+conveyed through a variety of means such as a clickwrap license upon install, a 
+signed license agreement and so forth.
+
+Location: The directory name and path on the media (or in an archive) where the 
+Software is located. Typically fully qualified path names are not used and 
+instead the relevant top level directory of the application is given. A 
+notation often used in the manifests is [as installed]/directory/*. Note that 
+the asterisk implies that all files under that directory are licensed as the 
+License Type field denotes. Any exceptions to this will generally be denoted as 
+[as installed]/directory/* except as noted below which means as shown in 
+subsequent rows of the manifest.
+
+Delivered As: This field will either be "Source", "Binary" or "Source and 
+Binary" and is the primary form the content of the Software is delivered in. If 
+the Software is delivered in an archive format, this field applies to the 
+contents of the archive. If the word Limited is used with Source, as in 
+"Limited Source" or "Limited Source and Binary" then only portions of the 
+Source for the application are provided.
+
+Modified by TI: This field will either be "Yes" or "No". A "Yes" means TI has 
+made changes to the Software. A "No" means TI has not made any changes. Note: 
+This field is not applicable for Software "Obtained from" TI.
+
+Obtained from: This field specifies from where or from whom TI obtained the 
+Software. It may be a URL to an Open Source site, a 3rd party licensor, or TI. 
+See Links Disclaimer in the Disclaimers Section.
+
+DISCLAIMERS
+
+Export Control Classification Number (ECCN)
+
+Any use of ECCNs listed in the Manifest is at the user's risk and without 
+recourse to TI. Your company, as the exporter of record, is responsible for 
+determining the correct classification of any item at the time of export. Any 
+export classification by TI of Software is for TI's internal use only and shall 
+not be construed as a representation or warranty regarding the proper export 
+classification for such Software or whether an export license or other 
+documentation is required for exporting such Software.
+
+Links in the Manifest
+
+Any links appearing on this Manifest (for example in the "Obtained from" field) 
+were verified at the time the Manifest was created. TI makes no guarantee that 
+any listed links will remain active in the future.
+
+Open Source License Reference
+
+Your company is responsible for confirming the applicable license terms for any 
+open source Software listed in this Manifest that was not "Obtained from" TI. 
+Any open source license specified in this Manifest for Software that was not 
+"Obtained from" TI is for TI's internal use only and shall not be construed as 
+a representation or warranty regarding the proper open source license terms for 
+such Software.
+
+Export Information
+
+ECCN for Software included in this release:
+
+5D992
+
+Manifest
+
+See Legend above for a description of the fields and possible values.
+
+Manifest for Texas Instruments TivaWare Clickwrap License Agreement
+
+
+
+Software Name:  TivaWare make definitions
+Version:        2.2.0.295
+License Type:   BSD-3-Clause
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./makedefs
+Obtained From:  TI
+
+Software Name:  TivaWare master Makefile
+Version:        2.2.0.295
+License Type:   BSD-3-Clause
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./Makefile
+Obtained From:  TI
+
+Software Name:  Tiva Boot Loader
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./boot_loader
+Obtained From:  TI
+
+Software Name:  Tiva Peripheral Driver Library
+Version:        2.2.0.295
+License Type:   BSD-3-Clause
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./driverlib
+Obtained From:  TI
+
+Software Name:  Tiva Examples Makefile
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./examples/Makefile
+Obtained From:  TI
+
+Software Name:  Tiva Board Examples
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./examples/boards
+Obtained From:  TI
+
+Software Name:  Tiva Peripheral Examples
+Version:        2.2.0.295
+License Type:   BSD-3-Clause
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./examples/peripherals
+Obtained From:  TI
+
+Software Name:  Tiva Project Example
+Version:        2.2.0.295
+License Type:   BSD-3-Clause
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./examples/project
+Obtained From:  TI
+
+Software Name:  Tiva Graphics Library
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./grlib
+Obtained From:  TI
+
+Software Name:  Tiva Device Header Files
+Version:        2.2.0.295
+License Type:   BSD-3-Clause
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./inc
+Obtained From:  TI
+
+Software Name:  Tiva Sensor Library
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./sensorlib
+Obtained From:  TI
+
+Software Name:  Host tools
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./tools
+Obtained From:  TI
+
+Software Name:  Tiva USB Library
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./usblib
+Obtained From:  TI
+
+Software Name:  Utility Functions
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./utils
+Obtained From:  TI
+
+Software Name:  Custom Windows Drivers
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Binary
+Modified by TI: N/A
+Location:       ./windows_drivers
+Obtained From:  TI
+
+Software Name:  BGET Heap Allocator
+Version:        October 1995
+License Type:   Public domain
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/bget
+Obtained From:  http://www.fourmilab.ch/bget/
+
+Software Name:  Exosite Library
+Version:        N/A
+License Type:   BSD-3-Clause 
+Delivered As:   Source
+Modified by TI: Yes
+Location:       ./third_party/exosite
+Obtained From:  Exosite LLC
+
+Software Name:  FatFs FAT File System
+Version:        0.04b
+License Type:   FatFS
+Delivered As:   Source
+Modified by TI: Yes - porting code added
+Location:       ./third_party/fatfs
+Obtained From:  http://elm-chan.org/fsw/ff/00index_e.html
+
+Software Name:  Firefly Sung Font
+Version:        1.3.0
+License Type:   Arphic Public License
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/fonts/apl
+Obtained From:  http://www.study-area.org/apt/firefly-font/
+
+Software Name:  Custom Font Generation Demo
+Version:        2.2.0.295
+License Type:   TI Commercial
+Delivered As:   Source
+Modified by TI: N/A
+Location:       ./third_party/fonts/lang_demo
+Obtained From:  N/A
+
+Software Name:  Various OFL Fonts
+Version:        N/A
+License Type:   Open Font License 
+License Type:   http://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/fonts/ofl
+Obtained From:  OldStandard - http://www.thessalonica.org.ru/en/fonts-download.html 
+Obtained From:  Theano - http://www.thessalonica.org.ru/en/fonts-download.html 
+Obtained From:  Andika - http://www.sil.org/computing/catalog/show_software.asp?id=119 
+Obtained From:  Breip - http://helloalan.com/projects/breip/ 
+Obtained From:  Nanum - http://hangeul.naver.com/download.nhn 
+
+Software Name:  Other Fonts
+Version:        N/A
+License Type:   BSD-3-Clause
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/fonts/other
+Obtained From:  (Sazanami) http://sourceforge.jp/projects/efont/releases/#10087
+
+Software Name:  FreeRTOS
+Version:        8.2.3
+License Type:   GPL-2-0 with linking exception
+Delivered As:   Source
+Modified by TI: Yes - Removed support for non-TM4C Devices
+Location:       ./third_party/FreeRTOS
+Obtained From:  http://sourceforge.net/projects/freertos/files/FreeRTOS/V8.2.3
+
+Software Name:  LWIP Network Stack
+Version:        1.4.1
+License Type:   BSD-3-Clause
+Delivered As:   Source
+Modified by TI: Yes - porting code added
+Location:       ./third_party/lwip-1.4.1
+Obtained From:  http://savannah.nongnu.org/projects/lwip/
+
+Software Name:  PTP Daemon
+Version:        1.1.0
+License Type:   BSD-2-Clause
+Delivered As:   Source
+Modified by TI: Yes - porting code added
+Location:       ./third_party/ptpd-1.1.0
+Obtained From:  http://sourceforge.net/projects/ptpd/files/ptpd/
+
+Software Name:  UIP Network Stack
+Version:        1.0
+License Type:   BSD-3-Clause
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/uip-1.0
+Obtained From:  http://www.sics.se/~adam/old-uip/download.html
+
+Software Name:  Fast Light Toolkit
+Version:        1.1.10
+License Type:   LGPL-2-0 with linking exception
+Delivered As:   Source
+Modified by TI: No
+Location:       ./third_party/windows/fltk-1.1.10
+Obtained From:  http://www.fltk.org/software.php
+    
