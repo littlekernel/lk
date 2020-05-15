@@ -9,8 +9,8 @@
 #include <app.h>
 #include <kernel/thread.h>
 
-extern const struct app_descriptor __apps_start;
-extern const struct app_descriptor __apps_end;
+extern const struct app_descriptor __start_apps __WEAK;
+extern const struct app_descriptor __stop_apps __WEAK;
 
 static void start_app(const struct app_descriptor *app);
 
@@ -19,13 +19,13 @@ void apps_init(void) {
     const struct app_descriptor *app;
 
     /* call all the init routines */
-    for (app = &__apps_start; app != &__apps_end; app++) {
+    for (app = &__start_apps; app != &__stop_apps; app++) {
         if (app->init)
             app->init(app);
     }
 
     /* start any that want to start on boot */
-    for (app = &__apps_start; app != &__apps_end; app++) {
+    for (app = &__start_apps; app != &__stop_apps; app++) {
         if (app->entry && (app->flags & APP_FLAG_DONT_START_ON_BOOT) == 0) {
             start_app(app);
         }

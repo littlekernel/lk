@@ -33,7 +33,7 @@ struct app_descriptor {
     size_t stack_size;
 };
 
-#define APP_START(appname) const struct app_descriptor _app_##appname __ALIGNED(sizeof(void *)) __SECTION(".apps") = { .name = #appname,
+#define APP_START(appname) const struct app_descriptor _app_##appname __ALIGNED(sizeof(void *)) __SECTION("apps") = { .name = #appname,
 
 #define APP_END };
 
