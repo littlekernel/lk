@@ -12,14 +12,13 @@
 #include <lk/trace.h>
 
 /* static list of devices constructed with DEVICE_INSTANCE macros */
-extern struct device __devices[];
-extern struct device __devices_end[];
+extern struct device __start_devices __WEAK;
+extern struct device __stop_devices __WEAK;
 
 status_t device_init_all(void) {
     status_t res = NO_ERROR;
 
-    struct device *dev = __devices;
-    while (dev != __devices_end) {
+    for (struct device *dev = &__start_devices; dev != &__stop_devices; dev++) {
         if (dev->flags & DEVICE_FLAG_AUTOINIT) {
             status_t code = device_init(dev);
 
@@ -30,8 +29,6 @@ status_t device_init_all(void) {
                 res = code;
             }
         }
-
-        dev++;
     }
 
     return res;
@@ -40,8 +37,7 @@ status_t device_init_all(void) {
 status_t device_fini_all(void) {
     status_t res = NO_ERROR;
 
-    struct device *dev = __devices;
-    while (dev != __devices_end) {
+    for (struct device *dev = &__start_devices; dev != &__stop_devices; dev++) {
         status_t code = device_fini(dev);
 
         if (code < 0) {
@@ -50,8 +46,6 @@ status_t device_fini_all(void) {
 
             res = code;
         }
-
-        dev++;
     }
 
     return res;

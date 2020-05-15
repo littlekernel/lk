@@ -12,6 +12,4 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/class/fb_api.c \
 	$(LOCAL_DIR)/class/netif_api.c \
 
-EXTRA_LINKER_SCRIPTS += $(LOCAL_DIR)/devices.ld $(LOCAL_DIR)/drivers.ld
-
 include make/module.mk
