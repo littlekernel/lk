@@ -7,6 +7,7 @@
  */
 #include <lk/asm.h>
 #include <arch/defines.h>
+#include <arch/riscv/asm.h>
 #include "config.h"
 
 .section ".text.boot"
@@ -48,10 +49,10 @@ FUNCTION(_start)
     beq     t0, t1, 1f
 
 0:
-    lw      t3, (t0)
-    sw      t3, (t1)
-    add     t0, t0, 4
-    add     t1, t1, 4
+    LDR     t3, (t0)
+    STR     t3, (t1)
+    add     t0, t0, RISCV_XLEN_BYTES
+    add     t1, t1, RISCV_XLEN_BYTES
     bne     t1, t2, 0b
 #endif
 
@@ -60,8 +61,8 @@ FUNCTION(_start)
     lla     t0, __bss_start
     lla     t1, __bss_end
 0:
-    sw      zero, (t0)
-    add     t0, t0, 4
+    STR     zero, (t0)
+    add     t0, t0, RISCV_XLEN_BYTES
     bne     t0, t1, 0b
 
 #if RISCV_MMU

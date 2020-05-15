@@ -7,18 +7,7 @@
  */
 #include <lk/asm.h>
 #include <arch/riscv.h>
-
-// based on 32 or 64bit register widths, select the 32 or 64 bit
-// wide load/stores
-#if __riscv_xlen == 32
-#define REGOFF(x) ((x) * 4)
-#define STR       sw
-#define LDR       lw
-#else
-#define REGOFF(x) ((x) * 8)
-#define STR       sd
-#define LDR       ld
-#endif
+#include <arch/riscv/asm.h>
 
 /* void riscv_context_switch(
     struct riscv_context_switch_frame *oldcs,
