@@ -112,7 +112,7 @@ struct fs_impl {
 };
 
 /* define in your fs implementation to register your api with the fs layer */
-#define STATIC_FS_IMPL(_name, _api) const struct fs_impl __fs_impl_##_name __ALIGNED(sizeof(void *)) __SECTION(".fs_impl") = \
+#define STATIC_FS_IMPL(_name, _api) const struct fs_impl __fs_impl_##_name __ALIGNED(sizeof(void *)) __SECTION("fs_impl") = \
     { .name = #_name, .api = _api }
 
 __END_CDECLS

@@ -42,12 +42,12 @@ static mutex_t mount_lock = MUTEX_INITIAL_VALUE(mount_lock);
 static struct list_node mounts = LIST_INITIAL_VALUE(mounts);
 static struct list_node fses = LIST_INITIAL_VALUE(fses);
 
-// defined in the linker script
-extern const struct fs_impl __fs_impl_start;
-extern const struct fs_impl __fs_impl_end;
+// defined by the linker, wrapping all structs in the "fs_impl" section
+extern const struct fs_impl __start_fs_impl __WEAK;
+extern const struct fs_impl __stop_fs_impl __WEAK;
 
 static const struct fs_impl *find_fs(const char *name) {
-    for (const struct fs_impl *fs = &__fs_impl_start; fs != &__fs_impl_end; fs++) {
+    for (const struct fs_impl *fs = &__start_fs_impl; fs != &__stop_fs_impl; fs++) {
         if (!strcmp(name, fs->name))
             return fs;
     }
