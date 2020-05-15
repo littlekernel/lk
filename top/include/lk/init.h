@@ -60,7 +60,7 @@ struct lk_init_struct {
 };
 
 #define LK_INIT_HOOK_FLAGS(_name, _hook, _level, _flags) \
-    const struct lk_init_struct _init_struct_##_name __ALIGNED(sizeof(void *)) __SECTION(".lk_init") = { \
+    const struct lk_init_struct _init_struct_##_name __ALIGNED(sizeof(void *)) __SECTION("lk_init") = { \
         .level = _level, \
         .flags = _flags, \
         .hook = _hook, \
