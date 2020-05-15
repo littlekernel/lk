@@ -72,8 +72,8 @@ static cmd_block *command_list = NULL;
 /* a linear array of statically defined command blocks,
    defined in the linker script.
  */
-extern cmd_block __commands_start;
-extern cmd_block __commands_end;
+extern cmd_block __start_commands __WEAK;
+extern cmd_block __stop_commands __WEAK;
 
 static int cmd_help(int argc, const cmd_args *argv);
 static int cmd_help_panic(int argc, const cmd_args *argv);
@@ -108,8 +108,7 @@ int console_init(void) {
     mutex_init(command_lock);
 
     /* add all the statically defined commands to the list */
-    cmd_block *block;
-    for (block = &__commands_start; block != &__commands_end; block++) {
+    for (cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
         console_register_commands(block);
     }
 
