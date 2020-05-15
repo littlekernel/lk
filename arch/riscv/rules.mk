@@ -170,6 +170,7 @@ linkerscript.phony:
 ifeq (true,$(call TOBOOL,$(ARCH_RISCV_TWOSEGMENT)))
 GLOBAL_DEFINES += ARCH_RISCV_TWOSEGMENT=1
 LINKER_SCRIPT += $(BUILDDIR)/linker-twosegment.ld
+ARCH_LDFLAGS += -z max-page-size=4
 else
 GLOBAL_DEFINES += ARCH_RISCV_TWOSEGMENT=0
 LINKER_SCRIPT += $(BUILDDIR)/linker-onesegment.ld
