@@ -231,11 +231,11 @@ static inline uint arch_curr_cpu_num(void) {
 
 #if !ARM_ISA_ARMV7M
 /* use the cpu local thread context pointer to store current_thread */
-static inline struct thread *get_current_thread(void) {
+static inline struct thread *arch_get_current_thread(void) {
     return (struct thread *)arm_read_tpidrprw();
 }
 
-static inline void set_current_thread(struct thread *t) {
+static inline void arch_set_current_thread(struct thread *t) {
     arm_write_tpidrprw((uint32_t)t);
 }
 #else // ARM_ISA_ARM7M
@@ -243,11 +243,11 @@ static inline void set_current_thread(struct thread *t) {
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;
 
-static inline struct thread *get_current_thread(void) {
+static inline struct thread *arch_get_current_thread(void) {
     return _current_thread;
 }
 
-static inline void set_current_thread(struct thread *t) {
+static inline void arch_set_current_thread(struct thread *t) {
     _current_thread = t;
 }
 
@@ -372,11 +372,11 @@ static inline uint arch_curr_cpu_num(void) {
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;
 
-static inline struct thread *get_current_thread(void) {
+static inline struct thread *arch_get_current_thread(void) {
     return _current_thread;
 }
 
-static inline void set_current_thread(struct thread *t) {
+static inline void arch_set_current_thread(struct thread *t) {
     _current_thread = t;
 }
 

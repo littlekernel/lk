@@ -87,11 +87,11 @@ static inline uint32_t arch_cycle_count(void) {
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;
 
-static inline struct thread *get_current_thread(void) {
+static inline struct thread *arch_get_current_thread(void) {
     return _current_thread;
 }
 
-static inline void set_current_thread(struct thread *t) {
+static inline void arch_set_current_thread(struct thread *t) {
     _current_thread = t;
 }
 

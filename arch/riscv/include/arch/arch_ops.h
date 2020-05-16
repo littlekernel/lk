@@ -45,11 +45,11 @@ static inline int atomic_swap(volatile int *ptr, int val) {
 // as pointing to thread local storage.
 register struct thread *__current_thread asm("tp");
 
-static inline struct thread *get_current_thread(void) {
+static inline struct thread *arch_get_current_thread(void) {
     return __current_thread;
 }
 
-static inline void set_current_thread(struct thread *t) {
+static inline void arch_set_current_thread(struct thread *t) {
     __current_thread = t;
 }
 

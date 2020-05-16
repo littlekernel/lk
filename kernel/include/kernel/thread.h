@@ -10,6 +10,7 @@
 #include <arch/defines.h>
 #include <arch/ops.h>
 #include <arch/thread.h>
+#include <arch/arch_ops.h>
 #include <kernel/spinlock.h>
 #include <kernel/wait.h>
 #include <lk/compiler.h>
@@ -174,8 +175,13 @@ struct timer;
 enum handler_return thread_timer_tick(struct timer *, lk_time_t now, void *arg);
 
 /* the current thread */
-thread_t *get_current_thread(void);
-void set_current_thread(thread_t *);
+static inline thread_t *get_current_thread(void) {
+    return arch_get_current_thread();
+}
+
+static inline void set_current_thread(thread_t *t) {
+    arch_set_current_thread(t);
+}
 
 /* scheduler lock */
 extern spin_lock_t thread_lock;

@@ -213,11 +213,11 @@ static inline uint32_t arch_cycle_count(void) {
 }
 
 /* use the cpu local thread context pointer to store current_thread */
-static inline struct thread *get_current_thread(void) {
+static inline struct thread *arch_get_current_thread(void) {
     return (struct thread *)ARM64_READ_SYSREG(tpidr_el1);
 }
 
-static inline void set_current_thread(struct thread *t) {
+static inline void arch_set_current_thread(struct thread *t) {
     ARM64_WRITE_SYSREG(tpidr_el1, (uint64_t)t);
 }
 
