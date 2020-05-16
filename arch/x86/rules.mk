@@ -38,8 +38,7 @@ GLOBAL_DEFINES += \
 	KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET) \
 	KERNEL_ASPACE_BASE=$(KERNEL_ASPACE_BASE) \
 	KERNEL_ASPACE_SIZE=$(KERNEL_ASPACE_SIZE) \
-	SMP_MAX_CPUS=1 \
-	USE_BUILTIN_ATOMICS=0 \
+	SMP_MAX_CPUS=1
 
 MODULE_SRCS += \
 	$(SUBARCH_DIR)/start.S \
@@ -62,6 +61,8 @@ GLOBAL_DEFINES += \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/fpu.c
+else
+GLOBAL_DEFINES += WITH_NO_FP=1
 endif
 
 include $(LOCAL_DIR)/toolchain.mk
@@ -103,13 +104,18 @@ ARCH_COMPILEFLAGS += -mno-red-zone
 ARCH_COMPILEFLAGS += -fno-builtin
 endif # SUBARCH x86-64
 
-ARCH_OPTFLAGS := -O2
-
-# compile for 386 when selecting 'legacy' cpu support
+# select default optimizations for different target cpu levels
 ifeq ($(CPU),legacy)
+# compile for 386 when selecting 'legacy' cpu support
 ARCH_COMPILEFLAGS += -march=i386
 ARCH_OPTFLAGS := -Os
-GLOBAL_DEFINES += X86_LEGACY=1 WITH_NO_FP=1
+GLOBAL_DEFINES += X86_LEGACY=1
+else ifeq ($(SUBARCH),x86-32)
+ARCH_COMPILEFLAGS += -march=i686
+ARCH_OPTFLAGS := -O2
+else ifeq ($(SUBARCH),x86-64)
+ARCH_COMPILEFLAGS += -march=x86-64
+ARCH_OPTFLAGS := -O2
 endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)

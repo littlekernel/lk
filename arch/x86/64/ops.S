@@ -20,34 +20,6 @@
 %rax 1st return register
 */
 
-/* int _atomic_and(int *ptr, int val); */
-FUNCTION(_atomic_and)
-    movq (%rdi), %rax
-0:
-    movq %rax, %rcx
-    andq %rsi, %rcx
-    lock
-    cmpxchgq %rcx, (%rdi)
-    jnz 1f                  /* static prediction: branch forward not taken */
-    ret
-1:
-    jmp 0b
-
-
-/* int _atomic_or(int *ptr, int val); */
-FUNCTION(_atomic_or)
-
-    movq (%rdi), %rax
-0:
-    movq %rax, %rcx
-    orq %rsi, %rcx
-    lock
-    cmpxchgq %rcx, (%rdi)
-    jnz 1f                  /* static prediction: branch forward not taken */
-    ret
-1:
-    jmp 0b
-
 /* void arch_idle(); */
 FUNCTION(arch_idle)
     pushf
