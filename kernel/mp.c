@@ -8,6 +8,7 @@
 
 #include <kernel/mp.h>
 
+#include <arch/atomic.h>
 #include <arch/mp.h>
 #include <assert.h>
 #include <kernel/spinlock.h>

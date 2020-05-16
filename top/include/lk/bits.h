@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include <arch/atomic.h>
 #include <arch/ops.h>
 #include <lk/compiler.h>
 

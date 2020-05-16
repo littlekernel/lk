@@ -15,6 +15,7 @@
 #include <lk/init.h>
 #include <lk/main.h>
 
+#include <arch/atomic.h>
 #include <arch/ops.h>
 #include <arch/mp.h>
 #include <arch/riscv/clint.h>

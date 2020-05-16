@@ -17,6 +17,7 @@
 #include <kernel/semaphore.h>
 #include <kernel/event.h>
 #include <platform.h>
+#include <arch/atomic.h>
 
 static int sleep_thread(void *arg) {
     for (;;) {

@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <lk/reg.h>
 #include <arch.h>
+#include <arch/atomic.h>
 #include <arch/ops.h>
 #include <arch/mmu.h>
 #include <arch/arm.h>

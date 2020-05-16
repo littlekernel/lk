@@ -1,5 +1,6 @@
 #include <dev/class/netif.h>
 #include <kernel/event.h>
+#include <arch/atomic.h>
 #include <arch/ops.h>
 #include <netif/etharp.h>
 #include <lwip/netif.h>

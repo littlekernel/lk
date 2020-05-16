@@ -8,6 +8,7 @@
 #include <lk/debug.h>
 #include <stdlib.h>
 #include <arch.h>
+#include <arch/atomic.h>
 #include <arch/ops.h>
 #include <arch/arm64.h>
 #include <arch/arm64/mmu.h>

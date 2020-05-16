@@ -5,6 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <lib/bio.h>
+
 #include <stdlib.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
@@ -13,9 +15,9 @@
 #include <assert.h>
 #include <lk/list.h>
 #include <lk/pow2.h>
-#include <lib/bio.h>
 #include <kernel/mutex.h>
 #include <lk/init.h>
+#include <arch/atomic.h>
 
 #define LOCAL_TRACE 0
 
