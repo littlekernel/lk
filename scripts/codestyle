@@ -3,5 +3,11 @@
 # formatting script using the astyle tool
 # use -A2 (java style braces)
 # 4 space indents, convert tabs to spaces
+#
+# switches documented at http://astyle.sourceforge.net/astyle.html
+#
+# optional switches to note:
+# --add-braces will add { } for every conditional, including one liners
 
-astyle -A2 --align-pointer=name --indent=spaces=4 --indent-switches --keep-one-line-blocks --pad-header --convert-tabs $@
+astyle -A2 --align-pointer=name --indent=spaces=4 --indent-switches \
+    --keep-one-line-blocks --pad-header --convert-tabs $@
