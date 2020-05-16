@@ -304,7 +304,7 @@ uint32_t zynq_get_clock(enum zynq_periph periph) {
     }
 
     // get the source clock
-    uint32_t srcclk;
+    uint32_t srcclk = 0;
     switch (BITS_SHIFT(*REG32(clk_reg), 5, 4)) {
         case 0:
         case 1:
