@@ -22,10 +22,35 @@ static void arch_disable_ints(void);
 static bool arch_ints_disabled(void);
 static bool arch_in_int_handler(void);
 
+/* use built in atomic intrinsics if the architecture doesn't otherwise
+ * override it. */
+#if !defined(USE_BUILTIN_ATOMICS) || USE_BUILTIN_ATOMICS
+static inline int atomic_add(volatile int *ptr, int val) {
+    return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
+}
+
+static inline int atomic_or(volatile int *ptr, int val) {
+    return __atomic_fetch_or(ptr, val, __ATOMIC_RELAXED);
+}
+
+static inline int atomic_and(volatile int *ptr, int val) {
+    return __atomic_fetch_and(ptr, val, __ATOMIC_RELAXED);
+}
+
+static inline int atomic_swap(volatile int *ptr, int val) {
+    return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
+}
+static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) {
+    // TODO: implement
+    return 0;
+}
+
+#else
 static int atomic_swap(volatile int *ptr, int val);
 static int atomic_add(volatile int *ptr, int val);
 static int atomic_and(volatile int *ptr, int val);
 static int atomic_or(volatile int *ptr, int val);
+#endif
 
 static uint32_t arch_cycle_count(void);
 

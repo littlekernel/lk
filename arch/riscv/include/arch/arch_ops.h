@@ -25,22 +25,6 @@ static inline bool arch_ints_disabled(void) {
     return !(riscv_csr_read(RISCV_CSR_XSTATUS) & RISCV_CSR_XSTATUS_IE);
 }
 
-static inline int atomic_add(volatile int *ptr, int val) {
-    return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
-}
-
-static inline int atomic_or(volatile int *ptr, int val) {
-    return __atomic_fetch_or(ptr, val, __ATOMIC_RELAXED);
-}
-
-static inline int atomic_and(volatile int *ptr, int val) {
-    return __atomic_fetch_and(ptr, val, __ATOMIC_RELAXED);
-}
-
-static inline int atomic_swap(volatile int *ptr, int val) {
-    return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
-}
-
 // store the current thread in the tp register which is reserved in the ABI
 // as pointing to thread local storage.
 register struct thread *__current_thread asm("tp");

@@ -21,7 +21,6 @@
 __BEGIN_CDECLS
 
 #if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
-#define USE_GCC_ATOMICS 0
 #define ENABLE_CYCLE_COUNTER 1
 
 // override of some routines
@@ -79,121 +78,6 @@ static inline bool arch_in_int_handler(void) {
 
     return __arm_in_handler;
 #endif
-}
-
-static inline int atomic_add(volatile int *ptr, int val) {
-#if USE_GCC_ATOMICS
-    return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
-#else
-    int old;
-    int temp;
-    int test;
-
-    do {
-        __asm__ volatile(
-            "ldrex	%[old], [%[ptr]]\n"
-            "adds	%[temp], %[old], %[val]\n"
-            "strex	%[test], %[temp], [%[ptr]]\n"
-            : [old]"=&r" (old), [temp]"=&r" (temp), [test]"=&r" (test)
-            : [ptr]"r" (ptr), [val]"r" (val)
-            : "memory", "cc");
-
-    } while (test != 0);
-
-    return old;
-#endif
-}
-
-static inline int atomic_or(volatile int *ptr, int val) {
-#if USE_GCC_ATOMICS
-    return __atomic_fetch_or(ptr, val, __ATOMIC_RELAXED);
-#else
-    int old;
-    int temp;
-    int test;
-
-    do {
-        __asm__ volatile(
-            "ldrex	%[old], [%[ptr]]\n"
-            "orrs	%[temp], %[old], %[val]\n"
-            "strex	%[test], %[temp], [%[ptr]]\n"
-            : [old]"=&r" (old), [temp]"=&r" (temp), [test]"=&r" (test)
-            : [ptr]"r" (ptr), [val]"r" (val)
-            : "memory", "cc");
-
-    } while (test != 0);
-
-    return old;
-#endif
-}
-
-static inline int atomic_and(volatile int *ptr, int val) {
-#if USE_GCC_ATOMICS
-    return __atomic_fetch_and(ptr, val, __ATOMIC_RELAXED);
-#else
-    int old;
-    int temp;
-    int test;
-
-    do {
-        __asm__ volatile(
-            "ldrex	%[old], [%[ptr]]\n"
-            "ands	%[temp], %[old], %[val]\n"
-            "strex	%[test], %[temp], [%[ptr]]\n"
-            : [old]"=&r" (old), [temp]"=&r" (temp), [test]"=&r" (test)
-            : [ptr]"r" (ptr), [val]"r" (val)
-            : "memory", "cc");
-
-    } while (test != 0);
-
-    return old;
-#endif
-}
-
-static inline int atomic_swap(volatile int *ptr, int val) {
-#if USE_GCC_ATOMICS
-    return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
-#else
-    int old;
-    int test;
-
-    do {
-        __asm__ volatile(
-            "ldrex	%[old], [%[ptr]]\n"
-            "strex	%[test], %[val], [%[ptr]]\n"
-            : [old]"=&r" (old), [test]"=&r" (test)
-            : [ptr]"r" (ptr), [val]"r" (val)
-            : "memory");
-
-    } while (test != 0);
-
-    return old;
-#endif
-}
-
-static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) {
-    int old;
-    int test;
-
-    do {
-        __asm__ volatile(
-            "ldrex	%[old], [%[ptr]]\n"
-            "mov	%[test], #0\n"
-            "teq	%[old], %[oldval]\n"
-#if (ARM_ISA_ARMV7M || __thumb__)
-            "bne	0f\n"
-            "strex	%[test], %[newval], [%[ptr]]\n"
-            "0:\n"
-#else
-            "strexeq %[test], %[newval], [%[ptr]]\n"
-#endif
-            : [old]"=&r" (old), [test]"=&r" (test)
-            : [ptr]"r" (ptr), [oldval]"Ir" (oldval), [newval]"r" (newval)
-            : "cc");
-
-    } while (test != 0);
-
-    return old;
 }
 
 static inline uint32_t arch_cycle_count(void) {

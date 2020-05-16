@@ -40,22 +40,6 @@ static inline bool arch_ints_disabled(void) {
     return (state & (1<<1)) || !(state & (1<<0)); // check if EXL or IE is set
 }
 
-static inline int atomic_add(volatile int *ptr, int val) {
-    return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
-}
-
-static inline int atomic_or(volatile int *ptr, int val) {
-    return __atomic_fetch_or(ptr, val, __ATOMIC_RELAXED);
-}
-
-static inline int atomic_and(volatile int *ptr, int val) {
-    return __atomic_fetch_and(ptr, val, __ATOMIC_RELAXED);
-}
-
-static inline int atomic_swap(volatile int *ptr, int val) {
-    return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
-}
-
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;
 
