@@ -319,7 +319,7 @@ ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
 
 GLOBAL_COMPILEFLAGS += $(THUMBINTERWORK)
 
-# set the max page size to something more reasonables (defaults to 64K or above)
+# set the max page size to something more reasonable (defaults to 64K or above)
 ARCH_LDFLAGS += -z max-page-size=4096
 
 # find the direct path to libgcc.a for our particular multilib variant

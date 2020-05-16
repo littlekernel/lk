@@ -90,7 +90,7 @@ static inline uint32_t arch_cycle_count(void) {
 #endif
 #elif ARM_ISA_ARMV7
     uint32_t count;
-    __asm__ volatile("mrc		p15, 0, %0, c9, c13, 0"
+    __asm__ volatile("mrc   p15, 0, %0, c9, c13, 0"
                      : "=r" (count)
                     );
     return count;
@@ -138,7 +138,6 @@ static inline void arch_set_current_thread(struct thread *t) {
 #endif // !ARM_ISA_ARMV7M
 
 #elif ARM_ISA_ARMV6M // cortex-m0 cortex-m0+
-
 
 static inline void arch_enable_fiqs(void) {
     CF;
@@ -197,29 +196,11 @@ static inline void arch_set_current_thread(struct thread *t) {
 
 #else // pre-armv6 || (armv6 & thumb)
 
-/* for pre-armv6 the bodies of these are too big to inline, call an assembly stub version */
-void _arch_enable_ints(void);
-void _arch_disable_ints(void);
+#error pre-armv6 or armv6 + thumb unimplemented
 
-int _atomic_add(volatile int *ptr, int val);
-int _atomic_and(volatile int *ptr, int val);
-int _atomic_or(volatile int *ptr, int val);
-int _atomic_add(volatile int *ptr, int val);
-int _atomic_swap(volatile int *ptr, int val);
-int _atomic_cmpxchg(volatile int *ptr, int oldval, int newval);
-
-uint32_t _arch_cycle_count(void);
-
-static inline int atomic_add(volatile int *ptr, int val) { return _atomic_add(ptr, val); }
-static inline int atomic_and(volatile int *ptr, int val) { return _atomic_and(ptr, val); }
-static inline int atomic_or(volatile int *ptr, int val) { return _atomic_or(ptr, val); }
-static inline int atomic_swap(volatile int *ptr, int val) { return _atomic_swap(ptr, val); }
-static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) { return _atomic_cmpxchg(ptr, oldval, newval); }
-
-static inline void arch_enable_ints(void) { _arch_enable_ints(); }
-static inline void arch_disable_ints(void) { _arch_disable_ints(); }
-
-static inline uint32_t arch_cycle_count(void) { return _arch_cycle_count(); }
+// Pre armv6 and/or limited thumb1 support inside a armv6 compile
+// are no longer maintained due to disuse and the complexities of
+// supporting it.
 
 #endif
 
