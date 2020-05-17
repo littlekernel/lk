@@ -49,7 +49,7 @@ static char *debug_buffer;
 static bool echo = true;
 
 /* command processor state */
-static mutex_t *command_lock;
+static mutex_t command_lock = MUTEX_INITIAL_VALUE(command_lock);
 int lastresult;
 static bool abort_script;
 
@@ -66,14 +66,11 @@ static const char *prev_history(uint *cursor);
 static void dump_history(void);
 #endif
 
-/* list of installed commands */
-static cmd_block *command_list = NULL;
-
 /* a linear array of statically defined command blocks,
    defined in the linker script.
  */
-extern cmd_block __start_commands __WEAK;
-extern cmd_block __stop_commands __WEAK;
+extern const cmd_block __start_commands __WEAK;
+extern const cmd_block __stop_commands __WEAK;
 
 static int cmd_help(int argc, const cmd_args *argv);
 static int cmd_help_panic(int argc, const cmd_args *argv);
@@ -103,14 +100,6 @@ STATIC_COMMAND_END(help);
 
 int console_init(void) {
     LTRACE_ENTRY;
-
-    command_lock = calloc(sizeof(mutex_t), 1);
-    mutex_init(command_lock);
-
-    /* add all the statically defined commands to the list */
-    for (cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
-        console_register_commands(block);
-    }
 
 #if CONSOLE_ENABLE_HISTORY
     init_history();
@@ -247,12 +236,9 @@ usage:
 #endif  // CONSOLE_ENABLE_REPEAT
 
 static const cmd *match_command(const char *command, const uint8_t availability_mask) {
-    cmd_block *block;
-    size_t i;
-
-    for (block = command_list; block != NULL; block = block->next) {
+    for (const cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
         const cmd *curr_cmd = block->list;
-        for (i = 0; i < block->count; i++) {
+        for (size_t i = 0; i < block->count; i++) {
             if ((availability_mask & curr_cmd[i].availability_mask) == 0) {
                 continue;
             }
@@ -640,7 +626,7 @@ static status_t command_loop(int (*get_line)(const char **, void *), void *get_l
         }
 
         if (!locked)
-            mutex_acquire(command_lock);
+            mutex_acquire(&command_lock);
 
         abort_script = false;
         lastresult = command->cmd_callback(argc, args);
@@ -667,7 +653,7 @@ static status_t command_loop(int (*get_line)(const char **, void *), void *get_l
         abort_script = false;
 
         if (!locked)
-            mutex_release(command_lock);
+            mutex_release(&command_lock);
     }
 
     free(outbuf);
@@ -768,24 +754,13 @@ console_cmd console_get_command_handler(const char *commandstr) {
         return NULL;
 }
 
-void console_register_commands(cmd_block *block) {
-    DEBUG_ASSERT(block);
-    DEBUG_ASSERT(block->next == NULL);
-
-    block->next = command_list;
-    command_list = block;
-}
-
-
 static int cmd_help_impl(uint8_t availability_mask) {
-    printf("command list:\n");
+    printf("command list by block:\n");
 
-    cmd_block *block;
-    size_t i;
-
-    for (block = command_list; block != NULL; block = block->next) {
+    for (const cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
         const cmd *curr_cmd = block->list;
-        for (i = 0; i < block->count; i++) {
+        printf("  [%s]\n", block->name);
+        for (size_t i = 0; i < block->count; i++) {
             if ((availability_mask & curr_cmd[i].availability_mask) == 0) {
                 // Skip commands that aren't available in the current shell.
                 continue;

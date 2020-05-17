@@ -19,7 +19,6 @@
 /* external api */
 int console_init(void);
 void console_start(void);
-void console_register_commands(cmd_block *block);
 int console_run_script(const char *string);
 int console_run_script_locked(const char *string); // special case from inside a command
 console_cmd console_get_command_handler(const char *command);
