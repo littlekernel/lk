@@ -27,7 +27,7 @@ extern enum handler_return platform_irq(x86_iframe_t *frame);
 
 static void dump_fault_frame(x86_iframe_t *frame) {
 #if ARCH_X86_32
-    dprintf(CRITICAL, " CS:     %04x EIP: %08x EFL: %08x CR2: %08x\n",
+    dprintf(CRITICAL, " CS:     %04x EIP: %08x EFL: %08x CR2: %08lx\n",
             frame->cs, frame->ip, frame->flags, x86_get_cr2());
     dprintf(CRITICAL, "EAX: %08x ECX: %08x EDX: %08x EBX: %08x\n",
             frame->ax, frame->cx, frame->dx, frame->bx);
@@ -36,7 +36,7 @@ static void dump_fault_frame(x86_iframe_t *frame) {
     dprintf(CRITICAL, " DS:     %04x  ES:     %04x  FS:   %04x  GS:     %04x\n",
             frame->ds, frame->es, frame->fs, frame->gs);
 #elif ARCH_X86_64
-    dprintf(CRITICAL, " CS:              %4llx RIP: %16llx EFL: %16llx CR2: %16llx\n",
+    dprintf(CRITICAL, " CS:              %4llx RIP: %16llx EFL: %16llx CR2: %16lx\n",
             frame->cs, frame->ip, frame->flags, x86_get_cr2());
     dprintf(CRITICAL, " RAX: %16llx RBX: %16llx RCX: %16llx RDX: %16llx\n",
             frame->ax, frame->bx, frame->cx, frame->dx);

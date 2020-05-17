@@ -60,10 +60,9 @@ static thread_t *fp_owner;
 static uint8_t __ALIGNED(16) fpu_init_states[512]= {0};
 
 static void get_cpu_cap(uint32_t *ecx, uint32_t *edx) {
-    uint32_t eax = 1;
+    uint32_t a, b;
 
-    __asm__ __volatile__
-    ("cpuid" : "=c" (*ecx), "=d" (*edx) : "a" (eax));
+    cpuid(1, &a, &b, ecx, edx);
 }
 
 void fpu_init(void) {
