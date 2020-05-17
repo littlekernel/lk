@@ -44,4 +44,4 @@ tar xf archives/$TOOLCHAIN.$TOOLCHAIN_SUFFIX || exit 1
 export PATH=`pwd`/$TOOLCHAIN/bin:$PATH
 
 echo "Starting build '$PROJECT' with '$TOOLCHAIN'\n"
-make $PROJECT
+./scripts/make-parallel $PROJECT
