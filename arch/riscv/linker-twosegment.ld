@@ -66,19 +66,19 @@ SECTIONS
      * but not aligned to the next section necessarily.
      */
     .dummy_post_data : {
-        . = ALIGN(%BITS%/8);
+        . = ALIGN(%BITS% / 8);
         __data_end = .;
     }
 
     /* uninitialized data (in same segment as writable data) */
-    .bss : ALIGN(%BITS%/8) {
+    .bss : ALIGN(%BITS% / 8) {
         __bss_start = .;
         /* regular bss */
         *(.bss .bss.*)
         *(.sbss .sbss.*)
         *(.gnu.linkonce.b.*)
 
-        . = ALIGN(%BITS%/8);
+        . = ALIGN(%BITS% / 8);
         __bss_end = .;
     }
 
