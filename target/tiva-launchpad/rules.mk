@@ -1,0 +1,17 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+MODULE := $(LOCAL_DIR)
+
+TIVA_CHIP := TM4C123GH6PM
+
+PLATFORM := tiva
+
+GLOBAL_DEFINES += \
+	TARGET_HAS_DEBUG_LED=1 \
+	CRYSTAL_FREQ=16000000
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/usb.c \
+
+include make/module.mk

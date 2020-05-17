@@ -12,7 +12,7 @@ env:
     - PROJECT=stm32f429i-disco-test     TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
     - PROJECT=stm32f746g-disco-test     TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
     - PROJECT=stm32f4-discovery-test    TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
-    - PROJECT=stellaris-launchpad-test  TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
+    - PROJECT=tiva-launchpad-test       TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
     - PROJECT=nrf51-pca10028-test       TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
     - PROJECT=nucleo-f072rb             TOOLCHAIN=arm-eabi-7.3.0-Linux-x86_64
     - PROJECT=qemu-microblaze-test      TOOLCHAIN=microblaze-elf-7.3.0-Linux-x86_64

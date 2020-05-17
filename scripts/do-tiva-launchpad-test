@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+export PROJECT=tiva-launchpad-test
+
+$DIR/make-parallel &&
+lm4flash -v build-$PROJECT/lk.bin
