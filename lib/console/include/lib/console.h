@@ -14,6 +14,7 @@
  * this file.
  */
 #include <lk/console_cmd.h>
+#include <lib/console/cmd.h>
 
 /* external api */
 int console_init(void);
