@@ -51,7 +51,7 @@ static inline void arch_set_current_thread(struct thread *t) {
     _current_thread = t;
 }
 
-static inline uint32_t arch_cycle_count(void) { return 0; }
+static inline ulong arch_cycle_count(void) { return 0; }
 
 static inline uint arch_curr_cpu_num(void) {
     return 0;

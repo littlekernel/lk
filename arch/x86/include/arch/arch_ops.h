@@ -42,14 +42,17 @@ static inline bool arch_ints_disabled(void) {
     return !(state & (1<<9));
 }
 
-static inline uint32_t arch_cycle_count(void) {
-#if !X86_LEGACY
+static inline ulong arch_cycle_count(void) {
+#if X86_LEGACY
+    return 0;
+#elif ARCH_X86_64
+    uint32_t low, high;
+    rdtsc(low, high);
+    return ((ulong)high << 32) | low;
+#else
     uint32_t timestamp;
     rdtscl(timestamp);
-
     return timestamp;
-#else
-    return 0;
 #endif
 }
 

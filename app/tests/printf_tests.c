@@ -11,6 +11,10 @@
 #include <string.h>
 #include <lk/debug.h>
 
+// We're doing a few things here that the compiler doesn't like, so disable printf warnings
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat"
+
 int printf_tests(int argc, const cmd_args *argv) {
     printf("printf tests\n");
 
@@ -117,4 +121,5 @@ int printf_tests_float(int argc, const cmd_args *argv) {
     return NO_ERROR;
 }
 
+#pragma GCC diagnostic pop
 

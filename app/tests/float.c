@@ -77,7 +77,7 @@ static void float_tests(void) {
     thread_t *t[8];
     FLOAT val[countof(t)];
 
-    printf("creating %u floating point threads\n", countof(t));
+    printf("creating %zu floating point threads\n", countof(t));
     for (uint i = 0; i < countof(t); i++) {
         val[i] = i;
         char name[32];

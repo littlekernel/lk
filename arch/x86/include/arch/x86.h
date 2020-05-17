@@ -206,9 +206,6 @@ static inline void x86_restore_flags(uint32_t flags) {
 #define rdtscl(low) \
      __asm__ __volatile__("rdtsc" : "=a" (low) : : "edx")
 
-#define rdtscll(val) \
-     __asm__ __volatile__("rdtsc" : "=A" (val))
-
 static inline uint8_t inp(uint16_t _port) {
     uint8_t rv;
     __asm__ __volatile__ ("inb %1, %0"

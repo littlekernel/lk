@@ -69,7 +69,7 @@ static inline bool arch_fiqs_disabled(void) {
 #define smp_rmb()   CF
 #endif
 
-static inline uint32_t arch_cycle_count(void) {
+static inline ulong arch_cycle_count(void) {
 //#warning no arch_cycle_count implementation
     return 0;
 }

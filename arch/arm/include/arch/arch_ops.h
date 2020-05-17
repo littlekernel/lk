@@ -80,7 +80,7 @@ static inline bool arch_in_int_handler(void) {
 #endif
 }
 
-static inline uint32_t arch_cycle_count(void) {
+static inline ulong arch_cycle_count(void) {
 #if ARM_ISA_ARMV7M
 #if ENABLE_CYCLE_COUNTER
 #define DWT_CYCCNT (0xE0001004)
@@ -175,7 +175,7 @@ static inline bool arch_ints_disabled(void) {
     return !!state;
 }
 
-static inline uint32_t arch_cycle_count(void) {
+static inline ulong arch_cycle_count(void) {
     return 0;
 }
 

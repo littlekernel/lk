@@ -22,6 +22,6 @@ MODULE_ARM_OVERRIDE_SRCS := \
 MODULE_DEPS += \
     lib/cbuf
 
-MODULE_COMPILEFLAGS += -Wno-format -fno-builtin
+MODULE_COMPILEFLAGS += -fno-builtin
 
 include make/module.mk

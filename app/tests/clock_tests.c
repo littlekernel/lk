@@ -16,7 +16,7 @@
 #include <platform.h>
 
 int clock_tests(int argc, const cmd_args *argv) {
-    uint32_t c;
+    ulong c;
     lk_time_t t;
     lk_bigtime_t t2;
 
@@ -27,7 +27,7 @@ int clock_tests(int argc, const cmd_args *argv) {
         t = current_time();
     }
     c = arch_cycle_count() - c;
-    printf("%u cycles per current_time()\n", c / CYCLE_COUNT_TRIES);
+    printf("%lu cycles per current_time()\n", c / CYCLE_COUNT_TRIES);
 
     thread_sleep(100);
     c = arch_cycle_count();
@@ -35,7 +35,7 @@ int clock_tests(int argc, const cmd_args *argv) {
         t2 = current_time_hires();
     }
     c = arch_cycle_count() - c;
-    printf("%u cycles per current_time_hires()\n", c / CYCLE_COUNT_TRIES);
+    printf("%lu cycles per current_time_hires()\n", c / CYCLE_COUNT_TRIES);
 
     printf("making sure time never goes backwards\n");
     {
@@ -46,7 +46,7 @@ int clock_tests(int argc, const cmd_args *argv) {
             t = current_time();
             //printf("%lu %lu\n", last, t);
             if (TIME_LT(t, last)) {
-                printf("WARNING: time ran backwards: %lu < %lu\n", t, last);
+                printf("WARNING: time ran backwards: %u < %u\n", t, last);
                 last = t;
                 continue;
             }
@@ -80,7 +80,7 @@ int clock_tests(int argc, const cmd_args *argv) {
             t = current_time();
             t2 = current_time_hires();
             if (t > ((t2 + 500) / 1000)) {
-                printf("WARNING: current_time() ahead of current_time_hires() %lu %llu\n", t, t2);
+                printf("WARNING: current_time() ahead of current_time_hires() %u %llu\n", t, t2);
             }
             if (t - start > 5000)
                 break;
@@ -95,12 +95,12 @@ int clock_tests(int argc, const cmd_args *argv) {
 
     printf("measuring cpu clock against current_time_hires()\n");
     for (int i = 0; i < 5; i++) {
-        uint cycles = arch_cycle_count();
+        ulong cycles = arch_cycle_count();
         lk_bigtime_t start = current_time_hires();
         while ((current_time_hires() - start) < 1000000)
             ;
         cycles = arch_cycle_count() - cycles;
-        printf("%u cycles per second\n", cycles);
+        printf("%lu cycles per second\n", cycles);
     }
 
     return NO_ERROR;

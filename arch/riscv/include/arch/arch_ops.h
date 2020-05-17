@@ -37,7 +37,7 @@ static inline void arch_set_current_thread(struct thread *t) {
     __current_thread = t;
 }
 
-static inline uint32_t arch_cycle_count(void) {
+static inline ulong arch_cycle_count(void) {
 #if RISCV_M_MODE
     // use M version of the cycle if we're in machine mode. Some
     // cpus dont have a U mode alias for this.

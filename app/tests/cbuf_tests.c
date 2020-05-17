@@ -9,19 +9,19 @@
 
 #define ASSERT_EQ(a, b)                                            \
     do {                                                           \
-        int _a = (a);                                              \
-        int _b = (b);                                              \
+        typeof(a) _a = (a);                                        \
+        typeof(b) _b = (b);                                        \
         if (_a != _b) {                                            \
-            panic("%d != %d (%s:%d)\n", a, b, __FILE__, __LINE__); \
+            panic("%lu != %lu (%s:%d)\n", (ulong)a, (ulong)b, __FILE__, __LINE__); \
         }                                                          \
     } while (0);
 
 #define ASSERT_LEQ(a, b)                                               \
     do {                                                               \
-        int _a = (a);                                                  \
-        int _b = (b);                                                  \
+        typeof(a) _a = (a);                                            \
+        typeof(b) _b = (b);                                            \
         if (_a > _b) {                                                 \
-            panic("%d not <= %d (%s:%d)\n", a, b, __FILE__, __LINE__); \
+            panic("%lu not <= %lu (%s:%d)\n", (ulong)a, (ulong)b, __FILE__, __LINE__); \
         }                                                              \
     } while (0);
 
@@ -32,33 +32,33 @@ int cbuf_tests(int argc, const cmd_args *argv) {
 
     cbuf_initialize(&cbuf, 16);
 
-    ASSERT_EQ(15, cbuf_space_avail(&cbuf));
+    ASSERT_EQ(15UL, cbuf_space_avail(&cbuf));
 
-    ASSERT_EQ(8, cbuf_write(&cbuf, "abcdefgh", 8, false));
+    ASSERT_EQ(8UL, cbuf_write(&cbuf, "abcdefgh", 8, false));
 
-    ASSERT_EQ(7, cbuf_space_avail(&cbuf));
+    ASSERT_EQ(7UL, cbuf_space_avail(&cbuf));
 
     // Only 7 bytes should fit since if we write all 16 bytes,
     // head == tail and we can't distinguish it from the start case.
-    ASSERT_EQ(7, cbuf_write(&cbuf, "ijklmnop", 8, false));
+    ASSERT_EQ(7UL, cbuf_write(&cbuf, "ijklmnop", 8, false));
 
-    ASSERT_EQ(0, cbuf_space_avail(&cbuf));
+    ASSERT_EQ(0UL, cbuf_space_avail(&cbuf));
 
     // Nothing should fit.
-    ASSERT_EQ(0, cbuf_write(&cbuf, "XXXXXXXX", 8, false));
+    ASSERT_EQ(0UL, cbuf_write(&cbuf, "XXXXXXXX", 8, false));
 
-    ASSERT_EQ(0, cbuf_space_avail(&cbuf));
+    ASSERT_EQ(0UL, cbuf_space_avail(&cbuf));
 
     // Read a few bytes.
     {
         char buf[32];
-        ASSERT_EQ(3, cbuf_read(&cbuf, buf, 3, false));
+        ASSERT_EQ(3UL, cbuf_read(&cbuf, buf, 3, false));
         for (int i = 0; i < 3; ++i) {
             ASSERT_EQ(buf[i], 'a' + i);
         }
 
         // Try reading 32 bytes.
-        ASSERT_EQ(12, cbuf_read(&cbuf, buf, 32, false));
+        ASSERT_EQ(12UL, cbuf_read(&cbuf, buf, 32, false));
         for (int i = 0; i < 12; ++i) {
             ASSERT_EQ(buf[i], 'd' + i);
         }
@@ -66,7 +66,7 @@ int cbuf_tests(int argc, const cmd_args *argv) {
 
     cbuf_reset(&cbuf);
 
-    ASSERT_EQ(15, cbuf_space_avail(&cbuf));
+    ASSERT_EQ(15UL, cbuf_space_avail(&cbuf));
 
     // Random tests. Keep writing in random chunks up to 8 bytes, then
     // reading in chunks up to 8 bytes. Verify values.

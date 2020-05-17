@@ -28,13 +28,13 @@ __NO_INLINE static void bench_set_overhead(void) {
         return;
     }
 
-    uint count = arch_cycle_count();
+    ulong count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
         __asm__ volatile("");
     }
     count = arch_cycle_count() - count;
 
-    printf("took %u cycles overhead to loop %u times\n",
+    printf("took %lu cycles overhead to loop %u times\n",
            count, ITER);
 
     free(buf);
@@ -47,13 +47,13 @@ __NO_INLINE static void bench_memset(void) {
         return;
     }
 
-    uint count = arch_cycle_count();
+    ulong count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
         memset(buf, 0, BUFSIZE);
     }
     count = arch_cycle_count() - count;
 
-    printf("took %u cycles to memset a buffer of size %u %d times (%u bytes), %f bytes/cycle\n",
+    printf("took %lu cycles to memset a buffer of size %zu %d times (%zu bytes), %f bytes/cycle\n",
            count, BUFSIZE, ITER, BUFSIZE * ITER, (BUFSIZE * ITER) / (float)count);
 
     free(buf);
@@ -68,7 +68,7 @@ __NO_INLINE static void bench_cset_##type(void) \
         return; \
     } \
  \
-    uint count = arch_cycle_count(); \
+    ulong count = arch_cycle_count(); \
     for (uint i = 0; i < ITER; i++) { \
         for (uint j = 0; j < BUFSIZE / sizeof(*buf); j++) { \
             buf[j] = 0; \
@@ -76,7 +76,7 @@ __NO_INLINE static void bench_cset_##type(void) \
     } \
     count = arch_cycle_count() - count; \
  \
-    printf("took %u cycles to manually clear a buffer using wordsize %d of size %u %d times (%u bytes), %f bytes/cycle\n", \
+    printf("took %lu cycles to manually clear a buffer using wordsize %zu of size %zu %u times (%zu bytes), %f bytes/cycle\n", \
            count, sizeof(*buf), BUFSIZE, ITER, BUFSIZE * ITER, (BUFSIZE * ITER) / (float)count); \
  \
     free(buf); \
@@ -94,7 +94,7 @@ __NO_INLINE static void bench_cset_wide(void) {
         return;
     }
 
-    uint count = arch_cycle_count();
+    ulong count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
         for (uint j = 0; j < BUFSIZE / sizeof(*buf) / 8; j++) {
             buf[j*8] = 0;
@@ -109,7 +109,7 @@ __NO_INLINE static void bench_cset_wide(void) {
     }
     count = arch_cycle_count() - count;
 
-    printf("took %u cycles to manually clear a buffer of size %u %d times 8 words at a time (%u bytes), %f bytes/cycle\n",
+    printf("took %lu cycles to manually clear a buffer of size %zu %d times 8 words at a time (%zu bytes), %f bytes/cycle\n",
            count, BUFSIZE, ITER, BUFSIZE * ITER, (BUFSIZE * ITER) / (float)count);
 
     free(buf);
@@ -122,13 +122,13 @@ __NO_INLINE static void bench_memcpy(void) {
         return;
     }
 
-    uint count = arch_cycle_count();
+    ulong count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
         memcpy(buf, buf + BUFSIZE / 2, BUFSIZE / 2);
     }
     count = arch_cycle_count() - count;
 
-    printf("took %u cycles to memcpy a buffer of size %u %d times (%u source bytes), %f source bytes/cycle\n",
+    printf("took %lu cycles to memcpy a buffer of size %zu %d times (%zu source bytes), %f source bytes/cycle\n",
            count, BUFSIZE / 2, ITER, BUFSIZE / 2 * ITER, (BUFSIZE / 2 * ITER) / (float)count);
 
     free(buf);
@@ -142,7 +142,7 @@ __NO_INLINE static void arm_bench_cset_stm(void) {
         return;
     }
 
-    uint count = arch_cycle_count();
+    ulong count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
         for (uint j = 0; j < BUFSIZE / sizeof(*buf) / 8; j++) {
             __asm__ volatile(
@@ -153,7 +153,7 @@ __NO_INLINE static void arm_bench_cset_stm(void) {
     }
     count = arch_cycle_count() - count;
 
-    printf("took %u cycles to manually clear a buffer of size %u %d times 8 words at a time using stm (%u bytes), %f bytes/cycle\n",
+    printf("took %lu cycles to manually clear a buffer of size %zu %d times 8 words at a time using stm (%zu bytes), %f bytes/cycle\n",
            count, BUFSIZE, ITER, BUFSIZE * ITER, (BUFSIZE * ITER) / (float)count);
 
     free(buf);
@@ -161,7 +161,7 @@ __NO_INLINE static void arm_bench_cset_stm(void) {
 
 #if       (__CORTEX_M >= 0x03)
 __NO_INLINE static void arm_bench_multi_issue(void) {
-    uint32_t cycles;
+    ulong cycles;
     uint32_t a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0, h = 0;
 #define ITER 1000000
     uint count = ITER;
@@ -179,7 +179,7 @@ __NO_INLINE static void arm_bench_multi_issue(void) {
     }
     cycles = arch_cycle_count() - cycles;
 
-    printf("took %u cycles to issue 8 integer ops (%f cycles/iteration)\n", cycles, (float)cycles / ITER);
+    printf("took %lu cycles to issue 8 integer ops (%f cycles/iteration)\n", cycles, (float)cycles / ITER);
 #undef ITER
 }
 #endif // __CORTEX_M
@@ -192,35 +192,35 @@ __NO_INLINE static void bench_sincos(void) {
     printf("touching the floating point unit\n");
     __UNUSED volatile double _hole = sin(0);
 
-    uint count = arch_cycle_count();
+    ulong count = arch_cycle_count();
     __UNUSED double a = sin(2.0);
     count = arch_cycle_count() - count;
-    printf("took %u cycles for sin()\n", count);
+    printf("took %lu cycles for sin()\n", count);
 
     count = arch_cycle_count();
     a = cos(2.0);
     count = arch_cycle_count() - count;
-    printf("took %u cycles for cos()\n", count);
+    printf("took %lu cycles for cos()\n", count);
 
     count = arch_cycle_count();
     a = sinf(2.0);
     count = arch_cycle_count() - count;
-    printf("took %u cycles for sinf()\n", count);
+    printf("took %lu cycles for sinf()\n", count);
 
     count = arch_cycle_count();
     a = cosf(2.0);
     count = arch_cycle_count() - count;
-    printf("took %u cycles for cosf()\n", count);
+    printf("took %lu cycles for cosf()\n", count);
 
     count = arch_cycle_count();
     a = sqrt(1234567.0);
     count = arch_cycle_count() - count;
-    printf("took %u cycles for sqrt()\n", count);
+    printf("took %lu cycles for sqrt()\n", count);
 
     count = arch_cycle_count();
     a = sqrtf(1234567.0f);
     count = arch_cycle_count() - count;
-    printf("took %u cycles for sqrtf()\n", count);
+    printf("took %lu cycles for sqrtf()\n", count);
 }
 
 #endif // WITH_LIB_LIBM

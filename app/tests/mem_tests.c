@@ -193,7 +193,7 @@ usage:
 
 #endif
 
-        printf("got buffer at %p of length 0x%lx\n", ptr, len);
+        printf("got buffer at %p of length %#zx\n", ptr, len);
 
         /* run the tests */
         do_mem_tests(ptr, len);
