@@ -39,8 +39,10 @@ env:
     - PROJECT=qemu-mips-test            TOOLCHAIN=mips-elf-7.3.0-Linux-x86_64       DEBUG=0
     - PROJECT=sifive-e-test             TOOLCHAIN=riscv32-elf-7.3.0-Linux-x86_64    DEBUG=0
 
-# run in a container
-sudo: false
+# build environment is linux xenial
+os: linux
+dist: xenial
+arch: amd64
 
 # try to cache the toolchain download
 cache:
