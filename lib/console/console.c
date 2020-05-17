@@ -21,6 +21,8 @@
 #include <lib/env.h>
 #endif
 
+// Whether to enable command line history. Uses a nonzero
+// amount of memory, probably shouldn't enable for memory constrained devices.
 #ifndef CONSOLE_ENABLE_HISTORY
 #define CONSOLE_ENABLE_HISTORY 1
 #endif
@@ -35,8 +37,6 @@
 #define PANIC_LINE_LEN 32
 
 #define MAX_NUM_ARGS 16
-
-#define HISTORY_LEN 16
 
 #define LOCAL_TRACE 0
 
@@ -55,10 +55,10 @@ static bool abort_script;
 
 #if CONSOLE_ENABLE_HISTORY
 /* command history stuff */
-static char *history; // HISTORY_LEN rows of LINE_LEN chars a piece
-static uint history_next;
+#define HISTORY_LEN 16
+static char history[HISTORY_LEN * LINE_LEN];
+static uint history_next = 0;
 
-static void init_history(void);
 static void add_history(const char *line);
 static uint start_history_cursor(void);
 static const char *next_history(uint *cursor);
@@ -98,16 +98,6 @@ STATIC_COMMAND("repeat", "repeats command multiple times", &cmd_repeat)
 #endif
 STATIC_COMMAND_END(help);
 
-int console_init(void) {
-    LTRACE_ENTRY;
-
-#if CONSOLE_ENABLE_HISTORY
-    init_history();
-#endif
-
-    return 0;
-}
-
 #if CONSOLE_ENABLE_HISTORY
 static int cmd_history(int argc, const cmd_args *argv) {
     dump_history();
@@ -135,12 +125,6 @@ static void dump_history(void) {
             printf("\t%s\n", history_line(ptr));
         ptr = ptrprev(ptr);
     }
-}
-
-static void init_history(void) {
-    /* allocate and set up the history buffer */
-    history = calloc(1, HISTORY_LEN * LINE_LEN);
-    history_next = 0;
 }
 
 static void add_history(const char *line) {

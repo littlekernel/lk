@@ -17,7 +17,6 @@
 #include <lib/console/cmd.h>
 
 /* external api */
-int console_init(void);
 void console_start(void);
 int console_run_script(const char *string);
 int console_run_script_locked(const char *string); // special case from inside a command
