@@ -35,6 +35,24 @@ testit:
   st r4, (r0+12)
   rts
 
+.global toggle18
+toggle18:
+  mov r0, 0x7e20001c      // set
+  mov r1, 0x7e200028      // clear
+  mov r2, 1<<18
+  mov r3, 100000000
+loop18:
+  st r2, (r0)             // high
+  mov r4, 1
+  addcmpbne r4, -1, 0, 0  // delay
+
+  st r2, (r1)             // low
+  mov r4, 1
+  addcmpbne r4, -1, 0, 0  // delay
+
+  addcmpbne r3,-1,0x0,loop18  // repeat
+  rts
+
 #ifdef MANUAL_UART
 manual_uart_cfg:
   mov r0, 0x7e200004 // GP_FSEL1

@@ -14,6 +14,7 @@ STATIC_COMMAND("set_pll_freq", "set pll frequency", &cmd_set_pll_freq)
 STATIC_COMMAND_END(pll_control);
 
 const struct pll_def pll_def[] = {
+#if 0
   [PLL_A] = {
     .name = "PLLA",
     .ana = REG32(A2W_PLLA_ANA0),
@@ -84,9 +85,11 @@ const struct pll_def pll_def[] = {
     .ana_kaip = REG32(A2W_PLLH_ANA_KAIP),
     .ana_vco = REG32(A2W_PLLH_ANA_VCO),
   },
+#endif
 };
 
 const struct pll_chan_def pll_chan_def[] = {
+#if 0
   [PLL_CHAN_ACORE] = {
     .name = "PLLA_CORE",
     .ctrl = REG32(A2W_PLLA_CORE),
@@ -220,6 +223,7 @@ const struct pll_chan_def pll_chan_def[] = {
     .div_mask = A2W_PLLH_AUX_DIV_SET,
     .pll = PLL_H,
   },
+#endif
 };
 
 static void pll_start(enum pll pll)

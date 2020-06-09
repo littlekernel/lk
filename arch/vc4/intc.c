@@ -21,7 +21,7 @@ struct handlerArgPair irq_handlers[64];
 // if the highest bit on this addr is set, the cpu will switch into supervisor mode
 irqType vectorTable[128] __attribute__ ((section(".data.vectorTable")));
 
-uint8_t irq_stack0[4096];
+uint8_t irq_stack0[1024];
 
 static const char* g_ExceptionNames[] = {
   "Zero",
