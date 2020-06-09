@@ -4,8 +4,10 @@ TARGET := rpi3-vpu
 ARCH := vc4
 
 MODULES += \
-	lib/debugcommands \
 	app/shell \
+	platform/bcm28xx/rpi-ddr2 \
+	#platform/bcm28xx/otp \
+	#lib/debugcommands \
 	#app/shell \
 	#app/tests \
 	#app/stringtests \
