@@ -347,7 +347,7 @@ struct BCM2708SDHost : BlockDevice {
     }
   }
 
-	virtual bool read_block(uint32_t sector, uint32_t* buf) override {
+	bool real_read_block(bnum_t sector, uint32_t* buf) {
 		if (!card_ready)
 			panic("card not ready");
 
@@ -545,7 +545,7 @@ struct BCM2708SDHost : BlockDevice {
        * looks like a silicon bug to me or a quirk of csd2, who knows
        */
       for (int i = 0; i < 3; i++) {
-        if (!read_block(0, nullptr)) {
+        if (!real_read_block(0, nullptr)) {
           panic("fifo flush cycle %d failed", i);
         }
       }
@@ -554,7 +554,7 @@ struct BCM2708SDHost : BlockDevice {
     }
   }
 
-	virtual void stop() override {
+	void stop() {
 		if (card_ready) {
 			logf("flushing fifo ...\n");
 			drain_fifo_nowait();
@@ -599,12 +599,26 @@ extern "C" {
 
 struct BCM2708SDHost *sdhost = 0;
 
+static ssize_t sdhost_read_block_wrap(struct bdev *bdev, void *buf, bnum_t block, uint count) {
+  BCM2708SDHost *dev = reinterpret_cast<BCM2708SDHost*>(bdev);
+  uint32_t *dest = reinterpret_cast<uint32_t*>(buf);
+  if (count != 1) panic("tried to read more then 1 sector");
+  bool ret = dev->real_read_block(block, dest);
+  if (ret) {
+    return sdhost->get_block_size();
+  } else {
+    return -1;
+  }
+}
+
 void rpi_sdhost_init() {
   sdhost = new BCM2708SDHost;
-  bdev_t *bdev = new bdev_t;
   auto blocksize = sdhost->get_block_size();
   auto blocks = sdhost->capacity_bytes / blocksize;
-  //bio_initialize_bdev(bdev, "sdhost", blocksize, blocks, 0, 0, 0);
+  bio_initialize_bdev(sdhost, "sdhost", blocksize, blocks, 0, NULL, BIO_FLAGS_NONE);
+  //sdhost->read = sdhost_read_wrap;
+  sdhost->read_block = sdhost_read_block_wrap;
+  bio_register_device(sdhost);
 }
 
 static int cmd_sdhost_init(int argc, const cmd_args *argv) {

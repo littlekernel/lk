@@ -56,8 +56,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/pll_read.c \
-	$(LOCAL_DIR)/pll_control.c \
-	$(LOCAL_DIR)/i2c.c \
+	$(LOCAL_DIR)/pll_control.c
+	#$(LOCAL_DIR)/i2c.c \
 
 
 

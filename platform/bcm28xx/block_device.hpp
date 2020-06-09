@@ -17,20 +17,22 @@ Block device.
 
 =============================================================================*/
 
-struct BlockDevice {
+#include <lib/bio.h>
+
+struct BlockDevice : bdev_t {
 	unsigned int block_size;
 
 	template <typename T>
-	inline bool read_block(uint32_t sector, T* dest_buffer) {
-		return read_block(sector, reinterpret_cast<uint32_t*>(dest_buffer));
+	inline bool real_read_block(bnum_t sector, T* dest_buffer) {
+		return real_read_block(sector, reinterpret_cast<uint32_t*>(dest_buffer));
 	}
 
 	inline unsigned int get_block_size() {
 		return block_size;
 	}
 
-	virtual bool read_block(uint32_t sector, uint32_t* buf) = 0;
+	bool real_read_block(bnum_t sector, uint32_t* buf);
 
 	/* called to stop the block device */
-	virtual void stop() {}
+	void stop() {}
 };
