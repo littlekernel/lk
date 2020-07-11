@@ -23,6 +23,8 @@ MODULE_SRCS += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/pure_virtual.cpp
 
+MODULE_COMPILEFLAGS += -fno-builtin
+
 include $(LOCAL_DIR)/string/rules.mk
 
 include make/module.mk
