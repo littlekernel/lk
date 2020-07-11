@@ -1,5 +1,9 @@
 /*
- * LK linker script for single segment binaries.
+ * LK linker script for multi segment binaries.
+ * In this case the read only portion of the binary lives in read only
+ * memory, usually in ROM at a lower address.
+ * Data and BSS live in a higher memory address and initial data is
+ * copied from rom during initialization.
  */
 PHDRS
 {
@@ -12,6 +16,8 @@ ENTRY(_start)
 SECTIONS
 {
     . = %ROMBASE%;
+
+    _start = .;
     __rom_start = .;
 
     /* text/read-only data */
@@ -22,34 +28,30 @@ SECTIONS
         *(.gnu.linkonce.t.*)
     } :code
 
-    .rodata : ALIGN(CONSTANT(MAXPAGESIZE)) {
+    . = ALIGN(CONSTANT(MAXPAGESIZE));
+
+    .rodata : {
         __rodata_start = .;
         *(.rodata .rodata.* .gnu.linkonce.r.*)
-        *(.srodata*)
     } :rodata
 
-    /*
-     * extra linker scripts tend to insert sections just after .rodata,
-     * so we want to make sure this symbol comes after anything inserted above,
-     * but not aligned to the next section necessarily.
-     */
-    .dummy_post_rodata : {
-        __rodata_end = .;
-        __rom_end = . ;
-        __data_start_rom = .;
-    }
+    . = .;
+    __rodata_end = .;
+    __rom_end = . ;
+    . = ALIGN(CONSTANT(MAXPAGESIZE));
+    __data_start_rom = .;
+
+    /* insert a dummy section that is used to anchor the following data segment */
+    .dummy_post_rodata : { }
 
     /* in two segment binaries, the data starts at the bottom of ram (MEMBASE)
      * bump us forward to the start of ram
      */
     . = %MEMBASE%;
 
-    .data : AT ( ADDR (.dummy_post_rodata) + SIZEOF (.dummy_post_rodata) ) ALIGN(CONSTANT(MAXPAGESIZE)) {
-        /* in one segment binaries, the rom data address is on top of the ram data address */
+    .data : AT ( ADDR (.dummy_post_rodata) + SIZEOF (.dummy_post_rodata) ) {
         __data_start = .;
         *(.data .data.* .gnu.linkonce.d.*)
-        PROVIDE( __global_pointer$ = . + (4K / 2) );
-        *(.sdata .sdata.*)
         __ctor_list = .;
         KEEP(*(.ctors .init_array))
         __ctor_end = .;
@@ -60,28 +62,38 @@ SECTIONS
         *(.dynamic)
     } :data
 
-    /*
-     * extra linker scripts tend to insert sections just after .data,
-     * so we want to make sure this symbol comes after anything inserted above,
-     * but not aligned to the next section necessarily.
-     */
-    .dummy_post_data : {
-        . = ALIGN(%BITS% / 8);
-        __data_end = .;
+    /* Try to put sdata and sbss near each other by putting sdata at the end of the data segment
+     * and sbss at the start of the bss segment. This maximizes reach of things referenced off of
+     * the global pointer. */
+    .sdata : {
+        __global_pointer$ = . + (4K / 2);
+        /* Question: should we put srodata here on multi seg binaries? */
+        *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
+        *(.sdata .sdata.* .gnu.linkonce.s.*)
+    }
+
+    . = ALIGN(%BITS% / 8);
+    __data_end = .;
+    __bss_start = .;
+
+    .sbss : {
+        *(.dynsbss)
+        *(.sbss .sbss.* .gnu.linkonce.sb.*)
+        *(.scommon)
     }
 
     /* uninitialized data (in same segment as writable data) */
-    .bss : ALIGN(%BITS% / 8) {
-        __bss_start = .;
+    .bss : {
         /* regular bss */
         *(.bss .bss.*)
-        *(.sbss .sbss.*)
         *(.gnu.linkonce.b.*)
-
-        . = ALIGN(%BITS% / 8);
-        __bss_end = .;
     }
 
+    . = ALIGN(%BITS% / 8);
+    __bss_end = .;
+
+    /* Align the end to ensure anything after the kernel ends up on its own pages */
+    . = ALIGN(CONSTANT(MAXPAGESIZE));
     _end = .;
 
     . = %MEMBASE% + %MEMSIZE%;
