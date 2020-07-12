@@ -52,6 +52,7 @@
  * MODULE_DEPS += \
  *         lib/unittest   \
  */
+#include <printf.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -59,31 +60,24 @@
 #include <string.h>
 #include <stdarg.h>
 
-#define PRINT_BUFFER_SIZE                                       (512)
-
-/*
- * Type for unit test result Output
- */
-typedef void (*test_output_func) (const char *line, int len, void *arg);
-
 /*
  * Printf dedicated to the unittest library
  * the default output is the printf
  */
-void unittest_printf (const char *format, ...);
+void unittest_printf (const char *format, ...) __PRINTFLIKE(1, 2);
 
 /*
  * Function to set the callback for printing
  * the unit test output
  */
-void unittest_set_output_function (test_output_func fun, void *arg);
+void unittest_set_output_function (_printf_engine_output_func fun, void *arg);
 
 /*
  * Macros to format the error string
  */
-#define EXPECTED_STRING            "%s:\n        expected "
+#define EXPECTED_STRING            "%s\n        expected "
 #define UNITTEST_TRACEF(str, x...) do {                                 \
-        unittest_printf(" [FAILED] \n        %s:%d:\n        " str,     \
+        unittest_printf(" [FAILED] \n        %s:%d: " str,     \
                 __PRETTY_FUNCTION__, __LINE__, ## x);                   \
     } while (0)
 
@@ -94,7 +88,7 @@ void unittest_set_output_function (test_output_func fun, void *arg);
 #define BEGIN_TEST_CASE(case_name)              \
     bool case_name(void)                        \
     {                                           \
-    bool all_success = true;                    \
+    bool all_ok = true;                    \
     unittest_printf("\nCASE %-49s [STARTED] \n", #case_name);
 
 #define DEFINE_REGISTER_TEST_CASE(case_name)                            \
@@ -106,12 +100,12 @@ void unittest_set_output_function (test_output_func fun, void *arg);
         _register_##case_name;
 
 #define END_TEST_CASE(case_name)                                        \
-    if (all_success) {                                                  \
+    if (all_ok) {                                                  \
         unittest_printf("CASE %-59s [PASSED]\n", #case_name);           \
     } else {                                                            \
         unittest_printf("CASE %-59s [FAILED]\n", #case_name);           \
     }                                                                   \
-        return all_success;                                             \
+        return all_ok;                                             \
     }                                                                   \
     static struct test_case_element _##case_name##_element = {          \
         .next = NULL,                                                   \
@@ -124,7 +118,7 @@ void unittest_set_output_function (test_output_func fun, void *arg);
 #define RUN_TEST(test)                                  \
     unittest_printf("    %-50s [RUNNING]",  #test );    \
     if (! test ()) {                                    \
-         all_success = false;                           \
+         all_ok = false;                           \
     } else {                                            \
         unittest_printf(" [PASSED] \n");                \
     }

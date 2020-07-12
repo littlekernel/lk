@@ -58,6 +58,7 @@ static inline int vprintf(const char *fmt, va_list ap) { return 0; }
 
 int fprintf(FILE *fp, const char *fmt, ...) __PRINTFLIKE(2, 3);
 int vfprintf(FILE *fp, const char *fmt, va_list ap);
+int _fprintf_output_func(const char *str, size_t len, void *state);
 
 int sprintf(char *str, const char *fmt, ...) __PRINTFLIKE(2, 3);
 int snprintf(char *str, size_t len, const char *fmt, ...) __PRINTFLIKE(3, 4);

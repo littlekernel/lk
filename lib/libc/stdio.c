@@ -72,7 +72,7 @@ int getchar(void) {
     return getc(stdin);
 }
 
-static int _fprintf_output_func(const char *str, size_t len, void *state) {
+int _fprintf_output_func(const char *str, size_t len, void *state) {
     FILE *fp = (FILE *)state;
 
     return io_write(fp->io, str, len);

@@ -17,21 +17,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/**
- * \brief Default function to dump unit test results
- *
- * \param[in] line is the buffer to dump
- * \param[in] len is the length of the buffer to dump
- * \param[in] arg can be any kind of arguments needed to dump the values
- */
-static void default_printf (const char *line, int len, void *arg) {
-    printf (line);
-}
-
 // Default output function is the printf
-static test_output_func out_func = default_printf;
+static _printf_engine_output_func out_func = _fprintf_output_func;
 // Buffer the argument to be sent to the output function
-static void *out_func_arg = NULL;
+static void *out_func_arg = stdout;
 
 /**
  * \brief Function called to dump results
@@ -39,18 +28,12 @@ static void *out_func_arg = NULL;
  * This function will call the out_func callback
  */
 void unittest_printf (const char *format, ...) {
-    static char print_buffer[PRINT_BUFFER_SIZE];
+    va_list ap;
+    va_start (ap, format);
 
-    va_list argp;
-    va_start (argp, format);
+    _printf_engine(out_func, out_func_arg, format, ap);
 
-    if (out_func != NULL) {
-        // Format the string
-        vsnprintf(print_buffer, PRINT_BUFFER_SIZE, format, argp);
-        out_func (print_buffer, PRINT_BUFFER_SIZE, out_func_arg);
-    }
-
-    va_end (argp);
+    va_end(ap);
 }
 
 bool expect_bytes_eq(const uint8_t *expected, const uint8_t *actual, size_t len,
@@ -65,7 +48,17 @@ bool expect_bytes_eq(const uint8_t *expected, const uint8_t *actual, size_t len,
     return true;
 }
 
-void unittest_set_output_function (test_output_func fun, void *arg) {
+void unittest_set_output_function (_printf_engine_output_func fun, void *arg) {
     out_func = fun;
     out_func_arg = arg;
 }
+
+/* test case for unittests itself */
+BEGIN_TEST_CASE(unittest)
+    unittest_printf("test printf\n");
+    unittest_printf("test printf with args %d\n", 1);
+
+    EXPECT_EQ(0, 0, "0=0");
+    EXPECT_EQ(0, 1, "0=1");
+    EXPECT_EQ(1, 0, "1=0");
+END_TEST_CASE(unittest)
