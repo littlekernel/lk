@@ -116,23 +116,24 @@ GLOBAL_DEFINES += ROMBASE=$(ROMBASE)
 GLOBAL_DEFINES += MEMBASE=$(MEMBASE)
 GLOBAL_DEFINES += MEMSIZE=$(MEMSIZE)
 
+# if ARCH_riscv{32|64}_TOOLCHAIN_PREFIX is set use it as an override
+# for toolchain prefix.
+ifdef ARCH_$(ARCH)$(SUBARCH)_TOOLCHAIN_PREFIX
+TOOLCHAIN_PREFIX := $(ARCH_$(ARCH)$(SUBARCH)_TOOLCHAIN_PREFIX)
+endif
+
+# default toolchain is riscv{32|64}-elf-. assume its in the path.
+ifndef TOOLCHAIN_PREFIX
+TOOLCHAIN_PREFIX := riscv$(SUBARCH)-elf-
+endif
+
 # based on 32 or 64 bitness, select the right toolchain and some
 # compiler codegen flags
 ifeq ($(SUBARCH),32)
-
-ifndef TOOLCHAIN_PREFIX
-TOOLCHAIN_PREFIX := riscv32-elf-
-endif
 ARCH_COMPILEFLAGS := -march=rv32imac -mabi=ilp32
-
 else ifeq ($(SUBARCH),64)
-
-ifndef TOOLCHAIN_PREFIX
-TOOLCHAIN_PREFIX := riscv64-elf-
-endif
 ARCH_COMPILEFLAGS := -march=rv64imac -mabi=lp64 -mcmodel=medany
 GLOBAL_DEFINES += IS_64BIT=1
-
 else
 $(error SUBARCH not set or set to something unknown)
 endif
@@ -142,11 +143,11 @@ endif
 ifeq (true,$(call TOBOOL,$(ARCH_RISCV_EMBEDDED)))
 ARCH_OPTFLAGS ?= -Os
 GLOBAL_DEFINES += ARCH_RISCV_EMBEDDED=1
+WITH_LINKER_GC ?= 1
 else
 ARCH_OPTFLAGS ?= -O2
-endif
-
 WITH_LINKER_GC ?= 0
+endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))

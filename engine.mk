@@ -148,11 +148,15 @@ ifndef ARCH
 $(error couldn't find arch or platform doesn't define arch)
 endif
 include arch/$(ARCH)/rules.mk
+ifndef TOOLCHAIN_PREFIX
+$(error TOOLCHAIN_PREFIX not set in the arch rules.mk)
+endif
 
 $(info PROJECT = $(PROJECT))
 $(info PLATFORM = $(PLATFORM))
 $(info TARGET = $(TARGET))
 $(info ARCH = $(ARCH))
+$(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
 # include the top level module that includes basic always-there modules
 include top/rules.mk
@@ -232,6 +236,7 @@ GLOBAL_DEFINES += ARCH_CFLAGS=\"$(subst $(SPACE),_,$(ARCH_CFLAGS))\"
 GLOBAL_DEFINES += ARCH_CPPFLAGS=\"$(subst $(SPACE),_,$(ARCH_CPPFLAGS))\"
 GLOBAL_DEFINES += ARCH_ASMFLAGS=\"$(subst $(SPACE),_,$(ARCH_ASMFLAGS))\"
 GLOBAL_DEFINES += ARCH_LDFLAGS=\"$(subst $(SPACE),_,$(ARCH_LDFLAGS))\"
+GLOBAL_DEFINES += TOOLCHAIN_PREFIX=\"$(subst $(SPACE),_,$(TOOLCHAIN_PREFIX))\"
 
 ifneq ($(OBJS),)
 $(warning OBJS=$(OBJS))
