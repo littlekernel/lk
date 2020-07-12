@@ -21,10 +21,16 @@ $(OUTELF).hex: $(OUTELF)
 
 $(OUTELF): $(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LINKER_SCRIPT) $(EXTRA_LINKER_SCRIPTS)
 	$(info linking $@)
+ifeq (true,$(call TOBOOL,$(WITH_LTO)))
+	$(NOECHO)$(CC) -nostdlib -flto $(GLOBAL_LDFLAGS) $(ARCH_LDFLAGS) -T $(LINKER_SCRIPT) \
+		$(addprefix -T,$(EXTRA_LINKER_SCRIPTS)) -march=rv64imac -mabi=lp64 -mcmodel=medany \
+		$(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LIBGCC) -o $@
+else
 	$(NOECHO)$(SIZE) -t --common $(sort $(ALLMODULE_OBJS)) $(EXTRA_OBJS)
 	$(NOECHO)$(LD) $(GLOBAL_LDFLAGS) $(ARCH_LDFLAGS) -dT $(LINKER_SCRIPT) \
 		$(addprefix -T,$(EXTRA_LINKER_SCRIPTS)) \
 		$(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LIBGCC) -Map=$(OUTELF).map -o $@
+endif
 
 $(OUTELF).sym: $(OUTELF)
 	$(info generating symbols: $@)

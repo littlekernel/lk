@@ -64,6 +64,11 @@ GLOBAL_CPPFLAGS := --std=c++11 -fno-exceptions -fno-rtti -fno-threadsafe-statics
 GLOBAL_ASMFLAGS := -DASSEMBLY
 GLOBAL_LDFLAGS :=
 
+WITH_LTO ?= true
+ifeq (true,$(call TOBOOL,$(WITH_LTO)))
+GLOBAL_COMPILEFLAGS += -flto -fno-fat-lto-objects
+endif
+
 # if WERROR is set, add to the compile args
 ifeq (true,$(call TOBOOL,$(WERROR)))
 GLOBAL_COMPILEFLAGS += -Werror

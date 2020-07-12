@@ -83,6 +83,13 @@ include make/compile.mk
 # MODULE_OBJS is passed back from compile.mk
 #$(info MODULE_OBJS = $(MODULE_OBJS))
 
+# track all of the source files compiled
+ALLSRCS += $(MODULE_SRCS)
+
+# track all the objects built
+ALLOBJS += $(MODULE_OBJS)
+
+ifeq (false,$(call TOBOOL,$(WITH_LTO)))
 # build a ld -r style combined object
 MODULE_OBJECT := $(call TOBUILDDIR,$(MODULE_SRCDIR).mod.o)
 $(MODULE_OBJECT): $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
@@ -90,17 +97,16 @@ $(MODULE_OBJECT): $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
 	$(info linking $@)
 	$(NOECHO)$(LD) $(GLOBAL_MODULE_LDFLAGS) -r $^ -o $@
 
-# track all of the source files compiled
-ALLSRCS += $(MODULE_SRCS)
-
-# track all the objects built
-ALLOBJS += $(MODULE_OBJS)
-
 # track the module object for make clean
 GENERATED += $(MODULE_OBJECT)
 
 # make the rest of the build depend on our output
 ALLMODULE_OBJS := $(ALLMODULE_OBJS) $(MODULE_OBJECT)
+else
+# for LTO builds just add all of the .o files from this module to the global
+# link line. ld -r seems to foul up LTO
+ALLMODULE_OBJS := $(ALLMODULE_OBJS) $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
+endif
 
 # empty out any vars set here
 MODULE :=
