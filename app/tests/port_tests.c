@@ -18,6 +18,8 @@
 
 #include <platform.h>
 
+#include <app/tests.h>
+
 #define LOCAL_TRACE 0
 
 void *context1 = (void *) 0x53;
@@ -705,7 +707,7 @@ int group_waiting(void) {
 
 #define RUN_TEST(t)  result = t(); if (result) goto fail
 
-int port_tests(void) {
+int port_tests(int argc, const cmd_args *argv) {
     int result;
     int count = 3;
     while (count--) {
