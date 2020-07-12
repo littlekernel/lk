@@ -93,6 +93,7 @@ FUNCTION(_start)
 
     // should never return here
     j       .
+END_FUNCTION(_start)
 
 LOCAL_FUNCTION(secondary_trap)
 #if WITH_SMP
@@ -115,11 +116,13 @@ LOCAL_FUNCTION(secondary_trap)
     wfi
     j       .
 #endif
+END_FUNCTION(secondary_trap)
 
 LOCAL_FUNCTION(hart_trap)
     // cpus with too high of a hart id go here and spin forever
     wfi
     j       .
+END_FUNCTION(hart_trap)
 
 #if RISCV_MMU
     // initialize the kernel page tables
@@ -210,6 +213,7 @@ LOCAL_FUNCTION(_mmu_init)
     add     sp, sp, t0
     add     ra, ra, t0
     ret
+END_FUNCTION(_mmu_init)
 #endif // RISCV_MMU
 
 .bss

@@ -46,6 +46,7 @@ FUNCTION(riscv_context_switch)
     LDR    ra, REGOFF(0)(a1)
 
     ret
+END_FUNCTION(riscv_context_switch)
 
 /* top level exception handler for riscv in non vectored mode */
 .balign 4
@@ -102,3 +103,4 @@ FUNCTION(riscv_exception_entry)
     addi   sp, sp, REGOFF(20)
 
     RISCV_XRET
+END_FUNCTION(riscv_exception_entry)
