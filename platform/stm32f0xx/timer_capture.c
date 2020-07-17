@@ -316,6 +316,8 @@ void stm32_TIM17_IRQ(void) {
 }
 
 status_t stm32_timer_capture_setup(stm32_timer_capture_t *tc, int timer, uint16_t prescaler) {
+    assert(prescaler > 0);
+
     tc->config = stm32_timer_get_config(timer);
     if (tc->config == NULL) {
         return ERR_NOT_FOUND;
@@ -329,7 +331,9 @@ status_t stm32_timer_capture_setup(stm32_timer_capture_t *tc, int timer, uint16_
     spin_lock_init(&tc->overflow_lock);
 
     tc->config->regs->CR1 = 0;
-    tc->config->regs->PSC = prescaler;
+
+    // The prescaler value applied by hardware is PSC + 1.
+    tc->config->regs->PSC = prescaler > 0 ? prescaler - 1 : 0;
 
     uint32_t dier =  TIM_DIER_UIE;
 
