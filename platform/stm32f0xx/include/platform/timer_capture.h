@@ -33,6 +33,9 @@ typedef struct {
 } stm32_timer_capture_t;
 
 // Set tc->chan[] cb and flags before calling.
+//
+// `prescaler` is the desired prescaling factor and must be positive. The value stored in the 
+// prescaler register will be `prescaler - 1` (see ST reference manual RM0091, section 18.4.11).
 status_t stm32_timer_capture_setup(stm32_timer_capture_t *tc, int timer, uint16_t prescaler);
 
 uint64_t stm32_timer_capture_get_counter(stm32_timer_capture_t *tc);
