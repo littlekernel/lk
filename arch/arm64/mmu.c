@@ -194,14 +194,15 @@ static int alloc_page_table(paddr_t *paddrp, uint page_size_shift) {
     LTRACEF("page_size_shift %u\n", page_size_shift);
 
     if (size == PAGE_SIZE) {
-        vm_page_t *p = pmm_alloc_page();
+        vm_page_t *p = pmm_alloc_page(PMM_ARENA_FLAG_KMAP);
         if (!p) {
             return ERR_NO_MEMORY;
         }
         *paddrp = vm_page_to_paddr(p);
     } else if (size > PAGE_SIZE) {
         size_t count = size / PAGE_SIZE;
-        size_t ret = pmm_alloc_contiguous(count, page_size_shift, paddrp, NULL);
+        size_t ret = pmm_alloc_contiguous(PMM_ARENA_FLAG_KMAP,
+            count, page_size_shift, paddrp, NULL);
         if (ret != count)
             return ERR_NO_MEMORY;
     } else {
