@@ -97,6 +97,16 @@ static void insert_in_run_queue_tail(thread_t *t) {
     run_queue_bitmap |= (1<<t->priority);
 }
 
+static void wakeup_cpu_for_thread(thread_t *t)
+{
+    /* Wake up the core to which this thread is pinned
+     * or wake up all if thread is unpinned */
+    if (thread_pinned_cpu(t) < 0)
+        mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
+    else
+        mp_reschedule(1U << thread_pinned_cpu(t), 0);
+}
+
 void init_thread_struct(thread_t *t, const char *name) {
     memset(t, 0, sizeof(thread_t));
     t->magic = THREAD_MAGIC;
@@ -274,7 +284,7 @@ status_t thread_resume(thread_t *t) {
             resched = true;
     }
 
-    mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
+    wakeup_cpu_for_thread(t);
 
     THREAD_UNLOCK(state);
 
@@ -685,7 +695,8 @@ void thread_unblock(thread_t *t, bool resched) {
 
     t->state = THREAD_READY;
     insert_in_run_queue_head(t);
-    mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
+    wakeup_cpu_for_thread(t);
+
     if (resched)
         thread_resched();
 }
@@ -1116,7 +1127,7 @@ int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t wait_queue
             insert_in_run_queue_head(current_thread);
         }
         insert_in_run_queue_head(t);
-        mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
+        wakeup_cpu_for_thread(t);
         if (reschedule) {
             thread_resched();
         }
@@ -1145,6 +1156,7 @@ int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t wait_queue
 int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue_error) {
     thread_t *t;
     int ret = 0;
+    uint32_t cpu_mask = 0;
 
     thread_t *current_thread = get_current_thread();
 
@@ -1168,7 +1180,11 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
         t->state = THREAD_READY;
         t->wait_queue_block_ret = wait_queue_error;
         t->blocking_wait_queue = NULL;
-
+        if (thread_pinned_cpu(t) < 0) {
+            cpu_mask = MP_CPU_ALL_BUT_LOCAL;
+        } else {
+            cpu_mask |= (1U << thread_pinned_cpu(t));
+        }
         insert_in_run_queue_head(t);
         ret++;
     }
@@ -1176,7 +1192,7 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
     DEBUG_ASSERT(wait->count == 0);
 
     if (ret > 0) {
-        mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
+        mp_reschedule(cpu_mask, 0);
         if (reschedule) {
             thread_resched();
         }
@@ -1229,7 +1245,7 @@ status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error) 
     t->state = THREAD_READY;
     t->wait_queue_block_ret = wait_queue_error;
     insert_in_run_queue_head(t);
-    mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
+    wakeup_cpu_for_thread(t);
 
     return NO_ERROR;
 }
