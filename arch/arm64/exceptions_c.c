@@ -18,6 +18,123 @@ struct fault_handler_table_entry {
     uint64_t fault_handler;
 };
 
+struct fault_status_map {
+    uint32_t fsc;
+    const char *fault_msg;
+};
+
+/* Instruction and Data abort share the fault status encoding */
+static const struct fault_status_map fsc_map[] = {
+    {
+        .fsc = 0b000000,
+        .fault_msg = "Address size fault, level 0 of translation or translation table base register"
+    },
+    {
+        .fsc = 0b000001,
+        .fault_msg = "Address size fault, level 1"
+    },
+    {
+        .fsc = 0b000010,
+        .fault_msg = "Address size fault, level 2"
+    },
+    {
+        .fsc = 0b000011,
+        .fault_msg = "Address size fault, level 3"
+    },
+    {
+        .fsc = 0b000100,
+        .fault_msg = "Translation fault, level 0"
+    },
+    {
+        .fsc = 0b000101,
+        .fault_msg = "Translation fault, level 1"
+    },
+    {
+        .fsc = 0b000110,
+        .fault_msg = "Translation fault, level 2"
+    },
+    {
+        .fsc = 0b000111,
+        .fault_msg = "Translation fault, level 3"
+    },
+    {
+        .fsc = 0b001001,
+        .fault_msg = "Access flag fault, level 1"
+    },
+    {
+        .fsc = 0b001010,
+        .fault_msg = "Access flag fault, level 2"
+    },
+    {
+        .fsc = 0b001011,
+        .fault_msg = "Access flag fault, level 3"
+    },
+    {
+        .fsc = 0b001101,
+        .fault_msg = "Permission fault, level 1"
+    },
+    {
+        .fsc = 0b001110,
+        .fault_msg = "Permission fault, level 2"
+    },
+    {
+        .fsc = 0b001111,
+        .fault_msg = "Permission fault, level 3"
+    },
+    {
+        .fsc = 0b010000,
+        .fault_msg = "Synchronous External abort, not on translation table walk"
+    },
+    {
+        .fsc = 0b010001,
+        .fault_msg = "Synchronous Tag Check fail"
+    },
+    {
+        .fsc = 0b010100,
+        .fault_msg = "Synchronous External abort, on translation table walk, level 0"
+    },
+    {
+        .fsc = 0b010101,
+        .fault_msg = "Synchronous External abort, on translation table walk, level 1"
+    },
+    {
+        .fsc = 0b010110,
+        .fault_msg = "Synchronous External abort, on translation table walk, level 2"
+    },
+    {
+        .fsc = 0b010111,
+        .fault_msg = "Synchronous External abort, on translation table walk, level 3"
+    },
+    {
+        .fsc = 0b100001,
+        .fault_msg = "Alignment fault"
+    },
+    {
+        .fsc = 0b110000,
+        .fault_msg = "TLB conflict abort"
+    },
+    {
+        .fsc = 0b111101,
+        .fault_msg = "Section Domain Fault, used only for faults reported in the PAR_EL1"
+    },
+    {
+        .fsc = 0b111110,
+        .fault_msg = "Page Domain Fault, used only for faults reported in the PAR_EL1"
+    },
+};
+
+static void print_fault_msg(uint32_t fsc)
+{
+    uint32_t i;
+
+    for (i = 0; i < countof(fsc_map); i++) {
+        if (fsc_map[i].fsc == fsc) {
+            printf("%s\n", fsc_map[i].fault_msg);
+            break;
+        }
+    }
+}
+
 extern struct fault_handler_table_entry __fault_handler_table_start[];
 extern struct fault_handler_table_entry __fault_handler_table_end[];
 
@@ -33,6 +150,7 @@ static void dump_iframe(const struct arm64_iframe_long *iframe) {
     printf("x28 0x%16llx x29 0x%16llx lr  0x%16llx usp 0x%16llx\n", iframe->r[28], iframe->r[29], iframe->lr, iframe->usp);
     printf("elr 0x%16llx\n", iframe->elr);
     printf("spsr 0x%16llx\n", iframe->spsr);
+    arch_stacktrace(iframe->r[29], iframe->elr);
 }
 
 __WEAK void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit) {
@@ -65,6 +183,7 @@ void arm64_sync_exception(struct arm64_iframe_long *iframe) {
         case 0b100000: /* instruction abort from lower level */
         case 0b100001: /* instruction abort from same level */
             printf("instruction abort: PC at 0x%llx\n", iframe->elr);
+            print_fault_msg(BITS(iss, 5, 0));
             break;
         case 0b100100: /* data abort from lower level */
         case 0b100101: { /* data abort from same level */
@@ -80,14 +199,9 @@ void arm64_sync_exception(struct arm64_iframe_long *iframe) {
             /* read the FAR register */
             uint64_t far = ARM64_READ_SYSREG(far_el1);
 
-            /* decode the iss */
-            if (BIT(iss, 24)) { /* ISV bit */
-                printf("data fault: PC at 0x%llx, FAR 0x%llx, iss 0x%x (DFSC 0x%lx)\n",
-                       iframe->elr, far, iss, BITS(iss, 5, 0));
-            } else {
-                printf("data fault: PC at 0x%llx, FAR 0x%llx, iss 0x%x\n", iframe->elr, far, iss);
-            }
-
+            printf("data fault: %s access from PC 0x%llx, FAR 0x%llx, iss 0x%x (DFSC 0x%lx)\n",
+                   BIT(iss, 6) ? "Write" : "Read", iframe->elr, far, iss, BITS(iss, 5, 0));
+            print_fault_msg(BITS(iss, 5, 0));
             break;
         }
         default:
@@ -107,6 +221,3 @@ void arm64_invalid_exception(struct arm64_iframe_long *iframe, unsigned int whic
 
     panic("die\n");
 }
-
-
-

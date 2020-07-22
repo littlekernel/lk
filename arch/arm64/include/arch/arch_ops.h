@@ -16,6 +16,8 @@
 
 #define ENABLE_CYCLE_COUNTER 1
 
+void arch_stacktrace(uint64_t fp, uint64_t pc);
+
 // override of some routines
 static inline void arch_enable_ints(void) {
     CF;
