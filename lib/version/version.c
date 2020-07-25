@@ -22,7 +22,7 @@
 #define BUILDID ""
 #endif
 
-const lk_version_t version = {
+const lk_version_t lk_version = {
     .struct_version = VERSION_STRUCT_VERSION,
     .arch = ARCH,
     .platform = PLATFORM,
@@ -33,11 +33,11 @@ const lk_version_t version = {
 
 void print_version(void) {
     printf("version:\n");
-    printf("\tarch:     %s\n", version.arch);
-    printf("\tplatform: %s\n", version.platform);
-    printf("\ttarget:   %s\n", version.target);
-    printf("\tproject:  %s\n", version.project);
-    printf("\tbuildid:  %s\n", version.buildid);
+    printf("\tarch:     %s\n", lk_version.arch);
+    printf("\tplatform: %s\n", lk_version.platform);
+    printf("\ttarget:   %s\n", lk_version.target);
+    printf("\tproject:  %s\n", lk_version.project);
+    printf("\tbuildid:  %s\n", lk_version.buildid);
 }
 
 static int cmd_version(int argc, const console_cmd_args *argv) {

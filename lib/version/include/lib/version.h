@@ -22,7 +22,7 @@ typedef struct {
     const char *buildid;
 } lk_version_t;
 
-extern const lk_version_t version;
+extern const lk_version_t lk_version;
 
 void print_version(void);
 

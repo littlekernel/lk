@@ -40,7 +40,7 @@ extern char __rom_end;
 
 const struct buildsig buildsig __SECTION(".text.boot") = {
     .magic = MAGIC,
-    .version = &version,
+    .version = &lk_version,
     .magic2 = MAGIC2,
 #if WITH_APP_BOOTLOADER
     .buildtype = 1, /* TODO: pull from systemwide headers */
