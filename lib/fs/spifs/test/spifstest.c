@@ -629,7 +629,7 @@ static bool test_truncate_file(const char *dev_name) {
 }
 
 // Run the SPIFS test suite.
-static int spifs_test(int argc, const cmd_args *argv) {
+static int spifs_test(int argc, const console_cmd_args *argv) {
     if (argc != 3) {
         printf("Expected 3 arguments, got %d.\n", argc);
         return -1;
@@ -674,7 +674,7 @@ static int spifs_test(int argc, const cmd_args *argv) {
 }
 
 // Benchmark SPIFS.
-static int spifs_bench(int argc, const cmd_args *argv) {
+static int spifs_bench(int argc, const console_cmd_args *argv) {
     if (argc != 3) {
         printf("Expected 3 arguments, got %d.\n", argc);
         return -1;
@@ -785,7 +785,7 @@ finish:
     return retcode;
 }
 
-static int cmd_spifs(int argc, const cmd_args *argv) {
+static int cmd_spifs(int argc, const console_cmd_args *argv) {
     if (argc < 3) {
         printf("not enough arguments:\n");
 usage:

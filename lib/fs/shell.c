@@ -56,7 +56,7 @@ static char *prepend_cwd(char *path, size_t len, const char *arg) {
     return path;
 }
 
-static int cmd_ls(int argc, const cmd_args *argv) {
+static int cmd_ls(int argc, const console_cmd_args *argv) {
     status_t status = NO_ERROR;
 
     // construct the path
@@ -110,7 +110,7 @@ err:
     return status;;
 }
 
-static int cmd_cd(int argc, const cmd_args *argv) {
+static int cmd_cd(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
         set_cwd(NULL);
     } else {
@@ -130,13 +130,13 @@ static int cmd_cd(int argc, const cmd_args *argv) {
     return 0;
 }
 
-static int cmd_pwd(int argc, const cmd_args *argv) {
+static int cmd_pwd(int argc, const console_cmd_args *argv) {
     puts(get_cwd());
 
     return 0;
 }
 
-static int cmd_mkdir(int argc, const cmd_args *argv) {
+static int cmd_mkdir(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
         printf("not enough arguments\n");
         printf("usage: %s <path>\n", argv[0].str);
@@ -154,7 +154,7 @@ static int cmd_mkdir(int argc, const cmd_args *argv) {
     return status;
 }
 
-static int cmd_mkfile(int argc, const cmd_args *argv) {
+static int cmd_mkfile(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
         printf("not enough arguments\n");
         printf("usage: %s <path> [length]\n", argv[0].str);
@@ -178,7 +178,7 @@ err:
     return status;
 }
 
-static int cmd_rm(int argc, const cmd_args *argv) {
+static int cmd_rm(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
         printf("not enough arguments\n");
         printf("usage: %s <path>\n", argv[0].str);
@@ -197,7 +197,7 @@ static int cmd_rm(int argc, const cmd_args *argv) {
     return 0;
 }
 
-static int cmd_stat(int argc, const cmd_args *argv) {
+static int cmd_stat(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
         printf("not enough arguments\n");
         printf("usage: %s <path>\n", argv[0].str);
@@ -236,7 +236,7 @@ err:
     return status;
 }
 
-static int cmd_cat(int argc, const cmd_args *argv) {
+static int cmd_cat(int argc, const console_cmd_args *argv) {
     status_t status = NO_ERROR;
 
     if (argc < 2) {

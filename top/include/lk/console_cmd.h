@@ -19,9 +19,9 @@ typedef struct {
     void *p;
     long i;
     bool b;
-} cmd_args;
+} console_cmd_args;
 
-typedef int (*console_cmd)(int argc, const cmd_args *argv);
+typedef int (*console_cmd_func)(int argc, const console_cmd_args *argv);
 
 #define CMD_AVAIL_NORMAL (0x1 << 0)
 #define CMD_AVAIL_PANIC  (0x1 << 1)

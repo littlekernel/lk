@@ -28,7 +28,7 @@
 #include <lwip/api.h>
 #include <lwip/ip_addr.h>
 
-static int net_cmd(int argc, const cmd_args *argv)
+static int net_cmd(int argc, const console_cmd_args *argv)
 {
 	if (argc < 2) {
 		printf("%s commands:\n", argv[0].str);

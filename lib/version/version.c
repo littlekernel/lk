@@ -40,7 +40,7 @@ void print_version(void) {
     printf("\tbuildid:  %s\n", version.buildid);
 }
 
-static int cmd_version(int argc, const cmd_args *argv) {
+static int cmd_version(int argc, const console_cmd_args *argv) {
     print_version();
     return 0;
 }

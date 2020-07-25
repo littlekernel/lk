@@ -498,7 +498,7 @@ static ssize_t hexstr_to_val(const char *str, uint8_t **buf) {
     return pos;
 }
 
-static int cmd_sysparam(int argc, const cmd_args *argv) {
+static int cmd_sysparam(int argc, const console_cmd_args *argv) {
     status_t err;
 
     if (argc < 2) {

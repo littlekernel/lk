@@ -52,7 +52,7 @@ test_normalize("/bleh/bar/../../foo/../meh");
 #endif
 
 #if LK_DEBUGLEVEL > 1
-static int cmd_fs(int argc, const cmd_args *argv);
+static int cmd_fs(int argc, const console_cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("fs", "fs debug commands", &cmd_fs)
@@ -60,7 +60,7 @@ STATIC_COMMAND_END(fs);
 
 extern int fs_mount_type(const char *path, const char *device, const char *name);
 
-static int cmd_fs_ioctl(int argc, const cmd_args *argv) {
+static int cmd_fs_ioctl(int argc, const console_cmd_args *argv) {
     if (argc < 3) {
         printf("not enough arguments\n");
         return ERR_INVALID_ARGS;
@@ -135,7 +135,7 @@ static int cmd_fs_ioctl(int argc, const cmd_args *argv) {
     return ERR_NOT_SUPPORTED;
 }
 
-static int cmd_fs(int argc, const cmd_args *argv) {
+static int cmd_fs(int argc, const console_cmd_args *argv) {
     int rc = 0;
 
     if (argc < 2) {

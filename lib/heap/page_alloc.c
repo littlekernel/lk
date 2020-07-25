@@ -76,14 +76,14 @@ void *page_first_alloc(size_t *size_return) {
 
 #if LK_DEBUGLEVEL > 1
 
-static int cmd_page_alloc(int argc, const cmd_args *argv);
+static int cmd_page_alloc(int argc, const console_cmd_args *argv);
 static void page_alloc_dump(void);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("page_alloc", "page allocator debug commands", &cmd_page_alloc)
 STATIC_COMMAND_END(page_alloc);
 
-static int cmd_page_alloc(int argc, const cmd_args *argv) {
+static int cmd_page_alloc(int argc, const console_cmd_args *argv) {
     if (argc != 2) {
 notenoughargs:
         printf("not enough arguments\n");

@@ -15,7 +15,7 @@
 void read_xyz(void);
 
 STATIC_COMMAND_START
-STATIC_COMMAND("read_xyz", "read xyz vectors", (console_cmd)&read_xyz)
+STATIC_COMMAND("read_xyz", "read xyz vectors", (console_cmd_func)&read_xyz)
 STATIC_COMMAND_END(accelerometer);
 
 void read_xyz(void) {

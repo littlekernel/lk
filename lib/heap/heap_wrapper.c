@@ -298,13 +298,13 @@ static void heap_test(void) {
 
 #if LK_DEBUGLEVEL > 1
 
-static int cmd_heap(int argc, const cmd_args *argv);
+static int cmd_heap(int argc, const console_cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("heap", "heap debug commands", &cmd_heap)
 STATIC_COMMAND_END(heap);
 
-static int cmd_heap(int argc, const cmd_args *argv) {
+static int cmd_heap(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

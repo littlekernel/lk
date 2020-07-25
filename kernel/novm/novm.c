@@ -251,14 +251,14 @@ status_t novm_alloc_specific_pages(void *address, size_t pages) {
 
 #if LK_DEBUGLEVEL > 1
 
-static int cmd_novm(int argc, const cmd_args *argv);
+static int cmd_novm(int argc, const console_cmd_args *argv);
 static void novm_dump(void);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("novm", "page allocator (for devices without VM support) debug commands", &cmd_novm)
 STATIC_COMMAND_END(novm);
 
-static int cmd_novm(int argc, const cmd_args *argv) {
+static int cmd_novm(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

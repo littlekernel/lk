@@ -15,7 +15,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat"
 
-int printf_tests(int argc, const cmd_args *argv) {
+int printf_tests(int argc, const console_cmd_args *argv) {
     printf("printf tests\n");
 
     printf("numbers:\n");
@@ -111,7 +111,7 @@ int printf_tests(int argc, const cmd_args *argv) {
 
 #include "float_test_vec.c"
 
-int printf_tests_float(int argc, const cmd_args *argv) {
+int printf_tests_float(int argc, const console_cmd_args *argv) {
     printf("floating point printf tests\n");
 
     for (size_t i = 0; i < float_test_vec_size; i++) {

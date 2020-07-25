@@ -707,7 +707,7 @@ int group_waiting(void) {
 
 #define RUN_TEST(t)  result = t(); if (result) goto fail
 
-int port_tests(int argc, const cmd_args *argv) {
+int port_tests(int argc, const console_cmd_args *argv) {
     int result;
     int count = 3;
     while (count--) {

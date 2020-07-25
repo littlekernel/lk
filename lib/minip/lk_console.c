@@ -40,7 +40,7 @@ void arp_usage(void) {
     printf("arp query <ipv4 address>        query arp address\n");
 }
 
-static int cmd_arp(int argc, const cmd_args *argv) {
+static int cmd_arp(int argc, const console_cmd_args *argv) {
     const char *cmd;
 
     if (argc == 1) {
@@ -63,7 +63,7 @@ static int cmd_arp(int argc, const cmd_args *argv) {
     return 0;
 }
 
-static int cmd_minip(int argc, const cmd_args *argv) {
+static int cmd_minip(int argc, const console_cmd_args *argv) {
     if (argc == 1) {
 minip_usage:
         printf("minip commands\n");

@@ -27,10 +27,10 @@
 #include <platform.h>
 #include <stdio.h>
 
-static int cmd_threads(int argc, const cmd_args *argv);
-static int cmd_threadstats(int argc, const cmd_args *argv);
-static int cmd_threadload(int argc, const cmd_args *argv);
-static int cmd_kevlog(int argc, const cmd_args *argv);
+static int cmd_threads(int argc, const console_cmd_args *argv);
+static int cmd_threadstats(int argc, const console_cmd_args *argv);
+static int cmd_threadload(int argc, const console_cmd_args *argv);
+static int cmd_kevlog(int argc, const console_cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 1
@@ -46,7 +46,7 @@ STATIC_COMMAND_MASKED("kevlog", "dump kernel event log", &cmd_kevlog, CMD_AVAIL_
 STATIC_COMMAND_END(kernel);
 
 #if LK_DEBUGLEVEL > 1
-static int cmd_threads(int argc, const cmd_args *argv) {
+static int cmd_threads(int argc, const console_cmd_args *argv) {
     printf("thread list:\n");
     dump_all_threads();
 
@@ -55,7 +55,7 @@ static int cmd_threads(int argc, const cmd_args *argv) {
 #endif
 
 #if THREAD_STATS
-static int cmd_threadstats(int argc, const cmd_args *argv) {
+static int cmd_threadstats(int argc, const console_cmd_args *argv) {
     for (uint i = 0; i < SMP_MAX_CPUS; i++) {
         if (!mp_is_cpu_active(i))
             continue;
@@ -127,7 +127,7 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
     return INT_NO_RESCHEDULE;
 }
 
-static int cmd_threadload(int argc, const cmd_args *argv) {
+static int cmd_threadload(int argc, const console_cmd_args *argv) {
     static bool showthreadload = false;
     static timer_t tltimer;
 
@@ -201,7 +201,7 @@ void kernel_evlog_dump(void) {
     kernel_evlog_enable = true;
 }
 
-static int cmd_kevlog(int argc, const cmd_args *argv) {
+static int cmd_kevlog(int argc, const console_cmd_args *argv) {
     printf("kernel event log:\n");
     kernel_evlog_dump();
 

@@ -28,14 +28,14 @@
 #define SUB_ERASE_TEST_SAMPLES (32)
 
 #if LK_DEBUGLEVEL > 0
-static int cmd_bio(int argc, const cmd_args *argv);
+static int cmd_bio(int argc, const console_cmd_args *argv);
 static int bio_test_device(bdev_t *device);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("bio", "block io debug commands", &cmd_bio)
 STATIC_COMMAND_END(bio);
 
-static int cmd_bio(int argc, const cmd_args *argv) {
+static int cmd_bio(int argc, const console_cmd_args *argv) {
     int rc = 0;
 
     if (argc < 2) {

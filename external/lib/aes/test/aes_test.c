@@ -32,7 +32,7 @@ static const uint8_t expected_ciphertext[] = {
     0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a
 };
 
-static int aes_command(int argc, const cmd_args *argv)
+static int aes_command(int argc, const console_cmd_args *argv)
 {
     AES_KEY aes_key;
     uint8_t ciphertext[AES_BLOCK_SIZE];
@@ -60,7 +60,7 @@ static int aes_command(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int aes_bench(int argc, const cmd_args *argv)
+static int aes_bench(int argc, const console_cmd_args *argv)
 {
     uint32_t c;
     int i;

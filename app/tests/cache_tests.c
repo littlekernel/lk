@@ -50,7 +50,7 @@ static void bench_cache(size_t bufsize, uint8_t *buf) {
     printf("took %llu usecs to clean %d bytes (hot)\n", t, bufsize);
 }
 
-static int cache_tests(int argc, const cmd_args *argv) {
+static int cache_tests(int argc, const console_cmd_args *argv) {
     uint8_t *buf;
     buf = (uint8_t *)((argc > 1) ? argv[1].u : 0UL);
 

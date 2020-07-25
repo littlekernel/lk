@@ -225,7 +225,7 @@ __NO_INLINE static void bench_sincos(void) {
 
 #endif // WITH_LIB_LIBM
 
-int benchmarks(int argc, const cmd_args *argv) {
+int benchmarks(int argc, const console_cmd_args *argv) {
     bench_set_overhead();
     bench_memset();
     bench_memcpy();

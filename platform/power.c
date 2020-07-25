@@ -38,12 +38,12 @@ __WEAK void platform_halt(platform_halt_action suggested_action,
         arch_idle();
 }
 
-static int cmd_reboot(int argc, const cmd_args *argv) {
+static int cmd_reboot(int argc, const console_cmd_args *argv) {
     platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
     return 0;
 }
 
-static int cmd_poweroff(int argc, const cmd_args *argv) {
+static int cmd_poweroff(int argc, const console_cmd_args *argv) {
     platform_halt(HALT_ACTION_SHUTDOWN, HALT_REASON_SW_RESET);
     return 0;
 }

@@ -20,27 +20,27 @@
 typedef struct {
     const char *cmd_str;
     const char *help_str;
-    const console_cmd cmd_callback;
+    const console_cmd_func cmd_callback;
     uint8_t availability_mask;
-} cmd;
+} console_cmd;
 
 /* a block of commands to register */
 typedef struct _cmd_block {
     const char *name;
     size_t count;
-    const cmd *list;
-} cmd_block;
+    const console_cmd *list;
+} console_cmd_block;
 
-#define STATIC_COMMAND_START static const cmd _cmd_list[] = {
+#define STATIC_COMMAND_START static const console_cmd _cmd_list[] = {
 
-#define STATIC_COMMAND_END(name) }; const cmd_block _cmd_block_##name \
+#define STATIC_COMMAND_END(name) }; const console_cmd_block _cmd_block_##name \
     __ALIGNED(sizeof(void *)) __SECTION("commands") = \
     { #name, sizeof(_cmd_list) / sizeof(_cmd_list[0]), _cmd_list }
 
 /* same as above but with a suffixed name to make the list unique within the file */
-#define STATIC_COMMAND_START_NAMED(name) static const cmd _cmd_list_##name[] = {
+#define STATIC_COMMAND_START_NAMED(name) static const console_cmd _cmd_list_##name[] = {
 
-#define STATIC_COMMAND_END_NAMED(name) }; const cmd_block _cmd_block_##name \
+#define STATIC_COMMAND_END_NAMED(name) }; const console_cmd_block _cmd_block_##name \
     __ALIGNED(sizeof(void *)) __SECTION("commands") = \
     { #name, sizeof(_cmd_list_##name) / sizeof(_cmd_list_##name[0]), _cmd_list_##name }
 

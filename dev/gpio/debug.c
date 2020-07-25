@@ -42,7 +42,7 @@ static unsigned int get_flag_value(const char *str) {
 /* Ideally this would be generic, but different platforms have varying manners of handling gpio
  * numbers / banks etc. Nvidia uses A-F, ST uses # and ports, Xilinx uses #s and banks. Etc.
  */
-static int cmd_gpio(int argc, const cmd_args *argv) {
+static int cmd_gpio(int argc, const console_cmd_args *argv) {
     if (argc == 4 && !strcmp(argv[1].str,"set")) {
         unsigned int gpio = argv[2].u;
         unsigned int value = argv[3].u;

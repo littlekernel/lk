@@ -1177,7 +1177,7 @@ out:
 }
 
 /* debug stuff */
-static int cmd_tcp(int argc, const cmd_args *argv) {
+static int cmd_tcp(int argc, const console_cmd_args *argv) {
     status_t err;
 
     if (argc < 2) {

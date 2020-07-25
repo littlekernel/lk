@@ -712,7 +712,7 @@ static void dump_aspace(const vmm_aspace_t *a) {
     }
 }
 
-static int cmd_vmm(int argc, const cmd_args *argv) {
+static int cmd_vmm(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

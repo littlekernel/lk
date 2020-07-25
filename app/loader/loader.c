@@ -127,7 +127,7 @@ int tftp_callback(void *data, size_t len, void *arg) {
     return 0;
 }
 
-static int loader(int argc, const cmd_args *argv) {
+static int loader(int argc, const console_cmd_args *argv) {
     static int any_slot = 0;
     static int elf_slot = 1;
 

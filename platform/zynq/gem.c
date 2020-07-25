@@ -531,7 +531,7 @@ void gem_set_macaddr(uint8_t mac[6]) {
 
 
 /* Debug console commands */
-static int cmd_gem(int argc, const cmd_args *argv) {
+static int cmd_gem(int argc, const console_cmd_args *argv) {
     static uint32_t frames_rx = 0;
     static uint32_t frames_tx = 0;
     static bool run_stats = false;

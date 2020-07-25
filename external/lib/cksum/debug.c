@@ -30,10 +30,10 @@
 
 #include <lk/console_cmd.h>
 
-static int cmd_crc16(int argc, const cmd_args *argv);
-static int cmd_crc32(int argc, const cmd_args *argv);
-static int cmd_adler32(int argc, const cmd_args *argv);
-static int cmd_cksum_bench(int argc, const cmd_args *argv);
+static int cmd_crc16(int argc, const console_cmd_args *argv);
+static int cmd_crc32(int argc, const console_cmd_args *argv);
+static int cmd_adler32(int argc, const console_cmd_args *argv);
+static int cmd_cksum_bench(int argc, const console_cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
@@ -46,7 +46,7 @@ STATIC_COMMAND("bench_cksum", "benchmark the checksum routines", &cmd_cksum_benc
 #endif
 STATIC_COMMAND_END(crc);
 
-static int cmd_crc16(int argc, const cmd_args *argv)
+static int cmd_crc16(int argc, const console_cmd_args *argv)
 {
     if (argc < 3) {
         printf("not enough arguments\n");
@@ -61,7 +61,7 @@ static int cmd_crc16(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_crc32(int argc, const cmd_args *argv)
+static int cmd_crc32(int argc, const console_cmd_args *argv)
 {
     if (argc < 3) {
         printf("not enough arguments\n");
@@ -76,7 +76,7 @@ static int cmd_crc32(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_adler32(int argc, const cmd_args *argv)
+static int cmd_adler32(int argc, const console_cmd_args *argv)
 {
     if (argc < 3) {
         printf("not enough arguments\n");
@@ -91,7 +91,7 @@ static int cmd_adler32(int argc, const cmd_args *argv)
     return 0;
 }
 
-static int cmd_cksum_bench(int argc, const cmd_args *argv)
+static int cmd_cksum_bench(int argc, const console_cmd_args *argv)
 {
 #define BUFSIZE 0x1000
 #define ITER 16384

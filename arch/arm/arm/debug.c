@@ -136,7 +136,7 @@ static void dcc_rx_callback(uint32_t val) {
         printf("count %d\n", count);
 }
 
-static int cmd_dcc(int argc, const cmd_args *argv) {
+static int cmd_dcc(int argc, const console_cmd_args *argv) {
     static bool dcc_started = false;
 
     if (argc < 2) {

@@ -52,7 +52,7 @@ void target_set_debug_led(unsigned int led, bool on) {
     }
 }
 
-static int cmd_i2c_rb(int argc, const cmd_args *argv) {
+static int cmd_i2c_rb(int argc, const console_cmd_args *argv) {
 
     if (argc != 3) {
         printf("usage: i2c_rb <addr> <reg>\n");

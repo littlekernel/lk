@@ -396,7 +396,7 @@ static void dump_arena(const pmm_arena_t *arena, bool dump_pages) {
     }
 }
 
-static int cmd_pmm(int argc, const cmd_args *argv) {
+static int cmd_pmm(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

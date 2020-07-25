@@ -98,7 +98,7 @@ status_t buildsig_search(const void *_ptr, size_t search_len, size_t max_len, co
 
 extern char __rom_start;
 
-static int cmd_buildsig(int argc, const cmd_args *argv) {
+static int cmd_buildsig(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 //notenoughargs:
         printf("not enough args\n");

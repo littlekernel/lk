@@ -409,7 +409,7 @@ static int spiflash_ioctl(struct bdev *bdev, int request, void *argp) {
 }
 
 // debug tests
-int cmd_spiflash(int argc, const cmd_args *argv) {
+int cmd_spiflash(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

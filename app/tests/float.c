@@ -70,7 +70,7 @@ static void arm_float_instruction_trap_test(void) {
 }
 #endif
 
-static void float_tests(void) {
+static int float_tests(int argc, const console_cmd_args *argv) {
     printf("floating point test:\n");
 
     /* test lazy fpu load on separate thread */
@@ -97,10 +97,12 @@ static void float_tests(void) {
     /* test all the instruction traps */
     arm_float_instruction_trap_test();
 #endif
+
+    return 0;
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("float_tests", "floating point test", (console_cmd)&float_tests)
+STATIC_COMMAND("float_tests", "floating point test", &float_tests)
 STATIC_COMMAND_END(float_tests);
 
 #endif // ARM_WITH_VFP || ARCH_ARM64

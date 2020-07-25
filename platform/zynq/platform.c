@@ -457,7 +457,7 @@ bool platform_abort_autoboot(void) {
     return false;
 }
 
-static int cmd_zynq(int argc, const cmd_args *argv) {
+static int cmd_zynq(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

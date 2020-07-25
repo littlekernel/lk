@@ -69,18 +69,18 @@ static void dump_history(void);
 /* a linear array of statically defined command blocks,
    defined in the linker script.
  */
-extern const cmd_block __start_commands __WEAK;
-extern const cmd_block __stop_commands __WEAK;
+extern const console_cmd_block __start_commands __WEAK;
+extern const console_cmd_block __stop_commands __WEAK;
 
-static int cmd_help(int argc, const cmd_args *argv);
-static int cmd_help_panic(int argc, const cmd_args *argv);
-static int cmd_echo(int argc, const cmd_args *argv);
-static int cmd_test(int argc, const cmd_args *argv);
+static int cmd_help(int argc, const console_cmd_args *argv);
+static int cmd_help_panic(int argc, const console_cmd_args *argv);
+static int cmd_echo(int argc, const console_cmd_args *argv);
+static int cmd_test(int argc, const console_cmd_args *argv);
 #if CONSOLE_ENABLE_HISTORY
-static int cmd_history(int argc, const cmd_args *argv);
+static int cmd_history(int argc, const console_cmd_args *argv);
 #endif
 #if CONSOLE_ENABLE_REPEAT
-static int cmd_repeat(int argc, const cmd_args *argv);
+static int cmd_repeat(int argc, const console_cmd_args *argv);
 #endif
 
 STATIC_COMMAND_START
@@ -99,7 +99,7 @@ STATIC_COMMAND("repeat", "repeats command multiple times", &cmd_repeat)
 STATIC_COMMAND_END(help);
 
 #if CONSOLE_ENABLE_HISTORY
-static int cmd_history(int argc, const cmd_args *argv) {
+static int cmd_history(int argc, const console_cmd_args *argv) {
     dump_history();
     return 0;
 }
@@ -176,7 +176,7 @@ static const char *prev_history(uint *cursor) {
 #endif  // CONSOLE_ENABLE_HISTORY
 
 #if CONSOLE_ENABLE_REPEAT
-static int cmd_repeat(int argc, const cmd_args *argv) {
+static int cmd_repeat(int argc, const console_cmd_args *argv) {
     if (argc < 4) goto usage;
     int times = argv[1].i;
     int delay = argv[2].i;
@@ -219,9 +219,9 @@ usage:
 }
 #endif  // CONSOLE_ENABLE_REPEAT
 
-static const cmd *match_command(const char *command, const uint8_t availability_mask) {
-    for (const cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
-        const cmd *curr_cmd = block->list;
+static const console_cmd *match_command(const char *command, const uint8_t availability_mask) {
+    for (const console_cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
+        const console_cmd *curr_cmd = block->list;
         for (size_t i = 0; i < block->count; i++) {
             if ((availability_mask & curr_cmd[i].availability_mask) == 0) {
                 continue;
@@ -351,7 +351,7 @@ done:
     return pos;
 }
 
-static int tokenize_command(const char *inbuffer, const char **continuebuffer, char *buffer, size_t buflen, cmd_args *args, int arg_count) {
+static int tokenize_command(const char *inbuffer, const char **continuebuffer, char *buffer, size_t buflen, console_cmd_args *args, int arg_count) {
     int inpos;
     int outpos;
     int arg;
@@ -523,7 +523,7 @@ done:
     return arg;
 }
 
-static void convert_args(int argc, cmd_args *argv) {
+static void convert_args(int argc, console_cmd_args *argv) {
     int i;
 
     for (i = 0; i < argc; i++) {
@@ -548,12 +548,12 @@ static status_t command_loop(int (*get_line)(const char **, void *), void *get_l
 #if WITH_LIB_ENV
     bool report_result;
 #endif
-    cmd_args *args = NULL;
+    console_cmd_args *args = NULL;
     const char *buffer;
     const char *continuebuffer;
     char *outbuf = NULL;
 
-    args = (cmd_args *) malloc (MAX_NUM_ARGS * sizeof(cmd_args));
+    args = (console_cmd_args *) malloc (MAX_NUM_ARGS * sizeof(console_cmd_args));
     if (unlikely(args == NULL)) {
         goto no_mem_error;
     }
@@ -602,7 +602,7 @@ static status_t command_loop(int (*get_line)(const char **, void *), void *get_l
         convert_args(argc, args);
 
         /* try to match the command */
-        const cmd *command = match_command(args[0].str, CMD_AVAIL_NORMAL);
+        const console_cmd *command = match_command(args[0].str, CMD_AVAIL_NORMAL);
         if (!command) {
             if (showprompt)
                 printf("command not found\n");
@@ -729,8 +729,8 @@ int console_run_script_locked(const char *string) {
     return console_run_script_etc(string, true);
 }
 
-console_cmd console_get_command_handler(const char *commandstr) {
-    const cmd *command = match_command(commandstr, CMD_AVAIL_NORMAL);
+console_cmd_func console_get_command_handler(const char *commandstr) {
+    const console_cmd *command = match_command(commandstr, CMD_AVAIL_NORMAL);
 
     if (command)
         return command->cmd_callback;
@@ -741,8 +741,8 @@ console_cmd console_get_command_handler(const char *commandstr) {
 static int cmd_help_impl(uint8_t availability_mask) {
     printf("command list by block:\n");
 
-    for (const cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
-        const cmd *curr_cmd = block->list;
+    for (const console_cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
+        const console_cmd *curr_cmd = block->list;
         printf("  [%s]\n", block->name);
         for (size_t i = 0; i < block->count; i++) {
             if ((availability_mask & curr_cmd[i].availability_mask) == 0) {
@@ -757,15 +757,15 @@ static int cmd_help_impl(uint8_t availability_mask) {
     return 0;
 }
 
-static int cmd_help(int argc, const cmd_args *argv) {
+static int cmd_help(int argc, const console_cmd_args *argv) {
     return cmd_help_impl(CMD_AVAIL_NORMAL);
 }
 
-static int cmd_help_panic(int argc, const cmd_args *argv) {
+static int cmd_help_panic(int argc, const console_cmd_args *argv) {
     return cmd_help_impl(CMD_AVAIL_PANIC);
 }
 
-static int cmd_echo(int argc, const cmd_args *argv) {
+static int cmd_echo(int argc, const console_cmd_args *argv) {
     if (argc > 1)
         echo = argv[1].b;
     return NO_ERROR;
@@ -809,7 +809,7 @@ done:
 void panic_shell_start(void) {
     dprintf(INFO, "entering panic shell loop\n");
     char input_buffer[PANIC_LINE_LEN];
-    cmd_args args[MAX_NUM_ARGS];
+    console_cmd_args args[MAX_NUM_ARGS];
 
     // panic_fd allows us to do I/O using the polling drivers.
     // These drivers function even if interrupts are disabled.
@@ -837,7 +837,7 @@ void panic_shell_start(void) {
 
         convert_args(argc, args);
 
-        const cmd *command = match_command(args[0].str, CMD_AVAIL_PANIC);
+        const console_cmd *command = match_command(args[0].str, CMD_AVAIL_PANIC);
         if (!command) {
             fputs("command not found\n", panic_fd);
             continue;
@@ -848,7 +848,7 @@ void panic_shell_start(void) {
 }
 
 #if LK_DEBUGLEVEL > 1
-static int cmd_test(int argc, const cmd_args *argv) {
+static int cmd_test(int argc, const console_cmd_args *argv) {
     int i;
 
     printf("argc %d, argv %p\n", argc, argv);

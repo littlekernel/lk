@@ -448,7 +448,7 @@ void klog_dump(int buffer) {
 _RETENTION_NOCLEAR(static uint8_t klog_test_buf[512]);
 #endif
 
-static int cmd_klog(int argc, const cmd_args *argv) {
+static int cmd_klog(int argc, const console_cmd_args *argv) {
     status_t err;
 
     if (argc < 2) {

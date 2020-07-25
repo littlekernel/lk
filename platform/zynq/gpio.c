@@ -233,7 +233,7 @@ int gpio_get(unsigned gpio) {
     return ((*REG32(GPIO_DATA_RO(bank)) & (1 << bit)) > 0);
 }
 
-static int cmd_zynq_gpio(int argc, const cmd_args *argv) {
+static int cmd_zynq_gpio(int argc, const console_cmd_args *argv) {
     for (unsigned int bank = 0; bank < 4; bank++) {
         printf("DIRM_%u (0x%08x):           0x%08x\n", bank, GPIO_DIRM(bank), *REG32(GPIO_DIRM(bank)));
         printf("OEN_%u (0x%08x):            0x%08x\n", bank, GPIO_OEN(bank), *REG32(GPIO_OEN(bank)));
