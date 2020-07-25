@@ -23,8 +23,8 @@ static uint8_t *dst2;
 #define ITERATIONS (256*1024*1024 / BUFFER_SIZE) // enough iterations to have to copy/set 256MB of memory
 
 #if 1
-static inline void *mymemcpy(void *dst, const void *src, size_t len) { return memcpy(dst, src, len); }
-static inline void *mymemset(void *dst, int c, size_t len) { return memset(dst, c, len); }
+static inline void *mymemcpy(void *dest, const void *source, size_t len) { return memcpy(dest, source, len); }
+static inline void *mymemset(void *dest, int c, size_t len) { return memset(dest, c, len); }
 #else
 // if we're testing our own memcpy, use this
 extern void *mymemcpy(void *dst, const void *src, size_t len);
@@ -37,17 +37,17 @@ typedef long word;
 #define lsize sizeof(word)
 #define lmask (lsize - 1)
 
-static void *c_memmove(void *dest, void const *src, size_t count) {
+static void *c_memmove(void *dest, void const *source, size_t count) {
     char *d = (char *)dest;
-    const char *s = (const char *)src;
+    const char *s = (const char *)source;
     int len;
 
-    if (count == 0 || dest == src)
+    if (count == 0 || dest == source)
         return dest;
 
     if ((long)d < (long)s) {
         if (((long)d | (long)s) & lmask) {
-            // src and/or dest do not align on word boundary
+            // source and/or dest do not align on word boundary
             if ((((long)d ^ (long)s) & lmask) || (count < lsize))
                 len = count; // copy the rest of the buffer with the byte mover
             else
@@ -122,8 +122,8 @@ static void *c_memset(void *s, int c, size_t count) {
     return s;
 }
 
-static void *null_memcpy(void *dst, const void *src, size_t len) {
-    return dst;
+static void *null_memcpy(void *dest, const void *source, size_t len) {
+    return dest;
 }
 
 static lk_time_t bench_memcpy_routine(void *memcpy_routine(void *, const void *, size_t), size_t srcalign, size_t dstalign) {

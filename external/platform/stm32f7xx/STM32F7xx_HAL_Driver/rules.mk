@@ -71,7 +71,7 @@ MODULE_SRCS += \
 
 include $(LOCAL_DIR)/CMSIS/rules.mk
 
-MODULE_COMPILEFLAGS += -Wno-error
+MODULE_COMPILEFLAGS += -Wno-error -Wno-shadow
 
 include make/module.mk
 

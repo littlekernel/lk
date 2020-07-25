@@ -16,7 +16,7 @@
 #include <sys/types.h>
 
 
-static volatile uint64_t ticks;
+static volatile uint64_t current_ticks;
 static uint32_t tick_rate = 0;
 static uint32_t tick_rate_mhz = 0;
 static lk_time_t tick_interval_ms;
@@ -52,8 +52,8 @@ lk_time_t current_time(void) {
     uint64_t t;
 
     do {
-        t = ticks;
-    } while (ticks != t);
+        t = current_ticks;
+    } while (current_ticks != t);
 
     return t * tick_interval_ms;
 }
@@ -63,7 +63,7 @@ lk_bigtime_t current_time_hires(void) {
 }
 
 void nrf51_RTC1_IRQ(void) {
-    ticks++;
+    current_ticks++;
     arm_cm_irq_entry();
 
     NRF_RTC1->EVENTS_TICK = 0;

@@ -139,7 +139,7 @@ fill_pdp:
     /* map the first 16MB 1:1 with 4KB pages and again at 0x8000.0000 */
 
     /* set up 4 page tables worth of entries */
-    movl $PHYS(pt), %edi
+    movl $PHYS(kernel_pt), %edi
     movl $1024*4,%ecx
     movl $X86_KERNEL_PT_FLAGS, %eax
 
@@ -152,9 +152,9 @@ fill_pdp:
     /* set up the page dir with 4 entries at 0 and 0x8000.0000 pointing
      * to 4 page tables that will map physical address 0 - 16MB
      */
-    movl $PHYS(pd), %esi
-    movl $PHYS(pd) + 512*4, %edi
-    movl $PHYS(pt) + X86_KERNEL_PT_FLAGS, %eax
+    movl $PHYS(kernel_pd), %esi
+    movl $PHYS(kernel_pd) + 512*4, %edi
+    movl $PHYS(kernel_pt) + X86_KERNEL_PT_FLAGS, %eax
     movl %eax, (%esi)
     movl %eax, (%edi)
     addl $4096, %eax
@@ -168,7 +168,7 @@ fill_pdp:
     movl %eax, 12(%edi)
 
     /* Set PD in CR3 */
-    movl $PHYS(pd), %eax
+    movl $PHYS(kernel_pd), %eax
     mov %eax, %cr3
 
     /* Enabling Paging and from this point we are in */
@@ -177,7 +177,7 @@ fill_pdp:
     mov %eax, %cr0
 #else
     /* map the first 1GB 1:1 using 4MB pages */
-    movl $PHYS(pd), %esi
+    movl $PHYS(kernel_pd), %esi
     movl $0x100, %ecx
     xor  %eax, %eax
 
@@ -190,7 +190,7 @@ fill_pdp:
     loop .Lfill_pd
 
     /* map the first 1GB to KERNEL_ASPACE_BASE */
-    movl $(PHYS(pd) + 0x800), %esi
+    movl $(PHYS(kernel_pd) + 0x800), %esi
     movl $0x100, %ecx
     xor  %eax, %eax
 
@@ -203,7 +203,7 @@ fill_pdp:
     loop .Lfill_pd2
 
     /* Set PD in CR3 */
-    movl $PHYS(pd), %eax
+    movl $PHYS(kernel_pd), %eax
     mov %eax, %cr3
 
     /* Enabling Paging and from this point we are in */

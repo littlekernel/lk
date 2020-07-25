@@ -1178,8 +1178,6 @@ out:
 
 /* debug stuff */
 static int cmd_tcp(int argc, const console_cmd_args *argv) {
-    status_t err;
-
     if (argc < 2) {
 notenoughargs:
         printf("ERROR not enough arguments\n");
@@ -1205,7 +1203,7 @@ usage:
 
         tcp_socket_t *handle;
 
-        err = tcp_open_listen(&handle, argv[2].u);
+        status_t err = tcp_open_listen(&handle, argv[2].u);
         printf("tcp_open_listen returns %d, handle %p\n", err, handle);
 
         tcp_socket_t *accepted;
@@ -1222,7 +1220,7 @@ usage:
 
         tcp_socket_t *handle;
 
-        err = tcp_open_listen(&handle, argv[2].u);
+        status_t err = tcp_open_listen(&handle, argv[2].u);
         printf("tcp_open_listen returns %d, handle %p\n", err, handle);
 
         tcp_socket_t *accepted;
@@ -1232,17 +1230,17 @@ usage:
         for (;;) {
             uint8_t buf[512];
 
-            ssize_t err = tcp_read(accepted, buf, sizeof(buf));
-            printf("tcp_read returns %ld\n", err);
-            if (err < 0)
+            ssize_t err_len = tcp_read(accepted, buf, sizeof(buf));
+            printf("tcp_read returns %ld\n", err_len);
+            if (err_len < 0)
                 break;
-            if (err > 0) {
-                hexdump8(buf, err);
+            if (err_len > 0) {
+                hexdump8(buf, err_len);
             }
 
-            err = tcp_write(accepted, buf, err);
-            printf("tcp_write returns %ld\n", err);
-            if (err < 0)
+            err_len = tcp_write(accepted, buf, err_len);
+            printf("tcp_write returns %ld\n", err_len);
+            if (err_len < 0)
                 break;
         }
 

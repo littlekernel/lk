@@ -129,7 +129,7 @@ static status_t ptable_write(void) {
         /* This is a subdevice, it should have a homogeneous erase geometry */
         DEBUG_ASSERT(1 == bdev->geometry_count);
 
-        ssize_t err = bio_erase(bdev, 0, bdev->total_size);
+        err = bio_erase(bdev, 0, bdev->total_size);
         if (err != (ssize_t)bdev->total_size) {
             LTRACEF("error %d erasing device\n", (int)err);
             BAIL(ERR_IO);
@@ -836,11 +836,11 @@ usage:
     status_t err;
     if (!strcmp(argv[1].str, "scan")) {
         if (argc < 4) goto notenoughargs;
-        status_t err = ptable_scan(argv[2].str, argv[3].u);
+        err = ptable_scan(argv[2].str, argv[3].u);
         printf("ptable_scan returns %d\n", err);
     } else if (!strcmp(argv[1].str, "default")) {
         if (argc < 4) goto notenoughargs;
-        status_t err = ptable_create_default(argv[2].str, argv[3].u);
+        err = ptable_create_default(argv[2].str, argv[3].u);
         printf("ptable_create_default returns %d\n", err);
     } else if (!strcmp(argv[1].str, "list")) {
         ptable_dump();
@@ -848,7 +848,6 @@ usage:
         bdev_t *ptable_dev = bio_open(PTABLE_PART_NAME);
 
         if (ptable_dev) {
-            status_t err;
             err = bio_erase(ptable_dev, 0, ptable_dev->total_size);
             if (err < 0) {
                 printf("ptable nuke failed (err %d)\n", err);

@@ -129,13 +129,11 @@ static int do_boot(lkb_t *lkb, size_t len, const char **result) {
     /* sniff it to see if it's a bootimage or a raw image */
     bootimage_t *bi;
     if (bootimage_open(buf, len, &bi) >= 0) {
-        size_t len;
-
         /* it's a bootimage */
         TRACEF("detected bootimage\n");
 
         /* find the lk image */
-        if (bootimage_get_file_section(bi, TYPE_LK, &ptr, &len) >= 0) {
+        if (bootimage_get_file_section(bi, TYPE_LK, &ptr, NULL) >= 0) {
             TRACEF("found lk section at %p\n", ptr);
 
             /* add the boot image to the argument list */
@@ -378,9 +376,9 @@ int lkb_handle_command(lkb_t *lkb, const char *cmd, const char *arg, size_t len,
         return do_boot(lkb, len, result);
     } else if (!strcmp(cmd, "getsysparam")) {
         const void *ptr;
-        size_t len;
-        if (sysparam_get_ptr(arg, &ptr, &len) == 0) {
-            lkb_write(lkb, ptr, len);
+        size_t len_local;
+        if (sysparam_get_ptr(arg, &ptr, &len_local) == 0) {
+            lkb_write(lkb, ptr, len_local);
         }
     } else if (!strcmp(cmd, "reboot")) {
         thread_resume(thread_create("reboot", &do_reboot, NULL,

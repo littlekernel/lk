@@ -113,7 +113,7 @@ static status_t validate_bootimage(bootimage_t *bi) {
 
                 LTRACEF("\tvalidating SHA256 hash\n");
                 SHA256_update(&ctx, (const uint8_t *)bi->ptr + be[i].file.offset, be[i].file.length);
-                const uint8_t *hash = SHA256_final(&ctx);
+                hash = SHA256_final(&ctx);
 
                 if (memcmp(hash, be[i].file.sha256, sizeof(be[i].file.sha256)) != 0) {
                     LTRACEF("bad hash of file section\n");

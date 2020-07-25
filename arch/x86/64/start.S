@@ -110,7 +110,7 @@ paging_setup:
     mov %eax, %cr4
 
     /* load the physical pointer to the top level page table */
-    movl $PHYS(pml4), %eax
+    movl $PHYS(kernel_pml4), %eax
     mov %eax, %cr3
 
     /* Long Mode Enabled at this point*/
@@ -120,27 +120,27 @@ paging_setup:
     wrmsr
 
     /* Setting the First PML4E with a PDP table reference*/
-    movl $PHYS(pdp), %eax
+    movl $PHYS(kernel_pdp), %eax
     orl  $X86_KERNEL_PD_FLAGS, %eax
-    movl %eax, PHYS(pml4)
+    movl %eax, PHYS(kernel_pml4)
 
     /* Setting the First PDPTE with a Page table reference*/
-    movl $PHYS(pte), %eax
+    movl $PHYS(kernel_pte), %eax
     orl  $X86_KERNEL_PD_FLAGS, %eax
-    movl %eax, PHYS(pdp)
+    movl %eax, PHYS(kernel_pdp)
 
     /* point the pml4e at the second high PDP (for -2GB mapping) */
-    movl $PHYS(pdp_high),   %eax
+    movl $PHYS(kernel_pdp_high),   %eax
     orl  $X86_KERNEL_PD_FLAGS, %eax
-    movl %eax, PHYS(pml4 + 8*511)
+    movl %eax, PHYS(kernel_pml4 + 8*511)
 
     /* point the second pdp at the same low level page table */
-    movl $PHYS(pte), %eax
+    movl $PHYS(kernel_pte), %eax
     orl  $X86_KERNEL_PD_FLAGS, %eax
-    movl %eax, PHYS(pdp_high + 8*510)
+    movl %eax, PHYS(kernel_pdp_high + 8*510)
 
     /* map the first 1GB in this table */
-    movl $PHYS(pte), %esi
+    movl $PHYS(kernel_pte), %esi
     movl $0x200, %ecx
     xor  %eax, %eax
 
@@ -154,7 +154,7 @@ paging_setup:
     loop 0b
 
     /* set up a linear map of the first 64GB at 0xffffff8000000000 */
-    movl $PHYS(linear_map_pdp), %esi
+    movl $PHYS(kernel_linear_map_pdp), %esi
     movl $32768, %ecx
     xor  %eax, %eax
 
@@ -172,9 +172,9 @@ paging_setup:
     loop 0b
 
     /* point the high pdp at our linear mapping page tables */
-    movl $PHYS(pdp_high), %esi
+    movl $PHYS(kernel_pdp_high), %esi
     movl $64, %ecx
-    movl $PHYS(linear_map_pdp), %eax
+    movl $PHYS(kernel_linear_map_pdp), %eax
     orl  $X86_KERNEL_PD_FLAGS, %eax
 
 0:

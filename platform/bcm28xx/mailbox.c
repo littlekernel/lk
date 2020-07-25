@@ -77,12 +77,12 @@ static status_t mailbox_read(enum mailbox_channel ch, uint32_t *result) {
 }
 
 
-static status_t mailbox_get_framebuffer(fb_mbox_t *fb_desc) {
+static status_t mailbox_get_framebuffer(fb_mbox_t *fb) {
     status_t ret = NO_ERROR;
 
-    arch_clean_cache_range((addr_t)fb_desc,sizeof(fb_mbox_t));
+    arch_clean_cache_range((addr_t)fb,sizeof(fb_mbox_t));
 
-    ret = mailbox_write(ch_framebuffer, kvaddr_to_vc_bus((addr_t)fb_desc));
+    ret = mailbox_write(ch_framebuffer, kvaddr_to_vc_bus((addr_t)fb));
     if (ret != NO_ERROR)
         return ret;
 
@@ -91,7 +91,7 @@ static status_t mailbox_get_framebuffer(fb_mbox_t *fb_desc) {
     if (ret != NO_ERROR)
         return ret;
 
-    arch_invalidate_cache_range((addr_t)fb_desc,sizeof(fb_mbox_t));
+    arch_invalidate_cache_range((addr_t)fb,sizeof(fb_mbox_t));
 
     return ret;
 }

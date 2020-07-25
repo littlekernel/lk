@@ -554,7 +554,7 @@ usage:
 
         iovec_t vec[2];
         memset(vec, 0x99, sizeof(vec));
-        int err = klog_get_buffer(buffer, vec);
+        err = klog_get_buffer(buffer, vec);
         printf("klog_get_buffer returns %d\n", err);
         printf("vec %d: base %p, len %zu\n", 0, vec[0].iov_base, vec[0].iov_len);
         printf("vec %d: base %p, len %zu\n", 1, vec[1].iov_base, vec[1].iov_len);

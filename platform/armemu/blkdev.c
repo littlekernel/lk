@@ -14,8 +14,6 @@
 #include <lib/bio.h>
 #include <lk/reg.h>
 
-static bdev_t dev;
-
 static uint64_t get_blkdev_len(void) {
     return *REG64(BDEV_LEN);
 }
@@ -51,6 +49,8 @@ ssize_t write_block(struct bdev *dev, const void *buf, bnum_t block, uint count)
 }
 
 void platform_init_blkdev(void) {
+    static bdev_t dev;
+
     if ((*REG32(SYSINFO_FEATURES) & SYSINFO_FEATURE_BLOCKDEV) == 0)
         return; // no block device
 

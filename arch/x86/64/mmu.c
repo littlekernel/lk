@@ -29,15 +29,15 @@ uint8_t g_vaddr_width = 0;
 uint8_t g_paddr_width = 0;
 
 /* top level kernel page tables, initialized in start.S */
-map_addr_t pml4[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
-map_addr_t pdp[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE); /* temporary */
-map_addr_t pte[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+map_addr_t kernel_pml4[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+map_addr_t kernel_pdp[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE); /* temporary */
+map_addr_t kernel_pte[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 
 /* top level pdp needed to map the -512GB..0 space */
-map_addr_t pdp_high[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+map_addr_t kernel_pdp_high[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 
 /* a big pile of page tables needed to map 64GB of memory into kernel space using 2MB pages */
-map_addr_t linear_map_pdp[(64ULL*GB) / (2*MB)];
+map_addr_t kernel_linear_map_pdp[(64ULL*GB) / (2*MB)];
 
 /**
  * @brief  check if the virtual address is aligned and canonical
@@ -707,7 +707,7 @@ void x86_mmu_early_init(void) {
     LTRACEF("paddr_width %u vaddr_width %u\n", g_paddr_width, g_vaddr_width);
 
     /* unmap the lower identity mapping */
-    pml4[0] = 0;
+    kernel_pml4[0] = 0;
 
     /* tlb flush */
     x86_set_cr3(x86_get_cr3());

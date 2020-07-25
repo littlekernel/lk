@@ -101,7 +101,7 @@ static void zynq_common_target_init(uint level) {
             /* we were loaded from spi flash, go look at it to see if we can find it */
             if (spi) {
                 void *ptr = 0;
-                int err = bio_ioctl(spi, BIO_IOCTL_GET_MEM_MAP, (void *)&ptr);
+                err = bio_ioctl(spi, BIO_IOCTL_GET_MEM_MAP, (void *)&ptr);
                 if (err >= 0) {
                     put_bio_memmap = true;
                     ptr = (uint8_t *)ptr + bootimage_phys;

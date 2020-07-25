@@ -614,8 +614,8 @@ usage:
     } else if (!strcmp(argv[1].str, "write")) {
         err = sysparam_write();
     } else if (!strcmp(argv[1].str, "nuke")) {
-        ssize_t err = bio_erase(params.bdev, params.offset, params.len);
-        printf("erase returns %d\n", (int)err);
+        ssize_t err_len = bio_erase(params.bdev, params.offset, params.len);
+        printf("erase returns %ld\n", err_len);
 #endif // SYSPARAM_ALLOW_WRITE
     } else if (!strcmp(argv[1].str, "length")) {
         if (argc < 3) goto notenoughargs;

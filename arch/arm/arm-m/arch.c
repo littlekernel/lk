@@ -155,7 +155,7 @@ void arm_cm_irq_exit(bool reschedule) {
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
 #if (__CORTEX_M >= 0x03)
 
-    uint32_t *vectab = (uint32_t *)entry;
+    uint32_t *entry_vector = (uint32_t *)entry;
 
     __asm__ volatile(
         "mov r0,  %[arg0]; "
@@ -169,8 +169,8 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
         [arg1]"r"(arg1),
         [arg2]"r"(arg2),
         [arg3]"r"(arg3),
-        [SP]"r"(vectab[0]),
-        [entry]"r"(vectab[1])
+        [SP]"r"(entry_vector[0]),
+        [entry]"r"(entry_vector[1])
         : "r0", "r1", "r2", "r3"
     );
 

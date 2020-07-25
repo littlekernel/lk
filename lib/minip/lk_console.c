@@ -41,14 +41,12 @@ void arp_usage(void) {
 }
 
 static int cmd_arp(int argc, const console_cmd_args *argv) {
-    const char *cmd;
-
     if (argc == 1) {
         arp_usage();
         return -1;
     }
 
-    cmd = argv[1].str;
+    const char *cmd = argv[1].str;
     if (argc == 2 && strncmp(cmd, "list", sizeof("list")) == 0) {
         arp_cache_dump();
     } else if (argc == 3 && strncmp(cmd, "query", sizeof("query")) == 0) {

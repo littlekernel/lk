@@ -194,11 +194,11 @@ __NO_INLINE static size_t exponent_to_string(char *buf, int32_t exponent) {
 
 __NO_INLINE static char *double_to_string(char *buf, size_t len, double d, uint flag) {
     size_t pos = 0;
-    union double_int u = { d };
+    union double_int du = { d };
 
-    uint32_t exponent = (u.i >> 52) & 0x7ff;
-    uint64_t fraction = (u.i & ((1ULL << 52) - 1));
-    bool neg = !!(u.i & (1ULL << 63));
+    uint32_t exponent = (du.i >> 52) & 0x7ff;
+    uint64_t fraction = (du.i & ((1ULL << 52) - 1));
+    bool neg = !!(du.i & (1ULL << 63));
 
     /* start constructing the string */
     if (neg) {

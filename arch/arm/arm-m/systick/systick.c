@@ -26,7 +26,7 @@
 
 #define LOCAL_TRACE 0
 
-static volatile uint64_t ticks;
+static volatile uint64_t current_ticks;
 static uint32_t tick_rate = 0;
 static uint32_t tick_rate_mhz = 0;
 static lk_time_t tick_interval_ms;
@@ -52,7 +52,7 @@ static void arm_cm_systick_cancel_periodic(void) {
 
 /* main systick irq handler */
 void _systick(void) {
-    ticks++;
+    current_ticks++;
 
     arm_cm_irq_entry();
 
@@ -87,10 +87,10 @@ lk_time_t current_time(void) {
     uint64_t t;
     uint32_t delta;
     do {
-        t = ticks;
+        t = current_ticks;
         delta = (volatile uint32_t)SysTick->VAL;
         DMB;
-    } while (ticks != t);
+    } while (current_ticks != t);
 
     /* convert ticks to msec */
     delta = (reload - delta) / (tick_rate_mhz * 1000);
@@ -105,10 +105,10 @@ lk_bigtime_t current_time_hires(void) {
     uint64_t t;
     uint32_t delta;
     do {
-        t = ticks;
+        t = current_ticks;
         delta = (volatile uint32_t)SysTick->VAL;
         DMB;
-    } while (ticks != t);
+    } while (current_ticks != t);
 
     /* convert ticks to usec */
     delta = (reload - delta) / tick_rate_mhz;

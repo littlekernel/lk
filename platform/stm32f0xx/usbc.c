@@ -141,7 +141,6 @@ void HAL_PCD_DataInStageCallback(PCD_HandleTypeDef *hpcd, uint8_t epnum) {
 
             LTRACEF("completing transfer %p\n", t);
 
-            PCD_EPTypeDef *ep = &hpcd->IN_ep[epnum];
             t->bufpos = ep->xfer_count;
             t->result = 0;
             t->callback(epnum, t);

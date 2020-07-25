@@ -722,9 +722,9 @@ static ssize_t qspi_erase_subsector(bdev_t *device, uint32_t block_addr) {
     return qspi_erase(device, block_addr, SUBSECTOR_ERASE_CMD);
 }
 
-static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef *qspi_handle,
+static HAL_StatusTypeDef qspi_cmd(QSPI_HandleTypeDef *handle,
                                   QSPI_CommandTypeDef *s_command) {
-    HAL_StatusTypeDef result = HAL_QSPI_Command_IT(qspi_handle, s_command);
+    HAL_StatusTypeDef result = HAL_QSPI_Command_IT(handle, s_command);
 
     if (result != HAL_OK) {
         return result;
@@ -781,8 +781,8 @@ void DMA_ErrorCallback(void) {
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_CommandTypeDef *s_command, uint8_t *buf) {
-    MODIFY_REG(qspi_handle->Instance->CCR, QUADSPI_CCR_FMODE, 0);
+static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *handle, QSPI_CommandTypeDef *s_command, uint8_t *buf) {
+    MODIFY_REG(handle->Instance->CCR, QUADSPI_CCR_FMODE, 0);
 
     if (dma_disable(dma2_stream7) != NO_ERROR) {
         dprintf(CRITICAL, "%s: timed out while waiting for DMA to disable.\n", __func__);
@@ -791,7 +791,7 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_Comma
 
     setup_dma(
         dma2_stream7,
-        (uint32_t)&(qspi_handle->Instance->DR),
+        (uint32_t)&(handle->Instance->DR),
         (uint32_t)buf,
         s_command->NbData,
         DMA_MEMORY_TO_PERIPH
@@ -804,7 +804,7 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_Comma
 
     // And we're off to the races...
     dma2_stream7->CR |= DMA_SxCR_EN;
-    qspi_handle->Instance->CR |= QUADSPI_CR_DMAEN;
+    handle->Instance->CR |= QUADSPI_CR_DMAEN;
 
     event_wait(&tx_event);
 
@@ -812,12 +812,12 @@ static HAL_StatusTypeDef qspi_tx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_Comma
 }
 
 // Send data and wait for interrupt.
-static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_CommandTypeDef *s_command, uint8_t *buf) {
+static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *handle, QSPI_CommandTypeDef *s_command, uint8_t *buf) {
     // Make sure the front and back of the buffer are cache aligned.
     DEBUG_ASSERT(IS_ALIGNED((uintptr_t)buf, CACHE_LINE));
     DEBUG_ASSERT(IS_ALIGNED(((uintptr_t)buf) + s_command->NbData, CACHE_LINE));
 
-    MODIFY_REG(qspi_handle->Instance->CCR, QUADSPI_CCR_FMODE, QUADSPI_CCR_FMODE_0);
+    MODIFY_REG(handle->Instance->CCR, QUADSPI_CCR_FMODE, QUADSPI_CCR_FMODE_0);
 
     if (dma_disable(dma2_stream7) != NO_ERROR) {
         dprintf(CRITICAL, "%s: timed out while waiting for DMA to disable.\n", __func__);
@@ -826,7 +826,7 @@ static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_Comma
 
     setup_dma(
         dma2_stream7,
-        (uint32_t)&(qspi_handle->Instance->DR),
+        (uint32_t)&(handle->Instance->DR),
         (uint32_t)buf,
         s_command->NbData,
         DMA_PERIPH_TO_MEMORY
@@ -838,9 +838,9 @@ static HAL_StatusTypeDef qspi_rx_dma(QSPI_HandleTypeDef *qspi_handle, QSPI_Comma
 
     // And we're off to the races...
     dma2_stream7->CR |= DMA_SxCR_EN;
-    uint32_t addr_reg = qspi_handle->Instance->AR;
-    qspi_handle->Instance->AR = addr_reg;
-    qspi_handle->Instance->CR |= QUADSPI_CR_DMAEN;
+    uint32_t addr_reg = handle->Instance->AR;
+    handle->Instance->AR = addr_reg;
+    handle->Instance->CR |= QUADSPI_CR_DMAEN;
 
     event_wait(&rx_event);
 

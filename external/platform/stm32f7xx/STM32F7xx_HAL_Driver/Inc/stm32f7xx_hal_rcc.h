@@ -498,11 +498,11 @@ typedef struct {
   * @{
   */
 #define __HAL_RCC_SYSCFG_CLK_ENABLE()   do { \
-                                        __IO uint32_t tmpreg; \
+                                        __IO uint32_t __tmpreg; \
                                         SET_BIT(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN);\
                                         /* Delay after an RCC peripheral clock enabling */ \
-                                        tmpreg = READ_BIT(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN);\
-                                        UNUSED(tmpreg); \
+                                        __tmpreg = READ_BIT(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN);\
+                                        UNUSED(__tmpreg); \
                                       } while(0)
 
 #define __HAL_RCC_SYSCFG_CLK_DISABLE() (RCC->APB2ENR &= ~(RCC_APB2ENR_SYSCFGEN))

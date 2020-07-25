@@ -27,13 +27,13 @@
 
 /* top level kernel page tables, initialized in start.S */
 #ifdef PAE_MODE_ENABLED
-map_addr_t pdp[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
-map_addr_t pdpt[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+map_addr_t kernel_pdp[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+map_addr_t kernel_pdpt[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 #elif X86_LEGACY
 /* enough page tables to map 16MB ram */
-map_addr_t pt[NO_OF_PT_ENTRIES][4] __ALIGNED(PAGE_SIZE);
+map_addr_t kernel_pt[NO_OF_PT_ENTRIES][4] __ALIGNED(PAGE_SIZE);
 #endif
-map_addr_t pd[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+map_addr_t kernel_pd[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 
 #ifdef PAE_MODE_ENABLED
 /* PDP table address is 32 bit wide when on PAE mode, but the PDP entries are 64 bit wide */
@@ -596,7 +596,7 @@ void x86_mmu_early_init(void) {
 
     /* unmap the lower identity mapping */
     for (uint i = 0; i < (1024*1024*1024) / (4*1024*1024); i++) {
-        pd[i] = 0;
+        kernel_pd[i] = 0;
     }
 
     /* tlb flush */

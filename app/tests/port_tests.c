@@ -294,7 +294,7 @@ int two_threads_basic(void) {
     // wait for the pong port to be created, the two threads race to do it.
     port_t r_port;
     while (true) {
-        status_t st = port_open("pong_port", NULL, &r_port);
+        st = port_open("pong_port", NULL, &r_port);
         if (st == NO_ERROR) {
             break;
         } else if (st == ERR_NOT_FOUND) {
@@ -402,8 +402,8 @@ typedef struct {
 } watcher_cmd;
 
 status_t send_watcher_cmd(port_t cmd_port, action_t action, port_t port) {
-    watcher_cmd cmd  = {action, port};
-    return port_write(cmd_port, ((port_packet_t *) &cmd), 1);;
+    watcher_cmd _cmd  = {action, port};
+    return port_write(cmd_port, ((port_packet_t *) &_cmd), 1);;
 }
 
 static int group_watcher_thread(void *arg) {

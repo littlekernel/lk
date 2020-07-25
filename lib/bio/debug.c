@@ -122,18 +122,18 @@ usage:
         ssize_t err = 0;
         while (len > 0) {
             size_t  amt = MIN(256, len);
-            ssize_t err = bio_read(dev, buf, offset, amt);
+            ssize_t err_len = bio_read(dev, buf, offset, amt);
 
-            if (err < 0) {
-                dprintf(ALWAYS, "read error %s %zu@%zu (err %d)\n",
-                        argv[2].str, amt, (size_t)offset, (int)err);
+            if (err_len < 0) {
+                dprintf(ALWAYS, "read error %s %zu@%zu (err_len %ld)\n",
+                        argv[2].str, amt, (size_t)offset, err_len);
                 break;
             }
 
-            DEBUG_ASSERT((size_t)err <= amt);
-            hexdump8_ex(buf, err, offset);
+            DEBUG_ASSERT((size_t)err_len <= amt);
+            hexdump8_ex(buf, err_len, offset);
 
-            if ((size_t)err != amt) {
+            if ((size_t)err_len != amt) {
                 dprintf(ALWAYS, "short read from %s @%zu (wanted %zu, got %zu)\n",
                         argv[2].str, (size_t)offset, amt, (size_t)err);
                 break;

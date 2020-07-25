@@ -43,8 +43,7 @@ enum sbi_return_code {
         : "+r" (a0), "+r" (a1)                  \
         : "r" (a2), "r" (a3), "r" (a4), "r" (a5), "r"(a6), "r"(a7) \
         : "memory");                        \
-    struct sbiret ret = { .error = a0, .value = a1 };       \
-    ret;                                \
+    (struct sbiret){ .error = a0, .value = a1 };       \
     })
 #define sbi_call(...) \
     _sbi_call(__VA_ARGS__, 0, 0, 0, 0, 0, 0, 0)
