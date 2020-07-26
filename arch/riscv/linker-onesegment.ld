@@ -1,3 +1,4 @@
+OUTPUT_FORMAT("elf%BITS%-littleriscv")
 /*
  * LK linker script for single segment binaries.
  */

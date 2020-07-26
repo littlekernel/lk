@@ -35,7 +35,7 @@ STATIC_ASSERT(RISCV_MAX_HARTS >= SMP_MAX_CPUS);
 STATIC_ASSERT(RISCV_BOOT_HART < RISCV_MAX_HARTS);
 
 // mapping of cpu -> hart
-int cpu_to_hart_map[SMP_MAX_CPUS] = {
+static int cpu_to_hart_map[SMP_MAX_CPUS] = {
     [0] = RISCV_BOOT_HART,       // boot cpu is always logical 0
     [1 ... SMP_MAX_CPUS-1] = -1, // other hart cpus are assigned dynamically
 };
@@ -74,6 +74,7 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
     return NO_ERROR;
 }
 
+// software triggered exceptions, used for cross-cpu calls
 enum handler_return riscv_software_exception(void) {
     uint ch = riscv_current_hart();
 

@@ -1,3 +1,4 @@
+OUTPUT_FORMAT("elf%BITS%-littleriscv")
 /*
  * LK linker script for multi segment binaries.
  * In this case the read only portion of the binary lives in read only

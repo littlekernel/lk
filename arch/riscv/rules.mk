@@ -131,9 +131,13 @@ endif
 # compiler codegen flags
 ifeq ($(SUBARCH),32)
 ARCH_COMPILEFLAGS := -march=rv32imac -mabi=ilp32
+# override machine for ld -r
+GLOBAL_MODULE_LDFLAGS += -m elf32lriscv
 else ifeq ($(SUBARCH),64)
-ARCH_COMPILEFLAGS := -march=rv64imac -mabi=lp64 -mcmodel=medany
 GLOBAL_DEFINES += IS_64BIT=1
+ARCH_COMPILEFLAGS := -march=rv64imac -mabi=lp64 -mcmodel=medany
+# override machine for ld -r
+GLOBAL_MODULE_LDFLAGS += -m elf64lriscv
 else
 $(error SUBARCH not set or set to something unknown)
 endif

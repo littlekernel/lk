@@ -51,7 +51,7 @@
 #define RISCV_CSR_MIMPID    (0xf13)
 #define RISCV_CSR_MHARTID   (0xf14)
 #define RISCV_CSR_MISA      (0x301)
-#endif /* RISCV_M_MODE */
+#endif // RISCV_M_MODE
 
 #define RISCV_CSR_XSTATUS_IE    (1u << (RISCV_XMODE_OFFSET + 0))
 #define RISCV_CSR_XSTATUS_PIE   (1u << (RISCV_XMODE_OFFSET + 4))
@@ -64,9 +64,37 @@
 #define RISCV_CSR_XIP_TIP       (1u << (RISCV_XMODE_OFFSET + 4))
 #define RISCV_CSR_XIP_EIP       (1u << (RISCV_XMODE_OFFSET + 8))
 
-#define RISCV_EXCEPTION_XSWI        (RISCV_XMODE_OFFSET)
-#define RISCV_EXCEPTION_XTIM        (4 + RISCV_XMODE_OFFSET)
-#define RISCV_EXCEPTION_XEXT        (8 + RISCV_XMODE_OFFSET)
+// Interrupts, top bit set in cause register
+#define RISCV_INTERRUPT_USWI        0       // software interrupt
+#define RISCV_INTERRUPT_SSWI        1
+#define RISCV_INTERRUPT_MSWI        3
+#define RISCV_INTERRUPT_UTIM        4       // timer interrupt
+#define RISCV_INTERRUPT_STIM        5
+#define RISCV_INTERRUPT_MTIM        7
+#define RISCV_INTERRUPT_UEXT        8       // external interrupt
+#define RISCV_INTERRUPT_SEXT        9
+#define RISCV_INTERRUPT_MEXT        11
+
+// The 3 interupts above, for the current mode
+#define RISCV_INTERRUPT_XSWI        (RISCV_XMODE_OFFSET)
+#define RISCV_INTERRUPT_XTIM        (4 + RISCV_XMODE_OFFSET)
+#define RISCV_INTERRUPT_XEXT        (8 + RISCV_XMODE_OFFSET)
+
+// Exceptions
+#define RISCV_EXCEPTION_IADDR_MISALIGN      0
+#define RISCV_EXCEPTION_IACCESS_FAULT       1
+#define RISCV_EXCEPTION_ILLEGAL_INS         2
+#define RISCV_EXCEPTION_BREAKPOINT          3
+#define RISCV_EXCEPTION_LOAD_ADDR_MISALIGN  4
+#define RISCV_EXCEPTION_LOAD_ACCESS_FAULT   5
+#define RISCV_EXCEPTION_STORE_ADDR_MISALIGN 6
+#define RISCV_EXCEPTION_STORE_ACCESS_FAULT  7
+#define RISCV_EXCEPTION_ENV_CALL_U_MODE     8
+#define RISCV_EXCEPTION_ENV_CALL_S_MODE     9
+#define RISCV_EXCEPTION_ENV_CALL_M_MODE     11
+#define RISCV_EXCEPTION_INS_PAGE_FAULT      12
+#define RISCV_EXCEPTION_LOAD_PAGE_FAULT     13
+#define RISCV_EXCEPTION_STORE_PAGE_FAULT    15
 
 #ifndef ASSEMBLY
 #define __ASM_STR(x)    #x
@@ -120,8 +148,6 @@
         : "memory"); \
     __val; \
 })
-
-extern int cpu_to_hart_map[];
 
 struct riscv_percpu {
     uint cpu_num;
