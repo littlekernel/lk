@@ -27,7 +27,8 @@ struct virtio_net_config {
     uint8_t mac[6];
     uint16_t status;
     uint16_t max_virtqueue_pairs;
-} __PACKED;
+};
+STATIC_ASSERT(sizeof(struct virtio_net_config) == 10);
 
 struct virtio_net_hdr {
     uint8_t  flags;
@@ -37,7 +38,8 @@ struct virtio_net_hdr {
     uint16_t csum_start;
     uint16_t csum_offset;
     uint16_t num_buffers; // unused in tx
-} __PACKED;
+};
+STATIC_ASSERT(sizeof(struct virtio_net_hdr) == 12);
 
 #define VIRTIO_NET_F_CSUM                   (1<<0)
 #define VIRTIO_NET_F_GUEST_CSUM             (1<<1)

@@ -35,13 +35,15 @@ struct virtio_blk_config {
         uint8_t sectors;
     } geometry;
     uint32_t blk_size;
-} __PACKED;
+};
+STATIC_ASSERT(sizeof(struct virtio_blk_config) == 24);
 
 struct virtio_blk_req {
     uint32_t type;
     uint32_t ioprio;
     uint64_t sector;
-} __PACKED;
+};
+STATIC_ASSERT(sizeof(struct virtio_blk_req) == 16);
 
 #define VIRTIO_BLK_F_BARRIER  (1<<0)
 #define VIRTIO_BLK_F_SIZE_MAX (1<<1)
