@@ -34,8 +34,7 @@ __NO_INLINE static void bench_set_overhead(void) {
     }
     count = arch_cycle_count() - count;
 
-    printf("took %lu cycles overhead to loop %u times\n",
-           count, ITER);
+    printf("took %lu cycles overhead to loop %u times\n", count, ITER);
 
     free(buf);
 }
@@ -53,8 +52,10 @@ __NO_INLINE static void bench_memset(void) {
     }
     count = arch_cycle_count() - count;
 
+    size_t total_bytes = BUFSIZE * ITER;
+    double bytes_cycle = total_bytes / (float)count;
     printf("took %lu cycles to memset a buffer of size %zu %d times (%zu bytes), %f bytes/cycle\n",
-           count, BUFSIZE, ITER, BUFSIZE * ITER, (BUFSIZE * ITER) / (float)count);
+           count, BUFSIZE, ITER, total_bytes, bytes_cycle);
 
     free(buf);
 }
@@ -76,8 +77,10 @@ __NO_INLINE static void bench_cset_##type(void) \
     } \
     count = arch_cycle_count() - count; \
  \
+    size_t total_bytes = BUFSIZE * ITER; \
+    double bytes_cycle = total_bytes / (float)count; \
     printf("took %lu cycles to manually clear a buffer using wordsize %zu of size %zu %u times (%zu bytes), %f bytes/cycle\n", \
-           count, sizeof(*buf), BUFSIZE, ITER, BUFSIZE * ITER, (BUFSIZE * ITER) / (float)count); \
+           count, sizeof(*buf), BUFSIZE, ITER, total_bytes, bytes_cycle); \
  \
     free(buf); \
 }
@@ -109,8 +112,10 @@ __NO_INLINE static void bench_cset_wide(void) {
     }
     count = arch_cycle_count() - count;
 
+    size_t total_bytes = BUFSIZE * ITER;
+    double bytes_cycle = total_bytes / (float)count;
     printf("took %lu cycles to manually clear a buffer of size %zu %d times 8 words at a time (%zu bytes), %f bytes/cycle\n",
-           count, BUFSIZE, ITER, BUFSIZE * ITER, (BUFSIZE * ITER) / (float)count);
+           count, BUFSIZE, ITER, total_bytes, bytes_cycle);
 
     free(buf);
 }
@@ -128,8 +133,10 @@ __NO_INLINE static void bench_memcpy(void) {
     }
     count = arch_cycle_count() - count;
 
+    size_t total_bytes = (BUFSIZE / 2) * ITER;
+    double bytes_cycle = total_bytes / (float)count;
     printf("took %lu cycles to memcpy a buffer of size %zu %d times (%zu source bytes), %f source bytes/cycle\n",
-           count, BUFSIZE / 2, ITER, BUFSIZE / 2 * ITER, (BUFSIZE / 2 * ITER) / (float)count);
+           count, BUFSIZE / 2, ITER, total_bytes, bytes_cycle);
 
     free(buf);
 }
@@ -153,8 +160,10 @@ __NO_INLINE static void arm_bench_cset_stm(void) {
     }
     count = arch_cycle_count() - count;
 
+    size_t total_bytes = BUFSIZE * ITER;
+    double bytes_cycle = total_bytes / (float)count;
     printf("took %lu cycles to manually clear a buffer of size %zu %d times 8 words at a time using stm (%zu bytes), %f bytes/cycle\n",
-           count, BUFSIZE, ITER, BUFSIZE * ITER, (BUFSIZE * ITER) / (float)count);
+           count, BUFSIZE, ITER, total_bytes, bytes_cycle);
 
     free(buf);
 }
@@ -179,7 +188,8 @@ __NO_INLINE static void arm_bench_multi_issue(void) {
     }
     cycles = arch_cycle_count() - cycles;
 
-    printf("took %lu cycles to issue 8 integer ops (%f cycles/iteration)\n", cycles, (float)cycles / ITER);
+    double cycles_iter = (float)cycles / ITER;
+    printf("took %lu cycles to issue 8 integer ops (%f cycles/iteration)\n", cycles, cycles_iter);
 #undef ITER
 }
 #endif // __CORTEX_M

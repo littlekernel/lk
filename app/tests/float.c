@@ -89,7 +89,7 @@ static int float_tests(int argc, const console_cmd_args *argv) {
     int res;
     for (uint i = 0; i < countof(t); i++) {
         thread_join(t[i], &res, INFINITE_TIME);
-        printf("float thread %u returns %d, val %f\n", i, res, val[i]);
+        printf("float thread %u returns %d, val %f\n", i, res, (double)val[i]);
     }
     printf("the above values should be close\n");
 

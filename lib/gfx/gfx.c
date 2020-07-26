@@ -742,7 +742,7 @@ static int gfx_draw_mandelbrot(gfx_surface *surface) {
             b=0;
             mag=0;
             iter = 0;
-            while ((mag < 4.0) && (iter < 200) ) {
+            while ((mag < 4.0f) && (iter < 200) ) {
                 float a1;
                 a1 = a*a - b*b + c;
                 b = 2.0f * a * b + ci;
