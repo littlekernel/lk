@@ -112,7 +112,7 @@ status_t bootargs_add_bootimage_pointer(void *buf, size_t buf_len, const char *d
     bi->len = len;
     if (device) {
         memset(bi->device, 0, string_len);
-        strcpy(bi->device, device);
+        memcpy(bi->device, device, strlen(device));
     }
 
     return NO_ERROR;

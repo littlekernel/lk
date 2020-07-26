@@ -1201,7 +1201,7 @@ usage:
         /* listen for a connection, accept it, then immediately close it */
         if (argc < 3) goto notenoughargs;
 
-        tcp_socket_t *handle;
+        tcp_socket_t *handle = NULL;
 
         status_t err = tcp_open_listen(&handle, argv[2].u);
         printf("tcp_open_listen returns %d, handle %p\n", err, handle);
@@ -1218,7 +1218,7 @@ usage:
     } else if (!strcmp(argv[1].str, "listen")) {
         if (argc < 3) goto notenoughargs;
 
-        tcp_socket_t *handle;
+        tcp_socket_t *handle = NULL;
 
         status_t err = tcp_open_listen(&handle, argv[2].u);
         printf("tcp_open_listen returns %d, handle %p\n", err, handle);
