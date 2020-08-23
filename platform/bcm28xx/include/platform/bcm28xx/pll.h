@@ -68,6 +68,10 @@ struct pll_chan_def {
 extern uint32_t xtal_freq;
 extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 
+#define CM_TCNTCTL              (CM_BASE + 0x0c0)
+#define CM_TCNTCNT              (CM_BASE + 0x0c4)
+#define CM_OSCCOUNT             (CM_BASE + 0x100)
+
 #define CM_PLLA                 (CM_BASE + 0x104)
 #define CM_PLLC                 (CM_BASE + 0x108)
 #define CM_PLLD                 (CM_BASE + 0x10C)

@@ -6,13 +6,18 @@
 #include <lk/bits.h>
 #include <lk/console_cmd.h>
 #include <lk/debug.h>
+#include <platform/bcm28xx/udelay.h>
 
 uint32_t xtal_freq;
 
 static int cmd_pll_dump(int argc, const cmd_args *argv);
+static int cmd_measure_clock(int argc, const cmd_args *argv);
+static int cmd_measure_clocks(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("dump_pll_state", "print all pll state", &cmd_pll_dump)
+STATIC_COMMAND("measure_clock", "measure an internal clock rate", &cmd_measure_clock)
+STATIC_COMMAND("measure_clocks", "measure all internal clocks", &cmd_measure_clocks)
 STATIC_COMMAND_END(pll);
 
 uint32_t get_vpu_per_freq(void) {
@@ -122,5 +127,74 @@ static int cmd_pll_dump(int argc, const cmd_args *argv) {
   }
 
   dump_plldiv2_state("VPU", CM_VPUCTL, CM_VPUDIV);
+  return 0;
+}
+
+// based on https://github.com/raspberrypi/linux/blob/rpi-4.19.y/drivers/clk/bcm/clk-bcm2835.c#L356
+#define CM_KILL 0x40
+#define CM_BUSY 0x80
+#define CM_SRC_MASK 0xf
+#define CM_SRC_BITS 4
+#define CM_TCNT_SRC1_SHIFT 12
+
+static int measure_clock(int mux) {
+  *REG32(CM_TCNTCTL) = CM_PASSWORD | CM_KILL;
+  *REG32(CM_TCNTCTL) = CM_PASSWORD | (mux & CM_SRC_MASK) | (mux >> CM_SRC_BITS) << CM_TCNT_SRC1_SHIFT;
+  *REG32(CM_OSCCOUNT) = CM_PASSWORD | (xtal_freq / 1000);
+  udelay(1);
+  while (*REG32(CM_OSCCOUNT)) {
+  }
+
+  while (*REG32(CM_TCNTCTL) & CM_BUSY) {
+  }
+
+  int count = *REG32(CM_TCNTCNT);
+  *REG32(CM_TCNTCNT) = CM_PASSWORD | 0;
+  return count;
+}
+
+static int cmd_measure_clock(int argc, const cmd_args *argv) {
+  if (argc != 2) {
+    puts("error, missing argument");
+                        // reg      offset default-freq when netbooting
+    puts("1 - H264");   // CM_H264  0x28
+    puts("2 - ISP");    // CM_ISP   0x30
+    puts("3 - sdram");  // CM_SDC   0xa8
+    puts("5 - VPU");    // CM_VPU   0x08  100,000khz
+    puts("6 - OTP");    // CM_OTP   0x90  4,800khz
+    puts("9 - ???");    //                500khz
+    puts("12 - dsi0p"); // CM_DSI0P 0x60
+    puts("13 - dsi1p"); // CM_DSI1P 0x160
+    puts("14 - cam0");  // CM_CAM0  0x40
+    puts("15 - cam1");  // CM_CAM1  0x48
+    puts("17 - dpi");   // CM_DPI   0x68
+    puts("18 - dsi0e"); // CM_DSI0E 0x58
+    puts("19 - dsi1e"); // CM_DSI1E 0x158
+    puts("20 - gp0");   // CM_GP0   0x70
+    puts("21 - gp1");   // CM_GP1   0x78  25,000khz
+    puts("22 - hsm");   // CM_HSM   0x88
+    puts("23 - pcm");   // CM_PCM   0x98
+    puts("24 - pwm");   // CM_PWM   0xa0
+    puts("25 - slim");  // CM_SLIM  0xa8
+    puts("27 - smi");   // CM_SMI   0xb0
+    puts("28 - uart");  // CM_UART  0xf0  1,916khz
+    puts("29 - vec");   // CM_VEC   0xf8
+    puts("30 - ???");   //                44khz
+    puts("38 - aveo");  // CM_AVEO  0x1b8
+    puts("39 - emmc");  // CM_EMMC  0x1c0
+    puts("42 - emmc2"); // CM_EMMC2 0x1d0
+    return 0;
+  }
+  int mux = argv[1].u;
+  int count = measure_clock(mux);
+  printf("count is %d\n", count);
+  return 0;
+}
+
+static int cmd_measure_clocks(int argc, const cmd_args *argv) {
+  for (int i=0; i<43; i++) {
+    int count = measure_clock(i);
+    printf("clock #%d is %d\n", i, count);
+  }
   return 0;
 }
