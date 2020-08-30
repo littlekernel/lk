@@ -7,7 +7,7 @@
  */
 #pragma once
 
-#include <platform/nrf52xxx.h>
+#include <nrfx.h>
 
 void nrf52_debug_early_init(void);
 void nrf52_debug_init(void);

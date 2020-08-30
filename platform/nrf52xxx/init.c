@@ -10,10 +10,8 @@
 #include <arch/arm/cm.h>
 #include <dev/uart.h>
 #include <platform.h>
-#include <platform/nrf52.h>
-#include <platform/system_nrf52.h>
-
-
+#include <nrfx.h>
+#include <mdk/system_nrf52.h>
 
 void platform_early_init(void) {
     // Crank up the clock before initing timers.

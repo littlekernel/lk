@@ -1,0 +1,70 @@
+/**
+@page nrf52820_drivers nRF52820 drivers
+
+This page lists nrfx driver components supported by the nRF52820 SoC.
+For a complete overview, see @ref nrfx_drv_supp_matrix.
+
+@{
+
+@ref nrf_aar
+
+@ref nrf_acl
+
+@ref nrf_ccm
+
+@ref nrf_clock
+
+@ref nrf_comp
+
+@ref nrf_systick
+
+@ref nrf_ecb
+
+@ref nrf_egu
+
+@ref nrf_ficr
+
+@ref nrf_gpio
+
+@ref nrf_gpiote
+
+@ref nrf_nvmc
+
+@ref nrf_power
+
+@ref nrf_ppi
+
+@ref nrf_qdec
+
+@ref nrf_radio
+
+@ref nrf_rng
+
+@ref nrf_rtc
+
+@ref nrf_spi
+
+@ref nrf_spim
+
+@ref nrf_spis
+
+@ref nrf_temp
+
+@ref nrf_timer
+
+@ref nrf_twi
+
+@ref nrf_twim
+
+@ref nrf_twis
+
+@ref nrf_uart
+
+@ref nrf_uarte
+
+@ref nrf_usbd
+
+@ref nrf_wdt
+
+@}
+*/

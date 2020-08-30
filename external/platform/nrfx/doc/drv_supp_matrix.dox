@@ -1,0 +1,82 @@
+/**
+@page nrfx_drv_supp_matrix Driver support overview
+
+This page lists nrfx driver components supported by each SoC:
+- @ref nrfx_drv_supp_matrix_table "Driver support matrix"
+- @ref nrfx_drv_supp_matrix_list "Driver support lists"
+
+@anchor nrfx_drv_supp_matrix_table
+@par Driver support matrix
+
+The following matrix provides a comparative overview of which drivers are supported by specific Nordic SoCs.
+
+| Driver           | nRF51 Series | nRF52805     | nRF52810/nRF52811 | nRF52820     | nRF52832     | nRF52833     | nRF52840     | nRF5340      | nRF9160      |
+|------------------|--------------|--------------|-------------------|--------------|--------------|--------------|--------------|--------------|--------------|
+| @ref nrf_aar     |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_acl     |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagGreenTick |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_adc     |@tagGreenTick |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |
+| @ref nrf_bprot   |@tagRedCross  |@tagGreenTick |@tagGreenTick      |@tagRedCross  |@tagGreenTick |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |
+| @ref nrf_cache   |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagRedCross  |
+| @ref nrf_ccm     |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_clock   |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_comp    |@tagRedCross  |@tagRedCross  |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_systick |@tagRedCross  |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_dcnf    |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagRedCross  |
+| @ref nrf_dppi    |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagGreenTick |
+| @ref nrf_ecb     |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_egu     |@tagRedCross  |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_ficr    |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_fpu     |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagRedCross  |
+| @ref nrf_gpio    |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_gpiote  |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_i2s     |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_ipc     |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagGreenTick |
+| @ref nrf_kmu     |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagGreenTick |
+| @ref nrf_lpcomp  |@tagGreenTick |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_mpu     |@tagGreenTick |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |
+| @ref nrf_mutex   |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagRedCross  |
+| @ref nrf_mwu     |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |@tagRedCross  |
+| @ref nrf_nfct    |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_nvmc    |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_pdm     |@tagRedCross  |@tagRedCross  |@tagGreenTick      |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_power   |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_ppi     |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |@tagRedCross  |
+| @ref nrf_pwm     |@tagRedCross  |@tagRedCross  |@tagGreenTick      |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_qdec    |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_qspi    |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_radio   |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_reset   |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagRedCross  |
+| @ref nrf_rng     |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_rtc     |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_saadc   |@tagRedCross  |@tagGreenTick |@tagGreenTick      |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_spi     |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |@tagRedCross  |
+| @ref nrf_spim    |@tagRedCross  |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_spis    |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_spu     |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagGreenTick |
+| @ref nrf_temp    |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_timer   |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_twi     |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |@tagRedCross  |
+| @ref nrf_twim    |@tagRedCross  |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_twis    |@tagRedCross  |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_uart    |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |@tagRedCross  |
+| @ref nrf_uarte   |@tagRedCross  |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+| @ref nrf_usbd    |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagGreenTick |@tagRedCross  |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagRedCross  |
+| @ref nrf_vmc     |@tagRedCross  |@tagRedCross  |@tagRedCross       |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagRedCross  |@tagGreenTick |@tagGreenTick |
+| @ref nrf_wdt     |@tagGreenTick |@tagGreenTick |@tagGreenTick      |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |@tagGreenTick |
+
+@anchor nrfx_drv_supp_matrix_list
+@par Driver support lists
+
+The following pages list supported drivers by SoC:
+
+- @subpage nrf51_series_drivers
+- @subpage nrf52805_drivers
+- @subpage nrf52810_drivers
+- @subpage nrf52820_drivers
+- @subpage nrf52832_drivers
+- @subpage nrf52833_drivers
+- @subpage nrf52840_drivers
+- @subpage nrf5340_drivers
+- @subpage nrf9160_drivers
+
+*/

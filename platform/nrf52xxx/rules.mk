@@ -48,7 +48,7 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
-	platform/nrf52 \
+	platform/nrfx \
 	lib/cbuf
 
 include make/module.mk

@@ -7,5 +7,4 @@
  */
 #pragma once
 
-#include <platform/nrf52xxx.h>
-
+#include <nrfx.h>

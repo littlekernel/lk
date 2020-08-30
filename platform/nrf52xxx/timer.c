@@ -10,8 +10,7 @@
 #include <lk/err.h>
 #include <platform.h>
 #include <arch/arm/cm.h>
-#include <platform/nrf52.h>
-#include <platform/system_nrf52.h>
+#include <nrfx.h>
 #include <platform/timer.h>
 #include <sys/types.h>
 
