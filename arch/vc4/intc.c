@@ -61,9 +61,9 @@ void intc_init(void) {
   }
   // rather then call set_interrupt for each bit in each byte, just blanket clear all
   // this will disable every hardware irq
-  volatile uint32_t *maskreg = IC0_BASE + 0x10;
+  volatile uint32_t *maskreg = (uint32_t*)(IC0_BASE + 0x10);
   for (int i=0; i<8; i++) maskreg[i] = 0;
-  maskreg = IC1_BASE + 0x10;
+  maskreg = (uint32_t*)(IC1_BASE + 0x10);
   for (int i=0; i<8; i++) maskreg[i] = 0;
 
   // https://github.com/hermanhermitage/videocoreiv/wiki/VideoCore-IV-Programmers-Manual#interrupts
@@ -87,14 +87,14 @@ void intc_init(void) {
   }
   // swi opcode handler
   for (int i=32; i<=63; i++) {
-    vectorTable[i] = (uint32_t)fleh_swi;
+    vectorTable[i] = fleh_swi;
   }
   // external interrupts
   for (int i=64; i<=127; i++) {
-    vectorTable[i] = (uint32_t)fleh_irq | 1;
+    vectorTable[i] = (irqType)((uint32_t)fleh_irq | 1);
   }
 
-  uint32_t irq_sp = (irq_stack0 + sizeof(irq_stack0)) - 4;
+  uint32_t irq_sp = (uint32_t)((irq_stack0 + sizeof(irq_stack0)) - 4);
   dprintf(INFO, "r28 = 0x%x\nirq_stack0: %p\nsizeof(irq_stack0): %d\n", irq_sp, irq_stack0, sizeof(irq_stack0));
 
   __asm__ volatile ("mov r28, %0": :"r"(irq_sp));

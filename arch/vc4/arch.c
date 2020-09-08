@@ -20,7 +20,7 @@ uint32_t core2_stack_top = 0;
 STATIC_COMMAND_START
 STATIC_COMMAND("boot_other_core", "boot the 2nd vpu core", &cmd_boot_other_core)
 STATIC_COMMAND("testit", "do some asm tests", &cmd_testit)
-STATIC_COMMAND("jitter", "jitter test", &cmd_jitter)
+//STATIC_COMMAND("jitter", "jitter test", &cmd_jitter)
 STATIC_COMMAND_END(arch);
 
 extern uint8_t _fbss;
@@ -59,9 +59,9 @@ void core2_start(void);
 volatile uint32_t foo;
 
 static int cmd_boot_other_core(int argc, const cmd_args *argv) {
-  core2_stack_top = (core2_stack + sizeof(core2_stack)) - 4;
+  core2_stack_top = (uint32_t)((core2_stack + sizeof(core2_stack)) - 4);
   //*REG32(A2W_PLLC_CORE1) = A2W_PASSWORD | 6; // 3ghz/6 == 500mhz
-  *REG32(IC1_WAKEUP) = &core2_start;
+  *REG32(IC1_WAKEUP) = (uint32_t)(&core2_start);
   for (int i=0; i<20; i++) {
     udelay(2);
     printf("%d %d\n", i, foo);

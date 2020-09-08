@@ -45,9 +45,9 @@ static cbuf_t uart_rx_buf[NUM_UART];
 
 static int cmd_uart_dump(int argc, const cmd_args *argv);
 
-STATIC_COMMAND_START
-STATIC_COMMAND("dump_uart_state", "print uart state relating to baud", &cmd_uart_dump)
-STATIC_COMMAND_END(uart);
+//STATIC_COMMAND_START
+//STATIC_COMMAND("dump_uart_state", "print uart state relating to baud", &cmd_uart_dump)
+//STATIC_COMMAND_END(uart);
 
 static inline uintptr_t uart_to_ptr(unsigned int n) {
     switch (n) {

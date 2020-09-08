@@ -30,6 +30,7 @@ SDHOST driver. This used to be known as ALTMMC.
 #include <stdio.h>
 #include <malloc.h>
 #include <lk/console_cmd.h>
+#include <platform/bcm28xx/sdhost_impl.h>
 
 extern "C" {
   #include <dev/gpio.h>
@@ -96,7 +97,7 @@ struct BCM2708SDHost : BlockDevice {
 	uint32_t cid[4];
 	uint32_t csd[4];
 
-	uint32_t capacity_bytes;
+	uint64_t capacity_bytes;
 
 	uint32_t r[4];
 
@@ -170,7 +171,7 @@ struct BCM2708SDHost : BlockDevice {
     GPIO_PULL_SET(pullBatch, 53, kPullUp);
     gpio_apply_batch(&pullBatch);
 
-    logf("pinmux configured for aux0\n");
+    //logf("pinmux configured for aux0\n");
   }
 
 	void reset() {
@@ -255,7 +256,7 @@ struct BCM2708SDHost : BlockDevice {
 			if (r[0] & MMC_OCR_MEM_READY)
 				break;
 
-			logf("waiting for SD (0x%x) ...\n", r[0]);
+			//logf("waiting for SD (0x%x) ...\n", r[0]);
 			udelay(100);
 		}
 
@@ -290,7 +291,7 @@ struct BCM2708SDHost : BlockDevice {
             return false;
     rca = SD_R6_RCA(r);
 
-    logf("RCA = 0x%x\n", rca);
+    //logf("RCA = 0x%x\n", rca);
 
     send_136_resp(MMC_SEND_CID, MMC_ARG_RCA(rca));
     if (!wait_and_get_response())
@@ -433,24 +434,24 @@ struct BCM2708SDHost : BlockDevice {
 
 	bool init_card() {
 		char pnm[8];
-		uint32_t block_length;
+		uint64_t block_length;
 		uint32_t clock_div = 0;
 
 		send_no_resp(MMC_GO_IDLE_STATE);
 
 		if (!query_voltage_and_type()) {
-			logf("ERROR: Failed to query card voltage!\n");
+			//logf("ERROR: Failed to query card voltage!\n");
 			return false;
 		}
 
 		if (!identify_card()) {
-			logf("ERROR: Failed to identify card!\n");
+			//logf("ERROR: Failed to identify card!\n");
 			return false;
 		}
 
 		SD_CID_PNM_CPY(cid, pnm);
 
-		logf("Detected SD card:\n");
+		//logf("Detected SD card:\n");
 		printf("    Product : %s\n", pnm);
 
 		if (SD_CSD_CSDVER(csd) == SD_CSD_CSDVER_2_0) {
@@ -483,7 +484,7 @@ struct BCM2708SDHost : BlockDevice {
 		printf("    BlockLen: 0x%x\n", block_length);
 
 		if (!select_card()) {
-			logf("ERROR: Failed to select card!\n");
+			//logf("ERROR: Failed to select card!\n");
 			return false;
 		}
 
@@ -492,7 +493,7 @@ struct BCM2708SDHost : BlockDevice {
 			 * only needed for 1.0 ones, the 2.0 ones have this
 			 * fixed at 512.
 			 */
-			logf("Setting block length to 512 ...\n");
+			//logf("Setting block length to 512 ...\n");
 			send(MMC_SET_BLOCKLEN, 512);
 			if (!wait()) {
 				logf("ERROR: Failed to set block length!\n");
@@ -502,7 +503,7 @@ struct BCM2708SDHost : BlockDevice {
 
 		block_size = 512;
 
-		logf("Card initialization complete: %s %dMB SD%s Card\n", pnm, capacity_bytes >> 20, is_high_capacity ? "HC" : "");
+		logf("Card initialization complete: %s %dMB SD%s Card\n", pnm, (uint32_t)(capacity_bytes >> 20), is_high_capacity ? "HC" : "");
 
 		/*
 		 * this makes some dangerous assumptions that the all csd2 cards are sdio cards
@@ -593,32 +594,30 @@ struct BCM2708SDHost : BlockDevice {
 	}
 };
 
-extern "C" {
-  void rpi_sdhost_init(void);
-};
-
 struct BCM2708SDHost *sdhost = 0;
 
 static ssize_t sdhost_read_block_wrap(struct bdev *bdev, void *buf, bnum_t block, uint count) {
   BCM2708SDHost *dev = reinterpret_cast<BCM2708SDHost*>(bdev);
-  uint32_t *dest = reinterpret_cast<uint32_t*>(buf);
-  if (count != 1) panic("tried to read more then 1 sector");
-  bool ret = dev->real_read_block(block, dest);
-  if (ret) {
-    return sdhost->get_block_size();
-  } else {
-    return -1;
+  //printf("sdhost_read_block_wrap(..., 0x%x, %d, %d)\n", buf, block, count);
+  for (int i=0; i<count; i++) {
+    uint32_t *dest = reinterpret_cast<uint32_t*>(buf + (sdhost->get_block_size() * i));
+    bool ret = dev->real_read_block(block + i, dest);
+    if (!ret) return -1;
   }
+  return sdhost->get_block_size() * count;
 }
 
-void rpi_sdhost_init() {
-  sdhost = new BCM2708SDHost;
-  auto blocksize = sdhost->get_block_size();
-  auto blocks = sdhost->capacity_bytes / blocksize;
-  bio_initialize_bdev(sdhost, "sdhost", blocksize, blocks, 0, NULL, BIO_FLAGS_NONE);
-  //sdhost->read = sdhost_read_wrap;
-  sdhost->read_block = sdhost_read_block_wrap;
-  bio_register_device(sdhost);
+bdev_t *rpi_sdhost_init() {
+  if (!sdhost) {
+    sdhost = new BCM2708SDHost;
+    auto blocksize = sdhost->get_block_size();
+    auto blocks = sdhost->capacity_bytes / blocksize;
+    bio_initialize_bdev(sdhost, "sdhost", blocksize, blocks, 0, NULL, BIO_FLAGS_NONE);
+    //sdhost->read = sdhost_read_wrap;
+    sdhost->read_block = sdhost_read_block_wrap;
+    bio_register_device(sdhost);
+  }
+  return sdhost;
 }
 
 static int cmd_sdhost_init(int argc, const cmd_args *argv) {
