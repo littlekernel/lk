@@ -5,9 +5,45 @@ MODULE := $(LOCAL_DIR)
 WITH_SMP := 1
 #LK_HEAP_IMPLEMENTATION ?= dlmalloc
 
-MODULE_DEPS := \
+# 1st pass to set arch
+ifeq ($(TARGET),rpi2)
+  ARCH := arm
+  ARM_CPU := cortex-a7
+  GLOBAL_DEFINES += CRYSTAL=19200000
+else ifeq ($(TARGET),rpi3)
+  ARCH := arm64
+  ARM_CPU := cortex-a53
+  GLOBAL_DEFINES += CRYSTAL=19200000
+else ifeq ($(TARGET),rpi3-vpu)
+  GLOBAL_DEFINES += CRYSTAL=19200000
+else ifeq ($(TARGET),rpi4-vpu)
+  ARCH ?= vc4
+  GLOBAL_DEFINES += CRYSTAL=54000000
+endif
+
+
+ifeq ($(ARCH),arm)
+MEMBASE := 0x00000000
+MODULE_DEPS += \
 	dev/timer/arm_generic \
 	lib/cbuf
+MODULE_SRCS += \
+	$(LOCAL_DIR)/mailbox.c \
+	$(LOCAL_DIR)/intc.c \
+
+LINKER_SCRIPT += \
+	$(BUILDDIR)/system-onesegment.ld
+else # VPU
+  ifeq ($(BOOTCODE),1)
+    MEMBASE := 0x80000000 # in the 8 alias
+    MEMSIZE := 0x20000 # 128kb
+    LINKER_SCRIPT += $(LOCAL_DIR)/bootcode.ld
+  else
+    MEMBASE := 0xc0000000
+    MEMSIZE ?= 0x01400000 # 20MB
+    LINKER_SCRIPT += $(LOCAL_DIR)/start.ld
+  endif
+endif
 
 
 #lib/bio \
@@ -18,22 +54,17 @@ MODULE_DEPS := \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
-	$(LOCAL_DIR)/intc.c \
 	$(LOCAL_DIR)/platform.c \
-	$(LOCAL_DIR)/mailbox.c \
+	$(LOCAL_DIR)/pll_read.c \
+	$(LOCAL_DIR)/pll_control.c
+	#$(LOCAL_DIR)/i2c.c \
 
 
-MEMBASE := 0x00000000
 
 GLOBAL_DEFINES += \
 	ARM_ARCH_WAIT_FOR_SECONDARIES=1
 
-LINKER_SCRIPT += \
-	$(BUILDDIR)/system-onesegment.ld
-
 ifeq ($(TARGET),rpi2)
-ARCH := arm
-ARM_CPU := cortex-a7
 # put our kernel at 0x80000000
 KERNEL_BASE = 0x80000000
 KERNEL_LOAD_OFFSET := 0x00008000
@@ -46,8 +77,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/uart.c
 
 else ifeq ($(TARGET),rpi3)
-ARCH := arm64
-ARM_CPU := cortex-a53
 
 KERNEL_LOAD_OFFSET := 0x00080000
 MEMSIZE ?= 0x40000000 # 1GB
@@ -65,6 +94,35 @@ MODULE_DEPS += \
 		app/shell \
 	    app/tests \
 	    lib/fdt
+else ifeq ($(TARGET),rpi3-vpu)
+  GLOBAL_DEFINES += \
+    MEMSIZE=$(MEMSIZE) \
+    MEMBASE=$(MEMBASE) \
+    RPI3=1 \
+    VPU=1 \
+    SMP_MAX_CPUS=1 \
+
+  MODULE_SRCS += \
+    $(LOCAL_DIR)/uart.c \
+    $(LOCAL_DIR)/udelay.c \
+    $(LOCAL_DIR)/sdhost_impl.cpp \
+    $(LOCAL_DIR)/print_timestamp.c \
+
+  MODULES += \
+	lib/bio \
+
+else ifeq ($(TARGET),rpi4-vpu)
+GLOBAL_DEFINES += \
+    BCM2XXX_VPU=1 SMP_MAX_CPUS=1 \
+    MEMSIZE=$(MEMSIZE) \
+    MEMBASE=$(MEMBASE) \
+    RPI4=1 \
+    VPU=1 \
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/uart.c \
+	$(LOCAL_DIR)/genet.c \
+	$(LOCAL_DIR)/udelay.c \
 
 endif
 

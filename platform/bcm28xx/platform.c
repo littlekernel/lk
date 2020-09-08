@@ -15,10 +15,16 @@
 #include <lk/init.h>
 #include <kernel/vm.h>
 #include <kernel/spinlock.h>
+#include <dev/gpio.h>
+
+#ifndef VPU
 #include <dev/timer/arm_generic.h>
+#endif
+
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/bcm28xx.h>
+#include <platform/bcm28xx/pll_read.h>
 
 #if BCM2836
 #include <arch/arm.h>
@@ -89,6 +95,8 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 
 #define DEBUG_UART 1
 
+#elif VPU
+  #define DEBUG_UART 0
 #else
 #error Unknown BCM28XX Variant
 #endif
@@ -108,6 +116,9 @@ void platform_init_mmu_mappings(void) {
 }
 
 void platform_early_init(void) {
+    // 19.2mhz for most models
+    // 54mhz for rpi4
+    xtal_freq = CRYSTAL;
     uart_init_early();
 
     intc_init();
@@ -159,12 +170,15 @@ void platform_early_init(void) {
 
 #elif BCM2836
     arm_generic_timer_init(INTERRUPT_ARM_LOCAL_CNTPNSIRQ, 1000000);
+#elif VPU
 #else
 #error Unknown BCM28XX Variant
 #endif
 
+#ifdef WITH_KERNEL_VM
     /* add the main memory arena */
     pmm_add_arena(&arena);
+#endif
 
 #if BCM2837
     /* reserve the first 64k of ram, which should be holding the fdt */
@@ -195,6 +209,16 @@ void platform_early_init(void) {
 }
 
 void platform_init(void) {
+#ifdef VPU
+  uint32_t r28, sp;
+  __asm__ volatile ("mov %0, r28" : "=r"(r28));
+  __asm__ volatile ("mov %0, sp" : "=r"(sp));
+  dprintf(INFO, "platform_init\nr28: 0x%x\nsp: 0x%x\n", r28, sp);
+#endif
+
+#ifdef RPI4
+  gpio_config(42, 1);
+#endif
     uart_init();
 #if BCM2837
     init_framebuffer();
@@ -215,3 +239,31 @@ int platform_dgetc(char *c, bool wait) {
     return 0;
 }
 
+void platform_halt(platform_halt_action suggested_action,
+                   platform_halt_reason reason) {
+  if (suggested_action == HALT_ACTION_REBOOT) {
+    *REG32(PM_WDOG) = PM_PASSWORD | (1 & PM_WDOG_MASK);
+    uint32_t t = *REG32(PM_RSTC);
+    t &= PM_RSTC_WRCFG_CLR;
+    t |= 0x20;
+    *REG32(PM_RSTC) = PM_PASSWORD | t;
+    dprintf(ALWAYS, "waiting for watchdog\n");
+    arch_disable_ints();
+    for (;;);
+  }
+  dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
+  arch_disable_ints();
+  for (;;);
+}
+
+void target_set_debug_led(unsigned int led, bool on) {
+  switch (led) {
+  case 0:
+#ifdef RPI4
+    gpio_set(42, on);
+#endif
+    break;
+  default:
+    break;
+  }
+}

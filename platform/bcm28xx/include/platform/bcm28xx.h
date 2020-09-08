@@ -7,16 +7,30 @@
  */
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+void print_timestamp(void);
+#ifdef __cplusplus
+}
+#endif
+
 #define SDRAM_BASE 0
-/* Note: BCM2836/BCM2837 use different peripheral base than BCM2835 */
-#define BCM_PERIPH_BASE_PHYS    (0x3f000000U)
+#ifdef VPU
+  #define BCM_PERIPH_BASE_PHYS (0x7e000000U)
+#else
+  /* Note: BCM2836/BCM2837 use different peripheral base than BCM2835 */
+  #define BCM_PERIPH_BASE_PHYS    (0x3f000000U)
+#endif
 #define BCM_PERIPH_SIZE         (0x01100000U)
 
 #if BCM2836
-#define BCM_PERIPH_BASE_VIRT    (0xe0000000U)
+  #define BCM_PERIPH_BASE_VIRT    (0xe0000000U)
 #elif BCM2837
-#define BCM_PERIPH_BASE_VIRT    (0xffffffffc0000000ULL)
-#define MEMORY_APERTURE_SIZE    (1024 * 1024 * 1024)
+  #define BCM_PERIPH_BASE_VIRT    (0xffffffffc0000000ULL)
+  #define MEMORY_APERTURE_SIZE    (1024 * 1024 * 1024)
+#elif VPU
+  #define BCM_PERIPH_BASE_VIRT    (0x7e000000U)
 #else
 #error Unknown BCM28XX Variant
 #endif
@@ -28,11 +42,13 @@
 #define BCM_LOCAL_PERIPH_BASE_VIRT (BCM_PERIPH_BASE_VIRT + 0x01000000)
 
 #define IC0_BASE                (BCM_PERIPH_BASE_VIRT + 0x2000)
+#define IC1_BASE                (BCM_PERIPH_BASE_VIRT + 0x2800)
 #define ST_BASE                 (BCM_PERIPH_BASE_VIRT + 0x3000)
 #define MPHI_BASE               (BCM_PERIPH_BASE_VIRT + 0x6000)
 #define DMA_BASE                (BCM_PERIPH_BASE_VIRT + 0x7000)
 #define ARM_BASE                (BCM_PERIPH_BASE_VIRT + 0xB000)
 #define PM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x100000)
+#define CM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x101000)
 #define PCM_CLOCK_BASE          (BCM_PERIPH_BASE_VIRT + 0x101098)
 #define RNG_BASE                (BCM_PERIPH_BASE_VIRT + 0x104000)
 #define GPIO_BASE               (BCM_PERIPH_BASE_VIRT + 0x200000)
@@ -41,13 +57,49 @@
 #define I2S_BASE                (BCM_PERIPH_BASE_VIRT + 0x203000)
 #define SPI0_BASE               (BCM_PERIPH_BASE_VIRT + 0x204000)
 #define BSC0_BASE               (BCM_PERIPH_BASE_VIRT + 0x205000)
+#define OTP_BASE                (BCM_PERIPH_BASE_VIRT + 0x20f000)
 #define AUX_BASE                (BCM_PERIPH_BASE_VIRT + 0x215000)
 #define MINIUART_BASE           (BCM_PERIPH_BASE_VIRT + 0x215040)
 #define EMMC_BASE               (BCM_PERIPH_BASE_VIRT + 0x300000)
 #define SMI_BASE                (BCM_PERIPH_BASE_VIRT + 0x600000)
 #define BSC1_BASE               (BCM_PERIPH_BASE_VIRT + 0x804000)
 #define USB_BASE                (BCM_PERIPH_BASE_VIRT + 0x980000)
+#define GENET_BASE              (0x7d580000) // TODO, this is before the normal BCM_PERIPH_BASE_VIRT bank
 #define MCORE_BASE              (BCM_PERIPH_BASE_VIRT + 0x0000)
+
+#define ST_CS                   (ST_BASE + 0x0)
+#define ST_CLO                  (ST_BASE + 0x4)
+#define ST_CHI                  (ST_BASE + 0x8)
+#define ST_C0                   (ST_BASE + 0xc)
+
+#define CM_VPUCTL               (CM_BASE + 0x008)
+#define CM_VPUDIV               (CM_BASE + 0x00c)
+#define CM_UARTCTL              (CM_BASE + 0xf0)
+#define CM_UARTDIV              (CM_BASE + 0xf4)
+
+#define IC0_C                   (IC0_BASE + 0x0)
+#define IC0_S                   (IC0_BASE + 0x4)
+#define IC0_SRC0                (IC0_BASE + 0x8)
+#define IC0_SRC1                (IC0_BASE + 0xc)
+#define IC0_VADDR               (IC0_BASE + 0x30)
+#define IC0_WAKEUP              (IC0_BASE + 0x34)
+
+#define IC1_C                   (IC1_BASE + 0x0)
+#define IC1_S                   (IC1_BASE + 0x4)
+#define IC1_SRC0                (IC1_BASE + 0x8)
+#define IC1_SRC1                (IC1_BASE + 0xc)
+#define IC1_VADDR               (IC1_BASE + 0x30)
+#define IC1_WAKEUP              (IC1_BASE + 0x34)
+
+#define PM_PASSWORD 0x5a000000
+#define CM_PASSWORD 0x5a000000
+#define CM_SRC_OSC                    1
+#define CM_UARTCTL_FRAC_SET                                0x00000200
+#define CM_UARTCTL_ENAB_SET                                0x00000010
+#define PM_RSTC                 (PM_BASE + 0x1c)
+#define PM_RSTC_WRCFG_CLR       0xffffffcf // mask to keep everything but the watchdog config
+#define PM_WDOG                 (PM_BASE + 0x24)
+#define PM_WDOG_MASK            0x00000fff
 
 #define ARMCTRL_BASE            (ARM_BASE + 0x000)
 #define ARMCTRL_INTC_BASE       (ARM_BASE + 0x200)
@@ -204,3 +256,17 @@
 #define GPIO_GPPUD     (GPIO_BASE + 0x94)
 #define GPIO_GPPUDCLK0 (GPIO_BASE + 0x98)
 #define GPIO_GPPUDCLK1 (GPIO_BASE + 0x9C)
+#define GPIO_2711_PULL (GPIO_BASE + 0xe4)
+// 2 bits per reg, 16 pins per reg, 4 regs total
+// 0=none, 1=up, 2=down
+
+#define OTP_BOOTMODE        (OTP_BASE + 0x00)
+#define OTP_CONFIG          (OTP_BASE + 0x04)
+#define OTP_CTRL_LO         (OTP_BASE + 0x08)
+#define OTP_CTRL_HI         (OTP_BASE + 0x0c)
+#define OTP_STATUS          (OTP_BASE + 0x10)
+#define OTP_BITSEL          (OTP_BASE + 0x14)
+#define OTP_DATA            (OTP_BASE + 0x18)
+#define OTP_ADDR            (OTP_BASE + 0x1c)
+#define OTP_WRITE_DATA_READ (OTP_BASE + 0x20)
+#define OTP_INIT_STATUS     (OTP_BASE + 0x24)

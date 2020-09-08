@@ -219,6 +219,7 @@ size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block) {
     DEBUG_ASSERT(c);
 
 retry:
+    DEBUG_ASSERT(cbuf->event.magic == EVENT_MAGIC);
     if (block)
         event_wait(&cbuf->event);
 

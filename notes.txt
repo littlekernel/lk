@@ -1,0 +1,18 @@
+0xc0261e40    bootstrap2 stack
+0xc0263820    shell stack
+0xc15ffe8e    stray pc
+0xc15fffcc    primary stack
+
+
+# build LK
+[nix-shell:~/apps/rpi/lk]$ make PROJECT=rpi4-recovery
+# sign LK
+[nix-shell:~/apps/rpi/rpi-eeprom/firmware/beta]$ node ~/apps/rpi-open-firmware/sign.js ~/apps/rpi/lk/build-rpi4-recovery/lk.bin recovery.bin <KEY>
+# transfer to other pc
+[clever@amd-nixos:~/apps/rpi/usbboot]$ scp system76:/home/clever/apps/rpi/rpi-eeprom/firmware/beta/recovery.bin lk/bootcode.bin 
+# host over usb
+[clever@amd-nixos:~/apps/rpi/usbboot]$ sudo ./rpiboot -v -d ./lk/
+# launch everything
+[nix-shell:~/apps/rpi/lk]$ uart-manager
+Uuart early init done
+
