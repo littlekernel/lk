@@ -24,8 +24,7 @@ SECTIONS {
     _etext = .;
   } >ram =0
 
-  .rodata : {
-    . = ALIGN(4);
+  .rodata : ALIGN(4) {
     _frodata = .;
     *(.rodata .rodata.* .gnu.linkonce.r.*)
     *(.rodata1)
@@ -47,8 +46,9 @@ SECTIONS {
     *(.data.vectorTable)
   } >ram
 
-  .data : {
-    . = ALIGN(4);
+  .rel : { *(.*.rel*) }
+
+  .data : ALIGN(4) {
     _fdata = .;
     *(.data .data.* .gnu.linkonce.d.*)
     *(.data1)
@@ -57,8 +57,7 @@ SECTIONS {
     _edata = .;
   } >ram
 
-  .bss : {
-    . = ALIGN(4);
+  .bss : ALIGN(4) {
     _fbss = .;
     *(.dynsbss)
     *(.sbss .sbss.* .gnu.linkonce.sb.*)
