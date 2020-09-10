@@ -26,6 +26,7 @@ in lib.fix (self: {
     rpi3.start = vc4.callPackage ./lk.nix { project = "rpi3-start"; };
     rpi4.start4 = vc4.callPackage ./lk.nix { project = "rpi4-start4"; };
     vc4.stage1 = vc4.callPackage ./lk.nix { project = "vc4-stage1"; };
+    vc4.stage2 = vc4.callPackage ./lk.nix { project = "vc4-stage2"; };
   };
   x86_64 = {
     inherit (x86_64) uart-manager;
