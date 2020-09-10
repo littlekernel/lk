@@ -71,11 +71,11 @@ static void load_stage2() {
     printf("failed to load elf: %d\n", ret);
     return;
   }
-  printf("entrypoing: 0x%x\n", stage2_elf->entry);
   fs_close_file(stage2);
   elf_close_handle(stage2_elf);
+  uint32_t entry = stage2_elf->entry;
   free(stage2_elf);
-  arch_chain_load(stage2_elf->entry, 0, 0, 0, 0);
+  arch_chain_load(entry, 0, 0, 0, 0);
 }
 
 static void stage2_init(const struct app_descriptor *app) {
