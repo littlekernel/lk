@@ -9,6 +9,7 @@
 #include <lk/debug.h>
 #include <target.h>
 #include <lk/compiler.h>
+#include <nrfx_usbd.h>
 #include <dev/gpio.h>
 #include <platform/gpio.h>
 #include <platform/nrf52.h>
@@ -29,7 +30,15 @@ void target_early_init(void) {
 }
 
 
+static void target_usb_init(void) {
+
+
+}
+
+
 void target_init(void) {
     nrf52_debug_init();
     dprintf(SPEW,"Target: PCA10056 DK...\n");
 }
+
+
