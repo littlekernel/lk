@@ -5,11 +5,11 @@ MODULE := $(LOCAL_DIR)
 MODULE_DEPS += \
 	lib/partition \
 	lib/fs \
+	lib/fs/fat32 \
 	lib/fs/ext2 \
-	lib/elf \
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/stage1.c \
+	$(LOCAL_DIR)/stage2.c \
 
 include make/module.mk
 

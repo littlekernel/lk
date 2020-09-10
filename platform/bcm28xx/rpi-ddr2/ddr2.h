@@ -105,8 +105,6 @@
 #define A2W_SMPS_LDO0                                            0x7e1020d0
 #define A2W_SMPS_LDO1 0x7e1020d4
 
-#define PM_SMPS 0x7e10006c
-
 // copied from rpi-open-firmware
 #define LPDDR2_MR_DEVICE_FEATURE_2 2
 #define LPDDR2_MR_IO_CONFIG        3

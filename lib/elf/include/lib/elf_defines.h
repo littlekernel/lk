@@ -40,6 +40,7 @@
 #define EM_IA_64    50
 #define EM_X86_64   62
 #define EM_OR1K     92
+#define EM_VC4      137
 #define EM_AARCH64  183
 #define EM_MICROBLAZE 189
 #define EM_ALPHA    0x9026

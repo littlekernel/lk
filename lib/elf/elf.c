@@ -154,6 +154,10 @@ static int verify_eheader(const void *header) {
 #elif ARCH_MICROBLAZE
     if (eheader->e_machine != EM_MICROBLAZE)
         return ERR_NOT_FOUND;
+#elif ARCH_VC4
+    printf("%d %d\n", eheader->e_machine, EM_VC4);
+    if (eheader->e_machine != EM_VC4)
+        return ERR_NOT_FOUND;
 #else
 #error find proper EM_ define for your machine
 #endif

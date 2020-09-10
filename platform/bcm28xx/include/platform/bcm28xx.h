@@ -47,7 +47,6 @@ void print_timestamp(void);
 #define MPHI_BASE               (BCM_PERIPH_BASE_VIRT + 0x6000)
 #define DMA_BASE                (BCM_PERIPH_BASE_VIRT + 0x7000)
 #define ARM_BASE                (BCM_PERIPH_BASE_VIRT + 0xB000)
-#define PM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x100000)
 #define CM_BASE                 (BCM_PERIPH_BASE_VIRT + 0x101000)
 #define PCM_CLOCK_BASE          (BCM_PERIPH_BASE_VIRT + 0x101098)
 #define RNG_BASE                (BCM_PERIPH_BASE_VIRT + 0x104000)
@@ -91,15 +90,10 @@ void print_timestamp(void);
 #define IC1_VADDR               (IC1_BASE + 0x30)
 #define IC1_WAKEUP              (IC1_BASE + 0x34)
 
-#define PM_PASSWORD 0x5a000000
 #define CM_PASSWORD 0x5a000000
 #define CM_SRC_OSC                    1
 #define CM_UARTCTL_FRAC_SET                                0x00000200
 #define CM_UARTCTL_ENAB_SET                                0x00000010
-#define PM_RSTC                 (PM_BASE + 0x1c)
-#define PM_RSTC_WRCFG_CLR       0xffffffcf // mask to keep everything but the watchdog config
-#define PM_WDOG                 (PM_BASE + 0x24)
-#define PM_WDOG_MASK            0x00000fff
 
 #define ARMCTRL_BASE            (ARM_BASE + 0x000)
 #define ARMCTRL_INTC_BASE       (ARM_BASE + 0x200)

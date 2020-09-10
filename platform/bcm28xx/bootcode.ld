@@ -3,6 +3,7 @@ MEMORY {
 }
 GROUP(-lgcc)
 SECTIONS {
+  _start = .;
   .vectorTable : {
     . = 0x0;
     *(.data.vectorTable)
@@ -48,3 +49,4 @@ SECTIONS {
   }
   _fstack = ORIGIN(ram) + LENGTH(ram) - 4;
 }
+/* ASSERT((_end - _start) <= LENGTH(ram), "bss wont fit within L2") */

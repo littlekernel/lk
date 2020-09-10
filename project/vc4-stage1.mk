@@ -5,7 +5,6 @@ ARCH := vc4
 
 MODULES += \
 	app/vc4-stage1 \
-	app/shell \
 	platform/bcm28xx/otp \
 	platform/bcm28xx/rpi-ddr2 \
 

@@ -22,9 +22,10 @@
 #endif
 
 #include <platform.h>
-#include <platform/interrupts.h>
 #include <platform/bcm28xx.h>
 #include <platform/bcm28xx/pll_read.h>
+#include <platform/bcm28xx/pm.h>
+#include <platform/interrupts.h>
 
 #if BCM2836
 #include <arch/arm.h>
@@ -105,12 +106,14 @@ extern void intc_init(void);
 extern void arm_reset(void);
 
 
+#ifdef WITH_KERNEL_VM
 static pmm_arena_t arena = {
     .name = "sdram",
     .base = SDRAM_BASE,
     .size = MEMSIZE,
     .flags = PMM_ARENA_FLAG_KMAP,
 };
+#endif
 
 void platform_init_mmu_mappings(void) {
 }
@@ -242,13 +245,14 @@ int platform_dgetc(char *c, bool wait) {
 void platform_halt(platform_halt_action suggested_action,
                    platform_halt_reason reason) {
   if (suggested_action == HALT_ACTION_REBOOT) {
+    dprintf(ALWAYS, "waiting for watchdog\n");
+    uart_flush_tx(0);
+    arch_disable_ints();
     *REG32(PM_WDOG) = PM_PASSWORD | (1 & PM_WDOG_MASK);
     uint32_t t = *REG32(PM_RSTC);
     t &= PM_RSTC_WRCFG_CLR;
     t |= 0x20;
     *REG32(PM_RSTC) = PM_PASSWORD | t;
-    dprintf(ALWAYS, "waiting for watchdog\n");
-    arch_disable_ints();
     for (;;);
   }
   dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);

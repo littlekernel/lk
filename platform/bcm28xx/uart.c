@@ -98,6 +98,7 @@ static enum handler_return uart_irq(void *arg) {
 }
 
 static void uart_flush(int port) {
+  // waits until tx FIFO has room, but is not flushed fully
   uintptr_t base = uart_to_ptr(port);
   while (UARTREG(base, UART_TFR) & 0x20);
 }
@@ -195,6 +196,11 @@ int uart_getc(int port, bool wait) {
 }
 
 void uart_flush_tx(int port) {
+  // waits until FIFO is empty and the final stop bit has been sent
+  uintptr_t base = uart_to_ptr(port);
+  while (!(UARTREG(base, UART_TFR) & 0x80));
+  while (UARTREG(base, UART_TFR) & 0x8);
+  //udelay(250); // ugly hack
 }
 
 void uart_flush_rx(int port) {
