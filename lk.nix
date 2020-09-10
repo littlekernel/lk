@@ -12,5 +12,7 @@ stdenv.mkDerivation {
     lk.bin $(stat --printf=%s $out/lk.bin) bytes
     lk.elf $(stat --printf=%s $out/lk.elf) bytes
     EOF
+    echo "file binary-dist $out/lk.bin" >> $out/nix-support/hydra-build-products
+    echo "file binary-dist $out/lk.elf" >> $out/nix-support/hydra-build-products
   '';
 }
