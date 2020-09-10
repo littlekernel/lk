@@ -13,7 +13,7 @@ MEMORY {
   ram (rwx) : ORIGIN = 0xc0000000 + 2M, LENGTH = 20M
 }
 SECTIONS {
-  .text : ALIGN(32) {
+  .text : {
     PROVIDE(_start = .);
     . = ALIGN(4);
     *(.text .stub .text.* .gnu.linkonce.t.*)
@@ -24,7 +24,8 @@ SECTIONS {
     _etext = .;
   } >ram =0
 
-  .rodata : ALIGN(4) {
+  .rodata : {
+    . = ALIGN(4);
     _frodata = .;
     *(.rodata .rodata.* .gnu.linkonce.r.*)
     *(.rodata1)
@@ -48,7 +49,8 @@ SECTIONS {
 
   .rel : { *(.*.rel*) }
 
-  .data : ALIGN(4) {
+  .data : {
+    . = ALIGN(4);
     _fdata = .;
     *(.data .data.* .gnu.linkonce.d.*)
     *(.data1)
@@ -57,7 +59,8 @@ SECTIONS {
     _edata = .;
   } >ram
 
-  .bss : ALIGN(4) {
+  .bss : {
+    . = ALIGN(4);
     _fbss = .;
     *(.dynsbss)
     *(.sbss .sbss.* .gnu.linkonce.sb.*)
