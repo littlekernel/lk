@@ -13,11 +13,16 @@
 #include <platform/bcm28xx/pm.h>
 #include <platform/bcm28xx/sdhost_impl.h>
 #include <platform/bcm28xx/sdram.h>
+#include <string.h>
+
+#define UNCACHED_RAM 0xc0000000
+#define MB (1024*1024)
 
 static void stage2_dram_init(uint level) {
   sdram_init();
-  // add 1mb of heap, 1mb from start of ram
-  novm_add_arena("dram", 0xc0000000 + (1024*1024), 1024*1024);
+  uint32_t start = UNCACHED_RAM | (1 * MB);
+  uint32_t length = 10 * MB;
+  novm_add_arena("dram", start, length);
 }
 
 LK_INIT_HOOK(stage1, &stage2_dram_init, LK_INIT_LEVEL_PLATFORM_EARLY + 1);
@@ -33,17 +38,30 @@ static int waker_entry(wait_queue_t *waiter) {
   int ret = platform_dgetc(&c, true);
   if (ret) {
     puts("failed to getc\n");
-    thread_exit(0);
+    return 0;
   }
   if (c == 'X') {
+    printf("got char 0x%x\n", c);
     THREAD_LOCK(state);
     wait_queue_wake_all(waiter, false, c);
     THREAD_UNLOCK(state);
   }
-  thread_exit(0);
+  return 0;
 }
 
-static void load_stage2() {
+static void *load_and_run_elf(elf_handle_t *stage2_elf) {
+  int ret = elf_load(stage2_elf);
+  if (ret) {
+    printf("failed to load elf: %d\n", ret);
+    return;
+  }
+  elf_close_handle(stage2_elf);
+  void *entry = stage2_elf->entry;
+  free(stage2_elf);
+  return entry;
+}
+
+static void load_stage2(void) {
   int ret;
 
   bdev_t *sd = rpi_sdhost_init();
@@ -66,28 +84,110 @@ static void load_stage2() {
     printf("failed to elf open: %d\n", ret);
     return;
   }
-  ret = elf_load(stage2_elf);
-  if (ret) {
-    printf("failed to load elf: %d\n", ret);
-    return;
-  }
+  void *entry = load_and_run_elf(stage2_elf);
   fs_close_file(stage2);
-  elf_close_handle(stage2_elf);
-  uint32_t entry = stage2_elf->entry;
-  free(stage2_elf);
   arch_chain_load(entry, 0, 0, 0, 0);
 }
 
-static void stage2_init(const struct app_descriptor *app) {
+struct xmodem_packet {
+  uint8_t magic;
+  uint8_t block_num;
+  uint8_t block_num_invert;
+  uint8_t payload[128];
+  uint8_t checksum;
+} __attribute__((packed));
+
+//static_assert(sizeof(struct xmodem_packet) == 132, "xmodem packet malformed");
+
+static ssize_t read_repeat(io_handle_t *in, void *buf, ssize_t len) {
+  ssize_t total_read = 0;
+  ssize_t ret;
+  while ((ret = io_read(in, buf, len)) > 0) {
+    //printf("0X%02x %d\n\n", ((uint8_t*)buf)[0], ret);
+    len -= ret;
+    total_read += ret;
+    buf += ret;
+    if (len <= 0) return total_read;
+  }
+  return -1;
+}
+
+static void xmodem_receive(void) {
+  size_t capacity = 2 * MB;
+  void *buffer = malloc(capacity);
+  size_t used = 0;
+  struct xmodem_packet *packet = malloc(sizeof(struct xmodem_packet));
+  ssize_t ret;
+  int blockNr = 1;
+  bool success = false;
+
+  io_write(&console_io, "\x15", 1);
+  while ((ret = io_read(&console_io, packet, 1)) == 1) {
+    if (packet->magic == 4) {
+      puts("R: EOF!");
+      success = true;
+      break;
+    }
+    ret = read_repeat(&console_io, &packet->block_num, sizeof(struct xmodem_packet) - 1);
+    if (ret != (sizeof(struct xmodem_packet)-1)) {
+      puts("read error");
+      break;
+    }
+    uint8_t checksum = 0;
+    for (int i=0; i<128; i++) {
+      checksum += packet->payload[i];
+    }
+    bool fail = true;
+    if (packet->checksum == checksum) {
+      if (packet->block_num_invert == (255 - packet->block_num)) {
+        if (packet->block_num == (blockNr & 0xff)) {
+          memcpy(buffer + (128 * (blockNr-1)), packet->payload, 128);
+          blockNr++;
+          io_write(&console_io, "\6", 1);
+          fail = false;
+        } else if (packet->block_num == ((blockNr - 1) & 0xff)) { // ack was lost, just re-ack
+          io_write(&console_io, "\6", 1);
+        } else {
+          io_write(&console_io, "\x15", 1);
+        }
+      } else { // block_invert wrong
+        io_write(&console_io, "\x15", 1);
+      }
+    } else { // wrong checksum
+      io_write(&console_io, "\x15", 1);
+    }
+    if (fail) printf("got packet: %d %d %d %d/%d\n", packet->magic, packet->block_num, packet->block_num_invert, packet->checksum, checksum);
+  }
+  printf("final ret was %ld\n", ret);
+  free(packet);
+  if (success) {
+    elf_handle_t *stage2_elf = malloc(sizeof(elf_handle_t));
+    ret = elf_open_handle_memory(stage2_elf, buffer, blockNr*128);
+    if (ret) {
+      printf("failed to elf open: %d\n", ret);
+      return;
+    }
+    void *entry = load_and_run_elf(stage2_elf);
+    free(buffer);
+    arch_chain_load(entry, 0, 0, 0, 0);
+    return;
+  }
+  free(buffer);
+}
+
+static void stage2_core_entry(void *_unused) {
+  spin_lock_saved_state_t state1;
+  arch_interrupt_save(&state1, 0);
   printf("stage2 init\n");
   puts("press X to stop autoboot and go into xmodem mode...");
   wait_queue_init(&waiter);
 
   thread_t *waker = thread_create("waker", waker_entry, &waiter, DEFAULT_PRIORITY, ARCH_DEFAULT_STACK_SIZE);
   thread_resume(waker);
+  arch_interrupt_restore(state1, 0);
 
   THREAD_LOCK(state);
-  int ret = wait_queue_block(&waiter, 10000);
+  int ret = wait_queue_block(&waiter, 100000);
   THREAD_UNLOCK(state);
 
   printf("wait result: %d\n", ret);
@@ -96,10 +196,17 @@ static void stage2_init(const struct app_descriptor *app) {
     puts("going into xmodem mode");
     uint32_t rsts = *REG32(PM_RSTS);
     printf("%x\n", rsts);
-    platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
+    xmodem_receive();
   } else {
     load_stage2();
   }
+}
+
+static thread_t *stage2_core;
+
+static void stage2_init(const struct app_descriptor *app) {
+  stage2_core = thread_create("stage2", stage2_core_entry, 0, DEFAULT_PRIORITY, ARCH_DEFAULT_STACK_SIZE);
+  thread_resume(stage2_core);
 }
 
 static void stage2_entry(const struct app_descriptor *app, void *args) {

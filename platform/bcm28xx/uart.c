@@ -44,6 +44,8 @@
 static cbuf_t uart_rx_buf[NUM_UART];
 
 static int cmd_uart_dump(int argc, const cmd_args *argv);
+int uart_putc(int port, char c);
+void udelay(uint32_t t);
 
 //STATIC_COMMAND_START
 //STATIC_COMMAND("dump_uart_state", "print uart state relating to baud", &cmd_uart_dump)
@@ -144,9 +146,6 @@ void uart_init(void) {
         unmask_interrupt(INTERRUPT_VC_UART + i);
     }
 }
-
-int uart_putc(int port, char c);
-void udelay(uint32_t t);
 
 void uart_init_early(void) {
     if (*REG32(CM_UARTDIV) == 0) {

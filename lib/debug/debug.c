@@ -25,6 +25,7 @@ void spin(uint32_t usecs) {
 }
 
 void _panic(void *caller, const char *fmt, ...) {
+    arch_disable_ints();
     printf("panic (caller %p): ", caller);
 
     va_list ap;

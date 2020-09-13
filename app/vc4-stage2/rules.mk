@@ -7,6 +7,9 @@ MODULE_DEPS += \
 	lib/fs \
 	lib/fs/fat32 \
 	lib/fs/ext2 \
+	lib/debugcommands \
+	app/stringtests \
+	app/tests \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/stage2.c \

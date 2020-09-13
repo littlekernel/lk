@@ -71,11 +71,6 @@ void print_timestamp(void);
 #define ST_CHI                  (ST_BASE + 0x8)
 #define ST_C0                   (ST_BASE + 0xc)
 
-#define CM_VPUCTL               (CM_BASE + 0x008)
-#define CM_VPUDIV               (CM_BASE + 0x00c)
-#define CM_UARTCTL              (CM_BASE + 0xf0)
-#define CM_UARTDIV              (CM_BASE + 0xf4)
-
 #define IC0_C                   (IC0_BASE + 0x0)
 #define IC0_S                   (IC0_BASE + 0x4)
 #define IC0_SRC0                (IC0_BASE + 0x8)
@@ -89,11 +84,6 @@ void print_timestamp(void);
 #define IC1_SRC1                (IC1_BASE + 0xc)
 #define IC1_VADDR               (IC1_BASE + 0x30)
 #define IC1_WAKEUP              (IC1_BASE + 0x34)
-
-#define CM_PASSWORD 0x5a000000
-#define CM_SRC_OSC                    1
-#define CM_UARTCTL_FRAC_SET                                0x00000200
-#define CM_UARTCTL_ENAB_SET                                0x00000010
 
 #define ARMCTRL_BASE            (ARM_BASE + 0x000)
 #define ARMCTRL_INTC_BASE       (ARM_BASE + 0x200)

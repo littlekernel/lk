@@ -10,7 +10,7 @@ GROUP(-lgcc)
 MEMORY {
   /* in the C alias, direct uncached
    */
-  ram (rwx) : ORIGIN = 0xc0000000 + 2M, LENGTH = 20M
+  ram (rwx) : ORIGIN = 0xc0000000 + 20M, LENGTH = 20M
 }
 SECTIONS {
   .text : {

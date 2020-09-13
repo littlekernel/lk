@@ -35,6 +35,10 @@ static inline int atomic_and(volatile int *ptr, int val) {
 static inline int atomic_swap(volatile int *ptr, int val) {
     return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
 }
+
+// todo, use global register instead
+// register struct thread *current __asm__("r29");
+
 static inline struct thread *get_current_thread(void) {
   struct thread *thread_reg;
   __asm__ volatile("mov %0, r29" : "=r"(thread_reg));

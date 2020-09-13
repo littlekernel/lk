@@ -216,7 +216,7 @@ struct BCM2708SDHost : BlockDevice {
 
     get_response();
 
-    printf("Cmd: 0x%x Resp: %08x %08x %08x %08x\n", current_cmd, r[0], r[1], r[2], r[3]);
+    //printf("Cmd: 0x%x Resp: %08x %08x %08x %08x\n", current_cmd, r[0], r[1], r[2], r[3]);
 
     if (*REG32(SH_CMD) & SH_CMD_FAIL_FLAG_SET) {
       if (*REG32(SH_HSTS) & SDHSTS_ERROR_MASK) {

@@ -168,10 +168,14 @@ void print_vpu_state(vc4_saved_state_t* pcb) {
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
   assert(vector < 64);
-  __asm__ volatile("di");
+
+  spin_lock_saved_state_t state;
+  arch_interrupt_save(&state, 0);
+
   irq_handlers[vector].h = handler;
   irq_handlers[vector].arg = arg;
-  __asm__ volatile("ei");
+
+  arch_interrupt_restore(state, 0);
 }
 
 status_t unmask_interrupt(unsigned int vector) {
@@ -211,11 +215,10 @@ void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp) {
   uint32_t source = status & 0xFF;
   enum handler_return ret = INT_NO_RESCHEDULE;
 
-  uint32_t r28, sp, sr;
-  __asm__ volatile ("mov %0, r28" : "=r"(r28));
-  __asm__ volatile ("mov %0, sp" : "=r"(sp));
-  __asm__ volatile ("mov %0, sr" : "=r"(sr));
-  //dprintf(INFO, "sleh_irq\nr28: 0x%x\nsp: 0x%x\nsr: 0x%x\n", r28, sp, sr);
+  //uint32_t sp, sr;
+  //__asm__ volatile ("mov %0, sp" : "=r"(sp));
+  //__asm__ volatile ("mov %0, sr" : "=r"(sr));
+  //dprintf(INFO, "sleh_irq\nsp: 0x%x\nsr: 0x%x\n", sp, sr);
 
   //dprintf(INFO, "VPU Received interrupt from source %d\n", source);
 

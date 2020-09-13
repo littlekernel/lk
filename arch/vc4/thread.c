@@ -47,6 +47,11 @@ void arch_thread_initialize(thread_t *t) {
 
 void arch_dump_thread(thread_t *t) {
   if (t->state != THREAD_RUNNING) {
-    dprintf(INFO, "\tarch: sp 0x%x\n", t->arch.sp);
+    dprintf(INFO, "\tarch: sp 0x%x\n\t      sr: 0x%x\n", t->arch.sp, t->arch.sr);
   }
+  /* else if (t->state == THREAD_RUNNING) {
+    uint32_t sp;
+    __asm__ volatile ("mov %0, sp" : "=r"(sp));
+    dprintf(INFO, "\tarch: sp ~0x%x\n", sp);
+  }*/
 }

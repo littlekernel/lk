@@ -137,10 +137,11 @@ static int cmd_pll_dump(int argc, const cmd_args *argv) {
 #define CM_SRC_BITS 4
 #define CM_TCNT_SRC1_SHIFT 12
 
-static int measure_clock(int mux) {
+int measure_clock(int mux) {
+  int divisor = 1000;
   *REG32(CM_TCNTCTL) = CM_PASSWORD | CM_KILL;
   *REG32(CM_TCNTCTL) = CM_PASSWORD | (mux & CM_SRC_MASK) | (mux >> CM_SRC_BITS) << CM_TCNT_SRC1_SHIFT;
-  *REG32(CM_OSCCOUNT) = CM_PASSWORD | (xtal_freq / 1000);
+  *REG32(CM_OSCCOUNT) = CM_PASSWORD | (xtal_freq / divisor);
   udelay(1);
   while (*REG32(CM_OSCCOUNT)) {
   }
@@ -150,7 +151,7 @@ static int measure_clock(int mux) {
 
   int count = *REG32(CM_TCNTCNT);
   *REG32(CM_TCNTCNT) = CM_PASSWORD | 0;
-  return count;
+  return count * divisor;
 }
 
 static int cmd_measure_clock(int argc, const cmd_args *argv) {
