@@ -68,6 +68,9 @@ struct pll_chan_def {
 extern uint32_t xtal_freq;
 extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 
+void setup_pllc(uint64_t freq);
+void switch_vpu_to_src(int src);
+
 
 #define CM_SRC_OSC                    1
 #define CM_SRC_PLLC_CORE0             5
@@ -76,21 +79,33 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 
 #define CM_VPUCTL               (CM_BASE + 0x008)
 #define CM_VPUCTL_FRAC_SET                                 0x00000200
+#define CM_VPUCTL_BUSY_SET                                 0x00000080
 #define CM_VPUCTL_GATE_SET                                 0x00000040
 #define CM_VPUDIV               (CM_BASE + 0x00c)
+
+#define CM_DPICTL               (CM_BASE + 0x068)
+#define CM_DPICTL_KILL_SET 0x20
+#define CM_DPICTL_BUSY_SET 0x80
+#define CM_DPICTL_ENAB_SET                                 0x00000010
+#define CM_DPIDIV               (CM_BASE + 0x06c)
+
 #define CM_TIMERCTL             (CM_BASE + 0x0e8)
 #define CM_TIMERDIV             (CM_BASE + 0x0ec)
+
 #define CM_TCNTCTL              (CM_BASE + 0x0c0)
 #define CM_TCNTCNT              (CM_BASE + 0x0c4)
+
 #define CM_UARTCTL              (CM_BASE + 0x0f0)
 #define CM_UARTCTL_FRAC_SET                                0x00000200
 #define CM_UARTCTL_ENAB_SET                                0x00000010
 #define CM_UARTDIV              (CM_BASE + 0x0f4)
+
 #define CM_OSCCOUNT             (CM_BASE + 0x100)
 
 #define CM_PLLA                 (CM_BASE + 0x104)
 #define CM_PLLC                 (CM_BASE + 0x108)
 #define CM_PLLC_DIGRST_SET                                 0x00000200
+#define CM_PLLC_ANARST_SET                                 0x00000100
 #define CM_PLLC_HOLDPER_SET                                0x00000080
 #define CM_PLLC_HOLDCORE2_SET                              0x00000020
 #define CM_PLLC_HOLDCORE1_SET                              0x00000008
@@ -98,10 +113,6 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define CM_PLLC_LOADCORE0_SET                              0x00000001
 #define CM_PLLD                 (CM_BASE + 0x10C)
 #define CM_PLLH                 (CM_BASE + 0x110)
-#define CM_PLLB                 (CM_BASE + 0x170)
-
-
-
 
 #define CM_LOCK                 (CM_BASE + 0x114)
 #define CM_LOCK_FLOCKA_BIT      8
@@ -110,19 +121,19 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define CM_LOCK_FLOCKD_BIT      11
 #define CM_LOCK_FLOCKH_BIT      12
 
-#define CM_DPICTL_KILL_SET 0x20
-#define CM_DPICTL_BUSY_SET 0x80
+#define CM_PLLB                 (CM_BASE + 0x170)
+#define CM_PLLB_LOADARM_SET                                0x00000001
+#define CM_PLLB_HOLDARM_SET                                0x00000002
 
 // Common CM_PLL bits
 #define CM_PLL_ANARST           0x00000100
 #define CM_PLL_DIGRST           0x00000200
 
-#define CM_PLLB_LOADARM_SET                                0x00000001
-#define CM_PLLB_HOLDARM_SET                                0x00000002
-#define CM_ARMCTL               0x7e1011b0
+#define CM_ARMCTL               (CM_BASE + 0x1b0)
 #define CM_ARMCTL_ENAB_SET                                 0x00000010
 
-#define A2W_XOSC_CTRL           0x7e102190
+
+#define A2W_XOSC_CTRL           (A2W_BASE + 0x190)
 #define A2W_XOSC_CTRL_DDREN_SET                            0x00000010
 #define A2W_XOSC_CTRL_PLLAEN_SET                           0x00000040
 #define A2W_XOSC_CTRL_PLLBEN_SET                           0x00000080
@@ -188,6 +199,7 @@ extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 #define A2W_PLLA_CTRL_NDIV_SET                             0x000003ff
 #define A2W_PLLC_CTRL           (A2W_BASE + 0x120)
 #define A2W_PLLC_CTRL_PRSTN_SET                            0x00020000
+#define A2W_PLLC_CTRL_PWRDN_SET                            0x00010000
 #define A2W_PLLC_CTRL_NDIV_SET                             0x000003ff
 #define A2W_PLLD_CTRL           (A2W_BASE + 0x140)
 #define A2W_PLLD_CTRL_NDIV_SET                             0x000003ff

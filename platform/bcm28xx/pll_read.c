@@ -12,7 +12,6 @@ uint32_t xtal_freq;
 
 static int cmd_pll_dump(int argc, const cmd_args *argv);
 static int cmd_measure_clock(int argc, const cmd_args *argv);
-static int cmd_measure_clocks(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("dump_pll_state", "print all pll state", &cmd_pll_dump)
@@ -154,6 +153,33 @@ int measure_clock(int mux) {
   return count * divisor;
 }
 
+const char *clock_names[] = {
+  [1] = "H264",
+  [2] = "ISP",
+  [3] = "SDRAM",
+  [5] = "VPU",
+  "OTP",
+  [12] = "dsi0p",
+  "dsi1p",
+  "cam0",
+  "cam1",
+  [17] = "dpi",
+  "dsi0e",
+  "dsi1e",
+  "gp0",
+  "gp1",
+  "hsm",
+  "pcm",
+  "pwm",
+  "slim",
+  [27] = "smi",
+  "uart",
+  "vec",
+  [38] = "aveo",
+  "emmc",
+  [42] = "emmc2"
+};
+
 static int cmd_measure_clock(int argc, const cmd_args *argv) {
   if (argc != 2) {
     puts("error, missing argument");
@@ -192,10 +218,10 @@ static int cmd_measure_clock(int argc, const cmd_args *argv) {
   return 0;
 }
 
-static int cmd_measure_clocks(int argc, const cmd_args *argv) {
+int cmd_measure_clocks(int argc, const cmd_args *argv) {
   for (int i=0; i<43; i++) {
     int count = measure_clock(i);
-    printf("clock #%d is %d\n", i, count);
+    printf("clock #%d(%s) is %d\n", i, clock_names[i], count);
   }
   return 0;
 }

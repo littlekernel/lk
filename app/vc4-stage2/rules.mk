@@ -9,6 +9,7 @@ MODULE_DEPS += \
 	lib/fs/ext2 \
 	lib/debugcommands \
 	app/stringtests \
+	platform/bcm28xx/dpi \
 	app/tests \
 
 MODULE_SRCS += \

@@ -467,3 +467,78 @@ static int cmd_set_pll_freq(int argc, const cmd_args *argv) {
   uint32_t freq = argv[2].u;
   return set_pll_freq(pll, freq);
 }
+
+// in A2W_PLLC_CTRL
+#define PDIV(n) ((n & 7) << 12)
+// in A2W_PLLC_ANA1
+#define KP(n) ((n & 0xf) << 15)
+#define KI(n) ((n & 0x7) << 19)
+// in A2W_PLLC_ANA3
+#define KA(n) ((n & 7) << 7)
+// for all but PLLH
+#define ANA1_DOUBLE (1<<14)
+// for PLLH
+#define PLLH_ANA1_DOUBLE (1<<11)
+
+void switch_vpu_to_src(int src) {
+  *REG32(CM_VPUCTL) = CM_PASSWORD | (*REG32(CM_VPUCTL) & ~0xf) | (src & 0xf);
+  while (*REG32(CM_VPUCTL) & CM_VPUCTL_BUSY_SET) {};
+}
+
+void setup_pllc(uint64_t target_freq) {
+  int pdiv = 1;
+  uint64_t xtal_in = xtal_freq;
+  uint64_t goal_freq = target_freq / 2;
+  uint64_t divisor = (goal_freq<<20) / xtal_in;
+  int div = divisor >> 20;
+  int frac = divisor & 0xfffff;
+  printf("divisor 0x%llx -> %d+(%d/2^20)\n", divisor, div, frac);
+
+  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_ANARST_SET;
+
+  *REG32(A2W_XOSC_CTRL) |= A2W_PASSWORD | A2W_XOSC_CTRL_PLLCEN_SET;
+
+  *REG32(A2W_PLLC_FRAC) = A2W_PASSWORD | frac;
+  *REG32(A2W_PLLC_CTRL) = A2W_PASSWORD | div | PDIV(pdiv);
+  printf("frac set to 0x%x\n", *REG32(A2W_PLLC_FRAC));
+
+  *REG32(A2W_PLLC_ANA3) = A2W_PASSWORD | KA(2);
+  *REG32(A2W_PLLC_ANA2) = A2W_PASSWORD | 0x0;
+  *REG32(A2W_PLLC_ANA1) = A2W_PASSWORD | ANA1_DOUBLE | KI(2) | KP(8);
+  *REG32(A2W_PLLC_ANA0) = A2W_PASSWORD | 0x0;
+
+  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET;
+
+  /* hold all */
+  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET |
+            CM_PLLC_HOLDPER_SET | CM_PLLC_HOLDCORE2_SET |
+            CM_PLLC_HOLDCORE1_SET | CM_PLLC_HOLDCORE0_SET;
+
+  *REG32(A2W_PLLC_DIG3) = A2W_PASSWORD | 0x0;
+  *REG32(A2W_PLLC_DIG2) = A2W_PASSWORD | 0x400000;
+  *REG32(A2W_PLLC_DIG1) = A2W_PASSWORD | 0x5;
+  *REG32(A2W_PLLC_DIG0) = A2W_PASSWORD | div | 0x555000;
+
+  *REG32(A2W_PLLC_CTRL) = A2W_PASSWORD | div | PDIV(pdiv) | A2W_PLLC_CTRL_PRSTN_SET;
+
+  *REG32(A2W_PLLC_DIG3) = A2W_PASSWORD | 0x42;
+  *REG32(A2W_PLLC_DIG2) = A2W_PASSWORD | 0x500401;
+  *REG32(A2W_PLLC_DIG1) = A2W_PASSWORD | 0x4005;
+  *REG32(A2W_PLLC_DIG0) = A2W_PASSWORD | div | 0x555000;
+
+  *REG32(A2W_PLLC_CORE0) = A2W_PASSWORD | 2;
+
+  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET |
+            CM_PLLC_HOLDPER_SET | CM_PLLC_HOLDCORE2_SET |
+            CM_PLLC_HOLDCORE1_SET | CM_PLLC_HOLDCORE0_SET | CM_PLLC_LOADCORE0_SET;
+
+  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET |
+            CM_PLLC_HOLDPER_SET | CM_PLLC_HOLDCORE2_SET |
+            CM_PLLC_HOLDCORE1_SET | CM_PLLC_HOLDCORE0_SET;
+
+  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET |
+            CM_PLLC_HOLDCORE2_SET |
+            CM_PLLC_HOLDCORE1_SET;
+
+  while (!BIT_SET(*REG32(CM_LOCK), CM_LOCK_FLOCKC_BIT)) {}
+}

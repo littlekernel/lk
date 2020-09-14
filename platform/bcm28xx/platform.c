@@ -104,7 +104,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 
 extern void intc_init(void);
 extern void arm_reset(void);
-
+static void switch_vpu_to_pllc(void);
 
 #ifdef WITH_KERNEL_VM
 static pmm_arena_t arena = {
@@ -119,57 +119,28 @@ void platform_init_mmu_mappings(void) {
 }
 
 static void switch_vpu_to_pllc() {
-  *REG32(A2W_XOSC_CTRL) |= A2W_PASSWORD | A2W_XOSC_CTRL_PLLCEN_SET;
+  switch_vpu_to_src(CM_SRC_OSC);
+  *REG32(CM_VPUDIV) = CM_PASSWORD | (1 << 12);
 
-  *REG32(A2W_PLLC_FRAC) = A2W_PASSWORD | 87380;
-  *REG32(A2W_PLLC_CTRL) = A2W_PASSWORD | 52 | 0x1000;
+  setup_pllc(    2000LL * 1000 * 1000);
 
-  *REG32(A2W_PLLC_ANA3) = A2W_PASSWORD | 0x100;
-  *REG32(A2W_PLLC_ANA2) = A2W_PASSWORD | 0x0;
-  *REG32(A2W_PLLC_ANA1) = A2W_PASSWORD | 0x144000;
-  *REG32(A2W_PLLC_ANA0) = A2W_PASSWORD | 0x0;
-
-  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET;
-
-  /* hold all */
-  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET |
-            CM_PLLC_HOLDPER_SET | CM_PLLC_HOLDCORE2_SET |
-            CM_PLLC_HOLDCORE1_SET | CM_PLLC_HOLDCORE0_SET;
-
-  *REG32(A2W_PLLC_DIG3) = A2W_PASSWORD | 0x0;
-  *REG32(A2W_PLLC_DIG2) = A2W_PASSWORD | 0x400000;
-  *REG32(A2W_PLLC_DIG1) = A2W_PASSWORD | 0x5;
-  *REG32(A2W_PLLC_DIG0) = A2W_PASSWORD | 52 | 0x555000;
-
-  *REG32(A2W_PLLC_CTRL) = A2W_PASSWORD | 52 | 0x1000 | A2W_PLLC_CTRL_PRSTN_SET;
-
-  *REG32(A2W_PLLC_DIG3) = A2W_PASSWORD | 0x42;
-  *REG32(A2W_PLLC_DIG2) = A2W_PASSWORD | 0x500401;
-  *REG32(A2W_PLLC_DIG1) = A2W_PASSWORD | 0x4005;
-  *REG32(A2W_PLLC_DIG0) = A2W_PASSWORD | 52 | 0x555000;
-
-  *REG32(A2W_PLLC_CORE0) = A2W_PASSWORD | 2;
-
-  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET |
-            CM_PLLC_HOLDPER_SET | CM_PLLC_HOLDCORE2_SET |
-            CM_PLLC_HOLDCORE1_SET | CM_PLLC_HOLDCORE0_SET | CM_PLLC_LOADCORE0_SET;
-
-  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET |
-            CM_PLLC_HOLDPER_SET | CM_PLLC_HOLDCORE2_SET |
-            CM_PLLC_HOLDCORE1_SET | CM_PLLC_HOLDCORE0_SET;
-
-  *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET |
-            CM_PLLC_HOLDCORE2_SET |
-            CM_PLLC_HOLDCORE1_SET;
+  // 1ghz / 4 == 250mhz
+  int vpu_divisor = 4;
 
   *REG32(CM_VPUCTL) = CM_PASSWORD | CM_VPUCTL_FRAC_SET | CM_SRC_OSC | CM_VPUCTL_GATE_SET;
-  *REG32(CM_VPUDIV) = CM_PASSWORD | (4 << 12);
+  *REG32(CM_VPUDIV) = CM_PASSWORD | (vpu_divisor << 12);
   *REG32(CM_VPUCTL) = CM_PASSWORD | CM_SRC_PLLC_CORE0 | CM_VPUCTL_GATE_SET;
   *REG32(CM_VPUCTL) = CM_PASSWORD | CM_SRC_PLLC_CORE0 | CM_VPUCTL_GATE_SET | 0x10; /* ENAB */
 
   *REG32(CM_TIMERDIV) = CM_PASSWORD | (19 << 12) | 819; // TODO, look into this timer
   *REG32(CM_TIMERCTL) = CM_PASSWORD | CM_SRC_OSC | 0x10;
-  dprintf(INFO, "VPU now at 500mhz\n");
+
+  int vpu = measure_clock(5);
+  int pllc_core0 = vpu*vpu_divisor;
+  uint32_t pllc = pllc_core0 * 2;
+  dprintf(INFO, "VPU now at %dmhz, ", vpu/1000/1000);
+  dprintf(INFO, "PLLC_CORE0 at %dmhz, ", pllc_core0/1000/1000);
+  dprintf(INFO, "PLLC at %dmhz\n", pllc / 1000 / 1000);
 }
 
 void platform_early_init(void) {

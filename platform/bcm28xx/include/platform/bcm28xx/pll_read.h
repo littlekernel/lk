@@ -1,5 +1,6 @@
 #pragma once
 
+#include <lk/console_cmd.h>
 #include <platform/bcm28xx/pll.h>
 
 #ifdef __cplusplus
@@ -12,6 +13,7 @@ uint32_t get_uart_base_freq(void);
 uint32_t get_pll_freq(enum pll pll);
 uint32_t get_pll_chan_freq(enum pll_chan chan);
 int measure_clock(int mux);
+int cmd_measure_clocks(int argc, const cmd_args *argv);
 #ifdef __cplusplus
 }
 #endif

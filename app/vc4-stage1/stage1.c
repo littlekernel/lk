@@ -10,6 +10,7 @@
 #include <lk/init.h>
 #include <lk/reg.h>
 #include <platform.h>
+#include <platform/bcm28xx/pll_read.h>
 #include <platform/bcm28xx/pm.h>
 #include <platform/bcm28xx/sdhost_impl.h>
 #include <platform/bcm28xx/sdram.h>
@@ -175,16 +176,19 @@ static void xmodem_receive(void) {
   free(buffer);
 }
 
-static void stage2_core_entry(void *_unused) {
-  spin_lock_saved_state_t state1;
-  arch_interrupt_save(&state1, 0);
-  printf("stage2 init\n");
+
+static void stage2_init(const struct app_descriptor *app) {
+  puts("stage2_init");
+}
+
+static void stage2_entry(const struct app_descriptor *app, void *args) {
+  puts("stage2 entry\n");
+
   puts("press X to stop autoboot and go into xmodem mode...");
   wait_queue_init(&waiter);
 
   thread_t *waker = thread_create("waker", waker_entry, &waiter, DEFAULT_PRIORITY, ARCH_DEFAULT_STACK_SIZE);
   thread_resume(waker);
-  arch_interrupt_restore(state1, 0);
 
   THREAD_LOCK(state);
   int ret = wait_queue_block(&waiter, 100000);
@@ -200,17 +204,6 @@ static void stage2_core_entry(void *_unused) {
   } else {
     load_stage2();
   }
-}
-
-static thread_t *stage2_core;
-
-static void stage2_init(const struct app_descriptor *app) {
-  stage2_core = thread_create("stage2", stage2_core_entry, 0, DEFAULT_PRIORITY, ARCH_DEFAULT_STACK_SIZE);
-  thread_resume(stage2_core);
-}
-
-static void stage2_entry(const struct app_descriptor *app, void *args) {
-  printf("stage2 entry\n");
 }
 
 APP_START(stage2)
