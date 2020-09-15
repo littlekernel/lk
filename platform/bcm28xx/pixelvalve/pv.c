@@ -33,7 +33,7 @@ void setup_pixelvalve(struct pv_timings *t, int pvnr) {
 
   // reset the PV fifo
   rawpv->c = 0;
-  rawpv->c = BV(0) | BV(1);
+  rawpv->c = PV_CONTROL_FIFO_CLR | PV_CONTROL_EN;
   rawpv->c = 0;
 
   rawpv->horza = (t->hbp << 16) | t->hsync;
@@ -42,19 +42,27 @@ void setup_pixelvalve(struct pv_timings *t, int pvnr) {
   rawpv->verta = (t->vbp << 16) | t->vsync;
   rawpv->vertb = (t->vfp << 16) | t->vactive;
 
-  rawpv->h_active = t->hactive;
-
 #define CLK_SELECT(n) ((n & 3) << 2)
 # define PV_CONTROL_CLK_SELECT_DSI              0
 # define PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI     1
 # define PV_CONTROL_CLK_SELECT_VEC              2
+#define PIXEL_REP(n) ((n & 0x3) << 4)
+#define FIFO_LEVEL(n) ((n & 0x3f) << 15)
 
-  rawpv->c = BV(0) | // enable
-            BV(1) | // fifo clear
-            CLK_SELECT(PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI) | // set to DPI clock
-            BV(12) | // wait for h-start
-            BV(13) | // trigger underflow
-            BV(14); // clear at start
   rawpv->vc = BV(0) | // video enable
             BV(1); // continous
+
+  rawpv->h_active = t->hactive;
+
+  uint32_t fifo_len_bytes = 64;
+  fifo_len_bytes = fifo_len_bytes - 3 * 6;
+
+  rawpv->c = PV_CONTROL_EN |
+            PV_CONTROL_FIFO_CLR |
+            CLK_SELECT(PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI) | // set to DPI clock
+            PIXEL_REP(1 - 1) |
+            BV(12) | // wait for h-start
+            BV(13) | // trigger underflow
+            BV(14) | // clear at start
+            FIFO_LEVEL(fifo_len_bytes);
 }

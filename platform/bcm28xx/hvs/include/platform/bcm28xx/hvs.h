@@ -6,19 +6,36 @@
 
 #define SCALER_DISPCTRL     (SCALER_BASE + 0x00)
 #define SCALER_DISPCTRL_ENABLE  (1<<31)
+#define SCALER_DISPEOLN     (SCALER_BASE + 0x18)
 #define SCALER_DISPLIST0    (SCALER_BASE + 0x20)
 #define SCALER_DISPLIST1    (SCALER_BASE + 0x24)
 #define SCALER_DISPLIST2    (SCALER_BASE + 0x28)
+
+struct hvs_channel {
+  volatile uint32_t dispctrl;
+  volatile uint32_t dispbkgnd;
+  volatile uint32_t dispstat;
+  // 31:30  mode
+  // 29     full
+  // 28     empty
+  // 17:12  frame count
+  // 11:0   line
+  volatile uint32_t dispbase;
+};
+
+extern volatile struct hvs_channel *hvs_channels;
 
 #define SCALER_DISPCTRL0    (SCALER_BASE + 0x40)
 #define SCALER_DISPCTRLX_ENABLE (1<<31)
 #define SCALER_DISPCTRLX_RESET  (1<<30)
 #define SCALER_DISPCTRL_W(n)    ((n & 0xfff) << 12)
 #define SCALER_DISPCTRL_H(n)    (n & 0xfff)
-#define SCALER_DISPBKGND0   (SCALER_BASE + 0x44)
 #define SCALER_DISPBKGND_AUTOHS (1<<31)
 #define SCALER_DISPBKGND_GAMMA  (1<<29)
-#define SCALER_DISPSTAT0    (SCALER_BASE + 0x48)
+
+#define BASE_BASE(n) (n & 0xffff)
+#define BASE_TOP(n) ((n & 0xffff) << 16)
+
 
 #define SCALER_LIST_MEMORY  (BCM_PERIPH_BASE_VIRT + 0x402000)
 
@@ -69,3 +86,4 @@ extern volatile uint32_t* dlist_memory;
 
 void hvs_add_plane(void *framebuffer);
 void hvs_terminate_list(void);
+void hvs_wipe_displaylist(void);
