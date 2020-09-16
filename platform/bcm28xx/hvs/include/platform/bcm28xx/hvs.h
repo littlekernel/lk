@@ -87,3 +87,4 @@ extern volatile uint32_t* dlist_memory;
 void hvs_add_plane(void *framebuffer);
 void hvs_terminate_list(void);
 void hvs_wipe_displaylist(void);
+void hvs_initialize(void);

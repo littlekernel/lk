@@ -32,6 +32,28 @@ void hvs_terminate_list(void) {
   dlist_memory[display_slot++] = CONTROL_END;
 }
 
+void hvs_initialize() {
+  *REG32(SCALER_DISPCTRL) &= ~SCALER_DISPCTRL_ENABLE; // disable HVS
+  *REG32(SCALER_DISPCTRL) = SCALER_DISPCTRL_ENABLE | 0x9a0dddff; // re-enable HVS
+  for (int i=0; i<3; i++) {
+    hvs_channels[i].dispctrl = SCALER_DISPCTRLX_RESET;
+    hvs_channels[i].dispctrl = 0;
+    hvs_channels[i].dispbkgnd = 0x1020202; // bit 24
+  }
+
+  hvs_channels[2].dispbase = BASE_BASE(0)      | BASE_TOP(0xf00);
+  hvs_channels[1].dispbase = BASE_BASE(0xf10)  | BASE_TOP(0x4b00);
+  hvs_channels[0].dispbase = BASE_BASE(0x4b10) | BASE_TOP(0x7700);
+
+  hvs_wipe_displaylist();
+
+  hvs_channels[0].dispctrl = SCALER_DISPCTRLX_RESET;
+  hvs_channels[0].dispctrl = SCALER_DISPCTRLX_ENABLE | SCALER_DISPCTRL_W(10) | SCALER_DISPCTRL_H(10);
+
+  hvs_channels[0].dispbkgnd = SCALER_DISPBKGND_AUTOHS | 0x020202;
+  *REG32(SCALER_DISPEOLN) = 0x40000000;
+}
+
 void hvs_wipe_displaylist(void) {
   for (int i=0; i<1024; i++) {
     dlist_memory[i] = CONTROL_END;

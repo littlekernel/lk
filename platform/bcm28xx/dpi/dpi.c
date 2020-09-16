@@ -12,10 +12,12 @@
 
 static int cmd_dpi_start(int argc, const cmd_args *argv);
 static int cmd_dpi_count(int argc, const cmd_args *argv);
+static int cmd_dpi_move(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("dpi_start", "start DPI interface", &cmd_dpi_start)
 STATIC_COMMAND("dpi_count", "begin counting on framebuffer", &cmd_dpi_count)
+STATIC_COMMAND("dpi_move", "move a pixel on the frame", &cmd_dpi_move)
 STATIC_COMMAND_END(dpi);
 
 uint32_t *framebuffer;
@@ -25,19 +27,7 @@ int stride;
 timer_t updater;
 
 static int cmd_dpi_start(int argc, const cmd_args *argv) {
-  *REG32(SCALER_DISPCTRL) &= ~SCALER_DISPCTRL_ENABLE; // disable HVS
-  *REG32(SCALER_DISPCTRL) = SCALER_DISPCTRL_ENABLE | 0x9a0dddff; // re-enable HVS
-  for (int i=0; i<3; i++) {
-    hvs_channels[i].dispctrl = SCALER_DISPCTRLX_RESET;
-    hvs_channels[i].dispctrl = 0;
-    hvs_channels[i].dispbkgnd = 0x1020202; // bit 24
-  }
-
-  hvs_channels[2].dispbase = BASE_BASE(0)      | BASE_TOP(0xf00);
-  hvs_channels[1].dispbase = BASE_BASE(0xf10)  | BASE_TOP(0x4b00);
-  hvs_channels[0].dispbase = BASE_BASE(0x4b10) | BASE_TOP(0x7700);
-
-  hvs_wipe_displaylist();
+  hvs_initialize();
 
   if (!framebuffer) {
     framebuffer = malloc(4*12*10);
@@ -47,9 +37,10 @@ static int cmd_dpi_start(int argc, const cmd_args *argv) {
   }
   for (int x=0; x< 10; x++) {
     for (int y=0; y<10; y++) {
-      framebuffer[(x*stride) + y] = (y<<24) | (y << 16) | (y << 8) | y;
+      framebuffer[(x*stride) + y] = (0xff<<24) | (y << 16) | (y << 8) | y;
     }
   }
+
   int list_start = display_slot;
   hvs_add_plane(framebuffer);
   hvs_terminate_list();
@@ -58,11 +49,6 @@ static int cmd_dpi_start(int argc, const cmd_args *argv) {
   *REG32(SCALER_DISPLIST1) = list_start;
   *REG32(SCALER_DISPLIST2) = list_start;
 
-  hvs_channels[0].dispctrl = SCALER_DISPCTRLX_RESET;
-  hvs_channels[0].dispctrl = SCALER_DISPCTRLX_ENABLE | SCALER_DISPCTRL_W(10) | SCALER_DISPCTRL_H(10);
-
-  hvs_channels[0].dispbkgnd = SCALER_DISPBKGND_AUTOHS | 0x020202;
-  *REG32(SCALER_DISPEOLN) = 0x40000000;
 
   // 0x200 means clock/2
   *REG32(CM_DPIDIV) = CM_PASSWORD | (0xf00 << 4);
@@ -112,5 +98,22 @@ static enum handler_return updater_entry(struct timer *t, lk_time_t now, void *a
 static int cmd_dpi_count(int argc, const cmd_args *argv) {
   timer_initialize(&updater);
   timer_set_periodic(&updater, 1000, updater_entry, NULL);
+  return 0;
+}
+
+static enum handler_return mover_entry(struct timer *t, lk_time_t now, void *arg) {
+  int y = count / width;
+  int x = count % width;
+  framebuffer[(y * stride) + x] = 0xff000000;
+  count = (count+1) % (width*height);
+  y = count / width;
+  x = count % width;
+  framebuffer[(y * stride) + x] = 0xffffffff;
+  return INT_NO_RESCHEDULE;
+}
+
+static int cmd_dpi_move(int argc, const cmd_args *argv) {
+  timer_initialize(&updater);
+  timer_set_periodic(&updater, 100, mover_entry, NULL);
   return 0;
 }
