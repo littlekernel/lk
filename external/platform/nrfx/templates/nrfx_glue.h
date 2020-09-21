@@ -33,7 +33,7 @@
 #define NRFX_GLUE_H__
 
 #include <assert.h>
-#include <arch/atomic.h>
+#include <nrfx_atomic.h>
 #include <arch/arm/cm.h>
 
 // THIS WAS CREATED FROM THE TEMPLATE FILE INCLUDED WITH THE MDK.
@@ -54,8 +54,13 @@ extern "C" {
  */
 
 // Uncomment this line to use the standard MDK way of binding IRQ handlers
-// at linking time.
+// at linking time.  Instead of doing this we are adding defines to the handlers
+// declared in LK's vectab.c for the nrf52 patform.  TODO: might revisit this
+// later to use the nrfx linker files and vector tables.
 //#include <soc/nrfx_irqs.h>
+
+// Redefine the irq handler names used in nrfx drivers to the handlers in the
+// LK platform file (vectab.c)
 #define nrfx_usbd_irq_handler       nrf52_USBD_IRQ
 
 //------------------------------------------------------------------------------
@@ -152,11 +157,10 @@ extern "C" {
  * @param us_time Number of microseconds to wait.
  */
 #define NRFX_DELAY_US(us_time)
-
 //------------------------------------------------------------------------------
 
 /** @brief Atomic 32-bit unsigned type. */
-#define nrfx_atomic_t volatile int
+#define nrfx_atomic_t nrfx_atomic_u32_t
 
 /**
  * @brief Macro for storing a value to an atomic object and returning its previous value.
@@ -166,7 +170,7 @@ extern "C" {
  *
  * @return Previous value of the atomic object.
  */
-#define NRFX_ATOMIC_FETCH_STORE(p_data, value)
+#define NRFX_ATOMIC_FETCH_STORE(p_data, value) nrfx_atomic_u32_fetch_store(p_data, value)
 
 /**
  * @brief Macro for running a bitwise OR operation on an atomic object and returning its previous value.
@@ -176,7 +180,7 @@ extern "C" {
  *
  * @return Previous value of the atomic object.
  */
-#define NRFX_ATOMIC_FETCH_OR(p_data, value) atomic_or(p_data, value)
+#define NRFX_ATOMIC_FETCH_OR(p_data, value) nrfx_atomic_u32_fetch_or(p_data, value)
 
 /**
  * @brief Macro for running a bitwise AND operation on an atomic object
@@ -187,7 +191,7 @@ extern "C" {
  *
  * @return Previous value of the atomic object.
  */
-#define NRFX_ATOMIC_FETCH_AND(p_data, value) atomic_and(p_data, value)
+#define NRFX_ATOMIC_FETCH_AND(p_data, value) nrfx_atomic_u32_fetch_and(p_data, value)
 /**
  * @brief Macro for running a bitwise XOR operation on an atomic object
  *        and returning its previous value.
@@ -197,7 +201,7 @@ extern "C" {
  *
  * @return Previous value of the atomic object.
  */
-#define NRFX_ATOMIC_FETCH_XOR(p_data, value)
+#define NRFX_ATOMIC_FETCH_XOR(p_data, value) nrfx_atomic_u32_fetch_xor(p_data, value)
 
 /**
  * @brief Macro for running an addition operation on an atomic object
@@ -208,7 +212,7 @@ extern "C" {
  *
  * @return Previous value of the atomic object.
  */
-#define NRFX_ATOMIC_FETCH_ADD(p_data, value) atomic_add(p_data, value)
+#define NRFX_ATOMIC_FETCH_ADD(p_data, value) nrfx_atomic_u32_fetch_add(p_data, value)
 
 /**
  * @brief Macro for running a subtraction operation on an atomic object
@@ -219,7 +223,7 @@ extern "C" {
  *
  * @return Previous value of the atomic object.
  */
-#define NRFX_ATOMIC_FETCH_SUB(p_data, value)
+#define NRFX_ATOMIC_FETCH_SUB(p_data, value) nrfx_atomic_u32_fetch_sub(p_data, value)
 
 //------------------------------------------------------------------------------
 

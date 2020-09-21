@@ -5,11 +5,9 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <assert.h>
-#include <lk/debug.h>
+
 #include <lk/err.h>
 #include <platform.h>
-#include <arch/arm/cm.h>
 #include <nrfx.h>
 #include <platform/timer.h>
 #include <sys/types.h>

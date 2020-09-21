@@ -31,6 +31,7 @@
 
 #ifndef NRFX_LOG_H__
 #define NRFX_LOG_H__
+#include<lk/debug.h>
 
 // THIS IS A TEMPLATE FILE.
 // It should be copied to a suitable location within the host environment into
@@ -57,7 +58,7 @@ extern "C" {
  * @param format printf-style format string, optionally followed by arguments
  *               to be formatted and inserted in the resulting string.
  */
-#define NRFX_LOG_ERROR(format, ...)
+#define NRFX_LOG_ERROR(a...) dprintf(CRITICAL, a)
 
 /**
  * @brief Macro for logging a message with the severity level WARNING.
@@ -65,7 +66,7 @@ extern "C" {
  * @param format printf-style format string, optionally followed by arguments
  *               to be formatted and inserted in the resulting string.
  */
-#define NRFX_LOG_WARNING(format, ...)
+#define NRFX_LOG_WARNING(a...) dprintf(INFO, a)
 
 /**
  * @brief Macro for logging a message with the severity level INFO.
@@ -73,7 +74,7 @@ extern "C" {
  * @param format printf-style format string, optionally followed by arguments
  *               to be formatted and inserted in the resulting string.
  */
-#define NRFX_LOG_INFO(format, ...)
+#define NRFX_LOG_INFO(a...) dprintf(INFO, a)
 
 /**
  * @brief Macro for logging a message with the severity level DEBUG.
@@ -81,7 +82,7 @@ extern "C" {
  * @param format printf-style format string, optionally followed by arguments
  *               to be formatted and inserted in the resulting string.
  */
-#define NRFX_LOG_DEBUG(format, ...)
+#define NRFX_LOG_DEBUG(a...) dprintf(SPEW, a)
 
 
 /**
