@@ -54,14 +54,11 @@ extern "C" {
  */
 
 // Uncomment this line to use the standard MDK way of binding IRQ handlers
-// at linking time.  Instead of doing this we are adding defines to the handlers
-// declared in LK's vectab.c for the nrf52 patform.  TODO: might revisit this
-// later to use the nrfx linker files and vector tables.
+// at linking time.
+// Instead of using this in LK, each LK driver using nrfx should define the irq
+// handler which should handle the irq entry, calling into the nrfx handler, then
+// handling the irq exit (i.e. - arm_cm_irq_entry and arm_cm_irq_exit)
 //#include <soc/nrfx_irqs.h>
-
-// Redefine the irq handler names used in nrfx drivers to the handlers in the
-// LK platform file (vectab.c)
-#define nrfx_usbd_irq_handler       nrf52_USBD_IRQ
 
 //------------------------------------------------------------------------------
 
@@ -70,7 +67,9 @@ extern "C" {
  *
  * @param expression Expression to be evaluated.
  */
-#define NRFX_ASSERT(expression) DEBUG_ASSERT(expression)
+// Instead of using lk ASSERT, defining the code here since the conditionals
+// in the lk ASSERT cause some warnings with the nrfx library (fall through errors)
+#define NRFX_ASSERT(expression) ASSERT(expression)
 
 /**
  * @brief Macro for placing a compile time assertion.

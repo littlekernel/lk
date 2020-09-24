@@ -541,6 +541,7 @@ NRF_STATIC_INLINE NRF_GPIO_Type * nrf_gpio_pin_port_decode(uint32_t * p_pin)
     {
         default:
             NRFX_ASSERT(0);
+            break;  // Supress fall through warnings
 #if defined(P0_FEATURE_PINS_PRESENT)
         case 0: return NRF_P0;
 #endif
