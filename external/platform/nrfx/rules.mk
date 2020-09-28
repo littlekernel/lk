@@ -3,6 +3,9 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS := \
+	$(LOCAL_DIR)/drivers/src/nrfx_twi.c \
+	$(LOCAL_DIR)/drivers/src/nrfx_twi_twim.c \
+	$(LOCAL_DIR)/drivers/src/nrfx_twim.c \
 	$(LOCAL_DIR)/drivers/src/nrfx_usbd.c \
 	$(LOCAL_DIR)/mdk/system_nrf52.c \
 	$(LOCAL_DIR)/soc/nrfx_atomic.c \
