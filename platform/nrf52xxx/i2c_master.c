@@ -54,7 +54,7 @@ void nrf52_SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQ(void) {
 #endif
 
 #if (NRFX_TWIM1_ENABLED)
-static twim_dev_t twim1 = { NRFX_TWIM_INSTANCE(0),
+static twim_dev_t twim1 = { NRFX_TWIM_INSTANCE(1),
                             EVENT_INITIAL_VALUE(twim1.evt, false, 0),
                             MUTEX_INITIAL_VALUE(twim1.lock),
                             0
@@ -98,7 +98,6 @@ void i2c_init() {
     const nrfx_twim_config_t twim0_config = NRFX_TWIM_DEFAULT_CONFIG(TWIM0_SCL_PIN, TWIM0_SDA_PIN);
 
     status = nrfx_twim_init(&twim0.twim, &twim0_config, i2c_twim_evt_handler, &twim0);
-    dprintf(ALWAYS,"%p\n", &twim0);
     if (status == NRFX_SUCCESS) {
         nrfx_twim_enable(&twim0.twim);
     } else {
