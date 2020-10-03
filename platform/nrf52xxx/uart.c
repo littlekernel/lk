@@ -18,7 +18,6 @@
 #include <dev/gpio.h>
 #include <kernel/thread.h>
 #include <platform/debug.h>
-#include <platform/gpio.h>
 #include <target/debugconfig.h>
 #include <target/gpioconfig.h>
 

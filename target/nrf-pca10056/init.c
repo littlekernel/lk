@@ -11,7 +11,6 @@
 #include <lk/compiler.h>
 #include <nrfx_usbd.h>
 #include <dev/gpio.h>
-#include <platform/gpio.h>
 #include <platform/nrf52.h>
 #include <target/gpioconfig.h>
 

@@ -5,55 +5,44 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/debug.h>
+
 #include <assert.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <dev/gpio.h>
-#include <platform/nrf52.h>
-#include <platform/gpio.h>
+#include <nrfx.h>
+#include <hal/nrf_gpio.h>
 
 int gpio_config(unsigned nr, unsigned flags) {
-    DEBUG_ASSERT(nr <= NRF_MAX_PIN_NUMBER);
-
-    unsigned init;
+    if (!nrf_gpio_pin_present_check(nr)) {
+        return ERR_INVALID_ARGS;
+    }
 
     if (flags & GPIO_OUTPUT) {
-
-        NRF_P0->PIN_CNF[nr] = GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos     | \
-                              GPIO_PIN_CNF_PULL_Disabled << GPIO_PIN_CNF_PULL_Pos  | \
-                              GPIO_PIN_CNF_DRIVE_S0S1 << GPIO_PIN_CNF_DRIVE_Pos   | \
-                              GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos;
+        nrf_gpio_cfg_output(nr);
     } else { // GPIO_INPUT
+        nrf_gpio_pin_pull_t pull;
         if (flags & GPIO_PULLUP) {
-            init    =   GPIO_PIN_CNF_PULL_Pullup << GPIO_PIN_CNF_PULL_Pos;
+            pull = NRF_GPIO_PIN_PULLUP;
         } else if (flags & GPIO_PULLDOWN) {
-            init    =   GPIO_PIN_CNF_PULL_Pulldown << GPIO_PIN_CNF_PULL_Pos;
+            pull = NRF_GPIO_PIN_PULLDOWN;
         } else {
-            init    =   GPIO_PIN_CNF_PULL_Disabled << GPIO_PIN_CNF_PULL_Pos;
+            pull = NRF_GPIO_PIN_NOPULL;
         }
-        NRF_P0->PIN_CNF[nr] = GPIO_PIN_CNF_DIR_Input      <<  GPIO_PIN_CNF_DIR_Pos    | \
-                              GPIO_PIN_CNF_INPUT_Connect  <<  GPIO_PIN_CNF_INPUT_Pos  | \
-                              init;
+        nrf_gpio_cfg_input(nr, pull);
     }
-    return 0;
+    return NO_ERROR;
 }
 
 void gpio_set(unsigned nr, unsigned on) {
-    DEBUG_ASSERT(nr <= NRF_MAX_PIN_NUMBER);
+    DEBUG_ASSERT(nrf_gpio_pin_present_check(nr));
 
-    if (on > 0) {
-        NRF_P0->OUTSET = 1 << nr;
-    } else {
-        NRF_P0->OUTCLR = 1 << nr;
-    }
+    nrf_gpio_pin_write(nr, on);
 }
 
 int gpio_get(unsigned nr) {
-    DEBUG_ASSERT( nr <= NRF_MAX_PIN_NUMBER );
+    DEBUG_ASSERT(nrf_gpio_pin_present_check(nr));
 
-    if ( NRF_P0->IN & ( 1 << nr) ) {
-        return 1;
-    } else {
-        return 0;
-    }
+    return (int)nrf_gpio_pin_read(nr);
 }
 
