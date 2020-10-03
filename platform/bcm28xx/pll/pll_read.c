@@ -8,8 +8,6 @@
 #include <lk/debug.h>
 #include <platform/bcm28xx/udelay.h>
 
-uint32_t xtal_freq;
-
 static int cmd_pll_dump(int argc, const cmd_args *argv);
 static int cmd_measure_clock(int argc, const cmd_args *argv);
 
@@ -157,13 +155,17 @@ const char *clock_names[] = {
   [1] = "H264",
   [2] = "ISP",
   [3] = "SDRAM",
+  [4] = "V3D",  // guess, from start.elf
   [5] = "VPU",
-  "OTP",
-  [12] = "dsi0p",
+  [6] = "OTP",
+  [7] = "ARM", // guess, from start.elf
+  [9] = "TIMER", // guess, from start.elf
+  [0xa] = "PVTMON", // VC6 only, from a start.elf
+  [0xc] = "dsi0p",
   "dsi1p",
   "cam0",
   "cam1",
-  [17] = "dpi",
+  [0x11] = "dpi",
   "dsi0e",
   "dsi1e",
   "gp0",
@@ -172,12 +174,12 @@ const char *clock_names[] = {
   "pcm",
   "pwm",
   "slim",
-  [27] = "smi",
+  [0x1b] = "smi",
   "uart",
   "vec",
-  [38] = "aveo",
-  "emmc",
-  [42] = "emmc2"
+  [0x26] = "aveo",
+  [0x26] = "emmc",
+  [0x2a] = "emmc2"
 };
 
 static int cmd_measure_clock(int argc, const cmd_args *argv) {

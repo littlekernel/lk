@@ -106,6 +106,8 @@ extern void intc_init(void);
 extern void arm_reset(void);
 static void switch_vpu_to_pllc(void);
 
+uint32_t xtal_freq = CRYSTAL;
+
 #ifdef WITH_KERNEL_VM
 static pmm_arena_t arena = {
     .name = "sdram",
@@ -114,6 +116,10 @@ static pmm_arena_t arena = {
     .flags = PMM_ARENA_FLAG_KMAP,
 };
 #endif
+
+__WEAK uint32_t get_uart_base_freq() {
+  return 0;
+}
 
 void platform_init_mmu_mappings(void) {
 }
@@ -124,8 +130,7 @@ static void switch_vpu_to_pllc() {
 
   setup_pllc(    2000LL * 1000 * 1000);
 
-  // 1ghz / 4 == 250mhz
-  int vpu_divisor = 4;
+  int vpu_divisor = 2;
 
   *REG32(CM_VPUCTL) = CM_PASSWORD | CM_VPUCTL_FRAC_SET | CM_SRC_OSC | CM_VPUCTL_GATE_SET;
   *REG32(CM_VPUDIV) = CM_PASSWORD | (vpu_divisor << 12);
@@ -137,7 +142,7 @@ static void switch_vpu_to_pllc() {
 
   int vpu = measure_clock(5);
   int pllc_core0 = vpu*vpu_divisor;
-  uint32_t pllc = pllc_core0 * 2;
+  uint32_t pllc = pllc_core0 * 4;
   dprintf(INFO, "VPU now at %dmhz, ", vpu/1000/1000);
   dprintf(INFO, "PLLC_CORE0 at %dmhz, ", pllc_core0/1000/1000);
   dprintf(INFO, "PLLC at %dmhz\n", pllc / 1000 / 1000);

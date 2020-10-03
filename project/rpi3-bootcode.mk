@@ -5,7 +5,8 @@ ARCH := vc4
 
 MODULES += \
 	app/shell \
-	platform/bcm28xx/rpi-ddr2 \
+	platform/bcm28xx/rpi-ddr2/autoram \
+	#platform/bcm28xx/dpi \
 	#platform/bcm28xx/otp \
 	#lib/debugcommands \
 	#app/shell \

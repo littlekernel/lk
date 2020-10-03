@@ -34,6 +34,7 @@ MODULE_SRCS += \
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
 else # VPU
+  MODULE_DEPS += platform/bcm28xx/pll
   ifeq ($(BOOTCODE),1)
     MEMBASE := 0x80000000 # in the 8 alias
     MEMSIZE := 0x20000 # 128kb
@@ -55,8 +56,7 @@ endif
 MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/platform.c \
-	$(LOCAL_DIR)/pll_read.c \
-	$(LOCAL_DIR)/pll_control.c
+	$(LOCAL_DIR)/udelay.c \
 	#$(LOCAL_DIR)/i2c.c \
 
 
@@ -104,7 +104,6 @@ else ifeq ($(TARGET),rpi3-vpu)
 
   MODULE_SRCS += \
     $(LOCAL_DIR)/uart.c \
-    $(LOCAL_DIR)/udelay.c \
     $(LOCAL_DIR)/sdhost_impl.cpp \
     $(LOCAL_DIR)/print_timestamp.c \
 

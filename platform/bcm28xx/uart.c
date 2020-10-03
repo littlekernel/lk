@@ -61,6 +61,7 @@ static inline uintptr_t uart_to_ptr(unsigned int n) {
 
 static uint32_t calculate_baud_divisor(uint32_t baud) {
   uint32_t uart_freq = get_uart_base_freq();
+  if (uart_freq == 0) return 0;
   uint32_t divisor = (uart_freq << 6) / baud / 16;
   return divisor;
 }
