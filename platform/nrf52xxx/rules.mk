@@ -37,10 +37,13 @@ GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 
 # Other important defines
-#GLOBAL_DEFINES += \
+GLOBAL_DEFINES += \
+	NRFX_CLOCK_ENABLED=1 \
+
 #	NRFX_ENABLE_LOGGING=1 \
 
 MODULE_SRCS += \
+	$(LOCAL_DIR)/clock.c \
 	$(LOCAL_DIR)/i2c_master.c \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/debug.c \

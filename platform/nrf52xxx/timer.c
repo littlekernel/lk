@@ -10,7 +10,11 @@
 #include <platform.h>
 #include <nrfx.h>
 #include <platform/timer.h>
+#include <platform/clock.h>
+#include <nrfx_clock.h>
 #include <sys/types.h>
+
+// TODO - integrate nrfx rtc driver instead of direct register manipulation here.
 
 //base counter is total number of clock cycles elapsed
 static volatile uint64_t base_counter = 0;
@@ -27,14 +31,11 @@ typedef enum handler_return (*platform_timer_callback)(void *arg, lk_time_t now)
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     ASSERT(clock_rate > 0);
-
+    ASSERT(nrfx_clock_lfclk_is_running());
     cb = callback;
     cb_args = arg;
 
     cycles_per_tick = clock_rate * interval / 1000 ;
-
-    NRF_CLOCK->LFCLKSRC =  CLOCK_LFCLKSRC_SRC_Xtal << CLOCK_LFCLKSRC_SRC_Pos;
-    NRF_CLOCK->TASKS_LFCLKSTART = 1;
 
     NRF_RTC1->CC[0] = 0x00ffffff & (base_counter + cycles_per_tick);
 
@@ -95,6 +96,9 @@ void nrf52_RTC1_IRQ(void) {
 }
 
 void arm_cm_systick_init(uint32_t hz) {
+    ASSERT(hz == 32768);
     clock_rate = hz;
+    //Enable the LF xtal oscillator
+    nrf52_clock_lfclk_enable(NRF_CLOCK_LFCLK_Xtal);
 }
 

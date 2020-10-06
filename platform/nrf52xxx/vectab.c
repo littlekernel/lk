@@ -8,9 +8,6 @@
 #include <lk/debug.h>
 #include <lk/compiler.h>
 #include <arch/arm/cm.h>
-#include <lib/cbuf.h>
-#include <platform/nrf52.h>
-#include <target/debugconfig.h>
 
 /* un-overridden irq handler */
 void nrf52_dummy_irq(void) {

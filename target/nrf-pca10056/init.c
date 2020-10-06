@@ -11,7 +11,7 @@
 #include <lk/compiler.h>
 #include <nrfx_usbd.h>
 #include <dev/gpio.h>
-#include <platform/nrf52.h>
+#include <platform/init.h>
 #include <target/gpioconfig.h>
 
 void target_early_init(void) {
@@ -20,10 +20,10 @@ void target_early_init(void) {
     gpio_config(GPIO_LED3, GPIO_OUTPUT);
     gpio_config(GPIO_LED4, GPIO_OUTPUT);
 
-    gpio_set(GPIO_LED1,0);
-    gpio_set(GPIO_LED2,0);
-    gpio_set(GPIO_LED3,0);
-    gpio_set(GPIO_LED4,0);
+    LED1_OFF;
+    LED2_OFF;
+    LED3_OFF;
+    LED4_OFF;
 
     nrf52_debug_early_init();
 }

@@ -9,9 +9,20 @@
 #define __TARGET_GPIOCONFIG_H
 
 #define GPIO_LED1   13
+#define LED1_ON gpio_set(GPIO_LED1,0)
+#define LED1_OFF gpio_set(GPIO_LED1,1)
+
 #define GPIO_LED2   14
+#define LED2_ON gpio_set(GPIO_LED2,0)
+#define LED2_OFF gpio_set(GPIO_LED2,1)
+
 #define GPIO_LED3   15
+#define LED3_ON gpio_set(GPIO_LED3,0)
+#define LED3_OFF gpio_set(GPIO_LED3,1)
+
 #define GPIO_LED4   16
+#define LED4_ON gpio_set(GPIO_LED4,0)
+#define LED4_OFF gpio_set(GPIO_LED4,1)
 
 #define UART0_TX_PIN    6
 #define UART0_RX_PIN    8
