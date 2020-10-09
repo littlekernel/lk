@@ -31,6 +31,14 @@ platform_reset:
 
 .globl arm_reset
 arm_reset:
+#if ARM_WITH_HYP
+    /* if in HYP mode, move to SVC */
+    mrs r12, cpsr
+    and r12, r12, #0x1f
+    cmp r12, #0x1a
+    bleq arm32_hyp_to_svc
+#endif // ARM_WITH_HYP
+
     /* do some early cpu setup */
     mrc     p15, 0, r12, c1, c0, 0
     /* i/d cache disable, mmu disabled */
@@ -204,7 +212,7 @@ arm_reset:
 
     /* set up the mmu */
     bl      .Lmmu_setup
-#endif // WITH_KERNEL_VM
+#endif // ARM_WITH_MMU
 
     /* at this point we're running at our final location in virtual memory (if enabled) */
 .Lstack_setup:
@@ -281,7 +289,7 @@ arm_reset:
     orr     r12, r4, #MMU_TTBRx_FLAGS
 
     /* Write ttbr with phys addr of the translation table */
-    mcr     p15, 0, r12, c2, c0, 0
+    mcr     p15, 0, r12, c2, c0, 0  // TTBR0
     isb
 
     /* Write DACR */
@@ -310,7 +318,7 @@ arm_reset:
     /* Switch to main page table */
     mcr     p15, 0, r8, c2, c0, 0
     isb
-#endif
+#endif // MMU_WITH_TRAMPOLINE
 
     /* Invalidate TLB. The value in r0 is ignored */
     mcr     p15, 0, r0, c8, c7, 0
@@ -320,7 +328,7 @@ arm_reset:
     /* assume lr was in physical memory, adjust it before returning */
     sub     lr, r11
     bx      lr
-#endif
+#endif // WITH_KERNEL_VM
 
 #if WITH_SMP
     /* secondary cpu entry point */
@@ -387,11 +395,11 @@ FUNCTION(arm_secondary_setup)
     /* Calculate pagetable physical addresses */
     ldr     r4, =tt_trampoline  /* r4 = tt_trampoline vaddr */
     add     r4, r4, r11     /* r4 = tt_trampoline paddr */
-#endif
+#endif // MMU_WITH_TRAMPOLINE
 
     /* set up the mmu on this cpu and switch to virtual memory */
     bl      .Lmmu_setup
-#endif
+#endif // WITH_KERNEL_VM
 
     /* stay in supervisor and call into arm arch code to continue setup */
     mov     r0, r5
@@ -401,7 +409,17 @@ FUNCTION(arm_secondary_setup)
 unsupported_cpu_trap:
     wfe
     b       unsupported_cpu_trap
-#endif
+#endif // WITH_SMP
+
+#if ARM_WITH_HYP
+arm32_hyp_to_svc:
+    mrs r12, cpsr
+    bic r12, #0x1f      // clear mode bits
+    orr r12, r12, #0x13 // set mode bits to SVC
+    msr SPSR_hyp, r12
+    msr ELR_hyp, lr
+    eret                // "restore" the mode, and return
+#endif // ARM_WITH_HYP
 
 .ltorg
 
@@ -410,7 +428,7 @@ unsupported_cpu_trap:
 .align 14
 DATA(tt_trampoline)
     .skip 16384
-#endif
+#endif // WITH_KERNEL_VM && MMU_WITH_TRAMPOLINE
 
 .data
 .align 2
