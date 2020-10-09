@@ -22,6 +22,9 @@ in lib.fix (self: {
   arm7 = {
     inherit (arm7) littlekernel;
   };
+  arm = {
+    rpi2-test = arm7.callPackage ./lk.nix { project = "rpi2-test"; };
+  };
   vc4 = {
     shell = vc4.littlekernel;
     rpi3.bootcode = vc4.callPackage ./lk.nix { project = "rpi3-bootcode"; };
