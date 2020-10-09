@@ -556,6 +556,7 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
     surface->height = height;
     surface->stride = stride;
     surface->alpha = MAX_ALPHA;
+    surface->flush = NULL;
 
     // set up some function pointers
     switch (format) {

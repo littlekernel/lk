@@ -1,5 +1,6 @@
 #pragma once
 
+#include <lib/gfx.h>
 #include <platform/bcm28xx.h>
 
 #define SCALER_BASE (BCM_PERIPH_BASE_VIRT + 0x400000)
@@ -84,7 +85,8 @@ enum hvs_pixel_format {
 extern int display_slot;
 extern volatile uint32_t* dlist_memory;
 
-void hvs_add_plane(void *framebuffer);
+void hvs_add_plane(gfx_surface *fb, int x, int y);
 void hvs_terminate_list(void);
 void hvs_wipe_displaylist(void);
 void hvs_initialize(void);
+void hvs_configure_channel(int channel, int width, int height);

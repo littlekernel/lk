@@ -1,6 +1,7 @@
-#include <lk/reg.h>
 #include <lk/bits.h>
 #include <lk/console_cmd.h>
+#include <lk/debug.h>
+#include <lk/reg.h>
 #include <platform/bcm28xx.h>
 #include <platform/bcm28xx/pll.h>
 #include <stdint.h>

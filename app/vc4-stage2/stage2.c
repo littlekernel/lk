@@ -1,8 +1,9 @@
 #include <app.h>
-#include <lk/debug.h>
-#include <platform/bcm28xx/sdhost_impl.h>
-#include <lib/partition.h>
 #include <lib/fs.h>
+#include <lib/partition.h>
+#include <lk/debug.h>
+#include <platform/bcm28xx/dpi.h>
+#include <platform/bcm28xx/sdhost_impl.h>
 
 static void stage2_init(const struct app_descriptor *app) {
   printf("stage2 init\n");
@@ -14,6 +15,9 @@ static void stage2_init(const struct app_descriptor *app) {
 
 static void stage2_entry(const struct app_descriptor *app, void *args) {
   printf("stage2 entry\n");
+  cmd_dpi_start(0, NULL);
+  cmd_dpi_move(0, NULL);
+  //cmd_dpi_count(0, NULL);
 }
 
 APP_START(stage2)

@@ -2,10 +2,10 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULE_SRCS += \
-	$(LOCAL_DIR)/tga.c
+MODULE_DEPS += \
+	platform/bcm28xx/hvs
 
-MODULES += \
-	lib/gfx \
+MODULE_SRCS += \
+	$(LOCAL_DIR)/dance.c
 
 include make/module.mk

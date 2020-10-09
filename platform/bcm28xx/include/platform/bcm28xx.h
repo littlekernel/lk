@@ -25,7 +25,7 @@ void print_timestamp(void);
 #define BCM_PERIPH_SIZE         (0x01100000U)
 
 #if BCM2836
-  #define BCM_PERIPH_BASE_VIRT    (0xe0000000U)
+  #define BCM_PERIPH_BASE_VIRT    (MMIO_BASE_VIRT)
 #elif BCM2837
   #define BCM_PERIPH_BASE_VIRT    (0xffffffffc0000000ULL)
   #define MEMORY_APERTURE_SIZE    (1024 * 1024 * 1024)

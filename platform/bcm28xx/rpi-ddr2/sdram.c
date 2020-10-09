@@ -20,7 +20,6 @@ VideoCoreIV SDRAM initialization code.
 
 #include "ddr2.h"
 #include <app.h>
-#include <lk/console_cmd.h>
 #include <lk/debug.h>
 #include <lk/reg.h>
 #include <platform/bcm28xx.h>
@@ -96,12 +95,6 @@ static const char* lpddr2_manufacturer_name(uint32_t mr) {
 
 #define MR8_DENSITY_SHIFT	0x2
 #define MR8_DENSITY_MASK	(0xF << 0x2)
-
-static int cmd_dram_init(int argc, const cmd_args *argv);
-
-STATIC_COMMAND_START
-STATIC_COMMAND("dram_init", "initialize dram controller", &cmd_dram_init)
-STATIC_COMMAND_END(dram);
 
 static enum RamSize lpddr2_size(uint32_t mr) {
   switch (mr) {
@@ -601,9 +594,4 @@ void sdram_init() {
   reset_with_timing(&g_InitSdramParameters);
   init_late();
   selftest();
-}
-
-static int cmd_dram_init(int argc, const cmd_args *argv) {
-  sdram_init();
-  return 0;
 }

@@ -124,3 +124,7 @@ int vc4_atomic_add(volatile int *ptr, int val) {
   THREAD_UNLOCK(state);
   return old;
 }
+
+void arch_clean_cache_range(addr_t start, size_t len) {
+  // TODO
+}

@@ -118,7 +118,7 @@ static pmm_arena_t arena = {
 #endif
 
 __WEAK uint32_t get_uart_base_freq() {
-  return 0;
+  return 48 * 1000 * 1000;
 }
 
 void platform_init_mmu_mappings(void) {

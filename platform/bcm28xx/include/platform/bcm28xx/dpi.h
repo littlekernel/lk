@@ -1,10 +1,18 @@
 #pragma once
 
 #include <platform/bcm28xx.h>
+#include <lk/console_cmd.h>
+
+int cmd_dpi_start(int argc, const cmd_args *argv);
+int cmd_dpi_move(int argc, const cmd_args *argv);
+int cmd_dpi_count(int argc, const cmd_args *argv);
 
 #define DPI_C (BCM_PERIPH_BASE_VIRT + 0x208000)
 
 #define BIT(b) (1 << b)
+
+#define FORMAT(n) ((n & 0x7) << 11)
+#define ORDER(n) ((n & 0x3) << 14)
 
 // copied from linux/drivers/gpu/drm/vc4/vc4_dpi.c
 # define DPI_OUTPUT_ENABLE_MODE		BIT(16)

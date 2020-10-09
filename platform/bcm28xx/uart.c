@@ -150,6 +150,7 @@ void uart_init(void) {
 
 void uart_init_early(void) {
     if (*REG32(CM_UARTDIV) == 0) {
+      puts("fixing divisor");
       // CM_UARTDIV can range from 0 to 1023 with a fractional resolution of 1/4096th
       // on the rpi1-3, this sets the freq to 19.2 / (0x3900 / 0x1000) == ~5.3mhz
       // TODO, have a better default for other models?

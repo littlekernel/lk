@@ -8,4 +8,6 @@ MODULES += \
 	app/tests \
 	lib/cksum \
 	lib/debugcommands \
-
+	platform/bcm28xx/pll \
+	platform/bcm28xx/hvs-dance \
+	lib/tga \

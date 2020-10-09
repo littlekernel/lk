@@ -1,11 +1,13 @@
+#include <arch/ops.h>
 #include <lk/console_cmd.h>
 #include <lk/reg.h>
 #include <platform/bcm28xx/hvs.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // note, 4096 slots total
 volatile uint32_t* dlist_memory = REG32(SCALER_LIST_MEMORY);
-volatile struct hvs_channel *hvs_channels = REG32(SCALER_DISPCTRL0);
+volatile struct hvs_channel *hvs_channels = (volatile struct hvs_channel*)REG32(SCALER_DISPCTRL0);
 int display_slot = 0;
 
 static int cmd_hvs_dump(int argc, const cmd_args *argv);
@@ -14,18 +16,33 @@ STATIC_COMMAND_START
 STATIC_COMMAND("hvs_dump", "dump hvs state", &cmd_hvs_dump)
 STATIC_COMMAND_END(hvs);
 
-void hvs_add_plane(void *framebuffer) {
+static uint32_t gfx_to_hvs_pixel_format(gfx_format fmt) {
+  switch (fmt) {
+  case GFX_FORMAT_RGB_565:
+    return HVS_PIXEL_FORMAT_RGB565;
+  case GFX_FORMAT_RGB_332:
+    return HVS_PIXEL_FORMAT_RGB332;
+  case GFX_FORMAT_ARGB_8888:
+  case GFX_FORMAT_RGB_x888:
+    return HVS_PIXEL_FORMAT_RGBA8888;
+  default:
+    printf("warning, unsupported pixel format: %d\n", fmt);
+    return 0;
+  }
+}
+
+void hvs_add_plane(gfx_surface *fb, int x, int y) {
   dlist_memory[display_slot++] = CONTROL_VALID
     | CONTROL_WORDS(7)
     | CONTROL_PIXEL_ORDER(HVS_PIXEL_ORDER_ARGB)
     | CONTROL_UNITY
-    | CONTROL_FORMAT(HVS_PIXEL_FORMAT_RGBA8888);
-  dlist_memory[display_slot++] = CONTROL0_X(0) | CONTROL0_Y(0);
-  dlist_memory[display_slot++] = CONTROL2_H(10) | CONTROL2_W(10);
+    | CONTROL_FORMAT(gfx_to_hvs_pixel_format(fb->format));
+  dlist_memory[display_slot++] = CONTROL0_X(x) | CONTROL0_Y(y);
+  dlist_memory[display_slot++] = CONTROL2_H(fb->height) | CONTROL2_W(fb->width);
   dlist_memory[display_slot++] = 0xDEADBEEF; // dummy for HVS state
-  dlist_memory[display_slot++] = framebuffer;
+  dlist_memory[display_slot++] = (uint32_t)fb->ptr | 0xc0000000;
   dlist_memory[display_slot++] = 0xDEADBEEF; // dummy for HVS state
-  dlist_memory[display_slot++] = 4 * 12; // stride
+  dlist_memory[display_slot++] = fb->stride * fb->pixelsize;
 }
 
 void hvs_terminate_list(void) {
@@ -47,11 +64,14 @@ void hvs_initialize() {
 
   hvs_wipe_displaylist();
 
+  *REG32(SCALER_DISPEOLN) = 0x40000000;
+}
+
+void hvs_configure_channel(int channel, int width, int height) {
   hvs_channels[0].dispctrl = SCALER_DISPCTRLX_RESET;
-  hvs_channels[0].dispctrl = SCALER_DISPCTRLX_ENABLE | SCALER_DISPCTRL_W(10) | SCALER_DISPCTRL_H(10);
+  hvs_channels[0].dispctrl = SCALER_DISPCTRLX_ENABLE | SCALER_DISPCTRL_W(width) | SCALER_DISPCTRL_H(height);
 
   hvs_channels[0].dispbkgnd = SCALER_DISPBKGND_AUTOHS | 0x020202;
-  *REG32(SCALER_DISPEOLN) = 0x40000000;
 }
 
 void hvs_wipe_displaylist(void) {
@@ -65,7 +85,8 @@ static int cmd_hvs_dump(int argc, const cmd_args *argv) {
   printf("SCALER_DISPCTRL: 0x%x\n", *REG32(SCALER_DISPCTRL));
   printf("SCALER_DISPEOLN: 0x%08x\n", *REG32(SCALER_DISPEOLN));
   printf("SCALER_DISPLIST0: 0x%x\n", *REG32(SCALER_DISPLIST0));
-  printf("SCALER_DISPLIST1: 0x%x\n", *REG32(SCALER_DISPLIST1));
+  uint32_t list1 = *REG32(SCALER_DISPLIST1);
+  printf("SCALER_DISPLIST1: 0x%x\n", list1);
   printf("SCALER_DISPLIST2: 0x%x\n\n", *REG32(SCALER_DISPLIST2));
   for (int i=0; i<3; i++) {
     printf("SCALER_DISPCTRL%d: 0x%x\n", i, hvs_channels[i].dispctrl);
@@ -81,8 +102,13 @@ static int cmd_hvs_dump(int argc, const cmd_args *argv) {
     uint32_t base = hvs_channels[i].dispbase;
     printf("SCALER_DISPBASE%d: base 0x%x top 0x%x\n\n", i, base & 0xffff, base >> 16);
   }
-  for (int i=0; i<16; i++) {
-    printf("dlist[%d]: 0x%x\n", i, dlist_memory[i]);
+  for (uint32_t i=list1; i<(list1+16); i++) {
+    printf("dlist[%x]: 0x%x\n", i, dlist_memory[i]);
   }
   return 0;
+}
+
+__WEAK status_t display_get_framebuffer(struct display_framebuffer *fb) {
+  // TODO, have a base layer exposed via this
+  return -1;
 }
