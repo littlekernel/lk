@@ -101,10 +101,11 @@ static void wakeup_cpu_for_thread(thread_t *t)
 {
     /* Wake up the core to which this thread is pinned
      * or wake up all if thread is unpinned */
-    if (thread_pinned_cpu(t) < 0)
+    int pinned_cpu = thread_pinned_cpu(t);
+    if (pinned_cpu < 0)
         mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
     else
-        mp_reschedule(1U << thread_pinned_cpu(t), 0);
+        mp_reschedule(1U << pinned_cpu, 0);
 }
 
 void init_thread_struct(thread_t *t, const char *name) {
@@ -1180,10 +1181,12 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
         t->state = THREAD_READY;
         t->wait_queue_block_ret = wait_queue_error;
         t->blocking_wait_queue = NULL;
-        if (thread_pinned_cpu(t) < 0) {
+        int pinned_cpu = thread_pinned_cpu(t);
+        if (pinned_cpu < 0) {
+            /* assumes MP_CPU_ALL_BUT_LOCAL is defined as all bits on */
             cpu_mask = MP_CPU_ALL_BUT_LOCAL;
         } else {
-            cpu_mask |= (1U << thread_pinned_cpu(t));
+            cpu_mask |= (1U << pinned_cpu);
         }
         insert_in_run_queue_head(t);
         ret++;
