@@ -34,11 +34,12 @@ static uint32_t gfx_to_hvs_pixel_format(gfx_format fmt) {
 void hvs_add_plane(gfx_surface *fb, int x, int y) {
   dlist_memory[display_slot++] = CONTROL_VALID
     | CONTROL_WORDS(7)
-    | CONTROL_PIXEL_ORDER(HVS_PIXEL_ORDER_ARGB)
+    | CONTROL_PIXEL_ORDER(HVS_PIXEL_ORDER_ABGR)
+//    | CONTROL0_VFLIP
     | CONTROL_UNITY
     | CONTROL_FORMAT(gfx_to_hvs_pixel_format(fb->format));
-  dlist_memory[display_slot++] = CONTROL0_X(x) | CONTROL0_Y(y);
-  dlist_memory[display_slot++] = CONTROL2_H(fb->height) | CONTROL2_W(fb->width);
+  dlist_memory[display_slot++] = POS0_X(x) | POS0_Y(y) | POS0_ALPHA(0xff);
+  dlist_memory[display_slot++] = POS2_H(fb->height) | POS2_W(fb->width);
   dlist_memory[display_slot++] = 0xDEADBEEF; // dummy for HVS state
   dlist_memory[display_slot++] = (uint32_t)fb->ptr | 0xc0000000;
   dlist_memory[display_slot++] = 0xDEADBEEF; // dummy for HVS state

@@ -45,10 +45,11 @@ extern volatile struct hvs_channel *hvs_channels;
 #define CONTROL_END             (1<<31)
 #define CONTROL_VALID           (1<<30)
 #define CONTROL_WORDS(n)        ((n & 0x3f) << 24)
+#define CONTROL0_FIXED_ALPHA    (1<<19)
+#define CONTROL0_HFLIP          (1<<16)
+#define CONTROL0_VFLIP          (1<<15)
 #define CONTROL_PIXEL_ORDER(n)  ((n & 3) << 13)
 #define CONTROL_UNITY           (1<<4)
-
-#define HVS_PIXEL_ORDER_ARGB                    2
 
 enum hvs_pixel_format {
 	/* 8bpp */
@@ -76,11 +77,22 @@ enum hvs_pixel_format {
 	HVS_PIXEL_FORMAT_YCBCR_10BIT = 17,
 };
 
-#define CONTROL0_X(n) (n & 0xfff)
-#define CONTROL0_Y(n) ((n & 0xfff) << 12)
+#define HVS_PIXEL_ORDER_RGBA			0
+#define HVS_PIXEL_ORDER_BGRA			1
+#define HVS_PIXEL_ORDER_ARGB			2
+#define HVS_PIXEL_ORDER_ABGR			3
 
-#define CONTROL2_W(n) (n & 0xffff)
-#define CONTROL2_H(n) ((n & 0xffff) << 16)
+#define HVS_PIXEL_ORDER_XBRG			0
+#define HVS_PIXEL_ORDER_XRBG			1
+#define HVS_PIXEL_ORDER_XRGB			2
+#define HVS_PIXEL_ORDER_XBGR			3
+
+#define POS0_X(n) (n & 0xfff)
+#define POS0_Y(n) ((n & 0xfff) << 12)
+#define POS0_ALPHA(n) ((n & 0xff) << 24)
+
+#define POS2_W(n) (n & 0xffff)
+#define POS2_H(n) ((n & 0xffff) << 16)
 
 extern int display_slot;
 extern volatile uint32_t* dlist_memory;
