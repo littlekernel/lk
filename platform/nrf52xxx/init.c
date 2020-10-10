@@ -47,5 +47,7 @@ void platform_init(void) {
 
     // Note: i2c_init will only instantiate an i2c device if proper defines
     //   are set.  See comments at top of i2c_master.c for more info.
+#if (NRFX_TWIM_ENABLED)
     i2c_init();
+#endif
 }

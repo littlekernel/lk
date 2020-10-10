@@ -10,8 +10,7 @@
 #include <target.h>
 #include <lk/compiler.h>
 #include <dev/gpio.h>
-#include <platform/gpio.h>
-#include <platform/nrf52.h>
+#include <platform/init.h>
 #include <target/gpioconfig.h>
 
 void target_early_init(void) {
