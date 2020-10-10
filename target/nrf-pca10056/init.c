@@ -11,6 +11,7 @@
 #include <lk/compiler.h>
 #include <nrfx_usbd.h>
 #include <dev/gpio.h>
+#include <dev/i2c.h>
 #include <platform/init.h>
 #include <target/gpioconfig.h>
 
@@ -26,6 +27,9 @@ void target_early_init(void) {
     LED4_OFF;
 
     nrf52_debug_early_init();
+    // Note: i2c_init will only instantiate an i2c device if proper defines
+    //   are set.  See comments at top of i2c_master.c(platform driver) for more info.
+    i2c_init();
 }
 
 
