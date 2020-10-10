@@ -10,7 +10,7 @@ jobs:
         if: github.event_name == 'push'
         with:
           channel: "#lk"
-          nickname: my-github-notifier
+          nickname: lk-github
           message: |
             ${{ github.actor }} pushed ${{ github.event.ref }} ${{ github.event.compare }}
             ${{ join(github.event.commits.*.message) }}
@@ -19,7 +19,7 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           channel: "#lk"
-          nickname: my-github-notifier
+          nickname: lk-github
           message: |
             ${{ github.actor }} opened PR ${{ github.event.html_url }}
       - name: irc tag created
@@ -27,6 +27,6 @@ jobs:
         if: github.event_name == 'create' && github.event.ref_type == 'tag'
         with:
           channel: "#lk"
-          nickname: my-github-notifier
+          nickname: lk-github
           message: |
             ${{ github.actor }} tagged ${{ github.repository }} ${{ github.event.ref }}
