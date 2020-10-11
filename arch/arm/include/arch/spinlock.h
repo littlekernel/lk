@@ -50,7 +50,7 @@ static inline void arch_spin_unlock(spin_lock_t *lock) {
 
 #endif
 
-#if !ARM_ISA_ARMV7M
+#if !(ARM_ISA_ARMV7M || ARM_ISA_ARMV6M)
 
 /* ARM specific flags */
 #define SPIN_LOCK_FLAG_IRQ                      0x40000000
