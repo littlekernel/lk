@@ -120,6 +120,12 @@ void dispflush(void) {
 
 }
 
+#ifndef WITH_KERNEL_VM
+inline void *paddr_to_kvaddr(paddr_t x) {
+  return x;
+}
+#endif
+
 /* LK display (lib/gfx.h) calls this function */
 status_t display_get_framebuffer(struct display_framebuffer *fb) {
     // VideoCore returns 32-bit bus address, which needs to be converted to kernel virtual

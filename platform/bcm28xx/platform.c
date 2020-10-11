@@ -17,7 +17,7 @@
 #include <kernel/spinlock.h>
 #include <dev/gpio.h>
 
-#ifndef VPU
+#ifdef HAVE_ARM_TIMER
 #include <dev/timer/arm_generic.h>
 #endif
 
@@ -27,7 +27,7 @@
 #include <platform/bcm28xx/pm.h>
 #include <platform/interrupts.h>
 
-#if BCM2836
+#if BCM2836 || BCM2835
 #include <arch/arm.h>
 #include <arch/arm/mmu.h>
 
@@ -99,7 +99,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 #elif VPU
   #define DEBUG_UART 0
 #else
-#error Unknown BCM28XX Variant
+  #error Unknown BCM28XX Variant
 #endif
 
 extern void intc_init(void);
@@ -162,7 +162,8 @@ void platform_early_init(void) {
     }
 #endif
 
-#if BCM2837
+#if BCM2835
+#elif BCM2837
     arm_generic_timer_init(INTERRUPT_ARM_LOCAL_CNTPNSIRQ, 0);
 
     /* look for a flattened device tree just before the kernel */

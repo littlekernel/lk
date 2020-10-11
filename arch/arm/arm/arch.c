@@ -242,7 +242,7 @@ static void arm_basic_setup(void) {
 #endif
 
     /* set the vector base to our exception vectors so we don't need to double map at 0 */
-#if ARM_ISA_ARMV7
+#if ARM_ISA_ARMV7 || ARM_ISA_ARMV6K
     arm_write_vbar(KERNEL_BASE + KERNEL_LOAD_OFFSET);
 #endif
 }

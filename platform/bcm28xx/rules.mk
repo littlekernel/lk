@@ -6,34 +6,25 @@ WITH_SMP := 1
 #LK_HEAP_IMPLEMENTATION ?= dlmalloc
 
 # 1st pass to set arch
-ifeq ($(TARGET),rpi2)
+ifeq ($(TARGET),rpi1)
+  ARCH := arm
+  ARM_CPU := arm1176jzf-s
+  HAVE_ARM_TIMER = 0
+else ifeq ($(TARGET),rpi2)
   ARCH := arm
   ARM_CPU := cortex-a7
-  GLOBAL_DEFINES += CRYSTAL=19200000
+  HAVE_ARM_TIMER = 1
 else ifeq ($(TARGET),rpi3)
   ARCH := arm64
   ARM_CPU := cortex-a53
-  GLOBAL_DEFINES += CRYSTAL=19200000
+  HAVE_ARM_TIMER = 1
 else ifeq ($(TARGET),rpi3-vpu)
-  GLOBAL_DEFINES += CRYSTAL=19200000
+  ARCH := vpu
 else ifeq ($(TARGET),rpi4-vpu)
-  ARCH ?= vc4
-  GLOBAL_DEFINES += CRYSTAL=54000000
 endif
 
 
-ifeq ($(ARCH),arm)
-MEMBASE := 0x00000000
-MODULE_DEPS += \
-	dev/timer/arm_generic \
-	lib/cbuf
-MODULE_SRCS += \
-	$(LOCAL_DIR)/mailbox.c \
-	$(LOCAL_DIR)/intc.c \
-
-LINKER_SCRIPT += \
-	$(BUILDDIR)/system-onesegment.ld
-else # VPU
+ifeq ($(ARCH),vpu)
   MODULE_DEPS += platform/bcm28xx/pll
   ifeq ($(BOOTCODE),1)
     MEMBASE := 0x80000000 # in the 8 alias
@@ -44,6 +35,21 @@ else # VPU
     MEMSIZE ?= 0x01400000 # 20MB
     LINKER_SCRIPT += $(LOCAL_DIR)/start.ld
   endif
+else # VPU
+  ifeq ($(HAVE_ARM_TIMER),1)
+    MODULE_DEPS += dev/timer/arm_generic
+    GLOBAL_DEFINES += HAVE_ARM_TIMER=1
+  else
+    MODULE_DEPS += dev/timer/vc4
+    GLOBAL_DEFINES += VC4_TIMER_CHANNEL=1
+  endif
+  MEMBASE := 0x00000000
+  MODULE_DEPS += lib/cbuf
+  MODULE_SRCS += \
+    $(LOCAL_DIR)/mailbox.c \
+    $(LOCAL_DIR)/intc.c \
+
+  LINKER_SCRIPT += $(BUILDDIR)/system-onesegment.ld
 endif
 
 
@@ -64,42 +70,41 @@ MODULE_SRCS += \
 GLOBAL_DEFINES += \
 	ARM_ARCH_WAIT_FOR_SECONDARIES=1
 
-ifeq ($(TARGET),rpi2)
-  ifeq ($(FORCENOMMU),1)
-    # put our kernel at 0x00000000
-    KERNEL_BASE = 0x00000000
-    MMIO_BASE_VIRT = 0x3f000000U
-    WITH_KERNEL_VM = 0
-  else
-    # put our kernel at 0x80000000
-    KERNEL_BASE = 0x80000000
-    MMIO_BASE_VIRT = 0xe0000000U
-  endif
+ifeq ($(TARGET),rpi1)
+  KERNEL_BASE = 0x00000000
+  MMIO_BASE_VIRT = 0x20000000U
+  KERNEL_LOAD_OFFSET := 0x00000000
+  MEMSIZE ?= 0x10000000 # 256MB
+  WITH_SMP = 0
+  GLOBAL_DEFINES += BCM2835=1 MMIO_BASE_VIRT=$(MMIO_BASE_VIRT) TARGET_HAS_DEBUG_LED=1
+  MODULE_SRCS += $(LOCAL_DIR)/uart.c
+else ifeq ($(TARGET),rpi2)
+  # put our kernel at 0x80000000
+  KERNEL_BASE = 0x80000000
+  MMIO_BASE_VIRT = 0xe0000000U
   KERNEL_LOAD_OFFSET := 0x00008000
   MEMSIZE ?= 0x10000000 # 256MB
   SMP_CPU_ID_BITS := 8
   GLOBAL_DEFINES += BCM2836=1 MMIO_BASE_VIRT=$(MMIO_BASE_VIRT)
 
   MODULE_SRCS += $(LOCAL_DIR)/uart.c
-
 else ifeq ($(TARGET),rpi3)
+  KERNEL_LOAD_OFFSET := 0x00080000
+  MEMSIZE ?= 0x40000000 # 1GB
 
-KERNEL_LOAD_OFFSET := 0x00080000
-MEMSIZE ?= 0x40000000 # 1GB
+  GLOBAL_DEFINES += \
+      MEMBASE=$(MEMBASE) \
+      MEMSIZE=$(MEMSIZE) \
+      MMU_WITH_TRAMPOLINE=1 \
+      BCM2837=1
 
-GLOBAL_DEFINES += \
-    MEMBASE=$(MEMBASE) \
-    MEMSIZE=$(MEMSIZE) \
-    MMU_WITH_TRAMPOLINE=1 \
-    BCM2837=1
+  MODULE_SRCS += \
+	  $(LOCAL_DIR)/miniuart.c
 
-MODULE_SRCS += \
-	$(LOCAL_DIR)/miniuart.c
-
-MODULE_DEPS += \
-		app/shell \
-	    app/tests \
-	    lib/fdt
+  MODULE_DEPS += \
+		  app/shell \
+	      app/tests \
+	      lib/fdt
 else ifeq ($(TARGET),rpi3-vpu)
   GLOBAL_DEFINES += \
     MEMSIZE=$(MEMSIZE) \

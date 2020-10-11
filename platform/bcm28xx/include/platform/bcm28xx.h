@@ -16,7 +16,7 @@ void print_timestamp(void);
 #endif
 
 #define SDRAM_BASE 0
-#ifdef VPU
+#ifdef ARCH_VPU
   #define BCM_PERIPH_BASE_PHYS (0x7e000000U)
 #else
   /* Note: BCM2836/BCM2837 use different peripheral base than BCM2835 */
@@ -24,12 +24,12 @@ void print_timestamp(void);
 #endif
 #define BCM_PERIPH_SIZE         (0x01100000U)
 
-#if BCM2836
+#ifdef MMIO_BASE_VIRT
   #define BCM_PERIPH_BASE_VIRT    (MMIO_BASE_VIRT)
 #elif BCM2837
   #define BCM_PERIPH_BASE_VIRT    (0xffffffffc0000000ULL)
   #define MEMORY_APERTURE_SIZE    (1024 * 1024 * 1024)
-#elif VPU
+#elif ARCH_VPU
   #define BCM_PERIPH_BASE_VIRT    (0x7e000000U)
 #else
 #error Unknown BCM28XX Variant
@@ -70,6 +70,7 @@ void print_timestamp(void);
 #define ST_CLO                  (ST_BASE + 0x4)
 #define ST_CHI                  (ST_BASE + 0x8)
 #define ST_C0                   (ST_BASE + 0xc)
+#define ST_C1                   (ST_BASE + 0x10)
 
 #define IC0_C                   (IC0_BASE + 0x0)
 #define IC0_S                   (IC0_BASE + 0x4)

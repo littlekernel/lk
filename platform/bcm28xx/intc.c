@@ -16,7 +16,7 @@
 #include <platform/bcm28xx.h>
 #include <lk/reg.h>
 
-#if defined (BCM2836)
+#if defined(BCM2836) || defined(BCM2835)
   #include <arch/arm.h>
   typedef struct arm_iframe arm_platform_iframe_t;
 #elif defined (BCM2837)
@@ -24,7 +24,7 @@
   typedef struct arm64_iframe_long arm_platform_iframe_t;
 #elif defined BCM2XXX_VPU
 #else
-#error Unknown BCM28XX Variant
+  #error Unknown BCM28XX Variant
 #endif
 
 
@@ -168,6 +168,7 @@ enum handler_return platform_irq(arm_platform_iframe_t *frame) {
     THREAD_STATS_INC(interrupts);
 
     // see what kind of irq it is
+#if BCM2835 != 1
     uint32_t pend = *REG32(INTC_LOCAL_IRQ_PEND0 + cpu * 4);
 
     pend &= ~(1 << (INTERRUPT_ARM_LOCAL_GPU_FAST % 32)); // mask out gpu interrupts
@@ -178,6 +179,9 @@ enum handler_return platform_irq(arm_platform_iframe_t *frame) {
         vector = ARM_IRQ_LOCAL_BASE + ctz(pend);
         goto decoded;
     }
+#else
+    uint32_t pend;
+#endif
 
     // XXX disable for now, since all of the interesting irqs are mirrored into the other banks
 #if 0

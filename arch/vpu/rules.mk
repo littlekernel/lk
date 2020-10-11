@@ -14,7 +14,6 @@ $(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/start.ld
 ARCH_LDFLAGS += -L/nix/store/cwpy4q0qvdwdif1zfwnfg5gi50c6j9w8-vc4-elf-stage-final-gcc-debug-6.5.0/lib/gcc/vc4-elf/6.2.1/
 
 MODULE_SRCS += \
-	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/intc.c \
@@ -22,6 +21,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/thread_asm.S \
 	$(LOCAL_DIR)/interrupt.S \
 
-GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1
+MODULE_DEPS += dev/timer/vc4
+GLOBAL_DEFINES += VC4_TIMER_CHANNEL=0
 
 include make/module.mk

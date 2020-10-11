@@ -175,7 +175,7 @@ static int cmd_gpio_dump_state(int argc, const cmd_args *argv) {
 
 static int cmd_gpio_test(int argc, const cmd_args *argv) {
   uint8_t pins[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27 };
-  for (int i=0; i<sizeof(pins); i++) {
+  for (unsigned int i=0; i<sizeof(pins); i++) {
     int mode = gpio_get_config(pins[i]);
     printf("GPIO%02d Mode:%s ", pins[i], mode_names[mode]);
     struct gpio_pull_batch pullBatch;
