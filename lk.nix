@@ -1,4 +1,4 @@
-{ stdenv, project, which, imagemagick }:
+{ stdenv, project, which, imagemagick, python }:
 
 stdenv.mkDerivation {
   name = "littlekernel-${project}";
@@ -12,6 +12,7 @@ stdenv.mkDerivation {
   nativeBuildInputs = [
     which
     imagemagick.__spliced.buildBuild # work around a bug in nixpkgs
+    python
   ];
   installPhase = ''
     mkdir -p $out/nix-support
