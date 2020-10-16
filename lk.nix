@@ -1,4 +1,4 @@
-{ stdenv, project, which }:
+{ stdenv, project, which, imagemagick }:
 
 stdenv.mkDerivation {
   name = "littlekernel-${project}";
@@ -9,7 +9,7 @@ stdenv.mkDerivation {
   };
   makeFlags = [ "PROJECT=${project}" ];
   hardeningDisable = [ "format" ];
-  nativeBuildInputs = [ which ];
+  nativeBuildInputs = [ which imagemagick ];
   installPhase = ''
     mkdir -p $out/nix-support
     cp -r build-${project}/{config.h,lk.*} $out
