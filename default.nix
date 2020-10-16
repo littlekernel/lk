@@ -29,6 +29,8 @@ in lib.fix (self: {
       pkgsCross.riscv32-embedded.stdenv.cc
       pkgsCross.riscv64-embedded.stdenv.cc
       python
+      qemu
+      imagemagick
     ];
     ARCH_x86_TOOLCHAIN_PREFIX = "i686-elf-";
     ARCH_x86_TOOLCHAIN_INCLUDED = true;
@@ -40,7 +42,7 @@ in lib.fix (self: {
   arm = {
     rpi1-test = arm7.callPackage ./lk.nix { project = "rpi1-test"; };
     rpi2-test = arm7.callPackage ./lk.nix { project = "rpi2-test"; };
-    rpi3-test = pkgs.pkgsCross.callPackage ./lk.nix { project = "rpi3-test"; };
+    rpi3-test = pkgs.pkgsCross.aarch64-embedded.callPackage ./lk.nix { project = "rpi3-test"; };
   };
   vc4 = {
     shell = vc4.littlekernel;
