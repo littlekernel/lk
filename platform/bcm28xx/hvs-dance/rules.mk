@@ -15,6 +15,8 @@ $(BUILDDIR)/$(LOCAL_DIR)/pi-logo.h: $(BUILDDIR)/$(LOCAL_DIR)/pi-logo.tga
 $(BUILDDIR)/$(LOCAL_DIR)/pi-logo.tga: $(LOCAL_DIR)/RPi-Logo-Reg-SCREEN.png
 	convert $< -compress RLE $@
 
+$(BUILDDIR)/$(LOCAL_DIR)/dance.o: $(BUILDDIR)/$(LOCAL_DIR)/pi-logo.h
+
 GLOBAL_INCLUDES += $(BUILDDIR)/$(LOCAL_DIR)
 
 include make/module.mk

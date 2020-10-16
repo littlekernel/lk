@@ -2,7 +2,11 @@
 
 stdenv.mkDerivation {
   name = "littlekernel-${project}";
-  src = stdenv.lib.cleanSource ./.;
+  src = builtins.path {
+    filter = stdenv.lib.cleanSourceFilter;
+    path = ./.;
+    name = "lk-src";
+  };
   makeFlags = [ "PROJECT=${project}" ];
   hardeningDisable = [ "format" ];
   nativeBuildInputs = [ which ];
