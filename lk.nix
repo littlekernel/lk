@@ -16,4 +16,5 @@ stdenv.mkDerivation {
     echo "file binary-dist $out/lk.bin" >> $out/nix-support/hydra-build-products
     echo "file binary-dist $out/lk.elf" >> $out/nix-support/hydra-build-products
   '';
+  ARCH_arm64_TOOLCHAIN_PREFIX = "aarch64-none-elf-";
 }
