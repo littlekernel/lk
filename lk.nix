@@ -9,7 +9,10 @@ stdenv.mkDerivation {
   };
   makeFlags = [ "PROJECT=${project}" ];
   hardeningDisable = [ "format" ];
-  nativeBuildInputs = [ which imagemagick ];
+  nativeBuildInputs = [
+    which
+    imagemagick.__spliced.buildBuild # work around a bug in nixpkgs
+  ];
   installPhase = ''
     mkdir -p $out/nix-support
     cp -r build-${project}/{config.h,lk.*} $out
