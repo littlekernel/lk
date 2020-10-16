@@ -96,7 +96,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 
 #define DEBUG_UART 1
 
-#elif VPU
+#elif ARCH_VPU
   #define DEBUG_UART 0
 #else
   #error Unknown BCM28XX Variant
@@ -156,7 +156,7 @@ void platform_early_init(void) {
 
     intc_init();
 
-#ifdef VPU
+#ifdef ARCH_VPU
     if (xtal_freq == 19200000) {
       switch_vpu_to_pllc();
     }
@@ -210,7 +210,7 @@ void platform_early_init(void) {
 
 #elif BCM2836
     arm_generic_timer_init(INTERRUPT_ARM_LOCAL_CNTPNSIRQ, 1000000);
-#elif VPU
+#elif ARCH_VPU
 #else
 #error Unknown BCM28XX Variant
 #endif
@@ -246,14 +246,19 @@ void platform_early_init(void) {
     }
 #endif
 #endif
+    puts("done platform early init");
 }
 
 void platform_init(void) {
-#ifdef VPU
+#ifdef ARCH_VPU
   uint32_t r28, sp;
   __asm__ volatile ("mov %0, r28" : "=r"(r28));
   __asm__ volatile ("mov %0, sp" : "=r"(sp));
   dprintf(INFO, "platform_init\nr28: 0x%x\nsp: 0x%x\n", r28, sp);
+#endif
+
+#if BCM2835 == 1
+  gpio_config(0, 1);
 #endif
 
 #ifdef RPI4
@@ -302,6 +307,8 @@ void target_set_debug_led(unsigned int led, bool on) {
   case 0:
 #ifdef RPI4
     gpio_set(42, on);
+#elif BCM2835==1
+    gpio_set(0, on);
 #endif
     break;
   default:
