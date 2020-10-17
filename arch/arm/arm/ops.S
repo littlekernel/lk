@@ -8,6 +8,14 @@
 #include <lk/asm.h>
 #include <arch/arm/cores.h>
 
+.macro DMB
+  mcr     p15, 0, r0, c7, c10, 5
+.endm
+
+.macro DSB
+  mcr     p15, 0, r0, c7, c10, 4
+.endm
+
 .text
 
 /* void _arch_enable_ints(void); */
