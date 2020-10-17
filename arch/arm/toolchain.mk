@@ -103,7 +103,7 @@ ifeq ($(ARM_CPU),arm1136j-s)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 endif
 ifeq ($(ARM_CPU),arm1176jzf-s)
-ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU) -mfpu=vfp -march=armv6zk
 endif
 ifeq ($(ARM_CPU),cortex-r4f)
 ARCH_arm_COMPILEFLAGS += -march=armv7-r
