@@ -7,8 +7,11 @@
  */
 #pragma once
 
-#include <sys/types.h>
 #include <lk/compiler.h>
+#include <sys/types.h>
+
+/* TODO: move all callers to using time.h directly */
+#include <platform/time.h>
 
 __BEGIN_CDECLS
 
@@ -31,9 +34,6 @@ typedef enum {
     HALT_REASON_SW_PANIC,       // Reboot triggered by a SW panic or ASSERT
     HALT_REASON_SW_UPDATE,      // SW triggered reboot in order to begin firmware update
 } platform_halt_reason;
-
-lk_time_t current_time(void);
-lk_bigtime_t current_time_hires(void);
 
 /* super early platform initialization, before almost everything */
 void platform_early_init(void);

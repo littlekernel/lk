@@ -7,17 +7,16 @@
  */
 #pragma once
 
-#include <sys/types.h>
-#include <stdbool.h>
-#include <stdarg.h>
 #include <lk/compiler.h>
+#include <stdbool.h>
 
 __BEGIN_CDECLS
 
+/* Standard console output routines that may be buffered */
 void platform_dputc(char c);
 int platform_dgetc(char *c, bool wait);
 
-// Should be available even if the system has panicked.
+/* Unbuffered versions of above, usually used a panic or crash time */
 void platform_pputc(char c);
 int platform_pgetc(char *c, bool wait);
 
