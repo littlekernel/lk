@@ -11,6 +11,7 @@ jobs:
         with:
           channel: "#lk"
           nickname: lk-github
+          notice: true
           message: |
             ${{ github.actor }} pushed ${{ github.event.ref }} ${{ github.event.compare }}
             ${{ join(github.event.commits.*.message) }}
@@ -20,6 +21,7 @@ jobs:
         with:
           channel: "#lk"
           nickname: lk-github
+          notice: true
           message: |
             ${{ github.actor }} opened PR ${{ github.event.html_url }}
       - name: irc tag created
@@ -28,5 +30,6 @@ jobs:
         with:
           channel: "#lk"
           nickname: lk-github
+          notice: true
           message: |
             ${{ github.actor }} tagged ${{ github.repository }} ${{ github.event.ref }}
