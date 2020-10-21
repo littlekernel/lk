@@ -40,4 +40,3 @@ int __aeabi_atexit(void *arg, void (*func)(void *), void *d) {
     return __cxa_atexit(func, arg, d);
 }
 
-

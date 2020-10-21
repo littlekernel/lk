@@ -7,6 +7,7 @@ MODULE_DEPS := \
 	lib/io
 
 MODULE_SRCS += \
+	$(LOCAL_DIR)/abort.c \
 	$(LOCAL_DIR)/atexit.c \
 	$(LOCAL_DIR)/atoi.c \
 	$(LOCAL_DIR)/bsearch.c \
