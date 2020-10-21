@@ -10,6 +10,7 @@
 #include <lk/trace.h>
 #include <lk/debug.h>
 #include <lk/err.h>
+#include <assert.h>
 #include <string.h>
 #include <arch/mmu.h>
 #include <arch/or1k.h>
@@ -38,10 +39,13 @@ void or1k_invalidate_tlb(vaddr_t vaddr, uint count) {
         switch (num_dtlb_ways) {
             case 4:
                 mtspr_off(0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(3, offs), 0);
+                // fallthrough
             case 3:
                 mtspr_off(0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(2, offs), 0);
+                // fallthrough
             case 2:
                 mtspr_off(0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(1, offs), 0);
+                // fallthrough
             case 1:
                 mtspr_off(0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(0, offs), 0);
         }
@@ -50,10 +54,13 @@ void or1k_invalidate_tlb(vaddr_t vaddr, uint count) {
         switch (num_itlb_ways) {
             case 4:
                 mtspr_off(0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(3, offs), 0);
+                // fallthrough
             case 3:
                 mtspr_off(0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(2, offs), 0);
+                // fallthrough
             case 2:
                 mtspr_off(0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(1, offs), 0);
+                // fallthrough
             case 1:
                 mtspr_off(0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(0, offs), 0);
         }
@@ -61,7 +68,7 @@ void or1k_invalidate_tlb(vaddr_t vaddr, uint count) {
     }
 }
 
-status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags) {
+status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) {
     uint index = vaddr / SECTION_SIZE;
     uint32_t pte = or1k_kernel_translation_table[index];
     uint32_t vmask = SECTION_SIZE-1;
@@ -95,8 +102,8 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags) {
     return NO_ERROR;
 }
 
-int arch_mmu_unmap(vaddr_t vaddr, uint count) {
-    LTRACEF("vaddr = 0x%x, count = %d\n", vaddr, count);
+int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
+    LTRACEF("vaddr = 0x%lx, count = %d\n", vaddr, count);
 
     if (!IS_PAGE_ALIGNED(vaddr))
         return ERR_INVALID_ARGS;
@@ -124,12 +131,12 @@ int arch_mmu_unmap(vaddr_t vaddr, uint count) {
     return unmapped;
 }
 
-int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
+int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
     uint l1_index;
     uint32_t pte;
     uint32_t arch_flags = 0;
 
-    LTRACEF("vaddr = 0x%x, paddr = 0x%x, count = %d, flags = 0x%x\n", vaddr, paddr, count, flags);
+    LTRACEF("vaddr = 0x%lx, paddr = 0x%lx, count = %d, flags = 0x%x\n", vaddr, paddr, count, flags);
 
     if (!IS_PAGE_ALIGNED(vaddr) || !IS_PAGE_ALIGNED(paddr))
         return ERR_INVALID_ARGS;
@@ -174,14 +181,14 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
             }
 
             memset(l2_table, 0, PAGE_SIZE);
-            paddr_t l2_pa = kvaddr_to_paddr(l2_table);
+            paddr_t l2_pa = vaddr_to_paddr(l2_table);
             LTRACEF("allocated pagetable at %p, pa 0x%lx\n", l2_table, l2_pa);
             or1k_kernel_translation_table[l1_index] = l2_pa | arch_flags | OR1K_MMU_PG_PRESENT;
         }
 
         uint l2_index = (vaddr % SECTION_SIZE) / PAGE_SIZE;
 
-        LTRACEF("l2_index = 0x%x, vaddr = 0x%x, paddr = 0x%x\n", l2_index, vaddr, paddr);
+        LTRACEF("l2_index = 0x%x, vaddr = 0x%lx, paddr = 0x%lx\n", l2_index, vaddr, paddr);
         l2_table[l2_index] = paddr | arch_flags | OR1K_MMU_PG_PRESENT | OR1K_MMU_PG_L;
 
         count--;
@@ -191,6 +198,51 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
     }
 
     return mapped;
+}
+
+// initialize per address space
+status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) {
+    LTRACEF("aspace %p, base %#lx, size %#zx, flags %#x\n", aspace, base, size, flags);
+
+    DEBUG_ASSERT(aspace);
+
+    // validate that the base + size is sane and doesn't wrap
+    DEBUG_ASSERT(size > PAGE_SIZE);
+    DEBUG_ASSERT(base + size - 1 > base);
+
+#if 0
+    aspace->flags = flags;
+    if (flags & ARCH_ASPACE_FLAG_KERNEL) {
+        // at the moment we can only deal with address spaces as globally defined
+        DEBUG_ASSERT(base == KERNEL_ASPACE_BASE);
+        DEBUG_ASSERT(size == KERNEL_ASPACE_SIZE);
+
+        aspace->base = base;
+        aspace->size = size;
+        aspace->pt_virt = kernel_pgtable;
+        aspace->pt_phys = kernel_pgtable_phys;
+    } else {
+        PANIC_UNIMPLEMENTED;
+    }
+
+    LTRACEF("pt phys %#lx, pt virt %p\n", aspace->pt_phys, aspace->pt_virt);
+#endif
+
+    return NO_ERROR;
+}
+
+status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
+    LTRACEF("aspace %p\n", aspace);
+
+    PANIC_UNIMPLEMENTED;
+}
+
+// load a new user address space context.
+// aspace argument NULL should load kernel-only context
+void arch_mmu_context_switch(arch_aspace_t *aspace) {
+    LTRACEF("aspace %p\n", aspace);
+
+    PANIC_UNIMPLEMENTED;
 }
 
 #endif /* WITH_KERNEL_VM */

@@ -23,7 +23,7 @@ static uint32_t timer_freq;
 static volatile uint64_t ticks = 0;
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
-    LTRACEF("cb %p, arg %p, interval %ld\n", callback, arg, interval);
+    LTRACEF("cb %p, arg %p, interval %u\n", callback, arg, interval);
 
     uint32_t ttmr = (uint64_t)timer_freq * interval / 1000;
     LTRACEF("count 0x%x\n", ttmr);

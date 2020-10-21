@@ -31,6 +31,8 @@ static inline bool arch_ints_disabled(void) {
     return !(sr & (OR1K_SPR_SYS_SR_IEE_MASK | OR1K_SPR_SYS_SR_TEE_MASK));
 }
 
+// Using builtin atomics
+#if 0
 static inline int atomic_add(volatile int *ptr, int val) {
     return __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED);
 }
@@ -62,6 +64,7 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) {
 
     return oldval;
 }
+#endif
 
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;
