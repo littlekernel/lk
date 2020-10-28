@@ -18,12 +18,13 @@ SECTIONS
 {
     . = %ROMBASE%;
 
-    _start = .;
     __rom_start = .;
 
     /* text/read-only data */
     /* set the load address to physical MEMBASE */
     .text : {
+        KEEP(*(.text.boot.vectab1))
+        KEEP(*(.text.boot.vectab2))
         KEEP(*(.text.boot))
         *(.text .text*)
         *(.gnu.linkonce.t.*)
@@ -61,17 +62,14 @@ SECTIONS
         __dtor_end = .;
         *(.got*)
         *(.dynamic)
-    } :data
-
-    /* Try to put sdata and sbss near each other by putting sdata at the end of the data segment
-     * and sbss at the start of the bss segment. This maximizes reach of things referenced off of
-     * the global pointer. */
-    .sdata : {
+        . = ALIGN(8);
         __global_pointer$ = . + (4K / 2);
         /* Question: should we put srodata here on multi seg binaries? */
         *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
         *(.sdata .sdata.* .gnu.linkonce.s.*)
-    }
+    } :data
+
+
 
     . = ALIGN(%BITS% / 8);
     __data_end = .;

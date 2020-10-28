@@ -30,7 +30,19 @@ endif
 
 SUBARCH ?= 32
 
+# Different vendor variant of riscv
+VARIANT ?=
+
 RISCV_MODE ?= machine
+
+ifeq ($(VARIANT),nuclei)
+MODULE_DEPS += \
+	arch/riscv/nuclei/NMSIS
+
+MODULE_SRCS += $(LOCAL_DIR)/vectab.S
+
+GLOBAL_DEFINES += RISCV_VARIANT_NUCLEI=1
+endif
 
 ifeq ($(strip $(RISCV_MODE)),machine)
 $(info RISCV: Machine Mode)
@@ -154,6 +166,7 @@ WITH_LINKER_GC ?= 0
 endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name)
+LIBGCC += $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-file-name=libstdc++.a)
 $(info LIBGCC = $(LIBGCC))
 
 # potentially generated files that should be cleaned out with clean make rule

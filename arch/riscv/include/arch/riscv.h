@@ -170,6 +170,11 @@ static inline uint riscv_current_hart(void) {
 
 void riscv_set_secondary_count(int count);
 
+#ifdef RISCV_VARIANT_NUCLEI
+void riscv_clic_irq_entry(void);
+void riscv_clic_irq_exit(bool reschedule);
+#endif /* RISCV_VARIANT_NUCLEI */
+
 void riscv_exception_entry(void);
 enum handler_return riscv_timer_exception(void);
 

@@ -218,9 +218,9 @@ END_FUNCTION(_mmu_init)
 
 .bss
 .align 4
-LOCAL_DATA(default_stack)
+DATA(default_stack)
     .skip ARCH_DEFAULT_STACK_SIZE * RISCV_MAX_HARTS;
-LOCAL_DATA(default_stack_top)
+DATA(default_stack_top)
 
 // put boot status in .data so it doesn't get paved over during BSS initialization
 .data
