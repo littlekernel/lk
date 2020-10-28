@@ -22,6 +22,7 @@ env:
     - PROJECT=qemu-virt-riscv64-supervisor-test    TOOLCHAIN=riscv64-elf-7.5.0-Linux-x86_64
     - PROJECT=sifive-e-test             TOOLCHAIN=riscv32-elf-7.5.0-Linux-x86_64
     - PROJECT=sifive-unleashed-test     TOOLCHAIN=riscv64-elf-7.5.0-Linux-x86_64
+    - PROJECT=nuclei-hbird              TOOLCHAIN=riscv32-elf-7.5.0-Linux-x86_64
     - PROJECT=pc-x86-test               TOOLCHAIN=i386-elf-7.5.0-Linux-x86_64
     - PROJECT=pc-x86-64-test            TOOLCHAIN=x86_64-elf-7.5.0-Linux-x86_64
 
