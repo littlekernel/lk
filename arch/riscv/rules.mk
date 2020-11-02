@@ -166,7 +166,6 @@ WITH_LINKER_GC ?= 0
 endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name)
-LIBGCC += $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-file-name=libstdc++.a)
 $(info LIBGCC = $(LIBGCC))
 
 # potentially generated files that should be cleaned out with clean make rule
