@@ -25,7 +25,7 @@
 __WEAK void platform_halt(platform_halt_action suggested_action,
                           platform_halt_reason reason) {
 #if ENABLE_PANIC_SHELL
-    if (reason == HALT_REASON_SW_PANIC) {
+    if (reason == HALT_REASON_SW_PANIC && suggested_action == HALT_ACTION_HALT) {
         dprintf(ALWAYS, "CRASH: starting debug shell... (reason = %d)\n", reason);
         arch_disable_ints();
         panic_shell_start();

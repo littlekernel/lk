@@ -25,6 +25,9 @@
 #else
 #include <kernel/novm.h>
 #endif
+#if WITH_LIB_CONSOLE
+#include <lib/console.h>
+#endif
 
 #include "platform_p.h"
 
@@ -42,6 +45,8 @@ static pmm_arena_t arena = {
     .flags = PMM_ARENA_FLAG_KMAP,
 };
 #endif
+
+static volatile uint32_t *power_reset_reg;
 
 // callbacks to the fdt_walk routine
 static void memcallback(uint64_t base, uint64_t len, void *cookie) {
@@ -114,8 +119,15 @@ void platform_early_init(void) {
     pmm_alloc_range(MEMBASE, 0x20000 / PAGE_SIZE, &list);
 #endif
 
-
     LTRACEF("done scanning FDT\n");
+
+    /* save a copy of the pointer to the poweroff/reset register */
+    /* TODO: read it from the FDT */
+#if WITH_KERNEL_VM
+    power_reset_reg = paddr_to_kvaddr(0x100000);
+#else
+    power_reset_reg = (void *)0x100000;
+#endif
 }
 
 void platform_init(void) {
@@ -153,3 +165,30 @@ void platform_init(void) {
 #endif
 }
 
+void platform_halt(platform_halt_action suggested_action,
+                          platform_halt_reason reason) {
+    switch (suggested_action) {
+        case HALT_ACTION_SHUTDOWN:
+            dprintf(ALWAYS, "Shutting down... (reason = %d)\n", reason);
+            *power_reset_reg = 0x5555;
+            break;
+        case HALT_ACTION_REBOOT:
+            dprintf(ALWAYS, "Rebooting... (reason = %d)\n", reason);
+            *power_reset_reg = 0x7777;
+            break;
+        case HALT_ACTION_HALT:
+#if ENABLE_PANIC_SHELL
+            if (reason == HALT_REASON_SW_PANIC) {
+                dprintf(ALWAYS, "CRASH: starting debug shell... (reason = %d)\n", reason);
+                arch_disable_ints();
+                panic_shell_start();
+            }
+#endif  // ENABLE_PANIC_SHELL
+            dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
+            break;
+    }
+
+    arch_disable_ints();
+    for (;;)
+        arch_idle();
+}
