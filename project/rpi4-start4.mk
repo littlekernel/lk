@@ -1,7 +1,6 @@
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 TARGET := rpi4-vpu
-ARCH := vc4
 
 MODULES += \
 	app/shell \
@@ -11,4 +10,5 @@ MODULES += \
 	app/stringtests \
 	app/tests \
 	platform/bcm28xx/arm_control \
+	platform/bcm28xx/dpi \
 

@@ -8,5 +8,10 @@ GLOBAL_DEFINES += TARGET_HAS_DEBUG_LED=1 CRYSTAL=54000000
 PLATFORM := bcm28xx
 ARCH := vpu
 
+ifeq ($(BOOTCODE),1)
+else
+  MODULES += platform/bcm28xx/start4
+endif
+
 #include make/module.mk
 

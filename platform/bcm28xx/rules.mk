@@ -3,26 +3,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 WITH_SMP := 1
+#SMP_MAX_CPUS ?= 1
 #LK_HEAP_IMPLEMENTATION ?= dlmalloc
-
-# 1st pass to set arch
-ifeq ($(TARGET),rpi1)
-  ARCH := arm
-  ARM_CPU := arm1176jzf-s
-  HAVE_ARM_TIMER = 0
-else ifeq ($(TARGET),rpi2)
-  ARCH := arm
-  ARM_CPU := cortex-a7
-  HAVE_ARM_TIMER = 1
-else ifeq ($(TARGET),rpi3)
-  ARCH := arm64
-  ARM_CPU := cortex-a53
-  HAVE_ARM_TIMER = 1
-else ifeq ($(TARGET),rpi3-vpu)
-  ARCH := vpu
-else ifeq ($(TARGET),rpi4-vpu)
-endif
-
 
 ifeq ($(ARCH),vpu)
   MODULE_DEPS += platform/bcm28xx/pll
@@ -61,6 +43,7 @@ endif
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
+	$(LOCAL_DIR)/dwc2.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/udelay.c \
 	#$(LOCAL_DIR)/i2c.c \
