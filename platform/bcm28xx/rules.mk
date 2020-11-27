@@ -43,9 +43,9 @@ endif
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
-	$(LOCAL_DIR)/dwc2.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/udelay.c \
+	$(LOCAL_DIR)/dwc2.c \
 	#$(LOCAL_DIR)/i2c.c \
 
 
@@ -95,7 +95,6 @@ else ifeq ($(TARGET),rpi4-vpu)
   MODULE_SRCS += \
     $(LOCAL_DIR)/uart.c \
     $(LOCAL_DIR)/genet.c \
-    $(LOCAL_DIR)/udelay.c \
 
 endif
 

@@ -75,6 +75,7 @@ static void print_bstm(bstm_state *bstm) {
   if (bstm->b == 1) puts("\tNET");
   if (bstm->b == 2) puts("\tUSB-MSD");
   if (bstm->b == 3) puts("\tUSB-DEV");
+  if (bstm->b == 4) puts("\tUSB-BCM-MSD");
 }
 
 static char guard(char c) {
