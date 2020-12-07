@@ -5,8 +5,8 @@ TARGET := rpi3-vpu
 MODULES += \
 	app/shell \
 	platform/bcm28xx/rpi-ddr2/autoram \
+	platform/bcm28xx/otp \
 	#platform/bcm28xx/dpi \
-	#platform/bcm28xx/otp \
 	#lib/debugcommands \
 	#app/shell \
 	#app/tests \

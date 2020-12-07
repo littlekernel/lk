@@ -45,6 +45,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/udelay.c \
+	$(LOCAL_DIR)/print_timestamp.c \
 	$(LOCAL_DIR)/dwc2.c \
 	#$(LOCAL_DIR)/i2c.c \
 
@@ -85,7 +86,6 @@ else ifeq ($(TARGET),rpi3-vpu)
 
   MODULE_SRCS += \
     $(LOCAL_DIR)/uart.c \
-    $(LOCAL_DIR)/print_timestamp.c \
 
   MODULES += platform/bcm28xx/sdhost
 

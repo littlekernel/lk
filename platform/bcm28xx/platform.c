@@ -106,6 +106,8 @@ extern void intc_init(void);
 extern void arm_reset(void);
 static void switch_vpu_to_pllc(void);
 
+// 19.2mhz for most models
+// 54mhz for rpi4
 uint32_t xtal_freq = CRYSTAL;
 
 #ifdef WITH_KERNEL_VM
@@ -130,15 +132,15 @@ static void switch_vpu_to_pllc() {
 
   setup_pllc(    2000LL * 1000 * 1000);
 
-  int vpu_divisor = 2;
+  int vpu_divisor = 1;
 
   *REG32(CM_VPUCTL) = CM_PASSWORD | CM_VPUCTL_FRAC_SET | CM_SRC_OSC | CM_VPUCTL_GATE_SET;
   *REG32(CM_VPUDIV) = CM_PASSWORD | (vpu_divisor << 12);
   *REG32(CM_VPUCTL) = CM_PASSWORD | CM_SRC_PLLC_CORE0 | CM_VPUCTL_GATE_SET;
   *REG32(CM_VPUCTL) = CM_PASSWORD | CM_SRC_PLLC_CORE0 | CM_VPUCTL_GATE_SET | 0x10; /* ENAB */
 
-  *REG32(CM_TIMERDIV) = CM_PASSWORD | (19 << 12) | 819; // TODO, look into this timer
-  *REG32(CM_TIMERCTL) = CM_PASSWORD | CM_SRC_OSC | 0x10;
+  //*REG32(CM_TIMERDIV) = CM_PASSWORD | (19 << 12) | 819; // TODO, look into this timer
+  //*REG32(CM_TIMERCTL) = CM_PASSWORD | CM_SRC_OSC | 0x10;
 
   int vpu = measure_clock(5);
   int pllc_core0 = vpu*vpu_divisor;
@@ -149,17 +151,14 @@ static void switch_vpu_to_pllc() {
 }
 
 void platform_early_init(void) {
-    // 19.2mhz for most models
-    // 54mhz for rpi4
-    xtal_freq = CRYSTAL;
     uart_init_early();
 
     intc_init();
 
 #ifdef ARCH_VPU
-    if (xtal_freq == 19200000) {
+    //if (xtal_freq == 19200000) {
       switch_vpu_to_pllc();
-    }
+    //}
 #endif
 
 #if BCM2835
@@ -250,13 +249,6 @@ void platform_early_init(void) {
 }
 
 void platform_init(void) {
-#ifdef ARCH_VPU
-  uint32_t r28, sp;
-  __asm__ volatile ("mov %0, r28" : "=r"(r28));
-  __asm__ volatile ("mov %0, sp" : "=r"(sp));
-  dprintf(INFO, "platform_init\nr28: 0x%x\nsp: 0x%x\n", r28, sp);
-#endif
-
 #if BCM2835 == 1
   gpio_config(0, 1);
 #endif
@@ -268,6 +260,7 @@ void platform_init(void) {
 #if BCM2837
     init_framebuffer();
 #endif
+  printf("crystal is %f MHz\n", (float)xtal_freq/1000/1000);
 }
 
 void platform_dputc(char c) {

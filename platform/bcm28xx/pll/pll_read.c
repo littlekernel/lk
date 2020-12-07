@@ -120,8 +120,8 @@ static int cmd_pll_dump(int argc, const cmd_args *argv) {
     if (freq > 0) {
       enum pll_chan pll_chan;
       for (pll_chan = 0; pll_chan < PLL_CHAN_NUM; ++pll_chan)
-	if (pll_chan_def[pll_chan].pll == pll)
-	  dump_pll_chan_state(pll_chan);
+        if (pll_chan_def[pll_chan].pll == pll)
+          dump_pll_chan_state(pll_chan);
     }
   }
 
@@ -153,7 +153,7 @@ int measure_clock(int mux) {
   return count * divisor;
 }
 
-const char *clock_names[] = {
+static const char *clock_names[] = {
   [1] = "H264",
   [2] = "ISP",
   [3] = "SDRAM",

@@ -63,8 +63,12 @@ void print_timestamp(void);
 #define SMI_BASE                (BCM_PERIPH_BASE_VIRT + 0x600000)
 #define BSC1_BASE               (BCM_PERIPH_BASE_VIRT + 0x804000)
 #define USB_BASE                (BCM_PERIPH_BASE_VIRT + 0x980000)
+#define SD_BASE                 (BCM_PERIPH_BASE_VIRT + 0xe00000)
 #define GENET_BASE              (0x7d580000) // TODO, this is before the normal BCM_PERIPH_BASE_VIRT bank
 #define MCORE_BASE              (BCM_PERIPH_BASE_VIRT + 0x0000)
+
+#define SD_IDL                  (SD_BASE + 0x18)
+#define SD_CYC                  (SD_BASE + 0x30)
 
 #define ST_CS                   (ST_BASE + 0x0)
 #define ST_CLO                  (ST_BASE + 0x4)

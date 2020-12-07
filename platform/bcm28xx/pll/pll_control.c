@@ -489,7 +489,7 @@ void switch_vpu_to_src(int src) {
 void setup_pllc(uint64_t target_freq) {
   int pdiv = 1;
   uint64_t xtal_in = xtal_freq;
-  uint64_t goal_freq = target_freq / 2;
+  uint64_t goal_freq = target_freq / 1;
   uint64_t divisor = (goal_freq<<20) / xtal_in;
   int div = divisor >> 20;
   int frac = divisor & 0xfffff;

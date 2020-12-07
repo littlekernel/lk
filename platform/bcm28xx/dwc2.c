@@ -134,12 +134,6 @@ void dwc2_ep_queue_in(dwc_state_t *state, int epNr, void *buffer, int bytes, voi
   pkt->next = NULL;
   pkt->cb = cb;
 
-  uint32_t *data = buffer;
-  for (int i=0; i<(bytes/4); i++) {
-    printf("0x%x ", data[i]);
-  }
-  puts("");
-
   int do_tx = false;
   if (state->in[epNr].packet_queue_head == NULL) {
     // no pending packets, can tx right away
@@ -158,18 +152,19 @@ void dwc2_ep_queue_in(dwc_state_t *state, int epNr, void *buffer, int bytes, voi
 void ep_write_in(dwc_state_t *state, int epNr) {
   endpoint_control *ep = GET_IN(epNr);
   while (ep->control & (1<<31))  {}
-  puts("ready");
+  //puts("ready");
   int maxPacketSize = 64; // TODO
   packet_queue_t *pkt = state->in[epNr].packet_queue_head;
   assert(pkt);
-  printf("packet(%x): 0x%x+(0x%x/0x%x)\n", (uint32_t)pkt, (uint32_t)pkt->payload, pkt->start, pkt->payload_size);
+  //printf("packet(%x): 0x%x+(0x%x/0x%x)\n", (uint32_t)pkt, (uint32_t)pkt->payload, pkt->start, pkt->payload_size);
   int bytes = pkt->payload_size - pkt->start;
   if (bytes == 0) {
-    puts("packet sent");
+    //puts("packet sent");
     pkt->cb(state, pkt);
     packet_queue_t *next = pkt->next;
     state->in[epNr].packet_queue_head = next;
     if (state->in[epNr].packet_queue_tail == pkt) state->in[epNr].packet_queue_tail = NULL;
+    free(pkt);
     if (next) return ep_write_in(state, epNr);
     return;
   }
@@ -178,14 +173,14 @@ void ep_write_in(dwc_state_t *state, int epNr) {
   int partialPacketSize = bytes - (fullPackets*maxPacketSize);
   int packets = fullPackets + ((partialPacketSize==0) ? 0 : 1);
   int words = ROUNDUP(bytes,4)/4;
-  printf("sending %d full packets and a %d byte partial, %d total, %d words\n", fullPackets, partialPacketSize, packets, words);
+  //printf("sending %d full packets and a %d byte partial, %d total, %d words\n", fullPackets, partialPacketSize, packets, words);
   if (epNr == 0) {
     packets = 1;
     bytes = MIN(maxPacketSize, bytes);
-    printf("capped to 1 packet of %d bytes\n", bytes);
+    //printf("capped to 1 packet of %d bytes\n", bytes);
   }
   uint32_t x = (3 << 29) | (packets<<19) | bytes;
-  printf("size is 0x%x\n", x);
+  //printf("size is 0x%x\n", x);
 
   ep->size = x;
   ep->control = (1<<31) | // endpoint enable
@@ -193,11 +188,10 @@ void ep_write_in(dwc_state_t *state, int epNr) {
     (0 << 22) | // fifo#
     (1 << 15) | // USB active endpoint
     (0 & 0x3); // max packet size
-  dump_endpoint(ep, true);
+  //dump_endpoint(ep, true);
   //ack_ep(ep);
 
   uint32_t *packet = (uint32_t*)(pkt->payload + pkt->start);
-  printf("packet: 0x%x\n", (uint32_t)packet);
   int bytes_sent = 0;
   for (int i = 0; i < MIN(maxPacketSize/4, words); i++) {
     *REG32(USB_DFIFO0) = packet[i];
@@ -205,7 +199,7 @@ void ep_write_in(dwc_state_t *state, int epNr) {
     bytes_sent += 4;
   }
   pkt->start += bytes_sent;
-  printf("%d bytes sent, start now %d\n", bytes_sent, pkt->start);
+  //printf("%d bytes sent, start now %d\n", bytes_sent, pkt->start);
 }
 
 static fileServerRequest req; // TODO, put on heap
@@ -213,7 +207,7 @@ static fileServerRequest req; // TODO, put on heap
 static void handle_setup_status_out(dwc_state_t *state, packet_queue_t *pkt) {
   endpoint_control *ep_in = GET_IN(0);
   endpoint_control *ep_out = GET_OUT(0);
-  puts("setup data IN stage done, on to status OUT...");
+  //puts("setup data IN stage done, on to status OUT...");
   ep_in->size = (3 << 29);
 
   //puts("\nOUT 0");
@@ -244,74 +238,14 @@ static void handle_incoming_setup(dwc_state_t *state, uint8_t *buf, int size) {
   //printf("wIndex: 0x%x\n", s->wIndex);
   //printf("wLength: 0x%x\n", s->wLength);
   if ((s->bmRequestType == 0xc0) && (s->wLength == 0x104)) {
-    endpoint_control *ep = GET_IN(0);
+    endpoint_control *ep_in = GET_IN(0);
     endpoint_control *ep_out = GET_OUT(0);
     //dump_endpoint(ep, true);
-    ack_ep(ep);
+    ack_ep(ep_in);
     ack_ep(ep_out);
     memset(&req, 0, sizeof(req));
     req.cmd = 2;
     dwc2_ep_queue_in(state, 0, &req, sizeof(req), &handle_setup_status_out);
-    return;
-    int fullPackets = sizeof(req) / 64;
-    int partialPacket = sizeof(req) - (fullPackets*64);
-    int packets = fullPackets + ((partialPacket == 0) ? 0 : 1);
-    int words = ROUNDUP(sizeof(req),4)/4;
-    //printf("sending %d full packets and a %d byte partial, %d total, %d words\n", fullPackets, partialPacket, packets, words);
-
-    //uint32_t x = (3 << 29) | (packets<<19) | sizeof(req);
-    //printf("size is 0x%x\n", x);
-
-    int bytes_sent = 0;
-    for (int packetNr = 0; packetNr < packets; packetNr++) {
-      int bytes_this_packet = MIN(64, sizeof(req) - bytes_sent);
-      //printf("bytes_this_packet: %d\n", bytes_this_packet);
-      ep->size = (1<<19) | bytes_this_packet;
-      ep->control = (1<<31) | // endpoint enable
-        (1<<26) | // clear nak
-        (0 << 22) | // fifo#
-        (1 << 15) | // USB active endpoint
-        (0 & 0x3); // max packet size
-      // TODO, r/m/w the control and only set enable
-      //dump_endpoint(ep, true);
-      ack_ep(ep);
-
-      uint32_t *packet = (uint32_t*)&req;
-      int start = packetNr * (64/4);
-      for (int i = start; i < MIN(start+16, words); i++) {
-        *REG32(USB_DFIFO0) = packet[i];
-        //printf("%d: posted 0x%x to fifo\n", i, packet[i]);
-        bytes_sent += 4;
-      }
-
-      //dump_endpoint(ep, true);
-      //int t_0 = *REG32(ST_CLO);
-      while (ep->control & (1<<31))  {}
-      ack_ep(ep);
-      //int t_1 = *REG32(ST_CLO);
-      //printf("waited %d usec and read %d times\n", t_1 - t_0, cycles);
-    }
-    //puts("setup data IN stage done, on to status OUT...");
-    ep->size = (3 << 29);
-
-    //puts("\nOUT 0");
-    //dump_endpoint(ep_out, false);
-    ep_out->control |= (1<<31) | // enable OUT0
-        (1<<26); // clear NAK
-
-    //puts("IN 0");
-    //dump_endpoint(ep, true);
-    ack_ep(ep);
-    //udelay(5);
-    //puts("\nIN 0");
-    //dump_endpoint(ep, true);
-    ack_ep(ep);
-    //udelay(5);
-
-    //puts("\nOUT 0");
-    //dump_endpoint(ep_out, false);
-    ack_ep(ep_out);
-    //dump_endpoint(ep_out, false);
   }
 }
 
@@ -373,18 +307,17 @@ static void dwc_check_interrupt(dwc_state_t *state) {
 
     interrupt_status = *REG32(USB_GINTSTS);
   }
-  logmsg(".");
   uint32_t daint = *REG32(USB_DAINT);
   endpoint_control *ep = 0;
   while (daint != 0) {
-    printf("DAINT: 0x%x\n", daint);
+    //printf("DAINT: 0x%x\n", daint);
     for (int i=0; i<16; i++) {
       if ((daint >> i) & 1) {
-        printf("IN %d irq\n", i);
+        //printf("IN %d irq\n", i);
         ep = GET_IN(i);
-        dump_endpoint(ep, true);
+        //dump_endpoint(ep, true);
         uint32_t irq = ep->interrupt;
-        printf("acking irq bits 0x%x\n", irq);
+        //printf("acking irq bits 0x%x\n", irq);
         ep->interrupt = irq;
         if (irq & 1) {
           ep_write_in(state, i);
@@ -394,10 +327,10 @@ static void dwc_check_interrupt(dwc_state_t *state) {
     for (int i=16; i<32; i++) {
       if ((daint >> i) & 1) {
         ep = (endpoint_control*)((USB_BASE + 0x0b00) + (i-16) * 0x20);
-        printf("OUT %d irq\n", i - 16);
-        dump_endpoint(ep, false);
+        //printf("OUT %d irq\n", i - 16);
+        //dump_endpoint(ep, false);
         uint32_t irq = ep->interrupt;
-        printf("acking irq bits 0x%x\n", irq);
+        //printf("acking irq bits 0x%x\n", irq);
         ep->interrupt = irq;
       }
     }
@@ -450,11 +383,11 @@ static int cmd_dwc_dump(int argc, const cmd_args *argv) {
 
 static enum handler_return dwc_irq(dwc_state_t *state) {
   lk_bigtime_t start = current_time_hires();
-  logmsg("dwc irq");
+  //logmsg("dwc irq");
   dwc_check_interrupt(state);
   lk_bigtime_t end = current_time_hires();
   lk_bigtime_t spent = end - start;
-  logmsg("done");
+  //logmsg("done");
   printf("irq time: %lld\n", spent);
   return INT_NO_RESCHEDULE;
 }

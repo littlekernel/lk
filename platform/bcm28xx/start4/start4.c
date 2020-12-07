@@ -5,6 +5,10 @@
 #include <stdio.h>
 
 uint32_t bootloader_state[4] __attribute__ ((section(".text.bootloader_state"))) = { 0x41545342, 0, 0, 0 };
+// bit 0 declares support for a certain cpuid on the VPU
+// bit 1 is pi400 flag?
+// pi400 booting over usb-dev requires both bit0 and bit1
+uint32_t firmware_rev[4] __attribute__ ((section(".text.firmware_rev"))) = { 0x3, 0, 0, 0 };
 
 typedef struct {
   char revision[41];
