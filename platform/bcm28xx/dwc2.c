@@ -1,4 +1,5 @@
 #include <app.h>
+#include <assert.h>
 #include <lk/console_cmd.h>
 #include <lk/reg.h>
 #include <platform.h>
@@ -21,6 +22,7 @@
 #define USB_GHWCFG3   (USB_BASE + 0x004c)
 #define USB_GHWCFG4   (USB_BASE + 0x0050)
 #define USB_DCFG      (USB_BASE + 0x0800)
+#define USB_DIEPMSK   (USB_BASE + 0x0810)
 #define USB_DAINT     (USB_BASE + 0x0818)
 
 #define USB_DIEPCTL0  (USB_BASE + 0x0900)
@@ -70,6 +72,30 @@ typedef struct {
   char name[256];
 } fileServerRequest;
 
+enum usb_stream_type {
+  USB_STREAM_SETUP
+};
+
+struct dwc_state_T;
+
+typedef struct packet_queue_T {
+  struct packet_queue_T *next;
+  void *payload;
+  int payload_size;
+  int start;
+  void (*cb)(struct dwc_state_T *, struct packet_queue_T *);
+} packet_queue_t;
+
+typedef struct {
+  packet_queue_t *packet_queue_head;
+  packet_queue_t *packet_queue_tail;
+} endpoint_t;
+
+typedef struct {
+  endpoint_t in[1];
+  endpoint_t out[1];
+} dwc_state_t;
+
 const char *packet_status_names[] = {
   [1] = "GOUTNAK",
   [2] = "OUT data packet received",
@@ -83,6 +109,7 @@ const char *packet_status_names[] = {
 static int cmd_dwc_dump(int argc, const cmd_args *argv);
 static void dump_endpoint(endpoint_control *ep, bool in);
 static void ack_ep(endpoint_control *ep);
+void ep_write_in(dwc_state_t *state, int epNr);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("dwc_dump", "dump dwc registers", &cmd_dwc_dump)
@@ -98,17 +125,68 @@ static void logmsg(const char *msg) {
   printf("%4d: %s\n", *REG32(ST_CLO), msg);
 }
 
-void ep_write_in_reply(int epNr, void *buffer, int bytes) {
-  int maxPacketSize = 64;
+void dwc2_ep_queue_in(dwc_state_t *state, int epNr, void *buffer, int bytes, void (*cb)(dwc_state_t *, packet_queue_t *)) {
+  assert(epNr <= 0);
+  packet_queue_t *pkt = malloc(sizeof(packet_queue_t));
+  pkt->payload = buffer;
+  pkt->payload_size = bytes;
+  pkt->start = 0;
+  pkt->next = NULL;
+  pkt->cb = cb;
+
+  uint32_t *data = buffer;
+  for (int i=0; i<(bytes/4); i++) {
+    printf("0x%x ", data[i]);
+  }
+  puts("");
+
+  int do_tx = false;
+  if (state->in[epNr].packet_queue_head == NULL) {
+    // no pending packets, can tx right away
+    do_tx = true;
+    state->in[epNr].packet_queue_head = pkt;
+  }
+  if (state->in[epNr].packet_queue_tail) {
+    state->in[epNr].packet_queue_tail->next = pkt;
+  }
+  state->in[epNr].packet_queue_tail = pkt;
+  if (do_tx) {
+    ep_write_in(state, epNr);
+  }
+}
+
+void ep_write_in(dwc_state_t *state, int epNr) {
+  endpoint_control *ep = GET_IN(epNr);
+  while (ep->control & (1<<31))  {}
+  puts("ready");
+  int maxPacketSize = 64; // TODO
+  packet_queue_t *pkt = state->in[epNr].packet_queue_head;
+  assert(pkt);
+  printf("packet(%x): 0x%x+(0x%x/0x%x)\n", (uint32_t)pkt, (uint32_t)pkt->payload, pkt->start, pkt->payload_size);
+  int bytes = pkt->payload_size - pkt->start;
+  if (bytes == 0) {
+    puts("packet sent");
+    pkt->cb(state, pkt);
+    packet_queue_t *next = pkt->next;
+    state->in[epNr].packet_queue_head = next;
+    if (state->in[epNr].packet_queue_tail == pkt) state->in[epNr].packet_queue_tail = NULL;
+    if (next) return ep_write_in(state, epNr);
+    return;
+  }
+  assert(bytes > 0);
   int fullPackets = bytes / maxPacketSize;
   int partialPacketSize = bytes - (fullPackets*maxPacketSize);
   int packets = fullPackets + ((partialPacketSize==0) ? 0 : 1);
   int words = ROUNDUP(bytes,4)/4;
   printf("sending %d full packets and a %d byte partial, %d total, %d words\n", fullPackets, partialPacketSize, packets, words);
+  if (epNr == 0) {
+    packets = 1;
+    bytes = MIN(maxPacketSize, bytes);
+    printf("capped to 1 packet of %d bytes\n", bytes);
+  }
   uint32_t x = (3 << 29) | (packets<<19) | bytes;
   printf("size is 0x%x\n", x);
 
-  endpoint_control *ep = GET_IN(epNr);
   ep->size = x;
   ep->control = (1<<31) | // endpoint enable
     (1 << 26) | // clear nak
@@ -116,31 +194,65 @@ void ep_write_in_reply(int epNr, void *buffer, int bytes) {
     (1 << 15) | // USB active endpoint
     (0 & 0x3); // max packet size
   dump_endpoint(ep, true);
-  ack_ep(ep);
+  //ack_ep(ep);
 
-  *REG32(USB_DFIFO0) = *((uint32_t*)buffer);
+  uint32_t *packet = (uint32_t*)(pkt->payload + pkt->start);
+  printf("packet: 0x%x\n", (uint32_t)packet);
+  int bytes_sent = 0;
+  for (int i = 0; i < MIN(maxPacketSize/4, words); i++) {
+    *REG32(USB_DFIFO0) = packet[i];
+    //printf("%d(0x%x): posted 0x%x to fifo\n", i, &packet[i], packet[i]);
+    bytes_sent += 4;
+  }
+  pkt->start += bytes_sent;
+  printf("%d bytes sent, start now %d\n", bytes_sent, pkt->start);
 }
 
-static void handle_incoming_setup(uint8_t *buf, int size) {
+static fileServerRequest req; // TODO, put on heap
+
+static void handle_setup_status_out(dwc_state_t *state, packet_queue_t *pkt) {
+  endpoint_control *ep_in = GET_IN(0);
+  endpoint_control *ep_out = GET_OUT(0);
+  puts("setup data IN stage done, on to status OUT...");
+  ep_in->size = (3 << 29);
+
+  //puts("\nOUT 0");
+  //dump_endpoint(ep_out, false);
+  ep_out->control |= (1<<31) | // enable OUT0
+      (1<<26); // clear NAK
+
+  //puts("IN 0");
+  //dump_endpoint(ep, true);
+  ack_ep(ep_in);
+  //udelay(5);
+  //puts("\nIN 0");
+  //dump_endpoint(ep, true);
+  ack_ep(ep_in);
+  //udelay(5);
+
+  //puts("\nOUT 0");
+  //dump_endpoint(ep_out, false);
+  ack_ep(ep_out);
+  //dump_endpoint(ep_out, false);
+}
+
+static void handle_incoming_setup(dwc_state_t *state, uint8_t *buf, int size) {
   setupData *s = (setupData*)buf;
   //printf("bmRequestType: 0x%x\n", s->bmRequestType);
   //printf("bRequest: 0x%x\n", s->bRequest);
   //printf("wValue: 0x%x\n", s->wValue);
   //printf("wIndex: 0x%x\n", s->wIndex);
   //printf("wLength: 0x%x\n", s->wLength);
-  if ((s->bmRequestType == 0xc0) && (s->wLength == 0x4)) {
-    uint32_t a = 0x42;
-    ep_write_in_reply(0, &a, 4);
-    return;
-  }
   if ((s->bmRequestType == 0xc0) && (s->wLength == 0x104)) {
     endpoint_control *ep = GET_IN(0);
     endpoint_control *ep_out = GET_OUT(0);
     //dump_endpoint(ep, true);
     ack_ep(ep);
-    fileServerRequest req;
+    ack_ep(ep_out);
     memset(&req, 0, sizeof(req));
     req.cmd = 2;
+    dwc2_ep_queue_in(state, 0, &req, sizeof(req), &handle_setup_status_out);
+    return;
     int fullPackets = sizeof(req) / 64;
     int partialPacket = sizeof(req) - (fullPackets*64);
     int packets = fullPackets + ((partialPacket == 0) ? 0 : 1);
@@ -173,22 +285,32 @@ static void handle_incoming_setup(uint8_t *buf, int size) {
       }
 
       //dump_endpoint(ep, true);
+      //int t_0 = *REG32(ST_CLO);
+      while (ep->control & (1<<31))  {}
       ack_ep(ep);
-      udelay(5);
+      //int t_1 = *REG32(ST_CLO);
+      //printf("waited %d usec and read %d times\n", t_1 - t_0, cycles);
     }
     //puts("setup data IN stage done, on to status OUT...");
     ep->size = (3 << 29);
+
+    //puts("\nOUT 0");
+    //dump_endpoint(ep_out, false);
     ep_out->control |= (1<<31) | // enable OUT0
         (1<<26); // clear NAK
 
+    //puts("IN 0");
     //dump_endpoint(ep, true);
     ack_ep(ep);
-    udelay(5);
+    //udelay(5);
+    //puts("\nIN 0");
     //dump_endpoint(ep, true);
     ack_ep(ep);
-    udelay(5);
+    //udelay(5);
 
-    //puts("OUT 0");
+    //puts("\nOUT 0");
+    //dump_endpoint(ep_out, false);
+    ack_ep(ep_out);
     //dump_endpoint(ep_out, false);
   }
 }
@@ -223,7 +345,7 @@ static void ack_ep(endpoint_control *ep) {
   //printf("ACK'd interrupt 0x%x\n", irq);
 }
 
-static void dwc_check_interrupt(void) {
+static void dwc_check_interrupt(dwc_state_t *state) {
   uint32_t interrupt_status = *REG32(USB_GINTSTS);
   while (interrupt_status & USB_GINTSTS_RXFLVL) {
     uint32_t receive_status = *REG32(USB_GRXSTSP);
@@ -234,7 +356,7 @@ static void dwc_check_interrupt(void) {
     //printf("  DPID:       %d\n", (receive_status >> 15) & 0x3);
     int packet_status = (receive_status >> 17) & 0xf;
     //printf("  PKTSTS:     %d %s\n", packet_status, packet_status_names[packet_status]);
-    printf("  FN:         %d\n", (receive_status >> 21) & 0xf);
+    //printf("  FN:         %d\n", (receive_status >> 21) & 0xf);
 
     int words = ROUNDUP(packet_size, 4) / 4;
     uint32_t *dest = (uint32_t*)packet_buffer;
@@ -246,34 +368,40 @@ static void dwc_check_interrupt(void) {
     //}
     //puts("");
     if (packet_status == 4) {
-      handle_incoming_setup(packet_buffer, packet_size);
+      handle_incoming_setup(state, packet_buffer, packet_size);
     }
 
     interrupt_status = *REG32(USB_GINTSTS);
   }
+  logmsg(".");
   uint32_t daint = *REG32(USB_DAINT);
   endpoint_control *ep = 0;
-  if (daint != 0) {
+  while (daint != 0) {
+    printf("DAINT: 0x%x\n", daint);
     for (int i=0; i<16; i++) {
       if ((daint >> i) & 1) {
         printf("IN %d irq\n", i);
         ep = GET_IN(i);
-        //dump_endpoint(ep, true);
+        dump_endpoint(ep, true);
         uint32_t irq = ep->interrupt;
-        //printf("acking irq bits 0x%x\n", irq);
+        printf("acking irq bits 0x%x\n", irq);
         ep->interrupt = irq;
+        if (irq & 1) {
+          ep_write_in(state, i);
+        }
       }
     }
     for (int i=16; i<32; i++) {
       if ((daint >> i) & 1) {
         ep = (endpoint_control*)((USB_BASE + 0x0b00) + (i-16) * 0x20);
         printf("OUT %d irq\n", i - 16);
-        //dump_endpoint(ep, false);
+        dump_endpoint(ep, false);
         uint32_t irq = ep->interrupt;
-        //printf("acking irq bits 0x%x\n", irq);
+        printf("acking irq bits 0x%x\n", irq);
         ep->interrupt = irq;
       }
     }
+    daint = *REG32(USB_DAINT);
   }
 }
 
@@ -304,14 +432,15 @@ static int cmd_dwc_dump(int argc, const cmd_args *argv) {
   dumpreg(USB_GHWCFG2);
   dumpreg(USB_GHWCFG3);
   dumpreg(USB_GHWCFG4);
-  dumpreg(USB_DCFG);
+  dumpreg(USB_DCFG);      // 800
+  dumpreg(USB_DIEPMSK);   // 810
   dumpreg(USB_DAINT);
-  for (int i=0; i<16; i++) {
+  for (int i=0; i<3; i++) {
     printf("IN%d\n", i);
     ep = (endpoint_control*)((USB_BASE + 0x0900) + i * 0x20);
     dump_endpoint(ep, true);
   }
-  for (int i=0; i<16; i++) {
+  for (int i=0; i<3; i++) {
     printf("OUT%d\n", i);
     ep = (endpoint_control*)((USB_BASE + 0x0b00) + i * 0x20);
     dump_endpoint(ep, false);
@@ -319,10 +448,10 @@ static int cmd_dwc_dump(int argc, const cmd_args *argv) {
   return 0;
 }
 
-static enum handler_return dwc_irq(void *unused) {
+static enum handler_return dwc_irq(dwc_state_t *state) {
   lk_bigtime_t start = current_time_hires();
   logmsg("dwc irq");
-  dwc_check_interrupt();
+  dwc_check_interrupt(state);
   lk_bigtime_t end = current_time_hires();
   lk_bigtime_t spent = end - start;
   logmsg("done");
@@ -330,11 +459,15 @@ static enum handler_return dwc_irq(void *unused) {
   return INT_NO_RESCHEDULE;
 }
 
+static dwc_state_t dwc_state;
+
 static void dwc2_init(const struct app_descriptor *app) {
-  register_int_handler(DWC_IRQ, dwc_irq, NULL);
+  memset(&dwc_state, 0, sizeof(dwc_state));
+  register_int_handler(DWC_IRQ, dwc_irq, &dwc_state);
   unmask_interrupt(DWC_IRQ);
 
   *REG32(USB_GINTMSK) = (1<<4);
+  *REG32(USB_DIEPMSK) = (1<<4) | (1<<3) | (1<<0);
 }
 
 static void dwc2_entry(const struct app_descriptor *app, void *args) {
