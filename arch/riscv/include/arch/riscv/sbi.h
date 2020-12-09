@@ -71,6 +71,7 @@ enum sbi_return_code {
 #define SBI_EXT_IPI                 0x00735049
 #define SBI_EXT_RFENCE              0x52464e43
 #define SBI_EXT_HSM                 0x0048534d
+#define SBI_EXT_SRST                0x53525354
 
 static inline void sbi_set_timer(uint64_t stime_value) {
     sbi_call(SBI_SET_TIMER, stime_value);

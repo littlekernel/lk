@@ -85,6 +85,7 @@ void arch_init(void) {
     dprintf(INFO, "RISCV: SBI extension IPI %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_IPI).value);
     dprintf(INFO, "RISCV: SBI extension RFENCE %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_RFENCE).value);
     dprintf(INFO, "RISCV: SBI extension HSM %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_HSM).value);
+    dprintf(INFO, "RISCV: SBI extension SRST %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_SRST).value);
 #endif
 
 #if WITH_SMP
