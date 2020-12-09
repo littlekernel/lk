@@ -175,7 +175,11 @@ linkerscript.phony:
 ifeq (true,$(call TOBOOL,$(ARCH_RISCV_TWOSEGMENT)))
 GLOBAL_DEFINES += ARCH_RISCV_TWOSEGMENT=1
 LINKER_SCRIPT += $(BUILDDIR)/linker-twosegment.ld
-ARCH_LDFLAGS += -z max-page-size=4
+# set MAXPAGESIZE to 8 to cause the linker script to pack things in much tighter than
+# a paged sytem would.
+# NOTE: 8 seems to be about as far as you can go. experienced some extra stuffed words
+# when using 4.
+ARCH_LDFLAGS += -z max-page-size=8
 else
 GLOBAL_DEFINES += ARCH_RISCV_TWOSEGMENT=0
 LINKER_SCRIPT += $(BUILDDIR)/linker-onesegment.ld

@@ -32,7 +32,9 @@ SECTIONS
         *(.rodata .rodata.* .gnu.linkonce.r.*)
     } :rodata
 
+    /* trick to force any extra sections to be emitted here */
     . = .;
+
     __rodata_end = .;
     __rom_end = . ;
     . = ALIGN(CONSTANT(MAXPAGESIZE));

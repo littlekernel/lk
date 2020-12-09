@@ -36,7 +36,9 @@ SECTIONS
         *(.rodata .rodata.* .gnu.linkonce.r.*)
     } :rodata
 
+    /* trick to force any extra sections to be emitted here */
     . = .;
+
     __rodata_end = .;
     __rom_end = . ;
     . = ALIGN(CONSTANT(MAXPAGESIZE));
@@ -50,7 +52,7 @@ SECTIONS
      */
     . = %MEMBASE%;
 
-    .data : AT ( ADDR (.dummy_post_rodata) + SIZEOF (.dummy_post_rodata) ) {
+    .data : AT ( ADDR (.dummy_post_rodata) ) {
         __data_start = .;
         *(.data .data.* .gnu.linkonce.d.*)
         __ctor_list = .;
