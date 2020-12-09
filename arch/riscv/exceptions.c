@@ -13,6 +13,7 @@
 
 #define LOCAL_TRACE 0
 
+#ifndef RISCV_VARIANT_NUCLEI
 // keep in sync with asm.S
 struct riscv_short_iframe {
     ulong  epc;
@@ -118,3 +119,16 @@ void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *f
         thread_preempt();
     }
 }
+#else
+extern volatile unsigned long riscv_reschedule;
+extern volatile unsigned long rt_preemt_flag;
+void riscv_irq_exit(void)
+{
+    if (riscv_reschedule != INT_NO_RESCHEDULE) {
+        riscv_reschedule = INT_NO_RESCHEDULE;
+        rt_preemt_flag = 1;
+        thread_preempt();
+        rt_preemt_flag = 0;
+    }
+}
+#endif

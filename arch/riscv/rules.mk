@@ -30,7 +30,19 @@ endif
 
 SUBARCH ?= 32
 
+# Different vendor variant of riscv
+VARIANT ?=
+
 RISCV_MODE ?= machine
+
+ifeq ($(VARIANT),nuclei)
+MODULE_DEPS += \
+	arch/riscv/nuclei/NMSIS
+
+MODULE_SRCS += $(LOCAL_DIR)/vectab.S
+
+GLOBAL_DEFINES += RISCV_VARIANT_NUCLEI=1
+endif
 
 ifeq ($(strip $(RISCV_MODE)),machine)
 $(info RISCV: Machine Mode)
