@@ -9,6 +9,9 @@
 
 /* up to 30 GB of ram */
 #define MEMORY_BASE_PHYS     (0x40000000)
+
+#define UNMAPPED_MEMSIZE    (0x02000000)
+
 #if ARCH_ARM64
 #define MEMORY_APERTURE_SIZE (30ULL * 1024 * 1024 * 1024)
 #else

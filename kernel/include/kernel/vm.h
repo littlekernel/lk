@@ -118,19 +118,28 @@ typedef struct pmm_arena {
     struct list_node free_list;
 } pmm_arena_t;
 
-#define PMM_ARENA_FLAG_KMAP (0x1) /* this arena is already mapped and useful for kallocs */
+/* PMM Arena Flags */
+#define PMM_ARENA_FLAG_UNAMPPED (1U << 0) /* This arena is not mapped already and useful for memory
+                                         allocation using vmm* APIs */
+#define PMM_ARENA_FLAG_KMAP     (1U << 1) /* This arena is already mapped and useful for kallocs */
+
+#define PMM_ARENA_FLAG_ANY  (PMM_ARENA_FLAG_UNAMPPED | PMM_ARENA_FLAG_KMAP)
 
 /* Add a pre-filled memory arena to the physical allocator. */
 status_t pmm_add_arena(pmm_arena_t *arena) __NONNULL((1));
 
-/* Allocate count pages of physical memory, adding to the tail of the passed list.
+/* Allocate count pages of physical memory, adding to the tail of the passed list using
+ * provided arena flags.
  * The list must be initialized.
  * Returns the number of pages allocated.
  */
-size_t pmm_alloc_pages(uint count, struct list_node *list) __NONNULL((2));
+size_t pmm_alloc_pages(uint aflags, uint count, struct list_node *list) __NONNULL((3));
 
 /* Allocate a single page */
-vm_page_t *pmm_alloc_page(void);
+vm_page_t *pmm_alloc_page(uint aflags);
+
+/* Check if a given address is already part of registered arenas */
+bool pmm_address_in_arena(paddr_t address);
 
 /* Allocate a specific range of physical pages, adding to the tail of the passed list.
  * The list must be initialized.
@@ -150,7 +159,8 @@ size_t pmm_free_page(vm_page_t *page) __NONNULL((1));
  * If the optional physical address pointer is passed, return the address.
  * If the optional list is passed, append the allocate page structures to the tail of the list.
  */
-size_t pmm_alloc_contiguous(uint count, uint8_t align_log2, paddr_t *pa, struct list_node *list);
+size_t pmm_alloc_contiguous(uint aflags,
+                            uint count, uint8_t align_log2, paddr_t *pa, struct list_node *list);
 
 /* Allocate a run of pages out of the kernel area and return the pointer in kernel space.
  * If the optional list is passed, append the allocate page structures to the tail of the list.

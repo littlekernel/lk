@@ -34,7 +34,7 @@
 
 /* initial memory mappings. parsed by start.S */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
-    /* all of memory */
+    /* All of the memory */
     {
         .phys = MEMORY_BASE_PHYS,
         .virt = KERNEL_BASE,
@@ -42,7 +42,6 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
         .flags = 0,
         .name = "memory"
     },
-
     /* 1GB of peripherals */
     {
         .phys = PERIPHERAL_BASE_PHYS,
@@ -56,11 +55,18 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     { 0 }
 };
 
-static pmm_arena_t arena = {
+static pmm_arena_t mapped_arena = {
     .name = "ram",
     .base = MEMORY_BASE_PHYS,
     .size = DEFAULT_MEMORY_SIZE,
     .flags = PMM_ARENA_FLAG_KMAP,
+};
+
+static pmm_arena_t unmapped_arena = {
+    .name = "unmapped_ram",
+    .base = MEMORY_BASE_PHYS + DEFAULT_MEMORY_SIZE,
+    .size = UNMAPPED_MEMSIZE,
+    .flags = PMM_ARENA_FLAG_UNAMPPED,
 };
 
 extern void psci_call(ulong arg0, ulong arg1, ulong arg2, ulong arg3);
@@ -84,7 +90,10 @@ static void memcallback(uint64_t base, uint64_t len, void *cookie) {
 #endif
 
         /* set the size in the pmm arena */
-        arena.size = len;
+        /* TODO: Check whether unmapped memsize can fit,
+         * probably new fdt entry can be added */
+        mapped_arena.size = (len - UNMAPPED_MEMSIZE);
+        unmapped_arena.base = (MEMORY_BASE_PHYS + mapped_arena.size);
 
         *found_mem = true; // stop searching after the first one
     }
@@ -124,7 +133,8 @@ void platform_early_init(void) {
     }
 
     /* add the main memory arena */
-    pmm_add_arena(&arena);
+    pmm_add_arena(&mapped_arena);
+    pmm_add_arena(&unmapped_arena);
 
     /* reserve the first 64k of ram, which should be holding the fdt */
     struct list_node list = LIST_INITIAL_VALUE(list);
@@ -152,6 +162,13 @@ void platform_early_init(void) {
 }
 
 void platform_init(void) {
+    /* TODO: Take care of any vmm_alloc* invocations before this point */
+    /* Unmap the memory mapped initially for unmapped ram arena */
+    arch_clean_invalidate_cache_range(paddr_to_kvaddr(unmapped_arena.base),
+        unmapped_arena.size);
+    arch_mmu_unmap(&vmm_get_kernel_aspace()->arch_aspace,
+        paddr_to_kvaddr(unmapped_arena.base), unmapped_arena.size / PAGE_SIZE);
+
     uart_init();
 
     /* detect any virtio devices */

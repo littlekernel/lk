@@ -354,6 +354,14 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
         vaddr = (vaddr_t)*ptr;
     }
 
+    /* Check if physical address is part of an arena,
+     * if so the user should not be calling this API
+     * since the physical address is already managed
+     * internally */
+    if (pmm_address_in_arena(paddr)) {
+        return ERR_NOT_VALID;
+    }
+
     mutex_acquire(&vmm_lock);
 
     /* allocate a region and put it in the aspace list */
@@ -413,7 +421,8 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
 
     paddr_t pa = 0;
     /* allocate a run of physical pages */
-    size_t count = pmm_alloc_contiguous(size / PAGE_SIZE, align_pow2, &pa, &page_list);
+    size_t count = pmm_alloc_contiguous(PMM_ARENA_FLAG_UNAMPPED,
+        size / PAGE_SIZE, align_pow2, &pa, &page_list);
     if (count < size / PAGE_SIZE) {
         DEBUG_ASSERT(count == 0); /* check that the pmm didn't allocate a partial run */
         err = ERR_NO_MEMORY;
@@ -487,7 +496,8 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     struct list_node page_list;
     list_initialize(&page_list);
 
-    size_t count = pmm_alloc_pages(size / PAGE_SIZE, &page_list);
+    size_t count = pmm_alloc_pages(PMM_ARENA_FLAG_UNAMPPED,
+                                   size / PAGE_SIZE, &page_list);
     DEBUG_ASSERT(count <= size);
     if (count < size / PAGE_SIZE) {
         LTRACEF("failed to allocate enough pages (asked for %zu, got %zu)\n", size / PAGE_SIZE, count);
@@ -567,6 +577,14 @@ status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr) {
 
     /* remove it from aspace */
     list_delete(&r->node);
+
+    /* flush the caches if this mapping was cacheable so that
+     * any entry in the future for the same physical address
+     * has clean cache contents */
+    if ((r->arch_mmu_flags & ARCH_MMU_FLAG_CACHE_MASK)
+            == ARCH_MMU_FLAG_CACHED) {
+        arch_clean_invalidate_cache_range(vaddr, r->size);
+    }
 
     /* unmap it */
     arch_mmu_unmap(&aspace->arch_aspace, r->base, r->size / PAGE_SIZE);
