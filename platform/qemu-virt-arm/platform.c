@@ -63,7 +63,7 @@ static pmm_arena_t arena = {
     .flags = PMM_ARENA_FLAG_KMAP,
 };
 
-extern void psci_call(ulong arg0, ulong arg1, ulong arg2, ulong arg3);
+extern int psci_call(ulong arg0, ulong arg1, ulong arg2, ulong arg3);
 
 // callbacks to the fdt_walk routine
 static void memcallback(uint64_t base, uint64_t len, void *cookie) {
@@ -146,8 +146,12 @@ void platform_early_init(void) {
 #if ARCH_ARM64
     psci_call_num += 0x40000000; /* SMC64 */
 #endif
-    for (int i = 1; i < cpu_count; i++) {
-        psci_call(psci_call_num, i, MEMBASE + KERNEL_LOAD_OFFSET, 0);
+    for (int cpuid = 1; cpuid < cpu_count; cpuid++) {
+        /* note: assumes cpuids are numbered like MPIDR 0:0:0:N */
+        int ret = psci_call(psci_call_num, cpuid, MEMBASE + KERNEL_LOAD_OFFSET, cpuid);
+        if (ret != 0) {
+            printf("ERROR: psci CPU_ON returns %d\n", ret);
+        }
     }
 }
 
