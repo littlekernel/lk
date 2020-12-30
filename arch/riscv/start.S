@@ -29,7 +29,9 @@ FUNCTION(_start)
     li      t1, 1
     amoadd.w a2, t1, (t0)
 
-    // a2 now holds the logical cpu number
+    // a2 now holds the logical cpu number. a2 is used because it is
+    // the first unused argument register on SBI based systems,
+    // which seem to use a0 and a1.
 
     // if this cpu is out of range, trap it
     li      t0, SMP_MAX_CPUS
@@ -81,6 +83,7 @@ FUNCTION(_start)
     lla     t1, _boot_status
     li      t0, 1
     sb      t0, (t1)
+    fence
 #endif
 
     // call into early C code to set up the percpu structure
