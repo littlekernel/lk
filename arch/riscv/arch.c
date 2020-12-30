@@ -21,7 +21,7 @@
 #define LOCAL_TRACE 0
 
 // per cpu structure, pointed to by xscratch
-struct riscv_percpu percpu[RISCV_MAX_HARTS];
+struct riscv_percpu percpu[SMP_MAX_CPUS];
 
 // called extremely early from start.S prior to getting into any other C code on
 // both the boot cpu and the secondaries

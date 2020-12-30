@@ -26,19 +26,11 @@
 
 #define LOCAL_TRACE 0
 
-// Highest supported HART has to at least be more than number of
-// cpus we support. Generally they're the same, but some cpus may start
-// at nonzero hart ids.
-STATIC_ASSERT(RISCV_MAX_HARTS >= SMP_MAX_CPUS);
-
-// boot hart has to be one of the valid ones
-STATIC_ASSERT(RISCV_BOOT_HART < RISCV_MAX_HARTS);
-
 // mapping of cpu -> hart
 static int cpu_to_hart_map[SMP_MAX_CPUS];
 
 // list of IPIs queued per cpu
-static volatile int ipi_data[RISCV_MAX_HARTS];
+static volatile int ipi_data[SMP_MAX_CPUS];
 
 static spin_lock_t boot_cpu_lock = 1;
 volatile int secondaries_to_init = SMP_MAX_CPUS - 1;
@@ -73,17 +65,18 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
 
 // software triggered exceptions, used for cross-cpu calls
 enum handler_return riscv_software_exception(void) {
-    uint ch = riscv_current_hart();
+    uint curr_cpu = arch_curr_cpu_num();
 
 #if RISCV_M_MODE
+    uint ch = riscv_current_hart();
     clint_ipi_clear(ch);
 #else
     sbi_clear_ipi();
 #endif
 
     rmb();
-    int reason = atomic_swap(&ipi_data[ch], 0);
-    LTRACEF("ch %u reason %#x\n", ch, reason);
+    int reason = atomic_swap(&ipi_data[curr_cpu], 0);
+    LTRACEF("cpu %u reason %#x\n", curr_cpu, reason);
 
     enum handler_return ret = INT_NO_RESCHEDULE;
     if (reason & (1u << MP_IPI_RESCHEDULE)) {
@@ -96,7 +89,7 @@ enum handler_return riscv_software_exception(void) {
     }
 
     if (unlikely(reason)) {
-        TRACEF("unhandled ipi cause %#x, hartid %#x\n", reason, ch);
+        TRACEF("unhandled ipi cause %#x, cpu %u\n", reason, curr_cpu);
         panic("stopping");
     }
 

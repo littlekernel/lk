@@ -5,10 +5,6 @@ PLATFORM := sifive
 VARIANT := sifive_u
 
 WITH_SMP := 1
-RISCV_BOOT_HART := 1
-# Hart 0 on this board is disabled in supervisor mode, so make sure
-# there are enough hart slots for it
-RISCV_MAX_HARTS := 5
 
 GLOBAL_DEFINES += SIFIVE_FREQ=500000000 # 500 MHz
 

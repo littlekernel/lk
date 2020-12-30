@@ -154,7 +154,7 @@ struct riscv_percpu {
     uint hart_id;
 } __ALIGNED(CACHE_LINE);
 
-extern struct riscv_percpu percpu[RISCV_MAX_HARTS];
+extern struct riscv_percpu percpu[SMP_MAX_CPUS];
 
 static inline struct riscv_percpu *riscv_get_percpu(void) {
     return (struct riscv_percpu *)riscv_csr_read(RISCV_CSR_XSCRATCH);
