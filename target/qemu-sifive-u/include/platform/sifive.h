@@ -5,7 +5,6 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-
 #pragma once
 
 #define SIFIVE_IRQ_UART0 4
@@ -19,7 +18,7 @@
 #define UART1_BASE 0x10011000
 
 #if RISCV_XMODE_OFFSET == RISCV_MACH_OFFSET
-#define PLIC_HART_IDX(hart)    (2 * (hart))
+#define PLIC_HART_IDX(hart)    ((hart) ? ((2 * (hart)) - 1) : 0)
 #elif RISCV_XMODE_OFFSET == RISCV_SUPER_OFFSET
-#define PLIC_HART_IDX(hart)    ((2 * (hart)) + 1)
+#define PLIC_HART_IDX(hart)    ((hart) ? (2 * (hart)) : ~0U)
 #endif

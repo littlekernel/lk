@@ -7,16 +7,16 @@ VARIANT := sifive_u
 
 GLOBAL_DEFINES += SIFIVE_FREQ=5000000 # 5 MHz
 
-RISCV_MODE ?= machine
+RISCV_MODE ?= supervisor
 
 ifeq ($(RISCV_MODE),supervisor)
-MEMBASE ?= 0x080200000
+MEMBASE ?= 0x080300000
 else
 MEMBASE ?= 0x080000000
 endif
 MEMSIZE ?= 0x200000000 # 8 GiB
 
-WITH_SMP := 0
+WITH_SMP := 1
 SMP_MAX_CPUS := 4
 
 MODULE_SRCS := $(LOCAL_DIR)/target.c

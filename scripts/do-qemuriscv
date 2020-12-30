@@ -10,7 +10,8 @@ function HELP {
     echo "-n a virtio network device"
     echo "-t a virtio tap network device"
     echo "-d a virtio display"
-    echo "-e embeded platform"
+    echo "-e sifive e platform"
+    echo "-u sifive u platform"
     echo "-6 64bit"
     echo "-S supervisor mode (using OpenSBI)"
     echo "   currently only works in 64bit mode"
@@ -26,6 +27,7 @@ DO_NET_TAP=0
 DO_BLOCK=0
 DO_64BIT=0
 DO_EMBEDDED=0
+DO_UNLEASHED=0
 DO_DISPLAY=0
 DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
@@ -36,7 +38,7 @@ SUDO=""
 PROJECT=""
 BIOS="none"
 
-while getopts bdhm:cMmnte6p:s:S FLAG; do
+while getopts bdhm:cMmnteu6p:s:S FLAG; do
     case $FLAG in
         b) DO_BLOCK=1;;
         c) DO_CMPCTMALLOC=1;;
@@ -45,6 +47,7 @@ while getopts bdhm:cMmnte6p:s:S FLAG; do
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
         e) DO_EMBEDDED=1;;
+        u) DO_UNLEASHED=1;;
         6) DO_64BIT=1;;
         m) MEMSIZE=$OPTARG;;
         s) SMP=$OPTARG;;
@@ -59,7 +62,23 @@ done
 
 shift $((OPTIND-1))
 
-if (( $DO_64BIT )); then
+if (( $DO_UNLEASHED == 1 )); then
+    QEMU="qemu-system-riscv64"
+    MACHINE="sifive_u"
+    _PROJECT="qemu-sifive-u-test"
+    if (( $SMP == 1 )); then
+        SMP=2
+    fi
+    if (( $MEMSIZE == 512 )); then
+        MEMSIZE=8192
+    fi
+    CPU="sifive-u54"
+    BIOS="default"
+elif (( $DO_EMBEDDED == 1 )); then
+    QEMU="qemu-system-riscv32"
+    MACHINE="sifive_e"
+    _PROJECT="sifive-e-test"
+elif (( $DO_64BIT )); then
     QEMU="qemu-system-riscv64"
     CPU="rv64"
     MACHINE="virt"
@@ -69,10 +88,6 @@ if (( $DO_64BIT )); then
     else
         _PROJECT="qemu-virt-riscv64-test"
     fi
-elif (( $DO_EMBEDDED == 1 )); then
-    QEMU="qemu-system-riscv32"
-    MACHINE="sifive_e"
-    _PROJECT="sifive-e-test"
 else
     QEMU="qemu-system-riscv32"
     CPU="rv32"
