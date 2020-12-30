@@ -75,6 +75,14 @@ FUNCTION(_start)
     bne     t0, t1, 0b
 1:
 
+#if WITH_SMP
+    // Save a copy of _start in physical space. This is later used
+    // as the entry point for secondary cpus.
+    lla     t0, _start
+    lla     t1, _start_physical
+    STR     t0, (t1)
+#endif
+
 #if RISCV_MMU
     jal     _mmu_init
 #endif

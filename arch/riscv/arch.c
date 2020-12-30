@@ -55,6 +55,10 @@ void riscv_early_init_percpu(void) {
 // called very early just after entering C code on boot processor
 void arch_early_init(void) {
     riscv_early_init_percpu();
+
+#if RISCV_S_MODE
+    sbi_early_init();
+#endif
 }
 
 // later init per cpu
@@ -85,14 +89,7 @@ void arch_init(void) {
 #if RISCV_MMU
     dprintf(INFO, "RISCV: MMU enabled sv%u\n", RISCV_MMU);
 #endif
-    dprintf(INFO, "RISCV: SBI impl id %#lx version %#lx\n", sbi_call(SBI_GET_SBI_IMPL_ID).value, sbi_call(SBI_GET_SBI_IMPL_VERSION).value);
-
-    // probe some SBI extensions
-    dprintf(INFO, "RISCV: SBI extension TIMER %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_TIMER).value);
-    dprintf(INFO, "RISCV: SBI extension IPI %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_IPI).value);
-    dprintf(INFO, "RISCV: SBI extension RFENCE %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_RFENCE).value);
-    dprintf(INFO, "RISCV: SBI extension HSM %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_HSM).value);
-    dprintf(INFO, "RISCV: SBI extension SRST %ld\n", sbi_call(SBI_PROBE_EXTENSION, SBI_EXT_SRST).value);
+    sbi_init();
 #endif
 
 #if WITH_SMP

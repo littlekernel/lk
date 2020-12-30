@@ -7,7 +7,7 @@
  */
 #pragma once
 
-#include <config.h>
+#include <lk/compiler.h>
 #include <arch/defines.h>
 
 #define RISCV_USER_OFFSET   (0u)
@@ -172,5 +172,26 @@ void riscv_set_secondary_count(int count);
 
 void riscv_exception_entry(void);
 enum handler_return riscv_timer_exception(void);
+
+// If using S mode, time seems to be implemented in clint.h
+// TODO: clean up by moving into its own header
+#if RISCV_S_MODE
+# if __riscv_xlen == 32
+static inline uint64_t riscv_get_time(void) {
+    uint32_t hi, lo;
+
+    do {
+        hi = riscv_csr_read(RISCV_CSR_TIMEH);
+        lo = riscv_csr_read(RISCV_CSR_TIME);
+    } while (hi != riscv_csr_read(RISCV_CSR_TIMEH));
+
+    return (((uint64_t)hi << 32) | lo);
+}
+# else
+static inline uint64_t riscv_get_time(void) {
+    return riscv_csr_read(RISCV_CSR_TIME);
+}
+# endif
+#endif
 
 #endif /* ASSEMBLY */

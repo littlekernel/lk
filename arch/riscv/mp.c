@@ -35,6 +35,9 @@ static volatile int ipi_data[SMP_MAX_CPUS];
 static spin_lock_t boot_cpu_lock = 1;
 volatile int secondaries_to_init = SMP_MAX_CPUS - 1;
 
+// modified in start.S to save the physical address of _start as the first cpu boots
+uintptr_t _start_physical;
+
 status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
     LTRACEF("target 0x%x, ipi %u\n", target, ipi);
 
@@ -144,15 +147,24 @@ void riscv_set_secondary_count(int count) {
 void riscv_boot_secondaries(void) {
     lk_init_secondary_cpus(secondaries_to_init);
 
-    LTRACEF("RISCV: Waiting for %d secondary harts to come up\n", secondaries_to_init);
+#if RISCV_M_MODE
+    dprintf(INFO, "RISCV: Releasing %d secondary harts from purgatory\n", secondaries_to_init);
+#else
+    uint boot_hart = riscv_current_hart();
+
+    // use SBI HSM to boot the secondaries
+    // TODO: handle the range of harts we should consider, since they
+    // may not be zero based
+    for (uint i = 0; i <= (uint)secondaries_to_init; i++) {
+        // skip the boot hart
+        if (i != boot_hart) {
+            dprintf(INFO, "RISCV: using SBI to start hart %u at %#lx\n", i, _start_physical);
+            sbi_boot_hart(i, _start_physical, 0);
+        }
+    }
+#endif
     /* release the secondary cpus */
     spin_unlock(&boot_cpu_lock);
-
-    // wait a second while the secondaries start
-    //spin(1000000);
-
-    // while (secondaries_to_init) arch_idle();
-    // spin_lock(&boot_cpu_lock);
 }
 
 

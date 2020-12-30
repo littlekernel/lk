@@ -31,17 +31,17 @@ static inline long riscv_get_mimpid(void) {
 #include <arch/riscv/sbi.h>
 
 static inline long riscv_get_mvendorid(void) {
-    struct sbiret ret = sbi_call(SBI_GET_MVENDORID);
+    struct sbiret ret = sbi_generic_call_2(SBI_GET_MVENDORID);
     return ret.value;
 }
 
 static inline long riscv_get_marchid(void) {
-    struct sbiret ret = sbi_call(SBI_GET_MARCHID);
+    struct sbiret ret = sbi_generic_call_2(SBI_GET_MARCHID);
     return ret.value;
 }
 
 static inline long riscv_get_mimpid(void) {
-    struct sbiret ret = sbi_call(SBI_GET_MIMPID);
+    struct sbiret ret = sbi_generic_call_2(SBI_GET_MIMPID);
     return ret.value;
 }
 

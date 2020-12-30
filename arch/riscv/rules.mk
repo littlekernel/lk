@@ -9,6 +9,7 @@ MODULE_SRCS += $(LOCAL_DIR)/exceptions.c
 MODULE_SRCS += $(LOCAL_DIR)/thread.c
 MODULE_SRCS += $(LOCAL_DIR)/mmu.c
 MODULE_SRCS += $(LOCAL_DIR)/mp.c
+MODULE_SRCS += $(LOCAL_DIR)/sbi.c
 MODULE_SRCS += $(LOCAL_DIR)/time.c
 
 # one file uses slightly complicated designated initializer
