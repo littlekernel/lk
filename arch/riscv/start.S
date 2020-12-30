@@ -68,10 +68,12 @@ FUNCTION(_start)
 1:
     lla     t0, __bss_start
     lla     t1, __bss_end
+    beq     t0, t1, 1f
 0:
     STR     zero, (t0)
     add     t0, t0, RISCV_XLEN_BYTES
     bne     t0, t1, 0b
+1:
 
 #if RISCV_MMU
     jal     _mmu_init
@@ -125,15 +127,14 @@ LOCAL_FUNCTION(secondary_trap)
     // bootstrap the secondary cpus
     jal     riscv_secondary_entry
 #else
-    wfi
-    j       .
+    j       hart_trap
 #endif
 END_FUNCTION(secondary_trap)
 
 LOCAL_FUNCTION(hart_trap)
     // cpus with too high of a hart id go here and spin forever
     wfi
-    j       .
+    j       hart_trap
 END_FUNCTION(hart_trap)
 
 #if RISCV_MMU
