@@ -36,7 +36,6 @@ SMP=1
 MEMSIZE=512
 SUDO=""
 PROJECT=""
-BIOS="none"
 
 while getopts bdhm:cMmnteu6p:s:S FLAG; do
     case $FLAG in
@@ -62,6 +61,9 @@ done
 
 shift $((OPTIND-1))
 
+CPU=""
+BIOS=""
+
 if (( $DO_UNLEASHED == 1 )); then
     QEMU="qemu-system-riscv64"
     MACHINE="sifive_u"
@@ -72,12 +74,12 @@ if (( $DO_UNLEASHED == 1 )); then
     if (( $MEMSIZE == 512 )); then
         MEMSIZE=8192
     fi
-    CPU="sifive-u54"
-    BIOS="default"
 elif (( $DO_EMBEDDED == 1 )); then
     QEMU="qemu-system-riscv32"
     MACHINE="sifive_e"
     _PROJECT="sifive-e-test"
+    MEMSIZE=0
+    SMP=0
 elif (( $DO_64BIT )); then
     QEMU="qemu-system-riscv64"
     CPU="rv64"
@@ -87,14 +89,16 @@ elif (( $DO_64BIT )); then
         BIOS="default"
     else
         _PROJECT="qemu-virt-riscv64-test"
+        BIOS="none"
     fi
 else
     QEMU="qemu-system-riscv32"
     CPU="rv32"
     MACHINE="virt"
     _PROJECT="qemu-virt-riscv32-test"
+    BIOS="none"
 fi
-if [ "$PROJECT" == "" ]; then
+if [[ -z "$PROJECT" ]]; then
     PROJECT=$_PROJECT
 fi
 
@@ -104,28 +108,33 @@ NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"
 NO_DISPLAY_ARGS=" -nographic"
 DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
 
-# the following args only really make sense on non embedded versions
-if (( ! $DO_EMBEDDED )); then
-    ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
+# construct a list of args based on previous variables
+ARGS=" -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
+if [[ ! -z "$CPU" ]]; then
+    ARGS+=" -cpu $CPU"
+fi
+if (( $MEMSIZE )); then
+    ARGS+=" -m $MEMSIZE"
+fi
+if (( $SMP )); then
+    ARGS+=" -smp $SMP"
+fi
+if [[ ! -z "$BIOS" ]]; then
     ARGS+=" -bios $BIOS"
-    if (( $DO_BLOCK )); then
-        ARGS+=$BLOCK_ARGS
-    fi
-    if (( $DO_NET )); then
-        ARGS+=$NET_ARGS
-    fi
-    if (( $DO_NET_TAP )); then
-        ARGS+=$NET_TAP_ARGS
-        SUDO="sudo "
-    fi
-    if (( $DO_DISPLAY )); then
-        ARGS+=$DISPLAY_ARGS
-    else
-        ARGS+=$NO_DISPLAY_ARGS
-    fi
+fi
+if (( $DO_BLOCK )); then
+    ARGS+=$BLOCK_ARGS
+fi
+if (( $DO_NET )); then
+    ARGS+=$NET_ARGS
+fi
+if (( $DO_NET_TAP )); then
+    ARGS+=$NET_TAP_ARGS
+    SUDO="sudo "
+fi
+if (( $DO_DISPLAY )); then
+    ARGS+=$DISPLAY_ARGS
 else
-    # embedded machine is more fixed and only get these options
-    ARGS="-machine $MACHINE -kernel build-${PROJECT}/lk.elf"
     ARGS+=$NO_DISPLAY_ARGS
 fi
 
