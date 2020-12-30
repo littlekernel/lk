@@ -35,10 +35,7 @@ STATIC_ASSERT(RISCV_MAX_HARTS >= SMP_MAX_CPUS);
 STATIC_ASSERT(RISCV_BOOT_HART < RISCV_MAX_HARTS);
 
 // mapping of cpu -> hart
-static int cpu_to_hart_map[SMP_MAX_CPUS] = {
-    [0] = RISCV_BOOT_HART,       // boot cpu is always logical 0
-    [1 ... SMP_MAX_CPUS-1] = -1, // other hart cpus are assigned dynamically
-};
+static int cpu_to_hart_map[SMP_MAX_CPUS];
 
 // list of IPIs queued per cpu
 static volatile int ipi_data[RISCV_MAX_HARTS];
@@ -106,18 +103,15 @@ enum handler_return riscv_software_exception(void) {
     return ret;
 }
 
-void riscv_secondary_entry(void) {
+// called in very early percpu bringup
+void riscv_configure_percpu_mp_early(uint hart_id, uint cpu_num) {
+    cpu_to_hart_map[cpu_num] = hart_id;
+    wmb();
+}
+
+void riscv_secondary_entry(uint hart_id, uint __unused, uint cpu_id) {
     // basic bootstrapping of this cpu
     riscv_early_init_percpu();
-
-    // assign secondary cpu an id, starting at cpu 1
-    // cpu 0 is always the boot hart
-    static volatile int secondary_cpu_id = 1;
-    int myid = atomic_add(&secondary_cpu_id, 1);
-    uint hart = riscv_current_hart();
-    cpu_to_hart_map[myid] = hart;
-    riscv_get_percpu()->cpu_num = myid;
-    wmb();
 
     if (unlikely(arch_curr_cpu_num() >= SMP_MAX_CPUS)) {
         while (1) {

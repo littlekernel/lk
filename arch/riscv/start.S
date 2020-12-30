@@ -24,22 +24,28 @@ FUNCTION(_start)
     csrr    a0, mhartid
 #endif
 
-    // if the hart is too high, trap it
-    li      t0, RISCV_MAX_HARTS
-    ble     t0, a0, hart_trap
+    // cpu lottery: whoever sets this first gets to be cpu 0
+    lla     t0, _boot_lottery
+    li      t1, 1
+    amoadd.w a2, t1, (t0)
+
+    // a2 now holds the logical cpu number
+
+    // if this cpu is out of range, trap it
+    li      t0, SMP_MAX_CPUS
+    ble     t0, a2, hart_trap
 
     // set the default stack per cpu
     lla     sp, default_stack_top
-    // default stack locations for each hart:
+    // default stack locations for each cpu:
     // LOW ------------ HIGH
-    // [hart2][hart1][hart0]
+    // [cpu2][cpu1][cpu0]
     li      t1, ARCH_DEFAULT_STACK_SIZE
-    mul     t1, t1, a0
+    mul     t1, t1, a2
     sub     sp, sp, t1
 
-    // if our hart isnt RISCV_BOOT_HART, trap the cpu
-    li      t2, RISCV_BOOT_HART
-    bne     t2, a0, secondary_trap
+    // if we aren't cpu 0, go hang out in secondary cpu purgatory for now
+    bne     a2, zero, secondary_trap
 
 #if ARCH_RISCV_TWOSEGMENT
     // copy preinitialized data from flash to memory
@@ -106,6 +112,9 @@ LOCAL_FUNCTION(secondary_trap)
     // TODO: enable the mmu on this core
     jal     .Lenable_mmu
 #endif
+
+    // a0 == hart id
+    // a2 == assigned cpu id (may not be the same)
 
     // set the per cpu structure before getting into the secondary boot path
     jal     riscv_configure_percpu_early
@@ -219,10 +228,14 @@ END_FUNCTION(_mmu_init)
 .bss
 .align 4
 LOCAL_DATA(default_stack)
-    .skip ARCH_DEFAULT_STACK_SIZE * RISCV_MAX_HARTS;
+    .skip ARCH_DEFAULT_STACK_SIZE * SMP_MAX_CPUS
 LOCAL_DATA(default_stack_top)
 
 // put boot status in .data so it doesn't get paved over during BSS initialization
 .data
 LOCAL_DATA(_boot_status)
     .byte  0
+
+.align 2
+LOCAL_DATA(_boot_lottery)
+    .word  0

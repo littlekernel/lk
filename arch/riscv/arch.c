@@ -25,12 +25,18 @@ struct riscv_percpu percpu[RISCV_MAX_HARTS];
 
 // called extremely early from start.S prior to getting into any other C code on
 // both the boot cpu and the secondaries
-void riscv_configure_percpu_early(uint hart_id) {
-    // point xscratch at the current cpu
-    // on the first cpu cpu_num should be set to 0 so we'll leave it alone
-    // on secondary cpus the secondary boot code will fill in the cpu number
-    riscv_csr_write(RISCV_CSR_XSCRATCH, &percpu[hart_id]);
-    percpu[hart_id].hart_id = hart_id;
+void riscv_configure_percpu_early(uint hart_id, uint __unused, uint cpu_num) {
+    // point xscratch at the current cpu structure
+    // set up the cpu number and hart id for the per cpu structure
+    riscv_csr_write(RISCV_CSR_XSCRATCH, &percpu[cpu_num]);
+    percpu[cpu_num].cpu_num = cpu_num;
+    percpu[cpu_num].hart_id = hart_id;
+
+#if WITH_SMP
+    // do any MP percpu config
+    riscv_configure_percpu_mp_early(hart_id, cpu_num);
+#endif
+    wmb();
 }
 
 // first C level code to initialize each cpu
@@ -53,6 +59,7 @@ void arch_early_init(void) {
 
 // later init per cpu
 void riscv_init_percpu(void) {
+    dprintf(INFO, "RISCV: percpu cpu num %#x hart id %#x\n", arch_curr_cpu_num(), riscv_current_hart());
 #if WITH_SMP
     // enable software interrupts, used for inter-processor-interrupts
     riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_SIE);
