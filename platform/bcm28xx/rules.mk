@@ -46,7 +46,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/platform.c \
 	$(LOCAL_DIR)/udelay.c \
 	$(LOCAL_DIR)/print_timestamp.c \
-	$(LOCAL_DIR)/dwc2.c \
 	#$(LOCAL_DIR)/i2c.c \
 
 

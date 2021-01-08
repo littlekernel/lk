@@ -76,14 +76,14 @@ enum usb_stream_type {
   USB_STREAM_SETUP
 };
 
-struct dwc_state_T;
+struct dwc_state_t;
 
 typedef struct packet_queue_T {
   struct packet_queue_T *next;
   void *payload;
   int payload_size;
   int start;
-  void (*cb)(struct dwc_state_T *, struct packet_queue_T *);
+  void (*cb)(struct dwc_state_t *, struct packet_queue_T *);
 } packet_queue_t;
 
 typedef struct {
@@ -91,10 +91,21 @@ typedef struct {
   packet_queue_t *packet_queue_tail;
 } endpoint_t;
 
-typedef struct {
+struct dwc_state_t {
   endpoint_t in[1];
   endpoint_t out[1];
-} dwc_state_t;
+};
+
+static const wchar_t *strings[] = {
+  [1] = L"string 1",
+  [2] = L"second string"
+};
+
+// FIXME
+static int string_lengths[] = {
+  [1] = 16,
+  [2] = 26
+};
 
 const char *packet_status_names[] = {
   [1] = "GOUTNAK",
@@ -109,7 +120,7 @@ const char *packet_status_names[] = {
 static int cmd_dwc_dump(int argc, const cmd_args *argv);
 static void dump_endpoint(endpoint_control *ep, bool in);
 static void ack_ep(endpoint_control *ep);
-void ep_write_in(dwc_state_t *state, int epNr);
+void ep_write_in(struct dwc_state_t *state, int epNr);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("dwc_dump", "dump dwc registers", &cmd_dwc_dump)
@@ -125,7 +136,7 @@ static void logmsg(const char *msg) {
   printf("%4d: %s\n", *REG32(ST_CLO), msg);
 }
 
-void dwc2_ep_queue_in(dwc_state_t *state, int epNr, void *buffer, int bytes, void (*cb)(dwc_state_t *, packet_queue_t *)) {
+void dwc2_ep_queue_in(struct dwc_state_t *state, int epNr, void *buffer, int bytes, void (*cb)(struct dwc_state_t *, packet_queue_t *)) {
   assert(epNr <= 0);
   packet_queue_t *pkt = malloc(sizeof(packet_queue_t));
   pkt->payload = buffer;
@@ -149,17 +160,17 @@ void dwc2_ep_queue_in(dwc_state_t *state, int epNr, void *buffer, int bytes, voi
   }
 }
 
-void ep_write_in(dwc_state_t *state, int epNr) {
+void ep_write_in(struct dwc_state_t *state, int epNr) {
   endpoint_control *ep = GET_IN(epNr);
   while (ep->control & (1<<31))  {}
   //puts("ready");
   int maxPacketSize = 64; // TODO
   packet_queue_t *pkt = state->in[epNr].packet_queue_head;
   assert(pkt);
-  //printf("packet(%x): 0x%x+(0x%x/0x%x)\n", (uint32_t)pkt, (uint32_t)pkt->payload, pkt->start, pkt->payload_size);
+  printf("packet(%x): 0x%x+(0x%x/0x%x)\n", (uint32_t)pkt, (uint32_t)pkt->payload, pkt->start, pkt->payload_size);
   int bytes = pkt->payload_size - pkt->start;
-  if (bytes == 0) {
-    //puts("packet sent");
+  if (bytes <= 0) {
+    puts("IN packet sent");
     pkt->cb(state, pkt);
     packet_queue_t *next = pkt->next;
     state->in[epNr].packet_queue_head = next;
@@ -173,14 +184,14 @@ void ep_write_in(dwc_state_t *state, int epNr) {
   int partialPacketSize = bytes - (fullPackets*maxPacketSize);
   int packets = fullPackets + ((partialPacketSize==0) ? 0 : 1);
   int words = ROUNDUP(bytes,4)/4;
-  //printf("sending %d full packets and a %d byte partial, %d total, %d words\n", fullPackets, partialPacketSize, packets, words);
+  printf("sending %d full packets and a %d byte partial, %d total, %d words\n", fullPackets, partialPacketSize, packets, words);
   if (epNr == 0) {
     packets = 1;
     bytes = MIN(maxPacketSize, bytes);
     //printf("capped to 1 packet of %d bytes\n", bytes);
   }
   uint32_t x = (3 << 29) | (packets<<19) | bytes;
-  //printf("size is 0x%x\n", x);
+  printf("size is 0x%x\n", x);
 
   ep->size = x;
   ep->control = (1<<31) | // endpoint enable
@@ -195,16 +206,16 @@ void ep_write_in(dwc_state_t *state, int epNr) {
   int bytes_sent = 0;
   for (int i = 0; i < MIN(maxPacketSize/4, words); i++) {
     *REG32(USB_DFIFO0) = packet[i];
-    //printf("%d(0x%x): posted 0x%x to fifo\n", i, &packet[i], packet[i]);
+    printf("%d(0x%x): posted 0x%x to fifo\n", i, &packet[i], packet[i]);
     bytes_sent += 4;
   }
   pkt->start += bytes_sent;
-  //printf("%d bytes sent, start now %d\n", bytes_sent, pkt->start);
+  printf("%d bytes sent, start now %d\n", bytes_sent, pkt->start);
 }
 
 static fileServerRequest req; // TODO, put on heap
 
-static void handle_setup_status_out(dwc_state_t *state, packet_queue_t *pkt) {
+static void handle_setup_status_out(struct dwc_state_t *state, packet_queue_t *pkt) {
   endpoint_control *ep_in = GET_IN(0);
   endpoint_control *ep_out = GET_OUT(0);
   //puts("setup data IN stage done, on to status OUT...");
@@ -230,13 +241,17 @@ static void handle_setup_status_out(dwc_state_t *state, packet_queue_t *pkt) {
   //dump_endpoint(ep_out, false);
 }
 
-static void handle_incoming_setup(dwc_state_t *state, uint8_t *buf, int size) {
+void dwc2_out_cb_free(struct dwc_state_t *state, packet_queue_t *pkt) {
+  free(pkt->payload);
+  puts("nop");
+  endpoint_control *ep_out = GET_OUT(0);
+  ep_out->control |= (1<<31) | // enable OUT0
+      (1<<26); // clear NAK
+}
+
+static void handle_incoming_setup(struct dwc_state_t *state, uint8_t *buf, int size) {
   setupData *s = (setupData*)buf;
-  //printf("bmRequestType: 0x%x\n", s->bmRequestType);
-  //printf("bRequest: 0x%x\n", s->bRequest);
-  //printf("wValue: 0x%x\n", s->wValue);
-  //printf("wIndex: 0x%x\n", s->wIndex);
-  //printf("wLength: 0x%x\n", s->wLength);
+  bool dump = false;
   if ((s->bmRequestType == 0xc0) && (s->wLength == 0x104)) {
     endpoint_control *ep_in = GET_IN(0);
     endpoint_control *ep_out = GET_OUT(0);
@@ -246,6 +261,56 @@ static void handle_incoming_setup(dwc_state_t *state, uint8_t *buf, int size) {
     memset(&req, 0, sizeof(req));
     req.cmd = 2;
     dwc2_ep_queue_in(state, 0, &req, sizeof(req), &handle_setup_status_out);
+  } else if (s->bmRequestType == 0x80) { // control-in
+    puts("\n\n");
+    switch (s->bRequest) {
+    case 0: // GET STATUS
+      puts("GET STATUS");
+      break;
+    case 6: { // GET DESCRIPTOR
+      puts("GET DESCRIPTOR");
+      uint8_t *int8 = buf;
+      uint16_t *int16 = buf;
+      switch (int8[3]) {
+      case 3: // string descriptor
+        switch (int16[2]) { // language id
+        case 0: {
+          uint8_t *reply = malloc(4);
+          reply[0] = 4; // length
+          reply[1] = 3; // type string
+          reply[2] = 0x09;
+          reply[3] = 0x04; // english us
+          dwc2_ep_queue_in(state, 0, reply, 4, &dwc2_out_cb_free);
+          break;
+        }
+        case 0x0409:{
+          int string_index = int8[2];
+          if ((string_index >= 1) && (string_index <= 2)) {
+            uint8_t *reply = malloc(string_lengths[string_index] + 2);
+            reply[0] = string_lengths[string_index] + 2;
+            reply[1] = 3;
+            memcpy(reply+2, strings[string_index], string_lengths[string_index]);
+            dwc2_ep_queue_in(state, 0, reply, string_lengths[string_index] + 2, &dwc2_out_cb_free);
+          }
+          break;
+        }
+        }
+        break;
+      }
+      break;
+    }
+    default:
+      dump = true;
+    }
+  } else {
+    dump = true;
+  }
+  if (dump) {
+    printf("bmRequestType: 0x%x\n", s->bmRequestType);
+    printf("bRequest: 0x%x\n", s->bRequest);
+    printf("wValue: 0x%x\n", s->wValue);
+    printf("wIndex: 0x%x\n", s->wIndex);
+    printf("wLength: 0x%x\n", s->wLength);
   }
 }
 
@@ -279,7 +344,7 @@ static void ack_ep(endpoint_control *ep) {
   //printf("ACK'd interrupt 0x%x\n", irq);
 }
 
-static void dwc_check_interrupt(dwc_state_t *state) {
+static void dwc_check_interrupt(struct dwc_state_t *state) {
   uint32_t interrupt_status = *REG32(USB_GINTSTS);
   while (interrupt_status & USB_GINTSTS_RXFLVL) {
     uint32_t receive_status = *REG32(USB_GRXSTSP);
@@ -327,10 +392,10 @@ static void dwc_check_interrupt(dwc_state_t *state) {
     for (int i=16; i<32; i++) {
       if ((daint >> i) & 1) {
         ep = (endpoint_control*)((USB_BASE + 0x0b00) + (i-16) * 0x20);
-        //printf("OUT %d irq\n", i - 16);
+        printf("OUT %d irq\n", i - 16);
         //dump_endpoint(ep, false);
         uint32_t irq = ep->interrupt;
-        //printf("acking irq bits 0x%x\n", irq);
+        printf("acking irq bits 0x%x\n", irq);
         ep->interrupt = irq;
       }
     }
@@ -381,7 +446,7 @@ static int cmd_dwc_dump(int argc, const cmd_args *argv) {
   return 0;
 }
 
-static enum handler_return dwc_irq(dwc_state_t *state) {
+static enum handler_return dwc_irq(struct dwc_state_t *state) {
   lk_bigtime_t start = current_time_hires();
   //logmsg("dwc irq");
   dwc_check_interrupt(state);
@@ -392,9 +457,10 @@ static enum handler_return dwc_irq(dwc_state_t *state) {
   return INT_NO_RESCHEDULE;
 }
 
-static dwc_state_t dwc_state;
+static struct dwc_state_t dwc_state;
 
 static void dwc2_init(const struct app_descriptor *app) {
+  puts("dwc2_init\n");
   memset(&dwc_state, 0, sizeof(dwc_state));
   register_int_handler(DWC_IRQ, dwc_irq, &dwc_state);
   unmask_interrupt(DWC_IRQ);
