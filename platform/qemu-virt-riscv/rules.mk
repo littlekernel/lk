@@ -7,6 +7,7 @@ SUBARCH ?= 32
 RISCV_MODE ?= machine
 WITH_SMP ?= 1
 SMP_MAX_CPUS ?= 8
+LK_HEAP_IMPLEMENTATION ?= dlmalloc
 
 ifeq ($(RISCV_MODE),supervisor)
 ifeq ($(SUBARCH),32)
