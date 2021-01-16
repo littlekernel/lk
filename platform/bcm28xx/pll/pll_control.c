@@ -486,10 +486,10 @@ void switch_vpu_to_src(int src) {
   while (*REG32(CM_VPUCTL) & CM_VPUCTL_BUSY_SET) {};
 }
 
-void setup_pllc(uint64_t target_freq) {
+void setup_pllc(uint64_t target_freq, int core0_div, int per_div) {
   int pdiv = 1;
   uint64_t xtal_in = xtal_freq;
-  uint64_t goal_freq = target_freq / 1;
+  uint64_t goal_freq = target_freq / 2;
   uint64_t divisor = (goal_freq<<20) / xtal_in;
   int div = divisor >> 20;
   int frac = divisor & 0xfffff;
@@ -527,9 +527,9 @@ void setup_pllc(uint64_t target_freq) {
   *REG32(A2W_PLLC_DIG1) = A2W_PASSWORD | 0x4005;
   *REG32(A2W_PLLC_DIG0) = A2W_PASSWORD | div | 0x555000;
 
-  *REG32(A2W_PLLC_CORE0) = A2W_PASSWORD | 4;
+  *REG32(A2W_PLLC_CORE0) = A2W_PASSWORD | core0_div;
 
-  *REG32(A2W_PLLC_PER) = A2W_PASSWORD | 4;
+  *REG32(A2W_PLLC_PER) = A2W_PASSWORD | per_div;
 
   *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_DIGRST_SET |
             CM_PLLC_HOLDPER_SET | CM_PLLC_HOLDCORE2_SET |

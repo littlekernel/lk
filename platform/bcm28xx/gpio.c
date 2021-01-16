@@ -137,15 +137,15 @@ static int cmd_gpio_write(int argc, const cmd_args *argv) {
 
 
 const char *mode_names[] = {
-  "IN",
-  "OUT",
-  "ALT5",
-  "ALT4",
-  "ALT0",
-  "ALT1",
-  "ALT2",
-  "ALT3",
-  ""
+  [kBCM2708PinmuxIn] = "IN",
+  [kBCM2708PinmuxOut] = "OUT",
+  [kBCM2708Pinmux_ALT5] = "ALT5",
+  [kBCM2708Pinmux_ALT4] = "ALT4",
+  [kBCM2708Pinmux_ALT0] = "ALT0",
+  [kBCM2708Pinmux_ALT1] = "ALT1",
+  [kBCM2708Pinmux_ALT2] = "ALT2",
+  [kBCM2708Pinmux_ALT3] = "ALT3",
+  [8] = ""
 };
 
 const char *levels[] = { "LOW", "HIGH" };

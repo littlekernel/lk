@@ -47,9 +47,9 @@ static int cmd_uart_dump(int argc, const cmd_args *argv);
 int uart_putc(int port, char c);
 void udelay(uint32_t t);
 
-//STATIC_COMMAND_START
-//STATIC_COMMAND("dump_uart_state", "print uart state relating to baud", &cmd_uart_dump)
-//STATIC_COMMAND_END(uart);
+STATIC_COMMAND_START
+STATIC_COMMAND("dump_uart_state", "print uart state relating to baud", &cmd_uart_dump)
+STATIC_COMMAND_END(uart);
 
 static inline uintptr_t uart_to_ptr(unsigned int n) {
     switch (n) {
@@ -150,7 +150,8 @@ void uart_init(void) {
 
 void uart_init_early(void) {
     if (*REG32(CM_UARTDIV) == 0) {
-      puts("fixing divisor");
+      //puts("fixing divisor");
+      //return;
       // CM_UARTDIV can range from 0 to 1023 with a fractional resolution of 1/4096th
       // on the rpi1-3, this sets the freq to 19.2 / (0x3900 / 0x1000) == ~5.3mhz
       // TODO, have a better default for other models?

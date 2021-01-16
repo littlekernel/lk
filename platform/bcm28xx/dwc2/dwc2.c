@@ -5,6 +5,8 @@
 #include <platform.h>
 #include <platform/bcm28xx.h>
 #include <platform/bcm28xx/udelay.h>
+#include <platform/bcm28xx/pm.h>
+#include <platform/bcm28xx/pll.h>
 #include <platform/interrupts.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,18 +14,30 @@
 
 #define USB_BASE (BCM_PERIPH_BASE_VIRT + 0x980000)
 
+#define USB_GOTGCTL   (USB_BASE + 0x0000)
 #define USB_GAHBCFG   (USB_BASE + 0x0008)
+#define USB_GUSBCFG   (USB_BASE + 0x000c)
+#define USB_GRSTCTL   (USB_BASE + 0x0010)
 #define USB_GINTSTS   (USB_BASE + 0x0014)
 #define USB_GINTSTS_RXFLVL  (1 << 4)
 #define USB_GINTMSK   (USB_BASE + 0x0018)
 #define USB_GRXSTSP   (USB_BASE + 0x0020)
+#define USB_GRXFSIZ   (USB_BASE + 0x0024)
 #define USB_GHWCFG1   (USB_BASE + 0x0044)
 #define USB_GHWCFG2   (USB_BASE + 0x0048)
 #define USB_GHWCFG3   (USB_BASE + 0x004c)
 #define USB_GHWCFG4   (USB_BASE + 0x0050)
+#define USB_GMDIOCSR  (USB_BASE + 0x0080)
+#define USB_GMDIOGEN  (USB_BASE + 0x0084)
+#define USB_GVBUSDRV  (USB_BASE + 0x0088)
+#define USB_DIEPTXF1  (USB_BASE + 0x0104)
 #define USB_DCFG      (USB_BASE + 0x0800)
+#define USB_DCTL      (USB_BASE + 0x0804)
+#define USB_DSTS      (USB_BASE + 0x0808)
 #define USB_DIEPMSK   (USB_BASE + 0x0810)
+#define USB_DOEPMSK   (USB_BASE + 0x0814)
 #define USB_DAINT     (USB_BASE + 0x0818)
+#define USB_DAINTMSK  (USB_BASE + 0x081c)
 
 #define USB_DIEPCTL0  (USB_BASE + 0x0900)
 #define USB_DIEPINT0  (USB_BASE + 0x0908)
@@ -33,10 +47,19 @@
 
 #define USB_DIEPCTL2  (USB_BASE + 0x0940)
 
+#define USB_DOEPCTL0  (USB_BASE + 0x0b00)
 #define USB_DOEPINT0  (USB_BASE + 0x0b08)
+
+#define USB_DOEPCTL1  (USB_BASE + 0x0b20)
 #define USB_DOEPINT1  (USB_BASE + 0x0b28)
+
+#define USB_DOEPCTL2  (USB_BASE + 0x0b40)
 #define USB_DOEPINT2  (USB_BASE + 0x0b48)
+
+#define USB_DOEPCTL3  (USB_BASE + 0x0b60)
 #define USB_DOEPINT3  (USB_BASE + 0x0b68)
+
+#define USB_DOEPCTL4  (USB_BASE + 0x0b80)
 #define USB_DOEPINT4  (USB_BASE + 0x0b88)
 #define USB_DOEPINT5  (USB_BASE + 0x0ba8)
 #define USB_DOEPINT6  (USB_BASE + 0x0bc8)
@@ -48,6 +71,144 @@
 #define USB_DFIFO1    (USB_BASE + 0x2000)
 
 #define DWC_IRQ       9
+
+#define BIT(n) (1<<n)
+
+#define PM_V3DRSTN  BIT(6)
+#define PM_ISFUNC   BIT(5)
+#define PM_MRDONE   BIT(4)
+#define PM_MEMREP   BIT(3)
+#define PM_ISPOW    BIT(2)
+#define PM_POWOK    BIT(1)
+#define PM_POWUP    BIT(0)
+
+static void power_domain_on(volatile uint32_t *reg);
+
+static void power_domain_on(volatile uint32_t *reg) {
+  /* If it was already powered on by the fw, leave it that way. */
+  if (*REG32(reg) & PM_POWUP) {
+    puts("already on");
+    return;
+  }
+  /* Enable power */
+  *REG32(reg) |= PM_PASSWORD | PM_POWUP;
+
+  while (!(*REG32(reg) & PM_POWOK)) {
+    udelay(1); // TODO, add timeout
+  }
+
+  /* Disable electrical isolation */
+  *REG32(reg) |= PM_PASSWORD | PM_ISPOW;
+
+  /* Repair memory */
+  *REG32(reg) |= PM_PASSWORD | PM_MEMREP;
+  while (!(*REG32(reg) & PM_MRDONE)) {
+    udelay(1); // TODO, add timeout
+  }
+  /* Disable functional isolation */
+  *REG32(reg) |= PM_PASSWORD | PM_ISFUNC;
+}
+
+static void dwc_mdio_write(uint8_t reg, uint16_t val) {
+  printf("usb MDIO 0x%x <- 0x%x\n", reg, val);
+  *REG32(USB_GMDIOGEN) = 0xffffffff;
+  while ((*REG32(USB_GMDIOCSR) & 0x80000000) != 0) {}
+
+  *REG32(USB_GMDIOGEN) = (reg & 0x1f) << 18 | 0x50020000 | val;
+  while ((*REG32(USB_GMDIOCSR) & 0x80000000) != 0) {}
+
+  *REG32(USB_GMDIOGEN) = 0;
+  while ((*REG32(USB_GMDIOCSR) & 0x80000000) != 0) {}
+}
+
+static uint16_t dwc_mdio_read(uint8_t reg) {
+  *REG32(USB_GMDIOGEN) = 0xffffffff;
+  while ((*REG32(USB_GMDIOCSR) & 0x80000000) != 0) {}
+
+  *REG32(USB_GMDIOGEN) = (reg & 0x1f) << 18 | 0x60020000;
+  while ((*REG32(USB_GMDIOCSR) & 0x80000000) != 0) {}
+
+  *REG32(USB_GMDIOGEN) = 0;
+  while ((*REG32(USB_GMDIOCSR) & 0x80000000) != 0) {}
+
+  uint16_t val = *REG32(USB_GMDIOCSR) & 0xffff;
+  printf("usb MDIO 0x%x -> 0x%x\n", reg, val);
+  return val;
+}
+
+static void dwc_configure_phy(void) {
+  puts("phy configure");
+  *REG32(USB_GMDIOCSR) = 0x40000;
+  dwc_mdio_write(0x19, 4);
+  dwc_mdio_write(0x18, 0x342);
+  dwc_mdio_write(0x1d, 4);
+  dwc_mdio_write(0x15, 0x111);
+
+  int a, b;
+  if (true) {
+    // "fast" crystal (19.2mhz)
+    a = 0x32;
+    b = 1;
+  } else {
+    // "slow" crystal
+    a = 0x140;
+    b = 9;
+  }
+  dwc_mdio_write(0x17, b << 12 | 0x600 | a);
+  while ((dwc_mdio_read(0x1b) & 0x80) == 0) {}
+  *REG32(USB_GVBUSDRV) &= 0xffffff7f;
+
+  dwc_mdio_write(0x1e, 0x8000);
+  dwc_mdio_write(0x1d, 0x4000);
+  dwc_mdio_write(0x19, 0xc004);
+  dwc_mdio_write(0x20, 0x1c2f);
+  dwc_mdio_write(0x22, 0x100);
+  dwc_mdio_write(0x24, 0x10);
+}
+
+static void dwc_start(void) {
+  puts("usb reset");
+
+  // core soft reset
+  *REG32(USB_GRSTCTL) = BIT(0);
+  while ((*REG32(USB_GRSTCTL) & BIT(0)) != 0) {}
+
+  // hclk soft reset
+  *REG32(USB_GRSTCTL) = BIT(1);
+  while ((*REG32(USB_GRSTCTL) & BIT(1)) != 0) {}
+
+  // flush tx fifo 1
+  *REG32(USB_GRSTCTL) = 0x420;
+  while ((*REG32(USB_GRSTCTL) & 0x20) != 0) {}
+
+  // flush rx fifo
+  *REG32(USB_GRSTCTL) = 0x10;
+  while ((*REG32(USB_GRSTCTL) & 0x10) != 0) {}
+
+  *REG32(USB_GAHBCFG) = BIT(0);
+  *REG32(USB_GUSBCFG) = 0x40402740;
+  *REG32(USB_DOEPCTL0) = 0x80000000;
+  *REG32(USB_DIEPCTL0) = 0x80000000;
+}
+
+static void dwc_clear_fifo(void) {
+  volatile uint32_t *reg = REG32(USB_DFIFO0);
+  for (int i=0; i<0x1000; i++) {
+    reg[i] = 0;
+  }
+
+  uint32_t config3 = *REG32(USB_GHWCFG3);
+  uint32_t a = config3 >> 16;
+  uint32_t b = a;
+  while (b = b>>1, b != 0) {
+    a |= b;
+  }
+  uint32_t c = a+1;
+  reg = REG32(0x7e9a0000);
+  for (unsigned int i=0; i<c; i++) {
+    reg[i] = 0;
+  }
+}
 
 typedef struct {
   volatile uint32_t control;    //  0
@@ -68,6 +229,122 @@ typedef struct {
 } setupData;
 
 typedef struct {
+  uint8_t bmRequestType;
+  uint8_t bRequest;
+  uint8_t bDescriptorIndex;
+  uint8_t bDescriptorType;
+  uint16_t wLanguageId;
+  uint16_t wLength;
+} getDescriptorRequest;
+
+typedef struct {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint16_t bcdUSB;
+  uint8_t bDeviceClass;
+  uint8_t bDeviceSubClass;
+  uint8_t bDeviceProtocol;
+  uint8_t bMaxPacketSize0;
+  uint16_t idVendor;
+  uint16_t idProduct;
+  uint16_t bcdDevice;
+  uint8_t iManufacturer;
+  uint8_t iProduct;
+  uint8_t iSerialNumber;
+  uint8_t bNumberConfigurations;
+} deviceDescriptor;
+
+typedef struct {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint16_t wTotalLength;
+  uint8_t bNumberInterfaces;
+  uint8_t bConfigurationValue;
+  uint8_t iConfiguration;
+  uint8_t bmAttributes;
+  uint8_t bMaxPower;
+} __attribute__((packed)) configurationDescriptor;
+
+typedef struct {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint8_t bInterfaceNumber;
+  uint8_t bAlternateSetting;
+  uint8_t bNumEndpoints;
+  uint8_t bInterfaceClass;
+  uint8_t bInterfaceSubClass;
+  uint8_t bInterfaceProtocol;
+  uint8_t iInterface;
+} __attribute__((packed)) interfaceDescriptor;
+
+typedef struct {
+  uint8_t bLength;
+  uint8_t bDescriptorType;
+  uint8_t bEndpointAddress;
+  uint8_t bmAttributes;
+  uint16_t wMaxPacketSize;
+  uint8_t bInterval;
+} __attribute__((packed)) endpointDescriptor;
+
+deviceDescriptor defaultDeviceDescriptor = {
+  .bLength = sizeof(deviceDescriptor),
+  .bDescriptorType = 1,
+  .bcdUSB = 0x0110,
+  .bDeviceClass = 0,
+  .bDeviceSubClass = 0,
+  .bDeviceProtocol = 0,
+  .bMaxPacketSize0 = 64,
+  .idVendor = 0x1234,
+  .idProduct = 0x5678,
+  .bcdDevice = 0,
+  .iManufacturer = 1,
+  .iProduct = 2,
+  .iSerialNumber = 0,
+  .bNumberConfigurations = 1
+};
+
+configurationDescriptor defaultConfigurationDescriptor = {
+  .bLength = sizeof(configurationDescriptor),
+  .bDescriptorType = 2,
+  .wTotalLength = 32,
+  .bNumberInterfaces = 1,
+  .bConfigurationValue = 1,
+  .iConfiguration = 0,
+  .bmAttributes = 0xc0,
+  .bMaxPower = 50
+};
+
+interfaceDescriptor defaultInterfaceDescriptor = {
+  .bLength = sizeof(interfaceDescriptor),
+  .bDescriptorType = 4,
+  .bInterfaceNumber = 0,
+  .bAlternateSetting = 0,
+  .bNumEndpoints = 2,
+  .bInterfaceClass = 0xff,
+  .bInterfaceSubClass = 0,
+  .bInterfaceProtocol = 0,
+  .iInterface = 0
+};
+
+endpointDescriptor ep0Descriptor = {
+  .bLength = sizeof(endpointDescriptor),
+  .bDescriptorType = 5,
+  .bEndpointAddress = 1,
+  .bmAttributes = 2,
+  .wMaxPacketSize = 64,
+  .bInterval = 0
+};
+
+endpointDescriptor ep1Descriptor = {
+  .bLength = sizeof(endpointDescriptor),
+  .bDescriptorType = 5,
+  .bEndpointAddress = 0x82,
+  .bmAttributes = 2,
+  .wMaxPacketSize = 64,
+  .bInterval = 0
+};
+
+typedef struct {
   uint32_t cmd;
   char name[256];
 } fileServerRequest;
@@ -84,6 +361,7 @@ typedef struct packet_queue_T {
   int payload_size;
   int start;
   void (*cb)(struct dwc_state_t *, struct packet_queue_T *);
+  bool has_0byte_tail;
 } packet_queue_t;
 
 typedef struct {
@@ -94,6 +372,8 @@ typedef struct {
 struct dwc_state_t {
   endpoint_t in[1];
   endpoint_t out[1];
+  void *mainConfigurationDescriptor;
+  int mainConfigurationDescriptorSize;
 };
 
 static const wchar_t *strings[] = {
@@ -144,10 +424,12 @@ void dwc2_ep_queue_in(struct dwc_state_t *state, int epNr, void *buffer, int byt
   pkt->start = 0;
   pkt->next = NULL;
   pkt->cb = cb;
+  pkt->has_0byte_tail = (bytes % 64) == 0;
 
   int do_tx = false;
   if (state->in[epNr].packet_queue_head == NULL) {
     // no pending packets, can tx right away
+    puts("no queue, instant tx");
     do_tx = true;
     state->in[epNr].packet_queue_head = pkt;
   }
@@ -162,14 +444,15 @@ void dwc2_ep_queue_in(struct dwc_state_t *state, int epNr, void *buffer, int byt
 
 void ep_write_in(struct dwc_state_t *state, int epNr) {
   endpoint_control *ep = GET_IN(epNr);
+  printf("control: 0x%x\n", ep->control);
   while (ep->control & (1<<31))  {}
-  //puts("ready");
+  puts("ready");
   int maxPacketSize = 64; // TODO
   packet_queue_t *pkt = state->in[epNr].packet_queue_head;
   assert(pkt);
   printf("packet(%x): 0x%x+(0x%x/0x%x)\n", (uint32_t)pkt, (uint32_t)pkt->payload, pkt->start, pkt->payload_size);
   int bytes = pkt->payload_size - pkt->start;
-  if (bytes <= 0) {
+  if ((bytes <= 0) && !pkt->has_0byte_tail) {
     puts("IN packet sent");
     pkt->cb(state, pkt);
     packet_queue_t *next = pkt->next;
@@ -179,12 +462,13 @@ void ep_write_in(struct dwc_state_t *state, int epNr) {
     if (next) return ep_write_in(state, epNr);
     return;
   }
-  assert(bytes > 0);
+  assert(bytes >= 0);
   int fullPackets = bytes / maxPacketSize;
   int partialPacketSize = bytes - (fullPackets*maxPacketSize);
   int packets = fullPackets + ((partialPacketSize==0) ? 0 : 1);
   int words = ROUNDUP(bytes,4)/4;
   printf("sending %d full packets and a %d byte partial, %d total, %d words\n", fullPackets, partialPacketSize, packets, words);
+  if (bytes == 0) pkt->has_0byte_tail = false;
   if (epNr == 0) {
     packets = 1;
     bytes = MIN(maxPacketSize, bytes);
@@ -249,10 +533,27 @@ void dwc2_out_cb_free(struct dwc_state_t *state, packet_queue_t *pkt) {
       (1<<26); // clear NAK
 }
 
+void dwc2_out_cb(struct dwc_state_t *state, packet_queue_t *pkt) {
+  puts("nop");
+  endpoint_control *ep_out = GET_OUT(0);
+  ep_out->control |= (1<<31) | // enable OUT0
+      (1<<26); // clear NAK
+}
+
+void dwc2_in_cb(struct dwc_state_t *state, packet_queue_t *pkt) {
+  puts("in done");
+}
+
 static void handle_incoming_setup(struct dwc_state_t *state, uint8_t *buf, int size) {
   setupData *s = (setupData*)buf;
   bool dump = false;
-  if ((s->bmRequestType == 0xc0) && (s->wLength == 0x104)) {
+  if ((s->bmRequestType == 0x00) && (s->bRequest == 5)) { // set address
+    printf("i should be addr %d\n", s->wValue);
+    *REG32(USB_DCFG) = ((s->wValue & 0x3f) << 4) | (*REG32(USB_DCFG) & 0xfffff80f);
+    dwc2_ep_queue_in(state, 0, NULL, 0, &dwc2_in_cb);
+  } else if ((s->bmRequestType == 0x00) && (s->bRequest == 9)) { // set configuration
+    dwc2_ep_queue_in(state, 0, NULL, 0, &dwc2_in_cb);
+  } else if ((s->bmRequestType == 0xc0) && (s->wLength == 0x104)) {
     endpoint_control *ep_in = GET_IN(0);
     endpoint_control *ep_out = GET_OUT(0);
     //dump_endpoint(ep, true);
@@ -269,11 +570,22 @@ static void handle_incoming_setup(struct dwc_state_t *state, uint8_t *buf, int s
       break;
     case 6: { // GET DESCRIPTOR
       puts("GET DESCRIPTOR");
-      uint8_t *int8 = buf;
-      uint16_t *int16 = buf;
-      switch (int8[3]) {
+      getDescriptorRequest *req = (getDescriptorRequest*)buf;
+      switch (req->bDescriptorType) {
+      case 1: // device descriptor
+        puts("queuing reply");
+        dwc2_ep_queue_in(state, 0, &defaultDeviceDescriptor, sizeof(defaultDeviceDescriptor), &dwc2_out_cb);
+        puts("done");
+        break;
+      case 2: // configuration descriptor
+        {
+          int size = state->mainConfigurationDescriptorSize;
+          if (size > req->wLength) size = req->wLength;
+          dwc2_ep_queue_in(state, 0, state->mainConfigurationDescriptor, size, &dwc2_out_cb);
+        }
+        break;
       case 3: // string descriptor
-        switch (int16[2]) { // language id
+        switch (req->wLanguageId) { // language id
         case 0: {
           uint8_t *reply = malloc(4);
           reply[0] = 4; // length
@@ -284,7 +596,7 @@ static void handle_incoming_setup(struct dwc_state_t *state, uint8_t *buf, int s
           break;
         }
         case 0x0409:{
-          int string_index = int8[2];
+          int string_index = req->bDescriptorIndex;
           if ((string_index >= 1) && (string_index <= 2)) {
             uint8_t *reply = malloc(string_lengths[string_index] + 2);
             reply[0] = string_lengths[string_index] + 2;
@@ -346,6 +658,49 @@ static void ack_ep(endpoint_control *ep) {
 
 static void dwc_check_interrupt(struct dwc_state_t *state) {
   uint32_t interrupt_status = *REG32(USB_GINTSTS);
+  printf("irq: 0x%x\n", interrupt_status & *REG32(USB_GINTMSK));
+  if (interrupt_status & BIT(13)) { // enumeration done
+    *REG32(USB_GINTSTS) = BIT(13);
+    puts("enumeration done");
+    GET_OUT(0)->size = (1 << 29) | // 1 setup
+            (2<<18) | // packet count
+            8; // bytes
+    GET_OUT(0)->control = BIT(31) | BIT(26) | BIT(15); // enable and active
+    //dumpreg(USB_DSTS);      // 808
+    interrupt_status = *REG32(USB_GINTSTS);
+  }
+  if (interrupt_status & BIT(12)) { // usb reset
+    *REG32(USB_GINTSTS) = BIT(12);
+    interrupt_status = *REG32(USB_GINTSTS);
+
+    for (int epNr = 0; epNr < 5; epNr++) {
+      endpoint_control *ep = GET_OUT(epNr);
+      ep->control = BIT(31); // enable
+    }
+    GET_OUT(0)->size = (1 << 29) | // 1 setup
+            (2<<18) | // packet count
+            8; // bytes
+    GET_OUT(0)->control = BIT(31) | BIT(26) | BIT(15); // enable and active
+
+    // flush tx fifo 1
+    *REG32(USB_GRSTCTL) = 0x420;
+    while ((*REG32(USB_GRSTCTL) & 0x20) != 0) {}
+
+    // flush rx fifo
+    *REG32(USB_GRSTCTL) = 0x10;
+    while ((*REG32(USB_GRSTCTL) & 0x10) != 0) {}
+
+    *REG32(USB_DAINTMSK) = BIT(16) | BIT(0); // allow irq on in0 and out0
+    *REG32(USB_DOEPMSK) = BIT(3) | BIT(0); // allow irq on xfer complete and timeout
+    *REG32(USB_DIEPMSK) = BIT(3) | BIT(0); // allow irq on xfer complete and timeout
+
+    GET_IN(0)->control = BIT(30); // disable IN-0, no data to send yet
+  }
+  if (interrupt_status & BIT(11)) { // usb suspend
+    *REG32(USB_GINTSTS) = BIT(11);
+    interrupt_status = *REG32(USB_GINTSTS);
+    puts("suspend");
+  }
   while (interrupt_status & USB_GINTSTS_RXFLVL) {
     uint32_t receive_status = *REG32(USB_GRXSTSP);
     //printf("USB_GRXSTSP:\t 0x%x\n", receive_status);
@@ -407,8 +762,13 @@ static int cmd_dwc_dump(int argc, const cmd_args *argv) {
   uint32_t t;
   endpoint_control *ep = 0;
 
-  dumpreg(USB_GAHBCFG);
-  dumpreg(USB_GINTSTS);
+  dumpreg(USB_GOTGCTL); // 0
+  if (t & BIT(16)) puts("  16: B-device mode");
+  if (t & BIT(18)) puts("  18: A-session valid (host only)");
+  if (t & BIT(19)) puts("  19: B-session valid (device only)");
+  dumpreg(USB_GAHBCFG); // 8
+  dumpreg(USB_GUSBCFG); // c
+  dumpreg(USB_GINTSTS); // 14
   printf("  CURMOD:     %d\n", t & 1);
   printf("  MODEMIS:    %d\n", (t >> 1) & 1);
   printf("  OTGINT:     %d\n", (t >> 2) & 1);
@@ -425,14 +785,20 @@ static int cmd_dwc_dump(int argc, const cmd_args *argv) {
   printf("  ISOOUTDROP: %d\n", (t >> 14) & 1);
   printf("  EOPF:       %d\n", (t >> 15) & 1);
   printf("  unparsed:   %d\n", (t >> 16) & 0xffff);
-  dumpreg(USB_GINTMSK);
+  dumpreg(USB_GINTMSK);   // 18
+  printf("masked irq's: 0x%x\n", *REG32(USB_GINTSTS) & ~(*REG32(USB_GINTMSK)));
   dumpreg(USB_GHWCFG1);
   dumpreg(USB_GHWCFG2);
   dumpreg(USB_GHWCFG3);
   dumpreg(USB_GHWCFG4);
+  if ((t >> 25) & 1) puts("  dedicated transmit fifo enabled");
   dumpreg(USB_DCFG);      // 800
+  dumpreg(USB_DCTL);      // 804
+  dumpreg(USB_DSTS);      // 808
   dumpreg(USB_DIEPMSK);   // 810
-  dumpreg(USB_DAINT);
+  dumpreg(USB_DOEPMSK);   // 814
+  dumpreg(USB_DAINT);     // 818
+  dumpreg(USB_DAINTMSK);  // 81c
   for (int i=0; i<3; i++) {
     printf("IN%d\n", i);
     ep = (endpoint_control*)((USB_BASE + 0x0900) + i * 0x20);
@@ -460,13 +826,106 @@ static enum handler_return dwc_irq(struct dwc_state_t *state) {
 static struct dwc_state_t dwc_state;
 
 static void dwc2_init(const struct app_descriptor *app) {
-  puts("dwc2_init\n");
+  uint32_t t;
+  puts("dwc2_init");
+  // TODO, move power domain code into its own driver
+  puts("image domain on...");
+  dumpreg(PM_IMAGE);
+  *REG32(PM_IMAGE) |= PM_PASSWORD | 0x10000; // CFG = 1
+#if 0
+  printf("PM_IMAGE: 0x%x\n", *REG32(PM_IMAGE));
+  *REG32(PM_IMAGE) |= PM_PASSWORD | 1; // POWUP = 1
+  for (int i=0; i<10; i++) {
+    if (*REG32(PM_IMAGE) & 2) { // if power ok
+      break;
+    }
+    udelay(1);
+    if (i == 9) puts("PM_IMAGE timeout");
+  }
+  printf("PM_IMAGE: 0x%x\n", *REG32(PM_IMAGE));
+  *REG32(PM_IMAGE) = PM_PASSWORD | (*REG32(PM_IMAGE) & ~1); // POWUP = 0
+
+  *REG32(PM_IMAGE) |= PM_PASSWORD | 0x30000; // CFG = 3
+  *REG32(PM_IMAGE) |= PM_PASSWORD | 1; // POWUP = 1
+  for (int i=0; i<10; i++) {
+    if (*REG32(PM_IMAGE) & 2) { // if power ok
+      break;
+    }
+    udelay(1);
+    if (i == 9) puts("PM_IMAGE timeout");
+  }
+  printf("PM_IMAGE: 0x%x\n", *REG32(PM_IMAGE));
+  *REG32(PM_IMAGE) |= PM_PASSWORD | 0x40;
+#endif
+  dumpreg(PM_IMAGE);
+  power_domain_on(REG32(PM_IMAGE));
+  dumpreg(PM_IMAGE);
+
+  printf("PM_USB: 0x%x\n", *REG32(PM_USB));
+  puts("usb power on...");
+  *REG32(PM_USB) = PM_PASSWORD | 1;
+  printf("PM_USB: 0x%x\n", *REG32(PM_USB));
+  udelay(600);
+  printf("PM_USB: 0x%x\n", *REG32(PM_USB));
+
+  dumpreg(CM_PERIICTL);
+  *REG32(CM_PERIIDIV) = CM_PASSWORD | 0x1000;
+  *REG32(CM_PERIICTL) |= CM_PASSWORD | 0x40;
+  dumpreg(CM_PERIICTL);
+  *REG32(CM_PERIICTL) = (*REG32(CM_PERIICTL) & 0xffffffbf) | CM_PASSWORD;
+  dumpreg(CM_PERIICTL);
+  dumpreg(CM_PERIIDIV);
+
+  *REG32(PM_IMAGE) |= PM_PASSWORD | PM_V3DRSTN;
+  *REG32(CM_PERIICTL) |= CM_PASSWORD | 0x40;
+
   memset(&dwc_state, 0, sizeof(dwc_state));
+  dwc_state.mainConfigurationDescriptorSize = sizeof(defaultConfigurationDescriptor) + sizeof(defaultInterfaceDescriptor) + sizeof(ep0Descriptor) + sizeof(ep1Descriptor);
+  dwc_state.mainConfigurationDescriptor = malloc(dwc_state.mainConfigurationDescriptorSize);
+
+  int pos = 0;
+  memcpy(dwc_state.mainConfigurationDescriptor + pos, &defaultConfigurationDescriptor, sizeof(defaultConfigurationDescriptor));
+  pos += sizeof(defaultConfigurationDescriptor);
+
+  memcpy(dwc_state.mainConfigurationDescriptor + pos, &defaultInterfaceDescriptor, sizeof(defaultInterfaceDescriptor));
+  pos += sizeof(defaultInterfaceDescriptor);
+
+  memcpy(dwc_state.mainConfigurationDescriptor + pos, &ep0Descriptor, sizeof(ep0Descriptor));
+  pos += sizeof(ep0Descriptor);
+
+  memcpy(dwc_state.mainConfigurationDescriptor + pos, &ep1Descriptor, sizeof(ep1Descriptor));
+  pos += sizeof(ep1Descriptor);
+  assert(pos == dwc_state.mainConfigurationDescriptorSize);
+
   register_int_handler(DWC_IRQ, dwc_irq, &dwc_state);
   unmask_interrupt(DWC_IRQ);
 
-  *REG32(USB_GINTMSK) = (1<<4);
+  dwc_configure_phy();
+  dwc_clear_fifo();
+  dwc_start();
+
+  //dumpreg(USB_GAHBCFG);
+  *REG32(USB_GINTMSK) =
+    BIT(19) | BIT(18) | BIT(17) |
+    BIT(13) | BIT(12) | BIT(11) | BIT(4)
+    | BIT(2)
+    ;
   *REG32(USB_DIEPMSK) = (1<<4) | (1<<3) | (1<<0);
+
+  *REG32(USB_DCFG) = (1 << 18) | // in endpoint mismatch count
+      (1 << 11) | // periodic frame interval interrupt
+      3; // full speed
+      //0; // high speed 2.0
+
+  *REG32(USB_GRXFSIZ) = 0x200;
+
+  volatile uint32_t *reg = REG32(USB_DIEPTXF1);
+  int start = 0x300;
+  for (int i = 0; i< 7; i++) {
+    t = start | (0x100 << 16);
+    start = start + 0x100;
+    reg[i] = t;
+  }
 }
 
 static void dwc2_entry(const struct app_descriptor *app, void *args) {

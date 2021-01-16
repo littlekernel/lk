@@ -51,10 +51,6 @@ void set_interrupt(int intno, bool enable, int core) {
 }
 
 void intc_init(void) {
-  uint32_t r28, sp;
-  __asm__ volatile ("mov %0, r28" : "=r"(r28));
-  __asm__ volatile ("mov %0, sp" : "=r"(sp));
-  dprintf(INFO, "intc_init\nr28: 0x%x\nsp: 0x%x\n", r28, sp);
   // TODO
   for (int i=0; i<64; i++) {
     irq_handlers[0].h = 0; // is this needed? maybe .bss already took care of it?
@@ -95,7 +91,6 @@ void intc_init(void) {
   }
 
   uint32_t irq_sp = (uint32_t)((irq_stack0 + sizeof(irq_stack0)) - 4);
-  dprintf(INFO, "r28 = 0x%x\nirq_stack0: %p\nsizeof(irq_stack0): %d\n", irq_sp, irq_stack0, sizeof(irq_stack0));
 
   __asm__ volatile ("mov r28, %0": :"r"(irq_sp));
 

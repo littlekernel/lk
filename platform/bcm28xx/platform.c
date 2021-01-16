@@ -130,7 +130,10 @@ static void switch_vpu_to_pllc() {
   switch_vpu_to_src(CM_SRC_OSC);
   *REG32(CM_VPUDIV) = CM_PASSWORD | (1 << 12);
 
-  setup_pllc(    2000LL * 1000 * 1000);
+  int core0_div = 4;
+  int per_div = 4;
+
+  setup_pllc(    2000LL * 1000 * 1000, core0_div, per_div);
 
   int vpu_divisor = 1;
 
@@ -144,7 +147,7 @@ static void switch_vpu_to_pllc() {
 
   int vpu = measure_clock(5);
   int pllc_core0 = vpu*vpu_divisor;
-  uint32_t pllc = pllc_core0 * 4;
+  uint32_t pllc = pllc_core0 * core0_div;
   dprintf(INFO, "VPU now at %dmhz, ", vpu/1000/1000);
   dprintf(INFO, "PLLC_CORE0 at %dmhz, ", pllc_core0/1000/1000);
   dprintf(INFO, "PLLC at %dmhz\n", pllc / 1000 / 1000);
@@ -250,17 +253,17 @@ void platform_early_init(void) {
 
 void platform_init(void) {
 #if BCM2835 == 1
-  gpio_config(0, 1);
+  gpio_config(0, kBCM2708PinmuxOut);
 #endif
 
 #ifdef RPI4
-  gpio_config(42, 1);
+  gpio_config(42, kBCM2708PinmuxOut);
 #endif
     uart_init();
 #if BCM2837
     init_framebuffer();
 #endif
-  printf("crystal is %f MHz\n", (float)xtal_freq/1000/1000);
+  printf("crystal is %lf MHz\n", (double)xtal_freq/1000/1000);
 }
 
 void platform_dputc(char c) {
