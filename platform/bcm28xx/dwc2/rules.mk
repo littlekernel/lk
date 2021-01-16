@@ -8,4 +8,6 @@ MODULE_SRCS += \
 # for 16bit chars in usb
 GLOBAL_CFLAGS += -fshort-wchar
 
+MODULES += platform/bcm28xx/power
+
 include make/module.mk

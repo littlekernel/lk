@@ -1,0 +1,61 @@
+#pragma once
+
+#define USB_BASE (BCM_PERIPH_BASE_VIRT + 0x980000)
+
+#define USB_GOTGCTL   (USB_BASE + 0x0000)
+#define USB_GAHBCFG   (USB_BASE + 0x0008)
+#define USB_GUSBCFG   (USB_BASE + 0x000c)
+#define USB_GRSTCTL   (USB_BASE + 0x0010)
+#define USB_GINTSTS   (USB_BASE + 0x0014)
+#define USB_GINTSTS_RXFLVL  (1 << 4)
+#define USB_GINTMSK   (USB_BASE + 0x0018)
+#define USB_GRXSTSP   (USB_BASE + 0x0020)
+#define USB_GRXFSIZ   (USB_BASE + 0x0024)
+#define USB_GHWCFG1   (USB_BASE + 0x0044)
+#define USB_GHWCFG2   (USB_BASE + 0x0048)
+#define USB_GHWCFG3   (USB_BASE + 0x004c)
+#define USB_GHWCFG4   (USB_BASE + 0x0050)
+#define USB_GMDIOCSR  (USB_BASE + 0x0080)
+#define USB_GMDIOGEN  (USB_BASE + 0x0084)
+#define USB_GVBUSDRV  (USB_BASE + 0x0088)
+#define USB_DIEPTXF1  (USB_BASE + 0x0104)
+#define USB_DCFG      (USB_BASE + 0x0800)
+#define USB_DCTL      (USB_BASE + 0x0804)
+#define USB_DSTS      (USB_BASE + 0x0808)
+#define USB_DIEPMSK   (USB_BASE + 0x0810)
+#define USB_DOEPMSK   (USB_BASE + 0x0814)
+#define USB_DAINT     (USB_BASE + 0x0818)
+#define USB_DAINTMSK  (USB_BASE + 0x081c)
+
+#define USB_DIEPCTL0  (USB_BASE + 0x0900)
+#define USB_DIEPINT0  (USB_BASE + 0x0908)
+
+#define USB_DIEPCTL1  (USB_BASE + 0x0920)
+#define USB_DIEPINT1  (USB_BASE + 0x0928)
+
+#define USB_DIEPCTL2  (USB_BASE + 0x0940)
+
+#define USB_DOEPCTL0  (USB_BASE + 0x0b00)
+#define USB_DOEPINT0  (USB_BASE + 0x0b08)
+
+#define USB_DOEPCTL1  (USB_BASE + 0x0b20)
+#define USB_DOEPINT1  (USB_BASE + 0x0b28)
+
+#define USB_DOEPCTL2  (USB_BASE + 0x0b40)
+#define USB_DOEPINT2  (USB_BASE + 0x0b48)
+
+#define USB_DOEPCTL3  (USB_BASE + 0x0b60)
+#define USB_DOEPINT3  (USB_BASE + 0x0b68)
+
+#define USB_DOEPCTL4  (USB_BASE + 0x0b80)
+#define USB_DOEPINT4  (USB_BASE + 0x0b88)
+#define USB_DOEPINT5  (USB_BASE + 0x0ba8)
+#define USB_DOEPINT6  (USB_BASE + 0x0bc8)
+#define USB_DOEPINT7  (USB_BASE + 0x0be8)
+#define USB_DOEPINT8  (USB_BASE + 0x0c08)
+#define USB_DOEPINT9  (USB_BASE + 0x0c28)
+
+#define USB_DFIFO0    (USB_BASE + 0x1000)
+#define USB_DFIFO1    (USB_BASE + 0x2000)
+
+#define DWC_IRQ       9

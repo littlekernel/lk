@@ -68,7 +68,7 @@ struct pll_chan_def {
 extern uint32_t xtal_freq;
 extern const struct pll_chan_def pll_chan_def[PLL_CHAN_NUM];
 
-void setup_pllc(uint64_t freq);
+void setup_pllc(uint64_t freq, int core0_div, int per_div);
 void switch_vpu_to_src(int src);
 
 
@@ -82,6 +82,9 @@ void switch_vpu_to_src(int src);
 #define CM_VPUCTL_BUSY_SET                                 0x00000080
 #define CM_VPUCTL_GATE_SET                                 0x00000040
 #define CM_VPUDIV               (CM_BASE + 0x00c)
+
+#define CM_PERIICTL             (CM_BASE + 0x020)
+#define CM_PERIIDIV             (CM_BASE + 0x024)
 
 #define CM_DPICTL               (CM_BASE + 0x068)
 #define CM_DPICTL_KILL_SET 0x20

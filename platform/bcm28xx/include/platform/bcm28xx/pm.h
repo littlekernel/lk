@@ -24,5 +24,7 @@
 #define PM_RSTS_HADDRQ_SET      0x00000001        // bit  0 had debugger quick reset
 #define PM_WDOG                 (PM_BASE + 0x24)
 #define PM_WDOG_MASK            0x00000fff
+#define PM_USB                  (PM_BASE + 0x5c)
 #define PM_SMPS                 (PM_BASE + 0x6c)
 #define PM_SPAREW               (PM_BASE + 0x74)
+#define PM_IMAGE                (PM_BASE + 0x108)
