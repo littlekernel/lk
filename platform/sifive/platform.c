@@ -17,6 +17,8 @@
 #include "platform_p.h"
 
 void platform_early_init(void) {
+    gpio_early_init();
+
     sifive_uart_early_init();
 
     plic_early_init();
@@ -24,6 +26,7 @@ void platform_early_init(void) {
 
 void platform_init(void) {
     plic_init();
+    gpio_init();
     sifive_uart_init();
 }
 

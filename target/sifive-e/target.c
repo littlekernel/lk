@@ -9,9 +9,9 @@
 #include <target.h>
 #include <arch/arch_ops.h>
 #include <platform/sifive.h>
+#include <dev/gpio.h>
 
 static volatile unsigned int *const prci_base = (unsigned int *)PRCI_BASE;
-static volatile unsigned int *const gpio_base = (unsigned int *)GPIO_BASE;
 
 #define GPIO_LED_GREEN 19
 #define GPIO_LED_BLUE  21
@@ -28,33 +28,35 @@ void target_early_init(void) {
 
     // lfclock is a 32768Hz crystal, strapped externally
 
-    // io function enable for pin 16/17, no IOF for all others
-    gpio_base[14] = (3<<16);
+    // set up all the gpios
+    for (uint i = 0; i < 32; i++) {
+        switch (i) {
+            // default to input
+            default: gpio_config(i, GPIO_INPUT); break;
 
-    // turn our LED gpios off
-    gpio_base[GPIO_REG_PORT] |= (1u << GPIO_LED_GREEN) | (1u << GPIO_LED_BLUE) | (1u << GPIO_LED_RED);
+            // uart0
+            case 16: gpio_config(i, GPIO_AF0); break;
+            case 17: gpio_config(i, GPIO_AF0); break;
 
-    // set the led gpios to output
-    gpio_base[GPIO_REG_OUTPUT_EN] |= (1u << GPIO_LED_GREEN) | (1u << GPIO_LED_BLUE) | (1u << GPIO_LED_RED);
+            // set the led gpios to output and default to off
+            case GPIO_LED_GREEN: gpio_set(i, 0); gpio_config(i, GPIO_OUTPUT); break;
+            case GPIO_LED_RED: gpio_set(i, 0); gpio_config(i, GPIO_OUTPUT); break;
+            case GPIO_LED_BLUE: gpio_set(i, 0); gpio_config(i, GPIO_OUTPUT); break;
+        }
+    }
 }
 
 void target_set_debug_led(unsigned int led, bool on) {
-    uint val = 0;
-    if (led == 0) {
-        val = 1u << GPIO_LED_GREEN;
-    } else if (led == 1) {
-        val = 1u << GPIO_LED_RED;
-    } else if (led == 2) {
-        val = 1u << GPIO_LED_BLUE;
+    unsigned int gpio;
+
+    switch (led) {
+        default:
+        case 0: gpio = GPIO_LED_GREEN; break;
+        case 1: gpio = GPIO_LED_RED; break;
+        case 2: gpio = GPIO_LED_BLUE; break;
     }
 
-    // set and clear the LED gpios using atomic instructions
-    // polarity is inverted
-    if (on) {
-        __atomic_fetch_and((int *)&gpio_base[GPIO_REG_PORT], ~val, __ATOMIC_RELAXED);
-    } else {
-        __atomic_fetch_or((int *)&gpio_base[GPIO_REG_PORT], val, __ATOMIC_RELAXED);
-    }
+    gpio_set(gpio, on ? 1 : 0);
 }
 
 void target_init(void) {

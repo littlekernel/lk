@@ -17,4 +17,7 @@ void sifive_uart_init(void);
 void plic_early_init(void);
 void plic_init(void);
 
+void gpio_early_init(void);
+void gpio_init(void);
+
 

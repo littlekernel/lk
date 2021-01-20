@@ -6,11 +6,13 @@ ARCH := riscv
 SUBARCH ?= 32
 VARIANT ?= sifive_e
 
+MODULE_DEPS += dev/gpio
 MODULE_DEPS += lib/cbuf
 
 MODULE_SRCS += $(LOCAL_DIR)/platform.c
 MODULE_SRCS += $(LOCAL_DIR)/plic.c
 MODULE_SRCS += $(LOCAL_DIR)/uart.c
+MODULE_SRCS += $(LOCAL_DIR)/gpio.c
 
 ROMBASE ?= 0x20400000 # if running from rom, start here
 MEMBASE ?= 0x80000000

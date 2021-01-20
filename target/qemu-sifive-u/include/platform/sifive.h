@@ -16,6 +16,7 @@
 #define PLIC_BASE  0x0c000000
 #define UART0_BASE 0x10010000
 #define UART1_BASE 0x10011000
+#define GPIO_BASE  0x10060000
 
 #if RISCV_XMODE_OFFSET == RISCV_MACH_OFFSET
 #define PLIC_HART_IDX(hart)    ((hart) ? ((2 * (hart)) - 1) : 0)
