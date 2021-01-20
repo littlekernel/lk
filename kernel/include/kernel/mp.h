@@ -86,7 +86,7 @@ static inline void mp_init(void) {}
 static inline void mp_reschedule(mp_cpu_mask_t target, uint flags) {}
 static inline void mp_set_curr_cpu_active(bool active) {}
 
-static inline enum handler_return mp_mbx_reschedule_irq(void) { return 0; }
+static inline enum handler_return mp_mbx_reschedule_irq(void) { return INT_NO_RESCHEDULE; }
 
 // only one cpu exists in UP and if you're calling these functions, it's active...
 static inline int mp_is_cpu_active(uint cpu) { return 1; }

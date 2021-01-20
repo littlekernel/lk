@@ -10,6 +10,9 @@
 #include <arch.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <lk/compiler.h>
+
+__BEGIN_CDECLS
 
 #define PAGE_ALIGN(x) ALIGN(x, PAGE_SIZE)
 #define IS_PAGE_ALIGNED(x) IS_ALIGNED(x, PAGE_SIZE)
@@ -35,3 +38,5 @@ struct page_range {
 };
 
 int novm_get_arenas(struct page_range *ranges, int number_of_ranges);
+
+__END_CDECLS

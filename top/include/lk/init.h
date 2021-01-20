@@ -10,6 +10,8 @@
 #include <lk/compiler.h>
 #include <sys/types.h>
 
+__BEGIN_CDECLS
+
 /*
  * LK's init system
  */
@@ -69,3 +71,5 @@ struct lk_init_struct {
 
 #define LK_INIT_HOOK(_name, _hook, _level) \
     LK_INIT_HOOK_FLAGS(_name, _hook, _level, LK_INIT_FLAG_PRIMARY_CPU)
+
+__END_CDECLS

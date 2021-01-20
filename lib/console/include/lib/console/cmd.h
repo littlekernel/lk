@@ -10,6 +10,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <lk/compiler.h>
+
+__BEGIN_CDECLS
 
 /* included from top level lk/console_cmd.h when lib/console is built.
  * Provides definitions for how to register a command block to be picked up by
@@ -50,4 +53,5 @@ typedef struct _cmd_block {
 #define STATIC_COMMAND_MASKED(command_str, help_str, func, availability_mask) \
     { command_str, help_str, func, availability_mask },
 
+__END_CDECLS
 

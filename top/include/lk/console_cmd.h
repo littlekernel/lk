@@ -12,6 +12,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+__BEGIN_CDECLS
+
 /* command args */
 typedef struct {
     const char *str;
@@ -26,6 +28,8 @@ typedef int (*console_cmd_func)(int argc, const console_cmd_args *argv);
 #define CMD_AVAIL_NORMAL (0x1 << 0)
 #define CMD_AVAIL_PANIC  (0x1 << 1)
 #define CMD_AVAIL_ALWAYS (CMD_AVAIL_NORMAL | CMD_AVAIL_PANIC)
+
+__END_CDECLS
 
 /* Register a static block of commands at init time when lib/console is
  * paret of the build. Otherwise stub out these definitions so that they do
@@ -46,5 +50,6 @@ typedef int (*console_cmd_func)(int argc, const console_cmd_args *argv);
 
 #define STATIC_COMMAND(command_str, help_str, func)
 #define STATIC_COMMAND_MASKED(command_str, help_str, func, availability_mask)
+
 
 #endif

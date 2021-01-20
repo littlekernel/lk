@@ -7,6 +7,9 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
+
+__BEGIN_CDECLS
 
 /* Previously, this file was included to get access to defining a console
  * command. This logic has been moved into the following header, which is
@@ -33,4 +36,4 @@ extern int lastresult;
 #define ENABLE_PANIC_SHELL 1
 #endif
 
-
+__END_CDECLS

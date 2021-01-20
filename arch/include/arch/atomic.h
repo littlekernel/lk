@@ -46,3 +46,5 @@ static int atomic_or(volatile int *ptr, int val);
 
 #endif
 
+__END_CDECLS
+
