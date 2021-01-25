@@ -19,7 +19,7 @@ typedef int                int32_t;
 typedef long long          int64_t;
 
 #define INT8_MIN    CHAR_MIN
-#define INT16_MIN   SHORT_MIN
+#define INT16_MIN   SHRT_MIN
 #define INT32_MIN   INT_MIN
 
 #if defined(LLONG_MIN)
@@ -29,7 +29,7 @@ typedef long long          int64_t;
 #endif
 
 #define INT8_MAX    CHAR_MAX
-#define INT16_MAX   SHORT_MAX
+#define INT16_MAX   SHRT_MAX
 #define INT32_MAX   INT_MAX
 
 #if defined(LLONG_MAX)
@@ -39,7 +39,7 @@ typedef long long          int64_t;
 #endif
 
 #define UINT8_MAX   UCHAR_MAX
-#define UINT16_MAX  USHORT_MAX
+#define UINT16_MAX  USHRT_MAX
 #define UINT32_MAX  UINT_MAX
 
 #if defined(ULLONG_MAX)
