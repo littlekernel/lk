@@ -1,0 +1,26 @@
+
+TOOLCHAIN := /toolchain/arm-eabi-10.2.0/bin/arm-eabi-
+OBJCOPY := $(TOOLCHAIN)objcopy
+OBJDUMP := $(TOOLCHAIN)objdump
+CC := $(TOOLCHAIN)gcc
+
+CFLAGS := -mcpu=cortex-m0 -mthumb
+CFLAGS += -fno-builtin -nostdlib
+LFLAGS := -Wl,--script=fw-m0sub.ld -Wl,-Ttext=0x18000000
+
+all: zero.bin zero.lst fw-m0sub.h
+
+zero.elf: fw-m0sub.S
+	$(CC) $(CFLAGS) $(LFLAGS) -o $@ $<
+
+zero.lst: zero.elf
+	$(OBJDUMP) -D $< > $@
+
+zero.bin: zero.elf
+	$(OBJCOPY) -O binary $< $@
+
+fw-m0sub.h: zero.bin
+	xxd -i $< > $@
+
+clean:
+	rm -f zero.bin zero.lst zero.elf
