@@ -204,6 +204,11 @@ void arm64_sync_exception(struct arm64_iframe_long *iframe) {
             print_fault_msg(BITS(iss, 5, 0));
             break;
         }
+        case 0b111100: {
+            printf("BRK #0x%04lx instruction: PC at 0x%llx(0x%lx)\n",
+                   BITS_SHIFT(iss, 15, 0), iframe->elr, display_pc);
+            break;
+        }
         default:
             printf("unhandled synchronous exception\n");
     }
