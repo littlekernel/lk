@@ -103,6 +103,16 @@ m0_fault:
 // r4  CLK0_IN      const
 // r3  outbits      data
 
+snooze_1m:
+	nop ; nop ; nop ; nop
+	nop ; nop ; nop ; nop
+	nop ; nop ; nop ; nop
+	nop ; nop ; nop ; nop
+	nop ; nop ; nop ; nop
+	nop ; nop ; nop ; nop
+	nop ; nop ; nop ; nop
+	nop ; nop ; nop ; nop
+	nop ; nop ; nop ; nop
 snooze_2m:
 	nop ; nop ; nop ; nop
 	nop ; nop ; nop ; nop
@@ -234,6 +244,9 @@ write_1:
 read_4:
 	push {lr}
 	b _read_4
+read_5:
+	push {lr}
+	b _read_5
 read_32:
 	push {lr}
 	ONE_BIT_IN
@@ -263,6 +276,7 @@ read_32:
 	ONE_BIT_IN
 	ONE_BIT_IN
 	ONE_BIT_IN
+_read_5:
 	ONE_BIT_IN
 _read_4:
 	ONE_BIT_IN
@@ -281,6 +295,7 @@ init:
 	ldr r0, =CLK0_OUT
 	mov r10, r0
 	ldr r0, =(snooze_4m + 1)
+	ldr r0, =(snooze_1m + 1)
 	mov r9, r0
 	ldr r0, =COMM_BASE
 	mov r8, r0
@@ -413,20 +428,95 @@ wr_okay:
 #endif
 	pop {pc}
 
-cmd_reset:
+// write without caring about the response
+cmd_write_blind:
 	push {lr}
-	ldr r3, =0xffffffff
-	mov r12, r3
-	bl write_32
-	mov r3, r12
+
+	ldr r3, [r3, #COMM_ARG0]
+	bl write_16
+	push {r3}		// stash parity bit
+
+	ldr r3, =OEN_IN		// ignore Trn/Rsp/Trn
+	str r3, [r7, #OFF_OEN]
+	bl read_5
+
+	ldr r3, =OEN_OUT
+	str r3, [r7, #OFF_OEN]
+
+	mov r3, r8
+	ldr r3, [r3, #COMM_ARG1]
 	bl write_32
 
+	pop {r3}		// recover parity bit
+	bl write_1
+
+	mov r3, r8		// get COMM_BASE
+	movs r0, #0
+	str r0, [r3, #COMM_RESP]
+#if REPORT_DELAY
+	mov r0, =MAX_RETRY
+	str r0, [r3, #COMM_RETRY]
+#endif
+	pop {pc}
+
+
+cmd_jtag_to_swd:
+	push {lr}
+	ldr r3, =0xffffffff
+	bl write_32
+	ldr r3, =0xffffffff
+	bl write_32
 	ldr r3, =0b1110011110011110
 	bl write_16
 
-	mov r3, r12
+	mov r3, r8
+	movs r0, #0
+	str r0, [r3, #COMM_RESP]
+	pop {pc}
+
+cmd_swd_to_dormant:
+	push {lr}
+	ldr r3, =0xffffffff
 	bl write_32
-	mov r3, r12
+	ldr r3, =0xffffffff
+	bl write_32
+	ldr r3, =0xE3BC
+	bl write_16
+
+	mov r3, r8
+	movs r0, #0
+	str r0, [r3, #COMM_RESP]
+	pop {pc}
+
+cmd_dormant_to_swd:
+	push {lr}
+	// at least 8 HI
+	ldr r3, =0xffff
+	bl write_16
+	// activation sequence (128bit)
+	ldr r3, =0x6209F392
+	bl write_32
+	ldr r3, =0x86852D95 
+	bl write_32
+	ldr r3, =0xE3DDAFE9 
+	bl write_32
+	ldr r3, =0x19BC0EA2 
+	bl write_32
+	// 4 LO, selection sequence, 4 HI
+	ldr r3, =0xF1A0
+	bl write_16
+
+	mov r3, r8
+	movs r0, #0
+	str r0, [r3, #COMM_RESP]
+	pop {pc}
+
+cmd_reset:
+	push {lr}
+	// 50+ HI (60 here), 2+ LO (4 here)
+	ldr r3, =0xffffffff
+	bl write_32
+	ldr r3, =0x0fffffff
 	bl write_32
 
 	mov r3, r8
@@ -445,7 +535,7 @@ m0_irq:
 
 	mov r3, r8		// get COMM_BASE
 	ldr r0, [r3, #COMM_CMD]
-	cmp r0, #5
+	cmp r0, #9
 	bls good_cmd
 	movs r0, #0
 good_cmd:
@@ -456,7 +546,7 @@ good_cmd:
 
 	pop {pc}
 
-.align 2
+.align 4
 cmd_table:
 	.word cmd_invalid + 1
 	.word cmd_nop + 1
@@ -464,6 +554,10 @@ cmd_table:
 	.word cmd_write_txn + 1
 	.word cmd_reset + 1
 	.word cmd_setclock + 1
+	.word cmd_write_blind + 1
+	.word cmd_jtag_to_swd + 1
+	.word cmd_dormant_to_swd + 1
+	.word cmd_swd_to_dormant + 1
 
 cmd_invalid:
 	movs r0, #9
@@ -481,19 +575,19 @@ cmd_setclock:
 	bls good_clock
 	movs r0, #0
 good_clock:
-	lsls r0, r0, #2
+	lsls r2, r0, #2
 	adr r1, snooze_table
-	ldr r1, [r1, r0]
+	ldr r1, [r1, r2]
 	mov r9, r1
 
-	movs r0, #0
+	// return actual clock used
 	str r0, [r3, #COMM_RESP]
 	bx lr
 
-.align 2
+.align 4
 snooze_table:
-	.word snooze_2m + 1
-	.word snooze_2m + 1
+	.word snooze_1m + 1
+	.word snooze_1m + 1
 	.word snooze_2m + 1
 	.word snooze_3m + 1
 	.word snooze_4m + 1

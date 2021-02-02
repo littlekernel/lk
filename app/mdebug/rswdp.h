@@ -63,6 +63,12 @@
 #define CMD_JTAG_RX     0x0E /* tms=op.0, tdi=op.1, arg=bitcount, return (count/32) words */
 #define CMD_JTAG_VRFY   0x0F /* arg=bitcount, tms/tdi data/mask, error if tdo&mask != data */
 
+/* ATTACH ops */
+#define ATTACH_SWD_RESET 0
+#define ATTACH_JTAG_TO_SWD 1
+#define ATTACH_DORMANT_TO_SWD 2
+#define ATTACH_SWD_TO_DORMANT 3
+
 /* valid: target to host */
 #define CMD_STATUS      0x10 /* op=errorcode, arg=commands since last TXN_START */
 #define CMD_SWD_DATA    0x11 /* op=0 arg=count, payload: data x count */
@@ -87,11 +93,13 @@
 #define ERR_PARITY      4
 #define ERR_BAD_MATCH   5
 
-#define RSWD_VERSION        0x0102
 
 #define RSWD_VERSION_1_0    0x0100
 #define RSWD_VERSION_1_1    0x0101
 #define RSWD_VERSION_1_2    0x0102
+#define RSWD_VERSION_1_3    0x0103
+
+#define RSWD_VERSION        RSWD_VERSION_1_3
 
 // Pre-1.0
 //  - max packet size fixed at 2048 bytes
@@ -105,6 +113,9 @@
 //
 // Version 1.2
 // - CMD_JTAG_IO, CMD_JTAG_RX, CMD_JTAG_TX, CMD_JTAG_VRFY, CMD_JTAG_DATA added
+//
+// Version 1.3
+// - CMD_ATTACH ops (ATTACH_xyz), CMD_CLOCK_KHZ op indicates 0=SWCLK, 1=SWO
 
 /* CMD_SWD_OP operations - combine for direct AP/DP io */
 #define OP_RD 0x00

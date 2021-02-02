@@ -19,7 +19,7 @@
 #define _SWDP_H_
 
 void swd_init(void);
-void swd_reset(void);
+void swd_reset(unsigned kind);
 int swd_write(unsigned reg, unsigned val);
 int swd_read(unsigned reg, unsigned *val);
 

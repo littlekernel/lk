@@ -54,7 +54,7 @@ static u8 optable[16] = {
 };
 
 static const char *board_str = TARGET;
-static const char *build_str = "fw v0.91 (" __DATE__ ", " __TIME__ ")";
+static const char *build_str = "fw v1.00 (" __DATE__ ", " __TIME__ ")";
 
 static void _reboot(void) {
     platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
@@ -121,7 +121,7 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
                     mode = MODE_SWD;
                     swd_init();
                 }
-                swd_reset();
+                swd_reset(op);
                 continue;
             case CMD_JTAG_IO:
                 if (mode != MODE_JTAG) {
@@ -212,14 +212,15 @@ void process_txn(u32 txnid, u32 *rx, int rxc, u32 *tx) {
                 continue;
             case CMD_SET_CLOCK:
                 n = swd_set_clock(n);
-                printf("swdp clock is now %d KHz\n", n);
                 if (host_version >= RSWD_VERSION_1_0) {
                     tx[txc++] = RSWD_MSG(CMD_CLOCK_KHZ, 0, n);
                 }
                 continue;
             case CMD_SWO_CLOCK:
                 n = swo_set_clock(n);
-                printf("swo clock is now %d KHz\n", n);
+                if (host_version >= RSWD_VERSION_1_0) {
+                    tx[txc++] = RSWD_MSG(CMD_CLOCK_KHZ, 1, n);
+                }
                 continue;
             case CMD_VERSION:
                 host_version = n;

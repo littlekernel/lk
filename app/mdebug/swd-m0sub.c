@@ -29,6 +29,7 @@
 #include <platform/lpc43xx-sgpio.h>
 #include <platform/lpc43xx-clocks.h>
 
+#include "swd.h"
 #include "rswdp.h"
 
 #include "lpclink2.h"
@@ -78,12 +79,16 @@ static unsigned parity(unsigned n) {
 #define COMM_ARG2       0x18004008
 #define COMM_RESP       0x1800400C
 
-#define M0_CMD_ERR      0
-#define M0_CMD_NOP      1
-#define M0_CMD_READ     2
-#define M0_CMD_WRITE        3
-#define M0_CMD_RESET        4
-#define M0_CMD_SETCLOCK     5
+#define M0_CMD_ERR            0
+#define M0_CMD_NOP            1
+#define M0_CMD_READ           2
+#define M0_CMD_WRITE          3
+#define M0_CMD_RESET          4
+#define M0_CMD_SETCLOCK	      5
+#define M0_CMD_WRITE_BLIND    6
+#define M0_CMD_JTAG_TO_SWD    7
+#define M0_CMD_DORMANT_TO_SWD 8
+#define M0_CMD_SWD_TO_DORMANT 9
 
 #define RSP_BUSY    0xFFFFFFFF
 
@@ -116,8 +121,13 @@ void swd_init(void) {
 int swd_write(unsigned hdr, unsigned data) {
     unsigned n;
     unsigned p = parity(data);
-    writel(M0_CMD_WRITE, COMM_CMD);
+    if (hdr == WR_BUFFER) {
+        writel(M0_CMD_WRITE_BLIND, COMM_CMD);
+    } else {
+        writel(M0_CMD_WRITE, COMM_CMD);
+    }
     writel((hdr << 8) | (p << 16), COMM_ARG1);
+    //writel(0b00111111 | (hdr << 8) | (p << 16), COMM_ARG1);
     writel(data, COMM_ARG2);
     writel(RSP_BUSY, COMM_RESP);
     DSB;
@@ -148,14 +158,28 @@ int swd_read(unsigned hdr, unsigned *val) {
     return 0;
 }
 
-void swd_reset(void) {
+void swd_reset(unsigned kind) {
     unsigned n;
-    writel(M0_CMD_RESET, COMM_CMD);
+
+    switch (kind) {
+    case ATTACH_SWD_RESET:      kind = M0_CMD_RESET; break;
+    case ATTACH_JTAG_TO_SWD:    kind = M0_CMD_JTAG_TO_SWD; break;
+    case ATTACH_DORMANT_TO_SWD: kind = M0_CMD_DORMANT_TO_SWD; break;
+    case ATTACH_SWD_TO_DORMANT: kind = M0_CMD_SWD_TO_DORMANT; break;
+    default: return;
+    }	     
+
+    writel(kind, COMM_CMD);
     writel(RSP_BUSY, COMM_RESP);
     DSB;
     asm("sev");
     while ((n = readl(COMM_RESP)) == RSP_BUSY) ;
 }
+
+// align w/ snooze_table in fw
+static unsigned clocktab[9] = {
+	1000, 1000, 2000, 3000, 4000, 4000, 6000, 6000, 8000
+};
 
 unsigned swd_set_clock(unsigned khz) {
     unsigned n;
@@ -169,8 +193,7 @@ unsigned swd_set_clock(unsigned khz) {
     asm("sev");
     while ((n = readl(COMM_RESP)) == RSP_BUSY) ;
 
-    // todo: accurate value
-    return khz;
+    return clocktab[n];
 }
 
 void swd_hw_reset(int assert) {
