@@ -104,7 +104,7 @@ fi
 
 BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
 NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
-NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"
+NET_TAP_ARGS=" -netdev tap,id=vmnic,ifname=qemu0,script=no -device virtio-net-device,netdev=vmnic"
 NO_DISPLAY_ARGS=" -nographic"
 DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
 
@@ -130,7 +130,7 @@ if (( $DO_NET )); then
 fi
 if (( $DO_NET_TAP )); then
     ARGS+=$NET_TAP_ARGS
-    SUDO="sudo "
+    #SUDO="sudo "
 fi
 if (( $DO_DISPLAY )); then
     ARGS+=$DISPLAY_ARGS

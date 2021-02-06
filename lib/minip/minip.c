@@ -22,8 +22,6 @@
 #include <lk/list.h>
 #include <kernel/thread.h>
 
-static struct list_node arp_list = LIST_INITIAL_VALUE(arp_list);
-
 // TODO
 // 1. Tear endian code out into something that flips words before/after tx/rx calls
 
@@ -109,10 +107,9 @@ void minip_init(tx_func_t tx_handler, void *tx_arg,
     minip_tx_handler = tx_handler;
     minip_tx_arg = tx_arg;
 
-    minip_ip = ip;
-    minip_netmask = mask;
-    minip_gateway = gateway;
-    compute_broadcast_address();
+    minip_set_ipaddr(ip);
+    minip_set_netmask(mask);
+    minip_set_gateway(gateway);
 
     arp_cache_init();
     net_timer_init();
@@ -209,13 +206,24 @@ status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto) {
     struct ipv4_hdr *ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
     struct eth_hdr *eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
 
-
+    // are we sending a broadcast packet?
     if (dest_addr == IPV4_BCAST || dest_addr == minip_broadcast) {
         dst_mac = bcast_mac;
         goto ready;
     }
 
-    dst_mac = get_dest_mac(dest_addr);
+    // is this a local subnet packet or do we need to send to the router?
+    uint32_t target_addr = dest_addr;
+    if ((dest_addr & minip_netmask) != (minip_ip & minip_netmask)) {
+        // need to use the gateway
+        if (minip_gateway == IPV4_NONE) {
+            return ERR_NOT_FOUND; // TODO: better error code
+        }
+
+        target_addr = minip_gateway;
+    }
+
+    dst_mac = arp_get_dest_mac(target_addr);
     if (!dst_mac) {
         pktbuf_free(p, true);
         ret = -EHOSTUNREACH;

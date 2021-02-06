@@ -253,6 +253,9 @@ void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport)
 #endif
     sz -= sizeof(dhcp_msg_t);
     opt = msg->options;
+#if TRACE_DHCP
+    printf("\toptions: ");
+#endif
     while (sz >= 2) {
         sz -= 2;
         if (opt[1] > sz) {

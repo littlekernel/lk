@@ -25,8 +25,6 @@
 
 #define LOCAL_TRACE 0
 
-typedef uint32_t ipv4_addr;
-
 typedef struct tcp_header {
     uint16_t source_port;
     uint16_t dest_port;
@@ -114,6 +112,9 @@ typedef struct tcp_socket {
     struct tcp_socket *accepted;
 
     net_timer_t time_wait_timer;
+
+    /* connect waiting */
+    event_t connect_event;
 } tcp_socket_t;
 
 #define DEFAULT_MSS (1460)
@@ -216,7 +217,7 @@ static void dump_socket(tcp_socket_t *s) {
 }
 
 static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint16_t remote_port, uint16_t local_port) {
-    LTRACEF("remote ip 0x%x local ip 0x%x remote port %u local port %u\n", remote_ip, local_ip, remote_port, local_port);
+    LTRACEF_LEVEL(2, "remote ip 0x%x local ip 0x%x remote port %u local port %u\n", remote_ip, local_ip, remote_port, local_port);
 
     mutex_acquire(&tcp_socket_list_lock);
 
@@ -286,7 +287,7 @@ static void inc_socket_ref(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
 
     __UNUSED int oldval = atomic_add(&s->ref, 1);
-    LTRACEF("caller %p, thread %p, socket %p, ref now %d\n", __GET_CALLER(), get_current_thread(), s, oldval + 1);
+    LTRACEF_LEVEL(2, "caller %p, thread %p, socket %p, ref now %d\n", __GET_CALLER(), get_current_thread(), s, oldval + 1);
     DEBUG_ASSERT(oldval > 0);
 }
 
@@ -294,12 +295,13 @@ static bool dec_socket_ref(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
 
     int oldval = atomic_add(&s->ref, -1);
-    LTRACEF("caller %p, thread %p, socket %p, ref now %d\n", __GET_CALLER(), get_current_thread(), s, oldval - 1);
+    LTRACEF_LEVEL(2, "caller %p, thread %p, socket %p, ref now %d\n", __GET_CALLER(), get_current_thread(), s, oldval - 1);
 
     if (oldval == 1) {
         LTRACEF("destroying socket\n");
         event_destroy(&s->tx_event);
         event_destroy(&s->rx_event);
+        event_destroy(&s->connect_event);
 
         free(s->rx_buffer_raw);
         free(s->tx_buffer);
@@ -482,6 +484,44 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
 
             break;
 
+        /* active connection state */
+        case STATE_SYN_SENT:
+            if ((packet_flags & PKT_SYN) == 0) {
+                // we got data on the packet without a syn, reset
+                goto send_reset;
+            }
+
+            if ((packet_flags & PKT_ACK) == 0) {
+                // simultaneous SYN/ACK
+                // TODO: handle
+                goto send_reset;
+            }
+
+            LTRACEF("ack num %d tx win_low %d\n", header->ack_num, s->tx_win_low);
+
+            if (header->ack_num != s->tx_win_low + 1) {
+                // they didn't ack our syn
+                goto send_reset;
+            }
+
+            // remember their sequence
+            s->rx_win_low = header->seq_num + 1;
+            s->rx_win_high = s->rx_win_low + s->rx_win_size - 1;
+
+            s->tx_win_low++;
+            s->tx_win_high = s->tx_win_low + header->win_size;
+            s->tx_highest_seq = s->tx_win_low;
+
+            s->state = STATE_ESTABLISHED;
+
+            send_ack(s);
+
+            event_signal(&s->connect_event, true);
+
+            break;
+
+        /* established state */
+
         case STATE_ESTABLISHED:
             if (packet_flags & PKT_ACK) {
                 /* they're acking us */
@@ -565,9 +605,6 @@ fin_wait_2:
         case STATE_TIME_WAIT:
             /* /dev/null of packets */
             break;
-
-        case STATE_SYN_SENT:
-            PANIC_UNIMPLEMENTED;
     }
 
 done:
@@ -887,6 +924,7 @@ static void tcp_wakeup_waiters(tcp_socket_t *s) {
     // wake up any waiters
     event_signal(&s->rx_event, true);
     event_signal(&s->tx_event, true);
+    event_signal(&s->connect_event, true);
 }
 
 static void tcp_remote_close(tcp_socket_t *s) {
@@ -938,11 +976,72 @@ static tcp_socket_t *create_tcp_socket(bool alloc_buffers) {
     }
 
     sem_init(&s->accept_sem, 0);
+    event_init(&s->connect_event, false, 0);
 
     return s;
 }
 
 /* user api */
+status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
+    tcp_socket_t *s;
+
+    if (!handle)
+        return ERR_INVALID_ARGS;
+
+    s = create_tcp_socket(true);
+    if (!s)
+        return ERR_NO_MEMORY;
+
+    // XXX add some entropy to try to better randomize things
+    lk_bigtime_t t = current_time_hires();
+    printf("%lld\n", t);
+    rand_add_entropy(&t, sizeof(t));
+
+    // set up the socket for outgoing connections
+    s->local_ip = minip_get_ipaddr();
+    s->local_port = (rand() + 1024) & 0xffff; // TODO: allocate sanely
+    DEBUG_ASSERT(s->local_port <= 0xffff);
+    s->remote_ip = addr;
+    s->remote_port = port;
+
+    if (LOCAL_TRACE) {
+        dump_socket(s);
+    }
+
+    // send a SYN packet
+    mutex_acquire(&s->lock);
+
+    s->state = STATE_SYN_SENT;
+    add_socket_to_list(s);
+
+    /* set up a mss option for sending back */
+    tcp_mss_option_t mss_option;
+    mss_option.kind = 0x2;
+    mss_option.len = 0x4;
+    mss_option.mss = ntohs(s->mss);
+
+    tcp_send(s->remote_ip, s->remote_port, s->local_ip, s->local_port, NULL, 0, PKT_SYN, &mss_option, 0x4, 0, s->tx_win_low, s->rx_win_size);
+
+    // TODO: handle retransmit
+
+    mutex_release(&s->lock);
+
+    // block to wait for a successful connection
+    if (event_wait(&s->connect_event) == ERR_TIMED_OUT) {
+        return ERR_TIMED_OUT;
+    }
+
+    status_t err = NO_ERROR;
+    mutex_acquire(&s->lock);
+    if (s->state != STATE_ESTABLISHED) {
+        err = ERR_CHANNEL_CLOSED;
+    }
+    mutex_release(&s->lock);
+
+    *handle = s;
+
+    return err;
+}
 
 status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port) {
     tcp_socket_t *s;
@@ -1150,6 +1249,7 @@ status_t tcp_close(tcp_socket_t *socket) {
 
             // XXX set up fin retransmit timer here
             break;
+        case STATE_SYN_SENT:
         case STATE_FIN_WAIT_1:
         case STATE_FIN_WAIT_2:
         case STATE_CLOSING:

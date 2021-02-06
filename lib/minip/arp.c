@@ -16,26 +16,19 @@
 #include <kernel/mutex.h>
 #include <lk/trace.h>
 
-typedef union {
-    uint32_t u;
-    uint8_t b[4];
-} ipv4_t;
-
 #define LOCAL_TRACE 0
-static struct list_node arp_list;
 typedef struct {
     struct list_node node;
     uint32_t addr;
     uint8_t mac[6];
 } arp_entry_t;
 
+static struct list_node arp_list = LIST_INITIAL_VALUE(arp_list);
 static mutex_t arp_mutex = MUTEX_INITIAL_VALUE(arp_mutex);
 
-void arp_cache_init(void) {
-    list_initialize(&arp_list);
-}
+void arp_cache_init(void) {}
 
-static inline void mru_update(struct list_node *entry) {
+static void mru_update(struct list_node *entry) {
     if (arp_list.next == entry)
         return;
 
@@ -77,7 +70,7 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6]) {
         }
 
         arp->addr = addr;
-        memcpy(arp->mac, mac, sizeof(arp->mac));
+        mac_addr_copy(arp->mac, mac);
         list_add_head(&arp_list, &arp->node);
     }
 

@@ -8,14 +8,13 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
 #include <endian.h>
+#include <iovec.h>
+#include <lib/pktbuf.h>
+#include <lk/compiler.h>
 #include <lk/list.h>
 #include <stdint.h>
-#include <iovec.h>
 #include <sys/types.h>
-
-#include <lib/pktbuf.h>
 
 __BEGIN_CDECLS
 
@@ -45,6 +44,11 @@ void minip_set_macaddr(const uint8_t *addr);
 
 uint32_t minip_get_ipaddr(void);
 void minip_set_ipaddr(const uint32_t addr);
+uint32_t minip_get_netmask(void);
+void minip_set_netmask(const uint32_t mask);
+uint32_t minip_get_broadcast(void); // computed from ipaddr & netmask
+uint32_t minip_get_gateway(void);
+void minip_set_gateway(const uint32_t addr);
 
 void minip_set_hostname(const char *name);
 const char *minip_get_hostname(void);
@@ -69,6 +73,7 @@ status_t udp_close(udp_socket_t *handle);
 /* tcp */
 typedef struct tcp_socket tcp_socket_t;
 
+status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port);
 status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port);
 status_t tcp_accept_timeout(tcp_socket_t *listen_socket, tcp_socket_t **accept_socket, lk_time_t timeout);
 status_t tcp_close(tcp_socket_t *socket);
