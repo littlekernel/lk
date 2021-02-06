@@ -9,6 +9,7 @@ SECTIONS
 
     /* text/read-only data */
     .text : {
+        KEEP(*(.text.boot.secondstage))
         KEEP(*(.text.boot.vectab1))
         KEEP(*(.text.boot.vectab2))
         KEEP(*(.text.boot))
