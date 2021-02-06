@@ -11,6 +11,7 @@ function HELP {
     echo "-d <disk image>     : a virtio block device"
     echo "-n                  : user mode networking, defaults to virtio-net-pci device"
     echo "-N <network driver> : specify network driver (virtio-net-pci, e1000e, etc)"
+    echo "-t                  : use tap interface qemu0 for networking"
     echo "-g                  : with graphics"
     echo "-k                  : use KVM"
     echo "-h for help"
@@ -25,13 +26,14 @@ DO_KVM=0
 DO_DISK=0
 DISK_IMAGE=""
 DO_NET=0
+DO_NET_TAP=0
 NETDEV=e1000e
 MEMSIZE=0
 SMP=1
 SUDO=""
 MAKE_VARS=""
 
-while getopts 6d:gklm:nN:s:h FLAG; do
+while getopts 6d:gklm:nN:s:th FLAG; do
     case $FLAG in
         6) DO_64BIT=1;;
         d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
@@ -40,6 +42,7 @@ while getopts 6d:gklm:nN:s:h FLAG; do
         l) DO_LEGACY=1;;
         m) MEMSIZE=$OPTARG;;
         n) DO_NET=1;;
+        t) DO_NET_TAP=1;;
         N) NETDEV=$OPTARG;;
         s) SMP=$OPTARG;;
         h) HELP;;
@@ -107,10 +110,19 @@ if (( $DO_DISK )); then
 fi
 if (( $DO_NET )); then
     if (( ! $DO_LEGACY )); then
-        ARGS+=" -netdev user,id=vmnic,hostname=qemu -device $NETDEV,netdev=vmnic"
-        #ARGS+=" -netdev tap,id=vmnic,ifname=qemu.tap0,script=no,downscript=no"
-        #ARGS+=" -device e1000e,netdev=vmnic"
-        #SUDO="sudo"
+        if (( ! $DO_NET_TAP )); then
+            ARGS+=" -netdev user,id=vmnic,hostname=qemu"
+            # quick note to enable tap interface
+            # IFNAME=qemu
+            # BRIDGE=br0
+            # sudo tunctl -u $(whoami) -t ${IFNAME}
+            # sudo ifconfig ${IFNAME} up
+            # sudo ip link set ${IFNAME} master ${BRIDGE}
+        else
+            ARGS+=" -netdev tap,id=vmnic,ifname=qemu0,script=no,downscript=no"
+            #SUDO="sudo"
+        fi
+        ARGS+=" -device $NETDEV,netdev=vmnic"
     else
         echo "implement legacy + network config"
         exit 1

@@ -78,6 +78,7 @@ enum {
 enum {
     ETH_TYPE_IPV4 = 0x0800,
     ETH_TYPE_ARP  = 0x0806,
+    ETH_TYPE_IPV6 = 0x88dd,
 };
 
 enum {

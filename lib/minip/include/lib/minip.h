@@ -49,7 +49,13 @@ void minip_set_ipaddr(const uint32_t addr);
 void minip_set_hostname(const char *name);
 const char *minip_get_hostname(void);
 
-uint32_t minip_parse_ipaddr(const char *addr, size_t len);
+uint32_t minip_get_broadcast(void);
+
+uint32_t minip_get_netmask(void);
+void minip_set_netmask(const uint32_t netmask);
+
+uint32_t minip_get_gateway(void);
+void minip_set_gateway(const uint32_t gateway);
 
 /* udp */
 typedef struct udp_socket udp_socket_t;
@@ -75,5 +81,9 @@ static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **ac
 
 /* utilities */
 void gen_random_mac_address(uint8_t *mac_addr);
+
+uint32_t minip_parse_ipaddr(const char *addr, size_t len);
+void printip(uint32_t x);
+void printip_named(const char *s, u32 x);
 
 __END_CDECLS

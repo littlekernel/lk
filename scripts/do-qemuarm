@@ -77,7 +77,7 @@ fi
 ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
 BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
 NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
-NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"
+NET_TAP_ARGS=" -netdev tap,id=vmnic,ifname=qemu0,script=no -device virtio-net-device,netdev=vmnic"
 NO_NET_ARGS=" -net none"
 DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
 NO_DISPLAY_ARGS=" -nographic"

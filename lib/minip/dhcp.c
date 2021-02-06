@@ -8,17 +8,17 @@
 
 #include "minip-internal.h"
 
-#include <lk/err.h>
-#include <platform.h>
-#include <stdio.h>
+#include <endian.h>
+#include <kernel/thread.h>
 #include <lk/debug.h>
+#include <lk/err.h>
 #include <lk/trace.h>
 #include <malloc.h>
-
-#include <kernel/thread.h>
-#include <sys/types.h>
-#include <endian.h>
+#include <platform.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 #define TRACE_DHCP 0
 
@@ -70,17 +70,18 @@ udp_socket_t *dhcp_udp_handle;
 
 #define HW_ETHERNET 1
 
-static void printip(const char *name, u32 x) {
-    union {
-        u32 u;
-        u8 b[4];
-    } ip;
-    ip.u = x;
-    printf("%s %d.%d.%d.%d\n", name, ip.b[0], ip.b[1], ip.b[2], ip.b[3]);
-}
+static struct dhcp_state {
+    volatile bool configured;
+    uint32_t xid;
+    enum {
+        INITIAL = 0,
+        DISCOVER_SENT,
+        RECV_OFFER,
+        REQUEST_SENT,
+        CONFIGURED,
+    } state;
+} dhcp;
 
-static volatile int configured = 0;
-static int cfgstate = 0;
 
 static void dhcp_discover(u32 xid) {
     struct {
@@ -111,6 +112,10 @@ static void dhcp_discover(u32 xid) {
 
     *opt++ = OPT_DONE;
 
+#if TRACE_DHCP
+    printf("sending dhcp discover\n");
+#endif
+    dhcp.state = DISCOVER_SENT;
     status_t ret = udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt), dhcp_udp_handle);
     if (ret != NO_ERROR) {
         printf("DHCP_DISCOVER failed: %d\n", ret);
@@ -156,6 +161,10 @@ static void dhcp_request(u32 xid, u32 server, u32 reqip) {
 
     *opt++ = OPT_DONE;
 
+#if TRACE_DHCP
+    printf("sending dhcp request\n");
+#endif
+    dhcp.state = REQUEST_SENT;
     status_t ret = udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt), dhcp_udp_handle);
     if (ret != NO_ERROR) {
         printf("DHCP_REQUEST failed: %d\n", ret);
@@ -171,6 +180,15 @@ static void dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, voi
     u32 server = 0;
     int op = -1;
 
+    // lossy testing for state machine transitions
+    if (false) {
+        int r = rand();
+        if (r % 3) {
+            printf("dropping packet for testing r %#x\n", r);
+            return;
+        }
+    }
+
     if (sz < sizeof(dhcp_msg_t)) return;
 
     uint8_t mac[6];
@@ -178,22 +196,24 @@ static void dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, voi
     if (memcmp(msg->chaddr, mac, 6)) return;
 
 #if TRACE_DHCP
-    printf("dhcp op=%d len=%zu from p=%d ip=", msg->opcode, sz, srcport);
-    printip("", srcip);
+    printf("received DHCP op %d, len %zu, from p %d, ip=", msg->opcode, sz, srcport);
+    printip(srcip);
+    printf("\n");
 #endif
 
-    if (configured) {
+    if (dhcp.configured) {
         printf("already configured\n");
         return;
     }
 #if TRACE_DHCP
-    printip("ciaddr", msg->ciaddr);
-    printip("yiaddr", msg->yiaddr);
-    printip("siaddr", msg->siaddr);
-    printip("giaddr", msg->giaddr);
-    printf("chaddr %02x:%02x:%02x:%02x:%02x:%02x\n",
+    printip_named("\tciaddr", msg->ciaddr);
+    printip_named(" yiaddr", msg->yiaddr);
+    printip_named(" siaddr", msg->siaddr);
+    printip_named(" giaddr", msg->giaddr);
+    printf(" chaddr %02x:%02x:%02x:%02x:%02x:%02x\n",
            msg->chaddr[0], msg->chaddr[1], msg->chaddr[2],
            msg->chaddr[3], msg->chaddr[4], msg->chaddr[5]);
+    printf("\toptions: ");
 #endif
     sz -= sizeof(dhcp_msg_t);
     opt = msg->options;
@@ -229,35 +249,64 @@ static void dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, voi
     }
 done:
 #if TRACE_DHCP
+    printf("\n\t");
+    if (server) printip_named("server", server);
+    if (netmask) printip_named(" netmask", netmask);
+    if (gateway) printip_named(" gateway", gateway);
+    if (dns) printip_named(" dns", dns);
     printf("\n");
-    if (server) printip("server", server);
-    if (netmask) printip("netmask", netmask);
-    if (gateway) printip("gateway", gateway);
-    if (dns) printip("dns", dns);
 #endif
-    if (cfgstate == 0) {
+    if (dhcp.state == DISCOVER_SENT) {
         if (op == OP_DHCPOFFER) {
-            printip("dhcp: offer:", msg->yiaddr);
+#if TRACE_DHCP
+            printip_named("dhcp: offer:", msg->yiaddr);
+            printf("\n");
+#endif
             if (server) {
-                dhcp_request(0xaabbccdd, server, msg->yiaddr);
-                cfgstate = 1;
+                dhcp.state = RECV_OFFER;
+                dhcp_request(dhcp.xid, server, msg->yiaddr);
             }
         }
-    } else if (cfgstate == 1) {
+    } else if (dhcp.state == REQUEST_SENT) {
         if (op == OP_DHCPACK) {
-            printip("dhcp: ack:", msg->yiaddr);
+#if TRACE_DHCP
+            printip_named("dhcp: ack:", msg->yiaddr);
+            printf("\n");
+#endif
+            printf("DHCP configured\n");
             minip_set_ipaddr(msg->yiaddr);
-            configured = 1;
+            if (netmask) {
+                minip_set_netmask(netmask);
+            }
+            if (gateway) {
+                minip_set_gateway(gateway);
+            }
+            dhcp.state = CONFIGURED;
+            dhcp.configured = true;
         }
     }
 }
 
 static int dhcp_thread(void *arg) {
-    for (;;) {
-        if (configured) break;
-        thread_sleep(500);
-        if (configured) break;
-        dhcp_discover(0xaabbccdd);
+    // roll a random xid
+    dhcp.xid = rand();
+
+    while (!dhcp.configured) {
+        switch (dhcp.state) {
+            case INITIAL:
+            case DISCOVER_SENT:
+                // for these two states, start off by sending a discover packet
+                dhcp_discover(dhcp.xid);
+                break;
+            case REQUEST_SENT:
+                // if we're still in this state after some period of time,
+                // switch back to the INITIAL state and start over.
+                dhcp.state = INITIAL;
+                break;
+            default:
+                ;
+        }
+        thread_sleep(1000);
     }
     return 0;
 }
@@ -268,7 +317,10 @@ void minip_init_dhcp(tx_func_t tx_func, void *tx_arg) {
     minip_init(tx_func, tx_arg, IPV4_NONE, IPV4_NONE, IPV4_NONE);
 
     int ret = udp_open(IPV4_BCAST, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, &dhcp_udp_handle);
-    printf("dhcp opened udp: %d\n", ret);
+    if (ret != NO_ERROR) {
+        printf("DHCP: error opening udp socket\n");
+        return;
+    }
 
     udp_listen(DHCP_CLIENT_PORT, dhcp_cb, NULL);
 

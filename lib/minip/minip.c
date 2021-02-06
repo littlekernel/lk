@@ -70,6 +70,27 @@ void minip_set_ipaddr(const uint32_t addr) {
     compute_broadcast_address();
 }
 
+uint32_t minip_get_broadcast(void) {
+    return minip_broadcast;
+}
+
+uint32_t minip_get_netmask(void) {
+    return minip_netmask;
+}
+
+void minip_set_netmask(const uint32_t netmask) {
+    minip_netmask = netmask;
+    compute_broadcast_address();
+}
+
+uint32_t minip_get_gateway(void) {
+    return minip_gateway;
+}
+
+void minip_set_gateway(const uint32_t gateway) {
+    minip_gateway = gateway;
+}
+
 void gen_random_mac_address(uint8_t *mac_addr) {
     for (size_t i = 0; i < 6; i++) {
         mac_addr[i] = rand() & 0xff;
@@ -202,6 +223,10 @@ status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto) {
     }
 
 ready:
+    if (LOCAL_TRACE) {
+        printf("sending ipv4\n");
+    }
+
     minip_build_mac_hdr(eth, dst_mac, ETH_TYPE_IPV4);
     minip_build_ipv4_hdr(ip, dest_addr, proto, data_len);
 
@@ -397,11 +422,6 @@ __NO_INLINE static int handle_arp_pkt(pktbuf_t *p) {
     return 0;
 }
 
-static void dump_mac_address(const uint8_t *mac) {
-    printf("%02x:%02x:%02x:%02x:%02x:%02x",
-           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
 static void dump_eth_packet(const struct eth_hdr *eth) {
     printf("ETH src ");
     dump_mac_address(eth->src_mac);
@@ -440,6 +460,11 @@ void minip_rx_driver_callback(pktbuf_t *p) {
     }
 }
 
+void dump_mac_address(const uint8_t *mac) {
+    printf("%02x:%02x:%02x:%02x:%02x:%02x",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
 uint32_t minip_parse_ipaddr(const char *ipaddr_str, size_t len) {
     uint8_t ip[4] = { 0, 0, 0, 0 };
     uint8_t pos = 0, i = 0;
@@ -458,4 +483,19 @@ uint32_t minip_parse_ipaddr(const char *ipaddr_str, size_t len) {
     }
 
     return IPV4_PACK(ip);
+}
+
+// printf the ip address passed in
+void printip(uint32_t x) {
+    union {
+        u32 u;
+        u8 b[4];
+    } ip;
+    ip.u = x;
+    printf("%d.%d.%d.%d", ip.b[0], ip.b[1], ip.b[2], ip.b[3]);
+}
+
+void printip_named(const char *s, uint32_t x) {
+    printf("%s ", s);
+    printip(x);
 }

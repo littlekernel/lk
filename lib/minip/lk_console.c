@@ -76,10 +76,11 @@ minip_usage:
                 break;
 
             case 's': {
-                uint32_t ipaddr = minip_get_ipaddr();
-
                 printf("hostname: %s\n", minip_get_hostname());
-                printf("ip: %u.%u.%u.%u\n", IPV4_SPLIT(ipaddr));
+                printf("ip: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_ipaddr()));
+                printf("netmask: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_netmask()));
+                printf("broadcast: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_broadcast()));
+                printf("gateway: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_gateway()));
             }
             break;
             case 't': {
