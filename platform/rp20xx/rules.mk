@@ -13,6 +13,7 @@ ARM_CPU := cortex-m0plus
 
 GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE) \
+	PICO_ON_DEVICE=1 \
 	PICO_NO_BINARY_INFO=1
 
 MODULE_SRCS += \
@@ -21,6 +22,32 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/uart.c \
 	$(LOCAL_DIR)/vectab.c
+
+MODULE_SRCS += \
+	external/platform/pico/rp2_common/hardware_clocks/clocks.c \
+	external/platform/pico/rp2_common/hardware_gpio/gpio.c \
+	external/platform/pico/rp2_common/hardware_pll/pll.c \
+	external/platform/pico/rp2_common/hardware_uart/uart.c \
+	external/platform/pico/rp2_common/hardware_watchdog/watchdog.c \
+	external/platform/pico/rp2_common/hardware_xosc/xosc.c
+
+GLOBAL_INCLUDES += \
+	external/platform/pico/common/pico_base/include \
+	external/platform/pico/common/pico_binary_info/include \
+	external/platform/pico/rp2040/hardware_regs/include \
+	external/platform/pico/rp2040/hardware_structs/include \
+	external/platform/pico/rp2_common/pico_platform/include \
+	external/platform/pico/rp2_common/hardware_base/include \
+	external/platform/pico/rp2_common/hardware_clocks/include \
+	external/platform/pico/rp2_common/hardware_gpio/include \
+	external/platform/pico/rp2_common/hardware_irq/include \
+	external/platform/pico/rp2_common/hardware_pll/include \
+	external/platform/pico/rp2_common/hardware_sync/include \
+	external/platform/pico/rp2_common/hardware_resets/include \
+	external/platform/pico/rp2_common/hardware_timer/include \
+	external/platform/pico/rp2_common/hardware_uart/include \
+	external/platform/pico/rp2_common/hardware_watchdog/include \
+	external/platform/pico/rp2_common/hardware_xosc/include
 
 # use a two segment memory layout, where all of the read-only sections
 # of the binary reside in rom, and the read/write are in memory. The

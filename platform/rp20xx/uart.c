@@ -7,6 +7,7 @@
 #include <lk/reg.h>
 #include <lib/cbuf.h>
 
+#if 0
 void uart_init_early(void) {
 	for (;;) ;
 }
@@ -28,3 +29,4 @@ void uart_flush_rx(int port) {}
 
 void uart_init_port(int port, uint baud) {}
 
+#endif
