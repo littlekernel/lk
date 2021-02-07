@@ -12,7 +12,8 @@ ARCH := arm
 ARM_CPU := cortex-m0plus
 
 GLOBAL_DEFINES += \
-	MEMSIZE=$(MEMSIZE)
+	MEMSIZE=$(MEMSIZE) \
+	PICO_NO_BINARY_INFO=1
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
