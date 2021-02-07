@@ -33,4 +33,16 @@ MODULE_DEPS += \
 	arch/arm/arm-m/systick \
 	lib/cbuf
 
+# take the result of the build and generate a uf2 file
+UF2BIN := $(basename $(OUTBIN)).uf2
+UF2CONV_TOOL := $(LOCAL_DIR)/tools/uf2conv.py
+FAMILY_ID := 0xe48bff56 # UF2 family id
+$(UF2BIN): $(OUTBIN) $(UF2CONV_TOOL)
+	@$(MKDIR)
+	$(NOECHO)echo generating $@; \
+	$(UF2CONV_TOOL) -b $(ROMBASE) -f $(FAMILY_ID) -c -o $@ $<
+
+EXTRA_BUILDDEPS += $(UF2BIN)
+GENERATED += $(UF2BIN)
+
 include make/module.mk
