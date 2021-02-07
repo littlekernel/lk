@@ -1,0 +1,13 @@
+
+Origin: https://github.com/raspberrypi/pico-sdk
+Change: 2d5789eca89658a7f0a01e2d6010c0f254605d72
+
+This is the contents of src/boads, src/common,
+src/rp2040, and src/rp2_common, excluding cmake
+goop.
+
+I suspect we'll trim it back closer to just the
+register definitions, but for now leave it mostly
+as-is to simplify updating as the pico sdk updates
+and we figure out how deeply (or not) to integrate
+it with lk.
