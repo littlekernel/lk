@@ -214,7 +214,11 @@ THUMBCFLAGS :=
 THUMBINTERWORK :=
 ifeq ($(ENABLE_THUMB),true)
 THUMBCFLAGS := -mthumb -D__thumb__
+ifneq ($(SUBARCH),arm-m)
+# Only enable thumb interworking switch if we're compiling in a mixed
+# arm/thumb environment. Also possible this switch is not needed anymore.
 THUMBINTERWORK := -mthumb-interwork
+endif
 endif
 
 GLOBAL_INCLUDES += \
