@@ -18,8 +18,8 @@
 #include <kernel/spinlock.h>
 
 #include <platform/lpc43xx-usb.h>
-static_assert(sizeof(usb_dqh_t) == 64);
-static_assert(sizeof(usb_dtd_t) == 32);
+static_assert(sizeof(usb_dqh_t) == 64, "");
+static_assert(sizeof(usb_dtd_t) == 32, "");
 
 #include <dev/udc.h>
 
