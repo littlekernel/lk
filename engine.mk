@@ -167,9 +167,6 @@ include top/rules.mk
 # modules in the ALLMODULES list
 include make/recurse.mk
 
-# any extra top level build dependencies that someone declared
-all:: $(EXTRA_BUILDDEPS)
-
 # add some automatic configuration defines
 GLOBAL_DEFINES += \
 	PROJECT_$(PROJECT)=1 \
@@ -263,6 +260,10 @@ $(info GLOBAL_OPTFLAGS = $(GLOBAL_OPTFLAGS))
 
 # make all object files depend on any targets in GLOBAL_SRCDEPS
 $(ALLOBJS): $(GLOBAL_SRCDEPS)
+
+# any extra top level build dependencies that someone declared.
+# build.mk may add to EXTRA_BUILDDEPS, this must be evalauted after build.mk.
+all:: $(EXTRA_BUILDDEPS)
 
 clean: $(EXTRA_CLEANDEPS)
 	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex $(OUTELF).dump
