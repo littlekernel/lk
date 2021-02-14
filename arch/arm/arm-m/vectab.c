@@ -5,6 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <arch/arm/cm.h>
 #include <lk/compiler.h>
 #include <stdint.h>
 
@@ -30,15 +31,22 @@ extern void _systick(void);
 extern struct __debugger_info__ _debugger_info;
 #endif
 
+// ARMv7m+ have more vectors than armv6m
+#if (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+#define ARMV7M_VECTOR(v) (v)
+#else
+#define ARMV7M_VECTOR(v) 0
+#endif
+
 const void *const __SECTION(".text.boot.vectab1") vectab[] = {
     /* arm exceptions */
     initial_stack + sizeof(initial_stack),
     _start,
     _nmi, // nmi
     _hardfault, // hard fault
-    _memmanage, // mem manage
-    _busfault, // bus fault
-    _usagefault, // usage fault
+    ARMV7M_VECTOR(_memmanage), // mem manage
+    ARMV7M_VECTOR(_busfault), // bus fault
+    ARMV7M_VECTOR(_usagefault), // usage fault
     0, // reserved
 #if defined(WITH_DEBUGGER_INFO)
     (void *) 0x52474244,
@@ -49,7 +57,7 @@ const void *const __SECTION(".text.boot.vectab1") vectab[] = {
 #endif
     0, // reserved
     _svc, // svcall
-    _debugmonitor, // debug monitor
+    ARMV7M_VECTOR(_debugmonitor), // debug monitor
     0, // reserved
     _pendsv, // pendsv
     _systick, // systick
