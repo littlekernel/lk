@@ -22,15 +22,28 @@ unsigned int arm_cm_num_irq_pri_bits;
 unsigned int arm_cm_irq_pri_mask;
 #endif
 
+/* if otherwise not set externally, load the VTOR for all armv7m+ cpus.
+ * dynamic VTOR setting is optional on armv6m cores.
+ */
+#ifndef ARM_CM_SET_VTOR
+#if (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+#define ARM_CM_SET_VTOR 1
+#else
+#define ARM_CM_SET_VTOR 0
+#endif
+#endif
+
 void arch_early_init(void) {
 
     arch_disable_ints();
 
-#if (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
-    uint i;
+#if ARM_CM_SET_VTOR
     /* set the vector table base */
     SCB->VTOR = (uint32_t)&vectab;
+#endif
 
+#if (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+    uint i;
 #if ARM_CM_DYNAMIC_PRIORITY_SIZE
     /* number of priorities */
     for (i=0; i < 7; i++) {
@@ -60,9 +73,9 @@ void arch_early_init(void) {
 
     /* enable certain faults */
     SCB->SHCSR |= (SCB_SHCSR_USGFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_MEMFAULTENA_Msk);
+#endif
 
     /* set the svc and pendsv priority level to pretty low */
-#endif
     NVIC_SetPriority(SVCall_IRQn, arm_cm_lowest_priority());
     NVIC_SetPriority(PendSV_IRQn, arm_cm_lowest_priority());
 

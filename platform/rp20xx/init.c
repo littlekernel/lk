@@ -24,9 +24,6 @@ void platform_early_init(void) {
     gpio_set_function(1, GPIO_FUNC_UART);
     uart_puts(uart0, "Hello World!\n");
 
-    // arch/arm/arm-m/arch.c does this but only for M3 and above...
-    SCB->VTOR = (uint32_t) &vectab;
-
     arm_cm_systick_init(133000000);
 }
 
