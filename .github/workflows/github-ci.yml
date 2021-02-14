@@ -1,0 +1,166 @@
+name: LK CI
+
+# Brute force build a bunch of variants of LK in parallel jobs.
+
+on: [ push, pull_request ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # build a bunch of common projects with debuglevel 2
+          - project: qemu-virt-arm32-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: qemu-virt-arm64-test
+            toolchain: aarch64-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: qemu-virt-arm32-minimal
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: vim2-test
+            toolchain: aarch64-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: zybo-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: rpi2-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: uzed-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: stm32746g-eval2-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: stm32f429i-disco-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: stm32f746g-disco-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: stm32f4-discovery-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: stellaris-launchpad-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: nrf51-pca10028-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: nucleo-f072rb
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
+          - project: qemu-microblaze-test
+            toolchain: microblaze-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: qemu-mips-test
+            toolchain: mips-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: qemu-virt-riscv32-test
+            toolchain: riscv32-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: qemu-virt-riscv64-test
+            toolchain: riscv64-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: qemu-virt-riscv64-supervisor-test
+            toolchain: riscv64-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: sifive-e-test
+            toolchain: riscv32-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: sifive-unleashed-test
+            toolchain: riscv64-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: pc-x86-test
+            toolchain: i386-elf-7.5.0-Linux-x86_64
+            debug: 2
+          - project: pc-x86-64-test
+            toolchain: x86_64-elf-7.5.0-Linux-x86_64
+            debug: 2
+          # build some in release mode (DEBUG=0)
+          - project: qemu-virt-arm32-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 0
+          - project: qemu-virt-arm64-test
+            toolchain: aarch64-elf-7.5.0-Linux-x86_64
+            debug: 0
+          - project: stm32f746g-disco-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 0
+          - project: pc-x86-test
+            toolchain: i386-elf-7.5.0-Linux-x86_64
+            debug: 0
+          - project: pc-x86-64-test
+            toolchain: x86_64-elf-7.5.0-Linux-x86_64
+            debug: 0
+          - project: qemu-microblaze-test
+            toolchain: microblaze-elf-7.5.0-Linux-x86_64
+            debug: 0
+          - project: qemu-mips-test
+            toolchain: mips-elf-7.5.0-Linux-x86_64
+            debug: 0
+          - project: sifive-e-test
+            toolchain: riscv32-elf-7.5.0-Linux-x86_64
+            debug: 0
+
+    env:
+      PROJECT: ${{ matrix.project }}
+      TOOLCHAIN: ${{ matrix.toolchain }}
+      DEBUG: ${{ matrix.debug }}
+    steps:
+    - name: banner
+      shell: bash
+      run: |
+        printf "Building with %d processors\n" "$(nproc)"
+        grep -oP '(?<=model name\t: ).*' /proc/cpuinfo|head -n1
+        echo PROJECT = $PROJECT
+        echo TOOLCHAIN = $TOOLCHAIN
+        echo DEBUG = $DEBUG
+
+    # check out the source
+    - uses: actions/checkout@v2
+
+    # maintain a directory archives/ in the repo
+    # it will contain tarballs of various toolchains
+    - name: cache
+      uses: actions/cache@v2.1.1
+      id: cache
+      with:
+        # A list of files, directories, and wildcard patterns to cache and restore
+        path: archives
+        # An explicit key for restoring and saving the cache
+        key: archives-${{ matrix.toolchain }}-${{ runner.os }}
+
+    # download a toolchain from http://newos.org/toolchains
+    - name: toolchains
+      shell: bash
+      run: |
+        TOOLCHAIN_BASE_URL="http://newos.org/toolchains"
+        TOOLCHAIN_SUFFIX="tar.xz"
+        TOOLCHAIN_ADDRESS="$TOOLCHAIN_BASE_URL/$TOOLCHAIN.$TOOLCHAIN_SUFFIX"
+        mkdir -p archives
+        cd archives
+        echo "Downloading toolchain $TOOLCHAIN from $TOOLCHAIN_ADDRESS"
+        wget -v -N $TOOLCHAIN_ADDRESS || exit 1
+        cd ..
+        echo "Unpacking $TOOLCHAIN"
+        tar xf archives/$TOOLCHAIN.$TOOLCHAIN_SUFFIX || exit 1
+
+    # build it
+    - name: build
+      shell: bash
+      run: |
+        export PATH=$GITHUB_WORKSPACE/$TOOLCHAIN/bin:$PATH
+        make -j $(nproc)
+
+    # upload artifacts
+    #- uses: actions/upload-artifact@v2
+    #  with:
+    #   name: build-dir
+    #   path: build-${{ matrix.project }}/lk.*
+
+# vim: ts=2 sw=2 expandtab
