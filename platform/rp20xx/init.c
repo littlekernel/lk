@@ -6,6 +6,7 @@
 
 #include <platform.h>
 #include <arch/arm/cm.h>
+#include <target/debugconfig.h>
 
 #include <hardware/clocks.h>
 #include <hardware/gpio.h>
@@ -15,16 +16,22 @@
 extern void* vectab;
 
 void platform_early_init(void) {
+    // initialize the clock tree.
+    // gets clock values from defines in SDK at
+    // external/platform/pico/rp2040/hardware_regs/include/hardware/platform_defs.h
     clocks_init();
 
+    // start the systick timer
+    arm_cm_systick_init(125000000);
+
+    // unreset everything
     unreset_block_wait(RESETS_RESET_BITS);
 
-    uart_init(uart0, 1000000);
-    gpio_set_function(0, GPIO_FUNC_UART);
-    gpio_set_function(1, GPIO_FUNC_UART);
-    uart_puts(uart0, "Hello World!\n");
-
-    arm_cm_systick_init(133000000);
+    // target defines drive how we configure the debug uart
+    uart_init(DEBUG_UART, 115200);
+    gpio_set_function(DEBUG_UART_GPIOA, GPIO_FUNC_UART);
+    gpio_set_function(DEBUG_UART_GPIOB, GPIO_FUNC_UART);
+    uart_puts(DEBUG_UART, "Hello World!\n");
 }
 
 void platform_init(void) {
@@ -32,5 +39,5 @@ void platform_init(void) {
 
 
 bool running_on_fpga(void) {
-	return false;
+    return false;
 }

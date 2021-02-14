@@ -5,8 +5,8 @@
 // https://opensource.org/licenses/MIT
 
 #include <target.h>
+#include <target/debugconfig.h>
 #include <platform/gpio.h>
-
 
 void target_early_init(void) {
 }

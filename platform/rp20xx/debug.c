@@ -6,20 +6,22 @@
 
 #include <platform/debug.h>
 
+#include <target/debugconfig.h>
+
 #include <hardware/uart.h>
 
 #include <stdio.h>
 
 void platform_dputc(char c) {
     if (c == '\n')
-        uart_putc(uart0, '\r');
-    uart_putc(uart0, c);
+        uart_putc(DEBUG_UART, '\r');
+    uart_putc(DEBUG_UART, c);
 }
 
 int platform_dgetc(char *c, bool wait) {
-    if (!wait && !uart_is_readable(uart0))
+    if (!wait && !uart_is_readable(DEBUG_UART))
         return -1;
-    *c = uart_getc(uart0);
+    *c = uart_getc(DEBUG_UART);
     return 0;
 }
 
