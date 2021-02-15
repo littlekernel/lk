@@ -158,6 +158,7 @@ $(info PLATFORM = $(PLATFORM))
 $(info TARGET = $(TARGET))
 $(info ARCH = $(ARCH))
 $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
+$(info DEBUG = $(DEBUG))
 
 # include the top level module that includes basic always-there modules
 include top/rules.mk
