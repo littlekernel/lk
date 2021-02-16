@@ -54,6 +54,9 @@ jobs:
           - project: nucleo-f072rb
             toolchain: arm-eabi-7.5.0-Linux-x86_64
             debug: 2
+          - project: pico-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 2
           - project: qemu-microblaze-test
             toolchain: microblaze-elf-7.5.0-Linux-x86_64
             debug: 2
@@ -89,6 +92,9 @@ jobs:
             toolchain: aarch64-elf-7.5.0-Linux-x86_64
             debug: 0
           - project: stm32f746g-disco-test
+            toolchain: arm-eabi-7.5.0-Linux-x86_64
+            debug: 0
+          - project: pico-test
             toolchain: arm-eabi-7.5.0-Linux-x86_64
             debug: 0
           - project: pc-x86-test
