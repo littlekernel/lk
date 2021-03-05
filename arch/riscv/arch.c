@@ -59,6 +59,10 @@ void arch_early_init(void) {
 
 #if RISCV_S_MODE
     sbi_early_init();
+
+#endif
+#if RISCV_MMU
+    riscv_early_mmu_init();
 #endif
 }
 
@@ -89,6 +93,7 @@ void arch_init(void) {
     dprintf(INFO, "RISCV: Supervisor mode\n");
 #if RISCV_MMU
     dprintf(INFO, "RISCV: MMU enabled sv%u\n", RISCV_MMU);
+    riscv_mmu_init();
 #endif
     sbi_init();
 #endif

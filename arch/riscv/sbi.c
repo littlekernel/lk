@@ -101,6 +101,15 @@ status_t sbi_boot_hart(uint hartid, paddr_t start_addr, ulong arg) {
     return NO_ERROR;
 }
 
+void sbi_rfence_vma(const unsigned long *hart_mask, vaddr_t vma, size_t size) {
+    // use the new IPI extension
+    if (likely(sbi_ext_present(SBI_EXTENSION_RFENCE))) {
+        sbi_call(SBI_EXT_RFENCE_SIG, 1, *hart_mask, 0, vma, size);
+    } else {
+        PANIC_UNIMPLEMENTED;
+    }
+}
+
 void sbi_early_init(void) {
     // read the presence of some features
     sbi_ext |= sbi_probe_extension(SBI_EXT_TIMER_SIG) ? (1<<SBI_EXTENSION_TIMER) : 0;

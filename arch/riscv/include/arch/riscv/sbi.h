@@ -8,10 +8,13 @@
 
 #pragma once
 
+#include <lk/compiler.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <arch/riscv.h>
+
+__BEGIN_CDECLS
 
 #if !defined(RISCV_M_MODE) || !(RISCV_M_MODE)
 
@@ -61,10 +64,14 @@ void sbi_send_ipis(const unsigned long *hart_mask);
 void sbi_clear_ipi(void);
 status_t sbi_boot_hart(uint hartid, paddr_t start_addr, ulong arg);
 
+void sbi_rfence_vma(const unsigned long *hart_mask, vaddr_t vma, size_t size);
+
 bool sbi_probe_extension(ulong extension);
 
 struct sbiret sbi_generic_call_2(ulong extension, ulong function);
 struct sbiret sbi_generic_call_3(ulong extension, ulong function);
 
-
 #endif
+
+__END_CDECLS
+
