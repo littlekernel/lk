@@ -49,7 +49,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     },
 
     // null entry to terminate the list
-    { 0 }
+    { }
 };
 
 static inline void riscv_set_satp(uint asid, paddr_t pt) {
@@ -109,7 +109,7 @@ static volatile riscv_pte_t *alloc_ptable(paddr_t *pa) {
 
     // get the physical and virtual mappings of the page
     *pa = vm_page_to_paddr(p);
-    riscv_pte_t *pte = paddr_to_kvaddr(*pa);
+    riscv_pte_t *pte = (riscv_pte_t *)paddr_to_kvaddr(*pa);
 
     // zero it out
     memset(pte, 0, PAGE_SIZE);
@@ -218,7 +218,7 @@ restart:
         } else if ((pte & RISCV_PTE_V) && !(pte & RISCV_PTE_PERM_MASK)) {
             // next level page table pointer (RWX = 0)
             paddr_t ptp = RISCV_PTE_PPN(pte);
-            volatile riscv_pte_t *ptv = paddr_to_kvaddr(ptp);
+            volatile riscv_pte_t *ptv = (riscv_pte_t *)paddr_to_kvaddr(ptp);
 
             LTRACEF_LEVEL(2, "next level page table at %p, pa %#lx\n", ptv, ptp);
 
@@ -292,7 +292,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, const vaddr_t vaddr, paddr_t *pad
         } else if ((pte & RISCV_PTE_PERM_MASK) == 0) {
             // next level page table pointer (RWX = 0)
             paddr_t ptp = RISCV_PTE_PPN(pte);
-            volatile riscv_pte_t *ptv = paddr_to_kvaddr(ptp);
+            volatile riscv_pte_t *ptv = (riscv_pte_t *)paddr_to_kvaddr(ptp);
 
             LTRACEF_LEVEL(2, "next level page table at %p, pa %#lx\n", ptv, ptp);
 
