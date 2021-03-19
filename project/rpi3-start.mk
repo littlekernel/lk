@@ -9,3 +9,4 @@ MODULES += \
 	lib/cksum \
 	lib/debugcommands \
 	platform/bcm28xx/otp \
+	platform/bcm28xx/vec \

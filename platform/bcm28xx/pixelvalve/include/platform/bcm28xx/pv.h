@@ -5,6 +5,9 @@
 struct pv_timings {
   uint16_t vfp, vsync, vbp, vactive;
   uint16_t hfp, hsync, hbp, hactive;
+  uint16_t vfp_even, vsync_even, vbp_even, vactive_even;
+  bool interlaced;
+  int clock_mux;
 };
 
 struct pixel_valve {

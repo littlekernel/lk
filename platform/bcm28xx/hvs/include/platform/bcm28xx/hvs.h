@@ -6,6 +6,7 @@
 #define SCALER_BASE (BCM_PERIPH_BASE_VIRT + 0x400000)
 
 #define SCALER_DISPCTRL     (SCALER_BASE + 0x00)
+#define SCALER_DISPSTAT     (SCALER_BASE + 0x04)
 #define SCALER_DISPCTRL_ENABLE  (1<<31)
 #define SCALER_DISPEOLN     (SCALER_BASE + 0x18)
 #define SCALER_DISPLIST0    (SCALER_BASE + 0x20)
@@ -26,13 +27,17 @@ struct hvs_channel {
 
 extern volatile struct hvs_channel *hvs_channels;
 
+#define SCALER_STAT_LINE(n) ((n) & 0xfff)
+
 #define SCALER_DISPCTRL0    (SCALER_BASE + 0x40)
 #define SCALER_DISPCTRLX_ENABLE (1<<31)
 #define SCALER_DISPCTRLX_RESET  (1<<30)
 #define SCALER_DISPCTRL_W(n)    ((n & 0xfff) << 12)
 #define SCALER_DISPCTRL_H(n)    (n & 0xfff)
 #define SCALER_DISPBKGND_AUTOHS (1<<31)
+#define SCALER_DISPBKGND_INTERLACE (1<<30)
 #define SCALER_DISPBKGND_GAMMA  (1<<29)
+#define SCALER_DISPBKGND_FILL      (1<<24)
 
 #define BASE_BASE(n) (n & 0xffff)
 #define BASE_TOP(n) ((n & 0xffff) << 16)
@@ -97,8 +102,10 @@ enum hvs_pixel_format {
 extern int display_slot;
 extern volatile uint32_t* dlist_memory;
 
-void hvs_add_plane(gfx_surface *fb, int x, int y);
+void hvs_add_plane(gfx_surface *fb, int x, int y, bool hflip);
+void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, int width, int height, bool hflip);
 void hvs_terminate_list(void);
 void hvs_wipe_displaylist(void);
 void hvs_initialize(void);
 void hvs_configure_channel(int channel, int width, int height);
+void hvs_setup_irq(void);

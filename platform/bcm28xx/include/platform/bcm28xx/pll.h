@@ -1,5 +1,7 @@
 #pragma once
 
+#include <platform/bcm28xx.h>
+
 #define MHZ_TO_HZ(f) ((f)*1000*1000)
 
 enum pll {
@@ -102,6 +104,10 @@ void switch_vpu_to_src(int src);
 #define CM_UARTCTL_FRAC_SET                                0x00000200
 #define CM_UARTCTL_ENAB_SET                                0x00000010
 #define CM_UARTDIV              (CM_BASE + 0x0f4)
+
+#define CM_VECCTL               (CM_BASE + 0x0f8)
+#define CM_VECCTL_ENAB_SET                                 0x00000010
+#define CM_VECDIV               (CM_BASE + 0x0fc)
 
 #define CM_OSCCOUNT             (CM_BASE + 0x100)
 

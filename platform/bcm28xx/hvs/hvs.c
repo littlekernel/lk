@@ -4,6 +4,7 @@
 #include <platform/bcm28xx/hvs.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <platform/interrupts.h>
 
 // note, 4096 slots total
 volatile uint32_t* dlist_memory = REG32(SCALER_LIST_MEMORY);
@@ -31,11 +32,12 @@ static uint32_t gfx_to_hvs_pixel_format(gfx_format fmt) {
   }
 }
 
-void hvs_add_plane(gfx_surface *fb, int x, int y) {
+void hvs_add_plane(gfx_surface *fb, int x, int y, bool hflip) {
   dlist_memory[display_slot++] = CONTROL_VALID
     | CONTROL_WORDS(7)
     | CONTROL_PIXEL_ORDER(HVS_PIXEL_ORDER_ABGR)
-//    | CONTROL0_VFLIP
+//    | CONTROL0_VFLIP // makes the HVS addr count down instead, pointer word must be last line of image
+    | (hflip ? CONTROL0_HFLIP : 0)
     | CONTROL_UNITY
     | CONTROL_FORMAT(gfx_to_hvs_pixel_format(fb->format));
   dlist_memory[display_slot++] = POS0_X(x) | POS0_Y(y) | POS0_ALPHA(0xff);
@@ -46,8 +48,56 @@ void hvs_add_plane(gfx_surface *fb, int x, int y) {
   dlist_memory[display_slot++] = fb->stride * fb->pixelsize;
 }
 
+void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, int width, int height, bool hflip) {
+  int start = display_slot;
+  dlist_memory[display_slot++] = CONTROL_VALID
+    | CONTROL_WORDS(14)
+    | CONTROL_PIXEL_ORDER(HVS_PIXEL_ORDER_ABGR)
+//    | CONTROL0_VFLIP // makes the HVS addr count down instead, pointer word must be last line of image
+    | (hflip ? CONTROL0_HFLIP : 0)
+    | CONTROL_FORMAT(gfx_to_hvs_pixel_format(fb->format));
+  dlist_memory[display_slot++] = POS0_X(x) | POS0_Y(y) | POS0_ALPHA(0xff);
+  dlist_memory[display_slot++] = width | (height << 16);
+  dlist_memory[display_slot++] = POS2_H(fb->height) | POS2_W(fb->width);
+  dlist_memory[display_slot++] = 0xDEADBEEF; // dummy for HVS state
+  dlist_memory[display_slot++] = (uint32_t)fb->ptr | 0xc0000000;
+  dlist_memory[display_slot++] = 0xDEADBEEF; // dummy for HVS state
+  dlist_memory[display_slot++] = fb->stride * fb->pixelsize;
+  dlist_memory[display_slot++] = 0x100;
+
+#if 0
+  bool ppf = false;
+  if (ppf) {
+    uint32_t xscale = (1<<16) * fb->width / width;
+    uint32_t yscale = (1<<16) * fb->height / height;
+
+    dlist_memory[display_slot++] = SCALER_PPF_AGC | (xscale << 8);
+    dlist_memory[display_slot++] = SCALER_PPF_AGC | (yscale << 8);
+    dlist_memory[display_slot++] = 0xDEADBEEF; //scaling context
+  }
+#endif
+  bool tpz = true;
+  if (tpz) {
+    uint32_t xscale = (1<<16) * fb->width / width;
+    uint32_t yscale = (1<<16) * fb->height / height;
+    uint32_t xrecip = ~0 / xscale;
+    uint32_t yrecip = ~0 / yscale;
+    dlist_memory[display_slot++] = (xscale << 8);
+    dlist_memory[display_slot++] = xrecip;
+    dlist_memory[display_slot++] = (yscale << 8);
+    dlist_memory[display_slot++] = yrecip;
+    dlist_memory[display_slot++] = 0xDEADBEEF; //scaling context
+  }
+  printf("entry size: %d\n", display_slot - start);
+}
+
 void hvs_terminate_list(void) {
   dlist_memory[display_slot++] = CONTROL_END;
+}
+
+static enum handler_return hvs_irq(void *unused) {
+  puts("hvs interrupt");
+  return INT_NO_RESCHEDULE;
 }
 
 void hvs_initialize() {
@@ -68,11 +118,17 @@ void hvs_initialize() {
   *REG32(SCALER_DISPEOLN) = 0x40000000;
 }
 
-void hvs_configure_channel(int channel, int width, int height) {
-  hvs_channels[0].dispctrl = SCALER_DISPCTRLX_RESET;
-  hvs_channels[0].dispctrl = SCALER_DISPCTRLX_ENABLE | SCALER_DISPCTRL_W(width) | SCALER_DISPCTRL_H(height);
+void hvs_setup_irq() {
+  register_int_handler(33, hvs_irq, NULL);
+  unmask_interrupt(33);
+}
 
-  hvs_channels[0].dispbkgnd = SCALER_DISPBKGND_AUTOHS | 0x020202;
+void hvs_configure_channel(int channel, int width, int height) {
+  hvs_channels[channel].dispctrl = SCALER_DISPCTRLX_RESET;
+  hvs_channels[channel].dispctrl = SCALER_DISPCTRLX_ENABLE | SCALER_DISPCTRL_W(width) | SCALER_DISPCTRL_H(height);
+
+  hvs_channels[channel].dispbkgnd = SCALER_DISPBKGND_AUTOHS | 0x020202 | SCALER_DISPBKGND_INTERLACE;
+  // the SCALER_DISPBKGND_INTERLACE flag makes the HVS alternate between sending even and odd scanlines
 }
 
 void hvs_wipe_displaylist(void) {
@@ -84,6 +140,7 @@ void hvs_wipe_displaylist(void) {
 
 static int cmd_hvs_dump(int argc, const cmd_args *argv) {
   printf("SCALER_DISPCTRL: 0x%x\n", *REG32(SCALER_DISPCTRL));
+  printf("SCALER_DISPSTAT: 0x%x\n", *REG32(SCALER_DISPSTAT));
   printf("SCALER_DISPEOLN: 0x%08x\n", *REG32(SCALER_DISPEOLN));
   printf("SCALER_DISPLIST0: 0x%x\n", *REG32(SCALER_DISPLIST0));
   uint32_t list1 = *REG32(SCALER_DISPLIST1);
@@ -91,6 +148,8 @@ static int cmd_hvs_dump(int argc, const cmd_args *argv) {
   printf("SCALER_DISPLIST2: 0x%x\n\n", *REG32(SCALER_DISPLIST2));
   for (int i=0; i<3; i++) {
     printf("SCALER_DISPCTRL%d: 0x%x\n", i, hvs_channels[i].dispctrl);
+    printf("  width: %d\n", (hvs_channels[i].dispctrl >> 12) & 0xfff);
+    printf("  height: %d\n", hvs_channels[i].dispctrl & 0xfff);
     printf("SCALER_DISPBKGND%d: 0x%x\n", i, hvs_channels[i].dispbkgnd);
     uint32_t stat = hvs_channels[i].dispstat;
     printf("SCALER_DISPSTAT%d: 0x%x\n", i, stat);
@@ -99,7 +158,7 @@ static int cmd_hvs_dump(int argc, const cmd_args *argv) {
     if (stat & (1<<28)) puts("empty");
     printf("unknown: 0x%x\n", (stat >> 18) & 0x3ff);
     printf("frame count: %d\n", (stat >> 12) & 0x3f);
-    printf("line: %d\n", stat & 0xfff);
+    printf("line: %d\n", SCALER_STAT_LINE(stat));
     uint32_t base = hvs_channels[i].dispbase;
     printf("SCALER_DISPBASE%d: base 0x%x top 0x%x\n\n", i, base & 0xffff, base >> 16);
   }
