@@ -489,11 +489,14 @@ void switch_vpu_to_src(int src) {
 void setup_pllc(uint64_t target_freq, int core0_div, int per_div) {
   int pdiv = 1;
   uint64_t xtal_in = xtal_freq;
+  printf("xtal_in = %d\n", xtal_in);
   uint64_t goal_freq = target_freq / 2;
+  printf("goal_freq = %d\n", goal_freq);
   uint64_t divisor = (goal_freq<<20) / xtal_in;
   int div = divisor >> 20;
   int frac = divisor & 0xfffff;
   printf("divisor 0x%llx -> %d+(%d/2^20)\n", divisor, div, frac);
+  printf("ctrl: 0x%x\nfrac: 0x%x\n", *REG32(A2W_PLLC_CTRL), *REG32(A2W_PLLC_FRAC));
 
   *REG32(CM_PLLC) = CM_PASSWORD | CM_PLLC_ANARST_SET;
 
@@ -501,7 +504,7 @@ void setup_pllc(uint64_t target_freq, int core0_div, int per_div) {
 
   *REG32(A2W_PLLC_FRAC) = A2W_PASSWORD | frac;
   *REG32(A2W_PLLC_CTRL) = A2W_PASSWORD | div | PDIV(pdiv);
-  printf("frac set to 0x%x\n", *REG32(A2W_PLLC_FRAC));
+  printf("frac set to 0x%x, wanted 0x%x\n", *REG32(A2W_PLLC_FRAC), frac);
 
   *REG32(A2W_PLLC_ANA3) = A2W_PASSWORD | KA(2);
   *REG32(A2W_PLLC_ANA2) = A2W_PASSWORD | 0x0;
@@ -521,6 +524,7 @@ void setup_pllc(uint64_t target_freq, int core0_div, int per_div) {
   *REG32(A2W_PLLC_DIG0) = A2W_PASSWORD | div | 0x555000;
 
   *REG32(A2W_PLLC_CTRL) = A2W_PASSWORD | div | PDIV(pdiv) | A2W_PLLC_CTRL_PRSTN_SET;
+  *REG32(A2W_PLLC_FRAC) = A2W_PASSWORD | frac;
 
   *REG32(A2W_PLLC_DIG3) = A2W_PASSWORD | 0x42;
   *REG32(A2W_PLLC_DIG2) = A2W_PASSWORD | 0x500401;
@@ -544,4 +548,7 @@ void setup_pllc(uint64_t target_freq, int core0_div, int per_div) {
             CM_PLLC_HOLDCORE1_SET;
 
   while (!BIT_SET(*REG32(CM_LOCK), CM_LOCK_FLOCKC_BIT)) {}
+  printf("ctrl: 0x%x\nfrac: 0x%x\n", *REG32(A2W_PLLC_CTRL), *REG32(A2W_PLLC_FRAC));
+  *REG32(A2W_PLLC_FRAC) = A2W_PASSWORD | frac;
+  printf("ctrl: 0x%x\nfrac: 0x%x\n", *REG32(A2W_PLLC_CTRL), *REG32(A2W_PLLC_FRAC));
 }
