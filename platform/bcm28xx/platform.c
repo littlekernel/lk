@@ -134,7 +134,7 @@ static void switch_vpu_to_pllc() {
   int core0_div = 4;
   int per_div = 4;
 
-  setup_pllc(    2000LL * 1000 * 1000, core0_div, per_div);
+  setup_pllc(    1728LL * 1000 * 1000, core0_div, per_div);
 
   int vpu_divisor = 1;
 
