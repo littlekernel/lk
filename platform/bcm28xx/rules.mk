@@ -5,6 +5,7 @@ MODULE := $(LOCAL_DIR)
 WITH_SMP := 1
 #SMP_MAX_CPUS ?= 1
 #LK_HEAP_IMPLEMENTATION ?= dlmalloc
+MODULE_DEPS += platform/bcm28xx/power
 
 ifeq ($(ARCH),vpu)
   MODULE_DEPS += platform/bcm28xx/pll
@@ -19,7 +20,6 @@ ifeq ($(ARCH),vpu)
   endif
   GLOBAL_DEFINES += SMP_MAX_CPUS=1
 else # it must be arm32 or arm64
-  MODULE_DEPS += platform/bcm28xx/power
   ifeq ($(HAVE_ARM_TIMER),1)
     MODULE_DEPS += dev/timer/arm_generic
     GLOBAL_DEFINES += HAVE_ARM_TIMER=1

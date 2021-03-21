@@ -11,7 +11,7 @@
 #include <lk/reg.h>
 #include <platform.h>
 #include <platform/bcm28xx/pll_read.h>
-#include <platform/bcm28xx/pm.h>
+#include <platform/bcm28xx/power.h>
 #include <platform/bcm28xx/sdhost_impl.h>
 #include <platform/bcm28xx/sdram.h>
 #include <string.h>
