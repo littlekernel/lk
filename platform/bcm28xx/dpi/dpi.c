@@ -70,7 +70,7 @@ int cmd_dpi_start(int argc, const cmd_args *argv) {
   hvs_configure_channel(0, width, height);
 
   int list_start = display_slot;
-  hvs_add_plane(framebuffer, 0, 0);
+  hvs_add_plane(framebuffer, 0, 0, false);
   hvs_terminate_list();
 
   *REG32(SCALER_DISPLIST0) = list_start;

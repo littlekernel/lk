@@ -6,7 +6,6 @@
 #include <platform/bcm28xx.h>
 #include <platform/bcm28xx/dwc2.h>
 #include <platform/bcm28xx/pll.h>
-#include <platform/bcm28xx/pm.h>
 #include <platform/bcm28xx/power.h>
 #include <platform/bcm28xx/udelay.h>
 #include <platform/interrupts.h>
