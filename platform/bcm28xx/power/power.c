@@ -3,11 +3,20 @@
 #include <stdio.h>
 #include <platform/bcm28xx/udelay.h>
 #include <platform/bcm28xx/pll.h>
+#include <lk/console_cmd.h>
+
+static int cmd_pm_dump(int argc, const cmd_args *argv);
+static int cmd_pm_usb_on(int argc, const cmd_args *argv);
+
+STATIC_COMMAND_START
+STATIC_COMMAND("pm_dump_all", "dump power domain states", &cmd_pm_dump)
+STATIC_COMMAND("pm_usb_on", "enable usb power domain", &cmd_pm_usb_on)
+STATIC_COMMAND_END(pm);
 
 void power_up_image(void) {
   puts("image domain on...");
   //dumpreg(PM_IMAGE);
-  *REG32(PM_IMAGE) |= PM_PASSWORD | 0x10000; // CFG = 1
+  *REG32(PM_IMAGE) |= PM_PASSWORD | 0x10000 | BIT(6); // CFG = 1
 #if 0
   printf("PM_IMAGE: 0x%x\n", *REG32(PM_IMAGE));
   *REG32(PM_IMAGE) |= PM_PASSWORD | 1; // POWUP = 1
@@ -81,4 +90,26 @@ void power_domain_on(volatile uint32_t *reg) {
   }
   /* Disable functional isolation */
   *REG32(reg) |= PM_PASSWORD | PM_ISFUNC;
+}
+
+static void dump_power_domain(const char *name, uint32_t pmreg) {
+  volatile uint32_t *reg = REG32(pmreg);
+  uint32_t v = *reg;
+  printf("%8s: 0x%x == 0x%08x  ", name, pmreg, v);
+  printf("%2s  %2s %2s", v & PM_POWUP ? "UP":"", v & PM_POWOK ? "OK":"", v & PM_ENABLE ? "EN":"");
+  if ((pmreg == PM_IMAGE) && (v & BIT(7))) printf("  H264RSTN");
+  puts("");
+}
+
+static int cmd_pm_dump(int argc, const cmd_args *argv) {
+  dump_power_domain("PM_USB",   PM_USB);
+  dump_power_domain("PM_SMPS",  PM_SMPS);
+  dump_power_domain("PM_IMAGE", PM_IMAGE);
+  dump_power_domain("PM_GRAFX", PM_GRAFX);
+  dump_power_domain("PM_PROC",  PM_PROC);
+  return 0;
+}
+static int cmd_pm_usb_on(int argc, const cmd_args *argv) {
+  power_up_usb();
+  return 0;
 }

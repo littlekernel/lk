@@ -1,12 +1,12 @@
-#include <stdio.h>
-#include <platform/bcm28xx/pll_read.h>
-#include <platform/bcm28xx/pll.h>
-#include <platform/bcm28xx.h>
-#include <lk/reg.h>
 #include <lk/bits.h>
 #include <lk/console_cmd.h>
 #include <lk/debug.h>
+#include <lk/reg.h>
+#include <platform/bcm28xx.h>
+#include <platform/bcm28xx/pll.h>
+#include <platform/bcm28xx/pll_read.h>
 #include <platform/bcm28xx/udelay.h>
+#include <stdio.h>
 
 static int cmd_pll_dump(int argc, const cmd_args *argv);
 static int cmd_measure_clock(int argc, const cmd_args *argv);

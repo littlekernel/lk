@@ -25,7 +25,7 @@
 #include <platform/bcm28xx.h>
 #include <platform/bcm28xx/gpio.h>
 #include <platform/bcm28xx/pll_read.h>
-#include <platform/bcm28xx/pm.h>
+#include <platform/bcm28xx/power.h>
 #include <platform/interrupts.h>
 
 #if BCM2836 || BCM2835

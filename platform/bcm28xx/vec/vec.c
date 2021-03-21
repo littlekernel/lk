@@ -2,12 +2,13 @@
 #include <lk/console_cmd.h>
 #include <lk/reg.h>
 #include <lib/tga.h>
+#include <platform/bcm28xx/hvs.h>
 #include <platform/bcm28xx/pll.h>
 #include <platform/bcm28xx/pll_read.h>
-#include <stdio.h>
-#include <platform/bcm28xx/vec.h>
+#include <platform/bcm28xx/power.h>
 #include <platform/bcm28xx/pv.h>
-#include <platform/bcm28xx/hvs.h>
+#include <platform/bcm28xx/vec.h>
+#include <stdio.h>
 
 #include "pi-logo.h"
 
@@ -25,6 +26,7 @@ int height;
 int stride;
 
 static void vec_init(const struct app_descriptor *app) {
+  power_up_usb();
   hvs_initialize();
   *REG32(CM_VECDIV) = CM_PASSWORD | 4 << 12;
   *REG32(CM_VECCTL) = CM_PASSWORD | CM_SRC_PLLC_CORE0;
