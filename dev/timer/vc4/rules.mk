@@ -5,5 +5,6 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += $(LOCAL_DIR)/timer.c
 
 GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1
+MODULE_CFLAGS := -O2
 
 include make/module.mk

@@ -16,7 +16,7 @@ STATIC_COMMAND_END(pm);
 void power_up_image(void) {
   puts("image domain on...");
   //dumpreg(PM_IMAGE);
-  *REG32(PM_IMAGE) |= PM_PASSWORD | 0x10000 | BIT(6); // CFG = 1
+  *REG32(PM_IMAGE) |= PM_PASSWORD | 0x10000 | BV(6); // CFG = 1
 #if 0
   printf("PM_IMAGE: 0x%x\n", *REG32(PM_IMAGE));
   *REG32(PM_IMAGE) |= PM_PASSWORD | 1; // POWUP = 1
@@ -97,7 +97,7 @@ static void dump_power_domain(const char *name, uint32_t pmreg) {
   uint32_t v = *reg;
   printf("%8s: 0x%x == 0x%08x  ", name, pmreg, v);
   printf("%2s  %2s %2s", v & PM_POWUP ? "UP":"", v & PM_POWOK ? "OK":"", v & PM_ENABLE ? "EN":"");
-  if ((pmreg == PM_IMAGE) && (v & BIT(7))) printf("  H264RSTN");
+  if ((pmreg == PM_IMAGE) && (v & BV(7))) printf("  H264RSTN");
   puts("");
 }
 

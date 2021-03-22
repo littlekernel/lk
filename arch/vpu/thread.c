@@ -25,10 +25,12 @@ static inline void push(thread_t *t, uint32_t val) {
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void) {
   thread_t *ct = get_current_thread();
-  uint32_t own_sp;
+  //uint32_t own_sp;
 
-  __asm__ volatile ("mov %0, sp": "=r"(own_sp));
+  //__asm__ volatile ("mov %0, sp": "=r"(own_sp));
   //dprintf(INFO, "thread %p(%s) starting with sp near 0x%x\n", ct, ct->name, own_sp);
+  spin_unlock(&thread_lock);
+  arch_enable_ints();
 
   int ret = ct->entry(ct->arg);
 
@@ -39,6 +41,8 @@ void arch_thread_initialize(thread_t *t) {
   //printf("thread %p(%s) has a stack of %p+0x%x\n", t, t->name, t->stack, t->stack_size);
   t->arch.sp = (uint32_t)((t->stack + t->stack_size) - 4);
   __asm__ volatile ("mov %0, sr": "=r"(t->arch.sr));
+  t->arch.sr &= ~0x40000000; // disable irq in the new thread
+  //printf("initial sr: 0x%x\n", t->arch.sr);
   push(t, (uint32_t)(&initial_thread_func)); // lr
   for (int i=6; i<=23; i++) {
     push(t, 0); // r${i}

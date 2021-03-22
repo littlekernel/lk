@@ -3,8 +3,6 @@
 #include <stdint.h>
 #include <platform/bcm28xx.h>
 
-#define BIT(n) (1<<n)
-
 #define PM_BASE (BCM_PERIPH_BASE_VIRT + 0x100000)
 #define PM_PASSWORD 0x5a000000
 
@@ -36,14 +34,14 @@
 #define PM_GRAFX                (PM_BASE + 0x10c)
 #define PM_PROC                 (PM_BASE + 0x110)
 
-#define PM_ENABLE   BIT(12)
-#define PM_V3DRSTN  BIT(6)
-#define PM_ISFUNC   BIT(5)
-#define PM_MRDONE   BIT(4)
-#define PM_MEMREP   BIT(3)
-#define PM_ISPOW    BIT(2)
-#define PM_POWOK    BIT(1)
-#define PM_POWUP    BIT(0)
+#define PM_ENABLE   BV(12)
+#define PM_V3DRSTN  BV(6)
+#define PM_ISFUNC   BV(5)
+#define PM_MRDONE   BV(4)
+#define PM_MEMREP   BV(3)
+#define PM_ISPOW    BV(2)
+#define PM_POWOK    BV(1)
+#define PM_POWUP    BV(0)
 
 void power_up_image(void);
 void power_up_usb(void);

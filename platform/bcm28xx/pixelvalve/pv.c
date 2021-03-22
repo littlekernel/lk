@@ -4,8 +4,6 @@
 #include <platform/bcm28xx.h>
 #include <platform/bcm28xx/pv.h>
 
-#define BV(b) (1 << b)
-
 struct pixel_valve *getPvAddr(int pvnr) {
   uint32_t addr;
   assert(pvnr <= 2);
@@ -22,7 +20,7 @@ struct pixel_valve *getPvAddr(int pvnr) {
   default:
     return NULL;
   }
-  struct pixel_valve *rawpv = addr;
+  struct pixel_valve *rawpv = (struct pixel_valve*) addr;
   return rawpv;
 }
 
@@ -87,7 +85,7 @@ void setup_pixelvalve(struct pv_timings *t, int pvnr) {
 }
 
 void setup_pv_interrupt(int pvnr, int_handler handler, void *arg) {
-  struct pixel_valve *rawpv = getPvAddr(pvnr);
+  //struct pixel_valve *rawpv = getPvAddr(pvnr);
   unsigned int irq = getPvIrq(pvnr);
 
   register_int_handler(irq, handler, arg);

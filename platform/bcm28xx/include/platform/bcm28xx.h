@@ -15,6 +15,7 @@ void print_timestamp(void);
 }
 #endif
 
+#define BV(n) (1 << n)
 #define SDRAM_BASE 0
 #ifdef ARCH_VPU
   #define BCM_PERIPH_BASE_PHYS (0x7e000000U)

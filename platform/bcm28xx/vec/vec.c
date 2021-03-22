@@ -1,7 +1,8 @@
 #include <app.h>
+#include <dance.h>
+#include <lib/tga.h>
 #include <lk/console_cmd.h>
 #include <lk/reg.h>
-#include <lib/tga.h>
 #include <platform/bcm28xx/hvs.h>
 #include <platform/bcm28xx/pll.h>
 #include <platform/bcm28xx/pll_read.h>
@@ -11,6 +12,8 @@
 #include <stdio.h>
 
 #include "pi-logo.h"
+
+//extern uint8_t* pilogo;
 
 enum vec_mode {
   ntsc,
@@ -95,7 +98,6 @@ static void vec_init(const struct app_descriptor *app) {
     stride = t.hactive;
     framebuffer = gfx_create_surface(NULL, width, height, width, GFX_FORMAT_ARGB_8888);
   }
-  printf("framebuffer at 0x%x is %dx%d stride: %d\n", framebuffer->ptr, framebuffer->width, framebuffer->height, framebuffer->stride);
   int grid = 20;
   for (int x=0; x< width; x++) {
     for (int y=0; y < height; y++) {
@@ -117,9 +119,11 @@ static void vec_init(const struct app_descriptor *app) {
   logo = tga_decode(pilogo, sizeof(pilogo), GFX_FORMAT_ARGB_8888);
   list_start = display_slot;
   hvs_add_plane(framebuffer, 0, 0, false);
-  hvs_add_plane(logo, (width/2) - (logo->width/2), 0, false);
+  hvs_add_plane_scaled(logo, (width/2) - (logo->width/2), 0, 100, 100, false);
   hvs_terminate_list();
   *REG32(SCALER_DISPLIST1) = list_start;
+
+  dance_start(logo, 1);
 }
 
 static void vec_entry(const struct app_descriptor *app, void *args) {

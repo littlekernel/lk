@@ -220,6 +220,7 @@ void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp) {
   switch (source) {
   case 64: // timer0
   case 73: // dwc2
+  case 106: // pv2
   case 121: // uart
     assert(irq_handlers[source - 64].h);
     ret = irq_handlers[source - 64].h(irq_handlers[source - 64].arg);

@@ -49,7 +49,7 @@ extern volatile struct hvs_channel *hvs_channels;
 #define CONTROL_FORMAT(n)       (n & 0xf)
 #define CONTROL_END             (1<<31)
 #define CONTROL_VALID           (1<<30)
-#define CONTROL_WORDS(n)        ((n & 0x3f) << 24)
+#define CONTROL_WORDS(n)        (((n) & 0x3f) << 24)
 #define CONTROL0_FIXED_ALPHA    (1<<19)
 #define CONTROL0_HFLIP          (1<<16)
 #define CONTROL0_VFLIP          (1<<15)
@@ -92,6 +92,15 @@ enum hvs_pixel_format {
 #define HVS_PIXEL_ORDER_XRGB			2
 #define HVS_PIXEL_ORDER_XBGR			3
 
+#define SCALER_CTL0_SCL_H_PPF_V_PPF		0
+#define SCALER_CTL0_SCL_H_TPZ_V_PPF		1
+#define SCALER_CTL0_SCL_H_PPF_V_TPZ		2
+#define SCALER_CTL0_SCL_H_TPZ_V_TPZ		3
+#define SCALER_CTL0_SCL_H_PPF_V_NONE		4
+#define SCALER_CTL0_SCL_H_NONE_V_PPF		5
+#define SCALER_CTL0_SCL_H_NONE_V_TPZ		6
+#define SCALER_CTL0_SCL_H_TPZ_V_NONE		7
+
 #define POS0_X(n) (n & 0xfff)
 #define POS0_Y(n) ((n & 0xfff) << 12)
 #define POS0_ALPHA(n) ((n & 0xff) << 24)
@@ -103,7 +112,7 @@ extern int display_slot;
 extern volatile uint32_t* dlist_memory;
 
 void hvs_add_plane(gfx_surface *fb, int x, int y, bool hflip);
-void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, int width, int height, bool hflip);
+void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, unsigned int width, unsigned int height, bool hflip);
 void hvs_terminate_list(void);
 void hvs_wipe_displaylist(void);
 void hvs_initialize(void);

@@ -1,10 +1,11 @@
 #include <arch/ops.h>
+#include <assert.h>
 #include <lk/console_cmd.h>
 #include <lk/reg.h>
 #include <platform/bcm28xx/hvs.h>
+#include <platform/interrupts.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <platform/interrupts.h>
 
 // note, 4096 slots total
 volatile uint32_t* dlist_memory = REG32(SCALER_LIST_MEMORY);
@@ -33,6 +34,8 @@ static uint32_t gfx_to_hvs_pixel_format(gfx_format fmt) {
 }
 
 void hvs_add_plane(gfx_surface *fb, int x, int y, bool hflip) {
+  assert(fb);
+  printf("rendering FB of size %dx%d at %dx%d\n", fb->width, fb->height, x, y);
   dlist_memory[display_slot++] = CONTROL_VALID
     | CONTROL_WORDS(7)
     | CONTROL_PIXEL_ORDER(HVS_PIXEL_ORDER_ABGR)
@@ -48,22 +51,66 @@ void hvs_add_plane(gfx_surface *fb, int x, int y, bool hflip) {
   dlist_memory[display_slot++] = fb->stride * fb->pixelsize;
 }
 
-void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, int width, int height, bool hflip) {
+enum scaling_mode {
+  none,
+  PPF, // upscaling?
+  TPZ // downscaling?
+};
+
+static void write_tpz(unsigned int source, unsigned int dest) {
+  uint32_t scale = (1<<16) * source / dest;
+  uint32_t recip = ~0 / scale;
+  dlist_memory[display_slot++] = scale << 8;
+  dlist_memory[display_slot++] = recip;
+}
+
+void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, unsigned int width, unsigned int height, bool hflip) {
+  assert(fb);
+  //printf("rendering FB of size %dx%d at %dx%d, scaled down to %dx%d\n", fb->width, fb->height, x, y, width, height);
+  enum scaling_mode xmode, ymode;
+  if (fb->width > width) xmode = TPZ;
+  else if (fb->width < width) xmode = PPF;
+  else xmode = none;
+
+  if (fb->height > height) ymode = TPZ;
+  else if (fb->height < height) ymode = PPF;
+  else ymode = none;
+
+  int scl0;
+  switch ((xmode << 2) | ymode) {
+  case (PPF << 2) | PPF:
+    scl0 = SCALER_CTL0_SCL_H_PPF_V_PPF;
+    break;
+  case (TPZ << 2) | PPF:
+    scl0 = SCALER_CTL0_SCL_H_TPZ_V_PPF;
+    break;
+  case (PPF << 2) | TPZ:
+    scl0 = SCALER_CTL0_SCL_H_PPF_V_TPZ;
+    break;
+  case (TPZ << 2) | TPZ:
+    scl0 = SCALER_CTL0_SCL_H_TPZ_V_TPZ;
+    break;
+  default:
+    puts("unsupported scale combonation");
+  }
+
   int start = display_slot;
-  dlist_memory[display_slot++] = CONTROL_VALID
-    | CONTROL_WORDS(14)
+  dlist_memory[display_slot++] = 0 // CONTROL_VALID
+//    | CONTROL_WORDS(14)
     | CONTROL_PIXEL_ORDER(HVS_PIXEL_ORDER_ABGR)
 //    | CONTROL0_VFLIP // makes the HVS addr count down instead, pointer word must be last line of image
     | (hflip ? CONTROL0_HFLIP : 0)
-    | CONTROL_FORMAT(gfx_to_hvs_pixel_format(fb->format));
-  dlist_memory[display_slot++] = POS0_X(x) | POS0_Y(y) | POS0_ALPHA(0xff);
-  dlist_memory[display_slot++] = width | (height << 16);
-  dlist_memory[display_slot++] = POS2_H(fb->height) | POS2_W(fb->width);
-  dlist_memory[display_slot++] = 0xDEADBEEF; // dummy for HVS state
-  dlist_memory[display_slot++] = (uint32_t)fb->ptr | 0xc0000000;
-  dlist_memory[display_slot++] = 0xDEADBEEF; // dummy for HVS state
-  dlist_memory[display_slot++] = fb->stride * fb->pixelsize;
-  dlist_memory[display_slot++] = 0x100;
+    | CONTROL_FORMAT(gfx_to_hvs_pixel_format(fb->format))
+    | (scl0 << 5)
+    | (scl0 << 8); // SCL1
+  dlist_memory[display_slot++] = POS0_X(x) | POS0_Y(y) | POS0_ALPHA(0xff);  // position word 0
+  dlist_memory[display_slot++] = width | (height << 16);                    // position word 1
+  dlist_memory[display_slot++] = POS2_H(fb->height) | POS2_W(fb->width);    // position word 2
+  dlist_memory[display_slot++] = 0xDEADBEEF;                                // position word 3, dummy for HVS state
+  dlist_memory[display_slot++] = (uint32_t)fb->ptr | 0xc0000000;            // pointer word 0
+  dlist_memory[display_slot++] = 0xDEADBEEF;                                // pointer context word 0 dummy for HVS state
+  dlist_memory[display_slot++] = fb->stride * fb->pixelsize;                // pitch word 0
+  dlist_memory[display_slot++] = 0x100;    // LBM base addr
 
 #if 0
   bool ppf = false;
@@ -76,19 +123,26 @@ void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, int width, int height, 
     dlist_memory[display_slot++] = 0xDEADBEEF; //scaling context
   }
 #endif
-  bool tpz = true;
-  if (tpz) {
-    uint32_t xscale = (1<<16) * fb->width / width;
-    uint32_t yscale = (1<<16) * fb->height / height;
-    uint32_t xrecip = ~0 / xscale;
-    uint32_t yrecip = ~0 / yscale;
-    dlist_memory[display_slot++] = (xscale << 8);
-    dlist_memory[display_slot++] = xrecip;
-    dlist_memory[display_slot++] = (yscale << 8);
-    dlist_memory[display_slot++] = yrecip;
-    dlist_memory[display_slot++] = 0xDEADBEEF; //scaling context
+
+  if (xmode == PPF) {
+    puts("unfinished");
   }
-  printf("entry size: %d\n", display_slot - start);
+
+  if (ymode == PPF) {
+    puts("unfinished");
+  }
+
+  if (xmode == TPZ) {
+    write_tpz(fb->width, width);
+  }
+
+  if (ymode == TPZ) {
+    write_tpz(fb->height, height);
+    dlist_memory[display_slot++] = 0xDEADBEEF; // context for scaling
+  }
+
+  //printf("entry size: %d, spans 0x%x-0x%x\n", display_slot - start, start, display_slot);
+  dlist_memory[start] |= CONTROL_VALID | CONTROL_WORDS(display_slot - start);
 }
 
 void hvs_terminate_list(void) {
@@ -138,6 +192,43 @@ void hvs_wipe_displaylist(void) {
   display_slot = 0;
 }
 
+static bool bcm_host_is_model_pi4(void) {
+  return false;
+}
+
+void hvs_print_position0(uint32_t w) {
+  printf("position0: 0x%x\n", w);
+  if (bcm_host_is_model_pi4()) {
+    printf("    x: %d y: %d\n", w & 0x3fff, (w >> 16) & 0x3fff);
+  } else {
+    printf("    x: %d y: %d\n", w & 0xfff, (w >> 12) & 0xfff);
+  }
+}
+void hvs_print_control2(uint32_t w) {
+  printf("control2: 0x%x\n", w);
+  printf("  alpha: 0x%x\n", (w >> 4) & 0xffff);
+  printf("  alpha mode: %d\n", (w >> 30) & 0x3);
+}
+void hvs_print_word1(uint32_t w) {
+  printf("  word1: 0x%x\n", w);
+}
+void hvs_print_position2(uint32_t w) {
+  printf("position2: 0x%x\n", w);
+  printf("  width: %d height: %d\n", w & 0xffff, (w >> 16) & 0xfff);
+}
+void hvs_print_position3(uint32_t w) {
+  printf("position3: 0x%x\n", w);
+}
+void hvs_print_pointer0(uint32_t w) {
+  printf("pointer word: 0x%x\n", w);
+}
+void hvs_print_pointerctx0(uint32_t w) {
+  printf("pointer context word: 0x%x\n", w);
+}
+void hvs_print_pitch0(uint32_t w) {
+  printf("pitch word: 0x%x\n", w);
+}
+
 static int cmd_hvs_dump(int argc, const cmd_args *argv) {
   printf("SCALER_DISPCTRL: 0x%x\n", *REG32(SCALER_DISPCTRL));
   printf("SCALER_DISPSTAT: 0x%x\n", *REG32(SCALER_DISPSTAT));
@@ -162,8 +253,60 @@ static int cmd_hvs_dump(int argc, const cmd_args *argv) {
     uint32_t base = hvs_channels[i].dispbase;
     printf("SCALER_DISPBASE%d: base 0x%x top 0x%x\n\n", i, base & 0xffff, base >> 16);
   }
-  for (uint32_t i=list1; i<(list1+16); i++) {
+  for (uint32_t i=list1; i<(list1+64); i++) {
     printf("dlist[%x]: 0x%x\n", i, dlist_memory[i]);
+    if (dlist_memory[i] & BV(31)) {
+      puts("(31)END");
+      break;
+    }
+    if (dlist_memory[i] & BV(30)) {
+      int x = i;
+      int words = (dlist_memory[i] >> 24) & 0x3f;
+      for (unsigned int index=i; index < (i+words); index++) {
+        printf("raw dlist[%d] == 0x%x\n", index-i, dlist_memory[index]);
+      }
+      bool unity;
+      printf("  (3:0)format: %d\n", dlist_memory[i] & 0xf);
+      if (dlist_memory[i] & (1<<4)) puts("  (4)unity");
+      printf("  (7:5)SCL0: %d\n", (dlist_memory[i] >> 5) & 0x7);
+      printf("  (10:8)SCL1: %d\n", (dlist_memory[i] >> 8) & 0x7);
+      if (false) { // is bcm2711
+        if (dlist_memory[i] & (1<<11)) puts("  (11)rgb expand");
+        if (dlist_memory[i] & (1<<12)) puts("  (12)alpha expand");
+      } else {
+        printf("  (12:11)rgb expand: %d\n", (dlist_memory[i] >> 11) & 0x3);
+      }
+      printf("  (14:13)pixel order: %d\n", (dlist_memory[i] >> 13) & 0x3);
+      if (false) { // is bcm2711
+        unity = dlist_memory[i] & (1<<15);
+      } else {
+        unity = dlist_memory[i] & (1<<4);
+        if (dlist_memory[i] & (1<<15)) puts("  (15)vflip");
+        if (dlist_memory[i] & (1<<16)) puts("  (16)hflip");
+      }
+      printf("  (18:17)key mode: %d\n", (dlist_memory[i] >> 17) & 0x3);
+      if (dlist_memory[i] & (1<<19)) puts("  (19)alpha mask");
+      printf("  (21:20)tiling mode: %d\n", (dlist_memory[i] >> 20) & 0x3);
+      printf("  (29:24)words: %d\n", words);
+      x++;
+      hvs_print_position0(dlist_memory[x++]);
+      if (bcm_host_is_model_pi4()) {
+        hvs_print_control2(dlist_memory[x++]);
+      }
+      if (unity) {
+        puts("unity scaling");
+      } else {
+        hvs_print_word1(dlist_memory[x++]);
+      }
+      hvs_print_position2(dlist_memory[x++]);
+      hvs_print_position3(dlist_memory[x++]);
+      hvs_print_pointer0(dlist_memory[x++]);
+      hvs_print_pointerctx0(dlist_memory[x++]);
+      hvs_print_pitch0(dlist_memory[x++]);
+      if (words > 1) {
+        i += words - 1;
+      }
+    }
   }
   return 0;
 }
