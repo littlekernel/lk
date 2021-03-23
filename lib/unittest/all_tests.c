@@ -81,5 +81,6 @@ static int do_unittests(int argc, const console_cmd_args *argv) {
 
 STATIC_COMMAND_START
 STATIC_COMMAND("unittests", "run all unit tests", do_unittests)
+STATIC_COMMAND("ut", "run all unit tests", do_unittests)
 STATIC_COMMAND_END(name);
 
