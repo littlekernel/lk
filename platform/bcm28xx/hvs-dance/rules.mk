@@ -18,5 +18,6 @@ $(BUILDDIR)/$(LOCAL_DIR)/pi-logo.tga: $(LOCAL_DIR)/RPi-Logo-Reg-SCREEN.png
 $(BUILDDIR)/$(LOCAL_DIR)/dance.o: $(BUILDDIR)/$(LOCAL_DIR)/pi-logo.h
 
 GLOBAL_INCLUDES += $(BUILDDIR)/$(LOCAL_DIR)
+MODULE_CFLAGS := -O2
 
 include make/module.mk

@@ -1,44 +1,48 @@
 #include <app.h>
 #include <arch/ops.h>
 #include <assert.h>
+#include <dance.h>
 #include <kernel/timer.h>
 #include <kernel/vm.h>
 #include <lib/tga.h>
 #include <lk/console_cmd.h>
 #include <lk/err.h>
 #include <lk/reg.h>
-//#include <pi-logo.h>
 #include <platform/bcm28xx/hvs.h>
 #include <platform/bcm28xx/pv.h>
 #include <platform/mailbox.h>
 #include <rand.h>
 #include <stdio.h>
+//#include <pi-logo.h>
 
 static int cmd_hvs_dance(int argc, const cmd_args *argv);
 static int cmd_hvs_limit(int argc, const cmd_args *argv);
 static int cmd_hvs_delay(int argc, const cmd_args *argv);
 static int cmd_dance_update(int argc, const cmd_args *argv);
+static int cmd_dance_list(int argc, const cmd_args *argv);
 
 STATIC_COMMAND_START
 STATIC_COMMAND("dance", "make the HVS dance in another direction", &cmd_hvs_dance)
 STATIC_COMMAND("l", "limit sprites", &cmd_hvs_limit)
 STATIC_COMMAND("d", "delay updates", &cmd_hvs_delay)
 STATIC_COMMAND("u", "update", &cmd_dance_update)
+STATIC_COMMAND("dance_list", "list", &cmd_dance_list)
 STATIC_COMMAND_END(hvs_dance);
 
 gfx_surface *fb;
+void (*background)(void);
 
 struct item {
-  unsigned int x, y;
+  signed int x, y;
   signed int xd, yd;
 };
 
 #define ITEMS 580
 struct item items[ITEMS];
-uint32_t sprite_limit = 15;
+uint32_t sprite_limit = 2;
 int delay = 0;
 
-uint32_t screen_width, screen_height;
+int32_t screen_width, screen_height;
 
 #define SCALED
 
@@ -46,8 +50,8 @@ void do_frame_update(int frame) {
   if (delay != 0) {
     if ((frame % delay) != 0) return;
   }
-  if ((display_slot + (sprite_limit * 7) + 1) > 4096) {
-    printf("early dlist loop %d\n", display_slot);
+  if ((display_slot + (sprite_limit * 14) + 1) > 4096) {
+    //printf("early dlist loop %d\n", display_slot);
     display_slot = 0;
   }
 
@@ -61,6 +65,7 @@ void do_frame_update(int frame) {
 #endif
 
   int start = display_slot;
+  background();
   for (unsigned int i=0; i < sprite_limit; i++) {
     struct item *it = &items[i];
     if (it->x > (screen_width - w)) it->xd *= -1;
@@ -68,6 +73,23 @@ void do_frame_update(int frame) {
 
     it->x += it->xd;
     it->y += it->yd;
+
+    if (it->x < 0) {
+      it->x *= -1;
+      it->xd *= -1;
+    }
+    if (it->y < 0) {
+      it->y *= -1;
+      it->yd *= -1;
+    }
+    if (it->x > screen_width) {
+      it->x -= screen_width;
+      it->xd *= -1;
+    }
+    if (it->y > screen_height) {
+      it->y -= screen_height;
+      it->yd *= -1;
+    }
 
 #if 0
     if (it->x < 0) {
@@ -88,7 +110,7 @@ void do_frame_update(int frame) {
   hvs_terminate_list();
 
   if (display_slot > 4096) {
-    //printf("dlist overflow!!!: %d\n", display_slot);
+    printf("dlist overflow!!!: %d\n", display_slot);
     display_slot = 0;
     do_frame_update(frame);
     return;
@@ -102,8 +124,15 @@ void do_frame_update(int frame) {
   }
 }
 
+static int cmd_dance_list(int argc, const cmd_args *argv) {
+  for (unsigned int i=0; i < sprite_limit; i++) {
+    struct item *it = &items[i];
+    printf("%d: %dx%d, rate %dx%d\n", i, it->x, it->y, it->xd, it->yd);
+  }
+  return 0;
+}
+
 static int cmd_dance_update(int argc, const cmd_args *argv) {
-  printf("fb 0x%x is %dx%d\n", fb, fb->width, fb->height);
   do_frame_update(0);
   return 0;
 }
@@ -121,9 +150,9 @@ static enum handler_return pv_irq(void *pvnr) {
     ack |= PV_INTEN_HSYNC_START;
     hsync = t;
     if ((SCALER_STAT_LINE(stat1) % 5) == 0) {
-      //hvs_channels[1].dispbkgnd = (1<<24) | 0x00ff00;
+      //hvs_set_background_color(1, 0x0000ff);
     } else {
-      //hvs_channels[1].dispbkgnd = (1<<24) | 0xffffff;
+      //hvs_set_background_color(1, 0xffffff);
     }
   }
   if (stat & PV_INTEN_HBP_START) {
@@ -153,7 +182,7 @@ static enum handler_return pv_irq(void *pvnr) {
     ack |= PV_INTEN_VFP_START;
     last_vfps = vfps;
     vfps = t;
-    //hvs_channels[1].dispbkgnd = (1<<24) | 0xff0000;
+    hvs_set_background_color(1, 0xff0000);
     do_frame_update((stat1 >> 12) & 0x3f);
     //printf("line: %d frame: %2d start: %4d ", stat1 & 0xfff, (stat1 >> 12) & 0x3f, *REG32(SCALER_DISPLIST1));
     //uint32_t idle = *REG32(SD_IDL);
@@ -162,7 +191,7 @@ static enum handler_return pv_irq(void *pvnr) {
     //uint64_t idle_percent = ((uint64_t)idle * 100) / ((uint64_t)total);
     //printf("sdram usage: %d %d, %lld\n", idle, total, idle_percent);
     //printf("HSYNC:%5d HBP:%d HACT:%d HFP:%d VSYNC:%5d VBP:%5d VFPS:%d FRAME:%d\n", t - vsync, t-hbp, t-hact, t-hfp, t-vsync, t-vbp, t-vfps, t-last_vfps);
-    //hvs_channels[1].dispbkgnd = (1<<24) | 0xffffff;
+    hvs_set_background_color(1, 0xffffff);
   }
   if (stat & PV_INTEN_VFP_END) {
     ack |= PV_INTEN_VFP_END;
@@ -187,11 +216,23 @@ static void dance_scramble(void) {
     struct item *it = &items[i];
     it->x = (unsigned int)rand() % screen_width;
     it->y = (unsigned int)rand() % screen_height;
-    it->xd = rand() % 10;
-    it->yd = rand() % 10;
+    it->xd = (rand() % 5)+1;
+    it->yd = (rand() % 5)+1;
     if (it->x > (screen_width - w)) it->x = screen_width - fb->width;
     if (it->y > (screen_height - h)) it->y = screen_height - fb->height;
   }
+
+  items[0].x = 40;
+  items[0].y = 100;
+  items[0].xd = 0;
+  items[0].yd = 0;
+
+#if 0
+  items[1].x = 140;
+  items[1].y = 0;
+  items[1].xd = 0;
+  items[1].yd = 1;
+#endif
 }
 
 static int cmd_hvs_dance(int argc, const cmd_args *argv) {
@@ -210,14 +251,14 @@ static int cmd_hvs_delay(int argc, const cmd_args *argv) {
   return 0;
 }
 
-void dance_start(gfx_surface* fbin, int hvs_channel) {
+void dance_start(gfx_surface* fbin, int hvs_channel, void (*backgroundcb)(void)) {
   fb = fbin;
+  background = backgroundcb;
   gfx_flush(fb);
 
-  struct hvs_channel *hvs_channels = (struct hvs_channel*)REG32(SCALER_DISPCTRL0);
-  hvs_channels[hvs_channel].dispbkgnd = (1<<24) | 0xffffff;
+  hvs_set_background_color(hvs_channel, 0xffffff);
   screen_width = (hvs_channels[hvs_channel].dispctrl >> 12) & 0xfff;
-  screen_height = (hvs_channels[hvs_channel].dispctrl & 0xfff) / 2;
+  screen_height = (hvs_channels[hvs_channel].dispctrl & 0xfff);
   printf("detected a %dx%d screen\n", screen_width, screen_height);
 
   srand(*REG32(ST_CLO));

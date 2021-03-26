@@ -45,4 +45,5 @@
 
 void power_up_image(void);
 void power_up_usb(void);
-void power_domain_on(volatile uint32_t *reg);
+void power_domain_on(volatile uint32_t *reg, uint32_t rstn);
+void power_arm_start(void);

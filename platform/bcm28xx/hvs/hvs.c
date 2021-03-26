@@ -1,5 +1,6 @@
 #include <arch/ops.h>
 #include <assert.h>
+#include <kernel/timer.h>
 #include <lk/console_cmd.h>
 #include <lk/reg.h>
 #include <platform/bcm28xx/hvs.h>
@@ -11,6 +12,16 @@
 volatile uint32_t* dlist_memory = REG32(SCALER_LIST_MEMORY);
 volatile struct hvs_channel *hvs_channels = (volatile struct hvs_channel*)REG32(SCALER_DISPCTRL0);
 int display_slot = 0;
+int scaled_layer_count = 0;
+timer_t ddr2_monitor;
+
+enum scaling_mode {
+  none,
+  PPF, // upscaling?
+  TPZ // downscaling?
+};
+
+struct hvs_channel_config channels[3];
 
 static int cmd_hvs_dump(int argc, const cmd_args *argv);
 
@@ -35,7 +46,7 @@ static uint32_t gfx_to_hvs_pixel_format(gfx_format fmt) {
 
 void hvs_add_plane(gfx_surface *fb, int x, int y, bool hflip) {
   assert(fb);
-  printf("rendering FB of size %dx%d at %dx%d\n", fb->width, fb->height, x, y);
+  //printf("rendering FB of size %dx%d at %dx%d\n", fb->width, fb->height, x, y);
   dlist_memory[display_slot++] = CONTROL_VALID
     | CONTROL_WORDS(7)
     | CONTROL_PIXEL_ORDER(HVS_PIXEL_ORDER_ABGR)
@@ -51,12 +62,6 @@ void hvs_add_plane(gfx_surface *fb, int x, int y, bool hflip) {
   dlist_memory[display_slot++] = fb->stride * fb->pixelsize;
 }
 
-enum scaling_mode {
-  none,
-  PPF, // upscaling?
-  TPZ // downscaling?
-};
-
 static void write_tpz(unsigned int source, unsigned int dest) {
   uint32_t scale = (1<<16) * source / dest;
   uint32_t recip = ~0 / scale;
@@ -66,7 +71,7 @@ static void write_tpz(unsigned int source, unsigned int dest) {
 
 void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, unsigned int width, unsigned int height, bool hflip) {
   assert(fb);
-  //printf("rendering FB of size %dx%d at %dx%d, scaled down to %dx%d\n", fb->width, fb->height, x, y, width, height);
+  if ((x < 0) || (y < 0)) printf("rendering FB of size %dx%d at %dx%d, scaled down to %dx%d\n", fb->width, fb->height, x, y, width, height);
   enum scaling_mode xmode, ymode;
   if (fb->width > width) xmode = TPZ;
   else if (fb->width < width) xmode = PPF;
@@ -107,10 +112,11 @@ void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, unsigned int width, uns
   dlist_memory[display_slot++] = width | (height << 16);                    // position word 1
   dlist_memory[display_slot++] = POS2_H(fb->height) | POS2_W(fb->width);    // position word 2
   dlist_memory[display_slot++] = 0xDEADBEEF;                                // position word 3, dummy for HVS state
-  dlist_memory[display_slot++] = (uint32_t)fb->ptr | 0xc0000000;            // pointer word 0
+  dlist_memory[display_slot++] = (uint32_t)fb->ptr | 0x80000000;            // pointer word 0
   dlist_memory[display_slot++] = 0xDEADBEEF;                                // pointer context word 0 dummy for HVS state
   dlist_memory[display_slot++] = fb->stride * fb->pixelsize;                // pitch word 0
-  dlist_memory[display_slot++] = 0x100;    // LBM base addr
+  dlist_memory[display_slot++] = (scaled_layer_count * 720);         // LBM base addr
+  scaled_layer_count++;
 
 #if 0
   bool ppf = false;
@@ -147,6 +153,7 @@ void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, unsigned int width, uns
 
 void hvs_terminate_list(void) {
   dlist_memory[display_slot++] = CONTROL_END;
+  scaled_layer_count = 0;
 }
 
 static enum handler_return hvs_irq(void *unused) {
@@ -154,7 +161,29 @@ static enum handler_return hvs_irq(void *unused) {
   return INT_NO_RESCHEDULE;
 }
 
+//#define SD_IDL 0x7ee00018
+//#define SD_CYC 0x7ee00030
+
+static void check_sdram_usage(void) {
+  static float last_time = 1;
+  uint64_t idle = *REG32(SD_IDL);
+  uint64_t total = *REG32(SD_CYC);
+  *REG32(SD_IDL) = 0;
+  uint32_t idle_percent = (idle * 100) / (total);
+  float time = ((float)*REG32(ST_CLO)) / 1000000;
+  uint32_t clock = total / (time - last_time) / 1000 / 1000;
+  last_time = time;
+  printf("[%f] DDR2 was idle 0x%x / 0x%x cycles (%d%%) %dMHz\n", time, (uint32_t)idle, (uint32_t)total, idle_percent, clock);
+}
+
+static enum handler_return ddr2_checker(struct timer *unused1, unsigned int unused2,  void *unused3) {
+  check_sdram_usage();
+  return INT_NO_RESCHEDULE;
+}
+
 void hvs_initialize() {
+  timer_initialize(&ddr2_monitor);
+  //timer_set_periodic(&ddr2_monitor, 500, ddr2_checker, NULL);
   *REG32(SCALER_DISPCTRL) &= ~SCALER_DISPCTRL_ENABLE; // disable HVS
   *REG32(SCALER_DISPCTRL) = SCALER_DISPCTRL_ENABLE | 0x9a0dddff; // re-enable HVS
   for (int i=0; i<3; i++) {
@@ -163,9 +192,9 @@ void hvs_initialize() {
     hvs_channels[i].dispbkgnd = 0x1020202; // bit 24
   }
 
-  hvs_channels[2].dispbase = BASE_BASE(0)      | BASE_TOP(0xf00);
-  hvs_channels[1].dispbase = BASE_BASE(0xf10)  | BASE_TOP(0x4b00);
-  hvs_channels[0].dispbase = BASE_BASE(0x4b10) | BASE_TOP(0x7700);
+  hvs_channels[2].dispbase = BASE_BASE(0)      | BASE_TOP(0x7f0);
+  hvs_channels[1].dispbase = BASE_BASE(0xf10)  | BASE_TOP(0x50f0);
+  hvs_channels[0].dispbase = BASE_BASE(0x800) | BASE_TOP(0xf00);
 
   hvs_wipe_displaylist();
 
@@ -177,11 +206,16 @@ void hvs_setup_irq() {
   unmask_interrupt(33);
 }
 
-void hvs_configure_channel(int channel, int width, int height) {
+void hvs_configure_channel(int channel, int width, int height, bool interlaced) {
+  channels[channel].width = width;
+  channels[channel].height = height;
+  channels[channel].interlaced = interlaced;
+
   hvs_channels[channel].dispctrl = SCALER_DISPCTRLX_RESET;
   hvs_channels[channel].dispctrl = SCALER_DISPCTRLX_ENABLE | SCALER_DISPCTRL_W(width) | SCALER_DISPCTRL_H(height);
 
-  hvs_channels[channel].dispbkgnd = SCALER_DISPBKGND_AUTOHS | 0x020202 | SCALER_DISPBKGND_INTERLACE;
+  hvs_channels[channel].dispbkgnd = SCALER_DISPBKGND_AUTOHS | 0x020202
+    | (channels[channel].interlaced ? SCALER_DISPBKGND_INTERLACE : 0);
   // the SCALER_DISPBKGND_INTERLACE flag makes the HVS alternate between sending even and odd scanlines
 }
 

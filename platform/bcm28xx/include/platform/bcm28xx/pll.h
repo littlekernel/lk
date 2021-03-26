@@ -166,6 +166,18 @@ void switch_vpu_to_src(int src);
 #define A2W_PLLC_ANA2           (A2W_BASE + 0x038)
 #define A2W_PLLC_ANA3           (A2W_BASE + 0x03c)
 
+#define A2W_PLLB_DIG0           (A2W_BASE + 0x0e0)
+#define A2W_PLLB_DIG1           (A2W_BASE + 0x0e4)
+#define A2W_PLLB_DIG2           (A2W_BASE + 0x0e8)
+#define A2W_PLLB_DIG3           (A2W_BASE + 0x0ec)
+
+#define A2W_PLLB_ANA1           (A2W_BASE + 0x0f4)
+#define A2W_PLLB_ANA2           (A2W_BASE + 0x0f8)
+#define A2W_PLLB_ANA3           (A2W_BASE + 0x0fc)
+#define CM_PLLB_ANARST_SET      0x00000100
+#define CM_PLLB_DIGRST_SET      0x00000200
+#define A2W_PLLB_ANA_MULTI      (A2W_BASE + 0xff0)
+
 #define A2W_PLL_ANA3_KA_LSB     7
 #define A2W_PLL_ANA3_KA_MASK    (BIT_MASK(3) << A2W_PLL_ANA3_KA_LSB)
 #define A2W_PLL_ANA1_KI_LSB     19

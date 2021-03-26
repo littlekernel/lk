@@ -28,14 +28,18 @@ int width;
 int height;
 int stride;
 
+static void draw_background_grid(void) {
+  //hvs_add_plane(framebuffer, 0, 0, false);
+}
+
 static void vec_init(const struct app_descriptor *app) {
   power_up_usb();
   hvs_initialize();
   *REG32(CM_VECDIV) = CM_PASSWORD | 4 << 12;
-  *REG32(CM_VECCTL) = CM_PASSWORD | CM_SRC_PLLC_CORE0;
+  *REG32(CM_VECCTL) = CM_PASSWORD | CM_SRC_PLLC_CORE0; // technically its on the PER tap
   *REG32(CM_VECCTL) = CM_PASSWORD | CM_VECCTL_ENAB_SET | CM_SRC_PLLC_CORE0;
   int rate = measure_clock(29);
-  printf("vec rate: %d\n", rate);
+  printf("vec rate: %f\n", ((float)rate)/1000/1000);
 
   *REG32(VEC_WSE_RESET) = 1;
   *REG32(VEC_SOFT_RESET) = 1;
@@ -114,7 +118,7 @@ static void vec_init(const struct app_descriptor *app) {
   hvs_terminate_list();
   *REG32(SCALER_DISPLIST1) = list_start;
 
-  hvs_configure_channel(1, width, height);
+  hvs_configure_channel(1, width, height, true);
 
   logo = tga_decode(pilogo, sizeof(pilogo), GFX_FORMAT_ARGB_8888);
   list_start = display_slot;
@@ -123,7 +127,7 @@ static void vec_init(const struct app_descriptor *app) {
   hvs_terminate_list();
   *REG32(SCALER_DISPLIST1) = list_start;
 
-  dance_start(logo, 1);
+  dance_start(logo, 1, &draw_background_grid);
 }
 
 static void vec_entry(const struct app_descriptor *app, void *args) {

@@ -27,6 +27,14 @@ struct hvs_channel {
 
 extern volatile struct hvs_channel *hvs_channels;
 
+struct hvs_channel_config {
+  uint32_t width;
+  uint32_t height;
+  bool interlaced;
+};
+
+extern struct hvs_channel_config channels[3];
+
 #define SCALER_STAT_LINE(n) ((n) & 0xfff)
 
 #define SCALER_DISPCTRL0    (SCALER_BASE + 0x40)
@@ -34,9 +42,9 @@ extern volatile struct hvs_channel *hvs_channels;
 #define SCALER_DISPCTRLX_RESET  (1<<30)
 #define SCALER_DISPCTRL_W(n)    ((n & 0xfff) << 12)
 #define SCALER_DISPCTRL_H(n)    (n & 0xfff)
-#define SCALER_DISPBKGND_AUTOHS (1<<31)
+#define SCALER_DISPBKGND_AUTOHS    (1<<31)
 #define SCALER_DISPBKGND_INTERLACE (1<<30)
-#define SCALER_DISPBKGND_GAMMA  (1<<29)
+#define SCALER_DISPBKGND_GAMMA     (1<<29)
 #define SCALER_DISPBKGND_FILL      (1<<24)
 
 #define BASE_BASE(n) (n & 0xffff)
@@ -116,5 +124,10 @@ void hvs_add_plane_scaled(gfx_surface *fb, int x, int y, unsigned int width, uns
 void hvs_terminate_list(void);
 void hvs_wipe_displaylist(void);
 void hvs_initialize(void);
-void hvs_configure_channel(int channel, int width, int height);
+void hvs_configure_channel(int channel, int width, int height, bool interlaced);
 void hvs_setup_irq(void);
+
+inline __attribute__((always_inline)) void hvs_set_background_color(int channel, uint32_t color) {
+  hvs_channels[channel].dispbkgnd = SCALER_DISPBKGND_FILL | SCALER_DISPBKGND_AUTOHS | color
+    | (channels[channel].interlaced ? SCALER_DISPBKGND_INTERLACE : 0);
+}

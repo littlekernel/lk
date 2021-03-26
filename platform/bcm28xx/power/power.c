@@ -5,6 +5,11 @@
 #include <platform/bcm28xx/pll.h>
 #include <lk/console_cmd.h>
 
+#define PM_PROC_ARMRSTN_CLR    0xffffffbf
+#define PM_IMAGE_PERIRSTN_SET  0x00000040
+#define PM_IMAGE_H264RSTN_SET  0x00000080
+#define PM_IMAGE_ISPRSTN_SET   0x00000100
+
 static int cmd_pm_dump(int argc, const cmd_args *argv);
 static int cmd_pm_usb_on(int argc, const cmd_args *argv);
 
@@ -43,7 +48,7 @@ void power_up_image(void) {
   *REG32(PM_IMAGE) |= PM_PASSWORD | 0x40;
 #endif
   //dumpreg(PM_IMAGE);
-  power_domain_on(REG32(PM_IMAGE));
+  power_domain_on(REG32(PM_IMAGE), ~(PM_IMAGE_ISPRSTN_SET | PM_IMAGE_H264RSTN_SET | PM_IMAGE_PERIRSTN_SET));
   //dumpreg(PM_IMAGE);
 }
 
@@ -67,7 +72,8 @@ void power_up_usb(void) {
   *REG32(CM_PERIICTL) |= CM_PASSWORD | 0x40;
 }
 
-void power_domain_on(volatile uint32_t *reg) {
+void power_domain_on(volatile uint32_t *reg, uint32_t rstn) {
+  puts("bringing domain up");
   /* If it was already powered on by the fw, leave it that way. */
   if (*REG32(reg) & PM_POWUP) {
     puts("already on");
@@ -76,6 +82,7 @@ void power_domain_on(volatile uint32_t *reg) {
   /* Enable power */
   *REG32(reg) |= PM_PASSWORD | PM_POWUP;
 
+  puts("waiting");
   while (!(*REG32(reg) & PM_POWOK)) {
     udelay(1); // TODO, add timeout
   }
@@ -83,6 +90,7 @@ void power_domain_on(volatile uint32_t *reg) {
   /* Disable electrical isolation */
   *REG32(reg) |= PM_PASSWORD | PM_ISPOW;
 
+  puts("mem rep");
   /* Repair memory */
   *REG32(reg) |= PM_PASSWORD | PM_MEMREP;
   while (!(*REG32(reg) & PM_MRDONE)) {
@@ -90,6 +98,10 @@ void power_domain_on(volatile uint32_t *reg) {
   }
   /* Disable functional isolation */
   *REG32(reg) |= PM_PASSWORD | PM_ISFUNC;
+}
+
+void power_arm_start(void) {
+  power_domain_on(REG32(PM_PROC), PM_PROC_ARMRSTN_CLR);
 }
 
 static void dump_power_domain(const char *name, uint32_t pmreg) {

@@ -93,6 +93,7 @@ static uint32_t dump_pll_state(enum pll pll) {
   uint32_t frac_value = *def->frac;
   dprintf(INFO, "A2W_%s_CTRL: 0x%x\n", def->name, ctrl_val);
   dprintf(INFO, "A2W_%s_FRAC: 0x%x\n", def->name, frac_value);
+  dprintf(INFO, "CM_%s: 0x%x\n", def->name, *(def->cm_pll));
   uint32_t freq = get_pll_freq(pll);
   dprintf(INFO, "%s freq: %u\n", def->name, freq);
   return freq;
@@ -126,6 +127,7 @@ static int cmd_pll_dump(int argc, const cmd_args *argv) {
   }
 
   dump_plldiv2_state("VPU", CM_VPUCTL, CM_VPUDIV);
+  printf("CM_LOCK: 0x%x\n", *REG32(CM_LOCK));
   return 0;
 }
 
