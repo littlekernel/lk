@@ -9,14 +9,6 @@ MODULE_DEPS += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/dance.c
 
-$(BUILDDIR)/$(LOCAL_DIR)/pi-logo.h: $(BUILDDIR)/$(LOCAL_DIR)/pi-logo.tga
-	cat $< | tools/bin2h.py --before 'uint8_t pilogo[] = {' --after '};' > $@
-
-$(BUILDDIR)/$(LOCAL_DIR)/pi-logo.tga: $(LOCAL_DIR)/RPi-Logo-Reg-SCREEN.png
-	convert $< -compress RLE $@
-
-$(BUILDDIR)/$(LOCAL_DIR)/dance.o: $(BUILDDIR)/$(LOCAL_DIR)/pi-logo.h
-
 GLOBAL_INCLUDES += $(BUILDDIR)/$(LOCAL_DIR)
 MODULE_CFLAGS := -O2
 
