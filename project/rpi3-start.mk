@@ -11,4 +11,3 @@ MODULES += \
 	platform/bcm28xx/otp \
 	platform/bcm28xx/vec \
 	platform/bcm28xx/hvs-dance \
-	platform/bcm28xx/arm \
