@@ -67,7 +67,7 @@ int cmd_dpi_start(int argc, const cmd_args *argv) {
       gfx_putpixel(framebuffer, x, y, (0xff<<24) | (y << 16) | (y << 8) | y);
     }
   }
-  hvs_configure_channel(0, width, height);
+  hvs_configure_channel(0, width, height, true);
 
   int list_start = display_slot;
   hvs_add_plane(framebuffer, 0, 0, false);
