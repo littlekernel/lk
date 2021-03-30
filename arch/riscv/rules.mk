@@ -10,6 +10,7 @@ MODULE_SRCS += $(LOCAL_DIR)/thread.c
 MODULE_SRCS += $(LOCAL_DIR)/mmu.cpp
 MODULE_SRCS += $(LOCAL_DIR)/mp.c
 MODULE_SRCS += $(LOCAL_DIR)/sbi.c
+MODULE_SRCS += $(LOCAL_DIR)/spinlock.c
 MODULE_SRCS += $(LOCAL_DIR)/time.c
 
 # one file uses slightly complicated designated initializer
