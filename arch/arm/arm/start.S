@@ -8,7 +8,10 @@
 #include <lk/asm.h>
 #include <arch/arm/cores.h>
 #include <arch/arm/mmu.h>
+
+#if WITH_KERNEL_VM
 #include <kernel/vm.h>
+#endif
 
 .section ".text.boot"
 .globl _start
@@ -106,7 +109,7 @@ arm_reset:
 .Lrelocate_done:
 #endif // !WITH_NO_PHYS_RELOCATION
 
-#if ARM_WITH_MMU
+#if ARCH_HAS_MMU
 .Lsetup_mmu:
 
     /* set up the mmu according to mmu_initial_mappings */
@@ -212,7 +215,7 @@ arm_reset:
 
     /* set up the mmu */
     bl      .Lmmu_setup
-#endif // ARM_WITH_MMU
+#endif // ARCH_HAS_MMU
 
     /* at this point we're running at our final location in virtual memory (if enabled) */
 .Lstack_setup:

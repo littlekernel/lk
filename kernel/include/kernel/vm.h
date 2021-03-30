@@ -28,6 +28,10 @@
 #define MMU_INITIAL_MAPPING_FLAG_DEVICE   (0x4)
 #define MMU_INITIAL_MAPPING_FLAG_DYNAMIC  (0x8)  /* entry has to be patched up by platform_reset */
 
+#if !ARCH_HAS_MMU
+#error ARCH needs to declare mmu support
+#endif
+
 #ifndef ASSEMBLY
 
 #include <arch.h>

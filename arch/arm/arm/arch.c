@@ -26,7 +26,9 @@
 #include <platform.h>
 #include <target.h>
 #include <kernel/thread.h>
+#if WITH_KERNEL_VM
 #include <kernel/vm.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -68,7 +70,7 @@ void arch_early_init(void) {
     *REG32(scu_base) |= (1<<0); /* enable SCU */
 #endif
 
-#if ARM_WITH_MMU
+#if ARCH_HAS_MMU
     arm_mmu_early_init();
 
     platform_init_mmu_mappings();
@@ -137,7 +139,7 @@ void arch_init(void) {
 
     //spinlock_test();
 
-#if ARM_WITH_MMU
+#if ARCH_HAS_MMU
     /* finish initializing the mmu */
     arm_mmu_init();
 #endif

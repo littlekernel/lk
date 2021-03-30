@@ -5,6 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#if ARCH_HAS_MMU
+
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <stdlib.h>
@@ -22,8 +24,6 @@
 
 #define LOCAL_TRACE 0
 #define TRACE_CONTEXT_SWITCH 0
-
-#if ARM_WITH_MMU
 
 #define IS_SECTION_ALIGNED(x) IS_ALIGNED(x, SECTION_SIZE)
 #define IS_SUPERSECTION_ALIGNED(x) IS_ALIGNED(x, SUPERSECTION_SIZE)
@@ -724,4 +724,4 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
     return NO_ERROR;
 }
 
-#endif // ARM_WITH_MMU
+#endif // ARCH_HAS_MMU

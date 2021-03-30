@@ -7,6 +7,8 @@
  */
 #pragma once
 
+#if ARCH_HAS_MMU
+
 #include <arch.h>
 #include <sys/types.h>
 #include <lk/compiler.h>
@@ -54,4 +56,6 @@ void arch_mmu_context_switch(arch_aspace_t *aspace);
 void arch_disable_mmu(void);
 
 __END_CDECLS
+
+#endif
 

@@ -16,9 +16,6 @@ MODULE_SRCS += \
 MEMBASE ?= 0x00000000
 MEMSIZE ?= 0x02000000
 
-# we have an mmu
-WITH_KERNEL_VM=1
-
 KERNEL_BASE = 0xc0000000
 
 include make/module.mk

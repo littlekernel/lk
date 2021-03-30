@@ -41,6 +41,12 @@ GLOBAL_DEFINES += \
     MEMBASE=$(MEMBASE) \
     MEMSIZE=$(MEMSIZE)
 
+# we have an mmu
+WITH_KERNEL_VM=1
+
+GLOBAL_DEFINES += \
+    ARCH_HAS_MMU=1
+
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
 	$(BUILDDIR)/linker.ld

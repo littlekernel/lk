@@ -59,7 +59,6 @@ void arch_early_init(void) {
 
 #if RISCV_S_MODE
     sbi_early_init();
-
 #endif
 #if RISCV_MMU
     riscv_early_mmu_init();

@@ -7,7 +7,6 @@
  */
 #include <lk/reg.h>
 #include <kernel/thread.h>
-#include <kernel/vm.h>
 #include <dev/uart.h>
 #include <dev/timer/or1k_ticktimer.h>
 #include <platform.h>
@@ -17,6 +16,9 @@
 #include <platform/or1ksim.h>
 #include <sys/types.h>
 #include <target/debugconfig.h>
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
 
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* 32 MB of RAM space */
