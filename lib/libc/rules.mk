@@ -21,9 +21,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/qsort.c \
 	$(LOCAL_DIR)/eabi.c
 
-MODULE_SRCS += \
-	$(LOCAL_DIR)/pure_virtual.cpp
-
 MODULE_COMPILEFLAGS += -fno-builtin
 
 include $(LOCAL_DIR)/string/rules.mk
