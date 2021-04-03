@@ -35,6 +35,23 @@ void panic(const char *fmt, ...) {
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
+void assert_fail_msg(const char* file, int line, const char* expression, const char* fmt, ...) {
+
+    // Print the user message.
+    printf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
+    va_list ap;
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
+
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+}
+
+void assert_fail(const char* file, int line, const char* expression) {
+    printf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+}
+
 #if !DISABLE_DEBUG_OUTPUT
 
 static int __panic_stdio_fgetc(void *ctx) {
