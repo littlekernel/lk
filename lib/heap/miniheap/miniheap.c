@@ -89,9 +89,7 @@ void miniheap_dump(void) {
 // try to insert this free chunk into the free list, consuming the chunk by merging it with
 // nearby ones if possible. Returns base of whatever chunk it became in the list.
 static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *chunk) {
-#if LK_DEBUGLEVEL > INFO
     vaddr_t chunk_end = (vaddr_t)chunk + chunk->len;
-#endif
 
     LTRACEF("chunk ptr %p, size 0x%zx\n", chunk, chunk->len);
 
@@ -317,7 +315,7 @@ void miniheap_free(void *ptr) {
     struct alloc_struct_begin *as = (struct alloc_struct_begin *)ptr;
     as--;
 
-    DEBUG_ASSERT(as->magic == HEAP_MAGIC);
+    DEBUG_ASSERT_COND(as->magic == HEAP_MAGIC);
 
 #if DEBUG_HEAP
     {

@@ -71,9 +71,9 @@ extern void __error__(char *pcFilename, unsigned long ulLine);
 
 /* use lk's debug assert */
 #undef ASSERT
-#define ASSERT(e) DEBUG_ASSERT(e)
+#define ASSERT(e) DEBUG_ASSERT_COND(e)
 
-#if LK_DEBUGLEVEL > 0
+#if LK_DEBUGLEVEL > 1
 #define DEBUG
 #endif
 
