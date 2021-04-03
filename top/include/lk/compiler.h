@@ -1,18 +1,23 @@
-/*
- * Copyright (c) 2008-2013 Travis Geiselbrecht
- *
- * Use of this source code is governed by a MIT-style
- * license that can be found in the LICENSE file or at
- * https://opensource.org/licenses/MIT
- */
+//
+// Copyright (c) 2008-2013 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+//
+// Copyright 2016 The Fuchsia Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 #pragma once
 
 #ifndef __ASSEMBLY__
 
-#if __GNUC__
+#if __GNUC__ || __clang__
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 #define __UNUSED __attribute__((__unused__))
+#define __USED __attribute__((__used__))
 #define __PACKED __attribute__((packed))
 #define __ALIGNED(x) __attribute__((aligned(x)))
 #define __PRINTFLIKE(__fmt,__varargs) __attribute__((__format__ (__printf__, __fmt, __varargs)))
@@ -32,7 +37,7 @@
 #define __SRAM __NO_INLINE __SECTION(".sram.text")
 #define __CONSTRUCTOR __attribute__((constructor))
 #define __DESTRUCTOR __attribute__((destructor))
-#define __OPTIMIZE(x) __attribute__((optimize(x)))
+#define __RESTRICT __restrict
 
 #define INCBIN(symname, sizename, filename, section)                    \
     __asm__ (".section " section "; .align 4; .globl "#symname);        \
@@ -117,6 +122,42 @@
 
 #define __offsetof(type, field) __builtin_offsetof(type, field)
 
+#if defined(__cplusplus) && __cplusplus >= 201703L
+#define __FALLTHROUGH [[fallthrough]]
+#elif defined(__cplusplus) && defined(__clang__)
+#define __FALLTHROUGH [[clang::fallthrough]]
+#elif __GNUC__ >= 7
+#define __FALLTHROUGH __attribute__((__fallthrough__))
+#else
+#define __FALLTHROUGH do {} while (0)
+#endif
+
+#ifndef __clang__
+#define __LEAF_FN __attribute__((__leaf__))
+#define __OPTIMIZE(x) __attribute__((optimize(x)))
+#define __THREAD_ANNOTATION(x)
+#define __has_feature(x) 0
+#else
+#define __LEAF_FN
+#define __OPTIMIZE(x)
+#define __THREAD_ANNOTATION(x) __attribute__((x))
+#endif
+
+// Publicly exposed thread annotation macros. These have a long and ugly name to
+// minimize the chance of collision with consumers of Zircon's public headers.
+#define __TA_CAPABILITY(x) __THREAD_ANNOTATION(__capability__(x))
+#define __TA_GUARDED(x) __THREAD_ANNOTATION(__guarded_by__(x))
+#define __TA_ACQUIRE(...) __THREAD_ANNOTATION(__acquire_capability__(__VA_ARGS__))
+#define __TA_TRY_ACQUIRE(...) __THREAD_ANNOTATION(__try_acquire_capability__(__VA_ARGS__))
+#define __TA_ACQUIRED_BEFORE(...) __THREAD_ANNOTATION(__acquired_before__(__VA_ARGS__))
+#define __TA_ACQUIRED_AFTER(...) __THREAD_ANNOTATION(__acquired_after__(__VA_ARGS__))
+#define __TA_RELEASE(...) __THREAD_ANNOTATION(__release_capability__(__VA_ARGS__))
+#define __TA_REQUIRES(...) __THREAD_ANNOTATION(__requires_capability__(__VA_ARGS__))
+#define __TA_EXCLUDES(...) __THREAD_ANNOTATION(__locks_excluded__(__VA_ARGS__))
+#define __TA_RETURN_CAPABILITY(x) __THREAD_ANNOTATION(__lock_returned__(x))
+#define __TA_SCOPED_CAPABILITY __THREAD_ANNOTATION(__scoped_lockable__)
+#define __TA_NO_THREAD_SAFETY_ANALYSIS __THREAD_ANNOTATION(__no_thread_safety_analysis__)
+
 #else
 
 #define likely(x)       (x)
@@ -140,7 +181,9 @@
 #endif
 
 /* TODO: add type check */
+#if !defined(countof)
 #define countof(a) (sizeof(a) / sizeof((a)[0]))
+#endif
 
 /* CPP header guards */
 #ifdef __cplusplus
