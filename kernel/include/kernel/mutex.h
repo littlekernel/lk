@@ -47,7 +47,7 @@ static inline status_t mutex_acquire(mutex_t *m) {
 }
 
 /* does the current thread hold the mutex? */
-static bool is_mutex_held(mutex_t *m) {
+static bool is_mutex_held(const mutex_t *m) {
     return m->holder == get_current_thread();
 }
 
