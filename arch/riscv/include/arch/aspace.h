@@ -13,6 +13,8 @@
 __BEGIN_CDECLS
 
 struct arch_aspace {
+    int magic;
+
     /* pointer to the translation table */
     paddr_t pt_phys;
     volatile riscv_pte_t *pt_virt;
@@ -23,6 +25,8 @@ struct arch_aspace {
     vaddr_t base;
     size_t size;
 };
+
+#define RISCV_ASPACE_MAGIC 'RVAS'
 
 __END_CDECLS
 

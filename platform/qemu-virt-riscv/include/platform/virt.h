@@ -11,19 +11,6 @@
 //
 // mostly taken from the top of qemu/hw/riscv/virt.c and similar headers
 
-#define IRQ_VIRTIO_BASE 1
-#define IRQ_UART0       10
-#define IRQ_PCIE_BASE   0x20
-#define NUM_IRQS        127
-
-#define CLINT_BASE  0x02000000
-#define PLIC_BASE   0x0c000000
-#define UART0_BASE  0x10000000
-#define VIRTIO_BASE 0x10001000
-#define DRAM_BASE   0x80000000
-#define NUM_VIRTIO_TRANSPORTS 8
-#define VIRTIO_STRIDE 0x1000
-
 #if RISCV_XMODE_OFFSET == RISCV_MACH_OFFSET
 #define PLIC_HART_IDX(hart)    (2 * (hart))
 #elif RISCV_XMODE_OFFSET == RISCV_SUPER_OFFSET
@@ -43,11 +30,31 @@
 #define PERIPHERAL_BASE_PHYS (0)
 #define PERIPHERAL_BASE_SIZE (0x40000000UL) // 1GB
 
-// XXX clean up
-#if __riscv_xlen == 64
-#define PERIPHERAL_BASE_VIRT (0xffffffffc0000000ULL) // -1GB
+// use the giant mapping at the bottom of the kernel as our peripheral space
+#if WITH_KERNEL_VM
+#define PERIPHERAL_BASE_VIRT (KERNEL_ASPACE_BASE + PERIPHERAL_BASE_PHYS)
 #else
-#define PERIPHERAL_BASE_VIRT (0xc0000000UL) // -1GB
+// if no mmu, just treat virt == phys
+#define PERIPHERAL_BASE_VIRT (PERIPHERAL_BASE_PHYS)
 #endif
 
+// interrupts
+#define IRQ_VIRTIO_BASE 1
+#define IRQ_UART0       10
+#define IRQ_PCIE_BASE   0x20
+#define NUM_IRQS        127
 
+// addresses of some peripherals
+#define CLINT_BASE          0x02000000
+#define CLINT_BASE_VIRT     (PERIPHERAL_BASE_VIRT + CLINT_BASE)
+#define PLIC_BASE           0x0c000000
+#define PLIC_BASE_VIRT      (PERIPHERAL_BASE_VIRT + PLIC_BASE)
+#define UART0_BASE          0x10000000
+#define UART0_BASE_VIRT     (PERIPHERAL_BASE_VIRT + UART0_BASE)
+#define VIRTIO_BASE         0x10001000
+#define VIRTIO_BASE_VIRT    (PERIPHERAL_BASE_VIRT + VIRTIO_BASE)
+#define DRAM_BASE           0x80000000
+#define DRAM_BASE_VIRT      (PERIPHERAL_BASE_VIRT + DRAM_BASE)
+
+#define NUM_VIRTIO_TRANSPORTS 8
+#define VIRTIO_STRIDE 0x1000

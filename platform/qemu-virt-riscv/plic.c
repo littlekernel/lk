@@ -20,11 +20,11 @@
 #define LOCAL_TRACE 0
 
 // Driver for PLIC implementation for qemu riscv virt machine
-#define PLIC_PRIORITY(irq) (PLIC_BASE + 4 + 4 * (irq))
-#define PLIC_PENDING(irq)  (PLIC_BASE + 0x1000 + (4 * ((irq) / 32)))
-#define PLIC_ENABLE(irq, hart)      (PLIC_BASE + 0x2000 + (0x80 * PLIC_HART_IDX(hart)) + (4 * ((irq) / 32)))
-#define PLIC_THRESHOLD(hart)        (PLIC_BASE + 0x200000 + (0x1000 * PLIC_HART_IDX(hart)))
-#define PLIC_COMPLETE(hart)         (PLIC_BASE + 0x200004 + (0x1000 * PLIC_HART_IDX(hart)))
+#define PLIC_PRIORITY(irq) (PLIC_BASE_VIRT + 4 + 4 * (irq))
+#define PLIC_PENDING(irq)  (PLIC_BASE_VIRT + 0x1000 + (4 * ((irq) / 32)))
+#define PLIC_ENABLE(irq, hart)      (PLIC_BASE_VIRT + 0x2000 + (0x80 * PLIC_HART_IDX(hart)) + (4 * ((irq) / 32)))
+#define PLIC_THRESHOLD(hart)        (PLIC_BASE_VIRT + 0x200000 + (0x1000 * PLIC_HART_IDX(hart)))
+#define PLIC_COMPLETE(hart)         (PLIC_BASE_VIRT + 0x200004 + (0x1000 * PLIC_HART_IDX(hart)))
 #define PLIC_CLAIM(hart)            PLIC_COMPLETE(hart)
 
 static struct int_handlers {

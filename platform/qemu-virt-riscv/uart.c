@@ -19,7 +19,7 @@
 
 // simple 16550 driver for the emulated serial port on qemu riscv virt machine
 
-static volatile uint8_t *const uart_base = (uint8_t *)UART0_BASE;
+static volatile uint8_t *const uart_base = (uint8_t *)UART0_BASE_VIRT;
 
 #define RXBUF_SIZE 128
 static char uart_rx_buf_data[RXBUF_SIZE];

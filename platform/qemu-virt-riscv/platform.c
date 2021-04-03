@@ -85,6 +85,9 @@ void platform_early_init(void) {
     bool found_mem = false;
     int cpu_count = 0;
     const void *fdt = (void *)lk_boot_args[1];
+#if WITH_KERNEL_VM
+    fdt = (const void *)((uintptr_t)fdt + PERIPHERAL_BASE_VIRT);
+#endif
 
     struct fdt_walk_callbacks cb = {
         .mem = memcallback,
@@ -140,7 +143,7 @@ void platform_init(void) {
         virtio_irqs[i] = IRQ_VIRTIO_BASE + i;
     }
 
-    virtio_mmio_detect((void *)VIRTIO_BASE, NUM_VIRTIO_TRANSPORTS, virtio_irqs, VIRTIO_STRIDE);
+    virtio_mmio_detect((void *)VIRTIO_BASE_VIRT, NUM_VIRTIO_TRANSPORTS, virtio_irqs, VIRTIO_STRIDE);
 
 #if WITH_LIB_MINIP
     if (virtio_net_found() > 0) {

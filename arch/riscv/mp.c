@@ -119,6 +119,11 @@ void riscv_secondary_entry(uint hart_id, uint __unused, uint cpu_id) {
     spin_lock(&boot_cpu_lock);
     spin_unlock(&boot_cpu_lock);
 
+#if RISCV_MMU
+    // let the mmu code configure per cpu bits
+    riscv_mmu_init_secondaries();
+#endif
+
     // run early secondary cpu init routines up to the threading level
     lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
 

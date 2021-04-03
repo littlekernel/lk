@@ -29,9 +29,12 @@
 #error "32 bit mmu not supported yet"
 #endif
 
+// global stuff
+riscv_pte_t trampoline_pgtable[512] __ALIGNED(PAGE_SIZE);
+paddr_t trampoline_pgtable_phys; // filled in by start.S
+
 riscv_pte_t kernel_pgtable[512] __ALIGNED(PAGE_SIZE);
 paddr_t kernel_pgtable_phys; // filled in by start.S
-static ulong riscv_asid_mask;
 
 // initial memory mappings. VM uses to construct mappings after the fact
 struct mmu_initial_mapping mmu_initial_mappings[] = {
@@ -54,35 +57,22 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     { }
 };
 
-// called once on the boot cpu during very early (single threaded) init
-extern "C"
-void riscv_early_mmu_init() {
-    // figure out the number of support ASID bits by writing all 1s to
-    // the asid field in satp and seeing which ones 'stick'
-    auto satp_orig = riscv_csr_read(satp);
-    auto satp = satp_orig | (RISCV_SATP_ASID_MASK << RISCV_SATP_ASID_SHIFT);
-    riscv_csr_write(satp, satp);
-    riscv_asid_mask = (riscv_csr_read(satp) >> RISCV_SATP_ASID_SHIFT) & RISCV_SATP_ASID_MASK;
-    riscv_csr_write(satp, satp_orig);
-}
 
-// called a bit later once on the boot cpu
-extern "C"
-void riscv_mmu_init() {
-    printf("RISCV: MMU ASID mask %#lx\n", riscv_asid_mask);
-}
+// local state
+static ulong riscv_asid_mask;
+static arch_aspace_t *kernel_aspace;
 
 static inline void riscv_set_satp(uint asid, paddr_t pt) {
     ulong satp;
 
 #if RISCV_MMU == 48
-    satp = RISCV_SATP_MODE_SV48;
+    satp = RISCV_SATP_MODE_SV48 << RISCV_SATP_MODE_SHIFT;
 #elif RISCV_MMU == 39
-    satp = RISCV_SATP_MODE_SV39;
+    satp = RISCV_SATP_MODE_SV39 << RISCV_SATP_MODE_SHIFT;
 #endif
 
     // make sure the asid is in range
-    DEBUG_ASSERT(asid & riscv_asid_mask);
+    DEBUG_ASSERT_MSG((asid & riscv_asid_mask) == asid, "asid %#x mask %#x\n", asid, riscv_asid_mask);
     satp |= (ulong)asid << RISCV_SATP_ASID_SHIFT;
 
     // make sure the page table is aligned
@@ -190,29 +180,40 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
     LTRACEF("aspace %p, base %#lx, size %#zx, flags %#x\n", aspace, base, size, flags);
 
     DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(aspace->magic != RISCV_ASPACE_MAGIC);
 
     // validate that the base + size is sane and doesn't wrap
     DEBUG_ASSERT(size > PAGE_SIZE);
     DEBUG_ASSERT(base + size - 1 > base);
 
+    aspace->magic = RISCV_ASPACE_MAGIC;
     aspace->flags = flags;
     if (flags & ARCH_ASPACE_FLAG_KERNEL) {
         // kernel aspace is special and should be constructed once
         DEBUG_ASSERT(base == KERNEL_ASPACE_BASE);
         DEBUG_ASSERT(size == KERNEL_ASPACE_SIZE);
+        DEBUG_ASSERT(!kernel_aspace);
 
         aspace->base = base;
         aspace->size = size;
         aspace->pt_virt = kernel_pgtable;
         aspace->pt_phys = kernel_pgtable_phys;
+        kernel_aspace = aspace;
     } else {
         // at the moment can only deal with user aspaces that perfectly
         // cover the predefined range
         DEBUG_ASSERT(base == USER_ASPACE_BASE);
         DEBUG_ASSERT(size == USER_ASPACE_SIZE);
 
-        // implement
-        return ERR_NOT_IMPLEMENTED;
+        aspace->base = base;
+        aspace->size = size;
+
+        // allocate a top level page table
+        aspace->pt_virt = alloc_ptable(&aspace->pt_phys);
+        if (!aspace->pt_virt) {
+            aspace->magic = 0; // not a properly constructed aspace
+            return ERR_NO_MEMORY;
+        }
     }
 
     LTRACEF("pt phys %#lx, pt virt %p\n", aspace->pt_phys, aspace->pt_virt);
@@ -224,12 +225,23 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
     LTRACEF("aspace %p\n", aspace);
 
     DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
 
     if (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) {
         panic("trying to destroy kernel aspace\n");
     } else {
-        return ERR_NOT_IMPLEMENTED;
+        // TODO: assert that it's not active
+        // TODO: make sure no page tables are active
+
+        // free the top level page table
+        pmm_free_kpages((void *)aspace->pt_virt, 1);
+        aspace->pt_virt = nullptr;
+        aspace->pt_phys = 0;
     }
+
+    aspace->magic = 0;
+
+    return NO_ERROR;
 }
 
 enum class walk_cb_ret_op {
@@ -347,6 +359,7 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t paddr, uin
     LTRACEF("vaddr %#lx paddr %#lx count %u flags %#x\n", _vaddr, paddr, count, flags);
 
     DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
 
     if (count == 0) {
         return NO_ERROR;
@@ -416,6 +429,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t *pa
     LTRACEF("aspace %p, vaddr %#lx\n", aspace, _vaddr);
 
     DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
 
     // trim the vaddr to the aspace
     if (_vaddr < aspace->base || _vaddr > aspace->base + aspace->size - 1) {
@@ -463,6 +477,7 @@ int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint _coun
     LTRACEF("vaddr %#lx count %u\n", _vaddr, _count);
 
     DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
 
     if (_count == 0) {
         return NO_ERROR;
@@ -524,7 +539,50 @@ int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint _coun
 void arch_mmu_context_switch(arch_aspace_t *aspace) {
     LTRACEF("aspace %p\n", aspace);
 
+    DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
+
     PANIC_UNIMPLEMENTED;
 }
+
+extern "C"
+void riscv_mmu_init_secondaries() {
+    // switch to the proper kernel pgtable, with the trampoline parts unmapped
+    riscv_set_satp(0, kernel_pgtable_phys);
+}
+
+// called once on the boot cpu during very early (single threaded) init
+extern "C"
+void riscv_early_mmu_init() {
+    // figure out the number of support ASID bits by writing all 1s to
+    // the asid field in satp and seeing which ones 'stick'
+    auto satp_orig = riscv_csr_read(satp);
+    auto satp = satp_orig | (RISCV_SATP_ASID_MASK << RISCV_SATP_ASID_SHIFT);
+    riscv_csr_write(satp, satp);
+    riscv_asid_mask = (riscv_csr_read(satp) >> RISCV_SATP_ASID_SHIFT) & RISCV_SATP_ASID_MASK;
+    riscv_csr_write(satp, satp_orig);
+
+    // copy the top parts of the kernel page table from the trampoline page table
+    // which has the bottom parts of memory identity mapped
+    const uint start = vaddr_to_index(KERNEL_ASPACE_BASE, RISCV_MMU_PT_LEVELS - 1);
+    const uint end = vaddr_to_index(KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - 1UL, RISCV_MMU_PT_LEVELS - 1);
+
+    DEBUG_ASSERT(end >= start && end < RISCV_MMU_PT_ENTRIES);
+
+    for (auto i = start; i <= end; i++) {
+        kernel_pgtable[i] = trampoline_pgtable[i];
+    }
+    smp_wmb();
+
+    // switch to the new kernel pagetable
+    riscv_mmu_init_secondaries();
+}
+
+// called a bit later once on the boot cpu
+extern "C"
+void riscv_mmu_init() {
+    printf("RISCV: MMU ASID mask %#lx\n", riscv_asid_mask);
+}
+
+
 
 #endif

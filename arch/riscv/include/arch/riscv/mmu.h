@@ -62,12 +62,12 @@ typedef uintptr_t riscv_pte_t;
 
 // SATP register, contains the current mmu mode, address space id, and
 // pointer to root page table
-#define RISCV_SATP_MODE_NONE (0)
-#define RISCV_SATP_MODE_SV32 (1)
-#define RISCV_SATP_MODE_SV39 (8)
-#define RISCV_SATP_MODE_SV48 (9)
-#define RISCV_SATP_MODE_SV57 (10)
-#define RISCV_SATP_MODE_SV64 (11)
+#define RISCV_SATP_MODE_NONE (0UL)
+#define RISCV_SATP_MODE_SV32 (1UL)
+#define RISCV_SATP_MODE_SV39 (8UL)
+#define RISCV_SATP_MODE_SV48 (9UL)
+#define RISCV_SATP_MODE_SV57 (10UL)
+#define RISCV_SATP_MODE_SV64 (11UL)
 
 #if __riscv_xlen == 32
 #define RISCV_SATP_MODE_SHIFT (31)

@@ -53,6 +53,10 @@
 #define RISCV_CSR_MISA      (0x301)
 #endif // RISCV_M_MODE
 
+#if RISCV_S_MODE // Supervisor-mode only CSRs
+#define RISCV_CSR_SATP      (0x180)
+#endif
+
 #define RISCV_CSR_XSTATUS_IE    (1u << (RISCV_XMODE_OFFSET + 0))
 #define RISCV_CSR_XSTATUS_PIE   (1u << (RISCV_XMODE_OFFSET + 4))
 

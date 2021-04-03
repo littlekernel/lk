@@ -121,8 +121,11 @@ LOCAL_FUNCTION(secondary_trap)
     lb      t0, (t5)
     beqz    t0, secondary_trap
 
+    // we've been released by the main cpu and/or we've been booted after the
+    // system has been running a while.
+
 #if RISCV_MMU
-    // TODO: enable the mmu on this core
+    // enable the mmu on this core
     jal     .Lenable_mmu
 #endif
 
@@ -150,11 +153,16 @@ END_FUNCTION(hart_trap)
     // for all MMU versions, identity map some amount of memory near 0 and
     // the same amount at the bottom of the kernel's address space
 LOCAL_FUNCTION(_mmu_init)
-    lla     t0, kernel_pgtable
+    lla     t0, trampoline_pgtable
 
     // store the physical address of the pgtable for future use
-    lla     t1, kernel_pgtable_phys
+    lla     t1, trampoline_pgtable_phys
     sd      t0, (t1)
+
+    // do the same for the main kernel pgtable
+    lla     t2, kernel_pgtable
+    lla     t1, kernel_pgtable_phys
+    sd      t2, (t1)
 
     // compute kernel pgtable pointer (index 256)
     addi    t1, t0, (8 * 128)
@@ -178,7 +186,9 @@ LOCAL_FUNCTION(_mmu_init)
 #error implement
 #endif
 
-    // loop, writing t3 entries out and incrementing by t4 address
+    // loop, writing t3 entries out and incrementing by t4 address.
+    // write both to t0 (index 0 of the kernel page table) and
+    // t1 (starting index of kernel space)
 0:
     sd      t2, (t1)
     sd      t2, (t0)
@@ -193,8 +203,8 @@ LOCAL_FUNCTION(_mmu_init)
 
 .Lenable_mmu:
     // set the satp register and enable the mmu
-    // ASID 0, kernel_pgtable address
-    lla     t0, kernel_pgtable
+    // ASID 0, trampoline_pgtable address
+    lla     t0, trampoline_pgtable
     srli    t1, t0, 12
 #if RISCV_MMU == 48
     li      t2, (9 << 60)   // mode 9, SV48
@@ -205,7 +215,6 @@ LOCAL_FUNCTION(_mmu_init)
 #endif
     or      t1, t1, t2
     csrw    satp, t1
-    lla     s0, kernel_pgtable
 
     // global tlb fence
     sfence.vma  zero, zero
