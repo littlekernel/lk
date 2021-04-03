@@ -8,6 +8,7 @@
 #include <lk/asm.h>
 #include <arch/defines.h>
 #include <arch/riscv/asm.h>
+#include <arch/riscv/mmu.h>
 #include "config.h"
 
 .section ".text.boot"
@@ -164,6 +165,11 @@ LOCAL_FUNCTION(_mmu_init)
     lla     t1, kernel_pgtable_phys
     sd      t2, (t1)
 
+    // and the 2nd level tables
+    lla     t2, kernel_l2_pgtable
+    lla     t1, kernel_l2_pgtable_phys
+    sd      t2, (t1)
+
     // compute kernel pgtable pointer (index 256)
     addi    t1, t0, (8 * 128)
     addi    t1, t1, (8 * 128)
@@ -172,18 +178,15 @@ LOCAL_FUNCTION(_mmu_init)
     li      t2, (0 | (1<<7) | (1<<6) | (1<<5) | (1<<3) | (1<<2) | (1<<1) | (1<<0))
 
     // num interations and increment count
-#if RISCV_MMU == 48
+#if RISCV_MMU == 48 || RISCV_MMU == 39
     // RV48: map the first 512GB of the physical address space at the
     // bottom of the kernel address space using a single terapage
-    li      t3, 1
-    li      t4, (512 * 1024 * 1024 * 1024) >> 2
-#elif RISCV_MMU == 39
     // RV39: map the first 64GB of the physical address space at the
     // bottom of the kernel address space using 64 1GB gigapages
-    li      t3, 64
-    li      t4, (1 * 1024 * 1024 * 1024) >> 2
+    li      t3, RISCV_MMU_PHYSMAP_PAGE_COUNT
+    li      t4, (RISCV_MMU_PHYSMAP_PAGE_SIZE >> 2)
 #else
-#error implement
+#error implement sv32
 #endif
 
     // loop, writing t3 entries out and incrementing by t4 address.
@@ -207,9 +210,9 @@ LOCAL_FUNCTION(_mmu_init)
     lla     t0, trampoline_pgtable
     srli    t1, t0, 12
 #if RISCV_MMU == 48
-    li      t2, (9 << 60)   // mode 9, SV48
+    li      t2, (RISCV_SATP_MODE_SV48 << RISCV_SATP_MODE_SHIFT)
 #elif RISCV_MMU == 39
-    li      t2, (8 << 60)   // mode 8, SV39
+    li      t2, (RISCV_SATP_MODE_SV39 << RISCV_SATP_MODE_SHIFT)
 #else
 #error implement
 #endif

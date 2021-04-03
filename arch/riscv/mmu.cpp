@@ -29,26 +29,32 @@
 #error "32 bit mmu not supported yet"
 #endif
 
-// global stuff
+// global, generally referenced in start.S
+
+// the one main kernel top page table, used by the kernel address space
+// when no user space is active. bottom user space parts are empty.
+riscv_pte_t kernel_pgtable[512] __ALIGNED(PAGE_SIZE);
+paddr_t kernel_pgtable_phys; // filled in by start.S
+
+// trampoline top level page table is like the kernel page table but additionally
+// holds an identity map of the bottom RISCV_MMU_PHYSMAP_SIZE bytes of ram.
+// used at early bootup and when starting secondary processors.
 riscv_pte_t trampoline_pgtable[512] __ALIGNED(PAGE_SIZE);
 paddr_t trampoline_pgtable_phys; // filled in by start.S
 
-riscv_pte_t kernel_pgtable[512] __ALIGNED(PAGE_SIZE);
-paddr_t kernel_pgtable_phys; // filled in by start.S
+// pre-allocate kernel 2nd level page tables.
+// this makes it very easy to keep user space top level address space page tables
+// in sync, since they can simply take a copy of the kernel ones.
+riscv_pte_t kernel_l2_pgtable[512][RISCV_MMU_KERNEL_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+paddr_t kernel_l2_pgtable_phys; // filled in by start.S
 
 // initial memory mappings. VM uses to construct mappings after the fact
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     // all of memory, mapped in start.S
     {
         .phys = 0,
-        .virt = KERNEL_ASPACE_BASE,
-#if RISCV_MMU == 48
-        .size = 512UL * GB,
-#elif RISCV_MMU == 39
-        .size = 64UL * GB,
-#else
-#error implement
-#endif
+        .virt = RISCV_MMU_PHYSMAP_BASE_VIRT,
+        .size = RISCV_MMU_PHYSMAP_SIZE,
         .flags = 0,
         .name = "memory"
     },
@@ -57,12 +63,45 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     { }
 };
 
+namespace {
 
 // local state
-static ulong riscv_asid_mask;
-static arch_aspace_t *kernel_aspace;
+ulong riscv_asid_mask;
+arch_aspace_t *kernel_aspace;
 
-static inline void riscv_set_satp(uint asid, paddr_t pt) {
+// given a va address and the level, compute the index in the current PT
+constexpr uint vaddr_to_index(vaddr_t va, uint level) {
+    // levels count down from PT_LEVELS - 1
+    DEBUG_ASSERT(level < RISCV_MMU_PT_LEVELS);
+
+    // canonicalize the address
+    va &= RISCV_MMU_CANONICAL_MASK;
+
+    uint index = ((va >> PAGE_SIZE_SHIFT) >> (level * RISCV_MMU_PT_SHIFT)) & (RISCV_MMU_PT_ENTRIES - 1);
+    LTRACEF_LEVEL(3, "canonical va %#lx, level %u = index %#x\n", va, level, index);
+
+    return index;
+}
+
+uintptr_t constexpr page_size_per_level(uint level) {
+    // levels count down from PT_LEVELS - 1
+    DEBUG_ASSERT(level < RISCV_MMU_PT_LEVELS);
+
+    return 1UL << (PAGE_SIZE_SHIFT + level * RISCV_MMU_PT_SHIFT);
+}
+
+uintptr_t constexpr page_mask_per_level(uint level) {
+    return page_size_per_level(level) - 1;
+}
+
+// compute the starting and stopping index of the kernel aspace
+constexpr uint kernel_start_index = vaddr_to_index(KERNEL_ASPACE_BASE, RISCV_MMU_PT_LEVELS - 1);
+constexpr uint kernel_end_index = vaddr_to_index(KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - 1UL, RISCV_MMU_PT_LEVELS - 1);
+
+static_assert(kernel_end_index >= kernel_start_index && kernel_end_index < RISCV_MMU_PT_ENTRIES);
+static_assert(kernel_end_index - kernel_start_index + 1 == RISCV_MMU_KERNEL_PT_ENTRIES);
+
+void riscv_set_satp(uint asid, paddr_t pt) {
     ulong satp;
 
 #if RISCV_MMU == 48
@@ -85,7 +124,7 @@ static inline void riscv_set_satp(uint asid, paddr_t pt) {
     asm("sfence.vma zero, zero");
 }
 
-static void riscv_tlb_flush_vma_range(vaddr_t base, size_t count) {
+void riscv_tlb_flush_vma_range(vaddr_t base, size_t count) {
     if (count == 0)
         return;
 
@@ -102,38 +141,13 @@ static void riscv_tlb_flush_vma_range(vaddr_t base, size_t count) {
     }
 }
 
-static void riscv_tlb_flush_global() {
+void riscv_tlb_flush_global() {
     // Use SBI to do a global TLB shoot down on all cpus
     ulong hart_mask = -1; // TODO: be more selective about the cpus
     sbi_rfence_vma(&hart_mask, 0, -1);
 }
 
-// given a va address and the level, compute the index in the current PT
-static inline uint vaddr_to_index(vaddr_t va, uint level) {
-    // levels count down from PT_LEVELS - 1
-    DEBUG_ASSERT(level < RISCV_MMU_PT_LEVELS);
-
-    // canonicalize the address
-    va &= RISCV_MMU_CANONICAL_MASK;
-
-    uint index = ((va >> PAGE_SIZE_SHIFT) >> (level * RISCV_MMU_PT_SHIFT)) & (RISCV_MMU_PT_ENTRIES - 1);
-    LTRACEF_LEVEL(3, "canonical va %#lx, level %u = index %#x\n", va, level, index);
-
-    return index;
-}
-
-static uintptr_t page_size_per_level(uint level) {
-    // levels count down from PT_LEVELS - 1
-    DEBUG_ASSERT(level < RISCV_MMU_PT_LEVELS);
-
-    return 1UL << (PAGE_SIZE_SHIFT + level * RISCV_MMU_PT_SHIFT);
-}
-
-static uintptr_t page_mask_per_level(uint level) {
-    return page_size_per_level(level) - 1;
-}
-
-static volatile riscv_pte_t *alloc_ptable(paddr_t *pa) {
+volatile riscv_pte_t *alloc_ptable(arch_aspace_t *aspace, addr_t *pa) {
     // grab a page from the pmm
     vm_page_t *p = pmm_alloc_page();
     if (!p) {
@@ -149,11 +163,14 @@ static volatile riscv_pte_t *alloc_ptable(paddr_t *pa) {
 
     smp_wmb();
 
+    // add it to the aspace list
+    list_add_head(&aspace->pt_list, &p->node);
+
     LTRACEF_LEVEL(3, "returning pa %#lx, va %p\n", *pa, pte);
     return pte;
 }
 
-static riscv_pte_t mmu_flags_to_pte(uint flags) {
+riscv_pte_t mmu_flags_to_pte(uint flags) {
     riscv_pte_t pte = 0;
 
     pte |= (flags & ARCH_MMU_FLAG_PERM_USER) ? RISCV_PTE_U : 0;
@@ -163,7 +180,7 @@ static riscv_pte_t mmu_flags_to_pte(uint flags) {
     return pte;
 }
 
-static uint pte_flags_to_mmu_flags(riscv_pte_t pte) {
+uint pte_flags_to_mmu_flags(riscv_pte_t pte) {
     uint f = 0;
     if ((pte & (RISCV_PTE_R | RISCV_PTE_W)) == RISCV_PTE_R) {
         f |= ARCH_MMU_FLAG_PERM_RO;
@@ -172,6 +189,8 @@ static uint pte_flags_to_mmu_flags(riscv_pte_t pte) {
     f |= (pte & RISCV_PTE_U) ? ARCH_MMU_FLAG_PERM_USER : 0;
     return f;
 }
+
+} // namespace
 
 // public api
 
@@ -188,6 +207,7 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
 
     aspace->magic = RISCV_ASPACE_MAGIC;
     aspace->flags = flags;
+    list_initialize(&aspace->pt_list);
     if (flags & ARCH_ASPACE_FLAG_KERNEL) {
         // kernel aspace is special and should be constructed once
         DEBUG_ASSERT(base == KERNEL_ASPACE_BASE);
@@ -199,6 +219,8 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
         aspace->pt_virt = kernel_pgtable;
         aspace->pt_phys = kernel_pgtable_phys;
         kernel_aspace = aspace;
+
+        // TODO: allocate and attach kernel page tables here instead of prealloced
     } else {
         // at the moment can only deal with user aspaces that perfectly
         // cover the predefined range
@@ -209,11 +231,17 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
         aspace->size = size;
 
         // allocate a top level page table
-        aspace->pt_virt = alloc_ptable(&aspace->pt_phys);
+        aspace->pt_virt = alloc_ptable(aspace, &aspace->pt_phys);
         if (!aspace->pt_virt) {
             aspace->magic = 0; // not a properly constructed aspace
             return ERR_NO_MEMORY;
         }
+
+        // copy the top part of the top page table from the kernel's
+        for (auto i = kernel_start_index; i <= kernel_end_index; i++) {
+            aspace->pt_virt[i] = kernel_pgtable[i];
+        }
+        smp_wmb();
     }
 
     LTRACEF("pt phys %#lx, pt virt %p\n", aspace->pt_phys, aspace->pt_virt);
@@ -231,10 +259,14 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
         panic("trying to destroy kernel aspace\n");
     } else {
         // TODO: assert that it's not active
-        // TODO: make sure no page tables are active
+        // TODO: shoot down the ASID
+
+        // mass free all of the page tables in the aspace
+        DEBUG_ASSERT(!list_is_empty(&aspace->pt_list)); // should be at least one page
+        LTRACEF("freeing %zu page tables\n", list_length(&aspace->pt_list));
+        pmm_free(&aspace->pt_list);
 
         // free the top level page table
-        pmm_free_kpages((void *)aspace->pt_virt, 1);
         aspace->pt_virt = nullptr;
         aspace->pt_phys = 0;
     }
@@ -243,6 +275,8 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
 
     return NO_ERROR;
 }
+
+namespace {
 
 enum class walk_cb_ret_op {
     HALT,
@@ -275,7 +309,7 @@ using page_walk_cb = walk_cb_ret(*)(uint level, uint index, riscv_pte_t pte, vad
 
 // generic walker routine to automate drilling through a page table structure
 template <typename F>
-static int riscv_pt_walk(arch_aspace_t *aspace, vaddr_t vaddr, F callback) {
+int riscv_pt_walk(arch_aspace_t *aspace, vaddr_t vaddr, F callback) {
     LTRACEF("vaddr %#lx\n", vaddr);
 
     DEBUG_ASSERT(aspace);
@@ -329,7 +363,7 @@ restart:
                 case walk_cb_ret_op::ALLOC_PT:
                     // user wants us to add a page table and continue
                     paddr_t ptp;
-                    volatile riscv_pte_t *ptv = alloc_ptable(&ptp);
+                    volatile riscv_pte_t *ptv = alloc_ptable(aspace, &ptp);
                     if (!ptv) {
                         return ERR_NO_MEMORY;
                     }
@@ -353,6 +387,8 @@ restart:
     }
     // unreachable
 }
+
+} // namespace
 
 // routines to map/unmap/query mappings per address space
 int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t paddr, uint count, const uint flags) {
@@ -507,6 +543,7 @@ int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint _coun
 
             // zero it out, which should unmap the page
             // TODO: handle freeing upper level page tables
+            // make sure we dont free kernel 2nd level pts
             *vaddr += PAGE_SIZE;
             count--;
             if (count == 0) {
@@ -561,14 +598,15 @@ void riscv_early_mmu_init() {
     riscv_asid_mask = (riscv_csr_read(satp) >> RISCV_SATP_ASID_SHIFT) & RISCV_SATP_ASID_MASK;
     riscv_csr_write(satp, satp_orig);
 
+    // install zeroed page tables to the unused portions of the kernel page tables
+    for (auto i = kernel_start_index; i <= kernel_end_index; i++) {
+        if ((trampoline_pgtable[i] & RISCV_PTE_V) == 0) {
+            trampoline_pgtable[i] = RISCV_PTE_PPN_TO_PTE(kernel_l2_pgtable_phys + (i - kernel_start_index) * PAGE_SIZE) | RISCV_PTE_V;
+        }
+    }
+
     // copy the top parts of the kernel page table from the trampoline page table
-    // which has the bottom parts of memory identity mapped
-    const uint start = vaddr_to_index(KERNEL_ASPACE_BASE, RISCV_MMU_PT_LEVELS - 1);
-    const uint end = vaddr_to_index(KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - 1UL, RISCV_MMU_PT_LEVELS - 1);
-
-    DEBUG_ASSERT(end >= start && end < RISCV_MMU_PT_ENTRIES);
-
-    for (auto i = start; i <= end; i++) {
+    for (auto i = kernel_start_index; i <= kernel_end_index; i++) {
         kernel_pgtable[i] = trampoline_pgtable[i];
     }
     smp_wmb();

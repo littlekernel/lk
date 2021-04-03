@@ -8,6 +8,7 @@
 #pragma once
 
 #include <lk/compiler.h>
+#include <lk/list.h>
 #include <arch/riscv/mmu.h>
 
 __BEGIN_CDECLS
@@ -15,13 +16,16 @@ __BEGIN_CDECLS
 struct arch_aspace {
     int magic;
 
-    /* pointer to the translation table */
+    // pointer to the translation table
     paddr_t pt_phys;
     volatile riscv_pte_t *pt_virt;
 
     uint flags;
 
-    /* range of address space */
+    // list of page tables allocated for this aspace
+    struct list_node pt_list;
+
+    // range of address space
     vaddr_t base;
     size_t size;
 };

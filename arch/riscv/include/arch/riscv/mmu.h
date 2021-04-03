@@ -9,15 +9,17 @@
 
 #if RISCV_MMU
 
+#ifndef ASSEMBLY
 #include <stdint.h>
 #include <arch/defines.h>
 
 // RISC-V specific mmu #defines and structures here
+typedef uintptr_t riscv_pte_t;
+#endif
+
 #define KB                (1024UL)
 #define MB                (1024UL*1024UL)
 #define GB                (1024UL*1024UL*1024UL)
-
-typedef uintptr_t riscv_pte_t;
 
 // some constants based on our particular implementation
 #if RISCV_MMU == 48
@@ -26,21 +28,37 @@ typedef uintptr_t riscv_pte_t;
 #define RISCV_MMU_PT_ENTRIES 512 // 1 << PT_SHIFT
 #define RISCV_MMU_CANONICAL_MASK ((1UL << 48) - 1)
 #define RISCV_MMU_PPN_BITS 56
+#define RISCV_MMU_PHYSMAP_BASE_VIRT (KERNEL_ASPACE_BASE)
+#define RISCV_MMU_PHYSMAP_PAGE_SIZE (1UL << 39)
+#define RISCV_MMU_PHYSMAP_PAGE_COUNT 1
 #elif RISCV_MMU == 39
 #define RISCV_MMU_PT_LEVELS 3
 #define RISCV_MMU_PT_SHIFT  9
 #define RISCV_MMU_PT_ENTRIES 512 // 1 << PT_SHIFT
 #define RISCV_MMU_CANONICAL_MASK ((1UL << 39) - 1)
 #define RISCV_MMU_PPN_BITS 56
+#define RISCV_MMU_PHYSMAP_BASE_VIRT (KERNEL_ASPACE_BASE)
+#define RISCV_MMU_PHYSMAP_PAGE_SIZE (1UL << 30)
+#define RISCV_MMU_PHYSMAP_PAGE_COUNT 64
 #elif RISCV_MMU == 32
 #define RISCV_MMU_PT_LEVELS 2
 #define RISCV_MMU_PT_SHIFT  10
 #define RISCV_MMU_PT_ENTRIES 1024 // 1 << PT_SHIFT
 #define RISCV_MMU_CANONICAL_MASK UINT32_MASK
 #define RISCV_MMU_PPN_BITS 32
+#define RISCV_MMU_PHYSMAP_BASE_VIRT (KERNEL_ASPACE_BASE)
+#define RISCV_MMU_PHYSMAP_PAGE_SIZE (1UL << 30)
+#define RISCV_MMU_PHYSMAP_PAGE_COUNT 1
 #else
 #error implement
 #endif
+
+#define RISCV_MMU_PHYSMAP_SIZE      (RISCV_MMU_PHYSMAP_PAGE_SIZE * RISCV_MMU_PHYSMAP_PAGE_COUNT)
+
+// number of page table entries for the kernel and user half
+// TODO: compute directly from KERNEL/USER_ASPACE_SIZE
+#define RISCV_MMU_USER_PT_ENTRIES 256
+#define RISCV_MMU_KERNEL_PT_ENTRIES 256
 
 // page table bits
 #define RISCV_PTE_V         (1 << 0) // valid
