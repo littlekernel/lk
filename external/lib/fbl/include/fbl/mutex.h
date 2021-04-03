@@ -15,7 +15,7 @@
 // primative and provide a common interface for library code which is intended
 // to be shared between user-mode and kernel code.  It is also responsible for
 // automatically initializing and destroying the internal mutex object.
-#if _KERNEL
+#if LK || _KERNEL
 #include <kernel/mutex.h>
 #include <sys/types.h>
 

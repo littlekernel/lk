@@ -4,23 +4,16 @@
 
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-#
-# Userspace library.
-#
-
 MODULE := $(LOCAL_DIR)
 
-#MODULE_TYPE := userlib
-
-MODULE_COMPILEFLAGS += -fvisibility=hidden
+MODULE_DEPS := lib/libcpp
 
 MODULE_SRCS += \
+    $(LOCAL_DIR)/all.cpp \
     $(LOCAL_DIR)/alloc_checker.cpp \
     $(LOCAL_DIR)/string_buffer.cpp \
     $(LOCAL_DIR)/string_piece.cpp \
     $(LOCAL_DIR)/string_printf.cpp \
     $(LOCAL_DIR)/string.cpp
-
-#MODULE_PACKAGE := src
 
 include make/module.mk

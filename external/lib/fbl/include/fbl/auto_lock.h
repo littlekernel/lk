@@ -14,7 +14,7 @@ namespace fbl {
 // Introduce preprocessor definitions for the underlying mutex data type and the
 // lock/unlock operations based on whether this code is being used in the kernel
 // or in user-mode.
-#ifdef _KERNEL
+#if LK || _KERNEL
 #define fbl_mutex_t mutex_t
 #define fbl_mutex_acquire mutex_acquire
 #define fbl_mutex_release mutex_release

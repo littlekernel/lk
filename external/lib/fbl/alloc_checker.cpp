@@ -63,7 +63,7 @@ bool AllocChecker::check() {
 
 } // namespace fbl
 
-#if !_KERNEL
+#if LK || !_KERNEL
 
 void* operator new(size_t size, fbl::AllocChecker* ac) noexcept {
     return fbl::checked(size, ac, operator new(size, std::nothrow_t()));

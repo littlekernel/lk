@@ -21,7 +21,7 @@ namespace internal {
 // (slab_allocator_priv.h?) and have an outer include file available only to
 // user mode which defines the SlabMalloc struct, and a different one in the
 // kernel director which defines the kernel's SlabMalloc struct.
-#ifdef _KERNEL
+#if LK || _KERNEL
 
 struct SlabMalloc {
     // TODO(johngro): Replace this implementation with a kernel implementation

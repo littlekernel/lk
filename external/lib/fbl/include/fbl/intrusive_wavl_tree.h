@@ -661,7 +661,7 @@ private:
                 // of the sentinel termination, we should never attempt to climb
                 // up past the root.
                 bool done;
-                auto ns = &NodeTraits::node_state(*node_);
+                ns = &NodeTraits::node_state(*node_);
                 do {
                     ZX_DEBUG_ASSERT(internal::valid_sentinel_ptr(ns->parent_));
 

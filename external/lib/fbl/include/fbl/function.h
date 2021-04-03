@@ -161,13 +161,13 @@ struct FunctionTargetHolder final {
     };
 
     template <typename Callable>
-    void InitializeTarget(Callable target) {
-        new (&bits_) typename TargetHelper<Callable>::Type(fbl::move(target));
+    void InitializeTarget(Callable _target) {
+        new (&bits_) typename TargetHelper<Callable>::Type(fbl::move(_target));
     }
 
     template <typename Callable>
-    void InitializeTarget(Callable target, AllocChecker* ac) {
-        new (&bits_) typename TargetHelper<Callable>::Type(fbl::move(target), ac);
+    void InitializeTarget(Callable _target, AllocChecker* ac) {
+        new (&bits_) typename TargetHelper<Callable>::Type(fbl::move(_target), ac);
     }
 
     void MoveInitializeTargetFrom(FunctionTargetHolder& other) {

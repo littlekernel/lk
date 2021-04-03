@@ -1,0 +1,9 @@
+Snapshot of the FBL (Fuchsia Base Library) from the Fuchsia OS project.
+
+Mostly C++ standalone template based helper classes for various tasks.
+Does not rely on std:: or the heap, in general.
+
+Taken prior to subsequent conversion to using more std::.
+
+https://fuchsia.googlesource.com/fuchsia
+739867bb1b9a54d61653220f9b485c3fe09d2d57

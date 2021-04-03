@@ -4,6 +4,9 @@
 
 #pragma once
 
+// This isn't really useful in LK
+#if !LK
+
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -82,3 +85,5 @@ private:
 };
 
 }  // namespace fbl
+
+#endif // !LK
