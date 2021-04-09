@@ -59,6 +59,9 @@
 
 #define RISCV_CSR_XSTATUS_IE    (1u << (RISCV_XMODE_OFFSET + 0))
 #define RISCV_CSR_XSTATUS_PIE   (1u << (RISCV_XMODE_OFFSET + 4))
+#define RISCV_CSR_XSTATUS_SPP   (1u << 8)
+#define RISCV_CSR_XSTATUS_SUM   (1u << 18)
+#define RISCV_CSR_XSTATUS_MXR   (1u << 19)
 
 #define RISCV_CSR_XIE_SIE       (1u << (RISCV_XMODE_OFFSET + 0))
 #define RISCV_CSR_XIE_TIE       (1u << (RISCV_XMODE_OFFSET + 4))

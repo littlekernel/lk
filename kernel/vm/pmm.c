@@ -203,7 +203,7 @@ size_t pmm_free(struct list_node *list) {
 
     mutex_acquire(&lock);
 
-    uint count = 0;
+    size_t count = 0;
     while (!list_is_empty(list)) {
         vm_page_t *page = list_remove_head_type(list, vm_page_t, node);
 

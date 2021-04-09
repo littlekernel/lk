@@ -98,8 +98,8 @@ uintptr_t constexpr page_mask_per_level(uint level) {
 constexpr uint kernel_start_index = vaddr_to_index(KERNEL_ASPACE_BASE, RISCV_MMU_PT_LEVELS - 1);
 constexpr uint kernel_end_index = vaddr_to_index(KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - 1UL, RISCV_MMU_PT_LEVELS - 1);
 
-static_assert(kernel_end_index >= kernel_start_index && kernel_end_index < RISCV_MMU_PT_ENTRIES);
-static_assert(kernel_end_index - kernel_start_index + 1 == RISCV_MMU_KERNEL_PT_ENTRIES);
+static_assert(kernel_end_index >= kernel_start_index && kernel_end_index < RISCV_MMU_PT_ENTRIES, "");
+static_assert(kernel_end_index - kernel_start_index + 1 == RISCV_MMU_KERNEL_PT_ENTRIES, "");
 
 void riscv_set_satp(uint asid, paddr_t pt) {
     ulong satp;
@@ -576,15 +576,26 @@ int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint _coun
 void arch_mmu_context_switch(arch_aspace_t *aspace) {
     LTRACEF("aspace %p\n", aspace);
 
-    DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
+    DEBUG_ASSERT(!aspace || aspace->magic == RISCV_ASPACE_MAGIC);
 
-    PANIC_UNIMPLEMENTED;
+    if (!aspace) {
+        // switch to the kernel address space
+        riscv_set_satp(0, kernel_aspace->pt_phys);
+    } else {
+        riscv_set_satp(0, aspace->pt_phys);
+    }
+
+    // TODO: deal with TLB flushes.
+    // for now, riscv_set_satp() does a full local TLB dump
 }
 
 extern "C"
 void riscv_mmu_init_secondaries() {
     // switch to the proper kernel pgtable, with the trampoline parts unmapped
     riscv_set_satp(0, kernel_pgtable_phys);
+
+    // set the SUM bit so we can access user space directly (for now)
+    riscv_csr_set(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_SUM);
 }
 
 // called once on the boot cpu during very early (single threaded) init
