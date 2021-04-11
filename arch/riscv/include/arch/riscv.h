@@ -9,6 +9,7 @@
 
 #include <lk/compiler.h>
 #include <arch/defines.h>
+#include <arch/riscv/asm.h>
 
 #define RISCV_USER_OFFSET   (0u)
 #define RISCV_SUPER_OFFSET  (1u)
@@ -57,19 +58,19 @@
 #define RISCV_CSR_SATP      (0x180)
 #endif
 
-#define RISCV_CSR_XSTATUS_IE    (1u << (RISCV_XMODE_OFFSET + 0))
-#define RISCV_CSR_XSTATUS_PIE   (1u << (RISCV_XMODE_OFFSET + 4))
-#define RISCV_CSR_XSTATUS_SPP   (1u << 8)
-#define RISCV_CSR_XSTATUS_SUM   (1u << 18)
-#define RISCV_CSR_XSTATUS_MXR   (1u << 19)
+#define RISCV_CSR_XSTATUS_IE    (1ul << (RISCV_XMODE_OFFSET + 0))
+#define RISCV_CSR_XSTATUS_PIE   (1ul << (RISCV_XMODE_OFFSET + 4))
+#define RISCV_CSR_XSTATUS_SPP   (1ul << 8)
+#define RISCV_CSR_XSTATUS_SUM   (1ul << 18)
+#define RISCV_CSR_XSTATUS_MXR   (1ul << 19)
 
-#define RISCV_CSR_XIE_SIE       (1u << (RISCV_XMODE_OFFSET + 0))
-#define RISCV_CSR_XIE_TIE       (1u << (RISCV_XMODE_OFFSET + 4))
-#define RISCV_CSR_XIE_EIE       (1u << (RISCV_XMODE_OFFSET + 8))
+#define RISCV_CSR_XIE_SIE       (1ul << (RISCV_XMODE_OFFSET + 0))
+#define RISCV_CSR_XIE_TIE       (1ul << (RISCV_XMODE_OFFSET + 4))
+#define RISCV_CSR_XIE_EIE       (1ul << (RISCV_XMODE_OFFSET + 8))
 
-#define RISCV_CSR_XIP_SIP       (1u << (RISCV_XMODE_OFFSET + 0))
-#define RISCV_CSR_XIP_TIP       (1u << (RISCV_XMODE_OFFSET + 4))
-#define RISCV_CSR_XIP_EIP       (1u << (RISCV_XMODE_OFFSET + 8))
+#define RISCV_CSR_XIP_SIP       (1ul << (RISCV_XMODE_OFFSET + 0))
+#define RISCV_CSR_XIP_TIP       (1ul << (RISCV_XMODE_OFFSET + 4))
+#define RISCV_CSR_XIP_EIP       (1ul << (RISCV_XMODE_OFFSET + 8))
 
 // Interrupts, top bit set in cause register
 #define RISCV_INTERRUPT_USWI        0       // software interrupt
@@ -157,14 +158,40 @@
 })
 
 struct riscv_percpu {
-    uint cpu_num;
-    uint hart_id;
+    // must be first field in the struct
+    struct thread *curr_thread;
+    unsigned int cpu_num;
+    unsigned int hart_id;
 } __ALIGNED(CACHE_LINE);
 
-extern struct riscv_percpu percpu[SMP_MAX_CPUS];
-
+// percpu pointer is held in the tp register while in the kernel
 static inline struct riscv_percpu *riscv_get_percpu(void) {
-    return (struct riscv_percpu *)riscv_csr_read(RISCV_CSR_XSCRATCH);
+    struct riscv_percpu *cpu;
+    __asm__ volatile("mv %0, tp" : "=&r"(cpu));
+    return cpu;
+}
+
+static inline void riscv_set_percpu(struct riscv_percpu *cpu) {
+    __asm__ volatile("mv tp, %0" :: "r"(cpu));
+}
+
+// current thread is always at the start of the percpu struct
+static inline struct thread *riscv_get_current_thread(void) {
+    struct thread *t;
+#if __riscv_xlen == 32
+    __asm__ volatile("lw %0, 0(tp)" : "=&r"(t));
+#else
+    __asm__ volatile("ld %0, 0(tp)" : "=&r"(t));
+#endif
+    return t;
+}
+
+static inline void riscv_set_current_thread(struct thread *t) {
+#if __riscv_xlen == 32
+    __asm__ volatile("sw %0, 0(tp)" :: "r"(t));
+#else
+    __asm__ volatile("sd %0, 0(tp)" :: "r"(t));
+#endif
 }
 
 static inline uint riscv_current_hart(void) {

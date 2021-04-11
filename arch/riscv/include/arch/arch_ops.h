@@ -25,16 +25,12 @@ static inline bool arch_ints_disabled(void) {
     return !(riscv_csr_read(RISCV_CSR_XSTATUS) & RISCV_CSR_XSTATUS_IE);
 }
 
-// store the current thread in the tp register which is reserved in the ABI
-// as pointing to thread local storage.
-register struct thread *__current_thread asm("tp");
-
 static inline struct thread *arch_get_current_thread(void) {
-    return __current_thread;
+    return riscv_get_current_thread();
 }
 
 static inline void arch_set_current_thread(struct thread *t) {
-    __current_thread = t;
+    riscv_set_current_thread(t);
 }
 
 static inline ulong arch_cycle_count(void) {

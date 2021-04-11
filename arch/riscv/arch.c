@@ -27,9 +27,10 @@ struct riscv_percpu percpu[SMP_MAX_CPUS];
 // called extremely early from start.S prior to getting into any other C code on
 // both the boot cpu and the secondaries
 void riscv_configure_percpu_early(uint hart_id, uint __unused, uint cpu_num) {
-    // point xscratch at the current cpu structure
+    // point tp reg at the current cpu structure
+    riscv_set_percpu(&percpu[cpu_num]);
+
     // set up the cpu number and hart id for the per cpu structure
-    riscv_csr_write(RISCV_CSR_XSCRATCH, &percpu[cpu_num]);
     percpu[cpu_num].cpu_num = cpu_num;
     percpu[cpu_num].hart_id = hart_id;
 
