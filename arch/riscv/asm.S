@@ -48,11 +48,25 @@ FUNCTION(riscv_context_switch)
     ret
 END_FUNCTION(riscv_context_switch)
 
-/* top level exception handler for riscv in non vectored mode */
-.balign 4
-FUNCTION(riscv_exception_entry)
-    /* dump all the callee trashed regs on the stack */
-    addi   sp, sp, -REGOFF(20) // subtract a multiple of 16 to align the stack in 32bit
+.macro save_regs, user
+    addi   sp, sp, -REGOFF(24) // subtract a multiple of 16 to align the stack in 32bit
+.if \user == 1
+    // recover tp from the top of the stack (we saved it here before)
+    STR     tp, REGOFF(18)(sp)
+    LDR     tp, REGOFF(23)(sp) // this is where the top of the stack used to be
+
+    STR     gp, REGOFF(19)(sp)
+
+    // save the user stack and zero scratch register
+    csrrw   gp, RISCV_CSR_XSCRATCH, zero
+    STR     gp, REGOFF(20)(sp)
+
+    // recover gp for the kernel
+.option push
+.option norelax
+    lla     gp, __global_pointer$
+.option pop
+.endif
     STR    t6, REGOFF(17)(sp)
     STR    t5, REGOFF(16)(sp)
     STR    t4, REGOFF(15)(sp)
@@ -75,10 +89,14 @@ FUNCTION(riscv_exception_entry)
     csrr   a1, RISCV_CSR_XEPC
     STR    a1, REGOFF(0)(sp)
     mv     a2, sp
+    // args are set up for a call into riscv_exception_handler()
+    // a0 = xcause
+    // a1 = xepc
+    // a2 = sp
+.endm
 
-    jal    riscv_exception_handler
-
-    /* put everything back */
+.macro restore_regs, user
+    // put everything back
     LDR    t0, REGOFF(0)(sp)
     csrw   RISCV_CSR_XEPC, t0
     LDR    t0, REGOFF(1)(sp)
@@ -100,7 +118,60 @@ FUNCTION(riscv_exception_entry)
     LDR    t4, REGOFF(15)(sp)
     LDR    t5, REGOFF(16)(sp)
     LDR    t6, REGOFF(17)(sp)
-    addi   sp, sp, REGOFF(20)
+.if \user == 1
+    // before we run out of registers, save tp to the top of the kernel stack
+    // and put the kernel stack in the scratch register
+    addi   gp, sp, REGOFF(24)
+    STR    tp, REGOFF(-1)(gp)
+    csrw   RISCV_CSR_XSCRATCH, sp
+
+    LDR    tp, REGOFF(18)(sp)
+    LDR    gp, REGOFF(19)(sp)
+    LDR    sp, REGOFF(20)(sp)
+.else
+    addi   sp, sp, REGOFF(24)
+.endif
+.endm
+
+/* top level exception handler for riscv in non vectored mode */
+.balign 4
+FUNCTION(riscv_exception_entry)
+    /* check to see if we came from user space */
+    csrrw   sp, RISCV_CSR_XSCRATCH, sp
+    bnez    sp, 1f
+
+    /* put the stack back */
+    csrrw   sp, RISCV_CSR_XSCRATCH, sp
+    j       kernel_exception_entry
+
+1:
+    /* came from user space */
+    j       user_exception_entry
+END_FUNCTION(riscv_exception_entry)
+
+LOCAL_FUNCTION(kernel_exception_entry)
+    /* we came from kernel space so tp and gp are okay */
+    save_regs 0
+
+    /* bool kernel = true */
+    li     a3, 1
+    jal    riscv_exception_handler
+
+    restore_regs 0
 
     RISCV_XRET
-END_FUNCTION(riscv_exception_entry)
+END_FUNCTION(kernel_exception_entry)
+
+LOCAL_FUNCTION(user_exception_entry)
+    /* we came from user space, assume gp and tp have been trashed */
+    save_regs 1
+
+    /* bool kernel = false */
+    li     a3, 0
+    jal    riscv_exception_handler
+
+    restore_regs 1
+
+    RISCV_XRET
+END_FUNCTION(user_exception_entry)
+

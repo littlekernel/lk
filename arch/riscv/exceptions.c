@@ -10,6 +10,7 @@
 #include <lk/trace.h>
 #include <arch/riscv.h>
 #include <kernel/thread.h>
+#include <platform.h>
 
 #define LOCAL_TRACE 0
 
@@ -33,7 +34,13 @@ struct riscv_short_iframe {
     ulong  t4;
     ulong  t5;
     ulong  t6;
+    // if we came from user space these are valid
+    ulong  tp;
+    ulong  gp;
+    ulong  sp;
+    ulong  pad[3];
 };
+static_assert(sizeof(struct riscv_short_iframe) % 16 == 0, "");
 
 extern enum handler_return riscv_platform_irq(void);
 extern enum handler_return riscv_software_exception(void);
@@ -73,19 +80,29 @@ static const char *cause_to_string(long cause) {
 }
 
 __NO_RETURN __NO_INLINE
-static void fatal_exception(long cause, ulong epc, struct riscv_short_iframe *frame) {
+static void fatal_exception(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel) {
     if (cause < 0) {
-        panic("unhandled interrupt cause %#lx, epc %#lx, tval %#lx\n", cause, epc,
+        printf("unhandled interrupt cause %#lx, epc %#lx, tval %#lx\n", cause, epc,
               riscv_csr_read(RISCV_CSR_XTVAL));
     } else {
-        panic("unhandled exception cause %#lx (%s), epc %#lx, tval %#lx\n", cause,
+        printf("unhandled exception cause %#lx (%s), epc %#lx, tval %#lx\n", cause,
               cause_to_string(cause), epc, riscv_csr_read(RISCV_CSR_XTVAL));
     }
+
+    printf("a0 %#16lx a1 %#16lx a2 %#16lx a3 %#16lx\n", frame->a0, frame->a1, frame->a2, frame->a3);
+    printf("a4 %#16lx a5 %#16lx a6 %#16lx a7 %#16lx\n", frame->a4, frame->a5, frame->a6, frame->a7);
+    printf("t0 %#16lx t1 %#16lx t2 %#16lx t3 %#16lx\n", frame->t0, frame->t1, frame->t2, frame->t3);
+    printf("t5 %#16lx t6 %#16lx\n", frame->t5, frame->t6);
+    if (!kernel) {
+        printf("gp %#16lx tp %#16lx sp %#lx\n", frame->gp, frame->tp, frame->sp);
+    }
+
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
-void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *frame) {
-    LTRACEF("hart %u cause %#lx epc %#lx status %#lx\n",
-            riscv_current_hart(), cause, epc, frame->status);
+void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel) {
+    LTRACEF("hart %u cause %#lx epc %#lx status %#lx kernel %d\n",
+            riscv_current_hart(), cause, epc, frame->status, kernel);
 
     enum handler_return ret = INT_NO_RESCHEDULE;
 
@@ -104,13 +121,13 @@ void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *f
                 ret = riscv_platform_irq();
                 break;
             default:
-                fatal_exception(cause, epc, frame);
+                fatal_exception(cause, epc, frame, kernel);
         }
     } else {
         // all synchronous traps go here
         switch (cause) {
             default:
-                fatal_exception(cause, epc, frame);
+                fatal_exception(cause, epc, frame, kernel);
         }
     }
 

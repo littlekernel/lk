@@ -33,16 +33,19 @@ void riscv_configure_percpu_early(uint hart_id, uint __unused, uint cpu_num) {
     // set up the cpu number and hart id for the per cpu structure
     percpu[cpu_num].cpu_num = cpu_num;
     percpu[cpu_num].hart_id = hart_id;
+    wmb();
 
 #if WITH_SMP
     // do any MP percpu config
     riscv_configure_percpu_mp_early(hart_id, cpu_num);
 #endif
-    wmb();
 }
 
 // first C level code to initialize each cpu
 void riscv_early_init_percpu(void) {
+    // clear the scratch register in case we take an exception early
+    riscv_csr_write(RISCV_CSR_XSCRATCH, 0);
+
     // set the top level exception handler
     riscv_csr_write(RISCV_CSR_XTVEC, (uintptr_t)&riscv_exception_entry);
 
@@ -122,29 +125,61 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     thread_t *ct = get_current_thread();
 
     vaddr_t kernel_stack_top = (uintptr_t)ct->stack + ct->stack_size;
-    kernel_stack_top = ROUNDDOWN(kernel_stack_top, 8);
+    kernel_stack_top = ROUNDDOWN(kernel_stack_top, 16);
 
-    PANIC_UNIMPLEMENTED;
+    printf("kernel sstatus %#lx\n", riscv_csr_read(sstatus));
 
-#if 0
+    // build a user status register
+    ulong status;
+    status = RISCV_CSR_XSTATUS_PIE |
+             RISCV_CSR_XSTATUS_SUM;
 
-    uint32_t spsr = CPSR_MODE_USR;
-    spsr |= (entry_point & 1) ? CPSR_THUMB : 0;
+    printf("user sstatus %#lx\n", status);
 
     arch_disable_ints();
 
+    riscv_csr_write(sstatus, status);
+    riscv_csr_write(sepc, entry_point);
+    riscv_csr_write(sscratch, kernel_stack_top);
+    // put the current tp (percpu pointer) just below the top of the stack
+    // the exception code will recover it when coming from user space
+    ((uintptr_t *)kernel_stack_top)[-1] = (uintptr_t)riscv_get_percpu();
     asm volatile(
-        "ldmia  %[ustack], { sp }^;"
-        "msr	spsr, %[spsr];"
-        "mov	sp, %[kstack];"
-        "movs	pc, %[entry];"
-        :
-        : [ustack]"r"(&user_stack_top),
-        [kstack]"r"(kernel_stack_top),
-        [entry]"r"(entry_point),
-        [spsr]"r"(spsr)
-        : "memory");
-#endif
+        "mv  sp, %0\n"
+        "li  a0, 0\n"
+        "li  a1, 0\n"
+        "li  a2, 0\n"
+        "li  a3, 0\n"
+        "li  a4, 0\n"
+        "li  a5, 0\n"
+        "li  a6, 0\n"
+        "li  a7, 0\n"
+        "li  t0, 0\n"
+        "li  t1, 0\n"
+        "li  t2, 0\n"
+        "li  t3, 0\n"
+        "li  t4, 0\n"
+        "li  t5, 0\n"
+        "li  t6, 0\n"
+        "li  s0, 0\n"
+        "li  s1, 0\n"
+        "li  s2, 0\n"
+        "li  s3, 0\n"
+        "li  s4, 0\n"
+        "li  s5, 0\n"
+        "li  s6, 0\n"
+        "li  s7, 0\n"
+        "li  s8, 0\n"
+        "li  s9, 0\n"
+        "li  s10, 0\n"
+        "li  s11, 0\n"
+        "li  ra, 0\n"
+        "li  gp, 0\n"
+        "li  tp, 0\n"
+        "sret"
+        :: "r" (user_stack_top)
+    );
+
     __UNREACHABLE;
 }
 #endif
