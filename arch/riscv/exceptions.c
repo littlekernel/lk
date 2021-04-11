@@ -11,36 +11,9 @@
 #include <arch/riscv.h>
 #include <kernel/thread.h>
 #include <platform.h>
+#include <arch/riscv/iframe.h>
 
 #define LOCAL_TRACE 0
-
-// keep in sync with asm.S
-struct riscv_short_iframe {
-    ulong  epc;
-    ulong  status;
-    ulong  ra;
-    ulong  a0;
-    ulong  a1;
-    ulong  a2;
-    ulong  a3;
-    ulong  a4;
-    ulong  a5;
-    ulong  a6;
-    ulong  a7;
-    ulong  t0;
-    ulong  t1;
-    ulong  t2;
-    ulong  t3;
-    ulong  t4;
-    ulong  t5;
-    ulong  t6;
-    // if we came from user space these are valid
-    ulong  tp;
-    ulong  gp;
-    ulong  sp;
-    ulong  pad[3];
-};
-static_assert(sizeof(struct riscv_short_iframe) % 16 == 0, "");
 
 extern enum handler_return riscv_platform_irq(void);
 extern enum handler_return riscv_software_exception(void);
@@ -79,6 +52,16 @@ static const char *cause_to_string(long cause) {
     return "Unknown";
 }
 
+static void dump_iframe(struct riscv_short_iframe *frame, bool kernel) {
+    printf("a0 %#16lx a1 %#16lx a2 %#16lx a3 %#16lx\n", frame->a0, frame->a1, frame->a2, frame->a3);
+    printf("a4 %#16lx a5 %#16lx a6 %#16lx a7 %#16lx\n", frame->a4, frame->a5, frame->a6, frame->a7);
+    printf("t0 %#16lx t1 %#16lx t2 %#16lx t3 %#16lx\n", frame->t0, frame->t1, frame->t2, frame->t3);
+    printf("t5 %#16lx t6 %#16lx\n", frame->t5, frame->t6);
+    if (!kernel) {
+        printf("gp %#16lx tp %#16lx sp %#lx\n", frame->gp, frame->tp, frame->sp);
+    }
+}
+
 __NO_RETURN __NO_INLINE
 static void fatal_exception(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel) {
     if (cause < 0) {
@@ -89,14 +72,15 @@ static void fatal_exception(long cause, ulong epc, struct riscv_short_iframe *fr
               cause_to_string(cause), epc, riscv_csr_read(RISCV_CSR_XTVAL));
     }
 
-    printf("a0 %#16lx a1 %#16lx a2 %#16lx a3 %#16lx\n", frame->a0, frame->a1, frame->a2, frame->a3);
-    printf("a4 %#16lx a5 %#16lx a6 %#16lx a7 %#16lx\n", frame->a4, frame->a5, frame->a6, frame->a7);
-    printf("t0 %#16lx t1 %#16lx t2 %#16lx t3 %#16lx\n", frame->t0, frame->t1, frame->t2, frame->t3);
-    printf("t5 %#16lx t6 %#16lx\n", frame->t5, frame->t6);
-    if (!kernel) {
-        printf("gp %#16lx tp %#16lx sp %#lx\n", frame->gp, frame->tp, frame->sp);
-    }
+    dump_iframe(frame, kernel);
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+}
 
+// weak reference, can override this somewhere else
+__WEAK
+void riscv_syscall_handler(struct riscv_short_iframe *frame) {
+    printf("unhandled syscall handler\n");
+    dump_iframe(frame, false);
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
@@ -126,6 +110,9 @@ void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *f
     } else {
         // all synchronous traps go here
         switch (cause) {
+            case RISCV_EXCEPTION_ENV_CALL_U_MODE: // ecall from user mode
+                riscv_syscall_handler(frame);
+                break;
             default:
                 fatal_exception(cause, epc, frame, kernel);
         }

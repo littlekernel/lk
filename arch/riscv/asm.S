@@ -8,6 +8,7 @@
 #include <lk/asm.h>
 #include <arch/riscv.h>
 #include <arch/riscv/asm.h>
+#include <arch/riscv/iframe.h>
 
 /* void riscv_context_switch(
     struct riscv_context_switch_frame *oldcs,
@@ -49,17 +50,17 @@ FUNCTION(riscv_context_switch)
 END_FUNCTION(riscv_context_switch)
 
 .macro save_regs, user
-    addi   sp, sp, -REGOFF(24) // subtract a multiple of 16 to align the stack in 32bit
+    addi   sp, sp, -RISCV_IFRAME_LEN // subtract a multiple of 16 to align the stack in 32bit
 .if \user == 1
     // recover tp from the top of the stack (we saved it here before)
-    STR     tp, REGOFF(18)(sp)
-    LDR     tp, REGOFF(23)(sp) // this is where the top of the stack used to be
+    STR     tp, RISCV_IFRAME_TP(sp)
+    LDR     tp, (RISCV_IFRAME_LEN-__riscv_xlen / 8)(sp) // this is where the top of the stack used to be
 
-    STR     gp, REGOFF(19)(sp)
+    STR     gp, RISCV_IFRAME_GP(sp)
 
     // save the user stack and zero scratch register
     csrrw   gp, RISCV_CSR_XSCRATCH, zero
-    STR     gp, REGOFF(20)(sp)
+    STR     gp, RISCV_IFRAME_SP(sp)
 
     // recover gp for the kernel
 .option push
@@ -67,27 +68,27 @@ END_FUNCTION(riscv_context_switch)
     lla     gp, __global_pointer$
 .option pop
 .endif
-    STR    t6, REGOFF(17)(sp)
-    STR    t5, REGOFF(16)(sp)
-    STR    t4, REGOFF(15)(sp)
-    STR    t3, REGOFF(14)(sp)
-    STR    t2, REGOFF(13)(sp)
-    STR    t1, REGOFF(12)(sp)
-    STR    t0, REGOFF(11)(sp)
-    STR    a7, REGOFF(10)(sp)
-    STR    a6, REGOFF(9)(sp)
-    STR    a5, REGOFF(8)(sp)
-    STR    a4, REGOFF(7)(sp)
-    STR    a3, REGOFF(6)(sp)
-    STR    a2, REGOFF(5)(sp)
-    STR    a1, REGOFF(4)(sp)
-    STR    a0, REGOFF(3)(sp)
-    STR    ra, REGOFF(2)(sp)
+    STR    t6, RISCV_IFRAME_T(6)(sp)
+    STR    t5, RISCV_IFRAME_T(5)(sp)
+    STR    t4, RISCV_IFRAME_T(4)(sp)
+    STR    t3, RISCV_IFRAME_T(3)(sp)
+    STR    t2, RISCV_IFRAME_T(2)(sp)
+    STR    t1, RISCV_IFRAME_T(1)(sp)
+    STR    t0, RISCV_IFRAME_T(0)(sp)
+    STR    a7, RISCV_IFRAME_A(7)(sp)
+    STR    a6, RISCV_IFRAME_A(6)(sp)
+    STR    a5, RISCV_IFRAME_A(5)(sp)
+    STR    a4, RISCV_IFRAME_A(4)(sp)
+    STR    a3, RISCV_IFRAME_A(3)(sp)
+    STR    a2, RISCV_IFRAME_A(2)(sp)
+    STR    a1, RISCV_IFRAME_A(1)(sp)
+    STR    a0, RISCV_IFRAME_A(0)(sp)
+    STR    ra, RISCV_IFRAME_RA(sp)
     csrr   t0, RISCV_CSR_XSTATUS
-    STR    t0, REGOFF(1)(sp)
+    STR    t0, RISCV_IFRAME_STATUS(sp)
     csrr   a0, RISCV_CSR_XCAUSE
     csrr   a1, RISCV_CSR_XEPC
-    STR    a1, REGOFF(0)(sp)
+    STR    a1, RISCV_IFRAME_EPC(sp)
     mv     a2, sp
     // args are set up for a call into riscv_exception_handler()
     // a0 = xcause
@@ -97,63 +98,63 @@ END_FUNCTION(riscv_context_switch)
 
 .macro restore_regs, user
     // put everything back
-    LDR    t0, REGOFF(0)(sp)
+    LDR    t0, RISCV_IFRAME_EPC(sp)
     csrw   RISCV_CSR_XEPC, t0
-    LDR    t0, REGOFF(1)(sp)
+    LDR    t0, RISCV_IFRAME_STATUS(sp)
     csrw   RISCV_CSR_XSTATUS, t0
 
-    LDR    ra, REGOFF(2)(sp)
-    LDR    a0, REGOFF(3)(sp)
-    LDR    a1, REGOFF(4)(sp)
-    LDR    a2, REGOFF(5)(sp)
-    LDR    a3, REGOFF(6)(sp)
-    LDR    a4, REGOFF(7)(sp)
-    LDR    a5, REGOFF(8)(sp)
-    LDR    a6, REGOFF(9)(sp)
-    LDR    a7, REGOFF(10)(sp)
-    LDR    t0, REGOFF(11)(sp)
-    LDR    t1, REGOFF(12)(sp)
-    LDR    t2, REGOFF(13)(sp)
-    LDR    t3, REGOFF(14)(sp)
-    LDR    t4, REGOFF(15)(sp)
-    LDR    t5, REGOFF(16)(sp)
-    LDR    t6, REGOFF(17)(sp)
+    LDR    ra, RISCV_IFRAME_RA(sp)
+    LDR    a0, RISCV_IFRAME_A(0)(sp)
+    LDR    a1, RISCV_IFRAME_A(1)(sp)
+    LDR    a2, RISCV_IFRAME_A(2)(sp)
+    LDR    a3, RISCV_IFRAME_A(3)(sp)
+    LDR    a4, RISCV_IFRAME_A(4)(sp)
+    LDR    a5, RISCV_IFRAME_A(5)(sp)
+    LDR    a6, RISCV_IFRAME_A(6)(sp)
+    LDR    a7, RISCV_IFRAME_A(7)(sp)
+    LDR    t0, RISCV_IFRAME_T(0)(sp)
+    LDR    t1, RISCV_IFRAME_T(1)(sp)
+    LDR    t2, RISCV_IFRAME_T(2)(sp)
+    LDR    t3, RISCV_IFRAME_T(3)(sp)
+    LDR    t4, RISCV_IFRAME_T(4)(sp)
+    LDR    t5, RISCV_IFRAME_T(5)(sp)
+    LDR    t6, RISCV_IFRAME_T(6)(sp)
 .if \user == 1
     // before we run out of registers, save tp to the top of the kernel stack
     // and put the kernel stack in the scratch register
-    addi   gp, sp, REGOFF(24)
+    addi   gp, sp, RISCV_IFRAME_LEN
     STR    tp, REGOFF(-1)(gp)
-    csrw   RISCV_CSR_XSCRATCH, sp
+    csrw   RISCV_CSR_XSCRATCH, gp
 
-    LDR    tp, REGOFF(18)(sp)
-    LDR    gp, REGOFF(19)(sp)
-    LDR    sp, REGOFF(20)(sp)
+    LDR    tp, RISCV_IFRAME_TP(sp)
+    LDR    gp, RISCV_IFRAME_GP(sp)
+    LDR    sp, RISCV_IFRAME_SP(sp)
 .else
-    addi   sp, sp, REGOFF(24)
+    addi   sp, sp, RISCV_IFRAME_LEN
 .endif
 .endm
 
-/* top level exception handler for riscv in non vectored mode */
+// top level exception handler for riscv in non vectored mode
 .balign 4
 FUNCTION(riscv_exception_entry)
-    /* check to see if we came from user space */
+    // check to see if we came from user space
     csrrw   sp, RISCV_CSR_XSCRATCH, sp
     bnez    sp, 1f
 
-    /* put the stack back */
+    // put the stack back
     csrrw   sp, RISCV_CSR_XSCRATCH, sp
     j       kernel_exception_entry
 
 1:
-    /* came from user space */
+    // came from user space
     j       user_exception_entry
 END_FUNCTION(riscv_exception_entry)
 
 LOCAL_FUNCTION(kernel_exception_entry)
-    /* we came from kernel space so tp and gp are okay */
+    // we came from kernel space so tp and gp are okay
     save_regs 0
 
-    /* bool kernel = true */
+    // bool kernel = true
     li     a3, 1
     jal    riscv_exception_handler
 
@@ -163,10 +164,10 @@ LOCAL_FUNCTION(kernel_exception_entry)
 END_FUNCTION(kernel_exception_entry)
 
 LOCAL_FUNCTION(user_exception_entry)
-    /* we came from user space, assume gp and tp have been trashed */
+    // we came from user space, assume gp and tp have been trashed
     save_regs 1
 
-    /* bool kernel = false */
+    // bool kernel = false
     li     a3, 0
     jal    riscv_exception_handler
 
