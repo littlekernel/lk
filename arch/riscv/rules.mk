@@ -18,17 +18,20 @@ MODULE_CFLAGS += -Wno-override-init
 
 SMP_MAX_CPUS ?= 1
 RISCV_MMU ?= none
+RISCV_FPU ?= false
+SUBARCH ?= 32
+RISCV_MODE ?= machine
 
 GLOBAL_DEFINES += SMP_MAX_CPUS=$(SMP_MAX_CPUS)
 GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1
 
-ifeq ($(WITH_SMP),1)
+ifeq (true,$(call TOBOOL,$(WITH_SMP)))
 GLOBAL_DEFINES += WITH_SMP=1
 endif
 
-SUBARCH ?= 32
-
-RISCV_MODE ?= machine
+ifeq (true,$(call TOBOOL,$(RISCV_FPU)))
+GLOBAL_DEFINES += RISCV_FPU=1
+endif
 
 ifeq ($(strip $(RISCV_MODE)),machine)
 $(info RISCV: Machine Mode)
@@ -87,7 +90,7 @@ else
 $(error Unknown RISCV_MMU: "$(strip $(RISCV_MMU))" (valid values are "none", "sv32", "sv39", "sv48"))
 endif
 
-ifeq ($(WITH_KERNEL_VM),1)
+ifeq (true,$(call TOBOOL,$(WITH_KERNEL_VM)))
 
 GLOBAL_DEFINES += \
     ARCH_HAS_MMU=1 \

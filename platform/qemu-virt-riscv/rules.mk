@@ -5,9 +5,10 @@ MODULE := $(LOCAL_DIR)
 ARCH := riscv
 SUBARCH ?= 32
 RISCV_MODE ?= machine
-WITH_SMP ?= 1
+WITH_SMP ?= true
 SMP_MAX_CPUS ?= 8
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
+RISCV_FPU ?= true
 
 ifeq ($(RISCV_MODE),supervisor)
 ifeq ($(SUBARCH),32)

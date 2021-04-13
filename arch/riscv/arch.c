@@ -134,6 +134,10 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     status = RISCV_CSR_XSTATUS_PIE |
              RISCV_CSR_XSTATUS_SUM;
 
+#if RISCV_FPU
+    status |= (1ul << RISCV_CSR_XSTATUS_FS_SHIFT); // mark fpu state 'initial'
+#endif
+
     printf("user sstatus %#lx\n", status);
 
     arch_disable_ints();
@@ -145,7 +149,49 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     // the exception code will recover it when coming from user space
     ((uintptr_t *)kernel_stack_top)[-1] = (uintptr_t)riscv_get_percpu();
     asm volatile(
+#if RISCV_FPU
+        // zero out the fpu state
+        "csrw fcsr, 0\n"
+        // TODO: figure out how to do this more cleanly
+        // without 'fd' in the march line the assembler wont let us emit a direct
+        // fpu opcode. Tried unsuccessfully to use the .insn operand. below is a
+        // series of fmv.d.x fN, zero instructions to wipe out the complete state.
+        ".word 0xf2000053\n" // fmv.d.x f0, zero
+        ".word 0xf20000d3\n" // fmv.d.x f1, zero
+        ".word 0xf2000153\n" // ...
+        ".word 0xf20001d3\n"
+        ".word 0xf2000253\n"
+        ".word 0xf20002d3\n"
+        ".word 0xf2000353\n"
+        ".word 0xf20003d3\n"
+        ".word 0xf2000453\n"
+        ".word 0xf20004d3\n"
+        ".word 0xf2000553\n"
+        ".word 0xf20005d3\n"
+        ".word 0xf2000653\n"
+        ".word 0xf20006d3\n"
+        ".word 0xf2000753\n"
+        ".word 0xf20007d3\n"
+        ".word 0xf2000853\n"
+        ".word 0xf20008d3\n"
+        ".word 0xf2000953\n"
+        ".word 0xf20009d3\n"
+        ".word 0xf2000a53\n"
+        ".word 0xf2000ad3\n"
+        ".word 0xf2000b53\n"
+        ".word 0xf2000bd3\n"
+        ".word 0xf2000c53\n"
+        ".word 0xf2000cd3\n"
+        ".word 0xf2000d53\n"
+        ".word 0xf2000dd3\n"
+        ".word 0xf2000e53\n"
+        ".word 0xf2000ed3\n"
+        ".word 0xf2000f53\n"
+        ".word 0xf2000fd3\n" // fmv.d.x f31, zero
+#endif
+        // set the user stack pointer
         "mv  sp, %0\n"
+        // zero out the rest of the integer state
         "li  a0, 0\n"
         "li  a1, 0\n"
         "li  a2, 0\n"

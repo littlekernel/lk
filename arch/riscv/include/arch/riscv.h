@@ -63,6 +63,8 @@
 #define RISCV_CSR_XSTATUS_SPP   (1ul << 8)
 #define RISCV_CSR_XSTATUS_SUM   (1ul << 18)
 #define RISCV_CSR_XSTATUS_MXR   (1ul << 19)
+#define RISCV_CSR_XSTATUS_FS_SHIFT (13)
+#define RISCV_CSR_XSTATUS_FS_MASK (3ul << RISCV_CSR_XSTATUS_FS_SHIFT)
 
 #define RISCV_CSR_XIE_SIE       (1ul << (RISCV_XMODE_OFFSET + 0))
 #define RISCV_CSR_XIE_TIE       (1ul << (RISCV_XMODE_OFFSET + 4))
