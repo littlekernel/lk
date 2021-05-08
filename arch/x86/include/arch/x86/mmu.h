@@ -26,7 +26,7 @@
 
 #ifndef X86_LEGACY
 /* default flags for inner page directory entries */
-#define X86_KERNEL_PD_FLAGS (X86_MMU_PG_G | X86_MMU_PG_RW | X86_MMU_PG_P)
+#define X86_KERNEL_PD_FLAGS (X86_MMU_PG_RW | X86_MMU_PG_P)
 
 /* default flags for 2MB/4MB/1GB page directory entries */
 #define X86_KERNEL_PD_LP_FLAGS (X86_MMU_PG_G | X86_MMU_PG_PS | X86_MMU_PG_RW | X86_MMU_PG_P)
