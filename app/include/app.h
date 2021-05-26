@@ -9,11 +9,18 @@
 
 #include <stddef.h>
 #include <lk/compiler.h>
+#include <stdbool.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
 
 /* app support api */
 void apps_init(void); /* one time setup */
+
+/* start an app by name.
+ * optionally start detached or wait for it to complete.
+ */
+status_t app_start_by_name(const char *name, bool detached);
 
 /* app entry point */
 struct app_descriptor;
@@ -21,7 +28,7 @@ typedef void (*app_init)(const struct app_descriptor *);
 typedef void (*app_entry)(const struct app_descriptor *, void *args);
 
 /* app startup flags */
-#define APP_FLAG_DONT_START_ON_BOOT 0x1
+#define APP_FLAG_NO_AUTOSTART 0x1
 #define APP_FLAG_CUSTOM_STACK_SIZE 0x2
 
 /* each app needs to define one of these to define its startup conditions */
