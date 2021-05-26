@@ -1,5 +1,6 @@
 # main project for qemu-aarch64
 MODULES += \
+	app/irc \
 	app/shell
 
 include project/virtual/test.mk
