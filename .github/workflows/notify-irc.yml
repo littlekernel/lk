@@ -12,7 +12,7 @@ jobs:
           server: "irc.libera.chat"
           channel: "#lk"
           nickname: lk-github
-          notice: true
+          notice: false
           message: |
             ${{ github.actor }} pushed ${{ github.event.ref }} ${{ github.event.compare }}
             ${{ join(github.event.commits.*.message) }}
@@ -23,7 +23,7 @@ jobs:
           server: "irc.libera.chat"
           channel: "#lk"
           nickname: lk-github
-          notice: true
+          notice: false
           message: |
             ${{ github.actor }} opened PR ${{ github.event.html_url }}
       - name: irc tag created
@@ -33,6 +33,6 @@ jobs:
           server: "irc.libera.chat"
           channel: "#lk"
           nickname: lk-github
-          notice: true
+          notice: false
           message: |
             ${{ github.actor }} tagged ${{ github.repository }} ${{ github.event.ref }}
