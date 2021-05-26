@@ -1,5 +1,6 @@
 # main project for qemu-riscv64-supervisor
 MODULES += \
+	app/irc \
 	app/shell
 SUBARCH := 64
 RISCV_MODE := supervisor
