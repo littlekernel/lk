@@ -9,6 +9,7 @@ jobs:
         uses: rectalogic/notify-irc@v1
         if: github.event_name == 'push'
         with:
+          server: "irc.libera.chat"
           channel: "#lk"
           nickname: lk-github
           notice: true
@@ -19,6 +20,7 @@ jobs:
         uses: rectalogic/notify-irc@v1
         if: github.event_name == 'pull_request'
         with:
+          server: "irc.libera.chat"
           channel: "#lk"
           nickname: lk-github
           notice: true
@@ -28,6 +30,7 @@ jobs:
         uses: rectalogic/notify-irc@v1
         if: github.event_name == 'create' && github.event.ref_type == 'tag'
         with:
+          server: "irc.libera.chat"
           channel: "#lk"
           nickname: lk-github
           notice: true
