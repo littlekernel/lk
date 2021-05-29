@@ -21,6 +21,8 @@
 #include <lib/env.h>
 #endif
 
+#define LOCAL_TRACE 0
+
 // Whether to enable command line history. Uses a nonzero
 // amount of memory, probably shouldn't enable for memory constrained devices.
 #ifndef CONSOLE_ENABLE_HISTORY
@@ -42,28 +44,34 @@
 
 #define WHITESPACE " \t"
 
-/* debug buffer */
-static char *debug_buffer;
+// a single console instance
+typedef struct console {
+    /* command processor state */
+    mutex_t lock;
+    int lastresult;
+    bool abort_script;
 
-/* echo commands? */
-static bool echo = true;
+    /* debug buffer */
+    char *debug_buffer;
 
-/* command processor state */
-static mutex_t command_lock = MUTEX_INITIAL_VALUE(command_lock);
-int lastresult;
-static bool abort_script;
+    /* echo commands? */
+    bool echo; // = true;
 
 #if CONSOLE_ENABLE_HISTORY
-/* command history stuff */
+    /* command history stuff */
 #define HISTORY_LEN 16
-static char history[HISTORY_LEN * LINE_LEN];
-static uint history_next = 0;
+    char history[HISTORY_LEN * LINE_LEN];
+    size_t history_next; // = 0;
+#endif // CONSOLE_ENABLE_HISTORY
+} console_t;
 
-static void add_history(const char *line);
-static uint start_history_cursor(void);
-static const char *next_history(uint *cursor);
-static const char *prev_history(uint *cursor);
-static void dump_history(void);
+#if CONSOLE_ENABLE_HISTORY
+/* command history routines */
+static void add_history(console_t *con, const char *line);
+static uint start_history_cursor(console_t *con);
+static const char *next_history(console_t *con, uint *cursor);
+static const char *prev_history(console_t *con, uint *cursor);
+static void dump_history(console_t *con);
 #endif
 
 /* a linear array of statically defined command blocks,
@@ -96,16 +104,16 @@ STATIC_COMMAND("history", "command history", &cmd_history)
 STATIC_COMMAND("repeat", "repeats command multiple times", &cmd_repeat)
 #endif
 #endif
-STATIC_COMMAND_END(help);
+STATIC_COMMAND_END(console);
 
 #if CONSOLE_ENABLE_HISTORY
 static int cmd_history(int argc, const console_cmd_args *argv) {
-    dump_history();
+    dump_history(console_get_current());
     return 0;
 }
 
-static inline char *history_line(uint line) {
-    return history + line * LINE_LEN;
+static inline char *history_line(console_t *con, uint line) {
+    return con->history + line * LINE_LEN;
 }
 
 static inline uint ptrnext(uint ptr) {
@@ -116,57 +124,57 @@ static inline uint ptrprev(uint ptr) {
     return (ptr - 1) % HISTORY_LEN;
 }
 
-static void dump_history(void) {
+static void dump_history(console_t *con) {
     printf("command history:\n");
-    uint ptr = ptrprev(history_next);
+    uint ptr = ptrprev(con->history_next);
     int i;
     for (i=0; i < HISTORY_LEN; i++) {
-        if (history_line(ptr)[0] != 0)
-            printf("\t%s\n", history_line(ptr));
+        if (history_line(con, ptr)[0] != 0)
+            printf("\t%s\n", history_line(con, ptr));
         ptr = ptrprev(ptr);
     }
 }
 
-static void add_history(const char *line) {
+static void add_history(console_t *con, const char *line) {
     // reject some stuff
     if (line[0] == 0)
         return;
 
-    uint last = ptrprev(history_next);
-    if (strcmp(line, history_line(last)) == 0)
+    size_t last = ptrprev(con->history_next);
+    if (strcmp(line, history_line(con, last)) == 0)
         return;
 
-    strlcpy(history_line(history_next), line, LINE_LEN);
-    history_next = ptrnext(history_next);
+    strlcpy(history_line(con, con->history_next), line, LINE_LEN);
+    con->history_next = ptrnext(con->history_next);
 }
 
-static uint start_history_cursor(void) {
-    return ptrprev(history_next);
+static uint start_history_cursor(console_t *con) {
+    return ptrprev(con->history_next);
 }
 
-static const char *next_history(uint *cursor) {
+static const char *next_history(console_t *con, uint *cursor) {
     uint i = ptrnext(*cursor);
 
-    if (i == history_next)
+    if (i == con->history_next)
         return ""; // can't let the cursor hit the head
 
     *cursor = i;
-    return history_line(i);
+    return history_line(con, i);
 }
 
-static const char *prev_history(uint *cursor) {
+static const char *prev_history(console_t *con, uint *cursor) {
     uint i;
-    const char *str = history_line(*cursor);
+    const char *str = history_line(con, *cursor);
 
     /* if we are already at head, stop here */
-    if (*cursor == history_next)
+    if (*cursor == con->history_next)
         return str;
 
     /* back up one */
     i = ptrprev(*cursor);
 
     /* if the next one is gonna be null */
-    if (history_line(i)[0] == '\0')
+    if (history_line(con, i)[0] == '\0')
         return str;
 
     /* update the cursor */
@@ -174,6 +182,20 @@ static const char *prev_history(uint *cursor) {
     return str;
 }
 #endif  // CONSOLE_ENABLE_HISTORY
+
+console_t *console_get_current(void) {
+    console_t *con = (console_t *)tls_get(TLS_ENTRY_CONSOLE);
+    DEBUG_ASSERT(con);
+    return con;
+}
+
+console_t *console_set_current(console_t *con) {
+    console_t *old = (console_t *)tls_get(TLS_ENTRY_CONSOLE);
+    tls_set(TLS_ENTRY_CONSOLE, (uintptr_t)con); 
+    LTRACEF("setting new %p, old %p\n", con, old);
+
+    return old;
+}
 
 #if CONSOLE_ENABLE_REPEAT
 static int cmd_repeat(int argc, const console_cmd_args *argv) {
@@ -203,7 +225,7 @@ static int cmd_repeat(int argc, const console_cmd_args *argv) {
 
     for (int i = 0; i < times; ++i) {
         printf("[%d/%d]\n", i + 1, times);
-        int result = console_run_script_locked(line);
+        int result = console_run_script_locked(console_get_current(), line);
         if (result != 0) {
             printf("terminating repeat loop, command exited with status %d\n",
                    result);
@@ -238,11 +260,12 @@ static const console_cmd *match_command(const char *command, const uint8_t avail
 static int read_debug_line(const char **outbuffer, void *cookie) {
     int pos = 0;
     int escape_level = 0;
+    console_t *con = (console_t *)cookie;
 #if CONSOLE_ENABLE_HISTORY
-    uint history_cursor = start_history_cursor();
+    uint history_cursor = start_history_cursor(con);
 #endif
 
-    char *buffer = debug_buffer;
+    char *buffer = con->debug_buffer;
 
     for (;;) {
         /* loop until we get a char */
@@ -256,7 +279,7 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
             switch (c) {
                 case '\r':
                 case '\n':
-                    if (echo)
+                    if (con->echo)
                         putchar('\n');
                     goto done;
 
@@ -274,7 +297,7 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
 
                 default:
                     buffer[pos++] = c;
-                    if (echo)
+                    if (con->echo)
                         putchar(c);
             }
         } else if (escape_level == 1) {
@@ -289,13 +312,13 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
             switch (c) {
                 case 67: // right arrow
                     buffer[pos++] = ' ';
-                    if (echo)
+                    if (con->echo)
                         putchar(' ');
                     break;
                 case 68: // left arrow
                     if (pos > 0) {
                         pos--;
-                        if (echo) {
+                        if (con->echo) {
                             fputs("\b \b", stdout); // wipe out a character
                         }
                     }
@@ -306,17 +329,17 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
                     // wipe out the current line
                     while (pos > 0) {
                         pos--;
-                        if (echo) {
+                        if (con->echo) {
                             fputs("\b \b", stdout); // wipe out a character
                         }
                     }
 
                     if (c == 65)
-                        strlcpy(buffer, prev_history(&history_cursor), LINE_LEN);
+                        strlcpy(buffer, prev_history(con, &history_cursor), LINE_LEN);
                     else
-                        strlcpy(buffer, next_history(&history_cursor), LINE_LEN);
+                        strlcpy(buffer, next_history(con, &history_cursor), LINE_LEN);
                     pos = strlen(buffer);
-                    if (echo)
+                    if (con->echo)
                         fputs(buffer, stdout);
                     break;
 #endif
@@ -342,7 +365,7 @@ done:
 
 #if CONSOLE_ENABLE_HISTORY
     // add to history
-    add_history(buffer);
+    add_history(con, buffer);
 #endif
 
     // return a pointer to our buffer
@@ -543,7 +566,7 @@ static void convert_args(int argc, console_cmd_args *argv) {
 }
 
 
-static status_t command_loop(int (*get_line)(const char **, void *), void *get_line_cookie, bool showprompt, bool locked) {
+static status_t command_loop(console_t *con, int (*get_line)(const char **, void *), void *get_line_cookie, bool showprompt, bool locked) {
     bool exit;
 #if WITH_LIB_ENV
     bool report_result;
@@ -610,34 +633,34 @@ static status_t command_loop(int (*get_line)(const char **, void *), void *get_l
         }
 
         if (!locked)
-            mutex_acquire(&command_lock);
+            mutex_acquire(&con->lock);
 
-        abort_script = false;
-        lastresult = command->cmd_callback(argc, args);
+        con->abort_script = false;
+        con->lastresult = command->cmd_callback(argc, args);
 
 #if WITH_LIB_ENV
         bool report_result;
         env_get_bool("reportresult", &report_result, false);
         if (report_result) {
-            if (lastresult < 0)
-                printf("FAIL %d\n", lastresult);
+            if (con->lastresult < 0)
+                printf("FAIL %d\n", con->lastresult);
             else
-                printf("PASS %d\n", lastresult);
+                printf("PASS %d\n", con->lastresult);
         }
 #endif
 
 #if WITH_LIB_ENV
         // stuff the result in an environment var
-        env_set_int("?", lastresult, true);
+        env_set_int("?", con->lastresult, true);
 #endif
 
         // someone must have aborted the current script
-        if (abort_script)
+        if (con->abort_script)
             exit = true;
-        abort_script = false;
+        con->abort_script = false;
 
         if (!locked)
-            mutex_release(&command_lock);
+            mutex_release(&con->lock);
     }
 
     free(outbuf);
@@ -655,22 +678,39 @@ no_mem_error:
     return ERR_NO_MEMORY;
 }
 
-void console_abort_script(void) {
-    abort_script = true;
+void console_abort_script(console_t *con) {
+    if (!con) {
+        con = console_get_current();
+    }
+    con->abort_script = true;
 }
 
-void console_start(void) {
-    debug_buffer = malloc(LINE_LEN);
+console_t *console_create(bool with_history) {
+    console_t *con = calloc(1, sizeof(console_t));
+    if (!con) {
+        dprintf(INFO, "error allocating console object\n");
+        return NULL;
+    }
 
+    // initialize
+    mutex_init(&con->lock);
+    con->echo = true;
+    con->debug_buffer = malloc(LINE_LEN);
+
+    return con;
+}
+
+void console_start(console_t *con) {
     dprintf(INFO, "entering main console loop\n");
 
+    console_set_current(con);
 
-    while (command_loop(&read_debug_line, NULL, true, false) == NO_ERROR)
+    while (command_loop(con, &read_debug_line, con, true, false) == NO_ERROR)
         ;
 
-    dprintf(INFO, "exiting main console loop\n");
+    console_set_current(NULL);
 
-    free (debug_buffer);
+    dprintf(INFO, "exiting main console loop\n");
 }
 
 struct line_read_struct {
@@ -706,7 +746,7 @@ static int fetch_next_line(const char **buffer, void *cookie) {
     return bufpos;
 }
 
-static int console_run_script_etc(const char *string, bool locked) {
+static int console_run_script_etc(console_t *con, const char *string, bool locked) {
     struct line_read_struct lineread;
 
     lineread.string = string;
@@ -714,19 +754,25 @@ static int console_run_script_etc(const char *string, bool locked) {
     lineread.buffer = malloc(LINE_LEN);
     lineread.buflen = LINE_LEN;
 
-    command_loop(&fetch_next_line, (void *)&lineread, false, locked);
+    command_loop(con, &fetch_next_line, (void *)&lineread, false, locked);
 
     free(lineread.buffer);
 
-    return lastresult;
+    return con->lastresult;
 }
 
-int console_run_script(const char *string) {
-    return console_run_script_etc(string, false);
+int console_run_script(console_t *con, const char *string) {
+    if (!con) {
+        con = console_get_current();
+    }
+    return console_run_script_etc(con, string, false);
 }
 
-int console_run_script_locked(const char *string) {
-    return console_run_script_etc(string, true);
+int console_run_script_locked(console_t *con, const char *string) {
+    if (!con) {
+        con = console_get_current();
+    }
+    return console_run_script_etc(con, string, true);
 }
 
 console_cmd_func console_get_command_handler(const char *commandstr) {
@@ -767,7 +813,7 @@ static int cmd_help_panic(int argc, const console_cmd_args *argv) {
 
 static int cmd_echo(int argc, const console_cmd_args *argv) {
     if (argc > 1)
-        echo = argv[1].b;
+        console_get_current()->echo = argv[1].b;
     return NO_ERROR;
 }
 

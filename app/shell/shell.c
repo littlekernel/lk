@@ -10,7 +10,13 @@
 #include <lib/console.h>
 
 static void shell_entry(const struct app_descriptor *app, void *args) {
-    console_start();
+    console_t *con = console_create(true);
+    if (!con)
+        return;
+
+    console_start(con);
+
+    // TODO: destroy console and free resources
 }
 
 APP_START(shell)

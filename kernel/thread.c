@@ -202,7 +202,7 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
     /* save whether or not we need to free the thread struct and/or stack */
     t->flags = flags;
 
-    /* inheirit thread local storage from the parent */
+    /* inherit thread local storage from the parent */
     thread_t *current_thread = get_current_thread();
     int i;
     for (i=0; i < MAX_TLS_ENTRY; i++)
