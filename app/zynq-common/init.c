@@ -172,14 +172,15 @@ static void zynq_common_target_init(uint level) {
     sysparam_read("net0.ip_mask", &ip_mask, sizeof(ip_mask));
     sysparam_read("net0.ip_gateway", &ip_gateway, sizeof(ip_gateway));
 
-    minip_set_macaddr(mac_addr);
     gem_set_macaddr(mac_addr);
 
+    minip_set_eth(gem_send_raw_pkt, NULL, mac_addr);
+
     if (!use_dhcp && ip_addr != IPV4_NONE) {
-        minip_init(gem_send_raw_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+        minip_start_static(ip_addr, ip_mask, ip_gateway);
     } else {
         /* Configure IP stack and hook to the driver */
-        minip_init_dhcp(gem_send_raw_pkt, NULL);
+        minip_start_dhcp();
     }
     gem_set_callback(minip_rx_driver_callback);
 #endif

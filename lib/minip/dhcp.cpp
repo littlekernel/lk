@@ -322,6 +322,9 @@ done:
             }
             state_ = CONFIGURED;
             configured_ = true;
+
+            // signal that minip is ready to be used
+            minip_set_configured();
         }
     }
 }
@@ -375,9 +378,7 @@ status_t dhcp::start() {
 
 } // anonymous namespace
 
-void minip_init_dhcp(tx_func_t tx_func, void *tx_arg) {
-    minip_init(tx_func, tx_arg, IPV4_NONE, IPV4_NONE, IPV4_NONE);
-
+void minip_start_dhcp() {
     static dhcp d;
     d.start();
 }

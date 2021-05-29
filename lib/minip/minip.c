@@ -9,6 +9,7 @@
 
 #include "minip-internal.h"
 
+#include <assert.h>
 #include <lk/err.h>
 #include <stdio.h>
 #include <lk/debug.h>
@@ -20,6 +21,8 @@
 #include <lk/trace.h>
 #include <malloc.h>
 #include <lk/list.h>
+#include <lk/init.h>
+#include <kernel/event.h>
 #include <kernel/thread.h>
 
 // TODO
@@ -36,11 +39,37 @@ static uint8_t minip_mac[6] = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
 
 static char minip_hostname[32] = "";
 
+static volatile bool minip_configured = false;
+static event_t minip_configured_event = EVENT_INITIAL_VALUE(minip_configured_event, false, 0);
+
+/* This function is called by minip to send packets */
+tx_func_t minip_tx_handler;
+void *minip_tx_arg;
+
 static void dump_mac_address(const uint8_t *mac);
 static void dump_ipv4_addr(uint32_t addr);
 
+/* if all the important configuration bits are set, signal that we're configured */
+static void check_and_set_configured(void) {
+    if (minip_ip == IPV4_NONE) return;
+    if (minip_netmask == IPV4_NONE) return;
+    if (minip_broadcast == IPV4_BCAST) return;
+    // minip_gateway doesn't have to be set
+    if (minip_mac[0] == 0xcc &&
+        minip_mac[1] == 0xcc &&
+        minip_mac[2] == 0xcc &&
+        minip_mac[3] == 0xcc &&
+        minip_mac[4] == 0xcc &&
+        minip_mac[5] == 0xcc) return;
+
+    // we're configured
+    printf("MINIP: setting configured state\n");
+    minip_set_configured();
+}
+
 void minip_set_hostname(const char *name) {
     strlcpy(minip_hostname, name, sizeof(minip_hostname));
+    check_and_set_configured();
 }
 
 const char *minip_get_hostname(void) {
@@ -55,10 +84,6 @@ void minip_get_macaddr(uint8_t *addr) {
     mac_addr_copy(addr, minip_mac);
 }
 
-void minip_set_macaddr(const uint8_t *addr) {
-    mac_addr_copy(minip_mac, addr);
-}
-
 uint32_t minip_get_ipaddr(void) {
     return minip_ip;
 }
@@ -66,6 +91,7 @@ uint32_t minip_get_ipaddr(void) {
 void minip_set_ipaddr(const uint32_t addr) {
     minip_ip = addr;
     compute_broadcast_address();
+    check_and_set_configured();
 }
 
 uint32_t minip_get_broadcast(void) {
@@ -79,14 +105,30 @@ uint32_t minip_get_netmask(void) {
 void minip_set_netmask(const uint32_t netmask) {
     minip_netmask = netmask;
     compute_broadcast_address();
+    check_and_set_configured();
 }
 
 uint32_t minip_get_gateway(void) {
     return minip_gateway;
 }
 
-void minip_set_gateway(const uint32_t gateway) {
-    minip_gateway = gateway;
+void minip_set_gateway(const uint32_t addr) {
+    minip_gateway = addr;
+    // TODO: check that it is reacheable on local network
+    check_and_set_configured();
+}
+
+void minip_set_configured(void) {
+    minip_configured = true;
+    event_signal(&minip_configured_event, true);
+}
+
+bool minip_is_configured(void) {
+    return minip_configured;
+}
+
+status_t minip_wait_for_configured(lk_time_t timeout) {
+    return event_wait_timeout(&minip_configured_event, timeout);
 }
 
 void gen_random_mac_address(uint8_t *mac_addr) {
@@ -98,21 +140,24 @@ void gen_random_mac_address(uint8_t *mac_addr) {
     mac_addr[0] |= (1<<1);
 }
 
-/* This function is called by minip to send packets */
-tx_func_t minip_tx_handler;
-void *minip_tx_arg;
-
-void minip_init(tx_func_t tx_handler, void *tx_arg,
-                uint32_t ip, uint32_t mask, uint32_t gateway) {
-    minip_tx_handler = tx_handler;
-    minip_tx_arg = tx_arg;
-
+void minip_start_static(uint32_t ip, uint32_t mask, uint32_t gateway) {
     minip_set_ipaddr(ip);
     minip_set_netmask(mask);
     minip_set_gateway(gateway);
+}
 
-    arp_cache_init();
-    net_timer_init();
+void minip_set_eth(tx_func_t tx_handler, void *tx_arg, const uint8_t *macaddr) {
+    LTRACEF("handler %p, arg %p, macaddr %p\n", tx_handler, tx_arg, macaddr);
+
+    DEBUG_ASSERT(minip_tx_handler == NULL);
+    DEBUG_ASSERT(minip_tx_arg == NULL);
+    // TODO: assert mac address is not already set
+
+    // set up the low level driver handler
+    minip_tx_handler = tx_handler;
+    minip_tx_arg = tx_arg;
+
+    mac_addr_copy(minip_mac, macaddr);
 }
 
 static uint16_t ipv4_payload_len(struct ipv4_hdr *pkt) {
@@ -507,3 +552,12 @@ void printip_named(const char *s, uint32_t x) {
     printf("%s ", s);
     printip(x);
 }
+
+// run static initialization
+static void minip_init(uint level) {
+    arp_cache_init();
+    net_timer_init();
+}
+
+
+LK_INIT_HOOK(minip, minip_init, LK_INIT_LEVEL_THREADING);

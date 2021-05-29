@@ -28,12 +28,21 @@ typedef int (*tx_func_t)(pktbuf_t *p);
 typedef void (*udp_callback_t)(void *data, size_t len,
                                uint32_t srcaddr, uint16_t srcport, void *arg);
 
-/* initialize minip with static configuration */
-void minip_init(tx_func_t tx_func, void *tx_arg,
-                uint32_t ip, uint32_t netmask, uint32_t gateway);
+/* initialize and start minip with static configuration */
+void minip_start_static(uint32_t ip, uint32_t netmask, uint32_t gateway);
 
-/* initialize minip with DHCP configuration */
-void minip_init_dhcp(tx_func_t tx_func, void *tx_arg);
+/* initialize and start minip with DHCP configuration
+ * note: may take a while to have an ip address assigned, check
+ * for configuration with minip_is_configured()
+ */
+void minip_start_dhcp(void);
+
+/* ethernet driver install hook */
+void minip_set_eth(tx_func_t tx_handler, void *tx_arg, const uint8_t *macaddr);
+
+/* check or wait for minip to be configured */
+bool minip_is_configured(void);
+status_t minip_wait_for_configured(lk_time_t timeout);
 
 /* packet rx hook to hand to ethernet driver */
 void minip_rx_driver_callback(pktbuf_t *p);
@@ -49,17 +58,9 @@ void minip_set_netmask(const uint32_t mask);
 uint32_t minip_get_broadcast(void); // computed from ipaddr & netmask
 uint32_t minip_get_gateway(void);
 void minip_set_gateway(const uint32_t addr);
-
 void minip_set_hostname(const char *name);
 const char *minip_get_hostname(void);
-
-uint32_t minip_get_broadcast(void);
-
-uint32_t minip_get_netmask(void);
-void minip_set_netmask(const uint32_t netmask);
-
-uint32_t minip_get_gateway(void);
-void minip_set_gateway(const uint32_t gateway);
+void minip_set_configured(void); // set by dhcp or static init to signal minip is ready to be used
 
 /* udp */
 typedef struct udp_socket udp_socket_t;
@@ -86,6 +87,7 @@ static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **ac
 
 /* utilities */
 void gen_random_mac_address(uint8_t *mac_addr);
+uint32_t minip_parse_ipaddr(const char *addr, size_t len);
 
 uint32_t minip_parse_ipaddr(const char *addr, size_t len);
 void printip(uint32_t x);

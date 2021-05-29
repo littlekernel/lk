@@ -60,6 +60,8 @@ public:
 
     bool is_e1000e() const { return id_feat_->e1000e; }
 
+    const uint8_t *mac_addr() const { return mac_addr_; }
+
 private:
     static const size_t rxring_len = 64;
     static const size_t txring_len = 64;
@@ -428,10 +430,6 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     }
     LTRACEF("IRQ number %#x\n", irq_base);
 
-    // set up minip's macaddr
-    // TODO: move to something smarter
-    minip_set_macaddr(mac_addr_);
-
     unmask_interrupt(irq_base);
 
     // set up the rx ring
@@ -513,14 +511,22 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     return NO_ERROR;
 }
 
-// XXX REMOVE HACK
-extern "C"
-int e1000_tx(pktbuf_t *p) {
+static int e1000_tx(pktbuf_t *p) {
     if (the_e) {
         the_e->tx(p);
     }
 
     return NO_ERROR;
+}
+
+extern "C"
+status_t e1000_register_with_minip() {
+    if (the_e) {
+        minip_set_eth(e1000_tx, the_e, the_e->mac_addr());
+        return NO_ERROR;
+    }
+
+    return ERR_NOT_FOUND;
 }
 
 static void e1000_init(uint level) {

@@ -9,6 +9,7 @@
  */
 
 #include <lk/err.h>
+#include <lk/init.h>
 #include <lk/trace.h>
 #include <arch/x86/mmu.h>
 #include <platform.h>
@@ -300,9 +301,16 @@ void platform_init(void) {
 #endif
 
     platform_init_mmu_mappings();
+}
 
 #if WITH_LIB_MINIP
-    extern int e1000_tx(pktbuf_t *p);
-    minip_init_dhcp(e1000_tx, 0);
-#endif
+void _start_minip(uint level) {
+    extern status_t e1000_register_with_minip(void);
+    status_t err = e1000_register_with_minip();
+    if (err == NO_ERROR) {
+        minip_start_dhcp();
+    }
 }
+
+LK_INIT_HOOK(start_minip, _start_minip, LK_INIT_LEVEL_APPS - 1);
+#endif

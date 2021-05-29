@@ -67,13 +67,13 @@ void target_init(void) {
     eth_init(mac_addr, PHY_DP83848);
 
     /* start minip */
-    minip_set_macaddr(mac_addr);
+    minip_set_eth(stm32_eth_send_minip_pkt, NULL, mac_addr);
 
     uint32_t ip_addr = IPV4(192, 168, 0, 99);
     uint32_t ip_mask = IPV4(255, 255, 255, 0);
     uint32_t ip_gateway = IPV4_NONE;
 
-    minip_init(stm32_eth_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
+    minip_start_static(ip_addr, ip_mask, ip_gateway);
 #endif
 
     TRACE_EXIT;

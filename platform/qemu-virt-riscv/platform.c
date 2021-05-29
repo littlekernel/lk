@@ -198,16 +198,19 @@ void platform_init(void) {
         TRACEF("found virtio networking interface\n");
 
         /* start minip */
-        minip_set_macaddr(mac_addr);
+        minip_set_eth(virtio_net_send_minip_pkt, NULL, mac_addr);
 
+        virtio_net_start();
+
+#if 0
         __UNUSED uint32_t ip_addr = IPV4(192, 168, 0, 99);
         __UNUSED uint32_t ip_mask = IPV4(255, 255, 255, 0);
         __UNUSED uint32_t ip_gateway = IPV4_NONE;
 
-        //minip_init(virtio_net_send_minip_pkt, NULL, ip_addr, ip_mask, ip_gateway);
-        minip_init_dhcp(virtio_net_send_minip_pkt, NULL);
-
-        virtio_net_start();
+        minip_start_static(ip_addr, ip_mask, ip_gateway);
+#else
+        minip_start_dhcp();
+#endif
     }
 #endif
 }
