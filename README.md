@@ -1,16 +1,32 @@
-# LK
+# The Little Kernel Embedded Operating System
 
-The LK embedded kernel. An SMP-aware kernel designed for small systems.
+The LK kernel is an SMP-aware kernel designed for small systems ported to a variety of platforms and cpu architectures.
 
 See https://github.com/littlekernel/lk for the latest version.
 
-See https://github.com/littlekernel/lk/wiki for documentation.
+### High Level Features
 
-## Builds
+Fully-reentrant multi-threaded preemptive kernel
+Portable to many 32 and 64 bit architectures
+Support for wide variety of embedded and larger platforms
+Powerful modular build system
+Large number of utility components selectable at build time
 
-[![Build Status](https://travis-ci.org/littlekernel/lk.svg?branch=master)](https://travis-ci.org/littlekernel/lk)
+### Supported architectures
 
-## To build and test for ARM on linux
+-   ARM32
+-   -  Cortex-M class cores (armv6m - armv8m)
+-   -  ARMv7+ Cortex-A class cores
+-   ARM64
+-   RISC-V 32 and 64bit bit in machine and supervisor mode
+-   x86-32 and x86-64 386 up through modern cores
+-   microblaze
+-   MIPS
+-   OpenRISC 1000
+
+### [TODO](docs/todo.md)
+
+### To build and test for ARM on linux
 
 1. install or build qemu. v2.4 and above is recommended.
 2. install gcc for embedded arm (see note 1)
@@ -20,7 +36,7 @@ See https://github.com/littlekernel/lk/wiki for documentation.
 This will get you a interactive prompt into LK which is running in qemu
 arm machine 'virt' emulation. type 'help' for commands.
 
-note 1: for ubuntu:
+Note: for ubuntu x86-64:
 sudo apt-get install gcc-arm-none-eabi
 or fetch a prebuilt toolchain from
-http://newos.org/toolchains/arm-eabi-5.3.0-Linux-x86_64.tar.xz
+https://newos.org/toolchains/x86_64-elf-10.2.0-Linux-x86_64.tar.xz
