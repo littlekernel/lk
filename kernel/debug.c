@@ -209,3 +209,49 @@ static int cmd_kevlog(int argc, const console_cmd_args *argv) {
 }
 
 #endif // WITH_KERNEL_EVLOG
+
+#if !DISABLE_DEBUG_OUTPUT
+
+/* kprintf and friends
+ *
+ * k* print routines bypass stdio logic and directly output to the platform's notion
+ * of a debug console.
+ */
+void kputc(char c) {
+    platform_dputc(c);
+}
+
+void kputs(const char *str) {
+    for (; *str; str++) {
+        platform_dputc(*str);
+    }
+}
+
+static int kprintf_output_func(const char *str, size_t len, void *state) {
+    for (size_t i = 0; i < len; i++) {
+        platform_dputc(str[i]);
+    }
+
+    return len;
+}
+
+int kprintf(const char *fmt, ...) {
+    int err;
+
+    va_list ap;
+    va_start(ap, fmt);
+    err = _printf_engine(&kprintf_output_func, NULL, fmt, ap);
+    va_end(ap);
+
+    return err;
+}
+
+int kvprintf(const char *fmt, va_list ap) {
+    int err;
+
+    err = _printf_engine(&kprintf_output_func, NULL, fmt, ap);
+
+    return err;
+}
+
+#endif // !DISABLE_DEBUG_OUTPUT

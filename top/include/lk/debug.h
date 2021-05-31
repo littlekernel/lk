@@ -11,6 +11,7 @@
 #include <platform/debug.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <kernel/debug.h>
 
 #if !defined(LK_DEBUGLEVEL)
 #define LK_DEBUGLEVEL 0
@@ -48,7 +49,9 @@ static inline void hexdump8(const void *ptr, size_t len) {
     hexdump8_ex(ptr, len, (uint64_t)((addr_t)ptr));
 }
 
-#define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { printf(x); } } while (0)
+/* dprintf is defined as a wrapper around kprintf that conditinally enables
+ * based on LK_DEBUGLEVEL. */
+#define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { kprintf(x); } } while (0)
 
 /* systemwide halts */
 void panic(const char *fmt, ...) __PRINTFLIKE(1, 2) __NO_RETURN;

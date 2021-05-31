@@ -29,7 +29,7 @@ void panic(const char *fmt, ...) {
 
     va_list ap;
     va_start(ap, fmt);
-    vprintf(fmt, ap);
+    kvprintf(fmt, ap);
     va_end(ap);
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
@@ -41,14 +41,14 @@ void assert_fail_msg(const char* file, int line, const char* expression, const c
     printf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
     va_list ap;
     va_start(ap, fmt);
-    vprintf(fmt, ap);
+    kvprintf(fmt, ap);
     va_end(ap);
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 void assert_fail(const char* file, int line, const char* expression) {
-    printf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
+    kprintf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
