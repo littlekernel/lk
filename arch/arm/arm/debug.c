@@ -133,7 +133,7 @@ static void dcc_rx_callback(uint32_t val) {
     static int count = 0;
     count += 4;
     if ((count % 1000) == 0)
-        printf("count %d\n", count);
+        kprintf("count %d\n", count);
 }
 
 static int cmd_dcc(int argc, const console_cmd_args *argv) {

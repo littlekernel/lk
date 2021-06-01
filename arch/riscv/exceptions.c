@@ -53,22 +53,22 @@ static const char *cause_to_string(long cause) {
 }
 
 static void dump_iframe(struct riscv_short_iframe *frame, bool kernel) {
-    printf("a0 %#16lx a1 %#16lx a2 %#16lx a3 %#16lx\n", frame->a0, frame->a1, frame->a2, frame->a3);
-    printf("a4 %#16lx a5 %#16lx a6 %#16lx a7 %#16lx\n", frame->a4, frame->a5, frame->a6, frame->a7);
-    printf("t0 %#16lx t1 %#16lx t2 %#16lx t3 %#16lx\n", frame->t0, frame->t1, frame->t2, frame->t3);
-    printf("t5 %#16lx t6 %#16lx\n", frame->t5, frame->t6);
+    kprintf("a0 %#16lx a1 %#16lx a2 %#16lx a3 %#16lx\n", frame->a0, frame->a1, frame->a2, frame->a3);
+    kprintf("a4 %#16lx a5 %#16lx a6 %#16lx a7 %#16lx\n", frame->a4, frame->a5, frame->a6, frame->a7);
+    kprintf("t0 %#16lx t1 %#16lx t2 %#16lx t3 %#16lx\n", frame->t0, frame->t1, frame->t2, frame->t3);
+    kprintf("t5 %#16lx t6 %#16lx\n", frame->t5, frame->t6);
     if (!kernel) {
-        printf("gp %#16lx tp %#16lx sp %#lx\n", frame->gp, frame->tp, frame->sp);
+        kprintf("gp %#16lx tp %#16lx sp %#lx\n", frame->gp, frame->tp, frame->sp);
     }
 }
 
 __NO_RETURN __NO_INLINE
 static void fatal_exception(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel) {
     if (cause < 0) {
-        printf("unhandled interrupt cause %#lx, epc %#lx, tval %#lx\n", cause, epc,
+        kprintf("unhandled interrupt cause %#lx, epc %#lx, tval %#lx\n", cause, epc,
               riscv_csr_read(RISCV_CSR_XTVAL));
     } else {
-        printf("unhandled exception cause %#lx (%s), epc %#lx, tval %#lx\n", cause,
+        kprintf("unhandled exception cause %#lx (%s), epc %#lx, tval %#lx\n", cause,
               cause_to_string(cause), epc, riscv_csr_read(RISCV_CSR_XTVAL));
     }
 
@@ -79,13 +79,13 @@ static void fatal_exception(long cause, ulong epc, struct riscv_short_iframe *fr
 // weak reference, can override this somewhere else
 __WEAK
 void riscv_syscall_handler(struct riscv_short_iframe *frame) {
-    printf("unhandled syscall handler\n");
+    kprintf("unhandled syscall handler\n");
     dump_iframe(frame, false);
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel) {
-    LTRACEF("hart %u cause %#lx epc %#lx status %#lx kernel %d\n",
+    KLTRACEF("hart %u cause %#lx epc %#lx status %#lx kernel %d\n",
             riscv_current_hart(), cause, epc, frame->status, kernel);
 
     enum handler_return ret = INT_NO_RESCHEDULE;

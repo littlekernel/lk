@@ -60,7 +60,7 @@ vm_page_t *paddr_to_vm_page(paddr_t addr) {
 }
 
 status_t pmm_add_arena(pmm_arena_t *arena) {
-    LTRACEF("arena %p name '%s' base 0x%lx size 0x%zx\n", arena, arena->name, arena->base, arena->size);
+    KLTRACEF("arena %p name '%s' base 0x%lx size 0x%zx\n", arena, arena->name, arena->base, arena->size);
 
     DEBUG_ASSERT(IS_PAGE_ALIGNED(arena->base));
     DEBUG_ASSERT(IS_PAGE_ALIGNED(arena->size));
@@ -104,7 +104,7 @@ done_add:
 }
 
 size_t pmm_alloc_pages(uint count, struct list_node *list) {
-    LTRACEF("count %u\n", count);
+    KLTRACEF("count %u\n", count);
 
     /* list must be initialized prior to calling this */
     DEBUG_ASSERT(list);
@@ -151,7 +151,7 @@ vm_page_t *pmm_alloc_page(void) {
 }
 
 size_t pmm_alloc_range(paddr_t address, uint count, struct list_node *list) {
-    LTRACEF("address 0x%lx, count %u\n", address, count);
+    KLTRACEF("address 0x%lx, count %u\n", address, count);
 
     DEBUG_ASSERT(list);
 
@@ -197,7 +197,7 @@ size_t pmm_alloc_range(paddr_t address, uint count, struct list_node *list) {
 }
 
 size_t pmm_free(struct list_node *list) {
-    LTRACEF("list %p\n", list);
+    KLTRACEF("list %p\n", list);
 
     DEBUG_ASSERT(list);
 
@@ -239,7 +239,7 @@ size_t pmm_free_page(vm_page_t *page) {
 
 /* physically allocate a run from arenas marked as KMAP */
 void *pmm_alloc_kpages(uint count, struct list_node *list) {
-    LTRACEF("count %u\n", count);
+    KLTRACEF("count %u\n", count);
 
     /* fast path for single page */
     if (count == 1) {
@@ -260,7 +260,7 @@ void *pmm_alloc_kpages(uint count, struct list_node *list) {
 }
 
 size_t pmm_free_kpages(void *_ptr, uint count) {
-    LTRACEF("ptr %p, count %u\n", _ptr, count);
+    KLTRACEF("ptr %p, count %u\n", _ptr, count);
 
     uint8_t *ptr = (uint8_t *)_ptr;
 
@@ -281,7 +281,7 @@ size_t pmm_free_kpages(void *_ptr, uint count) {
 }
 
 size_t pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, struct list_node *list) {
-    LTRACEF("count %u, align %u\n", count, alignment_log2);
+    KLTRACEF("count %u, align %u\n", count, alignment_log2);
 
     if (count == 0)
         return 0;
@@ -305,8 +305,8 @@ size_t pmm_alloc_contiguous(uint count, uint8_t alignment_log2, paddr_t *pa, str
 
             uint aligned_offset = (rounded_base - a->base) / PAGE_SIZE;
             uint start = aligned_offset;
-            LTRACEF("starting search at aligned offset %u\n", start);
-            LTRACEF("arena base 0x%lx size %zu\n", a->base, a->size);
+            KLTRACEF("starting search at aligned offset %u\n", start);
+            KLTRACEF("arena base 0x%lx size %zu\n", a->base, a->size);
 
 retry:
             /* search while we're still within the arena and have a chance of finding a slot
@@ -326,7 +326,7 @@ retry:
                 }
 
                 /* we found a run */
-                LTRACEF("found run from pn %u to %u\n", start, start + count);
+                KLTRACEF("found run from pn %u to %u\n", start, start + count);
 
                 /* remove the pages from the run out of the free list */
                 for (uint i = start; i < start + count; i++) {
@@ -354,7 +354,7 @@ retry:
 
     mutex_release(&lock);
 
-    LTRACEF("couldn't find run\n");
+    KLTRACEF("couldn't find run\n");
     return 0;
 }
 

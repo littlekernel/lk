@@ -15,7 +15,7 @@
 #define LOCAL_TRACE 0
 
 void arch_early_init(void) {
-    LTRACE;
+    KLTRACE;
 
     /* configure the vector table */
     uint32_t temp = mips_read_c0_status();
@@ -56,32 +56,32 @@ void arch_early_init(void) {
 }
 
 void arch_init(void) {
-    LTRACE;
+    KLTRACE;
 
-    printf("MIPS registers:\n");
-    printf("\tPRId 0x%x\n", mips_read_c0_prid());
-    printf("\tconfig  0x%x\n", mips_read_c0_config());
-    printf("\tconfig1 0x%x\n", mips_read_c0_config1());
-    printf("\tconfig2 0x%x\n", mips_read_c0_config2());
-    printf("\tconfig3 0x%x\n", mips_read_c0_config3());
-    printf("\tconfig4 0x%x\n", mips_read_c0_config4());
-    printf("\tconfig5 0x%x\n", mips_read_c0_config5());
-    printf("\tconfig6 0x%x\n", mips_read_c0_config6());
-    printf("\tconfig7 0x%x\n", mips_read_c0_config7());
-    printf("\tstatus  0x%x\n", mips_read_c0_status());
+    dprintf(INFO, "MIPS registers:\n");
+    dprintf(INFO, "\tPRId 0x%x\n", mips_read_c0_prid());
+    dprintf(INFO, "\tconfig  0x%x\n", mips_read_c0_config());
+    dprintf(INFO, "\tconfig1 0x%x\n", mips_read_c0_config1());
+    dprintf(INFO, "\tconfig2 0x%x\n", mips_read_c0_config2());
+    dprintf(INFO, "\tconfig3 0x%x\n", mips_read_c0_config3());
+    dprintf(INFO, "\tconfig4 0x%x\n", mips_read_c0_config4());
+    dprintf(INFO, "\tconfig5 0x%x\n", mips_read_c0_config5());
+    dprintf(INFO, "\tconfig6 0x%x\n", mips_read_c0_config6());
+    dprintf(INFO, "\tconfig7 0x%x\n", mips_read_c0_config7());
+    dprintf(INFO, "\tstatus  0x%x\n", mips_read_c0_status());
     uint32_t intctl = mips_read_c0_intctl();
-    printf("\tintctl  0x%x\n", intctl);
-    printf("\t\tIPTI  0x%lx\n", BITS_SHIFT(intctl, 31, 29));
-    printf("\t\tIPPCI 0x%lx\n", BITS_SHIFT(intctl, 28, 26));
-    printf("\t\tIPFDC 0x%lx\n", BITS_SHIFT(intctl, 25, 23));
-    printf("\tsrsctl  0x%x\n", mips_read_c0_srsctl());
-    printf("\tebase   0x%x\n", mips_read_c0_ebase());
-    printf("\tcount   0x%x\n", mips_read_c0_count());
-    printf("\tcompare 0x%x\n", mips_read_c0_compare());
+    dprintf(INFO, "\tintctl  0x%x\n", intctl);
+    dprintf(INFO, "\t\tIPTI  0x%lx\n", BITS_SHIFT(intctl, 31, 29));
+    dprintf(INFO, "\t\tIPPCI 0x%lx\n", BITS_SHIFT(intctl, 28, 26));
+    dprintf(INFO, "\t\tIPFDC 0x%lx\n", BITS_SHIFT(intctl, 25, 23));
+    dprintf(INFO, "\tsrsctl  0x%x\n", mips_read_c0_srsctl());
+    dprintf(INFO, "\tebase   0x%x\n", mips_read_c0_ebase());
+    dprintf(INFO, "\tcount   0x%x\n", mips_read_c0_count());
+    dprintf(INFO, "\tcompare 0x%x\n", mips_read_c0_compare());
 
     __asm__ volatile("syscall");
 
-    LTRACE_EXIT;
+    KLTRACE_EXIT;
 }
 
 void arch_idle(void) {

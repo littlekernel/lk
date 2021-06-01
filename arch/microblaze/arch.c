@@ -13,7 +13,7 @@
 #define LOCAL_TRACE 0
 
 void arch_early_init(void) {
-    LTRACE;
+    KLTRACE;
 
     /* enable i/d cache */
     uint32_t val = mb_read_msr();
@@ -22,7 +22,7 @@ void arch_early_init(void) {
 }
 
 void arch_init(void) {
-    LTRACE;
+    KLTRACE;
 }
 
 void arch_idle(void) {

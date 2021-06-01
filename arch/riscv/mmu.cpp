@@ -629,7 +629,7 @@ void riscv_early_mmu_init() {
 // called a bit later once on the boot cpu
 extern "C"
 void riscv_mmu_init() {
-    printf("RISCV: MMU ASID mask %#lx\n", riscv_asid_mask);
+    dprintf(INFO, "RISCV: MMU ASID mask %#lx\n", riscv_asid_mask);
 }
 
 

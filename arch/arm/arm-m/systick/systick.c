@@ -36,10 +36,10 @@ static platform_timer_callback cb;
 static void *cb_args;
 
 static void arm_cm_systick_set_periodic(lk_time_t period) {
-    LTRACEF("clk_freq %u, period %u\n", tick_rate, (uint)period);
+    KLTRACEF("clk_freq %u, period %u\n", tick_rate, (uint)period);
 
     uint32_t ticks = tick_rate / (1000 / period);
-    LTRACEF("ticks %d\n", ticks);
+    KLTRACEF("ticks %d\n", ticks);
 
     SysTick->LOAD = (ticks & SysTick_LOAD_RELOAD_Msk) - 1;
     SysTick->VAL = 0;
@@ -67,7 +67,7 @@ void _systick(void) {
 }
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
-    LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
+    KLTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
     DEBUG_ASSERT(tick_rate != 0 && tick_rate_mhz != 0);
 

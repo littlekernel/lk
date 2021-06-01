@@ -99,7 +99,7 @@ static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void) {
     int ret;
 
-    LTRACEF("thread %p calling %p with arg %p\n", _current_thread, _current_thread->entry, _current_thread->arg);
+    KLTRACEF("thread %p calling %p with arg %p\n", _current_thread, _current_thread->entry, _current_thread->arg);
 #if LOCAL_TRACE
     dump_thread(_current_thread);
 #endif
@@ -110,13 +110,13 @@ static void initial_thread_func(void) {
 
     ret = _current_thread->entry(_current_thread->arg);
 
-    LTRACEF("thread %p exiting with %d\n", _current_thread, ret);
+    KLTRACEF("thread %p exiting with %d\n", _current_thread, ret);
 
     thread_exit(ret);
 }
 
 void arch_thread_initialize(struct thread *t) {
-    LTRACEF("thread %p, stack %p\n", t, t->stack);
+    KLTRACEF("thread %p, stack %p\n", t, t->stack);
 
     /* find the top of the stack and align it on an 8 byte boundary */
     uint32_t *sp = (void *)ROUNDDOWN((vaddr_t)t->stack + t->stack_size, 8);
@@ -142,13 +142,13 @@ static volatile struct arm_cm_exception_frame_long *preempt_frame;
 static void pendsv(struct arm_cm_exception_frame_long *frame) {
     arch_disable_ints();
 
-    LTRACEF("preempting thread %p (%s)\n", _current_thread, _current_thread->name);
+    KLTRACEF("preempting thread %p (%s)\n", _current_thread, _current_thread->name);
 
     /* save the iframe the pendsv fired on and hit the preemption code */
     preempt_frame = frame;
     thread_preempt();
 
-    LTRACEF("fell through\n");
+    KLTRACEF("fell through\n");
 
     /* if we got here, there wasn't anything to switch to, so just fall through and exit */
     preempt_frame = NULL;
@@ -360,19 +360,19 @@ __NAKED static void _thread_mode_bounce(bool fpused) {
  */
 void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-    LTRACEF("FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
+    KLTRACEF("FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
             FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
 #endif
 
     /* if preempt_frame is set, we are being preempted */
     if (preempt_frame) {
-        LTRACEF("we're preempted, old frame %p, old lr 0x%x, pc 0x%x, new preempted bool %d\n",
+        KLTRACEF("we're preempted, old frame %p, old lr 0x%x, pc 0x%x, new preempted bool %d\n",
                 preempt_frame, preempt_frame->lr, preempt_frame->pc, newthread->arch.was_preempted);
 
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         /* see if extended fpu frame was pushed */
         if ((preempt_frame->lr & (1<<4)) == 0) {
-            LTRACEF("thread %s pushed fpu frame\n", oldthread->name);
+            KLTRACEF("thread %s pushed fpu frame\n", oldthread->name);
 
             /* save the top part of the context */
             /* note this should also trigger a lazy fpu save if it hasn't already done so */
@@ -394,7 +394,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
         /* if new thread has saved fpu state, restore it */
         if (newthread->arch.fpused) {
-            LTRACEF("newthread FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
+            KLTRACEF("newthread FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
                     FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
 
             /* enable the fpu manually */
@@ -412,7 +412,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
         if (newthread->arch.was_preempted) {
             /* return directly to the preempted thread's iframe */
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-            LTRACEF("newthread2 FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
+            KLTRACEF("newthread2 FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
                     FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
 #endif
             __asm__ volatile(
@@ -438,9 +438,9 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
 #endif
 
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-            LTRACEF("iretting to user space, fpused %u\n", newthread->arch.fpused);
+            KLTRACEF("iretting to user space, fpused %u\n", newthread->arch.fpused);
 #else
-            LTRACEF("iretting to user space\n");
+            KLTRACEF("iretting to user space\n");
 #endif
 
             __asm__ volatile(
@@ -458,13 +458,13 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
         /* see if we have fpu state we need to save */
         if (!oldthread->arch.fpused && __get_CONTROL() & CONTROL_FPCA_Msk) {
             /* mark this thread as using float */
-            LTRACEF("thread %s uses float\n", oldthread->name);
+            KLTRACEF("thread %s uses float\n", oldthread->name);
             oldthread->arch.fpused = true;
         }
 #endif
 
         if (newthread->arch.was_preempted) {
-            LTRACEF("not being preempted, but switching to preempted thread\n");
+            KLTRACEF("not being preempted, but switching to preempted thread\n");
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             _half_save_and_svc(oldthread, newthread, oldthread->arch.fpused, newthread->arch.fpused);
 #else
@@ -472,7 +472,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
 #endif
         } else {
             /* fast path, both sides did not preempt */
-            LTRACEF("both sides are not preempted newsp 0x%lx\n", newthread->arch.sp);
+            KLTRACEF("both sides are not preempted newsp 0x%lx\n", newthread->arch.sp);
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             _arch_non_preempt_context_switch(oldthread, newthread, oldthread->arch.fpused, newthread->arch.fpused);
 #else

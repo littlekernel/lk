@@ -127,7 +127,7 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     vaddr_t kernel_stack_top = (uintptr_t)ct->stack + ct->stack_size;
     kernel_stack_top = ROUNDDOWN(kernel_stack_top, 16);
 
-    printf("kernel sstatus %#lx\n", riscv_csr_read(sstatus));
+    kprintf("kernel sstatus %#lx\n", riscv_csr_read(sstatus));
 
     // build a user status register
     ulong status;
@@ -138,7 +138,7 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     status |= (1ul << RISCV_CSR_XSTATUS_FS_SHIFT); // mark fpu state 'initial'
 #endif
 
-    printf("user sstatus %#lx\n", status);
+    kprintf("user sstatus %#lx\n", status);
 
     arch_disable_ints();
 

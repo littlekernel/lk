@@ -28,7 +28,7 @@ void mp_init(void) {
 void mp_reschedule(mp_cpu_mask_t target, uint flags) {
     uint local_cpu = arch_curr_cpu_num();
 
-    LTRACEF("local %d, target 0x%x\n", local_cpu, target);
+    KLTRACEF("local %d, target 0x%x\n", local_cpu, target);
 
     /* mask out cpus that are not active and the local cpu */
     target &= mp.active_cpus;
@@ -39,7 +39,7 @@ void mp_reschedule(mp_cpu_mask_t target, uint flags) {
     }
     target &= ~(1U << local_cpu);
 
-    LTRACEF("local %d, post mask target now 0x%x\n", local_cpu, target);
+    KLTRACEF("local %d, post mask target now 0x%x\n", local_cpu, target);
 
     arch_mp_send_ipi(target, MP_IPI_RESCHEDULE);
 }
@@ -51,7 +51,7 @@ void mp_set_curr_cpu_active(bool active) {
 enum handler_return mp_mbx_reschedule_irq(void) {
     uint cpu = arch_curr_cpu_num();
 
-    LTRACEF("cpu %u\n", cpu);
+    KLTRACEF("cpu %u\n", cpu);
 
     THREAD_STATS_INC(reschedule_ipis);
 

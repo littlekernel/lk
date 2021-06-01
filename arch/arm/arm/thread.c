@@ -69,7 +69,7 @@ void arch_thread_initialize(thread_t *t) {
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
-//  TRACEF("arch_context_switch: cpu %u old %p (%s), new %p (%s)\n", arch_curr_cpu_num(), oldthread, oldthread->name, newthread, newthread->name);
+//  KTRACEF("arch_context_switch: cpu %u old %p (%s), new %p (%s)\n", arch_curr_cpu_num(), oldthread, oldthread->name, newthread, newthread->name);
 #if ARM_WITH_VFP
     arm_fpu_thread_swap(oldthread, newthread);
 #endif

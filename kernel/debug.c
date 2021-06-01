@@ -27,6 +27,9 @@
 #include <platform.h>
 #include <stdio.h>
 
+/* switch to control whether or not a K: is printed in front of each kprintf message */
+#define PREFIX_KPRINTF 1
+
 static int cmd_threads(int argc, const console_cmd_args *argv);
 static int cmd_threadstats(int argc, const console_cmd_args *argv);
 static int cmd_threadload(int argc, const console_cmd_args *argv);
@@ -99,7 +102,7 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
         lk_bigtime_t busy_time = 1000000ULL - (delta_time > 1000000ULL ? 1000000ULL : delta_time);
         uint busypercent = (busy_time * 10000) / (1000000);
 
-        printf("cpu %u LOAD: "
+        kprintf("cpu %u LOAD: "
                "%u.%02u%%, "
                "cs %lu, "
                "pmpts %lu, "
@@ -217,11 +220,21 @@ static int cmd_kevlog(int argc, const console_cmd_args *argv) {
  * k* print routines bypass stdio logic and directly output to the platform's notion
  * of a debug console.
  */
+static void kprint_prefix(void) {
+#if PREFIX_KPRINTF
+    const char *prefix = "KERN:";
+    for (; *prefix; prefix++) {
+        platform_dputc(*prefix);
+    }
+#endif
+}
+
 void kputc(char c) {
     platform_dputc(c);
 }
 
 void kputs(const char *str) {
+    kprint_prefix();
     for (; *str; str++) {
         platform_dputc(*str);
     }
@@ -238,6 +251,8 @@ static int kprintf_output_func(const char *str, size_t len, void *state) {
 int kprintf(const char *fmt, ...) {
     int err;
 
+    kprint_prefix();
+
     va_list ap;
     va_start(ap, fmt);
     err = _printf_engine(&kprintf_output_func, NULL, fmt, ap);
@@ -248,6 +263,8 @@ int kprintf(const char *fmt, ...) {
 
 int kvprintf(const char *fmt, va_list ap) {
     int err;
+
+    kprint_prefix();
 
     err = _printf_engine(&kprintf_output_func, NULL, fmt, ap);
 

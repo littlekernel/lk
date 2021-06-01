@@ -32,8 +32,8 @@ static platform_timer_callback cb;
 static void *cb_args;
 
 enum handler_return mips_timer_irq(void) {
-    LTRACEF("count   0x%x\n", mips_read_c0_count());
-    LTRACEF("compare 0x%x\n", mips_read_c0_compare());
+    KLTRACEF("count   0x%x\n", mips_read_c0_count());
+    KLTRACEF("compare 0x%x\n", mips_read_c0_compare());
 
     /* reset it for the next interval */
 retry:
@@ -59,7 +59,7 @@ retry:
 }
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
-    TRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
+    KLTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
     DEBUG_ASSERT(interval > 0);
     DEBUG_ASSERT(tick_rate != 0 && tick_rate_mhz != 0);

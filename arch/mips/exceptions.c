@@ -21,13 +21,13 @@ extern enum handler_return platform_irq(struct mips_iframe *iframe, uint num);
 void mips_gen_exception(struct mips_iframe *iframe) {
     uint32_t excode = BITS_SHIFT(iframe->cause, 6, 2);
     if (excode == 0x8) {
-        LTRACEF("SYSCALL, EPC 0x%x\n", iframe->epc);
+        KLTRACEF("SYSCALL, EPC 0x%x\n", iframe->epc);
         iframe->epc += 4;
     } else {
-        LTRACEF("status 0x%x\n", iframe->status);
-        LTRACEF("cause 0x%x\n", iframe->cause);
-        LTRACEF("\texcode 0x%x\n", excode);
-        LTRACEF("epc 0x%x\n", iframe->epc);
+        KLTRACEF("status 0x%x\n", iframe->status);
+        KLTRACEF("cause 0x%x\n", iframe->cause);
+        KLTRACEF("\texcode 0x%x\n", excode);
+        KLTRACEF("epc 0x%x\n", iframe->epc);
         for (;;);
     }
 }
@@ -39,7 +39,7 @@ void mips_irq(struct mips_iframe *iframe, uint num) {
     THREAD_STATS_INC(interrupts);
     KEVLOG_IRQ_ENTER(num);
 
-    LTRACEF("IRQ %u, EPC 0x%x, old status 0x%x, status 0x%x\n",
+    KLTRACEF("IRQ %u, EPC 0x%x, old status 0x%x, status 0x%x\n",
             num, iframe->epc, iframe->status, mips_read_c0_status());
 
     enum handler_return ret = INT_NO_RESCHEDULE;

@@ -71,18 +71,18 @@ static size_t trim_to_aspace(const vmm_aspace_t *aspace, vaddr_t vaddr, size_t s
 
     size_t offset = vaddr - aspace->base;
 
-    //LTRACEF("vaddr 0x%lx size 0x%zx offset 0x%zx aspace base 0x%lx aspace size 0x%zx\n",
+    //KLTRACEF("vaddr 0x%lx size 0x%zx offset 0x%zx aspace base 0x%lx aspace size 0x%zx\n",
     //        vaddr, size, offset, aspace->base, aspace->size);
 
     if (offset + size < offset)
         size = ULONG_MAX - offset - 1;
 
-    //LTRACEF("size now 0x%zx\n", size);
+    //KLTRACEF("size now 0x%zx\n", size);
 
     if (offset + size >= aspace->size - 1)
         size = aspace->size - offset;
 
-    //LTRACEF("size now 0x%zx\n", size);
+    //KLTRACEF("size now 0x%zx\n", size);
 
     return size;
 }
@@ -111,12 +111,12 @@ static status_t add_region_to_aspace(vmm_aspace_t *aspace, vmm_region_t *r) {
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(r);
 
-    LTRACEF("aspace %p base 0x%lx size 0x%zx r %p base 0x%lx size 0x%zx\n",
+    KLTRACEF("aspace %p base 0x%lx size 0x%zx r %p base 0x%lx size 0x%zx\n",
             aspace, aspace->base, aspace->size, r, r->base, r->size);
 
     /* only try if the region will at least fit in the address space */
     if (r->size == 0 || !is_region_inside_aspace(aspace, r->base, r->size)) {
-        LTRACEF("region was out of range\n");
+        KLTRACEF("region was out of range\n");
         return ERR_OUT_OF_RANGE;
     }
 
@@ -145,7 +145,7 @@ static status_t add_region_to_aspace(vmm_aspace_t *aspace, vmm_region_t *r) {
         }
     }
 
-    LTRACEF("couldn't find spot\n");
+    KLTRACEF("couldn't find spot\n");
     return ERR_NO_MEMORY;
 }
 
@@ -212,7 +212,7 @@ static vaddr_t alloc_spot(vmm_aspace_t *aspace, size_t size, uint8_t align_pow2,
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(size > 0 && IS_PAGE_ALIGNED(size));
 
-    LTRACEF("aspace %p size 0x%zx align %hhu\n", aspace, size, align_pow2);
+    KLTRACEF("aspace %p size 0x%zx align %hhu\n", aspace, size, align_pow2);
 
     if (align_pow2 < PAGE_SIZE_SHIFT)
         align_pow2 = PAGE_SIZE_SHIFT;
@@ -266,10 +266,10 @@ static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t
         struct list_node *before = NULL;
 
         vaddr = alloc_spot(aspace, size, align_pow2, arch_mmu_flags, &before);
-        LTRACEF("alloc_spot returns 0x%lx, before %p\n", vaddr, before);
+        KLTRACEF("alloc_spot returns 0x%lx, before %p\n", vaddr, before);
 
         if (vaddr == (vaddr_t)-1) {
-            LTRACEF("failed to find spot\n");
+            KLTRACEF("failed to find spot\n");
             free(r);
             return NULL;
         }
@@ -286,7 +286,7 @@ static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t
 }
 
 status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, vaddr_t vaddr) {
-    LTRACEF("aspace %p name '%s' size 0x%zx vaddr 0x%lx\n", aspace, name, size, vaddr);
+    KLTRACEF("aspace %p name '%s' size 0x%zx vaddr 0x%lx\n", aspace, name, size, vaddr);
 
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(IS_PAGE_ALIGNED(vaddr));
@@ -326,7 +326,7 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
                             void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags) {
     status_t ret;
 
-    LTRACEF("aspace %p name '%s' size 0x%zx ptr %p paddr 0x%lx vmm_flags 0x%x arch_mmu_flags 0x%x\n",
+    KLTRACEF("aspace %p name '%s' size 0x%zx ptr %p paddr 0x%lx vmm_flags 0x%x arch_mmu_flags 0x%x\n",
             aspace, name, size, ptr ? *ptr : 0, paddr, vmm_flags, arch_mmu_flags);
 
     DEBUG_ASSERT(aspace);
@@ -370,7 +370,7 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
 
     /* map all of the pages */
     int err = arch_mmu_map(&aspace->arch_aspace, r->base, paddr, size / PAGE_SIZE, arch_mmu_flags);
-    LTRACEF("arch_mmu_map returns %d\n", err);
+    KLTRACEF("arch_mmu_map returns %d\n", err);
 
     ret = NO_ERROR;
 
@@ -383,7 +383,7 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
                               uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags) {
     status_t err = NO_ERROR;
 
-    LTRACEF("aspace %p name '%s' size 0x%zx ptr %p align %hhu vmm_flags 0x%x arch_mmu_flags 0x%x\n",
+    KLTRACEF("aspace %p name '%s' size 0x%zx ptr %p align %hhu vmm_flags 0x%x arch_mmu_flags 0x%x\n",
             aspace, name, size, ptr ? *ptr : 0, align_pow2, vmm_flags, arch_mmu_flags);
 
     DEBUG_ASSERT(aspace);
@@ -457,7 +457,7 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
                    uint8_t align_pow2, uint vmm_flags, uint arch_mmu_flags) {
     status_t err = NO_ERROR;
 
-    LTRACEF("aspace %p name '%s' size 0x%zx ptr %p align %hhu vmm_flags 0x%x arch_mmu_flags 0x%x\n",
+    KLTRACEF("aspace %p name '%s' size 0x%zx ptr %p align %hhu vmm_flags 0x%x arch_mmu_flags 0x%x\n",
             aspace, name, size, ptr ? *ptr : 0, align_pow2, vmm_flags, arch_mmu_flags);
 
     DEBUG_ASSERT(aspace);
@@ -490,7 +490,7 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     size_t count = pmm_alloc_pages(size / PAGE_SIZE, &page_list);
     DEBUG_ASSERT(count <= size);
     if (count < size / PAGE_SIZE) {
-        LTRACEF("failed to allocate enough pages (asked for %zu, got %zu)\n", size / PAGE_SIZE, count);
+        KLTRACEF("failed to allocate enough pages (asked for %zu, got %zu)\n", size / PAGE_SIZE, count);
         pmm_free(&page_list);
         err = ERR_NO_MEMORY;
         goto err;
@@ -680,7 +680,7 @@ void vmm_context_switch(vmm_aspace_t *oldspace, vmm_aspace_t *newaspace) {
 }
 
 void vmm_set_active_aspace(vmm_aspace_t *aspace) {
-    LTRACEF("aspace %p\n", aspace);
+    KLTRACEF("aspace %p\n", aspace);
 
     thread_t *t = get_current_thread();
     DEBUG_ASSERT(t);

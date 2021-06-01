@@ -157,7 +157,7 @@ void fpu_dev_na_handler(void) {
 
     self = get_current_thread();
 
-    LTRACEF("owner %p self %p\n", fp_owner, self);
+    KLTRACEF("owner %p self %p\n", fp_owner, self);
     if ((fp_owner != NULL) && (fp_owner != self)) {
         __asm__ __volatile__("fxsave %0" : "=m" (*fp_owner->arch.fpu_states));
         __asm__ __volatile__("fxrstor %0" : : "m" (*self->arch.fpu_states));

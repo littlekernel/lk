@@ -182,7 +182,7 @@ void x86_exception_handler(x86_iframe_t *frame) {
         case INT_MF: { /* x87 floating point math fault */
             uint16_t fsw;
             __asm__ __volatile__("fnstsw %0" : "=m" (fsw));
-            TRACEF("fsw 0x%hx\n", fsw);
+            KTRACEF("fsw 0x%hx\n", fsw);
             exception_die(frame, "x87 math fault\n");
             //asm volatile("fnclex");
             break;
@@ -190,7 +190,7 @@ void x86_exception_handler(x86_iframe_t *frame) {
         case INT_XM: { /* simd math fault */
             uint32_t mxcsr;
             __asm__ __volatile__("stmxcsr %0" : "=m" (mxcsr));
-            TRACEF("mxcsr 0x%x\n", mxcsr);
+            KTRACEF("mxcsr 0x%x\n", mxcsr);
             exception_die(frame, "simd math fault\n");
             break;
         }

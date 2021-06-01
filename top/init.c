@@ -20,7 +20,6 @@
 #include <lk/trace.h>
 
 #define LOCAL_TRACE 0
-#define TRACE_INIT (LK_DEBUGLEVEL >= 2)
 #ifndef EARLIEST_TRACE_LEVEL
 #define EARLIEST_TRACE_LEVEL LK_INIT_LEVEL_TARGET_EARLY
 #endif
@@ -29,7 +28,7 @@ extern const struct lk_init_struct __start_lk_init __WEAK;
 extern const struct lk_init_struct __stop_lk_init __WEAK;
 
 void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop_level) {
-    LTRACEF("flags %#x, start_level %#x, stop_level %#x\n",
+    KLTRACEF("flags %#x, start_level %#x, stop_level %#x\n",
             required_flag, start_level, stop_level);
 
     ASSERT(start_level > 0);
@@ -37,12 +36,12 @@ void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop
     const struct lk_init_struct *last = NULL;
     for (;;) {
         /* search for the lowest uncalled hook to call */
-        LTRACEF("last %p, last_called_level %#x\n", last, last_called_level);
+        KLTRACEF("last %p, last_called_level %#x\n", last, last_called_level);
 
         const struct lk_init_struct *found = NULL;
         bool seen_last = false;
         for (const struct lk_init_struct *ptr = &__start_lk_init; ptr != &__stop_lk_init; ptr++) {
-            LTRACEF("looking at %p (%s) level %#x, flags %#x, seen_last %d\n", ptr, ptr->name, ptr->level, ptr->flags, seen_last);
+            KLTRACEF("looking at %p (%s) level %#x, flags %#x, seen_last %d\n", ptr, ptr->name, ptr->level, ptr->flags, seen_last);
 
             if (ptr == last)
                 seen_last = true;
@@ -76,12 +75,10 @@ void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop
         if (!found)
             break;
 
-#if TRACE_INIT
         if (found->level >= EARLIEST_TRACE_LEVEL) {
-            printf("INIT: cpu %d, calling hook %p (%s) at level %#x, flags %#x\n",
+            dprintf(SPEW, "INIT: cpu %d, calling hook %p (%s) at level %#x, flags %#x\n",
                    arch_curr_cpu_num(), found->hook, found->name, found->level, found->flags);
         }
-#endif
         found->hook(found->level);
         last_called_level = found->level;
         last = found;

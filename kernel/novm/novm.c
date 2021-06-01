@@ -126,14 +126,14 @@ static void novm_init_helper(struct novm_arena *n, const char *name,
 }
 
 void novm_add_arena(const char *name, uintptr_t arena_start, uintptr_t arena_size) {
-    LTRACEF("name '%s' start %#lx size %#lx\n", name, arena_start, arena_size);
+    KLTRACEF("name '%s' start %#lx size %#lx\n", name, arena_start, arena_size);
     for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
         if (arena[i].pages == 0) {
             // if this arena covers where the kernel is, bump start to MEM_START
             if (arena_start < END_OF_KERNEL && arena_start + arena_size > END_OF_KERNEL) {
                 arena_size -= END_OF_KERNEL - arena_start;
                 arena_start = END_OF_KERNEL;
-                LTRACEF("trimming arena to %#lx size %#lx\n", arena_start, arena_size);
+                KLTRACEF("trimming arena to %#lx size %#lx\n", arena_start, arena_size);
             }
 
             novm_init_helper(&arena[i], name, arena_start, arena_size, NULL, 0);
@@ -178,7 +178,7 @@ void *novm_alloc_helper(struct novm_arena *n, size_t pages) {
 }
 
 void *novm_alloc_pages(size_t pages, uint32_t arena_bitmap) {
-    LTRACEF("pages %zu\n", pages);
+    KLTRACEF("pages %zu\n", pages);
 
     /* allocate from any arena */
     for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
@@ -193,7 +193,7 @@ void *novm_alloc_pages(size_t pages, uint32_t arena_bitmap) {
 }
 
 void novm_free_pages(void *address, size_t pages) {
-    LTRACEF("address %p, pages %zu\n", address, pages);
+    KLTRACEF("address %p, pages %zu\n", address, pages);
 
     struct novm_arena *n = NULL;
     for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {
@@ -216,7 +216,7 @@ void novm_free_pages(void *address, size_t pages) {
 }
 
 status_t novm_alloc_specific_pages(void *address, size_t pages) {
-    LTRACEF("address %p, pages %zu\n", address, pages);
+    KLTRACEF("address %p, pages %zu\n", address, pages);
 
     struct novm_arena *n = NULL;
     for (uint i = 0; i < NOVM_MAX_ARENAS; i++) {

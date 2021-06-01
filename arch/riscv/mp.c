@@ -39,14 +39,14 @@ volatile int secondaries_to_init = SMP_MAX_CPUS - 1;
 uintptr_t _start_physical;
 
 status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
-    LTRACEF("target 0x%x, ipi %u\n", target, ipi);
+    KLTRACEF("target 0x%x, ipi %u\n", target, ipi);
 
     mp_cpu_mask_t m = target;
     ulong hart_mask = 0;
     for (uint c = 0; c < SMP_MAX_CPUS && m; c++, m >>= 1) {
         if (m & 1) {
             int h = cpu_to_hart_map[c];
-            LTRACEF("c %u h %d m %#x\n", c, h, m);
+            KLTRACEF("c %u h %d m %#x\n", c, h, m);
 
             // record a pending hart to notify
             hart_mask |= (1ul << h);
@@ -79,7 +79,7 @@ enum handler_return riscv_software_exception(void) {
 
     rmb();
     int reason = atomic_swap(&ipi_data[curr_cpu], 0);
-    LTRACEF("cpu %u reason %#x\n", curr_cpu, reason);
+    KLTRACEF("cpu %u reason %#x\n", curr_cpu, reason);
 
     enum handler_return ret = INT_NO_RESCHEDULE;
     if (reason & (1u << MP_IPI_RESCHEDULE)) {

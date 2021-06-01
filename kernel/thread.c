@@ -27,7 +27,6 @@
 #include <lk/list.h>
 #include <malloc.h>
 #include <platform.h>
-#include <printf.h>
 #include <string.h>
 #include <target.h>
 #if WITH_KERNEL_VM
@@ -385,8 +384,6 @@ void thread_exit(int retcode) {
     DEBUG_ASSERT(current_thread->state == THREAD_RUNNING);
     DEBUG_ASSERT(!thread_is_idle(current_thread));
 
-//  dprintf("thread_exit: current %p\n", current_thread);
-
     THREAD_LOCK(state);
 
     /* enter the dead state */
@@ -532,7 +529,7 @@ void thread_resched(void) {
             /* if we're switching from a non real time to a real time, cancel
              * the preemption timer. */
 #if DEBUG_THREAD_CONTEXT_SWITCH
-            dprintf(ALWAYS, "arch_context_switch: stop preempt, cpu %d, old %p (%s), new %p (%s)\n",
+            kprintf("arch_context_switch: stop preempt, cpu %d, old %p (%s), new %p (%s)\n",
                     cpu, oldthread, oldthread->name, newthread, newthread->name);
 #endif
             timer_cancel(&preempt_timer[cpu]);
@@ -541,7 +538,7 @@ void thread_resched(void) {
         /* if we're switching from a real time (or idle thread) to a regular one,
          * set up a periodic timer to run our preemption tick. */
 #if DEBUG_THREAD_CONTEXT_SWITCH
-        dprintf(ALWAYS, "arch_context_switch: start preempt, cpu %d, old %p (%s), new %p (%s)\n",
+        kprintf("arch_context_switch: start preempt, cpu %d, old %p (%s), new %p (%s)\n",
                 cpu, oldthread, oldthread->name, newthread, newthread->name);
 #endif
         timer_set_periodic(&preempt_timer[cpu], 10, thread_timer_tick, NULL);
@@ -555,7 +552,7 @@ void thread_resched(void) {
     set_current_thread(newthread);
 
 #if DEBUG_THREAD_CONTEXT_SWITCH
-    dprintf(ALWAYS, "arch_context_switch: cpu %d, old %p (%s, pri %d, flags 0x%x), new %p (%s, pri %d, flags 0x%x)\n",
+    kprintf("arch_context_switch: cpu %d, old %p (%s, pri %d, flags 0x%x), new %p (%s, pri %d, flags 0x%x)\n",
             cpu, oldthread, oldthread->name, oldthread->priority,
             oldthread->flags, newthread, newthread->name,
             newthread->priority, newthread->flags);
@@ -958,32 +955,32 @@ static size_t thread_stack_used(thread_t *t) {
  * @brief  Dump debugging info about the specified thread.
  */
 void dump_thread(thread_t *t) {
-    dprintf(INFO, "dump_thread: t %p (%s)\n", t, t->name);
+    kprintf("dump_thread: t %p (%s)\n", t, t->name);
 #if WITH_SMP
-    dprintf(INFO, "\tstate %s, curr_cpu %d, pinned_cpu %d, priority %d, remaining quantum %d\n",
+    kprintf("\tstate %s, curr_cpu %d, pinned_cpu %d, priority %d, remaining quantum %d\n",
             thread_state_to_str(t->state), t->curr_cpu, t->pinned_cpu, t->priority, t->remaining_quantum);
 #else
-    dprintf(INFO, "\tstate %s, priority %d, remaining quantum %d\n",
+    kprintf("\tstate %s, priority %d, remaining quantum %d\n",
             thread_state_to_str(t->state), t->priority, t->remaining_quantum);
 #endif
 #ifdef THREAD_STACK_HIGHWATER
-    dprintf(INFO, "\tstack %p, stack_size %zd, stack_used %zd\n",
+    kprintf("\tstack %p, stack_size %zd, stack_used %zd\n",
             t->stack, t->stack_size, thread_stack_used(t));
 #else
-    dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
+    kprintf("\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
 #endif
-    dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
-    dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
+    kprintf("\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
+    kprintf("\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
 #if WITH_KERNEL_VM
-    dprintf(INFO, "\taspace %p\n", t->aspace);
+    kprintf("\taspace %p\n", t->aspace);
 #endif
 #if (MAX_TLS_ENTRY > 0)
-    dprintf(INFO, "\ttls:");
+    kprintf(INFO, "\ttls:");
     int i;
     for (i=0; i < MAX_TLS_ENTRY; i++) {
-        dprintf(INFO, " 0x%lx", t->tls[i]);
+        kprintf(" 0x%lx", t->tls[i]);
     }
-    dprintf(INFO, "\n");
+    kprintf("\n");
 #endif
     arch_dump_thread(t);
 }
@@ -997,7 +994,7 @@ void dump_all_threads(void) {
     THREAD_LOCK(state);
     list_for_every_entry(&thread_list, t, thread_t, thread_list_node) {
         if (t->magic != THREAD_MAGIC) {
-            dprintf(INFO, "bad magic on thread struct %p, aborting.\n", t);
+            kprintf("bad magic on thread struct %p, aborting.\n", t);
             hexdump(t, sizeof(thread_t));
             break;
         }

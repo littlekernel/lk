@@ -25,7 +25,7 @@ static void initial_thread_func(void) {
     thread_t *ct = get_current_thread();
 
 #if LOCAL_TRACE
-    LTRACEF("thread %p calling %p with arg %p\n", ct, ct->entry, ct->arg);
+    KLTRACEF("thread %p calling %p with arg %p\n", ct, ct->entry, ct->arg);
     dump_thread(ct);
 #endif
 
@@ -35,7 +35,7 @@ static void initial_thread_func(void) {
 
     int ret = ct->entry(ct->arg);
 
-    LTRACEF("thread %p exiting with %d\n", ct, ret);
+    KLTRACEF("thread %p exiting with %d\n", ct, ret);
 
     thread_exit(ret);
 }
@@ -50,13 +50,13 @@ void arch_thread_initialize(thread_t *t) {
     t->arch.cs_frame.sp = stack_top;
     t->arch.cs_frame.ra = (vaddr_t)&initial_thread_func;
 
-    LTRACEF("t %p (%s) stack top %#lx entry %p arg %p\n", t, t->name, stack_top, t->entry, t->arg);
+    KLTRACEF("t %p (%s) stack top %#lx entry %p arg %p\n", t, t->name, stack_top, t->entry, t->arg);
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
     DEBUG_ASSERT(arch_ints_disabled());
 
-    LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
+    KLTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
 
     riscv_context_switch(&oldthread->arch.cs_frame, &newthread->arch.cs_frame);
 }

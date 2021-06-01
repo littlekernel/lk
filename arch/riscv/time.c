@@ -23,7 +23,7 @@ static platform_timer_callback timer_cb;
 static void *timer_arg;
 
 status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg, lk_time_t interval) {
-    LTRACEF("cb %p, arg %p, interval %u\n", callback, arg, interval);
+    KLTRACEF("cb %p, arg %p, interval %u\n", callback, arg, interval);
 
     // disable timer
     riscv_csr_clear(RISCV_CSR_XIE, RISCV_CSR_XIE_TIE);
@@ -64,7 +64,7 @@ void platform_stop_timer(void) {
 }
 
 enum handler_return riscv_timer_exception(void) {
-    LTRACEF("tick\n");
+    KLTRACEF("tick\n");
 
     riscv_csr_clear(RISCV_CSR_XIE, RISCV_CSR_XIE_TIE);
 

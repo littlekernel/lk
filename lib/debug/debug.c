@@ -98,7 +98,7 @@ FILE *get_panic_fd(void) {
     return &panic_fd;
 }
 
-void hexdump(const void *ptr, size_t len) {
+static void hexdump_print(int (*print)(const char *, ...), const void *ptr, size_t len) {
     addr_t address = (addr_t)ptr;
     size_t count;
 
@@ -110,30 +110,38 @@ void hexdump(const void *ptr, size_t len) {
         size_t s = ROUNDUP(MIN(len - count, 16), 4);
         size_t i;
 
-        printf("0x%08lx: ", address);
+        print("0x%08lx: ", address);
         for (i = 0; i < s / 4; i++) {
             u.buf[i] = ((const uint32_t *)address)[i];
-            printf("%08x ", u.buf[i]);
+            print("%08x ", u.buf[i]);
         }
         for (; i < 4; i++) {
-            printf("         ");
+            print("         ");
         }
-        printf("|");
+        print("|");
 
         for (i=0; i < 16; i++) {
             char c = u.cbuf[i];
             if (i < s && isprint(c)) {
-                printf("%c", c);
+                print("%c", c);
             } else {
-                printf(".");
+                print(".");
             }
         }
-        printf("|\n");
+        print("|\n");
         address += 16;
     }
 }
 
-void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr) {
+void hexdump(const void *ptr, size_t len) {
+    if (arch_ints_disabled()) {
+        hexdump_print(&kprintf, ptr, len);
+    } else {
+        hexdump_print(&printf, ptr, len);
+    }
+}
+
+static void hexdump8_ex_print(int (*print)(const char *, ...), const void *ptr, size_t len, uint64_t disp_addr) {
     addr_t address = (addr_t)ptr;
     size_t count;
     size_t i;
@@ -142,25 +150,33 @@ void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr) {
                            : "0x%08llx: ";
 
     for (count = 0 ; count < len; count += 16) {
-        printf(addr_fmt, disp_addr + count);
+        print(addr_fmt, disp_addr + count);
 
         for (i=0; i < MIN(len - count, 16); i++) {
-            printf("%02hhx ", *(const uint8_t *)(address + i));
+            print("%02hhx ", *(const uint8_t *)(address + i));
         }
 
         for (; i < 16; i++) {
-            printf("   ");
+            print("   ");
         }
 
-        printf("|");
+        print("|");
 
         for (i=0; i < MIN(len - count, 16); i++) {
             char c = ((const char *)address)[i];
-            printf("%c", isprint(c) ? c : '.');
+            print("%c", isprint(c) ? c : '.');
         }
 
-        printf("\n");
+        print("\n");
         address += 16;
+    }
+}
+
+void hexdump8_ex(const void *ptr, size_t len, uint64_t disp_addr) {
+    if (arch_ints_disabled()) {
+        hexdump8_ex_print(&kprintf, ptr, len, disp_addr);
+    } else {
+        hexdump8_ex_print(&printf, ptr, len, disp_addr);
     }
 }
 

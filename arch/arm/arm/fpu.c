@@ -46,7 +46,7 @@ void arm_fpu_undefined_instruction(struct arm_iframe *frame) {
         panic("floating point code in irq context. pc 0x%x\n", frame->pc);
     }
 
-    LTRACEF("enabling fpu on thread %p\n", t);
+    KLTRACEF("enabling fpu on thread %p\n", t);
 
     t->arch.fpused = true;
     arm_fpu_thread_swap(NULL, t);
@@ -65,7 +65,7 @@ void arm_fpu_thread_initialize(struct thread *t) {
 }
 
 void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread) {
-    LTRACEF("old %p (%d), new %p (%d)\n",
+    KLTRACEF("old %p (%d), new %p (%d)\n",
             oldthread, oldthread ? oldthread->arch.fpused : 0,
             newthread, newthread ? newthread->arch.fpused : 0);
 

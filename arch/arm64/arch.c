@@ -74,13 +74,13 @@ void arch_init(void) {
 #if WITH_SMP
     arch_mp_init_percpu();
 
-    LTRACEF("midr_el1 0x%llx\n", ARM64_READ_SYSREG(midr_el1));
+    KLTRACEF("midr_el1 0x%llx\n", ARM64_READ_SYSREG(midr_el1));
 
     secondaries_to_init = SMP_MAX_CPUS - 1; /* TODO: get count from somewhere else, or add cpus as they boot */
 
     lk_init_secondary_cpus(secondaries_to_init);
 
-    LTRACEF("releasing %d secondary cpus\n", secondaries_to_init);
+    KLTRACEF("releasing %d secondary cpus\n", secondaries_to_init);
 
     /* release the secondary cpus */
     spin_unlock(&arm_boot_cpu_lock);
@@ -151,7 +151,7 @@ void arm64_secondary_entry(ulong asm_cpu_num) {
 
     arch_mp_init_percpu();
 
-    LTRACEF("cpu num %d\n", cpu);
+    KLTRACEF("cpu num %d\n", cpu);
 
     /* we're done, tell the main cpu we're up */
     atomic_add(&secondaries_to_init, -1);

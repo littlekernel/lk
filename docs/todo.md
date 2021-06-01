@@ -9,4 +9,8 @@ To fix:
 +   arm arch_ops.h left over pre-armv6 stuff
 +   see about expanding cycle count to a ulong
 +   lib console make read only blocks
+
+
+printf refactoring:
++   make dump_thread and dump_all_threads work inside regular context
 	

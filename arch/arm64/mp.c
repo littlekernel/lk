@@ -27,7 +27,7 @@ extern void bcm28xx_send_ipi(uint irq, uint cpu_mask);
 #define GIC_IPI_BASE (14)
 
 status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
-    LTRACEF("target 0x%x, ipi %u\n", target, ipi);
+    KLTRACEF("target 0x%x, ipi %u\n", target, ipi);
 
 #if WITH_DEV_INTERRUPT_ARM_GIC
     uint gic_ipi_num = ipi + GIC_IPI_BASE;
@@ -35,7 +35,7 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
     /* filter out targets outside of the range of cpus we care about */
     target &= ((1UL << SMP_MAX_CPUS) - 1);
     if (target != 0) {
-        LTRACEF("target 0x%x, gic_ipi %u\n", target, gic_ipi_num);
+        KLTRACEF("target 0x%x, gic_ipi %u\n", target, gic_ipi_num);
         arm_gic_sgi(gic_ipi_num, ARM_GIC_SGI_FLAG_NS, target);
     }
 #elif PLATFORM_BCM28XX
@@ -50,13 +50,13 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
 }
 
 enum handler_return arm_ipi_generic_handler(void *arg) {
-    LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
+    KLTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
 
     return INT_NO_RESCHEDULE;
 }
 
 enum handler_return arm_ipi_reschedule_handler(void *arg) {
-    LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
+    KLTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
 
     return mp_mbx_reschedule_irq();
 }

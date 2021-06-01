@@ -167,9 +167,9 @@ void arm_secondary_entry(uint asm_cpu_num) {
 
     arch_mp_init_percpu();
 
-    LTRACEF("cpu num %d\n", cpu);
-    LTRACEF("sctlr 0x%x\n", arm_read_sctlr());
-    LTRACEF("actlr 0x%x\n", arm_read_actlr());
+    KLTRACEF("cpu num %d\n", cpu);
+    KLTRACEF("sctlr 0x%x\n", arm_read_sctlr());
+    KLTRACEF("actlr 0x%x\n", arm_read_actlr());
 
     /* we're done, tell the main cpu we're up */
     atomic_add(&secondaries_to_init, -1);
@@ -303,7 +303,7 @@ status_t arm_vtop(addr_t va, addr_t *pa) {
 #endif
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
-    LTRACEF("entry %p, args 0x%lx 0x%lx 0x%lx 0x%lx\n", entry, arg0, arg1, arg2, arg3);
+    KLTRACEF("entry %p, args 0x%lx 0x%lx 0x%lx 0x%lx\n", entry, arg0, arg1, arg2, arg3);
 
     /* we are going to shut down the system, start by disabling interrupts */
     arch_disable_ints();
@@ -326,7 +326,7 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
     /* add the low bits of the virtual address back */
     entry_pa |= ((addr_t)entry & 0xfff);
 
-    LTRACEF("entry pa 0x%lx\n", entry_pa);
+    KLTRACEF("entry pa 0x%lx\n", entry_pa);
 
     /* figure out the mapping for the chain load routine */
     if (arm_vtop((addr_t)&arm_chain_load, &loader_pa) < 0) {
@@ -338,7 +338,7 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 
     paddr_t loader_pa_section = ROUNDDOWN(loader_pa, SECTION_SIZE);
 
-    LTRACEF("loader address %p, phys 0x%lx, surrounding large page 0x%lx\n",
+    KLTRACEF("loader address %p, phys 0x%lx, surrounding large page 0x%lx\n",
             &arm_chain_load, loader_pa, loader_pa_section);
 
     /* using large pages, map around the target location */
@@ -349,7 +349,7 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
     loader_pa = (paddr_t)&arm_chain_load;
 #endif
 
-    LTRACEF("disabling instruction/data cache\n");
+    KLTRACEF("disabling instruction/data cache\n");
     arch_disable_cache(UCACHE);
 #if WITH_DEV_CACHE_PL310
     pl310_set_enable(false);
@@ -358,7 +358,7 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
     /* put the booting cpu back into close to a default state */
     arch_quiesce();
 
-    LTRACEF("branching to physical address of loader\n");
+    KLTRACEF("branching to physical address of loader\n");
 
     /* branch to the physical address version of the chain loader routine */
     void (*loader)(paddr_t entry, ulong, ulong, ulong, ulong) __NO_RETURN = (void *)loader_pa;
@@ -373,9 +373,9 @@ static void spinlock_test(void) {
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 
-    TRACEF("cpu0: i have the lock\n");
+    KTRACEF("cpu0: i have the lock\n");
     spin(1000000);
-    TRACEF("cpu0: releasing it\n");
+    KTRACEF("cpu0: releasing it\n");
 
     spin_unlock_irqrestore(&lock, state);
 
@@ -389,9 +389,9 @@ static void spinlock_test_secondary(void) {
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 
-    TRACEF("cpu1: i have the lock\n");
+    KTRACEF("cpu1: i have the lock\n");
     spin(250000);
-    TRACEF("cpu1: releasing it\n");
+    KTRACEF("cpu1: releasing it\n");
 
     spin_unlock_irqrestore(&lock, state);
 }

@@ -42,7 +42,7 @@ static void initial_thread_func(void) {
 
     thread_t *current_thread = get_current_thread();
 
-    LTRACEF("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
+    KLTRACEF("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
 
     /* release the thread lock that was implicitly held across the reschedule */
     spin_unlock(&thread_lock);
@@ -50,7 +50,7 @@ static void initial_thread_func(void) {
 
     ret = current_thread->entry(current_thread->arg);
 
-    LTRACEF("initial_thread_func: thread %p exiting with %d\n", current_thread, ret);
+    KLTRACEF("initial_thread_func: thread %p exiting with %d\n", current_thread, ret);
 
     thread_exit(ret);
 }
@@ -74,7 +74,7 @@ void arch_thread_initialize(thread_t *t) {
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
-    LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
+    KLTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
     arm64_fpu_pre_context_switch(oldthread);
 #if WITH_SMP
     DSB; /* broadcast tlb operations in case the thread moves to another cpu */

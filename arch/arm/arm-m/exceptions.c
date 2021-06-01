@@ -16,52 +16,52 @@
 
 static void dump_frame(const struct arm_cm_exception_frame *frame) {
 
-    printf("exception frame at %p\n", frame);
-    printf("\tr0  0x%08x r1  0x%08x r2  0x%08x r3 0x%08x r4 0x%08x\n",
+    kprintf("exception frame at %p\n", frame);
+    kprintf("\tr0  0x%08x r1  0x%08x r2  0x%08x r3 0x%08x r4 0x%08x\n",
            frame->r0, frame->r1, frame->r2, frame->r3, frame->r4);
-    printf("\tr5  0x%08x r6  0x%08x r7  0x%08x r8 0x%08x r9 0x%08x\n",
+    kprintf("\tr5  0x%08x r6  0x%08x r7  0x%08x r8 0x%08x r9 0x%08x\n",
            frame->r5, frame->r6, frame->r7, frame->r8, frame->r9);
-    printf("\tr10 0x%08x r11 0x%08x r12 0x%08x\n",
+    kprintf("\tr10 0x%08x r11 0x%08x r12 0x%08x\n",
            frame->r10, frame->r11, frame->r12);
-    printf("\tlr  0x%08x pc  0x%08x psr 0x%08x\n",
+    kprintf("\tlr  0x%08x pc  0x%08x psr 0x%08x\n",
            frame->lr, frame->pc, frame->psr);
 }
 
 void hardfault(struct arm_cm_exception_frame *frame) {
-    printf("hardfault: ");
+    kprintf("hardfault: ");
     dump_frame(frame);
 
 #if     (__CORTEX_M >= 0X03) || (__CORTEX_SC >= 300)
-    printf("HFSR 0x%x\n", SCB->HFSR);
+    kprintf("HFSR 0x%x\n", SCB->HFSR);
 #endif
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 void memmanage(struct arm_cm_exception_frame *frame) {
-    printf("memmanage: ");
+    kprintf("memmanage: ");
     dump_frame(frame);
 
 #if     (__CORTEX_M >= 0X03) || (__CORTEX_SC >= 300)
     uint32_t mmfsr = SCB->CFSR & 0xff;
 
     if (mmfsr & (1<<0)) { // IACCVIOL
-        printf("instruction fault\n");
+        kprintf("instruction fault\n");
     }
     if (mmfsr & (1<<1)) { // DACCVIOL
-        printf("data fault\n");
+        kprintf("data fault\n");
     }
     if (mmfsr & (1<<3)) { // MUNSTKERR
-        printf("fault on exception return\n");
+        kprintf("fault on exception return\n");
     }
     if (mmfsr & (1<<4)) { // MSTKERR
-        printf("fault on exception entry\n");
+        kprintf("fault on exception entry\n");
     }
     if (mmfsr & (1<<5)) { // MLSPERR
-        printf("fault on lazy fpu preserve\n");
+        kprintf("fault on lazy fpu preserve\n");
     }
     if (mmfsr & (1<<7)) { // MMARVALID
-        printf("fault address 0x%x\n", SCB->MMFAR);
+        kprintf("fault address 0x%x\n", SCB->MMFAR);
     }
 #endif
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
@@ -69,32 +69,32 @@ void memmanage(struct arm_cm_exception_frame *frame) {
 
 
 void usagefault(struct arm_cm_exception_frame *frame) {
-    printf("usagefault: ");
+    kprintf("usagefault: ");
     dump_frame(frame);
 
 #if  (__CORTEX_M >= 0x03)
     uint32_t ufsr = BITS_SHIFT(SCB->CFSR, 31, 16);
-    printf("UFSR 0x%x: ", ufsr);
+    kprintf("UFSR 0x%x: ", ufsr);
 
     if (ufsr & (1<<0))
-        printf("undefined instruction\n");
+        kprintf("undefined instruction\n");
     if (ufsr & (1<<1))
-        printf("ESPR invalid\n");
+        kprintf("ESPR invalid\n");
     if (ufsr & (1<<2))
-        printf("integrity check failed on EXC_RETURN\n");
+        kprintf("integrity check failed on EXC_RETURN\n");
     if (ufsr & (1<<3))
-        printf("coprocessor access error\n");
+        kprintf("coprocessor access error\n");
     if (ufsr & (1<<8))
-        printf("unaligned error\n");
+        kprintf("unaligned error\n");
     if (ufsr & (1<<9))
-        printf("division by zero\n");
+        kprintf("division by zero\n");
 #endif
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 void busfault(struct arm_cm_exception_frame *frame) {
-    printf("busfault: ");
+    kprintf("busfault: ");
     dump_frame(frame);
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
@@ -103,7 +103,7 @@ void busfault(struct arm_cm_exception_frame *frame) {
 /* raw exception vectors */
 
 void _nmi(void) {
-    printf("nmi\n");
+    kprintf("nmi\n");
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
@@ -167,11 +167,11 @@ __NAKED void _usagefault(void) {
 
 /* systick handler */
 void __WEAK _systick(void) {
-    printf("systick\n");
+    kprintf("systick\n");
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 void __WEAK _debugmonitor(void) {
-    printf("debugmonitor\n");
+    kprintf("debugmonitor\n");
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
