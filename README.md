@@ -6,11 +6,11 @@ See https://github.com/littlekernel/lk for the latest version.
 
 ### High Level Features
 
-Fully-reentrant multi-threaded preemptive kernel
-Portable to many 32 and 64 bit architectures
-Support for wide variety of embedded and larger platforms
-Powerful modular build system
-Large number of utility components selectable at build time
+- Fully-reentrant multi-threaded preemptive kernel
+- Portable to many 32 and 64 bit architectures
+- Support for wide variety of embedded and larger platforms
+- Powerful modular build system
+- Large number of utility components selectable at build time
 
 ### Supported architectures
 
