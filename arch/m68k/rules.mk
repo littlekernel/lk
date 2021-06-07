@@ -5,11 +5,12 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/asm.S \
+	$(LOCAL_DIR)/exceptions.c \
+	$(LOCAL_DIR)/exceptions_asm.S \
 	$(LOCAL_DIR)/start.S \
 	$(LOCAL_DIR)/thread.c \
 
 #	$(LOCAL_DIR)/asm.S \
-	$(LOCAL_DIR)/exceptions.c \
 	$(LOCAL_DIR)/cache.c \
 	$(LOCAL_DIR)/cache-ops.S \
 	$(LOCAL_DIR)/ops.S \

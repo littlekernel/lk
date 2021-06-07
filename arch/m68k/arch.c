@@ -14,6 +14,10 @@
 
 void arch_early_init(void) {
     LTRACE;
+
+    // set the exception vector base
+    extern uint32_t exc_vectors[256];
+    asm("movec %0, %%vbr" :: "r"(exc_vectors));
 }
 
 void arch_init(void) {

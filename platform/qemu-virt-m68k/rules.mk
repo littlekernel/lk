@@ -21,4 +21,7 @@ MEMSIZE ?= 0x08000000 # default to 128MB
 # we can revert to a poll based uart spin routine
 GLOBAL_DEFINES += PLATFORM_SUPPORTS_PANIC_SHELL=1
 
+# our timer supports one shot mode
+GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1
+
 include make/module.mk

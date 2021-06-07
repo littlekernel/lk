@@ -8,6 +8,7 @@
 #include "platform_p.h"
 
 #include <assert.h>
+#include <lk/bits.h>
 #include <lk/err.h>
 #include <lk/debug.h>
 #include <lk/reg.h>
@@ -19,24 +20,66 @@
 
 #define LOCAL_TRACE 0
 
-void pic_early_init(void) {
-}
+// implementation of PIC at
+// https://github.com/qemu/qemu/blob/master/hw/intc/goldfish_pic.c
 
-void pic_init(void) {
-}
+enum {
+    REG_STATUS          = 0x00,
+    REG_IRQ_PENDING     = 0x04,
+    REG_IRQ_DISABLE_ALL = 0x08,
+    REG_DISABLE         = 0x0c,
+    REG_ENABLE          = 0x10,
+};
+
+volatile unsigned int * const goldfish_pic_base = (void *)VIRT_GF_PIC_MMIO_BASE;
 
 static struct int_handlers {
     int_handler handler;
     void *arg;
 } handlers[NUM_IRQS];
 
+static void write_reg(int pic, int reg, uint32_t val) {
+    goldfish_pic_base[0x1000 * pic / 4 + reg / 4] = val;
+}
+
+static uint32_t read_reg(int pic, int reg) {
+    return goldfish_pic_base[0x1000 * pic / 4 + reg / 4];
+}
+
+static void dump_pic(int i) {
+    dprintf(INFO, "PIC %d: status %u pending %#x\n", i, read_reg(i, REG_STATUS), read_reg(i, REG_IRQ_PENDING));
+}
+
+static void dump_all_pics(void) {
+    for (int i = 0; i < NUM_PICS; i++) {
+        dump_pic(i);
+    }
+}
+
+static int irq_to_pic_num(unsigned int vector) {
+    return vector / 32;
+}
+
+static int irq_to_pic_vec(unsigned int vector) {
+    return vector % 32;
+}
+
+void pic_early_init(void) {
+}
+
+void pic_init(void) {
+    dump_all_pics();
+}
+
 status_t mask_interrupt(unsigned int vector) {
-    //*REG32(PLIC_ENABLE(vector, riscv_current_hart())) &= ~(1 << (vector % 32));
+    LTRACEF("vector %u\n", vector);
+    write_reg(irq_to_pic_num(vector), REG_DISABLE, 1U << irq_to_pic_vec(vector));
     return NO_ERROR;
 }
 
 status_t unmask_interrupt(unsigned int vector) {
-    //*REG32(PLIC_ENABLE(vector, riscv_current_hart())) |= (1 << (vector % 32));
+    LTRACEF("vector %u\n", vector);
+    write_reg(irq_to_pic_num(vector), REG_ENABLE, 1U << irq_to_pic_vec(vector));
     return NO_ERROR;
 }
 
@@ -49,59 +92,27 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     handlers[vector].arg = arg;
 }
 
-#if 0
+enum handler_return m68k_platform_irq(uint8_t m68k_irq) {
+    LTRACEF("m68k irq vector %d\n", m68k_irq);
 
-// Driver for PLIC implementation for qemu riscv virt machine
-#define PLIC_PRIORITY(irq) (PLIC_BASE_VIRT + 4 + 4 * (irq))
-#define PLIC_PENDING(irq)  (PLIC_BASE_VIRT + 0x1000 + (4 * ((irq) / 32)))
-#define PLIC_ENABLE(irq, hart)      (PLIC_BASE_VIRT + 0x2000 + (0x80 * PLIC_HART_IDX(hart)) + (4 * ((irq) / 32)))
-#define PLIC_THRESHOLD(hart)        (PLIC_BASE_VIRT + 0x200000 + (0x1000 * PLIC_HART_IDX(hart)))
-#define PLIC_COMPLETE(hart)         (PLIC_BASE_VIRT + 0x200004 + (0x1000 * PLIC_HART_IDX(hart)))
-#define PLIC_CLAIM(hart)            PLIC_COMPLETE(hart)
-
-void plic_early_init(void) {
-    // mask all irqs and set their priority to 1
-    // TODO: mask on all the other cpus too
-    for (int i = 1; i < NUM_IRQS; i++) {
-        *REG32(PLIC_ENABLE(i, riscv_current_hart())) &= ~(1 << (i % 32));
-        *REG32(PLIC_PRIORITY(i)) = 1;
+    // translate m68k irqs to pic numbers
+    int pic_num;
+    if (likely(m68k_irq >= 1 && m68k_irq <= 6)) {
+        pic_num = m68k_irq - 1;
+    } else {
+        panic("unhandled irq %d from cpu\n", m68k_irq);
     }
 
-    // set global priority threshold to 0
-    *REG32(PLIC_THRESHOLD(riscv_current_hart())) = 0;
-}
-
-void plic_init(void) {
-}
-
-status_t mask_interrupt(unsigned int vector) {
-    *REG32(PLIC_ENABLE(vector, riscv_current_hart())) &= ~(1 << (vector % 32));
-    return NO_ERROR;
-}
-
-status_t unmask_interrupt(unsigned int vector) {
-    *REG32(PLIC_ENABLE(vector, riscv_current_hart())) |= (1 << (vector % 32));
-    return NO_ERROR;
-}
-
-void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
-    LTRACEF("vector %u handler %p arg %p\n", vector, handler, arg);
-
-    DEBUG_ASSERT(vector < NUM_IRQS);
-
-    handlers[vector].handler = handler;
-    handlers[vector].arg = arg;
-}
-
-enum handler_return riscv_platform_irq(void) {
-    // see what irq triggered it
-    uint32_t vector = *REG32(PLIC_CLAIM(riscv_current_hart()));
-    LTRACEF("vector %u\n", vector);
-
-    if (unlikely(vector == 0)) {
-        // nothing pending
+    // see what is pending
+    uint32_t pending = read_reg(pic_num, REG_IRQ_PENDING);
+    if (pending == 0) {
+        // spurious
         return INT_NO_RESCHEDULE;
     }
+
+    // find the lowest numbered bit set
+    uint vector = ctz(pending) + pic_num * 32;
+    LTRACEF("pic %d pending %#x vector %u\n", pic_num, pending, vector);
 
     THREAD_STATS_INC(interrupts);
     KEVLOG_IRQ_ENTER(vector);
@@ -111,12 +122,9 @@ enum handler_return riscv_platform_irq(void) {
         ret = handlers[vector].handler(handlers[vector].arg);
     }
 
-    // ack the interrupt
-    *REG32(PLIC_COMPLETE(riscv_current_hart())) = vector;
-
+    // no need to ack the interrupt controller since all irqs are implicitly level
     KEVLOG_IRQ_EXIT(vector);
 
     return ret;
 }
 
-#endif

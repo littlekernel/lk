@@ -47,42 +47,26 @@ static cbuf_t uart_rx_buf;
 
 static char transfer_buf[1]; // static pointer used to transfer MMIO data
 
-#if 0
-
-// simple 16550 driver for the emulated serial port on qemu riscv virt machine
-
-static volatile uint8_t *const uart_base = (uint8_t *)UART0_BASE_VIRT;
-
-
-static inline uint8_t uart_read_8(size_t offset) {
-    return uart_base[offset];
-}
-
-static inline void uart_write_8(size_t offset, uint8_t val) {
-    uart_base[offset] = val;
-}
-
-static enum handler_return uart_irq_handler(void *arg) {
-    unsigned char c;
-    bool resched = false;
-
-    while (uart_read_8(5) & (1<<0)) {
-        c = uart_read_8(0);
-        cbuf_write_char(&uart_rx_buf, c, false);
-        resched = true;
-    }
-
-    return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
-}
-
-#endif
-
 static void write_reg(int reg, uint32_t val) {
     goldfish_tty_base[reg / 4] = val;
 }
 
 static uint32_t read_reg(int reg) {
     return goldfish_tty_base[reg / 4];
+}
+
+static enum handler_return uart_irq_handler(void *arg) {
+    bool resched = false;
+
+    // use a DMA read of one byte if a byte is ready
+    if (read_reg(REG_BYTES_READY) > 0) {
+        write_reg(REG_CMD, CMD_READ_BUFFER);
+        char c = transfer_buf[0];
+        cbuf_write_char(&uart_rx_buf, c, false);
+        resched = true;
+    }
+
+    return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
 void goldfish_tty_early_init(void) {
@@ -99,13 +83,11 @@ void goldfish_tty_init(void) {
     /* finish uart init to get rx going */
     cbuf_initialize_etc(&uart_rx_buf, RXBUF_SIZE, uart_rx_buf_data);
 
-#if 0
-    register_int_handler(IRQ_UART0, uart_irq_handler, NULL);
+    register_int_handler(GOLDFISH_TTY_IRQ, uart_irq_handler, NULL);
 
-    uart_write_8(1, 0x1); // enable receive data available interrupt
+    unmask_interrupt(GOLDFISH_TTY_IRQ);
 
-    unmask_interrupt(IRQ_UART0);
-#endif
+    write_reg(REG_CMD, CMD_INT_ENABLE);
 }
 
 void uart_putc(char c) {
@@ -113,7 +95,7 @@ void uart_putc(char c) {
 }
 
 int uart_getc(char *c, bool wait) {
-#if 0
+#if 1
     return cbuf_read_char(&uart_rx_buf, c, wait);
 #else
     return platform_pgetc(c, false);
