@@ -84,6 +84,9 @@ jobs:
           - project: pc-x86-64-test
             toolchain: x86_64-elf-7.5.0-Linux-x86_64
             debug: 2
+          - project: qemu-virt-m68k-test
+            toolchain: m68k-elf-7.5.0-Linux-x86_64
+            debug: 2
           # build some in release mode (DEBUG=0)
           - project: qemu-virt-arm32-test
             toolchain: arm-eabi-7.5.0-Linux-x86_64
