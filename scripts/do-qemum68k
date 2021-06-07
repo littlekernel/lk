@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+set -e
+set -x
+
+PROJECT=qemu-virt-m68k-test
+
+$DIR/make-parallel $PROJECT
+qemu-system-m68k -machine virt -cpu m68040 -kernel build-${PROJECT}/lk.elf -nographic $@
