@@ -44,25 +44,17 @@ static inline bool arch_spin_lock_held(spin_lock_t *lock) {
 /* default arm flag is to just disable plain irqs */
 #define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS  0
 
-enum {
-    /* private */
-    SPIN_LOCK_STATE_RESTORE_IRQ = 1,
-};
-
 static inline void
 arch_interrupt_save(spin_lock_saved_state_t *statep, spin_lock_save_flags_t flags) {
-    spin_lock_saved_state_t state = 0;
-    if (!arch_ints_disabled()) {
-        state |= SPIN_LOCK_STATE_RESTORE_IRQ;
-        arch_disable_ints();
-    }
-    *statep = state;
+    *statep = arch_ints_disabled();
+    arch_disable_ints();
 }
 
 static inline void
 arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t flags) {
-    if (old_state & SPIN_LOCK_STATE_RESTORE_IRQ)
+    if (!old_state) {
         arch_enable_ints();
+    }
 }
 
 
