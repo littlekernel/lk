@@ -20,7 +20,7 @@ FUNCTION(_start)
 1:
 
     movel   #_default_stack_top,%sp
-    bsr     lk_main
+    jsr     lk_main
     jmp     .
 
 END_FUNCTION(_start)
