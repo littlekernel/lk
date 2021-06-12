@@ -17,7 +17,7 @@ void arch_early_init(void) {
 
     // set the exception vector base
     extern uint32_t exc_vectors[256];
-    asm("movec %0, %%vbr" :: "r"(exc_vectors));
+    asm volatile("movec %0, %%vbr" :: "r"(exc_vectors));
 }
 
 void arch_init(void) {
@@ -25,7 +25,8 @@ void arch_init(void) {
 }
 
 void arch_idle(void) {
-//    asm volatile("sleep");
+    // set the SR such that we're in supervisor state and no ints are masked
+    asm("stop #0x2000" ::: "cc");
 }
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
