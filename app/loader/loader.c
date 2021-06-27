@@ -21,9 +21,9 @@
 #include <lk/console_cmd.h>
 
 #if defined(SDRAM_BASE)
-#define DOWNLOAD_BASE ((void*)SDRAM_BASE)
+#define DOWNLOAD_BASE ((unsigned char*)SDRAM_BASE)
 #else
-#define DOWNLOAD_BASE ((void*)0)
+#define DOWNLOAD_BASE ((unsigned char*)0)
 #endif
 
 #define FNAME_SIZE 64
@@ -49,11 +49,11 @@ static download_t *make_download(const char *name) {
     return d;
 }
 
-static void set_ram_zone(download_t *d, int slot) {
-    d->start = DOWNLOAD_BASE + (DOWNLOAD_SLOT_SIZE * slot);
+static void set_ram_zone(download_t *d, unsigned char *spot, int slot) {
+    d->start = spot + (DOWNLOAD_SLOT_SIZE * slot);
     d->end = d->start;
     d->max = d->end + DOWNLOAD_SLOT_SIZE;
-    memset(d->start, 0, DOWNLOAD_SLOT_SIZE);
+    memset(spot, 0, DOWNLOAD_SLOT_SIZE);
 }
 
 static size_t output_result(const download_t *download) {
@@ -165,7 +165,7 @@ usage:
         slot = argv[3].i;
     }
 
-    set_ram_zone(download, slot);
+    set_ram_zone(download, DOWNLOAD_BASE, slot);
     tftp_set_write_client(download->name, &tftp_callback, download);
     printf("ready for %s over tftp (at %p)\n", argv[2].str, download->start);
     return 0;

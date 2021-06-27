@@ -113,7 +113,10 @@ void swd_init(void) {
     writel(M0_SUB_RST, RESET_CTRL0);
     writel(0x18000000, M0SUB_ZEROMAP);
     writel(0xffffffff, 0x18004000);
-    memcpy((void *) 0x18000000, zero_bin, sizeof(zero_bin));
+    unsigned char *ptr = (unsigned char *)0x18000000;
+    for (size_t i = 0; i < sizeof(zero_bin); i++) {
+        ptr[i] = zero_bin[i];
+    }
     DSB;
     writel(0, RESET_CTRL0);
 }
