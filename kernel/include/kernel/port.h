@@ -21,8 +21,10 @@ __BEGIN_CDECLS
 
 typedef void *port_t;
 
+/* A Port packet is wide enough to carry two full words of data */
+#define PORT_PACKET_LEN (sizeof(void *) * 2)
 typedef struct {
-    char value[8];
+    char value[PORT_PACKET_LEN];
 } port_packet_t;
 
 typedef struct {
