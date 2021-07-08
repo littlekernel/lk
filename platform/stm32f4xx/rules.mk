@@ -25,6 +25,10 @@ ifeq ($(STM32_CHIP),stm32f429)
 FOUND_CHIP := true
 GLOBAL_DEFINES += STM32F429_439xx
 endif
+ifeq ($(STM32_CHIP),stm32f401)
+FOUND_CHIP := true
+GLOBAL_DEFINES += STM32F401xx
+endif
 
 ifeq ($(FOUND_CHIP),)
 $(error unknown STM32F4xx chip $(STM32_CHIP))

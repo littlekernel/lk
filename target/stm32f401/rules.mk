@@ -1,0 +1,26 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+MODULE := $(LOCAL_DIR)
+
+STM32_CHIP := stm32f401
+
+# ROMBASE, MEMBASE, and MEMSIZE are required for the linker script
+ROMBASE ?= 0x08000000
+MEMBASE ?= 0x20000000
+MEMSIZE ?= 65536
+
+PLATFORM := stm32f4xx
+
+GLOBAL_DEFINES += \
+	ENABLE_UART2=1 \
+	TARGET_HAS_DEBUG_LED=1 \
+	HSE_VALUE=25000000 \
+	PLL_M_VALUE=25 \
+	PLL_N_VALUE=336 \
+	PLL_P_VALUE=4
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/init.c
+
+include make/module.mk
+
