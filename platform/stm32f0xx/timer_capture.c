@@ -222,7 +222,7 @@ static uint32_t stm32_timer_median_val(stm32_timer_capture_t *tc) {
 
 // Assumes interrupts are disabled.
 static uint64_t stm32_timer_calc_value(stm32_timer_capture_t *tc, uint32_t sr, uint32_t val) {
-    uint32_t overflow = tc->overflow;
+    uint64_t overflow = tc->overflow;
     // Since we could be processing an overflow and capture interrupts at the
     // same time, we don't know the ordering of the two.  Here we assume
     // that if the capture event occurred in the lower half of the counter
