@@ -134,7 +134,16 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
 
     /* create the mount structure and add it to the list */
     mount = malloc(sizeof(struct fs_mount));
+    if (!mount) {
+        if (dev) bio_close(dev);
+        return ERR_NO_MEMORY;
+    }
     mount->path = strdup(temppath);
+    if (!mount->path) {
+        if (dev) bio_close(dev);
+        free(mount);
+        return ERR_NO_MEMORY;
+    }
     mount->dev = dev;
     mount->cookie = cookie;
     mount->ref = 1;
@@ -257,6 +266,10 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len) {
     }
 
     filehandle *f = malloc(sizeof(*f));
+    if (!f) {
+        put_mount(mount);
+        return err;
+    }
     f->cookie = cookie;
     f->mount = mount;
     *handle = f;
@@ -372,6 +385,10 @@ status_t fs_open_dir(const char *path, dirhandle **handle) {
     }
 
     dirhandle *d = malloc(sizeof(*d));
+    if (!d) {
+        put_mount(mount);
+        return ERR_NO_MEMORY;
+    }
     d->cookie = cookie;
     d->mount = mount;
     *handle = d;
