@@ -132,10 +132,6 @@ static uint32_t mmu_flags_to_l2_arch_flags_small_page(uint flags) {
     return arch_flags;
 }
 
-static inline bool is_valid_vaddr(arch_aspace_t *aspace, vaddr_t vaddr) {
-    return (vaddr >= aspace->base && vaddr <= aspace->base + aspace->size - 1);
-}
-
 static void arm_mmu_map_section(arch_aspace_t *aspace, addr_t paddr, addr_t vaddr, uint flags) {
     int index;
 
@@ -242,8 +238,8 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->tt_virt);
 
-    DEBUG_ASSERT(is_valid_vaddr(aspace, vaddr));
-    if (!is_valid_vaddr(aspace, vaddr))
+    DEBUG_ASSERT(arch_mmu_is_valid_vaddr(aspace, vaddr));
+    if (!arch_mmu_is_valid_vaddr(aspace, vaddr))
         return ERR_OUT_OF_RANGE;
 
     /* Get the index into the translation table */
@@ -487,8 +483,8 @@ int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count,
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->tt_virt);
 
-    DEBUG_ASSERT(is_valid_vaddr(aspace, vaddr));
-    if (!is_valid_vaddr(aspace, vaddr))
+    DEBUG_ASSERT(arch_mmu_is_valid_vaddr(aspace, vaddr));
+    if (!arch_mmu_is_valid_vaddr(aspace, vaddr))
         return ERR_OUT_OF_RANGE;
 
 #if !WITH_ARCH_MMU_PICK_SPOT
@@ -583,9 +579,9 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->tt_virt);
 
-    DEBUG_ASSERT(is_valid_vaddr(aspace, vaddr));
+    DEBUG_ASSERT(arch_mmu_is_valid_vaddr(aspace, vaddr));
 
-    if (!is_valid_vaddr(aspace, vaddr))
+    if (!arch_mmu_is_valid_vaddr(aspace, vaddr))
         return ERR_OUT_OF_RANGE;
 
     DEBUG_ASSERT(IS_PAGE_ALIGNED(vaddr));

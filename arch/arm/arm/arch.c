@@ -341,8 +341,22 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
     LTRACEF("loader address %p, phys 0x%lx, surrounding large page 0x%lx\n",
             &arm_chain_load, loader_pa, loader_pa_section);
 
+    arch_aspace_t *aspace;
+    bool need_context_switch;
+    // if loader_pa is within the kernel aspace, we can simply use arch_mmu_map to identity map it
+    // if its outside, we need to create a new aspace and context switch to it
+    if (arch_mmu_is_valid_vaddr(&vmm_get_kernel_aspace()->arch_aspace, loader_pa)) {
+      aspace = &vmm_get_kernel_aspace()->arch_aspace;
+      need_context_switch = false;
+    } else {
+      aspace = malloc(sizeof(*aspace));
+      arch_mmu_init_aspace(aspace, loader_pa_section, SECTION_SIZE, 0);
+      need_context_switch = true;
+    }
+
     /* using large pages, map around the target location */
-    arch_mmu_map(&vmm_get_kernel_aspace()->arch_aspace, loader_pa_section, loader_pa_section, (2 * SECTION_SIZE / PAGE_SIZE), 0);
+    arch_mmu_map(aspace, loader_pa_section, loader_pa_section, (2 * SECTION_SIZE / PAGE_SIZE), 0);
+    if (need_context_switch) arch_mmu_context_switch(aspace);
 #else
     /* for non vm case, just branch directly into it */
     entry_pa = (paddr_t)entry;
@@ -357,6 +371,9 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 
     /* put the booting cpu back into close to a default state */
     arch_quiesce();
+
+    // linux wont re-enable the FPU during boot, so it must be enabled when chainloading
+    arm_fpu_set_enable(true);
 
     LTRACEF("branching to physical address of loader\n");
 
