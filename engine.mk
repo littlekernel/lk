@@ -1,7 +1,12 @@
 LOCAL_MAKEFILE:=$(MAKEFILE_LIST)
 
+# macros used all over the build system
+include make/macros.mk
+
 BUILDROOT ?= .
 
+# 'make spotless' is a special rule that skips most of the rest of the build system and
+# simply deletes everything in build-*
 ifeq ($(MAKECMDGOALS),spotless)
 spotless:
 	rm -rf -- "$(BUILDROOT)"/build-*
@@ -11,8 +16,8 @@ ifndef LKROOT
 $(error please define LKROOT to the root of the lk build system)
 endif
 
+# any local environment overrides can optionally be placed in local.mk
 -include local.mk
-include make/macros.mk
 
 # If one of our goals (from the commandline) happens to have a
 # matching project/goal.mk, then we should re-invoke make with
@@ -29,8 +34,8 @@ make-make:
 	@PROJECT=$(project-name) $(MAKE) -rR -f $(LOCAL_MAKEFILE) $(filter-out $(project-name), $(MAKECMDGOALS))
 
 .PHONY: make-make
-endif
-endif
+endif # expansion of project-name
+endif # project-name == null
 
 # some additional rules to print some help
 include make/help.mk
@@ -43,8 +48,9 @@ ifneq ($(DEFAULT_PROJECT),)
 PROJECT := $(DEFAULT_PROJECT)
 else
 $(error No project specified. Use 'make list' for a list of projects or 'make help' for additional help)
-endif
-endif
+endif # DEFAULT_PROJECT == something
+
+endif # PROJECT == null
 
 DEBUG ?= 2
 
@@ -271,11 +277,21 @@ clean: $(EXTRA_CLEANDEPS)
 install: all
 	scp $(OUTBIN) 192.168.0.4:/tftproot
 
+list-arch:
+	@echo ARCH = ${ARCH}
+
+list-toolchain:
+	@echo TOOLCHAIN_PREFIX = ${TOOLCHAIN_PREFIX}
+
+.PHONY: all clean install list-arch list-toolchain
+
 # generate a config.h file with all of the GLOBAL_DEFINES laid out in #define format
 configheader:
 
 $(CONFIGHEADER): configheader
 	@$(call MAKECONFIGHEADER,$@,GLOBAL_DEFINES)
+
+.PHONY: configheader
 
 # Empty rule for the .d files. The above rules will build .d files as a side
 # effect. Only works on gcc 3.x and above, however.
@@ -285,7 +301,6 @@ ifeq ($(filter $(MAKECMDGOALS), clean), )
 -include $(DEPS)
 endif
 
-.PHONY: configheader
-endif
+endif # do-nothing = 1
 
 endif # make spotless

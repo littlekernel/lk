@@ -1,3 +1,6 @@
+# A collection of handy macros used all over the build system.
+# This can be included anywhere and must not have any side effects.
+
 # Find the local dir of the make file
 GET_LOCAL_DIR    = $(patsubst %/,%,$(dir $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))))
 
