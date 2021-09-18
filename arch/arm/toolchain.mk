@@ -48,7 +48,8 @@ FOUNDTOOL=$(shell which $(ARCH_arm_TOOLCHAIN_PREFIX)gcc)
 endif # ARCH_arm_TOOLCHAIN_PREFIX
 
 ifeq ($(FOUNDTOOL),)
-$(error cannot find toolchain, please set ARCH_arm_TOOLCHAIN_PREFIX or add it to your path)
+$(warning cannot find toolchain in path, assuming arm-eabi- prefix)
+ARCH_arm_TOOLCHAIN_PREFIX := arm-eabi-
 endif
 
 ifeq ($(ARM_CPU),cortex-m0)

@@ -9,7 +9,8 @@ FOUNDTOOL=$(shell which $(ARCH_x86_TOOLCHAIN_PREFIX)gcc)
 endif
 
 ifeq ($(FOUNDTOOL),)
-$(error cannot find toolchain, please set ARCH_x86_TOOLCHAIN_PREFIX or add it to your path)
+$(warning cannot find toolchain in path, assuming i386-elf- prefix)
+ARCH_x86_TOOLCHAIN_PREFIX := i386-elf-
 endif
 
 endif
@@ -26,7 +27,8 @@ FOUNDTOOL=$(shell which $(ARCH_x86_64_TOOLCHAIN_PREFIX)gcc)
 endif
 
 ifeq ($(FOUNDTOOL),)
-$(error cannot find toolchain, please set ARCH_x86_64_TOOLCHAIN_PREFIX or add it to your path)
+$(warning cannot find toolchain in path, assuming x86_64-elf- prefix)
+ARCH_x86_64_TOOLCHAIN_PREFIX := x86_64-elf-
 endif
 
 endif
