@@ -74,5 +74,13 @@ static inline void arm64_fpu_pre_context_switch(struct thread *thread) {
 /* overridable syscall handler */
 void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit);
 
+/* Local per-cpu cache flush routines.
+ * These routines clean or invalidate the cache from the point of view
+ * of a single cpu to the point of coherence.
+ */
+void arm64_local_invalidate_cache_all(void);
+void arm64_local_clean_invalidate_cache_all(void);
+void arm64_local_clean_cache_all(void);
+
 __END_CDECLS
 

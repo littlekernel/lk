@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014, Google Inc. All rights reserved
+ * Copyright 2016 The Fuchsia Authors
  *
  * Use of this source code is governed by a MIT-style
  * license that can be found in the LICENSE file or at
@@ -9,6 +10,7 @@
 #include <lk/asm.h>
 #include <arch/ops.h>
 #include <arch/defines.h>
+#include <arch/arm64/cache_loop.h>
 
 .text
 
@@ -27,19 +29,60 @@
 FUNCTION(arch_clean_cache_range)
     cache_range_op dc cvac         // clean cache to PoC by MVA
     ret
+END_FUNCTION(arch_clean_cache_range)
 
     /* void arch_flush_invalidate_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_clean_invalidate_cache_range)
     cache_range_op dc civac        // clean & invalidate dcache to PoC by MVA
     ret
+END_FUNCTION(arch_clean_invalidate_cache_range)
 
     /* void arch_invalidate_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_invalidate_cache_range)
     cache_range_op dc ivac         // invalidate dcache to PoC by MVA
     ret
+END_FUNCTION(arch_invalidate_cache_range)
 
     /* void arch_sync_cache_range(addr_t start, size_t len); */
 FUNCTION(arch_sync_cache_range)
     cache_range_op dc cvau         // clean dcache to PoU by MVA
     cache_range_op ic ivau         // invalidate icache to PoU by MVA
     ret
+END_FUNCTION(arch_sync_cache_range)
+
+// Below are 3 variants of cache flushing routines by way/set for
+// an individual cpu.
+
+    // void arm64_local_invalidate_cache_all()
+FUNCTION(arm64_local_invalidate_cache_all)
+    cache_way_set_op isw, invalidate
+
+    // dump the instruction cache as well
+    ic      iallu
+    isb
+
+    ret
+END_FUNCTION(arm64_local_invalidate_cache_all)
+
+    // void arm64_local_clean_cache_all()
+FUNCTION(arm64_local_clean_cache_all)
+    cache_way_set_op csw, clean
+
+    // dump the instruction cache as well
+    ic      iallu
+    isb
+
+    ret
+END_FUNCTION(arm64_local_clean_cache_all)
+
+    // void arm64_local_clean_invalidate_cache_all()
+FUNCTION(arm64_local_clean_invalidate_cache_all)
+    cache_way_set_op cisw, clean_invalidate
+
+    // dump the instruction cache as well
+    ic      iallu
+    isb
+
+    ret
+END_FUNCTION(arm64_local_clean_invalidate_cache_all)
+
