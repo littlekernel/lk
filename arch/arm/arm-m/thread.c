@@ -142,6 +142,9 @@ static volatile struct arm_cm_exception_frame_long *preempt_frame;
 static void pendsv(struct arm_cm_exception_frame_long *frame) {
     arch_disable_ints();
 
+    DEBUG_ASSERT_MSG(!spin_lock_held(&thread_lock),
+        "PENDSV: thread lock was held when preempted! pc %#x\n", frame->pc);
+
     LTRACEF("preempting thread %p (%s)\n", _current_thread, _current_thread->name);
 
     /* save the iframe the pendsv fired on and hit the preemption code */
@@ -152,6 +155,8 @@ static void pendsv(struct arm_cm_exception_frame_long *frame) {
 
     /* if we got here, there wasn't anything to switch to, so just fall through and exit */
     preempt_frame = NULL;
+
+    DEBUG_ASSERT(!spin_lock_held(&thread_lock));
 
     arch_enable_ints();
 }
@@ -364,6 +369,8 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
             FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
 #endif
 
+    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+
     /* if preempt_frame is set, we are being preempted */
     if (preempt_frame) {
         LTRACEF("we're preempted, old frame %p, old lr 0x%x, pc 0x%x, new preempted bool %d\n",
@@ -415,6 +422,13 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
             LTRACEF("newthread2 FPCCR.LSPACT %lu, FPCAR 0x%x, CONTROL.FPCA %lu\n",
                     FPU->FPCCR & FPU_FPCCR_LSPACT_Msk, FPU->FPCAR, __get_CONTROL() & CONTROL_FPCA_Msk);
 #endif
+            /*
+             * We were preempted and thus came through thread_preempt() to get to here
+             * which grabbed the thread lock on the way in. We're returning to a thread that
+             * was preempted and not holding the thread lock, so drop it now.
+             */
+            arch_spin_unlock(&thread_lock);
+
             __asm__ volatile(
                 "mov    sp, %0;"
                 "cpsie  i;"
@@ -465,6 +479,13 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
 
         if (newthread->arch.was_preempted) {
             LTRACEF("not being preempted, but switching to preempted thread\n");
+
+            /* The thread lock is held now because we entered via a normal reschedule
+             * (ie, not a preemption). We're returning directly to a thread that was preempted
+             * so drop the thread lock now.
+             */
+            arch_spin_unlock(&thread_lock);
+
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
             _half_save_and_svc(oldthread, newthread, oldthread->arch.fpused, newthread->arch.fpused);
 #else
@@ -493,5 +514,4 @@ void arch_dump_thread(thread_t *t) {
         dprintf(INFO, "\n");
     }
 }
-
 
