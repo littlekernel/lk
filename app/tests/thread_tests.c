@@ -558,12 +558,14 @@ static void spinlock_test(void) {
     printf("seems to work\n");
 
 #define COUNT (1024*1024)
+    arch_interrupt_save(&state, SPIN_LOCK_FLAG_INTERRUPTS);
     uint32_t c = arch_cycle_count();
     for (uint i = 0; i < COUNT; i++) {
         spin_lock(&lock);
         spin_unlock(&lock);
     }
     c = arch_cycle_count() - c;
+    arch_interrupt_restore(state, SPIN_LOCK_FLAG_INTERRUPTS);
 
     printf("%u cycles to acquire/release lock %u times (%u cycles per)\n", c, COUNT, c / COUNT);
 

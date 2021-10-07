@@ -8,6 +8,7 @@
 #pragma once
 
 #include <lk/compiler.h>
+#include <assert.h>
 #include <arch/ops.h>
 #include <stdbool.h>
 
@@ -36,15 +37,22 @@ void arch_spin_unlock(spin_lock_t *lock);
 
 #else
 
+/* Non-SMP spinlocks are mostly vestigial to try to catch pending locking problems. */
 static inline void arch_spin_lock(spin_lock_t *lock) {
+    DEBUG_ASSERT(arch_ints_disabled());
+    DEBUG_ASSERT(*lock == 0);
     *lock = 1;
 }
 
 static inline int arch_spin_trylock(spin_lock_t *lock) {
+    DEBUG_ASSERT(arch_ints_disabled());
+    DEBUG_ASSERT(*lock == 0);
     return 0;
 }
 
 static inline void arch_spin_unlock(spin_lock_t *lock) {
+    DEBUG_ASSERT(arch_ints_disabled());
+    DEBUG_ASSERT(*lock != 0);
     *lock = 0;
 }
 
