@@ -162,6 +162,7 @@ status_t thread_set_real_time(thread_t *t);
 void dump_thread(thread_t *t);
 void arch_dump_thread(thread_t *t);
 void dump_all_threads(void);
+void dump_all_threads_unlocked(void);
 
 /* scheduler routines */
 void thread_yield(void); /* give up the cpu voluntarily */

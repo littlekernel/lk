@@ -28,13 +28,15 @@
 #include <stdio.h>
 
 static int cmd_threads(int argc, const console_cmd_args *argv);
+static int cmd_threads_panic(int argc, const console_cmd_args *argv);
 static int cmd_threadstats(int argc, const console_cmd_args *argv);
 static int cmd_threadload(int argc, const console_cmd_args *argv);
 static int cmd_kevlog(int argc, const console_cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 1
-STATIC_COMMAND_MASKED("threads", "list kernel threads", &cmd_threads, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND("threads", "list kernel threads", &cmd_threads)
+STATIC_COMMAND_MASKED("threads", "list kernel threads", &cmd_threads_panic, CMD_AVAIL_PANIC)
 #endif
 #if THREAD_STATS
 STATIC_COMMAND("threadstats", "thread level statistics", &cmd_threadstats)
@@ -49,6 +51,16 @@ STATIC_COMMAND_END(kernel);
 static int cmd_threads(int argc, const console_cmd_args *argv) {
     printf("thread list:\n");
     dump_all_threads();
+
+    return 0;
+}
+
+static int cmd_threads_panic(int argc, const console_cmd_args *argv) {
+    /* call the unsafe version of the thread dump routine since the
+     * thread lock may be held at crash time.
+     */
+    printf("thread list:\n");
+    dump_all_threads_unlocked();
 
     return 0;
 }
