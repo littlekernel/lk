@@ -47,7 +47,7 @@ struct arm_cm_context_switch_frame {
 #if  (__CORTEX_M >= 0x03)
 
 /* cortex-m3 and above (armv7-m) */
-#define SAVE_REGS       "push   { r4-r11, lr };"
+#define SAVE_REGS       "push   { r4-r11, lr };" /* note: saves 9 words */
 #define RESTORE_REGS    "pop    { r4-r11, lr };"
 #define RESTORE_REGS_PC "pop    { r4-r11, pc };"
 #define SAVE_SP(basereg, tempreg, offset) "str   sp, [" #basereg "," #offset "];"
@@ -63,7 +63,7 @@ struct arm_cm_context_switch_frame {
         "mov    r5, r9;" \
         "mov    r6, r10;" \
         "mov    r7, r11;" \
-        "push   { r4-r7 };"
+        "push   { r4-r7 };" /* note: saves 9 words */
 #define RESTORE_REGS \
         "pop    { r4-r7 };" \
         "mov    r8 , r4;" \
@@ -142,6 +142,9 @@ static volatile struct arm_cm_exception_frame_long *preempt_frame;
 static void pendsv(struct arm_cm_exception_frame_long *frame) {
     arch_disable_ints();
 
+    /* make sure the stack is 8 byte aligned */
+    DEBUG_ASSERT(((uintptr_t)__GET_FRAME() & 0x7) == 0);
+
     DEBUG_ASSERT_MSG(!spin_lock_held(&thread_lock),
         "PENDSV: thread lock was held when preempted! pc %#x\n", frame->pc);
 
@@ -169,7 +172,9 @@ __NAKED void _pendsv(void) {
     __asm__ volatile(
         SAVE_REGS
         "mov    r0, sp;"
+        "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
         "bl     %c0;"
+        "add    sp, #4;"
         RESTORE_REGS_PC
         :: "i" (pendsv)
     );
