@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <hw/usb.h>
+#include <dev/usb.h>
 
 __BEGIN_CDECLS
 
@@ -57,6 +58,9 @@ status_t usbc_flush_ep(ep_t ep);
 
 status_t usbc_set_active(bool active);
 void usbc_set_address(uint8_t address);
+
+/* callback api the usbc driver uses */
+status_t usbc_callback(usb_callback_op_t op, const union usb_callback_args *args);
 
 /* called back from within a callback to handle setup responses */
 void usbc_ep0_ack(void);
