@@ -67,9 +67,11 @@ GLOBAL_COMPILEFLAGS += -Wno-multichar -Wno-unused-parameter -Wno-unused-function
 GLOBAL_COMPILEFLAGS += -fno-common
 GLOBAL_CFLAGS := --std=gnu11 -Werror-implicit-function-declaration -Wstrict-prototypes -Wwrite-strings
 GLOBAL_CPPFLAGS := --std=c++14 -fno-exceptions -fno-rtti -fno-threadsafe-statics
-#GLOBAL_CPPFLAGS += -Weffc++
 GLOBAL_ASMFLAGS := -DASSEMBLY
 GLOBAL_LDFLAGS :=
+
+# flags that are sometimes nice to enable to catch problems but too strict to have on all the time
+#GLOBAL_COMPILEFLAGS += -Wmissing-declarations
 
 # if WERROR is set, add to the compile args
 ifeq (true,$(call TOBOOL,$(WERROR)))
