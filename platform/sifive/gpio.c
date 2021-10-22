@@ -16,6 +16,8 @@
 #include <sys/types.h>
 #include <dev/gpio.h>
 
+#include "platform_p.h"
+
 static volatile unsigned int *const gpio_base = (unsigned int *)GPIO_BASE;
 
 #define GPIO_REG_VALUE      0

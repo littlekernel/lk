@@ -57,13 +57,13 @@ void uart_init(void) {
     unmask_interrupt(IRQ_UART0);
 }
 
-void uart_putc(char c) {
+static void uart_putc(char c) {
     while ((uart_read_8(5) & (1<<6)) == 0)
         ;
     uart_write_8(0, c);
 }
 
-int uart_getc(char *c, bool wait) {
+static int uart_getc(char *c, bool wait) {
     return cbuf_read_char(&uart_rx_buf, c, wait);
 }
 

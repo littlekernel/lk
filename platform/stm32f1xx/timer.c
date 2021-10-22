@@ -12,6 +12,7 @@
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/timer.h>
+#include <platform/stm32.h>
 #include <stm32f10x_rcc.h>
 #include <stm32f10x_tim.h>
 #include <misc.h>
@@ -21,6 +22,9 @@
 
 #define TIME_BASE_COUNT 0xffff
 #define TICK_RATE 1000000
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-declarations"
 
 static void stm32_tim_irq(uint num) {
     TRACEF("tim irq %d\n", num);
@@ -51,6 +55,8 @@ void stm32_TIM7_IRQ(void) {
 void stm32_TIM2_IRQ(void) {
     stm32_tim_irq(2);
 }
+
+#pragma GCC diagnostic pop
 
 void stm32_timer_early_init(void) {
 }

@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <kernel/thread.h>
 #include <platform.h>
+#include <platform/stm32.h>
 #include <dev/flash_nor.h>
 #include <stm32f10x_rcc.h>
 #include <stm32f10x_flash.h>

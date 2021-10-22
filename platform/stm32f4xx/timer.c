@@ -12,12 +12,15 @@
 #include <kernel/thread.h>
 #include <platform.h>
 #include <platform/timer.h>
+#include <platform/stm32.h>
 #include <stm32f4xx_rcc.h>
 #include <stm32f4xx_tim.h>
 #include <misc.h>
 #include <arch/arm/cm.h>
 
 #define LOCAL_TRACE 0
+
+#pragma GCC diagnostic ignored "-Wmissing-declarations"
 
 static void stm32_tim_irq(uint num) {
     TRACEF("tim irq %d\n", num);

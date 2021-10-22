@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <lk/trace.h>
 #include <lib/cbuf.h>
+#include <dev/uart.h>
 #include <kernel/thread.h>
 #include <kernel/spinlock.h>
 #include <platform/interrupts.h>

@@ -107,7 +107,7 @@ void uart_init(void) {
 #endif
 }
 
-void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf) {
+static void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf) {
     arm_cm_irq_entry();
 
     bool resched = false;
@@ -128,18 +128,21 @@ void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf) {
 }
 
 #ifdef ENABLE_UART1
+void stm32_USART1_IRQ(void);
 void stm32_USART1_IRQ(void) {
     uart_rx_irq(USART1, &uart1_rx_buf);
 }
 #endif
 
 #ifdef ENABLE_UART2
+void stm32_USART2_IRQ(void);
 void stm32_USART2_IRQ(void) {
     uart_rx_irq(USART2, &uart2_rx_buf);
 }
 #endif
 
 #ifdef ENABLE_UART3
+void stm32_USART3_IRQ(void);
 void stm32_USART3_IRQ(void) {
     uart_rx_irq(USART3, &uart3_rx_buf);
 }

@@ -21,6 +21,7 @@
 #include <lib/bio.h>
 #include <lk/console_cmd.h>
 #include <dev/qspi.h>
+#include <dev/spiflash.h>
 #include <kernel/thread.h>
 
 #include <platform/zynq.h>
@@ -409,7 +410,7 @@ static int spiflash_ioctl(struct bdev *bdev, int request, void *argp) {
 }
 
 // debug tests
-int cmd_spiflash(int argc, const console_cmd_args *argv) {
+static int cmd_spiflash(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("not enough arguments\n");

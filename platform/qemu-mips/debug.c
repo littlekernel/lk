@@ -9,9 +9,11 @@
 #include <stdarg.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
+#include <lk/err.h>
 #include <stdio.h>
 #include <kernel/thread.h>
 #include <lib/cbuf.h>
+#include <dev/uart.h>
 #include <platform/interrupts.h>
 #include <platform/qemu-mips.h>
 
@@ -33,7 +35,7 @@ static enum handler_return uart_irq_handler(void *arg) {
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-void platform_init_uart(void) {
+void uart_init_early(void) {
     /* configure the uart */
     int divisor = 115200 / uart_baud_rate;
 
@@ -55,14 +57,20 @@ void uart_init(void) {
     isa_write_8(uart_io_port + 1, 0x1); // enable receive data available interrupt
 }
 
-void uart_putc(char c) {
+int uart_putc(int port, char c) {
     while ((isa_read_8(uart_io_port + 5) & (1<<6)) == 0)
         ;
     isa_write_8(uart_io_port + 0, c);
+    return 0;
 }
 
-int uart_getc(char *c, bool wait) {
-    return cbuf_read_char(&uart_rx_buf, c, wait);
+int uart_getc(int port, bool wait) {
+    char c;
+    if (cbuf_read_char(&uart_rx_buf, &c, wait) == 1) {
+        return c;
+    } else {
+        return -1;
+    }
 }
 
 void platform_dputc(char c) {
@@ -71,7 +79,7 @@ void platform_dputc(char c) {
 #if WITH_CGA_CONSOLE
     cputc(c);
 #else
-    uart_putc(c);
+    uart_putc(0, c);
 #endif
 }
 
@@ -81,7 +89,10 @@ int platform_dgetc(char *c, bool wait) {
     //if (ret < 0)
     //  arch_idle();
 #else
-    int ret = uart_getc(c, wait);
+    int ret = uart_getc(0, wait);
+    if (ret >= 0) {
+        *c = ret;
+    }
 #endif
 
     return ret;

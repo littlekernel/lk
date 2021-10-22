@@ -151,7 +151,7 @@ static pmm_arena_t mem_arena = {
 /* set up the size of the physical memory map based on the end of memory we detected in
  * platform_init_multiboot_info()
  */
-void mem_arena_init(void) {
+static void mem_arena_init(void) {
     uintptr_t mem_base = (uintptr_t)MEMBASE;
     uintptr_t mem_size = mem_top;
 
@@ -160,7 +160,7 @@ void mem_arena_init(void) {
 }
 #endif
 
-void platform_init_multiboot_info(void) {
+static void platform_init_multiboot_info(void) {
     LTRACEF("_multiboot_info %p\n", _multiboot_info);
     if (_multiboot_info) {
         /* bump the multiboot pointer up to the kernel mapping */

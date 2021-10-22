@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <lib/cbuf.h>
 #include <kernel/thread.h>
+#include <dev/uart.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
 #include <platform/zynq.h>

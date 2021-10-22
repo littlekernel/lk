@@ -12,6 +12,7 @@
 #include <kernel/vm.h>
 #include <platform/zynq.h>
 #include <platform/gem.h>
+#include <target.h>
 
 zynq_pll_cfg_tree_t zynq_pll_cfg = {
     .arm = {

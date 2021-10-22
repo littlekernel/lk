@@ -68,7 +68,7 @@ lk_time_t current_time(void) {
     return (lk_time_t)ticks * 10;
 }
 
-enum handler_return timer_irq(void *arg) {
+static enum handler_return timer_irq(void *arg) {
     LTRACE;
 
     TIMER_REG(R_TCSR) |= TCSR_TINT;

@@ -15,6 +15,7 @@
 #include <platform/gem.h>
 #include <platform/gpio.h>
 #include <platform/interrupts.h>
+#include <target.h>
 #include <target/gpioconfig.h>
 
 zynq_pll_cfg_tree_t zynq_pll_cfg = {

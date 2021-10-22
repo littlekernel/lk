@@ -70,6 +70,7 @@ status_t unmask_interrupt(unsigned int vector) {
     return NO_ERROR;
 }
 
+enum handler_return platform_irq_handler(void);
 enum handler_return platform_irq_handler(void) {
     enum handler_return ret = INT_NO_RESCHEDULE;
 

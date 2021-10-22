@@ -14,6 +14,7 @@
 #include <arch/ops.h>
 #include <dev/uart.h>
 #include <target/debugconfig.h>
+#include <platform/stm32.h>
 #include <stm32f4xx_rcc.h>
 #include <stm32f4xx_usart.h>
 #include <arch/arm/cm.h>

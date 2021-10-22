@@ -141,11 +141,9 @@ void platform_init_timer(void) {
     unmask_interrupt(INT_PIT);
 }
 
-void platform_halt_timers(void) {
+static void platform_halt_timers(void) {
     mask_interrupt(INT_PIT);
 }
-
-
 
 status_t platform_set_oneshot_timer(platform_timer_callback callback,
                                     void *arg, lk_time_t interval) {

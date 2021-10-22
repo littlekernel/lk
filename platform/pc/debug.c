@@ -11,11 +11,14 @@
 #include <kernel/thread.h>
 #include <arch/x86.h>
 #include <lib/cbuf.h>
+#include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/pc.h>
 #include <platform/console.h>
 #include <platform/keyboard.h>
 #include <platform/debug.h>
+
+#include "platform_p.h"
 
 #ifndef DEBUG_BAUD_RATE
 #define DEBUG_BAUD_RATE 115200
@@ -92,7 +95,8 @@ int platform_dgetc(char *c, bool wait) {
     return cbuf_read_char(&console_input_buf, c, wait);
 }
 
-void platform_halt(void) {
+void platform_halt(platform_halt_action suggested_action,
+                   platform_halt_reason reason) {
     for (;;) {
         x86_cli();
         x86_hlt();

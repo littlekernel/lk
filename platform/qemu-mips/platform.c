@@ -14,6 +14,7 @@
 #include <platform/timer.h>
 #include <platform/qemu-mips.h>
 #include <arch/mips.h>
+#include <dev/uart.h>
 
 extern void platform_init_interrupts(void);
 extern void platform_init_uart(void);
@@ -21,7 +22,7 @@ extern void uart_init(void);
 
 void platform_early_init(void) {
     platform_init_interrupts();
-    platform_init_uart();
+    uart_init_early();
 
     mips_init_timer(100000000);
     mips_enable_irq(2);

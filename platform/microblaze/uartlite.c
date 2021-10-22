@@ -15,6 +15,8 @@
 #include <sys/types.h>
 #include <target/microblaze-config.h>
 
+#include "uartlite.h"
+
 #define LOCAL_TRACE 0
 
 #define R_RX            0
@@ -64,7 +66,7 @@ int uartlite_getc(bool wait) {
     return -1;
 }
 
-enum handler_return uartlite_irq(void *arg) {
+static enum handler_return uartlite_irq(void *arg) {
     bool resched = false;
 
     /* while receive fifo not empty, read a char */

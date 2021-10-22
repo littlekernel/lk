@@ -14,8 +14,7 @@
 #include <sys/types.h>
 #include <target/microblaze-config.h>
 
-void uartlite_putc(char c);
-int uartlite_getc(bool wait);
+#include "uartlite.h"
 
 void platform_dputc(char c) {
     if (c == '\n')

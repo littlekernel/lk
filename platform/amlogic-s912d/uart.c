@@ -88,7 +88,7 @@ int uart_getc(int port, bool wait) {
     }
 }
 
-enum handler_return uart_irq_handler(void *arg) {
+static enum handler_return uart_irq_handler(void *arg) {
     while ( (UARTREG(uart_base, S912D_UART_STATUS) & S912D_UART_STATUS_RXCOUNT_MASK) > 0 ) {
         if (cbuf_space_avail(&uart_rx_buf) == 0) {
             break;

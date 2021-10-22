@@ -17,6 +17,7 @@
 #include <stm32f10x_rcc.h>
 #include <stm32f10x_usart.h>
 #include <arch/arm/cm.h>
+#include <platform/stm32.h>
 
 void stm32_debug_early_init(void) {
     uart_init_early();

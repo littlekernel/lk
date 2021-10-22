@@ -130,7 +130,7 @@ static int free_completed_pbuf_frames(void) {
     return ret;
 }
 
-void queue_pkts_in_tx_tbl(void) {
+static void queue_pkts_in_tx_tbl(void) {
     pktbuf_t *p;
     unsigned int cur_pos;
 
@@ -194,7 +194,7 @@ err:
 }
 
 
-enum handler_return gem_int_handler(void *arg) {
+static enum handler_return gem_int_handler(void *arg) {
     uint32_t intr_status;
     bool resched = false;
 
@@ -336,7 +336,7 @@ static void gem_cfg_ints(void) {
                         INTR_RX_USED_READ | INTR_TX_CORRUPT | INTR_TX_USED_READ | INTR_RX_OVERRUN;
 }
 
-int gem_rx_thread(void *arg) {
+static int gem_rx_thread(void *arg) {
     pktbuf_t *p;
     int bp = 0;
 
@@ -386,7 +386,7 @@ int gem_rx_thread(void *arg) {
 }
 
 
-int gem_stat_thread(void *arg) {
+static int gem_stat_thread(void *arg) {
     volatile bool *run = ((bool *)arg);
     static uint32_t frames_rx = 0, frames_tx = 0;
 
@@ -401,7 +401,7 @@ int gem_stat_thread(void *arg) {
     return 0;
 }
 
-void gem_deinit(uintptr_t base) {
+static void gem_deinit(uintptr_t base) {
     /* reset the gem peripheral */
     uint32_t rst_mask;
     if (base == GEM0_BASE) {

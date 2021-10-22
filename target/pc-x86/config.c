@@ -13,6 +13,7 @@
 #include <platform/ide.h>
 #include <platform/pcnet.h>
 #include <platform.h>
+#include <target.h>
 #include <malloc.h>
 #include <string.h>
 #include <lk/debug.h>

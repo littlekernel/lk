@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <lk/trace.h>
 #include <lib/cbuf.h>
+#include <dev/uart.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
 #include <platform/debug.h>
@@ -151,7 +152,7 @@ int uart_pputc(int port, char c) {
     return 1;
 }
 
-int uart_pgetc(int port, bool wait) {
+int uart_pgetc(int port) {
     uintptr_t base = uart_to_ptr(port);
 
     if ((UARTREG(base, UART_TFR) & (1<<4)) == 0) {

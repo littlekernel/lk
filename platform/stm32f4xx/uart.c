@@ -129,7 +129,7 @@ void uart_init(void) {
 #endif
 }
 
-void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf) {
+static void uart_rx_irq(USART_TypeDef *usart, cbuf_t *rxbuf) {
     arm_cm_irq_entry();
 
     bool resched = false;

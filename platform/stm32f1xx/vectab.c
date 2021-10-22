@@ -14,6 +14,7 @@
 #include <lib/cbuf.h>
 
 /* un-overridden irq handler */
+void stm32_dummy_irq(void);
 void stm32_dummy_irq(void) {
     arm_cm_irq_entry();
 
