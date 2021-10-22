@@ -102,7 +102,7 @@ exit:
     elf_close_handle(&elf);
 }
 
-int tftp_callback(void *data, size_t len, void *arg) {
+static int tftp_callback(void *data, size_t len, void *arg) {
     download_t *download = arg;
     size_t final_len;
 

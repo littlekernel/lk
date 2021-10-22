@@ -35,6 +35,8 @@
 #include <platform/zynq.h>
 #endif
 
+#include "lkboot.h"
+
 #define bootdevice "spi0"
 
 #define LOCAL_TRACE 0

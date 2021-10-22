@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2016 Travis Geiselbrecht
+ *
+ * Use of this source code is governed by a MIT-style
+ * license that can be found in the LICENSE file or at
+ * https://opensource.org/licenses/MIT
+ */
 #include <assert.h>
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -5,6 +12,7 @@
 #include <lk/console_cmd.h>
 #include <lib/heap.h>
 #include <rand.h>
+#include <app/tests.h>
 #include <stdlib.h>
 
 #define ASSERT_EQ(a, b)                                            \

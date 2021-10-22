@@ -279,6 +279,7 @@ static status_t lkboot_server(lk_time_t timeout) {
 }
 
 /* platform code can override this to conditionally abort autobooting from flash */
+bool platform_abort_autoboot(void);
 __WEAK bool platform_abort_autoboot(void) {
     return false;
 }

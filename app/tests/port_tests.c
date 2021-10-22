@@ -276,7 +276,7 @@ bail:
 }
 
 
-int two_threads_basic(void) {
+static int two_threads_basic(void) {
     port_t w_port;
     status_t st = port_create("ping_port", PORT_MODE_BROADCAST, &w_port);
     if (st < 0) {
@@ -401,7 +401,7 @@ typedef struct {
     port_t port;
 } watcher_cmd;
 
-status_t send_watcher_cmd(port_t cmd_port, action_t action, port_t port) {
+static status_t send_watcher_cmd(port_t cmd_port, action_t action, port_t port) {
     watcher_cmd _cmd  = {action, port};
     return port_write(cmd_port, ((port_packet_t *) &_cmd), 1);;
 }
@@ -487,7 +487,7 @@ static status_t make_port_pair(const char *name, void *ctx, port_t *write, port_
     return port_open(name,ctx, read);
 }
 
-int group_basic(void) {
+static int group_basic(void) {
     // we spin a thread that connects to a well known port, then we
     // send two ports that it will add to a group port.
     port_t cmd_port;
@@ -563,7 +563,7 @@ int group_basic(void) {
     return 0;
 }
 
-int group_dynamic(void) {
+static int group_dynamic(void) {
     status_t st;
 
     port_t w_test_port1, r_test_port1;
@@ -631,7 +631,7 @@ int group_dynamic(void) {
     return 0;
 }
 
-event_t group_waiting_sync_evt;
+static event_t group_waiting_sync_evt;
 
 static int receive_thread(void *arg) {
     port_t pg = (port_t)arg;
@@ -651,7 +651,7 @@ static int receive_thread(void *arg) {
 /* Test the edge case where a read port with data available is added to a port
  * group that has a read-blocked receiver.
  */
-int group_waiting(void) {
+static int group_waiting(void) {
     status_t st;
 
     event_init(&group_waiting_sync_evt, false, EVENT_FLAG_AUTOUNSIGNAL);
