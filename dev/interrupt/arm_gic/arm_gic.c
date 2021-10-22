@@ -405,6 +405,7 @@ enum handler_return __platform_irq(struct iframe *frame) {
     return ret;
 }
 
+enum handler_return platform_irq(struct iframe *frame);
 enum handler_return platform_irq(struct iframe *frame) {
 #if WITH_LIB_SM
     uint32_t ahppir = GICREG(0, GICC_AHPPIR);
@@ -447,6 +448,7 @@ enum handler_return platform_irq(struct iframe *frame) {
 #endif
 }
 
+void platform_fiq(struct iframe *frame);
 void platform_fiq(struct iframe *frame) {
 #if WITH_LIB_SM
     sm_handle_fiq();

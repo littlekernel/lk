@@ -535,7 +535,7 @@ static int virtio_gpu_flush_thread(void *arg) {
     return 0;
 }
 
-void virtio_gpu_gfx_flush(uint starty, uint endy) {
+static void virtio_gpu_gfx_flush(uint starty, uint endy) {
     event_signal(&the_gdev->flush_event, !arch_ints_disabled());
 }
 

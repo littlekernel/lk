@@ -380,7 +380,7 @@ void virtio_status_driver_ok(struct virtio_device *dev) {
     dev->mmio_config->status |= VIRTIO_STATUS_DRIVER_OK;
 }
 
-void virtio_init(uint level) {
+static void virtio_init(uint level) {
 }
 
 LK_INIT_HOOK(virtio, &virtio_init, LK_INIT_LEVEL_THREADING);

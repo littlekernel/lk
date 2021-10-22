@@ -1,3 +1,4 @@
+#include <lib/cksum.h>
 /*
  * Computes the CRC for transmitted and received data using
  * the CCITT 16bit algorithm (X^16 + X^12 + X^5 + 1) with

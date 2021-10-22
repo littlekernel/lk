@@ -18,7 +18,7 @@
 #include "fat32_priv.h"
 #include "fat_fs.h"
 
-void fat32_dump(fat_fs_t *fat) {
+static void fat32_dump(fat_fs_t *fat) {
     printf("bytes_per_sector=%i\n", fat->bytes_per_sector);
     printf("sectors_per_cluster=%i\n", fat->sectors_per_cluster);
     printf("bytes_per_cluster=%i\n", fat->bytes_per_cluster);

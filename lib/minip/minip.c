@@ -97,7 +97,7 @@ void minip_init(tx_func_t tx_handler, void *tx_arg,
     net_timer_init();
 }
 
-uint16_t ipv4_payload_len(struct ipv4_hdr *pkt) {
+static uint16_t ipv4_payload_len(struct ipv4_hdr *pkt) {
     return (pkt->len - ((pkt->ver_ihl >> 4) * 5));
 }
 
@@ -123,7 +123,7 @@ void minip_build_ipv4_hdr(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, ui
     ipv4->chksum = rfc1701_chksum((uint8_t *) ipv4, sizeof(struct ipv4_hdr));
 }
 
-int send_arp_request(uint32_t addr) {
+static int send_arp_request(uint32_t addr) {
     pktbuf_t *p;
     struct eth_hdr *eth;
     struct arp_pkt *arp;
@@ -215,7 +215,7 @@ err:
  * According to spec the data portion doesn't matter, but ping itself validates that
  * the payload is identical
  */
-void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdatalen) {
+static void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdatalen) {
     pktbuf_t *p;
     size_t len;
     struct eth_hdr *eth;

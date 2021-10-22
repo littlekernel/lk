@@ -117,7 +117,7 @@ done:
     return delay;
 }
 
-int net_timer_work_thread(void *args) {
+static int net_timer_work_thread(void *args) {
     for (;;) {
         event_wait(&net_timer_event);
 

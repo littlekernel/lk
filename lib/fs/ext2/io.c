@@ -75,7 +75,8 @@ static int ext2_calculate_block_pointer_pos(ext2_t *ext2, blocknum_t block_to_fi
 }
 
 // This function returns a pointer to the cache block that corresponds to the indirect block pointer.
-int ext2_get_indirect_block_pointer_cache_block(ext2_t *ext2, struct ext2_inode *inode, blocknum_t **cache_block, uint32_t level, uint32_t pos[], uint *block_loaded) {
+static int ext2_get_indirect_block_pointer_cache_block(ext2_t *ext2, struct ext2_inode *inode,
+        blocknum_t **cache_block, uint32_t level, uint32_t pos[], uint *block_loaded) {
     uint32_t current_level = 0;
     uint current_block = 0, last_block;
     blocknum_t *block = NULL;

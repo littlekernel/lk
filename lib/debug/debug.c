@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <printf.h>
 #include <stdio.h>
+#include <assert.h>
 #include <lk/list.h>
 #include <arch/ops.h>
 #include <platform.h>

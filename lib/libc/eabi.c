@@ -8,6 +8,8 @@
 /* some cruft we have to define when using the linux toolchain */
 #include <unwind.h>
 
+#pragma GCC diagnostic ignored "-Wmissing-declarations"
+
 void *__dso_handle;
 
 #if defined(__ARM_EABI_UNWINDER__) && __ARM_EABI_UNWINDER__

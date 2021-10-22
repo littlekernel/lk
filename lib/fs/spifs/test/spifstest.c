@@ -61,7 +61,7 @@ static test tests[] = {
     {&test_truncate_file, "Test that we can truncate a file.", 1},
 };
 
-bool test_setup(const char *dev_name, uint32_t toc_pages) {
+static bool test_setup(const char *dev_name, uint32_t toc_pages) {
     spifs_format_args_t args = {
         .toc_pages = toc_pages,
     };
@@ -83,7 +83,7 @@ bool test_setup(const char *dev_name, uint32_t toc_pages) {
     return true;
 }
 
-bool test_teardown(void) {
+static bool test_teardown(void) {
     if (fs_unmount(MNT_PATH) != NO_ERROR) {
         printf("Unmount failed\n");
         return false;

@@ -67,7 +67,7 @@ static struct fp_32_64 timer_freq_msec_conversion_inverse;
 
 static void arm_cortex_a9_timer_init_percpu(uint level);
 
-uint64_t get_global_val(void) {
+static uint64_t get_global_val(void) {
     uint32_t lo, hi;
 
 retry:

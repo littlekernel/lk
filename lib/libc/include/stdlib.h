@@ -44,6 +44,7 @@ void *bsearch(const void *key, const void *base, size_t num_elems, size_t size,
               int (*compare)(const void *, const void *));
 unsigned long int strtoul(const char *nptr, char **endptr, int base);
 char *getenv(const char *name);
+int atexit(void (*func)(void));
 
 __END_CDECLS
 

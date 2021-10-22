@@ -11,6 +11,7 @@
 #include <endian.h>
 #include <lk/list.h>
 #include <stdint.h>
+#include <iovec.h>
 #include <sys/types.h>
 
 #include <lib/pktbuf.h>
@@ -53,6 +54,7 @@ typedef struct udp_socket udp_socket_t;
 int udp_listen(uint16_t port, udp_callback_t cb, void *arg);
 status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle);
 status_t udp_send(void *buf, size_t len, udp_socket_t *handle);
+status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle);
 status_t udp_close(udp_socket_t *handle);
 
 /* tcp */

@@ -100,5 +100,8 @@ void gfx_surface_destroy(struct gfx_surface *surface);
 // utility routine to fill the display with a little moire pattern
 void gfx_draw_pattern(void);
 
+// fill the screen with white
+void gfx_draw_pattern_white(void);
+
 __END_CDECLS
 

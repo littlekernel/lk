@@ -88,6 +88,7 @@ void unittest_set_output_function (_printf_engine_output_func fun, void *arg);
  * RUN_TEST.
  */
 #define BEGIN_TEST_CASE(case_name)              \
+    bool case_name(void);                       \
     bool case_name(void)                        \
     {                                           \
     bool all_ok = true;                    \

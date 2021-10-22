@@ -364,7 +364,7 @@ void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint col
     }
 }
 
-uint32_t alpha32_add_ignore_destalpha(uint32_t dest, uint32_t src) {
+static uint32_t alpha32_add_ignore_destalpha(uint32_t dest, uint32_t src) {
     uint32_t cdest[3];
     uint32_t csrc[3];
 

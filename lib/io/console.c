@@ -105,7 +105,7 @@ static ssize_t __debug_stdio_read(io_handle_t *io, char *s, size_t len) {
 }
 
 #if CONSOLE_HAS_INPUT_BUFFER
-void console_init_hook(uint level) {
+static void console_init_hook(uint level) {
     cbuf_initialize_etc(&console_input_cbuf, sizeof(console_cbuf_buf), console_cbuf_buf);
 }
 

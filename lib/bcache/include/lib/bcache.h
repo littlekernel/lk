@@ -19,4 +19,8 @@ int bcache_read_block(bcache_t, void *, uint block);
 // get and put a pointer directly to the block
 int bcache_get_block(bcache_t, void **, uint block);
 int bcache_put_block(bcache_t, uint block);
+int bcache_mark_block_dirty(bcache_t priv, uint blocknum);
+int bcache_zero_block(bcache_t priv, uint blocknum);
+int bcache_flush(bcache_t priv);
+void bcache_dump(bcache_t priv, const char *name);
 

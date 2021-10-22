@@ -17,7 +17,7 @@
 #include <kernel/timer.h>
 #include <lk/err.h>
 
-uint32_t str_ip_to_int(const char *s, size_t len) {
+static uint32_t str_ip_to_int(const char *s, size_t len) {
     uint8_t ip[4] = { 0, 0, 0, 0 };
     uint8_t pos = 0, i = 0;
 
@@ -35,7 +35,7 @@ uint32_t str_ip_to_int(const char *s, size_t len) {
     return IPV4_PACK(ip);
 }
 
-void arp_usage(void) {
+static void arp_usage(void) {
     printf("arp list                        print arp table\n");
     printf("arp query <ipv4 address>        query arp address\n");
 }
