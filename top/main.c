@@ -14,6 +14,7 @@
 
 #include <app.h>
 #include <arch.h>
+#include <kernel/init.h>
 #include <kernel/mutex.h>
 #include <kernel/novm.h>
 #include <kernel/thread.h>
@@ -39,8 +40,6 @@ static uint secondary_bootstrap_thread_count;
 #endif
 
 static int bootstrap2(void *arg);
-
-extern void kernel_init(void);
 
 static void call_constructors(void) {
     void **ctor;

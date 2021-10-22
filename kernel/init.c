@@ -5,6 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <kernel/init.h>
+
 #include <kernel/debug.h>
 #include <kernel/mp.h>
 #include <kernel/port.h>

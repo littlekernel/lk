@@ -152,7 +152,7 @@ static void novm_init(uint level) {
 LK_INIT_HOOK(novm, &novm_init, LK_INIT_LEVEL_PLATFORM_EARLY - 1);
 #endif
 
-void *novm_alloc_helper(struct novm_arena *n, size_t pages) {
+static void *novm_alloc_helper(struct novm_arena *n, size_t pages) {
     if (pages == 0 || pages > n->pages)
         return NULL;
 

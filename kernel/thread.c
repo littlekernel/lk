@@ -108,7 +108,7 @@ static void wakeup_cpu_for_thread(thread_t *t)
         mp_reschedule(1U << pinned_cpu, 0);
 }
 
-void init_thread_struct(thread_t *t, const char *name) {
+static void init_thread_struct(thread_t *t, const char *name) {
     memset(t, 0, sizeof(thread_t));
     t->magic = THREAD_MAGIC;
     thread_set_pinned_cpu(t, -1);
