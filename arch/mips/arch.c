@@ -9,6 +9,7 @@
 #include <lk/debug.h>
 #include <stdint.h>
 #include <lk/bits.h>
+#include <arch.h>
 #include <arch/mips.h>
 #include <platform.h>
 

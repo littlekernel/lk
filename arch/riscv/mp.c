@@ -105,6 +105,8 @@ void riscv_configure_percpu_mp_early(uint hart_id, uint cpu_num) {
     wmb();
 }
 
+// called from assembly
+void riscv_secondary_entry(uint hart_id, uint __unused, uint cpu_id);
 void riscv_secondary_entry(uint hart_id, uint __unused, uint cpu_id) {
     // basic bootstrapping of this cpu
     riscv_early_init_percpu();

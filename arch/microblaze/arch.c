@@ -8,6 +8,8 @@
 #include <lk/trace.h>
 #include <lk/debug.h>
 #include <stdint.h>
+#include <arch.h>
+#include <arch/ops.h>
 #include <arch/microblaze.h>
 
 #define LOCAL_TRACE 0

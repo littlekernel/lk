@@ -159,6 +159,8 @@
     __val; \
 })
 
+#include <arch/riscv/iframe.h>
+
 struct riscv_percpu {
     // must be first field in the struct
     struct thread *curr_thread;
@@ -208,6 +210,9 @@ void riscv_set_secondary_count(int count);
 
 void riscv_exception_entry(void);
 enum handler_return riscv_timer_exception(void);
+enum handler_return riscv_software_exception(void);
+enum handler_return riscv_platform_irq(void);
+void riscv_syscall_handler(struct riscv_short_iframe *frame);
 
 // If using S mode, time seems to be implemented in clint.h
 // TODO: clean up by moving into its own header

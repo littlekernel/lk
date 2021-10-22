@@ -21,6 +21,8 @@
 #include <arch/riscv/sbi.h>
 #include <kernel/vm.h>
 
+#include "riscv_priv.h"
+
 #define LOCAL_TRACE 0
 
 #include <kernel/vm.h>

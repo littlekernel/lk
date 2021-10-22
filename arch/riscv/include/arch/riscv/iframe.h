@@ -22,6 +22,9 @@
 
 #ifndef ASSEMBLY
 
+#include <lk/compiler.h>
+#include <assert.h>
+
 // keep in sync with asm.S
 struct riscv_short_iframe {
     unsigned long  epc;

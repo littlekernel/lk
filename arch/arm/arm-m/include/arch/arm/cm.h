@@ -159,7 +159,6 @@ static inline void arm_cm_trigger_preempt(void) {
 
 /* systick */
 void arm_cm_systick_init(uint32_t mhz);
-/* extern void _systick(void); // override this */
 
 /* interrupt glue */
 /*
@@ -168,6 +167,18 @@ void arm_cm_systick_init(uint32_t mhz);
  */
 void arm_cm_irq_entry(void);
 void arm_cm_irq_exit(bool reschedule);
+
+/* built in exception vectors */
+void _start(void);
+void _nmi(void);
+void _hardfault(void);
+void _memmanage(void);
+void _busfault(void);
+void _usagefault(void);
+void _svc(void);
+void _debugmonitor(void);
+void _pendsv(void);
+void _systick(void);
 
 #endif
 

@@ -7,14 +7,15 @@
  */
 #include <lk/debug.h>
 #include <lk/compiler.h>
+#include <lk/main.h>
 #include <stdint.h>
 
 /* externals */
 extern unsigned int __data_start_rom, __data_start, __data_end;
 extern unsigned int __bss_start, __bss_end;
 
-extern void lk_main(void) __NO_RETURN __EXTERNALLY_VISIBLE;
-
+/* entry point of the binary */
+void _start(void);
 void _start(void) {
     /* copy data from rom */
     if (&__data_start != &__data_start_rom) {
@@ -30,5 +31,5 @@ void _start(void) {
     while (bss != &__bss_end)
         *bss++ = 0;
 
-    lk_main();
+    lk_main(0, 0, 0, 0);
 }

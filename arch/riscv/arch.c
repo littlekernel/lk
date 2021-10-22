@@ -16,6 +16,7 @@
 #include <lk/init.h>
 #include <lk/main.h>
 #include <platform.h>
+#include <arch.h>
 
 #include "riscv_priv.h"
 
@@ -26,6 +27,7 @@ struct riscv_percpu percpu[SMP_MAX_CPUS];
 
 // called extremely early from start.S prior to getting into any other C code on
 // both the boot cpu and the secondaries
+void riscv_configure_percpu_early(uint hart_id, uint __unused, uint cpu_num);
 void riscv_configure_percpu_early(uint hart_id, uint __unused, uint cpu_num) {
     // point tp reg at the current cpu structure
     riscv_set_percpu(&percpu[cpu_num]);

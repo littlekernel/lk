@@ -8,6 +8,9 @@
 #pragma once
 
 #include <sys/types.h>
+#include <lk/compiler.h>
+
+__BEGIN_CDECLS
 
 void riscv_early_init_percpu(void);
 void riscv_init_percpu(void);
@@ -17,3 +20,4 @@ void riscv_early_mmu_init(void);
 void riscv_mmu_init(void);
 void riscv_mmu_init_secondaries(void);
 
+__END_CDECLS

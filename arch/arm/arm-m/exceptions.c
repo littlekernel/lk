@@ -14,6 +14,8 @@
 #include <arch/arm/cm.h>
 #include <platform.h>
 
+#pragma GCC diagnostic ignored "-Wmissing-declarations"
+
 static void dump_frame(const struct arm_cm_exception_frame *frame) {
 
     printf("exception frame at %p\n", frame);

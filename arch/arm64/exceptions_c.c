@@ -157,6 +157,7 @@ __WEAK void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit) {
     panic("unhandled syscall vector\n");
 }
 
+void arm64_sync_exception(struct arm64_iframe_long *iframe);
 void arm64_sync_exception(struct arm64_iframe_long *iframe) {
     struct fault_handler_table_entry *fault_handler;
     uint32_t esr = ARM64_READ_SYSREG(esr_el1);
@@ -220,6 +221,7 @@ void arm64_sync_exception(struct arm64_iframe_long *iframe) {
     panic("die\n");
 }
 
+void arm64_invalid_exception(struct arm64_iframe_long *iframe, unsigned int which);
 void arm64_invalid_exception(struct arm64_iframe_long *iframe, unsigned int which) {
     printf("invalid exception, which 0x%x\n", which);
     dump_iframe(iframe);

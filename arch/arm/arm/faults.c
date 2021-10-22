@@ -98,10 +98,12 @@ static void exception_die_iframe(struct arm_iframe *frame, const char *msg) {
     for (;;);
 }
 
+void arm_syscall_handler(struct arm_fault_frame *frame);
 __WEAK void arm_syscall_handler(struct arm_fault_frame *frame) {
     exception_die(frame, "unhandled syscall, halting\n");
 }
 
+void arm_undefined_handler(struct arm_iframe *frame);
 void arm_undefined_handler(struct arm_iframe *frame) {
     /* look at the undefined instruction, figure out if it's something we can handle */
     bool in_thumb = frame->spsr & (1<<5);
@@ -149,6 +151,7 @@ fpu:
 #endif
 }
 
+void arm_data_abort_handler(struct arm_fault_frame *frame);
 void arm_data_abort_handler(struct arm_fault_frame *frame) {
     struct fault_handler_table_entry *fault_handler;
     uint32_t fsr = arm_read_dfsr();
@@ -215,6 +218,7 @@ void arm_data_abort_handler(struct arm_fault_frame *frame) {
     exception_die(frame, "halting\n");
 }
 
+void arm_prefetch_abort_handler(struct arm_fault_frame *frame);
 void arm_prefetch_abort_handler(struct arm_fault_frame *frame) {
     uint32_t fsr = arm_read_ifsr();
     uint32_t far = arm_read_ifar();

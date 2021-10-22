@@ -90,7 +90,7 @@ static inline map_addr_t get_pfn_from_pte(map_addr_t pte) {
 /**
  * @brief Returning the x86 arch flags from generic mmu flags
  */
-arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
+static arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
     arch_flags_t arch_flags = 0;
 
     if (!(flags & ARCH_MMU_FLAG_PERM_RO))
@@ -112,7 +112,7 @@ arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
 /**
  * @brief Returning the generic mmu flags from x86 arch flags
  */
-uint get_arch_mmu_flags(arch_flags_t flags) {
+static uint get_arch_mmu_flags(arch_flags_t flags) {
     arch_flags_t mmu_flags = 0;
 
     if (!(flags & X86_MMU_PG_RW))

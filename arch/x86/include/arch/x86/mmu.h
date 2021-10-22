@@ -132,6 +132,11 @@ status_t x86_mmu_check_mapping (addr_t pml4, paddr_t paddr,
                                 vaddr_t vaddr, arch_flags_t in_flags,
                                 uint32_t *ret_level, arch_flags_t *ret_flags,
                                 map_addr_t *last_valid_entry);
+#else
+status_t x86_mmu_check_mapping(map_addr_t init_table, map_addr_t paddr,
+                               vaddr_t vaddr, arch_flags_t in_flags,
+                               uint32_t *ret_level, arch_flags_t *ret_flags,
+                               map_addr_t *last_valid_entry);
 #endif
 
 status_t x86_mmu_get_mapping(map_addr_t init_table, vaddr_t vaddr, uint32_t *ret_level,

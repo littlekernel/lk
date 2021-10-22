@@ -146,6 +146,7 @@ void arch_init(void) {
 }
 
 #if WITH_SMP
+void arm_secondary_entry(uint asm_cpu_num);
 void arm_secondary_entry(uint asm_cpu_num) {
     uint cpu = arch_curr_cpu_num();
     if (cpu != asm_cpu_num)

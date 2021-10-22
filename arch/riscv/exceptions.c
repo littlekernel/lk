@@ -15,9 +15,6 @@
 
 #define LOCAL_TRACE 0
 
-extern enum handler_return riscv_platform_irq(void);
-extern enum handler_return riscv_software_exception(void);
-
 static const char *cause_to_string(long cause) {
     switch (cause) {
         case RISCV_EXCEPTION_IADDR_MISALIGN:
@@ -84,6 +81,8 @@ void riscv_syscall_handler(struct riscv_short_iframe *frame) {
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
+// called from assembly
+void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel);
 void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel) {
     LTRACEF("hart %u cause %#lx epc %#lx status %#lx kernel %d\n",
             riscv_current_hart(), cause, epc, frame->status, kernel);

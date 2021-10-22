@@ -136,6 +136,8 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
 }
 
 #if WITH_SMP
+/* called from assembly */
+void arm64_secondary_entry(ulong);
 void arm64_secondary_entry(ulong asm_cpu_num) {
     uint cpu = arch_curr_cpu_num();
     if (cpu != asm_cpu_num)

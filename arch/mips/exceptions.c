@@ -18,6 +18,7 @@
 
 extern enum handler_return platform_irq(struct mips_iframe *iframe, uint num);
 
+void mips_gen_exception(struct mips_iframe *iframe);
 void mips_gen_exception(struct mips_iframe *iframe) {
     uint32_t excode = BITS_SHIFT(iframe->cause, 6, 2);
     if (excode == 0x8) {
@@ -32,6 +33,7 @@ void mips_gen_exception(struct mips_iframe *iframe) {
     }
 }
 
+void mips_irq(struct mips_iframe *iframe, uint num);
 void mips_irq(struct mips_iframe *iframe, uint num) {
     // unset IE and clear EXL
     mips_write_c0_status(mips_read_c0_status() & ~(3<<0));
