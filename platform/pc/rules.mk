@@ -23,7 +23,5 @@ MODULE_SRCS += \
 
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
 
-MODULE_DEPS += app/pcitests
-
 include make/module.mk
 

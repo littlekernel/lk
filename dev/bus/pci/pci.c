@@ -45,7 +45,10 @@ int (*g_pci_set_irq_hw_int)(const pci_location_t *state, uint8_t int_pin, uint8_
 
 /* user facing routines */
 int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index) {
+    LTRACEF("device_id dev %#hx vendor %#hx index %#hx\n", device_id, vendor_id, index);
+
     if (unlikely(!g_pci_find_pci_device)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 
@@ -60,7 +63,10 @@ int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vend
 }
 
 int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index) {
+    LTRACEF("device_id class %#x index %#hx\n", class_code, index);
+
     if (unlikely(!g_pci_find_pci_class_code)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 
@@ -76,6 +82,7 @@ int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t
 
 int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value) {
     if (unlikely(!g_pci_read_config_byte)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 
@@ -90,6 +97,7 @@ int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *val
 }
 int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value) {
     if (unlikely(!g_pci_read_config_half)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 
@@ -105,6 +113,7 @@ int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *va
 
 int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value) {
     if (unlikely(!g_pci_read_config_word)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 
@@ -120,6 +129,7 @@ int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *va
 
 int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value) {
     if (unlikely(!g_pci_write_config_byte)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 
@@ -135,6 +145,7 @@ int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t val
 
 int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value) {
     if (unlikely(!g_pci_write_config_half)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 
@@ -150,6 +161,7 @@ int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t va
 
 int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value) {
     if (unlikely(!g_pci_write_config_word)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 
@@ -166,6 +178,7 @@ int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t va
 
 int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs) {
     if (unlikely(!g_pci_get_irq_routing_options)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 
@@ -189,6 +202,7 @@ int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uin
 
 int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq) {
     if (unlikely(!g_pci_set_irq_hw_int)) {
+        LTRACEF("not configured\n");
         return ERR_NOT_CONFIGURED;
     }
 

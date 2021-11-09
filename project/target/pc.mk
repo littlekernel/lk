@@ -5,4 +5,3 @@ SUBARCH ?= x86-32
 TARGET := pc-x86
 MODULES += \
 	app/shell \
-	app/pcitests
