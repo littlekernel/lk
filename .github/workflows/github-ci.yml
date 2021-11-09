@@ -15,6 +15,7 @@ jobs:
         project:
           - qemu-virt-arm32-test
           - qemu-virt-arm64-test
+          - qemu-virt-m68k-test
           - qemu-microblaze-test
           - qemu-mips-test
           - qemu-virt-riscv32-test

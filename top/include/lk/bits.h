@@ -15,6 +15,7 @@ __BEGIN_CDECLS
 
 #define clz(x) __builtin_clz(x)
 #define ctz(x) __builtin_ctz(x)
+#define ffs(x) __builtin_ffs(x)
 
 #define BIT(x, bit) ((x) & (1UL << (bit)))
 #define BIT_SHIFT(x, bit) (((x) >> (bit)) & 1)
