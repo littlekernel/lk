@@ -21,7 +21,7 @@
 #include <kernel/mutex.h>
 #include <kernel/event.h>
 #include <dev/class/netif.h>
-#include <dev/pci.h>
+#include <dev/bus/pci.h>
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
@@ -136,8 +136,10 @@ static status_t pcnet_init(struct device *dev) {
     if (!config)
         return ERR_NOT_CONFIGURED;
 
-    if (pci_find_pci_device(&loc, config->device_id, config->vendor_id, config->index) != _PCI_SUCCESSFUL)
+    if (pci_find_pci_device(&loc, config->device_id, config->vendor_id, config->index) != _PCI_SUCCESSFUL) {
+        TRACEF("device not found\n");
         return ERR_NOT_FOUND;
+    }
 
     struct pcnet_state *state = calloc(1, sizeof(struct pcnet_state));
     if (!state)
@@ -598,7 +600,10 @@ static const struct platform_pcnet_config pcnet0_config = {
 DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config, 0);
 
 static void pcnet_init_hook(uint level) {
-    device_init(device_get_by_name(netif, pcnet0));
+    status_t err = device_init(device_get_by_name(netif, pcnet0));
+    if (err < 0)
+        return;
+
     class_netif_add(device_get_by_name(netif, pcnet0));
 }
 

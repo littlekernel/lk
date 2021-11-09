@@ -1,6 +1,7 @@
 #include <arch/sys_arch.h>
 #include <lwip/err.h>
 #include <lwip/sys.h>
+#include <lwip/tcpip.h>
 #include <platform.h>
 #include <assert.h>
 #include <lk/trace.h>

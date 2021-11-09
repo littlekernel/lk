@@ -76,7 +76,7 @@ struct driver {
     }
 
 #define DEVICE_INSTANCE(type_, name_, config_, flags_) \
-    extern struct driver concat(__driver_, type_); \
+    extern const struct driver concat(__driver_, type_); \
     struct device concat(__device_, concat(type_, concat(_, name_))) \
         __ALIGNED(sizeof(void *)) __SECTION("devices") = { \
         .name = #name_, \
