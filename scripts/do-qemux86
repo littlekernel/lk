@@ -8,6 +8,8 @@ function HELP {
     echo "-l                  : legacy mode build (386 emulated machine)"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
+    echo "-d <disk image>     : a virtio block device"
+    echo "-n                  : a virtio network device"
     echo "-g                  : with graphics"
     echo "-k                  : use KVM"
     echo "-h for help"
@@ -19,18 +21,23 @@ DO_64BIT=0
 DO_LEGACY=0
 DO_GRAPHICS=0
 DO_KVM=0
+DO_DISK=0
+DISK_IMAGE=""
+DO_NET=0
 MEMSIZE=0
 SMP=1
 SUDO=""
 MAKE_VARS=""
 
-while getopts 6gklm:s:h FLAG; do
+while getopts 6d:gklm:ns:h FLAG; do
     case $FLAG in
         6) DO_64BIT=1;;
+        d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
         g) DO_GRAPHICS=1;;
         k) DO_KVM=1;;
         l) DO_LEGACY=1;;
         m) MEMSIZE=$OPTARG;;
+        n) DO_NET=1;;
         s) SMP=$OPTARG;;
         h) HELP;;
         \?)
@@ -56,7 +63,7 @@ else
     QEMU="qemu-system-i386"
     PROJECT="pc-x86-test"
     CPU=qemu32
-    MACHINE=pc
+    MACHINE=q35
 fi
 
 if (( $DO_LEGACY )); then
@@ -69,16 +76,41 @@ else
     fi
 fi
 
-ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
+ARGS=""
+if (( $DO_KVM )); then
+    ARGS+=" -enable-kvm -cpu host"
+else
+    ARGS+=" -cpu $CPU"
+fi
+ARGS+=" -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
+
+ARGS+=" -device isa-debug-exit,iobase=0xf4,iosize=0x04"
+# Override the SeaBIOS serial port to keep it from outputting
+# a terminal reset on start.
+ARGS+=" -fw_cfg name=etc/sercon-port,string=0"
 
 if (( ! $DO_GRAPHICS )); then
     ARGS+=" -nographic"
 else
-    ARGS+=" -serial stdio"
+    ARGS+=" -serial stdio -vga std"
 fi
 
-if (( $DO_KVM )); then
-    ARGS+=" -enable-kvm -cpu host"
+if (( $DO_DISK )); then
+    if (( ! $DO_LEGACY )); then
+        ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk -device virtio-blk-pci,drive=blk"
+    else
+        ARGS+=" -hda ${DISK_IMAGE}"
+    fi
+fi
+if (( $DO_NET )); then
+    if (( ! $DO_LEGACY )); then
+        ARGS+=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-pci,netdev=vmnic"
+    else
+        echo "implement legacy + network config"
+        exit 1
+    fi
+else
+    ARGS+=" -nic none"
 fi
 
 $DIR/make-parallel $MAKE_VARS $PROJECT &&
