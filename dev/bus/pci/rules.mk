@@ -8,4 +8,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/pci.cpp \
 	$(LOCAL_DIR)/type1.cpp \
 
+MODULE_DEPS += lib/libcpp
+
 include make/module.mk

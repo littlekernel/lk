@@ -14,6 +14,8 @@
 #include <lk/reg.h>
 #include <arch/arm64.h>
 
+__BEGIN_CDECLS
+
 #define ENABLE_CYCLE_COUNTER 1
 
 void arch_stacktrace(uint64_t fp, uint64_t pc);
@@ -95,6 +97,8 @@ static inline uint arch_curr_cpu_num(void) {
     return 0;
 }
 #endif
+
+__END_CDECLS
 
 #endif // ASSEMBLY
 

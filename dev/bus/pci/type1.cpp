@@ -6,6 +6,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include "type1.h"
+
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <stdlib.h>
@@ -66,43 +68,34 @@ static uint32_t type1_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t
     return tmp;
 }
 
-static int type1_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value) {
+// new C++ version
+pci_type1 *pci_type1::detect() {
+    LTRACE_ENTRY;
+
+    auto t1 = new pci_type1;
+
+    /* we don't know how many busses there are */
+    t1->set_last_bus(32);
+
+    return t1;
+}
+
+int pci_type1::read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value) {
+    LTRACEF("state bus %#hhx dev_fn %#hhx reg %#x\n", state->bus, state->dev_fn, reg);
+    *value = type1_read_half(state->bus, state->dev_fn >> 3, state->dev_fn & 0x7, reg);
+    return NO_ERROR;
+}
+
+int pci_type1::read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value) {
+    LTRACEF("state bus %#hhx dev_fn %#hhx reg %#x\n", state->bus, state->dev_fn, reg);
+    *value = type1_read_half(state->bus, state->dev_fn >> 3, state->dev_fn & 0x7, reg);
+    return NO_ERROR;
+}
+
+int pci_type1::read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value) {
     LTRACEF("state bus %#hhx dev_fn %#hhx reg %#x\n", state->bus, state->dev_fn, reg);
     *value = type1_read_word(state->bus, state->dev_fn >> 3, state->dev_fn & 0x7, reg);
     return NO_ERROR;
-}
-
-static int type1_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value) {
-    LTRACEF("state bus %#hhx dev_fn %#hhx reg %#x\n", state->bus, state->dev_fn, reg);
-    *value = type1_read_half(state->bus, state->dev_fn >> 3, state->dev_fn & 0x7, reg);
-    return NO_ERROR;
-}
-
-static int type1_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value) {
-    LTRACEF("state bus %#hhx dev_fn %#hhx reg %#x\n", state->bus, state->dev_fn, reg);
-    *value = type1_read_half(state->bus, state->dev_fn >> 3, state->dev_fn & 0x7, reg);
-    return NO_ERROR;
-}
-
-int pci_type1_detect(void) {
-    LTRACE_ENTRY;
-
-    /* fill in config reading routines */
-    g_pci_read_config_word = type1_read_config_word;
-    g_pci_read_config_half = type1_read_config_half;
-    g_pci_read_config_byte = type1_read_config_byte;
-
-    /* we don't know how many busses there are */
-    last_bus = 32; // TODO: find better version of this
-
-    return NO_ERROR;
-}
-
-#else // !ARCH_X86
-
-// Non x86 arches don't have this mechanism
-int pci_type1_detect(void) {
-    return ERR_NOT_SUPPORTED;
 }
 
 #endif

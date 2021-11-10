@@ -7,8 +7,11 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <arch/ops.h>
 #include <stdbool.h>
+
+__BEGIN_CDECLS
 
 #define SPIN_LOCK_INITIAL_VALUE (0)
 
@@ -90,5 +93,4 @@ arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t
         arch_enable_ints();
 }
 
-
-
+__END_CDECLS

@@ -28,6 +28,7 @@ KERNEL_LOAD_OFFSET := 0x100000 # 1MB
 MODULE_DEPS += \
     lib/cbuf \
     lib/fdtwalk \
+    dev/bus/pci \
     dev/interrupt/arm_gic \
     dev/timer/arm_generic \
     dev/virtio/block \
