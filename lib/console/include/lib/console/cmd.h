@@ -9,14 +9,17 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdalign.h>
 #include <sys/types.h>
 #include <lk/compiler.h>
 
 __BEGIN_CDECLS
 
-/* included from top level lk/console_cmd.h when lib/console is built.
+/* Included from top level lk/console_cmd.h when lib/console is built.
  * Provides definitions for how to register a command block to be picked up by
  * the lib/console machinery.
+ *
+ * Do not include directly.
  */
 
 /* an individual command */
@@ -36,15 +39,15 @@ typedef struct _cmd_block {
 
 #define STATIC_COMMAND_START static const console_cmd _cmd_list[] = {
 
-#define STATIC_COMMAND_END(name) }; const console_cmd_block _cmd_block_##name \
-    __ALIGNED(sizeof(void *)) __SECTION("commands") = \
+#define STATIC_COMMAND_END(name) }; alignas(console_cmd_block) const console_cmd_block _cmd_block_##name \
+    __SECTION("commands") = \
     { #name, sizeof(_cmd_list) / sizeof(_cmd_list[0]), _cmd_list }
 
 /* same as above but with a suffixed name to make the list unique within the file */
 #define STATIC_COMMAND_START_NAMED(name) static const console_cmd _cmd_list_##name[] = {
 
-#define STATIC_COMMAND_END_NAMED(name) }; const console_cmd_block _cmd_block_##name \
-    __ALIGNED(sizeof(void *)) __SECTION("commands") = \
+#define STATIC_COMMAND_END_NAMED(name) }; alignas(console_cmd_block) const console_cmd_block _cmd_block_##name \
+    __SECTION("commands") = \
     { #name, sizeof(_cmd_list_##name) / sizeof(_cmd_list_##name[0]), _cmd_list_##name }
 
 #define STATIC_COMMAND(command_str, help_str, func) \
