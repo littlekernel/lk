@@ -44,11 +44,11 @@ $(OUTELF).debug.lst: $(OUTELF)
 
 $(OUTELF).dump: $(OUTELF)
 	$(info generating objdump: $@)
-	$(NOECHO)$(OBJDUMP) -x $< > $@
+	$(NOECHO)$(OBJDUMP) -x $< | $(CPPFILT) > $@
 
 $(OUTELF).size: $(OUTELF)
 	$(info generating size map: $@)
-	$(NOECHO)$(NM) -S --size-sort $< > $@
+	$(NOECHO)$(NM) -S --size-sort $< | $(CPPFILT) > $@
 
 # print some information about the build
 $(BUILDDIR)/srcfiles.txt: $(OUTELF)
