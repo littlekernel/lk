@@ -235,6 +235,3 @@ STATIC_COMMAND_START
 STATIC_COMMAND("pci", "pci toolbox", &pci_cmd)
 STATIC_COMMAND_END(pcitests);
 
-APP_START(pcitests)
-APP_END
-

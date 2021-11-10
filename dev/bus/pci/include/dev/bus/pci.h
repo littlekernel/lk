@@ -11,6 +11,8 @@
 #include <sys/types.h>
 #include <lk/compiler.h>
 
+__BEGIN_CDECLS
+
 /*
  * PCI access return codes
  */
@@ -163,3 +165,4 @@ int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t va
 int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs);
 int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq);
 
+__END_CDECLS
