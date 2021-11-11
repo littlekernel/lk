@@ -69,3 +69,82 @@ static inline void spin_unlock_restore(
 #define spin_unlock_irqrestore(lock, statep) spin_unlock_restore(lock, statep, SPIN_LOCK_FLAG_INTERRUPTS)
 
 __END_CDECLS
+
+#ifdef __cplusplus
+
+#include <lk/cpp.h>
+#include <assert.h>
+
+// C++ wrapper around a C spinlock_t
+class SpinLock {
+public:
+    constexpr SpinLock() = default;
+    ~SpinLock() { DEBUG_ASSERT(!is_held()); }
+
+    void lock() { spin_lock(&lock_); }
+    int trylock() { return spin_trylock(&lock_); }
+    void unlock() { spin_unlock(&lock_); }
+    bool is_held() { return spin_lock_held(&lock_); }
+
+    void lock_irqsave(spin_lock_saved_state_t *state) {
+        spin_lock_save(&lock_, state, SPIN_LOCK_FLAG_INTERRUPTS);
+    }
+
+    void unlock_irqrestore(spin_lock_saved_state_t state) {
+        spin_unlock_restore(&lock_, state, SPIN_LOCK_FLAG_INTERRUPTS);
+    }
+
+    // suppress default constructors
+    DISALLOW_COPY_ASSIGN_AND_MOVE(SpinLock);
+
+private:
+    spin_lock_t lock_ = SPIN_LOCK_INITIAL_VALUE;
+
+    // friend classes to get to the inner lock
+    friend class AutoSpinLock;
+    friend class AutoSpinLockNoIrqSave;
+};
+
+// RAII wrappers for a spinlock, with and without IRQ Save
+class AutoSpinLock {
+public:
+    explicit AutoSpinLock(spin_lock_t *lock) : lock_(lock) { spin_lock_irqsave(lock_, state_); }
+    explicit AutoSpinLock(SpinLock *lock) : AutoSpinLock(&lock->lock_) {}
+    ~AutoSpinLock() { release(); }
+
+    void release() {
+        if (likely(lock_)) {
+            spin_unlock_irqrestore(lock_, state_);
+            lock_ = nullptr;
+        }
+    }
+
+    // suppress default constructors
+    DISALLOW_COPY_ASSIGN_AND_MOVE(AutoSpinLock);
+
+private:
+    spin_lock_t *lock_;
+    spin_lock_saved_state_t state_;
+};
+
+class AutoSpinLockNoIrqSave {
+public:
+    explicit AutoSpinLockNoIrqSave(spin_lock_t *lock) : lock_(lock) { spin_lock(lock_); }
+    explicit AutoSpinLockNoIrqSave(SpinLock *lock) : AutoSpinLockNoIrqSave(&lock->lock_) {}
+    ~AutoSpinLockNoIrqSave() { release(); }
+
+    void release() {
+        if (likely(lock_)) {
+            spin_unlock(lock_);
+            lock_ = nullptr;
+        }
+    }
+
+    // suppress default constructors
+    DISALLOW_COPY_ASSIGN_AND_MOVE(AutoSpinLockNoIrqSave);
+
+private:
+    spin_lock_t *lock_;
+};
+
+#endif // __cplusplus

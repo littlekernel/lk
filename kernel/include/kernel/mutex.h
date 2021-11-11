@@ -52,3 +52,56 @@ static bool is_mutex_held(const mutex_t *m) {
 }
 
 __END_CDECLS
+
+#ifdef __cplusplus
+
+#include <lk/cpp.h>
+
+// C++ wrapper object
+class Mutex {
+public:
+    constexpr Mutex() = default;
+    ~Mutex() { mutex_destroy(&lock_); }
+
+    status_t acquire(lk_time_t timeout) { return mutex_acquire_timeout(&lock_, timeout); }
+    status_t release() { return mutex_release(&lock_); }
+    bool is_held() { return is_mutex_held(&lock_); }
+
+    // suppress default constructors
+    DISALLOW_COPY_ASSIGN_AND_MOVE(Mutex);
+
+private:
+    mutex_t lock_ = MUTEX_INITIAL_VALUE(lock_);
+
+    // AutoLock has access to the inner lock
+    friend class AutoLock;
+};
+
+// RAII wrapper around the mutex
+class AutoLock {
+public:
+    explicit AutoLock(mutex_t *mutex) : mutex_(mutex) { mutex_acquire(mutex_); }
+    AutoLock(mutex_t &mutex) : AutoLock(&mutex) {}
+
+    explicit AutoLock(Mutex *mutex) : AutoLock(&mutex->lock_) {}
+    AutoLock(Mutex &mutex) : AutoLock(&mutex) {}
+
+    ~AutoLock() { release(); }
+
+    // early release the mutex before the object goes out of scope
+    void release() {
+        if (likely(mutex_)) {
+            mutex_release(mutex_);
+            mutex_ = nullptr;
+        }
+    }
+
+    // suppress default constructors
+    DISALLOW_COPY_ASSIGN_AND_MOVE(AutoLock);
+
+private:
+    mutex_t *mutex_ = nullptr;
+};
+
+#endif // __cplusplus
+

@@ -7,11 +7,9 @@
  */
 #pragma once
 
-#include <arch/defines.h>
-#include <arch/ops.h>
-#include <arch/thread.h>
 #include <lk/compiler.h>
 #include <lk/list.h>
+#include <stdbool.h>
 #include <sys/types.h>
 
 __BEGIN_CDECLS
@@ -63,6 +61,7 @@ int wait_queue_wake_all(wait_queue_t *, bool reschedule, status_t wait_queue_err
  * remove the thread from whatever wait queue it's in.
  * return an error if the thread is not currently blocked (or is the current thread)
  */
+struct thread;
 status_t thread_unblock_from_wait_queue(struct thread *t, status_t wait_queue_error);
 
 __END_CDECLS
