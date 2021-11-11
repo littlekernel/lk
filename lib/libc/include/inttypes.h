@@ -9,6 +9,7 @@
 
 #define PRIu32 "u"
 #define PRIx32 "x"
+#define PRIxPTR "lx"
 
 #include <stdint.h>
 
