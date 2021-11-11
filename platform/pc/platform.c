@@ -234,7 +234,17 @@ void platform_init(void) {
 
     platform_init_keyboard(&console_input_buf);
 
-    acpi_lite_init(0);
+    if (acpi_lite_init(0) == NO_ERROR) {
+        // try to find the mcfg table
+        const struct acpi_mcfg_table *table = (const struct acpi_mcfg_table *)acpi_get_table_by_sig(ACPI_MCFG_SIG);
+        if (table) {
+            if (table->header.length >= sizeof(*table) + sizeof(struct acpi_mcfg_entry)) {
+                const struct acpi_mcfg_entry *entry = (const void *)(table + 1);
+                printf("PCI MCFG: segment %#hx bus [%hhu...%hhu] address %#llx\n",
+                        entry->segment, entry->start_bus, entry->end_bus, entry->base_address);
+            }
+        }
+    }
 
     pci_init();
 

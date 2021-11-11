@@ -267,6 +267,23 @@ static_assert(sizeof(struct acpi_dbg2_device) == 22, "");
 #define ACPI_DBG2_SUBTYPE_USB_XHCI 0x0000
 #define ACPI_DBG2_SUBTYPE_USB_EHCI 0x0001
 
+// MCFG table
+// Found on osdev wiki at https://wiki.osdev.org/PCI_Express
+#define ACPI_MCFG_SIG "MCFG"
+struct acpi_mcfg_table {
+  struct acpi_sdt_header header;
+  uint8_t reserved[8];
+} __PACKED;
+static_assert(sizeof(struct acpi_mcfg_table) == 44, "");
+
+struct acpi_mcfg_entry {
+    uint64_t base_address;
+    uint16_t segment;
+    uint8_t  start_bus;
+    uint8_t  end_bus;
+    uint8_t  reserved[4];
+} __PACKED;
+static_assert(sizeof(struct acpi_mcfg_entry) == 16, "");
 
 __END_CDECLS
 
