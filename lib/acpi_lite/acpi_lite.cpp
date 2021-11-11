@@ -1,17 +1,19 @@
 // Copyright 2020 The Fuchsia Authors
+// Copyright 2021 Travis Geiselbrecht
 //
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT
 
-#include "lib/acpi_lite.h"
+#include <lib/acpi_lite.h>
 
 #include <inttypes.h>
-#include <trace.h>
-#include <zircon/compiler.h>
-
-#include <pretty/hexdump.h>
-#include <vm/physmap.h>
+#include <string.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/trace.h>
+#include <kernel/vm.h>
 
 #define LOCAL_TRACE 0
 
@@ -23,16 +25,10 @@ struct acpi_lite_state {
   bool xsdt;          // are the pointers 64 or 32bit?
 } acpi;
 
+// given a physical address, return a pointer to it from the VM
 static const void* phys_to_ptr(uintptr_t pa) {
-  if (!is_physmap_phys_addr(pa)) {
-    return nullptr;
-  }
-  // consider 0 to be invalid
-  if (pa == 0) {
-    return nullptr;
-  }
-
-  return static_cast<const void*>(paddr_to_physmap(pa));
+  void *ptr = paddr_to_kvaddr(pa);
+  return ptr;
 }
 
 static uint8_t acpi_checksum(const void* _buf, size_t len) {
@@ -75,9 +71,9 @@ static bool validate_rsdp(const acpi_rsdp* rsdp) {
   return true;
 }
 
-static zx_paddr_t find_rsdp_pc() {
+static paddr_t find_rsdp_pc() {
   // search for it in the BIOS EBDA area (0xe0000..0xfffff) on 16 byte boundaries
-  for (zx_paddr_t ptr = 0xe0000; ptr <= 0xfffff; ptr += 16) {
+  for (paddr_t ptr = 0xe0000; ptr <= 0xfffff; ptr += 16) {
     const auto rsdp = static_cast<const acpi_rsdp*>(phys_to_ptr(ptr));
 
     if (validate_rsdp(rsdp)) {
@@ -133,7 +129,7 @@ const acpi_sdt_header* acpi_get_table_at_index(size_t index) {
     return nullptr;
   }
 
-  zx_paddr_t pa;
+  paddr_t pa;
   if (acpi.xsdt) {
     pa = acpi.sdt->addr64[index];
   } else {
@@ -163,13 +159,13 @@ const acpi_sdt_header* acpi_get_table_by_sig(const char* sig) {
   return nullptr;
 }
 
-zx_status_t acpi_lite_init(zx_paddr_t rsdp_pa) {
+status_t acpi_lite_init(paddr_t rsdp_pa) {
   LTRACEF("passed in rsdp %#" PRIxPTR "\n", rsdp_pa);
 
   // see if the rsdp pointer is valid
   if (rsdp_pa == 0) {
     // search around for it in a platform-specific way
-#if __x86_64__
+#if ARCH_X86
     rsdp_pa = find_rsdp_pc();
     if (rsdp_pa == 0) {
       dprintf(INFO, "ACPI LITE: couldn't find ACPI RSDP in BIOS area\n");
@@ -177,7 +173,7 @@ zx_status_t acpi_lite_init(zx_paddr_t rsdp_pa) {
 #endif
 
     if (rsdp_pa == 0) {
-      return ZX_ERR_NOT_FOUND;
+      return ERR_NOT_FOUND;
     }
   }
 
@@ -185,14 +181,14 @@ zx_status_t acpi_lite_init(zx_paddr_t rsdp_pa) {
   if (!ptr) {
     dprintf(INFO, "ACPI LITE: failed to translate RSDP address %#" PRIxPTR " to virtual\n",
             rsdp_pa);
-    return ZX_ERR_NOT_FOUND;
+    return ERR_NOT_FOUND;
   }
 
   // see if the RSDP is there
   acpi.rsdp = static_cast<const acpi_rsdp*>(ptr);
   if (!validate_rsdp(acpi.rsdp)) {
     dprintf(INFO, "ACPI LITE: RSDP structure does not check out\n");
-    return ZX_ERR_NOT_FOUND;
+    return ERR_NOT_FOUND;
   }
 
   dprintf(SPEW, "ACPI LITE: RSDP checks out, found at %#lx\n", rsdp_pa);
@@ -213,7 +209,7 @@ zx_status_t acpi_lite_init(zx_paddr_t rsdp_pa) {
 
   if (!validate_sdt(acpi.sdt, &acpi.num_tables, &acpi.xsdt)) {
     dprintf(INFO, "ACPI LITE: RSDT/XSDT structure does not check out\n");
-    return ZX_ERR_NOT_FOUND;
+    return ERR_NOT_FOUND;
   }
 
   dprintf(SPEW, "ACPI LITE: RSDT/XSDT checks out, %zu tables\n", acpi.num_tables);
@@ -222,7 +218,7 @@ zx_status_t acpi_lite_init(zx_paddr_t rsdp_pa) {
     acpi_lite_dump_tables();
   }
 
-  return ZX_OK;
+  return NO_ERROR;
 }
 
 void acpi_lite_dump_tables() {
@@ -246,12 +242,11 @@ void acpi_lite_dump_tables() {
   }
 }
 
-zx_status_t acpi_process_madt_entries_etc(const uint8_t search_type,
-                                          const MadtEntryCallback& callback) {
+status_t acpi_process_madt_entries_etc(const uint8_t search_type, const madt_entry_callback callback) {
   const acpi_madt_table* madt =
       reinterpret_cast<const acpi_madt_table*>(acpi_get_table_by_sig(ACPI_MADT_SIG));
   if (!madt) {
-    return ZX_ERR_NOT_FOUND;
+    return ERR_NOT_FOUND;
   }
 
   // bytewise array of the same table
@@ -270,5 +265,5 @@ zx_status_t acpi_process_madt_entries_etc(const uint8_t search_type,
     off += length;
   }
 
-  return ZX_OK;
+  return NO_ERROR;
 }
