@@ -8,6 +8,7 @@ CPU ?= generic
 
 MODULE_DEPS += \
     dev/bus/pci \
+    lib/acpi_lite \
     lib/bio \
     lib/cbuf
 

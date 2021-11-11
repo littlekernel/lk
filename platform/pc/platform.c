@@ -25,6 +25,7 @@
 #include <string.h>
 #include <assert.h>
 #include <kernel/vm.h>
+#include <lib/acpi_lite.h>
 
 #define LOCAL_TRACE 0
 
@@ -232,6 +233,8 @@ void platform_init(void) {
     platform_init_debug();
 
     platform_init_keyboard(&console_input_buf);
+
+    acpi_lite_init(0);
 
     pci_init();
 
