@@ -244,7 +244,10 @@ static enum handler_return timer_tick(void *arg, lk_time_t now) {
          */
         if (periodic && !list_in_list(&timer->node) && timer->periodic_time > 0) {
             LTRACEF("periodic timer, period %u\n", timer->periodic_time);
-            timer->scheduled_time = now + timer->periodic_time;
+            timer->scheduled_time += timer->periodic_time;
+            if (unlikely(TIME_LT(timer->scheduled_time, now))) {
+                timer->scheduled_time = now + timer->periodic_time;
+            }
             insert_timer_in_queue(cpu, timer);
         }
     }
