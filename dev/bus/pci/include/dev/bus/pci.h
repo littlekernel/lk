@@ -147,22 +147,27 @@ typedef struct {
     uint8_t reserved;
 } __PACKED irq_routing_entry;
 
-void pci_init(void);
+// only use one of these two:
+// try to detect PCI based on legacy PC PCI accessor methods
+status_t pci_init_legacy(void);
+
+// try to detect PCI based on a known ecam base.
+status_t pci_init_ecam(paddr_t ecam_base, uint16_t segment, uint8_t start_bus, uint8_t end_bus);
 
 int pci_get_last_bus(void);
 
-int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index);
-int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index);
+status_t pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index);
+status_t pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index);
 
-int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value);
-int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value);
-int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value);
+status_t pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value);
+status_t pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value);
+status_t pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value);
 
-int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value);
-int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value);
-int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value);
+status_t pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value);
+status_t pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value);
+status_t pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value);
 
-int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs);
-int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq);
+status_t pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs);
+status_t pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq);
 
 __END_CDECLS

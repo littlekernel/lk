@@ -12,7 +12,8 @@
 #include <lk/compiler.h>
 #include <dev/bus/pci.h>
 
-#include "type1.h"
 #include "bios32.h"
+#include "ecam.h"
+#include "type1.h"
 
 

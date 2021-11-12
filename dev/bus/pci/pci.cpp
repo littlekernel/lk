@@ -20,6 +20,8 @@
 
 #define LOCAL_TRACE 0
 
+// Largely C level api for the PCI bus manager
+
 namespace {
 SpinLock lock;
 pci_backend *pcib = nullptr;
@@ -27,14 +29,14 @@ pci_backend *pcib = nullptr;
 
 int pci_get_last_bus() {
     if (!pcib) {
-        return -1;
+        return ERR_NOT_CONFIGURED;
     }
 
     return pcib->get_last_bus();
 }
 
 /* user facing routines */
-int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index) {
+status_t pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index) {
     LTRACEF("device_id dev %#hx vendor %#hx index %#hx\n", device_id, vendor_id, index);
 
     if (!pcib) return ERR_NOT_CONFIGURED;
@@ -46,7 +48,7 @@ int pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vend
     return res;
 }
 
-int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index) {
+status_t pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index) {
     LTRACEF("device_id class %#x index %#hx\n", class_code, index);
 
     if (!pcib) return ERR_NOT_CONFIGURED;
@@ -58,7 +60,7 @@ int pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t
     return res;
 }
 
-int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value) {
+status_t pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -67,7 +69,7 @@ int pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *val
 
     return res;
 }
-int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value) {
+status_t pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -77,7 +79,7 @@ int pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *va
     return res;
 }
 
-int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value) {
+status_t pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -87,7 +89,7 @@ int pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *va
     return res;
 }
 
-int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value) {
+status_t pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -97,7 +99,7 @@ int pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t val
     return res;
 }
 
-int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value) {
+status_t pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -107,7 +109,7 @@ int pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t va
     return res;
 }
 
-int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value) {
+status_t pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -117,7 +119,7 @@ int pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t va
     return res;
 }
 
-int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs) {
+status_t pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     // TODO: highly bios32 specific, abstract this differently
@@ -138,7 +140,7 @@ int pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uin
     return res;
 }
 
-int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq) {
+status_t pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -148,22 +150,43 @@ int pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq
     return res;
 }
 
-void pci_init() {
-    // try a series of detection mechanisms
+status_t pci_init_legacy() {
+    LTRACE_ENTRY;
+
+    DEBUG_ASSERT(pcib == nullptr);
+
+    // try a series of detection mechanisms based on legacy PCI access on x86 PCs
 
     // try to BIOS32 access first, if present
     if ((pcib = pci_bios32::detect())) {
         dprintf(INFO, "PCI: pci bios functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
-        return;
+        return NO_ERROR;
     }
 
     // try type 1 access
     if ((pcib = pci_type1::detect())) {
         dprintf(INFO, "PCI: pci type1 functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
-        return;
+        return NO_ERROR;
     }
 
     // if we couldn't find anything, leave pcib null
+    return ERR_NOT_FOUND;
 }
+
+status_t pci_init_ecam(paddr_t ecam_base, uint16_t segment, uint8_t start_bus, uint8_t end_bus) {
+    LTRACEF("base %#lx, segment %hu, bus [%hhu...%hhu]\n", ecam_base, segment, start_bus, end_bus);
+
+    DEBUG_ASSERT(pcib == nullptr);
+
+    if ((pcib = pci_ecam::detect(ecam_base, segment, start_bus, end_bus))) {
+        dprintf(INFO, "PCI: pci ecam functions installed\n");
+        dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
+        return NO_ERROR;
+    }
+
+    // if we couldn't find anything, leave pcib null
+    return ERR_NOT_FOUND;
+}
+

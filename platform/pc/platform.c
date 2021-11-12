@@ -44,8 +44,6 @@ extern uint64_t __data_end;
 extern uint64_t __bss_start;
 extern uint64_t __bss_end;
 
-extern void pci_init(void);
-
 void platform_init_mmu_mappings(void) {
     // XXX move into arch/x86 setup
 #if 0
@@ -234,6 +232,7 @@ void platform_init(void) {
 
     platform_init_keyboard(&console_input_buf);
 
+    bool pci_initted = false;
     if (acpi_lite_init(0) == NO_ERROR) {
         // try to find the mcfg table
         const struct acpi_mcfg_table *table = (const struct acpi_mcfg_table *)acpi_get_table_by_sig(ACPI_MCFG_SIG);
@@ -242,11 +241,20 @@ void platform_init(void) {
                 const struct acpi_mcfg_entry *entry = (const void *)(table + 1);
                 printf("PCI MCFG: segment %#hx bus [%hhu...%hhu] address %#llx\n",
                         entry->segment, entry->start_bus, entry->end_bus, entry->base_address);
+
+                // try to initialize pci based on the MCFG ecam aperture
+                status_t err = pci_init_ecam(entry->base_address, entry->segment, entry->start_bus, entry->end_bus);
+                if (err == NO_ERROR) {
+                    pci_initted = true;
+                }
             }
         }
     }
 
-    pci_init();
+    // fall back to legacy pci if we couldn't find the pcie aperture
+    if (!pci_initted) {
+        pci_init_legacy();
+    }
 
     platform_init_mmu_mappings();
 }

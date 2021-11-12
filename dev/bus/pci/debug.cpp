@@ -29,8 +29,10 @@ static void pci_list(void) {
 
     printf("Scanning...\n");
 
-    for (state.bus = 0; state.bus <= pci_get_last_bus(); state.bus++) {
+    for (int bus = 0; bus <= (int)pci_get_last_bus(); bus++) {
         busses++;
+
+        state.bus = bus;
 
         for (devfn = 0; devfn < 256; devfn++) {
             state.dev_fn = devfn;
