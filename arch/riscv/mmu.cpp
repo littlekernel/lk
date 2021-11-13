@@ -113,7 +113,7 @@ void riscv_set_satp(uint asid, paddr_t pt) {
 #endif
 
     // make sure the asid is in range
-    DEBUG_ASSERT_MSG((asid & riscv_asid_mask) == asid, "asid %#x mask %#x\n", asid, riscv_asid_mask);
+    DEBUG_ASSERT_MSG((asid & riscv_asid_mask) == asid, "asid %#x mask %#lx\n", asid, riscv_asid_mask);
     satp |= (ulong)asid << RISCV_SATP_ASID_SHIFT;
 
     // make sure the page table is aligned
