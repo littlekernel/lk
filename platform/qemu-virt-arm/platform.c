@@ -6,9 +6,11 @@
  * https://opensource.org/licenses/MIT
  */
 #include <arch.h>
+#include <inttypes.h>
 #include <lk/err.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
+#include <dev/bus/pci.h>
 #include <dev/interrupt/arm_gic.h>
 #include <dev/timer/arm_generic.h>
 #include <dev/uart.h>
@@ -98,6 +100,23 @@ static void cpucallback(uint64_t id, void *cookie) {
     (*cpu_count)++;
 }
 
+struct pcie_detect_state {
+    uint64_t ecam_base;
+    uint64_t ecam_len;
+    uint8_t bus_start;
+    uint8_t bus_end;
+} pcie_state;
+
+static void pciecallback(uint64_t ecam_base, size_t len, uint8_t bus_start, uint8_t bus_end, void *cookie) {
+    struct pcie_detect_state *state = cookie;
+
+    LTRACEF("ecam base %#llx, len %zu, bus_start %hhu, bus_end %hhu\n", ecam_base, len, bus_start, bus_end);
+    state->ecam_base = ecam_base;
+    state->ecam_len = len;
+    state->bus_start = bus_start;
+    state->bus_end = bus_end;
+}
+
 void platform_early_init(void) {
     /* initialize the interrupt controller */
     arm_gic_init();
@@ -113,6 +132,8 @@ void platform_early_init(void) {
         .memcookie = &found_mem,
         .cpu = cpucallback,
         .cpucookie = &cpu_count,
+        .pcie = pciecallback,
+        .pciecookie = &pcie_state,
     };
 
     const void *fdt = (void *)KERNEL_BASE;
@@ -157,6 +178,19 @@ void platform_early_init(void) {
 
 void platform_init(void) {
     uart_init();
+
+    /* detect pci */
+#if ARCH_ARM
+    if (pcie_state.ecam_base > (1ULL << 32)) {
+        // dont try to configure this since we dont have LPAE support
+        printf("PCIE: skipping pci initialization due to high memory ECAM\n");
+        pcie_state.ecam_len = 0;
+    }
+#endif
+    if (pcie_state.ecam_len > 0) {
+        printf("PCIE: initializing pcie with ecam at %#" PRIx64 " found in FDT\n", pcie_state.ecam_base);
+        pci_init_ecam(pcie_state.ecam_base, pcie_state.ecam_len, pcie_state.bus_start, pcie_state.bus_end);
+    }
 
     /* detect any virtio devices */
     uint virtio_irqs[NUM_VIRTIO_TRANSPORTS];
