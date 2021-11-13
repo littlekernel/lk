@@ -143,6 +143,45 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
                 }
             }
         }
+
+        /* look for a pcie leaf and pass the address of the ecam to the callback */
+        if (strncmp(name, "pcie@", 4) == 0 && depth == 1) {
+            uint64_t ecam_base, ecam_size;
+            uint8_t bus_start, bus_end;
+            ecam_base = ecam_size = bus_start = bus_end = 0;
+
+            int lenp;
+            const uint8_t *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
+            LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
+            if (prop_ptr) {
+                LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
+                              address_cells[depth], size_cells[depth]);
+
+                /* seems to always be full address cells 2, size cells 2, despite it being 3/2 */
+                ecam_base = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                prop_ptr += 8;
+                ecam_size = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+            }
+
+            prop_ptr = fdt_getprop(fdt, offset, "bus-range", &lenp);
+            LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
+            if (prop_ptr) {
+                LTRACEF_LEVEL(2, "found '%s' bus-range prop len %d, ac %u, sc %u\n", name, lenp,
+                              address_cells[depth], size_cells[depth]);
+
+                if (lenp == 8) {
+                    bus_start = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                    prop_ptr += 4;
+                    bus_end = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                }
+            }
+
+            if (cb->cpu && ecam_size > 0) {
+                LTRACEF("calling cpu callback with base %#llx size %#llx\n", ecam_base, ecam_size);
+                cb->pcie(ecam_base, ecam_size, bus_start, bus_end, cb->pciecookie);
+            }
+        }
+
     }
 
     return NO_ERROR;

@@ -19,6 +19,8 @@ struct fdt_walk_callbacks {
     void *memcookie;
     void (*cpu)(uint64_t id, void *cookie);
     void *cpucookie;
+    void (*pcie)(uint64_t ecam_base, size_t len, uint8_t bus_start, uint8_t bus_end, void *cookie);
+    void *pciecookie;
 };
 
 status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *);
