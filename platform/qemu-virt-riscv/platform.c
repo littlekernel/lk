@@ -5,6 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <inttypes.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <kernel/thread.h>
@@ -15,6 +16,7 @@
 #include <platform/virt.h>
 #include <sys/types.h>
 #include <lib/fdtwalk.h>
+#include <dev/bus/pci.h>
 #include <dev/virtio.h>
 #include <dev/virtio/net.h>
 #if WITH_LIB_MINIP
@@ -76,6 +78,23 @@ static void cpucallback(uint64_t id, void *cookie) {
     (*cpu_count)++;
 }
 
+struct pcie_detect_state {
+    uint64_t ecam_base;
+    uint64_t ecam_len;
+    uint8_t bus_start;
+    uint8_t bus_end;
+} pcie_state;
+
+static void pciecallback(uint64_t ecam_base, size_t len, uint8_t bus_start, uint8_t bus_end, void *cookie) {
+    struct pcie_detect_state *state = cookie;
+
+    LTRACEF("ecam base %#llx, len %zu, bus_start %hhu, bus_end %hhu\n", ecam_base, len, bus_start, bus_end);
+    state->ecam_base = ecam_base;
+    state->ecam_len = len;
+    state->bus_start = bus_start;
+    state->bus_end = bus_end;
+}
+
 void platform_early_init(void) {
     plic_early_init();
 
@@ -94,6 +113,8 @@ void platform_early_init(void) {
         .memcookie = &found_mem,
         .cpu = cpucallback,
         .cpucookie = &cpu_count,
+        .pcie = pciecallback,
+        .pciecookie = &pcie_state,
     };
 
     status_t err = fdt_walk(fdt, &cb);
@@ -136,6 +157,12 @@ void platform_early_init(void) {
 void platform_init(void) {
     plic_init();
     uart_init();
+
+    /* detect pci */
+    if (pcie_state.ecam_len > 0) {
+        printf("PCIE: initializing pcie with ecam at %#" PRIx64 " found in FDT\n", pcie_state.ecam_base);
+        pci_init_ecam(pcie_state.ecam_base, pcie_state.ecam_len, pcie_state.bus_start, pcie_state.bus_end);
+    }
 
     /* detect any virtio devices */
     uint virtio_irqs[NUM_VIRTIO_TRANSPORTS];

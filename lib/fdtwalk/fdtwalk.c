@@ -145,7 +145,7 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
         }
 
         /* look for a pcie leaf and pass the address of the ecam to the callback */
-        if (strncmp(name, "pcie@", 4) == 0 && depth == 1) {
+        if (strncmp(name, "pcie@", 5) == 0 || strncmp(name, "pci@", 4) == 0) {
             uint64_t ecam_base, ecam_size;
             uint8_t bus_start, bus_end;
             ecam_base = ecam_size = bus_start = bus_end = 0;
