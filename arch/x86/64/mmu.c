@@ -307,8 +307,6 @@ static void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, map_addr_t m, arch_fla
     pd_table[pd_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
     if (flags & X86_MMU_PG_U)
         pd_table[pd_index] |= X86_MMU_PG_U;
-    else
-        pd_table[pd_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
 }
 
 static void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, map_addr_t m, arch_flags_t flags) {
@@ -320,8 +318,6 @@ static void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, map_addr_t m, arch_f
     pdp_table[pdp_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
     if (flags & X86_MMU_PG_U)
         pdp_table[pdp_index] |= X86_MMU_PG_U;
-    else
-        pdp_table[pdp_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
 }
 
 static void update_pml4_entry(vaddr_t vaddr, addr_t pml4_addr, map_addr_t m, arch_flags_t flags) {
@@ -333,8 +329,10 @@ static void update_pml4_entry(vaddr_t vaddr, addr_t pml4_addr, map_addr_t m, arc
     pml4_table[pml4_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
     if (flags & X86_MMU_PG_U)
         pml4_table[pml4_index] |= X86_MMU_PG_U;
-    else
-        pml4_table[pml4_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
+
+    /* Explicitly do not set the G bit here for kernel pages. Intel cores
+     * ignore the G bit on PML4 entries, but AMD cores treat it as MBZ.
+     */
 }
 
 /**
