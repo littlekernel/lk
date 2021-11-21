@@ -78,8 +78,9 @@ ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT
 BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
 NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
 NET_TAP_ARGS=" -netdev tap,id=vmnic -device virtio-net-device,netdev=vmnic"
-NO_DISPLAY_ARGS=" -nographic"
+NO_NET_ARGS=" -net none"
 DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
+NO_DISPLAY_ARGS=" -nographic"
 
 echo DO_BLOCK = $DO_BLOCK
 echo DO_NET = $DO_NET
@@ -89,6 +90,8 @@ if [ $DO_BLOCK == 1 ]; then
 fi
 if [ $DO_NET == 1 ]; then
     ARGS+=$NET_ARGS
+else
+    ARGS+=$NO_NET_ARGS
 fi
 if [ $DO_NET_TAP == 1 ]; then
     ARGS+=$NET_TAP_ARGS
