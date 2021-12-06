@@ -71,6 +71,13 @@ static pte_t mmu_flags_to_pte_attr(uint flags) {
 
     if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
         attr |= MMU_PTE_ATTR_UXN | MMU_PTE_ATTR_PXN;
+    } else {
+        // execute permissions, so set user or privileged XN based on which mode
+        if (flags & ARCH_MMU_FLAG_PERM_USER) {
+            attr |= MMU_PTE_ATTR_PXN;
+        } else {
+            attr |= MMU_PTE_ATTR_UXN;
+        }
     }
 
     if (flags & ARCH_MMU_FLAG_NS) {
@@ -179,8 +186,17 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
                 *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO;
                 break;
         }
-        if ((pte & MMU_PTE_ATTR_UXN) && (pte & MMU_PTE_ATTR_PXN)) {
-            *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+
+        // if we have previously detected a user or privileged page, test
+        // the appropriate NX bit to determine no execute
+        if (*flags & ARCH_MMU_FLAG_PERM_USER) {
+            if (pte & MMU_PTE_ATTR_UXN) {
+                *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+            }
+        } else {
+            if (pte & MMU_PTE_ATTR_PXN) {
+                *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+            }
         }
     }
     LTRACEF("va 0x%lx, paddr 0x%lx, flags 0x%x\n",
