@@ -72,6 +72,49 @@ static bool map_user_pages(void) {
     END_TEST;
 }
 
+static bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
+    BEGIN_TEST;
+    void *ptr = NULL;
+
+    // create a region of an arbitrary page in kernel aspace
+    EXPECT_EQ(NO_ERROR, vmm_alloc(aspace, "test region", PAGE_SIZE, &ptr, 0, /* vmm_flags */ 0, arch_flags), "map region");
+    EXPECT_NONNULL(ptr, "not null");
+
+    // query the page to see if it's realistic
+    {
+        paddr_t pa;
+        uint flags;
+        EXPECT_EQ(NO_ERROR, arch_mmu_query(&aspace->arch_aspace, (vaddr_t)ptr, &pa, &flags), "arch_query");
+        EXPECT_NE(0, pa, "valid pa");
+        EXPECT_EQ(arch_flags, flags, "query flags");
+    }
+
+    // free this region we made
+    EXPECT_EQ(NO_ERROR, vmm_free_region(aspace, (vaddr_t)ptr), "free region");
+
+    END_TEST;
+}
+
+static bool map_query_pages(void) {
+    BEGIN_TEST;
+
+    vmm_aspace_t *kaspace = vmm_get_kernel_aspace();
+    EXPECT_NONNULL(kaspace, "kaspace");
+
+    // try mapping pages in the kernel address space with various permissions and read them back via arch query
+    EXPECT_TRUE(map_region_query_result(kaspace, 0), "0");
+    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO), "1");
+    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_NO_EXECUTE), "2");
+    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "3");
+
+    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER), "4");
+    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO), "5");
+    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "6");
+    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "7");
+
+    END_TEST;
+}
+
 static bool context_switch(void) {
     BEGIN_TEST;
 
@@ -125,6 +168,7 @@ static bool context_switch(void) {
 BEGIN_TEST_CASE(arch_mmu_tests)
 RUN_TEST(create_user_aspace);
 RUN_TEST(map_user_pages);
+RUN_TEST(map_query_pages);
 RUN_TEST(context_switch);
 END_TEST_CASE(arch_mmu_tests)
 
