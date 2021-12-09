@@ -87,19 +87,22 @@
 #define __WARN_UNUSED_RESULT
 #endif
 
-#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1)
+#if defined(__clang__)
+/* Clang does not support externally_visible, used should be similar. */
+#define __EXTERNALLY_VISIBLE __attribute__((used))
+#elif (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1)
 #define __EXTERNALLY_VISIBLE __attribute__((externally_visible))
 #else
 #define __EXTERNALLY_VISIBLE
 #endif
 
-#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)
+#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5) || defined(__clang__)
 #define __UNREACHABLE __builtin_unreachable()
 #else
 #define __UNREACHABLE
 #endif
 
-#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6) || defined(__clang__)
 #ifdef __cplusplus
 #define STATIC_ASSERT(e) static_assert(e, #e)
 #else
