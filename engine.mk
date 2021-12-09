@@ -195,6 +195,12 @@ SIZE ?= $(TOOLCHAIN_PREFIX)size
 NM ?= $(TOOLCHAIN_PREFIX)nm
 STRIP ?= $(TOOLCHAIN_PREFIX)strip
 
+# Detect whether we are using ld.lld. If we don't detect ld.lld, we assume
+# it's ld.bfd. This check can be refined in the future if we need to handle
+# more cases (e.g. ld.gold).
+LINKER_TYPE := $(shell $(LD) -v 2>&1 | grep -q "LLD" && echo lld || echo bfd)
+$(info LINKER_TYPE=$(LINKER_TYPE))
+
 # Now that CC is defined we can check if warning flags are supported and add
 # them to GLOBAL_COMPILEFLAGS if they are.
 ifeq ($(call is_warning_flag_supported,-Wnonnull-compare),yes)
