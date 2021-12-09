@@ -224,6 +224,18 @@ ifeq ($(ARCH),riscv)
 # TODO: This is no longer true as of LLVM 15, so should add a version check
 ifeq ($(LINKER_TYPE),lld)
 ARCH_COMPILEFLAGS += -mno-relax
+# Work around out-of-range undef-weak relocations when building with clang and
+# linking with ld.lld. This is not a problem with ld.bfd since ld.bfd rewrites
+# the instructions to avoid the out-of-range PC-relative relocation
+# See https://github.com/riscv-non-isa/riscv-elf-psabi-doc/issues/126 for more
+# details. For now, the simplest workaround is to build with -fpie when using
+# a version of clang that does not include https://reviews.llvm.org/D107280.
+# TODO: Add a clang 17 version check now that the review has been merged.
+ifeq ($(COMPILER_TYPE),clang)
+# We also add the -fdirect-access-external-data flag is added to avoid the
+# majority of the performance overhead caused by -fPIE.
+ARCH_COMPILEFLAGS += -fPIE -fdirect-access-external-data
+endif
 endif
 endif
 
