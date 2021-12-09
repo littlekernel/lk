@@ -58,3 +58,17 @@ define MAKECONFIGHEADER
 	echo $3 >> $1.tmp; \
 	$(call TESTANDREPLACEFILE,$1.tmp,$1)
 endef
+
+check_compiler_flag = $(shell $(CC) -c -xc /dev/null -o /dev/null $(1) 2>/dev/null && echo yes || echo no)
+# Due to GCC's behaviour with regard to unknown warning flags this macro can
+# only be used to detect warning-enable options (-Wfoo) but not for warning
+# disable flags such as -Wno-foo.
+# https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#:~:text=When%20an%20unrecognized%20warning%20option%20is%20requested
+is_warning_flag_supported = $(strip \
+    $(if $(findstring -Wno-,$(1)),$(error "Cannot use -Wno- flags here: $(1)"),) \
+	$(if $(CC),,$(error "CC is not set, this macro cannot be used yet!")) \
+	$(if $($(call MAKECVAR,$(1))), \
+	    $(info Using cached result for $(1): $($(call MAKECVAR,$(1)))), \
+	    $(eval $(call MAKECVAR,$(1)) := $(call check_compiler_flag,-Werror -fsyntax-only $(1))) \
+	    $(info Checking if $(1) is supported: $($(call MAKECVAR,$(1)))) \
+	 )$($(call MAKECVAR,$(1))))
