@@ -22,7 +22,7 @@ char       *strcat(char *, char const *);
 char       *strchr(char const *, int) __PURE;
 int         strcmp(char const *, char const *) __PURE;
 char       *strcpy(char *, char const *);
-char const *strerror(int) __CONST;
+char       *strerror(int) __CONST;
 size_t      strlen(char const *) __PURE;
 char       *strncat(char *, char const *, size_t);
 int         strncmp(char const *, char const *, size_t) __PURE;
