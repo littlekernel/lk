@@ -64,7 +64,7 @@ GLOBAL_INCLUDES := $(BUILDDIR) $(addsuffix /include,$(LKINC))
 GLOBAL_OPTFLAGS ?= $(ARCH_OPTFLAGS)
 GLOBAL_COMPILEFLAGS := -g -include $(CONFIGHEADER)
 GLOBAL_COMPILEFLAGS += -Wextra -Wall -Werror=return-type -Wshadow -Wdouble-promotion
-GLOBAL_COMPILEFLAGS += -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Wno-unused-label -Wno-nonnull-compare
+GLOBAL_COMPILEFLAGS += -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Wno-unused-label
 GLOBAL_COMPILEFLAGS += -fno-common
 GLOBAL_CFLAGS := --std=gnu11 -Werror-implicit-function-declaration -Wstrict-prototypes -Wwrite-strings
 GLOBAL_CPPFLAGS := --std=c++14 -fno-exceptions -fno-rtti -fno-threadsafe-statics
@@ -181,6 +181,23 @@ ifndef TOOLCHAIN_PREFIX
 $(error TOOLCHAIN_PREFIX not set in the arch rules.mk)
 endif
 
+# default to no ccache
+CCACHE ?=
+CC := $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
+LD := $(TOOLCHAIN_PREFIX)ld
+OBJDUMP := $(TOOLCHAIN_PREFIX)objdump
+OBJCOPY := $(TOOLCHAIN_PREFIX)objcopy
+CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
+SIZE := $(TOOLCHAIN_PREFIX)size
+NM := $(TOOLCHAIN_PREFIX)nm
+STRIP := $(TOOLCHAIN_PREFIX)strip
+
+# Now that CC is defined we can check if warning flags are supported and add
+# them to GLOBAL_COMPILEFLAGS if they are.
+ifeq ($(call is_warning_flag_supported,-Wnonnull-compare),yes)
+GLOBAL_COMPILEFLAGS += -Wno-nonnull-compare
+endif
+
 $(info PROJECT = $(PROJECT))
 $(info PLATFORM = $(PLATFORM))
 $(info TARGET = $(TARGET))
@@ -229,17 +246,6 @@ endif
 ifneq ($(DEFINES),)
 $(error DEFINES variable set, please move to GLOBAL_DEFINES: $(DEFINES))
 endif
-
-# default to no ccache
-CCACHE ?=
-CC := $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
-LD := $(TOOLCHAIN_PREFIX)ld
-OBJDUMP := $(TOOLCHAIN_PREFIX)objdump
-OBJCOPY := $(TOOLCHAIN_PREFIX)objcopy
-CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
-SIZE := $(TOOLCHAIN_PREFIX)size
-NM := $(TOOLCHAIN_PREFIX)nm
-STRIP := $(TOOLCHAIN_PREFIX)strip
 
 # try to have the compiler output colorized error messages if available
 export GCC_COLORS ?= 1
