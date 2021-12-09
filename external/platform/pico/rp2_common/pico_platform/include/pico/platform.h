@@ -7,7 +7,6 @@
 #ifndef _PICO_PLATFORM_H_
 #define _PICO_PLATFORM_H_
 
-#include <sys/cdefs.h>
 #include "pico/types.h"
 #include "hardware/platform_defs.h"
 

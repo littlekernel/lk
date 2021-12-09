@@ -11,6 +11,9 @@
 
 #pragma once
 
+#define __CONCAT1(x, y) x ## y
+#define __CONCAT(x, y) __CONCAT1(x, y)
+
 #ifndef __ASSEMBLY__
 
 #if __GNUC__ || __clang__
