@@ -216,6 +216,14 @@ ARCH_COMPILEFLAGS += -Wno-asm-operand-widths
 endif
 endif
 
+ifeq ($(ARCH),riscv)
+# ld.lld does not support linker relaxations yet.
+# TODO: This is no longer true as of LLVM 15, so should add a version check
+ifeq ($(LINKER_TYPE),lld)
+ARCH_COMPILEFLAGS += -mno-relax
+endif
+endif
+
 $(info PROJECT = $(PROJECT))
 $(info PLATFORM = $(PLATFORM))
 $(info TARGET = $(TARGET))
