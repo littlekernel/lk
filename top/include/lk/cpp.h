@@ -10,6 +10,8 @@
 // found in the LICENSE file.
 #pragma once
 
+#include <type_traits>
+
 // Helper routines used in C++ code in LK
 
 // Macro used to simplify the task of deleting all of the default copy
@@ -31,4 +33,50 @@
 #define DISALLOW_NEW                       \
     static void* operator new(size_t) = delete;   \
     static void* operator new[](size_t) = delete
+
+// TODO: find a better place for this
+namespace lk {
+
+template <typename T>
+class auto_call {
+public:
+    constexpr explicit auto_call(T c) : call_(std::move(c)) {}
+    ~auto_call() { call(); }
+
+    auto_call(auto_call && c) : call_(std::move(c.call_)), armed_(c.armed_) {
+        c.cancel();
+    }
+    auto_call& operator=(auto_call&& c) {
+        call();
+        call_ = std::move(c.call_);
+        armed_ = c.armed_;
+        c.cancel();
+        return *this;
+    }
+
+    DISALLOW_COPY_AND_ASSIGN_ALLOW_MOVE(auto_call);
+
+    void call() {
+        bool armed = armed_;
+        cancel();
+        if (armed) {
+            call_();
+        }
+    }
+    void cancel() {
+        armed_ = false;
+    }
+
+private:
+    T call_;
+    bool armed_ = true;
+};
+
+template <typename T>
+inline auto_call<T> make_auto_call(T c) {
+    return auto_call<T>(std::move(c));
+}
+
+} // namespace lk
+
 
