@@ -13,6 +13,7 @@ MODULE_DEPS += \
 
 ifneq ($(CPU),legacy)
 MODULE_DEPS += dev/bus/pci
+MODULE_DEPS += dev/net/e1000
 endif
 
 MODULE_SRCS += \

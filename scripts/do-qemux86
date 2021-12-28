@@ -110,7 +110,7 @@ if (( $DO_NET )); then
         exit 1
     fi
 else
-    ARGS+=" -nic none"
+    ARGS+=" -net none"
 fi
 
 $DIR/make-parallel $MAKE_VARS $PROJECT &&

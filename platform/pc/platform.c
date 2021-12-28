@@ -296,4 +296,9 @@ void platform_init(void) {
 #endif
 
     platform_init_mmu_mappings();
+
+#if WITH_LIB_MINIP
+    extern int e1000_tx(pktbuf_t *p);
+    minip_init_dhcp(e1000_tx, 0);
+#endif
 }
