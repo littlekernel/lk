@@ -488,7 +488,7 @@ status_t x86_mmu_map_range(map_addr_t init_table, struct map_range *range, arch_
     status_t map_status;
     uint32_t no_of_pages, index;
 
-    TRACEF("table 0x%x, range vaddr 0x%lx paddr 0x%lx size %u\n", init_table, range->start_vaddr, range->start_paddr, range->size);
+    LTRACEF("table 0x%x, range vaddr 0x%lx paddr 0x%lx size %u\n", init_table, range->start_vaddr, range->start_paddr, range->size);
 
     DEBUG_ASSERT(init_table);
     if (!range)
