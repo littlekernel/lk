@@ -12,6 +12,7 @@
 #include <platform.h>
 #include <stdio.h>
 #include <lk/debug.h>
+#include <lk/trace.h>
 #include <malloc.h>
 
 #include <kernel/thread.h>
@@ -69,8 +70,6 @@ udp_socket_t *dhcp_udp_handle;
 
 #define HW_ETHERNET 1
 
-static u8 mac[6];
-
 static void printip(const char *name, u32 x) {
     union {
         u32 u;
@@ -112,7 +111,6 @@ static void dhcp_discover(u32 xid) {
 
     *opt++ = OPT_DONE;
 
-    udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt), dhcp_udp_handle);
     status_t ret = udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt), dhcp_udp_handle);
     if (ret != NO_ERROR) {
         printf("DHCP_DISCOVER failed: %d\n", ret);
@@ -175,10 +173,12 @@ static void dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, voi
 
     if (sz < sizeof(dhcp_msg_t)) return;
 
+    uint8_t mac[6];
+    minip_get_macaddr(mac);
     if (memcmp(msg->chaddr, mac, 6)) return;
 
 #if TRACE_DHCP
-    printf("dhcp op=%d len=%d from p=%d ip=", msg->opcode, sz, srcport);
+    printf("dhcp op=%d len=%zu from p=%d ip=", msg->opcode, sz, srcport);
     printip("", srcip);
 #endif
 
@@ -265,8 +265,6 @@ static int dhcp_thread(void *arg) {
 static thread_t *dhcp_thr;
 
 void minip_init_dhcp(tx_func_t tx_func, void *tx_arg) {
-    minip_get_macaddr(mac);
-
     minip_init(tx_func, tx_arg, IPV4_NONE, IPV4_NONE, IPV4_NONE);
 
     int ret = udp_open(IPV4_BCAST, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, &dhcp_udp_handle);
