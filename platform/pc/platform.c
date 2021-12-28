@@ -17,7 +17,6 @@
 #include <platform/multiboot.h>
 #include <platform/console.h>
 #include <platform/keyboard.h>
-#include <dev/bus/pci.h>
 #include <dev/uart.h>
 #include <arch/x86.h>
 #include <arch/mmu.h>
@@ -26,6 +25,13 @@
 #include <assert.h>
 #include <kernel/vm.h>
 #include <lib/acpi_lite.h>
+
+#if WITH_DEV_BUS_PCI
+#include <dev/bus/pci.h>
+#endif
+#if WITH_LIB_MINIP
+#include <lib/minip.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -253,6 +259,7 @@ void platform_init(void) {
 
     platform_init_keyboard(&console_input_buf);
 
+#if WITH_DEV_BUS_PCI
     bool pci_initted = false;
     if (acpi_lite_init(0) == NO_ERROR) {
         if (LOCAL_TRACE) {
@@ -286,6 +293,7 @@ void platform_init(void) {
     if (!pci_initted) {
         pci_init_legacy();
     }
+#endif
 
     platform_init_mmu_mappings();
 }

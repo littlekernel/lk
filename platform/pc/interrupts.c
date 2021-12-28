@@ -10,6 +10,7 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/reg.h>
+#include <lk/trace.h>
 #include <assert.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
@@ -19,130 +20,55 @@
 #include "platform_p.h"
 #include <platform/pc.h>
 
+#define LOCAL_TRACE 0
+
 static spin_lock_t lock;
 
-#define PIC1 0x20
-#define PIC2 0xA0
+#define INTC_TYPE_INTERNAL  0
+#define INTC_TYPE_PIC       1
+#define INTC_TYPE_MSI       2
 
-#define ICW1 0x11
-#define ICW4 0x01
-
-struct int_handler_struct {
+struct int_vector {
     int_handler handler;
     void *arg;
+    struct {
+        uint allocated : 1;
+        uint type : 2; // INTC_TYPE
+        uint edge : 1; // edge vs level
+    } flags;
 };
 
-static struct int_handler_struct int_handler_table[INT_VECTORS];
-
-/*
- * Cached IRQ mask (enabled/disabled)
- */
-static uint8_t irqMask[2];
-
-/*
- * init the PICs and remap them
- */
-static void map(uint32_t pic1, uint32_t pic2) {
-    /* send ICW1 */
-    outp(PIC1, ICW1);
-    outp(PIC2, ICW1);
-
-    /* send ICW2 */
-    outp(PIC1 + 1, pic1);   /* remap */
-    outp(PIC2 + 1, pic2);   /*  pics */
-
-    /* send ICW3 */
-    outp(PIC1 + 1, 4);  /* IRQ2 -> connection to slave */
-    outp(PIC2 + 1, 2);
-
-    /* send ICW4 */
-    outp(PIC1 + 1, 5);
-    outp(PIC2 + 1, 1);
-
-    /* disable all IRQs */
-    outp(PIC1 + 1, 0xff);
-    outp(PIC2 + 1, 0xff);
-
-    irqMask[0] = 0xff;
-    irqMask[1] = 0xff;
-}
-
-static void enable(unsigned int vector, bool enable) {
-    if (vector >= PIC1_BASE && vector < PIC1_BASE + 8) {
-        vector -= PIC1_BASE;
-
-        uint8_t bit = 1 << vector;
-
-        if (enable && (irqMask[0] & bit)) {
-            irqMask[0] = inp(PIC1 + 1);
-            irqMask[0] &= ~bit;
-            outp(PIC1 + 1, irqMask[0]);
-            irqMask[0] = inp(PIC1 + 1);
-        } else if (!enable && !(irqMask[0] & bit)) {
-            irqMask[0] = inp(PIC1 + 1);
-            irqMask[0] |= bit;
-            outp(PIC1 + 1, irqMask[0]);
-            irqMask[0] = inp(PIC1 + 1);
-        }
-    } else if (vector >= PIC2_BASE && vector < PIC2_BASE + 8) {
-        vector -= PIC2_BASE;
-
-        uint8_t bit = 1 << vector;
-
-        if (enable && (irqMask[1] & bit)) {
-            irqMask[1] = inp(PIC2 + 1);
-            irqMask[1] &= ~bit;
-            outp(PIC2 + 1, irqMask[1]);
-            irqMask[1] = inp(PIC2 + 1);
-        } else if (!enable && !(irqMask[1] & bit)) {
-            irqMask[1] = inp(PIC2 + 1);
-            irqMask[1] |= bit;
-            outp(PIC2 + 1, irqMask[1]);
-            irqMask[1] = inp(PIC2 + 1);
-        }
-
-        bit = 1 << (INT_PIC2 - PIC1_BASE);
-
-        if (irqMask[1] != 0xff && (irqMask[0] & bit)) {
-            irqMask[0] = inp(PIC1 + 1);
-            irqMask[0] &= ~bit;
-            outp(PIC1 + 1, irqMask[0]);
-            irqMask[0] = inp(PIC1 + 1);
-        } else if (irqMask[1] == 0 && !(irqMask[0] & bit)) {
-            irqMask[0] = inp(PIC1 + 1);
-            irqMask[0] |= bit;
-            outp(PIC1 + 1, irqMask[0]);
-            irqMask[0] = inp(PIC1 + 1);
-        }
-    } else {
-        //dprintf(DEBUG, "Invalid PIC interrupt: %02x\n", vector);
-    }
-}
-
-static void issueEOI(unsigned int vector) {
-    if (vector >= PIC1_BASE && vector <= PIC1_BASE + 7) {
-        outp(PIC1, 0x20);
-    } else if (vector >= PIC2_BASE && vector <= PIC2_BASE + 7) {
-        outp(PIC2, 0x20);
-        outp(PIC1, 0x20);   // must issue both for the second PIC
-    }
-}
+static struct int_vector int_table[INT_VECTORS];
 
 void platform_init_interrupts(void) {
-    // rebase the PIC out of the way of processor exceptions
-    map(PIC1_BASE, PIC2_BASE);
+    pic_init();
+    lapic_init();
+
+    // initialize all of the vectors
+    for (int i = 0; i < INT_VECTORS; i++) {
+        if (i >= INT_PIC1_BASE && i <= INT_PIC2_BASE + 8) {
+            int_table[i].flags.type = INTC_TYPE_PIC;
+        }
+        if (i >= INT_DYNAMIC_START && i <= INT_DYNAMIC_END) {
+            int_table[i].flags.allocated = false;
+        } else {
+            int_table[i].flags.allocated = true;
+        }
+    }
 }
 
 status_t mask_interrupt(unsigned int vector) {
     if (vector >= INT_VECTORS)
         return ERR_INVALID_ARGS;
 
-//  dprintf(DEBUG, "%s: vector %d\n", __PRETTY_FUNCTION__, vector);
+    LTRACEF("vector %#x\n", vector);
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 
-    enable(vector, false);
+    if (int_table[vector].flags.type == INTC_TYPE_PIC) {
+        pic_enable(vector, false);
+    }
 
     spin_unlock_irqrestore(&lock, state);
 
@@ -150,27 +76,18 @@ status_t mask_interrupt(unsigned int vector) {
 }
 
 
-static void platform_mask_irqs(void) {
-    irqMask[0] = inp(PIC1 + 1);
-    irqMask[1] = inp(PIC2 + 1);
-
-    outp(PIC1 + 1, 0xff);
-    outp(PIC2 + 1, 0xff);
-
-    irqMask[0] = inp(PIC1 + 1);
-    irqMask[1] = inp(PIC2 + 1);
-}
-
 status_t unmask_interrupt(unsigned int vector) {
     if (vector >= INT_VECTORS)
         return ERR_INVALID_ARGS;
 
-//  dprintf("%s: vector %d\n", __PRETTY_FUNCTION__, vector);
+    LTRACEF("vector %#x\n", vector);
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 
-    enable(vector, true);
+    if (int_table[vector].flags.type == INTC_TYPE_PIC) {
+        pic_enable(vector, true);
+    }
 
     spin_unlock_irqrestore(&lock, state);
 
@@ -184,27 +101,98 @@ enum handler_return platform_irq(x86_iframe_t *frame) {
 
     DEBUG_ASSERT(vector >= 0x20);
 
-    // deliver the interrupt
+    struct int_vector *handler = &int_table[vector];
+
+    // edge triggered interrupts are acked beforehand
+    if (handler->flags.edge) {
+        if (handler->flags.type == INTC_TYPE_MSI) {
+            lapic_eoi(vector);
+        } else {
+            pic_eoi(vector);
+        }
+    }
+
+    // call the registered interrupt handler
     enum handler_return ret = INT_NO_RESCHEDULE;
+    if (handler->handler) {
+        ret = handler->handler(handler->arg);
+    }
 
-    if (int_handler_table[vector].handler)
-        ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
-
-    // ack the interrupt
-    issueEOI(vector);
+    // level triggered ack
+    if (!handler->flags.edge) {
+        if (handler->flags.type == INTC_TYPE_MSI) {
+            lapic_eoi(vector);
+        } else {
+            pic_eoi(vector);
+        }
+    }
 
     return ret;
 }
 
-void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
-    if (vector >= INT_VECTORS)
-        panic("register_int_handler: vector out of range %d\n", vector);
+static void register_int_handler_etc(unsigned int vector, int_handler handler, void *arg, bool edge, uint type) {
+    ASSERT(vector < INT_VECTORS);
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 
-    int_handler_table[vector].arg = arg;
-    int_handler_table[vector].handler = handler;
+    int_table[vector].arg = arg;
+    int_table[vector].handler = handler;
+    int_table[vector].flags.allocated = true;
+    int_table[vector].flags.edge = edge;
+    int_table[vector].flags.type = type;
 
     spin_unlock_irqrestore(&lock, state);
 }
+
+void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
+    register_int_handler_etc(vector, handler, arg, false, INTC_TYPE_PIC);
+}
+
+void register_int_handler_msi(unsigned int vector, int_handler handler, void *arg, bool edge) {
+    register_int_handler_etc(vector, handler, arg, edge, INTC_TYPE_MSI);
+}
+
+void platform_mask_irqs(void) {
+    pic_mask_interrupts();
+}
+
+status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
+    LTRACEF("pci_int %u\n", pci_int);
+
+    // pci interrupts are relative to PIC style irq #s so simply add INT_BASE to it
+    uint out_vector = pci_int + INT_BASE;
+    if (out_vector > INT_VECTORS) {
+        return ERR_INVALID_ARGS;
+    }
+
+    *vector = out_vector;
+    return NO_ERROR;
+}
+
+status_t platform_allocate_interrupts(size_t count, uint align_log2, unsigned int *vector) {
+    LTRACEF("count %zu, align %u\n", count, align_log2);
+    if (align_log2 > 1) {
+        PANIC_UNIMPLEMENTED;
+    }
+
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
+
+    // find a free interrupt
+    status_t err = ERR_NOT_FOUND;
+    for (unsigned int i = 0; i < INT_VECTORS; i++) {
+        if (!int_table[i].flags.allocated) {
+            int_table[i].flags.allocated = true;
+            *vector = i;
+            LTRACEF("found irq %#x\n", i);
+            err = NO_ERROR;
+            break;
+        }
+    }
+
+    spin_unlock_irqrestore(&lock, state);
+
+    return err;
+}
+

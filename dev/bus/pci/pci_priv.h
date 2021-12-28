@@ -12,8 +12,9 @@
 #include <lk/compiler.h>
 #include <dev/bus/pci.h>
 
-#include "bios32.h"
-#include "ecam.h"
-#include "type1.h"
+#include "backend/bios32.h"
+#include "backend/ecam.h"
+#include "backend/type1.h"
 
+#include "bus_mgr.h"
 

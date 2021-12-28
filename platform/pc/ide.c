@@ -18,10 +18,13 @@
 #include <platform/ide.h>
 #include <platform/pc.h>
 #include <platform.h>
-#include <dev/bus/pci.h>
 #include <dev/driver.h>
 #include <dev/class/block.h>
 #include <kernel/event.h>
+
+#if WITH_DEV_BUS_PCI
+#include <dev/bus/pci.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -200,8 +203,6 @@ static void ide_lba_setup(struct device *dev, uint32_t addr, int index);
 
 static status_t ide_init(struct device *dev) {
     status_t res = NO_ERROR;
-    uint32_t i;
-    int err;
 
     if (!dev)
         return ERR_INVALID_ARGS;
@@ -221,37 +222,42 @@ static status_t ide_init(struct device *dev) {
 
     // attempt pci detection
     if (config->legacy_index == 0x80 || config->legacy_index == 0x81) {
+#if WITH_DEV_BUS_PCI
         pci_location_t loc;
         pci_config_t pci_config;
 
-        err = pci_find_pci_class_code(&loc, 0x010180, 0);
-        if (err != _PCI_SUCCESSFUL) {
+        status_t err = pci_bus_mgr_find_device_by_class(&loc, PCI_CLASS_MASS_STORAGE, PCI_SUBCLASS_IDE, 0x80, 0);
+        if (err != NO_ERROR) {
             LTRACEF("Failed to find PCI IDE device\n");
             res = ERR_NOT_FOUND;
             goto err;
         }
 
-        LTRACEF("Found PCI IDE device at %02x:%02x\n", loc.bus, loc.dev_fn);
+        LTRACEF("Found PCI IDE device at %04x:%02x:%02x.%02x\n", loc.segment, loc.bus, loc.dev, loc.fn);
 
-        for (i=0; i < sizeof(pci_config) / sizeof(uint32_t); i++) {
+        for (size_t i=0; i < sizeof(pci_config) / sizeof(uint32_t); i++) {
             uint32_t reg = sizeof(uint32_t) * i;
 
-            err = pci_read_config_word(&loc, reg, ((uint32_t *) &pci_config) + i);
-            if (err != _PCI_SUCCESSFUL) {
+            err = pci_read_config_word(loc, reg, ((uint32_t *) &pci_config) + i);
+            if (err != NO_ERROR) {
                 LTRACEF("Failed to read config reg %d: 0x%02x\n", reg, err);
                 res = ERR_NOT_CONFIGURED;
                 goto err;
             }
         }
 
-        for (i=0; i < 6; i++) {
-            LTRACEF("BAR[%d]: 0x%08x\n", i, pci_config.base_addresses[i]);
+        for (int i=0; i < 6; i++) {
+            LTRACEF("BAR[%d]: 0x%08x\n", i, pci_config.type0.base_addresses[i]);
         }
 
         // TODO: fill this in from the bars
         state->irq = ide_device_irqs[config->legacy_index & 0x7f];
         state->regs = ide_device_regs[config->legacy_index & 0x7f];
         state->type[0] = state->type[1] = TYPE_NONE;
+#else
+        res = ERR_NOT_CONFIGURED;
+        goto err;
+#endif// PCI
     } else {
         // legacy isa
         DEBUG_ASSERT(config->legacy_index < 2);

@@ -14,7 +14,7 @@
 /* NOTE: keep arch/x86/crt0.S in sync with these definitions */
 
 /* interrupts */
-#define INT_VECTORS 0x31
+#define INT_VECTORS 256
 
 /* defined interrupts */
 #define INT_BASE            0x20
@@ -30,10 +30,14 @@
 #define INT_IDE0            0x2e
 #define INT_IDE1            0x2f
 
+/* dynamic interrupts are allocated in this range */
+#define INT_DYNAMIC_START   0x30
+#define INT_DYNAMIC_END     0xef
+
 /* APIC vectors */
-#define INT_APIC_TIMER      0x22
+#define INT_APIC_TIMER      0xf0
 
 /* PIC remap bases */
-#define PIC1_BASE 0x20
-#define PIC2_BASE 0x28
+#define INT_PIC1_BASE 0x20
+#define INT_PIC2_BASE 0x28
 

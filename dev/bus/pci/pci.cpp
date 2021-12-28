@@ -27,6 +27,7 @@ SpinLock lock;
 pci_backend *pcib = nullptr;
 } // namespace
 
+/* user facing routines */
 int pci_get_last_bus() {
     if (!pcib) {
         return ERR_NOT_CONFIGURED;
@@ -35,32 +36,12 @@ int pci_get_last_bus() {
     return pcib->get_last_bus();
 }
 
-/* user facing routines */
-status_t pci_find_pci_device(pci_location_t *state, uint16_t device_id, uint16_t vendor_id, uint16_t index) {
-    LTRACEF("device_id dev %#hx vendor %#hx index %#hx\n", device_id, vendor_id, index);
-
-    if (!pcib) return ERR_NOT_CONFIGURED;
-
-    AutoSpinLock guard(&lock);
-
-    int res = pcib->find_pci_device(state, device_id, vendor_id, index);
-
-    return res;
+int pci_get_last_segment() {
+    // currently hard coded to 1 segment
+    return 0;
 }
 
-status_t pci_find_pci_class_code(pci_location_t *state, uint32_t class_code, uint16_t index) {
-    LTRACEF("device_id class %#x index %#hx\n", class_code, index);
-
-    if (!pcib) return ERR_NOT_CONFIGURED;
-
-    AutoSpinLock guard(&lock);
-
-    int res = pcib->find_pci_class_code(state, class_code, index);
-
-    return res;
-}
-
-status_t pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value) {
+status_t pci_read_config_byte(const pci_location_t state, uint32_t reg, uint8_t *value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -69,7 +50,7 @@ status_t pci_read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t
 
     return res;
 }
-status_t pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value) {
+status_t pci_read_config_half(const pci_location_t state, uint32_t reg, uint16_t *value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -79,7 +60,7 @@ status_t pci_read_config_half(const pci_location_t *state, uint32_t reg, uint16_
     return res;
 }
 
-status_t pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value) {
+status_t pci_read_config_word(const pci_location_t state, uint32_t reg, uint32_t *value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -89,7 +70,7 @@ status_t pci_read_config_word(const pci_location_t *state, uint32_t reg, uint32_
     return res;
 }
 
-status_t pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value) {
+status_t pci_write_config_byte(const pci_location_t state, uint32_t reg, uint8_t value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -99,7 +80,7 @@ status_t pci_write_config_byte(const pci_location_t *state, uint32_t reg, uint8_
     return res;
 }
 
-status_t pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value) {
+status_t pci_write_config_half(const pci_location_t state, uint32_t reg, uint16_t value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -109,7 +90,7 @@ status_t pci_write_config_half(const pci_location_t *state, uint32_t reg, uint16
     return res;
 }
 
-status_t pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value) {
+status_t pci_write_config_word(const pci_location_t state, uint32_t reg, uint32_t value) {
     if (!pcib) return ERR_NOT_CONFIGURED;
 
     AutoSpinLock guard(&lock);
@@ -119,35 +100,159 @@ status_t pci_write_config_word(const pci_location_t *state, uint32_t reg, uint32
     return res;
 }
 
-status_t pci_get_irq_routing_options(irq_routing_entry *entries, uint16_t *count, uint16_t *pci_irqs) {
-    if (!pcib) return ERR_NOT_CONFIGURED;
+status_t pci_read_config(const pci_location_t loc, pci_config_t *config) {
+    status_t err;
 
-    // TODO: highly bios32 specific, abstract this differently
-    pci_backend::irq_routing_options_t options;
-    options.size = sizeof(irq_routing_entry) * *count;
-    options.selector = 0x10; // XXX actually DATA_SELECTOR
-    options.offset = entries;
+    *config = {};
 
-    int res;
-    {
-        AutoSpinLock guard(&lock);
+    // TODO: handle endian swapping (if necessary)
 
-        res = pcib->get_irq_routing_options(&options, pci_irqs);
+    // define some helper routines to read config offsets in the proper unit
+    size_t next_index;
+    auto read_byte = [&]() -> uint8_t {
+        uint8_t val;
+        err = pci_read_config_byte(loc, next_index, &val);
+        next_index++;
+        if (err < 0) return 0;
+        return val;
+    };
+
+    auto read_half = [&]() -> uint16_t {
+        uint16_t val;
+        err = pci_read_config_half(loc, next_index, &val);
+        next_index += 2;
+        if (err < 0) return 0;
+        return val;
+    };
+
+    auto read_word = [&]() -> uint32_t {
+        uint32_t val;
+        err = pci_read_config_word(loc, next_index, &val);
+        next_index += 4;
+        if (err < 0) return 0;
+        return val;
+    };
+
+    // shared, standard part of the pci config space
+    /*
+        uint16_t vendor_id;
+        uint16_t device_id;
+        uint16_t command;
+        uint16_t status;
+        uint8_t revision_id_0;
+        uint8_t program_interface;
+        uint8_t sub_class;
+        uint8_t base_class;
+        uint8_t cache_line_size;
+        uint8_t latency_timer;
+        uint8_t header_type;
+        uint8_t bist;
+    */
+    next_index = 0;
+    config->vendor_id = read_half(); if (err < 0) return err;
+    config->device_id = read_half(); if (err < 0) return err;
+    config->command = read_half(); if (err < 0) return err;
+    config->status = read_half(); if (err < 0) return err;
+    config->revision_id_0 = read_byte(); if (err < 0) return err;
+    config->program_interface = read_byte(); if (err < 0) return err;
+    config->sub_class = read_byte(); if (err < 0) return err;
+    config->base_class = read_byte(); if (err < 0) return err;
+    config->cache_line_size = read_byte(); if (err < 0) return err;
+    config->latency_timer = read_byte(); if (err < 0) return err;
+    config->header_type = read_byte(); if (err < 0) return err;
+    config->bist = read_byte(); if (err < 0) return err;
+    DEBUG_ASSERT(next_index == 0x10); // should have read this many bytes at this point
+
+    // based on the type field, read two different types
+    const uint8_t type = config->header_type & 0x7f;
+    if (type == 0) {
+        /*
+            uint32_t base_addresses[6];
+            uint32_t cardbus_cis_ptr;
+            uint16_t subsystem_vendor_id;
+            uint16_t subsystem_id;
+            uint32_t expansion_rom_address;
+            uint8_t capabilities_ptr;
+            uint8_t reserved_0[3];
+            uint32_t reserved_1;
+            uint8_t interrupt_line;
+            uint8_t interrupt_pin;
+            uint8_t min_grant;
+            uint8_t max_latency;
+        */
+        config->type0.base_addresses[0] = read_word(); if (err < 0) return err;
+        config->type0.base_addresses[1] = read_word(); if (err < 0) return err;
+        config->type0.base_addresses[2] = read_word(); if (err < 0) return err;
+        config->type0.base_addresses[3] = read_word(); if (err < 0) return err;
+        config->type0.base_addresses[4] = read_word(); if (err < 0) return err;
+        config->type0.base_addresses[5] = read_word(); if (err < 0) return err;
+        config->type0.cardbus_cis_ptr = read_word(); if (err < 0) return err;
+        config->type0.subsystem_vendor_id = read_half(); if (err < 0) return err;
+        config->type0.subsystem_id = read_half(); if (err < 0) return err;
+        config->type0.expansion_rom_address = read_word(); if (err < 0) return err;
+        config->type0.capabilities_ptr = read_byte(); if (err < 0) return err;
+        next_index += 3 + 4; // 7 bytes of reserved space
+        config->type0.interrupt_line = read_byte(); if (err < 0) return err;
+        config->type0.interrupt_pin = read_byte(); if (err < 0) return err;
+        config->type0.min_grant = read_byte(); if (err < 0) return err;
+        config->type0.max_latency = read_byte(); if (err < 0) return err;
+        DEBUG_ASSERT(next_index == 0x40); // should have read this many bytes at this point
+    } else if (type == 1) {
+        /*
+            uint32_t base_addresses[2];
+            uint8_t primary_bus;
+            uint8_t secondary_bus;
+            uint8_t subordinate_bus;
+            uint8_t secondary_latency_timer;
+            uint8_t io_base;
+            uint8_t io_limit;
+            uint16_t secondary_status;
+            uint16_t memory_base;
+            uint16_t memory_limit;
+            uint16_t prefetchable_memory_base;
+            uint16_t prefetchable_memory_limit;
+            uint32_t prefetchable_base_upper;
+            uint32_t prefetchable_limit_upper;
+            uint16_t io_base_upper;
+            uint16_t io_limit_upper;
+            uint8_t capabilities_ptr;
+            uint8_t reserved_0[3];
+            uint32_t expansion_rom_address;
+            uint8_t interrupt_line;
+            uint8_t interrupt_pin;
+            uint16_t bridge_control;
+        */
+        config->type1.base_addresses[0] = read_word(); if (err < 0) return err;
+        config->type1.base_addresses[1] = read_word(); if (err < 0) return err;
+        config->type1.primary_bus = read_byte(); if (err < 0) return err;
+        config->type1.secondary_bus = read_byte(); if (err < 0) return err;
+        config->type1.subordinate_bus = read_byte(); if (err < 0) return err;
+        config->type1.secondary_latency_timer = read_byte(); if (err < 0) return err;
+        config->type1.io_base = read_byte(); if (err < 0) return err;
+        config->type1.io_limit = read_byte(); if (err < 0) return err;
+        config->type1.secondary_status = read_half(); if (err < 0) return err;
+        config->type1.memory_base = read_half(); if (err < 0) return err;
+        config->type1.memory_limit = read_half(); if (err < 0) return err;
+        config->type1.prefetchable_memory_base = read_half(); if (err < 0) return err;
+        config->type1.prefetchable_memory_limit = read_half(); if (err < 0) return err;
+        config->type1.prefetchable_base_upper = read_word(); if (err < 0) return err;
+        config->type1.prefetchable_limit_upper = read_word(); if (err < 0) return err;
+        config->type1.io_base_upper = read_half(); if (err < 0) return err;
+        config->type1.io_limit_upper = read_half(); if (err < 0) return err;
+        config->type1.capabilities_ptr = read_byte(); if (err < 0) return err;
+        next_index += 3; // 3 reserved bytes
+        config->type1.expansion_rom_address = read_word(); if (err < 0) return err;
+        config->type1.interrupt_line = read_byte(); if (err < 0) return err;
+        config->type1.interrupt_pin = read_byte(); if (err < 0) return err;
+        config->type1.bridge_control = read_half(); if (err < 0) return err;
+
+        DEBUG_ASSERT(next_index == 0x40); // should have read this many bytes at this point
+    } else {
+        // cant handle other types
+        return ERR_NOT_VALID;
     }
 
-    *count = options.size / sizeof(irq_routing_entry);
-
-    return res;
-}
-
-status_t pci_set_irq_hw_int(const pci_location_t *state, uint8_t int_pin, uint8_t irq) {
-    if (!pcib) return ERR_NOT_CONFIGURED;
-
-    AutoSpinLock guard(&lock);
-
-    int res = pcib->set_irq_hw_int(state, int_pin, irq);
-
-    return res;
+    return NO_ERROR;
 }
 
 status_t pci_init_legacy() {
@@ -161,6 +266,7 @@ status_t pci_init_legacy() {
     if ((pcib = pci_bios32::detect())) {
         dprintf(INFO, "PCI: pci bios functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
+        pci_bus_mgr_init();
         return NO_ERROR;
     }
 
@@ -168,6 +274,7 @@ status_t pci_init_legacy() {
     if ((pcib = pci_type1::detect())) {
         dprintf(INFO, "PCI: pci type1 functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
+        pci_bus_mgr_init();
         return NO_ERROR;
     }
 
@@ -183,6 +290,7 @@ status_t pci_init_ecam(paddr_t ecam_base, uint16_t segment, uint8_t start_bus, u
     if ((pcib = pci_ecam::detect(ecam_base, segment, start_bus, end_bus))) {
         dprintf(INFO, "PCI: pci ecam functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
+        pci_bus_mgr_init();
         return NO_ERROR;
     }
 

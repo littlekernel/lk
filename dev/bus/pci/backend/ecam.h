@@ -17,12 +17,12 @@ public:
     static pci_ecam *detect(paddr_t ecam_base, uint16_t segment, uint8_t start_bus, uint8_t end_bus);
 
     // a few overridden methods
-    int read_config_byte(const pci_location_t *state, uint32_t reg, uint8_t *value) override;
-    int read_config_half(const pci_location_t *state, uint32_t reg, uint16_t *value) override;
-    int read_config_word(const pci_location_t *state, uint32_t reg, uint32_t *value) override;
-    int write_config_byte(const pci_location_t *state, uint32_t reg, uint8_t value) override;
-    int write_config_half(const pci_location_t *state, uint32_t reg, uint16_t value) override;
-    int write_config_word(const pci_location_t *state, uint32_t reg, uint32_t value) override;
+    int read_config_byte(pci_location_t state, uint32_t reg, uint8_t *value) override;
+    int read_config_half(pci_location_t state, uint32_t reg, uint16_t *value) override;
+    int read_config_word(pci_location_t state, uint32_t reg, uint32_t *value) override;
+    int write_config_byte(pci_location_t state, uint32_t reg, uint8_t value) override;
+    int write_config_half(pci_location_t state, uint32_t reg, uint16_t value) override;
+    int write_config_word(pci_location_t state, uint32_t reg, uint32_t value) override;
 
 private:
     // only created via the detect() factory

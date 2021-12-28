@@ -222,3 +222,13 @@ void platform_init(void) {
     }
 #endif
 }
+
+status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
+    // at the moment there's no translation between PCI IRQs and native irqs
+    *vector = pci_int;
+    return NO_ERROR;
+}
+
+status_t platform_allocate_interrupts(size_t count, uint align_log2, unsigned int *vector) {
+    return ERR_NOT_SUPPORTED;
+}

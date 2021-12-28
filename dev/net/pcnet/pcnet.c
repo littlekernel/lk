@@ -70,7 +70,7 @@ struct pcnet_state {
 };
 
 static status_t pcnet_init(struct device *dev);
-static status_t pcnet_read_pci_config(struct device *dev, pci_location_t *loc);
+static status_t pcnet_read_pci_config(struct device *dev, pci_location_t loc);
 
 static enum handler_return pcnet_irq_handler(void *arg);
 
@@ -136,7 +136,7 @@ static status_t pcnet_init(struct device *dev) {
     if (!config)
         return ERR_NOT_CONFIGURED;
 
-    if (pci_find_pci_device(&loc, config->device_id, config->vendor_id, config->index) != _PCI_SUCCESSFUL) {
+    if (pci_bus_mgr_find_device(&loc, config->device_id, config->vendor_id, config->index) != _PCI_SUCCESSFUL) {
         TRACEF("device not found\n");
         return ERR_NOT_FOUND;
     }
@@ -147,7 +147,7 @@ static status_t pcnet_init(struct device *dev) {
 
     dev->state = state;
 
-    res = pcnet_read_pci_config(dev, &loc);
+    res = pcnet_read_pci_config(dev, loc);
     if (res)
         goto error;
 
@@ -270,26 +270,24 @@ error:
     return res;
 }
 
-static status_t pcnet_read_pci_config(struct device *dev, pci_location_t *loc) {
+static status_t pcnet_read_pci_config(struct device *dev, pci_location_t loc) {
     status_t res = NO_ERROR;
     pci_config_t config;
-    uint8_t *buf = (uint8_t *) &config;
     unsigned i;
 
     DEBUG_ASSERT(dev->state);
 
     struct pcnet_state *state = dev->state;
 
-    for (i=0; i < sizeof(config); i++)
-        pci_read_config_byte(loc, i, buf + i);
+    pci_read_config(loc, &config);
 
     LTRACEF("Resources:\n");
 
-    for (i=0; i < countof(config.base_addresses); i++) {
-        if (config.base_addresses[i] & 0x1) {
-            LTRACEF("  BAR %d  I/O REG: %04x\n", i, config.base_addresses[i] & ~0x3);
+    for (i=0; i < countof(config.type0.base_addresses); i++) {
+        if (config.type0.base_addresses[i] & 0x1) {
+            LTRACEF("  BAR %d  I/O REG: %04x\n", i, config.type0.base_addresses[i] & ~0x3);
 
-            state->base = config.base_addresses[i] & ~0x3;
+            state->base = config.type0.base_addresses[i] & ~0x3;
             break;
         }
     }
@@ -299,10 +297,10 @@ static status_t pcnet_read_pci_config(struct device *dev, pci_location_t *loc) {
         goto error;
     }
 
-    if (config.interrupt_line != 0xff) {
-        LTRACEF("  IRQ %u\n", config.interrupt_line);
+    if (config.type0.interrupt_line != 0xff) {
+        LTRACEF("  IRQ %u\n", config.type0.interrupt_line);
 
-        state->irq = config.interrupt_line + INT_BASE;
+        state->irq = config.type0.interrupt_line + INT_BASE;
     } else {
         res = ERR_NOT_CONFIGURED;
         goto error;
