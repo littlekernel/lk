@@ -200,4 +200,4 @@ STATIC_COMMAND("vm", "vm commands", &cmd_vm)
 STATIC_COMMAND_END(vm);
 
 LK_INIT_HOOK(vm_preheap, &vm_init_preheap, LK_INIT_LEVEL_HEAP - 1);
-LK_INIT_HOOK(vm, &vm_init_postheap, LK_INIT_LEVEL_VM);
+LK_INIT_HOOK(vm, &vm_init_postheap, LK_INIT_LEVEL_VM - 1);
