@@ -117,7 +117,7 @@ minip_usage:
                 memset(buf, 0x00, BUFSIZE);
                 printf("sending %u packet(s) to %u.%u.%u.%u:%u\n", count, IPV4_SPLIT(host), port);
 
-                lk_time_t t = current_time();
+                lk_bigtime_t t = current_time_hires();
                 uint32_t failures = 0;
                 for (uint32_t i = 0; i < count; i++) {
                     if (udp_send(buf, BUFSIZE, handle) != 0) {
@@ -125,11 +125,13 @@ minip_usage:
                     }
                     buf[128]++;
                 }
-                t = current_time() - t;
+                t = current_time_hires() - t;
+                if (t == 0)
+                    t++;
                 printf("%d pkts failed\n", failures);
                 uint64_t total_count = (uint64_t)count * BUFSIZE;
                 printf("wrote %llu bytes in %u msecs (%llu bytes/sec)\n",
-                       total_count, (uint32_t)t, total_count * 1000 / t);
+                       total_count, (uint32_t)t, total_count * 1000000 / t);
 
                 free(buf);
                 udp_close(handle);

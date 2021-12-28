@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <endian.h>
 #include <lk/list.h>
 #include <stdint.h>
@@ -15,6 +16,8 @@
 #include <sys/types.h>
 
 #include <lib/pktbuf.h>
+
+__BEGIN_CDECLS
 
 #define IPV4(a,b,c,d) (((a)&0xFF)|(((b)&0xFF)<<8)|(((c)&0xFF)<<16)|(((d)&0xFF)<<24))
 #define IPV4_SPLIT(a) (a & 0xFF), ((a >> 8) & 0xFF), ((a >> 16) & 0xFF), ((a >> 24) & 0xFF)
@@ -72,3 +75,5 @@ static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **ac
 
 /* utilities */
 void gen_random_mac_address(uint8_t *mac_addr);
+
+__END_CDECLS

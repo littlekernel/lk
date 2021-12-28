@@ -9,6 +9,9 @@
 
 #include <sys/types.h>
 #include <lk/list.h>
+#include <lk/compiler.h>
+
+__BEGIN_CDECLS
 
 /* PAGE_SIZE minus 16 bytes of metadata in pktbuf_buf */
 #ifndef PKTBUF_POOL_SIZE
@@ -72,6 +75,7 @@ pktbuf_t *pktbuf_alloc_empty(void);
 /* Add a buffer to an existing packet buffer */
 void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz,
                        uint32_t flags, pktbuf_free_callback cb, void *cb_args);
+
 // return packet buffer to buffer pool
 // returns number of threads woken up
 int pktbuf_free(pktbuf_t *p, bool reschedule);
@@ -96,6 +100,12 @@ void *pktbuf_consume(pktbuf_t *p, size_t sz);
 // remove sz bytes from the end of the pktbuf
 void pktbuf_consume_tail(pktbuf_t *p, size_t sz);
 
+// reset the header size to header_sz into the underlying buffer.
+// p->dlen is also set to 0.
+// pktbuf must have a buffer with a valid blen and header_sz must
+// be within the buffer.
+void pktbuf_reset(pktbuf_t *p, uint32_t header_sz);
+
 // create a new packet buffer from raw memory and add
 // it to the free pool
 void pktbuf_create(void *ptr, size_t size);
@@ -104,3 +114,5 @@ void pktbuf_create(void *ptr, size_t size);
 void pktbuf_create_bufs(void *ptr, size_t size);
 
 void pktbuf_dump(pktbuf_t *p);
+
+__END_CDECLS
