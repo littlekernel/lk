@@ -5,12 +5,13 @@ MODULE := $(LOCAL_DIR)
 MODULE_DEPS := \
 	lib/cbuf \
 	lib/iovec \
+	lib/libcpp \
 	lib/pool
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arp.c \
 	$(LOCAL_DIR)/chksum.c \
-	$(LOCAL_DIR)/dhcp.c \
+	$(LOCAL_DIR)/dhcp.cpp \
 	$(LOCAL_DIR)/lk_console.c \
 	$(LOCAL_DIR)/minip.c \
 	$(LOCAL_DIR)/net_timer.c \
