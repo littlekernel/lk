@@ -99,7 +99,7 @@ status_t pci_bus_mgr_find_device_by_class(pci_location_t *state, uint8_t base_cl
 status_t pci_bus_mgr_enable_device(const pci_location_t loc);
 
 // read a list of up to 6 bars out of the device. each is marked with a valid bit
-status_t pci_bus_mgr_read_bars(const pci_location_t loc, pci_bar_t bar[6], size_t *count);
+status_t pci_bus_mgr_read_bars(const pci_location_t loc, pci_bar_t bar[6]);
 
 // try to allocate one or more msi vectors for this device
 status_t pci_bus_mgr_allocate_msi(const pci_location_t loc, size_t num_requested, uint *irqbase);

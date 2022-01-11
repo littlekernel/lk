@@ -313,21 +313,15 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     LTRACEF("pci location %s\n", pci_loc_string(loc_, str));
 
     pci_bar_t bars[6];
-    size_t bar_count;
-    status_t err = pci_bus_mgr_read_bars(loc_, bars, &bar_count);
+    status_t err = pci_bus_mgr_read_bars(loc_, bars);
     if (err != NO_ERROR) return err;
-    if (bar_count < 2) {
-        return ERR_NOT_FOUND;
-    }
 
     LTRACEF("e1000 BARS:\n");
-    if (LOCAL_TRACE) pci_dump_bars(bars, bar_count);
+    if (LOCAL_TRACE) pci_dump_bars(bars, 6);
 
     if (!bars[0].valid) {
         return ERR_NOT_FOUND;
     }
-
-    pci_bus_mgr_enable_device(loc_);
 
     // allocate a unit number
     unit_ = atomic_add(&global_count_, 1);
@@ -341,6 +335,8 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     }
 
     LTRACEF("bar 0 regs mapped to %p\n", bar0_regs_);
+
+    pci_bus_mgr_enable_device(loc_);
 
     // read the mac address out of the eeprom
     uint16_t tmp;

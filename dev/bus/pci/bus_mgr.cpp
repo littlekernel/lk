@@ -16,6 +16,7 @@
 #include <lk/trace.h>
 #include <dev/bus/pci.h>
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #include <platform/interrupts.h>
 
@@ -46,6 +47,7 @@ public:
 
     status_t allocate_irq(uint *irq);
     status_t allocate_msi(size_t num_requested, uint *msi_base);
+    status_t load_bars();
 
     pci_location_t loc() const { return loc_; }
     const bus *get_bus() const { return bus_; }
@@ -57,7 +59,7 @@ public:
     uint8_t interface() const { return config_.program_interface; }
     uint8_t header_type() const { return config_.header_type & PCI_HEADER_TYPE_MASK; }
 
-    size_t read_bars(pci_bar_t bar[6]);
+    status_t read_bars(pci_bar_t bar[6]);
 
     bool has_msi() const { return msi_cap_; }
     bool has_msix() const { return msix_cap_; }
@@ -73,6 +75,7 @@ protected:
     bus *bus_ = nullptr;
 
     pci_config_t config_ = {};
+    pci_bar_t bars_[6] = {};
 
     // capability list
     list_node capability_list_ = LIST_INITIAL_VALUE(capability_list_);
@@ -264,6 +267,9 @@ status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device,
         delete d;
         return err;
     }
+
+    // save a copy of the BARs
+    d->load_bars();
 
     // probe the device's capabilities
     d->probe_capabilities();
@@ -458,48 +464,81 @@ status_t device::allocate_msi(size_t num_requested, uint *msi_base) {
     return NO_ERROR;
 }
 
-size_t device::read_bars(pci_bar_t bar[6]) {
-    size_t count = 0;
-
+status_t device::load_bars() {
     if (header_type() == 0) {
         for (int i=0; i < 6; i++) {
-            bar[i].valid = false;
+            bars_[i].valid = false;
             uint64_t bar_addr = config_.type0.base_addresses[i];
             if (bar_addr & 0x1) {
                 // io address
-                bar[i].io = true;
-                bar[i].addr = bar_addr & ~0x3;
-                bar[i].size = 0; // XXX
-                bar[i].valid = (bar[i].addr != 0);
+                bars_[i].io = true;
+                bars_[i].addr = bar_addr & ~0x3;
+                bars_[i].valid = (bars_[i].addr != 0);
+
+                // probe size by writing all 1s and seeing what bits are masked
+                uint32_t size = 0;
+                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffff);
+                pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size);
+                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
+
+                // mask out bottom bits, invert and add 1 to compute size
+                bars_[i].size = ((size & ~0b11) ^ 0xffff) + 1;
             } else if ((bar_addr & 0b110) == 0) {
                 // 32bit memory address
-                bar[i].io = false;
-                bar[i].addr = bar_addr & ~0xf;
-                bar[i].size = 0; // XXX
-                bar[i].valid = (bar[i].addr != 0);
+                bars_[i].io = false;
+                bars_[i].addr = bar_addr & ~0xf;
+                bars_[i].valid = (bars_[i].addr != 0);
+
+                // probe size by writing all 1s and seeing what bits are masked
+                uint32_t size = 0;
+                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffffffff);
+                pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size);
+                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
+
+                // mask out bottom bits, invert and add 1 to compute size
+                bars_[i].size = (~(size & ~0b1111)) + 1;
             } else if ((bar_addr & 0b110) == 2) {
                 // 64bit memory address
                 if (i % 2) {
                     // root of 64bit memory range can only be on 0, 2, 4 slot
                     continue;
                 }
-                bar[i].io = false;
-                bar[i].addr = bar_addr & ~0xf;
-                bar[i].addr |= (uint64_t)config_.type0.base_addresses[i + 1] << 32;
-                bar[i].size = 0; // XXX
-                bar[i].valid = true;
+                bars_[i].io = false;
+                bars_[i].addr = bar_addr & ~0xf;
+                bars_[i].addr |= (uint64_t)config_.type0.base_addresses[i + 1] << 32;
+                bars_[i].valid = true;
+
+                // probe size by writing all 1s and seeing what bits are masked
+                uint64_t size;
+                uint32_t size32 = 0;
+                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffffffff);
+                pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size32);
+                size = size32;
+                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, 0xffffffff);
+                pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, &size32);
+                size |= (uint64_t)size32 << 32;
+                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
+                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, bars_[i].addr >> 32);
+
+                // mask out bottom bits, invert and add 1 to compute size
+                bars_[i].size = (~(size & ~(uint64_t)0b1111)) + 1;
+
                 // mark the next entry as invalid
                 i++;
-                bar[i].valid = false;
+                bars_[i].valid = false;
             }
-            count++;
         }
     } else if (header_type() == 1) {
         PANIC_UNIMPLEMENTED;
-
     }
 
-    return count;
+    return NO_ERROR;
+}
+
+status_t device::read_bars(pci_bar_t bar[6]) {
+    // copy the cached bar information
+    memcpy(bar, bars_, sizeof(bars_));
+    return NO_ERROR;
 }
 
 // examine the bridge device, figuring out the bus range it controls and recurse
@@ -770,20 +809,16 @@ status_t pci_bus_mgr_enable_device(const pci_location_t loc) {
     return NO_ERROR;
 }
 
-status_t pci_bus_mgr_read_bars(const pci_location_t loc, pci_bar_t bar[6], size_t *count) {
+status_t pci_bus_mgr_read_bars(const pci_location_t loc, pci_bar_t bar[6]) {
     char str[14];
     LTRACEF("%s\n", pci_loc_string(loc, str));
-
-    *count = 0;
 
     device *d = lookup_device_by_loc(loc);
     if (!d) {
         return ERR_NOT_FOUND;
     }
 
-    *count = d->read_bars(bar);
-
-    return NO_ERROR;
+    return d->read_bars(bar);
 }
 
 status_t pci_bus_mgr_allocate_msi(const pci_location_t loc, size_t num_requested, uint *irqbase) {
