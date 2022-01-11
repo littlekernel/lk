@@ -5,6 +5,7 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT
 
+#include <arch/atomic.h>
 #include <lk/init.h>
 #include <lk/err.h>
 #include <lk/cpp.h>
@@ -73,6 +74,10 @@ private:
     void add_pktbuf_to_rxring(pktbuf_t *pkt);
     void add_pktbuf_to_rxring_locked(pktbuf_t *pkt);
 
+    // counter of configured deices
+    static volatile int global_count_;
+    int unit_ = 0;
+
     // main spinlock
     spin_lock_t lock_ = SPIN_LOCK_INITIAL_VALUE;
 
@@ -132,6 +137,8 @@ uint16_t e1000::read_eeprom(uint8_t offset) {
     }
     return val >> 16;
 }
+
+volatile int e1000::global_count_ = 0;
 
 e1000::e1000() = default;
 e1000::~e1000() {
@@ -301,20 +308,20 @@ void e1000::add_pktbuf_to_rxring(pktbuf_t *pkt) {
 status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     loc_ = loc;
     id_feat_ = id;
+    char str[32];
 
-    char str[14];
     LTRACEF("pci location %s\n", pci_loc_string(loc_, str));
 
     pci_bar_t bars[6];
-    size_t count;
-    status_t err = pci_bus_mgr_read_bars(loc_, bars, &count);
+    size_t bar_count;
+    status_t err = pci_bus_mgr_read_bars(loc_, bars, &bar_count);
     if (err != NO_ERROR) return err;
-    if (count < 2) {
+    if (bar_count < 2) {
         return ERR_NOT_FOUND;
     }
 
     LTRACEF("e1000 BARS:\n");
-    if (LOCAL_TRACE) pci_dump_bars(bars, count);
+    if (LOCAL_TRACE) pci_dump_bars(bars, bar_count);
 
     if (!bars[0].valid) {
         return ERR_NOT_FOUND;
@@ -322,8 +329,12 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
 
     pci_bus_mgr_enable_device(loc_);
 
+    // allocate a unit number
+    unit_ = atomic_add(&global_count_, 1);
+
     // map bar 0, main memory mapped register interface, 128KB
-    err = vmm_alloc_physical(vmm_get_kernel_aspace(), "e1000_bar0", 128*1024, &bar0_regs_, 0,
+    snprintf(str, sizeof(str), "e1000 %d bar0", unit_);
+    err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, 128*1024, &bar0_regs_, 0,
                              bars[0].addr, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
@@ -343,11 +354,12 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     mac_addr_[4] = tmp & 0xff;
     mac_addr_[5] = tmp >> 8;
 
-    printf("e1000: mac address %02x:%02x:%02x:%02x:%02x:%02x\n", mac_addr_[0], mac_addr_[1], mac_addr_[2],
+    printf("e1000 %d: mac address %02x:%02x:%02x:%02x:%02x:%02x\n", unit_, mac_addr_[0], mac_addr_[1], mac_addr_[2],
            mac_addr_[3], mac_addr_[4], mac_addr_[5]);
 
     // allocate and map space for the rx and tx ring
-    err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "e1000 rxring", rxring_len * sizeof(rdesc), (void **)&rxring_, 0, 0, ARCH_MMU_FLAG_UNCACHED);
+    snprintf(str, sizeof(str), "e1000 %d rxring", unit_);
+    err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), str, rxring_len * sizeof(rdesc), (void **)&rxring_, 0, 0, ARCH_MMU_FLAG_UNCACHED);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }
@@ -356,7 +368,8 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     paddr_t rxring_phys = vaddr_to_paddr(rxring_);
     LTRACEF("rx ring at %p, physical %#lx\n", rxring_, rxring_phys);
 
-    err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "e1000 txring", txring_len * sizeof(tdesc), (void **)&txring_, 0, 0, ARCH_MMU_FLAG_UNCACHED);
+    snprintf(str, sizeof(str), "e1000 %d txring", unit_);
+    err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), str, txring_len * sizeof(tdesc), (void **)&txring_, 0, 0, ARCH_MMU_FLAG_UNCACHED);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }
@@ -366,7 +379,8 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     LTRACEF("tx ring at %p, physical %#lx\n", txring_, txring_phys);
 
     // allocate a large array of contiguous buffers to receive into
-    err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "e1000 rx buffers", rxring_len * rxbuffer_len, (void **)&rx_buf_, 0, 0, 0);
+    snprintf(str, sizeof(str), "e1000 %d rx buffers", unit_);
+    err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), str, rxring_len * rxbuffer_len, (void **)&rx_buf_, 0, 0, 0);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }
@@ -391,10 +405,6 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
         write_reg(e1000_reg::EITR3, 1000000 / irq_rate * 4);
         write_reg(e1000_reg::EITR4, 1000000 / irq_rate * 4);
     }
-
-    // set up minip's macaddr
-    // TODO: move to something smarter
-    minip_set_macaddr(mac_addr_);
 
     // disable tx and rx
     write_reg(e1000_reg::RCTL, 0);
@@ -421,6 +431,10 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
         register_int_handler_msi(irq_base, irq_handler_wrapper, this, true);
     }
     LTRACEF("IRQ number %#x\n", irq_base);
+
+    // set up minip's macaddr
+    // TODO: move to something smarter
+    minip_set_macaddr(mac_addr_);
 
     unmask_interrupt(irq_base);
 
@@ -466,7 +480,8 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
         e1000 *e = (e1000 *)arg;
         return e->rx_worker_routine();
     };
-    rx_worker_thread_ = thread_create("e1000 rx worker", wrapper_lambda, this, HIGH_PRIORITY, DEFAULT_STACK_SIZE);
+    snprintf(str, sizeof(str), "e1000 %d rx worker", unit_);
+    rx_worker_thread_ = thread_create(str, wrapper_lambda, this, HIGH_PRIORITY, DEFAULT_STACK_SIZE);
     thread_resume(rx_worker_thread_);
 
     // start receiver

@@ -113,8 +113,8 @@ if (( $DO_NET )); then
         if (( ! $DO_NET_TAP )); then
             ARGS+=" -netdev user,id=vmnic,hostname=qemu"
             # quick note to enable tap interface
-            # IFNAME=qemu
-            # BRIDGE=br0
+            # IFNAME=qemu0
+            # BRIDGE=bridge0
             # sudo tunctl -u $(whoami) -t ${IFNAME}
             # sudo ifconfig ${IFNAME} up
             # sudo ip link set ${IFNAME} master ${BRIDGE}
