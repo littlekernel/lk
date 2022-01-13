@@ -2,4 +2,5 @@
 #
 MODULES += dev/bus/pci
 
+MODULES += dev/block/ahci
 MODULES += dev/net/e1000
