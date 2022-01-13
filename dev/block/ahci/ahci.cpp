@@ -28,6 +28,9 @@
 
 volatile int ahci::global_count_= 0;
 
+ahci::ahci() = default;
+ahci::~ahci() = default;
+
 status_t ahci::init_device(pci_location_t loc) {
     char str[32];
     loc_ = loc;
@@ -82,6 +85,7 @@ status_t ahci::init_device(pci_location_t loc) {
     return NO_ERROR;
 }
 
+// hook called at init time to iterate through pci bus and find all of the ahci devices
 static void ahci_init(uint level) {
     LTRACE_ENTRY;
 

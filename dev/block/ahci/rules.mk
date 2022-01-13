@@ -6,5 +6,6 @@ MODULE_SRCS += $(LOCAL_DIR)/ahci.cpp
 MODULE_SRCS += $(LOCAL_DIR)/port.cpp
 
 MODULE_DEPS += dev/bus/pci
+MODULE_DEPS += lib/bio
 
 include make/module.mk

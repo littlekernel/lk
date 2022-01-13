@@ -53,8 +53,8 @@ enum class ahci_port_reg {
     PxVS = 0x70,
 };
 
-// command list
-struct ahci_cmd_list {
+// command header
+struct ahci_cmd_header {
     union {
         uint32_t dw[8]; // raw 8 byte words
         struct {
@@ -67,5 +67,33 @@ struct ahci_cmd_list {
     };
 };
 
-static_assert(sizeof(ahci_cmd_list) == 0x20, "");
+static_assert(sizeof(ahci_cmd_header) == 0x20, "");
 
+// physical region descriptor (PRDT entry)
+struct ahci_prd {
+    union {
+        uint32_t dw[4]; // raw 4 byte words
+        struct {
+            uint32_t dba; // data base address
+            uint32_t dba_u; // data base address upper
+            uint32_t _reserved;
+            uint32_t byte_count_ioc; // byte count [0:21], interrupt on completion [31]
+        };
+    };
+};
+
+static_assert(sizeof(ahci_prd) == 0x10, "");
+
+struct ahci_cmd_table {
+    uint8_t cfis[64];
+
+    // offset 0x40
+    uint8_t acmd[16];
+
+    // offset 0x80
+    uint8_t _reserved[0x80 - 0x50];
+
+    ahci_prd pdrt[0];
+};
+
+static_assert(sizeof(ahci_cmd_table) == 0x80, "");

@@ -16,8 +16,8 @@ class ahci_port;
 
 class ahci {
 public:
-    ahci() = default;
-    ~ahci() = default;
+    ahci();
+    ~ahci();
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(ahci);
 

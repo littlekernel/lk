@@ -12,11 +12,11 @@
 #include "ahci.h"
 #include "ahci_hw.h"
 
-
+// per port AHCI object
 class ahci_port {
 public:
-    ahci_port(ahci &a, uint num) : ahci_(a), num_(num) {}
-    ~ahci_port() = default;
+    ahci_port(ahci &a, uint num);
+    ~ahci_port();
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(ahci_port);
 
@@ -26,11 +26,17 @@ private:
     uint32_t read_port_reg(ahci_port_reg reg);
     void write_port_reg(ahci_port_reg reg, uint32_t val);
 
+    // members
     ahci &ahci_;
     uint num_;
 
-    volatile ahci_cmd_list *cmd_list_ = nullptr;
+    void *mem_region_ = nullptr;
+    volatile ahci_cmd_header *cmd_list_ = nullptr;
     volatile uint8_t *fis_ = nullptr;
+    volatile ahci_cmd_table *cmd_table_ = nullptr;
+
+    const size_t CMD_COUNT = 32; // number of active command slots
+    const size_t PRD_PER_CMD = 16; // physical descriptors per command slot
 };
 
 inline uint32_t ahci_port::read_port_reg(ahci_port_reg reg) {
