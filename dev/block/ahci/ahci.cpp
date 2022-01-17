@@ -78,7 +78,12 @@ status_t ahci::init_device(pci_location_t loc) {
         ports_[port] = new ahci_port(*this, port);
         auto *p = ports_[port];
 
-        p->probe();
+        err = p->probe();
+        if (err != NO_ERROR) {
+            continue;
+        }
+
+        err = p->identify();
     }
 
 

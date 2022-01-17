@@ -75,7 +75,7 @@ struct ahci_prd {
         uint32_t dw[4]; // raw 4 byte words
         struct {
             uint32_t dba; // data base address
-            uint32_t dba_u; // data base address upper
+            uint32_t dbau; // data base address upper
             uint32_t _reserved;
             uint32_t byte_count_ioc; // byte count [0:21], interrupt on completion [31]
         };
