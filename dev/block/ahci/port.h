@@ -14,6 +14,8 @@
 #include "ahci.h"
 #include "ahci_hw.h"
 
+class ahci_disk;
+
 // per port AHCI object
 class ahci_port {
 public:
@@ -24,8 +26,7 @@ public:
 
     handler_return irq_handler();
 
-    status_t probe();
-    status_t identify();
+    status_t probe(ahci_disk **found_disk);
 
     status_t queue_command(const void *fis, size_t fis_len, void *buf, size_t buf_len, bool write, int *slot_out);
     status_t wait_for_completion(int slot);

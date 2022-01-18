@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "ata.h"
+#include "disk.h"
 
 #define LOCAL_TRACE 1
 
@@ -32,7 +33,7 @@ ahci_port::~ahci_port() {
     }
 }
 
-status_t ahci_port::probe() {
+status_t ahci_port::probe(ahci_disk **found_disk) {
     // mask all IRQS on this port regardless if we want to use it
     write_port_reg(ahci_port_reg::PxIE, 0);
 
@@ -64,7 +65,7 @@ status_t ahci_port::probe() {
     // stop the port so we can reset addresses
     auto cmd_reg = read_port_reg(ahci_port_reg::PxCMD);
     cmd_reg &= ~((1<<4) | // clear CMD.FRE (fis receive enable)
-            (1<<0));  // clear CMD.ST (start)
+                 (1<<0));  // clear CMD.ST (start)
     write_port_reg(ahci_port_reg::PxCMD, cmd_reg);
     // TODO: wait for CMD.FR to stop
 
@@ -73,14 +74,14 @@ status_t ahci_port::probe() {
     // a FIS struct (256 bytes)
     // 32 command tables with 16 PRDTs per
     const size_t size = (CMD_COUNT * sizeof(ahci_cmd_header)) + 256 +
-        (CMD_COUNT * CMD_TABLE_ENTRY_SIZE);
+                        (CMD_COUNT * CMD_TABLE_ENTRY_SIZE);
 
     // allocate a contiguous block of ram
     char str[32];
     snprintf(str, sizeof(str), "ahci%d.%u cmd/fis", ahci_.get_unit_num(), num_);
     status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), str, size,
-                             (void **)&mem_region_, 0, /* vmm_flags */ 0,
-                             ARCH_MMU_FLAG_UNCACHED_DEVICE);
+                                        (void **)&mem_region_, 0, /* vmm_flags */ 0,
+                                        ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }
@@ -127,6 +128,10 @@ status_t ahci_port::probe() {
                   (1U << 1) | // PIO setup FIS (PSS)
                   (1U << 0);  // Device to Host Register FIS (DHRS)
     write_port_reg(ahci_port_reg::PxIE, ie);
+
+    // we found a disk above, create an object and pass it back
+    auto *disk = new ahci_disk(*this);
+    *found_disk = disk;
 
     return NO_ERROR;
 }
@@ -209,49 +214,25 @@ status_t ahci_port::wait_for_completion(int slot) {
     return err;
 }
 
-status_t ahci_port::identify() {
-    LTRACE_ENTRY;
-
-    FIS_REG_H2D fis = ata_cmd_identify();
-
-    __ALIGNED(512) static uint8_t identify_data[512];
-    int slot;
-    auto err = queue_command(&fis, sizeof(fis), identify_data, sizeof(identify_data), false, &slot);
-    if (err != NO_ERROR) {
-        return err;
-    }
-
-    // wait for it to complete
-    err = wait_for_completion(slot);
-    if (err != NO_ERROR) {
-        return err;
-    }
-
-    LTRACEF("identify data:\n");
-    hexdump8(identify_data, sizeof(identify_data));
-
-    return NO_ERROR;
-}
-
 handler_return ahci_port::irq_handler() {
     LTRACE_ENTRY;
 
     AutoSpinLockNoIrqSave guard(&lock_);
 
-    auto raw_is = read_port_reg(ahci_port_reg::PxIS);
-    auto is = raw_is & read_port_reg(ahci_port_reg::PxIE); // filter by things we're masking
+    const auto raw_is = read_port_reg(ahci_port_reg::PxIS);
+    const auto is = raw_is & read_port_reg(ahci_port_reg::PxIE); // filter by things we're masking
 
     LTRACEF("raw is %#x is %#x\n", raw_is, is);
 
     // see if any commands completed
-    auto ci = read_port_reg(ahci_port_reg::PxCI);
+    const auto ci = read_port_reg(ahci_port_reg::PxCI);
     auto cmd_complete_bitmap = cmd_pending_ & ~ci;
 
     LTRACEF("command complete bitmap %#x\n", cmd_complete_bitmap);
 
     handler_return ret = INT_NO_RESCHEDULE;
     while (cmd_complete_bitmap != 0) {
-        size_t cmd_slot = __builtin_ctz(cmd_complete_bitmap);
+        const size_t cmd_slot = __builtin_ctz(cmd_complete_bitmap);
 
         DEBUG_ASSERT(cmd_slot < CMD_COUNT);
 

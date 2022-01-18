@@ -21,8 +21,9 @@
 #include <string.h>
 #include <type_traits>
 
-#include "port.h"
 #include "ahci_hw.h"
+#include "disk.h"
+#include "port.h"
 
 #define LOCAL_TRACE 1
 
@@ -95,6 +96,7 @@ status_t ahci::init_device(pci_location_t loc) {
     // enable interrupts
     write_reg(ahci_reg::GHC, read_reg(ahci_reg::GHC) | (1U << 1)); // set GHC.IE
 
+    // probe every port marked implemented
     uint32_t port_bitmap = read_reg(ahci_reg::PI);
     size_t port_count = 0;
     for (size_t port = 0; port < 32; port++) {
@@ -107,13 +109,41 @@ status_t ahci::init_device(pci_location_t loc) {
         ports_[port] = new ahci_port(*this, port);
         auto *p = ports_[port];
 
-        err = p->probe();
+        ahci_disk *disk = nullptr;
+        err = p->probe(&disk);
         if (err != NO_ERROR) {
             continue;
         }
 
-        err = p->identify();
+        DEBUG_ASSERT(disk);
+
+        // add the disk to a list for further processing
+        list_add_tail(&disk_list_, &disk->node_);
     }
+
+    return NO_ERROR;
+}
+
+void ahci::disk_probe_worker() {
+    LTRACE_ENTRY;
+
+    ahci_disk *disk;
+    list_for_every_entry(&disk_list_, disk, ahci_disk, node_) {
+        disk->identify();
+    }
+}
+
+status_t ahci::start_disk_probe() {
+    auto probe_worker = [](void *arg) -> int {
+        ahci *a = (ahci *)arg;
+
+        a->disk_probe_worker();
+
+        return 0;
+    };
+
+    disk_probe_thread_ = thread_create("ahci disk probe", probe_worker, this, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    thread_resume(disk_probe_thread_);
 
     return NO_ERROR;
 }
@@ -121,7 +151,8 @@ status_t ahci::init_device(pci_location_t loc) {
 handler_return ahci::irq_handler() {
     LTRACE_ENTRY;
 
-    auto is = read_reg(ahci_reg::IS);
+    const auto orig_is = read_reg(ahci_reg::IS);
+    auto is = orig_is;
     LTRACEF("is %#x\n", is);
 
     // cycle through the ports that have interrupts queued
@@ -141,7 +172,7 @@ handler_return ahci::irq_handler() {
     }
 
     // clear the interrupt status
-    write_reg(ahci_reg::IS, is);
+    write_reg(ahci_reg::IS, orig_is);
 
     LTRACE_EXIT;
 
@@ -161,14 +192,17 @@ static void ahci_init(uint level) {
         }
 
         // we maybe found one, create a new device and initialize it
-        auto e = new ahci;
-        err = e->init_device(loc);
+        auto a = new ahci;
+        err = a->init_device(loc);
         if (err != NO_ERROR) {
             char str[14];
             printf("ahci: device at %s failed to initialize\n", pci_loc_string(loc, str));
-            delete e;
+            delete a;
             continue;
         }
+
+        // set up any disks we've found
+        a->start_disk_probe();
     }
 }
 LK_INIT_HOOK(ahci, &ahci_init, LK_INIT_LEVEL_PLATFORM + 1);
