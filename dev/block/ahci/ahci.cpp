@@ -66,6 +66,35 @@ status_t ahci::init_device(pci_location_t loc) {
     LTRACEF("CAP %#x\n", read_reg(ahci_reg::CAP));
     LTRACEF("PI %#x\n", read_reg(ahci_reg::PI));
 
+    // mask all irqs
+    write_reg(ahci_reg::GHC, read_reg(ahci_reg::GHC) & ~(1U << 1)); // clear GHC.IE
+
+    static auto irq_handler_wrapper = [](void *arg) -> handler_return {
+        ahci *a = (ahci *)arg;
+        return a->irq_handler();
+    };
+
+    // allocate an MSI interrupt
+    uint irq_base;
+    err = pci_bus_mgr_allocate_msi(loc_, 1, &irq_base);
+    if (err != NO_ERROR) {
+        // fall back to regular IRQs
+        err = pci_bus_mgr_allocate_irq(loc_, &irq_base);
+        if (err != NO_ERROR) {
+            printf("e1000: unable to allocate IRQ\n");
+            return err;
+        }
+        register_int_handler(irq_base, irq_handler_wrapper, this);
+    } else {
+        register_int_handler_msi(irq_base, irq_handler_wrapper, this, true);
+    }
+    LTRACEF("IRQ number %#x\n", irq_base);
+
+    unmask_interrupt(irq_base);
+
+    // enable interrupts
+    write_reg(ahci_reg::GHC, read_reg(ahci_reg::GHC) | (1U << 1)); // set GHC.IE
+
     uint32_t port_bitmap = read_reg(ahci_reg::PI);
     size_t port_count = 0;
     for (size_t port = 0; port < 32; port++) {
@@ -86,8 +115,37 @@ status_t ahci::init_device(pci_location_t loc) {
         err = p->identify();
     }
 
-
     return NO_ERROR;
+}
+
+handler_return ahci::irq_handler() {
+    LTRACE_ENTRY;
+
+    auto is = read_reg(ahci_reg::IS);
+    LTRACEF("is %#x\n", is);
+
+    // cycle through the ports that have interrupts queued
+    handler_return ret = INT_NO_RESCHEDULE;
+    while (is != 0) {
+        int port = __builtin_ctz(is);
+
+        LTRACEF("interrupt on port %d\n", port);
+
+        DEBUG_ASSERT(ports_[port] != nullptr);
+
+        if (ports_[port]->irq_handler() == INT_RESCHEDULE) {
+            ret = INT_RESCHEDULE;
+        }
+
+        is &= ~(1U<<port);
+    }
+
+    // clear the interrupt status
+    write_reg(ahci_reg::IS, is);
+
+    LTRACE_EXIT;
+
+    return ret;
 }
 
 // hook called at init time to iterate through pci bus and find all of the ahci devices

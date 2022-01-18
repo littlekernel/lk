@@ -10,4 +10,13 @@
 #include <hw/ata.h>
 
 // ata helper routines
+inline FIS_REG_H2D ata_cmd_identify() {
+    FIS_REG_H2D fis = {};
+    fis.fis_type = FIS_TYPE_REG_H2D;
+    fis.command = ATA_CMD_IDENTIFY;
+    fis.device = 0;
+    fis.c = 1;
+
+    return fis;
+}
 

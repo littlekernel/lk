@@ -34,6 +34,8 @@ private:
     uint32_t read_port_reg(uint port, ahci_port_reg reg);
     void write_port_reg(uint port, ahci_port_reg reg, uint32_t val);
 
+    handler_return irq_handler();
+
     // counter of configured deices
     static volatile int global_count_;
     int unit_ = 0;
