@@ -33,7 +33,8 @@ status_t ahci_port::probe() {
     if (BITS_SHIFT(ssts, 11, 8) != 1) { // check SSTS.IPM == 1 (interface in active state)
         return ERR_NOT_FOUND;
     }
-    dprintf(INFO, "ahci%d port %u: device present and interface in active state\n", ahci_.get_unit_num(), num_);
+    dprintf(INFO, "ahci%d port %u: device present and interface in active state\n",
+            ahci_.get_unit_num(), num_);
 
     auto sig = read_port_reg(ahci_port_reg::PxSIG);
     LTRACEF("port %u: sig %#x\n", num_, sig);
