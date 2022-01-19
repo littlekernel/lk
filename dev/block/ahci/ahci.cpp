@@ -54,7 +54,7 @@ status_t ahci::init_device(pci_location_t loc) {
 
     // map bar 5, main memory mapped register interface, 4K
     snprintf(str, sizeof(str), "ahci%d abar", unit_);
-    err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, bars[5].size, &abar_regs_, 0,
+    err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, PAGE_ALIGN(bars[5].size), &abar_regs_, 0,
                              bars[5].addr, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
