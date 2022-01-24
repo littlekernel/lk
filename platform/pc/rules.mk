@@ -12,8 +12,7 @@ MODULE_DEPS += \
     lib/cbuf
 
 ifneq ($(CPU),legacy)
-MODULE_DEPS += dev/bus/pci
-MODULE_DEPS += dev/net/e1000
+MODULE_DEPS += dev/bus/pci/drivers
 endif
 
 MODULE_SRCS += \

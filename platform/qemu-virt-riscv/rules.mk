@@ -22,6 +22,7 @@ MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/fdt
 MODULE_DEPS += lib/fdtwalk
 MODULE_DEPS += dev/bus/pci
+MODULE_DEPS += dev/bus/pci/drivers
 MODULE_DEPS += dev/virtio/block
 MODULE_DEPS += dev/virtio/gpu
 MODULE_DEPS += dev/virtio/net

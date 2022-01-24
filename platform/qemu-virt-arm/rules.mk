@@ -29,6 +29,7 @@ MODULE_DEPS += \
     lib/cbuf \
     lib/fdtwalk \
     dev/bus/pci \
+    dev/bus/pci/drivers \
     dev/interrupt/arm_gic \
     dev/timer/arm_generic \
     dev/virtio/block \
