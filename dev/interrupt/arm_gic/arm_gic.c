@@ -104,6 +104,10 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
 }
 
+void register_int_handler_msi(unsigned int vector, int_handler handler, void *arg, bool edge) {
+    PANIC_UNIMPLEMENTED;
+}
+
 #define GICREG(gic, reg) (*REG32(GICBASE(gic) + (reg)))
 
 /* main cpu regs */

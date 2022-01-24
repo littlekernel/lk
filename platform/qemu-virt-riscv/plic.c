@@ -66,6 +66,10 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     handlers[vector].arg = arg;
 }
 
+void register_int_handler_msi(unsigned int vector, int_handler handler, void *arg, bool edge) {
+    PANIC_UNIMPLEMENTED;
+}
+
 enum handler_return riscv_platform_irq(void) {
     // see what irq triggered it
     uint32_t vector = *REG32(PLIC_CLAIM(riscv_current_hart()));
