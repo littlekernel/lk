@@ -289,6 +289,14 @@ void device::dump(size_t indent) {
     }
     char str[14];
     printf("dev %s %04hx:%04hx\n", pci_loc_string(loc_, str), config_.vendor_id, config_.device_id);
+    for (size_t b = 0; b < countof(bars_); b++) {
+        if (bars_[b].valid) {
+            for (size_t i = 0; i < indent + 1; i++) {
+                printf(" ");
+            }
+            printf("BAR %zu: addr %#llx size %#zx io %d valid %d\n", b, bars_[b].addr, bars_[b].size, bars_[b].io, bars_[b].valid);
+        }
+    }
 }
 
 // walk the device's capability list, reading them in and creating sub objects per
@@ -473,7 +481,6 @@ status_t device::load_bars() {
                 // io address
                 bars_[i].io = true;
                 bars_[i].addr = bar_addr & ~0x3;
-                bars_[i].valid = (bars_[i].addr != 0);
 
                 // probe size by writing all 1s and seeing what bits are masked
                 uint32_t size = 0;
@@ -483,11 +490,12 @@ status_t device::load_bars() {
 
                 // mask out bottom bits, invert and add 1 to compute size
                 bars_[i].size = ((size & ~0b11) ^ 0xffff) + 1;
+
+                bars_[i].valid = (bars_[i].size != 0);
             } else if ((bar_addr & 0b110) == 0) {
                 // 32bit memory address
                 bars_[i].io = false;
                 bars_[i].addr = bar_addr & ~0xf;
-                bars_[i].valid = (bars_[i].addr != 0);
 
                 // probe size by writing all 1s and seeing what bits are masked
                 uint32_t size = 0;
@@ -497,6 +505,8 @@ status_t device::load_bars() {
 
                 // mask out bottom bits, invert and add 1 to compute size
                 bars_[i].size = (~(size & ~0b1111)) + 1;
+
+                bars_[i].valid = (bars_[i].size != 0);
             } else if ((bar_addr & 0b110) == 2) {
                 // 64bit memory address
                 if (i % 2) {
@@ -506,7 +516,6 @@ status_t device::load_bars() {
                 bars_[i].io = false;
                 bars_[i].addr = bar_addr & ~0xf;
                 bars_[i].addr |= (uint64_t)config_.type0.base_addresses[i + 1] << 32;
-                bars_[i].valid = true;
 
                 // probe size by writing all 1s and seeing what bits are masked
                 uint64_t size;
@@ -522,6 +531,8 @@ status_t device::load_bars() {
 
                 // mask out bottom bits, invert and add 1 to compute size
                 bars_[i].size = (~(size & ~(uint64_t)0b1111)) + 1;
+
+                bars_[i].valid = (bars_[i].size != 0);
 
                 // mark the next entry as invalid
                 i++;
