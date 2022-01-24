@@ -45,7 +45,7 @@ status_t ahci::init_device(pci_location_t loc) {
     LTRACEF("ahci BARS:\n");
     if (LOCAL_TRACE) pci_dump_bars(bars, 6);
 
-    if (!bars[5].valid) {
+    if (!bars[5].valid || !bars[5].addr) {
         return ERR_NOT_FOUND;
     }
 
@@ -82,7 +82,7 @@ status_t ahci::init_device(pci_location_t loc) {
         // fall back to regular IRQs
         err = pci_bus_mgr_allocate_irq(loc_, &irq_base);
         if (err != NO_ERROR) {
-            printf("e1000: unable to allocate IRQ\n");
+            printf("ahci: unable to allocate IRQ\n");
             return err;
         }
         register_int_handler(irq_base, irq_handler_wrapper, this);
