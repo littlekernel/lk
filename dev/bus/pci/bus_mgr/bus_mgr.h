@@ -9,3 +9,11 @@
 
 #include <sys/types.h>
 #include <dev/bus/pci.h>
+
+// global state 
+namespace pci {
+class bus;
+extern bus *root;
+extern list_node bus_list;
+void add_to_bus_list(bus *b);
+}
