@@ -91,7 +91,7 @@ public:
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(bridge);
 
-    static status_t probe(pci_location_t loc, bus *bus, device **out_device);
+    static status_t probe(pci_location_t loc, bus *bus, bridge **out_bridge);
 
     void add_bus(bus *b) { secondary_bus_ = b; }
 
@@ -247,7 +247,18 @@ status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device,
         // bridge
         if (sub_class == 0x4) { // PCI-PCI bridge, normal decode
             LTRACEF("found bridge, recursing\n");
-            return bridge::probe(loc, parent_bus, out_device);
+            bridge *out_bridge;
+            err = bridge::probe(loc, parent_bus, &out_bridge);
+            if (err != NO_ERROR) {
+                return err;
+            }
+
+            DEBUG_ASSERT(out_bridge);
+            *out_device = out_bridge;
+
+            out_bridge->load_bars();
+
+            return err;
         }
     }
 
@@ -473,74 +484,83 @@ status_t device::allocate_msi(size_t num_requested, uint *msi_base) {
 }
 
 status_t device::load_bars() {
+    size_t num_bars;
+
     if (header_type() == 0) {
-        for (int i=0; i < 6; i++) {
-            bars_[i].valid = false;
-            uint64_t bar_addr = config_.type0.base_addresses[i];
-            if (bar_addr & 0x1) {
-                // io address
-                bars_[i].io = true;
-                bars_[i].addr = bar_addr & ~0x3;
-
-                // probe size by writing all 1s and seeing what bits are masked
-                uint32_t size = 0;
-                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffff);
-                pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size);
-                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
-
-                // mask out bottom bits, invert and add 1 to compute size
-                bars_[i].size = ((size & ~0b11) ^ 0xffff) + 1;
-
-                bars_[i].valid = (bars_[i].size != 0);
-            } else if ((bar_addr & 0b110) == 0) {
-                // 32bit memory address
-                bars_[i].io = false;
-                bars_[i].addr = bar_addr & ~0xf;
-
-                // probe size by writing all 1s and seeing what bits are masked
-                uint32_t size = 0;
-                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffffffff);
-                pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size);
-                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
-
-                // mask out bottom bits, invert and add 1 to compute size
-                bars_[i].size = (~(size & ~0b1111)) + 1;
-
-                bars_[i].valid = (bars_[i].size != 0);
-            } else if ((bar_addr & 0b110) == 2) {
-                // 64bit memory address
-                if (i % 2) {
-                    // root of 64bit memory range can only be on 0, 2, 4 slot
-                    continue;
-                }
-                bars_[i].io = false;
-                bars_[i].addr = bar_addr & ~0xf;
-                bars_[i].addr |= (uint64_t)config_.type0.base_addresses[i + 1] << 32;
-
-                // probe size by writing all 1s and seeing what bits are masked
-                uint64_t size;
-                uint32_t size32 = 0;
-                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffffffff);
-                pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size32);
-                size = size32;
-                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, 0xffffffff);
-                pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, &size32);
-                size |= (uint64_t)size32 << 32;
-                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
-                pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, bars_[i].addr >> 32);
-
-                // mask out bottom bits, invert and add 1 to compute size
-                bars_[i].size = (~(size & ~(uint64_t)0b1111)) + 1;
-
-                bars_[i].valid = (bars_[i].size != 0);
-
-                // mark the next entry as invalid
-                i++;
-                bars_[i].valid = false;
-            }
-        }
+        num_bars = 6;
     } else if (header_type() == 1) {
-        PANIC_UNIMPLEMENTED;
+        // type 1 only has 2 bars, but are in the same location as type0
+        // so can use the same code below
+        num_bars = 2;
+    } else {
+        // type 2 header?
+        return ERR_NOT_SUPPORTED;
+    }
+
+    for (size_t i=0; i < num_bars; i++) {
+        bars_[i].valid = false;
+        uint64_t bar_addr = config_.type0.base_addresses[i];
+        if (bar_addr & 0x1) {
+            // io address
+            bars_[i].io = true;
+            bars_[i].addr = bar_addr & ~0x3;
+
+            // probe size by writing all 1s and seeing what bits are masked
+            uint32_t size = 0;
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffff);
+            pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size);
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
+
+            // mask out bottom bits, invert and add 1 to compute size
+            bars_[i].size = ((size & ~0b11) ^ 0xffff) + 1;
+
+            bars_[i].valid = (bars_[i].size != 0);
+        } else if ((bar_addr & 0b110) == 0) {
+            // 32bit memory address
+            bars_[i].io = false;
+            bars_[i].addr = bar_addr & ~0xf;
+
+            // probe size by writing all 1s and seeing what bits are masked
+            uint32_t size = 0;
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffffffff);
+            pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size);
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
+
+            // mask out bottom bits, invert and add 1 to compute size
+            bars_[i].size = (~(size & ~0b1111)) + 1;
+
+            bars_[i].valid = (bars_[i].size != 0);
+        } else if ((bar_addr & 0b110) == 2) {
+            // 64bit memory address
+            if (i % 2) {
+                // root of 64bit memory range can only be on 0, 2, 4 slot
+                continue;
+            }
+            bars_[i].io = false;
+            bars_[i].addr = bar_addr & ~0xf;
+            bars_[i].addr |= (uint64_t)config_.type0.base_addresses[i + 1] << 32;
+
+            // probe size by writing all 1s and seeing what bits are masked
+            uint64_t size;
+            uint32_t size32 = 0;
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffffffff);
+            pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size32);
+            size = size32;
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, 0xffffffff);
+            pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, &size32);
+            size |= (uint64_t)size32 << 32;
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, bars_[i].addr >> 32);
+
+            // mask out bottom bits, invert and add 1 to compute size
+            bars_[i].size = (~(size & ~(uint64_t)0b1111)) + 1;
+
+            bars_[i].valid = (bars_[i].size != 0);
+
+            // mark the next entry as invalid
+            i++;
+            bars_[i].valid = false;
+        }
     }
 
     return NO_ERROR;
@@ -553,9 +573,11 @@ status_t device::read_bars(pci_bar_t bar[6]) {
 }
 
 // examine the bridge device, figuring out the bus range it controls and recurse
-status_t bridge::probe(pci_location_t loc, bus *parent_bus, device **out_device) {
+status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge) {
     char str[14];
     LTRACEF("%s\n", pci_loc_string(loc, str));
+
+    *out_bridge = nullptr;
 
     // read vendor id and see if this is a real device
     uint16_t vendor_id;
@@ -591,7 +613,7 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, device **out_device)
     // probe the bridge's capabilities
     br->probe_capabilities();
 
-    *out_device = br;
+    *out_bridge = br;
 
     // start a scan of the secondary bus downstream of this.
     // via bridge devices on this bus, should find all of the subordinate busses.
@@ -622,9 +644,17 @@ void bridge::dump(size_t indent) {
     printf("bridge %s %04hx:%04hx child busses [%d..%d]\n", pci_loc_string(loc_, str),
            config_.vendor_id, config_.device_id,
            config_.type1.secondary_bus, config_.type1.subordinate_bus);
+    for (size_t b = 0; b < 2; b++) {
+        if (bars_[b].valid) {
+            for (size_t i = 0; i < indent + 1; i++) {
+                printf(" ");
+            }
+            printf("BAR %zu: addr %#llx size %#zx io %d valid %d\n", b, bars_[b].addr, bars_[b].size, bars_[b].io, bars_[b].valid);
+        }
+    }
 
     if (secondary_bus_) {
-        secondary_bus_->dump(indent + 2);
+        secondary_bus_->dump(indent + 1);
     }
 }
 
@@ -673,7 +703,7 @@ void bus::dump(size_t indent) {
     printf("bus %d\n", loc().bus);
     device *d;
     list_for_every_entry(&child_devices_, d, device, node) {
-        d->dump(indent + 2);
+        d->dump(indent + 1);
     }
 }
 
