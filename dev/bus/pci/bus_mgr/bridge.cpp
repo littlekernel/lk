@@ -65,31 +65,32 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     }
 
     LTRACEF("primary bus %hhd secondary %hhd subordinate %hhd\n",
-            br->config_.type1.primary_bus, br->config_.type1.secondary_bus,
-            br->config_.type1.subordinate_bus);
+            br->primary_bus(), br->secondary_bus(), br->subordinate_bus());
 
     // probe the bridge's capabilities
     br->probe_capabilities();
 
     *out_bridge = br;
 
-    // start a scan of the secondary bus downstream of this.
-    // via bridge devices on this bus, should find all of the subordinate busses.
-    bus *new_bus;
-    pci_location_t bus_location = {};
-    bus_location.segment = loc.segment;
-    bus_location.bus = br->config_.type1.secondary_bus;
-    err = bus::probe(bus_location, br, &new_bus);
-    if (err < 0) {
-        return err;
+    if (br->secondary_bus() > 0 && br->subordinate_bus() >= br->secondary_bus()) {
+        // start a scan of the secondary bus downstream of this.
+        // via bridge devices on this bus, should find all of the subordinate busses.
+        bus *new_bus;
+        pci_location_t bus_location = {};
+        bus_location.segment = loc.segment;
+        bus_location.bus = br->config_.type1.secondary_bus;
+        err = bus::probe(bus_location, br, &new_bus);
+        if (err < 0) {
+            return err;
+        }
+
+        // add the bus to our list of children
+        DEBUG_ASSERT(new_bus);
+        br->add_bus(new_bus);
+
+        // add the bus to the global bus list
+        new_bus->add_to_global_list();
     }
-
-    // add the bus to our list of children
-    DEBUG_ASSERT(new_bus);
-    br->add_bus(new_bus);
-
-    // add the bus to the global bus list
-    new_bus->add_to_global_list();
 
     return NO_ERROR;
 }
