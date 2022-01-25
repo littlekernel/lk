@@ -100,9 +100,14 @@ status_t ahci_port::probe(ahci_disk **found_disk) {
 
     // set the AHCI port to point to the command header and global fis
     write_port_reg(ahci_port_reg::PxCLB, vaddr_to_paddr((void *)cmd_list_));
-    write_port_reg(ahci_port_reg::PxCLBU, vaddr_to_paddr((void *)cmd_list_) >> 32);
     write_port_reg(ahci_port_reg::PxFB, vaddr_to_paddr((void *)fis_));
+#if __INTPTR_WIDTH__ == 64
+    write_port_reg(ahci_port_reg::PxCLBU, vaddr_to_paddr((void *)cmd_list_) >> 32);
     write_port_reg(ahci_port_reg::PxFBU, vaddr_to_paddr((void *)fis_) >> 32);
+#else
+    write_port_reg(ahci_port_reg::PxCLBU, 0);
+    write_port_reg(ahci_port_reg::PxFBU, 0);
+#endif
 
     // set up the command headers
     auto cmd_table_pa = vaddr_to_paddr((void *)cmd_table_);
@@ -111,7 +116,11 @@ status_t ahci_port::probe(ahci_disk **found_disk) {
 
         // point the cmd header at the corresponding cmd table
         cmd->ctba = (cmd_table_pa + sizeof(ahci_cmd_table) * i) & 0xffffffff;
+#if __INTPTR_WIDTH__ == 64
         cmd->ctbau = (cmd_table_pa + sizeof(ahci_cmd_table) * i) >> 32;
+#else
+        cmd->ctbau = 0;
+#endif
     }
 
     // restart the port
@@ -176,7 +185,11 @@ status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, si
     auto *prdt = &cmd_table->pdrt[0];
     auto buf_pa = vaddr_to_paddr(buf);
     prdt->dba  = buf_pa;
+#if __INTPTR_WIDTH__ == 64
     prdt->dbau = buf_pa >> 32;
+#else
+    prdt->dbau = 0;
+#endif
     prdt->byte_count_ioc = (buf_len - 1) | (1U<<31); // byte count, interrupt on completion
 
     // copy command into the command table
