@@ -95,13 +95,25 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
 }
 
 void bridge::dump(size_t indent) {
-    for (size_t i = 0; i < indent; i++) {
-        printf(" ");
-    }
+    auto scoot = [&]() {
+        for (size_t i = 0; i < indent; i++) {
+            printf(" ");
+        }
+
+    };
     char str[14];
+    scoot();
     printf("bridge %s %04hx:%04hx child busses [%d..%d]\n", pci_loc_string(loc_, str),
            config_.vendor_id, config_.device_id,
            config_.type1.secondary_bus, config_.type1.subordinate_bus);
+
+    auto mr = mem_range();
+    auto ir = io_range();
+    auto pr = prefetch_range();
+    scoot();
+    printf("mem_range [%#x..%#x] io_range [%#x..%#x] pref_range [%#llx..%#llx] \n",
+           mr.base, mr.limit, ir.base, ir.limit, pr.base, pr.limit);
+
     for (size_t b = 0; b < 2; b++) {
         if (bars_[b].valid) {
             for (size_t i = 0; i < indent + 1; i++) {
@@ -116,4 +128,44 @@ void bridge::dump(size_t indent) {
     }
 }
 
-} // namespace bridge
+// accessors to compute the io and memory range of the bridge
+bridge::range<uint32_t> bridge::io_range() {
+    if (config_.type1.io_limit < config_.type1.io_base) {
+        return { 0, 0 };
+    } else {
+        // TODO: handle 32bit io (does this really exist?)
+        return { ((uint32_t)config_.type1.io_base >> 4) << 12,
+                 (((uint32_t)config_.type1.io_limit >> 4) << 12) | 0xfff };
+    }
+}
+
+bridge::range<uint32_t> bridge::mem_range() {
+    if (config_.type1.memory_limit < config_.type1.memory_base) {
+        return { 0, 0 };
+    } else {
+        return { ((uint32_t)config_.type1.memory_base >> 4) << 20,
+                 (((uint32_t)config_.type1.memory_limit >> 4) << 20) | 0xfffff };
+    }
+}
+
+bridge::range<uint64_t> bridge::prefetch_range() {
+    if (config_.type1.prefetchable_memory_limit < config_.type1.prefetchable_memory_base) {
+        return { 0, 0 };
+    } else {
+        bool is_64 = (config_.type1.prefetchable_memory_base & 0xf) == 1;
+
+        uint64_t base, limit;
+
+        base = (((uint64_t)config_.type1.prefetchable_memory_base >> 4) << 20);
+        if (is_64) {
+            base |= (uint64_t)config_.type1.prefetchable_base_upper << 32;
+        }
+        limit = (((uint64_t)config_.type1.prefetchable_memory_limit >> 4) << 20) | 0xfffff;
+        if (is_64) {
+            limit |= (uint64_t)config_.type1.prefetchable_limit_upper << 32;
+        }
+        return { base, limit };
+    }
+}
+
+} // namespace pci

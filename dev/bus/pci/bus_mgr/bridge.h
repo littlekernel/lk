@@ -31,6 +31,20 @@ public:
 
     void dump(size_t indent = 0) override;
 
+    // config accessors
+    uint8_t secondary_bus() const { return config_.type1.secondary_bus; }
+    uint8_t subordinate_bus() const { return config_.type1.subordinate_bus; }
+
+    template <typename T>
+    struct range {
+        T base;
+        T limit;
+    };
+
+    range<uint32_t> io_range();
+    range<uint32_t> mem_range();
+    range<uint64_t> prefetch_range();
+
 private:
     bus *secondary_bus_ = nullptr;
 };
