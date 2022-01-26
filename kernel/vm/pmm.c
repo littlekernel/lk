@@ -118,7 +118,7 @@ size_t pmm_alloc_pages(uint count, struct list_node *list) {
     /* walk the arenas in order, allocating as many pages as we can from each */
     pmm_arena_t *a;
     list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
-        while (allocated < count) {
+        while (allocated < count && a->free_count > 0) {
             vm_page_t *page = list_remove_head_type(&a->free_list, vm_page_t, node);
             if (!page)
                 goto done;
