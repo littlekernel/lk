@@ -25,7 +25,13 @@ public:
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(bridge);
 
-    static status_t probe(pci_location_t loc, bus *bus, bridge **out_bridge);
+    static status_t probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge);
+
+    // called when a sub bridge is assigned a new secondary bus.
+    // if this extends our subordinate bus, recursively call the parent bridge.
+    void extend_subordinate_range(uint8_t new_secondary_bus);
+
+    void assign_bus_numbers(uint8_t primary, uint8_t secondary, uint8_t subordinate_bus);
 
     void add_bus(bus *b) { secondary_bus_ = b; }
 

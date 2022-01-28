@@ -31,10 +31,10 @@ public:
     uint bus_num() const { return loc().bus; }
 
     void add_device(device *d);
-
     void dump(size_t indent = 0);
 
-    list_node *list_node_ptr() { return &node; }
+    const bridge *get_bridge() const { return b_; }
+    bridge *get_bridge() { return b_; }
 
     template <typename F>
     status_t for_every_device(F func);
@@ -43,6 +43,7 @@ public:
 
     // master list of busses for easy iteration
     list_node node = LIST_INITIAL_CLEARED_VALUE;
+    list_node *list_node_ptr() { return &node; }
 
 private:
     pci_location_t loc_ = {};

@@ -37,14 +37,13 @@ device::~device() {
     }
 }
 
-// probe the device, return a new node and a bool if it's a multifunction device or not
-status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device, bool *out_multifunction) {
+// probe the device, return a new device
+status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device) {
     status_t err;
 
     *out_device = nullptr;
-    *out_multifunction = false;
 
-    // read vendor id and see if this is a real device
+    // read vendor id and make sure this
     uint16_t vendor_id;
     err = pci_read_config_half(loc, PCI_CONFIG_VENDOR_ID, &vendor_id);
     if (err != NO_ERROR) {
@@ -53,9 +52,6 @@ status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device,
     if (vendor_id == 0xffff) {
         return ERR_NOT_FOUND;
     }
-
-    char str[14];
-    LTRACEF("something at %s\n", pci_loc_string(loc, str));
 
     // read base and sub class
     uint8_t base_class;
@@ -76,49 +72,29 @@ status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device,
         return ERR_NOT_FOUND;
     }
 
-    // is it multifunction?
-    bool possibly_multifunction = false;
-    if (loc.fn == 0 && header_type & PCI_HEADER_TYPE_MULTI_FN) {
-        possibly_multifunction = true;
-        LTRACEF_LEVEL(2, "possibly multifunction\n");
-    }
-
     header_type &= PCI_HEADER_TYPE_MASK;
 
-    LTRACEF_LEVEL(2, "base:sub class %#hhx:%hhx\n", base_class, sub_class);
+    if (header_type != 0) {
+        LTRACEF("type %d header on device we don't understand, skipping\n", header_type);
+        return ERR_NOT_FOUND;
+    }
 
-    // if it's a bridge, probe that
+    // if it's a bridge, we should not have been called
     if (base_class == 0x6) { // XXX replace with #define
         // bridge
         if (sub_class == 0x4) { // PCI-PCI bridge, normal decode
-            LTRACEF("found bridge, recursing\n");
-            bridge *out_bridge;
-            err = bridge::probe(loc, parent_bus, &out_bridge);
-            if (err != NO_ERROR) {
-                return err;
-            }
-
-            DEBUG_ASSERT(out_bridge);
-            *out_device = out_bridge;
-
-            out_bridge->load_bars();
-
-            return err;
+            LTRACEF("found bridge, error\n");
+            return ERR_NOT_SUPPORTED;
         }
     }
 
     LTRACEF_LEVEL(2, "type %#hhx\n", header_type);
 
-    if (header_type != 0) {
-        LTRACEF("type %d header on bridge we don't understand, skipping\n", header_type);
-        return ERR_NOT_FOUND;
-    }
-
     // create a new device and pass it up
     device *d = new device(loc, parent_bus);
 
     // try to read in the basic config space for this device
-    err = pci_read_config(loc, &d->config_);
+    err = d->load_config();
     if (err < 0) {
         delete d;
         return err;
@@ -129,9 +105,6 @@ status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device,
 
     // probe the device's capabilities
     d->probe_capabilities();
-
-    // we know we're a device at this point, set multifunction or not
-    *out_multifunction = possibly_multifunction;
 
     // return the newly constructed device
     *out_device = d;
@@ -415,6 +388,11 @@ status_t device::read_bars(pci_bar_t bar[6]) {
     // copy the cached bar information
     memcpy(bar, bars_, sizeof(bars_));
     return NO_ERROR;
+}
+
+status_t device::load_config() {
+    status_t err = pci_read_config(loc_, &config_);
+    return err;
 }
 
 } // namespace pci

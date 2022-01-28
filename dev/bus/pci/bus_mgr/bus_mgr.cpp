@@ -24,16 +24,33 @@
 #include "bus.h"
 #include "bridge.h"
 
-#define LOCAL_TRACE 0
+#define LOCAL_TRACE 1
 
 // root of the pci bus
 namespace pci {
 bus *root = nullptr;
 list_node bus_list = LIST_INITIAL_VALUE(bus_list);
 
+uint8_t last_bus = 0;
+
 // used by bus object to stuff itself into a global list
 void add_to_bus_list(bus *b) {
     list_add_tail(&bus_list, b->list_node_ptr());
+}
+
+void set_last_bus(uint8_t bus) {
+    DEBUG_ASSERT(bus >= last_bus);
+
+    last_bus = bus;
+}
+
+// allocate the next bus (used when assigning busses to bridges)
+uint8_t allocate_next_bus() {
+    return ++last_bus;
+}
+
+uint8_t get_last_bus() {
+    return last_bus;
 }
 
 namespace {

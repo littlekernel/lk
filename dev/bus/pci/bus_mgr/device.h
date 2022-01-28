@@ -24,7 +24,7 @@ public:
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(device);
 
-    static status_t probe(pci_location_t loc, bus *bus, device **out_device, bool *out_multifunction);
+    static status_t probe(pci_location_t loc, bus *bus, device **out_device);
 
     status_t probe_capabilities();
     status_t init_msi_capability(capability *cap);
@@ -32,6 +32,7 @@ public:
 
     status_t allocate_irq(uint *irq);
     status_t allocate_msi(size_t num_requested, uint *msi_base);
+    status_t load_config();
     status_t load_bars();
 
     pci_location_t loc() const { return loc_; }

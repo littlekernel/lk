@@ -10,10 +10,19 @@
 #include <sys/types.h>
 #include <dev/bus/pci.h>
 
-// global state 
 namespace pci {
+
+// global state
 class bus;
 extern bus *root;
 extern list_node bus_list;
 void add_to_bus_list(bus *b);
+
+// set the last bus seen
+void set_last_bus(uint8_t bus);
+uint8_t get_last_bus();
+
+// allocate the next bus (used when assigning busses to bridges)
+uint8_t allocate_next_bus();
+
 }
