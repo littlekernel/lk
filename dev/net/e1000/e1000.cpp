@@ -319,7 +319,7 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     LTRACEF("e1000 BARS:\n");
     if (LOCAL_TRACE) pci_dump_bars(bars, 6);
 
-    if (!bars[0].valid) {
+    if (!bars[0].valid || bars[0].addr == 0) {
         return ERR_NOT_FOUND;
     }
 
