@@ -144,41 +144,87 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
             }
         }
 
-        /* look for a pcie leaf and pass the address of the ecam to the callback */
+        /* look for a pcie leaf and pass the address of the ecam and other info to the callback */
         if (strncmp(name, "pcie@", 5) == 0 || strncmp(name, "pci@", 4) == 0) {
-            uint64_t ecam_base, ecam_size;
-            uint8_t bus_start, bus_end;
-            ecam_base = ecam_size = bus_start = bus_end = 0;
+            struct fdt_walk_pcie_info info = {0};
 
+            /* find the range of the ecam */
             int lenp;
             const uint8_t *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
-                LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
+                LTRACEF_LEVEL(2, "found '%s' prop 'reg' len %d, ac %u, sc %u\n", name, lenp,
                               address_cells[depth], size_cells[depth]);
 
                 /* seems to always be full address cells 2, size cells 2, despite it being 3/2 */
-                ecam_base = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                info.ecam_base = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
                 prop_ptr += 8;
-                ecam_size = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                info.ecam_len = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
             }
 
+            /* find which bus range the ecam covers */
             prop_ptr = fdt_getprop(fdt, offset, "bus-range", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
-                LTRACEF_LEVEL(2, "found '%s' bus-range prop len %d, ac %u, sc %u\n", name, lenp,
+                LTRACEF_LEVEL(2, "found '%s' prop 'bus-range' len %d, ac %u, sc %u\n", name, lenp,
                               address_cells[depth], size_cells[depth]);
 
                 if (lenp == 8) {
-                    bus_start = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                    info.bus_start = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
                     prop_ptr += 4;
-                    bus_end = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                    info.bus_end = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
                 }
             }
 
-            if (cb->cpu && ecam_size > 0) {
-                LTRACEF("calling cpu callback with base %#llx size %#llx\n", ecam_base, ecam_size);
-                cb->pcie(ecam_base, ecam_size, bus_start, bus_end, cb->pciecookie);
+            prop_ptr = fdt_getprop(fdt, offset, "ranges", &lenp);
+            LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
+            if (prop_ptr) {
+                LTRACEF_LEVEL(2, "found '%s' prop 'ranges' len %d, ac %u, sc %u\n", name, lenp,
+                              address_cells[depth], size_cells[depth]);
+
+                /* iterate this packed property */
+                const uint8_t *prop_end = prop_ptr + lenp;
+                while (prop_ptr < prop_end) {
+                    uint32_t type = fdt32_to_cpu(*(const uint32_t *)(prop_ptr));
+                    prop_ptr += 4;
+
+                    /* read 3 64bit values */
+                    uint64_t base1, base2, size;
+                    base1 = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                    prop_ptr += 8;
+                    base2 = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                    prop_ptr += 8;
+                    size = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                    prop_ptr += 8;
+
+                    switch (type) {
+                        case 0x1000000: // io range
+                            LTRACEF_LEVEL(2, "io range\n");
+                            info.io_base = base1;
+                            info.io_base_mmio = base2;
+                            info.io_len = size;
+                            break;
+                        case 0x2000000: // mmio range
+                            LTRACEF_LEVEL(2, "mmio range\n");
+                            info.mmio_base = base1;
+                            info.mmio_len = size;
+                            break;
+                        case 0x3000000: // mmio range (64bit)
+                            LTRACEF_LEVEL(2, "mmio range (64bit)\n");
+                            info.mmio64_base = base1;
+                            info.mmio64_len = size;
+                            break;
+                        default:
+                            LTRACEF_LEVEL(2, "unhandled type %#x\n", type);
+                    }
+
+                    LTRACEF_LEVEL(2, "base %#llx base2 %#llx size %#llx\n", base1, base2, size);
+                }
+            }
+
+            if (cb->cpu && info.ecam_len > 0) {
+                LTRACEF("calling cpu callback with ecam base %#llx size %#llx\n", info.ecam_base, info.ecam_len);
+                cb->pcie(&info, cb->pciecookie);
             }
         }
 

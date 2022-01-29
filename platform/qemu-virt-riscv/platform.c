@@ -6,6 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <inttypes.h>
+#include <lk/err.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <kernel/thread.h>
@@ -79,20 +80,15 @@ static void cpucallback(uint64_t id, void *cookie) {
 }
 
 struct pcie_detect_state {
-    uint64_t ecam_base;
-    uint64_t ecam_len;
-    uint8_t bus_start;
-    uint8_t bus_end;
+    struct fdt_walk_pcie_info info;
 } pcie_state;
 
-static void pciecallback(uint64_t ecam_base, size_t len, uint8_t bus_start, uint8_t bus_end, void *cookie) {
+
+static void pciecallback(const struct fdt_walk_pcie_info *info, void *cookie) {
     struct pcie_detect_state *state = cookie;
 
-    LTRACEF("ecam base %#llx, len %zu, bus_start %hhu, bus_end %hhu\n", ecam_base, len, bus_start, bus_end);
-    state->ecam_base = ecam_base;
-    state->ecam_len = len;
-    state->bus_start = bus_start;
-    state->bus_end = bus_end;
+    LTRACEF("ecam base %#llx, len %#llx, bus_start %hhu, bus_end %hhu\n", info->ecam_base, info->ecam_len, info->bus_start, info->bus_end);
+    state->info = *info;
 }
 
 void platform_early_init(void) {

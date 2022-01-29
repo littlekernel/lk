@@ -14,12 +14,29 @@
  * for interesting nodes. Uses libfdt internally.
  */
 
+struct fdt_walk_pcie_info {
+    // location of the ECAM and the pci ranges it covers
+    uint64_t ecam_base;
+    uint64_t ecam_len;
+    uint8_t bus_start;
+    uint8_t bus_end;
+
+    // discovered io and mmio apertures
+    uint64_t io_base;
+    uint64_t io_base_mmio;
+    uint64_t io_len;
+    uint64_t mmio_base;
+    uint64_t mmio_len;
+    uint64_t mmio64_base;
+    uint64_t mmio64_len;
+};
+
 struct fdt_walk_callbacks {
     void (*mem)(uint64_t base, uint64_t len, void *cookie);
     void *memcookie;
     void (*cpu)(uint64_t id, void *cookie);
     void *cpucookie;
-    void (*pcie)(uint64_t ecam_base, size_t len, uint8_t bus_start, uint8_t bus_end, void *cookie);
+    void (*pcie)(const struct fdt_walk_pcie_info *info, void *cookie);
     void *pciecookie;
 };
 
