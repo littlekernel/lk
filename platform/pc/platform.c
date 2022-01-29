@@ -283,6 +283,7 @@ void platform_init(void) {
                 // try to initialize pci based on the MCFG ecam aperture
                 status_t err = pci_init_ecam(entry->base_address, entry->segment, entry->start_bus, entry->end_bus);
                 if (err == NO_ERROR) {
+                    pci_bus_mgr_init();
                     pci_initted = true;
                 }
             }
@@ -291,7 +292,10 @@ void platform_init(void) {
 
     // fall back to legacy pci if we couldn't find the pcie aperture
     if (!pci_initted) {
-        pci_init_legacy();
+        status_t err = pci_init_legacy();
+        if (err == NO_ERROR) {
+            pci_bus_mgr_init();
+        }
     }
 #endif
 

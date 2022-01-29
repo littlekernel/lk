@@ -123,7 +123,7 @@ void device::dump(size_t indent) {
             for (size_t i = 0; i < indent + 1; i++) {
                 printf(" ");
             }
-            printf("BAR %zu: addr %#llx size %#zx io %d valid %d\n", b, bars_[b].addr, bars_[b].size, bars_[b].io, bars_[b].valid);
+            pci_dump_bar(bars_ + b, b);
         }
     }
 }
@@ -316,11 +316,13 @@ status_t device::load_bars() {
     }
 
     for (size_t i=0; i < num_bars; i++) {
-        bars_[i].valid = false;
+        bars_[i] = {};
         uint64_t bar_addr = config_.type0.base_addresses[i];
         if (bar_addr & 0x1) {
             // io address
             bars_[i].io = true;
+            bars_[i].prefetchable = false;
+            bars_[i].size_64 = false;
             bars_[i].addr = bar_addr & ~0x3;
 
             // probe size by writing all 1s and seeing what bits are masked
@@ -333,9 +335,11 @@ status_t device::load_bars() {
             bars_[i].size = ((size & ~0b11) ^ 0xffff) + 1;
 
             bars_[i].valid = (bars_[i].size != 0);
-        } else if ((bar_addr & 0b110) == 0) {
+        } else if ((bar_addr & 0b110) == 0b000) {
             // 32bit memory address
             bars_[i].io = false;
+            bars_[i].prefetchable = bar_addr & (1<<3);
+            bars_[i].size_64 = false;
             bars_[i].addr = bar_addr & ~0xf;
 
             // probe size by writing all 1s and seeing what bits are masked
@@ -348,13 +352,16 @@ status_t device::load_bars() {
             bars_[i].size = (~(size & ~0b1111)) + 1;
 
             bars_[i].valid = (bars_[i].size != 0);
-        } else if ((bar_addr & 0b110) == 2) {
+        } else if ((bar_addr & 0b110) == 0b100) {
             // 64bit memory address
-            if (i % 2) {
-                // root of 64bit memory range can only be on 0, 2, 4 slot
+            if (i >= num_bars - 1) {
+                // root of 64bit memory range will use up two slots, so cant
+                // start at the last bar
                 continue;
             }
             bars_[i].io = false;
+            bars_[i].prefetchable = bar_addr & (1<<3);
+            bars_[i].size_64 = true;
             bars_[i].addr = bar_addr & ~0xf;
             bars_[i].addr |= (uint64_t)config_.type0.base_addresses[i + 1] << 32;
 
@@ -364,11 +371,11 @@ status_t device::load_bars() {
             pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffffffff);
             pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size32);
             size = size32;
-            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, 0xffffffff);
-            pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, &size32);
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 4, 0xffffffff);
+            pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 4, &size32);
             size |= (uint64_t)size32 << 32;
             pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
-            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 1, bars_[i].addr >> 32);
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 4, bars_[i].addr >> 32);
 
             // mask out bottom bits, invert and add 1 to compute size
             bars_[i].size = (~(size & ~(uint64_t)0b1111)) + 1;
@@ -377,7 +384,7 @@ status_t device::load_bars() {
 
             // mark the next entry as invalid
             i++;
-            bars_[i].valid = false;
+            bars_[i] = {}; // clears the valid bit
         }
     }
 

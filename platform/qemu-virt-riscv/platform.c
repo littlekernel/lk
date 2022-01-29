@@ -155,9 +155,24 @@ void platform_init(void) {
     uart_init();
 
     /* detect pci */
-    if (pcie_state.ecam_len > 0) {
-        printf("PCIE: initializing pcie with ecam at %#" PRIx64 " found in FDT\n", pcie_state.ecam_base);
-        pci_init_ecam(pcie_state.ecam_base, pcie_state.ecam_len, pcie_state.bus_start, pcie_state.bus_end);
+    if (pcie_state.info.ecam_len > 0) {
+        printf("PCIE: initializing pcie with ecam at %#" PRIx64 " found in FDT\n", pcie_state.info.ecam_base);
+        status_t err = pci_init_ecam(pcie_state.info.ecam_base, pcie_state.info.ecam_len, pcie_state.info.bus_start, pcie_state.info.bus_end);
+        if (err == NO_ERROR) {
+            // add some additional resources to the pci bus manager in case it needs to configure
+            if (pcie_state.info.io_len > 0) {
+                pci_bus_mgr_add_resource(PCI_RESOURCE_IO_RANGE, pcie_state.info.io_base_mmio, pcie_state.info.io_base, pcie_state.info.io_len);
+            }
+            if (pcie_state.info.mmio_len > 0) {
+                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_state.info.mmio_base, 0, pcie_state.info.mmio_len);
+            }
+            if (pcie_state.info.mmio64_len > 0) {
+                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_state.info.mmio64_base, 0, pcie_state.info.mmio64_len);
+            }
+
+            // start the bus manager
+            pci_bus_mgr_init();
+        };
     }
 
     /* detect any virtio devices */

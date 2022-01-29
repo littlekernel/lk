@@ -129,6 +129,12 @@ status_t pci_bus_mgr_init() {
     return NO_ERROR;
 }
 
+status_t pci_bus_mgr_add_resource(enum pci_resource_type type, uint64_t mmio_base, uint64_t aux_base, uint64_t len) {
+    TRACEF("type %d: mmio base %#llx aux base %#llx len %#llx\n", type, mmio_base, aux_base, len);
+
+    return NO_ERROR;
+}
+
 // for every bus in the system, pass the visit routine to the device
 status_t pci_bus_mgr_visit_devices(pci_visit_routine routine, void *cookie) {
     auto v = [&](device *d) -> status_t {
@@ -261,11 +267,15 @@ status_t pci_bus_mgr_allocate_irq(const pci_location_t loc, uint *irqbase) {
     return d->allocate_irq(irqbase);
 }
 
+void pci_dump_bar(const pci_bar_t *bar, int index) {
+    printf("BAR %d: addr %-#16llx size %-#16zx io %d 64bit %d prefetch %d\n",
+            index, bar->addr, bar->size, bar->io, bar->size_64, bar->prefetchable);
+}
+
 void pci_dump_bars(pci_bar_t bar[6], size_t count) {
     for (size_t i = 0; i < count; i++) {
         if (bar[i].valid) {
-            printf("BAR %zu: addr %#16llx size %#16zx io %d\n",
-                    i, bar[i].addr, bar[i].size, bar[i].io);
+            pci_dump_bar(bar + i, i);
         }
     }
 }

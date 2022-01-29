@@ -31,6 +31,8 @@ typedef struct {
     uint64_t addr;
     size_t size;
     bool io;
+    bool prefetchable;
+    bool size_64;
     bool valid;
 } pci_bar_t;
 
@@ -83,6 +85,14 @@ status_t pci_write_config_word(pci_location_t state, uint32_t reg, uint32_t valu
 typedef void(*pci_visit_routine)(pci_location_t loc, void *cookie);
 status_t pci_bus_mgr_visit_devices(pci_visit_routine routine, void *cookie);
 
+// must be called before pci_bus_mgr_init if available
+enum pci_resource_type {
+    PCI_RESOURCE_IO_RANGE, // aux base is base of io range, mmio base is if memory mapped
+    PCI_RESOURCE_MMIO_RANGE,
+    PCI_RESOURCE_MMIO64_RANGE,
+};
+status_t pci_bus_mgr_add_resource(enum pci_resource_type, uint64_t mmio_base, uint64_t aux_base, uint64_t len);
+
 // must be called after pci_init_*();
 status_t pci_bus_mgr_init(void);
 
@@ -109,6 +119,7 @@ status_t pci_bus_mgr_allocate_irq(const pci_location_t loc, uint *irqbase);
 
 // return a pointer to a formatted string
 const char *pci_loc_string(pci_location_t loc, char out_str[14]);
+void pci_dump_bar(const pci_bar_t *bar, int index);
 void pci_dump_bars(pci_bar_t bar[6], size_t count);
 
 __END_CDECLS

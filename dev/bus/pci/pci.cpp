@@ -290,7 +290,6 @@ status_t pci_init_ecam(paddr_t ecam_base, uint16_t segment, uint8_t start_bus, u
     if ((pcib = pci_ecam::detect(ecam_base, segment, start_bus, end_bus))) {
         dprintf(INFO, "PCI: pci ecam functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
-        pci_bus_mgr_init();
         return NO_ERROR;
     }
 

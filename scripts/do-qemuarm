@@ -68,6 +68,7 @@ else
     QEMU="qemu-system-arm"
     CPU="cortex-a15"
     MACHINE="virt"
+    MACHINE+=",highmem=off" # disable the high PCI ECAM, since we dont support LPAE to map it
     _PROJECT="qemu-virt-arm32-test"
 fi
 if [ "$PROJECT" == "" ]; then
