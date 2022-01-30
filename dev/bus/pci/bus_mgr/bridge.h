@@ -19,8 +19,10 @@ class bus;
 
 // bridge device, holds a list of busses that it is responsible for
 class bridge : public device {
-public:
+protected:
+    // created via the probe() call
     bridge(pci_location_t loc, bus *bus);
+public:
     ~bridge() override;
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(bridge);
@@ -34,6 +36,11 @@ public:
     void assign_bus_numbers(uint8_t primary, uint8_t secondary, uint8_t subordinate_bus);
 
     void add_bus(bus *b) { secondary_bus_ = b; }
+
+    status_t compute_bar_sizes(bar_sizes *sizes) override;
+    status_t get_bar_alloc_requests(list_node *bar_alloc_requests) override;
+    status_t assign_resource(bar_alloc_request *request, uint64_t address) override;
+    status_t assign_child_resources() override;
 
     void dump(size_t indent = 0) override;
 
@@ -53,6 +60,8 @@ public:
     range<uint64_t> prefetch_range();
 
 private:
+    status_t compute_bar_sizes_no_local_bar(bar_sizes *sizes);
+
     bus *secondary_bus_ = nullptr;
 };
 

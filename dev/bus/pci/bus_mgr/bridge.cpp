@@ -15,7 +15,9 @@
 #include <lk/list.h>
 #include <lk/trace.h>
 #include <dev/bus/pci.h>
+#include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <platform/interrupts.h>
@@ -25,6 +27,7 @@
 #include "bus_mgr.h"
 #include "bridge.h"
 #include "bus.h"
+#include "resource.h"
 
 namespace pci {
 
@@ -179,7 +182,7 @@ void bridge::dump(size_t indent) {
     auto ir = io_range();
     auto pr = prefetch_range();
     scoot();
-    printf("mem_range [%#x..%#x] io_range [%#x..%#x] pref_range [%#llx..%#llx] \n",
+    printf("mem_range [%#x..%#x] io_range [%#x..%#x] pref_range [%#" PRIx64 "..%#" PRIx64"] \n",
            mr.base, mr.limit, ir.base, ir.limit, pr.base, pr.limit);
 
     for (size_t b = 0; b < 2; b++) {
@@ -187,7 +190,7 @@ void bridge::dump(size_t indent) {
             for (size_t i = 0; i < indent + 1; i++) {
                 printf(" ");
             }
-            printf("BAR %zu: addr %#llx size %#zx io %d valid %d\n", b, bars_[b].addr, bars_[b].size, bars_[b].io, bars_[b].valid);
+            printf("BAR %zu: addr %#" PRIx64 " size %#zx io %d valid %d\n", b, bars_[b].addr, bars_[b].size, bars_[b].io, bars_[b].valid);
         }
     }
 
@@ -235,5 +238,249 @@ bridge::range<uint64_t> bridge::prefetch_range() {
         return { base, limit };
     }
 }
+
+status_t bridge::compute_bar_sizes_no_local_bar(bar_sizes *bridge_sizes) {
+    bar_sizes bus_sizes = {};
+
+    // drill into our bus and accumulate from there
+    auto perdev = [&](device *d) -> status_t {
+        device::bar_sizes sizes = {};
+
+        d->compute_bar_sizes(&sizes);
+
+        if (LOCAL_TRACE) {
+            char str[14];
+            printf("bar sizes for device %s: io %#x align %u mmio %#x align %u mmio64 %#" PRIx64 " align %u prefetch %#" PRIx64 " align %u prefetch64 %#" PRIx64 " align %u\n",
+                    pci_loc_string(d->loc(), str), sizes.io_size, sizes.io_align, sizes.mmio_size, sizes.mmio_align,
+                    sizes.mmio64_size, sizes.mmio64_align, sizes.prefetchable_size, sizes.prefetchable_align,
+                    sizes.prefetchable64_size, sizes.prefetchable64_align);
+        }
+
+        // accumulate to the passed in size struct
+        bus_sizes += sizes;
+
+        return 0;
+    };
+
+    LTRACEF("recursing into bus %u\n", secondary_bus_->bus_num());
+    secondary_bus_->for_every_device(perdev);
+
+    // we've accumulated the size of the bus and everything below it
+    // round up some of the accumulated sizes based on limitations in the bridge
+
+    // bridges can only pass through io ports in blocks of 0x1000
+    if (bus_sizes.io_size > 0 && bus_sizes.io_align < 12) {
+        bus_sizes.io_align = 12;
+    }
+    bus_sizes.io_size = ROUNDUP(bus_sizes.io_size, 0x1000);
+
+    // mmio ranges can only pass through in units of 1MB (1<<20)
+    if (bus_sizes.mmio_size > 0 && bus_sizes.mmio_align < 20) {
+        bus_sizes.mmio_align = 20;
+    }
+    bus_sizes.mmio_size = ROUNDUP(bus_sizes.mmio_size, (1UL << 20));
+
+    // 64bit mmio ranges can't be passed through bridges, so merge with the mmio range
+    if (bus_sizes.mmio64_size > 0 && bus_sizes.mmio_align < bus_sizes.mmio64_align) {
+        bus_sizes.mmio_align = bus_sizes.mmio64_align;
+    }
+    bus_sizes.mmio_size += ROUNDUP(bus_sizes.mmio64_size, (1UL << 20));
+    bus_sizes.mmio64_align = 0;
+    bus_sizes.mmio64_size = 0;
+
+    // prefetchable ranges are sent through like anything else
+    if (bus_sizes.prefetchable_size > 0 && bus_sizes.prefetchable_align < 20) {
+        bus_sizes.prefetchable_align = 20;
+    }
+    bus_sizes.prefetchable_size = ROUNDUP(bus_sizes.prefetchable_size, (1UL << 20));
+
+    // 64bit prefetchable ranges are sent through like anything else
+    if (bus_sizes.prefetchable64_size > 0 && bus_sizes.prefetchable64_align < 20) {
+        bus_sizes.prefetchable64_align = 20;
+    }
+    bus_sizes.prefetchable64_size = ROUNDUP(bus_sizes.prefetchable64_size, (1UL << 20));
+
+    *bridge_sizes += bus_sizes;
+
+    return NO_ERROR;
+}
+
+status_t bridge::compute_bar_sizes(bar_sizes *bridge_sizes) {
+    char str[14];
+    LTRACEF("bridge at %s\n", pci_loc_string(loc(), str));
+
+    // accumulate our BARs
+    device::compute_bar_sizes(bridge_sizes);
+
+    return compute_bar_sizes_no_local_bar(bridge_sizes);
+}
+
+status_t bridge::get_bar_alloc_requests(list_node *bar_alloc_requests) {
+    char str[14];
+    LTRACEF("bridge at %s\n", pci_loc_string(loc(), str));
+
+    // add our local bars to the list of requests
+    device::get_bar_alloc_requests(bar_alloc_requests);
+
+    // accumulate the size of our children
+    bar_sizes bus_sizes = {};
+    compute_bar_sizes_no_local_bar(&bus_sizes);
+
+    // TODO: test if bridge supports prefetchable and if so if it supports 64bit
+
+    // construct a request out of the different ranges returned
+    auto make_request = [this, &bar_alloc_requests](pci_resource_type type, bool prefetchable, uint64_t size, uint8_t align) {
+        if (size > 0) {
+            auto request = new bar_alloc_request;
+            *request = {};
+            request->dev = this;
+            request->bridge = true;
+            request->type = type;
+            request->prefetchable = prefetchable;
+            request->size = size;
+            request->align = align;
+
+            list_add_tail(bar_alloc_requests, &request->node);
+        }
+    };
+
+    make_request(PCI_RESOURCE_IO_RANGE, false, bus_sizes.io_size, bus_sizes.io_align);
+    make_request(PCI_RESOURCE_MMIO_RANGE, false, bus_sizes.mmio_size, bus_sizes.mmio_align);
+    make_request(PCI_RESOURCE_MMIO64_RANGE, false, bus_sizes.mmio64_size, bus_sizes.mmio64_align);
+
+
+    // TODO: merge prefetchable 64 and 32bit?
+    // should only be able to deal with one or the other
+    DEBUG_ASSERT(!(bus_sizes.prefetchable_size && bus_sizes.prefetchable64_size));
+    make_request(PCI_RESOURCE_MMIO_RANGE, true, bus_sizes.prefetchable_size, bus_sizes.prefetchable_align);
+    make_request(PCI_RESOURCE_MMIO64_RANGE, true, bus_sizes.prefetchable64_size, bus_sizes.prefetchable64_align);
+
+    return NO_ERROR;
+}
+
+status_t bridge::assign_resource(bar_alloc_request *request, uint64_t address) {
+    char str[14];
+    LTRACEF("bridge at %s resource addr %#" PRIx64 " request:\n", pci_loc_string(loc(), str), address);
+    if (LOCAL_TRACE) {
+        request->dump();
+    }
+
+    if (!request->bridge) {
+        // this is a request for one of our bars, pass it to the device base class virtual
+        return device::assign_resource(request, address);
+    }
+
+    DEBUG_ASSERT(IS_ALIGNED(address, (1UL << request->align)));
+
+    // this is an allocation for one of the bridge resources
+    uint32_t temp;
+    switch (request->type) {
+        case PCI_RESOURCE_IO_RANGE:
+            // write to the io configuration bits
+            DEBUG_ASSERT(IS_ALIGNED(address, (1UL << 12)));
+            temp = ((address >> 8) & 0xf0); // io base
+            temp |= (((address + request->size - 1) >> 8) & 0xf0) << 8;
+            pci_write_config_word(loc(), 0x1c, temp);
+            break;
+        case PCI_RESOURCE_MMIO_RANGE:
+            DEBUG_ASSERT(IS_ALIGNED(address, (1UL << 20)));
+            DEBUG_ASSERT(IS_ALIGNED(request->size, (1UL << 20)));
+            if (request->prefetchable) {
+                temp = ((address >> 16) & 0xfff0); // mmio base
+                temp |= ((address + request->size - 1) >> 16 & 0xfff0) << 16;
+                pci_write_config_word(loc(), 0x24, temp);
+            } else {
+                // non prefetchable mmio range
+                temp = ((address >> 16) & 0xfff0); // mmio base
+                temp |= ((address + request->size - 1) >> 16 & 0xfff0) << 16;
+                pci_write_config_word(loc(), 0x20, temp);
+            }
+            break;
+        case PCI_RESOURCE_MMIO64_RANGE:
+            if (!request->prefetchable) {
+                // cannot handle non prefetchable 64bit due to the way the bus works
+                printf("PCI bridge at %s: invalid 64bit non prefetchable range\n", pci_loc_string(loc(), str));
+                return ERR_NOT_SUPPORTED;
+            }
+            // assert that the device supports 64bit addresses
+            DEBUG_ASSERT((config_.type1.prefetchable_memory_base & 0xf) == 1);
+
+            DEBUG_ASSERT(IS_ALIGNED(address, (1UL << 20)));
+            DEBUG_ASSERT(IS_ALIGNED(request->size, (1UL << 20)));
+
+            // bottom part of prefetchable base and limit
+            temp = ((address >> 16) & 0xfff0); // mmio base
+            temp |= ((address + request->size - 1) >> 16 & 0xfff0) << 16;
+            pci_write_config_word(loc(), 0x24, temp);
+
+            // high part of base and limit
+            temp = (address >> 32);
+            pci_write_config_word(loc(), 0x28, temp);
+            temp = (address + request->size - 1) >> 32;
+            pci_write_config_word(loc(), 0x2c, temp);
+            break;
+        default:
+            PANIC_UNIMPLEMENTED;
+    }
+    load_config();
+
+    // PROBLEM: do we recurse here and start the bus allocation for the children with a restricted resource allocator
+    // but we have only a subset of resources to allocate. Or do we wait until the bridge is completely configured,
+    // and then trigger a recursive assignment on each sub bus (this is probably the right strategy).
+
+
+    return NO_ERROR;
+}
+
+status_t bridge::assign_child_resources() {
+    char str[14];
+    LTRACEF("bridge at %s\n", pci_loc_string(loc(), str));
+
+    // construct a resource allocator that covers what we've been assigned
+    resource_allocator allocator;
+
+    auto io = io_range();
+    if (io.limit > io.base) {
+        resource_range r;
+        r.base = io.base;
+        r.size = io.limit + io.base + 1;
+        r.type = PCI_RESOURCE_IO_RANGE;
+        allocator.set_range(r);
+    }
+
+    auto mmio = mem_range();
+    if (mmio.limit > mmio.base) {
+        resource_range r;
+        r.base = mmio.base;
+        r.size = mmio.limit - mmio.base + 1;
+        r.type = PCI_RESOURCE_MMIO_RANGE;
+        allocator.set_range(r);
+    }
+
+    auto pref = prefetch_range();
+    if (pref.limit > pref.base) {
+        resource_range r;
+        r.base = pref.base;
+        r.size = pref.limit - pref.base + 1;
+
+        // if the prefetch window is completely < 4GB, set it up as a 32bit mmio prefetchable
+        if (pref.base < (1ULL << 32) || (pref.base + pref.limit < (1ULL << 32))) {
+            r.type = PCI_RESOURCE_MMIO_RANGE;
+        } else {
+            r.type = PCI_RESOURCE_MMIO64_RANGE;
+        }
+
+        allocator.set_range(r, true);
+    }
+
+    // recurse into the secondary bus with the allocator we've set up for it
+    secondary_bus_->allocate_resources(allocator);
+
+    // enable the bridge
+    enable();
+
+    return NO_ERROR;
+}
+
 
 } // namespace pci

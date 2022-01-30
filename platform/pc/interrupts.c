@@ -170,9 +170,9 @@ status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) 
     return NO_ERROR;
 }
 
-status_t platform_allocate_interrupts(size_t count, uint align_log2, unsigned int *vector) {
-    LTRACEF("count %zu, align %u\n", count, align_log2);
-    if (align_log2 > 1) {
+status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
+    LTRACEF("count %zu align %u msi %d\n", count, align_log2, msi);
+    if (align_log2 > 0) {
         PANIC_UNIMPLEMENTED;
     }
 
@@ -194,5 +194,17 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, unsigned in
     spin_unlock_irqrestore(&lock, state);
 
     return err;
+}
+
+status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
+        uint64_t *msi_address_out, uint16_t *msi_data_out) {
+
+    // only handle edge triggered at the moment
+    DEBUG_ASSERT(edge);
+
+    *msi_data_out = (vector & 0xff) | (0<<15); // edge triggered
+    *msi_address_out = 0xfee00000 | (cpu << 12);
+
+    return NO_ERROR;
 }
 

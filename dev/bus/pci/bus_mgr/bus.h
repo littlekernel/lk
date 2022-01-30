@@ -17,15 +17,20 @@
 
 namespace pci {
 
+class resource_allocator;
+
 // bus device holds a list of devices and a reference to its bridge device
 class bus {
 public:
-    bus(pci_location_t loc, bridge *b);
+    bus(pci_location_t loc, bridge *b, bool root_bus = false);
     ~bus() = default;
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(bus);
 
-    static status_t probe(pci_location_t loc, bridge *bridge, bus **out_bus);
+    static status_t probe(pci_location_t loc, bridge *bridge, bus **out_bus, bool root_bus = false);
+
+    // allocate resources for devices on this bus and recursively all of its children
+    status_t allocate_resources(resource_allocator &allocator);
 
     pci_location_t loc() const { return loc_; }
     uint bus_num() const { return loc().bus; }
@@ -49,6 +54,7 @@ private:
     pci_location_t loc_ = {};
     bridge *b_ = nullptr;
     list_node child_devices_ = LIST_INITIAL_VALUE(child_devices_);
+    const bool root_bus_ = false; // changes some of the allocation behavior
 };
 
 // call the provided functor on every device in this bus

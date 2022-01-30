@@ -7,6 +7,10 @@
  */
 #pragma once
 
+#include <lk/cpp.h>
+#include <lk/err.h>
+#include <lk/trace.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <dev/bus/pci.h>
 
@@ -25,4 +29,7 @@ uint8_t get_last_bus();
 // allocate the next bus (used when assigning busses to bridges)
 uint8_t allocate_next_bus();
 
-}
+// get a pointer to a bus based on number
+bus *lookup_bus(uint8_t bus_num);
+
+} // namespace pci

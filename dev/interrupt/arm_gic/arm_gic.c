@@ -105,7 +105,10 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
 }
 
 void register_int_handler_msi(unsigned int vector, int_handler handler, void *arg, bool edge) {
-    PANIC_UNIMPLEMENTED;
+    // only can deal with edge triggered at the moment
+    DEBUG_ASSERT(edge);
+
+    register_int_handler(vector, handler, arg);
 }
 
 #define GICREG(gic, reg) (*REG32(GICBASE(gic) + (reg)))

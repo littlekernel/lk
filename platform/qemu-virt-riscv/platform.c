@@ -161,17 +161,23 @@ void platform_init(void) {
         if (err == NO_ERROR) {
             // add some additional resources to the pci bus manager in case it needs to configure
             if (pcie_state.info.io_len > 0) {
-                pci_bus_mgr_add_resource(PCI_RESOURCE_IO_RANGE, pcie_state.info.io_base_mmio, pcie_state.info.io_base, pcie_state.info.io_len);
+                // we can only deal with a mapping of io base 0 to the mmio base
+                DEBUG_ASSERT(pcie_state.info.io_base == 0);
+                pci_bus_mgr_add_resource(PCI_RESOURCE_IO_RANGE, pcie_state.info.io_base, pcie_state.info.io_len);
+
+                // TODO: set the mmio base somehow so pci knows what to do with it
             }
             if (pcie_state.info.mmio_len > 0) {
-                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_state.info.mmio_base, 0, pcie_state.info.mmio_len);
+                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_state.info.mmio_base, pcie_state.info.mmio_len);
             }
             if (pcie_state.info.mmio64_len > 0) {
-                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_state.info.mmio64_base, 0, pcie_state.info.mmio64_len);
+                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_state.info.mmio64_base, pcie_state.info.mmio64_len);
             }
 
             // start the bus manager
             pci_bus_mgr_init();
+
+            pci_bus_mgr_assign_resources();            // add some additional resources to the pci bus manager in case it needs to configure
         };
     }
 

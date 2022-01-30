@@ -14,14 +14,17 @@
 #include <lk/err.h>
 #include <lk/list.h>
 #include <lk/trace.h>
+#include <lk/pow2.h>
 #include <dev/bus/pci.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <platform/interrupts.h>
 
 #define LOCAL_TRACE 0
 
+#include "bus_mgr.h"
 #include "bridge.h"
 
 namespace pci {
@@ -126,6 +129,24 @@ void device::dump(size_t indent) {
             pci_dump_bar(bars_ + b, b);
         }
     }
+}
+
+status_t device::enable() {
+    char str[14];
+    LTRACEF("%s\n", pci_loc_string(loc(), str));
+
+    uint16_t command;
+    status_t err = pci_read_config_half(loc_, PCI_CONFIG_COMMAND, &command);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    command |= PCI_COMMAND_IO_EN | PCI_COMMAND_MEM_EN | PCI_COMMAND_BUS_MASTER_EN;
+    err = pci_write_config_half(loc_, PCI_CONFIG_COMMAND, command);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    return NO_ERROR;
 }
 
 // walk the device's capability list, reading them in and creating sub objects per
@@ -258,7 +279,7 @@ status_t device::allocate_msi(size_t num_requested, uint *msi_base) {
 
     // ask the platform for interrupts
     uint vector_base;
-    status_t err = platform_allocate_interrupts(num_requested, 1, &vector_base);
+    status_t err = platform_allocate_interrupts(num_requested, 0, true, &vector_base);
     if (err != NO_ERROR) {
         return err;
     }
@@ -266,12 +287,11 @@ status_t device::allocate_msi(size_t num_requested, uint *msi_base) {
     // compute the MSI message to construct
     uint64_t msi_address = 0;
     uint16_t msi_data = 0;
-#if ARCH_X86
-    msi_data = (vector_base & 0xff) | (0<<15); // edge triggered
-    msi_address = 0xfee0'0000 | (0 << 12); // cpu 0
-#else
-    return ERR_NOT_SUPPORTED;
-#endif
+    err = platform_compute_msi_values(vector_base, 0, true, &msi_address, &msi_data);
+    if (err != NO_ERROR) {
+        // TODO: return the allocated msi
+        return err;
+    }
 
     // program it into the capability
     const uint16_t cap_offset = msi_cap_->config_offset;
@@ -400,6 +420,157 @@ status_t device::read_bars(pci_bar_t bar[6]) {
 status_t device::load_config() {
     status_t err = pci_read_config(loc_, &config_);
     return err;
+}
+
+status_t device::compute_bar_sizes(bar_sizes *sizes) {
+    char str[14];
+    LTRACEF("device at %s\n", pci_loc_string(loc(), str));
+
+    // iterate through the bars on this device and accumulate the size
+    // of all the bars of various types. also accumulate the maximum alignment
+    for (auto i = 0; i < 6; i++) {
+        const auto &bar = bars_[i];
+        if (!bar.valid) {
+            continue;
+        }
+
+        if (bar.io) {
+            // io case
+            sizes->io_size += ROUNDUP(bar.size, 16);
+            if (sizes->io_align < 4) {
+                sizes->io_align = 4;
+            }
+        } else if (bar.size_64 && bar.prefetchable) {
+            // 64bit mmio
+            auto size = ROUNDUP(bar.size, PAGE_SIZE);
+            auto align = __builtin_ctz(size);
+            sizes->prefetchable64_size += size;
+            if (sizes->prefetchable64_align < align) {
+                sizes->prefetchable64_align = align;
+            }
+        } else if (bar.size_64) {
+            // 64bit mmio
+            auto size = ROUNDUP(bar.size, PAGE_SIZE);
+            auto align = __builtin_ctz(size);
+            sizes->mmio64_size += size;
+            if (sizes->mmio64_align < align) {
+                sizes->mmio64_align = align;
+            }
+        } else if (bar.prefetchable) {
+            // 64bit prefetchable mmio
+            auto size = ROUNDUP(bar.size, PAGE_SIZE);
+            auto align = __builtin_ctz(size);
+            sizes->prefetchable_size += size;
+            if (sizes->prefetchable_align < align) {
+                sizes->prefetchable_align = align;
+            }
+        } else {
+            // 32bit mmio
+            auto size = ROUNDUP(bar.size, PAGE_SIZE);
+            auto align = __builtin_ctz(size);
+            sizes->mmio_size += size;
+            if (sizes->mmio_align < align) {
+                sizes->mmio_align = align;
+            }
+        }
+    }
+
+    return NO_ERROR;
+}
+
+status_t device::get_bar_alloc_requests(list_node *bar_alloc_requests) {
+    char str[14];
+    LTRACEF("device at %s\n", pci_loc_string(loc(), str));
+
+    DEBUG_ASSERT(bar_alloc_requests);
+
+    // iterate through the bars on this device and accumulate the size
+    // of all the bars of various types. also accumulate the maximum alignment
+    for (auto i = 0; i < 6; i++) {
+        const auto &bar = bars_[i];
+        if (!bar.valid) {
+            continue;
+        }
+
+        auto request = new bar_alloc_request;
+        *request = {};
+        request->bridge = false;
+        request->dev = this;
+        request->bar_num = i;
+
+        if (bar.io) {
+            // io case
+            request->size = ROUNDUP(bar.size, 16);
+            request->align = 4;
+            request->type = PCI_RESOURCE_IO_RANGE;
+        } else if (bar.size_64) {
+            // 64bit mmio
+            auto size = ROUNDUP(bar.size, PAGE_SIZE);
+            auto align = __builtin_ctz(size);
+            request->size = size;
+            request->align = align;
+            request->type = PCI_RESOURCE_MMIO64_RANGE;
+            request->prefetchable = bar.prefetchable;
+        } else {
+            // 32bit mmio
+            auto size = ROUNDUP(bar.size, PAGE_SIZE);
+            auto align = __builtin_ctz(size);
+            request->size = size;
+            request->align = align;
+            request->type = PCI_RESOURCE_MMIO_RANGE;
+            request->prefetchable = bar.prefetchable;
+        }
+        // add it to the list passed in
+        list_add_tail(bar_alloc_requests, &request->node);
+    }
+
+    return NO_ERROR;
+}
+
+status_t device::assign_resource(bar_alloc_request *request, uint64_t address) {
+    char str[14];
+    LTRACEF("device at %s resource addr %#llx request:\n", pci_loc_string(loc(), str), address);
+    if (LOCAL_TRACE) {
+        request->dump();
+    }
+
+    DEBUG_ASSERT(IS_ALIGNED(address, (1UL << request->align)));
+
+    uint32_t temp;
+    switch (request->type) {
+        case PCI_RESOURCE_IO_RANGE:
+            temp = (address & 0xfffc); // XXX do we need to write the bottom bits?
+            pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4, temp);
+            break;
+        case PCI_RESOURCE_MMIO_RANGE:
+            temp = (address & 0xfffffff0); // XXX do we need to write the bottom bits?
+            pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4, temp);
+            break;
+        case PCI_RESOURCE_MMIO64_RANGE:
+            temp = (address & 0xfffffff0); // XXX do we need to write the bottom bits?
+            pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4, temp);
+            temp = address >> 32;
+            pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4 + 4, temp);
+            break;
+        default:
+            panic("invalid request type %d\n", request->type);
+    }
+
+    load_config();
+    load_bars();
+
+    return NO_ERROR;
+}
+
+void device::bar_alloc_request::dump() {
+    char str[14];
+    if (bridge) {
+        printf("BAR alloc request %p: bridge %s type %u (%s) pref %d size %#llx align %u\n",
+                this, pci_loc_string(dev->loc(), str), type, pci_resource_type_to_str(type), prefetchable, size, align);
+    } else {
+        printf("BAR alloc request %p: device %s type %u (%s) pref %d size %#llx align %u bar %u\n",
+                this, pci_loc_string(dev->loc(), str), type, pci_resource_type_to_str(type), prefetchable, size, align, bar_num);
+    }
 }
 
 } // namespace pci

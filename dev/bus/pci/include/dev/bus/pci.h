@@ -87,11 +87,13 @@ status_t pci_bus_mgr_visit_devices(pci_visit_routine routine, void *cookie);
 
 // must be called before pci_bus_mgr_init if available
 enum pci_resource_type {
-    PCI_RESOURCE_IO_RANGE, // aux base is base of io range, mmio base is if memory mapped
+    PCI_RESOURCE_IO_RANGE = 0,
     PCI_RESOURCE_MMIO_RANGE,
     PCI_RESOURCE_MMIO64_RANGE,
 };
-status_t pci_bus_mgr_add_resource(enum pci_resource_type, uint64_t mmio_base, uint64_t aux_base, uint64_t len);
+status_t pci_bus_mgr_add_resource(enum pci_resource_type, uint64_t mmio_base, uint64_t len);
+
+status_t pci_bus_mgr_assign_resources(void);
 
 // must be called after pci_init_*();
 status_t pci_bus_mgr_init(void);
@@ -119,8 +121,11 @@ status_t pci_bus_mgr_allocate_irq(const pci_location_t loc, uint *irqbase);
 
 // return a pointer to a formatted string
 const char *pci_loc_string(pci_location_t loc, char out_str[14]);
+
+// debug printing routines
 void pci_dump_bar(const pci_bar_t *bar, int index);
 void pci_dump_bars(pci_bar_t bar[6], size_t count);
+const char *pci_resource_type_to_str(enum pci_resource_type);
 
 __END_CDECLS
 

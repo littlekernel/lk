@@ -10,6 +10,8 @@
 #include <sys/types.h>
 #include <dev/bus/pci.h>
 #include <lk/cpp.h>
+#include <lk/err.h>
+#include <lk/list.h>
 
 namespace pci {
 
@@ -34,6 +36,48 @@ public:
     status_t allocate_msi(size_t num_requested, uint *msi_base);
     status_t load_config();
     status_t load_bars();
+
+    status_t enable();
+
+    // ask the device to add up the sizes of all its bars and return the sum
+    // bridges will be expected to recurse into sub-bridges
+    struct bar_sizes {
+        uint32_t io_size;
+        uint32_t mmio_size;
+        uint64_t mmio64_size;
+        uint64_t prefetchable_size;
+        uint64_t prefetchable64_size;
+
+        uint8_t io_align;
+        uint8_t mmio_align;
+        uint8_t mmio64_align;
+        uint8_t prefetchable_align;
+        uint8_t prefetchable64_align;
+
+        bar_sizes &operator+=(const bar_sizes &a);
+    };
+    virtual status_t compute_bar_sizes(bar_sizes *sizes);
+
+    struct bar_alloc_request {
+        // linked list node
+        list_node node;
+
+        // requst for allocation of this type
+        pci_resource_type type;
+        uint64_t size;
+        uint8_t align; // power of 2
+
+        bool bridge; // either a bridge request or a bar
+        bool prefetchable; // prefetchable request (only makes sense for mmio or mmio64)
+
+        device *dev;
+        uint8_t bar_num;
+
+        void dump();
+    };
+    virtual status_t get_bar_alloc_requests(list_node *bar_alloc_requests);
+    virtual status_t assign_resource(bar_alloc_request *request, uint64_t address);
+    virtual status_t assign_child_resources() { return NO_ERROR; }
 
     pci_location_t loc() const { return loc_; }
     const bus *get_bus() const { return bus_; }
@@ -78,5 +122,39 @@ struct capability {
     bool is_msi() const { return id == 0x5; }
     bool is_msix() const { return id == 0x11; }
 };
+
+inline device::bar_sizes operator+(const device::bar_sizes &a, const device::bar_sizes &b) {
+    device::bar_sizes result;
+
+    result.io_size = a.io_size + b.io_size;
+    result.mmio_size = a.mmio_size + b.mmio_size;
+    result.mmio64_size = a.mmio64_size + b.mmio64_size;
+    result.prefetchable_size = a.prefetchable_size + b.prefetchable_size;
+    result.prefetchable64_size = a.prefetchable64_size + b.prefetchable64_size;
+
+    result.io_align = (a.io_align > b.io_align) ? a.io_align : b.io_align;
+    result.mmio_align = (a.mmio_align > b.mmio_align) ? a.mmio_align : b.mmio_align;
+    result.mmio64_align = (a.mmio64_align > b.mmio64_align) ? a.mmio64_align : b.mmio64_align;
+    result.prefetchable_align = (a.prefetchable_align > b.prefetchable_align) ? a.prefetchable_align : b.prefetchable_align;
+    result.prefetchable64_align = (a.prefetchable64_align > b.prefetchable64_align) ? a.prefetchable64_align : b.prefetchable64_align;
+
+    return result;
+}
+
+inline device::bar_sizes &device::bar_sizes::operator+=(const device::bar_sizes &a) {
+    io_size += a.io_size;
+    mmio_size += a.mmio_size;
+    mmio64_size += a.mmio64_size;
+    prefetchable_size += a.prefetchable_size;
+    prefetchable64_size += a.prefetchable64_size;
+
+    io_align = (io_align > a.io_align) ? io_align : a.io_align;
+    mmio_align = (mmio_align > a.mmio_align) ? mmio_align : a.mmio_align;
+    mmio64_align = (mmio64_align > a.mmio64_align) ? mmio64_align : a.mmio64_align;
+    prefetchable_align = (prefetchable_align > a.prefetchable_align) ? prefetchable_align : a.prefetchable_align;
+    prefetchable64_align = (prefetchable64_align > a.prefetchable64_align) ? prefetchable64_align : a.prefetchable64_align;
+
+    return *this;
+}
 
 } // pci

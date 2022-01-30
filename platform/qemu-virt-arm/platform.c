@@ -189,24 +189,30 @@ void platform_init(void) {
         if (err == NO_ERROR) {
             // add some additional resources to the pci bus manager in case it needs to configure
             if (pcie_state.info.io_len > 0) {
-                pci_bus_mgr_add_resource(PCI_RESOURCE_IO_RANGE, pcie_state.info.io_base_mmio, pcie_state.info.io_base, pcie_state.info.io_len);
+                // we can only deal with a mapping of io base 0 to the mmio base
+                DEBUG_ASSERT(pcie_state.info.io_base == 0);
+                pci_bus_mgr_add_resource(PCI_RESOURCE_IO_RANGE, pcie_state.info.io_base, pcie_state.info.io_len);
+
+                // TODO: set the mmio base somehow so pci knows what to do with it
             }
             if (pcie_state.info.mmio_len > 0) {
-                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_state.info.mmio_base, 0, pcie_state.info.mmio_len);
+                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_state.info.mmio_base, pcie_state.info.mmio_len);
             }
             if (pcie_state.info.mmio64_len > 0) {
-                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_state.info.mmio64_base, 0, pcie_state.info.mmio64_len);
+                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_state.info.mmio64_base, pcie_state.info.mmio64_len);
             }
 
             // start the bus manager
             pci_bus_mgr_init();
+
+            pci_bus_mgr_assign_resources();
         }
     }
 
     /* detect any virtio devices */
     uint virtio_irqs[NUM_VIRTIO_TRANSPORTS];
     for (int i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
-        virtio_irqs[i] = VIRTIO0_INT + i;
+        virtio_irqs[i] = VIRTIO0_INT_BASE + i;
     }
 
     virtio_mmio_detect((void *)VIRTIO_BASE, NUM_VIRTIO_TRANSPORTS, virtio_irqs, 0x200);
@@ -235,11 +241,63 @@ void platform_init(void) {
 }
 
 status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
-    // at the moment there's no translation between PCI IRQs and native irqs
-    *vector = pci_int;
+    // only 4 legacy vectors supported, within PCIE_INT_BASE and PCIE_INT_BASE + 3
+    if (pci_int >= 4) {
+        return ERR_OUT_OF_RANGE;
+    }
+    *vector = pci_int + PCIE_INT_BASE;
     return NO_ERROR;
 }
 
-status_t platform_allocate_interrupts(size_t count, uint align_log2, unsigned int *vector) {
-    return ERR_NOT_SUPPORTED;
+status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
+    TRACEF("count %zu align %u msi %d\n", count, align_log2, msi);
+
+    // TODO: handle nonzero alignment, count > 0, and add locking
+
+    // list of allocated msi interrupts
+    static uint64_t msi_bitmap = 0;
+
+    // cannot handle allocating for anything but MSI interrupts
+    if (!msi) {
+        return ERR_NOT_SUPPORTED;
+    }
+
+    // cannot deal with alignment yet
+    DEBUG_ASSERT(align_log2 == 0);
+    DEBUG_ASSERT(count == 1);
+
+    // make a copy of the bitmap
+    int allocated = -1;
+    for (size_t i = 0; i < sizeof(msi_bitmap) * 8; i++) {
+        if ((msi_bitmap & (1UL << i)) == 0) {
+            msi_bitmap |= (1UL << i);
+            allocated = i;
+            break;
+        }
+    }
+    if (allocated < 0) {
+        return ERR_NOT_FOUND;
+    }
+
+    allocated += MSI_INT_BASE;
+
+    TRACEF("allocated msi at %u\n", allocated);
+    *vector = allocated;
+    return NO_ERROR;
+}
+
+status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
+        uint64_t *msi_address_out, uint16_t *msi_data_out) {
+
+    // only handle edge triggered at the moment
+    DEBUG_ASSERT(edge);
+    // only handle cpu 0
+    DEBUG_ASSERT(cpu == 0);
+
+    // TODO: call through to the appropriate gic driver to deal with GICv2 vs v3
+
+    *msi_data_out = vector;
+    *msi_address_out = 0x08020040; // address of the GICv2 MSI port
+
+    return NO_ERROR;
 }

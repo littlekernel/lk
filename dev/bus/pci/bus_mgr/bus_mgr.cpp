@@ -23,39 +23,24 @@
 #include "device.h"
 #include "bus.h"
 #include "bridge.h"
+#include "resource.h"
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
+
+// global state of the pci bus manager
+namespace pci {
 
 // root of the pci bus
-namespace pci {
 bus *root = nullptr;
 list_node bus_list = LIST_INITIAL_VALUE(bus_list);
 
 uint8_t last_bus = 0;
 
-// used by bus object to stuff itself into a global list
-void add_to_bus_list(bus *b) {
-    list_add_tail(&bus_list, b->list_node_ptr());
-}
-
-void set_last_bus(uint8_t bus) {
-    DEBUG_ASSERT(bus >= last_bus);
-
-    last_bus = bus;
-}
-
-// allocate the next bus (used when assigning busses to bridges)
-uint8_t allocate_next_bus() {
-    return ++last_bus;
-}
-
-uint8_t get_last_bus() {
-    return last_bus;
-}
+resource_allocator resources;
 
 namespace {
 
-// helper routines
+// local helper routines
 // iterate all devices on all busses with the functor
 template <typename F>
 status_t for_every_device_on_every_bus(F func) {
@@ -64,6 +49,20 @@ status_t for_every_device_on_every_bus(F func) {
     bus *b;
     list_for_every_entry(&bus_list, b, bus, node) {
         err = b->for_every_device(func);
+        if (err != NO_ERROR) {
+            return err;
+        }
+    }
+    return err;
+}
+
+template <typename F>
+status_t for_every_bus(F func) {
+    status_t err = NO_ERROR;
+
+    bus *b;
+    list_for_every_entry(&bus_list, b, bus, node) {
+        err = func(b);
         if (err != NO_ERROR) {
             return err;
         }
@@ -89,6 +88,42 @@ device *lookup_device_by_loc(pci_location_t loc) {
 }
 
 } // namespace
+
+// used by bus object to stuff itself into a global list
+void add_to_bus_list(bus *b) {
+    list_add_tail(&bus_list, b->list_node_ptr());
+}
+
+void set_last_bus(uint8_t bus) {
+    DEBUG_ASSERT(bus >= last_bus);
+
+    last_bus = bus;
+}
+
+// allocate the next bus (used when assigning busses to bridges)
+uint8_t allocate_next_bus() {
+    return ++last_bus;
+}
+
+uint8_t get_last_bus() {
+    return last_bus;
+}
+
+// find a bus by number
+bus *lookup_bus(uint8_t bus_num) {
+    bus *found_bus = nullptr;
+    auto b_finder = [&](bus *b) -> status_t {
+        if (bus_num == b->bus_num()) {
+            found_bus = b;
+            return 1;
+        }
+        return 0;
+    };
+
+    for_every_bus(b_finder);
+    return found_bus;
+}
+
 } // namespace pci
 
 // C api, so outside of the namespace
@@ -104,7 +139,7 @@ status_t pci_bus_mgr_init() {
 
     bus *b;
     // TODO: deal with root bus not having reference to bridge device
-    status_t err = bus::probe(loc, nullptr, &b);
+    status_t err = bus::probe(loc, nullptr, &b, true);
     if (err < 0) {
         return err;
     }
@@ -112,25 +147,53 @@ status_t pci_bus_mgr_init() {
     // if we found anything there should be at least an empty bus device
     DEBUG_ASSERT(b);
     root = b;
-    list_add_tail(&bus_list, b->list_node_ptr());
+    list_add_head(&bus_list, b->list_node_ptr());
 
     // iterate over all the devices found
-    printf("PCI dump:\n");
-    root->dump(2);
+    if (LK_DEBUGLEVEL >= SPEW) {
+        printf("PCI dump:\n");
+        root->dump(2);
+    }
 
-#if 0
-    printf("visit all devices\n");
-    pci_bus_mgr_visit_devices([](pci_location_t _loc) {
-        char str[14];
-        printf("%s\n", pci_loc_string(_loc, str));
-    });
-#endif
+    if (LOCAL_TRACE) {
+        printf("visit all devices\n");
+        pci_bus_mgr_visit_devices([](pci_location_t _loc) {
+            char str[14];
+            printf("%s\n", pci_loc_string(_loc, str));
+        });
+    }
 
     return NO_ERROR;
 }
 
-status_t pci_bus_mgr_add_resource(enum pci_resource_type type, uint64_t mmio_base, uint64_t aux_base, uint64_t len) {
-    TRACEF("type %d: mmio base %#llx aux base %#llx len %#llx\n", type, mmio_base, aux_base, len);
+status_t pci_bus_mgr_add_resource(enum pci_resource_type type, uint64_t mmio_base, uint64_t len) {
+    LTRACEF("type %d: mmio base %#llx len %#llx\n", type, mmio_base, len);
+
+    resource_range r = {};
+    r.type = type;
+    r.base = mmio_base;
+    r.size = len;
+    return resources.set_range(r);
+}
+
+status_t pci_bus_mgr_assign_resources() {
+    LTRACE_ENTRY;
+
+    if (!root) {
+        return NO_ERROR;
+    }
+
+    status_t err = root->allocate_resources(resources);
+    if (err != NO_ERROR) {
+        printf("PCI: error assigning resources to devices\n");
+        return err;
+    }
+
+    // iterate over all the devices found
+    if (LK_DEBUGLEVEL >= SPEW) {
+        printf("PCI dump post assign:\n");
+        root->dump(2);
+    }
 
     return NO_ERROR;
 }
@@ -212,15 +275,7 @@ status_t pci_bus_mgr_enable_device(const pci_location_t loc) {
         return ERR_NOT_FOUND;
     }
 
-    uint16_t command;
-    status_t err = pci_read_config_half(loc, PCI_CONFIG_COMMAND, &command);
-    if (err != NO_ERROR) return err;
-    LTRACEF("command reg %#x\n", command);
-    command |= PCI_COMMAND_IO_EN | PCI_COMMAND_MEM_EN | PCI_COMMAND_BUS_MASTER_EN;
-    err = pci_write_config_half(loc, PCI_CONFIG_COMMAND, command);
-    if (err != NO_ERROR) return err;
-
-    return NO_ERROR;
+    return d->enable();
 }
 
 status_t pci_bus_mgr_read_bars(const pci_location_t loc, pci_bar_t bar[6]) {
@@ -283,5 +338,17 @@ void pci_dump_bars(pci_bar_t bar[6], size_t count) {
 const char *pci_loc_string(pci_location_t loc, char out_str[14]) {
     snprintf(out_str, 14, "%04x:%02x:%02x.%1x", loc.segment, loc.bus, loc.dev, loc.fn);
     return out_str;
+}
+
+const char *pci_resource_type_to_str(enum pci_resource_type type) {
+    switch (type) {
+        case PCI_RESOURCE_IO_RANGE:
+            return "io";
+        case PCI_RESOURCE_MMIO_RANGE:
+            return "mmio";
+        case PCI_RESOURCE_MMIO64_RANGE:
+            return "mmio64";
+    }
+    return "unknown";
 }
 

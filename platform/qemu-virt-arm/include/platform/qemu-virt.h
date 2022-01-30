@@ -39,6 +39,9 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_SMMU] =               { 0x09050000, 0x00020000 },
     [VIRT_PCDIMM_ACPI] =        { 0x09070000, MEMORY_HOTPLUG_IO_LEN },
     [VIRT_ACPI_GED] =           { 0x09080000, ACPI_GED_EVT_SEL_LEN },
+    [VIRT_NVDIMM_ACPI] =        { 0x09090000, NVDIMM_ACPI_IO_LEN},
+    [VIRT_PVTIME] =             { 0x090a0000, 0x00010000 },
+    [VIRT_SECURE_GPIO] =        { 0x090b0000, 0x00001000 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -94,7 +97,9 @@ static const int a15irqmap[] = {
 #define ARM_GENERIC_TIMER_VIRTUAL_INT 27
 #define ARM_GENERIC_TIMER_PHYSICAL_INT 30
 #define UART0_INT   (32 + 1)
-#define VIRTIO0_INT (32 + 16)
+#define PCIE_INT_BASE (32 + 3)
+#define VIRTIO0_INT_BASE (32 + 16)
+#define MSI_INT_BASE (32 + 48)
 
 #define MAX_INT 128
 
