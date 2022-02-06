@@ -48,13 +48,15 @@ status_t ahci_port::probe(ahci_disk **found_disk) {
     if (BITS_SHIFT(ssts, 11, 8) != 1) { // check SSTS.IPM == 1 (interface in active state)
         return ERR_NOT_FOUND;
     }
-    dprintf(INFO, "ahci%d port %u: device present and interface in active state\n",
-            ahci_.get_unit_num(), num_);
+    dprintf(INFO, "ahci%d port %u: ssts %#x device present and interface in active state\n",
+            ahci_.get_unit_num(), num_, ssts);
 
     auto sig = read_port_reg(ahci_port_reg::PxSIG);
     LTRACEF("port %u: sig %#x\n", num_, sig);
 
-    if (sig != 0x101) { // we can only handle SATA drives now
+    // if sig is all 1s then it hasn't been scanned yet, so assume it's a disk.
+    // otherwise if its 0x101 it's a disk
+    if (sig != 0xffffffff && sig != 0x101) {
         TRACEF("skipping unhandled signature %#x\n", sig);
         return ERR_NOT_FOUND;
     }
