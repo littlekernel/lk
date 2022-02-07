@@ -156,7 +156,7 @@ int ahci_port::find_free_cmdslot() {
         return -1;
     }
 
-    int avail = __builtin_ffs(~all_slots) - 1;
+    int avail = __builtin_clz(~all_slots);
     LTRACEF("avail %u\n", avail);
 
     return avail;
