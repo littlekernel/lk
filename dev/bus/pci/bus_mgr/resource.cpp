@@ -38,6 +38,8 @@ resource_range &resource_allocator::type_to_range(pci_resource_type type, bool p
                 DEBUG_ASSERT_MSG(0, "uhandled pci resource type %d\n", type);
         }
     }
+    static resource_range zero = {};
+    return zero;
 }
 
 status_t resource_allocator::set_range(const resource_range &range, bool prefetchable) {
