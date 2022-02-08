@@ -58,11 +58,21 @@ ldp \ra, \rb, [sp], #16
     add     \new_ptr_end, \new_ptr, #(1 << \size_shift)
     str     \new_ptr_end, [\tmp, #:lo12:boot_alloc_end]
 
+    /* clean and invalidate boot_alloc_end pointer */
+    add     x0, \tmp, #:lo12:boot_alloc_end
+    mov     x1, #8
+    bl      arch_clean_invalidate_cache_range
+
 .if \phys_offset != 0
     /* clear page */
     sub     \new_ptr, \new_ptr, \phys_offset
     sub     \new_ptr_end, \new_ptr_end, \phys_offset
 .endif
+
+    /* clean and invalidate new page */
+    mov     x0, \new_ptr
+    mov     x1, #(1 << \size_shift)
+    bl      arch_clean_invalidate_cache_range
 
     /* clear page */
     mov     \tmp, \new_ptr

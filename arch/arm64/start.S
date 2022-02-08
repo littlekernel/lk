@@ -85,6 +85,17 @@ arm_reset:
     str     boot_el, [tmp, #:lo12:arm64_boot_el]
 
 #if WITH_KERNEL_VM
+    /* Ensure that the page tables we will populate do not have stale cache
+     * entries present that would cause a fault when enabling the MMU.
+     */
+    mov x0, page_table0
+    mov x1, (MMU_PAGE_TABLE_ENTRIES_IDENT << 3)
+    bl arch_clean_invalidate_cache_range
+
+    mov x0, page_table1
+    mov x1, (MMU_KERNEL_PAGE_TABLE_ENTRIES_TOP << 3)
+    bl arch_clean_invalidate_cache_range
+
     /* walk through all the entries in the translation table, setting them up */
     mov     tmp, #0
 .Lclear_top_page_table_loop:
