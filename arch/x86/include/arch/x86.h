@@ -455,7 +455,7 @@ static inline uint64_t read_msr (uint32_t msr_id) {
         : "c" (msr_id));
 
     msr_read_val = high_val;
-    msr_read_val = (msr_read_val << 31) | low_val;
+    msr_read_val = (msr_read_val << 32) | low_val;
 
     return msr_read_val;
 }
