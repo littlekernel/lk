@@ -11,15 +11,16 @@
 FUNCTION(_start)
     // clear bss
     lea     __bss_start,%a0
-    cmpal   #_end,%a0
+    cmpal   #__bss_end,%a0
     beqs    1f
 0:
     clrb    %a0@+
-    cmpal   #_end,%a0
+    cmpal   #__bss_end,%a0
     bnes    0b
 1:
 
     movel   #_default_stack_top,%sp
+
     jsr     lk_main
     jmp     .
 

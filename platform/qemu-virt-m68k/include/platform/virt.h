@@ -36,8 +36,8 @@
 #define GOLDFISH_TTY_IRQ PIC_IRQ_TO_LINEAR(1, 32) // PIC 1, irq 32
 #define GOLDFISH_RTC_IRQ PIC_IRQ_TO_LINEAR(6, 1)  // PIC 6, irq 1
 
-//#define PIC_IRQ_BASE(num)     (8 + (num - 1) * 32)
-//#define PIC_IRQ(num, irq)     (PIC_IRQ_BASE(num) + irq - 1)
+#define PIC_IRQ_BASE(num)     (8 + (num - 1) * 32)
+#define PIC_IRQ(num, irq)     (PIC_IRQ_BASE(num) + irq - 1)
 //#define PIC_GPIO(pic_irq)     (qdev_get_gpio_in(pic_dev[(pic_irq - 8) / 32], (pic_irq - 8) % 32))
 
 #define VIRT_GF_PIC_MMIO_BASE 0xff000000     /* MMIO: 0xff000000 - 0xff005fff */
@@ -65,3 +65,5 @@
  */
 #define VIRT_VIRTIO_MMIO_BASE 0xff010000     /* MMIO: 0xff010000 - 0xff01ffff */
 #define VIRT_VIRTIO_IRQ_BASE  PIC_IRQ(2, 1)  /* PIC: 2, 3, 4, 5, IRQ: ALL */
+
+#define NUM_VIRT_VIRTIO 128

@@ -32,96 +32,70 @@
 
 #define LOCAL_TRACE 0
 
-extern ulong lk_boot_args[4];
+extern uint8_t __bss_end;
 
-#if WITH_KERNEL_VM
-#define DEFAULT_MEMORY_SIZE (MEMSIZE) /* try to fetch from the emulator via the fdt */
-
-static pmm_arena_t arena = {
-    .name = "ram",
-    .base = MEMORY_BASE_PHYS,
-    .size = DEFAULT_MEMORY_SIZE,
-    .flags = PMM_ARENA_FLAG_KMAP,
+// parse bootinfo
+struct bootinfo_item {
+    uint16_t tag;
+    uint16_t size;
+    uint32_t data[0];
 };
-#endif
+
+// look for tags that qemu left at the end of the kernel that hold various
+// pieces of system configuration info.
+static void *bootinfo_find_record(uint16_t id, uint16_t *size_out) {
+    uint8_t *ptr = &__bss_end;
+
+    *size_out = 0;
+    for (;;) {
+        struct bootinfo_item *item = (struct bootinfo_item *)ptr;
+
+        LTRACEF_LEVEL(2, "item %p: tag %hx, size %hu\n", item, item->tag, item->size);
+
+        if (item->tag == id) {
+            *size_out = item->size - 4;
+            return item->data;
+        } else if (item->tag == 0) { // end token
+            return NULL;
+        }
+
+        // move to the next field
+        ptr += item->size;
+    }
+}
 
 void platform_early_init(void) {
     goldfish_tty_early_init();
     pic_early_init();
     goldfish_rtc_early_init();
-#if 0
-    plic_early_init();
 
-    LTRACEF("starting FDT scan\n");
-
-    /* look for a flattened device tree in the second arg passed to us */
-    bool found_mem = false;
-    int cpu_count = 0;
-    const void *fdt = (void *)lk_boot_args[1];
-#if WITH_KERNEL_VM
-    fdt = (const void *)((uintptr_t)fdt + PERIPHERAL_BASE_VIRT);
-#endif
-
-    struct fdt_walk_callbacks cb = {
-        .mem = memcallback,
-        .memcookie = &found_mem,
-        .cpu = cpucallback,
-        .cpucookie = &cpu_count,
-    };
-
-    status_t err = fdt_walk(fdt, &cb);
-    LTRACEF("fdt_walk returns %d\n", err);
-
-    if (err != 0) {
-        printf("FDT: error finding FDT at %p, using default memory & cpu count\n", fdt);
+    // look for tag 0x5, which describes the memory layout of the system
+    uint16_t size;
+    void *ptr = bootinfo_find_record(0x5, &size);
+    if (!ptr) {
+        panic("68K VIRT: unable to find MEMCHUNK BOOTINFO record\n");
     }
+    LTRACEF("MEMCHUNK ptr %p, size %hu\n", ptr, size);
 
-    if (!found_mem) {
-#if WITH_KERNEL_VM
-        pmm_add_arena(&arena);
-#else
-        novm_add_arena("default", MEMBASE, MEMSIZE);
-#endif
-    }
+    uint32_t membase = *(uint32_t *)ptr;
+    uint32_t memsize = *(uint32_t *)((uintptr_t)ptr + 4);
 
-    if (cpu_count > 0) {
-        printf("FDT: found %d cpus\n", cpu_count);
-        riscv_set_secondary_count(cpu_count - 1);
-    }
-
-#if WITH_KERNEL_VM
-    /* reserve the first 256K of ram which is marked protected by the PMP in firmware */
-    struct list_node list = LIST_INITIAL_VALUE(list);
-    pmm_alloc_range(MEMBASE, 0x40000 / PAGE_SIZE, &list);
-#endif
-
-    LTRACEF("done scanning FDT\n");
-
-    /* save a copy of the pointer to the poweroff/reset register */
-    /* TODO: read it from the FDT */
-#if WITH_KERNEL_VM
-    power_reset_reg = paddr_to_kvaddr(0x100000);
-#else
-    power_reset_reg = (void *)0x100000;
-#endif
-#endif
+    dprintf(INFO, "VIRT: memory base %#x size %#x\n", membase, memsize);
+    novm_add_arena("mem", membase, memsize);
 }
 
 void platform_init(void) {
     pic_init();
     goldfish_tty_init();
     goldfish_rtc_init();
-#if 0
-    plic_init();
-    uart_init();
 
     /* detect any virtio devices */
-    uint virtio_irqs[NUM_VIRTIO_TRANSPORTS];
-    for (int i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
-        virtio_irqs[i] = IRQ_VIRTIO_BASE + i;
+    uint virtio_irqs[NUM_VIRT_VIRTIO];
+    for (int i = 0; i < NUM_VIRT_VIRTIO; i++) {
+        virtio_irqs[i] = VIRT_VIRTIO_IRQ_BASE + i;
     }
 
-    virtio_mmio_detect((void *)VIRTIO_BASE_VIRT, NUM_VIRTIO_TRANSPORTS, virtio_irqs, VIRTIO_STRIDE);
+    virtio_mmio_detect((void *)VIRT_VIRTIO_MMIO_BASE, NUM_VIRT_VIRTIO, virtio_irqs, 0x200);
 
 #if WITH_LIB_MINIP
     if (virtio_net_found() > 0) {
@@ -143,7 +117,6 @@ void platform_init(void) {
 
         virtio_net_start();
     }
-#endif
 #endif
 }
 
