@@ -32,6 +32,7 @@ attr                    .req x27
 FUNCTION(_start)
 .globl arm_reset
 arm_reset:
+    /* if we came in at higher than EL1, drop down to EL1 */
     bl      arm64_elX_to_el1
 
 #if WITH_KERNEL_VM
@@ -59,11 +60,21 @@ arm_reset:
     mrs     cpuid, mpidr_el1
     ubfx    cpuid, cpuid, #0, #SMP_CPU_ID_BITS
     cbnz    cpuid, .Lmmu_enable_secondary
-#endif
 
-    mov     tmp, #0
+    /* this path forward until .Lmmu_enable_secondary is the primary cpu only */
 
+#endif /* WITH_SMP */
+#endif /* WITH_KERNEL_VM */
+
+    /* save a copy of the boot args so x0-x3 are available for use */
+    adrp    tmp, arm64_boot_args
+    add     tmp, tmp, :lo12:arm64_boot_args
+    stp     x0, x1, [tmp], #16
+    stp     x2, x3, [tmp]
+
+#if WITH_KERNEL_VM
     /* walk through all the entries in the translation table, setting them up */
+    mov     tmp, #0
 .Lclear_top_page_table_loop:
     str     xzr, [page_table1, tmp, lsl #3]
     add     tmp, tmp, #1
@@ -81,7 +92,7 @@ arm_reset:
 
     tbzmask tmp, MMU_INITIAL_MAPPING_FLAG_DYNAMIC, .Lnot_dynamic
     adr     paddr, _start
-    mov     size, x0
+    mov     size, x0 /* use the arg passed through from platform_reset */
     str     paddr, [mmu_initial_mapping, #__MMU_INITIAL_MAPPING_PHYS_OFFSET]
     str     size, [mmu_initial_mapping, #__MMU_INITIAL_MAPPING_SIZE_OFFSET]
 
@@ -339,6 +350,7 @@ arm_reset:
 #endif
 #endif /* WITH_KERNEL_VM */
 
+    /* load the stack pointer */
     ldr tmp, =__stack_end
     mov sp, tmp
 
@@ -355,6 +367,12 @@ arm_reset:
     str     xzr, [tmp], #8
     cbnz    tmp2, .L__bss_loop
 .L__bss_loop_done:
+
+    /* load the boot args we had saved previously */
+    adrp    tmp, arm64_boot_args
+    add     tmp, tmp, :lo12:arm64_boot_args
+    ldp     x0, x1, [tmp], #16
+    ldp     x2, x3, [tmp]
 
     bl  lk_main
     b   .
@@ -386,16 +404,24 @@ arm_reset:
 
 .ltorg
 
+.data
+    .balign 8
+LOCAL_DATA(arm64_boot_args)
+    .skip (4 * 8)
+END_DATA(arm64_boot_args)
+
 #if WITH_SMP
 .data
 DATA(page_tables_not_ready)
     .long       1
+END_DATA(page_tables_not_ready)
 #endif
 
 .section .bss.prebss.stack
     .align 4
 DATA(__stack)
     .skip ARCH_DEFAULT_STACK_SIZE * SMP_MAX_CPUS
+END_DATA(__stack)
 DATA(__stack_end)
 
 #if WITH_KERNEL_VM
@@ -403,4 +429,5 @@ DATA(__stack_end)
 .align 3 + MMU_PAGE_TABLE_ENTRIES_IDENT_SHIFT
 DATA(tt_trampoline)
     .skip 8 * MMU_PAGE_TABLE_ENTRIES_IDENT
+END_DATA(tt_trampoline)
 #endif
