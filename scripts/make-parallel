@@ -13,7 +13,7 @@ Linux)
 Darwin)
     PARALLEL=-j`sysctl -n hw.ncpu`
     ;;
-FreeBSD)
+FreeBSD|NetBSD|OpenBSD)
     PARALLEL=-j`sysctl -n hw.ncpu`
     MAKE=gmake
     ;;
