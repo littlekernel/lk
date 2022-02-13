@@ -56,7 +56,8 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
     uint32_t size_cells[MAX_DEPTH];
 
     /* read the address/size cells properties at the root, if present */
-    address_cells[0] = size_cells[0] = 1;
+    address_cells[0] = 2;
+    size_cells[0] = 1;
     read_address_size_cells(fdt, offset, 0, address_cells, size_cells);
 
     for (;;) {
