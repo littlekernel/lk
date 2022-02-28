@@ -99,11 +99,16 @@ if (( ! $DO_GRAPHICS )); then
     ARGS+=" -nographic"
 else
     ARGS+=" -serial stdio -vga std"
+    if (( ! $DO_LEGACY )); then
+        # add a couple of virtio devices for good measure
+        ARGS+=" -device virtio-keyboard-pci"
+        ARGS+=" -device virtio-mouse-pci"
+    fi
 fi
 
 if (( $DO_DISK )); then
     if (( ! $DO_LEGACY )); then
-        ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk -device virtio-blk-pci,drive=blk"
+        ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk,discard=on -device virtio-blk-pci,drive=blk,discard=on"
     else
         ARGS+=" -hda ${DISK_IMAGE}"
     fi
@@ -112,13 +117,13 @@ if (( $DO_NET )); then
     if (( ! $DO_LEGACY )); then
         if (( ! $DO_NET_TAP )); then
             ARGS+=" -netdev user,id=vmnic,hostname=qemu"
+        else
             # quick note to enable tap interface
             # IFNAME=qemu0
             # BRIDGE=bridge0
             # sudo tunctl -u $(whoami) -t ${IFNAME}
             # sudo ifconfig ${IFNAME} up
             # sudo ip link set ${IFNAME} master ${BRIDGE}
-        else
             ARGS+=" -netdev tap,id=vmnic,ifname=qemu0,script=no,downscript=no"
             #SUDO="sudo"
         fi
