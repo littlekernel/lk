@@ -7,6 +7,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <assert.h>
 
 // portions from https://wiki.osdev.org/AHCI
 //
@@ -25,6 +26,8 @@ typedef enum {
 
 typedef enum {
     ATA_CMD_IDENTIFY = 0xec,
+    ATA_CMD_PACKET = 0xa0,
+    ATA_CMD_PACKET_IDENTIFY = 0xa1,
 } ATA_CMD;
 
 typedef struct tagFIS_REG_H2D
@@ -175,4 +178,3 @@ typedef struct tagFIS_DMA_SETUP
     // DWORD 6
     uint32_t resvd;         // Reserved
 } FIS_DMA_SETUP;
-
