@@ -6,6 +6,7 @@ MODULE_SRCS += $(LOCAL_DIR)/start.S
 MODULE_SRCS += $(LOCAL_DIR)/arch.c
 MODULE_SRCS += $(LOCAL_DIR)/asm.S
 MODULE_SRCS += $(LOCAL_DIR)/exceptions.c
+MODULE_SRCS += $(LOCAL_DIR)/fpu_asm.S
 MODULE_SRCS += $(LOCAL_DIR)/thread.c
 MODULE_SRCS += $(LOCAL_DIR)/mmu.cpp
 MODULE_SRCS += $(LOCAL_DIR)/mp.c
