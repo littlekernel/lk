@@ -224,6 +224,7 @@ status_t elf_load(elf_handle_t *handle) {
             void *ptr = (void *)(uintptr_t)pheader->p_vaddr;
 
             if (handle->mem_alloc_hook) {
+                // TODO: pass flags re: X bit, etc
                 status_t err = handle->mem_alloc_hook(handle, &ptr, pheader->p_memsz, load_count, 0);
                 if (err < 0) {
                     LTRACEF("mem hook failed, abort\n");
@@ -233,7 +234,7 @@ status_t elf_load(elf_handle_t *handle) {
             }
 
             // read the file portion of the segment into memory at vaddr
-            LTRACEF("reading segment at offset " ELF_OFF_PRINT_U " to address %p\n", pheader->p_offset, ptr);
+            LTRACEF("reading segment at offset 0x" ELF_OFF_PRINT_X " to address %p\n", pheader->p_offset, ptr);
             readerr = handle->read_hook(handle, ptr, pheader->p_offset, pheader->p_filesz);
             if (readerr < (ssize_t)pheader->p_filesz) {
                 LTRACEF("error %ld reading program header %u\n", readerr, i);
