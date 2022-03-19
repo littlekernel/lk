@@ -209,7 +209,7 @@ static int send_arp_request(uint32_t addr) {
     mac_addr_copy(arp->sha, minip_mac);
     mac_addr_copy(arp->tha, bcast_mac);
 
-    minip_tx_handler(p);
+    minip_tx_handler(minip_tx_arg, p);
     return 0;
 }
 
@@ -283,7 +283,7 @@ ready:
     minip_build_mac_hdr(eth, dst_mac, ETH_TYPE_IPV4);
     minip_build_ipv4_hdr(ip, dest_addr, proto, data_len);
 
-    minip_tx_handler(p);
+    minip_tx_handler(minip_tx_arg, p);
 
 err:
     return ret;
@@ -320,7 +320,7 @@ static void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdat
     icmp->chksum = 0;
     icmp->chksum = rfc1701_chksum((uint8_t *) icmp, len);
 
-    minip_tx_handler(p);
+    minip_tx_handler(minip_tx_arg, p);
 }
 
 static void dump_ipv4_addr(uint32_t addr) {
@@ -459,7 +459,7 @@ __NO_INLINE static int handle_arp_pkt(pktbuf_t *p) {
                 mac_addr_copy(rarp->tha, arp->sha);
                 rarp->tpa = arp->spa;
 
-                minip_tx_handler(rp);
+                minip_tx_handler(minip_tx_arg, rp);
             }
         }
         break;

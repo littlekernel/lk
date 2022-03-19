@@ -169,7 +169,7 @@ static void queue_pkts_in_tx_tbl(void) {
     gem.regs->net_ctrl |= NET_CTRL_START_TX;
 }
 
-int gem_send_raw_pkt(struct pktbuf *p) {
+int gem_send_raw_pkt(void *arg, struct pktbuf *p) {
     status_t ret = NO_ERROR;
 
     if (!p || !p->dlen) {
@@ -557,7 +557,7 @@ static int cmd_gem(int argc, const console_cmd_args *argv) {
         p->dlen = argv[3].u;
         while (iter--) {
             memset(p->data, iter, 12);
-            gem_send_raw_pkt(p);
+            gem_send_raw_pkt(NULL, p);
         }
     } else if (strncmp(argv[1].str, "status", sizeof("status")) == 0) {
         uint32_t mac_top = gem.regs->spec_addr1_top;

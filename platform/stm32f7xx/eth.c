@@ -320,7 +320,7 @@ static int eth_rx_worker(void *arg) {
 
 #if WITH_LIB_MINIP
 
-status_t stm32_eth_send_minip_pkt(pktbuf_t *p) {
+status_t stm32_eth_send_minip_pkt(void *arg, pktbuf_t *p) {
     LTRACEF("p %p, dlen %zu, eof %u\n", p, p->dlen, p->flags & PKTBUF_FLAG_EOF);
 
     DEBUG_ASSERT(p && p->dlen);

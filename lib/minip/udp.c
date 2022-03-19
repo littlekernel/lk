@@ -150,7 +150,7 @@ status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle
 
     LTRACEF("packet paylod len %ld\n", len);
 
-    minip_tx_handler(p);
+    minip_tx_handler(minip_tx_arg, p);
 
     return ret;
 }

@@ -87,6 +87,8 @@ enum {
 };
 
 extern tx_func_t minip_tx_handler;
+extern void *minip_tx_arg;
+
 typedef struct udp_hdr udp_hdr_t;
 static const uint8_t bcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 typedef uint32_t ipv4_addr;

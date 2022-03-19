@@ -139,7 +139,7 @@ int arp_send_request(uint32_t addr) {
     minip_get_macaddr(arp->sha);
     mac_addr_copy(arp->tha, bcast_mac);
 
-    minip_tx_handler(p);
+    minip_tx_handler(minip_tx_arg, p);
     return 0;
 }
 

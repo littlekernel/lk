@@ -7,7 +7,7 @@ typedef void (*gem_cb_t)(struct pktbuf *p);
 status_t gem_init(uintptr_t regsbase);
 void gem_set_callback(gem_cb_t rx);
 void gem_set_macaddr(uint8_t mac[6]);
-int gem_send_raw_pkt(struct pktbuf *p);
+int gem_send_raw_pkt(void *arg, struct pktbuf *p);
 
 void gem_disable(void);
 

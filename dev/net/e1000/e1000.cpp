@@ -511,18 +511,15 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     return NO_ERROR;
 }
 
-static int e1000_tx(pktbuf_t *p) {
-    if (the_e) {
-        the_e->tx(p);
-    }
-
-    return NO_ERROR;
-}
-
 extern "C"
 status_t e1000_register_with_minip() {
+    auto tx_routine = [](void *arg, pktbuf_t *p) {
+        auto *e = static_cast<e1000 *>(arg);
+        return e->tx(p);
+    };
+
     if (the_e) {
-        minip_set_eth(e1000_tx, the_e, the_e->mac_addr());
+        minip_set_eth(tx_routine, the_e, the_e->mac_addr());
         return NO_ERROR;
     }
 

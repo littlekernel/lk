@@ -24,7 +24,7 @@ __BEGIN_CDECLS
 #define IPV4_BCAST (0xFFFFFFFF)
 #define IPV4_NONE (0)
 
-typedef int (*tx_func_t)(pktbuf_t *p);
+typedef int (*tx_func_t)(void *arg, pktbuf_t *p);
 typedef void (*udp_callback_t)(void *data, size_t len,
                                uint32_t srcaddr, uint16_t srcport, void *arg);
 
