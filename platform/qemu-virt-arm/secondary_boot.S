@@ -12,10 +12,18 @@
 
 /* used to call into PSCI firmware (Power State Coordination Firmware) */
 FUNCTION(psci_call)
-    hvc     #0
 #if ARCH_ARM
+    hvc     #0
     bx      lr
 #else
+    /* If booted at EL2 (bit 3 set of boot EL), we need to use SMC instead of HVC. */
+    adrp    x9, arm64_boot_el
+    ldr     x9, [x9, #:lo12:arm64_boot_el]
+    tbnz    x9, #3, .Lsmc
+    hvc     #0
+    ret
+.Lsmc:
+    smc     #0
     ret
 #endif
 

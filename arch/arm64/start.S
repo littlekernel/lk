@@ -27,11 +27,15 @@ paddr                   .req x24
 mapping_size            .req x25
 size                    .req x26
 attr                    .req x27
+boot_el                 .req x28
 
 .section .text.boot
 FUNCTION(_start)
 .globl arm_reset
 arm_reset:
+    /* keep track of the boot EL */
+    mrs     boot_el, currentel
+
     /* if we came in at higher than EL1, drop down to EL1 */
     bl      arm64_elX_to_el1
 
@@ -75,6 +79,10 @@ arm_reset:
     add     tmp, tmp, :lo12:arm64_boot_args
     stp     x0, x1, [tmp], #16
     stp     x2, x3, [tmp]
+
+    /* save the boot EL */
+    adrp    tmp, arm64_boot_el
+    str     boot_el, [tmp, #:lo12:arm64_boot_el]
 
 #if WITH_KERNEL_VM
     /* walk through all the entries in the translation table, setting them up */
@@ -413,6 +421,9 @@ arm_reset:
 LOCAL_DATA(arm64_boot_args)
     .skip (4 * 8)
 END_DATA(arm64_boot_args)
+DATA(arm64_boot_el)
+    .skip 8
+END_DATA(arm64_boot_el)
 
 #if WITH_SMP
 .data
