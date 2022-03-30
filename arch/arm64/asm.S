@@ -117,10 +117,6 @@ FUNCTION(arm64_elX_to_el1)
     mov x4, #(1<<31)
     msr hcr_el2, x4
 
-    /* disable EL1 FPU traps */
-    mov x4, #(0b11<<20)
-    msr cpacr_el1, x4
-
     /* set up the EL1 bounce interrupt */
     mov x4, sp
     msr sp_el1, x4
