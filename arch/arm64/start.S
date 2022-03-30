@@ -35,6 +35,10 @@ arm_reset:
     /* if we came in at higher than EL1, drop down to EL1 */
     bl      arm64_elX_to_el1
 
+    /* disable EL1 FPU traps */
+    mov     tmp, #(0b11<<20)
+    msr     cpacr_el1, tmp
+
 #if WITH_KERNEL_VM
     /* enable caches so atomics and spinlocks work */
     mrs     tmp, sctlr_el1
