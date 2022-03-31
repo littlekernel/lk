@@ -248,7 +248,7 @@ for img in "${DISK_IMAGES[@]}"; do
 done
 
 if (( DO_NET )); then
-    ARGS+=("-netdev" "user,id=vmnic,hostname=qemu")
+    ARGS+=("-netdev" "user,id=vmnic,hostname=qemu,hostfwd=tcp::10007-:7,hostfwd=tcp::10009-:9,hostfwd=tcp::10019-:19,hostfwd=tcp::10023-:23")
     ARGS+=("-device" "${VIRTIO_NET_DEVICE},netdev=vmnic")
 elif (( DO_NET_TAP )); then
     # quick note to enable tap interface

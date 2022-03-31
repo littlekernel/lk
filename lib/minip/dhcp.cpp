@@ -22,7 +22,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#define TRACE_DHCP 0
+#define TRACE_DHCP 1
 
 namespace {
 
@@ -93,6 +93,7 @@ private:
     Mutex lock_;
     udp_socket_t *dhcp_udp_handle_ = nullptr;
     thread_t *dhcp_thr_ = nullptr;
+    netif_t *netif_ = nullptr;
 
     volatile bool configured_ = false;
     uint32_t xid_ = rand();
@@ -118,7 +119,7 @@ status_t dhcp::send_discover() {
     s.msg.hwalen = 6;
     s.msg.xid = xid_;
     s.msg.cookie = 0x63538263;
-    minip_get_macaddr(s.msg.chaddr);
+    mac_addr_copy(s.msg.chaddr, netif_->mac_address);
 
     *opt++ = OPT_MSG_TYPE;
     *opt++ = 1;
@@ -160,7 +161,7 @@ status_t dhcp::send_request(u32 server, u32 reqip) {
     s.msg.hwalen = 6;
     s.msg.xid = xid_;
     s.msg.cookie = 0x63538263;
-    minip_get_macaddr(s.msg.chaddr);
+    mac_addr_copy(s.msg.chaddr, netif_->mac_address);
 
     *opt++ = OPT_MSG_TYPE;
     *opt++ = 1;
@@ -227,9 +228,7 @@ void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport)
 
     if (sz < sizeof(dhcp_msg_t)) return;
 
-    uint8_t mac[6];
-    minip_get_macaddr(mac);
-    if (memcmp(msg->chaddr, mac, 6)) return;
+    if (memcmp(msg->chaddr, netif_->mac_address, sizeof(netif_->mac_address))) return;
 
 #if TRACE_DHCP
     printf("received DHCP op %d, len %zu, from p %d, ip=", msg->opcode, sz, srcport);
@@ -313,10 +312,12 @@ done:
             printf("\n");
 #endif
             printf("DHCP configured\n");
-            minip_set_ipaddr(msg->yiaddr);
+            uint8_t netwidth = 32;
             if (netmask) {
-                minip_set_netmask(netmask);
+                netwidth = __builtin_ctz(~netmask);
+                //printf("netmask %#x netwidth %u\n", netmask, netwidth);
             }
+            netif_set_ipv4_addr(netif_, msg->yiaddr, netwidth);
             if (gateway) {
                 minip_set_gateway(gateway);
             }
@@ -362,6 +363,10 @@ int dhcp::dhcp_thread(void *arg) {
 status_t dhcp::start() {
     AutoLock guard(lock_);
 
+    // for now just try to set up for the main netif
+    netif_ = netif_main;
+
+    // TODO: bind udp socket to this interface
     int ret = udp_open(IPV4_BCAST, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, &dhcp_udp_handle_);
     if (ret != NO_ERROR) {
         printf("DHCP: error opening udp socket\n");

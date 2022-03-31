@@ -34,6 +34,7 @@ typedef struct udp_socket {
     uint16_t sport;
     uint16_t dport;
     const uint8_t *mac;
+    netif_t *netif;
 } udp_socket_t;
 
 typedef struct udp_hdr {
@@ -95,6 +96,8 @@ status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **
     socket->sport = sport;
     socket->dport = dport;
     socket->mac = dst_mac;
+    // TODO: replace with route lookup
+    socket->netif = netif_main;
 
     *handle = socket;
 
@@ -127,6 +130,11 @@ status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle
         return -ENOMEM;
     }
 
+    if (handle->netif == NULL) {
+        LTRACEF("aborting send due to lack of netif\n");
+        return -EHOSTUNREACH;
+    }
+
     len = iovec_size(iov, iov_count);
 
     buf = pktbuf_append(p, len);
@@ -141,8 +149,8 @@ status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle
     udp->len        = htons(sizeof(udp_hdr_t) + len);
     udp->chksum     = 0;
 
-    minip_build_mac_hdr(eth, handle->mac, ETH_TYPE_IPV4);
-    minip_build_ipv4_hdr(ip, handle->host, IP_PROTO_UDP, len + sizeof(udp_hdr_t));
+    minip_build_mac_hdr(handle->netif, eth, handle->mac, ETH_TYPE_IPV4);
+    minip_build_ipv4_hdr(handle->netif, ip, handle->host, IP_PROTO_UDP, len + sizeof(udp_hdr_t));
 
 #if (MINIP_USE_UDP_CHECKSUM != 0)
     udp->chksum = rfc768_chksum(ip, udp);
@@ -150,7 +158,7 @@ status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle
 
     LTRACEF("packet paylod len %ld\n", len);
 
-    minip_tx_handler(minip_tx_arg, p);
+    handle->netif->tx_func(handle->netif->tx_func_arg, p);
 
     return ret;
 }
@@ -170,7 +178,7 @@ status_t udp_send(void *buf, size_t len, udp_socket_t *handle) {
     return udp_send_iovec(&iov, 1, handle);
 }
 
-void udp_input(pktbuf_t *p, uint32_t src_ip) {
+void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip) {
     udp_hdr_t *udp;
     struct udp_listener *e;
     uint16_t port;

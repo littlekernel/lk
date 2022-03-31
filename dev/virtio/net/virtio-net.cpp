@@ -22,6 +22,7 @@
 #include <lib/pktbuf.h>
 #include <lib/minip.h>
 #include <dev/virtio/virtio-device.h>
+#include <lib/minip/netif.h>
 
 #define LOCAL_TRACE 0
 
@@ -126,11 +127,16 @@ struct virtio_net_dev {
 
     uint tx_pending_count;
     struct list_node completed_rx_queue;
+
+    /* the minip ethernet structure */
+    netif_t netif;
 };
 
 enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e);
 int virtio_net_rx_worker(void *arg);
 status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick = true);
+status_t virtio_net_get_mac_addr(uint8_t mac_addr[6]);
+status_t virtio_net_send_minip_pkt(void *arg, pktbuf_t *p);
 
 // XXX remove need for this
 virtio_net_dev *the_ndev;
@@ -211,6 +217,9 @@ status_t virtio_net_init(virtio_device *dev) {
     dev->virtio_alloc_ring(RING_RX, RX_RING_SIZE); // rx
     dev->virtio_alloc_ring(RING_TX, TX_RING_SIZE); // tx
 
+    /* construct the minip netif interface */
+    netif_create(&ndev->netif, "virtio");
+
     /* set DRIVER_OK */
     dev->bus()->virtio_status_driver_ok();
     the_ndev = ndev;
@@ -237,6 +246,12 @@ status_t virtio_net_start(void) {
     }
     /* kick all at once */
     the_ndev->dev->bus()->virtio_kick(RING_RX);
+
+    /* register the nic with the net stack */
+    uint8_t mac[6];
+    virtio_net_get_mac_addr(mac);
+    netif_set_eth(&the_ndev->netif, virtio_net_send_minip_pkt, the_ndev, mac);
+    netif_register(&the_ndev->netif);
 
     return NO_ERROR;
 }
@@ -466,7 +481,7 @@ int virtio_net_rx_worker(void *arg) {
             virtio_net_hdr *hdr = (virtio_net_hdr *)pktbuf_consume(p, sizeof(virtio_net_hdr) - 2);
             if (hdr) {
                 /* call up into the stack */
-                minip_rx_driver_callback(p);
+                minip_rx_driver_callback(&ndev->netif, p);
             }
 
             /* requeue the pktbuf in the rx queue */
@@ -474,12 +489,6 @@ int virtio_net_rx_worker(void *arg) {
         }
     }
     return 0;
-}
-
-} // namespace
-
-int virtio_net_found(void) {
-    return the_ndev ? 1 : 0;
 }
 
 status_t virtio_net_get_mac_addr(uint8_t mac_addr[6]) {
@@ -497,6 +506,7 @@ status_t virtio_net_send_minip_pkt(void *arg, pktbuf_t *p) {
     LTRACEF("p %p, dlen %u, flags 0x%x\n", p, p->dlen, p->flags);
 
     DEBUG_ASSERT(p && p->dlen);
+    DEBUG_ASSERT(arg == the_ndev);
 
     if ((p->flags & PKTBUF_FLAG_EOF) == 0) {
         /* can't handle multi part packets yet */
@@ -512,5 +522,11 @@ status_t virtio_net_send_minip_pkt(void *arg, pktbuf_t *p) {
     }
 
     return err;
+}
+
+} // namespace
+
+int virtio_net_found(void) {
+    return the_ndev ? 1 : 0;
 }
 
