@@ -37,8 +37,8 @@ typedef struct tcp_header {
 } __PACKED tcp_header_t;
 
 typedef struct tcp_pseudo_header {
-    ipv4_addr source_addr;
-    ipv4_addr dest_addr;
+    ipv4_addr_t source_addr;
+    ipv4_addr_t dest_addr;
     uint8_t zero;
     uint8_t protocol;
     uint16_t tcp_length;
@@ -80,8 +80,8 @@ typedef struct tcp_socket {
     volatile int ref;
 
     tcp_state_t state;
-    ipv4_addr local_ip;
-    ipv4_addr remote_ip;
+    ipv4_addr_t local_ip;
+    ipv4_addr_t remote_ip;
     uint16_t local_port;
     uint16_t remote_port;
 
@@ -138,11 +138,11 @@ static struct list_node tcp_socket_list = LIST_INITIAL_VALUE(tcp_socket_list);
 static bool tcp_debug = false;
 
 /* local routines */
-static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint16_t remote_port, uint16_t local_port);
+static tcp_socket_t *lookup_socket(ipv4_addr_t remote_ip, ipv4_addr_t local_ip, uint16_t remote_port, uint16_t local_port);
 static void add_socket_to_list(tcp_socket_t *s);
 static void remove_socket_from_list(tcp_socket_t *s);
 static tcp_socket_t *create_tcp_socket(bool alloc_buffers);
-static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip, uint16_t src_port, const void *buf,
+static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port, const void *buf,
                          size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size);
 static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t sequence);
 static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t sequence);
@@ -216,7 +216,7 @@ static void dump_socket(tcp_socket_t *s) {
     }
 }
 
-static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint16_t remote_port, uint16_t local_port) {
+static tcp_socket_t *lookup_socket(ipv4_addr_t remote_ip, ipv4_addr_t local_ip, uint16_t remote_port, uint16_t local_port) {
     LTRACEF_LEVEL(2, "remote ip 0x%x local ip 0x%x remote port %u local port %u\n", remote_ip, local_ip, remote_port, local_port);
 
     mutex_acquire(&tcp_socket_list_lock);
@@ -719,7 +719,7 @@ static void send_ack(tcp_socket_t *s) {
     tcp_socket_send(s, NULL, 0, PKT_ACK, NULL, 0, s->tx_win_low);
 }
 
-static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip, uint16_t src_port, const void *buf,
+static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port, const void *buf,
                          size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size) {
     DEBUG_ASSERT(len == 0 || buf);
     DEBUG_ASSERT(options_length == 0 || options);

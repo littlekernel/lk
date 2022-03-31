@@ -91,7 +91,6 @@ extern void *minip_tx_arg;
 
 typedef struct udp_hdr udp_hdr_t;
 static const uint8_t bcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-typedef uint32_t ipv4_addr;
 typedef union {
     uint32_t u;
     uint8_t b[4];
@@ -119,6 +118,10 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
 void udp_input(pktbuf_t *p, uint32_t src_ip);
 
 const uint8_t *get_dest_mac(uint32_t host);
+
+// interface list
+void netif_init(void);
+void netif_dump(void);
 
 // timers
 typedef void (*net_timer_callback_t)(void *);

@@ -28,11 +28,11 @@
 // TODO
 // 1. Tear endian code out into something that flips words before/after tx/rx calls
 
-#define LOCAL_TRACE 0
-static uint32_t minip_ip      = IPV4_NONE;
-static uint32_t minip_netmask = IPV4_NONE;
-static uint32_t minip_broadcast = IPV4_BCAST;
-static uint32_t minip_gateway = IPV4_NONE;
+#define LOCAL_TRACE 1
+static ipv4_addr_t minip_ip      = IPV4_NONE;
+static ipv4_addr_t minip_netmask = IPV4_NONE;
+static ipv4_addr_t minip_broadcast = IPV4_BCAST;
+static ipv4_addr_t minip_gateway = IPV4_NONE;
 
 static const uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static uint8_t minip_mac[6] = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
@@ -46,7 +46,6 @@ static event_t minip_configured_event = EVENT_INITIAL_VALUE(minip_configured_eve
 tx_func_t minip_tx_handler;
 void *minip_tx_arg;
 
-static void dump_mac_address(const uint8_t *mac);
 static void dump_ipv4_addr(uint32_t addr);
 
 /* if all the important configuration bits are set, signal that we're configured */
@@ -88,7 +87,7 @@ uint32_t minip_get_ipaddr(void) {
     return minip_ip;
 }
 
-void minip_set_ipaddr(const uint32_t addr) {
+void minip_set_ipaddr(const ipv4_addr_t addr) {
     minip_ip = addr;
     compute_broadcast_address();
     check_and_set_configured();
@@ -102,7 +101,7 @@ uint32_t minip_get_netmask(void) {
     return minip_netmask;
 }
 
-void minip_set_netmask(const uint32_t netmask) {
+void minip_set_netmask(const ipv4_addr_t netmask) {
     minip_netmask = netmask;
     compute_broadcast_address();
     check_and_set_configured();
@@ -112,7 +111,7 @@ uint32_t minip_get_gateway(void) {
     return minip_gateway;
 }
 
-void minip_set_gateway(const uint32_t addr) {
+void minip_set_gateway(const ipv4_addr_t addr) {
     minip_gateway = addr;
     // TODO: check that it is reacheable on local network
     check_and_set_configured();
@@ -477,9 +476,9 @@ __NO_INLINE static int handle_arp_pkt(pktbuf_t *p) {
 
 static void dump_eth_packet(const struct eth_hdr *eth) {
     printf("ETH src ");
-    dump_mac_address(eth->src_mac);
+    print_mac_address(eth->src_mac);
     printf(" dst ");
-    dump_mac_address(eth->dst_mac);
+    print_mac_address(eth->dst_mac);
     printf(" type 0x%hx\n", htons(eth->type));
 }
 
@@ -513,7 +512,7 @@ void minip_rx_driver_callback(pktbuf_t *p) {
     }
 }
 
-void dump_mac_address(const uint8_t *mac) {
+void print_mac_address(const uint8_t *mac) {
     printf("%02x:%02x:%02x:%02x:%02x:%02x",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
@@ -557,6 +556,7 @@ void printip_named(const char *s, uint32_t x) {
 static void minip_init(uint level) {
     arp_cache_init();
     net_timer_init();
+    netif_init();
 }
 
 
