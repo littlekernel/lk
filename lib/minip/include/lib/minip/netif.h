@@ -7,7 +7,10 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <lib/minip.h>
+
+__BEGIN_CDECLS
 
 // Network interface layer for minip
 
@@ -49,12 +52,20 @@ status_t netif_set_ipv4_addr(netif_t *n, ipv4_addr_t addr, uint8_t subnet_width)
 status_t netif_register(netif_t *n);
 
 // construct netmask and broadcast addresses dynamically
+
 static inline ipv4_addr_t netif_get_netmask_ipv4(netif_t *n) {
-    return n->ipv4_addr & (0xffffffff >> n->ipv4_subnet_width);
-}
-static inline ipv4_addr_t netif_get_broadcast_ipv4(netif_t *n) {
-    return (n->ipv4_addr & netif_get_netmask_ipv4(n)) | (0xffffffff << (32 - n->ipv4_subnet_width));
+    // subnet width 24 -> 0x00ffffff
+    // subnet width 16 -> 0x0000ffff, etc
+    return (1U << (n->ipv4_subnet_width)) - 1U;
 }
 
-// TODO: add temporary hack to remember the first real NIC as the 'main' one and replace global
-// stuff in minip.c with a lookup for this
+static inline ipv4_addr_t netif_get_network_ipv4(netif_t *n) {
+    return n->ipv4_addr & netif_get_netmask_ipv4(n);
+}
+
+static inline ipv4_addr_t netif_get_broadcast_ipv4(netif_t *n) {
+    return netif_get_network_ipv4(n) | ~netif_get_netmask_ipv4(n);
+}
+
+__END_CDECLS
+

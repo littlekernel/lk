@@ -76,9 +76,15 @@ if [ "$PROJECT" == "" ]; then
 fi
 
 ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
-BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
-NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
-NET_TAP_ARGS=" -netdev tap,id=vmnic,ifname=qemu0,script=no -device virtio-net-device,netdev=vmnic"
+BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw"
+BLOCK_DEVICE_ARGS=" -device virtio-blk-device,drive=blk"
+NET_DEVICE_ARGS=" -device virtio-net-device,netdev=vmnic"
+NET_FWD_ARGS+=",hostfwd=tcp::10007-:7"
+NET_FWD_ARGS+=",hostfwd=tcp::10009-:9"
+NET_FWD_ARGS+=",hostfwd=tcp::10019-:19"
+NET_FWD_ARGS+=",hostfwd=tcp::10025-:25"
+NET_ARGS=" -netdev user,id=vmnic,hostname=qemu${NET_FWD_ARGS}"
+NET_TAP_ARGS=" -netdev tap,id=vmnic,ifname=qemu0,script=no"
 NO_NET_ARGS=" -net none"
 DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
 NO_DISPLAY_ARGS=" -nographic"
@@ -88,14 +94,17 @@ echo DO_NET = $DO_NET
 
 if [ $DO_BLOCK == 1 ]; then
     ARGS+=$BLOCK_ARGS
+    ARGS+=$BLOCK_DEVICE_ARGS
 fi
 if [ $DO_NET == 1 ]; then
     ARGS+=$NET_ARGS
+    ARGS+=$NET_DEVICE_ARGS
 else
     ARGS+=$NO_NET_ARGS
 fi
 if [ $DO_NET_TAP == 1 ]; then
     ARGS+=$NET_TAP_ARGS
+    ARGS+=$NET_DEVICE_ARGS
     SUDO="sudo "
 fi
 if [ $DO_DISPLAY == 1 ]; then

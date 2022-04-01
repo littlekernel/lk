@@ -29,13 +29,13 @@
 // 1. Tear endian code out into something that flips words before/after tx/rx calls
 
 #define LOCAL_TRACE 1
-static ipv4_addr_t minip_ip      = IPV4_NONE;
-static ipv4_addr_t minip_netmask = IPV4_NONE;
-static ipv4_addr_t minip_broadcast = IPV4_BCAST;
+//static ipv4_addr_t minip_ip      = IPV4_NONE;
+//static ipv4_addr_t minip_netmask = IPV4_NONE;
+//static ipv4_addr_t minip_broadcast = IPV4_BCAST;
 static ipv4_addr_t minip_gateway = IPV4_NONE;
 
 static const uint8_t broadcast_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-static uint8_t minip_mac[6] = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
+//static uint8_t minip_mac[6] = {0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC};
 
 static char minip_hostname[32] = "";
 
@@ -43,23 +43,24 @@ static volatile bool minip_configured = false;
 static event_t minip_configured_event = EVENT_INITIAL_VALUE(minip_configured_event, false, 0);
 
 /* This function is called by minip to send packets */
-tx_func_t minip_tx_handler;
-void *minip_tx_arg;
+//tx_func_t minip_tx_handler;
+//void *minip_tx_arg;
 
 static void dump_ipv4_addr(uint32_t addr);
 
 /* if all the important configuration bits are set, signal that we're configured */
 static void check_and_set_configured(void) {
-    if (minip_ip == IPV4_NONE) return;
-    if (minip_netmask == IPV4_NONE) return;
-    if (minip_broadcast == IPV4_BCAST) return;
+    if (netif_main == NULL) return;
+    if (netif_main->ipv4_addr == IPV4_NONE) return;
+    if (netif_get_netmask_ipv4(netif_main) == IPV4_NONE) return;
+    if (netif_get_broadcast_ipv4(netif_main) == IPV4_BCAST) return;
     // minip_gateway doesn't have to be set
-    if (minip_mac[0] == 0xcc &&
-        minip_mac[1] == 0xcc &&
-        minip_mac[2] == 0xcc &&
-        minip_mac[3] == 0xcc &&
-        minip_mac[4] == 0xcc &&
-        minip_mac[5] == 0xcc) return;
+    if (netif_main->mac_address[0] == 0 &&
+        netif_main->mac_address[1] == 0 &&
+        netif_main->mac_address[2] == 0 &&
+        netif_main->mac_address[3] == 0 &&
+        netif_main->mac_address[4] == 0 &&
+        netif_main->mac_address[5] == 0) return;
 
     // we're configured
     printf("MINIP: setting configured state\n");
@@ -75,6 +76,7 @@ const char *minip_get_hostname(void) {
     return minip_hostname;
 }
 
+#if 0
 static void compute_broadcast_address(void) {
     minip_broadcast = (minip_ip & minip_netmask) | (IPV4_BCAST & ~minip_netmask);
 }
@@ -106,6 +108,7 @@ void minip_set_netmask(const ipv4_addr_t netmask) {
     compute_broadcast_address();
     check_and_set_configured();
 }
+#endif
 
 uint32_t minip_get_gateway(void) {
     return minip_gateway;
@@ -140,11 +143,11 @@ void gen_random_mac_address(uint8_t *mac_addr) {
 }
 
 void minip_start_static(uint32_t ip, uint32_t mask, uint32_t gateway) {
-    minip_set_ipaddr(ip);
-    minip_set_netmask(mask);
+    PANIC_UNIMPLEMENTED;
     minip_set_gateway(gateway);
 }
 
+#if 0
 void minip_set_eth(tx_func_t tx_handler, void *tx_arg, const uint8_t *macaddr) {
     LTRACEF("handler %p, arg %p, macaddr %p\n", tx_handler, tx_arg, macaddr);
 
@@ -158,18 +161,19 @@ void minip_set_eth(tx_func_t tx_handler, void *tx_arg, const uint8_t *macaddr) {
 
     mac_addr_copy(minip_mac, macaddr);
 }
+#endif
 
 static uint16_t ipv4_payload_len(struct ipv4_hdr *pkt) {
     return (pkt->len - ((pkt->ver_ihl >> 4) * 5));
 }
 
-void minip_build_mac_hdr(struct eth_hdr *pkt, const uint8_t *dst, uint16_t type) {
+void minip_build_mac_hdr(netif_t *netif, struct eth_hdr *pkt, const uint8_t *dst, uint16_t type) {
     mac_addr_copy(pkt->dst_mac, dst);
-    mac_addr_copy(pkt->src_mac, minip_mac);
+    mac_addr_copy(pkt->src_mac, netif->mac_address);
     pkt->type = htons(type);
 }
 
-void minip_build_ipv4_hdr(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, uint16_t len) {
+void minip_build_ipv4_hdr(netif_t *netif, struct ipv4_hdr *ipv4, ipv4_addr_t dst, uint8_t proto, uint16_t len) {
     ipv4->ver_ihl       = 0x45;
     ipv4->dscp_ecn      = 0;
     ipv4->len           = htons(20 + len); // 5 * 4 from ihl, plus payload length
@@ -178,71 +182,14 @@ void minip_build_ipv4_hdr(struct ipv4_hdr *ipv4, uint32_t dst, uint8_t proto, ui
     ipv4->ttl           = 64;
     ipv4->proto         = proto;
     ipv4->dst_addr      = dst;
-    ipv4->src_addr      = minip_ip;
+    ipv4->src_addr      = netif->ipv4_addr;
 
     /* This may be unnecessary if the controller supports checksum offloading */
     ipv4->chksum = 0;
     ipv4->chksum = rfc1701_chksum((uint8_t *) ipv4, sizeof(struct ipv4_hdr));
 }
 
-static int send_arp_request(uint32_t addr) {
-    pktbuf_t *p;
-    struct eth_hdr *eth;
-    struct arp_pkt *arp;
-
-    if ((p = pktbuf_alloc()) == NULL) {
-        return -1;
-    }
-
-    eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
-    arp = pktbuf_append(p, sizeof(struct arp_pkt));
-    minip_build_mac_hdr(eth, bcast_mac, ETH_TYPE_ARP);
-
-    arp->htype = htons(0x0001);
-    arp->ptype = htons(0x0800);
-    arp->hlen = 6;
-    arp->plen = 4;
-    arp->oper = htons(ARP_OPER_REQUEST);
-    arp->spa = minip_ip;
-    arp->tpa = addr;
-    mac_addr_copy(arp->sha, minip_mac);
-    mac_addr_copy(arp->tha, bcast_mac);
-
-    minip_tx_handler(minip_tx_arg, p);
-    return 0;
-}
-
-static void handle_arp_timeout_cb(void *arg) {
-    *(bool *)arg = true;
-}
-
-const uint8_t *get_dest_mac(uint32_t host) {
-    uint8_t *dst_mac = NULL;
-    bool arp_timeout = false;
-    net_timer_t arp_timeout_timer;
-
-    if (host == IPV4_BCAST) {
-        return bcast_mac;
-    }
-
-    dst_mac = arp_cache_lookup(host);
-    if (dst_mac == NULL) {
-        send_arp_request(host);
-        memset(&arp_timeout_timer, 0, sizeof(arp_timeout_timer));
-        net_timer_set(&arp_timeout_timer, handle_arp_timeout_cb, &arp_timeout, 100);
-        while (!arp_timeout) {
-            dst_mac = arp_cache_lookup(host);
-            if (dst_mac) {
-                net_timer_cancel(&arp_timeout_timer);
-                break;
-            }
-        }
-    }
-
-    return dst_mac;
-}
-
-status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto) {
+status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto) {
     status_t ret = 0;
     size_t data_len = p->dlen;
     const uint8_t *dst_mac;
@@ -250,15 +197,23 @@ status_t minip_ipv4_send(pktbuf_t *p, uint32_t dest_addr, uint8_t proto) {
     struct ipv4_hdr *ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
     struct eth_hdr *eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
 
+    // TODO: consult routing table here
+    netif_t *netif = netif_main;
+    if (!netif) {
+        ret = -EHOSTUNREACH;
+        goto err;
+    }
+
     // are we sending a broadcast packet?
-    if (dest_addr == IPV4_BCAST || dest_addr == minip_broadcast) {
+    if (dest_addr == IPV4_BCAST || dest_addr == netif_get_broadcast_ipv4(netif)) {
         dst_mac = bcast_mac;
         goto ready;
     }
 
     // is this a local subnet packet or do we need to send to the router?
-    uint32_t target_addr = dest_addr;
-    if ((dest_addr & minip_netmask) != (minip_ip & minip_netmask)) {
+    ipv4_addr_t target_addr = dest_addr;
+    ipv4_addr_t netmask = netif_get_netmask_ipv4(netif);
+    if ((dest_addr & netmask) != (netif->ipv4_addr & netmask)) {
         // need to use the gateway
         if (minip_gateway == IPV4_NONE) {
             return ERR_NOT_FOUND; // TODO: better error code
@@ -279,10 +234,10 @@ ready:
         printf("sending ipv4\n");
     }
 
-    minip_build_mac_hdr(eth, dst_mac, ETH_TYPE_IPV4);
-    minip_build_ipv4_hdr(ip, dest_addr, proto, data_len);
+    minip_build_mac_hdr(netif, eth, dst_mac, ETH_TYPE_IPV4);
+    minip_build_ipv4_hdr(netif, ip, dest_addr, proto, data_len);
 
-    minip_tx_handler(minip_tx_arg, p);
+    netif->tx_func(netif->tx_func_arg, p);
 
 err:
     return ret;
@@ -292,7 +247,7 @@ err:
  * According to spec the data portion doesn't matter, but ping itself validates that
  * the payload is identical
  */
-static void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdatalen) {
+static void send_ping_reply(netif_t *netif, uint32_t ipaddr, struct icmp_pkt *req, size_t reqdatalen) {
     pktbuf_t *p;
     size_t len;
     struct eth_hdr *eth;
@@ -310,8 +265,8 @@ static void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdat
 
     len = sizeof(struct icmp_pkt) + reqdatalen;
 
-    minip_build_mac_hdr(eth, arp_cache_lookup(ipaddr), ETH_TYPE_IPV4);
-    minip_build_ipv4_hdr(ip, ipaddr, IP_PROTO_ICMP, len);
+    minip_build_mac_hdr(netif, eth, arp_cache_lookup(ipaddr), ETH_TYPE_IPV4);
+    minip_build_ipv4_hdr(netif, ip, ipaddr, IP_PROTO_ICMP, len);
 
     icmp->type = ICMP_ECHO_REPLY;
     icmp->code = 0;
@@ -319,7 +274,7 @@ static void send_ping_reply(uint32_t ipaddr, struct icmp_pkt *req, size_t reqdat
     icmp->chksum = 0;
     icmp->chksum = rfc1701_chksum((uint8_t *) icmp, len);
 
-    minip_tx_handler(minip_tx_arg, p);
+    netif->tx_func(netif->tx_func_arg, p);
 }
 
 static void dump_ipv4_addr(uint32_t addr) {
@@ -337,7 +292,7 @@ static void dump_ipv4_packet(const struct ipv4_hdr *ip) {
            (ip->ver_ihl & 0xf) * 4, ip->proto, ntohs(ip->chksum), ntohs(ip->len), ntohs(ip->id), ntohs(ip->flags_frags) & 0x1fff);
 }
 
-__NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac) {
+__NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const uint8_t *src_mac) {
     struct ipv4_hdr *ip;
 
     ip = (struct ipv4_hdr *)p->data;
@@ -391,7 +346,7 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac) 
 
     /* see if it's for us */
     if (ip->dst_addr != IPV4_BCAST) {
-        if (minip_ip != IPV4_NONE && ip->dst_addr != minip_ip && ip->dst_addr != minip_broadcast) {
+        if (netif->ipv4_addr != IPV4_NONE && ip->dst_addr != netif->ipv4_addr && ip->dst_addr != netif_get_broadcast_ipv4(netif)) {
             LTRACEF("REJECT: for another host\n");
             return;
         }
@@ -405,73 +360,19 @@ __NO_INLINE static void handle_ipv4_packet(pktbuf_t *p, const uint8_t *src_mac) 
                 break;
             }
             if (icmp->type == ICMP_ECHO_REQUEST) {
-                send_ping_reply(ip->src_addr, icmp, p->dlen);
+                send_ping_reply(netif, ip->src_addr, icmp, p->dlen);
             }
         }
         break;
 
         case IP_PROTO_UDP:
-            udp_input(p, ip->src_addr);
+            udp_input(netif, p, ip->src_addr);
             break;
 
         case IP_PROTO_TCP:
-            tcp_input(p, ip->src_addr, ip->dst_addr);
+            tcp_input(netif, p, ip->src_addr, ip->dst_addr);
             break;
     }
-}
-
-__NO_INLINE static int handle_arp_pkt(pktbuf_t *p) {
-    struct eth_hdr *eth;
-    struct arp_pkt *arp;
-
-    eth = (void *) (p->data - sizeof(struct eth_hdr));
-
-    if ((arp = pktbuf_consume(p, sizeof(struct arp_pkt))) == NULL) {
-        return -1;
-    }
-
-    switch (ntohs(arp->oper)) {
-        case ARP_OPER_REQUEST: {
-            pktbuf_t *rp;
-            struct eth_hdr *reth;
-            struct arp_pkt *rarp;
-
-            if (memcmp(&arp->tpa, &minip_ip, sizeof(minip_ip)) == 0) {
-                if ((rp = pktbuf_alloc()) == NULL) {
-                    break;
-                }
-
-                reth = pktbuf_prepend(rp, sizeof(struct eth_hdr));
-                rarp = pktbuf_append(rp, sizeof(struct arp_pkt));
-
-                // Eth header
-                minip_build_mac_hdr(reth, eth->src_mac, ETH_TYPE_ARP);
-
-                // ARP packet
-                rarp->oper = htons(ARP_OPER_REPLY);
-                rarp->htype = htons(0x0001);
-                rarp->ptype = htons(0x0800);
-                rarp->hlen = 6;
-                rarp->plen = 4;
-                mac_addr_copy(rarp->sha, minip_mac);
-                rarp->spa = minip_ip;
-                mac_addr_copy(rarp->tha, arp->sha);
-                rarp->tpa = arp->spa;
-
-                minip_tx_handler(minip_tx_arg, rp);
-            }
-        }
-        break;
-
-        case ARP_OPER_REPLY: {
-            uint32_t addr;
-            memcpy(&addr, &arp->spa, sizeof(addr)); // unaligned word
-            arp_cache_update(addr, arp->sha);
-        }
-        break;
-    }
-
-    return 0;
 }
 
 static void dump_eth_packet(const struct eth_hdr *eth) {
@@ -482,9 +383,11 @@ static void dump_eth_packet(const struct eth_hdr *eth) {
     printf(" type 0x%hx\n", htons(eth->type));
 }
 
-void minip_rx_driver_callback(pktbuf_t *p) {
-    struct eth_hdr *eth;
+void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p) {
+    DEBUG_ASSERT(netif);
+    DEBUG_ASSERT(p);
 
+    struct eth_hdr *eth;
     if ((eth = (void *) pktbuf_consume(p, sizeof(struct eth_hdr))) == NULL) {
         return;
     }
@@ -493,7 +396,7 @@ void minip_rx_driver_callback(pktbuf_t *p) {
         dump_eth_packet(eth);
     }
 
-    if (memcmp(eth->dst_mac, minip_mac, 6) != 0 &&
+    if (memcmp(eth->dst_mac, netif->mac_address, 6) != 0 &&
             memcmp(eth->dst_mac, broadcast_mac, 6) != 0) {
         /* not for us */
         return;
@@ -502,12 +405,12 @@ void minip_rx_driver_callback(pktbuf_t *p) {
     switch (htons(eth->type)) {
         case ETH_TYPE_IPV4:
             LTRACEF("ipv4 pkt\n");
-            handle_ipv4_packet(p, eth->src_mac);
+            handle_ipv4_packet(netif, p, eth->src_mac);
             break;
 
         case ETH_TYPE_ARP:
             LTRACEF("arp pkt\n");
-            handle_arp_pkt(p);
+            handle_arp_pkt(netif, p);
             break;
     }
 }

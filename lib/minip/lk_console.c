@@ -53,7 +53,7 @@ static int cmd_arp(int argc, const console_cmd_args *argv) {
         const char *addr_s = argv[2].str;
         uint32_t addr = str_ip_to_int(addr_s, strlen(addr_s));
 
-        arp_send_request(addr);
+        arp_send_request(netif_main, addr);
     } else {
         arp_usage();
     }
@@ -81,10 +81,8 @@ minip_usage:
                 break;
             case 's': {
                 printf("hostname: %s\n", minip_get_hostname());
-                printf("ip: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_ipaddr()));
-                printf("netmask: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_netmask()));
-                printf("broadcast: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_broadcast()));
                 printf("gateway: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_gateway()));
+                netif_dump();
             }
             break;
             case 't': {

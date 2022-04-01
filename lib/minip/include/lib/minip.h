@@ -32,7 +32,7 @@ typedef void (*udp_callback_t)(void *data, size_t len,
                                uint32_t srcaddr, uint16_t srcport, void *arg);
 
 /* initialize and start minip with static configuration */
-void minip_start_static(uint32_t ip, uint32_t netmask, uint32_t gateway);
+//void minip_start_static(uint32_t ip, uint32_t netmask, uint32_t gateway);
 
 /* initialize and start minip with DHCP configuration
  * note: may take a while to have an ip address assigned, check
@@ -48,17 +48,10 @@ bool minip_is_configured(void);
 status_t minip_wait_for_configured(lk_time_t timeout);
 
 /* packet rx hook to hand to ethernet driver */
-void minip_rx_driver_callback(pktbuf_t *p);
+typedef struct netif netif_t;
+void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p);
 
 /* global configuration state */
-void minip_get_macaddr(uint8_t *addr);
-void minip_set_macaddr(const uint8_t *addr);
-
-uint32_t minip_get_ipaddr(void);
-void minip_set_ipaddr(const ipv4_addr_t addr);
-uint32_t minip_get_netmask(void);
-void minip_set_netmask(const ipv4_addr_t mask);
-uint32_t minip_get_broadcast(void); // computed from ipaddr & netmask
 uint32_t minip_get_gateway(void);
 void minip_set_gateway(const ipv4_addr_t addr);
 void minip_set_hostname(const char *name);

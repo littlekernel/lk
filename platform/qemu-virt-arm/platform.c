@@ -219,22 +219,10 @@ void platform_init(void) {
 
 #if WITH_LIB_MINIP
     if (virtio_net_found() > 0) {
-        uint8_t mac_addr[6];
-
-        virtio_net_get_mac_addr(mac_addr);
-
         TRACEF("found virtio networking interface\n");
-
-        /* start minip */
-        minip_set_eth(virtio_net_send_minip_pkt, NULL, mac_addr);
-
-        __UNUSED uint32_t ip_addr = IPV4(192, 168, 0, 99);
-        __UNUSED uint32_t ip_mask = IPV4(255, 255, 255, 0);
-        __UNUSED uint32_t ip_gateway = IPV4_NONE;
 
         virtio_net_start();
 
-        //minip_start_static(ip_addr, ip_mask, ip_gateway);
         minip_start_dhcp();
     }
 #endif

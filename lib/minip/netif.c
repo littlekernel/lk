@@ -25,6 +25,12 @@ static struct list_node netif_list = LIST_INITIAL_VALUE(netif_list);
 static mutex_t lock = MUTEX_INITIAL_VALUE(lock);
 static netif_t loopback;
 
+// Used by the ip layer to directly get a handle to the loopback and first
+// registered interface (main).
+// TODO: remove once proper routing is in place
+netif_t *netif_loopback = NULL;
+netif_t *netif_main = NULL;
+
 static int loopback_tx_func(void *arg, pktbuf_t *p) {
     LTRACEF("arg %p, pkt %p\n", arg, p);
     return 0;
@@ -38,6 +44,9 @@ void netif_init(void) {
     netif_set_eth(&loopback, loopback_tx_func, NULL, bcast_mac);
     netif_set_ipv4_addr(&loopback, IPV4(128, 0, 0, 1), 8);
     netif_register(&loopback);
+
+    // publish for the main stack to find
+    netif_loopback = &loopback;
 }
 
 netif_t *netif_create(netif_t *n, const char *name) {
@@ -71,6 +80,12 @@ status_t netif_register(netif_t *n) {
 
     list_add_head(&netif_list, &n->node);
     n->flags |= NETIF_FLAG_REGISTERED;
+
+    // TODO: replace with mechanism to set up ip routing (probably in DHCP)
+    if (netif_main == NULL && n != &loopback) {
+        // register this as the 'main' interface
+        netif_main = n;
+    }
 
     mutex_release(&lock);
 
@@ -121,7 +136,7 @@ void netif_dump(void) {
         printf(" addr ");
         printip(n->ipv4_addr);
         printf("/%u", n->ipv4_subnet_width);
-        printf(" net ");
+        printf(" netmask ");
         printip(netif_get_netmask_ipv4(n));
         printf(" bcast ");
         printip(netif_get_broadcast_ipv4(n));

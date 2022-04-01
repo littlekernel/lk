@@ -241,7 +241,8 @@ int e1000::rx_worker_routine() {
             }
 
             // push it up the stack
-            minip_rx_driver_callback(p);
+            // XXX: broken
+            minip_rx_driver_callback(NULL, p);
 
             // we own the pktbuf again
 
@@ -513,6 +514,7 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
 
 extern "C"
 status_t e1000_register_with_minip() {
+#if 0
     auto tx_routine = [](void *arg, pktbuf_t *p) {
         auto *e = static_cast<e1000 *>(arg);
         return e->tx(p);
@@ -522,6 +524,9 @@ status_t e1000_register_with_minip() {
         minip_set_eth(tx_routine, the_e, the_e->mac_addr());
         return NO_ERROR;
     }
+#endif
+    // XXX: move to netif
+    PANIC_UNIMPLEMENTED;
 
     return ERR_NOT_FOUND;
 }

@@ -328,7 +328,7 @@ static void tcp_timer_cancel(tcp_socket_t *s, net_timer_t *timer) {
         dec_socket_ref(s);
 }
 
-void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
+void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
     if (unlikely(tcp_debug))
         TRACEF("p %p (len %u), src_ip 0x%x, dst_ip 0x%x\n", p, p->dlen, src_ip, dst_ip);
 
@@ -427,7 +427,7 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 goto done;
 
             /* set it up */
-            accept_socket->local_ip = minip_get_ipaddr();
+            accept_socket->local_ip = netif->ipv4_addr;
             accept_socket->local_port = s->local_port;
             accept_socket->remote_ip = src_ip;
             accept_socket->remote_port = header->source_port;
@@ -997,8 +997,14 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
     printf("%lld\n", t);
     rand_add_entropy(&t, sizeof(t));
 
+    // TODO: look up route to set local address
+    netif_t *netif = netif_main;
+    if (!netif) {
+        return ERR_NO_ROUTE;
+    }
+
     // set up the socket for outgoing connections
-    s->local_ip = minip_get_ipaddr();
+    s->local_ip = netif->ipv4_addr;
     s->local_port = (rand() + 1024) & 0xffff; // TODO: allocate sanely
     DEBUG_ASSERT(s->local_port <= 0xffff);
     s->remote_ip = addr;

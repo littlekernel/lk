@@ -16,7 +16,7 @@
 #include <kernel/mutex.h>
 #include <lk/trace.h>
 
-#define LOCAL_TRACE 0
+#define LOCAL_TRACE 1
 typedef struct {
     struct list_node node;
     uint32_t addr;
@@ -116,7 +116,7 @@ void arp_cache_dump(void) {
     }
 }
 
-int arp_send_request(uint32_t addr) {
+int arp_send_request(netif_t *netif, ipv4_addr_t addr) {
     pktbuf_t *p;
     struct eth_hdr *eth;
     struct arp_pkt *arp;
@@ -127,19 +127,21 @@ int arp_send_request(uint32_t addr) {
 
     eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
     arp = pktbuf_append(p, sizeof(struct arp_pkt));
-    minip_build_mac_hdr(eth, bcast_mac, ETH_TYPE_ARP);
+    minip_build_mac_hdr(netif, eth, bcast_mac, ETH_TYPE_ARP);
 
     arp->htype = htons(0x0001);
     arp->ptype = htons(0x0800);
     arp->hlen = 6;
     arp->plen = 4;
     arp->oper = htons(ARP_OPER_REQUEST);
-    arp->spa = minip_get_ipaddr();
+    arp->spa = netif->ipv4_addr;
     arp->tpa = addr;
-    minip_get_macaddr(arp->sha);
+    mac_addr_copy(arp->sha, netif->mac_address);
     mac_addr_copy(arp->tha, bcast_mac);
 
-    minip_tx_handler(minip_tx_arg, p);
+    if (netif->tx_func) {
+        netif->tx_func(netif->tx_func_arg, p);
+    }
     return 0;
 }
 
@@ -158,7 +160,9 @@ const uint8_t *arp_get_dest_mac(uint32_t host) {
 
     dst_mac = arp_cache_lookup(host);
     if (dst_mac == NULL) {
-        arp_send_request(host);
+        // TODO: lookup netif based on route
+        netif_t *netif = netif_main;
+        arp_send_request(netif, host);
         memset(&arp_timeout_timer, 0, sizeof(arp_timeout_timer));
         net_timer_set(&arp_timeout_timer, handle_arp_timeout_cb, &arp_timeout, 100);
         while (!arp_timeout) {
@@ -172,3 +176,63 @@ const uint8_t *arp_get_dest_mac(uint32_t host) {
 
     return dst_mac;
 }
+
+int handle_arp_pkt(netif_t *netif, pktbuf_t *p) {
+    struct eth_hdr *eth;
+    struct arp_pkt *arp;
+
+    eth = (void *) (p->data - sizeof(struct eth_hdr));
+
+    if ((arp = pktbuf_consume(p, sizeof(struct arp_pkt))) == NULL) {
+        return -1;
+    }
+
+    switch (ntohs(arp->oper)) {
+        case ARP_OPER_REQUEST: {
+            pktbuf_t *rp;
+            struct eth_hdr *reth;
+            struct arp_pkt *rarp;
+
+            if (memcmp(&arp->tpa, &netif->ipv4_addr, sizeof(netif->ipv4_addr)) == 0) {
+                if ((rp = pktbuf_alloc()) == NULL) {
+                    break;
+                }
+
+                LTRACEF("arp request for us\n");
+
+                reth = pktbuf_prepend(rp, sizeof(struct eth_hdr));
+                rarp = pktbuf_append(rp, sizeof(struct arp_pkt));
+
+                // Eth header
+                minip_build_mac_hdr(netif, reth, eth->src_mac, ETH_TYPE_ARP);
+
+                // ARP packet
+                rarp->oper = htons(ARP_OPER_REPLY);
+                rarp->htype = htons(0x0001);
+                rarp->ptype = htons(0x0800);
+                rarp->hlen = 6;
+                rarp->plen = 4;
+                mac_addr_copy(rarp->sha, netif->mac_address);
+                rarp->spa = netif->ipv4_addr;
+                mac_addr_copy(rarp->tha, arp->sha);
+                rarp->tpa = arp->spa;
+
+                netif->tx_func(netif->tx_func_arg, rp);
+            }
+        }
+        break;
+
+        case ARP_OPER_REPLY: {
+            LTRACEF("arp reply for us\n");
+
+            uint32_t addr;
+            memcpy(&addr, &arp->spa, sizeof(addr)); // unaligned word
+            arp_cache_update(addr, arp->sha);
+        }
+        break;
+    }
+
+    return 0;
+}
+
+

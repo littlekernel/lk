@@ -16,9 +16,3 @@ status_t virtio_net_start(void);
 
 /* return the count of virtio interfaces found */
 int virtio_net_found(void);
-
-status_t virtio_net_get_mac_addr(uint8_t mac_addr[6]);
-
-struct pktbuf;
-extern status_t virtio_net_send_minip_pkt(void *arg, struct pktbuf *p);
-
