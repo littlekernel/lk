@@ -15,6 +15,8 @@ help:
 	@echo "Environment or command line variables controlling build:"
 	@echo "PROJECT = <project name>"
 	@echo "TOOLCHAIN_PREFIX = <absolute path to toolchain or relative path with prefix>"
+	@echo "LLVM = 1 # use LLVM tools instead of GCC and binutils;"
+	@echo "         # user should add tools to PATH instead of specifying TOOLCHAIN_PREFIX"
 	@echo ""
 	@echo "Special make targets:"
 	@echo "make help: This help"

@@ -98,7 +98,9 @@ ARCH_COMPILEFLAGS_FLOAT :=
 
 ARCH_LDFLAGS += -z max-page-size=4096
 
+ifeq ($(LLVM),)
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
+endif
 
 # make sure some bits were set up
 MEMVARS_SET := 0

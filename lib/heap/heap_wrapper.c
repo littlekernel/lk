@@ -89,6 +89,10 @@ static inline void *HEAP_CALLOC(size_t n, size_t s) {
 #define HEAP_FREE(p) dlfree(p)
 static inline void HEAP_INIT(void) {}
 
+static inline void dump_callback(void *start, void *end, size_t used_bytes, void *arg) {
+    printf("\t\tstart %p end %p used_bytes %zu\n", start, end, used_bytes);
+}
+
 static inline void HEAP_DUMP(void) {
     struct mallinfo minfo = dlmallinfo();
 
@@ -102,10 +106,6 @@ static inline void HEAP_DUMP(void) {
     printf("\t\treleasable space 0x%zx\n", minfo.keepcost);
 
     printf("\theap block list:\n");
-    void dump_callback(void *start, void *end, size_t used_bytes, void *arg) {
-        printf("\t\tstart %p end %p used_bytes %zu\n", start, end, used_bytes);
-    }
-
     dlmalloc_inspect_all(&dump_callback, NULL);
 }
 

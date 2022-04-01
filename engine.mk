@@ -63,7 +63,10 @@ GLOBAL_INCLUDES := $(BUILDDIR) $(addsuffix /include,$(LKINC))
 GLOBAL_OPTFLAGS ?= $(ARCH_OPTFLAGS)
 GLOBAL_COMPILEFLAGS := -g -include $(CONFIGHEADER)
 GLOBAL_COMPILEFLAGS += -Wextra -Wall -Werror=return-type -Wshadow -Wdouble-promotion
-GLOBAL_COMPILEFLAGS += -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Wno-unused-label -Wno-nonnull-compare
+GLOBAL_COMPILEFLAGS += -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Wno-unused-label
+ifeq ($(LLVM),)
+GLOBAL_COMPILEFLAGS += -Wno-nonnull-compare
+endif
 GLOBAL_COMPILEFLAGS += -fno-common
 GLOBAL_CFLAGS := --std=gnu11 -Werror-implicit-function-declaration -Wstrict-prototypes -Wwrite-strings
 GLOBAL_CPPFLAGS := --std=c++14 -fno-exceptions -fno-rtti -fno-threadsafe-statics
@@ -159,8 +162,10 @@ ifndef ARCH
 $(error couldn't find arch or platform doesn't define arch)
 endif
 include arch/$(ARCH)/rules.mk
+ifeq ($(LLVM),)
 ifndef TOOLCHAIN_PREFIX
 $(error TOOLCHAIN_PREFIX not set in the arch rules.mk)
+endif
 endif
 
 $(info PROJECT = $(PROJECT))
@@ -215,6 +220,18 @@ endif
 
 # default to no ccache
 CCACHE ?=
+
+ifneq ($(LLVM),)
+CC := $(CCACHE) clang --target=$(LLVM_TARGET_TRIPLE)
+LIBGCC := $(shell $(CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
+LD := ld.lld
+OBJDUMP := llvm-objdump
+OBJCOPY := llvm-objcopy
+CPPFILT := llvm-cxxfilt
+SIZE := llvm-size
+NM := llvm-nm
+STRIP := llvm-strip
+else
 CC := $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
 LD := $(TOOLCHAIN_PREFIX)ld
 OBJDUMP := $(TOOLCHAIN_PREFIX)objdump
@@ -223,6 +240,7 @@ CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
 SIZE := $(TOOLCHAIN_PREFIX)size
 NM := $(TOOLCHAIN_PREFIX)nm
 STRIP := $(TOOLCHAIN_PREFIX)strip
+endif
 
 # try to have the compiler output colorized error messages if available
 export GCC_COLORS ?= 1
