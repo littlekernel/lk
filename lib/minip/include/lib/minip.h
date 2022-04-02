@@ -26,6 +26,7 @@ __BEGIN_CDECLS
 
 /* types */
 typedef uint32_t ipv4_addr_t;
+typedef struct netif netif_t;
 
 typedef int (*tx_func_t)(void *arg, pktbuf_t *p);
 typedef void (*udp_callback_t)(void *data, size_t len,
@@ -38,7 +39,7 @@ typedef void (*udp_callback_t)(void *data, size_t len,
  * note: may take a while to have an ip address assigned, check
  * for configuration with minip_is_configured()
  */
-void minip_start_dhcp(void);
+void minip_start_dhcp(netif_t *);
 
 /* ethernet driver install hook */
 void minip_set_eth(tx_func_t tx_handler, void *tx_arg, const uint8_t *macaddr);
@@ -48,7 +49,6 @@ bool minip_is_configured(void);
 status_t minip_wait_for_configured(lk_time_t timeout);
 
 /* packet rx hook to hand to ethernet driver */
-typedef struct netif netif_t;
 void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p);
 
 /* global configuration state */
@@ -62,7 +62,8 @@ void minip_set_configured(void); // set by dhcp or static init to signal minip i
 typedef struct udp_socket udp_socket_t;
 
 int udp_listen(uint16_t port, udp_callback_t cb, void *arg);
-status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle);
+status_t udp_open(ipv4_addr_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle);
+status_t udp_open_raw(ipv4_addr_t host, uint16_t sport, uint16_t dport, netif_t *netif, udp_socket_t **handle);
 status_t udp_send(void *buf, size_t len, udp_socket_t *handle);
 status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle);
 status_t udp_close(udp_socket_t *handle);
@@ -83,11 +84,9 @@ static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **ac
 
 /* utilities */
 void gen_random_mac_address(uint8_t *mac_addr);
-uint32_t minip_parse_ipaddr(const char *addr, size_t len);
-
-uint32_t minip_parse_ipaddr(const char *addr, size_t len);
-void printip(uint32_t x);
-void printip_named(const char *s, u32 x);
+ipv4_addr_t minip_parse_ipaddr(const char *addr, size_t len);
 void print_mac_address(const uint8_t *mac);
+void print_ipv4_address(ipv4_addr_t x);
+void print_ipv4_address_named(const char *s, ipv4_addr_t x);
 
 __END_CDECLS

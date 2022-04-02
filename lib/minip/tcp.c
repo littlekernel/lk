@@ -36,14 +36,6 @@ typedef struct tcp_header {
     uint16_t urg_pointer;
 } __PACKED tcp_header_t;
 
-typedef struct tcp_pseudo_header {
-    ipv4_addr_t source_addr;
-    ipv4_addr_t dest_addr;
-    uint8_t zero;
-    uint8_t protocol;
-    uint16_t tcp_length;
-} __PACKED tcp_pseudo_header_t;
-
 typedef struct tcp_mss_option {
     uint8_t kind; /* 0x2 */
     uint8_t len;  /* 0x4 */
@@ -84,6 +76,7 @@ typedef struct tcp_socket {
     ipv4_addr_t remote_ip;
     uint16_t local_port;
     uint16_t remote_port;
+    ipv4_route_t *route;
 
     uint32_t mss;
 
@@ -121,7 +114,7 @@ typedef struct tcp_socket {
 #define DEFAULT_RX_WINDOW_SIZE (8192)
 #define DEFAULT_TX_BUFFER_SIZE (8192)
 
-#define RETRANSMIT_TIMEOUT (50)
+#define RETRANSMIT_TIMEOUT (250)
 #define DELAYED_ACK_TIMEOUT (50)
 #define TIME_WAIT_TIMEOUT (60000) // 1 minute
 
@@ -155,11 +148,6 @@ static void tcp_remote_close(tcp_socket_t *s);
 static void tcp_wakeup_waiters(tcp_socket_t *s);
 static void inc_socket_ref(tcp_socket_t *s);
 static bool dec_socket_ref(tcp_socket_t *s);
-
-static uint16_t cksum_pheader(const tcp_pseudo_header_t *pheader, const void *buf, size_t len) {
-    uint16_t checksum = ones_sum16(0, pheader, sizeof(*pheader));
-    return ~ones_sum16(checksum, buf, len);
-}
 
 __NO_INLINE static void dump_tcp_header(const tcp_header_t *header) {
     printf("TCP: src_port %u, dest_port %u, seq %u, ack %u, win %u, flags %c%c%c%c%c%c\n",
@@ -299,6 +287,10 @@ static bool dec_socket_ref(tcp_socket_t *s) {
 
     if (oldval == 1) {
         LTRACEF("destroying socket\n");
+        if (s->route) {
+            ipv4_dec_route_ref(s->route);
+            s->route = NULL;
+        }
         event_destroy(&s->tx_event);
         event_destroy(&s->rx_event);
         event_destroy(&s->connect_event);
@@ -351,7 +343,7 @@ void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
 
     /* checksum */
     if (FORCE_TCP_CHECKSUM || (p->flags & PKTBUF_FLAG_CKSUM_TCP_GOOD) == 0) {
-        tcp_pseudo_header_t pheader;
+        ipv4_pseudo_header_t pheader;
 
         // set up the pseudo header for checksum purposes
         pheader.source_addr = src_ip;
@@ -432,6 +424,13 @@ void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             accept_socket->remote_ip = src_ip;
             accept_socket->remote_port = header->source_port;
             accept_socket->state = STATE_SYN_RCVD;
+
+            /* look up and cache the route for the accepted socket */
+            ipv4_route_t *route = ipv4_search_route(src_ip);
+            if (!route) {
+                goto done;
+            }
+            accept_socket->route = route;
 
             mutex_acquire(&accept_socket->lock);
 
@@ -751,7 +750,7 @@ static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t sr
     /* compute the checksum */
     /* XXX get the tx ckecksum capability from the nic */
     if (FORCE_TCP_CHECKSUM || true) {
-        tcp_pseudo_header_t pheader;
+        ipv4_pseudo_header_t pheader;
         pheader.source_addr = src_ip;
         pheader.dest_addr = dest_ip;
         pheader.zero = 0;
@@ -994,14 +993,15 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
 
     // XXX add some entropy to try to better randomize things
     lk_bigtime_t t = current_time_hires();
-    printf("%lld\n", t);
     rand_add_entropy(&t, sizeof(t));
 
-    // TODO: look up route to set local address
-    netif_t *netif = netif_main;
-    if (!netif) {
+    // look up route to set local address
+    ipv4_route_t *route = ipv4_search_route(addr);
+    if (!route) {
         return ERR_NO_ROUTE;
     }
+    netif_t *netif = route->interface;
+    s->route = route;
 
     // set up the socket for outgoing connections
     s->local_ip = netif->ipv4_addr;
@@ -1034,6 +1034,7 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
 
     // block to wait for a successful connection
     if (event_wait(&s->connect_event) == ERR_TIMED_OUT) {
+        ipv4_dec_route_ref(s->route);
         return ERR_TIMED_OUT;
     }
 
@@ -1283,7 +1284,7 @@ out:
 }
 
 /* debug stuff */
-static int cmd_tcp(int argc, const console_cmd_args *argv) {
+int cmd_tcp(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("ERROR not enough arguments\n");
@@ -1365,8 +1366,4 @@ usage:
 
     return NO_ERROR;
 }
-
-STATIC_COMMAND_START
-STATIC_COMMAND("tcp", "tcp commands", &cmd_tcp)
-STATIC_COMMAND_END(tcp);
 

@@ -222,8 +222,6 @@ void platform_init(void) {
         TRACEF("found virtio networking interface\n");
 
         virtio_net_start();
-
-        minip_start_dhcp();
     }
 #endif
 }
