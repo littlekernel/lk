@@ -39,9 +39,10 @@ struct netif {
 typedef struct netif netif_t;
 #define NETIF_MAGIC 'NETI'
 
-#define NETIF_FLAG_ETH_CONFIGURED  (1U << 0) // mac address and tx func set
-#define NETIF_FLAG_REGISTERED      (1U << 1) // added to the main list
-#define NETIF_FLAG_IPV4_CONFIGURED (1U << 2) // ipv4 address is set
+#define NETIF_FLAG_LOOPBACK        (1U << 0) // loopback interface is a bit special
+#define NETIF_FLAG_ETH_CONFIGURED  (1U << 1) // mac address and tx func set
+#define NETIF_FLAG_REGISTERED      (1U << 2) // added to the main list
+#define NETIF_FLAG_IPV4_CONFIGURED (1U << 3) // ipv4 address is set
 
 // Initialize a netif struct.
 // Allocates a new one if passed in pointer is null.

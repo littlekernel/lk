@@ -22,7 +22,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#define TRACE_DHCP 1
+#define TRACE_DHCP 0
 
 namespace {
 
@@ -77,7 +77,7 @@ public:
     dhcp() = default;
     ~dhcp() = default;
 
-    status_t start();
+    status_t start(netif_t *netif);
 
 private:
     // must call the following two with the lock held
@@ -232,7 +232,7 @@ void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport)
 
 #if TRACE_DHCP
     printf("received DHCP op %d, len %zu, from p %d, ip=", msg->opcode, sz, srcport);
-    printip(srcip);
+    print_ipv4_address(srcip);
     printf("\n");
 #endif
 
@@ -241,10 +241,10 @@ void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport)
         return;
     }
 #if TRACE_DHCP
-    printip_named("\tciaddr", msg->ciaddr);
-    printip_named(" yiaddr", msg->yiaddr);
-    printip_named(" siaddr", msg->siaddr);
-    printip_named(" giaddr", msg->giaddr);
+    print_ipv4_address_named("\tciaddr", msg->ciaddr);
+    print_ipv4_address_named(" yiaddr", msg->yiaddr);
+    print_ipv4_address_named(" siaddr", msg->siaddr);
+    print_ipv4_address_named(" giaddr", msg->giaddr);
     printf(" chaddr %02x:%02x:%02x:%02x:%02x:%02x\n",
            msg->chaddr[0], msg->chaddr[1], msg->chaddr[2],
            msg->chaddr[3], msg->chaddr[4], msg->chaddr[5]);
@@ -288,16 +288,16 @@ void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport)
 done:
 #if TRACE_DHCP
     printf("\n\t");
-    if (server) printip_named("server", server);
-    if (netmask) printip_named(" netmask", netmask);
-    if (gateway) printip_named(" gateway", gateway);
-    if (dns) printip_named(" dns", dns);
+    if (server) print_ipv4_address_named("server", server);
+    if (netmask) print_ipv4_address_named(" netmask", netmask);
+    if (gateway) print_ipv4_address_named(" gateway", gateway);
+    if (dns) print_ipv4_address_named(" dns", dns);
     printf("\n");
 #endif
     if (state_ == DISCOVER_SENT) {
         if (op == OP_DHCPOFFER) {
 #if TRACE_DHCP
-            printip_named("dhcp: offer:", msg->yiaddr);
+            print_ipv4_address_named("dhcp: offer:", msg->yiaddr);
             printf("\n");
 #endif
             if (server) {
@@ -308,7 +308,7 @@ done:
     } else if (state_ == REQUEST_SENT) {
         if (op == OP_DHCPACK) {
 #if TRACE_DHCP
-            printip_named("dhcp: ack:", msg->yiaddr);
+            print_ipv4_address_named("dhcp: ack:", msg->yiaddr);
             printf("\n");
 #endif
             printf("DHCP configured\n");
@@ -360,14 +360,13 @@ int dhcp::dhcp_thread(void *arg) {
     return 0;
 }
 
-status_t dhcp::start() {
+status_t dhcp::start(netif_t *netif) {
     AutoLock guard(lock_);
 
-    // for now just try to set up for the main netif
-    netif_ = netif_main;
+    netif_ = netif;
 
-    // TODO: bind udp socket to this interface
-    int ret = udp_open(IPV4_BCAST, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, &dhcp_udp_handle_);
+    // open a udp socket bound to the interface we're dhcping
+    int ret = udp_open_raw(IPV4_BCAST, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, netif_, &dhcp_udp_handle_);
     if (ret != NO_ERROR) {
         printf("DHCP: error opening udp socket\n");
         return ret;
@@ -383,7 +382,9 @@ status_t dhcp::start() {
 
 } // anonymous namespace
 
-void minip_start_dhcp() {
-    static dhcp d;
-    d.start();
+void minip_start_dhcp(netif_t *netif) {
+    DEBUG_ASSERT(netif);
+
+    auto *d = new dhcp();
+    d->start(netif);
 }

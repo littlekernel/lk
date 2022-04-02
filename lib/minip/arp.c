@@ -16,7 +16,7 @@
 #include <kernel/mutex.h>
 #include <lk/trace.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 typedef struct {
     struct list_node node;
     uint32_t addr;
@@ -160,9 +160,15 @@ const uint8_t *arp_get_dest_mac(uint32_t host) {
 
     dst_mac = arp_cache_lookup(host);
     if (dst_mac == NULL) {
-        // TODO: lookup netif based on route
-        netif_t *netif = netif_main;
+        // look up route to set local address
+        ipv4_route_t *route = ipv4_search_route(host);
+        if (!route) {
+            return NULL;
+        }
+        netif_t *netif = route->interface;
+
         arp_send_request(netif, host);
+
         memset(&arp_timeout_timer, 0, sizeof(arp_timeout_timer));
         net_timer_set(&arp_timeout_timer, handle_arp_timeout_cb, &arp_timeout, 100);
         while (!arp_timeout) {
@@ -172,6 +178,7 @@ const uint8_t *arp_get_dest_mac(uint32_t host) {
                 break;
             }
         }
+        ipv4_dec_route_ref(route);
     }
 
     return dst_mac;
@@ -180,6 +187,8 @@ const uint8_t *arp_get_dest_mac(uint32_t host) {
 int handle_arp_pkt(netif_t *netif, pktbuf_t *p) {
     struct eth_hdr *eth;
     struct arp_pkt *arp;
+
+    LTRACEF("ARP packet, len %u\n", p->dlen);
 
     eth = (void *) (p->data - sizeof(struct eth_hdr));
 

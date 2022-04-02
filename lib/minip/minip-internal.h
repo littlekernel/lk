@@ -18,7 +18,7 @@
 #include <lib/minip/netif.h>
 
 /* Lib configuration */
-#define MINIP_USE_UDP_CHECKSUM    0
+#define MINIP_USE_UDP_CHECKSUM    1
 #define MINIP_MTU_SIZE            1536
 #define MINIP_USE_ARP             1
 
@@ -103,27 +103,53 @@ int arp_send_request(netif_t *, ipv4_addr_t addr);
 const uint8_t *arp_get_dest_mac(uint32_t host);
 int handle_arp_pkt(netif_t *netif, pktbuf_t *p);
 
-uint16_t rfc1701_chksum(const uint8_t *buf, size_t len);
-uint16_t rfc768_chksum(struct ipv4_hdr *ipv4, udp_hdr_t *udp);
+// checksums
 uint16_t ones_sum16(uint32_t sum, const void *_buf, int len);
+
+typedef struct ipv4_pseudo_header {
+    ipv4_addr_t source_addr;
+    ipv4_addr_t dest_addr;
+    uint8_t zero;
+    uint8_t protocol;
+    uint16_t tcp_length;
+} __PACKED ipv4_pseudo_header_t;
+
+static inline uint16_t cksum_pheader(const ipv4_pseudo_header_t *pheader, const void *buf, size_t len) {
+    uint16_t checksum = ones_sum16(0, pheader, sizeof(*pheader));
+    return ~ones_sum16(checksum, buf, len);
+}
+
+// ipv4 routing
+typedef struct ipv4_route {
+    uint32_t flags;
+    int ref;
+    ipv4_addr_t dest;
+    ipv4_addr_t mask;
+    netif_t *interface;
+} ipv4_route_t;
+
+#define IPV4_ROUTE_UP       (1<<0)
+#define IPV4_ROUTE_DEFAULT  (1<<1)
+
+ipv4_route_t *ipv4_search_route(ipv4_addr_t dest);
+void ipv4_dec_route_ref(ipv4_route_t *r);
+status_t ipv4_add_route(ipv4_addr_t dest, ipv4_addr_t mask, netif_t *n);
+status_t ipv4_add_default_route(ipv4_addr_t dest, netif_t *n);
+
+void dump_ipv4_route_table(void);
 
 // Helper methods for building headers
 void minip_build_mac_hdr(netif_t *netif, struct eth_hdr *pkt, const uint8_t *dst, uint16_t type);
-void minip_build_ipv4_hdr(netif_t *netif, struct ipv4_hdr *ipv4, ipv4_addr_t dst, uint8_t proto, uint16_t len);
 
 status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto);
+status_t minip_ipv4_send_raw(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto, const uint8_t *dest_mac, netif_t *netif);
 
 void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
 void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip);
 
-const uint8_t *get_dest_mac(uint32_t host);
-
 // interface list
 void netif_init(void);
 void netif_dump(void);
-
-extern netif_t *netif_loopback;
-extern netif_t *netif_main;
 
 // timers
 typedef void (*net_timer_callback_t)(void *);

@@ -53,7 +53,7 @@ static int cmd_arp(int argc, const console_cmd_args *argv) {
         const char *addr_s = argv[2].str;
         uint32_t addr = str_ip_to_int(addr_s, strlen(addr_s));
 
-        arp_send_request(netif_main, addr);
+        arp_get_dest_mac(addr);
     } else {
         arp_usage();
     }
@@ -65,26 +65,27 @@ static int cmd_minip(int argc, const console_cmd_args *argv) {
     if (argc == 1) {
 minip_usage:
         printf("minip commands\n");
-        printf("mi [a]rp                        dump arp table\n");
         printf("mi [i]interfaces                dump interface list\n");
+        printf("mi [r]outes                     dump routing table\n");
         printf("mi [s]tatus                     print ip status\n");
         printf("mi [t]est [dest] [port] [cnt]   send <cnt> test packets to the dest:port\n");
     } else {
         switch (argv[1].str[0]) {
 
-            case 'a':
-                arp_cache_dump();
-                break;
-
             case 'i':
                 netif_dump();
                 break;
-            case 's': {
+            case 'r':
+                dump_ipv4_route_table();
+                break;
+            case 's':
                 printf("hostname: %s\n", minip_get_hostname());
                 printf("gateway: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_gateway()));
+                printf("interfaces:\n");
                 netif_dump();
-            }
-            break;
+                printf("ipv4 routing table:\n");
+                dump_ipv4_route_table();
+                break;
             case 't': {
                 uint32_t count = 1;
                 uint32_t host = 0x0100000A; // 10.0.0.1
@@ -140,7 +141,7 @@ minip_usage:
                 udp_close(handle);
 #undef BUFSIZE
             }
-            break;
+                break;
             default:
                 goto minip_usage;
         }
@@ -149,7 +150,10 @@ minip_usage:
     return 0;
 }
 
+extern int cmd_tcp(int argc, const console_cmd_args *argv);
+
 STATIC_COMMAND_START
 STATIC_COMMAND("arp", "arp commands", &cmd_arp)
 STATIC_COMMAND("mi", "minip commands", &cmd_minip)
+STATIC_COMMAND("tcp", "tcp commands", &cmd_tcp)
 STATIC_COMMAND_END(minip);
