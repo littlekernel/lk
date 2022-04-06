@@ -29,8 +29,8 @@
 /* saved boot arguments from whoever loaded the system */
 ulong lk_boot_args[4];
 
-extern void *__ctor_list;
-extern void *__ctor_end;
+extern void (*__ctor_list[])(void);
+extern void (*__ctor_end[])(void);
 extern int __bss_start;
 extern int _end;
 
@@ -42,13 +42,13 @@ static uint secondary_bootstrap_thread_count;
 static int bootstrap2(void *arg);
 
 static void call_constructors(void) {
-    void **ctor;
+    void (**ctor)(void);
 
-    ctor = &__ctor_list;
-    while (ctor != &__ctor_end) {
+    ctor = __ctor_list;
+    while (ctor != __ctor_end) {
         void (*func)(void);
 
-        func = (void ( *)(void))*ctor;
+        func = *ctor;
 
         func();
         ctor++;
