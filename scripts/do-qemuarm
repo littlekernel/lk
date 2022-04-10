@@ -105,7 +105,7 @@ fi
 if [ $DO_NET_TAP == 1 ]; then
     ARGS+=$NET_TAP_ARGS
     ARGS+=$NET_DEVICE_ARGS
-    SUDO="sudo "
+    #SUDO="sudo "
 fi
 if [ $DO_DISPLAY == 1 ]; then
     ARGS+=$DISPLAY_ARGS

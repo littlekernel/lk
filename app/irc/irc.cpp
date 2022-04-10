@@ -21,7 +21,7 @@
 #define LOCAL_TRACE 1
 
 //#define IRC_SERVER IPV4(176,58,122,119) // irc.libera.chat
-#define IRC_SERVER IPV4(88,99,244,30) // irc.sortix.org
+#define IRC_SERVER IPV4(88,99,244,4) // irc.sortix.org
 //#define IRC_SERVER IPV4(192,168,1,110) // localhost
 #define IRC_PORT 6667
 #define IRC_USER "geist"
