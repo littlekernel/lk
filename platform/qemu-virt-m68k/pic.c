@@ -96,9 +96,10 @@ enum handler_return m68k_platform_irq(uint8_t m68k_irq) {
     LTRACEF("m68k irq vector %d\n", m68k_irq);
 
     // translate m68k irqs to pic numbers
+    // incoming IRQs are from 0x19-0x1f (autovectored 1 - 7 on the cpu)
     int pic_num;
-    if (likely(m68k_irq >= 1 && m68k_irq <= 6)) {
-        pic_num = m68k_irq - 1;
+    if (likely(m68k_irq >= 0x19 && m68k_irq <= 0x1f)) {
+        pic_num = m68k_irq - 0x19;
     } else {
         panic("unhandled irq %d from cpu\n", m68k_irq);
     }

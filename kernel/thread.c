@@ -25,6 +25,7 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/list.h>
+#include <lk/trace.h>
 #include <malloc.h>
 #include <platform.h>
 #include <printf.h>

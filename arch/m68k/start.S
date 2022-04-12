@@ -9,25 +9,56 @@
 
 .section .text.boot
 FUNCTION(_start)
-    // clear bss
-    lea     __bss_start,%a0
-    cmpal   #__bss_end,%a0
-    beqs    1f
+#if ARCH_DO_RELOCATION
+    lea     %pc@(_start),%a0 // load the current address using PC relative addressing mode
+    movl    #_start,%a1      // load the same symbol absolutely
+    cmpal   %a0,%a1
+    beqs    bss_clear
+
+    // load the end address for loop termination
+    movl    #_end,%a2
+
+    // copy forwards
+    // NOTE: assumes the source and target do not overlap
 0:
-    clrb    %a0@+
-    cmpal   #__bss_end,%a0
-    bnes    0b
+    movel   %a0@+,%a1@+
+    cmpal   %a1,%a2
+    bne     0b
+
+    // branch to the new location
+    movl    #bss_clear,%a0
+    jmp     %a0@
+#endif
+
+    // clear bss
+bss_clear:
+    lea     __bss_start,%a0
+    lea     __bss_end,%a1
+    cmpl    %a0,%a1
+    beqs    1f
+    // zero 4 bytes at a time
+0:
+    clrl    %a0@+
+    cmpal   %a1,%a0
+    bne     0b
 1:
 
-    movel   #_default_stack_top,%sp
+    // load the initial stack pointer
+    lea     _default_stack_top,%sp
 
+    // branch into C land with 4 zeroed args
+    clrl    %sp@-
+    clrl    %sp@-
+    clrl    %sp@-
+    clrl    %sp@-
     jsr     lk_main
-    jmp     .
 
+    // if we return from main just loop forever
+    bra     .
 END_FUNCTION(_start)
 
 .bss
-.align 8
+.align 4
 _default_stack_base:
     .skip 4096
 _default_stack_top:

@@ -42,6 +42,7 @@ jobs:
           - pico-test
           - sifive-e-test
           - sifive-unleashed-test
+          - rosco-m68k-test
         exclude:
           # no toolchain for 7.5.0 for or1k
           - project: or1ksim

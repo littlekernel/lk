@@ -2,24 +2,14 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULE_SRCS += \
-	$(LOCAL_DIR)/arch.c \
-	$(LOCAL_DIR)/asm.S \
-	$(LOCAL_DIR)/exceptions.c \
-	$(LOCAL_DIR)/exceptions_asm.S \
-	$(LOCAL_DIR)/start.S \
-	$(LOCAL_DIR)/thread.c \
+MODULE_SRCS += $(LOCAL_DIR)/arch.c
+MODULE_SRCS += $(LOCAL_DIR)/asm.S
+MODULE_SRCS += $(LOCAL_DIR)/exceptions.c
+MODULE_SRCS += $(LOCAL_DIR)/exceptions_asm.S
+MODULE_SRCS += $(LOCAL_DIR)/start.S
+MODULE_SRCS += $(LOCAL_DIR)/thread.c
 
-#	$(LOCAL_DIR)/asm.S \
-	$(LOCAL_DIR)/cache.c \
-	$(LOCAL_DIR)/cache-ops.S \
-	$(LOCAL_DIR)/ops.S \
-	$(LOCAL_DIR)/mmu.c \
-	$(LOCAL_DIR)/faults.c \
-	$(LOCAL_DIR)/descriptor.c
-
-GLOBAL_DEFINES += \
-	SMP_MAX_CPUS=1
+GLOBAL_DEFINES += SMP_MAX_CPUS=1
 
 # set the default toolchain to microblaze elf and set a #define
 ifndef TOOLCHAIN_PREFIX
@@ -28,7 +18,16 @@ endif
 
 WITH_LINKER_GC ?= 0
 
+# select the cpu based on flags the platform/target passes in
+M68K_CPU ?= 68040
+
+ifeq ($(M68K_CPU),68010)
+ARCH_COMPILEFLAGS := -mcpu=68010
+else ifeq ($(M68K_CPU),68040)
 ARCH_COMPILEFLAGS := -mcpu=68040
+else
+$(error add support for selected cpu $(M68K_CPU))
+endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))
@@ -41,9 +40,10 @@ ARCH_OPTFLAGS := -O2
 KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0
 
-GLOBAL_DEFINES += \
-    MEMBASE=$(MEMBASE) \
-    MEMSIZE=$(MEMSIZE)
+GLOBAL_DEFINES += MEMBASE=$(MEMBASE)
+GLOBAL_DEFINES += MEMSIZE=$(MEMSIZE)
+GLOBAL_DEFINES += M68K_CPU=$(M68K_CPU)
+GLOBAL_DEFINES += M68K_CPU_$(M68K_CPU)=1
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
