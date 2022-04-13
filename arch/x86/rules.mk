@@ -95,7 +95,7 @@ GLOBAL_CFLAGS += $(call cc-option,$(CC),-fno-stack-protector,)
 ARCH_COMPILEFLAGS += -fasynchronous-unwind-tables
 ARCH_COMPILEFLAGS += -gdwarf-2
 ARCH_COMPILEFLAGS += -fno-pic
-ARCH_LDFLAGS += -z max-page-size=4096
+ARCH_LDFLAGS += -Wl,-z,max-page-size=4096
 
 ifeq ($(SUBARCH),x86-64)
 ARCH_COMPILEFLAGS += -fno-stack-protector

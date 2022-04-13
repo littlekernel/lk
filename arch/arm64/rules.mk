@@ -96,7 +96,7 @@ ARCH_COMPILEFLAGS += -fno-omit-frame-pointer
 ARCH_COMPILEFLAGS_NOFLOAT := -mgeneral-regs-only
 ARCH_COMPILEFLAGS_FLOAT :=
 
-ARCH_LDFLAGS += -z max-page-size=4096
+ARCH_LDFLAGS += -Wl,-z,max-page-size=4096
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
 

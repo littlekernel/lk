@@ -28,8 +28,8 @@ LITTLE_ENDIAN ?= 0
 
 ifneq ($(LITTLE_ENDIAN),0)
 ARCH_COMPILEFLAGS += -mlittle-endian
-ARCH_LDFLAGS += -EL
-GLOBAL_MODULE_LDFLAGS += -EL
+ARCH_LDFLAGS += -Wl,-EL
+GLOBAL_MODULE_LDFLAGS += -Wl,-EL
 endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)
@@ -40,7 +40,9 @@ cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`";
 
 ARCH_OPTFLAGS := -O2
 
-ARCH_LDFLAGS += -relax
+# -L$(BUILDDIR) is needed so the linker can find the xilinx.ld it wants
+ARCH_LDFLAGS += -Wl,-relax -L$(BUILDDIR)
+GLOBAL_MODULE_LDFLAGS += -L$(BUILDDIR)
 
 KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0
@@ -52,9 +54,11 @@ GLOBAL_DEFINES += \
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \
-	$(BUILDDIR)/linker.ld
+	$(BUILDDIR)/linker.ld \
+	$(BUILDDIR)/xilinx.ld
 
-# rules for generating the linker
+# Rules for generating the linker scripts
+
 $(BUILDDIR)/linker.ld: $(LOCAL_DIR)/linker.ld $(wildcard arch/*.ld) linkerscript.phony
 	@echo generating $@
 	@$(MKDIR)
@@ -64,6 +68,16 @@ $(BUILDDIR)/linker.ld: $(LOCAL_DIR)/linker.ld $(wildcard arch/*.ld) linkerscript
 linkerscript.phony:
 .PHONY: linkerscript.phony
 
-LINKER_SCRIPT += $(BUILDDIR)/linker.ld
+# Note: This is all messy and horrible
+# GCC needs to find a xilinx.ld, we usually pass the LINKER_SCRIPT as -dT (default linker script), and so
+# does GCC when it can't find a -T option in the command line
+# Because of that, we pass the actual linker script as linker.ld
+
+$(BUILDDIR)/xilinx.ld:
+	$(NOECHO)touch $@
+
+EXTRA_LINKER_SCRIPTS += $(BUILDDIR)/linker.ld
+
+LINKER_SCRIPT += $(BUILDDIR)/xilinx.ld
 
 include make/module.mk

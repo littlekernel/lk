@@ -149,7 +149,7 @@ ifeq ($(SUBARCH),32)
     endif
 
     # override machine for ld -r
-    GLOBAL_MODULE_LDFLAGS += -m elf32lriscv
+    GLOBAL_MODULE_LDFLAGS += -Wl,-m,elf32lriscv
 else ifeq ($(SUBARCH),64)
     GLOBAL_DEFINES += IS_64BIT=1
 
@@ -163,7 +163,7 @@ else ifeq ($(SUBARCH),64)
     endif
 
     # override machine for ld -r
-    GLOBAL_MODULE_LDFLAGS += -m elf64lriscv
+    GLOBAL_MODULE_LDFLAGS += -Wl,-m,elf64lriscv
 else
     $(error SUBARCH not set or set to something unknown)
 endif
@@ -213,7 +213,7 @@ LINKER_SCRIPT += $(BUILDDIR)/linker-twosegment.ld
 # a paged sytem would.
 # NOTE: 8 seems to be about as far as you can go. experienced some extra stuffed words
 # when using 4.
-ARCH_LDFLAGS += -z max-page-size=8
+ARCH_LDFLAGS += -Wl,-z,max-page-size=8
 else
 GLOBAL_DEFINES += ARCH_RISCV_TWOSEGMENT=0
 LINKER_SCRIPT += $(BUILDDIR)/linker-onesegment.ld
