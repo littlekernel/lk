@@ -21,8 +21,14 @@ WITH_LINKER_GC ?= 0
 # select the cpu based on flags the platform/target passes in
 M68K_CPU ?= 68040
 
-ifeq ($(M68K_CPU),68010)
+ifeq ($(M68K_CPU),68000)
+ARCH_COMPILEFLAGS := -mcpu=68000
+else ifeq ($(M68K_CPU),68010)
 ARCH_COMPILEFLAGS := -mcpu=68010
+else ifeq ($(M68K_CPU),68020)
+ARCH_COMPILEFLAGS := -mcpu=68020
+else ifeq ($(M68K_CPU),68030)
+ARCH_COMPILEFLAGS := -mcpu=68030
 else ifeq ($(M68K_CPU),68040)
 ARCH_COMPILEFLAGS := -mcpu=68040
 else
