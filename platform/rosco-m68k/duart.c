@@ -25,6 +25,9 @@
 // driver for a 68c681 acting as a dual uart and a system timer and a few gpios
 
 // ticks in units of ms
+#define TICK_HZ (100U)
+#define TICK_MS (1000U / TICK_HZ)
+STATIC_ASSERT(TICK_HZ * TICK_MS == 1000U);
 static volatile uint32_t ticks;
 
 // periodic timer callback stuff
@@ -97,11 +100,11 @@ void duart_early_init(void) {
     // TODO: set up UARTA again
     // for now assume it's already configured
 
-    // set up a periodic counter at 1khz
+    // set up a periodic counter at TICK_HZ
     read_reg(DUART_REG_STC_R); // stop the counter
 
     // compute the counter
-    uint16_t count = 3686400 / 2 / 1000;
+    uint16_t count = 3686400 / 2 / TICK_HZ;
     write_reg(DUART_REG_CTL_RW, count & 0xff);
     write_reg(DUART_REG_CTU_RW, (count >> 8) & 0xff);
 
@@ -123,7 +126,6 @@ void duart_init(void) {
     // enable uart RX irq
     cached_imr |= (1<<1); // RXRDY/FFULLA
     write_reg(DUART_REG_IMR_W, cached_imr);
-
 }
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
@@ -142,7 +144,7 @@ enum handler_return duart_irq(void) {
     uint8_t isr = read_reg(DUART_REG_ISR_R);
 
     if (likely(isr & (1<<3))) { // counter #1 ready
-        ticks++;
+        ticks += TICK_MS;
 
         // ack the timer hardware
         read_reg(DUART_REG_STC_R);
@@ -227,6 +229,8 @@ void target_set_debug_led(unsigned int led, bool on) {
         case 1:
             bit = 3; // red LED
             break;
+        default:
+            return;
     }
 
     if (on) {
