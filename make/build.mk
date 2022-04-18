@@ -1,7 +1,9 @@
 # use linker garbage collection, if requested
-ifeq ($(WITH_LINKER_GC),1)
+WITH_LINKER_GC ?= false
+ifeq (true,$(call TOBOOL,$(WITH_LINKER_GC)))
 GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
 GLOBAL_LDFLAGS += --gc-sections
+GLOBAL_DEFINES += LINKER_GC=1
 endif
 
 ifneq (,$(EXTRA_BUILDRULES))

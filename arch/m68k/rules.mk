@@ -16,10 +16,8 @@ ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := m68k-elf-
 endif
 
-WITH_LINKER_GC ?= 0
-
 # select the cpu based on flags the platform/target passes in
-M68K_CPU ?= 68040
+M68K_CPU ?= 68040 # default to 040
 
 ifeq ($(M68K_CPU),68000)
 ARCH_COMPILEFLAGS := -mcpu=68000

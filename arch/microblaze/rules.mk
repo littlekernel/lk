@@ -24,8 +24,6 @@ ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := microblaze-elf-
 endif
 
-WITH_LINKER_GC ?= 0
-
 LITTLE_ENDIAN ?= 0
 
 ifneq ($(LITTLE_ENDIAN),0)

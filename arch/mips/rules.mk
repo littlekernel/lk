@@ -26,7 +26,6 @@ ifndef TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := mips-elf-
 endif
 
-WITH_LINKER_GC ?= 0
 LITTLE_ENDIAN ?= 0
 
 ifneq ($(LITTLE_ENDIAN),0)
