@@ -93,6 +93,9 @@ static status_t do_moving_inversion_test(void *ptr, size_t len, uint32_t pat) {
 static void do_mem_tests(void *ptr, size_t len) {
     size_t i;
 
+    printf("running memory tests on address range [%p..%p]\n",
+            ptr, (uint8_t *)ptr + len - 1);
+
     /* test 1: simple write address to memory, read back */
     printf("test 1: simple address write, read back\n");
     volatile uint32_t *vbuf32 = ptr;
