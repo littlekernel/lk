@@ -19,20 +19,20 @@
 #include "fat_fs.h"
 
 static void fat32_dump(fat_fs_t *fat) {
-    printf("bytes_per_sector=%i\n", fat->bytes_per_sector);
-    printf("sectors_per_cluster=%i\n", fat->sectors_per_cluster);
-    printf("bytes_per_cluster=%i\n", fat->bytes_per_cluster);
-    printf("reserved_sectors=%i\n", fat->reserved_sectors);
-    printf("fat_bits=%i\n", fat->fat_bits);
-    printf("fat_count=%i\n", fat->fat_count);
-    printf("sectors_per_fat=%i\n", fat->sectors_per_fat);
-    printf("total_sectors=%i\n", fat->total_sectors);
-    printf("active_fat=%i\n", fat->active_fat);
-    printf("data_start=%i\n", fat->data_start);
-    printf("total_clusters=%i\n", fat->total_clusters);
-    printf("root_cluster=%i\n", fat->root_cluster);
-    printf("root_entries=%i\n", fat->root_entries);
-    printf("root_start=%i\n", fat->root_start);
+    printf("bytes_per_sector %u\n", fat->bytes_per_sector);
+    printf("sectors_per_cluster %u\n", fat->sectors_per_cluster);
+    printf("bytes_per_cluster %u\n", fat->bytes_per_cluster);
+    printf("reserved_sectors %u\n", fat->reserved_sectors);
+    printf("fat_bits %u\n", fat->fat_bits);
+    printf("fat_count %u\n", fat->fat_count);
+    printf("sectors_per_fat %u\n", fat->sectors_per_fat);
+    printf("total_sectors %u\n", fat->total_sectors);
+    printf("active_fat %u\n", fat->active_fat);
+    printf("data_start %u\n", fat->data_start);
+    printf("total_clusters %u\n", fat->total_clusters);
+    printf("root_cluster %u\n", fat->root_cluster);
+    printf("root_entries %u\n", fat->root_entries);
+    printf("root_start %u\n", fat->root_start);
 }
 
 status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
@@ -42,7 +42,7 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
         return ERR_NOT_VALID;
 
     uint8_t *bs = (uint8_t *)malloc(512);
-    int err = bio_read(dev, bs, 1024, 512);
+    int err = bio_read(dev, bs, 0, 512);
     if (err < 0) {
         result = ERR_GENERIC;
         goto end;
@@ -56,7 +56,7 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
 
     fat_fs_t *fat;
     fat = (fat_fs_t *)malloc(sizeof(fat_fs_t));
-    fat->lba_start = 1024;
+    fat->lba_start = 0;
     fat->dev = dev;
 
     fat->bytes_per_sector = fat_read16(bs,0xb);
@@ -103,6 +103,11 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
         fat->fat_bits = 32;
         fat->sectors_per_fat = fat_read32(bs,0x24);
         fat->total_sectors = fat_read32(bs,0x20);
+        if (fat->total_sectors == 0) {
+            // FAT32 is supposed to always use the 32bit version, but if it's zero fall back
+            // to the 16 bit version
+            fat->total_sectors = fat_read16(bs,0x13);
+        }
         fat->active_fat = (bs[0x28] & 0x80) ? 0 : (bs[0x28] & 0xf);
         fat->data_start = fat->reserved_sectors + (fat->fat_count * fat->sectors_per_fat);
         fat->total_clusters = (fat->total_sectors - fat->data_start) / fat->sectors_per_cluster;
@@ -150,7 +155,10 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
     }
 
     fat->bytes_per_cluster = fat->sectors_per_cluster * fat->bytes_per_sector;
-    fat->cache = bcache_create(fat->dev, fat->bytes_per_sector, 4);
+    fat->cache = bcache_create(fat->dev, fat->bytes_per_sector, 16);
+
+    printf("Mounted FAT volume, some information:\n");
+    fat32_dump(fat);
 
     *cookie = (fscookie *)fat;
 end:

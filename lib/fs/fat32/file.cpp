@@ -19,16 +19,27 @@
 #include "fat32_priv.h"
 
 #define DIR_ENTRY_LENGTH 32
-#define USE_CACHE 1
+
+#define LOCAL_TRACE 0
+
+// In fat32, clusters between 0x0fff.fff8 and 0x0fff.ffff are interpreted as
+// end of file.
+const uint32_t EOF_CLUSTER_BASE = 0x0fff'fff8;
+const uint32_t EOF_CLUSTER = 0x0fff'ffff;
+
+static inline bool is_eof_cluster(uint32_t cluster) {
+    return cluster >= EOF_CLUSTER_BASE && cluster <= EOF_CLUSTER;
+}
 
 static uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
     uint32_t fat_sector = (cluster) >> 7;
     uint32_t fat_index = (cluster ) & 127;
 
-    uint32_t bnum = (fat->lba_start / fat->bytes_per_sector) + (fat->reserved_sectors + fat_sector);
-    uint32_t next_cluster = 0x0fffffff;
+    LTRACEF("cluster %#x\n", cluster);
 
-#if USE_CACHE
+    uint32_t bnum = (fat->lba_start / fat->bytes_per_sector) + (fat->reserved_sectors + fat_sector);
+    uint32_t next_cluster = EOF_CLUSTER;
+
     void *cache_ptr;
     int err = bcache_get_block(fat->cache, &cache_ptr, bnum);
     if (err < 0) {
@@ -38,6 +49,8 @@ static uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
             uint32_t *table = (uint32_t *)cache_ptr;
             next_cluster = table[fat_index];
             LE32SWAP(next_cluster);
+            // mask out the top nibble
+            next_cluster &= 0x0fffffff;
         } else if (fat->fat_bits == 16) {
             uint16_t *table = (uint16_t *)cache_ptr;
             next_cluster = table[fat_index];
@@ -49,11 +62,9 @@ static uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
 
         bcache_put_block(fat->cache, bnum);
     }
-#else
-    uint32_t offset = (bnum * fat->bytes_per_sector) + (fat_index * (fat->fat_bits / 8));
-    bio_read(fat->dev, &next_cluster, offset, 4);
-    LE32SWAP(next_cluster);
-#endif
+
+    LTRACEF("returning cluster %#x\n", next_cluster);
+
     return next_cluster;
 }
 
@@ -119,6 +130,8 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
     fat_fs_t *fat = (fat_fs_t *)cookie;
     status_t result = ERR_GENERIC;
 
+    LTRACEF("fscookie %p path %s fcookie %p\n", cookie, path, fcookie);
+
     uint8_t *dir = (uint8_t *)malloc(fat->bytes_per_cluster);
     uint32_t dir_cluster = fat->root_cluster;
     fat_file_t *file = NULL;
@@ -134,6 +147,9 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
     do {
         // XXX: use the cache!
         bio_read(fat->dev, dir, fat32_offset_for_cluster(fat, dir_cluster), fat->bytes_per_cluster);
+
+        LTRACEF("dir cluster:\n");
+        hexdump8(dir, 512);
 
         char *next_sep = strchr(ptr, '/');
         if (next_sep) {
@@ -199,7 +215,7 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
         } else {
             // XXX: untested!!!
             dir_cluster = fat32_next_cluster_in_chain(fat, dir_cluster);
-            if (dir_cluster == 0x0fffffff) {
+            if (is_eof_cluster(dir_cluster)) {
                 // no more clusters in the chain
                 break;
             }
@@ -212,52 +228,91 @@ out:
     return result;
 }
 
+// given a starting fat cluster, walk the fat chain for offset bytes, returning a new cluster or end of file
+static uint32_t file_offset_to_cluster(fat_fs_t *fat, uint32_t start_cluster, off_t offset) {
+    // negative offsets do not make sense
+    DEBUG_ASSERT(offset >= 0);
+    if (offset < 0) {
+        return EOF_CLUSTER;
+    }
+
+    uint32_t found_cluster = start_cluster;
+    size_t clusters_to_walk = (size_t)offset / fat->bytes_per_cluster;
+    while (clusters_to_walk > 0) {
+        // walk foward these many clusters, returning the FAT entry at that spot
+        found_cluster = fat32_next_cluster_in_chain(fat, found_cluster);
+        if (is_eof_cluster(found_cluster)) {
+            break;
+        }
+        clusters_to_walk--;
+    }
+
+    return found_cluster;
+}
+
 ssize_t fat32_read_file(filecookie *fcookie, void *_buf, off_t offset, size_t len) {
     fat_file_t *file = (fat_file_t *)fcookie;
     fat_fs_t *fat = file->fat_fs;
     bdev_t *dev = fat->dev;
-    uint8_t *buf = (uint8_t *)_buf;
 
-    uint32_t cluster = 0;
-    if (offset <= fat->bytes_per_cluster) {
-        cluster = file->start_cluster;
-    } else {
-        // XXX: support non-0 offsets
-        TRACE;
-        return -1;
+    LTRACEF("fcookie %p buf %p offset %lld len %zu\n", fcookie, _buf, offset, len);
+
+    // negative offsets are invalid
+    if (offset < 0) {
+        return ERR_INVALID_ARGS;
     }
 
-    uint32_t length = file->length;
-    uint32_t amount_read = 0;
+    // trim the read to the file
+    if (offset >= file->length) {
+        return 0;
+    }
+    if (offset + len > file->length) {
+        len = file->length - offset;
+    }
 
-    do {
-        off_t lba_addr = fat32_offset_for_cluster(fat, cluster);
+    LTRACEF("trimmed offset %lld len %zu\n", offset, len);
 
-        uint32_t to_read = fat->bytes_per_cluster;
-        uint32_t next_cluster = 0;
-        while ((next_cluster = fat32_next_cluster_in_chain(fat, cluster)) == cluster + 1) {
-            cluster = next_cluster;
-            to_read += fat->bytes_per_cluster;
+    uint8_t *buf = (uint8_t *)_buf;
+    ssize_t amount_read = 0;
+
+    uint32_t cluster = file_offset_to_cluster(fat, file->start_cluster, offset);
+
+    LTRACEF("starting cluster at %#x\n", cluster);
+
+    while (len > 0) {
+        size_t to_read = MIN(fat->bytes_per_cluster, len);
+        size_t cluster_offset = offset % fat->bytes_per_cluster;
+
+        LTRACEF("top of loop: len remaining %zu offset %llu to_read %zu cluster offset %zu\n", len, offset, to_read, cluster_offset);
+
+#if 0
+        // TODO: finish logic to handle reading sectors out of the block cache
+        uint8_t *cache_ptr;
+        bcache_get_block(fat->cache, (void **)&cache_ptr, fat32_offset_for_cluster(fat, cluster) * fat->sectors_per_cluster);
+#else
+        ssize_t err = bio_read(dev, buf, fat32_offset_for_cluster(fat, cluster) + cluster_offset, to_read);
+        if (err != (ssize_t)to_read) {
+            TRACEF("short read or error %ld from bio_read\n", err);
+            break;
         }
-        cluster = next_cluster;
+#endif
 
-        to_read = MIN(length - amount_read, to_read);
-        // XXX: support non-0 offsets
-        int err = bio_read(dev, buf+amount_read, lba_addr, to_read);
-        if (err < 0) {
-            return err;
-        }
-
+        offset += to_read;
+        len -= to_read;
         amount_read += to_read;
 
-        if (amount_read < length) {
-            if (cluster == 0x0fffffff) {
-                printf("no more clusters, amount_read=%i, to_read=%i\n", amount_read, to_read);
+        // Find the next cluster in the file. Start with the last looked up cluster with
+        // a cluster-size offset to get it to look up the next one in the list.
+        if (len > 0) {
+            cluster = file_offset_to_cluster(fat, cluster, fat->bytes_per_cluster);
+            if (is_eof_cluster(cluster)) {
+                TRACEF("hit EOF too early\n");
                 break;
             }
         }
-    } while (amount_read < length);
+    }
 
+out:
     return amount_read;
 }
 
