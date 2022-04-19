@@ -23,6 +23,7 @@ struct fs_mount {
     struct list_node node;
 
     char *path;
+    size_t pathlen; // save the strlen of path above to help with path matching
     bdev_t *dev;
     fscookie *cookie;
     int ref;
@@ -75,20 +76,40 @@ void fs_dump_mounts(void) {
 // find a mount structure based on the prefix of this path
 // bump the ref to the mount structure before returning
 static struct fs_mount *find_mount(const char *path, const char **trimmed_path) {
-    struct fs_mount *mount;
+    // paths must be absolute and start with /
+    if (path[0] != '/') {
+        return NULL;
+    }
     size_t pathlen = strlen(path);
 
     mutex_acquire(&mount_lock);
+    struct fs_mount *mount;
     list_for_every_entry(&mounts, mount, struct fs_mount, node) {
-        size_t mountpathlen = strlen(mount->path);
-        if (pathlen < mountpathlen)
+        // if the path is shorter than this mount point, no point continuing
+        if (pathlen < mount->pathlen) {
             continue;
+        }
 
         LTRACEF("comparing %s with %s\n", path, mount->path);
 
-        if (memcmp(path, mount->path, mountpathlen) == 0) {
-            if (trimmed_path)
-                *trimmed_path = &path[mountpathlen];
+        if (memcmp(path, mount->path, mount->pathlen) == 0) {
+            // If we got a match, make sure the next element in the path is
+            // a path separator or the end of the string. This keeps from
+            // matching /foo2 with /foo, but /foo/bar would match correctly.
+            if (path[mount->pathlen] != '/' && path[mount->pathlen] != 0) {
+                continue;
+            }
+
+            // we got a match, skip forward to the next element
+            if (trimmed_path) {
+                *trimmed_path = &path[mount->pathlen];
+                // if we matched against the end of the path, at least return
+                // a "/".
+                // TODO: decide if this is necessary
+                if (*trimmed_path[0] == 0) {
+                    *trimmed_path = "/";
+                }
+            }
 
             mount->ref++;
 
@@ -162,6 +183,7 @@ static status_t mount(const char *path, const char *device, const struct fs_impl
         free(mount);
         return ERR_NO_MEMORY;
     }
+    mount->pathlen = strlen(mount->path);
     mount->dev = dev;
     mount->cookie = cookie;
     mount->ref = 1;
@@ -218,7 +240,6 @@ status_t fs_unmount(const char *path) {
 
     return 0;
 }
-
 
 status_t fs_open_file(const char *path, filehandle **handle) {
     char temppath[FS_MAX_PATH_LEN];
