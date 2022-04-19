@@ -273,6 +273,11 @@ err:
     return status;
 }
 
+static int cmd_df(int argc, const console_cmd_args *argv) {
+    fs_dump_mounts();
+    return NO_ERROR;
+}
+
 STATIC_COMMAND_START
 STATIC_COMMAND("ls", "dir listing", &cmd_ls)
 STATIC_COMMAND("cd", "change dir", &cmd_cd)
@@ -282,4 +287,5 @@ STATIC_COMMAND("mkfile", "make file", &cmd_mkfile)
 STATIC_COMMAND("rm", "remove file", &cmd_rm)
 STATIC_COMMAND("stat", "stat file", &cmd_stat)
 STATIC_COMMAND("cat", "cat file", &cmd_cat)
+STATIC_COMMAND("df", "list mounts", &cmd_df)
 STATIC_COMMAND_END(fs_shell);

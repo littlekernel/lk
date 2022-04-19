@@ -14,43 +14,6 @@
 #include <platform.h>
 #include <lk/err.h>
 
-static void test_normalize(const char *in) {
-    char path[1024];
-
-    strlcpy(path, in, sizeof(path));
-    fs_normalize_path(path);
-    printf("'%s' -> '%s'\n", in, path);
-}
-
-#if 0
-test_normalize("/");
-test_normalize("/test");
-test_normalize("/test/");
-test_normalize("test/");
-test_normalize("test");
-test_normalize("/test//");
-test_normalize("/test/foo");
-test_normalize("/test/foo/");
-test_normalize("/test/foo/bar");
-test_normalize("/test/foo/bar//");
-test_normalize("/test//foo/bar//");
-test_normalize("/test//./foo/bar//");
-test_normalize("/test//./.foo/bar//");
-test_normalize("/test//./..foo/bar//");
-test_normalize("/test//./../foo/bar//");
-test_normalize("/test/../foo");
-test_normalize("/test/bar/../foo");
-test_normalize("../foo");
-test_normalize("../foo/");
-test_normalize("/../foo");
-test_normalize("/../foo/");
-test_normalize("/../../foo");
-test_normalize("/bleh/../../foo");
-test_normalize("/bleh/bar/../../foo");
-test_normalize("/bleh/bar/../../foo/..");
-test_normalize("/bleh/bar/../../foo/../meh");
-#endif
-
 #if LK_DEBUGLEVEL > 1
 static int cmd_fs(int argc, const console_cmd_args *argv);
 
@@ -148,6 +111,7 @@ usage:
         printf("%s format <type> [device]\n", argv[0].str);
         printf("%s stat <path>\n", argv[0].str);
         printf("%s ioctl <request> [args...]\n", argv[0].str);
+        printf("%s list\n", argv[0].str);
         return -1;
     }
 
@@ -251,6 +215,9 @@ usage:
         }
 
         fs_close_file(handle);
+    } else if (!strcmp(argv[1].str, "list")) {
+        printf("Implemented file systems:\n");
+        fs_dump_list();
     } else {
         printf("unrecognized subcommand\n");
         goto usage;

@@ -5,13 +5,14 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <lib/fs.h>
+
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <lk/list.h>
 #include <lk/err.h>
 #include <string.h>
 #include <stdlib.h>
-#include <lib/fs.h>
 #include <lib/bio.h>
 #include <lk/init.h>
 #include <kernel/mutex.h>
@@ -25,6 +26,7 @@ struct fs_mount {
     bdev_t *dev;
     fscookie *cookie;
     int ref;
+    const struct fs_impl *fs;
     const struct fs_api *api;
 };
 
@@ -54,6 +56,21 @@ static const struct fs_impl *find_fs(const char *name) {
     return NULL;
 }
 
+void fs_dump_list(void) {
+    for (const struct fs_impl *fs = &__start_fs_impl; fs != &__stop_fs_impl; fs++) {
+        puts(fs->name);
+    }
+}
+
+void fs_dump_mounts(void) {
+    printf("%-16s%s\n", "Filesystem", "Path");
+    mutex_acquire(&mount_lock);
+    struct fs_mount *mount;
+    list_for_every_entry(&mounts, mount, struct fs_mount, node) {
+        printf("%-16s%s\n", mount->fs->name, mount->path);
+    }
+    mutex_release(&mount_lock);
+}
 
 // find a mount structure based on the prefix of this path
 // bump the ref to the mount structure before returning
@@ -99,8 +116,9 @@ static void put_mount(struct fs_mount *mount) {
     mutex_release(&mount_lock);
 }
 
-static status_t mount(const char *path, const char *device, const struct fs_api *api) {
+static status_t mount(const char *path, const char *device, const struct fs_impl *fs) {
     struct fs_mount *mount;
+    const struct fs_api *api = fs->api;
     char temppath[FS_MAX_PATH_LEN];
 
     strlcpy(temppath, path, sizeof(temppath));
@@ -147,6 +165,7 @@ static status_t mount(const char *path, const char *device, const struct fs_api 
     mount->dev = dev;
     mount->cookie = cookie;
     mount->ref = 1;
+    mount->fs = fs;
     mount->api = api;
 
     list_add_head(&mounts, &mount->node);
@@ -180,7 +199,7 @@ status_t fs_mount(const char *path, const char *fsname, const char *device) {
     if (!fs)
         return ERR_NOT_FOUND;
 
-    return mount(path, device, fs->api);
+    return mount(path, device, fs);
 }
 
 status_t fs_unmount(const char *path) {
