@@ -41,7 +41,7 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
     if (!dev)
         return ERR_NOT_VALID;
 
-    uint8_t *bs = malloc(512);
+    uint8_t *bs = (uint8_t *)malloc(512);
     int err = bio_read(dev, bs, 1024, 512);
     if (err < 0) {
         result = ERR_GENERIC;
@@ -54,7 +54,8 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
         goto end;
     }
 
-    fat_fs_t *fat = malloc(sizeof(fat_fs_t));
+    fat_fs_t *fat;
+    fat = (fat_fs_t *)malloc(sizeof(fat_fs_t));
     fat->lba_start = 1024;
     fat->dev = dev;
 
@@ -165,12 +166,26 @@ status_t fat32_unmount(fscookie *cookie) {
 }
 
 static const struct fs_api fat32_api = {
+    .format = nullptr,
+    .fs_stat = nullptr,
+
     .mount = fat32_mount,
     .unmount = fat32_unmount,
     .open = fat32_open_file,
+    .create = nullptr,
+    .remove = nullptr,
+    .truncate = nullptr,
     .stat = fat32_stat_file,
     .read = fat32_read_file,
+    .write = nullptr,
     .close = fat32_close_file,
+
+    .mkdir = nullptr,
+    .opendir = nullptr,
+    .readdir = nullptr,
+    .closedir = nullptr,
+
+    .file_ioctl = nullptr,
 };
 
 STATIC_FS_IMPL(fat32, &fat32_api);

@@ -7,8 +7,7 @@ MODULE_DEPS += \
 	lib/bcache \
 	lib/bio
 
-MODULE_SRCS += \
-	$(LOCAL_DIR)/fat.c \
-	$(LOCAL_DIR)/file.c
+MODULE_SRCS += $(LOCAL_DIR)/fat.cpp
+MODULE_SRCS += $(LOCAL_DIR)/file.cpp
 
 include make/module.mk
