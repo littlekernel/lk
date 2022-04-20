@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015 Steve White
+ * Copyright (c) 2022 Travis Geiselbrecht
  *
  * Use of this source code is governed by a MIT-style
  * license that can be found in the LICENSE file or at
@@ -11,6 +12,7 @@
 #include <lib/fs.h>
 #include <lk/trace.h>
 #include <lk/debug.h>
+#include <lk/cpp.h>
 #include <malloc.h>
 #include <string.h>
 #include <endian.h>
@@ -18,7 +20,7 @@
 #include "fat32_priv.h"
 #include "fat_fs.h"
 
-static void fat32_dump(fat_fs_t *fat) {
+__NO_INLINE static void fat32_dump(fat_fs_t *fat) {
     printf("bytes_per_sector %u\n", fat->bytes_per_sector);
     printf("sectors_per_cluster %u\n", fat->sectors_per_cluster);
     printf("bytes_per_cluster %u\n", fat->bytes_per_cluster);
@@ -42,28 +44,37 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
         return ERR_NOT_VALID;
 
     uint8_t *bs = (uint8_t *)malloc(512);
-    int err = bio_read(dev, bs, 0, 512);
+    if (!bs) {
+        return ERR_NO_MEMORY;
+    }
+
+    // free the block on the way out of the function
+    auto ac = lk::make_auto_call([&]() { free(bs); });
+
+    ssize_t err = bio_read(dev, bs, 0, 512);
     if (err < 0) {
-        result = ERR_GENERIC;
-        goto end;
+        return err;
     }
 
     if (((bs[0x1fe] != 0x55) || (bs[0x1ff] != 0xaa)) && (bs[0x15] == 0xf8)) {
         printf("missing boot signature\n");
-        result = ERR_NOT_VALID;
-        goto end;
+        return ERR_NOT_VALID;
     }
 
-    fat_fs_t *fat;
-    fat = (fat_fs_t *)malloc(sizeof(fat_fs_t));
+    auto *fat = (fat_fs_t *)malloc(sizeof(fat_fs_t));
+    if (!fat) {
+        return ERR_NO_MEMORY;
+    }
     fat->lba_start = 0;
     fat->dev = dev;
+
+    // if we early terminate, free the fat structure
+    auto ac2 = lk::make_auto_call([&]() { free(fat); });
 
     fat->bytes_per_sector = fat_read16(bs,0xb);
     if ((fat->bytes_per_sector != 0x200) && (fat->bytes_per_sector != 0x400) && (fat->bytes_per_sector != 0x800)) {
         printf("unsupported sector size (%x)\n", fat->bytes_per_sector);
-        result = ERR_NOT_VALID;
-        goto end;
+        return ERR_NOT_VALID;
     }
 
     fat->sectors_per_cluster = bs[0xd];
@@ -79,8 +90,7 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
             break;
         default:
             printf("unsupported sectors/cluster (%x)\n", fat->sectors_per_cluster);
-            result = ERR_NOT_VALID;
-            goto end;
+            return ERR_NOT_VALID;
     }
 
     fat->reserved_sectors = fat_read16(bs, 0xe);
@@ -88,14 +98,12 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
 
     if ((fat->fat_count == 0) || (fat->fat_count > 8)) {
         printf("unreasonable FAT count (%x)\n", fat->fat_count);
-        result = ERR_NOT_VALID;
-        goto end;
+        return ERR_NOT_VALID;
     }
 
     if (bs[0x15] != 0xf8) {
         printf("unsupported media descriptor byte (%x)\n", bs[0x15]);
-        result = ERR_NOT_VALID;
-        goto end;
+        return ERR_NOT_VALID;
     }
 
     fat->sectors_per_fat = fat_read16(bs, 0x16);
@@ -117,15 +125,17 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
         fat->root_start = 0;
         if (fat->root_cluster >= fat->total_clusters) {
             printf("root cluster too large (%x > %x)\n", fat->root_cluster, fat->total_clusters);
-            result = ERR_NOT_VALID;
-            goto end;
+            return ERR_NOT_VALID;
+        }
+        if (fat->root_cluster < 2) {
+            printf("root cluster too small (<2) %u\n", fat->root_cluster);
+            return ERR_NOT_VALID;
         }
         fat->root_entries = 0;
     } else {
         if (fat->fat_count != 2) {
             printf("illegal FAT count (%x)\n", fat->fat_count);
-            result = ERR_NOT_VALID;
-            goto end;
+            return ERR_NOT_VALID;
         }
 
         // On a FAT 12 or FAT 16 volumes the root directory is at a fixed position immediately after the File Allocation Tables
@@ -133,8 +143,7 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
         fat->root_entries = fat_read16(bs,0x11);
         if (fat->root_entries % (fat->bytes_per_sector / 0x20)) {
             printf("illegal number of root entries (%x)\n", fat->root_entries);
-            result = ERR_NOT_VALID;
-            goto end;
+            return ERR_NOT_VALID;
         }
 
         fat->total_sectors = fat_read16(bs,0x13);
@@ -148,8 +157,7 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
 
         if (fat->total_clusters < 0xff2) {
             printf("small FAT12, not supported\n");
-            result = ERR_NOT_VALID;
-            goto end;
+            return ERR_NOT_VALID;
         }
         fat->fat_bits = 16;
     }
@@ -157,12 +165,14 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
     fat->bytes_per_cluster = fat->sectors_per_cluster * fat->bytes_per_sector;
     fat->cache = bcache_create(fat->dev, fat->bytes_per_sector, 16);
 
+    // we're okay, cancel our cleanup of the fat structure
+    ac2.cancel();
+
     printf("Mounted FAT volume, some information:\n");
     fat32_dump(fat);
 
     *cookie = (fscookie *)fat;
-end:
-    free(bs);
+
     return result;
 }
 

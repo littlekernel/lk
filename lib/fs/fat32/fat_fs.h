@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015 Steve White
+ * Copyright (c) 2022 Travis Geiselbrecht
  *
  * Use of this source code is governed by a MIT-style
  * license that can be found in the LICENSE file or at
@@ -16,6 +17,7 @@ typedef struct {
 
     uint32_t lba_start;
 
+    // data computed from BPB
     uint32_t bytes_per_sector;
     uint32_t sectors_per_cluster;
     uint32_t bytes_per_cluster;
@@ -32,27 +34,37 @@ typedef struct {
     uint32_t root_start;
 } fat_fs_t;
 
+enum class fat_attribute : uint8_t {
+    read_only = 0x01,
+    hidden = 0x02,
+    system = 0x04,
+    volume_id = 0x08,
+    directory = 0x10,
+    archive = 0x20,
+    lfn = read_only | hidden | system | volume_id,
+};
+
 typedef struct {
     fat_fs_t *fat_fs;
+
     uint32_t start_cluster;
     uint32_t length;
-    uint8_t attributes;
+
+    fat_attribute attributes;
 } fat_file_t;
 
-typedef enum {
-    fat_attribute_read_only = 0x01,
-    fat_attribute_hidden = 0x02,
-    fat_attribute_system = 0x04,
-    fat_attribute_volume_id = 0x08,
-    fat_attribute_directory = 0x10,
-    fat_attribute_archive = 0x20,
-    fat_attribute_lfn = fat_attribute_read_only | fat_attribute_hidden | fat_attribute_system | fat_attribute_volume_id,
-} fat_attributes;
+inline uint32_t fat_read32(const void *_buffer, size_t offset) {
+    auto *buffer = (const uint8_t *)_buffer;
 
-#define fat_read32(buffer,off) \
-(((uint8_t *)buffer)[(off)] + (((uint8_t *)buffer)[(off)+1] << 8) + \
-(((uint8_t *)buffer)[(off)+2] << 16) + (((uint8_t *)buffer)[(off)+3] << 24))
+    return buffer[offset] +
+          (buffer[offset + 1] << 8) +
+          (buffer[offset + 2] << 16) +
+          (buffer[offset + 3] << 24);
+}
 
-#define fat_read16(buffer,off) \
-(((uint8_t *)buffer)[(off)] + (((uint8_t *)buffer)[(off)+1] << 8))
+inline uint16_t fat_read16(const void *_buffer, size_t offset) {
+    auto *buffer = (const uint8_t *)_buffer;
 
+    return buffer[offset] +
+          (buffer[offset + 1] << 8);
+}

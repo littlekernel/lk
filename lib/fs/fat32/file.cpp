@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015 Steve White
+ * Copyright (c) 2022 Travis Geiselbrecht
  *
  * Use of this source code is governed by a MIT-style
  * license that can be found in the LICENSE file or at
@@ -24,10 +25,16 @@
 
 // In fat32, clusters between 0x0fff.fff8 and 0x0fff.ffff are interpreted as
 // end of file.
-const uint32_t EOF_CLUSTER_BASE = 0x0fff'fff8;
-const uint32_t EOF_CLUSTER = 0x0fff'ffff;
+const uint32_t EOF_CLUSTER_BASE = 0x0ffffff8;
+const uint32_t EOF_CLUSTER = 0x0fffffff;
 
-static inline bool is_eof_cluster(uint32_t cluster) {
+static off_t fat32_offset_for_cluster(fat_fs_t *fat, uint32_t cluster) {
+    DEBUG_ASSERT(cluster >= 2);
+    off_t cluster_begin_lba = fat->reserved_sectors + (fat->fat_count * fat->sectors_per_fat);
+    return fat->lba_start + (cluster_begin_lba + (cluster - 2) * fat->sectors_per_cluster) * fat->bytes_per_sector;
+}
+
+static bool is_eof_cluster(uint32_t cluster) {
     return cluster >= EOF_CLUSTER_BASE && cluster <= EOF_CLUSTER;
 }
 
@@ -58,6 +65,8 @@ static uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
             if (next_cluster > 0xfff0) {
                 next_cluster |= 0x0fff0000;
             }
+        } else {
+            DEBUG_ASSERT_MSG(0, "unhandled fat bits %d\n", fat->fat_bits);
         }
 
         bcache_put_block(fat->cache, bnum);
@@ -68,15 +77,11 @@ static uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
     return next_cluster;
 }
 
-static inline off_t fat32_offset_for_cluster(fat_fs_t *fat, uint32_t cluster) {
-    off_t cluster_begin_lba = fat->reserved_sectors + (fat->fat_count * fat->sectors_per_fat);
-    return fat->lba_start + (cluster_begin_lba + (cluster - 2) * fat->sectors_per_cluster) * fat->bytes_per_sector;
-}
-
-static char *fat32_dir_get_filename(uint8_t *dir, off_t offset, int lfn_sequences) {
+__MALLOC __WARN_UNUSED_RESULT static char *fat32_dir_get_filename(uint8_t *dir, off_t offset, int lfn_sequences) {
     int result_len = 1 + (lfn_sequences == 0 ? 12 : (lfn_sequences * 26));
-    char *result = (char *)malloc(result_len);
     int j = 0;
+
+    char *result = (char *)malloc(result_len);
     memset(result, 0x00, result_len);
 
     if (lfn_sequences == 0) {
@@ -133,7 +138,7 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
     LTRACEF("fscookie %p path %s fcookie %p\n", cookie, path, fcookie);
 
     uint8_t *dir = (uint8_t *)malloc(fat->bytes_per_cluster);
-    uint32_t dir_cluster = fat->root_cluster;
+    uint32_t dir_cluster = fat->root_cluster; // TODO: handle fat16/12 root dirs
     fat_file_t *file = NULL;
 
     const char *ptr;
@@ -148,8 +153,10 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
         // XXX: use the cache!
         bio_read(fat->dev, dir, fat32_offset_for_cluster(fat, dir_cluster), fat->bytes_per_cluster);
 
-        LTRACEF("dir cluster:\n");
-        hexdump8(dir, 512);
+        if (LOCAL_TRACE) {
+            LTRACEF("dir cluster:\n");
+            hexdump8(dir, 512);
+        }
 
         char *next_sep = strchr(ptr, '/');
         if (next_sep) {
@@ -179,6 +186,8 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
             char *filename = fat32_dir_get_filename(dir, offset, lfn_sequences);
             lfn_sequences = 0;
 
+            TRACEF("found filename '%s'\n", filename);
+
             matched = (strnicmp(ptr, filename, strlen(filename)) == 0);
             free(filename);
 
@@ -189,7 +198,7 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
                     file->fat_fs = fat;
                     file->start_cluster = target_cluster;
                     file->length = fat_read32(dir, offset + 0x1c);
-                    file->attributes = dir[0x0B + offset];
+                    file->attributes = (fat_attribute)dir[0x0B + offset];
                     result = NO_ERROR;
                 } else {
                     dir_cluster = target_cluster;
@@ -236,6 +245,8 @@ static uint32_t file_offset_to_cluster(fat_fs_t *fat, uint32_t start_cluster, of
         return EOF_CLUSTER;
     }
 
+    // starting at the start cluster, walk forward N clusters, based on how far
+    // the offset is units of cluster bytes
     uint32_t found_cluster = start_cluster;
     size_t clusters_to_walk = (size_t)offset / fat->bytes_per_cluster;
     while (clusters_to_walk > 0) {
@@ -325,6 +336,6 @@ status_t fat32_close_file(filecookie *fcookie) {
 status_t fat32_stat_file(filecookie *fcookie, struct file_stat *stat) {
     fat_file_t *file = (fat_file_t *)fcookie;
     stat->size = file->length;
-    stat->is_dir = (file->attributes == fat_attribute_directory);
+    stat->is_dir = (file->attributes == fat_attribute::directory);
     return NO_ERROR;
 }
