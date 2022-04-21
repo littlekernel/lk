@@ -4,17 +4,20 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 function HELP {
     echo "help:"
-    echo "-b a virtio block device"
-    echo "-c cmpctmalloc instead of dlmalloc"
-    echo "-M miniheap instead of dlmalloc"
-    echo "-n a virtio network device"
-    echo "-t a virtio tap network device"
-    echo "-d a virtio display"
-    echo "-3 cortex-m3 based platform"
-    echo "-6 64bit arm"
-    echo "-v boot kernel at EL2"
+    echo "-6                : 64bit arm"
+    echo "-3                : cortex-m3 based platform"
+    echo "-v                : boot kernel at EL2"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
+    echo
+    echo "-c                : cmpctmalloc instead of dlmalloc"
+    echo "-M                : miniheap instead of dlmalloc"
+    echo
+    echo "-d <disk image>   : a virtio disk device"
+    echo "-n                : a virtio network device"
+    echo "-t                : a virtio tap network device"
+    echo "-g                : a virtio display"
+    echo
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
@@ -22,7 +25,8 @@ function HELP {
 
 DO_NET=0
 DO_NET_TAP=0
-DO_BLOCK=0
+DO_DISK=0
+DO_DISK_IMAGE=""
 DO_64BIT=0
 DO_VIRT=0
 DO_CORTEX_M3=0
@@ -34,11 +38,11 @@ MEMSIZE=512
 SUDO=""
 PROJECT=""
 
-while getopts bdhm:cMnt36vp:s: FLAG; do
+while getopts cd:ghm:Mnt36vp:s: FLAG; do
     case $FLAG in
-        b) DO_BLOCK=1;;
         c) DO_CMPCTMALLOC=1;;
-        d) DO_DISPLAY=1;;
+        d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
+        g) DO_DISPLAY=1;;
         M) DO_MINIHEAP=1;;
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
@@ -57,6 +61,7 @@ done
 
 shift $((OPTIND-1))
 
+# pick the appropriate qemu and project
 if [ $DO_64BIT == 1 ]; then
     QEMU="qemu-system-aarch64"
     CPU="cortex-a53"
@@ -77,44 +82,50 @@ else
     MACHINE+=",highmem=off" # disable the high PCI ECAM, since we dont support LPAE to map it
     _PROJECT="qemu-virt-arm32-test"
 fi
+
+# allow overriding the project from the environment
 if [ "$PROJECT" == "" ]; then
     PROJECT=$_PROJECT
 fi
 
 ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
-BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
-NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
-NET_TAP_ARGS=" -netdev tap,id=vmnic,ifname=qemu0,script=no -device virtio-net-device,netdev=vmnic"
-NO_NET_ARGS=" -net none"
-DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
-NO_DISPLAY_ARGS=" -nographic"
 
-echo DO_BLOCK = $DO_BLOCK
-echo DO_NET = $DO_NET
-
-if [ $DO_BLOCK == 1 ]; then
-    ARGS+=$BLOCK_ARGS
+if (( $DO_DISK )); then
+    ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk,format=raw"
+    ARGS+=" -device virtio-blk-device,drive=blk"
 fi
-if [ $DO_NET == 1 ]; then
-    ARGS+=$NET_ARGS
+
+if (( $DO_NET )); then
+    ARGS+=" -netdev user,id=vmnic,hostname=qemu "
+    ARGS+=" -device virtio-net-device,netdev=vmnic"
+elif (( $DO_NET_TAP )); then
+    # quick note to enable tap interface
+    # IFNAME=qemu0
+    # BRIDGE=bridge0
+    # sudo tunctl -u $(whoami) -t ${IFNAME}
+    # sudo ifconfig ${IFNAME} up
+    # sudo ip link set ${IFNAME} master ${BRIDGE}
+    ARGS+=" -netdev tap,id=vmnic,ifname=qemu0,downscript=no"
+    ARGS+=" -device virtio-net-device,netdev=vmnic"
+    #SUDO="sudo "
 else
+    NO_NET_ARGS=" -net none"
     ARGS+=$NO_NET_ARGS
 fi
-if [ $DO_NET_TAP == 1 ]; then
-    ARGS+=$NET_TAP_ARGS
-    SUDO="sudo "
-fi
-if [ $DO_DISPLAY == 1 ]; then
-    ARGS+=$DISPLAY_ARGS
+
+if (( $DO_DISPLAY )); then
+    ARGS+=" -device virtio-gpu-device -serial stdio"
+    ARGS+=" -device virtio-keyboard-device"
+    ARGS+=" -device virtio-mouse-device"
 else
-    ARGS+=$NO_DISPLAY_ARGS
+    ARGS+=" -nographic"
 fi
 
 MAKE_VARS=""
 
-if [ $DO_CMPCTMALLOC == 1 ]; then
+if (( $DO_CMPCTMALLOC )); then
     MAKE_VARS=LK_HEAP_IMPLEMENTATION=cmpctmalloc
-elif [ $DO_MINIHEAP == 1 ]; then
+elif (( $DO_MINIHEAP )); then
     MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
 fi
 

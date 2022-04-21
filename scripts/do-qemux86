@@ -8,12 +8,14 @@ function HELP {
     echo "-l                  : legacy mode build (386 emulated machine)"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
+    echo
     echo "-d <disk image>     : a virtio block device"
+    echo "-g                  : with graphics"
     echo "-n                  : user mode networking, defaults to virtio-net-pci device"
     echo "-N <network driver> : specify network driver (virtio-net-pci, e1000e, etc)"
     echo "-t                  : use tap interface qemu0 for networking"
-    echo "-g                  : with graphics"
     echo "-k                  : use KVM"
+    echo
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
@@ -95,15 +97,15 @@ ARGS+=" -device isa-debug-exit,iobase=0xf4,iosize=0x04"
 # a terminal reset on start.
 ARGS+=" -fw_cfg name=etc/sercon-port,string=0"
 
-if (( ! $DO_GRAPHICS )); then
-    ARGS+=" -nographic"
-else
+if (( $DO_GRAPHICS )); then
     ARGS+=" -serial stdio -vga std"
     if (( ! $DO_LEGACY )); then
         # add a couple of virtio devices for good measure
         ARGS+=" -device virtio-keyboard-pci"
         ARGS+=" -device virtio-mouse-pci"
     fi
+else
+    ARGS+=" -nographic"
 fi
 
 if (( $DO_DISK )); then
