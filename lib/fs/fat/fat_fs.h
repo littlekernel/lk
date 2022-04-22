@@ -15,8 +15,6 @@ typedef struct {
     bdev_t *dev;
     bcache_t cache;
 
-    uint32_t lba_start;
-
     // data computed from BPB
     uint32_t bytes_per_sector;
     uint32_t sectors_per_cluster;
@@ -27,11 +25,11 @@ typedef struct {
     uint32_t sectors_per_fat;
     uint32_t total_sectors;
     uint32_t active_fat;
-    uint32_t data_start;
+    uint32_t data_start_sector;
     uint32_t total_clusters;
     uint32_t root_cluster;
     uint32_t root_entries;
-    uint32_t root_start;
+    uint32_t root_start_sector;
 } fat_fs_t;
 
 enum class fat_attribute : uint8_t {
@@ -68,3 +66,13 @@ inline uint16_t fat_read16(const void *_buffer, size_t offset) {
     return buffer[offset] +
           (buffer[offset + 1] << 8);
 }
+
+// In fat32, clusters between 0x0fff.fff8 and 0x0fff.ffff are interpreted as
+// end of file.
+const uint32_t EOF_CLUSTER_BASE = 0x0ffffff8;
+const uint32_t EOF_CLUSTER = 0x0fffffff;
+
+inline bool is_eof_cluster(uint32_t cluster) {
+    return cluster >= EOF_CLUSTER_BASE && cluster <= EOF_CLUSTER;
+}
+
