@@ -17,10 +17,10 @@
 #include <string.h>
 #include <endian.h>
 
-#include "fat32_priv.h"
+#include "fat_priv.h"
 #include "fat_fs.h"
 
-__NO_INLINE static void fat32_dump(fat_fs_t *fat) {
+__NO_INLINE static void fat_dump(fat_fs_t *fat) {
     printf("bytes_per_sector %u\n", fat->bytes_per_sector);
     printf("sectors_per_cluster %u\n", fat->sectors_per_cluster);
     printf("bytes_per_cluster %u\n", fat->bytes_per_cluster);
@@ -37,7 +37,7 @@ __NO_INLINE static void fat32_dump(fat_fs_t *fat) {
     printf("root_start %u\n", fat->root_start);
 }
 
-status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
+status_t fat_mount(bdev_t *dev, fscookie **cookie) {
     status_t result = NO_ERROR;
 
     if (!dev)
@@ -169,34 +169,34 @@ status_t fat32_mount(bdev_t *dev, fscookie **cookie) {
     ac2.cancel();
 
     printf("Mounted FAT volume, some information:\n");
-    fat32_dump(fat);
+    fat_dump(fat);
 
     *cookie = (fscookie *)fat;
 
     return result;
 }
 
-status_t fat32_unmount(fscookie *cookie) {
+status_t fat_unmount(fscookie *cookie) {
     fat_fs_t *fat = (fat_fs_t *)cookie;
     bcache_destroy(fat->cache);
     free(fat);
     return NO_ERROR;
 }
 
-static const struct fs_api fat32_api = {
+static const struct fs_api fat_api = {
     .format = nullptr,
     .fs_stat = nullptr,
 
-    .mount = fat32_mount,
-    .unmount = fat32_unmount,
-    .open = fat32_open_file,
+    .mount = fat_mount,
+    .unmount = fat_unmount,
+    .open = fat_open_file,
     .create = nullptr,
     .remove = nullptr,
     .truncate = nullptr,
-    .stat = fat32_stat_file,
-    .read = fat32_read_file,
+    .stat = fat_stat_file,
+    .read = fat_read_file,
     .write = nullptr,
-    .close = fat32_close_file,
+    .close = fat_close_file,
 
     .mkdir = nullptr,
     .opendir = nullptr,
@@ -206,4 +206,4 @@ static const struct fs_api fat32_api = {
     .file_ioctl = nullptr,
 };
 
-STATIC_FS_IMPL(fat32, &fat32_api);
+STATIC_FS_IMPL(fat, &fat_api);

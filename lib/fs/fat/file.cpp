@@ -17,7 +17,7 @@
 #include <lk/debug.h>
 
 #include "fat_fs.h"
-#include "fat32_priv.h"
+#include "fat_priv.h"
 
 #define DIR_ENTRY_LENGTH 32
 
@@ -28,7 +28,7 @@
 const uint32_t EOF_CLUSTER_BASE = 0x0ffffff8;
 const uint32_t EOF_CLUSTER = 0x0fffffff;
 
-static off_t fat32_offset_for_cluster(fat_fs_t *fat, uint32_t cluster) {
+static off_t fat_offset_for_cluster(fat_fs_t *fat, uint32_t cluster) {
     DEBUG_ASSERT(cluster >= 2);
     off_t cluster_begin_lba = fat->reserved_sectors + (fat->fat_count * fat->sectors_per_fat);
     return fat->lba_start + (cluster_begin_lba + (cluster - 2) * fat->sectors_per_cluster) * fat->bytes_per_sector;
@@ -38,7 +38,7 @@ static bool is_eof_cluster(uint32_t cluster) {
     return cluster >= EOF_CLUSTER_BASE && cluster <= EOF_CLUSTER;
 }
 
-static uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
+static uint32_t fat_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
     uint32_t fat_sector = (cluster) >> 7;
     uint32_t fat_index = (cluster ) & 127;
 
@@ -77,7 +77,7 @@ static uint32_t fat32_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
     return next_cluster;
 }
 
-__MALLOC __WARN_UNUSED_RESULT static char *fat32_dir_get_filename(uint8_t *dir, off_t offset, int lfn_sequences) {
+__MALLOC __WARN_UNUSED_RESULT static char *fat_dir_get_filename(uint8_t *dir, off_t offset, int lfn_sequences) {
     int result_len = 1 + (lfn_sequences == 0 ? 12 : (lfn_sequences * 26));
     int j = 0;
 
@@ -131,7 +131,7 @@ __MALLOC __WARN_UNUSED_RESULT static char *fat32_dir_get_filename(uint8_t *dir, 
     return result;
 }
 
-status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcookie) {
+status_t fat_open_file(fscookie *cookie, const char *path, filecookie **fcookie) {
     fat_fs_t *fat = (fat_fs_t *)cookie;
     status_t result = ERR_GENERIC;
 
@@ -151,7 +151,7 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
     bool done = false;
     do {
         // XXX: use the cache!
-        bio_read(fat->dev, dir, fat32_offset_for_cluster(fat, dir_cluster), fat->bytes_per_cluster);
+        bio_read(fat->dev, dir, fat_offset_for_cluster(fat, dir_cluster), fat->bytes_per_cluster);
 
         if (LOCAL_TRACE) {
             LTRACEF("dir cluster:\n");
@@ -183,7 +183,7 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
                 continue;
             }
 
-            char *filename = fat32_dir_get_filename(dir, offset, lfn_sequences);
+            char *filename = fat_dir_get_filename(dir, offset, lfn_sequences);
             lfn_sequences = 0;
 
             TRACEF("found filename '%s'\n", filename);
@@ -223,7 +223,7 @@ status_t fat32_open_file(fscookie *cookie, const char *path, filecookie **fcooki
             }
         } else {
             // XXX: untested!!!
-            dir_cluster = fat32_next_cluster_in_chain(fat, dir_cluster);
+            dir_cluster = fat_next_cluster_in_chain(fat, dir_cluster);
             if (is_eof_cluster(dir_cluster)) {
                 // no more clusters in the chain
                 break;
@@ -251,7 +251,7 @@ static uint32_t file_offset_to_cluster(fat_fs_t *fat, uint32_t start_cluster, of
     size_t clusters_to_walk = (size_t)offset / fat->bytes_per_cluster;
     while (clusters_to_walk > 0) {
         // walk foward these many clusters, returning the FAT entry at that spot
-        found_cluster = fat32_next_cluster_in_chain(fat, found_cluster);
+        found_cluster = fat_next_cluster_in_chain(fat, found_cluster);
         if (is_eof_cluster(found_cluster)) {
             break;
         }
@@ -261,7 +261,7 @@ static uint32_t file_offset_to_cluster(fat_fs_t *fat, uint32_t start_cluster, of
     return found_cluster;
 }
 
-ssize_t fat32_read_file(filecookie *fcookie, void *_buf, off_t offset, size_t len) {
+ssize_t fat_read_file(filecookie *fcookie, void *_buf, off_t offset, size_t len) {
     fat_file_t *file = (fat_file_t *)fcookie;
     fat_fs_t *fat = file->fat_fs;
     bdev_t *dev = fat->dev;
@@ -299,9 +299,9 @@ ssize_t fat32_read_file(filecookie *fcookie, void *_buf, off_t offset, size_t le
 #if 0
         // TODO: finish logic to handle reading sectors out of the block cache
         uint8_t *cache_ptr;
-        bcache_get_block(fat->cache, (void **)&cache_ptr, fat32_offset_for_cluster(fat, cluster) * fat->sectors_per_cluster);
+        bcache_get_block(fat->cache, (void **)&cache_ptr, fat_offset_for_cluster(fat, cluster) * fat->sectors_per_cluster);
 #else
-        ssize_t err = bio_read(dev, buf, fat32_offset_for_cluster(fat, cluster) + cluster_offset, to_read);
+        ssize_t err = bio_read(dev, buf, fat_offset_for_cluster(fat, cluster) + cluster_offset, to_read);
         if (err != (ssize_t)to_read) {
             TRACEF("short read or error %ld from bio_read\n", err);
             break;
@@ -327,13 +327,13 @@ out:
     return amount_read;
 }
 
-status_t fat32_close_file(filecookie *fcookie) {
+status_t fat_close_file(filecookie *fcookie) {
     fat_file_t *file = (fat_file_t *)fcookie;
     free(file);
     return NO_ERROR;
 }
 
-status_t fat32_stat_file(filecookie *fcookie, struct file_stat *stat) {
+status_t fat_stat_file(filecookie *fcookie, struct file_stat *stat) {
     fat_file_t *file = (fat_file_t *)fcookie;
     stat->size = file->length;
     stat->is_dir = (file->attributes == fat_attribute::directory);
