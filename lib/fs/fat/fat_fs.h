@@ -76,3 +76,5 @@ inline bool is_eof_cluster(uint32_t cluster) {
     return cluster >= EOF_CLUSTER_BASE && cluster <= EOF_CLUSTER;
 }
 
+const int DIR_ENTRY_LENGTH = 32;
+

@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
 
@@ -31,4 +32,19 @@ uint32_t file_offset_to_cluster(fat_fs_t *fat, uint32_t start_cluster, off_t off
 /* general io routines */
 uint32_t fat_sector_for_cluster(fat_fs_t *fat, uint32_t cluster);
 ssize_t fat_read_cluster(fat_fs_t *fat, void *buf, uint32_t cluster);
+
+/* dir apis */
+struct dir_info {
+    bool is_linear_root_dir; // if root dir on fat12 or fat16, starting cluster is different
+    uint32_t starting_cluster;
+};
+
+struct dir_entry {
+    fat_attribute attributes;
+    uint32_t length;
+    uint32_t start_cluster;
+    // TODO time
+};
+status_t fat_find_file_in_dir(fat_fs_t *fat, const dir_info &dir, const char *name, dir_entry *out_entry);
+status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry);
 

@@ -19,176 +19,34 @@
 #include "fat_fs.h"
 #include "fat_priv.h"
 
-#define DIR_ENTRY_LENGTH 32
-
-#define LOCAL_TRACE 1
-
-__MALLOC __WARN_UNUSED_RESULT static char *fat_dir_get_filename(uint8_t *dir, off_t offset, int lfn_sequences) {
-    int result_len = 1 + (lfn_sequences == 0 ? 12 : (lfn_sequences * 26));
-    int j = 0;
-
-    char *result = (char *)malloc(result_len);
-    memset(result, 0x00, result_len);
-
-    if (lfn_sequences == 0) {
-        // Ignore trailing spaces in filename and/or extension
-        int fn_len=8, ext_len=3;
-        for (int i=7; i>=0; i--) {
-            if (dir[offset + i] == 0x20) {
-                fn_len--;
-            } else {
-                break;
-            }
-        }
-        for (int i=10; i>=8; i--) {
-            if (dir[offset + i] == 0x20) {
-                ext_len--;
-            } else {
-                break;
-            }
-        }
-
-        for (int i=0; i<fn_len; i++) {
-            result[j++] = dir[offset + i];
-        }
-        if (ext_len > 0) {
-            result[j++] = '.';
-            for (int i=0; i<ext_len; i++) {
-                result[j++] = dir[offset + 8 + i];
-            }
-        }
-    } else {
-        // XXX: not unicode aware.
-        for (int sequence=1; sequence<=lfn_sequences; sequence++) {
-            for (int i=1; i<DIR_ENTRY_LENGTH; i++) {
-                int char_offset = (offset - (sequence * DIR_ENTRY_LENGTH)) + i;
-                if (dir[char_offset] != 0x00 && dir[char_offset] != 0xff) {
-                    result[j++] = dir[char_offset];
-                }
-
-                if (i == 9) {
-                    i = 13;
-                } else if (i == 25) {
-                    i = 27;
-                }
-            }
-        }
-    }
-    return result;
-}
+#define LOCAL_TRACE 0
 
 status_t fat_open_file(fscookie *cookie, const char *path, filecookie **fcookie) {
     fat_fs_t *fat = (fat_fs_t *)cookie;
-    status_t result = ERR_GENERIC;
 
     LTRACEF("fscookie %p path %s fcookie %p\n", cookie, path, fcookie);
 
-    uint8_t *dir = (uint8_t *)malloc(fat->bytes_per_cluster);
-    uint32_t dir_cluster = fat->root_cluster; // TODO: handle fat16/12 root dirs
     fat_file_t *file = NULL;
 
-    const char *ptr;
-    /* chew up leading slashes */
-    ptr = &path[0];
-    while (*ptr == '/') {
-        ptr++;
+    dir_entry entry;
+    status_t err = fat_walk(fat, path, &entry);
+    if (err != NO_ERROR) {
+        return err;
     }
 
-    bool done = false;
-    do {
-        // XXX: use the cache!
-        auto ret =fat_read_cluster(fat, dir, dir_cluster);
-        if (ret != fat->bytes_per_cluster) {
-            if (ret < 0) {
-                result = ret;
-            } else {
-                result = ERR_GENERIC;
-            }
-            goto out;
-        }
-
-        if (LOCAL_TRACE) {
-            LTRACEF("dir cluster:\n");
-            hexdump8(dir, 512);
-        }
-
-        char *next_sep = strchr(ptr, '/');
-        if (next_sep) {
-            /* terminate the next component, giving us a substring */
-            *next_sep = 0;
-        } else {
-            /* this is the last component */
-            done = true;
-        }
-
-        uint32_t offset = 0;
-        uint32_t lfn_sequences = 0;
-        bool matched = false;
-        while (dir[offset] != 0x00 && offset < fat->bytes_per_cluster) {
-            if ( dir[offset] == 0xE5 /*deleted*/) {
-                offset += DIR_ENTRY_LENGTH;
-                continue;
-            } else if ((dir[offset + 0x0B] & 0x08)) {
-                if (dir[offset + 0x0B] == 0x0f) {
-                    lfn_sequences++;
-                }
-
-                offset += DIR_ENTRY_LENGTH;
-                continue;
-            }
-
-            char *filename = fat_dir_get_filename(dir, offset, lfn_sequences);
-            lfn_sequences = 0;
-
-            TRACEF("found filename '%s'\n", filename);
-
-            matched = (strnicmp(ptr, filename, strlen(filename)) == 0);
-            free(filename);
-
-            if (matched) {
-                uint16_t target_cluster = fat_read16(dir, offset + 0x1a);
-                if (done == true) {
-                    file = (fat_file_t *)malloc(sizeof(fat_file_t));
-                    file->fat_fs = fat;
-                    file->start_cluster = target_cluster;
-                    file->length = fat_read32(dir, offset + 0x1c);
-                    file->attributes = (fat_attribute)dir[0x0B + offset];
-                    result = NO_ERROR;
-                } else {
-                    dir_cluster = target_cluster;
-                }
-                break;
-            }
-
-            offset += DIR_ENTRY_LENGTH;
-        }
-
-        if (matched == true) {
-            if (done == true) {
-                break;
-            } else {
-                /* move to the next separator */
-                ptr = next_sep + 1;
-
-                /* consume multiple separators */
-                while (*ptr == '/') {
-                    ptr++;
-                }
-            }
-        } else {
-            // XXX: untested!!!
-            dir_cluster = fat_next_cluster_in_chain(fat, dir_cluster);
-            if (is_eof_cluster(dir_cluster)) {
-                // no more clusters in the chain
-                break;
-            }
-        }
-    } while (true);
-
-out:
-    *fcookie = (filecookie *)file;
-    free(dir);
-    return result;
+    // did we get a file?
+    if (entry.attributes != fat_attribute::directory) {
+        // XXX better attribute testing
+        file = (fat_file_t *)malloc(sizeof(fat_file_t));
+        file->fat_fs = fat;
+        file->start_cluster = entry.start_cluster;
+        file->length = entry.length;
+        file->attributes = entry.attributes;
+        *fcookie = (filecookie *)file;
+        return NO_ERROR;
+    } else {
+        return ERR_NOT_FILE;
+    }
 }
 
 ssize_t fat_read_file(filecookie *fcookie, void *_buf, off_t offset, size_t len) {

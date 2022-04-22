@@ -20,7 +20,7 @@
 #include "fat_priv.h"
 #include "fat_fs.h"
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 __NO_INLINE static void fat_dump(fat_fs_t *fat) {
     printf("bytes_per_sector %u\n", fat->bytes_per_sector);

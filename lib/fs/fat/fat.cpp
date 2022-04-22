@@ -15,7 +15,7 @@
 #include "fat_fs.h"
 #include "fat_priv.h"
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 uint32_t fat_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
     LTRACEF("cluster %#x\n", cluster);
