@@ -79,6 +79,8 @@ __MALLOC __WARN_UNUSED_RESULT static char *fat_dir_get_filename(uint8_t *dir, of
 status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry) {
     LTRACEF("path %s\n", path);
 
+    DEBUG_ASSERT(fat->lock.is_held());
+
     // routine to push the path element ahead one bump
     // will leave path pointing at the next element, and path_element_size
     // in characters for the next element (or 0 if finished).
@@ -160,6 +162,10 @@ status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry) {
 status_t fat_find_file_in_dir(fat_fs_t *fat, const dir_info &dir, const char *name, dir_entry *entry) {
     LTRACEF("dir (is_linear_root_dir %d, start_cluster %u), name '%s', out entry %p\n", dir.is_linear_root_dir, dir.starting_cluster, name, entry);
 
+    DEBUG_ASSERT(fat->lock.is_held());
+
+    const size_t namelen = strlen(name);
+
     // TODO: remove this allocation and use the bcache directly
     uint8_t *buffer = (uint8_t *)malloc(fat->bytes_per_cluster);
     auto free_buffer = lk::make_auto_call([buffer]() { free(buffer); });
@@ -195,7 +201,7 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, const dir_info &dir, const char *na
         // walk within a cluster
         uint32_t offset = 0;
         uint32_t lfn_sequences = 0;
-        bool matched = false;
+        bool matched;
         while (buffer[offset] != 0x00 && offset < fat->bytes_per_cluster) {
             LTRACEF_LEVEL(2, "looking at offset %u\n", offset);
             if (buffer[offset] == 0xE5 /*deleted*/) {
@@ -214,8 +220,12 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, const dir_info &dir, const char *na
             lfn_sequences = 0;
 
             LTRACEF("found filename '%s'\n", filename);
+            const size_t filenamelen = strlen(filename);
 
-            matched = (strnicmp(name, filename, strlen(filename)) == 0);
+            matched = false;
+            if (filenamelen == namelen && !strnicmp(name, filename, filenamelen)) {
+                matched = true;
+            }
 
             // we found an entry, fill it in and exit
             if (matched) {
@@ -271,6 +281,8 @@ status_t fat_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
 
     LTRACEF("cookie %p name '%s' dircookie %p\n", cookie, name, dcookie);
 
+    AutoLock guard(fat->lock);
+
     dir_entry entry;
 
     // special case for /
@@ -312,12 +324,14 @@ status_t fat_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
 
 status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
     auto cookie = (fat_dir_cookie *)dcookie;
-    //auto fat = cookie->fat;
+    auto fat = cookie->dir->fat;
 
     LTRACEF("dircookie %p ent %p, current index %u\n", dcookie, ent, cookie->index);
 
     if (!ent)
         return ERR_INVALID_ARGS;
+
+    AutoLock guard(fat->lock);
 
     // TODO: actually walk the dir
     cookie->index = fat_dir_cookie::index_eod;
@@ -327,9 +341,11 @@ status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
 
 status_t fat_closedir(dircookie *dcookie) {
     auto cookie = (fat_dir_cookie *)dcookie;
-    //auto fat = cookie->fat;
+    auto fat = cookie->dir->fat;
 
     LTRACEF("dircookie %p\n", dcookie);
+
+    AutoLock guard(fat->lock);
 
     // free the dircookie
     //mutex_acquire(&dcookie->fs->lock);

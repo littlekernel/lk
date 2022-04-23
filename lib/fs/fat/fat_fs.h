@@ -10,10 +10,13 @@
 
 #include <lib/bio.h>
 #include <lib/bcache.h>
+#include <kernel/mutex.h>
 
 struct fat_fs_t {
     bdev_t *dev = nullptr;
     bcache_t cache = nullptr;
+
+    Mutex lock;
 
     // list of open dirs
     list_node dir_list = LIST_INITIAL_VALUE(dir_list);

@@ -27,6 +27,8 @@ status_t fat_open_file(fscookie *cookie, const char *path, filecookie **fcookie)
 
     fat_file_t *file = NULL;
 
+    AutoLock guard(fat->lock);
+
     dir_entry entry;
     status_t err = fat_walk(fat, path, &entry);
     if (err != NO_ERROR) {
@@ -72,6 +74,8 @@ ssize_t fat_read_file(filecookie *fcookie, void *_buf, off_t offset, size_t len)
     if (offset < 0) {
         return ERR_INVALID_ARGS;
     }
+
+    AutoLock guard(fat->lock);
 
     // trim the read to the file
     if (offset >= file->length) {
@@ -129,6 +133,10 @@ out:
 
 status_t fat_stat_file(filecookie *fcookie, struct file_stat *stat) {
     fat_file_t *file = (fat_file_t *)fcookie;
+    fat_fs_t *fat = file->fat_fs;
+
+    AutoLock guard(fat->lock);
+
     stat->size = file->length;
     stat->is_dir = (file->attributes == fat_attribute::directory);
     return NO_ERROR;
@@ -136,6 +144,11 @@ status_t fat_stat_file(filecookie *fcookie, struct file_stat *stat) {
 
 status_t fat_close_file(filecookie *fcookie) {
     fat_file_t *file = (fat_file_t *)fcookie;
+    fat_fs_t *fat = file->fat_fs;
+
+    AutoLock guard(fat->lock);
+
+    // TODO: keep a list of open files to keep from getting duplicated
 
     delete file;
 

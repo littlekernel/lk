@@ -202,10 +202,14 @@ status_t fat_mount(bdev_t *dev, fscookie **cookie) {
 status_t fat_unmount(fscookie *cookie) {
     auto *fat = (fat_fs_t *)cookie;
 
-    // TODO: handle unmounting when files/dirs are active
-    DEBUG_ASSERT(list_is_empty(&fat->dir_list));
+    {
+        AutoLock guard(fat->lock);
 
-    bcache_destroy(fat->cache);
+        // TODO: handle unmounting when files/dirs are active
+        DEBUG_ASSERT(list_is_empty(&fat->dir_list));
+
+        bcache_destroy(fat->cache);
+    }
 
     delete fat;
 

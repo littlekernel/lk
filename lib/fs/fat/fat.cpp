@@ -20,6 +20,8 @@
 uint32_t fat_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
     LTRACEF("cluster %#x\n", cluster);
 
+    DEBUG_ASSERT(fat->lock.is_held());
+
     // offset in bytes into the FAT for this entry
     uint32_t fat_offset;
     if (fat->fat_bits == 32) {
@@ -74,6 +76,8 @@ uint32_t fat_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
 
 // given a starting fat cluster, walk the fat chain for offset bytes, returning a new cluster or end of file
 uint32_t file_offset_to_cluster(fat_fs_t *fat, uint32_t start_cluster, off_t offset) {
+    DEBUG_ASSERT(fat->lock.is_held());
+
     // negative offsets do not make sense
     DEBUG_ASSERT(offset >= 0);
     if (offset < 0) {
@@ -97,6 +101,8 @@ uint32_t file_offset_to_cluster(fat_fs_t *fat, uint32_t start_cluster, off_t off
 }
 
 uint32_t fat_sector_for_cluster(fat_fs_t *fat, uint32_t cluster) {
+    DEBUG_ASSERT(fat->lock.is_held());
+
     // cluster 0 and 1 are undefined
     DEBUG_ASSERT(cluster >= 2);
     DEBUG_ASSERT(cluster < fat->total_clusters);
@@ -112,6 +118,8 @@ uint32_t fat_sector_for_cluster(fat_fs_t *fat, uint32_t cluster) {
 }
 
 ssize_t fat_read_cluster(fat_fs_t *fat, void *buf, uint32_t cluster) {
+    DEBUG_ASSERT(fat->lock.is_held());
+
     LTRACEF("buf %p, cluster %u\n", buf, cluster);
 
     auto sector = fat_sector_for_cluster(fat, cluster);
