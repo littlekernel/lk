@@ -86,4 +86,5 @@ inline bool is_eof_cluster(uint32_t cluster) {
 }
 
 const int DIR_ENTRY_LENGTH = 32;
+const size_t MAX_FILE_NAME_LEN = 256;
 

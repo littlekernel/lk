@@ -93,9 +93,7 @@ public:
             }
         }
 
-        load_current_bcache_block();
-
-        return NO_ERROR;
+        return load_current_bcache_block();
     }
 
 private:
@@ -127,22 +125,12 @@ private:
     bnum_t bcache_bnum;         // current block number of the bcache_buf, if valid
 };
 
-status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const char *name, dir_entry *entry) {
-    LTRACEF("start_cluster %u, name '%s', out entry %p\n", starting_cluster, name, entry);
-
-    DEBUG_ASSERT(fat->lock.is_held());
-
-    const size_t namelen = strlen(name);
-
-    // kick start our directory sector iterator
-    dir_block_iterator dbi(fat, starting_cluster);
-    status_t err = dbi.load_current_bcache_block();
-    if (err < 0) {
-        return err;
-    }
-
-    char long_filename[256]; // max long file name incl NULL
-    char short_filename[8 + 1 + 3 + 1]; // max short name (8 . 3 NULL)
+// walk one entry into the dir, starting at byte offset into the directory block iterator.
+// both dbi and offset will be modified during the call.
+// filles out the entry and returns a pointer into the passed in buffer in out_filename.
+// NOTE: *must* pass at least a MAX_FILE_NAME_LEN byte char pointer in the filename_buffer slot.
+status_t fat_find_next_entry(fat_fs_t *fat, dir_block_iterator &dbi, uint32_t &offset, dir_entry *entry,
+        char filename_buffer[MAX_FILE_NAME_LEN], char **out_filename) {
 
     // lfn parsing state
     struct lfn_parse_state {
@@ -157,17 +145,14 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const ch
     } lfn_state;
 
     for (;;) {
-        if (LOCAL_TRACE) {
+        if (LOCAL_TRACE >= 2) {
             LTRACEF("dir sector:\n");
-            hexdump8(dbi.get_dir_entry(0), fat->bytes_per_sector);
+            hexdump8_ex(dbi.get_dir_entry(0), fat->bytes_per_sector, 0);
         }
 
-        // walk within a cluster
-        uint32_t offset = 0;
+        // walk within a sector
         while (offset < fat->bytes_per_sector) {
             LTRACEF_LEVEL(2, "looking at offset %u\n", offset);
-            char *filename;
-
             const uint8_t *ent = dbi.get_dir_entry(offset);
             if (ent[0] == 0) { // no more entries
                 // we're completely done
@@ -189,8 +174,8 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const ch
                 uint8_t sequence = ent[0] & ~0x40;
                 if (ent[0] & 0x40) {
                     // end sequence, start a new backwards fill of the lfn name
-                    lfn_state.pos = sizeof(long_filename);
-                    long_filename[--lfn_state.pos] = 0;
+                    lfn_state.pos = MAX_FILE_NAME_LEN;
+                    filename_buffer[--lfn_state.pos] = 0;
                     lfn_state.last_sequence = sequence;
                     lfn_state.checksum = ent[0x0d];
                     LTRACEF_LEVEL(2, "start of new LFN entry, sequence %u\n", sequence);
@@ -219,17 +204,18 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const ch
                     uint16_t c = fat_read16(ent, off);
                     if (c != 0xffff && c != 0x0) {
                         // TODO: properly deal with unicode -> utf8
-                        long_filename[--lfn_state.pos] = c & 0xff;
+                        filename_buffer[--lfn_state.pos] = c & 0xff;
                     }
                 }
 
-                LTRACEF_LEVEL(2, "lfn filename thus far: '%s' sequence %hhu\n", long_filename + lfn_state.pos, sequence);
+                LTRACEF_LEVEL(2, "lfn filename thus far: '%s' sequence %hhu\n", filename_buffer + lfn_state.pos, sequence);
 
                 // iterate one more entry, since we need to at least need to find the corresponding SFN
                 offset += DIR_ENTRY_LENGTH;
                 continue;
             } else {
                 // regular entry, extract the short file name
+                char short_filename[8 + 1 + 3 + 1]; // max short name (8 . 3 NULL)
                 size_t fname_pos = 0;
 
                 // Ignore trailing spaces in filename and/or extension
@@ -265,9 +251,11 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const ch
                 // in the previous entries
                 if (lfn_state.last_sequence == 1) {
                     // TODO: compute checksum and make sure it matches
-                    filename = long_filename + lfn_state.pos;
+                    *out_filename = filename_buffer + lfn_state.pos;
                 } else {
-                    filename = short_filename;
+                    // copy the parsed short file name into the out buffer
+                    strlcpy(filename_buffer, short_filename, sizeof(short_filename));
+                    *out_filename = filename_buffer;
                 }
 
                 lfn_state.reset();
@@ -276,31 +264,63 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const ch
                 // fall through, we've found a file entry
             }
 
-            // at this point we should have found a long or short file name and set the filename pointer
-            DEBUG_ASSERT(filename);
+            LTRACEF("found filename '%s'\n", *out_filename);
 
-            LTRACEF("found filename '%s'\n", filename);
-            const size_t filenamelen = strlen(filename);
-
-            // see if we've matched an entry
-            if (filenamelen == namelen && !strnicmp(name, filename, filenamelen)) {
-                // we have, fill out the passed in dir entry and exit
-                uint16_t target_cluster = fat_read16(ent, 0x1a);
-                entry->length = fat_read32(ent, 0x1c);
-                entry->attributes = (fat_attribute)ent[0x0B];
-                entry->start_cluster = target_cluster;
-                return NO_ERROR;
-            }
+            // fill out the passed in dir entry and exit
+            uint16_t target_cluster = fat_read16(ent, 0x1a);
+            entry->length = fat_read32(ent, 0x1c);
+            entry->attributes = (fat_attribute)ent[0x0B];
+            entry->start_cluster = target_cluster;
+            return NO_ERROR;
         }
 
         // move to the next sector
-        err = dbi.next_sector();
+        status_t err = dbi.next_sector();
         if (err < 0) {
             break;
         }
+        // starting over at offset 0 in the new sector
+        offset = 0;
     }
 
+    // we're out of entries
     return ERR_NOT_FOUND;
+}
+
+status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const char *name, dir_entry *entry) {
+    LTRACEF("start_cluster %u, name '%s', out entry %p\n", starting_cluster, name, entry);
+
+    DEBUG_ASSERT(fat->lock.is_held());
+
+    // cache the length of the string we're matching against
+    const size_t namelen = strlen(name);
+
+    // kick start our directory sector iterator
+    dir_block_iterator dbi(fat, starting_cluster);
+    status_t err = dbi.load_current_bcache_block();
+    if (err < 0) {
+        return err;
+    }
+
+    uint32_t offset = 0;
+    for (;;) {
+        char filename_buffer[MAX_FILE_NAME_LEN]; // max fat file name length
+        char *filename;
+
+        // step forward one entry and see if we got something
+        err = fat_find_next_entry(fat, dbi, offset, entry, filename_buffer, &filename);
+        if (err < 0) {
+            return err;
+        }
+
+        const size_t filenamelen = strlen(filename);
+
+        // see if we've matched an entry
+        if (filenamelen == namelen && !strnicmp(name, filename, filenamelen)) {
+            // we have, return with a good status
+            return NO_ERROR;
+        }
+    }
 }
 
 } // namespace
@@ -354,7 +374,7 @@ status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry) {
 
     // walk the directory structure
     for (;;) {
-        char name_element[256];
+        char name_element[MAX_FILE_NAME_LEN];
         strlcpy(name_element, path, MIN(sizeof(name_element), path_element_size + 1));
 
         LTRACEF("searching for element %s\n", name_element);
