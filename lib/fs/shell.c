@@ -100,7 +100,7 @@ static int cmd_ls(int argc, const console_cmd_args *argv) {
             continue;
         }
 
-        printf("%c %16llu %s\n", stat.is_dir ? 'd' : ' ', stat.size, ent.name);
+        printf("%c %-16llu %s\n", stat.is_dir ? 'D' : 'F', stat.size, ent.name);
     }
 
     fs_close_dir(dhandle);

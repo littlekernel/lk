@@ -70,11 +70,11 @@ public:
         return (const uint8_t *)bcache_buf + offset;
     }
 
-    // move to the next sector
-    status_t next_sector() {
+    // move N sectors ahead
+    status_t next_sectors(uint32_t sectors) {
         if (cluster == 0) {
-            // on linear dirs it's just the next sector
-            sector_offset++;
+            // on linear dirs it's just incrementing sectors
+            sector_offset += sectors;
             // are we at the end of the root dir?
             if (sector_offset >= fat->root_start_sector + fat->root_dir_sectors) {
                 return ERR_OUT_OF_RANGE;
@@ -82,19 +82,30 @@ public:
         } else {
             // for non linear dirs we step sector by sector into clusters
             // and then wrap to the next cluster.
-            sector_offset++;
-            if (sector_offset == fat->sectors_per_cluster) {
-                sector_offset = 0;
+            for (uint32_t i = 0; i < sectors; i++) {
+                sector_offset++;
+                if (sector_offset == fat->sectors_per_cluster) {
+                    sector_offset = 0;
 
-                cluster = fat_next_cluster_in_chain(fat, cluster);
-                if (is_eof_cluster(cluster)) {
-                    return ERR_OUT_OF_RANGE;
+                    cluster = fat_next_cluster_in_chain(fat, cluster);
+                    if (is_eof_cluster(cluster)) {
+                        return ERR_OUT_OF_RANGE;
+                    }
                 }
             }
         }
+        // track the number of sectors we've moved forward
+        sector_inc_count += sectors;
 
         return load_current_bcache_block();
     }
+
+    // move to the next sector
+    status_t next_sector() { return next_sectors(1); }
+
+    // return the number of sectors this has moved forward during its lifetime
+    uint32_t get_sector_inc_count() const { return sector_inc_count; }
+    void reset_sector_inc_count() { sector_inc_count = 0; }
 
 private:
     void put_bcache_block() {
@@ -120,6 +131,7 @@ private:
     fat_fs_t *fat;
     uint32_t cluster;           // current cluster we're on
     uint32_t sector_offset;     // sector number within cluster
+    uint32_t sector_inc_count = 0; // number of sectors we have moved forward in the lifetime of this
 
     void *bcache_buf = nullptr; // current pointer to the bcache, if held
     bnum_t bcache_bnum;         // current block number of the bcache_buf, if valid
@@ -131,6 +143,9 @@ private:
 // NOTE: *must* pass at least a MAX_FILE_NAME_LEN byte char pointer in the filename_buffer slot.
 status_t fat_find_next_entry(fat_fs_t *fat, dir_block_iterator &dbi, uint32_t &offset, dir_entry *entry,
         char filename_buffer[MAX_FILE_NAME_LEN], char **out_filename) {
+
+    DEBUG_ASSERT(entry && filename_buffer && out_filename);
+    DEBUG_ASSERT(offset <= fat->bytes_per_sector); // passing offset == bytes_per_sector is okay
 
     // lfn parsing state
     struct lfn_parse_state {
@@ -274,6 +289,8 @@ status_t fat_find_next_entry(fat_fs_t *fat, dir_block_iterator &dbi, uint32_t &o
             return NO_ERROR;
         }
 
+        DEBUG_ASSERT(offset <= fat->bytes_per_sector);
+
         // move to the next sector
         status_t err = dbi.next_sector();
         if (err < 0) {
@@ -410,7 +427,7 @@ struct fat_dir_cookie {
     struct list_node node;
     struct fat_dir *dir;
 
-    // next directory index offset (in units of 0x20), 0xffffffff for EOD
+    // next directory index offset in bytes, 0xffffffff for EOD
     uint32_t index;
     static const uint32_t index_eod = 0xffffffff;
 };
@@ -438,7 +455,11 @@ status_t fat_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
     if (name[0] == 0 || !strcmp(name, "/")) {
         entry.attributes = fat_attribute::directory;
         entry.length = 0;
-        entry.start_cluster = 0;
+        if (fat->fat_bits == 32) {
+            entry.start_cluster = fat->root_cluster;
+        } else {
+            entry.start_cluster = 0;
+        }
     } else {
         status_t err = fat_walk(fat, name, &entry);
         if (err != NO_ERROR) {
@@ -480,11 +501,49 @@ status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
     if (!ent)
         return ERR_INVALID_ARGS;
 
-    AutoLock guard(fat->lock);
+    // make sure the cookie makes sense
+    DEBUG_ASSERT((cookie->index % DIR_ENTRY_LENGTH) == 0);
 
-    // TODO: actually walk the dir
-    cookie->index = fat_dir_cookie::index_eod;
-    return ERR_NOT_FOUND;
+    char filename_buffer[MAX_FILE_NAME_LEN];
+    char *filename;
+    dir_entry entry;
+
+    {
+        AutoLock guard(fat->lock);
+
+        // kick start our directory sector iterator
+        LTRACEF("start cluster %u\n", cookie->dir->start_cluster);
+        dir_block_iterator dbi(fat, cookie->dir->start_cluster);
+
+        // move it forward to our index point
+        // also loads the buffer
+        status_t err = dbi.next_sectors(cookie->index / fat->bytes_per_sector);
+        if (err < 0) {
+            return err;
+        }
+
+        // reset how many sectors the dbi has pushed forward so we can account properly for index shifts later
+        dbi.reset_sector_inc_count();
+
+        // pass the index in units of sector offset
+        uint32_t offset = cookie->index % fat->bytes_per_sector;
+        err = fat_find_next_entry(fat, dbi, offset, &entry, filename_buffer, &filename);
+        if (err < 0) {
+            return err;
+        }
+
+        // bump the index forward by extracting how much the sector iterator pushed things forward
+        uint32_t index_inc = offset - (cookie->index % fat->bytes_per_sector);
+        index_inc += dbi.get_sector_inc_count() * fat->bytes_per_sector;
+        LTRACEF("calculated index increment %u (old index %u, offset %u, sector_inc_count %u)\n",
+                index_inc, cookie->index, offset, dbi.get_sector_inc_count());
+        cookie->index += index_inc;
+    }
+
+    // copy the info into the fs layer's entry
+    strlcpy(ent->name, filename, MIN(sizeof(ent->name), MAX_FILE_NAME_LEN));
+
+    return NO_ERROR;
 }
 
 
@@ -497,9 +556,7 @@ status_t fat_closedir(dircookie *dcookie) {
     AutoLock guard(fat->lock);
 
     // free the dircookie
-    //mutex_acquire(&dcookie->fs->lock);
     list_delete(&cookie->node);
-    //mutex_release(&dcookie->fs->lock);
 
     free(dcookie);
 
