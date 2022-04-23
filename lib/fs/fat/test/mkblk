@@ -1,0 +1,59 @@
+#!/bin/bash
+
+set -x
+
+#truncate -s 0 blk.bin.fat16
+#truncate -s 0 blk.bin.fat32
+
+#truncate -s 16M blk.bin.fat16
+#truncate -s 16G blk.bin.fat32
+
+# create a 12 bit fat, 1K clusters, 2MB
+rm blk.bin.fat12
+mkfs.fat -C blk.bin.fat12 -S 512 -s 2 -n FAT12 2000
+
+# create a 16 bit fat, 2K clusters, 16MB
+rm blk.bin.fat16
+mkfs.fat -C blk.bin.fat16 -S 512 -s 4 -n FAT16 16384
+
+# create a 32 bit fat, 4K clusters, 4GB
+rm blk.bin.fat32
+mkfs.fat -C blk.bin.fat32 -S 512 -n FAT32 4194304
+
+# create a huge 32 bit fat, 32K clusters, 2TB
+rm blk.bin.fat32.huge
+#mkfs.fat -v -C blk.bin.fat32.huge -S 512 -n FAT32 2147483648
+
+for i in blk.bin.*; do
+    mmd -i $i dir.a
+    mcopy -i $i hello.txt ::hello.txt
+    mcopy -i $i LICENSE ::license
+    mmd -i $i dir.b
+    mcopy -i $i hello.txt ::long_filename_hello.txt
+    mcopy -i $i hello.txt ::a_very_long_filename_hello_that_uses_at_least_a_few_entries.txt
+    mmd -i $i dir.c
+    mcopy -i $i hello.txt ::dir.a/long_filename_hello.txt
+
+    # add a bunch of entries to the root dir that cause it
+    # to spill over to a few extra sectors
+    mcopy -i $i hello.txt ::01234longfilename0.txt
+    mcopy -i $i hello.txt ::01234longfilename1.txt
+    mcopy -i $i hello.txt ::01234longfilename2.txt
+    mcopy -i $i hello.txt ::01234longfilename3.txt
+    mcopy -i $i hello.txt ::01234longfilename4.txt
+    mcopy -i $i hello.txt ::01234longfilename5.txt
+    mcopy -i $i hello.txt ::01234longfilename6.txt
+    mcopy -i $i hello.txt ::01234longfilename7.txt
+    mcopy -i $i hello.txt ::01234longfilename8.txt
+    mcopy -i $i hello.txt ::01234longfilename9.txt
+    mcopy -i $i hello.txt ::01234longfilename10.txt
+    mcopy -i $i hello.txt ::01234longfilename11.txt
+    mcopy -i $i hello.txt ::01234longfilename12.txt
+    mcopy -i $i hello.txt ::01234longfilename13.txt
+    mcopy -i $i hello.txt ::01234longfilename14.txt
+    mcopy -i $i hello.txt ::01234longfilename15.txt
+    mcopy -i $i hello.txt ::01234longfilename16.txt
+    mcopy -i $i hello.txt ::01234longfilename17.txt
+    mcopy -i $i hello.txt ::01234longfilename18.txt
+    mcopy -i $i hello.txt ::01234longfilename19.txt
+done
