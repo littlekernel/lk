@@ -11,7 +11,6 @@
 #include <lib/bio.h>
 #include <lib/fs.h>
 #include <lk/trace.h>
-#include <malloc.h>
 #include <stdlib.h>
 #include <string.h>
 #include <lk/debug.h>
@@ -24,7 +23,7 @@
 status_t fat_open_file(fscookie *cookie, const char *path, filecookie **fcookie) {
     fat_fs_t *fat = (fat_fs_t *)cookie;
 
-    LTRACEF("fscookie %p path %s fcookie %p\n", cookie, path, fcookie);
+    LTRACEF("fscookie %p path '%s' fcookie %p\n", cookie, path, fcookie);
 
     fat_file_t *file = NULL;
 
@@ -37,15 +36,24 @@ status_t fat_open_file(fscookie *cookie, const char *path, filecookie **fcookie)
     // did we get a file?
     if (entry.attributes != fat_attribute::directory) {
         // XXX better attribute testing
-        file = (fat_file_t *)malloc(sizeof(fat_file_t));
+        file = new fat_file_t;
         file->fat_fs = fat;
         file->start_cluster = entry.start_cluster;
         file->length = entry.length;
         file->attributes = entry.attributes;
         *fcookie = (filecookie *)file;
         return NO_ERROR;
+    } else if (entry.attributes == fat_attribute::directory) {
+        // we can open directories, but just not do anything with it except stat
+        file = new fat_file_t;
+        file->fat_fs = fat;
+        file->start_cluster = entry.start_cluster;
+        file->length = 0;
+        file->attributes = entry.attributes;
+        *fcookie = (filecookie *)file;
+        return NO_ERROR;
     } else {
-        return ERR_NOT_FILE;
+        return ERR_NOT_VALID;
     }
 }
 
@@ -55,6 +63,10 @@ ssize_t fat_read_file(filecookie *fcookie, void *_buf, off_t offset, size_t len)
     bdev_t *dev = fat->dev;
 
     LTRACEF("fcookie %p buf %p offset %lld len %zu\n", fcookie, _buf, offset, len);
+
+    if (file->is_dir()) {
+        return ERR_NOT_FILE;
+    }
 
     // negative offsets are invalid
     if (offset < 0) {
@@ -115,15 +127,17 @@ out:
     return amount_read;
 }
 
-status_t fat_close_file(filecookie *fcookie) {
-    fat_file_t *file = (fat_file_t *)fcookie;
-    free(file);
-    return NO_ERROR;
-}
-
 status_t fat_stat_file(filecookie *fcookie, struct file_stat *stat) {
     fat_file_t *file = (fat_file_t *)fcookie;
     stat->size = file->length;
     stat->is_dir = (file->attributes == fat_attribute::directory);
+    return NO_ERROR;
+}
+
+status_t fat_close_file(filecookie *fcookie) {
+    fat_file_t *file = (fat_file_t *)fcookie;
+
+    delete file;
+
     return NO_ERROR;
 }

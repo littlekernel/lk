@@ -246,3 +246,98 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, const dir_info &dir, const char *na
 
     return ERR_NOT_FOUND;
 }
+
+struct fat_dir_cookie {
+    struct list_node node;
+    struct fat_dir *dir;
+
+    // next directory index offset (in units of 0x20), 0xffffffff for EOD
+    uint32_t index;
+    static const uint32_t index_eod = 0xffffffff;
+};
+
+struct fat_dir {
+    struct list_node node;
+    struct list_node cookies = LIST_INITIAL_VALUE(cookies);
+
+    fat_fs_t *fat;
+
+    // id of the directory is keyed off the starting cluster (or 0 for the root dir)
+    uint32_t start_cluster;
+};
+
+status_t fat_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
+    auto fat = (fat_fs_t *)cookie;
+
+    LTRACEF("cookie %p name '%s' dircookie %p\n", cookie, name, dcookie);
+
+    dir_entry entry;
+
+    // special case for /
+    if (name[0] == 0 || !strcmp(name, "/")) {
+        entry.attributes = fat_attribute::directory;
+        entry.length = 0;
+        entry.start_cluster = 0;
+    } else {
+        status_t err = fat_walk(fat, name, &entry);
+        if (err != NO_ERROR) {
+            return err;
+        }
+    }
+
+    // if we walked and found a proper directory, it's a hit
+    if (entry.attributes == fat_attribute::directory) {
+        // TODO: see if the dir is already in the list
+        auto dir = new fat_dir;
+        dir->fat = fat;
+        dir->start_cluster = entry.start_cluster;
+        list_add_head(&fat->dir_list, &dir->node);
+
+        // create a dir cookie
+        auto dir_cookie = new fat_dir_cookie;
+        dir_cookie->dir = dir;
+        dir_cookie->index = 0;
+
+        // add it to the dir object
+        list_add_tail(&dir->cookies, &dir_cookie->node);
+
+        *dcookie = (dircookie *)dir_cookie;
+        return NO_ERROR;
+    } else {
+        return ERR_NOT_FILE;
+    }
+
+    return ERR_NOT_IMPLEMENTED;
+};
+
+status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
+    auto cookie = (fat_dir_cookie *)dcookie;
+    //auto fat = cookie->fat;
+
+    LTRACEF("dircookie %p ent %p, current index %u\n", dcookie, ent, cookie->index);
+
+    if (!ent)
+        return ERR_INVALID_ARGS;
+
+    // TODO: actually walk the dir
+    cookie->index = fat_dir_cookie::index_eod;
+    return ERR_NOT_FOUND;
+}
+
+
+status_t fat_closedir(dircookie *dcookie) {
+    auto cookie = (fat_dir_cookie *)dcookie;
+    //auto fat = cookie->fat;
+
+    LTRACEF("dircookie %p\n", dcookie);
+
+    // free the dircookie
+    //mutex_acquire(&dcookie->fs->lock);
+    list_delete(&cookie->node);
+    //mutex_release(&dcookie->fs->lock);
+
+    free(dcookie);
+
+    return NO_ERROR;
+}
+

@@ -64,14 +64,14 @@ status_t fat_mount(bdev_t *dev, fscookie **cookie) {
     }
 
     // allocate a structure, all fields implicity zeroed
-    auto *fat = (fat_fs_t *)calloc(1, sizeof(fat_fs_t));
+    auto *fat = new fat_fs_t;
     if (!fat) {
         return ERR_NO_MEMORY;
     }
     fat->dev = dev;
 
     // if we early terminate, free the fat structure
-    auto ac2 = lk::make_auto_call([&]() { free(fat); });
+    auto ac2 = lk::make_auto_call([&]() { delete(fat); });
 
     fat->bytes_per_sector = fat_read16(bs,0xb);
     if ((fat->bytes_per_sector != 0x200) && (fat->bytes_per_sector != 0x400) && (fat->bytes_per_sector != 0x800)) {
@@ -200,9 +200,15 @@ status_t fat_mount(bdev_t *dev, fscookie **cookie) {
 }
 
 status_t fat_unmount(fscookie *cookie) {
-    fat_fs_t *fat = (fat_fs_t *)cookie;
+    auto *fat = (fat_fs_t *)cookie;
+
+    // TODO: handle unmounting when files/dirs are active
+    DEBUG_ASSERT(list_is_empty(&fat->dir_list));
+
     bcache_destroy(fat->cache);
-    free(fat);
+
+    delete fat;
+
     return NO_ERROR;
 }
 
@@ -222,9 +228,9 @@ static const struct fs_api fat_api = {
     .close = fat_close_file,
 
     .mkdir = nullptr,
-    .opendir = nullptr,
-    .readdir = nullptr,
-    .closedir = nullptr,
+    .opendir = fat_opendir,
+    .readdir = fat_readdir,
+    .closedir = fat_closedir,
 
     .file_ioctl = nullptr,
 };

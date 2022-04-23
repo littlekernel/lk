@@ -48,3 +48,7 @@ struct dir_entry {
 status_t fat_find_file_in_dir(fat_fs_t *fat, const dir_info &dir, const char *name, dir_entry *out_entry);
 status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry);
 
+status_t fat_opendir(fscookie *cookie, const char *name, dircookie **dcookie);
+status_t fat_readdir(dircookie *dcookie, struct dirent *ent);
+status_t fat_closedir(dircookie *dcookie);
+
