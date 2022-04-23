@@ -63,7 +63,7 @@ public:
     constexpr Mutex() = default;
     ~Mutex() { mutex_destroy(&lock_); }
 
-    status_t acquire(lk_time_t timeout) { return mutex_acquire_timeout(&lock_, timeout); }
+    status_t acquire(lk_time_t timeout = INFINITE_TIME) { return mutex_acquire_timeout(&lock_, timeout); }
     status_t release() { return mutex_release(&lock_); }
     bool is_held() { return is_mutex_held(&lock_); }
 
