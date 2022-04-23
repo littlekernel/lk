@@ -37,6 +37,7 @@ __NO_INLINE static void fat_dump(fat_fs_t *fat) {
     printf("root_cluster %u\n", fat->root_cluster);
     printf("root_entries %u\n", fat->root_entries);
     printf("root_start_sector %u\n", fat->root_start_sector);
+    printf("root_dir_sectors %u\n", fat->root_dir_sectors);
 }
 
 status_t fat_mount(bdev_t *dev, fscookie **cookie) {
@@ -116,7 +117,7 @@ status_t fat_mount(bdev_t *dev, fscookie **cookie) {
         printf("illegal number of root entries (%x)\n", fat->root_entries);
         return ERR_NOT_VALID;
     }
-    auto root_dir_sectors = ((fat->root_entries * 32) + (fat->bytes_per_sector - 1)) / fat->bytes_per_sector;
+    fat->root_dir_sectors = ((fat->root_entries * 32) + (fat->bytes_per_sector - 1)) / fat->bytes_per_sector;
 
     // sectors per fat
     fat->sectors_per_fat = fat_read16(bs, 0x16); // read FAT size 16 bit
@@ -141,7 +142,7 @@ status_t fat_mount(bdev_t *dev, fscookie **cookie) {
 
     // first data sector is just after the root dir (in fat12/16) which is just after the FAT(s), which is just
     // after the reserved sectors
-    fat->data_start_sector = fat->reserved_sectors + (fat->fat_count * fat->sectors_per_fat) + root_dir_sectors;
+    fat->data_start_sector = fat->reserved_sectors + (fat->fat_count * fat->sectors_per_fat) + fat->root_dir_sectors;
     auto data_sectors = fat->total_sectors - fat->data_start_sector;
     LTRACEF("data sectors %u\n", data_sectors);
 

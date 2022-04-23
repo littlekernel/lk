@@ -36,6 +36,7 @@ struct fat_fs_t {
     uint32_t root_cluster = 0;
     uint32_t root_entries = 0;
     uint32_t root_start_sector = 0;
+    uint32_t root_dir_sectors = 0;
 };
 
 enum class fat_attribute : uint8_t {
