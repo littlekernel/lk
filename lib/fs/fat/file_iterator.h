@@ -5,18 +5,15 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#pragma once
 
+#include <lib/bio.h>
 #include <lk/cpp.h>
-#include <lk/err.h>
-#include <lk/trace.h>
-#include <endian.h>
+#include <lk/debug.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <sys/types.h>
 
 #include "fat_fs.h"
-#include "fat_priv.h"
 
 // Local object used to track the state of walking through a file or directory
 // one sector at a time using the block cache. Holds a reference to the open
