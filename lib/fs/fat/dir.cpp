@@ -18,130 +18,40 @@
 
 #include "fat_fs.h"
 #include "fat_priv.h"
+#include "file_iterator.h"
 
 #define LOCAL_TRACE 0
 
-namespace {
-
-// Local object used to track the state of a directory iterator, as it walks through a directory file
-// one sector at a time, using the block cache. Holds a reference to the open block cache block and
-// intelligently closes and gets the next one when necessary.
-class dir_block_iterator {
-public:
-    dir_block_iterator(fat_fs_t *_fat, uint32_t starting_cluster) : fat(_fat) {
-        if (starting_cluster == 0) {
-            // special case on fat12/16 to represent the root dir.
-            // load 0 into cluster and use sector_offset as relative to the
-            // start of the volume.
-            DEBUG_ASSERT(fat->fat_bits == 12 || fat->fat_bits == 16);
-            DEBUG_ASSERT(fat->root_start_sector != 0);
-            cluster = 0;
-            sector_offset = fat->root_start_sector;
-        } else {
-            cluster = starting_cluster;
-            sector_offset = 0;
-        }
-    }
-
-    ~dir_block_iterator() {
-        put_bcache_block();
-    }
-
-    status_t load_current_bcache_block() {
-        // close the current bcache
-        put_bcache_block();
-
-        if (cluster == 0) {
-            // we're in a linear root dir, the sector_offset variable represents the raw sector number
-            return load_bcache_block(sector_offset);
-        } else { // cluster != 0
-            DEBUG_ASSERT(sector_offset < fat->bytes_per_sector);
-
-            // compute the sector we should be on given the cluster and sector_offset
-            auto sector = fat_sector_for_cluster(fat, cluster) + sector_offset;
-
-            return load_bcache_block(sector);
-        }
-    }
-
-    const uint8_t *get_dir_entry(size_t offset) {
-        DEBUG_ASSERT(offset < fat->bytes_per_sector);
-        DEBUG_ASSERT(bcache_buf);
-        return (const uint8_t *)bcache_buf + offset;
-    }
-
-    // move N sectors ahead
-    status_t next_sectors(uint32_t sectors) {
-        if (cluster == 0) {
-            // on linear dirs it's just incrementing sectors
-            sector_offset += sectors;
-            // are we at the end of the root dir?
-            if (sector_offset >= fat->root_start_sector + fat->root_dir_sectors) {
-                return ERR_OUT_OF_RANGE;
-            }
-        } else {
-            // for non linear dirs we step sector by sector into clusters
-            // and then wrap to the next cluster.
-            for (uint32_t i = 0; i < sectors; i++) {
-                sector_offset++;
-                if (sector_offset == fat->sectors_per_cluster) {
-                    sector_offset = 0;
-
-                    cluster = fat_next_cluster_in_chain(fat, cluster);
-                    if (is_eof_cluster(cluster)) {
-                        return ERR_OUT_OF_RANGE;
-                    }
-                }
-            }
-        }
-        // track the number of sectors we've moved forward
-        sector_inc_count += sectors;
-
-        return load_current_bcache_block();
-    }
-
-    // move to the next sector
-    status_t next_sector() { return next_sectors(1); }
-
-    // return the number of sectors this has moved forward during its lifetime
-    uint32_t get_sector_inc_count() const { return sector_inc_count; }
-    void reset_sector_inc_count() { sector_inc_count = 0; }
-
-private:
-    void put_bcache_block() {
-        if (bcache_buf) {
-            bcache_put_block(fat->cache, bcache_bnum);
-            bcache_buf = nullptr;
-            bcache_bnum = 0;
-        }
-    }
-
-    status_t load_bcache_block(bnum_t bnum) {
-        DEBUG_ASSERT(!bcache_buf);
-
-        auto err = bcache_get_block(fat->cache, &bcache_buf, bnum);
-        if (err >= 0) {
-            DEBUG_ASSERT(bcache_buf);
-            bcache_bnum = bnum;
-        }
-
-        return err;
-    }
+// structure that represents an open dir, may have multiple cookies in its list
+// at any point in time,
+struct fat_dir {
+    struct list_node node;
+    struct list_node cookies = LIST_INITIAL_VALUE(cookies);
 
     fat_fs_t *fat;
-    uint32_t cluster;           // current cluster we're on
-    uint32_t sector_offset;     // sector number within cluster
-    uint32_t sector_inc_count = 0; // number of sectors we have moved forward in the lifetime of this
 
-    void *bcache_buf = nullptr; // current pointer to the bcache, if held
-    bnum_t bcache_bnum;         // current block number of the bcache_buf, if valid
+    // id of the directory is keyed off the starting cluster (or 0 for the root dir)
+    uint32_t start_cluster;
 };
+
+// structure that represents an open dir handle. holds the offset into the directory
+// that is being walked.
+struct fat_dir_cookie {
+    struct list_node node;
+    struct fat_dir *dir;
+
+    // next directory index offset in bytes, 0xffffffff for EOD
+    uint32_t index;
+    static const uint32_t index_eod = 0xffffffff;
+};
+
+namespace {
 
 // walk one entry into the dir, starting at byte offset into the directory block iterator.
 // both dbi and offset will be modified during the call.
 // filles out the entry and returns a pointer into the passed in buffer in out_filename.
 // NOTE: *must* pass at least a MAX_FILE_NAME_LEN byte char pointer in the filename_buffer slot.
-status_t fat_find_next_entry(fat_fs_t *fat, dir_block_iterator &dbi, uint32_t &offset, dir_entry *entry,
+status_t fat_find_next_entry(fat_fs_t *fat, file_block_iterator &dbi, uint32_t &offset, dir_entry *entry,
         char filename_buffer[MAX_FILE_NAME_LEN], char **out_filename) {
 
     DEBUG_ASSERT(entry && filename_buffer && out_filename);
@@ -162,13 +72,13 @@ status_t fat_find_next_entry(fat_fs_t *fat, dir_block_iterator &dbi, uint32_t &o
     for (;;) {
         if (LOCAL_TRACE >= 2) {
             LTRACEF("dir sector:\n");
-            hexdump8_ex(dbi.get_dir_entry(0), fat->bytes_per_sector, 0);
+            hexdump8_ex(dbi.get_bcache_ptr(0), fat->bytes_per_sector, 0);
         }
 
         // walk within a sector
         while (offset < fat->bytes_per_sector) {
             LTRACEF_LEVEL(2, "looking at offset %u\n", offset);
-            const uint8_t *ent = dbi.get_dir_entry(offset);
+            const uint8_t *ent = dbi.get_bcache_ptr(offset);
             if (ent[0] == 0) { // no more entries
                 // we're completely done
                 LTRACEF("completely done\n");
@@ -313,8 +223,8 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const ch
     const size_t namelen = strlen(name);
 
     // kick start our directory sector iterator
-    dir_block_iterator dbi(fat, starting_cluster);
-    status_t err = dbi.load_current_bcache_block();
+    file_block_iterator dbi(fat, starting_cluster);
+    status_t err = dbi.next_sectors(0);
     if (err < 0) {
         return err;
     }
@@ -423,25 +333,6 @@ status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry) {
     }
 }
 
-struct fat_dir_cookie {
-    struct list_node node;
-    struct fat_dir *dir;
-
-    // next directory index offset in bytes, 0xffffffff for EOD
-    uint32_t index;
-    static const uint32_t index_eod = 0xffffffff;
-};
-
-struct fat_dir {
-    struct list_node node;
-    struct list_node cookies = LIST_INITIAL_VALUE(cookies);
-
-    fat_fs_t *fat;
-
-    // id of the directory is keyed off the starting cluster (or 0 for the root dir)
-    uint32_t start_cluster;
-};
-
 status_t fat_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
     auto fat = (fat_fs_t *)cookie;
 
@@ -513,7 +404,7 @@ status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
 
         // kick start our directory sector iterator
         LTRACEF("start cluster %u\n", cookie->dir->start_cluster);
-        dir_block_iterator dbi(fat, cookie->dir->start_cluster);
+        file_block_iterator dbi(fat, cookie->dir->start_cluster);
 
         // move it forward to our index point
         // also loads the buffer

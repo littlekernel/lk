@@ -49,17 +49,6 @@ enum class fat_attribute : uint8_t {
     lfn = read_only | hidden | system | volume_id,
 };
 
-struct fat_file_t {
-    fat_fs_t *fat_fs;
-
-    uint32_t start_cluster;
-    uint32_t length;
-
-    fat_attribute attributes;
-
-    bool is_dir() const { return attributes == fat_attribute::directory; }
-};
-
 inline uint32_t fat_read32(const void *_buffer, size_t offset) {
     auto *buffer = (const uint8_t *)_buffer;
 

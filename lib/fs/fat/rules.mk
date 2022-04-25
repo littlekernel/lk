@@ -10,6 +10,7 @@ MODULE_DEPS += lib/libcpp
 MODULE_SRCS += $(LOCAL_DIR)/dir.cpp
 MODULE_SRCS += $(LOCAL_DIR)/fat.cpp
 MODULE_SRCS += $(LOCAL_DIR)/file.cpp
+MODULE_SRCS += $(LOCAL_DIR)/file_iterator.cpp
 MODULE_SRCS += $(LOCAL_DIR)/fs.cpp
 
 include make/module.mk
