@@ -53,6 +53,7 @@
  * MODULE_DEPS += \
  *         lib/unittest   \
  */
+#include <lk/compiler.h>
 #include <printf.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -60,6 +61,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
+
+__BEGIN_CDECLS
 
 /*
  * Printf dedicated to the unittest library
@@ -72,6 +75,8 @@ void unittest_printf (const char *format, ...) __PRINTFLIKE(1, 2);
  * the unit test output
  */
 void unittest_set_output_function (_printf_engine_output_func fun, void *arg);
+
+__END_CDECLS
 
 /*
  * Macros to format the error string
@@ -376,6 +381,8 @@ static inline constexpr const char* unittest_get_msg() {
 #define ASSERT_NONNULL(actual, ...) UTCHECK_NONNULL(actual, true, __VA_ARGS__)
 #define ASSERT_OK(actual, ...) UTCHECK_EQ(ZX_OK, actual, true, __VA_ARGS__)
 
+__BEGIN_CDECLS
+
 /*
  * The list of test cases is made up of these elements.
  */
@@ -403,3 +410,5 @@ bool run_all_tests(void);
  */
 bool expect_bytes_eq(const uint8_t *expected, const uint8_t *actual, size_t len,
                      const char *msg);
+
+__END_CDECLS
