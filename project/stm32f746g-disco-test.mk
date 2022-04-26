@@ -2,9 +2,7 @@ include project/target/stm32f746g-disco.mk
 include project/virtual/test.mk
 include project/virtual/minip.mk
 
-MODULES += \
-	lib/fs \
-    app/loader
+MODULES += app/loader
 
 include project/virtual/fs.mk
 

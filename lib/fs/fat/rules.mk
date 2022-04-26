@@ -7,6 +7,10 @@ MODULE_DEPS += lib/bio
 MODULE_DEPS += lib/fs
 MODULE_DEPS += lib/libcpp
 
+ifeq ($(call TOBOOL,WITH_TESTS),true)
+MODULE_DEPS += $(LOCAL_DIR)/test
+endif
+
 MODULE_SRCS += $(LOCAL_DIR)/dir.cpp
 MODULE_SRCS += $(LOCAL_DIR)/fat.cpp
 MODULE_SRCS += $(LOCAL_DIR)/file.cpp
