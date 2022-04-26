@@ -192,8 +192,10 @@ status_t fat_mount(bdev_t *dev, fscookie **cookie) {
     // we're okay, cancel our cleanup of the fat structure
     ac2.cancel();
 
+#if LOCAL_TRACE
     printf("Mounted FAT volume, some information:\n");
     fat_dump(fat);
+#endif
 
     *cookie = (fscookie *)fat;
 

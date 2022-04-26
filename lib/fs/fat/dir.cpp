@@ -440,7 +440,8 @@ status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
 
 status_t fat_closedir(dircookie *dcookie) {
     auto cookie = (fat_dir_cookie *)dcookie;
-    auto fat = cookie->dir->fat;
+    auto dir = cookie->dir;
+    auto fat = dir->fat;
 
     LTRACEF("dircookie %p\n", dcookie);
 
@@ -449,7 +450,14 @@ status_t fat_closedir(dircookie *dcookie) {
     // free the dircookie
     list_delete(&cookie->node);
 
-    free(dcookie);
+    // delete the dir node from the fat list if this was the last cookie
+    // TODO: use actual refs
+    if (list_is_empty(&dir->cookies)) {
+        list_delete(&dir->node);
+        delete dir;
+    }
+
+    delete cookie;
 
     return NO_ERROR;
 }
