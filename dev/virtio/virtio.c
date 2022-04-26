@@ -47,6 +47,8 @@ static void dump_mmio_config(const volatile struct virtio_mmio_config *mmio) {
     printf("\tdevice_id 0x%x\n", mmio->device_id);
     printf("\tvendor_id 0x%x\n", mmio->vendor_id);
     printf("\thost_features 0x%x\n", mmio->host_features);
+    printf("\tguest_features 0x%x\n", mmio->guest_features);
+    printf("\tguest_features_sel 0x%x\n", mmio->guest_features_sel);
     printf("\tguest_page_size %u\n", mmio->guest_page_size);
     printf("\tqnum %u\n", mmio->queue_num);
     printf("\tqnum_max %u\n", mmio->queue_num_max);
@@ -161,22 +163,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
 
                 if (dev->irq_driver_callback)
                     unmask_interrupt(dev->irq);
-
-                // XXX quick test code, remove
-#if 0
-                uint8_t buf[512];
-                memset(buf, 0x99, sizeof(buf));
-                virtio_block_read_write(dev, buf, 0, sizeof(buf), false);
-                hexdump8_ex(buf, sizeof(buf), 0);
-
-                buf[0]++;
-                virtio_block_read_write(dev, buf, 0, sizeof(buf), true);
-
-                virtio_block_read_write(dev, buf, 0, sizeof(buf), false);
-                hexdump8_ex(buf, sizeof(buf), 0);
-#endif
             }
-
         }
 #endif // WITH_DEV_VIRTIO_BLOCK
 #if WITH_DEV_VIRTIO_NET
@@ -378,6 +365,11 @@ void virtio_status_acknowledge_driver(struct virtio_device *dev) {
 
 void virtio_status_driver_ok(struct virtio_device *dev) {
     dev->mmio_config->status |= VIRTIO_STATUS_DRIVER_OK;
+}
+
+void virtio_set_guest_features(struct virtio_device *dev, uint32_t features) {
+    dev->mmio_config->guest_features_sel = 0;
+    dev->mmio_config->guest_features = features;
 }
 
 static void virtio_init(uint level) {

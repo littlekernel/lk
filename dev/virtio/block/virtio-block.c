@@ -18,6 +18,7 @@
 #include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <lib/bio.h>
+#include <inttypes.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -35,8 +36,23 @@ struct virtio_blk_config {
         uint8_t sectors;
     } geometry;
     uint32_t blk_size;
+    struct virtio_blk_topology {
+        uint8_t physical_block_exp;
+        uint8_t alignment_offset;
+        uint16_t min_io_size;
+        uint32_t opt_io_size;
+    } topology;
+    uint8_t writeback;
+    uint8_t unused[3];
+    uint32_t max_discard_sectors;
+    uint32_t max_discard_seq;
+    uint32_t discard_sector_alignment;
+    uint32_t max_write_zeroes_sectors;
+    uint32_t max_write_zeroes_seq;
+    uint8_t write_zeros_may_unmap;
+    uint8_t unused1[7];
 };
-STATIC_ASSERT(sizeof(struct virtio_blk_config) == 24);
+STATIC_ASSERT(sizeof(struct virtio_blk_config) == 64);
 
 struct virtio_blk_req {
     uint32_t type;
@@ -45,20 +61,24 @@ struct virtio_blk_req {
 };
 STATIC_ASSERT(sizeof(struct virtio_blk_req) == 16);
 
-#define VIRTIO_BLK_F_BARRIER  (1<<0)
+#define VIRTIO_BLK_F_BARRIER  (1<<0) // legacy
 #define VIRTIO_BLK_F_SIZE_MAX (1<<1)
 #define VIRTIO_BLK_F_SEG_MAX  (1<<2)
 #define VIRTIO_BLK_F_GEOMETRY (1<<4)
 #define VIRTIO_BLK_F_RO       (1<<5)
 #define VIRTIO_BLK_F_BLK_SIZE (1<<6)
-#define VIRTIO_BLK_F_SCSI     (1<<7)
+#define VIRTIO_BLK_F_SCSI     (1<<7) // legacy
 #define VIRTIO_BLK_F_FLUSH    (1<<9)
 #define VIRTIO_BLK_F_TOPOLOGY (1<<10)
 #define VIRTIO_BLK_F_CONFIG_WCE (1<<11)
+#define VIRTIO_BLK_F_DISCARD  (1<<13)
+#define VIRTIO_BLK_F_WRITE_ZEROES (1<<14)
 
 #define VIRTIO_BLK_T_IN         0
 #define VIRTIO_BLK_T_OUT        1
 #define VIRTIO_BLK_T_FLUSH      4
+#define VIRTIO_BLK_T_DISCARD    11
+#define VIRTIO_BLK_T_WRITE_ZEROES 13
 
 #define VIRTIO_BLK_S_OK         0
 #define VIRTIO_BLK_S_IOERR      1
@@ -77,6 +97,9 @@ struct virtio_block_dev {
     /* bio block device */
     bdev_t bdev;
 
+    /* our negotiated guest features */
+    uint32_t guest_features;
+
     /* one blk_req structure for io, not crossing a page boundary */
     struct virtio_blk_req *blk_req;
     paddr_t blk_req_phys;
@@ -86,8 +109,25 @@ struct virtio_block_dev {
     paddr_t blk_response_phys;
 };
 
+static void dump_feature_bits(const char *name, uint32_t feature) {
+    printf("virtio-block %s features (%#x):", name, feature);
+    if (feature & VIRTIO_BLK_F_BARRIER) printf(" BARRIER");
+    if (feature & VIRTIO_BLK_F_SIZE_MAX) printf(" SIZE_MAX");
+    if (feature & VIRTIO_BLK_F_SEG_MAX) printf(" SEG_MAX");
+    if (feature & VIRTIO_BLK_F_GEOMETRY) printf(" GEOMETRY");
+    if (feature & VIRTIO_BLK_F_RO) printf(" RO");
+    if (feature & VIRTIO_BLK_F_BLK_SIZE) printf(" BLK_SIZE");
+    if (feature & VIRTIO_BLK_F_SCSI) printf(" SCSI");
+    if (feature & VIRTIO_BLK_F_FLUSH) printf(" FLUSH");
+    if (feature & VIRTIO_BLK_F_TOPOLOGY) printf(" TOPOLOGY");
+    if (feature & VIRTIO_BLK_F_CONFIG_WCE) printf(" CONFIG_WCE");
+    if (feature & VIRTIO_BLK_F_DISCARD) printf(" DISCARD");
+    if (feature & VIRTIO_BLK_F_WRITE_ZEROES) printf(" WRITE_ZEROES");
+    printf("\n");
+}
+
 status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
-    LTRACEF("dev %p, host_features 0x%x\n", dev, host_features);
+    LTRACEF("dev %p, host_features %#x\n", dev, host_features);
 
     /* allocate a new block device */
     struct virtio_block_dev *bdev = malloc(sizeof(struct virtio_block_dev));
@@ -106,7 +146,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
 #else
     bdev->blk_req_phys = (uint64_t)(uintptr_t)bdev->blk_req;
 #endif
-    LTRACEF("blk_req structure at %p (0x%lx phys)\n", bdev->blk_req, bdev->blk_req_phys);
+    LTRACEF("blk_req structure at %p (%#lx phys)\n", bdev->blk_req, bdev->blk_req_phys);
 
 #if WITH_KERNEL_VM
     bdev->blk_response_phys = vaddr_to_paddr(&bdev->blk_response);
@@ -119,15 +159,28 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
 
     volatile struct virtio_blk_config *config = (struct virtio_blk_config *)dev->config_ptr;
 
-    LTRACEF("capacity 0x%llx\n", config->capacity);
-    LTRACEF("size_max 0x%x\n", config->size_max);
-    LTRACEF("seg_max  0x%x\n", config->seg_max);
-    LTRACEF("blk_size 0x%x\n", config->blk_size);
+    LTRACEF("capacity %" PRIx64 "\n", config->capacity);
+    LTRACEF("size_max %#x\n", config->size_max);
+    LTRACEF("seg_max  %#x\n", config->seg_max);
+    LTRACEF("blk_size %#x\n", config->blk_size);
 
     /* ack and set the driver status bit */
     virtio_status_acknowledge_driver(dev);
 
-    // XXX check features bits and ack/nak them
+    /* check features bits and ack/nak them */
+    bdev->guest_features = host_features;
+
+    /* keep the features we understand or can tolerate */
+    bdev->guest_features &= (VIRTIO_BLK_F_SIZE_MAX |
+                 VIRTIO_BLK_F_BLK_SIZE |
+                 VIRTIO_BLK_F_GEOMETRY |
+                 VIRTIO_BLK_F_BLK_SIZE |
+                 VIRTIO_BLK_F_TOPOLOGY |
+                 VIRTIO_BLK_F_DISCARD |
+                 VIRTIO_BLK_F_WRITE_ZEROES);
+    virtio_set_guest_features(dev, bdev->guest_features);
+
+    /* TODO: handle a RO feature */
 
     /* allocate a virtio ring */
     virtio_alloc_ring(dev, 0, 256);
@@ -152,7 +205,29 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
 
     bio_register_device(&bdev->bdev);
 
-    printf("found virtio block device of size %lld\n", config->capacity * config->blk_size);
+    printf("virtio-block found device of size %" PRIu64 "\n", config->capacity * config->blk_size);
+
+    /* dump feature bits */
+    dump_feature_bits("host", host_features);
+    dump_feature_bits("guest", bdev->guest_features);
+    printf("\tsize_max %u seg_max %u\n", config->size_max, config->seg_max);
+    if (host_features & VIRTIO_BLK_F_GEOMETRY) {
+        printf("\tgeometry: cyl %u head %u sector %u\n", config->geometry.cylinders, config->geometry.heads, config->geometry.sectors);
+    }
+    if (host_features & VIRTIO_BLK_F_BLK_SIZE) {
+        printf("\tblock_size: %u\n", config->blk_size);
+    }
+    if (host_features & VIRTIO_BLK_F_TOPOLOGY) {
+        printf("\ttopology: block exp %u alignment_offset %u min_io_size %u opt_io_size %u\n",
+                config->topology.physical_block_exp, config->topology.alignment_offset,
+                config->topology.min_io_size, config->topology.opt_io_size);
+    }
+    if (host_features & VIRTIO_BLK_F_DISCARD) {
+        printf("\tdiscard: max sectors %u max sequence %u alignment %u\n", config->max_discard_sectors, config->max_discard_sectors, config->discard_sector_alignment);
+    }
+    if (host_features & VIRTIO_BLK_F_WRITE_ZEROES) {
+        printf("\twrite zeroes: max sectors %u max sequence %u may unmap %u\n", config->max_write_zeroes_sectors, config->max_write_zeroes_seq, config->write_zeros_may_unmap);
+    }
 
     return NO_ERROR;
 }

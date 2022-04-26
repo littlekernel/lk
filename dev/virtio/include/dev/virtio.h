@@ -42,6 +42,7 @@ struct virtio_device {
 
 void virtio_reset_device(struct virtio_device *dev);
 void virtio_status_acknowledge_driver(struct virtio_device *dev);
+void virtio_set_guest_features(struct virtio_device *dev, uint32_t features);
 void virtio_status_driver_ok(struct virtio_device *dev);
 
 /* api used by devices to interact with the virtio bus */
