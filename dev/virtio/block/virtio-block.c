@@ -190,7 +190,7 @@ static enum handler_return virtio_block_irq_driver_callback(struct virtio_device
     return INT_RESCHEDULE;
 }
 
-ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offset, size_t len, bool write) {
+ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, const off_t offset, const size_t len, const bool write) {
     struct virtio_block_dev *bdev = (struct virtio_block_dev *)dev->priv;
 
     uint16_t i;
@@ -228,6 +228,7 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
     desc->addr = (uint64_t)pa;
     /* desc->len is filled in below */
 #else
+    /* non VM world simply queues a single buffer that transfers the whole thing */
     desc->addr = (uint64_t)(uintptr_t)buf;
     desc->len = len;
 #endif
@@ -239,21 +240,25 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
     paddr_t next_pa = PAGE_ALIGN(pa + 1);
     desc->len = MIN(next_pa - pa, len);
     LTRACEF("first descriptor va 0x%lx desc->addr 0x%llx desc->len %u\n", va, desc->addr, desc->len);
-    len -= desc->len;
-    while (len > 0) {
+
+    size_t remaining_len = len;
+    remaining_len -= desc->len;
+    while (remaining_len > 0) {
         /* amount of source buffer handled by this iteration of the loop */
-        size_t len_tohandle = MIN(len, PAGE_SIZE);
+        size_t len_tohandle = MIN(remaining_len, PAGE_SIZE);
 
         /* translate the next page in the buffer */
         va = PAGE_ALIGN(va + 1);
         pa = vaddr_to_paddr((void *)va);
-        LTRACEF("va now 0x%lx, pa 0x%lx, next_pa 0x%lx, remaining len %zu\n", va, pa, next_pa, len);
+        LTRACEF("va now 0x%lx, pa 0x%lx, next_pa 0x%lx, remaining len %zu\n", va, pa, next_pa, remaining_len);
 
         /* is the new translated physical address contiguous to the last one? */
         if (next_pa == pa) {
+            /* we can simply extend the previous descriptor by another page */
             LTRACEF("extending last one by %zu bytes\n", len_tohandle);
             desc->len += len_tohandle;
         } else {
+            /* new physical page needed, allocate a new descriptor and start again */
             uint16_t next_i = virtio_alloc_desc(dev, 0);
             struct vring_desc *next_desc = virtio_desc_index_to_desc(dev, 0, next_i);
             DEBUG_ASSERT(next_desc);
@@ -270,7 +275,7 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
 
             desc = next_desc;
         }
-        len -= len_tohandle;
+        remaining_len -= len_tohandle;
         next_pa += PAGE_SIZE;
     }
 #endif
@@ -292,6 +297,8 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, off_t offs
 
     LTRACEF("status 0x%hhx\n", bdev->blk_response);
 
+    /* TODO: handle transfer errors and return error */
+
     mutex_release(&bdev->lock);
 
     return len;
@@ -302,12 +309,9 @@ static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block
 
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
-    if (virtio_block_read_write(dev->dev, buf, (off_t)block * dev->bdev.block_size,
-                                count * dev->bdev.block_size, false) == 0) {
-        return count * dev->bdev.block_size;
-    } else {
-        return ERR_IO;
-    }
+    ssize_t result = virtio_block_read_write(dev->dev, buf, (off_t)block * dev->bdev.block_size,
+                                             count * dev->bdev.block_size, false);
+    return result;
 }
 
 static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count) {
@@ -315,11 +319,8 @@ static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_
 
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
-    if (virtio_block_read_write(dev->dev, (void *)buf, (off_t)block * dev->bdev.block_size,
-                                count * dev->bdev.block_size, true) == 0) {
-        return count * dev->bdev.block_size;
-    } else {
-        return ERR_IO;
-    }
+    ssize_t result = virtio_block_read_write(dev->dev, (void *)buf, (off_t)block * dev->bdev.block_size,
+                                             count * dev->bdev.block_size, true);
+    return result;
 }
 
