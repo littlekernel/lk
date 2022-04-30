@@ -73,14 +73,43 @@ bool run_all_tests(void) {
 }
 
 static int do_unittests(int argc, const console_cmd_args *argv) {
-    bool result = run_all_tests();
 
-    printf("run_all_tests returned %d\n", result);
+    if (argc < 2) {
+usage:
+        printf("usage:\n");
+        printf("%s all          : run all unit tests\n", argv[0].str);
+        printf("%s list         : list all test cases\n", argv[0].str);
+        printf("%s <test name>  : run specific test\n", argv[0].str);
+        return -1;
+    }
+
+    if (!strcmp(argv[1].str, "all")) {
+        bool result = run_all_tests();
+        printf("UNIT TEST: run_all_tests return %u\n", result);
+    } else if (!strcmp(argv[1].str, "list")) {
+        for (struct test_case_element *current = test_case_list; current; current = current->next) {
+            puts(current->name);
+        }
+    } else {
+        // look for unit test that matches the string name
+        bool found_test = false;
+        for (struct test_case_element *current = test_case_list; current; current = current->next) {
+            if (strcmp(argv[1].str, current->name) == 0) {
+                found_test = true;
+                current->test_case();
+                break;
+            }
+        }
+
+        if (!found_test) {
+            goto usage;
+        }
+    }
+
     return NO_ERROR;
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("unittests", "run all unit tests", do_unittests)
-STATIC_COMMAND("ut", "run all unit tests", do_unittests)
-STATIC_COMMAND_END(name);
+STATIC_COMMAND("ut", "run some or all of the unit tests", do_unittests)
+STATIC_COMMAND_END(unit_tests);
 
