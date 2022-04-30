@@ -17,11 +17,15 @@
 #include <malloc.h>
 #include <string.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 // A set of test cases run against a block device image created from the test script
 // in the same directory as this. It should contain a set of known directories and
 // files for the test to work with.
+
+// pull in a few test files into rodata to test against
+INCFILE(test_file_hello, test_file_hello_size, "lib/fs/fat/test/hello.txt");
+INCFILE(test_file_license, test_file_license_size, "lib/fs/fat/test/LICENSE");
 
 namespace {
 
@@ -29,7 +33,7 @@ namespace {
 const char *test_device_name = "virtio0";
 #define test_path "/fat"
 
-static bool fat_mount() {
+bool test_fat_mount() {
     BEGIN_TEST;
 
     LTRACEF("mounting filesystem on device '%s'\n", test_device_name);
@@ -40,7 +44,7 @@ static bool fat_mount() {
     END_TEST;
 }
 
-static bool fat_dir_root() {
+bool test_fat_dir_root() {
     BEGIN_TEST;
 
     ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
@@ -90,9 +94,66 @@ static bool fat_dir_root() {
     END_TEST;
 }
 
+// helper routine for the read file test routine below
+bool test_file_read(const char *path, const unsigned char *test_file_buffer, size_t test_file_size) {
+    BEGIN_TEST;
+
+    // open the file
+    filehandle *handle = nullptr;
+    ASSERT_EQ(NO_ERROR, fs_open_file(path, &handle));
+    auto closefile_cleanup = lk::make_auto_call([&]() { fs_close_file(handle); });
+
+    ASSERT_NONNULL(handle);
+
+    const size_t buflen = test_file_size * 2; // should be somewhat larger than test_file_size
+    char *buf = new char[buflen];
+    auto delete_buffer = lk::make_auto_call([&]() { delete[] buf; });
+
+    // try to read the file in and make sure it reads exactly the target size of bytes
+    ssize_t read_len = fs_read_file(handle, buf, 0, buflen);
+    ASSERT_LT(0, read_len);
+    ASSERT_EQ(test_file_size, (size_t)read_len);
+
+    EXPECT_EQ(0, memcmp(buf, test_file_buffer, read_len));
+    if (memcmp(buf, test_file_buffer, read_len)) {
+        printf("\nfailure in comparison\nexpected:\n");
+        hexdump8(test_file_buffer, read_len);
+        printf("read:\n");
+        hexdump8(buf, read_len);
+    }
+
+    // close the file
+    closefile_cleanup.cancel();
+    ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+    END_TEST;
+}
+
+bool test_fat_read_file() {
+    BEGIN_TEST;
+
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
+    // clean up by unmounting no matter what happens here
+    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
+
+    // read in a few files and validate their contents
+    EXPECT_TRUE(test_file_read(test_path "/hello.txt", test_file_hello, test_file_hello_size));
+    EXPECT_TRUE(test_file_read(test_path "/license", test_file_license, test_file_license_size));
+    EXPECT_TRUE(test_file_read(test_path "/long_filename_hello.txt", test_file_hello, test_file_hello_size));
+    EXPECT_TRUE(test_file_read(test_path "/a_very_long_filename_hello_that_uses_at_least_a_few_entries.txt", test_file_hello, test_file_hello_size));
+    EXPECT_TRUE(test_file_read(test_path "/dir.a/long_filename_hello.txt", test_file_hello, test_file_hello_size));
+
+    // unmount the fs
+    unmount_cleanup.cancel();
+    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(fat)
-    RUN_TEST(fat_mount)
-    RUN_TEST(fat_dir_root)
+    RUN_TEST(test_fat_mount)
+    RUN_TEST(test_fat_dir_root)
+    RUN_TEST(test_fat_read_file)
 END_TEST_CASE(fat)
 
 } // namespace

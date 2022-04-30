@@ -2,11 +2,8 @@
 
 set -x
 
-#truncate -s 0 blk.bin.fat16
-#truncate -s 0 blk.bin.fat32
-
-#truncate -s 16M blk.bin.fat16
-#truncate -s 16G blk.bin.fat32
+# create a largeish file (crosses at least one sector)
+dd if=/dev/zero of=largefile bs=1024 count=512
 
 # create a 12 bit fat, 1K clusters, 2MB
 rm blk.bin.fat12
@@ -33,6 +30,7 @@ for i in blk.bin.*; do
     mcopy -i $i hello.txt ::a_very_long_filename_hello_that_uses_at_least_a_few_entries.txt
     mmd -i $i dir.c
     mcopy -i $i hello.txt ::dir.a/long_filename_hello.txt
+    mcopy -i $i largefile ::largefile
 
     # add a bunch of entries to the root dir that cause it
     # to spill over to a few extra sectors
@@ -57,3 +55,7 @@ for i in blk.bin.*; do
     mcopy -i $i hello.txt ::01234longfilename18.txt
     mcopy -i $i hello.txt ::01234longfilename19.txt
 done
+
+# some useful mtools debugging routines
+# minfo -i blk.bin.fat32
+# mshowfat -i blk.bin.fat32 ::*
