@@ -23,12 +23,3 @@ STATIC_COMMAND("fibo", "threaded fibonacci", &fibo)
 STATIC_COMMAND("spinner", "create a spinning thread", &spinner)
 STATIC_COMMAND("cbuf_tests", "test lib/cbuf", &cbuf_tests)
 STATIC_COMMAND_END(tests);
-
-static void tests_init(const struct app_descriptor *app) {
-}
-
-APP_START(tests)
-.init = tests_init,
-.flags = 0,
-APP_END
-

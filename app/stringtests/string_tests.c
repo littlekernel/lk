@@ -324,7 +324,3 @@ out:
 STATIC_COMMAND_START
 STATIC_COMMAND("string", "memcpy tests", &string_tests)
 STATIC_COMMAND_END(stringtests);
-
-APP_START(stringtests)
-APP_END
-
