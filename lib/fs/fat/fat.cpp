@@ -18,8 +18,6 @@
 #define LOCAL_TRACE 0
 
 uint32_t fat_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
-    LTRACEF("cluster %#x\n", cluster);
-
     DEBUG_ASSERT(fat->lock.is_held());
 
     // offset in bytes into the FAT for this entry
@@ -30,14 +28,14 @@ uint32_t fat_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
         fat_offset = cluster * 2;
     } else {
         fat_offset = cluster + (cluster / 2);
-        PANIC_UNIMPLEMENTED;
     }
+    LTRACEF("cluster %#x, fat_offset %u\n", cluster, fat_offset);
 
-    uint32_t fat_sector = fat_offset / fat->bytes_per_sector;
-
+    const uint32_t fat_sector = fat_offset / fat->bytes_per_sector;
     uint32_t bnum = fat->reserved_sectors + fat_sector;
-    uint32_t next_cluster = EOF_CLUSTER;
+    const uint32_t fat_offset_in_sector = fat_offset % fat->bytes_per_sector;
 
+    // grab a pointer to the sector holding the fat entry
     void *cache_ptr;
     int err = bcache_get_block(fat->cache, &cache_ptr, bnum);
     if (err < 0) {
@@ -45,28 +43,65 @@ uint32_t fat_next_cluster_in_chain(fat_fs_t *fat, uint32_t cluster) {
         return EOF_CLUSTER;
     }
 
+    uint32_t next_cluster;
     if (fat->fat_bits == 32) {
-        uint32_t *table = (uint32_t *)cache_ptr;
-        uint32_t index = fat_offset % fat->bytes_per_sector / 4;
+        const auto *table = (const uint32_t *)cache_ptr;
+        const auto index = fat_offset_in_sector / 4;
         next_cluster = table[index];
         LE32SWAP(next_cluster);
 
         // mask out the top nibble
         next_cluster &= 0x0fffffff;
     } else if (fat->fat_bits == 16) {
-        uint16_t *table = (uint16_t *)cache_ptr;
-        uint32_t index = fat_offset % fat->bytes_per_sector / 2;
+        const auto *table = (const uint16_t *)cache_ptr;
+        const auto index = fat_offset_in_sector / 2;
         next_cluster = table[index];
         LE16SWAP(next_cluster);
 
+        // if it's a EOF 16 bit entry, extend it so that it looks to be 32bit
         if (next_cluster > 0xfff0) {
             next_cluster |= 0x0fff0000;
         }
-    } else {
-        // implement logic for fat12 and sector straddling logic.
-        PANIC_UNIMPLEMENTED;
+    } else { // fat12
+        DEBUG_ASSERT(fat->fat_bits == 12);
+        DEBUG_ASSERT(fat_offset_in_sector < fat->bytes_per_sector);
+
+        if (fat_offset_in_sector != (fat->bytes_per_sector - 1)) {
+            // normal, non sector straddling logic
+            next_cluster = fat_read16(cache_ptr, fat_offset_in_sector);
+        } else {
+            // need to straddle a fat sector
+
+            // read the first byte of the entry
+            next_cluster = ((const uint8_t *)cache_ptr)[fat_offset_in_sector];
+
+            // close the block cache and open the next sector
+            bcache_put_block(fat->cache, bnum);
+            bnum++;
+            err = bcache_get_block(fat->cache, &cache_ptr, bnum);
+            if (err < 0) {
+                printf("bcache_get_block returned: %i\n", err);
+                return EOF_CLUSTER;
+            }
+
+            // read the second byte
+            next_cluster |= ((const uint8_t *)cache_ptr)[0] << 8;
+        }
+
+        // odd cluster, shift over to get our value
+        if (cluster & 1) {
+            next_cluster >>= 4;
+        } else {
+            next_cluster &= 0x0fff;
+        }
+
+        // if it's a EOF 12 bit entry, extend it so that it looks to be 32bit
+        if (next_cluster > 0xff0) {
+            next_cluster |= 0x0ffff000;
+        }
     }
 
+    // return the sector to the block cache
     bcache_put_block(fat->cache, bnum);
 
     LTRACEF("returning cluster %#x\n", next_cluster);
