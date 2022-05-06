@@ -6,6 +6,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include "dir.h"
 
 #include <lk/cpp.h>
 #include <lk/err.h>
@@ -20,25 +21,16 @@
 #include "fat_priv.h"
 #include "file_iterator.h"
 
-#define LOCAL_TRACE 0
+#define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
-// structure that represents an open dir, may have multiple cookies in its list
-// at any point in time,
-struct fat_dir {
-    struct list_node node;
-    struct list_node cookies = LIST_INITIAL_VALUE(cookies);
-
-    fat_fs_t *fat;
-
-    // id of the directory is keyed off the starting cluster (or 0 for the root dir)
-    uint32_t start_cluster;
-};
+fat_dir::~fat_dir() = default;
 
 // structure that represents an open dir handle. holds the offset into the directory
 // that is being walked.
 struct fat_dir_cookie {
+    fat_dir *dir;
+
     struct list_node node;
-    struct fat_dir *dir;
 
     // next directory index offset in bytes, 0xffffffff for EOD
     uint32_t index;
@@ -51,11 +43,11 @@ namespace {
 // both dbi and offset will be modified during the call.
 // filles out the entry and returns a pointer into the passed in buffer in out_filename.
 // NOTE: *must* pass at least a MAX_FILE_NAME_LEN byte char pointer in the filename_buffer slot.
-status_t fat_find_next_entry(fat_fs_t *fat, file_block_iterator &dbi, uint32_t &offset, dir_entry *entry,
+status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint32_t &offset, dir_entry *entry,
         char filename_buffer[MAX_FILE_NAME_LEN], char **out_filename) {
 
     DEBUG_ASSERT(entry && filename_buffer && out_filename);
-    DEBUG_ASSERT(offset <= fat->bytes_per_sector); // passing offset == bytes_per_sector is okay
+    DEBUG_ASSERT(offset <= fat->info().bytes_per_sector); // passing offset == bytes_per_sector is okay
 
     // lfn parsing state
     struct lfn_parse_state {
@@ -72,11 +64,11 @@ status_t fat_find_next_entry(fat_fs_t *fat, file_block_iterator &dbi, uint32_t &
     for (;;) {
         if (LOCAL_TRACE >= 2) {
             LTRACEF("dir sector:\n");
-            hexdump8_ex(dbi.get_bcache_ptr(0), fat->bytes_per_sector, 0);
+            hexdump8_ex(dbi.get_bcache_ptr(0), fat->info().bytes_per_sector, 0);
         }
 
         // walk within a sector
-        while (offset < fat->bytes_per_sector) {
+        while (offset < fat->info().bytes_per_sector) {
             LTRACEF_LEVEL(2, "looking at offset %u\n", offset);
             const uint8_t *ent = dbi.get_bcache_ptr(offset);
             if (ent[0] == 0) { // no more entries
@@ -199,7 +191,7 @@ status_t fat_find_next_entry(fat_fs_t *fat, file_block_iterator &dbi, uint32_t &
             return NO_ERROR;
         }
 
-        DEBUG_ASSERT(offset <= fat->bytes_per_sector);
+        DEBUG_ASSERT(offset <= fat->info().bytes_per_sector);
 
         // move to the next sector
         status_t err = dbi.next_sector();
@@ -214,7 +206,7 @@ status_t fat_find_next_entry(fat_fs_t *fat, file_block_iterator &dbi, uint32_t &
     return ERR_NOT_FOUND;
 }
 
-status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const char *name, dir_entry *entry) {
+status_t fat_find_file_in_dir(fat_fs *fat, uint32_t starting_cluster, const char *name, dir_entry *entry, uint32_t *found_offset) {
     LTRACEF("start_cluster %u, name '%s', out entry %p\n", starting_cluster, name, entry);
 
     DEBUG_ASSERT(fat->lock.is_held());
@@ -245,6 +237,7 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const ch
         // see if we've matched an entry
         if (filenamelen == namelen && !strnicmp(name, filename, filenamelen)) {
             // we have, return with a good status
+            *found_offset = offset;
             return NO_ERROR;
         }
     }
@@ -252,7 +245,7 @@ status_t fat_find_file_in_dir(fat_fs_t *fat, uint32_t starting_cluster, const ch
 
 } // namespace
 
-status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry) {
+status_t fat_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_entry_location *loc) {
     LTRACEF("path %s\n", path);
 
     DEBUG_ASSERT(fat->lock.is_held());
@@ -289,8 +282,8 @@ status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry) {
 
     // set up the starting cluster to search
     uint32_t dir_start_cluster;
-    if (fat->root_cluster) {
-        dir_start_cluster = fat->root_cluster;
+    if (fat->info().root_cluster) {
+        dir_start_cluster = fat->info().root_cluster;
     } else {
         // fat 12/16 has a linear root dir, cluster 0 is a special case to fat_find_file_in_dir below
         dir_start_cluster = 0;
@@ -306,7 +299,8 @@ status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry) {
 
         LTRACEF("searching for element %s\n", name_element);
 
-        auto status = fat_find_file_in_dir(fat, dir_start_cluster, name_element, &entry);
+        uint32_t found_offset = 0;
+        auto status = fat_find_file_in_dir(fat, dir_start_cluster, name_element, &entry, &found_offset);
         if (status < 0) {
             return ERR_NOT_FOUND;
         }
@@ -328,31 +322,61 @@ status_t fat_walk(fat_fs_t *fat, const char *path, dir_entry *out_entry) {
         } else {
             // we got a hit at the terminal entry of the path, pass it out to the caller as a success
             *out_entry = entry;
+            loc->starting_dir_cluster = dir_start_cluster;
+            loc->dir_offset = found_offset;
             return NO_ERROR;
         }
     }
 }
 
-status_t fat_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
-    auto fat = (fat_fs_t *)cookie;
+status_t fat_dir::opendir_priv(const dir_entry &entry, const dir_entry_location &loc, fat_dir_cookie **out_cookie) {
+    // fill in our file info based on the entry
+    start_cluster_ = entry.start_cluster;
+    length_ = 0; // dirs all have 0 length entry
+    dir_loc_ = loc;
+    inc_ref();
+
+    // create a dir cookie
+    auto dir_cookie = new fat_dir_cookie;
+    dir_cookie->dir = this;
+    dir_cookie->index = 0;
+
+    // add it to the dir object
+    list_add_tail(&cookies_, &dir_cookie->node);
+
+    *out_cookie = dir_cookie;
+
+    return NO_ERROR;
+}
+
+status_t fat_dir::opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
+    auto fat = (fat_fs *)cookie;
 
     LTRACEF("cookie %p name '%s' dircookie %p\n", cookie, name, dcookie);
 
     AutoLock guard(fat->lock);
 
     dir_entry entry;
+    dir_entry_location loc;
 
     // special case for /
     if (name[0] == 0 || !strcmp(name, "/")) {
         entry.attributes = fat_attribute::directory;
         entry.length = 0;
-        if (fat->fat_bits == 32) {
-            entry.start_cluster = fat->root_cluster;
+        if (fat->info().fat_bits == 32) {
+            entry.start_cluster = fat->info().root_cluster;
         } else {
             entry.start_cluster = 0;
         }
+
+        // special case for the root dir
+        // 0:0 is not sufficient, since we could actually find a file in the root dir
+        // on a fat 12/16 volume (magic cluster 0) at offset 0. cluster 1 is never used
+        // so mark root dir as 1:0
+        loc.starting_dir_cluster = 1;
+        loc.dir_offset = 0;
     } else {
-        status_t err = fat_walk(fat, name, &entry);
+        status_t err = fat_walk(fat, name, &entry, &loc);
         if (err != NO_ERROR) {
             return err;
         }
@@ -360,19 +384,27 @@ status_t fat_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
 
     // if we walked and found a proper directory, it's a hit
     if (entry.attributes == fat_attribute::directory) {
-        // TODO: see if the dir is already in the list
-        auto dir = new fat_dir;
-        dir->fat = fat;
-        dir->start_cluster = entry.start_cluster;
-        list_add_head(&fat->dir_list, &dir->node);
+        fat_dir *dir;
 
-        // create a dir cookie
-        auto dir_cookie = new fat_dir_cookie;
-        dir_cookie->dir = dir;
-        dir_cookie->index = 0;
+        // see if this dir is already present in the fs list
+        fat_file *file = fat->lookup_file(loc);
+        if (file) {
+            // XXX replace with hand rolled RTTI
+            dir = reinterpret_cast<fat_dir *>(file);
+        } else {
+            dir = new fat_dir(fat);
+        }
+        DEBUG_ASSERT(dir);
 
-        // add it to the dir object
-        list_add_tail(&dir->cookies, &dir_cookie->node);
+        fat_dir_cookie *dir_cookie;
+
+        status_t err = dir->opendir_priv(entry, loc, &dir_cookie);
+        if (err < 0) {
+            // weird state, should we dec the ref?
+            PANIC_UNIMPLEMENTED;
+            return err;
+        }
+        DEBUG_ASSERT(dir_cookie);
 
         *dcookie = (dircookie *)dir_cookie;
         return NO_ERROR;
@@ -383,11 +415,8 @@ status_t fat_opendir(fscookie *cookie, const char *name, dircookie **dcookie) {
     return ERR_NOT_IMPLEMENTED;
 };
 
-status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
-    auto cookie = (fat_dir_cookie *)dcookie;
-    auto fat = cookie->dir->fat;
-
-    LTRACEF("dircookie %p ent %p, current index %u\n", dcookie, ent, cookie->index);
+status_t fat_dir::readdir_priv(fat_dir_cookie *cookie, struct dirent *ent) {
+    LTRACEF("dircookie %p ent %p, current index %u\n", cookie, ent, cookie->index);
 
     if (!ent)
         return ERR_INVALID_ARGS;
@@ -400,15 +429,15 @@ status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
     dir_entry entry;
 
     {
-        AutoLock guard(fat->lock);
+        AutoLock guard(fs_->lock);
 
         // kick start our directory sector iterator
-        LTRACEF("start cluster %u\n", cookie->dir->start_cluster);
-        file_block_iterator dbi(fat, cookie->dir->start_cluster);
+        LTRACEF("start cluster %u\n", start_cluster_);
+        file_block_iterator dbi(fs_, start_cluster_);
 
         // move it forward to our index point
         // also loads the buffer
-        status_t err = dbi.next_sectors(cookie->index / fat->bytes_per_sector);
+        status_t err = dbi.next_sectors(cookie->index / fs_->info().bytes_per_sector);
         if (err < 0) {
             return err;
         }
@@ -417,15 +446,15 @@ status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
         dbi.reset_sector_inc_count();
 
         // pass the index in units of sector offset
-        uint32_t offset = cookie->index % fat->bytes_per_sector;
-        err = fat_find_next_entry(fat, dbi, offset, &entry, filename_buffer, &filename);
+        uint32_t offset = cookie->index % fs_->info().bytes_per_sector;
+        err = fat_find_next_entry(fs_, dbi, offset, &entry, filename_buffer, &filename);
         if (err < 0) {
             return err;
         }
 
         // bump the index forward by extracting how much the sector iterator pushed things forward
-        uint32_t index_inc = offset - (cookie->index % fat->bytes_per_sector);
-        index_inc += dbi.get_sector_inc_count() * fat->bytes_per_sector;
+        uint32_t index_inc = offset - (cookie->index % fs_->info().bytes_per_sector);
+        index_inc += dbi.get_sector_inc_count() * fs_->info().bytes_per_sector;
         LTRACEF("calculated index increment %u (old index %u, offset %u, sector_inc_count %u)\n",
                 index_inc, cookie->index, offset, dbi.get_sector_inc_count());
         cookie->index += index_inc;
@@ -437,27 +466,48 @@ status_t fat_readdir(dircookie *dcookie, struct dirent *ent) {
     return NO_ERROR;
 }
 
-
-status_t fat_closedir(dircookie *dcookie) {
+status_t fat_dir::readdir(dircookie *dcookie, struct dirent *ent) {
     auto cookie = (fat_dir_cookie *)dcookie;
     auto dir = cookie->dir;
-    auto fat = dir->fat;
 
-    LTRACEF("dircookie %p\n", dcookie);
+    return dir->readdir_priv(cookie, ent);
+}
 
-    AutoLock guard(fat->lock);
+status_t fat_dir::closedir_priv(fat_dir_cookie *cookie, bool *last_ref) {
+    LTRACEF("dircookie %p\n", cookie);
 
-    // free the dircookie
+    AutoLock guard(fs_->lock);
+
+    // remove the dircookie from the list
+    DEBUG_ASSERT(list_in_list(&cookie->node));
     list_delete(&cookie->node);
 
-    // delete the dir node from the fat list if this was the last cookie
-    // TODO: use actual refs
-    if (list_is_empty(&dir->cookies)) {
-        list_delete(&dir->node);
-        delete dir;
+    // delete it
+    delete cookie;
+
+    // drop a ref to the dir
+    *last_ref = dec_ref();
+    if (*last_ref) {
+        DEBUG_ASSERT(list_is_empty(&cookies_));
     }
 
-    delete cookie;
+    return NO_ERROR;
+}
+
+status_t fat_dir::closedir(dircookie *dcookie) {
+    auto cookie = (fat_dir_cookie *)dcookie;
+    auto dir = cookie->dir;
+
+    bool last_ref;
+    status_t err = dir->closedir_priv(cookie, &last_ref);
+    if (err < 0) {
+        return err;
+    }
+
+    if (last_ref) {
+        LTRACEF("last ref, deleting %p (%u:%u)\n", dir, dir->dir_loc().starting_dir_cluster, dir->dir_loc().dir_offset);
+        delete dir;
+    }
 
     return NO_ERROR;
 }

@@ -150,10 +150,67 @@ bool test_fat_read_file() {
     END_TEST;
 }
 
+bool test_fat_multi_open() {
+    BEGIN_TEST;
+
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
+    // clean up by unmounting no matter what happens here
+    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
+
+    // open a file three times simultaneously
+    {
+        filehandle *handle1 = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle1));
+        auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle1); });
+
+        filehandle *handle2 = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle2));
+        auto closefile_cleanup2 = lk::make_auto_call([&]() { fs_close_file(handle2); });
+
+        filehandle *handle3 = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle3));
+
+        // close the files in reverse order
+        closefile_cleanup1.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle1));
+        closefile_cleanup2.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle2));
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle3));
+    }
+
+    // open a dir three times simultaneously
+    {
+        dirhandle *handle1 = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle1));
+        auto closedir_cleanup1 = lk::make_auto_call([&]() { fs_close_dir(handle1); });
+
+        dirhandle *handle2 = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle2));
+        auto closedir_cleanup2 = lk::make_auto_call([&]() { fs_close_dir(handle2); });
+
+        dirhandle *handle3 = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle3));
+
+        // close the dirs in reverse order
+        closedir_cleanup1.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_dir(handle1));
+        closedir_cleanup2.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_dir(handle2));
+        ASSERT_EQ(NO_ERROR, fs_close_dir(handle3));
+    }
+
+    // unmount the fs
+    unmount_cleanup.cancel();
+    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_mount)
     RUN_TEST(test_fat_dir_root)
     RUN_TEST(test_fat_read_file)
+    RUN_TEST(test_fat_multi_open)
 END_TEST_CASE(fat)
 
 } // namespace

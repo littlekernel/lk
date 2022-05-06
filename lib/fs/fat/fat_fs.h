@@ -10,18 +10,11 @@
 
 #include <lib/bio.h>
 #include <lib/bcache.h>
+#include <lib/fs.h>
 #include <kernel/mutex.h>
 
-struct fat_fs_t {
-    bdev_t *dev = nullptr;
-    bcache_t cache = nullptr;
-
-    Mutex lock;
-
-    // list of open dirs
-    list_node dir_list = LIST_INITIAL_VALUE(dir_list);
-
-    // data computed from BPB
+// computed constants about a particular mount
+struct fat_info {
     uint32_t bytes_per_sector = 0;
     uint32_t sectors_per_cluster = 0;
     uint32_t bytes_per_cluster = 0;
@@ -37,6 +30,42 @@ struct fat_fs_t {
     uint32_t root_entries = 0;
     uint32_t root_start_sector = 0;
     uint32_t root_dir_sectors = 0;
+};
+
+class fat_file;
+struct dir_entry_location;
+
+// main fs object representing a mount
+class fat_fs {
+public:
+    // mount hook, creates a new fs instance and passes it back in fscookie
+    static status_t mount(bdev_t *dev, fscookie **cookie);
+    static status_t unmount(fscookie *cookie);
+
+    bdev_t *dev() { return dev_; }
+    bcache_t bcache() { return bcache_; }
+    const fat_info &info() const { return info_; }
+
+    // file list apis
+    // must be called with lock held
+    void add_to_file_list(fat_file *file);
+    fat_file *lookup_file(const dir_entry_location &loc);
+
+    // for now keep the lock public
+    Mutex lock;
+
+private:
+    fat_fs();
+    ~fat_fs();
+
+    bdev_t *dev_ = nullptr;
+    bcache_t bcache_ = nullptr;
+
+    // list of all the open files and directories
+    list_node file_list_ = LIST_INITIAL_VALUE(file_list_);
+
+    // data computed from BPB
+    fat_info info_ {};
 };
 
 enum class fat_attribute : uint8_t {
