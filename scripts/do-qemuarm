@@ -105,7 +105,7 @@ elif (( $DO_NET_TAP )); then
     # sudo tunctl -u $(whoami) -t ${IFNAME}
     # sudo ifconfig ${IFNAME} up
     # sudo ip link set ${IFNAME} master ${BRIDGE}
-    ARGS+=" -netdev tap,id=vmnic,ifname=qemu0,downscript=no"
+    ARGS+=" -netdev tap,id=vmnic,ifname=qemu0,script=no,downscript=no"
     ARGS+=" -device virtio-net-device,netdev=vmnic"
     #SUDO="sudo "
 else
