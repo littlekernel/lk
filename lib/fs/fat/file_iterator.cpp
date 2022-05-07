@@ -107,3 +107,11 @@ status_t file_block_iterator::load_bcache_block(bnum_t bnum) {
     return err;
 }
 
+status_t file_block_iterator::mark_bcache_dirty() {
+    if (bcache_buf) {
+        return bcache_mark_block_dirty(fat->bcache(), bcache_bnum);
+    } else {
+        return ERR_NO_RESOURCES;
+    }
+}
+

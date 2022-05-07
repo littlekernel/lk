@@ -47,4 +47,9 @@ inline bool operator==(const dir_entry_location &a, const dir_entry_location &b)
     return (a.starting_dir_cluster == b.starting_dir_cluster && a.dir_offset == b.dir_offset);
 }
 
-status_t fat_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_entry_location *loc);
+// walk a path, returning the entry and the location where it was found
+status_t fat_dir_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_entry_location *loc);
+
+// walk a path, allocating a new entry with the path name.
+// returns the dir entry location
+status_t fat_dir_allocate(fat_fs *fat, const char *path, fat_attribute attr, uint32_t starting_cluster, uint32_t size, dir_entry_location *loc);
