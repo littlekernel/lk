@@ -29,11 +29,20 @@ public:
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(file_block_iterator);
 
-    const uint8_t *get_bcache_ptr(size_t offset) {
+    const uint8_t *get_bcache_ptr(size_t offset) const {
         DEBUG_ASSERT(offset < fat->info().bytes_per_sector);
         DEBUG_ASSERT(bcache_buf);
         return (const uint8_t *)bcache_buf + offset;
     }
+
+    uint8_t *get_bcache_ptr(size_t offset) {
+        DEBUG_ASSERT(offset < fat->info().bytes_per_sector);
+        DEBUG_ASSERT(bcache_buf);
+        return (uint8_t *)bcache_buf + offset;
+    }
+
+    // write mark the current block as modified
+    status_t mark_bcache_dirty();
 
     // move N sectors ahead in the file, walking the FAT cluster chain as necessary.
     // sectors == 0 will ensure the current block is loaded.

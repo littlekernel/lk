@@ -46,6 +46,29 @@ __NO_INLINE static void fat_dump(fat_fs *fat) {
 fat_fs::fat_fs() = default;
 fat_fs::~fat_fs() = default;
 
+void fat_fs::add_to_file_list(fat_file *file) {
+    DEBUG_ASSERT(lock.is_held());
+    DEBUG_ASSERT(!list_in_list(&file->node_));
+
+    LTRACEF("file %p, location %u:%u\n", file, file->dir_loc().starting_dir_cluster, file->dir_loc().dir_offset);
+
+    list_add_head(&file_list_, &file->node_);
+}
+
+fat_file *fat_fs::lookup_file(const dir_entry_location &loc) {
+    DEBUG_ASSERT(lock.is_held());
+
+    fat_file *f;
+    list_for_every_entry(&file_list_, f, fat_file, node_) {
+        if (loc == f->dir_loc()) {
+            return f;
+        }
+    }
+
+    return nullptr;
+}
+
+// static fs hooks
 status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
     status_t result = NO_ERROR;
 
@@ -210,6 +233,7 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
     return result;
 }
 
+// static
 status_t fat_fs::unmount(fscookie *cookie) {
     auto *fat = (fat_fs *)cookie;
 
@@ -227,28 +251,6 @@ status_t fat_fs::unmount(fscookie *cookie) {
     return NO_ERROR;
 }
 
-void fat_fs::add_to_file_list(fat_file *file) {
-    DEBUG_ASSERT(lock.is_held());
-    DEBUG_ASSERT(!list_in_list(&file->node_));
-
-    LTRACEF("file %p, location %u:%u\n", file, file->dir_loc().starting_dir_cluster, file->dir_loc().dir_offset);
-
-    list_add_head(&file_list_, &file->node_);
-}
-
-fat_file *fat_fs::lookup_file(const dir_entry_location &loc) {
-    DEBUG_ASSERT(lock.is_held());
-
-    fat_file *f;
-    list_for_every_entry(&file_list_, f, fat_file, node_) {
-        if (loc == f->dir_loc()) {
-            return f;
-        }
-    }
-
-    return nullptr;
-}
-
 static const struct fs_api fat_api = {
     .format = nullptr,
     .fs_stat = nullptr,
@@ -256,7 +258,7 @@ static const struct fs_api fat_api = {
     .mount = fat_fs::mount,
     .unmount = fat_fs::unmount,
     .open = fat_file::open_file,
-    .create = nullptr,
+    .create = fat_file::create_file,
     .remove = nullptr,
     .truncate = nullptr,
     .stat = fat_file::stat_file,

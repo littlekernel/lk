@@ -78,6 +78,7 @@ status_t fat_file::open_file_priv(const dir_entry &entry, const dir_entry_locati
     }
 }
 
+// static
 status_t fat_file::open_file(fscookie *cookie, const char *path, filecookie **fcookie) {
     fat_fs *fs = (fat_fs *)cookie;
 
@@ -88,7 +89,7 @@ status_t fat_file::open_file(fscookie *cookie, const char *path, filecookie **fc
     // look for the file in the fs
     dir_entry entry;
     dir_entry_location loc;
-    status_t err = fat_walk(fs, path, &entry, &loc);
+    status_t err = fat_dir_walk(fs, path, &entry, &loc);
     if (err != NO_ERROR) {
         return err;
     }
@@ -204,6 +205,7 @@ ssize_t fat_file::read_file_priv(void *_buf, const off_t offset, size_t len) {
     return amount_read;
 }
 
+// static
 ssize_t fat_file::read_file(filecookie *fcookie, void *_buf, const off_t offset, size_t len) {
     fat_file *file = (fat_file *)fcookie;
 
@@ -213,11 +215,14 @@ ssize_t fat_file::read_file(filecookie *fcookie, void *_buf, const off_t offset,
 status_t fat_file::stat_file_priv(struct file_stat *stat) {
     AutoLock guard(fs_->lock);
 
+    LTRACEF("file %p state %p\n", this, stat);
+
     stat->size = length_;
     stat->is_dir = is_dir();
     return NO_ERROR;
 }
 
+// static
 status_t fat_file::stat_file(filecookie *fcookie, struct file_stat *stat) {
     fat_file *file = (fat_file *)fcookie;
 
@@ -234,6 +239,7 @@ status_t fat_file::close_file_priv(bool *last_ref) {
     return NO_ERROR;
 }
 
+// static
 status_t fat_file::close_file(filecookie *fcookie) {
     fat_file *file = (fat_file *)fcookie;
 
@@ -251,3 +257,35 @@ status_t fat_file::close_file(filecookie *fcookie) {
 
     return NO_ERROR;
 }
+
+// static
+status_t fat_file::create_file(fscookie *cookie, const char *path, filecookie **fcookie, uint64_t len) {
+    fat_fs *fs = (fat_fs *)cookie;
+
+    LTRACEF("fs %p path '%s' len %" PRIu64 "\n", fs, path, len);
+
+    // currently only support zero length files
+    if (len != 0) {
+        return ERR_NOT_IMPLEMENTED;
+    }
+
+    {
+        AutoLock guard(fs->lock);
+
+        // tell the dir code to find us a spot
+        dir_entry_location loc;
+        status_t err = fat_dir_allocate(fs, path, fat_attribute::file, 0, 0, &loc);
+        if (err < 0) {
+            return err;
+        }
+
+        // we have found and allocated a spot
+        fat_file *file = new fat_file(fs);
+        file->dir_loc_ = loc;
+        file->inc_ref();
+        *fcookie = (filecookie *)file;
+    }
+
+    return NO_ERROR;
+}
+

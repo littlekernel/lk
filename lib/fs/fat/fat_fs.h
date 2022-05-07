@@ -69,6 +69,7 @@ private:
 };
 
 enum class fat_attribute : uint8_t {
+    file = 0x0, // lack of attribute is a file
     read_only = 0x01,
     hidden = 0x02,
     system = 0x04,
@@ -87,11 +88,27 @@ inline uint32_t fat_read32(const void *_buffer, size_t offset) {
           (buffer[offset + 3] << 24);
 }
 
+inline void fat_write32(void *_buffer, size_t offset, uint32_t val) {
+    auto *buffer = (uint8_t *)_buffer;
+
+    buffer[offset] = val;
+    buffer[offset + 1] = val >> 8;
+    buffer[offset + 2] = val >> 16;
+    buffer[offset + 3] = val >> 24;
+}
+
 inline uint16_t fat_read16(const void *_buffer, size_t offset) {
     auto *buffer = (const uint8_t *)_buffer;
 
     return buffer[offset] +
           (buffer[offset + 1] << 8);
+}
+
+inline void fat_write16(void *_buffer, size_t offset, uint16_t val) {
+    auto *buffer = (uint8_t *)_buffer;
+
+    buffer[offset] = val;
+    buffer[offset + 1] = val >> 8;
 }
 
 // In fat32, clusters between 0x0fff.fff8 and 0x0fff.ffff are interpreted as

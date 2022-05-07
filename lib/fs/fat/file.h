@@ -26,6 +26,7 @@ public:
     static ssize_t read_file(filecookie *fcookie, void *_buf, const off_t offset, size_t len);
     static status_t stat_file(filecookie *fcookie, struct file_stat *stat);
     static status_t close_file(filecookie *fcookie);
+    static status_t create_file(fscookie *cookie, const char *path, filecookie **fcookie, uint64_t len);
 
     // used by fs node list maintenance
     // node in the fs's list of open files and dirs
@@ -48,7 +49,7 @@ protected:
 
     fat_fs *fs_ = nullptr; // pointer back to the fs instance we're in
 
-    // pointer to our dir entry, acts as our unique key
+    // pointer to our dir entry, acts as our unique key in the fs list
     dir_entry_location dir_loc_ {};
 
     // our start cluster and length
