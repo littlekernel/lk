@@ -197,8 +197,6 @@
                                          MMU_MAIR_ATTR4 | MMU_MAIR_ATTR5 | \
                                          MMU_MAIR_ATTR6 | MMU_MAIR_ATTR7 )
 
-#define MMU_TCR_IPS_DEFAULT MMU_TCR_IPS(2) /* TODO: read at runtime, or configure per platform */
-
 /* Enable cached page table walks:
  * inner/outer (IRGN/ORGN): write-back + write-allocate
  */
@@ -212,8 +210,9 @@
                         MMU_TCR_ORGN0(MMU_RGN_WRITE_BACK_ALLOCATE) | \
                         MMU_TCR_IRGN0(MMU_RGN_WRITE_BACK_ALLOCATE) | \
                         MMU_TCR_T0SZ(64 - MMU_USER_SIZE_SHIFT))
-#define MMU_TCR_FLAGS_KERNEL (MMU_TCR_IPS_DEFAULT | MMU_TCR_FLAGS1 | MMU_TCR_FLAGS0 | MMU_TCR_EPD0)
-#define MMU_TCR_FLAGS_USER (MMU_TCR_IPS_DEFAULT | MMU_TCR_FLAGS1 | MMU_TCR_FLAGS0)
+#define MMU_TCR_FLAGS_BASE (MMU_TCR_FLAGS1 | MMU_TCR_FLAGS0)
+#define MMU_TCR_FLAGS_KERNEL (MMU_TCR_EPD0)
+#define MMU_TCR_FLAGS_USER (0)
 
 #define MMU_PTE_KERNEL_RO_FLAGS \
     (MMU_PTE_ATTR_UXN | \
