@@ -9,7 +9,7 @@
 #include <arch/asm_macros.h>
 
 .section .text.boot.vectab
-.align 12
+.p2align 11
 
 #define lr x30
 #define regsave_long_offset 0xf0
@@ -206,6 +206,7 @@ LOCAL_FUNCTION(arm64_fiq_lower_el_32)
 LOCAL_FUNCTION(arm64_err_exc_lower_el_32)
     invalid_exception 0x33
 
+.text
 LOCAL_FUNCTION(arm64_exc_shared_restore_long)
     regrestore_long
     eret

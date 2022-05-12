@@ -19,7 +19,6 @@ new_page_table          .req x14
 phys_offset             .req x15
 
 cpuid                   .req x19
-page_table0             .req x20
 page_table1             .req x21
 mmu_initial_mapping     .req x22
 vaddr                   .req x23
@@ -58,11 +57,6 @@ arm_reset:
     /* load the base of the translation table and clear the table */
     adrp    page_table1, arm64_kernel_translation_table
     add     page_table1, page_table1, #:lo12:arm64_kernel_translation_table
-
-    /* Prepare tt_trampoline page table */
-    /* Calculate pagetable physical addresses */
-    adrp    page_table0, tt_trampoline
-    add     page_table0, page_table0, #:lo12:tt_trampoline
 
 #if WITH_SMP
     mrs     cpuid, mpidr_el1
@@ -271,25 +265,6 @@ arm_reset:
     b       .Lmap_range_one_table_loop
 
 .Linitial_mapping_done:
-
-    /* Prepare tt_trampoline page table */
-
-    /* Zero tt_trampoline translation tables */
-    mov     tmp, #0
-.Lclear_tt_trampoline:
-    str     xzr, [page_table0, tmp, lsl#3]
-    add     tmp, tmp, #1
-    cmp     tmp, #MMU_PAGE_TABLE_ENTRIES_IDENT
-    blt     .Lclear_tt_trampoline
-
-    /* Setup mapping at phys -> phys */
-    adr     tmp, .Lmmu_on_pc
-    lsr     tmp, tmp, #MMU_IDENT_TOP_SHIFT    /* tmp = paddr idx */
-    ldr     tmp2, =MMU_PTE_IDENT_FLAGS
-    add     tmp2, tmp2, tmp, lsl #MMU_IDENT_TOP_SHIFT  /* tmp2 = pt entry */
-
-    str     tmp2, [page_table0, tmp, lsl #3]     /* tt_trampoline[paddr idx] = pt entry */
-
 #if WITH_SMP
     adrp    tmp, page_tables_not_ready
     add     tmp, tmp, #:lo12:page_tables_not_ready
@@ -319,14 +294,19 @@ arm_reset:
     /* Initialize TCR_EL1 */
     /* set cacheable attributes on translation walk */
     /* (SMP extensions) non-shareable, inner write-back write-allocate */
-    ldr     tmp, =MMU_TCR_FLAGS_IDENT
+    ldr     tmp, =MMU_TCR_FLAGS_KERNEL
     msr     tcr_el1, tmp
 
     isb
 
     /* Write ttbr with phys addr of the translation table */
-    msr     ttbr0_el1, page_table0
+    msr     ttbr0_el1, xzr
     msr     ttbr1_el1, page_table1
+    isb
+
+    /* Set VBAR to the virtual address of the trampoline VBAR */
+    ldr     tmp, =trampoline_vbar
+    msr     vbar_el1, tmp
     isb
 
     /* Read SCTLR */
@@ -335,22 +315,19 @@ arm_reset:
     /* Turn on the MMU */
     orr     tmp, tmp, #0x1
 
-    /* Write back SCTLR */
+    /*
+     * Write back SCTLR. This instruction will cause an exception when fetching
+     * the following instruction, as the PC will contain an unmapped physical
+     * address. This will be handled by the trampoline VBAR which will branch
+     * to that instruction's virtual address.
+     */
     msr     sctlr_el1, tmp
 .Lmmu_on_pc:
     isb
 
-    /* Jump to virtual code address */
-    ldr     tmp, =.Lmmu_on_vaddr
-    br      tmp
-
-.Lmmu_on_vaddr:
-
-    /* Disable trampoline page-table in ttbr0 */
-    ldr     tmp, =MMU_TCR_FLAGS_KERNEL
-    msr     tcr_el1, tmp
+    /* Disable the trampoline VBAR */
+    msr     vbar_el1, xzr
     isb
-
 
     /* Invalidate TLB */
     tlbi    vmalle1
@@ -416,6 +393,78 @@ arm_reset:
 
 .ltorg
 
+#if WITH_KERNEL_VM
+.section .text.boot.vectab
+/*
+ * The only type of exception that we expect with the trampoline VBAR active is
+ * sync to current EL. All other exceptions result in infinite loops.
+ */
+trampoline_vbar:
+.p2align 11
+.org 0x00
+    wfe
+    b       .-4
+
+.org 0x80
+    wfe
+    b       .-4
+
+.org 0x100
+    wfe
+    b       .-4
+
+.org 0x180
+    wfe
+    b       .-4
+
+.org 0x200
+    b       .Lmmu_on_pc
+
+.org 0x280
+    wfe
+    b       .-4
+
+.org 0x300
+    wfe
+    b       .-4
+
+.org 0x380
+    wfe
+    b       .-4
+
+.org 0x400
+    wfe
+    b       .-4
+
+.org 0x480
+    wfe
+    b       .-4
+
+.org 0x500
+    wfe
+    b       .-4
+
+.org 0x580
+    wfe
+    b       .-4
+
+.org 0x600
+    wfe
+    b       .-4
+
+.org 0x680
+    wfe
+    b       .-4
+
+.org 0x700
+    wfe
+    b       .-4
+
+.org 0x780
+    wfe
+    b       .-4
+#endif
+
 .data
     .balign 8
 LOCAL_DATA(arm64_boot_args)
@@ -438,11 +487,3 @@ DATA(__stack)
     .skip ARCH_DEFAULT_STACK_SIZE * SMP_MAX_CPUS
 END_DATA(__stack)
 DATA(__stack_end)
-
-#if WITH_KERNEL_VM
-.section ".bss.prebss.translation_table"
-.align 3 + MMU_PAGE_TABLE_ENTRIES_IDENT_SHIFT
-DATA(tt_trampoline)
-    .skip 8 * MMU_PAGE_TABLE_ENTRIES_IDENT
-END_DATA(tt_trampoline)
-#endif
