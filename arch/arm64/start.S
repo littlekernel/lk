@@ -266,6 +266,25 @@ arm_reset:
     b       .Lmap_range_one_table_loop
 
 .Linitial_mapping_done:
+    /* compute the base TCR configuration and save away in a global for future use */
+    ldr     tmp, =MMU_TCR_FLAGS_BASE
+
+    /* Set TCR_EL1.IPS to ID_AA64MMFR0_EL1.PARange */
+    mrs     tmp2, id_aa64mmfr0_el1
+    and     tmp2, tmp2, #0xf
+    /*
+     * Give up if we see a reserved value. 52-bit PAs have a different translation
+     * table format that we don't support, so use 48-bit PAs in that case.
+     */
+    cmp     tmp2, #6
+    b.hi    .
+    b.lo    1f
+    mov     tmp2, #5
+1:
+    orr     tmp, tmp, tmp2, lsl #32
+    adrp    tmp2, arm64_mmu_tcr_flags
+    str     tmp, [tmp2, #:lo12:arm64_mmu_tcr_flags]
+
 #if WITH_SMP
     adrp    tmp, page_tables_not_ready
     add     tmp, tmp, #:lo12:page_tables_not_ready
@@ -295,7 +314,9 @@ arm_reset:
     /* Initialize TCR_EL1 */
     /* set cacheable attributes on translation walk */
     /* (SMP extensions) non-shareable, inner write-back write-allocate */
-    ldr     tmp, =MMU_TCR_FLAGS_KERNEL
+    adrp    tmp, arm64_mmu_tcr_flags
+    ldr     tmp, [tmp, #:lo12:arm64_mmu_tcr_flags]
+    orr     tmp, tmp, #MMU_TCR_FLAGS_KERNEL
     msr     tcr_el1, tmp
 
     isb

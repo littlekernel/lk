@@ -30,6 +30,9 @@ pte_t arm64_kernel_translation_table[MMU_KERNEL_PAGE_TABLE_ENTRIES_TOP]
 __ALIGNED(MMU_KERNEL_PAGE_TABLE_ENTRIES_TOP * 8)
 __SECTION(".bss.prebss.translation_table");
 
+/* the base TCR flags, computed from early init code in start.S */
+uint64_t arm64_mmu_tcr_flags __SECTION(".bss.prebss.tcr_flags");
+
 static inline bool is_valid_vaddr(arch_aspace_t *aspace, vaddr_t vaddr) {
     return (vaddr >= aspace->base && vaddr <= aspace->base + aspace->size - 1);
 }
@@ -630,12 +633,12 @@ void arch_mmu_context_switch(arch_aspace_t *aspace) {
     if (TRACE_CONTEXT_SWITCH)
         TRACEF("aspace %p\n", aspace);
 
-    uint64_t tcr;
+    uint64_t tcr = arm64_mmu_tcr_flags;
     uint64_t ttbr;
     if (aspace) {
         DEBUG_ASSERT((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) == 0);
 
-        tcr = MMU_TCR_FLAGS_USER;
+        tcr |= MMU_TCR_FLAGS_USER;
         ttbr = ((uint64_t)MMU_ARM64_USER_ASID << 48) | aspace->tt_phys;
         ARM64_WRITE_SYSREG(ttbr0_el1, ttbr);
 
@@ -643,7 +646,7 @@ void arch_mmu_context_switch(arch_aspace_t *aspace) {
             TRACEF("ttbr 0x%llx, tcr 0x%llx\n", ttbr, tcr);
         ARM64_TLBI(aside1, (uint64_t)MMU_ARM64_USER_ASID << 48);
     } else {
-        tcr = MMU_TCR_FLAGS_KERNEL;
+        tcr |= MMU_TCR_FLAGS_KERNEL;
 
         if (TRACE_CONTEXT_SWITCH)
             TRACEF("tcr 0x%llx\n", tcr);
