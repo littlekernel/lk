@@ -2,7 +2,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULE_CFLAGS += -Wno-unused-variable -Wno-sign-compare -Wno-parentheses -Wno-double-promotion
+MODULE_CFLAGS += -Wno-unused-variable -Wno-sign-compare -Wno-parentheses -Wno-double-promotion -Wno-maybe-uninitialized
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/k_sin.c \
