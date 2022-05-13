@@ -179,7 +179,7 @@ ssize_t fat_file::read_file_priv(void *_buf, const off_t offset, size_t len) {
 
         // make sure we dont do something silly
         DEBUG_ASSERT(buf_offset + to_read <= len);
-        DEBUG_ASSERT(buf_offset % fs_->info().bytes_per_sector + to_read <= fs_->info().bytes_per_sector);
+        DEBUG_ASSERT(offset_within_sector + to_read <= fs_->info().bytes_per_sector);
 
         // copy out to the buffer
         memcpy(buf + buf_offset, ptr, to_read);
