@@ -4,19 +4,22 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 function HELP {
     echo "help:"
-    echo "-b a virtio block device"
-    echo "-c cmpctmalloc instead of dlmalloc"
-    echo "-M miniheap instead of dlmalloc"
-    echo "-n a virtio network device"
-    echo "-t a virtio tap network device"
-    echo "-d a virtio display"
-    echo "-e sifive e platform"
-    echo "-u sifive u platform"
-    echo "-6 64bit"
-    echo "-S supervisor mode (using OpenSBI)"
-    echo "   currently only works in 64bit mode"
+    echo "-6                : 64bit"
+    echo "-S                : supervisor mode (using OpenSBI)"
+    echo "                    currently only works in 64bit mode"
+    echo "-e                : sifive e platform"
+    echo "-u                : sifive u platform"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
+    echo
+    echo "-c                : cmpctmalloc instead of dlmalloc"
+    echo "-M                : miniheap instead of dlmalloc"
+    echo
+    echo "-d <disk image>   : a virtio block device"
+    echo "-n                : a virtio network device"
+    echo "-t                : a virtio tap network device"
+    echo "-g                : a virtio display"
+    echo
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
@@ -24,7 +27,8 @@ function HELP {
 
 DO_NET=0
 DO_NET_TAP=0
-DO_BLOCK=0
+DO_DISK=0
+DO_DISK_IMAGE=""
 DO_64BIT=0
 DO_EMBEDDED=0
 DO_UNLEASHED=0
@@ -37,11 +41,11 @@ MEMSIZE=512
 SUDO=""
 PROJECT=""
 
-while getopts bdhm:cMmnteu6p:s:S FLAG; do
+while getopts cd:ghm:Mmnteu6p:s:S FLAG; do
     case $FLAG in
-        b) DO_BLOCK=1;;
         c) DO_CMPCTMALLOC=1;;
-        d) DO_DISPLAY=1;;
+        d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
+        g) DO_DISPLAY=1;;
         M) DO_MINIHEAP=1;;
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
@@ -102,12 +106,6 @@ if [[ -z "$PROJECT" ]]; then
     PROJECT=$_PROJECT
 fi
 
-BLOCK_ARGS=" -drive if=none,file=blk.bin,id=blk,format=raw -device virtio-blk-device,drive=blk"
-NET_ARGS=" -netdev user,id=vmnic,hostname=qemu -device virtio-net-device,netdev=vmnic"
-NET_TAP_ARGS=" -netdev tap,id=vmnic,ifname=qemu0,script=no -device virtio-net-device,netdev=vmnic"
-NO_DISPLAY_ARGS=" -nographic"
-DISPLAY_ARGS=" -device virtio-gpu-device -serial stdio"
-
 # construct a list of args based on previous variables
 ARGS=" -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
 if [[ ! -z "$CPU" ]]; then
@@ -122,20 +120,31 @@ fi
 if [[ ! -z "$BIOS" ]]; then
     ARGS+=" -bios $BIOS"
 fi
-if (( $DO_BLOCK )); then
-    ARGS+=$BLOCK_ARGS
+if (( $DO_DISK )); then
+    ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk,format=raw"
+    ARGS+=" -device virtio-blk-device,drive=blk"
 fi
 if (( $DO_NET )); then
-    ARGS+=$NET_ARGS
+    ARGS+=" -netdev user,id=vmnic,hostname=qemu"
+    ARGS+=" -device virtio-net-device,netdev=vmnic"
 fi
 if (( $DO_NET_TAP )); then
-    ARGS+=$NET_TAP_ARGS
+    # quick note to enable tap interface
+    # IFNAME=qemu0
+    # BRIDGE=bridge0
+    # sudo tunctl -u $(whoami) -t ${IFNAME}
+    # sudo ifconfig ${IFNAME} up
+    # sudo ip link set ${IFNAME} master ${BRIDGE}
+    ARGS+=" -netdev tap,id=vmnic,ifname=qemu0,script=no,downscript=no"
+    ARGS+=" -device virtio-net-device,netdev=vmnic"
     #SUDO="sudo "
 fi
 if (( $DO_DISPLAY )); then
-    ARGS+=$DISPLAY_ARGS
+    ARGS+=" -device virtio-gpu-device -serial stdio"
+    ARGS+=" -device virtio-keyboard-device"
+    ARGS+=" -device virtio-mouse-device"
 else
-    ARGS+=$NO_DISPLAY_ARGS
+    ARGS+=" -nographic"
 fi
 
 MAKE_VARS=""
