@@ -24,8 +24,8 @@
 // files for the test to work with.
 
 // pull in a few test files into rodata to test against
-INCFILE(test_file_hello, test_file_hello_size, "lib/fs/fat/test/hello.txt");
-INCFILE(test_file_license, test_file_license_size, "lib/fs/fat/test/LICENSE");
+INCFILE(test_file_hello, test_file_hello_size, LOCAL_DIR "/hello.txt");
+INCFILE(test_file_license, test_file_license_size, LOCAL_DIR "/LICENSE");
 
 namespace {
 
