@@ -109,6 +109,8 @@
 #ifndef ASSEMBLY
 #define __ASM_STR(x)    #x
 
+__BEGIN_CDECLS
+
 #define riscv_csr_clear(csr, bits) \
 ({ \
     ulong __val = bits; \
@@ -237,5 +239,7 @@ static inline uint64_t riscv_get_time(void) {
 }
 # endif
 #endif
+
+__END_CDECLS
 
 #endif /* ASSEMBLY */
