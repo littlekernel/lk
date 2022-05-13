@@ -7,9 +7,12 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <lib/elf_defines.h>
 #include <sys/types.h>
 #include <stdbool.h>
+
+__BEGIN_CDECLS
 
 /* based on our bitness, support 32 or 64 bit elf */
 #if IS_64BIT
@@ -53,4 +56,6 @@ status_t elf_open_handle_memory(elf_handle_t *handle, const void *ptr, size_t le
 void     elf_close_handle(elf_handle_t *handle);
 
 status_t elf_load(elf_handle_t *handle);
+
+__END_CDECLS
 
