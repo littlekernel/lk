@@ -147,6 +147,14 @@ else
 $(error SUBARCH not set or set to something unknown)
 endif
 
+# test to see if -misa-spec=2.2 is a valid switch.
+# misa-spec is added to make sure the compiler picks up the zicsr extension by default.
+MISA_SPEC := $(shell $(TOOLCHAIN_PREFIX)gcc $(ARCH_COMPILEFLAGS) -misa-spec=2.2 -E - < /dev/null > /dev/null 2>1 && echo supported)
+$(info MISA_SPEC = $(MISA_SPEC))
+ifeq ($(MISA_SPEC),supported)
+ARCH_COMPILEFLAGS += -misa-spec=2.2
+endif
+
 # embedded switch sets the default compile optimization and passes
 # a flag to the code to switch other things on
 ifeq (true,$(call TOBOOL,$(ARCH_RISCV_EMBEDDED)))
@@ -189,5 +197,7 @@ else
 GLOBAL_DEFINES += ARCH_RISCV_TWOSEGMENT=0
 LINKER_SCRIPT += $(BUILDDIR)/linker-onesegment.ld
 endif
+
+$(info ARCH_COMPILEFLAGS = $(ARCH_COMPILEFLAGS))
 
 include make/module.mk
