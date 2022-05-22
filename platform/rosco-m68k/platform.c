@@ -14,14 +14,9 @@
 #include <platform/debug.h>
 #include <platform/timer.h>
 #include <platform/rosco-m68k.h>
+#include <string.h>
 #include <sys/types.h>
-#if WITH_LIB_MINIP
-#include <lib/minip.h>
-#endif
 #include <kernel/novm.h>
-#if WITH_LIB_CONSOLE
-#include <lib/console.h>
-#endif
 
 #include "platform_p.h"
 
@@ -29,27 +24,53 @@
 
 extern uint8_t __bss_end;
 
+// firmware structure left behind by boot rom
+// described at
+// https://github.com/rosco-m68k/rosco_m68k/blob/develop/code/firmware/rosco_m68k_firmware/InterfaceReference.md
+#define ROSCO_SDB_MAGIC (0xb105d47a)
+struct rosco_system_data_block {
+    uint32_t magic;
+    uint32_t status;
+    uint16_t timer_tick_counter;
+    uint16_t system_flags;
+    uint32_t upticks_counter;
+    uint8_t  easy68k_flag_echo_on;
+    uint8_t  easy68k_flag_prompt_on;
+    uint8_t  easy68k_flag_lf_display;
+    uint8_t  timer_tick_internal;
+    uint32_t mem_size;
+    uint32_t default_uart_base;
+    uint32_t cpu_info;
+};
+STATIC_ASSERT(sizeof(struct rosco_system_data_block) == 0x20);
+
+const volatile struct rosco_system_data_block *sdb = (void *)0x400;
+
 void platform_early_init(void) {
     duart_early_init();
 
-    dprintf(INFO, "ROSCO-M68K: firmware structure at 0x400 - 0x41f:\n");
-    hexdump((void *)0x400, 0x20);
-
-    uint32_t cpu_info = *(uint32_t *)0x41c;
-    printf("cpu family %u speed %u\n", cpu_info >> 29, cpu_info & 0x1fffffff);
-
-    // TODO: probe memory
-    // TODO: consider using firmware struct left around 0x400
+    // default to 1MB memory at 0
     uint32_t membase = 0x0;
     uint32_t memsize = 0x100000; // 1MB
+
+    if (sdb->magic != ROSCO_SDB_MAGIC) {
+        dprintf(INFO, "ROSCO-M68K: firmware failed magic check\n");
+    } else {
+        dprintf(INFO, "ROSCO-M68K: firmware structure at 0x400 - 0x41f:\n");
+        hexdump((void *)sdb, sizeof(*sdb));
+
+        printf("cpu family %u speed %u\n", sdb->cpu_info >> 29, sdb->cpu_info & 0x1fffffff);
+
+        memsize = sdb->mem_size;
+    }
 
     dprintf(INFO, "ROSCO-M68K: memory base %#x size %#x\n", membase, memsize);
     novm_add_arena("mem", membase, memsize);
 
     // build a table of illegal instructions around 0 to try to catch bad branches
-    volatile uint16_t *ptr = 0;
-    for (int i = 0; i < 256; i++) {
-        ptr[i] = 0x4afa; // undefined opcode
+    uint16_t ins = 0x4afa;
+    for (uintptr_t i = 0; i < 256; i++) {
+        memcpy((void *)i, &ins, 2);
     }
 }
 
