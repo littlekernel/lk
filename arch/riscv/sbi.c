@@ -25,6 +25,7 @@ enum sbi_extension {
     SBI_EXTENSION_RFENCE,
     SBI_EXTENSION_HSM,
     SBI_EXTENSION_SRST,
+    SBI_EXTENSION_PMU,
 };
 
 static uint sbi_ext;
@@ -110,6 +111,19 @@ void sbi_rfence_vma(const unsigned long *hart_mask, vaddr_t vma, size_t size) {
     }
 }
 
+status_t sbi_system_reset(uint32_t type, uint32_t reason) {
+    if (likely(sbi_ext_present(SBI_EXTENSION_SRST))) {
+        ulong error = sbi_call(SBI_EXT_SRST_SIG, 0, type, reason).error;
+        if (error != 0) {
+            return ERR_GENERIC;
+        }
+        // we really shouldn't get here
+        return NO_ERROR;
+    } else {
+        return ERR_NOT_IMPLEMENTED;
+    }
+}
+
 void sbi_early_init(void) {
     // read the presence of some features
     sbi_ext |= sbi_probe_extension(SBI_EXT_TIMER_SIG) ? (1<<SBI_EXTENSION_TIMER) : 0;
@@ -117,25 +131,26 @@ void sbi_early_init(void) {
     sbi_ext |= sbi_probe_extension(SBI_EXT_RFENCE_SIG) ? (1<<SBI_EXTENSION_RFENCE) : 0;
     sbi_ext |= sbi_probe_extension(SBI_EXT_HSM_SIG) ? (1<<SBI_EXTENSION_HSM) : 0;
     sbi_ext |= sbi_probe_extension(SBI_EXT_SRST_SIG) ? (1<<SBI_EXTENSION_SRST) : 0;
+    sbi_ext |= sbi_probe_extension(SBI_EXT_PMU_SIG) ? (1<<SBI_EXTENSION_PMU) : 0;
 }
 
 void sbi_init(void) {
-    dprintf(INFO, "RISCV: SBI spec version %ld impl id %ld version %ld\n",
-            sbi_generic_call_2(SBI_GET_SBI_SPEC_VERSION).value,
+    ulong version = sbi_generic_call_2(SBI_GET_SBI_SPEC_VERSION).value;
+    dprintf(INFO, "RISCV: SBI spec version %lu.%lu impl id %lu version %lu\n",
+            (version >> 24) & 0x7f, version & ((1UL<<24)-1),
             sbi_generic_call_2(SBI_GET_SBI_IMPL_ID).value,
             sbi_generic_call_2(SBI_GET_SBI_IMPL_VERSION).value);
 
     // print the extensions detected
-    dprintf(INFO, "RISCV: SBI extension TIMER %d\n", sbi_ext_present(SBI_EXTENSION_TIMER));
-    dprintf(INFO, "RISCV: SBI extension IPI %d\n", sbi_ext_present(SBI_EXTENSION_IPI));
-    dprintf(INFO, "RISCV: SBI extension RFENCE %d\n", sbi_ext_present(SBI_EXTENSION_RFENCE));
-    dprintf(INFO, "RISCV: SBI extension HSM %d\n", sbi_ext_present(SBI_EXTENSION_HSM));
-    dprintf(INFO, "RISCV: SBI extension SRST %d\n", sbi_ext_present(SBI_EXTENSION_SRST));
-
-    // print a line via the console
-    const char test[] = "SBI console test\n\r";
-    for (const char *c = test; *c != 0; c++) {
-        sbi_call(SBI_CONSOLE_PUTCHAR, *c);
+    if (LK_DEBUGLEVEL >= INFO) {
+        dprintf(INFO, "RISCV: SBI extensions: ");
+        if (sbi_ext_present(SBI_EXTENSION_TIMER)) dprintf(INFO, "TIMER ");
+        if (sbi_ext_present(SBI_EXTENSION_IPI)) dprintf(INFO, "IPI ");
+        if (sbi_ext_present(SBI_EXTENSION_RFENCE)) dprintf(INFO, "RFENCE ");
+        if (sbi_ext_present(SBI_EXTENSION_HSM)) dprintf(INFO, "HSM ");
+        if (sbi_ext_present(SBI_EXTENSION_SRST)) dprintf(INFO, "SRST ");
+        if (sbi_ext_present(SBI_EXTENSION_PMU)) dprintf(INFO, "PMU ");
+        dprintf(INFO, "\n");
     }
 }
 

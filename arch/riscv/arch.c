@@ -88,19 +88,28 @@ void arch_init(void) {
     riscv_init_percpu();
 
     // print some arch info
+    const char *mode_string;
 #if RISCV_M_MODE
-    dprintf(INFO, "RISCV: Machine mode\n");
+    mode_string = "Machine";
+#elif RISCV_S_MODE
+    mode_string = "Supervisor";
+#else
+#error need to define M or S mode
+#endif
+
+    dprintf(INFO, "RISCV: %s mode\n", mode_string);
     dprintf(INFO, "RISCV: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#x\n",
             riscv_get_mvendorid(), riscv_get_marchid(),
             riscv_get_mimpid(), riscv_current_hart());
+
+#if RISCV_M_MODE
     dprintf(INFO, "RISCV: misa %#lx\n", riscv_csr_read(RISCV_CSR_MISA));
-#else
-    dprintf(INFO, "RISCV: Supervisor mode\n");
+#elif RISCV_S_MODE
+    sbi_init();
 #if RISCV_MMU
     dprintf(INFO, "RISCV: MMU enabled sv%u\n", RISCV_MMU);
     riscv_mmu_init();
 #endif
-    sbi_init();
 #endif
 
 #if WITH_SMP

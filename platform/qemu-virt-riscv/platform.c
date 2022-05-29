@@ -220,10 +220,17 @@ void platform_halt(platform_halt_action suggested_action,
     switch (suggested_action) {
         case HALT_ACTION_SHUTDOWN:
             dprintf(ALWAYS, "Shutting down... (reason = %d)\n", reason);
+#if RISCV_S_MODE
+            // try to use SBI as a cleaner way to stop
+            sbi_system_reset(SBI_RESET_TYPE_SHUTDOWN, SBI_RESET_REASON_NONE);
+#endif
             *power_reset_reg = 0x5555;
             break;
         case HALT_ACTION_REBOOT:
             dprintf(ALWAYS, "Rebooting... (reason = %d)\n", reason);
+#if RISCV_S_MODE
+            sbi_system_reset(SBI_RESET_TYPE_COLD_REBOOT, SBI_RESET_REASON_NONE);
+#endif
             *power_reset_reg = 0x7777;
             break;
         case HALT_ACTION_HALT:

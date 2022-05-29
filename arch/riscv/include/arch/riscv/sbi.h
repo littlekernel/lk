@@ -32,6 +32,7 @@ enum sbi_return_code {
     SBI_ERR_INVALID_ADDRESS = -5,
 };
 
+// Legacy SBI extensions (avoid using)
 #define SBI_SET_TIMER               0x00, 0
 #define SBI_CONSOLE_PUTCHAR         0x01, 0
 #define SBI_CONSOLE_GETCHAR         0x02, 0
@@ -42,6 +43,7 @@ enum sbi_return_code {
 #define SBI_REMOTE_SFENCE_VMA_ASID  0x07, 0
 #define SBI_SHUTDOWN                0x08, 0
 
+// Base extension
 #define SBI_GET_SBI_SPEC_VERSION    0x10, 0
 #define SBI_GET_SBI_IMPL_ID         0x10, 1
 #define SBI_GET_SBI_IMPL_VERSION    0x10, 2
@@ -50,11 +52,14 @@ enum sbi_return_code {
 #define SBI_GET_MARCHID             0x10, 5
 #define SBI_GET_MIMPID              0x10, 6
 
-#define SBI_EXT_TIMER_SIG           0x54494d45
-#define SBI_EXT_IPI_SIG             0x00735049
-#define SBI_EXT_RFENCE_SIG          0x52464e43
-#define SBI_EXT_HSM_SIG             0x0048534d
-#define SBI_EXT_SRST_SIG            0x53525354
+// Extension signatures
+// use SBI_PROBE_EXTENSION to discover
+#define SBI_EXT_TIMER_SIG           0x54494d45 // TIME
+#define SBI_EXT_IPI_SIG             0x00735049 // sPI
+#define SBI_EXT_RFENCE_SIG          0x52464e43 // RFNC
+#define SBI_EXT_HSM_SIG             0x0048534d // HSM
+#define SBI_EXT_SRST_SIG            0x53525354 // SRST
+#define SBI_EXT_PMU_SIG            0x00504d55 // PMU
 
 void sbi_early_init(void);
 void sbi_init(void);
@@ -70,6 +75,17 @@ bool sbi_probe_extension(ulong extension);
 
 struct sbiret sbi_generic_call_2(ulong extension, ulong function);
 struct sbiret sbi_generic_call_3(ulong extension, ulong function);
+
+#define SBI_RESET_TYPE_SHUTDOWN 0
+#define SBI_RESET_TYPE_COLD_REBOOT 1
+#define SBI_RESET_TYPE_WARM_REBOOT 2
+#define SBI_RESET_TYPE_VENDOR_BASE (0xf0000000)
+
+#define SBI_RESET_REASON_NONE 0
+#define SBI_RESET_REASON_SYSTEM_FAILURE 1
+#define SBI_RESET_REASON_SBI_BASE (0xe0000000)
+#define SBI_RESET_REASON_VENDOR_BASE (0xf0000000)
+status_t sbi_system_reset(uint32_t type, uint32_t reason);
 
 #endif
 
