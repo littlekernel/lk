@@ -16,37 +16,61 @@
 #define LOCAL_TRACE 0
 
 static const char *cause_to_string(long cause) {
-    switch (cause) {
-        case RISCV_EXCEPTION_IADDR_MISALIGN:
-            return "Instruction address misaligned";
-        case RISCV_EXCEPTION_IACCESS_FAULT:
-            return "Instruction access fault";
-        case RISCV_EXCEPTION_ILLEGAL_INS:
-            return "Illegal instruction";
-        case RISCV_EXCEPTION_BREAKPOINT:
-            return "Breakpoint";
-        case RISCV_EXCEPTION_LOAD_ADDR_MISALIGN:
-            return "Load address misaligned";
-        case RISCV_EXCEPTION_LOAD_ACCESS_FAULT:
-            return "Load access fault";
-        case RISCV_EXCEPTION_STORE_ADDR_MISALIGN:
-            return "Store/AMO address misaligned";
-        case RISCV_EXCEPTION_STORE_ACCESS_FAULT:
-            return "Store/AMO access fault";
-        case RISCV_EXCEPTION_ENV_CALL_U_MODE:
-            return "Environment call from U-mode";
-        case RISCV_EXCEPTION_ENV_CALL_S_MODE:
-            return "Environment call from S-mode";
-        case RISCV_EXCEPTION_ENV_CALL_M_MODE:
-            return "Environment call from M-mode";
-        case RISCV_EXCEPTION_INS_PAGE_FAULT:
-            return "Instruction page fault";
-        case RISCV_EXCEPTION_LOAD_PAGE_FAULT:
-            return "Load page fault";
-        case RISCV_EXCEPTION_STORE_PAGE_FAULT:
-            return "Store/AMO page fault";
+    if (cause >= 0) {
+        switch (cause) {
+            case RISCV_EXCEPTION_IADDR_MISALIGN:
+                return "Instruction address misaligned";
+            case RISCV_EXCEPTION_IACCESS_FAULT:
+                return "Instruction access fault";
+            case RISCV_EXCEPTION_ILLEGAL_INS:
+                return "Illegal instruction";
+            case RISCV_EXCEPTION_BREAKPOINT:
+                return "Breakpoint";
+            case RISCV_EXCEPTION_LOAD_ADDR_MISALIGN:
+                return "Load address misaligned";
+            case RISCV_EXCEPTION_LOAD_ACCESS_FAULT:
+                return "Load access fault";
+            case RISCV_EXCEPTION_STORE_ADDR_MISALIGN:
+                return "Store/AMO address misaligned";
+            case RISCV_EXCEPTION_STORE_ACCESS_FAULT:
+                return "Store/AMO access fault";
+            case RISCV_EXCEPTION_ENV_CALL_U_MODE:
+                return "Environment call from U-mode";
+            case RISCV_EXCEPTION_ENV_CALL_S_MODE:
+                return "Environment call from S-mode";
+            case RISCV_EXCEPTION_ENV_CALL_M_MODE:
+                return "Environment call from M-mode";
+            case RISCV_EXCEPTION_INS_PAGE_FAULT:
+                return "Instruction page fault";
+            case RISCV_EXCEPTION_LOAD_PAGE_FAULT:
+                return "Load page fault";
+            case RISCV_EXCEPTION_STORE_PAGE_FAULT:
+                return "Store/AMO page fault";
+        }
+        return "Unknown exception";
+    } else {
+        switch (cause & LONG_MAX) {
+            case RISCV_INTERRUPT_USWI:
+                return "User software interrupt";
+            case RISCV_INTERRUPT_SSWI:
+                return "Supervisor software interrupt";
+            case RISCV_INTERRUPT_MSWI:
+                return "Machine software interrupt";
+            case RISCV_INTERRUPT_UTIM:
+                return "User timer interrupt";
+            case RISCV_INTERRUPT_STIM:
+                return "Supervisor timer interrupt";
+            case RISCV_INTERRUPT_MTIM:
+                return "Machine timer interrupt";
+            case RISCV_INTERRUPT_UEXT:
+                return "User external interrupt";
+            case RISCV_INTERRUPT_SEXT:
+                return "Supervisor external interrupt";
+            case RISCV_INTERRUPT_MEXT:
+                return "Machine external interrupt";
+        }
+        return "Unknown interrupt";
     }
-    return "Unknown";
 }
 
 static void dump_iframe(struct riscv_short_iframe *frame, bool kernel) {
@@ -62,8 +86,8 @@ static void dump_iframe(struct riscv_short_iframe *frame, bool kernel) {
 __NO_RETURN __NO_INLINE
 static void fatal_exception(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel) {
     if (cause < 0) {
-        printf("unhandled interrupt cause %#lx, epc %#lx, tval %#lx\n", cause, epc,
-              riscv_csr_read(RISCV_CSR_XTVAL));
+        printf("unhandled interrupt cause %#lx (%s), epc %#lx, tval %#lx\n", cause,
+              cause_to_string(cause), epc, riscv_csr_read(RISCV_CSR_XTVAL));
     } else {
         printf("unhandled exception cause %#lx (%s), epc %#lx, tval %#lx\n", cause,
               cause_to_string(cause), epc, riscv_csr_read(RISCV_CSR_XTVAL));
