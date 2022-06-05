@@ -45,17 +45,23 @@ static uint8_t acpi_checksum(const void* _buf, size_t len) {
 static bool validate_rsdp(const acpi_rsdp* rsdp) {
   // check the signature
   if (memcmp(ACPI_RSDP_SIG, rsdp->sig, 8)) {
+    // Generates a huge pile of info as it scans for RSDP
+    //LTRACEF("acpi rsdp signature failed:\n");
+    //hexdump8(rsdp->sig, 8);
     return false;
   }
 
   // validate the v1 checksum on the first 20 bytes of the table
   uint8_t c = acpi_checksum(rsdp, 20);
   if (c) {
+    LTRACEF("v1 checksum failed\n");
     return false;
   }
 
   // is it v2?
+  LTRACEF("rsdp version %u\n", rsdp->revision);
   if (rsdp->revision >= 2) {
+    LTRACEF("rsdp length %u\n", rsdp->length);
     if (rsdp->length < 36 || rsdp->length > 4096) {
       // keep the table length within reason
       return false;
@@ -63,6 +69,7 @@ static bool validate_rsdp(const acpi_rsdp* rsdp) {
 
     c = acpi_checksum(rsdp, rsdp->length);
     if (c) {
+      LTRACEF("full checksum failed\n");
       return false;
     }
   }
@@ -85,35 +92,42 @@ static paddr_t find_rsdp_pc() {
 }
 
 static bool validate_sdt(const acpi_rsdt_xsdt* sdt, size_t* num_tables, bool* xsdt) {
-  LTRACEF("%p\n", sdt);
+  LTRACEF("pointer %p\n", sdt);
 
   // bad pointer
   if (!sdt) {
+    LTRACEF("failing due to null pointer\n");
     return false;
   }
 
   // check the signature and see if it's a rsdt or xsdt
   if (!memcmp(sdt->header.sig, "XSDT", 4)) {
+    LTRACEF("found XSDT\n");
     *xsdt = true;
   } else if (!memcmp(sdt->header.sig, "RSDT", 4)) {
+    LTRACEF("found RSDT\n");
     *xsdt = false;
   } else {
+    LTRACEF("did not find XSDT or RSDT\n");
     return false;
   }
 
   // is the length sane?
   if (sdt->header.length < 36 || sdt->header.length > 4096) {
+    LTRACEF("bad length %u\n", sdt->header.length);
     return false;
   }
 
   // is it a revision we understand?
   if (sdt->header.revision != 1) {
+    LTRACEF("revision we do not handle %u\n", sdt->header.revision);
     return false;
   }
 
   // checksum the entire table
   uint8_t c = acpi_checksum(sdt, sdt->header.length);
   if (c) {
+    LTRACEF("failed checksum\n");
     return false;
   }
 
@@ -191,18 +205,21 @@ status_t acpi_lite_init(paddr_t rsdp_pa) {
     return ERR_NOT_FOUND;
   }
 
-  dprintf(SPEW, "ACPI LITE: RSDP checks out, found at %#lx\n", rsdp_pa);
+  dprintf(SPEW, "ACPI LITE: RSDP checks out, found at %#lx, revision %u\n", rsdp_pa, acpi.rsdp->revision);
 
   // find the pointer to either the RSDT or XSDT
   acpi.sdt = nullptr;
   if (acpi.rsdp->revision < 2) {
     // v1 RSDP, pointing at a RSDT
+    LTRACEF("v1 RSDP, using 32 bit RSDT address %#x\n", acpi.rsdp->rsdt_address);
     acpi.sdt = static_cast<const acpi_rsdt_xsdt*>(phys_to_ptr(acpi.rsdp->rsdt_address));
   } else {
     // v2+ RSDP, pointing at a XSDT
     // try to use the 64bit address first
+    LTRACEF("v2+ RSDP, trying 64 bit XSDT address %#" PRIx64 "\n", acpi.rsdp->xsdt_address);
     acpi.sdt = static_cast<const acpi_rsdt_xsdt*>(phys_to_ptr(acpi.rsdp->xsdt_address));
     if (!acpi.sdt) {
+      LTRACEF("v2+ RSDP, falling back to 32 RSDT address %#" PRIx32 "\n", acpi.rsdp->rsdt_address);
       acpi.sdt = static_cast<const acpi_rsdt_xsdt*>(phys_to_ptr(acpi.rsdp->rsdt_address));
     }
   }
@@ -267,3 +284,5 @@ status_t acpi_process_madt_entries_etc(const uint8_t search_type, const madt_ent
 
   return NO_ERROR;
 }
+
+// vim: set ts=2 sw=2 expandtab:
