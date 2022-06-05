@@ -277,7 +277,7 @@ clean: $(EXTRA_CLEANDEPS)
 	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex $(OUTELF).dump
 
 install: all
-	scp $(OUTBIN) 192.168.0.4:/tftproot
+	scp $(OUTBIN) 192.168.0.4:/tftpboot
 
 list-arch:
 	@echo ARCH = ${ARCH}
