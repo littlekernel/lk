@@ -65,6 +65,7 @@ arm_reset:
     add     page_table0, page_table0, #:lo12:tt_trampoline
 
 #if WITH_SMP
+    /* if the cpu id is != 0 it's a secondary cpu */
     mrs     cpuid, mpidr_el1
     ubfx    cpuid, cpuid, #0, #SMP_CPU_ID_BITS
     cbnz    cpuid, .Lmmu_enable_secondary
