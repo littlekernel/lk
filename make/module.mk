@@ -4,6 +4,7 @@
 # args:
 # MODULE : module name (required)
 # MODULE_SRCS : list of source files, local path (required)
+# MODULE_FLOAT_SRCS : list of source files compiled with floating point support (if available)
 # MODULE_DEPS : other modules that this one depends on
 # MODULE_DEFINES : #defines local to this module
 # MODULE_OPTFLAGS : OPTFLAGS local to this module
@@ -16,6 +17,10 @@
 # MODULE_EXTRA_OBJS : extra .o files that should be linked with the module
 
 # MODULE_ARM_OVERRIDE_SRCS : list of source files, local path that should be force compiled with ARM (if applicable)
+
+# MODULE_OPTIONS : space delimited list of options
+# currently defined options:
+#   float - module uses floating point instructions/code
 
 # the minimum module rules.mk file is as follows:
 #
@@ -45,12 +50,26 @@ GLOBAL_INCLUDES += $(MODULE_SRCDIR)/include
 # add the listed module deps to the global list
 MODULES += $(MODULE_DEPS)
 
+# parse options
+ifeq ($(filter float,$(MODULE_OPTIONS)),float)
+# floating point option just forces all files in the module to be
+# compiled with floating point compiler flags.
+$(info MODULE $(MODULE) has float option)
+MODULE_FLOAT_SRCS := $(sort $(MODULE_FLOAT_SRCS) $(MODULE_SRCS))
+MODULE_SRCS :=
+endif
+
 #$(info module $(MODULE))
+#$(info MODULE_COMPILEFLAGS = $(MODULE_COMPILEFLAGS))
 #$(info MODULE_SRCDIR $(MODULE_SRCDIR))
 #$(info MODULE_BUILDDIR $(MODULE_BUILDDIR))
 #$(info MODULE_DEPS $(MODULE_DEPS))
 #$(info MODULE_SRCS $(MODULE_SRCS))
+#$(info MODULE_FLOAT_SRCS $(MODULE_SRCS))
+#$(info MODULE_OPTIONS $(MODULE_OPTIONS))
 
+MODULE_DEFINES += MODULE_NAME=\"$(subst $(SPACE),_,$(MODULE))\"
+MODULE_DEFINES += MODULE_OPTIONS=\"$(subst $(SPACE),_,$(MODULE_OPTIONS))\"
 MODULE_DEFINES += MODULE_COMPILEFLAGS=\"$(subst $(SPACE),_,$(MODULE_COMPILEFLAGS))\"
 MODULE_DEFINES += MODULE_CFLAGS=\"$(subst $(SPACE),_,$(MODULE_CFLAGS))\"
 MODULE_DEFINES += MODULE_CPPFLAGS=\"$(subst $(SPACE),_,$(MODULE_CPPFLAGS))\"
@@ -61,6 +80,7 @@ MODULE_DEFINES += MODULE_INCLUDES=\"$(subst $(SPACE),_,$(MODULE_INCLUDES))\"
 MODULE_DEFINES += MODULE_SRCDEPS=\"$(subst $(SPACE),_,$(MODULE_SRCDEPS))\"
 MODULE_DEFINES += MODULE_DEPS=\"$(subst $(SPACE),_,$(MODULE_DEPS))\"
 MODULE_DEFINES += MODULE_SRCS=\"$(subst $(SPACE),_,$(MODULE_SRCS))\"
+MODULE_DEFINES += MODULE_FLOAT_SRCS=\"$(subst $(SPACE),_,$(MODULE_FLOAT_SRCS))\"
 
 # generate a per-module config.h file
 MODULE_CONFIG := $(MODULE_BUILDDIR)/module_config.h
@@ -108,6 +128,7 @@ MODULE_SRCDIR :=
 MODULE_BUILDDIR :=
 MODULE_DEPS :=
 MODULE_SRCS :=
+MODULE_FLOAT_SRCS :=
 MODULE_OBJS :=
 MODULE_DEFINES :=
 MODULE_OPTFLAGS :=
@@ -121,3 +142,4 @@ MODULE_EXTRA_OBJS :=
 MODULE_CONFIG :=
 MODULE_OBJECT :=
 MODULE_ARM_OVERRIDE_SRCS :=
+MODULE_OPTIONS :=

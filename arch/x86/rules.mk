@@ -101,11 +101,11 @@ ifeq ($(SUBARCH),x86-64)
 ARCH_COMPILEFLAGS += -fno-stack-protector
 ARCH_COMPILEFLAGS += -mcmodel=kernel
 ARCH_COMPILEFLAGS += -mno-red-zone
-
-# disable builtins to keep the compiler from generating sse instructions
-# for load/stores
-ARCH_COMPILEFLAGS += -fno-builtin
 endif # SUBARCH x86-64
+
+# set switches to generate/not generate fpu code
+ARCH_COMPILEFLAGS_FLOAT +=
+ARCH_COMPILEFLAGS_NOFLOAT += -mgeneral-regs-only
 
 # select default optimizations for different target cpu levels
 ifeq ($(CPU),legacy)

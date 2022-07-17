@@ -82,6 +82,8 @@ GLOBAL_LDFLAGS += $(addprefix -L,$(LKINC))
 
 # Architecture specific compile flags
 ARCH_COMPILEFLAGS :=
+ARCH_COMPILEFLAGS_NOFLOAT := # flags used when compiling with floating point support
+ARCH_COMPILEFLAGS_FLOAT := # flags for when not compiling with floating point support
 ARCH_CFLAGS :=
 ARCH_CPPFLAGS :=
 ARCH_ASMFLAGS :=

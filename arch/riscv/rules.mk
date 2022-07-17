@@ -36,6 +36,11 @@ ifeq (true,$(call TOBOOL,$(RISCV_FPU)))
 GLOBAL_DEFINES += RISCV_FPU=1
 endif
 
+# for the moment leave out all fpu support, even if the above flag is set
+# TODO: add full riscv fpu context switch support
+ARCH_COMPILEFLAGS_FLOAT :=
+ARCH_COMPILEFLAGS_NOFLOAT :=
+
 ifeq ($(strip $(RISCV_MODE)),machine)
 $(info RISCV: Machine Mode)
 GLOBAL_DEFINES += RISCV_M_MODE=1

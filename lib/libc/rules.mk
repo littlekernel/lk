@@ -13,13 +13,15 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/bsearch.c \
 	$(LOCAL_DIR)/ctype.c \
 	$(LOCAL_DIR)/errno.c \
-	$(LOCAL_DIR)/printf.c \
 	$(LOCAL_DIR)/rand.c \
 	$(LOCAL_DIR)/strtol.c \
 	$(LOCAL_DIR)/strtoll.c \
 	$(LOCAL_DIR)/stdio.c \
 	$(LOCAL_DIR)/qsort.c \
 	$(LOCAL_DIR)/eabi.c
+
+MODULE_FLOAT_SRCS += \
+	$(LOCAL_DIR)/printf.c \
 
 MODULE_COMPILEFLAGS += -fno-builtin
 
