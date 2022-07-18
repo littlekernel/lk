@@ -9,6 +9,8 @@
 #include <arch/riscv.h>
 #include <arch/riscv/asm.h>
 
+#if RISCV_FPU
+
 // enable full use of all of the fpu instructions
 #if __riscv_xlen == 32
 .attribute arch, "rv32imafdc"
@@ -30,7 +32,6 @@
 // called just before entering user space for the first time.
 // must not use the stack and is okay to be called with interrupts disabled.
 FUNCTION(riscv_fpu_zero)
-#if RISCV_FPU
     // zero out the fpu state
     // TODO: handle single precision implementations
     csrw fcsr, zero
@@ -66,7 +67,93 @@ FUNCTION(riscv_fpu_zero)
     ZERO_FPU_REG f29, d
     ZERO_FPU_REG f30, d
     ZERO_FPU_REG f31, d
-#endif
+
+    // put the hardware in the initial state
+    // FS[1:0] == 1 set in two steps: one to set bit 0, second one to clear bit 1
+    // this ensures it doesn't go through the disabled state (00)
+    li  a0, (1 << 13)
+    csrs RISCV_CSR_XSTATUS, a0
+    li   a0, (1 << 14)
+    csrc RISCV_CSR_XSTATUS, a0
+
     ret
 END_FUNCTION(riscv_fpu_zero)
 
+// void riscv_fpu_save(struct riscv_fpu_state *state);
+FUNCTION(riscv_fpu_save)
+    fsd  f0, 0*8(a0)
+    fsd  f1, 1*8(a0)
+    fsd  f2, 2*8(a0)
+    fsd  f3, 3*8(a0)
+    fsd  f4, 4*8(a0)
+    fsd  f5, 5*8(a0)
+    fsd  f6, 6*8(a0)
+    fsd  f7, 7*8(a0)
+    fsd  f8, 8*8(a0)
+    fsd  f9, 9*8(a0)
+    fsd  f10, 10*8(a0)
+    fsd  f11, 11*8(a0)
+    fsd  f12, 12*8(a0)
+    fsd  f13, 13*8(a0)
+    fsd  f14, 14*8(a0)
+    fsd  f15, 15*8(a0)
+    fsd  f16, 16*8(a0)
+    fsd  f17, 17*8(a0)
+    fsd  f18, 18*8(a0)
+    fsd  f19, 19*8(a0)
+    fsd  f20, 20*8(a0)
+    fsd  f21, 21*8(a0)
+    fsd  f22, 22*8(a0)
+    fsd  f23, 23*8(a0)
+    fsd  f24, 24*8(a0)
+    fsd  f25, 25*8(a0)
+    fsd  f26, 26*8(a0)
+    fsd  f27, 27*8(a0)
+    fsd  f28, 28*8(a0)
+    fsd  f29, 29*8(a0)
+    fsd  f30, 30*8(a0)
+    fsd  f31, 31*8(a0)
+    csrr a1, fcsr
+    sw   a1, 32*8(a0)
+    ret
+END_FUNCTION(riscv_fpu_save)
+
+// void riscv_fpu_restore(struct riscv_fpu_state *state);
+FUNCTION(riscv_fpu_restore)
+    fld  f0, 0*8(a0)
+    fld  f1, 1*8(a0)
+    fld  f2, 2*8(a0)
+    fld  f3, 3*8(a0)
+    fld  f4, 4*8(a0)
+    fld  f5, 5*8(a0)
+    fld  f6, 6*8(a0)
+    fld  f7, 7*8(a0)
+    fld  f8, 8*8(a0)
+    fld  f9, 9*8(a0)
+    fld  f10, 10*8(a0)
+    fld  f11, 11*8(a0)
+    fld  f12, 12*8(a0)
+    fld  f13, 13*8(a0)
+    fld  f14, 14*8(a0)
+    fld  f15, 15*8(a0)
+    fld  f16, 16*8(a0)
+    fld  f17, 17*8(a0)
+    fld  f18, 18*8(a0)
+    fld  f19, 19*8(a0)
+    fld  f20, 20*8(a0)
+    fld  f21, 21*8(a0)
+    fld  f22, 22*8(a0)
+    fld  f23, 23*8(a0)
+    fld  f24, 24*8(a0)
+    fld  f25, 25*8(a0)
+    fld  f26, 26*8(a0)
+    fld  f27, 27*8(a0)
+    fld  f28, 28*8(a0)
+    fld  f29, 29*8(a0)
+    fld  f30, 30*8(a0)
+    fld  f31, 31*8(a0)
+    lw   a1, 32*8(a0)
+    csrw fcsr, a1
+    ret
+END_FUNCTION(riscv_fpu_restore)
+#endif // RISCV_FPU

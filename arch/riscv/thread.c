@@ -44,6 +44,8 @@ void arch_thread_initialize(thread_t *t) {
     /* zero out the thread context */
     memset(&t->arch.cs_frame, 0, sizeof(t->arch.cs_frame));
 
+    /* if FPU is implemented, default state of zero is default for the thread */
+
     /* make sure the top of the stack is 16 byte aligned */
     vaddr_t stack_top = ROUNDDOWN((vaddr_t)t->stack + t->stack_size, 16);
 
@@ -58,12 +60,66 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
 
     LTRACEF("old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
 
+    /* floating point context switch */
+#if RISCV_FPU
+    /* based on a combination of current fpu dirty state in hardware and saved state
+     * on the new thread, do a partial or full context switch
+     */
+    ulong status = riscv_csr_read(RISCV_CSR_XSTATUS);
+    ulong hw_state = status & RISCV_CSR_XSTATUS_FS_MASK;
+
+    LTRACEF("old fpu dirty %d, new fpu dirty %d, status %#lx\n", oldthread->arch.cs_frame.fpu_dirty, newthread->arch.cs_frame.fpu_dirty,
+            hw_state >> RISCV_CSR_XSTATUS_FS_SHIFT);
+
+    status &= ~(RISCV_CSR_XSTATUS_FS_MASK);
+
+    /* hardware currently is in the dirty state, so save the state of the fpu regs
+     * and mark the thread as dirty.
+     */
+    switch (hw_state) {
+        case RISCV_CSR_XSTATUS_FS_DIRTY:
+            oldthread->arch.cs_frame.fpu_dirty = true;
+            riscv_fpu_save(&oldthread->arch.cs_frame.fpu);
+            break;
+        case RISCV_CSR_XSTATUS_FS_INITIAL:
+            oldthread->arch.cs_frame.fpu_dirty = false;
+            break;
+        case RISCV_CSR_XSTATUS_FS_OFF:
+            // TODO: handle fpu being disabled
+            PANIC_UNIMPLEMENTED;
+    }
+
+    if (newthread->arch.cs_frame.fpu_dirty) {
+        /* if the new thread has dirty saved state, load it here and mark the cpu as in the
+         * clean state, which will transition to dirty if any regs are modified
+         */
+        status |= RISCV_CSR_XSTATUS_FS_CLEAN;
+        riscv_fpu_restore(&newthread->arch.cs_frame.fpu);
+    } else {
+        /* if the thread previously hadn't dirtied the state, zero out the fpu
+         * state and mark hardware as initial.
+         */
+        status |= RISCV_CSR_XSTATUS_FS_INITIAL;
+        riscv_fpu_zero();
+    }
+
+    /* writeback the modified state to hardware */
+    riscv_csr_write(RISCV_CSR_XSTATUS, status);
+#endif
+
+    /* integer context switch.
+     * stack is swapped as part of this routine, so the code will return only when
+     * the current thread context is switched back to.
+     */
     riscv_context_switch(&oldthread->arch.cs_frame, &newthread->arch.cs_frame);
 }
 
 void arch_dump_thread(thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
+#if RISCV_FPU
+        dprintf(INFO, "fpu dirty %u, ", t->arch.cs_frame.fpu_dirty);
+#endif
         dprintf(INFO, "sp %#lx\n", t->arch.cs_frame.sp);
     }
 }

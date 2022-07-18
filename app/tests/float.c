@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#if ARM_WITH_VFP || ARCH_ARM64 || X86_WITH_FPU
+#if ARM_WITH_VFP || ARCH_ARM64 || X86_WITH_FPU || (ARCH_RISCV && RISCV_FPU)
 
 #include <stdio.h>
 #include <rand.h>

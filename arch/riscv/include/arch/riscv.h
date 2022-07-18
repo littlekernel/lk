@@ -65,6 +65,10 @@
 #define RISCV_CSR_XSTATUS_MXR   (1ul << 19)
 #define RISCV_CSR_XSTATUS_FS_SHIFT (13)
 #define RISCV_CSR_XSTATUS_FS_MASK (3ul << RISCV_CSR_XSTATUS_FS_SHIFT)
+#define RISCV_CSR_XSTATUS_FS_OFF  (0ul << RISCV_CSR_XSTATUS_FS_SHIFT)
+#define RISCV_CSR_XSTATUS_FS_INITIAL (1ul << RISCV_CSR_XSTATUS_FS_SHIFT)
+#define RISCV_CSR_XSTATUS_FS_CLEAN (2ul << RISCV_CSR_XSTATUS_FS_SHIFT)
+#define RISCV_CSR_XSTATUS_FS_DIRTY (3ul << RISCV_CSR_XSTATUS_FS_SHIFT)
 
 #define RISCV_CSR_XIE_SIE       (1ul << (RISCV_XMODE_OFFSET + 0))
 #define RISCV_CSR_XIE_TIE       (1ul << (RISCV_XMODE_OFFSET + 4))
@@ -215,9 +219,6 @@ enum handler_return riscv_timer_exception(void);
 enum handler_return riscv_software_exception(void);
 enum handler_return riscv_platform_irq(void);
 void riscv_syscall_handler(struct riscv_short_iframe *frame);
-
-// initialize the fpu state to zero
-void riscv_fpu_zero(void);
 
 // If using S mode, time seems to be implemented in clint.h
 // TODO: clean up by moving into its own header

@@ -55,6 +55,14 @@ void riscv_early_init_percpu(void) {
     riscv_csr_clear(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_IE);
     riscv_csr_clear(RISCV_CSR_XIE, RISCV_CSR_XIE_SIE | RISCV_CSR_XIE_TIE | RISCV_CSR_XIE_EIE);
 
+#if RISCV_FPU
+    // enable the fpu and zero it out
+    riscv_csr_clear(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_FS_MASK);
+    riscv_csr_set(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_FS_INITIAL);
+
+    riscv_fpu_zero();
+#endif
+
     // enable cycle counter (disabled for now, unimplemented on sifive-e)
     //riscv_csr_set(mcounteren, 1);
 }
@@ -145,10 +153,6 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     status = RISCV_CSR_XSTATUS_PIE |
              RISCV_CSR_XSTATUS_SUM;
 
-#if RISCV_FPU
-    status |= (1ul << RISCV_CSR_XSTATUS_FS_SHIFT); // mark fpu state 'initial'
-#endif
-
     printf("user sstatus %#lx\n", status);
 
     arch_disable_ints();
@@ -157,7 +161,10 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     riscv_csr_write(sepc, entry_point);
     riscv_csr_write(sscratch, kernel_stack_top);
 
+#if RISCV_FPU
+    status |= RISCV_CSR_XSTATUS_FS_INITIAL; // mark fpu state 'initial'
     riscv_fpu_zero();
+#endif
 
     // put the current tp (percpu pointer) just below the top of the stack
     // the exception code will recover it when coming from user space
