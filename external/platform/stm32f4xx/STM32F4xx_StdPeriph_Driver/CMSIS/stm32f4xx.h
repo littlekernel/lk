@@ -50,6 +50,8 @@
  extern "C" {
 #endif /* __cplusplus */
   
+#define assert_param(expr) ((void)0)
+
 /** @addtogroup Library_configuration_section
   * @{
   */
