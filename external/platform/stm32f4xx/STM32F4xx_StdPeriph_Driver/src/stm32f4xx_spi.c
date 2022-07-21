@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file    stm32f4xx_spi.c
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file provides firmware functions to manage the following 
   *          functionalities of the Serial peripheral interface (SPI):
   *           + Initialization and Configuration
@@ -138,22 +138,15 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
-  *
-  ******************************************************************************  
-  */ 
+  ******************************************************************************
+  */
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_spi.h"
@@ -383,12 +376,18 @@ void I2S_Init(SPI_TypeDef* SPIx, I2S_InitTypeDef* I2S_InitStruct)
     if(I2S_InitStruct->I2S_DataFormat == I2S_DataFormat_16b)
     {
       /* Packet length is 16 bits */
-      packetlength = 1;
+      packetlength = 16;
     }
     else
     {
       /* Packet length is 32 bits */
-      packetlength = 2;
+      packetlength = 32;
+    }
+
+    if(I2S_InitStruct->I2S_Standard <= I2S_Standard_LSB)
+    {
+      /* In I2S standard packet length is multiplied by 2 */
+      packetlength = packetlength * 2;
     }
 
     /* Get I2S source Clock frequency  ****************************************/
@@ -475,8 +474,16 @@ void I2S_Init(SPI_TypeDef* SPIx, I2S_InitTypeDef* I2S_InitStruct)
                   (uint16_t)(I2S_InitStruct->I2S_Standard | (uint16_t)(I2S_InitStruct->I2S_DataFormat | \
                   (uint16_t)I2S_InitStruct->I2S_CPOL))));
  
+#if defined(SPI_I2SCFGR_ASTRTEN)
+  if((I2S_InitStruct->I2S_Standard  == I2S_Standard_PCMShort) || (I2S_InitStruct->I2S_Standard  == I2S_Standard_PCMLong))
+  {
+    /* Write to SPIx I2SCFGR */  
+    SPIx->I2SCFGR = tmpreg | SPI_I2SCFGR_ASTRTEN;
+  }
+#else
   /* Write to SPIx I2SCFGR */  
-  SPIx->I2SCFGR = tmpreg;
+  SPIx->I2SCFGR = tmpreg ;
+#endif 
 }
 
 /**
@@ -1316,4 +1323,3 @@ void SPI_I2S_ClearITPendingBit(SPI_TypeDef* SPIx, uint8_t SPI_I2S_IT)
   * @}
   */ 
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

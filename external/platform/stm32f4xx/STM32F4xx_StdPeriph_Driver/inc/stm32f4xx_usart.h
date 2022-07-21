@@ -2,29 +2,22 @@
   ******************************************************************************
   * @file    stm32f4xx_usart.h
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file contains all the functions prototypes for the USART 
   *          firmware library.    
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
-  *
-  ******************************************************************************  
-  */ 
+  ******************************************************************************
+  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __STM32F4xx_USART_H
@@ -114,7 +107,9 @@ typedef struct
                                      ((PERIPH) == UART5)  || \
                                      ((PERIPH) == USART6) || \
                                      ((PERIPH) == UART7)  || \
-                                     ((PERIPH) == UART8))
+                                     ((PERIPH) == UART8)  || \
+                                     ((PERIPH) == UART9)  || \
+                                     ((PERIPH) == UART10)) 
 
 #define IS_USART_1236_PERIPH(PERIPH) (((PERIPH) == USART1) || \
                                       ((PERIPH) == USART2) || \
@@ -350,7 +345,7 @@ typedef struct
                               
 #define IS_USART_CLEAR_FLAG(FLAG) ((((FLAG) & (uint16_t)0xFC9F) == 0x00) && ((FLAG) != (uint16_t)0x00))
 
-#define IS_USART_BAUDRATE(BAUDRATE) (((BAUDRATE) > 0) && ((BAUDRATE) < 7500001))
+#define IS_USART_BAUDRATE(BAUDRATE) (((BAUDRATE) > 0) && ((BAUDRATE) < 10500001))
 #define IS_USART_ADDRESS(ADDRESS) ((ADDRESS) <= 0xF)
 #define IS_USART_DATA(DATA) ((DATA) <= 0x1FF)
 
@@ -428,4 +423,3 @@ void USART_ClearITPendingBit(USART_TypeDef* USARTx, uint16_t USART_IT);
   * @}
   */ 
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

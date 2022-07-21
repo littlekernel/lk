@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file    stm32f4xx_sdio.c
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file provides firmware functions to manage the following 
   *          functionalities of the Secure digital input/output interface (SDIO) 
   *          peripheral:
@@ -135,19 +135,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -1008,4 +1001,3 @@ void SDIO_ClearITPendingBit(uint32_t SDIO_IT)
   * @}
   */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

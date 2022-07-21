@@ -2,26 +2,19 @@
   ******************************************************************************
   * @file    stm32f4xx_qspi.h
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file contains all the functions prototypes for the QSPI 
   *          firmware library.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -44,7 +37,7 @@
 /** @addtogroup QSPI
   * @{
   */
-#if defined(STM32F446xx)
+#if defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx) || defined(STM32F469_479xx)
 /* Exported types ------------------------------------------------------------*/
 
 /** 
@@ -131,11 +124,10 @@ typedef struct
   * @{
   */
 #define QSPI_SShift_NoShift                        ((uint32_t)0x00000000)
-#define QSPI_SShift_HalfCycleShift                 ((uint32_t)QUADSPI_CR_SSHIFT_0)
-#define QSPI_SShift_OneCycleShift                  ((uint32_t)QUADSPI_CR_SSHIFT_1)
-#define QSPI_SShift_OneAndHalfCycleShift           ((uint32_t)QUADSPI_CR_SSHIFT)
-#define IS_QSPI_SSHIFT(SSHIFT)      (((SSHIFT) == QSPI_SShift_NoShift) ||  ((SSHIFT) == QSPI_SShift_HalfCycleShift) || \
-                                     ((SSHIFT) == QSPI_SShift_OneCycleShift) || ((SSHIFT) == QSPI_SShift_OneAndHalfCycleShift))
+#define QSPI_SShift_HalfCycleShift                 ((uint32_t)QUADSPI_CR_SSHIFT)
+#define IS_QSPI_SSHIFT(SSHIFT)      (((SSHIFT) == QSPI_SShift_NoShift) ||  ((SSHIFT) == QSPI_SShift_HalfCycleShift))
+/* Legacy Defines */
+#define QUADSPI_CR_SSHIFT_0    QUADSPI_CR_SSHIFT
 /**
   * @}
   */
@@ -476,7 +468,7 @@ ITStatus   QSPI_GetITStatus(uint32_t QSPI_IT);
 void       QSPI_ClearITPendingBit(uint32_t QSPI_IT);
 uint32_t   QSPI_GetFMode(void);
 
-#endif /* STM32F446xx */
+#endif /* STM32F412xG || STM32F413_423xx || STM32F446xx || STM32F469_479xx */
 /**
   * @}
   */
@@ -491,4 +483,3 @@ uint32_t   QSPI_GetFMode(void);
 
 #endif /*__STM32F4XX_QUADSPI_H */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file    stm32f4xx_can.c
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file provides firmware functions to manage the following 
   *          functionalities of the Controller area network (CAN) peripheral:
   *           + Initialization and Configuration 
@@ -63,21 +63,14 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
-  *
-  ******************************************************************************  
+  ******************************************************************************
   */
 
 /* Includes ------------------------------------------------------------------*/
@@ -160,7 +153,8 @@ static ITStatus CheckITStatus(uint32_t CAN_Reg, uint32_t It_Bit);
   
 /**
   * @brief  Deinitializes the CAN peripheral registers to their default reset values.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval None.
   */
 void CAN_DeInit(CAN_TypeDef* CANx)
@@ -175,21 +169,40 @@ void CAN_DeInit(CAN_TypeDef* CANx)
     /* Release CAN1 from reset state */
     RCC_APB1PeriphResetCmd(RCC_APB1Periph_CAN1, DISABLE);
   }
-  else
+#if defined(STM32F413_423xx)
+  else if(CANx == CAN2)
   {  
     /* Enable CAN2 reset state */
     RCC_APB1PeriphResetCmd(RCC_APB1Periph_CAN2, ENABLE);
     /* Release CAN2 from reset state */
     RCC_APB1PeriphResetCmd(RCC_APB1Periph_CAN2, DISABLE);
   }
+  
+  else /* CAN3 available only for STM32F413_423xx */
+  {
+    /* Enable CAN3 reset state */
+    RCC_APB1PeriphResetCmd(RCC_APB1Periph_CAN3, ENABLE);
+    /* Release CAN3 from reset state */
+    RCC_APB1PeriphResetCmd(RCC_APB1Periph_CAN3, DISABLE); 
+  }
+#else
+  else
+  {
+    /* Enable CAN2 reset state */
+    RCC_APB1PeriphResetCmd(RCC_APB1Periph_CAN2, ENABLE);
+    /* Release CAN2 from reset state */
+    RCC_APB1PeriphResetCmd(RCC_APB1Periph_CAN2, DISABLE);
+  }
+#endif /* STM32F413_423xx */
 }
 
 /**
   * @brief  Initializes the CAN peripheral according to the specified
   *         parameters in the CAN_InitStruct.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  CAN_InitStruct: pointer to a CAN_InitTypeDef structure that contains
   *         the configuration information for the CAN peripheral.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval Constant indicates initialization succeed which will be 
   *         CAN_InitStatus_Failed or CAN_InitStatus_Success.
   */
@@ -323,6 +336,101 @@ uint8_t CAN_Init(CAN_TypeDef* CANx, CAN_InitTypeDef* CAN_InitStruct)
   return InitStatus;
 }
 
+#if defined(STM32F413_423xx)
+/**
+  * @brief  Configures the CAN reception filter according to the specified
+  *         parameters in the CAN_FilterInitStruct.
+  * @param  CANx: where x can be 1 or 3 to select the CAN peripheral.
+  * @param  CAN_FilterInitStruct: pointer to a CAN_FilterInitTypeDef structure that
+  *         contains the configuration information.
+  * @retval None
+  */
+void CAN_FilterInit(CAN_TypeDef* CANx, CAN_FilterInitTypeDef* CAN_FilterInitStruct)
+{
+  uint32_t filter_number_bit_pos = 0;
+  /* Check the parameters */
+  assert_param(IS_CAN_FILTER_NUMBER(CAN_FilterInitStruct->CAN_FilterNumber));
+  assert_param(IS_CAN_FILTER_MODE(CAN_FilterInitStruct->CAN_FilterMode));
+  assert_param(IS_CAN_FILTER_SCALE(CAN_FilterInitStruct->CAN_FilterScale));
+  assert_param(IS_CAN_FILTER_FIFO(CAN_FilterInitStruct->CAN_FilterFIFOAssignment));
+  assert_param(IS_FUNCTIONAL_STATE(CAN_FilterInitStruct->CAN_FilterActivation));
+  
+  filter_number_bit_pos = ((uint32_t)1) << CAN_FilterInitStruct->CAN_FilterNumber;
+
+  /* Initialisation mode for the filter */
+  CANx->FMR |= FMR_FINIT;
+
+  /* Filter Deactivation */
+  CANx->FA1R &= ~(uint32_t)filter_number_bit_pos;
+
+  /* Filter Scale */
+  if (CAN_FilterInitStruct->CAN_FilterScale == CAN_FilterScale_16bit)
+  {
+    /* 16-bit scale for the filter */
+    CANx->FS1R &= ~(uint32_t)filter_number_bit_pos;
+
+    /* First 16-bit identifier and First 16-bit mask */
+    /* Or First 16-bit identifier and Second 16-bit identifier */
+    CANx->sFilterRegister[CAN_FilterInitStruct->CAN_FilterNumber].FR1 = 
+       ((0x0000FFFF & (uint32_t)CAN_FilterInitStruct->CAN_FilterMaskIdLow) << 16) |
+        (0x0000FFFF & (uint32_t)CAN_FilterInitStruct->CAN_FilterIdLow);
+
+    /* Second 16-bit identifier and Second 16-bit mask */
+    /* Or Third 16-bit identifier and Fourth 16-bit identifier */
+    CANx->sFilterRegister[CAN_FilterInitStruct->CAN_FilterNumber].FR2 = 
+       ((0x0000FFFF & (uint32_t)CAN_FilterInitStruct->CAN_FilterMaskIdHigh) << 16) |
+        (0x0000FFFF & (uint32_t)CAN_FilterInitStruct->CAN_FilterIdHigh);
+  }
+
+  if (CAN_FilterInitStruct->CAN_FilterScale == CAN_FilterScale_32bit)
+  {
+    /* 32-bit scale for the filter */
+    CANx->FS1R |= filter_number_bit_pos;
+    /* 32-bit identifier or First 32-bit identifier */
+    CANx->sFilterRegister[CAN_FilterInitStruct->CAN_FilterNumber].FR1 = 
+       ((0x0000FFFF & (uint32_t)CAN_FilterInitStruct->CAN_FilterIdHigh) << 16) |
+        (0x0000FFFF & (uint32_t)CAN_FilterInitStruct->CAN_FilterIdLow);
+    /* 32-bit mask or Second 32-bit identifier */
+    CANx->sFilterRegister[CAN_FilterInitStruct->CAN_FilterNumber].FR2 = 
+       ((0x0000FFFF & (uint32_t)CAN_FilterInitStruct->CAN_FilterMaskIdHigh) << 16) |
+        (0x0000FFFF & (uint32_t)CAN_FilterInitStruct->CAN_FilterMaskIdLow);
+  }
+
+  /* Filter Mode */
+  if (CAN_FilterInitStruct->CAN_FilterMode == CAN_FilterMode_IdMask)
+  {
+    /*Id/Mask mode for the filter*/
+    CANx->FM1R &= ~(uint32_t)filter_number_bit_pos;
+  }
+  else /* CAN_FilterInitStruct->CAN_FilterMode == CAN_FilterMode_IdList */
+  {
+    /*Identifier list mode for the filter*/
+    CANx->FM1R |= (uint32_t)filter_number_bit_pos;
+  }
+
+  /* Filter FIFO assignment */
+  if (CAN_FilterInitStruct->CAN_FilterFIFOAssignment == CAN_Filter_FIFO0)
+  {
+    /* FIFO 0 assignation for the filter */
+    CANx->FFA1R &= ~(uint32_t)filter_number_bit_pos;
+  }
+
+  if (CAN_FilterInitStruct->CAN_FilterFIFOAssignment == CAN_Filter_FIFO1)
+  {
+    /* FIFO 1 assignation for the filter */
+    CANx->FFA1R |= (uint32_t)filter_number_bit_pos;
+  }
+  
+  /* Filter activation */
+  if (CAN_FilterInitStruct->CAN_FilterActivation == ENABLE)
+  {
+    CANx->FA1R |= filter_number_bit_pos;
+  }
+
+  /* Leave the initialisation mode for the filter */
+  CANx->FMR &= ~FMR_FINIT;
+}
+#else
 /**
   * @brief  Configures the CAN reception filter according to the specified
   *         parameters in the CAN_FilterInitStruct.
@@ -415,6 +523,7 @@ void CAN_FilterInit(CAN_FilterInitTypeDef* CAN_FilterInitStruct)
   /* Leave the initialisation mode for the filter */
   CAN1->FMR &= ~FMR_FINIT;
 }
+#endif /* STM32F413_423xx */
 
 /**
   * @brief  Fills each CAN_InitStruct member with its default value.
@@ -459,6 +568,29 @@ void CAN_StructInit(CAN_InitTypeDef* CAN_InitStruct)
   CAN_InitStruct->CAN_Prescaler = 1;
 }
 
+#if defined(STM32F413_423xx)
+/**
+  * @brief  Select the start bank filter for slave CAN.
+  * @param  CANx: where x can be 1 or 3 to select the CAN peripheral.
+  * @param  CAN_BankNumber: Select the start slave bank filter from 1..27.
+  * @retval None
+  */
+void CAN_SlaveStartBank(CAN_TypeDef* CANx, uint8_t CAN_BankNumber) 
+{
+  /* Check the parameters */
+  assert_param(IS_CAN_BANKNUMBER(CAN_BankNumber));
+  
+  /* Enter Initialisation mode for the filter */
+  CANx->FMR |= FMR_FINIT;
+  
+  /* Select the start slave bank */
+  CANx->FMR &= (uint32_t)0xFFFFC0F1 ;
+  CANx->FMR |= (uint32_t)(CAN_BankNumber)<<8;
+  
+  /* Leave Initialisation mode for the filter */
+  CANx->FMR &= ~FMR_FINIT;
+}
+#else
 /**
   * @brief  Select the start bank filter for slave CAN.
   * @param  CAN_BankNumber: Select the start slave bank filter from 1..27.
@@ -479,14 +611,15 @@ void CAN_SlaveStartBank(uint8_t CAN_BankNumber)
   /* Leave Initialisation mode for the filter */
   CAN1->FMR &= ~FMR_FINIT;
 }
-
+#endif /* STM32F413_423xx */
 /**
   * @brief  Enables or disables the DBG Freeze for CAN.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  NewState: new state of the CAN peripheral. 
   *          This parameter can be: ENABLE (CAN reception/transmission is frozen
   *          during debug. Reception FIFOs can still be accessed/controlled normally) 
   *          or DISABLE (CAN is working during debug).
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval None
   */
 void CAN_DBGFreeze(CAN_TypeDef* CANx, FunctionalState NewState)
@@ -512,11 +645,12 @@ void CAN_DBGFreeze(CAN_TypeDef* CANx, FunctionalState NewState)
   * @brief  Enables or disables the CAN Time TriggerOperation communication mode.
   * @note   DLC must be programmed as 8 in order Time Stamp (2 bytes) to be 
   *         sent over the CAN bus.  
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  NewState: Mode new state. This parameter can be: ENABLE or DISABLE.
   *         When enabled, Time stamp (TIME[15:0]) value is  sent in the last two
   *         data bytes of the 8-byte message: TIME[7:0] in data byte 6 and TIME[15:8] 
-  *         in data byte 7. 
+  *         in data byte 7.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval None
   */
 void CAN_TTComModeCmd(CAN_TypeDef* CANx, FunctionalState NewState)
@@ -568,8 +702,9 @@ void CAN_TTComModeCmd(CAN_TypeDef* CANx, FunctionalState NewState)
 
 /**
   * @brief  Initiates and transmits a CAN frame message.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  TxMessage: pointer to a structure which contains CAN Id, CAN DLC and CAN data.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval The number of the mailbox that is used for transmission or
   *         CAN_TxStatus_NoMailBox if there is no empty mailbox.
   */
@@ -640,8 +775,9 @@ uint8_t CAN_Transmit(CAN_TypeDef* CANx, CanTxMsg* TxMessage)
 
 /**
   * @brief  Checks the transmission status of a CAN Frame.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  TransmitMailbox: the number of the mailbox that is used for transmission.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval CAN_TxStatus_Ok if the CAN driver transmits the message, 
   *         CAN_TxStatus_Failed in an other case.
   */
@@ -695,8 +831,9 @@ uint8_t CAN_TransmitStatus(CAN_TypeDef* CANx, uint8_t TransmitMailbox)
 
 /**
   * @brief  Cancels a transmit request.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  Mailbox: Mailbox number.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval None
   */
 void CAN_CancelTransmit(CAN_TypeDef* CANx, uint8_t Mailbox)
@@ -707,11 +844,11 @@ void CAN_CancelTransmit(CAN_TypeDef* CANx, uint8_t Mailbox)
   /* abort transmission */
   switch (Mailbox)
   {
-    case (CAN_TXMAILBOX_0): CANx->TSR |= CAN_TSR_ABRQ0;
+    case (CAN_TXMAILBOX_0): CANx->TSR = CAN_TSR_ABRQ0;
       break;
-    case (CAN_TXMAILBOX_1): CANx->TSR |= CAN_TSR_ABRQ1;
+    case (CAN_TXMAILBOX_1): CANx->TSR = CAN_TSR_ABRQ1;
       break;
-    case (CAN_TXMAILBOX_2): CANx->TSR |= CAN_TSR_ABRQ2;
+    case (CAN_TXMAILBOX_2): CANx->TSR = CAN_TSR_ABRQ2;
       break;
     default:
       break;
@@ -740,10 +877,11 @@ void CAN_CancelTransmit(CAN_TypeDef* CANx, uint8_t Mailbox)
 
 /**
   * @brief  Receives a correct CAN frame.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  FIFONumber: Receive FIFO number, CAN_FIFO0 or CAN_FIFO1.
   * @param  RxMessage: pointer to a structure receive frame which contains CAN Id,
   *         CAN DLC, CAN data and FMI number.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval None
   */
 void CAN_Receive(CAN_TypeDef* CANx, uint8_t FIFONumber, CanRxMsg* RxMessage)
@@ -780,19 +918,20 @@ void CAN_Receive(CAN_TypeDef* CANx, uint8_t FIFONumber, CanRxMsg* RxMessage)
   /* Release FIFO0 */
   if (FIFONumber == CAN_FIFO0)
   {
-    CANx->RF0R |= CAN_RF0R_RFOM0;
+    CANx->RF0R = CAN_RF0R_RFOM0;
   }
   /* Release FIFO1 */
   else /* FIFONumber == CAN_FIFO1 */
   {
-    CANx->RF1R |= CAN_RF1R_RFOM1;
+    CANx->RF1R = CAN_RF1R_RFOM1;
   }
 }
 
 /**
   * @brief  Releases the specified receive FIFO.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  FIFONumber: FIFO to release, CAN_FIFO0 or CAN_FIFO1.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval None
   */
 void CAN_FIFORelease(CAN_TypeDef* CANx, uint8_t FIFONumber)
@@ -803,19 +942,20 @@ void CAN_FIFORelease(CAN_TypeDef* CANx, uint8_t FIFONumber)
   /* Release FIFO0 */
   if (FIFONumber == CAN_FIFO0)
   {
-    CANx->RF0R |= CAN_RF0R_RFOM0;
+    CANx->RF0R = CAN_RF0R_RFOM0;
   }
   /* Release FIFO1 */
   else /* FIFONumber == CAN_FIFO1 */
   {
-    CANx->RF1R |= CAN_RF1R_RFOM1;
+    CANx->RF1R = CAN_RF1R_RFOM1;
   }
 }
 
 /**
   * @brief  Returns the number of pending received messages.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  FIFONumber: Receive FIFO number, CAN_FIFO0 or CAN_FIFO1.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval NbMessage : which is the number of pending message.
   */
 uint8_t CAN_MessagePending(CAN_TypeDef* CANx, uint8_t FIFONumber)
@@ -946,7 +1086,8 @@ uint8_t CAN_OperatingModeRequest(CAN_TypeDef* CANx, uint8_t CAN_OperatingMode)
 
 /**
   * @brief  Enters the Sleep (low power) mode.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval CAN_Sleep_Ok if sleep entered, CAN_Sleep_Failed otherwise.
   */
 uint8_t CAN_Sleep(CAN_TypeDef* CANx)
@@ -971,7 +1112,8 @@ uint8_t CAN_Sleep(CAN_TypeDef* CANx)
 
 /**
   * @brief  Wakes up the CAN peripheral from sleep mode .
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval CAN_WakeUp_Ok if sleep mode left, CAN_WakeUp_Failed otherwise.
   */
 uint8_t CAN_WakeUp(CAN_TypeDef* CANx)
@@ -1025,7 +1167,7 @@ uint8_t CAN_WakeUp(CAN_TypeDef* CANx)
   
 /**
   * @brief  Returns the CANx's last error code (LEC).
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @retval Error code: 
   *          - CAN_ERRORCODE_NoErr: No Error  
   *          - CAN_ERRORCODE_StuffErr: Stuff Error
@@ -1058,7 +1200,8 @@ uint8_t CAN_GetLastErrorCode(CAN_TypeDef* CANx)
   *         decremented by 1 or reset to 120 if its value was higher than 128. 
   *         When the counter value exceeds 127, the CAN controller enters the 
   *         error passive state.  
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.  
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval CAN Receive Error Counter. 
   */
 uint8_t CAN_GetReceiveErrorCounter(CAN_TypeDef* CANx)
@@ -1078,7 +1221,8 @@ uint8_t CAN_GetReceiveErrorCounter(CAN_TypeDef* CANx)
 
 /**
   * @brief  Returns the LSB of the 9-bit CANx Transmit Error Counter(TEC).
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval LSB of the 9-bit CAN Transmit Error Counter. 
   */
 uint8_t CAN_GetLSBTransmitErrorCounter(CAN_TypeDef* CANx)
@@ -1265,7 +1409,7 @@ uint8_t CAN_GetLSBTransmitErrorCounter(CAN_TypeDef* CANx)
   */ 
 /**
   * @brief  Enables or disables the specified CANx interrupts.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  CAN_IT: specifies the CAN interrupt sources to be enabled or disabled.
   *          This parameter can be: 
   *            @arg CAN_IT_TME: Transmit mailbox empty Interrupt 
@@ -1283,6 +1427,7 @@ uint8_t CAN_GetLSBTransmitErrorCounter(CAN_TypeDef* CANx)
   *            @arg CAN_IT_LEC: Last error code Interrupt
   *            @arg CAN_IT_ERR: Error Interrupt
   * @param  NewState: new state of the CAN interrupts.
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   *          This parameter can be: ENABLE or DISABLE.
   * @retval None
   */
@@ -1306,7 +1451,7 @@ void CAN_ITConfig(CAN_TypeDef* CANx, uint32_t CAN_IT, FunctionalState NewState)
 }
 /**
   * @brief  Checks whether the specified CAN flag is set or not.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  CAN_FLAG: specifies the flag to check.
   *          This parameter can be one of the following values:
   *            @arg CAN_FLAG_RQCP0: Request MailBox0 Flag
@@ -1323,7 +1468,8 @@ void CAN_ITConfig(CAN_TypeDef* CANx, uint32_t CAN_IT, FunctionalState NewState)
   *            @arg CAN_FLAG_EWG: Error Warning Flag
   *            @arg CAN_FLAG_EPV: Error Passive Flag  
   *            @arg CAN_FLAG_BOF: Bus-Off Flag    
-  *            @arg CAN_FLAG_LEC: Last error code Flag      
+  *            @arg CAN_FLAG_LEC: Last error code Flag
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval The new state of CAN_FLAG (SET or RESET).
   */
 FlagStatus CAN_GetFlagStatus(CAN_TypeDef* CANx, uint32_t CAN_FLAG)
@@ -1411,7 +1557,7 @@ FlagStatus CAN_GetFlagStatus(CAN_TypeDef* CANx, uint32_t CAN_FLAG)
 
 /**
   * @brief  Clears the CAN's pending flags.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  CAN_FLAG: specifies the flag to clear.
   *          This parameter can be one of the following values:
   *            @arg CAN_FLAG_RQCP0: Request MailBox0 Flag
@@ -1423,7 +1569,8 @@ FlagStatus CAN_GetFlagStatus(CAN_TypeDef* CANx, uint32_t CAN_FLAG)
   *            @arg CAN_FLAG_FOV1: FIFO 1 Overrun Flag     
   *            @arg CAN_FLAG_WKU: Wake up Flag
   *            @arg CAN_FLAG_SLAK: Sleep acknowledge Flag    
-  *            @arg CAN_FLAG_LEC: Last error code Flag        
+  *            @arg CAN_FLAG_LEC: Last error code Flag
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval None
   */
 void CAN_ClearFlag(CAN_TypeDef* CANx, uint32_t CAN_FLAG)
@@ -1467,7 +1614,7 @@ void CAN_ClearFlag(CAN_TypeDef* CANx, uint32_t CAN_FLAG)
 
 /**
   * @brief  Checks whether the specified CANx interrupt has occurred or not.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  CAN_IT: specifies the CAN interrupt source to check.
   *          This parameter can be one of the following values:
   *            @arg CAN_IT_TME: Transmit mailbox empty Interrupt 
@@ -1484,6 +1631,7 @@ void CAN_ClearFlag(CAN_TypeDef* CANx, uint32_t CAN_FLAG)
   *            @arg CAN_IT_BOF: Bus-off Interrupt  
   *            @arg CAN_IT_LEC: Last error code Interrupt
   *            @arg CAN_IT_ERR: Error Interrupt
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval The current state of CAN_IT (SET or RESET).
   */
 ITStatus CAN_GetITStatus(CAN_TypeDef* CANx, uint32_t CAN_IT)
@@ -1573,7 +1721,7 @@ ITStatus CAN_GetITStatus(CAN_TypeDef* CANx, uint32_t CAN_IT)
 
 /**
   * @brief  Clears the CANx's interrupt pending bits.
-  * @param  CANx: where x can be 1 or 2 to select the CAN peripheral.
+  * @param  CANx: where x can be 1,2 or 3 to select the CAN peripheral.
   * @param  CAN_IT: specifies the interrupt pending bit to clear.
   *          This parameter can be one of the following values:
   *            @arg CAN_IT_TME: Transmit mailbox empty Interrupt
@@ -1587,7 +1735,8 @@ ITStatus CAN_GetITStatus(CAN_TypeDef* CANx, uint32_t CAN_IT)
   *            @arg CAN_IT_EPV: Error passive Interrupt
   *            @arg CAN_IT_BOF: Bus-off Interrupt  
   *            @arg CAN_IT_LEC: Last error code Interrupt
-  *            @arg CAN_IT_ERR: Error Interrupt 
+  *            @arg CAN_IT_ERR: Error Interrupt
+  * @note   CAN3 peripheral is available only for STM32F413_423xx devices
   * @retval None
   */
 void CAN_ClearITPendingBit(CAN_TypeDef* CANx, uint32_t CAN_IT)
@@ -1697,4 +1846,3 @@ static ITStatus CheckITStatus(uint32_t CAN_Reg, uint32_t It_Bit)
   * @}
   */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

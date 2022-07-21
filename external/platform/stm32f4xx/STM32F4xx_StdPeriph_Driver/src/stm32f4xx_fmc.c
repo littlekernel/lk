@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file    stm32f4xx_fmc.c
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file provides firmware functions to manage the following 
   *          functionalities of the FMC peripheral:           
   *           + Interface with SRAM, PSRAM, NOR and OneNAND memories
@@ -15,19 +15,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -162,7 +155,7 @@ void FMC_NORSRAMDeInit(uint32_t FMC_Bank)
   */
 void FMC_NORSRAMInit(FMC_NORSRAMInitTypeDef* FMC_NORSRAMInitStruct)
 {
-  uint32_t tmpr = 0, tmpbcr = 0;
+  uint32_t tmpr = 0, tmpbcr = 0, tmpbwr = 0;
   
   /* Check the parameters */
   assert_param(IS_FMC_NORSRAM_BANK(FMC_NORSRAMInitStruct->FMC_Bank));
@@ -236,8 +229,8 @@ void FMC_NORSRAMInit(FMC_NORSRAMInitTypeDef* FMC_NORSRAMInitStruct)
                       (FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct->FMC_AddressHoldTime << 4) |
                       (FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct->FMC_DataSetupTime << 8) |
                       (FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct->FMC_BusTurnAroundDuration << 16) |
-                      ((FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct->FMC_CLKDivision) << 20) |
-                      ((FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct->FMC_DataLatency) << 24) |
+                      (FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct->FMC_CLKDivision << 20) |
+                      (FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct->FMC_DataLatency << 24) |
                       FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct->FMC_AccessMode;
      
   /* NOR/SRAM Bank timing register for write configuration, if extended mode is used */
@@ -246,17 +239,23 @@ void FMC_NORSRAMInit(FMC_NORSRAMInitTypeDef* FMC_NORSRAMInitStruct)
     assert_param(IS_FMC_ADDRESS_SETUP_TIME(FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_AddressSetupTime));
     assert_param(IS_FMC_ADDRESS_HOLD_TIME(FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_AddressHoldTime));
     assert_param(IS_FMC_DATASETUP_TIME(FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_DataSetupTime));
-    assert_param(IS_FMC_CLK_DIV(FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_CLKDivision));
-    assert_param(IS_FMC_DATA_LATENCY(FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_DataLatency));
+    assert_param(IS_FMC_TURNAROUND_TIME(FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_BusTurnAroundDuration));
     assert_param(IS_FMC_ACCESS_MODE(FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_AccessMode));
     
-    FMC_Bank1E->BWTR[FMC_NORSRAMInitStruct->FMC_Bank] =   
-               (uint32_t)FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_AddressSetupTime |
-                         (FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_AddressHoldTime << 4 )|
-                         (FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_DataSetupTime << 8) |
-                         ((FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_CLKDivision) << 20) |
-                         ((FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_DataLatency) << 24) |
-                         FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_AccessMode;
+    /* Get the BWTR register value */
+    tmpbwr = FMC_Bank1E->BWTR[FMC_NORSRAMInitStruct->FMC_Bank];
+
+    /* Clear ADDSET, ADDHLD, DATAST, BUSTURN and ACCMOD bits */
+    tmpbwr &= ((uint32_t)~(FMC_BWTR1_ADDSET  | FMC_BWTR1_ADDHLD | FMC_BWTR1_DATAST | \
+                           FMC_BWTR1_BUSTURN | FMC_BWTR1_ACCMOD));
+    
+    tmpbwr |= (uint32_t)(FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_AddressSetupTime |
+                        (FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_AddressHoldTime << 4)|
+                        (FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_DataSetupTime << 8) |
+                        (FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_BusTurnAroundDuration << 16) |
+                         FMC_NORSRAMInitStruct->FMC_WriteTimingStruct->FMC_AccessMode);
+
+    FMC_Bank1E->BWTR[FMC_NORSRAMInitStruct->FMC_Bank] = tmpbwr;
   }
   else
   {
@@ -289,8 +288,8 @@ void FMC_NORSRAMStructInit(FMC_NORSRAMInitTypeDef* FMC_NORSRAMInitStruct)
   FMC_NORSRAMInitStruct->FMC_WriteBurst = FMC_WriteBurst_Disable;
   FMC_NORSRAMInitStruct->FMC_ContinousClock = FMC_CClock_SyncOnly;
   
-  FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct = (FMC_NORSRAMTimingInitTypeDef*)&FMC_DefaultTimingStruct;
-  FMC_NORSRAMInitStruct->FMC_WriteTimingStruct = (FMC_NORSRAMTimingInitTypeDef*)&FMC_DefaultTimingStruct;
+  FMC_NORSRAMInitStruct->FMC_ReadWriteTimingStruct = (FMC_NORSRAMTimingInitTypeDef*)((uint32_t)&FMC_DefaultTimingStruct);
+  FMC_NORSRAMInitStruct->FMC_WriteTimingStruct = (FMC_NORSRAMTimingInitTypeDef*)((uint32_t)&FMC_DefaultTimingStruct);
 }
 
 /**
@@ -1497,4 +1496,3 @@ void FMC_ClearITPendingBit(uint32_t FMC_Bank, uint32_t FMC_IT)
   * @}
   */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file    stm32f4xx_flash.c
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file provides firmware functions to manage the following 
   *          functionalities of the FLASH peripheral:
   *            + FLASH Interface configuration
@@ -51,19 +51,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -179,7 +172,7 @@
  +-------------------------------------------------------------------------------------+
 
     [..]
-    For STM32F411xE devices
+    For STM32F410xx/STM32F411xE devices
  +-------------------------------------------------------------------------------------+
  | Latency       |                HCLK clock frequency (MHz)                           |
  |               |---------------------------------------------------------------------|
@@ -224,7 +217,7 @@
            (++) when VOS[1:0] = '0x01' Scale 3 mode, the maximum value of fHCLK is 60MHz.
            (++) when VOS[1:0] = '0x10' Scale 2 mode, the maximum value of fHCLK is 84MHz.
           [..]  
-          On STM32F411xE devices:
+          On STM32F410xx/STM32F411xE devices:
            (++) when VOS[1:0] = '0x01' Scale 3 mode, the maximum value of fHCLK is 64MHz.
            (++) when VOS[1:0] = '0x10' Scale 2 mode, the maximum value of fHCLK is 84MHz.
            (++) when VOS[1:0] = '0x11' Scale 1 mode, the maximum value of fHCLK is 100MHz.
@@ -266,8 +259,8 @@
   *            @arg FLASH_Latency_14: FLASH Fourteen Latency cycles
   *            @arg FLASH_Latency_15: FLASH Fifteen Latency cycles 
   *              
-  * @note For STM32F405xx/407xx, STM32F415xx/417xx and STM32F401xx/411xE devices this parameter
-  *       can be a value between FLASH_Latency_0 and FLASH_Latency_7.
+  * @note For STM32F405xx/407xx, STM32F415xx/417xx, STM32F401xx/411xE/STM32F412xG and STM32F413_423xx devices
+  *       this parameter can be a value between FLASH_Latency_0 and FLASH_Latency_7.
   *
   * @note For STM32F42xxx/43xxx devices this parameter can be a value between 
   *       FLASH_Latency_0 and FLASH_Latency_15. 
@@ -449,8 +442,14 @@ void FLASH_Lock(void)
   *         For STM32F401xx devices this parameter can be a value between 
   *         FLASH_Sector_0 and FLASH_Sector_5.
   *
-  *         For STM32F411xE devices this parameter can be a value between 
+  *         For STM32F411xE and STM32F412xG devices this parameter can be a value between 
   *         FLASH_Sector_0 and FLASH_Sector_7.
+  *
+  *         For STM32F410xx devices this parameter can be a value between 
+  *         FLASH_Sector_0 and FLASH_Sector_4.
+  *
+  *         For STM32F413_423xx devices this parameter can be a value between 
+  *         FLASH_Sector_0 and FLASH_Sector_15.
   *
   * @param  VoltageRange: The device voltage range which defines the erase parallelism.  
   *          This parameter can be one of the following values:
@@ -562,7 +561,7 @@ FLASH_Status FLASH_EraseAllSectors(uint8_t VoltageRange)
   if(status == FLASH_COMPLETE)
   {
     /* if the previous operation is completed, proceed to erase all sectors */
-#if defined(STM32F427_437xx) || defined(STM32F429_439xx)   
+#if defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F469_479xx)
     FLASH->CR &= CR_PSIZE_MASK;
     FLASH->CR |= tmp_psize;
     FLASH->CR |= (FLASH_CR_MER1 | FLASH_CR_MER2);
@@ -573,9 +572,9 @@ FLASH_Status FLASH_EraseAllSectors(uint8_t VoltageRange)
 
     /* if the erase operation is completed, disable the MER Bit */
     FLASH->CR &= ~(FLASH_CR_MER1 | FLASH_CR_MER2);
-#endif /* STM32F427_437xx ||  STM32F429_439xx */
+#endif /* STM32F427_437xx ||  STM32F429_439xx ||  STM32F469_479xx */
 
-#if defined(STM32F40_41xxx) || defined(STM32F401xx) || defined(STM32F411xE) || defined(STM32F446xx)
+#if defined(STM32F40_41xxx) || defined(STM32F401xx) || defined(STM32F410xx) || defined(STM32F411xE) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)
     FLASH->CR &= CR_PSIZE_MASK;
     FLASH->CR |= tmp_psize;
     FLASH->CR |= FLASH_CR_MER;
@@ -586,7 +585,7 @@ FLASH_Status FLASH_EraseAllSectors(uint8_t VoltageRange)
 
     /* if the erase operation is completed, disable the MER Bit */
     FLASH->CR &= (~FLASH_CR_MER);
-#endif /* STM32F40_41xxx || STM32F401xx || STM32F411xE || STM32F446xx */
+#endif /* STM32F40_41xxx || STM32F401xx || STM32F410xx || STM32F411xE || STM32F412xG || STM32F413_423xx || STM32F446xx */
 
   }   
   /* Return the Erase Status */
@@ -1113,7 +1112,8 @@ void FLASH_OB_PCROPSelectionConfig(uint8_t OB_PcROP)
   * @brief  Enables or disables the read/write protection (PCROP) of the desired 
   *         sectors, for the first 1 MB of the Flash.
   *           
-  * @note   This function can be used only for STM32F42xxx/43xxx and STM32F401xx/411xE devices. 
+  * @note   This function can be used only for STM32F42xxx/43xxx , STM32F401xx/411xE 
+  *         STM32F412xG and STM32F413_423xx devices.
   *   
   * @param  OB_PCROP: specifies the sector(s) to be read/write protected or unprotected.
   *          This parameter can be one of the following values:
@@ -1245,15 +1245,15 @@ void FLASH_OB_UserConfig(uint8_t OB_IWDG, uint8_t OB_STOP, uint8_t OB_STDBY)
   
   if(status == FLASH_COMPLETE)
   { 
-#if defined(STM32F427_437xx) || defined(STM32F429_439xx)
+#if defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F469_479xx)
     /* Mask OPTLOCK, OPTSTRT, BOR_LEV and BFB2 bits */
     optiontmp =  (uint8_t)((*(__IO uint8_t *)OPTCR_BYTE0_ADDRESS) & (uint8_t)0x1F);
-#endif /* STM32F427_437xx ||  STM32F429_439xx */
+#endif /* STM32F427_437xx ||  STM32F429_439xx ||  STM32F469_479xx */
 
-#if defined(STM32F40_41xxx) || defined(STM32F401xx) || defined(STM32F411xE) || defined(STM32F446xx)
+#if defined(STM32F40_41xxx) || defined(STM32F401xx) || defined(STM32F410xx) || defined(STM32F411xE) || defined(STM32F446xx)
     /* Mask OPTLOCK, OPTSTRT and BOR_LEV bits */
     optiontmp =  (uint8_t)((*(__IO uint8_t *)OPTCR_BYTE0_ADDRESS) & (uint8_t)0x0F); 
-#endif /* STM32F40_41xxx || STM32F401xx || STM32F411xE || STM32F446xx */ 
+#endif /* STM32F40_41xxx || STM32F401xx || STM32F410xx || STM32F411xE || STM32F446xx */ 
 
     /* Update User Option Byte */
     *(__IO uint8_t *)OPTCR_BYTE0_ADDRESS = OB_IWDG | (uint8_t)(OB_STDBY | (uint8_t)(OB_STOP | ((uint8_t)optiontmp))); 
@@ -1609,4 +1609,3 @@ FLASH_Status FLASH_WaitForLastOperation(void)
   * @}
   */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
