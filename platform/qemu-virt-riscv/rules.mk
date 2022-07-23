@@ -38,9 +38,6 @@ ifeq ($(RISCV_MODE),supervisor)
 KERNEL_LOAD_OFFSET ?= 0x00200000 # kernel load offset
 endif
 
-# sifive_e or _u?
-GLOBAL_DEFINES += PLATFORM_${VARIANT}=1
-
 # set some global defines based on capability
 GLOBAL_DEFINES += ARCH_RISCV_CLINT_BASE=0x02000000
 GLOBAL_DEFINES += ARCH_RISCV_MTIME_RATE=10000000

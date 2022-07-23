@@ -32,13 +32,17 @@
 # include make/module.mk
 
 # test for old style rules.mk
+ifneq ($(flavor MODULE_OBJS),undefined)
 ifneq ($(MODULE_OBJS),)
 $(warning MODULE_OBJS = $(MODULE_OBJS))
 $(error MODULE $(MODULE) is setting MODULE_OBJS, change to MODULE_SRCS)
 endif
+endif
+ifneq ($(flavor OBJS),undefined)
 ifneq ($(OBJS),)
 $(warning OBJS = $(OBJS))
 $(error MODULE $(MODULE) is probably setting OBJS, change to MODULE_SRCS)
+endif
 endif
 
 MODULE_SRCDIR := $(MODULE)
@@ -74,7 +78,6 @@ MODULE_DEFINES += MODULE_COMPILEFLAGS=\"$(subst $(SPACE),_,$(MODULE_COMPILEFLAGS
 MODULE_DEFINES += MODULE_CFLAGS=\"$(subst $(SPACE),_,$(MODULE_CFLAGS))\"
 MODULE_DEFINES += MODULE_CPPFLAGS=\"$(subst $(SPACE),_,$(MODULE_CPPFLAGS))\"
 MODULE_DEFINES += MODULE_ASMFLAGS=\"$(subst $(SPACE),_,$(MODULE_ASMFLAGS))\"
-MODULE_DEFINES += MODULE_LDFLAGS=\"$(subst $(SPACE),_,$(MODULE_LDFLAGS))\"
 MODULE_DEFINES += MODULE_OPTFLAGS=\"$(subst $(SPACE),_,$(MODULE_OPTFLAGS))\"
 MODULE_DEFINES += MODULE_INCLUDES=\"$(subst $(SPACE),_,$(MODULE_INCLUDES))\"
 MODULE_DEFINES += MODULE_SRCDEPS=\"$(subst $(SPACE),_,$(MODULE_SRCDEPS))\"

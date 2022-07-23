@@ -24,6 +24,8 @@ RISCV_MMU ?= none
 RISCV_FPU ?= false
 SUBARCH ?= 32
 RISCV_MODE ?= machine
+ARCH_RISCV_EMBEDDED ?= false
+ARCH_RISCV_TWOSEGMENT ?= false
 
 GLOBAL_DEFINES += SMP_MAX_CPUS=$(SMP_MAX_CPUS)
 GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1
@@ -197,7 +199,7 @@ GENERATED += \
 $(BUILDDIR)/linker-%.ld: $(LOCAL_DIR)/linker-%.ld $(wildcard arch/*.ld) linkerscript.phony
 	@echo generating $@
 	@$(MKDIR)
-	$(NOECHO)sed "s/%BITS%/$(SUBARCH)/g;s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/;s/%VECTOR_BASE_PHYS%/$(VECTOR_BASE_PHYS)/" < $< > $@.tmp
+	$(NOECHO)sed "s/%BITS%/$(SUBARCH)/g;s/%ROMBASE%/$(ROMBASE)/;s/%MEMBASE%/$(MEMBASE)/;s/%MEMSIZE%/$(MEMSIZE)/;s/%KERNEL_BASE%/$(KERNEL_BASE)/;s/%KERNEL_LOAD_OFFSET%/$(KERNEL_LOAD_OFFSET)/" < $< > $@.tmp
 	@$(call TESTANDREPLACEFILE,$@.tmp,$@)
 
 linkerscript.phony:
