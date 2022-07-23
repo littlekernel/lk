@@ -152,7 +152,10 @@ else ifeq ($(SUBARCH),64)
     GLOBAL_DEFINES += IS_64BIT=1
 
     ifeq (true,$(call TOBOOL,$(RISCV_FPU)))
-        ARCH_COMPILEFLAGS := -march=rv64gc -mabi=lp64d -mcmodel=medany
+        # HACK: use rv64imafdc instead of the equivalent rv64gc due to
+        # older toolchains not supporting the mapping of one to the other
+        # when selecting libgcc.
+        ARCH_COMPILEFLAGS := -march=rv64imafdc -mabi=lp64d -mcmodel=medany
     else
         ARCH_COMPILEFLAGS := -march=rv64imac -mabi=lp64 -mcmodel=medany
     endif
