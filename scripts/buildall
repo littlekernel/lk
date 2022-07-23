@@ -2,13 +2,62 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+function HELP {
+    echo "help:"
+    echo "-e build with WERROR=1"
+    echo "-r also build DEBUG=0"
+    echo "-q hide output of build"
+    echo "-h for help"
+    exit 1
+}
+
+RELEASE=0
+WERROR=0
+QUIET=0
+
+while getopts ehrq FLAG; do
+    case $FLAG in
+        e) WERROR=1;;
+        h) HELP;;
+        r) RELEASE=1;;
+        q) QUIET=1;;
+        \?)
+            echo unrecognized option
+            HELP
+    esac
+done
+
+shift $((OPTIND-1))
+
+echo > buildall.log
+function log()
+{
+    if (( $QUIET )); then
+        "$@" >> buildall.log 2>&1
+    else
+        "$@" 2>&1 | tee -a buildall.log
+    fi
+}
+
 # build everything in the projects directory
 PROJECTS=$(echo project/*.mk | xargs -n1 basename | sed 's/\.mk//')
 FAILED=""
 
+if (( $WERROR )); then
+export WERROR=1
+fi
+
 for p in $PROJECTS; do
-    PROJECT=$p nice $DIR/make-parallel || FAILED="$FAILED $p"
+    echo building $p
+    PROJECT=$p log nice $DIR/make-parallel || FAILED="$FAILED $p"
 done
+
+if (( $RELEASE )); then
+for p in $PROJECTS; do
+    echo building $p-release
+    BUILDDIR_SUFFIX=-release DEBUG=0 PROJECT=$p log nice $DIR/make-parallel || FAILED="$FAILED $p-release"
+done
+fi
 
 if [ "$FAILED" != "" ]; then
     echo
