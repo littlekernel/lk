@@ -24,7 +24,7 @@
 #define X86_DIRTY_ACCESS_MASK   0xf9f
 #define X86_MMU_CACHE_DISABLE   0x010       /* C Cache disable */
 
-#ifndef X86_LEGACY
+#if !X86_LEGACY
 /* default flags for inner page directory entries */
 #define X86_KERNEL_PD_FLAGS (X86_MMU_PG_RW | X86_MMU_PG_P)
 

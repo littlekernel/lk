@@ -7,20 +7,21 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <sys/types.h>
-#include <lk/compiler.h>
 #include <arch.h>
+#include <arch/arch_ops.h>
+#include <arch/mmu.h>
 #include <arch/x86.h>
+#include <arch/x86/feature.h>
 #include <arch/x86/mmu.h>
+#include <assert.h>
+#include <kernel/vm.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <stdlib.h>
 #include <string.h>
-#include <arch/mmu.h>
-#include <assert.h>
-#include <lk/err.h>
-#include <arch/arch_ops.h>
-#include <kernel/vm.h>
+#include <sys/types.h>
 
 #define LOCAL_TRACE 0
 
@@ -684,9 +685,9 @@ void x86_mmu_early_init(void) {
 
     /* Setting the SMEP & SMAP bit in CR4 */
     cr4 = x86_get_cr4();
-    if (check_smep_avail())
+    if (x86_feature_test(X86_FEATURE_SMEP))
         cr4 |= X86_CR4_SMEP;
-    if (check_smap_avail())
+    if (x86_feature_test(X86_FEATURE_SMAP))
         cr4 |=X86_CR4_SMAP;
     x86_set_cr4(cr4);
 
@@ -696,13 +697,10 @@ void x86_mmu_early_init(void) {
     write_msr(X86_MSR_IA32_EFER, efer_msr);
 
     /* getting the address width from CPUID instr */
-    /* Bits 07-00: Physical Address width info */
-    /* Bits 15-08: Linear Address width info */
-    uint32_t addr_width    = x86_get_address_width();
-    g_paddr_width = (uint8_t)(addr_width & 0xFF);
-    g_vaddr_width = (uint8_t)((addr_width >> 8) & 0xFF);
+    g_paddr_width = x86_get_paddr_width();
+    g_vaddr_width = x86_get_vaddr_width();
 
-    LTRACEF("paddr_width %u vaddr_width %u\n", g_paddr_width, g_vaddr_width);
+    dprintf(SPEW, "X86: paddr_width %u vaddr_width %u\n", g_paddr_width, g_vaddr_width);
 
     /* unmap the lower identity mapping */
     kernel_pml4[0] = 0;

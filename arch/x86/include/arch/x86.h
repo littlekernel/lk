@@ -24,7 +24,6 @@ __BEGIN_CDECLS
 #define PFEX_RSV 0x08
 #define PFEX_I 0x10
 #define X86_8BYTE_MASK 0xFFFFFFFF
-#define X86_CPUID_ADDR_WIDTH 0x80000008
 
 struct x86_32_iframe {
     uint32_t di, si, bp, sp, bx, dx, cx, ax;            // pushed by common handler using pusha
@@ -417,31 +416,6 @@ static inline void cpuid_c(uint32_t leaf, uint32_t csel, uint32_t *a, uint32_t *
         "cpuid"
         : "=a"(*a), "=b"(*b), "=c"(*c), "=d"(*d)
         : "a"(leaf), "c"(csel));
-}
-
-static inline uint32_t x86_get_address_width(void) {
-    uint32_t a, b, c, d;
-
-    cpuid(X86_CPUID_ADDR_WIDTH, &a, &b, &c, &d);
-
-    /* Extracting bit 15:8 from eax register */
-    return ((a >> 8) & 0x0ff);
-}
-
-static inline bool check_smep_avail(void) {
-    uint32_t a, b, c, d;
-
-    cpuid_c(0x7, 0, &a, &b, &c, &d);
-
-    return ((b >> 0x06) & 0x1);
-}
-
-static inline bool check_smap_avail(void) {
-    uint32_t a, b, c, d;
-
-    cpuid_c(0x7, 0, &a, &b, &c, &d);
-
-    return ((b >> 0x13) & 0x1);
 }
 
 static inline uint64_t read_msr (uint32_t msr_id) {

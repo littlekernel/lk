@@ -16,6 +16,7 @@
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
+#include <arch/x86/feature.h>
 #include <kernel/spinlock.h>
 #include "platform_p.h"
 #include <platform/pc.h>
@@ -31,20 +32,14 @@ void lapic_init(void) {
     LTRACE_ENTRY;
 
     // check feature bit 9 in edx of leaf 1 for presence of lapic
-    uint32_t a, b, c, d;
-    cpuid(0x1, &a, &b, &c, &d);
-    LTRACEF("%#x %#x %#x %#x\n", a, b, c, d);
-
-    if ((d & (1 << 9)) == 0) {
-        // no lapic detected
-        return;
-    }
-    lapic_present = true;
+    lapic_present = x86_feature_test(X86_FEATURE_APIC);
 }
 
 void lapic_init_postvm(uint level) {
     if (!lapic_present)
         return;
+
+    dprintf(INFO, "X86: local apic detected\n");
 
     // IA32_APIC_BASE_MSR
     uint64_t apic_base = read_msr(0x1b);
@@ -53,7 +48,7 @@ void lapic_init_postvm(uint level) {
     // TODO: assert that it's enabled
 
     apic_base &= ~0xfff;
-    dprintf(INFO, "LAPIC: physical address %#llx\n", apic_base);
+    dprintf(INFO, "X86: lapic physical address %#llx\n", apic_base);
 
     // map the lapic into the kernel since it's not guaranteed that the physmap covers it
     status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE, (void **)&lapic_mmio, 0,
