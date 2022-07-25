@@ -183,6 +183,10 @@ static void x86_cpu_detect(void) {
         dprintf(SPEW, "x86: max cpuid leaf %#x ext %#x hyp %#x\n",
                 max_cpuid_leaf, max_cpuid_leaf_ext, max_cpuid_leaf_hyp);
     }
+}
+
+void x86_feature_early_init(void) {
+    x86_cpu_detect();
 
     // cache a copy of the cpuid bits
     if (has_cpuid) {
@@ -208,10 +212,25 @@ static void x86_cpu_detect(void) {
     }
 }
 
-void x86_feature_early_init(void) {
-    x86_cpu_detect();
-}
-
 void x86_feature_init(void) {
 }
+
+bool x86_get_cpuid_subleaf(enum x86_cpuid_leaf_num num, uint32_t subleaf, struct x86_cpuid_leaf* leaf) {
+  // make sure the leaf number is within the detected range of the three blocks we know about
+  if (num < X86_CPUID_HYP_BASE) {
+    if (num > max_cpuid_leaf) {
+      return false;
+    }
+  } else if (num < X86_CPUID_EXT_BASE) {
+    if (num > max_cpuid_leaf_hyp) {
+      return false;
+    }
+  } else if (num > max_cpuid_leaf_ext) {
+    return false;
+  }
+
+  cpuid_c((uint32_t)num, subleaf, &leaf->a, &leaf->b, &leaf->c, &leaf->d);
+  return true;
+}
+
 

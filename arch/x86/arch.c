@@ -49,16 +49,21 @@ void arch_early_init(void) {
     set_global_desc(TSS_SELECTOR, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
     x86_ltr(TSS_SELECTOR);
 
-    x86_feature_init();
+    x86_feature_early_init();
 
     x86_mmu_early_init();
+
+#if X86_WITH_FPU
+    x86_fpu_early_init();
+#endif
 }
 
 void arch_init(void) {
+    x86_feature_init();
     x86_mmu_init();
 
-#ifdef X86_WITH_FPU
-    fpu_init();
+#if X86_WITH_FPU
+    x86_fpu_init();
 #endif
 }
 

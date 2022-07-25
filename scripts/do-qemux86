@@ -60,7 +60,7 @@ shift $((OPTIND-1))
 if (( $DO_64BIT )); then
     QEMU="qemu-system-x86_64"
     PROJECT="pc-x86-64-test"
-    CPU=qemu64
+    CPU=max
     MACHINE=q35
 elif (( $DO_LEGACY )); then
     QEMU="qemu-system-i386"
@@ -70,7 +70,7 @@ elif (( $DO_LEGACY )); then
 else
     QEMU="qemu-system-i386"
     PROJECT="pc-x86-test"
-    CPU=qemu32
+    CPU=max
     MACHINE=q35
 fi
 

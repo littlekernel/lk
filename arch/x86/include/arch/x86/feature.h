@@ -118,6 +118,10 @@ extern uint32_t max_cpuid_leaf;
 extern uint32_t max_cpuid_leaf_hyp;
 extern uint32_t max_cpuid_leaf_ext;
 
+/* Retrieve the specified subleaf.  This function is not cached.
+ * Returns false if leaf num is invalid */
+bool x86_get_cpuid_subleaf(enum x86_cpuid_leaf_num, uint32_t subleaf, struct x86_cpuid_leaf *);
+
 static inline const struct x86_cpuid_leaf* x86_get_cpuid_leaf(enum x86_cpuid_leaf_num leaf) {
   if (leaf < X86_CPUID_HYP_BASE) {
     if (unlikely(leaf > max_cpuid_leaf))
@@ -232,6 +236,7 @@ static inline bool x86_feature_test(struct x86_cpuid_bit bit) {
 #define X86_FEATURE_KVM_PV_CLOCK_STABLE X86_CPUID_BIT(0x40000001, 0, 24)
 
 #define X86_FEATURE_AMD_TOPO            X86_CPUID_BIT(0x80000001, 2, 22)
+#define X86_FEATURE_SSE4A               X86_CPUID_BIT(0x80000001, 3, 6)
 #define X86_FEATURE_SYSCALL             X86_CPUID_BIT(0x80000001, 3, 11)
 #define X86_FEATURE_NX                  X86_CPUID_BIT(0x80000001, 3, 20)
 #define X86_FEATURE_HUGE_PAGE           X86_CPUID_BIT(0x80000001, 3, 26)
