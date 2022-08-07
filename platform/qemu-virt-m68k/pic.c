@@ -31,36 +31,36 @@ enum {
     REG_ENABLE          = 0x10,
 };
 
-volatile unsigned int * const goldfish_pic_base = (void *)VIRT_GF_PIC_MMIO_BASE;
+volatile uint32_t * const goldfish_pic_base = (void *)VIRT_GF_PIC_MMIO_BASE;
 
 static struct int_handlers {
     int_handler handler;
     void *arg;
 } handlers[NUM_IRQS];
 
-static void write_reg(int pic, int reg, uint32_t val) {
-    goldfish_pic_base[0x1000 * pic / 4 + reg / 4] = val;
+static void write_reg(unsigned int pic, unsigned int reg, uint32_t val) {
+    goldfish_pic_base[(0x1000 * pic + reg) / 4] = val;
 }
 
-static uint32_t read_reg(int pic, int reg) {
-    return goldfish_pic_base[0x1000 * pic / 4 + reg / 4];
+static uint32_t read_reg(unsigned int pic, unsigned int reg) {
+    return goldfish_pic_base[(0x1000 * pic + reg) / 4];
 }
 
-static void dump_pic(int i) {
+static void dump_pic(unsigned int i) {
     dprintf(INFO, "PIC %d: status %u pending %#x\n", i, read_reg(i, REG_STATUS), read_reg(i, REG_IRQ_PENDING));
 }
 
 static void dump_all_pics(void) {
-    for (int i = 0; i < NUM_PICS; i++) {
+    for (int i = 0; i < VIRT_GF_PIC_NB; i++) {
         dump_pic(i);
     }
 }
 
-static int irq_to_pic_num(unsigned int vector) {
+static unsigned int irq_to_pic_num(unsigned int vector) {
     return vector / 32;
 }
 
-static int irq_to_pic_vec(unsigned int vector) {
+static unsigned int irq_to_pic_vec(unsigned int vector) {
     return vector % 32;
 }
 

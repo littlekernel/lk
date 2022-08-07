@@ -19,7 +19,7 @@
 
 // goldfish tty
 // from https://github.com/qemu/qemu/blob/master/hw/char/goldfish_tty.c
-volatile unsigned int * const goldfish_tty_base = (void *)VIRT_GF_TTY_MMIO_BASE;
+volatile uint32_t * const goldfish_tty_base = (void *)VIRT_GF_TTY_MMIO_BASE;
 
 // registers
 enum {
@@ -47,11 +47,11 @@ static cbuf_t uart_rx_buf;
 
 static char transfer_buf[1]; // static pointer used to transfer MMIO data
 
-static void write_reg(int reg, uint32_t val) {
+static void write_reg(unsigned int reg, uint32_t val) {
     goldfish_tty_base[reg / 4] = val;
 }
 
-static uint32_t read_reg(int reg) {
+static uint32_t read_reg(unsigned int reg) {
     return goldfish_tty_base[reg / 4];
 }
 
@@ -83,9 +83,9 @@ void goldfish_tty_init(void) {
     /* finish uart init to get rx going */
     cbuf_initialize_etc(&uart_rx_buf, RXBUF_SIZE, uart_rx_buf_data);
 
-    register_int_handler(GOLDFISH_TTY_IRQ, uart_irq_handler, NULL);
+    register_int_handler(VIRT_GF_TTY_IRQ_BASE, uart_irq_handler, NULL);
 
-    unmask_interrupt(GOLDFISH_TTY_IRQ);
+    unmask_interrupt(VIRT_GF_TTY_IRQ_BASE);
 
     write_reg(REG_CMD, CMD_INT_ENABLE);
 }

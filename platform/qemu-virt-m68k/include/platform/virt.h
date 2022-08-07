@@ -29,20 +29,15 @@
  *               IRQ #2 to IRQ #32 -> unused
  * CPU IRQ #7 -> NMI
  */
-#define NUM_PICS 6
-#define NUM_IRQS (NUM_PICS * 32) // PIC 1 - 6
-
-#define PIC_IRQ_TO_LINEAR(pic, irq) (((pic) - 1) * 32 + ((irq) - 1))
-#define GOLDFISH_TTY_IRQ PIC_IRQ_TO_LINEAR(1, 32) // PIC 1, irq 32
-#define GOLDFISH_RTC_IRQ PIC_IRQ_TO_LINEAR(6, 1)  // PIC 6, irq 1
-
-#define PIC_IRQ_BASE(num)     (8 + (num - 1) * 32)
-#define PIC_IRQ(num, irq)     (PIC_IRQ_BASE(num) + irq - 1)
-//#define PIC_GPIO(pic_irq)     (qdev_get_gpio_in(pic_dev[(pic_irq - 8) / 32], (pic_irq - 8) % 32))
 
 #define VIRT_GF_PIC_MMIO_BASE 0xff000000     /* MMIO: 0xff000000 - 0xff005fff */
 #define VIRT_GF_PIC_IRQ_BASE  1              /* IRQ: #1 -> #6 */
 #define VIRT_GF_PIC_NB        6
+
+#define NUM_IRQS              (VIRT_GF_PIC_NB * 32) // PIC 1 - 6
+
+/* maps (pic + irq) base one to a linear number zero based */
+#define PIC_IRQ(pic, irq)     (((pic) - 1) * 32 + ((irq) - 1))
 
 /* 2 goldfish-rtc (and timer) */
 #define VIRT_GF_RTC_MMIO_BASE 0xff006000     /* MMIO: 0xff006000 - 0xff007fff */
@@ -55,7 +50,7 @@
 
 /* 1 virt-ctrl */
 #define VIRT_CTRL_MMIO_BASE 0xff009000    /* MMIO: 0xff009000 - 0xff009fff */
-#define VIRT_CTRL_IRQ_BASE  PIC_IRQ(1, 1) /* PIC: #1, IRQ: #1 */
+#define VIRT_CTRL_IRQ_BASE    PIC_IRQ(1, 1) /* PIC: #1, IRQ: #1 */
 
 /*
  * virtio-mmio size is 0x200 bytes

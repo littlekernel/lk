@@ -8,6 +8,7 @@
 #include "platform_p.h"
 
 #include <assert.h>
+#include <inttypes.h>
 #include <lk/err.h>
 #include <lk/debug.h>
 #include <lk/reg.h>
@@ -23,7 +24,7 @@
 
 // implementation of RTC at
 // https://github.com/qemu/qemu/blob/master/hw/rtc/goldfish_rtc.c
-volatile unsigned int * const goldfish_rtc_base = (void *)VIRT_GF_RTC_MMIO_BASE;
+volatile uint32_t * const goldfish_rtc_base = (void *)VIRT_GF_RTC_MMIO_BASE;
 
 // registers
 enum {
@@ -42,11 +43,11 @@ static uint64_t system_boot_offset;
 static platform_timer_callback t_callback;
 static void *t_arg;
 
-static void write_reg(int reg, uint32_t val) {
+static void write_reg(unsigned int reg, uint32_t val) {
     goldfish_rtc_base[reg / 4] = val;
 }
 
-static uint32_t read_reg(int reg) {
+static uint32_t read_reg(unsigned int reg) {
     return goldfish_rtc_base[reg / 4];
 }
 
@@ -82,8 +83,8 @@ void goldfish_rtc_early_init(void) {
     // clear and stop any pending irqs on the timer
     platform_stop_timer();
 
-    register_int_handler(GOLDFISH_RTC_IRQ, &rtc_irq, NULL);
-    unmask_interrupt(GOLDFISH_RTC_IRQ);
+    register_int_handler(VIRT_GF_RTC_IRQ_BASE, &rtc_irq, NULL);
+    unmask_interrupt(VIRT_GF_RTC_IRQ_BASE);
 
     // its okay to enable the irq since we've cleared the alarm and any pending interrupts
     write_reg(RTC_IRQ_ENABLED, 1);
