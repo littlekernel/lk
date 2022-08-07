@@ -161,7 +161,7 @@ enum handler_return duart_irq(void) {
     if (isr & (1<<1)) { // RXRDY/FFULLA
         uint8_t status = read_reg(DUART_REG_SRA_R);
         if (status & (1<<0)) { // RXRDY
-            if (status & (0b111 << 5)) { // any of break, framing, or parity error
+            if (unlikely(status & (0b111 << 5))) { // any of break, framing, or parity error
                 // consume this byte
                 __UNUSED volatile uint8_t hole = read_reg(DUART_REG_RHRA_R);
             } else {
