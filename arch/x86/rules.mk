@@ -2,7 +2,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-WITH_KERNEL_VM=1
+# x86 code always runs with the mmu enabled
+WITH_KERNEL_VM := 1
 
 ifeq ($(SUBARCH),x86-32)
 MEMBASE ?= 0x00000000

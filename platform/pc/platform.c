@@ -24,6 +24,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <assert.h>
+#include <inttypes.h>
 #include <kernel/vm.h>
 #include <lib/acpi_lite.h>
 
@@ -41,7 +42,6 @@ extern multiboot_info_t *_multiboot_info;
 
 #define DEFAULT_MEMEND (16*1024*1024)
 
-static paddr_t mem_top = DEFAULT_MEMEND;
 extern uint64_t __code_start;
 extern uint64_t __code_end;
 extern uint64_t __rodata_start;
@@ -51,86 +51,25 @@ extern uint64_t __data_end;
 extern uint64_t __bss_start;
 extern uint64_t __bss_end;
 
-void platform_init_mmu_mappings(void) {
-    // XXX move into arch/x86 setup
-#if 0
-    struct map_range range;
-    arch_flags_t access;
-    map_addr_t *init_table, phy_init_table;
-
-    LTRACE_ENTRY;
-
-    /* Creating the First page in the page table hirerachy */
-    /* Can be pml4, pdpt or pdt based on x86_64, x86 PAE mode & x86 non-PAE mode respectively */
-    init_table = memalign(PAGE_SIZE, PAGE_SIZE);
-    ASSERT(init_table);
-    memset(init_table, 0, PAGE_SIZE);
-
-    phy_init_table = (map_addr_t)X86_VIRT_TO_PHYS(init_table);
-    LTRACEF("phy_init_table: %p\n", phy_init_table);
-
-    /* kernel code section mapping */
-    LTRACEF("mapping kernel code\n");
-    access = ARCH_MMU_FLAG_PERM_RO;
-    range.start_vaddr = range.start_paddr = (map_addr_t) &__code_start;
-    range.size = ((map_addr_t)&__code_end) - ((map_addr_t)&__code_start);
-    x86_mmu_map_range(phy_init_table, &range, access);
-
-    /* kernel data section mapping */
-    LTRACEF("mapping kernel data\n");
-    access = 0;
-#if defined(ARCH_X86_64) || defined(PAE_MODE_ENABLED)
-    access |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+#if ARCH_X86_64
+#define MAX_PHYSICAL_RAM (64ULL*GB)
+#elif ARCH_X86_32
+#define MAX_PHYSICAL_RAM (1ULL*GB)
 #endif
-    range.start_vaddr = range.start_paddr = (map_addr_t) &__data_start;
-    range.size = ((map_addr_t)&__data_end) - ((map_addr_t)&__data_start);
-    x86_mmu_map_range(phy_init_table, &range, access);
 
-    /* kernel rodata section mapping */
-    LTRACEF("mapping kernel rodata\n");
-    access = ARCH_MMU_FLAG_PERM_RO;
-#if defined(ARCH_X86_64) || defined(PAE_MODE_ENABLED)
-    access |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
-#endif
-    range.start_vaddr = range.start_paddr = (map_addr_t) &__rodata_start;
-    range.size = ((map_addr_t)&__rodata_end) - ((map_addr_t)&__rodata_start);
-    x86_mmu_map_range(phy_init_table, &range, access);
-
-    /* kernel bss section and kernel heap mappings */
-    LTRACEF("mapping kernel bss+heap\n");
-    access = 0;
-#ifdef ARCH_X86_64
-    access |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
-#endif
-    range.start_vaddr = range.start_paddr = (map_addr_t) &__bss_start;
-    range.size = ((map_addr_t)_heap_end) - ((map_addr_t)&__bss_start);
-    x86_mmu_map_range(phy_init_table, &range, access);
-
-    /* Mapping for BIOS, devices */
-    LTRACEF("mapping bios devices\n");
-    access = 0;
-    range.start_vaddr = range.start_paddr = (map_addr_t) 0;
-    range.size = ((map_addr_t)&__code_start);
-    x86_mmu_map_range(phy_init_table, &range, access);
-
-    /* Moving to the new CR3 */
-    g_CR3 = (map_addr_t)phy_init_table;
-    x86_set_cr3((map_addr_t)phy_init_table);
-
-    LTRACE_EXIT;
-#endif
-}
-
-#if WITH_KERNEL_VM
+/* Instruct start.S how to set up the initial kernel address space.
+ * These data structures are later used by vm routines to lookup pointers
+ * to physical pages based on physical addresses.
+ */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
 #if ARCH_X86_64
     /* 64GB of memory mapped where the kernel lives */
     {
         .phys = MEMBASE,
         .virt = KERNEL_ASPACE_BASE,
-        .size = 64ULL*GB, /* x86-64 maps first 64GB by default */
+        .size = MAX_PHYSICAL_RAM, /* x86-64 maps first 64GB by default */
         .flags = 0,
-        .name = "memory"
+        .name = "physmap"
     },
 #endif
     /* 1GB of memory mapped where the kernel lives */
@@ -146,70 +85,87 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     { 0 }
 };
 
-static pmm_arena_t mem_arena = {
-    .name = "memory",
-    .base = MEMBASE,
-    .size = DEFAULT_MEMEND, /* default amount of memory in case we don't have multiboot */
-    .priority = 1,
-    .flags = PMM_ARENA_FLAG_KMAP
-};
+/* based on multiboot (or other methods) we support up to 16 arenas */
+#define NUM_ARENAS 16
+static pmm_arena_t mem_arena[NUM_ARENAS];
 
-/* set up the size of the physical memory map based on the end of memory we detected in
- * platform_init_multiboot_info()
+/* Walk through the multiboot structure and attempt to discover all of the runs
+ * of physical memory to bootstrap the pmm areas.
+ * Returns number of arenas initialized (or error).
  */
-static void mem_arena_init(void) {
-    uintptr_t mem_base = (uintptr_t)MEMBASE;
-    uintptr_t mem_size = mem_top;
+static int platform_parse_multiboot_info(void) {
+    int count = 0;
 
-    mem_arena.base = PAGE_ALIGN(mem_base) + MB;
-    mem_arena.size = PAGE_ALIGN(mem_size) - MB;
-}
-#endif
-
-static void platform_init_multiboot_info(void) {
     LTRACEF("_multiboot_info %p\n", _multiboot_info);
     if (_multiboot_info) {
         /* bump the multiboot pointer up to the kernel mapping */
         _multiboot_info = (void *)((uintptr_t)_multiboot_info + KERNEL_BASE);
-
         if (_multiboot_info->flags & MB_INFO_MEM_SIZE) {
-            LTRACEF("memory lower 0x%x\n", _multiboot_info->mem_lower * 1024U);
-            LTRACEF("memory upper 0x%llx\n", _multiboot_info->mem_upper * 1024ULL);
-            mem_top = _multiboot_info->mem_upper * 1024;
+            LTRACEF("memory lower %#x\n", _multiboot_info->mem_lower * 1024U);
+            LTRACEF("memory upper %#" PRIx64"\n", _multiboot_info->mem_upper * 1024ULL);
         }
 
         if (_multiboot_info->flags & MB_INFO_MMAP) {
             memory_map_t *mmap = (memory_map_t *)(uintptr_t)_multiboot_info->mmap_addr;
             mmap = (void *)((uintptr_t)mmap + KERNEL_BASE);
 
-            LTRACEF("memory map:\n");
+            LTRACEF("memory map, length %u:\n", _multiboot_info->mmap_length);
             for (uint i = 0; i < _multiboot_info->mmap_length / sizeof(memory_map_t); i++) {
 
-                LTRACEF("\ttype %u addr 0x%x %x len 0x%x %x\n",
-                        mmap[i].type, mmap[i].base_addr_high, mmap[i].base_addr_low,
-                        mmap[i].length_high, mmap[i].length_low);
-                if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE && mmap[i].base_addr_low >= mem_top) {
-                    mem_top = mmap[i].base_addr_low + mmap[i].length_low;
-                } else if (mmap[i].type != MB_MMAP_TYPE_AVAILABLE && mmap[i].base_addr_low >= mem_top) {
-                    /*
-                     * break on first memory hole above default heap end for now.
-                     * later we can add facilities for adding free chunks to the
-                     * heap for each segregated memory region.
-                     */
-                    break;
+                uint64_t base = mmap[i].base_addr_low | (uint64_t)mmap[i].base_addr_high << 32;
+                uint64_t length = mmap[i].length_low | (uint64_t)mmap[i].length_high << 32;
+
+                LTRACEF("\ttype %u addr %#" PRIx64 " len %#" PRIx64 "\n",
+                        mmap[i].type, base, length);
+                if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE) {
+
+                    /* do some sanity checks to cut out small arenas */
+                    if (length < PAGE_SIZE * 2) {
+                        continue;
+                    }
+
+                    /* align the base and length */
+                    uint64_t oldbase = base;
+                    base = PAGE_ALIGN(base);
+                    if (base > oldbase) {
+                        length -= base - oldbase;
+                    }
+                    length = ROUNDDOWN(length, PAGE_SIZE);
+
+                    /* ignore memory < 1MB */
+                    if (base < 1*MB) {
+                        /* skip everything < 1MB */
+                        continue;
+                    }
+
+                    /* ignore everything that extends past max memory */
+                    if (base >= MAX_PHYSICAL_RAM) {
+                        continue;
+                    }
+                    uint64_t end = base + length;
+                    if (end > MAX_PHYSICAL_RAM) {
+                        end = MAX_PHYSICAL_RAM;
+                        DEBUG_ASSERT(end > base);
+                        length = end - base;
+                        dprintf(INFO, "PC: trimmed memory to %" PRIu64 " bytes\n", MAX_PHYSICAL_RAM);
+                    }
+
+                    /* initialize a new pmm arena */
+                    mem_arena[count].name = "memory";
+                    mem_arena[count].base = base;
+                    mem_arena[count].size = length;
+                    mem_arena[count].priority = 1;
+                    mem_arena[count].flags = PMM_ARENA_FLAG_KMAP;
+                    count++;
+                    if (count == countof(mem_arena)) {
+                        break;
+                    }
                 }
             }
         }
     }
 
-#if ARCH_X86_32
-    if (mem_top > 1*GB) {
-        /* trim the memory map to 1GB, since that's what's already mapped in the kernel */
-        TRACEF("WARNING: trimming memory to first 1GB\n");
-        mem_top = 1*GB;
-    }
-#endif
-    LTRACEF("mem_top 0x%lx\n", mem_top);
+    return count;
 }
 
 void platform_early_init(void) {
@@ -226,12 +182,29 @@ void platform_early_init(void) {
     platform_init_timer();
 
     /* look at multiboot to determine our memory size */
-    platform_init_multiboot_info();
+    int found_arenas = platform_parse_multiboot_info();
+    if (found_arenas <= 0) {
+        /* if we couldn't find any memory, initialize a default arena */
+        mem_arena[0] = (pmm_arena_t){
+            .name = "memory",
+            .base = MEMBASE,
+            .size = DEFAULT_MEMEND,
+            .priority = 1,
+            .flags = PMM_ARENA_FLAG_KMAP
+        };
+        found_arenas = 1;
+        printf("PC: WARNING failed to detect memory map from multiboot, using default\n");
+    }
 
-#ifdef WITH_KERNEL_VM
-    mem_arena_init();
-    pmm_add_arena(&mem_arena);
-#endif
+    DEBUG_ASSERT(found_arenas > 0 && found_arenas <= (int)countof(mem_arena));
+
+    /* add the arenas we just set up to the pmm */
+    uint64_t total_mem = 0;
+    for (int i = 0; i < found_arenas; i++) {
+        pmm_add_arena(&mem_arena[i]);
+        total_mem += mem_arena[i].size;
+    }
+    dprintf(INFO, "PC: total memory detected %" PRIu64 " bytes\n", total_mem);
 }
 
 void local_apic_callback(const void *_entry, size_t entry_len) {

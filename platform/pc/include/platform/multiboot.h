@@ -81,6 +81,7 @@ enum {
     MB_INFO_BOOT_LOADER = 0x200,
     MB_INFO_APM_TABLE   = 0x400,
     MB_INFO_VBE         = 0x800,
+    MB_INFO_FRAMEBUFFER = 0x1000,
 };
 
 /* module structure */
@@ -107,6 +108,7 @@ enum {
     MB_MMAP_TYPE_RESERVED       = 0x02,
     MB_MMAP_TYPE_ACPI_RECLAIM   = 0x03,
     MB_MMAP_TYPE_ACPI_NVS       = 0x04,
+    MB_MMAP_TYPE_BADRAM         = 0x05,
 };
 
 #endif
