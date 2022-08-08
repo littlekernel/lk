@@ -25,7 +25,7 @@ uint8_t _kstack[PAGE_SIZE] __ALIGNED(8);
 
 /* save a pointer to the multiboot information coming in from whoever called us */
 /* make sure it lives in .data to avoid it being wiped out by bss clearing */
-__SECTION(".data") void *_multiboot_info;
+__SECTION(".data") uint32_t _multiboot_info;
 
 /* main tss */
 static tss_t system_tss;

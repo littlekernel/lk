@@ -7,22 +7,38 @@
  */
 #pragma once
 
-#include <sys/types.h>
+/* from https://www.gnu.org/software/grub/manual/multiboot/multiboot.html */
 
 /* magic number for multiboot header */
 #define MULTIBOOT_HEADER_MAGIC      0x1BADB002
 
-/* flags for multiboot header */
-#ifdef __ELF__
-#define MULTIBOOT_HEADER_FLAGS      0x00000003
-#else
-#define MULTIBOOT_HEADER_FLAGS      0x00010003
-#endif
-
 /* magic number passed by multiboot-compliant boot loaders */
 #define MULTIBOOT_BOOTLOADER_MAGIC  0x2BADB002
 
+/* Alignment of multiboot modules. */
+#define MULTIBOOT_MOD_ALIGN         0x00001000
+
+/* Alignment of the multiboot info structure. */
+#define MULTIBOOT_INFO_ALIGN        0x00000004
+
+/* Flags set in the ’flags’ member of the multiboot header. */
+
+/* Align all boot modules on i386 page (4KB) boundaries. */
+#define MULTIBOOT_PAGE_ALIGN        0x00000001
+
+/* Must pass memory information to OS. */
+#define MULTIBOOT_MEMORY_INFO       0x00000002
+
+/* Must pass video information to OS. */
+#define MULTIBOOT_VIDEO_MODE        0x00000004
+
+/* This flag indicates the use of the address fields in the header. */
+#define MULTIBOOT_AOUT_KLUDGE       0x00010000
+
 #ifndef ASSEMBLY
+
+#include <sys/types.h>
+#include <assert.h>
 
 /* multiboot header */
 typedef struct multiboot_header {
@@ -65,8 +81,46 @@ typedef struct multiboot_info {
         aout_symbol_table_t aout_sym;
         elf_section_header_table_t elf_sec;
     } u;
+
     uint32_t mmap_length;
     uint32_t mmap_addr;
+
+    uint32_t drives_length;
+    uint32_t drives_addr;
+
+    uint32_t config_table;
+
+    uint32_t boot_loader_name;
+
+    uint32_t apm_table;
+
+    uint32_t vbe_control_info;
+    uint32_t vbe_mode_info;
+    uint16_t vbe_mode;
+    uint16_t vbe_interface_seg;
+    uint16_t vbe_interface_off;
+    uint16_t vbe_interface_len;
+
+    uint64_t framebuffer_addr;
+    uint32_t framebuffer_pitch;
+    uint32_t framebuffer_width;
+    uint32_t framebuffer_height;
+    uint8_t  framebuffer_bpp;
+    uint8_t  framebuffer_type;
+    union {
+        struct {
+            uint32_t framebuffer_palette_addr;
+            uint16_t framebuffer_palette_num_colors;
+        };
+        struct {
+            uint8_t framebuffer_red_field_position;
+            uint8_t framebuffer_red_mask_size;
+            uint8_t framebuffer_green_field_position;
+            uint8_t framebuffer_green_mask_size;
+            uint8_t framebuffer_blue_field_position;
+            uint8_t framebuffer_blue_mask_size;
+        };
+    };
 } multiboot_info_t;
 
 enum {
@@ -111,5 +165,12 @@ enum {
     MB_MMAP_TYPE_BADRAM         = 0x05,
 };
 
-#endif
+/* framebuffer types */
+enum {
+    MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED  = 0,
+    MULTIBOOT_FRAMEBUFFER_TYPE_RGB      = 1,
+    MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT = 2,
+};
+
+#endif // ASSEMBLY
 

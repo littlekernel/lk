@@ -15,10 +15,10 @@
 #include <platform.h>
 #include "platform_p.h"
 #include <platform/pc.h>
-#include <platform/multiboot.h>
 #include <platform/console.h>
 #include <platform/keyboard.h>
 #include <dev/uart.h>
+#include <hw/multiboot.h>
 #include <arch/x86.h>
 #include <arch/mmu.h>
 #include <malloc.h>
@@ -38,7 +38,7 @@
 #define LOCAL_TRACE 0
 
 /* multiboot information passed in, if present */
-extern multiboot_info_t *_multiboot_info;
+extern uint32_t _multiboot_info;
 
 #define DEFAULT_MEMEND (16*1024*1024)
 
@@ -91,81 +91,102 @@ static pmm_arena_t mem_arena[NUM_ARENAS];
 
 /* Walk through the multiboot structure and attempt to discover all of the runs
  * of physical memory to bootstrap the pmm areas.
- * Returns number of arenas initialized (or error).
+ * Returns number of arenas initialized in passed in pointer
  */
-static int platform_parse_multiboot_info(void) {
-    int count = 0;
+static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
+    *found_mem_arenas = 0;
 
-    LTRACEF("_multiboot_info %p\n", _multiboot_info);
-    if (_multiboot_info) {
-        /* bump the multiboot pointer up to the kernel mapping */
-        _multiboot_info = (void *)((uintptr_t)_multiboot_info + KERNEL_BASE);
-        if (_multiboot_info->flags & MB_INFO_MEM_SIZE) {
-            LTRACEF("memory lower %#x\n", _multiboot_info->mem_lower * 1024U);
-            LTRACEF("memory upper %#" PRIx64"\n", _multiboot_info->mem_upper * 1024ULL);
-        }
+    dprintf(SPEW, "PC: multiboot address %#" PRIx32 "\n", _multiboot_info);
+    if (_multiboot_info == 0) {
+        return ERR_NOT_FOUND;
+    }
 
-        if (_multiboot_info->flags & MB_INFO_MMAP) {
-            memory_map_t *mmap = (memory_map_t *)(uintptr_t)_multiboot_info->mmap_addr;
-            mmap = (void *)((uintptr_t)mmap + KERNEL_BASE);
+    /* bump the multiboot pointer up to the kernel mapping */
+    /* TODO: test that it's within range of the kernel mapping */
+    const multiboot_info_t *multiboot_info = (void *)((uintptr_t)_multiboot_info + KERNEL_BASE);
 
-            LTRACEF("memory map, length %u:\n", _multiboot_info->mmap_length);
-            for (uint i = 0; i < _multiboot_info->mmap_length / sizeof(memory_map_t); i++) {
+    dprintf(SPEW, "\tflags %#x\n", multiboot_info->flags);
 
-                uint64_t base = mmap[i].base_addr_low | (uint64_t)mmap[i].base_addr_high << 32;
-                uint64_t length = mmap[i].length_low | (uint64_t)mmap[i].length_high << 32;
+    if (multiboot_info->flags & MB_INFO_MEM_SIZE) {
+        dprintf(SPEW, "PC: multiboot memory lower %#x upper %#" PRIx64 "\n",
+                multiboot_info->mem_lower * 1024U, multiboot_info->mem_upper * 1024ULL);
+    }
 
-                LTRACEF("\ttype %u addr %#" PRIx64 " len %#" PRIx64 "\n",
-                        mmap[i].type, base, length);
-                if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE) {
+    if (multiboot_info->flags & MB_INFO_MMAP) {
+        const memory_map_t *mmap = (const memory_map_t *)(uintptr_t)multiboot_info->mmap_addr;
+        mmap = (void *)((uintptr_t)mmap + KERNEL_BASE);
 
-                    /* do some sanity checks to cut out small arenas */
-                    if (length < PAGE_SIZE * 2) {
-                        continue;
-                    }
+        dprintf(SPEW, "PC: multiboot memory map, length %u:\n", multiboot_info->mmap_length);
+        for (uint i = 0; i < multiboot_info->mmap_length / sizeof(memory_map_t); i++) {
 
-                    /* align the base and length */
-                    uint64_t oldbase = base;
-                    base = PAGE_ALIGN(base);
-                    if (base > oldbase) {
-                        length -= base - oldbase;
-                    }
-                    length = ROUNDDOWN(length, PAGE_SIZE);
+            uint64_t base = mmap[i].base_addr_low | (uint64_t)mmap[i].base_addr_high << 32;
+            uint64_t length = mmap[i].length_low | (uint64_t)mmap[i].length_high << 32;
 
-                    /* ignore memory < 1MB */
-                    if (base < 1*MB) {
-                        /* skip everything < 1MB */
-                        continue;
-                    }
+            dprintf(SPEW, "\ttype %u addr %#" PRIx64 " len %#" PRIx64 "\n",
+                    mmap[i].type, base, length);
+            if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE) {
 
-                    /* ignore everything that extends past max memory */
-                    if (base >= MAX_PHYSICAL_RAM) {
-                        continue;
-                    }
-                    uint64_t end = base + length;
-                    if (end > MAX_PHYSICAL_RAM) {
-                        end = MAX_PHYSICAL_RAM;
-                        DEBUG_ASSERT(end > base);
-                        length = end - base;
-                        dprintf(INFO, "PC: trimmed memory to %" PRIu64 " bytes\n", MAX_PHYSICAL_RAM);
-                    }
+                /* do some sanity checks to cut out small arenas */
+                if (length < PAGE_SIZE * 2) {
+                    continue;
+                }
 
-                    /* initialize a new pmm arena */
-                    mem_arena[count].name = "memory";
-                    mem_arena[count].base = base;
-                    mem_arena[count].size = length;
-                    mem_arena[count].priority = 1;
-                    mem_arena[count].flags = PMM_ARENA_FLAG_KMAP;
-                    count++;
-                    if (count == countof(mem_arena)) {
-                        break;
-                    }
+                /* align the base and length */
+                uint64_t oldbase = base;
+                base = PAGE_ALIGN(base);
+                if (base > oldbase) {
+                    length -= base - oldbase;
+                }
+                length = ROUNDDOWN(length, PAGE_SIZE);
+
+                /* ignore memory < 1MB */
+                if (base < 1*MB) {
+                    /* skip everything < 1MB */
+                    continue;
+                }
+
+                /* ignore everything that extends past max memory */
+                if (base >= MAX_PHYSICAL_RAM) {
+                    continue;
+                }
+                uint64_t end = base + length;
+                if (end > MAX_PHYSICAL_RAM) {
+                    end = MAX_PHYSICAL_RAM;
+                    DEBUG_ASSERT(end > base);
+                    length = end - base;
+                    dprintf(INFO, "PC: trimmed memory to %" PRIu64 " bytes\n", MAX_PHYSICAL_RAM);
+                }
+
+                /* initialize a new pmm arena */
+                mem_arena[*found_mem_arenas].name = "memory";
+                mem_arena[*found_mem_arenas].base = base;
+                mem_arena[*found_mem_arenas].size = length;
+                mem_arena[*found_mem_arenas].priority = 1;
+                mem_arena[*found_mem_arenas].flags = PMM_ARENA_FLAG_KMAP;
+                (*found_mem_arenas)++;
+                if (*found_mem_arenas == countof(mem_arena)) {
+                    break;
                 }
             }
         }
     }
 
-    return count;
+    if (multiboot_info->flags & MB_INFO_FRAMEBUFFER) {
+        dprintf(SPEW, "PC: multiboot framebuffer info present\n");
+        dprintf(SPEW, "\taddress %#" PRIx64 " pitch %u width %u height %u bpp %hhu type %u\n",
+                multiboot_info->framebuffer_addr, multiboot_info->framebuffer_pitch,
+                multiboot_info->framebuffer_width, multiboot_info->framebuffer_height,
+                multiboot_info->framebuffer_bpp, multiboot_info->framebuffer_type);
+
+        if (multiboot_info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
+            dprintf(SPEW, "\tcolor bit layout: R %u:%u G %u:%u B %u:%u\n",
+                    multiboot_info->framebuffer_red_field_position, multiboot_info->framebuffer_red_mask_size,
+                    multiboot_info->framebuffer_green_field_position, multiboot_info->framebuffer_green_mask_size,
+                    multiboot_info->framebuffer_blue_field_position, multiboot_info->framebuffer_blue_mask_size);
+        }
+    }
+
+    return NO_ERROR;
 }
 
 void platform_early_init(void) {
@@ -182,7 +203,8 @@ void platform_early_init(void) {
     platform_init_timer();
 
     /* look at multiboot to determine our memory size */
-    int found_arenas = platform_parse_multiboot_info();
+    size_t found_arenas;
+    platform_parse_multiboot_info(&found_arenas);
     if (found_arenas <= 0) {
         /* if we couldn't find any memory, initialize a default arena */
         mem_arena[0] = (pmm_arena_t){
@@ -196,11 +218,11 @@ void platform_early_init(void) {
         printf("PC: WARNING failed to detect memory map from multiboot, using default\n");
     }
 
-    DEBUG_ASSERT(found_arenas > 0 && found_arenas <= (int)countof(mem_arena));
+    DEBUG_ASSERT(found_arenas > 0 && found_arenas <= countof(mem_arena));
 
     /* add the arenas we just set up to the pmm */
     uint64_t total_mem = 0;
-    for (int i = 0; i < found_arenas; i++) {
+    for (size_t i = 0; i < found_arenas; i++) {
         pmm_add_arena(&mem_arena[i]);
         total_mem += mem_arena[i].size;
     }

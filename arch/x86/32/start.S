@@ -10,19 +10,7 @@
 #include <lk/asm.h>
 #include <arch/x86/descriptor.h>
 #include <arch/x86/mmu.h>
-
-/* The magic number for the Multiboot header. */
-#define MULTIBOOT_HEADER_MAGIC 0x1BADB002
-
-/* The flags for the Multiboot header. */
-#if defined(__ELF__) && 0
-#define MULTIBOOT_HEADER_FLAGS 0x00000002
-#else
-#define MULTIBOOT_HEADER_FLAGS 0x00010002
-#endif
-
-/* The magic number passed by a Multiboot-compliant boot loader. */
-#define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
+#include <hw/multiboot.h>
 
 #define PHYS_LOAD_ADDRESS (MEMBASE + KERNEL_LOAD_OFFSET)
 #define PHYS_ADDR_DELTA (KERNEL_BASE + KERNEL_LOAD_OFFSET - PHYS_LOAD_ADDRESS)
@@ -35,6 +23,9 @@ _start:
 
 .align 4
 
+/* flags for multiboot header */
+#define MULTIBOOT_HEADER_FLAGS (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO | MULTIBOOT_AOUT_KLUDGE)
+
 .type multiboot_header,STT_OBJECT
 multiboot_header:
     /* magic */
@@ -44,7 +35,6 @@ multiboot_header:
     /* checksum */
     .int -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
 
-#if !defined(__ELF__) || 1
     /* header_addr */
     .int PHYS(multiboot_header)
     /* load_addr */
@@ -55,7 +45,6 @@ multiboot_header:
     .int PHYS(__bss_end)
     /* entry_addr */
     .int PHYS(real_start)
-#endif
 
 real_start:
     cmpl $MULTIBOOT_BOOTLOADER_MAGIC, %eax
