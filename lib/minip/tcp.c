@@ -994,7 +994,6 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
 
     // XXX add some entropy to try to better randomize things
     lk_bigtime_t t = current_time_hires();
-    printf("%lld\n", t);
     rand_add_entropy(&t, sizeof(t));
 
     // set up the socket for outgoing connections
