@@ -89,7 +89,7 @@ static void setup_pins(void) {
     GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(GPIOG, &GPIO_InitStruct);
 
-    GPIOE->BSRRL |= GPIO_Pin_7; // set PE7 high
+    GPIOE->BSRR |= GPIO_Pin_7; // set PE7 high
 
     // Setup display CS Pin
     gpio_config(GPIO(GPIO_PORT_G, 8), GPIO_OUTPUT);
