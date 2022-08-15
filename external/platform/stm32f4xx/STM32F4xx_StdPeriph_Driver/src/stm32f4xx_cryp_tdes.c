@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file    stm32f4xx_cryp_tdes.c
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file provides high level functions to encrypt and decrypt an 
   *          input message using TDES in ECB/CBC modes .
   *          It uses the stm32f4xx_cryp.c/.h drivers to access the STM32F4xx CRYP
@@ -27,22 +27,15 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
-  */ 
+  */
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_cryp.h"
@@ -150,43 +143,45 @@ ErrorStatus CRYP_TDES_ECB(uint8_t Mode, uint8_t Key[24], uint8_t *Input,
   if(CRYP_GetCmdStatus() == DISABLE)
   {
     /* The CRYP peripheral clock is not enabled or the device doesn't embed 
-       the CRYP peripheral (please check the device sales type. */
-    return(ERROR);
+    the CRYP peripheral (please check the device sales type. */
+    status = ERROR;
   }
-  for(i=0; ((i<Ilength) && (status != ERROR)); i+=8)
+  else
   {
-    /* Write the Input block in the Input FIFO */
-    CRYP_DataIn(*(uint32_t*)(inputaddr));
-    inputaddr+=4;
-    CRYP_DataIn(*(uint32_t*)(inputaddr));
-    inputaddr+=4;
-
-    /* Wait until the complete message has been processed */
-    counter = 0;
-    do
+    for(i=0; ((i<Ilength) && (status != ERROR)); i+=8)
     {
-      busystatus = CRYP_GetFlagStatus(CRYP_FLAG_BUSY);
-      counter++;
-    }while ((counter != TDESBUSY_TIMEOUT) && (busystatus != RESET));
-
-    if (busystatus != RESET)
-    {
-       status = ERROR;
+      /* Write the Input block in the Input FIFO */
+      CRYP_DataIn(*(uint32_t*)(inputaddr));
+      inputaddr+=4;
+      CRYP_DataIn(*(uint32_t*)(inputaddr));
+      inputaddr+=4;
+      
+      /* Wait until the complete message has been processed */
+      counter = 0;
+      do
+      {
+        busystatus = CRYP_GetFlagStatus(CRYP_FLAG_BUSY);
+        counter++;
+      }while ((counter != TDESBUSY_TIMEOUT) && (busystatus != RESET));
+      
+      if (busystatus != RESET)
+      {
+        status = ERROR;
+      }
+      else
+      {
+        
+        /* Read the Output block from the Output FIFO */
+        *(uint32_t*)(outputaddr) = CRYP_DataOut();
+        outputaddr+=4;
+        *(uint32_t*)(outputaddr) = CRYP_DataOut();
+        outputaddr+=4;
+      }
     }
-    else
-    {
-
-      /* Read the Output block from the Output FIFO */
-      *(uint32_t*)(outputaddr) = CRYP_DataOut();
-      outputaddr+=4;
-      *(uint32_t*)(outputaddr) = CRYP_DataOut();
-      outputaddr+=4;
-    }
+    
+    /* Disable Crypto */
+    CRYP_Cmd(DISABLE);
   }
-
-  /* Disable Crypto */
-  CRYP_Cmd(DISABLE);
-
   return status; 
 }
 
@@ -250,60 +245,61 @@ ErrorStatus CRYP_TDES_CBC(uint8_t Mode, uint8_t Key[24], uint8_t InitVectors[8],
   keyaddr+=4;
   TDES_CRYP_KeyInitStructure.CRYP_Key3Right= __REV(*(uint32_t*)(keyaddr));
   CRYP_KeyInit(& TDES_CRYP_KeyInitStructure);
-
+  
   /* Initialization Vectors */
   TDES_CRYP_IVInitStructure.CRYP_IV0Left = __REV(*(uint32_t*)(ivaddr));
   ivaddr+=4;
   TDES_CRYP_IVInitStructure.CRYP_IV0Right= __REV(*(uint32_t*)(ivaddr));
   CRYP_IVInit(&TDES_CRYP_IVInitStructure);
-
+  
   /* Flush IN/OUT FIFO */
   CRYP_FIFOFlush();
-
+  
   /* Enable Crypto processor */
   CRYP_Cmd(ENABLE);
-
+  
   if(CRYP_GetCmdStatus() == DISABLE)
   {
     /* The CRYP peripheral clock is not enabled or the device doesn't embed 
-       the CRYP peripheral (please check the device sales type. */
-    return(ERROR);
+    the CRYP peripheral (please check the device sales type. */
+    status = ERROR;
   }
-  
-  for(i=0; ((i<Ilength) && (status != ERROR)); i+=8)
+  else
   {
-    /* Write the Input block in the Input FIFO */
-    CRYP_DataIn(*(uint32_t*)(inputaddr));
-    inputaddr+=4;
-    CRYP_DataIn(*(uint32_t*)(inputaddr));
-    inputaddr+=4;
-
-    /* Wait until the complete message has been processed */
-    counter = 0;
-    do
+    for(i=0; ((i<Ilength) && (status != ERROR)); i+=8)
     {
-      busystatus = CRYP_GetFlagStatus(CRYP_FLAG_BUSY);
-      counter++;
-    }while ((counter != TDESBUSY_TIMEOUT) && (busystatus != RESET));
-
-    if (busystatus != RESET)
-   {
-       status = ERROR;
+      /* Write the Input block in the Input FIFO */
+      CRYP_DataIn(*(uint32_t*)(inputaddr));
+      inputaddr+=4;
+      CRYP_DataIn(*(uint32_t*)(inputaddr));
+      inputaddr+=4;
+      
+      /* Wait until the complete message has been processed */
+      counter = 0;
+      do
+      {
+        busystatus = CRYP_GetFlagStatus(CRYP_FLAG_BUSY);
+        counter++;
+      }while ((counter != TDESBUSY_TIMEOUT) && (busystatus != RESET));
+      
+      if (busystatus != RESET)
+      {
+        status = ERROR;
+      }
+      else
+      {
+        
+        /* Read the Output block from the Output FIFO */
+        *(uint32_t*)(outputaddr) = CRYP_DataOut();
+        outputaddr+=4;
+        *(uint32_t*)(outputaddr) = CRYP_DataOut();
+        outputaddr+=4;
+      }
     }
-    else
-    {
-
-      /* Read the Output block from the Output FIFO */
-      *(uint32_t*)(outputaddr) = CRYP_DataOut();
-      outputaddr+=4;
-      *(uint32_t*)(outputaddr) = CRYP_DataOut();
-      outputaddr+=4;
-    }
+    
+    /* Disable Crypto */
+    CRYP_Cmd(DISABLE);
   }
-
-  /* Disable Crypto */
-  CRYP_Cmd(DISABLE);
-
   return status; 
 }
 /**
@@ -322,4 +318,3 @@ ErrorStatus CRYP_TDES_CBC(uint8_t Mode, uint8_t Key[24], uint8_t InitVectors[8],
   * @}
   */ 
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

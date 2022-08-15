@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file    stm32f4xx_gpio.c
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file provides firmware functions to manage the following 
   *          functionalities of the GPIO peripheral:           
   *           + Initialization and Configuration
@@ -63,19 +63,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -415,7 +408,7 @@ void GPIO_SetBits(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
   assert_param(IS_GPIO_ALL_PERIPH(GPIOx));
   assert_param(IS_GPIO_PIN(GPIO_Pin));
 
-  GPIOx->BSRRL = GPIO_Pin;
+  GPIOx->BSRR = GPIO_Pin;
 }
 
 /**
@@ -436,7 +429,7 @@ void GPIO_ResetBits(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
   assert_param(IS_GPIO_ALL_PERIPH(GPIOx));
   assert_param(IS_GPIO_PIN(GPIO_Pin));
 
-  GPIOx->BSRRH = GPIO_Pin;
+  GPIOx->BSRR = (uint32_t)GPIO_Pin << 16;
 }
 
 /**
@@ -461,11 +454,11 @@ void GPIO_WriteBit(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, BitAction BitVal)
 
   if (BitVal != Bit_RESET)
   {
-    GPIOx->BSRRL = GPIO_Pin;
+    GPIOx->BSRR = GPIO_Pin;
   }
   else
   {
-    GPIOx->BSRRH = GPIO_Pin ;
+    GPIOx->BSRR = (uint32_t)GPIO_Pin << 16;
   }
 }
 
@@ -608,4 +601,3 @@ void GPIO_PinAFConfig(GPIO_TypeDef* GPIOx, uint16_t GPIO_PinSource, uint8_t GPIO
   * @}
   */ 
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

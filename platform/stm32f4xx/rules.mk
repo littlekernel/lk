@@ -14,16 +14,16 @@ ARM_CPU := cortex-m4
 
 # TODO: integrate better with platform/stm32f4xx/CMSIS/stm32f4xx.h
 ifeq ($(STM32_CHIP),stm32f407)
-GLOBAL_DEFINES += STM32F40_41xxx 
+GLOBAL_COMPILEFLAGS += -DSTM32F40_41xxx=1
 FOUND_CHIP := true
 endif
 ifeq ($(STM32_CHIP),stm32f417)
 FOUND_CHIP := true
-GLOBAL_DEFINES += STM32F40_41xxx
+GLOBAL_COMPILEFLAGS += -DSTM32F40_41xxx=1
 endif
 ifeq ($(STM32_CHIP),stm32f429)
 FOUND_CHIP := true
-GLOBAL_DEFINES += STM32F429_439xx
+GLOBAL_COMPILEFLAGS += -DSTM32F429_439xx=1
 endif
 
 ifeq ($(FOUND_CHIP),)

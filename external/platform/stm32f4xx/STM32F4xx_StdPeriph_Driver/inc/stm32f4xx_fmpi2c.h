@@ -1,27 +1,20 @@
 /**
   ******************************************************************************
-  * @file    stm32f30x_fmpi2c.h
+  * @file    stm32f4xx_fmpi2c.h
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file contains all the functions prototypes for the I2C Fast Mode
   *          Plus firmware library.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -44,7 +37,7 @@
 /** @addtogroup FMPI2C
   * @{
   */
-#if defined(STM32F446xx)
+#if defined(STM32F410xx) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)
 /* Exported types ------------------------------------------------------------*/
 
 /**
@@ -350,7 +343,6 @@ typedef struct
                                          ((IT) == FMPI2C_IT_ARLO) || ((IT) == FMPI2C_IT_OVR) || \
                                          ((IT) == FMPI2C_IT_PECERR) || ((IT) == FMPI2C_IT_TIMEOUT) || \
                                          ((IT) == FMPI2C_IT_ALERT))
-                               
 
 /**
   * @}
@@ -410,7 +402,6 @@ void FMPI2C_Cmd(FMPI2C_TypeDef* FMPI2Cx, FunctionalState NewState);
 void FMPI2C_SoftwareResetCmd(FMPI2C_TypeDef* FMPI2Cx);
 void FMPI2C_ITConfig(FMPI2C_TypeDef* FMPI2Cx, uint32_t FMPI2C_IT, FunctionalState NewState);
 void FMPI2C_StretchClockCmd(FMPI2C_TypeDef* FMPI2Cx, FunctionalState NewState);
-void FMPI2C_StopModeCmd(FMPI2C_TypeDef* FMPI2Cx, FunctionalState NewState);
 void FMPI2C_DualAddressCmd(FMPI2C_TypeDef* FMPI2Cx, FunctionalState NewState);
 void FMPI2C_OwnAddress2Config(FMPI2C_TypeDef* FMPI2Cx, uint16_t Address, uint8_t Mask);
 void FMPI2C_GeneralCallCmd(FMPI2C_TypeDef* FMPI2Cx, FunctionalState NewState);
@@ -442,7 +433,7 @@ void FMPI2C_CalculatePEC(FMPI2C_TypeDef* FMPI2Cx, FunctionalState NewState);
 void FMPI2C_PECRequestCmd(FMPI2C_TypeDef* FMPI2Cx, FunctionalState NewState);
 uint8_t FMPI2C_GetPEC(FMPI2C_TypeDef* FMPI2Cx);
 
-/* FMPI2C registers management functions **************************************/
+/* FMPI2C registers management functions *****************************************/
 uint32_t FMPI2C_ReadRegister(FMPI2C_TypeDef* FMPI2Cx, uint8_t FMPI2C_Register);
 
 /* Data transfers management functions ****************************************/
@@ -458,7 +449,7 @@ void FMPI2C_ClearFlag(FMPI2C_TypeDef* FMPI2Cx, uint32_t FMPI2C_FLAG);
 ITStatus FMPI2C_GetITStatus(FMPI2C_TypeDef* FMPI2Cx, uint32_t FMPI2C_IT);
 void FMPI2C_ClearITPendingBit(FMPI2C_TypeDef* FMPI2Cx, uint32_t FMPI2C_IT);
 
-#endif /* STM32F446xx */
+#endif /* STM32F410xx || STM32F412xG || STM32F413_423xx || STM32F446xx */
 /**
   * @}
   */
@@ -473,4 +464,3 @@ void FMPI2C_ClearITPendingBit(FMPI2C_TypeDef* FMPI2Cx, uint32_t FMPI2C_IT);
 
 #endif /*__STM32F4xx_FMPI2C_H */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

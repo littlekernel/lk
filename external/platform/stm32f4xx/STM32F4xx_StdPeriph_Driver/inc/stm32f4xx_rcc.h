@@ -2,25 +2,18 @@
   ******************************************************************************
   * @file    stm32f4xx_rcc.h
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
-  * @brief   This file contains all the functions prototypes for the RCC firmware library.  
+  * @version V1.8.1
+  * @date    27-January-2022
+  * @brief   This file contains all the functions prototypes for the RCC firmware library.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -105,30 +98,38 @@ typedef struct
 #define IS_RCC_PLL_SOURCE(SOURCE) (((SOURCE) == RCC_PLLSource_HSI) || \
                                    ((SOURCE) == RCC_PLLSource_HSE))
 #define IS_RCC_PLLM_VALUE(VALUE) ((VALUE) <= 63)
-#define IS_RCC_PLLN_VALUE(VALUE) ((192 <= (VALUE)) && ((VALUE) <= 432))
+#define IS_RCC_PLLN_VALUE(VALUE) ((50 <= (VALUE)) && ((VALUE) <= 432))
 #define IS_RCC_PLLP_VALUE(VALUE) (((VALUE) == 2) || ((VALUE) == 4) || ((VALUE) == 6) || ((VALUE) == 8))
 #define IS_RCC_PLLQ_VALUE(VALUE) ((4 <= (VALUE)) && ((VALUE) <= 15))
-#if defined(STM32F446xx)
+#if defined(STM32F410xx) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx) || defined(STM32F469_479xx)
 #define IS_RCC_PLLR_VALUE(VALUE) ((2 <= (VALUE)) && ((VALUE) <= 7))
-#endif /* STM32F446xx */
+#endif /* STM32F410xx || STM32F412xG || STM32F413_423xx || STM32F446xx || STM32F469_479xx */
 
-#define IS_RCC_PLLI2SN_VALUE(VALUE) ((192 <= (VALUE)) && ((VALUE) <= 432))
-#define IS_RCC_PLLI2SR_VALUE(VALUE) ((2 <= (VALUE)) && ((VALUE) <= 7))
-#define IS_RCC_PLLI2SM_VALUE(VALUE) ((VALUE) <= 63)
-#define IS_RCC_PLLI2SQ_VALUE(VALUE) ((2 <= (VALUE)) && ((VALUE) <= 15))
-#if defined(STM32F446xx)
+#define IS_RCC_PLLI2SN_VALUE(VALUE) ((50 <= (VALUE)) && ((VALUE) <= 432))
+#define IS_RCC_PLLI2SR_VALUE(VALUE) ((2 <= (VALUE))  && ((VALUE) <= 7))
+#define IS_RCC_PLLI2SM_VALUE(VALUE) ((2 <= (VALUE))  && ((VALUE) <= 63))
+#define IS_RCC_PLLI2SQ_VALUE(VALUE) ((2 <= (VALUE))  && ((VALUE) <= 15))
+#if defined(STM32F446xx) 
 #define IS_RCC_PLLI2SP_VALUE(VALUE) (((VALUE) == 2) || ((VALUE) == 4) || ((VALUE) == 6) || ((VALUE) == 8))
 #define IS_RCC_PLLSAIM_VALUE(VALUE) ((VALUE) <= 63)
+#elif  defined(STM32F412xG) || defined(STM32F413_423xx)
+#define IS_RCC_PLLI2SP_VALUE(VALUE) (((VALUE) == 2) || ((VALUE) == 4) || ((VALUE) == 6) || ((VALUE) == 8))
+#else
 #endif /* STM32F446xx */
-#define IS_RCC_PLLSAIN_VALUE(VALUE) ((49 <= (VALUE)) && ((VALUE) <= 432))
-#if defined(STM32F446xx)
+#define IS_RCC_PLLSAIN_VALUE(VALUE) ((50 <= (VALUE)) && ((VALUE) <= 432))
+#if defined(STM32F446xx) || defined(STM32F469_479xx)
 #define IS_RCC_PLLSAIP_VALUE(VALUE) (((VALUE) == 2) || ((VALUE) == 4) || ((VALUE) == 6) || ((VALUE) == 8))
-#endif /* STM32F446xx */
+#endif /* STM32F446xx || STM32F469_479xx */
 #define IS_RCC_PLLSAIQ_VALUE(VALUE) ((2 <= (VALUE)) && ((VALUE) <= 15))
 #define IS_RCC_PLLSAIR_VALUE(VALUE) ((2 <= (VALUE)) && ((VALUE) <= 7))  
 
 #define IS_RCC_PLLSAI_DIVQ_VALUE(VALUE) ((1 <= (VALUE)) && ((VALUE) <= 32))
 #define IS_RCC_PLLI2S_DIVQ_VALUE(VALUE) ((1 <= (VALUE)) && ((VALUE) <= 32))
+
+#if defined(STM32F413_423xx)
+#define IS_RCC_PLLI2S_DIVR_VALUE(VALUE) ((1 <= (VALUE)) && ((VALUE) <= 32))
+#define IS_RCC_PLL_DIVR_VALUE(VALUE)    ((1 <= (VALUE)) && ((VALUE) <= 32))
+#endif /* STM32F413_423xx */
 /**
   * @}
   */ 
@@ -137,7 +138,7 @@ typedef struct
   * @{
   */
 
-#if defined(STM32F446xx)
+#if  defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)
 #define RCC_SYSCLKSource_HSI             ((uint32_t)0x00000000)
 #define RCC_SYSCLKSource_HSE             ((uint32_t)0x00000001)
 #define RCC_SYSCLKSource_PLLPCLK         ((uint32_t)0x00000002)
@@ -150,14 +151,14 @@ typedef struct
 #define  RCC_SYSCLKSource_PLLCLK    RCC_SYSCLKSource_PLLPCLK  
 #endif /* STM32F446xx */
 
-#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || defined(STM32F411xE)
+#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || defined(STM32F410xx) || defined(STM32F411xE) || defined(STM32F469_479xx)
 #define RCC_SYSCLKSource_HSI             ((uint32_t)0x00000000)
 #define RCC_SYSCLKSource_HSE             ((uint32_t)0x00000001)
 #define RCC_SYSCLKSource_PLLCLK          ((uint32_t)0x00000002)
 #define IS_RCC_SYSCLK_SOURCE(SOURCE) (((SOURCE) == RCC_SYSCLKSource_HSI) || \
                                       ((SOURCE) == RCC_SYSCLKSource_HSE) || \
                                       ((SOURCE) == RCC_SYSCLKSource_PLLCLK))
-#endif /* STM32F40_41xxx || STM32F427_437xx || STM32F429_439xx || STM32F401xx || STM32F411xE */ 
+#endif /* STM32F40_41xxx || STM32F427_437xx || STM32F429_439xx || STM32F401xx || STM32F410xx || STM32F411xE || STM32F469_479xx */ 
 /**
   * @}
   */ 
@@ -304,7 +305,40 @@ typedef struct
   * @}
   */ 
 
-#if defined(STM32F446xx)
+#if defined(STM32F410xx) || defined(STM32F413_423xx)
+/** @defgroup RCCEx_LPTIM1_Clock_Source  RCC LPTIM1 Clock Source
+  * @{
+  */
+#define RCC_LPTIM1CLKSOURCE_PCLK            ((uint32_t)0x00000000)
+#define RCC_LPTIM1CLKSOURCE_HSI            ((uint32_t)RCC_DCKCFGR2_LPTIM1SEL_0)
+#define RCC_LPTIM1CLKSOURCE_LSI            ((uint32_t)RCC_DCKCFGR2_LPTIM1SEL_1)
+#define RCC_LPTIM1CLKSOURCE_LSE            ((uint32_t)RCC_DCKCFGR2_LPTIM1SEL_0 | RCC_DCKCFGR2_LPTIM1SEL_1)
+
+#define IS_RCC_LPTIM1_CLOCKSOURCE(SOURCE) (((SOURCE) == RCC_LPTIM1CLKSOURCE_PCLK) || ((SOURCE) == RCC_LPTIM1CLKSOURCE_HSI) || \
+                                           ((SOURCE) == RCC_LPTIM1CLKSOURCE_LSI) || ((SOURCE) == RCC_LPTIM1CLKSOURCE_LSE))
+/* Legacy Defines */
+#define IS_RCC_LPTIM1_SOURCE           IS_RCC_LPTIM1_CLOCKSOURCE
+
+#if defined(STM32F410xx)
+/**
+  * @}
+  */
+
+/** @defgroup RCCEx_I2S_APB_Clock_Source  RCC I2S APB Clock Source
+  * @{
+  */
+#define RCC_I2SAPBCLKSOURCE_PLLR            ((uint32_t)0x00000000)
+#define RCC_I2SAPBCLKSOURCE_EXT             ((uint32_t)RCC_DCKCFGR_I2SSRC_0)
+#define RCC_I2SAPBCLKSOURCE_PLLSRC          ((uint32_t)RCC_DCKCFGR_I2SSRC_1)
+#define IS_RCC_I2SCLK_SOURCE(SOURCE) (((SOURCE) == RCC_I2SAPBCLKSOURCE_PLLR) || ((SOURCE) == RCC_I2SAPBCLKSOURCE_EXT) || \
+                                      ((SOURCE) == RCC_I2SAPBCLKSOURCE_PLLSRC)) 
+/**
+  * @}
+  */
+#endif /* STM32F413_423xx */
+#endif /* STM32F410xx  || STM32F413_423xx */
+
+#if defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)
 /** @defgroup RCC_I2S_Clock_Source
   * @{
   */
@@ -328,7 +362,7 @@ typedef struct
 /**
   * @}
   */
-    
+#if defined(STM32F446xx)    
 /** @defgroup RCC_SAI_Clock_Source
   * @{
   */
@@ -353,8 +387,39 @@ typedef struct
   * @}
   */
 #endif /* STM32F446xx */
+#if defined(STM32F413_423xx)    
 
-#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || defined(STM32F411xE)
+/** @defgroup RCC_SAI_BlockA_Clock_Source
+  * @{
+  */
+#define RCC_SAIACLKSource_PLLI2S_R             ((uint32_t)0x00000000)
+#define RCC_SAIACLKSource_I2SCKIN              ((uint32_t)RCC_DCKCFGR_SAI1ASRC_0)
+#define RCC_SAIACLKSource_PLLR                 ((uint32_t)RCC_DCKCFGR_SAI1ASRC_1)
+#define RCC_SAIACLKSource_HSI_HSE              ((uint32_t)RCC_DCKCFGR_SAI1ASRC_0 | RCC_DCKCFGR_SAI1ASRC_1)
+
+#define IS_RCC_SAIACLK_SOURCE(SOURCE) (((SOURCE) == RCC_SAIACLKSource_PLLI2S_R) || ((SOURCE) == RCC_SAIACLKSource_I2SCKIN) || \
+                                      ((SOURCE) == RCC_SAIACLKSource_PLLR) || ((SOURCE) == RCC_SAIACLKSource_HSI_HSE))
+/**
+  * @}
+  */
+
+/** @defgroup RCC_SAI_BlockB_Clock_Source
+  * @{
+  */
+#define RCC_SAIBCLKSource_PLLI2S_R             ((uint32_t)0x00000000)
+#define RCC_SAIBCLKSource_I2SCKIN              ((uint32_t)RCC_DCKCFGR_SAI1BSRC_0)
+#define RCC_SAIBCLKSource_PLLR                 ((uint32_t)RCC_DCKCFGR_SAI1BSRC_1)
+#define RCC_SAIBCLKSource_HSI_HSE              ((uint32_t)RCC_DCKCFGR_SAI1BSRC_0 | RCC_DCKCFGR_SAI1BSRC_1)
+
+#define IS_RCC_SAIBCLK_SOURCE(SOURCE) (((SOURCE) == RCC_SAIBCLKSource_PLLI2S_R) || ((SOURCE) == RCC_SAIBCLKSource_I2SCKIN) || \
+                                      ((SOURCE) == RCC_SAIBCLKSource_PLLR) || ((SOURCE) == RCC_SAIBCLKSource_HSI_HSE))
+/**
+  * @}
+  */
+#endif /* STM32F413_423xx */
+#endif /* STM32F412xG || STM32F413_423xx || STM32F446xx */
+
+#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || defined(STM32F411xE) || defined(STM32F469_479xx)
 /** @defgroup RCC_I2S_Clock_Source
   * @{
   */
@@ -393,7 +458,7 @@ typedef struct
 /**
   * @}
   */ 
-#endif /* STM32F40_41xxx || STM32F427_437xx || STM32F429_439xx || STM32F401xx || STM32F411xE */
+#endif /* STM32F40_41xxx || STM32F427_437xx || STM32F429_439xx || STM32F401xx || STM32F411xE || STM32F469_479xx */
 
 /** @defgroup RCC_TIM_PRescaler_Selection
   * @{
@@ -406,7 +471,20 @@ typedef struct
   * @}
   */
 
-#if defined(STM32F446xx)
+#if defined(STM32F469_479xx)
+/** @defgroup RCC_DSI_Clock_Source_Selection
+  * @{
+  */
+#define RCC_DSICLKSource_PHY                ((uint8_t)0x00)
+#define RCC_DSICLKSource_PLLR               ((uint8_t)0x01)
+#define IS_RCC_DSI_CLOCKSOURCE(CLKSOURCE)   (((CLKSOURCE) == RCC_DSICLKSource_PHY) || \
+                                             ((CLKSOURCE) == RCC_DSICLKSource_PLLR))
+/**
+  * @}
+  */
+#endif /* STM32F469_479xx */
+
+#if  defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx) || defined(STM32F469_479xx)
 /** @defgroup RCC_SDIO_Clock_Source_Selection
   * @{
   */
@@ -422,14 +500,22 @@ typedef struct
 /** @defgroup RCC_48MHZ_Clock_Source_Selection
   * @{
   */
+#if  defined(STM32F446xx) || defined(STM32F469_479xx)
 #define RCC_48MHZCLKSource_PLL                ((uint8_t)0x00)
 #define RCC_48MHZCLKSource_PLLSAI             ((uint8_t)0x01)
 #define IS_RCC_48MHZ_CLOCKSOURCE(CLKSOURCE)   (((CLKSOURCE) == RCC_48MHZCLKSource_PLL) || \
                                                ((CLKSOURCE) == RCC_48MHZCLKSource_PLLSAI))
+#endif /* STM32F446xx || STM32F469_479xx */
+#if defined(STM32F412xG) || defined(STM32F413_423xx)
+#define RCC_CK48CLKSOURCE_PLLQ                ((uint8_t)0x00)
+#define RCC_CK48CLKSOURCE_PLLI2SQ             ((uint8_t)0x01) /* Only for STM32F412xG and STM32F413_423xx Devices */    
+#define IS_RCC_48MHZ_CLOCKSOURCE(CLKSOURCE)   (((CLKSOURCE) == RCC_CK48CLKSOURCE_PLLQ) || \
+                                               ((CLKSOURCE) == RCC_CK48CLKSOURCE_PLLI2SQ))
+#endif /* STM32F412xG || STM32F413_423xx */
 /**
   * @}
   */
-#endif /* STM32F446xx */
+#endif /* STM32F412xG || STM32F413_423xx || STM32F446xx || STM32F469_479xx */
 
 #if defined(STM32F446xx) 
 /** @defgroup RCC_SPDIFRX_Clock_Source_Selection
@@ -454,19 +540,6 @@ typedef struct
   * @}
   */
 
-/** @defgroup RCC_FMPI2C1_Clock_Source
-  * @{
-  */
-#define RCC_FMPI2C1CLKSource_APB1            ((uint32_t)0x00)
-#define RCC_FMPI2C1CLKSource_SYSCLK          ((uint32_t)RCC_DCKCFGR2_FMPI2C1SEL_0)
-#define RCC_FMPI2C1CLKSource_HSI             ((uint32_t)RCC_DCKCFGR2_FMPI2C1SEL_1)
-    
-#define IS_RCC_FMPI2C1_CLOCKSOURCE(SOURCE) (((SOURCE) == RCC_FMPI2C1CLKSource_APB1) || ((SOURCE) == RCC_FMPI2C1CLKSource_SYSCLK) || \
-                                         ((SOURCE) == RCC_FMPI2C1CLKSource_HSI))                                
-/**
-  * @}
-  */
-
 /** @defgroup RCC_AHB1_ClockGating
   * @{
   */ 
@@ -484,6 +557,63 @@ typedef struct
   * @}
   */
 #endif /* STM32F446xx */
+
+#if defined(STM32F410xx) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)
+/** @defgroup RCC_FMPI2C1_Clock_Source
+  * @{
+  */
+#define RCC_FMPI2C1CLKSource_APB1            ((uint32_t)0x00)
+#define RCC_FMPI2C1CLKSource_SYSCLK          ((uint32_t)RCC_DCKCFGR2_FMPI2C1SEL_0)
+#define RCC_FMPI2C1CLKSource_HSI             ((uint32_t)RCC_DCKCFGR2_FMPI2C1SEL_1)
+    
+#define IS_RCC_FMPI2C1_CLOCKSOURCE(SOURCE) (((SOURCE) == RCC_FMPI2C1CLKSource_APB1) || ((SOURCE) == RCC_FMPI2C1CLKSource_SYSCLK) || \
+                                            ((SOURCE) == RCC_FMPI2C1CLKSource_HSI))
+/**
+  * @}
+  */
+#endif /* STM32F410xx || STM32F412xG || STM32F413_423xx || STM32F446xx */
+
+#if defined(STM32F412xG) || defined(STM32F413_423xx)
+/** @defgroup RCC_DFSDM_Clock_Source
+ * @{
+ */
+#define RCC_DFSDMCLKSource_APB             ((uint8_t)0x00)
+#define RCC_DFSDMCLKSource_SYS             ((uint8_t)0x01)
+#define IS_RCC_DFSDMCLK_SOURCE(SOURCE) (((SOURCE) == RCC_DFSDMCLKSource_APB) || ((SOURCE) == RCC_DFSDMCLKSource_SYS))
+
+/* Legacy Defines */
+#define RCC_DFSDM1CLKSource_APB   RCC_DFSDMCLKSource_APB
+#define RCC_DFSDM1CLKSource_SYS   RCC_DFSDMCLKSource_SYS
+#define IS_RCC_DFSDM1CLK_SOURCE   IS_RCC_DFSDMCLK_SOURCE
+/**
+  * @}
+  */
+
+/** @defgroup RCC_DFSDM_Audio_Clock_Source  RCC DFSDM Audio Clock Source
+  * @{
+  */
+#define RCC_DFSDM1AUDIOCLKSOURCE_I2SAPB1          ((uint32_t)0x00000000)
+#define RCC_DFSDM1AUDIOCLKSOURCE_I2SAPB2          ((uint32_t)RCC_DCKCFGR_CKDFSDM1ASEL)
+#define IS_RCC_DFSDM1ACLK_SOURCE(SOURCE) (((SOURCE) == RCC_DFSDM1AUDIOCLKSOURCE_I2SAPB1) || ((SOURCE) == RCC_DFSDM1AUDIOCLKSOURCE_I2SAPB2))
+
+/* Legacy Defines */
+#define IS_RCC_DFSDMACLK_SOURCE      IS_RCC_DFSDM1ACLK_SOURCE
+/**
+  * @}
+  */
+
+#if defined(STM32F413_423xx)
+/** @defgroup RCC_DFSDM_Audio_Clock_Source  RCC DFSDM Audio Clock Source
+  * @{
+  */
+#define RCC_DFSDM2AUDIOCLKSOURCE_I2SAPB1          ((uint32_t)0x00000000)
+#define RCC_DFSDM2AUDIOCLKSOURCE_I2SAPB2          ((uint32_t)RCC_DCKCFGR_CKDFSDM2ASEL)
+#define IS_RCC_DFSDM2ACLK_SOURCE(SOURCE) (((SOURCE) == RCC_DFSDM2AUDIOCLKSOURCE_I2SAPB1) || ((SOURCE) == RCC_DFSDM2AUDIOCLKSOURCE_I2SAPB2))
+/**
+  * @}
+  */
+#endif /* STM32F413_423xx */
+#endif /* STM32F412xG || STM32F413_423xx */
 
 /** @defgroup RCC_AHB1_Peripherals 
   * @{
@@ -515,10 +645,12 @@ typedef struct
 #define RCC_AHB1Periph_ETH_MAC_PTP       ((uint32_t)0x10000000)
 #define RCC_AHB1Periph_OTG_HS            ((uint32_t)0x20000000)
 #define RCC_AHB1Periph_OTG_HS_ULPI       ((uint32_t)0x40000000)
-
-#define IS_RCC_AHB1_CLOCK_PERIPH(PERIPH) ((((PERIPH) & 0x810BE800) == 0x00) && ((PERIPH) != 0x00))
-#define IS_RCC_AHB1_RESET_PERIPH(PERIPH) ((((PERIPH) & 0xDD1FE800) == 0x00) && ((PERIPH) != 0x00))
-#define IS_RCC_AHB1_LPMODE_PERIPH(PERIPH) ((((PERIPH) & 0x81106800) == 0x00) && ((PERIPH) != 0x00))
+#if defined(STM32F410xx)
+#define RCC_AHB1Periph_RNG               ((uint32_t)0x80000000)
+#endif /* STM32F410xx */
+#define IS_RCC_AHB1_CLOCK_PERIPH(PERIPH) ((((PERIPH) & 0x010BE800) == 0x00) && ((PERIPH) != 0x00))
+#define IS_RCC_AHB1_RESET_PERIPH(PERIPH) ((((PERIPH) & 0x51FE800) == 0x00) && ((PERIPH) != 0x00))
+#define IS_RCC_AHB1_LPMODE_PERIPH(PERIPH) ((((PERIPH) & 0x01106800) == 0x00) && ((PERIPH) != 0x00))
 
 /**
   * @}
@@ -530,7 +662,9 @@ typedef struct
 #define RCC_AHB2Periph_DCMI              ((uint32_t)0x00000001)
 #define RCC_AHB2Periph_CRYP              ((uint32_t)0x00000010)
 #define RCC_AHB2Periph_HASH              ((uint32_t)0x00000020)
+#if defined(STM32F40_41xxx) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F469_479xx)    
 #define RCC_AHB2Periph_RNG               ((uint32_t)0x00000040)
+#endif /* STM32F40_41xxx || STM32F427_437xx || STM32F429_439xx || STM32F469_479xx */
 #define RCC_AHB2Periph_OTG_FS            ((uint32_t)0x00000080)
 #define IS_RCC_AHB2_PERIPH(PERIPH) ((((PERIPH) & 0xFFFFFF0E) == 0x00) && ((PERIPH) != 0x00))
 /**
@@ -550,11 +684,17 @@ typedef struct
 #define IS_RCC_AHB3_PERIPH(PERIPH) ((((PERIPH) & 0xFFFFFFFE) == 0x00) && ((PERIPH) != 0x00))
 #endif /* STM32F427_437xx ||  STM32F429_439xx */
 
-#if defined(STM32F446xx)
+#if defined(STM32F446xx) || defined(STM32F469_479xx) 
 #define RCC_AHB3Periph_FMC                 ((uint32_t)0x00000001)
 #define RCC_AHB3Periph_QSPI                ((uint32_t)0x00000002)
 #define IS_RCC_AHB3_PERIPH(PERIPH) ((((PERIPH) & 0xFFFFFFFC) == 0x00) && ((PERIPH) != 0x00))
-#endif /* STM32F446xx */
+#endif /* STM32F446xx ||  STM32F469_479xx */
+
+#if defined(STM32F412xG) || defined(STM32F413_423xx)
+#define RCC_AHB3Periph_FSMC                 ((uint32_t)0x00000001)
+#define RCC_AHB3Periph_QSPI                 ((uint32_t)0x00000002)
+#define IS_RCC_AHB3_PERIPH(PERIPH) ((((PERIPH) & 0xFFFFFFFC) == 0x00) && ((PERIPH) != 0x00))
+#endif /* STM32F412xG || STM32F413_423xx */
 
 /**
   * @}
@@ -572,6 +712,9 @@ typedef struct
 #define RCC_APB1Periph_TIM12             ((uint32_t)0x00000040)
 #define RCC_APB1Periph_TIM13             ((uint32_t)0x00000080)
 #define RCC_APB1Periph_TIM14             ((uint32_t)0x00000100)
+#if defined(STM32F410xx) || defined(STM32F413_423xx)
+#define RCC_APB1Periph_LPTIM1            ((uint32_t)0x00000200)
+#endif /* STM32F410xx || STM32F413_423xx */
 #define RCC_APB1Periph_WWDG              ((uint32_t)0x00000800)
 #define RCC_APB1Periph_SPI2              ((uint32_t)0x00004000)
 #define RCC_APB1Periph_SPI3              ((uint32_t)0x00008000)
@@ -585,11 +728,14 @@ typedef struct
 #define RCC_APB1Periph_I2C1              ((uint32_t)0x00200000)
 #define RCC_APB1Periph_I2C2              ((uint32_t)0x00400000)
 #define RCC_APB1Periph_I2C3              ((uint32_t)0x00800000)
-#if defined(STM32F446xx)
+#if defined(STM32F410xx) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)
 #define RCC_APB1Periph_FMPI2C1           ((uint32_t)0x01000000)
-#endif /* STM32F446xx */ 
+#endif /* STM32F410xx || STM32F446xx || STM32F413_423xx*/ 
 #define RCC_APB1Periph_CAN1              ((uint32_t)0x02000000)
 #define RCC_APB1Periph_CAN2              ((uint32_t)0x04000000)
+#if defined(STM32F413_423xx)
+#define RCC_APB1Periph_CAN3              ((uint32_t)0x08000000)
+#endif /* STM32F413_423xx */
 #if defined(STM32F446xx)
 #define RCC_APB1Periph_CEC               ((uint32_t)0x08000000)
 #endif /* STM32F446xx */ 
@@ -617,19 +763,34 @@ typedef struct
 #define RCC_APB2Periph_SPI1              ((uint32_t)0x00001000)
 #define RCC_APB2Periph_SPI4              ((uint32_t)0x00002000)
 #define RCC_APB2Periph_SYSCFG            ((uint32_t)0x00004000)
+#define RCC_APB2Periph_EXTIT             ((uint32_t)0x00008000)
 #define RCC_APB2Periph_TIM9              ((uint32_t)0x00010000)
 #define RCC_APB2Periph_TIM10             ((uint32_t)0x00020000)
 #define RCC_APB2Periph_TIM11             ((uint32_t)0x00040000)
 #define RCC_APB2Periph_SPI5              ((uint32_t)0x00100000)
 #define RCC_APB2Periph_SPI6              ((uint32_t)0x00200000)
 #define RCC_APB2Periph_SAI1              ((uint32_t)0x00400000)
-#if defined(STM32F446xx)
+#if defined(STM32F446xx) || defined(STM32F469_479xx)
 #define RCC_APB2Periph_SAI2              ((uint32_t)0x00800000)
-#endif /* STM32F446xx */
+#endif /* STM32F446xx || STM32F469_479xx */
 #define RCC_APB2Periph_LTDC              ((uint32_t)0x04000000)
+#if defined(STM32F469_479xx)
+#define RCC_APB2Periph_DSI               ((uint32_t)0x08000000)
+#endif /* STM32F469_479xx */
+#if defined(STM32F412xG) || defined(STM32F413_423xx)
+#define RCC_APB2Periph_DFSDM1            ((uint32_t)0x01000000)
+#endif /* STM32F412xG || STM32F413_423xx */
+#if defined(STM32F413_423xx)
+#define RCC_APB2Periph_DFSDM2            ((uint32_t)0x02000000)
+#define RCC_APB2Periph_UART9             ((uint32_t)0x02000040)
+#define RCC_APB2Periph_UART10            ((uint32_t)0x00000080)
+#endif /* STM32F413_423xx */
 
-#define IS_RCC_APB2_PERIPH(PERIPH) ((((PERIPH) & 0xF30880CC) == 0x00) && ((PERIPH) != 0x00))
-#define IS_RCC_APB2_RESET_PERIPH(PERIPH) ((((PERIPH) & 0xF30886CC) == 0x00) && ((PERIPH) != 0x00))
+/* Legacy Defines */
+#define RCC_APB2Periph_DFSDM              RCC_APB2Periph_DFSDM1
+
+#define IS_RCC_APB2_PERIPH(PERIPH) ((((PERIPH) & 0xF008000C) == 0x00) && ((PERIPH) != 0x00))
+#define IS_RCC_APB2_RESET_PERIPH(PERIPH) ((((PERIPH) & 0xF208860C) == 0x00) && ((PERIPH) != 0x00))
 
 /**
   * @}
@@ -729,29 +890,34 @@ void        RCC_LSEConfig(uint8_t RCC_LSE);
 void        RCC_LSICmd(FunctionalState NewState);
 
 void        RCC_PLLCmd(FunctionalState NewState);
-#if defined(STM32F446xx)
+
+#if defined(STM32F410xx) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx) || defined(STM32F469_479xx)
 void        RCC_PLLConfig(uint32_t RCC_PLLSource, uint32_t PLLM, uint32_t PLLN, uint32_t PLLP, uint32_t PLLQ, uint32_t PLLR);
-#endif /* STM32F446xx */
+#endif /* STM32F410xx || STM32F412xG || STM32F413_423xx || STM32F446xx || STM32F469_479xx */
 
 #if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || defined(STM32F411xE)
 void        RCC_PLLConfig(uint32_t RCC_PLLSource, uint32_t PLLM, uint32_t PLLN, uint32_t PLLP, uint32_t PLLQ);
 #endif /* STM32F40_41xxx || STM32F427_437xx || STM32F429_439xx || STM32F401xx || STM32F411xE */
 
 void        RCC_PLLI2SCmd(FunctionalState NewState);
+
 #if defined(STM32F40_41xxx) || defined(STM32F401xx)
 void        RCC_PLLI2SConfig(uint32_t PLLI2SN, uint32_t PLLI2SR);
 #endif /* STM32F40_41xxx || STM32F401xx */
 #if defined(STM32F411xE)
 void        RCC_PLLI2SConfig(uint32_t PLLI2SN, uint32_t PLLI2SR, uint32_t PLLI2SM);
 #endif /* STM32F411xE */
-#if defined(STM32F427_437xx) || defined(STM32F429_439xx)
+#if defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F469_479xx)
 void        RCC_PLLI2SConfig(uint32_t PLLI2SN, uint32_t PLLI2SQ, uint32_t PLLI2SR);
-#endif /* STM32F427_437xx || STM32F429_439xx */
-#if defined(STM32F446xx)
+#endif /* STM32F427_437xx || STM32F429_439xx || STM32F469_479xx */
+#if defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)
 void        RCC_PLLI2SConfig(uint32_t PLLI2SM, uint32_t PLLI2SN, uint32_t PLLI2SP, uint32_t PLLI2SQ, uint32_t PLLI2SR);
-#endif /* STM32F446xx */
+#endif /* STM32F412xG || STM32F413_423xx || STM32F446xx */
 
 void        RCC_PLLSAICmd(FunctionalState NewState);
+#if defined(STM32F469_479xx)
+void        RCC_PLLSAIConfig(uint32_t PLLSAIN, uint32_t PLLSAIP, uint32_t PLLSAIQ, uint32_t PLLSAIR);
+#endif /* STM32F469_479xx */
 #if defined(STM32F446xx)
 void        RCC_PLLSAIConfig(uint32_t PLLSAIM, uint32_t PLLSAIN, uint32_t PLLSAIP, uint32_t PLLSAIQ);
 #endif /* STM32F446xx */
@@ -776,19 +942,33 @@ void        RCC_RTCCLKConfig(uint32_t RCC_RTCCLKSource);
 void        RCC_RTCCLKCmd(FunctionalState NewState);
 void        RCC_BackupResetCmd(FunctionalState NewState);
 
-#if defined(STM32F446xx)
+#if defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)  
 void        RCC_I2SCLKConfig(uint32_t RCC_I2SAPBx, uint32_t RCC_I2SCLKSource);
+#if defined(STM32F446xx)
 void        RCC_SAICLKConfig(uint32_t RCC_SAIInstance, uint32_t RCC_SAICLKSource);
 #endif /* STM32F446xx */
+#if defined(STM32F413_423xx)
+void RCC_SAIBlockACLKConfig(uint32_t RCC_SAIBlockACLKSource);
+void RCC_SAIBlockBCLKConfig(uint32_t RCC_SAIBlockBCLKSource);
+#endif /* STM32F413_423xx */
+#endif /* STM32F412xG || STM32F413_423xx || STM32F446xx */
 
-#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || defined(STM32F411xE)
+#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F401xx) || defined(STM32F410xx) || defined(STM32F411xE) || defined(STM32F469_479xx)
 void        RCC_I2SCLKConfig(uint32_t RCC_I2SCLKSource);
+#endif /* STM32F40_41xxx || STM32F427_437xx || STM32F429_439xx || STM32F401xx || STM32F410xx || STM32F411xE || STM32F469_479xx */
+
+#if defined(STM32F40_41xxx) || defined(STM32F427_437xx) || defined(STM32F429_439xx) || defined(STM32F469_479xx)
 void        RCC_SAIBlockACLKConfig(uint32_t RCC_SAIBlockACLKSource);
 void        RCC_SAIBlockBCLKConfig(uint32_t RCC_SAIBlockBCLKSource);
-#endif /* STM32F40_41xxx || STM32F427_437xx || STM32F429_439xx || STM32F401xx || STM32F411xE */
+#endif /* STM32F40_41xxx || STM32F427_437xx || STM32F429_439xx || STM32F469_479xx */
 
 void        RCC_SAIPLLI2SClkDivConfig(uint32_t RCC_PLLI2SDivQ);
 void        RCC_SAIPLLSAIClkDivConfig(uint32_t RCC_PLLSAIDivQ);
+
+#if defined(STM32F413_423xx)
+void        RCC_SAIPLLI2SRClkDivConfig(uint32_t RCC_PLLI2SDivR);
+void        RCC_SAIPLLRClkDivConfig(uint32_t RCC_PLLDivR);
+#endif /* STM32F413_423xx */
 
 void        RCC_LTDCCLKDivConfig(uint32_t RCC_PLLSAIDivR);
 void        RCC_TIMCLKPresConfig(uint32_t RCC_TIMCLKPrescaler);
@@ -811,23 +991,50 @@ void        RCC_AHB3PeriphClockLPModeCmd(uint32_t RCC_AHB3Periph, FunctionalStat
 void        RCC_APB1PeriphClockLPModeCmd(uint32_t RCC_APB1Periph, FunctionalState NewState);
 void        RCC_APB2PeriphClockLPModeCmd(uint32_t RCC_APB2Periph, FunctionalState NewState);
 
-/* Features available only for STM32F411xx/STM32F446xx devices */
+/* Features available only for STM32F410xx/STM32F411xx/STM32F446xx/STM32F469_479xx devices */
 void        RCC_LSEModeConfig(uint8_t RCC_Mode);
 
-/* Features available only for STM32F446xx devices */
-#if defined(STM32F446xx)
+/* Features available only for STM32F469_479xx devices */
+#if defined(STM32F469_479xx)
+void        RCC_DSIClockSourceConfig(uint8_t RCC_ClockSource);
+#endif /*  STM32F469_479xx */
+
+/* Features available only for STM32F412xG/STM32F413_423xx/STM32F446xx/STM32F469_479xx devices */
+#if defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx) || defined(STM32F469_479xx)
 void        RCC_48MHzClockSourceConfig(uint8_t RCC_ClockSource);
 void        RCC_SDIOClockSourceConfig(uint8_t RCC_ClockSource);
-#endif /* STM32F446xx */
+#endif /* STM32F412xG || STM32F413_423xx || STM32F446xx || STM32F469_479xx */
 
 /* Features available only for STM32F446xx devices */
 #if defined(STM32F446xx)
 void        RCC_AHB1ClockGatingCmd(uint32_t RCC_AHB1ClockGating, FunctionalState NewState);
 void        RCC_SPDIFRXClockSourceConfig(uint8_t RCC_ClockSource);
 void        RCC_CECClockSourceConfig(uint8_t RCC_ClockSource);
-void        RCC_FMPI2C1ClockSourceConfig(uint32_t RCC_ClockSource);
 #endif /* STM32F446xx */
 
+/* Features available only for STM32F410xx/STM32F412xG/STM32F446xx devices */
+#if defined(STM32F410xx) || defined(STM32F412xG) || defined(STM32F413_423xx) || defined(STM32F446xx)
+void        RCC_FMPI2C1ClockSourceConfig(uint32_t RCC_ClockSource);
+#endif /* STM32F410xx || STM32F412xG || STM32F413_423xx || STM32F446xx */
+
+/* Features available only for STM32F410xx devices */
+#if defined(STM32F410xx) || defined(STM32F413_423xx)
+void        RCC_LPTIM1ClockSourceConfig(uint32_t RCC_ClockSource);
+#if defined(STM32F410xx)
+void        RCC_MCO1Cmd(FunctionalState NewState);
+void        RCC_MCO2Cmd(FunctionalState NewState);
+#endif /* STM32F410xx */
+#endif /* STM32F410xx || STM32F413_423xx */
+
+#if defined(STM32F412xG) || defined(STM32F413_423xx)
+void RCC_DFSDMCLKConfig(uint32_t RCC_DFSDMCLKSource);
+void RCC_DFSDM1ACLKConfig(uint32_t RCC_DFSDM1ACLKSource);
+#if defined(STM32F413_423xx)
+void RCC_DFSDM2ACLKConfig(uint32_t RCC_DFSDMACLKSource);
+#endif /* STM32F413_423xx */
+/* Legacy Defines */
+#define RCC_DFSDM1CLKConfig      RCC_DFSDMCLKConfig
+#endif /* STM32F412xG || STM32F413_423xx */
 /* Interrupts and flags management functions **********************************/
 void        RCC_ITConfig(uint8_t RCC_IT, FunctionalState NewState);
 FlagStatus  RCC_GetFlagStatus(uint8_t RCC_FLAG);
@@ -849,4 +1056,3 @@ void        RCC_ClearITPendingBit(uint8_t RCC_IT);
   * @}
   */ 
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

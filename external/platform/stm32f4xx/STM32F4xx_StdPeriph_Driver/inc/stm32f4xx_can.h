@@ -2,26 +2,19 @@
   ******************************************************************************
   * @file    stm32f4xx_can.h
   * @author  MCD Application Team
-  * @version V1.5.1
-  * @date    22-May-2015
+  * @version V1.8.1
+  * @date    27-January-2022
   * @brief   This file contains all the functions prototypes for the CAN firmware 
   *          library.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
+  * Copyright (c) 2016 STMicroelectronics.
+  * All rights reserved.
   *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -46,9 +39,14 @@
   */
 
 /* Exported types ------------------------------------------------------------*/
-
+#if defined(STM32F413_423xx)
+#define IS_CAN_ALL_PERIPH(PERIPH) (((PERIPH) == CAN1) || \
+                                   ((PERIPH) == CAN2) || \
+                                   ((PERIPH) == CAN3))
+#else
 #define IS_CAN_ALL_PERIPH(PERIPH) (((PERIPH) == CAN1) || \
                                    ((PERIPH) == CAN2))
+#endif /* STM32F413_423xx */
 
 /** 
   * @brief  CAN init structure definition
@@ -594,9 +592,17 @@ void CAN_DeInit(CAN_TypeDef* CANx);
 
 /* Initialization and Configuration functions *********************************/ 
 uint8_t CAN_Init(CAN_TypeDef* CANx, CAN_InitTypeDef* CAN_InitStruct);
+#if defined(STM32F413_423xx)
+void CAN_FilterInit(CAN_TypeDef* CANx, CAN_FilterInitTypeDef* CAN_FilterInitStruct);
+#else
 void CAN_FilterInit(CAN_FilterInitTypeDef* CAN_FilterInitStruct);
+#endif /* STM32F413_423xx */
 void CAN_StructInit(CAN_InitTypeDef* CAN_InitStruct);
-void CAN_SlaveStartBank(uint8_t CAN_BankNumber); 
+#if defined(STM32F413_423xx)
+void CAN_SlaveStartBank(CAN_TypeDef* CANx, uint8_t CAN_BankNumber);
+#else
+void CAN_SlaveStartBank(uint8_t CAN_BankNumber);
+#endif /* STM32F413_423xx */
 void CAN_DBGFreeze(CAN_TypeDef* CANx, FunctionalState NewState);
 void CAN_TTComModeCmd(CAN_TypeDef* CANx, FunctionalState NewState);
 
@@ -641,4 +647,3 @@ void CAN_ClearITPendingBit(CAN_TypeDef* CANx, uint32_t CAN_IT);
   * @}
   */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
