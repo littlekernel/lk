@@ -14,4 +14,5 @@ void uart_init(void);
 void plic_early_init(void);
 void plic_init(void);
 
-
+void goldfish_rtc_early_init(void);
+void goldfish_rtc_init(void);
