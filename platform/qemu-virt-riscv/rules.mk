@@ -30,6 +30,7 @@ MODULE_DEPS += dev/virtio/net
 MODULE_SRCS += $(LOCAL_DIR)/platform.c
 MODULE_SRCS += $(LOCAL_DIR)/plic.c
 MODULE_SRCS += $(LOCAL_DIR)/uart.c
+MODULE_SRCS += $(LOCAL_DIR)/goldfish_rtc.c
 
 MEMBASE ?= 0x80000000
 MEMSIZE ?= 0x01000000 # default to 16MB
