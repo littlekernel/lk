@@ -33,6 +33,29 @@ namespace {
 const char *test_device_name = "virtio0";
 #define test_path "/fat"
 
+// helper routine that mounts the above in the /fat path and then cleans up on
+// the way out.
+template <typename R>
+bool test_mount_wrapper(R routine) {
+    BEGIN_TEST;
+
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
+    // clean up by unmounting no matter what happens here
+    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
+
+    // all through to the inner routine
+    all_ok = routine();
+    if (!all_ok) {
+        END_TEST;
+    }
+
+    // unmount the fs
+    unmount_cleanup.cancel();
+    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
+
+    END_TEST;
+}
+
 bool test_fat_mount() {
     BEGIN_TEST;
 
@@ -45,53 +68,47 @@ bool test_fat_mount() {
 }
 
 bool test_fat_dir_root() {
-    BEGIN_TEST;
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
+        // open and then close the root dir
+        dirhandle *handle;
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path, &handle));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_dir(handle));
 
-    // clean up by unmounting no matter what happens here
-    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
+        // open it again
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path, &handle));
+        ASSERT_NONNULL(handle);
 
-    // open and then close the root dir
-    dirhandle *handle;
-    ASSERT_EQ(NO_ERROR, fs_open_dir(test_path, &handle));
-    ASSERT_NONNULL(handle);
-    ASSERT_EQ(NO_ERROR, fs_close_dir(handle));
+        // close the dir handle if we abort from here on out
+        auto closedir_cleanup = lk::make_auto_call([&]() { fs_close_dir(handle); });
 
-    // open it again
-    ASSERT_EQ(NO_ERROR, fs_open_dir(test_path, &handle));
-    ASSERT_NONNULL(handle);
-
-    // close the dir handle if we abort from here on out
-    auto closedir_cleanup = lk::make_auto_call([&]() { fs_close_dir(handle); });
-
-    // read an entry
-    dirent ent;
-    ASSERT_EQ(NO_ERROR, fs_read_dir(handle, &ent));
-    LTRACEF("read entry '%s'\n", ent.name);
-
-    // read all of the entries until we hit an EOD
-    int count = 1;
-    for (;;) {
-        auto err = fs_read_dir(handle, &ent);
-        bool valid = (err == NO_ERROR || err == ERR_NOT_FOUND);
-        ASSERT_TRUE(valid);
-        count++;
-        if (err == ERR_NOT_FOUND) {
-            break;
-        }
+        // read an entry
+        dirent ent;
+        ASSERT_EQ(NO_ERROR, fs_read_dir(handle, &ent));
         LTRACEF("read entry '%s'\n", ent.name);
-    }
-    // make sure we saw at least 3 entries
-    ASSERT_LT(2, count);
 
-    closedir_cleanup.cancel();
-    ASSERT_EQ(NO_ERROR, fs_close_dir(handle));
+        // read all of the entries until we hit an EOD
+        int count = 1;
+        for (;;) {
+            auto err = fs_read_dir(handle, &ent);
+            bool valid = (err == NO_ERROR || err == ERR_NOT_FOUND);
+            ASSERT_TRUE(valid);
+            count++;
+            if (err == ERR_NOT_FOUND) {
+                break;
+            }
+            LTRACEF("read entry '%s'\n", ent.name);
+        }
+        // make sure we saw at least 3 entries
+        ASSERT_LT(2, count);
 
-    unmount_cleanup.cancel();
-    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
+        closedir_cleanup.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_dir(handle));
 
-    END_TEST;
+        END_TEST;
+    });
 }
 
 // helper routine for the read file test routine below
@@ -130,80 +147,99 @@ bool test_file_read(const char *path, const unsigned char *test_file_buffer, siz
 }
 
 bool test_fat_read_file() {
-    BEGIN_TEST;
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
-    // clean up by unmounting no matter what happens here
-    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
+        // read in a few files and validate their contents
+        EXPECT_TRUE(test_file_read(test_path "/hello.txt", test_file_hello, test_file_hello_size));
+        EXPECT_TRUE(test_file_read(test_path "/license", test_file_license, test_file_license_size));
+        EXPECT_TRUE(test_file_read(test_path "/long_filename_hello.txt", test_file_hello, test_file_hello_size));
+        EXPECT_TRUE(test_file_read(test_path "/a_very_long_filename_hello_that_uses_at_least_a_few_entries.txt", test_file_hello, test_file_hello_size));
+        EXPECT_TRUE(test_file_read(test_path "/dir.a/long_filename_hello.txt", test_file_hello, test_file_hello_size));
 
-    // read in a few files and validate their contents
-    EXPECT_TRUE(test_file_read(test_path "/hello.txt", test_file_hello, test_file_hello_size));
-    EXPECT_TRUE(test_file_read(test_path "/license", test_file_license, test_file_license_size));
-    EXPECT_TRUE(test_file_read(test_path "/long_filename_hello.txt", test_file_hello, test_file_hello_size));
-    EXPECT_TRUE(test_file_read(test_path "/a_very_long_filename_hello_that_uses_at_least_a_few_entries.txt", test_file_hello, test_file_hello_size));
-    EXPECT_TRUE(test_file_read(test_path "/dir.a/long_filename_hello.txt", test_file_hello, test_file_hello_size));
-
-    // unmount the fs
-    unmount_cleanup.cancel();
-    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
-
-    END_TEST;
+        END_TEST;
+    });
 }
 
 bool test_fat_multi_open() {
-    BEGIN_TEST;
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
-    // clean up by unmounting no matter what happens here
-    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
+        // open a file three times simultaneously
+        {
+            filehandle *handle1 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle1));
+            auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle1); });
 
-    // open a file three times simultaneously
-    {
-        filehandle *handle1 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle1));
-        auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle1); });
+            filehandle *handle2 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle2));
+            auto closefile_cleanup2 = lk::make_auto_call([&]() { fs_close_file(handle2); });
 
-        filehandle *handle2 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle2));
-        auto closefile_cleanup2 = lk::make_auto_call([&]() { fs_close_file(handle2); });
+            filehandle *handle3 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle3));
 
-        filehandle *handle3 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle3));
+            // close the files in reverse order
+            closefile_cleanup1.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_file(handle1));
+            closefile_cleanup2.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_file(handle2));
+            ASSERT_EQ(NO_ERROR, fs_close_file(handle3));
+        }
 
-        // close the files in reverse order
-        closefile_cleanup1.cancel();
-        ASSERT_EQ(NO_ERROR, fs_close_file(handle1));
-        closefile_cleanup2.cancel();
-        ASSERT_EQ(NO_ERROR, fs_close_file(handle2));
-        ASSERT_EQ(NO_ERROR, fs_close_file(handle3));
-    }
+        // open a dir three times simultaneously
+        {
+            dirhandle *handle1 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle1));
+            auto closedir_cleanup1 = lk::make_auto_call([&]() { fs_close_dir(handle1); });
 
-    // open a dir three times simultaneously
-    {
-        dirhandle *handle1 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle1));
-        auto closedir_cleanup1 = lk::make_auto_call([&]() { fs_close_dir(handle1); });
+            dirhandle *handle2 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle2));
+            auto closedir_cleanup2 = lk::make_auto_call([&]() { fs_close_dir(handle2); });
 
-        dirhandle *handle2 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle2));
-        auto closedir_cleanup2 = lk::make_auto_call([&]() { fs_close_dir(handle2); });
+            dirhandle *handle3 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle3));
 
-        dirhandle *handle3 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle3));
+            // close the dirs in reverse order
+            closedir_cleanup1.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_dir(handle1));
+            closedir_cleanup2.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_dir(handle2));
+            ASSERT_EQ(NO_ERROR, fs_close_dir(handle3));
+        }
 
-        // close the dirs in reverse order
-        closedir_cleanup1.cancel();
-        ASSERT_EQ(NO_ERROR, fs_close_dir(handle1));
-        closedir_cleanup2.cancel();
-        ASSERT_EQ(NO_ERROR, fs_close_dir(handle2));
-        ASSERT_EQ(NO_ERROR, fs_close_dir(handle3));
-    }
+        END_TEST;
+    });
+}
 
-    // unmount the fs
-    unmount_cleanup.cancel();
-    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
+bool test_fat_create_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
 
-    END_TEST;
+        filehandle *handle;
+
+        // create a few empty files
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/newfile", &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/newfile.txt", &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        // create a file in a subdir
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/dir.a/newfile", &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        // create a file that already exists
+        handle = nullptr;
+        ASSERT_EQ(ERR_ALREADY_EXISTS, fs_create_file(test_path "/newfile", &handle, 0));
+
+        END_TEST;
+    });
 }
 
 BEGIN_TEST_CASE(fat)
@@ -211,6 +247,7 @@ BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_dir_root)
     RUN_TEST(test_fat_read_file)
     RUN_TEST(test_fat_multi_open)
+    RUN_TEST(test_fat_create_file)
 END_TEST_CASE(fat)
 
 } // namespace

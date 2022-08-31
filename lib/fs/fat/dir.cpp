@@ -24,6 +24,8 @@
 
 #define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
+fat_dir::fat_dir(fat_fs *f) : fat_file(f) {}
+
 fat_dir::~fat_dir() = default;
 
 // structure that represents an open dir handle. holds the offset into the directory
