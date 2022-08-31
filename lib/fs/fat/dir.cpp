@@ -561,6 +561,39 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
     return ERR_NOT_IMPLEMENTED;
 }
 
+status_t fat_dir_update_entry(fat_fs *fat, const dir_entry_location &loc, uint32_t starting_cluster, uint32_t size) {
+    LTRACEF("fat %p, loc %u:%u, cluster %u, size %u\n", fat, loc.starting_dir_cluster, loc.dir_offset, starting_cluster, size);
+
+    // find the dir entry and open the block
+    uint32_t sector;
+    if (loc.starting_dir_cluster == 0) {
+        // special case on fat12/16 to represent the root dir.
+        // load 0 into cluster and use sector_offset as relative to the
+        // start of the volume.
+        sector = fat->info().root_start_sector;
+    } else {
+        sector = fat_sector_for_cluster(fat, loc.starting_dir_cluster);
+    }
+    sector += loc.dir_offset / fat->info().bytes_per_sector;
+
+    uint8_t *ent;
+    bcache_get_block(fat->bcache(), (void **)&ent, sector);
+    ent += loc.dir_offset % fat->info().bytes_per_sector;
+
+    //hexdump8_ex(ent, 0x20, 0);
+
+    fat_write32(ent, 28, size); // file size
+    fat_write16(ent, 20, starting_cluster >> 16); // fat cluster high
+    fat_write16(ent, 26, starting_cluster); // fat cluster low
+
+    //hexdump8_ex(ent, 0x20, 0);
+
+    bcache_mark_block_dirty(fat->bcache(), sector);
+    bcache_put_block(fat->bcache(), sector);
+
+    return NO_ERROR;
+}
+
 status_t fat_dir::opendir_priv(const dir_entry &entry, const dir_entry_location &loc, fat_dir_cookie **out_cookie) {
     // fill in our file info based on the entry
     start_cluster_ = entry.start_cluster;

@@ -22,7 +22,7 @@
 
 #include "file_iterator.h"
 
-#define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
+#define LOCAL_TRACE FAT_GLOBAL_TRACE(1)
 
 fat_file::fat_file(fat_fs *f) : fs_(f) {}
 fat_file::~fat_file() = default;
@@ -243,6 +243,8 @@ status_t fat_file::close_file_priv(bool *last_ref) {
 status_t fat_file::close_file(filecookie *fcookie) {
     fat_file *file = (fat_file *)fcookie;
 
+    LTRACEF("file %p\n", file);
+
     bool last_ref;
     status_t err = file->close_file_priv(&last_ref);
     if (err < 0) {
@@ -289,3 +291,91 @@ status_t fat_file::create_file(fscookie *cookie, const char *path, filecookie **
     return NO_ERROR;
 }
 
+status_t fat_file::truncate_file_priv(uint64_t _len) {
+    LTRACEF("file %p, len %" PRIu64" \n", this, _len);
+
+    if (_len == length_) {
+        return NO_ERROR;
+    }
+
+    // test some boundary conditions
+    if (_len >= 2UL*1024*1024*1024) {
+        // 2GB limit on the fs
+        return ERR_TOO_BIG;
+    }
+
+    AutoLock guard(fs_->lock);
+
+    // from now on out use this as our length variable
+    const uint32_t len32 = _len;
+
+    // TODO: test for max size of fs
+
+    if (len32 == length_) {
+        return NO_ERROR;
+    } else {
+        // are we expanding/shrinking within a cluster that's already allocated?
+        const uint32_t bpc = fs_->info().bytes_per_cluster;
+        const uint32_t current_cluster_count = (length_ + bpc - 1) / bpc;
+        const uint32_t new_cluster_count = (len32 + bpc - 1) / bpc;
+        LTRACEF("existing len %u, clusters %u: newlen %u, clusters %u\n", length_, current_cluster_count, len32, new_cluster_count);
+        if (new_cluster_count == current_cluster_count) {
+            // new length doesn't change the cluster count
+            // update the dir entry and move on
+            status_t err = fat_dir_update_entry(fs_, dir_loc_, start_cluster_, len32);
+            if (err != NO_ERROR) {
+                return err;
+            }
+
+            // remember our new length
+            length_ = len32;
+        } else if (len32 > length_) {
+            // expanding the file
+            LTRACEF("expanding the file: start_cluster_ %u\n", start_cluster_);
+
+            // TODO: compartmentalize this cluster extension/shrinking so DIR code can reuse it
+
+            // walk to the end of the existing cluster chain
+            const uint32_t existing_chain_end = fat_find_last_cluster_in_chain(fs_, start_cluster_);
+
+            uint32_t first_cluster;
+            uint32_t last_cluster;
+            status_t err = fat_allocate_cluster_chain(fs_, existing_chain_end, new_cluster_count - current_cluster_count,
+                                                      &first_cluster, &last_cluster);
+
+            LTRACEF("fat_allocate_cluster_chain returns %d, first_cluster %u, last_cluster %u\n", err, first_cluster, last_cluster);
+            if (err != NO_ERROR) {
+                return err;
+            }
+
+            // update the dir entry, linking the first cluster in our chain if it's the first one
+            err = fat_dir_update_entry(fs_, dir_loc_, start_cluster_ ? start_cluster_ : first_cluster, len32);
+            if (err != NO_ERROR) {
+                return err;
+            }
+
+            // remember our new length
+            length_ = len32;
+
+            // if we just created the first cluster, remember it here
+            if (start_cluster_ == 0) {
+                start_cluster_ = first_cluster;
+            }
+        } else {
+            // shrinking the file
+            PANIC_UNIMPLEMENTED;
+            return ERR_NOT_IMPLEMENTED;
+        }
+    }
+
+    bcache_flush(fs_->bcache());
+
+    return NO_ERROR;
+}
+
+// static
+status_t fat_file::truncate_file(filecookie *fcookie, uint64_t len) {
+    fat_file *file = (fat_file *)fcookie;
+
+    return file->truncate_file_priv(len);
+}

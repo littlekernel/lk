@@ -7,6 +7,7 @@
  * https://opensource.org/licenses/MIT
  */
 
+#include <lk/err.h>
 #include <lk/trace.h>
 #include <endian.h>
 #include <stdint.h>
@@ -15,10 +16,14 @@
 #include "fat_fs.h"
 #include "fat_priv.h"
 
-#define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
+#define LOCAL_TRACE FAT_GLOBAL_TRACE(1)
 
-uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
-    DEBUG_ASSERT(fat->lock.is_held());
+// given a cluster number, compute the sector and the offset within the sector where
+// the fat entry exists.
+static void compute_fat_entry_address(fat_fs *fat, const uint32_t cluster, uint32_t *sector, uint32_t *offset_within_sector) {
+    DEBUG_ASSERT(cluster < fat->info().total_clusters);
+
+    // TODO: take into account active fat
 
     // offset in bytes into the FAT for this entry
     uint32_t fat_offset;
@@ -29,15 +34,25 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
     } else {
         fat_offset = cluster + (cluster / 2);
     }
-    LTRACEF("cluster %#x, fat_offset %u\n", cluster, fat_offset);
+    LTRACEF_LEVEL(2, "cluster %#x, fat_offset %u\n", cluster, fat_offset);
 
     const uint32_t fat_sector = fat_offset / fat->info().bytes_per_sector;
-    uint32_t bnum = fat->info().reserved_sectors + fat_sector;
-    const uint32_t fat_offset_in_sector = fat_offset % fat->info().bytes_per_sector;
+    *sector = fat->info().reserved_sectors + fat_sector;
+    *offset_within_sector = fat_offset % fat->info().bytes_per_sector;
+}
+
+// return the next cluster # in a chain, given a starting cluster
+uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
+    DEBUG_ASSERT(fat->lock.is_held());
+
+    // compute the starting address
+    uint32_t sector;
+    uint32_t fat_offset_in_sector;
+    compute_fat_entry_address(fat, cluster, &sector, &fat_offset_in_sector);
 
     // grab a pointer to the sector holding the fat entry
     void *cache_ptr;
-    int err = bcache_get_block(fat->bcache(), &cache_ptr, bnum);
+    int err = bcache_get_block(fat->bcache(), &cache_ptr, sector);
     if (err < 0) {
         printf("bcache_get_block returned: %i\n", err);
         return EOF_CLUSTER;
@@ -76,9 +91,9 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
             next_cluster = ((const uint8_t *)cache_ptr)[fat_offset_in_sector];
 
             // close the block cache and open the next sector
-            bcache_put_block(fat->bcache(), bnum);
-            bnum++;
-            err = bcache_get_block(fat->bcache(), &cache_ptr, bnum);
+            bcache_put_block(fat->bcache(), sector);
+            sector++;
+            err = bcache_get_block(fat->bcache(), &cache_ptr, sector);
             if (err < 0) {
                 printf("bcache_get_block returned: %i\n", err);
                 return EOF_CLUSTER;
@@ -102,39 +117,194 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
     }
 
     // return the sector to the block cache
-    bcache_put_block(fat->bcache(), bnum);
+    bcache_put_block(fat->bcache(), sector);
 
     LTRACEF("returning cluster %#x\n", next_cluster);
 
     return next_cluster;
 }
 
-// given a starting fat cluster, walk the fat chain for offset bytes, returning a new cluster or end of file
-uint32_t file_offset_to_cluster(fat_fs *fat, uint32_t start_cluster, off_t offset) {
-    DEBUG_ASSERT(fat->lock.is_held());
+uint32_t fat_find_last_cluster_in_chain(fat_fs *fat, uint32_t starting_cluster) {
+    LTRACEF("fat %p, starting cluster %u\n", fat, starting_cluster);
 
-    // negative offsets do not make sense
-    DEBUG_ASSERT(offset >= 0);
-    if (offset < 0) {
+    if (starting_cluster == 0) {
+        return 0;
+    }
+
+    uint32_t last_cluster = starting_cluster;
+    for (;;) {
+        uint32_t next = fat_next_cluster_in_chain(fat, last_cluster);
+        if (next == EOF_CLUSTER) {
+            return last_cluster;
+        }
+        last_cluster = next;
+    }
+}
+
+// write a value into a fat entry
+static status_t fat_mark_entry(fat_fs *fat, uint32_t cluster, uint32_t val) {
+    LTRACEF("fat %p, cluster %u, val %#x\n", fat, cluster, val);
+
+    // compute the starting address
+    uint32_t sector;
+    uint32_t fat_offset_in_sector;
+    compute_fat_entry_address(fat, cluster, &sector, &fat_offset_in_sector);
+
+    // grab a pointer to the sector holding the fat entry
+    void *cache_ptr;
+    int err = bcache_get_block(fat->bcache(), &cache_ptr, sector);
+    if (err < 0) {
+        printf("bcache_get_block returned: %i\n", err);
         return EOF_CLUSTER;
     }
 
-    // starting at the start cluster, walk forward N clusters, based on how far
-    // the offset is units of cluster bytes
-    uint32_t found_cluster = start_cluster;
-    size_t clusters_to_walk = (size_t)offset / fat->info().bytes_per_cluster;
-    while (clusters_to_walk > 0) {
-        // walk foward these many clusters, returning the FAT entry at that spot
-        found_cluster = fat_next_cluster_in_chain(fat, found_cluster);
-        if (is_eof_cluster(found_cluster)) {
-            break;
-        }
-        clusters_to_walk--;
+    if (fat->info().fat_bits == 32) {
+        auto *table = (uint32_t *)cache_ptr;
+        const auto index = fat_offset_in_sector / 4;
+        table[index] = LE32(val);
+    } else if (fat->info().fat_bits == 16) {
+        auto *table = (uint16_t *)cache_ptr;
+        const auto index = fat_offset_in_sector / 2;
+        table[index] = LE16(val);
+    } else { // fat12
+        PANIC_UNIMPLEMENTED;
     }
 
-    return found_cluster;
+    bcache_mark_block_dirty(fat->bcache(), sector);
+    bcache_put_block(fat->bcache(), sector);
+
+    return NO_ERROR;
 }
 
+// allocate a cluster chain
+// start_cluster is an existing cluster that it should link to (or 0 if its the first in the chain)
+// count is number of clusters to allocate
+// first and last cluster are the first and lastly allocated in the new part of the list (may be the same)
+status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_t count, uint32_t *first_cluster, uint32_t *last_cluster) {
+    LTRACEF("fat %p, starting %u, count %u\n", fat, start_cluster, count);
+
+    DEBUG_ASSERT(fat->lock.is_held());
+
+    *first_cluster = *last_cluster = 0;
+    uint32_t prev_cluster = start_cluster;
+
+    // TODO: start search at start_cluster instead of the beginning
+    uint32_t search_cluster = 2; // first 2 clusters are reserved
+
+    // compute the starting address
+    uint32_t sector;
+    uint32_t fat_offset_in_sector;
+    compute_fat_entry_address(fat, search_cluster, &sector, &fat_offset_in_sector);
+
+    // grab a pointer to the sector holding the fat entry
+    void *cache_ptr;
+    int err = bcache_get_block(fat->bcache(), &cache_ptr, sector);
+    if (err < 0) {
+        printf("bcache_get_block returned: %i\n", err);
+        return EOF_CLUSTER;
+    }
+
+    // start walking forward until we have found up to count clusters or we run out of clusters
+    const auto total_clusters = fat->info().total_clusters;
+    while (count > 0) {
+        uint32_t entry;
+        if (fat->info().fat_bits == 32) {
+            const auto *table = (const uint32_t *)cache_ptr;
+            const auto index = fat_offset_in_sector / 4;
+            entry = table[index];
+            LE32SWAP(entry);
+
+            // mask out the top nibble
+            entry &= 0x0fffffff;
+        } else if (fat->info().fat_bits == 16) {
+            const auto *table = (const uint16_t *)cache_ptr;
+            const auto index = fat_offset_in_sector / 2;
+            entry = table[index];
+        } else { // fat12
+            PANIC_UNIMPLEMENTED;
+        }
+
+        LTRACEF_LEVEL(2, "search_cluster %u, sector %u, offset %u: entry %#x\n", search_cluster, sector, fat_offset_in_sector, entry);
+        if (entry == 0) {
+            // its a free entry, allocate it and move on
+            LTRACEF("found free cluster %u, sector %u, offset %u\n", search_cluster, sector, fat_offset_in_sector);
+
+            // add it to the chain
+            if (prev_cluster > 0) {
+                // link the last cluster we had found before to this one.
+                // NOTE: may be start_cluster if this is the first iteration
+                fat_mark_entry(fat, prev_cluster, search_cluster);
+            }
+            if (*first_cluster == 0) {
+                // this is the first one in the chain
+                *first_cluster = search_cluster;
+            }
+            *last_cluster = search_cluster;
+            prev_cluster = search_cluster;
+            count--;
+            if (count == 0) {
+                // we're at the end of this chain, mark it as EOF
+                fat_mark_entry(fat, search_cluster, EOF_CLUSTER);
+
+                // early terminate here, since there's no point pushing
+                // to the next sector
+                break;
+            }
+        }
+
+        // helper to move to the next sector, dropping old block cache and
+        // loading the next one.
+        auto inc_sector = [fat, &sector, &cache_ptr]() -> status_t {
+            bcache_put_block(fat->bcache(), sector);
+            sector++;
+            status_t localerr = bcache_get_block(fat->bcache(), &cache_ptr, sector);
+            if (localerr < 0) {
+                printf("bcache_get_block returned: %i\n", localerr);
+                return EOF_CLUSTER;
+            }
+
+            return NO_ERROR;
+        };
+
+        // next entry
+        search_cluster++;
+        if (search_cluster >= total_clusters) {
+            // no more clusters, abort
+            break;
+        }
+        if (fat->info().fat_bits == 32) {
+            fat_offset_in_sector += 4;
+            if (fat_offset_in_sector == fat->info().bytes_per_sector) {
+                fat_offset_in_sector = 0;
+                if ((err = inc_sector()) != NO_ERROR) {
+                    return err;
+                }
+            }
+        } else if (fat->info().fat_bits == 16) {
+            fat_offset_in_sector += 2;
+            if (fat_offset_in_sector == fat->info().bytes_per_sector) {
+                fat_offset_in_sector = 0;
+                if ((err = inc_sector()) != NO_ERROR) {
+                    return err;
+                }
+            }
+        } else { // fat12
+            PANIC_UNIMPLEMENTED;
+        }
+    }
+
+    // return the sector to the block cache
+    bcache_put_block(fat->bcache(), sector);
+
+    if (count == 0) {
+        return NO_ERROR;
+    } else {
+        return ERR_NO_RESOURCES;
+    }
+}
+
+// return the disk sector that corresponds to a cluster number, with
+// appropriate offsets applied
 uint32_t fat_sector_for_cluster(fat_fs *fat, uint32_t cluster) {
     DEBUG_ASSERT(fat->lock.is_held());
 
@@ -152,6 +322,7 @@ uint32_t fat_sector_for_cluster(fat_fs *fat, uint32_t cluster) {
     return sector;
 }
 
+// read a cluster directly into a buffer, using the bcache
 ssize_t fat_read_cluster(fat_fs *fat, void *buf, uint32_t cluster) {
     DEBUG_ASSERT(fat->lock.is_held());
 
@@ -160,5 +331,4 @@ ssize_t fat_read_cluster(fat_fs *fat, void *buf, uint32_t cluster) {
     auto sector = fat_sector_for_cluster(fat, cluster);
     return bio_read_block(fat->dev(), buf, sector, fat->info().sectors_per_cluster);
 }
-
 

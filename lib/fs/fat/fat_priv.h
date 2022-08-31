@@ -23,7 +23,8 @@ typedef void *fsfilecookie;
 
 /* file allocation table parsing */
 uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster);
-uint32_t file_offset_to_cluster(fat_fs *fat, uint32_t start_cluster, off_t offset);
+uint32_t fat_find_last_cluster_in_chain(fat_fs *fat, uint32_t starting_cluster);
+status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_t count, uint32_t *first_cluster, uint32_t *last_cluster);
 
 /* general io routines */
 uint32_t fat_sector_for_cluster(fat_fs *fat, uint32_t cluster);
@@ -53,3 +54,5 @@ status_t fat_dir_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_e
 // walk a path, allocating a new entry with the path name.
 // returns the dir entry location
 status_t fat_dir_allocate(fat_fs *fat, const char *path, fat_attribute attr, uint32_t starting_cluster, uint32_t size, dir_entry_location *loc);
+
+status_t fat_dir_update_entry(fat_fs *fat, const dir_entry_location &loc, uint32_t starting_cluster, uint32_t size);
