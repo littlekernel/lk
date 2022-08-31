@@ -242,12 +242,41 @@ bool test_fat_create_file() {
     });
 }
 
+bool test_fat_resize_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        filehandle *handle;
+
+        // create an empty file
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/reszfile", &handle, 0));
+        ASSERT_NONNULL(handle);
+        auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle); });
+
+        // resize the file
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0)); // same size
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 2UL*1024*1024*1024)); // too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 8UL*1024*1024*1024)); // >32bit too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, -1)); // negative should produce way out of range
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4095)); // assumes cluster size 4k
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4096));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4097));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 12345));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1002345));
+
+        END_TEST;
+    });
+}
+
 BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_mount)
     RUN_TEST(test_fat_dir_root)
     RUN_TEST(test_fat_read_file)
     RUN_TEST(test_fat_multi_open)
     RUN_TEST(test_fat_create_file)
+    RUN_TEST(test_fat_resize_file)
 END_TEST_CASE(fat)
 
 } // namespace

@@ -27,6 +27,7 @@ public:
     static status_t stat_file(filecookie *fcookie, struct file_stat *stat);
     static status_t close_file(filecookie *fcookie);
     static status_t create_file(fscookie *cookie, const char *path, filecookie **fcookie, uint64_t len);
+    static status_t truncate_file(filecookie *fcookie, uint64_t len);
 
     // used by fs node list maintenance
     // node in the fs's list of open files and dirs
@@ -38,6 +39,7 @@ private:
     ssize_t read_file_priv(void *_buf, const off_t offset, size_t len);
     status_t stat_file_priv(struct file_stat *stat);
     status_t close_file_priv(bool *last_ref);
+    status_t truncate_file_priv(uint64_t len);
 
 protected:
     // increment the ref and add/remove the file from the fs list
