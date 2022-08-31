@@ -21,7 +21,7 @@ struct fat_dir_cookie;
 // at any point in time,
 class fat_dir : public fat_file {
 public:
-    explicit fat_dir(fat_fs *f) : fat_file(f) {}
+    explicit fat_dir(fat_fs *f);
     virtual ~fat_dir();
 
     static status_t opendir(fscookie *cookie, const char *name, dircookie **dcookie);
