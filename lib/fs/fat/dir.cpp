@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <lib/bcache/bcache_block_ref.h>
 
 #include "fat_fs.h"
 #include "fat_priv.h"
@@ -561,12 +562,17 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
     return ERR_NOT_IMPLEMENTED;
 }
 
-status_t fat_dir_update_entry(fat_fs *fat, const dir_entry_location &loc, uint32_t starting_cluster, uint32_t size) {
-    LTRACEF("fat %p, loc %u:%u, cluster %u, size %u\n", fat, loc.starting_dir_cluster, loc.dir_offset, starting_cluster, size);
+// given a dir entry location, open the corresponding sector and pass back a open pointer
+// into the block cache.
+// this code encapsulates the logic that takes into account that cluster 0 is magic in
+// fat 12 and fat 16 for the root dir.
+static bcache_block_ref open_dirent_block(fat_fs *fat, const dir_entry_location &loc) {
+    LTRACEF("fat %p, loc %u:%u\n", fat, loc.starting_dir_cluster, loc.dir_offset);
 
     // find the dir entry and open the block
     uint32_t sector;
     if (loc.starting_dir_cluster == 0) {
+        DEBUG_ASSERT(fat->info().fat_bits == 12 || fat->info().fat_bits == 16);
         // special case on fat12/16 to represent the root dir.
         // load 0 into cluster and use sector_offset as relative to the
         // start of the volume.
@@ -576,20 +582,28 @@ status_t fat_dir_update_entry(fat_fs *fat, const dir_entry_location &loc, uint32
     }
     sector += loc.dir_offset / fat->info().bytes_per_sector;
 
-    uint8_t *ent;
-    bcache_get_block(fat->bcache(), (void **)&ent, sector);
-    ent += loc.dir_offset % fat->info().bytes_per_sector;
+    bcache_block_ref bref(fat->bcache());
+    bref.get_block(sector);
 
-    //hexdump8_ex(ent, 0x20, 0);
+    return bref;
+}
+
+// update the starting cluster and/or size pointer in a directory entry
+status_t fat_dir_update_entry(fat_fs *fat, const dir_entry_location &loc, uint32_t starting_cluster, uint32_t size) {
+    LTRACEF("fat %p, loc %u:%u, cluster %u, size %u\n", fat, loc.starting_dir_cluster, loc.dir_offset, starting_cluster, size);
+
+    bcache_block_ref bref = open_dirent_block(fat, loc);
+
+    DEBUG_ASSERT(bref.is_valid());
+
+    uint8_t *ent = (uint8_t *)bref.ptr();
+    ent += loc.dir_offset % fat->info().bytes_per_sector;
 
     fat_write32(ent, 28, size); // file size
     fat_write16(ent, 20, starting_cluster >> 16); // fat cluster high
     fat_write16(ent, 26, starting_cluster); // fat cluster low
 
-    //hexdump8_ex(ent, 0x20, 0);
-
-    bcache_mark_block_dirty(fat->bcache(), sector);
-    bcache_put_block(fat->bcache(), sector);
+    bref.mark_dirty();
 
     return NO_ERROR;
 }
