@@ -12,6 +12,7 @@
 #include <endian.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <lib/bcache/bcache_block_ref.h>
 
 #include "fat_fs.h"
 #include "fat_priv.h"
@@ -51,8 +52,8 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
     compute_fat_entry_address(fat, cluster, &sector, &fat_offset_in_sector);
 
     // grab a pointer to the sector holding the fat entry
-    void *cache_ptr;
-    int err = bcache_get_block(fat->bcache(), &cache_ptr, sector);
+    bcache_block_ref bref(fat->bcache());
+    int err = bref.get_block(sector);
     if (err < 0) {
         printf("bcache_get_block returned: %i\n", err);
         return EOF_CLUSTER;
@@ -60,7 +61,7 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
 
     uint32_t next_cluster;
     if (fat->info().fat_bits == 32) {
-        const auto *table = (const uint32_t *)cache_ptr;
+        const auto *table = (const uint32_t *)bref.ptr();
         const auto index = fat_offset_in_sector / 4;
         next_cluster = table[index];
         LE32SWAP(next_cluster);
@@ -68,7 +69,7 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
         // mask out the top nibble
         next_cluster &= 0x0fffffff;
     } else if (fat->info().fat_bits == 16) {
-        const auto *table = (const uint16_t *)cache_ptr;
+        const auto *table = (const uint16_t *)bref.ptr();
         const auto index = fat_offset_in_sector / 2;
         next_cluster = table[index];
         LE16SWAP(next_cluster);
@@ -83,24 +84,22 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
 
         if (fat_offset_in_sector != (fat->info().bytes_per_sector - 1)) {
             // normal, non sector straddling logic
-            next_cluster = fat_read16(cache_ptr, fat_offset_in_sector);
+            next_cluster = fat_read16(bref.ptr(), fat_offset_in_sector);
         } else {
             // need to straddle a fat sector
 
             // read the first byte of the entry
-            next_cluster = ((const uint8_t *)cache_ptr)[fat_offset_in_sector];
+            next_cluster = ((const uint8_t *)bref.ptr())[fat_offset_in_sector];
 
             // close the block cache and open the next sector
-            bcache_put_block(fat->bcache(), sector);
-            sector++;
-            err = bcache_get_block(fat->bcache(), &cache_ptr, sector);
+            err = bref.get_block(++sector);
             if (err < 0) {
                 printf("bcache_get_block returned: %i\n", err);
                 return EOF_CLUSTER;
             }
 
             // read the second byte
-            next_cluster |= ((const uint8_t *)cache_ptr)[0] << 8;
+            next_cluster |= ((const uint8_t *)bref.ptr())[0] << 8;
         }
 
         // odd cluster, shift over to get our value
@@ -115,9 +114,6 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
             next_cluster |= 0x0ffff000;
         }
     }
-
-    // return the sector to the block cache
-    bcache_put_block(fat->bcache(), sector);
 
     LTRACEF("returning cluster %#x\n", next_cluster);
 
@@ -151,27 +147,26 @@ static status_t fat_mark_entry(fat_fs *fat, uint32_t cluster, uint32_t val) {
     compute_fat_entry_address(fat, cluster, &sector, &fat_offset_in_sector);
 
     // grab a pointer to the sector holding the fat entry
-    void *cache_ptr;
-    int err = bcache_get_block(fat->bcache(), &cache_ptr, sector);
+    bcache_block_ref bref(fat->bcache());
+    int err = bref.get_block(sector);
     if (err < 0) {
         printf("bcache_get_block returned: %i\n", err);
         return EOF_CLUSTER;
     }
 
     if (fat->info().fat_bits == 32) {
-        auto *table = (uint32_t *)cache_ptr;
+        auto *table = (uint32_t *)bref.ptr();
         const auto index = fat_offset_in_sector / 4;
         table[index] = LE32(val);
     } else if (fat->info().fat_bits == 16) {
-        auto *table = (uint16_t *)cache_ptr;
+        auto *table = (uint16_t *)bref.ptr();
         const auto index = fat_offset_in_sector / 2;
         table[index] = LE16(val);
     } else { // fat12
         PANIC_UNIMPLEMENTED;
     }
 
-    bcache_mark_block_dirty(fat->bcache(), sector);
-    bcache_put_block(fat->bcache(), sector);
+    bref.mark_dirty();
 
     return NO_ERROR;
 }
@@ -197,8 +192,8 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
     compute_fat_entry_address(fat, search_cluster, &sector, &fat_offset_in_sector);
 
     // grab a pointer to the sector holding the fat entry
-    void *cache_ptr;
-    int err = bcache_get_block(fat->bcache(), &cache_ptr, sector);
+    bcache_block_ref bref(fat->bcache());
+    int err = bref.get_block(sector);
     if (err < 0) {
         printf("bcache_get_block returned: %i\n", err);
         return EOF_CLUSTER;
@@ -209,7 +204,7 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
     while (count > 0) {
         uint32_t entry;
         if (fat->info().fat_bits == 32) {
-            const auto *table = (const uint32_t *)cache_ptr;
+            const auto *table = (const uint32_t *)bref.ptr();
             const auto index = fat_offset_in_sector / 4;
             entry = table[index];
             LE32SWAP(entry);
@@ -217,7 +212,7 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
             // mask out the top nibble
             entry &= 0x0fffffff;
         } else if (fat->info().fat_bits == 16) {
-            const auto *table = (const uint16_t *)cache_ptr;
+            const auto *table = (const uint16_t *)bref.ptr();
             const auto index = fat_offset_in_sector / 2;
             entry = table[index];
         } else { // fat12
@@ -254,10 +249,8 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
 
         // helper to move to the next sector, dropping old block cache and
         // loading the next one.
-        auto inc_sector = [fat, &sector, &cache_ptr]() -> status_t {
-            bcache_put_block(fat->bcache(), sector);
-            sector++;
-            status_t localerr = bcache_get_block(fat->bcache(), &cache_ptr, sector);
+        auto inc_sector = [&bref, &sector]() -> status_t {
+            status_t localerr = bref.get_block(++sector);
             if (localerr < 0) {
                 printf("bcache_get_block returned: %i\n", localerr);
                 return EOF_CLUSTER;
@@ -292,9 +285,6 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
             PANIC_UNIMPLEMENTED;
         }
     }
-
-    // return the sector to the block cache
-    bcache_put_block(fat->bcache(), sector);
 
     if (count == 0) {
         return NO_ERROR;
