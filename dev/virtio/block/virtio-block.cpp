@@ -12,6 +12,7 @@
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <lib/bio.h>
+#include <lib/partition.h>
 #include <lk/compiler.h>
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -249,6 +250,9 @@ status_t virtio_block_init(virtio_device *dev) {
     bdev->bdev.write_async = &virtio_bdev_write_async;
 
     bio_register_device(&bdev->bdev);
+
+    /* tell the partition layer to scan and find any subdevices */
+    partition_publish(buf, 0);
 
     printf("virtio-block found device of size %" PRIu64 "\n", config->capacity * config->blk_size);
 
