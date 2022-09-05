@@ -20,6 +20,7 @@
 #include <kernel/spinlock.h>
 #include <lib/pktbuf.h>
 #include <lib/minip.h>
+#include <platform/interrupts.h>
 
 #define LOCAL_TRACE 0
 
@@ -150,6 +151,7 @@ status_t virtio_net_init(struct virtio_device *dev, uint32_t host_features) {
 
     /* set our irq handler */
     dev->irq_driver_callback = &virtio_net_irq_driver_callback;
+    unmask_interrupt(dev->irq);
 
     /* set DRIVER_OK */
     virtio_status_driver_ok(dev);

@@ -19,6 +19,7 @@
 #include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <dev/display.h>
+#include <platform/interrupts.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -454,6 +455,7 @@ status_t virtio_gpu_init(struct virtio_device *dev, uint32_t host_features) {
     /* set our irq handler */
     dev->irq_driver_callback = &virtio_gpu_irq_driver_callback;
     dev->config_change_callback = &virtio_gpu_config_change_callback;
+    unmask_interrupt(dev->irq);
 
     /* set DRIVER_OK */
     virtio_status_driver_ok(dev);

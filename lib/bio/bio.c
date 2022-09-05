@@ -544,7 +544,7 @@ void bio_dump_devices(void) {
                entry->name, entry->total_size, entry->block_size, entry->ref);
 
         if (!entry->geometry_count || !entry->geometry) {
-            printf(" (no erase geometry)\n");
+            printf(" (no erase geometry)");
         } else {
             for (size_t i = 0; i < entry->geometry_count; ++i) {
                 const bio_erase_geometry_info_t *geo = entry->geometry + i;

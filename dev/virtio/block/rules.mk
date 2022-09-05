@@ -7,7 +7,7 @@ MODULE_SRCS += \
 
 MODULE_DEPS += \
 	dev/virtio \
-	lib/bio
-
+	lib/bio \
+	lib/partition
 
 include make/module.mk

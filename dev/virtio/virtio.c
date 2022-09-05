@@ -160,9 +160,6 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             if (err >= 0) {
                 // good device
                 dev->valid = true;
-
-                if (dev->irq_driver_callback)
-                    unmask_interrupt(dev->irq);
             }
         }
 #endif // WITH_DEV_VIRTIO_BLOCK
@@ -177,9 +174,6 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             if (err >= 0) {
                 // good device
                 dev->valid = true;
-
-                if (dev->irq_driver_callback)
-                    unmask_interrupt(dev->irq);
             }
         }
 #endif // WITH_DEV_VIRTIO_NET
@@ -194,9 +188,6 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             if (err >= 0) {
                 // good device
                 dev->valid = true;
-
-                if (dev->irq_driver_callback)
-                    unmask_interrupt(dev->irq);
 
                 virtio_gpu_start(dev);
             }

@@ -18,7 +18,9 @@
 #include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <lib/bio.h>
+#include <lib/partition.h>
 #include <inttypes.h>
+#include <platform/interrupts.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -187,6 +189,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
 
     /* set our irq handler */
     dev->irq_driver_callback = &virtio_block_irq_driver_callback;
+    unmask_interrupt(dev->irq);
 
     /* set DRIVER_OK */
     virtio_status_driver_ok(dev);
@@ -228,6 +231,9 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
     if (host_features & VIRTIO_BLK_F_WRITE_ZEROES) {
         printf("\twrite zeroes: max sectors %u max sequence %u may unmap %u\n", config->max_write_zeroes_sectors, config->max_write_zeroes_seq, config->write_zeros_may_unmap);
     }
+
+    /* tell the partition layer to scan and find any subdevices */
+    partition_publish(buf, 0);
 
     return NO_ERROR;
 }
