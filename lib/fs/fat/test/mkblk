@@ -1,24 +1,26 @@
 #!/bin/bash
 
+set -e
 set -x
 
 # create a largeish file (crosses at least one sector)
 dd if=/dev/zero of=largefile bs=1024 count=512
 
 # create a 12 bit fat, 1K clusters, 2MB
-rm blk.bin.fat12
-mkfs.fat -C blk.bin.fat12 -S 512 -s 2 -n FAT12 2000
+rm -f blk.bin.fat12
+mkfs.fat -C blk.bin.fat12 -v -S 512 -s 2 -n FAT12 2000
 
 # create a 16 bit fat, 2K clusters, 16MB
-rm blk.bin.fat16
-mkfs.fat -C blk.bin.fat16 -S 512 -s 4 -n FAT16 16384
+rm -f blk.bin.fat16
+mkfs.fat -C blk.bin.fat16 -v -S 512 -s 4 -n FAT16 16384
 
 # create a 32 bit fat, 4K clusters, 4GB
-rm blk.bin.fat32
-mkfs.fat -C blk.bin.fat32 -S 512 -n FAT32 4194304
+rm -f blk.bin.fat32
+mkfs.fat -v -C blk.bin.fat32 -S 512 -n FAT32 4194304
+#mkfs.fat blk.bin.fat32 -v -S 512 -s 8 -n FAT32
 
 # create a huge 32 bit fat, 32K clusters, 2TB
-rm blk.bin.fat32.huge
+rm -f blk.bin.fat32.huge
 #mkfs.fat -v -C blk.bin.fat32.huge -S 512 -n FAT32 2147483648
 
 for i in blk.bin.*; do

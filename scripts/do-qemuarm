@@ -26,7 +26,7 @@ function HELP {
 DO_NET=0
 DO_NET_TAP=0
 DO_DISK=0
-DO_DISK_IMAGE=""
+DISK_IMAGE=""
 DO_64BIT=0
 DO_VIRT=0
 DO_CORTEX_M3=0
@@ -92,6 +92,8 @@ ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT
 
 if (( $DO_DISK )); then
     ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk,format=raw"
+    # valid options are writeback, none, writethrough, directsync, unsafe
+    #ARGS+=",cache=none"
     ARGS+=" -device virtio-blk-device,drive=blk"
 fi
 
