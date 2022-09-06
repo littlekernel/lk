@@ -165,7 +165,7 @@ static int cmd_mkfile(int argc, const console_cmd_args *argv) {
     prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
 
     filehandle *handle;
-    status_t status = fs_create_file(path, &handle, (argc >= 2) ? argv[2].u : 0);
+    status_t status = fs_create_file(path, &handle, (argc >= 3) ? argv[2].u : 0);
     if (status < 0) {
         printf("error %d making file '%s'\n", status, path);
         goto err;
