@@ -18,6 +18,7 @@
 __BEGIN_CDECLS
 
 int atoi(const char *num);
+double atof(const char *num);
 unsigned int atoui(const char *num);
 long atol(const char *num);
 unsigned long atoul(const char *num);

@@ -22,6 +22,7 @@ MODULE_SRCS += \
 
 MODULE_FLOAT_SRCS += \
 	$(LOCAL_DIR)/printf.c \
+	$(LOCAL_DIR)/atof.c \
 
 MODULE_COMPILEFLAGS += -fno-builtin
 
