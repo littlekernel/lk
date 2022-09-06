@@ -16,6 +16,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <endian.h>
+#include <stdlib.h>
 
 #include "fat_priv.h"
 #include "fat_fs.h"
@@ -218,7 +219,12 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
     }
 
     info->bytes_per_cluster = info->sectors_per_cluster * info->bytes_per_sector;
-    fat->bcache_ = bcache_create(fat->dev(), info->bytes_per_sector, 16);
+
+    int bcache_size = MIN(16, 64 * info->sectors_per_cluster);
+
+    dprintf(INFO, "FAT: creating bcache of %d entries of %u bytes\n", bcache_size, info->bytes_per_sector);
+
+    fat->bcache_ = bcache_create(fat->dev(), info->bytes_per_sector, bcache_size);
 
     // we're okay, cancel our cleanup of the fat structure
     ac2.cancel();
@@ -243,6 +249,10 @@ status_t fat_fs::unmount(fscookie *cookie) {
         // TODO: handle unmounting when files/dirs are active
         DEBUG_ASSERT(list_is_empty(&fat->file_list_));
 
+        if (LK_DEBUGLEVEL > INFO) {
+            bcache_dump(fat->bcache(), "FAT bcache ");
+        }
+        bcache_flush(fat->bcache());
         bcache_destroy(fat->bcache());
     }
 

@@ -24,11 +24,14 @@ typedef void *fsfilecookie;
 /* file allocation table parsing */
 uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster);
 uint32_t fat_find_last_cluster_in_chain(fat_fs *fat, uint32_t starting_cluster);
-status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_t count, uint32_t *first_cluster, uint32_t *last_cluster);
+status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_t count,
+                                    uint32_t *first_cluster, uint32_t *last_cluster,
+                                    bool zero_new_blocks);
 
 /* general io routines */
 uint32_t fat_sector_for_cluster(fat_fs *fat, uint32_t cluster);
 ssize_t fat_read_cluster(fat_fs *fat, void *buf, uint32_t cluster);
+ssize_t fat_zero_cluster(fat_fs *fat, uint32_t cluster);
 
 // general directory apis outside of an object
 struct dir_entry {

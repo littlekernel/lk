@@ -335,13 +335,15 @@ status_t fat_file::truncate_file_priv(uint64_t _len) {
 
             // TODO: compartmentalize this cluster extension/shrinking so DIR code can reuse it
 
+            // TODO: write zeros to any partial blocks we're extending
+
             // walk to the end of the existing cluster chain
             const uint32_t existing_chain_end = fat_find_last_cluster_in_chain(fs_, start_cluster_);
 
             uint32_t first_cluster;
             uint32_t last_cluster;
             status_t err = fat_allocate_cluster_chain(fs_, existing_chain_end, new_cluster_count - current_cluster_count,
-                                                      &first_cluster, &last_cluster);
+                                                      &first_cluster, &last_cluster, true);
 
             LTRACEF("fat_allocate_cluster_chain returns %d, first_cluster %u, last_cluster %u\n", err, first_cluster, last_cluster);
             if (err != NO_ERROR) {
