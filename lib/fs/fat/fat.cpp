@@ -175,8 +175,10 @@ static status_t fat_mark_entry(fat_fs *fat, uint32_t cluster, uint32_t val) {
 // start_cluster is an existing cluster that it should link to (or 0 if its the first in the chain)
 // count is number of clusters to allocate
 // first and last cluster are the first and lastly allocated in the new part of the list (may be the same)
-status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_t count, uint32_t *first_cluster, uint32_t *last_cluster) {
-    LTRACEF("fat %p, starting %u, count %u\n", fat, start_cluster, count);
+status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_t count,
+                                    uint32_t *first_cluster, uint32_t *last_cluster,
+                                    bool zero_new_blocks) {
+    LTRACEF("fat %p, starting %u, count %u, zero %u\n", fat, start_cluster, count, zero_new_blocks);
 
     DEBUG_ASSERT(fat->lock.is_held());
 
@@ -223,6 +225,11 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
         if (entry == 0) {
             // its a free entry, allocate it and move on
             LTRACEF("found free cluster %u, sector %u, offset %u\n", search_cluster, sector, fat_offset_in_sector);
+
+            // zero the cluster first
+            if (zero_new_blocks) {
+                fat_zero_cluster(fat, search_cluster);
+            }
 
             // add it to the chain
             if (prev_cluster > 0) {
@@ -319,6 +326,38 @@ ssize_t fat_read_cluster(fat_fs *fat, void *buf, uint32_t cluster) {
     LTRACEF("buf %p, cluster %u\n", buf, cluster);
 
     auto sector = fat_sector_for_cluster(fat, cluster);
-    return bio_read_block(fat->dev(), buf, sector, fat->info().sectors_per_cluster);
+
+    uint8_t *buf8 = (uint8_t *)buf;
+    for (size_t i = 0; i < fat->info().sectors_per_cluster; i++) {
+        status_t err = bcache_read_block(fat->bcache(), buf8, sector);
+        if (err < 0) {
+            return err;
+        }
+
+        buf8 += fat->info().bytes_per_sector;
+        sector++;
+    }
+
+    return NO_ERROR;
+}
+
+// zero a cluster, using the bcache
+ssize_t fat_zero_cluster(fat_fs *fat, uint32_t cluster) {
+    DEBUG_ASSERT(fat->lock.is_held());
+
+    LTRACEF("cluster %u\n", cluster);
+
+    auto sector = fat_sector_for_cluster(fat, cluster);
+
+    for (size_t i = 0; i < fat->info().sectors_per_cluster; i++) {
+        status_t err = bcache_zero_block(fat->bcache(), sector);
+        if (err < 0) {
+            return err;
+        }
+
+        sector++;
+    }
+
+    return NO_ERROR;
 }
 

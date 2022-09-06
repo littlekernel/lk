@@ -148,6 +148,9 @@ static struct bcache_block *alloc_block(struct bcache *cache) {
         LTRACEF("looking at %p, num %u\n", block, block->blocknum);
         if (block->ref_count == 0) {
             if (block->is_dirty) {
+                /* if the oldest block in the list that's available is dirty, write
+                 * it back first.
+                 */
                 err = flush_block(cache, block);
                 if (err)
                     return NULL;
