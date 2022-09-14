@@ -370,10 +370,17 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
 
     /* map all of the pages */
     int err = arch_mmu_map(&aspace->arch_aspace, r->base, paddr, size / PAGE_SIZE, arch_mmu_flags);
-    LTRACEF("arch_mmu_map returns %d\n", err);
+    if (err) {
+        printf("%s: arch_mmu_map returns %d\n", __func__, err);
+        goto err_map;
+    }
 
-    ret = NO_ERROR;
+    mutex_release(&vmm_lock);
+    return NO_ERROR;
 
+err_map:
+    list_delete(&r->node);
+    free(r);
 err_alloc_region:
     mutex_release(&vmm_lock);
     return ret;
@@ -435,8 +442,11 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
         *ptr = (void *)r->base;
 
     /* map all of the pages */
-    arch_mmu_map(&aspace->arch_aspace, r->base, pa, size / PAGE_SIZE, arch_mmu_flags);
-    // XXX deal with error mapping here
+    err = arch_mmu_map(&aspace->arch_aspace, r->base, pa, size / PAGE_SIZE, arch_mmu_flags);
+    if (err) {
+        printf("%s: arch_mmu_map returns %d\n", __func__, err);
+        goto err2;
+    }
 
     vm_page_t *p;
     while ((p = list_remove_head_type(&page_list, vm_page_t, node))) {
@@ -446,6 +456,9 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
     mutex_release(&vmm_lock);
     return NO_ERROR;
 
+err2:
+    list_delete(&r->node);
+    free(r);
 err1:
     mutex_release(&vmm_lock);
     pmm_free(&page_list);
@@ -521,8 +534,11 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
         paddr_t pa = vm_page_to_paddr(p);
         DEBUG_ASSERT(IS_PAGE_ALIGNED(pa));
 
-        arch_mmu_map(&aspace->arch_aspace, va, pa, 1, arch_mmu_flags);
-        // XXX deal with error mapping here
+        err = arch_mmu_map(&aspace->arch_aspace, va, pa, 1, arch_mmu_flags);
+        if (err) {
+            printf("%s: arch_mmu_map returns %d\n", __func__, err);
+            goto err2;
+        }
 
         list_add_tail(&r->page_list, &p->node);
 
@@ -532,6 +548,10 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     mutex_release(&vmm_lock);
     return NO_ERROR;
 
+err2:
+    arch_mmu_unmap(&aspace->arch_aspace, r->base, count);
+    list_delete(&r->node);
+    free(r);
 err1:
     mutex_release(&vmm_lock);
     pmm_free(&page_list);

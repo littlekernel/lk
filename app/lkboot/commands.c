@@ -91,7 +91,7 @@ static int do_boot(lkb_t *lkb, size_t len, const char **result) {
     paddr_t buf_phys;
 
     if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "lkboot_iobuf",
-                             len, &buf, log2_uint(1024*1024), 0, ARCH_MMU_FLAG_UNCACHED) < 0) {
+                             len, &buf, log2_uint(1024*1024), 0, ARCH_MMU_FLAG_CACHED) < 0) {
         *result = "not enough memory";
         return -1;
     }

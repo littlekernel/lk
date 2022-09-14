@@ -502,6 +502,8 @@ int arm64_mmu_unmap(vaddr_t vaddr, size_t size,
 }
 
 int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
+    const struct mmu_initial_mapping *map = mmu_initial_mappings;
+
     LTRACEF("vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", vaddr, paddr, count, flags);
 
     DEBUG_ASSERT(aspace);
@@ -521,6 +523,35 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
         return NO_ERROR;
 
     int ret;
+
+    /*
+     * arm64 doesn't recommend alias mapping with mismatched attributes.
+     * Better check new mappings against mmu_initial_mapping and if
+     * there is any mismatch found, better bail out than continue.
+     */
+    while (map->size > 0) {
+        if (paddr >= map->phys && paddr < (map->phys + map->size)) {
+            if ((flags & ARCH_MMU_FLAG_UNCACHED) &&
+                !(map->flags & MMU_INITIAL_MAPPING_FLAG_UNCACHED)) {
+                printf("Mismatch attributes, uncached mapping failed\n");
+                return ERR_NOT_ALLOWED;
+            }
+
+            if ((flags & ARCH_MMU_FLAG_CACHED) && !(map->flags & MMU_INITIAL_MAPPING_FLAG_CACHED)) {
+                printf("Mismatch attributes, cached mapping failed\n");
+                return ERR_NOT_ALLOWED;
+            }
+
+            if ((flags & ARCH_MMU_FLAG_UNCACHED_DEVICE) &&
+                !(map->flags & MMU_INITIAL_MAPPING_FLAG_DEVICE)) {
+                printf("Mismatch attributes, device mapping failed\n");
+                return ERR_NOT_ALLOWED;
+            }
+        }
+
+        map++;
+    }
+
     if (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) {
         ret = arm64_mmu_map(vaddr, paddr, count * PAGE_SIZE,
                             mmu_flags_to_pte_attr(flags),
