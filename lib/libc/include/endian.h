@@ -43,6 +43,7 @@ static inline uint16_t SWAP_16(uint16_t x) { return __builtin_bswap16(x); }
 
 #define LE32SWAP(var) do { (var) = LE32(var); } while (0)
 #define LE16SWAP(var) do { (var) = LE16(var); } while (0)
+#define BE64SWAP(var) do { (var) = BE64(var); } while (0)
 #define BE32SWAP(var) do { (var) = BE32(var); } while (0)
 #define BE16SWAP(var) do { (var) = BE16(var); } while (0)
 
