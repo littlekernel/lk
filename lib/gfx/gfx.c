@@ -614,6 +614,7 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
         surface->free_on_destroy = true;
     }
     surface->ptr = ptr;
+    surface->flush = NULL;
 
     return surface;
 }
