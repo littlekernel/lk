@@ -25,6 +25,7 @@
 #include <platform/interrupts.h>
 #include <platform/qemu-virt.h>
 #include "platform_p.h"
+#include <dev/power/psci.h>
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
@@ -64,8 +65,6 @@ static pmm_arena_t arena = {
     .size = DEFAULT_MEMORY_SIZE,
     .flags = PMM_ARENA_FLAG_KMAP,
 };
-
-extern int psci_call(ulong arg0, ulong arg1, ulong arg2, ulong arg3);
 
 // callbacks to the fdt_walk routine
 static void memcallback(uint64_t base, uint64_t len, void *cookie) {
@@ -157,13 +156,9 @@ void platform_early_init(void) {
     LTRACEF("booting %d cpus\n", cpu_count);
 
     /* boot the secondary cpus using the Power State Coordintion Interface */
-    ulong psci_call_num = 0x84000000 + 3; /* SMC32 CPU_ON */
-#if ARCH_ARM64
-    psci_call_num += 0x40000000; /* SMC64 */
-#endif
     for (int cpuid = 1; cpuid < cpu_count; cpuid++) {
         /* note: assumes cpuids are numbered like MPIDR 0:0:0:N */
-        int ret = psci_call(psci_call_num, cpuid, MEMBASE + KERNEL_LOAD_OFFSET, cpuid);
+        int ret = psci_cpu_on(cpuid, MEMBASE + KERNEL_LOAD_OFFSET);
         if (ret != 0) {
             printf("ERROR: psci CPU_ON returns %d\n", ret);
         }
@@ -300,4 +295,19 @@ status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool
     *msi_address_out = 0x08020040; // address of the GICv2 MSI port
 
     return NO_ERROR;
+}
+
+void platform_halt(platform_halt_action suggested_action, platform_halt_reason reason) {
+  switch (suggested_action) {
+  case HALT_ACTION_SHUTDOWN:
+  case HALT_ACTION_HALT:
+    psci_system_off();
+    break;
+  case HALT_ACTION_REBOOT:
+    psci_system_reset();
+    break;
+  }
+  dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
+  arch_disable_ints();
+  for (;;);
 }
