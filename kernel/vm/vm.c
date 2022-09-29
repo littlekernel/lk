@@ -166,9 +166,9 @@ usage:
     } else if (!strcmp(argv[1].str, "map")) {
         if (argc < 6) goto notenoughargs;
 
-        vmm_aspace_t *aspace = vaddr_to_aspace((void *)argv[2].u);
+        vmm_aspace_t *aspace = vaddr_to_aspace((void *)argv[3].u);
         if (!aspace) {
-            printf("ERROR: outside of any address space\n");
+            printf("ERROR: 0x%p outside of any address space\n", (void *)argv[3].u);
             return -1;
         }
 

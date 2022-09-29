@@ -23,6 +23,7 @@
 #endif
 
 /* flags for initial mapping struct */
+#define MMU_INITIAL_MAPPING_FLAG_CACHED   (0x0)
 #define MMU_INITIAL_MAPPING_TEMPORARY     (0x1)
 #define MMU_INITIAL_MAPPING_FLAG_UNCACHED (0x2)
 #define MMU_INITIAL_MAPPING_FLAG_DEVICE   (0x4)
