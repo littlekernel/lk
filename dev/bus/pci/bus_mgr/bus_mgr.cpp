@@ -324,8 +324,13 @@ status_t pci_bus_mgr_allocate_irq(const pci_location_t loc, uint *irqbase) {
 }
 
 void pci_dump_bar(const pci_bar_t *bar, int index) {
-    printf("BAR %d: addr %-#16llx size %-#16zx io %d 64bit %d prefetch %d\n",
-            index, bar->addr, bar->size, bar->io, bar->size_64, bar->prefetchable);
+    if (bar->addr >= UINT32_MAX || bar->size >= UINT32_MAX) {
+        printf("BAR %d: addr %-#16llx size %-#16zx io %d 64b %d pref %d\n",
+                index, bar->addr, bar->size, bar->io, bar->size_64, bar->prefetchable);
+    } else {
+        printf("BAR %d: addr %-#8llx size %-#8zx io %d 64b %d pref %d\n",
+                index, bar->addr, bar->size, bar->io, bar->size_64, bar->prefetchable);
+    }
 }
 
 void pci_dump_bars(pci_bar_t bar[6], size_t count) {
