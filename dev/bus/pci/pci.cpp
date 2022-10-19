@@ -266,7 +266,6 @@ status_t pci_init_legacy() {
     if ((pcib = pci_bios32::detect())) {
         dprintf(INFO, "PCI: pci bios functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
-        pci_bus_mgr_init();
         return NO_ERROR;
     }
 
@@ -274,7 +273,6 @@ status_t pci_init_legacy() {
     if ((pcib = pci_type1::detect())) {
         dprintf(INFO, "PCI: pci type1 functions installed\n");
         dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
-        pci_bus_mgr_init();
         return NO_ERROR;
     }
 

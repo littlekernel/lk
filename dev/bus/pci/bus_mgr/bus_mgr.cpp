@@ -95,7 +95,8 @@ void add_to_bus_list(bus *b) {
 }
 
 void set_last_bus(uint8_t bus) {
-    DEBUG_ASSERT(bus >= last_bus);
+    LTRACEF("bus %hhu, existing last_bus %hhu\n", bus, last_bus);
+    DEBUG_ASSERT_MSG(bus >= last_bus, "bus %u, last_bus %u\n", bus, last_bus);
 
     last_bus = bus;
 }
