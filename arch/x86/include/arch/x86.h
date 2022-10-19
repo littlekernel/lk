@@ -293,19 +293,19 @@ static inline void x86_set_cr4(ulong in_val) {
 
 static inline uint8_t inp(uint16_t _port) {
   uint8_t rv;
-  __asm__ __volatile__("inb %1, %0" : "=a"(rv) : "dN"(_port));
+  __asm__ __volatile__("inb %1, %0" : "=a"(rv) : "dN"(_port) : "memory");
   return (rv);
 }
 
 static inline uint16_t inpw(uint16_t _port) {
   uint16_t rv;
-  __asm__ __volatile__("inw %1, %0" : "=a"(rv) : "dN"(_port));
+  __asm__ __volatile__("inw %1, %0" : "=a"(rv) : "dN"(_port) : "memory");
   return (rv);
 }
 
 static inline uint32_t inpd(uint16_t _port) {
   uint32_t rv;
-  __asm__ __volatile__("inl %1, %0" : "=a"(rv) : "dN"(_port));
+  __asm__ __volatile__("inl %1, %0" : "=a"(rv) : "dN"(_port) : "memory");
   return (rv);
 }
 
@@ -328,8 +328,9 @@ static inline void inprep(uint16_t _port, uint8_t* _buffer, uint32_t _reads) {
       "cld \n\t"
       "rep insb \n\t"
       "popf \n\t"
-      :
-      : "d"(_port), "D"(_buffer), "c"(_reads));
+      : "+D"(_buffer), "+c"(_reads)
+      : "d"(_port)
+      : "memory");
 }
 
 static inline void outprep(uint16_t _port, uint8_t* _buffer, uint32_t _writes) {
@@ -339,8 +340,8 @@ static inline void outprep(uint16_t _port, uint8_t* _buffer, uint32_t _writes) {
       "cld \n\t"
       "rep outsb \n\t"
       "popf \n\t"
-      :
-      : "d"(_port), "S"(_buffer), "c"(_writes));
+      : "+S"(_buffer), "+c"(_writes)
+      : "d"(_port));
 }
 
 static inline void inpwrep(uint16_t _port, uint16_t* _buffer, uint32_t _reads) {
@@ -350,8 +351,9 @@ static inline void inpwrep(uint16_t _port, uint16_t* _buffer, uint32_t _reads) {
       "cld \n\t"
       "rep insw \n\t"
       "popf \n\t"
-      :
-      : "d"(_port), "D"(_buffer), "c"(_reads));
+      : "+D"(_buffer), "+c"(_reads)
+      : "d"(_port)
+      : "memory");
 }
 
 static inline void outpwrep(uint16_t _port, uint16_t* _buffer, uint32_t _writes) {
@@ -361,8 +363,8 @@ static inline void outpwrep(uint16_t _port, uint16_t* _buffer, uint32_t _writes)
       "cld \n\t"
       "rep outsw \n\t"
       "popf \n\t"
-      :
-      : "d"(_port), "S"(_buffer), "c"(_writes));
+      : "+S"(_buffer), "+c"(_writes)
+      : "d"(_port));
 }
 
 static inline void inpdrep(uint16_t _port, uint32_t* _buffer, uint32_t _reads) {
@@ -372,8 +374,9 @@ static inline void inpdrep(uint16_t _port, uint32_t* _buffer, uint32_t _reads) {
       "cld \n\t"
       "rep insl \n\t"
       "popf \n\t"
-      :
-      : "d"(_port), "D"(_buffer), "c"(_reads));
+      : "+D"(_buffer), "+c"(_reads)
+      : "d"(_port)
+      : "memory");
 }
 
 static inline void outpdrep(uint16_t _port, uint32_t* _buffer, uint32_t _writes) {
@@ -383,8 +386,8 @@ static inline void outpdrep(uint16_t _port, uint32_t* _buffer, uint32_t _writes)
       "cld \n\t"
       "rep outsl \n\t"
       "popf \n\t"
-      :
-      : "d"(_port), "S"(_buffer), "c"(_writes));
+      : "+S"(_buffer), "+c"(_writes)
+      : "d"(_port));
 }
 
 static inline bool x86_is_paging_enabled(void) {
