@@ -107,7 +107,7 @@ static void x86_cpu_detect(void) {
 
         // read the max basic cpuid leaf
         cpuid(X86_CPUID_BASE, &a, &b, &c, &d);
-        max_cpuid_leaf = a;
+        max_cpuid_leaf = MIN(a, __X86_MAX_SUPPORTED_CPUID);;
 
         // read the vendor string
         union {
@@ -125,13 +125,15 @@ static void x86_cpu_detect(void) {
         // read max extended cpuid leaf
         cpuid(X86_CPUID_EXT_BASE, &a, &b, &c, &d);
         if (a >= X86_CPUID_EXT_BASE) {
-            max_cpuid_leaf_ext = a;
+            max_cpuid_leaf_ext = MIN(a, __X86_MAX_SUPPORTED_CPUID_EXT);
         }
 
         // read max hypervisor leaf
         cpuid(X86_CPUID_HYP_BASE, &a, &b, &c, &d);
+        // TODO: actually check that it's an understood hypervisor before setting this.
+        // It's possible on real hardware it's just returning the last valid regular cpuid.
         if (a >= X86_CPUID_HYP_BASE) {
-            max_cpuid_leaf_hyp = a;
+            max_cpuid_leaf_hyp = MIN(a, __X86_MAX_SUPPORTED_CPUID_HYP);
         }
     } else {
         __x86_cpu_vendor = X86_CPU_VENDOR_INTEL; // intrinsically Intel without cpuid
