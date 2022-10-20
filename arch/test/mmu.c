@@ -36,8 +36,8 @@ static bool map_user_pages(void) {
     // allocate a batch of pages
     struct list_node pages = LIST_INITIAL_VALUE(pages);
     size_t count = pmm_alloc_pages(4, &pages);
-    EXPECT_EQ(4, count, "alloc pages");
-    EXPECT_EQ(4, list_length(&pages), "page list");
+    ASSERT_EQ(4, count, "alloc pages");
+    ASSERT_EQ(4, list_length(&pages), "page list");
 
     // map the pages into the address space
     vaddr_t va = USER_ASPACE_BASE;
@@ -67,7 +67,7 @@ static bool map_user_pages(void) {
     EXPECT_EQ(NO_ERROR, err, "destroy");
 
     size_t freed = pmm_free(&pages);
-    EXPECT_EQ(count, freed, "free");
+    ASSERT_EQ(count, freed, "free");
 
     END_TEST;
 }
@@ -99,7 +99,7 @@ static bool map_query_pages(void) {
     BEGIN_TEST;
 
     vmm_aspace_t *kaspace = vmm_get_kernel_aspace();
-    EXPECT_NONNULL(kaspace, "kaspace");
+    ASSERT_NONNULL(kaspace, "kaspace");
 
     // try mapping pages in the kernel address space with various permissions and read them back via arch query
     EXPECT_TRUE(map_region_query_result(kaspace, 0), "0");
@@ -127,7 +127,7 @@ static bool context_switch(void) {
 
     // map a page, verify can be read through the page
     vm_page_t *p = pmm_alloc_page();
-    EXPECT_NONNULL(p, "page");
+    ASSERT_NONNULL(p, "page");
 
     // map it
     err = arch_mmu_map(&as, USER_ASPACE_BASE, vm_page_to_paddr(p), 1, ARCH_MMU_FLAG_PERM_USER);
@@ -160,7 +160,7 @@ static bool context_switch(void) {
 
     // free the page
     size_t c = pmm_free_page(p);
-    EXPECT_EQ(1, c, "free");
+    ASSERT_EQ(1, c, "free");
 
     END_TEST;
 }
