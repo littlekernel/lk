@@ -293,19 +293,19 @@ static inline void x86_set_cr4(ulong in_val) {
 
 static inline uint8_t inp(uint16_t _port) {
   uint8_t rv;
-  __asm__ __volatile__("inb %1, %0" : "=a"(rv) : "dN"(_port) : "memory");
+  __asm__ __volatile__("inb %1, %0" : "=a"(rv) : "dN"(_port));
   return (rv);
 }
 
 static inline uint16_t inpw(uint16_t _port) {
   uint16_t rv;
-  __asm__ __volatile__("inw %1, %0" : "=a"(rv) : "dN"(_port) : "memory");
+  __asm__ __volatile__("inw %1, %0" : "=a"(rv) : "dN"(_port));
   return (rv);
 }
 
 static inline uint32_t inpd(uint16_t _port) {
   uint32_t rv;
-  __asm__ __volatile__("inl %1, %0" : "=a"(rv) : "dN"(_port) : "memory");
+  __asm__ __volatile__("inl %1, %0" : "=a"(rv) : "dN"(_port));
   return (rv);
 }
 
