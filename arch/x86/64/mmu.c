@@ -514,9 +514,7 @@ static void x86_mmu_unmap_entry(vaddr_t vaddr, int level, vaddr_t table_entry) {
 
     LTRACEF_LEVEL(2, "recursing\n");
 
-    level -= 1;
-    x86_mmu_unmap_entry(vaddr, level, (vaddr_t)next_table_addr);
-    level += 1;
+    x86_mmu_unmap_entry(vaddr, level - 1, (vaddr_t)next_table_addr);
 
     LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
 

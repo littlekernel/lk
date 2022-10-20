@@ -385,27 +385,36 @@ static void x86_mmu_unmap_entry(vaddr_t vaddr, int level, map_addr_t table_entry
     uint32_t offset = 0, next_level_offset = 0;
     map_addr_t *table, *next_table_addr, value;
 
+    LTRACEF("vaddr %#lx, level %d, table_entry %#x\n", vaddr, level, table_entry);
+
     next_table_addr = NULL;
-    table = (map_addr_t *)(X86_VIRT_TO_PHYS(table_entry) & X86_PG_FRAME);
+    table = (map_addr_t *)(table_entry & X86_PG_FRAME);
+    LTRACEF_LEVEL(2, "table %p\n", table);
 
     switch (level) {
 #ifdef PAE_MODE_ENABLED
         case PDP_L:
             offset = ((vaddr >> PDP_SHIFT) & ((1 << PDPT_ADDR_OFFSET) - 1));
+            LTRACEF_LEVEL(2, "offset %u\n", offset);
             next_table_addr = (map_addr_t *)X86_PHYS_TO_VIRT(table[offset]);
+            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
             if ((X86_PHYS_TO_VIRT(table[offset]) & X86_MMU_PG_P) == 0)
                 return;
             break;
 #endif
         case PD_L:
             offset = ((vaddr >> PD_SHIFT) & ((1 << ADDR_OFFSET) - 1));
+            LTRACEF_LEVEL(2, "offset %u\n", offset);
             next_table_addr = (map_addr_t *)X86_PHYS_TO_VIRT(table[offset]);
+            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
             if ((X86_PHYS_TO_VIRT(table[offset]) & X86_MMU_PG_P) == 0)
                 return;
             break;
         case PT_L:
             offset = ((vaddr >> PT_SHIFT) & ((1 << ADDR_OFFSET) - 1));
+            LTRACEF_LEVEL(2, "offset %u\n", offset);
             next_table_addr = (map_addr_t *)X86_PHYS_TO_VIRT(table[offset]);
+            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
             if ((X86_PHYS_TO_VIRT(table[offset]) & X86_MMU_PG_P) == 0)
                 return;
             break;
@@ -415,11 +424,13 @@ static void x86_mmu_unmap_entry(vaddr_t vaddr, int level, map_addr_t table_entry
             return;
     }
 
-    level -= 1;
-    x86_mmu_unmap_entry(vaddr, level, (map_addr_t)next_table_addr);
-    level += 1;
+    LTRACEF_LEVEL(2, "recursing\n");
 
-    next_table_addr = (map_addr_t *)((map_addr_t)(X86_VIRT_TO_PHYS(next_table_addr)) & X86_PG_FRAME);
+    x86_mmu_unmap_entry(vaddr, level - 1, (map_addr_t)next_table_addr);
+
+    LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
+
+    next_table_addr = (map_addr_t *)((map_addr_t)(next_table_addr) & X86_PG_FRAME);
     if (level > PT_L) {
         /* Check all entries of next level table for present bit */
         for (next_level_offset = 0; next_level_offset < NO_OF_PT_ENTRIES; next_level_offset++) {
@@ -440,6 +451,8 @@ static void x86_mmu_unmap_entry(vaddr_t vaddr, int level, map_addr_t table_entry
 
 status_t x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count) {
     vaddr_t next_aligned_v_addr;
+
+    LTRACEF("init_table %#x, vaddr %#lx, count %u\n", init_table, vaddr, count);
 
     DEBUG_ASSERT(init_table);
     if (!IS_ALIGNED(vaddr, PAGE_SIZE))
@@ -463,6 +476,8 @@ status_t x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count) {
 
 int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
     map_addr_t init_table_from_cr3;
+
+    LTRACEF("aspace %p, vaddr %#lx, count %u\n", aspace, vaddr, count);
 
     DEBUG_ASSERT(aspace);
 
@@ -544,12 +559,16 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
     if (flags)
         *flags = ret_flags;
 
+    LTRACEF("returning paddr %#x flags %#x\n", last_valid_entry, ret_flags);
+
     return NO_ERROR;
 }
 
 int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
     uint32_t current_cr3_val;
     struct map_range range;
+
+    LTRACEF("aspace %p, vaddr %#lx, paddr %#lx, count %u, flags %#x\n", aspace, vaddr, paddr, count, flags);
 
     DEBUG_ASSERT(aspace);
 
