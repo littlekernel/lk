@@ -34,6 +34,7 @@
 
 enum x86_cpu_vendor __x86_cpu_vendor = X86_CPU_VENDOR_INTEL;
 enum x86_cpu_level __x86_cpu_level = X86_CPU_LEVEL_386; // start off assuming 386
+struct x86_model_info __x86_model;
 
 bool has_cpuid = false;
 
@@ -109,6 +110,8 @@ static void x86_cpu_detect(void) {
         cpuid(X86_CPUID_BASE, &a, &b, &c, &d);
         max_cpuid_leaf = MIN(a, __X86_MAX_SUPPORTED_CPUID);;
 
+        LTRACEF("cpuid leaf 0: %#x %#x %#x %#x\n", a, b, c, d);
+
         // read the vendor string
         union {
             uint32_t reg[3];
@@ -120,7 +123,7 @@ static void x86_cpu_detect(void) {
         vs.str[12] = 0;
         __x86_cpu_vendor = match_cpu_vendor_string(vs.str);
 
-        dprintf(SPEW, "x86: vendor string '%s' from cpuid\n", vs.str);
+        LTRACEF("vendor string '%s' from cpuid\n", vs.str);
 
         // read max extended cpuid leaf
         cpuid(X86_CPUID_EXT_BASE, &a, &b, &c, &d);
@@ -139,20 +142,24 @@ static void x86_cpu_detect(void) {
         __x86_cpu_vendor = X86_CPU_VENDOR_INTEL; // intrinsically Intel without cpuid
     }
 
-    // do a quick cpu level detection using cpuid
+    // detect and populate the x86_model structure
     if (has_cpuid && max_cpuid_leaf >= 1) {
         uint32_t a, b, c, d;
         cpuid(X86_CPUID_MODEL_FEATURES, &a, &b, &c, &d);
 
         LTRACEF("cpuid leaf 1: %#x %#x %#x %#x\n", a, b, c, d);
 
+        __x86_model.processor_type = BITS_SHIFT(a, 13, 12);
+        __x86_model.family = BITS_SHIFT(a, 11, 8);
+        __x86_model.model = BITS_SHIFT(a, 7, 4);
+        __x86_model.stepping = BITS_SHIFT(a, 3, 0);
+        __x86_model.display_family = __x86_model.family;
+        __x86_model.display_model = __x86_model.model;
+
         uint32_t ext_family = BITS_SHIFT(a, 27, 20);
         uint32_t ext_model = BITS_SHIFT(a, 19, 16);
-        uint32_t family = BITS_SHIFT(a, 11, 8);
-        uint32_t model = BITS_SHIFT(a, 7, 4);
-        LTRACEF("raw family %#x model %#x ext_family %#x ext_model %#x\n", family, model, ext_family, ext_model);
 
-        switch (family) {
+        switch (__x86_model.family) {
            case 4:
                 __x86_cpu_level = X86_CPU_LEVEL_486;
                 break;
@@ -162,31 +169,23 @@ static void x86_cpu_detect(void) {
            case 6:
                 __x86_cpu_level = X86_CPU_LEVEL_PENTIUM_PRO;
                 if (x86_get_cpu_vendor() == X86_CPU_VENDOR_INTEL) {
-                    model |= ext_model << 4; // extended model field extends the regular model
+                    __x86_model.display_model |= ext_model << 4; // extended model field extends the regular model
                 }
                 break;
            case 0xf:
                 __x86_cpu_level = X86_CPU_LEVEL_PENTIUM_PRO;
-                family += ext_family; // family 0xf stuff is extended by bits 27:20
-                model |= ext_model << 4; // extended model field extends the regular model
+                __x86_model.display_family += ext_family; // family 0xf stuff is extended by bits 27:20
+                __x86_model.display_model |= ext_model << 4; // extended model field extends the regular model
                 break;
            default:
                 // unhandled decode, assume ppro+ level
                 __x86_cpu_level = X86_CPU_LEVEL_PENTIUM_PRO;
                 break;
         }
-        dprintf(SPEW, "x86: family %#x model %#x\n", family, model);
-
-        // TODO: save this information for future use
-    }
-
-    dprintf(SPEW, "x86: detected cpu level %d has_cpuid %d\n", x86_get_cpu_level(), has_cpuid);
-    if (has_cpuid) {
-        dprintf(SPEW, "x86: max cpuid leaf %#x ext %#x hyp %#x\n",
-                max_cpuid_leaf, max_cpuid_leaf_ext, max_cpuid_leaf_hyp);
     }
 }
 
+/* early detection of cpu features on cpu 0, before the kernel is scheduling */
 void x86_feature_early_init(void) {
     x86_cpu_detect();
 
@@ -214,7 +213,36 @@ void x86_feature_early_init(void) {
     }
 }
 
+/* later feature init hook, called after the kernel is able to schedule */
 void x86_feature_init(void) {
+    dprintf(SPEW, "X86: detected cpu level %d has_cpuid %d\n", x86_get_cpu_level(), has_cpuid);
+    if (has_cpuid) {
+        dprintf(SPEW, "X86: max cpuid leaf %#x ext %#x hyp %#x\n",
+                max_cpuid_leaf, max_cpuid_leaf_ext, max_cpuid_leaf_hyp);
+    }
+
+    if (has_cpuid) {
+        // read the max basic cpuid leaf
+        uint32_t a, b, c, d;
+        cpuid(X86_CPUID_BASE, &a, &b, &c, &d);
+
+        // read the vendor string
+        union {
+            uint32_t reg[3];
+            char str[13];
+        } vs;
+        vs.reg[0] = b;
+        vs.reg[1] = d;
+        vs.reg[2] = c;
+        vs.str[12] = 0;
+
+        dprintf(SPEW, "X86: vendor string '%s'\n", vs.str);
+    }
+
+    const struct x86_model_info* model = x86_get_model();
+    printf("X86: processor model info type %#x family %#x model %#x stepping %#x\n",
+           model->processor_type, model->family, model->model, model->stepping);
+    printf("\tdisplay_family %#x display_model %#x\n", model->display_family, model->display_model);
 }
 
 bool x86_get_cpuid_subleaf(enum x86_cpuid_leaf_num num, uint32_t subleaf, struct x86_cpuid_leaf* leaf) {

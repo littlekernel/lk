@@ -43,6 +43,10 @@ enum x86_cpu_level {
 };
 extern enum x86_cpu_level __x86_cpu_level;
 
+static inline enum x86_cpu_level x86_get_cpu_level(void) {
+    return __x86_cpu_level;
+}
+
 enum x86_cpu_vendor {
     X86_CPU_VENDOR_UNKNOWN,
     X86_CPU_VENDOR_INTEL,
@@ -58,13 +62,23 @@ enum x86_cpu_vendor {
 };
 extern enum x86_cpu_vendor __x86_cpu_vendor;
 
-static inline enum x86_cpu_level x86_get_cpu_level(void) {
-
-    return __x86_cpu_level;
-}
-
 static inline enum x86_cpu_vendor x86_get_cpu_vendor(void) {
     return __x86_cpu_vendor;
+}
+
+struct x86_model_info {
+  uint8_t processor_type;
+  uint8_t family;
+  uint8_t model;
+  uint8_t stepping;
+
+  uint32_t display_family;
+  uint32_t display_model;
+};
+extern struct x86_model_info __x86_model;
+
+static inline const struct x86_model_info* x86_get_model(void) {
+    return &__x86_model;
 }
 
 /* cpuid leaves */

@@ -21,15 +21,18 @@
 #include <string.h>
 
 /* early stack */
-uint8_t _kstack[PAGE_SIZE] __ALIGNED(8);
+uint8_t _kstack[PAGE_SIZE] __ALIGNED(sizeof(unsigned long));
 
 /* save a pointer to the multiboot information coming in from whoever called us */
 /* make sure it lives in .data to avoid it being wiped out by bss clearing */
 __SECTION(".data") uint32_t _multiboot_info;
 
 /* main tss */
-static tss_t system_tss;
+static tss_t system_tss __ALIGNED(16);
 
+/* early initialization of the system, on the boot cpu, usually before any sort of
+ * printf output is available.
+ */
 void arch_early_init(void) {
     /* enable caches here for now */
     clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
@@ -58,6 +61,7 @@ void arch_early_init(void) {
 #endif
 }
 
+/* later initialization pass, once the main kernel is initialized and scheduling has begun */
 void arch_init(void) {
     x86_feature_init();
     x86_mmu_init();
