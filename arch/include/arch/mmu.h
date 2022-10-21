@@ -18,21 +18,21 @@
 
 __BEGIN_CDECLS
 
-#define ARCH_MMU_FLAG_CACHED            (0<<0)
-#define ARCH_MMU_FLAG_UNCACHED          (1<<0)
-#define ARCH_MMU_FLAG_UNCACHED_DEVICE   (2<<0) /* only exists on some arches, otherwise UNCACHED */
-#define ARCH_MMU_FLAG_CACHE_MASK        (3<<0)
+#define ARCH_MMU_FLAG_CACHED            (0U<<0)
+#define ARCH_MMU_FLAG_UNCACHED          (1U<<0)
+#define ARCH_MMU_FLAG_UNCACHED_DEVICE   (2U<<0) /* only exists on some arches, otherwise UNCACHED */
+#define ARCH_MMU_FLAG_CACHE_MASK        (3U<<0)
 
-#define ARCH_MMU_FLAG_PERM_USER         (1<<2)
-#define ARCH_MMU_FLAG_PERM_RO           (1<<3)
-#define ARCH_MMU_FLAG_PERM_NO_EXECUTE   (1<<4)
-#define ARCH_MMU_FLAG_NS                (1<<5) /* NON-SECURE */
-#define ARCH_MMU_FLAG_INVALID           (1<<7) /* indicates that flags are not specified */
+#define ARCH_MMU_FLAG_PERM_USER         (1U<<2)
+#define ARCH_MMU_FLAG_PERM_RO           (1U<<3)
+#define ARCH_MMU_FLAG_PERM_NO_EXECUTE   (1U<<4)
+#define ARCH_MMU_FLAG_NS                (1U<<5) /* NON-SECURE */
+#define ARCH_MMU_FLAG_INVALID           (1U<<7) /* indicates that flags are not specified */
 
 /* forward declare the per-address space arch-specific context object */
 typedef struct arch_aspace arch_aspace_t;
 
-#define ARCH_ASPACE_FLAG_KERNEL         (1<<0)
+#define ARCH_ASPACE_FLAG_KERNEL         (1U<<0)
 
 /* initialize per address space */
 status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) __NONNULL((1));

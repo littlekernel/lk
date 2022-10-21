@@ -9,6 +9,7 @@
 
 #include <arch/mmu.h>
 
+#include <lk/cpp.h>
 #include <lk/err.h>
 #include <lib/unittest.h>
 #include <kernel/vm.h>
@@ -33,11 +34,15 @@ static bool map_user_pages(void) {
     status_t err = arch_mmu_init_aspace(&as, USER_ASPACE_BASE, USER_ASPACE_SIZE, 0);
     ASSERT_EQ(NO_ERROR, err, "init");
 
+    auto aspace_cleanup = lk::make_auto_call([&]() { arch_mmu_destroy_aspace(&as); });
+
     // allocate a batch of pages
     struct list_node pages = LIST_INITIAL_VALUE(pages);
     size_t count = pmm_alloc_pages(4, &pages);
-    ASSERT_EQ(4, count, "alloc pages");
-    ASSERT_EQ(4, list_length(&pages), "page list");
+    ASSERT_EQ(4U, count, "alloc pages");
+    ASSERT_EQ(4U, list_length(&pages), "page list");
+
+    auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
 
     // map the pages into the address space
     vaddr_t va = USER_ASPACE_BASE;
@@ -63,9 +68,12 @@ static bool map_user_pages(void) {
     }
 
     // destroy the aspace with the pages mapped
+    aspace_cleanup.cancel();
     err = arch_mmu_destroy_aspace(&as);
     EXPECT_EQ(NO_ERROR, err, "destroy");
 
+    // free the pages we allocated before
+    pages_cleanup.cancel();
     size_t freed = pmm_free(&pages);
     ASSERT_EQ(count, freed, "free");
 
@@ -85,7 +93,7 @@ static bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
         paddr_t pa;
         uint flags;
         EXPECT_EQ(NO_ERROR, arch_mmu_query(&aspace->arch_aspace, (vaddr_t)ptr, &pa, &flags), "arch_query");
-        EXPECT_NE(0, pa, "valid pa");
+        EXPECT_NE(0U, pa, "valid pa");
         EXPECT_EQ(arch_flags, flags, "query flags");
     }
 
@@ -121,24 +129,27 @@ static bool context_switch(void) {
     arch_aspace_t as;
     status_t err = arch_mmu_init_aspace(&as, USER_ASPACE_BASE, USER_ASPACE_SIZE, 0);
     ASSERT_EQ(NO_ERROR, err, "init");
+    auto aspace_cleanup = lk::make_auto_call([&]() { arch_mmu_destroy_aspace(&as); });
 
     // switch to the address space
     arch_mmu_context_switch(&as);
+    auto cleanup_switch = lk::make_auto_call([&]() { arch_mmu_context_switch(NULL); });
 
     // map a page, verify can be read through the page
     vm_page_t *p = pmm_alloc_page();
     ASSERT_NONNULL(p, "page");
+    auto page_cleanup = lk::make_auto_call([&]() { pmm_free_page(p); });
 
     // map it
     err = arch_mmu_map(&as, USER_ASPACE_BASE, vm_page_to_paddr(p), 1, ARCH_MMU_FLAG_PERM_USER);
-    EXPECT_EQ(NO_ERROR, err, "map");
+    ASSERT_EQ(NO_ERROR, err, "map");
 
     // write a known value to the kvaddr portion of the page
-    volatile int *kv = paddr_to_kvaddr(vm_page_to_paddr(p));
+    volatile int *kv = static_cast<volatile int *>(paddr_to_kvaddr(vm_page_to_paddr(p)));
     *kv = 99;
 
     // read the data back from the page
-    volatile int *ptr = (void *)USER_ASPACE_BASE;
+    volatile int *ptr = reinterpret_cast<volatile int *>(USER_ASPACE_BASE);
     volatile int foo = *ptr;
 
     EXPECT_EQ(99, foo, "readback");
@@ -152,15 +163,18 @@ static bool context_switch(void) {
     EXPECT_EQ(0x55, foo, "readback 3");
 
     // switch back to kernel aspace
+    cleanup_switch.cancel();
     arch_mmu_context_switch(NULL);
 
     // destroy it
+    aspace_cleanup.cancel();
     err = arch_mmu_destroy_aspace(&as);
     EXPECT_EQ(NO_ERROR, err, "destroy");
 
     // free the page
+    page_cleanup.cancel();
     size_t c = pmm_free_page(p);
-    ASSERT_EQ(1, c, "free");
+    EXPECT_EQ(1U, c, "free");
 
     END_TEST;
 }
