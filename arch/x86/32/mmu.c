@@ -572,6 +572,9 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
 
     DEBUG_ASSERT(aspace);
 
+    if (flags & (ARCH_MMU_FLAG_PERM_NO_EXECUTE | ARCH_MMU_FLAG_NS))
+        return ERR_INVALID_ARGS;
+
     if ((!IS_ALIGNED(paddr, PAGE_SIZE)) || (!IS_ALIGNED(vaddr, PAGE_SIZE)))
         return ERR_INVALID_ARGS;
 
@@ -587,6 +590,9 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
 
     return (x86_mmu_map_range(X86_PHYS_TO_VIRT(current_cr3_val), &range, flags));
 }
+
+bool arch_mmu_supports_nx_mappings(void) { return false; }
+bool arch_mmu_supports_ns_mappings(void) { return false; }
 
 void x86_mmu_early_init(void) {
     volatile uint32_t cr0;

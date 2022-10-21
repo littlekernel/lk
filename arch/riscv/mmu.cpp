@@ -399,14 +399,19 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t paddr, uin
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
 
-    if (count == 0) {
-        return NO_ERROR;
+    if (flags & ARCH_MMU_FLAG_NS) {
+        return ERR_INVALID_ARGS;
     }
+
     // trim the vaddr to the aspace
     if (_vaddr < aspace->base || _vaddr > aspace->base + aspace->size - 1) {
         return ERR_OUT_OF_RANGE;
     }
     // TODO: make sure _vaddr + count * PAGE_SIZE is within the address space
+
+    if (count == 0) {
+        return NO_ERROR;
+    }
 
     // construct a local callback for the walker routine that
     // a) tells the walker to build a page table if it's not present
@@ -591,6 +596,9 @@ void arch_mmu_context_switch(arch_aspace_t *aspace) {
     // for now, riscv_set_satp() does a full local TLB dump
 }
 
+bool arch_mmu_supports_nx_mappings(void) { return true; }
+bool arch_mmu_supports_ns_mappings(void) { return false; }
+
 extern "C"
 void riscv_mmu_init_secondaries() {
     // switch to the proper kernel pgtable, with the trampoline parts unmapped
@@ -633,7 +641,5 @@ extern "C"
 void riscv_mmu_init() {
     printf("RISCV: MMU ASID mask %#lx\n", riscv_asid_mask);
 }
-
-
 
 #endif

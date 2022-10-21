@@ -655,3 +655,5 @@ void arch_mmu_context_switch(arch_aspace_t *aspace) {
     ARM64_WRITE_SYSREG(tcr_el1, tcr);
 }
 
+bool arch_mmu_supports_nx_mappings(void) { return true; }
+bool arch_mmu_supports_ns_mappings(void) { return true; }

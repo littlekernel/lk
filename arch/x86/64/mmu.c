@@ -654,6 +654,9 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
 
     LTRACEF("aspace %p, vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", aspace, vaddr, paddr, count, flags);
 
+    if (flags & ARCH_MMU_FLAG_NS)
+        return ERR_INVALID_ARGS;
+
     if ((!x86_mmu_check_paddr(paddr)))
         return ERR_INVALID_ARGS;
 
@@ -672,6 +675,9 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
 
     return (x86_mmu_map_range(X86_PHYS_TO_VIRT(current_cr3_val), &range, flags));
 }
+
+bool arch_mmu_supports_nx_mappings(void) { return true; }
+bool arch_mmu_supports_ns_mappings(void) { return false; }
 
 void x86_mmu_early_init(void) {
     volatile uint64_t efer_msr, cr0, cr4;

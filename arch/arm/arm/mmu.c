@@ -716,4 +716,7 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
     return NO_ERROR;
 }
 
+bool arch_mmu_supports_nx_mappings(void) { return true; }
+bool arch_mmu_supports_ns_mappings(void) { return true; }
+
 #endif // ARCH_HAS_MMU

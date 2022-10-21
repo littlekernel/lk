@@ -49,7 +49,7 @@ static bool map_user_pages(void) {
     vm_page_t *p;
     list_for_every_entry(&pages, p, vm_page_t, node) {
         err = arch_mmu_map(&as, va, vm_page_to_paddr(p), 1, ARCH_MMU_FLAG_PERM_USER);
-        EXPECT_EQ(NO_ERROR, err, "map page");
+        EXPECT_LE(NO_ERROR, err, "map page");
         va += PAGE_SIZE;
     }
 
@@ -112,13 +112,23 @@ static bool map_query_pages(void) {
     // try mapping pages in the kernel address space with various permissions and read them back via arch query
     EXPECT_TRUE(map_region_query_result(kaspace, 0), "0");
     EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO), "1");
-    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_NO_EXECUTE), "2");
-    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "3");
+    if (arch_mmu_supports_nx_mappings()) {
+        EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_NO_EXECUTE), "2");
+        EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "3");
+    } else {
+        EXPECT_FALSE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_NO_EXECUTE), "2");
+        EXPECT_FALSE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "3");
+    }
 
     EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER), "4");
     EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO), "5");
-    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "6");
-    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "7");
+    if (arch_mmu_supports_nx_mappings()) {
+        EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "6");
+        EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "7");
+    } else {
+        EXPECT_FALSE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "6");
+        EXPECT_FALSE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "7");
+    }
 
     END_TEST;
 }
@@ -142,7 +152,7 @@ static bool context_switch(void) {
 
     // map it
     err = arch_mmu_map(&as, USER_ASPACE_BASE, vm_page_to_paddr(p), 1, ARCH_MMU_FLAG_PERM_USER);
-    ASSERT_EQ(NO_ERROR, err, "map");
+    ASSERT_LE(NO_ERROR, err, "map");
 
     // write a known value to the kvaddr portion of the page
     volatile int *kv = static_cast<volatile int *>(paddr_to_kvaddr(vm_page_to_paddr(p)));
