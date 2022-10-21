@@ -10,6 +10,7 @@
 #include <arch/mmu.h>
 
 #include <lk/cpp.h>
+#include <lk/debug.h>
 #include <lk/err.h>
 #include <lib/unittest.h>
 #include <kernel/vm.h>
@@ -19,7 +20,7 @@ static bool create_user_aspace(void) {
 
     arch_aspace_t as;
     status_t err = arch_mmu_init_aspace(&as, USER_ASPACE_BASE, USER_ASPACE_SIZE, 0);
-    ASSERT_EQ(NO_ERROR, err, "init");
+    ASSERT_EQ(NO_ERROR, err, "init aspace");
 
     err = arch_mmu_destroy_aspace(&as);
     EXPECT_EQ(NO_ERROR, err, "destroy");
@@ -32,7 +33,7 @@ static bool map_user_pages(void) {
 
     arch_aspace_t as;
     status_t err = arch_mmu_init_aspace(&as, USER_ASPACE_BASE, USER_ASPACE_SIZE, 0);
-    ASSERT_EQ(NO_ERROR, err, "init");
+    ASSERT_EQ(NO_ERROR, err, "init aspace");
 
     auto aspace_cleanup = lk::make_auto_call([&]() { arch_mmu_destroy_aspace(&as); });
 
@@ -90,8 +91,8 @@ static bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
 
     // query the page to see if it's realistic
     {
-        paddr_t pa;
-        uint flags;
+        paddr_t pa = 0;
+        uint flags = ~arch_flags;
         EXPECT_EQ(NO_ERROR, arch_mmu_query(&aspace->arch_aspace, (vaddr_t)ptr, &pa, &flags), "arch_query");
         EXPECT_NE(0U, pa, "valid pa");
         EXPECT_EQ(arch_flags, flags, "query flags");
@@ -138,7 +139,7 @@ static bool context_switch(void) {
 
     arch_aspace_t as;
     status_t err = arch_mmu_init_aspace(&as, USER_ASPACE_BASE, USER_ASPACE_SIZE, 0);
-    ASSERT_EQ(NO_ERROR, err, "init");
+    ASSERT_EQ(NO_ERROR, err, "init aspace");
     auto aspace_cleanup = lk::make_auto_call([&]() { arch_mmu_destroy_aspace(&as); });
 
     // switch to the address space
