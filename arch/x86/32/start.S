@@ -87,44 +87,7 @@ bss_setup:
     loop 2b
 
 paging_setup:
-#ifdef PAE_MODE_ENABLED
-#error broken for now
-    /* Preparing PAE paging, we will use 2MB pages covering 1GB
-    for initial bootstrap, this page table will be 1 to 1 */
-
-    /* Setting the First PDPTE with a PD table reference*/
-    movl $pdp,   %eax
-    orl  $0x01, %eax
-    movl %eax, (pdpt)
-
-    movl $pdp, %esi
-    movl $0x1ff, %ecx
-
-fill_pdp:
-    movl $0x1ff, %eax
-    subl %ecx, %eax
-    shll $21,%eax
-    orl  $0x83, %eax
-    movl %eax, (%esi)
-    addl $8,%esi
-    loop fill_pdp
-
-    /* Set PDPT in CR3 */
-    movl $pdpt, %eax
-    mov %eax, %cr3
-
-    /* Enabling PAE*/
-    mov %cr4, %eax
-    btsl $(5), %eax
-    mov %eax, %cr4
-
-    /* Enabling Paging and from this point we are in
-    32 bit compatibility mode */
-    mov %cr0,  %eax
-    btsl $(31), %eax
-    mov %eax,  %cr0
-
-#elif X86_LEGACY
+#if X86_LEGACY
     /* map the first 16MB 1:1 with 4KB pages and again at 0x8000.0000 */
 
     /* set up 4 page tables worth of entries */

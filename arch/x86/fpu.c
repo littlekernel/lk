@@ -93,7 +93,7 @@ void x86_fpu_early_init(void) {
     fpu_features.with_xsavec = false;
     fpu_features.with_xsaves = false;
     if (fpu_features.with_xsave) {
-        dprintf(SPEW, "X86: XSAVE detected\n");
+        LTRACEF("X86: XSAVE detected\n");
         struct x86_cpuid_leaf leaf;
         if (x86_get_cpuid_subleaf(X86_CPUID_XSAVE, 0, &leaf)) {
             fpu_features.with_xsaveopt = BIT(leaf.a, 0);

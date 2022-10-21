@@ -73,76 +73,69 @@ static bool x86_mmu_check_vaddr(vaddr_t vaddr) {
  * @brief  check if the physical address is valid and aligned
  *
  */
-static bool x86_mmu_check_paddr(paddr_t paddr) {
-    uint64_t addr = (uint64_t)paddr;
-    uint64_t max_paddr;
-
+static bool x86_mmu_check_paddr(const paddr_t paddr) {
     /* Check to see if the address is PAGE aligned */
-    if (!IS_ALIGNED(addr, PAGE_SIZE))
+    if (!IS_ALIGNED(paddr, PAGE_SIZE))
         return false;
 
-    max_paddr = ((uint64_t)1ull << g_paddr_width) - 1;
+    uint64_t max_paddr = ((uint64_t)1ull << g_paddr_width) - 1;
 
-    return addr <= max_paddr;
-}
-
-
-static inline uint64_t get_pml4_entry_from_pml4_table(vaddr_t vaddr, addr_t pml4_addr) {
-    uint32_t pml4_index;
-    uint64_t *pml4_table = (uint64_t *)pml4_addr;
-
-    pml4_index = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    return X86_PHYS_TO_VIRT(pml4_table[pml4_index]);
-}
-
-static inline uint64_t get_pdp_entry_from_pdp_table(vaddr_t vaddr, uint64_t pml4e) {
-    uint32_t pdp_index;
-    uint64_t *pdpe;
-
-    pdp_index = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pdpe = (uint64_t *)(pml4e & X86_PG_FRAME);
-    return X86_PHYS_TO_VIRT(pdpe[pdp_index]);
-}
-
-static inline uint64_t get_pd_entry_from_pd_table(vaddr_t vaddr, uint64_t pdpe) {
-    uint32_t pd_index;
-    uint64_t *pde;
-
-    pd_index = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pde = (uint64_t *)(pdpe & X86_PG_FRAME);
-    return X86_PHYS_TO_VIRT(pde[pd_index]);
-}
-
-static inline uint64_t get_pt_entry_from_pt_table(vaddr_t vaddr, uint64_t pde) {
-    uint32_t pt_index;
-    uint64_t *pte;
-
-    pt_index = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pte = (uint64_t *)(pde & X86_PG_FRAME);
-    return X86_PHYS_TO_VIRT(pte[pt_index]);
+    return paddr <= max_paddr;
 }
 
 static inline uint64_t get_pfn_from_pte(uint64_t pte) {
-    uint64_t pfn;
-
-    pfn = (pte & X86_PG_FRAME);
+    uint64_t pfn = (pte & (X86_PG_FRAME & X86_PHY_ADDR_MASK));
     return pfn;
 }
 
 static inline uint64_t get_pfn_from_pde(uint64_t pde) {
-    uint64_t pfn;
-
-    pfn = (pde & X86_2MB_PAGE_FRAME);
-
-    LTRACEF_LEVEL(2, "pde 0x%llx, pfn 0x%llx\n", pde, pfn);
-
+    uint64_t pfn = (pde & X86_2MB_PAGE_FRAME);
     return pfn;
+}
+
+static inline uint64_t get_pml4_entry_from_pml4_table(const vaddr_t vaddr, const uint64_t * const pml4_table) {
+    const uint32_t index = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+
+    LTRACEF_LEVEL(2, "pml4_table %p, index %u, returning %#llx\n", pml4_table, index, pml4_table[index]);
+
+    return pml4_table[index];
+}
+
+static inline uint64_t get_pdp_entry_from_pdp_table(const vaddr_t vaddr, const uint64_t pml4e) {
+    const uint64_t *pdpe_table = X86_PHYS_TO_VIRT(get_pfn_from_pte(pml4e));
+
+    uint32_t index = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+
+    LTRACEF_LEVEL(2, "pdpe_table %p, index %u, returning %#llx\n", pdpe_table, index, pdpe_table[index]);
+    return pdpe_table[index];
+}
+
+static inline uint64_t get_pd_entry_from_pd_table(const vaddr_t vaddr, const uint64_t pdpe) {
+    const uint64_t *pde_table = X86_PHYS_TO_VIRT(get_pfn_from_pte(pdpe));
+
+    uint32_t index = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+
+    LTRACEF_LEVEL(2, "pde_table %p, index %u, returning %#llx\n", pde_table, index, pde_table[index]);
+    return pde_table[index];
+}
+
+static inline uint64_t get_pt_entry_from_pt_table(const vaddr_t vaddr, const uint64_t pde) {
+    const uint64_t *pte_table = X86_PHYS_TO_VIRT(get_pfn_from_pte(pde));
+
+    uint32_t index = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+
+    LTRACEF_LEVEL(2, "pte_table %p, index %u, returning %#llx\n", pte_table, index, pte_table[index]);
+    return pte_table[index];
+}
+
+static inline bool is_pte_present(uint64_t pte) {
+    return pte & X86_MMU_PG_P;
 }
 
 /**
  * @brief Returning the x86 arch flags from generic mmu flags
  */
-static arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
+static arch_flags_t get_x86_arch_flags(uint flags) {
     arch_flags_t arch_flags = 0;
 
     if (!(flags & ARCH_MMU_FLAG_PERM_RO))
@@ -164,7 +157,7 @@ static arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
  * @brief Returning the generic mmu flags from x86 arch flags
  */
 static uint get_arch_mmu_flags(arch_flags_t flags) {
-    arch_flags_t mmu_flags = 0;
+    uint mmu_flags = 0;
 
     if (!(flags & X86_MMU_PG_RW))
         mmu_flags |= ARCH_MMU_FLAG_PERM_RO;
@@ -188,39 +181,37 @@ static uint get_arch_mmu_flags(arch_flags_t flags) {
  * 4KB pages.
  *
  */
-status_t x86_mmu_get_mapping(map_addr_t pml4, vaddr_t vaddr, uint32_t *ret_level,
-                             arch_flags_t *mmu_flags, map_addr_t *last_valid_entry) {
+static status_t x86_mmu_get_mapping(uint64_t * const pml4_table, const vaddr_t vaddr, uint32_t * const ret_level,
+                             arch_flags_t * const mmu_flags, paddr_t * const paddr) {
     uint64_t pml4e, pdpe, pde, pte;
 
-    DEBUG_ASSERT(pml4);
-    if ((!ret_level) || (!last_valid_entry) || (!mmu_flags)) {
+    DEBUG_ASSERT(pml4_table);
+    if ((!ret_level) || (!paddr) || (!mmu_flags)) {
         return ERR_INVALID_ARGS;
     }
 
     *ret_level = PML4_L;
-    *last_valid_entry = pml4;
+    *paddr = 0;
     *mmu_flags = 0;
 
-    LTRACEF_LEVEL(2, "pml4 0x%llx\n", pml4);
+    LTRACEF_LEVEL(2, "pml4_table %p\n", pml4_table);
 
-    pml4e = get_pml4_entry_from_pml4_table(vaddr, pml4);
-    if ((pml4e & X86_MMU_PG_P) == 0) {
+    pml4e = get_pml4_entry_from_pml4_table(vaddr, pml4_table);
+    if (!is_pte_present(pml4e)) {
         return ERR_NOT_FOUND;
     }
     LTRACEF_LEVEL(2, "pml4e 0x%llx\n", pml4e);
 
     pdpe = get_pdp_entry_from_pdp_table(vaddr, pml4e);
-    if ((pdpe & X86_MMU_PG_P) == 0) {
+    if (!is_pte_present(pdpe)) {
         *ret_level = PDP_L;
-        *last_valid_entry = pml4e;
         return ERR_NOT_FOUND;
     }
     LTRACEF_LEVEL(2, "pdpe 0x%llx\n", pdpe);
 
     pde = get_pd_entry_from_pd_table(vaddr, pdpe);
-    if ((pde & X86_MMU_PG_P) == 0) {
+    if (!is_pte_present(pde)) {
         *ret_level = PD_L;
-        *last_valid_entry = pdpe;
         return ERR_NOT_FOUND;
     }
     LTRACEF_LEVEL(2, "pde 0x%llx\n", pde);
@@ -228,105 +219,64 @@ status_t x86_mmu_get_mapping(map_addr_t pml4, vaddr_t vaddr, uint32_t *ret_level
     /* 2 MB pages */
     if (pde & X86_MMU_PG_PS) {
         /* Getting the Page frame & adding the 4KB page offset from the vaddr */
-        *last_valid_entry = get_pfn_from_pde(X86_VIRT_TO_PHYS(pde)) + ((uint64_t)vaddr & PAGE_OFFSET_MASK_2MB);
+        *paddr = get_pfn_from_pde(pde) + ((uint64_t)vaddr & PAGE_OFFSET_MASK_2MB);
         *mmu_flags = get_arch_mmu_flags(pde & X86_FLAGS_MASK);
+        LTRACEF("getting flags from 2MB pte %#llx, flags %#llx\n", pde, *mmu_flags);
         goto last;
     }
 
     /* 4 KB pages */
     pte = get_pt_entry_from_pt_table(vaddr, pde);
-    if ((pte & X86_MMU_PG_P) == 0) {
+    if (!is_pte_present(pte)) {
         *ret_level = PT_L;
-        *last_valid_entry = pde;
         return ERR_NOT_FOUND;
     }
 
     /* Getting the Page frame & adding the 4KB page offset from the vaddr */
-    *last_valid_entry = get_pfn_from_pte(X86_VIRT_TO_PHYS(pte)) + ((uint64_t)vaddr & PAGE_OFFSET_MASK_4KB);
+    *paddr = get_pfn_from_pte(pte) + ((uint64_t)vaddr & PAGE_OFFSET_MASK_4KB);
     *mmu_flags = get_arch_mmu_flags(pte & X86_FLAGS_MASK);
 
+    LTRACEF("getting flags from pte %#llx, flags %#llx\n", pte, *mmu_flags);
+
 last:
+
     *ret_level = PF_L;
     return NO_ERROR;
 }
 
-/**
- * Walk the page table structures to see if the mapping between a virtual address
- * and a physical address exists. Also, check the flags.
- *
- */
-status_t x86_mmu_check_mapping(addr_t pml4, paddr_t paddr,
-                               vaddr_t vaddr, arch_flags_t in_flags,
-                               uint32_t *ret_level, arch_flags_t *ret_flags,
-                               map_addr_t *last_valid_entry) {
-    status_t status;
-    arch_flags_t existing_flags = 0;
-
-    DEBUG_ASSERT(pml4);
-    if ((!ret_level) || (!last_valid_entry) || (!ret_flags) ||
-            (!x86_mmu_check_vaddr(vaddr)) ||
-            (!x86_mmu_check_paddr(paddr))) {
-        return ERR_INVALID_ARGS;
-    }
-
-    status = x86_mmu_get_mapping(pml4, vaddr, ret_level, &existing_flags, last_valid_entry);
-    if (status || ((*last_valid_entry) != (uint64_t)paddr)) {
-        /* We did not reach till we check the access flags for the mapping */
-        *ret_flags = in_flags;
-        return ERR_NOT_FOUND;
-    }
-
-    /* Checking the access flags for the mapped address. If it is not zero, then
-     * the access flags are different & the return flag will have those access bits
-     * which are different.
-     */
-    *ret_flags = (in_flags ^ get_x86_arch_flags(existing_flags)) & X86_DIRTY_ACCESS_MASK;
-
-    if (!(*ret_flags))
-        return NO_ERROR;
-
-    return ERR_NOT_FOUND;
-}
-
-static void update_pt_entry(vaddr_t vaddr, paddr_t paddr,  uint64_t pde, arch_flags_t flags) {
-    uint32_t pt_index;
-
-    uint64_t *pt_table = (uint64_t *)(pde & X86_PG_FRAME);
-    pt_index = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pt_table[pt_index] = (uint64_t)paddr;
+static void update_pt_entry(vaddr_t vaddr, uint64_t pde, paddr_t paddr, arch_flags_t flags) {
+    uint64_t *pt_table = X86_PHYS_TO_VIRT(get_pfn_from_pte(pde));
+    uint32_t pt_index = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+    pt_table[pt_index] = paddr;
     pt_table[pt_index] |= flags | X86_MMU_PG_P;
     if (!(flags & X86_MMU_PG_U))
         pt_table[pt_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
+    LTRACEF_LEVEL(2, "writing entry %#llx in pt %p at index %u\n", pt_table[pt_index], pt_table, pt_index);
 }
 
-static void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, map_addr_t m, arch_flags_t flags) {
-    uint32_t pd_index;
-
-    uint64_t *pd_table = (uint64_t *)(pdpe & X86_PG_FRAME);
-    pd_index = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pd_table[pd_index] = m;
+static void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, map_addr_t paddr, arch_flags_t flags) {
+    uint64_t *pd_table = X86_PHYS_TO_VIRT(get_pfn_from_pte(pdpe));
+    uint32_t pd_index = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+    pd_table[pd_index] = paddr;
     pd_table[pd_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
     if (flags & X86_MMU_PG_U)
         pd_table[pd_index] |= X86_MMU_PG_U;
+    LTRACEF_LEVEL(2, "writing entry %#llx in pd %p at index %u\n", pd_table[pd_index], pd_table, pd_index);
 }
 
-static void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, map_addr_t m, arch_flags_t flags) {
-    uint32_t pdp_index;
-
-    uint64_t *pdp_table = (uint64_t *)(pml4e & X86_PG_FRAME);
-    pdp_index = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pdp_table[pdp_index] = m;
+static void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, map_addr_t paddr, arch_flags_t flags) {
+    uint64_t *pdp_table = X86_PHYS_TO_VIRT(get_pfn_from_pte(pml4e));
+    uint32_t pdp_index = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+    pdp_table[pdp_index] = paddr;
     pdp_table[pdp_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
     if (flags & X86_MMU_PG_U)
         pdp_table[pdp_index] |= X86_MMU_PG_U;
+    LTRACEF_LEVEL(2, "writing entry %#llx in pdp %p at index %u\n", pdp_table[pdp_index], pdp_table, pdp_index);
 }
 
-static void update_pml4_entry(vaddr_t vaddr, addr_t pml4_addr, map_addr_t m, arch_flags_t flags) {
-    uint32_t pml4_index;
-    uint64_t *pml4_table = (uint64_t *)(pml4_addr);
-
-    pml4_index = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pml4_table[pml4_index] = m;
+static void update_pml4_entry(vaddr_t vaddr, uint64_t *pml4_table, map_addr_t paddr, arch_flags_t flags) {
+    uint32_t pml4_index = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+    pml4_table[pml4_index] = paddr;
     pml4_table[pml4_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
     if (flags & X86_MMU_PG_U)
         pml4_table[pml4_index] |= X86_MMU_PG_U;
@@ -334,6 +284,7 @@ static void update_pml4_entry(vaddr_t vaddr, addr_t pml4_addr, map_addr_t m, arc
     /* Explicitly do not set the G bit here for kernel pages. Intel cores
      * ignore the G bit on PML4 entries, but AMD cores treat it as MBZ.
      */
+    LTRACEF_LEVEL(2, "writing entry %#llx in pml4 %p at index %u\n", pml4_table[pml4_index], pml4_table, pml4_index);
 }
 
 /**
@@ -360,102 +311,98 @@ static map_addr_t *_map_alloc_page(void) {
  * 4KB pages.
  *
  */
-status_t x86_mmu_add_mapping(map_addr_t pml4, map_addr_t paddr,
-                             vaddr_t vaddr, arch_flags_t mmu_flags) {
-    uint32_t pd_new = 0, pdp_new = 0;
-    uint64_t pml4e, pdpe;
-    uint64_t pde = 0;
-    map_addr_t *m = NULL;
+static status_t x86_mmu_add_mapping(uint64_t * const pml4, const map_addr_t paddr,
+                             const vaddr_t vaddr, const arch_flags_t mmu_flags) {
     status_t ret = NO_ERROR;
 
-    LTRACEF("pml4 0x%llx paddr 0x%llx vaddr 0x%lx flags 0x%llx\n", pml4, paddr, vaddr, mmu_flags);
+    LTRACEF("pml4 %p paddr %#llx vaddr %#lx flags %#llx\n", pml4, paddr, vaddr, mmu_flags);
 
     DEBUG_ASSERT(pml4);
     if ((!x86_mmu_check_vaddr(vaddr)) || (!x86_mmu_check_paddr(paddr)) )
         return ERR_INVALID_ARGS;
 
-    pml4e = get_pml4_entry_from_pml4_table(vaddr, pml4);
+    /* track at every level if we had to allocate a new page table for eventual cleanup code */
+    bool pdp_new = false, pd_new = false, pt_new = false;
 
-    if ((pml4e & X86_MMU_PG_P) == 0) {
+    uint64_t pdpe = 0;
+    uint64_t pml4e = get_pml4_entry_from_pml4_table(vaddr, pml4);
+    if (!is_pte_present(pml4e)) {
         /* Creating a new pdp table */
-        m = _map_alloc_page();
+        map_addr_t *m = _map_alloc_page();
         if (m == NULL) {
             ret = ERR_NO_MEMORY;
             goto clean;
         }
 
-        update_pml4_entry(vaddr, pml4, X86_VIRT_TO_PHYS(m), get_x86_arch_flags(mmu_flags));
-        pml4e = (uint64_t)m;
-        X86_SET_FLAG(pdp_new);
-    }
+        LTRACEF_LEVEL(2, "new pdp pml4 %p m %p\n", pml4, m);
 
-    if (!pdp_new)
+        map_addr_t pa = X86_VIRT_TO_PHYS(m);
+        update_pml4_entry(vaddr, pml4, pa, get_x86_arch_flags(mmu_flags));
+        pml4e = pa | X86_MMU_PG_P;
+        pdp_new = true;
+    } else {
         pdpe = get_pdp_entry_from_pdp_table(vaddr, pml4e);
+    }
 
-    if (pdp_new || (pdpe & X86_MMU_PG_P) == 0) {
+    LTRACEF_LEVEL(2, "pdpe %#llx\n", pdpe);
+
+    uint64_t pde = 0;
+    if (!is_pte_present(pdpe)) {
         /* Creating a new pd table  */
-        m  = _map_alloc_page();
+        map_addr_t *m  = _map_alloc_page();
         if (m == NULL) {
             ret = ERR_NO_MEMORY;
-            if (pdp_new)
-                goto clean_pdp;
             goto clean;
         }
 
-        update_pdp_entry(vaddr, pml4e, X86_VIRT_TO_PHYS(m), get_x86_arch_flags(mmu_flags));
-        pdpe = (uint64_t)m;
-        X86_SET_FLAG(pd_new);
-    }
+        LTRACEF_LEVEL(2, "new pdp pml4e %#llx m %p\n", pml4e, m);
 
-    if (!pd_new)
+        map_addr_t pa = X86_VIRT_TO_PHYS(m);
+        update_pdp_entry(vaddr, pml4e, pa, get_x86_arch_flags(mmu_flags));
+        pdpe = pa | X86_MMU_PG_P;
+        pd_new = true;
+    } else {
+        /* make sure it's not a large page, we currently cant handle splitting it */
+        DEBUG_ASSERT((pdpe & X86_MMU_PG_PS) == 0);
+
         pde = get_pd_entry_from_pd_table(vaddr, pdpe);
+    }
 
-    if (pd_new || (pde & X86_MMU_PG_P) == 0) {
+    LTRACEF_LEVEL(2, "pde %#llx\n", pde);
+
+    if (!is_pte_present(pde)) {
         /* Creating a new pt */
-        bool need_expand = !!(pde & X86_MMU_PG_PS);
-
-        m  = _map_alloc_page();
+        map_addr_t *m  = _map_alloc_page();
         if (m == NULL) {
             ret = ERR_NO_MEMORY;
-            if (pd_new)
-                goto clean_pd;
             goto clean;
         }
 
-        /* If previous one is 2M page leaf, expand to 4K page leaves */
-        if (need_expand) {
-            uint64_t pd_paddr = X86_VIRT_TO_PHYS(pde) & X86_PG_FRAME;
-            arch_flags_t flag = get_x86_arch_flags(pde);
-            uint64_t *pt_table = (uint64_t *)((uint64_t)m & X86_PG_FRAME);
-            uint32_t index;
+        LTRACEF_LEVEL(2, "new pt pdpe %#llx m %p\n", pdpe, m);
 
-            for (index = 0; index < 512; index++) {
-                pt_table[index] = (uint64_t)pd_paddr;
-                pt_table[index] |= flag | X86_MMU_PG_P;
-                if (!(flag & X86_MMU_PG_U))
-                    pt_table[index] |= X86_MMU_PG_G;
-                pd_paddr += 4096;
-            }
-        }
-
-        update_pd_entry(vaddr, pdpe, X86_VIRT_TO_PHYS(m), get_x86_arch_flags(mmu_flags));
-        pde = (uint64_t)m;
+        map_addr_t pa = X86_VIRT_TO_PHYS(m);
+        update_pd_entry(vaddr, pdpe, pa, get_x86_arch_flags(mmu_flags));
+        pde = pa | X86_MMU_PG_P;
+        pt_new = true;
+    } else {
+        /* make sure it's not a large page, we currently cant handle splitting it */
+        DEBUG_ASSERT((pde & X86_MMU_PG_PS) == 0);
     }
+
+    LTRACEF_LEVEL(2, "pde %#llx\n", pde);
+    DEBUG_ASSERT(pde);
 
     /* Updating the page table entry with the paddr and access flags required for the mapping */
-    update_pt_entry(vaddr, paddr, pde, get_x86_arch_flags(mmu_flags));
-    ret = NO_ERROR;
-    goto clean;
+    update_pt_entry(vaddr, pde, paddr, get_x86_arch_flags(mmu_flags));
 
-clean_pd:
-    if (pd_new)
-        pmm_free_page(paddr_to_vm_page(X86_PHYS_TO_VIRT(pd_new)));
-
-clean_pdp:
-    if (pdp_new)
-        pmm_free_page(paddr_to_vm_page(X86_PHYS_TO_VIRT(pml4e)));
+    return NO_ERROR;
 
 clean:
+    if (pdp_new || pd_new || pt_new) {
+        /* TODO: handle cleaning up the addition of new page tables at any level for this mapping */
+        TRACEF("aborting map code pdp_new %u pd_new %u pt_new %u\n", pdp_new, pd_new, pt_new);
+    }
+
     return ret;
 }
 
@@ -463,48 +410,43 @@ clean:
  * @brief  x86-64 MMU unmap an entry in the page tables recursively and clear out tables
  *
  */
-static void x86_mmu_unmap_entry(vaddr_t vaddr, int level, vaddr_t table_entry) {
-    uint32_t offset = 0, next_level_offset = 0;
-    vaddr_t *table, *next_table_addr, value;
+static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, uint64_t * const table) {
+    LTRACEF("vaddr 0x%lx level %d table %p\n", vaddr, level, table);
 
-    LTRACEF("vaddr 0x%lx level %d table_entry 0x%lx\n", vaddr, level, table_entry);
-
-    next_table_addr = NULL;
-    table = (vaddr_t *)(table_entry & X86_PG_FRAME);
-    LTRACEF_LEVEL(2, "table %p\n", table);
-
+    uint64_t *next_table_addr = NULL;
+    uint32_t index = 0;
     switch (level) {
         case PML4_L:
-            offset = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-            LTRACEF_LEVEL(2, "offset %u\n", offset);
-            next_table_addr = (vaddr_t *)X86_PHYS_TO_VIRT(table[offset]);
-            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
-            if ((X86_PHYS_TO_VIRT(table[offset]) & X86_MMU_PG_P)== 0)
+            index = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+            LTRACEF_LEVEL(2, "index %u\n", index);
+            if (!is_pte_present(table[index]))
                 return;
+            next_table_addr = X86_PHYS_TO_VIRT(get_pfn_from_pte(table[index]));
+            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
             break;
         case PDP_L:
-            offset = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-            LTRACEF_LEVEL(2, "offset %u\n", offset);
-            next_table_addr = (vaddr_t *)X86_PHYS_TO_VIRT(table[offset]);
-            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
-            if ((X86_PHYS_TO_VIRT(table[offset]) & X86_MMU_PG_P) == 0)
+            index = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+            LTRACEF_LEVEL(2, "index %u\n", index);
+            if (!is_pte_present(table[index]))
                 return;
+            next_table_addr = X86_PHYS_TO_VIRT(get_pfn_from_pte(table[index]));
+            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
             break;
         case PD_L:
-            offset = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-            LTRACEF_LEVEL(2, "offset %u\n", offset);
-            next_table_addr = (vaddr_t *)X86_PHYS_TO_VIRT(table[offset]);
-            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
-            if ((X86_PHYS_TO_VIRT(table[offset]) & X86_MMU_PG_P) == 0)
+            index = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+            LTRACEF_LEVEL(2, "index %u\n", index);
+            if (!is_pte_present(table[index]))
                 return;
+            next_table_addr = X86_PHYS_TO_VIRT(get_pfn_from_pte(table[index]));
+            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
             break;
         case PT_L:
-            offset = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-            LTRACEF_LEVEL(2, "offset %u\n", offset);
-            next_table_addr = (vaddr_t *)X86_PHYS_TO_VIRT(table[offset]);
-            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
-            if ((X86_PHYS_TO_VIRT(table[offset]) & X86_MMU_PG_P) == 0)
+            index = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
+            LTRACEF_LEVEL(2, "index %u\n", index);
+            if (!is_pte_present(table[index]))
                 return;
+            next_table_addr = X86_PHYS_TO_VIRT(get_pfn_from_pte(table[index]));
+            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
             break;
         case PF_L:
         /* Reached page frame, Let's go back */
@@ -514,32 +456,29 @@ static void x86_mmu_unmap_entry(vaddr_t vaddr, int level, vaddr_t table_entry) {
 
     LTRACEF_LEVEL(2, "recursing\n");
 
-    x86_mmu_unmap_entry(vaddr, level - 1, (vaddr_t)next_table_addr);
+    x86_mmu_unmap_entry(vaddr, level - 1, next_table_addr);
 
     LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
 
-    next_table_addr = (vaddr_t *)((vaddr_t)(next_table_addr) & X86_PG_FRAME);
     if (level > PT_L) {
         /* Check all entries of next level table for present bit */
-        for (next_level_offset = 0; next_level_offset < (PAGE_SIZE/8); next_level_offset++) {
-            if ((next_table_addr[next_level_offset] & X86_MMU_PG_P) != 0)
+        for (uint32_t next_level_offset = 0; next_level_offset < (PAGE_SIZE/8); next_level_offset++) {
+            if (is_pte_present(next_table_addr[next_level_offset]))
                 return; /* There is an entry in the next level table */
         }
         pmm_free_page(paddr_to_vm_page(X86_VIRT_TO_PHYS(next_table_addr)));
     }
     /* All present bits for all entries in next level table for this address are 0 */
-    if ((X86_PHYS_TO_VIRT(table[offset]) & X86_MMU_PG_P) != 0) {
+    if (is_pte_present(table[index])) {
         arch_disable_ints();
-        value = table[offset];
+        uint64_t value = table[index];
         value = value & X86_PTE_NOT_PRESENT;
-        table[offset] = value;
+        table[index] = value;
         arch_enable_ints();
     }
 }
 
-status_t x86_mmu_unmap(map_addr_t pml4, vaddr_t vaddr, uint count) {
-    vaddr_t next_aligned_v_addr;
-
+static status_t x86_mmu_unmap(uint64_t * const pml4, const vaddr_t vaddr, uint count) {
     DEBUG_ASSERT(pml4);
     if (!(x86_mmu_check_vaddr(vaddr)))
         return ERR_INVALID_ARGS;
@@ -547,7 +486,7 @@ status_t x86_mmu_unmap(map_addr_t pml4, vaddr_t vaddr, uint count) {
     if (count == 0)
         return NO_ERROR;
 
-    next_aligned_v_addr = vaddr;
+    vaddr_t next_aligned_v_addr = vaddr;
     while (count > 0) {
         x86_mmu_unmap_entry(next_aligned_v_addr, X86_PAGING_LEVELS, pml4);
         next_aligned_v_addr += PAGE_SIZE;
@@ -556,9 +495,7 @@ status_t x86_mmu_unmap(map_addr_t pml4, vaddr_t vaddr, uint count) {
     return NO_ERROR;
 }
 
-int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
-    addr_t current_cr3_val;
-
+int arch_mmu_unmap(arch_aspace_t * const aspace, const vaddr_t vaddr, const uint count) {
     LTRACEF("aspace %p, vaddr 0x%lx, count %u\n", aspace, vaddr, count);
 
     DEBUG_ASSERT(aspace);
@@ -570,7 +507,7 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
         return NO_ERROR;
 
     DEBUG_ASSERT(x86_get_cr3());
-    current_cr3_val = (addr_t)x86_get_cr3();
+    paddr_t current_cr3_val = x86_get_cr3();
 
     return (x86_mmu_unmap(X86_PHYS_TO_VIRT(current_cr3_val), vaddr, count));
 }
@@ -579,13 +516,8 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
  * @brief  Mapping a section/range with specific permissions
  *
  */
-status_t x86_mmu_map_range(map_addr_t pml4, struct map_range *range, arch_flags_t flags) {
-    vaddr_t next_aligned_v_addr;
-    paddr_t next_aligned_p_addr;
-    status_t map_status;
-    uint32_t no_of_pages, index;
-
-    LTRACEF("pml4 0x%llx, range v 0x%lx p 0x%llx size %u flags 0x%llx\n", pml4,
+static status_t x86_mmu_map_range(uint64_t * const pml4, struct map_range * const range, arch_flags_t const flags) {
+    TRACEF("pml4 %p, range v %#lx p %#lx size %u flags %#llx\n", pml4,
             range->start_vaddr, range->start_paddr, range->size, flags);
 
     DEBUG_ASSERT(pml4);
@@ -593,16 +525,17 @@ status_t x86_mmu_map_range(map_addr_t pml4, struct map_range *range, arch_flags_
         return ERR_INVALID_ARGS;
 
     /* Calculating the number of 4k pages */
+    uint32_t no_of_pages;
     if (IS_ALIGNED(range->size, PAGE_SIZE))
         no_of_pages = (range->size) >> PAGE_DIV_SHIFT;
     else
         no_of_pages = ((range->size) >> PAGE_DIV_SHIFT) + 1;
 
-    next_aligned_v_addr = range->start_vaddr;
-    next_aligned_p_addr = range->start_paddr;
+    vaddr_t next_aligned_v_addr = range->start_vaddr;
+    paddr_t next_aligned_p_addr = range->start_paddr;
 
-    for (index = 0; index < no_of_pages; index++) {
-        map_status = x86_mmu_add_mapping(pml4, next_aligned_p_addr, next_aligned_v_addr, flags);
+    for (uint32_t index = 0; index < no_of_pages; index++) {
+        status_t map_status = x86_mmu_add_mapping(pml4, next_aligned_p_addr, next_aligned_v_addr, flags);
         if (map_status) {
             dprintf(SPEW, "Add mapping failed with err=%d\n", map_status);
             /* Unmap the partial mapping - if any */
@@ -615,13 +548,7 @@ status_t x86_mmu_map_range(map_addr_t pml4, struct map_range *range, arch_flags_
     return NO_ERROR;
 }
 
-status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) {
-    addr_t current_cr3_val;
-    uint32_t ret_level;
-    map_addr_t last_valid_entry;
-    arch_flags_t ret_flags;
-    status_t stat;
-
+status_t arch_mmu_query(arch_aspace_t * const aspace, const vaddr_t vaddr, paddr_t * const paddr, uint * const flags) {
     LTRACEF("aspace %p, vaddr 0x%lx, paddr %p, flags %p\n", aspace, vaddr, paddr, flags);
 
     DEBUG_ASSERT(aspace);
@@ -630,26 +557,24 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
         return ERR_INVALID_ARGS;
 
     DEBUG_ASSERT(x86_get_cr3());
-    current_cr3_val = (addr_t)x86_get_cr3();
+    paddr_t current_cr3_val = (addr_t)x86_get_cr3();
+    uint64_t *cr3_virt = X86_PHYS_TO_VIRT(current_cr3_val);
 
-    stat = x86_mmu_get_mapping(X86_PHYS_TO_VIRT(current_cr3_val), vaddr, &ret_level, &ret_flags, &last_valid_entry);
+    arch_flags_t ret_flags;
+    uint32_t ret_level;
+    status_t stat = x86_mmu_get_mapping(cr3_virt, vaddr, &ret_level, &ret_flags, paddr);
     if (stat)
         return stat;
-
-    *paddr = (paddr_t)(last_valid_entry);
-    LTRACEF("paddr 0x%llx\n", last_valid_entry);
 
     /* converting x86 arch specific flags to arch mmu flags */
     if (flags)
         *flags = ret_flags;
+    LTRACEF("paddr %#lx, flags %#llx\n", *paddr, ret_flags);
 
     return NO_ERROR;
 }
 
-int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
-    addr_t current_cr3_val;
-    struct map_range range;
-
+int arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t paddr, const uint count, const uint flags) {
     DEBUG_ASSERT(aspace);
 
     LTRACEF("aspace %p, vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", aspace, vaddr, paddr, count, flags);
@@ -667,8 +592,9 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
         return NO_ERROR;
 
     DEBUG_ASSERT(x86_get_cr3());
-    current_cr3_val = (addr_t)x86_get_cr3();
+    addr_t current_cr3_val = (addr_t)x86_get_cr3();
 
+    struct map_range range;
     range.start_vaddr = vaddr;
     range.start_paddr = paddr;
     range.size = count * PAGE_SIZE;
@@ -704,8 +630,6 @@ void x86_mmu_early_init(void) {
     g_paddr_width = x86_get_paddr_width();
     g_vaddr_width = x86_get_vaddr_width();
 
-    dprintf(SPEW, "X86: paddr_width %u vaddr_width %u\n", g_paddr_width, g_vaddr_width);
-
     /* unmap the lower identity mapping */
     kernel_pml4[0] = 0;
 
@@ -714,13 +638,14 @@ void x86_mmu_early_init(void) {
 }
 
 void x86_mmu_init(void) {
+    dprintf(SPEW, "X86: mmu max phys bits %u max virt bits %u\n", g_paddr_width, g_vaddr_width);
 }
 
 /*
  * x86-64 does not support multiple address spaces at the moment, so fail if these apis
  * are used for it.
  */
-status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) {
+status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, const size_t size, const uint flags) {
     DEBUG_ASSERT(aspace);
 
     if ((flags & ARCH_ASPACE_FLAG_KERNEL) == 0) {

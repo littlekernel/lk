@@ -39,17 +39,17 @@
 #define PAGE_SIZE       4096
 #define PAGE_DIV_SHIFT      12
 
-#if defined(PAE_MODE_ENABLED) || ARCH_X86_64
+#if ARCH_X86_64
 /* PAE mode */
 #define X86_PDPT_ADDR_MASK  (0x00000000ffffffe0ul)
 #define X86_PG_FRAME        (0xfffffffffffff000ul)
 #define X86_PHY_ADDR_MASK   (0x000ffffffffffffful)
-#define X86_FLAGS_MASK      (0x0000000000000ffful)  /* NX Bit is ignored in the PAE mode */
+#define X86_FLAGS_MASK      (0x8000000000000ffful)
 #define X86_PTE_NOT_PRESENT (0xFFFFFFFFFFFFFFFEul)
 #define X86_2MB_PAGE_FRAME  (0x000fffffffe00000ul)
 #define PAGE_OFFSET_MASK_4KB    (0x0000000000000ffful)
 #define PAGE_OFFSET_MASK_2MB    (0x00000000001ffffful)
-#define X86_MMU_PG_NX       (1ul << 63)
+#define X86_MMU_PG_NX       (1ULL << 63)
 
 #if ARCH_X86_64
 #define X86_PAGING_LEVELS   4
@@ -64,8 +64,6 @@
 #define ADDR_OFFSET     9
 #define PDPT_ADDR_OFFSET    2
 #define NO_OF_PT_ENTRIES    512
-
-#define X86_SET_FLAG(x)     (x=1)
 
 #else
 /* non PAE mode */
@@ -84,7 +82,7 @@
 #endif
 
 /* on both x86-32 and x86-64 physical memory is mapped at the base of the kernel address space */
-#define X86_PHYS_TO_VIRT(x)     ((uintptr_t)(x) + KERNEL_ASPACE_BASE)
+#define X86_PHYS_TO_VIRT(x)     ((void *)((uintptr_t)(x) + KERNEL_ASPACE_BASE))
 #define X86_VIRT_TO_PHYS(x)     ((uintptr_t)(x) - KERNEL_ASPACE_BASE)
 
 /* C defines below */
@@ -100,10 +98,8 @@ enum page_table_levels {
     PF_L,
     PT_L,
     PD_L,
-#if defined(PAE_MODE_ENABLED) || ARCH_X86_64
-    PDP_L,
-#endif
 #if ARCH_X86_64
+    PDP_L,
     PML4_L
 #endif
 };
@@ -111,41 +107,17 @@ enum page_table_levels {
 
 struct map_range {
     vaddr_t start_vaddr;
-#if defined(PAE_MODE_ENABLED) || ARCH_X86_64
-    uint64_t start_paddr; /* Physical address in the PAE mode is 64 bits wide */
-#else
     paddr_t start_paddr; /* Physical address in the PAE mode is 32 bits wide */
-#endif
     uint32_t size;
 };
 
-#if defined(PAE_MODE_ENABLED) || ARCH_X86_64
+#if ARCH_X86_64
 typedef uint64_t map_addr_t;
 typedef uint64_t arch_flags_t;
 #else
 typedef uint32_t map_addr_t;
 typedef uint32_t arch_flags_t;
 #endif
-
-#if ARCH_X86_64
-status_t x86_mmu_check_mapping (addr_t pml4, paddr_t paddr,
-                                vaddr_t vaddr, arch_flags_t in_flags,
-                                uint32_t *ret_level, arch_flags_t *ret_flags,
-                                map_addr_t *last_valid_entry);
-#else
-status_t x86_mmu_check_mapping(map_addr_t init_table, map_addr_t paddr,
-                               vaddr_t vaddr, arch_flags_t in_flags,
-                               uint32_t *ret_level, arch_flags_t *ret_flags,
-                               map_addr_t *last_valid_entry);
-#endif
-
-status_t x86_mmu_get_mapping(map_addr_t init_table, vaddr_t vaddr, uint32_t *ret_level,
-                             arch_flags_t *mmu_flags, map_addr_t *last_valid_entry);
-
-status_t x86_mmu_map_range (map_addr_t pt, struct map_range *range, arch_flags_t flags);
-status_t x86_mmu_add_mapping(map_addr_t init_table, map_addr_t paddr,
-                             vaddr_t vaddr, arch_flags_t flags);
-status_t x86_mmu_unmap(map_addr_t init_table, vaddr_t vaddr, uint count);
 
 void x86_mmu_early_init(void);
 void x86_mmu_init(void);
