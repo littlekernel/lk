@@ -208,10 +208,6 @@ void arm_mmu_init(void) {
 #endif
 }
 
-void arch_disable_mmu(void) {
-    arm_write_sctlr(arm_read_sctlr() & ~(1<<0)); // mmu disabled
-}
-
 void arch_mmu_context_switch(arch_aspace_t *aspace) {
     if (LOCAL_TRACE && TRACE_CONTEXT_SWITCH)
         LTRACEF("aspace %p\n", aspace);

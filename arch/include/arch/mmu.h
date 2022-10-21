@@ -53,8 +53,6 @@ vaddr_t arch_mmu_pick_spot(arch_aspace_t *aspace,
  */
 void arch_mmu_context_switch(arch_aspace_t *aspace);
 
-void arch_disable_mmu(void);
-
 __END_CDECLS
 
 #endif
