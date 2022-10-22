@@ -104,6 +104,17 @@ static bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
     END_TEST;
 }
 
+static bool map_region_expect_failure(vmm_aspace_t *aspace, uint arch_flags, int expected_error) {
+    BEGIN_TEST;
+    void *ptr = NULL;
+
+    // create a region of an arbitrary page in kernel aspace
+    EXPECT_EQ(expected_error, vmm_alloc(aspace, "test region", PAGE_SIZE, &ptr, 0, /* vmm_flags */ 0, arch_flags), "map region");
+    EXPECT_NULL(ptr, "null");
+
+    END_TEST;
+}
+
 static bool map_query_pages(void) {
     BEGIN_TEST;
 
@@ -117,8 +128,8 @@ static bool map_query_pages(void) {
         EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_NO_EXECUTE), "2");
         EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "3");
     } else {
-        EXPECT_FALSE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_NO_EXECUTE), "2");
-        EXPECT_FALSE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "3");
+        EXPECT_TRUE(map_region_expect_failure(kaspace, ARCH_MMU_FLAG_PERM_NO_EXECUTE, ERR_INVALID_ARGS), "2");
+        EXPECT_TRUE(map_region_expect_failure(kaspace, ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE, ERR_INVALID_ARGS), "3");
     }
 
     EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER), "4");
@@ -127,8 +138,8 @@ static bool map_query_pages(void) {
         EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "6");
         EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "7");
     } else {
-        EXPECT_FALSE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "6");
-        EXPECT_FALSE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "7");
+        EXPECT_TRUE(map_region_expect_failure(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE, ERR_INVALID_ARGS), "6");
+        EXPECT_TRUE(map_region_expect_failure(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE, ERR_INVALID_ARGS), "7");
     }
 
     END_TEST;

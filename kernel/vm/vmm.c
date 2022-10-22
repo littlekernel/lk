@@ -24,6 +24,8 @@ vmm_aspace_t _kernel_aspace;
 static void dump_aspace(const vmm_aspace_t *a);
 static void dump_region(const vmm_region_t *r);
 
+static status_t vmm_remove_region_locked(vmm_aspace_t *aspace, vaddr_t vaddr, vmm_region_t **r_out);
+
 void vmm_init_preheap(void) {
     /* initialize the kernel address space */
     strlcpy(_kernel_aspace.name, "kernel", sizeof(_kernel_aspace.name));
@@ -324,7 +326,7 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
 
 status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
                             void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags) {
-    status_t ret;
+    status_t err;
 
     LTRACEF("aspace %p name '%s' size 0x%zx ptr %p paddr 0x%lx vmm_flags 0x%x arch_mmu_flags 0x%x\n",
             aspace, name, size, ptr ? *ptr : 0, paddr, vmm_flags, arch_mmu_flags);
@@ -360,8 +362,8 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
     vmm_region_t *r = alloc_region(aspace, name, size, vaddr, align_log2, vmm_flags,
                                    VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
-        ret = ERR_NO_MEMORY;
-        goto err_alloc_region;
+        err = ERR_NO_MEMORY;
+        goto err;
     }
 
     /* return the vaddr if requested */
@@ -369,14 +371,29 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
         *ptr = (void *)r->base;
 
     /* map all of the pages */
-    int err = arch_mmu_map(&aspace->arch_aspace, r->base, paddr, size / PAGE_SIZE, arch_mmu_flags);
-    LTRACEF("arch_mmu_map returns %d\n", err);
+    err = arch_mmu_map(&aspace->arch_aspace, r->base, paddr, size / PAGE_SIZE, arch_mmu_flags);
+    if (err < NO_ERROR) {
+        LTRACEF("arch_mmu_map returns %d\n", err);
+        goto err_free_r;
+    }
 
-    ret = NO_ERROR;
+    err = NO_ERROR;
 
-err_alloc_region:
+err:
     mutex_release(&vmm_lock);
-    return ret;
+    return err;
+
+err_free_r:
+    {
+        vmm_region_t *r_temp;
+
+        status_t err2 = vmm_remove_region_locked(aspace, r->base, &r_temp);
+        DEBUG_ASSERT(err2 == NO_ERROR || err2 == ERR_NOT_FOUND);
+        DEBUG_ASSERT(r_temp == r);
+    }
+    mutex_release(&vmm_lock);
+    free(r);
+    return err;
 }
 
 status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr,
@@ -427,7 +444,7 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
                                    VMM_REGION_FLAG_PHYSICAL, arch_mmu_flags);
     if (!r) {
         err = ERR_NO_MEMORY;
-        goto err1;
+        goto err_free_pages;
     }
 
     /* return the vaddr if requested */
@@ -435,9 +452,13 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
         *ptr = (void *)r->base;
 
     /* map all of the pages */
-    arch_mmu_map(&aspace->arch_aspace, r->base, pa, size / PAGE_SIZE, arch_mmu_flags);
-    // XXX deal with error mapping here
+    err = arch_mmu_map(&aspace->arch_aspace, r->base, pa, size / PAGE_SIZE, arch_mmu_flags);
+    if (err < NO_ERROR) {
+        LTRACEF("arch_mmu_map returns %d\n", err);
+        goto err_free_r;
+    }
 
+    /* add all of the pages to this region */
     vm_page_t *p;
     while ((p = list_remove_head_type(&page_list, vm_page_t, node))) {
         list_add_tail(&r->page_list, &p->node);
@@ -446,7 +467,16 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
     mutex_release(&vmm_lock);
     return NO_ERROR;
 
-err1:
+err_free_r:
+    {
+        vmm_region_t *r_temp;
+
+        status_t err2 = vmm_remove_region_locked(aspace, r->base, &r_temp);
+        DEBUG_ASSERT(err2 == NO_ERROR || err2 == ERR_NOT_FOUND);
+        DEBUG_ASSERT(r_temp == r);
+        free(r);
+    }
+err_free_pages:
     mutex_release(&vmm_lock);
     pmm_free(&page_list);
 err:
@@ -506,12 +536,8 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
         goto err1;
     }
 
-    /* return the vaddr if requested */
-    if (ptr)
-        *ptr = (void *)r->base;
-
     /* map all of the pages */
-    /* XXX use smarter algorithm that tries to build runs */
+    /* TODO: use smarter algorithm that tries to build runs */
     vm_page_t *p;
     vaddr_t va = r->base;
     DEBUG_ASSERT(IS_PAGE_ALIGNED(va));
@@ -521,16 +547,39 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
         paddr_t pa = vm_page_to_paddr(p);
         DEBUG_ASSERT(IS_PAGE_ALIGNED(pa));
 
-        arch_mmu_map(&aspace->arch_aspace, va, pa, 1, arch_mmu_flags);
-        // XXX deal with error mapping here
+        err = arch_mmu_map(&aspace->arch_aspace, va, pa, 1, arch_mmu_flags);
+        if (err < NO_ERROR) { // TODO: deal with difference between 0 and 1 returns in some arches
+            // add the page back to the list so it gets freed
+            list_add_tail(&page_list, &p->node);
+            goto err2;
+        }
 
         list_add_tail(&r->page_list, &p->node);
 
         va += PAGE_SIZE;
     }
 
+    /* return the vaddr if requested */
+    if (ptr)
+        *ptr = (void *)r->base;
+
     mutex_release(&vmm_lock);
     return NO_ERROR;
+
+err2:
+    {
+        vmm_region_t *r_temp;
+        status_t err2 = vmm_remove_region_locked(aspace, r->base, &r_temp);
+        DEBUG_ASSERT(err2 == NO_ERROR || err2 == ERR_NOT_FOUND);
+        DEBUG_ASSERT(r_temp == r);
+    }
+
+    mutex_release(&vmm_lock);
+
+    pmm_free(&r->page_list);
+    pmm_free(&page_list);
+    free(r);
+    goto err;
 
 err1:
     mutex_release(&vmm_lock);
@@ -543,6 +592,7 @@ static vmm_region_t *vmm_find_region(const vmm_aspace_t *aspace, vaddr_t vaddr) 
     vmm_region_t *r;
 
     DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(is_mutex_held(&vmm_lock));
 
     if (!aspace)
         return NULL;
@@ -556,12 +606,14 @@ static vmm_region_t *vmm_find_region(const vmm_aspace_t *aspace, vaddr_t vaddr) 
     return NULL;
 }
 
-status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr) {
-    mutex_acquire(&vmm_lock);
+/* partially remove a region from the region list, but do not free the pages or the structure itself */
+static status_t vmm_remove_region_locked(vmm_aspace_t *aspace, vaddr_t vaddr, vmm_region_t **r_out) {
+    DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(r_out);
+    DEBUG_ASSERT(is_mutex_held(&vmm_lock));
 
     vmm_region_t *r = vmm_find_region (aspace, vaddr);
     if (!r) {
-        mutex_release(&vmm_lock);
         return ERR_NOT_FOUND;
     }
 
@@ -571,7 +623,27 @@ status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr) {
     /* unmap it */
     arch_mmu_unmap(&aspace->arch_aspace, r->base, r->size / PAGE_SIZE);
 
+    *r_out = r;
+
+    return NO_ERROR;
+}
+
+status_t vmm_free_region(vmm_aspace_t *aspace, vaddr_t vaddr) {
+    DEBUG_ASSERT(aspace);
+
+    vmm_region_t *r;
+
+    mutex_acquire(&vmm_lock);
+
+    status_t err = vmm_remove_region_locked(aspace, vaddr, &r);
+
     mutex_release(&vmm_lock);
+
+    if (err < NO_ERROR) {
+        return err;
+    }
+
+    DEBUG_ASSERT(r);
 
     /* return physical pages if any */
     pmm_free(&r->page_list);
