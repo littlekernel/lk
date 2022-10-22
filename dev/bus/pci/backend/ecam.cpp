@@ -65,8 +65,9 @@ status_t pci_ecam::initialize() {
 
 #if WITH_KERNEL_VM
     // try to map the aperture
+    // ask for 4MB aligned regions (log2 22) to help with the mmu on most architectures
     //status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size, void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags)
-    status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "pci_ecam", size, (void **)&ecam_ptr_, 0, base_, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+    status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "pci_ecam", size, (void **)&ecam_ptr_, 22, base_, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
     LTRACEF("vmm_alloc_physical returns %d, ptr %p\n", err, ecam_ptr_);
 
     if (err != NO_ERROR) {
