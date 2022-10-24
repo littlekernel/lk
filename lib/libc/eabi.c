@@ -8,7 +8,7 @@
 /* some cruft we have to define when using the linux toolchain */
 #include <unwind.h>
 
-#pragma GCC diagnostic ignored "-Wmissing-declarations"
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 void *__dso_handle;
 
