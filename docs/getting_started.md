@@ -10,9 +10,9 @@ mkdir -p lk-work && cd lk-work
 ```
 git clone https://github.com/littlekernel/lk
 ```
-3- Download appropriate toolchain and extract it
+3- Get proper toolchain version from [there](https://github.com/littlekernel/lk/blob/master/.github/workflows/github-ci.yml#L13) and download the toolchain and extract it
 ```
-wget https://newos.org/toolchains/riscv64-elf-12.1.0-Linux-x86_64.tar.xz
+wget https://newos.org/toolchains/riscv64-elf-12.2.0-Linux-x86_64.tar.xz
 
 mkdir -p toolchain
 tar xf riscv64-elf-12.1.0-Linux-x86_64.tar.xz
