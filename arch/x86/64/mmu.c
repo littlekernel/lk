@@ -517,7 +517,7 @@ int arch_mmu_unmap(arch_aspace_t * const aspace, const vaddr_t vaddr, const uint
  *
  */
 static status_t x86_mmu_map_range(uint64_t * const pml4, struct map_range * const range, arch_flags_t const flags) {
-    TRACEF("pml4 %p, range v %#lx p %#lx size %u flags %#llx\n", pml4,
+    LTRACEF("pml4 %p, range v %#lx p %#lx size %u flags %#llx\n", pml4,
             range->start_vaddr, range->start_paddr, range->size, flags);
 
     DEBUG_ASSERT(pml4);
