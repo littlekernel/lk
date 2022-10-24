@@ -78,7 +78,7 @@ jobs:
     # maintain a directory archives/ in the repo
     # it will contain tarballs of various toolchains
     - name: cache
-      uses: actions/cache@v2.1.1
+      uses: actions/cache@v3
       id: cache
       with:
         # A list of files, directories, and wildcard patterns to cache and restore
