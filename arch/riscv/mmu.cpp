@@ -598,6 +598,7 @@ void arch_mmu_context_switch(arch_aspace_t *aspace) {
 
 bool arch_mmu_supports_nx_mappings(void) { return true; }
 bool arch_mmu_supports_ns_mappings(void) { return false; }
+bool arch_mmu_supports_user_aspaces(void) { return true; }
 
 extern "C"
 void riscv_mmu_init_secondaries() {

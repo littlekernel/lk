@@ -604,6 +604,7 @@ int arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t
 
 bool arch_mmu_supports_nx_mappings(void) { return true; }
 bool arch_mmu_supports_ns_mappings(void) { return false; }
+bool arch_mmu_supports_user_aspaces(void) { return false; }
 
 void x86_mmu_early_init(void) {
     volatile uint64_t efer_msr, cr0, cr4;

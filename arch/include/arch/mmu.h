@@ -34,6 +34,7 @@ __BEGIN_CDECLS
 /* arch level query of some features at the mapping/query level */
 bool arch_mmu_supports_nx_mappings(void);
 bool arch_mmu_supports_ns_mappings(void);
+bool arch_mmu_supports_user_aspaces(void);
 
 /* forward declare the per-address space arch-specific context object */
 typedef struct arch_aspace arch_aspace_t;

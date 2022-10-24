@@ -405,6 +405,7 @@ int arch_mmu_map(arch_aspace_t * const aspace, const vaddr_t vaddr, const paddr_
 
 bool arch_mmu_supports_nx_mappings(void) { return false; }
 bool arch_mmu_supports_ns_mappings(void) { return false; }
+bool arch_mmu_supports_user_aspaces(void) { return false; }
 
 void x86_mmu_early_init(void) {
     /* Set WP bit in CR0*/
