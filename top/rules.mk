@@ -14,4 +14,6 @@ MODULE_SRCS := \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/main.c \
 
+MODULE_OPTIONS := extra_warnings
+
 include make/module.mk

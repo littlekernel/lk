@@ -24,4 +24,6 @@ else
 MODULE_DEPS += kernel/novm
 endif
 
+MODULE_OPTIONS := extra_warnings
+
 include make/module.mk

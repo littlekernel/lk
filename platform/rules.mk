@@ -8,6 +8,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/power.c
 
+MODULE_OPTIONS := extra_warnings
+
 include make/module.mk
 
 

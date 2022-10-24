@@ -20,6 +20,7 @@
 
 # MODULE_OPTIONS : space delimited list of options
 # currently defined options:
+#   extra_warnings - add additional warnings to the front of the module deps
 #   float - module uses floating point instructions/code
 
 # the minimum module rules.mk file is as follows:
@@ -55,13 +56,30 @@ GLOBAL_INCLUDES += $(MODULE_SRCDIR)/include
 MODULES += $(MODULE_DEPS)
 
 # parse options
-ifeq ($(filter float,$(MODULE_OPTIONS)),float)
+MODULE_OPTIONS_COPY := $(sort $(MODULE_OPTIONS))
+ifneq (,$(findstring float,$(MODULE_OPTIONS)))
 # floating point option just forces all files in the module to be
 # compiled with floating point compiler flags.
-$(info MODULE $(MODULE) has float option)
+#$(info MODULE $(MODULE) has float option)
 MODULE_FLOAT_SRCS := $(sort $(MODULE_FLOAT_SRCS) $(MODULE_SRCS))
 MODULE_SRCS :=
+MODULE_OPTIONS_COPY := $(filter-out float,$(MODULE_OPTIONS_COPY))
 endif
+ifneq (,$(findstring extra_warnings,$(MODULE_OPTIONS)))
+# add some extra warnings to the various module compiler switches.
+# add these extra switches first so it's possible for the rules.mk file
+# that invoked us to override with a -Wno-...
+MODULE_COMPILEFLAGS := $(EXTRA_MODULE_COMPILEFLAGS) $(MODULE_COMPILEFLAGS)
+MODULE_CFLAGS := $(EXTRA_MODULE_CFLAGS) $(MODULE_CFLAGS)
+MODULE_CPPFLAGS := $(EXTRA_MODULE_CPPFLAGS) $(MODULE_CPPFLAGS)
+MODULE_ASMFLAGS := $(EXTRA_MODULE_ASMFLAGS) $(MODULE_ASMFLAGS)
+MODULE_OPTIONS_COPY := $(filter-out extra_warnings,$(MODULE_OPTIONS_COPY))
+endif
+
+ifneq ($(MODULE_OPTIONS_COPY),)
+$(error MODULE $(MODULE) has unrecognized option(s) $(MODULE_OPTIONS_COPY))
+endif
+
 
 #$(info module $(MODULE))
 #$(info MODULE_COMPILEFLAGS = $(MODULE_COMPILEFLAGS))

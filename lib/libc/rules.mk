@@ -26,6 +26,8 @@ MODULE_FLOAT_SRCS += \
 
 MODULE_COMPILEFLAGS += -fno-builtin
 
+MODULE_OPTIONS := extra_warnings
+
 include $(LOCAL_DIR)/string/rules.mk
 
 include make/module.mk

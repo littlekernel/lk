@@ -8,4 +8,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/vm.c \
 	$(LOCAL_DIR)/vmm.c \
 
+MODULE_OPTIONS := extra_warnings
+
 include make/module.mk
