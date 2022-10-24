@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain-ver: [12.1.0, 7.5.0]
+        toolchain-ver: [12.2.0, 7.5.0]
         debug: [2, 0]
         project:
           - qemu-virt-arm32-test
