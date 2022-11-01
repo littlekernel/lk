@@ -111,7 +111,16 @@ static int cmd_display_mem(int argc, const console_cmd_args *argv) {
 
     if (argc < 3 && len == 0) {
         printf("not enough arguments\n");
+#if WITH_KERNEL_VM
+        printf("%s [-l] [-b] [-p] [address] [length]\n", argv[0].str);
+#else
         printf("%s [-l] [-b] [address] [length]\n", argv[0].str);
+#endif
+        printf("  -l  little endian\n"
+               "  -b  big endian\n");
+#if WITH_KERNEL_VM
+        printf("  -p  physical address\n");
+#endif
         return -1;
     }
 
@@ -127,11 +136,18 @@ static int cmd_display_mem(int argc, const console_cmd_args *argv) {
     uint byte_order = BYTE_ORDER;
     int argindex = 1;
     bool read_address = false;
+#if WITH_KERNEL_VM
+    bool phy_addr = false;
+#endif
     while (argc > argindex) {
         if (!strcmp(argv[argindex].str, "-l")) {
             byte_order = LITTLE_ENDIAN;
         } else if (!strcmp(argv[argindex].str, "-b")) {
             byte_order = BIG_ENDIAN;
+#if WITH_KERNEL_VM
+        } else if (!strcmp(argv[argindex].str, "-p")) {
+          phy_addr = true;
+#endif
         } else if (!read_address) {
             address = argv[argindex].u;
             read_address = true;
@@ -142,6 +158,11 @@ static int cmd_display_mem(int argc, const console_cmd_args *argv) {
         argindex++;
     }
 
+#if WITH_KERNEL_VM
+    if (phy_addr == true) {
+        address = (unsigned long)paddr_to_kvaddr(address);
+    }
+#endif
     unsigned long stop = address + len;
     int count = 0;
 
@@ -192,10 +213,17 @@ static int cmd_display_mem(int argc, const console_cmd_args *argv) {
 
 static int cmd_modify_mem(int argc, const console_cmd_args *argv) {
     uint32_t size;
+    unsigned long address = 0;
+    unsigned int val = 0;
 
     if (argc < 3) {
         printf("not enough arguments\n");
+#if WITH_KERNEL_VM
+        printf("%s [-p] <address> <val>\n"
+               "  -p  physical address\n", argv[0].str);
+#else
         printf("%s <address> <val>\n", argv[0].str);
+#endif
         return -1;
     }
 
@@ -207,9 +235,35 @@ static int cmd_modify_mem(int argc, const console_cmd_args *argv) {
         size = 1;
     }
 
-    unsigned long address = argv[1].u;
-    unsigned int val = argv[2].u;
+    int argindex = 1;
+    bool read_address = false;
+#if WITH_KERNEL_VM
+    bool phy_addr = false;
+#endif
 
+    while (argc > argindex) {
+#if WITH_KERNEL_VM
+        if (!strcmp(argv[argindex].str, "-p")) {
+            phy_addr = true;
+            argindex++;
+            continue;
+        }
+#endif
+        if (!read_address) {
+            address = argv[argindex].u;
+            read_address = true;
+        } else {
+            val = argv[argindex].u;
+        }
+
+        argindex++;
+    }
+
+#if WITH_KERNEL_VM
+    if (phy_addr == true) {
+        address = (unsigned long)paddr_to_kvaddr(address);
+    }
+#endif
     if ((address & (size - 1)) != 0) {
         printf("unaligned address, cannot modify\n");
         return -1;
