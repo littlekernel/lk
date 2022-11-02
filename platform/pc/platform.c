@@ -259,7 +259,7 @@ void platform_init(void) {
     bool pci_initted = false;
     if (acpi_lite_init(0) == NO_ERROR) {
         if (LOCAL_TRACE) {
-            acpi_lite_dump_tables();
+            acpi_lite_dump_tables(false);
         }
 
         // dump the APIC table
