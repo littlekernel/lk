@@ -243,13 +243,15 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, map_addr_t
             LTRACEF_LEVEL(2, "index %u\n", index);
             if ((table[index] & X86_MMU_PG_P) == 0)
                 return;
-            next_table_addr = X86_PHYS_TO_VIRT(get_pfn_from_pte(table[index]));
-            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
-            break;
-        case PF_L:
-        /* Reached page frame, Let's go back */
-        default:
+
+            /* page frame is present, wipe it out */
+            LTRACEF_LEVEL(2, "writing zero to entry, old val %#x\n", table[index]);
+            table[index] = 0;
+            tlbsync_local(vaddr);
             return;
+        default:
+            // shouldn't recurse this far
+            DEBUG_ASSERT(0);
     }
 
     LTRACEF_LEVEL(2, "recursing\n");
@@ -264,16 +266,14 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, map_addr_t
             if ((next_table_addr[next_level_offset] & X86_MMU_PG_P) != 0)
                 return; /* There is an entry in the next level table */
         }
+        /* All present bits for all entries in next level table for this address are 0, so we
+         * can unlink this page table.
+         */
+        if ((table[index] & X86_MMU_PG_P) != 0) {
+            table[index] = 0;
+            tlbsync_local(vaddr);
+        }
         free(next_table_addr);
-    }
-    /* All present bits for all entries in next level table for this address are 0 */
-    if ((table[index] & X86_MMU_PG_P) != 0) {
-        // TODO: revisit int disable
-        arch_disable_ints();
-        map_addr_t value = table[index];
-        value = value & X86_PTE_NOT_PRESENT;
-        table[index] = value;
-        arch_enable_ints();
     }
 }
 

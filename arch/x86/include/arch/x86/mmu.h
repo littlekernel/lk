@@ -122,6 +122,10 @@ typedef uint32_t arch_flags_t;
 void x86_mmu_early_init(void);
 void x86_mmu_init(void);
 
+static inline void tlbsync_local(vaddr_t address) {
+    asm volatile("invlpg %0" :: "m"(*(uint8_t *)address));
+}
+
 __END_CDECLS
 
 #endif // !ASSEMBLY
