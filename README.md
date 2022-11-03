@@ -1,4 +1,4 @@
-# The Little Kernel Embedded Operating System
+# The Rather Large Kernel Embedded Operating System
 
 The LK kernel is an SMP-aware kernel designed for small systems ported to a variety of platforms and cpu architectures.
 
