@@ -620,7 +620,7 @@ void x86_mmu_early_init(void) {
     if (x86_feature_test(X86_FEATURE_SMEP))
         cr4 |= X86_CR4_SMEP;
     if (x86_feature_test(X86_FEATURE_SMAP))
-        cr4 |=X86_CR4_SMAP;
+        cr4 |= X86_CR4_SMAP;
     x86_set_cr4(cr4);
 
     /* Set NXE bit in MSR_EFER*/

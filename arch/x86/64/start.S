@@ -71,7 +71,7 @@ real_start:
     /* load initial stack pointer */
     movl $PHYS(_kstack + 4096), %esp
 
-    /* We need to jump to our sane 32 bit CS */
+    /* far jump to load the CS from our GDT */
     pushl $CODE_SELECTOR
     pushl $PHYS(.Lfarjump)
     retf
@@ -90,8 +90,9 @@ bss_setup:
     loop 2b
 
 paging_setup:
-    /* Preparing 64 bit paging, we will use 2MB pages covering 1GB
-    for initial bootstrap, this page table will be 1 to 1  */
+    /* Preparing 64 bit paging. We will use 2MB pages covering 1GB
+     * for initial bootstrap, this page table will be 1 to 1.
+     */
 
     /* PAE bit must be enabled  for 64 bit paging*/
     mov %cr4, %eax
@@ -108,17 +109,17 @@ paging_setup:
     orl $EFER_LME,%eax
     wrmsr
 
-    /* Setting the First PML4E with a PDP table reference*/
+    /* Setting the First PML4E with a PDP table reference at index 0 */
     movl $PHYS(kernel_pdp), %eax
     orl  $X86_KERNEL_PD_FLAGS, %eax
     movl %eax, PHYS(kernel_pml4)
 
-    /* Setting the First PDPTE with a Page table reference*/
+    /* Setting the First PDPTE with a Page table reference at index 0 */
     movl $PHYS(kernel_pte), %eax
     orl  $X86_KERNEL_PD_FLAGS, %eax
     movl %eax, PHYS(kernel_pdp)
 
-    /* point the pml4e at the second high PDP (for -2GB mapping) */
+    /* point the pml4e at the second high PDP (for -2GB mapping) at index 511 */
     movl $PHYS(kernel_pdp_high),   %eax
     orl  $X86_KERNEL_PD_FLAGS, %eax
     movl %eax, PHYS(kernel_pml4 + 8*511)
@@ -130,8 +131,8 @@ paging_setup:
 
     /* map the first 1GB in this table */
     movl $PHYS(kernel_pte), %esi
-    movl $0x200, %ecx
-    xor  %eax, %eax
+    movl $0x200, %ecx               /* 512 entries */
+    xor  %eax, %eax                 /* start off at address 0 */
 
 0:
     mov  %eax, %ebx
@@ -140,7 +141,11 @@ paging_setup:
     movl %ebx, (%esi)
     addl $8,%esi
     inc  %eax
-    loop 0b
+    loop 0b                         /* dec ecx and loop while > 0 */
+
+    /* physical [0 ... 1GB] is now be mapped to -2GB (0xffffffff80000000)
+     * using 2MB pages, where the kernel image will reside.
+     */
 
     /* set up a linear map of the first 64GB at 0xffffff8000000000 */
     movl $PHYS(kernel_linear_map_pdp), %esi
@@ -172,15 +177,13 @@ paging_setup:
     addl $4096, %eax
     loop 0b
 
-    /* Enabling Paging and from this point we are in
-    32 bit compatibility mode*/
+    /* Enabling Paging and from this point we are in 32 bit compatibility mode */
     mov %cr0,  %eax
     btsl $(31), %eax
     mov %eax,  %cr0
 
-    /* Using another long jump to be on 64 bit mode
-    after this we will be on real 64 bit mode */
-    pushl $CODE_64_SELECTOR     /*Need to put it in a the right CS*/
+    /* Use a far jump to get into 64bit mode */
+    pushl $CODE_64_SELECTOR
     pushl $PHYS(farjump64)
     retf
 
