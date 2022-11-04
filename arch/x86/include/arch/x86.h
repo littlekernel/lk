@@ -123,30 +123,56 @@ typedef tss_64_t tss_t;
 #endif
 
 /* x86 register bits */
-#define X86_CR0_PE                      0x00000001 /* protected mode enable */
-#define X86_CR0_MP                      0x00000002 /* monitor coprocessor */
-#define X86_CR0_EM                      0x00000004 /* emulation */
-#define X86_CR0_TS                      0x00000008 /* task switched */
-#define X86_CR0_NE                      0x00000020 /* enable x87 exception */
-#define X86_CR0_WP                      0x00010000 /* supervisor write protect */
-#define X86_CR0_NW                      0x20000000 /* not write-through */
-#define X86_CR0_CD                      0x40000000 /* cache disable */
-#define X86_CR0_PG                      0x80000000 /* enable paging */
-#define X86_CR4_PAE                     0x00000020 /* PAE paging */
-#define X86_CR4_PGE                     0x00000080 /* page global enable */
-#define X86_CR4_OSFXSR                  0x00000200 /* os supports fxsave */
-#define X86_CR4_OSXMMEXPT               0x00000400 /* os supports xmm exception */
-#define X86_CR4_UMIP                    0x00000800 /* User-mode instruction prevention */
-#define X86_CR4_VMXE                    0x00002000 /* enable vmx */
-#define X86_CR4_FSGSBASE                0x00010000 /* enable {rd,wr}{fs,gs}base */
-#define X86_CR4_PCIDE                   0x00020000 /* Process-context ID enable  */
-#define X86_CR4_OSXSAVE                 0x00040000 /* os supports xsave */
-#define X86_CR4_SMEP                    0x00100000 /* SMEP protection enabling */
-#define X86_CR4_SMAP                    0x00200000 /* SMAP protection enabling */
-#define X86_EFER_SCE                    0x00000001 /* enable SYSCALL */
-#define X86_EFER_LME                    0x00000100 /* long mode enable */
-#define X86_EFER_LMA                    0x00000400 /* long mode active */
-#define X86_EFER_NXE                    0x00000800 /* to enable execute disable bit */
+#define X86_CR0_PE                      (1U<<0)  /* protected mode enable */
+#define X86_CR0_MP                      (1U<<1)  /* monitor coprocessor */
+#define X86_CR0_EM                      (1U<<2)  /* emulation */
+#define X86_CR0_TS                      (1U<<3)  /* task switched */
+#define X86_CR0_ET                      (1U<<4)  /* extension type */
+#define X86_CR0_NE                      (1U<<5)  /* enable x87 exception */
+#define X86_CR0_WP                      (1U<<16) /* supervisor write protect */
+#define X86_CR0_AM                      (1U<<18) /* alignment mask */
+#define X86_CR0_NW                      (1U<<29) /* not write-through */
+#define X86_CR0_CD                      (1U<<30) /* cache disable */
+#define X86_CR0_PG                      (1U<<31) /* enable paging */
+
+#define X86_CR4_VME                     (1U<<0)  /* Virtual-8086 mode extensions */
+#define X86_CR4_PVI                     (1U<<1)  /* Protected Mode Virtual Interrupts */
+#define X86_CR4_TSD                     (1U<<2)  /* Time stamp disable*/
+#define X86_CR4_DE                      (1U<<3)  /* Debugging extensions */
+#define X86_CR4_PSE                     (1U<<4)  /* Page Size Extensions */
+#define X86_CR4_PAE                     (1U<<5)  /* PAE paging */
+#define X86_CR4_MCE                     (1U<<6)  /* Machine Check Enable */
+#define X86_CR4_PGE                     (1U<<7)  /* Page Global Enable */
+#define X86_CR4_PCE                     (1U<<8)  /* Performance Monitoring Counter Enable */
+#define X86_CR4_OSFXSR                  (1U<<9)  /* os supports fxsave */
+#define X86_CR4_OSXMMEXPT               (1U<<10) /* os supports xmm exception */
+#define X86_CR4_UMIP                    (1U<<11) /* User-mode instruction prevention */
+#define X86_CR4_LA57                    (1U<<12) /* 57-bit Linear Addresses */
+#define X86_CR4_VMXE                    (1U<<13) /* enable vmx */
+#define X86_CR4_SMXE                    (1U<<14) /* enable smx */
+#define X86_CR4_FSGSBASE                (1U<<16) /* enable {rd,wr}{fs,gs}base */
+#define X86_CR4_PCIDE                   (1U<<17) /* Process-context ID enable  */
+#define X86_CR4_OSXSAVE                 (1U<<18) /* os supports xsave */
+#define X86_CR4_KL                      (1U<<19) /* key locker enable */
+#define X86_CR4_SMEP                    (1U<<20) /* SMEP protection enabling */
+#define X86_CR4_SMAP                    (1U<<21) /* SMAP protection enabling */
+#define X86_CR4_PKE                     (1U<<22) /* Enable protection keys for user mode pages */
+#define X86_CR4_CET                     (1U<<23) /* Control flow enforcement */
+#define X86_CR4_PKS                     (1U<<24) /* Enable protection keys for supervisor mode pages */
+
+#define X86_EFER_SCE                    (1U<<0)  /* enable SYSCALL */
+#define X86_EFER_LME                    (1U<<8)  /* long mode enable */
+#define X86_EFER_LMA                    (1U<<10) /* long mode active */
+#define X86_EFER_NXE                    (1U<<11) /* no execute enable */
+#define X86_EFER_SVME                   (1U<<12) /* secure virtual machine enable */
+#define X86_EFER_LMSLE                  (1U<<13) /* long mode segment limit enable */
+#define X86_EFER_FFXSR                  (1U<<14) /* fast fxsave/fxrstor */
+#define X86_EFER_TCE                    (1U<<15) /* translation cache extension */
+#define X86_EFER_MCOMMIT                (1U<<17) /* enable mcommit instruction */
+#define X86_EFER_INTWB                  (1U<<18) /* interrupt wbinvd/wbnoinvd enable */
+#define X86_EFER_UAIE                   (1U<<20) /* upper address ignore enable */
+#define X86_EFER_AIBRSE                 (1U<<20) /* automatic ibrs enable */
+
 #define X86_MSR_IA32_PLATFORM_ID        0x00000017 /* platform id */
 #define X86_MSR_IA32_APIC_BASE          0x0000001b /* APIC base physical address */
 #define X86_MSR_IA32_TSC_ADJUST         0x0000003b /* TSC adjust */
@@ -170,6 +196,9 @@ typedef tss_64_t tss_t;
 #define X86_MSR_IA32_MTRR_FIX4K_F8000   0x0000026f /* MTRR FIX4K_F8000 */
 #define X86_MSR_IA32_PAT                0x00000277 /* PAT */
 #define X86_MSR_IA32_TSC_DEADLINE       0x000006e0 /* TSC deadline */
+#define X86_MSR_IA32_PM_ENABLE          0x00000770 /* enable/disable HWP */
+#define X86_MSR_IA32_HWP_CAPABILITIES   0x00000771 /* HWP performance range enumeration */
+#define X86_MSR_IA32_HWP_REQUEST        0x00000774 /* power manage control hints */
 #define X86_MSR_IA32_EFER               0xc0000080 /* EFER */
 #define X86_MSR_IA32_STAR               0xc0000081 /* system call address */
 #define X86_MSR_IA32_LSTAR              0xc0000082 /* long mode call address */
@@ -179,16 +208,12 @@ typedef tss_64_t tss_t;
 #define X86_MSR_IA32_GS_BASE            0xc0000101 /* gs base address */
 #define X86_MSR_IA32_KERNEL_GS_BASE     0xc0000102 /* kernel gs base */
 #define X86_MSR_IA32_TSC_AUX            0xc0000103 /* TSC aux */
-#define X86_MSR_IA32_PM_ENABLE          0x00000770 /* enable/disable HWP */
-#define X86_MSR_IA32_HWP_CAPABILITIES   0x00000771 /* HWP performance range enumeration */
-#define X86_MSR_IA32_HWP_REQUEST        0x00000774 /* power manage control hints */
-#define X86_CR4_PSE                     0xffffffef /* Disabling PSE bit in the CR4 */
 
 // Non-architectural MSRs
 #define X86_MSR_RAPL_POWER_UNIT         0x00000606 /* RAPL unit multipliers */
 #define X86_MSR_PKG_POWER_LIMIT         0x00000610 /* Package power limits */
-#define X86_MSR_PKG_POWER_LIMIT_PL1_CLAMP   (1 << 16)
-#define X86_MSR_PKG_POWER_LIMIT_PL1_ENABLE  (1 << 15)
+#define X86_MSR_PKG_POWER_LIMIT_PL1_CLAMP   (1U << 16)
+#define X86_MSR_PKG_POWER_LIMIT_PL1_ENABLE  (1U << 15)
 #define X86_MSR_PKG_ENERGY_STATUS       0x00000611 /* Package energy status */
 #define X86_MSR_PKG_POWER_INFO          0x00000614 /* Package power range info */
 #define X86_MSR_DRAM_POWER_LIMIT        0x00000618 /* DRAM RAPL power limit control */
@@ -201,27 +226,27 @@ typedef tss_64_t tss_t;
 #define X86_MSR_PLATFORM_POWER_LIMIT    0x0000065c /* Platform power limit control */
 
 /* EFLAGS/RFLAGS */
-#define X86_FLAGS_CF                    (1<<0)
-#define X86_FLAGS_PF                    (1<<2)
-#define X86_FLAGS_AF                    (1<<4)
-#define X86_FLAGS_ZF                    (1<<6)
-#define X86_FLAGS_SF                    (1<<7)
-#define X86_FLAGS_TF                    (1<<8)
-#define X86_FLAGS_IF                    (1<<9)
-#define X86_FLAGS_DF                    (1<<10)
-#define X86_FLAGS_OF                    (1<<11)
+#define X86_FLAGS_CF                    (1U<<0)
+#define X86_FLAGS_PF                    (1U<<2)
+#define X86_FLAGS_AF                    (1U<<4)
+#define X86_FLAGS_ZF                    (1U<<6)
+#define X86_FLAGS_SF                    (1U<<7)
+#define X86_FLAGS_TF                    (1U<<8)
+#define X86_FLAGS_IF                    (1U<<9)
+#define X86_FLAGS_DF                    (1U<<10)
+#define X86_FLAGS_OF                    (1U<<11)
 #define X86_FLAGS_STATUS_MASK           (0xfff)
-#define X86_FLAGS_IOPL_MASK             (3<<12)
+#define X86_FLAGS_IOPL_MASK             (3U<<12)
 #define X86_FLAGS_IOPL_SHIFT            (12)
-#define X86_FLAGS_NT                    (1<<14)
-#define X86_FLAGS_RF                    (1<<16)
-#define X86_FLAGS_VM                    (1<<17)
-#define X86_FLAGS_AC                    (1<<18)
-#define X86_FLAGS_VIF                   (1<<19)
-#define X86_FLAGS_VIP                   (1<<20)
-#define X86_FLAGS_ID                    (1<<21)
-#define X86_FLAGS_RESERVED_ONES         0x2
-#define X86_FLAGS_RESERVED              0xffc0802a
+#define X86_FLAGS_NT                    (1U<<14)
+#define X86_FLAGS_RF                    (1U<<16)
+#define X86_FLAGS_VM                    (1U<<17)
+#define X86_FLAGS_AC                    (1U<<18)
+#define X86_FLAGS_VIF                   (1U<<19)
+#define X86_FLAGS_VIP                   (1U<<20)
+#define X86_FLAGS_ID                    (1U<<21)
+#define X86_FLAGS_RESERVED_ONES         (0x2)
+#define X86_FLAGS_RESERVED              (0xffc0802a)
 #define X86_FLAGS_USER                  (X86_FLAGS_CF | \
                                          X86_FLAGS_PF | \
                                          X86_FLAGS_AF | \
@@ -468,10 +493,8 @@ static inline void x86_restore_flags(x86_flags_t flags) {
         : "memory", "cc");
 }
 
-#define rdtsc(low,high) \
-     __asm__ __volatile__("rdtsc" : "=a" (low), "=d" (high))
-
-#define rdtscl(low) \
-     __asm__ __volatile__("rdtsc" : "=a" (low) : : "edx")
+static inline void tlbsync_local(vaddr_t address) {
+    asm volatile("invlpg %0" :: "m"(*(uint8_t *)address));
+}
 
 __END_CDECLS

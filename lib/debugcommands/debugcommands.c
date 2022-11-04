@@ -58,6 +58,46 @@ STATIC_COMMAND("sleep", "sleep number of seconds", &cmd_sleep)
 STATIC_COMMAND("sleepm", "sleep number of milliseconds", &cmd_sleep)
 STATIC_COMMAND_END(mem);
 
+#define EXIT_IF_NOT_MAPPED(address) \
+    do { \
+      if (vaddr_to_paddr((void *)address) == 0) { \
+        printf("ERROR: address 0x%lx is unmapped\n", address); \
+        return -1; \
+      } \
+    } while (0)
+
+#if WITH_KERNEL_VM
+/*
+ * Checks if the address requested is mapped. Mapping is checked at page level,
+ * in the address range make sure all the pages are mapped.
+ * Adjust stop address to last mapped address in the range.
+ */
+static int check_address_mapped(unsigned long start, unsigned long *stop) {
+    unsigned long page_curr;
+    if (stop == NULL) {
+      return -1;
+    }
+    page_curr = ROUNDDOWN(start, PAGE_SIZE);
+
+    /* if the first page itself unmapped, return error */
+    EXIT_IF_NOT_MAPPED(page_curr);
+
+    /* check rest of the pages */
+    page_curr += PAGE_SIZE;
+    while (page_curr < *stop) {
+      if (vaddr_to_paddr((void *)page_curr) == 0) {
+        /* there is an unmpaeed page in the range, adjust stop */
+        *stop = page_curr; /* don't access beyond this */
+        printf("INFO: access truncated to 0x%lx as no further mapping\n", *stop);
+        /* this ain't an error, the requested len is not mapped */
+        return 0;
+      }
+      page_curr += PAGE_SIZE;
+    }
+    return 0;
+}
+#endif
+
 static int cmd_display_mem(int argc, const console_cmd_args *argv) {
     /* save the last address and len so we can continue where we left off */
     static unsigned long address;
@@ -78,7 +118,7 @@ static int cmd_display_mem(int argc, const console_cmd_args *argv) {
         return -1;
     }
 
-    int size;
+    uint32_t size;
     if (strcmp(argv[0].str, "dw") == 0) {
         size = 4;
     } else if (strcmp(argv[0].str, "dh") == 0) {
@@ -126,11 +166,8 @@ static int cmd_display_mem(int argc, const console_cmd_args *argv) {
     }
 
 #if WITH_KERNEL_VM
-    /* preflight the start address to see if it's mapped */
-    if (vaddr_to_paddr((void *)address) == 0) {
-        printf("ERROR: address 0x%lx is unmapped\n", address);
-        return -1;
-    }
+    if (check_address_mapped(address, &stop))
+      return -1;
 #endif
 
     for ( ; address < stop; address += size) {
@@ -169,7 +206,7 @@ static int cmd_display_mem(int argc, const console_cmd_args *argv) {
 }
 
 static int cmd_modify_mem(int argc, const console_cmd_args *argv) {
-    int size;
+    uint32_t size;
     unsigned long address = 0;
     unsigned int val = 0;
 
@@ -226,6 +263,11 @@ static int cmd_modify_mem(int argc, const console_cmd_args *argv) {
         return -1;
     }
 
+#if WITH_KERNEL_VM
+    /* preflight the page start address to see if it's mapped */
+    EXIT_IF_NOT_MAPPED(ROUNDDOWN(address, PAGE_SIZE));
+#endif
+
     switch (size) {
         case 4:
             *(uint32_t *)address = (uint32_t)val;
@@ -242,7 +284,7 @@ static int cmd_modify_mem(int argc, const console_cmd_args *argv) {
 }
 
 static int cmd_fill_mem(int argc, const console_cmd_args *argv) {
-    int size;
+    uint32_t size;
 
     if (argc < 4) {
         printf("not enough arguments\n");
@@ -267,6 +309,11 @@ static int cmd_fill_mem(int argc, const console_cmd_args *argv) {
         printf("unaligned address, cannot modify\n");
         return -1;
     }
+
+#if WITH_KERNEL_VM
+    if (check_address_mapped(address, &stop))
+      return -1;
+#endif
 
     for ( ; address < stop; address += size) {
         switch (size) {

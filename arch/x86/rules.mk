@@ -2,6 +2,8 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
+MODULE_OPTIONS := extra_warnings
+
 # x86 code always runs with the mmu enabled
 WITH_KERNEL_VM := 1
 

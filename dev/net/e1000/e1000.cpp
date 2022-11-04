@@ -48,6 +48,15 @@ const e1000_id_features e1000_ids[] = {
 // 0x1537
 // 0x1538
 
+// i219 ids
+// 0x156f
+// 0x1570
+//    soc integrated versions?
+// 0x1a1c // i219-LM (17)
+// 0x1a1d // i219-V  (17)
+// 0x1a1e // i219-LM (16)
+// 0x1a1f // i219-V  (16)
+
 
 class e1000 {
 public:
