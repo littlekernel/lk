@@ -134,9 +134,9 @@ void platform_early_init(void) {
     }
 
 #if WITH_KERNEL_VM
-    /* reserve the first 256K of ram which is marked protected by the PMP in firmware */
+    /* reserve the first 512K of ram which is marked protected by the PMP in firmware */
     struct list_node list = LIST_INITIAL_VALUE(list);
-    pmm_alloc_range(MEMBASE, 0x40000 / PAGE_SIZE, &list);
+    pmm_alloc_range(MEMBASE, 0x80000 / PAGE_SIZE, &list);
 #endif
 
     LTRACEF("done scanning FDT\n");
