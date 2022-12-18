@@ -71,6 +71,27 @@ static void memcallback(uint64_t base, uint64_t len, void *cookie) {
     }
 }
 
+struct reserved_memory_regions {
+    size_t count;
+
+    struct {
+        uint64_t base;
+        uint64_t len;
+    } regions[16];
+};
+
+static void reserved_memory_callback(uint64_t base, uint64_t len, void *cookie) {
+    struct reserved_memory_regions *mem = cookie;
+
+    LTRACEF("base %#llx len %#llx\n", base, len);
+
+    if (mem->count < countof(mem->regions)) {
+        mem->regions[mem->count].base = base;
+        mem->regions[mem->count].len = len;
+        mem->count++;
+    }
+}
+
 static void cpucallback(uint64_t id, void *cookie) {
     int *cpu_count = (int *)cookie;
 
@@ -82,7 +103,6 @@ static void cpucallback(uint64_t id, void *cookie) {
 struct pcie_detect_state {
     struct fdt_walk_pcie_info info;
 } pcie_state;
-
 
 static void pciecallback(const struct fdt_walk_pcie_info *info, void *cookie) {
     struct pcie_detect_state *state = cookie;
@@ -99,6 +119,8 @@ void platform_early_init(void) {
     /* look for a flattened device tree in the second arg passed to us */
     bool found_mem = false;
     int cpu_count = 0;
+    struct reserved_memory_regions reserved = {0};
+
     const void *fdt = (void *)lk_boot_args[1];
 #if WITH_KERNEL_VM
     fdt = (const void *)((uintptr_t)fdt + PERIPHERAL_BASE_VIRT);
@@ -107,6 +129,8 @@ void platform_early_init(void) {
     struct fdt_walk_callbacks cb = {
         .mem = memcallback,
         .memcookie = &found_mem,
+        .reserved_memory = reserved_memory_callback,
+        .reserved_memory_cookie = &reserved,
         .cpu = cpucallback,
         .cpucookie = &cpu_count,
         .pcie = pciecallback,
@@ -120,6 +144,7 @@ void platform_early_init(void) {
         printf("FDT: error finding FDT at %p, using default memory & cpu count\n", fdt);
     }
 
+    /* add a default memory region if we didn't find it in the FDT */
     if (!found_mem) {
 #if WITH_KERNEL_VM
         pmm_add_arena(&arena);
@@ -128,16 +153,20 @@ void platform_early_init(void) {
 #endif
     }
 
+#if WITH_KERNEL_VM
+    /* reserve memory described by the FDT */
+    for (size_t i = 0; i < reserved.count; i++) {
+        printf("FDT: reserving memory range [%#llx ... %#llx]\n",
+                reserved.regions[i].base, reserved.regions[i].base + reserved.regions[i].len - 1);
+        struct list_node list = LIST_INITIAL_VALUE(list);
+        pmm_alloc_range(reserved.regions[i].base, reserved.regions[i].len / PAGE_SIZE, &list);
+    }
+#endif
+
     if (cpu_count > 0) {
-        printf("FDT: found %d cpus\n", cpu_count);
+        printf("FDT: found %d cpu%c\n", cpu_count, cpu_count == 1 ? ' ' : 's');
         riscv_set_secondary_count(cpu_count - 1);
     }
-
-#if WITH_KERNEL_VM
-    /* reserve the first 512K of ram which is marked protected by the PMP in firmware */
-    struct list_node list = LIST_INITIAL_VALUE(list);
-    pmm_alloc_range(MEMBASE, 0x80000 / PAGE_SIZE, &list);
-#endif
 
     LTRACEF("done scanning FDT\n");
 
