@@ -338,6 +338,14 @@ status_t device::load_bars() {
         return ERR_NOT_SUPPORTED;
     }
 
+    // Disable IO and MEM decoding around BAR detection, as we fiddle with
+    // BAR addresses themselves for length detection.
+    // This behavior is recommended by the PCI Local Bus Specification.
+
+    uint16_t command;
+    pci_read_config_half(loc(), PCI_CONFIG_COMMAND, &command);
+    pci_write_config_half(loc(), PCI_CONFIG_COMMAND, command & ~(PCI_COMMAND_IO_EN | PCI_COMMAND_MEM_EN));
+
     for (size_t i=0; i < num_bars; i++) {
         bars_[i] = {};
         uint64_t bar_addr = config_.type0.base_addresses[i];
@@ -410,6 +418,9 @@ status_t device::load_bars() {
             bars_[i] = {}; // clears the valid bit
         }
     }
+
+    // Restore any IO and MEM decoding that was enabled before
+    pci_write_config_half(loc(), PCI_CONFIG_COMMAND, command);
 
     return NO_ERROR;
 }
