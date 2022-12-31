@@ -550,18 +550,21 @@ status_t device::assign_resource(bar_alloc_request *request, uint64_t address) {
 
     DEBUG_ASSERT(IS_ALIGNED(address, (1UL << request->align)));
 
+    // Note: When assigning the resource, we don't bother setting the bottom bits
+    // as those are hardwired per the spec.
+
     uint32_t temp;
     switch (request->type) {
         case PCI_RESOURCE_IO_RANGE:
-            temp = (address & 0xfffc); // XXX do we need to write the bottom bits?
+            temp = (address & 0xfffc);
             pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4, temp);
             break;
         case PCI_RESOURCE_MMIO_RANGE:
-            temp = (address & 0xfffffff0); // XXX do we need to write the bottom bits?
+            temp = (address & 0xfffffff0);
             pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4, temp);
             break;
         case PCI_RESOURCE_MMIO64_RANGE:
-            temp = (address & 0xfffffff0); // XXX do we need to write the bottom bits?
+            temp = (address & 0xfffffff0);
             pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4, temp);
             temp = address >> 32;
             pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4 + 4, temp);
