@@ -584,14 +584,22 @@ tcp_process(struct tcp_pcb *pcb)
   if (flags & TCP_RST) {
     /* First, determine if the reset is acceptable. */
     if (pcb->state == SYN_SENT) {
+      /* "In the SYN-SENT state (a RST received in response to an initial SYN),
+          the RST is acceptable if the ACK field acknowledges the SYN." */
       if (ackno == pcb->snd_nxt) {
         acceptable = 1;
       }
     } else {
-      if (TCP_SEQ_BETWEEN(seqno, pcb->rcv_nxt, 
-                          pcb->rcv_nxt+pcb->rcv_wnd)) {
+      /* "In all states except SYN-SENT, all reset (RST) segments are validated
+      		by checking their SEQ-fields." */
+      if (seqno == pcb->rcv_nxt) {
         acceptable = 1;
-      }
+      } else if (TCP_SEQ_BETWEEN(seqno, pcb->rcv_nxt, pcb->rcv_nxt + pcb->rcv_wnd)) {
+        /* If the sequence number is inside the window, we only send an ACK
+        and wait for a re-send with matching sequence number.
+        This violates RFC 793, but is required to protection against
+        CVE-2004-0230 (RST spoofing attack). */
+        tcp_ack_now(pcb);
     }
 
     if (acceptable) {
