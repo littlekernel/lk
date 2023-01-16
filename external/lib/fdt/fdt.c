@@ -22,6 +22,10 @@ int32_t fdt_ro_probe_(const void *fdt)
 	if (can_assume(VALID_DTB))
 		return totalsize;
 
+	/* The device tree must be at an 8-byte aligned address */
+	if ((uintptr_t)fdt & 7)
+		return -FDT_ERR_ALIGNMENT;
+
 	if (fdt_magic(fdt) == FDT_MAGIC) {
 		/* Complete tree */
 		if (!can_assume(LATEST)) {
@@ -86,6 +90,10 @@ int fdt_check_header(const void *fdt)
 {
 	size_t hdrsize;
 
+	/* The device tree must be at an 8-byte aligned address */
+	if ((uintptr_t)fdt & 7)
+		return -FDT_ERR_ALIGNMENT;
+
 	if (fdt_magic(fdt) != FDT_MAGIC)
 		return -FDT_ERR_BADMAGIC;
 	if (!can_assume(LATEST)) {
@@ -98,7 +106,6 @@ int fdt_check_header(const void *fdt)
 	}
 	hdrsize = fdt_header_size(fdt);
 	if (!can_assume(VALID_DTB)) {
-
 		if ((fdt_totalsize(fdt) < hdrsize)
 		    || (fdt_totalsize(fdt) > INT_MAX))
 			return -FDT_ERR_TRUNCATED;
@@ -107,9 +114,7 @@ int fdt_check_header(const void *fdt)
 		if (!check_off_(hdrsize, fdt_totalsize(fdt),
 				fdt_off_mem_rsvmap(fdt)))
 			return -FDT_ERR_TRUNCATED;
-	}
 
-	if (!can_assume(VALID_DTB)) {
 		/* Bounds check structure block */
 		if (!can_assume(LATEST) && fdt_version(fdt) < 17) {
 			if (!check_off_(hdrsize, fdt_totalsize(fdt),
@@ -134,16 +139,20 @@ int fdt_check_header(const void *fdt)
 
 const void *fdt_offset_ptr(const void *fdt, int offset, unsigned int len)
 {
-	unsigned absoffset = offset + fdt_off_dt_struct(fdt);
+	unsigned int uoffset = offset;
+	unsigned int absoffset = offset + fdt_off_dt_struct(fdt);
+
+	if (offset < 0)
+		return NULL;
 
 	if (!can_assume(VALID_INPUT))
-		if ((absoffset < offset)
+		if ((absoffset < uoffset)
 		    || ((absoffset + len) < absoffset)
 		    || (absoffset + len) > fdt_totalsize(fdt))
 			return NULL;
 
 	if (can_assume(LATEST) || fdt_version(fdt) >= 0x11)
-		if (((offset + len) < offset)
+		if (((uoffset + len) < uoffset)
 		    || ((offset + len) > fdt_size_dt_struct(fdt)))
 			return NULL;
 
@@ -153,7 +162,7 @@ const void *fdt_offset_ptr(const void *fdt, int offset, unsigned int len)
 uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 {
 	const fdt32_t *tagp, *lenp;
-	uint32_t tag;
+	uint32_t tag, len, sum;
 	int offset = startoffset;
 	const char *p;
 
@@ -179,12 +188,19 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 		lenp = fdt_offset_ptr(fdt, offset, sizeof(*lenp));
 		if (!can_assume(VALID_DTB) && !lenp)
 			return FDT_END; /* premature end */
+
+		len = fdt32_to_cpu(*lenp);
+		sum = len + offset;
+		if (!can_assume(VALID_DTB) &&
+		    (INT_MAX <= sum || sum < (uint32_t) offset))
+			return FDT_END; /* premature end */
+
 		/* skip-name offset, length and value */
-		offset += sizeof(struct fdt_property) - FDT_TAGSIZE
-			+ fdt32_to_cpu(*lenp);
+		offset += sizeof(struct fdt_property) - FDT_TAGSIZE + len;
+
 		if (!can_assume(LATEST) &&
-		    fdt_version(fdt) < 0x10 && fdt32_to_cpu(*lenp) >= 8 &&
-		    ((offset - fdt32_to_cpu(*lenp)) % 8) != 0)
+		    fdt_version(fdt) < 0x10 && len >= 8 &&
+		    ((offset - len) % 8) != 0)
 			offset += 4;
 		break;
 
@@ -206,10 +222,11 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 
 int fdt_check_node_offset_(const void *fdt, int offset)
 {
-	if (can_assume(VALID_INPUT))
-		return offset;
-	if ((offset < 0) || (offset % FDT_TAGSIZE)
-	    || (fdt_next_tag(fdt, offset, &offset) != FDT_BEGIN_NODE))
+	if (!can_assume(VALID_INPUT)
+	    && ((offset < 0) || (offset % FDT_TAGSIZE)))
+		return -FDT_ERR_BADOFFSET;
+
+	if (fdt_next_tag(fdt, offset, &offset) != FDT_BEGIN_NODE)
 		return -FDT_ERR_BADOFFSET;
 
 	return offset;
@@ -217,8 +234,11 @@ int fdt_check_node_offset_(const void *fdt, int offset)
 
 int fdt_check_prop_offset_(const void *fdt, int offset)
 {
-	if ((offset < 0) || (offset % FDT_TAGSIZE)
-	    || (fdt_next_tag(fdt, offset, &offset) != FDT_PROP))
+	if (!can_assume(VALID_INPUT)
+	    && ((offset < 0) || (offset % FDT_TAGSIZE)))
+		return -FDT_ERR_BADOFFSET;
+
+	if (fdt_next_tag(fdt, offset, &offset) != FDT_PROP)
 		return -FDT_ERR_BADOFFSET;
 
 	return offset;
@@ -306,9 +326,12 @@ const char *fdt_find_string_(const char *strtab, int tabsize, const char *s)
 
 int fdt_move(const void *fdt, void *buf, int bufsize)
 {
+	if (!can_assume(VALID_INPUT) && bufsize < 0)
+		return -FDT_ERR_NOSPACE;
+
 	FDT_RO_PROBE(fdt);
 
-	if (fdt_totalsize(fdt) > bufsize)
+	if (fdt_totalsize(fdt) > (unsigned int)bufsize)
 		return -FDT_ERR_NOSPACE;
 
 	memmove(buf, fdt, fdt_totalsize(fdt));

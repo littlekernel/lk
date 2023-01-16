@@ -19,8 +19,11 @@ int fdt_check_full(const void *fdt, size_t bufsize)
 	unsigned int depth = 0;
 	const void *prop;
 	const char *propname;
+	bool expect_end = false;
 
 	if (bufsize < FDT_V1_SIZE)
+		return -FDT_ERR_TRUNCATED;
+	if (bufsize < fdt_header_size(fdt))
 		return -FDT_ERR_TRUNCATED;
 	err = fdt_check_header(fdt);
 	if (err != 0)
@@ -39,6 +42,10 @@ int fdt_check_full(const void *fdt, size_t bufsize)
 		if (nextoffset < 0)
 			return nextoffset;
 
+		/* If we see two root nodes, something is wrong */
+		if (expect_end && tag != FDT_END)
+			return -FDT_ERR_BADSTRUCTURE;
+
 		switch (tag) {
 		case FDT_NOP:
 			break;
@@ -52,12 +59,27 @@ int fdt_check_full(const void *fdt, size_t bufsize)
 			depth++;
 			if (depth > INT_MAX)
 				return -FDT_ERR_BADSTRUCTURE;
+
+			/* The root node must have an empty name */
+			if (depth == 1) {
+				const char *name;
+				int len;
+
+				name = fdt_get_name(fdt, offset, &len);
+				if (!name)
+					return len;
+
+				if (*name || len)
+					return -FDT_ERR_BADSTRUCTURE;
+			}
 			break;
 
 		case FDT_END_NODE:
 			if (depth == 0)
 				return -FDT_ERR_BADSTRUCTURE;
 			depth--;
+			if (depth == 0)
+				expect_end = true;
 			break;
 
 		case FDT_PROP:
