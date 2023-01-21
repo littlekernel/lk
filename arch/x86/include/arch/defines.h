@@ -16,3 +16,10 @@
 #define ARCH_DEFAULT_STACK_SIZE 8192
 #define DEFAULT_TSS 4096
 
+/* based on how start.S sets up the physmap */
+#if ARCH_X86_64
+#define PHYSMAP_SIZE (64ULL*GB)
+#elif ARCH_X86_32
+#define PHYSMAP_SIZE (1ULL*GB)
+#endif
+

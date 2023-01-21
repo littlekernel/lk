@@ -120,7 +120,7 @@ static status_t x86_mmu_get_mapping(map_addr_t * const init_table, const vaddr_t
     }
 
     /* 4 KB pages */
-    map_addr_t * const pt = X86_PHYS_TO_VIRT(get_pfn_from_pte(pde));
+    map_addr_t * const pt = paddr_to_kvaddr(get_pfn_from_pte(pde));
     const map_addr_t pte = get_pt_entry_from_page_table(vaddr, pt);
     LTRACEF("pte %#x\n", pte);
     if ((pte & X86_MMU_PG_P) == 0) {
@@ -167,12 +167,22 @@ static void update_pd_entry(const vaddr_t vaddr, map_addr_t * const pd_table, co
 /**
  * @brief Allocating a new page table
  */
-static map_addr_t *_map_alloc_page(void) {
-    map_addr_t *page_ptr = pmm_alloc_kpage();
+static map_addr_t *alloc_page_table(paddr_t *pa_out) {
+    vm_page_t *page = pmm_alloc_page();
+    if (!page) {
+        return NULL;
+    }
+
+    paddr_t pa = vm_page_to_paddr(page);
+    DEBUG_ASSERT(pa != (paddr_t)-1);
+
+    map_addr_t *page_ptr = paddr_to_kvaddr(pa);
     DEBUG_ASSERT(page_ptr);
 
-    if (page_ptr)
-        memset(page_ptr, 0, PAGE_SIZE);
+    memset(page_ptr, 0, PAGE_SIZE);
+    if (pa_out) {
+        *pa_out = pa;
+    }
 
     return page_ptr;
 }
@@ -198,19 +208,19 @@ static status_t x86_mmu_add_mapping(map_addr_t * const init_table, const map_add
     const map_addr_t pte = get_pd_entry_from_pd_table(vaddr, init_table);
     if ((pte & X86_MMU_PG_P) == 0) {
         /* Creating a new pt */
-        map_addr_t *m  = _map_alloc_page();
+        paddr_t pd_paddr;
+        map_addr_t *m  = alloc_page_table(&pd_paddr);
         if (m == NULL) {
             ret = ERR_NO_MEMORY;
             goto clean;
         }
 
-        paddr_t pd_paddr = vaddr_to_paddr(m);
         DEBUG_ASSERT(pd_paddr);
 
         update_pd_entry(vaddr, init_table, pd_paddr, get_x86_arch_flags(mmu_flags));
         pt = m;
     } else {
-        pt = X86_PHYS_TO_VIRT(get_pfn_from_pte(pte));
+        pt = paddr_to_kvaddr(get_pfn_from_pte(pte));
     }
 
     /* Updating the page table entry with the paddr and access flags required for the mapping */
@@ -229,13 +239,15 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, map_addr_t
 
     uint32_t index = 0;
     map_addr_t *next_table_addr = NULL;
+    paddr_t next_table_pa = 0;
     switch (level) {
         case PD_L:
             index = ((vaddr >> PD_SHIFT) & ((1 << ADDR_OFFSET) - 1));
             LTRACEF_LEVEL(2, "index %u\n", index);
             if ((table[index] & X86_MMU_PG_P) == 0)
                 return;
-            next_table_addr = X86_PHYS_TO_VIRT(get_pfn_from_pte(table[index]));
+            next_table_pa = get_pfn_from_pte(table[index]);
+            next_table_addr = paddr_to_kvaddr(next_table_pa);
             LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
             break;
         case PT_L:
@@ -243,13 +255,15 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, map_addr_t
             LTRACEF_LEVEL(2, "index %u\n", index);
             if ((table[index] & X86_MMU_PG_P) == 0)
                 return;
-            next_table_addr = X86_PHYS_TO_VIRT(get_pfn_from_pte(table[index]));
-            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
-            break;
-        case PF_L:
-        /* Reached page frame, Let's go back */
-        default:
+
+            /* page frame is present, wipe it out */
+            LTRACEF_LEVEL(2, "writing zero to entry, old val %#x\n", table[index]);
+            table[index] = 0;
+            tlbsync_local(vaddr);
             return;
+        default:
+            // shouldn't recurse this far
+            DEBUG_ASSERT(0);
     }
 
     LTRACEF_LEVEL(2, "recursing\n");
@@ -264,16 +278,14 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, map_addr_t
             if ((next_table_addr[next_level_offset] & X86_MMU_PG_P) != 0)
                 return; /* There is an entry in the next level table */
         }
-        free(next_table_addr);
-    }
-    /* All present bits for all entries in next level table for this address are 0 */
-    if ((table[index] & X86_MMU_PG_P) != 0) {
-        // TODO: revisit int disable
-        arch_disable_ints();
-        map_addr_t value = table[index];
-        value = value & X86_PTE_NOT_PRESENT;
-        table[index] = value;
-        arch_enable_ints();
+        /* All present bits for all entries in next level table for this address are 0, so we
+         * can unlink this page table.
+         */
+        if ((table[index] & X86_MMU_PG_P) != 0) {
+            table[index] = 0;
+            tlbsync_local(vaddr);
+        }
+        pmm_free_page(paddr_to_vm_page(next_table_pa));
     }
 }
 
@@ -312,7 +324,7 @@ int arch_mmu_unmap(arch_aspace_t * const aspace, const vaddr_t vaddr, const uint
     DEBUG_ASSERT(x86_get_cr3());
     init_table_from_cr3 = x86_get_cr3();
 
-    return (x86_mmu_unmap(X86_PHYS_TO_VIRT(init_table_from_cr3), vaddr, count));
+    return (x86_mmu_unmap(paddr_to_kvaddr(init_table_from_cr3), vaddr, count));
 }
 
 /**
@@ -365,7 +377,7 @@ status_t arch_mmu_query(arch_aspace_t * const aspace, const vaddr_t vaddr, paddr
 
     arch_flags_t ret_flags;
     uint32_t ret_level;
-    status_t stat = x86_mmu_get_mapping(X86_PHYS_TO_VIRT(current_cr3_val), vaddr, &ret_level, &ret_flags, paddr);
+    status_t stat = x86_mmu_get_mapping(paddr_to_kvaddr(current_cr3_val), vaddr, &ret_level, &ret_flags, paddr);
     if (stat)
         return stat;
 
@@ -400,7 +412,7 @@ int arch_mmu_map(arch_aspace_t * const aspace, const vaddr_t vaddr, const paddr_
     range.start_paddr = (map_addr_t)paddr;
     range.size = count * PAGE_SIZE;
 
-    return (x86_mmu_map_range(X86_PHYS_TO_VIRT(current_cr3_val), &range, flags));
+    return (x86_mmu_map_range(paddr_to_kvaddr(current_cr3_val), &range, flags));
 }
 
 bool arch_mmu_supports_nx_mappings(void) { return false; }

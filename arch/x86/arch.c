@@ -16,9 +16,38 @@
 #include <arch/x86/feature.h>
 #include <arch/fpu.h>
 #include <arch/mmu.h>
+#include <kernel/vm.h>
 #include <platform.h>
 #include <sys/types.h>
 #include <string.h>
+
+/* Describe how start.S sets up the MMU.
+ * These data structures are later used by vm routines to lookup pointers
+ * to physical pages based on physical addresses.
+ */
+struct mmu_initial_mapping mmu_initial_mappings[] = {
+#if ARCH_X86_64
+    /* 64GB of memory mapped where the kernel lives */
+    {
+        .phys = MEMBASE,
+        .virt = KERNEL_ASPACE_BASE,
+        .size = PHYSMAP_SIZE, /* x86-64 maps first 64GB by default, 1GB on x86-32 */
+        .flags = 0,
+        .name = "physmap"
+    },
+#endif
+    /* 1GB of memory mapped where the kernel lives */
+    {
+        .phys = MEMBASE,
+        .virt = KERNEL_BASE,
+        .size = 1*GB, /* x86 maps first 1GB by default */
+        .flags = 0,
+        .name = "kernel"
+    },
+
+    /* null entry to terminate the list */
+    { 0 }
+};
 
 /* early stack */
 uint8_t _kstack[PAGE_SIZE] __ALIGNED(sizeof(unsigned long));

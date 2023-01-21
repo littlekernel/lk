@@ -45,7 +45,7 @@ static void mark_pages_in_use(vaddr_t va, size_t len) {
         if (err >= 0) {
             //LTRACEF("va 0x%x, pa 0x%x, flags 0x%x, err %d\n", va + offset, pa, flags, err);
 
-            /* alloate the range, throw the results away */
+            /* allocate the range, throw the results away */
             pmm_alloc_range(pa, 1, &list);
         } else {
             panic("Could not find pa for va 0x%lx\n", va);
@@ -93,7 +93,10 @@ void *kvaddr_get_range(size_t *size_return) {
 }
 
 void *paddr_to_kvaddr(paddr_t pa) {
-    /* slow path to do reverse lookup */
+    /* find the mapping of an address in the initial mappings as set up by the
+     * arch or platform layers. Any mapping not marked temporary can serve as a
+     * hit to return a pointer.
+     */
     struct mmu_initial_mapping *map = mmu_initial_mappings;
     while (map->size > 0) {
         if (!(map->flags & MMU_INITIAL_MAPPING_TEMPORARY) &&

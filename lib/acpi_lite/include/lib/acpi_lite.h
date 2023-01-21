@@ -8,6 +8,7 @@
 
 #include <lib/acpi_lite/structs.h>
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <lk/compiler.h>
 #include <assert.h>
@@ -15,10 +16,9 @@
 __BEGIN_CDECLS
 
 status_t acpi_lite_init(paddr_t rsdt);
-void acpi_lite_dump_tables(void);
+void acpi_lite_dump_tables(bool full_dump);
 
 const struct acpi_sdt_header* acpi_get_table_by_sig(const char* sig);
-const struct acpi_sdt_header* acpi_get_table_at_index(size_t index);
 
 // A routine to iterate over all the MADT entries of a particular type via a callback
 //using MadtEntryCallback = fbl::Function<void(const void* entry, size_t entry_len)>;

@@ -51,40 +51,6 @@ extern uint64_t __data_end;
 extern uint64_t __bss_start;
 extern uint64_t __bss_end;
 
-#if ARCH_X86_64
-#define MAX_PHYSICAL_RAM (64ULL*GB)
-#elif ARCH_X86_32
-#define MAX_PHYSICAL_RAM (1ULL*GB)
-#endif
-
-/* Instruct start.S how to set up the initial kernel address space.
- * These data structures are later used by vm routines to lookup pointers
- * to physical pages based on physical addresses.
- */
-struct mmu_initial_mapping mmu_initial_mappings[] = {
-#if ARCH_X86_64
-    /* 64GB of memory mapped where the kernel lives */
-    {
-        .phys = MEMBASE,
-        .virt = KERNEL_ASPACE_BASE,
-        .size = MAX_PHYSICAL_RAM, /* x86-64 maps first 64GB by default */
-        .flags = 0,
-        .name = "physmap"
-    },
-#endif
-    /* 1GB of memory mapped where the kernel lives */
-    {
-        .phys = MEMBASE,
-        .virt = KERNEL_BASE,
-        .size = 1*GB, /* x86 maps first 1GB by default */
-        .flags = 0,
-        .name = "kernel"
-    },
-
-    /* null entry to terminate the list */
-    { 0 }
-};
-
 /* based on multiboot (or other methods) we support up to 16 arenas */
 #define NUM_ARENAS 16
 static pmm_arena_t mem_arena[NUM_ARENAS];
@@ -145,16 +111,18 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
                     continue;
                 }
 
-                /* ignore everything that extends past max memory */
-                if (base >= MAX_PHYSICAL_RAM) {
+                /* ignore everything that extends past the size PHYSMAP maps into the kernel.
+                 * see arch/x86/arch.c mmu_initial_mappings
+                 */
+                if (base >= PHYSMAP_SIZE) {
                     continue;
                 }
                 uint64_t end = base + length;
-                if (end > MAX_PHYSICAL_RAM) {
-                    end = MAX_PHYSICAL_RAM;
+                if (end > PHYSMAP_SIZE) {
+                    end = PHYSMAP_SIZE;
                     DEBUG_ASSERT(end > base);
                     length = end - base;
-                    dprintf(INFO, "PC: trimmed memory to %" PRIu64 " bytes\n", MAX_PHYSICAL_RAM);
+                    dprintf(INFO, "PC: trimmed memory to %" PRIu64 " bytes\n", PHYSMAP_SIZE);
                 }
 
                 /* initialize a new pmm arena */
@@ -259,7 +227,7 @@ void platform_init(void) {
     bool pci_initted = false;
     if (acpi_lite_init(0) == NO_ERROR) {
         if (LOCAL_TRACE) {
-            acpi_lite_dump_tables();
+            acpi_lite_dump_tables(false);
         }
 
         // dump the APIC table
