@@ -43,6 +43,40 @@ static void read_address_size_cells(const void *fdt, int offset, int depth,
     LTRACEF_LEVEL(3, "address-cells %u size-cells %u\n", address_cells[depth], size_cells[depth]);
 }
 
+static status_t read_base_len_pair(const uint8_t *prop_ptr, size_t prop_len,
+                                   size_t address_cell_size, size_t size_cell_size,
+                                   uint64_t *base, uint64_t *len) {
+    *base = 0;
+    *len = 0;
+
+    /* we're looking at a memory descriptor */
+    if (address_cell_size == 2 && prop_len >= 8) {
+        *base = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+        prop_ptr += 8;
+        prop_len -= 8;
+    } else if (address_cell_size == 1 && prop_len >= 4) {
+        *base = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+        prop_ptr += 4;
+        prop_len -= 4;
+    } else {
+        return ERR_NOT_IMPLEMENTED;
+    }
+
+    if (size_cell_size == 2 && prop_len >= 8) {
+        *len = fdt64_to_cpu(*((const uint64_t *)prop_ptr));
+        prop_ptr += 8;
+        prop_len -= 8;
+    } else if (size_cell_size == 1 && prop_len >= 4) {
+        *len = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+        prop_ptr += 4;
+        prop_len -= 4;
+    } else {
+        return ERR_NOT_IMPLEMENTED;
+    }
+
+    return NO_ERROR;
+}
+
 status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
     int err = fdt_check_header(fdt);
     if (err != 0) {
@@ -54,6 +88,9 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
     int offset = 0;
     uint32_t address_cells[MAX_DEPTH];
     uint32_t size_cells[MAX_DEPTH];
+
+    /* if >= 0, we're inside /reserved-memory */
+    int reserved_memory_depth = -1;
 
     /* read the address/size cells properties at the root, if present */
     address_cells[0] = 2;
@@ -90,39 +127,66 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
                       name, depth, address_cells[depth], size_cells[depth]);
 
         /* look for the 'memory@*' property */
-        if (strncmp(name, "memory@", 7) == 0 && depth == 1) {
+        if (cb->mem && strncmp(name, "memory@", 7) == 0 && depth == 1) {
             int lenp;
             const uint8_t *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
                               address_cells[depth], size_cells[depth]);
                 /* we're looking at a memory descriptor */
-                uint64_t base = 0;
-                uint64_t len = 0;
-                if (address_cells[depth] == 2 && lenp >= 8) {
-                    base = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
-                    prop_ptr += 8;
-                    lenp -= 8;
+                uint64_t base;
+                uint64_t len;
+                err = read_base_len_pair(prop_ptr, lenp, address_cells[depth], size_cells[depth], &base, &len);
+                if (err != NO_ERROR) {
+                    TRACEF("error reading base/length from memory@ node\n");
+                    /* continue on */
                 } else {
-                    PANIC_UNIMPLEMENTED;
-                }
-                if (size_cells[depth] == 2 && lenp >= 8) {
-                    len = fdt64_to_cpu(*((const uint64_t *)prop_ptr));
-                    prop_ptr += 8;
-                    lenp -= 8;
-                } else {
-                    PANIC_UNIMPLEMENTED;
-                }
-
-                if (cb->mem) {
                     LTRACEF("calling mem callback with base %#llx len %#llx\n", base, len);
                     cb->mem(base, len, cb->memcookie);
                 }
             }
         }
 
+        /* look for the 'reserved-memory' tree */
+        if (cb->reserved_memory) {
+            /* once we see the reserved-memory first level node, track that we are inside
+             * it until we step out to a node at the same or higher depth.
+             */
+            if (strncmp(name, "reserved-memory", 15) == 0 && depth == 1) {
+                LTRACEF_LEVEL(2, "found reserved memory node\n");
+
+                reserved_memory_depth = depth;
+            } else if (reserved_memory_depth >= 0) {
+                if (depth <= reserved_memory_depth) {
+                    /* we have exited the reserved memory tree, so clear our tracking depth */
+                    LTRACEF_LEVEL(2, "exiting reserved memory node\n");
+                    reserved_memory_depth = -1;
+                } else {
+                    /* if we're inside the reserved meory tree, so this node must
+                     * be a reserved memory region */
+                    int lenp;
+                    const uint8_t *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
+                    if (prop_ptr) {
+                        LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
+                                      address_cells[depth], size_cells[depth]);
+                        /* we're looking at a memory descriptor */
+                        uint64_t base;
+                        uint64_t len;
+                        err = read_base_len_pair(prop_ptr, lenp, address_cells[depth], size_cells[depth], &base, &len);
+                        if (err != NO_ERROR) {
+                            TRACEF("error reading base/length from reserved-memory node\n");
+                            /* continue on */
+                        } else {
+                            LTRACEF("calling reserved memory callback with base %#llx len %#llx\n", base, len);
+                            cb->reserved_memory(base, len, cb->reserved_memory_cookie);
+                        }
+                    }
+                }
+            }
+        }
+
         /* look for a cpu leaf and count the number of cpus */
-        if (strncmp(name, "cpu@", 4) == 0 && depth == 2) {
+        if (cb->cpu && strncmp(name, "cpu@", 4) == 0 && depth == 2) {
             int lenp;
             const uint8_t *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
@@ -138,15 +202,13 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
                     PANIC_UNIMPLEMENTED;
                 }
 
-                if (cb->cpu) {
-                    LTRACEF("calling cpu callback with id %#x\n", id);
-                    cb->cpu(id, cb->cpucookie);
-                }
+                LTRACEF("calling cpu callback with id %#x\n", id);
+                cb->cpu(id, cb->cpucookie);
             }
         }
 
         /* look for a pcie leaf and pass the address of the ecam and other info to the callback */
-        if (strncmp(name, "pcie@", 5) == 0 || strncmp(name, "pci@", 4) == 0) {
+        if (cb->pcie && (strncmp(name, "pcie@", 5) == 0 || strncmp(name, "pci@", 4) == 0)) {
             struct fdt_walk_pcie_info info = {0};
 
             /* find the range of the ecam */
@@ -223,8 +285,8 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
                 }
             }
 
-            if (cb->cpu && info.ecam_len > 0) {
-                LTRACEF("calling cpu callback with ecam base %#llx size %#llx\n", info.ecam_base, info.ecam_len);
+            if (info.ecam_len > 0) {
+                LTRACEF("calling pci callback with ecam base %#llx size %#llx\n", info.ecam_base, info.ecam_len);
                 cb->pcie(&info, cb->pciecookie);
             }
         }

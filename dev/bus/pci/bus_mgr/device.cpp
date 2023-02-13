@@ -338,6 +338,14 @@ status_t device::load_bars() {
         return ERR_NOT_SUPPORTED;
     }
 
+    // Disable IO and MEM decoding around BAR detection, as we fiddle with
+    // BAR addresses themselves for length detection.
+    // This behavior is recommended by the PCI Local Bus Specification.
+
+    uint16_t command;
+    pci_read_config_half(loc(), PCI_CONFIG_COMMAND, &command);
+    pci_write_config_half(loc(), PCI_CONFIG_COMMAND, command & ~(PCI_COMMAND_IO_EN | PCI_COMMAND_MEM_EN));
+
     for (size_t i=0; i < num_bars; i++) {
         bars_[i] = {};
         uint64_t bar_addr = config_.type0.base_addresses[i];
@@ -410,6 +418,9 @@ status_t device::load_bars() {
             bars_[i] = {}; // clears the valid bit
         }
     }
+
+    // Restore any IO and MEM decoding that was enabled before
+    pci_write_config_half(loc(), PCI_CONFIG_COMMAND, command);
 
     return NO_ERROR;
 }
@@ -539,18 +550,21 @@ status_t device::assign_resource(bar_alloc_request *request, uint64_t address) {
 
     DEBUG_ASSERT(IS_ALIGNED(address, (1UL << request->align)));
 
+    // Note: When assigning the resource, we don't bother setting the bottom bits
+    // as those are hardwired per the spec.
+
     uint32_t temp;
     switch (request->type) {
         case PCI_RESOURCE_IO_RANGE:
-            temp = (address & 0xfffc); // XXX do we need to write the bottom bits?
+            temp = (address & 0xfffc);
             pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4, temp);
             break;
         case PCI_RESOURCE_MMIO_RANGE:
-            temp = (address & 0xfffffff0); // XXX do we need to write the bottom bits?
+            temp = (address & 0xfffffff0);
             pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4, temp);
             break;
         case PCI_RESOURCE_MMIO64_RANGE:
-            temp = (address & 0xfffffff0); // XXX do we need to write the bottom bits?
+            temp = (address & 0xfffffff0);
             pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4, temp);
             temp = address >> 32;
             pci_write_config_word(loc(), PCI_CONFIG_BASE_ADDRESSES + request->bar_num * 4 + 4, temp);

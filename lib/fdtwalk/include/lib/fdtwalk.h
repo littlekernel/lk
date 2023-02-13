@@ -34,6 +34,8 @@ struct fdt_walk_pcie_info {
 struct fdt_walk_callbacks {
     void (*mem)(uint64_t base, uint64_t len, void *cookie);
     void *memcookie;
+    void (*reserved_memory)(uint64_t base, uint64_t len, void *cookie);
+    void *reserved_memory_cookie;
     void (*cpu)(uint64_t id, void *cookie);
     void *cpucookie;
     void (*pcie)(const struct fdt_walk_pcie_info *info, void *cookie);
