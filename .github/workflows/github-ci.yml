@@ -12,6 +12,7 @@ jobs:
       matrix:
         toolchain-ver: [12.2.0, 7.5.0]
         debug: [2, 0]
+        ubsan: [1, 0]
         project:
           - qemu-virt-arm32-test
           - qemu-virt-arm64-test
@@ -53,6 +54,7 @@ jobs:
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
       # ${{ matrix.toolchain-arch }}-${{ matrix.toolchain-ver }}-Linux-x86_64
       DEBUG: ${{ matrix.debug }}
+      UBSAN: ${{ matrix.ubsan }}
     steps:
     - name: banner
       shell: bash
@@ -62,6 +64,7 @@ jobs:
         echo PROJECT = $PROJECT
         echo TOOLCHAIN_VER = $TOOLCHAIN_VER
         echo DEBUG = $DEBUG
+        echo UBSAN = $UBSAN
 
     # check out the source
     - name: checkout
