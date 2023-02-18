@@ -71,6 +71,12 @@ GLOBAL_CPPFLAGS := --std=c++14 -fno-exceptions -fno-rtti -fno-threadsafe-statics
 GLOBAL_ASMFLAGS := -DASSEMBLY
 GLOBAL_LDFLAGS :=
 
+ifeq ($(UBSAN), 1)
+# Inject lib/ubsan directly into MODULE_DEPS
+# lib/ubsan will itself add the needed CFLAGS
+MODULE_DEPS += lib/ubsan
+endif
+
 # flags that are sometimes nice to enable to catch problems but too strict to have on all the time.
 # add to global flags from time to time to find things, otherwise only available with a module
 # option (see make/module.mk re: MODULE_OPTIONS).
