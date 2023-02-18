@@ -31,9 +31,9 @@ enum sbi_extension {
 static uint sbi_ext;
 
 // make a SBI call according to the SBI spec at https://github.com/riscv/riscv-sbi-doc
-// Note: it seems ambigious whether or not a2-a7 are trashed in the call, but the
-// OpenSBI and linux implementations seem to assume that all of the regs are restored
-// aside from a0 and a1 which are used for return values.
+// args are passed a0-a5, a6 holds the function id, a7 holds the extension id
+// return struct sbiret in a0, a1.
+// all registers except for a0 and a1 are preserved.
 #define _sbi_call(extension, function, arg0, arg1, arg2, arg3, arg4, arg5, ...) ({  \
     register unsigned long a0 asm("a0") = (unsigned long)arg0;      \
     register unsigned long a1 asm("a1") = (unsigned long)arg1;      \
@@ -136,7 +136,7 @@ void sbi_early_init(void) {
 
 void sbi_init(void) {
     ulong version = sbi_generic_call_2(SBI_GET_SBI_SPEC_VERSION).value;
-    dprintf(INFO, "RISCV: SBI spec version %lu.%lu impl id %lu version %lu\n",
+    dprintf(INFO, "RISCV: SBI spec version %lu.%lu impl id %#lx version %#lx\n",
             (version >> 24) & 0x7f, version & ((1UL<<24)-1),
             sbi_generic_call_2(SBI_GET_SBI_IMPL_ID).value,
             sbi_generic_call_2(SBI_GET_SBI_IMPL_VERSION).value);

@@ -107,7 +107,9 @@ if [[ -z "$PROJECT" ]]; then
 fi
 
 # construct a list of args based on previous variables
-ARGS=" -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
+ARGS=" -machine $MACHINE"
+#ARGS+=",dumpdtb=riscv.dtb" # uncheck this to get a binary dump of the device tree for this config
+ARGS+=" -kernel build-${PROJECT}/lk.elf"
 if [[ ! -z "$CPU" ]]; then
     ARGS+=" -cpu $CPU"
 fi
