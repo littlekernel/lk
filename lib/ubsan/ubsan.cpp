@@ -408,8 +408,9 @@ void ubsan_handle_shift_out_of_bounds(const ubsan_shift_oob_data *data, ssize_t 
         }
         else
         {
-            printf("left shift of %zu by %zu places cannot be represented in type %s\n",
-                   (size_t) lhs, (size_t) rhs, lhs_t->typename_);
+            val v{(size_t) lhs, lhs_t};
+            printf("left shift of %s by %zu places cannot be represented in type %s\n",
+                   v.to_string().c_str(), (size_t) rhs, lhs_t->typename_);
         }
     }
 
