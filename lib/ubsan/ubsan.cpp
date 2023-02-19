@@ -345,7 +345,7 @@ __USED void __ubsan_handle_negate_overflow(ubsan_overflow_data *data, size_t val
     ubsan_report_end();
 }
 
-__USED void __ubsan_handle_overflow_abort(ubsan_overflow_data *data, size_t value)
+__USED void __ubsan_handle_negate_overflow_abort(ubsan_overflow_data *data, size_t value)
 {
     __ubsan_handle_negate_overflow(data, value);
     ubsan_abort();
@@ -371,9 +371,9 @@ __USED void __ubsan_handle_divrem_overflow(ubsan_overflow_data *data, size_t lhs
     ubsan_report_end();
 }
 
-__USED void __ubsan_handle_divrem_abort(ubsan_overflow_data *data, size_t value)
+__USED void __ubsan_handle_divrem_overflow_abort(ubsan_overflow_data *data, size_t lhs, size_t rhs)
 {
-    __ubsan_handle_negate_overflow(data, value);
+    __ubsan_handle_divrem_overflow(data, lhs, rhs);
     ubsan_abort();
 }
 
