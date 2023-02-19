@@ -68,10 +68,9 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
     ulong status = riscv_csr_read(RISCV_CSR_XSTATUS);
     ulong hw_state = status & RISCV_CSR_XSTATUS_FS_MASK;
 
-    LTRACEF("old fpu dirty %d, new fpu dirty %d, status %#lx\n", oldthread->arch.cs_frame.fpu_dirty, newthread->arch.cs_frame.fpu_dirty,
-            hw_state >> RISCV_CSR_XSTATUS_FS_SHIFT);
-
-    status &= ~(RISCV_CSR_XSTATUS_FS_MASK);
+    LTRACEF("old fpu dirty %d, new fpu dirty %d, status %#lx, sd %d\n", oldthread->arch.cs_frame.fpu_dirty,
+            newthread->arch.cs_frame.fpu_dirty, hw_state >> RISCV_CSR_XSTATUS_FS_SHIFT,
+            (status & RISCV_CSR_XSTATUS_SD) ? 1 : 0);
 
     /* hardware currently is in the dirty state, so save the state of the fpu regs
      * and mark the thread as dirty.
@@ -93,18 +92,25 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
         /* if the new thread has dirty saved state, load it here and mark the cpu as in the
          * clean state, which will transition to dirty if any regs are modified
          */
-        status |= RISCV_CSR_XSTATUS_FS_CLEAN;
         riscv_fpu_restore(&newthread->arch.cs_frame.fpu);
+
+        /* at this point the FPU hardware should be in the dirty state because of the above routine */
+
+        /* TODO: see if it's totally safe to reduce to a single instruction based on moving from DIRTY -> CLEAN */
+        riscv_csr_clear(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_FS_MASK);
+        riscv_csr_set(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_FS_CLEAN);
     } else {
         /* if the thread previously hadn't dirtied the state, zero out the fpu
          * state and mark hardware as initial.
          */
-        status |= RISCV_CSR_XSTATUS_FS_INITIAL;
         riscv_fpu_zero();
-    }
 
-    /* writeback the modified state to hardware */
-    riscv_csr_write(RISCV_CSR_XSTATUS, status);
+        /* at this point the FPU hardware should be in the dirty state because of the above routine */
+
+        /* TODO: see if it's totally safe to reduce to a single instruction based on moving from DIRTY -> INITIAL */
+        riscv_csr_clear(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_FS_MASK);
+        riscv_csr_set(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_FS_INITIAL);
+    }
 #endif
 
     /* integer context switch.
