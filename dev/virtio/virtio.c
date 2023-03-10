@@ -61,8 +61,8 @@ void virtio_dump_desc(const struct vring_desc *desc) {
     printf("vring descriptor %p\n", desc);
     printf("\taddr  0x%llx\n", desc->addr);
     printf("\tlen   0x%x\n", desc->len);
-    printf("\tflags 0x%hhx\n", desc->flags);
-    printf("\tnext  0x%hhx\n", desc->next);
+    printf("\tflags 0x%hx\n", desc->flags);
+    printf("\tnext  0x%hx\n", desc->next);
 }
 
 static enum handler_return virtio_mmio_irq(void *arg) {
@@ -83,7 +83,7 @@ static enum handler_return virtio_mmio_irq(void *arg) {
                 continue;
 
             struct vring *ring = &dev->ring[r];
-            LTRACEF("ring %u: used flags 0x%hhx idx 0x%hhx last_used %u\n", r, ring->used->flags, ring->used->idx, ring->last_used);
+            LTRACEF("ring %u: used flags 0x%hx idx 0x%hx last_used %u\n", r, ring->used->flags, ring->used->idx, ring->last_used);
 
             uint cur_idx = ring->used->idx;
             for (uint i = ring->last_used; i != (cur_idx & ring->num_mask); i = (i + 1) & ring->num_mask) {
