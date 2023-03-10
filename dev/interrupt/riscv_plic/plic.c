@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include "platform_p.h"
+#include <dev/interrupt/riscv_plic.h>
 
 #include <assert.h>
 #include <lk/err.h>
@@ -15,24 +15,33 @@
 #include <kernel/debug.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
-#include <platform/jh7110.h>
+
+// Driver for simplic PLIC implementations for various RISC-V machines.
 
 #define LOCAL_TRACE 0
 
-// Driver for PLIC implementation for qemu riscv virt machine
-#define PLIC_PRIORITY(irq) (PLIC_BASE_VIRT + 4 * (irq))
-#define PLIC_PENDING(irq)  (PLIC_BASE_VIRT + 0x1000 + (4 * ((irq) / 32)))
-#define PLIC_ENABLE(irq, hart)      (PLIC_BASE_VIRT + 0x2000 + (0x80 * plic_hart_index(hart)) + (4 * ((irq) / 32)))
-#define PLIC_THRESHOLD(hart)        (PLIC_BASE_VIRT + 0x200000 + (0x1000 * plic_hart_index(hart)))
-#define PLIC_COMPLETE(hart)         (PLIC_BASE_VIRT + 0x200004 + (0x1000 * plic_hart_index(hart)))
-#define PLIC_CLAIM(hart)            PLIC_COMPLETE(hart)
-
+// Preallocate space for up to 128 vectors.
+// If more are needed will need to bump this up or switch to a dynamic scheme.
+#define MAX_IRQS 128
 static struct int_handlers {
     int_handler handler;
     void *arg;
-} handlers[NUM_IRQS];
+} handlers[MAX_IRQS];
 
-// Mapping of HART to interrupt target is annoyingly complex:
+static uintptr_t plic_base_virt = 0;
+static size_t num_irqs = 0;
+static bool hart0_m_only = false;
+
+#define PLIC_PRIORITY(irq)          (plic_base_virt + 4 * (irq))
+#define PLIC_PENDING(irq)           (plic_base_virt + 0x1000 + (4 * ((irq) / 32)))
+#define PLIC_ENABLE(irq, hart)      (plic_base_virt + 0x2000 + (0x80 * plic_hart_index(hart)) + (4 * ((irq) / 32)))
+#define PLIC_THRESHOLD(hart)        (plic_base_virt + 0x200000 + (0x1000 * plic_hart_index(hart)))
+#define PLIC_COMPLETE(hart)         (plic_base_virt + 0x200004 + (0x1000 * plic_hart_index(hart)))
+#define PLIC_CLAIM(hart)            PLIC_COMPLETE(hart)
+
+// Mapping of HART to interrupt target is annoyingly complex. Switch between two modes
+// based on the hart0_m_only bool:
+//
 // On the JH7110 (like other sifive socs) the first HART only has one mode, machine
 // and the subsequent harts have both machine and supervisor. The interrupt targets
 // are thus indexed:
@@ -43,24 +52,49 @@ static struct int_handlers {
 // HART 2 supervisor mode = 4
 // ...
 //
+// On flatter designs, such as qemu's 'virt' machine, all harts are equal and 0 indexed,
+// so the mapping is simpler:
+// HART 0 machine mode = 0
+// HART 0 supervisor mode = 1
+// HART 1 machine mode = 2
+// HART 1 supervisor mode = 3
+// HART 2 machine mode = 4
+// HART 2 supervisor mode = 5
+// ...
+//
 // This routine maps harts to the current mode's interrupt target
 static unsigned int plic_hart_index(unsigned int hart) {
     unsigned int index;
+    if (hart0_m_only) {
 #if RISCV_M_MODE
-    index = (hart == 0) ? 0 : (2 * hart - 1);
+        index = (hart == 0) ? 0 : (2 * hart - 1);
 #elif RISCV_S_MODE
-    DEBUG_ASSERT(hart != 0);
-    index = 2 * hart;
+        DEBUG_ASSERT(hart != 0);
+        index = 2 * hart;
 #else
 #error undefined
 #endif
+    } else {
+#if RISCV_M_MODE
+        index = 2 * hart;
+#elif RISCV_S_MODE
+        index = 2 * hart + 1;
+#else
+#error undefined
+#endif
+    }
     return index;
 }
 
-void plic_early_init(void) {
+void plic_early_init(uintptr_t base, size_t num_irqs_, bool hart0_m_only_) {
+    plic_base_virt = base;
+    DEBUG_ASSERT(num_irqs_ <= MAX_IRQS);
+    num_irqs = num_irqs_;
+    hart0_m_only = hart0_m_only_;
+
     // mask all irqs and set their priority to 1
     // TODO: mask on all the other cpus too
-    for (int i = 1; i < NUM_IRQS; i++) {
+    for (size_t i = 1; i < num_irqs; i++) {
         *REG32(PLIC_ENABLE(i, riscv_current_hart())) &= ~(1 << (i % 32));
         *REG32(PLIC_PRIORITY(i)) = 1;
     }
@@ -69,8 +103,7 @@ void plic_early_init(void) {
     *REG32(PLIC_THRESHOLD(riscv_current_hart())) = 0;
 }
 
-void plic_init(void) {
-}
+void plic_init(void) {}
 
 status_t mask_interrupt(unsigned int vector) {
     LTRACEF("vector %u, current hart %u\n", vector, riscv_current_hart());
@@ -88,7 +121,7 @@ status_t unmask_interrupt(unsigned int vector) {
 void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     LTRACEF("vector %u handler %p arg %p, hart %u\n", vector, handler, arg, riscv_current_hart());
 
-    DEBUG_ASSERT(vector < NUM_IRQS);
+    DEBUG_ASSERT(vector < num_irqs);
 
     handlers[vector].handler = handler;
     handlers[vector].arg = arg;
@@ -124,17 +157,3 @@ enum handler_return riscv_platform_irq(void) {
     return ret;
 }
 
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
-    // at the moment there's no translation between PCI IRQs and native irqs
-    *vector = pci_int;
-    return NO_ERROR;
-}
-
-status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
-    return ERR_NOT_SUPPORTED;
-}
-
-status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
-        uint64_t *msi_address_out, uint16_t *msi_data_out) {
-    return ERR_NOT_SUPPORTED;
-}

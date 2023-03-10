@@ -11,12 +11,6 @@
 //
 // mostly taken from the top of qemu/hw/riscv/virt.c and similar headers
 
-#if RISCV_XMODE_OFFSET == RISCV_MACH_OFFSET
-#define PLIC_HART_IDX(hart)    (2 * (hart))
-#elif RISCV_XMODE_OFFSET == RISCV_SUPER_OFFSET
-#define PLIC_HART_IDX(hart)    ((2 * (hart)) + 1)
-#endif
-
 #define MEMORY_BASE_PHYS     (0x80000000)
 #if __riscv_xlen == 64
 // up to 64 GB of ram, which seems to be a soft cap
@@ -42,7 +36,7 @@
 #define IRQ_VIRTIO_BASE 1
 #define IRQ_UART0       10
 #define IRQ_PCIE_BASE   0x20
-#define NUM_IRQS        127
+#define NUM_IRQS        128
 
 // addresses of some peripherals
 #define CLINT_BASE          0x02000000

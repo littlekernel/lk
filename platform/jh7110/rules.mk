@@ -14,11 +14,11 @@ RISCV_MMU ?= sv39
 MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/fdt
 MODULE_DEPS += lib/fdtwalk
+MODULE_DEPS += dev/interrupt/riscv_plic
 #MODULE_DEPS += dev/bus/pci
 #MODULE_DEPS += dev/bus/pci/drivers
 
 MODULE_SRCS += $(LOCAL_DIR)/platform.c
-MODULE_SRCS += $(LOCAL_DIR)/plic.c
 MODULE_SRCS += $(LOCAL_DIR)/uart.c
 
 MEMBASE ?= 0x40000000

@@ -22,7 +22,7 @@
 // interrupts
 #define IRQ_VIRTIO_BASE 1
 #define IRQ_UART0       0x20
-#define NUM_IRQS        127
+#define NUM_IRQS        128
 
 // addresses of some peripherals
 #define CLINT_BASE          0x02000000

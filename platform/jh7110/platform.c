@@ -17,6 +17,7 @@
 #include <platform/jh7110.h>
 #include <sys/types.h>
 #include <lib/fdtwalk.h>
+#include <dev/interrupt/riscv_plic.h>
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
@@ -106,7 +107,7 @@ static void pciecallback(const struct fdt_walk_pcie_info *info, void *cookie) {
 
 void platform_early_init(void) {
     TRACE;
-    plic_early_init();
+    plic_early_init(PLIC_BASE_VIRT, NUM_IRQS, true);
 
     LTRACEF("starting FDT scan\n");
 

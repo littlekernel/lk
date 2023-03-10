@@ -23,12 +23,12 @@ MODULE_DEPS += lib/fdt
 MODULE_DEPS += lib/fdtwalk
 MODULE_DEPS += dev/bus/pci
 MODULE_DEPS += dev/bus/pci/drivers
+MODULE_DEPS += dev/interrupt/riscv_plic
 MODULE_DEPS += dev/virtio/block
 MODULE_DEPS += dev/virtio/gpu
 MODULE_DEPS += dev/virtio/net
 
 MODULE_SRCS += $(LOCAL_DIR)/platform.c
-MODULE_SRCS += $(LOCAL_DIR)/plic.c
 MODULE_SRCS += $(LOCAL_DIR)/uart.c
 
 MEMBASE ?= 0x80000000

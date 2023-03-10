@@ -20,6 +20,7 @@
 #include <dev/bus/pci.h>
 #include <dev/virtio.h>
 #include <dev/virtio/net.h>
+#include <dev/interrupt/riscv_plic.h>
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
@@ -112,7 +113,7 @@ static void pciecallback(const struct fdt_walk_pcie_info *info, void *cookie) {
 }
 
 void platform_early_init(void) {
-    plic_early_init();
+    plic_early_init(PLIC_BASE_VIRT, NUM_IRQS, false);
 
     LTRACEF("starting FDT scan\n");
 
@@ -277,4 +278,19 @@ void platform_halt(platform_halt_action suggested_action,
     arch_disable_ints();
     for (;;)
         arch_idle();
+}
+
+status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
+    // at the moment there's no translation between PCI IRQs and native irqs
+    *vector = pci_int;
+    return NO_ERROR;
+}
+
+status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
+    return ERR_NOT_SUPPORTED;
+}
+
+status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
+        uint64_t *msi_address_out, uint16_t *msi_data_out) {
+    return ERR_NOT_SUPPORTED;
 }

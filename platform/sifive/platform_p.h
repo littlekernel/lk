@@ -14,9 +14,6 @@ int sifive_uart_read(char *c, bool wait);
 void sifive_uart_early_init(void);
 void sifive_uart_init(void);
 
-void plic_early_init(void);
-void plic_init(void);
-
 void gpio_early_init(void);
 void gpio_init(void);
 

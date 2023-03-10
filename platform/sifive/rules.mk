@@ -7,10 +7,10 @@ SUBARCH ?= 32
 VARIANT ?= sifive_e
 
 MODULE_DEPS += dev/gpio
+MODULE_DEPS += dev/interrupt/riscv_plic
 MODULE_DEPS += lib/cbuf
 
 MODULE_SRCS += $(LOCAL_DIR)/platform.c
-MODULE_SRCS += $(LOCAL_DIR)/plic.c
 MODULE_SRCS += $(LOCAL_DIR)/uart.c
 MODULE_SRCS += $(LOCAL_DIR)/gpio.c
 
