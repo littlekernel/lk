@@ -28,10 +28,6 @@ ifeq ($(RISCV_MODE),supervisor)
 KERNEL_LOAD_OFFSET ?= 0x00200000 # kernel load offset
 endif
 
-# set some global defines based on capability
-GLOBAL_DEFINES += ARCH_RISCV_CLINT_BASE=0x0c000000
-GLOBAL_DEFINES += ARCH_RISCV_MTIME_RATE=10000000
-
 # we can revert to a poll based uart spin routine
 GLOBAL_DEFINES += PLATFORM_SUPPORTS_PANIC_SHELL=1
 
