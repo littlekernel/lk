@@ -53,7 +53,7 @@ __NO_INLINE static void bench_memset(void) {
     count = arch_cycle_count() - count;
 
     size_t total_bytes = BUFSIZE * ITER;
-    double bytes_cycle = total_bytes / (float)count;
+    double bytes_cycle = total_bytes / (double)count;
     printf("took %lu cycles to memset a buffer of size %zu %d times (%zu bytes), %f bytes/cycle\n",
            count, BUFSIZE, ITER, total_bytes, bytes_cycle);
 
@@ -78,7 +78,7 @@ __NO_INLINE static void bench_cset_##type(void) \
     count = arch_cycle_count() - count; \
  \
     size_t total_bytes = BUFSIZE * ITER; \
-    double bytes_cycle = total_bytes / (float)count; \
+    double bytes_cycle = total_bytes / (double)count; \
     printf("took %lu cycles to manually clear a buffer using wordsize %zu of size %zu %u times (%zu bytes), %f bytes/cycle\n", \
            count, sizeof(*buf), BUFSIZE, ITER, total_bytes, bytes_cycle); \
  \
@@ -113,7 +113,7 @@ __NO_INLINE static void bench_cset_wide(void) {
     count = arch_cycle_count() - count;
 
     size_t total_bytes = BUFSIZE * ITER;
-    double bytes_cycle = total_bytes / (float)count;
+    double bytes_cycle = total_bytes / (double)count;
     printf("took %lu cycles to manually clear a buffer of size %zu %d times 8 words at a time (%zu bytes), %f bytes/cycle\n",
            count, BUFSIZE, ITER, total_bytes, bytes_cycle);
 
@@ -134,7 +134,7 @@ __NO_INLINE static void bench_memcpy(void) {
     count = arch_cycle_count() - count;
 
     size_t total_bytes = (BUFSIZE / 2) * ITER;
-    double bytes_cycle = total_bytes / (float)count;
+    double bytes_cycle = total_bytes / (double)count;
     printf("took %lu cycles to memcpy a buffer of size %zu %d times (%zu source bytes), %f source bytes/cycle\n",
            count, BUFSIZE / 2, ITER, total_bytes, bytes_cycle);
 
