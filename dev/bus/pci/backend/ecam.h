@@ -32,7 +32,7 @@ private:
     status_t initialize();
 
     paddr_t base_;
-    uint16_t segment_;
+    __UNUSED uint16_t segment_;
     uint16_t start_bus_;
     uint16_t end_bus_;
 
