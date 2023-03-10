@@ -200,6 +200,9 @@ STRIP ?= $(TOOLCHAIN_PREFIX)strip
 # more cases (e.g. ld.gold).
 LINKER_TYPE := $(shell $(LD) -v 2>&1 | grep -q "LLD" && echo lld || echo bfd)
 $(info LINKER_TYPE=$(LINKER_TYPE))
+# Detect whether we are compiling with GCC or Clang
+COMPILER_TYPE := $(shell $(CC) -v 2>&1 | grep -q "clang version" && echo clang || echo gcc)
+$(info COMPILER_TYPE=$(COMPILER_TYPE))
 
 # Now that CC is defined we can check if warning flags are supported and add
 # them to GLOBAL_COMPILEFLAGS if they are.
