@@ -32,6 +32,8 @@ static int cmd_memtest(int argc, const console_cmd_args *argv);
 static int cmd_copy_mem(int argc, const console_cmd_args *argv);
 static int cmd_chain(int argc, const console_cmd_args *argv);
 static int cmd_sleep(int argc, const console_cmd_args *argv);
+static int cmd_time(int argc, const console_cmd_args *argv);
+static int cmd_timeh(int argc, const console_cmd_args *argv);
 static int cmd_crash(int argc, const console_cmd_args *argv);
 static int cmd_stackstomp(int argc, const console_cmd_args *argv);
 
@@ -56,6 +58,8 @@ STATIC_COMMAND("mtest", "simple memory test", &cmd_memtest)
 STATIC_COMMAND("chain", "chain load another binary", &cmd_chain)
 STATIC_COMMAND("sleep", "sleep number of seconds", &cmd_sleep)
 STATIC_COMMAND("sleepm", "sleep number of milliseconds", &cmd_sleep)
+STATIC_COMMAND("time", "print current time", &cmd_time)
+STATIC_COMMAND("timeh", "print current time hires", &cmd_timeh)
 STATIC_COMMAND_END(mem);
 
 #define EXIT_IF_NOT_MAPPED(address) \
@@ -348,6 +352,22 @@ static int cmd_sleep(int argc, const console_cmd_args *argv) {
     }
 
     thread_sleep(t);
+
+    return 0;
+}
+
+static int cmd_time(int argc, const console_cmd_args *argv) {
+
+    lk_time_t t = current_time();
+    printf("Current time: %u\n", t);
+
+    return 0;
+}
+
+static int cmd_timeh(int argc, const console_cmd_args *argv) {
+
+    lk_bigtime_t t = current_time_hires();
+    printf("Current time hires: %llu\n", t);
 
     return 0;
 }
