@@ -18,6 +18,7 @@ __BEGIN_CDECLS
 typedef struct {
     const char *str;
     unsigned long u;
+    unsigned long long ull;
     void *p;
     long i;
     bool b;

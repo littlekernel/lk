@@ -554,6 +554,7 @@ static void convert_args(int argc, console_cmd_args *argv) {
         argv[i].u = u;
         argv[i].p = (void *)u;
         argv[i].i = atol(argv[i].str);
+        argv[i].ull = atoull(argv[i].str);
 
         if (!strcmp(argv[i].str, "true") || !strcmp(argv[i].str, "on")) {
             argv[i].b = true;
