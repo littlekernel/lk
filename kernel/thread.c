@@ -516,12 +516,17 @@ void thread_resched(void) {
 #if THREAD_STATS
     THREAD_STATS_INC(context_switches);
 
+    lk_bigtime_t now = current_time_hires();
     if (thread_is_idle(oldthread)) {
-        lk_bigtime_t now = current_time_hires();
         thread_stats[cpu].idle_time += now - thread_stats[cpu].last_idle_timestamp;
+    } else {
+        oldthread->stats.total_run_time += now - oldthread->stats.last_run_timestamp;
     }
     if (thread_is_idle(newthread)) {
-        thread_stats[cpu].last_idle_timestamp = current_time_hires();
+        thread_stats[cpu].last_idle_timestamp = now;
+    } else {
+        newthread->stats.last_run_timestamp = now;
+        newthread->stats.schedules++;
     }
 #endif
 
@@ -1009,6 +1014,32 @@ void dump_all_threads(void) {
     dump_all_threads_unlocked();
     THREAD_UNLOCK(state);
 }
+
+#if THREAD_STATS
+void dump_threads_stats(void) {
+    thread_t *t;
+
+    THREAD_LOCK(state);
+    list_for_every_entry (&thread_list, t, thread_t, thread_list_node) {
+        if (t->magic != THREAD_MAGIC) {
+            dprintf(INFO, "bad magic on thread struct %p, aborting.\n", t);
+            hexdump(t, sizeof(thread_t));
+            break;
+        }
+        if (thread_is_idle(t)) {
+            continue;
+        }
+        // thread specific stats
+        dprintf(INFO, "\t(%s):\n", t->name);
+        dprintf(INFO, "\t\tScheduled: %ld\n", t->stats.schedules);
+        uint percent = (t->stats.total_run_time * 10000) / current_time_hires();
+        dprintf(INFO, "\t\tTotal run time: %lld, %u.%02u%%\n", t->stats.total_run_time,
+                percent / 100, percent % 100);
+        dprintf(INFO, "\t\tLast time run: %lld\n", t->stats.last_run_timestamp);
+    }
+    THREAD_UNLOCK(state);
+}
+#endif
 
 /** @} */
 
