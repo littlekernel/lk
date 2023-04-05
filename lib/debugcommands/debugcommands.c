@@ -35,6 +35,7 @@ static int cmd_sleep(int argc, const console_cmd_args *argv);
 static int cmd_time(int argc, const console_cmd_args *argv);
 static int cmd_timeh(int argc, const console_cmd_args *argv);
 static int cmd_crash(int argc, const console_cmd_args *argv);
+static int cmd_panic(int argc, const console_cmd_args *argv);
 static int cmd_stackstomp(int argc, const console_cmd_args *argv);
 
 STATIC_COMMAND_START
@@ -50,6 +51,7 @@ STATIC_COMMAND_MASKED("fh", "fill range of memory by halfword", &cmd_fill_mem, C
 STATIC_COMMAND_MASKED("fb", "fill range of memory by byte", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_MASKED("mc", "copy a range of memory", &cmd_copy_mem, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND("crash", "intentionally crash", &cmd_crash)
+STATIC_COMMAND("panic", "intentionally panic", &cmd_panic)
 STATIC_COMMAND("stackstomp", "intentionally overrun the stack", &cmd_stackstomp)
 #endif
 #if LK_DEBUGLEVEL > 1
@@ -386,6 +388,11 @@ static int cmd_crash(int argc, const console_cmd_args *argv) {
     return 0;
 }
 #pragma GCC diagnostic pop
+
+static int cmd_panic(int argc, const console_cmd_args *argv) {
+    panic("Test panic\n");
+    return 0;
+}
 
 static int cmd_stackstomp(int argc, const console_cmd_args *argv) {
     for (size_t i = 0; i < DEFAULT_STACK_SIZE * 2; i++) {
