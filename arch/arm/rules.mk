@@ -69,6 +69,18 @@ HANDLED_CORE := true
 ENABLE_THUMB := true
 SUBARCH := arm-m
 endif
+ifeq ($(ARM_CPU),cortex-m55)
+GLOBAL_DEFINES += \
+	ARM_CPU_CORTEX_M55=1 \
+	ARM_ISA_ARMv7=1 \
+	ARM_ISA_ARMv7M=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1 \
+	ARM_WITH_CACHE=1
+HANDLED_CORE := true
+ENABLE_THUMB := true
+SUBARCH := arm-m
+endif
 ifeq ($(ARM_CPU),cortex-m7)
 GLOBAL_DEFINES += \
 	ARM_CPU_CORTEX_M7=1 \
