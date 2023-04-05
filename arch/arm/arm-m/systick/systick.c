@@ -31,6 +31,8 @@ static uint32_t tick_rate = 0;
 static uint32_t tick_rate_mhz = 0;
 static lk_time_t tick_interval_ms;
 static lk_bigtime_t tick_interval_us;
+static bool systick_configured;
+static uint32_t reload;
 
 static platform_timer_callback cb;
 static void *cb_args;
@@ -41,9 +43,10 @@ static void arm_cm_systick_set_periodic(lk_time_t period) {
     uint32_t ticks = tick_rate / (1000 / period);
     LTRACEF("ticks %d\n", ticks);
 
-    SysTick->LOAD = (ticks & SysTick_LOAD_RELOAD_Msk) - 1;
+    SysTick->LOAD = reload = (ticks - 1) & SysTick_LOAD_RELOAD_Msk;
     SysTick->VAL = 0;
     SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+    systick_configured = true;
 }
 
 static void arm_cm_systick_cancel_periodic(void) {
@@ -52,9 +55,11 @@ static void arm_cm_systick_cancel_periodic(void) {
 
 /* main systick irq handler */
 void _systick(void) {
-    current_ticks++;
-
     arm_cm_irq_entry();
+
+    if (SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) {
+        current_ticks++;
+    }
 
     bool resched = false;
     if (cb) {
@@ -81,38 +86,48 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-lk_time_t current_time(void) {
-    uint32_t reload = SysTick->LOAD  & SysTick_LOAD_RELOAD_Msk;
+/* Helper to atomically get the global ticks and the current counter value */
+static void systick_get_ticks_val(uint64_t *ticks, uint32_t *val) {
+    spin_lock_saved_state_t state;
+    arch_interrupt_save(&state, SPIN_LOCK_FLAG_INTERRUPTS);
 
-    uint64_t t;
-    uint32_t delta;
-    do {
-        t = current_ticks;
-        delta = (volatile uint32_t)SysTick->VAL;
-        DMB;
-    } while (current_ticks != t);
+    *val = SysTick->VAL;
+    if (unlikely(SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk)) {
+        current_ticks++;
+        *val = SysTick->VAL;
+    }
+
+    *ticks = current_ticks;
+
+    arch_interrupt_restore(state, SPIN_LOCK_FLAG_INTERRUPTS);
+}
+
+lk_time_t current_time(void) {
+    if (!systick_configured)
+        return 0;
+
+    uint32_t val;
+    uint64_t ticks;
+    systick_get_ticks_val(&ticks, &val);
 
     /* convert ticks to msec */
-    delta = (reload - delta) / (tick_rate_mhz * 1000);
-    lk_time_t res = (t * tick_interval_ms) + delta;
+    uint32_t delta = (reload - val) / (tick_rate_mhz * 1000);
+    lk_time_t res = (ticks * tick_interval_ms) + delta;
 
     return res;
 }
 
 lk_bigtime_t current_time_hires(void) {
-    uint32_t reload = SysTick->LOAD  & SysTick_LOAD_RELOAD_Msk;
+    if (!systick_configured)
+        return 0;
 
-    uint64_t t;
-    uint32_t delta;
-    do {
-        t = current_ticks;
-        delta = (volatile uint32_t)SysTick->VAL;
-        DMB;
-    } while (current_ticks != t);
+    uint32_t val;
+    uint64_t ticks;
+    systick_get_ticks_val(&ticks, &val);
 
     /* convert ticks to usec */
-    delta = (reload - delta) / tick_rate_mhz;
-    lk_bigtime_t res = (t * tick_interval_us) + delta;
+    uint32_t delta = (reload - val) / tick_rate_mhz;
+    lk_bigtime_t res = (ticks * tick_interval_us) + delta;
 
     return res;
 }
