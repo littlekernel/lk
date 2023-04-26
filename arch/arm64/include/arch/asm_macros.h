@@ -36,7 +36,7 @@ ldp \ra, \rb, [sp], #16
 .endif
 .endm
 
-.macro calloc_bootmem_aligned, new_ptr, new_ptr_end, tmp, size_shift, phys_offset=0
+.macro calloc_bootmem_aligned, new_ptr, new_ptr_end, tmp, size_shift, phys_offset
 .if \size_shift < 4
     .error "calloc_bootmem_aligned: Unsupported size_shift, \size_shift"
 .endif
@@ -63,11 +63,9 @@ ldp \ra, \rb, [sp], #16
     mov     x1, #8
     bl      arch_clean_invalidate_cache_range
 
-.if \phys_offset != 0
     /* clear page */
     sub     \new_ptr, \new_ptr, \phys_offset
     sub     \new_ptr_end, \new_ptr_end, \phys_offset
-.endif
 
     /* clean and invalidate new page */
     mov     x0, \new_ptr
