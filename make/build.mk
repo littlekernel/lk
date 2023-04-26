@@ -2,9 +2,12 @@
 WITH_LINKER_GC ?= false
 ifeq (true,$(call TOBOOL,$(WITH_LINKER_GC)))
 GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
-GLOBAL_LDFLAGS += --gc-sections
+GLOBAL_LDFLAGS += -Wl,--gc-sections
 GLOBAL_DEFINES += LINKER_GC=1
 endif
+
+GLOBAL_LDFLAGS += -static -ffreestanding -nostartfiles -nostdlib -fuse-ld=bfd
+GLOBAL_MODULE_LDFLAGS += -static -ffreestanding -nostartfiles -nostdlib -fuse-ld=bfd
 
 ifneq (,$(EXTRA_BUILDRULES))
 -include $(EXTRA_BUILDRULES)
@@ -24,9 +27,9 @@ $(OUTELF).hex: $(OUTELF)
 $(OUTELF): $(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LINKER_SCRIPT) $(EXTRA_LINKER_SCRIPTS)
 	$(info linking $@)
 	$(NOECHO)$(SIZE) -t --common $(sort $(ALLMODULE_OBJS)) $(EXTRA_OBJS)
-	$(NOECHO)$(LD) $(GLOBAL_LDFLAGS) $(ARCH_LDFLAGS) -dT $(LINKER_SCRIPT) \
+	$(NOECHO)$(LD) $(GLOBAL_LDFLAGS) $(ARCH_LDFLAGS) -Wl,-dT$(LINKER_SCRIPT) \
 		$(addprefix -T,$(EXTRA_LINKER_SCRIPTS)) \
-		$(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LIBGCC) -Map=$(OUTELF).map -o $@
+		$(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LIBGCC) -Wl,-Map=$(OUTELF).map -o $@
 
 $(OUTELF).sym: $(OUTELF)
 	$(info generating symbols: $@)

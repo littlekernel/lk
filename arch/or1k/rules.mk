@@ -25,7 +25,7 @@ cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`";
 
 ARCH_OPTFLAGS := -O2
 
-ARCH_LDFLAGS += -relax
+ARCH_LDFLAGS += -Wl,-relax
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))

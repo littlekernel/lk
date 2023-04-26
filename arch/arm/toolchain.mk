@@ -114,7 +114,7 @@ ARCH_arm_COMPILEFLAGS += -march=armv7-r
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 ARCH_arm_COMPILEFLAGS += -mbig-endian
 ARCH_arm_COMPILEFLAGS += -mfpu=vfpv3-d16 -mfloat-abi=hard
-GLOBAL_MODULE_LDFLAGS += -EB
+GLOBAL_MODULE_LDFLAGS += -Wl,-EB
 endif
 ifeq ($(ARM_CPU),armemu)
 ARCH_arm_COMPILEFLAGS += -march=armv7-a
