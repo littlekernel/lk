@@ -158,7 +158,7 @@ void arm_cm_irq_exit(bool reschedule) {
     target_set_debug_led(1, false);
 
     if (reschedule)
-        arm_cm_trigger_preempt();
+        thread_preempt();
 
     KEVLOG_IRQ_EXIT(__get_IPSR());
 

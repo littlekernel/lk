@@ -38,6 +38,7 @@
 #define SCB_DEMCR (0xE000EDFC)
 
 struct arm_cm_exception_frame {
+#if (__CORTEX_M >= 0x03)
     uint32_t r4;
     uint32_t r5;
     uint32_t r6;
@@ -46,52 +47,57 @@ struct arm_cm_exception_frame {
     uint32_t r9;
     uint32_t r10;
     uint32_t r11;
-    uint32_t r0;
-    uint32_t r1;
-    uint32_t r2;
-    uint32_t r3;
-    uint32_t r12;
-    uint32_t lr;
-    uint32_t pc;
-    uint32_t psr;
-};
-
-struct arm_cm_exception_frame_short {
-    uint32_t r0;
-    uint32_t r1;
-    uint32_t r2;
-    uint32_t r3;
-    uint32_t r12;
-    uint32_t lr;
-    uint32_t pc;
-    uint32_t psr;
-};
-
-struct arm_cm_exception_frame_long {
-    uint32_t r4;
-    uint32_t r5;
-    uint32_t r6;
-    uint32_t r7;
+#else
+    /* frame format is slightly different due to ordering of push/pops */
     uint32_t r8;
     uint32_t r9;
     uint32_t r10;
     uint32_t r11;
-    uint32_t lr;
+    uint32_t r4;
+    uint32_t r5;
+    uint32_t r6;
+    uint32_t r7;
+#endif
+    uint32_t exc_return;
     uint32_t r0;
     uint32_t r1;
     uint32_t r2;
     uint32_t r3;
     uint32_t r12;
-    uint32_t exc_lr;
+    uint32_t lr;
     uint32_t pc;
     uint32_t psr;
 };
 
-/* when fpu context save is enabled, this goes just above psr in the previous structs */
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+
+/* exception frame when fpu context save is enabled */
 struct arm_cm_exception_frame_fpu {
-    float    s[16];
+    uint32_t r4;
+    uint32_t r5;
+    uint32_t r6;
+    uint32_t r7;
+    uint32_t r8;
+    uint32_t r9;
+    uint32_t r10;
+    uint32_t r11;
+    uint32_t exc_return;
+
+    float s16_31[16];
+
+    uint32_t r0;
+    uint32_t r1;
+    uint32_t r2;
+    uint32_t r3;
+    uint32_t r12;
+    uint32_t lr;
+    uint32_t pc;
+    uint32_t psr;
+
+    float    s0_15[16];
     uint32_t fpscr;
 };
+#endif
 
 #if ARM_CM_DYNAMIC_PRIORITY_SIZE
 extern unsigned int arm_cm_num_irq_pri_bits;

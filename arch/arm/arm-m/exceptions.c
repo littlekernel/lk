@@ -116,10 +116,10 @@ void _nmi(void) {
  */
 #if     (__CORTEX_M >= 0X03) || (__CORTEX_SC >= 300)
 #define PUSH_REGS \
-        "push	{r4-r11};"
+        "push	{r4-r11, lr};"
 #else
 #define PUSH_REGS \
-        "push	{r4-r7};" \
+        "push	{r4-r7, lr};" \
         "mov   r4, r8;" \
         "mov   r5, r9;" \
         "mov   r6, r10;" \
@@ -175,5 +175,10 @@ void __WEAK _systick(void) {
 
 void __WEAK _debugmonitor(void) {
     printf("debugmonitor\n");
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
+}
+
+void __WEAK _svc(void) {
+    printf("svc\n");
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
