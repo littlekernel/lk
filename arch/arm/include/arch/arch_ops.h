@@ -14,7 +14,7 @@
 #include <lk/reg.h>
 #include <arch/arm.h>
 
-#if ARM_ISA_ARMV7M
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV6M
 #include <arch/arm/cm.h>
 #endif
 
@@ -173,6 +173,12 @@ static inline bool arch_ints_disabled(void) {
     __asm__ volatile("mrs %0, primask" : "=r"(state));
     state &= 0x1;
     return !!state;
+}
+
+static inline bool arch_in_int_handler(void) {
+    uint32_t ipsr;
+    __asm volatile ("MRS %0, ipsr" : "=r" (ipsr) );
+    return (ipsr & IPSR_ISR_Msk);
 }
 
 static inline ulong arch_cycle_count(void) {
