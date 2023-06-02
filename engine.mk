@@ -183,14 +183,14 @@ endif
 
 # default to no ccache
 CCACHE ?=
-CC := $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
-LD := $(TOOLCHAIN_PREFIX)ld
-OBJDUMP := $(TOOLCHAIN_PREFIX)objdump
-OBJCOPY := $(TOOLCHAIN_PREFIX)objcopy
-CPPFILT := $(TOOLCHAIN_PREFIX)c++filt
-SIZE := $(TOOLCHAIN_PREFIX)size
-NM := $(TOOLCHAIN_PREFIX)nm
-STRIP := $(TOOLCHAIN_PREFIX)strip
+CC ?= $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
+LD ?= $(TOOLCHAIN_PREFIX)ld
+OBJDUMP ?= $(TOOLCHAIN_PREFIX)objdump
+OBJCOPY ?= $(TOOLCHAIN_PREFIX)objcopy
+CPPFILT ?= $(TOOLCHAIN_PREFIX)c++filt
+SIZE ?= $(TOOLCHAIN_PREFIX)size
+NM ?= $(TOOLCHAIN_PREFIX)nm
+STRIP ?= $(TOOLCHAIN_PREFIX)strip
 
 # Now that CC is defined we can check if warning flags are supported and add
 # them to GLOBAL_COMPILEFLAGS if they are.
