@@ -74,7 +74,7 @@ real_start:
     /* far jump to load the CS from our GDT */
     pushl $CODE_SELECTOR
     pushl $PHYS(.Lfarjump)
-    retf
+    lret
 
 .Lfarjump:
 
@@ -185,7 +185,7 @@ paging_setup:
     /* Use a far jump to get into 64bit mode */
     pushl $CODE_64_SELECTOR
     pushl $PHYS(farjump64)
-    retf
+    lret
 
 .align 8
 .code64
