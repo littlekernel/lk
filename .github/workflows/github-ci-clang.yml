@@ -17,9 +17,8 @@ jobs:
           # all targets, so we have to restrict this build matrix to targets
           # that build without requiring these functions (i.e. 64-bit targets,
           # since 32-bit ones require functions such as __divdi3).
+          - pc-x86-64-test
           - qemu-virt-arm64-test
-          # TODO: Add x86_64 once clang assembler issues have been fixed.
-          # - pc-x86-64-test
           # TODO: Add riscv64 once clang assembler issues have been fixed.
           # - qemu-virt-riscv64-test
           # - qemu-virt-riscv64-supervisor-test
