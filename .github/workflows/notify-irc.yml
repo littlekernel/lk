@@ -4,6 +4,7 @@ on: [push, pull_request, create]
 jobs:
   test:
     runs-on: ubuntu-latest
+    if: github.repository == 'littlekernel/lk'
     steps:
       - name: irc push
         uses: rectalogic/notify-irc@v1
