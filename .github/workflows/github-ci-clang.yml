@@ -1,0 +1,72 @@
+name: LK CI (Clang)
+
+# Brute force build a bunch of variants of LK in parallel jobs.
+
+on: [ push, pull_request ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain-ver: [13, 14, 15]
+        debug: [2]
+        project:
+          # Note: Clang toolchains do not ship with a compiler-rt (libgcc) for
+          # all targets, so we have to restrict this build matrix to targets
+          # that build without requiring these functions (i.e. 64-bit targets,
+          # since 32-bit ones require functions such as __divdi3).
+          - qemu-virt-arm64-test
+          # TODO: Add x86_64 once clang assembler issues have been fixed.
+          # - pc-x86-64-test
+          # TODO: Add riscv64 once clang assembler issues have been fixed.
+          # - qemu-virt-riscv64-test
+          # - qemu-virt-riscv64-supervisor-test
+    env:
+      PROJECT: ${{ matrix.project }}
+      TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
+      DEBUG: ${{ matrix.debug }}
+      UBSAN: 0  # UBSan runtimes for baremetal are not part of the toolchain
+    steps:
+    - name: banner
+      shell: bash
+      run: |
+        printf "Building with %d processors\n" "$(nproc)"
+        grep -oP '(?<=model name\t: ).*' /proc/cpuinfo|head -n1
+        echo PROJECT = $PROJECT
+        echo TOOLCHAIN_VER = $TOOLCHAIN_VER
+        echo DEBUG = $DEBUG
+        echo UBSAN = $UBSAN
+
+    - name: checkout
+      uses: actions/checkout@v3
+
+    # Install LLVM and set up the required environment variables
+    - name: compute toolchain
+      shell: bash
+      run: |
+        sudo apt install clang-${{ matrix.toolchain-ver }} lld-${{ matrix.toolchain-ver }}
+        GCC_TOOLCHAIN_PREFIX=$(make list-toolchain | grep TOOLCHAIN_PREFIX | tail -1 | cut -d ' ' -f 3)
+        # Map the GCC toolchain prefix to a clang --target argument:
+        CLANG_TRIPLE=$(echo "${GCC_TOOLCHAIN_PREFIX}" | sed 's/-elf-/-unknown-elf/g')
+        LLVM_BINDIR=/usr/lib/llvm-${{ matrix.toolchain-ver }}/bin
+        echo "CC=${LLVM_BINDIR}/clang --target=${CLANG_TRIPLE}" >> $GITHUB_ENV
+        echo "LD=${LLVM_BINDIR}/ld.lld" >> $GITHUB_ENV
+        echo "OBJDUMP=${LLVM_BINDIR}/llvm-objdump" >> $GITHUB_ENV
+        echo "OBJCOPY=${LLVM_BINDIR}/llvm-objcopy" >> $GITHUB_ENV
+        echo "CPPFILT=${LLVM_BINDIR}/llvm-cxxfilt" >> $GITHUB_ENV
+        echo "SIZE=${LLVM_BINDIR}/llvm-size" >> $GITHUB_ENV
+        echo "NM=${LLVM_BINDIR}/llvm-nm" >> $GITHUB_ENV
+        echo "STRIP=${LLVM_BINDIR}/llvm-strip" >> $GITHUB_ENV
+        echo "TOOLCHAIN_PREFIX=/invalid/prefix/should/not/be/used" >> $GITHUB_ENV
+        echo "LIBGCC=" >> $GITHUB_ENV
+        cat "$GITHUB_ENV"
+
+    # build it
+    - name: build
+      shell: bash
+      run: |
+        make -j $(nproc)
+
+# vim: ts=2 sw=2 expandtab
