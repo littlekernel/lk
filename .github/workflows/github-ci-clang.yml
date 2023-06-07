@@ -19,9 +19,8 @@ jobs:
           # since 32-bit ones require functions such as __divdi3).
           - pc-x86-64-test
           - qemu-virt-arm64-test
-          # TODO: Add riscv64 once clang assembler issues have been fixed.
-          # - qemu-virt-riscv64-test
-          # - qemu-virt-riscv64-supervisor-test
+          - qemu-virt-riscv64-test
+          - qemu-virt-riscv64-supervisor-test
     env:
       PROJECT: ${{ matrix.project }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
