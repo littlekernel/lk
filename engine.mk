@@ -35,7 +35,7 @@ make-make:
 
 .PHONY: make-make
 endif # expansion of project-name
-endif # project-name == null
+endif # project-name != null
 
 # some additional rules to print some help
 include make/help.mk
