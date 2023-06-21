@@ -66,6 +66,9 @@ GLOBAL_COMPILEFLAGS := -g -include $(CONFIGHEADER)
 GLOBAL_COMPILEFLAGS += -Wextra -Wall -Werror=return-type -Wshadow -Wdouble-promotion
 GLOBAL_COMPILEFLAGS += -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Wno-unused-label
 GLOBAL_COMPILEFLAGS += -fno-common
+# Build with -ffreestanding since we are building an OS kernel and cannot
+# rely on all hosted environment functionality being present.
+GLOBAL_COMPILEFLAGS += -ffreestanding
 GLOBAL_CFLAGS := --std=gnu11 -Werror-implicit-function-declaration -Wstrict-prototypes -Wwrite-strings
 GLOBAL_CPPFLAGS := --std=c++14 -fno-exceptions -fno-rtti -fno-threadsafe-statics
 GLOBAL_ASMFLAGS := -DASSEMBLY
@@ -192,6 +195,15 @@ SIZE ?= $(TOOLCHAIN_PREFIX)size
 NM ?= $(TOOLCHAIN_PREFIX)nm
 STRIP ?= $(TOOLCHAIN_PREFIX)strip
 
+# Detect whether we are using ld.lld. If we don't detect ld.lld, we assume
+# it's ld.bfd. This check can be refined in the future if we need to handle
+# more cases (e.g. ld.gold).
+LINKER_TYPE := $(shell $(LD) -v 2>&1 | grep -q "LLD" && echo lld || echo bfd)
+$(info LINKER_TYPE=$(LINKER_TYPE))
+# Detect whether we are compiling with GCC or Clang
+COMPILER_TYPE := $(shell $(CC) -v 2>&1 | grep -q "clang version" && echo clang || echo gcc)
+$(info COMPILER_TYPE=$(COMPILER_TYPE))
+
 # Now that CC is defined we can check if warning flags are supported and add
 # them to GLOBAL_COMPILEFLAGS if they are.
 ifeq ($(call is_warning_flag_supported,-Wnonnull-compare),yes)
@@ -204,6 +216,26 @@ ifeq ($(ARCH),arm64)
 # the underlying register is actually 32 bits. Silence this common warning.
 ifeq ($(call is_warning_flag_supported,-Wasm-operand-widths),yes)
 ARCH_COMPILEFLAGS += -Wno-asm-operand-widths
+endif
+endif
+
+ifeq ($(ARCH),riscv)
+# ld.lld does not support linker relaxations yet.
+# TODO: This is no longer true as of LLVM 15, so should add a version check
+ifeq ($(LINKER_TYPE),lld)
+ARCH_COMPILEFLAGS += -mno-relax
+# Work around out-of-range undef-weak relocations when building with clang and
+# linking with ld.lld. This is not a problem with ld.bfd since ld.bfd rewrites
+# the instructions to avoid the out-of-range PC-relative relocation
+# See https://github.com/riscv-non-isa/riscv-elf-psabi-doc/issues/126 for more
+# details. For now, the simplest workaround is to build with -fpie when using
+# a version of clang that does not include https://reviews.llvm.org/D107280.
+# TODO: Add a clang 17 version check now that the review has been merged.
+ifeq ($(COMPILER_TYPE),clang)
+# We also add the -fdirect-access-external-data flag is added to avoid the
+# majority of the performance overhead caused by -fPIE.
+ARCH_COMPILEFLAGS += -fPIE -fdirect-access-external-data
+endif
 endif
 endif
 

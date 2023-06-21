@@ -19,9 +19,11 @@
 #if RISCV_M_MODE
 # define RISCV_XMODE_OFFSET     (RISCV_MACH_OFFSET)
 # define RISCV_XRET             mret
+# define RISCV_MODE_PREFIX      m
 #elif RISCV_S_MODE
 # define RISCV_XMODE_OFFSET     (RISCV_SUPER_OFFSET)
 # define RISCV_XRET             sret
+# define RISCV_MODE_PREFIX      s
 #else
 # error Unrecognized RISC-V privilege level selected
 #endif
@@ -36,14 +38,14 @@
 #define RISCV_CSR_TIMEH     (0xc81)
 #define RISCV_CSR_INSRETH   (0xc82)
 
-#define RISCV_CSR_XSTATUS   (0x000 | RISCV_CSR_XMODE_BITS)
-#define RISCV_CSR_XIE       (0x004 | RISCV_CSR_XMODE_BITS)
-#define RISCV_CSR_XTVEC     (0x005 | RISCV_CSR_XMODE_BITS)
-#define RISCV_CSR_XSCRATCH  (0x040 | RISCV_CSR_XMODE_BITS)
-#define RISCV_CSR_XEPC      (0x041 | RISCV_CSR_XMODE_BITS)
-#define RISCV_CSR_XCAUSE    (0x042 | RISCV_CSR_XMODE_BITS)
-#define RISCV_CSR_XTVAL     (0x043 | RISCV_CSR_XMODE_BITS)
-#define RISCV_CSR_XIP       (0x044 | RISCV_CSR_XMODE_BITS)
+#define RISCV_CSR_XSTATUS   __CONCAT(RISCV_MODE_PREFIX, status)
+#define RISCV_CSR_XIE       __CONCAT(RISCV_MODE_PREFIX, ie)
+#define RISCV_CSR_XTVEC     __CONCAT(RISCV_MODE_PREFIX, tvec)
+#define RISCV_CSR_XSCRATCH  __CONCAT(RISCV_MODE_PREFIX, scratch)
+#define RISCV_CSR_XEPC      __CONCAT(RISCV_MODE_PREFIX, epc)
+#define RISCV_CSR_XCAUSE    __CONCAT(RISCV_MODE_PREFIX, cause)
+#define RISCV_CSR_XTVAL     __CONCAT(RISCV_MODE_PREFIX, tval)
+#define RISCV_CSR_XIP       __CONCAT(RISCV_MODE_PREFIX, ip)
 
 #if RISCV_M_MODE // Machine-mode only CSRs
 #define RISCV_CSR_MCYCLE    (0xb00)
@@ -55,7 +57,7 @@
 #endif // RISCV_M_MODE
 
 #if RISCV_S_MODE // Supervisor-mode only CSRs
-#define RISCV_CSR_SATP      (0x180)
+#define RISCV_CSR_SATP      satp
 #endif
 
 #define RISCV_CSR_XSTATUS_IE    (1ul << (RISCV_XMODE_OFFSET + 0))

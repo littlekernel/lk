@@ -21,8 +21,7 @@ _isr:
 .set i, 0
 .rept NUM_INT
 
-.set isr_stub_start, .
-
+100:  /* unnamed label for start of isr stub */
 .if i == 8 || (i >= 10 && i <= 14) || i == 17
     nop                     /* error code pushed by exception */
     nop                     /* 2 nops are the same length as push byte */
@@ -34,11 +33,11 @@ _isr:
     jmp interrupt_common
 .endif
 
-/* figure out the length of a single isr stub (usually 6 or 9 bytes) */
-.set isr_stub_len, . - isr_stub_start
-
 .set i, i + 1
 .endr
+
+/* figure out the length of a single isr stub (usually 6 or 9 bytes) */
+.set isr_stub_len, . - 100b
 
 /* annoying, but force AS to use the same (longer) encoding of jmp for all of the stubs */
 .fill 256
