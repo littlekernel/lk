@@ -118,7 +118,7 @@ void platform_early_init(void) {
 
     const void *fdt = (void *)lk_boot_args[1];
 #if WITH_KERNEL_VM
-    fdt = (const void *)((uintptr_t)fdt + PERIPHERAL_BASE_VIRT);
+    fdt = (const void *)((uintptr_t)fdt + KERNEL_ASPACE_BASE);
 #endif
 
     struct fdt_walk_callbacks cb = {
@@ -137,10 +137,13 @@ void platform_early_init(void) {
 
     if (err != 0) {
         printf("FDT: error finding FDT at %p, using default memory & cpu count\n", fdt);
-        reserved.regions[0].base = MEMBASE;
-        reserved.regions[0].len = 0x00200000; // reserve the first 2MB of memory for SBI
-        reserved.count = 1;
     }
+
+    // Always reserve all of physical memory below the kernel, this is where SBI lives
+    // TODO: figure out why uboot doesn't always put this here
+    reserved.regions[reserved.count].base = MEMBASE;
+    reserved.regions[reserved.count].len = KERNEL_LOAD_OFFSET;
+    reserved.count++;
 
     /* add a default memory region if we didn't find it in the FDT */
     if (!found_mem) {
