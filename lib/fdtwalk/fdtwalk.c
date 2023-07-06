@@ -77,6 +77,21 @@ static status_t read_base_len_pair(const uint8_t *prop_ptr, size_t prop_len,
     return NO_ERROR;
 }
 
+// returns true or false if a particular property is a particular value
+static bool check_prop_is_val_string(const void *fdt, int offset, const char *prop, const char *val) {
+    int lenp;
+    const uint8_t *prop_ptr = fdt_getprop(fdt, offset, prop, &lenp);
+    if (!prop_ptr || lenp <= 0) {
+        return false;
+    }
+
+    if (strncmp(val, (const char *)prop_ptr, strlen(val)) == 0) {
+        return true;
+    }
+
+    return false;
+}
+
 status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
     int err = fdt_check_header(fdt);
     if (err != 0) {
@@ -202,8 +217,13 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
                     PANIC_UNIMPLEMENTED;
                 }
 
-                LTRACEF("calling cpu callback with id %#x\n", id);
-                cb->cpu(id, cb->cpucookie);
+                // is it disabled?
+                if (check_prop_is_val_string(fdt, offset, "status", "disabled")) {
+                    LTRACEF("cpu id %#x is disabled, skipping...\n", id);
+                } else {
+                    LTRACEF("calling cpu callback with id %#x\n", id);
+                    cb->cpu(id, cb->cpucookie);
+                }
             }
         }
 
