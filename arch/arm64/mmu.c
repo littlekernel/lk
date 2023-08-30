@@ -8,6 +8,7 @@
 
 #include <arch/arm64/mmu.h>
 #include <assert.h>
+#include <lk/bits.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <kernel/vm.h>
@@ -356,9 +357,9 @@ static void arm64_mmu_unmap_pt(vaddr_t vaddr, vaddr_t vaddr_rel,
             page_table[index] = MMU_PTE_DESCRIPTOR_INVALID;
             CF;
             if (asid == MMU_ARM64_GLOBAL_ASID)
-                ARM64_TLBI(vaae1is, vaddr >> 12);
+                ARM64_TLBI(vaae1is, BITS_SHIFT(vaddr, 55, 12));
             else
-                ARM64_TLBI(vae1is, vaddr >> 12 | (vaddr_t)asid << 48);
+                ARM64_TLBI(vae1is, BITS_SHIFT(vaddr, 55, 12) | (vaddr_t)asid << 48);
         } else {
             LTRACEF("pte %p[0x%lx] already clear\n", page_table, index);
         }
