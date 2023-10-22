@@ -17,7 +17,7 @@ strncpy(char *dest, char const *src, size_t count) {
     char *tmp = dest;
 
     size_t i;
-    for (i = 0; i < count && (*dest++ = *src++) != '\0'; i++)
+    for (i = 0; i++ < count && (*dest++ = *src++) != '\0'; )
         ;
     for (; i < count; i++)
         *dest++ = '\0';
