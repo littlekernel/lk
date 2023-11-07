@@ -165,6 +165,9 @@ BUILDID ?=
 # comment out or override if you want to see the full output of each command
 NOECHO ?= @
 
+# Any modules you want to explictly prevent from being used
+DENY_MODULES :=
+
 # try to include the project file
 -include project/$(PROJECT).mk
 ifndef TARGET

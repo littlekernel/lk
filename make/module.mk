@@ -46,6 +46,10 @@ $(error MODULE $(MODULE) is probably setting OBJS, change to MODULE_SRCS)
 endif
 endif
 
+ifneq ($(filter $(MODULE),$(DENY_MODULES)),)
+$(error MODULE $(MODULE) is not allowed by PROJECT $(PROJECT)'s DENY_MODULES list)
+endif
+
 MODULE_SRCDIR := $(MODULE)
 MODULE_BUILDDIR := $(call TOBUILDDIR,$(MODULE_SRCDIR))
 
