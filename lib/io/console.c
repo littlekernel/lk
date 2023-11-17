@@ -59,10 +59,12 @@ static void out_count(const char *str, size_t len) {
         spin_unlock_restore(&print_spin_lock, state, PRINT_LOCK_FLAGS);
     }
 
+#if CONSOLE_OUTPUT_TO_PLATFORM_PUTC
     /* write out the serial port */
     for (i = 0; i < len; i++) {
         platform_dputc(str[i]);
     }
+#endif
 }
 
 void register_print_callback(print_callback_t *cb) {
