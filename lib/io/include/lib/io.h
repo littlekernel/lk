@@ -54,6 +54,11 @@ static inline void io_handle_init(io_handle_t *io, io_handle_hooks_t *hooks) {
 /* the main console io handle */
 extern io_handle_t console_io;
 
+/* should the console also output to the platform's putc (usually UART) */
+#ifndef CONSOLE_OUTPUT_TO_PLATFORM_PUTC
+#define CONSOLE_OUTPUT_TO_PLATFORM_PUTC 1
+#endif
+
 #ifndef CONSOLE_HAS_INPUT_BUFFER
 #define CONSOLE_HAS_INPUT_BUFFER 0
 #endif
