@@ -44,7 +44,6 @@ static uint8_t console_cbuf_buf[CONSOLE_BUF_LEN];
 /* print lock must be held when invoking out, outs, outc */
 static void out_count(const char *str, size_t len) {
     print_callback_t *cb;
-    size_t i;
 
     /* print to any registered loggers */
     if (!list_is_empty(&print_callbacks)) {
@@ -60,6 +59,7 @@ static void out_count(const char *str, size_t len) {
     }
 
 #if CONSOLE_OUTPUT_TO_PLATFORM_PUTC
+    size_t i;
     /* write out the serial port */
     for (i = 0; i < len; i++) {
         platform_dputc(str[i]);
