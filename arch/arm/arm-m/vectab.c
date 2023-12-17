@@ -39,17 +39,15 @@ static const struct __debugger_info__ {
     u8 off_list_node;
     u8 off_state;
     u8 off_saved_sp;
-    u8 off_was_preempted;
     u8 off_name;
     u8 off_waitq;
 } _debugger_info = {
-    .version = 0x0100,
+    .version = 0x0200,
     .thread_list_ptr = &thread_list,
     .current_thread_ptr = &_current_thread,
     .off_list_node = __builtin_offsetof(thread_t, thread_list_node),
     .off_state = __builtin_offsetof(thread_t, state),
     .off_saved_sp = __builtin_offsetof(thread_t, arch.sp),
-    .off_was_preempted = __builtin_offsetof(thread_t, arch.was_preempted),
     .off_name = __builtin_offsetof(thread_t, name),
     .off_waitq = __builtin_offsetof(thread_t, blocking_wait_queue),
 };
