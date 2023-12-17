@@ -6,6 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <arch/arm/cm.h>
+#include <kernel/thread.h>
 #include <lk/compiler.h>
 #include <stdint.h>
 
@@ -28,7 +29,30 @@ extern void _pendsv(void);
 extern void _systick(void);
 
 #if defined(WITH_DEBUGGER_INFO)
-extern struct __debugger_info__ _debugger_info;
+// Contains sufficient information for a remote debugger to walk
+// the thread list without needing the symbols and debug sections in
+// the elf binary for lk or the ability to parse them.
+static const struct __debugger_info__ {
+    u32 version; // flags:16 major:8 minor:8
+    void *thread_list_ptr;
+    void *current_thread_ptr;
+    u8 off_list_node;
+    u8 off_state;
+    u8 off_saved_sp;
+    u8 off_was_preempted;
+    u8 off_name;
+    u8 off_waitq;
+} _debugger_info = {
+    .version = 0x0100,
+    .thread_list_ptr = &thread_list,
+    .current_thread_ptr = &_current_thread,
+    .off_list_node = __builtin_offsetof(thread_t, thread_list_node),
+    .off_state = __builtin_offsetof(thread_t, state),
+    .off_saved_sp = __builtin_offsetof(thread_t, arch.sp),
+    .off_was_preempted = __builtin_offsetof(thread_t, arch.was_preempted),
+    .off_name = __builtin_offsetof(thread_t, name),
+    .off_waitq = __builtin_offsetof(thread_t, blocking_wait_queue),
+};
 #endif
 
 // ARMv7m+ have more vectors than armv6m
@@ -49,6 +73,7 @@ const void *const __SECTION(".text.boot.vectab1") vectab[] = {
     ARMV7M_VECTOR(_usagefault), // usage fault
     0, // reserved
 #if defined(WITH_DEBUGGER_INFO)
+    // stick a pointer to the debugger info structure in unused vectors
     (void *) 0x52474244,
     &_debugger_info,
 #else
@@ -62,6 +87,4 @@ const void *const __SECTION(".text.boot.vectab1") vectab[] = {
     _pendsv, // pendsv
     _systick, // systick
 };
-
-
 

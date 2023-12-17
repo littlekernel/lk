@@ -200,6 +200,9 @@ static inline void set_current_thread(thread_t *t) {
     arch_set_current_thread(t);
 }
 
+/* list of all threads, unsafe to traverse without holding thread_lock */
+extern struct list_node thread_list;
+
 /* scheduler lock */
 extern spin_lock_t thread_lock;
 
