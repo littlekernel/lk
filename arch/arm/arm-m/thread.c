@@ -111,6 +111,10 @@ static vaddr_t pendsv_swap_sp(vaddr_t old_frame) {
     DEBUG_ASSERT(_prev_running_thread != NULL);
     DEBUG_ASSERT(_current_thread != NULL);
 
+#if     (__CORTEX_M >= 0X03) || (__CORTEX_SC >= 300)
+    __CLREX();
+#endif
+
     _prev_running_thread->arch.sp = old_frame;
     _prev_running_thread = NULL;
     return _current_thread->arch.sp;
