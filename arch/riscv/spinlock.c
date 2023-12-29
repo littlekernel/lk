@@ -7,17 +7,19 @@
  */
 #include <arch/spinlock.h>
 
+#include <stdint.h>
+
 // super simple spin lock implementation
 
 int riscv_spin_trylock(spin_lock_t *lock) {
-    unsigned long val = arch_curr_cpu_num() + 1UL;
+    // use a full 32/64 type since amoswap overwrites the entire register
     unsigned long old;
 
     __asm__ __volatile__(
         "amoswap.w  %0, %2, %1\n"
         "fence      r, rw\n"
         : "=r"(old), "+A"(*lock)
-        : "r" (val)
+        : "r" (1u)
         : "memory"
     );
 
@@ -25,19 +27,19 @@ int riscv_spin_trylock(spin_lock_t *lock) {
 }
 
 void riscv_spin_lock(spin_lock_t *lock) {
-    unsigned long val = arch_curr_cpu_num() + 1UL;
-
     for (;;) {
         if (*lock) {
+            // TODO: use a yield instruction here?
             continue;
         }
 
+        // use a full 32/64 type since amoswap overwrites the entire register
         unsigned long old;
         __asm__ __volatile__(
             "amoswap.w  %0, %2, %1\n"
             "fence      r, rw\n"
             : "=r"(old), "+A"(*lock)
-            : "r" (val)
+            : "r" (1u)
             : "memory"
         );
 

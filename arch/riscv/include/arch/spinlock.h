@@ -15,7 +15,7 @@ __BEGIN_CDECLS
 
 #define SPIN_LOCK_INITIAL_VALUE (0)
 
-typedef volatile unsigned int spin_lock_t;
+typedef volatile uint32_t spin_lock_t;
 
 typedef unsigned long spin_lock_saved_state_t;
 typedef unsigned int spin_lock_save_flags_t;
