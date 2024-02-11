@@ -6,6 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <lk/err.h>
+#include <lk/main.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <kernel/thread.h>
@@ -44,19 +45,19 @@ struct rosco_system_data_block {
 };
 STATIC_ASSERT(sizeof(struct rosco_system_data_block) == 0x20);
 
-const volatile struct rosco_system_data_block *sdb = (void *)0x400;
-
 void platform_early_init(void) {
     duart_early_init();
+
+    volatile struct rosco_system_data_block *sdb = (void *)lk_boot_args[0];
 
     // default to 1MB memory at 0
     uint32_t membase = 0x0;
     uint32_t memsize = 0x100000; // 1MB
 
     if (sdb->magic != ROSCO_SDB_MAGIC) {
-        dprintf(INFO, "ROSCO-M68K: firmware failed magic check\n");
+        dprintf(INFO, "ROSCO-M68K: firmware failed magic check at %p\n", sdb);
     } else {
-        dprintf(INFO, "ROSCO-M68K: firmware structure at 0x400 - 0x41f:\n");
+        dprintf(INFO, "ROSCO-M68K: firmware structure at %p - %p:\n", sdb, sdb + 0x1f);
         hexdump((void *)sdb, sizeof(*sdb));
 
         printf("cpu family %u speed %u\n", sdb->cpu_info >> 29, sdb->cpu_info & 0x1fffffff);

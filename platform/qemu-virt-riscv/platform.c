@@ -7,6 +7,7 @@
  */
 #include <inttypes.h>
 #include <lk/err.h>
+#include <lk/main.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <kernel/thread.h>
@@ -36,8 +37,6 @@
 #include "platform_p.h"
 
 #define LOCAL_TRACE 0
-
-extern ulong lk_boot_args[4];
 
 #if WITH_KERNEL_VM
 #define DEFAULT_MEMORY_SIZE (MEMSIZE) /* try to fetch from the emulator via the fdt */

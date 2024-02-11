@@ -12,6 +12,9 @@
 
 __BEGIN_CDECLS
 
+// Possible boot args passed from various arch's start.S
+extern ulong lk_boot_args[4];
+
 void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3) __NO_RETURN __EXTERNALLY_VISIBLE;
 void lk_secondary_cpu_entry(void);
 void lk_init_secondary_cpus(uint secondary_cpu_count);

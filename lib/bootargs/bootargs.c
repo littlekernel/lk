@@ -7,21 +7,19 @@
  */
 #include <lib/bootargs.h>
 
-#include <lk/trace.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <lk/err.h>
-#include <string.h>
 #include <lk/init.h>
+#include <lk/main.h>
+#include <lk/trace.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #endif
 
 #define LOCAL_TRACE 0
-
-/* saved by the main entry point in lk */
-extern ulong lk_boot_args[4];
 
 static bool boot_args_valid = false;
 static struct lk_boot_arg *boot_args;
