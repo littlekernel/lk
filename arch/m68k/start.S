@@ -9,6 +9,13 @@
 
 .section .text.boot
 FUNCTION(_start)
+    // load the first 4 args that were pushed on whatever stack we have
+    // NOTE: assumes stack is pointing at at least readable memory
+    movl    %sp@(4),%d0
+    movl    %sp@(8),%d1
+    movl    %sp@(12),%d2
+    movl    %sp@(16),%d3
+
 #if ARCH_DO_RELOCATION
     lea     %pc@(_start),%a0 // load the current address using PC relative addressing mode
     movl    #_start,%a1      // load the same symbol absolutely
@@ -46,11 +53,11 @@ bss_clear:
     // load the initial stack pointer
     lea     _default_stack_top,%sp
 
-    // branch into C land with 4 zeroed args
-    clrl    %sp@-
-    clrl    %sp@-
-    clrl    %sp@-
-    clrl    %sp@-
+    // branch into C land with 4 args off the previous stack
+    movl    %d3,%sp@-
+    movl    %d2,%sp@-
+    movl    %d1,%sp@-
+    movl    %d0,%sp@-
     jsr     lk_main
 
     // if we return from main just loop forever
