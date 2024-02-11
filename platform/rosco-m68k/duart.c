@@ -46,7 +46,8 @@ static volatile uint8_t * const DUART_BASE = (void *)0xf00001;
 // registers, swizzled according to
 // https://github.com/rosco-m68k/rosco_m68k/blob/develop/code/shared/rosco_m68k_public.asm
 enum {
-    DUART_REG_MR1A_RW   = 0x00, // mode register, channel A
+    DUART_REG_MR1A_RW   = 0x00, // mode 1 register, channel A
+    DUART_REG_MR2A_RW   = 0x00, // mode 2 register, channel A
     DUART_REG_SRA_R     = 0x01, // status register, channel A
     DUART_REG_CSRA_W    = 0x01, // clock select register, channel A
     DUART_REG_MISR_R    = 0x02, // masked interrupt status register
@@ -97,8 +98,11 @@ void duart_early_init(void) {
     // Set the IRQ vector to 0x45
     write_reg(DUART_REG_IVR_RW, 0x45);
 
-    // TODO: set up UARTA again
-    // for now assume it's already configured
+    // set the mode
+    // !rxrts, rxrdy int, char error mode, n81
+    write_reg(DUART_REG_MR1A_RW, (0b10 << 3) | (0b11 << 0));
+    // normal channel, no txrts, no cts, stop bit 1
+    write_reg(DUART_REG_MR2A_RW, 0x7);
 
     // set up a periodic counter at TICK_HZ
     read_reg(DUART_REG_STC_R); // stop the counter
@@ -117,6 +121,9 @@ void duart_early_init(void) {
     // unmask irq
     cached_imr = (1<<3); // counter #1 ready
     write_reg(DUART_REG_IMR_W, cached_imr);
+
+    // configure the output ports
+    write_reg(DUART_REG_OPCR_W, 0);
 }
 
 void duart_init(void) {
@@ -143,6 +150,8 @@ enum handler_return duart_irq(void) {
 
     uint8_t isr = read_reg(DUART_REG_ISR_R);
 
+    LTRACEF_LEVEL(2, "isr %#hhx\n", isr);
+
     if (likely(isr & (1<<3))) { // counter #1 ready
         ticks += TICK_MS;
 
@@ -160,11 +169,16 @@ enum handler_return duart_irq(void) {
     }
     if (isr & (1<<1)) { // RXRDY/FFULLA
         uint8_t status = read_reg(DUART_REG_SRA_R);
+        LTRACEF("RXRDY/FFULLA, status %#hhx\n", status);
         if (status & (1<<0)) { // RXRDY
+            // XXX disable, for some reason the top 3 status bits are always set
+#if 0
             if (unlikely(status & (0b111 << 5))) { // any of break, framing, or parity error
                 // consume this byte
                 __UNUSED volatile uint8_t hole = read_reg(DUART_REG_RHRA_R);
-            } else {
+            } else
+#endif
+            {
                 char c = read_reg(DUART_REG_RHRA_R);
                 cbuf_write_char(&uart_rx_buf, c, false);
                 ret = INT_RESCHEDULE;
@@ -194,21 +208,25 @@ int platform_pgetc(char *c, bool wait) {
     for (;;) {
         uint8_t status = read_reg(DUART_REG_SRA_R);
         if (status & (1<<0)) { // RXRDY
+            // XXX disable, for some reason the top 3 status bits are always set
+#if 0
             if (status & (0b111 << 5)) { // any of break, framing, or parity error
                 // consume this byte
                 __UNUSED volatile uint8_t hole = read_reg(DUART_REG_RHRA_R);
                 continue;
             }
+#endif
 
             *c = read_reg(DUART_REG_RHRA_R);
-            return 1;
+            return 0;
         }
         if (wait) {
             continue;
         }
         break;
     } while (0);
-    return 0;
+
+    return -1;
 }
 
 lk_bigtime_t current_time_hires(void) {
