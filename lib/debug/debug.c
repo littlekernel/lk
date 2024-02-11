@@ -55,16 +55,6 @@ void assert_fail(const char* file, int line, const char* expression) {
 
 #if !DISABLE_DEBUG_OUTPUT
 
-static int __panic_stdio_fgetc(void *ctx) {
-    char c;
-    int err;
-
-    err = platform_pgetc(&c, false);
-    if (err < 0)
-        return err;
-    return (unsigned char)c;
-}
-
 static ssize_t __panic_stdio_read(io_handle_t *io, char *s, size_t len) {
     if (len == 0)
         return 0;
