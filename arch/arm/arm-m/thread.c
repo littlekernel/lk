@@ -106,7 +106,7 @@ static vaddr_t pendsv_swap_sp(vaddr_t old_frame) {
     DEBUG_ASSERT(((uintptr_t)__GET_FRAME() & 0x7) == 0);
 
     DEBUG_ASSERT_MSG(!spin_lock_held(&thread_lock),
-        "PENDSV: thread lock was held when preempted! pc %#x\n", ((struct arm_cm_exception_frame *)old_frame)->pc);
+                     "PENDSV: thread lock was held when preempted! pc %#x\n", ((struct arm_cm_exception_frame *)old_frame)->pc);
 
     DEBUG_ASSERT(_prev_running_thread != NULL);
     DEBUG_ASSERT(_current_thread != NULL);
@@ -180,6 +180,12 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
          */
         arm_cm_trigger_preempt();
     }
+
+    /*
+     * Make sure either pendsv is queued up either via the previous if statement
+     * or via a nested preemption.
+     */
+    DEBUG_ASSERT(arm_cm_is_preempt_triggered());
 
     if (!in_interrupt_context) {
         /* we're in thread context, so jump to PendSV immediately */

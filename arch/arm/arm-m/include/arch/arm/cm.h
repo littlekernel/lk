@@ -10,6 +10,7 @@
 
 /* support header for all cortex-m class cpus */
 
+#include <assert.h>
 #include <lk/compiler.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -59,6 +60,8 @@ struct arm_cm_exception_frame {
     uint32_t r7;
 #endif
     uint32_t exc_return;
+
+    /* hardware pushes this */
     uint32_t r0;
     uint32_t r1;
     uint32_t r2;
@@ -68,6 +71,8 @@ struct arm_cm_exception_frame {
     uint32_t pc;
     uint32_t psr;
 };
+
+static_assert(sizeof(struct arm_cm_exception_frame) == 17 * 4, "");
 
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
 
@@ -85,6 +90,7 @@ struct arm_cm_exception_frame_fpu {
 
     float s16_31[16];
 
+    /* hardware pushes this */
     uint32_t r0;
     uint32_t r1;
     uint32_t r2;
@@ -94,9 +100,14 @@ struct arm_cm_exception_frame_fpu {
     uint32_t pc;
     uint32_t psr;
 
+    /* additional state the cpu pushes when using an extended frame */
     float    s0_15[16];
     uint32_t fpscr;
+    uint32_t reserved;
 };
+
+static_assert(sizeof(struct arm_cm_exception_frame_fpu) == (9 + 16 + 8 + 16 + 2) * 4, "");
+
 #endif
 
 #if ARM_CM_DYNAMIC_PRIORITY_SIZE
@@ -158,12 +169,13 @@ static inline void arm_cm_trigger_interrupt(int vector) {
 }
 #endif
 
-
 static inline void arm_cm_trigger_preempt(void) {
     SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
-
+static inline bool arm_cm_is_preempt_triggered(void) {
+    return SCB->ICSR & SCB_ICSR_PENDSVSET_Msk;
+}
 
 /* systick */
 void arm_cm_systick_init(uint32_t mhz);

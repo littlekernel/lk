@@ -116,51 +116,51 @@ void _nmi(void) {
  */
 #if     (__CORTEX_M >= 0X03) || (__CORTEX_SC >= 300)
 #define PUSH_REGS \
-        "push	{r4-r11, lr};"
+        "push   {r4-r11, lr};" /* 9 words on the stack */
 #else
 #define PUSH_REGS \
-        "push	{r4-r7, lr};" \
-        "mov   r4, r8;" \
-        "mov   r5, r9;" \
-        "mov   r6, r10;" \
-        "mov   r7, r11;" \
-        "push   {r4-r7};"
+        "push   {r4-r7, lr};" /* 5 words */ \
+        "mov    r4, r8;" \
+        "mov    r5, r9;" \
+        "mov    r6, r10;" \
+        "mov    r7, r11;" \
+        "push   {r4-r7};" /* 4 more words */
 #endif
 
 __NAKED void _hardfault(void) {
     __asm__ volatile(
         PUSH_REGS
-        "mov	r0, sp;"
-        "b		hardfault;"
+        "mov    r0, sp;"
+        "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
+        "b      hardfault;"
     );
-    __UNREACHABLE;
 }
 
 __NAKED void _memmanage(void) {
     __asm__ volatile(
         PUSH_REGS
-        "mov	r0, sp;"
-        "b		memmanage;"
+        "mov    r0, sp;"
+        "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
+        "b      memmanage;"
     );
-    __UNREACHABLE;
 }
 
 __NAKED void _busfault(void) {
     __asm__ volatile(
         PUSH_REGS
-        "mov	r0, sp;"
-        "b		busfault;"
+        "mov    r0, sp;"
+        "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
+        "b      busfault;"
     );
-    __UNREACHABLE;
 }
 
 __NAKED void _usagefault(void) {
     __asm__ volatile(
         PUSH_REGS
-        "mov	r0, sp;"
-        "b		usagefault;"
+        "mov    r0, sp;"
+        "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
+        "b      usagefault;"
     );
-    __UNREACHABLE;
 }
 
 #undef PUSH_REGS
