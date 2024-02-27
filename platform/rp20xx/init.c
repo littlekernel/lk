@@ -13,8 +13,6 @@
 #include <hardware/uart.h>
 #include <hardware/resets.h>
 
-extern void* vectab;
-
 void platform_early_init(void) {
     // initialize the clock tree.
     // gets clock values from defines in SDK at
@@ -34,10 +32,4 @@ void platform_early_init(void) {
     uart_puts(DEBUG_UART, "Hello World!\n");
 }
 
-void platform_init(void) {
-}
 
-
-bool running_on_fpga(void) {
-    return false;
-}
