@@ -1,10 +1,9 @@
-
 Origin: https://github.com/raspberrypi/pico-sdk
-Change: 2d5789eca89658a7f0a01e2d6010c0f254605d72
+Change: 6a7db34ff63345a7badec79ebea3aaef1712f374
+Tag: 1.5.1
 
-This is the contents of src/boads, src/common,
-src/rp2040, and src/rp2_common, excluding cmake
-goop.
+This is the contents of src/boards, src/common,
+src/rp2040, and src/rp2_common, excluding cmake files.
 
 I suspect we'll trim it back closer to just the
 register definitions, but for now leave it mostly

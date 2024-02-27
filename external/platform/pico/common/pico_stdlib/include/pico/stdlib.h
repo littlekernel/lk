@@ -44,19 +44,29 @@ extern "C" {
 // respective INTERFACE libraries, so these defines are set if the library
 // is included for the target executable
 
-#if PICO_STDIO_UART
+#if LIB_PICO_STDIO_UART
 #include "pico/stdio_uart.h"
 #endif
 
-#if PICO_STDIO_USB
+#if LIB_PICO_STDIO_USB
 #include "pico/stdio_usb.h"
 #endif
 
-#if PICO_STDIO_SEMIHOSTING
+#if LIB_PICO_STDIO_SEMIHOSTING
 #include "pico/stdio_semihosting.h"
 #endif
 
-/*! \brief Set up the default UART and assign it to the default GPIO's
+// PICO_CONFIG: PICO_DEFAULT_LED_PIN, Optionally define a pin that drives a regular LED on the board, group=pico_stdlib
+
+// PICO_CONFIG: PICO_DEFAULT_LED_PIN_INVERTED, 1 if LED is inverted or 0 if not, type=int, default=0, group=pico_stdlib
+#ifndef PICO_DEFAULT_LED_PIN_INVERTED
+#define PICO_DEFAULT_LED_PIN_INVERTED 0
+#endif
+
+// PICO_CONFIG: PICO_DEFAULT_WS2812_PIN, Optionally define a pin that controls data to a WS2812 compatible LED on the board, group=pico_stdlib
+// PICO_CONFIG: PICO_DEFAULT_WS2812_POWER_PIN, Optionally define a pin that controls power to a WS2812 compatible LED on the board, group=pico_stdlib
+
+/*! \brief Set up the default UART and assign it to the default GPIOs
  *  \ingroup pico_stdlib
  *
  * By default this will use UART 0, with TX to pin GPIO 0,
@@ -95,7 +105,7 @@ void set_sys_clock_pll(uint32_t vco_freq, uint post_div1, uint post_div2);
  *  \ingroup pico_stdlib
  *
  * \param freq_khz Requested frequency
- * \param vco_freq_out On success, the voltage controller oscillator frequeucny to be used by the SYS PLL
+ * \param vco_freq_out On success, the voltage controlled oscillator frequency to be used by the SYS PLL
  * \param post_div1_out On success, The first post divider for the SYS PLL
  * \param post_div2_out On success, The second post divider for the SYS PLL.
  * @return true if the frequency is possible and the output parameters have been written.
