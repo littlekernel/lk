@@ -69,7 +69,7 @@ jobs:
 
     # check out the source
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     # compute the toolchain prefix this project will need
     - name: compute toolchain
@@ -82,7 +82,7 @@ jobs:
     # maintain a directory archives/ in the repo
     # it will contain tarballs of various toolchains
     - name: cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         # A list of files, directories, and wildcard patterns to cache and restore
