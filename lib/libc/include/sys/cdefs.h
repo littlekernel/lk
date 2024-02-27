@@ -41,6 +41,21 @@
 #ifndef _SYS_CDEFS_H_
 #define _SYS_CDEFS_H_
 
+// Pull in a bunch of similar #defines from lk/compiler.h and redefine them here
+// as the cdefs version.
+#include <lk/compiler.h>
+
+#define __always_inline __ALWAYS_INLINE
+#define __malloc_like __MALLOC
+#define __pure __PURE
+#define __pure2 __CONST
+#define __unreachable __UNREACHABLE
+#define __unused __UNUSED
+#define __used __USED
+
+#define __BEGIN_DECLS __BEGIN_CDECLS
+#define __END_DECLS __END_CDECLS
+
 /*-
  * Deal with _ANSI_SOURCE:
  * If it is defined, and no other compilation environment is explicitly
@@ -86,15 +101,12 @@
 # define __BSD_VISIBLE          1
 #endif
 
-
 /*
  * Some of the FreeBSD sources used in Bionic need this.
  * Originally, this is used to embed the rcs versions of each source file
  * in the generated binary. We certainly don't want this in Bionic.
  */
 #define __FBSDID(s) /* nothing */
-
-#define __pure2 __attribute__((__const__)) /* Android-added: used by FreeBSD libm */
 
 /*
  * Macro to test if we're using a GNU C compiler of a specific vintage
@@ -116,29 +128,11 @@
 #endif
 
 #if defined(__cplusplus)
-#define __BEGIN_DECLS       extern "C" {
-#define __END_DECLS     }
-#define __static_cast(x,y)  static_cast<x>(y)
-#else
-#define __BEGIN_DECLS
-#define __END_DECLS
-#define __static_cast(x,y)  (x)y
-#endif
-
-#if defined(__cplusplus)
 #define __inline    inline      /* convert to C++ keyword */
 #else
 #if !defined(__GNUC__) && !defined(__lint__)
 #define __inline            /* delete GCC keyword */
 #endif /* !__GNUC__  && !__lint__ */
 #endif /* !__cplusplus */
-
-#if __GNUC_PREREQ__(3, 1)
-#define __always_inline __attribute__((__always_inline__))
-#else
-#define __always_inline
-#endif
-
-
 
 #endif /* !_SYS_CDEFS_H_ */
