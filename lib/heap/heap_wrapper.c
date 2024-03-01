@@ -340,7 +340,7 @@ usage:
         void *ptr = realloc(argv[2].p, argv[3].u);
         printf("realloc returns %p\n", ptr);
     } else if (strcmp(argv[1].str, "free") == 0) {
-        if (argc < 2) goto notenoughargs;
+        if (argc < 3) goto notenoughargs;
 
         free(argv[2].p);
     } else {
