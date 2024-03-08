@@ -55,6 +55,66 @@ extern uint64_t __bss_end;
 #define NUM_ARENAS 16
 static pmm_arena_t mem_arena[NUM_ARENAS];
 
+/* parse an array of multiboot mmap entries */
+static status_t parse_multiboot_mmap(const memory_map_t *mmap, const size_t mmap_length, size_t *found_mem_arenas) {
+    for (uint i = 0; i < mmap_length / sizeof(memory_map_t); i++) {
+
+        uint64_t base = mmap[i].base_addr_low | (uint64_t)mmap[i].base_addr_high << 32;
+        uint64_t length = mmap[i].length_low | (uint64_t)mmap[i].length_high << 32;
+
+        dprintf(SPEW, "\ttype %u addr %#" PRIx64 " len %#" PRIx64 "\n",
+                mmap[i].type, base, length);
+        if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE) {
+
+            /* do some sanity checks to cut out small arenas */
+            if (length < PAGE_SIZE * 2) {
+                continue;
+            }
+
+            /* align the base and length */
+            uint64_t oldbase = base;
+            base = PAGE_ALIGN(base);
+            if (base > oldbase) {
+                length -= base - oldbase;
+            }
+            length = ROUNDDOWN(length, PAGE_SIZE);
+
+            /* ignore memory < 1MB */
+            if (base < 1*MB) {
+                /* skip everything < 1MB */
+                continue;
+            }
+
+            /* ignore everything that extends past the size PHYSMAP maps into the kernel.
+             * see arch/x86/arch.c mmu_initial_mappings
+             */
+            if (base >= PHYSMAP_SIZE) {
+                continue;
+            }
+            uint64_t end = base + length;
+            if (end > PHYSMAP_SIZE) {
+                end = PHYSMAP_SIZE;
+                DEBUG_ASSERT(end > base);
+                length = end - base;
+                dprintf(INFO, "PC: trimmed memory to %" PRIu64 " bytes\n", PHYSMAP_SIZE);
+            }
+
+            /* initialize a new pmm arena */
+            mem_arena[*found_mem_arenas].name = "memory";
+            mem_arena[*found_mem_arenas].base = base;
+            mem_arena[*found_mem_arenas].size = length;
+            mem_arena[*found_mem_arenas].priority = 1;
+            mem_arena[*found_mem_arenas].flags = PMM_ARENA_FLAG_KMAP;
+            (*found_mem_arenas)++;
+            if (*found_mem_arenas == countof(mem_arena)) {
+                break;
+            }
+        }
+    }
+
+    return NO_ERROR;
+}
+
 /* Walk through the multiboot structure and attempt to discover all of the runs
  * of physical memory to bootstrap the pmm areas.
  * Returns number of arenas initialized in passed in pointer
@@ -73,70 +133,31 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
 
     dprintf(SPEW, "\tflags %#x\n", multiboot_info->flags);
 
+    // legacy multiboot memory size field
     if (multiboot_info->flags & MB_INFO_MEM_SIZE) {
         dprintf(SPEW, "PC: multiboot memory lower %#x upper %#" PRIx64 "\n",
                 multiboot_info->mem_lower * 1024U, multiboot_info->mem_upper * 1024ULL);
+        if ((multiboot_info->flags & MB_INFO_MMAP) == 0) {
+            // There is no mmap to give us a more detailed memory map
+            // so we'll need to use this one. Synthesize a fake mmap array to pass
+            // to the mmap code.
+            memory_map_t mmap[2] = {};
+            mmap[0].length_low = multiboot_info->mem_lower * 1024U;
+            mmap[0].type = MB_MMAP_TYPE_AVAILABLE;
+            mmap[1].base_addr_low = 1 * 1024U * 1024U;
+            mmap[1].length_low = multiboot_info->mem_upper * 1024U;
+            mmap[1].type = MB_MMAP_TYPE_AVAILABLE;
+            parse_multiboot_mmap(mmap, 2 * sizeof(memory_map_t), found_mem_arenas);
+        }
     }
 
+    // more modern multiboot mmap array
     if (multiboot_info->flags & MB_INFO_MMAP) {
         const memory_map_t *mmap = (const memory_map_t *)(uintptr_t)multiboot_info->mmap_addr;
         mmap = (void *)((uintptr_t)mmap + KERNEL_BASE);
 
         dprintf(SPEW, "PC: multiboot memory map, length %u:\n", multiboot_info->mmap_length);
-        for (uint i = 0; i < multiboot_info->mmap_length / sizeof(memory_map_t); i++) {
-
-            uint64_t base = mmap[i].base_addr_low | (uint64_t)mmap[i].base_addr_high << 32;
-            uint64_t length = mmap[i].length_low | (uint64_t)mmap[i].length_high << 32;
-
-            dprintf(SPEW, "\ttype %u addr %#" PRIx64 " len %#" PRIx64 "\n",
-                    mmap[i].type, base, length);
-            if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE) {
-
-                /* do some sanity checks to cut out small arenas */
-                if (length < PAGE_SIZE * 2) {
-                    continue;
-                }
-
-                /* align the base and length */
-                uint64_t oldbase = base;
-                base = PAGE_ALIGN(base);
-                if (base > oldbase) {
-                    length -= base - oldbase;
-                }
-                length = ROUNDDOWN(length, PAGE_SIZE);
-
-                /* ignore memory < 1MB */
-                if (base < 1*MB) {
-                    /* skip everything < 1MB */
-                    continue;
-                }
-
-                /* ignore everything that extends past the size PHYSMAP maps into the kernel.
-                 * see arch/x86/arch.c mmu_initial_mappings
-                 */
-                if (base >= PHYSMAP_SIZE) {
-                    continue;
-                }
-                uint64_t end = base + length;
-                if (end > PHYSMAP_SIZE) {
-                    end = PHYSMAP_SIZE;
-                    DEBUG_ASSERT(end > base);
-                    length = end - base;
-                    dprintf(INFO, "PC: trimmed memory to %" PRIu64 " bytes\n", PHYSMAP_SIZE);
-                }
-
-                /* initialize a new pmm arena */
-                mem_arena[*found_mem_arenas].name = "memory";
-                mem_arena[*found_mem_arenas].base = base;
-                mem_arena[*found_mem_arenas].size = length;
-                mem_arena[*found_mem_arenas].priority = 1;
-                mem_arena[*found_mem_arenas].flags = PMM_ARENA_FLAG_KMAP;
-                (*found_mem_arenas)++;
-                if (*found_mem_arenas == countof(mem_arena)) {
-                    break;
-                }
-            }
-        }
+        parse_multiboot_mmap(mmap, multiboot_info->mmap_length, found_mem_arenas);
     }
 
     if (multiboot_info->flags & MB_INFO_FRAMEBUFFER) {
@@ -175,7 +196,7 @@ void platform_early_init(void) {
     platform_parse_multiboot_info(&found_arenas);
     if (found_arenas <= 0) {
         /* if we couldn't find any memory, initialize a default arena */
-        mem_arena[0] = (pmm_arena_t){
+        mem_arena[0] = (pmm_arena_t) {
             .name = "memory",
             .base = MEMBASE,
             .size = DEFAULT_MEMEND,
