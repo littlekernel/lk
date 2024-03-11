@@ -10,39 +10,34 @@
 #include <lk/asm.h>
 #include <arch/x86/descriptor.h>
 
-#define NUM_INT 0x31
-#define NUM_EXC 0x14
+#define NUM_INT 0x100
+#define ISR_STUB_LEN 16
 
 .text
 
 /* interrupt service routine stubs */
-_isr:
-
+.balign ISR_STUB_LEN
+LOCAL_FUNCTION(_isr_vectors)
 .set i, 0
 .rept NUM_INT
 
-100:  /* unnamed label for start of isr stub */
+.balign ISR_STUB_LEN
 .if i == 8 || (i >= 10 && i <= 14) || i == 17
-    nop                     /* error code pushed by exception */
-    nop                     /* 2 nops are the same length as push byte */
-    pushl $i                /* interrupt number */
+    /* error code pushed by exception */
+    push $i                 /* interrupt number */
     jmp interrupt_common
 .else
-    pushl $0                /* fill in error code in iframe */
-    pushl $i                /* interrupt number */
+    push $0                 /* fill in error code in iframe */
+    push $i                 /* interrupt number */
     jmp interrupt_common
 .endif
 
 .set i, i + 1
 .endr
+END_FUNCTION(_isr_vectors)
 
-/* figure out the length of a single isr stub (usually 6 or 9 bytes) */
-.set isr_stub_len, . - 100b
-
-/* annoying, but force AS to use the same (longer) encoding of jmp for all of the stubs */
-.fill 256
-
-FUNCTION(interrupt_common)
+.balign 16
+LOCAL_FUNCTION(interrupt_common)
     cld
     pushl %gs               /* save segment registers */
     pushl %fs
@@ -69,10 +64,11 @@ FUNCTION(interrupt_common)
     popl %gs
     addl $8, %esp           /* drop exception number and error code */
     iret
+END_FUNCTION(interrupt_common)
 
 FUNCTION(setup_idt)
     /* setup isr stub descriptors in the idt */
-    movl $_isr, %esi
+    movl $_isr_vectors, %esi
     movl $_idt, %edi
     movl $NUM_INT, %ecx
 
@@ -82,7 +78,7 @@ FUNCTION(setup_idt)
     shrl $16, %ebx
     movw %bx, 6(%edi)       /* high word in IDT(n).high */
 
-    addl $isr_stub_len, %esi/* index the next ISR stub */
+    addl $ISR_STUB_LEN, %esi/* index the next ISR stub */
     addl $8, %edi           /* index the next IDT entry */
 
     loop .Lloop
@@ -90,19 +86,19 @@ FUNCTION(setup_idt)
     lidt _idtr
 
     ret
+END_FUNCTION(setup_idt)
 
 .data
 
-.align 8
-.global _idtr
-_idtr:
+.balign 8
+DATA(_idtr)
     .short _idt_end - _idt - 1  /* IDT limit */
     .int _idt
+END_DATA(_idtr)
 
 /* interrupt descriptor table (IDT) */
-.global _idt
-_idt:
-
+.balign 8
+DATA(_idt)
 .set i, 0
 .rept NUM_INT-1
     .short 0                /* low 16 bits of ISR offset (_isr#i & 0FFFFh) */
@@ -114,15 +110,6 @@ _idt:
 .set i, i + 1
 .endr
 
-/* syscall int (ring 3) */
-_idt30:
-    .short 0                /* low 16 bits of ISR offset (_isr#i & 0FFFFh) */
-    .short CODE_SELECTOR    /* selector */
-    .byte  0
-    .byte  0xee             /* present, ring 3, 32-bit interrupt gate */
-    .short 0                /* high 16 bits of ISR offset (_isr#i / 65536) */
+END_DATA(_idt)
 
-.global _idt_end
-_idt_end:
-
-
+DATA(_idt_end)

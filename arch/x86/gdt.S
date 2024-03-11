@@ -16,12 +16,13 @@
 
 .section .rodata
 
-.align 8
+.balign 8
 DATA(_gdtr_phys)
     .short _gdt_end - _gdt - 1
     .int PHYS(_gdt)
+END_DATA(_gdtr_phys)
 
-.align 8
+.balign 8
 DATA(_gdtr)
     .short _gdt_end - _gdt - 1
 #if ARCH_X86_32
@@ -29,9 +30,10 @@ DATA(_gdtr)
 #elif ARCH_X86_64
     .quad _gdt
 #endif
+END_DATA(_gdtr)
 
 .data
-.align 8
+.balign 8
 DATA(_gdt)
     .int 0
     .int 0
@@ -124,6 +126,8 @@ _tss_gde:
     .quad  0x0000000000000000
 .set i, i+1
 .endr
+
+END_DATA(_gdt)
 
 DATA(_gdt_end)
 
