@@ -35,6 +35,9 @@
 #if WITH_DEV_VIRTIO_GPU
 #include <dev/virtio/gpu.h>
 #endif
+#if WITH_DEV_VIRTIO_9P
+#include <dev/virtio/9p.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -183,6 +186,25 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             }
         }
 #endif // WITH_DEV_VIRTIO_NET
+#if WITH_DEV_VIRTIO_9P
+        if (mmio->device_id == 9) { // 9p device
+            LTRACEF("found 9p device\n");
+
+            dev->mmio_config = mmio;
+            dev->config_ptr = (void *)mmio->config;
+
+            status_t err = virtio_9p_init(dev, mmio->host_features);
+            if (err >= 0) {
+                // good device
+                dev->valid = true;
+
+                if (dev->irq_driver_callback)
+                    unmask_interrupt(dev->irq);
+
+                virtio_9p_start(dev);
+            }
+        }
+#endif // WITH_DEV_VIRTIO_9P
 #if WITH_DEV_VIRTIO_GPU
         if (mmio->device_id == 0x10) { // virtio-gpu
             LTRACEF("found gpu device\n");

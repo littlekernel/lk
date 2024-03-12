@@ -17,6 +17,7 @@ function HELP {
     echo "-n                : a virtio network device"
     echo "-t                : a virtio tap network device"
     echo "-g                : a virtio display"
+    echo "-f <shared dir>   : a virtio 9p device with a host shared directory"
     echo
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
@@ -33,16 +34,19 @@ DO_CORTEX_M3=0
 DO_DISPLAY=0
 DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
+DO_V9P=0
+DO_V9P_DIR=""
 SMP=1
 MEMSIZE=512
 SUDO=""
 PROJECT=""
 
-while getopts cd:ghm:Mnt36vp:s: FLAG; do
+while getopts cd:ghm:Mnt36vp:s:f: FLAG; do
     case $FLAG in
         c) DO_CMPCTMALLOC=1;;
         d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
         g) DO_DISPLAY=1;;
+        f) DO_V9P=1; DO_V9P_DIR=$OPTARG;;
         M) DO_MINIHEAP=1;;
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
@@ -119,6 +123,11 @@ if (( $DO_DISPLAY )); then
     ARGS+=" -device virtio-mouse-device"
 else
     ARGS+=" -nographic"
+fi
+
+if (( $DO_V9P )); then
+    ARGS+=" -fsdev local,path=$DO_V9P_DIR,security_model=mapped,id=v9p0"
+    ARGS+=" -device virtio-9p-device,fsdev=v9p0,mount_tag=V9P0"
 fi
 
 MAKE_VARS=""
