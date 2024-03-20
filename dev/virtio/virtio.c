@@ -143,6 +143,8 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             continue;
         }
 
+        // TODO: handle version 2
+
 #if LOCAL_TRACE
         if (mmio->device_id != 0) {
             dump_mmio_config(mmio);
@@ -156,7 +158,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             dev->mmio_config = mmio;
             dev->config_ptr = (void *)mmio->config;
 
-            status_t err = virtio_block_init(dev, mmio->host_features);
+            status_t err = virtio_block_init(dev, virtio_read_host_feature_word(dev, 0));
             if (err >= 0) {
                 // good device
                 dev->valid = true;
@@ -173,7 +175,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             dev->mmio_config = mmio;
             dev->config_ptr = (void *)mmio->config;
 
-            status_t err = virtio_net_init(dev, mmio->host_features);
+            status_t err = virtio_net_init(dev);
             if (err >= 0) {
                 // good device
                 dev->valid = true;
@@ -190,7 +192,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             dev->mmio_config = mmio;
             dev->config_ptr = (void *)mmio->config;
 
-            status_t err = virtio_gpu_init(dev, mmio->host_features);
+            status_t err = virtio_gpu_init(dev, virtio_read_host_feature_word(dev, 0));
             if (err >= 0) {
                 // good device
                 dev->valid = true;
@@ -367,9 +369,14 @@ void virtio_status_driver_ok(struct virtio_device *dev) {
     dev->mmio_config->status |= VIRTIO_STATUS_DRIVER_OK;
 }
 
-void virtio_set_guest_features(struct virtio_device *dev, uint32_t features) {
-    dev->mmio_config->guest_features_sel = 0;
+void virtio_set_guest_features(struct virtio_device *dev, uint32_t word, uint32_t features) {
+    dev->mmio_config->guest_features_sel = word;
     dev->mmio_config->guest_features = features;
+}
+
+uint32_t virtio_read_host_feature_word(struct virtio_device *dev, uint32_t word) {
+    dev->mmio_config->host_features_sel = word;
+    return dev->mmio_config->host_features;
 }
 
 static void virtio_init(uint level) {

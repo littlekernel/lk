@@ -209,7 +209,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
                              VIRTIO_BLK_F_TOPOLOGY |
                              VIRTIO_BLK_F_DISCARD |
                              VIRTIO_BLK_F_WRITE_ZEROES);
-    virtio_set_guest_features(dev, bdev->guest_features);
+    virtio_set_guest_features(dev, 0, bdev->guest_features);
 
     /* TODO: handle a RO feature */
 

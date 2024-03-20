@@ -8,6 +8,7 @@
 #include <dev/virtio/net.h>
 
 #include <stdlib.h>
+#include <inttypes.h>
 #include <lk/debug.h>
 #include <assert.h>
 #include <lk/trace.h>
@@ -27,25 +28,47 @@ struct virtio_net_config {
     uint8_t mac[6];
     uint16_t status;
     uint16_t max_virtqueue_pairs;
+    uint16_t mtu;
+    uint32_t speed;
+    uint8_t  duplex;
+    uint8_t  rss_max_key_size;
+    uint16_t rss_max_indirection_table_length;
+    uint32_t supported_hash_types;
+    uint32_t supported_tunnel_types;
 };
-STATIC_ASSERT(sizeof(struct virtio_net_config) == 10);
+STATIC_ASSERT(sizeof(struct virtio_net_config) == 28);
 
 struct virtio_net_hdr {
+#define VIRTIO_NET_HDR_F_NEEDS_CSUM 1
+#define VIRTIO_NET_HDR_F_DATA_VALID 2
+#define VIRTIO_NET_HDR_F_RSC_INFO   4
     uint8_t  flags;
+#define VIRTIO_NET_HDR_GSO_NONE     0
+#define VIRTIO_NET_HDR_GSO_TCPV4    1
+#define VIRTIO_NET_HDR_GSO_UDP      3
+#define VIRTIO_NET_HDR_GSO_TCPV6    4
+#define VIRTIO_NET_HDR_GSO_UDP_L4   5
+#define VIRTIO_NET_HDR_GSO_ECN      0x80
     uint8_t  gso_type;
     uint16_t hdr_len;
     uint16_t gso_size;
     uint16_t csum_start;
     uint16_t csum_offset;
     uint16_t num_buffers; // unused in tx
+
+    // Only if VIRTIO_NET_HASH_REPORT negotiated
+    //uint32_t hash_value;
+    //uint16_t hash_report;
+    //uint16_t padding_reserved;
 };
 STATIC_ASSERT(sizeof(struct virtio_net_hdr) == 12);
 
 #define VIRTIO_NET_F_CSUM                   (1<<0)
 #define VIRTIO_NET_F_GUEST_CSUM             (1<<1)
 #define VIRTIO_NET_F_CTRL_GUEST_OFFLOADS    (1<<2)
+#define VIRTIO_NET_F_MTU                    (1<<3)
 #define VIRTIO_NET_F_MAC                    (1<<5)
-#define VIRTIO_NET_F_GSO                    (1<<6)
+#define VIRTIO_NET_F_GSO                    (1<<6) // removed in v1.3
 #define VIRTIO_NET_F_GUEST_TSO4             (1<<7)
 #define VIRTIO_NET_F_GUEST_TSO6             (1<<8)
 #define VIRTIO_NET_F_GUEST_ECN              (1<<9)
@@ -62,6 +85,18 @@ STATIC_ASSERT(sizeof(struct virtio_net_hdr) == 12);
 #define VIRTIO_NET_F_GUEST_ANNOUNCE         (1<<21)
 #define VIRTIO_NET_F_MQ                     (1<<22)
 #define VIRTIO_NET_F_CTRL_MAC_ADDR          (1<<23)
+#define VIRTIO_NET_F_HASH_TUNNEL            (1ULL<<51)
+#define VIRTIO_NET_F_VQ_NOTF_COAL           (1ULL<<52)
+#define VIRTIO_NET_F_NOTF_COAL              (1ULL<<53)
+#define VIRTIO_NET_F_GUEST_USO4             (1ULL<<54)
+#define VIRTIO_NET_F_GUEST_USO6             (1ULL<<55)
+#define VIRTIO_NET_F_HOST_USO               (1ULL<<56)
+#define VIRTIO_NET_F_HASH_REPORT            (1ULL<<57)
+#define VIRTIO_NET_F_GUEST_HDRLEN           (1ULL<<59)
+#define VIRTIO_NET_F_RSS                    (1ULL<<60)
+#define VIRTIO_NET_F_RSC_EXT                (1ULL<<61)
+#define VIRTIO_NET_F_STANDBY                (1ULL<<62)
+#define VIRTIO_NET_F_SPEED_DUPLEX           (1ULL<<63)
 
 #define VIRTIO_NET_S_LINK_UP                (1<<0)
 #define VIRTIO_NET_S_ANNOUNCE               (1<<1)
@@ -98,11 +133,12 @@ static status_t virtio_net_queue_rx(struct virtio_net_dev *ndev, pktbuf_t *p);
 // XXX remove need for this
 static struct virtio_net_dev *the_ndev;
 
-static void dump_feature_bits(uint32_t feature) {
-    printf("virtio-net host features (0x%x):", feature);
+static void dump_feature_bits(uint64_t feature) {
+    printf("virtio-net host features (%#" PRIx64 "):", feature);
     if (feature & VIRTIO_NET_F_CSUM) printf(" CSUM");
     if (feature & VIRTIO_NET_F_GUEST_CSUM) printf(" GUEST_CSUM");
     if (feature & VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) printf(" CTRL_GUEST_OFFLOADS");
+    if (feature & VIRTIO_NET_F_MTU) printf(" MTU");
     if (feature & VIRTIO_NET_F_MAC) printf(" MAC");
     if (feature & VIRTIO_NET_F_GSO) printf(" GSO");
     if (feature & VIRTIO_NET_F_GUEST_TSO4) printf(" GUEST_TSO4");
@@ -121,11 +157,23 @@ static void dump_feature_bits(uint32_t feature) {
     if (feature & VIRTIO_NET_F_GUEST_ANNOUNCE) printf(" GUEST_ANNOUNCE");
     if (feature & VIRTIO_NET_F_MQ) printf(" MQ");
     if (feature & VIRTIO_NET_F_CTRL_MAC_ADDR) printf(" CTRL_MAC_ADDR");
+    if (feature & VIRTIO_NET_F_HASH_TUNNEL) printf(" HASH_TUNNEL");
+    if (feature & VIRTIO_NET_F_VQ_NOTF_COAL) printf(" VQ_NOTF_COAL");
+    if (feature & VIRTIO_NET_F_NOTF_COAL) printf(" NOTF_COAL");
+    if (feature & VIRTIO_NET_F_GUEST_USO4) printf(" GUEST_USO4");
+    if (feature & VIRTIO_NET_F_GUEST_USO6) printf(" GUEST_USO6");
+    if (feature & VIRTIO_NET_F_HOST_USO) printf(" HOST_USO");
+    if (feature & VIRTIO_NET_F_HASH_REPORT) printf(" HASH_REPORT");
+    if (feature & VIRTIO_NET_F_GUEST_HDRLEN) printf(" GUEST_HDRLEN");
+    if (feature & VIRTIO_NET_F_RSS) printf(" RSS");
+    if (feature & VIRTIO_NET_F_RSC_EXT) printf(" RSC_EXT");
+    if (feature & VIRTIO_NET_F_STANDBY) printf(" STANDBY");
+    if (feature & VIRTIO_NET_F_SPEED_DUPLEX) printf(" SPEED_DUPLEX");
     printf("\n");
 }
 
-status_t virtio_net_init(struct virtio_device *dev, uint32_t host_features) {
-    LTRACEF("dev %p, host_features 0x%x\n", dev, host_features);
+status_t virtio_net_init(struct virtio_device *dev) {
+    LTRACEF("dev %p\n", dev);
 
     /* allocate a new net device */
     struct virtio_net_dev *ndev = calloc(1, sizeof(struct virtio_net_dev));
@@ -146,6 +194,7 @@ status_t virtio_net_init(struct virtio_device *dev, uint32_t host_features) {
     virtio_status_acknowledge_driver(dev);
 
     // XXX check features bits and ack/nak them
+    uint64_t host_features = virtio_read_host_feature_word(dev, 0) | (uint64_t)virtio_read_host_feature_word(dev, 1) << 32;
     dump_feature_bits(host_features);
 
     /* set our irq handler */
