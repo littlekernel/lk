@@ -50,14 +50,36 @@ struct virtio_blk_config {
     uint32_t max_write_zeroes_sectors;
     uint32_t max_write_zeroes_seq;
     uint8_t write_zeros_may_unmap;
-    uint8_t unused1[7];
+    uint8_t unused1[3];
+    uint32_t max_secure_erase_sectors;
+    uint32_t max_secure_erase_seg;
+    uint32_t secure_erase_sector_alignment;
+    struct virtio_blk_zoned_characteristics {
+        uint32_t zone_sectors;
+        uint32_t max_open_zones;
+        uint32_t max_active_zones;
+        uint32_t max_append_sectors;
+        uint32_t write_granularity;
+        uint8_t model;
+        uint8_t unused2[3];
+    } zoned;
 };
-STATIC_ASSERT(sizeof(struct virtio_blk_config) == 64);
+STATIC_ASSERT(sizeof(struct virtio_blk_config) == 96);
 
 struct virtio_blk_req {
     uint32_t type;
-    uint32_t ioprio;
+    uint32_t ioprio; // v1.3 says this is 'reserved'
     uint64_t sector;
+};
+STATIC_ASSERT(sizeof(struct virtio_blk_req) == 16);
+
+struct virtio_blk_discard_write_zeroes {
+    uint64_t sector;
+    uint32_t num_sectors;
+    struct {
+        uint32_t unmap:1;
+        uint32_t reserved:31;
+    } flags;
 };
 STATIC_ASSERT(sizeof(struct virtio_blk_req) == 16);
 
@@ -73,12 +95,18 @@ STATIC_ASSERT(sizeof(struct virtio_blk_req) == 16);
 #define VIRTIO_BLK_F_CONFIG_WCE (1<<11)
 #define VIRTIO_BLK_F_DISCARD  (1<<13)
 #define VIRTIO_BLK_F_WRITE_ZEROES (1<<14)
+#define VIRTIO_BLK_F_LIFETIME (1<<15)
+#define VIRTIO_BLK_F_SECURE_ERASE (1<<16)
+#define VIRTIO_BLK_F_ZONED    (1<<17)
 
-#define VIRTIO_BLK_T_IN         0
-#define VIRTIO_BLK_T_OUT        1
-#define VIRTIO_BLK_T_FLUSH      4
-#define VIRTIO_BLK_T_DISCARD    11
+#define VIRTIO_BLK_T_IN           0
+#define VIRTIO_BLK_T_OUT          1
+#define VIRTIO_BLK_T_FLUSH        4
+#define VIRTIO_BLK_T_GET_ID       8
+#define VIRTIO_BLK_T_GET_LIFETIME 10
+#define VIRTIO_BLK_T_DISCARD      11
 #define VIRTIO_BLK_T_WRITE_ZEROES 13
+#define VIRTIO_BLK_T_SECURE_ERASE 13
 
 #define VIRTIO_BLK_S_OK         0
 #define VIRTIO_BLK_S_IOERR      1
@@ -123,6 +151,9 @@ static void dump_feature_bits(const char *name, uint32_t feature) {
     if (feature & VIRTIO_BLK_F_CONFIG_WCE) printf(" CONFIG_WCE");
     if (feature & VIRTIO_BLK_F_DISCARD) printf(" DISCARD");
     if (feature & VIRTIO_BLK_F_WRITE_ZEROES) printf(" WRITE_ZEROES");
+    if (feature & VIRTIO_BLK_F_LIFETIME) printf(" LIFETIME");
+    if (feature & VIRTIO_BLK_F_SECURE_ERASE) printf(" SECURE_ERASE");
+    if (feature & VIRTIO_BLK_F_ZONED) printf(" ZONED");
     printf("\n");
 }
 
@@ -172,12 +203,12 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
 
     /* keep the features we understand or can tolerate */
     bdev->guest_features &= (VIRTIO_BLK_F_SIZE_MAX |
-                 VIRTIO_BLK_F_BLK_SIZE |
-                 VIRTIO_BLK_F_GEOMETRY |
-                 VIRTIO_BLK_F_BLK_SIZE |
-                 VIRTIO_BLK_F_TOPOLOGY |
-                 VIRTIO_BLK_F_DISCARD |
-                 VIRTIO_BLK_F_WRITE_ZEROES);
+                             VIRTIO_BLK_F_BLK_SIZE |
+                             VIRTIO_BLK_F_GEOMETRY |
+                             VIRTIO_BLK_F_BLK_SIZE |
+                             VIRTIO_BLK_F_TOPOLOGY |
+                             VIRTIO_BLK_F_DISCARD |
+                             VIRTIO_BLK_F_WRITE_ZEROES);
     virtio_set_guest_features(dev, bdev->guest_features);
 
     /* TODO: handle a RO feature */
@@ -219,14 +250,16 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
     }
     if (host_features & VIRTIO_BLK_F_TOPOLOGY) {
         printf("\ttopology: block exp %u alignment_offset %u min_io_size %u opt_io_size %u\n",
-                config->topology.physical_block_exp, config->topology.alignment_offset,
-                config->topology.min_io_size, config->topology.opt_io_size);
+               config->topology.physical_block_exp, config->topology.alignment_offset,
+               config->topology.min_io_size, config->topology.opt_io_size);
     }
     if (host_features & VIRTIO_BLK_F_DISCARD) {
-        printf("\tdiscard: max sectors %u max sequence %u alignment %u\n", config->max_discard_sectors, config->max_discard_sectors, config->discard_sector_alignment);
+        printf("\tdiscard: max sectors %u max sequence %u alignment %u\n",
+               config->max_discard_sectors, config->max_discard_sectors, config->discard_sector_alignment);
     }
     if (host_features & VIRTIO_BLK_F_WRITE_ZEROES) {
-        printf("\twrite zeroes: max sectors %u max sequence %u may unmap %u\n", config->max_write_zeroes_sectors, config->max_write_zeroes_seq, config->write_zeros_may_unmap);
+        printf("\twrite zeroes: max sectors %u max sequence %u may unmap %u\n",
+               config->max_write_zeroes_sectors, config->max_write_zeroes_seq, config->write_zeros_may_unmap);
     }
 
     return NO_ERROR;
@@ -385,7 +418,7 @@ static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
     ssize_t result = virtio_block_read_write(dev->dev, buf, (off_t)block * dev->bdev.block_size,
-                                             count * dev->bdev.block_size, false);
+                     count * dev->bdev.block_size, false);
     return result;
 }
 
@@ -395,7 +428,7 @@ static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
 
     ssize_t result = virtio_block_read_write(dev->dev, (void *)buf, (off_t)block * dev->bdev.block_size,
-                                             count * dev->bdev.block_size, true);
+                     count * dev->bdev.block_size, true);
     return result;
 }
 
