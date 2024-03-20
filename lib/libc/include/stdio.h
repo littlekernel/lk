@@ -11,11 +11,29 @@
 #include <printf.h>
 #include <sys/types.h>
 #include <lib/io.h>
+#if defined(WITH_LIB_FS)
+#include <lib/fs.h>
+#endif // WITH_LIB_FS
 
 __BEGIN_CDECLS
 
+#if defined(WITH_LIB_FS)
+struct fs_handle {
+    filehandle *handle;
+    off_t offset;
+    bool readonly;
+};
+#endif // WITH_LIB_FS
 typedef struct FILE {
+#if defined(WITH_LIB_FS)
+    union {
+        io_handle_t *io;
+        struct fs_handle fs_handle;
+    };
+    bool use_fs;
+#else
     io_handle_t *io;
+#endif // WITH_LIB_FS
 } FILE;
 
 extern FILE __stdio_FILEs[];
@@ -23,6 +41,8 @@ extern FILE __stdio_FILEs[];
 #define stdin  (&__stdio_FILEs[0])
 #define stdout (&__stdio_FILEs[1])
 #define stderr (&__stdio_FILEs[2])
+
+#define EOF (-1)
 
 FILE *fopen(const char *filename, const char *mode);
 int fclose(FILE *stream);
@@ -45,8 +65,11 @@ int putchar(int c);
 int fputs(const char *s, FILE *fp);
 int puts(const char *str);
 
-int getc(FILE *fp);
+int fgetc(FILE *fp);
+#define getc(fp) fgetc(fp)
 int getchar(void);
+
+char *fgets(char *s, int size, FILE *stream);
 
 #if !DISABLE_DEBUG_OUTPUT
 int printf(const char *fmt, ...) __PRINTFLIKE(1, 2);
