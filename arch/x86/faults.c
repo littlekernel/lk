@@ -60,7 +60,7 @@ static void dump_fault_frame(x86_iframe_t *frame) {
 }
 
 static void exception_die(x86_iframe_t *frame, const char *msg) {
-    dprintf(CRITICAL, msg);
+    dprintf(CRITICAL, "%s", msg);
     dump_fault_frame(frame);
 
     for (;;) {
