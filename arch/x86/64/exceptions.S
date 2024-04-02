@@ -45,8 +45,6 @@ END_FUNCTION(_isr_vectors)
 
 .balign 16
 LOCAL_FUNCTION(interrupt_common)
-interrupt_common:
-
     /* clear the direction bit */
     cld
 
