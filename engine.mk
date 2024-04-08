@@ -220,7 +220,7 @@ ifeq ($(ARCH),arm64)
 ifeq ($(call is_warning_flag_supported,-Wasm-operand-widths),yes)
 ARCH_COMPILEFLAGS += -Wno-asm-operand-widths
 endif
-endif # arm64
+endif
 
 ifeq ($(ARCH),riscv)
 # ld.lld does not support linker relaxations yet.
@@ -240,13 +240,7 @@ ifeq ($(COMPILER_TYPE),clang)
 ARCH_COMPILEFLAGS += -fPIE -fdirect-access-external-data
 endif
 endif
-
-ifeq ($(COMPILER_TYPE),clang)
-# zba extension is reported as not supported on clang-13. Add this switch to squelch
-# the failure. TODO: gate this on a version check.
-ARCH_COMPILEFLAGS += -menable-experimental-extensions
 endif
-endif # riscv
 
 $(info PROJECT = $(PROJECT))
 $(info PLATFORM = $(PLATFORM))
