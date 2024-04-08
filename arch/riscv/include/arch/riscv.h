@@ -230,7 +230,10 @@ static inline uint riscv_current_hart(void) {
 #endif
 }
 
-void riscv_set_secondary_count(int count);
+// Platform should pass in a list of secondary harts to start, not
+// including the boot hart. Will be trimmed to SMP_MAX_CPUS - 1.
+// Machine mode will always get all of the secondaries released (for now).
+void riscv_set_secondary_harts_to_start(const uint *harts, size_t count);
 
 void riscv_exception_entry(void);
 enum handler_return riscv_timer_exception(void);

@@ -138,9 +138,8 @@ LOCAL_FUNCTION(secondary_trap)
 
     // bootstrap the secondary cpus
     jal     riscv_secondary_entry
-#else
-    j       hart_trap
 #endif
+    // fallthrough if either no SMP or riscv_secondary_entry returns
 END_FUNCTION(secondary_trap)
 
 LOCAL_FUNCTION(hart_trap)

@@ -85,12 +85,23 @@ static void reserved_memory_callback(uint64_t base, uint64_t len, void *cookie) 
     }
 }
 
+struct detected_cpus {
+    size_t count;
+
+    struct {
+        uint hart;
+    } cpu[SMP_MAX_CPUS];
+};
+
 static void cpucallback(uint64_t id, void *cookie) {
-    int *cpu_count = (int *)cookie;
+    struct detected_cpus *cpus = cookie;
 
-    LTRACEF("id %#llx cookie %p\n", id, cookie);
+    LTRACEF("hart %#llx\n", id);
 
-    (*cpu_count)++;
+    if (cpus->count < SMP_MAX_CPUS) {
+        cpus->cpu[cpus->count].hart = id;
+        cpus->count++;
+    }
 }
 
 struct pcie_detect_state {
@@ -112,8 +123,8 @@ void platform_early_init(void) {
 
     /* look for a flattened device tree in the second arg passed to us */
     bool found_mem = false;
-    int cpu_count = 0;
     struct reserved_memory_regions reserved = {0};
+    struct detected_cpus cpus = {0};
 
     const void *fdt = (void *)lk_boot_args[1];
 #if WITH_KERNEL_VM
@@ -126,7 +137,7 @@ void platform_early_init(void) {
         .reserved_memory = reserved_memory_callback,
         .reserved_memory_cookie = &reserved,
         .cpu = cpucallback,
-        .cpucookie = &cpu_count,
+        .cpucookie = &cpus,
         .pcie = pciecallback,
         .pciecookie = &pcie_state,
     };
@@ -163,12 +174,31 @@ void platform_early_init(void) {
     }
 #endif
 
-    if (cpu_count > 0) {
-        printf("FDT: found %d cpu%c\n", cpu_count, cpu_count == 1 ? ' ' : 's');
-        riscv_set_secondary_count(cpu_count - 1);
-    } else {
-        riscv_set_secondary_count(0);
+#if WITH_SMP
+    // TODO: refactor this code into libfdt
+    if (cpus.count > 0) {
+        printf("FDT: found %zu cpu%c\n", cpus.count, cpus.count == 1 ? ' ' : 's');
+        uint harts[SMP_MAX_CPUS - 1];
+
+        // copy from the detected cpu list to an array of harts, excluding the boot hart
+        size_t hart_index = 0;
+        for (size_t i = 0; i < cpus.count; i++) {
+            if (cpus.cpu[i].hart != riscv_current_hart()) {
+                harts[hart_index++] = cpus.cpu[i].hart;
+            }
+
+            // we can start MAX CPUS - 1 secondaries
+            if (hart_index >= SMP_MAX_CPUS - 1) {
+                break;
+            }
+        }
+
+        // tell the riscv layer how many cores we have to start
+        if (hart_index > 0) {
+            riscv_set_secondary_harts_to_start(harts, hart_index);
+        }
     }
+#endif
 
     LTRACEF("done scanning FDT\n");
 
