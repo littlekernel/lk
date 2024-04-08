@@ -9,6 +9,7 @@ WITH_SMP ?= true
 SMP_MAX_CPUS ?= 8
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
 RISCV_FPU ?= true
+RISCV_EXTENSION_LIST ?= zba zbb zbc zbs
 
 ifeq ($(RISCV_MODE),supervisor)
 ifeq ($(SUBARCH),32)

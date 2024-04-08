@@ -24,6 +24,7 @@ RISCV_MMU ?= none
 RISCV_FPU ?= false
 SUBARCH ?= 32
 RISCV_MODE ?= machine
+RISCV_EXTENSION_LIST ?=
 ARCH_RISCV_EMBEDDED ?= false
 ARCH_RISCV_TWOSEGMENT ?= false
 
@@ -134,6 +135,16 @@ ifeq (true,$(call TOBOOL,$(RISCV_FPU)))
     GLOBAL_DEFINES += RISCV_FPU=1
 endif
 
+# based on a list of optional extensions passed in, collapse the extensions into
+# a string appended to the end of the -march line below
+$(info RISCV_EXTENSION_LIST = $(RISCV_EXTENSION_LIST))
+ifneq ($(RISCV_EXTENSION_LIST),)
+    RISCV_MARCH_EXTENSIONS := _$(subst $(SPACE),_,$(RISCV_EXTENSION_LIST))
+else
+    RISCV_MARCH_EXTENSIONS :=
+endif
+#$(info RISCV_MARCH_EXTENSIONS = $(RISCV_MARCH_EXTENSIONS))
+
 # for the moment simply build all sources the same way, with or without float based on
 # the configuration of the platform
 ARCH_COMPILEFLAGS_FLOAT :=
@@ -143,9 +154,9 @@ ARCH_COMPILEFLAGS_NOFLOAT :=
 # compiler codegen flags
 ifeq ($(SUBARCH),32)
     ifeq (true,$(call TOBOOL,$(RISCV_FPU)))
-        ARCH_COMPILEFLAGS := -march=rv32gc -mabi=ilp32d
+        ARCH_COMPILEFLAGS := -march=rv32gc$(RISCV_MARCH_EXTENSIONS) -mabi=ilp32d
     else
-        ARCH_COMPILEFLAGS := -march=rv32imac -mabi=ilp32
+        ARCH_COMPILEFLAGS := -march=rv32imac$(RISCV_MARCH_EXTENSIONS) -mabi=ilp32
     endif
 
     # override machine for ld -r
@@ -157,9 +168,9 @@ else ifeq ($(SUBARCH),64)
         # HACK: use rv64imafdc instead of the equivalent rv64gc due to
         # older toolchains not supporting the mapping of one to the other
         # when selecting libgcc.
-        ARCH_COMPILEFLAGS := -march=rv64imafdc -mabi=lp64d -mcmodel=medany
+        ARCH_COMPILEFLAGS := -march=rv64imafdc$(RISCV_MARCH_EXTENSIONS) -mabi=lp64d -mcmodel=medany
     else
-        ARCH_COMPILEFLAGS := -march=rv64imac -mabi=lp64 -mcmodel=medany
+        ARCH_COMPILEFLAGS := -march=rv64imac$(RISCV_MARCH_EXTENSIONS) -mabi=lp64 -mcmodel=medany
     endif
 
     # override machine for ld -r
@@ -167,6 +178,8 @@ else ifeq ($(SUBARCH),64)
 else
     $(error SUBARCH not set or set to something unknown)
 endif
+
+undefine RISCV_MARCH_EXTENSIONS
 
 # test to see if -misa-spec=2.2 is a valid switch.
 # misa-spec is added to make sure the compiler picks up the zicsr extension by default.

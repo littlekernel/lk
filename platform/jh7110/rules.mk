@@ -10,6 +10,7 @@ SMP_MAX_CPUS ?= 4
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
 RISCV_FPU ?= true
 RISCV_MMU ?= sv39
+RISCV_EXTENSION_LIST ?= zba zbb
 
 MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/fdt
