@@ -42,12 +42,26 @@ jobs:
           - nucleo-f072rb
           - pico-test
           - sifive-e-test
-          - sifive-unleashed-test
           - visionfive2-test
           - rosco-m68k-test
         exclude:
+          # no real point building ubsan on the old compiler
+          - ubsan: 1
+            toolchain-ver: 7.5.0
           # no toolchain for 7.5.0 for or1k
           - project: or1ksim
+            toolchain-ver: 7.5.0
+          # building newer riscv stuff on 7.5.0 is fairly difficult due to
+          # lack of certain extensions
+          - project: qemu-virt-riscv32-test
+            toolchain-ver: 7.5.0
+          - project: qemu-virt-riscv64-test
+            toolchain-ver: 7.5.0
+          - project: qemu-virt-riscv64-supervisor-test
+            toolchain-ver: 7.5.0
+          - project: sifive-e-test
+            toolchain-ver: 7.5.0
+          - project: visionfive2-test
             toolchain-ver: 7.5.0
 
     env:
