@@ -21,6 +21,13 @@ jobs:
           - qemu-virt-arm64-test
           - qemu-virt-riscv64-test
           - qemu-virt-riscv64-supervisor-test
+        exclude:
+          # limit riscv builds to clang 14 and above, since clang 13 has limited
+          # support for some newer ISA extensions
+          - project: qemu-virt-riscv64-test
+            toolchain-ver: 13
+          - project: qemu-virt-riscv64-supervisor-test
+            toolchain-ver: 13
     env:
       PROJECT: ${{ matrix.project }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
