@@ -11,7 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         toolchain-ver: [13, 14, 15]
-        debug: [2]
+        debug: [2, 0]
         project:
           # Note: Clang toolchains do not ship with a compiler-rt (libgcc) for
           # all targets, so we have to restrict this build matrix to targets
