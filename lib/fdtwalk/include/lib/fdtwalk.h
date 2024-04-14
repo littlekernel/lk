@@ -7,7 +7,10 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <sys/types.h>
+
+__BEGIN_CDECLS
 
 /*
  * A set of routines to assist with walking a Flattened Device Tree in memory
@@ -44,3 +47,4 @@ struct fdt_walk_callbacks {
 
 status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *);
 
+__END_CDECLS

@@ -15,7 +15,7 @@
 #include <sys/types.h>
 
 #define LOCAL_TRACE 0
-#define MAX_DEPTH 16
+static const int MAX_DEPTH = 16;
 
 /* read the #address-cells and #size-cells properties at the current node to
  * see if there are any overriding sizes at this level. It's okay to not
@@ -80,7 +80,7 @@ static status_t read_base_len_pair(const uint8_t *prop_ptr, size_t prop_len,
 // returns true or false if a particular property is a particular value
 static bool check_prop_is_val_string(const void *fdt, int offset, const char *prop, const char *val) {
     int lenp;
-    const uint8_t *prop_ptr = fdt_getprop(fdt, offset, prop, &lenp);
+    const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(fdt, offset, prop, &lenp);
     if (!prop_ptr || lenp <= 0) {
         return false;
     }
@@ -144,7 +144,7 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
         /* look for the 'memory@*' property */
         if (cb->mem && strncmp(name, "memory@", 7) == 0 && depth == 1) {
             int lenp;
-            const uint8_t *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
+            const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(fdt, offset, "reg", &lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
                               address_cells[depth], size_cells[depth]);
@@ -180,7 +180,7 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
                     /* if we're inside the reserved meory tree, so this node must
                      * be a reserved memory region */
                     int lenp;
-                    const uint8_t *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
+                    const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(fdt, offset, "reg", &lenp);
                     if (prop_ptr) {
                         LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
                                       address_cells[depth], size_cells[depth]);
@@ -203,7 +203,7 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
         /* look for a cpu leaf and count the number of cpus */
         if (cb->cpu && strncmp(name, "cpu@", 4) == 0 && depth == 2) {
             int lenp;
-            const uint8_t *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
+            const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(fdt, offset, "reg", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
@@ -229,11 +229,11 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
 
         /* look for a pcie leaf and pass the address of the ecam and other info to the callback */
         if (cb->pcie && (strncmp(name, "pcie@", 5) == 0 || strncmp(name, "pci@", 4) == 0)) {
-            struct fdt_walk_pcie_info info = {0};
+            struct fdt_walk_pcie_info info = {};
 
             /* find the range of the ecam */
             int lenp;
-            const uint8_t *prop_ptr = fdt_getprop(fdt, offset, "reg", &lenp);
+            const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(fdt, offset, "reg", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' prop 'reg' len %d, ac %u, sc %u\n", name, lenp,
@@ -246,7 +246,7 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
             }
 
             /* find which bus range the ecam covers */
-            prop_ptr = fdt_getprop(fdt, offset, "bus-range", &lenp);
+            prop_ptr = (const uint8_t *)fdt_getprop(fdt, offset, "bus-range", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' prop 'bus-range' len %d, ac %u, sc %u\n", name, lenp,
@@ -259,7 +259,7 @@ status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *cb) {
                 }
             }
 
-            prop_ptr = fdt_getprop(fdt, offset, "ranges", &lenp);
+            prop_ptr = (const uint8_t *)fdt_getprop(fdt, offset, "ranges", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' prop 'ranges' len %d, ac %u, sc %u\n", name, lenp,
