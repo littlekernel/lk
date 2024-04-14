@@ -1537,16 +1537,17 @@ int fdt_resize(void *fdt, void *buf, int bufsize);
 int fdt_add_reservemap_entry(void *fdt, uint64_t addr, uint64_t size);
 int fdt_finish_reservemap(void *fdt);
 int fdt_begin_node(void *fdt, const char *name);
-int fdt_property(void *fdt, const char *name, const void *val, int len);
+// LK: modified fdt_property function name to not collide with struct fdt_property in C++
+int fdt_property_(void *fdt, const char *name, const void *val, int len);
 static inline int fdt_property_u32(void *fdt, const char *name, uint32_t val)
 {
 	fdt32_t tmp = cpu_to_fdt32(val);
-	return fdt_property(fdt, name, &tmp, sizeof(tmp));
+	return fdt_property_(fdt, name, &tmp, sizeof(tmp));
 }
 static inline int fdt_property_u64(void *fdt, const char *name, uint64_t val)
 {
 	fdt64_t tmp = cpu_to_fdt64(val);
-	return fdt_property(fdt, name, &tmp, sizeof(tmp));
+	return fdt_property_(fdt, name, &tmp, sizeof(tmp));
 }
 
 #ifndef SWIG /* Not available in Python */
@@ -1572,7 +1573,7 @@ static inline int fdt_property_cell(void *fdt, const char *name, uint32_t val)
 int fdt_property_placeholder(void *fdt, const char *name, int len, void **valp);
 
 #define fdt_property_string(fdt, name, str) \
-	fdt_property(fdt, name, str, strlen(str)+1)
+	fdt_property_(fdt, name, str, strlen(str)+1)
 int fdt_end_node(void *fdt);
 int fdt_finish(void *fdt);
 

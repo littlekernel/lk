@@ -322,7 +322,7 @@ int fdt_property_placeholder(void *fdt, const char *name, int len, void **valp)
 	return 0;
 }
 
-int fdt_property(void *fdt, const char *name, const void *val, int len)
+int fdt_property_(void *fdt, const char *name, const void *val, int len)
 {
 	void *ptr;
 	int ret;
