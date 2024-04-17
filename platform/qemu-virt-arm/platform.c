@@ -59,56 +59,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     { 0 }
 };
 
-static pmm_arena_t arena = {
-    .name = "ram",
-    .base = MEMORY_BASE_PHYS,
-    .size = DEFAULT_MEMORY_SIZE,
-    .flags = PMM_ARENA_FLAG_KMAP,
-};
-
-// callbacks to the fdt_walk routine
-static void memcallback(uint64_t base, uint64_t len, void *cookie) {
-    bool *found_mem = (bool *)cookie;
-
-    LTRACEF("base %#llx len %#llx cookie %p\n", base, len, cookie);
-
-    /* add another novm arena */
-    if (!*found_mem) {
-        printf("FDT: found memory arena, base %#llx size %#llx\n", base, len);
-
-        /* trim size on certain platforms */
-#if ARCH_ARM
-        if (len > 1024*1024*1024U) {
-            len = 1024*1024*1024; /* only use the first 1GB on ARM32 */
-            printf("trimming memory to 1GB\n");
-        }
-#endif
-
-        /* set the size in the pmm arena */
-        arena.size = len;
-
-        *found_mem = true; // stop searching after the first one
-    }
-}
-
-static void cpucallback(uint64_t id, void *cookie) {
-    int *cpu_count = (int *)cookie;
-
-    LTRACEF("id %#llx cookie %p\n", id, cookie);
-
-    (*cpu_count)++;
-}
-
-struct pcie_detect_state {
-    struct fdt_walk_pcie_info info;
-} pcie_state;
-
-static void pciecallback(const struct fdt_walk_pcie_info *info, void *cookie) {
-    struct pcie_detect_state *state = cookie;
-
-    LTRACEF("ecam base %#llx, len %#llx, bus_start %hhu, bus_end %hhu\n", info->ecam_base, info->ecam_len, info->bus_start, info->bus_end);
-    state->info = *info;
-}
+const void *fdt = (void *)KERNEL_BASE;
 
 void platform_early_init(void) {
     /* initialize the interrupt controller */
@@ -118,91 +69,31 @@ void platform_early_init(void) {
 
     uart_init_early();
 
-    int cpu_count = 0;
-    bool found_mem = false;
-    struct fdt_walk_callbacks cb = {
-        .mem = memcallback,
-        .memcookie = &found_mem,
-        .cpu = cpucallback,
-        .cpucookie = &cpu_count,
-        .pcie = pciecallback,
-        .pciecookie = &pcie_state,
-    };
-
-    const void *fdt = (void *)KERNEL_BASE;
-    status_t err = fdt_walk(fdt, &cb);
-    LTRACEF("fdt_walk returns %d\n", err);
-
-    if (err != 0) {
-        printf("FDT: error finding FDT at %p, using default memory & cpu count\n", fdt);
+    if (LOCAL_TRACE) {
+        LTRACEF("dumping FDT at %p\n", fdt);
+        fdt_walk_dump(fdt);
     }
 
-    /* add the main memory arena */
-    pmm_add_arena(&arena);
-
-    /* reserve the first 64k of ram, which should be holding the fdt */
-    struct list_node list = LIST_INITIAL_VALUE(list);
-    pmm_alloc_range(MEMBASE, 0x10000 / PAGE_SIZE, &list);
-
-    /* count the number of secondary cpus */
-    if (cpu_count == 0) {
-        /* if we didn't find any in the FDT, assume max number */
-        cpu_count = SMP_MAX_CPUS;
-    } else if (cpu_count > 0) {
-        printf("FDT: found %d cpus\n", cpu_count);
-        cpu_count = MIN(cpu_count, SMP_MAX_CPUS);
-    }
-
-    LTRACEF("booting %d cpus\n", cpu_count);
-
-    /* boot the secondary cpus using the Power State Coordintion Interface */
-    for (int cpuid = 1; cpuid < cpu_count; cpuid++) {
-        /* note: assumes cpuids are numbered like MPIDR 0:0:0:N */
-        int ret = psci_cpu_on(cpuid, MEMBASE + KERNEL_LOAD_OFFSET);
-        if (ret != 0) {
-            printf("ERROR: psci CPU_ON returns %d\n", ret);
-        }
-    }
+    // detect physical memory layout from the device tree
+    fdtwalk_setup_memory(fdt, MEMORY_BASE_PHYS, MEMORY_BASE_PHYS, DEFAULT_MEMORY_SIZE);
 }
 
 void platform_init(void) {
-    status_t err;
-
     uart_init();
 
-    /* detect pci */
-#if ARCH_ARM
-    if (pcie_state.info.ecam_base > (1ULL << 32)) {
-        // dont try to configure this since we dont have LPAE support
-        printf("PCIE: skipping pci initialization due to high memory ECAM\n");
-        pcie_state.info.ecam_len = 0;
+    // start secondary cores
+    fdtwalk_setup_cpus_arm(fdt);
+
+    /* configure and start pci from device tree */
+    status_t err = fdtwalk_setup_pci(fdt);
+    if (err >= NO_ERROR) {
+        // start the bus manager
+        pci_bus_mgr_init();
+
+        // assign resources to all devices in case they need it
+        pci_bus_mgr_assign_resources();
     }
-#endif
-    if (pcie_state.info.ecam_len > 0) {
-        printf("PCIE: initializing pcie with ecam at %#" PRIx64 " found in FDT\n", pcie_state.info.ecam_base);
-        err = pci_init_ecam(pcie_state.info.ecam_base, pcie_state.info.ecam_len, pcie_state.info.bus_start, pcie_state.info.bus_end);
-        if (err == NO_ERROR) {
-            // add some additional resources to the pci bus manager in case it needs to configure
-            if (pcie_state.info.io_len > 0) {
-                // we can only deal with a mapping of io base 0 to the mmio base
-                DEBUG_ASSERT(pcie_state.info.io_base == 0);
-                pci_bus_mgr_add_resource(PCI_RESOURCE_IO_RANGE, pcie_state.info.io_base, pcie_state.info.io_len);
 
-                // TODO: set the mmio base somehow so pci knows what to do with it
-            }
-            if (pcie_state.info.mmio_len > 0) {
-                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_state.info.mmio_base, pcie_state.info.mmio_len);
-            }
-            if (pcie_state.info.mmio64_len > 0) {
-                pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_state.info.mmio64_base, pcie_state.info.mmio64_len);
-            }
-
-            // start the bus manager
-            pci_bus_mgr_init();
-
-            pci_bus_mgr_assign_resources();
-        }
-    }
 
     /* detect any virtio devices */
     uint virtio_irqs[NUM_VIRTIO_TRANSPORTS];
