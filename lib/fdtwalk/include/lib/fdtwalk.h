@@ -34,17 +34,34 @@ struct fdt_walk_pcie_info {
     uint64_t mmio64_len;
 };
 
-struct fdt_walk_callbacks {
-    void (*mem)(uint64_t base, uint64_t len, void *cookie);
-    void *memcookie;
-    void (*reserved_memory)(uint64_t base, uint64_t len, void *cookie);
-    void *reserved_memory_cookie;
-    void (*cpu)(uint64_t id, void *cookie);
-    void *cpucookie;
-    void (*pcie)(const struct fdt_walk_pcie_info *info, void *cookie);
-    void *pciecookie;
+struct fdt_walk_memory_region {
+    uint64_t base;
+    uint64_t len;
 };
 
-status_t fdt_walk(const void *fdt, const struct fdt_walk_callbacks *);
+struct fdt_walk_cpu_info {
+    uint32_t id;
+};
+
+status_t fdt_walk_dump(const void *fdt);
+
+// New style walkers, finds a single topic at a time
+status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *, size_t *count);
+status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *memory, size_t *mem_count,
+                              struct fdt_walk_memory_region *reserved_memory, size_t *reserved_mem_count);
+status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size_t *cpu_count);
+
+// Helper routines that initialize various subsystems based on device tree info
+status_t fdtwalk_setup_memory(const void *fdt, paddr_t fdt_phys, paddr_t default_mem_base, size_t default_mem_size);
+#if ARCH_RISCV
+status_t fdtwalk_setup_cpus_riscv(const void *fdt);
+#endif
+#if ARCH_ARM || ARCH_ARM64
+status_t fdtwalk_setup_cpus_arm(const void *fdt);
+#endif
+#if WITH_DEV_BUS_PCI
+status_t fdtwalk_setup_pci(const void *fdt);
+#endif
+status_t fdtwalk_reserve_fdt_memory(const void *fdt, paddr_t fdt_phys);
 
 __END_CDECLS
