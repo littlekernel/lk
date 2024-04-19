@@ -26,6 +26,8 @@
         STDIO_FIELDS            \
     }
 
+// The three main standard io file descriptors that just
+// point to the main console.
 FILE __stdio_FILEs[3] = {
     DEFINE_STDIO_DESC(0), /* stdin */
     DEFINE_STDIO_DESC(1), /* stdout */
@@ -39,6 +41,8 @@ FILE *fopen(const char *filename, const char *mode) {
     if (stream == NULL) {
         return NULL;
     }
+
+    // TODO: handle more open modes
 
     stream->use_fs = true;
     stream->fs_handle.offset = 0;
@@ -77,16 +81,78 @@ int fclose(FILE *stream) {
     return 0;
 }
 
-size_t fread(void *ptr, size_t size, size_t count, FILE *stream) {
+// Inner version of fread that returns a ssize_t to include the internal error code
+// along with the length.
+static ssize_t fread_error(void *ptr, size_t size, size_t count, FILE *stream) {
+    if (count == 0 || size == 0) {
+        return 0;
+    }
 #if defined(WITH_LIB_FS)
     if (stream->use_fs) {
-        size_t rsize = fs_read_file(stream->fs_handle.handle, ptr,
+        ssize_t rsize = fs_read_file(stream->fs_handle.handle, ptr,
                              stream->fs_handle.offset, size * count);
+        if (rsize <= 0) {
+            return rsize;
+        }
         stream->fs_handle.offset += rsize;
         return rsize / size;
     }
 #endif // WITH_LIB_FS
-    return io_read(stream->io, ptr, size * count) / size;
+    ssize_t rsize = io_read(stream->io, ptr, size * count);
+    if (rsize <= 0) {
+        return rsize;
+    }
+    return rsize / size;
+}
+
+// Inner version of fwrite that returns a ssize_t to include the internal error code
+// along with the length.
+static ssize_t fwrite_error(const void *ptr, size_t size, size_t count, FILE *stream) {
+    if (count == 0 || size == 0) {
+        return 0;
+    }
+#if defined(WITH_LIB_FS)
+    if (stream->use_fs) {
+        if (stream->fs_handle.readonly) {
+            // return error here?
+            return 0;
+        }
+
+        // TODO: deal with append
+
+        ssize_t wsize = fs_write_file(stream->fs_handle.handle, ptr,
+                                     stream->fs_handle.offset, size * count);
+        if (wsize <= 0) {
+            return wsize;
+        }
+        stream->fs_handle.offset += wsize;
+
+        return wsize / size;
+    }
+#endif
+    ssize_t wsize = io_write(stream->io, ptr, size * count);
+    if (wsize <= 0) {
+        return wsize;
+    }
+    return wsize / size;
+}
+
+size_t fread(void *ptr, size_t size, size_t count, FILE *stream) {
+    ssize_t read = fread_error(ptr, size, count, stream);
+    if (read < 0) {
+        // TODO: save error for ferror()
+        return 0;
+    }
+    return read;
+}
+
+size_t fwrite(const void *ptr, size_t size, size_t count, FILE *stream) {
+    ssize_t written = fwrite_error(ptr, size, count, stream);
+    if (written < 0) {
+        // TODO: save error for ferror()
+        return 0;
+    }
+    return written;
 }
 
 int fflush(FILE *stream) {
@@ -149,10 +215,14 @@ long ftell(FILE *stream) {
     return 0;
 }
 
-
 int fputc(int _c, FILE *fp) {
     unsigned char c = _c;
-    return fwrite(&c, /*size=*/1, /*count=*/1, fp);
+
+    size_t written = fwrite(&c, /*size=*/1, /*count=*/1, fp);
+    if (written == 0) {
+        return EOF;
+    }
+    return c;
 }
 
 int putchar(int c) {
@@ -161,55 +231,33 @@ int putchar(int c) {
 
 int puts(const char *str) {
     int err = fputs(str, stdout);
-    if (err >= 0)
+    if (err >= 0) {
         err = fputc('\n', stdout);
+    }
     return err;
 }
 
 int fputs(const char *s, FILE *fp) {
     size_t len = strlen(s);
-    return fwrite(s, /*size=*/1, /*count=*/len, fp);
-}
-
-size_t fwrite(const void *ptr, size_t size, size_t count, FILE *stream) {
-    if (stream == stdin) {
+    if (len == 0) {
         return 0;
     }
 
-    if (stream == stdout || stream == stderr) {
-        size_t bytes_written;
-
-        if (size == 0 || count == 0)
-            return 0;
-
-        // fast path for size == 1
-        if (likely(size == 1)) {
-            return io_write(stream->io, ptr, count);
-        }
-
-        bytes_written = io_write(stream->io, ptr, size * count);
-        return bytes_written / size;
+    size_t written = fwrite(s, /*size=*/1, /*count=*/len, fp);
+    if (written == 0) {
+        return EOF;
     }
-
-#if defined(WITH_LIB_FS)
-    if (stream->fs_handle.readonly) {
-        return 0;
-    }
-
-    size_t wsize = fs_write_file(stream->fs_handle.handle, ptr,
-                                 stream->fs_handle.offset, size * count);
-    stream->fs_handle.offset += wsize;
-
-    return wsize / size;
-#endif // WITH_LIB_FS
     return 0;
 }
 
 int fgetc(FILE *fp) {
     char c;
-    ssize_t ret = fread(&c, /*size=*/1, /*count=*/1, fp);
 
-    return (ret > 0) ? c : EOF;
+    size_t err = fread(&c, /*size=*/1, /*count=*/1, fp);
+    if (err == 0) {
+        return EOF;
+    }
+    return c;
 }
 
 int getchar(void) {
@@ -236,7 +284,8 @@ char *fgets(char *s, int size, FILE *stream) {
 
 int _fprintf_output_func(const char *str, size_t len, void *state) {
     FILE *fp = (FILE *)state;
-    return fwrite(str, /*size=*/1, /*count=*/len, fp);
+
+    return fwrite_error(str, /*size=*/1, /*count=*/len, fp);
 }
 
 int vfprintf(FILE *fp, const char *fmt, va_list ap) {
