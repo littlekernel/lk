@@ -36,27 +36,6 @@ typedef struct {
     bool valid;
 } pci_bar_t;
 
-typedef struct {
-    uint8_t id;
-    uint8_t next;
-} __PACKED pci_capability_t;
-
-typedef struct {
-    uint8_t bus;
-    uint8_t device;
-    uint8_t link_int_a;
-    uint16_t irq_int_a;
-    uint8_t link_int_b;
-    uint16_t irq_int_b;
-    uint8_t link_int_c;
-    uint16_t irq_int_c;
-    uint8_t link_int_d;
-    uint16_t irq_int_d;
-    uint8_t slot;
-    uint8_t reserved;
-} __PACKED irq_routing_entry;
-
-
 // only use one of these two:
 // try to detect PCI based on legacy PC PCI accessor methods
 status_t pci_init_legacy(void);

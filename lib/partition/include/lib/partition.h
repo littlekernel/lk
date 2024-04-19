@@ -7,7 +7,10 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <sys/types.h>
+
+__BEGIN_CDECLS
 
 /* examine and try to publish partitions on a particular device at a particular offset */
 int partition_publish(const char *device, off_t offset);
@@ -15,3 +18,4 @@ int partition_publish(const char *device, off_t offset);
 /* remove any published subdevices on this device */
 int partition_unpublish(const char *device);
 
+__END_CDECLS

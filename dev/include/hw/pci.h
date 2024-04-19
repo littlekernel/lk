@@ -141,7 +141,7 @@ typedef struct {
             uint16_t bridge_control;
         } type1; // configuration for bridge devices
     };
-} __PACKED pci_config_t;
+} pci_config_t;
 static_assert(sizeof(pci_config_t) == 0x40, "");
 
 /* Class/subclass codes (incomplete) */

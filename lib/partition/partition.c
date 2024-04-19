@@ -5,6 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include "lib/partition.h"
+
 #include <lk/debug.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,13 +14,13 @@
 #include <stdlib.h>
 #include <arch.h>
 #include <lib/bio.h>
-#include <lib/partition.h>
+#include <assert.h>
 
 struct chs {
     uint8_t c;
     uint8_t h;
     uint8_t s;
-} __PACKED;
+};
 
 struct mbr_part {
     uint8_t status;
@@ -27,7 +29,8 @@ struct mbr_part {
     struct chs end;
     uint32_t lba_start;
     uint32_t lba_length;
-} __PACKED;
+};
+static_assert(sizeof(struct mbr_part) == 16, "");
 
 static status_t validate_mbr_partition(bdev_t *dev, const struct mbr_part *part) {
     /* check for invalid types */

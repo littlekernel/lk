@@ -35,6 +35,7 @@ struct tga_header {
     uint8_t  bitsperpixel;
     uint8_t  imagedescriptor;
 } __PACKED;
+static_assert(sizeof(struct tga_header) == 18, "");
 
 static void print_tga_info(const struct tga_header *header) {
     LTRACEF("idlength %hhd\n", header->idlength);
