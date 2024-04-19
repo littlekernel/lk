@@ -71,6 +71,8 @@ static int cmd_ls(int argc, const console_cmd_args *argv) {
     }
 
     size_t pathlen = strlen(path);
+    char *tmppath = calloc(FS_MAX_PATH_LEN, 1);
+    strlcpy(tmppath, path, FS_MAX_PATH_LEN);
 
     status_t err;
     struct dirent ent;
@@ -79,16 +81,14 @@ static int cmd_ls(int argc, const console_cmd_args *argv) {
         filehandle *handle;
 
         // append our filename to the path
-        strlcat(path, "/", FS_MAX_PATH_LEN);
-        strlcat(path, ent.name, FS_MAX_PATH_LEN);
+        tmppath[pathlen] = '\0';
+        strlcat(tmppath, "/", FS_MAX_PATH_LEN);
+        strlcat(tmppath, ent.name, FS_MAX_PATH_LEN);
 
-        err = fs_open_file(path, &handle);
-
-        // restore the old path
-        path[pathlen] = '\0';
+        err = fs_open_file(tmppath, &handle);
 
         if (err < 0) {
-            printf("error %d opening file '%s'\n", err, path);
+            printf("error %d opening file '%s'\n", err, tmppath);
             continue;
         }
 
