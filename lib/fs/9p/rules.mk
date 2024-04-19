@@ -9,6 +9,7 @@ MODULE_DEPS += \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/dir.c \
+	$(LOCAL_DIR)/file.c \
 	$(LOCAL_DIR)/v9fs.c
 
 include make/module.mk
