@@ -26,6 +26,12 @@
 #include <lk/list.h>
 #include <kernel/mutex.h>
 
+typedef struct v9fs_fid {
+    uint32_t fid;
+    uint32_t iounit;
+    virtio_9p_qid_t qid;
+} v9fs_fid_t;
+
 typedef struct v9fs {
     struct virtio_device *dev;
     bdev_t *bdev;
@@ -37,6 +43,25 @@ typedef struct v9fs {
     struct list_node files;
     struct list_node dirs;
 } v9fs_t;
+
+#define V9FS_FILE_PAGE_BUFFER_SIZE (1 << 12)
+#define V9FS_FILE_LOCK_TIMEOUT 3000
+
+typedef struct v9fs_file {
+    v9fs_t *v9fs;
+    v9fs_fid_t fid;
+
+    struct list_node node;
+    mutex_t lock;
+
+    struct fs_page_buffer {
+        size_t size;
+        off_t index;
+        bool need_update;
+        bool dirty;
+        uint8_t data[V9FS_FILE_PAGE_BUFFER_SIZE];
+    } pg_buf;
+} v9fs_file_t;
 
 typedef struct v9fs_dir {
     v9fs_t *v9fs;
@@ -52,6 +77,16 @@ typedef struct v9fs_dir {
 
 status_t v9fs_mount(bdev_t *dev, fscookie **cookie);
 status_t v9fs_unmount(fscookie *cookie);
+status_t v9fs_open_file(fscookie *cookie, const char *path,
+                        filecookie **fcookie);
+status_t v9fs_create_file(fscookie *cookie, const char *path,
+                          filecookie **fcookie, uint64_t len);
+ssize_t v9fs_read_file(filecookie *fcookie, void *buf, off_t offset,
+                       size_t len);
+ssize_t v9fs_write_file(filecookie *fcookie, const void *buf, off_t offset,
+                        size_t len);
+status_t v9fs_close_file(filecookie *fcookie);
+status_t v9fs_stat_file(filecookie *fcookie, struct file_stat *stat);
 status_t v9fs_open_dir(fscookie *cookie, const char *path, dircookie **dcookie);
 status_t v9fs_mkdir(fscookie *cookie, const char *path);
 status_t v9fs_read_dir(dircookie *dcookie, struct dirent *ent);
