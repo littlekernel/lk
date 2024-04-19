@@ -8,6 +8,7 @@ MODULE_DEPS += \
 	dev/virtio/9p
 
 MODULE_SRCS += \
+	$(LOCAL_DIR)/dir.c \
 	$(LOCAL_DIR)/v9fs.c
 
 include make/module.mk

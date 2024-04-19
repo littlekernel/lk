@@ -36,6 +36,55 @@
 
 #define LOCAL_TRACE 0
 
+status_t path_to_wname(char *path, uint16_t *nwname,
+                       const char *wname[P9_MAXWELEM])
+{
+    char *cptr, *ncptr;
+    *nwname = 0;
+
+    if (path[0] == '\0')
+        return NO_ERROR;
+
+    cptr = path[0] == '/' ? path + 1 : path;
+
+    while ((ncptr = strchr(cptr, '/')) != NULL) {
+        *ncptr = '\0';
+        if (strlen(cptr) != 0)
+            wname[(*nwname)++] = cptr;
+        cptr = ncptr + 1;
+
+        if (*nwname == P9_MAXWELEM)
+            return ERR_BAD_PATH;
+    }
+
+    wname[(*nwname)++] = strlen(cptr) != 0? cptr : ".";
+
+    return NO_ERROR;
+}
+
+uint32_t get_unused_fid(v9fs_t *v9fs)
+{
+    mutex_acquire(&v9fs->lock);
+    uint32_t fid = v9fs->unused_fid++;
+    mutex_release(&v9fs->lock);
+    return fid;
+}
+
+void put_fid(v9fs_t *v9fs, uint32_t fid)
+{
+    virtio_9p_msg_t tclunk = {
+        .msg_type = P9_TCLUNK,
+        .tag = P9_TAG_DEFAULT,
+        .msg.tclunk = { .fid = fid, }
+    };
+    virtio_9p_msg_t rclunk = {};
+
+    ASSERT(virtio_9p_rpc(v9fs->dev, &tclunk, &rclunk) == NO_ERROR);
+    ASSERT(rclunk.msg_type == P9_RCLUNK);
+
+    virtio_9p_msg_destroy(&rclunk);
+}
+
 status_t v9fs_mount(bdev_t *dev, fscookie **cookie)
 {
     status_t ret;
