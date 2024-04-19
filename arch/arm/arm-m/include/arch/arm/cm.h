@@ -189,7 +189,6 @@ void arm_cm_irq_entry(void);
 void arm_cm_irq_exit(bool reschedule);
 
 /* built in exception vectors */
-void _start(void);
 void _nmi(void);
 void _hardfault(void);
 void _memmanage(void);

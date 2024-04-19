@@ -15,7 +15,6 @@ extern unsigned int __data_start_rom, __data_start, __data_end;
 extern unsigned int __bss_start, __bss_end;
 
 /* entry point of the binary */
-void _start(void);
 void _start(void) {
     /* copy data from rom */
     if (&__data_start != &__data_start_rom) {

@@ -88,8 +88,6 @@ static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **ac
 /* utilities */
 void gen_random_mac_address(uint8_t *mac_addr);
 uint32_t minip_parse_ipaddr(const char *addr, size_t len);
-
-uint32_t minip_parse_ipaddr(const char *addr, size_t len);
 void printip(uint32_t x);
 void printip_named(const char *s, u32 x);
 

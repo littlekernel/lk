@@ -204,7 +204,7 @@ HAL_StatusTypeDef  HAL_NAND_GetECC(NAND_HandleTypeDef *hnand, uint32_t *ECCval, 
   */
 /* NAND State functions *******************************************************/
 HAL_NAND_StateTypeDef HAL_NAND_GetState(NAND_HandleTypeDef *hnand);
-uint32_t              HAL_NAND_Read_Status(NAND_HandleTypeDef *hnand);
+//uint32_t              HAL_NAND_Read_Status(NAND_HandleTypeDef *hnand);
 /**
   * @}
   */
