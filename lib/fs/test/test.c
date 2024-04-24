@@ -11,8 +11,6 @@
 #include <string.h>
 #include <string.h>
 #include <stdio.h>
-
-#if WITH_LIB_UNITTEST
 #include <lib/unittest.h>
 
 // returns true if the input path passed through the path normalization
@@ -109,5 +107,3 @@ BEGIN_TEST_CASE(fs_tests);
 RUN_TEST(test_path_normalize);
 RUN_TEST(test_stdio_fs);
 END_TEST_CASE(fs_tests);
-
-#endif // WITH_LIB_UNITTEST
