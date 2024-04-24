@@ -31,26 +31,32 @@ $(OUTELF): $(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LINKER_SCRIPT) $(EXTRA_LINKER_SCRIP
 $(OUTELF).sym: $(OUTELF)
 	$(info generating symbols: $@)
 	$(NOECHO)$(OBJDUMP) -t $< | $(CPPFILT) > $@
+	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@
 
 $(OUTELF).sym.sorted: $(OUTELF)
 	$(info generating sorted symbols: $@)
 	$(NOECHO)$(OBJDUMP) -t $< | $(CPPFILT) | sort > $@
+	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@
 
 $(OUTELF).lst: $(OUTELF)
 	$(info generating listing: $@)
 	$(NOECHO)$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -d $< | $(CPPFILT) > $@
+	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@
 
 $(OUTELF).debug.lst: $(OUTELF)
 	$(info generating listing: $@)
 	$(NOECHO)$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -S $< | $(CPPFILT) > $@
+	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@
 
 $(OUTELF).dump: $(OUTELF)
 	$(info generating objdump: $@)
 	$(NOECHO)$(OBJDUMP) -x $< | $(CPPFILT) > $@
+	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@
 
 $(OUTELF).size: $(OUTELF)
 	$(info generating size map: $@)
 	$(NOECHO)$(NM) -S --size-sort $< | $(CPPFILT) > $@
+	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@
 
 # print some information about the build
 $(BUILDDIR)/srcfiles.txt: $(OUTELF)
