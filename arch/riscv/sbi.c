@@ -26,6 +26,11 @@ enum sbi_extension {
     SBI_EXTENSION_HSM,
     SBI_EXTENSION_SRST,
     SBI_EXTENSION_PMU,
+    SBI_EXTENSION_DBCN,
+    SBI_EXTENSION_SUSP,
+    SBI_EXTENSION_CPPC,
+    SBI_EXTENSION_NACL,
+    SBI_EXTENSION_STA,
 };
 
 static uint sbi_ext;
@@ -132,6 +137,11 @@ void sbi_early_init(void) {
     sbi_ext |= sbi_probe_extension(SBI_EXT_HSM_SIG) ? (1<<SBI_EXTENSION_HSM) : 0;
     sbi_ext |= sbi_probe_extension(SBI_EXT_SRST_SIG) ? (1<<SBI_EXTENSION_SRST) : 0;
     sbi_ext |= sbi_probe_extension(SBI_EXT_PMU_SIG) ? (1<<SBI_EXTENSION_PMU) : 0;
+    sbi_ext |= sbi_probe_extension(SBI_EXT_DBCN_SIG) ? (1<<SBI_EXTENSION_DBCN) : 0;
+    sbi_ext |= sbi_probe_extension(SBI_EXT_SUSP_SIG) ? (1<<SBI_EXTENSION_SUSP) : 0;
+    sbi_ext |= sbi_probe_extension(SBI_EXT_CPPC_SIG) ? (1<<SBI_EXTENSION_CPPC) : 0;
+    sbi_ext |= sbi_probe_extension(SBI_EXT_NACL_SIG) ? (1<<SBI_EXTENSION_NACL) : 0;
+    sbi_ext |= sbi_probe_extension(SBI_EXT_STA_SIG) ? (1<<SBI_EXTENSION_STA) : 0;
 }
 
 void sbi_init(void) {
@@ -150,6 +160,11 @@ void sbi_init(void) {
         if (sbi_ext_present(SBI_EXTENSION_HSM)) dprintf(INFO, "HSM ");
         if (sbi_ext_present(SBI_EXTENSION_SRST)) dprintf(INFO, "SRST ");
         if (sbi_ext_present(SBI_EXTENSION_PMU)) dprintf(INFO, "PMU ");
+        if (sbi_ext_present(SBI_EXTENSION_DBCN)) dprintf(INFO, "DBCN ");
+        if (sbi_ext_present(SBI_EXTENSION_SUSP)) dprintf(INFO, "SUSP ");
+        if (sbi_ext_present(SBI_EXTENSION_CPPC)) dprintf(INFO, "CPPC ");
+        if (sbi_ext_present(SBI_EXTENSION_NACL)) dprintf(INFO, "NACL ");
+        if (sbi_ext_present(SBI_EXTENSION_STA)) dprintf(INFO, "STA ");
         dprintf(INFO, "\n");
     }
 }

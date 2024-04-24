@@ -59,7 +59,12 @@ enum sbi_return_code {
 #define SBI_EXT_RFENCE_SIG          0x52464e43 // RFNC
 #define SBI_EXT_HSM_SIG             0x0048534d // HSM
 #define SBI_EXT_SRST_SIG            0x53525354 // SRST
-#define SBI_EXT_PMU_SIG            0x00504d55 // PMU
+#define SBI_EXT_PMU_SIG             0x00504d55 // PMU
+#define SBI_EXT_DBCN_SIG            0x4442434e // DBCN
+#define SBI_EXT_SUSP_SIG            0x53555350 // SUSP
+#define SBI_EXT_CPPC_SIG            0x43505043 // CPPC
+#define SBI_EXT_NACL_SIG            0x4e41434c // NACL
+#define SBI_EXT_STA_SIG             0x00535441 // STA
 
 void sbi_early_init(void);
 void sbi_init(void);
