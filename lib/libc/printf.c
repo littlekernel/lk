@@ -502,7 +502,7 @@ next_format:
                 s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags, &signchar);
                 goto _output_string;
             case 'p':
-                flags |= LONGFLAG | ALTFLAG;
+                flags |= SIZETFLAG | ALTFLAG;
                 goto hex;
             case 'X':
                 flags |= CAPSFLAG;
@@ -518,10 +518,15 @@ hex:
                     (flags & PTRDIFFFLAG) ? (uintptr_t)va_arg(ap, ptrdiff_t) :
                     va_arg(ap, unsigned int);
                 s = longlong_to_hexstring(num_buffer, n, sizeof(num_buffer), flags);
-                if (flags & ALTFLAG) {
-                    OUTPUT_CHAR('0');
-                    OUTPUT_CHAR((flags & CAPSFLAG) ? 'X': 'x');
+
+                /* Normalize c, since code in _output_string needs to know that this is printing hex */
+                c = 'x';
+
+                /* Altflag processing should be bypassed when n == 0 so that 0x is not prepended to it */
+                if (n == 0) {
+                  flags &= ~ALTFLAG;
                 }
+
                 goto _output_string;
             case 'n':
                 ptr = va_arg(ap, void *);
@@ -588,6 +593,17 @@ _output_string:
             /* output the sign char before the leading zeros */
             if (flags & LEADZEROFLAG && signchar != '\0')
                 OUTPUT_CHAR(signchar);
+
+            /* Handle (altflag) printing 0x before the number */
+            /* Note that this needs to be done before padding the number */
+            if (c == 'x' && (flags & ALTFLAG)) {
+                OUTPUT_CHAR('0');
+                OUTPUT_CHAR(flags & CAPSFLAG ? 'X' : 'x');
+                /* Width is adjusted so i.e printf("%#04x", 0x02) -> 0x02 instead of 0x0002 */
+                if (format_num >= 2) {
+                    format_num -= 2;
+                }
+            }
 
             /* pad according to the format string */
             for (; format_num > string_len; format_num--)
