@@ -247,7 +247,7 @@ int fputs(const char *s, FILE *fp) {
     if (written == 0) {
         return EOF;
     }
-    return 0;
+    return written;
 }
 
 int fgetc(FILE *fp) {
