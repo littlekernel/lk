@@ -91,6 +91,10 @@ status_t v9fs_mount(bdev_t *dev, fscookie **cookie)
 
     LTRACEF("bdev (%p) cookie (%p)\n", dev, cookie);
 
+    if (!dev) {
+        return ERR_INVALID_ARGS;
+    }
+
     v9fs_t *v9fs = calloc(1, sizeof(v9fs_t));
 
     if (!v9fs)
