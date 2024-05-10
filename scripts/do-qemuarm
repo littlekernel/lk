@@ -7,6 +7,7 @@ function HELP {
     echo "-6                : 64bit arm"
     echo "-3                : cortex-m3 based platform"
     echo "-v                : boot kernel at EL2"
+    echo "-k                : use KVM"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
     echo
@@ -31,6 +32,7 @@ DO_DISK_IMAGE=""
 DO_64BIT=0
 DO_VIRT=0
 DO_CORTEX_M3=0
+DO_KVM=0
 DO_DISPLAY=0
 DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
@@ -41,12 +43,13 @@ MEMSIZE=512
 SUDO=""
 PROJECT=""
 
-while getopts cd:ghm:Mnt36vp:s:f: FLAG; do
+while getopts cd:ghkm:Mnt36vp:s:f: FLAG; do
     case $FLAG in
         c) DO_CMPCTMALLOC=1;;
         d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
         g) DO_DISPLAY=1;;
         f) DO_V9P=1; DO_V9P_DIR=$OPTARG;;
+        k) DO_KVM=1;;
         M) DO_MINIHEAP=1;;
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
@@ -70,8 +73,11 @@ if [ $DO_64BIT == 1 ]; then
     QEMU="qemu-system-aarch64"
     CPU="cortex-a53"
     MACHINE="virt"
-    if [ $DO_VIRT == 1 ]; then
-      MACHINE+=",virtualization=on"
+    if [ $DO_KVM == 1 ]; then
+        CPU="host"
+        MACHINE+=",gic_version=host,accel=kvm"
+    elif [ $DO_VIRT == 1 ]; then
+        MACHINE+=",virtualization=on"
     fi
     _PROJECT="qemu-virt-arm64-test"
 elif [ $DO_CORTEX_M3 == 1 ]; then
