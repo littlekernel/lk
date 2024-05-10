@@ -19,18 +19,18 @@
 /* cache flushing routines for cortex-m cores that support it */
 
 void arch_disable_cache(uint flags) {
-    if (flags & DCACHE)
+    if (flags & ARCH_CACHE_FLAG_DCACHE)
         SCB_DisableDCache();
 
-    if (flags & ICACHE)
+    if (flags & ARCH_CACHE_FLAG_ICACHE)
         SCB_DisableICache();
 }
 
 void arch_enable_cache(uint flags) {
-    if (flags & DCACHE)
+    if (flags & ARCH_CACHE_FLAG_DCACHE)
         SCB_EnableDCache();
 
-    if (flags & ICACHE)
+    if (flags & ARCH_CACHE_FLAG_ICACHE)
         SCB_EnableICache();
 }
 

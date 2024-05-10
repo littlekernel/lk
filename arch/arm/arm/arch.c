@@ -57,7 +57,7 @@ volatile int secondaries_to_init = 0;
 
 void arch_early_init(void) {
     /* turn off the cache */
-    arch_disable_cache(UCACHE);
+    arch_disable_cache(ARCH_CACHE_FLAG_UCACHE);
 #if WITH_DEV_CACHE_PL310
     pl310_set_enable(false);
 #endif
@@ -80,7 +80,7 @@ void arch_early_init(void) {
 #if WITH_DEV_CACHE_PL310
     pl310_set_enable(true);
 #endif
-    arch_enable_cache(UCACHE);
+    arch_enable_cache(ARCH_CACHE_FLAG_UCACHE);
 }
 
 void arch_init(void) {
@@ -155,7 +155,7 @@ void arm_secondary_entry(uint asm_cpu_num) {
     arm_basic_setup();
 
     /* enable the local L1 cache */
-    //arch_enable_cache(UCACHE);
+    //arch_enable_cache(ARCH_CACHE_FLAG_UCACHE);
 
     // XXX may not be safe, but just hard enable i and d cache here
     // at the moment cannot rely on arch_enable_cache not dumping the L2
@@ -365,7 +365,7 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
 #endif
 
     LTRACEF("disabling instruction/data cache\n");
-    arch_disable_cache(UCACHE);
+    arch_disable_cache(ARCH_CACHE_FLAG_UCACHE);
 #if WITH_DEV_CACHE_PL310
     pl310_set_enable(false);
 #endif

@@ -24,7 +24,7 @@ FUNCTION(arch_disable_cache)
     cpsid   iaf                         // interrupts disabled
 
 .Ldcache_disable:
-    tst     r0, #DCACHE
+    tst     r0, #ARCH_CACHE_FLAG_DCACHE
     beq     .Licache_disable
     mrc     p15, 0, r1, c1, c0, 0       // cr1
     tst     r1, #(1<<2)                 // is the dcache already disabled?
@@ -37,7 +37,7 @@ FUNCTION(arch_disable_cache)
     mcr     p15, 0, r0, c7, c10, 4      // data sync barrier (formerly drain write buffer)
 
 .Licache_disable:
-    tst     r0, #ICACHE
+    tst     r0, #ARCH_CACHE_FLAG_ICACHE
     beq     .Ldone_disable
 
     mrc     p15, 0, r1, c1, c0, 0       // cr1
@@ -57,7 +57,7 @@ FUNCTION(arch_enable_cache)
     cpsid   iaf                         // interrupts disabled
 
 .Ldcache_enable:
-    tst     r0, #DCACHE
+    tst     r0, #ARCH_CACHE_FLAG_DCACHE
     beq     .Licache_enable
     mrc     p15, 0, r1, c1, c0, 0       // cr1
     tst     r1, #(1<<2)                 // is the dcache already enabled?
@@ -69,7 +69,7 @@ FUNCTION(arch_enable_cache)
     mcr     p15, 0, r1, c1, c0, 0       // enable dcache
 
 .Licache_enable:
-    tst     r0, #ICACHE
+    tst     r0, #ARCH_CACHE_FLAG_ICACHE
     beq     .Ldone_enable
 
     mcr     p15, 0, r12, c7, c5, 0      // invalidate icache
@@ -94,7 +94,7 @@ FUNCTION(arch_disable_cache)
     cpsid   iaf                         // interrupts disabled
 
 .Ldcache_disable:
-    tst     r7, #DCACHE
+    tst     r7, #ARCH_CACHE_FLAG_DCACHE
     beq     .Licache_disable
     mrc     p15, 0, r0, c1, c0, 0       // cr1
     tst     r0, #(1<<2)                 // is the dcache already disabled?
@@ -124,7 +124,7 @@ FUNCTION(arch_disable_cache)
 #endif
 
 .Licache_disable:
-    tst     r7, #ICACHE
+    tst     r7, #ARCH_CACHE_FLAG_ICACHE
     beq     .Ldone_disable
 
     mrc     p15, 0, r0, c1, c0, 0       // cr1
@@ -149,7 +149,7 @@ FUNCTION(arch_enable_cache)
     cpsid   iaf                         // interrupts disabled
 
 .Ldcache_enable:
-    tst     r7, #DCACHE
+    tst     r7, #ARCH_CACHE_FLAG_DCACHE
     beq     .Licache_enable
     mrc     p15, 0, r0, c1, c0, 0       // cr1
     tst     r0, #(1<<2)                 // is the dcache already enabled?
@@ -171,7 +171,7 @@ FUNCTION(arch_enable_cache)
     mcr     p15, 0, r0, c1, c0, 0       // enable dcache
 
 .Licache_enable:
-    tst     r7, #ICACHE
+    tst     r7, #ARCH_CACHE_FLAG_ICACHE
     beq     .Ldone_enable
 
     mov     r0, #0

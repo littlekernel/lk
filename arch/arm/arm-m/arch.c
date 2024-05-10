@@ -92,7 +92,7 @@ void arch_early_init(void) {
 #endif
 
 #if ARM_WITH_CACHE
-    arch_enable_cache(UCACHE);
+    arch_enable_cache(ARCH_CACHE_FLAG_UCACHE);
 #endif
 }
 
@@ -111,7 +111,7 @@ void arch_init(void) {
 
 void arch_quiesce(void) {
 #if ARM_WITH_CACHE
-    arch_disable_cache(UCACHE);
+    arch_disable_cache(ARCH_CACHE_FLAG_UCACHE);
 #endif
 }
 

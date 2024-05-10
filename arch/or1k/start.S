@@ -442,7 +442,7 @@ FUNCTION(start)
     l.jal   arch_invalidate_cache_all
     l.nop
     l.jal   arch_enable_cache
-    l.ori  r3, r0, UCACHE
+    l.ori  r3, r0, ARCH_CACHE_FLAG_UCACHE
 
     /* clear bss */
     l.movhi r3, hi(__bss_start)

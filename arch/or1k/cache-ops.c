@@ -52,9 +52,9 @@ void arch_invalidate_cache_all(void) {
 void arch_disable_cache(uint flags) {
     uint32_t sr = mfspr(OR1K_SPR_SYS_SR_ADDR);
 
-    if (flags & ICACHE)
+    if (flags & ARCH_CACHE_FLAG_ICACHE)
         sr &= ~OR1K_SPR_SYS_SR_ICE_MASK;
-    if (flags & DCACHE)
+    if (flags & ARCH_CACHE_FLAG_DCACHE)
         sr &= ~OR1K_SPR_SYS_SR_DCE_MASK;
 
     mtspr(OR1K_SPR_SYS_SR_ADDR, sr);
@@ -63,9 +63,9 @@ void arch_disable_cache(uint flags) {
 void arch_enable_cache(uint flags) {
     uint32_t sr = mfspr(OR1K_SPR_SYS_SR_ADDR);
 
-    if (flags & ICACHE)
+    if (flags & ARCH_CACHE_FLAG_ICACHE)
         sr |= OR1K_SPR_SYS_SR_ICE_MASK;
-    if (flags & DCACHE)
+    if (flags & ARCH_CACHE_FLAG_DCACHE)
         sr |= OR1K_SPR_SYS_SR_DCE_MASK;
 
     mtspr(OR1K_SPR_SYS_SR_ADDR, sr);

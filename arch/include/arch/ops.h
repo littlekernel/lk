@@ -29,12 +29,6 @@ static uint arch_curr_cpu_num(void);
 /* Use to align structures on cache lines to avoid cpu aliasing. */
 #define __CPU_ALIGN __ALIGNED(CACHE_LINE)
 
-#endif // !ASSEMBLY
-#define ICACHE 1
-#define DCACHE 2
-#define UCACHE (ICACHE|DCACHE)
-#ifndef ASSEMBLY
-
 void arch_disable_cache(uint flags);
 void arch_enable_cache(uint flags);
 
@@ -48,6 +42,11 @@ void arch_idle(void);
 __END_CDECLS
 
 #endif // !ASSEMBLY
+
+/* for the above arch enable/disable routines */
+#define ARCH_CACHE_FLAG_ICACHE 1
+#define ARCH_CACHE_FLAG_DCACHE 2
+#define ARCH_CACHE_FLAG_UCACHE (ARCH_CACHE_FLAG_ICACHE|ARCH_CACHE_FLAG_DCACHE)
 
 #include <arch/arch_ops.h>
 
