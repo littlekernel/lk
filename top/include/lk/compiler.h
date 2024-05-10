@@ -138,11 +138,26 @@
 #define __FALLTHROUGH do {} while (0)
 #endif
 
+#ifndef __has_attribute
+#define __has_attribute(x)  0
+#endif
+#ifndef __has_extension
+#define __has_extension     __has_feature
+#endif
+#ifndef __has_feature
+#define __has_feature(x)    0
+#endif
+#ifndef __has_include
+#define __has_include(x)    0
+#endif
+#ifndef __has_builtin
+#define __has_builtin(x)    0
+#endif
+
 #ifndef __clang__
 #define __LEAF_FN __attribute__((__leaf__))
 #define __OPTIMIZE(x) __attribute__((optimize(x)))
 #define __THREAD_ANNOTATION(x)
-#define __has_feature(x) 0
 #else
 #define __LEAF_FN
 #define __OPTIMIZE(x)

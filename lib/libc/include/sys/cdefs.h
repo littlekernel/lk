@@ -56,25 +56,6 @@
 #define __BEGIN_DECLS __BEGIN_CDECLS
 #define __END_DECLS __END_CDECLS
 
-/*
- * Testing against Clang-specific extensions.
- */
-#ifndef __has_attribute
-#define __has_attribute(x)  0
-#endif
-#ifndef __has_extension
-#define __has_extension     __has_feature
-#endif
-#ifndef __has_feature
-#define __has_feature(x)    0
-#endif
-#ifndef __has_include
-#define __has_include(x)    0
-#endif
-#ifndef __has_builtin
-#define __has_builtin(x)    0
-#endif
-
 /*-
  * Deal with _ANSI_SOURCE:
  * If it is defined, and no other compilation environment is explicitly
