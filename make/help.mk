@@ -21,6 +21,7 @@ help:
 	@echo "make list: List of buildable projects"
 	@echo "make clean: cleans build of current project"
 	@echo "make spotless: removes all build directories"
+	@echo "make tags: run ctags on all of the source files for the current project"
 	@echo "make <project>: try to build project named <project>"
 	@echo ""
 	@echo "make list-arch: print the architecture of the current project"

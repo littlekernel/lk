@@ -355,7 +355,11 @@ list-arch:
 list-toolchain:
 	@echo TOOLCHAIN_PREFIX = ${TOOLCHAIN_PREFIX}
 
-.PHONY: all clean install list-arch list-toolchain
+tags: $(BUILDDIR)/srcfiles.txt $(BUILDDIR)/include_paths.txt
+	$(info generating tags)
+	@ctags -L $<
+
+.PHONY: all clean install list-arch list-toolchain tags
 
 # generate a config.h file with all of the GLOBAL_DEFINES laid out in #define format
 configheader:

@@ -1,3 +1,5 @@
+# Rules for generating the final binary and any auxillary files generated as a result.
+
 # use linker garbage collection, if requested
 WITH_LINKER_GC ?= false
 ifeq (true,$(call TOBOOL,$(WITH_LINKER_GC)))
@@ -58,12 +60,20 @@ $(OUTELF).size: $(OUTELF)
 	$(NOECHO)$(NM) -S --size-sort $< | $(CPPFILT) > $@
 	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@
 
-# print some information about the build
-$(BUILDDIR)/srcfiles.txt: $(OUTELF)
+# generate a list of source files that potentially participate in this build.
+# header file detection is a bit sloppy: it simply searches for every .h file inside
+# the combined include paths. May pick up files that are not strictly speaking used.
+# Alternate strategy that may work: union all of the .d files together and collect all
+# of the used headers used there.
+$(BUILDDIR)/srcfiles.txt: $(OUTELF) $(BUILDDIR)/include_paths.txt
+	@$(MKDIR)
 	$(info generating $@)
 	$(NOECHO)echo $(sort $(ALLSRCS)) | tr ' ' '\n' > $@
+	@for i in `cat $(BUILDDIR)/include_paths.txt`; do if [ -d $$i ]; then find $$i -type f -name \*.h; fi; done >> $@
 
+# generate a list of all the include directories used in this project
 $(BUILDDIR)/include_paths.txt: $(OUTELF)
+	@$(MKDIR)
 	$(info generating $@)
 	$(NOECHO)echo $(subst -I,,$(sort $(GLOBAL_INCLUDES))) | tr ' ' '\n' > $@
 
