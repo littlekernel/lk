@@ -71,6 +71,7 @@ status_t resource_allocator::allocate_mmio(bool can_be_64bit, bool prefetchable,
             return NO_ERROR;
         }
 
+        // after trying once to allocate in a 64bit range, drop to 32bit and try again
         if (can_be_64bit) {
             can_be_64bit = false;
             continue;

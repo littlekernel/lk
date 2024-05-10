@@ -249,8 +249,10 @@ status_t fdtwalk_setup_pci(const void *fdt) {
                     if (pcie_info[i].mmio_len > 0) {
                         pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_info[i].mmio_base, pcie_info[i].mmio_len);
                     }
-                    if (pcie_info[i].mmio64_len > 0) {
-                        pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_info[i].mmio64_base, pcie_info[i].mmio64_len);
+                    if (sizeof(void *) >= 8) {
+                        if (pcie_info[i].mmio64_len > 0) {
+                            pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_info[i].mmio64_base, pcie_info[i].mmio64_len);
+                        }
                     }
                 }
             }
