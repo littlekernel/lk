@@ -65,4 +65,31 @@ static inline uint arch_curr_cpu_num(void) {
     return 0;
 }
 
+#if ARCH_X86_64
+// relies on SSE2
+#define mb()        __asm__ volatile("mfence" : : : "memory")
+#define rmb()       __asm__ volatile("lfence" : : : "memory")
+#define wmb()       __asm__ volatile("sfence" : : : "memory")
+#else
+// Store to the top of the stack as a load/store barrier. Cannot
+// rely on SS2 being intrinsically available for older i386 class hardware.
+#define __storeload_barrier \
+    __asm__ volatile("lock; addl $0, (%%esp)" : : : "memory", "cc")
+#define mb()        __storeload_barrier
+#define rmb()       __storeload_barrier
+#define wmb()       __storeload_barrier
+#endif
+
+#ifdef WITH_SMP
+// XXX probably too strict
+#define smp_mb()    mb
+#define smp_rmb()   rmb
+#define smp_wmb()   wmb
+#else
+#define smp_mb()    CF
+#define smp_wmb()   CF
+#define smp_rmb()   CF
+#endif
+
+
 #endif // !ASSEMBLY

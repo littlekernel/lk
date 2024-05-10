@@ -210,6 +210,7 @@ static inline void arch_set_current_thread(struct thread *t) {
 
 #endif
 
+// TODO: use less strong versions of these (dsb sy/ld/st)
 #define mb()        DSB
 #define wmb()       DSB
 #define rmb()       DSB

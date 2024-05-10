@@ -47,7 +47,7 @@ static inline uint arch_curr_cpu_num(void) {
     return 0;
 }
 
-// TODO: see if there's a proper (or required) memory barrier on 68k
+// Default barriers for architectures that generally don't need them
 #define mb()        CF
 #define wmb()       CF
 #define rmb()       CF
