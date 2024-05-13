@@ -5,6 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <platform/qemu-virt.h>
+
 #include <arch.h>
 #include <inttypes.h>
 #include <lk/err.h>
@@ -24,7 +26,6 @@
 #include <platform.h>
 #include <platform/gic.h>
 #include <platform/interrupts.h>
-#include <platform/qemu-virt.h>
 #include "platform_p.h"
 
 #if WITH_LIB_MINIP

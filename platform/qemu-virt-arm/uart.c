@@ -5,8 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/reg.h>
 #include <stdio.h>
+#include <lk/reg.h>
 #include <lk/trace.h>
 #include <lib/cbuf.h>
 #include <dev/uart.h>
@@ -37,40 +37,12 @@
 
 static cbuf_t uart_rx_buf[NUM_UART];
 
-// ARM & ARM64 specific register accessors that use specific instructions to avoid
-// trapping into a virtual machine.
-// TODO: make a generic version of this since trapping nonstandard instructions is
-// a general problem while running under a VM.
-#if __aarch64__
-static inline uint32_t __arm64_read_reg32(uint32_t *addr) {
-    uint32_t val;
-    __asm__ volatile("ldr %w0, %1" : "=r"(val) : "m"(*addr) : "memory");
-    return val;
-}
-
-static inline void __arm64_write_reg32(uint32_t *addr, uint32_t val) {
-    __asm__ volatile("str %w0, %1" :: "r"(val), "m"(*addr) : "memory");
-}
-#elif __arm__
-static inline uint32_t __arm64_read_reg32(uint32_t *addr) {
-    uint32_t val;
-    __asm__ volatile("ldr %0, %1" : "=r"(val) : "m"(*addr) : "memory");
-    return val;
-}
-
-static inline void __arm64_write_reg32(uint32_t *addr, uint32_t val) {
-    __asm__ volatile("str %0, %1" :: "r"(val), "m"(*addr) : "memory");
-}
-#else
-#error need for this arch
-#endif
-
 static inline void write_uart_reg(uintptr_t base, size_t offset, uint32_t val) {
-    __arm64_write_reg32((uint32_t *)(base + offset), val);
+    mmio_write32((uint32_t *)(base + offset), val);
 }
 
 static inline uint32_t read_uart_reg(uintptr_t base, size_t offset) {
-    return __arm64_read_reg32((uint32_t *)(base + offset));
+    return mmio_read32((uint32_t *)(base + offset));
 }
 
 static inline void set_uart_reg_bits(uintptr_t base, size_t offset, uint32_t bits) {
