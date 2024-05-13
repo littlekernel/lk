@@ -10,6 +10,7 @@
 #include <arch/arm.h>
 #include <kernel/thread.h>
 #include <platform.h>
+#include <stdlib.h>
 
 struct fault_handler_table_entry {
     uint32_t pc;
@@ -54,8 +55,12 @@ static void dump_mode_regs(uint32_t spsr, uint32_t svc_r13, uint32_t svc_r14) {
     }
 
     if (stack != 0) {
-        dprintf(CRITICAL, "bottom of stack at 0x%08x:\n", (unsigned int)stack);
-        hexdump((void *)stack, 128);
+        dprintf(CRITICAL, "stack pointer at 0x%08x:\n", (unsigned int)stack);
+
+        /* Avoid crossing page-boundary in case near stack base */
+        const size_t used_stack = PAGE_SIZE - ((unsigned int)stack % PAGE_SIZE);
+
+        hexdump((void *)stack, MIN(used_stack, 128));
     }
 }
 
