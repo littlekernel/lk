@@ -7,4 +7,6 @@ MODULE_SRCS += \
 
 MODULE_ARM_OVERRIDE_SRCS := \
 
+MODULE_OPTIONS := float
+
 include make/module.mk

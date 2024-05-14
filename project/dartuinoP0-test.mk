@@ -7,6 +7,7 @@ include project/virtual/minip.mk
 include project/virtual/fs.mk
 
 DISPLAY_PANEL_TYPE ?= LS013B7DH06
+ENABLE_DARTUINO_SENSOR_BUS := 1
 
 MODULES += \
   target/dartuinoP0/projects/system
@@ -14,8 +15,3 @@ MODULES += \
 MODULE_DEPS += \
     app/accelerometer \
 
-MODULE_SRCS += \
-    $(LOCAL_DIR)/sensor_bus.c \
-
-GLOBAL_DEFINES += \
-	ENABLE_SENSORBUS=1

@@ -28,11 +28,17 @@ GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/init.c \
-    $(LOCAL_DIR)/sensor_bus.c \
-    $(LOCAL_DIR)/usb.c \
+    $(LOCAL_DIR)/usb.c
 
 MODULE_DEPS += \
     dev/usb
+
+ifneq ($(ENABLE_DARTUINO_SENSOR_BUS),)
+MODULE_FLOAT_SRCS += \
+    $(LOCAL_DIR)/sensor_bus.c
+GLOBAL_DEFINES += \
+    ENABLE_SENSORBUS=1
+endif
 
 ifneq ($(DISPLAY_PANEL_TYPE),)
 
