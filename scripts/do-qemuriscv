@@ -37,7 +37,7 @@ DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
 DO_SUPERVISOR=0
 SMP=1
-MEMSIZE=512
+MEMSIZE=0
 SUDO=""
 PROJECT=""
 
@@ -75,19 +75,18 @@ if (( $DO_UNLEASHED == 1 )); then
     if (( $SMP == 1 )); then
         SMP=2
     fi
-    if (( $MEMSIZE == 512 )); then
-        MEMSIZE=8192
-    fi
+    _MEMSIZE=8192
 elif (( $DO_EMBEDDED == 1 )); then
     QEMU="qemu-system-riscv32"
     MACHINE="sifive_e"
     _PROJECT="sifive-e-test"
-    MEMSIZE=0
+    _MEMSIZE=0
     SMP=0
 elif (( $DO_64BIT )); then
     QEMU="qemu-system-riscv64"
     CPU="rv64"
     MACHINE="virt"
+    _MEMSIZE=512
     if (( $DO_SUPERVISOR )); then
         _PROJECT="qemu-virt-riscv64-supervisor-test"
         BIOS="default"
@@ -99,11 +98,21 @@ else
     QEMU="qemu-system-riscv32"
     CPU="rv32"
     MACHINE="virt"
-    _PROJECT="qemu-virt-riscv32-test"
     BIOS="none"
+    _MEMSIZE=512
+    if (( $DO_SUPERVISOR )); then
+        _PROJECT="qemu-virt-riscv32-supervisor-test"
+        BIOS="default"
+    else
+        _PROJECT="qemu-virt-riscv32-test"
+        BIOS="none"
+    fi
 fi
 if [[ -z "$PROJECT" ]]; then
     PROJECT=$_PROJECT
+fi
+if [[ -z "$MEMSIZE" ]]; then
+    PROJECT=$_MEMSIZE
 fi
 
 # construct a list of args based on previous variables

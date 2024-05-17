@@ -87,7 +87,7 @@ status_t fdtwalk_setup_memory(const void *fdt, paddr_t fdt_phys, paddr_t default
         printf("FDT: found memory bank range [%#llx, %#llx] (length %#llx)\n", mem[i].base, mem[i].base + mem[i].len - 1, mem[i].len);
 
         /* trim size on certain platforms */
-#if ARCH_ARM
+#if ARCH_ARM || (ARCH_RISCV && __riscv_xlen == 32)
         /* only use the first 1GB on ARM32 */
         const auto GB = 1024*1024*1024UL;
         if (mem[i].base - MEMBASE > GB) {
