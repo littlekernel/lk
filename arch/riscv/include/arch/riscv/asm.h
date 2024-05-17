@@ -13,10 +13,12 @@
 #define REGOFF(x) ((x) * 4)
 #define STR       sw
 #define LDR       lw
+#define RISCV_XLEN_BYTES_LOG 2
 #else
 #define REGOFF(x) ((x) * 8)
 #define STR       sd
 #define LDR       ld
+#define RISCV_XLEN_BYTES_LOG 3
 #endif
 
 #define RISCV_XLEN_BYTES (__riscv_xlen / 8)

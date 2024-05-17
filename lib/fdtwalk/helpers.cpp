@@ -12,6 +12,7 @@
 #include <libfdt.h>
 #include <lk/cpp.h>
 #include <lk/err.h>
+#include <lk/utils.h>
 #include <lk/trace.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -89,7 +90,6 @@ status_t fdtwalk_setup_memory(const void *fdt, paddr_t fdt_phys, paddr_t default
         /* trim size on certain platforms */
 #if ARCH_ARM || (ARCH_RISCV && __riscv_xlen == 32)
         /* only use the first 1GB on ARM32 */
-        const auto GB = 1024*1024*1024UL;
         if (mem[i].base - MEMBASE > GB) {
             printf("trimming memory to 1GB\n");
             continue;
