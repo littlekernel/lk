@@ -172,7 +172,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
     LTRACEF("dev %p, host_features %#x\n", dev, host_features);
 
     /* allocate a new block device */
-    struct virtio_block_dev *bdev = malloc(sizeof(struct virtio_block_dev));
+    struct virtio_block_dev *bdev = (virtio_block_dev *)malloc(sizeof(struct virtio_block_dev));
     if (!bdev)
         return ERR_NO_MEMORY;
 
@@ -208,11 +208,12 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
 
     /* allocate a virtio ring */
     virtio_alloc_ring(dev, 0, VIRTIO_BLK_RING_LEN);
+
     // descriptor index would be used to index into the txns array
     // This is a simple way to keep track of which transaction entry is
     // free, and which transaction entry corresponds to which descriptor.
     // Hence, we allocate txns array with the same size as the ring.
-    bdev->txns = memalign(sizeof(struct virtio_block_txn), VIRTIO_BLK_RING_LEN * sizeof(struct virtio_block_txn));
+    bdev->txns = static_cast<struct virtio_block_txn *>(memalign(alignof(struct virtio_block_txn), VIRTIO_BLK_RING_LEN * sizeof(struct virtio_block_txn)));
 
     /* set our irq handler */
     dev->irq_driver_callback = &virtio_block_irq_driver_callback;
