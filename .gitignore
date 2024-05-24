@@ -14,3 +14,4 @@ blk.bin
 scripts/toolpaths.local
 .clangd
 .vscode
+.cache
