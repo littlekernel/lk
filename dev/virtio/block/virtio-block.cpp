@@ -178,12 +178,12 @@ status_t virtio_block_init(virtio_device *dev, uint32_t host_features) {
         return ERR_NO_MEMORY;
 
     bdev->dev = dev;
-    dev->priv_ = bdev;
+    dev->set_priv(bdev);
 
     /* make sure the device is reset */
-    dev->virtio_reset_device();
+    dev->bus()->virtio_reset_device();
 
-    volatile auto *config = (virtio_blk_config *)dev->config_ptr_;
+    volatile const auto *config = (const virtio_blk_config *)dev->get_config_ptr();
 
     LTRACEF("capacity %" PRIx64 "\n", config->capacity);
     LTRACEF("size_max %#x\n", config->size_max);
@@ -191,7 +191,7 @@ status_t virtio_block_init(virtio_device *dev, uint32_t host_features) {
     LTRACEF("blk_size %#x\n", config->blk_size);
 
     /* ack and set the driver status bit */
-    dev->virtio_status_acknowledge_driver();
+    dev->bus()->virtio_status_acknowledge_driver();
 
     /* check features bits and ack/nak them */
     bdev->guest_features = host_features;
@@ -203,7 +203,7 @@ status_t virtio_block_init(virtio_device *dev, uint32_t host_features) {
                              VIRTIO_BLK_F_TOPOLOGY |
                              VIRTIO_BLK_F_DISCARD |
                              VIRTIO_BLK_F_WRITE_ZEROES);
-    dev->virtio_set_guest_features(0, bdev->guest_features);
+    dev->bus()->virtio_set_guest_features(0, bdev->guest_features);
 
     /* TODO: handle a RO feature */
 
@@ -218,10 +218,10 @@ status_t virtio_block_init(virtio_device *dev, uint32_t host_features) {
     VIRTIO_BLK_RING_LEN * sizeof(struct virtio_block_txn)));
 
     /* set our irq handler */
-    dev->irq_driver_callback_ = &virtio_block_irq_driver_callback;
+    dev->set_irq_callbacks(&virtio_block_irq_driver_callback, nullptr);
 
     /* set DRIVER_OK */
-    dev->virtio_status_driver_ok();
+    dev->bus()->virtio_status_driver_ok();
 
     /* construct the block device */
     static uint8_t found_index = 0;
@@ -269,7 +269,7 @@ status_t virtio_block_init(virtio_device *dev, uint32_t host_features) {
 }
 
 static enum handler_return virtio_block_irq_driver_callback(virtio_device *dev, uint ring, const struct vring_used_elem *e) {
-    auto *bdev = (virtio_block_dev *)dev->priv_;
+    auto *bdev = (virtio_block_dev *)dev->priv();
 
 
     struct virtio_block_txn *txn = &bdev->txns[e->id];
@@ -313,7 +313,7 @@ static status_t virtio_block_do_txn(virtio_device *dev, void *buf,
                                     off_t offset, size_t len, bool write,
                                     bio_async_callback_t callback, void *cookie,
                                     virtio_block_txn **txn_out) {
-    auto *bdev = (virtio_block_dev *)dev->priv_;
+    auto *bdev = (virtio_block_dev *)dev->priv();
 
     uint16_t i;
     vring_desc *desc;
@@ -431,7 +431,7 @@ static status_t virtio_block_do_txn(virtio_device *dev, void *buf,
     dev->virtio_submit_chain(0, i);
 
     /* kick it off */
-    dev->virtio_kick(0);
+    dev->bus()->virtio_kick(0);
 
     return NO_ERROR;
 }
