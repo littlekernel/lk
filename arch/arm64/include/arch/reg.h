@@ -39,11 +39,11 @@
 })
 
 #define _ARCH_MMIO_WRITE8(addr, val) \
-    __asm__ volatile("strb %w1, %0" : "=m"(*(addr)) : "r"(val) : "memory")
+    __asm__ volatile("strb %w1, %0" : "=m"(*(addr)) : "Zr"(val) : "memory")
 #define _ARCH_MMIO_WRITE16(addr, val) \
-    __asm__ volatile("strh %w1, %0" : "=m"(*(addr)): "r"(val) : "memory")
+    __asm__ volatile("strh %w1, %0" : "=m"(*(addr)): "Zr"(val) : "memory")
 #define _ARCH_MMIO_WRITE32(addr, val) \
-    __asm__ volatile("str %w1, %0" : "=m"(*(addr)) : "r"(val) : "memory")
+    __asm__ volatile("str %w1, %0" : "=m"(*(addr)) : "Zr"(val) : "memory")
 #define _ARCH_MMIO_WRITE64(addr, val) \
-    __asm__ volatile("str %1, %0" : "=m"(*(addr)) : "r"(val) : "memory")
+    __asm__ volatile("str %1, %0" : "=m"(*(addr)) : "Zr"(val) : "memory")
 
