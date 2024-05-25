@@ -5,5 +5,6 @@ MODULES += \
     lib/fs/ext2 \
     lib/fs/fat \
     lib/fs/spifs \
-    lib/fs/memfs
+    lib/fs/memfs \
+    lib/partition
 
