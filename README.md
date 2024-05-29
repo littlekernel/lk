@@ -42,4 +42,4 @@ arm machine 'virt' emulation. type 'help' for commands.
 Note: for ubuntu x86-64:
 sudo apt-get install gcc-arm-none-eabi
 or fetch a prebuilt toolchain from
-https://newos.org/toolchains/x86_64-elf-13.2.0-Linux-x86_64.tar.xz
+https://newos.org/toolchains/x86_64-elf-14.1.0-Linux-x86_64.tar.xz
