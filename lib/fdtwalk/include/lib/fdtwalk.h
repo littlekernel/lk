@@ -41,6 +41,10 @@ struct fdt_walk_memory_region {
 
 struct fdt_walk_cpu_info {
     uint32_t id;
+#if ARCH_RISCV
+    const char *isa_string; // pointer to riscv,isa inside device tree
+    const char *isa_extensions_string; // pointer to riscv,isa-etensions inside device tree
+#endif
 };
 
 status_t fdt_walk_dump(const void *fdt);

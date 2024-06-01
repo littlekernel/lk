@@ -3,15 +3,17 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += $(LOCAL_DIR)/start.S
+
 MODULE_SRCS += $(LOCAL_DIR)/arch.c
 MODULE_SRCS += $(LOCAL_DIR)/asm.S
 MODULE_SRCS += $(LOCAL_DIR)/exceptions.c
+MODULE_SRCS += $(LOCAL_DIR)/feature.c
 MODULE_SRCS += $(LOCAL_DIR)/fpu_asm.S
-MODULE_SRCS += $(LOCAL_DIR)/thread.c
 MODULE_SRCS += $(LOCAL_DIR)/mmu.cpp
 MODULE_SRCS += $(LOCAL_DIR)/mp.c
 MODULE_SRCS += $(LOCAL_DIR)/sbi.c
 MODULE_SRCS += $(LOCAL_DIR)/spinlock.c
+MODULE_SRCS += $(LOCAL_DIR)/thread.c
 MODULE_SRCS += $(LOCAL_DIR)/time.c
 
 MODULE_DEPS += lib/libcpp

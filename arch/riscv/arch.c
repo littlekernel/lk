@@ -18,6 +18,7 @@
 #include <platform.h>
 #include <arch.h>
 
+#include "arch/riscv/feature.h"
 #include "riscv_priv.h"
 
 #define LOCAL_TRACE 0
@@ -71,6 +72,8 @@ void riscv_early_init_percpu(void) {
 void arch_early_init(void) {
     riscv_early_init_percpu();
 
+    riscv_feature_early_init();
+
 #if RISCV_S_MODE
     sbi_early_init();
 #endif
@@ -109,6 +112,8 @@ void arch_init(void) {
     dprintf(INFO, "RISCV: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#x\n",
             riscv_get_mvendorid(), riscv_get_marchid(),
             riscv_get_mimpid(), riscv_current_hart());
+
+    riscv_feature_init();
 
 #if RISCV_M_MODE
     dprintf(INFO, "RISCV: misa %#lx\n", riscv_csr_read(RISCV_CSR_MISA));

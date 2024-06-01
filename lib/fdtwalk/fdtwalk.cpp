@@ -84,16 +84,33 @@ status_t read_base_len_pair(const uint8_t *prop_ptr, size_t prop_len,
 // returns true or false if a particular property is a particular value
 bool check_prop_is_val_string(const void *fdt, int offset, const char *prop, const char *val) {
     int lenp;
-    const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(fdt, offset, prop, &lenp);
+    const uint8_t *prop_ptr = static_cast<const uint8_t *>(fdt_getprop(fdt, offset, prop, &lenp));
     if (!prop_ptr || lenp <= 0) {
         return false;
     }
 
-    if (strncmp(val, (const char *)prop_ptr, strlen(val)) == 0) {
+    if (strncmp(val, reinterpret_cast<const char *>(prop_ptr), strlen(val)) == 0) {
         return true;
     }
 
     return false;
+}
+
+const char *get_prop_string(const void *fdt, int offset, const char *prop) {
+    int lenp;
+    const uint8_t *prop_ptr = static_cast<const uint8_t *>(fdt_getprop(fdt, offset, prop, &lenp));
+    if (!prop_ptr || lenp <= 0) {
+        return nullptr;
+    }
+
+    // check to see that it appears to be null terminated
+    auto str = reinterpret_cast<const char *>(prop_ptr);
+    if (str[lenp-1] != '\0') {
+        return nullptr;
+    }
+
+    // seems safe
+    return str;
 }
 
 struct fdt_walk_state {
@@ -210,6 +227,18 @@ status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size
                     cpu[*cpu_count].id = id;
                     (*cpu_count)++;
                 }
+#if ARCH_RISCV
+                // look for riscv,isa and riscv,isa-extensions
+                auto isa_string = get_prop_string(state.fdt, state.offset, "riscv,isa");
+                if (isa_string) {
+                    cpu->isa_string = isa_string;
+                }
+
+                auto isa_extensions_string = get_prop_string(state.fdt, state.offset, "riscv,isa-extensions");
+                if (isa_extensions_string) {
+                    cpu->isa_extensions_string = isa_extensions_string;
+                }
+#endif
             }
         }
     };

@@ -22,6 +22,7 @@
 #endif
 #if ARCH_RISCV
 #include <arch/riscv.h>
+#include <arch/riscv/feature.h>
 #endif
 #if ARCH_ARM || ARCH_ARM64
 #include <dev/power/psci.h>
@@ -42,13 +43,13 @@ status_t fdtwalk_reserve_fdt_memory(const void *fdt, paddr_t fdt_phys) {
         return ERR_NOT_FOUND;
     }
 
-    unsigned long length = fdt_totalsize(fdt);
+    uint32_t length = fdt_totalsize(fdt);
 
     paddr_t base = fdt_phys;
     base = PAGE_ALIGN(base);
     length = ROUNDUP(length, PAGE_SIZE);
 
-    printf("FDT: reserving physical range for FDT: [%#lx, %#lx]\n", base, base + length - 1);
+    dprintf(INFO, "FDT: reserving physical range for FDT: [%#lx, %#lx]\n", base, base + length - 1);
 
 #if WITH_KERNEL_VM
     struct list_node list = LIST_INITIAL_VALUE(list);
@@ -74,7 +75,7 @@ status_t fdtwalk_setup_memory(const void *fdt, paddr_t fdt_phys, paddr_t default
     status_t err = fdt_walk_find_memory(fdt, mem, &mem_count, reserved_mem, &reserved_mem_count);
     if (err < NO_ERROR || mem_count == 0) {
         /* add a default memory region if we didn't find it in the FDT */
-        printf("FDT: could not find memory, using default base %#lx size %#zx\n", default_mem_base, default_mem_size);
+        dprintf(INFO, "FDT: could not find memory, using default base %#lx size %#zx\n", default_mem_base, default_mem_size);
 #if WITH_KERNEL_VM
         mem[0].base = default_mem_base;
         mem[0].len = default_mem_size;
@@ -84,20 +85,20 @@ status_t fdtwalk_setup_memory(const void *fdt, paddr_t fdt_phys, paddr_t default
 
     for (size_t i = 0; i < mem_count; i++) {
         LTRACEF("base %#llx len %#llx\n", mem[i].base, mem[i].len);
-        printf("FDT: found memory bank range [%#llx, %#llx] (length %#llx)\n", mem[i].base, mem[i].base + mem[i].len - 1, mem[i].len);
+        dprintf(INFO, "FDT: found memory bank range [%#llx, %#llx] (length %#llx)\n", mem[i].base, mem[i].base + mem[i].len - 1, mem[i].len);
 
         /* trim size on certain platforms */
 #if ARCH_ARM || (ARCH_RISCV && __riscv_xlen == 32)
         /* only use the first 1GB on ARM32 */
         const auto GB = 1024*1024*1024UL;
         if (mem[i].base - MEMBASE > GB) {
-            printf("trimming memory to 1GB\n");
+            dprintf(INFO, "trimming memory to 1GB\n");
             continue;
         }
         if (mem[i].base - MEMBASE + mem[i].len > GB) {
-            printf("trimming memory to 1GB\n");
+            dprintf(INFO, "trimming memory to 1GB\n");
             mem[i].len = MEMBASE + GB - mem[i].base;
-            printf("range is now [%#llx, %#llx]\n", mem[i].base, mem[i].base + mem[i].len - 1);
+            dprintf(INFO, "range is now [%#llx, %#llx]\n", mem[i].base, mem[i].base + mem[i].len - 1);
         }
 #endif
 
@@ -120,7 +121,7 @@ status_t fdtwalk_setup_memory(const void *fdt, paddr_t fdt_phys, paddr_t default
 
     /* reserve memory described by the FDT */
     for (size_t i = 0; i < reserved_mem_count; i++) {
-        printf("FDT: reserving memory range [%#llx, %#llx]\n",
+        dprintf(INFO, "FDT: reserving memory range [%#llx, %#llx]\n",
                 reserved_mem[i].base, reserved_mem[i].base + reserved_mem[i].len - 1);
 
 #if WITH_KERNEL_VM
@@ -150,9 +151,10 @@ status_t fdtwalk_setup_cpus_riscv(const void *fdt) {
 
     status_t err = fdt_walk_find_cpus(fdt, cpus, &cpu_count);
     if (err >= NO_ERROR) {
+        const char *isa_string = {};
 
         if (cpu_count > 0) {
-            printf("FDT: found %zu cpu%c\n", cpu_count, cpu_count == 1 ? ' ' : 's');
+            dprintf(INFO, "FDT: found %zu cpu%c\n", cpu_count, cpu_count == 1 ? ' ' : 's');
             uint harts[SMP_MAX_CPUS - 1];
 
             // copy from the detected cpu list to an array of harts, excluding the boot hart
@@ -166,11 +168,28 @@ status_t fdtwalk_setup_cpus_riscv(const void *fdt) {
                 if (hart_index >= SMP_MAX_CPUS - 1) {
                     break;
                 }
+
+                if (cpus[i].isa_string) {
+                    if (!isa_string) {
+                        // save the first isa string we found
+                        isa_string = cpus[i].isa_string;
+                    } else {
+                        if (!strcmp(cpus[i].isa_string, isa_string)) {
+                            printf("FDT Warning: isa_strings do not match between cpus, using first found\n");
+                        }
+                    }
+                }
+
             }
 
             // tell the riscv layer how many cores we have to start
             if (hart_index > 0) {
                 riscv_set_secondary_harts_to_start(harts, hart_index);
+            }
+
+            if (isa_string) {
+                dprintf(INFO, "FDT: isa string '%s'\n", isa_string);
+                riscv_set_isa_string(isa_string);
             }
         }
     }
@@ -189,11 +208,11 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
     status_t err = fdt_walk_find_cpus(fdt, cpus, &cpu_count);
     if (err >= NO_ERROR) {
         if (cpu_count > 0) {
-            printf("FDT: found %zu cpu%c\n", cpu_count, cpu_count == 1 ? ' ' : 's');
+            dprintf(INFO, "FDT: found %zu cpu%c\n", cpu_count, cpu_count == 1  ? ' ' : 's');
 
             if (cpu_count > SMP_MAX_CPUS) {
                 cpu_count = MIN(cpu_count, SMP_MAX_CPUS);
-                printf("FDT: clamping max cpus to %zu\n", cpu_count);
+                dprintf(INFO, "FDT: clamping max cpus to %zu\n", cpu_count);
             }
 
             LTRACEF("booting %zu cpus\n", cpu_count);
@@ -201,7 +220,7 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
             /* boot the secondary cpus using the Power State Coordintion Interface */
             for (size_t i = 1; i < cpu_count; i++) {
                 /* note: assumes cpuids are numbered like MPIDR 0:0:0:N */
-                printf("ARM: starting cpu %#x\n", cpus[i].id);
+                dprintf(INFO, "ARM: starting cpu %#x\n", cpus[i].id);
                 int ret = psci_cpu_on(cpus[i].id, MEMBASE + KERNEL_LOAD_OFFSET);
                 if (ret != 0) {
                     printf("ERROR: psci CPU_ON returns %d\n", ret);
@@ -235,7 +254,7 @@ status_t fdtwalk_setup_pci(const void *fdt) {
             }
 
             if (pcie_info[i].ecam_len > 0) {
-                printf("PCIE: initializing pcie with ecam at %#" PRIx64 " found in FDT\n", pcie_info[i].ecam_base);
+                dprintf(INFO, "PCIE: initializing pcie with ecam at %#" PRIx64 " found in FDT\n", pcie_info[i].ecam_base);
                 err = pci_init_ecam(pcie_info[i].ecam_base, pcie_info[i].ecam_len, pcie_info[i].bus_start, pcie_info[i].bus_end);
                 if (err == NO_ERROR) {
                     // add some additional resources to the pci bus manager in case it needs to configure
