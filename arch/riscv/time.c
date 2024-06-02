@@ -11,6 +11,8 @@
 #include <lk/err.h>
 #include <lk/trace.h>
 
+#include <arch/riscv/feature.h>
+
 #include <arch/riscv.h>
 #include <arch/ops.h>
 
@@ -39,7 +41,16 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
 #if RISCV_M_MODE
     clint_set_timer(ticks);
 #elif RISCV_S_MODE
-    sbi_set_timer(ticks);
+    if (riscv_feature_test(RISCV_FEAT_SSTC)) {
+#if __riscv_xlen == 64
+        riscv_csr_write(RISCV_CSR_STIMECMP, ticks);
+#else
+        riscv_csr_write(RISCV_CSR_STIMECMPH, ticks >> 32);
+        riscv_csr_write(RISCV_CSR_STIMECMP, ticks);
+#endif
+    } else {
+        sbi_set_timer(ticks);
+    }
 #endif
 
     return NO_ERROR;

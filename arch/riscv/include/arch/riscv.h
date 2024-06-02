@@ -58,6 +58,9 @@
 
 #if RISCV_S_MODE // Supervisor-mode only CSRs
 #define RISCV_CSR_SATP      satp
+// sstc feature
+#define RISCV_CSR_STIMECMP  stimecmp
+#define RISCV_CSR_STIMECMPH stimecmph
 #endif
 
 #define RISCV_CSR_XSTATUS_IE    (1ul << (RISCV_XMODE_OFFSET + 0))
