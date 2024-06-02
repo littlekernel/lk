@@ -32,7 +32,11 @@ static void match_feature(const char *str, size_t start, size_t end) {
         { "zbb", RISCV_FEAT_ZBB },
         { "zbc", RISCV_FEAT_ZBC },
         { "zbs", RISCV_FEAT_ZBS },
+        { "zicbom", RISCV_FEAT_ZICBOM },
+        { "zicbop", RISCV_FEAT_ZICBOP },
+        { "zicboz", RISCV_FEAT_ZICBOZ },
         { "sstc", RISCV_FEAT_SSTC },
+        { "svadu", RISCV_FEAT_SVADU },
         { "zicsr", RISCV_FEAT_ZICSR },
         { "zifencei", RISCV_FEAT_ZIFENCEI },
     };
@@ -191,9 +195,13 @@ const char *riscv_feature_to_string(enum riscv_feature feature) {
         case RISCV_FEAT_ZBB: return "zbb";
         case RISCV_FEAT_ZBC: return "zbc";
         case RISCV_FEAT_ZBS: return "zbs";
+        case RISCV_FEAT_ZICBOM: return "zicbom";
+        case RISCV_FEAT_ZICBOP: return "zicbop";
+        case RISCV_FEAT_ZICBOZ: return "zicboz";
         case RISCV_FEAT_ZICSR: return "zicsr";
         case RISCV_FEAT_ZIFENCEI: return "zifencei";
         case RISCV_FEAT_SSTC: return "sstc";
+        case RISCV_FEAT_SVADU: return "svadu";
 
         // keep this in so the compiler warns if something is missing
         case RISCV_FEAT_COUNT: return "";
