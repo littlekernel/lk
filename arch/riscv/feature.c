@@ -34,7 +34,7 @@ static void match_feature(const char *str, size_t start, size_t end) {
         { "zbs", RISCV_FEAT_ZBS },
         { "sstc", RISCV_FEAT_SSTC },
         { "zicsr", RISCV_FEAT_ZICSR },
-        { "zfencei", RISCV_FEAT_ZIFENCEI },
+        { "zifencei", RISCV_FEAT_ZIFENCEI },
     };
 
     if (LOCAL_TRACE) {
