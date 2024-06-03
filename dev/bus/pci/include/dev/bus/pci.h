@@ -94,6 +94,9 @@ status_t pci_bus_mgr_read_bars(pci_location_t loc, pci_bar_t bar[6]);
 // try to allocate one or more msi vectors for this device
 status_t pci_bus_mgr_allocate_msi(pci_location_t loc, size_t num_requested, uint *irqbase);
 
+// try to allocate one or more msi-x vectors for this device
+status_t pci_bus_mgr_allocate_msix(const pci_location_t loc, size_t num_requested, uint *irqbase);
+
 // allocate a regular irq for this device and return it in irqbase
 status_t pci_bus_mgr_allocate_irq(pci_location_t loc, uint *irqbase);
 
