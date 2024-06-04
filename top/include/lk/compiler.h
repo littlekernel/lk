@@ -20,7 +20,10 @@
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 #define __UNUSED __attribute__((__unused__))
-#define __USED __attribute__((__used__))
+// Per https://clang.llvm.org/docs/AttributeReference.html#used
+// __used__ does not prevent linkers from removing unused sections
+// (if --gc-sections is passed). Need to specify "retain" as well.
+#define __USED __attribute__((__used__, retain))
 #define __PACKED __attribute__((packed))
 #define __ALIGNED(x) __attribute__((aligned(x)))
 #define __PRINTFLIKE(__fmt,__varargs) __attribute__((__format__ (__printf__, __fmt, __varargs)))
