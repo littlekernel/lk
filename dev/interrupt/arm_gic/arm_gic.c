@@ -50,17 +50,17 @@ static spin_lock_t gicd_lock;
 #if WITH_LIB_SM
 static bool arm_gic_non_secure_interrupts_frozen;
 
-static bool arm_gic_interrupt_change_allowed(int irq) {
+static bool arm_gic_interrupt_change_allowed(uint irq) {
     if (!arm_gic_non_secure_interrupts_frozen)
         return true;
 
-    TRACEF("change to interrupt %d ignored after booting ns\n", irq);
+    TRACEF("change to interrupt %u ignored after booting ns\n", irq);
     return false;
 }
 
 static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd);
 #else
-static bool arm_gic_interrupt_change_allowed(int irq) {
+static bool arm_gic_interrupt_change_allowed(uint irq) {
     return true;
 }
 
@@ -78,10 +78,11 @@ static struct int_handler_struct int_handler_table_per_cpu[GIC_MAX_PER_CPU_INT][
 static struct int_handler_struct int_handler_table_shared[MAX_INT-GIC_MAX_PER_CPU_INT];
 
 static struct int_handler_struct *get_int_handler(unsigned int vector, uint cpu) {
-    if (vector < GIC_MAX_PER_CPU_INT)
+    if (vector < GIC_MAX_PER_CPU_INT) {
         return &int_handler_table_per_cpu[vector][cpu];
-    else
+    } else {
         return &int_handler_table_shared[vector - GIC_MAX_PER_CPU_INT];
+    }
 }
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
@@ -110,8 +111,6 @@ void register_int_handler_msi(unsigned int vector, int_handler handler, void *ar
 
     register_int_handler(vector, handler, arg);
 }
-
-#define GICREG(gic, reg) (*REG32(GICBASE(gic) + (reg)))
 
 /* main cpu regs */
 #define GICC_CTLR               (GICC_OFFSET + 0x0000)
@@ -153,7 +152,7 @@ void register_int_handler_msi(unsigned int vector, int_handler handler, void *ar
 #define GIC_REG_COUNT(bit_per_reg) DIV_ROUND_UP(MAX_INT, (bit_per_reg))
 #define DEFINE_GIC_SHADOW_REG(name, bit_per_reg, init_val, init_from) \
     uint32_t (name)[GIC_REG_COUNT(bit_per_reg)] = { \
-        [(init_from / bit_per_reg) ... \
+        [((init_from) / (bit_per_reg)) ... \
          (GIC_REG_COUNT(bit_per_reg) - 1)] = (init_val) \
     }
 
@@ -162,24 +161,34 @@ static DEFINE_GIC_SHADOW_REG(gicd_igroupr, 32, ~0U, 0);
 #endif
 static DEFINE_GIC_SHADOW_REG(gicd_itargetsr, 4, 0x01010101, 32);
 
+// accessor routines for GIC registers that go through the mmio interface
+static inline uint32_t gicreg_read32(uint32_t gic, uint32_t register_offset) {
+    return mmio_read32((volatile uint32_t *)(GICBASE(gic) + register_offset));
+}
+
+static inline void gicreg_write32(uint32_t gic, uint32_t register_offset, uint32_t value) {
+    mmio_write32((volatile uint32_t *)(GICBASE(gic) + register_offset), value);
+}
+
 static void gic_set_enable(uint vector, bool enable) {
-    int reg = vector / 32;
+    uint reg = vector / 32;
     uint32_t mask = 1ULL << (vector % 32);
 
-    if (enable)
-        GICREG(0, GICD_ISENABLER(reg)) = mask;
-    else
-        GICREG(0, GICD_ICENABLER(reg)) = mask;
+    if (enable) {
+        gicreg_write32(0, GICD_ISENABLER(reg), mask);
+    } else {
+        gicreg_write32(0, GICD_ICENABLER(reg), mask);
+    }
 }
 
 static void arm_gic_init_percpu(uint level) {
 #if WITH_LIB_SM
-    GICREG(0, GICC_CTLR) = 0xb; // enable GIC0 and select fiq mode for secure
-    GICREG(0, GICD_IGROUPR(0)) = ~0U; /* GICD_IGROUPR0 is banked */
+    gicreg_write32(0, GICC_CTLR, 0xb); // enable GIC0 and select fiq mode for secure
+    gicreg_write32(0, GICD_IGROUPR(0), ~0U); /* GICD_IGROUPR0 is banked */
 #else
-    GICREG(0, GICC_CTLR) = 1; // enable GIC0
+    gicreg_write32(0, GICC_CTLR, 1); // enable GIC0
 #endif
-    GICREG(0, GICC_PMR) = 0xFF; // unmask interrupts at all priority levels
+    gicreg_write32(0, GICC_PMR, 0xFF); // unmask interrupts at all priority levels
 }
 
 LK_INIT_HOOK_FLAGS(arm_gic_init_percpu,
@@ -198,7 +207,7 @@ static void arm_gic_resume_cpu(uint level) {
     bool resume_gicd = false;
 
     spin_lock_save(&gicd_lock, &state, GICD_LOCK_FLAGS);
-    if (!(GICREG(0, GICD_CTLR) & 1)) {
+    if (!(gicreg_read32(0, GICD_CTLR) & 1)) {
         dprintf(SPEW, "%s: distibutor is off, calling arm_gic_init instead\n", __func__);
         arm_gic_init();
         resume_gicd = true;
@@ -212,8 +221,8 @@ static void arm_gic_resume_cpu(uint level) {
 LK_INIT_HOOK_FLAGS(arm_gic_resume_cpu, arm_gic_resume_cpu,
                    LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_CPU_RESUME);
 
-static int arm_gic_max_cpu(void) {
-    return (GICREG(0, GICD_TYPER) >> 5) & 0x7;
+static uint arm_gic_max_cpu(void) {
+    return (gicreg_read32(0, GICD_TYPER) >> 5) & 0x7;
 }
 
 static status_t gic_configure_interrupt(unsigned int vector,
@@ -233,13 +242,13 @@ static status_t gic_configure_interrupt(unsigned int vector,
     // 16 irqs encoded per ICFGR register
     uint32_t reg_ndx = vector >> 4;
     uint32_t bit_shift = ((vector & 0xf) << 1) + 1;
-    uint32_t reg_val   = GICREG(0, GICD_ICFGR(reg_ndx));
+    uint32_t reg_val   = gicreg_read32(0, GICD_ICFGR(reg_ndx));
     if (tm == IRQ_TRIGGER_MODE_EDGE) {
         reg_val |= (1 << bit_shift);
     } else {
         reg_val &= ~(1 << bit_shift);
     }
-    GICREG(0, GICD_ICFGR(reg_ndx)) = reg_val;
+    gicreg_write32(0, GICD_ICFGR(reg_ndx), reg_val);
 
     return NO_ERROR;
 }
@@ -248,14 +257,14 @@ void arm_gic_init(void) {
     int i;
 
     for (i = 0; i < MAX_INT; i+= 32) {
-        GICREG(0, GICD_ICENABLER(i / 32)) = ~0;
-        GICREG(0, GICD_ICPENDR(i / 32)) = ~0;
+        gicreg_write32(0, GICD_ICENABLER(i / 32), ~0);
+        gicreg_write32(0, GICD_ICPENDR(i / 32), ~0);
     }
 
     if (arm_gic_max_cpu() > 0) {
         /* Set external interrupts to target cpu 0 */
         for (i = 32; i < MAX_INT; i += 4) {
-            GICREG(0, GICD_ITARGETSR(i / 4)) = gicd_itargetsr[i / 4];
+            gicreg_write32(0, GICD_ITARGETSR(i / 4), gicd_itargetsr[i / 4]);
         }
     }
 
@@ -265,9 +274,9 @@ void arm_gic_init(void) {
     }
 
 
-    GICREG(0, GICD_CTLR) = 1; // enable GIC0
+    gicreg_write32(0, GICD_CTLR, 1); // enable GIC0
 #if WITH_LIB_SM
-    GICREG(0, GICD_CTLR) = 3; // enable GIC0 ns interrupts
+    gicreg_write32(0, GICD_CTLR, 3); // enable GIC0 ns interrupts
     /*
      * Iterate through all IRQs and set them to non-secure
      * mode. This will allow the non-secure side to handle
@@ -275,7 +284,7 @@ void arm_gic_init(void) {
      */
     for (i = 32; i < MAX_INT; i += 32) {
         u_int reg = i / 32;
-        GICREG(0, GICD_IGROUPR(reg)) = gicd_igroupr[reg];
+        gicreg_write32(0, GICD_IGROUPR(reg), gicd_igroupr[reg]);
     }
 #endif
     arm_gic_init_percpu(0);
@@ -290,11 +299,11 @@ static status_t arm_gic_set_secure_locked(u_int irq, bool secure) {
         return ERR_INVALID_ARGS;
 
     if (secure)
-        GICREG(0, GICD_IGROUPR(reg)) = (gicd_igroupr[reg] &= ~mask);
+        gicreg_write32(0, GICD_IGROUPR(reg), (gicd_igroupr[reg] &= ~mask));
     else
-        GICREG(0, GICD_IGROUPR(reg)) = (gicd_igroupr[reg] |= mask);
+        gicreg_write32(0, GICD_IGROUPR(reg), (gicd_igroupr[reg] |= mask));
     LTRACEF("irq %d, secure %d, GICD_IGROUP%d = %x\n",
-            irq, secure, reg, GICREG(0, GICD_IGROUPR(reg)));
+            irq, secure, reg, gicreg_read32(0, GICD_IGROUPR(reg)));
 #endif
     return NO_ERROR;
 }
@@ -308,19 +317,19 @@ static status_t arm_gic_set_target_locked(u_int irq, u_int cpu_mask, u_int enabl
     cpu_mask = (cpu_mask & 0xff) << shift;
     enable_mask = (enable_mask << shift) & cpu_mask;
 
-    old_val = GICREG(0, GICD_ITARGETSR(reg));
+    old_val = gicreg_read32(0, GICD_ITARGETSR(reg));
     new_val = (gicd_itargetsr[reg] & ~cpu_mask) | enable_mask;
-    GICREG(0, GICD_ITARGETSR(reg)) = gicd_itargetsr[reg] = new_val;
+    gicreg_write32(0, GICD_ITARGETSR(reg), (gicd_itargetsr[reg] = new_val));
     LTRACEF("irq %i, GICD_ITARGETSR%d %x => %x (got %x)\n",
-            irq, reg, old_val, new_val, GICREG(0, GICD_ITARGETSR(reg)));
+            irq, reg, old_val, new_val, gicreg_read32(0, GICD_ITARGETSR(reg)));
 
     return NO_ERROR;
 }
 
-static status_t arm_gic_get_priority(u_int irq) {
+static uint8_t arm_gic_get_priority(u_int irq) {
     u_int reg = irq / 4;
     u_int shift = 8 * (irq % 4);
-    return (GICREG(0, GICD_IPRIORITYR(reg)) >> shift) & 0xff;
+    return (gicreg_read32(0, GICD_IPRIORITYR(reg)) >> shift) & 0xff;
 }
 
 static status_t arm_gic_set_priority_locked(u_int irq, uint8_t priority) {
@@ -329,12 +338,12 @@ static status_t arm_gic_set_priority_locked(u_int irq, uint8_t priority) {
     u_int mask = 0xff << shift;
     uint32_t regval;
 
-    regval = GICREG(0, GICD_IPRIORITYR(reg));
+    regval = gicreg_read32(0, GICD_IPRIORITYR(reg));
     LTRACEF("irq %i, old GICD_IPRIORITYR%d = %x\n", irq, reg, regval);
     regval = (regval & ~mask) | ((uint32_t)priority << shift);
-    GICREG(0, GICD_IPRIORITYR(reg)) = regval;
+    gicreg_write32(0, GICD_IPRIORITYR(reg), regval);
     LTRACEF("irq %i, new GICD_IPRIORITYR%d = %x, req %x\n",
-            irq, reg, GICREG(0, GICD_IPRIORITYR(reg)), regval);
+            irq, reg, gicreg_read32(0, GICD_IPRIORITYR(reg)), regval);
 
     return 0;
 }
@@ -351,7 +360,7 @@ status_t arm_gic_sgi(u_int irq, u_int flags, u_int cpu_mask) {
 
     LTRACEF("GICD_SGIR: %x\n", val);
 
-    GICREG(0, GICD_SGIR) = val;
+    gicreg_write32(0, GICD_SGIR, val);
 
     return NO_ERROR;
 }
@@ -379,7 +388,7 @@ status_t unmask_interrupt(unsigned int vector) {
 static
 enum handler_return __platform_irq(struct iframe *frame) {
     // get the current vector
-    uint32_t iar = GICREG(0, GICC_IAR);
+    uint32_t iar = gicreg_read32(0, GICC_IAR);
     unsigned int vector = iar & 0x3ff;
 
     if (vector >= 0x3fe) {
@@ -403,7 +412,7 @@ enum handler_return __platform_irq(struct iframe *frame) {
     if (handler->handler)
         ret = handler->handler(handler->arg);
 
-    GICREG(0, GICC_EOIR) = iar;
+    gicreg_write32(0, GICC_EOIR, iar);
 
     LTRACEF_LEVEL(2, "cpu %u exit %d\n", cpu, ret);
 
@@ -415,7 +424,7 @@ enum handler_return __platform_irq(struct iframe *frame) {
 enum handler_return platform_irq(struct iframe *frame);
 enum handler_return platform_irq(struct iframe *frame) {
 #if WITH_LIB_SM
-    uint32_t ahppir = GICREG(0, GICC_AHPPIR);
+    uint32_t ahppir = gicreg_read32(0, GICC_AHPPIR);
     uint32_t pending_irq = ahppir & 0x3ff;
     struct int_handler_struct *h;
     uint cpu = arch_curr_cpu_num();
@@ -436,7 +445,7 @@ enum handler_return platform_irq(struct iframe *frame) {
         old_priority = arm_gic_get_priority(pending_irq);
         arm_gic_set_priority_locked(pending_irq, 0);
         DSB;
-        irq = GICREG(0, GICC_AIAR) & 0x3ff;
+        irq = gicreg_read32(0, GICC_AIAR) & 0x3ff;
         arm_gic_set_priority_locked(pending_irq, old_priority);
 
         spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
@@ -446,7 +455,7 @@ enum handler_return platform_irq(struct iframe *frame) {
             ret = h->handler(h->arg);
         else
             TRACEF("unexpected irq %d != %d may get lost\n", irq, pending_irq);
-        GICREG(0, GICC_AEOIR) = irq;
+        gicreg_write32(0, GICC_AEOIR, irq);
         return ret;
     }
     return sm_handle_irq();
@@ -569,7 +578,7 @@ static void suspend_resume_fiq(bool resume_gicc, bool resume_gicd) {
 
 status_t sm_intc_fiq_enter(void) {
     u_int cpu = arch_curr_cpu_num();
-    u_int irq = GICREG(0, GICC_IAR) & 0x3ff;
+    u_int irq = gicreg_read32(0, GICC_IAR) & 0x3ff;
     bool fiq_enabled;
 
     ASSERT(cpu < 8);
@@ -582,7 +591,7 @@ status_t sm_intc_fiq_enter(void) {
     }
 
     fiq_enabled = update_fiq_targets(cpu, false, irq, false);
-    GICREG(0, GICC_EOIR) = irq;
+    gicreg_write32(0, GICC_EOIR, irq);
 
     if (current_fiq[cpu] != 0x3ff) {
         dprintf(INFO, "more than one fiq active: cpu %d, old %d, new %d\n", cpu, current_fiq[cpu], irq);
