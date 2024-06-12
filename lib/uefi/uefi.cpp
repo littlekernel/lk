@@ -1,4 +1,5 @@
 #include "defer.h"
+#include "kernel/vm.h"
 #include "pe.h"
 
 #include <lib/bio.h>
@@ -8,10 +9,79 @@
 #include <lk/err.h>
 #include <lk/trace.h>
 #include <platform.h>
+#include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
+
+#include "efi.h"
 
 // ASCII "PE\x0\x0"
-static constexpr uint32_t kPEHeader = 0x4550;
+
+EfiStatus output_string(struct EfiSimpleTextOutputProtocol *self,
+                        char16_t *string) {
+  char buffer[512];
+  size_t i = 0;
+  while (string[i]) {
+    size_t j = 0;
+    for (j = 0; j < sizeof(buffer) - 1 && string[i + j]; j++) {
+      buffer[j] = string[i + j];
+    }
+    i += j;
+    buffer[j] = 0;
+
+    printf("%s", reinterpret_cast<const char *>(buffer));
+  }
+  return SUCCESS;
+}
+
+typedef int (*EfiEntry)(void *handle, struct EfiSystemTable *system);
+
+void *alloc_page(size_t size) {
+  void *vptr{};
+  status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "uefi_program",
+                                      size, &vptr, 0, 0, 0);
+  if (err) {
+    printf("Failed to allocate memory for uefi program %d\n", err);
+    return nullptr;
+  }
+  return vptr;
+}
+
+int load_sections_and_execute(bdev_t *dev,
+                              const IMAGE_NT_HEADERS64 *pe_header) {
+  const auto file_header = &pe_header->FileHeader;
+  const auto optional_header = &pe_header->OptionalHeader;
+  const auto sections = file_header->NumberOfSections;
+  const auto section_header = reinterpret_cast<const IMAGE_SECTION_HEADER *>(
+      reinterpret_cast<const char *>(pe_header) + sizeof(*pe_header));
+  for (size_t i = 0; i < sections; i++) {
+    if (section_header[i].NumberOfRelocations != 0) {
+      printf("Section %s requires relocation, which is not supported.\n",
+             section_header[i].Name);
+      return -6;
+    }
+  }
+  const auto &last_section = section_header[sections - 1];
+  const auto virtual_size =
+      last_section.VirtualAddress + last_section.Misc.VirtualSize;
+  const auto image_base = reinterpret_cast<char *>(alloc_page(virtual_size));
+  memset(image_base, 0, virtual_size);
+
+  for (size_t i = 0; i < sections; i++) {
+    const auto &section = section_header[i];
+    bio_read(dev, image_base + section.VirtualAddress, section.PointerToRawData,
+             section.SizeOfRawData);
+  }
+  auto entry = reinterpret_cast<EfiEntry>(image_base +
+                                          optional_header->AddressOfEntryPoint);
+  printf("Entry function located at %p\n", entry);
+
+  EfiSystemTable table;
+  EfiSimpleTextOutputProtocol console_out;
+  console_out.output_string = output_string;
+  table.con_out = &console_out;
+  return entry(nullptr, &table);
+}
 
 int load_pe_file(const char *blkdev) {
   bdev_t *dev = bio_open(blkdev);
@@ -58,8 +128,7 @@ int load_pe_file(const char *blkdev) {
            ToString(optional_header->Subsystem));
   }
   printf("Valid UEFI application found.\n");
-
-  return 0;
+  return load_sections_and_execute(dev, pe_header);
 }
 
 int cmd_uefi_load(int argc, const console_cmd_args *argv) {
