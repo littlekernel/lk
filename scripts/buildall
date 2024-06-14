@@ -2,6 +2,13 @@
 
 set -o pipefail
 
+handle_interrupt() {
+  echo "Caught ctrl-c, exiting"
+  exit 1
+}
+
+trap 'handle_interrupt' SIGINT
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 function HELP {
