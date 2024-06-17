@@ -105,7 +105,7 @@ int load_pe_file(const char *blkdev) {
     return -2;
   }
   if (dos_header->e_lfanew > kBlocKSize - sizeof(IMAGE_FILE_HEADER)) {
-    printf("Invalid PE header offset %d exceeds maximum read size of %u - %u\n",
+    printf("Invalid PE header offset %d exceeds maximum read size of %zu - %zu\n",
            dos_header->e_lfanew, kBlocKSize, sizeof(IMAGE_FILE_HEADER));
     return -3;
   }
@@ -118,7 +118,7 @@ int load_pe_file(const char *blkdev) {
   printf("PE header machine type: %x\n",
          static_cast<int>(file_header->Machine));
   if (file_header->SizeOfOptionalHeader != sizeof(IMAGE_OPTIONAL_HEADER64)) {
-    printf("Unexpected size of optional header %d, expected %d\n",
+    printf("Unexpected size of optional header %d, expected %zu\n",
            file_header->SizeOfOptionalHeader, sizeof(IMAGE_OPTIONAL_HEADER64));
     return -5;
   }
