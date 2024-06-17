@@ -9,17 +9,30 @@
 
 #include <assert.h>
 #include <libfdt.h>
+#include <lk/bits.h>
 #include <lk/cpp.h>
 #include <lk/err.h>
 #include <lk/trace.h>
 #include <stdio.h>
 #include <sys/types.h>
 
-#define LOCAL_TRACE 0
+#define LOCAL_TRACE 3
 
 namespace {
 
 const int MAX_DEPTH = 16;
+
+status_t read_property_32bit(const void *fdt, int offset, const char *prop_name, uint32_t *property) {
+    int len;
+    const void *prop_ptr = fdt_getprop(fdt, offset, prop_name, &len);
+    LTRACEF_LEVEL(3, "%p, len %d\n", prop_ptr, len);
+    if (prop_ptr && len == 4) {
+        *property = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+        return NO_ERROR;
+    }
+
+    return ERR_NOT_FOUND;
+}
 
 /* read the #address-cells and #size-cells properties at the current node to
  * see if there are any overriding sizes at this level. It's okay to not
@@ -31,18 +44,8 @@ void read_address_size_cells(const void *fdt, int offset, int depth,
 
     DEBUG_ASSERT(depth >= 0 && depth < MAX_DEPTH);
 
-    int len;
-    const void *prop_ptr = fdt_getprop(fdt, offset, "#address-cells", &len);
-    LTRACEF_LEVEL(3, "%p, len %d\n", prop_ptr, len);
-    if (prop_ptr && len == 4) {
-        address_cells[depth] = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
-    }
-
-    prop_ptr = fdt_getprop(fdt, offset, "#size-cells", &len);
-    LTRACEF_LEVEL(3, "%p, len %d\n", prop_ptr, len);
-    if (prop_ptr && len == 4) {
-        size_cells[depth] = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
-    }
+    read_property_32bit(fdt, offset, "#address-cells", &address_cells[depth]);
+    read_property_32bit(fdt, offset, "#size-cells", &size_cells[depth]);
 
     LTRACEF_LEVEL(3, "address-cells %u size-cells %u\n", address_cells[depth], size_cells[depth]);
 }
@@ -374,36 +377,69 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
 
                     /* read 3 64bit values */
                     uint64_t base1, base2, size;
-                    base1 = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
-                    prop_ptr += 8;
-                    base2 = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
-                    prop_ptr += 8;
-                    size = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
-                    prop_ptr += 8;
+                    if (state.curr_size_cell() == 2) {
+                        base1 = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                        prop_ptr += 8;
+                        base2 = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                        prop_ptr += 8;
+                        size = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                        prop_ptr += 8;
+                    } else if (state.curr_size_cell() == 1) {
+                        base1 = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                        prop_ptr += 4;
+                        base2 = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                        prop_ptr += 4;
+                        size = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                        prop_ptr += 4;
+                    } else {
+                        // Don't know how to handle these, so push the pointer forward
+                        // and skip it for now.
+                        printf("FDT: unhandled #size-cell %u in pci node\n", state.curr_size_cell());
+                        prop_ptr += 3 * (state.curr_size_cell() * 4);
+                        continue;
+                    }
 
-                    switch (type) {
-                        case 0x1000000: // io range
+                    // from https://elinux.org/Device_Tree_Usage#PCI_Address_Translation
+                    // type word is: npt000ss bbbbbbbb dddddfff rrrrrrrr
+                    // n relocatable region
+                    // p prefetable region
+                    // t aliased address flag
+                    // ss space code
+                    switch (BITS_SHIFT(type, 25, 24)) {
+                        case 0: // config space
+                            break;
+                        case 0x1: // io range
                             LTRACEF_LEVEL(2, "io range\n");
                             info[*count].io_base = base1;
                             info[*count].io_base_mmio = base2;
                             info[*count].io_len = size;
                             break;
-                        case 0x2000000: // mmio range
+                        case 0x2: // mmio range
                             LTRACEF_LEVEL(2, "mmio range\n");
                             info[*count].mmio_base = base1;
                             info[*count].mmio_len = size;
                             break;
-                        case 0x3000000: // mmio range (64bit)
+                        case 0x3: // mmio range (64bit)
                             LTRACEF_LEVEL(2, "mmio range (64bit)\n");
                             info[*count].mmio64_base = base1;
                             info[*count].mmio64_len = size;
                             break;
-                        default:
-                            LTRACEF_LEVEL(2, "unhandled type %#x\n", type);
                     }
 
                     LTRACEF_LEVEL(2, "base %#llx base2 %#llx size %#llx\n", base1, base2, size);
                 }
+            }
+
+            // handle interrupt map
+            uint32_t interrupt_cells = 1;
+            read_property_32bit(state.fdt, state.offset, "#interrupt-cells", &interrupt_cells);
+            LTRACEF_LEVEL(2, "#interrupt-cells %u\n", interrupt_cells);
+
+            // we can only currently handle this combination
+            if (state.curr_address_cell() == 3 && interrupt_cells == 1) {
+
+
+
             }
 
             (*count)++;
