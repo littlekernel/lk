@@ -174,7 +174,7 @@ status_t fdtwalk_setup_cpus_riscv(const void *fdt) {
                         // save the first isa string we found
                         isa_string = cpus[i].isa_string;
                     } else {
-                        if (!strcmp(cpus[i].isa_string, isa_string)) {
+                        if (strcmp(cpus[i].isa_string, isa_string) != 0) {
                             printf("FDT Warning: isa_strings do not match between cpus, using first found\n");
                         }
                     }

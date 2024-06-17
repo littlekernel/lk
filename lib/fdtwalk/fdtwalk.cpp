@@ -201,7 +201,7 @@ status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size
     const size_t max_cpu_count = *cpu_count;
     *cpu_count = 0;
 
-    auto walker = [&](const fdt_walk_state &state, const char *name) {
+    auto walker = [max_cpu_count, cpu, cpu_count](const fdt_walk_state &state, const char *name) {
         /* look for a cpu leaf and count the number of cpus */
         if (*cpu_count < max_cpu_count && strncmp(name, "cpu@", 4) == 0 && state.depth == 2) {
             int lenp;
@@ -222,23 +222,29 @@ status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size
                 // is it disabled?
                 if (check_prop_is_val_string(state.fdt, state.offset, "status", "disabled")) {
                     LTRACEF("cpu id %#x is disabled, skipping...\n", id);
-                } else {
-                    LTRACEF("calling cpu callback with id %#x\n", id);
-                    cpu[*cpu_count].id = id;
-                    (*cpu_count)++;
+                    return;
                 }
+
+                // clear the cpu state, we're about to write down some information about it
+                cpu[*cpu_count] = {};
+
 #if ARCH_RISCV
                 // look for riscv,isa and riscv,isa-extensions
                 auto isa_string = get_prop_string(state.fdt, state.offset, "riscv,isa");
                 if (isa_string) {
-                    cpu->isa_string = isa_string;
+                    cpu[*cpu_count].isa_string = isa_string;
                 }
 
                 auto isa_extensions_string = get_prop_string(state.fdt, state.offset, "riscv,isa-extensions");
                 if (isa_extensions_string) {
-                    cpu->isa_extensions_string = isa_extensions_string;
+                    cpu[*cpu_count].isa_extensions_string = isa_extensions_string;
                 }
 #endif
+
+                // cpu is found
+                LTRACEF("found cpu id %u\n", id);
+                cpu[*cpu_count].id = id;
+                (*cpu_count)++;
             }
         }
     };
