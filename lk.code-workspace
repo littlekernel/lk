@@ -10,5 +10,12 @@
 			"**/.cache": true,
 			"**/.clangd": true
 		}
+	},
+	"extensions": {
+		"recommendations": [
+			"mkornelsen.vscode-arm64",
+			"llvm-vs-code-extensions.vscode-clangd",
+			"sunshaoce.risc-v"
+		]
 	}
 }
