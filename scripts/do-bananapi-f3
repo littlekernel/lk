@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# Quick script to build and copy the kernel to the tftp server.
+# Modify the TFTPHOST variable to match your setup.
+# Alternatively change the scp to a cp to copy the kernel to the SD card.
+
+set -e
+
+export PROJECT=bananapi-f3-test
+BUILDDIR="build-${PROJECT}"
+
+RAMDISK="${BUILDDIR}/ramdisk.img"
+OUTPUT="${BUILDDIR}/lk.img"
+
+TFTPHOST=192.168.0.4
+
+set -x
+
+./scripts/make-parallel
+
+# create a small ramdisk to satisfy the mkimage tool
+truncate -s 4 ${BUILDDIR}/ramdisk.img
+
+# build a uboot uimage containing the lk binary, the ramdisk and the device tree
+mkimage -A riscv -O linux -T multi -C none -a 0x10200000 -e 0x10200000 -n LK -d ${BUILDDIR}/lk.bin:${RAMDISK}:target/bananapi-f3/bananapi-f3.dtb ${OUTPUT}
+
+# copy to a local tftp server, replace with cp if a using a local directory
+scp ${BUILDDIR}/lk.img ${TFTPHOST}:/tftpboot
+
+set +x
+
+echo boot with
+echo dhcp\; tftpboot ${TFTPHOST}:lk.img\; bootm
+exit 1

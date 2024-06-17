@@ -1,0 +1,10 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+MODULE := $(LOCAL_DIR)
+
+PLATFORM := spacemit-k1
+
+MEMSIZE ?= 0x80000000 # 2GB smallest configuration
+
+# set time base
+GLOBAL_DEFINES += ARCH_RISCV_MTIME_RATE=24000000

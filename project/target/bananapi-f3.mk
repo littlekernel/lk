@@ -1,0 +1,2 @@
+TARGET := bananapi-f3
+

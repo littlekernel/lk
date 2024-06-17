@@ -43,6 +43,7 @@ jobs:
           - pico-test
           - sifive-e-test
           - visionfive2-test
+          - bananapi-f3-test
           - rosco-m68k-test
         exclude:
           # no real point building ubsan on the old compiler
@@ -62,6 +63,8 @@ jobs:
           - project: sifive-e-test
             toolchain-ver: 7.5.0
           - project: visionfive2-test
+            toolchain-ver: 7.5.0
+          - project: bananapi-f3-test
             toolchain-ver: 7.5.0
 
     env:
