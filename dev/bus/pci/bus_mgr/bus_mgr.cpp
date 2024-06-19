@@ -142,6 +142,7 @@ status_t pci_bus_mgr_init() {
     // TODO: deal with root bus not having reference to bridge device
     status_t err = bus::probe(loc, nullptr, &b, true);
     if (err < 0) {
+        printf("PCI: failed to probe bus, error %d\n", err);
         return err;
     }
 

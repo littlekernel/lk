@@ -338,9 +338,20 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
     auto walker = [info, info_len, &count](const fdt_walk_state &state, const char *name) {
         /* look for a pcie leaf and pass the address of the ecam and other info to the callback */
         if (*count < info_len && (strncmp(name, "pcie@", 5) == 0 || strncmp(name, "pci@", 4) == 0)) {
-            /* find the range of the ecam */
             int lenp;
-            const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
+
+            /* check the status, is it disabled? */
+            const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "status", &lenp);
+            if (prop_ptr) {
+                if (fdt_stringlist_contains((const char *)prop_ptr, lenp, "disabled")) {
+                    LTRACEF("found disabled pci node\n");
+                    return;
+                }
+            }
+
+
+            /* find the range of the ecam */
+            prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' prop 'reg' len %d, ac %u, sc %u\n", name, lenp,
