@@ -73,5 +73,17 @@ jobs:
       shell: bash
       run: |
         make -j $(nproc)
+    # When LK is compiled with DEBUG=0, there's no console and no way for us
+    # to read test output
+    - name: qemu
+      if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
+      shell: bash
+      run: |
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt install -y qemu-system-arm
+    - name: unittest
+      if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
+      shell: bash
+      run: |
+        python3 scripts/unittest.py
 
 # vim: ts=2 sw=2 expandtab
