@@ -15,7 +15,7 @@
 #include <dev/interrupt/arm_gic.h>
 #include <dev/power/psci.h>
 #include <dev/timer/arm_generic.h>
-#include <dev/uart.h>
+#include <dev/uart/pl011.h>
 #include <dev/virtio.h>
 #include <dev/virtio/net.h>
 #include <lib/fdtwalk.h>
@@ -25,7 +25,6 @@
 #include <platform.h>
 #include <platform/gic.h>
 #include <platform/interrupts.h>
-#include "platform_p.h"
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
@@ -67,7 +66,7 @@ void platform_early_init(void) {
 
     arm_generic_timer_init(ARM_GENERIC_TIMER_PHYSICAL_INT, 0);
 
-    uart_init_early();
+    pl011_init_early(0, UART_BASE, UART0_INT, PL011_FLAG_DEBUG_UART);
 
     if (LOCAL_TRACE) {
         LTRACEF("dumping FDT at %p\n", fdt);
@@ -79,7 +78,7 @@ void platform_early_init(void) {
 }
 
 void platform_init(void) {
-    uart_init();
+    pl011_init(0);
 
     // start secondary cores
     fdtwalk_setup_cpus_arm(fdt);
