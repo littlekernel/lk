@@ -10,27 +10,45 @@
 #include <assert.h>
 #include <lk/trace.h>
 #include <lib/cbuf.h>
+#include <lib/io.h>
 #include <dev/uart.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
 
 /* PL011 implementation */
-#define UART_DR    (0x00)
-#define UART_RSR   (0x04)
-#define UART_TFR   (0x18)
-#define UART_ILPR  (0x20)
-#define UART_IBRD  (0x24)
-#define UART_FBRD  (0x28)
-#define UART_LCRH  (0x2c)
-#define UART_CR    (0x30)
-#define UART_IFLS  (0x34)
-#define UART_IMSC  (0x38)
-#define UART_TRIS  (0x3c)
-#define UART_TMIS  (0x40)
-#define UART_ICR   (0x44)
-#define UART_DMACR (0x48)
 
-#define RXBUF_SIZE 16
+// PL011 registers
+enum pl011_regs {
+    UART_DR    = 0x00,
+    UART_RSR   = 0x04,
+    UART_TFR   = 0x18,
+    UART_ILPR  = 0x20,
+    UART_IBRD  = 0x24,
+    UART_FBRD  = 0x28,
+    UART_LCRH  = 0x2c,
+    UART_CR    = 0x30,
+    UART_IFLS  = 0x34,
+    UART_IMSC  = 0x38,
+    UART_TRIS  = 0x3c,
+    UART_TMIS  = 0x40,
+    UART_ICR   = 0x44,
+    UART_DMACR = 0x48
+};
+
+#define UART_TFR_RXFE (1<<4)
+#define UART_TFR_TXFF (1<<5)
+#define UART_TFR_RXFF (1<<6)
+#define UART_TFR_TXFE (1<<7)
+
+#define UART_IMSC_RXIM (1<<4)
+
+#define UART_TMIS_RXMIS (1<<4)
+
+#define UART_CR_UARTEN (1<<0)
+#define UART_CR_TXEN (1<<8)
+#define UART_CR_RXEN (1<<9)
+
+#define RXBUF_SIZE 32
 #define NUM_UART 1
 
 struct pl011_struct {
@@ -66,17 +84,17 @@ static inline uintptr_t uart_to_ptr(unsigned int n) {
 }
 
 static enum handler_return uart_irq(void *arg) {
-    bool resched = false;
     struct pl011_struct *u = (struct pl011_struct *)arg;
 
     /* read interrupt status and mask */
     uint32_t isr = read_uart_reg(u->base_virt, UART_TMIS);
 
-    if (isr & (1<<4)) { // rxmis
+    bool resched = false;
+    if (isr & UART_TMIS_RXMIS) { // rxmis
         cbuf_t *rxbuf = &uart->uart_rx_buf;
 
         /* while fifo is not empty, read chars out of it */
-        while ((read_uart_reg(u->base_virt, UART_TFR) & (1<<4)) == 0) {
+        while ((read_uart_reg(u->base_virt, UART_TFR) & UART_TFR_RXFE) == 0) {
 #if CONSOLE_HAS_INPUT_BUFFER
             if (u->flag & PL011_FLAG_DEBUG_UART) {
                 char c = read_uart_reg(u->base_virt, UART_DR);
@@ -86,7 +104,7 @@ static enum handler_return uart_irq(void *arg) {
             {
                 /* if we're out of rx buffer, mask the irq instead of handling it */
                 if (cbuf_space_avail(rxbuf) == 0) {
-                    clear_uart_reg_bits(u->base_virt, UART_IMSC, (1<<4)); // !rxim
+                    clear_uart_reg_bits(u->base_virt, UART_IMSC, UART_IMSC_RXIM); // !rxim
                     break;
                 }
 
@@ -117,10 +135,10 @@ void pl011_init(int port) {
     write_uart_reg(base, UART_IFLS, 0); // 1/8 rxfifo, 1/8 txfifo
 
     // enable rx interrupt
-    write_uart_reg(base, UART_IMSC, 1<<4); // rxim
+    write_uart_reg(base, UART_IMSC, UART_IMSC_RXIM); // rxim
 
     // enable receive
-    set_uart_reg_bits(base, UART_CR, (1<<9)); // rxen
+    set_uart_reg_bits(base, UART_CR, UART_CR_RXEN); // rxen
 
     // enable interrupt
     unmask_interrupt(uart[port].irq);
@@ -135,14 +153,14 @@ void pl011_init_early(int port, uintptr_t base, uint32_t irq, uint32_t flag) {
     uart[port].irq = irq;
     uart[port].flag = flag;
 
-    write_uart_reg(uart[port].base_virt, UART_CR, (1<<8)|(1<<0)); // tx_enable, uarten
+    write_uart_reg(uart[port].base_virt, UART_CR, UART_CR_TXEN | UART_CR_UARTEN); // tx_enable, uarten
 }
 
 int uart_putc(int port, char c) {
     uintptr_t base = uart_to_ptr(port);
 
     /* spin while fifo is full */
-    while (read_uart_reg(base, UART_TFR) & (1<<5))
+    while (read_uart_reg(base, UART_TFR) & UART_TFR_TXFF)
         ;
     write_uart_reg(base, UART_DR, c);
 
@@ -154,7 +172,7 @@ int uart_getc(int port, bool wait) {
 
     char c;
     if (cbuf_read_char(rxbuf, &c, wait) == 1) {
-        write_uart_reg(uart_to_ptr(port), UART_IMSC, (1<<4)); // rxim
+        set_uart_reg_bits(uart[port].base_virt, UART_IMSC, UART_IMSC_RXIM); // rxim
         return c;
     }
 
@@ -166,7 +184,7 @@ int uart_pputc(int port, char c) {
     uintptr_t base = uart_to_ptr(port);
 
     /* spin while fifo is full */
-    while (read_uart_reg(base, UART_TFR) & (1<<5))
+    while (read_uart_reg(base, UART_TFR) & UART_TFR_TXFF)
         ;
     write_uart_reg(base, UART_DR, c);
 
@@ -176,7 +194,7 @@ int uart_pputc(int port, char c) {
 int uart_pgetc(int port) {
     uintptr_t base = uart_to_ptr(port);
 
-    if ((read_uart_reg(base, UART_TFR) & (1<<4)) == 0) {
+    if ((read_uart_reg(base, UART_TFR) & UART_TFR_RXFE) == 0) {
         return read_uart_reg(base, UART_DR);
     } else {
         return -1;
