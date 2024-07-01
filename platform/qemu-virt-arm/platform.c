@@ -8,7 +8,6 @@
 #include <platform/qemu-virt.h>
 
 #include <arch.h>
-#include <inttypes.h>
 #include <lk/err.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
