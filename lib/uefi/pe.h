@@ -184,6 +184,40 @@ struct IMAGE_OPTIONAL_HEADER64 {
   IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
 } __attribute__((packed));
 
+struct IMAGE_OPTIONAL_HEADER32 {
+  u16 Magic;
+  u8 MajorLinkerVersion;
+  u8 MinorLinkerVersion;
+  u32 SizeOfCode;
+  u32 SizeOfInitializedData;
+  u32 SizeOfUninitializedData;
+  u32 AddressOfEntryPoint;
+  u32 BaseOfCode;
+  u32 BaseOfData;
+  u32 ImageBase;
+  u32 SectionAlignment;
+  u32 FileAlignment;
+  u16 MajorOperatingSystemVersion;
+  u16 MinorOperatingSystemVersion;
+  u16 MajorImageVersion;
+  u16 MinorImageVersion;
+  u16 MajorSubsystemVersion;
+  u16 MinorSubsystemVersion;
+  u32 Win32VersionValue;
+  u32 SizeOfImage;
+  u32 SizeOfHeaders;
+  u32 CheckSum;
+  u16 Subsystem;
+  u16 DllCharacteristics;
+  u32 SizeOfStackReserve;
+  u32 SizeOfStackCommit;
+  u32 SizeOfHeapReserve;
+  u32 SizeOfHeapCommit;
+  u32 LoaderFlags;
+  u32 NumberOfRvaAndSizes;
+  IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
+} __attribute__((packed));
+
 struct IMAGE_SECTION_HEADER {
   char Name[IMAGE_SIZEOF_SHORT_NAME];
   union {

@@ -1,3 +1,5 @@
+#include "boot_service.h"
+#include "boot_service_provider.h"
 #include "defer.h"
 #include "kernel/vm.h"
 #include "pe.h"
@@ -13,28 +15,16 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "efi.h"
+#include "protocols/simple_text_output_protocol.h"
+#include "system_table.h"
+#include "text_protocol.h"
+
+constexpr auto EFI_SYSTEM_TABLE_SIGNATURE =
+    static_cast<u64>(0x5453595320494249ULL);
 
 // ASCII "PE\x0\x0"
 
-EfiStatus output_string(struct EfiSimpleTextOutputProtocol *self,
-                        char16_t *string) {
-  char buffer[512];
-  size_t i = 0;
-  while (string[i]) {
-    size_t j = 0;
-    for (j = 0; j < sizeof(buffer) - 1 && string[i + j]; j++) {
-      buffer[j] = string[i + j];
-    }
-    i += j;
-    buffer[j] = 0;
-
-    printf("%s", reinterpret_cast<const char *>(buffer));
-  }
-  return SUCCESS;
-}
-
-typedef int (*EfiEntry)(void *handle, struct EfiSystemTable *system);
+using EfiEntry = int (*)(void *, struct EfiSystemTable *);
 
 void *alloc_page(size_t size) {
   void *vptr{};
@@ -47,13 +37,24 @@ void *alloc_page(size_t size) {
   return vptr;
 }
 
+template <typename T> void fill(T *data, size_t skip, uint8_t begin = 0) {
+  auto ptr = reinterpret_cast<char *>(data);
+  for (size_t i = 0; i < sizeof(T); i++) {
+    if (i < skip) {
+      continue;
+    }
+    ptr[i] = begin++;
+  }
+}
+
 int load_sections_and_execute(bdev_t *dev,
                               const IMAGE_NT_HEADERS64 *pe_header) {
   const auto file_header = &pe_header->FileHeader;
   const auto optional_header = &pe_header->OptionalHeader;
   const auto sections = file_header->NumberOfSections;
   const auto section_header = reinterpret_cast<const IMAGE_SECTION_HEADER *>(
-      reinterpret_cast<const char *>(pe_header) + sizeof(*pe_header));
+      reinterpret_cast<const char *>(pe_header) + sizeof(IMAGE_FILE_HEADER) +
+      file_header->SizeOfOptionalHeader);
   for (size_t i = 0; i < sections; i++) {
     if (section_header[i].NumberOfRelocations != 0) {
       printf("Section %s requires relocation, which is not supported.\n",
@@ -76,11 +77,15 @@ int load_sections_and_execute(bdev_t *dev,
                                           optional_header->AddressOfEntryPoint);
   printf("Entry function located at %p\n", entry);
 
-  EfiSystemTable table;
-  EfiSimpleTextOutputProtocol console_out;
-  console_out.output_string = output_string;
+  EfiSystemTable table{};
+  EfiBootService boot_service{};
+  fill(&boot_service, 0);
+  table.boot_services = &boot_service;
+  setup_boot_service_table(table.boot_services);
+  table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
+  EfiSimpleTextOutputProtocol console_out = get_text_output_protocol();
   table.con_out = &console_out;
-  return entry(nullptr, &table);
+  return entry(image_base, &table);
 }
 
 int load_pe_file(const char *blkdev) {
@@ -93,8 +98,8 @@ int load_pe_file(const char *blkdev) {
   constexpr size_t kBlocKSize = 4096;
 
   lk_time_t t = current_time();
-  uint8_t *address = (uint8_t *)malloc(kBlocKSize);
-  ssize_t err = bio_read(dev, (void *)address, 0, kBlocKSize);
+  uint8_t *address = static_cast<uint8_t *>(malloc(kBlocKSize));
+  ssize_t err = bio_read(dev, static_cast<void *>(address), 0, kBlocKSize);
   t = current_time() - t;
   dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
           (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
@@ -117,7 +122,10 @@ int load_pe_file(const char *blkdev) {
   }
   printf("PE header machine type: %x\n",
          static_cast<int>(file_header->Machine));
-  if (file_header->SizeOfOptionalHeader != sizeof(IMAGE_OPTIONAL_HEADER64)) {
+  if (file_header->SizeOfOptionalHeader > sizeof(IMAGE_OPTIONAL_HEADER64) ||
+      file_header->SizeOfOptionalHeader <
+          sizeof(IMAGE_OPTIONAL_HEADER64) -
+              sizeof(IMAGE_OPTIONAL_HEADER64::DataDirectory)) {
     printf("Unexpected size of optional header %d, expected %zu\n",
            file_header->SizeOfOptionalHeader, sizeof(IMAGE_OPTIONAL_HEADER64));
     return -5;
@@ -128,7 +136,9 @@ int load_pe_file(const char *blkdev) {
            ToString(optional_header->Subsystem));
   }
   printf("Valid UEFI application found.\n");
-  return load_sections_and_execute(dev, pe_header);
+  auto ret = load_sections_and_execute(dev, pe_header);
+  printf("UEFI Application return code: %d\n", ret);
+  return ret;
 }
 
 int cmd_uefi_load(int argc, const console_cmd_args *argv) {
