@@ -21,6 +21,7 @@
 #include "types.h"
 
 #include "boot_service.h"
+#include "protocols/simple_text_input_protocol.h"
 #include "protocols/simple_text_output_protocol.h"
 
 typedef struct {
@@ -33,7 +34,7 @@ typedef struct EfiSystemTable {
   char16_t* firmware_vendor;
   uint32_t firmware_revision;
   EfiHandle console_in_handle;
-  void* con_in;
+  EfiSimpleTextInputProtocol *con_in;
   EfiHandle console_out_handle;
   EfiSimpleTextOutputProtocol* con_out;
   EfiHandle standard_error_handle;
