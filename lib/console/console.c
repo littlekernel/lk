@@ -785,10 +785,10 @@ console_cmd_func console_get_command_handler(const char *commandstr) {
         return NULL;
 }
 
-static int cmd_help_impl(uint8_t availability_mask) {
+static int cmd_help_impl(const console_cmd_block *start, const console_cmd_block *end, uint8_t availability_mask) {
     printf("command list by block:\n");
 
-    for (const console_cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
+    for (const console_cmd_block *block = start; block != end; block++) {
         const console_cmd *curr_cmd = block->list;
         printf("  [%s]\n", block->name);
         for (size_t i = 0; i < block->count; i++) {
@@ -804,12 +804,25 @@ static int cmd_help_impl(uint8_t availability_mask) {
     return 0;
 }
 
+static int compare_cmds(const console_cmd_block *cmd1, const console_cmd_block *cmd2) {
+    return strcmp(cmd1->name, cmd2->name);
+}
+
 static int cmd_help(int argc, const console_cmd_args *argv) {
-    return cmd_help_impl(CMD_AVAIL_NORMAL);
+    // If we're not panicking and are free to allocate memory, sort the commands
+    // alphabetically before printing.
+    size_t num_cmds = &__stop_commands - &__start_commands;
+    size_t size_bytes = num_cmds * sizeof(console_cmd_block);
+    console_cmd_block *cmds = (console_cmd_block *) malloc (size_bytes);
+    memcpy(cmds, &__start_commands, size_bytes);
+    qsort(cmds, num_cmds, sizeof(console_cmd_block), compare_cmds);
+    int result = cmd_help_impl(cmds, cmds + num_cmds, CMD_AVAIL_NORMAL);
+    free(cmds);
+    return result;
 }
 
 static int cmd_help_panic(int argc, const console_cmd_args *argv) {
-    return cmd_help_impl(CMD_AVAIL_PANIC);
+    return cmd_help_impl(&__start_commands, &__stop_commands, CMD_AVAIL_PANIC);
 }
 
 static int cmd_echo(int argc, const console_cmd_args *argv) {
