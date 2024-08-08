@@ -1,21 +1,34 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"editor.tabSize": 4,
-		"files.exclude": {
-			"**/.cache": true,
-			"**/.clangd": true
-		}
-	},
-	"extensions": {
-		"recommendations": [
-			"mkornelsen.vscode-arm64",
-			"llvm-vs-code-extensions.vscode-clangd",
-			"sunshaoce.risc-v"
-		]
-	}
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        // Disable auto-formatting till the project decides on a
+        // machine-readable config to control it (e.g., .clang-format).
+        "[c]": {
+            "editor.formatOnSave": false,
+        },
+        "[cpp]": {
+            "editor.formatOnSave": false,
+        },
+        // Allows editor.tabSize to be specified (otherwise it is overridden as
+        // auto-detected).
+        "editor.detectIndentation": false,
+        // Convert tabs to spaces.
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4,
+        "files.exclude": {
+            "**/.cache": true,
+            "**/.clangd": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "mkornelsen.vscode-arm64",
+            "llvm-vs-code-extensions.vscode-clangd",
+            "sunshaoce.risc-v"
+        ]
+    }
 }
