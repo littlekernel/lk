@@ -6,11 +6,11 @@ on: [ push, pull_request ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        toolchain-ver: [13, 14, 15]
+        toolchain-ver: [14, 15]
         debug: [2, 0]
         project:
           # Note: Clang toolchains do not ship with a compiler-rt (libgcc) for
@@ -21,13 +21,6 @@ jobs:
           - qemu-virt-arm64-test
           - qemu-virt-riscv64-test
           - qemu-virt-riscv64-supervisor-test
-        exclude:
-          # limit riscv builds to clang 14 and above, since clang 13 has limited
-          # support for some newer ISA extensions
-          - project: qemu-virt-riscv64-test
-            toolchain-ver: 13
-          - project: qemu-virt-riscv64-supervisor-test
-            toolchain-ver: 13
     env:
       PROJECT: ${{ matrix.project }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
