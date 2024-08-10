@@ -21,6 +21,8 @@ typedef enum {
     HALT_ACTION_SHUTDOWN,       // Shutdown and power off.
 } platform_halt_action;
 
+const char *platform_halt_action_string(platform_halt_action action);
+
 typedef enum {
     HALT_REASON_UNKNOWN = 0,
     HALT_REASON_POR,            // Cold-boot
@@ -35,14 +37,7 @@ typedef enum {
     HALT_REASON_SW_UPDATE,      // SW triggered reboot in order to begin firmware update
 } platform_halt_reason;
 
-/* super early platform initialization, before almost everything */
-void platform_early_init(void);
-
-/* later init, after the kernel has come up */
-void platform_init(void);
-
-/* called by the arch init code to get the platform to set up any mmu mappings it may need */
-void platform_init_mmu_mappings(void);
+const char *platform_halt_reason_string(platform_halt_reason reason);
 
 /* if the platform has knowledge of what caused the latest reboot, it can report
  * it to applications with this function.  */
@@ -62,11 +57,30 @@ platform_halt_reason platform_get_reboot_reason(void);
  * reason, and then halt execution by turning off interrupts and spinning
  * forever.
  */
-void platform_halt(platform_halt_action suggested_action,
+__WEAK void platform_halt(platform_halt_action suggested_action,
                    platform_halt_reason reason) __NO_RETURN;
+
+/* Default implementation of the above routine, which platforms can call with
+ * appropriate hooks to implement platform specific reboot and shutdown behavior.
+ */
+typedef void (*platform_reboot_hook)(void);
+typedef void (*platform_shutdown_hook)(void);
+void platform_halt_default(platform_halt_action suggested_action,
+                   platform_halt_reason reason,
+                   platform_reboot_hook prh,
+                   platform_shutdown_hook psh) __NO_RETURN;
 
 /* called during chain loading to make sure drivers and platform is put into a stopped state */
 void platform_quiesce(void);
+
+/* super early platform initialization, before almost everything */
+void platform_early_init(void);
+
+/* later init, after the kernel has come up */
+void platform_init(void);
+
+/* called by the arch init code to get the platform to set up any mmu mappings it may need */
+void platform_init_mmu_mappings(void);
 
 __END_CDECLS
 

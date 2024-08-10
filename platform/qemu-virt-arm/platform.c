@@ -194,16 +194,6 @@ status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool
 }
 
 void platform_halt(platform_halt_action suggested_action, platform_halt_reason reason) {
-    switch (suggested_action) {
-        case HALT_ACTION_SHUTDOWN:
-        case HALT_ACTION_HALT:
-            psci_system_off();
-            break;
-        case HALT_ACTION_REBOOT:
-            psci_system_reset();
-            break;
-    }
-    dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
-    arch_disable_ints();
-    for (;;);
+    // Use the default halt implementation using psci as the reset and shutdown implementation.
+    platform_halt_default(suggested_action, reason, &psci_system_reset, &psci_system_off);
 }

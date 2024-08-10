@@ -5,9 +5,10 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <platform.h>
+
 #include <lk/err.h>
 #include <lk/debug.h>
-#include <platform.h>
 
 /*
  * default implementations of these routines, if the platform code

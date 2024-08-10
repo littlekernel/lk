@@ -94,12 +94,3 @@ void platform_dputc(char c) {
 int platform_dgetc(char *c, bool wait) {
     return cbuf_read_char(&console_input_buf, c, wait);
 }
-
-void platform_halt(platform_halt_action suggested_action,
-                   platform_halt_reason reason) {
-    for (;;) {
-        x86_cli();
-        x86_hlt();
-    }
-}
-

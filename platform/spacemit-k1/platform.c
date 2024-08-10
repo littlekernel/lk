@@ -24,9 +24,6 @@
 #include <lib/minip.h>
 #endif
 #include <kernel/vm.h>
-#if WITH_LIB_CONSOLE
-#include <lib/console.h>
-#endif
 
 #include "platform_p.h"
 
@@ -68,33 +65,22 @@ void platform_init(void) {
     uart_init();
 }
 
-void platform_halt(platform_halt_action suggested_action,
-                          platform_halt_reason reason) {
-    switch (suggested_action) {
-        case HALT_ACTION_SHUTDOWN:
-            dprintf(ALWAYS, "Shutting down... (reason = %d)\n", reason);
-            // try to use SBI as a cleaner way to stop
-            sbi_system_reset(SBI_RESET_TYPE_SHUTDOWN, SBI_RESET_REASON_NONE);
-            break;
-        case HALT_ACTION_REBOOT:
-            dprintf(ALWAYS, "Rebooting... (reason = %d)\n", reason);
-            sbi_system_reset(SBI_RESET_TYPE_WARM_REBOOT, SBI_RESET_REASON_NONE);
-            break;
-        case HALT_ACTION_HALT:
-#if ENABLE_PANIC_SHELL
-            if (reason == HALT_REASON_SW_PANIC) {
-                dprintf(ALWAYS, "CRASH: starting debug shell... (reason = %d)\n", reason);
-                arch_disable_ints();
-                panic_shell_start();
-            }
-#endif  // ENABLE_PANIC_SHELL
-            dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
-            break;
-    }
+static void reboot_(void) {
+#if RISCV_S_MODE
+    sbi_system_reset(SBI_RESET_TYPE_COLD_REBOOT, SBI_RESET_REASON_NONE);
+#endif
+}
 
-    arch_disable_ints();
-    for (;;)
-        arch_idle();
+static void shutdown_(void) {
+#if RISCV_S_MODE
+    // try to use sbi as a cleaner way to stop
+    sbi_system_reset(SBI_RESET_TYPE_SHUTDOWN, SBI_RESET_REASON_NONE);
+#endif
+}
+
+void platform_halt(platform_halt_action suggested_action, platform_halt_reason reason) {
+    // Use the default halt implementation using sbi as the reset and shutdown implementation.
+    platform_halt_default(suggested_action, reason, &reboot_, &shutdown_);
 }
 
 status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {

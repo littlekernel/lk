@@ -30,8 +30,8 @@ void platform_dputc(char c) {
 
 int platform_dgetc(char *c, bool wait) {
     int ret = uart_getc(DEBUG_UART, wait);
-    if (ret == -1)
-        return -1;
+    if (ret < 0)
+        return ret;
     *c = ret;
     return 0;
 }

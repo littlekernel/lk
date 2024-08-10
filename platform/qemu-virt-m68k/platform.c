@@ -24,9 +24,6 @@
 #else
 #include <kernel/novm.h>
 #endif
-#if WITH_LIB_CONSOLE
-#include <lib/console.h>
-#endif
 
 #include "platform_p.h"
 
@@ -119,33 +116,3 @@ void platform_init(void) {
     }
 #endif
 }
-
-#if 0
-void platform_halt(platform_halt_action suggested_action,
-                          platform_halt_reason reason) {
-    switch (suggested_action) {
-        case HALT_ACTION_SHUTDOWN:
-            dprintf(ALWAYS, "Shutting down... (reason = %d)\n", reason);
-            *power_reset_reg = 0x5555;
-            break;
-        case HALT_ACTION_REBOOT:
-            dprintf(ALWAYS, "Rebooting... (reason = %d)\n", reason);
-            *power_reset_reg = 0x7777;
-            break;
-        case HALT_ACTION_HALT:
-#if ENABLE_PANIC_SHELL
-            if (reason == HALT_REASON_SW_PANIC) {
-                dprintf(ALWAYS, "CRASH: starting debug shell... (reason = %d)\n", reason);
-                arch_disable_ints();
-                panic_shell_start();
-            }
-#endif  // ENABLE_PANIC_SHELL
-            dprintf(ALWAYS, "HALT: spinning forever... (reason = %d)\n", reason);
-            break;
-    }
-
-    arch_disable_ints();
-    for (;;)
-        arch_idle();
-}
-#endif
