@@ -8,8 +8,19 @@
 #pragma once
 
 #include <dev/uart.h>
+#include <stdint.h>
 
+// Set this flag if the UART is a debug UART, which routes input
+// directly into the console buffer if present.
 #define PL011_FLAG_DEBUG_UART (1u<<0)
 
-void pl011_init_early(int port, uintptr_t base, uint32_t irq, uint32_t flag);
+struct pl011_config {
+    uintptr_t base;
+    uint32_t irq;
+    uint32_t flag;
+};
+
+// pl011 specific initialization routines called from platform code.
+// The driver will otherwise implement the uart_* interface.
+void pl011_init_early(int port, const struct pl011_config *config);
 void pl011_init(int port);

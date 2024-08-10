@@ -15,7 +15,7 @@
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
 
-/* PL011 implementation */
+// PL011 UART driver
 
 // PL011 registers
 enum pl011_regs {
@@ -35,6 +35,7 @@ enum pl011_regs {
     UART_DMACR = 0x48
 };
 
+// Control register bits that are used in the driver
 #define UART_TFR_RXFE (1<<4)
 #define UART_TFR_TXFF (1<<5)
 #define UART_TFR_RXFF (1<<6)
@@ -48,14 +49,12 @@ enum pl011_regs {
 #define UART_CR_TXEN (1<<8)
 #define UART_CR_RXEN (1<<9)
 
+// TODO: have these be configurable
 #define RXBUF_SIZE 32
 #define NUM_UART 1
 
 struct pl011_struct {
-    uintptr_t base_virt;
-    uint32_t irq;
-
-    uint32_t flag;
+    struct pl011_config config;
 
     cbuf_t uart_rx_buf;
 };
@@ -80,35 +79,35 @@ static inline void clear_uart_reg_bits(uintptr_t base, size_t offset, uint32_t b
 
 static inline uintptr_t uart_to_ptr(unsigned int n) {
     DEBUG_ASSERT(n < NUM_UART);
-    return uart[n].base_virt;
+    return uart[n].config.base;
 }
 
 static enum handler_return uart_irq(void *arg) {
     struct pl011_struct *u = (struct pl011_struct *)arg;
 
     /* read interrupt status and mask */
-    uint32_t isr = read_uart_reg(u->base_virt, UART_TMIS);
+    uint32_t isr = read_uart_reg(u->config.base, UART_TMIS);
 
     bool resched = false;
     if (isr & UART_TMIS_RXMIS) { // rxmis
         cbuf_t *rxbuf = &uart->uart_rx_buf;
 
         /* while fifo is not empty, read chars out of it */
-        while ((read_uart_reg(u->base_virt, UART_TFR) & UART_TFR_RXFE) == 0) {
+        while ((read_uart_reg(u->config.base, UART_TFR) & UART_TFR_RXFE) == 0) {
 #if CONSOLE_HAS_INPUT_BUFFER
-            if (u->flag & PL011_FLAG_DEBUG_UART) {
-                char c = read_uart_reg(u->base_virt, UART_DR);
+            if (u->config.flag & PL011_FLAG_DEBUG_UART) {
+                char c = read_uart_reg(u->config.base, UART_DR);
                 cbuf_write_char(&console_input_cbuf, c, false);
             } else
 #endif
             {
                 /* if we're out of rx buffer, mask the irq instead of handling it */
                 if (cbuf_space_avail(rxbuf) == 0) {
-                    clear_uart_reg_bits(u->base_virt, UART_IMSC, UART_IMSC_RXIM); // !rxim
+                    clear_uart_reg_bits(u->config.base, UART_IMSC, UART_IMSC_RXIM); // !rxim
                     break;
                 }
 
-                char c = read_uart_reg(u->base_virt, UART_DR);
+                char c = read_uart_reg(u->config.base, UART_DR);
                 cbuf_write_char(rxbuf, c, false);
             }
 
@@ -126,7 +125,7 @@ void pl011_init(int port) {
     cbuf_initialize(&uart[port].uart_rx_buf, RXBUF_SIZE);
 
     // assumes interrupts are contiguous
-    register_int_handler(uart[port].irq, &uart_irq, (void *)&uart[port]);
+    register_int_handler(uart[port].config.irq, &uart_irq, (void *)&uart[port]);
 
     // clear all irqs
     write_uart_reg(base, UART_ICR, 0x3ff);
@@ -141,19 +140,18 @@ void pl011_init(int port) {
     set_uart_reg_bits(base, UART_CR, UART_CR_RXEN); // rxen
 
     // enable interrupt
-    unmask_interrupt(uart[port].irq);
+    unmask_interrupt(uart[port].config.irq);
 }
 
-void pl011_init_early(int port, uintptr_t base, uint32_t irq, uint32_t flag) {
+void pl011_init_early(int port, const struct pl011_config *config) {
     if (port >= NUM_UART) {
         return;
     }
 
-    uart[port].base_virt = base;
-    uart[port].irq = irq;
-    uart[port].flag = flag;
+    // TODO: validate config
+    uart[port].config = *config;
 
-    write_uart_reg(uart[port].base_virt, UART_CR, UART_CR_TXEN | UART_CR_UARTEN); // tx_enable, uarten
+    write_uart_reg(uart[port].config.base, UART_CR, UART_CR_TXEN | UART_CR_UARTEN); // tx_enable, uarten
 }
 
 int uart_putc(int port, char c) {
@@ -172,7 +170,7 @@ int uart_getc(int port, bool wait) {
 
     char c;
     if (cbuf_read_char(rxbuf, &c, wait) == 1) {
-        set_uart_reg_bits(uart[port].base_virt, UART_IMSC, UART_IMSC_RXIM); // rxim
+        set_uart_reg_bits(uart[port].config.base, UART_IMSC, UART_IMSC_RXIM); // rxim
         return c;
     }
 
@@ -195,7 +193,8 @@ int uart_pgetc(int port) {
     uintptr_t base = uart_to_ptr(port);
 
     if ((read_uart_reg(base, UART_TFR) & UART_TFR_RXFE) == 0) {
-        return read_uart_reg(base, UART_DR);
+        unsigned char c = read_uart_reg(base, UART_DR);
+        return c;
     } else {
         return -1;
     }
