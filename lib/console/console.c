@@ -191,7 +191,7 @@ console_t *console_get_current(void) {
 
 console_t *console_set_current(console_t *con) {
     console_t *old = (console_t *)tls_get(TLS_ENTRY_CONSOLE);
-    tls_set(TLS_ENTRY_CONSOLE, (uintptr_t)con); 
+    tls_set(TLS_ENTRY_CONSOLE, (uintptr_t)con);
     LTRACEF("setting new %p, old %p\n", con, old);
 
     return old;
@@ -813,12 +813,19 @@ static int cmd_help_impl(uint8_t availability_mask) {
 
     for (const console_cmd_block *block = start; block != end; block++) {
         const console_cmd *curr_cmd = block->list;
-        printf("  [%s]\n", block->name);
+
+        bool has_printed_header = false;
         for (size_t i = 0; i < block->count; i++) {
             if ((availability_mask & curr_cmd[i].availability_mask) == 0) {
                 // Skip commands that aren't available in the current shell.
                 continue;
             }
+            // Print the block header the first time we see a unmasked command in the block.
+            if (!has_printed_header) {
+                printf("  [%s]\n", block->name);
+                has_printed_header = true;
+            }
+
             if (curr_cmd[i].help_str)
                 printf("\t%-16s: %s\n", curr_cmd[i].cmd_str, curr_cmd[i].help_str);
         }
