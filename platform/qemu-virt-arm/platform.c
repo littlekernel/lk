@@ -61,18 +61,18 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 const void *fdt = (void *)KERNEL_BASE;
 
 void platform_early_init(void) {
-    /* initialize the interrupt controller */
-    arm_gic_init();
-
-    arm_generic_timer_init(ARM_GENERIC_TIMER_VIRTUAL_INT, 0);
-
-    struct pl011_config uart_config = {
+    const struct pl011_config uart_config = {
         .base = UART_BASE,
         .irq = UART0_INT,
         .flag = PL011_FLAG_DEBUG_UART,
     };
 
     pl011_init_early(0, &uart_config);
+
+    /* initialize the interrupt controller */
+    arm_gic_init();
+
+    arm_generic_timer_init(ARM_GENERIC_TIMER_VIRTUAL_INT, 0);
 
     if (LOCAL_TRACE) {
         LTRACEF("dumping FDT at %p\n", fdt);
