@@ -64,7 +64,7 @@ void platform_early_init(void) {
     /* initialize the interrupt controller */
     arm_gic_init();
 
-    arm_generic_timer_init(ARM_GENERIC_TIMER_PHYSICAL_INT, 0);
+    arm_generic_timer_init(ARM_GENERIC_TIMER_VIRTUAL_INT, 0);
 
     struct pl011_config uart_config = {
         .base = UART_BASE,
