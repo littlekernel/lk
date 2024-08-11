@@ -314,6 +314,8 @@ void arm_generic_timer_init(int irq, uint32_t freq_override) {
     unmask_interrupt(irq);
 
     timer_irq = irq;
+
+    dprintf(INFO, "Generic timer initialized with freq %u Hz, irq %d\n", cntfrq, irq);
 }
 
 static void arm_generic_timer_init_secondary_cpu(uint level) {
