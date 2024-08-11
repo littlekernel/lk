@@ -2,12 +2,30 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# host operating system
+readonly HOST_OS=$(uname -s)
+
+# host architecture
+HOST_OS_ARCH=$(uname -m)
+case $HOST_OS_ARCH in
+  aarch64*|arm64)
+    # flatten either aarch64 or arm64 to arm64 to keep it simple
+    readonly HOST_ARCH="arm64"
+    ;;
+  *)
+    readonly HOST_ARCH
+    ;;
+esac
+
+#echo HOST_OS = $HOST_OS
+#echo HOST_OS_ARCH = $HOST_OS_ARCH
+
 function HELP {
     echo "help:"
     echo "-6                : 64bit arm"
     echo "-3                : cortex-m3 based platform"
     echo "-v                : boot kernel at EL2"
-    echo "-k                : use KVM"
+    echo "-k                : use KVM or HVF acceleration if present (only on 64bit)"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
     echo
@@ -75,7 +93,11 @@ if [ $DO_64BIT == 1 ]; then
     MACHINE="virt"
     if [ $DO_KVM == 1 ]; then
         CPU="host"
-        MACHINE+=",gic_version=host,accel=kvm"
+        if [ $HOST_OS == "Darwin" ]; then
+            MACHINE+=",gic_version=2,accel=hvf"
+        elif [ $HOST_OS == "Linux" ]; then
+            MACHINE+=",gic_version=host,accel=kvm"
+        fi
     elif [ $DO_VIRT == 1 ]; then
         MACHINE+=",virtualization=on"
     fi
