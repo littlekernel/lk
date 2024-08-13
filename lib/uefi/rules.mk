@@ -8,5 +8,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/uefi.cpp \
 	$(LOCAL_DIR)/text_protocol.cpp \
 	$(LOCAL_DIR)/boot_service_provider.cpp \
+	$(LOCAL_DIR)/runtime_service_provider.cpp \
 
 include make/module.mk
