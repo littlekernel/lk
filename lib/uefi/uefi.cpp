@@ -16,6 +16,8 @@
 #include <sys/types.h>
 
 #include "protocols/simple_text_output_protocol.h"
+#include "runtime_service.h"
+#include "runtime_service_provider.h"
 #include "system_table.h"
 #include "text_protocol.h"
 
@@ -79,9 +81,13 @@ int load_sections_and_execute(bdev_t *dev,
 
   EfiSystemTable table{};
   EfiBootService boot_service{};
+  EfiRuntimeService runtime_service{};
+  fill(&runtime_service, 0);
   fill(&boot_service, 0);
+  setup_runtime_service_table(&runtime_service);
+  setup_boot_service_table(&boot_service);
+  table.runtime_service = &runtime_service;
   table.boot_services = &boot_service;
-  setup_boot_service_table(table.boot_services);
   table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
   EfiSimpleTextOutputProtocol console_out = get_text_output_protocol();
   table.con_out = &console_out;
