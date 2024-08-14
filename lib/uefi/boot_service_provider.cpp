@@ -34,7 +34,7 @@ bool guid_eq(const EfiGuid *a, const EfiGuid &b) {
   return memcmp(a, &b, sizeof(*a)) == 0;
 }
 
-EfiStatus handle_protocol(EfiHandle handle, const EfiGuid *protocol,
+EfiStatus handle_protocol(const EfiHandle handle, const EfiGuid *protocol,
                           void **intf) {
   if (guid_eq(protocol, LOADED_IMAGE_PROTOCOL_GUID)) {
     printf("handle_protocol(%p, LOADED_IMAGE_PROTOCOL_GUID, %p);\n", handle,
@@ -48,6 +48,7 @@ EfiStatus handle_protocol(EfiHandle handle, const EfiGuid *protocol,
     loaded_image->LoadOptionsSize = 0;
     loaded_image->LoadOptions = nullptr;
     loaded_image->Unload = unload;
+    loaded_image->ImageBase = handle;
 
     *intf = loaded_image;
     return SUCCESS;

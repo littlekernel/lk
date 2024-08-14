@@ -21,6 +21,21 @@
 #include <endian.h>
 #include <sys/types.h>
 
+//
+// Directory Entries
+//
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_EXPORT = 0;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_IMPORT = 1;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_RESOURCE = 2;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_EXCEPTION = 3;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_SECURITY = 4;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_BASERELOC = 5;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_DEBUG = 6;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_COPYRIGHT = 7;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_GLOBALPTR = 8;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_TLS = 9;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG = 10;
+
 static constexpr size_t IMAGE_NUMBEROF_DIRECTORY_ENTRIES = 16;
 static constexpr size_t IMAGE_SIZEOF_SHORT_NAME = 8;
 
@@ -255,5 +270,22 @@ struct IMAGE_NT_HEADERS64 {
   IMAGE_FILE_HEADER FileHeader;
   IMAGE_OPTIONAL_HEADER64 OptionalHeader;
 } __attribute__((packed));
+
+struct EFI_IMAGE_BASE_RELOCATION {
+  uint32_t VirtualAddress;
+  uint32_t SizeOfBlock;
+};
+
+static constexpr size_t EFI_IMAGE_REL_BASED_ABSOLUTE = 0;
+static constexpr size_t EFI_IMAGE_REL_BASED_HIGH = 1;
+static constexpr size_t EFI_IMAGE_REL_BASED_LOW = 2;
+static constexpr size_t EFI_IMAGE_REL_BASED_HIGHLOW = 3;
+static constexpr size_t EFI_IMAGE_REL_BASED_HIGHADJ = 4;
+static constexpr size_t EFI_IMAGE_REL_BASED_MIPS_JMPADDR = 5;
+static constexpr size_t EFI_IMAGE_REL_BASED_ARM_MOV32A = 5;
+static constexpr size_t EFI_IMAGE_REL_BASED_ARM_MOV32T = 7;
+static constexpr size_t EFI_IMAGE_REL_BASED_IA64_IMM64 = 9;
+static constexpr size_t EFI_IMAGE_REL_BASED_MIPS_JMPADDR16 = 9;
+static constexpr size_t EFI_IMAGE_REL_BASED_DIR64 = 10;
 
 #endif
