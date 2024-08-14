@@ -30,13 +30,28 @@ using EfiEntry = int (*)(void *, struct EfiSystemTable *);
 
 void *alloc_page(size_t size) {
   void *vptr{};
-  status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "uefi_program",
-                                      size, &vptr, 0, 0, 0);
+  status_t err =
+      vmm_alloc(vmm_get_kernel_aspace(), "uefi_program", size, &vptr, 0, 0, 0);
   if (err) {
     printf("Failed to allocate memory for uefi program %d\n", err);
     return nullptr;
   }
   return vptr;
+}
+
+void *alloc_page(void *addr, size_t size) {
+  if (addr == nullptr) {
+    return alloc_page(size);
+  }
+  auto err = vmm_alloc(vmm_get_kernel_aspace(), "uefi_program", size, &addr,
+                       PAGE_SIZE_SHIFT, VMM_FLAG_VALLOC_SPECIFIC, 0);
+  if (err) {
+    printf("Failed to allocate memory for uefi program @ fixed address %p %d , "
+           "falling back to non-fixed allocation\n",
+           addr, err);
+    return alloc_page(size);
+  }
+  return addr;
 }
 
 template <typename T> void fill(T *data, size_t skip, uint8_t begin = 0) {
@@ -49,6 +64,185 @@ template <typename T> void fill(T *data, size_t skip, uint8_t begin = 0) {
   }
 }
 
+static constexpr size_t BIT26 = 1 << 26;
+static constexpr size_t BIT11 = 1 << 11;
+static constexpr size_t BIT10 = 1 << 10;
+
+/**
+  Pass in a pointer to an ARM MOVT or MOVW immediate instruciton and
+  return the immediate data encoded in the instruction.
+
+  @param  Instruction   Pointer to ARM MOVT or MOVW immediate instruction
+
+  @return Immediate address encoded in the instruction
+
+**/
+uint16_t ThumbMovtImmediateAddress(uint16_t *Instruction) {
+  uint32_t Movt;
+  uint16_t Address;
+
+  // Thumb2 is two 16-bit instructions working together. Not a single 32-bit
+  // instruction Example MOVT R0, #0 is 0x0000f2c0 or 0xf2c0 0x0000
+  Movt = (*Instruction << 16) | (*(Instruction + 1));
+
+  // imm16 = imm4:i:imm3:imm8
+  //         imm4 -> Bit19:Bit16
+  //         i    -> Bit26
+  //         imm3 -> Bit14:Bit12
+  //         imm8 -> Bit7:Bit0
+  Address = (uint16_t)(Movt & 0x000000ff);         // imm8
+  Address |= (uint16_t)((Movt >> 4) & 0x0000f700); // imm4 imm3
+  Address |= (((Movt & BIT26) != 0) ? BIT11 : 0);  // i
+  return Address;
+}
+
+/**
+  Pass in a pointer to an ARM MOVW/MOVT instruciton pair and
+  return the immediate data encoded in the two` instruction.
+
+  @param  Instructions  Pointer to ARM MOVW/MOVT insturction pair
+
+  @return Immediate address encoded in the instructions
+
+**/
+uint32_t ThumbMovwMovtImmediateAddress(uint16_t *Instructions) {
+  uint16_t *Word;
+  uint16_t *Top;
+
+  Word = Instructions; // MOVW
+  Top = Word + 2;      // MOVT
+
+  return (ThumbMovtImmediateAddress(Top) << 16) +
+         ThumbMovtImmediateAddress(Word);
+}
+
+/**
+  Update an ARM MOVT or MOVW immediate instruction immediate data.
+
+  @param  Instruction   Pointer to ARM MOVT or MOVW immediate instruction
+  @param  Address       New addres to patch into the instruction
+**/
+void ThumbMovtImmediatePatch(uint16_t *Instruction, uint16_t Address) {
+  uint16_t Patch;
+
+  // First 16-bit chunk of instruciton
+  Patch = ((Address >> 12) & 0x000f);              // imm4
+  Patch |= (((Address & BIT11) != 0) ? BIT10 : 0); // i
+  // Mask out instruction bits and or in address
+  *(Instruction) = (*Instruction & ~0x040f) | Patch;
+
+  // Second 16-bit chunk of instruction
+  Patch = Address & 0x000000ff;           // imm8
+  Patch |= ((Address << 4) & 0x00007000); // imm3
+  // Mask out instruction bits and or in address
+  Instruction++;
+  *Instruction = (*Instruction & ~0x70ff) | Patch;
+}
+
+/**
+  Update an ARM MOVW/MOVT immediate instruction instruction pair.
+
+  @param  Instructions  Pointer to ARM MOVW/MOVT instruction pair
+  @param  Address       New addres to patch into the instructions
+**/
+void ThumbMovwMovtImmediatePatch(uint16_t *Instructions, uint32_t Address) {
+  uint16_t *Word;
+  uint16_t *Top;
+
+  Word = Instructions; // MOVW
+  Top = Word + 2;      // MOVT
+
+  ThumbMovtImmediatePatch(Word, (uint16_t)(Address & 0xffff));
+  ThumbMovtImmediatePatch(Top, (uint16_t)(Address >> 16));
+}
+
+int relocate_image(char *image) {
+  const auto dos_header = reinterpret_cast<IMAGE_DOS_HEADER *>(image);
+  const auto pe_header = dos_header->GetPEHeader();
+  const auto optional_header = &pe_header->OptionalHeader;
+  const auto reloc_directory =
+      optional_header->DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+  if (reloc_directory.Size == 0) {
+    printf("Relocation section empty\n");
+    return 0;
+  }
+  auto RelocBase = reinterpret_cast<EFI_IMAGE_BASE_RELOCATION *>(
+      image + reloc_directory.VirtualAddress);
+  const auto RelocBaseEnd = reinterpret_cast<EFI_IMAGE_BASE_RELOCATION *>(
+      (char *)RelocBase + reloc_directory.Size);
+  const auto Adjust =
+      reinterpret_cast<size_t>(image - optional_header->ImageBase);
+  //
+  // Run this relocation record
+  //
+  while (RelocBase < RelocBaseEnd) {
+    auto Reloc =
+        (uint16_t *)((char *)RelocBase + sizeof(EFI_IMAGE_BASE_RELOCATION));
+    auto RelocEnd = reinterpret_cast<uint16_t *>((char *)RelocBase +
+                                                 RelocBase->SizeOfBlock);
+    if (RelocBase->SizeOfBlock == 0) {
+      printf("Found relocation block of size 0, this is wrong\n");
+      return -1;
+    }
+    while (Reloc < RelocEnd) {
+      auto Fixup = image + RelocBase->VirtualAddress + (*Reloc & 0xFFF);
+      if (Fixup == nullptr) {
+        return 0;
+      }
+
+      auto Fixup16 = reinterpret_cast<uint16_t *>(Fixup);
+      auto Fixup32 = reinterpret_cast<uint32_t *>(Fixup);
+      auto Fixup64 = reinterpret_cast<uint64_t *>(Fixup);
+      uint32_t FixupVal = 0;
+      switch ((*Reloc) >> 12) {
+      case EFI_IMAGE_REL_BASED_ABSOLUTE:
+        break;
+
+      case EFI_IMAGE_REL_BASED_HIGH:
+        *Fixup16 = (uint16_t)(*Fixup16 + ((uint16_t)((uint32_t)Adjust >> 16)));
+
+        break;
+
+      case EFI_IMAGE_REL_BASED_LOW:
+        *Fixup16 = (uint16_t)(*Fixup16 + ((uint16_t)Adjust & 0xffff));
+
+        break;
+
+      case EFI_IMAGE_REL_BASED_HIGHLOW:
+        *Fixup32 = *Fixup32 + (uint32_t)Adjust;
+        break;
+
+      case EFI_IMAGE_REL_BASED_DIR64:
+        *Fixup64 = *Fixup64 + (uint64_t)Adjust;
+        break;
+
+      case EFI_IMAGE_REL_BASED_ARM_MOV32T:
+        FixupVal = ThumbMovwMovtImmediateAddress(Fixup16) + (uint32_t)Adjust;
+        ThumbMovwMovtImmediatePatch(Fixup16, FixupVal);
+
+        break;
+
+      case EFI_IMAGE_REL_BASED_ARM_MOV32A:
+        printf("Unsupported relocation type: EFI_IMAGE_REL_BASED_ARM_MOV32A\n");
+        // break omitted - ARM instruction encoding not implemented
+        break;
+
+      default:
+        printf("Unsupported relocation type: %d\n", (*Reloc) >> 12);
+        return -1;
+      }
+
+      //
+      // Next relocation record
+      //
+      Reloc += 1;
+    }
+    RelocBase = reinterpret_cast<EFI_IMAGE_BASE_RELOCATION *>(RelocEnd);
+  }
+  optional_header->ImageBase = reinterpret_cast<size_t>(image);
+  return 0;
+}
+
 int load_sections_and_execute(bdev_t *dev,
                               const IMAGE_NT_HEADERS64 *pe_header) {
   const auto file_header = &pe_header->FileHeader;
@@ -57,6 +251,10 @@ int load_sections_and_execute(bdev_t *dev,
   const auto section_header = reinterpret_cast<const IMAGE_SECTION_HEADER *>(
       reinterpret_cast<const char *>(pe_header) + sizeof(IMAGE_FILE_HEADER) +
       file_header->SizeOfOptionalHeader);
+  if (sections <= 0) {
+    printf("This PE file does not have any sections, unsupported.\n");
+    return -8;
+  }
   for (size_t i = 0; i < sections; i++) {
     if (section_header[i].NumberOfRelocations != 0) {
       printf("Section %s requires relocation, which is not supported.\n",
@@ -67,14 +265,22 @@ int load_sections_and_execute(bdev_t *dev,
   const auto &last_section = section_header[sections - 1];
   const auto virtual_size =
       last_section.VirtualAddress + last_section.Misc.VirtualSize;
-  const auto image_base = reinterpret_cast<char *>(alloc_page(virtual_size));
+  const auto image_base = reinterpret_cast<char *>(alloc_page(
+      reinterpret_cast<void *>(optional_header->ImageBase), virtual_size));
+  if (image_base == nullptr) {
+    return -7;
+  }
   memset(image_base, 0, virtual_size);
+  bio_read(dev, image_base, 0, section_header[0].PointerToRawData);
 
   for (size_t i = 0; i < sections; i++) {
     const auto &section = section_header[i];
     bio_read(dev, image_base + section.VirtualAddress, section.PointerToRawData,
              section.SizeOfRawData);
   }
+  printf("Relocating image from 0x%llx to %p\n", optional_header->ImageBase,
+         image_base);
+  relocate_image(image_base);
   auto entry = reinterpret_cast<EfiEntry>(image_base +
                                           optional_header->AddressOfEntryPoint);
   printf("Entry function located at %p\n", entry);
@@ -116,8 +322,9 @@ int load_pe_file(const char *blkdev) {
     return -2;
   }
   if (dos_header->e_lfanew > kBlocKSize - sizeof(IMAGE_FILE_HEADER)) {
-    printf("Invalid PE header offset %d exceeds maximum read size of %zu - %zu\n",
-           dos_header->e_lfanew, kBlocKSize, sizeof(IMAGE_FILE_HEADER));
+    printf(
+        "Invalid PE header offset %d exceeds maximum read size of %zu - %zu\n",
+        dos_header->e_lfanew, kBlocKSize, sizeof(IMAGE_FILE_HEADER));
     return -3;
   }
   const auto pe_header = dos_header->GetPEHeader();
