@@ -1,6 +1,7 @@
 #ifndef __BOOT_SERVICE_PROVIDER_
 #define __BOOT_SERVICE_PROVIDER_
 
+#include "arch/defines.h"
 #include "boot_service.h"
 #include "system_table.h"
 
@@ -74,5 +75,8 @@ struct EFI_LOADED_IMAGE_PROTOCOL {
 };
 
 static constexpr size_t EFI_LOADED_IMAGE_PROTOCOL_REVISION = 0x1000;
+
+void *alloc_page(void *addr, size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
+void *alloc_page(size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
 
 #endif
