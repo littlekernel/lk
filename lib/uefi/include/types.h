@@ -64,7 +64,7 @@ using EfiTimerDelay = enum EFI_TIMER_DELAY {
   TIMER_RELATIVE
 };
 
-using EFI_MEMORY_TYPE = enum {
+enum EFI_MEMORY_TYPE {
   RESERVED_MEMORY_TYPE,
   LOADER_CODE,
   LOADER_DATA,

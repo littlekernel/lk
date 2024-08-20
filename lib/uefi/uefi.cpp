@@ -1,3 +1,4 @@
+#include "arch/mmu.h"
 #include "boot_service.h"
 #include "boot_service_provider.h"
 #include "defer.h"
@@ -27,32 +28,6 @@ constexpr auto EFI_SYSTEM_TABLE_SIGNATURE =
 // ASCII "PE\x0\x0"
 
 using EfiEntry = int (*)(void *, struct EfiSystemTable *);
-
-void *alloc_page(size_t size) {
-  void *vptr{};
-  status_t err =
-      vmm_alloc(vmm_get_kernel_aspace(), "uefi_program", size, &vptr, 0, 0, 0);
-  if (err) {
-    printf("Failed to allocate memory for uefi program %d\n", err);
-    return nullptr;
-  }
-  return vptr;
-}
-
-void *alloc_page(void *addr, size_t size) {
-  if (addr == nullptr) {
-    return alloc_page(size);
-  }
-  auto err = vmm_alloc(vmm_get_kernel_aspace(), "uefi_program", size, &addr,
-                       PAGE_SIZE_SHIFT, VMM_FLAG_VALLOC_SPECIFIC, 0);
-  if (err) {
-    printf("Failed to allocate memory for uefi program @ fixed address %p %d , "
-           "falling back to non-fixed allocation\n",
-           addr, err);
-    return alloc_page(size);
-  }
-  return addr;
-}
 
 template <typename T> void fill(T *data, size_t skip, uint8_t begin = 0) {
   auto ptr = reinterpret_cast<char *>(data);
@@ -265,8 +240,9 @@ int load_sections_and_execute(bdev_t *dev,
   const auto &last_section = section_header[sections - 1];
   const auto virtual_size =
       last_section.VirtualAddress + last_section.Misc.VirtualSize;
-  const auto image_base = reinterpret_cast<char *>(alloc_page(
-      reinterpret_cast<void *>(optional_header->ImageBase), virtual_size));
+  const auto image_base = reinterpret_cast<char *>(
+      alloc_page(reinterpret_cast<void *>(optional_header->ImageBase),
+                 virtual_size, 21 /* Kernel requires 2MB alignment */));
   if (image_base == nullptr) {
     return -7;
   }
