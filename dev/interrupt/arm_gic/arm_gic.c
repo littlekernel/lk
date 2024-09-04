@@ -333,12 +333,15 @@ void arm_gic_init(void) {
 #ifdef GICBASE
     arm_gics[0].gicd_vaddr = GICBASE(0) + GICD_OFFSET;
     arm_gics[0].gicd_size = GICD_MIN_SIZE;
+    TRACEF("GICD base %#lx, size %#zx\n", arm_gics[0].gicd_vaddr, arm_gics[0].gicd_size);
 #if GIC_VERSION > 2
     arm_gics[0].gicr_vaddr = GICBASE(0) + GICR_OFFSET;
     arm_gics[0].gicr_size = GICR_CPU_OFFSET(SMP_MAX_CPUS - 1) + GICR_MIN_SIZE;
+    TRACEF("GICR base %#lx, size %#zx\n", arm_gics[0].gicr_vaddr, arm_gics[0].gicr_size);
 #else /* GIC_VERSION > 2 */
     arm_gics[0].gicc_vaddr = GICBASE(0) + GICC_OFFSET;
     arm_gics[0].gicc_size = GICC_MIN_SIZE;
+    TRACEF("GICC base %#lx, size %#zx\n", arm_gics[0].gicc_vaddr, arm_gics[0].gicc_size);
 #endif /* GIC_VERSION > 2 */
 #else
     /* Platforms should define GICBASE if they want to call this */

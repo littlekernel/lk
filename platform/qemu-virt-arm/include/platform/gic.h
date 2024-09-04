@@ -10,6 +10,11 @@
 #include <platform/qemu-virt.h>
 
 #define GICBASE(n)  (CPUPRIV_BASE_VIRT)
+
 #define GICD_OFFSET (0x00000)
 #define GICC_OFFSET (0x10000)
+
+#if GIC_VERSION > 2
+#define GICR_OFFSET (0xa0000)
+#endif
 

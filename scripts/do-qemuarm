@@ -90,7 +90,7 @@ shift $((OPTIND-1))
 if [ $DO_64BIT == 1 ]; then
     QEMU="qemu-system-aarch64"
     CPU="cortex-a53"
-    MACHINE="virt"
+    MACHINE="virt,gic_version=3"
     if [ $DO_KVM == 1 ]; then
         CPU="host"
         if [ $HOST_OS == "Darwin" ]; then
