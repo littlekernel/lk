@@ -25,60 +25,39 @@
 #include <kernel/novm.h>
 #endif
 
+#include "bootinfo.h"
 #include "platform_p.h"
 
 #define LOCAL_TRACE 0
-
-extern uint8_t __bss_end;
-
-// parse bootinfo
-struct bootinfo_item {
-    uint16_t tag;
-    uint16_t size;
-    uint32_t data[0];
-};
-
-// look for tags that qemu left at the end of the kernel that hold various
-// pieces of system configuration info.
-static void *bootinfo_find_record(uint16_t id, uint16_t *size_out) {
-    uint8_t *ptr = &__bss_end;
-
-    *size_out = 0;
-    for (;;) {
-        struct bootinfo_item *item = (struct bootinfo_item *)ptr;
-
-        LTRACEF_LEVEL(2, "item %p: tag %hx, size %hu\n", item, item->tag, item->size);
-
-        if (item->tag == id) {
-            *size_out = item->size - 4;
-            return item->data;
-        } else if (item->tag == 0) { // end token
-            return NULL;
-        }
-
-        // move to the next field
-        ptr += item->size;
-    }
-}
 
 void platform_early_init(void) {
     goldfish_tty_early_init();
     pic_early_init();
     goldfish_rtc_early_init();
 
+    // Dump the bootinfo structure
+    if (LK_DEBUGLEVEL >= INFO) {
+        dump_all_bootinfo_records();
+    }
+
     // look for tag 0x5, which describes the memory layout of the system
     uint16_t size;
-    void *ptr = bootinfo_find_record(0x5, &size);
+    const void *ptr = bootinfo_find_record(BOOTINFO_TAG_MEMCHUNK, &size);
     if (!ptr) {
         panic("68K VIRT: unable to find MEMCHUNK BOOTINFO record\n");
     }
+    if (size < 8) {
+        panic("68K VIRT: MEMCHUNK BOOTINFO record too small\n");
+    }
     LTRACEF("MEMCHUNK ptr %p, size %hu\n", ptr, size);
 
-    uint32_t membase = *(uint32_t *)ptr;
-    uint32_t memsize = *(uint32_t *)((uintptr_t)ptr + 4);
+    uint32_t membase = *(const uint32_t *)ptr;
+    uint32_t memsize = *(const uint32_t *)((uintptr_t)ptr + 4);
 
     dprintf(INFO, "VIRT: memory base %#x size %#x\n", membase, memsize);
     novm_add_arena("mem", membase, memsize);
+
+    // TODO: read the rest of the device bootinfo records and dynamically locate devices
 }
 
 void platform_init(void) {

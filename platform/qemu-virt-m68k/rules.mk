@@ -11,6 +11,7 @@ MODULE_DEPS += dev/virtio/block
 MODULE_DEPS += dev/virtio/gpu
 MODULE_DEPS += dev/virtio/net
 
+MODULE_SRCS += $(LOCAL_DIR)/bootinfo.c
 MODULE_SRCS += $(LOCAL_DIR)/goldfish_rtc.c
 MODULE_SRCS += $(LOCAL_DIR)/goldfish_tty.c
 MODULE_SRCS += $(LOCAL_DIR)/pic.c
