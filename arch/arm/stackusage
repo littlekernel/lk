@@ -5,9 +5,9 @@ import re
 
 hexrule = re.compile("([0-9a-fA-F]+)")
 hex2byterule = re.compile("([0-9a-fA-F]{4})")
-hexcolonrule = re.compile("([0-9a-fA-F]+)\:")
-symbolrule = re.compile("<([\._a-zA-Z]+[\._0-9a-zA-Z]*)>:")
-insrule = re.compile("([a-zA-Z][\.a-zA-Z]*)")
+hexcolonrule = re.compile("([0-9a-fA-F]+):")
+symbolrule = re.compile("<([._a-zA-Z]+[._0-9a-zA-Z]*)>:")
+insrule = re.compile("([a-zA-Z][.a-zA-Z]*)")
 
 currsymbol = ""
 curraddress = 0
