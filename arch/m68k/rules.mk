@@ -6,6 +6,7 @@ MODULE_SRCS += $(LOCAL_DIR)/arch.c
 MODULE_SRCS += $(LOCAL_DIR)/asm.S
 MODULE_SRCS += $(LOCAL_DIR)/exceptions.c
 MODULE_SRCS += $(LOCAL_DIR)/exceptions_asm.S
+MODULE_SRCS += $(LOCAL_DIR)/mmu.c
 MODULE_SRCS += $(LOCAL_DIR)/start.S
 MODULE_SRCS += $(LOCAL_DIR)/thread.c
 
@@ -30,10 +31,13 @@ ARCH_COMPILEFLAGS := -mcpu=68020
 GLOBAL_DEFINES += WITH_NO_FP=1
 else ifeq ($(M68K_CPU),68030)
 ARCH_COMPILEFLAGS := -mcpu=68030
+M68K_MMU := 68030
 else ifeq ($(M68K_CPU),68040)
 ARCH_COMPILEFLAGS := -mcpu=68040
+M68K_MMU := 68040
 else ifeq ($(M68K_CPU),68060)
 ARCH_COMPILEFLAGS := -mcpu=68060
+M68K_MMU := 68060
 else
 $(error add support for selected cpu $(M68K_CPU))
 endif
@@ -49,6 +53,16 @@ $(info LIBGCC = $(LIBGCC))
 
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
 	then echo "$(2)"; else echo "$(3)"; fi ;)
+
+# default to no mmu
+WITH_MMU ?= 0
+
+ifeq (true, $(call TOBOOL, $(WITH_MMU)))
+ifeq ($(M68K_MMU),)
+$(error WITH_MMU is set but no M68K_MMU is set)
+endif
+GLOBAL_DEFINES += M68K_MMU=$(M68K_MMU)
+endif
 
 ARCH_OPTFLAGS := -O2
 
