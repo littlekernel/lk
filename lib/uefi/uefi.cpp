@@ -11,11 +11,13 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
+#include <math.h>
 #include <platform.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
+#include "configuration_table.h"
 #include "protocols/simple_text_output_protocol.h"
 #include "runtime_service.h"
 #include "runtime_service_provider.h"
@@ -53,7 +55,7 @@ static constexpr size_t BIT10 = 1 << 10;
   @return Immediate address encoded in the instruction
 
 **/
-uint16_t ThumbMovtImmediateAddress(uint16_t *Instruction) {
+uint16_t ThumbMovtImmediateAddress(const uint16_t *Instruction) {
   uint32_t Movt;
   uint16_t Address;
 
@@ -262,7 +264,7 @@ int load_sections_and_execute(bdev_t *dev,
       image_base + optional_header->AddressOfEntryPoint);
   printf("Entry function located at %p\n", entry);
 
-  EfiSystemTable table{};
+  EfiSystemTable &table = *static_cast<EfiSystemTable *>(alloc_page(PAGE_SIZE));
   EfiBootService boot_service{};
   EfiRuntimeService runtime_service{};
   fill(&runtime_service, 0);
@@ -274,8 +276,12 @@ int load_sections_and_execute(bdev_t *dev,
   table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
   EfiSimpleTextOutputProtocol console_out = get_text_output_protocol();
   table.con_out = &console_out;
-  constexpr size_t kStackSize = 1024ul * 1024;
-  auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, PAGE_SIZE));
+  table.configuration_table =
+      reinterpret_cast<EfiConfigurationTable *>(alloc_page(PAGE_SIZE));
+  setup_configuration_table(&table);
+
+  constexpr size_t kStackSize = 8 * 1024ul * 1024;
+  auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
   memset(stack, 0, kStackSize);
   return call_with_stack(stack + kStackSize, entry, image_base, &table);
 }
