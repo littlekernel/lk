@@ -21,6 +21,19 @@
 #include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/err.h>
+#include <lk/init.h>
+
+static bool mutex_threading_ready;
+
+/* mutex_threading_ready is currently only used from a DEBUG_ASSERT */
+#if LK_DEBUGLEVEL > 1
+
+static void mutex_threading_ready_init_func(uint level) {
+    mutex_threading_ready = true;
+}
+
+LK_INIT_HOOK(mutex_threading_ready, mutex_threading_ready_init_func, LK_INIT_LEVEL_THREADING);
+#endif
 
 /**
  * @brief  Initialize a mutex_t
@@ -69,6 +82,7 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout) {
         panic("mutex_acquire_timeout: thread %p (%s) tried to acquire mutex %p it already owns.\n",
               get_current_thread(), get_current_thread()->name, m);
 #endif
+    DEBUG_ASSERT(!mutex_threading_ready || !timeout || !arch_ints_disabled());
 
     THREAD_LOCK(state);
 
