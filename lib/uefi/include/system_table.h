@@ -25,12 +25,12 @@
 #include "protocols/simple_text_output_protocol.h"
 #include "runtime_service.h"
 
-typedef struct {
+struct EfiConfigurationTable {
   EfiGuid vendor_guid;
-  const void* vendor_table;
-} EfiConfigurationTable;
+  void *vendor_table;
+};
 
-typedef struct EfiSystemTable {
+struct EfiSystemTable {
   EfiTableHeader header;
   char16_t* firmware_vendor;
   uint32_t firmware_revision;
@@ -43,7 +43,7 @@ typedef struct EfiSystemTable {
   EfiRuntimeService *runtime_service;
   EfiBootService* boot_services;
   size_t number_of_table_entries;
-  const EfiConfigurationTable* configuration_table;
-} EfiSystemTable;
+  EfiConfigurationTable *configuration_table;
+};
 
 #endif  // __SYSTEM_TABLE_H__
