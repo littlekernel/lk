@@ -21,7 +21,7 @@
 
 #define LOCAL_TRACE 0
 
-static struct list_node arena_list = LIST_INITIAL_VALUE(arena_list);
+struct list_node arena_list = LIST_INITIAL_VALUE(arena_list);
 static mutex_t lock = MUTEX_INITIAL_VALUE(lock);
 
 #define PAGE_BELONGS_TO_ARENA(page, arena) \

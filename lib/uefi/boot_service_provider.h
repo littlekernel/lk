@@ -3,6 +3,7 @@
 
 #include "arch/defines.h"
 #include "boot_service.h"
+#include "kernel/vm.h"
 #include "system_table.h"
 
 void setup_boot_service_table(EfiBootService *service);
@@ -74,9 +75,12 @@ struct EFI_LOADED_IMAGE_PROTOCOL {
   EFI_IMAGE_UNLOAD Unload;
 };
 
-static constexpr size_t EFI_LOADED_IMAGE_PROTOCOL_REVISION = 0x1000;
+vmm_aspace_t *get_address_space();
 
 void *alloc_page(void *addr, size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
 void *alloc_page(size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
+void *identity_map(void *addr, size_t size);
+
+static constexpr size_t EFI_LOADED_IMAGE_PROTOCOL_REVISION = 0x1000;
 
 #endif
