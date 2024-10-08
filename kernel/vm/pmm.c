@@ -34,6 +34,8 @@ static mutex_t lock = MUTEX_INITIAL_VALUE(lock);
 #define ADDRESS_IN_ARENA(address, arena) \
     ((address) >= (arena)->base && (address) <= (arena)->base + (arena)->size - 1)
 
+struct list_node *get_arena_list() { return &arena_list; }
+
 static inline bool page_is_free(const vm_page_t *page) {
     return !(page->flags & VM_PAGE_FLAG_NONFREE);
 }

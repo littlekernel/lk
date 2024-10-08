@@ -15,11 +15,9 @@
  *
  */
 
-#include "arch/mmu.h"
 #include "boot_service.h"
 #include "boot_service_provider.h"
 #include "defer.h"
-#include "kernel/vm.h"
 #include "pe.h"
 
 #include <lib/bio.h>
@@ -28,7 +26,6 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <math.h>
 #include <platform.h>
 #include <stdio.h>
 #include <string.h>

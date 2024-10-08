@@ -96,5 +96,6 @@ vmm_aspace_t *set_boot_aspace();
 
 void *alloc_page(void *addr, size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
 void *alloc_page(size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
+void *identity_map(void *addr, size_t size);
 
 #endif

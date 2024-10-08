@@ -46,6 +46,7 @@ __BEGIN_CDECLS
 
 #define PAGE_ALIGN(x) ALIGN(x, PAGE_SIZE)
 #define IS_PAGE_ALIGNED(x) IS_ALIGNED(x, PAGE_SIZE)
+struct list_node *get_arena_list(void);
 
 struct mmu_initial_mapping {
     paddr_t phys;

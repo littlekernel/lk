@@ -17,6 +17,7 @@
 #include "boot_service_provider.h"
 #include "boot_service.h"
 #include "kernel/vm.h"
+#include "lib/dlmalloc.h"
 #include "types.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -135,6 +136,23 @@ EfiStatus handle_protocol(EfiHandle handle, const EfiGuid *protocol,
   return UNSUPPORTED;
 }
 
+constexpr size_t kHeapSize = 8ul * 1024 * 1024;
+void *get_heap() {
+  static auto heap = alloc_page(kHeapSize);
+  return heap;
+}
+
+mspace create_mspace_with_base_limit(void *base, size_t capacity, int locked) {
+  auto space = create_mspace_with_base(get_heap(), kHeapSize, 1);
+  mspace_set_footprint_limit(space, capacity);
+  return space;
+}
+
+mspace get_mspace() {
+  static auto space = create_mspace_with_base_limit(get_heap(), kHeapSize, 1);
+  return space;
+}
+
 EfiStatus allocate_pool(EfiMemoryType pool_type, size_t size, void **buf) {
   if (buf == nullptr) {
     return INVALID_PARAMETER;
@@ -143,7 +161,7 @@ EfiStatus allocate_pool(EfiMemoryType pool_type, size_t size, void **buf) {
     *buf = nullptr;
     return SUCCESS;
   }
-  *buf = malloc(size);
+  *buf = mspace_malloc(get_mspace(), size);
   if (*buf != nullptr) {
     return SUCCESS;
   }
@@ -151,7 +169,72 @@ EfiStatus allocate_pool(EfiMemoryType pool_type, size_t size, void **buf) {
 }
 
 EfiStatus free_pool(void *mem) {
-  free(mem);
+  mspace_free(get_mspace(), mem);
+  return SUCCESS;
+}
+
+size_t get_aspace_entry_count(vmm_aspace_t *aspace) {
+  vmm_region_t *region = nullptr;
+  size_t num_entries = 0;
+  list_for_every_entry(&aspace->region_list, region, vmm_region_t, node) {
+    num_entries++;
+  }
+  return num_entries;
+}
+
+void fill_memory_map_entry(vmm_aspace_t *aspace, EfiMemoryDescriptor *entry,
+                           const vmm_region_t *region) {
+  entry->virtual_start = region->base;
+  entry->physical_start = entry->virtual_start;
+  entry->number_of_pages = region->size / PAGE_SIZE;
+  paddr_t pa{};
+  uint flags{};
+  status_t err =
+      arch_mmu_query(&aspace->arch_aspace, region->base, &pa, &flags);
+  if (err >= 0) {
+    entry->physical_start = pa;
+  }
+  if ((flags & ARCH_MMU_FLAG_CACHE_MASK) == ARCH_MMU_FLAG_CACHED) {
+    entry->attributes |= EFI_MEMORY_WB | EFI_MEMORY_WC | EFI_MEMORY_WT;
+  }
+}
+
+EfiStatus get_physical_memory_map(size_t *memory_map_size,
+                                  EfiMemoryDescriptor *memory_map,
+                                  size_t *map_key, size_t *desc_size,
+                                  uint32_t *desc_version) {
+  if (memory_map_size == nullptr) {
+    return INVALID_PARAMETER;
+  }
+  if (map_key) {
+    *map_key = 0;
+  }
+  if (desc_size) {
+    *desc_size = sizeof(EfiMemoryDescriptor);
+  }
+  if (desc_version) {
+    *desc_version = 1;
+  }
+  pmm_arena_t *a{};
+  size_t num_entries = 0;
+  list_for_every_entry(get_arena_list(), a, pmm_arena_t, node) {
+    num_entries++;
+  }
+  const size_t size_needed = num_entries * sizeof(EfiMemoryDescriptor);
+  if (*memory_map_size < size_needed) {
+    *memory_map_size = size_needed;
+    return BUFFER_TOO_SMALL;
+  }
+  *memory_map_size = size_needed;
+  size_t i = 0;
+  memset(memory_map, 0, size_needed);
+  list_for_every_entry(get_arena_list(), a, pmm_arena_t, node) {
+    memory_map[i].physical_start = a->base;
+    memory_map[i].number_of_pages = a->size / PAGE_SIZE;
+    memory_map[i].attributes |= EFI_MEMORY_WB;
+    memory_map[i].memory_type = LOADER_CODE;
+    i++;
+  }
   return SUCCESS;
 }
 
@@ -245,8 +328,7 @@ EfiStatus allocate_pages(EfiAllocatorType type, EfiMemoryType memory_type,
            memory_type, pages, *memory);
     return UNSUPPORTED;
   }
-  *memory =
-      reinterpret_cast<EfiPhysicalAddr>(memalign(PAGE_SIZE, pages * PAGE_SIZE));
+  *memory = reinterpret_cast<EfiPhysicalAddr>(alloc_page(pages * PAGE_SIZE));
   if (*memory == 0) {
     return OUT_OF_RESOURCES;
   }
@@ -306,7 +388,7 @@ void setup_boot_service_table(EfiBootService *service) {
   service->handle_protocol = handle_protocol;
   service->allocate_pool = allocate_pool;
   service->free_pool = free_pool;
-  service->get_memory_map = get_memory_map;
+  service->get_memory_map = get_physical_memory_map;
   service->register_protocol_notify = register_protocol_notify;
   service->locate_handle = locate_handle;
   service->locate_protocol = locate_protocol;
