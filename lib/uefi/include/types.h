@@ -20,51 +20,51 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct EfiTableHeader {
+using EfiTableHeader = struct EfiTableHeader {
   uint64_t signature;
   uint32_t revision;
   uint32_t header_size;
   uint32_t crc32;
   uint32_t reserved;
-} EfiTableHeader;
+};
 
-typedef struct EfiGuid {
+using EfiGuid = struct EfiGuid {
   uint32_t data1;
   uint16_t data2;
   uint16_t data3;
   uint8_t data4[8];
-} EfiGuid;
+};
 
-typedef void *EfiHandle;
-typedef void *EfiEvent;
-typedef uint64_t EfiPhysicalAddr;
-typedef uint64_t EfiVirtualAddr;
+using EfiHandle = void *;
+using EfiEvent = void *;
+using EfiPhysicalAddr = uint64_t;
+using EfiVirtualAddr = uint64_t;
 
-typedef void (*EfiEventNotify)(EfiEvent event, void *ctx);
+using EfiEventNotify = void (*)(EfiEvent, void *);
 
-typedef enum EFI_EVENT_TYPE : uint32_t {
+using EfiEventType = enum EFI_EVENT_TYPE : uint32_t {
   TIMER = 0x80000000,
   RUNTIME = 0x40000000,
   NOTIFY_WAIT = 0x00000100,
   NOTIFY_SIGNAL = 0x00000200,
   SIGNAL_EXIT_BOOT_SERVICES = 0x00000201,
   SIGNAL_VIRTUAL_ADDRESS_CHANGE = 0x60000202,
-} EfiEventType;
+};
 
-typedef enum EFI_TPL : size_t {
+using EfiTpl = enum EFI_TPL : size_t {
   APPLICATION = 4,
   CALLBACK = 8,
   NOTIFY = 16,
   HIGH_LEVEL = 31,
-} EfiTpl;
+};
 
-typedef enum EFI_TIMER_DELAY {
+using EfiTimerDelay = enum EFI_TIMER_DELAY {
   TIMER_CANCEL,
   TIMER_PERIODIC,
   TIMER_RELATIVE
-} EfiTimerDelay;
+};
 
-typedef enum {
+enum EFI_MEMORY_TYPE {
   RESERVED_MEMORY_TYPE,
   LOADER_CODE,
   LOADER_DATA,
@@ -81,14 +81,14 @@ typedef enum {
   PAL_CODE,
   PERSISTENT_MEMORY,
   MAX_MEMORY_TYPE
-} EFI_MEMORY_TYPE;
+};
 
 typedef EFI_MEMORY_TYPE EfiMemoryType;
 
 #define EFI_ERROR_MASK ((uintptr_t)INTPTR_MAX + 1)
 #define EFI_ERR(x) (EFI_ERROR_MASK | (x))
 
-typedef enum EFI_STATUS : uintptr_t {
+using EfiStatus = enum EFI_STATUS : uintptr_t {
   SUCCESS = 0u,
   LOAD_ERROR = EFI_ERR(1),
   INVALID_PARAMETER = EFI_ERR(2),
@@ -126,6 +126,60 @@ typedef enum EFI_STATUS : uintptr_t {
   CONNECTION_FIN = EFI_ERR(104),
   CONNECTION_RESET = EFI_ERR(105),
   CONNECTION_REFUSED = EFI_ERR(106),
-} EfiStatus;
+};
+
+///
+/// EFI Time Abstraction:
+///  Year:       1900 - 9999
+///  Month:      1 - 12
+///  Day:        1 - 31
+///  Hour:       0 - 23
+///  Minute:     0 - 59
+///  Second:     0 - 59
+///  Nanosecond: 0 - 999,999,999
+///  TimeZone:   -1440 to 1440 or 2047
+///
+using EfiTime = struct {
+  uint16_t Year;
+  uint8_t Month;
+  uint8_t Day;
+  uint8_t Hour;
+  uint8_t Minute;
+  uint8_t Second;
+  uint8_t Pad1;
+  uint32_t Nanosecond;
+  int16_t TimeZone;
+  uint8_t Daylight;
+  uint8_t Pad2;
+};
+
+///
+/// This provides the capabilities of the
+/// real time clock device as exposed through the EFI interfaces.
+///
+using EFI_TIME_CAPABILITIES = struct {
+  ///
+  /// Provides the reporting resolution of the real-time clock device in
+  /// counts per second. For a normal PC-AT CMOS RTC device, this
+  /// value would be 1 Hz, or 1, to indicate that the device only reports
+  /// the time to the resolution of 1 second.
+  ///
+  uint32_t Resolution;
+  ///
+  /// Provides the timekeeping accuracy of the real-time clock in an
+  /// error rate of 1E-6 parts per million. For a clock with an accuracy
+  /// of 50 parts per million, the value in this field would be
+  /// 50,000,000.
+  ///
+  uint32_t Accuracy;
+  ///
+  /// A TRUE indicates that a time set operation clears the device's
+  /// time below the Resolution reporting level. A FALSE
+  /// indicates that the state below the Resolution level of the
+  /// device is not cleared when the time is set. Normal PC-AT CMOS
+  /// RTC devices set this value to FALSE.
+  ///
+  bool SetsToZero;
+};
 
 #endif // __EFI_TYPES_H__
