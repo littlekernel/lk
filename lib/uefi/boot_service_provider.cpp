@@ -113,9 +113,9 @@ EfiStatus handle_protocol(EfiHandle handle, const EfiGuid *protocol,
   if (guid_eq(protocol, LOADED_IMAGE_PROTOCOL_GUID)) {
     printf("handle_protocol(%p, LOADED_IMAGE_PROTOCOL_GUID, %p);\n", handle,
            intf);
-    auto loaded_image = static_cast<EFI_LOADED_IMAGE_PROTOCOL *>(
+    const auto loaded_image = static_cast<EFI_LOADED_IMAGE_PROTOCOL *>(
         malloc(sizeof(EFI_LOADED_IMAGE_PROTOCOL)));
-    loaded_image = {};
+    *loaded_image = {};
     loaded_image->Revision = EFI_LOADED_IMAGE_PROTOCOL_REVISION;
     loaded_image->ParentHandle = nullptr;
     loaded_image->SystemTable = nullptr;
@@ -323,7 +323,7 @@ EfiStatus allocate_pages(EfiAllocatorType type, EfiMemoryType memory_type,
   if (memory == nullptr) {
     return INVALID_PARAMETER;
   }
-  if (type == ALLOCATE_MAX_ADDRESS && *memory != 0xffffffffffffffff) {
+  if (type == ALLOCATE_MAX_ADDRESS && *memory < 0xFFFFFFFF) {
     printf("allocate_pages(%d, %d, %zu, 0x%llx) unsupported\n", type,
            memory_type, pages, *memory);
     return UNSUPPORTED;
@@ -382,6 +382,11 @@ EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key) {
   return SUCCESS;
 }
 
+void copy_mem(void *dest, const void *src, size_t len) {
+  memcpy(dest, src, len);
+}
+void set_mem(void *buf, size_t len, uint8_t val) { memset(buf, val, len); }
+
 } // namespace
 
 void setup_boot_service_table(EfiBootService *service) {
@@ -402,4 +407,6 @@ void setup_boot_service_table(EfiBootService *service) {
   service->locate_device_path = locate_device_path;
   service->install_configuration_table = install_configuration_table;
   service->exit_boot_services = exit_boot_services;
+  service->copy_mem = copy_mem;
+  service->set_mem = set_mem;
 }

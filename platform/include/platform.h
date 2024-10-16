@@ -82,5 +82,8 @@ void platform_init(void);
 /* called by the arch init code to get the platform to set up any mmu mappings it may need */
 void platform_init_mmu_mappings(void);
 
+/* Called by LK to get the device tree */
+const void *get_fdt(void);
+
 __END_CDECLS
 
