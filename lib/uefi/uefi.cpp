@@ -18,6 +18,7 @@
 #include "boot_service.h"
 #include "boot_service_provider.h"
 #include "defer.h"
+#include "kernel/thread.h"
 #include "pe.h"
 
 #include <lib/bio.h>
@@ -288,6 +289,7 @@ int load_sections_and_execute(bdev_t *dev,
   table.runtime_service = &runtime_service;
   table.boot_services = &boot_service;
   table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
+  table.header.revision = 2 << 16;
   EfiSimpleTextOutputProtocol console_out = get_text_output_protocol();
   table.con_out = &console_out;
   table.configuration_table =
@@ -306,7 +308,10 @@ int load_pe_file(const char *blkdev) {
     printf("error opening block device %s\n", blkdev);
     return -1;
   }
-  DEFER { bio_close(dev); };
+  DEFER {
+    bio_close(dev);
+    dev = nullptr;
+  };
   constexpr size_t kBlocKSize = 4096;
 
   lk_time_t t = current_time();

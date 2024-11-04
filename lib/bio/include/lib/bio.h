@@ -130,4 +130,23 @@ enum bio_ioctl_num {
     BIO_IOCTL_IS_MAPPED,    /* if supported, returns whether or not the device is memory mapped. */
 };
 
+// The callback will be called once for every block device, with the cookie and pointer
+// to the bdev structure. Note callback would be called with internal mutex held, which
+// prevents other process/threads from using APIs such as bio_open, so kindly ask callers
+// not to do any long blocking operations in callback functions. If the callback function
+// returns |false|, iteration stop immediately, and bio_iter_devices returns.
+void bio_iter_devices(bool (*callback)(void *, bdev_t *), void *cookie);
+
 __END_CDECLS
+
+#ifdef __cplusplus
+template <typename Callable>
+bool iter_device_callback(void *cookie, bdev_t *dev) {
+  auto func = reinterpret_cast<Callable *>(cookie);
+  return (*func)(dev);
+}
+
+template <typename Callable> void bio_iter_devices(Callable &&func) {
+  bio_iter_devices(&iter_device_callback<Callable>, &func);
+}
+#endif

@@ -534,6 +534,17 @@ void bio_unregister_device(bdev_t *dev) {
     bdev_dec_ref(dev); // remove the ref the list used to have
 }
 
+void bio_iter_devices(bool (*callback)(void *, bdev_t *), void *cookie) {
+  bdev_t *entry = NULL;
+  mutex_acquire(&bdevs.lock);
+  list_for_every_entry(&bdevs.list, entry, bdev_t, node) {
+    if (!callback(cookie, entry)) {
+      break;
+    }
+  }
+  mutex_release(&bdevs.lock);
+}
+
 void bio_dump_devices(void) {
     printf("block devices:\n");
     bdev_t *entry;
