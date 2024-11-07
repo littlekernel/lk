@@ -46,6 +46,7 @@ __BEGIN_CDECLS
 
 #define PAGE_ALIGN(x) ALIGN(x, PAGE_SIZE)
 #define IS_PAGE_ALIGNED(x) IS_ALIGNED(x, PAGE_SIZE)
+struct list_node *get_arena_list(void);
 
 struct mmu_initial_mapping {
     paddr_t phys;
@@ -259,7 +260,7 @@ void vmm_context_switch(vmm_aspace_t *oldspace, vmm_aspace_t *newaspace);
 
 /* set the current user aspace as active on the current thread.
    NULL is a valid argument, which unmaps the current user address space */
-void vmm_set_active_aspace(vmm_aspace_t *aspace);
+vmm_aspace_t* vmm_set_active_aspace(vmm_aspace_t *aspace);
 
 __END_CDECLS
 

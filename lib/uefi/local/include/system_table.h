@@ -21,27 +21,29 @@
 #include "types.h"
 
 #include "boot_service.h"
+#include "protocols/simple_text_input_protocol.h"
 #include "protocols/simple_text_output_protocol.h"
+#include "runtime_service.h"
 
-typedef struct {
+struct EfiConfigurationTable {
   EfiGuid vendor_guid;
-  const void* vendor_table;
-} EfiConfigurationTable;
+  void *vendor_table;
+};
 
-typedef struct EfiSystemTable {
+struct EfiSystemTable {
   EfiTableHeader header;
   char16_t* firmware_vendor;
   uint32_t firmware_revision;
   EfiHandle console_in_handle;
-  void* con_in;
+  EfiSimpleTextInputProtocol *con_in;
   EfiHandle console_out_handle;
   EfiSimpleTextOutputProtocol* con_out;
   EfiHandle standard_error_handle;
   EfiSimpleTextOutputProtocol* std_err;
-  void* runtime_service;
+  EfiRuntimeService *runtime_service;
   EfiBootService* boot_services;
   size_t number_of_table_entries;
-  const EfiConfigurationTable* configuration_table;
-} EfiSystemTable;
+  EfiConfigurationTable *configuration_table;
+};
 
 #endif  // __SYSTEM_TABLE_H__

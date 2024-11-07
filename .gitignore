@@ -17,3 +17,5 @@ tagit
 TAGS
 tags
 toolchain
+.cache
+vmlinux

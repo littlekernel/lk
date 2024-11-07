@@ -1,8 +1,40 @@
+/*
+ * Copyright (C) 2024 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 #ifndef __PE_HEADER_
 #define __PE_HEADER_
 
 #include <endian.h>
 #include <sys/types.h>
+
+//
+// Directory Entries
+//
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_EXPORT = 0;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_IMPORT = 1;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_RESOURCE = 2;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_EXCEPTION = 3;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_SECURITY = 4;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_BASERELOC = 5;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_DEBUG = 6;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_COPYRIGHT = 7;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_GLOBALPTR = 8;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_TLS = 9;
+static constexpr size_t IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG = 10;
 
 static constexpr size_t IMAGE_NUMBEROF_DIRECTORY_ENTRIES = 16;
 static constexpr size_t IMAGE_SIZEOF_SHORT_NAME = 8;
@@ -184,6 +216,40 @@ struct IMAGE_OPTIONAL_HEADER64 {
   IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
 } __attribute__((packed));
 
+struct IMAGE_OPTIONAL_HEADER32 {
+  u16 Magic;
+  u8 MajorLinkerVersion;
+  u8 MinorLinkerVersion;
+  u32 SizeOfCode;
+  u32 SizeOfInitializedData;
+  u32 SizeOfUninitializedData;
+  u32 AddressOfEntryPoint;
+  u32 BaseOfCode;
+  u32 BaseOfData;
+  u32 ImageBase;
+  u32 SectionAlignment;
+  u32 FileAlignment;
+  u16 MajorOperatingSystemVersion;
+  u16 MinorOperatingSystemVersion;
+  u16 MajorImageVersion;
+  u16 MinorImageVersion;
+  u16 MajorSubsystemVersion;
+  u16 MinorSubsystemVersion;
+  u32 Win32VersionValue;
+  u32 SizeOfImage;
+  u32 SizeOfHeaders;
+  u32 CheckSum;
+  u16 Subsystem;
+  u16 DllCharacteristics;
+  u32 SizeOfStackReserve;
+  u32 SizeOfStackCommit;
+  u32 SizeOfHeapReserve;
+  u32 SizeOfHeapCommit;
+  u32 LoaderFlags;
+  u32 NumberOfRvaAndSizes;
+  IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
+} __attribute__((packed));
+
 struct IMAGE_SECTION_HEADER {
   char Name[IMAGE_SIZEOF_SHORT_NAME];
   union {
@@ -204,5 +270,22 @@ struct IMAGE_NT_HEADERS64 {
   IMAGE_FILE_HEADER FileHeader;
   IMAGE_OPTIONAL_HEADER64 OptionalHeader;
 } __attribute__((packed));
+
+struct EFI_IMAGE_BASE_RELOCATION {
+  uint32_t VirtualAddress;
+  uint32_t SizeOfBlock;
+};
+
+static constexpr size_t EFI_IMAGE_REL_BASED_ABSOLUTE = 0;
+static constexpr size_t EFI_IMAGE_REL_BASED_HIGH = 1;
+static constexpr size_t EFI_IMAGE_REL_BASED_LOW = 2;
+static constexpr size_t EFI_IMAGE_REL_BASED_HIGHLOW = 3;
+static constexpr size_t EFI_IMAGE_REL_BASED_HIGHADJ = 4;
+static constexpr size_t EFI_IMAGE_REL_BASED_MIPS_JMPADDR = 5;
+static constexpr size_t EFI_IMAGE_REL_BASED_ARM_MOV32A = 5;
+static constexpr size_t EFI_IMAGE_REL_BASED_ARM_MOV32T = 7;
+static constexpr size_t EFI_IMAGE_REL_BASED_IA64_IMM64 = 9;
+static constexpr size_t EFI_IMAGE_REL_BASED_MIPS_JMPADDR16 = 9;
+static constexpr size_t EFI_IMAGE_REL_BASED_DIR64 = 10;
 
 #endif

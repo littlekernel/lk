@@ -12,6 +12,7 @@
 #include <lk/err.h>
 #include <lk/trace.h>
 #include <string.h>
+#include "kernel/thread.h"
 #include "vm_priv.h"
 
 #define LOCAL_TRACE 0
@@ -751,21 +752,24 @@ void vmm_context_switch(vmm_aspace_t *oldspace, vmm_aspace_t *newaspace) {
     arch_mmu_context_switch(newaspace ? &newaspace->arch_aspace : NULL);
 }
 
-void vmm_set_active_aspace(vmm_aspace_t *aspace) {
+vmm_aspace_t* vmm_set_active_aspace(vmm_aspace_t *aspace) {
     LTRACEF("aspace %p\n", aspace);
 
     thread_t *t = get_current_thread();
     DEBUG_ASSERT(t);
 
     if (aspace == t->aspace)
-        return;
+        return aspace;
 
     /* grab the thread lock and switch to the new address space */
     THREAD_LOCK(state);
     vmm_aspace_t *old = t->aspace;
-    t->aspace = aspace;
-    vmm_context_switch(old, t->aspace);
+    if (old != aspace) {
+        t->aspace = aspace;
+        vmm_context_switch(old, t->aspace);
+    }
     THREAD_UNLOCK(state);
+    return old;
 }
 
 static void dump_region(const vmm_region_t *r) {

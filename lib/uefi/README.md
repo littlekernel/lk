@@ -4,11 +4,13 @@
 make qemu-virt-arm64-test
 ```
 
+Note, this may fail if your system does not have `aarch64-elf-gcc` installed. To address, download from [here](https://newos.org/toolchains/aarch64-elf-14.2.0-Linux-x86_64.tar.xz), unzip, and add the extracted dir to PATH.
+
 ## Run
 
 ```
 qemu-system-aarch64 -cpu max -m 512 -smp 1 -machine virt,highmem=off \
-	-kernel qemu-virt-arm64-test/lk.elf \
+	-kernel build-qemu-virt-arm64-test/lk.elf \
 	-net none -nographic \
 	-drive if=none,file=lib/uefi/helloworld_aa64.efi,id=blk,format=raw \
 	-device virtio-blk-device,drive=blk
