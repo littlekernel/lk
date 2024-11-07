@@ -29,49 +29,58 @@ static void arm64_fpu_load_state(struct thread *t) {
 
 
     STATIC_ASSERT(sizeof(fpstate->regs) == 16 * 32);
-    __asm__ volatile("ldp     q0, q1, [%0, #(0 * 32)]\n"
-                     "ldp     q2, q3, [%0, #(1 * 32)]\n"
-                     "ldp     q4, q5, [%0, #(2 * 32)]\n"
-                     "ldp     q6, q7, [%0, #(3 * 32)]\n"
-                     "ldp     q8, q9, [%0, #(4 * 32)]\n"
-                     "ldp     q10, q11, [%0, #(5 * 32)]\n"
-                     "ldp     q12, q13, [%0, #(6 * 32)]\n"
-                     "ldp     q14, q15, [%0, #(7 * 32)]\n"
-                     "ldp     q16, q17, [%0, #(8 * 32)]\n"
-                     "ldp     q18, q19, [%0, #(9 * 32)]\n"
-                     "ldp     q20, q21, [%0, #(10 * 32)]\n"
-                     "ldp     q22, q23, [%0, #(11 * 32)]\n"
-                     "ldp     q24, q25, [%0, #(12 * 32)]\n"
-                     "ldp     q26, q27, [%0, #(13 * 32)]\n"
-                     "ldp     q28, q29, [%0, #(14 * 32)]\n"
-                     "ldp     q30, q31, [%0, #(15 * 32)]\n"
-                     "msr     fpcr, %1\n"
-                     "msr     fpsr, %2\n"
-                     :: "r"(fpstate), "r"(fpstate->fpcr), "r"(fpstate->fpsr));
+    __asm__ volatile(
+        ".arch_extension fp\n"
+        "ldp     q0, q1, [%0, #(0 * 32)]\n"
+        "ldp     q2, q3, [%0, #(1 * 32)]\n"
+        "ldp     q4, q5, [%0, #(2 * 32)]\n"
+        "ldp     q6, q7, [%0, #(3 * 32)]\n"
+        "ldp     q8, q9, [%0, #(4 * 32)]\n"
+        "ldp     q10, q11, [%0, #(5 * 32)]\n"
+        "ldp     q12, q13, [%0, #(6 * 32)]\n"
+        "ldp     q14, q15, [%0, #(7 * 32)]\n"
+        "ldp     q16, q17, [%0, #(8 * 32)]\n"
+        "ldp     q18, q19, [%0, #(9 * 32)]\n"
+        "ldp     q20, q21, [%0, #(10 * 32)]\n"
+        "ldp     q22, q23, [%0, #(11 * 32)]\n"
+        "ldp     q24, q25, [%0, #(12 * 32)]\n"
+        "ldp     q26, q27, [%0, #(13 * 32)]\n"
+        "ldp     q28, q29, [%0, #(14 * 32)]\n"
+        "ldp     q30, q31, [%0, #(15 * 32)]\n"
+        "msr     fpcr, %1\n"
+        "msr     fpsr, %2\n"
+        ".arch_extension nofp\n"
+        :: "r"(fpstate), "r"((uint64_t)fpstate->fpcr), "r"((uint64_t)fpstate->fpsr));
 }
 
 void arm64_fpu_save_state(struct thread *t) {
     struct fpstate *fpstate = &t->arch.fpstate;
-    __asm__ volatile("stp     q0, q1, [%2, #(0 * 32)]\n"
-                     "stp     q2, q3, [%2, #(1 * 32)]\n"
-                     "stp     q4, q5, [%2, #(2 * 32)]\n"
-                     "stp     q6, q7, [%2, #(3 * 32)]\n"
-                     "stp     q8, q9, [%2, #(4 * 32)]\n"
-                     "stp     q10, q11, [%2, #(5 * 32)]\n"
-                     "stp     q12, q13, [%2, #(6 * 32)]\n"
-                     "stp     q14, q15, [%2, #(7 * 32)]\n"
-                     "stp     q16, q17, [%2, #(8 * 32)]\n"
-                     "stp     q18, q19, [%2, #(9 * 32)]\n"
-                     "stp     q20, q21, [%2, #(10 * 32)]\n"
-                     "stp     q22, q23, [%2, #(11 * 32)]\n"
-                     "stp     q24, q25, [%2, #(12 * 32)]\n"
-                     "stp     q26, q27, [%2, #(13 * 32)]\n"
-                     "stp     q28, q29, [%2, #(14 * 32)]\n"
-                     "stp     q30, q31, [%2, #(15 * 32)]\n"
-                     "mrs     %0, fpcr\n"
-                     "mrs     %1, fpsr\n"
-                     : "=r"(fpstate->fpcr), "=r"(fpstate->fpsr)
-                     : "r"(fpstate));
+    uint64_t fpcr, fpsr;
+    __asm__ volatile(
+        ".arch_extension fp\n"
+        "stp     q0, q1, [%2, #(0 * 32)]\n"
+        "stp     q2, q3, [%2, #(1 * 32)]\n"
+        "stp     q4, q5, [%2, #(2 * 32)]\n"
+        "stp     q6, q7, [%2, #(3 * 32)]\n"
+        "stp     q8, q9, [%2, #(4 * 32)]\n"
+        "stp     q10, q11, [%2, #(5 * 32)]\n"
+        "stp     q12, q13, [%2, #(6 * 32)]\n"
+        "stp     q14, q15, [%2, #(7 * 32)]\n"
+        "stp     q16, q17, [%2, #(8 * 32)]\n"
+        "stp     q18, q19, [%2, #(9 * 32)]\n"
+        "stp     q20, q21, [%2, #(10 * 32)]\n"
+        "stp     q22, q23, [%2, #(11 * 32)]\n"
+        "stp     q24, q25, [%2, #(12 * 32)]\n"
+        "stp     q26, q27, [%2, #(13 * 32)]\n"
+        "stp     q28, q29, [%2, #(14 * 32)]\n"
+        "stp     q30, q31, [%2, #(15 * 32)]\n"
+        "mrs     %0, fpcr\n"
+        "mrs     %1, fpsr\n"
+        ".arch_extension nofp\n"
+        : "=r"(fpcr), "=r"(fpsr)
+        : "r"(fpstate));
+    fpstate->fpcr = (uint32_t)fpcr;
+    fpstate->fpsr = (uint32_t)fpsr;
 
     LTRACEF("thread %s, fpcr %x, fpsr %x\n", t->name, fpstate->fpcr, fpstate->fpsr);
 }
