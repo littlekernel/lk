@@ -31,12 +31,6 @@ static void arm64_cpu_early_init(void) {
     /* set the vector base */
     ARM64_WRITE_SYSREG(VBAR_EL1, (uint64_t)&arm64_exception_base);
 
-    /* switch to EL1 */
-    unsigned int current_el = ARM64_READ_SYSREG(CURRENTEL) >> 2;
-    if (current_el > 1) {
-        arm64_el3_to_el1();
-    }
-
     arch_enable_fiqs();
 }
 

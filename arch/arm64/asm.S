@@ -43,37 +43,6 @@ FUNCTION(arm64_context_switch)
 
     ret
 
-FUNCTION(arm64_el3_to_el1)
-    /* set EL2 to 64bit */
-    mrs x0, scr_el3
-    orr x0, x0, #(1<<10)
-    msr scr_el3, x0
-
-    /* set EL1 to 64bit */
-    mov x0, #(1<<31)
-    msr hcr_el2, x0
-
-    /* disable EL2 coprocessor traps */
-    mov x0, #0x33ff
-    msr cptr_el2, x0
-
-    /* disable EL1 FPU traps */
-    mov x0, #(0b11<<20)
-    msr cpacr_el1, x0
-
-    /* set up the EL1 bounce interrupt */
-    mov x0, sp
-    msr sp_el1, x0
-
-    adr x0, .Ltarget
-    msr elr_el3, x0
-
-    mov x0, #((0b1111 << 6) | (0b0101)) /* EL1h runlevel */
-    msr spsr_el3, x0
-    isb
-
-    eret
-
     /* drop from whatever EL we may already be in to EL1.
      * carefully avoids using x0-x3 since this is called from start.S
      * which is trying to preserve them.
