@@ -84,7 +84,7 @@ FUNCTION(arm64_elX_to_el1)
     cmp x4, #(0b01 << 2)
     bne .notEL1
     /* Already in EL1 */
-    ret 
+    ret
 
 .notEL1:
     cmp x4, #(0b10 << 2)
@@ -95,6 +95,7 @@ FUNCTION(arm64_elX_to_el1)
     orr x4, x4, #(1<<10)
     msr scr_el3, x4
 
+    /* prep this mode's ELR and SPSR to drop into EL1 */
     adr x4, .Ltarget
     msr elr_el3, x4
 
@@ -103,6 +104,7 @@ FUNCTION(arm64_elX_to_el1)
     b   .confEL1
 
 .inEL2:
+    /* prep this mode's ELR and SPSR to drop into EL1 */
     adr x4, .Ltarget
     msr elr_el2, x4
     mov x4, #((0b1111 << 6) | (0b0101)) /* EL1h runlevel */
@@ -113,13 +115,19 @@ FUNCTION(arm64_elX_to_el1)
     mov x4, #0x33ff
     msr cptr_el2, x4
 
-    /* set EL1 to 64bit */
+    /* set EL1 to 64bit and disable EL2 instruction traps */
     mov x4, #(1<<31)
     msr hcr_el2, x4
 
     /* set up the EL1 bounce interrupt */
     mov x4, sp
     msr sp_el1, x4
+
+    /* make sure MPIDR_EL1 and MIDR_EL1 are set with the proper values */
+    mrs x4, mpidr_el1
+    msr vmpidr_el2, x4
+    mrs x4, midr_el1
+    msr vpidr_el2, x4
 
     isb
     eret
