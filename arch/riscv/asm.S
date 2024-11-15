@@ -156,7 +156,7 @@ LOCAL_FUNCTION(kernel_exception_entry)
 
     // bool kernel = true
     li     a3, 1
-    jal    riscv_exception_handler
+    call   riscv_exception_handler
 
     restore_regs 0
 
@@ -169,7 +169,7 @@ LOCAL_FUNCTION(user_exception_entry)
 
     // bool kernel = false
     li     a3, 0
-    jal    riscv_exception_handler
+    call   riscv_exception_handler
 
     restore_regs 1
 

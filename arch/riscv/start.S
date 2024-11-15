@@ -85,7 +85,7 @@ FUNCTION(_start)
 #endif
 
 #if RISCV_MMU
-    jal     _mmu_init
+    call    _mmu_init
 #endif
 
 #if WITH_SMP
@@ -102,14 +102,14 @@ FUNCTION(_start)
     mv      s1, a1
     mv      s2, a2
     mv      s3, a3
-    jal     riscv_configure_percpu_early
+    call    riscv_configure_percpu_early
     mv      a0, s0
     mv      a1, s1
     mv      a2, s2
     mv      a3, s3
 
     // call main
-    jal     lk_main
+    call    lk_main
 
     // should never return here
     j       .
@@ -127,17 +127,17 @@ LOCAL_FUNCTION(secondary_trap)
 
 #if RISCV_MMU
     // enable the mmu on this core
-    jal     .Lenable_mmu
+    call    .Lenable_mmu
 #endif
 
     // a0 == hart id
     // a2 == assigned cpu id (may not be the same)
 
     // set the per cpu structure before getting into the secondary boot path
-    jal     riscv_configure_percpu_early
+    call    riscv_configure_percpu_early
 
     // bootstrap the secondary cpus
-    jal     riscv_secondary_entry
+    call    riscv_secondary_entry
 #endif
     // fallthrough if either no SMP or riscv_secondary_entry returns
 END_FUNCTION(secondary_trap)
