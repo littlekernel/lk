@@ -40,7 +40,11 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     {
         .phys = MEMBASE,
         .virt = KERNEL_BASE,
+#if X86_LEGACY
+        .size = 16*MB, /* only map the first 16MB on legacy x86 due to page table usage */
+#else
         .size = 1*GB, /* x86 maps first 1GB by default */
+#endif
         .flags = 0,
         .name = "kernel"
     },
@@ -65,8 +69,6 @@ static tss_t system_tss __ALIGNED(16);
 void arch_early_init(void) {
     /* enable caches here for now */
     clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
-
-    memset(&system_tss, 0, sizeof(system_tss));
 
 #if ARCH_X86_32
     system_tss.esp0 = 0;
