@@ -14,6 +14,7 @@ Checks: >
 
   misc-*,
   -misc-noexcept*,
+  -misc-no-recursion,
   -misc-unused-parameters,
   -misc-const-correctness,
   -misc-include-cleaner,
