@@ -80,8 +80,7 @@ FUNCTION(_start)
     // Save a copy of _start in physical space. This is later used
     // as the entry point for secondary cpus.
     lla     t0, _start
-    lla     t1, _start_physical
-    STR     t0, (t1)
+    STR     t0, (_start_physical), t1
 #endif
 
 #if RISCV_MMU
@@ -91,9 +90,8 @@ FUNCTION(_start)
 #if WITH_SMP
     // Release any other harts into riscv_secondary_entry
     fence   w, w
-    lla     t1, _boot_status
     li      t0, 1
-    sb      t0, (t1)
+    sb      t0, (_boot_status), t1
     fence
 #endif
 
@@ -118,8 +116,7 @@ END_FUNCTION(_start)
 LOCAL_FUNCTION(secondary_trap)
 #if WITH_SMP
     // wait for _boot_status to be nonzero, then go into riscv_secondary_entry
-    lla     t5, _boot_status
-    lb      t0, (t5)
+    lb      t0, (_boot_status)
     beqz    t0, secondary_trap
 
     // we've been released by the main cpu and/or we've been booted after the
@@ -156,18 +153,15 @@ LOCAL_FUNCTION(_mmu_init)
     lla     t0, trampoline_pgtable
 
     // store the physical address of the pgtable for future use
-    lla     t1, trampoline_pgtable_phys
-    sd      t0, (t1)
+    sd      t0, (trampoline_pgtable_phys), t1
 
     // do the same for the main kernel pgtable
     lla     t2, kernel_pgtable
-    lla     t1, kernel_pgtable_phys
-    sd      t2, (t1)
+    sd      t2, (kernel_pgtable_phys), t1
 
     // and the 2nd level tables
     lla     t2, kernel_l2_pgtable
-    lla     t1, kernel_l2_pgtable_phys
-    sd      t2, (t1)
+    sd      t2, (kernel_l2_pgtable_phys), t1
 
     // compute kernel pgtable pointer (index 256)
     addi    t1, t0, (8 * 128)
@@ -227,8 +221,7 @@ LOCAL_FUNCTION(_mmu_init)
     lla     t1, .Lhigh
 
     // bounce to the high address
-    lla     t0, .Lhigh_addr
-    ld      t0, (t0)
+    ld      t0, (.Lhigh_addr)
     jr      t0
 
     // the full virtual address of the .Lhigh label
