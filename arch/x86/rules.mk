@@ -58,6 +58,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/faults.c \
 	$(LOCAL_DIR)/feature.c \
 	$(LOCAL_DIR)/gdt.S \
+	$(LOCAL_DIR)/mp.c \
 	$(LOCAL_DIR)/thread.c \
 
 # legacy x86's dont have fpu support

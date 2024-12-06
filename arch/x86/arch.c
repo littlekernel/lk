@@ -19,35 +19,31 @@
 #include <kernel/vm.h>
 #include <platform.h>
 #include <sys/types.h>
-#include <string.h>
 
 /* Describe how start.S sets up the MMU.
  * These data structures are later used by vm routines to lookup pointers
  * to physical pages based on physical addresses.
  */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
-#if ARCH_X86_64
-    /* 64GB of memory mapped where the kernel lives */
+    /* 64GB of the first 64GB of memory mapped 1:1 */
     {
         .phys = MEMBASE,
         .virt = KERNEL_ASPACE_BASE,
-        .size = PHYSMAP_SIZE, /* x86-64 maps first 64GB by default, 1GB on x86-32 */
+        .size = PHYSMAP_SIZE, /* x86-64 maps first 64GB by default, 1GB on x86-32, 16MB in legacy mode */
         .flags = 0,
         .name = "physmap"
     },
-#endif
-    /* 1GB of memory mapped where the kernel lives */
+#if ARCH_X86_64
+    /* Another linear map of the first GB of memory where the kernel image
+     * lives at the top of the address space. */
     {
         .phys = MEMBASE,
         .virt = KERNEL_BASE,
-#if X86_LEGACY
-        .size = 16*MB, /* only map the first 16MB on legacy x86 due to page table usage */
-#else
-        .size = 1*GB, /* x86 maps first 1GB by default */
-#endif
+        .size = 1*GB,
         .flags = 0,
         .name = "kernel"
     },
+#endif
 
     /* null entry to terminate the list */
     { 0 }
@@ -70,6 +66,7 @@ void arch_early_init(void) {
     /* enable caches here for now */
     clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
 
+    /* configure the system TSS */
 #if ARCH_X86_32
     system_tss.esp0 = 0;
     system_tss.ss0 = DATA_SELECTOR;
@@ -78,9 +75,10 @@ void arch_early_init(void) {
     system_tss.eflags = 0x00003002;
     system_tss.bitmap = offsetof(tss_32_t, tss_bitmap);
     system_tss.trace = 1; // trap on hardware task switch
+#elif ARCH_X86_64
+    /* nothing to be done here, a fully zeroed TSS is a good starting point */
 #endif
-
-    set_global_desc(TSS_SELECTOR, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
+    x86_set_gdt_descriptor(TSS_SELECTOR, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
     x86_ltr(TSS_SELECTOR);
 
     x86_feature_early_init();

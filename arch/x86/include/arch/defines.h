@@ -18,8 +18,13 @@
 
 /* based on how start.S sets up the physmap */
 #if ARCH_X86_64
-#define PHYSMAP_SIZE (64ULL*GB)
+#define PHYSMAP_SIZE (64ULL*1024*1024*1024)
+#elif X86_LEGACY
+/* Only map the first 16MB on legacy x86 due to page table usage
+ * due to lack of 4MB pages. */
+#define PHYSMAP_SIZE (16ULL*1024*1024)
 #elif ARCH_X86_32
-#define PHYSMAP_SIZE (1ULL*GB)
+/* Map 1GB by default for x86-32 */
+#define PHYSMAP_SIZE (1ULL*1024*1024*1024)
 #endif
 

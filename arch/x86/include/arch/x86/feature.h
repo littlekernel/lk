@@ -24,7 +24,6 @@
 #pragma once
 
 #include <arch/x86.h>
-#include <inttypes.h>
 #include <lk/compiler.h>
 #include <stdbool.h>
 #include <assert.h>

@@ -421,7 +421,7 @@ bool arch_mmu_supports_user_aspaces(void) { return false; }
 
 void x86_mmu_early_init(void) {
     /* Set WP bit in CR0*/
-    volatile uint32_t cr0 = x86_get_cr0();
+    uint32_t cr0 = x86_get_cr0();
     cr0 |= X86_CR0_WP;
     x86_set_cr0(cr0);
 

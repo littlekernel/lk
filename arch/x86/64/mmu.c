@@ -624,15 +624,13 @@ bool arch_mmu_supports_ns_mappings(void) { return false; }
 bool arch_mmu_supports_user_aspaces(void) { return false; }
 
 void x86_mmu_early_init(void) {
-    volatile uint64_t efer_msr, cr0, cr4;
-
     /* Set WP bit in CR0*/
-    cr0 = x86_get_cr0();
+    uint64_t cr0 = x86_get_cr0();
     cr0 |= X86_CR0_WP;
     x86_set_cr0(cr0);
 
     /* Setting the SMEP & SMAP bit in CR4 */
-    cr4 = x86_get_cr4();
+    uint64_t cr4 = x86_get_cr4();
     if (x86_feature_test(X86_FEATURE_SMEP))
         cr4 |= X86_CR4_SMEP;
     if (x86_feature_test(X86_FEATURE_SMAP))
@@ -640,7 +638,7 @@ void x86_mmu_early_init(void) {
     x86_set_cr4(cr4);
 
     /* Set NXE bit in MSR_EFER*/
-    efer_msr = read_msr(X86_MSR_IA32_EFER);
+    uint64_t efer_msr = read_msr(X86_MSR_IA32_EFER);
     efer_msr |= X86_EFER_NXE;
     write_msr(X86_MSR_IA32_EFER, efer_msr);
 

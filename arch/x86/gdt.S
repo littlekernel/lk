@@ -123,7 +123,10 @@ _tss_gde:
     .byte  0x89             /* P(1) DPL(00) S(0) TYPE(9) */
     .byte  0x80             /* G(1) D/B(0) L(0) AVL(0) limit 19:16 */
     .byte  0                /* base 31:24 */
+#if ARCH_X86_64
+    /* 64-bit TSSs are 16 bytes long */
     .quad  0x0000000000000000
+#endif
 .set i, i+1
 .endr
 
