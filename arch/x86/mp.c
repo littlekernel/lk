@@ -15,6 +15,8 @@
 #include <arch/arch_ops.h>
 #include <sys/types.h>
 
+#if WITH_SMP
+
 // the boot cpu's percpu struct
 static x86_percpu_t x86_boot_percpu;
 // pointer to an array of percpu structs for each of the secondary cpus
@@ -47,7 +49,6 @@ void x86_percpu_init_early(uint cpu_num, uint apic_id) {
     x86_set_gdt_descriptor(selector, percpu, sizeof(*percpu), 1, 0, 1, SEG_TYPE_DATA_RW, 0, 1);
     x86_set_gs(selector);
 #endif
-    __UNUSED volatile uint foo = x86_get_cpu_num();
 }
 
 status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
@@ -56,3 +57,9 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
 
 void arch_mp_init_percpu(void) {
 }
+
+#else
+
+void x86_percpu_init_early(uint cpu_num, uint apic_id) {}
+
+#endif

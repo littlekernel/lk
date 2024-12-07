@@ -230,6 +230,7 @@ static_assert(sizeof(struct acpi_madt_int_source_override_entry) == 10, "");
 #define ACPI_MADT_FLAG_TRIGGER_MASK 0b1100
 
 // DBG2 table
+// From https://learn.microsoft.com/en-us/windows-hardware/drivers/bringup/acpi-debug-port-table
 #define ACPI_DBG2_SIG "DBG2"
 struct acpi_dbg2_table {
   struct acpi_sdt_header header;
@@ -263,7 +264,13 @@ static_assert(sizeof(struct acpi_dbg2_device) == 22, "");
 // debug port subtypes
 #define ACPI_DBG2_SUBTYPE_16550_COMPATIBLE 0x0000
 #define ACPI_DBG2_SUBTYPE_16550_SUBSET 0x0001
+#define ACPI_DBG2_SUBTYPE_PL011 0x0003
+#define ACPI_DBG2_SUBTYPE_ARM_SBSA 0x000e
+#define ACPI_DBG2_SUBTYPE_16550_DESCRIBED 0x0012
+#define ACPI_DBG2_SUBTYPE_RISCV_SBI 0x0015
+
 #define ACPI_DBG2_SUBTYPE_1394_STANDARD 0x0000
+
 #define ACPI_DBG2_SUBTYPE_USB_XHCI 0x0000
 #define ACPI_DBG2_SUBTYPE_USB_EHCI 0x0001
 

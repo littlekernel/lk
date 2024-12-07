@@ -26,3 +26,5 @@ void pic_mask_interrupts(void);
 void lapic_init(void);
 void lapic_eoi(unsigned int vector);
 
+// secondary cpus
+void platform_start_secondary_cpus(void);
