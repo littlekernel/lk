@@ -17,18 +17,19 @@
 #include <arch/x86/descriptor.h>
 #include <arch/fpu.h>
 
+#if !WITH_SMP
 /* we're uniprocessor at this point for x86, so store a global pointer to the current thread */
 struct thread *_current_thread;
+#endif
 
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void) {
-    int ret;
-
     /* release the thread lock that was implicitly held across the reschedule */
     spin_unlock(&thread_lock);
     arch_enable_ints();
 
-    ret = _current_thread->entry(_current_thread->arg);
+    thread_t *ct = arch_get_current_thread();
+    int ret = ct->entry(ct->arg);
 
     thread_exit(ret);
 }

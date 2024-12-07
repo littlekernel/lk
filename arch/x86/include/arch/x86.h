@@ -471,6 +471,42 @@ static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val) {
         : : "c" (msr_id), "a" (low_val), "d"(high_val));
 }
 
+static inline uint64_t x86_read_gs_offset64(uintptr_t offset) {
+  uint64_t ret;
+  __asm__("movq  %%gs:%1, %0" : "=r"(ret) : "m"(*(uint64_t*)(offset)));
+  return ret;
+}
+
+static inline void x86_write_gs_offset64(uintptr_t offset, uint64_t val) {
+  __asm__("movq  %0, %%gs:%1" : : "ir"(val), "m"(*(uint64_t*)(offset)) : "memory");
+}
+
+static inline uint32_t x86_read_gs_offset32(uintptr_t offset) {
+  uint32_t ret;
+  __asm__("movl  %%gs:%1, %0" : "=r"(ret) : "m"(*(uint32_t*)(offset)));
+  return ret;
+}
+
+static inline void x86_write_gs_offset32(uintptr_t offset, uint32_t val) {
+  __asm__("movl   %0, %%gs:%1" : : "ir"(val), "m"(*(uint32_t*)(offset)) : "memory");
+}
+
+#if __SIZEOF_POINTER__ == 8
+static inline void *x86_read_gs_offset_ptr(uintptr_t offset) {
+    return (void *)x86_read_gs_offset64(offset);
+}
+static inline void x86_write_gs_offset_ptr(uintptr_t offset, void *val) {
+    x86_write_gs_offset64(offset, (uint64_t)(val));
+}
+#else
+static inline void *x86_read_gs_offset_ptr(uintptr_t offset) {
+    return (void *)x86_read_gs_offset32(offset);
+}
+static inline void x86_write_gs_offset_ptr(uintptr_t offset, void *val) {
+    x86_write_gs_offset32(offset, (uint64_t)(val));
+}
+#endif
+
 typedef ulong x86_flags_t;
 
 static inline x86_flags_t x86_save_flags(void) {

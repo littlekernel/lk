@@ -50,6 +50,20 @@ static inline ulong arch_cycle_count(void) {
 #endif
 }
 
+#if WITH_SMP
+#include <arch/x86/mp.h>
+static inline struct thread *arch_get_current_thread(void) {
+    return x86_get_current_thread();
+}
+
+static inline void arch_set_current_thread(struct thread *t) {
+    x86_set_current_thread(t);
+}
+
+static inline uint arch_curr_cpu_num(void) {
+    return x86_get_cpu_num();
+}
+#else
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;
 
@@ -64,6 +78,7 @@ static inline void arch_set_current_thread(struct thread *t) {
 static inline uint arch_curr_cpu_num(void) {
     return 0;
 }
+#endif
 
 #if ARCH_X86_64
 // relies on SSE2

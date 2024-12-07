@@ -8,7 +8,10 @@
 #include <arch/x86/mp.h>
 
 #include <assert.h>
+#include <lk/err.h>
+#include <arch/mp.h>
 #include <arch/x86.h>
+#include <arch/arch_ops.h>
 #include <sys/types.h>
 
 // the boot cpu's percpu struct
@@ -16,7 +19,7 @@ static x86_percpu_t x86_boot_percpu;
 // pointer to an array of percpu structs for each of the secondary cpus
 static x86_percpu_t **x86_ap_percpus;
 
-static x86_percpu_t *percpu_for_cpu(uint cpu_num) {
+x86_percpu_t *x86_get_percpu_for_cpu(uint cpu_num) {
     DEBUG_ASSERT(cpu_num < SMP_MAX_CPUS);
     if (cpu_num == 0) {
         return &x86_boot_percpu;
@@ -26,8 +29,9 @@ static x86_percpu_t *percpu_for_cpu(uint cpu_num) {
 }
 
 void x86_percpu_init_early(uint cpu_num, uint apic_id) {
-    x86_percpu_t *percpu = percpu_for_cpu(cpu_num);
+    x86_percpu_t *percpu = x86_get_percpu_for_cpu(cpu_num);
 
+    // initialize the percpu structure for this cpu
     percpu->self = percpu;
     percpu->cpu_num = cpu_num;
     percpu->apic_id = apic_id;
@@ -37,6 +41,13 @@ void x86_percpu_init_early(uint cpu_num, uint apic_id) {
     write_msr(X86_MSR_IA32_KERNEL_GS_BASE, 0);
     write_msr(X86_MSR_IA32_GS_BASE, (uint64_t)percpu);
 #else
-//#error implement
+#error implement
 #endif
+}
+
+status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
+    PANIC_UNIMPLEMENTED;
+}
+
+void arch_mp_init_percpu(void) {
 }

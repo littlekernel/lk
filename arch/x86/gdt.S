@@ -125,7 +125,8 @@ _tss_gde:
     .byte  0                /* base 31:24 */
 #if ARCH_X86_64
     /* 64-bit TSSs are 16 bytes long */
-    .quad  0x0000000000000000
+    .int   0                /* base 63:32 */
+    .int   0                /* type(0) + reserved */
 #endif
 .set i, i+1
 .endr
