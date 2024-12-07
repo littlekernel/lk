@@ -12,6 +12,8 @@
 #include <lib/acpi_lite.h>
 #include <lk/trace.h>
 
+#if WITH_SMP
+
 #define LOCAL_TRACE 1
 
 static void start_cpu(uint cpu_num, uint32_t apic_id) {
@@ -61,3 +63,4 @@ void platform_start_secondary_cpus(void) {
     }
 }
 
+#endif // WITH_SMP

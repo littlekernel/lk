@@ -224,7 +224,7 @@ void platform_init(void) {
     platform_init_keyboard(&console_input_buf);
 
     // Look for the root ACPI table
-    bool found_acpi = false;
+    __UNUSED bool found_acpi = false;
     if (acpi_lite_init(0) == NO_ERROR) {
         if (LOCAL_TRACE) {
             acpi_lite_dump_tables(false);
@@ -234,7 +234,9 @@ void platform_init(void) {
     }
 
     // Look for secondary cpus
+#if WITH_SMP
     platform_start_secondary_cpus();
+#endif
 
 #if WITH_DEV_BUS_PCI
     bool pci_initted = false;
