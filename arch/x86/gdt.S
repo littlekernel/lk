@@ -112,8 +112,7 @@ _user_data_64_gde:
     .byte  0b11001111       /* G(1) B(1) 0 0 limit 19:16 */
     .byte  0x0              /* base 31:24 */
 
-/* TSS descriptor */
-.set tsssel, . - _gdt
+/* per-cpu TSS descriptor */
 _tss_gde:
 .set i, 1
 .rept SMP_MAX_CPUS
@@ -130,6 +129,17 @@ _tss_gde:
 #endif
 .set i, i+1
 .endr
+
+/* per-cpu GS descriptor for x86-32 */
+#if ARCH_X86_32
+_percpu_gde:
+.set i, 1
+.rept SMP_MAX_CPUS
+    .int   0               /* filled in by C code later */
+    .int   0
+.set i, i+1
+.endr
+#endif
 
 END_DATA(_gdt)
 

@@ -316,6 +316,23 @@ static inline void x86_set_cr4(ulong in_val) {
   __asm__ __volatile__("mov %0,%%cr4 \n\t" : : "r"(in_val));
 }
 
+#define DEFINE_REGISTER_ACCESSOR(REG)                     \
+  static inline void x86_set_##REG(uint16_t value) {          \
+    __asm__ volatile("mov %0, %%" #REG : : "r"(value));   \
+  }                                                       \
+  static inline uint16_t x86_get_##REG(void) {                    \
+    uint16_t value;                                       \
+    __asm__ volatile("mov %%" #REG ", %0" : "=r"(value)); \
+    return value;                                         \
+  }
+
+DEFINE_REGISTER_ACCESSOR(ds)
+DEFINE_REGISTER_ACCESSOR(es)
+DEFINE_REGISTER_ACCESSOR(fs)
+DEFINE_REGISTER_ACCESSOR(gs)
+
+#undef DEFINE_REGISTER_ACCESSOR
+
 static inline uint8_t inp(uint16_t _port) {
   uint8_t rv;
   __asm__ __volatile__("inb %1, %0" : "=a"(rv) : "dN"(_port));
@@ -471,6 +488,9 @@ static inline void write_msr (uint32_t msr_id, uint64_t msr_write_val) {
         : : "c" (msr_id), "a" (low_val), "d"(high_val));
 }
 
+#pragma GCC diagnostic push
+/* The dereference of offset in the inline asm below generates this warning in GCC */
+#pragma GCC diagnostic ignored "-Warray-bounds"
 static inline uint64_t x86_read_gs_offset64(uintptr_t offset) {
   uint64_t ret;
   __asm__("movq  %%gs:%1, %0" : "=r"(ret) : "m"(*(uint64_t*)(offset)));
@@ -490,7 +510,9 @@ static inline uint32_t x86_read_gs_offset32(uintptr_t offset) {
 static inline void x86_write_gs_offset32(uintptr_t offset, uint32_t val) {
   __asm__("movl   %0, %%gs:%1" : : "ir"(val), "m"(*(uint32_t*)(offset)) : "memory");
 }
+#pragma GCC diagnostic pop
 
+/* cannot easily use C generics or C++ templates here, so do it the hard way */
 #if __SIZEOF_POINTER__ == 8
 static inline void *x86_read_gs_offset_ptr(uintptr_t offset) {
     return (void *)x86_read_gs_offset64(offset);
@@ -503,7 +525,7 @@ static inline void *x86_read_gs_offset_ptr(uintptr_t offset) {
     return (void *)x86_read_gs_offset32(offset);
 }
 static inline void x86_write_gs_offset_ptr(uintptr_t offset, void *val) {
-    x86_write_gs_offset32(offset, (uint64_t)(val));
+    x86_write_gs_offset32(offset, (uint32_t)(val));
 }
 #endif
 

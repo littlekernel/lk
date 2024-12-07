@@ -78,8 +78,8 @@ void arch_early_init(void) {
 #elif ARCH_X86_64
     /* nothing to be done here, a fully zeroed TSS is a good starting point */
 #endif
-    x86_set_gdt_descriptor(TSS_SELECTOR, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
-    x86_ltr(TSS_SELECTOR);
+    x86_set_gdt_descriptor(TSS_SELECTOR_BASE, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
+    x86_ltr(TSS_SELECTOR_BASE);
 
     x86_feature_early_init();
 

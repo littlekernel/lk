@@ -182,6 +182,11 @@ main_lk:
     /* set up the idt */
     call setup_idt
 
+    /* set up the percpu data structure pointer for the boot cpu */
+    pushl $0
+    pushl $0
+    call x86_percpu_init_early
+
     /* call the main module */
     call lk_main
 0:                          /* just sit around waiting for interrupts */

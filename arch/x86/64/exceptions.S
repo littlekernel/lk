@@ -65,6 +65,8 @@ LOCAL_FUNCTION(interrupt_common)
     pushq %rsi
     pushq %rdi
 
+    /* TODO: deal with swapgs if coming from user space */
+
     /* pass the  iframe using rdi */
     movq %rsp, %rdi
 

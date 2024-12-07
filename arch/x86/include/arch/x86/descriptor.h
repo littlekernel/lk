@@ -26,7 +26,10 @@
 #define USER_DATA_64_SELECTOR   0x40
 
 /* base selector for a list of TSSes, one per cpu (SMP_MAX_CPUS) */
-#define TSS_SELECTOR        0x48
+#define TSS_SELECTOR_BASE       0x48
+
+/* base selector for a gs segment per cpu (SMP_MAX_CPUS) */
+#define PERCPU_SELECTOR_BASE    (TSS_SELECTOR_BASE + 8 * SMP_MAX_CPUS)
 
 /* code/data segment types (S = 1) */
 /* bit 0 is accessed */
