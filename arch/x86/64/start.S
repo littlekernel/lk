@@ -96,7 +96,7 @@ paging_setup:
 
     /* PAE bit must be enabled  for 64 bit paging*/
     mov %cr4, %eax
-    btsl $(5), %eax
+    or  $(1<<5), %eax
     mov %eax, %cr4
 
     /* load the physical pointer to the top level page table */
@@ -200,6 +200,15 @@ highaddr:
 
     /* reload the gdtr */
     lgdt _gdtr
+
+    /* zero out the data selectors */
+    xor  %eax, %eax
+    movw %ax, %ds
+    movw %ax, %es
+    movw %ax, %fs
+    movw %ax, %ss
+    movw %ax, %gs
+    movw %ax, %ss
 
     /* set up the idt */
     call setup_idt

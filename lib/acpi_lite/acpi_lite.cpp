@@ -407,7 +407,7 @@ void acpi_lite_dump_tables(bool full_dump) {
   }
 }
 
-status_t acpi_process_madt_entries_etc(const uint8_t search_type, const madt_entry_callback callback, void *cookie) {
+status_t acpi_process_madt_entries_etc(const uint8_t search_type, const madt_entry_callback callback, void * const cookie) {
   const acpi_madt_table* madt =
       reinterpret_cast<const acpi_madt_table*>(acpi_get_table_by_sig(ACPI_MADT_SIG));
   if (!madt) {
@@ -462,6 +462,5 @@ void acpi_lite_dump_madt_table() {
     acpi_process_madt_entries_etc(ACPI_MADT_TYPE_IO_APIC, io_apic_callback, nullptr);
     acpi_process_madt_entries_etc(ACPI_MADT_TYPE_INT_SOURCE_OVERRIDE, int_source_override_callback, nullptr);
 }
-
 
 // vim: set ts=2 sw=2 expandtab:

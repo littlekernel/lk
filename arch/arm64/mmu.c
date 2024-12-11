@@ -34,7 +34,7 @@ __SECTION(".bss.prebss.translation_table");
 /* the base TCR flags, computed from early init code in start.S */
 uint64_t arm64_mmu_tcr_flags __SECTION(".bss.prebss.tcr_flags");
 
-static inline bool is_valid_vaddr(arch_aspace_t *aspace, vaddr_t vaddr) {
+static inline bool is_valid_vaddr(const arch_aspace_t *aspace, vaddr_t vaddr) {
     return (vaddr >= aspace->base && vaddr <= aspace->base + aspace->size - 1);
 }
 

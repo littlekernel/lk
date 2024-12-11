@@ -8,11 +8,21 @@
 #pragma once
 
 #include <lk/compiler.h>
+#include <sys/types.h>
+#include <arch/x86/mmu.h>
 
 __BEGIN_CDECLS
 
 struct arch_aspace {
-    // nothing for now, does not support address spaces other than the kernel
+    /* pointer to the root page table */
+    paddr_t cr3_phys;
+    map_addr_t *cr3;
+
+    uint flags;
+
+    /* range of address space */
+    vaddr_t base;
+    size_t size;
 };
 
 __END_CDECLS

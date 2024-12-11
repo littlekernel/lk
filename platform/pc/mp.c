@@ -10,16 +10,52 @@
 
 #include <lk/main.h>
 #include <lib/acpi_lite.h>
+#include <string.h>
 #include <lk/trace.h>
+#include <kernel/vm.h>
 
 #if WITH_SMP
 
+#define TRAMPOLINE_ADDRESS 0x4000
+
 #define LOCAL_TRACE 1
 
-static void start_cpu(uint cpu_num, uint32_t apic_id) {
+extern void mp_boot_start(void);
+extern void mp_boot_end(void);
+
+struct bootstrap_args {
+    uintptr_t trampoline_cr3;
+};
+
+static void start_cpu(uint cpu_num, uint32_t apic_id, struct bootstrap_args *args) {
     LTRACEF("cpu_num %u, apic_id %u\n", cpu_num, apic_id);
 
     // XXX do work here
+
+    arch_disable_ints();
+
+    // start x86 secondary cpu
+
+    // send INIT IPI
+    lapic_send_init_ipi(apic_id, true);
+    thread_sleep(10);
+
+    // deassert INIT
+    lapic_send_init_ipi(apic_id, false);
+    thread_sleep(10);
+
+    lapic_send_startup_ipi(apic_id, TRAMPOLINE_ADDRESS);
+
+    // wait 200us
+    thread_sleep(1);
+
+    // send SIPI again
+    lapic_send_startup_ipi(apic_id, TRAMPOLINE_ADDRESS);
+
+    // wait 10ms
+    thread_sleep(10);
+
+    for (;;);
 }
 
 struct detected_cpus {
@@ -51,16 +87,48 @@ void platform_start_secondary_cpus(void) {
     // TODO: deal with cpu topology
 
     // start up the secondary cpus
-    if (cpus.num_detected > 1) {
-        dprintf(INFO, "PC: detected %u cpus\n", cpus.num_detected);
-
-        lk_init_secondary_cpus(cpus.num_detected - 1);
-
-        for (uint i = 1; i < cpus.num_detected; i++) {
-            dprintf(INFO, "PC: starting cpu %u\n", cpus.apic_ids[i]);
-            start_cpu(i, cpus.apic_ids[i]);
-        }
+    if (cpus.num_detected < 2) {
+        dprintf(INFO, "PC: no secondary cpus detected\n");
+        return;
     }
+
+    // create a new aspace to build an identity map in
+    vmm_aspace_t *aspace;
+    status_t err = vmm_create_aspace(&aspace, "identity map", 0);
+    if (err < 0) {
+        panic("failed to create identity map aspace\n");
+    }
+
+    // set up an identity map for the trampoline code
+
+    void *ptr = (void *)TRAMPOLINE_ADDRESS;
+    err = vmm_alloc_physical(aspace, "trampoline", 0x10000, &ptr, 0,
+        TRAMPOLINE_ADDRESS, VMM_FLAG_VALLOC_SPECIFIC, ARCH_MMU_FLAG_CACHED);
+    if (err < 0) {
+        panic("failed to allocate trampoline memory\n");
+    }
+
+    vmm_aspace_t *old_aspace = vmm_set_active_aspace(aspace);
+
+    // set up bootstrap code page at TRAMPOLINE_ADDRESS for secondary cpu
+    memcpy(ptr, mp_boot_start, mp_boot_end - mp_boot_start);
+
+    // next page has args in it
+    struct bootstrap_args *args = (struct bootstrap_args *)((uintptr_t)ptr + 0x1000);
+    args->trampoline_cr3 = aspace->arch_aspace.cr3_phys;
+
+    dprintf(INFO, "PC: detected %u cpus\n", cpus.num_detected);
+
+    lk_init_secondary_cpus(cpus.num_detected - 1);
+
+    for (uint i = 1; i < cpus.num_detected; i++) {
+        dprintf(INFO, "PC: starting cpu %u\n", cpus.apic_ids[i]);
+        start_cpu(i, cpus.apic_ids[i], args);
+    }
+
+    // XXX restore old aspace
+    vmm_set_active_aspace(old_aspace);
+    // XXX free aspace when done
 }
 
 #endif // WITH_SMP

@@ -25,6 +25,9 @@ void pic_mask_interrupts(void);
 // local apic
 void lapic_init(void);
 void lapic_eoi(unsigned int vector);
+void lapic_send_init_ipi(uint32_t apic_id, bool level);
+void lapic_send_startup_ipi(uint32_t apic_id, uint32_t startup_vector);
+void lapic_send_ipi(uint32_t apic_id, uint32_t vector);
 
 // secondary cpus
 void platform_start_secondary_cpus(void);
