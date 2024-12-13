@@ -65,6 +65,7 @@ MODULE_SRCS += \
 \
 	$(SUBARCH_DIR)/asm.S \
 	$(SUBARCH_DIR)/exceptions.S \
+	$(SUBARCH_DIR)/gdt.S \
 	$(SUBARCH_DIR)/mmu.c \
 	$(SUBARCH_DIR)/ops.S \
 \
@@ -73,7 +74,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/descriptor.c \
 	$(LOCAL_DIR)/faults.c \
 	$(LOCAL_DIR)/feature.c \
-	$(LOCAL_DIR)/gdt.S \
 	$(LOCAL_DIR)/mp.c \
 	$(LOCAL_DIR)/thread.c \
 

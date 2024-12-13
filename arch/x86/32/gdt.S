@@ -25,22 +25,24 @@ END_DATA(_gdtr_phys)
 .balign 8
 DATA(_gdtr)
     .short _gdt_end - _gdt - 1
-#if ARCH_X86_32
     .int _gdt
-#elif ARCH_X86_64
-    .quad _gdt
-#endif
 END_DATA(_gdtr)
 
+
+// 32bit GDT, laid out in a specific way due to requirements by the SYSENTER/SYSEXIT and
+// SYSCALL/SYSRET instructions:
+//
+// CODE32   <- IA32_SYSENTER_CS, IA32_STAR.SYSCALL_CS
+// DATA
+// UCODE32  <- IA32_STAR.SYSRET_CS
+// UDATA
 .data
 .balign 8
 DATA(_gdt)
     .int 0
     .int 0
 
-/* ring 0 descriptors */
-.set codesel_32, . - _gdt
-_code_32_gde:
+/* ring 0 code 32bit (for bootstrapping into 64bit) */
     .short 0xffff           /* limit 15:00 */
     .short 0x0000           /* base 15:00 */
     .byte  0x00             /* base 23:16 */
@@ -48,8 +50,7 @@ _code_32_gde:
     .byte  0b11001111       /* G(1) D(1) 0 0 limit 19:16 */
     .byte  0x0              /* base 31:24 */
 
-.set datasel, . - _gdt
-_data_gde:
+/* ring 0 data 32bit */
     .short 0xffff           /* limit 15:00 */
     .short 0x0000           /* base 15:00 */
     .byte  0x00             /* base 23:16 */
@@ -57,8 +58,7 @@ _data_gde:
     .byte  0b11001111       /* G(1) B(1) 0 0 limit 19:16 */
     .byte  0x0              /* base 31:24 */
 
-.set user_codesel_32, . - _gdt
-_user_code_32_gde:
+/* ring 3 code 32bit */
     .short 0xffff           /* limit 15:00 */
     .short 0x0000           /* base 15:00 */
     .byte  0x00             /* base 23:16 */
@@ -66,45 +66,7 @@ _user_code_32_gde:
     .byte  0b11001111       /* G(1) D(1) 0 0 limit 19:16 */
     .byte  0x0              /* base 31:24 */
 
-
-.set user_datasel, . - _gdt
-_user_data_32_gde:
-    .short 0xffff           /* limit 15:00 */
-    .short 0x0000           /* base 15:00 */
-    .byte  0x00             /* base 23:16 */
-    .byte  0b11110010       /* P(1) DPL(11) S(1) 0 E(0) W(1) A(0) */
-    .byte  0b11001111       /* G(1) B(1) 0 0 limit 19:16 */
-    .byte  0x0              /* base 31:24 */
-
-.set codesel_64, . - _gdt
-_code_64_gde:
-    .short 0xffff           /* limit 15:00 */
-    .short 0x0000           /* base 15:00 */
-    .byte  0x00             /* base 23:16 */
-    .byte  0b10011010       /* P(1) DPL(00) S(1) 1 C(0) R(1) A(0) */
-    .byte  0b10101111       /* G(1) D(0) L(1) AVL(0) limit 19:16 */
-    .byte  0x0              /* base 31:24 */
-
-.set datasel_64, . - _gdt
-_data_64_gde:
-    .short 0xffff           /* limit 15:00 */
-    .short 0x0000           /* base 15:00 */
-    .byte  0x00             /* base 23:16 */
-    .byte  0b10010010       /* P(1) DPL(00) S(1) 1 C(0) R(1) A(0) */
-    .byte  0b11001111       /* G(1) B(1) 0 AVL(0) limit 19:16 */
-    .byte  0x0              /* base 31:24 */
-
-.set user_codesel_64, . - _gdt
-_user_code_64_gde:
-    .short 0xffff           /* limit 15:00 */
-    .short 0x0000           /* base 15:00 */
-    .byte  0x00             /* base 23:16 */
-    .byte  0b11111010       /* P(1) DPL(11) S(1) 1 C(0) R(1) A(0) */
-    .byte  0b10101111       /* G(1) D(1) L(0) AVL(0) limit 19:16 */
-    .byte  0x0              /* base 31:24 */
-
-.set user_datasel_64, . - _gdt
-_user_data_64_gde:
+/* ring 3 data 32bit */
     .short 0xffff           /* limit 15:00 */
     .short 0x0000           /* base 15:00 */
     .byte  0x00             /* base 23:16 */
@@ -113,7 +75,6 @@ _user_data_64_gde:
     .byte  0x0              /* base 31:24 */
 
 /* per-cpu TSS descriptor */
-_tss_gde:
 .set i, 1
 .rept SMP_MAX_CPUS
     .short 0                /* limit 15:00 */
@@ -122,24 +83,16 @@ _tss_gde:
     .byte  0x89             /* P(1) DPL(00) S(0) TYPE(9) */
     .byte  0x80             /* G(1) D/B(0) L(0) AVL(0) limit 19:16 */
     .byte  0                /* base 31:24 */
-#if ARCH_X86_64
-    /* 64-bit TSSs are 16 bytes long */
-    .int   0                /* base 63:32 */
-    .int   0                /* type(0) + reserved */
-#endif
 .set i, i+1
 .endr
 
 /* per-cpu GS descriptor for x86-32 */
-#if ARCH_X86_32
-_percpu_gde:
 .set i, 1
 .rept SMP_MAX_CPUS
     .int   0               /* filled in by C code later */
     .int   0
 .set i, i+1
 .endr
-#endif
 
 END_DATA(_gdt)
 
