@@ -59,14 +59,12 @@ __SECTION(".data") uint32_t _multiboot_info;
 /* main tss */
 static tss_t system_tss __ALIGNED(16);
 
-/* early initialization of the system, on the boot cpu, usually before any sort of
- * printf output is available.
- */
-void arch_early_init(void) {
-    /* enable caches here for now */
+void x86_early_init_percpu(void) {
+    // enable caches
     clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
 
-    /* configure the system TSS */
+    // configure the system TSS
+    // XXX move to a per cpu TSS in the percpu structure
 #if ARCH_X86_32
     system_tss.esp0 = 0;
     system_tss.ss0 = DATA_SELECTOR;
@@ -78,16 +76,27 @@ void arch_early_init(void) {
 #elif ARCH_X86_64
     /* nothing to be done here, a fully zeroed TSS is a good starting point */
 #endif
-    x86_set_gdt_descriptor(TSS_SELECTOR_BASE, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
-    x86_ltr(TSS_SELECTOR_BASE);
+    const uint selector = TSS_SELECTOR_BASE + 8 * arch_curr_cpu_num();
+    x86_set_gdt_descriptor(selector, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
+    x86_ltr(selector);
 
+    x86_mmu_early_init_percpu();
+#if X86_WITH_FPU
+    x86_fpu_early_init_percpu();
+#endif
+}
+
+/* early initialization of the system, on the boot cpu, usually before any sort of
+ * printf output is available.
+ */
+void arch_early_init(void) {
     x86_feature_early_init();
-
     x86_mmu_early_init();
-
 #if X86_WITH_FPU
     x86_fpu_early_init();
 #endif
+
+    x86_early_init_percpu();
 }
 
 /* later initialization pass, once the main kernel is initialized and scheduling has begun */

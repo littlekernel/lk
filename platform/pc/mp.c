@@ -8,11 +8,12 @@
 
 #include "platform_p.h"
 
-#include <lk/main.h>
-#include <lib/acpi_lite.h>
-#include <string.h>
-#include <lk/trace.h>
+#include <kernel/thread.h>
 #include <kernel/vm.h>
+#include <lib/acpi_lite.h>
+#include <lk/main.h>
+#include <lk/trace.h>
+#include <string.h>
 
 #if WITH_SMP
 
@@ -24,15 +25,36 @@ extern void mp_boot_start(void);
 extern void mp_boot_end(void);
 
 struct bootstrap_args {
+    // referenced in mp-boot.S, do not move without updating assembly
     uintptr_t trampoline_cr3;
+    uintptr_t stack_top;
+
+    uintptr_t cpu_num;
+    volatile uint32_t *boot_completed_ptr; // set by the secondary cpu when it's done
 };
+
+__NO_RETURN void secondary_entry(struct bootstrap_args *args) {
+    volatile uint32_t *boot_completed = args->boot_completed_ptr;
+    uint cpu_num = args->cpu_num;
+
+    // context switch to the kernels cr3
+    x86_set_cr3(vmm_get_kernel_aspace()->arch_aspace.cr3_phys);
+    // from now on out the boot args structure is not visible
+
+    // we're done, let the primary cpu know so it can reuse the args
+    *boot_completed = 1;
+
+    x86_secondary_entry(cpu_num);
+}
 
 static void start_cpu(uint cpu_num, uint32_t apic_id, struct bootstrap_args *args) {
     LTRACEF("cpu_num %u, apic_id %u\n", cpu_num, apic_id);
 
-    // XXX do work here
+    // assert that this thread is pinned to the current cpu
+    DEBUG_ASSERT(thread_pinned_cpu(get_current_thread()) == (int)arch_curr_cpu_num());
 
-    arch_disable_ints();
+    volatile uint32_t boot_completed = 0;
+    args->boot_completed_ptr = &boot_completed;
 
     // start x86 secondary cpu
 
@@ -44,18 +66,20 @@ static void start_cpu(uint cpu_num, uint32_t apic_id, struct bootstrap_args *arg
     lapic_send_init_ipi(apic_id, false);
     thread_sleep(10);
 
+    // send SIPI and wait 200us
     lapic_send_startup_ipi(apic_id, TRAMPOLINE_ADDRESS);
-
-    // wait 200us
     thread_sleep(1);
 
-    // send SIPI again
+    // send SIPI again for good measure and wait 10ms
     lapic_send_startup_ipi(apic_id, TRAMPOLINE_ADDRESS);
-
-    // wait 10ms
     thread_sleep(10);
 
-    for (;;);
+    // wait for the cpu to finish booting
+    while (!boot_completed) {
+        thread_yield();
+    }
+
+    LTRACEF("cpu %u booted\n", cpu_num);
 }
 
 struct detected_cpus {
@@ -120,15 +144,29 @@ void platform_start_secondary_cpus(void) {
     dprintf(INFO, "PC: detected %u cpus\n", cpus.num_detected);
 
     lk_init_secondary_cpus(cpus.num_detected - 1);
+    err = x86_allocate_percpu_array(cpus.num_detected - 1);
+    if (err < 0) {
+        panic("failed to allocate percpu array\n");
+    }
 
     for (uint i = 1; i < cpus.num_detected; i++) {
         dprintf(INFO, "PC: starting cpu %u\n", cpus.apic_ids[i]);
+
+        args->cpu_num = i;
+
+        x86_percpu_t *percpu = x86_get_percpu_for_cpu(i);
+        args->stack_top = (uintptr_t)percpu->bootstrap_stack + sizeof(percpu->bootstrap_stack);
+
+        LTRACEF("args for cpu %lu: trampoline_cr3 %#lx, stack_top 0x%lx\n", args->cpu_num, args->trampoline_cr3, args->stack_top);
+
         start_cpu(i, cpus.apic_ids[i], args);
     }
 
-    // XXX restore old aspace
+    // restore old aspace
     vmm_set_active_aspace(old_aspace);
-    // XXX free aspace when done
+
+    // free the trampoline aspace
+    vmm_free_aspace(aspace);
 }
 
 #endif // WITH_SMP

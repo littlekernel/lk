@@ -24,7 +24,7 @@
 #include <sys/types.h>
 
 #define LOCAL_TRACE 0
-#define TRACE_CONTEXT_SWITCH 1
+#define TRACE_CONTEXT_SWITCH 0
 
 /* Address width including virtual/physical address*/
 static uint8_t vaddr_width = 0;
@@ -622,8 +622,8 @@ bool arch_mmu_supports_nx_mappings(void) { return true; }
 bool arch_mmu_supports_ns_mappings(void) { return false; }
 bool arch_mmu_supports_user_aspaces(void) { return true; }
 
-void x86_mmu_early_init(void) {
-    /* Set WP bit in CR0*/
+void x86_mmu_early_init_percpu(void) {
+    /* Set WP bit in CR0 */
     uint64_t cr0 = x86_get_cr0();
     cr0 |= X86_CR0_WP;
     x86_set_cr0(cr0);
@@ -636,11 +636,13 @@ void x86_mmu_early_init(void) {
         cr4 |= X86_CR4_SMAP;
     x86_set_cr4(cr4);
 
-    /* Set NXE bit in MSR_EFER*/
+    /* Set NXE bit in MSR_EFER */
     uint64_t efer_msr = read_msr(X86_MSR_IA32_EFER);
     efer_msr |= X86_EFER_NXE;
     write_msr(X86_MSR_IA32_EFER, efer_msr);
+}
 
+void x86_mmu_early_init(void) {
     /* getting the address width from CPUID instr */
     paddr_width = x86_get_paddr_width();
     vaddr_width = x86_get_vaddr_width();
@@ -712,7 +714,16 @@ status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, 
 }
 
 status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
-    PANIC_UNIMPLEMENTED;
+    // TODO: assert that we're not active on any cpus
+    if (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) {
+        // can't destroy the kernel aspace
+        panic("attempt to destroy kernel aspace\n");
+        return ERR_NOT_ALLOWED;
+    }
+
+    // free the page table
+    pmm_free_kpages(aspace->cr3, 1);
+
     return NO_ERROR;
 }
 

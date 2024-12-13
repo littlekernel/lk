@@ -63,6 +63,56 @@ typedef struct {
 
 static fpu_features_t fpu_features;
 
+/* called per cpu as they're brought up */
+void x86_fpu_early_init_percpu(void) {
+    if (!fp_supported) {
+        return;
+    }
+
+    /* No x87 emul, monitor co-processor */
+    ulong x = x86_get_cr0();
+    x &= ~X86_CR0_EM;
+    x |= X86_CR0_NE;
+    x |= X86_CR0_MP;
+    x86_set_cr0(x);
+
+    /* Init x87 */
+    uint16_t fcw;
+    __asm__ __volatile__ ("finit");
+    __asm__ __volatile__("fstcw %0" : "=m" (fcw));
+#if FPU_MASK_ALL_EXCEPTIONS
+    /* mask all exceptions */
+    fcw |= 0x3f;
+#else
+    /* unmask all exceptions */
+    fcw &= 0xffc0;
+#endif
+    __asm__ __volatile__("fldcw %0" : : "m" (fcw));
+
+    /* Init SSE */
+    x = x86_get_cr4();
+    x |= X86_CR4_OSXMMEXPT; // supports exceptions
+    x |= X86_CR4_OSFXSR;    // supports fxsave
+    x &= ~X86_CR4_OSXSAVE;  // no support for xsave (currently)
+    x86_set_cr4(x);
+
+    uint32_t mxcsr;
+    __asm__ __volatile__("stmxcsr %0" : "=m" (mxcsr));
+#if FPU_MASK_ALL_EXCEPTIONS
+    /* mask all exceptions */
+    mxcsr = (0x3f << 7);
+#else
+    /* unmask all exceptions */
+    mxcsr &= 0x0000003f;
+#endif
+    __asm__ __volatile__("ldmxcsr %0" : : "m" (mxcsr));
+
+    /* save fpu initial states, and used when new thread creates */
+    __asm__ __volatile__("fxsave %0" : "=m" (fpu_init_states));
+
+    x86_set_cr0(x86_get_cr0() | X86_CR0_TS);
+}
+
 /* called on the first cpu before the kernel is initialized. printfs may not work here */
 void x86_fpu_early_init(void) {
     fp_supported = false;
@@ -115,51 +165,6 @@ void x86_fpu_early_init(void) {
             }
         }
     }
-
-    /* No x87 emul, monitor co-processor */
-    ulong x = x86_get_cr0();
-    x &= ~X86_CR0_EM;
-    x |= X86_CR0_NE;
-    x |= X86_CR0_MP;
-    x86_set_cr0(x);
-
-    /* Init x87 */
-    uint16_t fcw;
-    __asm__ __volatile__ ("finit");
-    __asm__ __volatile__("fstcw %0" : "=m" (fcw));
-#if FPU_MASK_ALL_EXCEPTIONS
-    /* mask all exceptions */
-    fcw |= 0x3f;
-#else
-    /* unmask all exceptions */
-    fcw &= 0xffc0;
-#endif
-    __asm__ __volatile__("fldcw %0" : : "m" (fcw));
-
-    /* Init SSE */
-    x = x86_get_cr4();
-    x |= X86_CR4_OSXMMEXPT; // supports exceptions
-    x |= X86_CR4_OSFXSR;    // supports fxsave
-    x &= ~X86_CR4_OSXSAVE;  // no support for xsave (currently)
-    x86_set_cr4(x);
-
-    uint32_t mxcsr;
-    __asm__ __volatile__("stmxcsr %0" : "=m" (mxcsr));
-#if FPU_MASK_ALL_EXCEPTIONS
-    /* mask all exceptions */
-    mxcsr = (0x3f << 7);
-#else
-    /* unmask all exceptions */
-    mxcsr &= 0x0000003f;
-#endif
-    __asm__ __volatile__("ldmxcsr %0" : : "m" (mxcsr));
-
-    /* save fpu initial states, and used when new thread creates */
-    __asm__ __volatile__("fxsave %0" : "=m" (fpu_init_states));
-
-    x86_set_cr0(x86_get_cr0() | X86_CR0_TS);
-
-    return;
 }
 
 void x86_fpu_init(void) {

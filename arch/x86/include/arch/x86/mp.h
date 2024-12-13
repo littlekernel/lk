@@ -20,6 +20,9 @@ typedef struct x86_percpu {
 
     struct thread *current_thread;
 
+    // per cpu bootstrap stack
+    uint8_t bootstrap_stack[PAGE_SIZE] __ALIGNED(sizeof(uintptr_t) * 2);
+
     // XXX add more stuff:
     // per cpu TSS
     // per cpu doublefault/nmi stacks
@@ -27,8 +30,15 @@ typedef struct x86_percpu {
 
 #define X86_PERCPU_FIELD_OFFSET(field) offsetof(x86_percpu_t, field)
 
-// called extremely early on the boot cpu and each secondary cpu
-void x86_percpu_init_early(uint cpu_num, uint apic_id);
+// called extremely early on the boot cpu and each secondary cpu to set
+// up the percpu struct and segment descriptors pointing to it
+void x86_configure_percpu_early(uint cpu_num, uint apic_id);
+
+// C entry point for secondary cpus
+__NO_RETURN void x86_secondary_entry(uint cpu_num);
+
+// allocate and initialize secondary cpu percpu structs
+status_t x86_allocate_percpu_array(uint num_cpus);
 
 // get the percpu struct for the current cpu
 static inline x86_percpu_t *x86_get_percpu(void) {

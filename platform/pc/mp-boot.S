@@ -135,7 +135,7 @@ END_FUNCTION(mp_boot_start)
 FUNCTION(mp_boot_start_high)
 #if ARCH_X86_64
     // set up stack pointer
-    mov $(ARGS_STACK), %rsp
+    mov (ARGS_STACK), %rsp
 
     // load the real GDT
     lgdt _gdtr
@@ -144,9 +144,7 @@ FUNCTION(mp_boot_start_high)
     lea  .Lnext(%rip), %rax
     push %rax
     lretq
-
 .Lnext:
-
     // zero out the segment registers
     xor %ax, %ax
     mov %ax, %ds
@@ -154,14 +152,16 @@ FUNCTION(mp_boot_start_high)
     mov %ax, %fs
     mov %ax, %gs
     mov %ax, %ss
-#else // ARCH_X86_32
-
-
-#endif
-
-    // set up stack pointer
 
     // call into C
     cld
+    mov $(ARGS_ADDRESS), %rdi
+    call secondary_entry
     jmp .
+
+#else // ARCH_X86_32
+
+    jmp .
+
+#endif
 END_FUNCTION(mp_boot_start_high)

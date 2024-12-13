@@ -216,7 +216,7 @@ highaddr:
     /* set up the percpu data structure pointer for the boot cpu */
     xor %edi, %edi
     xor %esi, %esi
-    call x86_percpu_init_early
+    call x86_configure_percpu_early
 
     /* call the main module */
     call lk_main

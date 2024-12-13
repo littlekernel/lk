@@ -419,12 +419,15 @@ bool arch_mmu_supports_nx_mappings(void) { return false; }
 bool arch_mmu_supports_ns_mappings(void) { return false; }
 bool arch_mmu_supports_user_aspaces(void) { return false; }
 
-void x86_mmu_early_init(void) {
-    /* Set WP bit in CR0*/
+/* called once per cpu as it is brought up */
+void x86_mmu_early_init_percpu(void) {
+    /* Set WP bit in CR0 */
     uint32_t cr0 = x86_get_cr0();
     cr0 |= X86_CR0_WP;
     x86_set_cr0(cr0);
+}
 
+void x86_mmu_early_init(void) {
     /* unmap the lower identity mapping */
     for (uint i = 0; i < (1024*1024*1024) / (4*1024*1024); i++) {
         kernel_pd[i] = 0;

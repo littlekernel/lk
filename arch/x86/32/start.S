@@ -177,7 +177,7 @@ main_lk:
     /* set up the percpu data structure pointer for the boot cpu */
     pushl $0
     pushl $0
-    call x86_percpu_init_early
+    call x86_configure_percpu_early
 
     /* call the main module */
     call lk_main

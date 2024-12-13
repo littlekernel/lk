@@ -555,4 +555,6 @@ static inline void tlbsync_local(vaddr_t address) {
     asm volatile("invlpg %0" :: "m"(*(uint8_t *)address));
 }
 
+void x86_early_init_percpu(void);
+
 __END_CDECLS
