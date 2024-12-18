@@ -76,6 +76,18 @@ static constexpr auto EFI_TEXT_INPUT_PROTOCOL_GUID =
             0x11d2,
             {0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
 
+static constexpr auto EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID =
+    EfiGuid{0xdda0d135,
+            0xaa5b,
+            0x42ff,
+            {0x85, 0xac, 0xe3, 0xad, 0x6e, 0xfb, 0x46, 0x19}};
+
+static constexpr auto EFI_DT_FIXUP_PROTOCOL_GUID =
+    EfiGuid{0xe617d64c,
+            0xfe08,
+            0x46da,
+            {0xf4, 0xdc, 0xbb, 0xd5, 0x87, 0x0c, 0x73, 0x00}};
+
 using EFI_IMAGE_UNLOAD = EfiStatus (*)(EfiHandle);
 
 //******************************************************

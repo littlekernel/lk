@@ -299,6 +299,8 @@ int load_sections_and_execute(bdev_t *dev,
   constexpr size_t kStackSize = 8 * 1024ul * 1024;
   auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
   memset(stack, 0, kStackSize);
+  printf("Calling kernel with stack [0x%lx, 0x%lx]\n", stack,
+         stack + kStackSize - 1);
   return call_with_stack(stack + kStackSize, entry, image_base, &table);
 }
 
