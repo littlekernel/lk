@@ -199,6 +199,7 @@ typedef tss_64_t tss_t;
 #define X86_MSR_IA32_PM_ENABLE          0x00000770 /* enable/disable HWP */
 #define X86_MSR_IA32_HWP_CAPABILITIES   0x00000771 /* HWP performance range enumeration */
 #define X86_MSR_IA32_HWP_REQUEST        0x00000774 /* power manage control hints */
+#define X86_MSR_IA32_X2APIC_BASE        0x00000800 /* X2APIC base register */
 #define X86_MSR_IA32_EFER               0xc0000080 /* EFER */
 #define X86_MSR_IA32_STAR               0xc0000081 /* system call address */
 #define X86_MSR_IA32_LSTAR              0xc0000082 /* long mode call address */
