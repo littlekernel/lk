@@ -351,8 +351,10 @@ status_t port_group_remove(port_t group, port_t port) {
         }
     }
 
-    if (!found)
+    if (!found) {
+        THREAD_UNLOCK(state);
         return ERR_BAD_HANDLE;
+    }
 
     list_delete(&rp->g_node);
 
