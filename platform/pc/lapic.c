@@ -18,9 +18,11 @@
 #include <arch/x86.h>
 #include <arch/x86/feature.h>
 #include <kernel/spinlock.h>
-#include "platform_p.h"
+#include <platform/time.h>
 #include <platform/pc.h>
 #include <kernel/vm.h>
+
+#include "platform_p.h"
 
 #define LOCAL_TRACE 1
 
@@ -69,6 +71,19 @@ enum lapic_regs {
     LAPIC_EXT_LVT0 = 0x500,
 };
 
+enum lapic_interrupts {
+    LAPIC_INT_TIMER = 0xf8,
+    LAPIC_INT_GENERIC,
+    LAPIC_INT_RESCHEDULE,
+};
+
+enum lapic_timer_mode {
+    LAPIC_TIMER_MODE_ONESHOT = 0,
+    LAPIC_TIMER_MODE_PERIODIC = 1,
+    LAPIC_TIMER_MODE_TSC_DEADLINE = 2,
+};
+
+
 static uint32_t lapic_read(enum lapic_regs reg) {
     LTRACEF("reg %#x\n", reg);
     DEBUG_ASSERT(reg != LAPIC_ICRLO && reg != LAPIC_ICRHI);
@@ -101,6 +116,29 @@ static void lapic_write_icr(uint32_t low, uint32_t apic_id) {
     }
 }
 
+void lapic_set_oneshot_timer(uint32_t tick) {
+    LTRACEF("tick %u\n", tick);
+
+    // set the initial count, which should trigger the timer
+    lapic_write(LAPIC_TICR, tick);
+}
+
+void lapic_cancel_oneshot_timer(void) {
+    LTRACE;
+
+    // set the counter to 0 which disables it
+    lapic_write(LAPIC_TICR, 0);
+}
+
+enum handler_return lapic_timer_handler(void *arg) {
+    //PANIC_UNIMPLEMENTED;
+
+//    return timer_tick(NULL, current_time());
+
+    lapic_set_oneshot_timer(100000000);
+
+    return INT_NO_RESCHEDULE;
+}
 
 void lapic_init(void) {
     // discover the presence of the local apic and map it
@@ -156,6 +194,17 @@ void lapic_init_postvm(uint level) {
     if (eas) {
         dprintf(INFO, "X86: local apic EAS features %#x\n", lapic_read(LAPIC_EXT_FEATURES));
     }
+
+    lapic_cancel_oneshot_timer();
+
+    // configure the local timer and make sure it is not set to fire
+    uint32_t val = (LAPIC_TIMER_MODE_ONESHOT << 17) | LAPIC_INT_TIMER;
+    lapic_write(LAPIC_TIMER, val);
+
+    // register the local apic interrupts
+    register_int_handler_msi(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, false);
+
+    lapic_set_oneshot_timer(1000000);
 }
 
 LK_INIT_HOOK(lapic, lapic_init_postvm, LK_INIT_LEVEL_VM);

@@ -70,7 +70,7 @@ elif (( $DO_LEGACY )); then
 else
     QEMU="qemu-system-i386"
     PROJECT="pc-x86-test"
-    CPU=max
+    CPU=pentium3
     MACHINE=pc
 fi
 
