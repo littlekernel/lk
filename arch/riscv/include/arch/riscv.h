@@ -180,7 +180,7 @@ __BEGIN_CDECLS
 
 #define riscv_csr_write(csr, val) \
 ({ \
-    ulong __val = (ulong)val; \
+    ulong __val = (ulong)(val); \
     __asm__ volatile( \
         "csrw   " __ASM_STR(csr) ", %0" \
         :: "rK" (__val) \
