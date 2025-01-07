@@ -134,7 +134,8 @@
 #define RISCV_EXCEPTION_STORE_PAGE_FAULT    15
 
 #ifndef ASSEMBLY
-#define __ASM_STR(x)    #x
+#define ___ASM_STR(x)    #x
+#define __ASM_STR(x)    ___ASM_STR(x)
 
 __BEGIN_CDECLS
 
