@@ -9,6 +9,7 @@
 
 #include <lk/compiler.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 __BEGIN_CDECLS
