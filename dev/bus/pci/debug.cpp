@@ -22,7 +22,7 @@
  */
 static void pci_list(void) {
     pci_location_t state;
-    int busses = 0, devices = 0, lines = 0, ret;
+    int busses = 0, devices = 0, ret;
 
     printf("Scanning (brute force)...\n");
 
@@ -59,7 +59,6 @@ static void pci_list(void) {
                                config.vendor_id, config.device_id, config.header_type, config.base_class,
                                config.sub_class, config.program_interface, config.type0.interrupt_line);
                         devices++;
-                        lines++;
                     }
 
                     if ((fn == 0) && ~config.header_type & PCI_HEADER_TYPE_MULTI_FN) {
