@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <lk/compiler.h>
+
 namespace std {
 
 template <typename T, T v>
@@ -331,7 +333,11 @@ struct has_virtual_destructor : public integral_constant<bool, __has_virtual_des
 
 // has_trivial_destructor
 template <typename T>
+#if __has_builtin(__is_trivially_destructible)
+struct has_trivial_destructor : public integral_constant<bool, __is_trivially_destructible(T)> { };
+#else
 struct has_trivial_destructor : public integral_constant<bool, __has_trivial_destructor(T)> { };
+#endif
 
 // is_pointer
 namespace internal {
