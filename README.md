@@ -43,3 +43,20 @@ Note: for ubuntu x86-64
 sudo apt-get install gcc-aarch64-linux-gnu
 or fetch a prebuilt toolchain from
 https://newos.org/toolchains/aarch64-elf-14.1.0-Linux-x86_64.tar.xz
+
+
+### Building with LLVM-based toolchains
+
+To build LK with a LLVM-based toolchain you will have to manually specify the compiler and linker in the environemnt.
+Unlike GCC clang is a cross-compiler by default, so the target needs to be specified as part of the CC/CXX/CPP variables.
+For example, assuming LLVM is in `/opt/llvm/bin/`, the following command will work to build for 64-bit RISC-V:
+
+```
+gmake qemu-virt-riscv64-test 'CC=/opt/llvm/bin/clang --target=riscv64-unknown-elf' 'CPP=/opt/llvm/bin/clang-cpp --target=riscv64-unknown-elf' 'CXX=/opt/llvm/bin/clang++ --target=riscv64-unknown-elf' 'LD=/opt/llvm/bin/ld.lld' TOOLCHAIN_PREFIX=/opt/llvm/bin/llvm- CPPFILT=/opt/llvm/bin/llvm-cxxfilt
+```
+TOOLCHAIN_PREFIX can be set to use the LLVM binutils, but due to the different naming of `llvm-cxxfilt` vs `c++filt` it needs to be set explicitly.
+
+To build for AArch64 the command looks similar, just with a different `--target=` flag.
+```
+gmake qemu-virt-arm64-test 'CC=/opt/llvm/bin/clang --target=aarch64-unknown-elf' 'CPP=/opt/llvm/bin/clang-cpp --target=aarch64-unknown-elf' 'CXX=/opt/llvm/bin/clang++ --target=aarch64-unknown-elf' 'LD=/opt/llvm/bin/ld.lld' TOOLCHAIN_PREFIX=/opt/llvm/bin/llvm- CPPFILT=/opt/llvm/bin/llvm-cxxfilt
+```
