@@ -60,6 +60,10 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 
 const void *fdt = (void *)KERNEL_BASE;
 
+const void *get_fdt(void) {
+    return fdt;
+}
+
 void platform_early_init(void) {
     const struct pl011_config uart_config = {
         .base = UART_BASE,

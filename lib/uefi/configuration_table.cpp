@@ -17,15 +17,25 @@
 
 #include "configuration_table.h"
 #include "boot_service_provider.h"
+#include "libfdt.h"
+#include "platform.h"
 #include "system_table.h"
 #include <string.h>
 
 void setup_configuration_table(EfiSystemTable *table) {
-  auto &rng = table->configuration_table[0];
+  auto &rng = table->configuration_table[table->number_of_table_entries++];
   rng.vendor_guid = LINUX_EFI_RANDOM_SEED_TABLE_GUID;
   rng.vendor_table = alloc_page(PAGE_SIZE);
   auto rng_seed = reinterpret_cast<linux_efi_random_seed *>(rng.vendor_table);
   rng_seed->size = 512;
   memset(&rng_seed->bits, 0, rng_seed->size);
-  table->number_of_table_entries = 1;
+
+  const void *fdt = get_fdt();
+  if (fdt != nullptr) {
+    auto &dtb = table->configuration_table[table->number_of_table_entries++];
+    dtb.vendor_guid = DEVICE_TREE_GUID;
+    const auto fdt_size = fdt_totalsize(fdt);
+    dtb.vendor_table = alloc_page(fdt_size);
+    memcpy(dtb.vendor_table, fdt, fdt_size);
+  }
 }

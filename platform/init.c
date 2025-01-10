@@ -27,3 +27,8 @@ __WEAK void platform_init(void) {
 __WEAK void platform_quiesce(void) {
 }
 
+
+__WEAK const void *get_fdt(void) {
+    return NULL;
+}
+
