@@ -66,6 +66,8 @@ static int _vsnprintf_output(const char *str, size_t len, void *state) {
         count++;
     }
 
+    // Return the count of the number of bytes that would be written even if the buffer
+    // wasn't large enough.
     return count;
 }
 
@@ -78,10 +80,13 @@ int vsnprintf(char *str, size_t len, const char *fmt, va_list ap) {
     args.pos = 0;
 
     wlen = _printf_engine(&_vsnprintf_output, (void *)&args, fmt, ap);
-    if (args.pos >= len)
+    if (len == 0) {
+        // do nothing, we can't null terminate the output
+    } else if (args.pos >= len) {
         str[len-1] = '\0';
-    else
+    } else {
         str[wlen] = '\0';
+    }
     return wlen;
 }
 

@@ -458,6 +458,44 @@ bool snprintf_truncation_test() {
   END_TEST;
 }
 
+// Test snprintf() with zero length.
+bool snprintf_truncation_test_zero_length() {
+  BEGIN_TEST;
+
+  char buf[32];
+
+  memset(buf, 'x', sizeof(buf));
+  static const char str[26] = "0123456789abcdef012345678";
+
+  // Write with len = 0 a little ways into the buffer (to make sure it doesn't
+  // write to len -1).
+  int result = snprintf(buf + 4, 0, "%s", str);
+
+  // Check that snprintf() returns the length of the string that it would
+  // have written if the buffer was big enough.
+  EXPECT_EQ(result, (int)strlen(str));
+
+  // Check that snprintf() did not write anything.
+  for (auto c : buf)
+    EXPECT_EQ(c, 'x');
+
+  END_TEST;
+}
+
+// Test snprintf() with null pointer and zero length.
+bool snprintf_truncation_test_null_buffer() {
+  BEGIN_TEST;
+
+  static const char str[26] = "0123456789abcdef012345678";
+  int result = snprintf(nullptr, 0, "%s", str);
+
+  // Check that snprintf() returns the length of the string that it would
+  // have written if the buffer was big enough.
+  EXPECT_EQ(result, (int)strlen(str));
+
+  END_TEST;
+}
+
 }  // namespace
 
 BEGIN_TEST_CASE(printf_tests)
@@ -467,4 +505,6 @@ RUN_TEST(alt_and_sign)
 RUN_TEST(formatting)
 //RUN_TEST(printf_field_width_and_precision_test)
 RUN_TEST(snprintf_truncation_test)
+RUN_TEST(snprintf_truncation_test_zero_length)
+RUN_TEST(snprintf_truncation_test_null_buffer)
 END_TEST_CASE(printf_tests)

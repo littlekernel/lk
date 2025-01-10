@@ -96,15 +96,30 @@ int printf_tests(int argc, const console_cmd_args *argv) {
     /* make sure snprintf terminates at the right spot */
     char buf[32];
 
-    memset(buf, 0, sizeof(buf));
+    memset(buf, 0x99, sizeof(buf));
     err = sprintf(buf, "0123456789abcdef012345678");
     printf("sprintf returns %d\n", err);
     hexdump8(buf, sizeof(buf));
 
-    memset(buf, 0, sizeof(buf));
+    memset(buf, 0x99, sizeof(buf));
     err = snprintf(buf, 15, "0123456789abcdef012345678");
     printf("snprintf returns %d\n", err);
     hexdump8(buf, sizeof(buf));
+
+    memset(buf, 0x99, sizeof(buf));
+    err = snprintf(buf, 1, "0123456789abcdef012345678");
+    printf("snprintf returns %d\n", err);
+    hexdump8(buf, sizeof(buf));
+
+    /* zero length is special case, should not write anything */
+    memset(buf, 0x99, sizeof(buf));
+    err = snprintf(buf, 0, "0123456789abcdef012345678");
+    printf("snprintf returns %d\n", err);
+    hexdump8(buf, sizeof(buf));
+
+    /* shold be able to pass null to the output buffer if zero length */
+    err = snprintf(NULL, 0, "0123456789abcdef012345678");
+    printf("snprintf returns %d\n", err);
 
     return NO_ERROR;
 }
