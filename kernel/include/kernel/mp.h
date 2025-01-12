@@ -49,12 +49,12 @@ struct mp_state {
 
 extern struct mp_state mp;
 
-static inline int mp_is_cpu_active(uint cpu) {
-    return mp.active_cpus & (1 << cpu);
+static inline bool mp_is_cpu_active(uint cpu) {
+    return mp.active_cpus & (1UL << cpu);
 }
 
-static inline int mp_is_cpu_idle(uint cpu) {
-    return mp.idle_cpus & (1 << cpu);
+static inline bool mp_is_cpu_idle(uint cpu) {
+    return mp.idle_cpus & (1UL << cpu);
 }
 
 /* must be called with the thread lock held */
