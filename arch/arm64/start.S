@@ -52,6 +52,9 @@ arm_reset:
     bic     tmp, tmp, #(1<<1)  /* Disable Alignment Checking for EL1 EL0 */
     msr     sctlr_el1, tmp
 
+    /* make sure SP_ELx is being used */
+    msr     spsel, #1
+
     /* set up the mmu according to mmu_initial_mappings */
 
     /* load the base of the translation table and clear the table */
