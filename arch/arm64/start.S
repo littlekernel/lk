@@ -42,7 +42,6 @@ arm_reset:
     mov     tmp, #(0b11<<20)
     msr     cpacr_el1, tmp
 
-#if WITH_KERNEL_VM
     /* enable caches so atomics and spinlocks work */
     mrs     tmp, sctlr_el1
     orr     tmp, tmp, #(1<<12) /* Enable icache */
@@ -55,22 +54,27 @@ arm_reset:
     /* make sure SP_ELx is being used */
     msr     spsel, #1
 
+#if WITH_KERNEL_VM
     /* set up the mmu according to mmu_initial_mappings */
 
     /* load the base of the translation table and clear the table */
     adrp    page_table1, arm64_kernel_translation_table
     add     page_table1, page_table1, #:lo12:arm64_kernel_translation_table
+#endif /* WITH_KERNEL_VM */
 
 #if WITH_SMP
     /* if the cpu id is != 0 it's a secondary cpu */
     mrs     cpuid, mpidr_el1
     ubfx    cpuid, cpuid, #0, #SMP_CPU_ID_BITS
+
+#if WITH_KERNEL_VM
     cbnz    cpuid, .Lmmu_enable_secondary
-
-    /* this path forward until .Lmmu_enable_secondary is the primary cpu only */
-
+#else
+    cbnz    cpuid, .Lsecondary_boot
+#endif
 #endif /* WITH_SMP */
-#endif /* WITH_KERNEL_VM */
+
+    /* this path forward until .Lmmu_enable_secondary or .Lsecondary_boot is the primary cpu only */
 
     /* save a copy of the boot args so x0-x3 are available for use */
     adrp    tmp, arm64_boot_args
