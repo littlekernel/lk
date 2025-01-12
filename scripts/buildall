@@ -52,8 +52,12 @@ function log()
 PROJECTS=$(echo project/*.mk | xargs -n1 basename | sed 's/\.mk//')
 FAILED=""
 
+# set the WERROR environment
 if (( $WERROR )); then
 export WERROR=1
+else
+# hard set to 0 in case local.mk tries to override it
+export WERROR=0
 fi
 
 for p in $PROJECTS; do
