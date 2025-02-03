@@ -60,3 +60,14 @@ To build for AArch64 the command looks similar, just with a different `--target=
 ```
 gmake qemu-virt-arm64-test 'CC=/opt/llvm/bin/clang --target=aarch64-unknown-elf' 'CPP=/opt/llvm/bin/clang-cpp --target=aarch64-unknown-elf' 'CXX=/opt/llvm/bin/clang++ --target=aarch64-unknown-elf' 'LD=/opt/llvm/bin/ld.lld' TOOLCHAIN_PREFIX=/opt/llvm/bin/llvm- CPPFILT=/opt/llvm/bin/llvm-cxxfilt
 ```
+## AI-generated ProductMaps
+
+
+
+| Github file | ProductMap |
+|-------------|------------|
+| [arm_gic.c](https://github.com/littlekernel/lk/blob/master/dev/interrupt/arm_gic/arm_gic.c) | [Link to Map](https://product-map.ai/app/public?url=https://github.com/littlekernel/lk/blob/master/dev/interrupt/arm_gic/arm_gic.c) |
+
+Contact ProductMap if you have any questions at [juan@product-map.ai](juan@product-map.ai).
+
+Last updated on Mon Feb 03 22:54:53 UTC 2025.
