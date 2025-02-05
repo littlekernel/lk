@@ -16,8 +16,8 @@
  */
 
 #include "configuration_table.h"
-#include "boot_service_provider.h"
 #include "libfdt.h"
+#include "memory_protocols.h"
 #include "platform.h"
 #include "system_table.h"
 #include <string.h>
