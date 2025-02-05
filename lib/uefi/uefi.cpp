@@ -18,6 +18,7 @@
 #include "boot_service.h"
 #include "boot_service_provider.h"
 #include "defer.h"
+#include "memory_protocols.h"
 #include "pe.h"
 #include "relocation.h"
 
