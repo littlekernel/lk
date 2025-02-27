@@ -149,7 +149,7 @@ try_merge:
 
 static struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len, bool allow_debug) {
     DEBUG_ASSERT((len % sizeof(void *)) == 0); // size must be aligned on pointer boundary
-    DEBUG_ASSERT(len > sizeof(struct free_heap_chunk));
+    DEBUG_ASSERT(len >= sizeof(struct free_heap_chunk));
 
 #if DEBUG_HEAP
     if (allow_debug)
