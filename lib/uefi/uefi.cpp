@@ -104,6 +104,7 @@ int load_sections_and_execute(bdev_t *dev,
   printf("Entry function located at %p\n", entry);
 
   EfiSystemTable &table = *static_cast<EfiSystemTable *>(alloc_page(PAGE_SIZE));
+  memset(&table, 0, sizeof(EfiSystemTable));
   EfiBootService boot_service{};
   EfiRuntimeService runtime_service{};
   fill(&runtime_service, 0);
@@ -118,6 +119,7 @@ int load_sections_and_execute(bdev_t *dev,
   table.con_out = &console_out;
   table.configuration_table =
       reinterpret_cast<EfiConfigurationTable *>(alloc_page(PAGE_SIZE));
+  memset(table.configuration_table, 0, PAGE_SIZE);
   setup_configuration_table(&table);
 
   constexpr size_t kStackSize = 8 * 1024ul * 1024;
