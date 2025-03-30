@@ -24,7 +24,7 @@
 
 #include "platform_p.h"
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 static bool lapic_present = false;
 static bool lapic_x2apic = false;

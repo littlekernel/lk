@@ -188,9 +188,6 @@ void platform_early_init(void) {
     /* initialize the interrupt controller */
     platform_init_interrupts();
 
-    /* initialize the timer */
-    platform_init_timer();
-
     /* look at multiboot to determine our memory size */
     size_t found_arenas;
     platform_parse_multiboot_info(&found_arenas);

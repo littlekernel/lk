@@ -26,11 +26,15 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/mp.c \
     $(LOCAL_DIR)/mp-boot.S \
     $(LOCAL_DIR)/pic.c \
+    $(LOCAL_DIR)/pit.c \
     $(LOCAL_DIR)/platform.c \
     $(LOCAL_DIR)/timer.c \
     $(LOCAL_DIR)/uart.c \
 
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
+
+GLOBAL_DEFINES += \
+	PLATFORM_HAS_DYNAMIC_TIMER=1
 
 include make/module.mk
 
