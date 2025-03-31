@@ -37,6 +37,8 @@ static struct fp_32_64 timebase_to_lapic;
 static platform_timer_callback t_callback;
 static void *callback_arg;
 
+static void lapic_timer_init_percpu(void);
+
 // local apic registers
 enum lapic_regs {
     LAPIC_ID = 0x20,
@@ -187,7 +189,7 @@ void lapic_init_postvm(uint level) {
     if ((apic_base & (1u<<11)) == 0) {
         dprintf(INFO, "X86: enabling lapic\n");
         apic_base |= (1u<<11);
-        write_msr(0x1b, apic_base);
+        write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
     }
 
     dprintf(INFO, "X86: lapic physical address %#llx\n", apic_base & ~0xfff);
@@ -222,6 +224,20 @@ void lapic_init_postvm(uint level) {
 }
 LK_INIT_HOOK(lapic_init_postvm, lapic_init_postvm, LK_INIT_LEVEL_VM + 1);
 
+void lapic_init_percpu(uint level) {
+    // Make sure the apic is enabled and x2apic mode is set (if supported)
+    uint64_t apic_base = read_msr(X86_MSR_IA32_APIC_BASE);
+    apic_base |= (1u<<11);
+    if (lapic_x2apic) {
+        apic_base |= (1u<<10);
+    }
+    write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
+
+    lapic_timer_init_percpu();
+}
+
+LK_INIT_HOOK_FLAGS(lapic_init_percpu, lapic_init_percpu, LK_INIT_LEVEL_VM, LK_INIT_FLAG_SECONDARY_CPUS);
+
 static uint32_t lapic_read_current_tick(void) {
     if (!lapic_present) {
         return 0;
@@ -230,7 +246,7 @@ static uint32_t lapic_read_current_tick(void) {
     return lapic_read(LAPIC_TCCR);
 }
 
-void lapic_timer_init_percpu(uint level) {
+static void lapic_timer_init_percpu(void) {
     // check for deadline mode
     if (use_tsc_deadline) {
         // put the timer in TSC deadline and clear the match register
@@ -247,8 +263,6 @@ void lapic_timer_init_percpu(uint level) {
     // register the local apic interrupts
     register_int_handler_msi(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, false);
 }
-
-LK_INIT_HOOK_FLAGS(lapic_timer_init_percpu, lapic_timer_init_percpu, LK_INIT_LEVEL_VM, LK_INIT_FLAG_SECONDARY_CPUS);
 
 status_t lapic_timer_init(bool invariant_tsc_supported) {
     if (!lapic_present) {
@@ -278,7 +292,7 @@ status_t lapic_timer_init(bool invariant_tsc_supported) {
                 timebase_to_lapic.l0, timebase_to_lapic.l32);
     }
 
-    lapic_timer_init_percpu(0);
+    lapic_timer_init_percpu();
 
     // register the local apic interrupts
     register_int_handler_msi(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, false);
