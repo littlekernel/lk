@@ -21,6 +21,7 @@ void pic_init(void);
 void pic_enable(unsigned int vector, bool enable);
 void pic_eoi(unsigned int vector);
 void pic_mask_interrupts(void);
+uint64_t pit_calibrate_tsc(void);
 
 // local apic
 void lapic_init(void);

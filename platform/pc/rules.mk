@@ -6,10 +6,10 @@ MODULE := $(LOCAL_DIR)
 # legacy implies older hardware, pre pentium, pre pci
 CPU ?= modern
 
-MODULE_DEPS += \
-    lib/acpi_lite \
-    lib/bio \
-    lib/cbuf
+MODULE_DEPS += lib/acpi_lite
+MODULE_DEPS += lib/bio
+MODULE_DEPS += lib/cbuf
+MODULE_DEPS += lib/fixed_point
 
 ifneq ($(CPU),legacy)
 MODULE_DEPS += dev/bus/pci/drivers

@@ -70,7 +70,7 @@ elif (( $DO_LEGACY )); then
 else
     QEMU="qemu-system-i386"
     PROJECT="pc-x86-test"
-    CPU=pentium3
+    CPU=max
     MACHINE=pc
 fi
 
@@ -86,7 +86,7 @@ fi
 
 ARGS=""
 if (( $DO_KVM )); then
-    ARGS+=" -enable-kvm -cpu host"
+    ARGS+=" -accel kvm -cpu host"
 else
     ARGS+=" -cpu $CPU"
 fi

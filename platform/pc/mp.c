@@ -91,6 +91,7 @@ static void local_apic_callback(const void *_entry, size_t entry_len, void *cook
     const struct acpi_madt_local_apic_entry *entry = _entry;
     struct detected_cpus *cpus = cookie;
 
+    // TODO: read the current APIC id and skip it, instead of assuming 0 is the boot cpu
     if (entry->apic_id == 0) {
         // skip the boot cpu
         return;

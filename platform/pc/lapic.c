@@ -141,14 +141,6 @@ enum handler_return lapic_timer_handler(void *arg) {
 }
 
 void lapic_init(void) {
-    // discover the presence of the local apic and map it
-    LTRACE_ENTRY;
-
-    // check feature bit 9 in edx of leaf 1 for presence of lapic
-    lapic_present = x86_feature_test(X86_FEATURE_APIC);
-}
-
-void lapic_init_postvm(uint level) {
     if (!lapic_present)
         return;
 
@@ -206,8 +198,6 @@ void lapic_init_postvm(uint level) {
 
     lapic_set_oneshot_timer(1000000);
 }
-
-LK_INIT_HOOK(lapic, lapic_init_postvm, LK_INIT_LEVEL_VM);
 
 void lapic_eoi(unsigned int vector) {
     LTRACEF("vector %#x\n", vector);

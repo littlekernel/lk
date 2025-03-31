@@ -133,10 +133,13 @@ static void x86_cpu_detect(void) {
 
         // read max hypervisor leaf
         cpuid(X86_CPUID_HYP_BASE, &a, &b, &c, &d);
-        // TODO: actually check that it's an understood hypervisor before setting this.
-        // It's possible on real hardware it's just returning the last valid regular cpuid.
-        if (a >= X86_CPUID_HYP_BASE) {
+
+        // Check that it's an understood hypervisor leaf
+        if ((b == 0x4b4d564b && c == 0x564b4d56 && d == 0x4d) || /* KVMKVMKVM */
+            (b == 0x54474354 && c == 0x43544743 && d == 0x47435447)) {  /* TCGTCGTCGTCG */
             max_cpuid_leaf_hyp = MIN(a, __X86_MAX_SUPPORTED_CPUID_HYP);
+        } else {
+            max_cpuid_leaf_hyp = 0;
         }
     } else {
         __x86_cpu_vendor = X86_CPU_VENDOR_INTEL; // intrinsically Intel without cpuid
@@ -191,12 +194,12 @@ void x86_feature_early_init(void) {
 
     // cache a copy of the cpuid bits
     if (has_cpuid) {
-        for (uint32_t i = 1; i <= max_cpuid_leaf; i++) {
+        for (uint32_t i = 0; i <= max_cpuid_leaf; i++) {
             cpuid_c(i, 0, &saved_cpuids[i].a, &saved_cpuids[i].b, &saved_cpuids[i].c, &saved_cpuids[i].d);
         }
 
         if (max_cpuid_leaf_ext > 0) {
-            for (uint32_t i = X86_CPUID_EXT_BASE + 1; i - 1 < max_cpuid_leaf_ext; i++) {
+            for (uint32_t i = X86_CPUID_EXT_BASE; i <= max_cpuid_leaf_ext; i++) {
                 uint32_t index = i - X86_CPUID_EXT_BASE;
                 cpuid_c(i, 0, &saved_cpuids_ext[index].a, &saved_cpuids_ext[index].b, &saved_cpuids_ext[index].c,
                         &saved_cpuids_ext[index].d);
@@ -204,12 +207,29 @@ void x86_feature_early_init(void) {
         }
 
         if (max_cpuid_leaf_hyp > 0) {
-            for (uint32_t i = X86_CPUID_HYP_BASE + 1; i - 1 < max_cpuid_leaf_hyp; i++) {
+            for (uint32_t i = X86_CPUID_HYP_BASE; i <= max_cpuid_leaf_hyp; i++) {
                 uint32_t index = i - X86_CPUID_HYP_BASE;
                 cpuid_c(i, 0, &saved_cpuids_hyp[index].a, &saved_cpuids_hyp[index].b, &saved_cpuids_hyp[index].c,
                         &saved_cpuids_hyp[index].d);
             }
         }
+    }
+}
+
+static void x86_feature_dump_cpuid(void) {
+    for (uint32_t i = X86_CPUID_BASE; i <= max_cpuid_leaf; i++) {
+        printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i,
+               saved_cpuids[i - X86_CPUID_BASE].a, saved_cpuids[i - X86_CPUID_BASE].b, saved_cpuids[i - X86_CPUID_BASE].c, saved_cpuids[i - X86_CPUID_BASE].d);
+    }
+    for (uint32_t i = X86_CPUID_HYP_BASE; i <= max_cpuid_leaf_hyp; i++) {
+        uint32_t index = i - X86_CPUID_HYP_BASE;
+        printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i,
+               saved_cpuids_hyp[index].a, saved_cpuids_hyp[index].b, saved_cpuids_hyp[index].c, saved_cpuids_hyp[index].d);
+    }
+    for (uint32_t i = X86_CPUID_EXT_BASE; i <= max_cpuid_leaf_ext; i++) {
+        uint32_t index = i - X86_CPUID_EXT_BASE;
+        printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i,
+               saved_cpuids[index].a, saved_cpuids[index].b, saved_cpuids[index].c, saved_cpuids[index].d);
     }
 }
 
@@ -243,6 +263,10 @@ void x86_feature_init(void) {
     printf("X86: processor model info type %#x family %#x model %#x stepping %#x\n",
            model->processor_type, model->family, model->model, model->stepping);
     printf("\tdisplay_family %#x display_model %#x\n", model->display_family, model->display_model);
+
+    if (has_cpuid && LK_DEBUGLEVEL > 1) {
+        x86_feature_dump_cpuid();
+    }
 }
 
 bool x86_get_cpuid_subleaf(enum x86_cpuid_leaf_num num, uint32_t subleaf, struct x86_cpuid_leaf* leaf) {

@@ -10,6 +10,7 @@
 #include <lk/reg.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
+#include <assert.h>
 #include <kernel/thread.h>
 #include <kernel/spinlock.h>
 #include <platform.h>
@@ -22,6 +23,9 @@
 #include <inttypes.h>
 
 #define LOCAL_TRACE 0
+
+
+// TODO: switch this logic to lib/fixed_point math
 
 static platform_timer_callback t_callback;
 static void *callback_arg;
@@ -42,6 +46,7 @@ static uint64_t timer_delta_time;
 
 #define INTERNAL_FREQ 1193182ULL
 #define INTERNAL_FREQ_3X 3579546ULL
+#define INTERNAL_FREQ_TICKS_PER_MS (INTERNAL_FREQ / 1000u)
 
 /* Maximum amount of time that can be program on the timer to schedule the next
  *  interrupt, in milliseconds */
@@ -128,8 +133,8 @@ static void set_pit_frequency(uint32_t frequency) {
      */
     timer_delta_time = (3685982306ULL * count) >> 10;
 
-    LTRACEF("dt 0x%016" PRIx64 "\n", timer_delta_time);
-    LTRACEF("divisor 0x%04" PRIx16 "\n", divisor);
+    LTRACEF("dt %#x.%08x\n", (uint32_t)(timer_delta_time >> 32), (uint32_t)(timer_delta_time & 0xffffffff));
+    LTRACEF("divisor %" PRIu16 "\n", divisor);
 
     /*
      * setup the Programmable Interval Timer
@@ -191,4 +196,54 @@ void pit_stop_timer(void) {
 
     mask_interrupt(INT_PIT);
     spin_unlock_irqrestore(&lock, state);
+}
+
+uint64_t pit_calibrate_tsc(void) {
+    DEBUG_ASSERT(arch_ints_disabled());
+
+    uint64_t tsc_ticks[5] = {0};
+    uint32_t countdown_ms[5] = {0};
+
+    uint64_t tsc_freq = 0;
+    for (uint i = 0; i < countof(tsc_ticks); i++) {
+        // calibrate the tsc frequency using the PIT
+        countdown_ms[i] = 2 * (i + 1);
+
+        uint16_t pic_ticks = INTERNAL_FREQ_TICKS_PER_MS * countdown_ms[i];
+        outp(I8253_CONTROL_REG, 0x30);
+        outp(I8253_DATA_REG, pic_ticks & 0xff); // LSB
+        outp(I8253_DATA_REG, pic_ticks >> 8); // MSB
+
+        // read the tsc
+        uint64_t tsc_start = __builtin_ia32_rdtsc();
+
+        // wait for countdown_ms
+        uint8_t status = 0;
+        do {
+            // Send a read-back command that latches the status of ch0
+            outp(I8253_CONTROL_REG, 0xe2);
+            status = inp(I8253_DATA_REG);
+            // Wait for bit 7 (output) to go high and for bit 6 (null count) to go low
+        } while ((status & 0xc0) != 0x80);
+
+        uint64_t tsc_end = __builtin_ia32_rdtsc();
+        tsc_ticks[i] = tsc_end - tsc_start;
+    }
+
+    // find the best time
+    uint best_index = 0;
+    for (uint i = 1; i < countof(tsc_ticks); i++) {
+        if (tsc_ticks[i] < tsc_ticks[best_index]) {
+            best_index = i;
+        }
+    }
+
+    // calculate the tsc frequency
+    tsc_freq = (tsc_ticks[best_index] * 1000) / countdown_ms[best_index];
+    dprintf(INFO, "PIT: calibrated TSC frequency: %" PRIu64 "Hz\n", tsc_freq);
+
+    // put the PIT back to 1ms countdown
+    set_pit_frequency(1000);
+
+    return tsc_freq;
 }

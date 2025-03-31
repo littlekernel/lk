@@ -17,7 +17,7 @@
 #include <kernel/vm.h>
 
 // uses the vm to map in ACPI tables as they are found
-static_assert(WITH_KERNEL_VM, "");
+static_assert(WITH_KERNEL_VM);
 
 #define LOCAL_TRACE 0
 
