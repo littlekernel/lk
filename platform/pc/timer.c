@@ -22,7 +22,7 @@
 #include <inttypes.h>
 #include <lib/fixed_point.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 // Deals with all of the various clock sources and event timers on the PC platform.
 
@@ -33,8 +33,10 @@ static enum clock_source {
     CLOCK_SOURCE_HPET,
 } clock_source = CLOCK_SOURCE_INITIAL;
 
-struct fp_32_64 tsc_to_timebase;
-struct fp_32_64 tsc_to_timebase_hires;
+static struct fp_32_64 tsc_to_timebase;
+static struct fp_32_64 tsc_to_timebase_hires;
+static struct fp_32_64 timebase_to_tsc;
+static bool use_lapic_timer = false;
 
 static const char *clock_source_name(void) {
     switch (clock_source) {
@@ -138,6 +140,11 @@ status_t pvclock_init(void) {
     return NO_ERROR;
 }
 
+// Convert lk_time_t to TSC ticks
+uint64_t time_to_tsc_ticks(lk_time_t time) {
+    return u64_mul_u32_fp32_64(time, timebase_to_tsc);
+}
+
 uint64_t pvclock_get_tsc_freq(void) {
     uint32_t tsc_mul = 0;
     int8_t tsc_shift = 0;
@@ -182,26 +189,24 @@ void pc_init_timer(unsigned int level) {
     pit_init();
     clock_source = CLOCK_SOURCE_PIT;
 
-    lapic_init();
-
 #if !X86_LEGACY
     // XXX update note about what invariant TSC means
-    bool invariant_tsc = x86_feature_test(X86_FEATURE_INVAR_TSC);
-    LTRACEF("invariant TSC %d\n", invariant_tsc);
+    bool use_invariant_tsc = x86_feature_test(X86_FEATURE_INVAR_TSC);
+    LTRACEF("invariant TSC %d\n", use_invariant_tsc);
 
     // Test for hypervisor PV clock, which also effectively says if TSC is invariant across
     // all cpus.
     if (pvclock_init() == NO_ERROR) {
         bool pv_clock_stable = pv_clock_is_stable();
 
-        invariant_tsc |= pv_clock_stable;
+        use_invariant_tsc |= pv_clock_stable;
 
         printf("pv_clock: Clocksource is %sstable\n", (pv_clock_stable ? "" : "not "));
     }
 
     // XXX test for HPET and use it over PIT if present
 
-    if (invariant_tsc) {
+    if (use_invariant_tsc) {
         // We're going to try to use the TSC as a time base, obtain the TSC frequency.
         uint64_t tsc_hz = 0;
 
@@ -228,25 +233,51 @@ void pc_init_timer(unsigned int level) {
         dprintf(INFO, "PC: TSC to hires timebase ratio %u.%08u...\n",
                 tsc_to_timebase_hires.l0, tsc_to_timebase_hires.l32);
 
+        fp_32_64_div_32_32(&timebase_to_tsc, tsc_hz, 1000);
+        dprintf(INFO, "PC: timebase to TSC ratio %u.%08u...\n",
+                timebase_to_tsc.l0, timebase_to_tsc.l32);
+
         clock_source = CLOCK_SOURCE_TSC;
     }
 out:
+
+    // Set up the local apic for event timer interrupts
+    if (lapic_timer_init(use_invariant_tsc) == NO_ERROR) {
+        dprintf(INFO, "PC: using LAPIC timer for event timer\n");
+        use_lapic_timer = true;
+    }
+
+    // If we're not using the PIT for time base and using the LAPIC timer for events, stop the PIT.
+    if (use_lapic_timer && clock_source != CLOCK_SOURCE_PIT) {
+        pit_stop_timer();
+    }
+
 #endif // !X86_LEGACY
 
     dprintf(INFO, "PC: using %s clock source\n", clock_source_name());
 }
 
-LK_INIT_HOOK(pc_timer, pc_init_timer, LK_INIT_LEVEL_VM);
+LK_INIT_HOOK(pc_timer, pc_init_timer, LK_INIT_LEVEL_VM + 2);
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
+    if (use_lapic_timer) {
+        PANIC_UNIMPLEMENTED;
+    }
     return pit_set_periodic_timer(callback, arg, interval);
 }
 
 status_t platform_set_oneshot_timer(platform_timer_callback callback,
                                     void *arg, lk_time_t interval) {
+    if (use_lapic_timer) {
+        return lapic_set_oneshot_timer(callback, arg, interval);
+    }
     return pit_set_oneshot_timer(callback, arg, interval);
 }
 
 void platform_stop_timer(void) {
-    pit_stop_timer();
+    if (use_lapic_timer) {
+        lapic_cancel_timer();
+    } else {
+        pit_cancel_timer();
+    }
 }

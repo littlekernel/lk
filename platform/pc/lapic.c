@@ -11,6 +11,7 @@
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <lk/init.h>
+#include <lib/fixed_point.h>
 #include <assert.h>
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
@@ -28,7 +29,13 @@
 
 static bool lapic_present = false;
 static bool lapic_x2apic = false;
+static bool use_tsc_deadline = false;
 static volatile uint32_t *lapic_mmio;
+static struct fp_32_64 timebase_to_lapic;
+
+// TODO: move these callbacks into the shared timer code
+static platform_timer_callback t_callback;
+static void *callback_arg;
 
 // local apic registers
 enum lapic_regs {
@@ -83,7 +90,6 @@ enum lapic_timer_mode {
     LAPIC_TIMER_MODE_TSC_DEADLINE = 2,
 };
 
-
 static uint32_t lapic_read(enum lapic_regs reg) {
     LTRACEF("reg %#x\n", reg);
     DEBUG_ASSERT(reg != LAPIC_ICRLO && reg != LAPIC_ICRHI);
@@ -116,33 +122,60 @@ static void lapic_write_icr(uint32_t low, uint32_t apic_id) {
     }
 }
 
-void lapic_set_oneshot_timer(uint32_t tick) {
-    LTRACEF("tick %u\n", tick);
+status_t lapic_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
+    LTRACEF("tick %u\n", interval);
 
-    // set the initial count, which should trigger the timer
-    lapic_write(LAPIC_TICR, tick);
+    t_callback = callback;
+    callback_arg = arg;
+
+    if (use_tsc_deadline) {
+        uint64_t now = __builtin_ia32_rdtsc();
+        uint64_t delta = time_to_tsc_ticks(interval);
+        uint64_t deadline = now + delta;
+        LTRACEF("now %llu delta %llu deadline %llu\n", now, delta, deadline);
+        write_msr(X86_MSR_IA32_TSC_DEADLINE, deadline);
+    } else {
+        // set the initial count, which should trigger the timer
+        uint64_t ticks = u64_mul_u32_fp32_64(interval, timebase_to_lapic);
+        if (ticks > UINT32_MAX) {
+            ticks = UINT32_MAX;
+        }
+
+        lapic_write(LAPIC_TICR, ticks & 0xffffffff);
+    }
+
+    return NO_ERROR;
 }
 
-void lapic_cancel_oneshot_timer(void) {
+void lapic_cancel_timer(void) {
     LTRACE;
 
-    // set the counter to 0 which disables it
-    lapic_write(LAPIC_TICR, 0);
+    if (use_tsc_deadline) {
+        write_msr(X86_MSR_IA32_TSC_DEADLINE, 0);
+    } else {
+        lapic_write(LAPIC_TICR, 0);
+    }
 }
 
-enum handler_return lapic_timer_handler(void *arg) {
-    //PANIC_UNIMPLEMENTED;
+static enum handler_return lapic_timer_handler(void *arg) {
+    LTRACE;
 
-//    return timer_tick(NULL, current_time());
+    enum handler_return ret = INT_NO_RESCHEDULE;
+    if (t_callback) {
+        ret = t_callback(callback_arg, current_time());
+    }
 
-    lapic_set_oneshot_timer(100000000);
-
-    return INT_NO_RESCHEDULE;
+    return ret;
 }
 
 void lapic_init(void) {
-    if (!lapic_present)
+    lapic_present = x86_feature_test(X86_FEATURE_APIC);
+}
+
+void lapic_init_postvm(uint level) {
+    if (!lapic_present) {
         return;
+    }
 
     dprintf(INFO, "X86: local apic detected\n");
 
@@ -169,7 +202,7 @@ void lapic_init(void) {
 
     // map the lapic into the kernel since it's not guaranteed that the physmap covers it
     if (!lapic_mmio) {
-        dprintf(INFO, "X86: mapping lapic into kernel\n");
+        LTRACEF("mapping lapic into kernel\n");
         status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE, (void **)&lapic_mmio, 0,
                                 apic_base & ~0xfff, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
         ASSERT(err == NO_ERROR);
@@ -186,17 +219,71 @@ void lapic_init(void) {
     if (eas) {
         dprintf(INFO, "X86: local apic EAS features %#x\n", lapic_read(LAPIC_EXT_FEATURES));
     }
+}
+LK_INIT_HOOK(lapic_init_postvm, lapic_init_postvm, LK_INIT_LEVEL_VM + 1);
 
-    lapic_cancel_oneshot_timer();
+static uint32_t lapic_read_current_tick(void) {
+    if (!lapic_present) {
+        return 0;
+    }
 
-    // configure the local timer and make sure it is not set to fire
-    uint32_t val = (LAPIC_TIMER_MODE_ONESHOT << 17) | LAPIC_INT_TIMER;
-    lapic_write(LAPIC_TIMER, val);
+    return lapic_read(LAPIC_TCCR);
+}
+
+void lapic_timer_init_percpu(uint level) {
+    // check for deadline mode
+    if (use_tsc_deadline) {
+        // put the timer in TSC deadline and clear the match register
+        uint32_t val = (LAPIC_TIMER_MODE_TSC_DEADLINE << 17) | LAPIC_INT_TIMER;
+        lapic_write(LAPIC_TIMER, val);
+        write_msr(X86_MSR_IA32_TSC_DEADLINE, 0);
+    } else {
+        // configure the local timer and make sure it is not set to fire
+        uint32_t val = (LAPIC_TIMER_MODE_ONESHOT << 17) | LAPIC_INT_TIMER;
+        lapic_write(LAPIC_TIMER, val);
+        lapic_write(LAPIC_TICR, 0);
+    }
+
+    // register the local apic interrupts
+    register_int_handler_msi(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, false);
+}
+
+LK_INIT_HOOK_FLAGS(lapic_timer_init_percpu, lapic_timer_init_percpu, LK_INIT_LEVEL_VM, LK_INIT_FLAG_SECONDARY_CPUS);
+
+status_t lapic_timer_init(bool invariant_tsc_supported) {
+    if (!lapic_present) {
+        return ERR_NOT_FOUND;
+    }
+
+    lapic_cancel_timer();
+
+    // check for deadline mode
+    bool tsc_deadline  = x86_feature_test(X86_FEATURE_TSC_DEADLINE);
+    if (invariant_tsc_supported && tsc_deadline) {
+        dprintf(INFO, "X86: local apic timer supports TSC deadline mode\n");
+        use_tsc_deadline = true;
+    } else {
+        // configure the local timer and make sure it is not set to fire
+        uint32_t val = (LAPIC_TIMER_MODE_ONESHOT << 17) | LAPIC_INT_TIMER;
+        lapic_write(LAPIC_TIMER, val);
+
+        // calibrate the timer frequency
+        lapic_write(LAPIC_TICR, 0xffffffff); // countdown from the max count
+        uint32_t lapic_hz = pit_calibrate_lapic(&lapic_read_current_tick);
+        lapic_write(LAPIC_TICR, 0);
+        printf("X86: local apic timer frequency %uHz\n", lapic_hz);
+
+        fp_32_64_div_32_32(&timebase_to_lapic, lapic_hz, 1000);
+        dprintf(INFO, "X86: timebase to local apic timer ratio %u.%08u...\n",
+                timebase_to_lapic.l0, timebase_to_lapic.l32);
+    }
+
+    lapic_timer_init_percpu(0);
 
     // register the local apic interrupts
     register_int_handler_msi(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, false);
 
-    lapic_set_oneshot_timer(1000000);
+    return NO_ERROR;
 }
 
 void lapic_eoi(unsigned int vector) {

@@ -24,7 +24,6 @@
 
 #define LOCAL_TRACE 0
 
-
 // TODO: switch this logic to lib/fixed_point math
 
 static platform_timer_callback t_callback;
@@ -146,10 +145,12 @@ static void set_pit_frequency(uint32_t frequency) {
 }
 
 void pit_init(void) {
+    // start the PIT at 1Khz in free-running mode to keep a time base
     timer_current_time = 0;
     ticks_per_ms = INTERNAL_FREQ/1000;
     set_pit_frequency(1000); // ~1ms granularity
     register_int_handler(INT_PIT, &pit_timer_tick, NULL);
+    unmask_interrupt(INT_PIT);
 }
 
 status_t pit_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
@@ -188,13 +189,32 @@ status_t pit_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_t
     return NO_ERROR;
 }
 
+void pit_cancel_timer(void) {
+    LTRACE;
+
+    spin_lock_saved_state_t state;
+    spin_lock_irqsave(&lock, state);
+
+    next_trigger_time = 0;
+
+    spin_unlock_irqrestore(&lock, state);
+}
+
 void pit_stop_timer(void) {
     LTRACE;
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&lock, state);
 
+    next_trigger_time = 0;
+    next_trigger_delta = 0;
+
+    // stop the PIT
+    outp(I8253_CONTROL_REG, 0x34);
+    outp(I8253_DATA_REG, 0); // LSB
+    outp(I8253_DATA_REG, 0); // MSB
     mask_interrupt(INT_PIT);
+
     spin_unlock_irqrestore(&lock, state);
 }
 
@@ -246,4 +266,53 @@ uint64_t pit_calibrate_tsc(void) {
     set_pit_frequency(1000);
 
     return tsc_freq;
+}
+
+uint32_t pit_calibrate_lapic(uint32_t (*lapic_read_tick)(void)) {
+    DEBUG_ASSERT(arch_ints_disabled());
+
+    uint64_t lapic_ticks[5] = {0};
+    uint32_t countdown_ms[5] = {0};
+
+    for (uint i = 0; i < countof(lapic_ticks); i++) {
+        // calibrate the tsc frequency using the PIT
+        countdown_ms[i] = 2 * (i + 1);
+
+        uint16_t pic_ticks = INTERNAL_FREQ_TICKS_PER_MS * countdown_ms[i];
+        outp(I8253_CONTROL_REG, 0x30);
+        outp(I8253_DATA_REG, pic_ticks & 0xff); // LSB
+        outp(I8253_DATA_REG, pic_ticks >> 8); // MSB
+
+        // read the tsc
+        uint32_t tick_start = lapic_read_tick();
+
+        // wait for countdown_ms
+        uint8_t status = 0;
+        do {
+            // Send a read-back command that latches the status of ch0
+            outp(I8253_CONTROL_REG, 0xe2);
+            status = inp(I8253_DATA_REG);
+            // Wait for bit 7 (output) to go high and for bit 6 (null count) to go low
+        } while ((status & 0xc0) != 0x80);
+
+        uint32_t tick_end = lapic_read_tick();
+        lapic_ticks[i] = tick_start - tick_end;
+    }
+
+    // find the best time
+    uint best_index = 0;
+    for (uint i = 1; i < countof(lapic_ticks); i++) {
+        if (lapic_ticks[i] < lapic_ticks[best_index]) {
+            best_index = i;
+        }
+    }
+
+    // calculate the tsc frequency
+    uint32_t freq = (lapic_ticks[best_index] * 1000) / countdown_ms[best_index];
+    dprintf(INFO, "PIT: calibrated local apic frequency: %" PRIu32 "Hz\n", freq);
+
+    // put the PIT back to 1ms countdown
+    set_pit_frequency(1000);
+
+    return freq;
 }
