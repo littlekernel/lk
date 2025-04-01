@@ -16,11 +16,14 @@
 #include <platform.h>
 #include <platform/timer.h>
 #include <platform/pc.h>
-#include "platform_p.h"
+#include <platform/pc/timer.h>
 #include <arch/x86.h>
 #include <arch/x86/feature.h>
+#include <arch/x86/lapic.h>
 #include <inttypes.h>
 #include <lib/fixed_point.h>
+
+#include "platform_p.h"
 
 #define LOCAL_TRACE 0
 

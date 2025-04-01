@@ -22,7 +22,6 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/ide.c \
     $(LOCAL_DIR)/interrupts.c \
     $(LOCAL_DIR)/keyboard.c \
-    $(LOCAL_DIR)/lapic.c \
     $(LOCAL_DIR)/mp.c \
     $(LOCAL_DIR)/mp-boot.S \
     $(LOCAL_DIR)/pic.c \

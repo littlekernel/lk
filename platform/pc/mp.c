@@ -14,6 +14,7 @@
 #include <lk/main.h>
 #include <lk/trace.h>
 #include <string.h>
+#include <arch/x86/lapic.h>
 
 #if WITH_SMP
 

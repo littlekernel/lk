@@ -3,6 +3,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_OPTIONS := extra_warnings
+MODULE_DEPS := lib/fixed_point
 
 # x86 code always runs with the mmu enabled
 WITH_KERNEL_VM := 1
@@ -74,7 +75,9 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/descriptor.c \
 	$(LOCAL_DIR)/faults.c \
 	$(LOCAL_DIR)/feature.c \
+	$(LOCAL_DIR)/lapic.c \
 	$(LOCAL_DIR)/mp.c \
+	$(LOCAL_DIR)/pv.c \
 	$(LOCAL_DIR)/thread.c \
 
 # legacy x86's dont have fpu support

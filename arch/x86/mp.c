@@ -18,8 +18,9 @@
 #include <arch/x86/descriptor.h>
 #include <arch/arch_ops.h>
 #include <sys/types.h>
+#include <arch/x86/lapic.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 #if WITH_SMP
 
@@ -58,30 +59,56 @@ void x86_configure_percpu_early(uint cpu_num, uint apic_id) {
 }
 
 status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
-    LTRACEF("caller %#x target 0x%x, ipi 0x%x\n", arch_curr_cpu_num(), target, ipi);
+    LTRACEF("cpu %u target 0x%x, ipi 0x%x\n", arch_curr_cpu_num(), target, ipi);
 
-    // XXX call into local apic code to send IPI
+    DEBUG_ASSERT(arch_ints_disabled());
+    uint curr_cpu_num = arch_curr_cpu_num();
 
-    PANIC_UNIMPLEMENTED;
+    // translate the target bitmap to apic id
+    while (target) {
+        uint cpu_num = __builtin_ctz(target);
+        target &= ~(1u << cpu_num);
+
+        // skip the current cpu
+        if (cpu_num == curr_cpu_num) {
+            continue;
+        }
+
+        x86_percpu_t *percpu = x86_get_percpu_for_cpu(cpu_num);
+        uint32_t apic_id = percpu->apic_id;
+
+        // send the ipi to the target cpu
+        lapic_send_ipi(apic_id, ipi);
+    }
+
+    return NO_ERROR;
 }
 
 void arch_mp_init_percpu(void) {
 }
 
-static uintptr_t x86_get_apic_id_from_hardware(void) {
-    // read the apic id out of the hardware
-    return read_msr(X86_MSR_IA32_APIC_BASE) >> 24;
+uint32_t x86_get_apic_id_from_hardware(void) {
+    // read the apic id out of cpuid leaf 1, which should be present if SMP is enabled.
+    uint32_t apic_id, unused;
+    cpuid(0x1, &unused, &apic_id, &unused, &unused);
+
+    apic_id >>= 24;
+
+    // TODO: read full 32bit apic id from x2apic msr if available
+
+    return apic_id;
 }
 
 void x86_secondary_entry(uint cpu_num) {
-    x86_configure_percpu_early(cpu_num, x86_get_apic_id_from_hardware());
+    uint32_t apic_id = x86_get_apic_id_from_hardware();
+    x86_configure_percpu_early(cpu_num, apic_id);
 
     x86_early_init_percpu();
 
     // run early secondary cpu init routines up to the threading level
     lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
 
-    dprintf(INFO, "SMP: secondary cpu %u started\n", arch_curr_cpu_num());
+    dprintf(INFO, "SMP: secondary cpu %u started, apic id %u\n", arch_curr_cpu_num(), apic_id);
 
     lk_secondary_cpu_entry();
 

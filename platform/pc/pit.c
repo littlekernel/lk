@@ -18,6 +18,7 @@
 #include <platform/console.h>
 #include <platform/timer.h>
 #include <platform/pc.h>
+#include <platform/pc/timer.h>
 #include "platform_p.h"
 #include <arch/x86.h>
 #include <inttypes.h>

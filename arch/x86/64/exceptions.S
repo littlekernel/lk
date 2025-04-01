@@ -113,8 +113,6 @@ FUNCTION(setup_idt)
 
     loop .Lloop
 
-    lidt _idtr
-
     ret
 END_FUNCTION(setup_idt)
 

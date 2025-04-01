@@ -16,7 +16,7 @@ typedef struct x86_percpu {
     struct x86_percpu *self;
 
     uint cpu_num;
-    uint apic_id;
+    uint32_t apic_id;
 
     struct thread *current_thread;
 
@@ -70,9 +70,12 @@ static inline uint x86_get_cpu_num(void) {
 }
 
 // get the current apic id
-static inline uint x86_get_apic_id(void) {
+static inline uint32_t x86_get_apic_id(void) {
     return x86_read_gs_offset32(X86_PERCPU_FIELD_OFFSET(apic_id));
 }
+
+// read it from hardware directly
+uint32_t x86_get_apic_id_from_hardware(void);
 
 // get/set the current thread
 struct thread;

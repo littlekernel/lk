@@ -5,6 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include "arch/x86/lapic.h"
+
 #include <sys/types.h>
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -20,10 +22,10 @@
 #include <arch/x86/feature.h>
 #include <kernel/spinlock.h>
 #include <platform/time.h>
-#include <platform/pc.h>
+#include <platform/timer.h>
+#include <platform/pc/timer.h>
 #include <kernel/vm.h>
-
-#include "platform_p.h"
+#include <kernel/mp.h>
 
 #define LOCAL_TRACE 0
 
@@ -37,7 +39,7 @@ static struct fp_32_64 timebase_to_lapic;
 static platform_timer_callback t_callback;
 static void *callback_arg;
 
-static void lapic_timer_init_percpu(void);
+static void lapic_init_percpu(uint level);
 
 // local apic registers
 enum lapic_regs {
@@ -82,6 +84,7 @@ enum lapic_regs {
 
 enum lapic_interrupts {
     LAPIC_INT_TIMER = 0xf8,
+    LAPIC_INT_SPURIOUS,
     LAPIC_INT_GENERIC,
     LAPIC_INT_RESCHEDULE,
 };
@@ -93,7 +96,7 @@ enum lapic_timer_mode {
 };
 
 static uint32_t lapic_read(enum lapic_regs reg) {
-    LTRACEF("reg %#x\n", reg);
+    LTRACEF_LEVEL(2, "reg %#x\n", reg);
     DEBUG_ASSERT(reg != LAPIC_ICRLO && reg != LAPIC_ICRHI);
     if (lapic_x2apic) {
         // TODO: do we need barriers here?
@@ -104,7 +107,7 @@ static uint32_t lapic_read(enum lapic_regs reg) {
 }
 
 static void lapic_write(enum lapic_regs reg, uint32_t val) {
-    LTRACEF("reg %#x val %#x\n", reg, val);
+    LTRACEF_LEVEL(2, "reg %#x val %#x\n", reg, val);
     DEBUG_ASSERT(reg != LAPIC_ICRLO && reg != LAPIC_ICRHI);
     if (lapic_x2apic) {
         write_msr(X86_MSR_IA32_X2APIC_BASE + reg / 0x10, val);
@@ -115,7 +118,7 @@ static void lapic_write(enum lapic_regs reg, uint32_t val) {
 
 // special case to write to the ICR register
 static void lapic_write_icr(uint32_t low, uint32_t apic_id) {
-    LTRACEF("%#x apic_id %#x\n", low, apic_id);
+    LTRACEF_LEVEL(2, "%#x apic_id %#x\n", low, apic_id);
     if (lapic_x2apic) {
         write_msr(X86_MSR_IA32_X2APIC_BASE + 0x30, ((uint64_t)apic_id << 32) | low);
     } else {
@@ -125,7 +128,9 @@ static void lapic_write_icr(uint32_t low, uint32_t apic_id) {
 }
 
 status_t lapic_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
-    LTRACEF("tick %u\n", interval);
+    LTRACEF("cpu %u interval %u\n", arch_curr_cpu_num(), interval);
+
+    DEBUG_ASSERT(arch_ints_disabled());
 
     t_callback = callback;
     callback_arg = arg;
@@ -152,6 +157,8 @@ status_t lapic_set_oneshot_timer(platform_timer_callback callback, void *arg, lk
 void lapic_cancel_timer(void) {
     LTRACE;
 
+    DEBUG_ASSERT(arch_ints_disabled());
+
     if (use_tsc_deadline) {
         write_msr(X86_MSR_IA32_TSC_DEADLINE, 0);
     } else {
@@ -160,7 +167,7 @@ void lapic_cancel_timer(void) {
 }
 
 static enum handler_return lapic_timer_handler(void *arg) {
-    LTRACE;
+    LTRACEF("cpu %u\n", arch_curr_cpu_num());
 
     enum handler_return ret = INT_NO_RESCHEDULE;
     if (t_callback) {
@@ -170,11 +177,29 @@ static enum handler_return lapic_timer_handler(void *arg) {
     return ret;
 }
 
+static enum handler_return lapic_spurious_handler(void *arg)  {
+    LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
+
+    return INT_NO_RESCHEDULE;
+}
+
+static enum handler_return lapic_generic_handler(void *arg)  {
+    LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
+
+    return INT_NO_RESCHEDULE;
+}
+
+static enum handler_return lapic_reschedule_handler(void *arg)  {
+    LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
+
+    return mp_mbx_reschedule_irq();
+}
+
 void lapic_init(void) {
     lapic_present = x86_feature_test(X86_FEATURE_APIC);
 }
 
-void lapic_init_postvm(uint level) {
+static void lapic_init_postvm(uint level) {
     if (!lapic_present) {
         return;
     }
@@ -221,10 +246,13 @@ void lapic_init_postvm(uint level) {
     if (eas) {
         dprintf(INFO, "X86: local apic EAS features %#x\n", lapic_read(LAPIC_EXT_FEATURES));
     }
+
+    // Finish up some local initialization that all cpus will want to do
+    lapic_init_percpu(0);
 }
 LK_INIT_HOOK(lapic_init_postvm, lapic_init_postvm, LK_INIT_LEVEL_VM + 1);
 
-void lapic_init_percpu(uint level) {
+static void lapic_init_percpu(uint level) {
     // Make sure the apic is enabled and x2apic mode is set (if supported)
     uint64_t apic_base = read_msr(X86_MSR_IA32_APIC_BASE);
     apic_base |= (1u<<11);
@@ -233,7 +261,15 @@ void lapic_init_percpu(uint level) {
     }
     write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
 
-    lapic_timer_init_percpu();
+    // set the spurious vector register
+    uint32_t svr = (LAPIC_INT_SPURIOUS | (1u<<8)); // enable
+    lapic_write(LAPIC_SVR, svr);
+
+    TRACEF("lapic svr %#x\n", lapic_read(LAPIC_SVR));
+
+    register_int_handler_msi(LAPIC_INT_SPURIOUS, &lapic_spurious_handler, NULL, false);
+    register_int_handler_msi(LAPIC_INT_GENERIC, &lapic_generic_handler, NULL, false);
+    register_int_handler_msi(LAPIC_INT_RESCHEDULE, &lapic_reschedule_handler, NULL, false);
 }
 
 LK_INIT_HOOK_FLAGS(lapic_init_percpu, lapic_init_percpu, LK_INIT_LEVEL_VM, LK_INIT_FLAG_SECONDARY_CPUS);
@@ -246,7 +282,7 @@ static uint32_t lapic_read_current_tick(void) {
     return lapic_read(LAPIC_TCCR);
 }
 
-static void lapic_timer_init_percpu(void) {
+static void lapic_timer_init_percpu(uint level) {
     // check for deadline mode
     if (use_tsc_deadline) {
         // put the timer in TSC deadline and clear the match register
@@ -260,16 +296,15 @@ static void lapic_timer_init_percpu(void) {
         lapic_write(LAPIC_TICR, 0);
     }
 
-    // register the local apic interrupts
+    // register the timer interrupt vector
     register_int_handler_msi(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, false);
 }
+LK_INIT_HOOK_FLAGS(lapic_timer_init_percpu, lapic_timer_init_percpu, LK_INIT_LEVEL_VM + 1, LK_INIT_FLAG_SECONDARY_CPUS);
 
 status_t lapic_timer_init(bool invariant_tsc_supported) {
     if (!lapic_present) {
         return ERR_NOT_FOUND;
     }
-
-    lapic_cancel_timer();
 
     // check for deadline mode
     bool tsc_deadline  = x86_feature_test(X86_FEATURE_TSC_DEADLINE);
@@ -292,10 +327,7 @@ status_t lapic_timer_init(bool invariant_tsc_supported) {
                 timebase_to_lapic.l0, timebase_to_lapic.l32);
     }
 
-    lapic_timer_init_percpu();
-
-    // register the local apic interrupts
-    register_int_handler_msi(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, false);
+    lapic_timer_init_percpu(0);
 
     return NO_ERROR;
 }
@@ -325,10 +357,25 @@ void lapic_send_startup_ipi(uint32_t apic_id, uint32_t startup_vector) {
     lapic_write_icr((6u << 8) | (startup_vector >> 12), apic_id);
 }
 
-void lapic_send_ipi(uint32_t apic_id, uint32_t vector) {
+void lapic_send_ipi(uint32_t apic_id, mp_ipi_t ipi) {
     if (!lapic_present) {
         return;
     }
 
-    lapic_write_icr(vector, apic_id);
+    LTRACEF("cpu %u target apic_id %#x, ipi %u\n", arch_curr_cpu_num(), apic_id, ipi);
+
+    uint32_t vector;
+    switch (ipi) {
+        case MP_IPI_GENERIC:
+            vector = LAPIC_INT_GENERIC;
+            break;
+        case MP_IPI_RESCHEDULE:
+            vector = LAPIC_INT_RESCHEDULE;
+            break;
+        default:
+            panic("X86: unknown IPI %u\n", ipi);
+    }
+
+    // send fixed mode, level asserted, no destination shorthand interrupt
+    lapic_write_icr(vector | (1U << 14), apic_id);
 }

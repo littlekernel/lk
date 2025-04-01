@@ -80,6 +80,9 @@ void x86_early_init_percpu(void) {
     x86_set_gdt_descriptor(selector, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
     x86_ltr(selector);
 
+    /* load the kernel's IDT */
+    asm("lidt _idtr");
+
     x86_mmu_early_init_percpu();
 #if X86_WITH_FPU
     x86_fpu_early_init_percpu();
