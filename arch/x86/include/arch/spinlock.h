@@ -7,13 +7,16 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
 #include <stdbool.h>
 
 #define SPIN_LOCK_INITIAL_VALUE (0)
 
-typedef unsigned long spin_lock_t;
+__BEGIN_CDECLS
+
+typedef unsigned int spin_lock_t;
 
 typedef x86_flags_t spin_lock_saved_state_t;
 typedef uint spin_lock_save_flags_t;
@@ -27,6 +30,11 @@ static inline bool arch_spin_lock_held(spin_lock_t *lock) {
     return *lock != 0;
 }
 
+#if WITH_SMP
+void arch_spin_lock(spin_lock_t *lock);
+int arch_spin_trylock(spin_lock_t *lock);
+void arch_spin_unlock(spin_lock_t *lock);
+#else
 static inline void arch_spin_lock(spin_lock_t *lock) {
     *lock = 1;
 }
@@ -38,6 +46,7 @@ static inline int arch_spin_trylock(spin_lock_t *lock) {
 static inline void arch_spin_unlock(spin_lock_t *lock) {
     *lock = 0;
 }
+#endif
 
 /* flags are unused on x86 */
 #define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS  0
@@ -53,4 +62,4 @@ arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t
     x86_restore_flags(old_state);
 }
 
-
+__END_CDECLS

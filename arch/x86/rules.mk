@@ -69,6 +69,7 @@ MODULE_SRCS += \
 	$(SUBARCH_DIR)/gdt.S \
 	$(SUBARCH_DIR)/mmu.c \
 	$(SUBARCH_DIR)/ops.S \
+	$(SUBARCH_DIR)/spinlock.S \
 \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/cache.c \
