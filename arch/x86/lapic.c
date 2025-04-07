@@ -84,9 +84,10 @@ enum lapic_regs {
 
 enum lapic_interrupts {
     LAPIC_INT_TIMER = 0xf8,
-    LAPIC_INT_SPURIOUS,
     LAPIC_INT_GENERIC,
     LAPIC_INT_RESCHEDULE,
+
+    LAPIC_INT_SPURIOUS = 0xff, // Bits 0-3 must be 1 for P6 and below compatibility
 };
 
 enum lapic_timer_mode {

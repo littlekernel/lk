@@ -108,6 +108,10 @@ static void local_apic_callback(const void *_entry, size_t entry_len, void *cook
     const struct acpi_madt_local_apic_entry *entry = _entry;
     struct detected_cpus *cpus = cookie;
 
+    if ((entry->flags & ACPI_MADT_FLAG_ENABLED) == 0) {
+        return;
+    }
+
     // TODO: read the current APIC id and skip it, instead of assuming 0 is the boot cpu
     // read BSP from X86_IA32_APIC_BASE_MSR bit 8?
     if (entry->apic_id == 0) {
