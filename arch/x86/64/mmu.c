@@ -26,6 +26,10 @@
 #define LOCAL_TRACE 0
 #define TRACE_CONTEXT_SWITCH 0
 
+// TODO:
+// - proper tlb flush (local and SMP)
+// - synchronization of top level page tables for user space aspaces
+
 /* Address width including virtual/physical address*/
 static uint8_t vaddr_width = 0;
 static uint8_t paddr_width = 0;
@@ -672,7 +676,7 @@ void x86_mmu_init(void) {
 status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, const size_t size, const uint flags) {
     DEBUG_ASSERT(aspace);
 
-    LTRACEF("aspace %p, base %#lx, size %zu, flags %#x\n", aspace, base, size, flags);
+    LTRACEF("aspace %p, base %#lx, size %#zx, flags %#x\n", aspace, base, size, flags);
 
     /* validate that the base + size is sane and doesn't wrap */
     DEBUG_ASSERT(size > PAGE_SIZE);

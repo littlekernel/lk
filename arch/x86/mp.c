@@ -52,7 +52,7 @@ void x86_configure_percpu_early(uint cpu_num, uint apic_id) {
     write_msr(X86_MSR_IA32_GS_BASE, (uint64_t)percpu);
 #else
     // set up a gs descriptor for this cpu
-    uint16_t selector = PERCPU_SELECTOR_BASE + cpu_num;
+    uint16_t selector = PERCPU_SELECTOR_BASE + cpu_num * 8;
     x86_set_gdt_descriptor(selector, percpu, sizeof(*percpu), 1, 0, 1, SEG_TYPE_DATA_RW, 0, 1);
     x86_set_gs(selector);
 #endif
@@ -84,8 +84,7 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
     return NO_ERROR;
 }
 
-void arch_mp_init_percpu(void) {
-}
+void arch_mp_init_percpu(void) {}
 
 uint32_t x86_get_apic_id_from_hardware(void) {
     // read the apic id out of cpuid leaf 1, which should be present if SMP is enabled.

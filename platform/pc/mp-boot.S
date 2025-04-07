@@ -1,26 +1,32 @@
 #include <lk/asm.h>
 #include <arch/x86/descriptor.h>
 
+#if WITH_SMP
+
 #define LOAD_ADDRESS 0x4000
 #define MSR_EFER 0xc0000080
 #define EFER_LME 0x00000100
 
 #define ARGS_ADDRESS (LOAD_ADDRESS + 0x1000)
 #define ARGS_CR3     (ARGS_ADDRESS + 0x00)
+#if ARCH_X86_64
 #define ARGS_STACK   (ARGS_ADDRESS + 0x08)
+#else
+#define ARGS_STACK   (ARGS_ADDRESS + 0x04)
+#endif
 
 .text
 .code16
 // secondary cpu boot entry point and switch to protected mode
 // enters with the following state:
 // real mode, CS 0x0400, PC 0 (physical address 0x4000)
+// LOAD_ADDRESS (physical) == mp_boot_start (virtual)
 FUNCTION(mp_boot_start)
     // jump over the temp GDT below and switch to a flat memory segment (0)
-    ljmp $0, $(LOAD_ADDRESS + 0x28)
+    ljmp $0, $(LOAD_ADDRESS + (.Lafter_gdt - mp_boot_start))
 
 .org 0x8
 .Lgdt:
-    // temporary GDT to get us into protected mode
     // stuff the GDTR in the first entry
     .short (8*4)
     .int (LOAD_ADDRESS + 0x8) // address of .Lgdt
@@ -50,7 +56,7 @@ FUNCTION(mp_boot_start)
     .byte  0b10101111       /* G(1) D(0) L(1) AVL(0) limit 19:16 */
     .byte  0x0              /* base 31:24 */
 
-.org 0x28 // 0x08 + 0x20
+.Lafter_gdt:
     // load the above GDT
     lgdt (LOAD_ADDRESS + 0x08)
 
@@ -60,10 +66,9 @@ FUNCTION(mp_boot_start)
     movl  %eax, %cr0
 
     // jump to 32bit mode
-    ljmpl $0x8, $(LOAD_ADDRESS + 0x40)
-.org 0x40
-    .code32
+    ljmpl $0x8, $(LOAD_ADDRESS + (.Lprot - mp_boot_start))
 .Lprot:
+    .code32
     // we're now in 32bit mode, set up the 32bit data segment registers
     mov   $0x10, %ax
     mov   %ax, %ss
@@ -94,16 +99,16 @@ FUNCTION(mp_boot_start)
     btsl $(31), %eax
     mov %eax,  %cr0
 
+    // load a very temporary stack pointer
     movl $(LOAD_ADDRESS + 0x800), %esp
 
     // Use a far jump to get into 64bit mode
     pushl $0x18
-    pushl $(LOAD_ADDRESS + 0x90)
+    pushl $(LOAD_ADDRESS + (.Lfarjump64 - mp_boot_start))
     lret
 
-.org 0x90
 .code64
-farjump64:
+.Lfarjump64:
     /* branch to our high address */
     movq  (.Lhigh_addr), %rax
     jmp  *%rax
@@ -118,15 +123,18 @@ farjump64:
     or  $(1<<4), %eax
     mov %eax, %cr4
 
-    // XXX load trampoline page table
+    // load trampoline page table
+    movl (ARGS_CR3), %eax
+    mov %eax, %cr3
 
-    // get into high address
+    // enable paging
+    mov %cr0,  %eax
+    btsl $(31), %eax
+    mov %eax,  %cr0
 
-    // set up stack pointer
-
-    // call into C
-    cld
-    jmp .
+    // Branch to the high address
+    lea mp_boot_start_high, %eax
+    jmp *%eax
 #endif
 
 DATA(mp_boot_end)
@@ -155,13 +163,38 @@ FUNCTION(mp_boot_start_high)
 
     // call into C
     cld
-    mov $(ARGS_ADDRESS), %rdi
+    mov $ARGS_ADDRESS, %rdi
     call secondary_entry
     jmp .
 
 #else // ARCH_X86_32
+    // set up stack pointer
+    mov (ARGS_STACK), %esp
 
+    // load the real GDT
+    lgdt _gdtr
+
+    push  $CODE_SELECTOR
+    lea  .Lnext, %eax
+    push %eax
+    lret
+.Lnext:
+
+    // Load the real segment registers
+    mov $DATA_SELECTOR, %ax
+    mov %ax, %ds
+    mov %ax, %es
+    mov %ax, %fs
+    mov %ax, %gs
+    mov %ax, %ss
+
+    // call into C
+    cld
+    push $ARGS_ADDRESS
+    call secondary_entry
     jmp .
 
 #endif
 END_FUNCTION(mp_boot_start_high)
+
+#endif // WITH_SMP

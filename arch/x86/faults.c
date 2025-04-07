@@ -26,6 +26,7 @@
 extern enum handler_return platform_irq(x86_iframe_t *frame);
 
 static void dump_fault_frame(x86_iframe_t *frame) {
+    dprintf(CRITICAL, "cpu %u:\n", arch_curr_cpu_num());
 #if ARCH_X86_32
     dprintf(CRITICAL, " CS:     %04hx EIP: %08x EFL: %08x CR2: %08lx\n",
             frame->cs, frame->ip, frame->flags, x86_get_cr2());

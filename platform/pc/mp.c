@@ -30,6 +30,7 @@ struct bootstrap_args {
     uintptr_t trampoline_cr3;
     uintptr_t stack_top;
 
+    // referenced in C, okay to move
     uintptr_t cpu_num;
     volatile uint32_t *boot_completed_ptr; // set by the secondary cpu when it's done
 };
