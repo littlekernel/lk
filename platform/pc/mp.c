@@ -11,6 +11,7 @@
 #include <kernel/thread.h>
 #include <kernel/vm.h>
 #include <lib/acpi_lite.h>
+#include <lk/err.h>
 #include <lk/main.h>
 #include <lk/trace.h>
 #include <string.h>
@@ -35,6 +36,7 @@ struct bootstrap_args {
     volatile uint32_t *boot_completed_ptr; // set by the secondary cpu when it's done
 };
 
+// called from assembly code in mp-boot.S
 __NO_RETURN void secondary_entry(struct bootstrap_args *args) {
     volatile uint32_t *boot_completed = args->boot_completed_ptr;
     uint cpu_num = args->cpu_num;
@@ -49,7 +51,7 @@ __NO_RETURN void secondary_entry(struct bootstrap_args *args) {
     x86_secondary_entry(cpu_num);
 }
 
-static void start_cpu(uint cpu_num, uint32_t apic_id, struct bootstrap_args *args) {
+static status_t start_cpu(uint cpu_num, uint32_t apic_id, struct bootstrap_args *args) {
     LTRACEF("cpu_num %u, apic_id %u\n", cpu_num, apic_id);
 
     // assert that this thread is pinned to the current cpu
@@ -68,20 +70,33 @@ static void start_cpu(uint cpu_num, uint32_t apic_id, struct bootstrap_args *arg
     lapic_send_init_ipi(apic_id, false);
     thread_sleep(10);
 
-    // send SIPI and wait 200us
-    lapic_send_startup_ipi(apic_id, TRAMPOLINE_ADDRESS);
-    thread_sleep(1);
+    // send Startup IPI up to 2 times as recommended by Intel
+    for (int i = 0; i < 2; i++) {
+        lapic_send_startup_ipi(apic_id, TRAMPOLINE_ADDRESS);
 
-    // send SIPI again for good measure and wait 10ms
-    lapic_send_startup_ipi(apic_id, TRAMPOLINE_ADDRESS);
-    thread_sleep(10);
-
-    // wait for the cpu to finish booting
-    while (!boot_completed) {
-        thread_yield();
+        // Wait a little bit for the cpu to start before trying a second time
+        thread_sleep(10);
+        if (boot_completed) {
+            goto booted;
+        }
     }
 
+    // Wait up to a second for the cpu to finish starting
+    for (int i = 0; i < 1000; i++) {
+        if (boot_completed) {
+            goto booted;
+        }
+        thread_sleep(10);
+    }
+
+    // we have failed to start this core
+    // TODO: handle trying to shut the core down before moving on.
+    printf("PC: failed to start cpu %u\n", cpu_num);
+    return ERR_TIMED_OUT;
+
+booted:
     LTRACEF("cpu %u booted\n", cpu_num);
+    return NO_ERROR;
 }
 
 struct detected_cpus {

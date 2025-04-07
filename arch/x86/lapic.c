@@ -97,9 +97,9 @@ enum lapic_timer_mode {
 
 static uint32_t lapic_read(enum lapic_regs reg) {
     LTRACEF_LEVEL(2, "reg %#x\n", reg);
-    DEBUG_ASSERT(reg != LAPIC_ICRLO && reg != LAPIC_ICRHI);
     if (lapic_x2apic) {
         // TODO: do we need barriers here?
+        DEBUG_ASSERT(reg != LAPIC_ICRLO && reg != LAPIC_ICRHI);
         return read_msr(X86_MSR_IA32_X2APIC_BASE + reg / 0x10);
     } else {
         return mmio_read32(lapic_mmio + reg / 4);
@@ -108,12 +108,24 @@ static uint32_t lapic_read(enum lapic_regs reg) {
 
 static void lapic_write(enum lapic_regs reg, uint32_t val) {
     LTRACEF_LEVEL(2, "reg %#x val %#x\n", reg, val);
-    DEBUG_ASSERT(reg != LAPIC_ICRLO && reg != LAPIC_ICRHI);
     if (lapic_x2apic) {
+        DEBUG_ASSERT(reg != LAPIC_ICRLO && reg != LAPIC_ICRHI);
         write_msr(X86_MSR_IA32_X2APIC_BASE + reg / 0x10, val);
     } else {
         mmio_write32(lapic_mmio + reg / 4, val);
     }
+}
+
+static void lapic_wait_for_icr_delivery(void) {
+    LTRACEF_LEVEL(2, "waiting for icr\n");
+    uint32_t val;
+    do {
+        if (lapic_x2apic) {
+            val = read_msr(X86_MSR_IA32_X2APIC_BASE + 0x30);
+        } else {
+            val = lapic_read(LAPIC_ICRLO);
+        }
+    } while (val & (1u << 12));
 }
 
 // special case to write to the ICR register
@@ -124,6 +136,7 @@ static void lapic_write_icr(uint32_t low, uint32_t apic_id) {
     } else {
         lapic_write(LAPIC_ICRHI, apic_id << 24);
         lapic_write(LAPIC_ICRLO, low);
+        lapic_wait_for_icr_delivery();
     }
 }
 
@@ -265,7 +278,7 @@ static void lapic_init_percpu(uint level) {
     uint32_t svr = (LAPIC_INT_SPURIOUS | (1u<<8)); // enable
     lapic_write(LAPIC_SVR, svr);
 
-    TRACEF("lapic svr %#x\n", lapic_read(LAPIC_SVR));
+    LTRACEF("lapic svr %#x\n", lapic_read(LAPIC_SVR));
 
     register_int_handler_msi(LAPIC_INT_SPURIOUS, &lapic_spurious_handler, NULL, false);
     register_int_handler_msi(LAPIC_INT_GENERIC, &lapic_generic_handler, NULL, false);
@@ -346,7 +359,8 @@ void lapic_send_init_ipi(uint32_t apic_id, bool level) {
         return;
     }
 
-    lapic_write_icr((5u << 8) | (level ? (1u << 14) : 0), apic_id);
+    // Level triggered mode, level according to arg, INIT delivery mode, no shorthand
+    lapic_write_icr((1u << 15) | (level ? (1u << 14) : 0) | (5u << 8), apic_id);
 }
 
 void lapic_send_startup_ipi(uint32_t apic_id, uint32_t startup_vector) {
@@ -354,6 +368,7 @@ void lapic_send_startup_ipi(uint32_t apic_id, uint32_t startup_vector) {
         return;
     }
 
+    // Startup IPI, no shorthand
     lapic_write_icr((6u << 8) | (startup_vector >> 12), apic_id);
 }
 
