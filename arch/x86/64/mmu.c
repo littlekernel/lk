@@ -632,12 +632,15 @@ void x86_mmu_early_init_percpu(void) {
     cr0 |= X86_CR0_WP;
     x86_set_cr0(cr0);
 
-    /* Setting the SMEP & SMAP bit in CR4 */
-    uint64_t cr4 = x86_get_cr4();
+    /* Set some mmu control bits in CR4 */
+    uint32_t cr4 = x86_get_cr4();
+    if (x86_feature_test(X86_FEATURE_PGE))
+        cr4 |= X86_CR4_PGE;
     if (x86_feature_test(X86_FEATURE_SMEP))
         cr4 |= X86_CR4_SMEP;
-    if (x86_feature_test(X86_FEATURE_SMAP))
-        cr4 |= X86_CR4_SMAP;
+    /* TODO: enable SMAP when the rest of the system is ready for it */
+    //if (x86_feature_test(X86_FEATURE_SMAP))
+    //    cr4 |= X86_CR4_SMAP;
     x86_set_cr4(cr4);
 
     /* Set NXE bit in MSR_EFER */

@@ -12,6 +12,7 @@
 #include <arch/arch_ops.h>
 #include <arch/mmu.h>
 #include <arch/x86.h>
+#include <arch/x86/feature.h>
 #include <arch/x86/mmu.h>
 #include <assert.h>
 #include <kernel/vm.h>
@@ -411,7 +412,7 @@ int arch_mmu_map(arch_aspace_t * const aspace, const vaddr_t vaddr, const paddr_
 
 bool arch_mmu_supports_nx_mappings(void) { return false; }
 bool arch_mmu_supports_ns_mappings(void) { return false; }
-bool arch_mmu_supports_user_aspaces(void) { return false; }
+bool arch_mmu_supports_user_aspaces(void) { return true; }
 
 /* called once per cpu as it is brought up */
 void x86_mmu_early_init_percpu(void) {
@@ -419,6 +420,17 @@ void x86_mmu_early_init_percpu(void) {
     uint32_t cr0 = x86_get_cr0();
     cr0 |= X86_CR0_WP;
     x86_set_cr0(cr0);
+
+    /* Set some mmu control bits in CR4 */
+    uint32_t cr4 = x86_get_cr4();
+    if (x86_feature_test(X86_FEATURE_PGE))
+        cr4 |= X86_CR4_PGE;
+    if (x86_feature_test(X86_FEATURE_SMEP))
+        cr4 |= X86_CR4_SMEP;
+    /* TODO: enable SMAP when the rest of the system is ready for it */
+    //if (x86_feature_test(X86_FEATURE_SMAP))
+    //    cr4 |= X86_CR4_SMAP;
+    x86_set_cr4(cr4);
 }
 
 void x86_mmu_early_init(void) {
