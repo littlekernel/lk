@@ -29,6 +29,9 @@
 #define LOCAL_TRACE 0
 
 // Deals with all of the various clock sources and event timers on the PC platform.
+// TODO:
+//   HPET
+//   cpuid leaves that describe clock rates
 
 static enum clock_source {
     CLOCK_SOURCE_INITIAL,
