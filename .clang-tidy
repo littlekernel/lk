@@ -39,6 +39,7 @@ Checks: >
   -readability-implicit-bool-conversion,
   -readability-isolate-declaration,
   -readability-magic-numbers,
+  -readability-math-missing-parentheses,
   -readability-named-parameter,
   -readability-qualified-auto,
   -readability-uppercase-literal-suffix,
