@@ -422,15 +422,18 @@ void x86_mmu_early_init_percpu(void) {
     x86_set_cr0(cr0);
 
     /* Set some mmu control bits in CR4 */
-    uint32_t cr4 = x86_get_cr4();
-    if (x86_feature_test(X86_FEATURE_PGE))
-        cr4 |= X86_CR4_PGE;
-    if (x86_feature_test(X86_FEATURE_SMEP))
-        cr4 |= X86_CR4_SMEP;
-    /* TODO: enable SMAP when the rest of the system is ready for it */
-    //if (x86_feature_test(X86_FEATURE_SMAP))
-    //    cr4 |= X86_CR4_SMAP;
-    x86_set_cr4(cr4);
+    uint32_t bits = 0;
+    bits |= x86_feature_test(X86_FEATURE_PGE) ? X86_CR4_PGE : 0;
+    bits |= x86_feature_test(X86_FEATURE_PSE) ? X86_CR4_PSE : 0;
+    bits |= x86_feature_test(X86_FEATURE_SMEP) ? X86_CR4_SMEP : 0;
+    /* for now, we dont support SMAP due to some tests that assume they can access user space */
+    // bits |= x86_feature_test(X86_FEATURE_SMAP) ? X86_CR4_SMAP : 0;
+    if (bits) {
+        /* don't touch cr4 unless we need to, early cpus will fault if its not implemented */
+        uint32_t cr4 = x86_get_cr4();
+        cr4 |= bits;
+        x86_set_cr4(cr4);
+    }
 }
 
 void x86_mmu_early_init(void) {
@@ -453,7 +456,7 @@ void x86_mmu_init(void) {
 status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, const size_t size, const uint flags) {
     DEBUG_ASSERT(aspace);
 
-    TRACEF("aspace %p, base %#lx, size %#zx, flags %#x\n", aspace, base, size, flags);
+    LTRACEF("aspace %p, base %#lx, size %#zx, flags %#x\n", aspace, base, size, flags);
 
     /* validate that the base + size is sane and doesn't wrap */
     DEBUG_ASSERT(size > PAGE_SIZE);
