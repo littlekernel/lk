@@ -19,35 +19,31 @@
 #include <kernel/vm.h>
 #include <platform.h>
 #include <sys/types.h>
-#include <string.h>
 
 /* Describe how start.S sets up the MMU.
  * These data structures are later used by vm routines to lookup pointers
  * to physical pages based on physical addresses.
  */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
-#if ARCH_X86_64
-    /* 64GB of memory mapped where the kernel lives */
+    /* 64GB of the first 64GB of memory mapped 1:1 */
     {
         .phys = MEMBASE,
         .virt = KERNEL_ASPACE_BASE,
-        .size = PHYSMAP_SIZE, /* x86-64 maps first 64GB by default, 1GB on x86-32 */
+        .size = PHYSMAP_SIZE, /* x86-64 maps first 64GB by default, 1GB on x86-32, 16MB in legacy mode */
         .flags = 0,
         .name = "physmap"
     },
-#endif
-    /* 1GB of memory mapped where the kernel lives */
+#if ARCH_X86_64
+    /* Another linear map of the first GB of memory where the kernel image
+     * lives at the top of the address space. */
     {
         .phys = MEMBASE,
         .virt = KERNEL_BASE,
-#if X86_LEGACY
-        .size = 16*MB, /* only map the first 16MB on legacy x86 due to page table usage */
-#else
-        .size = 1*GB, /* x86 maps first 1GB by default */
-#endif
+        .size = 1*GB,
         .flags = 0,
         .name = "kernel"
     },
+#endif
 
     /* null entry to terminate the list */
     { 0 }
@@ -63,13 +59,12 @@ __SECTION(".data") uint32_t _multiboot_info;
 /* main tss */
 static tss_t system_tss __ALIGNED(16);
 
-/* early initialization of the system, on the boot cpu, usually before any sort of
- * printf output is available.
- */
-void arch_early_init(void) {
-    /* enable caches here for now */
+void x86_early_init_percpu(void) {
+    // enable caches
     clear_in_cr0(X86_CR0_NW | X86_CR0_CD);
 
+    // configure the system TSS
+    // XXX move to a per cpu TSS in the percpu structure
 #if ARCH_X86_32
     system_tss.esp0 = 0;
     system_tss.ss0 = DATA_SELECTOR;
@@ -78,18 +73,33 @@ void arch_early_init(void) {
     system_tss.eflags = 0x00003002;
     system_tss.bitmap = offsetof(tss_32_t, tss_bitmap);
     system_tss.trace = 1; // trap on hardware task switch
+#elif ARCH_X86_64
+    /* nothing to be done here, a fully zeroed TSS is a good starting point */
 #endif
+    const uint selector = TSS_SELECTOR_BASE + 8 * arch_curr_cpu_num();
+    x86_set_gdt_descriptor(selector, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
+    x86_ltr(selector);
 
-    set_global_desc(TSS_SELECTOR, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
-    x86_ltr(TSS_SELECTOR);
+    /* load the kernel's IDT */
+    asm("lidt _idtr");
 
+    x86_mmu_early_init_percpu();
+#if X86_WITH_FPU
+    x86_fpu_early_init_percpu();
+#endif
+}
+
+/* early initialization of the system, on the boot cpu, usually before any sort of
+ * printf output is available.
+ */
+void arch_early_init(void) {
     x86_feature_early_init();
-
     x86_mmu_early_init();
-
 #if X86_WITH_FPU
     x86_fpu_early_init();
 #endif
+
+    x86_early_init_percpu();
 }
 
 /* later initialization pass, once the main kernel is initialized and scheduling has begun */

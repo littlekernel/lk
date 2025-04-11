@@ -38,6 +38,9 @@ void mp_reschedule(mp_cpu_mask_t target, uint flags) {
         target &= ~mp.realtime_cpus;
     }
     target &= ~(1U << local_cpu);
+    if (target == 0) {
+        return;
+    }
 
     LTRACEF("local %d, post mask target now 0x%x\n", local_cpu, target);
 

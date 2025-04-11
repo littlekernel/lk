@@ -6,10 +6,10 @@ MODULE := $(LOCAL_DIR)
 # legacy implies older hardware, pre pentium, pre pci
 CPU ?= modern
 
-MODULE_DEPS += \
-    lib/acpi_lite \
-    lib/bio \
-    lib/cbuf
+MODULE_DEPS += lib/acpi_lite
+MODULE_DEPS += lib/bio
+MODULE_DEPS += lib/cbuf
+MODULE_DEPS += lib/fixed_point
 
 ifneq ($(CPU),legacy)
 MODULE_DEPS += dev/bus/pci/drivers
@@ -22,13 +22,18 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/ide.c \
     $(LOCAL_DIR)/interrupts.c \
     $(LOCAL_DIR)/keyboard.c \
-    $(LOCAL_DIR)/lapic.c \
+    $(LOCAL_DIR)/mp.c \
+    $(LOCAL_DIR)/mp-boot.S \
     $(LOCAL_DIR)/pic.c \
+    $(LOCAL_DIR)/pit.c \
     $(LOCAL_DIR)/platform.c \
     $(LOCAL_DIR)/timer.c \
     $(LOCAL_DIR)/uart.c \
 
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
+
+GLOBAL_DEFINES += \
+	PLATFORM_HAS_DYNAMIC_TIMER=1
 
 include make/module.mk
 

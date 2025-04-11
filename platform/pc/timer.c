@@ -1,184 +1,186 @@
 /*
- * Copyright (c) 2009 Corey Tabaka
+ * Copyright (c) 2025 Travis Geiselbrecht
  *
  * Use of this source code is governed by a MIT-style
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
 #include <sys/types.h>
-#include <lk/err.h>
-#include <lk/reg.h>
 #include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/init.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
 #include <kernel/thread.h>
-#include <kernel/spinlock.h>
+#include <kernel/vm.h>
 #include <platform.h>
-#include <platform/interrupts.h>
-#include <platform/console.h>
 #include <platform/timer.h>
 #include <platform/pc.h>
-#include "platform_p.h"
+#include <platform/pc/timer.h>
 #include <arch/x86.h>
+#include <arch/x86/feature.h>
+#include <arch/x86/lapic.h>
+#include <arch/x86/pv.h>
+#include <inttypes.h>
+#include <lib/fixed_point.h>
 
-static platform_timer_callback t_callback;
-static void *callback_arg;
-static spin_lock_t lock;
+#include "platform_p.h"
 
-static uint64_t next_trigger_time;
-static uint64_t next_trigger_delta;
-static uint64_t ticks_per_ms;
+#define LOCAL_TRACE 0
 
-static uint64_t timer_delta_time;
-static volatile uint64_t timer_current_time;
+// Deals with all of the various clock sources and event timers on the PC platform.
+// TODO:
+//   HPET
+//   cpuid leaves that describe clock rates
 
-static uint16_t divisor;
+static enum clock_source {
+    CLOCK_SOURCE_INITIAL,
+    CLOCK_SOURCE_PIT,
+    CLOCK_SOURCE_TSC,
+    CLOCK_SOURCE_HPET,
+} clock_source = CLOCK_SOURCE_INITIAL;
 
-#define INTERNAL_FREQ 1193182ULL
-#define INTERNAL_FREQ_3X 3579546ULL
+static struct fp_32_64 tsc_to_timebase;
+static struct fp_32_64 tsc_to_timebase_hires;
+static struct fp_32_64 timebase_to_tsc;
+static bool use_lapic_timer = false;
 
-/* Maximum amount of time that can be program on the timer to schedule the next
- *  interrupt, in milliseconds */
-#define MAX_TIMER_INTERVAL 55
-
-
-
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
-    t_callback = callback;
-    callback_arg = arg;
-
-    next_trigger_delta = (uint64_t) interval << 32;
-    next_trigger_time = timer_current_time + next_trigger_delta;
-
-    return NO_ERROR;
+static const char *clock_source_name(void) {
+    switch (clock_source) {
+        case CLOCK_SOURCE_INITIAL:
+            return "initial";
+        case CLOCK_SOURCE_PIT:
+            return "PIT";
+        case CLOCK_SOURCE_TSC:
+            return "TSC";
+        case CLOCK_SOURCE_HPET:
+            return "HPET";
+        default:
+            return "unknown";
+    }
 }
 
 lk_time_t current_time(void) {
-    lk_time_t time;
-
-    // XXX slight race
-    time = (lk_time_t) (timer_current_time >> 32);
-
-    return time;
+    switch (clock_source) {
+        case CLOCK_SOURCE_PIT:
+            return pit_current_time();
+        case CLOCK_SOURCE_TSC:
+            return u32_mul_u64_fp32_64(__builtin_ia32_rdtsc(), tsc_to_timebase);
+        default:
+            return 0;
+    }
 }
 
 lk_bigtime_t current_time_hires(void) {
-    lk_bigtime_t time;
-
-    // XXX slight race
-    time = (lk_bigtime_t) ((timer_current_time >> 22) * 1000) >> 10;
-
-    return time;
-}
-static enum handler_return os_timer_tick(void *arg) {
-    uint64_t delta;
-
-    timer_current_time += timer_delta_time;
-
-    lk_time_t time = current_time();
-    //lk_bigtime_t btime = current_time_hires();
-    //printf_xy(71, 0, WHITE, "%08u", (uint32_t) time);
-    //printf_xy(63, 1, WHITE, "%016llu", (uint64_t) btime);
-
-    if (t_callback && timer_current_time >= next_trigger_time) {
-        delta = timer_current_time - next_trigger_time;
-        next_trigger_time = timer_current_time + next_trigger_delta - delta;
-
-        return t_callback(callback_arg, time);
-    } else {
-        return INT_NO_RESCHEDULE;
+    switch (clock_source) {
+        case CLOCK_SOURCE_PIT:
+            return pit_current_time_hires();
+        case CLOCK_SOURCE_TSC:
+            return u64_mul_u64_fp32_64(__builtin_ia32_rdtsc(), tsc_to_timebase_hires);
+        default:
+            return 0;
     }
 }
 
-static void set_pit_frequency(uint32_t frequency) {
-    uint32_t count, remainder;
+// Convert lk_time_t to TSC ticks
+uint64_t time_to_tsc_ticks(lk_time_t time) {
+    return u64_mul_u32_fp32_64(time, timebase_to_tsc);
+}
 
-    /* figure out the correct divisor for the desired frequency */
-    if (frequency <= 18) {
-        count = 0xffff;
-    } else if (frequency >= INTERNAL_FREQ) {
-        count = 1;
-    } else {
-        count = INTERNAL_FREQ_3X / frequency;
-        remainder = INTERNAL_FREQ_3X % frequency;
+void pc_init_timer(unsigned int level) {
+    // Initialize the PIT, it's always present in PC hardware
+    pit_init();
+    clock_source = CLOCK_SOURCE_PIT;
 
-        if (remainder >= INTERNAL_FREQ_3X / 2) {
-            count += 1;
-        }
+#if !X86_LEGACY
+    // XXX update note about what invariant TSC means
+    bool use_invariant_tsc = x86_feature_test(X86_FEATURE_INVAR_TSC);
+    LTRACEF("invariant TSC %d\n", use_invariant_tsc);
 
-        count /= 3;
-        remainder = count % 3;
+    // Test for hypervisor PV clock, which also effectively says if TSC is invariant across
+    // all cpus.
+    if (pvclock_init() == NO_ERROR) {
+        bool pv_clock_stable = pv_clock_is_stable();
 
-        if (remainder >= 1) {
-            count += 1;
-        }
+        use_invariant_tsc |= pv_clock_stable;
+
+        printf("pv_clock: Clocksource is %sstable\n", (pv_clock_stable ? "" : "not "));
     }
 
-    divisor = count & 0xffff;
+    // XXX test for HPET and use it over PIT if present
 
-    /*
-     * funky math that i don't feel like explaining. essentially 32.32 fixed
-     * point representation of the configured timer delta.
-     */
-    timer_delta_time = (3685982306ULL * count) >> 10;
+    if (use_invariant_tsc) {
+        // We're going to try to use the TSC as a time base, obtain the TSC frequency.
+        uint64_t tsc_hz = 0;
 
-    //dprintf(DEBUG, "set_pit_frequency: dt=%016llx\n", timer_delta_time);
-    //dprintf(DEBUG, "set_pit_frequency: divisor=%04x\n", divisor);
+        tsc_hz = pvclock_get_tsc_freq();
+        if (tsc_hz == 0) {
+            // TODO: some x86 cores describe the TSC and lapic clocks in cpuid
 
-    /*
-     * setup the Programmable Interval Timer
-     * timer 0, mode 2, binary counter, LSB followed by MSB
-     */
-    outp(I8253_CONTROL_REG, 0x34);
-    outp(I8253_DATA_REG, divisor & 0xff); // LSB
-    outp(I8253_DATA_REG, divisor >> 8); // MSB
+            // Calibrate the TSC against the PIT, which should always be present
+            tsc_hz = pit_calibrate_tsc();
+            if (tsc_hz == 0) {
+                dprintf(CRITICAL, "PC: failed to calibrate TSC frequency\n");
+                goto out;
+            }
+        }
+
+        dprintf(INFO, "PC: TSC frequency %" PRIu64 "Hz\n", tsc_hz);
+
+        // Compute the ratio of TSC to timebase
+        fp_32_64_div_32_32(&tsc_to_timebase, 1000, tsc_hz);
+        dprintf(INFO, "PC: TSC to timebase ratio %u.%08u...\n",
+                tsc_to_timebase.l0, tsc_to_timebase.l32);
+
+        fp_32_64_div_32_32(&tsc_to_timebase_hires, 1000*1000, tsc_hz);
+        dprintf(INFO, "PC: TSC to hires timebase ratio %u.%08u...\n",
+                tsc_to_timebase_hires.l0, tsc_to_timebase_hires.l32);
+
+        fp_32_64_div_32_32(&timebase_to_tsc, tsc_hz, 1000);
+        dprintf(INFO, "PC: timebase to TSC ratio %u.%08u...\n",
+                timebase_to_tsc.l0, timebase_to_tsc.l32);
+
+        clock_source = CLOCK_SOURCE_TSC;
+    }
+out:
+
+    // Set up the local apic for event timer interrupts
+    if (lapic_timer_init(use_invariant_tsc) == NO_ERROR) {
+        dprintf(INFO, "PC: using LAPIC timer for event timer\n");
+        use_lapic_timer = true;
+    }
+
+    // If we're not using the PIT for time base and using the LAPIC timer for events, stop the PIT.
+    if (use_lapic_timer && clock_source != CLOCK_SOURCE_PIT) {
+        pit_stop_timer();
+    }
+
+#endif // !X86_LEGACY
+
+    dprintf(INFO, "PC: using %s clock source\n", clock_source_name());
 }
 
-void platform_init_timer(void) {
+LK_INIT_HOOK(pc_timer, pc_init_timer, LK_INIT_LEVEL_VM + 2);
 
-    timer_current_time = 0;
-    ticks_per_ms = INTERNAL_FREQ/1000;
-    set_pit_frequency(1000); // ~1ms granularity
-    register_int_handler(INT_PIT, &os_timer_tick, NULL);
-    unmask_interrupt(INT_PIT);
-}
-
-static void platform_halt_timers(void) {
-    mask_interrupt(INT_PIT);
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
+    if (use_lapic_timer) {
+        PANIC_UNIMPLEMENTED;
+    }
+    return pit_set_periodic_timer(callback, arg, interval);
 }
 
 status_t platform_set_oneshot_timer(platform_timer_callback callback,
                                     void *arg, lk_time_t interval) {
-    uint32_t count;
-
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
-
-    t_callback = callback;
-    callback_arg = arg;
-
-
-    if (interval > MAX_TIMER_INTERVAL)
-        interval = MAX_TIMER_INTERVAL;
-    if (interval < 1) interval = 1;
-
-    count = ticks_per_ms * interval;
-
-    divisor = count & 0xffff;
-    timer_delta_time = (3685982306ULL * count) >> 10;
-    /* Program PIT in the software strobe configuration, to send one pulse
-     * after the count reach 0 */
-    outp(I8253_CONTROL_REG, 0x38);
-    outp(I8253_DATA_REG, divisor & 0xff); // LSB
-    outp(I8253_DATA_REG, divisor >> 8); // MSB
-
-
-    unmask_interrupt(INT_PIT);
-    spin_unlock_irqrestore(&lock, state);
-
-    return NO_ERROR;
+    if (use_lapic_timer) {
+        return lapic_set_oneshot_timer(callback, arg, interval);
+    }
+    return pit_set_oneshot_timer(callback, arg, interval);
 }
 
 void platform_stop_timer(void) {
-    /* Enable interrupt mode that will stop the decreasing counter of the PIT */
-    outp(I8253_CONTROL_REG, 0x30);
-    return;
+    if (use_lapic_timer) {
+        lapic_cancel_timer();
+    } else {
+        pit_cancel_timer();
+    }
 }

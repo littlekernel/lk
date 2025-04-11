@@ -17,7 +17,7 @@
 #include <kernel/vm.h>
 
 // uses the vm to map in ACPI tables as they are found
-static_assert(WITH_KERNEL_VM, "");
+static_assert(WITH_KERNEL_VM);
 
 #define LOCAL_TRACE 0
 
@@ -407,7 +407,7 @@ void acpi_lite_dump_tables(bool full_dump) {
   }
 }
 
-status_t acpi_process_madt_entries_etc(const uint8_t search_type, const madt_entry_callback callback) {
+status_t acpi_process_madt_entries_etc(const uint8_t search_type, const madt_entry_callback callback, void * const cookie) {
   const acpi_madt_table* madt =
       reinterpret_cast<const acpi_madt_table*>(acpi_get_table_by_sig(ACPI_MADT_SIG));
   if (!madt) {
@@ -417,20 +417,50 @@ status_t acpi_process_madt_entries_etc(const uint8_t search_type, const madt_ent
   // bytewise array of the same table
   const uint8_t* madt_array = reinterpret_cast<const uint8_t*>(madt);
 
+  LTRACEF("table at %p\n", madt_array);
+
   // walk the table off the end of the header, looking for the requested type
   size_t off = sizeof(*madt);
   while (off < madt->header.length) {
     uint8_t type = madt_array[off];
     uint8_t length = madt_array[off + 1];
 
+    LTRACEF("type %u, length %u\n", type, length);
     if (type == search_type) {
-      callback(static_cast<const void*>(&madt_array[off]), length);
+      callback(static_cast<const void*>(&madt_array[off]), length, cookie);
     }
 
     off += length;
   }
 
   return NO_ERROR;
+}
+
+void acpi_lite_dump_madt_table() {
+    auto local_apic_callback = [](const void *_entry, size_t entry_len, void *cookie) {
+        const auto *entry = reinterpret_cast<const struct acpi_madt_local_apic_entry *>(_entry);
+
+        printf("\tLOCAL APIC id %d, processor id %d, flags %#x\n",
+                entry->apic_id, entry->processor_id, entry->flags);
+    };
+
+    auto io_apic_callback = [](const void *_entry, size_t entry_len, void *cookie) {
+        const auto *entry = reinterpret_cast<const struct acpi_madt_io_apic_entry *>(_entry);
+
+        printf("\tIO APIC id %d, address %#x gsi base %u\n",
+                entry->io_apic_id, entry->io_apic_address, entry->global_system_interrupt_base);
+    };
+
+    auto int_source_override_callback = [](const void *_entry, size_t entry_len, void *cookie) {
+        const auto *entry = reinterpret_cast<const struct acpi_madt_int_source_override_entry *>(_entry);
+
+        printf("\tINT OVERRIDE bus %u, source %u, gsi %u, flags %#x\n",
+                entry->bus, entry->source, entry->global_sys_interrupt, entry->flags);
+    };
+    printf("MADT/APIC table:\n");
+    acpi_process_madt_entries_etc(ACPI_MADT_TYPE_LOCAL_APIC, local_apic_callback, nullptr);
+    acpi_process_madt_entries_etc(ACPI_MADT_TYPE_IO_APIC, io_apic_callback, nullptr);
+    acpi_process_madt_entries_etc(ACPI_MADT_TYPE_INT_SOURCE_OVERRIDE, int_source_override_callback, nullptr);
 }
 
 // vim: set ts=2 sw=2 expandtab:

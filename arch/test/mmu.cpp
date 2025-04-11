@@ -15,7 +15,9 @@
 #include <lib/unittest.h>
 #include <kernel/vm.h>
 
-static bool create_user_aspace(void) {
+namespace {
+
+bool create_user_aspace() {
     BEGIN_TEST;
 
     if (arch_mmu_supports_user_aspaces()) {
@@ -34,7 +36,7 @@ static bool create_user_aspace(void) {
     END_TEST;
 }
 
-static bool map_user_pages(void) {
+bool map_user_pages() {
     BEGIN_TEST;
 
     if (arch_mmu_supports_user_aspaces()) {
@@ -89,7 +91,7 @@ static bool map_user_pages(void) {
     END_TEST;
 }
 
-static bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
+bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
     BEGIN_TEST;
     void *ptr = NULL;
 
@@ -109,10 +111,17 @@ static bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
     // free this region we made
     EXPECT_EQ(NO_ERROR, vmm_free_region(aspace, (vaddr_t)ptr), "free region");
 
+    // query that the page is not there anymore
+    {
+        paddr_t pa = 0;
+        uint flags = ~arch_flags;
+        EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&aspace->arch_aspace, (vaddr_t)ptr, &pa, &flags), "arch_query");
+    }
+
     END_TEST;
 }
 
-static bool map_region_expect_failure(vmm_aspace_t *aspace, uint arch_flags, int expected_error) {
+bool map_region_expect_failure(vmm_aspace_t *aspace, uint arch_flags, int expected_error) {
     BEGIN_TEST;
     void *ptr = NULL;
 
@@ -123,7 +132,7 @@ static bool map_region_expect_failure(vmm_aspace_t *aspace, uint arch_flags, int
     END_TEST;
 }
 
-static bool map_query_pages(void) {
+bool map_query_pages() {
     BEGIN_TEST;
 
     vmm_aspace_t *kaspace = vmm_get_kernel_aspace();
@@ -153,9 +162,12 @@ static bool map_query_pages(void) {
     END_TEST;
 }
 
-static bool context_switch(void) {
+bool context_switch() {
     BEGIN_TEST;
 
+    // create a user space, map a page or two and access it
+    // NOTE: this assumes that kernel code can directly access user space, which isn't necessarily true
+    // on all architectures. See SMAP on x86, PAN on ARM, and SUM on RISC-V.
     if (arch_mmu_supports_user_aspaces()) {
         arch_aspace_t as;
         status_t err = arch_mmu_init_aspace(&as, USER_ASPACE_BASE, USER_ASPACE_SIZE, 0);
@@ -217,5 +229,7 @@ RUN_TEST(map_user_pages);
 RUN_TEST(map_query_pages);
 RUN_TEST(context_switch);
 END_TEST_CASE(arch_mmu_tests)
+
+} // namespace
 
 #endif // ARCH_HAS_MMU

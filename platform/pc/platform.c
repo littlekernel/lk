@@ -13,7 +13,6 @@
 #include <lk/trace.h>
 #include <arch/x86/mmu.h>
 #include <platform.h>
-#include "platform_p.h"
 #include <platform/pc.h>
 #include <platform/console.h>
 #include <platform/keyboard.h>
@@ -22,11 +21,12 @@
 #include <arch/x86.h>
 #include <arch/mmu.h>
 #include <malloc.h>
-#include <string.h>
 #include <assert.h>
 #include <inttypes.h>
 #include <kernel/vm.h>
 #include <lib/acpi_lite.h>
+
+#include "platform_p.h"
 
 #if WITH_DEV_BUS_PCI
 #include <dev/bus/pci.h>
@@ -188,9 +188,6 @@ void platform_early_init(void) {
     /* initialize the interrupt controller */
     platform_init_interrupts();
 
-    /* initialize the timer */
-    platform_init_timer();
-
     /* look at multiboot to determine our memory size */
     size_t found_arenas;
     platform_parse_multiboot_info(&found_arenas);
@@ -218,44 +215,30 @@ void platform_early_init(void) {
     dprintf(INFO, "PC: total memory detected %" PRIu64 " bytes\n", total_mem);
 }
 
-void local_apic_callback(const void *_entry, size_t entry_len) {
-    const struct acpi_madt_local_apic_entry *entry = _entry;
-
-    printf("\tLOCAL APIC id %d, processor id %d, flags %#x\n",
-            entry->apic_id, entry->processor_id, entry->flags);
-}
-
-void io_apic_callback(const void *_entry, size_t entry_len) {
-    const struct acpi_madt_io_apic_entry *entry = _entry;
-
-    printf("\tIO APIC id %d, address %#x gsi base %u\n",
-            entry->io_apic_id, entry->io_apic_address, entry->global_system_interrupt_base);
-}
-
-void int_source_override_callback(const void *_entry, size_t entry_len) {
-    const struct acpi_madt_int_source_override_entry *entry = _entry;
-
-    printf("\tINT OVERRIDE bus %u, source %u, gsi %u, flags %#x\n",
-            entry->bus, entry->source, entry->global_sys_interrupt, entry->flags);
-}
-
 void platform_init(void) {
     platform_init_debug();
 
     platform_init_keyboard(&console_input_buf);
 
-#if WITH_DEV_BUS_PCI
-    bool pci_initted = false;
+    // Look for the root ACPI table
+    __UNUSED bool found_acpi = false;
     if (acpi_lite_init(0) == NO_ERROR) {
         if (LOCAL_TRACE) {
             acpi_lite_dump_tables(false);
         }
+        acpi_lite_dump_madt_table();
+        found_acpi = true;
+    }
 
-        // dump the APIC table
-        printf("MADT/APIC table:\n");
-        acpi_process_madt_entries_etc(ACPI_MADT_TYPE_LOCAL_APIC, &local_apic_callback);
-        acpi_process_madt_entries_etc(ACPI_MADT_TYPE_IO_APIC, &io_apic_callback);
-        acpi_process_madt_entries_etc(ACPI_MADT_TYPE_INT_SOURCE_OVERRIDE, &int_source_override_callback);
+    // Look for secondary cpus
+#if WITH_SMP
+    platform_start_secondary_cpus();
+#endif
+
+#if WITH_DEV_BUS_PCI
+    bool pci_initted = false;
+    if (found_acpi) {
+        // TODO: handle interrupt source overrides from the MADT table
 
         // try to find the mcfg table
         const struct acpi_mcfg_table *table = (const struct acpi_mcfg_table *)acpi_get_table_by_sig(ACPI_MCFG_SIG);

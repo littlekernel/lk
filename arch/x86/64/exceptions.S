@@ -65,6 +65,8 @@ LOCAL_FUNCTION(interrupt_common)
     pushq %rsi
     pushq %rdi
 
+    /* TODO: deal with swapgs if coming from user space */
+
     /* pass the  iframe using rdi */
     movq %rsp, %rdi
 
@@ -110,8 +112,6 @@ FUNCTION(setup_idt)
     add  $16, %rdi          /* index the next IDT entry */
 
     loop .Lloop
-
-    lidt _idtr
 
     ret
 END_FUNCTION(setup_idt)

@@ -45,7 +45,8 @@ LOCAL_FUNCTION(interrupt_common)
     pushl %ds
     pusha                   /* save general purpose registers */
     movl $DATA_SELECTOR, %eax /* put known good value in segment registers */
-    movl %eax, %gs
+    // do not reset %gs, as it is used by the kernel
+    // TODO: when dealing with user space, we need to reset %gs here
     movl %eax, %fs
     movl %eax, %es
     movl %eax, %ds
@@ -61,8 +62,7 @@ LOCAL_FUNCTION(interrupt_common)
     popl %ds                /* restore segment registers */
     popl %es
     popl %fs
-    popl %gs
-    addl $8, %esp           /* drop exception number and error code */
+    addl $12, %esp          /* drop gs, exception number, and error code */
     iret
 END_FUNCTION(interrupt_common)
 
@@ -82,8 +82,6 @@ FUNCTION(setup_idt)
     addl $8, %edi           /* index the next IDT entry */
 
     loop .Lloop
-
-    lidt _idtr
 
     ret
 END_FUNCTION(setup_idt)

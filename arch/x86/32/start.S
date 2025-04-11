@@ -118,15 +118,6 @@ paging_setup:
     addl $4096, %eax
     movl %eax, 12(%esi)
     movl %eax, 12(%edi)
-
-    /* Set PD in CR3 */
-    movl $PHYS(kernel_pd), %eax
-    mov %eax, %cr3
-
-    /* Enabling Paging and from this point we are in */
-    mov %cr0,  %eax
-    btsl $(31), %eax
-    mov %eax, %cr0
 #else
     /* map the first 1GB 1:1 using 4MB pages */
     movl $PHYS(kernel_pd), %esi
@@ -154,19 +145,20 @@ paging_setup:
     addl $0x00400000, %eax
     loop .Lfill_pd2
 
+    /* enable PSE (4MB pages) */
+    mov %cr4, %eax
+    orl $(1<<4), %eax
+    mov %eax, %cr4
+#endif
+
     /* Set PD in CR3 */
     movl $PHYS(kernel_pd), %eax
     mov %eax, %cr3
 
     /* Enabling Paging and from this point we are in */
-    mov %cr4, %eax
-    orl $0x10, %eax
-    mov %eax, %cr4
-
     mov %cr0,  %eax
     btsl $(31), %eax
     mov %eax, %cr0
-#endif
 
     /* load the high kernel stack */
     movl $(_kstack + 4096), %esp
@@ -181,6 +173,11 @@ paging_setup:
 main_lk:
     /* set up the idt */
     call setup_idt
+
+    /* set up the percpu data structure pointer for the boot cpu */
+    pushl $0
+    pushl $0
+    call x86_configure_percpu_early
 
     /* call the main module */
     call lk_main

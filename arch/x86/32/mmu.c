@@ -12,6 +12,7 @@
 #include <arch/arch_ops.h>
 #include <arch/mmu.h>
 #include <arch/x86.h>
+#include <arch/x86/feature.h>
 #include <arch/x86/mmu.h>
 #include <assert.h>
 #include <kernel/vm.h>
@@ -23,7 +24,12 @@
 #include <string.h>
 #include <sys/types.h>
 
+// TODO:
+// - proper tlb flush (local and SMP)
+// - synchronization of top level page tables for user space aspaces
+
 #define LOCAL_TRACE 0
+#define TRACE_CONTEXT_SWITCH 0
 
 /* top level kernel page tables, initialized in start.S */
 #if X86_LEGACY
@@ -309,8 +315,6 @@ static status_t x86_mmu_unmap(map_addr_t * const init_table, const vaddr_t vaddr
 }
 
 int arch_mmu_unmap(arch_aspace_t * const aspace, const vaddr_t vaddr, const uint count) {
-    map_addr_t init_table_from_cr3;
-
     LTRACEF("aspace %p, vaddr %#lx, count %u\n", aspace, vaddr, count);
 
     DEBUG_ASSERT(aspace);
@@ -321,10 +325,7 @@ int arch_mmu_unmap(arch_aspace_t * const aspace, const vaddr_t vaddr, const uint
     if (count == 0)
         return NO_ERROR;
 
-    DEBUG_ASSERT(x86_get_cr3());
-    init_table_from_cr3 = x86_get_cr3();
-
-    return (x86_mmu_unmap(paddr_to_kvaddr(init_table_from_cr3), vaddr, count));
+    return (x86_mmu_unmap(aspace->cr3, vaddr, count));
 }
 
 /**
@@ -372,12 +373,9 @@ status_t arch_mmu_query(arch_aspace_t * const aspace, const vaddr_t vaddr, paddr
     if (!paddr)
         return ERR_INVALID_ARGS;
 
-    DEBUG_ASSERT(x86_get_cr3());
-    uint32_t current_cr3_val = (map_addr_t)x86_get_cr3();
-
     arch_flags_t ret_flags;
     uint32_t ret_level;
-    status_t stat = x86_mmu_get_mapping(paddr_to_kvaddr(current_cr3_val), vaddr, &ret_level, &ret_flags, paddr);
+    status_t stat = x86_mmu_get_mapping(aspace->cr3, vaddr, &ret_level, &ret_flags, paddr);
     if (stat)
         return stat;
 
@@ -404,27 +402,41 @@ int arch_mmu_map(arch_aspace_t * const aspace, const vaddr_t vaddr, const paddr_
     if (count == 0)
         return NO_ERROR;
 
-    DEBUG_ASSERT(x86_get_cr3());
-    uint32_t current_cr3_val = (map_addr_t)x86_get_cr3();
-
     struct map_range range;
     range.start_vaddr = vaddr;
     range.start_paddr = (map_addr_t)paddr;
     range.size = count * PAGE_SIZE;
 
-    return (x86_mmu_map_range(paddr_to_kvaddr(current_cr3_val), &range, flags));
+    return (x86_mmu_map_range(aspace->cr3, &range, flags));
 }
 
 bool arch_mmu_supports_nx_mappings(void) { return false; }
 bool arch_mmu_supports_ns_mappings(void) { return false; }
-bool arch_mmu_supports_user_aspaces(void) { return false; }
+bool arch_mmu_supports_user_aspaces(void) { return true; }
 
-void x86_mmu_early_init(void) {
-    /* Set WP bit in CR0*/
-    volatile uint32_t cr0 = x86_get_cr0();
+/* called once per cpu as it is brought up */
+void x86_mmu_early_init_percpu(void) {
+    /* Set WP bit in CR0 */
+    uint32_t cr0 = x86_get_cr0();
     cr0 |= X86_CR0_WP;
     x86_set_cr0(cr0);
 
+    /* Set some mmu control bits in CR4 */
+    uint32_t bits = 0;
+    bits |= x86_feature_test(X86_FEATURE_PGE) ? X86_CR4_PGE : 0;
+    bits |= x86_feature_test(X86_FEATURE_PSE) ? X86_CR4_PSE : 0;
+    bits |= x86_feature_test(X86_FEATURE_SMEP) ? X86_CR4_SMEP : 0;
+    /* for now, we dont support SMAP due to some tests that assume they can access user space */
+    // bits |= x86_feature_test(X86_FEATURE_SMAP) ? X86_CR4_SMAP : 0;
+    if (bits) {
+        /* don't touch cr4 unless we need to, early cpus will fault if its not implemented */
+        uint32_t cr4 = x86_get_cr4();
+        cr4 |= bits;
+        x86_set_cr4(cr4);
+    }
+}
+
+void x86_mmu_early_init(void) {
     /* unmap the lower identity mapping */
     for (uint i = 0; i < (1024*1024*1024) / (4*1024*1024); i++) {
         kernel_pd[i] = 0;
@@ -444,8 +456,43 @@ void x86_mmu_init(void) {
 status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, const size_t size, const uint flags) {
     DEBUG_ASSERT(aspace);
 
-    if ((flags & ARCH_ASPACE_FLAG_KERNEL) == 0) {
-        return ERR_NOT_SUPPORTED;
+    LTRACEF("aspace %p, base %#lx, size %#zx, flags %#x\n", aspace, base, size, flags);
+
+    /* validate that the base + size is sane and doesn't wrap */
+    DEBUG_ASSERT(size > PAGE_SIZE);
+    DEBUG_ASSERT(base + size - 1 > base);
+
+    aspace->flags = flags;
+    aspace->flags = flags;
+    if (flags & ARCH_ASPACE_FLAG_KERNEL) {
+        /* at the moment we can only deal with address spaces as globally defined */
+        DEBUG_ASSERT(base == KERNEL_ASPACE_BASE);
+        DEBUG_ASSERT(size == KERNEL_ASPACE_SIZE);
+
+        aspace->base = base;
+        aspace->size = size;
+        aspace->cr3 = kernel_pd;
+        aspace->cr3_phys = vaddr_to_paddr(aspace->cr3);
+    } else {
+        DEBUG_ASSERT(base == USER_ASPACE_BASE);
+        DEBUG_ASSERT(size == USER_ASPACE_SIZE);
+
+        aspace->base = base;
+        aspace->size = size;
+
+        map_addr_t *va = pmm_alloc_kpages(1, NULL);
+        if (!va) {
+            return ERR_NO_MEMORY;
+        }
+
+        aspace->cr3 = va;
+        aspace->cr3_phys = vaddr_to_paddr(aspace->cr3);
+
+        /* copy the top entries from the kernel top table */
+        memcpy(aspace->cr3 + NO_OF_PT_ENTRIES/2, kernel_pd + NO_OF_PT_ENTRIES/2, PAGE_SIZE/2);
+
+        /* zero out the rest */
+        memset(aspace->cr3, 0, PAGE_SIZE/2);
     }
 
     return NO_ERROR;
@@ -456,8 +503,22 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t * const aspace) {
 }
 
 void arch_mmu_context_switch(arch_aspace_t * const aspace) {
-    if (aspace != NULL) {
-        PANIC_UNIMPLEMENTED;
+    if (TRACE_CONTEXT_SWITCH)
+        TRACEF("aspace %p\n", aspace);
+
+    uint64_t cr3;
+    if (aspace) {
+        DEBUG_ASSERT((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) == 0);
+
+        cr3 = aspace->cr3_phys;
+    } else {
+        // TODO save copy of this
+        cr3 = vaddr_to_paddr(kernel_pd);
     }
+    if (TRACE_CONTEXT_SWITCH) {
+        TRACEF("cr3 %#llx\n", cr3);
+    }
+
+    x86_set_cr3(cr3);
 }
 

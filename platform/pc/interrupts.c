@@ -16,6 +16,7 @@
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
+#include <arch/x86/lapic.h>
 #include <kernel/spinlock.h>
 #include "platform_p.h"
 #include <platform/pc.h>
