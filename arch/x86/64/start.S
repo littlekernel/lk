@@ -206,7 +206,6 @@ highaddr:
     movw %ax, %ds
     movw %ax, %es
     movw %ax, %fs
-    movw %ax, %ss
     movw %ax, %gs
     movw %ax, %ss
 
