@@ -658,7 +658,7 @@ void x86_mmu_early_init(void) {
     vaddr_width = x86_get_vaddr_width();
 
     /* check to see if we support huge (1GB) and invpcid instruction */
-    supports_huge_pages = x86_feature_test(X86_FEATURE_HUGE_PAGE);
+    supports_huge_pages = x86_feature_test(X86_FEATURE_PG1G);
     supports_invpcid = x86_feature_test(X86_FEATURE_INVPCID);
     supports_pcid = x86_feature_test(X86_FEATURE_PCID);
 
