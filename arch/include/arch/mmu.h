@@ -55,7 +55,8 @@ vaddr_t arch_mmu_pick_spot(arch_aspace_t *aspace,
                            vaddr_t end,  uint next_region_arch_mmu_flags,
                            vaddr_t align, size_t size, uint arch_mmu_flags) __NONNULL((1));
 
-/* load a new user address space context.
+/*
+ * load a new user address space context.
  * aspace argument NULL should unload user space.
  */
 void arch_mmu_context_switch(arch_aspace_t *aspace);

@@ -37,6 +37,7 @@
 map_addr_t kernel_pt[NO_OF_PT_ENTRIES][4] __ALIGNED(PAGE_SIZE);
 #endif
 map_addr_t kernel_pd[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+paddr_t kernel_pd_phys;
 
 static inline paddr_t get_pfn_from_pde(map_addr_t pde) {
     return pde & X86_4MB_PAGE_FRAME;
@@ -472,7 +473,7 @@ status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, 
         aspace->base = base;
         aspace->size = size;
         aspace->cr3 = kernel_pd;
-        aspace->cr3_phys = vaddr_to_paddr(aspace->cr3);
+        aspace->cr3_phys = kernel_pd_phys;
     } else {
         DEBUG_ASSERT(base == USER_ASPACE_BASE);
         DEBUG_ASSERT(size == USER_ASPACE_SIZE);
@@ -499,6 +500,16 @@ status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, 
 }
 
 status_t arch_mmu_destroy_aspace(arch_aspace_t * const aspace) {
+    // TODO: assert that we're not active on any cpus
+    if (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) {
+        // can't destroy the kernel aspace
+        panic("attempt to destroy kernel aspace\n");
+        return ERR_NOT_ALLOWED;
+    }
+
+    // free the page table
+    pmm_free_kpages(aspace->cr3, 1);
+
     return NO_ERROR;
 }
 
@@ -512,8 +523,7 @@ void arch_mmu_context_switch(arch_aspace_t * const aspace) {
 
         cr3 = aspace->cr3_phys;
     } else {
-        // TODO save copy of this
-        cr3 = vaddr_to_paddr(kernel_pd);
+        cr3 = kernel_pd_phys;
     }
     if (TRACE_CONTEXT_SWITCH) {
         TRACEF("cr3 %#llx\n", cr3);

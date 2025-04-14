@@ -42,6 +42,9 @@ map_addr_t kernel_pml4[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 map_addr_t kernel_pdp[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE); /* temporary */
 map_addr_t kernel_pte[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 
+/* saed physical address of the kernel_pml4 table */
+paddr_t kernel_pml4_phys;
+
 /* top level pdp needed to map the -512GB..0 space */
 map_addr_t kernel_pdp_high[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 
@@ -666,7 +669,7 @@ void x86_mmu_early_init(void) {
     kernel_pml4[0] = 0;
 
     /* tlb flush */
-    x86_set_cr3(x86_get_cr3());
+    x86_set_cr3(kernel_pml4_phys);
 }
 
 void x86_mmu_init(void) {
@@ -697,7 +700,7 @@ status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, 
         aspace->base = base;
         aspace->size = size;
         aspace->cr3 = kernel_pml4;
-        aspace->cr3_phys = vaddr_to_paddr(aspace->cr3);
+        aspace->cr3_phys = kernel_pml4_phys;
     } else {
         DEBUG_ASSERT(base == USER_ASPACE_BASE);
         DEBUG_ASSERT(size == USER_ASPACE_SIZE);
@@ -737,18 +740,17 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
     return NO_ERROR;
 }
 
-void arch_mmu_context_switch(arch_aspace_t *aspace) {
+void arch_mmu_context_switch(arch_aspace_t *new_aspace) {
     if (TRACE_CONTEXT_SWITCH)
-        TRACEF("aspace %p\n", aspace);
+        TRACEF("aspace %p\n", new_aspace);
 
     uint64_t cr3;
-    if (aspace) {
-        DEBUG_ASSERT((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) == 0);
+    if (new_aspace) {
+        DEBUG_ASSERT((new_aspace->flags & ARCH_ASPACE_FLAG_KERNEL) == 0);
 
-        cr3 = aspace->cr3_phys;
+        cr3 = new_aspace->cr3_phys;
     } else {
-        // TODO save copy of this
-        cr3 = vaddr_to_paddr(kernel_pml4);
+        cr3 = kernel_pml4_phys;
     }
     if (TRACE_CONTEXT_SWITCH) {
         TRACEF("cr3 %#llx\n", cr3);

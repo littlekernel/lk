@@ -103,6 +103,9 @@ paging_setup:
     movl $PHYS(kernel_pml4), %eax
     mov %eax, %cr3
 
+    /* save it into a global variable that is used by the kernel */
+    movl %eax, PHYS(kernel_pml4_phys)
+
     /* Long Mode Enabled at this point*/
     movl $MSR_EFER ,%ecx
     rdmsr

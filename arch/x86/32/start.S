@@ -155,6 +155,9 @@ paging_setup:
     movl $PHYS(kernel_pd), %eax
     mov %eax, %cr3
 
+    /* save a copy of the address of the kernel page directory */
+    movl %eax, PHYS(kernel_pd_phys)
+
     /* Enabling Paging and from this point we are in */
     mov %cr0,  %eax
     btsl $(31), %eax
