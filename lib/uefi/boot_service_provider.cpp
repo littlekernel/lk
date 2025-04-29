@@ -21,13 +21,13 @@
 #include "arch/defines.h"
 #include "boot_service.h"
 
-#include "defer.h"
 #include "lib/bio.h"
-#include "libfdt.h"
 #include "protocols/block_io_protocol.h"
 #include "protocols/dt_fixup_protocol.h"
 #include "protocols/gbl_efi_os_configuration_protocol.h"
 #include "protocols/loaded_image_protocol.h"
+#include "uefi_platform.h"
+
 #include <lk/compiler.h>
 
 #include "switch_stack.h"
@@ -36,11 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-
-__WEAK EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key) {
-  printf("%s is called\n", __FUNCTION__);
-  return SUCCESS;
-}
 
 namespace {
 
@@ -180,74 +175,6 @@ EfiTpl raise_tpl(EfiTpl new_tpl) {
   return APPLICATION;
 }
 
-EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol *self, void *fdt,
-                        size_t *buffer_size, uint32_t flags) {
-  auto offset = fdt_subnode_offset(fdt, 0, "chosen");
-  if (offset < 0) {
-    printf("Failed to find chosen node %d\n", offset);
-    return SUCCESS;
-  }
-  int length = 0;
-  auto prop = fdt_get_property(fdt, offset, "bootargs", &length);
-
-  if (prop == nullptr) {
-    printf("Failed to find chosen/bootargs prop\n");
-    return SUCCESS;
-  }
-  char *new_prop_data = reinterpret_cast<char *>(malloc(length));
-  DEFER {
-    free(new_prop_data);
-    new_prop_data = nullptr;
-  };
-  auto prop_length = strnlen(prop->data, length);
-  static constexpr auto &&to_add =
-      "console=ttyAMA0 earlycon=pl011,mmio32,0x9000000 ";
-  memset(new_prop_data, 0, length);
-  memcpy(new_prop_data, to_add, sizeof(to_add) - 1);
-  memcpy(new_prop_data + sizeof(to_add) - 1, prop->data, prop_length);
-  auto ret = fdt_setprop(fdt, offset, "bootargs", new_prop_data, length);
-
-  printf("chosen/bootargs: %d %d \"%s\"\n", ret, length, new_prop_data);
-
-  return SUCCESS;
-}
-
-// Generates fixups for the kernel command line built by GBL.
-EfiStatus fixup_kernel_commandline(struct GblEfiOsConfigurationProtocol *self,
-                                   const char *command_line, char *fixup,
-                                   size_t *fixup_buffer_size) {
-  printf("%s(%p, \"%s\")\n", __FUNCTION__, self, command_line);
-  *fixup_buffer_size = 0;
-  return SUCCESS;
-}
-
-// Generates fixups for the bootconfig built by GBL.
-EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol *self,
-                           const char *bootconfig, size_t size, char *fixup,
-                           size_t *fixup_buffer_size) {
-  printf("%s(%p, %s, %lu, %lu)\n", __FUNCTION__, self, bootconfig, size,
-         *fixup_buffer_size);
-  constexpr auto &&to_add = "\nandroidboot.fstab_suffix=cf.f2fs."
-                            "hctr2\nandroidboot.boot_devices=4010000000.pcie";
-  const auto final_len = sizeof(to_add);
-  if (final_len > *fixup_buffer_size) {
-    *fixup_buffer_size = final_len;
-    return OUT_OF_RESOURCES;
-  }
-  *fixup_buffer_size = final_len;
-  memcpy(fixup, to_add, final_len);
-
-  return SUCCESS;
-}
-
-// Selects which device trees and overlays to use from those loaded by GBL.
-EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol *self,
-                              GblEfiVerifiedDeviceTree *device_trees,
-                              size_t num_device_trees) {
-  printf("%s(%p, %p %lu)\n", __FUNCTION__, self, device_trees,
-         num_device_trees);
-  return UNSUPPORTED;
-}
 
 EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
                         EfiHandle agent_handle, EfiHandle controller_handle,
@@ -292,7 +219,7 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
       }
       fixup->revision = EFI_DT_FIXUP_PROTOCOL_REVISION;
       fixup->fixup = efi_dt_fixup;
-      *intf = reinterpret_cast<EfiHandle *>(fixup);
+      *intf = reinterpret_cast<void *>(fixup);
     }
     return SUCCESS;
   } else if (guid_eq(protocol, EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID)) {
@@ -310,7 +237,7 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
     config->fixup_bootconfig = fixup_bootconfig;
     config->fixup_kernel_commandline = fixup_kernel_commandline;
     config->select_device_trees = select_device_trees;
-    *intf = reinterpret_cast<EfiHandle *>(config);
+    *intf = reinterpret_cast<void *>(config);
     return SUCCESS;
   }
   printf("%s is unsupported 0x%x 0x%x 0x%x 0x%llx\n", __FUNCTION__,
