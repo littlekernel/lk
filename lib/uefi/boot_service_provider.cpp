@@ -28,6 +28,7 @@
 #include "protocols/dt_fixup_protocol.h"
 #include "protocols/gbl_efi_os_configuration_protocol.h"
 #include "protocols/loaded_image_protocol.h"
+#include <lk/compiler.h>
 
 #include "switch_stack.h"
 #include "types.h"
@@ -35,6 +36,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+
+__WEAK EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key) {
+  printf("%s is called\n", __FUNCTION__);
+  return SUCCESS;
+}
 
 namespace {
 
@@ -162,11 +168,6 @@ EfiStatus locate_device_path(const EfiGuid *protocol,
 EfiStatus install_configuration_table(const EfiGuid *guid, void *table) {
   printf("%s is unsupported\n", __FUNCTION__);
   return UNSUPPORTED;
-}
-
-EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key) {
-  printf("%s is called\n", __FUNCTION__);
-  return SUCCESS;
 }
 
 void copy_mem(void *dest, const void *src, size_t len) {
