@@ -56,7 +56,7 @@ make \
    FVP_USE_GIC_DRIVER=FVP_GICV2 \
    LOG_LEVEL=40 \
    MEASURED_BOOT=0 \
-   CROSS_COMPILE=aarch64-linux-gnu-  \
+   CROSS_COMPILE=aarch64-linux-gnu- \
    PLAT=fvp all fip
 ```
 
@@ -76,5 +76,5 @@ For details of build options you can found at [TF-A build options](https://trust
    -C cluster0.has_arm_v8-4=1 \
    -C cluster1.NUM_CORES=0 \
    -C bp.secureflashloader.fname=path/to/arm-trusted-firmware/build/fvp/debug/bl1.bin \
-   -C bp.flashloader0.fname=path/to//arm-trusted-firmware/build/fvp/debug/fip.bin
+   -C bp.flashloader0.fname=path/to/arm-trusted-firmware/build/fvp/debug/fip.bin
 ```

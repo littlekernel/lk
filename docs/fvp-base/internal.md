@@ -7,7 +7,7 @@ a normal flashloader. The configuration looks like this:
 
 ```shell
 -C bp.secureflashloader.fname=path/to/arm-trusted-firmware/build/fvp/debug/bl1.bin \
--C bp.flashloader0.fname=path/to/lk.bin
+-C bp.flashloader0.fname=path/to/fip.bin
 ```
 
 We use Arm Trusted Firmware (ATF) as the secure monitor running at S-EL3. It
