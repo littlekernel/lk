@@ -13,6 +13,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/boot_service_provider.cpp \
 	$(LOCAL_DIR)/memory_protocols.cpp \
 	$(LOCAL_DIR)/blockio_protocols.cpp \
+	$(LOCAL_DIR)/uefi_platform.cpp \
 	$(LOCAL_DIR)/runtime_service_provider.cpp \
 	$(LOCAL_DIR)/switch_stack.S \
 	$(LOCAL_DIR)/configuration_table.cpp \

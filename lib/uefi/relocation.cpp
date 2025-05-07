@@ -1,9 +1,13 @@
 
+#include "relocation.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "pe.h"
+
+namespace {
 
 constexpr size_t BIT26 = 1 << 26;
 constexpr size_t BIT11 = 1 << 11;
@@ -96,6 +100,8 @@ void ThumbMovwMovtImmediatePatch(uint16_t *Instructions, uint32_t Address) {
   ThumbMovtImmediatePatch(Word, static_cast<uint16_t>(Address & 0xffff));
   ThumbMovtImmediatePatch(Top, static_cast<uint16_t>(Address >> 16));
 }
+
+}  // namespace
 
 int relocate_image(char *image) {
   const auto dos_header = reinterpret_cast<IMAGE_DOS_HEADER *>(image);
