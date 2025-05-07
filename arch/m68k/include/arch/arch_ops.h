@@ -24,7 +24,7 @@ static inline void arch_disable_ints(void) {
 
 static inline bool arch_ints_disabled(void) {
     uint16_t sr;
-    asm volatile("move %%sr, %0" : "=r"(sr) :: "memory");
+    asm volatile("move %%sr, %0" : "=dm"(sr) :: "memory");
 
     // if the IPM is != 0, consider interrupts disabled
     return (sr & M68K_SR_IPM_MASK);
