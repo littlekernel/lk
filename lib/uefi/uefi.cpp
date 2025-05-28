@@ -15,12 +15,7 @@
  *
  */
 
-#include "boot_service.h"
-#include "boot_service_provider.h"
-#include "defer.h"
-#include "memory_protocols.h"
-#include "pe.h"
-#include "relocation.h"
+#include "uefi.h"
 
 #include <lib/bio.h>
 #include <lib/heap.h>
@@ -33,8 +28,14 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "boot_service.h"
+#include "boot_service_provider.h"
 #include "configuration_table.h"
+#include "defer.h"
+#include "memory_protocols.h"
+#include "pe.h"
 #include "protocols/simple_text_output_protocol.h"
+#include "relocation.h"
 #include "runtime_service.h"
 #include "runtime_service_provider.h"
 #include "switch_stack.h"
@@ -130,6 +131,21 @@ int load_sections_and_execute(bdev_t *dev,
   return call_with_stack(stack + kStackSize, entry, image_base, &table);
 }
 
+int cmd_uefi_load(int argc, const console_cmd_args *argv) {
+  if (argc != 2) {
+    printf("Usage: %s <name of block device to load from>\n", argv[0].str);
+    return 1;
+  }
+  load_pe_file(argv[1].str);
+  return 0;
+}
+
+STATIC_COMMAND_START
+STATIC_COMMAND("uefi_load", "load UEFI application and run it", &cmd_uefi_load)
+STATIC_COMMAND_END(uefi);
+
+}  // namespace
+
 int load_pe_file(const char *blkdev) {
   bdev_t *dev = bio_open(blkdev);
   if (!dev) {
@@ -186,18 +202,3 @@ int load_pe_file(const char *blkdev) {
   printf("UEFI Application return code: %d\n", ret);
   return ret;
 }
-
-int cmd_uefi_load(int argc, const console_cmd_args *argv) {
-  if (argc != 2) {
-    printf("Usage: %s <name of block device to load from>\n", argv[0].str);
-    return 1;
-  }
-  load_pe_file(argv[1].str);
-  return 0;
-}
-
-STATIC_COMMAND_START
-STATIC_COMMAND("uefi_load", "load UEFI application and run it", &cmd_uefi_load)
-STATIC_COMMAND_END(uefi);
-
-} // namespace
