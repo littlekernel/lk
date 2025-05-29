@@ -32,6 +32,19 @@ def wait_for_output(fp: io.TextIOBase, predicate, timeout: float):
 
 def shutdown_little_kernel(p: subprocess.Popen):
     try:
+        ret = p.poll()
+        if ret:
+            print("LittleKernel already exited with code", ret)
+            return
+        status_path = "/proc/{}/status".format(p.pid)
+        if os.path.exists(status_path):
+            with open(status_path) as fp:
+                lines = fp.readlines()
+                state_line = [l for l in lines if "State:" in l]
+                if state_line:
+                    print("LittleKernel process state after test:",state_line[0].rstrip())
+        else:
+            print(status_path, "does not exists")
         p.stdin.write("poweroff\n")
         p.stdin.flush()
         p.wait(0.3)
