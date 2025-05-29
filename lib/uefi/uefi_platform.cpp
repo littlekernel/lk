@@ -15,14 +15,15 @@
  *
  */
 
+#include "uefi_platform.h"
+
 #include <libfdt.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <types.h>
+#include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
+#include <uefi/types.h>
 
 #include "defer.h"
-#include "uefi_platform.h"
-#include "protocols/gbl_efi_os_configuration_protocol.h"
 
 __WEAK EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol *self, void *fdt,
                                size_t *buffer_size, uint32_t flags) {

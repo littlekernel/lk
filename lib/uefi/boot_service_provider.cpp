@@ -15,27 +15,25 @@
  *
  */
 #include "boot_service_provider.h"
-#include "memory_protocols.h"
-#include "blockio_protocols.h"
-
-#include "arch/defines.h"
-#include "boot_service.h"
-
-#include "lib/bio.h"
-#include "protocols/block_io_protocol.h"
-#include "protocols/dt_fixup_protocol.h"
-#include "protocols/gbl_efi_os_configuration_protocol.h"
-#include "protocols/loaded_image_protocol.h"
-#include "uefi_platform.h"
 
 #include <lk/compiler.h>
-
-#include "switch_stack.h"
-#include "types.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <uefi/boot_service.h>
+#include <uefi/protocols/block_io_protocol.h>
+#include <uefi/protocols/dt_fixup_protocol.h>
+#include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
+#include <uefi/protocols/loaded_image_protocol.h>
+#include <uefi/types.h>
+
+#include "arch/defines.h"
+#include "blockio_protocols.h"
+#include "lib/bio.h"
+#include "memory_protocols.h"
+#include "switch_stack.h"
+#include "uefi_platform.h"
 
 namespace {
 
@@ -336,6 +334,12 @@ EfiStatus locate_handle_buffer(EfiLocateHandleSearchType search_type,
 }
 
 EfiStatus wait_for_event(size_t num_events, EfiEvent *event, size_t *index) {
+  printf("%s is unsupported\n", __FUNCTION__);
+  return UNSUPPORTED;
+}
+
+EfiStatus signal_event(EfiEvent event) {
+  printf("%s is unsupported\n", __FUNCTION__);
   return UNSUPPORTED;
 }
 
@@ -365,4 +369,5 @@ void setup_boot_service_table(EfiBootService *service) {
   service->locate_handle_buffer = locate_handle_buffer;
   service->close_protocol = close_protocol;
   service->wait_for_event = wait_for_event;
+  service->signal_event = signal_event;
 }

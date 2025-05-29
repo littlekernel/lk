@@ -20,8 +20,7 @@
 #include <platform.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "types.h"
+#include <uefi/types.h>
 
 namespace {
 
@@ -65,7 +64,6 @@ EFI_STATUS SetVariable(char16_t *VariableName, EfiGuid *VendorGuid,
   printf("%s is unsupported\n", __FUNCTION__);
   return UNSUPPORTED;
 }
-
 
 void ResetSystem(EFI_RESET_TYPE ResetType, EFI_STATUS ResetStatus,
                         size_t DataSize, void *ResetData) {

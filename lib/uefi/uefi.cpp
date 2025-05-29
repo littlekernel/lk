@@ -15,7 +15,7 @@
  *
  */
 
-#include "uefi.h"
+#include "uefi/uefi.h"
 
 #include <lib/bio.h>
 #include <lib/heap.h>
@@ -27,19 +27,19 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <uefi/boot_service.h>
+#include <uefi/protocols/simple_text_output_protocol.h>
+#include <uefi/runtime_service.h>
+#include <uefi/system_table.h>
 
-#include "boot_service.h"
 #include "boot_service_provider.h"
 #include "configuration_table.h"
 #include "defer.h"
 #include "memory_protocols.h"
 #include "pe.h"
-#include "protocols/simple_text_output_protocol.h"
 #include "relocation.h"
-#include "runtime_service.h"
 #include "runtime_service_provider.h"
 #include "switch_stack.h"
-#include "system_table.h"
 #include "text_protocol.h"
 
 namespace {
