@@ -41,6 +41,7 @@
 #include "runtime_service_provider.h"
 #include "switch_stack.h"
 #include "text_protocol.h"
+#include "uefi_platform.h"
 
 namespace {
 
@@ -122,6 +123,7 @@ int load_sections_and_execute(bdev_t *dev,
       reinterpret_cast<EfiConfigurationTable *>(alloc_page(PAGE_SIZE));
   memset(table.configuration_table, 0, PAGE_SIZE);
   setup_configuration_table(&table);
+  platform_setup_system_table(&table);
 
   constexpr size_t kStackSize = 8 * 1024ul * 1024;
   auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
