@@ -1,11 +1,10 @@
 #ifndef __LIB_UEFI_MEMORY_PROTOCOLS_H
 #define __LIB_UEFI_MEMORY_PROTOCOLS_H
 
-#include "types.h"
 #include <kernel/vm.h>
 #include <stddef.h>
-
-#include "boot_service.h"
+#include <uefi/boot_service.h>
+#include <uefi/types.h>
 
 vmm_aspace_t *set_boot_aspace();
 

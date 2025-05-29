@@ -18,8 +18,8 @@
 #ifndef __CONFIGURATION_TABLE_
 #define __CONFIGURATION_TABLE_
 
-#include "system_table.h"
-#include "types.h"
+#include <uefi/system_table.h>
+#include <uefi/types.h>
 
 struct linux_efi_random_seed {
   uint32_t size;

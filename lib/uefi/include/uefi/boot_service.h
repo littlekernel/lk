@@ -18,7 +18,8 @@
 #ifndef __BOOT_SERVICE_TABLE_H__
 #define __BOOT_SERVICE_TABLE_H__
 
-#include "protocols/device_path_protocol.h"
+#include <uefi/protocols/device_path_protocol.h>
+
 #include "types.h"
 
 typedef enum EFI_LOCATE_HANDLE_SEARCH_TYPE {
@@ -75,70 +76,91 @@ typedef struct {
   EfiTableHeader hdr;
   EfiTpl (*raise_tpl)(EfiTpl new_tpl);
   void (*restore_tpl)(EfiTpl old_tpl);
-  EfiStatus (*allocate_pages)(EfiAllocatorType type, EfiMemoryType memory_type, size_t pages,
-                              EfiPhysicalAddr* memory);
+  EfiStatus (*allocate_pages)(EfiAllocatorType type, EfiMemoryType memory_type,
+                              size_t pages, EfiPhysicalAddr* memory);
   EfiStatus (*free_pages)(EfiPhysicalAddr memory, size_t pages);
-  EfiStatus (*get_memory_map)(size_t* memory_map_size, EfiMemoryDescriptor* memory_map,
-                              size_t* map_key, size_t* desc_size, uint32_t* desc_version);
+  EfiStatus (*get_memory_map)(size_t* memory_map_size,
+                              EfiMemoryDescriptor* memory_map, size_t* map_key,
+                              size_t* desc_size, uint32_t* desc_version);
   EfiStatus (*allocate_pool)(EfiMemoryType pool_type, size_t size, void** buf);
   EfiStatus (*free_pool)(void* buf);
-  EfiStatus (*create_event)(uint32_t type, EfiTpl notify_tpl, EfiEventNotify notify_fn,
-                            void* notify_ctx, EfiEvent* event);
-  EfiStatus (*set_timer)(EfiEvent event, EfiTimerDelay type, uint64_t trigger_time);
-  EfiStatus (*wait_for_event)(size_t num_events, EfiEvent* event, size_t* index);
+  EfiStatus (*create_event)(uint32_t type, EfiTpl notify_tpl,
+                            EfiEventNotify notify_fn, void* notify_ctx,
+                            EfiEvent* event);
+  EfiStatus (*set_timer)(EfiEvent event, EfiTimerDelay type,
+                         uint64_t trigger_time);
+  EfiStatus (*wait_for_event)(size_t num_events, EfiEvent* event,
+                              size_t* index);
   EfiStatus (*signal_event)(EfiEvent event);
   EfiStatus (*close_event)(EfiEvent event);
   EfiStatus (*check_event)(EfiEvent event);
-  EfiStatus (*install_protocol_interface)(EfiHandle* handle, const EfiGuid* protocol,
-                                          EfiInterfaceType intf_type, void* intf);
-  EfiStatus (*reinstall_protocol_interface)(EfiHandle hadle, const EfiGuid* protocol,
+  EfiStatus (*install_protocol_interface)(EfiHandle* handle,
+                                          const EfiGuid* protocol,
+                                          EfiInterfaceType intf_type,
+                                          void* intf);
+  EfiStatus (*reinstall_protocol_interface)(EfiHandle hadle,
+                                            const EfiGuid* protocol,
                                             void* old_intf, void* new_intf);
-  EfiStatus (*uninstall_protocol_interface)(EfiHandle handle, const EfiGuid* protocol, void* intf);
-  EfiStatus (*handle_protocol)(EfiHandle handle, const EfiGuid* protocol, void** intf);
+  EfiStatus (*uninstall_protocol_interface)(EfiHandle handle,
+                                            const EfiGuid* protocol,
+                                            void* intf);
+  EfiStatus (*handle_protocol)(EfiHandle handle, const EfiGuid* protocol,
+                               void** intf);
   void* reserved;
   EfiStatus (*register_protocol_notify)(const EfiGuid* protocol, EfiEvent event,
                                         void** registration);
-  EfiStatus (*locate_handle)(EfiLocateHandleSearchType search_type, const EfiGuid* protocol,
-                             void* search_key, size_t* buf_size, EfiHandle* buf);
-  EfiStatus (*locate_device_path)(const EfiGuid* protocol, EfiDevicePathProtocol** path,
+  EfiStatus (*locate_handle)(EfiLocateHandleSearchType search_type,
+                             const EfiGuid* protocol, void* search_key,
+                             size_t* buf_size, EfiHandle* buf);
+  EfiStatus (*locate_device_path)(const EfiGuid* protocol,
+                                  EfiDevicePathProtocol** path,
                                   EfiHandle* device);
   EfiStatus (*install_configuration_table)(const EfiGuid* guid, void* table);
   EfiStatus (*load_image)(bool boot_policy, EfiHandle parent_image_handle,
-                          EfiDevicePathProtocol* path, void* src, size_t src_size,
-                          EfiHandle* image_handle);
-  EfiStatus (*start_image)(EfiHandle image_handle, size_t* exit_data_size, char16_t** exit_data);
-  EfiStatus (*exit)(EfiHandle image_handle, EfiStatus exit_status, size_t exit_data_size,
-                    char16_t* exit_data);
+                          EfiDevicePathProtocol* path, void* src,
+                          size_t src_size, EfiHandle* image_handle);
+  EfiStatus (*start_image)(EfiHandle image_handle, size_t* exit_data_size,
+                           char16_t** exit_data);
+  EfiStatus (*exit)(EfiHandle image_handle, EfiStatus exit_status,
+                    size_t exit_data_size, char16_t* exit_data);
   EfiStatus (*unload_image)(EfiHandle image_handle);
   EfiStatus (*exit_boot_services)(EfiHandle image_handle, size_t map_key);
   EfiStatus (*get_next_monotonic_count)(uint64_t* count);
   EfiStatus (*stall)(size_t microseconds);
-  EfiStatus (*set_watchdog_timer)(size_t timeout, uint64_t watchdog_code, size_t data_size,
-                                  char16_t* watchdog_data);
-  EfiStatus (*connect_controller)(EfiHandle controller_handle, EfiHandle* driver_image_handle,
-                                  EfiDevicePathProtocol* remaining_path, bool recursive);
-  EfiStatus (*disconnect_controller)(EfiHandle controller_handle, EfiHandle driver_image_handle,
+  EfiStatus (*set_watchdog_timer)(size_t timeout, uint64_t watchdog_code,
+                                  size_t data_size, char16_t* watchdog_data);
+  EfiStatus (*connect_controller)(EfiHandle controller_handle,
+                                  EfiHandle* driver_image_handle,
+                                  EfiDevicePathProtocol* remaining_path,
+                                  bool recursive);
+  EfiStatus (*disconnect_controller)(EfiHandle controller_handle,
+                                     EfiHandle driver_image_handle,
                                      EfiHandle child_handle);
-  EfiStatus (*open_protocol)(EfiHandle handle, const EfiGuid* protocol, void** intf,
-                             EfiHandle agent_handle, EfiHandle controller_handle,
+  EfiStatus (*open_protocol)(EfiHandle handle, const EfiGuid* protocol,
+                             void** intf, EfiHandle agent_handle,
+                             EfiHandle controller_handle,
                              EfiOpenProtocolAttributes attr);
-  EfiStatus (*close_protocol)(EfiHandle handle, const EfiGuid* protocol, EfiHandle agent_handle,
+  EfiStatus (*close_protocol)(EfiHandle handle, const EfiGuid* protocol,
+                              EfiHandle agent_handle,
                               EfiHandle controller_handle);
-  EfiStatus (*open_protocol_information)(EfiHandle handle, const EfiGuid* protocol,
-                                         EfiOpenProtocolInformationEntry** entry_buf,
-                                         size_t* entry_count);
+  EfiStatus (*open_protocol_information)(
+      EfiHandle handle, const EfiGuid* protocol,
+      EfiOpenProtocolInformationEntry** entry_buf, size_t* entry_count);
   EfiStatus (*protocols_per_handle)(EfiHandle handle, EfiGuid*** protocol_buf,
                                     size_t* protocol_buf_count);
-  EfiStatus (*locate_handle_buffer)(EfiLocateHandleSearchType search_type, const EfiGuid* protocol,
-                                    void* search_key, size_t* num_handles, EfiHandle** buf);
-  EfiStatus (*locate_protocol)(const EfiGuid* protocol, void* registration, void** intf);
+  EfiStatus (*locate_handle_buffer)(EfiLocateHandleSearchType search_type,
+                                    const EfiGuid* protocol, void* search_key,
+                                    size_t* num_handles, EfiHandle** buf);
+  EfiStatus (*locate_protocol)(const EfiGuid* protocol, void* registration,
+                               void** intf);
   EfiStatus (*install_multiple_protocol_interfaces)(EfiHandle* handle, ...);
   EfiStatus (*uninstall_multiple_protocol_interfaces)(EfiHandle handle, ...);
   EfiStatus (*calculate_crc32)(void* data, size_t len, uint32_t* crc32);
   void (*copy_mem)(void* dest, const void* src, size_t len);
   void (*set_mem)(void* buf, size_t len, uint8_t val);
-  EfiStatus (*create_event_ex)(EfiEventType type, EfiTpl notify_tpl, EfiEventNotify notify_fn,
-                               const void* notify_ctx, const EfiGuid* event_group, EfiEvent* event);
+  EfiStatus (*create_event_ex)(EfiEventType type, EfiTpl notify_tpl,
+                               EfiEventNotify notify_fn, const void* notify_ctx,
+                               const EfiGuid* event_group, EfiEvent* event);
 } EfiBootService;
 
 #endif  // __BOOT_SERVICE_TABLE_H__

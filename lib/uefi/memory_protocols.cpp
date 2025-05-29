@@ -21,9 +21,8 @@
 #include <lib/dlmalloc.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "boot_service.h"
-#include "types.h"
+#include <uefi/boot_service.h>
+#include <uefi/types.h>
 
 static vmm_aspace_t *old_aspace = nullptr;
 

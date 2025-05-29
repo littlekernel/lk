@@ -14,14 +14,18 @@
  * limitations under the License.
  *
  */
+#include "blockio_protocols.h"
+
+#include <kernel/vm.h>
+#include <lib/bio.h>
+#include <string.h>
+#include <uefi/protocols/block_io_protocol.h>
+#include <uefi/types.h>
 
 #include "memory_protocols.h"
 #include "switch_stack.h"
-#include "types.h"
-#include <kernel/vm.h>
-#include <lib/bio.h>
-#include <protocols/block_io_protocol.h>
-#include <string.h>
+
+namespace {
 
 EfiStatus read_blocks(EfiBlockIoProtocol *self, uint32_t media_id, uint64_t lba,
                       size_t buffer_size, void *buffer) {
@@ -57,6 +61,7 @@ EfiStatus reset(EfiBlockIoProtocol *self, bool extended_verification) {
   printf("%s is called\n", __FUNCTION__);
   return UNSUPPORTED;
 }
+}  // namespace
 
 EfiStatus open_block_device(EfiHandle handle, void **intf) {
   static constexpr size_t kIoStackSize = 1024ul * 1024 * 64;

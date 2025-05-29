@@ -15,23 +15,23 @@
  *
  */
 
-#ifndef __EFI_H__
-#define __EFI_H__
+#include <uefi/protocols/device_path_protocol.h>
+#include <uefi/system_table.h>
+#include <uefi/types.h>
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+typedef struct {
+  uint32_t revision;
+  EfiHandle parent_handle;
+  EfiSystemTable* system_table;
+  EfiHandle device_handle;
+  EfiDevicePathToTextProtocol* file_path;
+  void* reserved;
+  uint32_t load_options_size;
+  void* load_options;
+  void* image_base;
+  uint64_t image_size;
+  EfiMemoryType image_code_type;
+  EfiMemoryType image_data_type;
 
-#include "boot_service.h"
-#include "protocols/android_boot_protocol.h"
-#include "protocols/block_io_protocol.h"
-#include "protocols/device_path_protocol.h"
-#include "protocols/loaded_image_protocol.h"
-#include "protocols/riscv_efi_boot_protocol.h"
-#include "protocols/simple_network_protocol.h"
-#include "protocols/simple_text_input_protocol.h"
-#include "protocols/simple_text_output_protocol.h"
-#include "system_table.h"
-#include "types.h"
-
-#endif  // __EFI_H__
+  EfiStatus (*unload)(EfiHandle img);
+} EfiLoadedImageProtocol;

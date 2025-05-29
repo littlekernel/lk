@@ -18,16 +18,16 @@
 #ifndef __SYSTEM_TABLE_H__
 #define __SYSTEM_TABLE_H__
 
-#include "types.h"
+#include <uefi/protocols/simple_text_input_protocol.h>
+#include <uefi/protocols/simple_text_output_protocol.h>
+#include <uefi/types.h>
 
 #include "boot_service.h"
-#include "protocols/simple_text_input_protocol.h"
-#include "protocols/simple_text_output_protocol.h"
 #include "runtime_service.h"
 
 struct EfiConfigurationTable {
   EfiGuid vendor_guid;
-  void *vendor_table;
+  void* vendor_table;
 };
 
 struct EfiSystemTable {
@@ -35,15 +35,15 @@ struct EfiSystemTable {
   char16_t* firmware_vendor;
   uint32_t firmware_revision;
   EfiHandle console_in_handle;
-  EfiSimpleTextInputProtocol *con_in;
+  EfiSimpleTextInputProtocol* con_in;
   EfiHandle console_out_handle;
   EfiSimpleTextOutputProtocol* con_out;
   EfiHandle standard_error_handle;
   EfiSimpleTextOutputProtocol* std_err;
-  EfiRuntimeService *runtime_service;
+  EfiRuntimeService* runtime_service;
   EfiBootService* boot_services;
   size_t number_of_table_entries;
-  EfiConfigurationTable *configuration_table;
+  EfiConfigurationTable* configuration_table;
 };
 
 #endif  // __SYSTEM_TABLE_H__
