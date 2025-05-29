@@ -99,3 +99,8 @@ __WEAK EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key) {
   printf("%s is called\n", __FUNCTION__);
   return SUCCESS;
 }
+
+__WEAK EfiStatus platform_setup_system_table(EfiSystemTable *table) {
+  printf("%s is called\n", __FUNCTION__);
+  return SUCCESS;
+}
