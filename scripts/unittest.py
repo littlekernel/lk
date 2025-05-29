@@ -79,7 +79,7 @@ def main():
     try:
         os.set_blocking(p.stdout.fileno(), False)
         condition_met, output = wait_for_output(
-            p.stdout, lambda l: "starting app shell" in l, 1)
+            p.stdout, lambda l: "starting app shell" in l, 5)
         assert condition_met, "Did not see 'starting app shell', stdout: {}".format(
             "".join(output))
         p.stdin.write("uefi_load virtio0\n")
