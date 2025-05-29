@@ -15,7 +15,7 @@
  *
  */
 
-#include "types.h"
+#include <uefi/types.h>
 
 #ifndef __BLOCK_IO_PROTOCOL_H__
 #define __BLOCK_IO_PROTOCOL_H__

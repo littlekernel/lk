@@ -18,9 +18,9 @@
 #ifndef __GBL_OS_CONFIGURATION_
 #define __GBL_OS_CONFIGURATION_
 
-#include <types.h>
-
-#include "protocols/gbl_efi_os_configuration_protocol.h"
+#include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
+#include <uefi/system_table.h>
+#include <uefi/types.h>
 
 // Functions which should be implemented by individual platforms.
 // The UEFI library provides a default no-op implementation that
@@ -41,4 +41,7 @@ EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol *self,
                               GblEfiVerifiedDeviceTree *device_trees,
                               size_t num_device_trees);
 EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key);
+
+EfiStatus platform_setup_system_table(EfiSystemTable *table);
+
 #endif

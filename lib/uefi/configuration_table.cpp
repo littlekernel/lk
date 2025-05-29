@@ -16,11 +16,13 @@
  */
 
 #include "configuration_table.h"
+
+#include <string.h>
+#include <uefi/system_table.h>
+
 #include "libfdt.h"
 #include "memory_protocols.h"
 #include "platform.h"
-#include "system_table.h"
-#include <string.h>
 
 void setup_configuration_table(EfiSystemTable *table) {
   auto &rng = table->configuration_table[table->number_of_table_entries++];

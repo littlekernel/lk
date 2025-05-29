@@ -18,7 +18,7 @@
 #ifndef __RUNTIME_SERVICE_PROVIDER_
 #define __RUNTIME_SERVICE_PROVIDER_
 
-#include "runtime_service.h"
+#include <uefi/runtime_service.h>
 
 void setup_runtime_service_table(EfiRuntimeService *service);
 

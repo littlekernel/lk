@@ -21,7 +21,7 @@
 #ifndef __GBL_OS_CONFIGURATION_PROTOCOL_H__
 #define __GBL_OS_CONFIGURATION_PROTOCOL_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
 static constexpr size_t GBL_EFI_OS_CONFIGURATION_PROTOCOL_REVISION = 0x00000000;
 

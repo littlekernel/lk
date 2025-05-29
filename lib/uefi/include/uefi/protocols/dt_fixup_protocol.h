@@ -22,7 +22,7 @@
 #ifndef __EFI_DT_FIXUP_PROTOCOL_H__
 #define __EFI_DT_FIXUP_PROTOCOL_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
 constexpr uint64_t EFI_DT_FIXUP_PROTOCOL_REVISION = 0x00010000;
 

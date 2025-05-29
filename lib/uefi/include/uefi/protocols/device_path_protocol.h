@@ -15,7 +15,7 @@
  *
  */
 
-#include "types.h"
+#include <uefi/types.h>
 
 #ifndef __DEVICE_PATH_PROTOCOL_H__
 #define __DEVICE_PATH_PROTOCOL_H__

@@ -19,8 +19,7 @@
 #define __RISCV_EFI_BOOT_PROTOCOL_H__
 
 #include <stddef.h>
-
-#include "types.h"
+#include <uefi/types.h>
 
 // Source: https://github.com/riscv-non-isa/riscv-uefi
 struct EfiRiscvBootProtocol {

@@ -17,8 +17,8 @@
 #ifndef __BOOT_SERVICE_PROVIDER_
 #define __BOOT_SERVICE_PROVIDER_
 
-#include "boot_service.h"
-#include "system_table.h"
+#include <uefi/boot_service.h>
+#include <uefi/system_table.h>
 
 void setup_boot_service_table(EfiBootService *service);
 

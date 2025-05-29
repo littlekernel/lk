@@ -22,8 +22,7 @@
 #define __SIMPLE_NETWORK_PROTOCOL_H__
 
 #include <stddef.h>
-
-#include "types.h"
+#include <uefi/types.h>
 
 #define EFI_SIMPLE_NETWORK_PROTOCOL_REVISION 0x00010000
 

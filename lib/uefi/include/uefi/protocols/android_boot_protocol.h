@@ -18,7 +18,7 @@
 // This is a custom protocol introduced by GBL.
 // See gbl/docs/EFI_ANDROID_BOOT_PROTOCOL.md for details.
 
-#include "types.h"
+#include <uefi/types.h>
 
 #ifndef __ANDROID_BOOT_PROTOCOL_H__
 #define __ANDROID_BOOT_PROTOCOL_H__

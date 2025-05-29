@@ -15,14 +15,15 @@
  *
  */
 
+#include "uefi_platform.h"
+
 #include <libfdt.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <types.h>
+#include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
+#include <uefi/types.h>
 
 #include "defer.h"
-#include "uefi_platform.h"
-#include "protocols/gbl_efi_os_configuration_protocol.h"
 
 __WEAK EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol *self, void *fdt,
                                size_t *buffer_size, uint32_t flags) {
@@ -95,6 +96,11 @@ __WEAK EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol *self,
 }
 
 __WEAK EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key) {
+  printf("%s is called\n", __FUNCTION__);
+  return SUCCESS;
+}
+
+__WEAK EfiStatus platform_setup_system_table(EfiSystemTable *table) {
   printf("%s is called\n", __FUNCTION__);
   return SUCCESS;
 }
