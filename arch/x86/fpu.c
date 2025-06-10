@@ -36,9 +36,7 @@
 #define FPU_MASK_ALL_EXCEPTIONS 1
 
 /* CPUID EAX = 1 return values */
-
 static bool fp_supported;
-static thread_t *fp_owner;
 
 /* FXSAVE area comprises 512 bytes starting with 16-byte aligned */
 static uint8_t __ALIGNED(16) fpu_init_states[512]= {0};
@@ -62,6 +60,14 @@ typedef struct {
 } fpu_features_t;
 
 static fpu_features_t fpu_features;
+
+static void disable_fpu(void) {
+    x86_set_cr0(x86_get_cr0() | X86_CR0_TS);
+}
+
+static void enable_fpu(void) {
+    x86_set_cr0(x86_get_cr0() & ~X86_CR0_TS);
+}
 
 /* called per cpu as they're brought up */
 void x86_fpu_early_init_percpu(void) {
@@ -110,13 +116,12 @@ void x86_fpu_early_init_percpu(void) {
     /* save fpu initial states, and used when new thread creates */
     __asm__ __volatile__("fxsave %0" : "=m" (fpu_init_states));
 
-    x86_set_cr0(x86_get_cr0() | X86_CR0_TS);
+    enable_fpu();
 }
 
 /* called on the first cpu before the kernel is initialized. printfs may not work here */
 void x86_fpu_early_init(void) {
     fp_supported = false;
-    fp_owner = NULL;
 
     // test a bunch of fpu features
     fpu_features.with_fpu = x86_feature_test(X86_FEATURE_FPU);
@@ -215,33 +220,38 @@ void fpu_context_switch(thread_t *old_thread, thread_t *new_thread) {
     if (!fp_supported)
         return;
 
-    if (new_thread != fp_owner)
-        x86_set_cr0(x86_get_cr0() | X86_CR0_TS);
-    else
-        x86_set_cr0(x86_get_cr0() & ~X86_CR0_TS);
+    DEBUG_ASSERT(old_thread != new_thread);
 
-    return;
+    LTRACEF("cpu %u old %p new %p\n", arch_curr_cpu_num(), old_thread, new_thread);
+    LTRACEF("old fpu_states %p new fpu_states %p\n",
+            old_thread->arch.fpu_states, new_thread->arch.fpu_states);
+
+    // TODO: use the appropriate versions of fpu state save/restore based on the
+    // features of the CPU. For the moment, we assume that the CPU supports
+    // FXSAVE and that the threads have been initialized with FXSAVE state.
+
+    // save the old thread's fpu state if it has one and restore the new thread's
+    // fpu state if it has one. Remember if the old thread had a valid FPU state
+    // so that we can enable the FPU if it was disabled.
+    bool old_fpu_enabled = false;
+    if (likely(old_thread->arch.fpu_states)) {
+        __asm__ __volatile__("fxsave %0" : "=m" (*old_thread->arch.fpu_states));
+        old_fpu_enabled = true;
+    }
+    if (likely(new_thread->arch.fpu_states)) {
+        if (!old_fpu_enabled) {
+            enable_fpu();
+        }
+        __asm__ __volatile__("fxrstor %0" : : "m" (*new_thread->arch.fpu_states));
+    } else {
+        // if switching to a thread that does not have FPU state, disable the FPU.
+        disable_fpu();
+    }
 }
 
 void fpu_dev_na_handler(void) {
-    thread_t *self;
+    TRACEF("cpu %u\n", arch_curr_cpu_num());
 
-    x86_set_cr0(x86_get_cr0() & ~X86_CR0_TS);
-
-    if (!fp_supported)
-        return;
-
-    self = get_current_thread();
-
-    LTRACEF("owner %p self %p\n", fp_owner, self);
-    if ((fp_owner != NULL) && (fp_owner != self)) {
-        __asm__ __volatile__("fxsave %0" : "=m" (*fp_owner->arch.fpu_states));
-        __asm__ __volatile__("fxrstor %0" : : "m" (*self->arch.fpu_states));
-    }
-
-    fp_owner = self;
-    return;
+    panic("FPU not available on this CPU\n");
 }
 #endif
-
-/* End of file */
