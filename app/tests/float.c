@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <rand.h>
+#include <string.h>
 #include <lk/err.h>
 #include <lk/console_cmd.h>
 #include <app/tests.h>
@@ -70,12 +71,31 @@ static void arm_float_instruction_trap_test(void) {
 }
 #endif
 
-static int float_tests(int argc, const console_cmd_args *argv) {
-    printf("floating point test:\n");
-
+static void float_test(void) {
     /* test lazy fpu load on separate thread */
     thread_t *t[8];
     volatile FLOAT val[countof(t)];
+    const uint32_t test_results_32[8] = {
+        0x473aced4,
+        0x4788973e,
+        0x47b3c703,
+        0x47def6ab,
+        0x48051399,
+        0x481aaab3,
+        0x48304325,
+        0x4845da0c,
+    };
+    const uint64_t test_results_64[8] = {
+        0x40e7570fc8092db9,
+        0x40f1117b2a41e1dc,
+        0x40f6776e707f2b8a,
+        0x40fbdd61b6bc75cf,
+        0x4100a1aa7e7cdfa2,
+        0x410354a4219b8561,
+        0x4106079dc4ba29ff,
+        0x4108ba9767d8cf09,
+    };
+
 
     printf("creating %zu floating point threads\n", countof(t));
     for (uint i = 0; i < countof(t); i++) {
@@ -89,11 +109,36 @@ static int float_tests(int argc, const console_cmd_args *argv) {
     int res;
     for (uint i = 0; i < countof(t); i++) {
         thread_join(t[i], &res, INFINITE_TIME);
-        double result = (double)val[i];
-        printf("float thread %u returns %d, hex val %a\n", i, res, result);
-        //hexdump8(&result, 8);
+
+        if (sizeof(FLOAT) == 4) {
+            float result = val[i];
+            uint32_t result_u32;
+            memcpy(&result_u32, &result, sizeof(result_u32));
+            printf("float thread %u returns %d, hex val %a, uint32 %#" PRIx32, i, res, (double)result, result_u32);
+            if (result_u32 != test_results_32[i]) {
+                printf("\nfloat thread %u failed, expected %#" PRIx32 "\n", i, test_results_32[i]);
+            } else {
+                printf(" (ok)\n");
+            }
+        } else {
+            double result = val[i];
+            uint64_t result_u64;
+            memcpy(&result_u64, &result, sizeof(result_u64));
+            printf("float thread %u returns %d, hex val %a, uint64 %#" PRIx64, i, res, result, result_u64);
+            if (result_u64 != test_results_64[i]) {
+                printf("\nfloat thread %u failed, expected %#" PRIx64 "\n", i, test_results_64[i]);
+            } else {
+                printf(" (ok)\n");
+            }
+            //hexdump8(&result, 8);
+        }
     }
-    printf("the above values should be valid and generally increasing, but close\n");
+}
+
+static int float_tests(int argc, const console_cmd_args *argv) {
+    printf("floating point test:\n");
+
+    float_test();
 
 #if ARCH_ARM && !ARM_ISA_ARMV7M
     /* test all the instruction traps */
