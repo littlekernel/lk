@@ -233,7 +233,6 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
     }
     config->revision = GBL_EFI_OS_CONFIGURATION_PROTOCOL_REVISION;
     config->fixup_bootconfig = fixup_bootconfig;
-    config->fixup_kernel_commandline = fixup_kernel_commandline;
     config->select_device_trees = select_device_trees;
     *intf = reinterpret_cast<void *>(config);
     return SUCCESS;
