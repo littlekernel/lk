@@ -35,6 +35,10 @@ EfiStatus read_blocks(EfiBlockIoProtocol *self, uint32_t media_id, uint64_t lba,
     printf("OOB read %llu %u\n", lba, dev->block_count);
     return END_OF_MEDIA;
   }
+  if (interface->io_stack == nullptr) {
+    printf("No IO stack allocted.\n");
+    return OUT_OF_RESOURCES;
+  }
 
   const size_t bytes_read =
       call_with_stack(interface->io_stack, bio_read_block, dev, buffer, lba,
@@ -67,12 +71,20 @@ EfiStatus open_block_device(EfiHandle handle, void **intf) {
   static constexpr size_t kIoStackSize = 1024ul * 1024 * 64;
   static void *io_stack = nullptr;
   if (io_stack == nullptr) {
-    vmm_alloc(vmm_get_kernel_aspace(), "uefi_io_stack", kIoStackSize, &io_stack,
-              PAGE_SIZE_SHIFT, 0, 0);
+    auto status = vmm_alloc(vmm_get_kernel_aspace(), "uefi_io_stack",
+                            kIoStackSize, &io_stack, PAGE_SIZE_SHIFT, 0, 0);
+    if (io_stack == nullptr) {
+      printf("Failed to allocated IO stack of size %zu error %d\n",
+             kIoStackSize, status);
+      return OUT_OF_RESOURCES;
+    }
   }
   printf("%s(%p)\n", __FUNCTION__, handle);
   const auto interface = reinterpret_cast<EfiBlockIoInterface *>(
       uefi_malloc(sizeof(EfiBlockIoInterface)));
+  if (interface == nullptr) {
+    return OUT_OF_RESOURCES;
+  }
   memset(interface, 0, sizeof(EfiBlockIoInterface));
   auto dev = bio_open(reinterpret_cast<const char *>(handle));
   interface->dev = dev;
