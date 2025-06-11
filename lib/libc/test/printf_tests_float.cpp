@@ -4,6 +4,8 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT
 
+#if !WITH_NO_FP
+
 #include <lib/unittest.h>
 #include <stdio.h>
 #include <string.h>
@@ -63,3 +65,5 @@ RUN_TEST(hex);
 END_TEST_CASE(printf_tests_float)
 
 }  // namespace
+
+#endif // !WITH_NO_FP
