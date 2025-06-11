@@ -18,8 +18,6 @@ MODULE_FLOAT_SRCS := \
     $(LOCAL_DIR)/benchmarks.c \
     $(LOCAL_DIR)/float.c \
     $(LOCAL_DIR)/float_instructions.S \
-    $(LOCAL_DIR)/float_test_vec.c \
-    $(LOCAL_DIR)/printf_tests.c \
 
 MODULE_DEPS += \
     lib/cbuf

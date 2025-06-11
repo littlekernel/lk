@@ -13,8 +13,6 @@
 #include <lk/console_cmd.h>
 
 STATIC_COMMAND_START
-STATIC_COMMAND("printf_tests", "test printf", &printf_tests)
-STATIC_COMMAND("printf_tests_float", "test printf with floating point", &printf_tests_float)
 STATIC_COMMAND("thread_tests", "test the scheduler", &thread_tests)
 STATIC_COMMAND("port_tests", "test the ports", &port_tests)
 STATIC_COMMAND("clock_tests", "test clocks", &clock_tests)

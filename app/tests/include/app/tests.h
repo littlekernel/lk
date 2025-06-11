@@ -17,8 +17,6 @@ int spinner(int argc, const console_cmd_args *argv);
 int thread_tests(int argc, const console_cmd_args *argv);
 int benchmarks(int argc, const console_cmd_args *argv);
 int clock_tests(int argc, const console_cmd_args *argv);
-int printf_tests(int argc, const console_cmd_args *argv);
-int printf_tests_float(int argc, const console_cmd_args *argv);
 int v9p_tests(int argc, const console_cmd_args *argv);
 int v9fs_tests(int argc, const console_cmd_args *argv);
 

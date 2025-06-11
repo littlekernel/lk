@@ -25,7 +25,7 @@ bool test_printf(const char* expected, const char* format, ...) {
   int length = vsnprintf(buf, sizeof(buf), format, args);
   va_end(args);
 
-  if (length < 0 || length >= (int)sizeof(buf)) {
+  if (length < 0 || length >= static_cast<int>(sizeof(buf))) {
     printf("vsnprintf() returned %d\n", length);
     return false;
   }
@@ -35,7 +35,7 @@ bool test_printf(const char* expected, const char* format, ...) {
     printf("missing string terminator\n");
     success = false;
   }
-  if (length != (int)strlen(expected) || memcmp(buf, expected, length + 1) != 0) {
+  if (length != static_cast<int>(strlen(expected)) || memcmp(buf, expected, length + 1) != 0) {
     printf("expected: \"%s\" (length %zu)\n", expected, strlen(expected));
     printf("but got:  \"%s\" (length %zu) with return value %d)\n", buf, strlen(buf), length);
     success = false;
@@ -496,8 +496,6 @@ bool snprintf_truncation_test_null_buffer() {
   END_TEST;
 }
 
-}  // namespace
-
 BEGIN_TEST_CASE(printf_tests)
 RUN_TEST(numbers)
 RUN_TEST(hex)
@@ -508,3 +506,5 @@ RUN_TEST(snprintf_truncation_test)
 RUN_TEST(snprintf_truncation_test_zero_length)
 RUN_TEST(snprintf_truncation_test_null_buffer)
 END_TEST_CASE(printf_tests)
+
+}  // namespace
