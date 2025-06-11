@@ -6,7 +6,6 @@
  * https://opensource.org/licenses/MIT
  */
 #include <lk/debug.h>
-#include <assert.h>
 #include <limits.h>
 #include <printf.h>
 #include <stdarg.h>
@@ -14,6 +13,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <platform/debug.h>
+
+// The main printf engine and all of the printf wrapper routines.
+// It's important these are all in the same file, or at least all
+// compiled with the same flags concerning floating point support.
 
 #if WITH_NO_FP
 #define FLOAT_PRINTF 0
@@ -89,6 +92,37 @@ int vsnprintf(char *str, size_t len, const char *fmt, va_list ap) {
     }
     return wlen;
 }
+
+int vfprintf(FILE *fp, const char *fmt, va_list ap) {
+    return _printf_engine(&_fprintf_output_func, (void *)fp, fmt, ap);
+}
+
+int fprintf(FILE *fp, const char *fmt, ...) {
+    va_list ap;
+    int err;
+
+    va_start(ap, fmt);
+    err = vfprintf(fp, fmt, ap);
+    va_end(ap);
+    return err;
+}
+
+#if !DISABLE_DEBUG_OUTPUT
+int printf(const char *fmt, ...) {
+    va_list ap;
+    int err;
+
+    va_start(ap, fmt);
+    err = vfprintf(stdout, fmt, ap);
+    va_end(ap);
+
+    return err;
+}
+
+int vprintf(const char *fmt, va_list ap) {
+    return vfprintf(stdout, fmt, ap);
+}
+#endif // !DISABLE_DEBUG_OUTPUT
 
 #define LONGFLAG       0x00000001
 #define LONGLONGFLAG   0x00000002
