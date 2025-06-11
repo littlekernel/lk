@@ -80,6 +80,12 @@ static constexpr auto EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID =
             0x42ff,
             {0x85, 0xac, 0xe3, 0xad, 0x6e, 0xfb, 0x46, 0x19}};
 
+static constexpr auto EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID =
+    EfiGuid{0xdb84b4fa,
+            0x53bd,
+            0x4436,
+            {0x98, 0xa7, 0x4e, 0x02, 0x71, 0x42, 0x8b, 0xa8}};
+
 static constexpr auto EFI_DT_FIXUP_PROTOCOL_GUID =
     EfiGuid{0xe617d64c,
             0xfe08,

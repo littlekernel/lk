@@ -24,6 +24,7 @@
 #include <uefi/boot_service.h>
 #include <uefi/protocols/block_io_protocol.h>
 #include <uefi/protocols/dt_fixup_protocol.h>
+#include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/protocols/loaded_image_protocol.h>
 #include <uefi/types.h>
@@ -173,6 +174,53 @@ EfiTpl raise_tpl(EfiTpl new_tpl) {
   return APPLICATION;
 }
 
+const char *GetImageType(const char16_t *ImageType) {
+  if (memcmp(ImageType, GBL_IMAGE_TYPE_OS_LOAD,
+             sizeof(GBL_IMAGE_TYPE_OS_LOAD)) == 0) {
+    return "os_load";
+  } else if (memcmp(ImageType, GBL_IMAGE_TYPE_FASTBOOT,
+                    sizeof(GBL_IMAGE_TYPE_FASTBOOT)) == 0) {
+    return "fastboot";
+  } else if (memcmp(ImageType, GBL_IMAGE_TYPE_PVMFW_DATA,
+                    sizeof(GBL_IMAGE_TYPE_PVMFW_DATA)) == 0) {
+    return "pvmfw_data";
+  }
+  return "unknown";
+}
+template <typename T>
+T clamp(T n, T lower, T upper) {
+  if (n < lower) {
+    return lower;
+  }
+  if (n > upper) {
+    return upper;
+  }
+  return n;
+}
+
+EfiStatus get_buffer(struct GblEfiImageLoadingProtocol *self,
+                     const GblEfiImageInfo *ImageInfo,
+                     GblEfiImageBuffer *Buffer) {
+  printf("%s(%s, %lu)\n", __FUNCTION__, GetImageType(ImageInfo->ImageType),
+         ImageInfo->SizeBytes);
+
+  // Allow maximum of 128MB buffer
+  const size_t buffer_size =
+      clamp(Buffer->SizeBytes, PAGE_SIZE, 128ul * 1024 * 1024);
+  Buffer->Memory = alloc_page(buffer_size);
+  if (Buffer->Memory == nullptr) {
+    return OUT_OF_RESOURCES;
+  }
+
+  Buffer->SizeBytes = buffer_size;
+  return SUCCESS;
+}
+EfiStatus get_verify_partitions(struct GblEfiImageLoadingProtocol *self,
+                                size_t *NumberOfPartitions,
+                                GblEfiPartitionName *Partitions) {
+  printf("%s is called\n");
+  return UNSUPPORTED;
+}
 
 EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
                         EfiHandle agent_handle, EfiHandle controller_handle,
@@ -235,6 +283,20 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
     config->fixup_bootconfig = fixup_bootconfig;
     config->select_device_trees = select_device_trees;
     *intf = reinterpret_cast<void *>(config);
+    return SUCCESS;
+  } else if (guid_eq(protocol, EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID)) {
+    printf(
+        "%s(EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID, handle=%p, "
+        "agent_handle%p, controller_handle=%p, attr=0x%x)\n",
+        __FUNCTION__, handle, agent_handle, controller_handle, attr);
+    GblEfiImageLoadingProtocol *image_loading = nullptr;
+    allocate_pool(BOOT_SERVICES_DATA, sizeof(*image_loading),
+                  reinterpret_cast<void **>(&image_loading));
+    if (image_loading == nullptr) {
+      return OUT_OF_RESOURCES;
+    }
+    image_loading->revision = GBL_EFI_IMAGE_LOADING_PROTOCOL_REVISION;
+    *intf = reinterpret_cast<void *>(image_loading);
     return SUCCESS;
   }
   printf("%s is unsupported 0x%x 0x%x 0x%x 0x%llx\n", __FUNCTION__,
