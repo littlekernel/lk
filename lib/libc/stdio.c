@@ -273,7 +273,8 @@ char *fgets(char *s, int size, FILE *stream) {
     }
 
     while (--size > 0 && (c = fgetc(stream)) != EOF) {
-        if ((*cs++ = c) == '\n') {
+        *cs++ = c;
+        if (c == '\n') {
             break;
         }
     }
