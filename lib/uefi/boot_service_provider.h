@@ -92,6 +92,12 @@ static constexpr auto EFI_DT_FIXUP_PROTOCOL_GUID =
             0x46da,
             {0xf4, 0xdc, 0xbb, 0xd5, 0x87, 0x0c, 0x73, 0x00}};
 
+static constexpr auto EFI_TIMESTAMP_PROTOCOL_GUID =
+    EfiGuid{0xafbfde41,
+            0x2e6e,
+            0x4262,
+            {0xba, 0x65, 0x62, 0xb9, 0x23, 0x6e, 0x54, 0x95}};
+
 using EFI_IMAGE_UNLOAD = EfiStatus (*)(EfiHandle);
 
 //******************************************************

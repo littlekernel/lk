@@ -18,6 +18,7 @@
 #ifndef __GBL_OS_CONFIGURATION_
 #define __GBL_OS_CONFIGURATION_
 
+#include <uefi/protocols/efi_timestamp_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/system_table.h>
 #include <uefi/types.h>
@@ -39,5 +40,9 @@ EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol *self,
 EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key);
 
 EfiStatus platform_setup_system_table(EfiSystemTable *table);
+
+uint64_t get_timestamp();
+
+EfiStatus get_timestamp_properties(EfiTimestampProperties *properties);
 
 #endif

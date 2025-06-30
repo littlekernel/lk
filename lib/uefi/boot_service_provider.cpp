@@ -239,10 +239,9 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
            __FUNCTION__, handle, agent_handle, controller_handle, attr);
     return SUCCESS;
   } else if (guid_eq(protocol, EFI_DEVICE_PATH_PROTOCOL_GUID)) {
-    printf(
-        "%s(EFI_DEVICE_PATH_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
-        "controller_handle=%p, attr=0x%x)\n",
-        __FUNCTION__, handle, agent_handle, controller_handle, attr);
+    printf("%s(EFI_DEVICE_PATH_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
+           "controller_handle=%p, attr=0x%x)\n",
+           __FUNCTION__, handle, agent_handle, controller_handle, attr);
     return UNSUPPORTED;
   } else if (guid_eq(protocol, EFI_BLOCK_IO_PROTOCOL_GUID)) {
     printf("%s(EFI_BLOCK_IO_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
@@ -300,6 +299,19 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
     image_loading->revision = GBL_EFI_IMAGE_LOADING_PROTOCOL_REVISION;
     *intf = reinterpret_cast<void *>(image_loading);
     return SUCCESS;
+  } else if (guid_eq(protocol, EFI_TIMESTAMP_PROTOCOL_GUID)) {
+    printf("%s(EFI_TIMESTAMP_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
+           "controller_handle=%p, attr=0x%x)\n",
+           __FUNCTION__, handle, agent_handle, controller_handle, attr);
+    EfiTimestampProtocol *ts = reinterpret_cast<EfiTimestampProtocol *>(
+        uefi_malloc(sizeof(EfiTimestampProtocol)));
+    if (ts == nullptr) {
+      return OUT_OF_RESOURCES;
+    }
+    ts->get_timestamp = get_timestamp;
+    ts->get_properties = get_timestamp_properties;
+    *intf = reinterpret_cast<void *>(ts);
+    return SUCCESS;
   }
   printf("%s is unsupported 0x%x 0x%x 0x%x 0x%llx\n", __FUNCTION__,
          protocol->data1, protocol->data2, protocol->data3,
@@ -315,10 +327,9 @@ EfiStatus close_protocol(EfiHandle handle, const EfiGuid *protocol,
            __FUNCTION__, handle, agent_handle, controller_handle);
     return SUCCESS;
   } else if (guid_eq(protocol, EFI_DEVICE_PATH_PROTOCOL_GUID)) {
-    printf(
-        "%s(EFI_DEVICE_PATH_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
-        "controller_handle=%p)\n",
-        __FUNCTION__, handle, agent_handle, controller_handle);
+    printf("%s(EFI_DEVICE_PATH_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
+           "controller_handle=%p)\n",
+           __FUNCTION__, handle, agent_handle, controller_handle);
     return SUCCESS;
   } else if (guid_eq(protocol, EFI_BLOCK_IO_PROTOCOL_GUID)) {
     printf("%s(EFI_BLOCK_IO_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
@@ -350,9 +361,8 @@ EfiStatus locate_handle_buffer(EfiLocateHandleSearchType search_type,
            __FUNCTION__, search_type, search_key);
     return NOT_FOUND;
   } else if (guid_eq(protocol, EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID)) {
-    printf(
-        "%s(0x%x, EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID, search_key=%p)\n",
-        __FUNCTION__, search_type, search_key);
+    printf("%s(0x%x, EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID, search_key=%p)\n",
+           __FUNCTION__, search_type, search_key);
     if (num_handles != nullptr) {
       *num_handles = 1;
     }
@@ -362,6 +372,16 @@ EfiStatus locate_handle_buffer(EfiLocateHandleSearchType search_type,
     return SUCCESS;
   } else if (guid_eq(protocol, EFI_DT_FIXUP_PROTOCOL_GUID)) {
     printf("%s(0x%x, EFI_DT_FIXUP_PROTOCOL_GUID, search_key=%p)\n",
+           __FUNCTION__, search_type, search_key);
+    if (num_handles != nullptr) {
+      *num_handles = 1;
+    }
+    if (buf != nullptr) {
+      *buf = reinterpret_cast<EfiHandle *>(uefi_malloc(sizeof(buf)));
+    }
+    return SUCCESS;
+  } else if (guid_eq(protocol, EFI_TIMESTAMP_PROTOCOL_GUID)) {
+    printf("%s(0x%x, EFI_TIMESTAMP_PROTOCOL_GUID, search_key=%p)\n",
            __FUNCTION__, search_type, search_key);
     if (num_handles != nullptr) {
       *num_handles = 1;
