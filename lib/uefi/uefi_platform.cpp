@@ -17,6 +17,7 @@
 
 #include "uefi_platform.h"
 
+#include <arch/arm64.h>
 #include <libfdt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,5 +94,18 @@ __WEAK EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key) {
 
 __WEAK EfiStatus platform_setup_system_table(EfiSystemTable *table) {
   printf("%s is called\n", __FUNCTION__);
+  return SUCCESS;
+}
+
+__WEAK uint64_t get_timestamp() {
+  return ARM64_READ_SYSREG(cntpct_el0);
+}
+
+__WEAK EfiStatus get_timestamp_properties(EfiTimestampProperties *properties) {
+  if (properties == nullptr) {
+    return INVALID_PARAMETER;
+  }
+  properties->frequency = ARM64_READ_SYSREG(cntfrq_el0) & 0xFFFFFFFF;
+  properties->end_value = UINT64_MAX;
   return SUCCESS;
 }
