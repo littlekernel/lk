@@ -2,7 +2,11 @@ name: LK CI (Clang)
 
 # Brute force build a bunch of variants of LK in parallel jobs.
 
-on: [ push, pull_request ]
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - 'wip/**'
 
 jobs:
   build:
