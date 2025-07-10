@@ -19,7 +19,7 @@ scripts/fetch-toolchains.py --prefix riscv64-elf
 ```
 4- Add toolchain to PATH
 ```
-export PATH=$PWD/toolchain/riscv64-elf-14.2.0-Linux-x86_64/bin:$PATH
+export PATH=$PWD/toolchain/riscv64-elf-15.1.0-Linux-x86_64/bin:$PATH
 ```
 5- Find available project
 ```
@@ -70,7 +70,7 @@ export BUILDROOT
 export DEFAULT_PROJECT
 export TOOLCHAIN_PREFIX
 _top:
-    @$(MAKE) -C $(LKMAKEROOT) -rR -f $(LKROOT)/engine.mk $(addprefix -I,$(LKINC)) $(MAKECMDGOALS)      
+    @$(MAKE) -C $(LKMAKEROOT) -rR -f $(LKROOT)/engine.mk $(addprefix -I,$(LKINC)) $(MAKECMDGOALS)
 $(MAKECMDGOALS): _top
     @:
 .PHONY: _top
@@ -126,7 +126,7 @@ MODULES +=  app/hello
 9- Check your directories structure
 ```
 # mylk
-tree 
+tree
 .
 ├── app
 │   └── hello
@@ -138,7 +138,7 @@ tree
 ```
 ```
 # lk-work
-tree ../ -d -L 1 
+tree ../ -d -L 1
 ../.
 ├── lk
 ├── mylk
@@ -192,17 +192,17 @@ PCI: pci ecam functions installed
 PCI: last pci bus is 255
 PCI dump:
   bus 0
-   dev 0000:00:00.0 vid:pid 1b36:0008 base:sub:intr 6:0:0 
+   dev 0000:00:00.0 vid:pid 1b36:0008 base:sub:intr 6:0:0
 PCI dump post assign:
   bus 0
-   dev 0000:00:00.0 vid:pid 1b36:0008 base:sub:intr 6:0:0 
+   dev 0000:00:00.0 vid:pid 1b36:0008 base:sub:intr 6:0:0
 initializing target
 initializing apps
 starting app inetsrv
 starting internet servers
 starting app shell
 entering main console loop
-] 
+]
 ```
 12- Test your hello application
 ```

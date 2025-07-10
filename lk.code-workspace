@@ -23,13 +23,17 @@
             "**/.cache": true,
             "**/.clangd": true,
             "build-*": true,
+        },
+        "markdownlint.config": {
+            "MD024": { "siblings_only": true },
         }
     },
     "extensions": {
         "recommendations": [
             "mkornelsen.vscode-arm64",
             "llvm-vs-code-extensions.vscode-clangd",
-            "sunshaoce.risc-v"
+            "sunshaoce.risc-v",
+            "davidanson.vscode-markdownlint"
         ]
     }
 }
