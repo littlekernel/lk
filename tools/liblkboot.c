@@ -21,6 +21,7 @@ static int readx(int s, void *_data, int len) {
     char *data = _data;
     int r;
     while (len > 0) {
+        errno = NO_ERROR;
         r = read(s, data, len);
         if (r == 0) {
             fprintf(stderr, "error: eof during socket read\n");
