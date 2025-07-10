@@ -44,8 +44,19 @@ GLOBAL_DEFINES += \
 # we have an mmu
 WITH_KERNEL_VM=1
 
+# kernel address space definitions
+# TODO: are these correct?
+KERNEL_ASPACE_BASE := 0x80000000
+KERNEL_ASPACE_SIZE := 0x80000000
+USER_ASPACE_BASE   := 0x01000000
+USER_ASPACE_SIZE   := 0x7e000000
+
 GLOBAL_DEFINES += \
-    ARCH_HAS_MMU=1
+    ARCH_HAS_MMU=1 \
+	KERNEL_ASPACE_BASE=$(KERNEL_ASPACE_BASE) \
+	KERNEL_ASPACE_SIZE=$(KERNEL_ASPACE_SIZE) \
+	USER_ASPACE_BASE=$(USER_ASPACE_BASE) \
+	USER_ASPACE_SIZE=$(USER_ASPACE_SIZE)
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \

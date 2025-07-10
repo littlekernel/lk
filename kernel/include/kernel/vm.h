@@ -76,12 +76,13 @@ typedef struct vm_page {
 
 #define VM_PAGE_FLAG_NONFREE  (0x1)
 
-// kernel address space
+// Kernel address space
+// Must be declared by the platform or architecture.
 #ifndef KERNEL_ASPACE_BASE
-#define KERNEL_ASPACE_BASE ((vaddr_t)0x80000000UL)
+#error KERNEL_ASPACE_BASE must be defined
 #endif
 #ifndef KERNEL_ASPACE_SIZE
-#define KERNEL_ASPACE_SIZE ((vaddr_t)0x80000000UL)
+#error KERNEL_ASPACE_SIZE must be defined
 #endif
 
 STATIC_ASSERT(KERNEL_ASPACE_BASE + (KERNEL_ASPACE_SIZE - 1) > KERNEL_ASPACE_BASE);
