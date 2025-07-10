@@ -1,11 +1,9 @@
-/*
- * Copyright (c) 2008-2014 Travis Geiselbrecht
- * Copyright (c) 2012 Shantanu Gupta
- *
- * Use of this source code is governed by a MIT-style
- * license that can be found in the LICENSE file or at
- * https://opensource.org/licenses/MIT
- */
+// Copyright (c) 2008-2014 Travis Geiselbrecht
+// Copyright (c) 2012 Shantanu Gupta
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
 #pragma once
 
 #include <kernel/thread.h>
@@ -15,38 +13,49 @@
 
 __BEGIN_CDECLS
 
+// Rules for Mutexes:
+// - Mutexes are only safe to use from thread context.
+// - Mutexes are non-recursive.
+// - Mutexes must be released in the same thread that acquired them.
+
 #define MUTEX_MAGIC (0x6D757478)  // 'mutx'
 
 typedef struct mutex {
     uint32_t magic;
-    thread_t *holder;
     int count;
+    thread_t *holder;
     wait_queue_t wait;
 } mutex_t;
 
+// Initializer for mutexes. May be statically initialized with the following
+// value, or dynamically initialized with mutex_init().
 #define MUTEX_INITIAL_VALUE(m) \
 { \
     .magic = MUTEX_MAGIC, \
-    .holder = NULL, \
     .count = 0, \
+    .holder = NULL, \
     .wait = WAIT_QUEUE_INITIAL_VALUE((m).wait), \
 }
 
-/* Rules for Mutexes:
- * - Mutexes are only safe to use from thread context.
- * - Mutexes are non-recursive.
-*/
-
 void mutex_init(mutex_t *);
-void mutex_destroy(mutex_t *);
-status_t mutex_acquire_timeout(mutex_t *, lk_time_t); /* try to acquire the mutex with a timeout value */
-status_t mutex_release(mutex_t *);
 
+// Destroy a mutex. This will release all threads waiting on the mutex
+// and set the mutex to an invalid state. The caller must ensure that no
+// other threads are using the mutex after this call.
+void mutex_destroy(mutex_t *);
+
+// Acquire the mutex, blocking until it is available.
+// If passed a timeout value of INFINITE_TIME, it will block indefinitely.
+// If passed a timeout value of 0, it will return immediately with ERR_TIMED_OUT.
+status_t mutex_acquire_timeout(mutex_t *, lk_time_t);
 static inline status_t mutex_acquire(mutex_t *m) {
     return mutex_acquire_timeout(m, INFINITE_TIME);
 }
 
-/* does the current thread hold the mutex? */
+// Release the mutex. This will wake up one thread waiting on the mutex, if any.
+status_t mutex_release(mutex_t *);
+
+// Is the mutex currently held by the current thread?
 static bool is_mutex_held(const mutex_t *m) {
     return m->holder == get_current_thread();
 }

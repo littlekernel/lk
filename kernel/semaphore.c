@@ -20,8 +20,8 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 
-void sem_init(semaphore_t *sem, unsigned int value) {
-    *sem = (semaphore_t)SEMAPHORE_INITIAL_VALUE(*sem, value);
+void sem_init(semaphore_t *sem, int initial_count) {
+    *sem = (semaphore_t)SEMAPHORE_INITIAL_VALUE(*sem, initial_count);
 }
 
 void sem_destroy(semaphore_t *sem) {
@@ -67,10 +67,11 @@ status_t sem_trywait(semaphore_t *sem) {
     status_t ret = NO_ERROR;
     THREAD_LOCK(state);
 
-    if (unlikely(sem->count <= 0))
+    if (unlikely(sem->count <= 0)) {
         ret = ERR_NOT_READY;
-    else
+    } else {
         sem->count--;
+    }
 
     THREAD_UNLOCK(state);
     return ret;

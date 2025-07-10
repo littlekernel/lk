@@ -1,10 +1,9 @@
-/*
- * Copyright (c) 2008-2015 Travis Geiselbrecht
- *
- * Use of this source code is governed by a MIT-style
- * license that can be found in the LICENSE file or at
- * https://opensource.org/licenses/MIT
- */
+// Copyright (c) 2008-2015 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+
 #pragma once
 
 #include <arch/defines.h>
@@ -17,15 +16,16 @@
 #include <lk/debug.h>
 #include <lk/list.h>
 #include <sys/types.h>
+#include <stdint.h>
 
 #if WITH_KERNEL_VM
-/* forward declaration */
+// forward declaration
 typedef struct vmm_aspace vmm_aspace_t;
 #endif
 
 __BEGIN_CDECLS
 
-/* debug-enable runtime checks */
+// debug-enable runtime checks
 #if LK_DEBUGLEVEL > 1
 #define THREAD_STATS 1
 #define THREAD_STACK_HIGHWATER 1
@@ -46,7 +46,7 @@ enum thread_state {
 
 typedef int (*thread_start_routine)(void *arg);
 
-/* thread local storage */
+// thread local storage
 enum thread_tls_list {
 #ifdef WITH_LIB_CONSOLE
     TLS_ENTRY_CONSOLE, // current console
@@ -78,10 +78,10 @@ struct thread_specific_stats {
 #endif
 
 typedef struct thread {
-    int magic;
+    uint32_t magic;
     struct list_node thread_list_node;
 
-    /* active bits */
+    // active bits
     struct list_node queue_node;
     int priority;
     enum thread_state state;
@@ -89,32 +89,32 @@ typedef struct thread {
     unsigned int flags;
 #if WITH_SMP
     int curr_cpu;
-    int pinned_cpu; /* only run on pinned_cpu if >= 0 */
+    int pinned_cpu; // only run on pinned_cpu if >= 0
 #endif
 #if WITH_KERNEL_VM
     vmm_aspace_t *aspace;
 #endif
 
-    /* if blocked, a pointer to the wait queue */
+    // if blocked, a pointer to the wait queue the thread is blocked on
     struct wait_queue *blocking_wait_queue;
     status_t wait_queue_block_ret;
 
-    /* architecture stuff */
+    // architecture-specific thread state
     struct arch_thread arch;
 
-    /* stack stuff */
+    // kernel stack information
     void *stack;
     size_t stack_size;
 
-    /* entry point */
+    // thread entry point
     thread_start_routine entry;
     void *arg;
 
-    /* return code */
+    // return code
     int retcode;
     struct wait_queue retcode_wait_queue;
 
-    /* thread local storage */
+    // thread local storage
     uintptr_t tls[MAX_TLS_ENTRY];
 
     char name[32];
@@ -136,7 +136,7 @@ typedef struct thread {
 #define thread_set_pinned_cpu(t, c) do {} while(0)
 #endif
 
-/* thread priority */
+// thread priority
 #define NUM_PRIORITIES 32
 #define LOWEST_PRIORITY 0
 #define HIGHEST_PRIORITY (NUM_PRIORITIES - 1)
@@ -146,14 +146,14 @@ typedef struct thread {
 #define DEFAULT_PRIORITY (NUM_PRIORITIES / 2)
 #define HIGH_PRIORITY ((NUM_PRIORITIES / 4) * 3)
 
-/* stack size */
+// stack size
 #ifdef CUSTOM_DEFAULT_STACK_SIZE
 #define DEFAULT_STACK_SIZE CUSTOM_DEFAULT_STACK_SIZE
 #else
 #define DEFAULT_STACK_SIZE ARCH_DEFAULT_STACK_SIZE
 #endif
 
-/* functions */
+// functions
 void thread_init_early(void);
 void thread_init(void);
 void thread_become_idle(void) __NO_RETURN;
@@ -177,21 +177,21 @@ void dump_all_threads(void);
 void dump_all_threads_unlocked(void);
 void dump_threads_stats(void);
 
-/* scheduler routines */
-void thread_yield(void); /* give up the cpu voluntarily */
-void thread_preempt(void); /* get preempted (inserted into head of run queue) */
-void thread_block(void); /* block on something and reschedule */
-void thread_unblock(thread_t *t, bool resched); /* go back in the run queue */
+// scheduler routines
+void thread_yield(void); // give up the cpu voluntarily
+void thread_preempt(void); // get preempted (inserted into head of run queue)
+void thread_block(void); // block on something and reschedule
+void thread_unblock(thread_t *t, bool resched); // go back in the run queue
 
 #ifdef WITH_LIB_UTHREAD
 void uthread_context_switch(thread_t *oldthread, thread_t *newthread);
 #endif
 
-/* called on every timer tick for the scheduler to do quantum expiration */
+// called on every timer tick for the scheduler to do quantum expiration
 struct timer;
 enum handler_return thread_timer_tick(struct timer *, lk_time_t now, void *arg);
 
-/* the current thread */
+// the current thread
 static inline thread_t *get_current_thread(void) {
     return arch_get_current_thread();
 }
@@ -200,10 +200,10 @@ static inline void set_current_thread(thread_t *t) {
     arch_set_current_thread(t);
 }
 
-/* list of all threads, unsafe to traverse without holding thread_lock */
+// list of all threads, unsafe to traverse without holding thread_lock
 extern struct list_node thread_list;
 
-/* scheduler lock */
+// scheduler lock
 extern spin_lock_t thread_lock;
 
 #define THREAD_LOCK(state) spin_lock_saved_state_t state; spin_lock_irqsave(&thread_lock, state)
@@ -213,7 +213,7 @@ static inline bool thread_lock_held(void) {
     return spin_lock_held(&thread_lock);
 }
 
-/* thread local storage */
+// thread local storage
 static inline __ALWAYS_INLINE uintptr_t tls_get(uint entry) {
     return get_current_thread()->tls[entry];
 }
@@ -230,7 +230,7 @@ static inline __ALWAYS_INLINE uintptr_t __tls_set(uint entry, uintptr_t val) {
         __tls_set(e, v); \
     })
 
-/* thread level statistics */
+// thread level statistics
 #if THREAD_STATS
 struct thread_stats {
     lk_bigtime_t idle_time;
@@ -239,9 +239,9 @@ struct thread_stats {
     ulong context_switches;
     ulong preempts;
     ulong yields;
-    ulong interrupts; /* platform code increment this */
-    ulong timer_ints; /* timer code increment this */
-    ulong timers; /* timer code increment this */
+    ulong interrupts; // platform code increment this
+    ulong timer_ints; // timer code increment this
+    ulong timers; // timer code increment this
 
 #if WITH_SMP
     ulong reschedule_ipis;
