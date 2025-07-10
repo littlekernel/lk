@@ -96,6 +96,7 @@ static int writex(int fd, void *data, size_t len) {
     int r;
     char *x = data;
     while (len > 0) {
+        errno = NO_ERROR;
         r = write(fd, x, len);
         if (r < 0) {
             if (errno == EINTR) {
@@ -162,6 +163,7 @@ static void *load_file(const char *fn, size_t *len) {
         *len = sz;
     }
     while (sz > 0) {
+        errno = NO_ERROR;
         r = read(fd, x, sz);
         if (r < 0) {
             if (errno == EINTR) {
