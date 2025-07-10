@@ -21,7 +21,8 @@
         "editor.tabSize": 4,
         "files.exclude": {
             "**/.cache": true,
-            "**/.clangd": true
+            "**/.clangd": true,
+            "build-*": true,
         }
     },
     "extensions": {
