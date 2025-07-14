@@ -27,7 +27,7 @@
 static vmm_aspace_t *old_aspace = nullptr;
 
 namespace {
-constexpr size_t kHeapSize = 256ul * 1024 * 1024;
+constexpr size_t kHeapSize = 300ul * 1024 * 1024;
 
 void *get_heap() {
   static auto heap = alloc_page(kHeapSize);
@@ -44,6 +44,7 @@ mspace get_mspace() {
   static auto space = create_mspace_with_base_limit(get_heap(), kHeapSize, 1);
   return space;
 }
+
 } // namespace
 
 vmm_aspace_t *set_boot_aspace() {

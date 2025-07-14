@@ -31,9 +31,9 @@
 
 #include "arch/defines.h"
 #include "blockio_protocols.h"
-#include "lib/bio.h"
+#include "events.h"
+#include "io_stack.h"
 #include "memory_protocols.h"
-#include "switch_stack.h"
 #include "uefi_platform.h"
 
 namespace {
@@ -215,10 +215,11 @@ EfiStatus get_buffer(struct GblEfiImageLoadingProtocol *self,
   Buffer->SizeBytes = buffer_size;
   return SUCCESS;
 }
+
 EfiStatus get_verify_partitions(struct GblEfiImageLoadingProtocol *self,
                                 size_t *NumberOfPartitions,
                                 GblEfiPartitionName *Partitions) {
-  printf("%s is called\n");
+  printf("%s is called\n", __FUNCTION__);
   return UNSUPPORTED;
 }
 
@@ -333,25 +334,6 @@ EfiStatus close_protocol(EfiHandle handle, const EfiGuid *protocol,
   return UNSUPPORTED;
 }
 
-EfiStatus list_block_devices(size_t *num_handles, EfiHandle **buf) {
-  size_t device_count = 0;
-  bio_iter_devices([&device_count](bdev_t *dev) {
-    device_count++;
-    return true;
-  });
-  auto devices =
-      reinterpret_cast<char **>(uefi_malloc(sizeof(char *) * device_count));
-  size_t i = 0;
-  bio_iter_devices([&i, devices, device_count](bdev_t *dev) {
-    devices[i] = dev->name;
-    i++;
-    return i < device_count;
-  });
-  *num_handles = i;
-  *buf = reinterpret_cast<EfiHandle *>(devices);
-  return SUCCESS;
-}
-
 EfiStatus locate_handle_buffer(EfiLocateHandleSearchType search_type,
                                const EfiGuid *protocol, void *search_key,
                                size_t *num_handles, EfiHandle **buf) {
@@ -394,16 +376,6 @@ EfiStatus locate_handle_buffer(EfiLocateHandleSearchType search_type,
   return UNSUPPORTED;
 }
 
-EfiStatus wait_for_event(size_t num_events, EfiEvent *event, size_t *index) {
-  printf("%s is unsupported\n", __FUNCTION__);
-  return UNSUPPORTED;
-}
-
-EfiStatus signal_event(EfiEvent event) {
-  printf("%s is unsupported\n", __FUNCTION__);
-  return UNSUPPORTED;
-}
-
 } // namespace
 
 void setup_boot_service_table(EfiBootService *service) {
@@ -429,6 +401,10 @@ void setup_boot_service_table(EfiBootService *service) {
   service->open_protocol = open_protocol;
   service->locate_handle_buffer = locate_handle_buffer;
   service->close_protocol = close_protocol;
-  service->wait_for_event = wait_for_event;
-  service->signal_event = signal_event;
+  service->wait_for_event =
+      switch_stack_wrapper<size_t, EfiEvent *, size_t *, wait_for_event>();
+  service->signal_event = switch_stack_wrapper<EfiEvent, signal_event>();
+  service->check_event = switch_stack_wrapper<EfiEvent, check_event>();
+  service->create_event = create_event;
+  service->close_event = close_event;
 }

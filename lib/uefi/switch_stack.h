@@ -15,6 +15,9 @@
  *
  */
 
+#ifndef __LIB_UEFI_SWITCH_STACK_H
+#define __LIB_UEFI_SWITCH_STACK_H
+
 #include <lk/compiler.h>
 #include <stddef.h>
 
@@ -35,10 +38,29 @@ size_t call_with_stack(void *stack, Function &&fp, P1 &&param1, P2 &&param2,
       reinterpret_cast<void *>(param3), reinterpret_cast<void *>(param4));
 }
 
+template <typename Function, typename P1, typename P2, typename P3>
+size_t call_with_stack(void *stack, Function &&fp, P1 &&param1, P2 &&param2,
+                       P3 &&param3) {
+  return call_with_stack_asm(stack, reinterpret_cast<const void *>(fp),
+                             reinterpret_cast<void *>(param1),
+                             reinterpret_cast<void *>(param2),
+                             reinterpret_cast<void *>(param3), nullptr);
+}
+
 template <typename Function, typename P1, typename P2>
 size_t call_with_stack(void *stack, Function &&fp, P1 &&param1, P2 &&param2) {
-  return call_with_stack_asm(
-      stack, reinterpret_cast<const void *>(fp),
-      reinterpret_cast<void *>(param1), reinterpret_cast<void *>(param2), 0, 0);
+  return call_with_stack_asm(stack, reinterpret_cast<const void *>(fp),
+                             reinterpret_cast<void *>(param1),
+                             reinterpret_cast<void *>(param2), nullptr,
+                             nullptr);
 }
+
+template <typename Function, typename P1>
+size_t call_with_stack(void *stack, Function &&fp, P1 &&param1) {
+  return call_with_stack_asm(stack, reinterpret_cast<const void *>(fp),
+                             reinterpret_cast<void *>(param1), nullptr, nullptr,
+                             nullptr);
+}
+#endif
+
 #endif

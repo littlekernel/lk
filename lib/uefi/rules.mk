@@ -17,5 +17,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/runtime_service_provider.cpp \
 	$(LOCAL_DIR)/switch_stack.S \
 	$(LOCAL_DIR)/configuration_table.cpp \
+	$(LOCAL_DIR)/events.cpp \
+	$(LOCAL_DIR)/io_stack.cpp \
+
 
 include make/module.mk
