@@ -17,16 +17,21 @@
 
 #include "memory_protocols.h"
 
+#include <arch/defines.h>
+#include <arch/mmu.h>
 #include <kernel/vm.h>
 #include <lib/dlmalloc.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 #include <uefi/boot_service.h>
 #include <uefi/types.h>
 
-static vmm_aspace_t *old_aspace = nullptr;
+// MACRO list_for_every_entry cast between int/ptr
+// NOLINTBEGIN(performance-no-int-to-ptr)
 
 namespace {
+vmm_aspace_t *old_aspace = nullptr;
 constexpr size_t kHeapSize = 300ul * 1024 * 1024;
 
 void *get_heap() {
@@ -45,6 +50,8 @@ mspace get_mspace() {
   return space;
 }
 
+void restore_aspace() { vmm_set_active_aspace(old_aspace); }
+
 } // namespace
 
 vmm_aspace_t *set_boot_aspace() {
@@ -60,63 +67,54 @@ vmm_aspace_t *set_boot_aspace() {
   return aspace;
 }
 
-void restore_aspace() { vmm_set_active_aspace(old_aspace); }
-
-void *identity_map(void *addr, size_t size) {
-  size = ROUNDUP(size, PAGE_SIZE);
-  auto vaddr = reinterpret_cast<vaddr_t>(addr);
-  paddr_t pa{};
-  uint flags{};
-  auto aspace = set_boot_aspace();
-  auto err = arch_mmu_query(&aspace->arch_aspace, vaddr, &pa, &flags);
-  if (err) {
-    printf("Failed to query physical address for memory 0x%p\n", addr);
-    return nullptr;
-  }
-
-  err = arch_mmu_unmap(&aspace->arch_aspace, vaddr, size / PAGE_SIZE);
-  if (err) {
-    printf("Failed to unmap virtual address 0x%lx\n", vaddr);
-    return nullptr;
-  }
-  arch_mmu_map(&aspace->arch_aspace, pa, pa, size / PAGE_SIZE, flags);
-  if (err) {
-    printf("Failed to identity map physical address 0x%lx\n", pa);
-    return nullptr;
-  }
-  printf("Identity mapped physical address 0x%lx size %zu flags 0x%x\n", pa,
-         size, flags);
-
-  return reinterpret_cast<void *>(pa);
-}
-
 void *alloc_page(size_t size, size_t align_log2) {
+  size = ROUNDUP(size, PAGE_SIZE);
   auto aspace = set_boot_aspace();
-  void *vptr{};
-  status_t err = vmm_alloc_contiguous(aspace, "uefi_program", size, &vptr,
-                                      align_log2, 0, 0);
-  if (err) {
-    printf("Failed to allocate memory for uefi program %d\n", err);
+  paddr_t pa{};
+  size_t allocated =
+      pmm_alloc_contiguous(size / PAGE_SIZE, align_log2, &pa, nullptr);
+  if (allocated != size / PAGE_SIZE) {
+    printf("Failed to allocate physical memory size %zu\n", size);
     return nullptr;
   }
-  return identity_map(vptr, size);
+  int ret = arch_mmu_map(&aspace->arch_aspace, pa, pa, size / PAGE_SIZE, 0);
+  if (ret != 0) {
+    printf("Failed to arch_mmu_map(0x%lx)\n", pa);
+    return nullptr;
+  }
+  status_t err{};
+  err = vmm_reserve_space(aspace, "uefi_program", size, pa);
+  if (err) {
+    printf("Failed to vmm_reserve_space for uefi program %d\n", err);
+    return nullptr;
+  }
+  return reinterpret_cast<void *>(pa);
 }
 
 void *alloc_page(void *addr, size_t size, size_t align_log2) {
   if (addr == nullptr) {
     return alloc_page(size, align_log2);
   }
-  auto err =
-      vmm_alloc_contiguous(set_boot_aspace(), "uefi_program", size, &addr,
-                           align_log2, VMM_FLAG_VALLOC_SPECIFIC, 0);
-  if (err) {
+  auto aspace = set_boot_aspace();
+  size = ROUNDUP(size, PAGE_SIZE);
+  struct list_node list;
+  size_t allocated =
+      pmm_alloc_range(reinterpret_cast<paddr_t>(addr), size, &list);
+  if (allocated != size / PAGE_SIZE) {
     printf(
-        "Failed to allocate memory for uefi program @ fixed address 0x%p %d , "
-        "falling back to non-fixed allocation\n",
-        addr, err);
+        "Failed to allocate physical memory size %zu at specified address %p "
+        "fallback to regular allocation\n",
+        size, addr);
     return alloc_page(size, align_log2);
   }
-  return identity_map(addr, size);
+  status_t err{};
+  err = vmm_reserve_space(aspace, "uefi_program", size,
+                          reinterpret_cast<vaddr_t>(addr));
+  if (err) {
+    printf("Failed to vmm_reserve_space for uefi program %d\n", err);
+    return nullptr;
+  }
+  return addr;
 }
 
 void *uefi_malloc(size_t size) { return mspace_malloc(get_mspace(), size); }
@@ -142,8 +140,28 @@ EfiStatus free_pool(void *mem) {
 }
 
 EfiStatus free_pages(EfiPhysicalAddr memory, size_t pages) {
-  printf("%s is unsupported\n", __FUNCTION__);
-  return UNSUPPORTED;
+  auto pa = reinterpret_cast<void *>(
+      vaddr_to_paddr(reinterpret_cast<void *>(memory)));
+  if (pa != reinterpret_cast<void *>(memory)) {
+    printf(
+        "WARN: virtual address 0x%llx is not identity mapped, physical addr: "
+        "%p\n",
+        memory, pa);
+  }
+  status_t err =
+      vmm_free_region(set_boot_aspace(), static_cast<vaddr_t>(memory));
+  if (err) {
+    printf("%s err:%d memory [0x%llx] pages:%zu\n", __FUNCTION__, err, memory,
+           pages);
+    return DEVICE_ERROR;
+  }
+  auto pages_freed = pmm_free_kpages(pa, pages);
+  if (pages_freed != pages) {
+    printf("Failed to free physical pages %p %zu, only freed %zu pages\n", pa,
+           pages, pages_freed);
+    return DEVICE_ERROR;
+  }
+  return SUCCESS;
 }
 
 size_t get_aspace_entry_count(vmm_aspace_t *aspace) {
@@ -256,3 +274,5 @@ EfiStatus get_memory_map(size_t *memory_map_size,
 
   return SUCCESS;
 }
+
+// NOLINTEND(performance-no-int-to-ptr)
