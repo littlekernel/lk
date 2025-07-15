@@ -30,6 +30,7 @@
 #include <uefi/types.h>
 
 #include "arch/defines.h"
+#include "blockio2_protocols.h"
 #include "blockio_protocols.h"
 #include "events.h"
 #include "io_stack.h"
@@ -252,7 +253,7 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
     printf("%s(EFI_BLOCK_IO2_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
            "controller_handle=%p, attr=0x%x)\n",
            __FUNCTION__, handle, agent_handle, controller_handle, attr);
-    return UNSUPPORTED;
+    return open_async_block_device(handle, intf);
   } else if (guid_eq(protocol, EFI_DT_FIXUP_PROTOCOL_GUID)) {
     printf("%s(EFI_DT_FIXUP_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
            "controller_handle=%p, attr=0x%x)\n",
