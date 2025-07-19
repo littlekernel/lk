@@ -57,15 +57,6 @@ __WEAK EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol *self, void *fdt,
   return SUCCESS;
 }
 
-// Generates fixups for the kernel command line built by GBL.
-__WEAK EfiStatus fixup_kernel_commandline(
-    struct GblEfiOsConfigurationProtocol *self, const char *command_line,
-    char *fixup, size_t *fixup_buffer_size) {
-  printf("%s(%p, \"%s\")\n", __FUNCTION__, self, command_line);
-  *fixup_buffer_size = 0;
-  return SUCCESS;
-}
-
 // Generates fixups for the bootconfig built by GBL.
 __WEAK EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol *self,
                                   const char *bootconfig, size_t size,

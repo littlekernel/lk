@@ -17,10 +17,10 @@
 
 #include "configuration_table.h"
 
+#include <libfdt.h>
 #include <string.h>
 #include <uefi/system_table.h>
 
-#include "libfdt.h"
 #include "memory_protocols.h"
 #include "platform.h"
 
