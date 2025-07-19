@@ -41,7 +41,7 @@ shift $((OPTIND-1))
 echo > buildall.log
 function log()
 {
-    if (( $QUIET )); then
+    if (( QUIET )); then
         "$@" >> buildall.log 2>&1
     else
         "$@" 2>&1 | tee -a buildall.log
@@ -52,28 +52,25 @@ function log()
 PROJECTS=$(echo project/*.mk | xargs -n1 basename | sed 's/\.mk//')
 FAILED=""
 
-# set the WERROR environment
-if (( $WERROR )); then
-export WERROR=1
-else
-# hard set to 0 in case local.mk tries to override it
-export WERROR=0
+if (( WERROR )); then
+    WERROR_MSG="with WERROR"
 fi
 
 for p in $PROJECTS; do
-    echo building $p
-    PROJECT=$p log nice $DIR/make-parallel || FAILED="$FAILED $p"
+    echo "building $p $WERROR_MSG"
+    WERROR=$WERROR PROJECT=$p log nice "$DIR"/make-parallel || FAILED="$FAILED $p"
 done
 
-if (( $RELEASE )); then
+if (( RELEASE )); then
 for p in $PROJECTS; do
-    echo building $p-release
-    BUILDDIR_SUFFIX=-release DEBUG=0 PROJECT=$p log nice $DIR/make-parallel || FAILED="$FAILED $p-release"
+    echo "building $p-release $WERROR_MSG"
+    BUILDDIR_SUFFIX=-release WERROR=$WERROR DEBUG=0 PROJECT=$p log nice "$DIR"/make-parallel || FAILED="$FAILED $p-release"
 done
 fi
 
+# Print out at the end which projects failed to build
 if [ "$FAILED" != "" ]; then
     echo
     echo some projects have failed to build:
-    echo $FAILED
+    echo "$FAILED"
 fi
