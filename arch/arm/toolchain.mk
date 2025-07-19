@@ -4,7 +4,6 @@ ARCH_arm_TOOLCHAIN_INCLUDED := 1
 # try to find the toolchain
 ifndef ARCH_arm_TOOLCHAIN_PREFIX
 
-$(info $(TOOLCHAIN_PREFIX))
 # if TOOLCHAIN_PREFIX is not empty, try to use it first
 ifneq ($(TOOLCHAIN_PREFIX),)
 ARCH_arm_TOOLCHAIN_PREFIX := $(TOOLCHAIN_PREFIX)

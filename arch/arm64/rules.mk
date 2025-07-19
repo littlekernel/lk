@@ -89,7 +89,6 @@ GLOBAL_DEFINES += \
 # try to find the toolchain
 include $(LOCAL_DIR)/toolchain.mk
 TOOLCHAIN_PREFIX := $(ARCH_$(ARCH)_TOOLCHAIN_PREFIX)
-$(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
 ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
 ARCH_COMPILEFLAGS += -fno-omit-frame-pointer

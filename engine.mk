@@ -183,10 +183,24 @@ include platform/$(PLATFORM)/rules.mk
 ifndef ARCH
 $(error couldn't find arch or platform doesn't define arch)
 endif
+
+# list the architecture specified in the project/target/platform rules.mk and early terminate.
+ifeq ($(MAKECMDGOALS), list-arch)
+$(info ARCH = $(ARCH))
+.PHONY: list-arch
+list-arch:
+else
+
 include arch/$(ARCH)/rules.mk
 ifndef TOOLCHAIN_PREFIX
 $(error TOOLCHAIN_PREFIX not set in the arch rules.mk)
 endif
+
+ifeq ($(MAKECMDGOALS), list-toolchain)
+$(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
+.PHONY: list-toolchain
+list-toolchain:
+else
 
 # default to no ccache
 CCACHE ?=
@@ -354,12 +368,6 @@ clean: $(EXTRA_CLEANDEPS)
 install: all
 	scp $(OUTBIN) 192.168.0.4:/tftpboot
 
-list-arch:
-	@echo ARCH = ${ARCH}
-
-list-toolchain:
-	@echo TOOLCHAIN_PREFIX = ${TOOLCHAIN_PREFIX}
-
 tags: $(BUILDDIR)/srcfiles.txt $(BUILDDIR)/include_paths.txt
 	$(info generating tags)
 	@ctags -L $<
@@ -381,6 +389,10 @@ $(CONFIGHEADER): configheader
 ifeq ($(filter $(MAKECMDGOALS), clean), )
 -include $(DEPS)
 endif
+
+endif # ifeq ($(filter $(MAKECMDGOALS), list-toolchain))
+
+endif # ifeq ($(filter $(MAKECMDGOALS), list-arch))
 
 endif # do-nothing = 1
 

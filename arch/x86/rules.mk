@@ -106,9 +106,9 @@ TOOLCHAIN_PREFIX := $(ARCH_x86_64_TOOLCHAIN_PREFIX)
 endif
 endif # SUBARCH x86-64
 
-$(warning ARCH_x86_TOOLCHAIN_PREFIX = $(ARCH_x86_TOOLCHAIN_PREFIX))
-$(warning ARCH_x86_64_TOOLCHAIN_PREFIX = $(ARCH_x86_64_TOOLCHAIN_PREFIX))
-$(warning TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
+$(info ARCH_x86_TOOLCHAIN_PREFIX = $(ARCH_x86_TOOLCHAIN_PREFIX))
+$(info ARCH_x86_64_TOOLCHAIN_PREFIX = $(ARCH_x86_64_TOOLCHAIN_PREFIX))
+$(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
 	then echo "$(2)"; else echo "$(3)"; fi ;)
@@ -148,8 +148,6 @@ GLOBAL_DEFINES += X86_LEGACY=0
 endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
-$(warning LIBGCC = $(LIBGCC))
-
 LINKER_SCRIPT += $(SUBARCH_BUILDDIR)/kernel.ld
 
 # potentially generated files that should be cleaned out with clean make rule

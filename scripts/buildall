@@ -13,19 +13,22 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 function HELP {
     echo "help:"
-    echo "-e build with WERROR=1"
-    echo "-r also build DEBUG=0"
-    echo "-q hide output of build"
-    echo "-h for help"
+    echo "-a <arch> : build for <arch> (default: all)"
+    echo "-e        : build with WERROR=1"
+    echo "-r        : also build DEBUG=0"
+    echo "-q        : hide output of build"
+    echo "-h        : for help"
     exit 1
 }
 
 RELEASE=0
 WERROR=0
 QUIET=0
+ARCH="all"
 
-while getopts ehrq FLAG; do
+while getopts a:ehrq FLAG; do
     case $FLAG in
+        a) ARCH="$OPTARG";;
         e) WERROR=1;;
         h) HELP;;
         r) RELEASE=1;;
@@ -48,9 +51,29 @@ function log()
     fi
 }
 
-# build everything in the projects directory
-PROJECTS=$(echo project/*.mk | xargs -n1 basename | sed 's/\.mk//')
+# find all the projects in the project directory
+_PROJECTS=$(echo project/*.mk | xargs -n1 basename | sed 's/\.mk//')
 FAILED=""
+
+# If ARCH is set to all, we build for all architectures, otherwise we
+# filter projects based on the ARCH variable.
+if [ "$ARCH" != "all" ]; then
+    for p in $_PROJECTS; do
+        # Look for ARCH = <arch> in the output of make list-arch
+        PROJECT_ARCH="$(PROJECT=$p make list-arch | grep 'ARCH' | tail -1 | cut -d ' ' -f 3)"
+        if [ "$PROJECT_ARCH" == "$ARCH" ]; then
+            PROJECTS+="$p "
+        else
+            if (( !QUIET )); then
+                echo "Skipping $p, not compatible with architecture $ARCH"
+            fi
+        fi
+    done
+else
+    PROJECTS+="$_PROJECTS"
+fi
+
+echo projects to build: "$PROJECTS"
 
 if (( WERROR )); then
     WERROR_MSG="with WERROR"
@@ -73,4 +96,5 @@ if [ "$FAILED" != "" ]; then
     echo
     echo some projects have failed to build:
     echo "$FAILED"
+    exit 1
 fi

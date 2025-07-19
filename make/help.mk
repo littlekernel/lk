@@ -12,9 +12,14 @@ help:
 	@echo "LK build system quick help"
 	@echo "Individual projects are built into a build-<project> directory"
 	@echo "Output binary is located at build-<project>/lk.bin"
+	@echo ""
 	@echo "Environment or command line variables controlling build:"
 	@echo "PROJECT = <project name>"
 	@echo "TOOLCHAIN_PREFIX = <absolute path to toolchain or relative path with prefix>"
+	@echo "WERROR = 1 : treat warnings as errors"
+	@echo "DEBUG = 0,1,2 : set debug level (0=NONE, 1=INFO, 2=DEBUG), default is 2"
+	@echo "BUILDDIR = <path to build directory> (default is build-<project>)"
+	@echo "BUILDDIR_SUFFIX = <suffix to add to build directory> (default is empty)"
 	@echo ""
 	@echo "Special make targets:"
 	@echo "make help: This help"
@@ -34,6 +39,9 @@ help:
 	@echo "make testproject clean"
 	@echo ""
 	@echo "output will be in build-testproject/"
+	@echo ""
+	@echo "Check the project/ directory for available projects"
+	@echo "and their rules.mk files for more information."
 
 endif
 
