@@ -28,12 +28,12 @@
 extern const struct lk_init_struct __start_lk_init __WEAK;
 extern const struct lk_init_struct __stop_lk_init __WEAK;
 
-void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop_level) {
-    LTRACEF("flags %#x, start_level %#x, stop_level %#x\n",
+void lk_init_level(enum lk_init_flags required_flag, uint16_t start_level, uint16_t stop_level) {
+    LTRACEF("flags %#x, start_level %#hx, stop_level %#hx\n",
             required_flag, start_level, stop_level);
 
     ASSERT(start_level > 0);
-    uint last_called_level = start_level - 1;
+    uint16_t last_called_level = start_level - 1;
     const struct lk_init_struct *last = NULL;
     for (;;) {
         /* search for the lowest uncalled hook to call */
@@ -87,27 +87,3 @@ void lk_init_level(enum lk_init_flags required_flag, uint start_level, uint stop
         last = found;
     }
 }
-
-#if 0
-void test_hook(uint level) {
-    LTRACEF("level %#x\n", level);
-}
-void test_hook1(uint level) {
-    LTRACEF("level %#x\n", level);
-}
-void test_hook1a(uint level) {
-    LTRACEF("level %#x\n", level);
-}
-void test_hook1b(uint level) {
-    LTRACEF("level %#x\n", level);
-}
-void test_hook2(uint level) {
-    LTRACEF("level %#x\n", level);
-}
-
-LK_INIT_HOOK(test, test_hook, 1);
-LK_INIT_HOOK(test1, test_hook1, 1);
-LK_INIT_HOOK(test2, test_hook2, 2);
-LK_INIT_HOOK(test1a, test_hook1a, 1);
-LK_INIT_HOOK(test1b, test_hook1b, 1);
-#endif

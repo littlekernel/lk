@@ -21,19 +21,19 @@ typedef void (*lk_init_hook)(uint level);
 enum lk_init_level {
     LK_INIT_LEVEL_EARLIEST = 1,
 
-    LK_INIT_LEVEL_ARCH_EARLY     = 0x10000,
-    LK_INIT_LEVEL_PLATFORM_EARLY = 0x20000,
-    LK_INIT_LEVEL_TARGET_EARLY   = 0x30000,
-    LK_INIT_LEVEL_HEAP           = 0x40000,
-    LK_INIT_LEVEL_VM             = 0x50000,
-    LK_INIT_LEVEL_KERNEL         = 0x60000,
-    LK_INIT_LEVEL_THREADING      = 0x70000,
-    LK_INIT_LEVEL_ARCH           = 0x80000,
-    LK_INIT_LEVEL_PLATFORM       = 0x90000,
-    LK_INIT_LEVEL_TARGET         = 0xa0000,
-    LK_INIT_LEVEL_APPS           = 0xb0000,
+    LK_INIT_LEVEL_ARCH_EARLY     = 0x1000,
+    LK_INIT_LEVEL_PLATFORM_EARLY = 0x2000,
+    LK_INIT_LEVEL_TARGET_EARLY   = 0x3000,
+    LK_INIT_LEVEL_HEAP           = 0x4000,
+    LK_INIT_LEVEL_VM             = 0x5000,
+    LK_INIT_LEVEL_KERNEL         = 0x6000,
+    LK_INIT_LEVEL_THREADING      = 0x7000,
+    LK_INIT_LEVEL_ARCH           = 0x8000,
+    LK_INIT_LEVEL_PLATFORM       = 0x9000,
+    LK_INIT_LEVEL_TARGET         = 0xa000,
+    LK_INIT_LEVEL_APPS           = 0xb000,
 
-    LK_INIT_LEVEL_LAST = UINT_MAX,
+    LK_INIT_LEVEL_LAST = UINT16_MAX,
 };
 
 enum lk_init_flags {
@@ -44,9 +44,10 @@ enum lk_init_flags {
     LK_INIT_FLAG_CPU_RESUME      = 0x8,
 };
 
-void lk_init_level(enum lk_init_flags flags, uint start_level, uint stop_level);
+// Run init hooks between start_level (inclusive) and stop_level (exclusive) that match the required_flags.
+void lk_init_level(enum lk_init_flags required_flags, uint16_t start_level, uint16_t stop_level);
 
-static inline void lk_primary_cpu_init_level(uint start_level, uint stop_level) {
+static inline void lk_primary_cpu_init_level(uint16_t start_level, uint16_t stop_level) {
     lk_init_level(LK_INIT_FLAG_PRIMARY_CPU, start_level, stop_level);
 }
 
@@ -55,20 +56,22 @@ static inline void lk_init_level_all(enum lk_init_flags flags) {
 }
 
 struct lk_init_struct {
-    uint level;
-    uint flags;
+    uint16_t level;
+    uint16_t flags;
     lk_init_hook hook;
     const char *name;
 };
 
+// Define an init hook with specific flags, level, and name.
 #define LK_INIT_HOOK_FLAGS(_name, _hook, _level, _flags) \
-    const struct lk_init_struct _init_struct_##_name __ALIGNED(sizeof(void *)) __SECTION("lk_init") = { \
-        .level = _level, \
-        .flags = _flags, \
-        .hook = _hook, \
+    static const struct lk_init_struct _init_struct_##_name __ALIGNED(sizeof(void *)) __SECTION("lk_init") = { \
+        .level = (_level), \
+        .flags = (_flags), \
+        .hook = (_hook), \
         .name = #_name, \
     };
 
+// Shortcut for defining an init hook with primary CPU flag.
 #define LK_INIT_HOOK(_name, _hook, _level) \
     LK_INIT_HOOK_FLAGS(_name, _hook, _level, LK_INIT_FLAG_PRIMARY_CPU)
 
