@@ -17,73 +17,45 @@ jobs:
         toolchain-ver: [14.2.0, 7.5.0]
         debug: [2, 0]
         ubsan: [1, 0]
-        project:
-          - qemu-virt-arm32-test
-          - qemu-virt-arm64-test
-          - qemu-virt-m68k-test
-          - qemu-microblaze-test
-          - qemu-mips-test
-          - qemu-virt-riscv32-test
-          - qemu-virt-riscv64-test
-          - qemu-virt-riscv64-supervisor-test
-          - qemu-virt-arm32-minimal
-          - pc-x86-test
-          - pc-x86-legacy-test
-          - pc-x86-64-test
-          - or1ksim
-          - vim2-test
-          - zybo-test
-          - rpi2-test
-          - rpi3-test
-          - uzed-test
-          - stm32-h103-test
-          - stm32746g-eval2-test
-          - stm32f429i-disco-test
-          - stm32f746g-disco-test
-          - stm32f4-discovery-test
-          - stellaris-launchpad-test
-          - nrf51-pca10028-test
-          - nucleo-f072rb
-          - pico-test
-          - sifive-e-test
-          - visionfive2-test
-          - bananapi-f3-test
-          - rosco-m68k-test
+        arch:
+          - arm
+          - arm64
+          - m68k
+          - microblaze
+          - mips
+          - or1k
+          - riscv32
+          - riscv64
+          - x86
         exclude:
           # no real point building ubsan on the old compiler
           - ubsan: 1
             toolchain-ver: 7.5.0
           # no toolchain for 7.5.0 for or1k
-          - project: or1ksim
+          - arch: or1k
             toolchain-ver: 7.5.0
           # building newer riscv stuff on 7.5.0 is fairly difficult due to
           # lack of certain extensions
-          - project: qemu-virt-riscv32-test
+          - arch: riscv32
             toolchain-ver: 7.5.0
-          - project: qemu-virt-riscv64-test
-            toolchain-ver: 7.5.0
-          - project: qemu-virt-riscv64-supervisor-test
-            toolchain-ver: 7.5.0
-          - project: sifive-e-test
-            toolchain-ver: 7.5.0
-          - project: visionfive2-test
-            toolchain-ver: 7.5.0
-          - project: bananapi-f3-test
+          - arch: riscv64
             toolchain-ver: 7.5.0
 
     env:
-      PROJECT: ${{ matrix.project }}
+      ARCH: ${{ matrix.arch }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
       # ${{ matrix.toolchain-arch }}-${{ matrix.toolchain-ver }}-Linux-x86_64
       DEBUG: ${{ matrix.debug }}
       UBSAN: ${{ matrix.ubsan }}
+      TOOLCHAIN: # compute below
+      TOOLCHAIN_ALT: # compute below
     steps:
     - name: banner
       shell: bash
       run: |
         printf "Building with %d processors\n" "$(nproc)"
         grep -oP '(?<=model name\t: ).*' /proc/cpuinfo|head -n1
-        echo PROJECT = $PROJECT
+        echo ARCH = $ARCH
         echo TOOLCHAIN_VER = $TOOLCHAIN_VER
         echo DEBUG = $DEBUG
         echo UBSAN = $UBSAN
@@ -96,9 +68,24 @@ jobs:
     - name: compute toolchain
       shell: bash
       run: |
-        TOOLCHAIN_PREFIX=$(make list-toolchain | grep TOOLCHAIN_PREFIX | tail -1 | cut -d ' ' -f 3)
+        case "${{ matrix.arch }}" in
+            arm) TOOLCHAIN_PREFIX="arm-eabi-" ;;
+            arm64) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
+            m68k) TOOLCHAIN_PREFIX="m68k-elf-" ;;
+            microblaze) TOOLCHAIN_PREFIX="microblaze-elf-" ;;
+            mips) TOOLCHAIN_PREFIX="mips-elf-" ;;
+            or1k) TOOLCHAIN_PREFIX="or1k-elf-" ;;
+            riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;
+            riscv64) TOOLCHAIN_PREFIX="riscv64-elf-" ;;
+            x86) TOOLCHAIN_PREFIX="x86_64-elf-" ;;
+            *) echo "Unknown architecture: ${{ matrix.arch }}" && exit 1 ;;
+        esac
         echo "TOOLCHAIN_PREFIX=${TOOLCHAIN_PREFIX}" >> $GITHUB_ENV
         echo "TOOLCHAIN=${TOOLCHAIN_PREFIX}${{ matrix.toolchain-ver }}-$(uname)-$(uname -m)" >> $GITHUB_ENV
+        if [ "$TOOLCHAIN_PREFIX" = "x86_64-elf-" ]; then
+          # for some x86_64-elf projects, we need i386-elf as well
+          echo "TOOLCHAIN_ALT=i386-elf-${{ matrix.toolchain-ver }}-$(uname)-$(uname -m)" >> $GITHUB_ENV
+        fi
 
     # maintain a directory archives/ in the repo
     # it will contain tarballs of various toolchains
@@ -109,13 +96,14 @@ jobs:
         # A list of files, directories, and wildcard patterns to cache and restore
         path: archives
         # An explicit key for restoring and saving the cache
-        key: archives-${{ env.TOOLCHAIN }}
+        key: archives-${{ env.TOOLCHAIN }}-${{ env.TOOLCHAIN_ALT }}
 
-    # download a toolchain from http://newos.org/toolchains
+    # download a toolchain from https://newos.org/toolchains
+    # if not already cached
     - name: fetch/extract toolchain
       shell: bash
       run: |
-        TOOLCHAIN_BASE_URL="http://newos.org/toolchains"
+        TOOLCHAIN_BASE_URL="https://newos.org/toolchains"
         TOOLCHAIN_SUFFIX="tar.xz"
         TOOLCHAIN_ADDRESS="$TOOLCHAIN_BASE_URL/$TOOLCHAIN.$TOOLCHAIN_SUFFIX"
         mkdir -p archives
@@ -127,11 +115,35 @@ jobs:
         tar xf archives/$TOOLCHAIN.$TOOLCHAIN_SUFFIX || exit 1
         echo "$GITHUB_WORKSPACE/$TOOLCHAIN/bin" >> $GITHUB_PATH
 
+    # if we have an alternate toolchain, download it too
+    - name: fetch/extract alternate toolchain
+      if: env.TOOLCHAIN_ALT != ''
+      shell: bash
+      run: |
+        TOOLCHAIN_BASE_URL="https://newos.org/toolchains"
+        TOOLCHAIN_SUFFIX="tar.xz"
+        TOOLCHAIN_ALT_ADDRESS="$TOOLCHAIN_BASE_URL/$TOOLCHAIN_ALT.$TOOLCHAIN_SUFFIX"
+        echo "Downloading alternate toolchain $TOOLCHAIN_ALT from $TOOLCHAIN_ALT_ADDRESS"
+        mkdir -p archives
+        cd archives
+        wget -v -N $TOOLCHAIN_ALT_ADDRESS || exit 1
+        cd ..
+        echo "Unpacking $TOOLCHAIN_ALT"
+        tar xf archives/$TOOLCHAIN_ALT.$TOOLCHAIN_SUFFIX || exit 1
+        echo "$GITHUB_WORKSPACE/$TOOLCHAIN_ALT/bin" >> $GITHUB_PATH
+
     # build it
     - name: build
       shell: bash
       run: |
-        make -j $(nproc)
+        export -n TOOLCHAIN_PREFIX
+        export -n TOOLCHAIN
+        export -n TOOLCHAIN_ALT
+        export -n TOOLCHAIN_VER
+        export -n ARCH
+        # DEBUG is passed through to the build script
+        # UBSAN is passed through to the build script
+        ./scripts/buildall -a "${{ matrix.arch }}"
 
     # upload artifacts
     #- uses: actions/upload-artifact@v2
