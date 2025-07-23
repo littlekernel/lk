@@ -84,7 +84,7 @@ typedef struct {
                               size_t* desc_size, uint32_t* desc_version);
   EfiStatus (*allocate_pool)(EfiMemoryType pool_type, size_t size, void** buf);
   EfiStatus (*free_pool)(void* buf);
-  EfiStatus (*create_event)(uint32_t type, EfiTpl notify_tpl,
+  EfiStatus (*create_event)(EfiEventType type, EfiTpl notify_tpl,
                             EfiEventNotify notify_fn, void* notify_ctx,
                             EfiEvent* event);
   EfiStatus (*set_timer)(EfiEvent event, EfiTimerDelay type,

@@ -22,6 +22,7 @@
 #include <uefi/protocols/block_io_protocol.h>
 #include <uefi/types.h>
 
+#include "io_stack.h"
 #include "memory_protocols.h"
 #include "switch_stack.h"
 
@@ -32,8 +33,12 @@ EfiStatus read_blocks(EfiBlockIoProtocol *self, uint32_t media_id, uint64_t lba,
   auto interface = reinterpret_cast<EfiBlockIoInterface *>(self);
   auto dev = reinterpret_cast<bdev_t *>(interface->dev);
   if (lba >= dev->block_count) {
-    printf("OOB read %llu %u\n", lba, dev->block_count);
+    printf("OOB read %s %llu %u\n", dev->name, lba, dev->block_count);
     return END_OF_MEDIA;
+  }
+  if (interface->io_stack == nullptr) {
+    printf("No IO stack allocted.\n");
+    return OUT_OF_RESOURCES;
   }
 
   const size_t bytes_read =
@@ -64,15 +69,16 @@ EfiStatus reset(EfiBlockIoProtocol *self, bool extended_verification) {
 }  // namespace
 
 EfiStatus open_block_device(EfiHandle handle, void **intf) {
-  static constexpr size_t kIoStackSize = 1024ul * 1024 * 64;
-  static void *io_stack = nullptr;
-  if (io_stack == nullptr) {
-    vmm_alloc(vmm_get_kernel_aspace(), "uefi_io_stack", kIoStackSize, &io_stack,
-              PAGE_SIZE_SHIFT, 0, 0);
-  }
   printf("%s(%p)\n", __FUNCTION__, handle);
+  auto io_stack = get_io_stack();
+  if (io_stack == nullptr) {
+    return OUT_OF_RESOURCES;
+  }
   const auto interface = reinterpret_cast<EfiBlockIoInterface *>(
       uefi_malloc(sizeof(EfiBlockIoInterface)));
+  if (interface == nullptr) {
+    return OUT_OF_RESOURCES;
+  }
   memset(interface, 0, sizeof(EfiBlockIoInterface));
   auto dev = bio_open(reinterpret_cast<const char *>(handle));
   interface->dev = dev;
@@ -86,5 +92,24 @@ EfiStatus open_block_device(EfiHandle handle, void **intf) {
   interface->media.last_block = dev->block_count - 1;
   interface->io_stack = reinterpret_cast<char *>(io_stack) + kIoStackSize;
   *intf = interface;
+  return SUCCESS;
+}
+
+EfiStatus list_block_devices(size_t *num_handles, EfiHandle **buf) {
+  size_t device_count = 0;
+  bio_iter_devices([&device_count](bdev_t *dev) {
+    device_count++;
+    return true;
+  });
+  auto devices =
+      reinterpret_cast<char **>(uefi_malloc(sizeof(char *) * device_count));
+  size_t i = 0;
+  bio_iter_devices([&i, devices, device_count](bdev_t *dev) {
+    devices[i] = dev->name;
+    i++;
+    return i < device_count;
+  });
+  *num_handles = i;
+  *buf = reinterpret_cast<EfiHandle *>(devices);
   return SUCCESS;
 }

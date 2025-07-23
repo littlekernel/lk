@@ -24,24 +24,35 @@
 #include <uefi/types.h>
 
 static constexpr size_t GBL_EFI_OS_CONFIGURATION_PROTOCOL_REVISION = 0x00000000;
+typedef enum GBL_EFI_DEVICE_TREE_TYPE {
+  // HLOS device tree.
+  DEVICE_TREE,
+  // HLOS device tree overlay.
+  OVERLAY,
+  // pVM device assignment overlay.
+  PVM_DA_OVERLAY,
+} GblEfiDeviceTreeType;
 
 typedef enum GBL_EFI_DEVICE_TREE_SOURCE {
+  // Device tree loaded from boot partition.
   BOOT,
+  // Device tree loaded from vendor_boot partition.
   VENDOR_BOOT,
+  // Device tree loaded from dtbo partition.
   DTBO,
-  DTB
+  // Device tree loaded from dtb partition.
+  DTB,
 } GblEfiDeviceTreeSource;
 
 typedef struct {
   // GblDeviceTreeSource
   uint32_t source;
+  // GblDeviceTreeType
+  uint32_t type;
   // Values are zeroed and must not be used in case of BOOT / VENDOR_BOOT source
   uint32_t id;
   uint32_t rev;
   uint32_t custom[4];
-  // Make sure GblDeviceTreeMetadata size is 8-bytes aligned. Also reserved for
-  // the future cases
-  uint32_t reserved;
 } GblEfiDeviceTreeMetadata;
 
 typedef struct {
@@ -57,14 +68,9 @@ typedef struct {
 
 // Warning: API is UNSTABLE
 // Documentation:
-// https://cs.android.com/android/platform/superproject/main/+/main:bootable/libbootloader/gbl/docs/gbl_os_configuration_protocol.md
+// https://cs.android.com/android/kernel/superproject/+/common-android-mainline:bootable/libbootloader/gbl/docs/gbl_os_configuration_protocol.md
 typedef struct GblEfiOsConfigurationProtocol {
   uint64_t revision;
-
-  // Generates fixups for the kernel command line built by GBL.
-  EfiStatus (*fixup_kernel_commandline)(
-      struct GblEfiOsConfigurationProtocol *self, const char *command_line,
-      char *fixup, size_t *fixup_buffer_size);
 
   // Generates fixups for the bootconfig built by GBL.
   EfiStatus (*fixup_bootconfig)(struct GblEfiOsConfigurationProtocol *self,
