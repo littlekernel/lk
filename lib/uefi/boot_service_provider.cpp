@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <platform.h>
 #include <sys/types.h>
 #include <uefi/boot_service.h>
 #include <uefi/protocols/block_io_protocol.h>
@@ -397,6 +398,17 @@ EfiStatus locate_handle_buffer(EfiLocateHandleSearchType search_type,
   return UNSUPPORTED;
 }
 
+EfiStatus stall(size_t microseconds) {
+  uint64_t end_microseconds;
+
+  end_microseconds = current_time_hires() + microseconds;
+  while (current_time_hires() < end_microseconds) {
+    thread_yield();
+  }
+
+  return SUCCESS;
+}
+
 } // namespace
 
 void setup_boot_service_table(EfiBootService *service) {
@@ -428,4 +440,5 @@ void setup_boot_service_table(EfiBootService *service) {
   service->check_event = switch_stack_wrapper<EfiEvent, check_event>();
   service->create_event = create_event;
   service->close_event = close_event;
+  service->stall = stall;
 }
