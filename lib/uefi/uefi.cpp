@@ -42,6 +42,7 @@
 #include "switch_stack.h"
 #include "text_protocol.h"
 #include "uefi_platform.h"
+#include "debug_support.h"
 
 namespace {
 
@@ -135,6 +136,11 @@ int load_sections_and_execute(bdev_t *dev,
   auto status = platform_setup_system_table(&table);
   if (status != SUCCESS) {
     printf("platform_setup_system_table failed: %lu\n", status);
+    return -static_cast<int>(status);
+  }
+  status = efi_initialize_system_table_pointer(&table);
+  if (status != SUCCESS) {
+    printf("efi_initialize_system_table_pointer failed: %lu\n", status);
     return -static_cast<int>(status);
   }
 
