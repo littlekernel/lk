@@ -29,6 +29,12 @@ namespace {
   struct EfiSystemTablePointer *efi_systab_pointer = nullptr;
 }
 
+struct EfiDebugImageInfoTableHeader efi_m_debug_info_table_header = {
+  0,
+  0,
+  nullptr
+};
+
 EfiStatus efi_initialize_system_table_pointer(struct EfiSystemTable *system_table) {
   uint32_t crc = 0;
   constexpr auto EFI_SYSTEM_TABLE_SIGNATURE =
