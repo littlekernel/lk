@@ -20,6 +20,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/configuration_table.cpp \
 	$(LOCAL_DIR)/events.cpp \
 	$(LOCAL_DIR)/io_stack.cpp \
+	$(LOCAL_DIR)/debug_support.cpp \
 
 
 include make/module.mk
