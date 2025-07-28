@@ -24,15 +24,17 @@
 #include <uefi/boot_service.h>
 #include <uefi/protocols/block_io_protocol.h>
 #include <uefi/protocols/dt_fixup_protocol.h>
+#include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/protocols/loaded_image_protocol.h>
 #include <uefi/types.h>
 
 #include "arch/defines.h"
+#include "blockio2_protocols.h"
 #include "blockio_protocols.h"
-#include "lib/bio.h"
+#include "events.h"
+#include "io_stack.h"
 #include "memory_protocols.h"
-#include "switch_stack.h"
 #include "uefi_platform.h"
 
 namespace {
@@ -173,6 +175,54 @@ EfiTpl raise_tpl(EfiTpl new_tpl) {
   return APPLICATION;
 }
 
+const char *GetImageType(const char16_t *ImageType) {
+  if (memcmp(ImageType, GBL_IMAGE_TYPE_OS_LOAD,
+             sizeof(GBL_IMAGE_TYPE_OS_LOAD)) == 0) {
+    return "os_load";
+  } else if (memcmp(ImageType, GBL_IMAGE_TYPE_FASTBOOT,
+                    sizeof(GBL_IMAGE_TYPE_FASTBOOT)) == 0) {
+    return "fastboot";
+  } else if (memcmp(ImageType, GBL_IMAGE_TYPE_PVMFW_DATA,
+                    sizeof(GBL_IMAGE_TYPE_PVMFW_DATA)) == 0) {
+    return "pvmfw_data";
+  }
+  return "unknown";
+}
+template <typename T>
+T clamp(T n, T lower, T upper) {
+  if (n < lower) {
+    return lower;
+  }
+  if (n > upper) {
+    return upper;
+  }
+  return n;
+}
+
+EfiStatus get_buffer(struct GblEfiImageLoadingProtocol *self,
+                     const GblEfiImageInfo *ImageInfo,
+                     GblEfiImageBuffer *Buffer) {
+  printf("%s(%s, %lu)\n", __FUNCTION__, GetImageType(ImageInfo->ImageType),
+         ImageInfo->SizeBytes);
+
+  // Allow maximum of 128MB buffer
+  const size_t buffer_size =
+      clamp(Buffer->SizeBytes, PAGE_SIZE, 128ul * 1024 * 1024);
+  Buffer->Memory = alloc_page(buffer_size);
+  if (Buffer->Memory == nullptr) {
+    return OUT_OF_RESOURCES;
+  }
+
+  Buffer->SizeBytes = buffer_size;
+  return SUCCESS;
+}
+
+EfiStatus get_verify_partitions(struct GblEfiImageLoadingProtocol *self,
+                                size_t *NumberOfPartitions,
+                                GblEfiPartitionName *Partitions) {
+  printf("%s is called\n", __FUNCTION__);
+  return UNSUPPORTED;
+}
 
 EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
                         EfiHandle agent_handle, EfiHandle controller_handle,
@@ -203,7 +253,7 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
     printf("%s(EFI_BLOCK_IO2_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
            "controller_handle=%p, attr=0x%x)\n",
            __FUNCTION__, handle, agent_handle, controller_handle, attr);
-    return UNSUPPORTED;
+    return open_async_block_device(handle, intf);
   } else if (guid_eq(protocol, EFI_DT_FIXUP_PROTOCOL_GUID)) {
     printf("%s(EFI_DT_FIXUP_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
            "controller_handle=%p, attr=0x%x)\n",
@@ -233,9 +283,22 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
     }
     config->revision = GBL_EFI_OS_CONFIGURATION_PROTOCOL_REVISION;
     config->fixup_bootconfig = fixup_bootconfig;
-    config->fixup_kernel_commandline = fixup_kernel_commandline;
     config->select_device_trees = select_device_trees;
     *intf = reinterpret_cast<void *>(config);
+    return SUCCESS;
+  } else if (guid_eq(protocol, EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID)) {
+    printf(
+        "%s(EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID, handle=%p, "
+        "agent_handle%p, controller_handle=%p, attr=0x%x)\n",
+        __FUNCTION__, handle, agent_handle, controller_handle, attr);
+    GblEfiImageLoadingProtocol *image_loading = nullptr;
+    allocate_pool(BOOT_SERVICES_DATA, sizeof(*image_loading),
+                  reinterpret_cast<void **>(&image_loading));
+    if (image_loading == nullptr) {
+      return OUT_OF_RESOURCES;
+    }
+    image_loading->revision = GBL_EFI_IMAGE_LOADING_PROTOCOL_REVISION;
+    *intf = reinterpret_cast<void *>(image_loading);
     return SUCCESS;
   }
   printf("%s is unsupported 0x%x 0x%x 0x%x 0x%llx\n", __FUNCTION__,
@@ -270,25 +333,6 @@ EfiStatus close_protocol(EfiHandle handle, const EfiGuid *protocol,
   }
   printf("%s is called\n", __FUNCTION__);
   return UNSUPPORTED;
-}
-
-EfiStatus list_block_devices(size_t *num_handles, EfiHandle **buf) {
-  size_t device_count = 0;
-  bio_iter_devices([&device_count](bdev_t *dev) {
-    device_count++;
-    return true;
-  });
-  auto devices =
-      reinterpret_cast<char **>(uefi_malloc(sizeof(char *) * device_count));
-  size_t i = 0;
-  bio_iter_devices([&i, devices, device_count](bdev_t *dev) {
-    devices[i] = dev->name;
-    i++;
-    return i < device_count;
-  });
-  *num_handles = i;
-  *buf = reinterpret_cast<EfiHandle *>(devices);
-  return SUCCESS;
 }
 
 EfiStatus locate_handle_buffer(EfiLocateHandleSearchType search_type,
@@ -333,16 +377,6 @@ EfiStatus locate_handle_buffer(EfiLocateHandleSearchType search_type,
   return UNSUPPORTED;
 }
 
-EfiStatus wait_for_event(size_t num_events, EfiEvent *event, size_t *index) {
-  printf("%s is unsupported\n", __FUNCTION__);
-  return UNSUPPORTED;
-}
-
-EfiStatus signal_event(EfiEvent event) {
-  printf("%s is unsupported\n", __FUNCTION__);
-  return UNSUPPORTED;
-}
-
 } // namespace
 
 void setup_boot_service_table(EfiBootService *service) {
@@ -368,6 +402,10 @@ void setup_boot_service_table(EfiBootService *service) {
   service->open_protocol = open_protocol;
   service->locate_handle_buffer = locate_handle_buffer;
   service->close_protocol = close_protocol;
-  service->wait_for_event = wait_for_event;
-  service->signal_event = signal_event;
+  service->wait_for_event =
+      switch_stack_wrapper<size_t, EfiEvent *, size_t *, wait_for_event>();
+  service->signal_event = switch_stack_wrapper<EfiEvent, signal_event>();
+  service->check_event = switch_stack_wrapper<EfiEvent, check_event>();
+  service->create_event = create_event;
+  service->close_event = close_event;
 }

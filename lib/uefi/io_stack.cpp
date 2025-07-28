@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,27 +15,20 @@
  *
  */
 
-#include <lk/asm.h>
+#include "io_stack.h"
 
-// int call_with_stack_asm(void *stack, int (*fp)(), int arg1, int arg2, int arg3, int arg4, int arg5);
-FUNCTION(call_with_stack_asm)
-stp     fp, lr, [sp, #-16]!
-mov     fp, sp
+#include <kernel/vm.h>
 
-sub     x0,x0,16
-mov     x8,sp
-str     x8,[x0]
-mov     sp,x0
-mov     x7,x1
-mov     x0,x2
-mov     x1,x3
-mov     x2,x4
-mov     x3,x5
-mov     x4,x6
-blr     x7
-ldr     x8,[sp]
-mov     sp,x8
-
-ldp     fp, lr, [sp], 16
-ret     lr
-END_FUNCTION(call_with_stack_asm)
+void *get_io_stack() {
+  static void *io_stack = nullptr;
+  if (io_stack == nullptr) {
+    auto status = vmm_alloc(vmm_get_kernel_aspace(), "uefi_io_stack",
+                            kIoStackSize, &io_stack, PAGE_SIZE_SHIFT, 0, 0);
+    if (io_stack == nullptr) {
+      printf("Failed to allocated IO stack of size %zu error %d\n",
+             kIoStackSize, status);
+      return nullptr;
+    }
+  }
+  return io_stack;
+}

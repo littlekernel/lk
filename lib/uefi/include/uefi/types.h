@@ -35,8 +35,10 @@ using EfiGuid = struct EfiGuid {
   uint8_t data4[8];
 };
 
+struct EfiEventImpl;
+
 using EfiHandle = void *;
-using EfiEvent = void *;
+using EfiEvent = EfiEventImpl *;
 using EfiPhysicalAddr = uint64_t;
 using EfiVirtualAddr = uint64_t;
 

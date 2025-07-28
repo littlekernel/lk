@@ -29,10 +29,6 @@
 EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol *self, void *fdt,
                         size_t *buffer_size, uint32_t flags);
 
-EfiStatus fixup_kernel_commandline(struct GblEfiOsConfigurationProtocol *self,
-                                   const char *command_line, char *fixup,
-                                   size_t *fixup_buffer_size);
-
 EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol *self,
                            const char *bootconfig, size_t size, char *fixup,
                            size_t *fixup_buffer_size);
