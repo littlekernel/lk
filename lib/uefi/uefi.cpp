@@ -68,6 +68,7 @@ static char16_t firmwareVendor[] = u"Little Kernel";
 
 int load_sections_and_execute(bdev_t *dev,
                               const IMAGE_NT_HEADERS64 *pe_header) {
+  int ret;
   const auto file_header = &pe_header->FileHeader;
   const auto optional_header = &pe_header->OptionalHeader;
   const auto sections = file_header->NumberOfSections;
@@ -138,12 +139,18 @@ int load_sections_and_execute(bdev_t *dev,
     printf("efi_initialize_system_table_pointer failed: %lu\n", status);
     return -static_cast<int>(status);
   }
+  setup_debug_support(table, image_base, virtual_size, dev);
 
   constexpr size_t kStackSize = 8 * 1024ul * 1024;
   auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
   memset(stack, 0, kStackSize);
   printf("Calling kernel with stack [%p, %p]\n", stack, stack + kStackSize - 1);
-  return call_with_stack(stack + kStackSize, entry, image_base, &table);
+
+  ret = call_with_stack(stack + kStackSize, entry, image_base, &table);
+
+  teardown_debug_support(image_base);
+
+  return ret;
 }
 
 int cmd_uefi_load(int argc, const console_cmd_args *argv) {

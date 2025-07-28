@@ -18,9 +18,9 @@
 #ifndef __DEBUG_SUPPORT_
 #define __DEBUG_SUPPORT_
 
+#include <lib/bio.h>
 #include <uefi/system_table.h>
 #include <uefi/types.h>
-#include <uefi/protocols/loaded_image_protocol.h>
 
 static constexpr auto EFI_DEBUG_IMAGE_INFO_TABLE_GUID =
     EfiGuid{0x49152e77,
@@ -31,6 +31,8 @@ static constexpr auto EFI_DEBUG_IMAGE_INFO_TABLE_GUID =
 static constexpr size_t EFI_DEBUG_IMAGE_INFO_UPDATE_IN_PROGRESS = 0x01;
 static constexpr size_t EFI_DEBUG_IMAGE_INFO_TABLE_MODIFIED = 0x02;
 
+static constexpr size_t EFI_DEBUG_IMAGE_INFO_TYPE_NORMAL = 0x01;
+
 struct EfiSystemTablePointer {
   uint64_t signature;
   EfiSystemTable *system_table_base;
@@ -39,7 +41,7 @@ struct EfiSystemTablePointer {
 
 struct EfiDebugImageInfoNormal {
   uint32_t image_info_type;
-  EfiLoadedImageProtocol *loaded_image_protocol_instance;
+  struct EFI_LOADED_IMAGE_PROTOCOL *loaded_image_protocol_instance;
   EfiHandle image_handle;
 };
 
@@ -55,6 +57,16 @@ struct EfiDebugImageInfoTableHeader {
 };
 
 EfiStatus efi_initialize_system_table_pointer(struct EfiSystemTable *system_table);
+EfiStatus efi_core_new_debug_image_info_entry(uint32_t image_info_type,
+                                              struct EFI_LOADED_IMAGE_PROTOCOL *loaded_image,
+                                              EfiHandle image_handle);
+void efi_core_remove_debug_image_info_entry(EfiHandle image_handle);
+EfiStatus setup_debug_support(EfiSystemTable &table,
+			      char *image_base,
+			      size_t virtual_size,
+			      bdev_t *dev);
+
+void teardown_debug_support(char *image_base);
 
 extern struct EfiDebugImageInfoTableHeader efi_m_debug_info_table_header;
 
