@@ -7,6 +7,10 @@ on:
   push:
     branches-ignore:
       - 'wip/**'
+      - 'docs/**' # Skip builds for documentation branches
+    paths-ignore:
+      - '**.md'   # Skip builds when only markdown files change
+      - 'docs/**' # Skip builds for docs directory changes
 
 jobs:
   build:
