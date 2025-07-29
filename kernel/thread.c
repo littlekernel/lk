@@ -206,8 +206,10 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
     /* inherit thread local storage from the parent */
     thread_t *current_thread = get_current_thread();
     int i;
-    for (i=0; i < MAX_TLS_ENTRY; i++)
+    for (i=0; i < MAX_TLS_ENTRY; i++) {
         t->tls[i] = current_thread->tls[i];
+    }
+    t->tls[TLS_ENTRY_ERRNO] = 0; /* clear errno */
 
     /* set up the initial stack frame */
     arch_thread_initialize(t);
