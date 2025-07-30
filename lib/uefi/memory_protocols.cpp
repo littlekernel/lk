@@ -34,8 +34,11 @@ namespace {
 vmm_aspace_t *old_aspace = nullptr;
 constexpr size_t kHeapSize = 300ul * 1024 * 1024;
 
+void *heap = nullptr;
 void *get_heap() {
-  static auto heap = alloc_page(kHeapSize);
+  if (heap == nullptr) {
+    heap = alloc_page(kHeapSize);
+  }
   return heap;
 }
 
@@ -45,26 +48,52 @@ mspace create_mspace_with_base_limit(void *base, size_t capacity, int locked) {
   return space;
 }
 
+mspace space = nullptr;
+
 mspace get_mspace() {
-  static auto space = create_mspace_with_base_limit(get_heap(), kHeapSize, 1);
+  if (space == nullptr) {
+    space = create_mspace_with_base_limit(get_heap(), kHeapSize, 1);
+  }
   return space;
 }
 
-void restore_aspace() { vmm_set_active_aspace(old_aspace); }
+vmm_aspace_t *uefi_aspace = nullptr;
 
-} // namespace
+void restore_aspace() {
+  vmm_set_active_aspace(old_aspace);
+  vmm_free_aspace(uefi_aspace);
+  uefi_aspace = nullptr;
+}
+
+}  // namespace
+
+EfiStatus free_pages(EfiPhysicalAddr memory, size_t pages) {
+  return free_pages(reinterpret_cast<void *>(memory), pages);
+}
+
+void setup_heap() {
+  set_boot_aspace();
+  get_mspace();
+}
+
+void reset_heap() {
+  destroy_mspace(space);
+  space = nullptr;
+  free_pages(heap, kHeapSize / PAGE_SIZE);
+  heap = nullptr;
+  restore_aspace();
+}
 
 vmm_aspace_t *set_boot_aspace() {
-  static vmm_aspace_t *aspace = nullptr;
-  if (aspace == nullptr) {
-    auto err = vmm_create_aspace(&aspace, "linux_kernel", 0);
+  if (uefi_aspace == nullptr) {
+    auto err = vmm_create_aspace(&uefi_aspace, "linux_kernel", 0);
     if (err) {
       printf("Failed to create address space for linux kernel %d\n", err);
       return nullptr;
     }
-    old_aspace = vmm_set_active_aspace(aspace);
+    old_aspace = vmm_set_active_aspace(uefi_aspace);
   }
-  return aspace;
+  return uefi_aspace;
 }
 
 void *alloc_page(size_t size, size_t align_log2) {
@@ -139,19 +168,17 @@ EfiStatus free_pool(void *mem) {
   return SUCCESS;
 }
 
-EfiStatus free_pages(EfiPhysicalAddr memory, size_t pages) {
-  auto pa = reinterpret_cast<void *>(
-      vaddr_to_paddr(reinterpret_cast<void *>(memory)));
-  if (pa != reinterpret_cast<void *>(memory)) {
-    printf(
-        "WARN: virtual address 0x%llx is not identity mapped, physical addr: "
-        "%p\n",
-        memory, pa);
+EfiStatus free_pages(void *memory, size_t pages) {
+  auto pa = reinterpret_cast<void *>(vaddr_to_paddr(memory));
+  if (pa != memory) {
+    printf("WARN: virtual address %p is not identity mapped, physical addr: "
+           "%p\n",
+           memory, pa);
   }
   status_t err =
-      vmm_free_region(set_boot_aspace(), static_cast<vaddr_t>(memory));
+      vmm_free_region(set_boot_aspace(), reinterpret_cast<vaddr_t>(memory));
   if (err) {
-    printf("%s err:%d memory [0x%llx] pages:%zu\n", __FUNCTION__, err, memory,
+    printf("%s err:%d memory [%p] pages:%zu\n", __FUNCTION__, err, memory,
            pages);
     return DEVICE_ERROR;
   }
@@ -162,32 +189,6 @@ EfiStatus free_pages(EfiPhysicalAddr memory, size_t pages) {
     return DEVICE_ERROR;
   }
   return SUCCESS;
-}
-
-size_t get_aspace_entry_count(vmm_aspace_t *aspace) {
-  vmm_region_t *region = nullptr;
-  size_t num_entries = 0;
-  list_for_every_entry(&aspace->region_list, region, vmm_region_t, node) {
-    num_entries++;
-  }
-  return num_entries;
-}
-
-void fill_memory_map_entry(vmm_aspace_t *aspace, EfiMemoryDescriptor *entry,
-                           const vmm_region_t *region) {
-  entry->virtual_start = region->base;
-  entry->physical_start = entry->virtual_start;
-  entry->number_of_pages = region->size / PAGE_SIZE;
-  paddr_t pa{};
-  uint flags{};
-  status_t err =
-      arch_mmu_query(&aspace->arch_aspace, region->base, &pa, &flags);
-  if (err >= 0) {
-    entry->physical_start = pa;
-  }
-  if ((flags & ARCH_MMU_FLAG_CACHE_MASK) == ARCH_MMU_FLAG_CACHED) {
-    entry->attributes |= EFI_MEMORY_WB | EFI_MEMORY_WC | EFI_MEMORY_WT;
-  }
 }
 
 EfiStatus get_physical_memory_map(size_t *memory_map_size,
@@ -226,52 +227,6 @@ EfiStatus get_physical_memory_map(size_t *memory_map_size,
     memory_map[i].memory_type = LOADER_CODE;
     i++;
   }
-  return SUCCESS;
-}
-
-EfiStatus get_memory_map(size_t *memory_map_size,
-                         EfiMemoryDescriptor *memory_map, size_t *map_key,
-                         size_t *desc_size, uint32_t *desc_version) {
-  if (memory_map_size == nullptr) {
-    return INVALID_PARAMETER;
-  }
-  if (map_key) {
-    *map_key = 0;
-  }
-  if (desc_size) {
-    *desc_size = sizeof(EfiMemoryDescriptor);
-  }
-  if (desc_version) {
-    *desc_version = 1;
-  }
-  vmm_region_t *region = nullptr;
-  auto aspace = vmm_get_kernel_aspace();
-  size_t num_entries = 0;
-  list_for_every_entry(&aspace->region_list, region, vmm_region_t, node) {
-    num_entries++;
-  }
-  const size_t size_needed = num_entries * sizeof(EfiMemoryDescriptor);
-  if (*memory_map_size < size_needed) {
-    *memory_map_size = size_needed;
-    return BUFFER_TOO_SMALL;
-  }
-  *memory_map_size = size_needed;
-  size_t i = 0;
-  memset(memory_map, 0, size_needed);
-  list_for_every_entry(&aspace->region_list, region, vmm_region_t, node) {
-    memory_map[i].virtual_start = region->base;
-    memory_map[i].physical_start = memory_map[i].virtual_start;
-    memory_map[i].number_of_pages = region->size / PAGE_SIZE;
-    paddr_t pa{};
-    uint flags{};
-    status_t err =
-        arch_mmu_query(&aspace->arch_aspace, region->base, &pa, &flags);
-    if (err >= 0) {
-      memory_map[i].physical_start = pa;
-    }
-    i++;
-  }
-
   return SUCCESS;
 }
 
