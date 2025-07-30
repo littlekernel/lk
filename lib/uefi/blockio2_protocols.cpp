@@ -27,6 +27,7 @@
 #include <uefi/protocols/block_io2_protocol.h>
 #include <uefi/types.h>
 
+#include "defer.h"
 #include "events.h"
 #include "io_stack.h"
 #include "memory_protocols.h"
@@ -48,6 +49,21 @@ EfiStatus reset(EfiBlockIo2Protocol* self, bool extended_verification) {
   return UNSUPPORTED;
 }
 
+void async_read_callback(void* cookie, struct bdev* dev, ssize_t bytes_read) {
+  // |cookie| might be identity mapped memory, which is in UEFI address space.
+  // We need to switch to the UEFI address space to access it.
+  auto aspace = set_boot_aspace();
+  auto old_aspace = vmm_set_active_aspace(aspace);
+  auto token = reinterpret_cast<EfiBlockIo2Token*>(cookie);
+  if (bytes_read < 0) {
+    token->transaction_status = DEVICE_ERROR;
+  } else {
+    token->transaction_status = SUCCESS;
+  }
+  signal_event(token->event);
+  vmm_set_active_aspace(old_aspace);
+}
+
 // Read from dev, after I/O completes, signal token->event and set
 // token->transaction_status
 EfiStatus read_blocks_async(bdev_t* dev, uint64_t lba, EfiBlockIo2Token* token,
@@ -60,6 +76,11 @@ EfiStatus read_blocks_async(bdev_t* dev, uint64_t lba, EfiBlockIo2Token* token,
     printf("Invalid token %p\n", token);
     return INVALID_PARAMETER;
   }
+  if (dev->read_async != nullptr) {
+    bio_read_async(dev, buffer, lba * dev->block_size, buffer_size,
+                   async_read_callback, token);
+    return SUCCESS;
+  }
   // First draft of this API will just use a background thread.
   // More efficient version can be implemented once LK's bio layer
   // supports async IO
@@ -70,12 +91,7 @@ EfiStatus read_blocks_async(bdev_t* dev, uint64_t lba, EfiBlockIo2Token* token,
         vmm_set_active_aspace(aspace);
         auto bytes_read =
             bio_read_block(dev, buffer, lba, buffer_size / dev->block_size);
-        if (static_cast<size_t>(bytes_read) != buffer_size) {
-          token->transaction_status = DEVICE_ERROR;
-        } else {
-          token->transaction_status = SUCCESS;
-        }
-        signal_event(token->event);
+        async_read_callback(token, dev, bytes_read);
         return 0;
       },
       get_current_thread()->priority, kIoStackSize);

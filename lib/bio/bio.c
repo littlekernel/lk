@@ -369,6 +369,26 @@ ssize_t bio_read(bdev_t *dev, void *buf, off_t offset, size_t len) {
     return dev->read(dev, buf, offset, len);
 }
 
+status_t bio_read_async(bdev_t *dev, void *buf, off_t offset, size_t len,
+                        bio_async_callback_t callback, void *callback_context) {
+    LTRACEF("dev '%s', buf %p, offset %lld, len %zd\n", dev->name, buf, offset,
+            len);
+
+    DEBUG_ASSERT(dev && dev->ref > 0);
+    DEBUG_ASSERT(buf);
+    if (dev->read_async == NULL) {
+        return ERR_NOT_SUPPORTED;
+    }
+
+    /* range check */
+    len = bio_trim_range(dev, offset, len);
+    if (len == 0) {
+        return 0;
+    }
+
+    return dev->read_async(dev, buf, offset, len, callback, callback_context);
+}
+
 ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count) {
     LTRACEF("dev '%s', buf %p, block %d, count %u\n", dev->name, buf, block, count);
 

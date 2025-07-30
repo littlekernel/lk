@@ -47,6 +47,9 @@ typedef struct bdev {
 
     /* function pointers */
     ssize_t (*read)(struct bdev *, void *buf, off_t offset, size_t len);
+    status_t (*read_async)(struct bdev *, void *buf, off_t offset, size_t len,
+                          void (*callback)(void *cookie, struct bdev *, ssize_t),
+                          void *callback_context);
     ssize_t (*read_block)(struct bdev *, void *buf, bnum_t block, uint count);
     ssize_t (*write)(struct bdev *, const void *buf, off_t offset, size_t len);
     ssize_t (*write_block)(struct bdev *, const void *buf, bnum_t block, uint count);
@@ -55,10 +58,13 @@ typedef struct bdev {
     void (*close)(struct bdev *);
 } bdev_t;
 
+typedef void (*bio_async_callback_t)(void *cookie, bdev_t *dev, ssize_t status);
 /* user api */
 bdev_t *bio_open(const char *name);
 void bio_close(bdev_t *dev);
 ssize_t bio_read(bdev_t *dev, void *buf, off_t offset, size_t len);
+status_t bio_read_async(bdev_t *dev, void *buf, off_t offset, size_t len,
+                        bio_async_callback_t callback, void *callback_context);
 ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count);
 ssize_t bio_write(bdev_t *dev, const void *buf, off_t offset, size_t len);
 ssize_t bio_write_block(bdev_t *dev, const void *buf, bnum_t block, uint count);
