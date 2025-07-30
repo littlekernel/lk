@@ -7,10 +7,13 @@
 #include <uefi/types.h>
 
 vmm_aspace_t *set_boot_aspace();
+void setup_heap();
+void reset_heap();
 
 void *alloc_page(void *addr, size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
 void *alloc_page(size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
 EfiStatus free_pages(EfiPhysicalAddr memory, size_t pages);
+EfiStatus free_pages(void *memory, size_t pages);
 void *identity_map(void *addr, size_t size);
 void *uefi_malloc(size_t size);
 EfiStatus allocate_pool(EfiMemoryType pool_type, size_t size, void **buf);
