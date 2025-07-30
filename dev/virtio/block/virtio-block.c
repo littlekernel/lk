@@ -5,20 +5,19 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <dev/virtio/block.h>
-
-#include <stdlib.h>
-#include <lk/debug.h>
 #include <assert.h>
-#include <lk/trace.h>
-#include <lk/compiler.h>
-#include <lk/list.h>
-#include <lk/err.h>
-#include <kernel/thread.h>
-#include <kernel/event.h>
-#include <kernel/mutex.h>
-#include <lib/bio.h>
+#include <dev/virtio/block.h>
 #include <inttypes.h>
+#include <kernel/event.h>
+#include <kernel/spinlock.h>
+#include <kernel/thread.h>
+#include <lib/bio.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/list.h>
+#include <lk/trace.h>
+#include <stdlib.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -83,6 +82,20 @@ struct virtio_blk_discard_write_zeroes {
 };
 STATIC_ASSERT(sizeof(struct virtio_blk_req) == 16);
 
+struct virtio_block_txn {
+  /* bio callback, for async */
+  void *cookie;
+  size_t len;
+
+  /* for async calls */
+  void (*callback)(void *, struct bdev *, ssize_t);
+  /* virtio request structure, must be DMA-able */
+  struct virtio_blk_req req;
+
+  /* response status, must be DMA-able */
+  uint8_t status;
+};
+
 #define VIRTIO_BLK_F_BARRIER  (1<<0) // legacy
 #define VIRTIO_BLK_F_SIZE_MAX (1<<1)
 #define VIRTIO_BLK_F_SEG_MAX  (1<<2)
@@ -112,29 +125,24 @@ STATIC_ASSERT(sizeof(struct virtio_blk_req) == 16);
 #define VIRTIO_BLK_S_IOERR      1
 #define VIRTIO_BLK_S_UNSUPP     2
 
+#define VIRTIO_BLK_RING_LEN 256
+
 static enum handler_return virtio_block_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e);
 static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count);
+static status_t virtio_bdev_read_async(
+    struct bdev *bdev, void *buf, off_t offset, size_t len,
+    void (*callback)(void *, struct bdev *, ssize_t), void *cookie);
 static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count);
 
 struct virtio_block_dev {
     struct virtio_device *dev;
-
-    mutex_t lock;
-    event_t io_event;
 
     /* bio block device */
     bdev_t bdev;
 
     /* our negotiated guest features */
     uint32_t guest_features;
-
-    /* one blk_req structure for io, not crossing a page boundary */
-    struct virtio_blk_req *blk_req;
-    paddr_t blk_req_phys;
-
-    /* one uint8_t response word */
-    uint8_t blk_response;
-    paddr_t blk_response_phys;
+    struct virtio_block_txn *txns;
 };
 
 static void dump_feature_bits(const char *name, uint32_t feature) {
@@ -165,25 +173,8 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
     if (!bdev)
         return ERR_NO_MEMORY;
 
-    mutex_init(&bdev->lock);
-    event_init(&bdev->io_event, false, EVENT_FLAG_AUTOUNSIGNAL);
-
     bdev->dev = dev;
     dev->priv = bdev;
-
-    bdev->blk_req = memalign(sizeof(struct virtio_blk_req), sizeof(struct virtio_blk_req));
-#if WITH_KERNEL_VM
-    bdev->blk_req_phys = vaddr_to_paddr(bdev->blk_req);
-#else
-    bdev->blk_req_phys = (uint64_t)(uintptr_t)bdev->blk_req;
-#endif
-    LTRACEF("blk_req structure at %p (%#lx phys)\n", bdev->blk_req, bdev->blk_req_phys);
-
-#if WITH_KERNEL_VM
-    bdev->blk_response_phys = vaddr_to_paddr(&bdev->blk_response);
-#else
-    bdev->blk_response_phys = (uint64_t)(uintptr_t)&bdev->blk_response;
-#endif
 
     /* make sure the device is reset */
     virtio_reset_device(dev);
@@ -205,7 +196,6 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
     bdev->guest_features &= (VIRTIO_BLK_F_SIZE_MAX |
                              VIRTIO_BLK_F_BLK_SIZE |
                              VIRTIO_BLK_F_GEOMETRY |
-                             VIRTIO_BLK_F_BLK_SIZE |
                              VIRTIO_BLK_F_TOPOLOGY |
                              VIRTIO_BLK_F_DISCARD |
                              VIRTIO_BLK_F_WRITE_ZEROES);
@@ -214,7 +204,12 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
     /* TODO: handle a RO feature */
 
     /* allocate a virtio ring */
-    virtio_alloc_ring(dev, 0, 256);
+    virtio_alloc_ring(dev, 0, VIRTIO_BLK_RING_LEN);
+    // descriptor index would be used to index into the txns array
+    // This is a simple way to keep track of which transaction entry is
+    // free, and which transaction entry corresponds to which descriptor.
+    // Hence, we allocate txns array with the same size as the ring.
+    bdev->txns = memalign(sizeof(struct virtio_block_txn), VIRTIO_BLK_RING_LEN * sizeof(struct virtio_block_txn));
 
     /* set our irq handler */
     dev->irq_driver_callback = &virtio_block_irq_driver_callback;
@@ -233,6 +228,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
     /* override our block device hooks */
     bdev->bdev.read_block = &virtio_bdev_read_block;
     bdev->bdev.write_block = &virtio_bdev_write_block;
+    bdev->bdev.read_async = &virtio_bdev_read_async;
 
     bio_register_device(&bdev->bdev);
 
@@ -268,8 +264,10 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
 static enum handler_return virtio_block_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e) {
     struct virtio_block_dev *bdev = (struct virtio_block_dev *)dev->priv;
 
-    LTRACEF("dev %p, ring %u, e %p, id %u, len %u\n", dev, ring, e, e->id, e->len);
-
+    
+    struct virtio_block_txn *txn = &bdev->txns[e->id];
+    LTRACEF("dev %p, ring %u, e %p, id %u, len %u, status %d\n", dev, ring, e, e->id, e->len, txn->status);
+    
     /* parse our descriptor chain, add back to the free queue */
     uint16_t i = e->id;
     for (;;) {
@@ -292,38 +290,60 @@ static enum handler_return virtio_block_irq_driver_callback(struct virtio_device
         i = next;
     }
 
-    /* signal our event */
-    event_signal(&bdev->io_event, false);
+    if (txn->callback) {
+        // async
+        ssize_t result =
+        (txn->status == VIRTIO_BLK_S_OK) ? (ssize_t)txn->len : ERR_IO;
+        LTRACEF("calling callback %p with cookie %p, len %zu\n", txn->callback,
+                txn->cookie, result);
+      txn->callback(txn->cookie, &bdev->bdev, result);
+    }
 
     return INT_RESCHEDULE;
 }
 
-ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, const off_t offset, const size_t len, const bool write) {
+static status_t virtio_block_do_txn(struct virtio_device *dev, void *buf,
+                                    off_t offset, size_t len, bool write,
+                                    bio_async_callback_t callback, void *cookie,
+                                    struct virtio_block_txn **txn_out) {
     struct virtio_block_dev *bdev = (struct virtio_block_dev *)dev->priv;
 
     uint16_t i;
     struct vring_desc *desc;
 
     LTRACEF("dev %p, buf %p, offset 0x%llx, len %zu\n", dev, buf, offset, len);
-
-    mutex_acquire(&bdev->lock);
-
-    /* set up the request */
-    bdev->blk_req->type = write ? VIRTIO_BLK_T_OUT : VIRTIO_BLK_T_IN;
-    bdev->blk_req->ioprio = 0;
-    bdev->blk_req->sector = offset / 512;
-    LTRACEF("blk_req type %u ioprio %u sector %llu\n",
-            bdev->blk_req->type, bdev->blk_req->ioprio, bdev->blk_req->sector);
-
     /* put together a transfer */
     desc = virtio_alloc_desc_chain(dev, 0, 3, &i);
     LTRACEF("after alloc chain desc %p, i %u\n", desc, i);
+    if (desc == NULL) {
+        return ERR_NO_RESOURCES;
+    }
+    struct virtio_block_txn *txn = &bdev->txns[i];
+    /* set up the request */
+    txn->req.type = write ? VIRTIO_BLK_T_OUT : VIRTIO_BLK_T_IN;
+    txn->req.ioprio = 0;
+    txn->req.sector = offset / 512;
+
+    txn->callback = callback;
+    txn->cookie = cookie;
+    txn->len = len;
+    LTRACEF("blk_req type %u ioprio %u sector %llu\n", txn->req.type,
+            txn->req.ioprio, txn->req.sector);
+
+    if (txn_out) {
+        *txn_out = txn;
+    }
 
     // XXX not cache safe.
     // At the moment only tested on arm qemu, which doesn't emulate cache.
 
-    /* set up the descriptor pointing to the head */
-    desc->addr = bdev->blk_req_phys;
+  /* set up the descriptor pointing to the head */
+#if WITH_KERNEL_VM
+    paddr_t req_phys = vaddr_to_paddr(&txn->req);
+#else
+    paddr_t req_phys = (uint64_t)(uintptr_t)&txn->req;
+#endif
+    desc->addr = req_phys;
     desc->len = sizeof(struct virtio_blk_req);
     desc->flags |= VRING_DESC_F_NEXT;
 
@@ -389,8 +409,13 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, const off_
 #endif
 
     /* set up the descriptor pointing to the response */
+#if WITH_KERNEL_VM
+    paddr_t status_phys = vaddr_to_paddr(&txn->status);
+#else
+    paddr_t status_phys = (uint64_t)(uintptr_t)&txn->status;
+#endif
     desc = virtio_desc_index_to_desc(dev, 0, desc->next);
-    desc->addr = bdev->blk_response_phys;
+    desc->addr = status_phys;
     desc->len = 1;
     desc->flags = VRING_DESC_F_WRITE;
 
@@ -400,16 +425,36 @@ ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf, const off_
     /* kick it off */
     virtio_kick(dev, 0);
 
+    return NO_ERROR;
+}
+
+static void sync_completion_cb(void *cookie, struct bdev *dev, ssize_t bytes) {
+    DEBUG_ASSERT(cookie);
+    event_t *event = (event_t *)cookie;
+    event_signal(event, false);
+}
+
+ssize_t virtio_block_read_write(struct virtio_device *dev, void *buf,
+                                const off_t offset, const size_t len,
+                                const bool write) {
+    struct virtio_block_txn *txn;
+    event_t event;
+    event_init(&event, false, EVENT_FLAG_AUTOUNSIGNAL);
+
+    status_t err = virtio_block_do_txn(dev, buf, offset, len, write,
+                                        &sync_completion_cb, &event, &txn);
+    if (err < 0) {
+        return err;
+    }
+
     /* wait for the transfer to complete */
-    event_wait(&bdev->io_event);
+    event_wait(&event);
 
-    LTRACEF("status 0x%hhx\n", bdev->blk_response);
+    LTRACEF("status 0x%hhx\n", txn->status);
 
-    /* TODO: handle transfer errors and return error */
+    ssize_t result = (txn->status == VIRTIO_BLK_S_OK) ? (ssize_t)len : ERR_IO;
 
-    mutex_release(&bdev->lock);
-
-    return len;
+    return result;
 }
 
 static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count) {
@@ -420,6 +465,17 @@ static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block
     ssize_t result = virtio_block_read_write(dev->dev, buf, (off_t)block * dev->bdev.block_size,
                      count * dev->bdev.block_size, false);
     return result;
+}
+
+static status_t virtio_bdev_read_async(struct bdev *bdev, void *buf,
+                                       off_t offset, size_t len,
+                                       bio_async_callback_t callback,
+                                       void *cookie) {
+    struct virtio_block_dev *dev =
+        containerof(bdev, struct virtio_block_dev, bdev);
+
+    return virtio_block_do_txn(dev->dev, buf, offset, len, false, callback,
+                               cookie, NULL);
 }
 
 static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count) {
