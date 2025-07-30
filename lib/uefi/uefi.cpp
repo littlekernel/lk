@@ -63,6 +63,8 @@ void fill(T *data, size_t skip, uint8_t begin = 0) {
   }
 }
 
+static char16_t firmwareVendor[] = u"Little Kernel";
+
 int load_sections_and_execute(bdev_t *dev,
                               const IMAGE_NT_HEADERS64 *pe_header) {
   const auto file_header = &pe_header->FileHeader;
@@ -118,6 +120,7 @@ int load_sections_and_execute(bdev_t *dev,
   fill(&boot_service, 0);
   setup_runtime_service_table(&runtime_service);
   setup_boot_service_table(&boot_service);
+  table.firmware_vendor = firmwareVendor;
   table.runtime_service = &runtime_service;
   table.boot_services = &boot_service;
   table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
