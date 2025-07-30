@@ -83,8 +83,8 @@ int load_sections_and_execute(bdev_t *dev,
     }
   }
   const auto &last_section = section_header[sections - 1];
-  const auto virtual_size =
-      last_section.VirtualAddress + last_section.Misc.VirtualSize;
+  const auto virtual_size = ROUNDUP(
+      last_section.VirtualAddress + last_section.Misc.VirtualSize, PAGE_SIZE);
   const auto image_base = reinterpret_cast<char *>(
       alloc_page(reinterpret_cast<void *>(optional_header->ImageBase),
                  virtual_size, 21 /* Kernel requires 2MB alignment */));
@@ -92,6 +92,7 @@ int load_sections_and_execute(bdev_t *dev,
     return -7;
   }
   memset(image_base, 0, virtual_size);
+  DEFER { free_pages(image_base, virtual_size / PAGE_SIZE); };
   bio_read(dev, image_base, 0, section_header[0].PointerToRawData);
 
   for (size_t i = 0; i < sections; i++) {
@@ -108,6 +109,7 @@ int load_sections_and_execute(bdev_t *dev,
 
   EfiSystemTable &table = *static_cast<EfiSystemTable *>(alloc_page(PAGE_SIZE));
   memset(&table, 0, sizeof(EfiSystemTable));
+  DEFER { free_pages(&table, 1); };
   EfiBootService boot_service{};
   EfiRuntimeService runtime_service{};
   fill(&runtime_service, 0);
@@ -122,19 +124,27 @@ int load_sections_and_execute(bdev_t *dev,
   table.con_out = &console_out;
   table.configuration_table =
       reinterpret_cast<EfiConfigurationTable *>(alloc_page(PAGE_SIZE));
+  DEFER { free_pages(table.configuration_table, 1); };
   memset(table.configuration_table, 0, PAGE_SIZE);
   setup_configuration_table(&table);
+  setup_heap();
+  DEFER { reset_heap(); };
   auto status = platform_setup_system_table(&table);
   if (status != SUCCESS) {
     printf("platform_setup_system_table failed: %lu\n", status);
     return -static_cast<int>(status);
   }
 
-  constexpr size_t kStackSize = 8 * 1024ul * 1024;
+  constexpr size_t kStackSize = 1 * 1024ul * 1024;
   auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
   memset(stack, 0, kStackSize);
+  DEFER {
+    free_pages(stack, kStackSize / PAGE_SIZE);
+    stack = nullptr;
+  };
   printf("Calling kernel with stack [%p, %p]\n", stack, stack + kStackSize - 1);
-  return call_with_stack(stack + kStackSize, entry, image_base, &table);
+  return static_cast<int>(
+      call_with_stack(stack + kStackSize, entry, image_base, &table));
 }
 
 int cmd_uefi_load(int argc, const console_cmd_args *argv) {
