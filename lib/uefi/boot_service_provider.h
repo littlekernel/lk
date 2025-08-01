@@ -109,6 +109,11 @@ struct EFI_DEVICE_PATH_PROTOCOL {
   uint8_t Length[2];
 };
 
+struct EFI_DEVICE_PATH_FILE_PATH_PROTOCOL {
+  struct EFI_DEVICE_PATH_PROTOCOL dp;
+  uint16_t str[];
+};
+
 struct EFI_LOADED_IMAGE_PROTOCOL {
   uint32_t Revision;
   EfiHandle ParentHandle;
@@ -132,6 +137,10 @@ struct EFI_LOADED_IMAGE_PROTOCOL {
 };
 
 static constexpr size_t EFI_LOADED_IMAGE_PROTOCOL_REVISION = 0x1000;
+static constexpr size_t EFI_DEVICE_PATH_TYPE_END = 0x7f;
+static constexpr size_t EFI_DEVICE_PATH_SUB_TYPE_END = 0xff;
+static constexpr size_t EFI_DEVICE_PATH_TYPE_MEDIA_DEVICE = 0x4;
+static constexpr size_t EFI_DEVICE_PATH_SUB_TYPE_FILE_PATH = 0x4;
 
 // This function would be called from GBL before jumping into android kernel
 // LK provides a default no-op implementation that is weakly linked,

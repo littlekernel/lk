@@ -42,6 +42,7 @@
 #include "switch_stack.h"
 #include "text_protocol.h"
 #include "uefi_platform.h"
+#include "debug_support.h"
 
 namespace {
 
@@ -63,8 +64,11 @@ void fill(T *data, size_t skip, uint8_t begin = 0) {
   }
 }
 
+static char16_t firmwareVendor[] = u"Little Kernel";
+
 int load_sections_and_execute(bdev_t *dev,
                               const IMAGE_NT_HEADERS64 *pe_header) {
+  int ret;
   const auto file_header = &pe_header->FileHeader;
   const auto optional_header = &pe_header->OptionalHeader;
   const auto sections = file_header->NumberOfSections;
@@ -114,6 +118,7 @@ int load_sections_and_execute(bdev_t *dev,
   fill(&boot_service, 0);
   setup_runtime_service_table(&runtime_service);
   setup_boot_service_table(&boot_service);
+  table.firmware_vendor = firmwareVendor;
   table.runtime_service = &runtime_service;
   table.boot_services = &boot_service;
   table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
@@ -129,12 +134,23 @@ int load_sections_and_execute(bdev_t *dev,
     printf("platform_setup_system_table failed: %lu\n", status);
     return -static_cast<int>(status);
   }
+  status = efi_initialize_system_table_pointer(&table);
+  if (status != SUCCESS) {
+    printf("efi_initialize_system_table_pointer failed: %lu\n", status);
+    return -static_cast<int>(status);
+  }
+  setup_debug_support(table, image_base, virtual_size, dev);
 
   constexpr size_t kStackSize = 8 * 1024ul * 1024;
   auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
   memset(stack, 0, kStackSize);
   printf("Calling kernel with stack [%p, %p]\n", stack, stack + kStackSize - 1);
-  return call_with_stack(stack + kStackSize, entry, image_base, &table);
+
+  ret = call_with_stack(stack + kStackSize, entry, image_base, &table);
+
+  teardown_debug_support(image_base);
+
+  return ret;
 }
 
 int cmd_uefi_load(int argc, const console_cmd_args *argv) {
