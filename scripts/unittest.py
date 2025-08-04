@@ -58,6 +58,8 @@ def shutdown_little_kernel(p: subprocess.Popen):
 
 
 def main():
+    # Test relies on reading subprocess output, so set bufsize=0
+    # to ensure that we get real-time output.
     p = subprocess.Popen(['qemu-system-aarch64',
                           '-cpu',
                           'max',
@@ -75,7 +77,7 @@ def main():
                           '-drive',
                           'if=none,file=lib/uefi/helloworld_aa64.efi,id=blk,format=raw',
                           '-device',
-                          'virtio-blk-device,drive=blk'], stdout=PIPE, stdin=PIPE, stderr=STDOUT, text=True)
+                          'virtio-blk-device,drive=blk'], stdout=PIPE, stdin=PIPE, stderr=STDOUT, text=True, bufsize=0)
     try:
         os.set_blocking(p.stdout.fileno(), False)
         condition_met, output = wait_for_output(
