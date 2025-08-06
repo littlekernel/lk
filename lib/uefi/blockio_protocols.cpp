@@ -25,6 +25,7 @@
 #include "io_stack.h"
 #include "memory_protocols.h"
 #include "switch_stack.h"
+#include "uefi_platform.h"
 
 namespace {
 

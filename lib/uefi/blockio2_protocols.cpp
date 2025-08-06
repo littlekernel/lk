@@ -32,6 +32,7 @@
 #include "memory_protocols.h"
 #include "switch_stack.h"
 #include "thread_utils.h"
+#include "uefi_platform.h"
 
 #define LOCAL_TRACE 0
 

@@ -21,6 +21,7 @@
 #include <libfdt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/types.h>
 
@@ -107,5 +108,54 @@ __WEAK EfiStatus get_timestamp_properties(EfiTimestampProperties *properties) {
   }
   properties->frequency = ARM64_READ_SYSREG(cntfrq_el0) & 0xFFFFFFFF;
   properties->end_value = UINT64_MAX;
+  return SUCCESS;
+}
+
+namespace {
+
+const char *GetImageType(const char16_t *ImageType) {
+  if (memcmp(ImageType, GBL_IMAGE_TYPE_OS_LOAD,
+             sizeof(GBL_IMAGE_TYPE_OS_LOAD)) == 0) {
+    return "os_load";
+  } else if (memcmp(ImageType, GBL_IMAGE_TYPE_FASTBOOT,
+                    sizeof(GBL_IMAGE_TYPE_FASTBOOT)) == 0) {
+    return "fastboot";
+  } else if (memcmp(ImageType, GBL_IMAGE_TYPE_PVMFW_DATA,
+                    sizeof(GBL_IMAGE_TYPE_PVMFW_DATA)) == 0) {
+    return "pvmfw_data";
+  }
+  return "unknown";
+}
+template <typename T> T clamp(T n, T lower, T upper) {
+  if (n < lower) {
+    return lower;
+  }
+  if (n > upper) {
+    return upper;
+  }
+  return n;
+}
+
+} // namespace
+
+__WEAK EfiStatus get_buffer(struct GblEfiImageLoadingProtocol *self,
+                            const GblEfiImageInfo *ImageInfo,
+                            GblEfiImageBuffer *Buffer) {
+  printf("%s(%s, %lu)\n", __FUNCTION__, GetImageType(ImageInfo->ImageType),
+         ImageInfo->SizeBytes);
+
+  // Allow maximum of 128MB buffer
+  const size_t buffer_size =
+      clamp(Buffer->SizeBytes, PAGE_SIZE, 128ul * 1024 * 1024);
+  // Bottom line, kernel, ramdisk, device tree must be identity mapped.
+  // Otherwise linux kernel would crash immediately after entering.
+  // Other buffers can be allocated from kernel address space, up to
+  // OEM for customization.
+  Buffer->Memory = alloc_page(buffer_size);
+  if (Buffer->Memory == nullptr) {
+    return OUT_OF_RESOURCES;
+  }
+
+  Buffer->SizeBytes = buffer_size;
   return SUCCESS;
 }

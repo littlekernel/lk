@@ -18,7 +18,9 @@
 #ifndef __GBL_OS_CONFIGURATION_
 #define __GBL_OS_CONFIGURATION_
 
+#include <arch/defines.h>
 #include <uefi/protocols/efi_timestamp_protocol.h>
+#include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/system_table.h>
 #include <uefi/types.h>
@@ -44,5 +46,29 @@ EfiStatus platform_setup_system_table(EfiSystemTable *table);
 uint64_t get_timestamp();
 
 EfiStatus get_timestamp_properties(EfiTimestampProperties *properties);
+
+// alloc_page/free_pages is implemented in memory_protocols.cpp
+void *alloc_page(void *addr, size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
+
+void *alloc_page(size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
+
+EfiStatus free_pages(void *memory, size_t pages);
+
+EfiStatus get_buffer(struct GblEfiImageLoadingProtocol *self,
+                     const GblEfiImageInfo *ImageInfo,
+                     GblEfiImageBuffer *Buffer);
+
+// uefi_malloc is used by LK to allocate memory that would be used by UEFI
+// applications
+void *uefi_malloc(size_t size);
+
+// Used by UEFI application to allocate heap memory.
+EfiStatus allocate_pool(EfiMemoryType pool_type, size_t size, void **buf);
+EfiStatus free_pool(void *mem);
+
+// Called by LK once before executing UEFI application to setup the heap
+void setup_heap();
+// Caled by LK once after executing UEFI application to tear down the heap
+void reset_heap();
 
 #endif
