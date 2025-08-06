@@ -25,6 +25,7 @@
 
 #include "boot_service_provider.h"
 #include "memory_protocols.h"
+#include "uefi_platform.h"
 
 struct EFI_DEVICE_PATH_FILE_PATH_PROTOCOL {
   struct EFI_DEVICE_PATH_PROTOCOL dp;

@@ -16,16 +16,20 @@
  */
 
 #include "memory_protocols.h"
+#include "uefi_platform.h"
 
 #include <arch/defines.h>
 #include <arch/mmu.h>
 #include <kernel/vm.h>
 #include <lib/dlmalloc.h>
+#include <lk/trace.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <uefi/boot_service.h>
 #include <uefi/types.h>
+
+#define LOCAL_TRACE 0
 
 // MACRO list_for_every_entry cast between int/ptr
 // NOLINTBEGIN(performance-no-int-to-ptr)
@@ -60,27 +64,29 @@ mspace get_mspace() {
 vmm_aspace_t *uefi_aspace = nullptr;
 
 void restore_aspace() {
-  vmm_set_active_aspace(old_aspace);
-  vmm_free_aspace(uefi_aspace);
-  uefi_aspace = nullptr;
+  if (uefi_aspace != nullptr) {
+    vmm_set_active_aspace(old_aspace);
+    vmm_free_aspace(uefi_aspace);
+    uefi_aspace = nullptr;
+  }
 }
 
 }  // namespace
 
-EfiStatus free_pages(EfiPhysicalAddr memory, size_t pages) {
-  return free_pages(reinterpret_cast<void *>(memory), pages);
-}
-
-void setup_heap() {
+__WEAK void setup_heap() {
   set_boot_aspace();
   get_mspace();
 }
 
-void reset_heap() {
-  destroy_mspace(space);
-  space = nullptr;
-  free_pages(heap, kHeapSize / PAGE_SIZE);
-  heap = nullptr;
+__WEAK void reset_heap() {
+  if (space != nullptr) {
+    destroy_mspace(space);
+    space = nullptr;
+  }
+  if (heap != nullptr) {
+    free_pages(heap, kHeapSize / PAGE_SIZE);
+    heap = nullptr;
+  }
   restore_aspace();
 }
 
@@ -96,7 +102,7 @@ vmm_aspace_t *set_boot_aspace() {
   return uefi_aspace;
 }
 
-void *alloc_page(size_t size, size_t align_log2) {
+__WEAK void *alloc_page(size_t size, size_t align_log2) {
   size = ROUNDUP(size, PAGE_SIZE);
   auto aspace = set_boot_aspace();
   paddr_t pa{};
@@ -120,7 +126,7 @@ void *alloc_page(size_t size, size_t align_log2) {
   return reinterpret_cast<void *>(pa);
 }
 
-void *alloc_page(void *addr, size_t size, size_t align_log2) {
+__WEAK void *alloc_page(void *addr, size_t size, size_t align_log2) {
   if (addr == nullptr) {
     return alloc_page(size, align_log2);
   }
@@ -146,9 +152,29 @@ void *alloc_page(void *addr, size_t size, size_t align_log2) {
   return addr;
 }
 
-void *uefi_malloc(size_t size) { return mspace_malloc(get_mspace(), size); }
+EfiStatus allocate_pages(EfiAllocatorType type, EfiMemoryType memory_type,
+                         size_t pages, EfiPhysicalAddr *memory) {
+  if (memory == nullptr) {
+    return INVALID_PARAMETER;
+  }
+  if (type == ALLOCATE_MAX_ADDRESS && *memory < 0xFFFFFFFF) {
+    LTRACEF("%s(%d, %d, %zu, 0x%llx) unsupported\n", __FUNCTION__, type,
+            memory_type, pages, *memory);
+    return UNSUPPORTED;
+  }
+  *memory = reinterpret_cast<EfiPhysicalAddr>(alloc_page(pages * PAGE_SIZE));
+  if (*memory == 0) {
+    return OUT_OF_RESOURCES;
+  }
+  return SUCCESS;
+}
 
-EfiStatus allocate_pool(EfiMemoryType pool_type, size_t size, void **buf) {
+__WEAK void *uefi_malloc(size_t size) {
+  return mspace_malloc(get_mspace(), size);
+}
+
+__WEAK EfiStatus allocate_pool(EfiMemoryType pool_type, size_t size,
+                               void **buf) {
   if (buf == nullptr) {
     return INVALID_PARAMETER;
   }
@@ -163,12 +189,12 @@ EfiStatus allocate_pool(EfiMemoryType pool_type, size_t size, void **buf) {
   return OUT_OF_RESOURCES;
 }
 
-EfiStatus free_pool(void *mem) {
+__WEAK EfiStatus free_pool(void *mem) {
   mspace_free(get_mspace(), mem);
   return SUCCESS;
 }
 
-EfiStatus free_pages(void *memory, size_t pages) {
+__WEAK EfiStatus free_pages(void *memory, size_t pages) {
   auto pa = reinterpret_cast<void *>(vaddr_to_paddr(memory));
   if (pa != memory) {
     printf("WARN: virtual address %p is not identity mapped, physical addr: "

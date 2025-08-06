@@ -21,9 +21,9 @@
 #include <string.h>
 #include <uefi/system_table.h>
 
-#include "memory_protocols.h"
-#include "platform.h"
 #include "debug_support.h"
+#include "platform.h"
+#include "uefi_platform.h"
 
 void setup_configuration_table(EfiSystemTable *table) {
   auto &rng = table->configuration_table[table->number_of_table_entries++];
@@ -42,7 +42,8 @@ void setup_configuration_table(EfiSystemTable *table) {
     memcpy(dtb.vendor_table, fdt, fdt_size);
   }
 
-  auto &debug_image_info_table = table->configuration_table[table->number_of_table_entries++];
+  auto &debug_image_info_table =
+      table->configuration_table[table->number_of_table_entries++];
   debug_image_info_table.vendor_guid = EFI_DEBUG_IMAGE_INFO_TABLE_GUID;
   debug_image_info_table.vendor_table = &efi_m_debug_info_table_header;
 }
