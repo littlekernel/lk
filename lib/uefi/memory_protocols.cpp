@@ -158,8 +158,8 @@ EfiStatus allocate_pages(EfiAllocatorType type, EfiMemoryType memory_type,
     return INVALID_PARAMETER;
   }
   if (type == ALLOCATE_MAX_ADDRESS && *memory < 0xFFFFFFFF) {
-    LTRACEF("%s(%d, %d, %zu, 0x%llx) unsupported\n", __FUNCTION__, type,
-            memory_type, pages, *memory);
+    LTRACEF("%d, %d, %zu, 0x%llx unsupported\n", type, memory_type, pages,
+            *memory);
     return UNSUPPORTED;
   }
   *memory = reinterpret_cast<EfiPhysicalAddr>(alloc_page(pages * PAGE_SIZE));
