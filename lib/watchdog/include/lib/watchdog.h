@@ -7,12 +7,15 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
 
 #define WATCHDOG_MAGIC 'wdog'
+
+__BEGIN_CDECLS
 
 typedef struct watchdog {
     uint32_t                magic;
@@ -64,3 +67,5 @@ extern void platform_watchdog_pet(void);
 
 status_t watchdog_hw_init(lk_time_t timeout);
 void watchdog_hw_set_enabled(bool enabled);
+
+__END_CDECLS

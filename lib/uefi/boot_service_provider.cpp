@@ -393,4 +393,5 @@ void setup_boot_service_table(EfiBootService *service) {
   service->stall = stall;
   service->raise_tpl = raise_tpl;
   service->restore_tpl = restore_tpl;
+  service->set_watchdog_timer = set_watchdog_timer;
 }
