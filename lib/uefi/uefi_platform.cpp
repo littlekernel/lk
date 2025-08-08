@@ -18,7 +18,10 @@
 #include "uefi_platform.h"
 
 #include <arch/arm64.h>
+#include <lib/watchdog.h>
 #include <libfdt.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <uefi/protocols/gbl_efi_image_loading_protocol.h>
@@ -26,6 +29,8 @@
 #include <uefi/types.h>
 
 #include "defer.h"
+
+#define LOCAL_TRACE 0
 
 __WEAK EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol *self, void *fdt,
                                size_t *buffer_size, uint32_t flags) {
@@ -108,6 +113,46 @@ __WEAK EfiStatus get_timestamp_properties(EfiTimestampProperties *properties) {
   }
   properties->frequency = ARM64_READ_SYSREG(cntfrq_el0) & 0xFFFFFFFF;
   properties->end_value = UINT64_MAX;
+  return SUCCESS;
+}
+
+__BEGIN_CDECLS
+
+// Redeclaring these as WEAK has two effects:
+//  1. Since we are also including lib/watchdog.h, the compiler would ensure
+//     that the declarations had matching prototypes.
+//  2. If the platform did not provide these methods, then these symbols would
+//     resolve to NULL, and can be checked at runtime.
+extern __WEAK status_t platform_watchdog_init(
+    lk_time_t target_timeout, lk_time_t* recommended_pet_period);
+extern __WEAK void platform_watchdog_set_enabled(bool enabled);
+
+__END_CDECLS
+
+__WEAK EfiStatus set_watchdog_timer(size_t timeout, uint64_t watchdog_code,
+                                    size_t data_size, char16_t* watchdog_data) {
+  if (platform_watchdog_init == nullptr || platform_watchdog_set_enabled == nullptr) {
+    TRACEF(
+        "unimplemented: platform_watchdog_init = %p "
+        "platform_watchdog_set_enabled = %p\n",
+        platform_watchdog_init, platform_watchdog_set_enabled);
+    return UNSUPPORTED;
+  }
+  if (timeout != 0) {
+    lk_time_t ignored = 0;
+    status_t ret = platform_watchdog_init(timeout * 1000, &ignored);
+    LTRACEF("platform_watchdog_init() ret=%d\n", ret);
+    if (ret == ERR_INVALID_ARGS) {
+      return INVALID_PARAMETER;
+    } else if (ret != NO_ERROR) {
+      return UNSUPPORTED;
+    }
+    platform_watchdog_set_enabled(true);
+    LTRACEF("enabled hw watchdog\n");
+  } else {
+    platform_watchdog_set_enabled(false);
+    LTRACEF("disabled hw watchdog\n");
+  }
   return SUCCESS;
 }
 

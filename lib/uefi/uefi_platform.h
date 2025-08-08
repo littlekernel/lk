@@ -47,6 +47,10 @@ uint64_t get_timestamp();
 
 EfiStatus get_timestamp_properties(EfiTimestampProperties *properties);
 
+// timeout unit is in seconds.
+EfiStatus set_watchdog_timer(size_t timeout, uint64_t watchdog_code,
+                             size_t data_size, char16_t* watchdog_data);
+
 // alloc_page/free_pages is implemented in memory_protocols.cpp
 void *alloc_page(void *addr, size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
 

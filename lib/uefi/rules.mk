@@ -2,9 +2,13 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULE_INCLUDES += $(LOCAL_DIR)/local/include
-
 MODULE_DEFINES=MSPACES=1
+
+MODULE_INCLUDES += \
+	lib/watchdog/include \
+
+MODULE_DEPS += \
+	lib/libcpp \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/uefi.cpp \
