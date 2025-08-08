@@ -158,6 +158,10 @@ EfiTpl raise_tpl(EfiTpl new_tpl) {
   return APPLICATION;
 }
 
+void restore_tpl(EfiTpl old_tpl) {
+  printf("%s is called %zu\n", __FUNCTION__, old_tpl);
+}
+
 EfiStatus get_verify_partitions(struct GblEfiImageLoadingProtocol *self,
                                 size_t *NumberOfPartitions,
                                 GblEfiPartitionName *Partitions) {
@@ -385,4 +389,6 @@ void setup_boot_service_table(EfiBootService *service) {
   service->create_event = create_event;
   service->close_event = close_event;
   service->stall = stall;
+  service->raise_tpl = raise_tpl;
+  service->restore_tpl = restore_tpl;
 }
