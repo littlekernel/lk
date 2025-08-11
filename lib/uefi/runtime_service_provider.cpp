@@ -22,12 +22,19 @@
 #include <string.h>
 #include <uefi/types.h>
 
+#include "variable_mem.h"
+
 namespace {
 
 constexpr auto &&kSecureBoot = "SecureBoot";
 
 EFI_STATUS GetVariable(char16_t *VariableName, EfiGuid *VendorGuid,
                        uint32_t *Attributes, size_t *DataSize, void *Data) {
+
+  if (!VariableName || !VendorGuid || !DataSize) {
+    return INVALID_PARAMETER;
+  }
+
   char buffer[512];
   size_t i = 0;
   while (VariableName[i] && i < sizeof(buffer)) {
@@ -48,6 +55,21 @@ EFI_STATUS GetVariable(char16_t *VariableName, EfiGuid *VendorGuid,
     return SUCCESS;
   }
 
+  char *data_in_mem;
+  size_t data_in_mem_size;
+  if (efi_get_variable(VariableName, VendorGuid, Attributes, &data_in_mem, &data_in_mem_size) == SUCCESS) {
+    if (*DataSize == 0 && !Data) {
+      *DataSize = data_in_mem_size;
+      return BUFFER_TOO_SMALL;
+    }
+    if (data_in_mem_size > *DataSize) {
+      return BUFFER_TOO_SMALL;
+    }
+    *DataSize = data_in_mem_size;
+    memcpy(Data, data_in_mem, data_in_mem_size);
+    return SUCCESS;
+  }
+
   printf("%s(%s) is unsupported\n", __FUNCTION__, buffer);
   return UNSUPPORTED;
 }
@@ -61,7 +83,23 @@ EFI_STATUS SetVirtualAddressMap(size_t MemoryMapSize, size_t DescriptorSize,
 
 EFI_STATUS SetVariable(char16_t *VariableName, EfiGuid *VendorGuid,
                        uint32_t Attributes, size_t DataSize, void *Data) {
-  printf("%s is unsupported\n", __FUNCTION__);
+  if (!VariableName || VariableName[0] == 0) {
+    return INVALID_PARAMETER;
+  }
+
+  /* Only allow setting non-volatile variables */
+  if ((Attributes & EFI_VARIABLE_NON_VOLATILE) == 0) {
+    efi_set_variable(VariableName,
+                     VendorGuid,
+                     Attributes,
+                     reinterpret_cast<const char *>(Data),
+                     DataSize);
+    return SUCCESS;
+  }
+
+  printf("%s: Only non-volatile is supported. Attributes = 0x%x\n",
+         __FUNCTION__,
+         Attributes);
   return UNSUPPORTED;
 }
 
