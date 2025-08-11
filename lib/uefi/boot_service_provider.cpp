@@ -238,6 +238,8 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
       return OUT_OF_RESOURCES;
     }
     image_loading->revision = GBL_EFI_IMAGE_LOADING_PROTOCOL_REVISION;
+    image_loading->get_buffer = get_buffer;
+    image_loading->get_verify_partitions = get_verify_partitions;
     *intf = reinterpret_cast<void *>(image_loading);
     return SUCCESS;
   } else if (guid_eq(protocol, EFI_TIMESTAMP_PROTOCOL_GUID)) {
