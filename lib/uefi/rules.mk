@@ -22,6 +22,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/io_stack.cpp \
 	$(LOCAL_DIR)/debug_support.cpp \
 	$(LOCAL_DIR)/charset.cpp \
+	$(LOCAL_DIR)/variable_mem.cpp \
 
 
 include make/module.mk
