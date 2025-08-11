@@ -33,6 +33,7 @@
 #include <uefi/system_table.h>
 
 #include "boot_service_provider.h"
+#include "charset.h"
 #include "configuration_table.h"
 #include "defer.h"
 #include "memory_protocols.h"
@@ -43,6 +44,7 @@
 #include "text_protocol.h"
 #include "uefi_platform.h"
 #include "debug_support.h"
+#include "variable_mem.h"
 
 namespace {
 
@@ -170,8 +172,31 @@ int cmd_uefi_load(int argc, const console_cmd_args *argv) {
   return 0;
 }
 
+int cmd_uefi_set_variable(int argc, const console_cmd_args *argv) {
+  if (argc != 3) {
+    printf("Usage: %s <variable> <data>\n", argv[0].str);
+    return 1;
+  }
+  EfiGuid guid = EFI_GLOBAL_VARIABLE_GUID;
+  char16_t buffer[128];
+  utf8_to_utf16(buffer, argv[1].str, sizeof(buffer) / sizeof(buffer[0]));
+  efi_set_variable(buffer,
+                   &guid,
+                   EFI_VARIABLE_BOOTSERVICE_ACCESS,
+                   argv[2].str,
+                   strlen(argv[2].str));
+  return 0;
+}
+
+int cmd_uefi_list_variable(int argc, const console_cmd_args *argv) {
+  efi_list_variable();
+  return 0;
+}
+
 STATIC_COMMAND_START
 STATIC_COMMAND("uefi_load", "load UEFI application and run it", &cmd_uefi_load)
+STATIC_COMMAND("uefi_set_var", "set UEFI variable", &cmd_uefi_set_variable)
+STATIC_COMMAND("uefi_list_var", "list UEFI variable", &cmd_uefi_list_variable)
 STATIC_COMMAND_END(uefi);
 
 }  // namespace
