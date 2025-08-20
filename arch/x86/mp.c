@@ -19,6 +19,7 @@
 #include <arch/arch_ops.h>
 #include <sys/types.h>
 #include <arch/x86/lapic.h>
+#include <arch/x86/feature.h>
 
 #define LOCAL_TRACE 0
 
