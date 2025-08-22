@@ -19,7 +19,7 @@
 #include <arch/arch_ops.h>
 #include <sys/types.h>
 #include <arch/x86/lapic.h>
-#include <arch/x86/feature.h> 
+#include <arch/x86/feature.h>
 
 #define LOCAL_TRACE 0
 
@@ -87,8 +87,11 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
 
 void arch_mp_init_percpu(void) {}
 
+/* 
+*  Move to lapic.c
+*
 uint32_t x86_get_apic_id_from_hardware(void) {
-    uint32_t unused = 0, ecx;
+    uint32_t unused = 0, ecx = 0;
     cpuid(0x1, &unused, &unused, &ecx, &unused);
 
     if (ecx & (1u << 21)) {
@@ -103,6 +106,7 @@ uint32_t x86_get_apic_id_from_hardware(void) {
         return apic_id;
     }
 }
+*/
 
 void x86_secondary_entry(uint cpu_num) {
     if (x86_feature_test(X86_FEATURE_X2APIC)) {
@@ -110,8 +114,8 @@ void x86_secondary_entry(uint cpu_num) {
         apic_base |= (1u << 10);
         write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
     }
-    
-    uint32_t apic_id = x86_get_apic_id_from_hardware();
+
+    uint32_t apic_id = lapic_get_id_from_hardware();
     x86_configure_percpu_early(cpu_num, apic_id);
 
     x86_early_init_percpu();
