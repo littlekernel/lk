@@ -36,12 +36,9 @@ EfiStatus GetVariable(const uint16_t *VariableName, const EfiGuid *VendorGuid,
 
   char buffer[512];
   size_t i = 0;
-  while (VariableName[i] && i < sizeof(buffer)) {
-    size_t j = 0;
-    for (j = 0; j < sizeof(buffer) - 1 && VariableName[i + j]; j++) {
-      buffer[j] = VariableName[i + j];
-    }
-    i += j;
+  while (VariableName[i] && i < sizeof(buffer) - 1) {
+    buffer[i] = static_cast<char>(VariableName[i]);
+    i++;
   }
   buffer[i] = 0;
   if (strncmp(buffer, kSecureBoot, sizeof(kSecureBoot)) == 0 || strcmp(buffer, "SetupMode") == 0) {
