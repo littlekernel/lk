@@ -77,13 +77,13 @@ int load_sections_and_execute(bdev_t *dev,
       file_header->SizeOfOptionalHeader);
   if (sections <= 0) {
     printf("This PE file does not have any sections, unsupported.\n");
-    return -8;
+    return ERR_BAD_STATE;
   }
   for (size_t i = 0; i < sections; i++) {
     if (section_header[i].NumberOfRelocations != 0) {
       printf("Section %s requires relocation, which is not supported.\n",
              section_header[i].Name);
-      return -6;
+      return ERR_NOT_SUPPORTED;
     }
   }
   setup_heap();
@@ -91,11 +91,14 @@ int load_sections_and_execute(bdev_t *dev,
   const auto &last_section = section_header[sections - 1];
   const auto virtual_size = ROUNDUP(
       last_section.VirtualAddress + last_section.Misc.VirtualSize, PAGE_SIZE);
+  // For casting ImageBase to optional_header
+  // NOLINTBEGIN(performance-no-int-to-ptr)
   const auto image_base = reinterpret_cast<char *>(
       alloc_page(reinterpret_cast<void *>(optional_header->ImageBase),
                  virtual_size, 21 /* Kernel requires 2MB alignment */));
+  // NOLINTEND(performance-no-int-to-ptr)
   if (image_base == nullptr) {
-    return -7;
+    return ERR_NO_MEMORY;
   }
   memset(image_base, 0, virtual_size);
   DEFER { free_pages(image_base, virtual_size / PAGE_SIZE); };
@@ -165,7 +168,7 @@ int load_sections_and_execute(bdev_t *dev,
 int cmd_uefi_load(int argc, const console_cmd_args *argv) {
   if (argc != 2) {
     printf("Usage: %s <name of block device to load from>\n", argv[0].str);
-    return 1;
+    return ERR_INVALID_ARGS;
   }
   load_pe_file(argv[1].str);
   return 0;
@@ -174,7 +177,7 @@ int cmd_uefi_load(int argc, const console_cmd_args *argv) {
 int cmd_uefi_set_variable(int argc, const console_cmd_args *argv) {
   if (argc != 3) {
     printf("Usage: %s <variable> <data>\n", argv[0].str);
-    return 1;
+    return ERR_INVALID_ARGS;
   }
   EfiGuid guid = EFI_GLOBAL_VARIABLE_GUID;
   char16_t buffer[128];
@@ -201,7 +204,7 @@ int load_pe_file(const char *blkdev) {
   bdev_t *dev = bio_open(blkdev);
   if (!dev) {
     printf("error opening block device %s\n", blkdev);
-    return -1;
+    return ERR_IO;
   }
   DEFER {
     bio_close(dev);
@@ -213,14 +216,14 @@ int load_pe_file(const char *blkdev) {
   uint8_t *address = static_cast<uint8_t *>(malloc(kBlocKSize));
   if (address == nullptr) {
     printf("failed to allocate %zu bytes memory for PE header\n", kBlocKSize);
-    return -1;
+    return ERR_NO_MEMORY;
   }
   DEFER { free(address); };
   ssize_t err = bio_read(dev, static_cast<void *>(address), 0, kBlocKSize);
   t = current_time() - t;
   if (err < 0) {
     printf("error reading PE header from block device %s: %zd\n", blkdev, err);
-    return -1;
+    return ERR_IO;
   }
   dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
           (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
@@ -228,19 +231,19 @@ int load_pe_file(const char *blkdev) {
   const auto dos_header = reinterpret_cast<const IMAGE_DOS_HEADER *>(address);
   if (!dos_header->CheckMagic()) {
     printf("DOS Magic check failed %x\n", dos_header->e_magic);
-    return -2;
+    return ERR_BAD_STATE;
   }
   if (dos_header->e_lfanew > kBlocKSize - sizeof(IMAGE_FILE_HEADER)) {
     printf(
         "Invalid PE header offset %d exceeds maximum read size of %zu - %zu\n",
         dos_header->e_lfanew, kBlocKSize, sizeof(IMAGE_FILE_HEADER));
-    return -3;
+    return ERR_BAD_STATE;
   }
   const auto pe_header = dos_header->GetPEHeader();
   const auto file_header = &pe_header->FileHeader;
   if (LE32(file_header->Signature) != kPEHeader) {
     printf("COFF Magic check failed %x\n", LE32(file_header->Signature));
-    return -4;
+    return ERR_BAD_STATE;
   }
   printf("PE header machine type: %x\n",
          static_cast<int>(file_header->Machine));
@@ -250,7 +253,7 @@ int load_pe_file(const char *blkdev) {
               sizeof(IMAGE_OPTIONAL_HEADER64::DataDirectory)) {
     printf("Unexpected size of optional header %d, expected %zu\n",
            file_header->SizeOfOptionalHeader, sizeof(IMAGE_OPTIONAL_HEADER64));
-    return -5;
+    return ERR_BAD_STATE;
   }
   const auto optional_header = &pe_header->OptionalHeader;
   if (optional_header->Subsystem != SubsystemType::EFIApplication) {
