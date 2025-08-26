@@ -32,7 +32,7 @@ struct EfiConfigurationTable {
 
 struct EfiSystemTable {
   EfiTableHeader header;
-  char16_t* firmware_vendor;
+  const char16_t* firmware_vendor;
   uint32_t firmware_revision;
   EfiHandle console_in_handle;
   EfiSimpleTextInputProtocol* con_in;
