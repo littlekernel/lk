@@ -36,6 +36,7 @@
 #include "boot_service_provider.h"
 #include "charset.h"
 #include "configuration_table.h"
+#include "debug_support.h"
 #include "defer.h"
 #include "memory_protocols.h"
 #include "pe.h"
@@ -44,7 +45,6 @@
 #include "switch_stack.h"
 #include "text_protocol.h"
 #include "uefi_platform.h"
-#include "debug_support.h"
 #include "variable_mem.h"
 
 namespace {
@@ -56,8 +56,7 @@ constexpr auto EFI_SYSTEM_TABLE_SIGNATURE =
 
 using EfiEntry = int (*)(void *, struct EfiSystemTable *);
 
-template <typename T>
-void fill(T *data, size_t skip, uint8_t begin = 0) {
+template <typename T> void fill(T *data, size_t skip, uint8_t begin = 0) {
   auto ptr = reinterpret_cast<char *>(data);
   for (size_t i = 0; i < sizeof(T); i++) {
     if (i < skip) {
@@ -67,7 +66,7 @@ void fill(T *data, size_t skip, uint8_t begin = 0) {
   }
 }
 
-static char16_t firmwareVendor[] = u"Little Kernel";
+const char16_t firmwareVendor[] = u"Little Kernel";
 
 class ImageReader {
 public:
@@ -175,7 +174,7 @@ int load_sections_and_execute(ImageReader *reader,
   fill(&boot_service, 0);
   setup_runtime_service_table(&runtime_service);
   setup_boot_service_table(&boot_service);
-  table.firmware_vendor = reinterpret_cast<uint16_t *>(firmwareVendor);
+  table.firmware_vendor = reinterpret_cast<const char16_t *>(firmwareVendor);
   table.runtime_services = &runtime_service;
   table.boot_services = &boot_service;
   table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
@@ -238,10 +237,7 @@ int cmd_uefi_set_variable(int argc, const console_cmd_args *argv) {
   EfiGuid guid = EFI_GLOBAL_VARIABLE_GUID;
   char16_t buffer[128];
   utf8_to_utf16(buffer, argv[1].str, sizeof(buffer) / sizeof(buffer[0]));
-  efi_set_variable(buffer,
-                   &guid,
-                   EFI_VARIABLE_BOOTSERVICE_ACCESS,
-                   argv[2].str,
+  efi_set_variable(buffer, &guid, EFI_VARIABLE_BOOTSERVICE_ACCESS, argv[2].str,
                    strlen(argv[2].str));
   return 0;
 }
@@ -257,15 +253,26 @@ STATIC_COMMAND("uefi_set_var", "set UEFI variable", &cmd_uefi_set_variable)
 STATIC_COMMAND("uefi_list_var", "list UEFI variable", &cmd_uefi_list_variable)
 STATIC_COMMAND_END(uefi);
 
-}  // namespace
+} // namespace
 
 int load_pe_file(ImageReader *reader) {
   constexpr size_t kBlocKSize = 4096;
 
   lk_time_t t = current_time();
   uint8_t *address = static_cast<uint8_t *>(malloc(kBlocKSize));
+  if (address == nullptr) {
+    printf("failed to allocate %zu bytes memory for PE header\n", kBlocKSize);
+    return -1;
+  }
+  DEFER { free(address); };
   ssize_t err = reader->read(reinterpret_cast<char *>(address), 0, kBlocKSize);
   t = current_time() - t;
+  if (err < 0) {
+    char name[128];
+    reader->get_name(name, sizeof(name));
+    printf("error reading PE header from %s: %zd\n", name, err);
+    return -1;
+  }
   dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
           (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
 
