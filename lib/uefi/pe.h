@@ -63,6 +63,7 @@ struct IMAGE_DOS_HEADER { // DOS .EXE header
   u16 e_res2[10];         // Reserved words
   u32 e_lfanew;           // File address of new exe header
 
+  // ASCII "PE\x0\x0"
   constexpr bool CheckMagic() const { return LE32(e_magic) == 0x5A4D; }
   IMAGE_NT_HEADERS64 *GetPEHeader() {
     auto address = reinterpret_cast<char *>(this);

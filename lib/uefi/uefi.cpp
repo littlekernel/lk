@@ -52,8 +52,6 @@ namespace {
 constexpr auto EFI_SYSTEM_TABLE_SIGNATURE =
     static_cast<u64>(0x5453595320494249ULL);
 
-// ASCII "PE\x0\x0"
-
 using EfiEntry = int (*)(void *, struct EfiSystemTable *);
 
 template <typename T> void fill(T *data, size_t skip, uint8_t begin = 0) {
@@ -153,13 +151,21 @@ int load_sections_and_execute(ImageReader *reader,
   }
   memset(image_base, 0, virtual_size);
   DEFER { free_pages(image_base, virtual_size / PAGE_SIZE); };
-  reader->read(image_base, 0, section_header[0].PointerToRawData);
+  ssize_t bytes_read =
+      reader->read(image_base, 0, section_header[0].PointerToRawData);
+  if (bytes_read != section_header[0].SizeOfRawData) {
+    printf("Failed to read section %s\n", section_header[0].Name);
+    return ERR_IO;
+  }
 
   for (size_t i = 0; i < sections; i++) {
     const auto &section = section_header[i];
-    reader->read(image_base + section.VirtualAddress,
-                section.PointerToRawData,
-                section.SizeOfRawData);
+    bytes_read = reader->read(image_base + section.VirtualAddress,
+                             section.PointerToRawData, section.SizeOfRawData);
+    if (bytes_read != section.SizeOfRawData) {
+      printf("Failed to read section %s %zu\n", section.Name, bytes_read);
+      return ERR_IO;
+    }
   }
   printf("Relocating image from 0x%llx to %p\n", optional_header->ImageBase,
          image_base);
@@ -296,8 +302,10 @@ int load_pe_file(ImageReader *reader) {
     printf("COFF Magic check failed %x\n", LE32(file_header->Signature));
     return ERR_BAD_STATE;
   }
-  printf("PE header machine type: %x\n",
-         static_cast<int>(file_header->Machine));
+  if (file_header->Machine != ArchitectureType::ARM64) {
+    printf("Unsupported PE header machine type: %x\n",
+           static_cast<int>(file_header->Machine));
+  }
   if (file_header->SizeOfOptionalHeader > sizeof(IMAGE_OPTIONAL_HEADER64) ||
       file_header->SizeOfOptionalHeader <
           sizeof(IMAGE_OPTIONAL_HEADER64) -
