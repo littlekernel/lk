@@ -13,6 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
+ * SPDX-License-Identifier: Apache-2.0 OR BSD-2-Clause-Patent
+ *
+ * You may choose to use or redistribute this file under
+ *  (a) the Apache License, Version 2.0, or
+ *  (b) the BSD 2-Clause Patent license.
+ *
+ * Unless you expressly elect the BSD-2-Clause-Patent terms, the Apache-2.0
+ * terms apply by default.
  */
 
 // This is a custom protocol introduced by GBL.
@@ -21,34 +29,29 @@
 #ifndef __GBL_OS_CONFIGURATION_PROTOCOL_H__
 #define __GBL_OS_CONFIGURATION_PROTOCOL_H__
 
-#include <uefi/types.h>
+#include "types.h"
 
-static constexpr size_t GBL_EFI_OS_CONFIGURATION_PROTOCOL_REVISION = 0x00000000;
-typedef enum GBL_EFI_DEVICE_TREE_TYPE {
-  // HLOS device tree.
-  DEVICE_TREE,
-  // HLOS device tree overlay.
-  OVERLAY,
-  // pVM device assignment overlay.
-  PVM_DA_OVERLAY,
-} GblEfiDeviceTreeType;
+EFI_ENUM(GBL_EFI_DEVICE_TREE_TYPE, GblEfiDeviceTreeType, uint32_t,
+         // HLOS device tree.
+         GBL_EFI_DEVICE_TREE_TYPE_DEVICE_TREE,
+         // HLOS device tree overlay.
+         GBL_EFI_DEVICE_TREE_TYPE_OVERLAY,
+         // pVM device assignment overlay.
+         GBL_EFI_DEVICE_TREE_TYPE_PVM_DA_OVERLAY);
 
-typedef enum GBL_EFI_DEVICE_TREE_SOURCE {
-  // Device tree loaded from boot partition.
-  BOOT,
-  // Device tree loaded from vendor_boot partition.
-  VENDOR_BOOT,
-  // Device tree loaded from dtbo partition.
-  DTBO,
-  // Device tree loaded from dtb partition.
-  DTB,
-} GblEfiDeviceTreeSource;
+EFI_ENUM(GBL_EFI_DEVICE_TREE_SOURCE, GblEfiDeviceTreeSource, uint32_t,
+         // Device tree loaded from boot partition.
+         GBL_EFI_DEVICE_TREE_SOURCE_BOOT,
+         // Device tree loaded from vendor_boot partition.
+         GBL_EFI_DEVICE_TREE_SOURCE_VENDOR_BOOT,
+         // Device tree loaded from dtbo partition.
+         GBL_EFI_DEVICE_TREE_SOURCE_DTBO,
+         // Device tree loaded from dtb partition.
+         GBL_EFI_DEVICE_TREE_SOURCE_DTB);
 
 typedef struct {
-  // GblDeviceTreeSource
-  uint32_t source;
-  // GblDeviceTreeType
-  uint32_t type;
+  GblEfiDeviceTreeSource source;
+  GblEfiDeviceTreeType type;
   // Values are zeroed and must not be used in case of BOOT / VENDOR_BOOT source
   uint32_t id;
   uint32_t rev;
@@ -60,27 +63,27 @@ typedef struct {
   // Base device tree / overlay buffer (guaranteed to be 8-bytes aligned),
   // cannot be NULL. Device tree size can be identified by the header totalsize
   // field
-  const void *device_tree;
+  const void* device_tree;
   // Indicates whether this device tree (or overlay) must be included in the
   // final device tree. Set to true by a FW if this component must be used
   bool selected;
 } GblEfiVerifiedDeviceTree;
 
-// Warning: API is UNSTABLE
-// Documentation:
-// https://cs.android.com/android/kernel/superproject/+/common-android-mainline:bootable/libbootloader/gbl/docs/gbl_os_configuration_protocol.md
+static const uint64_t GBL_EFI_OS_CONFIGURATION_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(0, 1);
+
 typedef struct GblEfiOsConfigurationProtocol {
   uint64_t revision;
 
   // Generates fixups for the bootconfig built by GBL.
-  EfiStatus (*fixup_bootconfig)(struct GblEfiOsConfigurationProtocol *self,
-                                const char *bootconfig, size_t size,
-                                char *fixup, size_t *fixup_buffer_size);
+  EfiStatus (*fixup_bootconfig)(struct GblEfiOsConfigurationProtocol* self,
+                                const char8_t* bootconfig, size_t size,
+                                char8_t* fixup, size_t* fixup_buffer_size);
 
   // Selects which device trees and overlays to use from those loaded by GBL.
-  EfiStatus (*select_device_trees)(struct GblEfiOsConfigurationProtocol *self,
-                                   GblEfiVerifiedDeviceTree *device_trees,
+  EfiStatus (*select_device_trees)(struct GblEfiOsConfigurationProtocol* self,
+                                   GblEfiVerifiedDeviceTree* device_trees,
                                    size_t num_device_trees);
 } GblEfiOsConfigurationProtocol;
 
-#endif //__GBL_OS_CONFIGURATION_PROTOCOL_H__
+#endif  //__GBL_OS_CONFIGURATION_PROTOCOL_H__

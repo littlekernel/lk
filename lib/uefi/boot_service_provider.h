@@ -34,6 +34,12 @@ static constexpr auto EFI_DEVICE_PATH_PROTOCOL_GUID =
             0x11d2,
             {0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
 
+static constexpr auto EFI_GBL_VENDOR_MEDIA_DEVICE_PATH_GUID =
+    EfiGuid{0xa09773e3,
+            0xf027,
+            0x4f33,
+            {0xad, 0xb3, 0xbd, 0x8d, 0xcf, 0x4b, 0x38, 0x54}};
+
 static constexpr auto LINUX_EFI_LOADED_IMAGE_FIXED_GUID =
     EfiGuid{0xf5a37b6d,
             0x3344,
@@ -115,6 +121,12 @@ static constexpr auto EFI_TIMESTAMP_PROTOCOL_GUID =
             0x2e6e,
             0x4262,
             {0xba, 0x65, 0x62, 0xb9, 0x23, 0x6e, 0x54, 0x95}};
+
+static constexpr auto EFI_ERASE_BLOCK_PROTOCOL_GUID =
+    EfiGuid{0x95A9A93E,
+            0xA86E,
+            0x4926,
+            {0xaa, 0xef, 0x99, 0x18, 0xe7, 0x72, 0xd9, 0x87}};
 
 using EFI_IMAGE_UNLOAD = EfiStatus (*)(EfiHandle);
 

@@ -57,7 +57,7 @@ EfiStatus efi_initialize_system_table_pointer(struct EfiSystemTable *system_tabl
 
   if (!efi_systab_pointer) {
     printf("Installing EFI system table pointer failed\n");
-    return OUT_OF_RESOURCES;
+    return EFI_STATUS_OUT_OF_RESOURCES;
   }
 
   memset(efi_systab_pointer, 0, sizeof(struct EfiSystemTablePointer));
@@ -71,7 +71,7 @@ EfiStatus efi_initialize_system_table_pointer(struct EfiSystemTable *system_tabl
 
   efi_systab_pointer->crc32 = crc;
 
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 static uint32_t efi_m_max_table_entries;
@@ -96,14 +96,14 @@ EfiStatus efi_core_new_debug_image_info_entry(uint32_t image_info_type,
      */
     uint32_t table_size = efi_m_max_table_entries * EFI_DEBUG_TABLE_ENTRY_SIZE;
     union EfiDebugImageInfo *new_table;
-    allocate_pool(BOOT_SERVICES_DATA,
+    allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA,
 		  table_size + PAGE_SIZE,
 		  reinterpret_cast<void **>(&new_table));
 
     if (!new_table) {
       efi_m_debug_info_table_header.update_status &=
 	~EFI_DEBUG_IMAGE_INFO_UPDATE_IN_PROGRESS;
-      return OUT_OF_RESOURCES;
+      return EFI_STATUS_OUT_OF_RESOURCES;
     }
 
     memset(new_table, 0, table_size + PAGE_SIZE);
@@ -130,7 +130,7 @@ EfiStatus efi_core_new_debug_image_info_entry(uint32_t image_info_type,
   uint32_t index = efi_m_debug_info_table_header.table_size;
 
   /* Allocate data for new entry. */
-  allocate_pool(BOOT_SERVICES_DATA,
+  allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA,
 		      sizeof(union EfiDebugImageInfo),
 		      reinterpret_cast<void **>(&table[index].normal_image));
   if (table[index].normal_image) {
@@ -147,13 +147,13 @@ EfiStatus efi_core_new_debug_image_info_entry(uint32_t image_info_type,
     efi_m_debug_info_table_header.update_status |=
       EFI_DEBUG_IMAGE_INFO_TABLE_MODIFIED;
   } else {
-    return OUT_OF_RESOURCES;
+    return EFI_STATUS_OUT_OF_RESOURCES;
   }
 
   efi_m_debug_info_table_header.update_status &=
     ~EFI_DEBUG_IMAGE_INFO_UPDATE_IN_PROGRESS;
 
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 void efi_core_remove_debug_image_info_entry(EfiHandle image_handle)
@@ -200,7 +200,7 @@ EfiStatus setup_debug_support(EfiSystemTable &table,
 			      bdev_t *dev) {
   struct EFI_LOADED_IMAGE_PROTOCOL *efiLoadedImageProtocol = nullptr;
 
-  allocate_pool(BOOT_SERVICES_DATA,
+  allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA,
 		sizeof(struct EFI_LOADED_IMAGE_PROTOCOL),
 		reinterpret_cast<void **>(&efiLoadedImageProtocol));
   memset(efiLoadedImageProtocol, 0, sizeof(struct EFI_LOADED_IMAGE_PROTOCOL));
@@ -211,7 +211,7 @@ EfiStatus setup_debug_support(EfiSystemTable &table,
   efiLoadedImageProtocol->ImageSize = virtual_size;
   char *device_buf = nullptr;
   size_t fpsize = sizeof(struct EFI_DEVICE_PATH_PROTOCOL) + 2 * (strlen(dev->name) + 2);
-  allocate_pool(BOOT_SERVICES_DATA,
+  allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA,
 		fpsize + sizeof(struct EFI_DEVICE_PATH_PROTOCOL),
 		reinterpret_cast<void **>(&device_buf));
   memset(device_buf, 0, fpsize + sizeof(struct EFI_DEVICE_PATH_PROTOCOL));

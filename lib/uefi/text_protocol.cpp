@@ -19,7 +19,7 @@
 #include <stdio.h>
 
 EfiStatus output_string(struct EfiSimpleTextOutputProtocol *self,
-                        char16_t *string) {
+                        uint16_t *string) {
   char buffer[512];
   size_t i = 0;
   while (string[i]) {
@@ -32,7 +32,7 @@ EfiStatus output_string(struct EfiSimpleTextOutputProtocol *self,
 
     printf("%s", reinterpret_cast<const char *>(buffer));
   }
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiSimpleTextOutputProtocol get_text_output_protocol() {

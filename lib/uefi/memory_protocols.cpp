@@ -155,18 +155,18 @@ __WEAK void *alloc_page(void *addr, size_t size, size_t align_log2) {
 EfiStatus allocate_pages(EfiAllocatorType type, EfiMemoryType memory_type,
                          size_t pages, EfiPhysicalAddr *memory) {
   if (memory == nullptr) {
-    return INVALID_PARAMETER;
+    return EFI_STATUS_INVALID_PARAMETER;
   }
-  if (type == ALLOCATE_MAX_ADDRESS && *memory < 0xFFFFFFFF) {
+  if (type == EFI_ALLOCATOR_TYPE_ALLOCATE_MAX_ADDRESS && *memory < 0xFFFFFFFF) {
     LTRACEF("%d, %d, %zu, 0x%llx unsupported\n", type, memory_type, pages,
             *memory);
-    return UNSUPPORTED;
+    return EFI_STATUS_UNSUPPORTED;
   }
   *memory = reinterpret_cast<EfiPhysicalAddr>(alloc_page(pages * PAGE_SIZE));
   if (*memory == 0) {
-    return OUT_OF_RESOURCES;
+    return EFI_STATUS_OUT_OF_RESOURCES;
   }
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 __WEAK void *uefi_malloc(size_t size) {
@@ -176,22 +176,22 @@ __WEAK void *uefi_malloc(size_t size) {
 __WEAK EfiStatus allocate_pool(EfiMemoryType pool_type, size_t size,
                                void **buf) {
   if (buf == nullptr) {
-    return INVALID_PARAMETER;
+    return EFI_STATUS_INVALID_PARAMETER;
   }
   if (size == 0) {
     *buf = nullptr;
-    return SUCCESS;
+    return EFI_STATUS_SUCCESS;
   }
   *buf = mspace_malloc(get_mspace(), size);
   if (*buf != nullptr) {
-    return SUCCESS;
+    return EFI_STATUS_SUCCESS;
   }
-  return OUT_OF_RESOURCES;
+  return EFI_STATUS_OUT_OF_RESOURCES;
 }
 
 __WEAK EfiStatus free_pool(void *mem) {
   mspace_free(get_mspace(), mem);
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 __WEAK EfiStatus free_pages(void *memory, size_t pages) {
@@ -206,15 +206,15 @@ __WEAK EfiStatus free_pages(void *memory, size_t pages) {
   if (err) {
     printf("%s err:%d memory [%p] pages:%zu\n", __FUNCTION__, err, memory,
            pages);
-    return DEVICE_ERROR;
+    return EFI_STATUS_DEVICE_ERROR;
   }
   auto pages_freed = pmm_free_kpages(pa, pages);
   if (pages_freed != pages) {
     printf("Failed to free physical pages %p %zu, only freed %zu pages\n", pa,
            pages, pages_freed);
-    return DEVICE_ERROR;
+    return EFI_STATUS_DEVICE_ERROR;
   }
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiStatus get_physical_memory_map(size_t *memory_map_size,
@@ -222,7 +222,7 @@ EfiStatus get_physical_memory_map(size_t *memory_map_size,
                                   size_t *map_key, size_t *desc_size,
                                   uint32_t *desc_version) {
   if (memory_map_size == nullptr) {
-    return INVALID_PARAMETER;
+    return EFI_STATUS_INVALID_PARAMETER;
   }
   if (map_key) {
     *map_key = 0;
@@ -241,7 +241,7 @@ EfiStatus get_physical_memory_map(size_t *memory_map_size,
   const size_t size_needed = num_entries * sizeof(EfiMemoryDescriptor);
   if (*memory_map_size < size_needed) {
     *memory_map_size = size_needed;
-    return BUFFER_TOO_SMALL;
+    return EFI_STATUS_BUFFER_TOO_SMALL;
   }
   *memory_map_size = size_needed;
   size_t i = 0;
@@ -249,11 +249,11 @@ EfiStatus get_physical_memory_map(size_t *memory_map_size,
   list_for_every_entry(get_arena_list(), a, pmm_arena_t, node) {
     memory_map[i].physical_start = a->base;
     memory_map[i].number_of_pages = a->size / PAGE_SIZE;
-    memory_map[i].attributes |= EFI_MEMORY_WB;
-    memory_map[i].memory_type = LOADER_CODE;
+    memory_map[i].attributes = static_cast<EfiMemoryAttribute>(memory_map[i].attributes | EFI_MEMORY_ATTRIBUTE_EMA_WB);
+    memory_map[i].memory_type = EFI_MEMORY_TYPE_LOADER_CODE;
     i++;
   }
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 // NOLINTEND(performance-no-int-to-ptr)

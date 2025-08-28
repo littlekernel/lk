@@ -13,6 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
+ * SPDX-License-Identifier: Apache-2.0 OR BSD-2-Clause-Patent
+ *
+ * You may choose to use or redistribute this file under
+ *  (a) the Apache License, Version 2.0, or
+ *  (b) the BSD 2-Clause Patent license.
+ *
+ * Unless you expressly elect the BSD-2-Clause-Patent terms, the Apache-2.0
+ * terms apply by default.
  */
 
 // Reference:
@@ -22,9 +30,15 @@
 #define __SIMPLE_NETWORK_PROTOCOL_H__
 
 #include <stddef.h>
-#include <uefi/types.h>
+
+#include "types.h"
 
 #define EFI_SIMPLE_NETWORK_PROTOCOL_REVISION 0x00010000
+#define EFI_SIMPLE_NETWORK_RECEIVE_UNICAST 0x01
+#define EFI_SIMPLE_NETWORK_RECEIVE_MULTICAST 0x02
+#define EFI_SIMPLE_NETWORK_RECEIVE_BROADCAST 0x04
+#define EFI_SIMPLE_NETWORK_RECEIVE_PROMISCUOUS 0x08
+#define EFI_SIMPLE_NETWORK_RECEIVE_PROMISCUOUS_MULTICAST 0x10
 
 #define MAX_MCAST_FILTER_CNT 16
 
