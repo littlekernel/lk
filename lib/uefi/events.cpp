@@ -86,7 +86,7 @@ EfiStatus wait_for_event(size_t num_events, EfiEvent *event, size_t *index) {
     EfiEventImpl *ev = reinterpret_cast<EfiEventImpl *>(event[i]);
     if (ev->ready()) {
       *index = i;
-      return SUCCESS;
+      return EFI_STATUS_SUCCESS;
     }
   }
   while (true) {
@@ -96,16 +96,16 @@ EfiStatus wait_for_event(size_t num_events, EfiEvent *event, size_t *index) {
       EfiEventImpl *ev = reinterpret_cast<EfiEventImpl *>(event[i]);
       if (ev->ready()) {
         *index = i;
-        return SUCCESS;
+        return EFI_STATUS_SUCCESS;
       }
       auto status = event_wait_timeout(&ev->ev, 200);
       if (status == ERR_TIMED_OUT) {
         continue;
       }
-      return SUCCESS;
+      return EFI_STATUS_SUCCESS;
     }
   }
-  return NOT_READY;
+  return EFI_STATUS_NOT_READY;
 }
 
 EfiStatus signal_event(EfiEvent event) {
@@ -116,10 +116,10 @@ EfiStatus signal_event(EfiEvent event) {
   // mutexes, etc. are not allowed.
   if (event->ready()) {
     printf("Event %p already signaled\n", event);
-    return SUCCESS;
+    return EFI_STATUS_SUCCESS;
   }
   event_signal(&event->ev, !arch_ints_disabled());
-  if ((event->type & NOTIFY_SIGNAL) && event->notify_fn != nullptr) {
+  if ((event->type & EFI_EVENT_TYPE_NOTIFY_SIGNAL) && event->notify_fn != nullptr) {
     // If this event is signaled on a different thread,  defer
     // calling callbacks until the next check_event call. As UEFI apps
     // are single threaded, we don't want to call event callbacks from another
@@ -131,7 +131,7 @@ EfiStatus signal_event(EfiEvent event) {
           "disabled\n",
           event, event->type, get_current_thread()->name,
           event->creator_thread->name);
-      return SUCCESS;
+      return EFI_STATUS_SUCCESS;
     }
     // this is only possible in non-interrupt context, as this requires mutexes.
     AutoLock al{&event_list_mutex};
@@ -139,28 +139,27 @@ EfiStatus signal_event(EfiEvent event) {
     al.release();
     invoke_callback(event);
   }
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiStatus create_event(EfiEventType type, EfiTpl notify_tpl,
                        EfiEventNotify notify_fn, void *notify_ctx,
                        EfiEvent *event) {
   process_pending_events();
-  if ((type & TIMER) != 0) {
+  if (type & EFI_EVENT_TYPE_TIMER) {
     printf("Creating timer event is not supported yet\n");
-    return UNSUPPORTED;
+    return EFI_STATUS_UNSUPPORTED;
   }
-  if ((type & SIGNAL_EXIT_BOOT_SERVICES) == SIGNAL_EXIT_BOOT_SERVICES ||
-      (type & SIGNAL_VIRTUAL_ADDRESS_CHANGE) == SIGNAL_VIRTUAL_ADDRESS_CHANGE) {
+  if (type & (EFI_EVENT_TYPE_SIGNAL_EXIT_BOOT_SERVICES | EFI_EVENT_TYPE_SIGNAL_VIRTUAL_ADDRESS_CHANGE)) {
     printf(
         "Creating SIGNAL_EXIT_BOOT_SERVICES or SIGNAL_VIRTUAL_ADDRESS_CHANGE "
         "event is not supported yet 0x%x\n",
         type);
-    return UNSUPPORTED;
+    return EFI_STATUS_UNSUPPORTED;
   }
-  if ((type & NOTIFY_WAIT)) {
+  if (type & EFI_EVENT_TYPE_NOTIFY_WAIT) {
     printf("Creating NOTIFY_WAIT event is not supported yet\n");
-    return UNSUPPORTED;
+    return EFI_STATUS_UNSUPPORTED;
   }
   auto ev = reinterpret_cast<EfiEventImpl *>(malloc(sizeof(EfiEventImpl)));
   memset(ev, 0, sizeof(EfiEventImpl));
@@ -175,7 +174,7 @@ EfiStatus create_event(EfiEventType type, EfiTpl notify_tpl,
   LTRACEF("Created event 0x%x callback %p %p on thread %s\n", type, notify_fn,
           notify_ctx, get_current_thread()->name);
   *event = ev;
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiStatus check_event(EfiEvent event) {
@@ -199,16 +198,16 @@ EfiStatus check_event(EfiEvent event) {
         backoff_wait_time <<= 1;
       }
     }
-    return INVALID_PARAMETER;
+    return EFI_STATUS_INVALID_PARAMETER;
   }
   if (event->ready()) {
     AutoLock al{&event_list_mutex};
     delete_if_in_list(event, &al);
     al.release();
     invoke_callback(event);
-    return SUCCESS;
+    return EFI_STATUS_SUCCESS;
   }
-  return NOT_READY;
+  return EFI_STATUS_NOT_READY;
 }
 
 EfiStatus close_event(EfiEvent event) {
@@ -217,10 +216,10 @@ EfiStatus close_event(EfiEvent event) {
   al.release();
   event_destroy(&event->ev);
   free(event);
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiStatus set_timer(EfiEvent event, EfiTimerDelay type, uint64_t trigger_time) {
   printf("%s is unsupported\n", __FUNCTION__);
-  return UNSUPPORTED;
+  return EFI_STATUS_UNSUPPORTED;
 }

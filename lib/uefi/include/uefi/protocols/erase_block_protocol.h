@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,18 +23,26 @@
  * terms apply by default.
  */
 
-#ifndef __RISCV_EFI_BOOT_PROTOCOL_H__
-#define __RISCV_EFI_BOOT_PROTOCOL_H__
-
-#include <stddef.h>
+#ifndef __ERASE_BLOCK_PROTOCOL_H__
+#define __ERASE_BLOCK_PROTOCOL_H__
 
 #include "types.h"
 
-// Source: https://github.com/riscv-non-isa/riscv-uefi
-struct EfiRiscvBootProtocol {
-  uint64_t revision;
+static const uint64_t EFI_ERASE_BLOCK_PROTOCOL_REVISION = ((2<<16) | (60));
 
-  EfiStatus (*get_boot_hartid)(struct EfiRiscvBootProtocol* self, size_t* boot_hartid);
+typedef struct EfiEraseBlockProtocol EfiEraseBlockProtocol;
+
+typedef struct {
+  EfiEvent event;
+  EfiStatus transaction_status;
+} EfiEraseBlockToken;
+
+struct EfiEraseBlockProtocol {
+  uint64_t revision;
+  uint32_t erase_length_granularity;
+  EfiStatus (*erase_blocks)(EfiEraseBlockProtocol* self, uint32_t media_id,
+                            uint64_t lba, EfiEraseBlockToken* token,
+                            size_t size);
 };
 
-#endif  // __RISCV_EFI_BOOT_PROTOCOL_H__
+#endif  //__ERASE_BLOCK_PROTOCOL_H__

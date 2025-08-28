@@ -23,23 +23,15 @@
  * terms apply by default.
  */
 
-#pragma once
+// This is a custom protocol introduced by GBL.
+// See gbl/docs/GBL_EFI_FASTBOOT_PROTOCOL.md for details.
 
-#include <uefi/types.h>
+#ifndef __GBL_EFI_FASTBOOT_PROTOCOL_H__
+#define __GBL_EFI_FASTBOOT_PROTOCOL_H__
 
-#define GBL_EFI_FASTBOOT_PROTOCOL_REVISION 0x00000000
+#include "types.h"
 
 #define GBL_EFI_FASTBOOT_SERIAL_NUMBER_MAX_LEN_UTF8 32
-
-typedef struct GblEfiFastbootPolicy {
-  // Indicates whether device can be unlocked
-  bool can_unlock;
-  // Device firmware supports 'critical' partition locking
-  bool has_critical_lock;
-  // Indicates whether device allows booting from image loaded directly from
-  // RAM.
-  bool can_ram_boot;
-} GblEfiFastbootPolicy;
 
 // Callback function pointer passed to GblEfiFastbootProtocol.get_var_all.
 //
@@ -50,28 +42,25 @@ typedef struct GblEfiFastbootPolicy {
 typedef void (*GetVarAllCallback)(void* context, const char* const* args,
                                   size_t num_args, const char* val);
 
-typedef enum EFI_FASTBOOT_MESSAGE_TYPE {
-  FB_OKAY,
-  FB_FAIL,
-  FB_INFO,
-} EfiFastbootMessageType;
+EFI_ENUM(GBL_GBL_EFI_FASTBOOT_MESSAGE_TYPE, GblEfiFastbootMessageType, uint32_t,
+         GBL_EFI_FASTBOOT_MESSAGE_TYPE_OKAY, GBL_EFI_FASTBOOT_MESSAGE_TYPE_FAIL,
+         GBL_EFI_FASTBOOT_MESSAGE_TYPE_INFO);
 
 typedef EfiStatus (*FastbootMessageSender)(void* context,
-                                           EfiFastbootMessageType msg_type,
+                                           GblEfiFastbootMessageType msg_type,
                                            const char* msg, size_t msg_len);
 
-typedef enum GBL_EFI_FASTBOOT_PARTITION_PERMISSION_FLAGS {
-  // Firmware can read the given partition and send its data to fastboot client.
-  GBL_EFI_FASTBOOT_PARTITION_READ = 0x1 << 0,
-  // Firmware can overwrite the given partition.
-  GBL_EFI_FASTBOOT_PARTITION_WRITE = 0x1 << 1,
-  // Firmware can erase the given partition.
-  GBL_EFI_FASTBOOT_PARTITION_ERASE = 0x1 << 2,
-} GblEfiFastbootPartitionPermissionFlags;
+static const uint64_t GBL_EFI_FASTBOOT_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(0, 1);
+
+EFI_ENUM(GBL_EFI_FASTBOOT_ERASE_ACTION, GblEfiFastbootEraseAction, uint32_t,
+         // Treats the partition as a physical on disk partition and erases it.
+         GBL_EFI_FASTBOOT_ERASE_ACTION_ERASE_AS_PHYSICAL_PARTITION,
+         // Ignores the partition.
+         GBL_EFI_FASTBOOT_ERASE_ACTION_NOOP);
 
 typedef struct GblEfiFastbootProtocol {
-  // Revision of the protocol supported.
-  uint32_t revision;
+  uint64_t revision;
   // Null-terminated UTF-8 encoded string
   char8_t serial_number[GBL_EFI_FASTBOOT_SERIAL_NUMBER_MAX_LEN_UTF8];
 
@@ -94,12 +83,21 @@ typedef struct GblEfiFastbootProtocol {
                           size_t* out_size, size_t* out_remain);
 
   // Device lock methods
-  EfiStatus (*get_policy)(struct GblEfiFastbootProtocol* self,
-                          GblEfiFastbootPolicy* policy);
   EfiStatus (*set_lock)(struct GblEfiFastbootProtocol* self, bool critical,
                         bool lock);
   EfiStatus (*get_lock)(struct GblEfiFastbootProtocol* self, bool critical,
                         bool* out_lock);
+
+  // Misc methods
+  EfiStatus (*vendor_erase)(struct GblEfiFastbootProtocol* self,
+                            const char8_t* part_name, size_t part_name_len,
+                            GblEfiFastbootEraseAction* action);
+  bool (*should_stop_in_fastboot)(struct GblEfiFastbootProtocol* self);
+  EfiStatus (*is_command_allowed)(struct GblEfiFastbootProtocol* self,
+                                  size_t num_args, const char* const* args,
+                                  size_t download_data_len,
+                                  uint8_t* download_data, bool* allowed,
+                                  size_t msg_buf_size, uint8_t* msg_buf);
 
   // Local session methods
   EfiStatus (*start_local_session)(struct GblEfiFastbootProtocol* self,
@@ -108,12 +106,6 @@ typedef struct GblEfiFastbootProtocol {
                                     void* ctx, uint8_t* buf, size_t* buf_size);
   EfiStatus (*close_local_session)(struct GblEfiFastbootProtocol* self,
                                    void* ctx);
-
-  // Misc methods
-  EfiStatus (*get_partition_permissions)(struct GblEfiFastbootProtocol* self,
-                                         const char8_t* part_name,
-                                         size_t part_name_len,
-                                         uint64_t* permissions);
-  EfiStatus (*wipe_user_data)(struct GblEfiFastbootProtocol* self);
-  bool (*should_stop_in_fastboot)(struct GblEfiFastbootProtocol* self);
 } GblEfiFastbootProtocol;
+
+#endif  // __GBL_EFI_FASTBOOT_PROTOCOL_H__

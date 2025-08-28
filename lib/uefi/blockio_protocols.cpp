@@ -35,11 +35,11 @@ EfiStatus read_blocks(EfiBlockIoProtocol *self, uint32_t media_id, uint64_t lba,
   auto dev = reinterpret_cast<bdev_t *>(interface->dev);
   if (lba >= dev->block_count) {
     printf("OOB read %s %llu %u\n", dev->name, lba, dev->block_count);
-    return END_OF_MEDIA;
+    return EFI_STATUS_END_OF_MEDIA;
   }
   if (interface->io_stack == nullptr) {
     printf("No IO stack allocted.\n");
-    return OUT_OF_RESOURCES;
+    return EFI_STATUS_OUT_OF_RESOURCES;
   }
 
   const size_t bytes_read =
@@ -47,25 +47,25 @@ EfiStatus read_blocks(EfiBlockIoProtocol *self, uint32_t media_id, uint64_t lba,
                       buffer_size / dev->block_size);
   if (bytes_read != buffer_size) {
     printf("Failed to read %ld bytes from %s\n", buffer_size, dev->name);
-    return DEVICE_ERROR;
+    return EFI_STATUS_DEVICE_ERROR;
   }
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiStatus write_blocks(EfiBlockIoProtocol *self, uint32_t media_id,
                        uint64_t lba, size_t buffer_size, const void *buffer) {
   printf("%s is called\n", __FUNCTION__);
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiStatus flush_blocks(EfiBlockIoProtocol *self) {
   printf("%s is called\n", __FUNCTION__);
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiStatus reset(EfiBlockIoProtocol *self, bool extended_verification) {
   printf("%s is called\n", __FUNCTION__);
-  return UNSUPPORTED;
+  return EFI_STATUS_UNSUPPORTED;
 }
 }  // namespace
 
@@ -73,12 +73,12 @@ EfiStatus open_block_device(EfiHandle handle, void **intf) {
   printf("%s(%p)\n", __FUNCTION__, handle);
   auto io_stack = get_io_stack();
   if (io_stack == nullptr) {
-    return OUT_OF_RESOURCES;
+    return EFI_STATUS_OUT_OF_RESOURCES;
   }
   const auto interface = reinterpret_cast<EfiBlockIoInterface *>(
       uefi_malloc(sizeof(EfiBlockIoInterface)));
   if (interface == nullptr) {
-    return OUT_OF_RESOURCES;
+    return EFI_STATUS_OUT_OF_RESOURCES;
   }
   memset(interface, 0, sizeof(EfiBlockIoInterface));
   auto dev = bio_open(reinterpret_cast<const char *>(handle));
@@ -93,7 +93,7 @@ EfiStatus open_block_device(EfiHandle handle, void **intf) {
   interface->media.last_block = dev->block_count - 1;
   interface->io_stack = reinterpret_cast<char *>(io_stack) + kIoStackSize;
   *intf = interface;
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiStatus list_block_devices(size_t *num_handles, EfiHandle **buf) {
@@ -112,5 +112,5 @@ EfiStatus list_block_devices(size_t *num_handles, EfiHandle **buf) {
   });
   *num_handles = i;
   *buf = reinterpret_cast<EfiHandle *>(devices);
-  return SUCCESS;
+  return EFI_STATUS_SUCCESS;
 }

@@ -123,8 +123,8 @@ int load_sections_and_execute(bdev_t *dev,
   fill(&boot_service, 0);
   setup_runtime_service_table(&runtime_service);
   setup_boot_service_table(&boot_service);
-  table.firmware_vendor = firmwareVendor;
-  table.runtime_service = &runtime_service;
+  table.firmware_vendor = reinterpret_cast<uint16_t *>(firmwareVendor);
+  table.runtime_services = &runtime_service;
   table.boot_services = &boot_service;
   table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
   table.header.revision = 2 << 16;
@@ -136,12 +136,12 @@ int load_sections_and_execute(bdev_t *dev,
   memset(table.configuration_table, 0, PAGE_SIZE);
   setup_configuration_table(&table);
   auto status = platform_setup_system_table(&table);
-  if (status != SUCCESS) {
+  if (status != EFI_STATUS_SUCCESS) {
     printf("platform_setup_system_table failed: %lu\n", status);
     return -static_cast<int>(status);
   }
   status = efi_initialize_system_table_pointer(&table);
-  if (status != SUCCESS) {
+  if (status != EFI_STATUS_SUCCESS) {
     printf("efi_initialize_system_table_pointer failed: %lu\n", status);
     return -static_cast<int>(status);
   }

@@ -23,16 +23,20 @@
  * terms apply by default.
  */
 
-#pragma once
+// This is a custom protocol introduced by GBL.
+// See gbl/docs/GBL_EFI_FASTBOOT_USB_PROTOCOL.md for details.
 
-#include <uefi/types.h>
+#ifndef __GBL_EFI_FASTBOOT_USB_H__
+#define __GBL_EFI_FASTBOOT_USB_H__
 
-#define GBL_EFI_FASTBOOT_TRANSPORT_PROTOCOL_REVISION 0x00000000
+#include "types.h"
 
-typedef enum GBL_EFI_FASTBOOT_RX_MODE {
-  SINGLE_PACKET = 0,
-  FIXED_LENGTH,
-} GblEfiFastbootRxMode;
+EFI_ENUM(GBL_EFI_FASTBOOT_RX_MODE, GblEfiFastbootRxMode, uint32_t,
+         GBL_EFI_FASTBOOT_RX_MODE_SINGLE_PACKET,
+         GBL_EFI_FASTBOOT_RX_MODE_FIXED_LENGTH);
+
+static const uint64_t GBL_EFI_FASTBOOT_TRANSPORT_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(0, 1);
 
 typedef struct GblEfiFastbootTransportProtocol {
   uint64_t revision;
@@ -46,3 +50,5 @@ typedef struct GblEfiFastbootTransportProtocol {
                     size_t* buffer_size, const void* buffer);
   EfiStatus (*flush)(struct GblEfiFastbootTransportProtocol* self);
 } GblEfiFastbootTransportProtocol;
+
+#endif  //__GBL_EFI_FASTBOOT_USB_H__

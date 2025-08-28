@@ -33,8 +33,8 @@ EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol *self, void *fdt,
                         size_t *buffer_size, uint32_t flags);
 
 EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol *self,
-                           const char *bootconfig, size_t size, char *fixup,
-                           size_t *fixup_buffer_size);
+                           const char8_t *bootconfig, size_t size,
+                           char8_t *fixup, size_t *fixup_buffer_size);
 
 EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol *self,
                               GblEfiVerifiedDeviceTree *device_trees,
@@ -49,7 +49,7 @@ EfiStatus get_timestamp_properties(EfiTimestampProperties *properties);
 
 // timeout unit is in seconds.
 EfiStatus set_watchdog_timer(size_t timeout, uint64_t watchdog_code,
-                             size_t data_size, char16_t* watchdog_data);
+                             size_t data_size, uint16_t* watchdog_data);
 
 // alloc_page/free_pages is implemented in memory_protocols.cpp
 void *alloc_page(void *addr, size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);

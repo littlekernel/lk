@@ -75,9 +75,9 @@ EfiStatus efi_get_variable(const char16_t *variable_name,
       *data_size = var->DataLen;
     if (attribute)
       *attribute = var->Attributes;
-    return SUCCESS;
+    return EFI_STATUS_SUCCESS;
   }
-  return NOT_FOUND;
+  return EFI_STATUS_NOT_FOUND;
 }
 
 void efi_set_variable(const char16_t *variable_name,

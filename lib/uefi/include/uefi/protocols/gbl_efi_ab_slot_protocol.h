@@ -23,42 +23,37 @@
  * terms apply by default.
  */
 
-#pragma once
+#ifndef __GBL_EFI_AB_SLOT_PROTOCOL_H__
+#define __GBL_EFI_AB_SLOT_PROTOCOL_H__
 
-#include <uefi/system_table.h>
-#include <uefi/types.h>
+#include <stdint.h>
 
-#define GBL_EFI_AB_SLOT_PROTOCOL_VERSION 0x00010000
+#include "system_table.h"
+#include "types.h"
 
-typedef enum GBL_EFI_SLOT_MERGE_STATUS {
-  GBL_EFI_SLOT_MERGE_STATUS_NONE = 0,
-  GBL_EFI_SLOT_MERGE_STATUS_UNKNOWN,
-  GBL_EFI_SLOT_MERGE_STATUS_SNAPSHOTTED,
-  GBL_EFI_SLOT_MERGE_STATUS_MERGING,
-  GBL_EFI_SLOT_MERGE_STATUS_CANCELLED,
-} GblEfiSlotMergeStatus;
+EFI_ENUM(GBL_EFI_SLOT_MERGE_STATUS, GblEfiSlotMergeStatus, uint8_t,
+         GBL_EFI_SLOT_MERGE_STATUS_NONE, GBL_EFI_SLOT_MERGE_STATUS_UNKNOWN,
+         GBL_EFI_SLOT_MERGE_STATUS_SNAPSHOTTED,
+         GBL_EFI_SLOT_MERGE_STATUS_MERGING,
+         GBL_EFI_SLOT_MERGE_STATUS_CANCELLED);
 
-typedef enum GBL_EFI_UNBOOTABLE_REASON {
-  GBL_EFI_UNKNOWN_REASON = 0,
-  GBL_EFI_NO_MORE_TRIES,
-  GBL_EFI_SYSTEM_UPDATE,
-  GBL_EFI_USER_REQUESTED,
-  GBL_EFI_VERIFICATION_FAILURE,
-} GblEfiUnbootableReason;
+EFI_ENUM(GBL_EFI_UNBOOTABLE_REASON, GblEfiUnbootableReason, uint8_t,
+         GBL_EFI_UNBOOTABLE_REASON_UNKNOWN_REASON,
+         GBL_EFI_UNBOOTABLE_REASON_NO_MORE_TRIES,
+         GBL_EFI_UNBOOTABLE_REASON_SYSTEM_UPDATE,
+         GBL_EFI_UNBOOTABLE_REASON_USER_REQUESTED,
+         GBL_EFI_UNBOOTABLE_REASON_VERIFICATION_FAILURE);
 
-typedef enum GBL_EFI_BOOT_MODE {
-  NORMAL = 0,
-  RECOVERY,
-  FASTBOOTD,
-  BOOTLOADER,
-} GblEfiBootMode;
+EFI_ENUM(GBL_EFI_BOOT_MODE, GblEfiBootMode, uint32_t, GBL_EFI_BOOT_MODE_NORMAL,
+         GBL_EFI_BOOT_MODE_RECOVERY, GBL_EFI_BOOT_MODE_FASTBOOTD,
+         GBL_EFI_BOOT_MODE_BOOTLOADER);
 
 typedef struct {
   // One UTF-8 encoded single character
   uint32_t suffix;
   // Any value other than those explicitly enumerated in EFI_UNBOOTABLE_REASON
   // will be interpreted as UNKNOWN_REASON.
-  uint32_t unbootable_reason;
+  GblEfiUnbootableReason unbootable_reason;
   uint8_t priority;
   uint8_t tries;
   // Value of 1 if slot has successfully booted.
@@ -70,13 +65,14 @@ typedef struct {
   uint8_t unbootable_metadata;
   uint8_t max_retries;
   uint8_t slot_count;
-  // See GblEFiSlotMergeStatus for enum values.
-  uint8_t merge_status;
+  GblEfiSlotMergeStatus merge_status;
 } GblEfiSlotMetadataBlock;
 
+static const uint64_t GBL_EFI_AB_SLOT_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(0, 1);
+
 typedef struct GblEfiABSlotProtocol {
-  // Currently must contain 0x00010000
-  uint32_t version;
+  uint64_t revision;
   // Slot metadata query methods
   EfiStatus (*load_boot_data)(struct GblEfiABSlotProtocol* self,
                               /* out */ GblEfiSlotMetadataBlock* metadata);
@@ -91,15 +87,18 @@ typedef struct GblEfiABSlotProtocol {
   // Slot metadata manipulation methods
   EfiStatus (*set_active_slot)(struct GblEfiABSlotProtocol* self,
                                /* in */ uint8_t index);
-  EfiStatus (*set_slot_unbootable)(struct GblEfiABSlotProtocol* self,
-                                   /* in */ uint8_t index,
-                                   /* in */ uint32_t unbootable_reason);
+  EfiStatus (*set_slot_unbootable)(
+      struct GblEfiABSlotProtocol* self,
+      /* in */ uint8_t index,
+      /* in */ GblEfiUnbootableReason unbootable_reason);
   EfiStatus (*reinitialize)(struct GblEfiABSlotProtocol* self);
   // Boot mode
   EfiStatus (*get_boot_mode)(struct GblEfiABSlotProtocol* self,
-                             /* out GblEfiBootMode */ uint32_t* mode);
+                             /* out */ GblEfiBootMode* mode);
   EfiStatus (*set_boot_mode)(struct GblEfiABSlotProtocol* self,
-                             /* in GblEfiBootMode */ uint32_t mode);
+                             /* in */ GblEfiBootMode mode);
   // Miscellaneous methods
   EfiStatus (*flush)(struct GblEfiABSlotProtocol* self);
 } GblEfiABSlotProtocol;
+
+#endif  // __GBL_EFI_AB_SLOT_PROTOCOL_H__
