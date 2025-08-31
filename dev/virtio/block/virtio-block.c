@@ -264,10 +264,10 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
 static enum handler_return virtio_block_irq_driver_callback(struct virtio_device *dev, uint ring, const struct vring_used_elem *e) {
     struct virtio_block_dev *bdev = (struct virtio_block_dev *)dev->priv;
 
-    
+
     struct virtio_block_txn *txn = &bdev->txns[e->id];
     LTRACEF("dev %p, ring %u, e %p, id %u, len %u, status %d\n", dev, ring, e, e->id, e->len, txn->status);
-    
+
     /* parse our descriptor chain, add back to the free queue */
     uint16_t i = e->id;
     for (;;) {
@@ -294,7 +294,7 @@ static enum handler_return virtio_block_irq_driver_callback(struct virtio_device
         // async
         ssize_t result =
         (txn->status == VIRTIO_BLK_S_OK) ? (ssize_t)txn->len : ERR_IO;
-        LTRACEF("calling callback %p with cookie %p, len %zu\n", txn->callback,
+        LTRACEF("calling callback %p with cookie %p, len %ld\n", txn->callback,
                 txn->cookie, result);
       txn->callback(txn->cookie, &bdev->bdev, result);
     }
@@ -337,7 +337,7 @@ static status_t virtio_block_do_txn(struct virtio_device *dev, void *buf,
     // XXX not cache safe.
     // At the moment only tested on arm qemu, which doesn't emulate cache.
 
-  /* set up the descriptor pointing to the head */
+    /* set up the descriptor pointing to the head */
 #if WITH_KERNEL_VM
     paddr_t req_phys = vaddr_to_paddr(&txn->req);
 #else
