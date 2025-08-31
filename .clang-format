@@ -1,0 +1,14 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+PointerAlignment: Right
+InsertBraces: true
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: Inline
+ColumnLimit: 0
+IndentCaseLabels: true
+IndentGotoLabels: false
+AlignConsecutiveMacros:
+  Enabled: true
