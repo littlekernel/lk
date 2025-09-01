@@ -52,19 +52,25 @@ ARM64_PAGE_SIZE ?= 4096
 # platform/target/project is allowed to override the page size the kernel
 # and user space will run at.
 ifeq ($(ARM64_PAGE_SIZE), 4096)
+# 48 bits of kernel and user address space (4 levels of page tables)
 KERNEL_ASPACE_BASE ?= 0xffff000000000000
 KERNEL_ASPACE_SIZE ?= 0x0001000000000000
 USER_ASPACE_BASE   ?= 0x0000000001000000
 USER_ASPACE_SIZE   ?= 0x0000fffffe000000
 else ifeq ($(ARM64_PAGE_SIZE), 16384)
+# 47 bits of kernel and user address space (3 levels of page tables)
 GLOBAL_DEFINES += ARM64_LARGE_PAGESIZE_16K=1
 KERNEL_ASPACE_BASE ?= 0xffff800000000000
 KERNEL_ASPACE_SIZE ?= 0x0000800000000000
 USER_ASPACE_BASE   ?= 0x0000000001000000
 USER_ASPACE_SIZE   ?= 0x00007ffffe000000
 else ifeq ($(ARM64_PAGE_SIZE), 65536)
+# 42 bits of kernel and user address space (2 levels of page tables)
 GLOBAL_DEFINES += ARM64_LARGE_PAGESIZE_64K=1
-$(error fix for 64k)
+KERNEL_ASPACE_BASE ?= 0xfffffc0000000000
+KERNEL_ASPACE_SIZE ?= 0x0000040000000000
+USER_ASPACE_BASE   ?= 0x0000000001000000
+USER_ASPACE_SIZE   ?= 0x000003fffe000000
 else
 $(error unsupported ARM64_PAGE_SIZE)
 endif

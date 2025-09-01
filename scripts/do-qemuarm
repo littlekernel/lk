@@ -105,7 +105,9 @@ if [ $DO_64BIT == 1 ]; then
     elif [ $DO_VIRT == 1 ]; then
         MACHINE+=",virtualization=on"
     fi
-    if [ $PAGE_SIZE == 16384 ]; then
+    if [ $PAGE_SIZE == 65536 ]; then
+        _PROJECT="qemu-virt-arm64-64k-test"
+    elif [ $PAGE_SIZE == 16384 ]; then
         _PROJECT="qemu-virt-arm64-16k-test"
     else
         _PROJECT="qemu-virt-arm64-test"
