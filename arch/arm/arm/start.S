@@ -8,6 +8,7 @@
 #include <lk/asm.h>
 #include <arch/arm/cores.h>
 #include <arch/arm/mmu.h>
+#include <arch/defines.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>

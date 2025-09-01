@@ -9,8 +9,14 @@
 #define __ARCH_CPU_H
 
 /* arm specific stuff */
-#define PAGE_SIZE 4096
 #define PAGE_SIZE_SHIFT 12
+#define PAGE_SIZE       (1U << PAGE_SIZE_SHIFT)
+
+#if ARCH_ARM_EMBEDDED
+#define ARCH_DEFAULT_STACK_SIZE 1024
+#else
+#define ARCH_DEFAULT_STACK_SIZE PAGE_SIZE
+#endif
 
 #if ARM_CPU_ARM7
 /* irrelevant, no consistent cache */
@@ -42,4 +48,3 @@
 #endif
 
 #endif
-

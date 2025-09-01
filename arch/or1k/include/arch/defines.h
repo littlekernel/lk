@@ -7,10 +7,10 @@
  */
 #pragma once
 
-#define PAGE_SIZE 8192
 #define PAGE_SIZE_SHIFT 13
+#define PAGE_SIZE       (1U << PAGE_SIZE_SHIFT)
 
 /* Cache line can be configured, but this is max */
 #define CACHE_LINE 32
 
-#define ARCH_DEFAULT_STACK_SIZE 8192
+#define ARCH_DEFAULT_STACK_SIZE PAGE_SIZE

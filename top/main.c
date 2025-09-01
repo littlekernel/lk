@@ -23,7 +23,6 @@
 #include <lk/debug.h>
 #include <lk/init.h>
 #include <platform.h>
-#include <string.h>
 #include <target.h>
 
 /* saved boot arguments from whoever loaded the system */
