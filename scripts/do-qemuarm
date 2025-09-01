@@ -22,8 +22,10 @@ esac
 
 function HELP {
     echo "help:"
+    echo "-p <project>      : specify the project to build (default qemu-virt-arm32-test, qemu-virt-arm64-test or lm3s6965evb-test)"
     echo "-6                : 64bit arm"
     echo "-3                : cortex-m3 based platform"
+    echo "-P <page size>    : set the page size (default: 4K)"
     echo "-v                : boot kernel at EL2"
     echo "-k                : use KVM or HVF acceleration if present (only on 64bit)"
     echo "-m <memory in MB>"
@@ -46,7 +48,7 @@ function HELP {
 DO_NET=0
 DO_NET_TAP=0
 DO_DISK=0
-DO_DISK_IMAGE=""
+DISK_IMAGE=""
 DO_64BIT=0
 DO_VIRT=0
 DO_CORTEX_M3=0
@@ -56,12 +58,13 @@ DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
 DO_V9P=0
 DO_V9P_DIR=""
+PAGE_SIZE=4096
 SMP=1
 MEMSIZE=512
 SUDO=""
 PROJECT=""
 
-while getopts cd:ghkm:Mnt36vp:s:f: FLAG; do
+while getopts cd:ghkm:Mnt36vp:P:s:f: FLAG; do
     case $FLAG in
         c) DO_CMPCTMALLOC=1;;
         d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
@@ -77,6 +80,7 @@ while getopts cd:ghkm:Mnt36vp:s:f: FLAG; do
         m) MEMSIZE=$OPTARG;;
         s) SMP=$OPTARG;;
         p) PROJECT=$OPTARG;;
+        P) PAGE_SIZE=$OPTARG;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -89,7 +93,7 @@ shift $((OPTIND-1))
 # pick the appropriate qemu and project
 if [ $DO_64BIT == 1 ]; then
     QEMU="qemu-system-aarch64"
-    CPU="cortex-a53"
+    CPU="cortex-a76"
     MACHINE="virt"
     if [ $DO_KVM == 1 ]; then
         CPU="host"
@@ -101,7 +105,11 @@ if [ $DO_64BIT == 1 ]; then
     elif [ $DO_VIRT == 1 ]; then
         MACHINE+=",virtualization=on"
     fi
-    _PROJECT="qemu-virt-arm64-test"
+    if [ $PAGE_SIZE == 16384 ]; then
+        _PROJECT="qemu-virt-arm64-16k-test"
+    else
+        _PROJECT="qemu-virt-arm64-test"
+    fi
 elif [ $DO_CORTEX_M3 == 1 ]; then
     QEMU="qemu-system-arm"
     CPU="cortex-m3"

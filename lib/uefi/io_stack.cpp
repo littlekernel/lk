@@ -18,6 +18,7 @@
 #include "io_stack.h"
 
 #include <kernel/vm.h>
+#include <stdio.h>
 
 void *get_io_stack() {
   static void *io_stack = nullptr;

@@ -51,7 +51,7 @@ SECTIONS
 	    __code_end = .;
     }
 
-    .rodata : ALIGN(4096) {
+    .rodata : ALIGN(CONSTANT(MAXPAGESIZE)) {
         __rodata_start = .;
         __fault_handler_table_start = .;
         KEEP(*(.rodata.fault_handler_table))
@@ -68,7 +68,7 @@ SECTIONS
         __rodata_end = .;
     }
 
-    .data : ALIGN(4096) {
+    .data : ALIGN(CONSTANT(MAXPAGESIZE)) {
         /* writable data  */
         __data_start_rom = .;
         /* in one segment binaries, the rom data address is on top of the ram data address */
@@ -99,7 +99,7 @@ SECTIONS
     }
 
     /* unintialized data (in same segment as writable data) */
-    .bss : ALIGN(4096) {
+    .bss : ALIGN(CONSTANT(MAXPAGESIZE)) {
         __bss_start = .;
         KEEP(*(.bss.prebss.*))
         . = ALIGN(8);
@@ -112,7 +112,7 @@ SECTIONS
     }
 
     /* Align the end to ensure anything after the kernel ends up on its own pages */
-    . = ALIGN(4096);
+    . = ALIGN(CONSTANT(MAXPAGESIZE));
     _end = .;
 
     . = %KERNEL_BASE% + %MEMSIZE%;

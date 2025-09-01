@@ -18,6 +18,7 @@
 #include <lk/main.h>
 #include <platform.h>
 #include <lk/trace.h>
+#include <assert.h>
 
 #define LOCAL_TRACE 0
 
