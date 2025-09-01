@@ -1,50 +1,66 @@
-### Getting Started Guide
+# Getting Started Guide
 
-#### Quick Start
+## Quick Start
 
-1- Create a work directory
-```
-mkdir -p lk-work && cd lk-work
-```
-2- Clone the repo and change dir to the root
-```
+This guide assumes the following simple layout where your workspace (for example `mylk`) is a sibling of the cloned `lk` repository and the fetched toolchains live under a `toolchain` directory in the same parent folder:
+
+~/lk-work/
+    lk/                # cloned littlekernel repository
+        toolchain/     # fetched toolchains (created by scripts/fetch-toolchains.py)
+    mylk/              # example user workspace (created below)
+
+1. Create a work directory and clone `lk`
+
+```bash
+mkdir -p ~/lk-work && cd ~/lk-work
 git clone https://github.com/littlekernel/lk
-cd lk
+```
 
-```
-3- Download appropriate toolchain
-```
+2. Download an appropriate toolchain (this will create a `toolchain/` directory under `lk-work/lk/`)
+
+```bash
 # Fetches the latest riscv64-elf toolchain for your host.
+cd lk
 scripts/fetch-toolchains.py --prefix riscv64-elf
 ```
-4- Add toolchain to PATH
+
+3. Add the toolchain `bin` directory to your PATH. Replace the example below with the actual toolchain folder you have downloaded.
+
+```bash
+export PATH=~/lk-work/lk/toolchain/riscv64-elf-15.1.0-Linux-x86_64/bin:$PATH
 ```
-export PATH=$PWD/toolchain/riscv64-elf-15.1.0-Linux-x86_64/bin:$PATH
-```
-5- Find available project
-```
+
+4. Find available projects
+
+```bash
 ls project/*
 ```
-6- E.g pick `qemu-virt-riscv64-test` and build kernel
-```
+
+5. For example pick `qemu-virt-riscv64-test` and build the kernel
+
+```bash
 make qemu-virt-riscv64-test
 ```
-7- Test kernel with Qemu by using prepared script
-```
+
+6. Test the kernel with Qemu using the provided script
+
+```bash
 scripts/do-qemuriscv -6S
 ```
 
-#### Build A Hello App
-Continue from Quick Start's 3.step
+## Build A Hello App
+Continue from Quick Start's steps above. Create your workspace as a sibling of the cloned `lk` repository and enter it (note the `cd ..` to move to the parent of `lk`):
 
-4- Create your workspace and enter in it
-```
+```bash
+cd ..   # make sure you're in the parent directory that contains the cloned `lk`
 mkdir -p mylk/{project,app} && cd mylk
 ```
-5- Configure your main makefile; set your toolchain path and point up your lk main path correctly
-```
-cat << EOF > makefile
-export PATH := /home/myuser/lk-work/toolchain/riscv64-elf-14.2.0-Linux-x86_64/bin:$(PATH)
+
+1. Configure your main makefile; set your toolchain path and point `LKROOT` to the cloned `lk` repository. Replace the PATH example with the actual toolchain path on your system.
+
+```bash
+cat << 'EOF' > makefile
+export PATH := /path/to/your/toolchain/bin:$(PATH)  # e.g. ~/lk-work/toolchain/riscv64-elf-14.2.0-Linux-x86_64/bin
 -include lk_inc.mk
 LOCAL_DIR := .
 LKMAKEROOT := .
@@ -76,17 +92,19 @@ $(MAKECMDGOALS): _top
 .PHONY: _top
 EOF
 ```
-6- Copy an exisiting project as your new project
-```
+2. Copy an existing project as your new project
+
+```bash
 cp ../lk/project/qemu-virt-riscv64-test.mk project/project1.mk
 ```
-7- Create a new hello app under app directory
-```
+
+3. Create a new hello app under the `app` directory
+
+```bash
 mkdir app/hello
 ```
-```
-cat << EOF > app/hello/hello.c
-production:
+```c
+cat << 'EOF' > app/hello/hello.c
 #include <stdio.h>
 #include <string.h>
 #include <malloc.h>
@@ -107,8 +125,8 @@ APP_START(hello)
 APP_END
 EOF
 ```
-```
-cat << EOF > app/hello/rules.mk
+```makefile
+cat << 'EOF' > app/hello/rules.mk
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
@@ -118,44 +136,50 @@ MODULE_SRCS += $(LOCAL_DIR)/hello.c
 include make/module.mk
 EOF
 ```
-8- Add below line to project's makefile (project/project1.mk), your project will build also your app:
-```
-MODULES +=  app/hello
+
+4. Add the following line to your project's makefile (`project/project1.mk`) so the project builds your app as well:
+
+```makefile
+MODULES += app/hello
 ```
 
-9- Check your directories structure
-```
+5. Check your directory structure
+
+```bash
 # mylk
 tree
 .
 ├── app
-│   └── hello
-│       ├── hello.c
-│       └── rules.mk
+│   └── hello
+│       ├── hello.c
+│       └── rules.mk
 ├── makefile
 └── project
-    └── project1.mk
-```
-```
+        └── project1.mk
+
 # lk-work
 tree ../ -d -L 1
 ../.
 ├── lk
-├── mylk
-└── toolchain/riscv64-elf-14.2.0-Linux-x86_64
+└── mylk
 
 ```
-10- Build your project
-```
+
+6. Build your project
+
+```bash
 make project1
 ```
 
-11- Run your kernel with Qemu
-```
+7. Run your kernel with Qemu
+
+```bash
 qemu-system-riscv64 -machine virt -cpu rv64 -m 48 -smp 1 -bios none -nographic -kernel build-project1/lk.elf
 ```
-You will see this output
-```
+
+You will see output similar to:
+
+```text
 FDT: found memory arena, base 0x80000000 size 0x3000000
 FDT: found 1 cpus
 
@@ -191,22 +215,24 @@ PCIE: initializing pcie with ecam at 0x30000000 found in FDT
 PCI: pci ecam functions installed
 PCI: last pci bus is 255
 PCI dump:
-  bus 0
-   dev 0000:00:00.0 vid:pid 1b36:0008 base:sub:intr 6:0:0
+    bus 0
+     dev 0000:00:00.0 vid:pid 1b36:0008 base:sub:intr 6:0:0
 PCI dump post assign:
-  bus 0
-   dev 0000:00:00.0 vid:pid 1b36:0008 base:sub:intr 6:0:0
+    bus 0
+     dev 0000:00:00.0 vid:pid 1b36:0008 base:sub:intr 6:0:0
 initializing target
 initializing apps
 starting app inetsrv
 starting internet servers
 starting app shell
 entering main console loop
-]
 ```
-12- Test your hello application
-```
+
+8. Test your hello application
+
+```bash
 ] hello
 hello world
 
 ```
+
