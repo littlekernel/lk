@@ -18,17 +18,20 @@
 #include "uefi_platform.h"
 
 #include <arch/arm64.h>
+#include <lib/bio.h>
 #include <lib/watchdog.h>
 #include <libfdt.h>
 #include <lk/err.h>
 #include <lk/trace.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <uefi/protocols/erase_block_protocol.h>
 #include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/types.h>
 
 #include "defer.h"
+#include "memory_protocols.h"
 
 #define LOCAL_TRACE 0
 
@@ -181,6 +184,39 @@ template <typename T> T clamp(T n, T lower, T upper) {
   return n;
 }
 
+struct EfiEraseBlockInterface {
+  EfiEraseBlockProtocol protocol;
+  bdev_t* dev;
+};
+
+EfiStatus erase_blocks(EfiEraseBlockProtocol* self, uint32_t media_id,
+                       uint64_t lba, EfiEraseBlockToken* token, size_t size) {
+  LTRACEF("media_id=%d, lba=0x%llx, token=%p, size=0x%zx\n", media_id, lba,
+          token, size);
+  bdev_t* dev = reinterpret_cast<EfiEraseBlockInterface*>(self)->dev;
+  if (dev == NULL) {
+    LTRACEF("block dev is NULL\n");
+    return EFI_STATUS_NO_MEDIA;
+  }
+  if (token->event != nullptr) {
+    // TODO: Implement async IO
+    LTRACEF("async erase not supported, token->event=%p\n", token->event);
+    return EFI_STATUS_DEVICE_ERROR;
+  }
+
+  if (lba >= dev->block_count) {
+    LTRACEF("OOB erase lba=%llu block_count=%u\n", lba, dev->block_count);
+    return EFI_STATUS_INVALID_PARAMETER;
+  }
+
+  ssize_t ret = bio_erase(dev, lba * dev->block_size, size);
+  if (ret < 0) {
+    LTRACEF("bio_erase failed ret=%zd\n", ret);
+    return EFI_STATUS_DEVICE_ERROR;
+  }
+  return EFI_STATUS_SUCCESS;
+}
+
 } // namespace
 
 __WEAK EfiStatus get_buffer(struct GblEfiImageLoadingProtocol *self,
@@ -202,5 +238,25 @@ __WEAK EfiStatus get_buffer(struct GblEfiImageLoadingProtocol *self,
   }
 
   Buffer->SizeBytes = buffer_size;
+  return EFI_STATUS_SUCCESS;
+}
+
+__WEAK
+EfiStatus open_efi_erase_block_protocol(const EfiHandle handle, void** intf) {
+  auto* device_name = static_cast<const char*>(handle);
+  LTRACEF("handle=%p (%s)\n", handle, device_name);
+  auto* p = reinterpret_cast<EfiEraseBlockInterface*>(
+      uefi_malloc(sizeof(EfiEraseBlockInterface)));
+  if (p == nullptr) {
+    return EFI_STATUS_OUT_OF_RESOURCES;
+  }
+  memset(p, 0, sizeof(*p));
+  p->dev = bio_open(device_name);
+  p->protocol = {
+    .revision = EFI_ERASE_BLOCK_PROTOCOL_REVISION,
+    .erase_length_granularity = 1,  // Erase block size == 1 filesystem block
+    .erase_blocks = erase_blocks,
+  };
+  *intf = p;
   return EFI_STATUS_SUCCESS;
 }

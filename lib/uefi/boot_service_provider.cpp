@@ -259,6 +259,11 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
     ts->get_properties = get_timestamp_properties;
     *intf = reinterpret_cast<void *>(ts);
     return EFI_STATUS_SUCCESS;
+  } else if (guid_eq(protocol, EFI_ERASE_BLOCK_PROTOCOL_GUID)) {
+    printf("%s(EFI_ERASE_BLOCK_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
+           "controller_handle=%p, attr=0x%x)\n",
+           __FUNCTION__, handle, agent_handle, controller_handle, attr);
+    return open_efi_erase_block_protocol(handle, intf);
   }
   printf("%s is unsupported 0x%x 0x%x 0x%x 0x%llx\n", __FUNCTION__,
          protocol->data1, protocol->data2, protocol->data3,
