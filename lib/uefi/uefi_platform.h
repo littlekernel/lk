@@ -75,4 +75,6 @@ void setup_heap();
 // Caled by LK once after executing UEFI application to tear down the heap
 void reset_heap();
 
+EfiStatus open_efi_erase_block_protocol(const EfiHandle handle, void** intf);
+
 #endif
