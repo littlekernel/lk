@@ -285,6 +285,7 @@ static constexpr size_t EFI_IMAGE_REL_BASED_HIGHADJ = 4;
 static constexpr size_t EFI_IMAGE_REL_BASED_MIPS_JMPADDR = 5;
 static constexpr size_t EFI_IMAGE_REL_BASED_ARM_MOV32A = 5;
 static constexpr size_t EFI_IMAGE_REL_BASED_ARM_MOV32T = 7;
+static constexpr size_t EFI_IMAGE_REL_BASED_LOONGARCH64_MARK_LA = 8;
 static constexpr size_t EFI_IMAGE_REL_BASED_IA64_IMM64 = 9;
 static constexpr size_t EFI_IMAGE_REL_BASED_MIPS_JMPADDR16 = 9;
 static constexpr size_t EFI_IMAGE_REL_BASED_DIR64 = 10;
