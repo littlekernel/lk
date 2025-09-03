@@ -22,29 +22,20 @@
 #include <string.h>
 #include <uefi/types.h>
 
+#include "charset.h"
 #include "variable_mem.h"
 
 namespace {
 
-constexpr auto &&kSecureBoot = "SecureBoot";
+EFI_STATUS GetVariable(const uint16_t *VariableName, const EfiGuid *VendorGuid,
+                       uint32_t *Attributes, size_t *DataSize, void *Data) {
 
-EfiStatus GetVariable(const uint16_t* VariableName, const EfiGuid* VendorGuid,
-                      uint32_t* Attributes, size_t* DataSize, void* Data) {
   if (!VariableName || !VendorGuid || !DataSize) {
     return EFI_STATUS_INVALID_PARAMETER;
   }
 
-  char buffer[512];
-  size_t i = 0;
-  while (VariableName[i] && i < sizeof(buffer)) {
-    size_t j = 0;
-    for (j = 0; j < sizeof(buffer) - 1 && VariableName[i + j]; j++) {
-      buffer[j] = VariableName[i + j];
-    }
-    i += j;
-  }
-  buffer[i] = 0;
-  if (strncmp(buffer, kSecureBoot, sizeof(kSecureBoot)) == 0 || strcmp(buffer, "SetupMode") == 0) {
+  if (utf16_strcmp(VariableName, u"SecureBoot") == 0 &&
+      utf16_strcmp(VariableName, u"SetupMode") == 0) {
     if (DataSize) {
       *DataSize = 1;
     }
@@ -56,7 +47,9 @@ EfiStatus GetVariable(const uint16_t* VariableName, const EfiGuid* VendorGuid,
 
   char *data_in_mem;
   size_t data_in_mem_size;
-  if (efi_get_variable(reinterpret_cast<const char16_t *>(VariableName), VendorGuid, Attributes, &data_in_mem, &data_in_mem_size) == EFI_STATUS_SUCCESS) {
+  if (efi_get_variable(reinterpret_cast<const char16_t *>(VariableName),
+                       VendorGuid, Attributes, &data_in_mem,
+                       &data_in_mem_size) == EFI_STATUS_SUCCESS) {
     if (*DataSize == 0 && !Data) {
       *DataSize = data_in_mem_size;
       return EFI_STATUS_BUFFER_TOO_SMALL;
@@ -68,6 +61,9 @@ EfiStatus GetVariable(const uint16_t* VariableName, const EfiGuid* VendorGuid,
     memcpy(Data, data_in_mem, data_in_mem_size);
     return EFI_STATUS_SUCCESS;
   }
+  char buffer[512];
+  utf16_to_utf8(buffer, reinterpret_cast<const char16_t *>(VariableName),
+                sizeof(buffer));
 
   printf("%s(%s) is unsupported\n", __FUNCTION__, buffer);
   return EFI_STATUS_UNSUPPORTED;
@@ -89,25 +85,22 @@ EfiStatus SetVariable(const uint16_t* VariableName, const EfiGuid* VendorGuid,
   /* Only allow setting non-volatile variables */
   if ((Attributes & EFI_VARIABLE_NON_VOLATILE) == 0) {
     efi_set_variable(reinterpret_cast<const char16_t *>(VariableName),
-                     VendorGuid,
-                     Attributes,
-                     reinterpret_cast<const char *>(Data),
-                     DataSize);
+                     VendorGuid, Attributes,
+                     reinterpret_cast<const char *>(Data), DataSize);
     return EFI_STATUS_SUCCESS;
   }
 
   printf("%s: Only non-volatile is supported. Attributes = 0x%x\n",
-         __FUNCTION__,
-         Attributes);
+         __FUNCTION__, Attributes);
   return EFI_STATUS_UNSUPPORTED;
 }
 
-void ResetSystem(EfiResetType ResetType, EfiStatus ResetStatus, size_t DataSize,
-                 void* ResetData) {
+void ResetSystem(EFI_RESET_TYPE ResetType, EFI_STATUS ResetStatus,
+                 size_t DataSize, void *ResetData) {
   platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
 }
 
-}  // namespace
+} // namespace
 
 void setup_runtime_service_table(EfiRuntimeService *service) {
   service->get_variable = GetVariable;
