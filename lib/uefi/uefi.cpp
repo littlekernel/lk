@@ -44,6 +44,7 @@
 #include "runtime_service_provider.h"
 #include "switch_stack.h"
 #include "text_protocol.h"
+#include "uefi/types.h"
 #include "uefi_platform.h"
 #include "variable_mem.h"
 
@@ -130,7 +131,7 @@ int load_sections_and_execute(ImageReader *reader,
   }
   for (size_t i = 0; i < sections; i++) {
     if (section_header[i].NumberOfRelocations != 0) {
-      printf("Section %s requires relocation, which is not supported.\n",
+      printf("Section %.8s requires relocation, which is not supported.\n",
              section_header[i].Name);
       return ERR_NOT_SUPPORTED;
     }
@@ -153,8 +154,8 @@ int load_sections_and_execute(ImageReader *reader,
   DEFER { free_pages(image_base, virtual_size / PAGE_SIZE); };
   ssize_t bytes_read =
       reader->read(image_base, 0, section_header[0].PointerToRawData);
-  if (bytes_read != section_header[0].SizeOfRawData) {
-    printf("Failed to read section %s\n", section_header[0].Name);
+  if (bytes_read != static_cast<ssize_t>(section_header[0].PointerToRawData)) {
+    printf("Failed to read PE headers before first section\n");
     return ERR_IO;
   }
 
@@ -163,7 +164,7 @@ int load_sections_and_execute(ImageReader *reader,
     bytes_read = reader->read(image_base + section.VirtualAddress,
                              section.PointerToRawData, section.SizeOfRawData);
     if (bytes_read != section.SizeOfRawData) {
-      printf("Failed to read section %s %zu\n", section.Name, bytes_read);
+      printf("Failed to read section %.8s %zd\n", section.Name, bytes_read);
       return ERR_IO;
     }
   }
@@ -183,7 +184,7 @@ int load_sections_and_execute(ImageReader *reader,
   fill(&boot_service, 0);
   setup_runtime_service_table(&runtime_service);
   setup_boot_service_table(&boot_service);
-  table.firmware_vendor = reinterpret_cast<const char16_t *>(firmwareVendor);
+  table.firmware_vendor = reinterpret_cast<const EfiChar16*>(firmwareVendor);
   table.runtime_services = &runtime_service;
   table.boot_services = &boot_service;
   table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
@@ -208,6 +209,7 @@ int load_sections_and_execute(ImageReader *reader,
   }
   char path[FS_MAX_PATH_LEN];
   reader->get_name(path, sizeof(path));
+  path[sizeof(path) - 1] = '\0';
   setup_debug_support(table, image_base, virtual_size, path);
 
   constexpr size_t kStackSize = 1 * 1024ul * 1024;
@@ -276,10 +278,12 @@ int load_pe_file(ImageReader *reader) {
   }
   DEFER { free(address); };
   ssize_t err = reader->read(reinterpret_cast<char *>(address), 0, kBlocKSize);
-  t = current_time() - t;
+  // Prevent divide by 0 errors
+  t = MAX(current_time() - t, 1);
   if (err < 0) {
     char name[128];
     reader->get_name(name, sizeof(name));
+    name[sizeof(name) - 1] = '\0';
     printf("error reading PE header from %s: %zd\n", name, err);
     return ERR_IO;
   }
@@ -306,6 +310,7 @@ int load_pe_file(ImageReader *reader) {
   if (file_header->Machine != ArchitectureType::ARM64) {
     printf("Unsupported PE header machine type: %x\n",
            static_cast<int>(file_header->Machine));
+    return ERR_NOT_SUPPORTED;
   }
   if (file_header->SizeOfOptionalHeader > sizeof(IMAGE_OPTIONAL_HEADER64) ||
       file_header->SizeOfOptionalHeader <
