@@ -22,11 +22,10 @@
 #include <string.h>
 #include <uefi/types.h>
 
+#include "charset.h"
 #include "variable_mem.h"
 
 namespace {
-
-constexpr auto &&kSecureBoot = "SecureBoot";
 
 EFI_STATUS GetVariable(char16_t *VariableName, EfiGuid *VendorGuid,
                        uint32_t *Attributes, size_t *DataSize, void *Data) {
@@ -36,16 +35,8 @@ EFI_STATUS GetVariable(char16_t *VariableName, EfiGuid *VendorGuid,
   }
 
   char buffer[512];
-  size_t i = 0;
-  while (VariableName[i] && i < sizeof(buffer)) {
-    size_t j = 0;
-    for (j = 0; j < sizeof(buffer) - 1 && VariableName[i + j]; j++) {
-      buffer[j] = VariableName[i + j];
-    }
-    i += j;
-  }
-  buffer[i] = 0;
-  if (strncmp(buffer, kSecureBoot, sizeof(kSecureBoot)) == 0 || strcmp(buffer, "SetupMode") == 0) {
+  utf16_to_utf8(buffer, VariableName, sizeof(buffer));
+  if (utf16_strcmp(VariableName, u"SecureBoot") == 0 && utf16_strcmp(VariableName, u"SetupMode") == 0) {
     if (DataSize) {
       *DataSize = 1;
     }

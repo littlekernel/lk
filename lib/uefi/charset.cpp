@@ -46,14 +46,14 @@ int utf16_strcmp(const char16_t *s1, const char16_t *s2) {
  * This function converts utf-8 string to utf-16 string. However
  * it only supports us-ascii input right now.
  */
-int utf8_to_utf16(char16_t *dest, const char *src, size_t size) {
+size_t utf8_to_utf16(char16_t *dest, const char *src, size_t size) {
   size_t i = 0;
   for (; i < size - 1 && *src; i++, src++) {
     dest[i] = *src;
   }
 
   dest[i] = 0;
-  return 0;
+  return i;
 }
 
 /**
@@ -62,12 +62,12 @@ int utf8_to_utf16(char16_t *dest, const char *src, size_t size) {
  * This function converts utf-16 string to utf-8 string. However
  * it only supports us-ascii output right now.
  */
-int utf16_to_utf8(char *dest, const char16_t *src, size_t size) {
+size_t utf16_to_utf8(char *dest, const char16_t *src, size_t size) {
   size_t i = 0;
   for (; i < size - 1 && *src; i++, src++) {
     dest[i] = *src;
   }
 
   dest[i] = 0;
-  return 0;
+  return i;
 }

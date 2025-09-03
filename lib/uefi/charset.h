@@ -22,7 +22,8 @@
 
 size_t utf16_strlen(const char16_t *str);
 int utf16_strcmp(const char16_t *s1, const char16_t *s2);
-int utf8_to_utf16(char16_t *dest, const char *src, size_t size);
-int utf16_to_utf8(char *dest, const char16_t *src, size_t size);
+// Return number of characters converted, including the null terminator
+size_t utf8_to_utf16(char16_t *dest, const char *src, size_t size);
+size_t utf16_to_utf8(char *dest, const char16_t *src, size_t size);
 
 #endif
