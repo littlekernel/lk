@@ -4,7 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += $(LOCAL_DIR)/spifs.c
 
-ifeq ($(call TOBOOL,WITH_TESTS),true)
+ifeq ($(call TOBOOL,$(WITH_TESTS)),true)
 MODULE_DEPS += $(LOCAL_DIR)/test
 endif
 

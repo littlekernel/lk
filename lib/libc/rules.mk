@@ -28,7 +28,7 @@ MODULE_COMPILEFLAGS += -fno-builtin
 
 MODULE_OPTIONS := extra_warnings
 
-ifeq ($(call TOBOOL,WITH_TESTS),true)
+ifeq ($(call TOBOOL,$(WITH_TESTS)),true)
 MODULE_DEPS += $(LOCAL_DIR)/test
 endif
 

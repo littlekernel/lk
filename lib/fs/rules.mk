@@ -6,7 +6,7 @@ MODULE_SRCS += $(LOCAL_DIR)/debug.c
 MODULE_SRCS += $(LOCAL_DIR)/fs.c
 MODULE_SRCS += $(LOCAL_DIR)/shell.c
 
-ifeq ($(call TOBOOL,WITH_TESTS),true)
+ifeq ($(call TOBOOL,$(WITH_TESTS)),true)
 MODULE_DEPS += $(LOCAL_DIR)/test
 endif
 
