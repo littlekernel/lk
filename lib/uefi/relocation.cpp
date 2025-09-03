@@ -77,24 +77,23 @@ int relocate_image(char *image) {
       case EFI_IMAGE_REL_BASED_LOONGARCH64_MARK_LA: {
         // The next four instructions are used to load a 64 bit address,
         // relocate all of them
+        if (reinterpret_cast<char *>(Fixup32) + 4 * sizeof(uint32_t) > image + optional_header->SizeOfImage) {
+          printf("Relocation out of bounds\n");
+          return -1;
+        }
+
         uint64_t Value =
-            (*Fixup32 & 0x1ffffe0) << 7 |           // lu12i.w 20bits from bit5
+            (*(Fixup32 + 0) & 0x1ffffe0) << 7 |           // lu12i.w 20bits from bit5
             (*(Fixup32 + 1) & 0x3ffc00) >> 10;      // ori     12bits from bit10
         uint64_t Tmp1 = *(Fixup32 + 2) & 0x1ffffe0; // lu32i.d 20bits from bit5
         uint64_t Tmp2 = *(Fixup32 + 3) & 0x3ffc00;  // lu52i.d 12bits from bit10
         Value = Value | (Tmp1 << 27) | (Tmp2 << 42);
         Value += Adjust;
 
-        *Fixup32 = (*Fixup32 & ~0x1ffffe0) | (((Value >> 12) & 0xfffff) << 5);
-
-        Fixup += sizeof(uint32_t);
-        *Fixup32 = (*Fixup32 & ~0x3ffc00) | ((Value & 0xfff) << 10);
-
-        Fixup += sizeof(uint32_t);
-        *Fixup32 = (*Fixup32 & ~0x1ffffe0) | (((Value >> 32) & 0xfffff) << 5);
-
-        Fixup += sizeof(uint32_t);
-        *Fixup32 = (*Fixup32 & ~0x3ffc00) | (((Value >> 52) & 0xfff) << 10);
+        *(Fixup32 + 0) = (*(Fixup32 + 0) & ~0x1ffffe0) | (((Value >> 12) & 0xfffff) << 5);
+        *(Fixup32 + 1) = (*(Fixup32 + 1) & ~0x3ffc00) | ((Value & 0xfff) << 10);
+        *(Fixup32 + 2) = (*(Fixup32 + 2) & ~0x1ffffe0) | (((Value >> 32) & 0xfffff) << 5);
+        *(Fixup32 + 3) = (*(Fixup32 + 3) & ~0x3ffc00) | (((Value >> 52) & 0xfff) << 10);
         break;
       }
       default:
