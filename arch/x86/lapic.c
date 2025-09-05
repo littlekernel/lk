@@ -285,8 +285,19 @@ static void lapic_init_percpu(uint level) {
     register_int_handler_msi(LAPIC_INT_GENERIC, &lapic_generic_handler, NULL, false);
     register_int_handler_msi(LAPIC_INT_RESCHEDULE, &lapic_reschedule_handler, NULL, false);
 }
-
 LK_INIT_HOOK_FLAGS(lapic_init_percpu, lapic_init_percpu, LK_INIT_LEVEL_VM, LK_INIT_FLAG_SECONDARY_CPUS);
+
+uint32_t lapic_get_id_from_hardware(void) {
+    if (!lapic_present) {
+        return 0;
+    }
+
+    if (lapic_x2apic) {
+        return (uint32_t)read_msr(0x802);
+    } else {
+        return lapic_read(LAPIC_ID) >> 24;
+    }
+}
 
 static uint32_t lapic_read_current_tick(void) {
     if (!lapic_present) {
