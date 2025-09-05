@@ -34,7 +34,12 @@
 struct EfiEventImpl;
 
 typedef void* EfiHandle;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++20-compat"
+#if __cplusplus < 202002L
 typedef uint8_t char8_t;
+#endif
+#pragma GCC diagnostic pop
 typedef EfiEventImpl* EfiEvent;
 typedef uint64_t EfiPhysicalAddr;
 typedef uint64_t EfiVirtualAddr;
