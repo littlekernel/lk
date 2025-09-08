@@ -8,8 +8,8 @@
 #include "bootinfo.h"
 
 #include <lk/compiler.h>
-#include <lk/trace.h>
 #include <lk/debug.h>
+#include <lk/trace.h>
 #include <stdio.h>
 
 #define LOCAL_TRACE 0
@@ -18,22 +18,38 @@ extern uint8_t __bss_end;
 
 static const char *bootinfo_tag_to_string(enum BOOTINFO_TAGS tag) {
     switch (tag) {
-        case BOOTINFO_TAG_END: return "END";
-        case BOOTINFO_TAG_MACHTYPE: return "MACHTYPE";
-        case BOOTINFO_TAG_CPUTYPE: return "CPUTYPE";
-        case BOOTINFO_TAG_FPUTYPE: return "FPUTYPE";
-        case BOOTINFO_TAG_MMUTYPE: return "MMUTYPE";
-        case BOOTINFO_TAG_MEMCHUNK: return "MEMCHUNK";
-        case BOOTINFO_TAG_RAMDISK: return "RAMDISK";
-        case BOOTINFO_TAG_COMMAND_LINE: return "COMMAND_LINE";
-        case BOOTINFO_TAG_RNG_SEED: return "RNG_SEED";
-        case BOOTINFO_TAG_VIRT_QEMU_VERSION: return "VIRT_QEMU_VERSION";
-        case BOOTINFO_TAG_VIRT_GF_PIC_BASE: return "VIRT_GF_PIC_BASE";
-        case BOOTINFO_TAG_VIRT_GF_RTC_BASE: return "VIRT_GF_RTC_BASE";
-        case BOOTINFO_TAG_VIRT_GF_TTY_BASE: return "VIRT_GF_TTY_BASE";
-        case BOOTINFO_TAG_VIRT_VIRTIO_BASE: return "VIRT_VIRTIO_BASE";
-        case BOOTINFO_TAG_VIRT_CTRL_BASE: return "VIRT_CTRL_BASE";
-        default: return "UNKNOWN";
+        case BOOTINFO_TAG_END:
+            return "END";
+        case BOOTINFO_TAG_MACHTYPE:
+            return "MACHTYPE";
+        case BOOTINFO_TAG_CPUTYPE:
+            return "CPUTYPE";
+        case BOOTINFO_TAG_FPUTYPE:
+            return "FPUTYPE";
+        case BOOTINFO_TAG_MMUTYPE:
+            return "MMUTYPE";
+        case BOOTINFO_TAG_MEMCHUNK:
+            return "MEMCHUNK";
+        case BOOTINFO_TAG_RAMDISK:
+            return "RAMDISK";
+        case BOOTINFO_TAG_COMMAND_LINE:
+            return "COMMAND_LINE";
+        case BOOTINFO_TAG_RNG_SEED:
+            return "RNG_SEED";
+        case BOOTINFO_TAG_VIRT_QEMU_VERSION:
+            return "VIRT_QEMU_VERSION";
+        case BOOTINFO_TAG_VIRT_GF_PIC_BASE:
+            return "VIRT_GF_PIC_BASE";
+        case BOOTINFO_TAG_VIRT_GF_RTC_BASE:
+            return "VIRT_GF_RTC_BASE";
+        case BOOTINFO_TAG_VIRT_GF_TTY_BASE:
+            return "VIRT_GF_TTY_BASE";
+        case BOOTINFO_TAG_VIRT_VIRTIO_BASE:
+            return "VIRT_VIRTIO_BASE";
+        case BOOTINFO_TAG_VIRT_CTRL_BASE:
+            return "VIRT_CTRL_BASE";
+        default:
+            return "UNKNOWN";
     }
 }
 
@@ -88,4 +104,3 @@ const void *bootinfo_find_record(uint16_t id, uint16_t *size_out) {
         ptr += item->size;
     }
 }
-

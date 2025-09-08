@@ -8,13 +8,13 @@
 #include "platform_p.h"
 
 #include <assert.h>
-#include <lk/bits.h>
-#include <lk/err.h>
-#include <lk/debug.h>
-#include <lk/reg.h>
-#include <lk/trace.h>
 #include <kernel/debug.h>
 #include <kernel/thread.h>
+#include <lk/bits.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
 #include <platform/interrupts.h>
 #include <platform/virt.h>
 
@@ -24,14 +24,14 @@
 // https://github.com/qemu/qemu/blob/master/hw/intc/goldfish_pic.c
 
 enum {
-    REG_STATUS          = 0x00,
-    REG_IRQ_PENDING     = 0x04,
+    REG_STATUS = 0x00,
+    REG_IRQ_PENDING = 0x04,
     REG_IRQ_DISABLE_ALL = 0x08,
-    REG_DISABLE         = 0x0c,
-    REG_ENABLE          = 0x10,
+    REG_DISABLE = 0x0c,
+    REG_ENABLE = 0x10,
 };
 
-volatile uint32_t * const goldfish_pic_base = (void *)VIRT_GF_PIC_MMIO_BASE;
+volatile uint32_t *const goldfish_pic_base = (void *)VIRT_GF_PIC_MMIO_BASE;
 
 static struct int_handlers {
     int_handler handler;
@@ -128,4 +128,3 @@ enum handler_return m68k_platform_irq(uint8_t m68k_irq) {
 
     return ret;
 }
-

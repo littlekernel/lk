@@ -5,41 +5,45 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <kernel/thread.h>
+#include <lib/cbuf.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <lib/cbuf.h>
-#include <kernel/thread.h>
 #include <platform.h>
-#include <platform/interrupts.h>
 #include <platform/debug.h>
+#include <platform/interrupts.h>
 #include <platform/virt.h>
 #include <sys/types.h>
 #include <stdlib.h>
+
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
 
 #include "platform_p.h"
 
 // goldfish tty
 // from https://github.com/qemu/qemu/blob/master/hw/char/goldfish_tty.c
-volatile uint32_t * const goldfish_tty_base = (void *)VIRT_GF_TTY_MMIO_BASE;
+volatile uint32_t *const goldfish_tty_base = (void *)VIRT_GF_TTY_MMIO_BASE;
 
 // registers
 enum {
-    REG_PUT_CHAR      = 0x00,
-    REG_BYTES_READY   = 0x04,
-    REG_CMD           = 0x08,
-    REG_DATA_PTR      = 0x10,
-    REG_DATA_LEN      = 0x14,
+    REG_PUT_CHAR = 0x00,
+    REG_BYTES_READY = 0x04,
+    REG_CMD = 0x08,
+    REG_DATA_PTR = 0x10,
+    REG_DATA_LEN = 0x14,
     REG_DATA_PTR_HIGH = 0x18,
-    REG_VERSION       = 0x20,
+    REG_VERSION = 0x20,
 };
 
 // commands
 
 enum {
-    CMD_INT_DISABLE   = 0x00,
-    CMD_INT_ENABLE    = 0x01,
-    CMD_WRITE_BUFFER  = 0x02,
-    CMD_READ_BUFFER   = 0x03,
+    CMD_INT_DISABLE = 0x00,
+    CMD_INT_ENABLE = 0x01,
+    CMD_WRITE_BUFFER = 0x02,
+    CMD_READ_BUFFER = 0x03,
 };
 
 #define RXBUF_SIZE 512
@@ -87,10 +91,15 @@ void goldfish_tty_early_init(void) {
     write_reg(REG_CMD, CMD_INT_DISABLE);
 
     // set up the transfer buffer for receives
-    uintptr_t bufptr = (uintptr_t)transfer_buf;
-    write_reg(REG_DATA_PTR, bufptr & 0xffffffff);
+    uint64_t buf_addr;
+#if WITH_KERNEL_VM
+    buf_addr = vaddr_to_paddr(transfer_buf);
+#else
+    buf_addr = (uint64_t)transfer_buf;
+#endif
+    write_reg(REG_DATA_PTR, buf_addr & 0xffffffff);
 #if __SIZEOF_POINTER__ == 8
-    write_reg(REG_DATA_PTR_HIGH, bufptr >> 32);
+    write_reg(REG_DATA_PTR_HIGH, buf_addr >> 32);
 #else
     write_reg(REG_DATA_PTR_HIGH, 0);
 #endif

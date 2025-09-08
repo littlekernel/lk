@@ -9,6 +9,8 @@
 
 #if M68K_MMU
 
+#include <arch/mmu.h>
+#include <arch/spinlock.h>
 #include <assert.h>
 #include <kernel/vm.h>
 #include <lk/err.h>
@@ -16,9 +18,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
-// initial mappings set up in start.S using the DTTR and ITTR registers
+// initial mappings set up in start.S
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     // all of memory, mapped in start.S
     {
@@ -377,14 +379,6 @@ void m68k_mmu_init(void) {
     LTRACE_EXIT;
 }
 
-// arch mmu routines
-
-#endif // M68K_MMU
-
-#if ARCH_HAS_MMU
-
-#include <arch/mmu.h>
-
 // Default stub implementations for arch_mmu routines
 
 bool arch_mmu_supports_nx_mappings(void) {
@@ -416,7 +410,47 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
 }
 
 status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) {
-    return ERR_NOT_SUPPORTED;
+    // Disable interrupts around the ptest instruction in case we get preempted
+    spin_lock_saved_state_t state;
+    arch_interrupt_save(&state, 0);
+
+    // Use the PTEST instruction to probe the translation
+    uint32_t mmusr;
+    asm volatile(
+        "ptestr (%1)\n"
+        "movec %%mmusr, %0"
+        : "=r"(mmusr) : "a"(vaddr) : "memory");
+
+    arch_interrupt_restore(state, 0);
+
+    LTRACEF("vaddr %#x, mmusr %#x\n", (uint32_t)vaddr, mmusr);
+    if ((mmusr & 0x1) == 0) {
+        return ERR_NOT_FOUND;
+    }
+
+    // extract the physical address from the mmusr
+    if (paddr) {
+        *paddr = (mmusr & 0xfffff000) | (vaddr & 0xfff);
+    }
+    if (flags) {
+        *flags = 0;
+        *flags |= (mmusr & (1 << 2)) ? ARCH_MMU_FLAG_PERM_RO : 0;
+        *flags |= (mmusr & (1 << 7)) ? 0 : ARCH_MMU_FLAG_PERM_USER;
+        uint32_t cm = mmusr & (3 << 5);
+        switch (cm) {
+            case 0:
+            case 1:
+                *flags |= ARCH_MMU_FLAG_CACHED;
+                break;
+            case 2:
+                *flags |= ARCH_MMU_FLAG_UNCACHED_DEVICE;
+                break;
+            case 3:
+                *flags |= ARCH_MMU_FLAG_UNCACHED;
+                break;
+        }
+    }
+    return NO_ERROR;
 }
 
 vaddr_t arch_mmu_pick_spot(arch_aspace_t *aspace,
@@ -430,4 +464,4 @@ void arch_mmu_context_switch(arch_aspace_t *aspace) {
     // no-op
 }
 
-#endif // ARCH_HAS_MMU
+#endif // M68K_MMU

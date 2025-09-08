@@ -98,7 +98,8 @@ void platform_init(void) {
     goldfish_rtc_init();
 
 #if M68K_MMU == 68040
-// TODO: create a VM reservation for peripheral space thats using DTTR1
+    // create a VM reservation for peripheral space thats using DTTR1
+    vmm_reserve_space(vmm_get_kernel_aspace(), "periph", 0x1000000, 0xff000000);
 #endif
 
     /* detect any virtio devices */
