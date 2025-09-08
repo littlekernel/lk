@@ -5,17 +5,18 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <dev/virtio.h>
+#include <dev/virtio/net.h>
+#include <kernel/thread.h>
+#include <lk/err.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <kernel/thread.h>
 #include <platform.h>
-#include <platform/interrupts.h>
 #include <platform/debug.h>
+#include <platform/interrupts.h>
 #include <platform/timer.h>
 #include <platform/virt.h>
 #include <sys/types.h>
-#include <dev/virtio.h>
-#include <dev/virtio/net.h>
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
@@ -30,7 +31,38 @@
 
 #define LOCAL_TRACE 0
 
+// Add the one memory region we have detected from the bootinfo
+static status_t add_memory_region(paddr_t base, size_t size, uint flags) {
+#if WITH_KERNEL_VM
+    static pmm_arena_t arena;
+
+    arena.name = "mem";
+    arena.base = base;
+    arena.size = size;
+    arena.priority = 1;
+    arena.flags = PMM_ARENA_FLAG_KMAP | flags;
+
+    status_t err = pmm_add_arena(&arena);
+    if (err < 0) {
+        panic("pmm_add_arena failed\n");
+    }
+    return err;
+#else
+    novm_add_arena("mem", base, size);
+    return NO_ERROR;
+#endif
+}
+
 void platform_early_init(void) {
+
+#if M68K_MMU == 68040
+    // use DTTR1 to map in all of peripheral space
+    // map 0xff000000 - 0xffffffff (16MB) to 0xff000000
+    // Logical address base: 0xff000000, mask 0x00000000, enable, supervisor, noncachable, serialized
+    uint32_t ttbr1 = 0xff00a040;
+    asm volatile("movec %0, %%dtt1" ::"r"(ttbr1) : "memory");
+#endif
+
     goldfish_tty_early_init();
     pic_early_init();
     goldfish_rtc_early_init();
@@ -55,7 +87,7 @@ void platform_early_init(void) {
     uint32_t memsize = *(const uint32_t *)((uintptr_t)ptr + 4);
 
     dprintf(INFO, "VIRT: memory base %#x size %#x\n", membase, memsize);
-    novm_add_arena("mem", membase, memsize);
+    add_memory_region((paddr_t)membase, (size_t)memsize, 0);
 
     // TODO: read the rest of the device bootinfo records and dynamically locate devices
 }
@@ -64,6 +96,10 @@ void platform_init(void) {
     pic_init();
     goldfish_tty_init();
     goldfish_rtc_init();
+
+#if M68K_MMU == 68040
+// TODO: create a VM reservation for peripheral space thats using DTTR1
+#endif
 
     /* detect any virtio devices */
     uint virtio_irqs[NUM_VIRT_VIRTIO];
@@ -90,7 +126,7 @@ void platform_init(void) {
 
         virtio_net_start();
 
-        //minip_start_static(ip_addr, ip_mask, ip_gateway);
+        // minip_start_static(ip_addr, ip_mask, ip_gateway);
         minip_start_dhcp();
     }
 #endif
