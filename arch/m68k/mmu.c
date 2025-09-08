@@ -7,7 +7,10 @@
  */
 #include "arch/m68k/mmu.h"
 
+#if M68K_MMU
+
 #include <assert.h>
+#include <kernel/vm.h>
 #include <lk/err.h>
 #include <lk/trace.h>
 #include <stdint.h>
@@ -15,7 +18,18 @@
 
 #define LOCAL_TRACE 1
 
-#if M68K_MMU
+// initial mappings set up in start.S using the DTTR and ITTR registers
+struct mmu_initial_mapping mmu_initial_mappings[] = {
+    // all of memory, mapped in start.S
+    {
+        .phys = 0,
+        .virt = KERNEL_ASPACE_BASE,
+        .size = ROUNDUP(MEMSIZE, 32 * 1024 * 1024), // round up to next 32MB
+        .flags = 0,
+        .name = "physmap"},
+
+    // null entry to terminate the list
+    {}};
 
 #if M68K_MMU == 68040
 
@@ -343,6 +357,7 @@ static status_t map_range(vaddr_t va, paddr_t pa, size_t len_minus_one) {
 void m68k_mmu_init(void) {
     LTRACE_ENTRY;
 
+#if 0
     // set up some helpful maps for qemu virt
     map_range(0, 0, 64 * 1024 * 1024 - 1);
     map_range(0xff000000, 0xff000000, 0 - 0xff000000 - 1);
@@ -355,10 +370,64 @@ void m68k_mmu_init(void) {
     set_srp((uint32_t)(uintptr_t)kernel_pgtable);
     set_urp((uint32_t)(uintptr_t)kernel_pgtable);
     set_tc((1 << 15)); // enable, 4K pages
+#endif
 
     dump_mmu_regs();
 
     LTRACE_EXIT;
 }
 
+// arch mmu routines
+
 #endif // M68K_MMU
+
+#if ARCH_HAS_MMU
+
+#include <arch/mmu.h>
+
+// Default stub implementations for arch_mmu routines
+
+bool arch_mmu_supports_nx_mappings(void) {
+    return false;
+}
+
+bool arch_mmu_supports_ns_mappings(void) {
+    return false;
+}
+
+bool arch_mmu_supports_user_aspaces(void) {
+    return false;
+}
+
+status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) {
+    return ERR_NOT_SUPPORTED;
+}
+
+status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
+    return ERR_NOT_SUPPORTED;
+}
+
+int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
+    return ERR_NOT_SUPPORTED;
+}
+
+int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
+    return ERR_NOT_SUPPORTED;
+}
+
+status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) {
+    return ERR_NOT_SUPPORTED;
+}
+
+vaddr_t arch_mmu_pick_spot(arch_aspace_t *aspace,
+                           vaddr_t base, uint prev_region_arch_mmu_flags,
+                           vaddr_t end, uint next_region_arch_mmu_flags,
+                           vaddr_t align, size_t size, uint arch_mmu_flags) {
+    return (vaddr_t)NULL;
+}
+
+void arch_mmu_context_switch(arch_aspace_t *aspace) {
+    // no-op
+}
+
+#endif // ARCH_HAS_MMU
