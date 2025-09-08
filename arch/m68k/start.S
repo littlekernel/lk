@@ -39,8 +39,18 @@ FUNCTION(_start)
 
     // clear bss
 bss_clear:
+#if M68K_CPU >= 68020
+    // 020 and above have a full 32bit PC relative addressing mode.
+    // Since we may be using a mmu in this case, we may be operating in physical address space,
+    // so we need to use PC relative addressing to get the right addresses.
     lea     %pc@(__bss_start),%a0
     lea     %pc@(__bss_end),%a1
+#else
+    // We wont be using an MMU on 68000 and 68010, so we can use absolute addresses.
+    movl     __bss_start,%a0
+    movl     __bss_end,%a1
+#endif
+
     cmpl    %a0,%a1
     beqs    1f
     // zero 4 bytes at a time
