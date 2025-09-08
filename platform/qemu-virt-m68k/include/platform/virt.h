@@ -30,18 +30,18 @@
  * CPU IRQ #7 -> NMI
  */
 
-#define VIRT_GF_PIC_MMIO_BASE 0xff000000     /* MMIO: 0xff000000 - 0xff005fff */
-#define VIRT_GF_PIC_IRQ_BASE  1              /* IRQ: #1 -> #6 */
+#define VIRT_GF_PIC_MMIO_BASE 0xff000000 /* MMIO: 0xff000000 - 0xff005fff */
+#define VIRT_GF_PIC_IRQ_BASE  1          /* IRQ: #1 -> #6 */
 #define VIRT_GF_PIC_NB        6
 
-#define NUM_IRQS              (VIRT_GF_PIC_NB * 32) // PIC 1 - 6
+#define NUM_IRQS (VIRT_GF_PIC_NB * 32) // PIC 1 - 6
 
 /* maps (pic + irq) base one to a linear number zero based */
-#define PIC_IRQ(pic, irq)     (((pic) - 1) * 32 + ((irq) - 1))
+#define PIC_IRQ(pic, irq) (((pic) - 1) * 32 + ((irq) - 1))
 
 /* 2 goldfish-rtc (and timer) */
-#define VIRT_GF_RTC_MMIO_BASE 0xff006000     /* MMIO: 0xff006000 - 0xff007fff */
-#define VIRT_GF_RTC_IRQ_BASE  PIC_IRQ(6, 1)  /* PIC: #6, IRQ: #1 */
+#define VIRT_GF_RTC_MMIO_BASE 0xff006000    /* MMIO: 0xff006000 - 0xff007fff */
+#define VIRT_GF_RTC_IRQ_BASE  PIC_IRQ(6, 1) /* PIC: #6, IRQ: #1 */
 #define VIRT_GF_RTC_NB        2
 
 /* 1 goldfish-tty */
@@ -50,7 +50,7 @@
 
 /* 1 virt-ctrl */
 #define VIRT_CTRL_MMIO_BASE 0xff009000    /* MMIO: 0xff009000 - 0xff009fff */
-#define VIRT_CTRL_IRQ_BASE    PIC_IRQ(1, 1) /* PIC: #1, IRQ: #1 */
+#define VIRT_CTRL_IRQ_BASE  PIC_IRQ(1, 1) /* PIC: #1, IRQ: #1 */
 
 /*
  * virtio-mmio size is 0x200 bytes
@@ -58,7 +58,7 @@
  * we can attach 32 virtio devices / goldfish-pic
  * -> we can manage 32 * 4 = 128 virtio devices
  */
-#define VIRT_VIRTIO_MMIO_BASE 0xff010000     /* MMIO: 0xff010000 - 0xff01ffff */
-#define VIRT_VIRTIO_IRQ_BASE  PIC_IRQ(2, 1)  /* PIC: 2, 3, 4, 5, IRQ: ALL */
+#define VIRT_VIRTIO_MMIO_BASE 0xff010000    /* MMIO: 0xff010000 - 0xff01ffff */
+#define VIRT_VIRTIO_IRQ_BASE  PIC_IRQ(2, 1) /* PIC: 2, 3, 4, 5, IRQ: ALL */
 
 #define NUM_VIRT_VIRTIO 128

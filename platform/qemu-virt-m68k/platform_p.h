@@ -7,8 +7,6 @@
  */
 #pragma once
 
-#include <stdbool.h>
-
 void uart_init(void);
 
 void pic_early_init(void);
