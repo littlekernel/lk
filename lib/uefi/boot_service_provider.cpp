@@ -162,13 +162,6 @@ void restore_tpl(EfiTpl old_tpl) {
   printf("%s is called %zu\n", __FUNCTION__, old_tpl);
 }
 
-EfiStatus get_verify_partitions(struct GblEfiImageLoadingProtocol *self,
-                                size_t *NumberOfPartitions,
-                                GblEfiPartitionName *Partitions) {
-  printf("%s is called\n", __FUNCTION__);
-  return EFI_STATUS_UNSUPPORTED;
-}
-
 EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
                         EfiHandle agent_handle, EfiHandle controller_handle,
                         EfiOpenProtocolAttributes attr) {
@@ -243,7 +236,6 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
     }
     image_loading->revision = GBL_EFI_IMAGE_LOADING_PROTOCOL_REVISION;
     image_loading->get_buffer = get_buffer;
-    image_loading->get_verify_partitions = get_verify_partitions;
     *intf = reinterpret_cast<void *>(image_loading);
     return EFI_STATUS_SUCCESS;
   } else if (guid_eq(protocol, EFI_TIMESTAMP_PROTOCOL_GUID)) {
@@ -361,6 +353,7 @@ EfiStatus stall(size_t microseconds) {
 }
 
 EfiStatus free_pages(EfiPhysicalAddr memory, size_t pages) {
+  // NOLINTNEXTLINE(performance-no-int-to-ptr)
   return ::free_pages(reinterpret_cast<void *>(memory), pages);
 }
 

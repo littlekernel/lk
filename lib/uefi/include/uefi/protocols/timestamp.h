@@ -12,21 +12,30 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR BSD-2-Clause-Patent
+ *
+ * You may choose to use or redistribute this file under
+ *  (a) the Apache License, Version 2.0, or
+ *  (b) the BSD 2-Clause Patent license.
+ *
+ * Unless you expressly elect the BSD-2-Clause-Patent terms, the Apache-2.0
+ * terms apply by default.
  */
 
-// Reference:
-// https://uefi.org/specs/UEFI/2.10/39_Micellaneous_Protocols.html#efi-timestamp-protocol
+#ifndef __TIMESTAMP_PROTOCOL_H__
+#define __TIMESTAMP_PROTOCOL_H__
 
-#pragma once
+#include "types.h"
 
-#include <uefi/types.h>
-
-typedef struct EfiTimestampProperties {
+typedef struct {
   uint64_t frequency;
   uint64_t end_value;
 } EfiTimestampProperties;
 
-typedef struct EfiTimestampProtocol {
-  uint64_t (*get_timestamp)();
-  EfiStatus (*get_properties)(EfiTimestampProperties *properties);
-} EfiTimestampProtocol;
+struct EfiTimestampProtocol {
+  uint64_t (*get_timestamp)(void);
+  EfiStatus (*get_properties)(EfiTimestampProperties*);
+};
+
+#endif  //__TIMESTAMP_PROTOCOL_H__

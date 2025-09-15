@@ -161,8 +161,6 @@ struct EFI_LOADED_IMAGE_PROTOCOL {
   EFI_IMAGE_UNLOAD Unload;
 };
 
-static constexpr size_t EFI_LOADED_IMAGE_PROTOCOL_REVISION = 0x1000;
-
 // This function would be called from GBL before jumping into android kernel
 // LK provides a default no-op implementation that is weakly linked,
 // different platforms can override with their own implementation.

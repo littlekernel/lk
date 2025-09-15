@@ -81,9 +81,7 @@ typedef struct GblEfiABSlotProtocol {
                              /* out */ GblEfiSlotInfo* info);
   EfiStatus (*get_current_slot)(struct GblEfiABSlotProtocol* self,
                                 /* out */ GblEfiSlotInfo* info);
-  EfiStatus (*get_next_slot)(struct GblEfiABSlotProtocol* self,
-                             /* in */ bool mark_boot_attempt,
-                             /* out */ GblEfiSlotInfo* info);
+  void *_reserved;
   // Slot metadata manipulation methods
   EfiStatus (*set_active_slot)(struct GblEfiABSlotProtocol* self,
                                /* in */ uint8_t index);
