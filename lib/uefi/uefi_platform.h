@@ -19,9 +19,9 @@
 #define __GBL_OS_CONFIGURATION_
 
 #include <arch/defines.h>
-#include <uefi/protocols/efi_timestamp_protocol.h>
 #include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
+#include <uefi/protocols/timestamp.h>
 #include <uefi/system_table.h>
 #include <uefi/types.h>
 
@@ -32,9 +32,9 @@
 EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol *self, void *fdt,
                         size_t *buffer_size, uint32_t flags);
 
-EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol *self,
-                           const char8_t *bootconfig, size_t size,
-                           char8_t *fixup, size_t *fixup_buffer_size);
+EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
+                           const uint8_t* bootconfig, size_t size,
+                           uint8_t* fixup, size_t* fixup_buffer_size);
 
 EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol *self,
                               GblEfiVerifiedDeviceTree *device_trees,

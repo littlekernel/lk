@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2024-2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,28 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
+ * SPDX-License-Identifier: Apache-2.0 OR BSD-2-Clause-Patent
+ *
+ * You may choose to use or redistribute this file under
+ *  (a) the Apache License, Version 2.0, or
+ *  (b) the BSD 2-Clause Patent license.
+ *
+ * Unless you expressly elect the BSD-2-Clause-Patent terms, the Apache-2.0
+ * terms apply by default.
  */
 
-// This is a protocol proposed by U-boot and being used by Kernel UEFI stub.
+// This is a protocol proposed by Heinrich Schuchardt and already being used by
+// the Kernel UEFI stub.
 // https://github.com/U-Boot-EFI/EFI_DT_FIXUP_PROTOCOL
-// https://github.com/u-boot/u-boot/blob/master/include/efi_dt_fixup.h
 
 #ifndef __EFI_DT_FIXUP_PROTOCOL_H__
 #define __EFI_DT_FIXUP_PROTOCOL_H__
 
-#include <uefi/types.h>
+#include "gbl_protocol_utils.h"
+#include "types.h"
 
-constexpr uint64_t EFI_DT_FIXUP_PROTOCOL_REVISION = 0x00010000;
+static const uint64_t EFI_DT_FIXUP_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(1, 0);
 
 // Add nodes and update properties
-constexpr uint32_t EFI_DT_APPLY_FIXUPS = 0x00000001;
+static const uint32_t EFI_DT_APPLY_FIXUPS = 0x00000001;
 // Reserve memory according to the /reserved-memory node and the memory
 // reservation block
-constexpr uint32_t EFI_DT_RESERVE_MEMORY = 0x00000002;
-// Install the device-tree as configuration table
-constexpr uint32_t EFI_DT_INSTALL_TABLE = 0x00000004;
-constexpr uint32_t EFI_DT_ALL =
-    EFI_DT_APPLY_FIXUPS | EFI_DT_RESERVE_MEMORY | EFI_DT_INSTALL_TABLE;
+static const uint32_t EFI_DT_RESERVE_MEMORY = 0x00000002;
+static const uint32_t EFI_DT_ALL = EFI_DT_APPLY_FIXUPS | EFI_DT_RESERVE_MEMORY;
 
 typedef struct EfiDtFixupProtocol {
   uint64_t revision;

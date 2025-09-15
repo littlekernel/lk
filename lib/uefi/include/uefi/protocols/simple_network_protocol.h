@@ -31,9 +31,9 @@
 
 #include <stddef.h>
 
+#include "gbl_protocol_utils.h"
 #include "types.h"
 
-#define EFI_SIMPLE_NETWORK_PROTOCOL_REVISION 0x00010000
 #define EFI_SIMPLE_NETWORK_RECEIVE_UNICAST 0x01
 #define EFI_SIMPLE_NETWORK_RECEIVE_MULTICAST 0x02
 #define EFI_SIMPLE_NETWORK_RECEIVE_BROADCAST 0x04
@@ -41,6 +41,9 @@
 #define EFI_SIMPLE_NETWORK_RECEIVE_PROMISCUOUS_MULTICAST 0x10
 
 #define MAX_MCAST_FILTER_CNT 16
+
+static const uint64_t EFI_SIMPLE_NETWORK_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(1, 0);
 
 typedef struct {
   uint8_t addr[32];
@@ -115,27 +118,36 @@ typedef struct EfiSimpleNetworkProtocol {
   uint64_t revision;
   EfiStatus (*start)(struct EfiSimpleNetworkProtocol* self);
   EfiStatus (*stop)(struct EfiSimpleNetworkProtocol* self);
-  EfiStatus (*initialize)(struct EfiSimpleNetworkProtocol* self, size_t extra_rx_buffer_size,
+  EfiStatus (*initialize)(struct EfiSimpleNetworkProtocol* self,
+                          size_t extra_rx_buffer_size,
                           size_t extra_tx_buffer_size);
-  EfiStatus (*reset)(struct EfiSimpleNetworkProtocol* self, bool extended_verification);
+  EfiStatus (*reset)(struct EfiSimpleNetworkProtocol* self,
+                     bool extended_verification);
   EfiStatus (*shutdown)(struct EfiSimpleNetworkProtocol* self);
-  EfiStatus (*receive_filters)(struct EfiSimpleNetworkProtocol* self, uint32_t enable,
-                               uint32_t disable, bool reset_mcast_filter, size_t mcast_filter_count,
+  EfiStatus (*receive_filters)(struct EfiSimpleNetworkProtocol* self,
+                               uint32_t enable, uint32_t disable,
+                               bool reset_mcast_filter,
+                               size_t mcast_filter_count,
                                EfiMacAddress* mcast_filter);
-  EfiStatus (*station_address)(struct EfiSimpleNetworkProtocol* self, bool reset,
-                               EfiMacAddress* new_addr);
-  EfiStatus (*statistics)(struct EfiSimpleNetworkProtocol* self, bool reset, size_t* stats_size,
+  EfiStatus (*station_address)(struct EfiSimpleNetworkProtocol* self,
+                               bool reset, EfiMacAddress* new_addr);
+  EfiStatus (*statistics)(struct EfiSimpleNetworkProtocol* self, bool reset,
+                          size_t* stats_size,
                           EfiNetworkStatistics* stats_table);
-  EfiStatus (*m_cast_ip_to_mac)(struct EfiSimpleNetworkProtocol* self, bool ipv6, EfiIpAddr* ip,
-                                EfiMacAddress* mac);
-  EfiStatus (*nv_data)(struct EfiSimpleNetworkProtocol* self, bool read_write, size_t offset,
-                       size_t buf_size, void* buf);
-  EfiStatus (*get_status)(struct EfiSimpleNetworkProtocol* self, uint32_t* interrupt_status,
-                          void** tx_buf);
-  EfiStatus (*transmit)(struct EfiSimpleNetworkProtocol* self, size_t header_size, size_t buf_size,
-                        void* buf, EfiMacAddress* src, EfiMacAddress* dest, uint16_t* protocol);
-  EfiStatus (*receive)(struct EfiSimpleNetworkProtocol* self, size_t* header_size, size_t* buf_size,
-                       void* buf, EfiMacAddress* src, EfiMacAddress* dest, uint16_t* protocol);
+  EfiStatus (*m_cast_ip_to_mac)(struct EfiSimpleNetworkProtocol* self,
+                                bool ipv6, EfiIpAddr* ip, EfiMacAddress* mac);
+  EfiStatus (*nv_data)(struct EfiSimpleNetworkProtocol* self, bool read_write,
+                       size_t offset, size_t buf_size, void* buf);
+  EfiStatus (*get_status)(struct EfiSimpleNetworkProtocol* self,
+                          uint32_t* interrupt_status, void** tx_buf);
+  EfiStatus (*transmit)(struct EfiSimpleNetworkProtocol* self,
+                        size_t header_size, size_t buf_size, void* buf,
+                        EfiMacAddress* src, EfiMacAddress* dest,
+                        uint16_t* protocol);
+  EfiStatus (*receive)(struct EfiSimpleNetworkProtocol* self,
+                       size_t* header_size, size_t* buf_size, void* buf,
+                       EfiMacAddress* src, EfiMacAddress* dest,
+                       uint16_t* protocol);
 
   EfiEvent wait_for_packet;
   EfiSimpleNetworkMode* mode;

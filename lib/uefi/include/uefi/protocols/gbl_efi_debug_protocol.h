@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,32 +23,19 @@
  * terms apply by default.
  */
 
-#ifndef __LOADED_IMAGE_PROTOCOL_H__
-#define __LOADED_IMAGE_PROTOCOL_H__
+#ifndef __GBL_EFI_DEBUG_PROTOCOL_H__
+#define __GBL_EFI_DEBUG_PROTOCOL_H__
 
-#include <uefi/gbl_protocol_utils.h>
-#include <uefi/protocols/device_path_protocol.h>
-#include <uefi/protocols/system_table.h>
-#include <uefi/types.h>
+#include "types.h"
 
-static const uint32_t EFI_LOADED_IMAGE_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(1, 0);
+static const uint64_t GBL_EFI_DEBUG_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(0, 1);
 
-typedef struct {
-  uint32_t revision;
-  EfiHandle parent_handle;
-  EfiSystemTable* system_table;
-  EfiHandle device_handle;
-  EfiDevicePathToTextProtocol* file_path;
-  void* reserved;
-  uint32_t load_options_size;
-  void* load_options;
-  void* image_base;
-  uint64_t image_size;
-  EfiMemoryType image_code_type;
-  EfiMemoryType image_data_type;
+typedef struct GblEfiDebugProtocol {
+    uint64_t revision;
 
-  EfiStatus (*unload)(EfiHandle img);
-} EfiLoadedImageProtocol;
+    EfiStatus (*fatal_error)(struct GblEfiDebugProtocol *self,
+                             const void *frame_ptr);
+} GblEfiDebugProtocol;
 
-#endif
+#endif // __GBL_EFI_DEBUG_PROTOCOL_H__ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,32 +23,20 @@
  * terms apply by default.
  */
 
-#ifndef __LOADED_IMAGE_PROTOCOL_H__
-#define __LOADED_IMAGE_PROTOCOL_H__
+#ifndef __RANDOM_NUMBER_GENERATOR_PROTOCOL__
+#define __RANDOM_NUMBER_GENERATOR_PROTOCOL__
 
-#include <uefi/gbl_protocol_utils.h>
-#include <uefi/protocols/device_path_protocol.h>
-#include <uefi/protocols/system_table.h>
-#include <uefi/types.h>
+#include "types.h"
 
-static const uint32_t EFI_LOADED_IMAGE_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(1, 0);
+typedef EfiGuid EfiRngAlgorithm;
+typedef struct EfiRngProtocol EfiRngProtocol;
 
-typedef struct {
-  uint32_t revision;
-  EfiHandle parent_handle;
-  EfiSystemTable* system_table;
-  EfiHandle device_handle;
-  EfiDevicePathToTextProtocol* file_path;
-  void* reserved;
-  uint32_t load_options_size;
-  void* load_options;
-  void* image_base;
-  uint64_t image_size;
-  EfiMemoryType image_code_type;
-  EfiMemoryType image_data_type;
+struct EfiRngProtocol {
+  EfiStatus (*get_info)(EfiRngProtocol* self, size_t* rng_algorithm_list_size,
+                        EfiRngAlgorithm* rng_algorithm_list);
+  EfiStatus (*get_rng)(EfiRngProtocol* self,
+                       const EfiRngAlgorithm* rng_algorithm,
+                       size_t rng_value_length, uint8_t* rng_value);
+};
 
-  EfiStatus (*unload)(EfiHandle img);
-} EfiLoadedImageProtocol;
-
-#endif
+#endif  // __RANDOM_NUMBER_GENERATOR_PROTOCOL__

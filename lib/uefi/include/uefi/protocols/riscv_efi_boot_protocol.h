@@ -28,13 +28,18 @@
 
 #include <stddef.h>
 
+#include "gbl_protocol_utils.h"
 #include "types.h"
+
+static const uint64_t EFI_RISCV_BOOT_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(1, 0);
 
 // Source: https://github.com/riscv-non-isa/riscv-uefi
 struct EfiRiscvBootProtocol {
   uint64_t revision;
 
-  EfiStatus (*get_boot_hartid)(struct EfiRiscvBootProtocol* self, size_t* boot_hartid);
+  EfiStatus (*get_boot_hartid)(struct EfiRiscvBootProtocol* self,
+                               size_t* boot_hartid);
 };
 
 #endif  // __RISCV_EFI_BOOT_PROTOCOL_H__

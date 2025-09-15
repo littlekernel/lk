@@ -62,7 +62,7 @@ EFI_ENUM(GBL_EFI_FASTBOOT_ERASE_ACTION, GblEfiFastbootEraseAction, uint32_t,
 typedef struct GblEfiFastbootProtocol {
   uint64_t revision;
   // Null-terminated UTF-8 encoded string
-  char8_t serial_number[GBL_EFI_FASTBOOT_SERIAL_NUMBER_MAX_LEN_UTF8];
+  uint8_t serial_number[GBL_EFI_FASTBOOT_SERIAL_NUMBER_MAX_LEN_UTF8];
 
   // Fastboot variable methods
   EfiStatus (*get_var)(struct GblEfiFastbootProtocol* self,
@@ -89,9 +89,9 @@ typedef struct GblEfiFastbootProtocol {
                         bool* out_lock);
 
   // Misc methods
-  EfiStatus (*vendor_erase)(struct GblEfiFastbootProtocol* self,
-                            const char8_t* part_name, size_t part_name_len,
-                            GblEfiFastbootEraseAction* action);
+  EfiStatus (*vendor_erase)(struct GblEfiFastbootProtocol *self,
+                            const uint8_t *part_name, size_t part_name_len,
+                            GblEfiFastbootEraseAction *action);
   bool (*should_stop_in_fastboot)(struct GblEfiFastbootProtocol* self);
   EfiStatus (*is_command_allowed)(struct GblEfiFastbootProtocol* self,
                                   size_t num_args, const char* const* args,

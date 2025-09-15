@@ -23,11 +23,17 @@
 #include <uefi/types.h>
 
 #include "io_stack.h"
-#include "memory_protocols.h"
 #include "switch_stack.h"
 #include "uefi_platform.h"
 
 namespace {
+
+struct EfiBlockIoInterface {
+  EfiBlockIoProtocol protocol;
+  void *dev;
+  EfiBlockIoMedia media;
+  void *io_stack;
+};
 
 EfiStatus read_blocks(EfiBlockIoProtocol *self, uint32_t media_id, uint64_t lba,
                       size_t buffer_size, void *buffer) {

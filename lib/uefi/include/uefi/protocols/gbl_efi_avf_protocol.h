@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,32 +23,29 @@
  * terms apply by default.
  */
 
-#ifndef __LOADED_IMAGE_PROTOCOL_H__
-#define __LOADED_IMAGE_PROTOCOL_H__
+// This is a custom protocol introduced by GBL.
+// See gbl/docs/gbl_efi_avf_protocol.md for details.
 
-#include <uefi/gbl_protocol_utils.h>
-#include <uefi/protocols/device_path_protocol.h>
-#include <uefi/protocols/system_table.h>
-#include <uefi/types.h>
+#ifndef __GBL_AVF_PROTOCOL_H__
+#define __GBL_AVF_PROTOCOL_H__
 
-static const uint32_t EFI_LOADED_IMAGE_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(1, 0);
+#include "types.h"
 
-typedef struct {
-  uint32_t revision;
-  EfiHandle parent_handle;
-  EfiSystemTable* system_table;
-  EfiHandle device_handle;
-  EfiDevicePathToTextProtocol* file_path;
-  void* reserved;
-  uint32_t load_options_size;
-  void* load_options;
-  void* image_base;
-  uint64_t image_size;
-  EfiMemoryType image_code_type;
-  EfiMemoryType image_data_type;
+static const uint64_t GBL_EFI_AVF_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(0, 1);
 
-  EfiStatus (*unload)(EfiHandle img);
-} EfiLoadedImageProtocol;
+typedef struct GblEfiAvfProtocol {
+    uint64_t revision;
 
-#endif
+    EfiStatus (*read_vendor_dice_handover)(struct GblEfiAvfProtocol *self,
+                                           /* in-out */ size_t *handover_size,
+                                           /* out */ uint8_t *handover);
+
+    EfiStatus (*read_secretkeeper_public_key)(
+        struct GblEfiAvfProtocol *self,
+        /* in-out */ size_t *public_key_size,
+        /* out */ uint8_t *public_key);
+
+} GblEfiAvfProtocol;
+
+#endif //__GBL_AVF_PROTOCOL_H__
