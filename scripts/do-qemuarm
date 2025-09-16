@@ -2,23 +2,25 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# TODO: try to merge this with other architecture's do-qemu scripts if possible
+
 # host operating system
-readonly HOST_OS=$(uname -s)
+HOST_OS=$(uname -s)
 
 # host architecture
 HOST_OS_ARCH=$(uname -m)
 case $HOST_OS_ARCH in
   aarch64*|arm64)
     # flatten either aarch64 or arm64 to arm64 to keep it simple
-    readonly HOST_ARCH="arm64"
+    HOST_OS_ARCH="arm64"
     ;;
-  *)
-    readonly HOST_ARCH
-    ;;
+  *) ;;
 esac
+readonly HOST_OS
+readonly HOST_OS_ARCH
 
-#echo HOST_OS = $HOST_OS
-#echo HOST_OS_ARCH = $HOST_OS_ARCH
+# echo HOST_OS = "$HOST_OS"
+# echo HOST_OS_ARCH = "$HOST_OS_ARCH"
 
 function HELP {
     echo "help:"
@@ -100,28 +102,29 @@ elif [ "$PAGE_SIZE" == "64k" ]; then
 fi
 
 # pick the appropriate qemu and project
-if [ $DO_64BIT == 1 ]; then
+if (( DO_64BIT )); then
     QEMU="qemu-system-aarch64"
-    CPU="cortex-a76"
+    CPU="cortex-a76" # default to something recent that modern qemu supports
     MACHINE="virt"
-    if [ $DO_KVM == 1 ]; then
+    # if using KVM/HVF, switch to a host cpu and enable acceleration
+    if (( DO_KVM )); then
         CPU="host"
-        if [ $HOST_OS == "Darwin" ]; then
+        if [ "$HOST_OS" == "Darwin" ]; then
             MACHINE+=",gic_version=2,accel=hvf"
-        elif [ $HOST_OS == "Linux" ]; then
+        elif [ "$HOST_OS" == "Linux" ]; then
             MACHINE+=",gic_version=host,accel=kvm"
         fi
     elif [ $DO_VIRT == 1 ]; then
         MACHINE+=",virtualization=on"
     fi
-    if [ $PAGE_SIZE == 65536 ]; then
+    if [ "$PAGE_SIZE" == 65536 ]; then
         _PROJECT="qemu-virt-arm64-64k-test"
-    elif [ $PAGE_SIZE == 16384 ]; then
+    elif [ "$PAGE_SIZE" == 16384 ]; then
         _PROJECT="qemu-virt-arm64-16k-test"
     else
         _PROJECT="qemu-virt-arm64-test"
     fi
-elif [ $DO_CORTEX_M3 == 1 ]; then
+elif (( DO_CORTEX_M3 )); then
     QEMU="qemu-system-arm"
     CPU="cortex-m3"
     MACHINE="lm3s6965evb"
@@ -135,21 +138,22 @@ else
 fi
 
 # allow overriding the project from the environment
-if [ "$PROJECT" == "" ]; then
+if [ -z "$PROJECT" ]; then
     PROJECT=$_PROJECT
 fi
 
+# TODO: move ARGS to an array to avoid issues with spaces in paths
 ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
 
-if (( $DO_DISK )); then
+if (( DO_DISK )); then
     ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk,format=raw"
     ARGS+=" -device virtio-blk-device,drive=blk"
 fi
 
-if (( $DO_NET )); then
+if (( DO_NET )); then
     ARGS+=" -netdev user,id=vmnic,hostname=qemu "
     ARGS+=" -device virtio-net-device,netdev=vmnic"
-elif (( $DO_NET_TAP )); then
+elif (( DO_NET_TAP )); then
     # quick note to enable tap interface
     # IFNAME=qemu0
     # BRIDGE=bridge0
@@ -164,7 +168,7 @@ else
     ARGS+=$NO_NET_ARGS
 fi
 
-if (( $DO_DISPLAY )); then
+if (( DO_DISPLAY )); then
     ARGS+=" -device virtio-gpu-device -serial stdio"
     ARGS+=" -device virtio-keyboard-device"
     ARGS+=" -device virtio-mouse-device"
@@ -172,19 +176,20 @@ else
     ARGS+=" -nographic"
 fi
 
-if (( $DO_V9P )); then
+if (( DO_V9P )); then
     ARGS+=" -fsdev local,path=$DO_V9P_DIR,security_model=mapped,id=v9p0"
     ARGS+=" -device virtio-9p-device,fsdev=v9p0,mount_tag=V9P0"
 fi
 
 MAKE_VARS=""
 
-if (( $DO_CMPCTMALLOC )); then
-    MAKE_VARS=LK_HEAP_IMPLEMENTATION=cmpctmalloc
-elif (( $DO_MINIHEAP )); then
-    MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
+if (( DO_CMPCTMALLOC )); then
+    MAKE_VARS="LK_HEAP_IMPLEMENTATION=cmpctmalloc"
+elif (( DO_MINIHEAP )); then
+    MAKE_VARS="LK_HEAP_IMPLEMENTATION=miniheap"
 fi
 
-$DIR/make-parallel $MAKE_VARS $PROJECT &&
-echo $SUDO $QEMU $ARGS $@ &&
-$SUDO $QEMU $ARGS $@
+set -e
+"$DIR"/make-parallel $MAKE_VARS PROJECT="$PROJECT"
+echo "$SUDO" $QEMU $ARGS "$@"
+$SUDO $QEMU $ARGS "$@"
