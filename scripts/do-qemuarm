@@ -90,6 +90,15 @@ done
 
 shift $((OPTIND-1))
 
+# accept some aliases to page size
+if [ "$PAGE_SIZE" == "4k" ]; then
+    PAGE_SIZE=4096
+elif [ "$PAGE_SIZE" == "16k" ]; then
+    PAGE_SIZE=16384
+elif [ "$PAGE_SIZE" == "64k" ]; then
+    PAGE_SIZE=65536
+fi
+
 # pick the appropriate qemu and project
 if [ $DO_64BIT == 1 ]; then
     QEMU="qemu-system-aarch64"
