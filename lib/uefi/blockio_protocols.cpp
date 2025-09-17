@@ -75,7 +75,7 @@ EfiStatus reset(EfiBlockIoProtocol *self, bool extended_verification) {
 }
 }  // namespace
 
-EfiStatus open_block_device(EfiHandle handle, void **intf) {
+__WEAK EfiStatus open_block_device(EfiHandle handle, void** intf) {
   printf("%s(%p)\n", __FUNCTION__, handle);
   auto io_stack = get_io_stack();
   if (io_stack == nullptr) {

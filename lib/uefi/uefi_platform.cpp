@@ -31,7 +31,6 @@
 #include <uefi/types.h>
 
 #include "defer.h"
-#include "memory_protocols.h"
 
 #define LOCAL_TRACE 0
 
@@ -173,6 +172,7 @@ const char* GetImageType(const char16_t* ImageType) {
   }
   return "unknown";
 }
+
 template <typename T>
 T clamp(T n, T lower, T upper) {
   if (n < lower) {
@@ -241,8 +241,7 @@ __WEAK EfiStatus get_buffer(struct GblEfiImageLoadingProtocol* self,
   return EFI_STATUS_SUCCESS;
 }
 
-__WEAK
-EfiStatus open_efi_erase_block_protocol(const EfiHandle handle, void** intf) {
+__WEAK EfiStatus open_efi_erase_block_protocol(EfiHandle handle, void** intf) {
   auto* device_name = static_cast<const char*>(handle);
   LTRACEF("handle=%p (%s)\n", handle, device_name);
   auto* p = reinterpret_cast<EfiEraseBlockInterface*>(
