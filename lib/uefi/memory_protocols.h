@@ -21,6 +21,7 @@
 #include <kernel/vm.h>
 #include <stddef.h>
 #include <uefi/boot_service.h>
+#include <uefi/protocols/gbl_efi_boot_memory_protocol.h>
 #include <uefi/types.h>
 
 vmm_aspace_t *set_boot_aspace();

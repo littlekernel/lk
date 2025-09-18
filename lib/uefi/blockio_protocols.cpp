@@ -89,6 +89,7 @@ __WEAK EfiStatus open_block_device(EfiHandle handle, void** intf) {
   memset(interface, 0, sizeof(EfiBlockIoInterface));
   auto dev = bio_open(reinterpret_cast<const char *>(handle));
   interface->dev = dev;
+  interface->protocol.revision = EFI_BLOCK_IO_PROTOCOL_REVISION;
   interface->protocol.reset = reset;
   interface->protocol.read_blocks = read_blocks;
   interface->protocol.write_blocks = write_blocks;
