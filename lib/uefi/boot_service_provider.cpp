@@ -228,16 +228,7 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
         "%s(EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID, handle=%p, "
         "agent_handle%p, controller_handle=%p, attr=0x%x)\n",
         __FUNCTION__, handle, agent_handle, controller_handle, attr);
-    GblEfiImageLoadingProtocol *image_loading = nullptr;
-    allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA, sizeof(*image_loading),
-                  reinterpret_cast<void **>(&image_loading));
-    if (image_loading == nullptr) {
-      return EFI_STATUS_OUT_OF_RESOURCES;
-    }
-    image_loading->revision = GBL_EFI_IMAGE_LOADING_PROTOCOL_REVISION;
-    image_loading->get_buffer = get_buffer;
-    *intf = reinterpret_cast<void *>(image_loading);
-    return EFI_STATUS_SUCCESS;
+    return EFI_STATUS_UNSUPPORTED;
   } else if (guid_eq(protocol, EFI_TIMESTAMP_PROTOCOL_GUID)) {
     printf("%s(EFI_TIMESTAMP_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
            "controller_handle=%p, attr=0x%x)\n",
@@ -256,6 +247,16 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, void **intf,
            "controller_handle=%p, attr=0x%x)\n",
            __FUNCTION__, handle, agent_handle, controller_handle, attr);
     return open_efi_erase_block_protocol(handle, intf);
+  } else if (guid_eq(protocol, EFI_BOOT_MEMORY_PROTOCOL_GUID)) {
+    printf(
+        "%s(EFI_BOOT_MEMORY_PROTOCOL_GUID, handle=%p, agent_handle=%p, "
+        "controller_handle=%p, attr=0x%x)\n",
+        __FUNCTION__, handle, agent_handle, controller_handle, attr);
+    *intf = open_boot_memory_protocol();
+    if (*intf == nullptr) {
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
+    return EFI_STATUS_SUCCESS;
   }
   printf("%s is unsupported 0x%x 0x%x 0x%x 0x%llx\n", __FUNCTION__,
          protocol->data1, protocol->data2, protocol->data3,
@@ -332,6 +333,16 @@ EfiStatus locate_handle_buffer(EfiLocateHandleSearchType search_type,
     }
     if (buf != nullptr) {
       *buf = reinterpret_cast<EfiHandle *>(uefi_malloc(sizeof(buf)));
+    }
+    return EFI_STATUS_SUCCESS;
+  } else if (guid_eq(protocol, EFI_BOOT_MEMORY_PROTOCOL_GUID)) {
+    printf("%s(0x%x, EFI_BOOT_MEMORY_PROTOCOL_GUID, search_key=%p)\n",
+           __FUNCTION__, search_type, search_key);
+    if (num_handles != nullptr) {
+      *num_handles = 1;
+    }
+    if (buf != nullptr) {
+      *buf = reinterpret_cast<EfiHandle*>(uefi_malloc(sizeof(buf)));
     }
     return EFI_STATUS_SUCCESS;
   }

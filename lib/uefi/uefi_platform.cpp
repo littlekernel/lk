@@ -159,31 +159,6 @@ __WEAK EfiStatus set_watchdog_timer(size_t timeout, uint64_t watchdog_code,
 
 namespace {
 
-const char* GetImageType(const char16_t* ImageType) {
-  if (memcmp(ImageType, GBL_IMAGE_TYPE_OS_LOAD,
-             sizeof(GBL_IMAGE_TYPE_OS_LOAD)) == 0) {
-    return "os_load";
-  } else if (memcmp(ImageType, GBL_IMAGE_TYPE_FASTBOOT,
-                    sizeof(GBL_IMAGE_TYPE_FASTBOOT)) == 0) {
-    return "fastboot";
-  } else if (memcmp(ImageType, GBL_IMAGE_TYPE_PVMFW_DATA,
-                    sizeof(GBL_IMAGE_TYPE_PVMFW_DATA)) == 0) {
-    return "pvmfw_data";
-  }
-  return "unknown";
-}
-
-template <typename T>
-T clamp(T n, T lower, T upper) {
-  if (n < lower) {
-    return lower;
-  }
-  if (n > upper) {
-    return upper;
-  }
-  return n;
-}
-
 struct EfiEraseBlockInterface {
   EfiEraseBlockProtocol protocol;
   bdev_t* dev;
@@ -218,28 +193,6 @@ EfiStatus erase_blocks(EfiEraseBlockProtocol* self, uint32_t media_id,
 }
 
 }  // namespace
-
-__WEAK EfiStatus get_buffer(struct GblEfiImageLoadingProtocol* self,
-                            const GblEfiImageInfo* ImageInfo,
-                            GblEfiImageBuffer* Buffer) {
-  printf("%s(%s, %lu)\n", __FUNCTION__, GetImageType(ImageInfo->ImageType),
-         ImageInfo->SizeBytes);
-
-  // Allow maximum of 128MB buffer
-  const size_t buffer_size =
-      clamp(Buffer->SizeBytes, PAGE_SIZE, 128ul * 1024 * 1024);
-  // Bottom line, kernel, ramdisk, device tree must be identity mapped.
-  // Otherwise linux kernel would crash immediately after entering.
-  // Other buffers can be allocated from kernel address space, up to
-  // OEM for customization.
-  Buffer->Memory = alloc_page(buffer_size);
-  if (Buffer->Memory == nullptr) {
-    return EFI_STATUS_OUT_OF_RESOURCES;
-  }
-
-  Buffer->SizeBytes = buffer_size;
-  return EFI_STATUS_SUCCESS;
-}
 
 __WEAK EfiStatus open_efi_erase_block_protocol(EfiHandle handle, void** intf) {
   auto* device_name = static_cast<const char*>(handle);

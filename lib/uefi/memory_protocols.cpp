@@ -16,7 +16,6 @@
  */
 
 #include "memory_protocols.h"
-#include "uefi_platform.h"
 
 #include <arch/defines.h>
 #include <arch/mmu.h>
@@ -27,7 +26,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <uefi/boot_service.h>
+#include <uefi/protocols/gbl_efi_boot_memory_protocol.h>
 #include <uefi/types.h>
+
+#include "uefi_platform.h"
 
 #define LOCAL_TRACE 0
 
@@ -257,3 +259,53 @@ EfiStatus get_physical_memory_map(size_t *memory_map_size,
 }
 
 // NOLINTEND(performance-no-int-to-ptr)
+
+namespace {
+EfiStatus get_partition_buffer(struct GblEfiBootMemoryProtocol* self,
+                               /* in */ const uint8_t* base_name,
+                               /* out */ size_t* size,
+                               /* out */ void** addr,
+                               /* out */ GblEfiPartitionBufferFlag* flag) {
+  return EFI_STATUS_NOT_FOUND;
+}
+
+EfiStatus sync_partition_buffer(struct GblEfiBootMemoryProtocol* self,
+                                /* in */ bool sync_preloaded) {
+  return EFI_STATUS_SUCCESS;
+}
+
+EfiStatus get_boot_buffer(struct GblEfiBootMemoryProtocol* self,
+                          /* in */ GblEfiBootBufferType buf_type,
+                          /* out */ size_t* size,
+                          /* out */ void** addr) {
+  if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_GENERAL_LOAD) {
+    *size = 128ul * 1024 * 1024;
+    // 2^21 = 2MB alignment, required by linux kernel
+    *addr = alloc_page(*size, 21);
+    if (*addr == nullptr) {
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
+    return EFI_STATUS_SUCCESS;
+  } else if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_PVMFW_DATA) {
+    *size = 1024ul * 1024;
+    *addr = alloc_page(*size, PAGE_SIZE_SHIFT);
+    if (*addr == nullptr) {
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
+    return EFI_STATUS_SUCCESS;
+  }
+  printf("get_boot_buffer(%d, %zu) unsupported\n", buf_type, *size);
+  return EFI_STATUS_NOT_FOUND;
+}
+
+}  // namespace
+
+__WEAK GblEfiBootMemoryProtocol* open_boot_memory_protocol() {
+  static GblEfiBootMemoryProtocol protocol = {
+      .revision = GBL_EFI_BOOT_MEMORY_PROTOCOL_REVISION,
+      .get_partition_buffer = get_partition_buffer,
+      .sync_partition_buffer = sync_partition_buffer,
+      .get_boot_buffer = get_boot_buffer,
+  };
+  return &protocol;
+}

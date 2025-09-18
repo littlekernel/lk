@@ -122,6 +122,12 @@ static constexpr auto EFI_TIMESTAMP_PROTOCOL_GUID =
             0x4262,
             {0xba, 0x65, 0x62, 0xb9, 0x23, 0x6e, 0x54, 0x95}};
 
+static constexpr auto EFI_BOOT_MEMORY_PROTOCOL_GUID =
+    EfiGuid{0x309f2874,
+            0xad59,
+            0x4fd2,
+            {0xaf, 0x5e, 0xce, 0x0f, 0x4a, 0xb4, 0x01, 0xa6}};
+
 static constexpr auto EFI_ERASE_BLOCK_PROTOCOL_GUID =
     EfiGuid{0x95A9A93E,
             0xA86E,
