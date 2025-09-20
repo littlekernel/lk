@@ -8,10 +8,10 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
-
 #ifndef ASSEMBLY
 
+#include <arch/ops.h>
+#include <lk/compiler.h>
 #include <arch/x86.h>
 
 /* override of some routines */

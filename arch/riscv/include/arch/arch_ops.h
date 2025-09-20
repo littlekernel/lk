@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include <arch/ops.h>
 #include <lk/compiler.h>
 #include <lk/debug.h>
 #include <arch/riscv.h>

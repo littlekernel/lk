@@ -9,10 +9,12 @@
 
 #ifndef ASSEMBLY
 
+#include <arch/ops.h>
 #include <stdbool.h>
 #include <lk/compiler.h>
 #include <lk/reg.h>
 #include <arch/arm64.h>
+
 
 __BEGIN_CDECLS
 

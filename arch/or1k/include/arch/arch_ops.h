@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include <arch/ops.h>
 #include <lk/compiler.h>
 #include <arch/or1k.h>
 

@@ -7,6 +7,8 @@
  */
 #pragma once
 
+#include <arch/ops.h>
+
 #include <lk/compiler.h>
 
 #define USE_MSRSET 1
