@@ -944,7 +944,7 @@ static const char *thread_state_to_str(enum thread_state state) {
     }
 }
 
-static size_t thread_stack_used(thread_t *t) {
+static size_t thread_stack_used(const thread_t *t) {
 #ifdef THREAD_STACK_HIGHWATER
     uint8_t *stack_base;
     size_t stack_size;
@@ -965,7 +965,7 @@ static size_t thread_stack_used(thread_t *t) {
 /**
  * @brief  Dump debugging info about the specified thread.
  */
-void dump_thread(thread_t *t) {
+void dump_thread(const thread_t *t) {
     dprintf(INFO, "dump_thread: t %p (%s)\n", t, t->name);
 #if WITH_SMP
     dprintf(INFO, "\tstate %s, curr_cpu %d, pinned_cpu %d, priority %d, remaining quantum %d\n",

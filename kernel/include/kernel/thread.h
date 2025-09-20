@@ -172,8 +172,8 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout);
 status_t thread_detach_and_resume(thread_t *t);
 status_t thread_set_real_time(thread_t *t);
 
-void dump_thread(thread_t *t);
-void arch_dump_thread(thread_t *t);
+void dump_thread(const thread_t *t);
+void arch_dump_thread(const thread_t *t);
 void dump_all_threads(void);
 void dump_all_threads_unlocked(void);
 void dump_threads_stats(void);

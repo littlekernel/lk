@@ -77,7 +77,7 @@ void arch_thread_initialize(thread_t *t) {
     t->arch.sp = (vaddr_t)frame;
 }
 
-void arch_dump_thread(thread_t *t) {
+void arch_dump_thread(const thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
         dprintf(INFO, "sp 0x%lx\n", t->arch.sp);

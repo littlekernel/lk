@@ -5,20 +5,20 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/debug.h>
-#include <stdlib.h>
 #include <arch.h>
-#include <arch/atomic.h>
-#include <arch/ops.h>
 #include <arch/arm64.h>
 #include <arch/arm64/mmu.h>
+#include <arch/atomic.h>
 #include <arch/mp.h>
+#include <arch/ops.h>
+#include <assert.h>
 #include <kernel/thread.h>
+#include <lk/debug.h>
 #include <lk/init.h>
 #include <lk/main.h>
-#include <platform.h>
 #include <lk/trace.h>
-#include <assert.h>
+#include <platform.h>
+#include <stdlib.h>
 
 #define LOCAL_TRACE 0
 
@@ -40,8 +40,7 @@ void arch_early_init(void) {
     platform_init_mmu_mappings();
 }
 
-void arch_stacktrace(uint64_t fp, uint64_t pc)
-{
+void arch_stacktrace(uint64_t fp, uint64_t pc) {
     struct arm64_stackframe frame;
 
     if (!fp) {
@@ -57,8 +56,9 @@ void arch_stacktrace(uint64_t fp, uint64_t pc)
         printf("0x%llx\n", frame.pc);
 
         /* Stack frame pointer should be 16 bytes aligned */
-        if (frame.fp & 0xF)
+        if (frame.fp & 0xF) {
             break;
+        }
 
         frame.pc = *((uint64_t *)(frame.fp + 8));
         frame.fp = *((uint64_t *)frame.fp);
@@ -111,7 +111,7 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
      * all interrupts enabled
      * mode 0: EL0t
      */
-    uint32_t spsr = 0;
+    uint64_t spsr = 0;
 
     arch_disable_ints();
 
@@ -122,10 +122,10 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
         "msr    spsr_el1, %[spsr];"
         "eret;"
         :
-        : [ustack]"r"(user_stack_top),
-        [kstack]"r"(kernel_stack_top),
-        [entry]"r"(entry_point),
-        [spsr]"r"(spsr)
+        : [ustack] "r"(user_stack_top),
+          [kstack] "r"(kernel_stack_top),
+          [entry] "r"(entry_point),
+          [spsr] "r"(spsr)
         : "memory");
     __UNREACHABLE;
 }
@@ -135,8 +135,9 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
 void arm64_secondary_entry(ulong);
 void arm64_secondary_entry(ulong asm_cpu_num) {
     uint cpu = arch_curr_cpu_num();
-    if (cpu != asm_cpu_num)
+    if (cpu != asm_cpu_num) {
         return;
+    }
 
     arm64_cpu_early_init();
 
@@ -157,4 +158,3 @@ void arm64_secondary_entry(ulong asm_cpu_num) {
     lk_secondary_cpu_entry();
 }
 #endif
-

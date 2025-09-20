@@ -62,7 +62,7 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
     microblaze_context_switch(&oldthread->arch.cs_frame, &newthread->arch.cs_frame);
 }
 
-void arch_dump_thread(thread_t *t) {
+void arch_dump_thread(const thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
         dprintf(INFO, "sp 0x%x\n", t->arch.cs_frame.r1);

@@ -5,20 +5,20 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <sys/types.h>
-#include <string.h>
-#include <stdlib.h>
+#include <arch/arm64.h>
+#include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include <kernel/thread.h>
-#include <arch/arm64.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 
 #define LOCAL_TRACE 0
 
 struct context_switch_frame {
     vaddr_t lr;
-    vaddr_t pad;                // Padding to keep frame size a multiple of
-    vaddr_t tpidr_el0;          //  sp alignment requirements (16 bytes)
+    vaddr_t pad;       // Padding to keep frame size a multiple of
+    vaddr_t tpidr_el0; //  sp alignment requirements (16 bytes)
     vaddr_t tpidrro_el0;
     vaddr_t r18;
     vaddr_t r19;
@@ -80,7 +80,7 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
     arm64_context_switch(&oldthread->arch.sp, newthread->arch.sp);
 }
 
-void arch_dump_thread(thread_t *t) {
+void arch_dump_thread(const thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");
         dprintf(INFO, "sp 0x%lx\n", t->arch.sp);
