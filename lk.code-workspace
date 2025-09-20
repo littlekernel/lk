@@ -33,7 +33,10 @@
             "mkornelsen.vscode-arm64",
             "llvm-vs-code-extensions.vscode-clangd",
             "sunshaoce.risc-v",
-            "davidanson.vscode-markdownlint"
+            "davidanson.vscode-markdownlint",
+            "xaver.clang-format",
+            "ms-vscode.makefile-tools",
+            "foxundermoon.shell-format"
         ]
     }
 }
