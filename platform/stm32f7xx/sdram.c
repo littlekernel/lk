@@ -41,6 +41,7 @@
 #include <dev/gpio.h>
 #include <platform/stm32.h>
 #include <platform/sdram.h>
+#include <platform/time.h>
 
 /*
  * sdram initialization sequence, taken from

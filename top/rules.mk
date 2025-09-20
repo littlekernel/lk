@@ -11,6 +11,7 @@ MODULE_DEPS := \
 	target
 
 MODULE_SRCS := \
+	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/main.c \
 

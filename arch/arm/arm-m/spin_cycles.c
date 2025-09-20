@@ -11,7 +11,7 @@
 __ALIGNED(8) __NAKED
 #if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
 
-void spin_cycles(uint32_t cycles) {
+void arm_cm_spin_cycles(uint32_t cycles) {
     asm (
         /* 4 cycles per loop, subtract out 8 cycles for the overhead of the next
          * 4 instructions, plus the call into and return from the function.
@@ -48,7 +48,7 @@ void spin_cycles(uint32_t cycles) {
 
 #else
 /* Cortex-M0 & Cortex-M0+    */
-void spin_cycles(uint32_t cycles) {
+void arm_cm_spin_cycles(uint32_t cycles) {
     asm (
         /* 4 cycles per loop, subtract out 8 cycles for the overhead of the next
          * 4 instructions, plus the call into and return from the function.

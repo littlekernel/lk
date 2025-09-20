@@ -177,6 +177,8 @@ static inline bool arm_cm_is_preempt_triggered(void) {
     return SCB->ICSR & SCB_ICSR_PENDSVSET_Msk;
 }
 
+void arm_cm_spin_cycles(uint32_t cycles);
+
 /* systick */
 void arm_cm_systick_init(uint32_t mhz);
 

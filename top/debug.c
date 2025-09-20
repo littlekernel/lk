@@ -18,13 +18,6 @@
 #include <platform/debug.h>
 #include <kernel/spinlock.h>
 
-void spin(uint32_t usecs) {
-    lk_bigtime_t start = current_time_hires();
-
-    while ((current_time_hires() - start) < usecs)
-        ;
-}
-
 void panic(const char *fmt, ...) {
     printf("panic (caller %p): ", __GET_CALLER());
 

@@ -40,28 +40,28 @@ static gpio_i2c_state_t gpio_i2c_states[GPIO_I2C_BUS_COUNT];
  ******************************************************************************/
 static inline void send_start(const gpio_i2c_info_t *i) {
     gpio_config(i->sda, GPIO_OUTPUT);
-    spin_cycles(i->qcd);
+    arm_cm_spin_cycles(i->qcd);
     gpio_config(i->scl, GPIO_OUTPUT);
-    spin_cycles(i->hcd);
+    arm_cm_spin_cycles(i->hcd);
 }
 
 static inline void send_stop(const gpio_i2c_info_t *i) {
     gpio_config(i->sda, GPIO_OUTPUT);
     gpio_config(i->scl, GPIO_I2C_INPUT);
-    spin_cycles(i->qcd);
+    arm_cm_spin_cycles(i->qcd);
     gpio_config(i->sda, GPIO_I2C_INPUT);
 }
 
 static inline void send_restart(const gpio_i2c_info_t *i) {
     gpio_config(i->scl, GPIO_I2C_INPUT);
-    spin_cycles(i->qcd);
+    arm_cm_spin_cycles(i->qcd);
     send_start(i);
 }
 
 static inline void send_nack(const gpio_i2c_info_t *i) {
-    spin_cycles(i->hcd);
+    arm_cm_spin_cycles(i->hcd);
     gpio_config(i->scl, GPIO_I2C_INPUT);
-    spin_cycles(i->hcd);
+    arm_cm_spin_cycles(i->hcd);
     gpio_config(i->scl, GPIO_OUTPUT);
     gpio_config(i->sda, GPIO_I2C_INPUT);
 }
@@ -86,19 +86,19 @@ static inline bool send_byte(const gpio_i2c_info_t *i, uint32_t b) {
          * here in order to hit that timing, they are welcome to add a spin
          * right here.
          */
-        spin_cycles(i->hcd);
+        arm_cm_spin_cycles(i->hcd);
         gpio_config(i->scl, GPIO_I2C_INPUT);
-        spin_cycles(i->hcd);
+        arm_cm_spin_cycles(i->hcd);
         gpio_config(i->scl, GPIO_OUTPUT);
     }
 
     gpio_config(i->sda, GPIO_I2C_INPUT);
-    spin_cycles(i->hcd);
+    arm_cm_spin_cycles(i->hcd);
     gpio_config(i->scl, GPIO_I2C_INPUT);
-    spin_cycles(i->hcd);
+    arm_cm_spin_cycles(i->hcd);
     ret = (0 == gpio_get(i->sda));
     gpio_config(i->scl, GPIO_OUTPUT);
-    spin_cycles(i->hcd);
+    arm_cm_spin_cycles(i->hcd);
 
     return ret;
 }
@@ -108,16 +108,16 @@ static inline void recv_byte(const gpio_i2c_info_t *i, uint8_t *b) {
 
     for (size_t j = 0; j < 7; ++j) {
         gpio_config(i->scl, GPIO_I2C_INPUT);
-        spin_cycles(i->hcd);
+        arm_cm_spin_cycles(i->hcd);
         if (gpio_get(i->sda))
             tmp |= 1;
         tmp <<= 1;
         gpio_config(i->scl, GPIO_OUTPUT);
-        spin_cycles(i->hcd);
+        arm_cm_spin_cycles(i->hcd);
     }
 
     gpio_config(i->scl, GPIO_I2C_INPUT);
-    spin_cycles(i->hcd);
+    arm_cm_spin_cycles(i->hcd);
     if (gpio_get(i->sda))
         tmp |= 1;
     gpio_config(i->scl, GPIO_OUTPUT);

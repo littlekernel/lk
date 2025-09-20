@@ -22,6 +22,7 @@
 #include <printf.h>
 
 #include <platform.h>
+#include <platform/time.h>
 #include <arch/arm.h>
 #include <kernel/thread.h>
 

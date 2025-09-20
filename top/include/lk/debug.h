@@ -56,10 +56,4 @@ void panic(const char *fmt, ...) __PRINTFLIKE(1, 2) __NO_RETURN;
 #define PANIC_UNIMPLEMENTED panic("%s:%d unimplemented\n", __PRETTY_FUNCTION__, __LINE__)
 #define PANIC_UNIMPLEMENTED_MSG(x...) panic("%s:%d unimplemented: %s\n", __PRETTY_FUNCTION__, __LINE__, x)
 
-/* spin the cpu for a period of (short) time */
-void spin(uint32_t usecs);
-
-/* spin the cpu for a certain number of cpu cycles */
-void spin_cycles(uint32_t usecs);
-
 __END_CDECLS

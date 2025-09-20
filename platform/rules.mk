@@ -6,7 +6,8 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/init.c \
-	$(LOCAL_DIR)/power.c
+	$(LOCAL_DIR)/power.c \
+	$(LOCAL_DIR)/time.c \
 
 MODULE_OPTIONS := extra_warnings
 

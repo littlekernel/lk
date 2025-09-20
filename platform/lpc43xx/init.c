@@ -44,7 +44,7 @@ void platform_early_init(void) {
     // Enable, HF=0 BYPASS=0
     writel(0, XTAL_OSC_CTRL);
     // Wait
-    spin_cycles(3000); // 250uS @ 12MHz
+    arm_cm_spin_cycles(3000); // 250uS @ 12MHz
 
     // PLL1: 12MHz -> N=(/2) -> M=(x32) -> P=(/2)   96MHz
     cfg = PLL1_CTRL_NSEL_2 | PLL1_CTRL_PSEL_1 | PLL1_CTRL_MSEL(32) |
@@ -56,7 +56,7 @@ void platform_early_init(void) {
 
     // when moving from < 90 MHz to > 110MHz, must spend 50uS
     // at 90-110MHz before shifting to high speeds
-    spin_cycles(4800); // 50uS @ 96MHz
+    arm_cm_spin_cycles(4800); // 50uS @ 96MHz
 
     // disable P divider  192MHz
     writel(cfg | PLL1_CTRL_DIRECT, PLL1_CTRL);

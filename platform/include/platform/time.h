@@ -22,5 +22,8 @@ lk_time_t current_time(void);
 /* Time in units of microseconds */
 lk_bigtime_t current_time_hires(void);
 
+/* spin the cpu for a period of (short) time */
+void spin(uint32_t usecs);
+
 __END_CDECLS
 
