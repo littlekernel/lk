@@ -8,22 +8,21 @@ The LK kernel provides a comprehensive set of synchronization primitives for coo
 
 ### Wait Queues Foundation
 
-All blocking primitives in LK are built upon wait queues (`wait_queue_t`), which provide the fundamental blocking and wakeup mechanisms:
+Most blocking primitives in LK are built upon wait queues (`wait_queue_t`) (with the exception of spinlocks), which provide the fundamental blocking and wakeup mechanisms:
 
 - **Thread blocking**: Threads can be placed on wait queues and blocked until signaled
 - **Timeout support**: All wait operations support optional timeouts
 - **Wake semantics**: Support for waking one thread or all threads
 - **Priority preservation**: Threads maintain their priority when blocked and resumed
 
-### Locking Requirements
-
-All synchronization primitives require the global thread lock (`thread_lock`) to be held when manipulating their internal state. This ensures atomic operations and prevents race conditions during state transitions.
+Most code in the system will not use a wait queue directly, it acts as the building block for other primitives.
 
 ## Synchronization Primitives
 
 ### 1. Mutexes
 
 Mutexes provide exclusive access to shared resources with ownership semantics.
+See [`mutex.h`](../kernel/include/kernel/mutex.h) implementation details.
 
 #### Structure
 
@@ -46,17 +45,18 @@ typedef struct mutex {
 #### API
 
 ```c
-void mutex_init(mutex_t *m);
+void mutex_init(mutex_t *m); // Initialze a mutex to the default state.
 void mutex_destroy(mutex_t *m);
-status_t mutex_acquire(mutex_t *m);                    // Infinite timeout
 status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout);
-status_t mutex_release(mutex_t *m);
-bool is_mutex_held(const mutex_t *m);                  // Check ownership
+status_t mutex_acquire(mutex_t *m); // Same as above but with infinite timeout.
+status_t mutex_release(mutex_t *m); // Release the mutex, must be the holding thread.
+bool is_mutex_held(const mutex_t *m); // Is the mutex held by the current thread?
 ```
 
 #### Usage Example
 
 ```c
+// Static initialization of the mutex. Equivalent to mutex_init().
 mutex_t resource_lock = MUTEX_INITIAL_VALUE(resource_lock);
 
 void protected_function(void) {
@@ -90,6 +90,7 @@ public:
 ### 2. Semaphores
 
 Semaphores control access to a finite number of resources using a counter mechanism.
+See [`semaphore.h`](../kernel/include/kernel/semaphore.h) implementation details.
 
 #### Structure
 
@@ -146,6 +147,7 @@ void use_resource(void) {
 ### 3. Events
 
 Events provide signaling mechanisms for thread coordination and notification.
+See [`event.h`](../kernel/include/kernel/event.h) implementation details.
 
 #### Structure
 
@@ -227,6 +229,7 @@ void clear_ready(void) {
 ### 4. Ports
 
 Ports provide message-passing communication channels between threads with buffering.
+See [`port.h`](../kernel/include/kernel/port.h) implementation details.
 
 #### Structure
 
@@ -318,6 +321,7 @@ void consumer_thread(void *arg) {
 ### 5. Spinlocks
 
 Spinlocks provide lightweight mutual exclusion for short critical sections.
+See [`spinlock.h`](../kernel/include/kernel/spinlock.h) implementation details.
 
 #### Structure
 
@@ -345,7 +349,8 @@ int spin_trylock(spin_lock_t *lock);                  // Non-blocking attempt
 void spin_unlock(spin_lock_t *lock);
 bool spin_lock_held(spin_lock_t *lock);
 
-// IRQ-safe variants
+// Wrapper functions that disable and restore interrupts, saving interrupt state
+// into 'state'.
 void spin_lock_irqsave(spin_lock_t *lock, spin_lock_saved_state_t *state);
 void spin_unlock_irqrestore(spin_lock_t *lock, spin_lock_saved_state_t state);
 ```
@@ -399,6 +404,7 @@ public:
 ### Wait Queues
 
 The foundation primitive underlying all blocking synchronization:
+See [`wait.h`](../kernel/include/kernel/wait.h) implementation details.
 
 #### API
 
@@ -419,11 +425,7 @@ status_t thread_unblock_from_wait_queue(thread_t *t, status_t error);
 
 ### Priority Inheritance
 
-While not explicitly implemented, the LK synchronization primitives provide implicit priority inheritance through the wait queue mechanism:
-
-- **FIFO ordering**: Threads are generally woken in the order they were blocked
-- **Priority-based scheduling**: High-priority threads are scheduled immediately when unblocked
-- **Head insertion**: Newly unblocked threads are inserted at the head of their priority run queue
+The wait queues provide no mechanism to handle priority inversion at this time. All threads are woken in FIFO order.
 
 ### Error Handling
 
@@ -453,12 +455,12 @@ Debug builds include assertions that will panic on:
 When threads are unblocked, the scheduler automatically handles CPU wakeup:
 
 - **Pinned threads**: Wake the specific CPU where the thread is pinned
-- **Unpinned threads**: Wake all CPUs except the local one
+- **Unpinned threads**: Find a CPU to run the thread on and wake it up
 - **Load balancing**: Distribution across available CPUs
 
 #### Memory Ordering
 
-- **Architecture barriers**: Spinlocks include appropriate memory barriers
+- **Architecture barriers**: All primitives include appropriate memory barriers
 - **Cache coherency**: Hardware ensures cache coherence for shared data
 - **Atomic operations**: Underlying atomic primitives ensure consistency
 
@@ -468,7 +470,7 @@ When threads are unblocked, the scheduler automatically handles CPU wakeup:
 
 1. **Mutexes**: For exclusive access to shared resources with ownership
 2. **Semaphores**: For counting resources or limiting concurrency
-3. **Events**: For signaling and notification between threads
+3. **Events**: For signaling and notification between threads and from IRQ context
 4. **Ports**: For message passing and producer-consumer patterns
 5. **Spinlocks**: For very short critical sections or interrupt contexts
 
@@ -605,5 +607,3 @@ All blocking primitives (except spinlocks) require:
 - **Dynamic allocation**: Runtime initialization for dynamically allocated primitives
 - **Cleanup requirements**: Proper destruction prevents resource leaks
 - **Magic number validation**: Debug builds validate primitive integrity
-
-This comprehensive set of blocking primitives provides the foundation for safe, efficient multi-threaded programming in the LK kernel, supporting everything from simple mutual exclusion to complex communication patterns.
