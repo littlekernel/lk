@@ -178,6 +178,7 @@ main_lk:
     call setup_idt
 
     /* set up the percpu data structure pointer for the boot cpu */
+    /* NOTE: assumes the local apic is 0, which is probably not a safe assumption. */
     pushl $0
     pushl $0
     call x86_configure_percpu_early

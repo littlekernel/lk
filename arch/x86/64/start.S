@@ -216,6 +216,7 @@ highaddr:
     call setup_idt
 
     /* set up the percpu data structure pointer for the boot cpu */
+    /* NOTE: assumes the local apic is 0, which is probably not a safe assumption. */
     xor %edi, %edi
     xor %esi, %esi
     call x86_configure_percpu_early

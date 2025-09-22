@@ -87,35 +87,13 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
 
 void arch_mp_init_percpu(void) {}
 
-/* 
-*  Move to lapic.c
-*
-uint32_t x86_get_apic_id_from_hardware(void) {
-    uint32_t unused = 0, ecx = 0;
-    cpuid(0x1, &unused, &unused, &ecx, &unused);
-
-    if (ecx & (1u << 21)) {
-        // read full 32bit apic id from x2apic msr if available
-        return (uint32_t)read_msr(0x802);
-    } else {
-        // read the apic id out of cpuid leaf 1, which should be present if SMP is enabled.
-        uint32_t apic_id;
-        cpuid(0x1, &unused, &apic_id, &unused, &unused);
-
-        apic_id >>= 24;
-        return apic_id;
-    }
-}
-*/
-
 void x86_secondary_entry(uint cpu_num) {
-    if (x86_feature_test(X86_FEATURE_X2APIC)) {
-        uint64_t apic_base = read_msr(X86_MSR_IA32_APIC_BASE);
-        apic_base |= (1u << 10);
-        write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
-    }
+    // Read the local apic id from the local apic.
+    // NOTE: assumes a local apic is present but since this is a secondary cpu,
+    // it should be a safe assumption.
+    lapic_enable_on_local_cpu();
+    uint32_t apic_id = lapic_get_apic_id();
 
-    uint32_t apic_id = lapic_get_id_from_hardware();
     x86_configure_percpu_early(cpu_num, apic_id);
 
     x86_early_init_percpu();

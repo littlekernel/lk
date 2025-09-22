@@ -15,12 +15,17 @@
 
 // local apic
 void lapic_init(void);
-uint32_t lapic_get_id_from_hardware(void);
 status_t lapic_timer_init(bool invariant_tsc_supported);
 void lapic_eoi(unsigned int vector);
 void lapic_send_init_ipi(uint32_t apic_id, bool level);
 void lapic_send_startup_ipi(uint32_t apic_id, uint32_t startup_vector);
 void lapic_send_ipi(uint32_t apic_id, mp_ipi_t ipi);
+
+// enable the local apic on the current cpu, panic if not present
+void lapic_enable_on_local_cpu(void);
+
+// read the apic id of the local apic on the current cpu, assumes lapic is present
+uint32_t lapic_get_apic_id(void);
 
 status_t lapic_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval);
 void lapic_cancel_timer(void);

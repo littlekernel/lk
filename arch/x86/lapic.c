@@ -267,13 +267,10 @@ static void lapic_init_postvm(uint level) {
 LK_INIT_HOOK(lapic_init_postvm, lapic_init_postvm, LK_INIT_LEVEL_VM + 1);
 
 static void lapic_init_percpu(uint level) {
-    // Make sure the apic is enabled and x2apic mode is set (if supported)
-    uint64_t apic_base = read_msr(X86_MSR_IA32_APIC_BASE);
-    apic_base |= (1u<<11);
-    if (lapic_x2apic) {
-        apic_base |= (1u<<10);
-    }
-    write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
+    // If we're on a secondary cpu we should have a local apic detected and present
+    DEBUG_ASSERT(lapic_present);
+
+    lapic_enable_on_local_cpu();
 
     // set the spurious vector register
     uint32_t svr = (LAPIC_INT_SPURIOUS | (1u<<8)); // enable
@@ -287,9 +284,21 @@ static void lapic_init_percpu(uint level) {
 }
 LK_INIT_HOOK_FLAGS(lapic_init_percpu, lapic_init_percpu, LK_INIT_LEVEL_VM, LK_INIT_FLAG_SECONDARY_CPUS);
 
-uint32_t lapic_get_id_from_hardware(void) {
+void lapic_enable_on_local_cpu(void) {
+    DEBUG_ASSERT(lapic_present);
+
+    // Make sure the apic is enabled and x2apic mode is set (if supported)
+    uint64_t apic_base = read_msr(X86_MSR_IA32_APIC_BASE);
+    apic_base |= (1u<<11);
+    if (lapic_x2apic) {
+        apic_base |= (1u<<10);
+    }
+    write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
+}
+
+uint32_t lapic_get_apic_id(void) {
     if (!lapic_present) {
-        return 0;
+        return -1;
     }
 
     if (lapic_x2apic) {
