@@ -15,6 +15,7 @@
 
 // local apic
 void lapic_init(void);
+uint32_t lapic_get_id_from_hardware(void);
 status_t lapic_timer_init(bool invariant_tsc_supported);
 void lapic_eoi(unsigned int vector);
 void lapic_send_init_ipi(uint32_t apic_id, bool level);
