@@ -85,8 +85,6 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
     return NO_ERROR;
 }
 
-void arch_mp_init_percpu(void) {}
-
 void x86_secondary_entry(uint cpu_num) {
     // Read the local apic id from the local apic.
     // NOTE: assumes a local apic is present but since this is a secondary cpu,

@@ -112,9 +112,7 @@ static void local_apic_callback(const void *_entry, size_t entry_len, void *cook
         return;
     }
 
-    // TODO: read the current APIC id and skip it, instead of assuming 0 is the boot cpu
-    // read BSP from X86_IA32_APIC_BASE_MSR bit 8?
-    if (entry->apic_id == 0) {
+    if (entry->apic_id == x86_get_apic_id()) {
         // skip the boot cpu
         return;
     }

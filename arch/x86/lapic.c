@@ -20,6 +20,7 @@
 #include <arch/ops.h>
 #include <arch/x86.h>
 #include <arch/x86/feature.h>
+#include <arch/x86/mp.h>
 #include <kernel/spinlock.h>
 #include <platform/time.h>
 #include <platform/timer.h>
@@ -213,6 +214,7 @@ void lapic_init(void) {
     lapic_present = x86_feature_test(X86_FEATURE_APIC);
 }
 
+// run on the boot cpu after vm is initialized
 static void lapic_init_postvm(uint level) {
     if (!lapic_present) {
         return;
@@ -224,30 +226,31 @@ static void lapic_init_postvm(uint level) {
     uint64_t apic_base = read_msr(X86_MSR_IA32_APIC_BASE);
     LTRACEF("raw apic base msr %#llx\n", apic_base);
 
-    // make sure it's enabled
-    if ((apic_base & (1u<<11)) == 0) {
-        dprintf(INFO, "X86: enabling lapic\n");
-        apic_base |= (1u<<11);
-        write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
+    // check for X2APIC feature
+    if (x86_feature_test(X86_FEATURE_X2APIC)) {
+        lapic_x2apic = true;
+        dprintf(INFO, "X86: local apic supports x2APIC mode\n");
     }
 
     dprintf(INFO, "X86: lapic physical address %#llx\n", apic_base & ~0xfff);
 
-    // see if x2APIC mode is supported and enable
-    if (x86_feature_test(X86_FEATURE_X2APIC)) {
-        lapic_x2apic = true;
-        dprintf(INFO, "X86: local apic supports x2APIC mode\n");
-
-        write_msr(X86_MSR_IA32_APIC_BASE, apic_base | (1u<<10));
-    }
+    // make sure the apic is enabled on the first cpu
+    lapic_enable_on_local_cpu();
 
     // map the lapic into the kernel since it's not guaranteed that the physmap covers it
-    if (!lapic_mmio) {
+    if (!lapic_x2apic) {
         LTRACEF("mapping lapic into kernel\n");
         status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE, (void **)&lapic_mmio, 0,
                                 apic_base & ~0xfff, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
         ASSERT(err == NO_ERROR);
+        ASSERT(lapic_mmio != NULL);
     }
+
+    // semi-hack: re-read the APIC id of the boot cpu make sure the pecpu struct is correct
+    // before we go any further, in case the boot cpu's apic id is not 0.
+    x86_percpu_t *percpu = x86_get_percpu();
+    percpu->apic_id = lapic_get_apic_id();
+    dprintf(INFO, "X86: boot cpu apic id %u\n", percpu->apic_id);
 
     // Read the local apic id and version and features
     uint32_t id = lapic_read(LAPIC_ID);
