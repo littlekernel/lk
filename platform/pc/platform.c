@@ -12,6 +12,7 @@
 #include <lk/init.h>
 #include <lk/trace.h>
 #include <arch/x86/mmu.h>
+#include <arch/x86/apic.h>
 #include <platform.h>
 #include <platform/pc.h>
 #include <platform/console.h>
@@ -24,7 +25,6 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <kernel/vm.h>
-#include <lib/acpi_lite.h>
 
 #include "platform_p.h"
 
@@ -33,6 +33,11 @@
 #endif
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
+#endif
+#if WITH_LIB_ACPI_LITE
+#include <lib/acpi_lite.h>
+
+static bool found_acpi = false;
 #endif
 
 #define LOCAL_TRACE 0
@@ -215,20 +220,32 @@ void platform_early_init(void) {
     dprintf(INFO, "PC: total memory detected %" PRIu64 " bytes\n", total_mem);
 }
 
+// Look for the ACPI tables just after the vm is initialized.
+void platform_init_postvm(uint level) {
+#if WITH_LIB_ACPI_LITE
+    // Look for the root ACPI table
+    status_t err = acpi_lite_init(0);
+    if (err != NO_ERROR) {
+        return;
+    }
+    found_acpi = true;
+
+    if (LOCAL_TRACE) {
+        acpi_lite_dump_tables(false);
+    }
+    acpi_lite_dump_madt_table();
+#endif
+
+    platform_init_interrupts_postvm();
+    platform_init_timer();
+}
+
+LK_INIT_HOOK(platform_init_postvm, platform_init_postvm, LK_INIT_LEVEL_VM);
+
 void platform_init(void) {
     platform_init_debug();
 
     platform_init_keyboard(&console_input_buf);
-
-    // Look for the root ACPI table
-    __UNUSED bool found_acpi = false;
-    if (acpi_lite_init(0) == NO_ERROR) {
-        if (LOCAL_TRACE) {
-            acpi_lite_dump_tables(false);
-        }
-        acpi_lite_dump_madt_table();
-        found_acpi = true;
-    }
 
     // Look for secondary cpus
 #if WITH_SMP

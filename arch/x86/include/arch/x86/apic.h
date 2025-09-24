@@ -15,6 +15,7 @@
 
 // local apic
 void lapic_init(void);
+void lapic_init_postvm(void);
 status_t lapic_timer_init(bool invariant_tsc_supported);
 void lapic_eoi(unsigned int vector);
 void lapic_send_init_ipi(uint32_t apic_id, bool level);
@@ -30,3 +31,5 @@ uint32_t lapic_get_apic_id(void);
 status_t lapic_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval);
 void lapic_cancel_timer(void);
 
+// io apic(s)
+status_t ioapic_init(int index,paddr_t phys_addr, uint apic_id, uint gsi_base);

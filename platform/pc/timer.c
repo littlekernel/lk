@@ -19,7 +19,7 @@
 #include <platform/pc/timer.h>
 #include <arch/x86.h>
 #include <arch/x86/feature.h>
-#include <arch/x86/lapic.h>
+#include <arch/x86/apic.h>
 #include <arch/x86/pv.h>
 #include <inttypes.h>
 #include <lib/fixed_point.h>
@@ -87,7 +87,7 @@ uint64_t time_to_tsc_ticks(lk_time_t time) {
     return u64_mul_u32_fp32_64(time, timebase_to_tsc);
 }
 
-void pc_init_timer(unsigned int level) {
+void platform_init_timer(void) {
     // Initialize the PIT, it's always present in PC hardware
     pit_init();
     clock_source = CLOCK_SOURCE_PIT;
@@ -159,8 +159,6 @@ out:
 
     dprintf(INFO, "PC: using %s clock source\n", clock_source_name());
 }
-
-LK_INIT_HOOK(pc_timer, pc_init_timer, LK_INIT_LEVEL_VM + 2);
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     if (use_lapic_timer) {

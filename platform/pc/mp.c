@@ -10,14 +10,15 @@
 
 #include <kernel/thread.h>
 #include <kernel/vm.h>
-#include <lib/acpi_lite.h>
 #include <lk/err.h>
 #include <lk/main.h>
 #include <lk/trace.h>
 #include <string.h>
-#include <arch/x86/lapic.h>
+#include <arch/x86/apic.h>
 
 #if WITH_SMP
+
+#include <lib/acpi_lite.h>
 
 #define TRAMPOLINE_ADDRESS 0x4000
 

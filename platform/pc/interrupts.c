@@ -16,12 +16,19 @@
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
-#include <arch/x86/lapic.h>
+#include <arch/x86/apic.h>
 #include <kernel/spinlock.h>
 #include "platform_p.h"
 #include <platform/pc.h>
 
+#if WITH_LIB_ACPI_LITE
+#include <lib/acpi_lite.h>
+#endif
+
 #define LOCAL_TRACE 0
+
+
+// TODO: handle ioapics
 
 static spin_lock_t lock;
 
@@ -207,5 +214,26 @@ status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool
     *msi_address_out = 0xfee00000 | (cpu << 12);
 
     return NO_ERROR;
+}
+
+// Try to detect the ioapic(s) from ACPI and initialize them
+#if WITH_LIB_ACPI_LITE
+static void io_apic_callback(const void *_entry, size_t entry_len, void *cookie) {
+    const struct acpi_madt_io_apic_entry *entry = _entry;
+
+    static int index = 0;
+    ioapic_init(index++, entry->io_apic_address, entry->io_apic_id, entry->global_system_interrupt_base);
+}
+#endif
+
+void platform_init_interrupts_postvm(void) {
+    // Bring up the local apic on the first cpu
+    // Doesn't need ACPI to detect its presence
+    lapic_init_postvm();
+
+#if WITH_LIB_ACPI_LITE
+    // Now that we've scanned ACPI, try to initialize the ioapic(s)
+    acpi_process_madt_entries_etc(ACPI_MADT_TYPE_IO_APIC, &io_apic_callback, NULL);
+#endif
 }
 

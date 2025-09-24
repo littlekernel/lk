@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include "arch/x86/lapic.h"
+#include "arch/x86/apic.h"
 
 #include <sys/types.h>
 #include <lk/debug.h>
@@ -215,7 +215,7 @@ void lapic_init(void) {
 }
 
 // run on the boot cpu after vm is initialized
-static void lapic_init_postvm(uint level) {
+void lapic_init_postvm(void) {
     if (!lapic_present) {
         return;
     }
@@ -267,7 +267,6 @@ static void lapic_init_postvm(uint level) {
     // Finish up some local initialization that all cpus will want to do
     lapic_init_percpu(0);
 }
-LK_INIT_HOOK(lapic_init_postvm, lapic_init_postvm, LK_INIT_LEVEL_VM + 1);
 
 static void lapic_init_percpu(uint level) {
     // If we're on a secondary cpu we should have a local apic detected and present
