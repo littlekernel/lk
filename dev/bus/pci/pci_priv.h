@@ -8,13 +8,9 @@
  */
 #pragma once
 
-#include <inttypes.h>
-#include <lk/compiler.h>
 #include <dev/bus/pci.h>
-
 #include "backend/bios32.h"
 #include "backend/ecam.h"
 #include "backend/type1.h"
-
 #include "bus_mgr/bus_mgr.h"
 

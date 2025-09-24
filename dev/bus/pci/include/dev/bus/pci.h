@@ -8,7 +8,6 @@
  */
 #pragma once
 
-#include <assert.h>
 #include <sys/types.h>
 #include <lk/compiler.h>
 
@@ -87,16 +86,16 @@ status_t pci_bus_mgr_find_device(pci_location_t *state, uint16_t device_id, uint
 status_t pci_bus_mgr_find_device_by_class(pci_location_t *state, uint8_t base_class, uint8_t subclass, uint8_t interface, size_t index);
 
 // set io and mem enable on the device
-status_t pci_bus_mgr_enable_device(const pci_location_t loc);
+status_t pci_bus_mgr_enable_device(pci_location_t loc);
 
 // read a list of up to 6 bars out of the device. each is marked with a valid bit
-status_t pci_bus_mgr_read_bars(const pci_location_t loc, pci_bar_t bar[6]);
+status_t pci_bus_mgr_read_bars(pci_location_t loc, pci_bar_t bar[6]);
 
 // try to allocate one or more msi vectors for this device
-status_t pci_bus_mgr_allocate_msi(const pci_location_t loc, size_t num_requested, uint *irqbase);
+status_t pci_bus_mgr_allocate_msi(pci_location_t loc, size_t num_requested, uint *irqbase);
 
 // allocate a regular irq for this device and return it in irqbase
-status_t pci_bus_mgr_allocate_irq(const pci_location_t loc, uint *irqbase);
+status_t pci_bus_mgr_allocate_irq(pci_location_t loc, uint *irqbase);
 
 // return a pointer to a formatted string
 const char *pci_loc_string(pci_location_t loc, char out_str[14]);

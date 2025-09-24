@@ -120,9 +120,10 @@ void device::dump(size_t indent) {
         printf(" ");
     }
     char str[14];
-    printf("dev %s vid:pid %04hx:%04hx base:sub:intr %hhu:%hhu:%hhu %s%s\n",
+    printf("dev %s vid:pid %04hx:%04hx base:sub:intr %hhu:%hhu:%hhu int %u %s%s\n",
             pci_loc_string(loc_, str), config_.vendor_id, config_.device_id,
             base_class(), sub_class(), interface(),
+            config_.type0.interrupt_line,
             has_msi() ? "msi " : "",
             has_msix() ? "msix " : "");
     for (size_t b = 0; b < countof(bars_); b++) {
@@ -394,7 +395,7 @@ status_t device::load_bars() {
             bars_[i].prefetchable = bar_addr & (1<<3);
             bars_[i].size_64 = true;
             bars_[i].addr = bar_addr & ~0xf;
-            bars_[i].addr |= (uint64_t)config_.type0.base_addresses[i + 1] << 32;
+            bars_[i].addr |= static_cast<uint64_t>(config_.type0.base_addresses[i + 1]) << 32;
 
             // probe size by writing all 1s and seeing what bits are masked
             uint64_t size;
@@ -404,12 +405,12 @@ status_t device::load_bars() {
             size = size32;
             pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 4, 0xffffffff);
             pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 4, &size32);
-            size |= (uint64_t)size32 << 32;
+            size |= static_cast<uint64_t>(size32) << 32;
             pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
             pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 4, bars_[i].addr >> 32);
 
             // mask out bottom bits, invert and add 1 to compute size
-            bars_[i].size = (~(size & ~(uint64_t)0b1111)) + 1;
+            bars_[i].size = (~(size & ~static_cast<uint64_t>(0b1111))) + 1;
 
             bars_[i].valid = (bars_[i].size != 0);
 

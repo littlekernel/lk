@@ -142,7 +142,7 @@ void bridge::extend_subordinate_range(uint8_t new_secondary_bus) {
         DEBUG_ASSERT(subordinate_bus() == new_secondary_bus);
 
         // tell the parent bridge that we have a new range
-        auto *parent_bridge = bus_->get_bridge();
+        auto *parent_bridge = parent_bus()->get_bridge();
         if (parent_bridge) {
             parent_bridge->extend_subordinate_range(new_secondary_bus);
         }
@@ -154,12 +154,12 @@ void bridge::assign_bus_numbers(uint8_t primary, uint8_t secondary, uint8_t subo
 
     uint32_t temp;
 
-    pci_read_config_word(loc_, 0x18, &temp);
+    pci_read_config_word(loc(), 0x18, &temp);
     temp &= 0xff000000; // leave latency timer alone
     temp |= subordinate << 16;
     temp |= secondary << 8;
     temp |= primary << 0;
-    pci_write_config_word(loc_, 0x18, temp);
+    pci_write_config_word(loc(), 0x18, temp);
 
     // reread the config
     load_config();
@@ -174,7 +174,7 @@ void bridge::dump(size_t indent) {
     };
     char str[14];
     scoot();
-    printf("bridge %s %04hx:%04hx primary bus %d child busses [%d..%d]\n", pci_loc_string(loc_, str),
+    printf("bridge %s %04hx:%04hx primary bus %d child busses [%d..%d]\n", pci_loc_string(loc(), str),
            vendor_id(), device_id(), primary_bus(),
            secondary_bus(), subordinate_bus());
 
@@ -186,11 +186,11 @@ void bridge::dump(size_t indent) {
            mr.base, mr.limit, ir.base, ir.limit, pr.base, pr.limit);
 
     for (size_t b = 0; b < 2; b++) {
-        if (bars_[b].valid) {
+        if (bar(b).valid) {
             for (size_t i = 0; i < indent + 1; i++) {
                 printf(" ");
             }
-            printf("BAR %zu: addr %#" PRIx64 " size %#zx io %d valid %d\n", b, bars_[b].addr, bars_[b].size, bars_[b].io, bars_[b].valid);
+            printf("BAR %zu: addr %#" PRIx64 " size %#zx io %d valid %d\n", b, bar(b).addr, bar(b).size, bar(b).io, bar(b).valid);
         }
     }
 
@@ -201,39 +201,39 @@ void bridge::dump(size_t indent) {
 
 // accessors to compute the io and memory range of the bridge
 bridge::range<uint32_t> bridge::io_range() {
-    if (config_.type1.io_limit < config_.type1.io_base) {
+    if (config().type1.io_limit < config().type1.io_base) {
         return { 0, 0 };
     } else {
         // TODO: handle 32bit io (does this really exist?)
-        return { ((uint32_t)config_.type1.io_base >> 4) << 12,
-                 (((uint32_t)config_.type1.io_limit >> 4) << 12) | 0xfff };
+        return { ((uint32_t)config().type1.io_base >> 4) << 12,
+                 (((uint32_t)config().type1.io_limit >> 4) << 12) | 0xfff };
     }
 }
 
 bridge::range<uint32_t> bridge::mem_range() {
-    if (config_.type1.memory_limit < config_.type1.memory_base) {
+    if (config().type1.memory_limit < config().type1.memory_base) {
         return { 0, 0 };
     } else {
-        return { ((uint32_t)config_.type1.memory_base >> 4) << 20,
-                 (((uint32_t)config_.type1.memory_limit >> 4) << 20) | 0xfffff };
+        return { ((uint32_t)config().type1.memory_base >> 4) << 20,
+                 (((uint32_t)config().type1.memory_limit >> 4) << 20) | 0xfffff };
     }
 }
 
 bridge::range<uint64_t> bridge::prefetch_range() {
-    if (config_.type1.prefetchable_memory_limit < config_.type1.prefetchable_memory_base) {
+    if (config().type1.prefetchable_memory_limit < config().type1.prefetchable_memory_base) {
         return { 0, 0 };
     } else {
-        bool is_64 = (config_.type1.prefetchable_memory_base & 0xf) == 1;
+        bool is_64 = (config().type1.prefetchable_memory_base & 0xf) == 1;
 
         uint64_t base, limit;
 
-        base = (((uint64_t)config_.type1.prefetchable_memory_base >> 4) << 20);
+        base = (((uint64_t)config().type1.prefetchable_memory_base >> 4) << 20);
         if (is_64) {
-            base |= (uint64_t)config_.type1.prefetchable_base_upper << 32;
+            base |= (uint64_t)config().type1.prefetchable_base_upper << 32;
         }
-        limit = (((uint64_t)config_.type1.prefetchable_memory_limit >> 4) << 20) | 0xfffff;
+        limit = (((uint64_t)config().type1.prefetchable_memory_limit >> 4) << 20) | 0xfffff;
         if (is_64) {
-            limit |= (uint64_t)config_.type1.prefetchable_limit_upper << 32;
+            limit |= (uint64_t)config().type1.prefetchable_limit_upper << 32;
         }
         return { base, limit };
     }
@@ -403,7 +403,7 @@ status_t bridge::assign_resource(bar_alloc_request *request, uint64_t address) {
                 return ERR_NOT_SUPPORTED;
             }
             // assert that the device supports 64bit addresses
-            DEBUG_ASSERT((config_.type1.prefetchable_memory_base & 0xf) == 1);
+            DEBUG_ASSERT((config().type1.prefetchable_memory_base & 0xf) == 1);
 
             DEBUG_ASSERT(IS_ALIGNED(address, (1UL << 20)));
             DEBUG_ASSERT(IS_ALIGNED(request->size, (1UL << 20)));

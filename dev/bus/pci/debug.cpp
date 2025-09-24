@@ -17,19 +17,20 @@
 #include <dev/bus/pci.h>
 #include <lk/console_cmd.h>
 
+namespace {
 /*
  * enumerates pci devices
  */
-static void pci_list(void) {
+void pci_list() {
     pci_location_t state;
     int busses = 0, devices = 0, ret;
 
     printf("Scanning (brute force)...\n");
 
-    for (int segment = 0; segment <= (int)pci_get_last_segment(); segment++) {
+    for (int segment = 0; segment <= pci_get_last_segment(); segment++) {
         state.segment = segment;
 
-        for (int bus = 0; bus <= (int)pci_get_last_bus(); bus++) {
+        for (int bus = 0; bus <= pci_get_last_bus(); bus++) {
             state.bus = bus;
             busses++;
 
@@ -83,7 +84,7 @@ error:
  * a somewhat fugly pci config space examine/modify command. this should probably
  * be broken up a bit.
  */
-static int pci_config(int argc, const console_cmd_args *argv) {
+int pci_config(int argc, const console_cmd_args *argv) {
     pci_location_t loc;
     pci_config_t config;
     uint32_t offset;
@@ -146,12 +147,11 @@ static int pci_config(int argc, const console_cmd_args *argv) {
                     break;
                 case 1: // 64 bit prefetchable addressing
                     printf("prefetchable base=%llx prefetchable limit=%llx\n",
-                           ((uint64_t)config.type1.prefetchable_memory_base & 0xfff0) << 16 |
-                           ((uint64_t)config.type1.prefetchable_base_upper << 32),
-                           ((uint64_t)config.type1.prefetchable_memory_limit & 0xfff0) << 16 | 0xf'ffff |
-                           ((uint64_t)config.type1.prefetchable_limit_upper << 32));
+                           (static_cast<uint64_t>(config.type1.prefetchable_memory_base) & 0xfff0) << 16 |
+                           (static_cast<uint64_t>(config.type1.prefetchable_base_upper) << 32),
+                           (static_cast<uint64_t>(config.type1.prefetchable_memory_limit) & 0xfff0) << 16 | 0xf'ffff |
+                           (static_cast<uint64_t>(config.type1.prefetchable_limit_upper) << 32));
                     break;
-
             }
         }
         hexdump8_ex(&config, sizeof(config), 0);
@@ -257,7 +257,7 @@ error:
     return -2;
 }
 
-static int pci_cmd(int argc, const console_cmd_args *argv) {
+int pci_cmd(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
         printf("pci commands:\n");
 usage:
@@ -286,4 +286,6 @@ out:
 STATIC_COMMAND_START
 STATIC_COMMAND("pci", "pci toolbox", &pci_cmd)
 STATIC_COMMAND_END(pcitests);
+
+} // namespace
 

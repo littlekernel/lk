@@ -19,7 +19,7 @@ struct resource_range {
     uint64_t base;
     uint64_t size;
 
-    void dump() {
+    void dump() const {
         printf("resource type %d: base %#llx size %#llx\n",
                 type, base, size);
     }
@@ -32,7 +32,7 @@ struct resource_range_set {
     resource_range mmio_prefetchable;
     resource_range mmio64_prefetchable;
 
-    void dump() {
+    void dump() const {
         printf("resource range set:\n");
         io.dump();
         mmio.dump();

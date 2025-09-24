@@ -34,11 +34,11 @@ namespace pci {
 bus *root = nullptr;
 list_node bus_list = LIST_INITIAL_VALUE(bus_list);
 
+namespace {
+
 uint8_t last_bus = 0;
 
 resource_allocator resources;
-
-namespace {
 
 // local helper routines
 // iterate all devices on all busses with the functor

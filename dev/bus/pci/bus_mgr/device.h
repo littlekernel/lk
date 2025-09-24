@@ -97,6 +97,14 @@ public:
     virtual void dump(size_t indent = 0);
 
 protected:
+    const pci_config_t &config() const { return config_; }
+    const pci_bar_t &bar(size_t index) const {
+        DEBUG_ASSERT(index < 6);
+        return bars_[index];
+    }
+    bus *parent_bus() const { return bus_; }
+
+private:
     // let the bus device directly manipulate our list node
     friend class bus;
     list_node node = LIST_INITIAL_CLEARED_VALUE;
