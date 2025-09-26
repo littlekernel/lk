@@ -44,10 +44,10 @@ SECTIONS
         __data_start = .;
         *(.data .data.* .gnu.linkonce.d.*)
         __ctor_list = .;
-        KEEP(*(.ctors .init_array))
+        KEEP(*(.ctors .init_array*))
         __ctor_end = .;
         __dtor_list = .;
-        KEEP(*(.dtors .fini_array))
+        KEEP(*(.dtors .fini_array*))
         __dtor_end = .;
         *(.got*)
         *(.dynamic)
