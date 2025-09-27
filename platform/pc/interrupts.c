@@ -50,7 +50,10 @@ static struct int_vector int_table[INT_VECTORS];
 
 void platform_init_interrupts(void) {
     pic_init();
+
+#if WITH_SMP
     lapic_init();
+#endif
 
     // initialize all of the vectors
     for (int i = 0; i < INT_VECTORS; i++) {
@@ -227,9 +230,11 @@ static void io_apic_callback(const void *_entry, size_t entry_len, void *cookie)
 #endif
 
 void platform_init_interrupts_postvm(void) {
+#if WITH_SMP
     // Bring up the local apic on the first cpu
     // Doesn't need ACPI to detect its presence
     lapic_init_postvm();
+#endif
 
 #if WITH_LIB_ACPI_LITE
     // Now that we've scanned ACPI, try to initialize the ioapic(s)
