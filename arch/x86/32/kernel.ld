@@ -59,12 +59,12 @@ SECTIONS
 
     .ctors : ALIGN(4) {
         __ctor_list = .;
-        KEEP(*(.ctors .init_array))
+        KEEP(*(.ctors .init_array*))
         __ctor_end = .;
     }
     .dtors : ALIGN(4) {
         __dtor_list = .;
-        KEEP(*(.dtors .fini_array))
+        KEEP(*(.dtors .fini_array*))
         __dtor_end = .;
     }
 
