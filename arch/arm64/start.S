@@ -38,16 +38,12 @@ arm_reset:
     /* if we came in at higher than EL1, drop down to EL1 */
     bl      arm64_elX_to_el1
 
-    /* disable EL1 FPU traps */
-    mov     tmp, #(0b11<<20)
-    msr     cpacr_el1, tmp
-
     /* enable caches so atomics and spinlocks work */
     mrs     tmp, sctlr_el1
+    bic     tmp, tmp, #(1<<19) /* Disable WXN */
     orr     tmp, tmp, #(1<<12) /* Enable icache */
-    orr     tmp, tmp, #(1<<2)  /* Enable dcache/ucache */
     orr     tmp, tmp, #(1<<3)  /* Enable Stack Alignment Check EL1 */
-    orr     tmp, tmp, #(1<<4)  /* Enable Stack Alignment Check EL0 */
+    orr     tmp, tmp, #(1<<2)  /* Enable dcache/ucache */
     bic     tmp, tmp, #(1<<1)  /* Disable Alignment Checking for EL1 EL0 */
     msr     sctlr_el1, tmp
 
