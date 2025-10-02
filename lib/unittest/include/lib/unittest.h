@@ -54,6 +54,7 @@
  *         lib/unittest   \
  */
 #include <lk/compiler.h>
+#include <lk/list.h>
 #include <printf.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -116,8 +117,8 @@ __END_CDECLS
         return all_ok;                                             \
     }                                                                   \
     static struct test_case_element _##case_name##_element = {          \
-        .next = NULL,                                                   \
-        .failed_next = NULL,                                            \
+        .node = LIST_INITIAL_CLEARED_VALUE,                             \
+        .failed_node = LIST_INITIAL_CLEARED_VALUE,                      \
         .name = #case_name,                                             \
         .test_case = case_name,                                         \
     };                                                                  \
@@ -387,8 +388,8 @@ __BEGIN_CDECLS
  * The list of test cases is made up of these elements.
  */
 struct test_case_element {
-    struct test_case_element *next;
-    struct test_case_element *failed_next;
+    struct list_node node;
+    struct list_node failed_node;
     const char *name;
     bool (*test_case)(void);
 };
