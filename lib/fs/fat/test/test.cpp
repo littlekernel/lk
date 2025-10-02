@@ -33,10 +33,33 @@ namespace {
 const char *test_device_name = "virtio0";
 #define test_path "/fat"
 
+bool is_test_device_present() {
+    static bool checked = false;
+    static bool present = false;
+
+    if (!checked) {
+        checked = true;
+        auto bio = bio_open(test_device_name);
+        if (bio) {
+            present = true;
+            bio_close(bio);
+        }
+    }
+    return present;
+}
+
+#define SKIP_TEST_IF_NO_DEVICE() \
+    do { \
+        if (!is_test_device_present()) { \
+            unittest_printf(" no device '%s' present, skipping test ", test_device_name); \
+            return true; \
+        } \
+    } while (0)
+
 bool test_fat_mount() {
     BEGIN_TEST;
 
-    LTRACEF("mounting filesystem on device '%s'\n", test_device_name);
+    SKIP_TEST_IF_NO_DEVICE();
 
     ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
     ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
@@ -46,6 +69,8 @@ bool test_fat_mount() {
 
 bool test_fat_dir_root() {
     BEGIN_TEST;
+
+    SKIP_TEST_IF_NO_DEVICE();
 
     ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
 
@@ -98,6 +123,8 @@ bool test_fat_dir_root() {
 bool test_file_read(const char *path, const unsigned char *test_file_buffer, size_t test_file_size) {
     BEGIN_TEST;
 
+    SKIP_TEST_IF_NO_DEVICE();
+
     // open the file
     filehandle *handle = nullptr;
     ASSERT_EQ(NO_ERROR, fs_open_file(path, &handle));
@@ -132,6 +159,8 @@ bool test_file_read(const char *path, const unsigned char *test_file_buffer, siz
 bool test_fat_read_file() {
     BEGIN_TEST;
 
+    SKIP_TEST_IF_NO_DEVICE();
+
     ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
     // clean up by unmounting no matter what happens here
     auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
@@ -152,6 +181,8 @@ bool test_fat_read_file() {
 
 bool test_fat_multi_open() {
     BEGIN_TEST;
+
+    SKIP_TEST_IF_NO_DEVICE();
 
     ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
     // clean up by unmounting no matter what happens here
