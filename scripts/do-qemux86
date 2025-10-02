@@ -140,5 +140,4 @@ fi
 
 $DIR/make-parallel $MAKE_VARS $PROJECT &&
 echo $SUDO $QEMU $ARGS $@ &&
-$SUDO $QEMU $ARGS $@
-
+exec $SUDO $QEMU $ARGS $@

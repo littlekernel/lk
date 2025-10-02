@@ -192,4 +192,4 @@ fi
 set -e
 "$DIR"/make-parallel $MAKE_VARS PROJECT="$PROJECT"
 echo "$SUDO" $QEMU $ARGS "$@"
-$SUDO $QEMU $ARGS "$@"
+exec $SUDO $QEMU $ARGS "$@"

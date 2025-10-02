@@ -57,4 +57,4 @@ fi
 
 $DIR/make-parallel $MAKE_VARS $PROJECT &&
 echo $QEMUM4 $ARGS $@ &&
-$QEMUM4 $ARGS $@
+exec $QEMUM4 $ARGS $@

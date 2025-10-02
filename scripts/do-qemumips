@@ -6,4 +6,4 @@ set -e
 set -x
 
 $DIR/make-parallel qemu-mips-test
-qemu-system-mips -machine mips -cpu M14K -kernel build-qemu-mips-test/lk.elf -nographic $@
+exec qemu-system-mips -machine mips -cpu M14K -kernel build-qemu-mips-test/lk.elf -nographic $@
