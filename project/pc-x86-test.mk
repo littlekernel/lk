@@ -4,4 +4,6 @@ ARCH := x86
 SUBARCH := x86-32
 
 include project/target/pc.mk
+include project/virtual/fs.mk
+include project/virtual/minip.mk
 include project/virtual/test.mk
