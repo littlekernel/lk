@@ -8,19 +8,21 @@
 #include <lk/asm.h>
 #include <arch/asm_macros.h>
 
+// stay in sync with arm64/thread.c arm64_context_switch()
+
 /* void arm64_context_switch(vaddr_t *old_sp, vaddr_t new_sp); */
 FUNCTION(arm64_context_switch)
     /* save old frame */
-    push x28, x29
-    push x26, x27
-    push x24, x25
-    push x22, x23
-    push x20, x21
-    push x18, x19
-    mrs  x18, tpidr_el0
-    mrs  x19, tpidrro_el0
-    push x18, x19
-    push x30, xzr
+    push x29, lr
+    push x27, x28
+    push x25, x26
+    push x23, x24
+    push x21, x22
+    push x19, x20
+    // skip x18, it is our per cpu pointer
+    mrs  x16, tpidr_el0
+    mrs  x17, tpidrro_el0
+    push x16, x17
 
     /* save old sp */
     mov  x15, sp
@@ -30,16 +32,15 @@ FUNCTION(arm64_context_switch)
     mov  sp, x1
 
     /* restore new frame */
-    pop  x30, xzr
-    pop  x18, x19
-    msr  tpidr_el0, x18
-    msr  tpidrro_el0, x19
-    pop  x18, x19
-    pop  x20, x21
-    pop  x22, x23
-    pop  x24, x25
-    pop  x26, x27
-    pop  x28, x29
+    pop  x16, x17
+    msr  tpidr_el0, x16
+    msr  tpidrro_el0, x17
+    pop  x19, x20
+    pop  x21, x22
+    pop  x23, x24
+    pop  x25, x26
+    pop  x27, x28
+    pop  x29, lr
 
     ret
 
