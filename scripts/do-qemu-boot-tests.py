@@ -17,7 +17,7 @@ class QEMUTestRunner:
             },
             'arm64': {
                 'script': 'do-qemuarm',
-                'args': '-6',
+                'args': '-6s4',
                 'timeout': 30
             },
             'm68k': {
@@ -32,17 +32,17 @@ class QEMUTestRunner:
             },
             'riscv64': {
                 'script': 'do-qemuriscv',
-                'args': '-6S',
+                'args': '-6Ss4',
                 'timeout': 30
             },
             'x86': {
                 'script': 'do-qemux86',
-                'args': '',
+                'args': '-s4',
                 'timeout': 30
             },
             'x86-64': {
                 'script': 'do-qemux86',
-                'args': '-6',
+                'args': '-6s4',
                 'timeout': 30
             }
         }
