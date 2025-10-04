@@ -61,7 +61,7 @@ arm_reset:
 #if WITH_SMP
     /* if the cpu id is != 0 it's a secondary cpu */
     mrs     cpuid, mpidr_el1
-    ubfx    cpuid, cpuid, #0, #SMP_CPU_ID_BITS
+    ubfx    cpuid, cpuid, #0, #24 /* ignore aff3 bits for now since they are not next to aff2 */
 
 #if WITH_KERNEL_VM
     cbnz    cpuid, .Lmmu_enable_secondary
@@ -382,22 +382,24 @@ arm_reset:
     cbnz    tmp2, .L__bss_loop
 .L__bss_loop_done:
 
+#if WITH_SMP
+    bl      arm64_init_boot_percpu
+#endif
+
     /* load the boot args we had saved previously */
     adrp    tmp, arm64_boot_args
     add     tmp, tmp, :lo12:arm64_boot_args
     ldp     x0, x1, [tmp], #16
     ldp     x2, x3, [tmp]
 
-    bl  lk_main
-    b   .
+    bl      lk_main
+    b       .
 
 #if WITH_SMP
 .Lsecondary_boot:
-    and     tmp, cpuid, #0xff
-    cmp     tmp, #(1 << SMP_CPU_CLUSTER_SHIFT)
-    bge     .Lunsupported_cpu_trap
-    bic     cpuid, cpuid, #0xff
-    orr     cpuid, tmp, cpuid, LSR #(8 - SMP_CPU_CLUSTER_SHIFT)
+    // if we came in from PSCI x0 has the cpu number
+    // TODO: more cleanly handle other boot paths
+    mov     cpuid, x0
 
     cmp     cpuid, #SMP_MAX_CPUS
     bge     .Lunsupported_cpu_trap

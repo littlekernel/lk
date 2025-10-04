@@ -12,6 +12,7 @@
 #include <libfdt.h>
 #include <lk/cpp.h>
 #include <lk/err.h>
+#include <lk/main.h>
 #include <lk/trace.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -26,6 +27,9 @@
 #endif
 #if ARCH_ARM || ARCH_ARM64
 #include <dev/power/psci.h>
+#endif
+#if ARCH_ARM64
+#include <arch/arm64/mp.h>
 #endif
 #if WITH_DEV_BUS_PCI
 #include <dev/bus/pci.h>
@@ -216,6 +220,15 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
             }
 
             LTRACEF("booting %zu cpus\n", cpu_count);
+
+            // TODO: revamp the ARM32 path so we do not need the special case here
+#if ARCH_ARM64
+            // tell the arm64 layer how many cores we have to start
+            arm64_set_secondary_cpu_count(cpu_count - 1);
+
+            // have the upper layer prepare for the secondary cpus
+            lk_init_secondary_cpus(cpu_count - 1);
+#endif
 
             /* boot the secondary cpus using the Power State Coordintion Interface */
             for (size_t i = 1; i < cpu_count; i++) {

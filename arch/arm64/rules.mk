@@ -18,17 +18,13 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/start.S \
 	$(LOCAL_DIR)/cache-ops.S \
 
-# if its requested we build with SMP, default to 4 cpus
+# if its requested we build with SMP, default to 8 cpus
 ifeq (true,$(call TOBOOL,$(WITH_SMP)))
-SMP_MAX_CPUS ?= 4
-SMP_CPU_CLUSTER_SHIFT ?= 8
-SMP_CPU_ID_BITS ?= 24 # Ignore aff3 bits for now since they are not next to aff2
+SMP_MAX_CPUS ?= 8
 
 GLOBAL_DEFINES += \
     WITH_SMP=1 \
-    SMP_MAX_CPUS=$(SMP_MAX_CPUS) \
-    SMP_CPU_CLUSTER_SHIFT=$(SMP_CPU_CLUSTER_SHIFT) \
-    SMP_CPU_ID_BITS=$(SMP_CPU_ID_BITS)
+    SMP_MAX_CPUS=$(SMP_MAX_CPUS)
 
 MODULE_SRCS += \
     $(LOCAL_DIR)/mp.c
@@ -105,6 +101,7 @@ include $(LOCAL_DIR)/toolchain.mk
 TOOLCHAIN_PREFIX := $(ARCH_$(ARCH)_TOOLCHAIN_PREFIX)
 
 ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
+ARCH_COMPILEFLAGS += -ffixed-x18
 ARCH_COMPILEFLAGS += -fno-omit-frame-pointer
 ARCH_COMPILEFLAGS_NOFLOAT := -mgeneral-regs-only
 ARCH_COMPILEFLAGS_FLOAT :=
@@ -139,5 +136,7 @@ $(BUILDDIR)/system-onesegment.ld: $(LOCAL_DIR)/system-onesegment.ld $(wildcard a
 
 linkerscript.phony:
 .PHONY: linkerscript.phony
+
+MODULE_OPTIONS := extra_warnings
 
 include make/module.mk

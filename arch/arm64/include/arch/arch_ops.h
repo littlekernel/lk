@@ -14,6 +14,7 @@
 #include <lk/compiler.h>
 #include <lk/reg.h>
 #include <arch/arm64.h>
+#include <arch/arm64/mp.h>
 
 
 __BEGIN_CDECLS
@@ -88,17 +89,6 @@ static inline struct thread *arch_get_current_thread(void) {
 static inline void arch_set_current_thread(struct thread *t) {
     ARM64_WRITE_SYSREG(tpidr_el1, (uint64_t)t);
 }
-
-#if WITH_SMP
-static inline uint arch_curr_cpu_num(void) {
-    uint64_t mpidr =  ARM64_READ_SYSREG(mpidr_el1);
-    return ((mpidr & ((1U << SMP_CPU_ID_BITS) - 1)) >> 8 << SMP_CPU_CLUSTER_SHIFT) | (mpidr & 0xff);
-}
-#else
-static inline uint arch_curr_cpu_num(void) {
-    return 0;
-}
-#endif
 
 __END_CDECLS
 

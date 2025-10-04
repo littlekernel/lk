@@ -8,6 +8,7 @@
 #include <arch.h>
 #include <arch/arm64.h>
 #include <arch/arm64/mmu.h>
+#include <arch/arm64/mp.h>
 #include <arch/atomic.h>
 #include <arch/mp.h>
 #include <arch/ops.h>
@@ -20,16 +21,12 @@
 #include <platform.h>
 #include <stdlib.h>
 
+#include "arm64_priv.h"
+
 #define LOCAL_TRACE 0
 
-#if WITH_SMP
-/* smp boot lock */
-static spin_lock_t arm_boot_cpu_lock = 1;
-static volatile int secondaries_to_init = 0;
-#endif
-
 // initial setup per cpu immediately after entering C code
-static void arm64_early_init_percpu(void) {
+void arm64_early_init_percpu(void) {
     // set the vector base
     ARM64_WRITE_SYSREG(VBAR_EL1, (uint64_t)&arm64_exception_base);
 
@@ -75,21 +72,7 @@ void arch_early_init(void) {
 // called after the kernel has been initialized and threading is enabled on the boot cpu
 void arch_init(void) {
 #if WITH_SMP
-    arch_mp_init_percpu();
-
-    LTRACEF("midr_el1 0x%llx\n", ARM64_READ_SYSREG(midr_el1));
-
-    secondaries_to_init = SMP_MAX_CPUS - 1; /* TODO: get count from somewhere else, or add cpus as they boot */
-
-    lk_init_secondary_cpus(secondaries_to_init);
-
-    LTRACEF("releasing %d secondary cpus\n", secondaries_to_init);
-
-    /* release the secondary cpus */
-    spin_unlock(&arm_boot_cpu_lock);
-
-    /* flush the release of the lock, since the secondary cpus are running without cache on */
-    arch_clean_cache_range((addr_t)&arm_boot_cpu_lock, sizeof(arm_boot_cpu_lock));
+    arm64_mp_init();
 #endif
 }
 
@@ -162,32 +145,3 @@ void arch_stacktrace(uint64_t fp, uint64_t pc) {
         frame.fp = *((uint64_t *)frame.fp);
     }
 }
-
-#if WITH_SMP
-/* called from assembly */
-void arm64_secondary_entry(ulong);
-void arm64_secondary_entry(ulong asm_cpu_num) {
-    uint cpu = arch_curr_cpu_num();
-    if (cpu != asm_cpu_num) {
-        return;
-    }
-
-    arm64_early_init_percpu();
-
-    spin_lock(&arm_boot_cpu_lock);
-    spin_unlock(&arm_boot_cpu_lock);
-
-    /* run early secondary cpu init routines up to the threading level */
-    lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
-
-    arch_mp_init_percpu();
-
-    LTRACEF("cpu num %d\n", cpu);
-
-    /* we're done, tell the main cpu we're up */
-    atomic_add(&secondaries_to_init, -1);
-    __asm__ volatile("sev");
-
-    lk_secondary_cpu_entry();
-}
-#endif
