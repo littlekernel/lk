@@ -254,22 +254,42 @@ static status_t gic_configure_interrupt(unsigned int vector,
 }
 
 void arm_gic_init(void) {
-    int i;
+    // Are we a GICv2?
+    // NOTE: probably crashes on a V3
+    uint32_t iidr = gicreg_read32(0, GICC_IIDR);
+    if (BITS_SHIFT(iidr, 19, 16) != 0x2) {
+        dprintf(CRITICAL, "GIC: not a GICv2, IIDR 0x%x\n", iidr);
+        return;
+    }
+    dprintf(INFO, "GIC: version %lu\n", BITS_SHIFT(iidr, 19, 16));
 
-    for (i = 0; i < MAX_INT; i+= 32) {
+    // Read how many cpus and interrupts we support
+    uint32_t type = gicreg_read32(0, GICD_TYPER);
+    uint32_t cpu_count = (type >> 5) & 0x7;
+    uint32_t it_lines = (type & 0x1f) + 1;
+    if (it_lines > 6) {
+        it_lines = 6;
+    }
+    int max_int = (int)it_lines * 32;
+    if (max_int > MAX_INT) {
+        max_int = MAX_INT;
+    }
+    dprintf(INFO, "GICv2: GICD_TYPER 0x%x, cpu_count %u, max_int %u\n", type, cpu_count + 1, max_int);
+
+    for (int i = 0; i < max_int; i+= 32) {
         gicreg_write32(0, GICD_ICENABLER(i / 32), ~0);
         gicreg_write32(0, GICD_ICPENDR(i / 32), ~0);
     }
 
     if (arm_gic_max_cpu() > 0) {
         /* Set external interrupts to target cpu 0 */
-        for (i = 32; i < MAX_INT; i += 4) {
+        for (int i = 32; i < max_int; i += 4) {
             gicreg_write32(0, GICD_ITARGETSR(i / 4), gicd_itargetsr[i / 4]);
         }
     }
 
     // Initialize all the SPIs to edge triggered
-    for (i = 32; i < MAX_INT; i++) {
+    for (int i = 32; i < max_int; i++) {
         gic_configure_interrupt(i, IRQ_TRIGGER_MODE_EDGE, IRQ_POLARITY_ACTIVE_HIGH);
     }
 
@@ -282,7 +302,7 @@ void arm_gic_init(void) {
      * mode. This will allow the non-secure side to handle
      * all the interrupts we don't explicitly claim.
      */
-    for (i = 32; i < MAX_INT; i += 32) {
+    for (int i = 32; i < max_int; i += 32) {
         u_int reg = i / 32;
         gicreg_write32(0, GICD_IGROUPR(reg), gicd_igroupr[reg]);
     }
