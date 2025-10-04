@@ -10,13 +10,14 @@ GLOBAL_DEFINES += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/asm.S \
+	$(LOCAL_DIR)/cache-ops.S \
 	$(LOCAL_DIR)/exceptions.S \
 	$(LOCAL_DIR)/exceptions_c.c \
 	$(LOCAL_DIR)/fpu.c \
-	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/spinlock.S \
 	$(LOCAL_DIR)/start.S \
-	$(LOCAL_DIR)/cache-ops.S \
+	$(LOCAL_DIR)/thread.c \
+    $(LOCAL_DIR)/mp.c \
 
 # if its requested we build with SMP, default to 8 cpus
 ifeq (true,$(call TOBOOL,$(WITH_SMP)))
@@ -25,9 +26,6 @@ SMP_MAX_CPUS ?= 8
 GLOBAL_DEFINES += \
     WITH_SMP=1 \
     SMP_MAX_CPUS=$(SMP_MAX_CPUS)
-
-MODULE_SRCS += \
-    $(LOCAL_DIR)/mp.c
 else
 GLOBAL_DEFINES += \
     SMP_MAX_CPUS=1

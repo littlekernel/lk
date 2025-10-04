@@ -7,6 +7,7 @@
  * Register use:
  *  x0-x3   Arguments
  *  x9-x15  Scratch
+ *  x18     Off-limits (percpu pointer))
  *  x19-x28 Globals
  */
 tmp                     .req x9
@@ -18,71 +19,63 @@ page_table              .req x13
 new_page_table          .req x14
 phys_offset             .req x15
 
-cpuid                   .req x19
-page_table1             .req x21
-mmu_initial_mapping     .req x22
-vaddr                   .req x23
-paddr                   .req x24
-mapping_size            .req x25
-size                    .req x26
-attr                    .req x27
-boot_el                 .req x28
+page_table1             .req x19
+mmu_initial_mapping     .req x20
+vaddr                   .req x21
+paddr                   .req x22
+mapping_size            .req x23
+size                    .req x24
+attr                    .req x25
+boot_el                 .req x26
 
-.section .text.boot
-FUNCTION(_start)
-.globl arm_reset
-arm_reset:
-    /* keep track of the boot EL */
-    mrs     boot_el, currentel
-
+.macro setup_cpu
     /* if we came in at higher than EL1, drop down to EL1 */
     bl      arm64_elX_to_el1
 
     /* enable caches so atomics and spinlocks work */
     mrs     tmp, sctlr_el1
-    bic     tmp, tmp, #(1<<19) /* Disable WXN */
-    orr     tmp, tmp, #(1<<12) /* Enable icache */
-    orr     tmp, tmp, #(1<<3)  /* Enable Stack Alignment Check EL1 */
-    orr     tmp, tmp, #(1<<2)  /* Enable dcache/ucache */
-    bic     tmp, tmp, #(1<<1)  /* Disable Alignment Checking for EL1 EL0 */
+    bic     tmp, tmp, (1<<19) /* Disable WXN */
+    orr     tmp, tmp, (1<<12) /* Enable icache */
+    orr     tmp, tmp, (1<<3) | /* Enable Stack Alignment Check EL1 */ \
+                      (1<<2) /* Enable dcache/ucache */
+    bic     tmp, tmp, (1<<1)  /* Disable Alignment Checking for EL1 EL0 */
     msr     sctlr_el1, tmp
 
     /* make sure SP_ELx is being used */
     msr     spsel, #1
+.endm
 
-#if WITH_KERNEL_VM
-    /* set up the mmu according to mmu_initial_mappings */
-
-    /* load the base of the translation table and clear the table */
-    adrp    page_table1, arm64_kernel_translation_table
-    add     page_table1, page_table1, #:lo12:arm64_kernel_translation_table
-#endif /* WITH_KERNEL_VM */
-
+.section .text.boot
+// Entry point on the boot CPU
+FUNCTION(arm64_reset)
 #if WITH_SMP
-    /* if the cpu id is != 0 it's a secondary cpu */
-    mrs     cpuid, mpidr_el1
-    ubfx    cpuid, cpuid, #0, #24 /* ignore aff3 bits for now since they are not next to aff2 */
-
-#if WITH_KERNEL_VM
-    cbnz    cpuid, .Lmmu_enable_secondary
-#else
-    cbnz    cpuid, .Lsecondary_boot
+    b       .Larm_reset_primary
+    // The second word of the binary is the entry point for secondary CPUs
+    // Just a quick solution to make it easy to compute the starting address.
+    b       arm64_secondary_phys_entry
+.Larm_reset_primary:
 #endif
-#endif /* WITH_SMP */
 
-    /* this path forward until .Lmmu_enable_secondary or .Lsecondary_boot is the primary cpu only */
+    /* keep track of the boot EL */
+    mrs     boot_el, currentel
+
+    // set up the cpu and drop out of EL2 if needed
+    setup_cpu
 
     /* save a copy of the boot args so x0-x3 are available for use */
-    adrp    tmp, arm64_boot_args
-    add     tmp, tmp, :lo12:arm64_boot_args
-    stp     x0, x1, [tmp], #16
-    stp     x2, x3, [tmp]
+    adr_global tmp, arm64_boot_args
+    stp     x0, x1, [tmp]
+    stp     x2, x3, [tmp, #16]
 
     /* save the boot EL */
     adrp    tmp, arm64_boot_el
     str     boot_el, [tmp, #:lo12:arm64_boot_el]
 
 #if WITH_KERNEL_VM
+    /* load the base of the translation table */
+    adr_global page_table1, arm64_kernel_translation_table
+
+    /* set up the mmu according to mmu_initial_mappings */
     /* walk through all the entries in the translation table, setting them up */
     mov     tmp, #0
 .Lclear_top_page_table_loop:
@@ -92,8 +85,7 @@ arm_reset:
     bne     .Lclear_top_page_table_loop
 
     /* load the address of the mmu_initial_mappings table and start processing */
-    adrp    mmu_initial_mapping, mmu_initial_mappings
-    add     mmu_initial_mapping, mmu_initial_mapping, #:lo12:mmu_initial_mappings
+    adr_global mmu_initial_mapping, mmu_initial_mappings
 
 .Linitial_mapping_loop:
 /* Read entry of mmu_initial_mappings (likely defined in platform.c) */
@@ -139,21 +131,27 @@ arm_reset:
  *         extended with additional flag types
  */
 .Lmapping_size_loop:
-    ldr     attr, =MMU_PTE_KERNEL_DATA_FLAGS
+    movlit  attr, MMU_PTE_KERNEL_DATA_FLAGS
+
+    /* If page is below  the entry point (__code_start) mark as kernel data */
     ldr     tmp, =__code_start
     subs    size, tmp, vaddr
-    /* If page is below  the entry point (_start) mark as kernel data */
     b.hi    .Lmem_type_done
 
-    ldr     attr, =MMU_PTE_KERNEL_RO_FLAGS
+    /* If the page is between __code_start and __rodata_start mark as RO */
+    movlit  attr, MMU_PTE_KERNEL_RO_FLAGS
     ldr     tmp, =__rodata_start
     subs    size, tmp, vaddr
     b.hi    .Lmem_type_done
+
+    /* If the page is between __rodata_start and __data_start mark as RO + XN */
     orr     attr, attr, #MMU_PTE_ATTR_PXN
     ldr     tmp, =__data_start
     subs    size, tmp, vaddr
     b.hi    .Lmem_type_done
-    ldr     attr, =MMU_PTE_KERNEL_DATA_FLAGS
+
+    /* > __data_start, mark as kernel data (RW + XN) */
+    movlit  attr, MMU_PTE_KERNEL_DATA_FLAGS
     ldr     tmp, =_end
     subs    size, tmp, vaddr
     b.lo    . /* Error: _end < vaddr */
@@ -228,7 +226,7 @@ arm_reset:
     /* Restore top bits of virtual address (should be all set) */
     eor     vaddr, vaddr, #(~0 << MMU_KERNEL_SIZE_SHIFT)
     /* Move to next subtype of ram mmu_initial_mappings entry */
-    cbnz     mapping_size, .Lmapping_size_loop
+    cbnz    mapping_size, .Lmapping_size_loop
 
     /* Move to next mmu_initial_mappings entry */
     add     mmu_initial_mapping, mmu_initial_mapping, __MMU_INITIAL_MAPPING_SIZE
@@ -270,7 +268,8 @@ arm_reset:
 
 .Linitial_mapping_done:
     /* compute the base TCR configuration and save away in a global for future use */
-    ldr     tmp, =MMU_TCR_FLAGS_BASE
+    /* inner sharable write-back write-allocate */
+    movlit  tmp, MMU_TCR_FLAGS_BASE
 
     /* Set TCR_EL1.IPS to ID_AA64MMFR0_EL1.PARange */
     mrs     tmp2, id_aa64mmfr0_el1
@@ -288,22 +287,83 @@ arm_reset:
     adrp    tmp2, arm64_mmu_tcr_flags
     str     tmp, [tmp2, #:lo12:arm64_mmu_tcr_flags]
 
-#if WITH_SMP
-    adrp    tmp, page_tables_not_ready
-    add     tmp, tmp, #:lo12:page_tables_not_ready
-    str     wzr, [tmp]
-    b       .Lpage_tables_ready
+    // Turn on the mmu
+    bl      arm64_enable_mmu
 
-.Lmmu_enable_secondary:
-    adrp    tmp, page_tables_not_ready
-    add     tmp, tmp, #:lo12:page_tables_not_ready
-.Lpage_tables_not_ready:
-    ldr     wtmp2, [tmp]
-    cbnz    wtmp2, .Lpage_tables_not_ready
-.Lpage_tables_ready:
+    // Running in high kernel space virtual address from here on out
+#endif /* WITH_KERNEL_VM */
+
+    /* load the stack pointer */
+    ldr tmp, =__stack_end
+    mov sp, tmp
+
+    /* clear bss */
+.L__do_bss:
+    /* clear out the bss excluding the stack and kernel translation table  */
+    /* NOTE: relies on __post_prebss_bss_start and __bss_end being 8 byte aligned */
+    ldr     tmp, =__post_prebss_bss_start
+    ldr     tmp2, =__bss_end
+    sub     tmp2, tmp2, tmp
+    cbz     tmp2, .L__bss_loop_done
+.L__bss_loop:
+    sub     tmp2, tmp2, #8
+    str     xzr, [tmp], #8
+    cbnz    tmp2, .L__bss_loop
+.L__bss_loop_done:
+
+    /* set up per-cpu area for the boot cpu */
+    bl      arm64_init_boot_percpu
+
+    /* load the boot args we had saved previously */
+    adr_global tmp, arm64_boot_args
+    ldp     x0, x1, [tmp], #16
+    ldp     x2, x3, [tmp]
+
+    bl      lk_main
+    b       .
+END_FUNCTION(arm64_reset)
+
+#if WITH_SMP
+LOCAL_FUNCTION(arm64_secondary_phys_entry)
+    // Entry point for secondary CPUs.
+    // argument: x0 = cpu number from PSCI
+    // TODO: more cleanly handle other boot paths unlike PSCI
+
+    // set up the cpu
+    setup_cpu
+
+    // enable the mmu
+    bl arm64_enable_mmu
+
+    // Running in high kernel space virtual address from here on out
+
+    cmp     x0, #SMP_MAX_CPUS
+    bge     .Lunsupported_cpu_trap
+
+    // Pick a local stack for this cpu out of an array of stacks.
+    ldr     tmp, =__stack_end
+    mov     tmp2, #ARCH_DEFAULT_STACK_SIZE
+    mul     tmp2, tmp2, x0
+    sub     sp, tmp, tmp2
+
+    bl      arm64_secondary_entry
+
+.Lunsupported_cpu_trap:
+    wfe
+    b       .Lunsupported_cpu_trap
+END_FUNCTION(arm64_secondary_phys_entry)
 #endif
 
-    /* set up the mmu */
+#if WITH_KERNEL_VM
+    // Enable the mmu on the current cpu
+LOCAL_FUNCTION(arm64_enable_mmu)
+    // Compute the difference of virtual and physical addresses and tweak our
+    // return address to return to the correct virtual address after enabling
+    // the mmu.
+    adr     tmp, .Lphys_offset /* phys */
+    ldr     tmp2, =.Lphys_offset /* virt */
+    sub     tmp, tmp2, tmp
+    add     x30, x30, tmp
 
     /* Invalidate TLB */
     tlbi    vmalle1is
@@ -311,18 +371,19 @@ arm_reset:
     isb
 
     /* Initialize Memory Attribute Indirection Register */
-    ldr     tmp, =MMU_MAIR_VAL
+    movlit  tmp, MMU_MAIR_VAL
     msr     mair_el1, tmp
 
     /* Initialize TCR_EL1 */
     /* set cacheable attributes on translation walk */
     /* (SMP extensions) non-shareable, inner write-back write-allocate */
-    adrp    tmp, arm64_mmu_tcr_flags
-    ldr     tmp, [tmp, #:lo12:arm64_mmu_tcr_flags]
-    orr     tmp, tmp, #MMU_TCR_FLAGS_KERNEL
+    ldr_global tmp, arm64_mmu_tcr_flags
     msr     tcr_el1, tmp
 
     isb
+
+    /* load the base of the translation table */
+    adr_global page_table1, arm64_kernel_translation_table
 
     /* Write ttbr with phys addr of the translation table */
     msr     ttbr0_el1, xzr
@@ -359,68 +420,9 @@ arm_reset:
     dsb     sy
     isb
 
-#if WITH_SMP
-    cbnz    cpuid, .Lsecondary_boot
-#endif
-#endif /* WITH_KERNEL_VM */
+    ret
+END_FUNCTION(arm64_enable_mmu)
 
-    /* load the stack pointer */
-    ldr tmp, =__stack_end
-    mov sp, tmp
-
-    /* clear bss */
-.L__do_bss:
-    /* clear out the bss excluding the stack and kernel translation table  */
-    /* NOTE: relies on __post_prebss_bss_start and __bss_end being 8 byte aligned */
-    ldr     tmp, =__post_prebss_bss_start
-    ldr     tmp2, =__bss_end
-    sub     tmp2, tmp2, tmp
-    cbz     tmp2, .L__bss_loop_done
-.L__bss_loop:
-    sub     tmp2, tmp2, #8
-    str     xzr, [tmp], #8
-    cbnz    tmp2, .L__bss_loop
-.L__bss_loop_done:
-
-#if WITH_SMP
-    bl      arm64_init_boot_percpu
-#endif
-
-    /* load the boot args we had saved previously */
-    adrp    tmp, arm64_boot_args
-    add     tmp, tmp, :lo12:arm64_boot_args
-    ldp     x0, x1, [tmp], #16
-    ldp     x2, x3, [tmp]
-
-    bl      lk_main
-    b       .
-
-#if WITH_SMP
-.Lsecondary_boot:
-    // if we came in from PSCI x0 has the cpu number
-    // TODO: more cleanly handle other boot paths
-    mov     cpuid, x0
-
-    cmp     cpuid, #SMP_MAX_CPUS
-    bge     .Lunsupported_cpu_trap
-
-    /* Set up the stack */
-    ldr     tmp, =__stack_end
-    mov     tmp2, #ARCH_DEFAULT_STACK_SIZE
-    mul     tmp2, tmp2, cpuid
-    sub     sp, tmp, tmp2
-
-    mov     x0, cpuid
-    bl      arm64_secondary_entry
-
-.Lunsupported_cpu_trap:
-    wfe
-    b       .Lunsupported_cpu_trap
-#endif
-
-.ltorg
-
-#if WITH_KERNEL_VM
 .section .text.boot.vectab
 /*
  * The only type of exception that we expect with the trampoline VBAR active is
@@ -431,63 +433,49 @@ LOCAL_FUNCTION(trampoline_vbar)
 .org 0x00
     wfe
     b       .-4
-
 .org 0x80
     wfe
     b       .-4
-
 .org 0x100
     wfe
     b       .-4
-
 .org 0x180
     wfe
     b       .-4
-
     /* exception vector for synchronous exceptions from current EL -> current EL */
 .org 0x200
-    b       .Lmmu_on_pc
-
+    adr_global tmp, .Lmmu_on_pc
+    br      tmp
 .org 0x280
     wfe
     b       .-4
-
 .org 0x300
     wfe
     b       .-4
-
 .org 0x380
     wfe
     b       .-4
-
 .org 0x400
     wfe
     b       .-4
-
 .org 0x480
     wfe
     b       .-4
-
 .org 0x500
     wfe
     b       .-4
-
 .org 0x580
     wfe
     b       .-4
-
 .org 0x600
     wfe
     b       .-4
-
 .org 0x680
     wfe
     b       .-4
-
 .org 0x700
     wfe
     b       .-4
-
 .org 0x780
     wfe
     b       .-4
@@ -502,13 +490,6 @@ END_DATA(arm64_boot_args)
 DATA(arm64_boot_el)
     .skip 8
 END_DATA(arm64_boot_el)
-
-#if WITH_SMP
-.data
-DATA(page_tables_not_ready)
-    .long       1
-END_DATA(page_tables_not_ready)
-#endif
 
 .section .bss.prebss.stack
     .align 4

@@ -28,7 +28,7 @@
 // initial setup per cpu immediately after entering C code
 void arm64_early_init_percpu(void) {
     // set the vector base
-    ARM64_WRITE_SYSREG(VBAR_EL1, (uint64_t)&arm64_exception_base);
+    ARM64_WRITE_SYSREG(VBAR_EL1, (uint64_t)&arm64_exception_table);
 
     // hard set up the SCTLR ignoring what was there before
     uint64_t sctlr = 0;
@@ -71,9 +71,7 @@ void arch_early_init(void) {
 
 // called after the kernel has been initialized and threading is enabled on the boot cpu
 void arch_init(void) {
-#if WITH_SMP
     arm64_mp_init();
-#endif
 }
 
 void arch_quiesce(void) {
