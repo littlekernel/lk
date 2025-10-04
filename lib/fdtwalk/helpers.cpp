@@ -221,7 +221,7 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
             for (size_t i = 1; i < cpu_count; i++) {
                 /* note: assumes cpuids are numbered like MPIDR 0:0:0:N */
                 dprintf(INFO, "ARM: starting cpu %#x\n", cpus[i].id);
-                int ret = psci_cpu_on(cpus[i].id, MEMBASE + KERNEL_LOAD_OFFSET);
+                int ret = psci_cpu_on(cpus[i].id, MEMBASE + KERNEL_LOAD_OFFSET, i);
                 if (ret != 0) {
                     printf("ERROR: psci CPU_ON returns %d\n", ret);
                 }
