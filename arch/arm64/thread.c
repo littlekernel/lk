@@ -6,6 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <arch/arm64.h>
+#include <assert.h>
 #include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
@@ -16,11 +17,8 @@
 #define LOCAL_TRACE 0
 
 struct context_switch_frame {
-    vaddr_t lr;
-    vaddr_t pad;       // Padding to keep frame size a multiple of
     vaddr_t tpidr_el0; //  sp alignment requirements (16 bytes)
     vaddr_t tpidrro_el0;
-    vaddr_t r18;
     vaddr_t r19;
     vaddr_t r20;
     vaddr_t r21;
@@ -32,7 +30,9 @@ struct context_switch_frame {
     vaddr_t r27;
     vaddr_t r28;
     vaddr_t r29;
+    vaddr_t lr; // x30
 };
+static_assert(sizeof(struct context_switch_frame) % 16 == 0, "context_switch_frame size must be multiple of 16");
 
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void) {

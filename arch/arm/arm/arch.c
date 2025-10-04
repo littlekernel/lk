@@ -18,6 +18,7 @@
 #include <arch/mmu.h>
 #include <arch/arm.h>
 #include <arch/arm/mmu.h>
+#include <arch/arm/mp.h>
 #include <arch/mp.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>

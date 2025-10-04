@@ -15,6 +15,8 @@
 #define regsave_long_offset 0xf0
 #define regsave_short_offset 0x90
 
+// NOTE: stay in sync with arm64_iframe_long et al. in include/arch/arm64.h
+
 .macro regsave_long
 sub  sp, sp, #32
 push x28, x29
@@ -72,7 +74,7 @@ pop x10, x11
 pop x12, x13
 pop x14, x15
 pop x16, x17
-pop x18, x19
+pop xzr, x19 // Do not restore x18, it is our per cpu pointer
 pop x20, x21
 pop x22, x23
 pop x24, x25
