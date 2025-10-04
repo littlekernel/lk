@@ -36,6 +36,8 @@ extern void bcm28xx_send_ipi(uint irq, uint cpu_mask);
 
 // percpu structures for the boot cpu and secondaries
 static struct arm64_percpu boot_percpu;
+
+#if WITH_SMP
 static struct arm64_percpu *secondary_percpu;
 static uint secondaries_to_init = 0;
 
@@ -74,21 +76,12 @@ static enum handler_return arm_ipi_reschedule_handler(void *arg) {
     return mp_mbx_reschedule_irq();
 }
 
-void arm64_mp_init_percpu(void) {
+static void arm64_mp_init_percpu(void) {
     register_int_handler(MP_IPI_GENERIC + GIC_IPI_BASE, &arm_ipi_generic_handler, 0);
     register_int_handler(MP_IPI_RESCHEDULE + GIC_IPI_BASE, &arm_ipi_reschedule_handler, 0);
 
     // unmask_interrupt(MP_IPI_GENERIC + GIC_IPI_BASE);
     // unmask_interrupt(MP_IPI_RESCHEDULE + GIC_IPI_BASE);
-}
-
-// Special case, called from start.S code on the boot cpu, which willJ always be numbered 0
-// called from assembly
-void arm64_init_boot_percpu(void);
-void arm64_init_boot_percpu(void) {
-    arm64_set_percpu(&boot_percpu);
-    boot_percpu.cpu_num = 0;
-    boot_percpu.mpidr = ARM64_READ_SYSREG(mpidr_el1);
 }
 
 static void arm64_init_secondary_percpu(uint cpu_num) {
@@ -125,16 +118,12 @@ void arm64_set_secondary_cpu_count(int count) {
     }
 }
 
-void arm64_mp_init(void) {
-    arm64_mp_init_percpu();
-}
-
 /* called from assembly */
 void arm64_secondary_entry(ulong);
 void arm64_secondary_entry(ulong asm_cpu_num) {
     arm64_init_secondary_percpu(asm_cpu_num);
 
-    uint cpu = arch_curr_cpu_num();
+    const uint cpu = arch_curr_cpu_num();
     if (cpu != asm_cpu_num) {
         return;
     }
@@ -149,4 +138,20 @@ void arm64_secondary_entry(ulong asm_cpu_num) {
     LTRACEF("cpu num %d\n", cpu);
 
     lk_secondary_cpu_entry();
+}
+#endif // WITH_SMP
+
+void arm64_mp_init(void) {
+#if WITH_SMP
+    arm64_mp_init_percpu();
+#endif
+}
+
+// Special case, called from start.S code on the boot cpu, which will always be numbered 0
+// called from assembly
+void arm64_init_boot_percpu(void);
+void arm64_init_boot_percpu(void) {
+    arm64_set_percpu(&boot_percpu);
+    boot_percpu.cpu_num = 0;
+    boot_percpu.mpidr = ARM64_READ_SYSREG(mpidr_el1);
 }

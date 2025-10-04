@@ -121,7 +121,7 @@ add sp, sp, #32
     b   arm64_exc_shared_restore_short
 .endm
 
-FUNCTION(arm64_exception_base)
+FUNCTION(arm64_exception_table)
 
 /* exceptions from current EL, using SP0 */
 LOCAL_FUNCTION(arm64_sync_exc_current_el_SP0)
@@ -208,11 +208,14 @@ LOCAL_FUNCTION(arm64_fiq_lower_el_32)
 LOCAL_FUNCTION(arm64_err_exc_lower_el_32)
     invalid_exception 0x33
 
-.text
+END_FUNCTION(arm64_exception_table)
+
 LOCAL_FUNCTION(arm64_exc_shared_restore_long)
     regrestore_long
     eret
+END_FUNCTION(arm64_exc_shared_restore_long)
 
 LOCAL_FUNCTION(arm64_exc_shared_restore_short)
     regrestore_short
     eret
+END_FUNCTION(arm64_exc_shared_restore_short)

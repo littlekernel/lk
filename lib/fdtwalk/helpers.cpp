@@ -205,11 +205,13 @@ status_t fdtwalk_setup_cpus_riscv(const void *fdt) {
 
 #if ARCH_ARM || ARCH_ARM64
 status_t fdtwalk_setup_cpus_arm(const void *fdt) {
+    status_t err = ERR_NOT_SUPPORTED;
+
 #if WITH_SMP
     struct fdt_walk_cpu_info cpus[SMP_MAX_CPUS];
     size_t cpu_count = countof(cpus);
 
-    status_t err = fdt_walk_find_cpus(fdt, cpus, &cpu_count);
+    err = fdt_walk_find_cpus(fdt, cpus, &cpu_count);
     if (err >= NO_ERROR) {
         if (cpu_count > 0) {
             dprintf(INFO, "FDT: found %zu cpu%c\n", cpu_count, cpu_count == 1  ? ' ' : 's');
@@ -222,19 +224,23 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
             LTRACEF("booting %zu cpus\n", cpu_count);
 
             // TODO: revamp the ARM32 path so we do not need the special case here
+            ulong phys_entry = MEMBASE + KERNEL_LOAD_OFFSET;
 #if ARCH_ARM64
             // tell the arm64 layer how many cores we have to start
             arm64_set_secondary_cpu_count(cpu_count - 1);
 
             // have the upper layer prepare for the secondary cpus
             lk_init_secondary_cpus(cpu_count - 1);
+
+            // the secondary cpu entry point is 4 bytes into the kernel image (see start.S)
+            phys_entry += 4;
 #endif
 
             /* boot the secondary cpus using the Power State Coordintion Interface */
             for (size_t i = 1; i < cpu_count; i++) {
                 /* note: assumes cpuids are numbered like MPIDR 0:0:0:N */
                 dprintf(INFO, "ARM: starting cpu %#x\n", cpus[i].id);
-                int ret = psci_cpu_on(cpus[i].id, MEMBASE + KERNEL_LOAD_OFFSET, i);
+                int ret = psci_cpu_on(cpus[i].id, phys_entry, i);
                 if (ret != 0) {
                     printf("ERROR: psci CPU_ON returns %d\n", ret);
                 }
