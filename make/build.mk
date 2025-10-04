@@ -42,7 +42,7 @@ $(OUTELF).sym.sorted: $(OUTELF)
 
 $(OUTELF).lst: $(OUTELF)
 	$(info generating listing: $@)
-	$(NOECHO)$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -l -d $< | $(CPPFILT) > $@
+	$(NOECHO)$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -d $< | $(CPPFILT) > $@
 	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@
 
 $(OUTELF).debug.lst: $(OUTELF)
