@@ -13,7 +13,7 @@
 __BEGIN_CDECLS
 
 uint32_t psci_version(void);
-int psci_cpu_on(int corenr, ulong entrypoint);
+int psci_cpu_on(ulong mpidr, ulong entrypoint, uint32_t cpu_num);
 void psci_system_off(void);
 void psci_system_reset(void);
 
