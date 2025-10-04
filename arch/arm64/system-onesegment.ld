@@ -6,9 +6,11 @@ SECTIONS
 {
     . = %KERNEL_BASE% + %KERNEL_LOAD_OFFSET%;
 
+    _start = .;
+
     /* text/read-only data */
     /* set the load address to physical MEMBASE */
-    .text : AT(%MEMBASE% + %KERNEL_LOAD_OFFSET%) {
+    .text : AT(%MEMBASE% + %KERNEL_LOAD_OFFSET%)  ALIGN(CONSTANT(MAXPAGESIZE)) {
         __code_start = .;
         KEEP(*(.text.boot))
         KEEP(*(.text.boot.vectab))

@@ -57,7 +57,7 @@ struct arm64_stackframe {
 };
 
 struct thread;
-extern void arm64_exception_base(void);
+extern void arm64_exception_table(void);
 void arm64_fpu_exception(struct arm64_iframe_long *iframe);
 void arm64_fpu_save_state(struct thread *thread);
 

@@ -17,7 +17,6 @@
 __BEGIN_CDECLS
 
 void arm64_mp_init(void);
-void arm64_mp_init_percpu(void);
 
 // Tell the ARM64 code how many secondary cpus to expect, which
 // will cause it to allocate percpu structures for them.
@@ -39,12 +38,8 @@ static inline struct arm64_percpu *arm64_get_percpu(void) {
 }
 
 static inline uint arch_curr_cpu_num(void) {
-#if WITH_SMP
     const struct arm64_percpu *pc = arm64_get_percpu();
     return pc->cpu_num;
-#else
-    return 0;
-#endif
 }
 
 __END_CDECLS

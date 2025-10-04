@@ -55,6 +55,8 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     { 0 }
 };
 
+extern void arm_reset(void);
+
 #define DEBUG_UART 0
 
 #elif BCM2837
@@ -89,13 +91,13 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 
 #define DEBUG_UART 1
 
+extern void arm64_reset(void);
+
 #else
 #error Unknown BCM28XX Variant
 #endif
 
 extern void intc_init(void);
-extern void arm_reset(void);
-
 
 static pmm_arena_t arena = {
     .name = "sdram",
@@ -174,7 +176,8 @@ void platform_early_init(void) {
 
 #if WITH_SMP
 #if BCM2837
-    uintptr_t sec_entry = (uintptr_t)(&arm_reset - KERNEL_ASPACE_BASE);
+    // Secondary entry point for arm64 is 4 bytes into the kernel image
+    uintptr_t sec_entry = (uintptr_t)(&arm64_reset) - KERNEL_ASPACE_BASE + 4;
     unsigned long long *spin_table = (void *)(KERNEL_ASPACE_BASE + 0xd8);
 
     for (uint i = 1; i <= 3; i++) {
