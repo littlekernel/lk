@@ -35,6 +35,15 @@ jobs:
           # no real point building ubsan on the old compiler
           - ubsan: 1
             toolchain-ver: 7.5.0
+          # do not build ubsan for older 32bit arches where it is not well supported
+          - ubsan: 1
+            arch: m68k
+          - ubsan: 1
+            arch: microblaze
+          - ubsan: 1
+            arch: mips
+          - ubsan: 1
+            arch: or1k
           # no toolchain for 7.5.0 for or1k
           - arch: or1k
             toolchain-ver: 7.5.0
@@ -147,7 +156,7 @@ jobs:
         export -n ARCH
         # DEBUG is passed through to the build script
         # UBSAN is passed through to the build script
-        ./scripts/buildall -a "${{ matrix.arch }}"
+        ./scripts/buildall -e -a "${{ matrix.arch }}"
 
     # upload artifacts
     #- uses: actions/upload-artifact@v2
