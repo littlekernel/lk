@@ -25,8 +25,8 @@
 #define EARLIEST_TRACE_LEVEL LK_INIT_LEVEL_TARGET_EARLY
 #endif
 
-extern const struct lk_init_struct __start_lk_init __WEAK;
-extern const struct lk_init_struct __stop_lk_init __WEAK;
+extern const struct lk_init_struct __start_lk_init[] __WEAK;
+extern const struct lk_init_struct __stop_lk_init[] __WEAK;
 
 void lk_init_level(enum lk_init_flags required_flag, uint16_t start_level, uint16_t stop_level) {
     LTRACEF("flags %#x, start_level %#hx, stop_level %#hx\n",
@@ -41,7 +41,7 @@ void lk_init_level(enum lk_init_flags required_flag, uint16_t start_level, uint1
 
         const struct lk_init_struct *found = NULL;
         bool seen_last = false;
-        for (const struct lk_init_struct *ptr = &__start_lk_init; ptr != &__stop_lk_init; ptr++) {
+        for (const struct lk_init_struct *ptr = __start_lk_init; ptr != __stop_lk_init; ptr++) {
             LTRACEF("looking at %p (%s) level %#x, flags %#x, seen_last %d\n", ptr, ptr->name, ptr->level, ptr->flags, seen_last);
 
             if (ptr == last)

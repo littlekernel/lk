@@ -13,8 +13,8 @@
 #include <lk/console_cmd.h>
 #include <kernel/thread.h>
 
-extern const struct app_descriptor __start_apps __WEAK;
-extern const struct app_descriptor __stop_apps __WEAK;
+extern const struct app_descriptor __start_apps[] __WEAK;
+extern const struct app_descriptor __stop_apps[] __WEAK;
 
 static void start_app(const struct app_descriptor *app, bool detach);
 
@@ -23,13 +23,13 @@ void apps_init(void) {
     const struct app_descriptor *app;
 
     /* call all the init routines */
-    for (app = &__start_apps; app != &__stop_apps; app++) {
+    for (app = __start_apps; app != __stop_apps; app++) {
         if (app->init)
             app->init(app);
     }
 
     /* start any that want to start on boot */
-    for (app = &__start_apps; app != &__stop_apps; app++) {
+    for (app = __start_apps; app != __stop_apps; app++) {
         if (app->entry && (app->flags & APP_FLAG_NO_AUTOSTART) == 0) {
             start_app(app, true);
         }
@@ -67,7 +67,7 @@ status_t app_start_by_name(const char *name, bool detached) {
     const struct app_descriptor *app;
 
     /* find the app and call it */
-    for (app = &__start_apps; app != &__stop_apps; app++) {
+    for (app = __start_apps; app != __stop_apps; app++) {
         if (!strcmp(app->name, name)) {
             start_app(app, detached);
             return NO_ERROR;
@@ -80,7 +80,7 @@ status_t app_start_by_name(const char *name, bool detached) {
 static void list_apps(void) {
     const struct app_descriptor *app;
 
-    for (app = &__start_apps; app != &__stop_apps; app++) {
+    for (app = __start_apps; app != __stop_apps; app++) {
         printf("%s\n", app->name);
     }
 }
