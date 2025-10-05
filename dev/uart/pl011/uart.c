@@ -5,57 +5,57 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include "include/dev/uart/pl011.h"
+#include "dev/uart/pl011.h"
 
 #include <assert.h>
-#include <lk/trace.h>
-#include <lib/cbuf.h>
-#include <lib/io.h>
 #include <dev/uart.h>
 #include <kernel/thread.h>
+#include <lib/cbuf.h>
+#include <lib/io.h>
+#include <lk/trace.h>
 #include <platform/interrupts.h>
 
 // PL011 UART driver
 
 // PL011 registers
 enum pl011_regs {
-    UART_DR    = 0x00,
-    UART_RSR   = 0x04,
-    UART_TFR   = 0x18,
-    UART_ILPR  = 0x20,
-    UART_IBRD  = 0x24,
-    UART_FBRD  = 0x28,
-    UART_LCRH  = 0x2c,
-    UART_CR    = 0x30,
-    UART_IFLS  = 0x34,
-    UART_IMSC  = 0x38,
-    UART_TRIS  = 0x3c,
-    UART_TMIS  = 0x40,
-    UART_ICR   = 0x44,
+    UART_DR = 0x00,
+    UART_RSR = 0x04,
+    UART_TFR = 0x18,
+    UART_ILPR = 0x20,
+    UART_IBRD = 0x24,
+    UART_FBRD = 0x28,
+    UART_LCRH = 0x2c,
+    UART_CR = 0x30,
+    UART_IFLS = 0x34,
+    UART_IMSC = 0x38,
+    UART_TRIS = 0x3c,
+    UART_TMIS = 0x40,
+    UART_ICR = 0x44,
     UART_DMACR = 0x48
 };
 
 // Control register bits that are used in the driver
-#define UART_TFR_RXFE (1<<4)
-#define UART_TFR_TXFF (1<<5)
-#define UART_TFR_RXFF (1<<6)
-#define UART_TFR_TXFE (1<<7)
+#define UART_TFR_RXFE (1 << 4)
+#define UART_TFR_TXFF (1 << 5)
+#define UART_TFR_RXFF (1 << 6)
+#define UART_TFR_TXFE (1 << 7)
 
-#define UART_IMSC_RXIM (1<<4)
+#define UART_IMSC_RXIM (1 << 4)
 
-#define UART_TMIS_RXMIS (1<<4)
+#define UART_TMIS_RXMIS (1 << 4)
 
-#define UART_CR_UARTEN (1<<0)
-#define UART_CR_TXEN (1<<8)
-#define UART_CR_RXEN (1<<9)
+#define UART_CR_UARTEN (1 << 0)
+#define UART_CR_TXEN   (1 << 8)
+#define UART_CR_RXEN   (1 << 9)
 
 // TODO: have these be configurable
 #define RXBUF_SIZE 32
-#define NUM_UART 1
+#define NUM_UART   1
 
 struct pl011_struct {
+    bool initialized;
     struct pl011_config config;
-
     cbuf_t uart_rx_buf;
 };
 
@@ -150,22 +150,32 @@ void pl011_init_early(int port, const struct pl011_config *config) {
 
     // TODO: validate config
     uart[port].config = *config;
+    uart[port].initialized = true;
 
     write_uart_reg(uart[port].config.base, UART_CR, UART_CR_TXEN | UART_CR_UARTEN); // tx_enable, uarten
 }
 
 int uart_putc(int port, char c) {
+    DEBUG_ASSERT(port < NUM_UART);
+    if (uart[port].initialized == false) {
+        return -1;
+    }
+
     uintptr_t base = uart_to_ptr(port);
 
     /* spin while fifo is full */
-    while (read_uart_reg(base, UART_TFR) & UART_TFR_TXFF)
-        ;
+    while (read_uart_reg(base, UART_TFR) & UART_TFR_TXFF);
     write_uart_reg(base, UART_DR, c);
 
     return 1;
 }
 
 int uart_getc(int port, bool wait) {
+    DEBUG_ASSERT(port < NUM_UART);
+    if (unlikely(uart[port].initialized == false)) {
+        return -1;
+    }
+
     cbuf_t *rxbuf = &uart[port].uart_rx_buf;
 
     char c;
@@ -179,17 +189,25 @@ int uart_getc(int port, bool wait) {
 
 /* panic-time getc/putc */
 int uart_pputc(int port, char c) {
+    DEBUG_ASSERT(port < NUM_UART);
+    if (unlikely(uart[port].initialized == false)) {
+        return -1;
+    }
+
     uintptr_t base = uart_to_ptr(port);
 
     /* spin while fifo is full */
-    while (read_uart_reg(base, UART_TFR) & UART_TFR_TXFF)
-        ;
+    while (read_uart_reg(base, UART_TFR) & UART_TFR_TXFF);
     write_uart_reg(base, UART_DR, c);
 
     return 1;
 }
 
 int uart_pgetc(int port) {
+    DEBUG_ASSERT(port < NUM_UART);
+    if (unlikely(uart[port].initialized == false)) {
+        return -1;
+    }
     uintptr_t base = uart_to_ptr(port);
 
     if ((read_uart_reg(base, UART_TFR) & UART_TFR_RXFE) == 0) {
@@ -209,4 +227,3 @@ void uart_flush_rx(int port) {
 // TODO collapse this into the early/regular init routines
 void uart_init_port(int port, uint baud) {
 }
-
