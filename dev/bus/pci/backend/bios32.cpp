@@ -82,7 +82,7 @@ static pci_bios_info *find_pci_bios_info(void) {
     uint i;
 
     while (head < (uint32_t *) (0x000ffff0 + KERNEL_BASE)) {
-        if (*head == *(uint32_t *) pci_bios_magic) {
+        if (memcmp(head, pci_bios_magic, sizeof(pci_bios_magic)) == 0) {
             // perform the checksum
             sum = 0;
             b = (int8_t *) head;

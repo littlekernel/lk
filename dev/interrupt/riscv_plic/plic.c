@@ -95,7 +95,7 @@ void plic_early_init(uintptr_t base, size_t num_irqs_, bool hart0_m_only_) {
     // mask all irqs and set their priority to 1
     // TODO: mask on all the other cpus too
     for (size_t i = 1; i < num_irqs; i++) {
-        *REG32(PLIC_ENABLE(i, riscv_current_hart())) &= ~(1 << (i % 32));
+        *REG32(PLIC_ENABLE(i, riscv_current_hart())) &= ~(1U << (i % 32));
         *REG32(PLIC_PRIORITY(i)) = 1;
     }
 
@@ -107,13 +107,13 @@ void plic_init(void) {}
 
 status_t mask_interrupt(unsigned int vector) {
     LTRACEF("vector %u, current hart %u\n", vector, riscv_current_hart());
-    *REG32(PLIC_ENABLE(vector, riscv_current_hart())) &= ~(1 << (vector % 32));
+    *REG32(PLIC_ENABLE(vector, riscv_current_hart())) &= ~(1U << (vector % 32));
     return NO_ERROR;
 }
 
 status_t unmask_interrupt(unsigned int vector) {
     LTRACEF("vector %u, current hart %u\n", vector, riscv_current_hart());
-    *REG32(PLIC_ENABLE(vector, riscv_current_hart())) |= (1 << (vector % 32));
+    *REG32(PLIC_ENABLE(vector, riscv_current_hart())) |= (1U << (vector % 32));
 
     return NO_ERROR;
 }

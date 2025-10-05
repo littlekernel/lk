@@ -244,9 +244,9 @@ static status_t gic_configure_interrupt(unsigned int vector,
     uint32_t bit_shift = ((vector & 0xf) << 1) + 1;
     uint32_t reg_val   = gicreg_read32(0, GICD_ICFGR(reg_ndx));
     if (tm == IRQ_TRIGGER_MODE_EDGE) {
-        reg_val |= (1 << bit_shift);
+        reg_val |= (1U << bit_shift);
     } else {
-        reg_val &= ~(1 << bit_shift);
+        reg_val &= ~(1U << bit_shift);
     }
     gicreg_write32(0, GICD_ICFGR(reg_ndx), reg_val);
 

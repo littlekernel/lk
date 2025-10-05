@@ -229,7 +229,7 @@ static void x86_feature_dump_cpuid(void) {
     for (uint32_t i = X86_CPUID_EXT_BASE; i <= max_cpuid_leaf_ext; i++) {
         uint32_t index = i - X86_CPUID_EXT_BASE;
         printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i,
-               saved_cpuids[index].a, saved_cpuids[index].b, saved_cpuids[index].c, saved_cpuids[index].d);
+               saved_cpuids_ext[index].a, saved_cpuids_ext[index].b, saved_cpuids_ext[index].c, saved_cpuids_ext[index].d);
     }
 }
 

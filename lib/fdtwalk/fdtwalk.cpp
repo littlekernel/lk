@@ -35,13 +35,13 @@ void read_address_size_cells(const void *fdt, int offset, int depth,
     const void *prop_ptr = fdt_getprop(fdt, offset, "#address-cells", &len);
     LTRACEF_LEVEL(3, "%p, len %d\n", prop_ptr, len);
     if (prop_ptr && len == 4) {
-        address_cells[depth] = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+        address_cells[depth] = fdt32_ld((const fdt32_t *)prop_ptr);
     }
 
     prop_ptr = fdt_getprop(fdt, offset, "#size-cells", &len);
     LTRACEF_LEVEL(3, "%p, len %d\n", prop_ptr, len);
     if (prop_ptr && len == 4) {
-        size_cells[depth] = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+        size_cells[depth] = fdt32_ld((const fdt32_t *)prop_ptr);
     }
 
     LTRACEF_LEVEL(3, "address-cells %u size-cells %u\n", address_cells[depth], size_cells[depth]);
@@ -55,11 +55,11 @@ status_t read_base_len_pair(const uint8_t *prop_ptr, size_t prop_len,
 
     /* we're looking at a memory descriptor */
     if (address_cell_size == 2 && prop_len >= 8) {
-        *base = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+        *base = fdt64_ld((const fdt64_t *)prop_ptr);
         prop_ptr += 8;
         prop_len -= 8;
     } else if (address_cell_size == 1 && prop_len >= 4) {
-        *base = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+        *base = fdt32_ld((const fdt32_t *)prop_ptr);
         prop_ptr += 4;
         prop_len -= 4;
     } else {
@@ -67,11 +67,11 @@ status_t read_base_len_pair(const uint8_t *prop_ptr, size_t prop_len,
     }
 
     if (size_cell_size == 2 && prop_len >= 8) {
-        *len = fdt64_to_cpu(*((const uint64_t *)prop_ptr));
+        *len = fdt64_ld(((const fdt64_t *)prop_ptr));
         prop_ptr += 8;
         prop_len -= 8;
     } else if (size_cell_size == 1 && prop_len >= 4) {
-        *len = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+        *len = fdt32_ld((const fdt32_t *)prop_ptr);
         prop_ptr += 4;
         prop_len -= 4;
     } else {
@@ -212,7 +212,7 @@ status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size
                               state.curr_address_cell(), state.curr_size_cell());
                 uint32_t id = 0;
                 if (state.curr_address_cell() == 1 && lenp >= 4) {
-                    id = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                    id = fdt32_ld((const fdt32_t *)prop_ptr);
                     prop_ptr += 4;
                     lenp -= 4;
                 } else {
@@ -358,9 +358,9 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                               state.curr_address_cell(), state.curr_size_cell());
 
                 /* seems to always be full address cells 2, size cells 2, despite it being 3/2 */
-                info[*count].ecam_base = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                info[*count].ecam_base = fdt64_ld((const fdt64_t *)prop_ptr);
                 prop_ptr += 8;
-                info[*count].ecam_len = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                info[*count].ecam_len = fdt64_ld((const fdt64_t *)prop_ptr);
             }
 
             /* find which bus range the ecam covers */
@@ -371,9 +371,9 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                               state.curr_address_cell(), state.curr_size_cell());
 
                 if (lenp == 8) {
-                    info[*count].bus_start = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                    info[*count].bus_start = fdt32_ld((const fdt32_t *)prop_ptr);
                     prop_ptr += 4;
-                    info[*count].bus_end = fdt32_to_cpu(*(const uint32_t *)prop_ptr);
+                    info[*count].bus_end = fdt32_ld((const fdt32_t *)prop_ptr);
                 }
             }
 
@@ -386,16 +386,16 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                 /* iterate this packed property */
                 const uint8_t *prop_end = prop_ptr + lenp;
                 while (prop_ptr < prop_end) {
-                    uint32_t type = fdt32_to_cpu(*(const uint32_t *)(prop_ptr));
+                    uint32_t type = fdt32_ld((const fdt32_t *)prop_ptr);
                     prop_ptr += 4;
 
                     /* read 3 64bit values */
                     uint64_t base1, base2, size;
-                    base1 = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                    base1 = fdt64_ld((const fdt64_t *)prop_ptr);
                     prop_ptr += 8;
-                    base2 = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                    base2 = fdt64_ld((const fdt64_t *)prop_ptr);
                     prop_ptr += 8;
-                    size = fdt64_to_cpu(*(const uint64_t *)prop_ptr);
+                    size = fdt64_ld((const fdt64_t *)prop_ptr);
                     prop_ptr += 8;
 
                     switch (type) {
