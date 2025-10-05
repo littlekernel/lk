@@ -183,7 +183,12 @@ endif
 
 # test to see if -misa-spec=2.2 is a valid switch.
 # misa-spec is added to make sure the compiler picks up the zicsr extension by default.
+# If CC is being overridden by the user, use that instead of the toolchain gcc.
+ifdef CC
+MISA_SPEC := $(shell $(CC) $(ARCH_COMPILEFLAGS) -misa-spec=2.2 -E - < /dev/null > /dev/null 2>1 && echo supported)
+else
 MISA_SPEC := $(shell $(TOOLCHAIN_PREFIX)gcc $(ARCH_COMPILEFLAGS) -misa-spec=2.2 -E - < /dev/null > /dev/null 2>1 && echo supported)
+endif
 $(info MISA_SPEC = $(MISA_SPEC))
 ifeq ($(MISA_SPEC),supported)
 ARCH_COMPILEFLAGS += -misa-spec=2.2

@@ -202,6 +202,10 @@ $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 list-toolchain:
 else
 
+# TODO: rethink how this works and perhaps have the arch rules.mk set up CC, OBJCOPY, etc
+# so that they can be a bit more flexible in how they are set up.
+# Also consider using ARCH_CC, etc to disambiguate between host and target toolchains.
+
 # default to no ccache
 CCACHE ?=
 CC ?= $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
