@@ -100,7 +100,7 @@ struct val
         small_string<36> s;
         if (ubsan_type_is_signed_int(type_))
         {
-            snprintf(s.buf, 36, "%zd", (ssize_t) val_);
+            snprintf(s.buf, 36, "%ld", (long)val_);
         }
         else if (ubsan_type_is_uint(type_))
         {
@@ -393,11 +393,11 @@ void ubsan_handle_shift_out_of_bounds(const ubsan_shift_oob_data *data, ssize_t 
 
     if (ubsan_type_is_signed_int(rhs_t) && rhs < 0)
     {
-        printf("shift exponent %zd is negative\n", rhs);
+        printf("shift exponent %ld is negative\n", rhs);
     }
     else if ((size_t) rhs >= ubsan_type_get_int_width(lhs_t))
     {
-        printf("shift exponent %zu is too large for %zu-bit type %s\n", rhs,
+        printf("shift exponent %ld is too large for %zu-bit type %s\n", rhs,
                ubsan_type_get_int_width(lhs_t), lhs_t->typename_);
     }
     else
@@ -547,7 +547,7 @@ struct ubsan_vla_bound_data
 __USED void __ubsan_handle_vla_bound_not_positive(ubsan_vla_bound_data *data, ssize_t val)
 {
     ubsan_report_start(&data->location, "vla bound not positive");
-    printf("vla bound not positive (%zd)\n", val);
+    printf("vla bound not positive (%ld)\n", val);
     ubsan_report_end();
 }
 
