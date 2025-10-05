@@ -276,7 +276,7 @@ status_t fs_open_file(const char *path, filehandle **handle) {
 status_t fs_file_ioctl(filehandle *handle, int request, void *argp) {
     LTRACEF("filehandle %p, request %d, argp, %p\n", handle, request, argp);
 
-    if (unlikely(!handle || !handle->mount ||
+    if (unlikely(!handle->mount ||
                  !handle->mount->api || !handle->mount->api->file_ioctl)) {
         return ERR_INVALID_ARGS;
     }
@@ -321,9 +321,6 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len) {
 
 status_t fs_truncate_file(filehandle *handle, uint64_t len) {
     LTRACEF("filehandle %p, length %llu\n", handle, len);
-
-    if (unlikely(!handle))
-        return ERR_INVALID_ARGS;
 
     return handle->mount->api->truncate(handle->cookie, len);
 }
@@ -460,10 +457,6 @@ status_t fs_close_dir(dirhandle *handle) {
 
 status_t fs_stat_fs(const char *mountpoint, struct fs_stat *stat) {
     LTRACEF("mountpoint %s stat %p\n", mountpoint, stat);
-
-    if (!stat) {
-        return ERR_INVALID_ARGS;
-    }
 
     const char *newpath;
     struct fs_mount *mount = find_mount(mountpoint, &newpath);

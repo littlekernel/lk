@@ -298,8 +298,6 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
     if (!name)
         name = "";
 
-    if (!aspace)
-        return ERR_INVALID_ARGS;
     if (size == 0)
         return NO_ERROR;
     if (!IS_PAGE_ALIGNED(vaddr) || !IS_PAGE_ALIGNED(size))
@@ -339,8 +337,6 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
     if (!name)
         name = "";
 
-    if (!aspace)
-        return ERR_INVALID_ARGS;
     if (size == 0)
         return NO_ERROR;
     if (!IS_PAGE_ALIGNED(paddr) || !IS_PAGE_ALIGNED(size))

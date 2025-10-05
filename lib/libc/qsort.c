@@ -50,6 +50,10 @@ static __inline void     swapfunc(char *, char *, int, int);
         } while (--i > 0);              \
 }
 
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wnull-pointer-subtraction"
+#endif
+
 #define SWAPINIT(a, es) swaptype = ((char *)a - (char *)0) % sizeof(long) || \
     es % sizeof(long) ? 2 : es == sizeof(long)? 0 : 1;
 
