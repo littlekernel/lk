@@ -13,6 +13,8 @@ MODULE_DEPS += \
 	lib/heap/dlmalloc \
 	lib/libcpp \
 
+MODULE_OPTIONS := test
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/uefi.cpp \
 	$(LOCAL_DIR)/relocation.cpp \
@@ -30,6 +32,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/debug_support.cpp \
 	$(LOCAL_DIR)/charset.cpp \
 	$(LOCAL_DIR)/variable_mem.cpp \
+	$(LOCAL_DIR)/hii_protocol.cpp \
 
 
 include make/module.mk

@@ -24,6 +24,7 @@
 #include <uefi/protocols/gbl_efi_boot_memory_protocol.h>
 #include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
+#include <uefi/protocols/hii_protocol.h>
 #include <uefi/protocols/random_number_generator_protocol.h>
 #include <uefi/protocols/timestamp.h>
 #include <uefi/system_table.h>
@@ -93,5 +94,7 @@ GblEfiAvbProtocol* open_gbl_efi_avb_protocol();
 GblEfiBootControlProtocol* open_gbl_efi_boot_control_protocol();
 
 EfiRngProtocol* open_efi_rng_protocol();
+
+EfiHiiDatabaseProtocol *open_hii_database_protocol();
 
 #endif

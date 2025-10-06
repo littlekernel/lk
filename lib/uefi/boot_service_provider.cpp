@@ -28,6 +28,7 @@
 #include <uefi/protocols/dt_fixup_protocol.h>
 #include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
+#include <uefi/protocols/hii_protocol.h>
 #include <uefi/protocols/loaded_image_protocol.h>
 #include <uefi/types.h>
 
@@ -86,6 +87,7 @@ const char *protocol_name(const EfiGuid *protocol) {
       {&EFI_TIMESTAMP_PROTOCOL_GUID, "EFI_TIMESTAMP_PROTOCOL_GUID"},
       {&EFI_BOOT_MEMORY_PROTOCOL_GUID, "EFI_BOOT_MEMORY_PROTOCOL_GUID"},
       {&EFI_ERASE_BLOCK_PROTOCOL_GUID, "EFI_ERASE_BLOCK_PROTOCOL_GUID"},
+      {&EFI_HII_DATABASE_PROTOCOL_GUID, "EFI_HII_DATABASE_PROTOCOL_GUID"},
   };
 
   for (const auto &entry : kProtocolGuidNames) {
@@ -136,6 +138,7 @@ EfiHandle singleton_protocol_handle(const EfiGuid *protocol) {
       &EFI_GBL_EFI_AVB_PROTOCOL_GUID,
       &EFI_GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID,
       &EFI_RNG_PROTOCOL_GUID,
+      &EFI_HII_DATABASE_PROTOCOL_GUID,
   };
 
   for (const EfiGuid *singleton_guid : kSingletonGuids) {
@@ -398,6 +401,12 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, const void **
       return EFI_STATUS_OUT_OF_RESOURCES;
     }
     return EFI_STATUS_SUCCESS;
+  } else if (guid_eq(protocol, EFI_HII_DATABASE_PROTOCOL_GUID)) {
+    *intf = open_hii_database_protocol();
+    if (*intf == nullptr) {
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
+    return EFI_STATUS_SUCCESS;
   }
   return EFI_STATUS_UNSUPPORTED;
 }
@@ -416,6 +425,8 @@ EfiStatus close_protocol(EfiHandle handle, const EfiGuid *protocol,
   } else if (guid_eq(protocol, EFI_BLOCK_IO_PROTOCOL_GUID)) {
     return EFI_STATUS_SUCCESS;
   } else if (guid_eq(protocol, EFI_DT_FIXUP_PROTOCOL_GUID)) {
+    return EFI_STATUS_SUCCESS;
+  } else if (guid_eq(protocol, EFI_HII_DATABASE_PROTOCOL_GUID)) {
     return EFI_STATUS_SUCCESS;
   }
   return EFI_STATUS_UNSUPPORTED;
