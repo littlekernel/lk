@@ -27,8 +27,7 @@ static void arm64_fpu_load_state(struct thread *t) {
     fpstate->current_cpu = cpu;
     current_fpstate[cpu] = fpstate;
 
-
-    STATIC_ASSERT(sizeof(fpstate->regs) == 16 * 32);
+    STATIC_ASSERT(sizeof(fpstate->regs) == (size_t)16 * 32);
     __asm__ volatile(
         ".arch_extension fp\n"
         "ldp     q0, q1, [%0, #(0 * 32)]\n"
@@ -49,8 +48,8 @@ static void arm64_fpu_load_state(struct thread *t) {
         "ldp     q30, q31, [%0, #(15 * 32)]\n"
         "msr     fpcr, %1\n"
         "msr     fpsr, %2\n"
-        ".arch_extension nofp\n"
-        :: "r"(fpstate), "r"((uint64_t)fpstate->fpcr), "r"((uint64_t)fpstate->fpsr));
+        ".arch_extension nofp\n" ::"r"(fpstate),
+        "r"((uint64_t)fpstate->fpcr), "r"((uint64_t)fpstate->fpsr));
 }
 
 void arm64_fpu_save_state(struct thread *t) {
@@ -86,13 +85,13 @@ void arm64_fpu_save_state(struct thread *t) {
 }
 
 void arm64_fpu_exception(struct arm64_iframe_long *iframe) {
-    uint32_t cpacr = ARM64_READ_SYSREG(cpacr_el1);
+    uint64_t cpacr = ARM64_READ_SYSREG(cpacr_el1);
     if (((cpacr >> 20) & 3) != 3) {
         cpacr |= 3 << 20;
         ARM64_WRITE_SYSREG(cpacr_el1, cpacr);
         thread_t *t = get_current_thread();
-        if (likely(t))
+        if (likely(t)) {
             arm64_fpu_load_state(t);
-        return;
+        }
     }
 }

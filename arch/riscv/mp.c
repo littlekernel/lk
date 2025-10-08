@@ -133,16 +133,18 @@ void riscv_secondary_entry(uint hart_id, uint __unused, uint cpu_id) {
     riscv_mmu_init_secondaries();
 #endif
 
-    // run early secondary cpu init routines up to the threading level
-    lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
+    // Get us into thread context and run the initial secondary cpu init routines
+    lk_secondary_cpu_entry_early();
 
     // run threading level initialization on this cpu
     riscv_init_percpu();
 
-    dprintf(INFO, "RISCV: secondary hart coming up: mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#x\n",
+    dprintf(INFO, "RISCV: secondary hart started: cpu %u, mvendorid %#lx marchid %#lx mimpid %#lx mhartid %#x\n",
+            arch_curr_cpu_num(),
             riscv_get_mvendorid(), riscv_get_marchid(),
             riscv_get_mimpid(), riscv_current_hart());
 
+    // Finish secondary cpu initialization and enter the scheduler
     lk_secondary_cpu_entry();
 }
 

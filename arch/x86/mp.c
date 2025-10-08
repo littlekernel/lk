@@ -96,11 +96,12 @@ void x86_secondary_entry(uint cpu_num) {
 
     x86_early_init_percpu();
 
-    // run early secondary cpu init routines up to the threading level
-    lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
+    // Get us into thread context and run the initial secondary cpu init routines
+    lk_secondary_cpu_entry_early();
 
-    dprintf(INFO, "SMP: secondary cpu %u started, apic id %u\n", arch_curr_cpu_num(), apic_id);
+    dprintf(INFO, "X86: secondary cpu %u started, apic id %u\n", arch_curr_cpu_num(), apic_id);
 
+    // Finish secondary cpu initialization and enter the scheduler
     lk_secondary_cpu_entry();
 
     // should never get here except for an error condition

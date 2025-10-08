@@ -16,6 +16,7 @@
 #include <lk/main.h>
 #include <lk/trace.h>
 #include <platform/interrupts.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -130,13 +131,14 @@ void arm64_secondary_entry(ulong asm_cpu_num) {
 
     arm64_early_init_percpu();
 
-    /* run early secondary cpu init routines up to the threading level */
-    lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
+    // Get us into thread context and run the initial secondary cpu init routines
+    lk_secondary_cpu_entry_early();
 
     arm64_mp_init_percpu();
 
-    LTRACEF("cpu num %d\n", cpu);
+    dprintf(INFO, "ARM64: secondary cpu %u started, mpidr %#" PRIx64 "\n", arch_curr_cpu_num(), ARM64_READ_SYSREG(mpidr_el1));
 
+    // Finish secondary cpu initialization and enter the scheduler
     lk_secondary_cpu_entry();
 }
 #endif // WITH_SMP

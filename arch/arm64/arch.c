@@ -55,6 +55,10 @@ void arm64_early_init_percpu(void) {
 
     ARM64_WRITE_SYSREG(MDSCR_EL1, 0UL); // disable debug
 
+    // clear the tpidr registers
+    ARM64_WRITE_SYSREG(TPIDR_EL0, 0UL);
+    ARM64_WRITE_SYSREG(TPIDRRO_EL0, 0UL);
+
     // TODO: read feature bits on cpu 0
     // TODO: enable cycle counter if present
 
