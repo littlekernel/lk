@@ -164,20 +164,19 @@ void arm_secondary_entry(uint asm_cpu_num) {
     sctlr |= (1<<12) | (1<<2); // enable i and dcache
     arm_write_sctlr(sctlr);
 
-    /* run early secondary cpu init routines up to the threading level */
-    lk_init_level(LK_INIT_FLAG_SECONDARY_CPUS, LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_THREADING - 1);
+    // Get us into thread context and run the initial secondary cpu init routines
+    lk_secondary_cpu_entry_early();
 
     arch_mp_init_percpu();
 
-    LTRACEF("cpu num %d\n", cpu);
-    LTRACEF("sctlr 0x%x\n", arm_read_sctlr());
-    LTRACEF("actlr 0x%x\n", arm_read_actlr());
+    dprintf(INFO, "ARM: secondary cpu %u started\n", arch_curr_cpu_num());
 
     /* we're done, tell the main cpu we're up */
     atomic_add(&secondaries_to_init, -1);
     smp_mb();
     __asm__ volatile("sev");
 
+    // Finish secondary cpu initialization and enter the scheduler
     lk_secondary_cpu_entry();
 }
 #endif

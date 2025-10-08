@@ -84,7 +84,6 @@ void arch_early_init(void) {
 
 // later init per cpu
 void riscv_init_percpu(void) {
-    dprintf(INFO, "RISCV: percpu cpu num %#x hart id %#x\n", arch_curr_cpu_num(), riscv_current_hart());
 #if WITH_SMP
     // enable software interrupts, used for inter-processor-interrupts
     riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_SIE);

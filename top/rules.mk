@@ -14,6 +14,8 @@ MODULE_SRCS := \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/main.c \
+	$(LOCAL_DIR)/mp.c \
+
 
 MODULE_OPTIONS := extra_warnings
 

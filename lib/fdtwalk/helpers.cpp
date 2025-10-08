@@ -14,6 +14,7 @@
 #include <lk/err.h>
 #include <lk/main.h>
 #include <lk/trace.h>
+#include <kernel/thread.h>
 #include <stdio.h>
 #include <sys/types.h>
 #if WITH_KERNEL_VM
@@ -239,7 +240,7 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
             /* boot the secondary cpus using the Power State Coordintion Interface */
             for (size_t i = 1; i < cpu_count; i++) {
                 /* note: assumes cpuids are numbered like MPIDR 0:0:0:N */
-                dprintf(INFO, "ARM: starting cpu %#x\n", cpus[i].id);
+                dprintf(INFO, "ARM: starting cpu %u\n", cpus[i].id);
                 int ret = psci_cpu_on(cpus[i].id, phys_entry, i);
                 if (ret != 0) {
                     printf("ERROR: psci CPU_ON returns %d\n", ret);

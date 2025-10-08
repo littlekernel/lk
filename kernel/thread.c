@@ -859,7 +859,7 @@ void thread_become_idle(void) {
 
 #if WITH_SMP
     char name[16];
-    snprintf(name, sizeof(name), "idle %d", arch_curr_cpu_num());
+    snprintf(name, sizeof(name), "idle %u", arch_curr_cpu_num());
     thread_set_name(name);
 #else
     thread_set_name("idle");
@@ -880,21 +880,27 @@ void thread_become_idle(void) {
     idle_thread_routine();
 }
 
-/* create an idle thread for the cpu we're on, and start scheduling */
-
+#if WITH_SMP
+// Get this secondary cpu onto thread context
 void thread_secondary_cpu_init_early(void) {
     DEBUG_ASSERT(arch_ints_disabled());
-
-    /* construct an idle thread to cover our cpu */
+    // Look up our idle thread and mark it as current on this cpu
     uint cpu = arch_curr_cpu_num();
+    thread_t *t = idle_thread(cpu);
+    DEBUG_ASSERT(t && t->state == THREAD_RUNNING && t->flags & THREAD_FLAG_IDLE);
+    set_current_thread(t);
+}
+
+// Construct a secondary's cpu idle thread such that it appears to already be running
+void thread_create_secondary_cpu_idle_thread(uint cpu) {
     thread_t *t = idle_thread(cpu);
 
     char name[16];
     snprintf(name, sizeof(name), "idle %u", cpu);
     init_thread_struct(t, name);
-    thread_set_pinned_cpu(t, cpu);
 
-    /* half construct this thread, since we're already running */
+    // Half construct this thread as if it were running at max priority, since the secondary cpu will
+    // start executing this thread when it starts.
     t->priority = HIGHEST_PRIORITY;
     t->state = THREAD_RUNNING;
     t->flags = THREAD_FLAG_DETACHED | THREAD_FLAG_IDLE;
@@ -903,27 +909,32 @@ void thread_secondary_cpu_init_early(void) {
     wait_queue_init(&t->retcode_wait_queue);
 
     THREAD_LOCK(state);
-
     list_add_head(&thread_list, &t->thread_list_node);
-    set_current_thread(t);
-
     THREAD_UNLOCK(state);
 }
 
+// We should be on the idle thread for the secondary cpu, drop to idle priority and
+// start properly scheduling by enabling interrupts and yielding to the scheduler.
 void thread_secondary_cpu_entry(void) {
     uint cpu = arch_curr_cpu_num();
     thread_t *t = get_current_thread();
+
+    DEBUG_ASSERT(t && t->state == THREAD_RUNNING && t->flags & THREAD_FLAG_IDLE);
+
     t->priority = IDLE_PRIORITY;
 
+    // Mark the local cpu as active and idle
     mp_set_curr_cpu_active(true);
     mp_set_cpu_idle(cpu);
 
-    /* enable interrupts and start the scheduler on this cpu */
+    // Enable interrupts and start the scheduler on this cpu
     arch_enable_ints();
     thread_yield();
 
+    // Fall through to the idle thread routine
     idle_thread_routine();
 }
+#endif // WITH_SMP
 
 static const char *thread_state_to_str(enum thread_state state) {
     switch (state) {
