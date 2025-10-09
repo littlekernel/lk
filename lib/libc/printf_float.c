@@ -6,5 +6,11 @@
  * https://opensource.org/licenses/MIT
  */
 
-// Include the printf implementation without floating point.
+// Include the printf implementation with floating point.
+
+#if !WITH_NO_FP
+
+#define FLOAT_PRINTF 1
+
 #include "printf.c.inc"
+#endif

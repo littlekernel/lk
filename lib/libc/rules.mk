@@ -14,6 +14,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/ctype.c \
 	$(LOCAL_DIR)/eabi.c \
 	$(LOCAL_DIR)/errno.c \
+	$(LOCAL_DIR)/printf.c \
 	$(LOCAL_DIR)/qsort.c \
 	$(LOCAL_DIR)/rand.c \
 	$(LOCAL_DIR)/stdio.c \
@@ -21,7 +22,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/strtoll.c \
 
 MODULE_FLOAT_SRCS += \
-	$(LOCAL_DIR)/printf.c \
+	$(LOCAL_DIR)/printf_float.c \
 	$(LOCAL_DIR)/atof.c \
 
 MODULE_COMPILEFLAGS += -fno-builtin

@@ -18,7 +18,7 @@ bool test_printf(const char* expected, const char* format, ...) {
   char buf[100];
   va_list args;
   va_start(args, format);
-  int length = vsnprintf(buf, sizeof(buf), format, args);
+  int length = vsnprintf_float(buf, sizeof(buf), format, args);
   va_end(args);
 
   if (length < 0 || length >= static_cast<int>(sizeof(buf))) {

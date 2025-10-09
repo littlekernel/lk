@@ -22,6 +22,9 @@ __BEGIN_CDECLS
 typedef int (*_printf_engine_output_func)(const char *str, size_t len, void *state);
 
 int _printf_engine(_printf_engine_output_func out, void *state, const char *fmt, va_list ap);
+#if !WITH_NO_FP
+int _printf_engine_float(_printf_engine_output_func out, void *state, const char *fmt, va_list ap);
+#endif
 
 __END_CDECLS
 

@@ -21,10 +21,9 @@ STATIC_COMMAND_END(accelerometer);
 void read_xyz(void) {
     position_vector_t pos_vector;
     acc_read_xyz(&pos_vector);
-    printf("X value = %f\n",pos_vector.x);
-    printf("Y value = %f\n",pos_vector.y);
-    printf("Z value = %f\n",pos_vector.z);
-
+    printf_float("X value = %f\n",pos_vector.x);
+    printf_float("Y value = %f\n",pos_vector.y);
+    printf_float("Z value = %f\n",pos_vector.z);
 }
 
 APP_START(accelerometer)

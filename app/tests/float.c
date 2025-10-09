@@ -114,7 +114,7 @@ static void float_test(void) {
             float result = val[i];
             uint32_t result_u32;
             memcpy(&result_u32, &result, sizeof(result_u32));
-            printf("float thread %u returns %d, hex val %a, uint32 %#" PRIx32, i, res, (double)result, result_u32);
+            printf_float("float thread %u returns %d, hex val %a, uint32 %#" PRIx32, i, res, (double)result, result_u32);
             if (result_u32 != test_results_32[i]) {
                 printf("\nfloat thread %u failed, expected %#" PRIx32 "\n", i, test_results_32[i]);
             } else {
@@ -124,7 +124,7 @@ static void float_test(void) {
             double result = val[i];
             uint64_t result_u64;
             memcpy(&result_u64, &result, sizeof(result_u64));
-            printf("float thread %u returns %d, hex val %a, uint64 %#" PRIx64, i, res, result, result_u64);
+            printf_float("float thread %u returns %d, hex val %a, uint64 %#" PRIx64, i, res, result, result_u64);
             if (result_u64 != test_results_64[i]) {
                 printf("\nfloat thread %u failed, expected %#" PRIx64 "\n", i, test_results_64[i]);
             } else {

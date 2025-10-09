@@ -81,13 +81,45 @@ static inline int vprintf(const char *fmt, va_list ap) { return 0; }
 
 int fprintf(FILE *fp, const char *fmt, ...) __PRINTFLIKE(2, 3);
 int vfprintf(FILE *fp, const char *fmt, va_list ap);
-int _fprintf_output_func(const char *str, size_t len, void *state);
 
 int sprintf(char *str, const char *fmt, ...) __PRINTFLIKE(2, 3);
 int snprintf(char *str, size_t len, const char *fmt, ...) __PRINTFLIKE(3, 4);
 int vsprintf(char *str, const char *fmt, va_list ap);
 int vsnprintf(char *str, size_t len, const char *fmt, va_list ap);
 
+// Special variants of printf class functions that implement floating point printing
+// if enabled. This avoids having floating point support in the default printf.
+// If floating point is not enabled, these functions will simply alias to the non-floating
+// point versions above.
+#if !WITH_NO_FP
+#if !DISABLE_DEBUG_OUTPUT
+int printf_float(const char *fmt, ...) __PRINTFLIKE(1, 2);
+int vprintf_float(const char *fmt, va_list ap);
+#else
+static inline int __PRINTFLIKE(1, 2) printf_float(const char *fmt, ...) { return 0; }
+static inline int vprintf_float(const char *fmt, va_list ap) { return 0; }
+#endif
+
+int fprintf_float(FILE *fp, const char *fmt, ...) __PRINTFLIKE(2, 3);
+int vfprintf_float(FILE *fp, const char *fmt, va_list ap);
+
+int sprintf_float(char *str, const char *fmt, ...) __PRINTFLIKE(2, 3);
+int snprintf_float(char *str, size_t len, const char *fmt, ...) __PRINTFLIKE(3, 4);
+int vsprintf_float(char *str, const char *fmt, va_list ap);
+int vsnprintf_float(char *str, size_t len, const char *fmt, va_list ap);
+#else
+#define printf_float printf
+#define vprintf_float vprintf
+#define fprintf_float fprintf
+#define vfprintf_float vfprintf
+
+#define sprintf_float sprintf
+#define snprintf_float snprintf
+#define vsprintf_float vsprintf
+#define vsnprintf_float vsnprintf
+#endif
+
+int _fprintf_output_func(const char *str, size_t len, void *state);
 
 __END_CDECLS
 
