@@ -135,6 +135,8 @@ endif
 
 ifeq (true,$(call TOBOOL,$(RISCV_FPU)))
     GLOBAL_DEFINES += RISCV_FPU=1
+else
+    GLOBAL_DEFINES += WITH_NO_FP=1
 endif
 
 # based on a list of optional extensions passed in, collapse the extensions into

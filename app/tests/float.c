@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#if ARM_WITH_VFP || ARCH_ARM64 || X86_WITH_FPU || (ARCH_RISCV && RISCV_FPU)
+#if !WITH_NO_FP
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -19,11 +19,6 @@
 #include <kernel/semaphore.h>
 #include <kernel/event.h>
 #include <platform.h>
-
-extern void float_vfp_arm_instruction_test(void);
-extern void float_vfp_thumb_instruction_test(void);
-extern void float_neon_arm_instruction_test(void);
-extern void float_neon_thumb_instruction_test(void);
 
 #if ARM_WITH_VFP_SP_ONLY
 #define FLOAT float
@@ -57,6 +52,11 @@ static int float_thread(void *arg) {
 }
 
 #if ARCH_ARM && !ARM_ISA_ARMV7M
+extern void float_vfp_arm_instruction_test(void);
+extern void float_vfp_thumb_instruction_test(void);
+extern void float_neon_arm_instruction_test(void);
+extern void float_neon_thumb_instruction_test(void);
+
 static void arm_float_instruction_trap_test(void) {
     printf("testing fpu trap\n");
 
@@ -152,4 +152,4 @@ STATIC_COMMAND_START
 STATIC_COMMAND("float_tests", "floating point test", &float_tests)
 STATIC_COMMAND_END(float_tests);
 
-#endif // ARM_WITH_VFP || ARCH_ARM64
+#endif // !WITH_NO_FP

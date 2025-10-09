@@ -23,8 +23,7 @@ MODULE_DEPS += \
 	arch/arm/arm-m/systick \
 	platform/cc13xx/cc13xxware
 
-GLOBAL_COMPILEFLAGS += -DWITH_NO_FP=1
-#GLOBAL_COMPILEFLAGS +=  -DDISABLE_DEBUG_OUTPUT=1
+#GLOBAL_DEFINES += DISABLE_DEBUG_OUTPUT=1
 
 include make/module.mk
 
