@@ -110,7 +110,7 @@ if (( DO_64BIT )); then
     if (( DO_KVM )); then
         CPU="host"
         if [ "$HOST_OS" == "Darwin" ]; then
-            MACHINE+=",gic_version=2,accel=hvf"
+            MACHINE+=",accel=hvf"
         elif [ "$HOST_OS" == "Linux" ]; then
             MACHINE+=",gic_version=host,accel=kvm"
         fi
