@@ -12,6 +12,10 @@ description = "Rust support meta crate for lk"
 [lib]
 crate-type = ["staticlib"]
 
+[dependencies.lk-sys]
+version = "0.1.0"
+path = "../../../rust/lk-sys" # Relative to build directory.
+
 [profile.release]
 debug-assertions = true
 overflow-checks = true
