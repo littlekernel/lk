@@ -1,0 +1,16 @@
+# Rust support for LK, main package
+
+[package]
+name = "lk"
+version = "0.1.0"
+edition = "2024"
+description = """
+Rust interface to LK
+"""
+
+[dependencies.lk-sys]
+version = "0.1.0"
+path = "../../rust/lk-sys"
+
+[dependencies.log]
+version = "0.4.27"
