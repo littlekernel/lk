@@ -19,3 +19,5 @@ tags
 toolchain
 .cache
 vmlinux
+target/
+Cargo.lock

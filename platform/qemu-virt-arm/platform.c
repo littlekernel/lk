@@ -87,8 +87,12 @@ void platform_early_init(void) {
     fdtwalk_setup_memory(fdt, MEMORY_BASE_PHYS, MEMORY_BASE_PHYS, DEFAULT_MEMORY_SIZE);
 }
 
+void setup_rust(void);
+
 void platform_init(void) {
     pl011_init(0);
+
+    setup_rust();
 
     // start secondary cores
     fdtwalk_setup_cpus_arm(fdt);
