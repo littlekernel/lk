@@ -7,6 +7,9 @@
  */
 #include "dev/uart/pl011.h"
 
+/* If rust is in use, use the Rust implementation of this driver. */
+#if !USE_RUST
+
 #include <assert.h>
 #include <dev/uart.h>
 #include <kernel/thread.h>
@@ -227,3 +230,5 @@ void uart_flush_rx(int port) {
 // TODO collapse this into the early/regular init routines
 void uart_init_port(int port, uint baud) {
 }
+
+#endif /* not USE_RUST */

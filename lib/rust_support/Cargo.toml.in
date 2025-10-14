@@ -16,6 +16,10 @@ crate-type = ["staticlib"]
 version = "0.1.0"
 path = "../../../rust/lk" # Relative to build directory.
 
+[dependencies.dev-pl011]
+version = "0.1.0"
+path = "../../../rust/dev-pl011" # Relative to build directory.
+
 [profile.release]
 debug-assertions = true
 overflow-checks = true
