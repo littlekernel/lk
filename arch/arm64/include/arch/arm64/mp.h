@@ -42,4 +42,7 @@ static inline uint arch_curr_cpu_num(void) {
     return pc->cpu_num;
 }
 
+// Translate a CPU number back to the MPIDR of the CPU.
+uint64_t arm64_cpu_num_to_mpidr(uint cpu_num);
+
 __END_CDECLS

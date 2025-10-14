@@ -11,12 +11,12 @@
 #include <arch/mp.h>
 #include <arch/ops.h>
 #include <assert.h>
+#include <inttypes.h>
 #include <lk/err.h>
 #include <lk/init.h>
 #include <lk/main.h>
 #include <lk/trace.h>
 #include <platform/interrupts.h>
-#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -142,6 +142,20 @@ void arm64_secondary_entry(ulong asm_cpu_num) {
     lk_secondary_cpu_entry();
 }
 #endif // WITH_SMP
+
+uint64_t arm64_cpu_num_to_mpidr(uint cpu_num) {
+#if WITH_SMP
+    if (cpu_num == 0) {
+        return boot_percpu.mpidr;
+    } else if (unlikely(cpu_num > secondaries_to_init)) {
+        return UINT64_MAX;
+    } else {
+        return secondary_percpu[cpu_num - 1].mpidr;
+    }
+#else
+    return boot_percpu.mpidr;
+#endif
+}
 
 void arm64_mp_init(void) {
 #if WITH_SMP
