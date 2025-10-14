@@ -25,6 +25,9 @@
 
 #define LOCAL_TRACE 0
 
+/* Defined in start.S. */
+extern uint64_t arm64_boot_el;
+
 // initial setup per cpu immediately after entering C code
 void arm64_early_init_percpu(void) {
     // set the vector base
@@ -76,6 +79,12 @@ void arch_early_init(void) {
 // called after the kernel has been initialized and threading is enabled on the boot cpu
 void arch_init(void) {
     arm64_mp_init();
+
+    dprintf(INFO, "ARM64: boot EL%llu\n", arm64_get_boot_el());
+}
+
+uint64_t arm64_get_boot_el(void) {
+    return arm64_boot_el >> 2;
 }
 
 void arch_quiesce(void) {
