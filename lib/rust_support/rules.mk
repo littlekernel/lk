@@ -15,6 +15,8 @@ CRATE_NAME := rust_support
 
 MODULE := $(LOCAL_DIR)
 
+MODULES += $(MODULE)
+
 MODULE_SRCDIR := $(MODULE)
 MODULE_BUILDDIR := $(call TOBUILDDIR,$(MODULE_SRCDIR))
 
@@ -33,7 +35,6 @@ endef
 CARGO_CONFIG := $(MODULE_BUILDDIR)/.cargo/config.toml
 
 # TODO: Allow debug/release builds
-MODULE_OBJECT := $(MODULE_BUILDDIR)
 MODULE_OBJECT := $(call TOBUILDDIR,$(MODULE_SRCDIR)/target/$(RUST_TARGET)/debug/lib$(CRATE_NAME).a)
 
 $(MODULE_OBJECT).phony:
