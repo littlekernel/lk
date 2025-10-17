@@ -7,6 +7,7 @@ edition = "2024"
 description = """
 Rust interface to LK
 """
+license = "MIT"
 
 [dependencies.lk-sys]
 version = "0.1.0"

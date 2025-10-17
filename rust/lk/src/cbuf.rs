@@ -3,6 +3,12 @@
 //! LK provides a 'cbuf' type which implements a circular buffer, using
 //! spinlocks. As such, a simple wrapper around this will itself be Send/Sync.
 //! And, since it is just a pointer, it is Copy/Clone.
+//
+// Copyright (c) 2025 Linaro Ltd.
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
 
 use core::ffi::c_char;
 

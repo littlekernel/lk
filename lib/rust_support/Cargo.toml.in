@@ -8,6 +8,7 @@ name = "rust_support"
 version = "0.1.0"
 edition = "2024"
 description = "Rust support meta crate for lk"
+license = "MIT"
 
 [lib]
 crate-type = ["staticlib"]
