@@ -22,6 +22,8 @@ MEMBASE := 0x40000000
 MEMSIZE ?= 0x08000000   # 512MB
 KERNEL_LOAD_OFFSET := 0x100000 # 1MB
 
+USE_RUST ?= 0
+
 MODULE_DEPS += \
     dev/bus/pci \
     dev/bus/pci/drivers \
@@ -37,12 +39,17 @@ MODULE_DEPS += \
     lib/fdtwalk \
     lib/fs/9p \
 
+ifeq ($(USE_RUST),1)
+MODULE_DEPS += lib/rust_support
+endif
+
 GLOBAL_DEFINES += \
     MEMBASE=$(MEMBASE) \
     MEMSIZE=$(MEMSIZE) \
     PLATFORM_SUPPORTS_PANIC_SHELL=1 \
     CONSOLE_HAS_INPUT_BUFFER=1 \
-    TIMER_ARM_GENERIC_SELECTED=CNTV
+    TIMER_ARM_GENERIC_SELECTED=CNTV \
+    USE_RUST=$(USE_RUST)
 
 GLOBAL_DEFINES += MMU_WITH_TRAMPOLINE=1
 

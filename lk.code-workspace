@@ -13,6 +13,13 @@
         "[cpp]": {
             "editor.formatOnSave": false,
         },
+        "[rust]": {
+            "editor.formatOnSave": true,
+            "editor.defaultFormatter": "rust-lang.rust-analyzer",
+            "editor.formatOnSaveMode": "file",
+            "editor.insertSpaces": true,
+            "editor.tabSize": 4,
+        },
         // Allows editor.tabSize to be specified (otherwise it is overridden as
         // auto-detected).
         "editor.detectIndentation": false,
