@@ -8,6 +8,7 @@ on:
     branches-ignore:
       - 'wip/**'
       - 'docs/**' # Skip builds for documentation branches
+      - 'rust1-ci'
     paths-ignore:
       - '**.md'   # Skip builds when only markdown files change
       - 'docs/**' # Skip builds for docs directory changes
