@@ -1,0 +1,96 @@
+name: LK CI (Rust)
+
+# Build targets that support `USE_RUST=1`
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - 'wip/**'
+      - 'docs/**' # Skip builds for documentation branches
+    paths-ignore:
+      - '**.md'   # Skip builds when only markdown files change
+      - 'docs/**' # Skip builds for docs directory changes
+    paths:
+      - '.github/workflows/github-ci-rust.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain-ver: [19]
+        debug: [2, 0]
+        project:
+          # Currently, this is hard-coded here, but should probably be gathered
+          # from the source.
+          - qemu-virt-arm64-test
+    env:
+      PROJECT: ${{ matrix.project }}
+      TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
+      DEBUG: ${{ matrix.debug }}
+      UBSAN: 0  # UBSan runtimes for baremetal are not part of the toolchain
+    steps:
+    - name: banner
+      shell: bash
+      run: |
+        printf "Building with %d processors\n" "$(nproc)"
+        grep -oP '(?<=model name\t: ).*' /proc/cpuinfo|head -n1
+        echo PROJECT = $PROJECT
+        echo TOOLCHAIN_VER = $TOOLCHAIN_VER
+        echo DEBUG = $DEBUG
+        echo UBSAN = $UBSAN
+
+    - name: checkout
+      uses: actions/checkout@v4
+
+    # Install LLVM and set up the required environment variables
+    - name: compute toolchain
+      shell: bash
+      run: |
+        sudo apt-get install -y clang-${{ matrix.toolchain-ver }} lld-${{ matrix.toolchain-ver }}
+        GCC_TOOLCHAIN_PREFIX=$(make list-toolchain | grep TOOLCHAIN_PREFIX | tail -1 | cut -d ' ' -f 3)
+        # Map the GCC toolchain prefix to a clang --target argument:
+        CLANG_TRIPLE=$(echo "${GCC_TOOLCHAIN_PREFIX}" | sed 's/-elf-/-unknown-elf/g')
+        LLVM_BINDIR=/usr/lib/llvm-${{ matrix.toolchain-ver }}/bin
+        echo "CC=${LLVM_BINDIR}/clang --target=${CLANG_TRIPLE}" >> $GITHUB_ENV
+        echo "LD=${LLVM_BINDIR}/ld.lld" >> $GITHUB_ENV
+        echo "OBJDUMP=${LLVM_BINDIR}/llvm-objdump" >> $GITHUB_ENV
+        echo "OBJCOPY=${LLVM_BINDIR}/llvm-objcopy" >> $GITHUB_ENV
+        echo "CPPFILT=${LLVM_BINDIR}/llvm-cxxfilt" >> $GITHUB_ENV
+        echo "SIZE=${LLVM_BINDIR}/llvm-size" >> $GITHUB_ENV
+        echo "NM=${LLVM_BINDIR}/llvm-nm" >> $GITHUB_ENV
+        echo "STRIP=${LLVM_BINDIR}/llvm-strip" >> $GITHUB_ENV
+        echo "TOOLCHAIN_PREFIX=/invalid/prefix/should/not/be/used" >> $GITHUB_ENV
+        echo "LIBGCC=" >> $GITHUB_ENV
+        cat "$GITHUB_ENV"
+
+    # Install Rust
+    # Note that rustup is already included in the image, and we just need to add our target.
+    - name: install rust
+      shell: bash
+      run: |
+        rustup target add aarch64-unknown-linux-gnu
+        echo "source $HOME/.cargo/env" >> $GITHUB_ENV
+
+    # build it
+    - name: build
+      shell: bash
+      run: |
+        make -j $(nproc) USE_RUST=1
+    # When LK is compiled with DEBUG=0, there's no console and no way for us
+    # to read test output
+    - name: qemu
+      if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
+      shell: bash
+      run: |
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get update
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-arm
+    - name: unittest
+      if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
+      shell: bash
+      run: |
+        python3 scripts/unittest.py
+
+# vim: ts=2 sw=2 expandtab
