@@ -8,6 +8,7 @@ edition = "2021"
 description = """
 Core Rust support for LK
 """
+license = "MIT"
 
 [build-dependencies]
 bindgen = { version = "0.70.1", features = ["experimental"] }
