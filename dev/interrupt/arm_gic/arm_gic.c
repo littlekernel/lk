@@ -383,7 +383,12 @@ void arm_gic_init_hw(void) {
     arm_gic_init_percpu(0);
 }
 
+static bool arm_gic_is_initialized(void) {
+    return arm_gics[0].gicd_vaddr != 0;
+}
+
 void arm_gic_init(void) {
+    ASSERT(!arm_gic_is_initialized());
 #ifdef GICBASE
     arm_gics[0].gicd_vaddr = GICBASE(0) + GICD_OFFSET;
     arm_gics[0].gicd_size = GICD_MIN_SIZE;
@@ -401,8 +406,6 @@ void arm_gic_init(void) {
     /* Platforms should define GICBASE if they want to call this */
     panic("%s: GICBASE not defined\n", __func__);
 #endif /* GICBASE */
-
-    // TODO: map these registers and use those
 
     arm_gic_init_hw();
 }
@@ -428,8 +431,8 @@ static void arm_map_regs(const char* name,
     *vaddr = (vaddr_t)vaddrp;
 }
 
-void arm_gic_init_map(struct arm_gic_init_info* init_info)
-{
+void arm_gic_init_map(const struct arm_gic_init_info* init_info) {
+    ASSERT(!arm_gic_is_initialized());
     if (init_info->gicd_size < GICD_MIN_SIZE) {
         panic("%s: gicd mapping too small %zu\n", __func__,
               init_info->gicd_size);
@@ -437,6 +440,7 @@ void arm_gic_init_map(struct arm_gic_init_info* init_info)
     arm_map_regs("gicd", &arm_gics[0].gicd_vaddr, init_info->gicd_paddr,
                  init_info->gicd_size);
     arm_gics[0].gicd_size = init_info->gicd_size;
+    TRACEF("GICD mapped to vaddr %#" PRIxPTR "\n", arm_gics[0].gicd_vaddr);
 
 #if GIC_VERSION > 2
     if (init_info->gicr_size < GICR_CPU_OFFSET(SMP_MAX_CPUS)) {
@@ -446,6 +450,7 @@ void arm_gic_init_map(struct arm_gic_init_info* init_info)
     arm_map_regs("gicr", &arm_gics[0].gicr_vaddr, init_info->gicr_paddr,
                  init_info->gicr_size);
     arm_gics[0].gicr_size = init_info->gicr_size;
+    TRACEF("GICR mapped to vaddr %#" PRIxPTR "\n", arm_gics[0].gicr_vaddr);
 #else /* GIC_VERSION > 2 */
     if (init_info->gicc_size < GICC_MIN_SIZE) {
         panic("%s: gicc mapping too small %zu\n", __func__,
@@ -454,6 +459,7 @@ void arm_gic_init_map(struct arm_gic_init_info* init_info)
     arm_map_regs("gicc", &arm_gics[0].gicc_vaddr, init_info->gicc_paddr,
                  init_info->gicc_size);
     arm_gics[0].gicc_size = init_info->gicc_size;
+    TRACEF("GICC mapped to vaddr %#" PRIxPTR "\n", arm_gics[0].gicc_vaddr);
 #endif /* GIC_VERSION > 2 */
 
     arm_gic_init_hw();

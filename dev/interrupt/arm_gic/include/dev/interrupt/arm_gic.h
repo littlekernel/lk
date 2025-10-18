@@ -24,6 +24,9 @@
 #define __DEV_INTERRUPT_ARM_GIC_H
 
 #include <sys/types.h>
+#include <lk/compiler.h>
+
+__BEGIN_CDECLS
 
 /**
  * arm_gic_init() - Legacy GIC initialization routine.
@@ -64,7 +67,7 @@ struct arm_gic_init_info {
  * If ASLR is enabled then the virtual addresses are randomized.
  *
  */
-void arm_gic_init_map(struct arm_gic_init_info* init_info);
+void arm_gic_init_map(const struct arm_gic_init_info* init_info);
 
 enum {
     /* Ignore cpu_mask and forward interrupt to all CPUs other than the current cpu */
@@ -91,6 +94,8 @@ enum interrupt_polarity {
     IRQ_POLARITY_ACTIVE_HIGH = 0,
     IRQ_POLARITY_ACTIVE_LOW = 1,
 };
+
+__END_CDECLS
 
 #endif
 
