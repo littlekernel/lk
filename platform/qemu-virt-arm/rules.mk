@@ -7,6 +7,8 @@ ARCH := arm64
 endif
 ifeq ($(ARCH),arm64)
 ARM_CPU ?= cortex-a53
+RUST_TARGET := arm64-llvm
+RUST_TARGET_PATH := $(abspath $(BUILDROOT))/arch/arm64/arm64-llvm.json
 endif
 ifeq ($(ARCH),arm)
 ARM_CPU ?= cortex-a15
