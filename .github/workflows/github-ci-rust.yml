@@ -69,6 +69,8 @@ jobs:
     - name: install rust
       shell: bash
       run: |
+        rustup install nightly
+        rustup component add rust-src --toolchain nightly
         rustup target add aarch64-unknown-linux-gnu
         rustup target add aarch64-unknown-none
 
