@@ -55,6 +55,9 @@ uint8_t _kstack[PAGE_SIZE] __ALIGNED(sizeof(unsigned long));
 /* save a pointer to the multiboot information coming in from whoever called us */
 /* make sure it lives in .data to avoid it being wiped out by bss clearing */
 __SECTION(".data") uint32_t _multiboot_info;
+/* Try get the system table from tag 12, if present */
+/* `#define MULTIBOOT2_TAG_TYPE_EFI64    12` */
+__SECTION(".data") uint64_t _efi64_system_table;
 
 /* main tss */
 static tss_t system_tss __ALIGNED(16);
