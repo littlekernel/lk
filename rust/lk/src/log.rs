@@ -21,8 +21,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-// TODO: replace with `trusty-log` crate once it is `no_std`-compatible
-
 use alloc::ffi::CString;
 use alloc::format;
 use core::ffi::c_uint;
@@ -38,11 +36,11 @@ use crate::sys::fputs;
 // TODO: Configure this properly.
 static LK_LOGLEVEL_RUST: usize = 4;
 
-static TRUSTY_LOGGER: TrustyKernelLogger = TrustyKernelLogger;
+static LK_LOGGER: LkKernelLogger = LkKernelLogger;
 
-pub struct TrustyKernelLogger;
+pub struct LkKernelLogger;
 
-impl Log for TrustyKernelLogger {
+impl Log for LkKernelLogger {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         true
     }
@@ -80,7 +78,7 @@ extern "C" fn kernel_log_init_func(_level: c_uint) {
     unsafe {
         fputs(c"*** Setup logging\n".as_ptr(), lk_stderr());
     }
-    log::set_logger(&TRUSTY_LOGGER).unwrap();
+    log::set_logger(&LK_LOGGER).unwrap();
     // Level or LevelFilter cannot be created directly from integers
     // https://github.com/rust-lang/log/issues/460
     //
@@ -90,7 +88,7 @@ extern "C" fn kernel_log_init_func(_level: c_uint) {
     log::set_max_level(match LK_LOGLEVEL_RUST {
         0 => LevelFilter::Off,
         1 => LevelFilter::Error,
-        2 => LevelFilter::Warn, // the default for Trusty
+        2 => LevelFilter::Warn, // the default for LK
         3 => LevelFilter::Info,
         4 => LevelFilter::Debug,
         _ => LevelFilter::Trace, // enable trace! at 5+
