@@ -5,5 +5,14 @@
 // https://opensource.org/licenses/MIT
 #pragma once
 
-// Kernel initialization function, called from lk_main.
+// Kernel initialization functions, called from lk_main.
+void kernel_init_early(void);
 void kernel_init(void);
+
+// Kernel subsystem initialization routines called by
+// kernel_init_early and kernel_init.
+void thread_init_early(void);
+void thread_init(void);
+void mp_init(void);
+void timer_init(void);
+void port_init(void);

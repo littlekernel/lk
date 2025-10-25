@@ -10,11 +10,10 @@
 
 #include <arch/atomic.h>
 #include <arch/mp.h>
-#include <assert.h>
+#include <kernel/init.h>
 #include <kernel/spinlock.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include <stdlib.h>
 
 #define LOCAL_TRACE 0
 
@@ -22,8 +21,7 @@
 /* a global state structure, aligned on cpu cache line to minimize aliasing */
 struct mp_state mp __CPU_ALIGN;
 
-void mp_init(void) {
-}
+void mp_init(void) {}
 
 void mp_reschedule(mp_cpu_mask_t target, uint flags) {
     uint local_cpu = arch_curr_cpu_num();

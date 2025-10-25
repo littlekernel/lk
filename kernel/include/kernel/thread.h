@@ -155,8 +155,6 @@ typedef struct thread {
 #endif
 
 // functions
-void thread_init_early(void);
-void thread_init(void);
 void thread_become_idle(void) __NO_RETURN;
 #if WITH_SMP
 void thread_secondary_cpu_init_early(void);

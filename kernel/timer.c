@@ -23,6 +23,7 @@
 
 #include <assert.h>
 #include <kernel/debug.h>
+#include <kernel/init.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <lk/debug.h>

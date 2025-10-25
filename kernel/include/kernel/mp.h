@@ -39,8 +39,6 @@ typedef enum {
 } mp_ipi_t;
 
 #ifdef WITH_SMP
-void mp_init(void);
-
 // Trigger a reschedule on the specified target CPUs.
 void mp_reschedule(mp_cpu_mask_t target, uint flags);
 void mp_set_curr_cpu_active(bool active);
@@ -95,7 +93,6 @@ static inline mp_cpu_mask_t mp_get_realtime_mask(void) {
     return mp.realtime_cpus;
 }
 #else
-static inline void mp_init(void) {}
 static inline void mp_reschedule(mp_cpu_mask_t target, uint flags) {}
 static inline void mp_set_curr_cpu_active(bool active) {}
 

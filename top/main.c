@@ -58,7 +58,7 @@ void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
     lk_boot_args[3] = arg3;
 
     // get us into some sort of thread context
-    thread_init_early();
+    kernel_init_early();
 
     // early arch stuff
     lk_primary_cpu_init_level(LK_INIT_LEVEL_EARLIEST, LK_INIT_LEVEL_ARCH_EARLY - 1);

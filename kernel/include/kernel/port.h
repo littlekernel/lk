@@ -37,9 +37,6 @@ typedef enum {
     PORT_MODE_BIG_BUFFER  = 2,
 } port_mode_t;
 
-// Inits the port subsystem
-void port_init(void);
-
 // Make a named write-side port. broadcast ports can be opened by any
 // number of read-clients. |name| can be up to PORT_NAME_LEN chars. If
 // the write port exists it is returned even if the |mode| does not match.

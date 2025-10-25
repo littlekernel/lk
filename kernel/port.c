@@ -15,6 +15,7 @@
 
 #include <kernel/port.h>
 
+#include <kernel/init.h>
 #include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/err.h>

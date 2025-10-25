@@ -21,9 +21,6 @@
 
 __BEGIN_CDECLS
 
-// Initializes the timer subsystem.
-void timer_init(void);
-
 struct timer;
 typedef enum handler_return (*timer_callback)(struct timer *, lk_time_t now, void *arg);
 

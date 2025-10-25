@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include <kernel/debug.h>
+#include <kernel/init.h>
 #include <kernel/mp.h>
 #include <kernel/timer.h>
 #include <lib/heap.h>
