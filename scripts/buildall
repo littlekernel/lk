@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 
+FAILED=""
+
 set -o pipefail
+
+print_failed() {
+    if [ "$FAILED" != "" ]; then
+        echo
+        echo some projects have failed to build:
+        echo "$FAILED"
+        exit 1
+    fi
+}
 
 handle_interrupt() {
   echo "Caught ctrl-c, exiting"
+  print_failed
   exit 1
 }
 
@@ -16,6 +28,7 @@ function HELP {
     echo "-a <arch> : build for <arch> (default: all)"
     echo "-e        : build with WERROR=1"
     echo "-r        : also build DEBUG=0"
+    echo "-u        : also build with UBSAN=1"
     echo "-q        : hide output of build"
     echo "-h        : for help"
     exit 1
@@ -24,15 +37,17 @@ function HELP {
 RELEASE=0
 WERROR=0
 QUIET=0
+UBSAN=0
 ARCH="all"
 
-while getopts a:ehrq FLAG; do
+while getopts a:ehrqu FLAG; do
     case $FLAG in
         a) ARCH="$OPTARG";;
         e) WERROR=1;;
         h) HELP;;
         r) RELEASE=1;;
         q) QUIET=1;;
+        u) UBSAN=1;;
         \?)
             echo unrecognized option
             HELP
@@ -53,7 +68,6 @@ function log()
 
 # find all the projects in the project directory
 _PROJECTS=$(echo project/*.mk | xargs -n1 basename | sed 's/\.mk//')
-FAILED=""
 
 # If ARCH is set to all, we build for all architectures, otherwise we
 # filter projects based on the ARCH variable.
@@ -79,22 +93,27 @@ if (( WERROR )); then
     WERROR_MSG="with WERROR"
 fi
 
+# first build all of the regular debug builds
+export BUILDDIR_SUFFIX=
+if (( UBSAN )); then
+    export BUILDDIR_SUFFIX=-ubsan
+fi
 for p in $PROJECTS; do
-    echo "building $p $WERROR_MSG"
-    WERROR=$WERROR PROJECT=$p log nice "$DIR"/make-parallel || FAILED="$FAILED $p"
+    echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
+    WERROR=$WERROR UBSAN=$UBSAN DEBUG=2 PROJECT=$p log nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
 done
 
+# now build all of the release builds
+export BUILDDIR_SUFFIX=-release
+if (( UBSAN )); then
+    export BUILDDIR_SUFFIX=-ubsan-release
+fi
 if (( RELEASE )); then
 for p in $PROJECTS; do
-    echo "building $p-release $WERROR_MSG"
-    BUILDDIR_SUFFIX=-release WERROR=$WERROR DEBUG=0 PROJECT=$p log nice "$DIR"/make-parallel || FAILED="$FAILED $p-release"
+    echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
+    WERROR=$WERROR UBSAN=$UBSAN DEBUG=0 PROJECT=$p log nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
 done
 fi
 
 # Print out at the end which projects failed to build
-if [ "$FAILED" != "" ]; then
-    echo
-    echo some projects have failed to build:
-    echo "$FAILED"
-    exit 1
-fi
+print_failed
