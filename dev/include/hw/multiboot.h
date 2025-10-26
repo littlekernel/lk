@@ -42,7 +42,7 @@
 /* from https://www.gnu.org/software/grub/manual/multiboot2/multiboot.html */
 
 /* magic number for multiboot header */
-#define MULTIBOOT2_BOOTLOADER_MAGIC 0x36d76289
+#define MULTIBOOT2_BOOTLOADER_MAGIC 0x36D76289
 
 
 #define MULTIBOOT2_HEADER_TAG_ADDRESS                2
