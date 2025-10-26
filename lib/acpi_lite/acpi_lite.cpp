@@ -145,7 +145,6 @@ static paddr_t find_rsdp_pc() {
 // Map the entire multiboot2 info structure to virtual address and search.
 static void* get_immed_rsdp() {
   extern uint32_t _multiboot_info;
-  extern uint64_t _efi64_system_table;
 
   if (_multiboot_info != 0) {
     const paddr_t multiboot_phys = (paddr_t)_multiboot_info;
@@ -342,8 +341,7 @@ static status_t initialize_table(size_t i) {
 status_t acpi_lite_init(paddr_t rsdp_pa) {
   LTRACEF("passed in rsdp %#" PRIxPTR "\n", rsdp_pa);
 
-#if MULTIBOOT2_SUPPORT
-#else
+#if !MULTIBOOT2_SUPPORT
   // see if the rsdp pointer is valid
   if (rsdp_pa == 0) {
     // search around for it in a platform-specific way
@@ -438,8 +436,7 @@ status_t acpi_lite_init(paddr_t rsdp_pa) {
 
   // we should be initialized at this point
   cleanup_sdt_mapping.cancel();
-#if MULTIBOOT2_SUPPORT
-#else
+#if !MULTIBOOT2_SUPPORT
   cleanup_rsdp_mapping.cancel();
 #endif //MULTIBOOT2_SUPPORT
 

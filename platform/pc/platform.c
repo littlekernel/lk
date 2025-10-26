@@ -44,9 +44,7 @@ static bool found_acpi = false;
 
 /* multiboot information passed in, if present */
 extern uint32_t _multiboot_info;
-#if MULTIBOOT2_SUPPORT
-extern uint64_t _efi64_system_table;
-#endif
+uint64_t efi64_system_table;
 
 #define DEFAULT_MEMEND (16*1024*1024)
 
@@ -214,8 +212,8 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
             }
 
             case MULTIBOOT2_TAG_TYPE_EFI64:
-                _efi64_system_table = ((struct multiboot2_tag_efi64 *)tag)->pointer;
-                dprintf(SPEW, "PC: EFI 64 system table at %#" PRIx64 "\n", _efi64_system_table);
+                efi64_system_table = ((struct multiboot2_tag_efi64 *)tag)->pointer;
+                dprintf(SPEW, "PC: EFI 64 system table at %#" PRIx64 "\n", efi64_system_table);
                 break;
                 
             case MULTIBOOT2_TAG_TYPE_ACPI_NEW:
