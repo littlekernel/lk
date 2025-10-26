@@ -88,7 +88,7 @@ multiboot_header:
 
 real_start:
 #if MULTIBOOT2_SUPPORT
-    cmpl $0x36D76289, %eax  /* Bootloader magic */
+    cmpl $MULTIBOOT2_BOOTLOADER_MAGIC, %eax  /* Bootloader magic */
 #else
     cmpl $MULTIBOOT_BOOTLOADER_MAGIC, %eax
 #endif
