@@ -150,7 +150,8 @@ EfiStatus create_event(EfiEventType type, EfiTpl notify_tpl,
     printf("Creating timer event is not supported yet\n");
     return EFI_STATUS_UNSUPPORTED;
   }
-  if (type & (EFI_EVENT_TYPE_SIGNAL_EXIT_BOOT_SERVICES | EFI_EVENT_TYPE_SIGNAL_VIRTUAL_ADDRESS_CHANGE)) {
+  if (type == EFI_EVENT_TYPE_SIGNAL_EXIT_BOOT_SERVICES ||
+      type == EFI_EVENT_TYPE_SIGNAL_VIRTUAL_ADDRESS_CHANGE) {
     printf(
         "Creating SIGNAL_EXIT_BOOT_SERVICES or SIGNAL_VIRTUAL_ADDRESS_CHANGE "
         "event is not supported yet 0x%x\n",
