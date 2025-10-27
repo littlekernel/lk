@@ -25,10 +25,13 @@ MODULE_SRCS := \
 	       $(MODULE_SRCDIR)/src/lib.rs
 MODULE_OBJS := $(foreach d,$(MODULE_SRCS),$(call TOBUILDDIR,$(d)))
 
-# The platform must set RUST_TARGET and RUST_TARGET_PATH. If RUST_TARGET is a
-# standard tuple, RUST_TARGET_PATH should have the same value. Otherwise,
-# RUST_TARGET_PATH should point to the custom target json file, and RUST_TARGET
-# should be the basename of the json file.
+# USE_RUST can be used by platforms to allow invocation to determine if rust
+# support is present. However, when this module is included, we have rust
+# support. The define `HAVE_RUST` will indicate that rust is actually being
+# used.
+HAVE_RUST := 1
+
+GLOBAL_DEFINES += HAVE_RUST=$(HAVE_RUST)
 
 ifeq ($(RUST_TARGET),)
 $(error RUST_TARGET is not set for rust support)
