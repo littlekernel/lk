@@ -264,11 +264,18 @@ struct multiboot2_tag_framebuffer_common {
     uint16_t reserved;
 };
 
+struct multiboot2_color {
+    uint8_t red_value;
+    uint8_t green_value;
+    uint8_t blue_value;
+};
+
 struct multiboot2_tag_framebuffer {
     struct multiboot2_tag_framebuffer_common common;
     union {
         struct {
             uint16_t framebuffer_palette_num_colors;
+            struct multiboot2_color framebuffer_palette[0];
         };
         struct {
             uint8_t framebuffer_red_field_position;
