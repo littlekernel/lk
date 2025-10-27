@@ -87,7 +87,7 @@ void platform_early_init(void) {
     fdtwalk_setup_memory(fdt, MEMORY_BASE_PHYS, MEMORY_BASE_PHYS, DEFAULT_MEMORY_SIZE);
 }
 
-#if USE_RUST
+#if HAVE_RUST
 void setup_rust(void);
 #else
 static void setup_rust(void) {}
