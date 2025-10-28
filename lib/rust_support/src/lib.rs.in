@@ -9,12 +9,12 @@
 #![no_std]
 
 #[unsafe(no_mangle)]
-extern "C" fn setup_rust() {
+extern "C" fn must_link_rust() {
     // Any crate that relies entirely on initialization through LK's init
     // mechanisms will need a call to some piece of code in that create to cause
     // the crate to be brought in.
     // Due to link ordering, symbols from C code referencing into rust code
     // isn't usually sufficient to bring a crate in.
-    lk::init();
-    dev_pl011::init();
+    lk::must_link();
+    @DEPLINKS@
 }

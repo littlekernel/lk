@@ -43,6 +43,7 @@ USE_RUST ?= 0
 
 ifeq ($(USE_RUST),1)
 MODULE_DEPS += lib/rust_support
+MODULE_DEPS += rust/dev-pl011
 endif
 
 GLOBAL_DEFINES += \

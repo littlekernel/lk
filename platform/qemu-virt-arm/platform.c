@@ -88,15 +88,15 @@ void platform_early_init(void) {
 }
 
 #if HAVE_RUST
-void setup_rust(void);
+void must_link_rust(void);
 #else
-static void setup_rust(void) {}
+static void must_link_rust(void) {}
 #endif
 
 void platform_init(void) {
     pl011_init(0);
 
-    setup_rust();
+    must_link_rust();
 
     // start secondary cores
     fdtwalk_setup_cpus_arm(fdt);
