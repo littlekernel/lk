@@ -15,6 +15,7 @@ use core::ffi::c_char;
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 unsafe impl Sync for lk_init_struct {}
+unsafe impl Sync for app_descriptor {}
 
 // lk_init_level constants have large gaps between them and some modules
 // add or subtract from these constants to indicate that it wants to run

@@ -58,6 +58,8 @@ fn main() -> anyhow::Result<()> {
         .allowlist_type("lk_init_struct")
         .allowlist_function("register_int_handler")
         .allowlist_function("unmask_interrupt")
+        .allowlist_type("app_descriptor")
+        .allowlist_item("APP_FLAG.*")
         .generate()?;
 
     bindings.write_to_file(out_path.join("bindings.rs"))?;
