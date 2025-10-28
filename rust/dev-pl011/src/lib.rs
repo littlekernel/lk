@@ -31,11 +31,8 @@ fn get_console_input_cbuf() -> Cbuf {
     unsafe { Cbuf::new(&raw mut console_input_cbuf) }
 }
 
-/// Init function to ensure crate is linked.
-/// This might not be needed once we provide something actually linked.
-pub fn init() {
-    // Nothing to do yet.
-}
+/// Referenced from rust_support to ensure linking.
+pub fn must_link() {}
 
 /// Representation of the UART registers for MMIO access.
 #[repr(C)]

@@ -26,15 +26,8 @@ pub mod lkonce;
 pub mod log;
 pub mod macros;
 
-/// Initialize the rust side of the code.
-///
-/// Due to linker optimization, without a direct call into this code, the linker will not bring in
-/// anything.
-pub fn init() {
-    unsafe {
-        sys::fputs(c"*** Rust init ***\n".as_ptr(), lk_stderr());
-    }
-}
+// Enforce linking.
+pub fn must_link() {}
 
 /// Return the current stderr from lk's simple stdio implementation.
 #[inline(always)]

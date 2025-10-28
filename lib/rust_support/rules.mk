@@ -33,6 +33,10 @@ HAVE_RUST := 1
 
 GLOBAL_DEFINES += HAVE_RUST=$(HAVE_RUST)
 
+# Modules that contain crates should define ${RUST_CRATES} with a path from the
+# build directory to the crate. We make the assumption that the crate name
+# matches the directory name.
+
 ifeq ($(RUST_TARGET),)
 $(error RUST_TARGET is not set for rust support)
 endif
@@ -64,15 +68,15 @@ EXTRA_OBJS := $(EXTRA_OBJS) $(MODULE_OBJECT)
 
 # Bring in the source files via copy.
 # The toml file will have a substitution to fix up references to the buildroot.
+$(MODULE_BUILDDIR)/%: MODULE_SRCDIR:=$(MODULE_SRCDIR)
+
 $(MODULE_BUILDDIR)/%: $(MODULE_SRCDIR)/%.in target.phony
 	$(NOECHO)echo generating $@
 	$(NOECHO)mkdir -p $(dir $@)
-	$(NOECHO)sed 's|@BUILDROOT@|$(call TOML_ESC,$(abspath $(BUILDROOT)))|g' $< > $@.tmp
-	$(NOECHO)$(call TESTANDREPLACEFILE,$@.tmp,$@)
-$(MODULE_BUILDDIR)/src/%: $(MODULE_SRCDIR)/src/%.in target.phony
-	$(NOECHO)echo generating $@
-	$(NOECHO)mkdir -p $(dir $@)
-	$(NOECHO)cp $< $@.tmp
+	$(NOECHO)env \
+		BUILDROOT="$(abspath $(BUILDROOT))" \
+		RUST_CRATES="$(RUST_CRATES)" \
+	        python3 $(MODULE_SRCDIR)/expand.py $< > $@.tmp
 	$(NOECHO)$(call TESTANDREPLACEFILE,$@.tmp,$@)
 
 .PHONY: target.phony
