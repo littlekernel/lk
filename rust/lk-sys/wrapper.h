@@ -28,4 +28,8 @@
 
 #include <platform/interrupts.h>
 
+#if WITH_APP
+#include <app.h>
+#endif
+
 // #include "error.h"

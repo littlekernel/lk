@@ -1,0 +1,17 @@
+# Rust sample hello world application crate.
+
+[package]
+name = "rust_hello"
+version = "0.1.0"
+edition = "2024"
+description = """
+Rust LK hello world application.
+"""
+license = "MIT"
+
+[dependencies.lk]
+version = "0.1.0"
+path = "../../rust/lk"
+
+[dependencies.log]
+version = "0.4.27"
