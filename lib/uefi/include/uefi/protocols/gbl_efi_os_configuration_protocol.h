@@ -29,9 +29,9 @@
 #ifndef __GBL_OS_CONFIGURATION_PROTOCOL_H__
 #define __GBL_OS_CONFIGURATION_PROTOCOL_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
-EFI_ENUM(GBL_EFI_DEVICE_TREE_TYPE, GblEfiDeviceTreeType, uint32_t,
+EFI_ENUM(GblEfiDeviceTreeType, uint32_t,
          // HLOS device tree.
          GBL_EFI_DEVICE_TREE_TYPE_DEVICE_TREE,
          // HLOS device tree overlay.
@@ -39,7 +39,7 @@ EFI_ENUM(GBL_EFI_DEVICE_TREE_TYPE, GblEfiDeviceTreeType, uint32_t,
          // pVM device assignment overlay.
          GBL_EFI_DEVICE_TREE_TYPE_PVM_DA_OVERLAY);
 
-EFI_ENUM(GBL_EFI_DEVICE_TREE_SOURCE, GblEfiDeviceTreeSource, uint32_t,
+EFI_ENUM(GblEfiDeviceTreeSource, uint32_t,
          // Device tree loaded from boot partition.
          GBL_EFI_DEVICE_TREE_SOURCE_BOOT,
          // Device tree loaded from vendor_boot partition.
@@ -76,9 +76,9 @@ typedef struct GblEfiOsConfigurationProtocol {
   uint64_t revision;
 
   // Generates fixups for the bootconfig built by GBL.
-  EfiStatus (*fixup_bootconfig)(struct GblEfiOsConfigurationProtocol *self,
-                                const uint8_t *bootconfig, size_t size,
-                                uint8_t *fixup, size_t *fixup_buffer_size);
+  EfiStatus (*fixup_bootconfig)(struct GblEfiOsConfigurationProtocol* self,
+                                const uint8_t* bootconfig, size_t size,
+                                uint8_t* fixup, size_t* fixup_buffer_size);
 
   // Selects which device trees and overlays to use from those loaded by GBL.
   EfiStatus (*select_device_trees)(struct GblEfiOsConfigurationProtocol* self,
@@ -86,10 +86,10 @@ typedef struct GblEfiOsConfigurationProtocol {
                                    size_t num_device_trees);
 
   // Selects FIT configuration to be used.
-  EfiStatus (*select_fit_configuration)(struct GblEfiOsConfigurationProtocol *self,
-                                        size_t fit_size, const uint8_t *fit,
-                                        size_t metadata_size, const uint8_t *metadata,
-                                        size_t *selected_configuration_offset);
+  EfiStatus (*select_fit_configuration)(
+      struct GblEfiOsConfigurationProtocol* self, size_t fit_size,
+      const uint8_t* fit, size_t metadata_size, const uint8_t* metadata,
+      size_t* selected_configuration_offset);
 
 } GblEfiOsConfigurationProtocol;
 

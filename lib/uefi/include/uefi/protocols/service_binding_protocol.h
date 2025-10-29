@@ -26,7 +26,7 @@
 #ifndef __SERVICE_BINDING_PROTOCOL_H__
 #define __SERVICE_BINDING_PROTOCOL_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
 typedef struct EfiServiceBindingProtocol EfiServiceBindingProtocol;
 

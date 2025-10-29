@@ -26,7 +26,7 @@
 #ifndef __SIMPLE_TEXT_INPUT_PROTOCOL_H__
 #define __SIMPLE_TEXT_INPUT_PROTOCOL_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
 typedef struct EfiInputKey {
   uint16_t scan_code;

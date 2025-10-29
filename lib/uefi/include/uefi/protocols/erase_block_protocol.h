@@ -26,8 +26,8 @@
 #ifndef __ERASE_BLOCK_PROTOCOL_H__
 #define __ERASE_BLOCK_PROTOCOL_H__
 
-#include "gbl_protocol_utils.h"
-#include "types.h"
+#include <uefi/gbl_protocol_utils.h>
+#include <uefi/types.h>
 
 static const uint64_t EFI_ERASE_BLOCK_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(2, 60);

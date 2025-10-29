@@ -29,7 +29,7 @@
 #ifndef __GBL_AVB_PROTOCOL_H__
 #define __GBL_AVB_PROTOCOL_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
 static const uint64_t GBL_EFI_AVB_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(0, 3);
@@ -45,99 +45,103 @@ static const GblEfiAvbDeviceStatus GBL_EFI_AVB_DEVICE_STATUS_DM_VERITY_FAILED =
 // Os boot state color flags.
 //
 // https://source.android.com/docs/security/features/verifiedboot/boot-flow#communicating-verified-boot-state-to-users
-typedef uint64_t GblEfiAvbBootColor;
-static const GblEfiAvbBootColor GBL_EFI_AVB_BOOT_COLOR_RED = 0x1 << 0;
-static const GblEfiAvbBootColor GBL_EFI_AVB_BOOT_COLOR_ORANGE = 0x1 << 1;
-static const GblEfiAvbBootColor GBL_EFI_AVB_BOOT_COLOR_YELLOW = 0x1 << 2;
-static const GblEfiAvbBootColor GBL_EFI_AVB_BOOT_COLOR_GREEN = 0x1 << 3;
-static const GblEfiAvbBootColor GBL_EFI_AVB_BOOT_COLOR_RED_EIO = 0x1 << 4;
+typedef uint64_t GblEfiAvbBootColorFlags;
+static const GblEfiAvbBootColorFlags GBL_EFI_AVB_BOOT_COLOR_RED = 0x1 << 0;
+static const GblEfiAvbBootColorFlags GBL_EFI_AVB_BOOT_COLOR_ORANGE = 0x1 << 1;
+static const GblEfiAvbBootColorFlags GBL_EFI_AVB_BOOT_COLOR_YELLOW = 0x1 << 2;
+static const GblEfiAvbBootColorFlags GBL_EFI_AVB_BOOT_COLOR_GREEN = 0x1 << 3;
+static const GblEfiAvbBootColorFlags GBL_EFI_AVB_BOOT_COLOR_RED_EIO = 0x1 << 4;
 
 // Vbmeta key validation status.
 //
 // https://source.android.com/docs/security/features/verifiedboot/boot-flow#locked-devices-with-custom-root-of-trust
-EFI_ENUM(GBL_EFI_AVB_KEY_VALIDATION_STATUS, GblEfiAvbKeyValidationStatus,
-         uint32_t, GBL_EFI_AVB_KEY_VALIDATION_STATUS_INVALID,
+EFI_ENUM(GblEfiAvbKeyValidationStatus, uint32_t,
+         GBL_EFI_AVB_KEY_VALIDATION_STATUS_INVALID,
          GBL_EFI_AVB_KEY_VALIDATION_STATUS_VALID_CUSTOM_KEY,
          GBL_EFI_AVB_KEY_VALIDATION_STATUS_VALID);
 
+typedef uint64_t GblEfiAvbPartitionFlags;
+static const GblEfiAvbPartitionFlags GBL_EFI_AVB_PARTITION_OPTIONAL = 0x1 << 0;
+
 typedef struct {
-    // On input - `base_name` buffer size
-    // On output - actual `base_name` length
-    size_t base_name_len;
-    uint8_t *base_name;
+  // On input - `base_name` buffer size
+  // On output - actual `base_name` length
+  size_t base_name_len;
+  uint8_t* base_name;
+  GblEfiAvbPartitionFlags flags;
 } GblEfiAvbPartition;
 
 typedef struct {
-    // UTF-8, null terminated
-    const uint8_t *base_name;
-    size_t data_size;
-    const uint8_t *data;
+  // UTF-8, null terminated
+  const uint8_t* base_name;
+  size_t data_size;
+  const uint8_t* data;
 } GblEfiAvbLoadedPartition;
 
 typedef struct {
-    // UTF-8, null terminated
-    const uint8_t *base_partition_name;
-    // UTF-8, null terminated
-    const uint8_t *key;
-    // Excluding null terminator
-    size_t value_size;
-    const uint8_t *value;
+  // UTF-8, null terminated
+  const uint8_t* base_partition_name;
+  // UTF-8, null terminated
+  const uint8_t* key;
+  // Excluding null terminator
+  size_t value_size;
+  const uint8_t* value;
 } GblEfiAvbProperty;
 
 typedef struct {
-    GblEfiAvbBootColor color_flags;
-    // Pointer to nul-terminated ASCII hex digest calculated by libavb. May be
-    // null in case of verification failed (RED boot state color).
-    const uint8_t *digest;
-    size_t num_loaded_partitions;
-    const GblEfiAvbLoadedPartition *loaded_partitions;
-    size_t num_properties;
-    const GblEfiAvbProperty *properties;
-    uint64_t reserved[8];
+  GblEfiAvbBootColorFlags color_flags;
+  // Pointer to nul-terminated ASCII hex digest calculated by libavb. May be
+  // null in case of verification failed (RED boot state color).
+  const uint8_t* digest;
+  size_t num_partitions;
+  const GblEfiAvbLoadedPartition* partitions;
+  size_t num_properties;
+  const GblEfiAvbProperty* properties;
+  uint64_t reserved[8];
 } GblEfiAvbVerificationResult;
 
 typedef struct GblEfiAvbProtocol {
-    uint64_t revision;
+  uint64_t revision;
 
-    EfiStatus (*read_partitions_to_verify)(
-        struct GblEfiAvbProtocol *self,
-        /* in-out */ size_t *num_partitions,
-        /* in-out */ GblEfiAvbPartition *partitions);
+  EfiStatus (*read_partitions_to_verify)(
+      struct GblEfiAvbProtocol* self,
+      /* in-out */ size_t* num_partitions,
+      /* in-out */ GblEfiAvbPartition* partitions);
 
-    EfiStatus (*read_device_status)(
-        struct GblEfiAvbProtocol *self,
-        /* out */ GblEfiAvbDeviceStatus *status_flags);
+  EfiStatus (*read_device_status)(
+      struct GblEfiAvbProtocol* self,
+      /* out */ GblEfiAvbDeviceStatus* status_flags);
 
-    EfiStatus (*validate_vbmeta_public_key)(
-        struct GblEfiAvbProtocol *self,
-        /* in */ size_t public_key_length,
-        /* in */ const uint8_t *public_key_data,
-        /* in */ size_t public_key_metadata_length,
-        /* in */ const uint8_t *public_key_metadata,
-        /* out */ GblEfiAvbKeyValidationStatus *validation_status);
+  EfiStatus (*validate_vbmeta_public_key)(
+      struct GblEfiAvbProtocol* self,
+      /* in */ size_t public_key_length,
+      /* in */ const uint8_t* public_key_data,
+      /* in */ size_t public_key_metadata_length,
+      /* in */ const uint8_t* public_key_metadata,
+      /* out */ GblEfiAvbKeyValidationStatus* validation_status);
 
-    EfiStatus (*read_rollback_index)(struct GblEfiAvbProtocol *self,
-                                     /* in */ size_t index_location,
-                                     /* out */ uint64_t *rollback_index);
+  EfiStatus (*read_rollback_index)(struct GblEfiAvbProtocol* self,
+                                   /* in */ size_t index_location,
+                                   /* out */ uint64_t* rollback_index);
 
-    EfiStatus (*write_rollback_index)(struct GblEfiAvbProtocol *self,
-                                      /* in */ size_t index_location,
-                                      /* in */ uint64_t rollback_index);
+  EfiStatus (*write_rollback_index)(struct GblEfiAvbProtocol* self,
+                                    /* in */ size_t index_location,
+                                    /* in */ uint64_t rollback_index);
 
-    EfiStatus (*read_persistent_value)(struct GblEfiAvbProtocol *self,
-                                       /* in */ const uint8_t *name,
-                                       /* in-out */ size_t *value_size,
-                                       /* out */ uint8_t *value);
+  EfiStatus (*read_persistent_value)(struct GblEfiAvbProtocol* self,
+                                     /* in */ const uint8_t* name,
+                                     /* in-out */ size_t* value_size,
+                                     /* out */ uint8_t* value);
 
-    EfiStatus (*write_persistent_value)(struct GblEfiAvbProtocol *self,
-                                        /* in */ const uint8_t *name,
-                                        /* in */ size_t value_size,
-                                        /* in */ const uint8_t *value);
+  EfiStatus (*write_persistent_value)(struct GblEfiAvbProtocol* self,
+                                      /* in */ const uint8_t* name,
+                                      /* in */ size_t value_size,
+                                      /* in */ const uint8_t* value);
 
-    EfiStatus (*handle_verification_result)(
-        struct GblEfiAvbProtocol *self,
-        /* in */ const GblEfiAvbVerificationResult *result);
+  EfiStatus (*handle_verification_result)(
+      struct GblEfiAvbProtocol* self,
+      /* in */ const GblEfiAvbVerificationResult* result);
 
 } GblEfiAvbProtocol;
 
-#endif //__GBL_AVB_PROTOCOL_H__
+#endif  //__GBL_AVB_PROTOCOL_H__

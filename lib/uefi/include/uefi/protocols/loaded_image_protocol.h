@@ -27,9 +27,10 @@
 #define __LOADED_IMAGE_PROTOCOL_H__
 
 #include <uefi/gbl_protocol_utils.h>
-#include <uefi/protocols/device_path_protocol.h>
-#include <uefi/protocols/system_table.h>
+#include <uefi/system_table.h>
 #include <uefi/types.h>
+
+#include "device_path_protocol.h"
 
 static const uint32_t EFI_LOADED_IMAGE_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(1, 0);
@@ -39,7 +40,7 @@ typedef struct {
   EfiHandle parent_handle;
   EfiSystemTable* system_table;
   EfiHandle device_handle;
-  EfiDevicePathToTextProtocol* file_path;
+  EfiDevicePathProtocol* file_path;
   void* reserved;
   uint32_t load_options_size;
   void* load_options;

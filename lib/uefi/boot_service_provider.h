@@ -92,11 +92,11 @@ static constexpr auto EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID =
             0x4436,
             {0x98, 0xa7, 0x4e, 0x02, 0x71, 0x42, 0x8b, 0xa8}};
 
-static constexpr auto EFI_GBL_EFI_AB_SLOT_PROTOCOL_GUID =
-    EfiGuid{0x9a7a7db4,
-            0x614b,
-            0x4a08,
-            {0x3d, 0xf9, 0x00, 0x6f, 0x49, 0xb0, 0xd8, 0x0c}};
+static constexpr auto EFI_GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID =
+    EfiGuid{0xd382db1b,
+            0x9ac2,
+            0x11f0,
+            {0x84, 0xc7, 0x04, 0x7b, 0xcb, 0xa9, 0x60, 0x19}};
 
 static constexpr auto EFI_GBL_EFI_FASTBOOT_PROTOCOL_GUID =
     EfiGuid{0xc67e48a0,
@@ -162,8 +162,8 @@ struct EFI_LOADED_IMAGE_PROTOCOL {
   // Location where image was loaded
   void *ImageBase;
   uint64_t ImageSize;
-  EFI_MEMORY_TYPE ImageCodeType;
-  EFI_MEMORY_TYPE ImageDataType;
+  EfiMemoryType ImageCodeType;
+  EfiMemoryType ImageDataType;
   EFI_IMAGE_UNLOAD Unload;
 };
 

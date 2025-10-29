@@ -26,7 +26,7 @@
 #ifndef __HASH2_PROTOCOL_H__
 #define __HASH2_PROTOCOL_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
 typedef struct EfiHash2Protocol EfiHash2Protocol;
 

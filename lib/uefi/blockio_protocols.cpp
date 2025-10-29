@@ -59,7 +59,7 @@ EfiStatus read_blocks(EfiBlockIoProtocol *self, uint32_t media_id, uint64_t lba,
 }
 
 EfiStatus write_blocks(EfiBlockIoProtocol *self, uint32_t media_id,
-                       uint64_t lba, size_t buffer_size, const void *buffer) {
+                       uint64_t lba, size_t buffer_size, void *buffer) {
   printf("%s is called\n", __FUNCTION__);
   return EFI_STATUS_SUCCESS;
 }
