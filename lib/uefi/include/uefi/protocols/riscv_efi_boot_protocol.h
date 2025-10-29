@@ -28,8 +28,8 @@
 
 #include <stddef.h>
 
-#include "gbl_protocol_utils.h"
-#include "types.h"
+#include <uefi/gbl_protocol_utils.h>
+#include <uefi/types.h>
 
 static const uint64_t EFI_RISCV_BOOT_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(1, 0);

@@ -26,7 +26,7 @@
 #ifndef __TIMESTAMP_PROTOCOL_H__
 #define __TIMESTAMP_PROTOCOL_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
 typedef struct {
   uint64_t frequency;

@@ -31,8 +31,8 @@
 
 #include <stddef.h>
 
-#include "gbl_protocol_utils.h"
-#include "types.h"
+#include <uefi/gbl_protocol_utils.h>
+#include <uefi/types.h>
 
 #define EFI_SIMPLE_NETWORK_RECEIVE_UNICAST 0x01
 #define EFI_SIMPLE_NETWORK_RECEIVE_MULTICAST 0x02

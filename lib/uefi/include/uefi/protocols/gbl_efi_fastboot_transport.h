@@ -29,10 +29,9 @@
 #ifndef __GBL_EFI_FASTBOOT_USB_H__
 #define __GBL_EFI_FASTBOOT_USB_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
-EFI_ENUM(GBL_EFI_FASTBOOT_RX_MODE, GblEfiFastbootRxMode, uint32_t,
-         GBL_EFI_FASTBOOT_RX_MODE_SINGLE_PACKET,
+EFI_ENUM(GblEfiFastbootRxMode, uint32_t, GBL_EFI_FASTBOOT_RX_MODE_SINGLE_PACKET,
          GBL_EFI_FASTBOOT_RX_MODE_FIXED_LENGTH);
 
 static const uint64_t GBL_EFI_FASTBOOT_TRANSPORT_PROTOCOL_REVISION =

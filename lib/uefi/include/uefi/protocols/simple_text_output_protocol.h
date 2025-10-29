@@ -26,7 +26,7 @@
 #ifndef __SIMPLE_TEXT_OUTPUT_PROTOCOL_H__
 #define __SIMPLE_TEXT_OUTPUT_PROTOCOL_H__
 
-#include "types.h"
+#include <uefi/types.h>
 
 typedef struct {
   int32_t max_mode;

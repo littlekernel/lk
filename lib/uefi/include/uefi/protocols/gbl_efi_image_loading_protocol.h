@@ -28,7 +28,7 @@
 
 #include <stddef.h>
 
-#include "types.h"
+#include <uefi/types.h>
 
 static const uint64_t GBL_EFI_IMAGE_LOADING_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(0, 1);
@@ -52,7 +52,7 @@ static const uint64_t GBL_EFI_IMAGE_LOADING_PROTOCOL_REVISION =
 #define GBL_IMAGE_TYPE_PVMFW_DATA L"pvmfw_data"
 
 typedef struct GblEfiImageInfo {
-  char16_t ImageType[PARTITION_NAME_LEN_U16];
+  uint16_t ImageType[PARTITION_NAME_LEN_U16];
   size_t SizeBytes;
 } GblEfiImageInfo;
 
@@ -63,9 +63,9 @@ typedef struct GblEfiImageBuffer {
 
 typedef struct GblEfiImageLoadingProtocol {
   uint64_t revision;
-  EfiStatus (*get_buffer)(struct GblEfiImageLoadingProtocol *self,
-                          const GblEfiImageInfo *ImageInfo,
-                          GblEfiImageBuffer *Buffer);
+  EfiStatus (*get_buffer)(struct GblEfiImageLoadingProtocol* self,
+                          const GblEfiImageInfo* ImageInfo,
+                          GblEfiImageBuffer* Buffer);
 } GblEfiImageLoadingProtocol;
 
 #endif  //__GBL_EFI_IMAGE_LOADING_PROTOCOL_H__

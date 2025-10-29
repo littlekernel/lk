@@ -28,33 +28,32 @@
 
 #include <stddef.h>
 
-#include "types.h"
+#include <uefi/types.h>
 
 static const uint64_t GBL_EFI_BOOT_MEMORY_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(0, 1);
 
-EFI_ENUM(GBL_EFI_BOOT_BUFFER_TYPE, GblEfiBootBufferType, uint32_t,
-         GBL_EFI_BOOT_BUFFER_TYPE_GENERAL_LOAD, GBL_EFI_BOOT_BUFFER_TYPE_KERNEL,
-         GBL_EFI_BOOT_BUFFER_TYPE_RAMDISK, GBL_EFI_BOOT_BUFFER_TYPE_FDT,
-         GBL_EFI_BOOT_BUFFER_TYPE_PVMFW_DATA,
+EFI_ENUM(GblEfiBootBufferType, uint32_t, GBL_EFI_BOOT_BUFFER_TYPE_GENERAL_LOAD,
+         GBL_EFI_BOOT_BUFFER_TYPE_KERNEL, GBL_EFI_BOOT_BUFFER_TYPE_RAMDISK,
+         GBL_EFI_BOOT_BUFFER_TYPE_FDT, GBL_EFI_BOOT_BUFFER_TYPE_PVMFW_DATA,
          GBL_EFI_BOOT_BUFFER_TYPE_FASTBOOT_DOWNLOAD);
 
-EFI_ENUM(GBL_EFI_PARTITION_BUFFER_FLAG, GblEfiPartitionBufferFlag, uint32_t,
+EFI_ENUM(GblEfiPartitionBufferFlag, uint32_t,
          GBL_EFI_PARTITION_BUFFER_FLAG_PRELOADED = 1 << 0);
 
 typedef struct GblEfiBootMemoryProtocol {
-    uint64_t revision;
-    EfiStatus (*get_partition_buffer)(struct GblEfiBootMemoryProtocol *self,
-                                      /* in */ const uint8_t *base_name,
-                                      /* out */ size_t *size,
-                                      /* out */ void **addr,
-                                      /* out */ GblEfiPartitionBufferFlag *flag);
-    EfiStatus (*sync_partition_buffer)(struct GblEfiBootMemoryProtocol *self,
-                                       /* in */ bool sync_preloaded);
-    EfiStatus (*get_boot_buffer)(struct GblEfiBootMemoryProtocol *self,
-                                 /* in */ GblEfiBootBufferType buf_type,
-                                 /* out */ size_t *size,
-                                 /* out */ void **addr);
+  uint64_t revision;
+  EfiStatus (*get_partition_buffer)(struct GblEfiBootMemoryProtocol* self,
+                                    /* in */ const uint8_t* base_name,
+                                    /* out */ size_t* size,
+                                    /* out */ void** addr,
+                                    /* out */ GblEfiPartitionBufferFlag* flag);
+  EfiStatus (*sync_partition_buffer)(struct GblEfiBootMemoryProtocol* self,
+                                     /* in */ bool sync_preloaded);
+  EfiStatus (*get_boot_buffer)(struct GblEfiBootMemoryProtocol* self,
+                               /* in */ GblEfiBootBufferType buf_type,
+                               /* out */ size_t* size,
+                               /* out */ void** addr);
 } GblEfiBootMemoryProtocol;
 
-#endif //__GBL_EFI_BOOT_MEMORY_PROTOCOL_H__
+#endif  //__GBL_EFI_BOOT_MEMORY_PROTOCOL_H__
