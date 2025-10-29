@@ -30,8 +30,8 @@
 // The UEFI library provides a default no-op implementation that
 // is weakly linked.
 
-EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol *self, void *fdt,
-                        size_t *buffer_size, uint32_t flags);
+EfiStatus efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
+                       size_t* buffer_size, uint32_t flags);
 
 EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
                            const uint8_t* bootconfig, size_t size,

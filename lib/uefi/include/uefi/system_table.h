@@ -26,12 +26,12 @@
 #ifndef __SYSTEM_TABLE_H__
 #define __SYSTEM_TABLE_H__
 
-#include <uefi/boot_service.h>
-#include <uefi/protocols/simple_text_output_protocol.h>
-#include <uefi/runtime_service.h>
-#include <uefi/types.h>
+#include "boot_service.h"
+#include "protocols/simple_text_output_protocol.h"
+#include "runtime_service.h"
+#include "types.h"
 
-typedef struct EfiConfigurationTable {
+typedef struct {
   EfiGuid vendor_guid;
   void* vendor_table;
 } EfiConfigurationTable;

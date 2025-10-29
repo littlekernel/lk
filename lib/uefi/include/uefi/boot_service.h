@@ -29,21 +29,19 @@
 #include "protocols/device_path_protocol.h"
 #include "types.h"
 
-EFI_ENUM(EFI_LOCATE_HANDLE_SEARCH_TYPE, EfiLocateHandleSearchType, uint32_t,
+EFI_ENUM(EfiLocateHandleSearchType, uint32_t,
          EFI_LOCATE_HANDLE_SEARCH_TYPE_ALL_HANDLES,
          EFI_LOCATE_HANDLE_SEARCH_TYPE_BY_REGISTER_NOTIFY,
          EFI_LOCATE_HANDLE_SEARCH_TYPE_BY_PROTOCOL);
 
-EFI_ENUM(EFI_INTERFACE_TYPE, EfiInterfaceType, uint32_t,
-         EFI_INTERFACE_TYPE_EFI_NATIVE_INTERFACE);
+EFI_ENUM(EfiInterfaceType, uint32_t, EFI_INTERFACE_TYPE_EFI_NATIVE_INTERFACE);
 
-EFI_ENUM(EFI_ALLOCATOR_TYPE, EfiAllocatorType, uint32_t,
-         EFI_ALLOCATOR_TYPE_ALLOCATE_ANY_PAGES,
+EFI_ENUM(EfiAllocatorType, uint32_t, EFI_ALLOCATOR_TYPE_ALLOCATE_ANY_PAGES,
          EFI_ALLOCATOR_TYPE_ALLOCATE_MAX_ADDRESS,
          EFI_ALLOCATOR_TYPE_ALLOCATE_ADDRESS,
          EFI_ALLOCATOR_TYPE_MAX_ALLOCATE_TYPE);
 
-EFI_ENUM(EFI_OPEN_PROTOCOL_ATTRIBUTE, EfiOpenProtocolAttributes, uint32_t,
+EFI_ENUM(EfiOpenProtocolAttributes, uint32_t,
          EFI_OPEN_PROTOCOL_ATTRIBUTE_BY_HANDLE_PROTOCOL = 0x00000001,
          EFI_OPEN_PROTOCOL_ATTRIBUTE_GET_PROTOCOL = 0x00000002,
          EFI_OPEN_PROTOCOL_ATTRIBUTE_TEST_PROTOCOL = 0x00000004,
@@ -70,7 +68,7 @@ typedef struct {
                               size_t* desc_size, uint32_t* desc_version);
   EfiStatus (*allocate_pool)(EfiMemoryType pool_type, size_t size, void** buf);
   EfiStatus (*free_pool)(void* buf);
-  EfiStatus (*create_event)(EfiEventType type, EfiTpl notify_tpl,
+  EfiStatus (*create_event)(uint32_t type, EfiTpl notify_tpl,
                             EfiEventNotify notify_fn, void* notify_ctx,
                             EfiEvent* event);
   EfiStatus (*set_timer)(EfiEvent event, EfiTimerDelay type,

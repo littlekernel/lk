@@ -28,9 +28,8 @@ namespace {
 
 constexpr auto &&kSecureBoot = "SecureBoot";
 
-EFI_STATUS GetVariable(const uint16_t *VariableName, const EfiGuid *VendorGuid,
-                       uint32_t *Attributes, size_t *DataSize, void *Data) {
-
+EfiStatus GetVariable(const uint16_t* VariableName, const EfiGuid* VendorGuid,
+                      uint32_t* Attributes, size_t* DataSize, void* Data) {
   if (!VariableName || !VendorGuid || !DataSize) {
     return EFI_STATUS_INVALID_PARAMETER;
   }
@@ -74,15 +73,15 @@ EFI_STATUS GetVariable(const uint16_t *VariableName, const EfiGuid *VendorGuid,
   return EFI_STATUS_UNSUPPORTED;
 }
 
-EFI_STATUS SetVirtualAddressMap(size_t MemoryMapSize, size_t DescriptorSize,
-                                uint32_t DescriptorVersion,
-                                EfiMemoryDescriptor *VirtualMap) {
+EfiStatus SetVirtualAddressMap(size_t MemoryMapSize, size_t DescriptorSize,
+                               uint32_t DescriptorVersion,
+                               EfiMemoryDescriptor* VirtualMap) {
   printf("%s is unsupported\n", __FUNCTION__);
   return EFI_STATUS_UNSUPPORTED;
 }
 
-EFI_STATUS SetVariable(const uint16_t *VariableName, const EfiGuid *VendorGuid,
-                       uint32_t Attributes, size_t DataSize, const void *Data) {
+EfiStatus SetVariable(const uint16_t* VariableName, const EfiGuid* VendorGuid,
+                      uint32_t Attributes, size_t DataSize, const void* Data) {
   if (!VariableName || VariableName[0] == 0) {
     return EFI_STATUS_INVALID_PARAMETER;
   }
@@ -103,8 +102,8 @@ EFI_STATUS SetVariable(const uint16_t *VariableName, const EfiGuid *VendorGuid,
   return EFI_STATUS_UNSUPPORTED;
 }
 
-void ResetSystem(EFI_RESET_TYPE ResetType, EFI_STATUS ResetStatus,
-                        size_t DataSize, void *ResetData) {
+void ResetSystem(EfiResetType ResetType, EfiStatus ResetStatus, size_t DataSize,
+                 void* ResetData) {
   platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
 }
 

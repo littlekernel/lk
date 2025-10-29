@@ -26,10 +26,10 @@
 #ifndef __LOADED_IMAGE_PROTOCOL_H__
 #define __LOADED_IMAGE_PROTOCOL_H__
 
-#include <uefi/gbl_protocol_utils.h>
-#include <uefi/protocols/device_path_protocol.h>
-#include <uefi/protocols/system_table.h>
-#include <uefi/types.h>
+#include "gbl_protocol_utils.h"
+#include "protocols/device_path_protocol.h"
+#include "system_table.h"
+#include "types.h"
 
 static const uint32_t EFI_LOADED_IMAGE_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(1, 0);
