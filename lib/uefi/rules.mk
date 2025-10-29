@@ -7,6 +7,9 @@ MODULE_DEFINES=MSPACES=1
 MODULE_INCLUDES += \
 	lib/watchdog/include \
 
+GLOBAL_INCLUDES += \
+	$(LOCAL_DIR)/include/uefi \
+
 MODULE_DEPS += \
 	lib/libcpp \
 
