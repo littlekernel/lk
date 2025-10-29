@@ -32,11 +32,11 @@ typedef EfiGuid EfiRngAlgorithm;
 typedef struct EfiRngProtocol EfiRngProtocol;
 
 struct EfiRngProtocol {
-  EfiStatus (*get_info)(EfiRngProtocol* self, size_t* rng_algorithm_list_size,
-                        EfiRngAlgorithm* rng_algorithm_list);
-  EfiStatus (*get_rng)(EfiRngProtocol* self,
-                       const EfiRngAlgorithm* rng_algorithm,
-                       size_t rng_value_length, uint8_t* rng_value);
+  EfiStatus (*get_info)(EfiRngProtocol *self, size_t *rng_algorithm_list_size,
+                        EfiRngAlgorithm *rng_algorithm_list);
+  EfiStatus (*get_rng)(EfiRngProtocol *self,
+                       const EfiRngAlgorithm *rng_algorithm,
+                       size_t rng_value_length, uint8_t *rng_value);
 };
 
 #endif  // __RANDOM_NUMBER_GENERATOR_PROTOCOL__

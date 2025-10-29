@@ -45,8 +45,8 @@ static const uint32_t EFI_DT_ALL = EFI_DT_APPLY_FIXUPS | EFI_DT_RESERVE_MEMORY;
 
 typedef struct EfiDtFixupProtocol {
   uint64_t revision;
-  EfiStatus (*fixup)(struct EfiDtFixupProtocol *self, void *fdt,
-                     size_t *buffer_size, uint32_t flags);
+  EfiStatus (*fixup)(struct EfiDtFixupProtocol* self, void* fdt,
+                     size_t* buffer_size, uint32_t flags);
 } EfiDtFixupProtocol;
 
-#endif // __EFI_DT_FIXUP_PROTOCOL_H__
+#endif  // __EFI_DT_FIXUP_PROTOCOL_H__

@@ -26,7 +26,7 @@
 #ifndef __BLOCK_IO2_PROTOCOL_H__
 #define __BLOCK_IO2_PROTOCOL_H__
 
-#include "block_io_protocol.h"
+#include "protocols/block_io_protocol.h"
 #include "types.h"
 
 typedef struct EfiBlockIoMedia EfiBlockIoMedia;

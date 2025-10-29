@@ -34,8 +34,8 @@
 
 #define LOCAL_TRACE 0
 
-__WEAK EFI_STATUS efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
-                               size_t* buffer_size, uint32_t flags) {
+__WEAK EfiStatus efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
+                              size_t* buffer_size, uint32_t flags) {
   auto offset = fdt_subnode_offset(fdt, 0, "chosen");
   if (offset < 0) {
     printf("Failed to find chosen node %d\n", offset);
