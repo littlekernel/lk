@@ -6,14 +6,13 @@
 // https://opensource.org/licenses/MIT
 #include "port.h"
 
+#include <kernel/thread.h>
+#include <kernel/vm.h>
 #include <lk/bits.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <kernel/vm.h>
-#include <kernel/thread.h>
 #include <string.h>
 
-#include "ata.h"
 #include "disk.h"
 
 #define LOCAL_TRACE 1
@@ -66,8 +65,8 @@ status_t ahci_port::probe(ahci_disk **found_disk) {
 
     // stop the port so we can reset addresses
     auto cmd_reg = read_port_reg(ahci_port_reg::PxCMD);
-    cmd_reg &= ~((1<<4) | // clear CMD.FRE (fis receive enable)
-                 (1<<0));  // clear CMD.ST (start)
+    cmd_reg &= ~((1 << 4) | // clear CMD.FRE (fis receive enable)
+                 (1 << 0)); // clear CMD.ST (start)
     write_port_reg(ahci_port_reg::PxCMD, cmd_reg);
     // TODO: wait for CMD.FR to stop
 
@@ -126,9 +125,9 @@ status_t ahci_port::probe(ahci_disk **found_disk) {
     }
 
     // restart the port
-    cmd_reg |= (1<<4); // set CMD.FRE (fis receive enable)
+    cmd_reg |= (1 << 4); // set CMD.FRE (fis receive enable)
     write_port_reg(ahci_port_reg::PxCMD, cmd_reg);
-    cmd_reg |= (1<<0); // set CMD.ST (start)
+    cmd_reg |= (1 << 0); // set CMD.ST (start)
     write_port_reg(ahci_port_reg::PxCMD, cmd_reg);
 
     // unmask some irqs on this port
@@ -186,13 +185,13 @@ status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, si
     // XXX for now assume single run
     auto *prdt = &cmd_table->pdrt[0];
     auto buf_pa = vaddr_to_paddr(buf);
-    prdt->dba  = buf_pa;
+    prdt->dba = buf_pa;
 #if __INTPTR_WIDTH__ == 64
     prdt->dbau = buf_pa >> 32;
 #else
     prdt->dbau = 0;
 #endif
-    prdt->byte_count_ioc = (buf_len - 1) | (1U<<31); // byte count, interrupt on completion
+    prdt->byte_count_ioc = (buf_len - 1) | (1U << 31); // byte count, interrupt on completion
 
     // copy command into the command table
     // TODO: replace with wordwise copy
@@ -200,11 +199,11 @@ status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, si
 
     // set up the command header
     auto *cmd = &cmd_list_[slot];
-    cmd->cmd = (fis_len / sizeof(uint32_t)) | (write ? (1<<6) : (0<<6)); // command fis size in words, read/write from device
-    cmd->prdtl = 1; // 1 prdt
+    cmd->cmd = (fis_len / sizeof(uint32_t)) | (write ? (1 << 6) : (0 << 6)); // command fis size in words, read/write from device
+    cmd->prdtl = 1;                                                          // 1 prdt
 
-    //LTRACEF("cmd_table %p\n", cmd_table);
-    //hexdump((const void *)cmd_table, sizeof(*cmd_table) + CMD_TABLE_ENTRY_SIZE);
+    // LTRACEF("cmd_table %p\n", cmd_table);
+    // hexdump((const void *)cmd_table, sizeof(*cmd_table) + CMD_TABLE_ENTRY_SIZE);
 
     // TODO: barrier here
     // rmb();

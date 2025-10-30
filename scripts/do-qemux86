@@ -71,7 +71,7 @@ else
     QEMU="qemu-system-i386"
     PROJECT="pc-x86-test"
     CPU=max
-    MACHINE=pc
+    MACHINE=q35
 fi
 
 if (( $DO_LEGACY )); then
@@ -109,10 +109,18 @@ else
 fi
 
 if (( $DO_DISK )); then
+    ARGS+=" -drive if=none,file=${DISK_IMAGE},id=disk0,discard=on"
     if (( ! $DO_LEGACY )); then
-        ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk,discard=on -device virtio-blk-pci,drive=blk,discard=on"
+        ARGS+=" -device ide-hd,drive=disk0,bus=ide.0"
+        # second disk
+        # ARGS+=" -drive if=none,file=blk2.bin,id=disk1,discard=on"
+        # ARGS+=" -device ide-hd,drive=disk1,bus=ide.1"
+
+        #ARGS+=" -device ahci,id=blk"
+        # ARGS+=" -device virtio-blk-pci,drive=blk,discard=on"
+        # ARGS+=" -hda ${DISK_IMAGE}"
     else
-        ARGS+=" -hda ${DISK_IMAGE}"
+        ARGS+=" -device ide-hd,drive=disk0,bus=ide.0"
     fi
 fi
 if (( $DO_NET )); then

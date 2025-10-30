@@ -13,15 +13,17 @@
 #include "port.h"
 
 class ahci_disk {
-public:
-    ahci_disk(ahci_port &p);
-    ~ahci_disk();
+  public:
+    explicit ahci_disk(ahci_port &p) : port_(p) {}
+
+    ~ahci_disk() = default;
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(ahci_disk);
 
     status_t identify();
 
     list_node node_ = LIST_INITIAL_CLEARED_VALUE;
-private:
+
+  private:
     ahci_port &port_;
 };

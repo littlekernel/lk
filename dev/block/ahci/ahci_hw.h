@@ -12,17 +12,17 @@
 
 // registers relative to the base of the ABAR
 enum class ahci_reg {
-    CAP = 0x0, // capability
-    GHC = 0x4, // global HBA control
-    IS = 0x8, // interrupt status
-    PI = 0xc, // ports implemented
-    VS = 0x10, // version
-    CCC_CTL = 0x14, // command completion coalescing control
+    CAP = 0x0,        // capability
+    GHC = 0x4,        // global HBA control
+    IS = 0x8,         // interrupt status
+    PI = 0xc,         // ports implemented
+    VS = 0x10,        // version
+    CCC_CTL = 0x14,   // command completion coalescing control
     CCC_PORTS = 0x18, // command completion coalescing ports
-    EM_LOC = 0x1c, // enclosure management location
-    EM_CTL = 0x20, // enclosure management control
-    CAP2 = 0x24, // HBA capabilities extended
-    BOHC = 0x28, // BIOS/OS handoff control and status
+    EM_LOC = 0x1c,    // enclosure management location
+    EM_CTL = 0x20,    // enclosure management control
+    CAP2 = 0x24,      // HBA capabilities extended
+    BOHC = 0x28,      // BIOS/OS handoff control and status
 
     // registers 0xa0 to 0xff are vendor specific
 
@@ -31,27 +31,36 @@ enum class ahci_reg {
 };
 
 enum class ahci_port_reg {
-    PxCLB = 0x0,
-    PxCLBU = 0x4,
-    PxFB = 0x8,
-    PxFBU = 0xc,
-    PxIS = 0x10,
-    PxIE = 0x14,
-    PxCMD = 0x18,
+    PxCLB = 0x0,  // command list base address
+    PxCLBU = 0x4, // command list base address upper
+    PxFB = 0x8,   // FIS base address
+    PxFBU = 0xc,  // FIS base address upper
+    PxIS = 0x10,  // interrupt status
+    PxIE = 0x14,  // interrupt enable
+    PxCMD = 0x18, // command and status
 
-    PxTFD = 0x20,
-    PxSIG = 0x24,
-    PxSSTS = 0x28,
-    PxSCTL = 0x2c,
-    PxSERR = 0x30,
-    PxSACT = 0x34,
-    PxCI = 0x38,
-    PxSNTF = 0x3c,
-    PxFBS = 0x40,
-    PxDEVSLP = 0x44,
+    PxTFD = 0x20,    // task file data
+    PxSIG = 0x24,    // signature
+    PxSSTS = 0x28,   // SATA status
+    PxSCTL = 0x2c,   // SATA control
+    PxSERR = 0x30,   // SATA error
+    PxSACT = 0x34,   // SATA active
+    PxCI = 0x38,     // command issue
+    PxSNTF = 0x3c,   // SATA notification
+    PxFBS = 0x40,    // FIS base address
+    PxDEVSLP = 0x44, // device sleep
 
-    PxVS = 0x70,
+    PxVS = 0x70, // port version
 };
+
+// helpers
+static inline uint32_t ahci_reg_offset(ahci_reg r) {
+    return static_cast<uint32_t>(r);
+}
+
+static inline uint32_t ahci_port_reg_offset(unsigned port, ahci_port_reg r) {
+    return 0x100u + (port * 0x80u) + static_cast<uint32_t>(r);
+}
 
 // command header
 struct ahci_cmd_header {
@@ -74,7 +83,7 @@ struct ahci_prd {
     union {
         uint32_t dw[4]; // raw 4 byte words
         struct {
-            uint32_t dba; // data base address
+            uint32_t dba;  // data base address
             uint32_t dbau; // data base address upper
             uint32_t _reserved;
             uint32_t byte_count_ioc; // byte count [0:21], interrupt on completion [31]

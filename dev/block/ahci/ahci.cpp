@@ -19,7 +19,6 @@
 #include <lk/trace.h>
 #include <platform/interrupts.h>
 #include <string.h>
-#include <type_traits>
 
 #include "ahci_hw.h"
 #include "disk.h"
@@ -27,10 +26,7 @@
 
 #define LOCAL_TRACE 1
 
-volatile int ahci::global_count_= 0;
-
-ahci::ahci() = default;
-ahci::~ahci() = default;
+int ahci::global_count_ = 0;
 
 status_t ahci::init_device(pci_location_t loc) {
     char str[32];
@@ -40,10 +36,14 @@ status_t ahci::init_device(pci_location_t loc) {
 
     pci_bar_t bars[6];
     status_t err = pci_bus_mgr_read_bars(loc_, bars);
-    if (err != NO_ERROR) return err;
+    if (err != NO_ERROR) {
+        return err;
+    }
 
     LTRACEF("ahci BARS:\n");
-    if (LOCAL_TRACE) pci_dump_bars(bars, 6);
+    if (LOCAL_TRACE) {
+        pci_dump_bars(bars, 6);
+    }
 
     if (!bars[5].valid || !bars[5].addr) {
         return ERR_NOT_FOUND;
@@ -54,11 +54,13 @@ status_t ahci::init_device(pci_location_t loc) {
 
     // map bar 5, main memory mapped register interface, 4K
     snprintf(str, sizeof(str), "ahci%d abar", unit_);
-    err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, PAGE_ALIGN(bars[5].size), &abar_regs_, 0,
+    void *regs;
+    err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, PAGE_ALIGN(bars[5].size), &regs, 0,
                              bars[5].addr, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }
+    abar_regs_ = reinterpret_cast<volatile uint32_t *>(regs);
 
     LTRACEF("ABAR mapped to %p\n", abar_regs_);
 
@@ -71,7 +73,7 @@ status_t ahci::init_device(pci_location_t loc) {
     write_reg(ahci_reg::GHC, read_reg(ahci_reg::GHC) & ~(1U << 1)); // clear GHC.IE
 
     static auto irq_handler_wrapper = [](void *arg) -> handler_return {
-        ahci *a = (ahci *)arg;
+        ahci *a = static_cast<ahci *>(arg);
         return a->irq_handler();
     };
 
@@ -98,13 +100,11 @@ status_t ahci::init_device(pci_location_t loc) {
 
     // probe every port marked implemented
     uint32_t port_bitmap = read_reg(ahci_reg::PI);
-    size_t port_count = 0;
     for (size_t port = 0; port < 32; port++) {
         if ((port_bitmap & (1U << port)) == 0) {
             // skip port not implemented
             break;
         }
-        port_count++;
 
         ports_[port] = new ahci_port(*this, port);
         auto *p = ports_[port];
@@ -135,7 +135,7 @@ void ahci::disk_probe_worker() {
 
 status_t ahci::start_disk_probe() {
     auto probe_worker = [](void *arg) -> int {
-        ahci *a = (ahci *)arg;
+        ahci *a = static_cast<ahci *>(arg);
 
         a->disk_probe_worker();
 
@@ -168,7 +168,7 @@ handler_return ahci::irq_handler() {
             ret = INT_RESCHEDULE;
         }
 
-        is &= ~(1U<<port);
+        is &= ~(1U << port);
     }
 
     // clear the interrupt status
@@ -179,12 +179,15 @@ handler_return ahci::irq_handler() {
     return ret;
 }
 
+namespace {
+
 // hook called at init time to iterate through pci bus and find all of the ahci devices
-static void ahci_init(uint level) {
+void ahci_init(uint level) {
     LTRACE_ENTRY;
 
     // probe pci to find a device
-    for (size_t i = 0; ; i++) {
+    for (size_t i = 0;; i++) {
+        // look for AHCI controllers by class
         pci_location_t loc;
         status_t err = pci_bus_mgr_find_device_by_class(&loc, 0x1, 0x6, 0x1, i);
         if (err != NO_ERROR) {
@@ -207,3 +210,4 @@ static void ahci_init(uint level) {
 }
 LK_INIT_HOOK(ahci, &ahci_init, LK_INIT_LEVEL_PLATFORM + 1);
 
+} // namespace

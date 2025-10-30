@@ -7,19 +7,20 @@
 #pragma once
 
 #include <dev/bus/pci.h>
-#include <lk/cpp.h>
-#include <lk/list.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
+#include <lk/cpp.h>
+#include <lk/list.h>
+#include <lk/reg.h>
 
 #include "ahci_hw.h"
 
 class ahci_port;
 
 class ahci {
-public:
-    ahci();
-    ~ahci();
+  public:
+    ahci() = default;
+    ~ahci() = default;
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(ahci);
 
@@ -33,7 +34,7 @@ public:
     // start a thread and probe all of the disks found
     status_t start_disk_probe();
 
-private:
+  private:
     friend class ahci_port;
 
     uint32_t read_reg(ahci_reg reg);
@@ -45,8 +46,8 @@ private:
     handler_return irq_handler();
     void disk_probe_worker();
 
-    // counter of configured deices
-    static volatile int global_count_;
+    // counter of configured controllers
+    static int global_count_;
     int unit_ = 0;
 
     // main spinlock
@@ -54,7 +55,7 @@ private:
 
     // configuration
     pci_location_t loc_ = {};
-    void *abar_regs_ = nullptr;
+    volatile uint32_t *abar_regs_ = nullptr;
 
     // array of ports
     ahci_port *ports_[32] = {};
@@ -65,28 +66,17 @@ private:
 };
 
 inline uint32_t ahci::read_reg(ahci_reg reg) {
-    volatile uint32_t *r = (volatile uint32_t *)((uintptr_t)abar_regs_ + (size_t)reg);
-
-    return *r;
+    return mmio_read32(abar_regs_ + ahci_reg_offset(reg) / 4);
 }
 
 inline void ahci::write_reg(ahci_reg reg, uint32_t val) {
-    volatile uint32_t *r = (volatile uint32_t *)((uintptr_t)abar_regs_ + (size_t)reg);
-
-    *r = val;
+    mmio_write32(abar_regs_ + ahci_reg_offset(reg) / 4, val);
 }
 
 inline uint32_t ahci::read_port_reg(uint port, ahci_port_reg reg) {
-    volatile uint32_t *r = (volatile uint32_t *)((uintptr_t)abar_regs_ + (size_t)reg + 0x100 + 0x80 * port);
-
-    return *r;
+    return mmio_read32(abar_regs_ + ahci_port_reg_offset(port, reg) / 4);
 }
 
 inline void ahci::write_port_reg(uint port, ahci_port_reg reg, uint32_t val) {
-    volatile uint32_t *r = (volatile uint32_t *)((uintptr_t)abar_regs_ + (size_t)reg + 0x100 + 0x80 * port);
-
-    *r = val;
+    mmio_write32(abar_regs_ + ahci_port_reg_offset(port, reg) / 4, val);
 }
-
-
-
