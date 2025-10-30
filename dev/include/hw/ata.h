@@ -28,6 +28,10 @@ typedef enum {
 } FIS_TYPE;
 
 typedef enum {
+    ATA_CMD_FLUSH_CACHE = 0xe7,
+    ATA_CMD_FLUSH_CACHE_EXT = 0xea,
+    ATA_CMD_READ_DMA_EXT = 0x25,
+    ATA_CMD_WRITE_DMA_EXT = 0x35,
     ATA_CMD_IDENTIFY = 0xec,
     ATA_CMD_PACKET = 0xa0,
     ATA_CMD_PACKET_IDENTIFY = 0xa1,

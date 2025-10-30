@@ -22,7 +22,71 @@ inline FIS_REG_H2D ata_cmd_identify() {
     fis.fis_type = FIS_TYPE_REG_H2D;
     fis.command = ATA_CMD_IDENTIFY;
     fis.device = 0; // drive 0
-    fis.c = 1; // command
+    fis.c = 1;      // command
+
+    return fis;
+}
+
+inline FIS_REG_H2D ata_cmd_read_dma_ext(uint64_t lba, uint16_t sector_count) {
+    FIS_REG_H2D fis = {};
+    fis.fis_type = FIS_TYPE_REG_H2D;
+    fis.command = ATA_CMD_READ_DMA_EXT;
+    fis.device = 0; // drive 0
+    fis.c = 1;      // command
+
+    // set LBA
+    fis.lba0 = (lba >> 0) & 0xff;
+    fis.lba1 = (lba >> 8) & 0xff;
+    fis.lba2 = (lba >> 16) & 0xff;
+    fis.lba3 = (lba >> 24) & 0xff;
+    fis.lba4 = (lba >> 32) & 0xff;
+    fis.lba5 = (lba >> 40) & 0xff;
+
+    // set sector count
+    fis.countl = sector_count & 0xff;
+    fis.counth = (sector_count >> 8) & 0xff;
+
+    return fis;
+}
+
+inline FIS_REG_H2D ata_cmd_write_dma_ext(uint64_t lba, uint16_t sector_count) {
+    FIS_REG_H2D fis = {};
+    fis.fis_type = FIS_TYPE_REG_H2D;
+    fis.command = ATA_CMD_WRITE_DMA_EXT;
+    fis.device = 0; // drive 0
+    fis.c = 1;      // command
+
+    // set LBA
+    fis.lba0 = (lba >> 0) & 0xff;
+    fis.lba1 = (lba >> 8) & 0xff;
+    fis.lba2 = (lba >> 16) & 0xff;
+    fis.lba3 = (lba >> 24) & 0xff;
+    fis.lba4 = (lba >> 32) & 0xff;
+    fis.lba5 = (lba >> 40) & 0xff;
+
+    // set sector count
+    fis.countl = sector_count & 0xff;
+    fis.counth = (sector_count >> 8) & 0xff;
+
+    return fis;
+}
+
+inline FIS_REG_H2D ata_cmd_flush_cache_ext() {
+    FIS_REG_H2D fis = {};
+    fis.fis_type = FIS_TYPE_REG_H2D;
+    fis.command = ATA_CMD_FLUSH_CACHE_EXT;
+    fis.device = 0; // drive 0
+    fis.c = 1;      // command
+
+    return fis;
+}
+
+inline FIS_REG_H2D ata_cmd_flush_cache() {
+    FIS_REG_H2D fis = {};
+    fis.fis_type = FIS_TYPE_REG_H2D;
+    fis.command = ATA_CMD_FLUSH_CACHE;
+    fis.device = 0; // drive 0
+    fis.c = 1;      // command
 
     return fis;
 }
