@@ -41,7 +41,10 @@
 
 /* from https://www.gnu.org/software/grub/manual/multiboot2/multiboot.html */
 
-/* magic number for multiboot header */
+/* header magic for multiboot header */
+#define MULTIBOOT2_HEADER_MAGIC     0xE85250D6
+
+/* magic number passed by multiboot-compliant boot loaders */
 #define MULTIBOOT2_BOOTLOADER_MAGIC 0x36D76289
 
 
