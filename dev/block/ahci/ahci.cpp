@@ -131,9 +131,15 @@ void ahci::disk_probe_worker() {
     list_for_every_entry(&disk_list_, disk, ahci_disk, node_) {
         disk->identify();
     }
+
+    LTRACE_EXIT;
 }
 
 status_t ahci::start_disk_probe() {
+    if (list_is_empty(&disk_list_)) {
+        return NO_ERROR;
+    }
+
     auto probe_worker = [](void *arg) -> int {
         ahci *a = static_cast<ahci *>(arg);
 

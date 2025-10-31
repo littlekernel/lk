@@ -21,7 +21,7 @@ inline FIS_REG_H2D ata_cmd_identify() {
     FIS_REG_H2D fis = {};
     fis.fis_type = FIS_TYPE_REG_H2D;
     fis.command = ATA_CMD_IDENTIFY;
-    fis.device = 0; // drive 0
+    fis.device = 0;
     fis.c = 1;      // command
 
     return fis;
@@ -31,7 +31,7 @@ inline FIS_REG_H2D ata_cmd_read_dma_ext(uint64_t lba, uint16_t sector_count) {
     FIS_REG_H2D fis = {};
     fis.fis_type = FIS_TYPE_REG_H2D;
     fis.command = ATA_CMD_READ_DMA_EXT;
-    fis.device = 0; // drive 0
+    fis.device = 1<<6; // LBA mode
     fis.c = 1;      // command
 
     // set LBA
@@ -53,7 +53,7 @@ inline FIS_REG_H2D ata_cmd_write_dma_ext(uint64_t lba, uint16_t sector_count) {
     FIS_REG_H2D fis = {};
     fis.fis_type = FIS_TYPE_REG_H2D;
     fis.command = ATA_CMD_WRITE_DMA_EXT;
-    fis.device = 0; // drive 0
+    fis.device = 1<<6; // LBA mode
     fis.c = 1;      // command
 
     // set LBA
@@ -75,7 +75,7 @@ inline FIS_REG_H2D ata_cmd_flush_cache_ext() {
     FIS_REG_H2D fis = {};
     fis.fis_type = FIS_TYPE_REG_H2D;
     fis.command = ATA_CMD_FLUSH_CACHE_EXT;
-    fis.device = 0; // drive 0
+    fis.device = 0;
     fis.c = 1;      // command
 
     return fis;
@@ -85,7 +85,7 @@ inline FIS_REG_H2D ata_cmd_flush_cache() {
     FIS_REG_H2D fis = {};
     fis.fis_type = FIS_TYPE_REG_H2D;
     fis.command = ATA_CMD_FLUSH_CACHE;
-    fis.device = 0; // drive 0
+    fis.device = 0;
     fis.c = 1;      // command
 
     return fis;

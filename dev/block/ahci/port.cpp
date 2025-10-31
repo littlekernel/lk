@@ -54,8 +54,11 @@ status_t ahci_port::probe(ahci_disk **found_disk) {
     LTRACEF("port %u: sig %#x\n", num_, sig);
 
     // if sig is all 1s then it hasn't been scanned yet, so assume it's a disk.
-    // otherwise if its 0x101 it's a disk
-    if (sig != 0xffffffff && sig != 0x101) {
+    // Otherwise look for a few known non-disk signatures and skip them.
+    if (sig != 0xffffffff &&
+        (sig == 0xeb140101 || // sata optical drive
+         sig == 0xc33c0101 || // sata enclosure
+         sig == 0x96690101)) { // sata port multiplier
         TRACEF("skipping unhandled signature %#x\n", sig);
         return ERR_NOT_FOUND;
     }
@@ -150,7 +153,7 @@ int ahci_port::find_free_cmdslot() {
     uint32_t all_slots = read_port_reg(ahci_port_reg::PxSACT) |
                          read_port_reg(ahci_port_reg::PxCI);
 
-    LTRACEF("all_slots %#x\n", all_slots);
+    LTRACEF_LEVEL(2, "all_slots %#x\n", all_slots);
 
     if (unlikely(all_slots == 0xffffffff)) {
         // all slots are full
@@ -158,9 +161,12 @@ int ahci_port::find_free_cmdslot() {
     }
 
     int avail = __builtin_clz(~all_slots);
-    LTRACEF("avail %u\n", avail);
+    LTRACEF_LEVEL(2, "avail %u\n", avail);
 
     return avail;
+
+    // static int next_slot = 0;
+    // return next_slot++ % CMD_COUNT;
 }
 
 status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, size_t buf_len, bool write, int *slot_out) {
@@ -194,16 +200,18 @@ status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, si
     prdt->byte_count_ioc = (buf_len - 1) | (1U << 31); // byte count, interrupt on completion
 
     // copy command into the command table
-    // TODO: replace with wordwise copy
-    memcpy((void *)cmd_table->cfis, fis, fis_len);
+    for (size_t i = 0; i < fis_len / 4; i++) {
+        cmd_table->cfis[i] = static_cast<const uint32_t *>(fis)[i];
+    }
 
     // set up the command header
-    auto *cmd = &cmd_list_[slot];
-    cmd->cmd = (fis_len / sizeof(uint32_t)) | (write ? (1 << 6) : (0 << 6)); // command fis size in words, read/write from device
-    cmd->prdtl = 1;                                                          // 1 prdt
+    volatile ahci_cmd_header *cmd = &cmd_list_[slot];
+    cmd->cmd = (fis_len / sizeof(uint32_t)) | // command fis size in words
+               (write ? (1 << 6) : 0);        // read/write from device
+    cmd->prdtl = 1;                           // 1 prdt
 
-    // LTRACEF("cmd_table %p\n", cmd_table);
-    // hexdump((const void *)cmd_table, sizeof(*cmd_table) + CMD_TABLE_ENTRY_SIZE);
+    // LTRACEF("cmd header %p\n", cmd);
+    // hexdump8((const void *)cmd, sizeof(*cmd));
 
     // TODO: barrier here
     // rmb();
@@ -213,7 +221,7 @@ status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, si
     cmd_pending_ |= (1U << slot);
 
     // kick the command
-    write_port_reg(ahci_port_reg::PxCI, (1U << slot)); // TODO: RMW?
+    write_port_reg(ahci_port_reg::PxCI, (1U << slot));
 
     *slot_out = slot;
 

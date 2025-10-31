@@ -94,15 +94,16 @@ struct ahci_prd {
 static_assert(sizeof(ahci_prd) == 0x10, "");
 
 struct ahci_cmd_table {
-    uint8_t cfis[64];
+    uint32_t cfis[64 /4]; // command FIS
 
     // offset 0x40
-    uint8_t acmd[16];
+    uint8_t acmd[16]; // ATAPI command, 12 or 16 bytes
+
+    // offset 0x50
+    uint8_t _reserved[0x80 - 0x50]; // reserved
 
     // offset 0x80
-    uint8_t _reserved[0x80 - 0x50];
-
-    ahci_prd pdrt[0];
+    ahci_prd pdrt[0]; // physical region descriptor table
 };
 
 static_assert(sizeof(ahci_cmd_table) == 0x80, "");
