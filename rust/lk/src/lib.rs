@@ -20,6 +20,7 @@ use core::{
     panic::PanicInfo,
 };
 
+pub mod app;
 pub mod cbuf;
 pub mod init;
 pub mod lkonce;
