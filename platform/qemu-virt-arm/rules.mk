@@ -7,6 +7,8 @@ ARCH := arm64
 endif
 ifeq ($(ARCH),arm64)
 ARM_CPU ?= cortex-a53
+RUST_TARGET := arm64-llvm
+RUST_TARGET_PATH := $(abspath $(BUILDROOT))/arch/arm64/arm64-llvm.json
 endif
 ifeq ($(ARCH),arm)
 ARM_CPU ?= cortex-a15
@@ -36,6 +38,13 @@ MODULE_DEPS += \
     lib/cbuf \
     lib/fdtwalk \
     lib/fs/9p \
+
+USE_RUST ?= 0
+
+ifeq ($(USE_RUST),1)
+MODULE_DEPS += lib/rust_support
+MODULE_DEPS += rust/dev-pl011
+endif
 
 GLOBAL_DEFINES += \
     MEMBASE=$(MEMBASE) \
