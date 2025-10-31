@@ -30,12 +30,12 @@ _start:
 #if MULTIBOOT2_SUPPORT
 .type multiboot2_header, STT_OBJECT
 multiboot2_header:
-    .long 0xE85250D6                            /* Multiboot header magic */
+    .long MULTIBOOT2_HEADER_MAGIC               /* Multiboot header magic */
     .long MULTIBOOT2_ARCHITECTURE_I386          /* i386 */
     .long header_end - multiboot2_header        /* length */
     
     /* checksum */
-    .long -(0xE85250D6 + 0 + (header_end - multiboot2_header))
+    .long -(MULTIBOOT2_HEADER_MAGIC + MULTIBOOT2_ARCHITECTURE_I386 + (header_end - multiboot2_header))
 
 .align 8
 address_tag_start:
