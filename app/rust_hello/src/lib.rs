@@ -2,27 +2,30 @@
 
 #![no_std]
 
-use core::ffi::c_void;
+extern crate alloc;
 
-use lk::sys::{APP_FLAG_NO_AUTOSTART, app_descriptor};
+use alloc::boxed::Box;
+
+use lk::{app::LkApp, lkapp};
 
 pub fn must_link() {}
 
-/// Manual, and unsafe declration of an app.
-#[unsafe(link_section = "apps")]
-#[used]
-static APP_RUST_HELLO: app_descriptor = app_descriptor {
-    name: c"rust_hello".as_ptr(),
-    init: Some(init),
-    entry: Some(main),
-    flags: APP_FLAG_NO_AUTOSTART,
-    stack_size: 0,
-};
-
-extern "C" fn init(_desc: *const app_descriptor) {
-    log::info!("Rust hello app init");
+struct MyApp {
+    count: usize,
 }
 
-extern "C" fn main(_desc: *const app_descriptor, _args: *mut c_void) {
-    log::info!("Rust hello app main");
+impl LkApp for MyApp {
+    fn new() -> Option<Self> {
+        Some(MyApp { count: 0 })
+    }
+
+    fn main(&mut self) {
+        self.count += 1;
+        log::info!("App has been invoked {} times", self.count);
+    }
 }
+
+lkapp!(
+    c"rust_hello",
+    APP_RUST_HELLO,
+    pub static MY_APP: MyApp);
