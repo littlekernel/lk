@@ -28,6 +28,7 @@
 #include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/protocols/loaded_image_protocol.h>
+#include <uefi/protocols/hii_protocol.h>
 #include <uefi/types.h>
 
 #include "blockio2_protocols.h"
@@ -103,6 +104,15 @@ EfiStatus locate_protocol(const EfiGuid *protocol, void *registration,
   if (memcmp(protocol, &EFI_TCG2_PROTOCOL_GUID, sizeof(*protocol)) == 0) {
     printf("%s(EFI_TCG2_PROTOCOL_GUID) is unsupported.\n", __FUNCTION__);
     return EFI_STATUS_NOT_FOUND;
+  }
+  if (guid_eq(protocol, EFI_HII_DATABASE_PROTOCOL_GUID)) {
+    printf("%s(EFI_HII_DATABASE_PROTOCOL_GUID) is supported.\n",
+           __FUNCTION__);
+    *intf = open_hii_database_protocol();
+    if (*intf == nullptr) {
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
+    return EFI_STATUS_SUCCESS;
   }
 
   printf("%s(%x %x %x %llx) is unsupported\n", __FUNCTION__, protocol->data1,
