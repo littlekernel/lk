@@ -99,7 +99,7 @@ int cbuf_tests(int argc, const console_cmd_args *argv) {
 
         // Read up to 8 bytes, make sure they are right.
         if (pos_in < pos_out) {
-            char buf_in[8];
+            unsigned char buf_in[8];
             int to_read_random = rand() & 7;
             int to_read = MIN(to_read_random, pos_out - pos_in);
             int read = cbuf_read(&cbuf, buf_in, to_read, false);
