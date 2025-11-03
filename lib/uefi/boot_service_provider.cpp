@@ -54,16 +54,16 @@ EfiStatus handle_protocol(EfiHandle handle, const EfiGuid *protocol,
   if (guid_eq(protocol, LOADED_IMAGE_PROTOCOL_GUID)) {
     printf("handle_protocol(%p, LOADED_IMAGE_PROTOCOL_GUID, %p);\n", handle,
            intf);
-    const auto loaded_image = static_cast<EFI_LOADED_IMAGE_PROTOCOL *>(
-        uefi_malloc(sizeof(EFI_LOADED_IMAGE_PROTOCOL)));
+    const auto loaded_image = static_cast<EfiLoadedImageProtocol*>(
+        uefi_malloc(sizeof(EfiLoadedImageProtocol)));
     *loaded_image = {};
-    loaded_image->Revision = EFI_LOADED_IMAGE_PROTOCOL_REVISION;
-    loaded_image->ParentHandle = nullptr;
-    loaded_image->SystemTable = nullptr;
-    loaded_image->LoadOptionsSize = 0;
-    loaded_image->LoadOptions = nullptr;
-    loaded_image->Unload = unload;
-    loaded_image->ImageBase = handle;
+    loaded_image->revision = EFI_LOADED_IMAGE_PROTOCOL_REVISION;
+    loaded_image->parent_handle = nullptr;
+    loaded_image->system_table = nullptr;
+    loaded_image->load_options_size = 0;
+    loaded_image->load_options = nullptr;
+    loaded_image->unload = unload;
+    loaded_image->image_base = handle;
 
     *intf = loaded_image;
     return EFI_STATUS_SUCCESS;
