@@ -134,39 +134,6 @@ static constexpr auto EFI_ERASE_BLOCK_PROTOCOL_GUID =
             0x4926,
             {0xaa, 0xef, 0x99, 0x18, 0xe7, 0x72, 0xd9, 0x87}};
 
-using EFI_IMAGE_UNLOAD = EfiStatus (*)(EfiHandle);
-
-//******************************************************
-// EFI_DEVICE_PATH_PROTOCOL
-//******************************************************
-struct EFI_DEVICE_PATH_PROTOCOL {
-  uint8_t Type;
-  uint8_t SubType;
-  uint8_t Length[2];
-};
-
-struct EFI_LOADED_IMAGE_PROTOCOL {
-  uint32_t Revision;
-  EfiHandle ParentHandle;
-  EfiSystemTable *SystemTable;
-
-  // Source location of the image
-  EfiHandle DeviceHandle;
-  EFI_DEVICE_PATH_PROTOCOL *FilePath;
-  void *Reserved;
-
-  // Image’s load options
-  uint32_t LoadOptionsSize;
-  void *LoadOptions;
-
-  // Location where image was loaded
-  void *ImageBase;
-  uint64_t ImageSize;
-  EfiMemoryType ImageCodeType;
-  EfiMemoryType ImageDataType;
-  EFI_IMAGE_UNLOAD Unload;
-};
-
 // This function would be called from GBL before jumping into android kernel
 // LK provides a default no-op implementation that is weakly linked,
 // different platforms can override with their own implementation.

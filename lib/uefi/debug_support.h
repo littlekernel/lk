@@ -19,6 +19,7 @@
 #define __DEBUG_SUPPORT_
 
 #include <lib/bio.h>
+#include <uefi/protocols/loaded_image_protocol.h>
 #include <uefi/system_table.h>
 #include <uefi/types.h>
 
@@ -41,7 +42,7 @@ struct EfiSystemTablePointer {
 
 struct EfiDebugImageInfoNormal {
   uint32_t image_info_type;
-  struct EFI_LOADED_IMAGE_PROTOCOL *loaded_image_protocol_instance;
+  EfiLoadedImageProtocol *loaded_image_protocol_instance;
   EfiHandle image_handle;
 };
 
@@ -58,7 +59,7 @@ struct EfiDebugImageInfoTableHeader {
 
 EfiStatus efi_initialize_system_table_pointer(struct EfiSystemTable *system_table);
 EfiStatus efi_core_new_debug_image_info_entry(uint32_t image_info_type,
-                                              struct EFI_LOADED_IMAGE_PROTOCOL *loaded_image,
+                                              EfiLoadedImageProtocol *loaded_image,
                                               EfiHandle image_handle);
 void efi_core_remove_debug_image_info_entry(EfiHandle image_handle);
 EfiStatus setup_debug_support(EfiSystemTable &table,

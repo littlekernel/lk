@@ -21,14 +21,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <uefi/boot_service.h>
+#include <uefi/protocols/device_path_protocol.h>
 #include <uefi/protocols/loaded_image_protocol.h>
 #include <uefi/types.h>
 
-#include "boot_service_provider.h"
 #include "uefi_platform.h"
 
 struct EFI_DEVICE_PATH_FILE_PATH_PROTOCOL {
-  struct EFI_DEVICE_PATH_PROTOCOL dp;
+  EfiDevicePathProtocol dp;
   uint16_t str[];
 };
 
@@ -79,7 +79,7 @@ static uint32_t efi_m_max_table_entries;
 static constexpr size_t EFI_DEBUG_TABLE_ENTRY_SIZE = (sizeof(union EfiDebugImageInfo));
 
 EfiStatus efi_core_new_debug_image_info_entry(uint32_t image_info_type,
-					      struct EFI_LOADED_IMAGE_PROTOCOL *loaded_image,
+					      EfiLoadedImageProtocol *loaded_image,
 					      EfiHandle image_handle) {
   /* Set the flag indicating that we're in the process of updating
    * the table.
@@ -198,38 +198,38 @@ EfiStatus setup_debug_support(EfiSystemTable &table,
 			      char *image_base,
 			      size_t virtual_size,
 			      bdev_t *dev) {
-  struct EFI_LOADED_IMAGE_PROTOCOL *efiLoadedImageProtocol = nullptr;
+  EfiLoadedImageProtocol *efiLoadedImageProtocol = nullptr;
 
   allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA,
-		sizeof(struct EFI_LOADED_IMAGE_PROTOCOL),
+		sizeof(EfiLoadedImageProtocol),
 		reinterpret_cast<void **>(&efiLoadedImageProtocol));
-  memset(efiLoadedImageProtocol, 0, sizeof(struct EFI_LOADED_IMAGE_PROTOCOL));
+  memset(efiLoadedImageProtocol, 0, sizeof(EfiLoadedImageProtocol));
 
-  efiLoadedImageProtocol->Revision = EFI_LOADED_IMAGE_PROTOCOL_REVISION;
-  efiLoadedImageProtocol->SystemTable = &table;
-  efiLoadedImageProtocol->ImageBase = reinterpret_cast<void *>(image_base);
-  efiLoadedImageProtocol->ImageSize = virtual_size;
+  efiLoadedImageProtocol->revision = EFI_LOADED_IMAGE_PROTOCOL_REVISION;
+  efiLoadedImageProtocol->system_table = &table;
+  efiLoadedImageProtocol->image_base = reinterpret_cast<void *>(image_base);
+  efiLoadedImageProtocol->image_size = virtual_size;
   char *device_buf = nullptr;
-  size_t fpsize = sizeof(struct EFI_DEVICE_PATH_PROTOCOL) + 2 * (strlen(dev->name) + 2);
+  size_t fpsize = sizeof(EfiDevicePathProtocol) + 2 * (strlen(dev->name) + 2);
   allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA,
-		fpsize + sizeof(struct EFI_DEVICE_PATH_PROTOCOL),
+		fpsize + sizeof(EfiDevicePathProtocol),
 		reinterpret_cast<void **>(&device_buf));
-  memset(device_buf, 0, fpsize + sizeof(struct EFI_DEVICE_PATH_PROTOCOL));
+  memset(device_buf, 0, fpsize + sizeof(EfiDevicePathProtocol));
   struct EFI_DEVICE_PATH_FILE_PATH_PROTOCOL *fp = reinterpret_cast<struct EFI_DEVICE_PATH_FILE_PATH_PROTOCOL *>(device_buf);
-  struct EFI_DEVICE_PATH_PROTOCOL *dp_end = reinterpret_cast<struct EFI_DEVICE_PATH_PROTOCOL *>(device_buf + fpsize);
-  fp->dp.Type = EFI_DEVICE_PATH_TYPE_MEDIA_DEVICE;
-  fp->dp.SubType = EFI_DEVICE_PATH_SUB_TYPE_FILE_PATH;
-  fp->dp.Length[0] = fpsize % 256;
-  fp->dp.Length[1] = fpsize / 256;
+  struct EfiDevicePathProtocol *dp_end = reinterpret_cast<EfiDevicePathProtocol *>(device_buf + fpsize);
+  fp->dp.type = EFI_DEVICE_PATH_TYPE_MEDIA_DEVICE;
+  fp->dp.sub_type = EFI_DEVICE_PATH_SUB_TYPE_FILE_PATH;
+  fp->dp.length[0] = fpsize % 256;
+  fp->dp.length[1] = fpsize / 256;
   fp->str[0] = '\\';
   for (size_t i = 0; i < strlen(dev->name); i++) {
     fp->str[i+1] = dev->name[i];
   }
-  dp_end->Type = EFI_DEVICE_PATH_TYPE_END;
-  dp_end->SubType = EFI_DEVICE_PATH_SUB_TYPE_END;
-  dp_end->Length[0] = sizeof(struct EFI_DEVICE_PATH_PROTOCOL) % 256;
-  dp_end->Length[1] = sizeof(struct EFI_DEVICE_PATH_PROTOCOL) / 256;
-  efiLoadedImageProtocol->FilePath = reinterpret_cast<struct EFI_DEVICE_PATH_PROTOCOL *>(device_buf);
+  dp_end->type = EFI_DEVICE_PATH_TYPE_END;
+  dp_end->sub_type = EFI_DEVICE_PATH_SUB_TYPE_END;
+  dp_end->length[0] = sizeof(EfiDevicePathProtocol) % 256;
+  dp_end->length[1] = sizeof(EfiDevicePathProtocol) / 256;
+  efiLoadedImageProtocol->file_path = reinterpret_cast<EfiDevicePathProtocol *>(device_buf);
   return efi_core_new_debug_image_info_entry(EFI_DEBUG_IMAGE_INFO_TYPE_NORMAL,
 					     efiLoadedImageProtocol,
 					     image_base);
@@ -242,8 +242,8 @@ void teardown_debug_support(char *image_base) {
     if (table[index].normal_image &&
 	table[index].normal_image->image_handle == image_base) {
       /* Found a match. Get device_buf and efiLoadedImageProtocol. */
-      struct EFI_LOADED_IMAGE_PROTOCOL *efiLoadedImageProtocol = table[index].normal_image->loaded_image_protocol_instance;
-      char *device_buf = reinterpret_cast<char *>(efiLoadedImageProtocol->FilePath);
+      EfiLoadedImageProtocol *efiLoadedImageProtocol = table[index].normal_image->loaded_image_protocol_instance;
+      char *device_buf = reinterpret_cast<char *>(efiLoadedImageProtocol->file_path);
       /* Free resources */
       efi_core_remove_debug_image_info_entry(image_base);
       free_pool(device_buf);
