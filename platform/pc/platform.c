@@ -203,9 +203,9 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
 
                 if (framebuffer_tag->common.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
                     dprintf(SPEW, "\tcolor bit layout: R %u:%u G %u:%u B %u:%u\n",
-                            framebuffer_tag->framebuffer_red_field_position, framebuffer_tag->framebuffer_red_mask_size,
-                            framebuffer_tag->framebuffer_green_field_position, framebuffer_tag->framebuffer_green_mask_size,
-                            framebuffer_tag->framebuffer_blue_field_position, framebuffer_tag->framebuffer_blue_mask_size);
+                            framebuffer_tag->rgb_bitmasks.framebuffer_red_field_position, framebuffer_tag->rgb_bitmasks.framebuffer_red_mask_size,
+                            framebuffer_tag->rgb_bitmasks.framebuffer_green_field_position, framebuffer_tag->rgb_bitmasks.framebuffer_green_mask_size,
+                            framebuffer_tag->rgb_bitmasks.framebuffer_blue_field_position, framebuffer_tag->rgb_bitmasks.framebuffer_blue_mask_size);
                 }
 
                 break;
