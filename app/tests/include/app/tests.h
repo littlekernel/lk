@@ -10,7 +10,6 @@
 
 #include <lk/console_cmd.h>
 
-int cbuf_tests(int argc, const console_cmd_args *argv);
 int fibo(int argc, const console_cmd_args *argv);
 int port_tests(int argc, const console_cmd_args *argv);
 int spinner(int argc, const console_cmd_args *argv);

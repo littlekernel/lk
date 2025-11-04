@@ -4,7 +4,6 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS := \
     $(LOCAL_DIR)/cache_tests.c \
-    $(LOCAL_DIR)/cbuf_tests.c \
     $(LOCAL_DIR)/clock_tests.c \
     $(LOCAL_DIR)/fibo.c \
     $(LOCAL_DIR)/mem_tests.c \

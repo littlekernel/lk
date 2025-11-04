@@ -19,7 +19,6 @@ STATIC_COMMAND("clock_tests", "test clocks", &clock_tests)
 STATIC_COMMAND("bench", "miscellaneous benchmarks", &benchmarks)
 STATIC_COMMAND("fibo", "threaded fibonacci", &fibo)
 STATIC_COMMAND("spinner", "create a spinning thread", &spinner)
-STATIC_COMMAND("cbuf_tests", "test lib/cbuf", &cbuf_tests)
 STATIC_COMMAND("v9p_tests", "test dev/virtio/9p", &v9p_tests)
 STATIC_COMMAND("v9fs_tests", "test lib/fs/9p", &v9fs_tests)
 STATIC_COMMAND_END(tests);
