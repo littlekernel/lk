@@ -15,7 +15,6 @@
 #include <arch/x86/apic.h>
 #include <platform.h>
 #include <platform/pc.h>
-#include <platform/console.h>
 #include <platform/keyboard.h>
 #include <dev/uart.h>
 #include <hw/multiboot.h>
@@ -25,6 +24,12 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <kernel/vm.h>
+
+#if MULTIBOOT2_SUPPORT
+#include <platform/display.h>
+#else
+#include <platform/console.h>
+#endif
 
 #include "platform_p.h"
 
@@ -189,8 +194,7 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
             case MULTIBOOT2_TAG_TYPE_FRAMEBUFFER: {
                 struct multiboot2_tag_framebuffer *framebuffer_tag = (struct multiboot2_tag_framebuffer *)tag;
                 
-                // Not implemented
-                // platform_init_display(framebuffer_tag);
+                platform_init_display(framebuffer_tag);
 
                 dprintf(SPEW, "PC: multiboot framebuffer info present:\n");
                 dprintf(SPEW, "\taddress %#" PRIx64 " pitch %u, width %u height %u bpp %hhu ",
@@ -300,7 +304,9 @@ void platform_early_init(void) {
     platform_init_debug_early();
 
     /* get the text console working */
+#if !MULTIBOOT2_SUPPORT
     platform_init_console();
+#endif
 
     /* initialize the interrupt controller */
     platform_init_interrupts();
