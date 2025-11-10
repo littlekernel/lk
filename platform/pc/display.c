@@ -1,7 +1,7 @@
 #include <lk/err.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include <platform/console.h>
+#include <platform/display.h>
 #include <platform/pc/font9x16.h>
 #include <string.h>
 #include <malloc.h>
@@ -36,7 +36,7 @@ inline static bool has_display(void) {
     return display_initialized;
 }
 
-void dclear(void);
+void clear(void);
 
 void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
     // Check if we have multiboot framebuffer info
@@ -45,6 +45,7 @@ void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
         return;
     }
 
+    // Only support RGB mode with 32bpp for now
     if (framebuffer->common.framebuffer_type != 1) { // 1 = RGB color
         TRACEF("Unsupported framebuffer type: %d\n", framebuffer->common.framebuffer_type);
         return;
@@ -73,7 +74,7 @@ void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
     curr_x = 0;
     curr_y = 0;
 
-    dclear();
+    clear();
 
     display_initialized = true;
 
@@ -83,7 +84,7 @@ void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
 }
 
 status_t display_get_framebuffer(struct display_framebuffer *fb) {
-    DEBUG_ASSERT(fb);
+    // DEBUG_ASSERT(fb);
     if (!has_display())
         return ERR_NOT_FOUND;
 
@@ -117,7 +118,7 @@ status_t display_present(struct display_image *image, uint starty, uint endy) {
     return NO_ERROR;
 }
 
-static void draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg_color) {
+void draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg_color) {
     const uint16_t *bitmap = &font_9x16[(unsigned char)c * FONT_HEIGHT];
 
     for (int row = 0; row < FONT_HEIGHT; row++) {
@@ -142,13 +143,13 @@ static void draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg_color
     }
 }
 
-static void dclear_char(int x, int y) {
+void clear_char(int x, int y) {
     uintptr_t *fb_ptr = (uintptr_t *)display_fb;
     
     for (int row = 0; row < FONT_HEIGHT; row++) {
         for (int col = 0; col < FONT_WIDTH; col++) {
-            int pixel_x = x * FONT_WIDTH + col;
-            int pixel_y = y * FONT_HEIGHT + row;
+            unsigned int pixel_x = x * FONT_WIDTH + col;
+            unsigned int pixel_y = y * FONT_HEIGHT + row;
             
             if (pixel_x >= display_w || pixel_y >= display_h) {
                 continue;
@@ -160,7 +161,7 @@ static void dclear_char(int x, int y) {
     }
 }
 
-void dplace(unsigned int x, unsigned int y) {
+void place(unsigned int x, unsigned int y) {
     if (x < 0) x = 0;
     if (x >= console_cols) x = console_cols - 1;
     if (y < 0) y = 0;
@@ -170,7 +171,7 @@ void dplace(unsigned int x, unsigned int y) {
     curr_y = y;
 }
 
-void dwindow(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2) {
+void window(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2) {
     view_window.x1 = x1;
     view_window.y1 = y1;
     view_window.x2 = x2;
@@ -182,8 +183,14 @@ void dwindow(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2)
     if (curr_y > y2) curr_y = y2;
 }
 
+
+void clear(void) {
+    uint8_t *fb_bytes = (uint8_t *)display_fb;
+    memset(fb_bytes, 0, display_h * display_p);
+}
+
 // Is not fluid when scrolling on real machine
-void dscroll(void) {
+void scroll(void) {
     uint8_t *fb_bytes = (uint8_t *)display_fb;
     unsigned int scroll_pixels = FONT_HEIGHT;
     
@@ -227,7 +234,7 @@ void dputc(char c) {
         case '\b':
             if (curr_x > view_window.x1) {
                 curr_x--;
-                dclear_char(curr_x, curr_y);
+                clear_char(curr_x, curr_y);
             }
             break;
             
@@ -244,7 +251,7 @@ void dputc(char c) {
     }
     
     if (curr_y > view_window.y2) {
-        dscroll();
+        scroll();
         curr_y = view_window.y2;
     }
 }
@@ -257,22 +264,36 @@ void dputs(char *s) {
     }
 }
 
-void dputs_xy(int x, int y, char attr, char *s) {
+void dputs_xy(unsigned int x, unsigned int y, char attr, char *s) {
     unsigned int saved_x = curr_x;
     unsigned int saved_y = curr_y;
     
-    dplace(x, y);
+    place(x, y);
     dputs(s);
     
-    dplace(saved_x, saved_y);
+    place(saved_x, saved_y);
 }
 
-void dputc_xy(int x, int y, char attr, char c) {
+void dputc_xy(unsigned int x, unsigned int y, char attr, char c) {
     unsigned int saved_x = curr_x;
     unsigned int saved_y = curr_y;
     
-    dplace(x, y);
+    place(x, y);
     dputc(c);
     
-    dplace(saved_x, saved_y);
+    place(saved_x, saved_y);
+}
+
+int display_printf_xy(unsigned int x, unsigned int y, char attr, char *fmt, ...) {
+    char cbuf[200];
+    va_list parms;
+    int result;
+
+    va_start(parms, fmt);
+    result = vsprintf(cbuf, fmt, parms);
+    va_end(parms);
+
+    dputs_xy(x, y, attr, cbuf);
+
+    return result;
 }
