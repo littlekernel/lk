@@ -209,35 +209,6 @@ void dscroll(void) {
     curr_y = view_window.y2;
 }
 
-void dscroll(void) {
-    uintptr_t *fb_ptr = (uintptr_t *)display_fb;
-    uint8_t *fb_bytes = (uint8_t *)display_fb;
-    unsigned int scroll_pixels = FONT_HEIGHT;
-    
-    unsigned int start_y = view_window.y1 * FONT_HEIGHT;
-    unsigned int end_y = (view_window.y2 + 1) * FONT_HEIGHT;
-    unsigned int width_pixels = (view_window.x2 - view_window.x1 + 1) * FONT_WIDTH;
-    unsigned int start_x = view_window.x1 * FONT_WIDTH;
-    
-    unsigned int copy_lines = end_y - start_y - scroll_pixels;
-
-    for (unsigned int y = 0; y < copy_lines; y++) {
-        uint8_t *src_line = fb_bytes + (start_y + y + scroll_pixels) * display_p + start_x * 4;
-        uint8_t *dst_line = fb_bytes + (start_y + y) * display_p + start_x * 4;
-        memcpy(dst_line, src_line, width_pixels * 4);
-    }
-    
-    unsigned int clear_start_y = start_y + copy_lines;
-    for (unsigned int y = clear_start_y; y < end_y && y < display_h; y++) {
-        uint32_t *line_start = (uint32_t *)(fb_bytes + y * display_p + start_x * 4);
-        for (unsigned int x = 0; x < width_pixels; x++) {
-            line_start[x] = background_color;
-        }
-    }
-    
-    curr_y = view_window.y2;
-}
-
 void dputc(char c) {
     switch (c) {
         case '\t':
