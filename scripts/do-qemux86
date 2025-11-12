@@ -26,8 +26,7 @@ DO_64BIT=0
 DO_LEGACY=0
 DO_GRAPHICS=0
 DO_KVM=0
-DO_DISK=0
-DISK_IMAGE=""
+DISK_IMAGES=()
 DO_NET=0
 DO_NET_TAP=0
 NETDEV=e1000e
@@ -38,7 +37,9 @@ SUDO=""
 while getopts 6d:gklm:nN:s:th FLAG; do
     case $FLAG in
         6) DO_64BIT=1;;
-        d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
+        d)
+            DISK_IMAGES+=("$OPTARG")
+            ;;
         g) DO_GRAPHICS=1;;
         k) DO_KVM=1;;
         l) DO_LEGACY=1;;
@@ -90,13 +91,17 @@ if (( DO_KVM )); then
 else
     ARGS+=("-cpu" "$CPU")
 fi
-ARGS+=("-m" "$MEMSIZE" "-smp" "$SMP" "-machine" "$MACHINE" "-kernel" "build-${PROJECT}/lk.elf")
+ARGS+=("-m" "$MEMSIZE")
+ARGS+=("-smp" "$SMP")
+ARGS+=("-machine" "$MACHINE")
+ARGS+=("-kernel" "build-${PROJECT}/lk.elf")
 
 ARGS+=("-device" "isa-debug-exit,iobase=0xf4,iosize=0x04")
 ARGS+=("-fw_cfg" "name=etc/sercon-port,string=0")
 
 if (( DO_GRAPHICS )); then
-    ARGS+=("-serial" "stdio" "-vga" "std")
+    ARGS+=("-serial" "stdio")
+    ARGS+=("-vga" "std")
     if (( ! DO_LEGACY )); then
         ARGS+=("-device" "virtio-keyboard-pci")
         ARGS+=("-device" "virtio-mouse-pci")
@@ -105,14 +110,21 @@ else
     ARGS+=("-nographic")
 fi
 
-if (( DO_DISK )); then
-    ARGS+=("-drive" "if=none,file=${DISK_IMAGE},id=disk0,discard=on")
-    if (( ! DO_LEGACY )); then
-        ARGS+=("-hda" "${DISK_IMAGE}")
-    else
-        ARGS+=("-device" "ide-hd,drive=disk0,bus=ide.0")
-    fi
-fi
+function append_disk_image {
+    local disk_image=$1
+    local disk_number=$2
+    ARGS+=("-drive" "if=none,file=${disk_image},id=disk${disk_number},discard=on")
+    # for q35 machines this will add to an ahci controller
+    # for legacy machines will end up appending to the ISA ide controller
+    ARGS+=("-device" "ide-hd,drive=disk${disk_number},bus=ide.${disk_number}")
+}
+
+DISK_COUNT=0
+for img in "${DISK_IMAGES[@]}"; do
+    append_disk_image "$img" "$DISK_COUNT"
+    ((DISK_COUNT++))
+done
+
 if (( DO_NET )); then
     if (( ! DO_LEGACY )); then
         if (( ! DO_NET_TAP )); then
