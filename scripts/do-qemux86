@@ -3,6 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 function HELP {
+    local ec=${1:-0}
     echo "help:"
     echo "-6                  : x86-64"
     echo "-l                  : legacy mode build (386 emulated machine)"
@@ -18,7 +19,7 @@ function HELP {
     echo
     echo "-h for help"
     echo "all arguments after -- are passed to qemu directly"
-    exit 1
+    exit $ec
 }
 
 DO_64BIT=0
@@ -33,7 +34,6 @@ NETDEV=e1000e
 MEMSIZE=0
 SMP=1
 SUDO=""
-MAKE_VARS=""
 
 while getopts 6d:gklm:nN:s:th FLAG; do
     case $FLAG in
@@ -47,22 +47,22 @@ while getopts 6d:gklm:nN:s:th FLAG; do
         t) DO_NET_TAP=1;;
         N) NETDEV=$OPTARG;;
         s) SMP=$OPTARG;;
-        h) HELP;;
+        h) HELP 0;;
         \?)
             echo unrecognized option $OPTARG
-            HELP
+            HELP 1
     esac
 done
 
 shift $((OPTIND-1))
 
 # pick the appropriate qemu and project
-if (( $DO_64BIT )); then
+if (( DO_64BIT )); then
     QEMU="qemu-system-x86_64"
     PROJECT="pc-x86-64-test"
     CPU=max
     MACHINE=q35
-elif (( $DO_LEGACY )); then
+elif (( DO_LEGACY )); then
     QEMU="qemu-system-i386"
     PROJECT="pc-x86-legacy-test"
     CPU=486
@@ -74,78 +74,70 @@ else
     MACHINE=q35
 fi
 
-if (( $DO_LEGACY )); then
-    if (( ! $MEMSIZE )); then
+if (( DO_LEGACY )); then
+    if (( ! MEMSIZE )); then
         MEMSIZE=4
     fi
 else
-    if (( ! $MEMSIZE )); then
+    if (( ! MEMSIZE )); then
         MEMSIZE=512
     fi
 fi
 
-ARGS=""
-if (( $DO_KVM )); then
-    ARGS+=" -accel kvm -cpu host"
+ARGS=()
+if (( DO_KVM )); then
+    ARGS+=("-accel" "kvm" "-cpu" "host")
 else
-    ARGS+=" -cpu $CPU"
+    ARGS+=("-cpu" "$CPU")
 fi
-ARGS+=" -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
+ARGS+=("-m" "$MEMSIZE" "-smp" "$SMP" "-machine" "$MACHINE" "-kernel" "build-${PROJECT}/lk.elf")
 
-ARGS+=" -device isa-debug-exit,iobase=0xf4,iosize=0x04"
-# Override the SeaBIOS serial port to keep it from outputting
-# a terminal reset on start.
-ARGS+=" -fw_cfg name=etc/sercon-port,string=0"
+ARGS+=("-device" "isa-debug-exit,iobase=0xf4,iosize=0x04")
+ARGS+=("-fw_cfg" "name=etc/sercon-port,string=0")
 
-if (( $DO_GRAPHICS )); then
-    ARGS+=" -serial stdio -vga std"
-    if (( ! $DO_LEGACY )); then
-        # add a couple of virtio devices for good measure
-        ARGS+=" -device virtio-keyboard-pci"
-        ARGS+=" -device virtio-mouse-pci"
+if (( DO_GRAPHICS )); then
+    ARGS+=("-serial" "stdio" "-vga" "std")
+    if (( ! DO_LEGACY )); then
+        ARGS+=("-device" "virtio-keyboard-pci")
+        ARGS+=("-device" "virtio-mouse-pci")
     fi
 else
-    ARGS+=" -nographic"
+    ARGS+=("-nographic")
 fi
 
-if (( $DO_DISK )); then
-    ARGS+=" -drive if=none,file=${DISK_IMAGE},id=disk0,discard=on"
-    if (( ! $DO_LEGACY )); then
-        ARGS+=" -device ide-hd,drive=disk0,bus=ide.0"
-        # second disk
-        # ARGS+=" -drive if=none,file=blk2.bin,id=disk1,discard=on"
-        # ARGS+=" -device ide-hd,drive=disk1,bus=ide.1"
-
-        #ARGS+=" -device ahci,id=blk"
-        # ARGS+=" -device virtio-blk-pci,drive=blk,discard=on"
-        # ARGS+=" -hda ${DISK_IMAGE}"
+if (( DO_DISK )); then
+    ARGS+=("-drive" "if=none,file=${DISK_IMAGE},id=disk0,discard=on")
+    if (( ! DO_LEGACY )); then
+        ARGS+=("-hda" "${DISK_IMAGE}")
     else
-        ARGS+=" -device ide-hd,drive=disk0,bus=ide.0"
+        ARGS+=("-device" "ide-hd,drive=disk0,bus=ide.0")
     fi
 fi
-if (( $DO_NET )); then
-    if (( ! $DO_LEGACY )); then
-        if (( ! $DO_NET_TAP )); then
-            ARGS+=" -netdev user,id=vmnic,hostname=qemu"
+if (( DO_NET )); then
+    if (( ! DO_LEGACY )); then
+        if (( ! DO_NET_TAP )); then
+            ARGS+=("-netdev" "user,id=vmnic,hostname=qemu")
         else
-            # quick note to enable tap interface
-            # IFNAME=qemu0
-            # BRIDGE=bridge0
-            # sudo tunctl -u $(whoami) -t ${IFNAME}
-            # sudo ifconfig ${IFNAME} up
-            # sudo ip link set ${IFNAME} master ${BRIDGE}
-            ARGS+=" -netdev tap,id=vmnic,ifname=qemu0,script=no,downscript=no"
+            ARGS+=("-netdev" "tap,id=vmnic,ifname=qemu0,script=no,downscript=no")
             #SUDO="sudo"
         fi
-        ARGS+=" -device $NETDEV,netdev=vmnic"
+        ARGS+=("-device" "$NETDEV,netdev=vmnic")
     else
         echo "implement legacy + network config"
         exit 1
     fi
 else
-    ARGS+=" -net none"
+    ARGS+=("-net" "none")
 fi
 
-$DIR/make-parallel $MAKE_VARS $PROJECT &&
-echo $SUDO $QEMU $ARGS $@ &&
-exec $SUDO $QEMU $ARGS $@
+CMD=()
+if [[ -n "$SUDO" ]]; then
+    CMD+=("sudo")
+fi
+CMD+=("$QEMU")
+CMD+=("${ARGS[@]}")
+CMD+=("$@")
+
+"$DIR"/make-parallel $PROJECT &&
+echo "${CMD[@]}" &&
+exec "${CMD[@]}"
