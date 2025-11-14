@@ -6,15 +6,15 @@
  * https://opensource.org/licenses/MIT
  */
 #include <assert.h>
+#include <kernel/thread.h>
+#include <lib/bio.h>
+#include <lk/console_cmd.h>
 #include <lk/debug.h>
+#include <lk/err.h>
+#include <platform.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <lk/err.h>
-#include <lk/console_cmd.h>
-#include <lib/bio.h>
-#include <platform.h>
-#include <kernel/thread.h>
 
 #if WITH_LIB_CKSUM
 #include <lib/cksum.h>
@@ -23,9 +23,9 @@
 #include <lib/partition.h>
 #endif
 
-#define DMA_ALIGNMENT (CACHE_LINE)
+#define DMA_ALIGNMENT            (CACHE_LINE)
 #define THREE_BYTE_ADDR_BOUNDARY (16777216)
-#define SUB_ERASE_TEST_SAMPLES (32)
+#define SUB_ERASE_TEST_SAMPLES   (32)
 
 #if LK_DEBUGLEVEL > 0
 static int cmd_bio(int argc, const console_cmd_args *argv);
@@ -62,10 +62,12 @@ usage:
     if (!strcmp(argv[1].str, "list")) {
         bio_dump_devices();
     } else if (!strcmp(argv[1].str, "read")) {
-        if (argc < 6) goto notenoughargs;
+        if (argc < 6) {
+            goto notenoughargs;
+        }
 
         addr_t address = argv[3].u;
-        off_t offset = argv[4].u; // XXX use long
+        off_t offset = argv[4].ull;
         size_t len = argv[5].u;
 
         bdev_t *dev = bio_open(argv[2].str);
@@ -83,10 +85,12 @@ usage:
 
         rc = err;
     } else if (!strcmp(argv[1].str, "write")) {
-        if (argc < 6) goto notenoughargs;
+        if (argc < 6) {
+            goto notenoughargs;
+        }
 
         addr_t address = argv[3].u;
-        off_t offset = argv[4].u; // XXX use long
+        off_t offset = argv[4].ull;
         size_t len = argv[5].u;
 
         bdev_t *dev = bio_open(argv[2].str);
@@ -109,7 +113,7 @@ usage:
             goto usage;
         }
 
-        off_t offset = argv[3].u; // XXX use long
+        off_t offset = argv[3].ull;
         size_t len = argv[4].u;
 
         bdev_t *dev = bio_open(argv[2].str);
@@ -118,10 +122,10 @@ usage:
             return -1;
         }
 
-        uint8_t *buf = memalign(CACHE_LINE, 256);
+        uint8_t *buf = memalign(CACHE_LINE, dev->block_size);
         ssize_t err = 0;
         while (len > 0) {
-            size_t  amt = MIN(256, len);
+            size_t amt = MIN(dev->block_size, len);
             ssize_t err_len = bio_read(dev, buf, offset, amt);
 
             if (err_len < 0) {
@@ -140,15 +144,17 @@ usage:
             }
 
             offset += amt;
-            len    -= amt;
+            len -= amt;
         }
-
         bio_close(dev);
+        free(buf);
         rc = err;
     } else if (!strcmp(argv[1].str, "erase")) {
-        if (argc < 5) goto notenoughargs;
+        if (argc < 5) {
+            goto notenoughargs;
+        }
 
-        off_t offset = argv[3].u; // XXX use long
+        off_t offset = argv[3].ull;
         size_t len = argv[4].u;
 
         bdev_t *dev = bio_open(argv[2].str);
@@ -166,7 +172,9 @@ usage:
 
         rc = err;
     } else if (!strcmp(argv[1].str, "ioctl")) {
-        if (argc < 4) goto notenoughargs;
+        if (argc < 4) {
+            goto notenoughargs;
+        }
 
         int request = argv[3].u;
         unsigned long arg = (argc == 5) ? argv[4].u : 0;
@@ -184,7 +192,9 @@ usage:
 
         rc = err;
     } else if (!strcmp(argv[1].str, "remove")) {
-        if (argc < 3) goto notenoughargs;
+        if (argc < 3) {
+            goto notenoughargs;
+        }
 
         bdev_t *dev = bio_open(argv[2].str);
         if (!dev) {
@@ -195,7 +205,9 @@ usage:
         bio_unregister_device(dev);
         bio_close(dev);
     } else if (!strcmp(argv[1].str, "test")) {
-        if (argc < 3) goto notenoughargs;
+        if (argc < 3) {
+            goto notenoughargs;
+        }
 
         bdev_t *dev = bio_open(argv[2].str);
         if (!dev) {
@@ -209,18 +221,23 @@ usage:
         rc = err;
 #if WITH_LIB_PARTITION
     } else if (!strcmp(argv[1].str, "partscan")) {
-        if (argc < 3) goto notenoughargs;
+        if (argc < 3) {
+            goto notenoughargs;
+        }
 
         off_t offset = 0;
-        if (argc > 3)
+        if (argc > 3) {
             offset = argv[3].u;
+        }
 
         rc = partition_publish(argv[2].str, offset);
         dprintf(INFO, "partition_publish returns %d\n", rc);
 #endif
 #if WITH_LIB_CKSUM
     } else if (!strcmp(argv[1].str, "crc32")) {
-        if (argc < 5) goto notenoughargs;
+        if (argc < 5) {
+            goto notenoughargs;
+        }
 
         unsigned long offset = argv[3].u;
         size_t len = argv[4].u;
@@ -398,14 +415,16 @@ static status_t memory_mapped_test(bdev_t *device) {
     uint8_t *test_buffer = memalign(DMA_ALIGNMENT, device->block_size);
     if (!test_buffer) {
         printf("Could not allocate %zu bytes for a temporary buffer. "
-               "Aborting.\n", device->block_size);
+               "Aborting.\n",
+               device->block_size);
         return ERR_NO_MEMORY;
     }
 
     uint8_t *reference_buffer = memalign(DMA_ALIGNMENT, device->block_size);
     if (!reference_buffer) {
         printf("Could not allocate %zu bytes for a temporary reference "
-               "buffer. Aborting.\n", device->block_size);
+               "buffer. Aborting.\n",
+               device->block_size);
         free(test_buffer);
         return ERR_NO_MEMORY;
     }
@@ -431,7 +450,8 @@ static status_t memory_mapped_test(bdev_t *device) {
     if (err != (ssize_t)device->block_size) {
         printf("Error while writing test pattern to device. Expected to write "
                "%zu bytes but actually wrote %ld. Not continuing to test memory "
-               "mapped mode.\n", device->block_size, err);
+               "mapped mode.\n",
+               device->block_size, err);
         retcode = ERR_IO;
         goto finish;
     }
@@ -454,7 +474,8 @@ static status_t memory_mapped_test(bdev_t *device) {
     for (uint i = 0; i < device->block_size; i++) {
         if (*testptr != *devaddr) {
             printf("Data mismatch at position %d. Expected %d got %d. "
-                   "Aborting.\n", i, *testptr, *devaddr);
+                   "Aborting.\n",
+                   i, *testptr, *devaddr);
             goto finish;
         }
         testptr++;
@@ -485,7 +506,8 @@ static status_t memory_mapped_test(bdev_t *device) {
     for (uint i = 0; i < device->block_size; i++) {
         if (*actual != *expected) {
             printf("Data mismatch at position %d. Expected %d got %d. "
-                   "Aborting.\n", i, *expected, *actual);
+                   "Aborting.\n",
+                   i, *expected, *actual);
             goto finish;
         }
         expected++;
@@ -517,7 +539,7 @@ static int bio_test_device(bdev_t *device) {
         return -1;
     }
 
-    printf ("Testing sub-erase...\n");
+    printf("Testing sub-erase...\n");
     bool success = sub_erase_test(device, SUB_ERASE_TEST_SAMPLES);
     if (!success) {
         printf("Discovered errors while testing sub-erase.\n");

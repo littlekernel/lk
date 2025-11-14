@@ -5,11 +5,11 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <lib/bio.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include <string.h>
 #include <stdlib.h>
-#include <lib/bio.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -80,4 +80,3 @@ int create_membdev(const char *name, void *ptr, size_t len) {
 
     return 0;
 }
-

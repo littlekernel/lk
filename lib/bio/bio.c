@@ -7,17 +7,17 @@
  */
 #include <lib/bio.h>
 
-#include <stdlib.h>
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <lk/err.h>
-#include <string.h>
+#include <arch/atomic.h>
 #include <assert.h>
+#include <kernel/mutex.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/init.h>
 #include <lk/list.h>
 #include <lk/pow2.h>
-#include <kernel/mutex.h>
-#include <lk/init.h>
-#include <arch/atomic.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -257,15 +257,17 @@ static ssize_t bio_default_erase(struct bdev *dev, off_t offset, size_t len) {
         size_t towrite = MIN(remaining, dev->block_size);
 
         ssize_t written = bio_write(dev, erase_buf, pos, towrite);
-        if (written < 0)
+        if (written < 0) {
             return written;
+        }
 
         erased += written;
         pos += written;
         remaining -= written;
 
-        if ((size_t)written < towrite)
+        if ((size_t)written < towrite) {
             break;
+        }
     }
 
     return erased;
@@ -296,8 +298,9 @@ static void bdev_dec_ref(bdev_t *dev) {
         TRACEF("last ref, removing (%s)\n", dev->name);
 
         // call the close hook if it exists
-        if (dev->close)
+        if (dev->close) {
             dev->close(dev);
+        }
 
         free(dev->name);
     }
@@ -305,25 +308,32 @@ static void bdev_dec_ref(bdev_t *dev) {
 
 size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len) {
     /* range check */
-    if (offset < 0)
+    if (offset < 0) {
         return 0;
-    if (offset >= dev->total_size)
+    }
+    if (offset >= dev->total_size) {
         return 0;
-    if (len == 0)
+    }
+    if (len == 0) {
         return 0;
-    if ((off_t)(offset + len) > dev->total_size)
+    }
+    if ((off_t)(offset + len) > dev->total_size) {
         len = dev->total_size - offset;
+    }
 
     return len;
 }
 
 uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count) {
-    if (block > dev->block_count)
+    if (block > dev->block_count) {
         return 0;
-    if (count == 0)
+    }
+    if (count == 0) {
         return 0;
-    if (block + count > dev->block_count)
+    }
+    if (block + count > dev->block_count) {
         count = dev->block_count - block;
+    }
 
     return count;
 }
@@ -363,8 +373,9 @@ ssize_t bio_read(bdev_t *dev, void *buf, off_t offset, size_t len) {
 
     /* range check */
     len = bio_trim_range(dev, offset, len);
-    if (len == 0)
+    if (len == 0) {
         return 0;
+    }
 
     return dev->read(dev, buf, offset, len);
 }
@@ -397,8 +408,9 @@ ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count) {
 
     /* range check */
     count = bio_trim_block_range(dev, block, count);
-    if (count == 0)
+    if (count == 0) {
         return 0;
+    }
 
     return dev->read_block(dev, buf, block, count);
 }
@@ -411,8 +423,9 @@ ssize_t bio_write(bdev_t *dev, const void *buf, off_t offset, size_t len) {
 
     /* range check */
     len = bio_trim_range(dev, offset, len);
-    if (len == 0)
+    if (len == 0) {
         return 0;
+    }
 
     return dev->write(dev, buf, offset, len);
 }
@@ -425,8 +438,9 @@ ssize_t bio_write_block(bdev_t *dev, const void *buf, bnum_t block, uint count) 
 
     /* range check */
     count = bio_trim_block_range(dev, block, count);
-    if (count == 0)
+    if (count == 0) {
         return 0;
+    }
 
     return dev->write_block(dev, buf, block, count);
 }
@@ -438,8 +452,9 @@ ssize_t bio_erase(bdev_t *dev, off_t offset, size_t len) {
 
     /* range check */
     len = bio_trim_range(dev, offset, len);
-    if (len == 0)
+    if (len == 0) {
         return 0;
+    }
 
     return dev->erase(dev, offset, len);
 }
@@ -447,11 +462,13 @@ ssize_t bio_erase(bdev_t *dev, off_t offset, size_t len) {
 int bio_ioctl(bdev_t *dev, int request, void *argp) {
     LTRACEF("dev '%s', request %08x, argp %p\n", dev->name, request, argp);
 
+    DEBUG_ASSERT(dev && dev->ref > 0);
+
     if (dev->ioctl == NULL) {
         return ERR_NOT_SUPPORTED;
-    } else {
-        return dev->ioctl(dev, request, argp);
     }
+
+    return dev->ioctl(dev, request, argp);
 }
 
 void bio_initialize_bdev(bdev_t *dev,
@@ -490,10 +507,10 @@ void bio_initialize_bdev(bdev_t *dev,
             DEBUG_ASSERT(info->erase_size);
             DEBUG_ASSERT(info->erase_size == ((size_t)1 << info->erase_shift));
 
-            info->start       = desc->start;
-            info->erase_size  = desc->erase_size;
+            info->start = desc->start;
+            info->erase_size = desc->erase_size;
             info->erase_shift = log2_uint(desc->erase_size);
-            info->size        = ((off_t)desc->block_count) << desc->block_size;
+            info->size = ((off_t)desc->block_count) << desc->block_size;
 
             // Make sure that region is aligned on both a program and erase block boundary.
             DEBUG_ASSERT(!(info->start & (((off_t)1 << info->block_shift) - 1)));
@@ -522,10 +539,12 @@ void bio_initialize_bdev(bdev_t *dev,
 
     /* set up the default hooks, the sub driver should override the block operations at least */
     dev->read = bio_default_read;
+    dev->read_async = NULL;
     dev->read_block = bio_default_read_block;
     dev->write = bio_default_write;
     dev->write_block = bio_default_write_block;
     dev->erase = bio_default_erase;
+    dev->ioctl = NULL;
     dev->close = NULL;
 }
 
@@ -555,14 +574,14 @@ void bio_unregister_device(bdev_t *dev) {
 }
 
 void bio_iter_devices(bool (*callback)(void *, bdev_t *), void *cookie) {
-  bdev_t *entry = NULL;
-  mutex_acquire(&bdevs.lock);
-  list_for_every_entry(&bdevs.list, entry, bdev_t, node) {
-    if (!callback(cookie, entry)) {
-      break;
+    bdev_t *entry = NULL;
+    mutex_acquire(&bdevs.lock);
+    list_for_every_entry(&bdevs.list, entry, bdev_t, node) {
+        if (!callback(cookie, entry)) {
+            break;
+        }
     }
-  }
-  mutex_release(&bdevs.lock);
+    mutex_release(&bdevs.lock);
 }
 
 void bio_dump_devices(void) {
@@ -575,13 +594,12 @@ void bio_dump_devices(void) {
                entry->name, entry->total_size, entry->block_size, entry->ref);
 
         if (!entry->geometry_count || !entry->geometry) {
-            printf(" (no erase geometry)\n");
+            printf(" (no erase geometry)");
         } else {
             for (size_t i = 0; i < entry->geometry_count; ++i) {
                 const bio_erase_geometry_info_t *geo = entry->geometry + i;
                 printf("\n\t\terase_region[%zu] : start %lld size %lld erase size %zu",
                        i, geo->start, geo->size, geo->erase_size);
-
             }
         }
 

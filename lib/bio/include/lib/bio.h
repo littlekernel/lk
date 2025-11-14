@@ -8,20 +8,23 @@
 #pragma once
 
 #include <assert.h>
-#include <sys/types.h>
 #include <lk/list.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
+
+// NOLINTBEGIN(modernize-use-using)
 
 #define BIO_FLAGS_NONE                (0 << 0)
 #define BIO_FLAG_CACHE_ALIGNED_READS  (1 << 0)
 #define BIO_FLAG_CACHE_ALIGNED_WRITES (1 << 1)
 
+// TODO: make bnum_t 64 bit on 64 bit systems
 typedef uint32_t bnum_t;
 
 typedef struct bio_erase_geometry_info {
-    off_t  start;  // start of the region in bytes.
-    off_t  size;
+    off_t start; // start of the region in bytes.
+    off_t size;
     size_t erase_size;
     size_t erase_shift;
 } bio_erase_geometry_info_t;
@@ -48,8 +51,8 @@ typedef struct bdev {
     /* function pointers */
     ssize_t (*read)(struct bdev *, void *buf, off_t offset, size_t len);
     status_t (*read_async)(struct bdev *, void *buf, off_t offset, size_t len,
-                          void (*callback)(void *cookie, struct bdev *, ssize_t),
-                          void *callback_context);
+                           void (*callback)(void *cookie, struct bdev *, ssize_t),
+                           void *callback_context);
     ssize_t (*read_block)(struct bdev *, void *buf, bnum_t block, uint count);
     ssize_t (*write)(struct bdev *, const void *buf, off_t offset, size_t len);
     ssize_t (*write_block)(struct bdev *, const void *buf, bnum_t block, uint count);
@@ -82,7 +85,7 @@ void bio_initialize_bdev(bdev_t *dev,
                          bnum_t block_count,
                          size_t geometry_count,
                          const bio_erase_geometry_info_t *geometry,
-                         const uint32_t flags);
+                         uint32_t flags);
 
 /* debug stuff */
 void bio_dump_devices(void);
@@ -124,7 +127,7 @@ static inline bool bio_contains_range(uint64_t container_start, uint64_t contain
     DEBUG_ASSERT(contained_end >= contained_start);
 
     return ((container_start <= contained_start) &&
-            (container_end   >= contained_end));
+            (container_end >= contained_end));
 }
 
 /* generic bio ioctls */
@@ -148,11 +151,14 @@ __END_CDECLS
 #ifdef __cplusplus
 template <typename Callable>
 bool iter_device_callback(void *cookie, bdev_t *dev) {
-  auto func = reinterpret_cast<Callable *>(cookie);
-  return (*func)(dev);
+    auto func = reinterpret_cast<Callable *>(cookie);
+    return (*func)(dev);
 }
 
-template <typename Callable> void bio_iter_devices(Callable &&func) {
-  bio_iter_devices(&iter_device_callback<Callable>, &func);
+template <typename Callable>
+void bio_iter_devices(Callable &&func) {
+    bio_iter_devices(&iter_device_callback<Callable>, &func);
 }
 #endif
+
+// NOLINTEND(modernize-use-using)

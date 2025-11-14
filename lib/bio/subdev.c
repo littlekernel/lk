@@ -5,11 +5,11 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <lib/bio.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
 #include <stdlib.h>
-#include <lib/bio.h>
 
 #define LOCAL_TRACE 0
 
@@ -65,7 +65,11 @@ static void subdev_close(struct bdev *_dev) {
     subdev->parent = NULL;
 }
 
-#define BAIL(__err) do { err = __err; goto bailout; } while (0)
+#define BAIL(__err)   \
+    do {              \
+        err = __err;  \
+        goto bailout; \
+    } while (0)
 status_t bio_publish_subdevice(const char *parent_dev,
                                const char *subdev,
                                bnum_t startblock,
@@ -99,8 +103,8 @@ status_t bio_publish_subdevice(const char *parent_dev,
      * of the device.
      */
     if (parent->geometry_count && parent->geometry) {
-        uint64_t byte_start = ((uint64_t)startblock  << parent->block_shift);
-        uint64_t byte_size  = ((uint64_t)block_count << parent->block_shift);
+        uint64_t byte_start = ((uint64_t)startblock << parent->block_shift);
+        uint64_t byte_size = ((uint64_t)block_count << parent->block_shift);
         const bio_erase_geometry_info_t *geo = NULL;
 
         LTRACEF("Searching geometry for region which contains @[0x%llx, 0x%llx)\n",
@@ -115,8 +119,9 @@ status_t bio_publish_subdevice(const char *parent_dev,
                     geo->start + geo->size,
                     geo->erase_size);
 
-            if (bio_contains_range(geo->start, geo->size, byte_start, byte_size))
+            if (bio_contains_range(geo->start, geo->size, byte_start, byte_size)) {
                 break;
+            }
         }
 
         if (!geo) {
@@ -134,15 +139,16 @@ status_t bio_publish_subdevice(const char *parent_dev,
         geometry_count = 1;
         geometry = &sub->geometry;
 
-        geometry->start       = 0;
-        geometry->size        = byte_size;
-        geometry->erase_size  = geo->erase_size;
+        geometry->start = 0;
+        geometry->size = byte_size;
+        geometry->erase_size = geo->erase_size;
         geometry->erase_shift = geo->erase_shift;
     } else {
         bnum_t endblock = startblock + block_count;
 
-        if ((endblock < startblock) || (endblock > parent->block_count))
+        if ((endblock < startblock) || (endblock > parent->block_count)) {
             BAIL(ERR_INVALID_ARGS);
+        }
 
         geometry_count = 0;
         geometry = NULL;
@@ -163,12 +169,15 @@ status_t bio_publish_subdevice(const char *parent_dev,
     sub->dev.erase = &subdev_erase;
     sub->dev.close = &subdev_close;
 
+    // TODO: handle async read on subdevice
+
     bio_register_device(&sub->dev);
 
 bailout:
     if (err < 0) {
-        if (NULL != parent)
+        if (NULL != parent) {
             bio_close(parent);
+        }
         free(sub);
     }
 
