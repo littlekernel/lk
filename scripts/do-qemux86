@@ -7,18 +7,18 @@ function HELP {
     echo "help:"
     echo "-6                  : x86-64"
     echo "-l                  : legacy mode build (386 emulated machine)"
-    echo "-m <memory in MB>"
-    echo "-s <number of cpus>"
+    echo "-m <memory in MB>   : memory size (default: 512 MB, 4 MB for legacy)"
+    echo "-s <number of cpus> : number of CPUs (default: 1)"
     echo "-X                  : print QEMU command and exit (dry run)"
     echo
-    echo "-d <disk image>     : a virtio block device"
-    echo "-g                  : with graphics"
-    echo "-n                  : user mode networking, defaults to virtio-net-pci device"
-    echo "-N <network driver> : specify network driver (virtio-net-pci, e1000e, etc)"
-    echo "-t                  : use tap interface qemu0 for networking"
-    echo "-k                  : use KVM"
+    echo "-d <disk image>     : add an IDE disk device (may be used multiple times)"
+    echo "-g                  : with graphics (VGA display, keyboard, mouse)"
+    echo "-n                  : enable user mode networking (default driver: e1000e)"
+    echo "-N <network driver> : specify network driver (requires -n, e.g., virtio-net-pci, e1000e)"
+    echo "-t                  : use tap interface qemu0 for networking (requires -n)"
+    echo "-k                  : use KVM acceleration"
     echo
-    echo "-h for help"
+    echo "-h                  : show this help"
     echo "all arguments after -- are passed to qemu directly"
     exit $ec
 }

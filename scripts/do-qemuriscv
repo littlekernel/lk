@@ -4,24 +4,24 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 function HELP {
     echo "help:"
+    echo "-p <project>      : specify the project to build"
     echo "-6                : 64bit"
-    echo "-S                : supervisor mode (using OpenSBI)"
-    echo "                    currently only works in 64bit mode"
+    echo "-S                : supervisor mode (using OpenSBI, only works in 64bit)"
     echo "-e                : sifive e platform"
     echo "-u                : sifive u platform"
-    echo "-m <memory in MB>"
-    echo "-s <number of cpus>"
+    echo "-m <memory in MB> : memory size (default: 512 MB for virt, 8192 MB for sifive_u)"
+    echo "-s <number of cpus> : number of CPUs (default: 1, or 2 for sifive_u)"
     echo "-X                : print QEMU command and exit (dry run)"
     echo
     echo "-c                : cmpctmalloc instead of dlmalloc"
     echo "-M                : miniheap instead of dlmalloc"
     echo
-    echo "-d <disk image>   : a virtio block device"
-    echo "-n                : a virtio network device"
-    echo "-t                : a virtio tap network device"
-    echo "-g                : a virtio display"
+    echo "-d <disk image>   : add a virtio block device (may be used multiple times)"
+    echo "-n                : add a virtio network device (user mode networking)"
+    echo "-t                : add a virtio tap network device (requires tap interface setup)"
+    echo "-g                : add a virtio display (GPU, keyboard, mouse)"
     echo
-    echo "-h for help"
+    echo "-h                : show this help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
 }
@@ -72,6 +72,8 @@ shift $((OPTIND-1))
 CPU=""
 BIOS=""
 
+# Pick the appropriate qemu and project for each platform
+# Also pick the default memory size and cpu count if not specified
 if (( DO_UNLEASHED )); then
     QEMU="qemu-system-riscv64"
     MACHINE="sifive_u"
@@ -84,7 +86,7 @@ elif (( DO_EMBEDDED )); then
     QEMU="qemu-system-riscv32"
     MACHINE="sifive_e"
     _PROJECT="sifive-e-test"
-    _MEMSIZE=0
+    _MEMSIZE=0 # cant set memsize, it's fixed for this board (16K)
     SMP=0
 elif (( DO_64BIT )); then
     QEMU="qemu-system-riscv64"
@@ -104,19 +106,14 @@ else
     MACHINE="virt"
     BIOS="none"
     _MEMSIZE=512
-    if (( DO_SUPERVISOR )); then
-        _PROJECT="qemu-virt-riscv32-supervisor-test"
-        BIOS="default"
-    else
-        _PROJECT="qemu-virt-riscv32-test"
-        BIOS="none"
-    fi
+    _PROJECT="qemu-virt-riscv32-test"
 fi
+# command line PROJECT and MEMSIZE override defaults
 if [[ -z "$PROJECT" ]]; then
     PROJECT=$_PROJECT
 fi
 if [[ -z "$MEMSIZE" ]]; then
-    PROJECT=$_MEMSIZE
+    MEMSIZE=$_MEMSIZE
 fi
 
 # construct a list of args based on previous variables using arrays
@@ -170,9 +167,9 @@ fi
 MAKE_VARS=""
 
 if (( DO_CMPCTMALLOC )); then
-    MAKE_VARS=LK_HEAP_IMPLEMENTATION=cmpctmalloc
+    MAKE_VARS="LK_HEAP_IMPLEMENTATION=cmpctmalloc"
 elif (( DO_MINIHEAP )); then
-    MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
+    MAKE_VARS="LK_HEAP_IMPLEMENTATION=miniheap"
 fi
 
 CMD=()

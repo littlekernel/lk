@@ -27,23 +27,23 @@ function HELP {
     echo "-p <project>      : specify the project to build (default qemu-virt-arm32-test, qemu-virt-arm64-test or lm3s6965evb-test)"
     echo "-6                : 64bit arm"
     echo "-3                : cortex-m3 based platform"
-    echo "-P <page size>    : set the page size (default: 4K)"
+    echo "-P <page size>    : set the page size (default: 4K, valid: 4k/4096, 16k/16384, 64k/65536)"
     echo "-v                : boot kernel at EL2"
     echo "-k                : use KVM or HVF acceleration if present (only on 64bit)"
-    echo "-m <memory in MB>"
-    echo "-s <number of cpus>"
+    echo "-m <memory in MB> : memory size (default: 512 MB)"
+    echo "-s <number of cpus> : number of CPUs (default: 1)"
     echo "-X                : print QEMU command and exit (dry run)"
     echo
     echo "-c                : cmpctmalloc instead of dlmalloc"
     echo "-M                : miniheap instead of dlmalloc"
     echo
-    echo "-d <disk image>   : a virtio disk device (may be used multiple times)"
-    echo "-n                : a virtio network device"
-    echo "-t                : a virtio tap network device"
-    echo "-g                : a virtio display"
-    echo "-f <shared dir>   : a virtio 9p device with a host shared directory"
+    echo "-d <disk image>   : add a virtio disk device (may be used multiple times)"
+    echo "-n                : add a virtio network device (user mode networking)"
+    echo "-t                : add a virtio tap network device (requires tap interface setup)"
+    echo "-g                : add a virtio display (GPU, keyboard, mouse)"
+    echo "-f <shared dir>   : add a virtio 9p device with a host shared directory"
     echo
-    echo "-h for help"
+    echo "-h                : show this help"
     echo "all arguments after -- are passed to qemu directly"
     exit 1
 }
