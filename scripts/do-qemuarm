@@ -32,11 +32,12 @@ function HELP {
     echo "-k                : use KVM or HVF acceleration if present (only on 64bit)"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
+    echo "-X                : print QEMU command and exit (dry run)"
     echo
     echo "-c                : cmpctmalloc instead of dlmalloc"
     echo "-M                : miniheap instead of dlmalloc"
     echo
-    echo "-d <disk image>   : a virtio disk device"
+    echo "-d <disk image>   : a virtio disk device (may be used multiple times)"
     echo "-n                : a virtio network device"
     echo "-t                : a virtio tap network device"
     echo "-g                : a virtio display"
@@ -49,8 +50,7 @@ function HELP {
 
 DO_NET=0
 DO_NET_TAP=0
-DO_DISK=0
-DISK_IMAGE=""
+DISK_IMAGES=()
 DO_64BIT=0
 DO_VIRT=0
 DO_CORTEX_M3=0
@@ -65,11 +65,14 @@ SMP=1
 MEMSIZE=512
 SUDO=""
 PROJECT=""
+DO_DRYRUN=0
 
-while getopts cd:ghkm:Mnt36vp:P:s:f: FLAG; do
+while getopts cd:ghkm:Mnt36vp:P:s:f:X FLAG; do
     case $FLAG in
         c) DO_CMPCTMALLOC=1;;
-        d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
+        d)
+            DISK_IMAGES+=("$OPTARG")
+            ;;
         g) DO_DISPLAY=1;;
         f) DO_V9P=1; DO_V9P_DIR=$OPTARG;;
         k) DO_KVM=1;;
@@ -83,6 +86,7 @@ while getopts cd:ghkm:Mnt36vp:P:s:f: FLAG; do
         s) SMP=$OPTARG;;
         p) PROJECT=$OPTARG;;
         P) PAGE_SIZE=$OPTARG;;
+        X) DO_DRYRUN=1;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -142,17 +146,24 @@ if [ -z "$PROJECT" ]; then
     PROJECT=$_PROJECT
 fi
 
-# TODO: move ARGS to an array to avoid issues with spaces in paths
-ARGS=" -cpu $CPU -m $MEMSIZE -smp $SMP -machine $MACHINE -kernel build-${PROJECT}/lk.elf"
+# construct a list of args based on previous variables using arrays
+ARGS=()
+ARGS+=("-cpu" "$CPU")
+ARGS+=("-m" "$MEMSIZE")
+ARGS+=("-smp" "$SMP")
+ARGS+=("-machine" "$MACHINE")
+ARGS+=("-kernel" "build-${PROJECT}/lk.elf")
 
-if (( DO_DISK )); then
-    ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk,format=raw"
-    ARGS+=" -device virtio-blk-device,drive=blk"
-fi
+DISK_COUNT=0
+for img in "${DISK_IMAGES[@]}"; do
+    ARGS+=("-drive" "if=none,file=${img},id=blk${DISK_COUNT},format=raw")
+    ARGS+=("-device" "virtio-blk-device,drive=blk${DISK_COUNT}")
+    ((DISK_COUNT++))
+done
 
 if (( DO_NET )); then
-    ARGS+=" -netdev user,id=vmnic,hostname=qemu "
-    ARGS+=" -device virtio-net-device,netdev=vmnic"
+    ARGS+=("-netdev" "user,id=vmnic,hostname=qemu")
+    ARGS+=("-device" "virtio-net-device,netdev=vmnic")
 elif (( DO_NET_TAP )); then
     # quick note to enable tap interface
     # IFNAME=qemu0
@@ -160,25 +171,25 @@ elif (( DO_NET_TAP )); then
     # sudo tunctl -u $(whoami) -t ${IFNAME}
     # sudo ifconfig ${IFNAME} up
     # sudo ip link set ${IFNAME} master ${BRIDGE}
-    ARGS+=" -netdev tap,id=vmnic,ifname=qemu0,script=no,downscript=no"
-    ARGS+=" -device virtio-net-device,netdev=vmnic"
-    #SUDO="sudo "
+    ARGS+=("-netdev" "tap,id=vmnic,ifname=qemu0,script=no,downscript=no")
+    ARGS+=("-device" "virtio-net-device,netdev=vmnic")
+    #SUDO="sudo"
 else
-    NO_NET_ARGS=" -net none"
-    ARGS+=$NO_NET_ARGS
+    ARGS+=("-net" "none")
 fi
 
 if (( DO_DISPLAY )); then
-    ARGS+=" -device virtio-gpu-device -serial stdio"
-    ARGS+=" -device virtio-keyboard-device"
-    ARGS+=" -device virtio-mouse-device"
+    ARGS+=("-device" "virtio-gpu-device")
+    ARGS+=("-serial" "stdio")
+    ARGS+=("-device" "virtio-keyboard-device")
+    ARGS+=("-device" "virtio-mouse-device")
 else
-    ARGS+=" -nographic"
+    ARGS+=("-nographic")
 fi
 
 if (( DO_V9P )); then
-    ARGS+=" -fsdev local,path=$DO_V9P_DIR,security_model=mapped,id=v9p0"
-    ARGS+=" -device virtio-9p-device,fsdev=v9p0,mount_tag=V9P0"
+    ARGS+=("-fsdev" "local,path=$DO_V9P_DIR,security_model=mapped,id=v9p0")
+    ARGS+=("-device" "virtio-9p-device,fsdev=v9p0,mount_tag=V9P0")
 fi
 
 MAKE_VARS=""
@@ -189,7 +200,20 @@ elif (( DO_MINIHEAP )); then
     MAKE_VARS="LK_HEAP_IMPLEMENTATION=miniheap"
 fi
 
+CMD=()
+if [[ -n "$SUDO" ]]; then
+    CMD+=("sudo")
+fi
+CMD+=("$QEMU")
+CMD+=("${ARGS[@]}")
+CMD+=("$@")
+
+if (( DO_DRYRUN )); then
+    echo "${CMD[@]}"
+    exit 0
+fi
+
 set -e
 "$DIR"/make-parallel $MAKE_VARS PROJECT="$PROJECT"
-echo "$SUDO" $QEMU $ARGS "$@"
-exec $SUDO $QEMU $ARGS "$@"
+echo "${CMD[@]}"
+exec "${CMD[@]}"
