@@ -1,14 +1,235 @@
-# LK Kernel
-LK is an open source kernel intended to primarily run in supervisor mode on a variety
-of 32bit and 64bit architectures.
+# LK Kernel Development Guide
 
-It is designed to be small, fast, and efficient, with a focus on real-time performance.
-It is primarily written in C and assembly, with some parts in C++. The C++ parts mostly
-do not use the standard C++ library, and no exceptions.
+LK is a small, SMP-aware embedded OS kernel designed for supervisor mode on diverse 32/64-bit architectures. It's used extensively in embedded systems, including Android bootloaders. Written primarily in C and assembly, with limited C++ (no STL, no exceptions).
 
-It is used in a variety of embedded and real-time systems, including automotive, industrial,
-and consumer electronics. It is also used in some academic and research projects.
+## Architecture Overview
 
-# Code Style
-4 space indentation, no tabs, or trailing whitespace.
-Header guards are implemented with #pragma once.
+### Hierarchical Build System
+LK uses a 4-layer modular build system:
+
+1. **Project** (`project/*.mk`) - Top-level configuration defining which modules to include
+   - Example: `project/qemu-virt-arm64-test.mk` includes shell, filesystem, networking modules
+   - Projects include other project fragments: `include project/virtual/test.mk`
+
+2. **Target** (`target/*.mk`) - Board-specific configuration combining platform + hardware details
+   - Defines memory layout: `MEMBASE`, `MEMSIZE`, `KERNEL_BASE`
+   - GPIO configs, peripheral addresses for specific boards
+
+3. **Platform** (`platform/*/`) - SOC/system-level support (qemu-virt, stm32f4xx, etc.)
+   - Hardware initialization, device tree handling, platform-specific drivers
+
+4. **Architecture** (`arch/*/`) - CPU-specific low-level code (arm64, riscv, x86, etc.)
+   - MMU setup, exception handling, context switching, atomic ops
+
+### Module System Pattern
+Every component is a module with `rules.mk`:
+
+```make
+LOCAL_DIR := $(GET_LOCAL_DIR)
+MODULE := $(LOCAL_DIR)
+
+MODULE_SRCS += \
+    $(LOCAL_DIR)/foo.c \
+    $(LOCAL_DIR)/bar.c
+
+MODULE_DEPS += \
+    lib/libc \
+    kernel
+
+MODULE_OPTIONS := extra_warnings  # Enables stricter compiler flags
+
+include make/module.mk
+```
+
+**Key points:**
+- `MODULE := $(LOCAL_DIR)` is required - sets module name to directory path
+- `MODULE_DEPS` creates dependency tree, automatically included in build
+- `MODULE_OPTIONS`: `extra_warnings` adds strict checks, `float` enables FP compilation
+- Module include paths auto-added: `$(MODULE)/include/` becomes available globally
+- Always use `$(LOCAL_DIR)` prefix for source paths
+- Must `include make/module.mk` at end of `rules.mk` to finalize the module definition
+
+## Critical Build Patterns
+
+### Building Projects
+```bash
+# Build specific project (creates build-<project>/ directory)
+make qemu-virt-arm64-test
+
+# Or just use project name as target
+make PROJECT=qemu-virt-arm64-test
+
+# Override heap implementation
+make qemu-virt-arm64-test LK_HEAP_IMPLEMENTATION=cmpctmalloc
+
+# Debug builds (default DEBUG=2, set to 0 for release)
+make qemu-virt-arm64-test DEBUG=0
+
+# Clean specific project
+rm -rf build-qemu-virt-arm64-test
+
+# Clean everything
+make spotless
+
+# Build all projects (for CI/verification)
+scripts/buildall -q -e -r  # quiet, errors-as-warnings, release builds
+```
+
+### Running Tests
+Scripts in `scripts/` launch QEMU with appropriate flags:
+```bash
+# ARM64 (4KB pages)
+scripts/do-qemuarm -6
+
+# ARM64 with 64KB pages
+scripts/do-qemuarm -6 -P 64k
+
+# ARM64 with KVM/HVF acceleration
+scripts/do-qemuarm -6 -k
+
+# RISC-V 32-bit in machine mode
+scripts/do-qemuriscv
+
+# RISC-V 64-bit in supervisor mode and paging
+scripts/do-qemuriscv -6S
+
+# x86-32
+scripts/do-qemux86
+
+# x86-64
+scripts/do-qemux86 -6
+
+# With various devices (disk, network, display)
+scripts/do-qemuarm -6 -n -d disk.img -g
+```
+
+These scripts auto-build before launching QEMU.
+
+## Code Conventions
+
+### Style (enforced by `.clang-format`)
+- **4 space indentation**, no tabs, no trailing whitespace
+- **Pointer alignment right**: `void *ptr` not `void* ptr`
+- **K&R braces**: `if (x) {` not `if (x)\n{`
+- **Header guards**: Always use `#pragma once` (never `#ifndef` guards)
+- Short if/loops allowed: `if (foo) return;` is acceptable
+- No column limit (long lines OK)
+
+### Compiler Warnings
+- Base flags: `-Wall -Werror=return-type -Wshadow -Wdouble-promotion`
+- C-specific: `-Werror-implicit-function-declaration -Wstrict-prototypes`
+- C++: `-fno-exceptions -fno-rtti -fno-threadsafe-statics --std=c++14`
+- All code compiled with `-ffreestanding` (no hosted environment assumptions)
+- `MODULE_OPTIONS := extra_warnings` adds `-Wmissing-declarations -Wredundant-decls`
+
+### Common Patterns
+
+#### Registering Console Commands
+Commands appear in shell when `app/shell` module is included:
+
+```c
+#include <lk/console_cmd.h>
+
+static int my_command(int argc, const console_cmd_args *argv) {
+    printf("hello from %s\n", argv[0].str);
+    return 0;
+}
+
+STATIC_COMMAND_START
+STATIC_COMMAND("mytest", "my test command", &my_command)
+STATIC_COMMAND_END(mytest);
+```
+
+Console commands are placed in linker section `"console_cmds"` and auto-registered at runtime:
+
+```c
+
+**Note:** If `lib/console` not in build, these macros expand to nothing (no build errors).
+
+#### Defining Applications
+Apps start automatically at boot (unless `APP_FLAG_NO_AUTOSTART`):
+
+```c
+#include <app.h>
+
+static void my_app_init(const struct app_descriptor *app) {
+    // Called during boot, before threads start
+}
+
+static void my_app_entry(const struct app_descriptor *app, void *args) {
+    // Runs in separate thread
+    printf("app %s running\n", app->name);
+}
+
+APP_START(myapp)
+    .init = my_app_init,
+    .entry = my_app_entry,
+APP_END
+```
+
+Apps are placed in linker section `"apps"` and auto-discovered at runtime.
+
+#### Memory Management Variants
+Select heap implementation in project or via make:
+
+```make
+# In project.mk or command line
+LK_HEAP_IMPLEMENTATION ?= dlmalloc  # default
+# LK_HEAP_IMPLEMENTATION ?= cmpctmalloc  # compact allocator
+# LK_HEAP_IMPLEMENTATION ?= miniheap     # simple bump allocator
+
+# Controlled in lib/heap/rules.mk
+```
+
+#### Virtual Memory Usage
+Architectures with MMU set `WITH_KERNEL_VM ?= 1` in `arch/*/rules.mk`:
+- Enables `kernel/vm` instead of `kernel/novm`
+- Requires `KERNEL_ASPACE_BASE/SIZE` and `USER_ASPACE_BASE/SIZE` definitions
+- Page size configurable: `ARM64_PAGE_SIZE` (4096, 16384, 65536)
+- Different projects for different page sizes: `qemu-virt-arm64-64k-test`
+
+### Global Defines
+Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
+- Goes into `$(BUILDDIR)/config.h` (auto-generated, auto-included)
+- Example: `GLOBAL_DEFINES += WITH_SMP=1 SMP_MAX_CPUS=8`
+- Common defines: `MEMBASE`, `MEMSIZE`, `KERNEL_BASE`, `IS_64BIT`, `WITH_KERNEL_VM`
+
+## Common Workflows
+
+### Adding a New Module
+1. Create directory under appropriate location (`lib/`, `dev/`, `app/`)
+2. Create `rules.mk` with module definition
+3. Add source files, set `MODULE_DEPS` for dependencies
+4. Include module in project: `MODULES += lib/mylib`
+5. Headers in `<module>/include/` are globally accessible
+
+### Adding Platform Support
+1. Create `platform/<name>/` directory
+2. Define `platform/<name>/rules.mk` with `PLATFORM := <name>`
+3. Implement: `platform_early_init()`, `platform_init()`, `platform_halt()`
+4. Create target in `target/<board>/rules.mk` that includes platform
+5. Create project in `project/<board>-test.mk`
+
+### Debugging
+- Builds at `DEBUG=2` (default) include symbols, `DEBUG=0` is release
+- QEMU scripts support GDB: `scripts/do-qemuarm -6 -s -S` (wait for GDB on :1234)
+- Print output via `printf()` goes to console (UART or QEMU serial)
+- `kernel/debug.c` provides: `hexdump()`, `panic()`, `ASSERT()`
+
+### Testing
+- Shell commands test individual subsystems interactively
+- `app/tests/` contains unit test apps
+- Python test runner: `scripts/unittest.py` (runs unit tests at boot)
+- `scripts/buildall` builds all projects to verify no breakage
+
+## Key Files Reference
+
+- `engine.mk` - Core build engine, processes modules
+- `make/module.mk` - Module system implementation
+- `arch/*/rules.mk` - Architecture definitions (critical for porting)
+- `kernel/thread.c` - Threading and scheduler implementation
+- `kernel/vm/` - Virtual memory subsystem (for MMU architectures)
+- `lib/libc/` - Minimal C library (string, stdio, stdlib basics)
+- `top/` - Top-level compatibility headers for global includes
+
+For detailed architecture info, see `docs/` (threading, VMM, platform-specific guides).
