@@ -96,6 +96,40 @@ done
 
 shift $((OPTIND-1))
 
+# validate option combinations
+if (( DO_CORTEX_M3 )); then
+    # Cortex-M3 platform is very limited and doesn't support most features
+    INVALID_OPTS=()
+    if (( DO_64BIT )); then INVALID_OPTS+=("-6 (64-bit)"); fi
+    if (( DO_KVM )); then INVALID_OPTS+=("-k (KVM/HVF)"); fi
+    if (( DO_VIRT )); then INVALID_OPTS+=("-v (EL2)"); fi
+    if (( ${#DISK_IMAGES[@]} > 0 )); then INVALID_OPTS+=("-d (disk)"); fi
+    if (( DO_NET || DO_NET_TAP )); then INVALID_OPTS+=("-n/-t (network)"); fi
+    if (( DO_DISPLAY )); then INVALID_OPTS+=("-g (display)"); fi
+    if (( DO_V9P )); then INVALID_OPTS+=("-f (9p)"); fi
+    if [[ "$PAGE_SIZE" != "4096" ]]; then INVALID_OPTS+=("-P (page size)"); fi
+
+    if (( ${#INVALID_OPTS[@]} > 0 )); then
+        echo "Warning: -3 (Cortex-M3) does not support: ${INVALID_OPTS[*]}"
+        echo "These options will be ignored."
+    fi
+fi
+
+if (( DO_64BIT && DO_VIRT && DO_KVM )); then
+    echo "Error: Cannot use both -v (EL2) and -k (KVM/HVF) together"
+    exit 1
+fi
+
+if (( !DO_64BIT && DO_KVM )); then
+    echo "Error: -k (KVM/HVF) is only supported with -6 (64-bit)"
+    exit 1
+fi
+
+if (( DO_NET && DO_NET_TAP )); then
+    echo "Error: Cannot use both -n (user network) and -t (tap network) together"
+    exit 1
+fi
+
 # accept some aliases to page size
 if [ "$PAGE_SIZE" == "4k" ]; then
     PAGE_SIZE=4096
