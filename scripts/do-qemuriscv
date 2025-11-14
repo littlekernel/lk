@@ -11,6 +11,7 @@ function HELP {
     echo "-u                : sifive u platform"
     echo "-m <memory in MB>"
     echo "-s <number of cpus>"
+    echo "-X                : print QEMU command and exit (dry run)"
     echo
     echo "-c                : cmpctmalloc instead of dlmalloc"
     echo "-M                : miniheap instead of dlmalloc"
@@ -27,8 +28,7 @@ function HELP {
 
 DO_NET=0
 DO_NET_TAP=0
-DO_DISK=0
-DO_DISK_IMAGE=""
+DISK_IMAGES=()
 DO_64BIT=0
 DO_EMBEDDED=0
 DO_UNLEASHED=0
@@ -40,11 +40,14 @@ SMP=1
 MEMSIZE=0
 SUDO=""
 PROJECT=""
+DO_DRYRUN=0
 
-while getopts cd:ghm:Mmnteu6p:s:S FLAG; do
+while getopts cd:ghm:Mmnteu6p:s:SX FLAG; do
     case $FLAG in
         c) DO_CMPCTMALLOC=1;;
-        d) DO_DISK=1; DISK_IMAGE=$OPTARG;;
+        d)
+            DISK_IMAGES+=("$OPTARG")
+            ;;
         g) DO_DISPLAY=1;;
         M) DO_MINIHEAP=1;;
         n) DO_NET=1;;
@@ -56,6 +59,7 @@ while getopts cd:ghm:Mmnteu6p:s:S FLAG; do
         s) SMP=$OPTARG;;
         S) DO_SUPERVISOR=1;;
         p) PROJECT=$OPTARG;;
+        X) DO_DRYRUN=1;;
         h) HELP;;
         \?)
             echo unrecognized option
@@ -68,7 +72,7 @@ shift $((OPTIND-1))
 CPU=""
 BIOS=""
 
-if (( $DO_UNLEASHED == 1 )); then
+if (( DO_UNLEASHED )); then
     QEMU="qemu-system-riscv64"
     MACHINE="sifive_u"
     _PROJECT="qemu-sifive-u-test"
@@ -76,18 +80,18 @@ if (( $DO_UNLEASHED == 1 )); then
         SMP=2
     fi
     _MEMSIZE=8192
-elif (( $DO_EMBEDDED == 1 )); then
+elif (( DO_EMBEDDED )); then
     QEMU="qemu-system-riscv32"
     MACHINE="sifive_e"
     _PROJECT="sifive-e-test"
     _MEMSIZE=0
     SMP=0
-elif (( $DO_64BIT )); then
+elif (( DO_64BIT )); then
     QEMU="qemu-system-riscv64"
     CPU="rv64"
     MACHINE="virt"
     _MEMSIZE=512
-    if (( $DO_SUPERVISOR )); then
+    if (( DO_SUPERVISOR )); then
         _PROJECT="qemu-virt-riscv64-supervisor-test"
         BIOS="default"
     else
@@ -100,7 +104,7 @@ else
     MACHINE="virt"
     BIOS="none"
     _MEMSIZE=512
-    if (( $DO_SUPERVISOR )); then
+    if (( DO_SUPERVISOR )); then
         _PROJECT="qemu-virt-riscv32-supervisor-test"
         BIOS="default"
     else
@@ -115,57 +119,74 @@ if [[ -z "$MEMSIZE" ]]; then
     PROJECT=$_MEMSIZE
 fi
 
-# construct a list of args based on previous variables
-ARGS=" -machine $MACHINE"
-#ARGS+=",dumpdtb=riscv.dtb" # uncheck this to get a binary dump of the device tree for this config
-ARGS+=" -kernel build-${PROJECT}/lk.elf"
-if [[ ! -z "$CPU" ]]; then
-    ARGS+=" -cpu $CPU"
+# construct a list of args based on previous variables using arrays
+ARGS=()
+ARGS+=("-machine" "$MACHINE")
+# To dump the device tree for this config, use:
+# ARGS=("-machine" "${MACHINE},dumpdtb=riscv.dtb")
+ARGS+=("-kernel" "build-${PROJECT}/lk.elf")
+if [[ -n "$CPU" ]]; then
+    ARGS+=("-cpu" "$CPU")
 fi
-if (( $MEMSIZE )); then
-    ARGS+=" -m $MEMSIZE"
+if (( MEMSIZE )); then
+    ARGS+=("-m" "$MEMSIZE")
 fi
-if (( $SMP )); then
-    ARGS+=" -smp $SMP"
+if (( SMP )); then
+    ARGS+=("-smp" "$SMP")
 fi
-if [[ ! -z "$BIOS" ]]; then
-    ARGS+=" -bios $BIOS"
+if [[ -n "$BIOS" ]]; then
+    ARGS+=("-bios" "$BIOS")
 fi
-if (( $DO_DISK )); then
-    ARGS+=" -drive if=none,file=${DISK_IMAGE},id=blk,format=raw"
-    ARGS+=" -device virtio-blk-device,drive=blk"
+DISK_COUNT=0
+for img in "${DISK_IMAGES[@]}"; do
+    ARGS+=("-drive" "if=none,file=${img},id=disk${DISK_COUNT},format=raw")
+    ARGS+=("-device" "virtio-blk-device,drive=disk${DISK_COUNT}")
+    ((DISK_COUNT++))
+done
+if (( DO_NET )); then
+    ARGS+=("-netdev" "user,id=vmnic,hostname=qemu")
+    ARGS+=("-device" "virtio-net-device,netdev=vmnic")
 fi
-if (( $DO_NET )); then
-    ARGS+=" -netdev user,id=vmnic,hostname=qemu"
-    ARGS+=" -device virtio-net-device,netdev=vmnic"
-fi
-if (( $DO_NET_TAP )); then
+if (( DO_NET_TAP )); then
     # quick note to enable tap interface
     # IFNAME=qemu0
     # BRIDGE=bridge0
     # sudo tunctl -u $(whoami) -t ${IFNAME}
     # sudo ifconfig ${IFNAME} up
     # sudo ip link set ${IFNAME} master ${BRIDGE}
-    ARGS+=" -netdev tap,id=vmnic,ifname=qemu0,script=no,downscript=no"
-    ARGS+=" -device virtio-net-device,netdev=vmnic"
-    #SUDO="sudo "
+    ARGS+=("-netdev" "tap,id=vmnic,ifname=qemu0,script=no,downscript=no")
+    ARGS+=("-device" "virtio-net-device,netdev=vmnic")
+    #SUDO="sudo"
 fi
-if (( $DO_DISPLAY )); then
-    ARGS+=" -device virtio-gpu-device -serial stdio"
-    ARGS+=" -device virtio-keyboard-device"
-    ARGS+=" -device virtio-mouse-device"
+if (( DO_DISPLAY )); then
+    ARGS+=("-device" "virtio-gpu-device")
+    ARGS+=("-serial" "stdio")
+    ARGS+=("-device" "virtio-keyboard-device")
+    ARGS+=("-device" "virtio-mouse-device")
 else
-    ARGS+=" -nographic"
+    ARGS+=("-nographic")
 fi
 
 MAKE_VARS=""
 
-if (( $DO_CMPCTMALLOC )); then
+if (( DO_CMPCTMALLOC )); then
     MAKE_VARS=LK_HEAP_IMPLEMENTATION=cmpctmalloc
-elif (( $DO_MINIHEAP )); then
+elif (( DO_MINIHEAP )); then
     MAKE_VARS=LK_HEAP_IMPLEMENTATION=miniheap
 fi
 
-$DIR/make-parallel $MAKE_VARS $PROJECT &&
-echo $SUDO $QEMU $ARGS $@ &&
-exec $SUDO $QEMU $ARGS $@
+CMD=()
+if [[ -n "$SUDO" ]]; then
+    CMD+=("sudo")
+fi
+CMD+=("$QEMU")
+CMD+=("${ARGS[@]}")
+CMD+=("$@")
+
+if (( DO_DRYRUN )); then
+    echo "${CMD[@]}"
+    exit 0
+fi
+
+"$DIR"/make-parallel $MAKE_VARS "$PROJECT" || exit 1
+echo "${CMD[@]}" && exec "${CMD[@]}"
