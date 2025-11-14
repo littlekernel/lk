@@ -47,7 +47,13 @@ $(OUTELF).lst: $(OUTELF)
 
 $(OUTELF).debug.lst: $(OUTELF)
 	$(info generating listing: $@)
-	$(NOECHO)$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -l -S $< | $(CPPFILT) > $@
+	$(NOECHO){ \
+		$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -l -S $< 2>$@.err | $(CPPFILT) > $@; \
+		rc=$$?; \
+		sed '/: failed to find source/d' $@.err >&2; \
+		rm -f $@.err; \
+		exit $$rc; \
+	}
 	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@
 
 $(OUTELF).dump: $(OUTELF)
