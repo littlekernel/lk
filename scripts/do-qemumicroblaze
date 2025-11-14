@@ -5,5 +5,5 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 set -e
 set -x
 
-$DIR/make-parallel qemu-microblaze-test
+"$DIR"/make-parallel qemu-microblaze-test
 exec qemu-system-microblaze -kernel build-qemu-microblaze-test/lk.elf -nographic $@

@@ -4,6 +4,6 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export PROJECT=stm32f746g-disco-test
 
-$DIR/make-parallel &&
+"$DIR"/make-parallel &&
 openocd -f interface/stlink.cfg -f board/stm327x6g_eval.cfg \
     -c "program build-$PROJECT/lk.bin reset exit 0x08000000"

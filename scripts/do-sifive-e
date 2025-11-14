@@ -6,17 +6,17 @@ set -x
 set -e
 
 export PROJECT=sifive-e-test
-TARGET=`pwd`/build-${PROJECT}/lk.elf
+TARGET=$(pwd)/build-${PROJECT}/lk.elf
 
-$DIR/make-parallel
+"$DIR"/make-parallel
 
 SDK_DIR=${HOME}/src/freedom-e-sdk
 OPENOCD_DIR=${SDK_DIR}/riscv-openocd-0.10.0-2020.04.6-x86_64-linux-ubuntu14/bin
 
-${OPENOCD_DIR}/openocd -f ${SDK_DIR}/bsp/sifive-hifive1/openocd.cfg &
+"$OPENOCD_DIR"/openocd -f "$SDK_DIR"/bsp/sifive-hifive1/openocd.cfg &
 
-${SDK_DIR}/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-ubuntu14/bin/riscv64-unknown-elf-gdb \
-    ${TARGET} \
+"$SDK_DIR"/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-ubuntu14/bin/riscv64-unknown-elf-gdb \
+    "$TARGET" \
     --batch -ex "set remotetimeout 240" \
     -ex "target extended-remote localhost:3333" \
     -ex "monitor reset halt" \

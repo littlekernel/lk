@@ -1,7 +1,9 @@
 #!/bin/sh
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 export PROJECT=stm32f429i-disco-test
 
-make -j8 &&
+"$DIR"/make-parallel &&
 openocd -f board/stm32f429disc1.cfg \
     -c "program build-$PROJECT/lk.bin reset exit 0x08000000"

@@ -4,5 +4,5 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export PROJECT=stellaris-launchpad-test
 
-$DIR/make-parallel &&
+"$DIR"/make-parallel &&
 lm4flash -v build-$PROJECT/lk.bin

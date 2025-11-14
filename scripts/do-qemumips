@@ -5,5 +5,5 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 set -e
 set -x
 
-$DIR/make-parallel qemu-mips-test
+"$DIR"/make-parallel qemu-mips-test
 exec qemu-system-mips -machine mips -cpu M14K -kernel build-qemu-mips-test/lk.elf -nographic $@

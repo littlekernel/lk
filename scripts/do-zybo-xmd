@@ -4,5 +4,5 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 PROJECT=zybo-test
 
-$DIR/make-parallel $PROJECT -j &&
+"$DIR"/make-parallel $PROJECT &&
 xmd -tcl scripts/xmd.tcl $PROJECT

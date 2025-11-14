@@ -7,5 +7,5 @@ set -x
 
 PROJECT=qemu-virt-m68k-test
 
-$DIR/make-parallel $PROJECT
+"$DIR"/make-parallel $PROJECT
 exec qemu-system-m68k -machine virt -cpu m68040 -kernel build-${PROJECT}/lk.elf -nographic $@
