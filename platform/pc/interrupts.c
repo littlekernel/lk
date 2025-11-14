@@ -207,17 +207,31 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
     return err;
 }
 
+#if !X86_LEGACY
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
         uint64_t *msi_address_out, uint16_t *msi_data_out) {
 
     // only handle edge triggered at the moment
     DEBUG_ASSERT(edge);
 
+    // get the apic id for the target cpu
+    x86_percpu_t *percpu = x86_get_percpu_for_cpu(cpu);
+    if (!percpu) {
+        return ERR_INVALID_ARGS;
+    }
+    uint32_t apic_id = percpu->apic_id;
+    LTRACEF("vector %#x cpu %u apic_id %#x\n", vector, cpu, apic_id);
+
+    if (apic_id > 0xff) {
+        return ERR_INVALID_ARGS;
+    }
+
     *msi_data_out = (vector & 0xff) | (0<<15); // edge triggered
-    *msi_address_out = 0xfee00000 | (cpu << 12);
+    *msi_address_out = 0xfee00000 | (apic_id << 12);
 
     return NO_ERROR;
 }
+#endif
 
 // Try to detect the ioapic(s) from ACPI and initialize them
 #if WITH_LIB_ACPI_LITE
