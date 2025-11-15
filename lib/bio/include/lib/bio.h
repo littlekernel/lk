@@ -55,6 +55,9 @@ typedef struct bdev {
                            void *callback_context);
     ssize_t (*read_block)(struct bdev *, void *buf, bnum_t block, uint count);
     ssize_t (*write)(struct bdev *, const void *buf, off_t offset, size_t len);
+    status_t (*write_async)(struct bdev *, const void *buf, off_t offset, size_t len,
+                           void (*callback)(void *cookie, struct bdev *, ssize_t),
+                           void *callback_context);
     ssize_t (*write_block)(struct bdev *, const void *buf, bnum_t block, uint count);
     ssize_t (*erase)(struct bdev *, off_t offset, size_t len);
     int (*ioctl)(struct bdev *, int request, void *argp);
@@ -70,6 +73,8 @@ status_t bio_read_async(bdev_t *dev, void *buf, off_t offset, size_t len,
                         bio_async_callback_t callback, void *callback_context);
 ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count);
 ssize_t bio_write(bdev_t *dev, const void *buf, off_t offset, size_t len);
+status_t bio_write_async(bdev_t *dev, const void *buf, off_t offset, size_t len,
+                        bio_async_callback_t callback, void *callback_context);
 ssize_t bio_write_block(bdev_t *dev, const void *buf, bnum_t block, uint count);
 ssize_t bio_erase(bdev_t *dev, off_t offset, size_t len);
 int bio_ioctl(bdev_t *dev, int request, void *argp);

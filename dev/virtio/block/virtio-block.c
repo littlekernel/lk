@@ -132,6 +132,9 @@ static ssize_t virtio_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block
 static status_t virtio_bdev_read_async(
     struct bdev *bdev, void *buf, off_t offset, size_t len,
     void (*callback)(void *, struct bdev *, ssize_t), void *cookie);
+static status_t virtio_bdev_write_async(
+    struct bdev *bdev, const void *buf, off_t offset, size_t len,
+    void (*callback)(void *, struct bdev *, ssize_t), void *cookie);
 static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count);
 
 struct virtio_block_dev {
@@ -229,6 +232,7 @@ status_t virtio_block_init(struct virtio_device *dev, uint32_t host_features) {
     bdev->bdev.read_block = &virtio_bdev_read_block;
     bdev->bdev.write_block = &virtio_bdev_write_block;
     bdev->bdev.read_async = &virtio_bdev_read_async;
+    bdev->bdev.write_async = &virtio_bdev_write_async;
 
     bio_register_device(&bdev->bdev);
 
@@ -476,6 +480,17 @@ static status_t virtio_bdev_read_async(struct bdev *bdev, void *buf,
 
     return virtio_block_do_txn(dev->dev, buf, offset, len, false, callback,
                                cookie, NULL);
+}
+
+static status_t virtio_bdev_write_async(struct bdev *bdev, const void *buf,
+                                        off_t offset, size_t len,
+                                        bio_async_callback_t callback,
+                                        void *cookie) {
+    struct virtio_block_dev *dev =
+        containerof(bdev, struct virtio_block_dev, bdev);
+
+    return virtio_block_do_txn(dev->dev, (void *)buf, offset, len, true,
+                               callback, cookie, NULL);
 }
 
 static ssize_t virtio_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count) {

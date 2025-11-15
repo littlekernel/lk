@@ -6,6 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <lib/bio.h>
+#include <lk/err.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <stdlib.h>
@@ -41,6 +42,16 @@ static ssize_t mem_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, u
     return count * BLOCKSIZE;
 }
 
+static status_t mem_bdev_read_async(struct bdev *bdev, void *buf, off_t offset, size_t len,
+                                    bio_async_callback_t callback, void *cookie) {
+    // Complete synchronously then invoke the callback immediately.
+    ssize_t readn = mem_bdev_read(bdev, buf, offset, len);
+    if (callback) {
+        callback(cookie, bdev, readn);
+    }
+    return NO_ERROR;
+}
+
 static ssize_t mem_bdev_write(bdev_t *bdev, const void *buf, off_t offset, size_t len) {
     mem_bdev_t *mem = (mem_bdev_t *)bdev;
 
@@ -61,6 +72,16 @@ static ssize_t mem_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t b
     return count * BLOCKSIZE;
 }
 
+static status_t mem_bdev_write_async(struct bdev *bdev, const void *buf, off_t offset, size_t len,
+                                     bio_async_callback_t callback, void *cookie) {
+    // Complete synchronously then invoke the callback immediately.
+    ssize_t written = mem_bdev_write(bdev, buf, offset, len);
+    if (callback) {
+        callback(cookie, bdev, written);
+    }
+    return NO_ERROR;
+}
+
 int create_membdev(const char *name, void *ptr, size_t len) {
     mem_bdev_t *mem = malloc(sizeof(mem_bdev_t));
 
@@ -71,8 +92,10 @@ int create_membdev(const char *name, void *ptr, size_t len) {
     /* our bits */
     mem->ptr = ptr;
     mem->dev.read = mem_bdev_read;
+    mem->dev.read_async = mem_bdev_read_async;
     mem->dev.read_block = mem_bdev_read_block;
     mem->dev.write = mem_bdev_write;
+    mem->dev.write_async = mem_bdev_write_async;
     mem->dev.write_block = mem_bdev_write_block;
 
     /* register it */

@@ -400,6 +400,26 @@ status_t bio_read_async(bdev_t *dev, void *buf, off_t offset, size_t len,
     return dev->read_async(dev, buf, offset, len, callback, callback_context);
 }
 
+status_t bio_write_async(bdev_t *dev, const void *buf, off_t offset, size_t len,
+                         bio_async_callback_t callback, void *callback_context) {
+    LTRACEF("dev '%s', buf %p, offset %lld, len %zd\n", dev->name, buf, offset,
+            len);
+
+    DEBUG_ASSERT(dev && dev->ref > 0);
+    DEBUG_ASSERT(buf);
+    if (dev->write_async == NULL) {
+        return ERR_NOT_SUPPORTED;
+    }
+
+    /* range check */
+    len = bio_trim_range(dev, offset, len);
+    if (len == 0) {
+        return 0;
+    }
+
+    return dev->write_async(dev, buf, offset, len, callback, callback_context);
+}
+
 ssize_t bio_read_block(bdev_t *dev, void *buf, bnum_t block, uint count) {
     LTRACEF("dev '%s', buf %p, block %d, count %u\n", dev->name, buf, block, count);
 
@@ -542,6 +562,7 @@ void bio_initialize_bdev(bdev_t *dev,
     dev->read_async = NULL;
     dev->read_block = bio_default_read_block;
     dev->write = bio_default_write;
+    dev->write_async = NULL;
     dev->write_block = bio_default_write_block;
     dev->erase = bio_default_erase;
     dev->ioctl = NULL;
