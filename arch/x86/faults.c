@@ -11,6 +11,7 @@
 #include <arch/x86.h>
 #include <arch/fpu.h>
 #include <kernel/thread.h>
+#include <kernel/preempt.h>
 
 /* exceptions */
 #define INT_DIVIDE_0        0x00
@@ -206,7 +207,12 @@ void x86_exception_handler(x86_iframe_t *frame) {
 
         /* pass the rest of the irq vectors to the platform */
         case 0x20 ... 255:
+            preempt_disable();
             ret = platform_irq(frame);
+            if (preempt_enable_no_resched()) {
+                ret = INT_RESCHEDULE;
+            }
+            break;
     }
 
     if (ret != INT_NO_RESCHEDULE)

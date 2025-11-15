@@ -112,8 +112,11 @@ add sp, sp, #32
 .macro irq_exception
     regsave_short
     msr daifclr, #1 /* reenable fiqs once elr and spsr have been saved */
+    bl preempt_disable
     mov x0, sp
     bl  platform_irq
+    // XXX ignores platform_irq return value for now
+    bl preempt_enable_no_resched
     cbz x0, .Lirq_exception_no_preempt\@
     bl  thread_preempt
 .Lirq_exception_no_preempt\@:

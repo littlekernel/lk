@@ -209,6 +209,8 @@ FUNCTION(arm_irq)
     mov     r1, #1
     str     r1, [r2]
 
+    // TODO: add preempt_disable/enable around this
+
     /* call into higher level code */
     bl  platform_irq
 

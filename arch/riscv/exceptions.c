@@ -10,6 +10,7 @@
 #include <lk/trace.h>
 #include <arch/riscv.h>
 #include <kernel/thread.h>
+#include <kernel/preempt.h>
 #include <platform.h>
 #include <arch/riscv/iframe.h>
 
@@ -115,6 +116,7 @@ void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *f
 
     // top bit of the cause register determines if it's an interrupt or not
     if (cause < 0) {
+        preempt_disable();
         switch (cause & LONG_MAX) {
 #if WITH_SMP
             case RISCV_INTERRUPT_XSWI: // machine software interrupt
@@ -129,6 +131,10 @@ void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *f
                 break;
             default:
                 fatal_exception(cause, epc, frame, kernel);
+        }
+        bool need = preempt_enable_no_resched();
+        if (need) {
+            ret = INT_RESCHEDULE;
         }
     } else {
         // all synchronous traps go here

@@ -9,13 +9,18 @@
 #include <lk/trace.h>
 #include <arch/microblaze.h>
 #include <kernel/thread.h>
+#include <kernel/preempt.h>
 
 void microblaze_irq(void) __attribute__((interrupt_handler));
 
 enum handler_return platform_irq_handler(void);
 
 void microblaze_irq(void) {
-    if (platform_irq_handler() == INT_RESCHEDULE)
+    enum handler_return ret;
+    preempt_disable();
+    ret = platform_irq_handler();
+    bool need = preempt_enable_no_resched();
+    if (ret == INT_RESCHEDULE || need)
         thread_preempt();
 }
 

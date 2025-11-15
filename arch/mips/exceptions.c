@@ -12,6 +12,7 @@
 #include <lk/bits.h>
 #include <kernel/thread.h>
 #include <kernel/debug.h>
+#include <kernel/preempt.h>
 #include <arch/mips.h>
 
 #define LOCAL_TRACE 0
@@ -48,6 +49,7 @@ void mips_irq(struct mips_iframe *iframe, uint num) {
 
     // figure out which interrupt the timer is set to
     uint32_t ipti = BITS_SHIFT(mips_read_c0_intctl(), 31, 29);
+    preempt_disable();
     if (ipti >= 2 && ipti == num) {
         // builtin timer
         ret = mips_timer_irq();
@@ -58,10 +60,11 @@ void mips_irq(struct mips_iframe *iframe, uint num) {
     } else {
         panic("mips: unhandled irq\n");
     }
+    bool need = preempt_enable_no_resched();
 
     KEVLOG_IRQ_EXIT(num);
 
-    if (ret != INT_NO_RESCHEDULE)
+    if (ret != INT_NO_RESCHEDULE || need)
         thread_preempt();
 }
 

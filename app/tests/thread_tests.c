@@ -204,12 +204,12 @@ static int mutex_test(void) {
         thread_resume(threads[i]);
     }
 
-    thread_sleep(5000);
-    mutex_release(&timeout_mutex);
-
     for (uint i=0; i < 4; i++) {
         thread_join(threads[i], NULL, INFINITE_TIME);
     }
+
+    // thread_sleep(5000);
+    mutex_release(&timeout_mutex);
 
     printf("done with mutex tests\n");
 
