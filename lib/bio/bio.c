@@ -295,7 +295,7 @@ static void bdev_dec_ref(bdev_t *dev) {
         // last ref, remove it
         DEBUG_ASSERT(!list_in_list(&dev->node));
 
-        TRACEF("last ref, removing (%s)\n", dev->name);
+        LTRACEF("last ref, removing (%s)\n", dev->name);
 
         // call the close hook if it exists
         if (dev->close) {
