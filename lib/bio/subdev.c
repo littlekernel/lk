@@ -58,6 +58,22 @@ static ssize_t subdev_erase(struct bdev *_dev, off_t offset, size_t len) {
     return bio_erase(subdev->parent, offset + subdev->offset * subdev->dev.block_size, len);
 }
 
+static status_t subdev_read_async(struct bdev *_dev, void *buf, off_t offset, size_t len,
+                                   bio_async_callback_t callback, void *callback_context) {
+    subdev_t *subdev = (subdev_t *)_dev;
+
+    return bio_read_async(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len,
+                          callback, callback_context);
+}
+
+static status_t subdev_write_async(struct bdev *_dev, const void *buf, off_t offset, size_t len,
+                                    bio_async_callback_t callback, void *callback_context) {
+    subdev_t *subdev = (subdev_t *)_dev;
+
+    return bio_write_async(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len,
+                           callback, callback_context);
+}
+
 static void subdev_close(struct bdev *_dev) {
     subdev_t *subdev = (subdev_t *)_dev;
 
@@ -167,9 +183,9 @@ status_t bio_publish_subdevice(const char *parent_dev,
     sub->dev.write = &subdev_write;
     sub->dev.write_block = &subdev_write_block;
     sub->dev.erase = &subdev_erase;
+    sub->dev.read_async = &subdev_read_async;
+    sub->dev.write_async = &subdev_write_async;
     sub->dev.close = &subdev_close;
-
-    // TODO: handle async read on subdevice
 
     bio_register_device(&sub->dev);
 

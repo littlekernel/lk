@@ -105,6 +105,17 @@ scripts/do-qemuarm -6 -n -d disk.img -g
 
 These scripts auto-build before launching QEMU.
 
+### Running all unit tests
+
+```bash
+
+# Run all unit tests for ARM64 architecture
+./scripts/do-qemu-boot-tests.py --arch arm64
+
+# For all architectures
+./scripts/do-qemu-boot-tests.py
+```
+
 ## Code Conventions
 
 ### Style (enforced by `.clang-format`)

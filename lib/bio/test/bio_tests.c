@@ -377,6 +377,272 @@ static bool large_transfer(void) {
     END_TEST;
 }
 
+static bool subdev_basic(void) {
+    BEGIN_TEST;
+
+    // Backing memory with known pattern
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+    for (size_t i = 0; i < TEST_DEVICE_SIZE; i++) {
+        mem[i] = (uint8_t)(i & 0xFF);
+    }
+
+    // Create parent device and open it
+    EXPECT_EQ(0, create_membdev("sub_parent", mem, TEST_DEVICE_SIZE), "");
+    bdev_t *parent = bio_open("sub_parent");
+    ASSERT_NONNULL(parent, "failed to open parent");
+
+    // Publish subdevice starting at block 7, 30 blocks long
+    const bnum_t startblock = 7;
+    const bnum_t sub_blocks = 30;
+    EXPECT_EQ(NO_ERROR, bio_publish_subdevice("sub_parent", "sub_dev", startblock, sub_blocks), "");
+
+    // Open subdevice
+    bdev_t *sub = bio_open("sub_dev");
+    ASSERT_NONNULL(sub, "failed to open sub device");
+
+    // Verify properties
+    EXPECT_EQ(BLOCK_SIZE, sub->block_size, "");
+    EXPECT_EQ(sub_blocks, sub->block_count, "");
+    EXPECT_EQ((off_t)(sub_blocks * BLOCK_SIZE), sub->total_size, "");
+
+    // Read from sub offset 0 and verify pattern
+    uint8_t buf[128];
+    ssize_t r = bio_read(sub, buf, 0, sizeof(buf));
+    EXPECT_EQ((ssize_t)sizeof(buf), r, "");
+    size_t base = (size_t)startblock * BLOCK_SIZE;
+    for (size_t i = 0; i < sizeof(buf); i++) {
+        EXPECT_EQ((uint8_t)((base + i) & 0xFF), buf[i], "");
+    }
+
+    // Read from an unaligned offset inside subdevice
+    memset(buf, 0, sizeof(buf));
+    r = bio_read(sub, buf, 600, sizeof(buf));
+    EXPECT_EQ((ssize_t)sizeof(buf), r, "");
+    for (size_t i = 0; i < sizeof(buf); i++) {
+        EXPECT_EQ((uint8_t)((base + 600 + i) & 0xFF), buf[i], "");
+    }
+
+    bio_close(sub);
+    bio_unregister_device(sub);
+    bio_close(parent);
+    bio_unregister_device(parent);
+    free(mem);
+
+    END_TEST;
+}
+
+static bool subdev_write_propagates(void) {
+    BEGIN_TEST;
+
+    // Backing memory zeros
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+    memset(mem, 0, TEST_DEVICE_SIZE);
+
+    EXPECT_EQ(0, create_membdev("sub_parent2", mem, TEST_DEVICE_SIZE), "");
+    bdev_t *parent = bio_open("sub_parent2");
+    ASSERT_NONNULL(parent, "");
+
+    const bnum_t startblock = 10;
+    const bnum_t sub_blocks = 20;
+    EXPECT_EQ(NO_ERROR, bio_publish_subdevice("sub_parent2", "sub_dev2", startblock, sub_blocks), "");
+    bdev_t *sub = bio_open("sub_dev2");
+    ASSERT_NONNULL(sub, "");
+
+    uint8_t pattern[200];
+    for (size_t i = 0; i < sizeof(pattern); i++) {
+        pattern[i] = (uint8_t)((i * 5) & 0xFF);
+    }
+
+    // Write to subdevice at offset 123
+    ssize_t w = bio_write(sub, pattern, 123, sizeof(pattern));
+    EXPECT_EQ((ssize_t)sizeof(pattern), w, "");
+
+    // Verify memory backing was updated at the correct base offset
+    size_t base = (size_t)startblock * BLOCK_SIZE;
+    for (size_t i = 0; i < sizeof(pattern); i++) {
+        EXPECT_EQ(pattern[i], mem[base + 123 + i], "");
+    }
+
+    bio_close(sub);
+    bio_unregister_device(sub);
+    bio_close(parent);
+    bio_unregister_device(parent);
+    free(mem);
+
+    END_TEST;
+}
+
+static bool subdev_block_ops(void) {
+    BEGIN_TEST;
+
+    // Backing memory zeros
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+    memset(mem, 0, TEST_DEVICE_SIZE);
+
+    EXPECT_EQ(0, create_membdev("sub_parent3", mem, TEST_DEVICE_SIZE), "");
+    bdev_t *parent = bio_open("sub_parent3");
+    ASSERT_NONNULL(parent, "");
+
+    const bnum_t startblock = 3;
+    const bnum_t sub_blocks = 16;
+    EXPECT_EQ(NO_ERROR, bio_publish_subdevice("sub_parent3", "sub_dev3", startblock, sub_blocks), "");
+    bdev_t *sub = bio_open("sub_dev3");
+    ASSERT_NONNULL(sub, "");
+
+    // Prepare 2 blocks of data
+    const uint count = 2;
+    uint8_t *wbuf = memalign(CACHE_LINE, BLOCK_SIZE * count);
+    uint8_t *rbuf = memalign(CACHE_LINE, BLOCK_SIZE * count);
+    ASSERT_NONNULL(wbuf, "");
+    ASSERT_NONNULL(rbuf, "");
+    for (size_t i = 0; i < BLOCK_SIZE * count; i++) {
+        wbuf[i] = (uint8_t)((0xA0 + i) & 0xFF);
+    }
+
+    // Write to blocks 3..4 within the subdevice
+    ssize_t w = bio_write_block(sub, wbuf, 3, count);
+    EXPECT_EQ((ssize_t)(BLOCK_SIZE * count), w, "");
+
+    // Verify in backing memory
+    size_t base = (size_t)startblock * BLOCK_SIZE + 3 * BLOCK_SIZE;
+    for (size_t i = 0; i < BLOCK_SIZE * count; i++) {
+        EXPECT_EQ(wbuf[i], mem[base + i], "");
+    }
+
+    // Read back via block interface and verify
+    memset(rbuf, 0, BLOCK_SIZE * count);
+    ssize_t r = bio_read_block(sub, rbuf, 3, count);
+    EXPECT_EQ((ssize_t)(BLOCK_SIZE * count), r, "");
+    for (size_t i = 0; i < BLOCK_SIZE * count; i++) {
+        EXPECT_EQ(wbuf[i], rbuf[i], "");
+    }
+
+    free(wbuf);
+    free(rbuf);
+    bio_close(sub);
+    bio_unregister_device(sub);
+    bio_close(parent);
+    bio_unregister_device(parent);
+    free(mem);
+
+    END_TEST;
+}
+
+typedef struct {
+    event_t event;
+    ssize_t result;
+} sub_async_cookie_t;
+
+static void sub_async_cb(void *cookie, bdev_t *dev, ssize_t status) {
+    sub_async_cookie_t *c = (sub_async_cookie_t *)cookie;
+    c->result = status;
+    event_signal(&c->event, false);
+}
+
+static bool subdev_async(void) {
+    BEGIN_TEST;
+
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "");
+    memset(mem, 0, TEST_DEVICE_SIZE);
+
+    EXPECT_EQ(0, create_membdev("sub_parent4", mem, TEST_DEVICE_SIZE), "");
+    bdev_t *parent = bio_open("sub_parent4");
+    ASSERT_NONNULL(parent, "");
+
+    const bnum_t startblock = 5;
+    const bnum_t sub_blocks = 64;
+    EXPECT_EQ(NO_ERROR, bio_publish_subdevice("sub_parent4", "sub_dev4", startblock, sub_blocks), "");
+    bdev_t *sub = bio_open("sub_dev4");
+    ASSERT_NONNULL(sub, "");
+
+    // Async write into subdevice
+    uint8_t wbuf[512];
+    for (size_t i = 0; i < sizeof(wbuf); i++) {
+        wbuf[i] = (uint8_t)(i ^ 0x5A);
+    }
+    sub_async_cookie_t wcookie = {0};
+    event_init(&wcookie.event, false, 0);
+    status_t st = bio_write_async(sub, wbuf, 1024, sizeof(wbuf), sub_async_cb, &wcookie);
+    EXPECT_EQ(NO_ERROR, st, "");
+    event_wait(&wcookie.event);
+    EXPECT_EQ((ssize_t)sizeof(wbuf), wcookie.result, "");
+    event_destroy(&wcookie.event);
+
+    // Async read back from subdevice
+    uint8_t rbuf[512];
+    memset(rbuf, 0, sizeof(rbuf));
+    sub_async_cookie_t rcookie = {0};
+    event_init(&rcookie.event, false, 0);
+    st = bio_read_async(sub, rbuf, 1024, sizeof(rbuf), sub_async_cb, &rcookie);
+    EXPECT_EQ(NO_ERROR, st, "");
+    event_wait(&rcookie.event);
+    EXPECT_EQ((ssize_t)sizeof(rbuf), rcookie.result, "");
+    event_destroy(&rcookie.event);
+
+    // Verify data matches
+    for (size_t i = 0; i < sizeof(wbuf); i++) {
+        EXPECT_EQ(wbuf[i], rbuf[i], "");
+    }
+
+    bio_close(sub);
+    bio_unregister_device(sub);
+    bio_close(parent);
+    bio_unregister_device(parent);
+    free(mem);
+
+    END_TEST;
+}
+
+static bool subdev_nested(void) {
+    BEGIN_TEST;
+
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "");
+    memset(mem, 0, TEST_DEVICE_SIZE);
+
+    EXPECT_EQ(0, create_membdev("sub_parent5", mem, TEST_DEVICE_SIZE), "");
+    bdev_t *parent = bio_open("sub_parent5");
+    ASSERT_NONNULL(parent, "");
+
+    // sub1: offset 10 blocks
+    EXPECT_EQ(NO_ERROR, bio_publish_subdevice("sub_parent5", "sub_lvl1", 10, 40), "");
+    // sub2 of sub1: offset 5 blocks
+    EXPECT_EQ(NO_ERROR, bio_publish_subdevice("sub_lvl1", "sub_lvl2", 5, 10), "");
+
+    bdev_t *sub1 = bio_open("sub_lvl1");
+    ASSERT_NONNULL(sub1, "");
+
+    bdev_t *sub2 = bio_open("sub_lvl2");
+    ASSERT_NONNULL(sub2, "");
+
+    // Write into sub2 and verify absolute placement
+    uint8_t data[256];
+    for (size_t i = 0; i < sizeof(data); i++) {
+        data[i] = (uint8_t)(0xC0 + (i & 0x3F));
+    }
+    EXPECT_EQ((ssize_t)sizeof(data), bio_write(sub2, data, 33, sizeof(data)), "");
+
+    size_t base = (size_t)(10 + 5) * BLOCK_SIZE; // total block offset into parent
+    for (size_t i = 0; i < sizeof(data); i++) {
+        EXPECT_EQ(data[i], mem[base + 33 + i], "");
+    }
+
+    bio_close(sub2);
+    bio_unregister_device(sub2);
+    bio_close(sub1);
+    bio_unregister_device(sub1);
+    // Close/unregister parent last
+    bio_close(parent);
+    bio_unregister_device(parent);
+    free(mem);
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(bio_tests)
 RUN_TEST(basic_read_write)
 RUN_TEST(block_read_write)
@@ -384,4 +650,9 @@ RUN_TEST(unaligned_read_write)
 RUN_TEST(offset_operations)
 RUN_TEST(async_read_write)
 RUN_TEST(large_transfer)
+RUN_TEST(subdev_basic)
+RUN_TEST(subdev_write_propagates)
+RUN_TEST(subdev_block_ops)
+RUN_TEST(subdev_async)
+RUN_TEST(subdev_nested)
 END_TEST_CASE(bio_tests)
