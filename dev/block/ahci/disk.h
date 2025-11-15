@@ -25,9 +25,6 @@ class ahci_disk final {
 
     status_t identify();
 
-    status_t read_sectors(uint64_t lba, void *buf, size_t buf_len);
-    status_t write_sectors(uint64_t lba, const void *buf, size_t buf_len);
-
     uint64_t total_size() const { return sector_count_ * logical_sector_size_; }
     uint32_t logical_sector_size() const { return logical_sector_size_; }
     uint32_t physical_sector_size() const { return physical_sector_size_; }
@@ -39,6 +36,11 @@ class ahci_disk final {
     }
 
   private:
+    status_t read_sectors_sync(uint64_t lba, void *buf, size_t buf_len);
+    status_t write_sectors_sync(uint64_t lba, const void *buf, size_t buf_len);
+
+    status_t do_rw_sectors_sync(uint64_t lba, void *buf, size_t buf_len, bool write);
+
     ahci_port &port_;
 
     // wrapper class around the bio block device to translate bio
@@ -58,11 +60,15 @@ class ahci_disk final {
         static ahci_disk *bdev_to_disk(bdev_t *bdev) {
             return reinterpret_cast<bio_handler *>(bdev)->disk_;
         }
-
         bdev_t bdev_;
         ahci_disk *disk_;
         bool registered_ = false;
-    } bio_handler_ {this};;
+
+      private:
+        static ssize_t bdev_read_block_hook(struct bdev *dev, void *buf, bnum_t block, uint count);
+        static ssize_t bdev_write_block_hook(struct bdev *dev, const void *buf, bnum_t block, uint count);
+        static void bdev_close_hook(struct bdev *dev);
+    } bio_handler_{this};
 
     static_assert(std::is_standard_layout<bio_handler>::value, "");
     static_assert(offsetof(bio_handler, bdev_) == 0, "");

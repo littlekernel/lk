@@ -10,8 +10,8 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "ata.h"
@@ -147,10 +147,8 @@ status_t ahci_disk::identify() {
     return NO_ERROR;
 }
 
-// TODO: refactor the read/write routines below to use a command queuing layer
-
-status_t ahci_disk::read_sectors(uint64_t lba, void *buf, size_t buf_len) {
-    LTRACEF("lba %#llx buf %p len %zu\n", lba, buf, buf_len);
+status_t ahci_disk::do_rw_sectors_sync(uint64_t lba, void *buf, size_t buf_len, bool write) {
+    LTRACEF("lba %#llx buf %p len %zu write %d\n", lba, buf, buf_len, write);
 
     if (buf_len % logical_sector_size_ != 0) {
         return ERR_INVALID_ARGS;
@@ -161,13 +159,11 @@ status_t ahci_disk::read_sectors(uint64_t lba, void *buf, size_t buf_len) {
         return ERR_INVALID_ARGS;
     }
 
-    FIS_REG_H2D fis = ata_cmd_read_dma_ext(lba, sector_count);
-    // hexdump8(&fis, sizeof(fis));
+    FIS_REG_H2D fis = write ? ata_cmd_write_dma_ext(lba, sector_count)
+                            : ata_cmd_read_dma_ext(lba, sector_count);
 
     int slot;
-    auto err = port_.queue_command(&fis, sizeof(fis),
-                                   buf, buf_len,
-                                   false, &slot);
+    auto err = port_.queue_command(&fis, sizeof(fis), buf, buf_len, write, &slot);
     if (err != NO_ERROR) {
         return err;
     }
@@ -181,7 +177,8 @@ status_t ahci_disk::read_sectors(uint64_t lba, void *buf, size_t buf_len) {
 
     // check the status bits
     if (error_status & (1U << 0)) { // check ERR bit
-        printf("ahci_disk::read_sectors: device reported error, status %#x\n", error_status);
+        printf("ahci_disk::%s_sectors: device reported error, status %#x\n",
+               write ? "write" : "read", error_status);
         return ERR_IO;
     }
 
@@ -190,45 +187,12 @@ status_t ahci_disk::read_sectors(uint64_t lba, void *buf, size_t buf_len) {
     return NO_ERROR;
 }
 
-status_t ahci_disk::write_sectors(uint64_t lba, const void *buf, size_t buf_len) {
-    LTRACEF("lba %#llx buf %p len %zu\n", lba, buf, buf_len);
+status_t ahci_disk::read_sectors_sync(uint64_t lba, void *buf, size_t buf_len) {
+    return do_rw_sectors_sync(lba, buf, buf_len, false);
+}
 
-    if (buf_len % logical_sector_size_ != 0) {
-        return ERR_INVALID_ARGS;
-    }
-
-    size_t sector_count = buf_len / logical_sector_size_;
-    if (sector_count == 0 || sector_count > 0xffff) {
-        return ERR_INVALID_ARGS;
-    }
-
-    FIS_REG_H2D fis = ata_cmd_write_dma_ext(lba, sector_count);
-    // hexdump8(&fis, sizeof(fis));
-
-    int slot;
-    auto err = port_.queue_command(&fis, sizeof(fis),
-                                   (void *)buf, buf_len,
-                                   true, &slot);
-    if (err != NO_ERROR) {
-        return err;
-    }
-
-    // wait for it to complete
-    uint32_t error_status;
-    err = port_.wait_for_completion(slot, &error_status);
-    if (err != NO_ERROR) {
-        return err;
-    }
-
-    // check the status bits
-    if (error_status & (1U << 0)) { // check ERR bit
-        printf("ahci_disk::read_sectors: device reported error, status %#x\n", error_status);
-        return ERR_IO;
-    }
-
-    LTRACEF("error_status %#x\n", error_status);
-
-    return NO_ERROR;
+status_t ahci_disk::write_sectors_sync(uint64_t lba, const void *buf, size_t buf_len) {
+    return do_rw_sectors_sync(lba, const_cast<void *>(buf), buf_len, true);
 }
 
 // block io interface
@@ -239,37 +203,48 @@ ahci_disk::bio_handler::~bio_handler() {
     }
 }
 
+ssize_t ahci_disk::bio_handler::bdev_read_block_hook(struct bdev *dev, void *buf, bnum_t block, uint count) {
+    ahci_disk *disk = bdev_to_disk(dev);
+    uint64_t lba = static_cast<uint64_t>(block);
+    size_t len = static_cast<size_t>(count) * disk->logical_sector_size();
+    return disk->read_sectors_sync(lba, buf, len) == NO_ERROR ? static_cast<ssize_t>(len) : ERR_IO;
+}
+
+ssize_t ahci_disk::bio_handler::bdev_write_block_hook(struct bdev *dev, const void *buf, bnum_t block, uint count) {
+    ahci_disk *disk = bdev_to_disk(dev);
+    uint64_t lba = static_cast<uint64_t>(block);
+    size_t len = static_cast<size_t>(count) * disk->logical_sector_size();
+    return disk->write_sectors_sync(lba, buf, len) == NO_ERROR ? static_cast<ssize_t>(len) : ERR_IO;
+};
+
+void ahci_disk::bio_handler::bdev_close_hook(struct bdev *dev) {
+    bio_handler *handler = bdev_to_handler(dev);
+    handler->registered_ = false;
+}
+
 status_t ahci_disk::bio_handler::initialize_bdev() {
     // construct the bio name of this disk
     char bdev_name[32];
     disk_->bio_name(bdev_name, sizeof(bdev_name));
 
+    if (disk_->sector_count() > 0xffffffff) {
+        printf("ahci_disk::initialize_bdev: disk too large for bio layer\n");
+        return ERR_NOT_SUPPORTED;
+    }
+
     // initialize the block device in the bio layer
     bio_initialize_bdev(&bdev_,
-                         bdev_name, // name will be filled in by bio layer
-                         disk_->logical_sector_size(),
-                         static_cast<bnum_t>(disk_->sector_count()),
-                         0, // no erase geometry
-                         nullptr,
-                         BIO_FLAGS_NONE);
+                        bdev_name, // name will be filled in by bio layer
+                        disk_->logical_sector_size(),
+                        static_cast<bnum_t>(disk_->sector_count()),
+                        0, // no erase geometry
+                        nullptr,
+                        BIO_FLAGS_NONE);
 
     // register some block device hooks
-    bdev_.read_block = [](bdev_t *bdev, void *buf, bnum_t block, uint count) -> ssize_t {
-        ahci_disk *disk = bdev_to_disk(bdev);
-        uint64_t lba = static_cast<uint64_t>(block);
-        size_t len = static_cast<size_t>(count) * disk->logical_sector_size();
-        return disk->read_sectors(lba, buf, len) == NO_ERROR ? static_cast<ssize_t>(len) : ERR_IO;
-    };
-    bdev_.write_block = [](bdev_t *bdev, const void *buf, bnum_t block, uint count) -> ssize_t {
-        ahci_disk *disk = bdev_to_disk(bdev);
-        uint64_t lba = static_cast<uint64_t>(block);
-        size_t len = static_cast<size_t>(count) * disk->logical_sector_size();
-        return disk->write_sectors(lba, buf, len) == NO_ERROR ? static_cast<ssize_t>(len) : ERR_IO;
-    };
-    bdev_.close = [](bdev_t *bdev) {
-        bio_handler *handler = bdev_to_handler(bdev);
-        handler->registered_ = false;
-    };
+    bdev_.read_block = &bdev_read_block_hook;
+    bdev_.write_block = &bdev_write_block_hook;
+    bdev_.close = &bdev_close_hook;
     // TODO: handle async read/write
 
     dprintf(INFO, "ahci%d: registering block device '%s'\n",
