@@ -128,15 +128,15 @@ void platform_init_timer(void) {
         dprintf(INFO, "PC: TSC frequency %" PRIu64 "Hz\n", tsc_hz);
 
         // Compute the ratio of TSC to timebase
-        fp_32_64_div_32_32(&tsc_to_timebase, 1000, tsc_hz);
+        fp_32_64_div_32_64(&tsc_to_timebase, 1000, tsc_hz);
         dprintf(INFO, "PC: TSC to timebase ratio %u.%08u...\n",
                 tsc_to_timebase.l0, tsc_to_timebase.l32);
 
-        fp_32_64_div_32_32(&tsc_to_timebase_hires, 1000*1000, tsc_hz);
+        fp_32_64_div_32_64(&tsc_to_timebase_hires, 1000*1000, tsc_hz);
         dprintf(INFO, "PC: TSC to hires timebase ratio %u.%08u...\n",
                 tsc_to_timebase_hires.l0, tsc_to_timebase_hires.l32);
 
-        fp_32_64_div_32_32(&timebase_to_tsc, tsc_hz, 1000);
+        fp_32_64_div_64_32(&timebase_to_tsc, tsc_hz, 1000);
         dprintf(INFO, "PC: timebase to TSC ratio %u.%08u...\n",
                 timebase_to_tsc.l0, timebase_to_tsc.l32);
 
