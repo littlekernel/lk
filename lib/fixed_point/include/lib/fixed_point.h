@@ -35,6 +35,43 @@ fp_32_64_div_32_32(struct fp_32_64 *result, uint32_t dividend, uint32_t divisor)
     result->l64 = tmp;
 }
 
+static void
+fp_32_64_div_64_32(struct fp_32_64 *result, uint64_t dividend, uint32_t divisor) {
+    // Compute dividend / divisor in fixed point format
+    // The result is dividend / divisor with fractional bits stored in l32 and l64
+    
+    // First, compute the integer part and get the remainder
+    result->l0 = dividend / divisor;
+    uint64_t rem = dividend % divisor;
+    
+    // Now compute the fractional part by shifting the remainder left by 32 bits
+    // This gives us bits -1 to -32 (stored in l32)
+    uint64_t tmp = (rem << 32) / divisor;
+    result->l32 = tmp;
+    rem = (rem << 32) % divisor;
+    
+    // Finally compute bits -33 to -64 (stored in l64)
+    tmp = (rem << 32) / divisor;
+    result->l64 = tmp;
+}
+
+static void
+fp_32_64_div_32_64(struct fp_32_64 *result, uint32_t dividend, uint64_t divisor) {
+    // Compute dividend / divisor in fixed point format where divisor is 64-bit
+    // When dividend < divisor, result->l0 will be 0
+    
+    result->l0 = dividend / divisor;
+    uint64_t rem = dividend % divisor;
+    
+    // Compute fractional bits by shifting remainder left
+    uint64_t tmp = (rem << 32) / divisor;
+    result->l32 = tmp;
+    rem = (rem << 32) % divisor;
+    
+    tmp = (rem << 32) / divisor;
+    result->l64 = tmp;
+}
+
 static uint64_t
 mul_u32_u32(uint32_t a, uint32_t b, int a_shift, int b_shift) {
     uint64_t ret = (uint64_t)a * b;
