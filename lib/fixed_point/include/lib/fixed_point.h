@@ -15,9 +15,9 @@
 #endif
 
 struct fp_32_64 {
-    uint32_t l0;    /* unshifted value */
-    uint32_t l32;   /* value shifted left 32 bits (or bit -1 to -32) */
-    uint32_t l64;   /* value shifted left 64 bits (or bit -33 to -64) */
+    uint32_t l0;  /* unshifted value */
+    uint32_t l32; /* value shifted left 32 bits (or bit -1 to -32) */
+    uint32_t l64; /* value shifted left 64 bits (or bit -33 to -64) */
 };
 
 #include "fixed_point_debug.h"
@@ -32,6 +32,43 @@ fp_32_64_div_32_32(struct fp_32_64 *result, uint32_t dividend, uint32_t divisor)
     result->l0 = tmp >> 32;
     result->l32 = tmp;
     tmp = ((uint64_t)rem << 32) / divisor;
+    result->l64 = tmp;
+}
+
+static inline void
+fp_32_64_div_64_32(struct fp_32_64 *result, uint64_t dividend, uint32_t divisor) {
+    // Compute dividend / divisor in fixed point format
+    // The result is dividend / divisor with fractional bits stored in l32 and l64
+
+    // First, compute the integer part and get the remainder
+    result->l0 = dividend / divisor;
+    uint64_t rem = dividend % divisor;
+
+    // Now compute the fractional part by shifting the remainder left by 32 bits
+    // This gives us bits -1 to -32 (stored in l32)
+    uint64_t tmp = (rem << 32) / divisor;
+    result->l32 = tmp;
+    rem = (rem << 32) % divisor;
+
+    // Finally compute bits -33 to -64 (stored in l64)
+    tmp = (rem << 32) / divisor;
+    result->l64 = tmp;
+}
+
+static inline void
+fp_32_64_div_32_64(struct fp_32_64 *result, uint32_t dividend, uint64_t divisor) {
+    // Compute dividend / divisor in fixed point format where divisor is 64-bit
+    // When dividend < divisor, result->l0 will be 0
+
+    result->l0 = dividend / divisor;
+    uint64_t rem = dividend % divisor;
+
+    // Compute fractional bits by shifting remainder left
+    uint64_t tmp = (rem << 32) / divisor;
+    result->l32 = tmp;
+    rem = (rem << 32) % divisor;
+
+    tmp = (rem << 32) / divisor;
     result->l64 = tmp;
 }
 
@@ -76,7 +113,7 @@ u32_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b) {
     res_l32 += mul_u32_u32(a_r32, b.l32, 32, -32) << 32;
     res_l32 += mul_u32_u32(a_0, b.l32, 0, -32);
     res_l32 += mul_u32_u32(a_r32, b.l64, 32, -64);
-    res_l32 += mul_u32_u32(a_0, b.l64, 0, -64) >> 32; /* Improve rounding accuracy */
+    res_l32 += mul_u32_u32(a_0, b.l64, 0, -64) >> 32;  /* Improve rounding accuracy */
     ret = (res_l32 >> 32) + ((uint32_t)res_l32 >> 31); /* Round to nearest integer */
 
     debug_u32_mul_u64_fp32_64(a, b, res_l32, ret);
@@ -110,10 +147,9 @@ u64_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b) {
     res_l32 += tmp >> 32;
     res_0 += res_l32 >> 32;
     res_l32_32 = res_l32;
-    ret = res_0 +  (res_l32_32 >> 31); /* Round to nearest integer */
+    ret = res_0 + (res_l32_32 >> 31); /* Round to nearest integer */
 
     debug_u64_mul_u64_fp32_64(a, b, res_0, res_l32_32, ret);
 
     return ret;
 }
-
