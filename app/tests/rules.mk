@@ -19,7 +19,8 @@ MODULE_FLOAT_SRCS := \
     $(LOCAL_DIR)/float_instructions.S \
 
 MODULE_DEPS += \
-    lib/cbuf
+    lib/cbuf \
+    lib/libm
 
 MODULE_COMPILEFLAGS += -fno-builtin
 
