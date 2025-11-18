@@ -30,7 +30,6 @@ MODULE_DEPS += \
     dev/interrupt/arm_gic \
     dev/power/psci \
     dev/timer/arm_generic \
-    dev/uart/pl011 \
     dev/virtio/9p \
     dev/virtio/block \
     dev/virtio/gpu \
@@ -39,11 +38,11 @@ MODULE_DEPS += \
     lib/fdtwalk \
     lib/fs/9p \
 
-USE_RUST ?= 0
-
-ifeq ($(USE_RUST),1)
+ifeq ($(call TOBOOL,$(USE_RUST)),true)
 MODULE_DEPS += lib/rust_support
 MODULE_DEPS += rust/dev-pl011
+else
+MODULE_DEPS += dev/uart/pl011
 endif
 
 GLOBAL_DEFINES += \

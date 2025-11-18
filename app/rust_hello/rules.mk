@@ -5,6 +5,6 @@ $(info "Adding rust crate $(LOCAL_DIR)")
 
 MODULE := $(LOCAL_DIR)
 
-MODULES += $(MODULE)
+MODULE_DEPS := lib/rust_support
 
-MODULE :=
+include make/module.mk
