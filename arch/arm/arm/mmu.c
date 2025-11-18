@@ -173,7 +173,7 @@ void arm_mmu_early_init(void) {
 }
 
 void arm_mmu_init(void) {
-    /* unmap the initial mapings that are marked temporary */
+    /* unmap the initial mappings that are marked temporary */
     struct mmu_initial_mapping *map = mmu_initial_mappings;
     while (map->size > 0) {
         if (map->flags & MMU_INITIAL_MAPPING_TEMPORARY) {
