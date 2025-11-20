@@ -5,7 +5,8 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <app/tests.h>
+#include "tests.h"
+
 #include <lk/err.h>
 #include <lk/debug.h>
 

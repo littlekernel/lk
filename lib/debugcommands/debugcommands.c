@@ -6,8 +6,8 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <ctype.h>
 #include <lk/debug.h>
+#include <lk/err.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <lk/list.h>
@@ -23,46 +23,6 @@
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #endif
-
-static int cmd_display_mem(int argc, const console_cmd_args *argv);
-static int cmd_modify_mem(int argc, const console_cmd_args *argv);
-static int cmd_fill_mem(int argc, const console_cmd_args *argv);
-static int cmd_reset(int argc, const console_cmd_args *argv);
-static int cmd_memtest(int argc, const console_cmd_args *argv);
-static int cmd_copy_mem(int argc, const console_cmd_args *argv);
-static int cmd_chain(int argc, const console_cmd_args *argv);
-static int cmd_sleep(int argc, const console_cmd_args *argv);
-static int cmd_time(int argc, const console_cmd_args *argv);
-static int cmd_timeh(int argc, const console_cmd_args *argv);
-static int cmd_crash(int argc, const console_cmd_args *argv);
-static int cmd_panic(int argc, const console_cmd_args *argv);
-static int cmd_stackstomp(int argc, const console_cmd_args *argv);
-
-STATIC_COMMAND_START
-#if LK_DEBUGLEVEL > 0
-STATIC_COMMAND_MASKED("dw", "display memory in words", &cmd_display_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND_MASKED("dh", "display memory in halfwords", &cmd_display_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND_MASKED("db", "display memory in bytes", &cmd_display_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND_MASKED("mw", "modify word of memory", &cmd_modify_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND_MASKED("mh", "modify halfword of memory", &cmd_modify_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND_MASKED("mb", "modify byte of memory", &cmd_modify_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND_MASKED("fw", "fill range of memory by word", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND_MASKED("fh", "fill range of memory by halfword", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND_MASKED("fb", "fill range of memory by byte", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND_MASKED("mc", "copy a range of memory", &cmd_copy_mem, CMD_AVAIL_ALWAYS)
-STATIC_COMMAND("crash", "intentionally crash", &cmd_crash)
-STATIC_COMMAND("panic", "intentionally panic", &cmd_panic)
-STATIC_COMMAND("stackstomp", "intentionally overrun the stack", &cmd_stackstomp)
-#endif
-#if LK_DEBUGLEVEL > 1
-STATIC_COMMAND("mtest", "simple memory test", &cmd_memtest)
-#endif
-STATIC_COMMAND("chain", "chain load another binary", &cmd_chain)
-STATIC_COMMAND("sleep", "sleep number of seconds", &cmd_sleep)
-STATIC_COMMAND("sleepm", "sleep number of milliseconds", &cmd_sleep)
-STATIC_COMMAND("time", "print current time", &cmd_time)
-STATIC_COMMAND("timeh", "print current time hires", &cmd_timeh)
-STATIC_COMMAND_END(mem);
 
 #define EXIT_IF_NOT_MAPPED(address) \
     do { \
@@ -466,4 +426,56 @@ static int cmd_stackstomp(int argc, const console_cmd_args *argv) {
     return 0;
 }
 
+static int spinner_thread(void *arg) {
+    for (;;)
+        ;
+
+    return 0;
+}
+
+static int cmd_spinner(int argc, const console_cmd_args *argv) {
+    if (argc < 2) {
+        printf("not enough args\n");
+        printf("usage: %s <priority> <rt>\n", argv[0].str);
+        return -1;
+    }
+
+    thread_t *t = thread_create("spinner", spinner_thread, NULL, argv[1].u, DEFAULT_STACK_SIZE);
+    if (!t)
+        return ERR_NO_MEMORY;
+
+    if (argc >= 3 && !strcmp(argv[2].str, "rt")) {
+        thread_set_real_time(t);
+    }
+    thread_resume(t);
+
+    return 0;
+}
+
+STATIC_COMMAND_START
+#if LK_DEBUGLEVEL > 0
+STATIC_COMMAND_MASKED("dw", "display memory in words", &cmd_display_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("dh", "display memory in halfwords", &cmd_display_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("db", "display memory in bytes", &cmd_display_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("mw", "modify word of memory", &cmd_modify_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("mh", "modify halfword of memory", &cmd_modify_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("mb", "modify byte of memory", &cmd_modify_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("fw", "fill range of memory by word", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("fh", "fill range of memory by halfword", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("fb", "fill range of memory by byte", &cmd_fill_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("mc", "copy a range of memory", &cmd_copy_mem, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND("crash", "intentionally crash", &cmd_crash)
+STATIC_COMMAND("panic", "intentionally panic", &cmd_panic)
+STATIC_COMMAND("stackstomp", "intentionally overrun the stack", &cmd_stackstomp)
+STATIC_COMMAND("spinner", "create a spinning thread", &cmd_spinner)
+#endif
+#if LK_DEBUGLEVEL > 1
+STATIC_COMMAND("mtest", "simple memory test", &cmd_memtest)
+#endif
+STATIC_COMMAND("chain", "chain load another binary", &cmd_chain)
+STATIC_COMMAND("sleep", "sleep number of seconds", &cmd_sleep)
+STATIC_COMMAND("sleepm", "sleep number of milliseconds", &cmd_sleep)
+STATIC_COMMAND("time", "print current time", &cmd_time)
+STATIC_COMMAND("timeh", "print current time hires", &cmd_timeh)
+STATIC_COMMAND_END(mem);
 

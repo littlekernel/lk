@@ -155,7 +155,7 @@ out:
     printf("done with tests\n");
 }
 
-static int mem_test(int argc, const console_cmd_args *argv) {
+int mem_test(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
         printf("not enough arguments\n");
 usage:
@@ -219,7 +219,3 @@ usage:
 
     return 0;
 }
-
-STATIC_COMMAND_START
-STATIC_COMMAND("mem_test", "test memory", &mem_test)
-STATIC_COMMAND_END(mem_tests);

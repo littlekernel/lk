@@ -7,6 +7,8 @@
  */
 #if ARM_WITH_CACHE
 
+#include "tests.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>

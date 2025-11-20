@@ -5,13 +5,13 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include "tests.h"
+
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <rand.h>
 #include <lk/err.h>
 #include <assert.h>
-#include <string.h>
-#include <app/tests.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <kernel/semaphore.h>
@@ -595,32 +595,6 @@ int thread_tests(int argc, const console_cmd_args *argv) {
     preempt_test();
 
     join_test();
-
-    return 0;
-}
-
-static int spinner_thread(void *arg) {
-    for (;;)
-        ;
-
-    return 0;
-}
-
-int spinner(int argc, const console_cmd_args *argv) {
-    if (argc < 2) {
-        printf("not enough args\n");
-        printf("usage: %s <priority> <rt>\n", argv[0].str);
-        return -1;
-    }
-
-    thread_t *t = thread_create("spinner", spinner_thread, NULL, argv[1].u, DEFAULT_STACK_SIZE);
-    if (!t)
-        return ERR_NO_MEMORY;
-
-    if (argc >= 3 && !strcmp(argv[2].str, "rt")) {
-        thread_set_real_time(t);
-    }
-    thread_resume(t);
 
     return 0;
 }

@@ -5,6 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include "tests.h"
 
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -17,8 +18,6 @@
 #include <kernel/thread.h>
 
 #include <platform.h>
-
-#include <app/tests.h>
 
 #define LOCAL_TRACE 0
 

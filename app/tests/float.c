@@ -7,13 +7,14 @@
  */
 #if !WITH_NO_FP
 
+#include "tests.h"
+
 #include <stdio.h>
 #include <inttypes.h>
 #include <rand.h>
 #include <string.h>
 #include <lk/err.h>
 #include <lk/console_cmd.h>
-#include <app/tests.h>
 #include <kernel/thread.h>
 #include <kernel/mutex.h>
 #include <kernel/semaphore.h>
