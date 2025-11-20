@@ -5,15 +5,15 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <lk/err.h>
 #include <arch.h>
 #include <arch/ops.h>
 #include <lk/console_cmd.h>
-#include <platform.h>
 #include <lk/debug.h>
+#include <lk/err.h>
+#include <platform.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -57,7 +57,7 @@ static status_t do_moving_inversion_test(void *ptr, size_t len, uint32_t pat) {
     }
 
     /* from the bottom, walk through each cell, inverting the value */
-    //printf("\t\tbottom up invert\n");
+    // printf("\t\tbottom up invert\n");
     for (i = 0; i < len / 4; i++) {
         if (vbuf32[i] != pat) {
             mem_test_fail((void *)&vbuf32[i], pat, vbuf32[i]);
@@ -68,18 +68,18 @@ static status_t do_moving_inversion_test(void *ptr, size_t len, uint32_t pat) {
     }
 
     /* repeat, walking from top down */
-    //printf("\t\ttop down invert\n");
+    // printf("\t\ttop down invert\n");
     for (i = len / 4; i > 0; i--) {
-        if (vbuf32[i-1] != ~pat) {
-            mem_test_fail((void *)&vbuf32[i-1], ~pat, vbuf32[i-1]);
+        if (vbuf32[i - 1] != ~pat) {
+            mem_test_fail((void *)&vbuf32[i - 1], ~pat, vbuf32[i - 1]);
             return ERR_GENERIC;
         }
 
-        vbuf32[i-1] = pat;
+        vbuf32[i - 1] = pat;
     }
 
     /* verify that we have the original pattern */
-    //printf("\t\tfinal test\n");
+    // printf("\t\tfinal test\n");
     for (i = 0; i < len / 4; i++) {
         if (vbuf32[i] != pat) {
             mem_test_fail((void *)&vbuf32[i], pat, vbuf32[i]);
@@ -94,7 +94,7 @@ static void do_mem_tests(void *ptr, size_t len) {
     size_t i;
 
     printf("running memory tests on address range [%p..%p]\n",
-            ptr, (uint8_t *)ptr + len - 1);
+           ptr, (uint8_t *)ptr + len - 1);
 
     /* test 1: simple write address to memory, read back */
     printf("test 1: simple address write, read back\n");
@@ -114,41 +114,48 @@ static void do_mem_tests(void *ptr, size_t len) {
     printf("test 2: write patterns, read back\n");
 
     static const uint32_t pat[] = {
-        0x0, 0xffffffff,
-        0xaaaaaaaa, 0x55555555,
+        0x0,
+        0xffffffff,
+        0xaaaaaaaa,
+        0x55555555,
     };
 
     for (size_t p = 0; p < countof(pat); p++) {
-        if (do_pattern_test(ptr, len, pat[p]) < 0)
+        if (do_pattern_test(ptr, len, pat[p]) < 0) {
             goto out;
+        }
     }
     // shift bits through 32bit word
     for (uint32_t p = 1; p != 0; p <<= 1) {
-        if (do_pattern_test(ptr, len, p) < 0)
+        if (do_pattern_test(ptr, len, p) < 0) {
             goto out;
+        }
     }
     // shift bits through 16bit word, invert top of 32bit
     for (uint16_t p = 1; p != 0; p <<= 1) {
-        if (do_pattern_test(ptr, len, ((~p) << 16) | p) < 0)
+        if (do_pattern_test(ptr, len, ((~p) << 16) | p) < 0) {
             goto out;
+        }
     }
 
     /* test 3: moving inversion, patterns */
     printf("test 3: moving inversions with patterns\n");
     for (size_t p = 0; p < countof(pat); p++) {
-        if (do_moving_inversion_test(ptr, len, pat[p]) < 0)
+        if (do_moving_inversion_test(ptr, len, pat[p]) < 0) {
             goto out;
-
+        }
     }
     // shift bits through 32bit word
     for (uint32_t p = 1; p != 0; p <<= 1) {
-        if (do_moving_inversion_test(ptr, len, p) < 0)
+        if (do_moving_inversion_test(ptr, len, p) < 0) {
             goto out;
+        }
     }
     // shift bits through 16bit word, invert top of 32bit
     for (uint16_t p = 1; p != 0; p <<= 1) {
-        if (do_moving_inversion_test(ptr, len, ((~p) << 16) | p) < 0)
+        if (do_moving_inversion_test(ptr, len, ((~p) << 16) | p) < 0) {
             goto out;
+        }
     }
 
 out:
@@ -189,7 +196,7 @@ usage:
 #else
         /* allocate from the heap */
         ptr = malloc(len);
-        if (!ptr ) {
+        if (!ptr) {
             printf("error allocating test area from heap\n");
             return -1;
         }
@@ -202,8 +209,11 @@ usage:
         do_mem_tests(ptr, len);
 
 #if WITH_KERNEL_VM
-        // XXX free memory region here
-        printf("NOTE: leaked memory\n");
+        /* free the memory region */
+        status_t err_free = vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)ptr);
+        if (err_free < 0) {
+            printf("warning: error %d freeing test region\n", err_free);
+        }
 #else
         free(ptr);
 #endif
