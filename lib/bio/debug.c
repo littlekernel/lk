@@ -350,7 +350,12 @@ static bool test_erase_block(bdev_t *device, uint32_t block_addr) {
         goto finish;
     }
 
-    err = bio_erase(device, block_addr * device->block_size, 1);
+    // Safely compute byte offset from block address.
+    uint64_t byte_offset;
+    if (!bio_blocks_to_bytes(block_addr, device->block_size, &byte_offset)) {
+        goto finish;
+    }
+    err = bio_erase(device, (off_t)byte_offset, 1);
     if (err <= 0) {
         goto finish;
     }

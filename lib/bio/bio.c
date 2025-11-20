@@ -93,7 +93,13 @@ static ssize_t bio_default_read(struct bdev *dev, void *_buf, off_t offset, size
         err = bio_read_block(dev, buf, block, num_blocks);
         if (err < 0) {
             goto err;
-        } else if ((size_t)err != dev->block_size * num_blocks) {
+        }
+        uint64_t expected_bytes;
+        if (!bio_blocks_to_bytes(num_blocks, dev->block_size, &expected_bytes)) {
+            err = ERR_IO;
+            goto err;
+        }
+        if ((size_t)err != expected_bytes) {
             err = ERR_IO;
             goto err;
         }
@@ -199,12 +205,18 @@ static ssize_t bio_default_write(struct bdev *dev, const void *_buf, off_t offse
         err = bio_write_block(dev, buf, block, block_count);
         if (err < 0) {
             goto err;
-        } else if ((size_t)err != dev->block_size * block_count) {
+        }
+        uint64_t expected_bytes;
+        if (!bio_blocks_to_bytes(block_count, dev->block_size, &expected_bytes)) {
+            err = ERR_IO;
+            goto err;
+        }
+        if ((size_t)err != expected_bytes) {
             err = ERR_IO;
             goto err;
         }
 
-        DEBUG_ASSERT((size_t)err == (block_count * dev->block_size));
+        DEBUG_ASSERT((size_t)err == expected_bytes);
 
         buf += err;
         len -= err;
@@ -317,7 +329,16 @@ size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len) {
     if (len == 0) {
         return 0;
     }
-    if ((off_t)(offset + len) > dev->total_size) {
+
+    // make sure we don't overflow
+    off_t end;
+    if (!bio_add_off_size(offset, len, &end)) {
+        // if we wrapped, clamp to the end of off_t's reach
+        end = LONG_LONG_MAX;
+    }
+
+    // trim to the end of the device
+    if (end > dev->total_size) {
         len = dev->total_size - offset;
     }
 
@@ -331,7 +352,16 @@ uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count) {
     if (count == 0) {
         return 0;
     }
-    if (block + count > dev->block_count) {
+
+    // make sure we don't overflow
+    bnum_t end;
+    if (!bio_add_bnum_size(block, count, &end)) {
+        // if we wrapped, clamp to the end of bnum_t's reach
+        end = MAX_BNUM_T;
+    }
+
+    // trim to the end of the device
+    if (end > dev->block_count) {
         count = dev->block_count - block;
     }
 

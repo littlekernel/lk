@@ -6,8 +6,8 @@
  * https://opensource.org/licenses/MIT
  */
 #include <lib/bio.h>
-#include <lk/err.h>
 #include <lk/debug.h>
+#include <lk/err.h>
 #include <lk/trace.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,9 +37,15 @@ static ssize_t mem_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, u
 
     LTRACEF("bdev %s, buf %p, block %u, count %u\n", bdev->name, buf, block, count);
 
-    memcpy(buf, (uint8_t *)mem->ptr + block * BLOCKSIZE, count * BLOCKSIZE);
+    uint64_t block_offset, total_bytes;
+    if (!bio_mul_u64_size(block, BLOCKSIZE, &block_offset) ||
+        !bio_mul_u64_size(count, BLOCKSIZE, &total_bytes)) {
+        return ERR_OUT_OF_RANGE;
+    }
 
-    return count * BLOCKSIZE;
+    memcpy(buf, (uint8_t *)mem->ptr + block_offset, total_bytes);
+
+    return total_bytes;
 }
 
 static status_t mem_bdev_read_async(struct bdev *bdev, void *buf, off_t offset, size_t len,
@@ -67,9 +73,15 @@ static ssize_t mem_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t b
 
     LTRACEF("bdev %s, buf %p, block %u, count %u\n", bdev->name, buf, block, count);
 
-    memcpy((uint8_t *)mem->ptr + block * BLOCKSIZE, buf, count * BLOCKSIZE);
+    uint64_t block_offset, total_bytes;
+    if (!bio_mul_u64_size(block, BLOCKSIZE, &block_offset) ||
+        !bio_mul_u64_size(count, BLOCKSIZE, &total_bytes)) {
+        return ERR_OUT_OF_RANGE;
+    }
 
-    return count * BLOCKSIZE;
+    memcpy((uint8_t *)mem->ptr + block_offset, buf, total_bytes);
+
+    return total_bytes;
 }
 
 static status_t mem_bdev_write_async(struct bdev *bdev, const void *buf, off_t offset, size_t len,

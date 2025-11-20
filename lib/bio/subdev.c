@@ -31,7 +31,12 @@ typedef struct {
 static ssize_t subdev_read(struct bdev *_dev, void *buf, off_t offset, size_t len) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_read(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len);
+    uint64_t byte_offset;
+    if (!bio_blocks_to_bytes(subdev->offset, subdev->dev.block_size, &byte_offset)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    return bio_read(subdev->parent, buf, offset + byte_offset, len);
 }
 
 static ssize_t subdev_read_block(struct bdev *_dev, void *buf, bnum_t block, uint count) {
@@ -43,7 +48,12 @@ static ssize_t subdev_read_block(struct bdev *_dev, void *buf, bnum_t block, uin
 static ssize_t subdev_write(struct bdev *_dev, const void *buf, off_t offset, size_t len) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_write(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len);
+    uint64_t byte_offset;
+    if (!bio_blocks_to_bytes(subdev->offset, subdev->dev.block_size, &byte_offset)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    return bio_write(subdev->parent, buf, offset + byte_offset, len);
 }
 
 static ssize_t subdev_write_block(struct bdev *_dev, const void *buf, bnum_t block, uint count) {
@@ -55,22 +65,37 @@ static ssize_t subdev_write_block(struct bdev *_dev, const void *buf, bnum_t blo
 static ssize_t subdev_erase(struct bdev *_dev, off_t offset, size_t len) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_erase(subdev->parent, offset + subdev->offset * subdev->dev.block_size, len);
+    uint64_t byte_offset;
+    if (!bio_blocks_to_bytes(subdev->offset, subdev->dev.block_size, &byte_offset)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    return bio_erase(subdev->parent, offset + byte_offset, len);
 }
 
 static status_t subdev_read_async(struct bdev *_dev, void *buf, off_t offset, size_t len,
-                                   bio_async_callback_t callback, void *callback_context) {
+                                  bio_async_callback_t callback, void *callback_context) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_read_async(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len,
+    uint64_t byte_offset;
+    if (!bio_blocks_to_bytes(subdev->offset, subdev->dev.block_size, &byte_offset)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    return bio_read_async(subdev->parent, buf, offset + byte_offset, len,
                           callback, callback_context);
 }
 
 static status_t subdev_write_async(struct bdev *_dev, const void *buf, off_t offset, size_t len,
-                                    bio_async_callback_t callback, void *callback_context) {
+                                   bio_async_callback_t callback, void *callback_context) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_write_async(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len,
+    uint64_t byte_offset;
+    if (!bio_blocks_to_bytes(subdev->offset, subdev->dev.block_size, &byte_offset)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    return bio_write_async(subdev->parent, buf, offset + byte_offset, len,
                            callback, callback_context);
 }
 

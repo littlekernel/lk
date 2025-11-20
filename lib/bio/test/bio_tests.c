@@ -643,6 +643,97 @@ static bool subdev_nested(void) {
     END_TEST;
 }
 
+/* New tests validating trimming and overflow helper behavior */
+static bool trim_block_range_tests(void) {
+    BEGIN_TEST;
+
+    // Create a small memory-backed device (1000 blocks of 512 bytes)
+    const size_t blocks = 1000;
+    void *mem = memalign(CACHE_LINE, blocks * BLOCK_SIZE);
+    ASSERT_NONNULL(mem, "alloc backing");
+    memset(mem, 0, blocks * BLOCK_SIZE);
+    EXPECT_EQ(0, create_membdev("trim_dev", mem, blocks * BLOCK_SIZE), "");
+    bdev_t *dev = bio_open("trim_dev");
+    ASSERT_NONNULL(dev, "open trim_dev");
+
+    // Case: block + count within range unchanged
+    EXPECT_EQ(50u, bio_trim_block_range(dev, 100, 50), "in-range should stay same");
+
+    // Case: block + count extends past end -> trimmed
+    EXPECT_EQ(blocks - 950, bio_trim_block_range(dev, 950, 200), "trim at end");
+
+    // Case: block past end -> zero
+    EXPECT_EQ(0u, bio_trim_block_range(dev, blocks, 10), "past end should be 0");
+
+    bio_close(dev);
+    bio_unregister_device(dev);
+    free(mem);
+    END_TEST;
+}
+
+static bool trim_range_tests(void) {
+    BEGIN_TEST;
+    const size_t blocks = 1000;
+    void *mem = memalign(CACHE_LINE, blocks * BLOCK_SIZE);
+    ASSERT_NONNULL(mem, "alloc backing");
+    memset(mem, 0, blocks * BLOCK_SIZE);
+    EXPECT_EQ(0, create_membdev("trim_range_dev", mem, blocks * BLOCK_SIZE), "");
+    bdev_t *dev = bio_open("trim_range_dev");
+    ASSERT_NONNULL(dev, "open trim_range_dev");
+
+    off_t total = dev->total_size; // 512 * 1000
+    // In range
+    EXPECT_EQ(300u, bio_trim_range(dev, 100, 300), "range in bounds");
+    // Cross end
+    size_t expected_tail = (size_t)(total - (total - 200));
+    EXPECT_EQ(expected_tail, bio_trim_range(dev, total - 200, 500), "trim tail");
+    // Offset at end
+    EXPECT_EQ(0u, bio_trim_range(dev, total, 10), "offset == end -> 0");
+
+    bio_close(dev);
+    bio_unregister_device(dev);
+    free(mem);
+    END_TEST;
+}
+
+static bool overflow_helper_tests(void) {
+    BEGIN_TEST;
+
+    // blocks_to_bytes non-overflow
+    uint64_t bytes;
+    EXPECT_TRUE(bio_blocks_to_bytes(10, 512, &bytes), "no overflow");
+    EXPECT_EQ((uint64_t)10 * 512, bytes, "value");
+
+#if SIZE_MAX > UINT32_MAX
+    // blocks_to_bytes overflow (use largest bnum_t and an oversized block_size)
+    size_t big_block_size = SIZE_MAX;
+    EXPECT_FALSE(bio_blocks_to_bytes(MAX_BNUM_T, big_block_size, &bytes), "force overflow");
+#else
+    // On 32-bit systems, skip this test as SIZE_MAX is too small to trigger overflow
+    unittest_printf("skipping blocks_to_bytes overflow test on 32-bit system\n");
+#endif
+
+    // add_off_size non-overflow
+    off_t off_result;
+    EXPECT_TRUE(bio_add_off_size(1000, 500, &off_result), "add ok");
+    EXPECT_EQ((off_t)1500, off_result, "add value");
+
+    // add_off_size overflow (LLONG_MAX - 5 + 10)
+    off_t off_overflow_result = 0;
+    EXPECT_FALSE(bio_add_off_size(LLONG_MAX - 5, 10, &off_overflow_result), "add overflow");
+
+    // add_bnum_size non-overflow
+    bnum_t bnum_result;
+    EXPECT_TRUE(bio_add_bnum_size(100, 50, &bnum_result), "bnum add ok");
+    EXPECT_EQ((bnum_t)150, bnum_result, "bnum value");
+
+    // add_bnum_size overflow (MAX_BNUM_T - 3 + 10 wraps)
+    bnum_t bnum_overflow_result = 0;
+    EXPECT_FALSE(bio_add_bnum_size(MAX_BNUM_T - 3, 10, &bnum_overflow_result), "bnum overflow");
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(bio_tests)
 RUN_TEST(basic_read_write)
 RUN_TEST(block_read_write)
@@ -655,4 +746,7 @@ RUN_TEST(subdev_write_propagates)
 RUN_TEST(subdev_block_ops)
 RUN_TEST(subdev_async)
 RUN_TEST(subdev_nested)
+RUN_TEST(trim_block_range_tests)
+RUN_TEST(trim_range_tests)
+RUN_TEST(overflow_helper_tests)
 END_TEST_CASE(bio_tests)

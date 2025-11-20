@@ -28,7 +28,9 @@
 //   inside bio_iter_devices() callbacks (internal lock held).
 
 #include <assert.h>
+#include <lk/compiler.h>
 #include <lk/list.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 __BEGIN_CDECLS
@@ -47,6 +49,10 @@ __BEGIN_CDECLS
 // NOTE: 32-bit for historical reasons; may be extended to 64-bit on 64-bit
 // architectures in the future.
 typedef uint32_t bnum_t;
+#define MAX_BNUM_T ((bnum_t)~0)
+
+// TODO: modernize the api to not use off_t and ssize_t, but always use proper
+// unsigned types for sizes and offsets.
 
 // Erase geometry describes regions and erase-unit constraints typical of
 // flash-like devices.
@@ -216,6 +222,40 @@ static inline bool bio_contains_range(uint64_t container_start, uint64_t contain
 
     return ((container_start <= contained_start) &&
             (container_end >= contained_end));
+}
+
+// Safe multiplication utilities used across BIO to convert blocks to bytes while
+// checking for overflow. These are defined inline here for use by drivers.
+
+// Multiply a 64-bit value by a size_t, returning false on overflow.
+static inline bool bio_mul_u64_size(uint64_t a, size_t b, uint64_t *out) {
+#if __has_builtin(__builtin_mul_overflow)
+    return !__builtin_mul_overflow(a, b, out);
+#else
+    #error "No implementation for bio_mul_u64_size on this compiler"
+#endif
+}
+
+// Convert a block count to a byte count (blocks * block_size) safely.
+static inline bool bio_blocks_to_bytes(bnum_t blocks, size_t block_size, uint64_t *bytes_out) {
+    return bio_mul_u64_size((uint64_t)blocks, block_size, bytes_out);
+}
+
+// Safe addition utility to add offset and size_t, returning false on overflow.
+static inline bool bio_add_off_size(off_t a, size_t b, off_t *out) {
+#if __has_builtin(__builtin_add_overflow)
+    return !__builtin_add_overflow(a, b, out);
+#else
+    #error "No implementation for bio_add_off_size on this compiler"
+#endif
+}
+
+static inline bool bio_add_bnum_size(bnum_t a, size_t b, bnum_t *out) {
+#if __has_builtin(__builtin_add_overflow)
+    return !__builtin_add_overflow(a, b, out);
+#else
+    #error "No implementation for bio_add_bnum_size on this compiler"
+#endif
 }
 
 // Generic BIO ioctls that drivers may support. See individual driver docs for
