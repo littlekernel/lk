@@ -10,8 +10,6 @@ MODULE_SRCS := \
     $(LOCAL_DIR)/port_tests.c \
     $(LOCAL_DIR)/tests.c \
     $(LOCAL_DIR)/thread_tests.c \
-    $(LOCAL_DIR)/v9fs_tests.c \
-    $(LOCAL_DIR)/v9p_tests.c \
 
 MODULE_FLOAT_SRCS := \
     $(LOCAL_DIR)/benchmarks.c \

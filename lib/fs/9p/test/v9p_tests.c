@@ -5,21 +5,20 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include "tests.h"
-
-#include <lk/err.h>
+#include <dev/virtio.h>
+#include <dev/virtio/9p.h>
+#include <lk/console_cmd.h>
 #include <lk/debug.h>
+#include <lk/err.h>
+
+// TODO: find a way to convert to a unit test
 
 #define FID_ROOT 1
-#define FID_RO 2
+#define FID_RO   2
 
 #define _LOGF(fmt, args...) \
     printf("[%s:%d] " fmt, __PRETTY_FUNCTION__, __LINE__, ##args)
 #define LOGF(x...) _LOGF(x)
-
-#if WITH_DEV_VIRTIO_9P
-#include <dev/virtio/9p.h>
-#include <dev/virtio.h>
 
 int v9p_tests(int argc, const console_cmd_args *argv) {
     struct virtio_device *dev = virtio_get_9p_device(0);
@@ -38,9 +37,7 @@ int v9p_tests(int argc, const console_cmd_args *argv) {
             .afid = P9_FID_NOFID,
             .uname = "root",
             .aname = V9P_MOUNT_ANAME,
-            .n_uname = P9_UNAME_NONUNAME
-        }
-    };
+            .n_uname = P9_UNAME_NONUNAME}};
     virtio_9p_msg_t ratt = {};
 
     status = virtio_9p_rpc(dev, &tatt, &ratt);
@@ -53,10 +50,7 @@ int v9p_tests(int argc, const console_cmd_args *argv) {
         .msg_type = P9_TWALK,
         .tag = P9_TAG_DEFAULT,
         .msg.twalk = {
-            .fid = FID_ROOT, .newfid = FID_RO, .nwname = 1,
-            .wname = {"LICENSE"}
-        }
-    };
+            .fid = FID_ROOT, .newfid = FID_RO, .nwname = 1, .wname = {"LICENSE"}}};
     virtio_9p_msg_t rwalk = {};
 
     status = virtio_9p_rpc(dev, &twalk, &rwalk);
@@ -66,12 +60,12 @@ int v9p_tests(int argc, const console_cmd_args *argv) {
     }
 
     virtio_9p_msg_t tlopen = {
-        .msg_type= P9_TLOPEN,
+        .msg_type = P9_TLOPEN,
         .tag = P9_TAG_DEFAULT,
         .msg.tlopen = {
-            .fid = FID_RO, .flags = O_RDWR,
-        }
-    };
+            .fid = FID_RO,
+            .flags = O_RDWR,
+        }};
     virtio_9p_msg_t rlopen = {};
 
     status = virtio_9p_rpc(dev, &tlopen, &rlopen);
@@ -81,12 +75,10 @@ int v9p_tests(int argc, const console_cmd_args *argv) {
     }
 
     virtio_9p_msg_t tread = {
-        .msg_type= P9_TREAD,
+        .msg_type = P9_TREAD,
         .tag = P9_TAG_DEFAULT,
         .msg.tread = {
-            .fid = FID_RO, .offset = 0, .count = 1024
-        }
-    };
+            .fid = FID_RO, .offset = 0, .count = 1024}};
     virtio_9p_msg_t rread = {};
 
     status = virtio_9p_rpc(dev, &tread, &rread);
@@ -99,9 +91,7 @@ int v9p_tests(int argc, const console_cmd_args *argv) {
 
     return NO_ERROR;
 }
-#else
-int v9p_tests(int argc, const console_cmd_args *argv) {
-    LOGF("platform didn't have dev/virtio/9p supported\n");
-    return ERR_NOT_SUPPORTED;
-}
-#endif // WITH_DEV_VIRTIO_9P
+
+STATIC_COMMAND_START
+STATIC_COMMAND("v9p_tests", "test dev/virtio/9p", &v9p_tests)
+STATIC_COMMAND_END(v9p_tests);
