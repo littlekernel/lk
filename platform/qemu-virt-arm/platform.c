@@ -15,7 +15,6 @@
 #include <dev/interrupt/arm_gic.h>
 #include <dev/power/psci.h>
 #include <dev/timer/arm_generic.h>
-#include <dev/uart/pl011.h>
 #include <dev/virtio.h>
 #include <dev/virtio/net.h>
 #include <lib/fdtwalk.h>
@@ -28,6 +27,12 @@
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
+#endif
+#if WITH_DEV_UART_PL011
+#include <dev/uart/pl011.h>
+#endif
+#if WITH_RUST_DEV_PL011
+#include <rust/dev-pl011.h>
 #endif
 
 #define LOCAL_TRACE 0

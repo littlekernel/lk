@@ -7,6 +7,8 @@ ARCH := arm64
 endif
 ifeq ($(ARCH),arm64)
 ARM_CPU ?= cortex-a53
+RUST_TARGET := arm64-llvm
+RUST_TARGET_PATH := $(abspath $(BUILDROOT))/arch/arm64/arm64-llvm.json
 endif
 ifeq ($(ARCH),arm)
 ARM_CPU ?= cortex-a15
@@ -28,7 +30,6 @@ MODULE_DEPS += \
     dev/interrupt/arm_gic \
     dev/power/psci \
     dev/timer/arm_generic \
-    dev/uart/pl011 \
     dev/virtio/9p \
     dev/virtio/block \
     dev/virtio/gpu \
@@ -36,6 +37,13 @@ MODULE_DEPS += \
     lib/cbuf \
     lib/fdtwalk \
     lib/fs/9p \
+
+ifeq ($(call TOBOOL,$(USE_RUST)),true)
+MODULE_DEPS += lib/rust_support
+MODULE_DEPS += rust/dev-pl011
+else
+MODULE_DEPS += dev/uart/pl011
+endif
 
 GLOBAL_DEFINES += \
     MEMBASE=$(MEMBASE) \

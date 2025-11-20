@@ -109,6 +109,12 @@ void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
 static int bootstrap2(void *arg) {
     dprintf(SPEW, "top of bootstrap2()\n");
 
+    // If we have rust code, make sure it is linked in by forcing this function to be referenced.
+#if HAVE_RUST
+    extern void must_link_rust(void);
+    must_link_rust();
+#endif
+
     lk_primary_cpu_init_level(LK_INIT_LEVEL_THREADING, LK_INIT_LEVEL_ARCH - 1);
     arch_init();
 

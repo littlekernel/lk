@@ -1,0 +1,30 @@
+# Rust meta crate
+
+# This crate brings in the other dependencies needed so that cargo builds all of the Rust code that
+# we need.
+
+[package]
+name = "rust_support"
+version = "0.1.0"
+edition = "2024"
+description = "Rust support meta crate for lk"
+license = "MIT"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies.lk]
+version = "0.1.0"
+path = "@BUILDROOT@/rust/lk" # Relative to build directory.
+
+[profile.release]
+debug-assertions = true
+overflow-checks = true
+debug = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 2
+codegen-units = 1
+
+@DEPCRATES@

@@ -84,6 +84,9 @@ ifneq ($(MODULE_OPTIONS_COPY),)
 $(error MODULE $(MODULE) has unrecognized option(s) $(MODULE_OPTIONS_COPY))
 endif
 
+# if MODULE_SRCS and MODULE_FLOAT_SRCS are both empty, skip the rest of this
+# file as there is nothing to build for this module.
+ifneq ($(MODULE_SRCS)$(MODULE_FLOAT_SRCS)$(MODULE_ARM_OVERRIDE_SRCS),)
 
 #$(info module $(MODULE))
 #$(info MODULE_COMPILEFLAGS = $(MODULE_COMPILEFLAGS))
@@ -92,6 +95,7 @@ endif
 #$(info MODULE_DEPS $(MODULE_DEPS))
 #$(info MODULE_SRCS $(MODULE_SRCS))
 #$(info MODULE_FLOAT_SRCS $(MODULE_FLOAT_SRCS))
+#$(info MODULE_ARM_OVERRIDE_SRCS $(MODULE_ARM_OVERRIDE_SRCS))
 #$(info MODULE_OPTIONS $(MODULE_OPTIONS))
 
 MODULE_DEFINES += MODULE_NAME=\"$(subst $(SPACE),_,$(MODULE))\"
@@ -106,6 +110,7 @@ MODULE_DEFINES += MODULE_SRCDEPS=\"$(subst $(SPACE),_,$(MODULE_SRCDEPS))\"
 MODULE_DEFINES += MODULE_DEPS=\"$(subst $(SPACE),_,$(MODULE_DEPS))\"
 MODULE_DEFINES += MODULE_SRCS=\"$(subst $(SPACE),_,$(MODULE_SRCS))\"
 MODULE_DEFINES += MODULE_FLOAT_SRCS=\"$(subst $(SPACE),_,$(MODULE_FLOAT_SRCS))\"
+MODULE_DEFINES += MODULE_ARM_OVERRIDE_SRCS=\"$(subst $(SPACE),_,$(MODULE_ARM_OVERRIDE_SRCS))\"
 
 # generate a per-module config.h file
 MODULE_CONFIG := $(MODULE_BUILDDIR)/module_config.h
@@ -146,6 +151,10 @@ GENERATED += $(MODULE_OBJECT)
 
 # make the rest of the build depend on our output
 ALLMODULE_OBJS := $(ALLMODULE_OBJS) $(MODULE_OBJECT)
+
+else # ifneq ($(MODULE_ALL_SRCS),)
+#$(info MODULE $(MODULE) has no source files, skipping)
+endif
 
 # empty out any vars set here
 MODULE :=
