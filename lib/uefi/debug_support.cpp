@@ -18,6 +18,7 @@
 #include "debug_support.h"
 
 #include <lib/cksum.h>
+#include <malloc.h>
 #include <stdio.h>
 #include <string.h>
 #include <uefi/boot_service.h>
@@ -25,6 +26,7 @@
 #include <uefi/protocols/loaded_image_protocol.h>
 #include <uefi/types.h>
 
+#include "charset.h"
 #include "uefi_platform.h"
 
 struct EFI_DEVICE_PATH_FILE_PATH_PROTOCOL {
@@ -197,7 +199,7 @@ void efi_core_remove_debug_image_info_entry(EfiHandle image_handle)
 EfiStatus setup_debug_support(EfiSystemTable &table,
 			      char *image_base,
 			      size_t virtual_size,
-			      bdev_t *dev) {
+			      const char *dev_name) {
   EfiLoadedImageProtocol *efiLoadedImageProtocol = nullptr;
 
   allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA,
@@ -210,7 +212,7 @@ EfiStatus setup_debug_support(EfiSystemTable &table,
   efiLoadedImageProtocol->image_base = reinterpret_cast<void *>(image_base);
   efiLoadedImageProtocol->image_size = virtual_size;
   char *device_buf = nullptr;
-  size_t fpsize = sizeof(EfiDevicePathProtocol) + 2 * (strlen(dev->name) + 2);
+  size_t fpsize = sizeof(EfiDevicePathProtocol) + 2 * (strlen(dev_name) + 1);
   allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA,
 		fpsize + sizeof(EfiDevicePathProtocol),
 		reinterpret_cast<void **>(&device_buf));
@@ -221,10 +223,7 @@ EfiStatus setup_debug_support(EfiSystemTable &table,
   fp->dp.sub_type = EFI_DEVICE_PATH_SUB_TYPE_FILE_PATH;
   fp->dp.length[0] = fpsize % 256;
   fp->dp.length[1] = fpsize / 256;
-  fp->str[0] = '\\';
-  for (size_t i = 0; i < strlen(dev->name); i++) {
-    fp->str[i+1] = dev->name[i];
-  }
+  utf8_to_utf16(reinterpret_cast<char16_t *>(&fp->str), dev_name, strlen(dev_name) + 1);
   dp_end->type = EFI_DEVICE_PATH_TYPE_END;
   dp_end->sub_type = EFI_DEVICE_PATH_SUB_TYPE_END;
   dp_end->length[0] = sizeof(EfiDevicePathProtocol) % 256;
@@ -252,4 +251,21 @@ void teardown_debug_support(char *image_base) {
       return;
     }
   }
+}
+
+EfiStatus setup_debug_support(EfiSystemTable &table,
+			      char *image_base,
+			      size_t virtual_size,
+			      bdev_t *dev) {
+  /* Add '\\' in front of the dev->name */
+  char *dev_name = static_cast<char *>(malloc(strlen(dev->name)+2));
+  dev_name[0] = '\\';
+  memcpy(&(dev_name[1]), dev->name, strlen(dev->name)+1);
+
+  EfiStatus ret = setup_debug_support(table,
+				      image_base,
+				      virtual_size,
+				      dev_name);
+  free(dev_name);
+  return ret;
 }
