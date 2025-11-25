@@ -65,7 +65,7 @@ void efi_core_remove_debug_image_info_entry(EfiHandle image_handle);
 EfiStatus setup_debug_support(EfiSystemTable &table,
 			      char *image_base,
 			      size_t virtual_size,
-			      bdev_t *dev);
+			      const char *dev_name);
 
 void teardown_debug_support(char *image_base);
 
