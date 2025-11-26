@@ -18,6 +18,7 @@
 #include "uefi/uefi.h"
 
 #include <lib/bio.h>
+#include <lib/fs.h>
 #include <lib/heap.h>
 #include <lk/console_cmd.h>
 #include <lk/debug.h>
@@ -68,7 +69,65 @@ void fill(T *data, size_t skip, uint8_t begin = 0) {
 
 static char16_t firmwareVendor[] = u"Little Kernel";
 
-int load_sections_and_execute(bdev_t *dev,
+class image_reader {
+public:
+  virtual void read(char *buf, off_t offset, size_t len) = 0;
+  virtual void get_name(char *buf, size_t buf_size) = 0;
+};
+
+class image_reader_bdev final : public image_reader {
+private:
+  bdev_t *dev;
+
+public:
+  image_reader_bdev(bdev_t *dev1) {
+    dev = dev1;
+  }
+
+  void read(char *buf, off_t offset, size_t len) {
+    bio_read(dev, buf, offset, len);
+  }
+
+  void get_name(char *buf, size_t buf_size) {
+    if (buf_size <= 0) {
+      return;
+    }
+    buf[0] = '\\';
+    strncpy(&(buf[1]), dev->name, buf_size - 1);
+  }
+};
+
+class image_reader_filehandle final : public image_reader {
+private:
+  filehandle *file_handle;
+  const char *path;
+
+public:
+  image_reader_filehandle(filehandle *file_handle1, const char *path1) {
+    file_handle = file_handle1;
+    path = path1;
+  }
+
+  void read(char *buf, off_t offset, size_t len) {
+    fs_read_file(file_handle, buf, offset, len);
+  }
+
+  void get_name(char *buf, size_t buf_size) {
+    if (buf_size <= 0) {
+      return;
+    }
+    strncpy(buf, path, buf_size);
+    for (size_t i = 0; i < buf_size; i++) {
+      if (buf[i] == '/') {
+        buf[i] = '\\';
+      } else if (!buf[i]) {
+        break;
+      }
+    }
+  }
+};
+
+int load_sections_and_execute(class image_reader &reader,
                               const IMAGE_NT_HEADERS64 *pe_header) {
   const auto file_header = &pe_header->FileHeader;
   const auto optional_header = &pe_header->OptionalHeader;
@@ -100,12 +159,13 @@ int load_sections_and_execute(bdev_t *dev,
   }
   memset(image_base, 0, virtual_size);
   DEFER { free_pages(image_base, virtual_size / PAGE_SIZE); };
-  bio_read(dev, image_base, 0, section_header[0].PointerToRawData);
+  reader.read(image_base, 0, section_header[0].PointerToRawData);
 
   for (size_t i = 0; i < sections; i++) {
     const auto &section = section_header[i];
-    bio_read(dev, image_base + section.VirtualAddress, section.PointerToRawData,
-             section.SizeOfRawData);
+    reader.read(image_base + section.VirtualAddress,
+                section.PointerToRawData,
+                section.SizeOfRawData);
   }
   printf("Relocating image from 0x%llx to %p\n", optional_header->ImageBase,
          image_base);
@@ -145,7 +205,9 @@ int load_sections_and_execute(bdev_t *dev,
     printf("efi_initialize_system_table_pointer failed: %lu\n", status);
     return -static_cast<int>(status);
   }
-  setup_debug_support(table, image_base, virtual_size, dev);
+  char path[512];
+  reader.get_name(path, sizeof(path));
+  setup_debug_support(table, image_base, virtual_size, path);
 
   constexpr size_t kStackSize = 1 * 1024ul * 1024;
   auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
@@ -202,23 +264,49 @@ STATIC_COMMAND_END(uefi);
 }  // namespace
 
 int load_pe_file(const char *blkdev) {
-  bdev_t *dev = bio_open(blkdev);
-  if (!dev) {
-    printf("error opening block device %s\n", blkdev);
-    return -1;
+  bdev_t *dev = nullptr;
+  filehandle *file_handle = nullptr;
+  if (blkdev[0] == '/') {
+    status_t status = fs_open_file(blkdev, &file_handle);
+    if (status < 0) {
+      printf("error opening file %s\n", blkdev);
+      return -1;
+    }
+  } else {
+    dev = bio_open(blkdev);
+    if (!dev) {
+      printf("error opening block device %s\n", blkdev);
+      return -1;
+    }
   }
   DEFER {
-    bio_close(dev);
+    if (dev) {
+      bio_close(dev);
+    }
     dev = nullptr;
+    if (file_handle) {
+      fs_close_file(file_handle);
+    }
+    file_handle = nullptr;
   };
   constexpr size_t kBlocKSize = 4096;
 
   lk_time_t t = current_time();
   uint8_t *address = static_cast<uint8_t *>(malloc(kBlocKSize));
-  ssize_t err = bio_read(dev, static_cast<void *>(address), 0, kBlocKSize);
-  t = current_time() - t;
-  dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
-          (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
+  if (dev) {
+    ssize_t err = bio_read(dev, static_cast<void *>(address), 0, kBlocKSize);
+    t = current_time() - t;
+    dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
+	    (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
+  } else if (file_handle) {
+    ssize_t err = fs_read_file(file_handle, static_cast<void *>(address), 0, kBlocKSize);
+    t = current_time() - t;
+    dprintf(INFO, "fs_read_file returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
+	    (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
+  } else {
+    printf("Neither block dev nor file is opened.\n");
+    return -2;
+  }
 
   const auto dos_header = reinterpret_cast<const IMAGE_DOS_HEADER *>(address);
   if (!dos_header->CheckMagic()) {
@@ -253,7 +341,14 @@ int load_pe_file(const char *blkdev) {
            ToString(optional_header->Subsystem));
   }
   printf("Valid UEFI application found.\n");
-  auto ret = load_sections_and_execute(dev, pe_header);
+  int ret = 0;
+  if (dev) {
+    class image_reader_bdev reader(dev);
+    ret = load_sections_and_execute(reader, pe_header);
+  } else if (file_handle) {
+    class image_reader_filehandle reader(file_handle, blkdev);
+    ret = load_sections_and_execute(reader, pe_header);
+  }
   printf("UEFI Application return code: %d\n", ret);
   return ret;
 }
