@@ -37,12 +37,10 @@ LIBC_STRING_C_DIR := $(LOCAL_DIR)
 #
 # the makefile may filter out implemented versions from the C_STRING_OPS variable
 # x86 or x86-64 or anothers .....? T_T
-ifeq ($(SUBARCH), x86-64)
+ifeq ($(SUBARCH),)
 	-include $(LOCAL_DIR)/arch/$(SUBARCH)/rules.mk
-$(info string SUBARCH = $(SUBARCH))
 else
 	-include $(LOCAL_DIR)/arch/$(ARCH)/rules.mk
-$(info strings ARCH = $(ARCH))
 endif
 
 MODULE_SRCS += \
