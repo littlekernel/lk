@@ -1,0 +1,23 @@
+# Rust support for LK, main package
+
+[package]
+name = "lk-sys"
+version = "0.1.0"
+# Note that Bindgen doesn't yet support edition 2024.
+edition = "2021"
+description = """
+Core Rust support for LK
+"""
+license = "MIT"
+
+[build-dependencies]
+bindgen = { version = "0.70.1", features = ["experimental"] }
+anyhow = "1.0"
+
+[profile.release]
+debug-assertions = true
+overflow-checks = true
+debug = true
+
+[profile.dev]
+opt-level = "z"

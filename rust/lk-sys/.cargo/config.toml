@@ -1,0 +1,4 @@
+# TODO: This is just hard-coded.
+
+[build]
+target = "aarch64-unknown-none"

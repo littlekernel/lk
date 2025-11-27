@@ -141,6 +141,7 @@ TARGET :=
 PLATFORM :=
 ARCH :=
 ALLMODULES :=
+RUST_CRATES :=
 
 # add any external module dependencies
 MODULES := $(EXTERNAL_MODULES)

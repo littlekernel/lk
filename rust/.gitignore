@@ -1,0 +1,6 @@
+# The regular build won't generate any target directories, but they are easy to have show up with
+# misconfigured editing tools.
+target/
+
+# Ignore lock files, as these are all libraries.
+Cargo.lock

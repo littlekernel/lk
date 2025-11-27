@@ -1,0 +1,28 @@
+{
+  "abi": "softfloat",
+  "arch": "aarch64",
+  "crt-objects-fallback": "false",
+  "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32",
+  "disable-redzone": true,
+  "features": "+v8a,+strict-align,-neon,-fp-armv8,+reserve-x18",
+  "linker": "rust-lld",
+  "linker-flavor": "gnu-lld",
+  "llvm-target": "aarch64-unknown-none",
+  "max-atomic-width": 128,
+  "metadata": {
+    "description": "Bare ARM64, softfloat",
+    "host_tools": false,
+    "std": false,
+    "tier": 2
+  },
+  "panic-strategy": "abort",
+  "relocation-model": "static",
+  "stack-probes": {
+    "kind": "inline"
+  },
+  "supported-sanitizers": [
+    "kcfi",
+    "kernel-address"
+  ],
+  "target-pointer-width": 64
+}

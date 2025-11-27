@@ -1,0 +1,20 @@
+# Rust support for LK, main package
+
+[package]
+name = "dev-pl011"
+version = "0.1.0"
+edition = "2024"
+description = """
+Rust PL011 uart driver for LK.
+"""
+license = "MIT"
+
+[dependencies.lk]
+version = "0.1.0"
+path = "../lk"
+
+[dependencies.log]
+version = "0.4.27"
+
+[dependencies.safe-mmio]
+version = "0.2.5"
