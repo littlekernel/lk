@@ -8,8 +8,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/mem.c \
 	$(LOCAL_DIR)/subdev.c
 
-ifeq ($(call TOBOOL,$(WITH_TESTS)),true)
-MODULE_DEPS += $(LOCAL_DIR)/test
-endif
+MOUDLE_OPTIONS := test
 
 include make/module.mk

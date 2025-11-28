@@ -22,6 +22,7 @@
 # currently defined options:
 #   extra_warnings - add additional warnings to the front of the module deps
 #   float - module uses floating point instructions/code
+#   test - module as a test/ submodule that will be added if WITH_TESTS is true
 
 # the minimum module rules.mk file is as follows:
 #
@@ -78,6 +79,10 @@ MODULE_CFLAGS := $(EXTRA_MODULE_CFLAGS) $(MODULE_CFLAGS)
 MODULE_CPPFLAGS := $(EXTRA_MODULE_CPPFLAGS) $(MODULE_CPPFLAGS)
 MODULE_ASMFLAGS := $(EXTRA_MODULE_ASMFLAGS) $(MODULE_ASMFLAGS)
 MODULE_OPTIONS_COPY := $(filter-out extra_warnings,$(MODULE_OPTIONS_COPY))
+endif
+ifneq (,$(findstring test,$(MODULE_OPTIONS)))
+MODULES += $(MODULE)/test
+MODULE_OPTIONS_COPY := $(filter-out test,$(MODULE_OPTIONS_COPY))
 endif
 
 ifneq ($(MODULE_OPTIONS_COPY),)

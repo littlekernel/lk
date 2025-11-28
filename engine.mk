@@ -170,6 +170,9 @@ NOECHO ?= @
 # Any modules you want to explictly prevent from being used
 DENY_MODULES :=
 
+# Build modules with unit tests enabled
+WITH_TESTS ?= false
+
 # try to include the project file
 -include project/$(PROJECT).mk
 ifndef TARGET

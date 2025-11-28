@@ -12,8 +12,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/file.c \
 	$(LOCAL_DIR)/v9fs.c
 
-ifeq ($(call TOBOOL,$(WITH_TESTS)),true)
-MODULE_DEPS += $(LOCAL_DIR)/test
-endif
+MODULE_OPTIONS := test
 
 include make/module.mk
