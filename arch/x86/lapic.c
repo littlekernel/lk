@@ -7,26 +7,26 @@
  */
 #include "arch/x86/apic.h"
 
-#include <sys/types.h>
-#include <lk/debug.h>
-#include <lk/err.h>
-#include <lk/reg.h>
-#include <lk/trace.h>
-#include <lk/init.h>
-#include <lib/fixed_point.h>
-#include <assert.h>
-#include <kernel/thread.h>
-#include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
 #include <arch/x86/feature.h>
 #include <arch/x86/mp.h>
+#include <assert.h>
+#include <kernel/mp.h>
 #include <kernel/spinlock.h>
+#include <kernel/thread.h>
+#include <kernel/vm.h>
+#include <lib/fixed_point.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/init.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
+#include <platform/interrupts.h>
+#include <platform/pc/timer.h>
 #include <platform/time.h>
 #include <platform/timer.h>
-#include <platform/pc/timer.h>
-#include <kernel/vm.h>
-#include <kernel/mp.h>
+#include <sys/types.h>
 
 #define LOCAL_TRACE 0
 
@@ -192,19 +192,19 @@ static enum handler_return lapic_timer_handler(void *arg) {
     return ret;
 }
 
-static enum handler_return lapic_spurious_handler(void *arg)  {
+static enum handler_return lapic_spurious_handler(void *arg) {
     LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
 
     return INT_NO_RESCHEDULE;
 }
 
-static enum handler_return lapic_generic_handler(void *arg)  {
+static enum handler_return lapic_generic_handler(void *arg) {
     LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
 
     return INT_NO_RESCHEDULE;
 }
 
-static enum handler_return lapic_reschedule_handler(void *arg)  {
+static enum handler_return lapic_reschedule_handler(void *arg) {
     LTRACEF("cpu %u, arg %p\n", arch_curr_cpu_num(), arg);
 
     return mp_mbx_reschedule_irq();
@@ -241,7 +241,7 @@ void lapic_init_postvm(void) {
     if (!lapic_x2apic) {
         LTRACEF("mapping lapic into kernel\n");
         status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE, (void **)&lapic_mmio, 0,
-                                apic_base & ~0xfff, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+                                          apic_base & ~0xfff, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
         ASSERT(err == NO_ERROR);
         ASSERT(lapic_mmio != NULL);
     }
@@ -255,7 +255,7 @@ void lapic_init_postvm(void) {
     // Read the local apic id and version and features
     uint32_t id = lapic_read(LAPIC_ID);
     uint32_t version = lapic_read(LAPIC_VERSION);
-    bool eas = version & (1u<<31);
+    bool eas = version & (1u << 31);
     uint32_t max_lvt = (version >> 16) & 0xff;
     version &= 0xff;
     dprintf(INFO, "X86: local apic id %#x version %#x\n", id, version);
@@ -275,7 +275,7 @@ static void lapic_init_percpu(uint level) {
     lapic_enable_on_local_cpu();
 
     // set the spurious vector register
-    uint32_t svr = (LAPIC_INT_SPURIOUS | (1u<<8)); // enable
+    uint32_t svr = (LAPIC_INT_SPURIOUS | (1u << 8)); // enable
     lapic_write(LAPIC_SVR, svr);
 
     LTRACEF("lapic svr %#x\n", lapic_read(LAPIC_SVR));
@@ -291,9 +291,9 @@ void lapic_enable_on_local_cpu(void) {
 
     // Make sure the apic is enabled and x2apic mode is set (if supported)
     uint64_t apic_base = read_msr(X86_MSR_IA32_APIC_BASE);
-    apic_base |= (1u<<11);
+    apic_base |= (1u << 11);
     if (lapic_x2apic) {
-        apic_base |= (1u<<10);
+        apic_base |= (1u << 10);
     }
     write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
 }
@@ -343,7 +343,7 @@ status_t lapic_timer_init(bool invariant_tsc_supported) {
     }
 
     // check for deadline mode
-    bool tsc_deadline  = x86_feature_test(X86_FEATURE_TSC_DEADLINE);
+    bool tsc_deadline = x86_feature_test(X86_FEATURE_TSC_DEADLINE);
     if (invariant_tsc_supported && tsc_deadline) {
         dprintf(INFO, "X86: local apic timer supports TSC deadline mode\n");
         use_tsc_deadline = true;
@@ -359,8 +359,9 @@ status_t lapic_timer_init(bool invariant_tsc_supported) {
         printf("X86: local apic timer frequency %uHz\n", lapic_hz);
 
         fp_32_64_div_32_32(&timebase_to_lapic, lapic_hz, 1000);
-        dprintf(INFO, "X86: timebase to local apic timer ratio %u.%08u...\n",
-                timebase_to_lapic.l0, timebase_to_lapic.l32);
+        char ratio_buf[32];
+        dprintf(SPEW, "X86: timebase to local apic timer ratio %s\n",
+                fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &timebase_to_lapic, 9));
     }
 
     lapic_timer_init_percpu(0);
