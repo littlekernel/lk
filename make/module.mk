@@ -54,8 +54,10 @@ endif
 MODULE_SRCDIR := $(MODULE)
 MODULE_BUILDDIR := $(call TOBUILDDIR,$(MODULE_SRCDIR))
 
-# add a local include dir to the global include path
+# add a local include dir to the global include path if it is present
+ifneq ($(wildcard $(MODULE_SRCDIR)/include),)
 GLOBAL_INCLUDES += $(MODULE_SRCDIR)/include
+endif
 
 # add the listed module deps to the global list
 MODULES += $(MODULE_DEPS)
