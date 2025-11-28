@@ -1,0 +1,106 @@
+name: LK QEMU Boot Tests
+
+# Run boot tests on QEMU for various architectures
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - 'wip/**'
+      - 'docs/**' # Skip tests for documentation branches
+    paths-ignore:
+      - '**.md'   # Skip tests when only markdown files change
+      - 'docs/**' # Skip tests for docs directory changes
+
+jobs:
+  qemu-boot-test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - arm
+          - arm64
+          - m68k
+          - riscv32
+          - riscv64
+          - x86
+          - x86-64
+        toolchain-ver: [15.2.0]
+
+    env:
+      ARCH: ${{ matrix.arch }}
+      TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
+
+    steps:
+    - name: banner
+      shell: bash
+      run: |
+        printf "Running QEMU boot tests with %d processors\n" "$(nproc)"
+        grep -oP '(?<=model name\t: ).*' /proc/cpuinfo|head -n1
+        echo ARCH = $ARCH
+        echo TOOLCHAIN_VER = $TOOLCHAIN_VER
+
+    # check out the source
+    - name: checkout
+      uses: actions/checkout@v4
+
+    # Install QEMU
+    - name: install qemu
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-system-arm qemu-system-misc qemu-system-x86
+
+    # compute the toolchain prefix this project will need
+    - name: compute toolchain
+      shell: bash
+      run: |
+        case "${{ matrix.arch }}" in
+            arm) TOOLCHAIN_PREFIX="arm-eabi-" ;;
+            arm64) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
+            m68k) TOOLCHAIN_PREFIX="m68k-elf-" ;;
+            riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;
+            riscv64) TOOLCHAIN_PREFIX="riscv64-elf-" ;;
+            x86) TOOLCHAIN_PREFIX="i386-elf-" ;;
+            x86-64) TOOLCHAIN_PREFIX="x86_64-elf-" ;;
+            *) echo "Unknown architecture: ${{ matrix.arch }}" && exit 1 ;;
+        esac
+        echo "TOOLCHAIN_PREFIX=${TOOLCHAIN_PREFIX}" >> $GITHUB_ENV
+        echo "TOOLCHAIN=${TOOLCHAIN_PREFIX}${{ matrix.toolchain-ver }}-$(uname)-$(uname -m)" >> $GITHUB_ENV
+
+    # maintain a directory archives/ in the repo
+    # it will contain tarballs of various toolchains
+    - name: cache
+      uses: actions/cache@v4
+      id: cache
+      with:
+        # A list of files, directories, and wildcard patterns to cache and restore
+        path: archives
+        # An explicit key for restoring and saving the cache
+        key: archives-${{ env.TOOLCHAIN }}-${{ env.TOOLCHAIN_ALT }}
+
+    # download a toolchain from https://newos.org/toolchains
+    # if not already cached
+    - name: fetch/extract toolchain
+      shell: bash
+      run: |
+        TOOLCHAIN_BASE_URL="https://newos.org/toolchains"
+        TOOLCHAIN_SUFFIX="tar.xz"
+        TOOLCHAIN_ADDRESS="$TOOLCHAIN_BASE_URL/$TOOLCHAIN.$TOOLCHAIN_SUFFIX"
+        mkdir -p archives
+        cd archives
+        echo "Downloading toolchain $TOOLCHAIN from $TOOLCHAIN_ADDRESS"
+        wget -v -N $TOOLCHAIN_ADDRESS || exit 1
+        cd ..
+        echo "Unpacking $TOOLCHAIN"
+        tar xf archives/$TOOLCHAIN.$TOOLCHAIN_SUFFIX || exit 1
+        echo "$GITHUB_WORKSPACE/$TOOLCHAIN/bin" >> $GITHUB_PATH
+
+    # run the boot test for this architecture
+    - name: run boot test
+      shell: bash
+      run: |
+        ./scripts/run-qemu-boot-tests.py --arch ${{ matrix.arch }}
+
+# vim: ts=2 sw=2 expandtab
