@@ -10,6 +10,7 @@
 
 #include <platform/s912d.h>
 
+#define GIC_VERSION 2
 #define GICBASE(n) (GIC_BASE)
 #define GICD_OFFSET (0x1000)
 #define GICC_OFFSET (0x2000)

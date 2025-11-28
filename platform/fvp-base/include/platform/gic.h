@@ -9,6 +9,7 @@
 
 #include <platform/fvp-base.h>
 
+#define GIC_VERSION 2
 #define GICBASE(n)  (PERIPHERAL_BASE_VIRT + 0x2c000000UL)
 #define GICD_OFFSET (0x03000000)
 #define GICC_OFFSET (0x0)
