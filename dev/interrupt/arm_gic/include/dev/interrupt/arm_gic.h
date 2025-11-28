@@ -35,6 +35,8 @@ __BEGIN_CDECLS
  * macros as the virtual addresses of the GIC banks, and assumes
  * that the platform code has already mapped them into the
  * address space.
+ * Users must also ensure that GIC_VERSION is defined to the
+ * correct GIC version before calling this function.
  */
 void arm_gic_init(void);
 

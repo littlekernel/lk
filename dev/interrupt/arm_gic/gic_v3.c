@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019 LK Trusty Authors. All Rights Reserved.
+ * Copyright (c) 2025 Travis Geiselbrecht
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,7 +25,10 @@
 #include <arch/ops.h>
 #include <assert.h>
 #include <inttypes.h>
+#include <kernel/debug.h>
+#include <kernel/thread.h>
 #include <lk/bits.h>
+#include <lk/err.h>
 #include <lk/trace.h>
 #include <stdint.h>
 
@@ -39,6 +43,76 @@
 #define WAKER_CA_BIT  (0x1u << 2)
 #define WAKER_PS_BIT  (0x1u << 1)
 #define WAKER_SL_BIT  (0x1u << 0)
+
+/* GICv3/v4 */
+
+#define GICV3_IRQ_GROUP_GRP0S  0
+#define GICV3_IRQ_GROUP_GRP1NS 1
+#define GICV3_IRQ_GROUP_GRP1S  2
+
+#ifndef ARM_GIC_SELECTED_IRQ_GROUP
+#define ARM_GIC_SELECTED_IRQ_GROUP GRP1NS
+#endif
+
+#define COMBINE2(a, b)  a##b
+#define XCOMBINE2(a, b) COMBINE2(a, b)
+#define GICV3_IRQ_GROUP XCOMBINE2(GICV3_IRQ_GROUP_, ARM_GIC_SELECTED_IRQ_GROUP)
+
+/*
+ * In ARMv8 for GICv3/v4, ARM suggest to use system register
+ * to access GICC instead of memory map.
+ */
+#ifdef ARCH_ARM64
+
+#define GICCREG_READ(gic, reg)       ARM64_READ_SYSREG(reg)
+#define GICCREG_WRITE(gic, reg, val) ARM64_WRITE_SYSREG(reg, (uint64_t)val)
+
+#else /* ARCH_ARM64 */
+
+/* For 32bit mode, use different way to access registers */
+#define GICCREG_READ(gic, reg)       COMBINE2(arm_read_, reg)()
+#define GICCREG_WRITE(gic, reg, val) COMBINE2(arm_write_, reg)(val)
+
+GEN_CP15_REG_FUNCS(icc_ctlr_el1, 0, c12, c12, 4);
+GEN_CP15_REG_FUNCS(icc_pmr_el1, 0, c4, c6, 0);
+GEN_CP15_REG_FUNCS(icc_bpr0_el1, 0, c12, c8, 3);
+GEN_CP15_REG_FUNCS(icc_iar0_el1, 0, c12, c8, 0);
+GEN_CP15_REG_FUNCS(icc_eoir0_el1, 0, c12, c8, 1);
+GEN_CP15_REG_FUNCS(icc_rpr_el1, 0, c12, c11, 3);
+GEN_CP15_REG_FUNCS(icc_hppir0_el1, 0, c12, c8, 2);
+GEN_CP15_REG_FUNCS(icc_bpr1_el1, 0, c12, c12, 3);
+GEN_CP15_REG_FUNCS(icc_iar1_el1, 0, c12, c12, 0);
+GEN_CP15_REG_FUNCS(icc_eoir1_el1, 0, c12, c12, 1);
+GEN_CP15_REG_FUNCS(icc_hppir1_el1, 0, c12, c12, 2);
+GEN_CP15_REG_FUNCS(icc_dir_el1, 0, c12, c11, 1);
+GEN_CP15_REG_FUNCS(icc_sre_el1, 0, c12, c12, 5);
+GEN_CP15_REG_FUNCS(icc_igrpen0_el1, 0, c12, c12, 6);
+GEN_CP15_REG_FUNCS(icc_igrpen1_el1, 0, c12, c12, 7);
+GEN_CP15_REG_FUNCS(icc_ap0r0_el1, 0, c12, c8, 4);
+GEN_CP15_REG_FUNCS(icc_ap0r1_el1, 0, c12, c8, 5);
+GEN_CP15_REG_FUNCS(icc_ap0r2_el1, 0, c12, c8, 6);
+GEN_CP15_REG_FUNCS(icc_ap0r3_el1, 0, c12, c8, 7);
+GEN_CP15_REG_FUNCS(icc_ap1r0_el1, 0, c12, c9, 0);
+GEN_CP15_REG_FUNCS(icc_ap1r1_el1, 0, c12, c9, 1);
+GEN_CP15_REG_FUNCS(icc_ap1r2_el1, 0, c12, c9, 2);
+GEN_CP15_REG_FUNCS(icc_ap1r3_el1, 0, c12, c9, 3);
+GEN_CP15_REG64_FUNCS(icc_sgi1r_el1, 0, c12);
+GEN_CP15_REG64_FUNCS(icc_asgi1r_el1, 1, c12);
+GEN_CP15_REG64_FUNCS(icc_sgi0r_el1, 2, c12);
+
+#endif /* ARCH_ARM64 */
+
+#if GICV3_IRQ_GROUP == GICV3_IRQ_GROUP_GRP0S
+#define GICC_PRIMARY_HPPIR icc_hppir0_el1
+#define GICC_PRIMARY_IAR   icc_iar0_el1
+#define GICC_PRIMARY_EOIR  icc_eoir0_el1
+#define GICC_PRIMARY_SGIR  icc_sgi0r_el1
+#else
+#define GICC_PRIMARY_HPPIR icc_hppir1_el1
+#define GICC_PRIMARY_IAR   icc_iar1_el1
+#define GICC_PRIMARY_EOIR  icc_eoir1_el1
+#define GICC_PRIMARY_SGIR  icc_sgi1r_el1
+#endif
 
 static void gicv3_gicr_exit_sleep(uint32_t cpu) {
     uint32_t val = GICRREG_READ(0, cpu, GICR_WAKER);
@@ -230,6 +304,20 @@ void arm_gicv3_init(void) {
         printf("GICv3 security disabled\n");
     }
 
+    // save the revision
+    arm_gics[0].gic_revision = rev;
+
+    // calculate the cpu stride
+    // GICv3 has 2 64k regions pper redistributor:
+    //  RD_base, SGI_base
+    // GICv4 has 4 64k regions per redistributor:
+    //  RD_base, SGI_base, VLPI_base, Reserved
+    if (rev == 3) {
+        arm_gics[0].gicr_cpu_stride = 0x20000;
+    } else {
+        arm_gics[0].gicr_cpu_stride = 0x40000;
+    }
+
 #if !WITH_LIB_SM
     /* non-TZ */
     /* Disable all groups before making changes */
@@ -347,7 +435,7 @@ void arm_gicv3_resume_cpu_locked(unsigned int cpu, bool gicd) {
 #define SGIR_TARGET_LIST_SHIFT    (0)
 #define SGIR_ASSEMBLE(val, shift) ((uint64_t)val << shift)
 
-uint64_t arm_gicv3_sgir_val(u_int irq, size_t cpu_num) {
+static uint64_t arm_gicv3_sgir_val(u_int irq, size_t cpu_num) {
     DEBUG_ASSERT(irq < 16);
     struct {
         uint8_t aff0;
@@ -383,4 +471,120 @@ uint64_t arm_gicv3_sgir_val(u_int irq, size_t cpu_num) {
                   sgir);
 
     return sgir;
+}
+
+status_t arm_gicv3_sgi(u_int irq, u_int flags, u_int cpu_mask) {
+    for (size_t cpu = 0; cpu < SMP_MAX_CPUS; cpu++) {
+        if (!((cpu_mask >> cpu) & 1)) {
+            continue;
+        }
+
+        uint64_t val = arm_gicv3_sgir_val(irq, cpu);
+
+        GICCREG_WRITE(0, GICC_PRIMARY_SGIR, val);
+    }
+    return NO_ERROR;
+}
+
+static enum handler_return __platform_irq(struct iframe *frame) {
+    // get the current vector
+    uint32_t iar = GICCREG_READ(0, GICC_PRIMARY_IAR);
+    unsigned int vector = iar & 0x3ff;
+
+    if (vector >= 0x3fe) {
+#if WITH_LIB_SM && ARM_GIC_USE_DOORBELL_NS_IRQ
+        // spurious or non-secure interrupt
+        return sm_handle_irq();
+#else
+        // spurious
+        return INT_NO_RESCHEDULE;
+#endif
+    }
+
+    THREAD_STATS_INC(interrupts);
+    KEVLOG_IRQ_ENTER(vector);
+
+    uint cpu = arch_curr_cpu_num();
+
+    LTRACEF_LEVEL(2, "iar 0x%x cpu %u currthread %p vector %d pc 0x%" PRIxPTR "\n", iar, cpu,
+                  get_current_thread(), vector, (uintptr_t)IFRAME_PC(frame));
+
+    // deliver the interrupt
+    enum handler_return ret;
+
+    ret = INT_NO_RESCHEDULE;
+    struct int_handler_struct *handler = get_int_handler(vector, cpu);
+    if (handler->handler) {
+        ret = handler->handler(handler->arg);
+    }
+
+    GICCREG_WRITE(0, GICC_PRIMARY_EOIR, iar);
+
+    LTRACEF_LEVEL(2, "cpu %u exit %d\n", cpu, ret);
+
+    KEVLOG_IRQ_EXIT(vector);
+
+    return ret;
+}
+
+enum handler_return arm_gicv3_platform_irq(struct iframe *frame) {
+#if WITH_LIB_SM && !ARM_GIC_USE_DOORBELL_NS_IRQ
+    uint32_t ahppir = GICCREG_READ(0, GICC_PRIMARY_HPPIR);
+    uint32_t pending_irq = ahppir & 0x3ff;
+    struct int_handler_struct *h;
+    uint cpu = arch_curr_cpu_num();
+
+#if ARM_MERGE_FIQ_IRQ
+    {
+        uint32_t hppir = GICCREG_READ(0, GICC_HPPIR);
+        uint32_t pending_fiq = hppir & 0x3ff;
+        if (pending_fiq < MAX_INT) {
+            platform_fiq(frame);
+            return INT_NO_RESCHEDULE;
+        }
+    }
+#endif
+
+    LTRACEF("ahppir %d\n", ahppir);
+    if (pending_irq < MAX_INT && get_int_handler(pending_irq, cpu)->handler) {
+        enum handler_return ret = 0;
+        uint32_t irq;
+        uint8_t old_priority;
+        spin_lock_saved_state_t state;
+
+        spin_lock_save(&gicd_lock, &state, GICD_LOCK_FLAGS);
+
+        /* Temporarily raise the priority of the interrupt we want to
+         * handle so another interrupt does not take its place before
+         * we can acknowledge it.
+         */
+        old_priority = arm_gic_get_priority(pending_irq);
+        arm_gic_set_priority_locked(pending_irq, 0);
+        DSB;
+        irq = GICCREG_READ(0, GICC_PRIMARY_IAR) & 0x3ff;
+        arm_gic_set_priority_locked(pending_irq, old_priority);
+
+        spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
+
+        LTRACEF("irq %d\n", irq);
+        if (irq < MAX_INT && (h = get_int_handler(pending_irq, cpu))->handler) {
+            ret = h->handler(h->arg);
+        } else {
+            TRACEF("unexpected irq %d != %d may get lost\n", irq, pending_irq);
+        }
+        GICCREG_WRITE(0, GICC_PRIMARY_EOIR, irq);
+        return ret;
+    }
+    return sm_handle_irq();
+#else
+    return __platform_irq(frame);
+#endif
+}
+
+void arm_gicv3_platform_fiq(struct iframe *frame) {
+#if WITH_LIB_SM
+    sm_handle_fiq();
+#else
+    PANIC_UNIMPLEMENTED;
+#endif
 }

@@ -24,23 +24,30 @@
 
 #pragma once
 
+#include <lk/reg.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
-struct iframe;
+void arm_gicv2_init(void);
+void arm_gicv2_init_percpu(void);
+status_t arm_gicv2_sgi(u_int irq, u_int flags, u_int cpu_mask);
+enum handler_return arm_gicv2_platform_irq(struct iframe *frame);
+void arm_gicv2_platform_fiq(struct iframe *frame);
 
-void arm_gicv3_init(void);
-void arm_gicv3_init_percpu(void);
-void arm_gicv3_configure_irq_locked(unsigned int cpu, unsigned int vector);
-void arm_gicv3_suspend_cpu(unsigned int cpu);
-void arm_gicv3_resume_cpu_locked(unsigned int cpu, bool gicd);
-void arm_gicv3_wait_for_write_complete(void);
-status_t arm_gicv3_sgi(u_int irq, u_int flags, u_int cpu_mask);
-enum handler_return arm_gicv3_platform_irq(struct iframe *frame);
-void arm_gicv3_platform_fiq(struct iframe *frame);
+// void arm_gicv3_configure_irq_locked(unsigned int cpu, unsigned int vector);
+// void arm_gicv3_suspend_cpu(unsigned int cpu);
+// void arm_gicv3_resume_cpu_locked(unsigned int cpu, bool gicd);
+// uint64_t arm_gicv3_sgir_val(u_int irq, size_t cpu_num);
+// void arm_gicv3_wait_for_write_complete(void);
 
-#if WITH_LIB_SM
-#define ARM_GIC_USE_DOORBELL_NS_IRQ 1
-#define ARM_GIC_DOORBELL_IRQ        13
-#endif
+#define GICCREG_READ(gic, reg) ({                                           \
+    ASSERT((gic) < NUM_ARM_GICS);                                           \
+    mmio_read32((volatile uint32_t *)(arm_gics[(gic)].gicc_vaddr + (reg))); \
+})
+#define GICCREG_WRITE(gic, reg, val) ({                                             \
+    ASSERT((gic) < NUM_ARM_GICS);                                                   \
+    mmio_write32((volatile uint32_t *)(arm_gics[(gic)].gicc_vaddr + (reg)), (val)); \
+})
 
+#define GICC_LIMIT    (0x1000)
+#define GICC_MIN_SIZE (0x1000)
