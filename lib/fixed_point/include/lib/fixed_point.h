@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifndef DEBUG_FIXED_POINT
@@ -153,3 +154,18 @@ u64_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b) {
 
     return ret;
 }
+
+/*
+ * Format a fixed-point number as a decimal string without using floating point.
+ * The fp_32_64 structure represents a number in base-2 fixed-point:
+ *   value = l0 + l32/2^32 + l64/2^64
+ * This function converts it to decimal notation: "l0.ddddd..."
+ *
+ * @param buf: Output buffer for the formatted string
+ * @param buf_size: Size of the output buffer
+ * @param fp: Fixed-point number to format
+ * @param decimals: Number of decimal places to output (maximum 20)
+ * @return: Pointer to the provided buffer containing the formatted string
+ *          (undefined behavior if buf_size == 0)
+ */
+char *fp_32_64_snprintf(char *buf, size_t buf_size, const struct fp_32_64 *fp, int decimals);

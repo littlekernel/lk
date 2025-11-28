@@ -5,24 +5,24 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <sys/types.h>
+#include <arch/x86.h>
+#include <arch/x86/apic.h>
+#include <arch/x86/feature.h>
+#include <arch/x86/pv.h>
+#include <inttypes.h>
+#include <kernel/thread.h>
+#include <kernel/vm.h>
+#include <lib/fixed_point.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/init.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <kernel/thread.h>
-#include <kernel/vm.h>
 #include <platform.h>
-#include <platform/timer.h>
 #include <platform/pc.h>
 #include <platform/pc/timer.h>
-#include <arch/x86.h>
-#include <arch/x86/feature.h>
-#include <arch/x86/apic.h>
-#include <arch/x86/pv.h>
-#include <inttypes.h>
-#include <lib/fixed_point.h>
+#include <platform/timer.h>
+#include <sys/types.h>
 
 #include "platform_p.h"
 
@@ -129,16 +129,16 @@ void platform_init_timer(void) {
 
         // Compute the ratio of TSC to timebase
         fp_32_64_div_32_64(&tsc_to_timebase, 1000, tsc_hz);
-        dprintf(INFO, "PC: TSC to timebase ratio %u.%08u...\n",
-                tsc_to_timebase.l0, tsc_to_timebase.l32);
-
-        fp_32_64_div_32_64(&tsc_to_timebase_hires, 1000*1000, tsc_hz);
-        dprintf(INFO, "PC: TSC to hires timebase ratio %u.%08u...\n",
-                tsc_to_timebase_hires.l0, tsc_to_timebase_hires.l32);
-
+        fp_32_64_div_32_64(&tsc_to_timebase_hires, 1000 * 1000, tsc_hz);
         fp_32_64_div_64_32(&timebase_to_tsc, tsc_hz, 1000);
-        dprintf(INFO, "PC: timebase to TSC ratio %u.%08u...\n",
-                timebase_to_tsc.l0, timebase_to_tsc.l32);
+
+        char ratio_buf[32];
+        dprintf(SPEW, "PC: TSC to timebase ratio %s\n",
+                fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &tsc_to_timebase, 9));
+        dprintf(SPEW, "PC: TSC to hires timebase ratio %s\n",
+                fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &tsc_to_timebase_hires, 9));
+        dprintf(SPEW, "PC: timebase to TSC ratio %s\n",
+                fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &timebase_to_tsc, 9));
 
         clock_source = CLOCK_SOURCE_TSC;
     }

@@ -10,10 +10,10 @@
 #include <arch/ops.h>
 #include <assert.h>
 #include <lk/init.h>
+#include <lk/trace.h>
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
-#include <lk/trace.h>
 
 #define LOCAL_TRACE 0
 
@@ -22,7 +22,7 @@
 #if ARCH_ARM64
 
 /* CNTFRQ AArch64 register */
-#define TIMER_REG_CNTFRQ    cntfrq_el0
+#define TIMER_REG_CNTFRQ cntfrq_el0
 
 /* CNTP AArch64 registers */
 #define TIMER_REG_CNTP_CTL  cntp_ctl_el0
@@ -31,10 +31,10 @@
 #define TIMER_REG_CNTPCT    cntpct_el0
 
 /* CNTPS AArch64 registers */
-#define TIMER_REG_CNTPS_CTL cntps_ctl_el1
-#define TIMER_REG_CNTPS_CVAL    cntps_cval_el1
-#define TIMER_REG_CNTPS_TVAL    cntps_tval_el1
-#define TIMER_REG_CNTPSCT   cntpct_el0
+#define TIMER_REG_CNTPS_CTL  cntps_ctl_el1
+#define TIMER_REG_CNTPS_CVAL cntps_cval_el1
+#define TIMER_REG_CNTPS_TVAL cntps_tval_el1
+#define TIMER_REG_CNTPSCT    cntpct_el0
 
 /* CNTV AArch64 registers */
 #define TIMER_REG_CNTV_CTL  cntv_ctl_el0
@@ -42,8 +42,8 @@
 #define TIMER_REG_CNTV_TVAL cntv_tval_el0
 #define TIMER_REG_CNTVCT    cntvct_el0
 
-#define READ_TIMER_REG32(reg) ARM64_READ_SYSREG(reg)
-#define READ_TIMER_REG64(reg) ARM64_READ_SYSREG(reg)
+#define READ_TIMER_REG32(reg)       ARM64_READ_SYSREG(reg)
+#define READ_TIMER_REG64(reg)       ARM64_READ_SYSREG(reg)
 #define WRITE_TIMER_REG32(reg, val) ARM64_WRITE_SYSREG(reg, val)
 #define WRITE_TIMER_REG64(reg, val) ARM64_WRITE_SYSREG(reg, val)
 
@@ -59,7 +59,7 @@
 #define TIMER_REG_CNTPCT    "0"
 
 /* CNTPS AArch32 registers are banked and accessed though CNTP */
-#define CNTPS CNTP
+#define CNTPS               CNTP
 
 /* CNTV AArch32 registers */
 #define TIMER_REG_CNTV_CTL  "c3, 1"
@@ -67,31 +67,31 @@
 #define TIMER_REG_CNTV_TVAL "c3, 0"
 #define TIMER_REG_CNTVCT    "1"
 
-#define READ_TIMER_REG32(reg) \
-({ \
-    uint32_t _val; \
-    __asm__ volatile("mrc p15, 0, %0, c14, " reg : "=r" (_val)); \
-    _val; \
-})
+#define READ_TIMER_REG32(reg)                                       \
+    ({                                                              \
+        uint32_t _val;                                              \
+        __asm__ volatile("mrc p15, 0, %0, c14, " reg : "=r"(_val)); \
+        _val;                                                       \
+    })
 
-#define READ_TIMER_REG64(reg) \
-({ \
-    uint64_t _val; \
-    __asm__ volatile("mrrc p15, " reg ", %0, %H0, c14" : "=r" (_val)); \
-    _val; \
-})
+#define READ_TIMER_REG64(reg)                                             \
+    ({                                                                    \
+        uint64_t _val;                                                    \
+        __asm__ volatile("mrrc p15, " reg ", %0, %H0, c14" : "=r"(_val)); \
+        _val;                                                             \
+    })
 
-#define WRITE_TIMER_REG32(reg, val) \
-({ \
-    __asm__ volatile("mcr p15, 0, %0, c14, " reg :: "r" (val)); \
-    ISB; \
-})
+#define WRITE_TIMER_REG32(reg, val)                               \
+    ({                                                            \
+        __asm__ volatile("mcr p15, 0, %0, c14, " reg ::"r"(val)); \
+        ISB;                                                      \
+    })
 
-#define WRITE_TIMER_REG64(reg, val) \
-({ \
-    __asm__ volatile("mcrr p15, " reg ", %0, %H0, c14" :: "r" (val)); \
-    ISB; \
-})
+#define WRITE_TIMER_REG64(reg, val)                                     \
+    ({                                                                  \
+        __asm__ volatile("mcrr p15, " reg ", %0, %H0, c14" ::"r"(val)); \
+        ISB;                                                            \
+    })
 
 #endif
 
@@ -99,15 +99,14 @@
 #define TIMER_ARM_GENERIC_SELECTED CNTP
 #endif
 
-#define COMBINE3(a,b,c) a ## b ## c
-#define XCOMBINE3(a,b,c) COMBINE3(a, b, c)
+#define COMBINE3(a, b, c)  a##b##c
+#define XCOMBINE3(a, b, c) COMBINE3(a, b, c)
 
 #define SELECTED_TIMER_REG(reg) XCOMBINE3(TIMER_REG_, TIMER_ARM_GENERIC_SELECTED, reg)
-#define TIMER_REG_CTL       SELECTED_TIMER_REG(_CTL)
-#define TIMER_REG_CVAL      SELECTED_TIMER_REG(_CVAL)
-#define TIMER_REG_TVAL      SELECTED_TIMER_REG(_TVAL)
-#define TIMER_REG_CT        SELECTED_TIMER_REG(CT)
-
+#define TIMER_REG_CTL           SELECTED_TIMER_REG(_CTL)
+#define TIMER_REG_CVAL          SELECTED_TIMER_REG(_CVAL)
+#define TIMER_REG_TVAL          SELECTED_TIMER_REG(_TVAL)
+#define TIMER_REG_CT            SELECTED_TIMER_REG(CT)
 
 static platform_timer_callback t_callback;
 static int timer_irq;
@@ -181,10 +180,11 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg,
     ASSERT(arg == NULL);
 
     t_callback = callback;
-    if (cntpct_interval <= INT_MAX)
+    if (cntpct_interval <= INT_MAX) {
         write_cntp_tval(cntpct_interval);
-    else
+    } else {
         write_cntp_cval(read_cntpct() + cntpct_interval);
+    }
     write_cntp_ctl(1);
 
     return 0;
@@ -213,10 +213,11 @@ static uint64_t abs_int64(int64_t a) {
 static void test_time_conversion_check_result(uint64_t a, uint64_t b, uint64_t limit, bool is32) {
     if (a != b) {
         uint64_t diff = is32 ? abs_int32(a - b) : abs_int64(a - b);
-        if (diff <= limit)
+        if (diff <= limit) {
             LTRACEF("ROUNDED by %llu (up to %llu allowed)\n", diff, limit);
-        else
+        } else {
             TRACEF("FAIL, off by %llu\n", diff);
+        }
     }
 }
 
@@ -233,10 +234,11 @@ static void test_cntpct_to_lk_time(uint32_t cntfrq, lk_time_t expected_lk_time, 
     uint64_t cntpct;
 
     cntpct = (uint64_t)cntfrq * expected_lk_time / 1000;
-    if ((uint64_t)cntfrq * wrap_count > UINT_MAX)
+    if ((uint64_t)cntfrq * wrap_count > UINT_MAX) {
         cntpct += (((uint64_t)cntfrq << 32) / 1000) * wrap_count;
-    else
+    } else {
         cntpct += (((uint64_t)(cntfrq * wrap_count) << 32) / 1000);
+    }
     lk_time = cntpct_to_lk_time(cntpct);
 
     test_time_conversion_check_result(lk_time, expected_lk_time, (1000 + cntfrq - 1) / cntfrq, true);
@@ -278,9 +280,14 @@ static void arm_generic_timer_init_conversion_factors(uint32_t cntfrq) {
     fp_32_64_div_32_32(&cntpct_per_ms, cntfrq, 1000);
     fp_32_64_div_32_32(&ms_per_cntpct, 1000, cntfrq);
     fp_32_64_div_32_32(&us_per_cntpct, 1000 * 1000, cntfrq);
-    LTRACEF("cntpct_per_ms: %08x.%08x%08x\n", cntpct_per_ms.l0, cntpct_per_ms.l32, cntpct_per_ms.l64);
-    LTRACEF("ms_per_cntpct: %08x.%08x%08x\n", ms_per_cntpct.l0, ms_per_cntpct.l32, ms_per_cntpct.l64);
-    LTRACEF("us_per_cntpct: %08x.%08x%08x\n", us_per_cntpct.l0, us_per_cntpct.l32, us_per_cntpct.l64);
+
+    char ratio_buf[32];
+    dprintf(SPEW, "cntpct_per_ms: %s\n",
+            fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &cntpct_per_ms, 9));
+    dprintf(SPEW, "ms_per_cntpct: %s\n",
+            fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &ms_per_cntpct, 9));
+    dprintf(SPEW, "us_per_cntpct: %s\n",
+            fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &us_per_cntpct, 9));
 }
 
 void arm_generic_timer_init(int irq, uint32_t freq_override) {
