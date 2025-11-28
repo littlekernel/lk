@@ -15,27 +15,27 @@ static bool test_fp32_64_div_construct(void) {
 
     // 0/1 -> 0.0
     fp_32_64_div_32_32(&f, 0u, 1u);
-    EXPECT_EQ(f.l0, 0u, "0/1 l0");
-    EXPECT_EQ(f.l32, 0u, "0/1 l32");
-    EXPECT_EQ(f.l64, 0u, "0/1 l64");
+    EXPECT_EQ(0u, f.l0, "0/1 l0");
+    EXPECT_EQ(0u, f.l32, "0/1 l32");
+    EXPECT_EQ(0u, f.l64, "0/1 l64");
 
     // 1/1 -> 1.0
     fp_32_64_div_32_32(&f, 1u, 1u);
-    EXPECT_EQ(f.l0, 1u, "1/1 l0");
-    EXPECT_EQ(f.l32, 0u, "1/1 l32");
-    EXPECT_EQ(f.l64, 0u, "1/1 l64");
+    EXPECT_EQ(1u, f.l0, "1/1 l0");
+    EXPECT_EQ(0u, f.l32, "1/1 l32");
+    EXPECT_EQ(0u, f.l64, "1/1 l64");
 
     // 1/2 -> 0.5
     fp_32_64_div_32_32(&f, 1u, 2u);
-    EXPECT_EQ(f.l0, 0u, "1/2 l0");
-    EXPECT_EQ(f.l32, 0x80000000u, "1/2 l32");
-    EXPECT_EQ(f.l64, 0u, "1/2 l64");
+    EXPECT_EQ(0u, f.l0, "1/2 l0");
+    EXPECT_EQ(0x80000000u, f.l32, "1/2 l32");
+    EXPECT_EQ(0u, f.l64, "1/2 l64");
 
     // 3/2 -> 1.5
     fp_32_64_div_32_32(&f, 3u, 2u);
-    EXPECT_EQ(f.l0, 1u, "3/2 l0");
-    EXPECT_EQ(f.l32, 0x80000000u, "3/2 l32");
-    EXPECT_EQ(f.l64, 0u, "3/2 l64");
+    EXPECT_EQ(1u, f.l0, "3/2 l0");
+    EXPECT_EQ(0x80000000u, f.l32, "3/2 l32");
+    EXPECT_EQ(0u, f.l64, "3/2 l64");
 
     END_TEST;
 }
@@ -47,17 +47,17 @@ static bool test_u64_mul_u32_fp32_64(void) {
 
     // 10 * 1.5 = 15
     fp_32_64_div_32_32(&b, 3u, 2u);
-    EXPECT_EQ(u64_mul_u32_fp32_64(10u, b), 15u, "10 * 1.5 ~= 15");
+    EXPECT_EQ(15u, u64_mul_u32_fp32_64(10u, b), "10 * 1.5 ~= 15");
 
     // 1 * 0.5 rounds to 1 (ties away from zero)
     fp_32_64_div_32_32(&b, 1u, 2u);
-    EXPECT_EQ(u64_mul_u32_fp32_64(1u, b), 1u, "1 * 0.5 ~= 1");
+    EXPECT_EQ(1u, u64_mul_u32_fp32_64(1u, b), "1 * 0.5 ~= 1");
 
     // 1 * 1/3 ~= 0, 2 * 1/3 ~= 1, 3 * 1/3 = 1
     fp_32_64_div_32_32(&b, 1u, 3u);
-    EXPECT_EQ(u64_mul_u32_fp32_64(1u, b), 0u, "1 * 1/3 ~= 0");
-    EXPECT_EQ(u64_mul_u32_fp32_64(2u, b), 1u, "2 * 1/3 ~= 1");
-    EXPECT_EQ(u64_mul_u32_fp32_64(3u, b), 1u, "3 * 1/3 = 1");
+    EXPECT_EQ(0u, u64_mul_u32_fp32_64(1u, b), "1 * 1/3 ~= 0");
+    EXPECT_EQ(1u, u64_mul_u32_fp32_64(2u, b), "2 * 1/3 ~= 1");
+    EXPECT_EQ(1u, u64_mul_u32_fp32_64(3u, b), "3 * 1/3 = 1");
 
     END_TEST;
 }
@@ -71,12 +71,12 @@ static bool test_u32_mul_u64_fp32_64(void) {
     // (2^32) * 0.5 = 2^31
     fp_32_64_div_32_32(&b, 1u, 2u);
     a = 0x0000000100000000ULL;
-    EXPECT_EQ(u32_mul_u64_fp32_64(a, b), 0x80000000u, "2^32 * 0.5 = 2^31");
+    EXPECT_EQ(0x80000000u, u32_mul_u64_fp32_64(a, b), "2^32 * 0.5 = 2^31");
 
     // 65536 * 1.5 = 98304
     fp_32_64_div_32_32(&b, 3u, 2u);
     a = 1ULL << 16;
-    EXPECT_EQ(u32_mul_u64_fp32_64(a, b), (uint32_t)((1u << 16) + (1u << 15)), "65536 * 1.5 = 98304");
+    EXPECT_EQ((uint32_t)((1u << 16) + (1u << 15)), u32_mul_u64_fp32_64(a, b), "65536 * 1.5 = 98304");
 
     END_TEST;
 }
@@ -90,11 +90,11 @@ static bool test_u64_mul_u64_fp32_64(void) {
     // (2^40) * 0.5 = 2^39
     fp_32_64_div_32_32(&b, 1u, 2u);
     a = 1ULL << 40;
-    EXPECT_EQ(u64_mul_u64_fp32_64(a, b), (1ULL << 39), "2^40 * 0.5 = 2^39");
+    EXPECT_EQ((1ULL << 39), u64_mul_u64_fp32_64(a, b), "2^40 * 0.5 = 2^39");
 
     // 100 * 0.7 ~= 70
     fp_32_64_div_32_32(&b, 7u, 10u);
-    EXPECT_EQ(u64_mul_u64_fp32_64(100u, b), 70u, "100 * 0.7 ~= 70");
+    EXPECT_EQ(70u, u64_mul_u64_fp32_64(100u, b), "100 * 0.7 ~= 70");
 
     END_TEST;
 }
@@ -213,11 +213,11 @@ static bool test_time_conversion(void) {
     fp_32_64_div_64_32(&ms_to_tsc, tsc_hz, 1000);    // ticks per ms
 
     // 1 ms = 2,500,000 ticks
-    EXPECT_EQ(u64_mul_u32_fp32_64(1u, ms_to_tsc), 2500000u, "1 ms to ticks");
+    EXPECT_EQ(2500000u, u64_mul_u32_fp32_64(1u, ms_to_tsc), "1 ms to ticks");
 
     // 1,000,000 ticks ~ 0.4 ms (integer ms rounds to 0), 400 us
-    EXPECT_EQ(u32_mul_u64_fp32_64(1000000u, tsc_to_ms), 0u, "1,000,000 ticks to ms int");
-    EXPECT_EQ(u32_mul_u64_fp32_64(1000000u, tsc_to_us), 400u, "1,000,000 ticks to us int");
+    EXPECT_EQ(0u, u32_mul_u64_fp32_64(1000000u, tsc_to_ms), "1,000,000 ticks to ms int");
+    EXPECT_EQ(400u, u32_mul_u64_fp32_64(1000000u, tsc_to_us), "1,000,000 ticks to us int");
 
     // High precision frequency > 32-bit: ~ (1<<40) + 123 Hz
     uint64_t tsc_hz_hp = (1ULL << 40) + 123ULL; // ~1.0995 THz
@@ -236,15 +236,15 @@ static bool test_time_conversion(void) {
     uint64_t ms_expected = (sample_ticks * 1000ULL) / tsc_hz_hp; // truncated reference
     uint64_t diff = (ms_est > ms_expected) ? (ms_est - ms_expected) : (ms_expected - ms_est);
     // Allow a slightly larger tolerance due to rounding across large ratios
-    EXPECT_LE(diff, 16ULL, "ms conversion diff <=16");
+    EXPECT_GE(16ULL, diff, "ms conversion diff <=16");
 
     // Fractional small frequency: 1 Hz
     uint64_t tsc_hz_1 = 1ULL;
     struct fp_32_64 tsc1_to_ms, ms_to_tsc1;
     fp_32_64_div_32_64(&tsc1_to_ms, 1000, tsc_hz_1); // ms per tick at 1 Hz = 1000
     fp_32_64_div_64_32(&ms_to_tsc1, tsc_hz_1, 1000); // ticks per ms ~ 0.001
-    EXPECT_EQ(u64_mul_u32_fp32_64(1u, ms_to_tsc1), 0u, "1 ms to ticks @1Hz");
-    EXPECT_EQ(u32_mul_u64_fp32_64(1u, tsc1_to_ms), 1000u, "1 tick to ms @1Hz");
+    EXPECT_EQ(0u, u64_mul_u32_fp32_64(1u, ms_to_tsc1), "1 ms to ticks @1Hz");
+    EXPECT_EQ(1000u, u32_mul_u64_fp32_64(1u, tsc1_to_ms), "1 tick to ms @1Hz");
 
     // Asymmetric rounding case: ticks chosen so fractional part near .5 boundary
     uint64_t boundary_ticks = tsc_hz / 2000ULL; // expects 0.5 ms
