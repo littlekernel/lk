@@ -324,6 +324,7 @@ status_t fdtwalk_setup_gic(const void *fdt) {
                        gic_info[i].v2.distributor_base, gic_info[i].v2.distributor_len);
                 dprintf(INFO, "FDT: GICv2 cpu interface base %#" PRIx64 ", len %#" PRIx64 "\n",
                        gic_info[i].v2.cpu_interface_base, gic_info[i].v2.cpu_interface_len);
+                init_info.gic_revision = 2;
                 init_info.gicd_paddr = gic_info[i].v2.distributor_base;
                 init_info.gicd_size = gic_info[i].v2.distributor_len;
                 init_info.gicc_paddr = gic_info[i].v2.cpu_interface_base;
@@ -339,6 +340,7 @@ status_t fdtwalk_setup_gic(const void *fdt) {
                        gic_info[i].v3.hypervisor_interface_base, gic_info[i].v3.hypervisor_interface_len);
                 dprintf(INFO, "FDT: GICv3 virtual interface base %#" PRIx64 ", len %#" PRIx64 "\n",
                        gic_info[i].v3.virtual_interface_base, gic_info[i].v3.virtual_interface_len);
+                init_info.gic_revision = 3;
                 init_info.gicd_paddr = gic_info[i].v3.distributor_base;
                 init_info.gicd_size = gic_info[i].v3.distributor_len;
                 init_info.gicr_paddr = gic_info[i].v3.redistributor_base;

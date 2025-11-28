@@ -23,10 +23,10 @@
 
 #include <arch/ops.h>
 #include <assert.h>
+#include <inttypes.h>
 #include <lk/bits.h>
 #include <lk/trace.h>
 #include <stdint.h>
-#include <inttypes.h>
 
 #define LOCAL_TRACE 0
 
@@ -36,9 +36,9 @@
 #include "gic_v3.h"
 
 #define WAKER_QSC_BIT (0x1u << 31)
-#define WAKER_CA_BIT (0x1u << 2)
-#define WAKER_PS_BIT (0x1u << 1)
-#define WAKER_SL_BIT (0x1u << 0)
+#define WAKER_CA_BIT  (0x1u << 2)
+#define WAKER_PS_BIT  (0x1u << 1)
+#define WAKER_SL_BIT  (0x1u << 0)
 
 static void gicv3_gicr_exit_sleep(uint32_t cpu) {
     uint32_t val = GICRREG_READ(0, cpu, GICR_WAKER);
@@ -68,10 +68,10 @@ static void gicv3_gicr_mark_awake(uint32_t cpu) {
  */
 #define GICR_PWRR (GICR_OFFSET + 0x0024)
 
-#define PWRR_ON (0x0u << 0)
-#define PWRR_OFF (0x1u << 0)
-#define PWRR_RDGPD (0x1u << 2)
-#define PWRR_RDGPO (0x1u << 3)
+#define PWRR_ON        (0x0u << 0)
+#define PWRR_OFF       (0x1u << 0)
+#define PWRR_RDGPD     (0x1u << 2)
+#define PWRR_RDGPO     (0x1u << 3)
 #define PWRR_RDGP_MASK (PWRR_RDGPD | PWRR_RDGPO)
 
 static void gicv3_gicr_power_on(uint32_t cpu) {
@@ -101,7 +101,7 @@ static void gicv3_gicr_power_off(uint32_t cpu) {}
 
 static void arm_gicv3_wait_for_gicr_write_complete(uint cpu) {
     /* wait until write complete */
-    while (GICRREG_READ(0, cpu, GICR_CTRL) & (1<<31)) { // GICR_CTLR.RWP
+    while (GICRREG_READ(0, cpu, GICR_CTRL) & (1 << 31)) { // GICR_CTLR.RWP
     }
 }
 static void gicv3_gicr_init(void) {
@@ -241,13 +241,14 @@ void arm_gicv3_init(void) {
         GICDREG_WRITE(0, GICD_IGROUPR(i / 32), ~0U);
         GICDREG_WRITE(0, GICD_IGRPMODR(i / 32), ~0U);
     }
-    arm_gicv3_wait_for_write_complete();;
+    arm_gicv3_wait_for_write_complete();
+    ;
 #endif
 
     /* Enable distributor with ARE, group 1 enable */
     if (disabled_security == false) {
         gicv3_gicd_ctrl_write(GICDREG_READ(0, GICD_CTLR) |
-            (GICD_CTLR_ENABLE_G0 | GICD_CTLR_ENABLE_G1NS | GICD_CTLR_ARE_S));
+                              (GICD_CTLR_ENABLE_G0 | GICD_CTLR_ENABLE_G1NS | GICD_CTLR_ARE_S));
     } else {
         // TODO: is there a reasonable other solution here?
     }
@@ -333,17 +334,17 @@ void arm_gicv3_resume_cpu_locked(unsigned int cpu, bool gicd) {
     if (gicd) {
         /* also resume gicd */
         for (i = 32; i < MAX_INT; i += 32) {
-          GICDREG_WRITE(0, GICD_ISENABLER(i / 32), enabled_spi_mask[i / 32]);
+            GICDREG_WRITE(0, GICD_ISENABLER(i / 32), enabled_spi_mask[i / 32]);
         }
     }
 }
 
-#define SGIR_AFF1_SHIFT (16)
-#define SGIR_AFF2_SHIFT (32)
-#define SGIR_AFF3_SHIFT (48)
-#define SGIR_IRQ_SHIFT (24)
-#define SGIR_RS_SHIFT (44)
-#define SGIR_TARGET_LIST_SHIFT (0)
+#define SGIR_AFF1_SHIFT           (16)
+#define SGIR_AFF2_SHIFT           (32)
+#define SGIR_AFF3_SHIFT           (48)
+#define SGIR_IRQ_SHIFT            (24)
+#define SGIR_RS_SHIFT             (44)
+#define SGIR_TARGET_LIST_SHIFT    (0)
 #define SGIR_ASSEMBLE(val, shift) ((uint64_t)val << shift)
 
 uint64_t arm_gicv3_sgir_val(u_int irq, size_t cpu_num) {
@@ -370,16 +371,16 @@ uint64_t arm_gicv3_sgir_val(u_int irq, size_t cpu_num) {
     uint8_t range_selector = affs.aff0 >> 4;
     uint16_t target_list = 1U << (affs.aff0 & 0xf);
     uint64_t sgir = SGIR_ASSEMBLE(irq, SGIR_IRQ_SHIFT) |
-        SGIR_ASSEMBLE(affs.aff3, SGIR_AFF3_SHIFT) |
-        SGIR_ASSEMBLE(affs.aff2, SGIR_AFF2_SHIFT) |
-        SGIR_ASSEMBLE(affs.aff1, SGIR_AFF1_SHIFT) |
-        SGIR_ASSEMBLE(range_selector, SGIR_RS_SHIFT) |
-        SGIR_ASSEMBLE(target_list, SGIR_TARGET_LIST_SHIFT);
+                    SGIR_ASSEMBLE(affs.aff3, SGIR_AFF3_SHIFT) |
+                    SGIR_ASSEMBLE(affs.aff2, SGIR_AFF2_SHIFT) |
+                    SGIR_ASSEMBLE(affs.aff1, SGIR_AFF1_SHIFT) |
+                    SGIR_ASSEMBLE(range_selector, SGIR_RS_SHIFT) |
+                    SGIR_ASSEMBLE(target_list, SGIR_TARGET_LIST_SHIFT);
 
     LTRACEF_LEVEL(2, "irq %u cpu %zu affs %02x:%02x:%02x:%02x rs %u tl 0x%x sgir 0x%016" PRIx64 "\n",
-            irq, cpu_num, affs.aff3, affs.aff2, affs.aff1, affs.aff0,
-            range_selector, target_list,
-            sgir);
+                  irq, cpu_num, affs.aff3, affs.aff2, affs.aff1, affs.aff0,
+                  range_selector, target_list,
+                  sgir);
 
     return sgir;
 }

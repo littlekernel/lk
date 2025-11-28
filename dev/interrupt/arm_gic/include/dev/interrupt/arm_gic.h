@@ -23,8 +23,8 @@
 #ifndef __DEV_INTERRUPT_ARM_GIC_H
 #define __DEV_INTERRUPT_ARM_GIC_H
 
-#include <sys/types.h>
 #include <lk/compiler.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
 
@@ -48,6 +48,7 @@ void arm_gic_init(void);
  * @gicr_size: Total size of GIC Redistributor registers.
  */
 struct arm_gic_init_info {
+    int gic_revision; // GIC version: 2, 3, or 4
     paddr_t gicc_paddr;
     size_t gicc_size;
     paddr_t gicd_paddr;
@@ -67,7 +68,7 @@ struct arm_gic_init_info {
  * If ASLR is enabled then the virtual addresses are randomized.
  *
  */
-void arm_gic_init_map(const struct arm_gic_init_info* init_info);
+void arm_gic_init_map(const struct arm_gic_init_info *init_info);
 
 enum {
     /* Ignore cpu_mask and forward interrupt to all CPUs other than the current cpu */
@@ -98,4 +99,3 @@ enum interrupt_polarity {
 __END_CDECLS
 
 #endif
-

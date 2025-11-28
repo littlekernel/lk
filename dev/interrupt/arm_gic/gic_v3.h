@@ -23,6 +23,10 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <stdbool.h>
+#include <sys/types.h>
+
 void arm_gicv3_init(void);
 void arm_gicv3_init_percpu(void);
 void arm_gicv3_configure_irq_locked(unsigned int cpu, unsigned int vector);
