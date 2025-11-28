@@ -18,6 +18,7 @@
 #include "uefi/uefi.h"
 
 #include <lib/bio.h>
+#include <lib/fs.h>
 #include <lib/heap.h>
 #include <lk/console_cmd.h>
 #include <lk/debug.h>
@@ -163,6 +164,112 @@ int load_sections_and_execute(bdev_t *dev,
   return ret;
 }
 
+int load_sections_and_execute(filehandle *file_handle,
+                              const IMAGE_NT_HEADERS64 *pe_header,
+                              const char *path) {
+  const auto file_header = &pe_header->FileHeader;
+  const auto optional_header = &pe_header->OptionalHeader;
+  const auto sections = file_header->NumberOfSections;
+  const auto section_header = reinterpret_cast<const IMAGE_SECTION_HEADER *>(
+      reinterpret_cast<const char *>(pe_header) + sizeof(IMAGE_FILE_HEADER) +
+      file_header->SizeOfOptionalHeader);
+  if (sections <= 0) {
+    printf("This PE file does not have any sections, unsupported.\n");
+    return -8;
+  }
+  for (size_t i = 0; i < sections; i++) {
+    if (section_header[i].NumberOfRelocations != 0) {
+      printf("Section %s requires relocation, which is not supported.\n",
+             section_header[i].Name);
+      return -6;
+    }
+  }
+  setup_heap();
+  DEFER { reset_heap(); };
+  const auto &last_section = section_header[sections - 1];
+  const auto virtual_size = ROUNDUP(
+      last_section.VirtualAddress + last_section.Misc.VirtualSize, PAGE_SIZE);
+  const auto image_base = reinterpret_cast<char *>(
+      alloc_page(reinterpret_cast<void *>(optional_header->ImageBase),
+                 virtual_size, 21 /* Kernel requires 2MB alignment */));
+  if (image_base == nullptr) {
+    return -7;
+  }
+  memset(image_base, 0, virtual_size);
+  DEFER { free_pages(image_base, virtual_size / PAGE_SIZE); };
+  fs_read_file(file_handle, image_base, 0, section_header[0].PointerToRawData);
+
+  for (size_t i = 0; i < sections; i++) {
+    const auto &section = section_header[i];
+    fs_read_file(file_handle,
+		 image_base + section.VirtualAddress,
+		 section.PointerToRawData,
+		 section.SizeOfRawData);
+  }
+  printf("Relocating image from 0x%llx to %p\n", optional_header->ImageBase,
+         image_base);
+  relocate_image(image_base);
+  auto entry = reinterpret_cast<int (*)(void *, void *)>(
+      image_base + optional_header->AddressOfEntryPoint);
+  printf("Entry function located at %p\n", entry);
+
+  EfiSystemTable &table = *static_cast<EfiSystemTable *>(alloc_page(PAGE_SIZE));
+  memset(&table, 0, sizeof(EfiSystemTable));
+  DEFER { free_pages(&table, 1); };
+  EfiBootService boot_service{};
+  EfiRuntimeService runtime_service{};
+  fill(&runtime_service, 0);
+  fill(&boot_service, 0);
+  setup_runtime_service_table(&runtime_service);
+  setup_boot_service_table(&boot_service);
+  table.firmware_vendor = reinterpret_cast<uint16_t *>(firmwareVendor);
+  table.runtime_services = &runtime_service;
+  table.boot_services = &boot_service;
+  table.header.signature = EFI_SYSTEM_TABLE_SIGNATURE;
+  table.header.revision = 2 << 16;
+  EfiSimpleTextOutputProtocol console_out = get_text_output_protocol();
+  table.con_out = &console_out;
+  table.configuration_table =
+      reinterpret_cast<EfiConfigurationTable *>(alloc_page(PAGE_SIZE));
+  DEFER { free_pages(table.configuration_table, 1); };
+  memset(table.configuration_table, 0, PAGE_SIZE);
+  setup_configuration_table(&table);
+  auto status = platform_setup_system_table(&table);
+  if (status != EFI_STATUS_SUCCESS) {
+    printf("platform_setup_system_table failed: %lu\n", status);
+    return -static_cast<int>(status);
+  }
+  status = efi_initialize_system_table_pointer(&table);
+  if (status != EFI_STATUS_SUCCESS) {
+    printf("efi_initialize_system_table_pointer failed: %lu\n", status);
+    return -static_cast<int>(status);
+  }
+  /* change all '/' to '\\' */
+  char *path_altered = strdup(path);
+  for (char *c = path_altered; *c; c++) {
+    if (*c == '/') {
+      *c = '\\';
+    }
+  }
+  setup_debug_support(table, image_base, virtual_size, path_altered);
+  free(path_altered);
+
+  constexpr size_t kStackSize = 1 * 1024ul * 1024;
+  auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
+  memset(stack, 0, kStackSize);
+  DEFER {
+    free_pages(stack, kStackSize / PAGE_SIZE);
+    stack = nullptr;
+  };
+  printf("Calling kernel with stack [%p, %p]\n", stack, stack + kStackSize - 1);
+  int ret = static_cast<int>(
+      call_with_stack(stack + kStackSize, entry, image_base, &table));
+
+  teardown_debug_support(image_base);
+
+  return ret;
+}
+
 int cmd_uefi_load(int argc, const console_cmd_args *argv) {
   if (argc != 2) {
     printf("Usage: %s <name of block device to load from>\n", argv[0].str);
@@ -202,23 +309,49 @@ STATIC_COMMAND_END(uefi);
 }  // namespace
 
 int load_pe_file(const char *blkdev) {
-  bdev_t *dev = bio_open(blkdev);
-  if (!dev) {
-    printf("error opening block device %s\n", blkdev);
-    return -1;
+  bdev_t *dev = nullptr;
+  filehandle *file_handle = nullptr;
+  if (blkdev[0] == '/') {
+    status_t status = fs_open_file(blkdev, &file_handle);
+    if (status < 0) {
+      printf("error opening file %s\n", blkdev);
+      return -1;
+    }
+  } else {
+    dev = bio_open(blkdev);
+    if (!dev) {
+      printf("error opening block device %s\n", blkdev);
+      return -1;
+    }
   }
   DEFER {
-    bio_close(dev);
+    if (dev) {
+      bio_close(dev);
+    }
     dev = nullptr;
+    if (file_handle) {
+      fs_close_file(file_handle);
+    }
+    file_handle = nullptr;
   };
   constexpr size_t kBlocKSize = 4096;
 
   lk_time_t t = current_time();
   uint8_t *address = static_cast<uint8_t *>(malloc(kBlocKSize));
-  ssize_t err = bio_read(dev, static_cast<void *>(address), 0, kBlocKSize);
-  t = current_time() - t;
-  dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
-          (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
+  if (dev) {
+    ssize_t err = bio_read(dev, static_cast<void *>(address), 0, kBlocKSize);
+    t = current_time() - t;
+    dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
+	    (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
+  } else if (file_handle) {
+    ssize_t err = fs_read_file(file_handle, static_cast<void *>(address), 0, kBlocKSize);
+    t = current_time() - t;
+    dprintf(INFO, "fs_read_file returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
+	    (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
+  } else {
+    printf("Neither block dev nor file is opened.\n");
+    return -2;
+  }
 
   const auto dos_header = reinterpret_cast<const IMAGE_DOS_HEADER *>(address);
   if (!dos_header->CheckMagic()) {
@@ -253,7 +386,12 @@ int load_pe_file(const char *blkdev) {
            ToString(optional_header->Subsystem));
   }
   printf("Valid UEFI application found.\n");
-  auto ret = load_sections_and_execute(dev, pe_header);
+  int ret = 0;
+  if (dev) {
+    ret = load_sections_and_execute(dev, pe_header);
+  } else {
+    ret = load_sections_and_execute(file_handle, pe_header, blkdev);
+  }
   printf("UEFI Application return code: %d\n", ret);
   return ret;
 }
