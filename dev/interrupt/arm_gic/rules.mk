@@ -6,6 +6,6 @@ MODULE_SRCS += $(LOCAL_DIR)/arm_gic.c
 MODULE_SRCS += $(LOCAL_DIR)/gic_v2.c
 MODULE_SRCS += $(LOCAL_DIR)/gic_v3.c
 
-MODULE_COMPILEFLAGS += -Wno-type-limits
+MODULE_OPTIONS += extra_warnings
 
 include make/module.mk

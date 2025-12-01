@@ -22,11 +22,7 @@
 
 /* routines for dealing with main console io */
 
-#if WITH_LIB_SM
-#define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_IRQ_FIQ
-#else
 #define PRINT_LOCK_FLAGS SPIN_LOCK_FLAG_INTERRUPTS
-#endif
 
 static spin_lock_t print_spin_lock = 0;
 static struct list_node print_callbacks = LIST_INITIAL_VALUE(print_callbacks);

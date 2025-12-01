@@ -37,10 +37,6 @@
 #include <platform/gic.h>
 #include <platform/interrupts.h>
 #include <sys/types.h>
-#if WITH_LIB_SM
-#include <lib/sm.h>
-#include <lib/sm/sm_err.h>
-#endif
 
 #define LOCAL_TRACE 0
 
@@ -54,16 +50,11 @@
 // version-specific implementations and allows both v2 and v3/v4 to
 // be built into the same kernel image.
 
-static status_t arm_gic_set_secure_locked(u_int irq, bool secure);
 static void gic_set_enable(uint vector, bool enable);
 static void arm_gic_init_hw(void);
 
 static spin_lock_t gicd_lock;
-#if WITH_LIB_SM
-#define GICD_LOCK_FLAGS SPIN_LOCK_FLAG_IRQ_FIQ
-#else
 #define GICD_LOCK_FLAGS SPIN_LOCK_FLAG_INTERRUPTS
-#endif
 #define GIC_MAX_PER_CPU_INT 32
 #define GIC_MAX_SGI_INT     16
 
@@ -82,22 +73,9 @@ static bool arm_gic_check_init(int irq) {
     return true;
 }
 
-#if WITH_LIB_SM
-static bool arm_gic_non_secure_interrupts_frozen;
-
-static bool arm_gic_interrupt_change_allowed(int irq) {
-    if (!arm_gic_non_secure_interrupts_frozen) {
-        return arm_gic_check_init(irq);
-    }
-
-    TRACEF("change to interrupt %d ignored after booting ns\n", irq);
-    return false;
-}
-#else
 static bool arm_gic_interrupt_change_allowed(int irq) {
     return arm_gic_check_init(irq);
 }
-#endif
 
 static struct int_handler_struct int_handler_table_per_cpu[GIC_MAX_PER_CPU_INT][SMP_MAX_CPUS];
 static struct int_handler_struct int_handler_table_shared[MAX_INT - GIC_MAX_PER_CPU_INT];
@@ -386,26 +364,6 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
     arm_gic_init_hw();
 }
 
-static status_t arm_gic_set_secure_locked(u_int irq, bool secure) {
-#if WITH_LIB_SM
-    int reg = irq / 32;
-    uint32_t mask = 1ULL << (irq % 32);
-
-    if (irq >= MAX_INT) {
-        return ERR_INVALID_ARGS;
-    }
-
-    if (secure) {
-        GICDREG_WRITE(0, GICD_IGROUPR(reg), (gicd_igroupr[reg] &= ~mask));
-    } else {
-        GICDREG_WRITE(0, GICD_IGROUPR(reg), (gicd_igroupr[reg] |= mask));
-    }
-    LTRACEF("irq %d, secure %d, GICD_IGROUP%d = %x\n",
-            irq, secure, reg, GICDREG_READ(0, GICD_IGROUPR(reg)));
-#endif
-    return NO_ERROR;
-}
-
 static status_t arm_gic_get_priority(u_int irq) {
     u_int reg = irq / 4;
     u_int shift = 8 * (irq % 4);
@@ -486,6 +444,9 @@ status_t unmask_interrupt(unsigned int vector) {
     return NO_ERROR;
 }
 
+// Top level IRQ and FIQ handlers from arm/arm64 layer
+// that dispatches to the appropriate driver
+enum handler_return platform_irq(struct iframe *frame);
 enum handler_return platform_irq(struct iframe *frame) {
     if (arm_gics[0].gic_revision > 2) {
         return arm_gicv3_platform_irq(frame);
@@ -494,6 +455,7 @@ enum handler_return platform_irq(struct iframe *frame) {
     }
 }
 
+void platform_fiq(struct iframe *frame);
 void platform_fiq(struct iframe *frame) {
     if (arm_gics[0].gic_revision > 2) {
         arm_gicv3_platform_fiq(frame);

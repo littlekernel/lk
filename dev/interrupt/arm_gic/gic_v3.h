@@ -39,8 +39,3 @@ status_t arm_gicv3_sgi(u_int irq, u_int flags, u_int cpu_mask);
 enum handler_return arm_gicv3_platform_irq(struct iframe *frame);
 void arm_gicv3_platform_fiq(struct iframe *frame);
 
-#if WITH_LIB_SM
-#define ARM_GIC_USE_DOORBELL_NS_IRQ 1
-#define ARM_GIC_DOORBELL_IRQ        13
-#endif
-

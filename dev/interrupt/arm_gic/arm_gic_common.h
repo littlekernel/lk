@@ -70,8 +70,8 @@ struct arm_gic {
     size_t gicr_cpu_stride;
 };
 
+// TODO: support multiple GICs, which only really makes sense for GICv3
 #define NUM_ARM_GICS 1
-
 extern struct arm_gic arm_gics[NUM_ARM_GICS];
 
 struct int_handler_struct {
@@ -79,6 +79,7 @@ struct int_handler_struct {
     void *arg;
 };
 
+// Shared common routines in arm_gic.c
 struct int_handler_struct *get_int_handler(unsigned int vector, uint cpu);
 status_t gic_configure_interrupt(unsigned int vector,
                                  enum interrupt_trigger_mode tm,

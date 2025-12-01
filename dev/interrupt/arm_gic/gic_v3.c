@@ -185,12 +185,10 @@ static void gicv3_gicr_init(void) {
     gicv3_gicr_power_on(cpu);
     gicv3_gicr_mark_awake(cpu);
 
-#if !WITH_LIB_SM
     // redistributer config: configure sgi/ppi as non-secure group 1.
     GICRREG_WRITE(0, cpu, GICR_IGROUPR0, ~0);
     GICRREG_WRITE(0, cpu, GICR_IGRPMODR0, 0);
     arm_gicv3_wait_for_gicr_write_complete(cpu);
-#endif
 
     // redistributer config: clear and mask sgi/ppi.
     GICRREG_WRITE(0, cpu, GICR_ICENABLER0, ~0);
@@ -318,8 +316,6 @@ void arm_gicv3_init(void) {
         arm_gics[0].gicr_cpu_stride = 0x40000;
     }
 
-#if !WITH_LIB_SM
-    /* non-TZ */
     /* Disable all groups before making changes */
     gicv3_gicd_ctrl_write(GICDREG_READ(0, GICD_CTLR) & ~0x7U);
 
@@ -330,8 +326,6 @@ void arm_gicv3_init(void) {
         GICDREG_WRITE(0, GICD_IGRPMODR(i / 32), ~0U);
     }
     arm_gicv3_wait_for_write_complete();
-    ;
-#endif
 
     /* Enable distributor with ARE, group 1 enable */
     if (disabled_security == false) {
@@ -346,31 +340,19 @@ void arm_gicv3_init(void) {
     gicv3_gicd_ctrl_write(GICDREG_READ(0, GICD_CTLR) | grp_mask);
     arm_gicv3_wait_for_write_complete();
 
-#if !WITH_LIB_SM
     /* Direct SPI interrupts to core 0 */
     for (uint32_t i = 32; i < gic_max_int; i++) {
         GICDREG_WRITE64(0, GICD_IROUTER(i), 0);
     }
-#endif
 }
 
 void arm_gicv3_init_percpu(void) {
-#if WITH_LIB_SM
-    /* TZ */
-    /* Initialized by ATF */
-#if ARM_GIC_USE_DOORBELL_NS_IRQ
-    gicv3_gicr_setup_irq_group(ARM_GIC_DOORBELL_IRQ, GICV3_IRQ_GROUP_GRP1NS);
-#endif
-#else
-    /* non-TZ */
-
     /* Init registributor interface */
     gicv3_gicr_init();
 
     /* Enable CPU interface access */
     // TODO: do we need to set bit 1 and 2? (IRQ/FIQ bypass)
     GICCREG_WRITE(0, icc_sre_el1, (GICCREG_READ(0, icc_sre_el1) | 0x7));
-#endif
 
     /* Set priority mask to maximum to allow all priorities */
     GICCREG_WRITE(0, icc_pmr_el1, 0xFF);
@@ -486,19 +468,14 @@ status_t arm_gicv3_sgi(u_int irq, u_int flags, u_int cpu_mask) {
     return NO_ERROR;
 }
 
-static enum handler_return __platform_irq(struct iframe *frame) {
+enum handler_return arm_gicv3_platform_irq(struct iframe *frame) {
     // get the current vector
     uint32_t iar = GICCREG_READ(0, GICC_PRIMARY_IAR);
     unsigned int vector = iar & 0x3ff;
 
     if (vector >= 0x3fe) {
-#if WITH_LIB_SM && ARM_GIC_USE_DOORBELL_NS_IRQ
-        // spurious or non-secure interrupt
-        return sm_handle_irq();
-#else
         // spurious
         return INT_NO_RESCHEDULE;
-#endif
     }
 
     THREAD_STATS_INC(interrupts);
@@ -527,64 +504,6 @@ static enum handler_return __platform_irq(struct iframe *frame) {
     return ret;
 }
 
-enum handler_return arm_gicv3_platform_irq(struct iframe *frame) {
-#if WITH_LIB_SM && !ARM_GIC_USE_DOORBELL_NS_IRQ
-    uint32_t ahppir = GICCREG_READ(0, GICC_PRIMARY_HPPIR);
-    uint32_t pending_irq = ahppir & 0x3ff;
-    struct int_handler_struct *h;
-    uint cpu = arch_curr_cpu_num();
-
-#if ARM_MERGE_FIQ_IRQ
-    {
-        uint32_t hppir = GICCREG_READ(0, GICC_HPPIR);
-        uint32_t pending_fiq = hppir & 0x3ff;
-        if (pending_fiq < MAX_INT) {
-            platform_fiq(frame);
-            return INT_NO_RESCHEDULE;
-        }
-    }
-#endif
-
-    LTRACEF("ahppir %d\n", ahppir);
-    if (pending_irq < MAX_INT && get_int_handler(pending_irq, cpu)->handler) {
-        enum handler_return ret = 0;
-        uint32_t irq;
-        uint8_t old_priority;
-        spin_lock_saved_state_t state;
-
-        spin_lock_save(&gicd_lock, &state, GICD_LOCK_FLAGS);
-
-        /* Temporarily raise the priority of the interrupt we want to
-         * handle so another interrupt does not take its place before
-         * we can acknowledge it.
-         */
-        old_priority = arm_gic_get_priority(pending_irq);
-        arm_gic_set_priority_locked(pending_irq, 0);
-        DSB;
-        irq = GICCREG_READ(0, GICC_PRIMARY_IAR) & 0x3ff;
-        arm_gic_set_priority_locked(pending_irq, old_priority);
-
-        spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
-
-        LTRACEF("irq %d\n", irq);
-        if (irq < MAX_INT && (h = get_int_handler(pending_irq, cpu))->handler) {
-            ret = h->handler(h->arg);
-        } else {
-            TRACEF("unexpected irq %d != %d may get lost\n", irq, pending_irq);
-        }
-        GICCREG_WRITE(0, GICC_PRIMARY_EOIR, irq);
-        return ret;
-    }
-    return sm_handle_irq();
-#else
-    return __platform_irq(frame);
-#endif
-}
-
 void arm_gicv3_platform_fiq(struct iframe *frame) {
-#if WITH_LIB_SM
-    sm_handle_fiq();
-#else
     PANIC_UNIMPLEMENTED;
-#endif
 }
