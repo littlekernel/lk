@@ -13,11 +13,7 @@
 #include <arch/or1k.h>
 
 static spin_lock_t gicd_lock;
-#if WITH_LIB_SM
-#define GICD_LOCK_FLAGS SPIN_LOCK_FLAG_IRQ_FIQ
-#else
 #define GICD_LOCK_FLAGS SPIN_LOCK_FLAG_INTERRUPTS
-#endif
 
 struct int_handler_struct {
     int_handler handler;

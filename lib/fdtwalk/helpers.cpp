@@ -7,14 +7,14 @@
  */
 #include <lib/fdtwalk.h>
 
-#include <inttypes.h>
 #include <assert.h>
+#include <inttypes.h>
+#include <kernel/thread.h>
 #include <libfdt.h>
 #include <lk/cpp.h>
 #include <lk/err.h>
 #include <lk/main.h>
 #include <lk/trace.h>
-#include <kernel/thread.h>
 #include <stdio.h>
 #include <sys/types.h>
 #if WITH_KERNEL_VM
@@ -34,6 +34,9 @@
 #endif
 #if WITH_DEV_BUS_PCI
 #include <dev/bus/pci.h>
+#endif
+#if WITH_DEV_INTERRUPT_ARM_GIC
+#include <dev/interrupt/arm_gic.h>
 #endif
 
 // A few helper routines to configure subsystems such as cpu, memory, and pci busses based
@@ -95,7 +98,7 @@ status_t fdtwalk_setup_memory(const void *fdt, paddr_t fdt_phys, paddr_t default
         /* trim size on certain platforms */
 #if ARCH_ARM || (ARCH_RISCV && __riscv_xlen == 32)
         /* only use the first 1GB on ARM32 */
-        const auto GB = 1024*1024*1024UL;
+        const auto GB = 1024 * 1024 * 1024UL;
         if (mem[i].base - MEMBASE > GB) {
             dprintf(INFO, "trimming memory to 1GB\n");
             continue;
@@ -184,7 +187,6 @@ status_t fdtwalk_setup_cpus_riscv(const void *fdt) {
                         }
                     }
                 }
-
             }
 
             // tell the riscv layer how many cores we have to start
@@ -215,7 +217,7 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
     err = fdt_walk_find_cpus(fdt, cpus, &cpu_count);
     if (err >= NO_ERROR) {
         if (cpu_count > 0) {
-            dprintf(INFO, "FDT: found %zu cpu%c\n", cpu_count, cpu_count == 1  ? ' ' : 's');
+            dprintf(INFO, "FDT: found %zu cpu%c\n", cpu_count, cpu_count == 1 ? ' ' : 's');
 
             if (cpu_count > SMP_MAX_CPUS) {
                 cpu_count = MIN(cpu_count, SMP_MAX_CPUS);
@@ -302,3 +304,59 @@ status_t fdtwalk_setup_pci(const void *fdt) {
 }
 #endif
 
+#if WITH_DEV_INTERRUPT_ARM_GIC
+// Implementation for setting up ARM GIC interrupt controller from FDT
+status_t fdtwalk_setup_gic(const void *fdt) {
+    struct fdt_walk_gic_info gic_info[4] = {};
+
+    size_t count = countof(gic_info);
+    status_t err = fdt_walk_find_gic_info(fdt, gic_info, &count);
+
+    LTRACEF("fdt_walk_find_gic_info returns %d, count %zu\n", err, count);
+
+    if (err == NO_ERROR) {
+        for (size_t i = 0; i < count; i++) {
+            dprintf(INFO, "FDT: found gic version %hhu\n", gic_info[i].gic_version);
+            arm_gic_init_info init_info = {};
+
+            if (gic_info[i].gic_version == 2) {
+                dprintf(INFO, "FDT: GICv2 distributor base %#" PRIx64 ", len %#" PRIx64 "\n",
+                       gic_info[i].v2.distributor_base, gic_info[i].v2.distributor_len);
+                dprintf(INFO, "FDT: GICv2 cpu interface base %#" PRIx64 ", len %#" PRIx64 "\n",
+                       gic_info[i].v2.cpu_interface_base, gic_info[i].v2.cpu_interface_len);
+                init_info.gic_revision = 2;
+                init_info.gicd_paddr = gic_info[i].v2.distributor_base;
+                init_info.gicd_size = gic_info[i].v2.distributor_len;
+                init_info.gicc_paddr = gic_info[i].v2.cpu_interface_base;
+                init_info.gicc_size = gic_info[i].v2.cpu_interface_len;
+            } else if (gic_info[i].gic_version == 3) {
+                dprintf(INFO, "FDT: GICv3 distributor base %#" PRIx64 ", len %#" PRIx64 "\n",
+                       gic_info[i].v3.distributor_base, gic_info[i].v3.distributor_len);
+                dprintf(INFO, "FDT: GICv3 redistributor base %#" PRIx64 ", len %#" PRIx64 "\n",
+                       gic_info[i].v3.redistributor_base, gic_info[i].v3.redistributor_len);
+                dprintf(INFO, "FDT: GICv3 cpu interface base %#" PRIx64 ", len %#" PRIx64 "\n",
+                       gic_info[i].v3.cpu_interface_base, gic_info[i].v3.cpu_interface_len);
+                dprintf(INFO, "FDT: GICv3 hypervisor interface base %#" PRIx64 ", len %#" PRIx64 "\n",
+                       gic_info[i].v3.hypervisor_interface_base, gic_info[i].v3.hypervisor_interface_len);
+                dprintf(INFO, "FDT: GICv3 virtual interface base %#" PRIx64 ", len %#" PRIx64 "\n",
+                       gic_info[i].v3.virtual_interface_base, gic_info[i].v3.virtual_interface_len);
+                init_info.gic_revision = 3;
+                init_info.gicd_paddr = gic_info[i].v3.distributor_base;
+                init_info.gicd_size = gic_info[i].v3.distributor_len;
+                init_info.gicr_paddr = gic_info[i].v3.redistributor_base;
+                init_info.gicr_size = gic_info[i].v3.redistributor_len;
+                init_info.gicc_paddr = gic_info[i].v3.cpu_interface_base;
+                init_info.gicc_size = gic_info[i].v3.cpu_interface_len;
+                // TODO: deal with the other v3 interfaces
+            }
+
+            arm_gic_init_map(&init_info);
+
+            // TODO: handle multiple GICs
+            return NO_ERROR;
+        }
+    }
+
+    return err;
+}
+#endif

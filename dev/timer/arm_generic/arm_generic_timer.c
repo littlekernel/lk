@@ -316,14 +316,18 @@ void arm_generic_timer_init(int irq, uint32_t freq_override) {
     arm_generic_timer_init_conversion_factors(cntfrq);
     test_time_conversions(cntfrq);
 
-    LTRACEF("register irq %d on cpu %d\n", irq, arch_curr_cpu_num());
-    register_int_handler(irq, &platform_tick, NULL);
-    unmask_interrupt(irq);
-
     timer_irq = irq;
 
     dprintf(INFO, "Generic timer initialized with freq %u Hz, irq %d\n", cntfrq, irq);
 }
+
+static void arm_generic_timer_init_postvm(uint level) {
+    dprintf(INFO, "Generic timer register irq %d on cpu %d\n", timer_irq, arch_curr_cpu_num());
+    register_int_handler(timer_irq, &platform_tick, NULL);
+    unmask_interrupt(timer_irq);
+}
+LK_INIT_HOOK(arm_generic_timer_init_postvm, arm_generic_timer_init_postvm,
+                   LK_INIT_LEVEL_VM + 1);
 
 static void arm_generic_timer_init_secondary_cpu(uint level) {
     LTRACEF("register irq %d on cpu %d\n", timer_irq, arch_curr_cpu_num());

@@ -9,6 +9,7 @@
 
 #include <platform/alterasoc.h>
 
+#define GIC_VERSION 2
 #define GICBASE(n)  (CPUPRIV_BASE)
 #define GICC_OFFSET (0x0100)
 #define GICD_OFFSET (0x1000)

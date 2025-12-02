@@ -25,8 +25,8 @@ readonly HOST_OS_ARCH
 function HELP {
     echo "help:"
     echo "-p <project>      : specify the project to build (default qemu-virt-arm32-test, qemu-virt-arm64-test or lm3s6965evb-test)"
-    echo "-6                : 64bit arm"
-    echo "-3                : cortex-m3 based platform"
+    echo "-6                : 64bit arm (default is 32bit)"
+    echo "-3                : cortex-m3 based platform (most other options ignored)"
     echo "-P <page size>    : set the page size (default: 4K, valid: 4k/4096, 16k/16384, 64k/65536)"
     echo "-v                : boot kernel at EL2"
     echo "-k                : use KVM or HVF acceleration if present (only on 64bit)"
@@ -42,6 +42,7 @@ function HELP {
     echo "-t                : add a virtio tap network device (requires tap interface setup)"
     echo "-g                : add a virtio display (GPU, keyboard, mouse)"
     echo "-f <shared dir>   : add a virtio 9p device with a host shared directory"
+    echo "-G <gic version>  : override gic version (2, 3 or host). Default nothing, which lets qemu pick."
     echo
     echo "-h                : show this help"
     echo "all arguments after -- are passed to qemu directly"
@@ -66,14 +67,16 @@ MEMSIZE=512
 SUDO=""
 PROJECT=""
 DO_DRYRUN=0
+GIC_VERSION=""
 
-while getopts cd:ghkm:Mnt36vp:P:s:f:X FLAG; do
+while getopts cd:gG:hkm:Mnt36vp:P:s:f:X FLAG; do
     case $FLAG in
         c) DO_CMPCTMALLOC=1;;
         d)
             DISK_IMAGES+=("$OPTARG")
             ;;
         g) DO_DISPLAY=1;;
+        G) GIC_VERSION=$OPTARG;;
         f) DO_V9P=1; DO_V9P_DIR=$OPTARG;;
         k) DO_KVM=1;;
         M) DO_MINIHEAP=1;;
@@ -139,22 +142,36 @@ elif [ "$PAGE_SIZE" == "64k" ]; then
     PAGE_SIZE=65536
 fi
 
+# if GIC_VERSION is specified, set the appropriate string
+GIC_STRING=""
+if [ -n "$GIC_VERSION" ]; then
+    GIC_STRING=",gic_version=$GIC_VERSION"
+fi
+
 # pick the appropriate qemu and project
 if (( DO_64BIT )); then
     QEMU="qemu-system-aarch64"
     CPU="cortex-a76" # default to something recent that modern qemu supports
     MACHINE="virt"
+    MACHINE+=$GIC_STRING
+
     # if using KVM/HVF, switch to a host cpu and enable acceleration
     if (( DO_KVM )); then
         CPU="host"
+        if [ -n "$GIC_STRING" ]; then
+            echo "error: cannot override GIC version when using KVM/HVF acceleration"
+            exit 1
+        fi
         if [ "$HOST_OS" == "Darwin" ]; then
-            MACHINE+=",accel=hvf"
+            # TODO: can the gic version be set to host on macOS?
+            MACHINE+=",gic_version=2,accel=hvf"
         elif [ "$HOST_OS" == "Linux" ]; then
             MACHINE+=",gic_version=host,accel=kvm"
         fi
-    elif [ $DO_VIRT == 1 ]; then
+    elif (( DO_VIRT )); then
         MACHINE+=",virtualization=on"
     fi
+
     if [ "$PAGE_SIZE" == 65536 ]; then
         _PROJECT="qemu-virt-arm64-64k-test"
     elif [ "$PAGE_SIZE" == 16384 ]; then
@@ -171,8 +188,14 @@ else
     QEMU="qemu-system-arm"
     CPU="cortex-a15"
     MACHINE="virt"
+    MACHINE+=$GIC_STRING
     MACHINE+=",highmem=off" # disable the high PCI ECAM, since we dont support LPAE to map it
     _PROJECT="qemu-virt-arm32-test"
+
+    if (( DO_KVM )); then
+        echo "error: KVM acceleration is only supported for 64bit ARM"
+        exit 1
+    fi
 fi
 
 # allow overriding the project from the environment

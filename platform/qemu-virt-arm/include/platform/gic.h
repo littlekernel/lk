@@ -7,9 +7,9 @@
  */
 #pragma once
 
+// For MAX_INT.
+// TODO: read the max interrupt number from the GIC itself and dynamically allocate
+// the interrupt table.
 #include <platform/qemu-virt.h>
 
-#define GICBASE(n)  (CPUPRIV_BASE_VIRT)
-#define GICD_OFFSET (0x00000)
-#define GICC_OFFSET (0x10000)
-
+// residual stub for platforms that do not need to define the GIC base addresses

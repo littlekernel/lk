@@ -78,9 +78,6 @@ void platform_early_init(void) {
 
     pl011_init_early(0, &uart_config);
 
-    /* initialize the interrupt controller */
-    arm_gic_init();
-
     arm_generic_timer_init(ARM_GENERIC_TIMER_VIRTUAL_INT, 0);
 
     if (LOCAL_TRACE) {
@@ -91,6 +88,16 @@ void platform_early_init(void) {
     // detect physical memory layout from the device tree
     fdtwalk_setup_memory(fdt, MEMORY_BASE_PHYS, MEMORY_BASE_PHYS, DEFAULT_MEMORY_SIZE);
 }
+
+void platform_postvm_init(uint level) {
+    // Initialize the interrupt controller from the device tree.
+    // Do it at this run level so the gic can map its registers.
+    if (fdtwalk_setup_gic(fdt) != NO_ERROR) {
+        panic("failed to initialize GIC from FDT\n");
+    }
+}
+
+LK_INIT_HOOK(platform_postvm_init, platform_postvm_init, LK_INIT_LEVEL_VM);
 
 void platform_init(void) {
     pl011_init(0);

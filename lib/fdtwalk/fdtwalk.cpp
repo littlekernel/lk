@@ -26,7 +26,7 @@ const int MAX_DEPTH = 16;
  * find the properties.
  */
 void read_address_size_cells(const void *fdt, int offset, int depth,
-                                    uint32_t *address_cells, uint32_t *size_cells) {
+                             uint32_t *address_cells, uint32_t *size_cells) {
     LTRACEF_LEVEL(3, "fdt %p, offset %d depth %d\n", fdt, offset, depth);
 
     DEBUG_ASSERT(depth >= 0 && depth < MAX_DEPTH);
@@ -48,8 +48,8 @@ void read_address_size_cells(const void *fdt, int offset, int depth,
 }
 
 status_t read_base_len_pair(const uint8_t *prop_ptr, size_t prop_len,
-                                   size_t address_cell_size, size_t size_cell_size,
-                                   uint64_t *base, uint64_t *len) {
+                            size_t address_cell_size, size_t size_cell_size,
+                            uint64_t *base, uint64_t *len) {
     *base = 0;
     *len = 0;
 
@@ -105,7 +105,7 @@ const char *get_prop_string(const void *fdt, int offset, const char *prop) {
 
     // check to see that it appears to be null terminated
     auto str = reinterpret_cast<const char *>(prop_ptr);
-    if (str[lenp-1] != '\0') {
+    if (str[lenp - 1] != '\0') {
         return nullptr;
     }
 
@@ -168,8 +168,9 @@ status_t _fdt_walk(const void *fdt, callback cb) {
 
         /* get the name */
         const char *name = fdt_get_name(fdt, state.offset, NULL);
-        if (!name)
+        if (!name) {
             continue;
+        }
 
         LTRACEF_LEVEL(2, "name '%s', depth %d, address cells %u, size cells %u\n",
                       name, state.depth, state.address_cells[state.depth], state.size_cells[state.depth]);
@@ -189,7 +190,7 @@ status_t fdt_walk_dump(const void *fdt) {
             printf("  ");
         }
         printf("offset %d depth %d acells %u scells %u name '%s'\n", state.offset, state.depth,
-                state.curr_address_cell(), state.curr_size_cell(), name);
+               state.curr_address_cell(), state.curr_size_cell(), name);
     };
 
     printf("FDT dump: address %p total size %#x\n", fdt, fdt_totalsize(fdt));
@@ -349,7 +350,6 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                 }
             }
 
-
             /* find the range of the ecam */
             prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
@@ -430,3 +430,154 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
     return _fdt_walk(fdt, walker);
 }
 
+status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info, size_t *count) {
+    const size_t info_len = *count;
+    *count = 0;
+    auto walker = [info, info_len, &count](const fdt_walk_state &state, const char *name) {
+        /* look for a gic node and pass the address of the ecam and other info to the callback */
+        fdt_walk_gic_info *infop = &info[*count];
+        if (*count < info_len) {
+            int lenp;
+
+            /* does it have the node 'interrupt-controller' */
+            if (!fdt_getprop(state.fdt, state.offset, "interrupt-controller", &lenp)) {
+                return;
+            }
+
+            // check against a list of compatible strings
+            const char *compat = get_prop_string(state.fdt, state.offset, "compatible");
+            if (!compat) {
+                return;
+            }
+
+            enum { UNKNOWN = 0,
+                   GIC_V2 = 2,
+                   GIC_V3 = 3 } found_version = UNKNOWN;
+
+            char const *gic_v2_compat_list[] = {
+                "arm,arm1176jzf-devchip-gic",
+                "arm,arm11mp-gic",
+                "arm,cortex-a15-gic",
+                "arm,cortex-a7-gic",
+                "arm,cortex-a9-gic",
+                "arm,eb11mp-gic",
+                "arm,gic-400",
+                "arm,pl390",
+                "arm,tc11mp-gic",
+                "brcm,brahma-b15-gic",
+                "nvidia,tegra210-agic",
+                "qcom,msm-8660-qgic",
+                "qcom,msm-qgic2"};
+            for (const char *gic_compat : gic_v2_compat_list) {
+                if (strstr(compat, gic_compat) != nullptr) {
+                    LTRACEF("compatible string '%s' matches gic v2 compat '%s'\n", compat, gic_compat);
+                    found_version = GIC_V2;
+                    break;
+                }
+            }
+            char const *gic_v3_compat_list[] = {
+                "arm,gic-v3",
+                "qcom,msm8996-gic-v3",
+            };
+            for (const char *gic_compat : gic_v3_compat_list) {
+                if (strstr(compat, gic_compat) != nullptr) {
+                    LTRACEF("compatible string '%s' matches gic v3 compat '%s'\n", compat, gic_compat);
+                    found_version = GIC_V3;
+                    break;
+                }
+            }
+            if (found_version == UNKNOWN) {
+                return;
+            }
+
+            // match found
+            LTRACEF("found gic node '%s'\n", name);
+
+            // at this point, we have a gic node either v2 or v3, so read out relevant properties
+            const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "#interrupt-cells", &lenp);
+            LTRACEF_LEVEL(3, "%p, len %d\n", prop_ptr, lenp);
+            if (prop_ptr && lenp == 4) {
+                infop->interrupt_cells = fdt32_ld((const fdt32_t *)prop_ptr);
+            } else {
+                // default to 3
+                infop->interrupt_cells = 3;
+            }
+
+            /* find the mmio range */
+            prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
+            LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
+            if (prop_ptr) {
+                LTRACEF_LEVEL(2, "found '%s' prop 'reg' len %d, ac %u, sc %u\n", name, lenp,
+                              state.curr_address_cell(), state.curr_size_cell());
+            }
+
+            if (state.curr_address_cell() != 2 || state.curr_size_cell() != 2) {
+                printf("unsupported address/size cell count %u/%u\n", state.curr_address_cell(), state.curr_size_cell());
+                return;
+            }
+
+            if (found_version == GIC_V2) {
+                if (lenp < 8 * 4) {
+                    printf("gic v2 reg property too small, len %d\n", lenp);
+                    return;
+                }
+
+                infop->gic_version = 2;
+
+                // read the v2 specific mmio range
+                infop->v2.distributor_base = fdt64_ld((const fdt64_t *)prop_ptr);
+                prop_ptr += 8;
+                infop->v2.distributor_len = fdt64_ld((const fdt64_t *)prop_ptr);
+                prop_ptr += 8;
+                infop->v2.cpu_interface_base = fdt64_ld((const fdt64_t *)prop_ptr);
+                prop_ptr += 8;
+                infop->v2.cpu_interface_len = fdt64_ld((const fdt64_t *)prop_ptr);
+                prop_ptr += 8;
+
+                // TODO: read "arm,gic-v2m-frame" if present
+            } else if (found_version == GIC_V3) {
+                if (lenp < 8 * 4) {
+                    printf("gic v3 reg property too small, len %d\n", lenp);
+                    return;
+                }
+
+                infop->gic_version = 3;
+
+                // read v3 specific properties here
+                infop->v3.distributor_base = fdt64_ld((const fdt64_t *)prop_ptr);
+                prop_ptr += 8;
+                infop->v3.distributor_len = fdt64_ld((const fdt64_t *)prop_ptr);
+                prop_ptr += 8;
+                infop->v3.redistributor_base = fdt64_ld((const fdt64_t *)prop_ptr);
+                prop_ptr += 8;
+                infop->v3.redistributor_len = fdt64_ld((const fdt64_t *)prop_ptr);
+                prop_ptr += 8;
+                // the rest of these are optional
+                if (lenp >= 8 * 4 + 16) {
+                    infop->v3.cpu_interface_base = fdt64_ld((const fdt64_t *)prop_ptr);
+                    prop_ptr += 8;
+                    infop->v3.cpu_interface_len = fdt64_ld((const fdt64_t *)prop_ptr);
+                    prop_ptr += 8;
+                }
+                if (lenp >= 8 * 4 + 32) {
+                    infop->v3.hypervisor_interface_base = fdt64_ld((const fdt64_t *)prop_ptr);
+                    prop_ptr += 8;
+                    infop->v3.hypervisor_interface_len = fdt64_ld((const fdt64_t *)prop_ptr);
+                    prop_ptr += 8;
+                }
+                if (lenp >= 8 * 4 + 48) {
+                    infop->v3.virtual_interface_base = fdt64_ld((const fdt64_t *)prop_ptr);
+                    prop_ptr += 8;
+                    infop->v3.virtual_interface_len = fdt64_ld((const fdt64_t *)prop_ptr);
+                    prop_ptr += 8;
+                }
+
+                // TODO: read "arm,gic-v3-its" if present
+            }
+
+            (*count)++;
+        }
+    };
+
+    return _fdt_walk(fdt, walker);
+}
