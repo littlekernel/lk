@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain-ver: [15.2.0, 7.5.0]
+        toolchain-ver: [15.2.0, 11.3.0]
         debug: [2, 0]
         ubsan: [1, 0]
         arch:
@@ -32,9 +32,6 @@ jobs:
           - riscv64
           - x86
         exclude:
-          # no real point building ubsan on the old compiler
-          - ubsan: 1
-            toolchain-ver: 7.5.0
           # do not build ubsan for older 32bit arches where it is not well supported
           - ubsan: 1
             arch: m68k
@@ -44,15 +41,6 @@ jobs:
             arch: mips
           - ubsan: 1
             arch: or1k
-          # no toolchain for 7.5.0 for or1k
-          - arch: or1k
-            toolchain-ver: 7.5.0
-          # building newer riscv stuff on 7.5.0 is fairly difficult due to
-          # lack of certain extensions
-          - arch: riscv32
-            toolchain-ver: 7.5.0
-          - arch: riscv64
-            toolchain-ver: 7.5.0
 
     env:
       ARCH: ${{ matrix.arch }}
