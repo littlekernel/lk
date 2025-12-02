@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain-ver: [14, 15, 16, 17, 18, 19]
+        toolchain-ver: [14, 15, 16, 17, 18, 19, 20]
         debug: [2, 0]
         project:
           # Note: Clang toolchains do not ship with a compiler-rt (libgcc) for
