@@ -152,18 +152,18 @@ static void gic_set_enable(uint vector, bool enable) {
 
             /* On GICv3/v4 these are on GICR */
             if (enable) {
-                GICRREG_WRITE(0, cpu, GICR_ISENABLER0, mask);
+                gicr_write(0, cpu, GICR_ISENABLER0, mask);
             } else {
-                GICRREG_WRITE(0, cpu, GICR_ICENABLER0, mask);
+                gicr_write(0, cpu, GICR_ICENABLER0, mask);
             }
             return;
         }
     }
 
     if (enable) {
-        GICDREG_WRITE(0, GICD_ISENABLER(reg), mask);
+        gicd_write(0, GICD_ISENABLER(reg), mask);
     } else {
-        GICDREG_WRITE(0, GICD_ICENABLER(reg), mask);
+        gicd_write(0, GICD_ICENABLER(reg), mask);
     }
 
     if (arm_gics[0].gic_revision > 2) {
@@ -204,12 +204,12 @@ static void arm_gic_resume_cpu(uint level) {
     bool distributor_enabled = true;
     if (arm_gics[0].gic_revision > 2) {
         // Check if both group 0 and secure group 1 are enabled
-        if (!(GICDREG_READ(0, GICD_CTLR) & 0b101)) {
+        if (!(gicd_read(0, GICD_CTLR) & 0b101)) {
             distributor_enabled = false;
         }
     } else {
         // Check if group 0 are enabled
-        if (!(GICDREG_READ(0, GICD_CTLR) & 1)) {
+        if (!(gicd_read(0, GICD_CTLR) & 1)) {
             distributor_enabled = false;
         }
     }
@@ -257,13 +257,13 @@ status_t gic_configure_interrupt(unsigned int vector,
     // 16 irqs encoded per ICFGR register
     uint32_t reg_ndx = vector >> 4;
     uint32_t bit_shift = ((vector & 0xf) << 1) + 1;
-    uint32_t reg_val = GICDREG_READ(0, GICD_ICFGR(reg_ndx));
+    uint32_t reg_val = gicd_read(0, GICD_ICFGR(reg_ndx));
     if (tm == IRQ_TRIGGER_MODE_EDGE) {
         reg_val |= (1U << bit_shift);
     } else {
         reg_val &= ~(1U << bit_shift);
     }
-    GICDREG_WRITE(0, GICD_ICFGR(reg_ndx), reg_val);
+    gicd_write(0, GICD_ICFGR(reg_ndx), reg_val);
 
     return NO_ERROR;
 }
@@ -367,7 +367,7 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
 static status_t arm_gic_get_priority(u_int irq) {
     u_int reg = irq / 4;
     u_int shift = 8 * (irq % 4);
-    return (GICDREG_READ(0, GICD_IPRIORITYR(reg)) >> shift) & 0xff;
+    return (status_t)((gicd_read(0, GICD_IPRIORITYR(reg)) >> shift) & 0xff);
 }
 
 static status_t arm_gic_set_priority_locked(u_int irq, uint8_t priority) {
@@ -381,23 +381,23 @@ static status_t arm_gic_set_priority_locked(u_int irq, uint8_t priority) {
             uint cpu = arch_curr_cpu_num();
 
             /* On GICv3 IPRIORITY registers are on redistributor */
-            regval = GICRREG_READ(0, cpu, GICR_IPRIORITYR(reg));
+            regval = gicr_read(0, cpu, GICR_IPRIORITYR(reg));
             LTRACEF("irq %i, cpu %d: old GICR_IPRIORITYR%d = %x\n", irq, cpu, reg,
                     regval);
             regval = (regval & ~mask) | ((uint32_t)priority << shift);
-            GICRREG_WRITE(0, cpu, GICR_IPRIORITYR(reg), regval);
+            gicr_write(0, cpu, GICR_IPRIORITYR(reg), regval);
             LTRACEF("irq %i, cpu %d, new GICD_IPRIORITYR%d = %x, req %x\n",
-                    irq, cpu, reg, GICDREG_READ(0, GICD_IPRIORITYR(reg)), regval);
+                    irq, cpu, reg, gicd_read(0, GICD_IPRIORITYR(reg)), regval);
             return 0;
         }
     }
 
-    regval = GICDREG_READ(0, GICD_IPRIORITYR(reg));
+    regval = gicd_read(0, GICD_IPRIORITYR(reg));
     LTRACEF("irq %i, old GICD_IPRIORITYR%d = %x\n", irq, reg, regval);
     regval = (regval & ~mask) | ((uint32_t)priority << shift);
-    GICDREG_WRITE(0, GICD_IPRIORITYR(reg), regval);
+    gicd_write(0, GICD_IPRIORITYR(reg), regval);
     LTRACEF("irq %i, new GICD_IPRIORITYR%d = %x, req %x\n",
-            irq, reg, GICDREG_READ(0, GICD_IPRIORITYR(reg)), regval);
+            irq, reg, gicd_read(0, GICD_IPRIORITYR(reg)), regval);
 
     return 0;
 }

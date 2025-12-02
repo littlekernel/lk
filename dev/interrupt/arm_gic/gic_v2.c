@@ -62,6 +62,15 @@
 #define GICC_PRIMARY_IAR   GICC_IAR
 #define GICC_PRIMARY_EOIR  GICC_EOIR
 
+#define GICCREG_READ(gic, reg) ({                                           \
+    ASSERT((gic) < NUM_ARM_GICS);                                           \
+    mmio_read32((volatile uint32_t *)(arm_gics[(gic)].gicc_vaddr + (reg))); \
+})
+#define GICCREG_WRITE(gic, reg, val) ({                                             \
+    ASSERT((gic) < NUM_ARM_GICS);                                                   \
+    mmio_write32((volatile uint32_t *)(arm_gics[(gic)].gicc_vaddr + (reg)), (val)); \
+})
+
 void arm_gicv2_init_percpu(void) {
     GICCREG_WRITE(0, GICC_CTLR, 1); // enable GIC0
     GICCREG_WRITE(0, GICC_PMR, 0xFF); // unmask interrupts at all priority levels
@@ -78,7 +87,7 @@ void arm_gicv2_init(void) {
     dprintf(INFO, "GIC: version %lu\n", BITS_SHIFT(iidr, 19, 16));
 
     // Read how many cpus and interrupts we support
-    uint32_t type = GICDREG_READ(0, GICD_TYPER);
+    uint32_t type = gicd_read(0, GICD_TYPER);
     uint32_t cpu_count = arm_gic_max_cpu();
     uint32_t it_lines = (type & 0x1f) + 1;
     if (it_lines > 6) {
@@ -91,14 +100,14 @@ void arm_gicv2_init(void) {
     dprintf(INFO, "GICv2: GICD_TYPER 0x%x, cpu_count %u, max_int %u\n", type, cpu_count + 1, max_int);
 
     for (int i = 0; i < max_int; i += 32) {
-        GICDREG_WRITE(0, GICD_ICENABLER(i / 32), ~0U);
-        GICDREG_WRITE(0, GICD_ICPENDR(i / 32), ~0U);
+        gicd_write(0, GICD_ICENABLER(i / 32), ~0U);
+        gicd_write(0, GICD_ICPENDR(i / 32), ~0U);
     }
 
     if (arm_gic_max_cpu() > 0) {
         /* Set external interrupts to target cpu 0 */
         for (int i = 32; i < MAX_INT; i += 4) {
-            GICDREG_WRITE(0, GICD_ITARGETSR(i / 4), 0x01010101);
+            gicd_write(0, GICD_ITARGETSR(i / 4), 0x01010101);
         }
     }
 
@@ -107,7 +116,7 @@ void arm_gicv2_init(void) {
         gic_configure_interrupt(i, IRQ_TRIGGER_MODE_EDGE, IRQ_POLARITY_ACTIVE_HIGH);
     }
 
-    GICDREG_WRITE(0, GICD_CTLR, 1); // enable GIC0
+    gicd_write(0, GICD_CTLR, 1); // enable GIC0
 }
 
 status_t arm_gicv2_sgi(u_int irq, u_int flags, u_int cpu_mask) {
@@ -119,7 +128,7 @@ status_t arm_gicv2_sgi(u_int irq, u_int flags, u_int cpu_mask) {
 
     LTRACEF("GICD_SGIR: %x\n", val);
 
-    GICDREG_WRITE(0, GICD_SGIR, val);
+    gicd_write(0, GICD_SGIR, val);
 
     return NO_ERROR;
 }

@@ -115,23 +115,23 @@ GEN_CP15_REG64_FUNCS(icc_sgi0r_el1, 2, c12);
 #endif
 
 static void gicv3_gicr_exit_sleep(uint32_t cpu) {
-    uint32_t val = GICRREG_READ(0, cpu, GICR_WAKER);
+    uint32_t val = gicr_read(0, cpu, GICR_WAKER);
 
     if (val & WAKER_QSC_BIT) {
         /* clear sleep bit */
-        GICRREG_WRITE(0, cpu, GICR_WAKER, val & ~WAKER_SL_BIT);
-        while (GICRREG_READ(0, cpu, GICR_WAKER) & WAKER_QSC_BIT) {
+        gicr_write(0, cpu, GICR_WAKER, val & ~WAKER_SL_BIT);
+        while (gicr_read(0, cpu, GICR_WAKER) & WAKER_QSC_BIT) {
         }
     }
 }
 
 static void gicv3_gicr_mark_awake(uint32_t cpu) {
-    uint32_t val = GICRREG_READ(0, cpu, GICR_WAKER);
+    uint32_t val = gicr_read(0, cpu, GICR_WAKER);
 
     if (val & WAKER_CA_BIT) {
         /* mark CPU as awake */
-        GICRREG_WRITE(0, cpu, GICR_WAKER, val & ~WAKER_PS_BIT);
-        while (GICRREG_READ(0, cpu, GICR_WAKER) & WAKER_CA_BIT) {
+        gicr_write(0, cpu, GICR_WAKER, val & ~WAKER_PS_BIT);
+        while (gicr_read(0, cpu, GICR_WAKER) & WAKER_CA_BIT) {
         }
     }
 }
@@ -150,19 +150,19 @@ static void gicv3_gicr_mark_awake(uint32_t cpu) {
 
 static void gicv3_gicr_power_on(uint32_t cpu) {
     /* Initiate power up */
-    GICRREG_WRITE(0, cpu, GICR_PWRR, PWRR_ON);
+    gicr_write(0, cpu, GICR_PWRR, PWRR_ON);
 
     /* wait until it is complete (both bits are clear) */
-    while (GICRREG_READ(0, cpu, GICR_PWRR) & PWRR_RDGP_MASK) {
+    while (gicr_read(0, cpu, GICR_PWRR) & PWRR_RDGP_MASK) {
     }
 }
 
 static void gicv3_gicr_off(uint32_t cpu) {
     /* initiate power down */
-    GICRREG_WRITE(0, cpu, GICR_PWRR, PWRR_OFF);
+    gicr_write(0, cpu, GICR_PWRR, PWRR_OFF);
 
     /* wait until it is complete (both bits are set) */
-    while ((GICRREG_READ(0, cpu, GICR_PWRR) & PWRR_RDGP_MASK) !=
+    while ((gicr_read(0, cpu, GICR_PWRR) & PWRR_RDGP_MASK) !=
            PWRR_RDGP_MASK) {
     }
 }
@@ -175,7 +175,7 @@ static void gicv3_gicr_power_off(uint32_t cpu) {}
 
 static void arm_gicv3_wait_for_gicr_write_complete(uint cpu) {
     /* wait until write complete */
-    while (GICRREG_READ(0, cpu, GICR_CTRL) & (1 << 31)) { // GICR_CTLR.RWP
+    while (gicr_read(0, cpu, GICR_CTRL) & (1 << 31)) { // GICR_CTLR.RWP
     }
 }
 static void gicv3_gicr_init(void) {
@@ -186,25 +186,25 @@ static void gicv3_gicr_init(void) {
     gicv3_gicr_mark_awake(cpu);
 
     // redistributer config: configure sgi/ppi as non-secure group 1.
-    GICRREG_WRITE(0, cpu, GICR_IGROUPR0, ~0);
-    GICRREG_WRITE(0, cpu, GICR_IGRPMODR0, 0);
+    gicr_write(0, cpu, GICR_IGROUPR0, ~0);
+    gicr_write(0, cpu, GICR_IGRPMODR0, 0);
     arm_gicv3_wait_for_gicr_write_complete(cpu);
 
     // redistributer config: clear and mask sgi/ppi.
-    GICRREG_WRITE(0, cpu, GICR_ICENABLER0, ~0);
-    GICRREG_WRITE(0, cpu, GICR_ICPENDR0, ~0);
+    gicr_write(0, cpu, GICR_ICENABLER0, ~0);
+    gicr_write(0, cpu, GICR_ICPENDR0, ~0);
     arm_gicv3_wait_for_gicr_write_complete(cpu);
 }
 
 void arm_gicv3_wait_for_write_complete(void) {
     /* wait until write complete */
-    while (GICDREG_READ(0, GICD_CTLR) & GICD_CTLR_RWP) {
+    while (gicd_read(0, GICD_CTLR) & GICD_CTLR_RWP) {
     }
 }
 
 static void gicv3_gicd_ctrl_write(uint32_t val) {
     /* write CTRL register */
-    GICDREG_WRITE(0, GICD_CTLR, val);
+    gicd_write(0, GICD_CTLR, val);
 
     /* wait until write complete */
     arm_gicv3_wait_for_write_complete();
@@ -218,21 +218,21 @@ static void gicv3_gicd_setup_irq_group(uint32_t vector, uint32_t grp) {
 
     mask = (0x1u << (vector % 32));
 
-    val = GICDREG_READ(0, GICD_IGROUPR(vector / 32));
+    val = gicd_read(0, GICD_IGROUPR(vector / 32));
     if (grp & 0x1u) {
         val |= mask;
     } else {
         val &= ~mask;
     }
-    GICDREG_WRITE(0, GICD_IGROUPR(vector / 32), val);
+    gicd_write(0, GICD_IGROUPR(vector / 32), val);
 
-    val = GICDREG_READ(0, GICD_IGRPMODR(vector / 32));
+    val = gicd_read(0, GICD_IGRPMODR(vector / 32));
     if (grp & 0x2u) {
         val |= mask;
     } else {
         val &= ~mask;
     }
-    GICDREG_WRITE(0, GICD_IGRPMODR(vector / 32), val);
+    gicd_write(0, GICD_IGRPMODR(vector / 32), val);
 }
 
 static void gicv3_gicd_setup_default_group(uint32_t grp) {
@@ -240,13 +240,13 @@ static void gicv3_gicd_setup_default_group(uint32_t grp) {
 
     /* Assign all interrupts to selected group */
     for (i = 32; i < MAX_INT; i += 32) {
-        GICDREG_WRITE(0, GICD_IGROUPR(i / 32), (grp & 0x1u) ? ~0U : 0);
-        GICDREG_WRITE(0, GICD_IGRPMODR(i / 32), (grp & 0x2u) ? ~0U : 0);
+        gicd_write(0, GICD_IGROUPR(i / 32), (grp & 0x1u) ? ~0U : 0);
+        gicd_write(0, GICD_IGRPMODR(i / 32), (grp & 0x2u) ? ~0U : 0);
     }
 }
 
 static bool gicv3_gicd_security_disabled(void) {
-    return GICDREG_READ(0, GICD_CTLR) & GICD_CTLR_DS;
+    return gicd_read(0, GICD_CTLR) & GICD_CTLR_DS;
 }
 
 static void gicv3_gicr_setup_irq_group(uint32_t vector, uint32_t grp) {
@@ -258,40 +258,40 @@ static void gicv3_gicr_setup_irq_group(uint32_t vector, uint32_t grp) {
 
     mask = (0x1u << vector);
 
-    val = GICRREG_READ(0, cpu, GICR_IGROUPR0);
+    val = gicr_read(0, cpu, GICR_IGROUPR0);
     if (grp & 0x1u) {
         val |= mask;
     } else {
         val &= ~mask;
     }
-    GICRREG_WRITE(0, cpu, GICR_IGROUPR0, val);
+    gicr_write(0, cpu, GICR_IGROUPR0, val);
 
-    val = GICRREG_READ(0, cpu, GICR_IGRPMODR0);
+    val = gicr_read(0, cpu, GICR_IGRPMODR0);
     if (grp & 0x2u) {
         val |= mask;
     } else {
         val &= ~mask;
     }
-    GICRREG_WRITE(0, cpu, GICR_IGRPMODR0, val);
+    gicr_write(0, cpu, GICR_IGRPMODR0, val);
 }
 
 static void gicv3_gicr_setup_default_group(uint32_t grp) {
     uint32_t cpu = arch_curr_cpu_num();
 
-    GICRREG_WRITE(0, cpu, GICR_IGROUPR0, (grp & 0x1u) ? ~0U : 0);
-    GICRREG_WRITE(0, cpu, GICR_IGRPMODR0, (grp & 0x2u) ? ~0U : 0);
+    gicr_write(0, cpu, GICR_IGROUPR0, (grp & 0x1u) ? ~0U : 0);
+    gicr_write(0, cpu, GICR_IGRPMODR0, (grp & 0x2u) ? ~0U : 0);
 }
 
 void arm_gicv3_init(void) {
     bool disabled_security = gicv3_gicd_security_disabled();
 
-    uint32_t pidr2 = GICDREG_READ(0, GICD_PIDR2);
+    uint32_t pidr2 = gicd_read(0, GICD_PIDR2);
     uint32_t rev = BITS_SHIFT(pidr2, 7, 4);
     if (rev != 3 && rev != 4) {
         panic("GIC not v3 or v4, pidr %#x rev %#x\n", pidr2, rev);
     }
 
-    uint32_t typer = GICDREG_READ(0, GICD_TYPER);
+    uint32_t typer = gicd_read(0, GICD_TYPER);
     uint32_t gic_max_int = (BITS(typer, 4, 0) + 1) * 32;
 
     printf("GICv3 detected: rev %u, max interrupts %u, TYPER %#x\n", rev, gic_max_int, typer);
@@ -303,7 +303,7 @@ void arm_gicv3_init(void) {
     }
 
     // save the revision
-    arm_gics[0].gic_revision = rev;
+    arm_gics[0].gic_revision = (int)rev;
 
     // calculate the cpu stride
     // GICv3 has 2 64k regions pper redistributor:
@@ -317,19 +317,19 @@ void arm_gicv3_init(void) {
     }
 
     /* Disable all groups before making changes */
-    gicv3_gicd_ctrl_write(GICDREG_READ(0, GICD_CTLR) & ~0x7U);
+    gicv3_gicd_ctrl_write(gicd_read(0, GICD_CTLR) & ~0x7U);
 
     for (uint32_t i = 0; i < gic_max_int; i += 32) {
-        GICDREG_WRITE(0, GICD_ICENABLER(i / 32), ~0U);
-        GICDREG_WRITE(0, GICD_ICPENDR(i / 32), ~0U);
-        GICDREG_WRITE(0, GICD_IGROUPR(i / 32), ~0U);
-        GICDREG_WRITE(0, GICD_IGRPMODR(i / 32), ~0U);
+        gicd_write(0, GICD_ICENABLER(i / 32), ~0U);
+        gicd_write(0, GICD_ICPENDR(i / 32), ~0U);
+        gicd_write(0, GICD_IGROUPR(i / 32), ~0U);
+        gicd_write(0, GICD_IGRPMODR(i / 32), ~0U);
     }
     arm_gicv3_wait_for_write_complete();
 
     /* Enable distributor with ARE, group 1 enable */
     if (disabled_security == false) {
-        gicv3_gicd_ctrl_write(GICDREG_READ(0, GICD_CTLR) |
+        gicv3_gicd_ctrl_write(gicd_read(0, GICD_CTLR) |
                               (GICD_CTLR_ENABLE_G0 | GICD_CTLR_ENABLE_G1NS | GICD_CTLR_ARE_S));
     } else {
         // TODO: is there a reasonable other solution here?
@@ -337,12 +337,12 @@ void arm_gicv3_init(void) {
 
     /* Enable selected group */
     uint32_t grp_mask = (0x1u << GICV3_IRQ_GROUP);
-    gicv3_gicd_ctrl_write(GICDREG_READ(0, GICD_CTLR) | grp_mask);
+    gicv3_gicd_ctrl_write(gicd_read(0, GICD_CTLR) | grp_mask);
     arm_gicv3_wait_for_write_complete();
 
     /* Direct SPI interrupts to core 0 */
     for (uint32_t i = 32; i < gic_max_int; i++) {
-        GICDREG_WRITE64(0, GICD_IROUTER(i), 0);
+        gicd_write64(0, GICD_IROUTER(i), 0);
     }
 }
 
@@ -389,22 +389,22 @@ void arm_gicv3_suspend_cpu(unsigned int cpu) {
     if (cpu == 0) {
         /* also save gicd */
         for (i = 32; i < MAX_INT; i += 32) {
-            enabled_spi_mask[i / 32] = GICDREG_READ(0, GICD_ISENABLER(i / 32));
+            enabled_spi_mask[i / 32] = gicd_read(0, GICD_ISENABLER(i / 32));
         }
     }
-    enabled_ppi_mask[cpu] = GICRREG_READ(0, cpu, GICR_ISENABLER0);
+    enabled_ppi_mask[cpu] = gicr_read(0, cpu, GICR_ISENABLER0);
 }
 
 void arm_gicv3_resume_cpu_locked(unsigned int cpu, bool gicd) {
     uint32_t i;
     ASSERT(cpu < SMP_MAX_CPUS);
 
-    GICRREG_WRITE(0, cpu, GICR_ISENABLER0, enabled_ppi_mask[cpu]);
+    gicr_write(0, cpu, GICR_ISENABLER0, enabled_ppi_mask[cpu]);
 
     if (gicd) {
         /* also resume gicd */
         for (i = 32; i < MAX_INT; i += 32) {
-            GICDREG_WRITE(0, GICD_ISENABLER(i / 32), enabled_spi_mask[i / 32]);
+            gicd_write(0, GICD_ISENABLER(i / 32), enabled_spi_mask[i / 32]);
         }
     }
 }
@@ -415,7 +415,7 @@ void arm_gicv3_resume_cpu_locked(unsigned int cpu, bool gicd) {
 #define SGIR_IRQ_SHIFT            (24)
 #define SGIR_RS_SHIFT             (44)
 #define SGIR_TARGET_LIST_SHIFT    (0)
-#define SGIR_ASSEMBLE(val, shift) ((uint64_t)val << shift)
+#define SGIR_ASSEMBLE(val, shift) (((uint64_t)(val)) << (shift))
 
 static uint64_t arm_gicv3_sgir_val(u_int irq, size_t cpu_num) {
     DEBUG_ASSERT(irq < 16);
@@ -471,10 +471,12 @@ status_t arm_gicv3_sgi(u_int irq, u_int flags, u_int cpu_mask) {
 enum handler_return arm_gicv3_platform_irq(struct iframe *frame) {
     // get the current vector
     uint32_t iar = GICCREG_READ(0, GICC_PRIMARY_IAR);
+
+    // TODO: deal with extended interrupt IDs
     unsigned int vector = iar & 0x3ff;
 
-    if (vector >= 0x3fe) {
-        // spurious
+    if (vector >= 1020) {
+        // spurious or other unhandlable interrupt
         return INT_NO_RESCHEDULE;
     }
 

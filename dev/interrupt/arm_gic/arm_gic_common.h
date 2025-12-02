@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <dev/interrupt/arm_gic.h>
 #include <lk/reg.h>
+#include <lk/trace.h>
 #include <platform/gic.h>
 #include <platform/interrupts.h>
 
@@ -86,26 +87,45 @@ status_t gic_configure_interrupt(unsigned int vector,
                                  enum interrupt_polarity pol);
 
 /* distributor registers shared between v2 and v3 */
-#define GICDREG_READ(gic, reg) ({                                           \
-    ASSERT((gic) < NUM_ARM_GICS);                                           \
-    mmio_read32((volatile uint32_t *)(arm_gics[(gic)].gicd_vaddr + (reg))); \
-})
-#define GICDREG_WRITE(gic, reg, val) ({                                                                                    \
-    ASSERT((gic) < NUM_ARM_GICS);                                                                                          \
-    LTRACEF_LEVEL(3, "GICDREG_WRITE base vaddr %#lx gic %d reg 0x%x val 0x%x\n", arm_gics[gic].gicd_vaddr, gic, reg, val); \
-    LTRACEF_LEVEL(3, "final address = %#lx\n", arm_gics[gic].gicd_vaddr + (reg));                                          \
-    mmio_write32((volatile uint32_t *)(arm_gics[(gic)].gicd_vaddr + (reg)), (val));                                        \
-})
+static inline uint32_t gicd_read(uint gic, uint32_t reg) {
+    ASSERT(gic < NUM_ARM_GICS);
+    volatile uint32_t *ptr = (volatile uint32_t *)(uintptr_t)(arm_gics[gic].gicd_vaddr + reg);
+    return mmio_read32(ptr);
+}
+
+static inline void gicd_write(uint gic, uint32_t reg, uint32_t val) {
+    ASSERT(gic < NUM_ARM_GICS);
+    volatile uint32_t *ptr = (volatile uint32_t *)(uintptr_t)(arm_gics[gic].gicd_vaddr + reg);
+    mmio_write32(ptr, val);
+}
 
 /* some registers of GICD are 64 bit (v3+) */
-#define GICDREG_READ64(gic, reg) ({                                        \
-    ASSERT((gic) < NUM_ARM_GICS);                                          \
-    mmio_read64((volatile uint64_t *)(arm_gics[(gic)].gicd_vaddr + (reg)); \
-})
-#define GICDREG_WRITE64(gic, reg, val) ({                                           \
-    ASSERT((gic) < NUM_ARM_GICS);                                                   \
-    mmio_write64((volatile uint64_t *)(arm_gics[(gic)].gicd_vaddr + (reg)), (val)); \
-})
+static inline uint64_t gicd_read64(uint gic, uint32_t reg) {
+    ASSERT(gic < NUM_ARM_GICS);
+#if !_LP64
+    /* AArch32: perform two 32-bit reads, low then high */
+    volatile uint32_t *ptr32 = (volatile uint32_t *)(uintptr_t)(arm_gics[gic].gicd_vaddr + reg);
+    uint64_t lo = mmio_read32(ptr32);
+    uint64_t hi = mmio_read32(ptr32 + 1);
+    return lo | (hi << 32);
+#else
+    volatile uint64_t *ptr = (volatile uint64_t *)(uintptr_t)(arm_gics[gic].gicd_vaddr + reg);
+    return mmio_read64(ptr);
+#endif
+}
+
+static inline void gicd_write64(uint gic, uint32_t reg, uint64_t val) {
+    ASSERT(gic < NUM_ARM_GICS);
+#if !_LP64
+    /* AArch32: perform two 32-bit writes, low then high */
+    volatile uint32_t *ptr32 = (volatile uint32_t *)(uintptr_t)(arm_gics[gic].gicd_vaddr + reg);
+    mmio_write32(ptr32, (uint32_t)val);
+    mmio_write32(ptr32 + 1, (uint32_t)(val >> 32));
+#else
+    volatile uint64_t *ptr = (volatile uint64_t *)(uintptr_t)(arm_gics[gic].gicd_vaddr + reg);
+    mmio_write64(ptr, val);
+#endif
+}
 
 /* distribution regs */
 #define GICD_CTLR          (0x000)
@@ -169,20 +189,21 @@ status_t gic_configure_interrupt(unsigned int vector,
 
 #define GICR_CPU_OFFSET(gic, cpu) ((cpu) * arm_gics[(gic)].gicr_cpu_stride)
 
-#define GICRREG_READ(gic, cpu, reg) ({                                                                  \
-    ASSERT(gic < NUM_ARM_GICS);                                                                         \
-    ASSERT(cpu < SMP_MAX_CPUS);                                                                         \
-    ASSERT(arm_gics[gic].gicr_cpu_stride != 0);                                                         \
-    mmio_read32((volatile uint32_t *)(arm_gics[(gic)].gicr_vaddr + GICR_CPU_OFFSET(gic, cpu) + (reg))); \
-})
-#define GICRREG_WRITE(gic, cpu, reg, val) ({                                                                                           \
-    ASSERT(gic < NUM_ARM_GICS);                                                                                                        \
-    ASSERT(cpu < SMP_MAX_CPUS);                                                                                                        \
-    ASSERT(arm_gics[gic].gicr_cpu_stride != 0);                                                                                        \
-    LTRACEF_LEVEL(3, "GICRREG_WRITE base vaddr %#lx gic %d cpu %d reg 0x%x val 0x%x\n", arm_gics[gic].gicr_vaddr, gic, cpu, reg, val); \
-    LTRACEF_LEVEL(3, "final address = %#lx\n", arm_gics[gic].gicr_vaddr + GICR_CPU_OFFSET(gic, cpu) + (reg));                          \
-    mmio_write32((volatile uint32_t *)(arm_gics[(gic)].gicr_vaddr + GICR_CPU_OFFSET(gic, cpu) + (reg)), (val));                        \
-})
+static inline uint32_t gicr_read(uint gic, uint cpu, uint32_t reg) {
+    ASSERT(gic < NUM_ARM_GICS);
+    ASSERT(cpu < SMP_MAX_CPUS);
+    ASSERT(arm_gics[gic].gicr_cpu_stride != 0);
+    volatile uint32_t *ptr = (volatile uint32_t *)(uintptr_t)(arm_gics[gic].gicr_vaddr + GICR_CPU_OFFSET(gic, cpu) + reg);
+    return mmio_read32(ptr);
+}
+
+static inline void gicr_write(uint gic, uint cpu, uint32_t reg, uint32_t val) {
+    ASSERT(gic < NUM_ARM_GICS);
+    ASSERT(cpu < SMP_MAX_CPUS);
+    ASSERT(arm_gics[gic].gicr_cpu_stride != 0);
+    volatile uint32_t *ptr = (volatile uint32_t *)(uintptr_t)(arm_gics[gic].gicr_vaddr + GICR_CPU_OFFSET(gic, cpu) + reg);
+    mmio_write32(ptr, val);
+}
 
 #define GICR_CTRL    (0x0000)
 #define GICR_IIDR    (0x0004)
@@ -212,5 +233,5 @@ status_t gic_configure_interrupt(unsigned int vector,
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
 static inline int arm_gic_max_cpu(void) {
-    return ((GICDREG_READ(0, GICD_TYPER) >> 5) & 0x7) + 1;
+    return (int)(((gicd_read(0, GICD_TYPER) >> 5) & 0x7) + 1);
 }
