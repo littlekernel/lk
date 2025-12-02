@@ -22,7 +22,7 @@ LK uses a 4-layer modular build system:
    - MMU setup, exception handling, context switching, atomic ops
 
 ### Module System Pattern
-Every component is a module with `rules.mk`:
+Every component is a module with a `rules.mk` file:
 
 ```make
 LOCAL_DIR := $(GET_LOCAL_DIR)
@@ -48,6 +48,7 @@ include make/module.mk
 - Module include paths auto-added: `$(MODULE)/include/` becomes available globally
 - Always use `$(LOCAL_DIR)` prefix for source paths
 - Must `include make/module.mk` at end of `rules.mk` to finalize the module definition
+- All MODULE_* variables are cleared after inclusion, preventing leakage between modules
 
 ## Critical Build Patterns
 
@@ -66,7 +67,7 @@ make qemu-virt-arm64-test LK_HEAP_IMPLEMENTATION=cmpctmalloc
 make qemu-virt-arm64-test DEBUG=0
 
 # Clean specific project
-rm -rf build-qemu-virt-arm64-test
+make build-qemu-virt-arm64-test clean
 
 # Clean everything
 make spotless
@@ -84,7 +85,7 @@ scripts/do-qemuarm -6
 # ARM64 with 64KB pages
 scripts/do-qemuarm -6 -P 64k
 
-# ARM64 with KVM/HVF acceleration
+# ARM64 with KVM/HVF acceleration (only if on ARM64 host)
 scripts/do-qemuarm -6 -k
 
 # RISC-V 32-bit in machine mode
@@ -99,21 +100,23 @@ scripts/do-qemux86
 # x86-64
 scripts/do-qemux86 -6
 
+# x86-64 with KVM acceleration (only if on x86-64 host)
+scripts/do-qemux86 -6 -k
+
 # With various devices (disk, network, display)
-scripts/do-qemuarm -6 -n -d disk.img -g
+scripts/do-qemux86 -6 -n -d disk.img -g
 ```
 
-These scripts auto-build before launching QEMU.
+The do-qemu* scripts auto-build before launching QEMU.
 
 ### Running all unit tests
 
 ```bash
-
 # Run all unit tests for ARM64 architecture
-./scripts/do-qemu-boot-tests.py --arch arm64
+./scripts/run-qemu-boot-tests.py --arch arm64
 
 # For all architectures
-./scripts/do-qemu-boot-tests.py
+./scripts/run-qemu-boot-tests.py
 ```
 
 ## Code Conventions
@@ -124,7 +127,7 @@ These scripts auto-build before launching QEMU.
 - **K&R braces**: `if (x) {` not `if (x)\n{`
 - **Header guards**: Always use `#pragma once` (never `#ifndef` guards)
 - Short if/loops allowed: `if (foo) return;` is acceptable
-- No column limit (long lines OK)
+- 100 Column soft limit (line breaks preferred before 100 chars)
 
 ### Compiler Warnings
 - Base flags: `-Wall -Werror=return-type -Wshadow -Wdouble-promotion`
@@ -151,11 +154,9 @@ STATIC_COMMAND("mytest", "my test command", &my_command)
 STATIC_COMMAND_END(mytest);
 ```
 
-Console commands are placed in linker section `"console_cmds"` and auto-registered at runtime:
+Console commands are placed in linker section `"console_cmds"` and auto-registered at runtime.
 
-```c
-
-**Note:** If `lib/console` not in build, these macros expand to nothing (no build errors).
+**Note:** If `lib/console` not in build, these macros expand to nothing and the code should not be emitted.
 
 #### Defining Applications
 Apps start automatically at boot (unless `APP_FLAG_NO_AUTOSTART`):
@@ -196,8 +197,10 @@ LK_HEAP_IMPLEMENTATION ?= dlmalloc  # default
 Architectures with MMU set `WITH_KERNEL_VM ?= 1` in `arch/*/rules.mk`:
 - Enables `kernel/vm` instead of `kernel/novm`
 - Requires `KERNEL_ASPACE_BASE/SIZE` and `USER_ASPACE_BASE/SIZE` definitions
-- Page size configurable: `ARM64_PAGE_SIZE` (4096, 16384, 65536)
-- Different projects for different page sizes: `qemu-virt-arm64-64k-test`
+- For ARM64 architecture:
+  - Page size configurable: `ARM64_PAGE_SIZE` (4096, 16384, 65536) on ARM64 architecture
+  - Different projects for different page sizes: `qemu-virt-arm64-64k-test`
+- All other architecture use 4KB pages by default.
 
 ### Global Defines
 Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
@@ -210,8 +213,8 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
 ### Adding a New Module
 1. Create directory under appropriate location (`lib/`, `dev/`, `app/`)
 2. Create `rules.mk` with module definition
-3. Add source files, set `MODULE_DEPS` for dependencies
-4. Include module in project: `MODULES += lib/mylib`
+3. Add source files, set `MODULE_DEPS` for dependencies to other modules from this module
+4. Include new module in project/target/platform as needed
 5. Headers in `<module>/include/` are globally accessible
 
 ### Adding Platform Support
@@ -222,16 +225,26 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
 5. Create project in `project/<board>-test.mk`
 
 ### Debugging
-- Builds at `DEBUG=2` (default) include symbols, `DEBUG=0` is release
+- Multiple DEBUG build levels, controlled via `DEBUG` make variable:
+  - `DEBUG=0`: no DEBUG_ASSERT, dprintf only for ALWAYS level
+  - `DEBUG=1`: DEBUG_ASSERT enabled, dprintf at INFO and ALWAYS
+  - `DEBUG=2`: DEBUG_ASSERT enabled, dprintf at DEBUG, INFO, ALWAYS
+  - `DEBUG=3`: DEBUG_ASSERT enabled, dprintf at DEBUG, INFO, ALWAYS, some extra runtime checks.
+- 'DEBUG=2' is default
 - QEMU scripts support GDB: `scripts/do-qemuarm -6 -s -S` (wait for GDB on :1234)
 - Print output via `printf()` goes to console (UART or QEMU serial)
+- dprintf levels:
+  - `dprintf(ALWAYS, "message")` - always printed
+  - `dprintf(INFO, "message")` - printed in DEBUG>=1
+  - `dprintf(DEBUG, "message")` - printed in DEBUG>=2
 - `kernel/debug.c` provides: `hexdump()`, `panic()`, `ASSERT()`
 
 ### Testing
-- Shell commands test individual subsystems interactively
-- `app/tests/` contains unit test apps
-- Python test runner: `scripts/unittest.py` (runs unit tests at boot)
-- `scripts/buildall` builds all projects to verify no breakage
+- Some Shell commands test individual subsystems interactively
+- `app/tests/` contains some unit test commands to run through the shell
+- `lib/unittest` contains a unit test framework that other libraries can use to define tests.
+  - Tests are auto-discovered and run with `ut all` on the command line shell, or automatically
+    at boot time if `RUN_UNITTESTS_AT_BOOT` is defined at build time.
 
 ## Key Files Reference
 
@@ -241,6 +254,7 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
 - `kernel/thread.c` - Threading and scheduler implementation
 - `kernel/vm/` - Virtual memory subsystem (for MMU architectures)
 - `lib/libc/` - Minimal C library (string, stdio, stdlib basics)
-- `top/` - Top-level compatibility headers for global includes
+- `top/` - Top level module in the system. Contains the kernel's lk_main() system init routines.
+   Also contains top level lk/ include headers.
 
 For detailed architecture info, see `docs/` (threading, VMM, platform-specific guides).
