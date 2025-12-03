@@ -12,5 +12,5 @@
 #include <dev/virtio.h>
 #include <dev/virtio/virtio-device.h>
 
-status_t virtio_block_init(virtio_device *dev, uint32_t host_features) __NONNULL();
+status_t virtio_block_init(virtio_device *dev) __NONNULL();
 

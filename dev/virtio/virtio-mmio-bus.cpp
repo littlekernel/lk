@@ -217,10 +217,10 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
                 mmio, mmio->magic, mmio->version, mmio->device_id, mmio->vendor_id);
 
 #if WITH_DEV_VIRTIO_BLOCK
-        if (mmio->device_id == 2) { // block device
+        if (mmio->device_id == 0x2) { // virtio-block
             LTRACEF("found block device\n");
 
-            status_t err = virtio_block_init(dev, bus->virtio_read_host_feature_word(0));
+            status_t err = virtio_block_init(dev);
             if (err >= 0) {
                 found++;
             }
@@ -251,7 +251,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
         if (mmio->device_id == 0x10) { // virtio-gpu
             LTRACEF("found gpu device\n");
 
-            status_t err = virtio_gpu_init(dev, bus->virtio_read_host_feature_word( 0));
+            status_t err = virtio_gpu_init(dev);
             if (err >= 0) {
                 found++;
                 virtio_gpu_start(dev);

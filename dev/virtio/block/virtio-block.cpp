@@ -169,8 +169,8 @@ static void dump_feature_bits(const char *name, uint32_t feature) {
     printf("\n");
 }
 
-status_t virtio_block_init(virtio_device *dev, uint32_t host_features) {
-    LTRACEF("dev %p, host_features %#x\n", dev, host_features);
+status_t virtio_block_init(virtio_device *dev) {
+    LTRACEF("dev %p\n", dev);
 
     /* allocate a new block device */
     auto *bdev = (virtio_block_dev *)malloc(sizeof(virtio_block_dev));
@@ -182,6 +182,8 @@ status_t virtio_block_init(virtio_device *dev, uint32_t host_features) {
 
     /* make sure the device is reset */
     dev->bus()->virtio_reset_device();
+
+    uint32_t host_features = dev->bus()->virtio_read_host_feature_word(0);
 
     volatile const auto *config = (const virtio_blk_config *)dev->get_config_ptr();
 

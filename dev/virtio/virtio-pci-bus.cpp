@@ -29,6 +29,9 @@
 #if WITH_DEV_VIRTIO_NET
 #include <dev/virtio/net.h>
 #endif
+#if WITH_DEV_VIRTIO_GPU
+#include <dev/virtio/gpu.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -373,7 +376,7 @@ static status_t init_block(pci_location_t loc, const virtio_pci_devices &dev_tab
     // TODO: move the config pointer getter that devices use into the bus
     dev->set_config_ptr(bus->device_config());
 
-    err = virtio_block_init(dev, bus->virtio_read_host_feature_word(0));
+    err = virtio_block_init(dev);
     if (err != NO_ERROR) {
         PANIC_UNIMPLEMENTED;
     }
@@ -412,6 +415,36 @@ static status_t init_net(pci_location_t loc, const virtio_pci_devices &dev_table
 #endif
 }
 
+static status_t init_gpu(pci_location_t loc, const virtio_pci_devices &dev_table_entry, size_t index) {
+    LTRACE_ENTRY;
+
+#if WITH_DEV_VIRTIO_GPU
+    // create a virtio_pci_bus object and initialize it based on the location
+    auto *bus = new virtio_pci_bus();
+    auto *dev = new virtio_device(bus);
+
+    auto err = bus->init(dev, loc, index);
+    if (err != NO_ERROR) {
+        delete bus;
+        return err;
+    }
+
+    // TODO: move the config pointer getter that devices use into the bus
+    dev->set_config_ptr(bus->device_config());
+
+    err = virtio_gpu_init(dev);
+    if (err != NO_ERROR) {
+        PANIC_UNIMPLEMENTED;
+    }
+
+    virtio_gpu_start(dev);
+
+    return err;
+#else
+    return ERR_NOT_FOUND;
+#endif
+}
+
 
 int virtio_pci_init() {
     LTRACE_ENTRY;
@@ -423,7 +456,7 @@ int virtio_pci_init() {
         { 0x1041, false, &init_net }, // non-transitional network
         { 0x1042, false, &init_block }, // non-transitional block
         { 0x1043, false, nullptr }, // non-transitional console
-        { 0x1050, false, nullptr }, // non-transitional gpu
+        { 0x1050, false, &init_gpu }, // non-transitional gpu
         { 0x1052, false, nullptr }, // non-transitional input
     };
 
