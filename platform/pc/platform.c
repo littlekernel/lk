@@ -40,6 +40,10 @@
 static bool found_acpi = false;
 #endif
 
+#if WITH_DEV_VIRTIO
+#include <dev/virtio.h>
+#endif
+
 #define LOCAL_TRACE 0
 
 /* multiboot information passed in, if present */
@@ -280,7 +284,12 @@ void platform_init(void) {
         status_t err = pci_init_legacy();
         if (err == NO_ERROR) {
             pci_bus_mgr_init();
+            pci_initted = true;
         }
+    }
+
+    if (pci_initted) {
+        virtio_pci_init();
     }
 #endif
 

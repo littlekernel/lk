@@ -16,6 +16,8 @@ function HELP {
     echo "-n                  : enable user mode networking (default driver: e1000e)"
     echo "-N <network driver> : specify network driver (requires -n, e.g., virtio-net-pci, e1000e)"
     echo "-t                  : use tap interface qemu0 for networking (requires -n)"
+    echo "-f <shared dir>   : add a virtio 9p device with a host shared directory"
+    echo "-V                  : use virtio versions of devices where possible"
     echo "-k                  : use KVM acceleration"
     echo
     echo "-h                  : show this help"
@@ -30,19 +32,23 @@ DO_KVM=0
 DISK_IMAGES=()
 DO_NET=0
 DO_NET_TAP=0
+DO_VIRTIO=0
+DO_V9P=0
+DO_V9P_DIR=""
 NETDEV=e1000e
 MEMSIZE=0
 SMP=1
 SUDO=""
 DO_DRYRUN=0
 
-while getopts 6d:gklm:nN:s:thX FLAG; do
+while getopts 6d:gf:klm:nN:s:thVX FLAG; do
     case $FLAG in
         6) DO_64BIT=1;;
         d)
             DISK_IMAGES+=("$OPTARG")
             ;;
         g) DO_GRAPHICS=1;;
+        f) DO_V9P=1; DO_V9P_DIR=$OPTARG;;
         k) DO_KVM=1;;
         l) DO_LEGACY=1;;
         m) MEMSIZE=$OPTARG;;
@@ -50,6 +56,7 @@ while getopts 6d:gklm:nN:s:thX FLAG; do
         t) DO_NET_TAP=1;;
         N) NETDEV=$OPTARG;;
         s) SMP=$OPTARG;;
+        V) DO_VIRTIO=1;;
         X) DO_DRYRUN=1;;
         h) HELP 0;;
         \?)
@@ -88,6 +95,17 @@ else
     fi
 fi
 
+VIRTIO_BLOCK_DEVICE="virtio-blk-pci"
+VIRTIO_NET_DEVICE="virtio-net-pci"
+VIRTIO_GPU_DEVICE="virtio-gpu-pci"
+VIRTIO_KEYBOARD_DEVICE="virtio-keyboard-pci"
+VIRTIO_MOUSE_DEVICE="virtio-mouse-pci"
+VIRTIO_9P_DEVICE="virtio-9p-pci"
+if (( DO_VIRTIO )); then
+    NETDEV=$VIRTIO_NET_DEVICE
+fi
+
+
 ARGS=()
 if (( DO_KVM )); then
     ARGS+=("-accel" "kvm" "-cpu" "host")
@@ -104,10 +122,14 @@ ARGS+=("-fw_cfg" "name=etc/sercon-port,string=0")
 
 if (( DO_GRAPHICS )); then
     ARGS+=("-serial" "stdio")
+    # TODO: get -vga virtio working
     ARGS+=("-vga" "std")
-    if (( ! DO_LEGACY )); then
-        ARGS+=("-device" "virtio-keyboard-pci")
-        ARGS+=("-device" "virtio-mouse-pci")
+    if (( DO_VIRTIO )); then
+        # this will create an additional virtio GPU device for graphics output in addition
+        # to the primary VGA device
+        ARGS+=("-device" "${VIRTIO_GPU_DEVICE}")
+        ARGS+=("-device" "${VIRTIO_KEYBOARD_DEVICE}")
+        ARGS+=("-device" "${VIRTIO_MOUSE_DEVICE}")
     fi
 else
     ARGS+=("-nographic")
@@ -117,9 +139,13 @@ function append_disk_image {
     local disk_image=$1
     local disk_number=$2
     ARGS+=("-drive" "if=none,file=${disk_image},id=disk${disk_number},discard=on")
-    # for q35 machines this will add to an ahci controller
-    # for legacy machines will end up appending to the ISA ide controller
-    ARGS+=("-device" "ide-hd,drive=disk${disk_number},bus=ide.${disk_number}")
+    if (( DO_VIRTIO )); then
+        ARGS+=("-device" "${VIRTIO_BLOCK_DEVICE},drive=disk${disk_number}")
+    else
+        # for q35 machines this will add to an ahci controller
+        # for legacy machines will end up appending to the ISA ide controller
+        ARGS+=("-device" "ide-hd,drive=disk${disk_number},bus=ide.${disk_number}")
+    fi
 }
 
 DISK_COUNT=0
@@ -143,6 +169,10 @@ if (( DO_NET )); then
     fi
 else
     ARGS+=("-net" "none")
+fi
+if (( DO_V9P )); then
+    ARGS+=("-fsdev" "local,path=$DO_V9P_DIR,security_model=mapped,id=v9p0")
+    ARGS+=("-device" "${VIRTIO_9P_DEVICE},fsdev=v9p0,mount_tag=V9P0")
 fi
 
 CMD=()
