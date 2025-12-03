@@ -73,20 +73,6 @@ struct fdt_walk_gic_info {
             uint64_t virtual_interface_len;
         } v3;
     };
-
-    // uint64_t ecam_base;
-    // uint64_t ecam_len;
-    // uint8_t bus_start;
-    // uint8_t bus_end;
-
-    // // discovered io and mmio apertures
-    // uint64_t io_base;
-    // uint64_t io_base_mmio;
-    // uint64_t io_len;
-    // uint64_t mmio_base;
-    // uint64_t mmio_len;
-    // uint64_t mmio64_base;
-    // uint64_t mmio64_len;
 };
 
 status_t fdt_walk_dump(const void *fdt);
