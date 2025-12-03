@@ -84,6 +84,9 @@ void platform_init(void) {
 
         // assign resources to all devices in case they need it
         pci_bus_mgr_assign_resources();
+
+        // scan for an initialize any virtio devices
+        virtio_pci_init();
     }
 
     /* detect any virtio devices */
@@ -147,10 +150,12 @@ status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) 
 }
 
 status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
+    TRACEF("count %zu, align_log2 %u, msi %d\n", count, align_log2, msi);
     return ERR_NOT_SUPPORTED;
 }
 
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
         uint64_t *msi_address_out, uint16_t *msi_data_out) {
+    TRACEF("vector %u, cpu %u, edge %d\n", vector, cpu, edge);
     return ERR_NOT_SUPPORTED;
 }
