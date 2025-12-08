@@ -54,8 +54,11 @@ EfiStatus handle_protocol(EfiHandle handle, const EfiGuid *protocol,
   if (guid_eq(protocol, LOADED_IMAGE_PROTOCOL_GUID)) {
     printf("handle_protocol(%p, LOADED_IMAGE_PROTOCOL_GUID, %p);\n", handle,
            intf);
-    const auto loaded_image = static_cast<EfiLoadedImageProtocol*>(
-        uefi_malloc(sizeof(EfiLoadedImageProtocol)));
+    const auto loaded_image = static_cast<EFI_LOADED_IMAGE_PROTOCOL *>(
+        uefi_malloc(sizeof(EFI_LOADED_IMAGE_PROTOCOL)));
+    if (!loaded_image) {
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
     *loaded_image = {};
     loaded_image->revision = EFI_LOADED_IMAGE_PROTOCOL_REVISION;
     loaded_image->parent_handle = nullptr;
@@ -70,7 +73,7 @@ EfiStatus handle_protocol(EfiHandle handle, const EfiGuid *protocol,
   } else if (guid_eq(protocol, LINUX_EFI_LOADED_IMAGE_FIXED_GUID)) {
     printf("handle_protocol(%p, LINUX_EFI_LOADED_IMAGE_FIXED_GUID, %p);\n",
            handle, intf);
-    return EFI_STATUS_SUCCESS;
+    return EFI_STATUS_UNSUPPORTED;
   } else {
     printf("handle_protocol(%p, %p, %p);\n", handle, protocol, intf);
   }
