@@ -6,7 +6,8 @@
 extern "C" {
 #endif
 
-int load_pe_file(const char *blkdev);
+int load_pe_blockdev(const char *blkdev);
+int load_pe_fs(const char *path);
 
 #ifdef __cplusplus
 }
