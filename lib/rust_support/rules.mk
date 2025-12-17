@@ -21,6 +21,7 @@ MODULE_SRCDIR := $(MODULE)
 MODULE_BUILDDIR := $(call TOBUILDDIR,$(MODULE_SRCDIR))
 
 MODULE_SRCS := \
+	       $(MODULE_SRCDIR)/rust-toolchain.toml \
 	       $(MODULE_SRCDIR)/Cargo.toml \
 	       $(MODULE_SRCDIR)/src/lib.rs
 MODULE_OBJS := $(foreach d,$(MODULE_SRCS),$(call TOBUILDDIR,$(d)))
@@ -62,7 +63,7 @@ $(MODULE_OBJECT): MODULE_BUILDDIR:=$(MODULE_BUILDDIR)
 # Override with module local values for the build rule.
 $(MODULE_OBJECT): $(MODULE_OBJECT).phony $(MODULE_OBJS) $(CARGO_CONFIG)
 	cd $(MODULE_BUILDDIR); \
-		cargo +nightly build
+		cargo build
 
 EXTRA_OBJS := $(EXTRA_OBJS) $(MODULE_OBJECT)
 
