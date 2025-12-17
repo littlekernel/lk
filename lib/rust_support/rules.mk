@@ -46,8 +46,17 @@ ifeq ($(RUST_TARGET_PATH),)
 RUST_TARGET_PATH := $(RUST_TARGET)
 endif
 
+ifndef RUST_CFLAGS
+RUST_CFLAGS :=
+endif
+
 define TOML_ESC
 $(subst \,\\,$(subst ",\",$1))
+endef
+
+# Expand a make "list" (space separated) into a quoted version appropriate for inserting into TOML.
+define TOML_ARRAY
+[$(foreach w,$(1),\"$(w)\",)]
 endef
 
 CARGO_CONFIG := $(MODULE_BUILDDIR)/.cargo/config.toml
@@ -96,6 +105,9 @@ $(CARGO_CONFIG): $(CARGO_CONFIG).phony
 		echo; \
 		echo "[env]"; \
 		echo 'GLOBAL_INCLUDES = { value = "$(call TOML_ESC,$(GLOBAL_INCLUDES))", force = true }'; \
+		echo; \
+		echo "[target.'cfg(all())']"; \
+		echo "rustflags = $(call TOML_ARRAY,$(RUST_CFLAGS))"; \
 		echo; \
 		echo "[unstable]"; \
 		echo 'build-std = ["core", "alloc"]'; \
