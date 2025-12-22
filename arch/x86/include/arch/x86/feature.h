@@ -109,14 +109,20 @@ enum x86_cpuid_leaf_num {
   __X86_MAX_SUPPORTED_CPUID_EXT = X86_CPUID_AMD_EXTENDED_TOPOLOGY,
 };
 
+#define __X86_MAX_SUPPORTED_CPUID7_SUBLEAF 4
+
 struct x86_cpuid_bit {
   enum x86_cpuid_leaf_num leaf_num;
   uint8_t word;
   uint8_t bit;
+  uint8_t subleaf;
 };
 
 #define X86_CPUID_BIT(leaf, word, bit) \
-  (struct x86_cpuid_bit) { (enum x86_cpuid_leaf_num)(leaf), (word), (bit) }
+  (struct x86_cpuid_bit) { (enum x86_cpuid_leaf_num)(leaf), (word), (bit), 0 }
+
+#define X86_CPUID_BIT_S(leaf, word, bit, subleaf) \
+  (struct x86_cpuid_bit) { (enum x86_cpuid_leaf_num)(leaf), (word), (bit), (subleaf) }
 
 struct x86_cpuid_leaf {
     uint32_t a;
@@ -128,9 +134,11 @@ struct x86_cpuid_leaf {
 extern struct x86_cpuid_leaf saved_cpuids[__X86_MAX_SUPPORTED_CPUID + 1];
 extern struct x86_cpuid_leaf saved_cpuids_hyp[__X86_MAX_SUPPORTED_CPUID_HYP - X86_CPUID_HYP_BASE + 1];
 extern struct x86_cpuid_leaf saved_cpuids_ext[__X86_MAX_SUPPORTED_CPUID_EXT - X86_CPUID_EXT_BASE + 1];
+extern struct x86_cpuid_leaf saved_cpuid7_subleaves[__X86_MAX_SUPPORTED_CPUID7_SUBLEAF + 1];
 extern uint32_t max_cpuid_leaf;
 extern uint32_t max_cpuid_leaf_hyp;
 extern uint32_t max_cpuid_leaf_ext;
+extern uint32_t max_cpuid_subleaf_7;
 
 /* Retrieve the specified subleaf.  This function is not cached.
  * Returns false if leaf num is invalid */
@@ -155,13 +163,31 @@ static inline const struct x86_cpuid_leaf* x86_get_cpuid_leaf(enum x86_cpuid_lea
   }
 }
 
+static inline const struct x86_cpuid_leaf* x86_get_cpuid_leaf_subleaf(enum x86_cpuid_leaf_num leaf,
+                                                                      uint32_t subleaf) {
+  // If not asking for a subleav, just get the main leaf
+  if (subleaf == 0) {
+    return x86_get_cpuid_leaf(leaf);
+  }
+
+  // Look for known subleaves from leaf 7
+  if (leaf == X86_CPUID_EXTENDED_FEATURE_FLAGS) {
+    if (unlikely(subleaf > max_cpuid_subleaf_7)) {
+      return NULL;
+    }
+    return &saved_cpuid7_subleaves[subleaf];
+  }
+
+  return NULL;
+}
+
 static inline bool x86_feature_test(struct x86_cpuid_bit bit) {
   DEBUG_ASSERT(bit.word <= 3 && bit.bit <= 31);
 
   if (bit.word > 3 || bit.bit > 31)
     return false;
 
-  const struct x86_cpuid_leaf* leaf = x86_get_cpuid_leaf(bit.leaf_num);
+  const struct x86_cpuid_leaf* leaf = x86_get_cpuid_leaf_subleaf(bit.leaf_num, bit.subleaf);
   if (!leaf)
     return false;
 
@@ -335,6 +361,22 @@ static inline bool x86_feature_test(struct x86_cpuid_bit bit) {
 #define X86_FEATURE_CORE_CAPABILITIES   X86_CPUID_BIT(0x7, 3, 30)
 #define X86_FEATURE_SSBD                X86_CPUID_BIT(0x7, 3, 31)
 
+// CPUID 0x7 subleaf 1 features
+#define X86_FEATURE_AVX_VNNI            X86_CPUID_BIT_S(0x7, 0, 4, 1)
+#define X86_FEATURE_AVX512_BF16         X86_CPUID_BIT_S(0x7, 0, 5, 1)
+#define X86_FEATURE_CMPCCXADD           X86_CPUID_BIT_S(0x7, 0, 7, 1)
+#define X86_FEATURE_FZRM                X86_CPUID_BIT_S(0x7, 0, 10, 1)
+#define X86_FEATURE_FSRS                X86_CPUID_BIT_S(0x7, 0, 11, 1)
+#define X86_FEATURE_FSRC                X86_CPUID_BIT_S(0x7, 0, 12, 1)
+#define X86_FEATURE_FRED                X86_CPUID_BIT_S(0x7, 0, 17, 1)
+#define X86_FEATURE_LKGS                X86_CPUID_BIT_S(0x7, 0, 18, 1)
+#define X86_FEATURE_WRMSRNS             X86_CPUID_BIT_S(0x7, 0, 19, 1)
+#define X86_FEATURE_NMI_SRC             X86_CPUID_BIT_S(0x7, 0, 20, 1)
+#define X86_FEATURE_AMX_FP16            X86_CPUID_BIT_S(0x7, 0, 21, 1)
+#define X86_FEATURE_AVX_IFMA            X86_CPUID_BIT_S(0x7, 0, 23, 1)
+#define X86_FEATURE_LAM                 X86_CPUID_BIT_S(0x7, 0, 26, 1)
+
+// Hypervisor features
 #define X86_FEATURE_KVM_CLOCKSOURCE     X86_CPUID_BIT(0x40000001, 0, 0)
 #define X86_FEATURE_KVM_NOP_IO_DELAY    X86_CPUID_BIT(0x40000001, 0, 1)
 #define X86_FEATURE_KVM_MMU_OP          X86_CPUID_BIT(0x40000001, 0, 2)
@@ -354,7 +396,7 @@ static inline bool x86_feature_test(struct x86_cpuid_bit bit) {
 #define X86_FEATURE_KVM_MIGRATION_CONTROL X86_CPUID_BIT(0x40000001, 0, 17)
 #define X86_FEATURE_KVM_CLOCKSOURCE_STABLE X86_CPUID_BIT(0x40000001, 0, 24)
 
-
+// AMD originated extended features
 #define X86_FEATURE_AHF64               X86_CPUID_BIT(0x80000001, 2, 0)
 #define X86_FEATURE_LZCNT               X86_CPUID_BIT(0x80000001, 2, 5)
 #define X86_FEATURE_PREFETCHW           X86_CPUID_BIT(0x80000001, 2, 8)
