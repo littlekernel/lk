@@ -7,6 +7,8 @@
  */
 #pragma once
 
+#define MULTIBOOT2_SUPPORT 0
+
 /* from https://www.gnu.org/software/grub/manual/multiboot/multiboot.html */
 
 /* magic number for multiboot header */
@@ -34,6 +36,54 @@
 
 /* This flag indicates the use of the address fields in the header. */
 #define MULTIBOOT_AOUT_KLUDGE       0x00010000
+
+/* from https://www.gnu.org/software/grub/manual/multiboot2/multiboot.html */
+
+/* header magic for multiboot header */
+#define MULTIBOOT2_HEADER_MAGIC     0xE85250D6
+
+/* magic number passed by multiboot-compliant boot loaders */
+#define MULTIBOOT2_BOOTLOADER_MAGIC 0x36D76289
+
+
+#define MULTIBOOT2_HEADER_TAG_ADDRESS                2
+#define MULTIBOOT2_HEADER_TAG_INFORMATION_REQUEST    1
+#define MULTIBOOT2_HEADER_TAG_ENTRY_ADDRESS          3
+#define MULTIBOOT2_HEADER_TAG_FRAMEBUFFER            5
+#define MULTIBOOT2_HEADER_TAG_END                    0
+
+#define MULTIBOOT2_HEADER_TAG_OPTIONAL               1
+
+#define MULTIBOOT2_ARCHITECTURE_I386                 0
+#define MULTIBOOT2_ARCHITECTURE_MIPS32               4
+
+#define MULTIBOOT2_LOAD_PREFERENCE_NONE              0
+#define MULTIBOOT2_LOAD_PREFERENCE_LOW               1
+#define MULTIBOOT2_LOAD_PREFERENCE_HIGH              2
+
+
+#define MULTIBOOT2_TAG_TYPE_END               0
+#define MULTIBOOT2_TAG_TYPE_CMDLINE           1
+#define MULTIBOOT2_TAG_TYPE_BOOT_LOADER_NAME  2
+#define MULTIBOOT2_TAG_TYPE_MODULE            3
+#define MULTIBOOT2_TAG_TYPE_BASIC_MEMINFO     4
+#define MULTIBOOT2_TAG_TYPE_BOOTDEV           5
+#define MULTIBOOT2_TAG_TYPE_MMAP              6
+#define MULTIBOOT2_TAG_TYPE_VBE               7
+#define MULTIBOOT2_TAG_TYPE_FRAMEBUFFER       8
+#define MULTIBOOT2_TAG_TYPE_ELF_SECTIONS      9
+#define MULTIBOOT2_TAG_TYPE_APM               10
+#define MULTIBOOT2_TAG_TYPE_EFI32             11
+#define MULTIBOOT2_TAG_TYPE_EFI64             12
+#define MULTIBOOT2_TAG_TYPE_SMBIOS            13
+#define MULTIBOOT2_TAG_TYPE_ACPI_OLD          14
+#define MULTIBOOT2_TAG_TYPE_ACPI_NEW          15
+#define MULTIBOOT2_TAG_TYPE_NETWORK           16
+#define MULTIBOOT2_TAG_TYPE_EFI_MMAP          17
+#define MULTIBOOT2_TAG_TYPE_EFI_BS            18
+#define MULTIBOOT2_TAG_TYPE_EFI32_IH          19
+#define MULTIBOOT2_TAG_TYPE_EFI64_IH          20
+#define MULTIBOOT2_TAG_TYPE_LOAD_BASE_ADDR    21
 
 #ifndef ASSEMBLY
 
@@ -170,6 +220,113 @@ enum {
     MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED  = 0,
     MULTIBOOT_FRAMEBUFFER_TYPE_RGB      = 1,
     MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT = 2,
+};
+
+struct multiboot2_info {
+    uint32_t total_size;
+    uint32_t reserved;
+};
+
+struct multiboot2_tag {
+    uint32_t type;
+    uint32_t size;
+};
+
+struct multiboot2_tag_efi64 {
+    struct multiboot2_tag tag;
+    uint64_t pointer;
+};
+
+struct multiboot2_tag_mmap {
+    struct multiboot2_tag tag;
+    uint32_t entry_size;
+    uint32_t entry_version;
+};
+
+struct multiboot2_mmap_entry {
+    uint64_t addr;
+    uint64_t len;
+    uint32_t type;
+    uint32_t zero;
+};
+
+struct multiboot2_tag_framebuffer_common {
+    struct multiboot2_tag tag;
+    uint64_t framebuffer_addr;
+    uint32_t framebuffer_pitch;
+    uint32_t framebuffer_width;
+    uint32_t framebuffer_height;
+    uint8_t framebuffer_bpp;
+    uint8_t framebuffer_type;
+    uint16_t reserved;
+};
+
+struct multiboot2_framebuffer_rgb_bitmasks {
+    uint8_t framebuffer_red_field_position;
+    uint8_t framebuffer_red_mask_size;
+    uint8_t framebuffer_green_field_position;
+    uint8_t framebuffer_green_mask_size;
+    uint8_t framebuffer_blue_field_position;
+    uint8_t framebuffer_blue_mask_size;
+};
+
+struct multiboot2_color {
+    uint8_t red_value;
+    uint8_t green_value;
+    uint8_t blue_value;
+};
+
+struct multiboot2_framebuffer_indexes {
+    uint16_t framebuffer_palette_num_colors;
+    struct multiboot2_color framebuffer_palette[0];
+};
+
+struct multiboot2_tag_framebuffer {
+    struct multiboot2_tag_framebuffer_common common;
+    union {
+        /*
+        struct {
+            uint16_t framebuffer_palette_num_colors;
+            struct multiboot2_color framebuffer_palette[0];
+        };
+        */
+        struct multiboot2_framebuffer_indexes indexes;
+        /*
+        struct {
+            uint8_t framebuffer_red_field_position;
+            uint8_t framebuffer_red_mask_size;
+            uint8_t framebuffer_green_field_position;
+            uint8_t framebuffer_green_mask_size;
+            uint8_t framebuffer_blue_field_position;
+            uint8_t framebuffer_blue_mask_size;
+        };
+        */
+        struct multiboot2_framebuffer_rgb_bitmasks rgb_bitmasks;
+
+        // The output is 8:8:8 on GRUB (R:G:B)
+        /*
+        struct {
+            uint8_t red_value;
+            uint8_t green_value;
+            uint8_t blue_value;
+        };
+        */
+    };
+};
+
+/*
+* The RSDP is a copy not point to an address.
+*/
+/* ACPI old RSDP tag */
+struct multiboot2_tag_old_acpi {
+    struct multiboot2_tag tag;
+    uint8_t rsdp[0];  /* variable size RSDP table */
+};
+
+/* ACPI new RSDP tag */
+struct multiboot2_tag_new_acpi {
+    struct multiboot2_tag tag;
+    uint8_t rsdp[0];  /* variable size RSDP table */
 };
 
 #endif // ASSEMBLY

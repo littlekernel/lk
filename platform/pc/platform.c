@@ -15,7 +15,6 @@
 #include <arch/x86/apic.h>
 #include <platform.h>
 #include <platform/pc.h>
-#include <platform/console.h>
 #include <platform/keyboard.h>
 #include <dev/uart.h>
 #include <hw/multiboot.h>
@@ -25,6 +24,12 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <kernel/vm.h>
+
+#if MULTIBOOT2_SUPPORT
+#include <platform/display.h>
+#else
+#include <platform/console.h>
+#endif
 
 #include "platform_p.h"
 
@@ -44,6 +49,7 @@ static bool found_acpi = false;
 
 /* multiboot information passed in, if present */
 extern uint32_t _multiboot_info;
+uint64_t efi64_system_table;
 
 #define DEFAULT_MEMEND (16*1024*1024)
 
@@ -127,6 +133,115 @@ static status_t parse_multiboot_mmap(const memory_map_t *mmap, const size_t mmap
 static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
     *found_mem_arenas = 0;
 
+#if MULTIBOOT2_SUPPORT
+    dprintf(SPEW, "PC: multiboot address %#" PRIx32 "\n", _multiboot_info);
+    if (_multiboot_info == 0) {
+        return ERR_NOT_FOUND;
+    }
+
+    struct multiboot2_info *multiboot_info = (struct multiboot2_info *)((uintptr_t)_multiboot_info + KERNEL_BASE);
+
+    dprintf(SPEW, "PC: multiboot info total size: %u\n", multiboot_info->total_size);
+
+    // Foreach tag in the multiboot info structure
+    struct multiboot2_tag *tag = (struct multiboot2_tag *)(multiboot_info + 1);
+    while (tag->type != MULTIBOOT2_TAG_TYPE_END) {
+        switch (tag->type) {
+            case MULTIBOOT2_TAG_TYPE_CMDLINE: {
+                char *cmdline = (char *)(tag + 1);
+                dprintf(SPEW, "PC: cmdline = \"%s\"\n", cmdline);
+                break;
+            }
+
+            case MULTIBOOT2_TAG_TYPE_BOOT_LOADER_NAME: {
+                char *bootloader_name = (char *)(tag + 1);
+                dprintf(SPEW, "PC: bootloader name: %s\n", bootloader_name);
+                break;
+            }
+
+            case MULTIBOOT2_TAG_TYPE_MMAP: {
+                struct multiboot2_tag_mmap *mmap_tag = (struct multiboot2_tag_mmap *)tag;
+
+                dprintf(SPEW, "PC: multiboot memory map, entry size: %u\n", mmap_tag->entry_size);
+                // basic validation: ensure tag has at least the header and entries are reasonable
+                if (tag->size < sizeof(*mmap_tag) || mmap_tag->entry_size < sizeof(struct multiboot2_mmap_entry)) {
+                    dprintf(INFO, "PC: malformed multiboot mmap tag (size %u entry_size %u)\n", tag->size, mmap_tag->entry_size);
+                    break;
+                }
+
+                // iterate entries in-place and convert one-by-one to avoid using heap during early init
+                size_t entry_count = (tag->size - sizeof(*mmap_tag)) / mmap_tag->entry_size;
+
+                struct multiboot2_mmap_entry *entry = (struct multiboot2_mmap_entry *)(mmap_tag + 1);
+                for (size_t i = 0; i < entry_count; i++) {
+                    memory_map_t mm = {};
+                    // Cut the address and length into high and low 32-bit pieces for the legacy parser
+                    mm.base_addr_low = entry->addr & 0xFFFFFFFF;
+                    mm.base_addr_high = (entry->addr >> 32) & 0xFFFFFFFF;
+                    mm.length_low = entry->len & 0xFFFFFFFF;
+                    mm.length_high = (entry->len >> 32) & 0xFFFFFFFF;
+                    mm.type = entry->type;
+
+                    // parse single entry (parse_multiboot_mmap accepts buffer+length)
+                    parse_multiboot_mmap(&mm, sizeof(mm), found_mem_arenas);
+
+                    entry = (struct multiboot2_mmap_entry *)((uint8_t *)entry + mmap_tag->entry_size);
+                }
+
+                break;
+            }
+
+            case MULTIBOOT2_TAG_TYPE_FRAMEBUFFER: {
+                struct multiboot2_tag_framebuffer *framebuffer_tag = (struct multiboot2_tag_framebuffer *)tag;
+
+                platform_init_display(framebuffer_tag);
+
+                dprintf(SPEW, "PC: multiboot framebuffer info present:\n");
+                dprintf(SPEW, "\taddress %#" PRIx64 " pitch %u, width %u height %u bpp %hhu ",
+                        framebuffer_tag->common.framebuffer_addr, framebuffer_tag->common.framebuffer_pitch,
+                        framebuffer_tag->common.framebuffer_width, framebuffer_tag->common.framebuffer_height,
+                        framebuffer_tag->common.framebuffer_bpp);
+                dprintf(SPEW, "(%ux%u@%hhu) ", framebuffer_tag->common.framebuffer_width, framebuffer_tag->common.framebuffer_height,
+                        framebuffer_tag->common.framebuffer_bpp);
+                dprintf(SPEW, "framebuffer type %u\n", framebuffer_tag->common.framebuffer_type);
+
+                if (framebuffer_tag->common.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
+                    dprintf(SPEW, "\tcolor bit layout: R %u:%u G %u:%u B %u:%u\n",
+                            framebuffer_tag->rgb_bitmasks.framebuffer_red_field_position, framebuffer_tag->rgb_bitmasks.framebuffer_red_mask_size,
+                            framebuffer_tag->rgb_bitmasks.framebuffer_green_field_position, framebuffer_tag->rgb_bitmasks.framebuffer_green_mask_size,
+                            framebuffer_tag->rgb_bitmasks.framebuffer_blue_field_position, framebuffer_tag->rgb_bitmasks.framebuffer_blue_mask_size);
+                }
+
+                break;
+            }
+
+            case MULTIBOOT2_TAG_TYPE_EFI64:
+                efi64_system_table = ((struct multiboot2_tag_efi64 *)tag)->pointer;
+                dprintf(SPEW, "PC: EFI 64 system table at %#" PRIx64 "\n", efi64_system_table);
+                break;
+
+            case MULTIBOOT2_TAG_TYPE_ACPI_NEW:
+                // NEW RSDP Is an immediate data in the tag, not a pointer (left value).
+                // dprintf(SPEW, "PC: found multiboot ACPI NEW RSDP at %#" PRIxPTR "\n", *(uint64_t *)(tag + 1));
+                break;
+
+            case MULTIBOOT2_TAG_TYPE_LOAD_BASE_ADDR:
+                dprintf(SPEW, "PC: base addr at %#" PRIx64 "\n", *(uint64_t *)(tag + 1));
+                break;
+
+            default:
+                // dprintf(SPEW, "PC: unknown multiboot tag type: %u\n", tag->type);
+                break;
+        }
+
+        // move to next tag (8-byte aligned)
+        tag = (struct multiboot2_tag *)((uint8_t *)tag + ((tag->size + 7) & ~7));
+    }
+
+    return NO_ERROR;
+
+#else
+
     dprintf(SPEW, "PC: multiboot address %#" PRIx32 "\n", _multiboot_info);
     if (_multiboot_info == 0) {
         return ERR_NOT_FOUND;
@@ -181,6 +296,7 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
     }
 
     return NO_ERROR;
+#endif // MULTIBOOT2_SUPPORT
 }
 
 void platform_early_init(void) {
@@ -188,7 +304,9 @@ void platform_early_init(void) {
     platform_init_debug_early();
 
     /* get the text console working */
+#if !MULTIBOOT2_SUPPORT
     platform_init_console();
+#endif
 
     /* initialize the interrupt controller */
     platform_init_interrupts();
