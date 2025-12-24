@@ -1,5 +1,7 @@
 # Rust meta crate
 
+cargo-features = ["panic-immediate-abort"]
+
 # This crate brings in the other dependencies needed so that cargo builds all of the Rust code that
 # we need.
 
@@ -22,9 +24,11 @@ debug-assertions = true
 overflow-checks = true
 debug = true
 codegen-units = 1
+panic = "immediate-abort"
 
 [profile.dev]
 opt-level = 2
 codegen-units = 1
+panic = "immediate-abort"
 
 @DEPCRATES@

@@ -36,5 +36,22 @@ LK_HEAP_IMPLEMENTATION ?= dlmalloc
 GLOBAL_DEFINES += \
 	PLATFORM_HAS_DYNAMIC_TIMER=1
 
-include make/module.mk
+# TODO: This probably needs to be different for 32 and 64 bit.
+RUST_TARGET := x86_64-llvm
+RUST_TARGET_PATH := $(abspath $(BUILDROOT))/arch/x86/64/x86_64-llvm.json
 
+RUST_CFLAGS := \
+    -Ctarget-feature=-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2 \
+    -Ctarget-cpu=x86-64 \
+    -Ztune-cpu=generic \
+    -Cno-redzone=y \
+    -Copt-level=2 \
+    -Cdebug-assertions=n \
+    -Coverflow-checks=y \
+    -Ccode-model=kernel \
+    -Cforce-frame-pointers=y
+    #  -Zdwarf-version=5 -Cdebuginfo=2
+    # -Zfunction-return=thunk-extern
+    # -Zpatchable-function-entry=16,16
+
+include make/module.mk

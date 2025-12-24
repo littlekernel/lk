@@ -1,0 +1,12 @@
+{
+    "arch": "x86_64",
+    "rustc-abi": "x86-softfloat",
+    "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+    "features": "-mmx,+soft-float,-retpoline-external-thunk,-retpoline-indirect-branches,-retpoline-indirect-calls,+harden-sls-ijmp,+harden-sls-ret",
+    "llvm-target": "x86_64-linux-gnu",
+    "supported-sanitizers": ["kcfi","kernel-address"],
+    "target-pointer-width": 64,
+    "emit-debug-gdb-scripts": false,
+    "frame-pointer": "may-omit",
+    "stack-probes": {"kind": "none"}
+}
