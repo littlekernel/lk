@@ -32,8 +32,16 @@ else ifeq ($(M68K_CPU),68030)
 ARCH_COMPILEFLAGS := -mcpu=68030
 else ifeq ($(M68K_CPU),68040)
 ARCH_COMPILEFLAGS := -mcpu=68040
+else ifeq ($(M68K_CPU),68060)
+ARCH_COMPILEFLAGS := -mcpu=68060
 else
 $(error add support for selected cpu $(M68K_CPU))
+endif
+
+M68K_68060SP := $(filter 68020 68030 68040 68060,$(M68K_CPU))
+
+ifneq ($(M68K_68060SP),)
+MODULE_DEPS += arch/m68k/68060SP
 endif
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_COMPILEFLAGS) -print-libgcc-file-name)

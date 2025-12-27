@@ -14,6 +14,9 @@
 // so it's easy to just vector most of the handlers into one of a few classes of handlers
 // and decode the vector in C.
 
+.weak _060_isp_unimp
+_060_isp_unimp:
+
 .align 4
 _m68k_irq_vector:
     // TODO: save less state for IRQs
@@ -71,7 +74,13 @@ DATA(exc_vectors)
     .endr
 .org (48 * 4)
     // start of FPU, MMU vectors
-    .rept (64 - 48)
+    .rept (61 - 48)
+    .long _m68k_general_exception
+    .endr
+.org (61 * 4)
+    .long _060_isp_unimp
+.org (62 * 4)
+    .rept (64 - 62)
     .long _m68k_general_exception
     .endr
 .org (64 * 4) // offset 0x100
