@@ -14,6 +14,7 @@
 #include <platform/debug.h>
 #include <platform/virt.h>
 #include <sys/types.h>
+#include <stdlib.h>
 
 #include "platform_p.h"
 
@@ -41,11 +42,11 @@ enum {
     CMD_READ_BUFFER   = 0x03,
 };
 
-#define RXBUF_SIZE 128
+#define RXBUF_SIZE 512
 static char uart_rx_buf_data[RXBUF_SIZE];
 static cbuf_t uart_rx_buf;
 
-static char transfer_buf[1]; // static pointer used to transfer MMIO data
+static char transfer_buf[16]; // buffer used for DMA transfers
 
 static void write_reg(unsigned int reg, uint32_t val) {
     goldfish_tty_base[reg / 4] = val;
@@ -58,11 +59,17 @@ static uint32_t read_reg(unsigned int reg) {
 static enum handler_return uart_irq_handler(void *arg) {
     bool resched = false;
 
-    // use a DMA read of one byte if a byte is ready
-    if (read_reg(REG_BYTES_READY) > 0) {
+    // use a DMA read to pull in as much data as possible
+    uint32_t bytes_ready = read_reg(REG_BYTES_READY);
+    if (bytes_ready > 0) {
+        uint32_t tocopy = MIN(bytes_ready, sizeof(transfer_buf));
+        write_reg(REG_DATA_LEN, tocopy);
         write_reg(REG_CMD, CMD_READ_BUFFER);
-        char c = transfer_buf[0];
-        cbuf_write_char(&uart_rx_buf, c, false);
+
+        for (uint32_t i = 0; i < tocopy; i++) {
+            // TODO: handle buffer full case
+            cbuf_write_char(&uart_rx_buf, transfer_buf[i], false);
+        }
         resched = true;
     }
 
@@ -74,13 +81,17 @@ void goldfish_tty_early_init(void) {
     write_reg(REG_CMD, CMD_INT_DISABLE);
 
     // set up the transfer buffer for receives
-    write_reg(REG_DATA_PTR, (uint32_t)transfer_buf);
+    uintptr_t bufptr = (uintptr_t)transfer_buf;
+    write_reg(REG_DATA_PTR, bufptr & 0xffffffff);
+#if __SIZEOF_POINTER__ == 8
+    write_reg(REG_DATA_PTR_HIGH, bufptr >> 32);
+#else
     write_reg(REG_DATA_PTR_HIGH, 0);
-    write_reg(REG_DATA_LEN, sizeof(transfer_buf));
+#endif
 }
 
 void goldfish_tty_init(void) {
-    /* finish uart init to get rx going */
+    // finish uart init to get irq rx going
     cbuf_initialize_etc(&uart_rx_buf, RXBUF_SIZE, uart_rx_buf_data);
 
     register_int_handler(VIRT_GF_TTY_IRQ_BASE, uart_irq_handler, NULL);
@@ -104,7 +115,7 @@ int uart_getc(char *c, bool wait) {
 
 void platform_dputc(char c) {
     if (c == '\n')
-        platform_dputc('\r');
+        uart_putc('\r');
     uart_putc(c);
 }
 
@@ -122,6 +133,7 @@ void platform_pputc(char c) {
 int platform_pgetc(char *c, bool wait) {
     // use a DMA read of one byte if a byte is ready
     if (read_reg(REG_BYTES_READY) > 0) {
+        write_reg(REG_DATA_LEN, 1);
         write_reg(REG_CMD, CMD_READ_BUFFER);
         *c = transfer_buf[0];
         return 0;
