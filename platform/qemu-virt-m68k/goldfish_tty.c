@@ -66,9 +66,15 @@ static enum handler_return uart_irq_handler(void *arg) {
         write_reg(REG_DATA_LEN, tocopy);
         write_reg(REG_CMD, CMD_READ_BUFFER);
 
+#if CONSOLE_HAS_INPUT_BUFFER
+        cbuf_t *target_buf = &console_input_cbuf;
+#else
+        cbuf_t *target_buf = &uart_rx_buf;
+#endif
+
         for (uint32_t i = 0; i < tocopy; i++) {
             // TODO: handle buffer full case
-            cbuf_write_char(&uart_rx_buf, transfer_buf[i], false);
+            cbuf_write_char(target_buf, transfer_buf[i], false);
         }
         resched = true;
     }
