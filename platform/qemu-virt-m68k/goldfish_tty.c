@@ -95,7 +95,7 @@ void goldfish_tty_early_init(void) {
 #if WITH_KERNEL_VM
     buf_addr = vaddr_to_paddr(transfer_buf);
 #else
-    buf_addr = (uint64_t)transfer_buf;
+    buf_addr = (uintptr_t)transfer_buf;
 #endif
     write_reg(REG_DATA_PTR, buf_addr & 0xffffffff);
 #if __SIZEOF_POINTER__ == 8
