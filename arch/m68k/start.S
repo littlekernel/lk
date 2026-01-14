@@ -70,8 +70,12 @@ init_mmu_68040:
 
     // Set up an mapping of [0, MEMSIZE) to [KERNEL_ASPACE_BASE, KERNEL_ASPACE_BASE + MEMSIZE)
 
+    // Load the kernel page table and save back its physical address for use later
+    lea    %pc@(kernel_pgtable),%a0
+    lea %pc@(kernel_pgtable_phys),%a1
+    movl %a0,%a1@
+
     // Set up L0 entries
-    lea    %pc@(_root_page_table),%a0
     addl   #(KERNEL_ASPACE_BASE / L0_ENTRY_RANGE * 4),%a0    // offset into the middle of the L0 table for KERNEL_ASPACE_BASE
     movl   #L0_ENTRIES,%d0
     lea    %pc@(_l1_tables),%a1   // get pointer to L1 tables
@@ -108,7 +112,7 @@ init_mmu_68040:
     bne    .L2_loop
 
     // set the supervisor root pointer
-    lea    %pc@(_root_page_table),%a0
+    lea    %pc@(kernel_pgtable),%a0
     movec  %a0,%srp
     movec  %a0,%urp
 
@@ -143,12 +147,17 @@ END_FUNCTION(_start)
 
 .bss
 .balign 4
-_default_stack_base:
+DATA(_default_stack_base)
     .skip 4096
+END_DATA(_default_stack_base)
 _default_stack_top:
 
 #if M68K_MMU == 68040
-// Define space for page tables to set up a mapping of MEMSIZE bytes of memory at KERNEL_ASPACE_BASE
+// Kernel identity map MEMSIZE rounded to the next 512MB boundary (for page table purposes)
+.equ MAPSIZE_ALIGN, (512 * 1024 * 1024)
+.equ MAPSIZE, (MEMSIZE + MAPSIZE_ALIGN - 1) & ~(MAPSIZE_ALIGN - 1)
+
+// Define space for page tables to set up a mapping of MAPSIZE bytes of memory at KERNEL_ASPACE_BASE
 .equ PAGE_SIZE, 4096
 .equ L0_PGTABLE_ENTRIES, 128 // 7 bits
 .equ L0_ENTRY_RANGE, (1<<25) // each L0 entry covers 32MB
@@ -156,21 +165,21 @@ _default_stack_top:
 .equ L1_ENTRY_RANGE, (1<<18) // each L1 entry covers 256KB
 .equ L2_PGTABLE_ENTRIES, 64  // 6 bits
 
-// Number of entries at each level to fill in order to cover MEMSIZE,
+// Number of entries at each level to fill in order to cover MAPSIZE,
 // rounded up to the next L0 entry range so all of the L1 and L2 page tables are fully used.
-.equ MEMSIZE_ROUNDED, (MEMSIZE + L0_ENTRY_RANGE - 1) & ~(L0_ENTRY_RANGE - 1)
-.equ L0_ENTRIES, MEMSIZE_ROUNDED / L0_ENTRY_RANGE
-.equ L1_ENTRIES, MEMSIZE_ROUNDED / L1_ENTRY_RANGE
-.equ L2_ENTRIES, MEMSIZE_ROUNDED / PAGE_SIZE
+.equ MAPSIZE_ROUNDED, (MAPSIZE + L0_ENTRY_RANGE - 1) & ~(L0_ENTRY_RANGE - 1)
+.equ L0_ENTRIES, MAPSIZE_ROUNDED / L0_ENTRY_RANGE
+.equ L1_ENTRIES, MAPSIZE_ROUNDED / L1_ENTRY_RANGE
+.equ L2_ENTRIES, MAPSIZE_ROUNDED / PAGE_SIZE
 
 .balign 4096
-_root_page_table:
-    .skip L0_PGTABLE_ENTRIES * 4 // 128 entries, 4 bytes each
+DATA(_l1_tables)
+    .skip (L1_ENTRIES * 4 + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1) // 4 bytes each, one per 256KB section of memory
+END_DATA(_l1_tables)
 .balign 4096
-_l1_tables:
-    .skip L1_ENTRIES * 4 // 4 bytes each, one per 256KB section of memory
-.balign 4096
+DATA(_l2_tables)
 _l2_tables:
-    .skip L2_ENTRIES * 4 // 4 bytes each, one per page of memory
+    .skip (L2_ENTRIES * 4 + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1) // 4 bytes each, one per page of memory
+END_DATA(_l2_tables)
 
 #endif // M68K_MMU == 68040

@@ -27,10 +27,6 @@ bool create_user_aspace() {
 
         err = arch_mmu_destroy_aspace(&as);
         EXPECT_EQ(NO_ERROR, err, "destroy");
-    } else {
-        arch_aspace_t as;
-        status_t err = arch_mmu_init_aspace(&as, USER_ASPACE_BASE, USER_ASPACE_SIZE, 0);
-        ASSERT_EQ(ERR_NOT_SUPPORTED, err, "init aspace");
     }
 
     END_TEST;

@@ -12,6 +12,10 @@
 #include <sys/types.h>
 
 struct arch_aspace {
+    /* virtual address range covered by this address space */
+    vaddr_t base;
+    size_t size;
+
     /* pointer to the translation table */
     paddr_t pgtable_phys;
     void *pgtable_virt;
