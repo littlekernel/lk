@@ -113,6 +113,8 @@ SECTIONS
     . = %KERNEL_BASE% + %MEMSIZE%;
     _end_of_ram = .;
 
+    ASSERT(_end <= _end_of_ram, "Memory layout exceeds allocated RAM region")
+
     /* Strip unnecessary stuff */
     /DISCARD/ : { *(.comment .note .eh_frame) }
 }
