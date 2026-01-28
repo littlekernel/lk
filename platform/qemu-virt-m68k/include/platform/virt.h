@@ -52,6 +52,16 @@
 #define VIRT_CTRL_MMIO_BASE 0xff009000    /* MMIO: 0xff009000 - 0xff009fff */
 #define VIRT_CTRL_IRQ_BASE  PIC_IRQ(1, 1) /* PIC: #1, IRQ: #1 */
 
+/* virt-ctrl registers */
+#define VIRT_CTRL_REG_FEATURES 0x00
+#define VIRT_CTRL_REG_CMD      0x04
+
+/* virt-ctrl command codes */
+#define VIRT_CTRL_CMD_NOOP  0
+#define VIRT_CTRL_CMD_RESET 1
+#define VIRT_CTRL_CMD_HALT  2
+#define VIRT_CTRL_CMD_PANIC 3
+
 /*
  * virtio-mmio size is 0x200 bytes
  * we use 4 goldfish-pic to attach them,
