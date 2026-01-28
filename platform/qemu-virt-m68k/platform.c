@@ -132,3 +132,15 @@ void platform_init(void) {
     }
 #endif
 }
+
+static void virt_ctrl_system_reset(void) {
+    writel(VIRT_CTRL_CMD_RESET, VIRT_CTRL_MMIO_BASE + VIRT_CTRL_REG_CMD);
+}
+
+static void virt_ctrl_system_off(void) {
+    writel(VIRT_CTRL_CMD_HALT, VIRT_CTRL_MMIO_BASE + VIRT_CTRL_REG_CMD);
+}
+
+void platform_halt(platform_halt_action action, platform_halt_reason reason) {
+    platform_halt_default(action, reason, &virt_ctrl_system_reset, &virt_ctrl_system_off);
+}
