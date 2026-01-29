@@ -179,7 +179,7 @@ void event_init(event_t *e, bool initial, uint flags);
 void event_destroy(event_t *e);
 status_t event_wait(event_t *e);                      // Infinite timeout
 status_t event_wait_timeout(event_t *e, lk_time_t timeout);
-status_t event_signal(event_t *e, bool reschedule);
+int event_signal(event_t *e, bool reschedule);        // Returns number of threads woken
 status_t event_unsignal(event_t *e);
 bool event_initialized(event_t *e);
 ```

@@ -76,7 +76,8 @@ status_t event_wait_timeout(event_t *, lk_time_t);
 // Signal the event, waking up any threads waiting on it.
 // If reschedule is true, it will reschedule the thread that was waiting.
 // May be called during interrupt context, but in that case reschedule must be false.
-status_t event_signal(event_t *, bool reschedule);
+// Returns the number of threads woken up (0 if none, or event already signaled).
+int event_signal(event_t *, bool reschedule);
 
 // Unsignal the event, clearing its signaled state.
 status_t event_unsignal(event_t *);
