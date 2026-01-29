@@ -18,11 +18,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-#if WITH_KERNEL_VM
-// forward declaration
-typedef struct vmm_aspace vmm_aspace_t;
-#endif
-
 __BEGIN_CDECLS
 
 // debug-enable runtime checks
@@ -93,7 +88,7 @@ typedef struct thread {
     int pinned_cpu; // only run on pinned_cpu if >= 0
 #endif
 #if WITH_KERNEL_VM
-    vmm_aspace_t *aspace;
+    struct vmm_aspace *aspace;
 #endif
 
     // if blocked, a pointer to the wait queue the thread is blocked on
@@ -124,18 +119,6 @@ typedef struct thread {
     struct thread_specific_stats stats;
 #endif
 } thread_t;
-
-#if WITH_SMP
-#define thread_curr_cpu(t) ((t)->curr_cpu)
-#define thread_pinned_cpu(t) ((t)->pinned_cpu)
-#define thread_set_curr_cpu(t,c) ((t)->curr_cpu = (c))
-#define thread_set_pinned_cpu(t, c) ((t)->pinned_cpu = (c))
-#else
-#define thread_curr_cpu(t) (0)
-#define thread_pinned_cpu(t) (-1)
-#define thread_set_curr_cpu(t,c) do {} while(0)
-#define thread_set_pinned_cpu(t, c) do {} while(0)
-#endif
 
 // thread priority
 #define NUM_PRIORITIES 32
@@ -213,6 +196,35 @@ extern spin_lock_t thread_lock;
 
 static inline bool thread_lock_held(void) {
     return spin_lock_held(&thread_lock);
+}
+
+// SMP related accessors
+static inline int thread_curr_cpu(const thread_t *t) {
+#if WITH_SMP
+    return t->curr_cpu;
+#else
+    return 0;
+#endif
+}
+
+static inline int thread_pinned_cpu(const thread_t *t) {
+#if WITH_SMP
+    return t->pinned_cpu;
+#else
+    return -1;
+#endif
+}
+
+static inline void thread_set_curr_cpu(thread_t *t, int cpu) {
+#if WITH_SMP
+    t->curr_cpu = cpu;
+#endif
+}
+
+static inline void thread_set_pinned_cpu(thread_t *t, int cpu) {
+#if WITH_SMP
+    t->pinned_cpu = cpu;
+#endif
 }
 
 // thread local storage
