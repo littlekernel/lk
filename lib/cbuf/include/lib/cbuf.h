@@ -7,11 +7,12 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
-#include <sys/types.h>
+#include <iovec.h>
 #include <kernel/event.h>
 #include <kernel/spinlock.h>
-#include <iovec.h>
+#include <lk/compiler.h>
+#include <stdbool.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
 
@@ -106,7 +107,16 @@ size_t cbuf_write(cbuf_t *cbuf, const void *buf, size_t len, bool canreschedule)
  * @return The number of free space available in the cbuf (IOW - the maximum
  * number of bytes which can currently be written)
  */
-size_t cbuf_space_avail(cbuf_t *cbuf);
+size_t cbuf_space_avail(const cbuf_t *cbuf);
+
+/**
+ * cbuf_is_full
+ *
+ * @param[in] cbuf The cbuf instance to query
+ *
+ * @return true if the cbuf is full and cannot accept any more writes
+ */
+bool cbuf_is_full(const cbuf_t *cbuf);
 
 /**
  * cbuf_space_used
@@ -116,7 +126,7 @@ size_t cbuf_space_avail(cbuf_t *cbuf);
  * @return The number of used bytes in the cbuf (IOW - the maximum number of
  * bytes which can currently be read).
  */
-size_t cbuf_space_used(cbuf_t *cbuf);
+size_t cbuf_space_used(const cbuf_t *cbuf);
 
 /**
  * cbuf_size
@@ -125,7 +135,7 @@ size_t cbuf_space_used(cbuf_t *cbuf);
  *
  * @return The size of the cbuf's underlying data buffer.
  */
-static inline size_t cbuf_size(cbuf_t *cbuf) {
+static inline size_t cbuf_size(const cbuf_t *cbuf) {
     return (1UL << cbuf->len_pow2);
 }
 
@@ -146,4 +156,3 @@ size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block);
 size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule);
 
 __END_CDECLS
-

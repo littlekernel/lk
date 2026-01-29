@@ -5,15 +5,16 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <stdlib.h>
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <lk/pow2.h>
-#include <string.h>
+#include "lib/cbuf.h"
+
 #include <assert.h>
-#include <lib/cbuf.h>
 #include <kernel/event.h>
 #include <kernel/spinlock.h>
+#include <lk/debug.h>
+#include <lk/pow2.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -26,6 +27,7 @@ void cbuf_initialize(cbuf_t *cbuf, size_t len) {
 
 void cbuf_initialize_etc(cbuf_t *cbuf, size_t len, void *buf) {
     DEBUG_ASSERT(cbuf);
+    DEBUG_ASSERT(buf);
     DEBUG_ASSERT(len > 0);
     DEBUG_ASSERT(ispow2(len));
 
@@ -39,13 +41,17 @@ void cbuf_initialize_etc(cbuf_t *cbuf, size_t len, void *buf) {
     LTRACEF("len %zd, len_pow2 %u\n", len, cbuf->len_pow2);
 }
 
-size_t cbuf_space_avail(cbuf_t *cbuf) {
-    uint consumed = modpow2((uint)(cbuf->head - cbuf->tail), cbuf->len_pow2);
+size_t cbuf_space_avail(const cbuf_t *cbuf) {
+    uint consumed = modpow2((cbuf->head - cbuf->tail), cbuf->len_pow2);
     return valpow2(cbuf->len_pow2) - consumed - 1;
 }
 
-size_t cbuf_space_used(cbuf_t *cbuf) {
-    return modpow2((uint)(cbuf->head - cbuf->tail), cbuf->len_pow2);
+bool cbuf_is_full(const cbuf_t *cbuf) {
+    return INC_POINTER(cbuf, cbuf->head, 1) == cbuf->tail;
+}
+
+size_t cbuf_space_used(const cbuf_t *cbuf) {
+    return modpow2((cbuf->head - cbuf->tail), cbuf->len_pow2);
 }
 
 size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule) {
@@ -95,14 +101,21 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
         pos += write_len;
     }
 
-    if (cbuf->head != cbuf->tail)
-        event_signal(&cbuf->event, false);
+    int woken = 0;
+    if (cbuf->head != cbuf->tail) {
+        // The buffer is not empty, make sure the event is signalled.
+        // Skip recheduling here because we're inside our spinlock, but track
+        // if we had woken up a thread.
+        woken = event_signal(&cbuf->event, false);
+    }
 
     spin_unlock_irqrestore(&cbuf->lock, state);
 
-    // XXX convert to only rescheduling if
-    if (canreschedule)
+    // If we are allowed to and we had woken up a thread, reschedule here
+    // outside of the spinlock.
+    if (canreschedule && woken > 0) {
         thread_preempt();
+    }
 
     return pos;
 }
@@ -115,8 +128,9 @@ size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block) {
 retry:
     // block on the cbuf outside of the lock, which may
     // unblock us early and we'll have to double check below
-    if (block)
+    if (block) {
         event_wait(&cbuf->event);
+    }
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&cbuf->lock, state);
@@ -159,8 +173,9 @@ retry:
     spin_unlock_irqrestore(&cbuf->lock, state);
 
     // we apparently blocked but raced with another thread and found no data, retry
-    if (block && ret == 0)
+    if (block && ret == 0) {
         goto retry;
+    }
 
     return ret;
 }
@@ -172,20 +187,20 @@ size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions) {
     spin_lock_irqsave(&cbuf->lock, state);
 
     size_t ret = cbuf_space_used(cbuf);
-    size_t sz  = cbuf_size(cbuf);
+    size_t sz = cbuf_size(cbuf);
 
     DEBUG_ASSERT(cbuf->tail < sz);
     DEBUG_ASSERT(ret <= sz);
 
     regions[0].iov_base = ret ? (cbuf->buf + cbuf->tail) : NULL;
     if (ret + cbuf->tail > sz) {
-        regions[0].iov_len  = sz - cbuf->tail;
+        regions[0].iov_len = sz - cbuf->tail;
         regions[1].iov_base = cbuf->buf;
-        regions[1].iov_len  = ret - regions[0].iov_len;
+        regions[1].iov_len = ret - regions[0].iov_len;
     } else {
-        regions[0].iov_len  = ret;
+        regions[0].iov_len = ret;
         regions[1].iov_base = NULL;
-        regions[1].iov_len  = 0;
+        regions[1].iov_len = 0;
     }
 
     spin_unlock_irqrestore(&cbuf->lock, state);
@@ -198,18 +213,22 @@ size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule) {
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&cbuf->lock, state);
 
+    int woken = 0;
     size_t ret = 0;
-    if (cbuf_space_avail(cbuf) > 0) {
+    if (!cbuf_is_full(cbuf)) {
         cbuf->buf[cbuf->head] = c;
 
         cbuf->head = INC_POINTER(cbuf, cbuf->head, 1);
         ret = 1;
 
-        if (cbuf->head != cbuf->tail)
-            event_signal(&cbuf->event, canreschedule);
+        woken = event_signal(&cbuf->event, canreschedule);
     }
 
     spin_unlock_irqrestore(&cbuf->lock, state);
+
+    if (canreschedule && woken > 0) {
+        thread_preempt();
+    }
 
     return ret;
 }
@@ -219,8 +238,9 @@ size_t cbuf_read_char(cbuf_t *cbuf, char *c, bool block) {
     DEBUG_ASSERT(c);
 
 retry:
-    if (block)
+    if (block) {
         event_wait(&cbuf->event);
+    }
 
     spin_lock_saved_state_t state;
     spin_lock_irqsave(&cbuf->lock, state);
@@ -242,8 +262,10 @@ retry:
 
     spin_unlock_irqrestore(&cbuf->lock, state);
 
-    if (block && ret == 0)
+    // we apparently blocked but raced with another thread and found no data, retry
+    if (block && ret == 0) {
         goto retry;
+    }
 
     return ret;
 }
