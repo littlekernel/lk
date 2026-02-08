@@ -88,6 +88,7 @@ else
 fi
 
 echo projects to build: "$PROJECTS"
+echo build log written to buildall.log
 
 if (( WERROR )); then
     WERROR_MSG="with WERROR"

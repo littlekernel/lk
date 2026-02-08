@@ -10,7 +10,6 @@
 #ifndef ASSEMBLY
 
 #include <arch/ops.h>
-
 #include <stdbool.h>
 #include <lk/compiler.h>
 #include <lk/reg.h>
@@ -25,30 +24,6 @@ __BEGIN_CDECLS
 #if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
 #define ENABLE_CYCLE_COUNTER 1
 
-// override of some routines
-static inline void arch_enable_ints(void) {
-    CF;
-    __asm__ volatile("cpsie i");
-}
-
-static inline void arch_disable_ints(void) {
-    __asm__ volatile("cpsid i");
-    CF;
-}
-
-static inline bool arch_ints_disabled(void) {
-    unsigned int state;
-
-#if ARM_ISA_ARMV7M
-    __asm__ volatile("mrs %0, primask" : "=r"(state));
-    state &= 0x1;
-#else
-    __asm__ volatile("mrs %0, cpsr" : "=r"(state));
-    state &= (1<<7);
-#endif
-
-    return !!state;
-}
 
 static inline void arch_enable_fiqs(void) {
     CF;
@@ -69,18 +44,6 @@ static inline bool arch_fiqs_disabled(void) {
     return !!state;
 }
 
-static inline bool arch_in_int_handler(void) {
-#if ARM_ISA_ARMV7M
-    uint32_t ipsr;
-    __asm volatile ("MRS %0, ipsr" : "=r" (ipsr) );
-    return (ipsr & IPSR_ISR_Msk);
-#else
-    /* set by the interrupt glue to track that the cpu is inside a handler */
-    extern bool __arm_in_handler;
-
-    return __arm_in_handler;
-#endif
-}
 
 static inline ulong arch_cycle_count(void) {
 #if ARM_ISA_ARMV7M
@@ -160,28 +123,6 @@ static inline bool arch_fiqs_disabled(void) {
     return !!state;
 }
 
-static inline void arch_enable_ints(void) {
-    CF;
-    __asm__ volatile("cpsie i");
-}
-static inline void arch_disable_ints(void) {
-    __asm__ volatile("cpsid i");
-    CF;
-}
-
-static inline bool arch_ints_disabled(void) {
-    unsigned int state;
-
-    __asm__ volatile("mrs %0, primask" : "=r"(state));
-    state &= 0x1;
-    return !!state;
-}
-
-static inline bool arch_in_int_handler(void) {
-    uint32_t ipsr;
-    __asm volatile ("MRS %0, ipsr" : "=r" (ipsr) );
-    return (ipsr & IPSR_ISR_Msk);
-}
 
 static inline ulong arch_cycle_count(void) {
     return 0;

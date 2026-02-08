@@ -14,17 +14,6 @@
 #include <arch/riscv/csr.h>
 #include <arch/riscv/clint.h>
 
-static inline void arch_enable_ints(void) {
-    riscv_csr_set(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_IE);
-}
-
-static inline void arch_disable_ints(void) {
-    riscv_csr_clear(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_IE);
-}
-
-static inline bool arch_ints_disabled(void) {
-    return !(riscv_csr_read(RISCV_CSR_XSTATUS) & RISCV_CSR_XSTATUS_IE);
-}
 
 static inline struct thread *arch_get_current_thread(void) {
     return riscv_get_current_thread();

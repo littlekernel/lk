@@ -9,18 +9,14 @@
 
 #ifndef ASSEMBLY
 
-#include <sys/types.h>
-#include <stddef.h>
-#include <stdbool.h>
 #include <lk/compiler.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
 
 /* Fast routines that all arches must implement inline in arch_ops.h. */
-static inline void arch_enable_ints(void);
-static inline void arch_disable_ints(void);
-static inline bool arch_ints_disabled(void);
-static inline bool arch_in_int_handler(void);
 static inline ulong arch_cycle_count(void);
 static inline uint arch_curr_cpu_num(void);
 
@@ -44,8 +40,7 @@ __END_CDECLS
 /* for the above arch enable/disable routines */
 #define ARCH_CACHE_FLAG_ICACHE 1
 #define ARCH_CACHE_FLAG_DCACHE 2
-#define ARCH_CACHE_FLAG_UCACHE (ARCH_CACHE_FLAG_ICACHE|ARCH_CACHE_FLAG_DCACHE)
+#define ARCH_CACHE_FLAG_UCACHE (ARCH_CACHE_FLAG_ICACHE | ARCH_CACHE_FLAG_DCACHE)
 
 /* include the arch specific implementations */
 #include <arch/arch_ops.h>
-

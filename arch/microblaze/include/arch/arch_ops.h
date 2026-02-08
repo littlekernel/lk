@@ -13,43 +13,6 @@
 
 #define USE_MSRSET 1
 
-static inline void arch_enable_ints(void) {
-    CF;
-    uint32_t temp;
-    __asm__ volatile(
-#if USE_MSRSET
-        "msrset %0, (1<<1)"
-#else
-        "mfs    %0, rmsr;"
-        "ori    %0, %0, (1<<1);"
-        "mts    rmsr, %0"
-#endif
-        : "=r" (temp));
-}
-
-static inline void arch_disable_ints(void) {
-    uint32_t temp;
-    __asm__ volatile(
-#if USE_MSRSET
-        "msrclr %0, (1<<1)"
-#else
-        "mfs    %0, rmsr;"
-        "andni  %0, %0, (1<<1);"
-        "mts    rmsr, %0"
-#endif
-        : "=r" (temp));
-    CF;
-}
-
-static inline bool arch_ints_disabled(void) {
-    uint32_t state;
-
-    __asm__ volatile(
-        "mfs    %0, rmsr;"
-        : "=r" (state));
-
-    return !(state & (1<<1));
-}
 
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;

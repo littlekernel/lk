@@ -17,7 +17,6 @@ __BEGIN_CDECLS
 
 typedef volatile uint32_t spin_lock_t;
 
-typedef unsigned long spin_lock_saved_state_t;
 
 void riscv_spin_lock(spin_lock_t *lock);
 void riscv_spin_unlock(spin_lock_t *lock);
@@ -43,26 +42,5 @@ static inline bool arch_spin_lock_held(spin_lock_t *lock) {
     return *lock != 0;
 }
 
-static inline spin_lock_saved_state_t
-arch_interrupt_save(void) {
-    // disable interrupts by clearing the MIE bit while atomically saving the old state
-    spin_lock_saved_state_t state = riscv_csr_read_clear(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_IE) & RISCV_CSR_XSTATUS_IE;
-
-    // Insert a compiler fence to make sure all code that needs to run with
-    // interrupts disabled is not moved before the arch_disable_ints() call.
-    CF;
-
-    return state;
-}
-
-static inline void
-arch_interrupt_restore(spin_lock_saved_state_t old_state) {
-    // Insert a compiler fence to make sure all code that needs to run with
-    // interrupts disabled is not moved after the arch_enable_ints() call.
-    CF;
-
-    // drop the old MIE flag into the status register
-    riscv_csr_set(RISCV_CSR_XSTATUS, old_state);
-}
 
 __END_CDECLS

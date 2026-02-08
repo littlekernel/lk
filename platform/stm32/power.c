@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <platform.h>
 #include <platform/debug.h>
-#include <arch/ops.h>
+#include <arch/interrupts.h>
 #include <arch/arm/cm.h>
 
 #if WITH_LIB_CONSOLE

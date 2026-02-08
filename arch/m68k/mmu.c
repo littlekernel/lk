@@ -10,6 +10,7 @@
 #if M68K_MMU
 
 #include <arch/mmu.h>
+#include <arch/interrupts.h>
 #include <arch/spinlock.h>
 #include <assert.h>
 #include <kernel/vm.h>

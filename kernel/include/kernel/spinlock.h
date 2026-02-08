@@ -5,6 +5,7 @@
 // https://opensource.org/licenses/MIT
 #pragma once
 
+#include <arch/interrupts.h>
 #include <arch/spinlock.h>
 #include <lk/compiler.h>
 

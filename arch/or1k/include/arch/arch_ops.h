@@ -12,25 +12,6 @@
 #include <arch/or1k.h>
 
 #ifndef ASSEMBLY
-static inline void arch_enable_ints(void) {
-    uint32_t sr = mfspr(OR1K_SPR_SYS_SR_ADDR);
-
-    sr |= OR1K_SPR_SYS_SR_IEE_MASK | OR1K_SPR_SYS_SR_TEE_MASK;
-    mtspr(OR1K_SPR_SYS_SR_ADDR, sr);
-}
-
-static inline void arch_disable_ints(void) {
-    uint32_t sr = mfspr(OR1K_SPR_SYS_SR_ADDR);
-
-    sr &= ~(OR1K_SPR_SYS_SR_IEE_MASK | OR1K_SPR_SYS_SR_TEE_MASK);
-    mtspr(OR1K_SPR_SYS_SR_ADDR, sr);
-}
-
-static inline bool arch_ints_disabled(void) {
-    uint32_t sr = mfspr(OR1K_SPR_SYS_SR_ADDR);
-
-    return !(sr & (OR1K_SPR_SYS_SR_IEE_MASK | OR1K_SPR_SYS_SR_TEE_MASK));
-}
 
 // Using builtin atomics
 #if 0
