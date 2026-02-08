@@ -66,11 +66,20 @@ arch_interrupt_save(void) {
         state = true;
         arch_disable_ints();
     }
+
+    // Insert a compiler fence to make sure all code that needs to run with
+    // interrupts disabled is not moved before the arch_disable_ints() call.
+    CF;
+
     return state;
 }
 
 static inline void
 arch_interrupt_restore(spin_lock_saved_state_t old_state) {
+    // Insert a compiler fence to make sure all code that needs to run with
+    // interrupts disabled is not moved after the arch_enable_ints() call.
+    CF;
+
     if (old_state) {
         arch_enable_ints();
     }
@@ -91,12 +100,21 @@ arch_interrupt_save(void) {
     __asm__ volatile("mrs %0, primask" : "=r"(state));
     /* always disable ints, may be faster than testing and branching around it */
     arch_disable_ints();
+
+    // Insert a compiler fence to make sure all code that needs to run with
+    // interrupts disabled is not moved before the arch_disable_ints() call.
+    CF;
+
     return state;
 }
 
 __ALWAYS_INLINE
 static inline void
 arch_interrupt_restore(spin_lock_saved_state_t old_state) {
+    // Insert a compiler fence to make sure all code that needs to run with
+    // interrupts disabled is not moved after the arch_enable_ints() call.
+    CF;
+
     /* test the PRIMASK's one bit */
     if ((old_state & 0x1) == 0) {
         arch_enable_ints();
