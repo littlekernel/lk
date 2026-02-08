@@ -23,26 +23,6 @@ __BEGIN_CDECLS
 
 void arch_stacktrace(uint64_t fp, uint64_t pc);
 
-// override of some routines
-static inline void arch_enable_ints(void) {
-    CF;
-    __asm__ volatile("msr daifclr, #2" ::: "memory");
-}
-
-static inline void arch_disable_ints(void) {
-    __asm__ volatile("msr daifset, #2" ::: "memory");
-    CF;
-}
-
-static inline bool arch_ints_disabled(void) {
-    unsigned long state;
-
-    __asm__ volatile("mrs %0, daif" : "=r"(state));
-    state &= (1<<7);
-
-    return !!state;
-}
-
 static inline void arch_enable_fiqs(void) {
     CF;
     __asm__ volatile("msr daifclr, #1" ::: "memory");

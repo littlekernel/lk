@@ -17,9 +17,6 @@ __BEGIN_CDECLS
 
 typedef unsigned long spin_lock_t;
 
-typedef bool spin_lock_saved_state_t;
-typedef unsigned int spin_lock_save_flags_t;
-
 #if WITH_SMP
 void arch_spin_lock(spin_lock_t *lock);
 int arch_spin_trylock(spin_lock_t *lock);
@@ -44,32 +41,6 @@ static inline void arch_spin_lock_init(spin_lock_t *lock) {
 
 static inline bool arch_spin_lock_held(spin_lock_t *lock) {
     return *lock != 0;
-}
-
-static inline spin_lock_saved_state_t
-arch_interrupt_save(void) {
-    spin_lock_saved_state_t state = false;
-    if (!arch_ints_disabled()) {
-        state = true;
-        arch_disable_ints();
-    }
-
-    // Insert a compiler fence to make sure all code that needs to run with
-    // interrupts disabled is not moved before the arch_disable_ints() call.
-    CF;
-
-    return state;
-}
-
-static inline void
-arch_interrupt_restore(spin_lock_saved_state_t old_state) {
-    // Insert a compiler fence to make sure all code that needs to run with
-    // interrupts disabled is not moved after the arch_enable_ints() call.
-    CF;
-
-    if (old_state) {
-        arch_enable_ints();
-    }
 }
 
 __END_CDECLS

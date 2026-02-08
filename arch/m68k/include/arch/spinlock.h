@@ -18,7 +18,6 @@
 
 typedef unsigned int spin_lock_t;
 
-typedef unsigned int spin_lock_saved_state_t;
 
 static inline void arch_spin_lock(spin_lock_t *lock) {
     *lock = 1;
@@ -40,28 +39,6 @@ static inline bool arch_spin_lock_held(spin_lock_t *lock) {
     return *lock != 0;
 }
 
-static inline spin_lock_saved_state_t
-arch_interrupt_save(void) {
-    spin_lock_saved_state_t statep = arch_ints_disabled();
-    arch_disable_ints();
-
-    // Insert a compiler fence to make sure all code that needs to run with
-    // interrupts disabled is not moved before the arch_disable_ints() call.
-    CF;
-
-    return statep;
-}
-
-static inline void
-arch_interrupt_restore(spin_lock_saved_state_t old_state) {
-    // Insert a compiler fence to make sure all code that needs to run with
-    // interrupts disabled is not moved after the arch_enable_ints() call.
-    CF;
-
-    if (!old_state) {
-        arch_enable_ints();
-    }
-}
 
 
 

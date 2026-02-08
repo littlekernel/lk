@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <arch.h>
 #include <arch/arm/mmu.h>
+#include <arch/interrupts.h>
 #include <dev/cache/pl310_config.h>
 #include <lk/init.h>
 
