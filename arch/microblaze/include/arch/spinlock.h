@@ -52,11 +52,20 @@ arch_interrupt_save(void) {
         state |= SPIN_LOCK_STATE_RESTORE_IRQ;
         arch_disable_ints();
     }
+
+    // Insert a compiler fence to make sure all code that needs to run with
+    // interrupts disabled is not moved before the arch_disable_ints() call.
+    CF;
+
     return state;
 }
 
 static inline void
 arch_interrupt_restore(spin_lock_saved_state_t old_state) {
+    // Insert a compiler fence to make sure all code that needs to run with
+    // interrupts disabled is not moved after the arch_enable_ints() call.
+    CF;
+
     if (old_state & SPIN_LOCK_STATE_RESTORE_IRQ) {
         arch_enable_ints();
     }
