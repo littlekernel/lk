@@ -122,8 +122,7 @@ static void heap_free_delayed_list(void) {
 
     list_initialize(&list);
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&delayed_free_lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&delayed_free_lock);
 
     struct list_node *node;
     while ((node = list_remove_head(&delayed_free_list))) {
@@ -222,8 +221,7 @@ void heap_delayed_free(void *ptr) {
     /* XXX assumes the free block is large enough to hold a list node */
     struct list_node *node = (struct list_node *)ptr;
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&delayed_free_lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&delayed_free_lock);
     list_add_head(&delayed_free_list, node);
     spin_unlock_irqrestore(&delayed_free_lock, state);
 }
@@ -232,8 +230,7 @@ static void heap_dump(void) {
     HEAP_DUMP();
 
     printf("\tdelayed free list:\n");
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&delayed_free_lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&delayed_free_lock);
     struct list_node *node;
     list_for_every(&delayed_free_list, node) {
         printf("\t\tnode %p\n", node);

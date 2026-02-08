@@ -10,13 +10,13 @@
 #include <assert.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
+#include <malloc.h>
 #include <printf.h>
 #include <string.h>
-#include <malloc.h>
 
-#include <kernel/thread.h>
 #include <kernel/semaphore.h>
 #include <kernel/spinlock.h>
+#include <kernel/thread.h>
 #include <lib/pktbuf.h>
 #include <lib/pool.h>
 #include <lk/init.h>
@@ -31,27 +31,21 @@ static pool_t pktbuf_pool;
 static semaphore_t pktbuf_sem;
 static spin_lock_t lock;
 
-
 /* Take an object from the pool of pktbuf objects to act as a header or buffer.  */
 static void *get_pool_object(void) {
-    pool_t *entry;
-    spin_lock_saved_state_t state;
-
     sem_wait(&pktbuf_sem);
-    spin_lock_irqsave(&lock, state);
-    entry = pool_alloc(&pktbuf_pool);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    pool_t *entry = pool_alloc(&pktbuf_pool);
     spin_unlock_irqrestore(&lock, state);
 
-    return (pktbuf_pool_object_t *) entry;
-
+    return (pktbuf_pool_object_t *)entry;
 }
 
 /* Return an object to thje pktbuf object pool. */
 static void free_pool_object(pktbuf_pool_object_t *entry, bool reschedule) {
     DEBUG_ASSERT(entry);
-    spin_lock_saved_state_t state;
 
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
     pool_free(&pktbuf_pool, entry);
     spin_unlock_irqrestore(&lock, state);
     sem_post(&pktbuf_sem, reschedule);
@@ -91,9 +85,9 @@ void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz, uint32
      * stick with the address as presented to us.
      */
 #if WITH_KERNEL_VM
-    p->phys_base = vaddr_to_paddr(buf) | (uintptr_t) buf % PAGE_SIZE;
+    p->phys_base = vaddr_to_paddr(buf) | (uintptr_t)buf % PAGE_SIZE;
 #else
-    p->phys_base = (uintptr_t) buf;
+    p->phys_base = (uintptr_t)buf;
 #endif
 }
 
@@ -127,7 +121,7 @@ void pktbuf_reset(pktbuf_t *p, uint32_t header_sz) {
 }
 
 pktbuf_t *pktbuf_alloc_empty(void) {
-    pktbuf_t *p = (pktbuf_t *) get_pool_object();
+    pktbuf_t *p = (pktbuf_t *)get_pool_object();
 
     p->flags = PKTBUF_FLAG_EOF;
     return p;
@@ -199,7 +193,7 @@ void pktbuf_consume_tail(pktbuf_t *p, size_t sz) {
 
 void pktbuf_dump(pktbuf_t *p) {
     printf("pktbuf data %p, buffer %p, dlen %u, data offset %lu, phys_base %p\n",
-           p->data, p->buffer, p->dlen, (uintptr_t) p->data - (uintptr_t) p->buffer,
+           p->data, p->buffer, p->dlen, (uintptr_t)p->data - (uintptr_t)p->buffer,
            (void *)p->phys_base);
 }
 

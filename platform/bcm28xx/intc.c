@@ -5,40 +5,39 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/trace.h>
 #include <assert.h>
-#include <lk/err.h>
-#include <lk/bits.h>
+#include <kernel/mp.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
-#include <kernel/mp.h>
-#include <platform/interrupts.h>
+#include <lk/bits.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <platform/bcm28xx.h>
+#include <platform/interrupts.h>
 
-#if defined (BCM2836)
+#if defined(BCM2836)
 #include <arch/arm.h>
 typedef struct arm_iframe arm_platform_iframe_t;
-#elif defined (BCM2837)
+#elif defined(BCM2837)
 #include <arch/arm64.h>
 typedef struct arm64_iframe_long arm_platform_iframe_t;
 #else
 #error Unknown BCM28XX Variant
 #endif
 
-
 #define LOCAL_TRACE 0
 
 /* global interrupt controller */
-#define INTC_PEND0  (ARMCTRL_INTC_BASE + 0x0)
-#define INTC_PEND1  (ARMCTRL_INTC_BASE + 0x4)
-#define INTC_PEND2  (ARMCTRL_INTC_BASE + 0x8)
-#define INTC_FAST   (ARMCTRL_INTC_BASE + 0xc)
-#define INTC_ENABLE1   (ARMCTRL_INTC_BASE + 0x10)
-#define INTC_ENABLE2   (ARMCTRL_INTC_BASE + 0x14)
-#define INTC_ENABLE3   (ARMCTRL_INTC_BASE + 0x18)
-#define INTC_DISABLE1   (ARMCTRL_INTC_BASE + 0x1c)
-#define INTC_DISABLE2   (ARMCTRL_INTC_BASE + 0x20)
-#define INTC_DISABLE3   (ARMCTRL_INTC_BASE + 0x24)
+#define INTC_PEND0    (ARMCTRL_INTC_BASE + 0x0)
+#define INTC_PEND1    (ARMCTRL_INTC_BASE + 0x4)
+#define INTC_PEND2    (ARMCTRL_INTC_BASE + 0x8)
+#define INTC_FAST     (ARMCTRL_INTC_BASE + 0xc)
+#define INTC_ENABLE1  (ARMCTRL_INTC_BASE + 0x10)
+#define INTC_ENABLE2  (ARMCTRL_INTC_BASE + 0x14)
+#define INTC_ENABLE3  (ARMCTRL_INTC_BASE + 0x18)
+#define INTC_DISABLE1 (ARMCTRL_INTC_BASE + 0x1c)
+#define INTC_DISABLE2 (ARMCTRL_INTC_BASE + 0x20)
+#define INTC_DISABLE3 (ARMCTRL_INTC_BASE + 0x24)
 
 /* per-cpu local interrupt controller bits.
  * each is repeated 4 times, one per cpu.
@@ -85,8 +84,7 @@ static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 status_t mask_interrupt(unsigned int vector) {
     LTRACEF("vector %u\n", vector);
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     if (vector >= INTERRUPT_ARM_LOCAL_CNTPSIRQ && vector <= INTERRUPT_ARM_LOCAL_CNTVIRQ) {
         // local timer interrupts, mask on all cpus
@@ -97,12 +95,13 @@ status_t mask_interrupt(unsigned int vector) {
         }
     } else if (/* vector >= ARM_IRQ1_BASE && */ vector < (ARM_IRQ0_BASE + 32)) {
         uintptr_t reg;
-        if (vector >= ARM_IRQ0_BASE)
+        if (vector >= ARM_IRQ0_BASE) {
             reg = INTC_DISABLE3;
-        else if (vector >= ARM_IRQ2_BASE)
+        } else if (vector >= ARM_IRQ2_BASE) {
             reg = INTC_DISABLE2;
-        else
+        } else {
             reg = INTC_DISABLE1;
+        }
 
         *REG32(reg) = 1 << (vector % 32);
     } else {
@@ -117,8 +116,7 @@ status_t mask_interrupt(unsigned int vector) {
 status_t unmask_interrupt(unsigned int vector) {
     LTRACEF("vector %u\n", vector);
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     if (vector >= INTERRUPT_ARM_LOCAL_CNTPSIRQ && vector <= INTERRUPT_ARM_LOCAL_CNTVIRQ) {
         // local timer interrupts, unmask for all cpus
@@ -129,12 +127,13 @@ status_t unmask_interrupt(unsigned int vector) {
         }
     } else if (/* vector >= ARM_IRQ1_BASE && */ vector < (ARM_IRQ0_BASE + 32)) {
         uintptr_t reg;
-        if (vector >= ARM_IRQ0_BASE)
+        if (vector >= ARM_IRQ0_BASE) {
             reg = INTC_ENABLE3;
-        else if (vector >= ARM_IRQ2_BASE)
+        } else if (vector >= ARM_IRQ2_BASE) {
             reg = INTC_ENABLE2;
-        else
+        } else {
             reg = INTC_ENABLE1;
+        }
 
         *REG32(reg) = 1 << (vector % 32);
     } else {
@@ -147,11 +146,11 @@ status_t unmask_interrupt(unsigned int vector) {
 }
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
-    if (vector >= MAX_INT)
+    if (vector >= MAX_INT) {
         panic("register_int_handler: vector out of range %d\n", vector);
+    }
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     int_handler_table[vector].handler = handler;
     int_handler_table[vector].arg = arg;
@@ -251,7 +250,7 @@ void bcm28xx_send_ipi(uint irq, uint cpu_mask) {
     LTRACEF("irq %u, cpu_mask 0x%x\n", irq, cpu_mask);
 
     for (uint i = 0; i < 4; i++) {
-        if (cpu_mask & (1<<i)) {
+        if (cpu_mask & (1 << i)) {
             LTRACEF("sending to cpu %u\n", i);
             *REG32(INTC_LOCAL_MAILBOX0_SET0 + 0x10 * i) = (1 << irq);
         }
@@ -271,4 +270,3 @@ void intc_init(void) {
     }
 #endif
 }
-

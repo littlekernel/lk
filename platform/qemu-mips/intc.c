@@ -6,16 +6,16 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <sys/types.h>
+#include <arch/mips.h>
+#include <arch/ops.h>
+#include <kernel/thread.h>
 #include <lk/debug.h>
-#include <lk/trace.h>
 #include <lk/err.h>
 #include <lk/reg.h>
-#include <kernel/thread.h>
+#include <lk/trace.h>
 #include <platform/interrupts.h>
-#include <arch/ops.h>
-#include <arch/mips.h>
 #include <platform/qemu-mips.h>
+#include <sys/types.h>
 
 #define LOCAL_TRACE 0
 
@@ -27,24 +27,24 @@ static spin_lock_t lock;
 #define ICW1 0x11
 #define ICW4 0x01
 
-#define PIC1_CMD                    0x20
-#define PIC1_DATA                   0x21
-#define PIC2_CMD                    0xA0
-#define PIC2_DATA                   0xA1
-#define PIC_READ_IRR                0x0a    /* OCW3 irq ready next CMD read */
-#define PIC_READ_ISR                0x0b    /* OCW3 irq service next CMD read */
+#define PIC1_CMD     0x20
+#define PIC1_DATA    0x21
+#define PIC2_CMD     0xA0
+#define PIC2_DATA    0xA1
+#define PIC_READ_IRR 0x0a /* OCW3 irq ready next CMD read */
+#define PIC_READ_ISR 0x0b /* OCW3 irq service next CMD read */
 
-#define ICW1_ICW4   0x01        /* ICW4 (not) needed */
-#define ICW1_SINGLE 0x02        /* Single (cascade) mode */
-#define ICW1_INTERVAL4  0x04    /* Call address interval 4 (8) */
-#define ICW1_LEVEL  0x08        /* Level triggered (edge) mode */
-#define ICW1_INIT   0x10        /* Initialization */
+#define ICW1_ICW4      0x01 /* ICW4 (not) needed */
+#define ICW1_SINGLE    0x02 /* Single (cascade) mode */
+#define ICW1_INTERVAL4 0x04 /* Call address interval 4 (8) */
+#define ICW1_LEVEL     0x08 /* Level triggered (edge) mode */
+#define ICW1_INIT      0x10 /* Initialization */
 
-#define ICW4_8086   0x01        /* 8086/88 (MCS-80/85) mode */
-#define ICW4_AUTO   0x02        /* Auto (normal) EOI */
-#define ICW4_BUF_SLAVE  0x08    /* Buffered mode/slave */
-#define ICW4_BUF_MASTER 0x0C    /* Buffered mode/master */
-#define ICW4_SFNM   0x10        /* Special fully nested (not) */
+#define ICW4_8086       0x01 /* 8086/88 (MCS-80/85) mode */
+#define ICW4_AUTO       0x02 /* Auto (normal) EOI */
+#define ICW4_BUF_SLAVE  0x08 /* Buffered mode/slave */
+#define ICW4_BUF_MASTER 0x0C /* Buffered mode/master */
+#define ICW4_SFNM       0x10 /* Special fully nested (not) */
 
 struct int_handler_struct {
     int_handler handler;
@@ -69,16 +69,16 @@ static void map(uint32_t pic1, uint32_t pic2) {
     isa_write_8(PIC2, ICW1);
 
     /* send ICW2 */
-    isa_write_8(PIC1 + 1, pic1);   /* remap */
-    isa_write_8(PIC2 + 1, pic2);   /*  pics */
+    isa_write_8(PIC1 + 1, pic1); /* remap */
+    isa_write_8(PIC2 + 1, pic2); /*  pics */
 
     /* send ICW3 */
-    isa_write_8(PIC1 + 1, 4);  /* IRQ2 -> connection to slave */
+    isa_write_8(PIC1 + 1, 4); /* IRQ2 -> connection to slave */
     isa_write_8(PIC2 + 1, 2);
 
     /* send ICW4 */
-    isa_write_8(PIC1 + 1, 2|5);
-    isa_write_8(PIC2 + 1, 2|1);
+    isa_write_8(PIC1 + 1, 2 | 5);
+    isa_write_8(PIC2 + 1, 2 | 1);
 
     /* disable all IRQs */
     isa_write_8(PIC1 + 1, 0xff);
@@ -141,7 +141,7 @@ static void issueEOI(unsigned int vector) {
         isa_write_8(PIC1, 0x20);
     } else if (vector < 16) {
         isa_write_8(PIC2, 0x20);
-        isa_write_8(PIC1, 0x20);   // must issue both for the second PIC
+        isa_write_8(PIC1, 0x20); // must issue both for the second PIC
     }
 }
 
@@ -170,13 +170,13 @@ void platform_init_interrupts(void) {
 }
 
 status_t mask_interrupt(unsigned int vector) {
-    if (vector >= INT_VECTORS)
+    if (vector >= INT_VECTORS) {
         return ERR_INVALID_ARGS;
+    }
 
     LTRACEF("vector %d\n", vector);
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     enable(vector, false);
 
@@ -197,13 +197,13 @@ void platform_mask_irqs(void) {
 }
 
 status_t unmask_interrupt(unsigned int vector) {
-    if (vector >= INT_VECTORS)
+    if (vector >= INT_VECTORS) {
         return ERR_INVALID_ARGS;
+    }
 
     LTRACEF("vector %d\n", vector);
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     enable(vector, true);
 
@@ -215,7 +215,7 @@ status_t unmask_interrupt(unsigned int vector) {
 enum handler_return platform_irq(struct mips_iframe *iframe, uint vector) {
     // figure out which irq is pending
     // issue OCW3 poll commands to PIC1 and (potentially) PIC2
-    isa_write_8(PIC1_CMD, (1<<3) | (1<<2));
+    isa_write_8(PIC1_CMD, (1 << 3) | (1 << 2));
     uint8_t val = isa_read_8(PIC1_CMD);
     if ((val & 0x80) == 0) {
         // spurious?
@@ -223,7 +223,7 @@ enum handler_return platform_irq(struct mips_iframe *iframe, uint vector) {
     }
     val &= ~0x80;
     if (val == INT_PIC2) {
-        isa_write_8(PIC2_CMD, (1<<3) | (1<<2));
+        isa_write_8(PIC2_CMD, (1 << 3) | (1 << 2));
         val = isa_read_8(PIC2_CMD);
         if ((val & 0x80) == 0) {
             // spurious?
@@ -239,22 +239,22 @@ enum handler_return platform_irq(struct mips_iframe *iframe, uint vector) {
     // deliver the interrupt
     enum handler_return ret = INT_NO_RESCHEDULE;
 
-    if (int_handler_table[vector].handler)
+    if (int_handler_table[vector].handler) {
         ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
+    }
 
     return ret;
 }
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
-    if (vector >= INT_VECTORS)
+    if (vector >= INT_VECTORS) {
         panic("register_int_handler: vector out of range %d\n", vector);
+    }
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     int_handler_table[vector].arg = arg;
     int_handler_table[vector].handler = handler;
 
     spin_unlock_irqrestore(&lock, state);
 }
-

@@ -62,8 +62,7 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
     DEBUG_ASSERT(cbuf);
     DEBUG_ASSERT(len < valpow2(cbuf->len_pow2));
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&cbuf->lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&cbuf->lock);
 
     size_t write_len;
     size_t pos = 0;
@@ -132,8 +131,7 @@ retry:
         event_wait(&cbuf->event);
     }
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&cbuf->lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&cbuf->lock);
 
     // see if there's data available
     size_t ret = 0;
@@ -183,8 +181,7 @@ retry:
 size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions) {
     DEBUG_ASSERT(cbuf && regions);
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&cbuf->lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&cbuf->lock);
 
     size_t ret = cbuf_space_used(cbuf);
     size_t sz = cbuf_size(cbuf);
@@ -210,8 +207,7 @@ size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions) {
 size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule) {
     DEBUG_ASSERT(cbuf);
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&cbuf->lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&cbuf->lock);
 
     int woken = 0;
     size_t ret = 0;
@@ -242,8 +238,7 @@ retry:
         event_wait(&cbuf->event);
     }
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&cbuf->lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&cbuf->lock);
 
     // see if there's data available
     size_t ret = 0;

@@ -99,8 +99,7 @@ void uart_init_early(void) {
 int uart_putc(int port, char c) {
     uintptr_t base = uart_to_ptr(port);
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     /* spin while fifo is full */
     while ((UARTREG(base, UART_USR) & (1<<1)) == 0) {

@@ -30,8 +30,7 @@
 static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
 uint8_t cmos_read(uint8_t reg) {
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     outp(CMOS_CONTROL_REG, reg | 0x80);
     uint8_t val = inp(CMOS_DATA_REG);

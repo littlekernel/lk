@@ -50,8 +50,7 @@ static void cdcconsole_print(print_callback_t *cb, const char *str, size_t len) 
     cbuf_write(&con->tx_buf, str, len, false);
 
     if (con->online) {
-        spin_lock_saved_state_t state;
-        spin_lock_irqsave(&con->tx_lock, state);
+        spin_lock_saved_state_t state = spin_lock_irqsave(&con->tx_lock);
         if (!con->transmitting) {
             cdcconsole_handle_tx(con);
         }
@@ -66,8 +65,7 @@ static void cdcconsole_queue_read(cdcconsole_t *con) {
 
 static status_t cdcconsole_tx_cb(ep_t endpoint, usbc_transfer_t *t) {
     cdcconsole_t *con = containerof(t, cdcconsole_t, tx_transfer);
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&con->tx_lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&con->tx_lock);
 
     // Consume the peeked data.
     cbuf_read(&con->tx_buf, NULL, t->bufpos, false);
@@ -88,8 +86,7 @@ static void cdcconsole_online(cdcserial_channel_t *chan, bool online) {
     cdcconsole_t *con = containerof(chan, cdcconsole_t, cdc_chan);
     con->online = online;
     if (online) {
-        spin_lock_saved_state_t state;
-        spin_lock_irqsave(&con->tx_lock, state);
+        spin_lock_saved_state_t state = spin_lock_irqsave(&con->tx_lock);
         if (!con->transmitting) {
             // Throw away previous data.
             cbuf_reset(&con->tx_buf);

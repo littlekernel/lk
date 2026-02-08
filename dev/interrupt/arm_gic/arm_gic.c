@@ -54,7 +54,6 @@ static void gic_set_enable(uint vector, bool enable);
 static void arm_gic_init_hw(void);
 
 static spin_lock_t gicd_lock;
-#define GICD_LOCK_FLAGS SPIN_LOCK_FLAG_INTERRUPTS
 #define GIC_MAX_PER_CPU_INT 32
 #define GIC_MAX_SGI_INT     16
 
@@ -96,13 +95,11 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     struct int_handler_struct *h;
     uint cpu = arch_curr_cpu_num();
 
-    spin_lock_saved_state_t state;
-
     if (vector >= MAX_INT) {
         panic("register_int_handler: vector out of range %d\n", vector);
     }
 
-    spin_lock_save(&gicd_lock, &state, GICD_LOCK_FLAGS);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&gicd_lock);
 
     if (arm_gic_interrupt_change_allowed(vector)) {
         if (arm_gics[0].gic_revision > 2) {
@@ -130,7 +127,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
         }
     }
 
-    spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
+    spin_unlock_irqrestore(&gicd_lock, state);
 }
 
 void register_int_handler_msi(unsigned int vector, int_handler handler, void *arg, bool edge) {
@@ -196,10 +193,9 @@ LK_INIT_HOOK_FLAGS(arm_gic_suspend_cpu, arm_gic_suspend_cpu,
                    LK_INIT_LEVEL_PLATFORM, LK_INIT_FLAG_CPU_OFF);
 
 static void arm_gic_resume_cpu(uint level) {
-    spin_lock_saved_state_t state;
     __UNUSED bool resume_gicd = false;
 
-    spin_lock_save(&gicd_lock, &state, GICD_LOCK_FLAGS);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&gicd_lock);
 
     bool distributor_enabled = true;
     if (arm_gics[0].gic_revision > 2) {
@@ -234,7 +230,7 @@ static void arm_gic_resume_cpu(uint level) {
         }
         arm_gicv3_resume_cpu_locked(cpu, resume_gicd);
     }
-    spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
+    spin_unlock_irqrestore(&gicd_lock, state);
 }
 
 LK_INIT_HOOK_FLAGS(arm_gic_resume_cpu, arm_gic_resume_cpu,
