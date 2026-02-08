@@ -183,8 +183,7 @@ int gem_send_raw_pkt(void *arg, struct pktbuf *p) {
     // XXX handle multi part buffers
     arch_clean_cache_range((vaddr_t)p->data, p->dlen);
 
-    spin_lock_saved_state_t irqstate;
-    spin_lock_irqsave(&lock, irqstate);
+    spin_lock_saved_state_t irqstate = spin_lock_irqsave(&lock);
     list_add_tail(&gem.tx_queue, &p->list);
     queue_pkts_in_tx_tbl();
     spin_unlock_irqrestore(&lock, irqstate);

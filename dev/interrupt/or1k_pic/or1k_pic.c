@@ -13,7 +13,6 @@
 #include <arch/or1k.h>
 
 static spin_lock_t gicd_lock;
-#define GICD_LOCK_FLAGS SPIN_LOCK_FLAG_INTERRUPTS
 
 struct int_handler_struct {
     int_handler handler;
@@ -23,17 +22,15 @@ struct int_handler_struct {
 static struct int_handler_struct int_handler_table[MAX_INT];
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
-    spin_lock_saved_state_t state;
-
     if (vector >= MAX_INT)
         panic("%s: vector out of range %d\n", __FUNCTION__, vector);
 
-    spin_lock_save(&gicd_lock, &state, GICD_LOCK_FLAGS);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&gicd_lock);
 
     int_handler_table[vector].handler = handler;
     int_handler_table[vector].arg = arg;
 
-    spin_unlock_restore(&gicd_lock, state, GICD_LOCK_FLAGS);
+    spin_unlock_irqrestore(&gicd_lock, state);
 }
 
 status_t mask_interrupt(unsigned int vector) {

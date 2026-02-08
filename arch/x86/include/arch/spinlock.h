@@ -19,7 +19,6 @@ __BEGIN_CDECLS
 typedef unsigned int spin_lock_t;
 
 typedef x86_flags_t spin_lock_saved_state_t;
-typedef uint spin_lock_save_flags_t;
 
 /* simple implementation of spinlocks for no smp support */
 static inline void arch_spin_lock_init(spin_lock_t *lock) {
@@ -51,15 +50,25 @@ static inline void arch_spin_unlock(spin_lock_t *lock) {
 /* flags are unused on x86 */
 #define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS  0
 
-static inline void
-arch_interrupt_save(spin_lock_saved_state_t *statep, spin_lock_save_flags_t flags) {
-    *statep = x86_save_flags();
-    arch_disable_ints();
+static inline spin_lock_saved_state_t
+arch_interrupt_save(void) {
+    spin_lock_saved_state_t state = x86_save_flags();
+    if (state & X86_FLAGS_IF) {
+        x86_cli();
+    }
+
+    CF;
+
+    return state;
 }
 
 static inline void
-arch_interrupt_restore(spin_lock_saved_state_t old_state, spin_lock_save_flags_t flags) {
-    x86_restore_flags(old_state);
+arch_interrupt_restore(spin_lock_saved_state_t old_state) {
+    CF;
+
+    if (old_state & X86_FLAGS_IF) {
+        x86_sti();
+    }
 }
 
 __END_CDECLS

@@ -144,8 +144,7 @@ static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
     struct vring_desc *desc;
     uint16_t idx;
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&p9dev->lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&p9dev->lock);
 
     desc = virtio_alloc_desc_chain(dev, VIRTIO_9P_RING_IDX, 2, &idx);
 

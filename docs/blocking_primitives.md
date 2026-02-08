@@ -351,7 +351,7 @@ bool spin_lock_held(spin_lock_t *lock);
 
 // Wrapper functions that disable and restore interrupts, saving interrupt state
 // into 'state'.
-void spin_lock_irqsave(spin_lock_t *lock, spin_lock_saved_state_t *state);
+spin_lock_saved_state_t spin_lock_irqsave(spin_lock_t *lock);
 void spin_unlock_irqrestore(spin_lock_t *lock, spin_lock_saved_state_t state);
 ```
 
@@ -361,8 +361,7 @@ void spin_unlock_irqrestore(spin_lock_t *lock, spin_lock_saved_state_t state);
 spin_lock_t hardware_lock = SPIN_LOCK_INITIAL_VALUE;
 
 void access_hardware_register(void) {
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&hardware_lock, &state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&hardware_lock);
 
     // Brief critical section
     write_hardware_register(value);
@@ -380,7 +379,7 @@ public:
     int trylock();
     void unlock();
     bool is_held();
-    void lock_irqsave(spin_lock_saved_state_t *state);
+    spin_lock_saved_state_t lock_irqsave();
     void unlock_irqrestore(spin_lock_saved_state_t state);
 };
 

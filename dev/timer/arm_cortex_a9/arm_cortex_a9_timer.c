@@ -104,8 +104,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     if (unlikely(ticks > 0xffffffff))
         ticks = 0xffffffff;
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     t_callback = callback;
 
@@ -131,8 +130,7 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     if (unlikely(ticks > 0xffffffff))
         ticks = 0xffffffff;
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     t_callback = callback;
     oneshot_interval = interval;

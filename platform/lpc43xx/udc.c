@@ -192,13 +192,12 @@ static void endpoint_enable(usb_t *usb, udc_endpoint_t *ept, unsigned yes) {
 // ---- request management
 
 udc_request_t *udc_request_alloc(void) {
-    spin_lock_saved_state_t state;
     usb_request_t *req;
     if ((req = malloc(sizeof(*req))) == NULL) {
         return NULL;
     }
 
-    spin_lock_irqsave(&USB.lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&USB.lock);
     if (USB.dtd_freelist == NULL) {
         spin_unlock_irqrestore(&USB.lock, state);
         free(req);
@@ -220,7 +219,6 @@ void udc_request_free(struct udc_request *req) {
 }
 
 int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req) {
-    spin_lock_saved_state_t state;
     usb_request_t *req = (usb_request_t *) _req;
     usb_dtd_t *dtd = req->dtd;
     unsigned phys = (unsigned) req->req.buffer;
@@ -236,7 +234,7 @@ int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req) {
     dtd->bptr4 = phys + 0x4000;
 
     req->next = 0;
-    spin_lock_irqsave(&ept->usb->lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&ept->usb->lock);
     if (!USB.online && ept->num) {
         ret = -1;
     } else if (ept->req) {

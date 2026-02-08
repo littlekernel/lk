@@ -45,8 +45,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     if (vector >= MAX_INT)
         return;
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&lock, state);
+    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
 
     int_handler_table[vector].handler = handler;
     int_handler_table[vector].arg = arg;
