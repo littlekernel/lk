@@ -176,7 +176,7 @@ status_t mask_interrupt(unsigned int vector) {
 
     LTRACEF("vector %d\n", vector);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     enable(vector, false);
 
@@ -203,7 +203,7 @@ status_t unmask_interrupt(unsigned int vector) {
 
     LTRACEF("vector %d\n", vector);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     enable(vector, true);
 
@@ -251,7 +251,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
         panic("register_int_handler: vector out of range %d\n", vector);
     }
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     int_handler_table[vector].arg = arg;
     int_handler_table[vector].handler = handler;

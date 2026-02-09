@@ -84,7 +84,7 @@ static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 status_t mask_interrupt(unsigned int vector) {
     LTRACEF("vector %u\n", vector);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     if (vector >= INTERRUPT_ARM_LOCAL_CNTPSIRQ && vector <= INTERRUPT_ARM_LOCAL_CNTVIRQ) {
         // local timer interrupts, mask on all cpus
@@ -116,7 +116,7 @@ status_t mask_interrupt(unsigned int vector) {
 status_t unmask_interrupt(unsigned int vector) {
     LTRACEF("vector %u\n", vector);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     if (vector >= INTERRUPT_ARM_LOCAL_CNTPSIRQ && vector <= INTERRUPT_ARM_LOCAL_CNTVIRQ) {
         // local timer interrupts, unmask for all cpus
@@ -150,7 +150,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
         panic("register_int_handler: vector out of range %d\n", vector);
     }
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     int_handler_table[vector].handler = handler;
     int_handler_table[vector].arg = arg;

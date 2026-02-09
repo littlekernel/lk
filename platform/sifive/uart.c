@@ -36,7 +36,7 @@ static struct cbuf uart_rx_buf;
 static spin_lock_t uart_tx_spin_lock = 0;
 
 void sifive_uart_write(int c) {
-    spin_lock_saved_state_t state = spin_lock_irqsave(&uart_tx_spin_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&uart_tx_spin_lock);
 
     // wait for tx fifo to clear
     while (uart_base[UART_TXDATA] & (1<<31))

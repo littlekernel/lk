@@ -92,15 +92,15 @@ static inline bool arch_in_int_handler(void) {
 
 #endif
 
-struct spin_lock_saved_state {
+struct arch_interrupt_saved_state {
     unsigned int state;
 };
 
 #if !(ARM_ISA_ARMV7M || ARM_ISA_ARMV6M)
 
-static inline struct spin_lock_saved_state
+static inline struct arch_interrupt_saved_state
 arch_interrupt_save(void) {
-    struct spin_lock_saved_state state = { .state = 0 };
+    struct arch_interrupt_saved_state state = { .state = 0 };
     if (!arch_ints_disabled()) {
         state.state = 1;
         arch_disable_ints();
@@ -114,7 +114,7 @@ arch_interrupt_save(void) {
 }
 
 static inline void
-arch_interrupt_restore(struct spin_lock_saved_state old_state) {
+arch_interrupt_restore(struct arch_interrupt_saved_state old_state) {
     // Insert a compiler fence to make sure all code that needs to run with
     // interrupts disabled is not moved after the arch_enable_ints() call.
     CF;
@@ -132,9 +132,9 @@ arch_interrupt_restore(struct spin_lock_saved_state old_state) {
  */
 
 __ALWAYS_INLINE
-static inline struct spin_lock_saved_state
+static inline struct arch_interrupt_saved_state
 arch_interrupt_save(void) {
-    struct spin_lock_saved_state state = { .state = 0 };
+    struct arch_interrupt_saved_state state = { .state = 0 };
 
     __asm__ volatile("mrs %0, primask" : "=r"(state.state));
     /* always disable ints, may be faster than testing and branching around it */
@@ -149,7 +149,7 @@ arch_interrupt_save(void) {
 
 __ALWAYS_INLINE
 static inline void
-arch_interrupt_restore(struct spin_lock_saved_state old_state) {
+arch_interrupt_restore(struct arch_interrupt_saved_state old_state) {
     // Insert a compiler fence to make sure all code that needs to run with
     // interrupts disabled is not moved after the arch_enable_ints() call.
     CF;

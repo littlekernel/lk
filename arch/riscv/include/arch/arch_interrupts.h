@@ -32,13 +32,13 @@ static inline bool arch_in_int_handler(void) {
     return false;
 }
 
-struct spin_lock_saved_state {
+struct arch_interrupt_saved_state {
     unsigned long flags;
 };
 
-static inline struct spin_lock_saved_state
+static inline struct arch_interrupt_saved_state
 arch_interrupt_save(void) {
-    struct spin_lock_saved_state state = {
+    struct arch_interrupt_saved_state state = {
         .flags = riscv_csr_read_clear(RISCV_CSR_XSTATUS, RISCV_CSR_XSTATUS_IE) &
                  RISCV_CSR_XSTATUS_IE
     };
@@ -51,7 +51,7 @@ arch_interrupt_save(void) {
 }
 
 static inline void
-arch_interrupt_restore(struct spin_lock_saved_state old_state) {
+arch_interrupt_restore(struct arch_interrupt_saved_state old_state) {
     // Insert a compiler fence to make sure all code that needs to run with
     // interrupts disabled is not moved after the arch_enable_ints() call.
     CF;

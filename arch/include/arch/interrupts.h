@@ -22,10 +22,10 @@ static inline void arch_disable_ints(void);
 static inline bool arch_ints_disabled(void);
 static inline bool arch_in_int_handler(void);
 
-typedef struct spin_lock_saved_state spin_lock_saved_state_t;
+typedef struct arch_interrupt_saved_state arch_interrupt_saved_state_t;
 
-static inline struct spin_lock_saved_state arch_interrupt_save(void);
-static inline void arch_interrupt_restore(struct spin_lock_saved_state old_state);
+static inline struct arch_interrupt_saved_state arch_interrupt_save(void);
+static inline void arch_interrupt_restore(struct arch_interrupt_saved_state old_state);
 
 __END_CDECLS
 

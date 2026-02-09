@@ -74,7 +74,7 @@ status_t mask_interrupt(unsigned int vector) {
 
     LTRACEF("vector %#x\n", vector);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     if (int_table[vector].flags.type == INTC_TYPE_PIC) {
         pic_enable(vector, false);
@@ -92,7 +92,7 @@ status_t unmask_interrupt(unsigned int vector) {
 
     LTRACEF("vector %#x\n", vector);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     if (int_table[vector].flags.type == INTC_TYPE_PIC) {
         pic_enable(vector, true);
@@ -142,7 +142,7 @@ enum handler_return platform_irq(x86_iframe_t *frame) {
 static void register_int_handler_etc(unsigned int vector, int_handler handler, void *arg, bool edge, uint type) {
     ASSERT(vector < INT_VECTORS);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     int_table[vector].arg = arg;
     int_table[vector].handler = handler;
@@ -184,7 +184,7 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
         PANIC_UNIMPLEMENTED;
     }
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     // find a free interrupt
     status_t err = ERR_NOT_FOUND;

@@ -34,7 +34,7 @@ static spin_lock_t lock;
 /* Take an object from the pool of pktbuf objects to act as a header or buffer.  */
 static void *get_pool_object(void) {
     sem_wait(&pktbuf_sem);
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
     pool_t *entry = pool_alloc(&pktbuf_pool);
     spin_unlock_irqrestore(&lock, state);
 
@@ -45,7 +45,7 @@ static void *get_pool_object(void) {
 static void free_pool_object(pktbuf_pool_object_t *entry, bool reschedule) {
     DEBUG_ASSERT(entry);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
     pool_free(&pktbuf_pool, entry);
     spin_unlock_irqrestore(&lock, state);
     sem_post(&pktbuf_sem, reschedule);

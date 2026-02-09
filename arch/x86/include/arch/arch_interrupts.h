@@ -48,13 +48,13 @@ static inline bool arch_in_int_handler(void) {
     return false;
 }
 
-struct spin_lock_saved_state {
+struct arch_interrupt_saved_state {
     x86_flags_t flags;
 };
 
-static inline struct spin_lock_saved_state
+static inline struct arch_interrupt_saved_state
 arch_interrupt_save(void) {
-    struct spin_lock_saved_state state = { .flags = x86_save_flags() };
+    struct arch_interrupt_saved_state state = { .flags = x86_save_flags() };
     if (state.flags & X86_FLAGS_IF) {
         x86_cli();
     }
@@ -67,7 +67,7 @@ arch_interrupt_save(void) {
 }
 
 static inline void
-arch_interrupt_restore(struct spin_lock_saved_state old_state) {
+arch_interrupt_restore(struct arch_interrupt_saved_state old_state) {
     // Insert a compiler fence to make sure all code that needs to run with
     // interrupts disabled is not moved after the arch_enable_ints() call.
     CF;

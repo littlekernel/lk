@@ -37,13 +37,13 @@ static inline bool arch_in_int_handler(void) {
     return false;
 }
 
-struct spin_lock_saved_state {
+struct arch_interrupt_saved_state {
     bool restore_irqs;
 };
 
-static inline struct spin_lock_saved_state
+static inline struct arch_interrupt_saved_state
 arch_interrupt_save(void) {
-    struct spin_lock_saved_state state = { .restore_irqs = !arch_ints_disabled() };
+    struct arch_interrupt_saved_state state = { .restore_irqs = !arch_ints_disabled() };
     arch_disable_ints();
 
     // Insert a compiler fence to make sure all code that needs to run with
@@ -54,7 +54,7 @@ arch_interrupt_save(void) {
 }
 
 static inline void
-arch_interrupt_restore(struct spin_lock_saved_state old_state) {
+arch_interrupt_restore(struct arch_interrupt_saved_state old_state) {
     // Insert a compiler fence to make sure all code that needs to run with
     // interrupts disabled is not moved after the arch_enable_ints() call.
     CF;

@@ -41,7 +41,7 @@ static void out_count(const char *str, size_t len) {
 
     /* print to any registered loggers */
     if (!list_is_empty(&print_callbacks)) {
-        spin_lock_saved_state_t state = spin_lock_irqsave(&print_spin_lock);
+        arch_interrupt_saved_state_t state = spin_lock_irqsave(&print_spin_lock);
 
         list_for_every_entry(&print_callbacks, cb, print_callback_t, entry) {
             if (cb->print)
@@ -61,7 +61,7 @@ static void out_count(const char *str, size_t len) {
 }
 
 void register_print_callback(print_callback_t *cb) {
-    spin_lock_saved_state_t state = spin_lock_irqsave(&print_spin_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&print_spin_lock);
 
     list_add_head(&print_callbacks, &cb->entry);
 
@@ -69,7 +69,7 @@ void register_print_callback(print_callback_t *cb) {
 }
 
 void unregister_print_callback(print_callback_t *cb) {
-    spin_lock_saved_state_t state = spin_lock_irqsave(&print_spin_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&print_spin_lock);
 
     list_delete(&cb->entry);
 

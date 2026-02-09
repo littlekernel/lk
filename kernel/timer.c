@@ -88,7 +88,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 
     LTRACEF("scheduled time %u\n", timer->scheduled_time);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&timer_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&timer_lock);
 
     uint cpu = arch_curr_cpu_num();
     insert_timer_in_queue(cpu, timer);
@@ -150,7 +150,7 @@ void timer_set_periodic(timer_t *timer, lk_time_t period, timer_callback callbac
 void timer_cancel(timer_t *timer) {
     DEBUG_ASSERT(timer->magic == TIMER_MAGIC);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&timer_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&timer_lock);
 
 #if PLATFORM_HAS_DYNAMIC_TIMER
     uint cpu = arch_curr_cpu_num();

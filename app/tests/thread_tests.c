@@ -541,7 +541,7 @@ static void join_test(void) {
 }
 
 static void spinlock_test(void) {
-    spin_lock_saved_state_t state;
+    arch_interrupt_saved_state_t state;
     spin_lock_t lock;
 
     spin_lock_init(&lock);

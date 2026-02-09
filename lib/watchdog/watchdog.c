@@ -49,7 +49,7 @@ status_t watchdog_init(watchdog_t *dog, lk_time_t timeout, const char *name) {
 }
 
 void watchdog_set_enabled(watchdog_t *dog, bool enabled) {
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     DEBUG_ASSERT((NULL != dog) && (WATCHDOG_MAGIC == dog->magic));
 
@@ -67,7 +67,7 @@ done:
 }
 
 void watchdog_pet(watchdog_t *dog) {
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     DEBUG_ASSERT((NULL != dog) && (WATCHDOG_MAGIC == dog->magic));
 
@@ -98,7 +98,7 @@ status_t watchdog_hw_init(lk_time_t timeout) {
 }
 
 void watchdog_hw_set_enabled(bool enabled) {
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     if (hw_watchdog_enabled == enabled)
         goto done;

@@ -99,7 +99,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
         panic("register_int_handler: vector out of range %d\n", vector);
     }
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&gicd_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&gicd_lock);
 
     if (arm_gic_interrupt_change_allowed(vector)) {
         if (arm_gics[0].gic_revision > 2) {
@@ -195,7 +195,7 @@ LK_INIT_HOOK_FLAGS(arm_gic_suspend_cpu, arm_gic_suspend_cpu,
 static void arm_gic_resume_cpu(uint level) {
     __UNUSED bool resume_gicd = false;
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&gicd_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&gicd_lock);
 
     bool distributor_enabled = true;
     if (arm_gics[0].gic_revision > 2) {

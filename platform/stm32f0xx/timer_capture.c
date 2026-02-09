@@ -266,7 +266,7 @@ static void stm32_timer_capture_irq(stm32_timer_index_t index) {
 
     // We process overflow after compares in order to handle overflow race
     // detection there.
-    spin_lock_saved_state_t state = spin_lock_irqsave(&tc->overflow_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&tc->overflow_lock);
     if (sr & TIM_SR_UIF) {
         tc->overflow = stm32_timer_inc_overflow(tc, tc->overflow);
         irq_ack &= ~TIM_SR_UIF;
@@ -354,7 +354,7 @@ status_t stm32_timer_capture_setup(stm32_timer_capture_t *tc, int timer, uint16_
 
 uint64_t stm32_timer_capture_get_counter(stm32_timer_capture_t *tc) {
     // Protect against tc->overflow being updated while we calculate the value.
-    spin_lock_saved_state_t state = spin_lock_irqsave(&tc->overflow_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&tc->overflow_lock);
 
     uint32_t cnt = tc->config->regs->CNT;
     uint32_t sr = tc->config->regs->SR;

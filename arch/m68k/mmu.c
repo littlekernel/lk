@@ -673,7 +673,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
     LTRACEF("aspace %p, vaddr %#lx\n", aspace, vaddr);
 
     // Disable interrupts around the ptest instruction in case we get preempted
-    spin_lock_saved_state_t state = arch_interrupt_save();
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
 
     // Use the PTEST instruction to probe the translation
     uint32_t mmusr;
