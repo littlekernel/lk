@@ -25,7 +25,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     if (vector >= MAX_INT)
         panic("%s: vector out of range %d\n", __FUNCTION__, vector);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&gicd_lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&gicd_lock);
 
     int_handler_table[vector].handler = handler;
     int_handler_table[vector].arg = arg;

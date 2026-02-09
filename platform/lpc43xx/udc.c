@@ -197,7 +197,7 @@ udc_request_t *udc_request_alloc(void) {
         return NULL;
     }
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&USB.lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&USB.lock);
     if (USB.dtd_freelist == NULL) {
         spin_unlock_irqrestore(&USB.lock, state);
         free(req);
@@ -234,7 +234,7 @@ int udc_request_queue(udc_endpoint_t *ept, struct udc_request *_req) {
     dtd->bptr4 = phys + 0x4000;
 
     req->next = 0;
-    spin_lock_saved_state_t state = spin_lock_irqsave(&ept->usb->lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&ept->usb->lock);
     if (!USB.online && ept->num) {
         ret = -1;
     } else if (ept->req) {

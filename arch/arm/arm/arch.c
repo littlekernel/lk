@@ -283,7 +283,7 @@ void arch_quiesce(void) {
 #if ARM_ISA_ARMV7
 /* virtual to physical translation */
 status_t arm_vtop(addr_t va, addr_t *pa) {
-    spin_lock_saved_state_t irqstate = arch_interrupt_save();
+    arch_interrupt_saved_state_t irqstate = arch_interrupt_save();
 
     arm_write_ats1cpr(va & ~(PAGE_SIZE-1));
     uint32_t par = arm_read_par();
@@ -386,7 +386,7 @@ static spin_lock_t lock = 0;
 static void spinlock_test(void) {
     TRACE_ENTRY;
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     TRACEF("cpu0: i have the lock\n");
     spin(1000000);
@@ -401,7 +401,7 @@ static void spinlock_test_secondary(void) {
     TRACE_ENTRY;
 
     spin(500000);
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     TRACEF("cpu1: i have the lock\n");
     spin(250000);

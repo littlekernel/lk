@@ -88,7 +88,7 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 
 /* Helper to atomically get the global ticks and the current counter value */
 static void systick_get_ticks_val(uint64_t *ticks, uint32_t *val) {
-    spin_lock_saved_state_t state = arch_interrupt_save();
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
 
     *val = SysTick->VAL;
     if (unlikely(SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk)) {

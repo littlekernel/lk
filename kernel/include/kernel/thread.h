@@ -191,7 +191,7 @@ extern struct list_node thread_list;
 // scheduler lock
 extern spin_lock_t thread_lock;
 
-#define THREAD_LOCK(state) spin_lock_saved_state_t state = spin_lock_irqsave(&thread_lock)
+#define THREAD_LOCK(state) arch_interrupt_saved_state_t state = spin_lock_irqsave(&thread_lock)
 #define THREAD_UNLOCK(state) spin_unlock_irqrestore(&thread_lock, state)
 
 static inline bool thread_lock_held(void) {

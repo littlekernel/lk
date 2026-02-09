@@ -35,14 +35,14 @@ static inline bool spin_lock_held(spin_lock_t *lock) {
 }
 
 // same as spin lock, but save disable and save interrupt state first
-static inline spin_lock_saved_state_t spin_lock_irqsave(spin_lock_t *lock) {
-    spin_lock_saved_state_t state = arch_interrupt_save();
+static inline arch_interrupt_saved_state_t spin_lock_irqsave(spin_lock_t *lock) {
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
     spin_lock(lock);
     return state;
 }
 
 // restore interrupt state before unlocking
-static inline void spin_unlock_irqrestore(spin_lock_t *lock, spin_lock_saved_state_t old_state) {
+static inline void spin_unlock_irqrestore(spin_lock_t *lock, arch_interrupt_saved_state_t old_state) {
     spin_unlock(lock);
     arch_interrupt_restore(old_state);
 }
@@ -65,11 +65,11 @@ class SpinLock {
     void unlock() { spin_unlock(&lock_); }
     bool is_held() { return spin_lock_held(&lock_); }
 
-    spin_lock_saved_state_t lock_irqsave() {
+    arch_interrupt_saved_state_t lock_irqsave() {
         return spin_lock_irqsave(&lock_);
     }
 
-    void unlock_irqrestore(spin_lock_saved_state_t state) {
+    void unlock_irqrestore(arch_interrupt_saved_state_t state) {
         spin_unlock_irqrestore(&lock_, state);
     }
 
@@ -103,7 +103,7 @@ class AutoSpinLock {
 
   private:
     spin_lock_t *lock_;
-    spin_lock_saved_state_t state_;
+    arch_interrupt_saved_state_t state_;
 };
 
 class AutoSpinLockNoIrqSave {

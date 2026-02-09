@@ -53,7 +53,7 @@ static uint64_t timer_delta_time;
 #define MAX_TIMER_INTERVAL 55
 
 lk_time_t pit_current_time(void) {
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     lk_time_t time = (lk_time_t) (timer_current_time >> 32);
 
@@ -63,7 +63,7 @@ lk_time_t pit_current_time(void) {
 }
 
 lk_bigtime_t pit_current_time_hires(void) {
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     lk_bigtime_t time = (lk_bigtime_t) ((timer_current_time >> 22) * 1000) >> 10;
 
@@ -155,7 +155,7 @@ void pit_init(void) {
 status_t pit_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     LTRACEF("pit_set_periodic_timer: interval %u\n", interval);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     t_callback = callback;
     callback_arg = arg;
@@ -172,7 +172,7 @@ status_t pit_set_periodic_timer(platform_timer_callback callback, void *arg, lk_
 status_t pit_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     LTRACEF("pit_set_oneshot_timer: interval %u\n", interval);
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     t_callback = callback;
     callback_arg = arg;
@@ -189,7 +189,7 @@ status_t pit_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_t
 void pit_cancel_timer(void) {
     LTRACE;
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     next_trigger_time = 0;
 
@@ -199,7 +199,7 @@ void pit_cancel_timer(void) {
 void pit_stop_timer(void) {
     LTRACE;
 
-    spin_lock_saved_state_t state = spin_lock_irqsave(&lock);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     next_trigger_time = 0;
     next_trigger_delta = 0;
