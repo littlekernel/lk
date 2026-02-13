@@ -5,6 +5,7 @@
 .cache
 .clangd
 .vscode
+.mypy_cache
 blk.bin
 build-*
 compile_commands.json
