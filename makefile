@@ -21,6 +21,7 @@ else
 LKINC += external
 endif
 
+# variables that are passed through to the inner make instance
 export LKMAKEROOT
 export LKROOT
 export LKINC
@@ -28,9 +29,11 @@ export BUILDROOT
 export DEFAULT_PROJECT
 export TOOLCHAIN_PREFIX
 export RUN_UNITTESTS_AT_BOOT
+export V
 
 # veneer makefile that calls into the engine with lk as the build root
 # if we're the top level invocation, call ourselves with additional args
+# -r to omit any builtin rules, -R to omit any built-in variable definitions
 _top:
 	@$(MAKE) -C $(LKMAKEROOT) -rR -f $(LKROOT)/engine.mk $(addprefix -I,$(LKINC)) $(MAKECMDGOALS)
 
