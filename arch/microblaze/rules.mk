@@ -21,7 +21,11 @@ GLOBAL_DEFINES += \
 
 # set the default toolchain to microblaze elf and set a #define
 ifndef TOOLCHAIN_PREFIX
+ifndef ARCH_microblaze_TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := microblaze-elf-
+else
+TOOLCHAIN_PREFIX := $(ARCH_microblaze_TOOLCHAIN_PREFIX)
+endif
 endif
 
 LITTLE_ENDIAN ?= 0

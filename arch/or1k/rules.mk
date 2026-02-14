@@ -17,7 +17,11 @@ GLOBAL_DEFINES += \
 
 # set the default toolchain to or1k elf and set a #define
 ifndef TOOLCHAIN_PREFIX
+ifndef ARCH_or1k_TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := or1k-elf-
+else
+TOOLCHAIN_PREFIX := $(ARCH_or1k_TOOLCHAIN_PREFIX)
+endif
 endif
 
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
