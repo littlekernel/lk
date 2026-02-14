@@ -22,6 +22,7 @@ Welcome to the LK (Little Kernel) documentation. LK is a small operating system 
 
 ### Development and Testing
 - [Network Setup for QEMU](lk_tap.md) - Setting up tun/tap networking for QEMU testing
+- [GDB Debug Support for GBL](gdb_debug_support_for_gbl.md) - Debugging GBL using GDB with UEFI debug support protocol
 
 ## Architecture Overview
 
