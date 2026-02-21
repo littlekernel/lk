@@ -25,7 +25,6 @@ jobs:
           - arm
           - arm64
           - m68k
-          - microblaze
           - mips
           - or1k
           - riscv32
@@ -35,8 +34,6 @@ jobs:
           # do not build ubsan for older 32bit arches where it is not well supported
           - ubsan: 1
             arch: m68k
-          - ubsan: 1
-            arch: microblaze
           - ubsan: 1
             arch: mips
           - ubsan: 1
@@ -73,7 +70,6 @@ jobs:
             arm) TOOLCHAIN_PREFIX="arm-eabi-" ;;
             arm64) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
             m68k) TOOLCHAIN_PREFIX="m68k-elf-" ;;
-            microblaze) TOOLCHAIN_PREFIX="microblaze-elf-" ;;
             mips) TOOLCHAIN_PREFIX="mips-elf-" ;;
             or1k) TOOLCHAIN_PREFIX="or1k-elf-" ;;
             riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;

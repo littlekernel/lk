@@ -1,2 +1,0 @@
-TARGET := qemu-microblaze
-

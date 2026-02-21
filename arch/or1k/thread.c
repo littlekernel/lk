@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015 Stefan Kristiansson
- * Based on arch/microblaze/thread.c
+ * Based on arch/or1k/thread.c from initial OR1K port work
  * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Use of this source code is governed by a MIT-style

@@ -11,7 +11,7 @@
 #include <stdbool.h>
 
 #if WITH_SMP
-#error microblaze does not support SMP
+#error or1k does not support SMP
 #endif
 
 #define SPIN_LOCK_INITIAL_VALUE (0)

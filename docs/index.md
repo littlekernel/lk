@@ -40,7 +40,6 @@ LK is designed as a modular kernel with the following key components:
 - RISC-V (32-bit and 64-bit)
 - x86/x86_64
 - Motorola 68000
-- Microblaze
 - MIPS
 - OpenRISC 1000
 - VAX (experimental)
