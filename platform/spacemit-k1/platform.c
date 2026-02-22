@@ -83,7 +83,12 @@ void platform_halt(platform_halt_action suggested_action, platform_halt_reason r
     platform_halt_default(suggested_action, reason, &reboot_, &shutdown_);
 }
 
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
+status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
+        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
+    (void)pci_bus;
+    (void)pci_dev;
+    (void)pci_func;
+
     // at the moment there's no translation between PCI IRQs and native irqs
     *vector = pci_int;
     return NO_ERROR;

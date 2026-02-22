@@ -9,19 +9,19 @@
 #include "device.h"
 #include "arch/mmu.h"
 
-#include <sys/types.h>
+#include <assert.h>
+#include <dev/bus/pci.h>
 #include <lk/cpp.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/list.h>
-#include <lk/trace.h>
 #include <lk/pow2.h>
-#include <dev/bus/pci.h>
+#include <lk/trace.h>
+#include <platform/interrupts.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include <platform/interrupts.h>
+#include <sys/types.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -29,8 +29,8 @@
 
 #define LOCAL_TRACE 0
 
-#include "bus_mgr.h"
 #include "bridge.h"
+#include "bus_mgr.h"
 
 namespace pci {
 
@@ -126,11 +126,11 @@ void device::dump(size_t indent) {
     }
     char str[14];
     printf("dev %s vid:pid %04hx:%04hx base:sub:intr %hhu:%hhu:%hhu int %u %s%s\n",
-            pci_loc_string(loc_, str), config_.vendor_id, config_.device_id,
-            base_class(), sub_class(), interface(),
-            config_.type0.interrupt_line,
-            has_msi() ? "msi " : "",
-            has_msix() ? "msix " : "");
+           pci_loc_string(loc_, str), config_.vendor_id, config_.device_id,
+           base_class(), sub_class(), interface(),
+           config_.type0.interrupt_line,
+           has_msi() ? "msi " : "",
+           has_msix() ? "msix " : "");
     for (size_t b = 0; b < countof(bars_); b++) {
         if (bars_[b].valid) {
             for (size_t i = 0; i < indent + 1; i++) {
@@ -250,7 +250,7 @@ ssize_t device::read_vendor_capability(size_t index, void *buf, size_t buflen) {
             }
             index--;
         }
-     }
+    }
 
     return ERR_NOT_FOUND;
 }
@@ -268,7 +268,7 @@ status_t device::init_msi_capability(capability *cap) {
     pci_read_config_word(loc(), cap->config_offset + 12, &cap_buf[3]);
     pci_read_config_word(loc(), cap->config_offset + 16, &cap_buf[4]);
     pci_read_config_word(loc(), cap->config_offset + 20, &cap_buf[5]);
-    //hexdump(cap_buf, sizeof(cap_buf));
+    // hexdump(cap_buf, sizeof(cap_buf));
 
     return NO_ERROR;
 }
@@ -283,7 +283,7 @@ status_t device::init_msix_capability(capability *cap) {
     pci_read_config_word(loc(), cap->config_offset, &cap_buf[0]);
     pci_read_config_word(loc(), cap->config_offset + 4, &cap_buf[1]);
     pci_read_config_word(loc(), cap->config_offset + 8, &cap_buf[2]);
-    //hexdump(cap_buf, sizeof(cap_buf));
+    // hexdump(cap_buf, sizeof(cap_buf));
 
     return NO_ERROR;
 }
@@ -293,15 +293,20 @@ status_t device::allocate_irq(uint *irq) {
 
     uint8_t interrupt_pin;
     status_t err = pci_read_config_byte(loc(), PCI_CONFIG_INTERRUPT_PIN, &interrupt_pin);
-    if (err != NO_ERROR) return err;
+    if (err != NO_ERROR) {
+        return err;
+    }
 
     if (interrupt_pin == 0) {
         return ERR_NO_RESOURCES;
     }
 
     // map the irq number in config space to platform vector space
-    err = platform_pci_int_to_vector(interrupt_pin, irq);
-    if (err != NO_ERROR) return err;
+    err = platform_pci_int_to_vector(interrupt_pin, loc().bus, loc().dev,
+                                     loc().fn, irq);
+    if (err != NO_ERROR) {
+        return err;
+    }
 
     // write it back to the pci config in the interrupt line offset
     pci_write_config_byte(loc(), PCI_CONFIG_INTERRUPT_LINE, *irq);
@@ -341,13 +346,13 @@ status_t device::allocate_msi(size_t num_requested, uint *msi_base) {
 
     uint16_t control;
     pci_read_config_half(loc(), cap_offset + 2, &control);
-    pci_write_config_half(loc(), cap_offset + 2, control & ~(0x1)); // disable MSI
+    pci_write_config_half(loc(), cap_offset + 2, control & ~(0x1));          // disable MSI
     pci_write_config_word(loc(), cap_offset + 4, msi_address & 0xffff'ffff); // lower 32bits
-    if (control & (1<<7)) {
+    if (control & (1 << 7)) {
         // 64bit
         pci_write_config_word(loc(), cap_offset + 8, msi_address >> 32); // upper 32bits
         pci_write_config_half(loc(), cap_offset + 0xc, msi_data);
-     } else {
+    } else {
         pci_write_config_half(loc(), cap_offset + 8, msi_data);
     }
 
@@ -427,7 +432,7 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
     LTRACEF("table offset %#zx, bar %u\n", table_map.offset, table_map.bar);
     LTRACEF("pba offset %#zx, bar %u\n", pba_map.offset, pba_map.bar);
 
-    auto map_it = [this, &err](mapping &map, void **ptr, bool readonly)  -> status_t {
+    auto map_it = [this, &err](mapping &map, void **ptr, bool readonly) -> status_t {
         const auto &bar = bars_[map.bar];
 #if WITH_KERNEL_VM
         if (!bar.valid || bar.io) {
@@ -499,7 +504,7 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
     }
 
     // set up the control register and enable it
-    control |= (1<<15); // MSI-X enable, no functions masked
+    control |= (1 << 15); // MSI-X enable, no functions masked
     pci_write_config_half(loc(), cap_offset + 2, control);
 
     // write it back to the pci config in the interrupt line offset
@@ -533,7 +538,7 @@ status_t device::load_bars() {
     pci_read_config_half(loc(), PCI_CONFIG_COMMAND, &command);
     pci_write_config_half(loc(), PCI_CONFIG_COMMAND, command & ~(PCI_COMMAND_IO_EN | PCI_COMMAND_MEM_EN));
 
-    for (size_t i=0; i < num_bars; i++) {
+    for (size_t i = 0; i < num_bars; i++) {
         bars_[i] = {};
         uint64_t bar_addr = config_.type0.base_addresses[i];
         if (bar_addr & 0x1) {
@@ -556,7 +561,7 @@ status_t device::load_bars() {
         } else if ((bar_addr & 0b110) == 0b000) {
             // 32bit memory address
             bars_[i].io = false;
-            bars_[i].prefetchable = bar_addr & (1<<3);
+            bars_[i].prefetchable = bar_addr & (1 << 3);
             bars_[i].size_64 = false;
             bars_[i].addr = bar_addr & ~0xf;
 
@@ -578,7 +583,7 @@ status_t device::load_bars() {
                 continue;
             }
             bars_[i].io = false;
-            bars_[i].prefetchable = bar_addr & (1<<3);
+            bars_[i].prefetchable = bar_addr & (1 << 3);
             bars_[i].size_64 = true;
             bars_[i].addr = bar_addr & ~0xf;
             bars_[i].addr |= static_cast<uint64_t>(config_.type0.base_addresses[i + 1]) << 32;
@@ -770,10 +775,10 @@ void device::bar_alloc_request::dump() {
     char str[14];
     if (bridge) {
         printf("BAR alloc request %p: bridge %s type %u (%s) pref %d size %#llx align %u\n",
-                this, pci_loc_string(dev->loc(), str), type, pci_resource_type_to_str(type), prefetchable, size, align);
+               this, pci_loc_string(dev->loc(), str), type, pci_resource_type_to_str(type), prefetchable, size, align);
     } else {
         printf("BAR alloc request %p: device %s type %u (%s) pref %d size %#llx align %u bar %u\n",
-                this, pci_loc_string(dev->loc(), str), type, pci_resource_type_to_str(type), prefetchable, size, align, bar_num);
+               this, pci_loc_string(dev->loc(), str), type, pci_resource_type_to_str(type), prefetchable, size, align, bar_num);
     }
 }
 

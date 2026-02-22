@@ -143,9 +143,20 @@ void platform_halt(platform_halt_action suggested_action, platform_halt_reason r
     platform_halt_default(suggested_action, reason, &reboot_, &shutdown_);
 }
 
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
-    // at the moment there's no translation between PCI IRQs and native irqs
-    *vector = pci_int;
+status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
+        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
+    (void)pci_bus;
+    (void)pci_func;
+
+    // QEMU virt machine maps PCI INTx to PLIC lines 32..35 with slot swizzling:
+    // irq = 32 + ((pin - 1 + slot) % 4), where pin is 1..4 for INTA..INTD.
+    static const unsigned int PCIE_IRQ_BASE = 0x20;
+
+    if (pci_int < 1 || pci_int > 4) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    *vector = PCIE_IRQ_BASE + ((pci_int - 1 + pci_dev) % 4);
     return NO_ERROR;
 }
 

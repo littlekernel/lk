@@ -168,11 +168,21 @@ void platform_mask_irqs(void) {
     pic_mask_interrupts();
 }
 
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
-    LTRACEF("pci_int %u\n", pci_int);
+status_t platform_pci_int_to_vector(unsigned int pci_int_pin, unsigned int pci_bus,
+        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
+    (void)pci_bus;
+    (void)pci_dev;
+    (void)pci_func;
+
+    LTRACEF("pci_int %u\n", pci_int_pin);
+
+    // NOTE: this whole translation is probably not what we want since it's passing in
+    // the INT pin from the PCI config which is 1..4 for INTA..INTD. Also the
+    // BIOS may have already configured the legacy interrupt and the INT_LINE
+    // field in the PCI config may already be set to the final value already.
 
     // pci interrupts are relative to PIC style irq #s so simply add INT_BASE to it
-    uint out_vector = pci_int + INT_BASE;
+    uint out_vector = pci_int_pin + INT_BASE;
     if (out_vector > INT_VECTORS) {
         return ERR_INVALID_ARGS;
     }

@@ -149,12 +149,19 @@ void platform_init(void) {
 #endif
 }
 
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
-    // only 4 legacy vectors supported, within PCIE_INT_BASE and PCIE_INT_BASE + 3
-    if (pci_int >= 4) {
+status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
+        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
+    (void)pci_bus;
+    (void)pci_func;
+
+    // QEMU arm virt machine uses standard PCI swizzle on 4 legacy IRQs:
+    // irq = first_irq + ((pin - 1 + slot) % 4), where pin is 1..4.
+    // first_irq here is PCIE_INT_BASE.
+    if (pci_int < 1 || pci_int > 4) {
         return ERR_OUT_OF_RANGE;
     }
-    *vector = pci_int + PCIE_INT_BASE;
+
+    *vector = PCIE_INT_BASE + ((pci_int - 1 + pci_dev) % 4);
     return NO_ERROR;
 }
 
