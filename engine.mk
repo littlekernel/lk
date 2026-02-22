@@ -165,6 +165,10 @@ EXTRA_LINKER_SCRIPTS :=
 BUILDID ?=
 
 # comment out or override if you want to see the full output of each command
+# setting V=1 on the command line or environment will also disable the silencing
+ifeq (true,$(call TOBOOL,$(V)))
+NOECHO :=
+endif
 NOECHO ?= @
 
 # Any modules you want to explictly prevent from being used

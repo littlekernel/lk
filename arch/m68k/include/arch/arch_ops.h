@@ -13,24 +13,6 @@
 
 __BEGIN_CDECLS
 
-#define M68K_SR_IPM_MASK ((0b111 << 8)) // interrupt priority mask
-
-static inline void arch_enable_ints(void) {
-    asm volatile("andi %0, %%sr" :: "i" (~M68K_SR_IPM_MASK) : "memory");
-}
-
-static inline void arch_disable_ints(void) {
-    asm volatile("ori %0, %%sr" :: "i" (M68K_SR_IPM_MASK) : "memory");
-}
-
-static inline bool arch_ints_disabled(void) {
-    uint16_t sr;
-    asm volatile("move %%sr, %0" : "=dm"(sr) :: "memory");
-
-    // if the IPM is != 0, consider interrupts disabled
-    return (sr & M68K_SR_IPM_MASK);
-}
-
 // use a global pointer to store the current_thread
 extern struct thread *_current_thread;
 

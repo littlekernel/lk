@@ -74,6 +74,9 @@ make spotless
 
 # Build all projects (for CI/verification)
 scripts/buildall -q -e -r  # quiet, errors-as-warnings, release builds
+
+Output will be written to buildall.log. To run the build with full output
+during the build, omit the -q flag.
 ```
 
 ### Running Tests

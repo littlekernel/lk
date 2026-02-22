@@ -14,33 +14,6 @@
 #include <lk/compiler.h>
 #include <arch/x86.h>
 
-/* override of some routines */
-static inline void arch_enable_ints(void) {
-    CF;
-    __asm__ volatile("sti");
-}
-
-static inline void arch_disable_ints(void) {
-    __asm__ volatile("cli");
-    CF;
-}
-
-static inline bool arch_ints_disabled(void) {
-    x86_flags_t state;
-
-    __asm__ volatile(
-#if ARCH_X86_32
-        "pushfl;"
-        "popl %%eax"
-#elif ARCH_X86_64
-        "pushfq;"
-        "popq %%rax"
-#endif
-        : "=a" (state)
-        :: "memory");
-
-    return !(state & (1<<9));
-}
 
 static inline ulong arch_cycle_count(void) {
 #if X86_LEGACY

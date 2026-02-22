@@ -21,6 +21,7 @@ MODULE_SRCDIR := $(MODULE)
 MODULE_BUILDDIR := $(call TOBUILDDIR,$(MODULE_SRCDIR))
 
 MODULE_SRCS := \
+	       $(MODULE_SRCDIR)/rust-toolchain.toml \
 	       $(MODULE_SRCDIR)/Cargo.toml \
 	       $(MODULE_SRCDIR)/src/lib.rs
 MODULE_OBJS := $(foreach d,$(MODULE_SRCS),$(call TOBUILDDIR,$(d)))
@@ -45,8 +46,17 @@ ifeq ($(RUST_TARGET_PATH),)
 RUST_TARGET_PATH := $(RUST_TARGET)
 endif
 
+ifndef RUST_CFLAGS
+RUST_CFLAGS :=
+endif
+
 define TOML_ESC
 $(subst \,\\,$(subst ",\",$1))
+endef
+
+# Expand a make "list" (space separated) into a quoted version appropriate for inserting into TOML.
+define TOML_ARRAY
+[$(foreach w,$(1),\"$(w)\",)]
 endef
 
 CARGO_CONFIG := $(MODULE_BUILDDIR)/.cargo/config.toml
@@ -62,7 +72,7 @@ $(MODULE_OBJECT): MODULE_BUILDDIR:=$(MODULE_BUILDDIR)
 # Override with module local values for the build rule.
 $(MODULE_OBJECT): $(MODULE_OBJECT).phony $(MODULE_OBJS) $(CARGO_CONFIG)
 	cd $(MODULE_BUILDDIR); \
-		cargo +nightly build
+		cargo build
 
 EXTRA_OBJS := $(EXTRA_OBJS) $(MODULE_OBJECT)
 
@@ -95,6 +105,9 @@ $(CARGO_CONFIG): $(CARGO_CONFIG).phony
 		echo; \
 		echo "[env]"; \
 		echo 'GLOBAL_INCLUDES = { value = "$(call TOML_ESC,$(GLOBAL_INCLUDES))", force = true }'; \
+		echo; \
+		echo "[target.'cfg(all())']"; \
+		echo "rustflags = $(call TOML_ARRAY,$(RUST_CFLAGS))"; \
 		echo; \
 		echo "[unstable]"; \
 		echo 'build-std = ["core", "alloc"]'; \

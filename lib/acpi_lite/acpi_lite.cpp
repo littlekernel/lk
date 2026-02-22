@@ -15,6 +15,7 @@
 #include <lk/err.h>
 #include <lk/trace.h>
 #include <kernel/vm.h>
+#include <hw/multiboot.h>
 
 // uses the vm to map in ACPI tables as they are found
 static_assert(WITH_KERNEL_VM);
@@ -137,6 +138,62 @@ static paddr_t find_rsdp_pc() {
 
   return 0;
 }
+
+#if MULTIBOOT2_SUPPORT
+// The new RSDP looks like immediate data in the multiboot2 info structure.
+// so we can't convert only the RSDP itself.
+// Map the entire multiboot2 info structure to virtual address and search.
+static void* get_immed_rsdp() {
+  extern uint32_t _multiboot_info;
+
+  if (_multiboot_info != 0) {
+    const paddr_t multiboot_phys = (paddr_t)_multiboot_info;
+    const void *hdr_map = map_region(multiboot_phys, PAGE_SIZE, "rsdp hdr map (multiboot)");
+    if (hdr_map) {
+      auto cleanup_hdr = lk::make_auto_call([hdr_map]() {
+        vmm_free_region(vmm_get_kernel_aspace(), ROUNDDOWN((vaddr_t)hdr_map, PAGE_SIZE));
+      });
+
+      const struct multiboot2_info *multiboot_hdr = (const struct multiboot2_info *)hdr_map;
+      uint32_t total_size = multiboot_hdr->total_size;
+      if (total_size >= sizeof(*multiboot_hdr) && total_size <= 1024 * 1024) {
+        // remap full region
+        cleanup_hdr.cancel();
+        const void *rsdp_map = map_region(multiboot_phys, total_size, "rsdp map (multiboot)");
+        if (rsdp_map) {
+          auto cleanup_rsdp_map = lk::make_auto_call([rsdp_map]() {
+            vmm_free_region(vmm_get_kernel_aspace(), ROUNDDOWN((vaddr_t)rsdp_map, PAGE_SIZE));
+          });
+
+          uint8_t *base = (uint8_t *)rsdp_map;
+          uint8_t *end = base + total_size;
+          uint8_t *ptr = base + sizeof(struct multiboot2_info);
+
+          while (ptr + sizeof(struct multiboot2_tag) <= end) {
+            struct multiboot2_tag *tag = (struct multiboot2_tag *)ptr;
+
+            if (tag->size < sizeof(struct multiboot2_tag) || ptr + tag->size > end) {
+              dprintf(INFO, "ACPI LITE: malformed multiboot tag (type %u size %u)\n", tag->type, tag->size);
+            }
+
+            if (tag->type == MULTIBOOT2_TAG_TYPE_ACPI_NEW) {
+              void* val = tag + 1;
+              dprintf(SPEW, "ACPI LITE: found multiboot ACPI NEW RSDP\n");
+              cleanup_rsdp_map.cancel();
+              return val;
+            }
+
+            size_t advance = (tag->size + 7) & ~7;
+            ptr += advance;
+          }
+        }
+      }
+    }
+  }
+
+  return nullptr;
+}
+#endif // MULTIBOOT2_SUPPORT
 
 static bool validate_sdt(const acpi_rsdt_xsdt* sdt, size_t* num_tables, bool* xsdt) {
   LTRACEF("pointer %p\n", sdt);
@@ -284,6 +341,7 @@ static status_t initialize_table(size_t i) {
 status_t acpi_lite_init(paddr_t rsdp_pa) {
   LTRACEF("passed in rsdp %#" PRIxPTR "\n", rsdp_pa);
 
+#if !MULTIBOOT2_SUPPORT
   // see if the rsdp pointer is valid
   if (rsdp_pa == 0) {
     // search around for it in a platform-specific way
@@ -313,9 +371,14 @@ status_t acpi_lite_init(paddr_t rsdp_pa) {
       acpi.rsdp_pa = 0;
       acpi.rsdp = nullptr;
   });
+#endif // MULTIBOOT2_SUPPORT
 
   // see if the RSDP is there
+#if MULTIBOOT2_SUPPORT
+  acpi.rsdp = static_cast<const acpi_rsdp*>(get_immed_rsdp());
+#else
   acpi.rsdp = static_cast<const acpi_rsdp*>(rsdp_ptr);
+#endif // MULTIBOOT2_SUPPORT
   if (!validate_rsdp(acpi.rsdp)) {
     dprintf(INFO, "ACPI LITE: RSDP structure does not check out\n");
     return ERR_NOT_FOUND;
@@ -373,7 +436,9 @@ status_t acpi_lite_init(paddr_t rsdp_pa) {
 
   // we should be initialized at this point
   cleanup_sdt_mapping.cancel();
+#if !MULTIBOOT2_SUPPORT
   cleanup_rsdp_mapping.cancel();
+#endif //MULTIBOOT2_SUPPORT
 
   if (LOCAL_TRACE) {
     acpi_lite_dump_tables(false);

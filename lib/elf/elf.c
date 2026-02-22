@@ -151,9 +151,6 @@ static int verify_eheader(const void *header) {
 #elif ARCH_X86_64
     if (eheader->e_machine != EM_X86_64)
         return ERR_NOT_FOUND;
-#elif ARCH_MICROBLAZE
-    if (eheader->e_machine != EM_MICROBLAZE)
-        return ERR_NOT_FOUND;
 #elif ARCH_RISCV
     if (eheader->e_machine != EM_RISCV)
         return ERR_NOT_FOUND;

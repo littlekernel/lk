@@ -21,9 +21,13 @@ MODULE_SRCS += \
 GLOBAL_DEFINES += \
 	SMP_MAX_CPUS=1
 
-# set the default toolchain to microblaze elf and set a #define
+# set the default toolchain to mips elf and set a #define
 ifndef TOOLCHAIN_PREFIX
+ifndef ARCH_mips_TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := mips-elf-
+else
+TOOLCHAIN_PREFIX := $(ARCH_mips_TOOLCHAIN_PREFIX)
+endif
 endif
 
 LITTLE_ENDIAN ?= 0

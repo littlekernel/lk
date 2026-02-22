@@ -14,9 +14,15 @@
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <platform/pc.h>
-#include <platform/console.h>
 #include <platform/keyboard.h>
 #include <platform/debug.h>
+#include <hw/multiboot.h>
+
+#if MULTIBOOT2_SUPPORT
+#include <platform/display.h>
+#else
+#include <platform/console.h>
+#endif
 
 #include "platform_p.h"
 
@@ -87,7 +93,11 @@ void platform_dputc(char c) {
     if (c == '\n')
         platform_dputc('\r');
 
+#if MULTIBOOT2_SUPPORT
+    dputc(c);
+#else
     cputc(c);
+#endif
     debug_uart_putc(c);
 }
 

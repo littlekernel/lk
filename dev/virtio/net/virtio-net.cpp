@@ -253,8 +253,7 @@ static status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
     virtio_net_hdr *hdr = (virtio_net_hdr *)pktbuf_append(p, sizeof(virtio_net_hdr) - 2);
     memset(hdr, 0, p->dlen);
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&ndev->lock, state);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&ndev->lock);
 
     vring_desc *desc = {};
 
@@ -339,8 +338,7 @@ static status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_k
 
     p->dlen = sizeof(virtio_net_hdr) - 2 + VIRTIO_NET_MSS;
 
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&ndev->lock, state);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&ndev->lock);
 
     /* allocate a chain of descriptors for our transfer */
     uint16_t i;
@@ -443,8 +441,7 @@ static int virtio_net_rx_worker(void *arg) {
 
         /* pull some packets from the received queue */
         for (;;) {
-            spin_lock_saved_state_t state;
-            spin_lock_irqsave(&ndev->lock, state);
+            arch_interrupt_saved_state_t state = spin_lock_irqsave(&ndev->lock);
 
             pktbuf_t *p = list_remove_head_type(&ndev->completed_rx_queue, pktbuf_t, list);
 

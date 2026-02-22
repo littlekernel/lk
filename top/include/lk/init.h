@@ -105,7 +105,7 @@ enum lk_init_flags {
     LK_INIT_FLAG_CPU_RESUME      = LK_INIT_FLAG_CPU_EXIT_IDLE | LK_INIT_FLAG_CPU_ON,
 };
 
-// Run init hooks between start_level (inclusive) and stop_level (exclusive) that match the required_flags.
+// Run init hooks between start_level and stop_level (both inclusive) that match the required_flags.
 void lk_init_level(enum lk_init_flags required_flags, uint16_t start_level, uint16_t stop_level);
 
 static inline void lk_primary_cpu_init_level(uint16_t start_level, uint16_t stop_level) {

@@ -541,7 +541,7 @@ static void join_test(void) {
 }
 
 static void spinlock_test(void) {
-    spin_lock_saved_state_t state;
+    arch_interrupt_saved_state_t state;
     spin_lock_t lock;
 
     spin_lock_init(&lock);
@@ -550,7 +550,7 @@ static void spinlock_test(void) {
     printf("testing spinlock:\n");
     ASSERT(!spin_lock_held(&lock));
     ASSERT(!arch_ints_disabled());
-    spin_lock_irqsave(&lock, state);
+    state = spin_lock_irqsave(&lock);
     ASSERT(arch_ints_disabled());
     ASSERT(spin_lock_held(&lock));
     spin_unlock_irqrestore(&lock, state);
@@ -559,20 +559,20 @@ static void spinlock_test(void) {
     printf("seems to work\n");
 
 #define COUNT (1024*1024)
-    arch_interrupt_save(&state, SPIN_LOCK_FLAG_INTERRUPTS);
+    state = arch_interrupt_save();
     uint32_t c = arch_cycle_count();
     for (uint i = 0; i < COUNT; i++) {
         spin_lock(&lock);
         spin_unlock(&lock);
     }
     c = arch_cycle_count() - c;
-    arch_interrupt_restore(state, SPIN_LOCK_FLAG_INTERRUPTS);
+    arch_interrupt_restore(state);
 
     printf("%u cycles to acquire/release lock %u times (%u cycles per)\n", c, COUNT, c / COUNT);
 
     c = arch_cycle_count();
     for (uint i = 0; i < COUNT; i++) {
-        spin_lock_irqsave(&lock, state);
+        state = spin_lock_irqsave(&lock);
         spin_unlock_irqrestore(&lock, state);
     }
     c = arch_cycle_count() - c;

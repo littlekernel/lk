@@ -15,7 +15,8 @@ Each thread in the system is represented by a `thread_t` structure containing:
 - **Stack Management**: Stack pointer, size, and bounds checking
 - **Synchronization**: Wait queue blocking and return codes
 - **Architecture-specific**: CPU registers and context
-- **Statistics**: Runtime statistics and performance counters (debug builds)
+- **Statistics**: Per-thread runtime statistics (debug builds)
+- **Thread Local Storage**: Array of TLS entries including errno
 
 ### Thread States
 
@@ -113,19 +114,23 @@ thread_t *thread_create_etc(thread_t *t,
 ### Thread Control
 
 ```c
-status_t thread_resume(thread_t *t);          // Start suspended thread
-void thread_exit(int retcode);               // Terminate current thread
-void thread_sleep(lk_time_t delay);          // Sleep for specified time
+status_t thread_resume(thread_t *t);                           // Start suspended thread
+void thread_exit(int retcode);                                 // Terminate current thread
+void thread_sleep(lk_time_t delay);                            // Sleep for specified time
 status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout);
-status_t thread_detach(thread_t *t);         // Detach thread for auto-cleanup
+status_t thread_detach(thread_t *t);                           // Detach thread for auto-cleanup
+status_t thread_detach_and_resume(thread_t *t);                // Detach and start thread atomically
 ```
 
 ### Thread Properties
 
 ```c
-void thread_set_name(const char *name);      // Change thread name
-void thread_set_priority(int priority);      // Change thread priority
-status_t thread_set_real_time(thread_t *t);  // Mark as real-time
+void thread_set_name(const char *name);                       // Change thread name
+void thread_set_priority(int priority);                       // Change thread priority
+status_t thread_set_real_time(thread_t *t);                   // Mark as real-time
+#if WITH_SMP
+void thread_create_secondary_cpu_idle_thread(uint cpu);       // Create idle thread for secondary CPU
+#endif
 ```
 
 ### Scheduler Control
@@ -185,9 +190,12 @@ void wait_queue_destroy(wait_queue_t *wait, bool reschedule);
 
 ### Predefined TLS Slots
 
-- **TLS_ENTRY_CONSOLE**: Current console context
-- **TLS_ENTRY_UTHREAD**: User-mode thread context
-- **TLS_ENTRY_LKUSER**: LK user library context
+Available TLS entries depend on build configuration:
+
+- **TLS_ENTRY_CONSOLE**: Current console context (requires `WITH_LIB_CONSOLE`)
+- **TLS_ENTRY_UTHREAD**: User-mode thread context (requires `WITH_LIB_UTHREAD`)
+- **TLS_ENTRY_LKUSER**: LK user library context (requires `WITH_LIB_LKUSER`)
+- **TLS_ENTRY_ERRNO**: Thread-safe errno value (always available)
 
 ### TLS API
 
@@ -195,6 +203,10 @@ void wait_queue_destroy(wait_queue_t *wait, bool reschedule);
 uintptr_t tls_get(uint entry);
 uintptr_t tls_set(uint entry, uintptr_t val);
 ```
+
+### Usage Notes
+
+Conditional TLS entries are only included when their corresponding library is compiled in. `TLS_ENTRY_ERRNO` is always available and is automatically initialized for each thread to support thread-safe errno handling.
 
 ## Debugging and Statistics
 
@@ -223,9 +235,11 @@ Per-CPU statistics:
 ### Debug API
 
 ```c
-void dump_thread(thread_t *t);        // Dump single thread
-void dump_all_threads(void);          // Dump all threads
-void dump_threads_stats(void);        // Dump statistics
+void dump_thread(const thread_t *t);          // Dump single thread
+void arch_dump_thread(const thread_t *t);     // Architecture-specific thread dump
+void dump_all_threads(void);                  // Dump all threads
+void dump_all_threads_unlocked(void);         // Dump all threads (no lock held)
+void dump_threads_stats(void);                // Dump per-CPU statistics
 ```
 
 ## Initialization
@@ -281,9 +295,11 @@ void thread_become_idle(void);               // Become idle thread
 
 ### Architecture Layer
 
-- **arch_thread_initialize()**: Architecture-specific thread setup
-- **arch_context_switch()**: Low-level context switching
-- **arch_get/set_current_thread()**: Current thread management
+- **arch_thread_initialize()**: Architecture-specific thread setup called during thread creation
+- **arch_context_switch()**: Low-level context switching implementation
+- **arch_dump_thread()**: Architecture-specific thread state display (called by dump_thread)
+- **arch_get_current_thread()**: Retrieve current thread pointer
+- **arch_set_current_thread()**: Set current thread pointer
 
 ### Platform Layer
 

@@ -251,6 +251,9 @@ done:
 static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t size,
                                   vaddr_t vaddr, uint8_t align_pow2,
                                   uint vmm_flags, uint region_flags, uint arch_mmu_flags) {
+    LTRACEF("aspace %p name '%s' size 0x%zx vaddr 0x%lx align %hhu vmm_flags 0x%x region_flags 0x%x arch_mmu_flags 0x%x\n",
+            aspace, name, size, vaddr, align_pow2, vmm_flags, region_flags, arch_mmu_flags);
+
     /* make a region struct for it and stick it in the list */
     vmm_region_t *r = alloc_region_struct(name, vaddr, size, region_flags, arch_mmu_flags);
     if (!r)
@@ -272,7 +275,6 @@ static vmm_region_t *alloc_region(vmm_aspace_t *aspace, const char *name, size_t
         LTRACEF("alloc_spot returns 0x%lx, before %p\n", vaddr, before);
 
         if (vaddr == (vaddr_t)-1) {
-            LTRACEF("failed to find spot\n");
             free(r);
             return NULL;
         }

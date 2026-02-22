@@ -7,7 +7,7 @@
  */
 #pragma once
 
-#include <arch/ops.h>
+#include <arch/interrupts.h>
 
 // define simple implementations of the atomic routines for these cpus
 // that do not otherwise have an implementation.

@@ -9,7 +9,6 @@
 
 #include <stdbool.h>
 #include <sys/types.h>
-#include <inttypes.h>
 #include <lk/compiler.h>
 
 __BEGIN_CDECLS

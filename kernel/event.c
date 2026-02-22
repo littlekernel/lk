@@ -117,9 +117,12 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout) {
  *                    waiting threads are placed at the end of the run
  *                    queue.
  *
- * @return  Returns NO_ERROR on success.
+ * @return  Returns the number of threads woken up. Zero if no threads
+ *          were waiting or the event was already signaled. Negative values
+ *          indicate errors (though none currently possible).
  */
-status_t event_signal(event_t *e, bool reschedule) {
+int event_signal(event_t *e, bool reschedule) {
+    int ret = 0;
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
     THREAD_LOCK(state);
@@ -127,7 +130,8 @@ status_t event_signal(event_t *e, bool reschedule) {
     if (!e->signaled) {
         if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
             /* try to release one thread and leave unsignaled if successful */
-            if (wait_queue_wake_one(&e->wait, reschedule, NO_ERROR) <= 0) {
+            ret = wait_queue_wake_one(&e->wait, reschedule, NO_ERROR);
+            if (ret <= 0) {
                 /*
                  * if we didn't actually find a thread to wake up, go to
                  * signaled state and let the next call to event_wait
@@ -138,13 +142,13 @@ status_t event_signal(event_t *e, bool reschedule) {
         } else {
             /* release all threads and remain signaled */
             e->signaled = true;
-            wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
+            ret = wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
         }
     }
 
     THREAD_UNLOCK(state);
 
-    return NO_ERROR;
+    return ret;
 }
 
 /**

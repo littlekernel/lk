@@ -41,9 +41,11 @@ bool has_cpuid = false;
 /* a saved cache of three banks of cpuids loaded a boot */
 struct x86_cpuid_leaf saved_cpuids[__X86_MAX_SUPPORTED_CPUID + 1];
 struct x86_cpuid_leaf saved_cpuids_hyp[__X86_MAX_SUPPORTED_CPUID_HYP - X86_CPUID_HYP_BASE + 1];
+struct x86_cpuid_leaf saved_cpuid7_subleaves[__X86_MAX_SUPPORTED_CPUID7_SUBLEAF + 1];
 struct x86_cpuid_leaf saved_cpuids_ext[__X86_MAX_SUPPORTED_CPUID_EXT - X86_CPUID_EXT_BASE + 1];
 uint32_t max_cpuid_leaf = 0;
 uint32_t max_cpuid_leaf_hyp = 0;
+uint32_t max_cpuid_subleaf_7 = 0;
 uint32_t max_cpuid_leaf_ext = 0;
 
 static enum x86_cpu_vendor match_cpu_vendor_string(const char *str) {
@@ -213,6 +215,22 @@ void x86_feature_early_init(void) {
                         &saved_cpuids_hyp[index].d);
             }
         }
+
+        // cache subleaves for cpuid leaf 7
+        max_cpuid_subleaf_7 = 0;
+        if (max_cpuid_leaf >= X86_CPUID_EXTENDED_FEATURE_FLAGS) {
+            uint32_t max_subleaf = saved_cpuids[X86_CPUID_EXTENDED_FEATURE_FLAGS].a;
+            if (max_subleaf > __X86_MAX_SUPPORTED_CPUID7_SUBLEAF) {
+                max_subleaf = __X86_MAX_SUPPORTED_CPUID7_SUBLEAF;
+            }
+            max_cpuid_subleaf_7 = max_subleaf;
+
+            for (uint32_t subleaf = 1; subleaf <= max_subleaf; ++subleaf) {
+                cpuid_c(X86_CPUID_EXTENDED_FEATURE_FLAGS, subleaf,
+                        &saved_cpuid7_subleaves[subleaf].a, &saved_cpuid7_subleaves[subleaf].b,
+                        &saved_cpuid7_subleaves[subleaf].c, &saved_cpuid7_subleaves[subleaf].d);
+            }
+        }
     }
 }
 
@@ -220,6 +238,14 @@ static void x86_feature_dump_cpuid(void) {
     for (uint32_t i = X86_CPUID_BASE; i <= max_cpuid_leaf; i++) {
         printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i,
                saved_cpuids[i - X86_CPUID_BASE].a, saved_cpuids[i - X86_CPUID_BASE].b, saved_cpuids[i - X86_CPUID_BASE].c, saved_cpuids[i - X86_CPUID_BASE].d);
+        if (i == 7 && max_cpuid_subleaf_7 > 0) {
+            for (uint32_t subleaf = 1; subleaf <= max_cpuid_subleaf_7; ++subleaf) {
+                printf("X86: cpuid leaf %#x.%u: %08x %08x %08x %08x\n",
+                    X86_CPUID_EXTENDED_FEATURE_FLAGS, subleaf,
+                    saved_cpuid7_subleaves[subleaf].a, saved_cpuid7_subleaves[subleaf].b,
+                    saved_cpuid7_subleaves[subleaf].c, saved_cpuid7_subleaves[subleaf].d);
+            }
+        }
     }
     for (uint32_t i = X86_CPUID_HYP_BASE; i <= max_cpuid_leaf_hyp; i++) {
         uint32_t index = i - X86_CPUID_HYP_BASE;

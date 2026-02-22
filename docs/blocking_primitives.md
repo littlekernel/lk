@@ -179,7 +179,7 @@ void event_init(event_t *e, bool initial, uint flags);
 void event_destroy(event_t *e);
 status_t event_wait(event_t *e);                      // Infinite timeout
 status_t event_wait_timeout(event_t *e, lk_time_t timeout);
-status_t event_signal(event_t *e, bool reschedule);
+int event_signal(event_t *e, bool reschedule);        // Returns number of threads woken
 status_t event_unsignal(event_t *e);
 bool event_initialized(event_t *e);
 ```
@@ -329,7 +329,6 @@ Architecture-specific spinlock implementation with common interface:
 
 ```c
 typedef arch_spin_lock_t spin_lock_t;
-typedef arch_spin_lock_saved_state_t spin_lock_saved_state_t;
 ```
 
 #### Key Properties
@@ -351,8 +350,8 @@ bool spin_lock_held(spin_lock_t *lock);
 
 // Wrapper functions that disable and restore interrupts, saving interrupt state
 // into 'state'.
-void spin_lock_irqsave(spin_lock_t *lock, spin_lock_saved_state_t *state);
-void spin_unlock_irqrestore(spin_lock_t *lock, spin_lock_saved_state_t state);
+arch_interrupt_saved_state_t spin_lock_irqsave(spin_lock_t *lock);
+void spin_unlock_irqrestore(spin_lock_t *lock, arch_interrupt_saved_state_t state);
 ```
 
 #### Usage Example
@@ -361,8 +360,7 @@ void spin_unlock_irqrestore(spin_lock_t *lock, spin_lock_saved_state_t state);
 spin_lock_t hardware_lock = SPIN_LOCK_INITIAL_VALUE;
 
 void access_hardware_register(void) {
-    spin_lock_saved_state_t state;
-    spin_lock_irqsave(&hardware_lock, &state);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&hardware_lock);
 
     // Brief critical section
     write_hardware_register(value);
@@ -380,8 +378,8 @@ public:
     int trylock();
     void unlock();
     bool is_held();
-    void lock_irqsave(spin_lock_saved_state_t *state);
-    void unlock_irqrestore(spin_lock_saved_state_t state);
+    arch_interrupt_saved_state_t lock_irqsave();
+    void unlock_irqrestore(arch_interrupt_saved_state_t state);
 };
 
 class AutoSpinLock {

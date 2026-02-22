@@ -22,6 +22,7 @@ Welcome to the LK (Little Kernel) documentation. LK is a small operating system 
 
 ### Development and Testing
 - [Network Setup for QEMU](lk_tap.md) - Setting up tun/tap networking for QEMU testing
+- [GDB Debug Support for GBL](gdb_debug_support_for_gbl.md) - Debugging GBL using GDB with UEFI debug support protocol
 
 ## Architecture Overview
 
@@ -39,7 +40,6 @@ LK is designed as a modular kernel with the following key components:
 - RISC-V (32-bit and 64-bit)
 - x86/x86_64
 - Motorola 68000
-- Microblaze
 - MIPS
 - OpenRISC 1000
 - VAX (experimental)

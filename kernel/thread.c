@@ -392,6 +392,7 @@ void thread_exit(int retcode) {
 //  dprintf("thread_exit: current %p\n", current_thread);
 
     THREAD_LOCK(state);
+    (void)state; /* silence unused variable warning */
 
     /* enter the dead state */
     current_thread->state = THREAD_DEATH;

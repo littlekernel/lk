@@ -6,7 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <lk/debug.h>
-#include <arch/ops.h>
+#include <arch/interrupts.h>
 #include <stdarg.h>
 #include <dev/uart.h>
 #include <platform/mt_uart.h>

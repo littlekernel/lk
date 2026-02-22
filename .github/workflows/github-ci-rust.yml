@@ -24,6 +24,7 @@ jobs:
           # Currently, this is hard-coded here, but should probably be gathered
           # from the source.
           - qemu-virt-arm64-test
+          - pc-x86-64-test
     env:
       PROJECT: ${{ matrix.project }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
@@ -63,16 +64,6 @@ jobs:
         echo "TOOLCHAIN_PREFIX=/invalid/prefix/should/not/be/used" >> $GITHUB_ENV
         echo "LIBGCC=" >> $GITHUB_ENV
         cat "$GITHUB_ENV"
-
-    # Install Rust
-    # Note that rustup is already included in the image, and we just need to add our target.
-    - name: install rust
-      shell: bash
-      run: |
-        rustup install nightly
-        rustup component add rust-src --toolchain nightly
-        rustup target add aarch64-unknown-linux-gnu
-        rustup target add aarch64-unknown-none
 
     # build it
     - name: build

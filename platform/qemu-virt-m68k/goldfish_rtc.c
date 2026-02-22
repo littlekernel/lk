@@ -7,34 +7,32 @@
  */
 #include "platform_p.h"
 
-#include <assert.h>
-#include <inttypes.h>
-#include <lk/err.h>
-#include <lk/debug.h>
-#include <lk/reg.h>
-#include <lk/trace.h>
 #include <kernel/debug.h>
 #include <kernel/thread.h>
-#include <platform/interrupts.h>
-#include <platform/virt.h>
-#include <platform/timer.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
 #include <platform.h>
+#include <platform/interrupts.h>
+#include <platform/timer.h>
+#include <platform/virt.h>
 
 #define LOCAL_TRACE 0
 
 // implementation of RTC at
 // https://github.com/qemu/qemu/blob/master/hw/rtc/goldfish_rtc.c
-volatile uint32_t * const goldfish_rtc_base = (void *)VIRT_GF_RTC_MMIO_BASE;
+volatile uint32_t *const goldfish_rtc_base = (void *)VIRT_GF_RTC_MMIO_BASE;
 
 // registers
 enum {
-    RTC_TIME_LOW        = 0x00,
-    RTC_TIME_HIGH       = 0x04,
-    RTC_ALARM_LOW       = 0x08,
-    RTC_ALARM_HIGH      = 0x0c,
-    RTC_IRQ_ENABLED     = 0x10,
-    RTC_CLEAR_ALARM     = 0x14,
-    RTC_ALARM_STATUS    = 0x18,
+    RTC_TIME_LOW = 0x00,
+    RTC_TIME_HIGH = 0x04,
+    RTC_ALARM_LOW = 0x08,
+    RTC_ALARM_HIGH = 0x0c,
+    RTC_IRQ_ENABLED = 0x10,
+    RTC_CLEAR_ALARM = 0x14,
+    RTC_ALARM_STATUS = 0x18,
     RTC_CLEAR_INTERRUPT = 0x1c,
 };
 
@@ -105,7 +103,7 @@ lk_time_t current_time(void) {
     return (lk_time_t)(t / 1000000ULL); // ns -> ms
 }
 
-status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg, lk_time_t interval) {
+status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
     LTRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
     t_callback = callback;
@@ -126,5 +124,3 @@ void platform_stop_timer(void) {
     write_reg(RTC_CLEAR_ALARM, 1);
     write_reg(RTC_CLEAR_INTERRUPT, 1);
 }
-
-

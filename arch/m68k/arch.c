@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <arch/ops.h>
 #include <arch/m68k.h>
+#include <arch/m68k/mmu.h>
 #include <kernel/spinlock.h>
 
 #define LOCAL_TRACE 0
@@ -24,10 +25,16 @@ void arch_early_init(void) {
     extern uint32_t exc_vectors[256];
     asm volatile("movec %0, %%vbr" :: "r"(exc_vectors));
 #endif
+#if M68K_MMU
+    m68k_mmu_early_init();
+#endif
 }
 
 void arch_init(void) {
     LTRACE;
+#if M68K_MMU
+    m68k_mmu_init();
+#endif
 }
 
 void arch_idle(void) {
@@ -51,10 +58,9 @@ void arch_sync_cache_range(addr_t start, size_t len) { PANIC_UNIMPLEMENTED; }
 /* atomics that may need to be implemented */
 // from https://gcc.gnu.org/wiki/Atomic/GCCMM/LIbrary
 unsigned int  __atomic_fetch_add_4  (volatile void *mem, unsigned int val, int model) {
-    spin_lock_saved_state_t state;
-    arch_interrupt_save(&state, 0);
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
     unsigned int old = *(volatile unsigned int *)mem;
     *(volatile unsigned int *)mem = old + val;
-    arch_interrupt_restore(state, 0);
+    arch_interrupt_restore(state);
     return old;
 }

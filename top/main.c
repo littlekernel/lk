@@ -15,8 +15,6 @@
 #include <app.h>
 #include <arch.h>
 #include <kernel/init.h>
-#include <kernel/mutex.h>
-#include <kernel/novm.h>
 #include <kernel/thread.h>
 #include <lib/heap.h>
 #include <lk/compiler.h>
@@ -30,8 +28,6 @@ ulong lk_boot_args[4];
 
 extern void (*__ctor_list[])(void);
 extern void (*__ctor_end[])(void);
-extern int __bss_start;
-extern int _end;
 
 static int bootstrap2(void *arg);
 
@@ -49,7 +45,7 @@ static void call_constructors(void) {
     }
 }
 
-//  Main C entry point of the system, called from arch code on the boot cpu.
+// Main C entry point of the system, called from arch code on the boot cpu.
 void lk_main(ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
     // save the boot args
     lk_boot_args[0] = arg0;

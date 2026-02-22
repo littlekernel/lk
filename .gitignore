@@ -6,6 +6,7 @@
 .clangd
 .vscode
 blk*.bin
+.mypy_cache
 build-*
 compile_commands.json
 cscope.*

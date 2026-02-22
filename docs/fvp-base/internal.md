@@ -1,6 +1,6 @@
 # FVP Base platform overview
 
-### Boot sequence 
+### Boot sequence
 
 FVP Base emulator is typically launched using both a secure flashloader and
 a normal flashloader. The configuration looks like this:
@@ -69,20 +69,19 @@ You can find these settings in the `platform_def.h` header file:
   address](https://github.com/ARM-software/arm-trusted-firmware/blob/v2.12.0/plat/arm/board/fvp/include/platform_def.h#L143)
 
 
-DTS for FVP Base you can find at [fdts](
-https://github.com/ARM-software/arm-trusted-firmware/tree/v2.12.0/fdts)
+DTS for FVP Base you can find at [fdts](https://github.com/ARM-software/arm-trusted-firmware/tree/v2.12.0/fdts)
 
 ### Peripheral Address Map
 
-The peripheral address map for the FVP Base platform can be found in the following documentation:  
+The peripheral address map for the FVP Base platform can be found in the following documentation:
 [Base Platform memory map](https://developer.arm.com/documentation/100964/latest/Base-Platform/Base-Platform-memory/Base-Platform-memory-map?lang=en)
 
 Currently, little kernel supports:
 
-- **UART0,PL011**  
+- **UART0,PL011**
 - **GICv2**
 
 ### Interrupt Assignment
 
-The interrupt assignment for the FVP Base platform can be found in the following documentation:  
+The interrupt assignment for the FVP Base platform can be found in the following documentation:
 [Base Platform interrupt assignments](https://developer.arm.com/documentation/100964/1128/Base-Platform/Base-Platform-interrupt-assignments?lang=en)

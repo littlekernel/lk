@@ -26,7 +26,6 @@ For comprehensive documentation, see [Index](docs/index.md).
 - RISC-V 32 and 64bit bit in machine and supervisor mode
 - x86-32 and x86-64
 - Motorola 68000
-- Microblaze
 - MIPS
 - OpenRISC 1000
 - VAX (experimental)
