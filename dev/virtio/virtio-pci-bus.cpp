@@ -338,20 +338,39 @@ common:
     }
 
     uint irq_base;
-    // TODO: fall back to msi
-    err = pci_bus_mgr_allocate_msix(loc_, 1, &irq_base);
-    if (err != NO_ERROR) {
-        // fall back to regular IRQs
+
+    // Prefer MSI-X, then MSI, then legacy IRQs.
+    bool uses_msi = false;
+    if (pci_bus_mgr_has_msix(loc_)) {
+        err = pci_bus_mgr_allocate_msix(loc_, 1, &irq_base);
+        if (err == NO_ERROR) {
+            uses_msi = true;
+        } else {
+            printf("virtio: MSI-X allocation failed (%d), falling back to legacy IRQ\n", err);
+        }
+    } else if (pci_bus_mgr_has_msi(loc_)) {
+        err = pci_bus_mgr_allocate_msi(loc_, 1, &irq_base);
+        if (err == NO_ERROR) {
+            uses_msi = true;
+        } else {
+            printf("virtio: MSI allocation failed (%d), falling back to legacy IRQ\n", err);
+        }
+    }
+
+    if (!uses_msi) {
+        // Fall back to regular IRQs.
         err = pci_bus_mgr_allocate_irq(loc_, &irq_base);
         if (err != NO_ERROR) {
-            printf("block: unable to allocate IRQ\n");
+            printf("virtio: unable to allocate IRQ\n");
             return err;
         }
-        ::mask_interrupt(irq_base);
-        register_int_handler(irq_base, virtio_pci_irq, this);
-    } else {
-        ::mask_interrupt(irq_base);
+    }
+
+    ::mask_interrupt(irq_base);
+    if (uses_msi) {
         register_int_handler_msi(irq_base, virtio_pci_irq, this, true);
+    } else {
+        register_int_handler(irq_base, virtio_pci_irq, this);
     }
     set_irq(irq_base);
     LTRACEF("IRQ number %#x\n", irq_base);

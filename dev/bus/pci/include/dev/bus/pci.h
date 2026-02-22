@@ -91,6 +91,10 @@ status_t pci_bus_mgr_enable_device(pci_location_t loc);
 // read a list of up to 6 bars out of the device. each is marked with a valid bit
 status_t pci_bus_mgr_read_bars(pci_location_t loc, pci_bar_t bar[6]);
 
+// query interrupt capability bits for this device
+bool pci_bus_mgr_has_msi(pci_location_t loc);
+bool pci_bus_mgr_has_msix(pci_location_t loc);
+
 // try to allocate one or more msi vectors for this device
 status_t pci_bus_mgr_allocate_msi(pci_location_t loc, size_t num_requested, uint *irqbase);
 

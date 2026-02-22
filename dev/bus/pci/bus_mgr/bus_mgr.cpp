@@ -292,6 +292,30 @@ status_t pci_bus_mgr_read_bars(const pci_location_t loc, pci_bar_t bar[6]) {
     return d->read_bars(bar);
 }
 
+bool pci_bus_mgr_has_msi(const pci_location_t loc) {
+    char str[14];
+    LTRACEF("%s\n", pci_loc_string(loc, str));
+
+    device *d = lookup_device_by_loc(loc);
+    if (!d) {
+        return false;
+    }
+
+    return d->has_msi();
+}
+
+bool pci_bus_mgr_has_msix(const pci_location_t loc) {
+    char str[14];
+    LTRACEF("%s\n", pci_loc_string(loc, str));
+
+    device *d = lookup_device_by_loc(loc);
+    if (!d) {
+        return false;
+    }
+
+    return d->has_msix();
+}
+
 status_t pci_bus_mgr_allocate_msi(const pci_location_t loc, size_t num_requested, uint *irqbase) {
     char str[14];
     LTRACEF("%s num_request %zu\n", pci_loc_string(loc, str), num_requested);
