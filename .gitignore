@@ -6,7 +6,7 @@
 .clangd
 .vscode
 .mypy_cache
-blk.bin
+blk*.bin
 build-*
 compile_commands.json
 cscope.*
@@ -20,3 +20,7 @@ tags
 toolchain
 .cache
 vmlinux
+
+buildall.log
+trace.txt
+.rsync-filter
