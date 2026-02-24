@@ -7,8 +7,6 @@
  */
 #pragma once
 
-#define MULTIBOOT2_SUPPORT 0
-
 /* from https://www.gnu.org/software/grub/manual/multiboot/multiboot.html */
 
 /* magic number for multiboot header */

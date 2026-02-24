@@ -3,22 +3,20 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/err.h>
+#include <assert.h>
+#include <dev/display.h>
+#include <hw/multiboot.h>
 #include <lk/debug.h>
+#include <lk/err.h>
 #include <lk/trace.h>
+#include <malloc.h>
 #include <platform/display.h>
 #include <platform/pc/font9x16.h>
 #include <string.h>
-#include <malloc.h>
-#include <dev/display.h>
-#include <assert.h>
-#include <hw/multiboot.h>
-
-#if MULTIBOOT2_SUPPORT
 
 #define DRAW_TEST_PATTERN 0
 
-#define FONT_WIDTH 9
+#define FONT_WIDTH  9
 #define FONT_HEIGHT 16
 
 static uint32_t display_w, display_h, display_p;
@@ -37,11 +35,11 @@ static struct {
     unsigned int x1, y1, x2, y2;
 } view_window;
 
-inline static bool has_display(void) {
-    return display_initialized;
-}
-
-void clear(void);
+static void place(unsigned int x, unsigned int y);
+static void clear_char(int x, int y);
+static void clear(void);
+static void window(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
+static void scroll(void);
 
 void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
     // Check if we have multiboot framebuffer info
@@ -88,10 +86,15 @@ void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
 #endif
 }
 
+bool has_display(void) {
+    return display_initialized;
+}
+
 status_t display_get_framebuffer(struct display_framebuffer *fb) {
     // DEBUG_ASSERT(fb);
-    if (!has_display())
+    if (!has_display()) {
         return ERR_NOT_FOUND;
+    }
 
     fb->image.format = IMAGE_FORMAT_RGB_x888;
     fb->image.pixels = display_fb;
@@ -107,8 +110,9 @@ status_t display_get_framebuffer(struct display_framebuffer *fb) {
 
 status_t display_get_info(struct display_info *info) {
     DEBUG_ASSERT(info);
-    if (!has_display())
+    if (!has_display()) {
         return ERR_NOT_FOUND;
+    }
 
     info->format = DISPLAY_FORMAT_RGB_x888;
     info->width = display_w;
@@ -148,7 +152,7 @@ void draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg_color) {
     }
 }
 
-void clear_char(int x, int y) {
+static void clear_char(int x, int y) {
     uintptr_t *fb_ptr = (uintptr_t *)display_fb;
 
     for (int row = 0; row < FONT_HEIGHT; row++) {
@@ -166,34 +170,45 @@ void clear_char(int x, int y) {
     }
 }
 
-void place(unsigned int x, unsigned int y) {
-    if (x >= console_cols) x = console_cols - 1;
-    if (y >= console_rows) y = console_rows - 1;
+static void place(unsigned int x, unsigned int y) {
+    if (x >= console_cols) {
+        x = console_cols - 1;
+    }
+    if (y >= console_rows) {
+        y = console_rows - 1;
+    }
 
     curr_x = x;
     curr_y = y;
 }
 
-void window(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2) {
+static void window(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2) {
     view_window.x1 = x1;
     view_window.y1 = y1;
     view_window.x2 = x2;
     view_window.y2 = y2;
 
-    if (curr_x < x1) curr_x = x1;
-    if (curr_x > x2) curr_x = x2;
-    if (curr_y < y1) curr_y = y1;
-    if (curr_y > y2) curr_y = y2;
+    if (curr_x < x1) {
+        curr_x = x1;
+    }
+    if (curr_x > x2) {
+        curr_x = x2;
+    }
+    if (curr_y < y1) {
+        curr_y = y1;
+    }
+    if (curr_y > y2) {
+        curr_y = y2;
+    }
 }
 
-
-void clear(void) {
+static void clear(void) {
     uint8_t *fb_bytes = (uint8_t *)display_fb;
     memset(fb_bytes, 0, display_h * display_p);
 }
 
 // Is not fluid when scrolling on real machine
-void scroll(void) {
+static void scroll(void) {
     uint8_t *fb_bytes = (uint8_t *)display_fb;
     unsigned int scroll_pixels = FONT_HEIGHT;
 
@@ -219,6 +234,9 @@ void scroll(void) {
 }
 
 void dputc(char c) {
+    if (!has_display()) {
+        return;
+    }
     switch (c) {
         case '\t':
             curr_x = (curr_x + 8) & ~7; // Move to next tab
@@ -257,47 +275,3 @@ void dputc(char c) {
         curr_y = view_window.y2;
     }
 }
-
-void dputs(char *s) {
-    char c;
-    while (*s != '\0') {
-        c = *s++;
-        dputc(c);
-    }
-}
-
-void dputs_xy(unsigned int x, unsigned int y, char attr, char *s) {
-    unsigned int saved_x = curr_x;
-    unsigned int saved_y = curr_y;
-
-    place(x, y);
-    dputs(s);
-
-    place(saved_x, saved_y);
-}
-
-void dputc_xy(unsigned int x, unsigned int y, char attr, char c) {
-    unsigned int saved_x = curr_x;
-    unsigned int saved_y = curr_y;
-
-    place(x, y);
-    dputc(c);
-
-    place(saved_x, saved_y);
-}
-
-int display_printf_xy(unsigned int x, unsigned int y, char attr, char *fmt, ...) {
-    char cbuf[200];
-    va_list parms;
-    int result;
-
-    va_start(parms, fmt);
-    result = vsprintf(cbuf, fmt, parms);
-    va_end(parms);
-
-    dputs_xy(x, y, attr, cbuf);
-
-    return result;
-}
-
-#endif // MULTIBOOT2_SUPPORT

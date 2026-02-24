@@ -27,7 +27,6 @@ _start:
 
 .align 8
 /* flags for multiboot header */
-#if MULTIBOOT2_SUPPORT
 .type multiboot2_header, STT_OBJECT
 multiboot2_header:
     .long MULTIBOOT2_HEADER_MAGIC               /* Multiboot header magic */
@@ -62,7 +61,7 @@ entry_address_tag_end:
     .short 0
     .long 8                                     /* align 8? */
 header_end:
-#else
+
 #define MULTIBOOT_HEADER_FLAGS (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO | MULTIBOOT_AOUT_KLUDGE)
 
 .type multiboot_header,STT_OBJECT
@@ -84,16 +83,20 @@ multiboot_header:
     .int PHYS(__bss_end)
     /* entry_addr */
     .int PHYS(real_start)
-#endif
 
 real_start:
-#if MULTIBOOT2_SUPPORT
-    cmpl $MULTIBOOT2_BOOTLOADER_MAGIC, %eax  /* Bootloader magic */
-#else
+    movl $0, PHYS(_multiboot1_info)
+    movl $0, PHYS(_multiboot2_info)
+
     cmpl $MULTIBOOT_BOOTLOADER_MAGIC, %eax
-#endif
+    jne 1f
+    movl %ebx, PHYS(_multiboot1_info)
+    jmp 0f
+
+1:
+    cmpl $MULTIBOOT2_BOOTLOADER_MAGIC, %eax  /* Bootloader magic */
     jne 0f
-    movl %ebx, PHYS(_multiboot_info)
+    movl %ebx, PHYS(_multiboot2_info)
 
 0:
     /* load our new gdt by physical pointer */

@@ -46,10 +46,15 @@ multiboot_header:
     /* entry_addr */
     .int PHYS(real_start)
 
+// TODO: add multiboot2 header here for 32bit
+
 real_start:
+    movl $0, PHYS(_multiboot1_info)
+    movl $0, PHYS(_multiboot2_info)
+
     cmpl $MULTIBOOT_BOOTLOADER_MAGIC, %eax
     jne 0f
-    movl %ebx, PHYS(_multiboot_info)
+    movl %ebx, PHYS(_multiboot1_info)
 
 0:
     /* load our new gdt by physical pointer */
