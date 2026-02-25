@@ -7,9 +7,9 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <lk/compiler.h>
 
 __BEGIN_CDECLS
 
@@ -52,12 +52,12 @@ struct display_image {
     void *pixels;
     uint width;
     uint height;
-    int stride; // row length in pixels
+    int stride;   // row length in pixels
     int rowbytes; // row length in bytes
 };
 
 status_t display_present(struct display_image *image, uint starty, uint endy)
-__NONNULL((1));
+    __NONNULL((1));
 
 struct display_framebuffer {
     enum display_format format;
@@ -67,7 +67,6 @@ struct display_framebuffer {
 };
 
 status_t display_get_framebuffer(struct display_framebuffer *fb)
-__NONNULL((1));
+    __NONNULL((1));
 
 __END_CDECLS
-

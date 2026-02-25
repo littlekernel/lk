@@ -3,11 +3,15 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <arch/x86/mtrr.h>
 #include <assert.h>
 #include <dev/display.h>
 #include <hw/multiboot.h>
+#include <inttypes.h>
+#include <kernel/vm.h>
 #include <lk/debug.h>
 #include <lk/err.h>
+#include <lk/init.h>
 #include <lk/trace.h>
 #include <malloc.h>
 #include <platform/display.h>
@@ -25,6 +29,10 @@ static bool display_initialized = false;
 static uint32_t foreground_color = 0x00FFFFFF;
 static uint32_t background_color = 0x00000000;
 
+/* Double buffering for improved scroll performance */
+static void *display_backbuffer = NULL;
+static bool use_backbuffer = false;
+
 static unsigned int curr_x;
 static unsigned int curr_y;
 
@@ -35,11 +43,76 @@ static struct {
     unsigned int x1, y1, x2, y2;
 } view_window;
 
+/* Helper to get the current framebuffer pointer (real FB or backbuffer) */
+static inline void *get_framebuffer_ptr(void) {
+    return use_backbuffer ? display_backbuffer : display_fb;
+}
+
 static void place(unsigned int x, unsigned int y);
 static void clear_char(int x, int y);
 static void clear(void);
 static void window(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
 static void scroll(void);
+
+/**
+ * Flush the backbuffer to the real framebuffer.
+ * Only copies the specified region (for efficiency).
+ */
+static void flush_backbuffer_region(unsigned int start_y, unsigned int end_y) {
+    if (!use_backbuffer) {
+        return; // Not using backbuffer, no need to flush
+    }
+
+    uint8_t *src = (uint8_t *)display_backbuffer + start_y * display_p;
+    uint8_t *dst = (uint8_t *)display_fb + start_y * display_p;
+    size_t bytes = (end_y - start_y) * display_p;
+
+    memcpy(dst, src, bytes);
+}
+
+/**
+ * Flush entire backbuffer to real framebuffer.
+ */
+static void flush_backbuffer_full(void) {
+    if (!use_backbuffer) {
+        return;
+    }
+
+    memcpy(display_fb, display_backbuffer, display_h * display_p);
+}
+
+/**
+ * Post-VM initialization to allocate double buffer.
+ * This hook is called after virtual memory is available,
+ * allowing us to allocate large buffers via the VM system.
+ */
+static void display_init_backbuffer(uint level) {
+    if (!has_display()) {
+        return;
+    }
+
+    /* Allocate backbuffer the same size as the framebuffer using VM system */
+    size_t buffer_size = display_h * display_p;
+
+    status_t status = vmm_alloc(vmm_get_kernel_aspace(),
+                                "display_backbuffer",
+                                buffer_size,
+                                &display_backbuffer,
+                                0, /* align_log2: 0 for default alignment */
+                                0, /* vmm_flags: 0 for defaults */
+                                ARCH_MMU_FLAG_CACHED);
+
+    if (status != NO_ERROR) {
+        TRACEF("WARNING: Failed to allocate backbuffer via VM (%zu bytes), using direct rendering\n", buffer_size);
+        return;
+    }
+
+    /* Initialize backbuffer with same state as framebuffer */
+    memcpy(display_backbuffer, display_fb, buffer_size);
+    use_backbuffer = true;
+
+    TRACEF("Display backbuffer allocated via VM: %p (%zu bytes)\n", display_backbuffer, buffer_size);
+}
 
 void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
     // Check if we have multiboot framebuffer info
@@ -80,6 +153,26 @@ void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
     clear();
 
     display_initialized = true;
+
+    /* Configure MTRR for the framebuffer to improve performance on real hardware.
+     * Write-Combining (WC) caches write operations to memory but combines writes into
+     * larger transactions, significantly improving framebuffer write performance.
+     */
+    uint64_t fb_phys_addr = framebuffer->common.framebuffer_addr;
+    uint64_t fb_size = (uint64_t)display_h * display_p;
+
+    /* Round framebuffer size up to the next power of 2 (MTRR requirement) */
+    uint64_t mtrr_size = 1;
+    while (mtrr_size < fb_size) {
+        mtrr_size <<= 1;
+    }
+
+    if (x86_mtrr_set_framebuffer(fb_phys_addr, mtrr_size) == NO_ERROR) {
+        TRACEF("Framebuffer MTRR configured: addr=%#" PRIx64 " size=%#" PRIx64 "\n",
+               fb_phys_addr, mtrr_size);
+    } else {
+        TRACEF("WARNING: Could not configure MTRR for framebuffer, performance may be degraded\n");
+    }
 
 #if DRAW_TEST_PATTERN
     gfx_draw_pattern();
@@ -129,6 +222,7 @@ status_t display_present(struct display_image *image, uint starty, uint endy) {
 
 void draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg_color) {
     const uint16_t *bitmap = &font_9x16[(unsigned char)c * FONT_HEIGHT];
+    void *fb = get_framebuffer_ptr();
 
     for (int row = 0; row < FONT_HEIGHT; row++) {
         unsigned char row_bits = bitmap[row];
@@ -140,7 +234,7 @@ void draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg_color) {
                 continue;
             }
 
-            uint8_t *fb_bytes = (uint8_t *)display_fb;
+            uint8_t *fb_bytes = (uint8_t *)fb;
             uint32_t *pixel = (uint32_t *)(fb_bytes + pixel_y * display_p + pixel_x * 4);
 
             if (row_bits & (1 << col)) {
@@ -153,7 +247,8 @@ void draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg_color) {
 }
 
 static void clear_char(int x, int y) {
-    uintptr_t *fb_ptr = (uintptr_t *)display_fb;
+    void *fb = get_framebuffer_ptr();
+    uintptr_t *fb_ptr = (uintptr_t *)fb;
 
     for (int row = 0; row < FONT_HEIGHT; row++) {
         for (int col = 0; col < FONT_WIDTH; col++) {
@@ -203,13 +298,15 @@ static void window(unsigned int x1, unsigned int y1, unsigned int x2, unsigned i
 }
 
 static void clear(void) {
-    uint8_t *fb_bytes = (uint8_t *)display_fb;
+    void *fb = get_framebuffer_ptr();
+    uint8_t *fb_bytes = (uint8_t *)fb;
     memset(fb_bytes, 0, display_h * display_p);
 }
 
-// Is not fluid when scrolling on real machine
+// Scrolling with double buffering support
 static void scroll(void) {
-    uint8_t *fb_bytes = (uint8_t *)display_fb;
+    void *fb = get_framebuffer_ptr();
+    uint8_t *fb_bytes = (uint8_t *)fb;
     unsigned int scroll_pixels = FONT_HEIGHT;
 
     unsigned int start_y = view_window.y1 * FONT_HEIGHT;
@@ -228,6 +325,11 @@ static void scroll(void) {
     unsigned int clear_start_y = start_y + (end_y - start_y - scroll_pixels);
     for (unsigned int y = clear_start_y; y < end_y && y < display_h; y++) {
         memset(fb_bytes + y * display_p + start_x_bytes, background_color, width_bytes);
+    }
+
+    /* Flush the scrolled region to the real framebuffer */
+    if (use_backbuffer) {
+        flush_backbuffer_region(start_y, end_y);
     }
 
     curr_y = view_window.y2;
@@ -255,12 +357,22 @@ void dputc(char c) {
             if (curr_x > view_window.x1) {
                 curr_x--;
                 clear_char(curr_x, curr_y);
+                /* Flush cleared character to framebuffer */
+                if (use_backbuffer) {
+                    unsigned int char_y = curr_y * FONT_HEIGHT;
+                    flush_backbuffer_region(char_y, char_y + FONT_HEIGHT);
+                }
             }
             break;
 
         default:
             // draw
             draw_char(curr_x, curr_y, c, foreground_color, background_color);
+            /* Flush drawn character to framebuffer for immediate visual feedback */
+            if (use_backbuffer) {
+                unsigned int char_y = curr_y * FONT_HEIGHT;
+                flush_backbuffer_region(char_y, char_y + FONT_HEIGHT);
+            }
             curr_x++;
             break;
     }
@@ -275,3 +387,6 @@ void dputc(char c) {
         curr_y = view_window.y2;
     }
 }
+
+/* Register post-VM initialization to allocate backbuffer */
+LK_INIT_HOOK(display_init_backbuffer, display_init_backbuffer, LK_INIT_LEVEL_VM + 1);
