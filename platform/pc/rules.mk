@@ -28,6 +28,7 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/pic.c \
     $(LOCAL_DIR)/pit.c \
     $(LOCAL_DIR)/platform.c \
+    $(LOCAL_DIR)/power.c \
     $(LOCAL_DIR)/timer.c \
     $(LOCAL_DIR)/uart.c \
 

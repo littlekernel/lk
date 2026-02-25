@@ -12,3 +12,4 @@
 void platform_init_keyboard(cbuf_t *buffer);
 
 int platform_read_key(char *c);
+void platform_i8042_keyboard_reset(void);

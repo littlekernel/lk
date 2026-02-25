@@ -7,20 +7,20 @@
  */
 #include <platform/keyboard.h>
 
-#include <sys/types.h>
+#include "platform_p.h"
+#include <arch/x86.h>
+#include <kernel/thread.h>
+#include <lib/cbuf.h>
+#include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <lk/debug.h>
-#include <kernel/thread.h>
 #include <platform.h>
-#include <platform/interrupts.h>
 #include <platform/console.h>
-#include <platform/timer.h>
+#include <platform/interrupts.h>
 #include <platform/pc.h>
-#include "platform_p.h"
-#include <arch/x86.h>
-#include <lib/cbuf.h>
+#include <platform/timer.h>
+#include <sys/types.h>
 
 static inline int i8042_read_data(void) {
     return inp(I8042_DATA_REG);
@@ -41,41 +41,41 @@ static inline void i8042_write_command(int val) {
 /*
  * timeout in milliseconds
  */
-#define I8042_CTL_TIMEOUT   500
+#define I8042_CTL_TIMEOUT 500
 
 /*
  * status register bits
  */
-#define I8042_STR_PARITY    0x80
-#define I8042_STR_TIMEOUT   0x40
-#define I8042_STR_AUXDATA   0x20
-#define I8042_STR_KEYLOCK   0x10
-#define I8042_STR_CMDDAT    0x08
-#define I8042_STR_MUXERR    0x04
-#define I8042_STR_IBF       0x02
-#define I8042_STR_OBF       0x01
+#define I8042_STR_PARITY  0x80
+#define I8042_STR_TIMEOUT 0x40
+#define I8042_STR_AUXDATA 0x20
+#define I8042_STR_KEYLOCK 0x10
+#define I8042_STR_CMDDAT  0x08
+#define I8042_STR_MUXERR  0x04
+#define I8042_STR_IBF     0x02
+#define I8042_STR_OBF     0x01
 
 /*
  * control register bits
  */
-#define I8042_CTR_KBDINT    0x01
-#define I8042_CTR_AUXINT    0x02
-#define I8042_CTR_IGNKEYLK  0x08
-#define I8042_CTR_KBDDIS    0x10
-#define I8042_CTR_AUXDIS    0x20
-#define I8042_CTR_XLATE     0x40
+#define I8042_CTR_KBDINT   0x01
+#define I8042_CTR_AUXINT   0x02
+#define I8042_CTR_IGNKEYLK 0x08
+#define I8042_CTR_KBDDIS   0x10
+#define I8042_CTR_AUXDIS   0x20
+#define I8042_CTR_XLATE    0x40
 
 /*
  * commands
  */
-#define I8042_CMD_CTL_RCTR  0x0120
-#define I8042_CMD_CTL_WCTR  0x1060
-#define I8042_CMD_CTL_TEST  0x01aa
+#define I8042_CMD_CTL_RCTR 0x0120
+#define I8042_CMD_CTL_WCTR 0x1060
+#define I8042_CMD_CTL_TEST 0x01aa
 
-#define I8042_CMD_KBD_DIS   0x00ad
-#define I8042_CMD_KBD_EN    0x00ae
-#define I8042_CMD_KBD_TEST  0x01ab
-#define I8042_CMD_KBD_MODE  0x01f0
+#define I8042_CMD_KBD_DIS  0x00ad
+#define I8042_CMD_KBD_EN   0x00ae
+#define I8042_CMD_KBD_TEST 0x01ab
+#define I8042_CMD_KBD_MODE 0x01f0
 
 /*
  * used for flushing buffers. the i8042 internal buffer shoudn't exceed this.
@@ -93,6 +93,7 @@ static inline void delay(lk_time_t delay) {
 #define SCANCODE_RSHIFT 0x36
 
 /* scancode translation tables */
+// clang-format off
 static const int KeyCodeSingleLower[] = {
 // 0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
     -1,  -1, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=','\b','\t', // 0
@@ -140,6 +141,7 @@ static const int KeyCodeMultiUpper[] = {
         -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 6
         -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1, // 7
     };
+// clang-format on
 
 /*
  * state key flags
@@ -179,7 +181,7 @@ static void i8042_process_scode(uint8_t scode, unsigned int flags) {
         key_rshift ? 'R' : ' ');*/
 
     if (keyCode != -1 && !keyUpBit) {
-        char c = (char) keyCode;
+        char c = (char)keyCode;
         cbuf_write_char(key_buf, c, false);
     }
 
@@ -209,14 +211,14 @@ static int i8042_flush(void) {
     unsigned char data __UNUSED;
     int i = 0;
 
-    //enter_critical_section();
+    // enter_critical_section();
 
     while ((i8042_read_status() & I8042_STR_OBF) && (i++ < I8042_BUFFER_LENGTH)) {
         delay(1);
         data = i8042_read_data();
     }
 
-    //exit_critical_section();
+    // exit_critical_section();
 
     return i;
 }
@@ -224,7 +226,7 @@ static int i8042_flush(void) {
 static int i8042_command(uint8_t *param, int command) {
     int retval = 0, i = 0;
 
-    //enter_critical_section();
+    // enter_critical_section();
 
     retval = i8042_wait_write();
     if (!retval) {
@@ -255,7 +257,7 @@ static int i8042_command(uint8_t *param, int command) {
         }
     }
 
-    //exit_critical_section();
+    // exit_critical_section();
 
     return retval;
 }
@@ -264,17 +266,17 @@ static enum handler_return i8042_interrupt(void *arg) {
     uint8_t str, data = 0;
     bool resched = false;
 
-    //enter_critical_section();
+    // enter_critical_section();
     str = i8042_read_status();
     if (str & I8042_STR_OBF) {
         data = i8042_read_data();
     }
-    //exit_critical_section();
+    // exit_critical_section();
 
     if (str & I8042_STR_OBF) {
         i8042_process_scode(data,
                             ((str & I8042_STR_PARITY) ? I8042_STR_PARITY : 0) |
-                            ((str & I8042_STR_TIMEOUT) ? I8042_STR_TIMEOUT : 0));
+                                ((str & I8042_STR_TIMEOUT) ? I8042_STR_TIMEOUT : 0));
         resched = true;
     }
 
@@ -286,6 +288,31 @@ int platform_read_key(char *c) {
 
     len = cbuf_read_char(key_buf, c, true);
     return len;
+}
+
+void platform_i8042_keyboard_reset(void) {
+    /*
+     * Drain pending output bytes first so stale keyboard data does not
+     * interfere with command sequencing on controllers that multiplex data.
+     */
+    for (uint i = 0; i < I8042_BUFFER_LENGTH; ++i) {
+        if ((i8042_read_status() & I8042_STR_OBF) == 0) {
+            break;
+        }
+        (void)i8042_read_data();
+    }
+
+    /*
+     * Wait for input buffer empty (controller ready), then issue 0xFE,
+     * the i8042 "pulse CPU reset" command used on classic PC-compatible
+     * systems. If the controller never becomes ready, fall through.
+     */
+    for (uint i = 0; i < 100000; ++i) {
+        if ((i8042_read_status() & I8042_STR_IBF) == 0) {
+            i8042_write_command(0xfe);
+            break;
+        }
+    }
 }
 
 void platform_init_keyboard(cbuf_t *buffer) {
