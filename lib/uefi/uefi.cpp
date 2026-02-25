@@ -182,11 +182,12 @@ int load_sections_and_execute(ImageReader *reader,
   table.header.revision = 2 << 16;
   EfiSimpleTextOutputProtocol console_out = get_text_output_protocol();
   table.con_out = &console_out;
-  table.configuration_table =
+  auto configuration_table =
       reinterpret_cast<EfiConfigurationTable *>(alloc_page(PAGE_SIZE));
-  DEFER { free_pages(table.configuration_table, 1); };
-  memset(table.configuration_table, 0, PAGE_SIZE);
-  setup_configuration_table(&table);
+  table.configuration_table = configuration_table;
+  DEFER { free_pages(configuration_table, 1); };
+  memset(configuration_table, 0, PAGE_SIZE);
+  setup_configuration_table(&table, configuration_table);
   auto status = platform_setup_system_table(&table);
   if (status != EFI_STATUS_SUCCESS) {
     printf("platform_setup_system_table failed: %lu\n", status);

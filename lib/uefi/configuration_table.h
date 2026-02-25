@@ -37,6 +37,6 @@ static constexpr auto DEVICE_TREE_GUID =
             0x41a5,
             {0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0}};
 
-void setup_configuration_table(EfiSystemTable *table);
+void setup_configuration_table(EfiSystemTable *system_table, EfiConfigurationTable *configuration_table);
 
 #endif

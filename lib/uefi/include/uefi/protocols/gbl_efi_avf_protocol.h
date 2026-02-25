@@ -32,7 +32,7 @@
 #include <uefi/types.h>
 
 static const uint64_t GBL_EFI_AVF_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(0, 1);
+    GBL_PROTOCOL_REVISION(0, 256);
 
 typedef struct GblEfiAvfProtocol {
   uint64_t revision;

@@ -25,25 +25,26 @@
 #include "platform.h"
 #include "uefi_platform.h"
 
-void setup_configuration_table(EfiSystemTable *table) {
-  auto &rng = table->configuration_table[table->number_of_table_entries++];
+void setup_configuration_table(EfiSystemTable *system_table, EfiConfigurationTable *configuration_table) {
+  auto& rng = configuration_table[system_table->number_of_table_entries++];
   rng.vendor_guid = LINUX_EFI_RANDOM_SEED_TABLE_GUID;
-  rng.vendor_table = alloc_page(PAGE_SIZE);
-  auto rng_seed = reinterpret_cast<linux_efi_random_seed *>(rng.vendor_table);
+  auto rng_seed = reinterpret_cast<linux_efi_random_seed*>(alloc_page(PAGE_SIZE));
+  rng.vendor_table = rng_seed;
   rng_seed->size = 512;
   memset(&rng_seed->bits, 0, rng_seed->size);
 
   const void *fdt = get_fdt();
   if (fdt != nullptr) {
-    auto &dtb = table->configuration_table[table->number_of_table_entries++];
+    auto& dtb = configuration_table[system_table->number_of_table_entries++];
     dtb.vendor_guid = DEVICE_TREE_GUID;
     const auto fdt_size = fdt_totalsize(fdt);
-    dtb.vendor_table = alloc_page(fdt_size);
-    memcpy(dtb.vendor_table, fdt, fdt_size);
+    auto vendor_table = alloc_page(fdt_size);
+    dtb.vendor_table = vendor_table;
+    memcpy(vendor_table, fdt, fdt_size);
   }
 
-  auto &debug_image_info_table =
-      table->configuration_table[table->number_of_table_entries++];
+  auto& debug_image_info_table =
+      configuration_table[system_table->number_of_table_entries++];
   debug_image_info_table.vendor_guid = EFI_DEBUG_IMAGE_INFO_TABLE_GUID;
   debug_image_info_table.vendor_table = &efi_m_debug_info_table_header;
 }
