@@ -14,6 +14,7 @@
 #include <arch/x86/mmu.h>
 #include <arch/x86/descriptor.h>
 #include <arch/x86/feature.h>
+#include <arch/x86/mtrr.h>
 #include <arch/fpu.h>
 #include <arch/mmu.h>
 #include <kernel/vm.h>
@@ -85,6 +86,7 @@ void x86_early_init_percpu(void) {
     asm("lidt _idtr");
 
     x86_mmu_early_init_percpu();
+    x86_mtrr_early_init_percpu();
 #if X86_WITH_FPU
     x86_fpu_early_init_percpu();
 #endif
@@ -96,6 +98,8 @@ void x86_early_init_percpu(void) {
 void arch_early_init(void) {
     x86_feature_early_init();
     x86_mmu_early_init();
+    x86_mtrr_early_init();
+
 #if X86_WITH_FPU
     x86_fpu_early_init();
 #endif
@@ -107,6 +111,7 @@ void arch_early_init(void) {
 void arch_init(void) {
     x86_feature_init();
     x86_mmu_init();
+    x86_mtrr_init();
 
 #if X86_WITH_FPU
     x86_fpu_init();

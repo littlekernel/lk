@@ -78,6 +78,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/feature.c \
 	$(LOCAL_DIR)/ioapic.c \
 	$(LOCAL_DIR)/lapic.c \
+	$(LOCAL_DIR)/mtrr.c \
 	$(LOCAL_DIR)/mp.c \
 	$(LOCAL_DIR)/pv.c \
 	$(LOCAL_DIR)/thread.c \
