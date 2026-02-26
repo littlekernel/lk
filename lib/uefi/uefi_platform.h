@@ -23,6 +23,7 @@
 #include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/protocols/timestamp.h>
+#include <uefi/protocols/hii_protocol.h>
 #include <uefi/system_table.h>
 #include <uefi/types.h>
 
@@ -79,5 +80,7 @@ void reset_heap();
 EfiStatus open_efi_erase_block_protocol(EfiHandle handle, void** intf);
 
 GblEfiBootMemoryProtocol* open_boot_memory_protocol();
+
+EfiHiiDatabaseProtocol* open_hii_database_protocol();
 
 #endif
