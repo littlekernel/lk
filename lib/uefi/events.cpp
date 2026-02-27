@@ -108,7 +108,8 @@ EfiStatus wait_for_event(size_t num_events, EfiEvent *event, size_t *index) {
   return EFI_STATUS_NOT_READY;
 }
 
-EfiStatus signal_event(EfiEvent event) {
+EfiStatus signal_event(EfiEvent e) {
+  auto event = reinterpret_cast<EfiEventImpl *>(e);
   LTRACEF("%s(type=0x%x, ready=%d)\n", __FUNCTION__, event->type,
           event->ready());
   // This function can be called from interrupt context. In interrupt context,
@@ -178,7 +179,8 @@ EfiStatus create_event(EfiEventType type, EfiTpl notify_tpl,
   return EFI_STATUS_SUCCESS;
 }
 
-EfiStatus check_event(EfiEvent event) {
+EfiStatus check_event(EfiEvent e) {
+  auto event = reinterpret_cast<EfiEventImpl *>(e);
   // Events can get signaled from interrupt context, in which we don't
   // call the callback. check_event is definitely going to be called
   // from UEFI app thread, this is a great time to handle any events
@@ -211,7 +213,8 @@ EfiStatus check_event(EfiEvent event) {
   return EFI_STATUS_NOT_READY;
 }
 
-EfiStatus close_event(EfiEvent event) {
+EfiStatus close_event(EfiEvent e) {
+  auto event = reinterpret_cast<EfiEventImpl *>(e);
   AutoLock al{&event_list_mutex};
   delete_if_in_list(event, &al);
   al.release();

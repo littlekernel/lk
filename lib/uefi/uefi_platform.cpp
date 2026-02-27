@@ -68,10 +68,12 @@ __WEAK EfiStatus efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
 
 // Generates fixups for the bootconfig built by GBL.
 __WEAK EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
-                                  const uint8_t* bootconfig, size_t size,
-                                  uint8_t* fixup, size_t* fixup_buffer_size) {
+                                  size_t bootconfig_size,
+                                  const uint8_t* bootconfig,
+                                  size_t* fixup_buffer_size, uint8_t* fixup) {
   printf("%s(%p, %s, %lu, %lu)\n", __FUNCTION__, self,
-         reinterpret_cast<const char*>(bootconfig), size, *fixup_buffer_size);
+         reinterpret_cast<const char*>(bootconfig), bootconfig_size,
+         *fixup_buffer_size);
   constexpr auto&& to_add =
       "\nandroidboot.fstab_suffix=cf.f2fs."
       "hctr2\nandroidboot.boot_devices=4010000000.pcie";
@@ -88,10 +90,18 @@ __WEAK EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
 
 // Selects which device trees and overlays to use from those loaded by GBL.
 __WEAK EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol* self,
-                                     GblEfiVerifiedDeviceTree* device_trees,
-                                     size_t num_device_trees) {
+                                     size_t num_device_trees,
+                                     GblEfiVerifiedDeviceTree* device_trees) {
   printf("%s(%p, %p %lu)\n", __FUNCTION__, self, device_trees,
          num_device_trees);
+  return EFI_STATUS_UNSUPPORTED;
+}
+
+__WEAK EfiStatus select_fit_configuration(
+    struct GblEfiOsConfigurationProtocol* self, size_t fit_size, const uint8_t* fit,
+    size_t metadata_size, const uint8_t* metadata, size_t* selected_configuration_offset) {
+  printf("%s(%p, %lu, %p, %lu, %p, %p)\n", __FUNCTION__, self, fit_size, fit, metadata_size,
+         metadata, selected_configuration_offset);
   return EFI_STATUS_UNSUPPORTED;
 }
 
@@ -194,7 +204,7 @@ EfiStatus erase_blocks(EfiEraseBlockProtocol* self, uint32_t media_id,
 
 }  // namespace
 
-__WEAK EfiStatus open_efi_erase_block_protocol(EfiHandle handle, void** intf) {
+__WEAK EfiStatus open_efi_erase_block_protocol(EfiHandle handle, const void** intf) {
   auto* device_name = static_cast<const char*>(handle);
   LTRACEF("handle=%p (%s)\n", handle, device_name);
   auto* p = reinterpret_cast<EfiEraseBlockInterface*>(

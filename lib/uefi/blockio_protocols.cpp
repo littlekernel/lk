@@ -75,7 +75,7 @@ EfiStatus reset(EfiBlockIoProtocol *self, bool extended_verification) {
 }
 }  // namespace
 
-__WEAK EfiStatus open_block_device(EfiHandle handle, void** intf) {
+__WEAK EfiStatus open_block_device(EfiHandle handle, const void** intf) {
   printf("%s(%p)\n", __FUNCTION__, handle);
   auto io_stack = get_io_stack();
   if (io_stack == nullptr) {
@@ -110,7 +110,7 @@ EfiStatus list_block_devices(size_t *num_handles, EfiHandle **buf) {
     return true;
   });
   auto devices =
-      reinterpret_cast<char **>(uefi_malloc(sizeof(char *) * device_count));
+      reinterpret_cast<EfiHandle *>(uefi_malloc(sizeof(EfiHandle) * device_count));
   size_t i = 0;
   bio_iter_devices([&i, devices, device_count](bdev_t *dev) {
     devices[i] = dev->name;
@@ -118,6 +118,6 @@ EfiStatus list_block_devices(size_t *num_handles, EfiHandle **buf) {
     return i < device_count;
   });
   *num_handles = i;
-  *buf = reinterpret_cast<EfiHandle *>(devices);
+  *buf = devices;
   return EFI_STATUS_SUCCESS;
 }

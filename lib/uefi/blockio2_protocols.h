@@ -20,6 +20,6 @@
 
 #include <uefi/types.h>
 
-EfiStatus open_async_block_device(EfiHandle handle, void **intf);
+EfiStatus open_async_block_device(EfiHandle handle, const void **intf);
 
 #endif

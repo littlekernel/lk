@@ -27,9 +27,11 @@
 #define __GBL_EFI_BOOT_CONTROL_PROTOCOL_H__
 
 #include <stdint.h>
-
 #include <uefi/system_table.h>
 #include <uefi/types.h>
+
+static const uint64_t GBL_EFI_BOOT_CONTROL_PROTOCOL_REVISION =
+    GBL_PROTOCOL_REVISION(0, 256);
 
 EFI_ENUM(GblEfiUnbootableReason, uint8_t,
          GBL_EFI_UNBOOTABLE_REASON_UNKNOWN_REASON,
@@ -49,8 +51,9 @@ typedef struct {
   // will be interpreted as UNKNOWN_REASON.
   GblEfiUnbootableReason unbootable_reason;
   uint8_t priority;
-  uint8_t tries;
-  // Value of 1 if slot has successfully booted.
+  // Number of remaining tries to attempt to boot the slot
+  uint8_t remaining_tries;
+  // Value of 1 if slot has successfully booted
   uint8_t successful;
 } GblEfiSlotInfo;
 
@@ -63,15 +66,6 @@ typedef struct {
   EfiPhysicalAddr device_tree;
   uint64_t reserved[8];
 } GblEfiLoadedOs;
-
-typedef void (*OsEntryPoint)(size_t descriptor_size,
-                             uint32_t descriptor_version,
-                             size_t num_descriptors,
-                             const EfiMemoryDescriptor* memory_map,
-                             const GblEfiLoadedOs* os);
-
-static const uint64_t GBL_EFI_BOOT_CONTROL_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(0, 2);
 
 typedef struct GblEfiBootControlProtocol {
   uint64_t revision;
@@ -90,8 +84,7 @@ typedef struct GblEfiBootControlProtocol {
   EfiStatus (*get_one_shot_boot_mode)(struct GblEfiBootControlProtocol* self,
                                       /* out */ GblEfiOneShotBootMode* mode);
   EfiStatus (*handle_loaded_os)(struct GblEfiBootControlProtocol* self,
-                                /* in */ const GblEfiLoadedOs* os,
-                                /* out */ OsEntryPoint* entry_point);
+                                /* in */ const GblEfiLoadedOs* os);
 } GblEfiBootControlProtocol;
 
 #endif  // __GBL_EFI_BOOT_CONTROL_PROTOCOL_H__

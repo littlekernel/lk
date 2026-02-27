@@ -34,21 +34,21 @@ typedef struct EfiDevicePathProtocol {
   uint8_t length[2];
 } EfiDevicePathProtocol;
 
-#define EFI_DEVICE_PATH_TO_TEXT_PROTOCOL_GUID \
-  EFI_GUID(0x8b843e20, 0x8132, 0x4852, 0x90, 0xcc, 0x55, 0x1a, 0x4e, 0x4a, 0x7f, 0x1c)
-
 typedef struct EfiDevicePathToTextProtocol {
-  uint16_t* (*convert_device_node_to_text)(struct EfiDevicePathProtocol* device_node,
-                                           bool display_only, bool allow_shortcuts);
-  uint16_t* (*convert_device_path_to_text)(struct EfiDevicePathProtocol* device_path,
-                                           bool display_only, bool allow_shortcuts);
+  EfiChar16* (*convert_device_node_to_text)(
+      struct EfiDevicePathProtocol* device_node, bool display_only,
+      bool allow_shortcuts);
+  EfiChar16* (*convert_device_path_to_text)(
+      struct EfiDevicePathProtocol* device_path, bool display_only,
+      bool allow_shortcuts);
 } EfiDevicePathToTextProtocol;
 
 static const uint8_t EFI_DEVICE_PATH_TYPE_END_OF_HARDWARE_DEVICE_PATH = 0x7F;
 
 static const uint8_t EFI_DEVICE_PATH_TYPE_MEDIA_DEVICE_PATH = 0x04;
 
-static const uint8_t EFI_END_OF_HARDWARE_DEVICE_PATH_SUB_TYPE_END_ENTIRE_DEVICE_PATH = 0xFF;
+static const uint8_t
+    EFI_END_OF_HARDWARE_DEVICE_PATH_SUB_TYPE_END_ENTIRE_DEVICE_PATH = 0xFF;
 
 static const uint8_t EFI_MEDIA_DEVICE_PATH_SUB_TYPE_VENDOR = 0x03;
 
