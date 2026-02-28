@@ -7,10 +7,10 @@
  */
 #pragma once
 
-#include <stdbool.h>
-#include <sys/types.h>
 #include <inttypes.h>
 #include <lk/compiler.h>
+#include <stdbool.h>
+#include <sys/types.h>
 
 // gfx library
 
@@ -24,10 +24,17 @@ typedef enum {
     GFX_FORMAT_RGB_2220,
     GFX_FORMAT_ARGB_8888,
     GFX_FORMAT_RGB_x888,
+    GFX_FORMAT_MONO_1,
     GFX_FORMAT_MONO,
 
     GFX_FORMAT_MAX
 } gfx_format;
+
+typedef enum {
+    GFX_SPAN_SET = 0,
+    GFX_SPAN_CLR = 1,
+    GFX_SPAN_TOGGLE = 2,
+} gfx_span_op;
 
 #define MAX_ALPHA 255
 
@@ -55,6 +62,7 @@ typedef struct gfx_surface {
     uint32_t (*translate_color)(uint32_t input);
     void (*copyrect)(struct gfx_surface *, uint x, uint y, uint width, uint height, uint x2, uint y2);
     void (*fillrect)(struct gfx_surface *, uint x, uint y, uint width, uint height, uint color);
+    void (*spanmono1)(struct gfx_surface *, uint x, uint y, uint width, gfx_span_op op);
     void (*putpixel)(struct gfx_surface *, uint x, uint y, uint color);
     void (*flush)(uint starty, uint endy);
 } gfx_surface;
@@ -75,8 +83,9 @@ void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint col
 static inline void gfx_clear(gfx_surface *surface, uint color) {
     surface->fillrect(surface, 0, 0, surface->width, surface->height, color);
 
-    if (surface->flush)
-        surface->flush(0, surface->height-1);
+    if (surface->flush) {
+        surface->flush(0, surface->height - 1);
+    }
 }
 
 // blend between two surfaces
@@ -104,4 +113,3 @@ void gfx_draw_pattern(void);
 void gfx_draw_pattern_white(void);
 
 __END_CDECLS
-
