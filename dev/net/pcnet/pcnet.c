@@ -7,31 +7,30 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <lk/reg.h>
-#include <lk/err.h>
-#include <pcnet.h>
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <assert.h>
 #include <arch/x86.h>
-#include <platform/pc.h>
-#include <platform/pcnet.h>
-#include <platform/interrupts.h>
-#include <kernel/thread.h>
-#include <kernel/mutex.h>
-#include <kernel/event.h>
-#include <dev/class/netif.h>
+#include <assert.h>
 #include <dev/bus/pci.h>
-#include <stdlib.h>
-#include <malloc.h>
-#include <string.h>
-#include <lwip/pbuf.h>
+#include <dev/class/netif.h>
+#include <kernel/event.h>
+#include <kernel/mutex.h>
+#include <kernel/thread.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <lk/init.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
+#include <lwip/pbuf.h>
+#include <malloc.h>
+#include <pcnet.h>
+#include <platform/interrupts.h>
+#include <platform/pc.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
 #define PCNET_INIT_TIMEOUT 20000
-#define MAX_PACKET_SIZE 1518
+#define MAX_PACKET_SIZE    1518
 
 #define QEMU_IRQ_BUG_WORKAROUND 1
 
@@ -69,10 +68,10 @@ struct pcnet_state {
     struct netstack_state *netstack_state;
 };
 
-static status_t pcnet_init(struct device *dev);
+static status_t pcnet_init_device(struct device *dev, pci_location_t loc);
 static status_t pcnet_read_pci_config(struct device *dev, pci_location_t loc);
 
-static enum handler_return pcnet_irq_handler(void *arg);
+static enum handler_return pcnet_irq_handler(void *arg- Error codes are defined in `include/lk/err.h` (e.g. `ERR_NOT_FOUND`, `ERR_NO_MEMORY`, etc.) and are negative integers.
 
 static int pcnet_thread(void *arg);
 static bool pcnet_service_tx(struct device *dev);
@@ -85,10 +84,6 @@ static ssize_t pcnet_get_mtu(struct device *dev);
 static status_t pcnet_output(struct device *dev, struct pbuf *p);
 
 static struct netif_ops pcnet_ops = {
-    .std = {
-        .init = pcnet_init,
-    },
-
     .set_state = pcnet_set_state,
     .get_hwaddr = pcnet_get_hwaddr,
     .get_mtu = pcnet_get_mtu,
@@ -96,7 +91,10 @@ static struct netif_ops pcnet_ops = {
     .output = pcnet_output,
 };
 
-DRIVER_EXPORT(netif, &pcnet_ops.std);
+static const struct driver pcnet_driver = {
+    .type = "pcnet",
+    .ops = &pcnet_ops.std,
+};
 
 static inline uint32_t pcnet_read_csr(struct device *dev, uint8_t rap) {
     struct pcnet_state *state = dev->state;
@@ -126,33 +124,25 @@ static inline void pcnet_write_bcr(struct device *dev, uint8_t rap, uint16_t dat
     outpd(state->base + REG_BDP, data);
 }
 
-static status_t pcnet_init(struct device *dev) {
+static status_t pcnet_init_device(struct device *dev, pci_location_t loc) {
     status_t res = NO_ERROR;
-    pci_location_t loc;
     int i;
 
-    const struct platform_pcnet_config *config = dev->config;
-
-    if (!config)
-        return ERR_NOT_CONFIGURED;
-
-    if (pci_bus_mgr_find_device(&loc, config->device_id, config->vendor_id, config->index) != _PCI_SUCCESSFUL) {
-        TRACEF("device not found\n");
-        return ERR_NOT_FOUND;
-    }
-
     struct pcnet_state *state = calloc(1, sizeof(struct pcnet_state));
-    if (!state)
+    if (!state) {
         return ERR_NO_MEMORY;
+    }
 
     dev->state = state;
 
     res = pcnet_read_pci_config(dev, loc);
-    if (res)
+    if (res) {
         goto error;
+    }
 
-    for (i=0; i < 6; i++)
+    for (i = 0; i < 6; i++) {
         state->padr[i] = inp(state->base + i);
+    }
 
     LTRACEF("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", state->padr[0], state->padr[1], state->padr[2],
             state->padr[3], state->padr[4], state->padr[5]);
@@ -203,21 +193,21 @@ static status_t pcnet_init(struct device *dev) {
     state->ib->mode = 0;
 
     state->ib->ladr = ~0;
-    state->ib->tdra = (uint32_t) state->td;
-    state->ib->rdra = (uint32_t) state->rd;
+    state->ib->tdra = (uint32_t)state->td;
+    state->ib->rdra = (uint32_t)state->rd;
 
     memcpy(state->ib->padr, state->padr, 6);
 
     /* load the init block address */
-    pcnet_write_csr(dev, 1, (uint32_t) state->ib);
-    pcnet_write_csr(dev, 2, (uint32_t) state->ib >> 16);
+    pcnet_write_csr(dev, 1, (uint32_t)state->ib);
+    pcnet_write_csr(dev, 2, (uint32_t)state->ib >> 16);
 
     /* setup receive descriptors */
-    for (i=0; i < state->rd_count; i++) {
-        //LTRACEF("Allocating pbuf %d\n", i);
+    for (i = 0; i < state->rd_count; i++) {
+        // LTRACEF("Allocating pbuf %d\n", i);
         struct pbuf *p = pbuf_alloc(PBUF_RAW, MAX_PACKET_SIZE, PBUF_RAM);
 
-        state->rd[i].rbadr = (uint32_t) p->payload;
+        state->rd[i].rbadr = (uint32_t)p->payload;
         state->rd[i].bcnt = -p->tot_len;
         state->rd[i].ones = 0xf;
         state->rd[i].own = 1;
@@ -283,7 +273,7 @@ static status_t pcnet_read_pci_config(struct device *dev, pci_location_t loc) {
 
     LTRACEF("Resources:\n");
 
-    for (i=0; i < countof(config.type0.base_addresses); i++) {
+    for (i = 0; i < countof(config.type0.base_addresses); i++) {
         if (config.type0.base_addresses[i] & 0x1) {
             LTRACEF("  BAR %d  I/O REG: %04x\n", i, config.type0.base_addresses[i] & ~0x3);
 
@@ -342,7 +332,7 @@ static int pcnet_thread(void *arg) {
 
     while (!state->done) {
         LTRACEF("Waiting for event.\n");
-        //event_wait_timeout(&state->event, 5000);
+        // event_wait_timeout(&state->event, 5000);
         event_wait(&state->event);
 
         int csr0 = pcnet_read_csr(dev, 0);
@@ -353,8 +343,12 @@ static int pcnet_thread(void *arg) {
         LTRACEF("CSR0 = %04x\n", csr0);
 
 #if LOCAL_TRACE
-        if (csr0 & CSR0_RINT) TRACEF("RINT\n");
-        if (csr0 & CSR0_TINT) TRACEF("TINT\n");
+        if (csr0 & CSR0_RINT) {
+            TRACEF("RINT\n");
+        }
+        if (csr0 & CSR0_TINT) {
+            TRACEF("TINT\n");
+        }
 #endif
 
         if (csr0 & CSR0_IDON) {
@@ -476,7 +470,7 @@ static bool pcnet_service_rx(struct device *dev) {
         memset(rd, 0, sizeof(*rd));
         memset(p->payload, 0, p->tot_len);
 
-        rd->rbadr = (uint32_t) p->payload;
+        rd->rbadr = (uint32_t)p->payload;
         rd->bcnt = -p->tot_len;
         rd->ones = 0xf;
         rd->own = 1;
@@ -499,11 +493,13 @@ static bool pcnet_service_rx(struct device *dev) {
 }
 
 static status_t pcnet_set_state(struct device *dev, struct netstack_state *netstack_state) {
-    if (!dev)
+    if (!dev) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (!dev->state)
+    if (!dev->state) {
         return ERR_NOT_CONFIGURED;
+    }
 
     struct pcnet_state *state = dev->state;
 
@@ -513,11 +509,13 @@ static status_t pcnet_set_state(struct device *dev, struct netstack_state *netst
 }
 
 static ssize_t pcnet_get_hwaddr(struct device *dev, void *buf, size_t max_len) {
-    if (!dev || !buf)
+    if (!dev || !buf) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (!dev->state)
+    if (!dev->state) {
         return ERR_NOT_CONFIGURED;
+    }
 
     struct pcnet_state *state = dev->state;
 
@@ -527,8 +525,9 @@ static ssize_t pcnet_get_hwaddr(struct device *dev, void *buf, size_t max_len) {
 }
 
 static ssize_t pcnet_get_mtu(struct device *dev) {
-    if (!dev)
+    if (!dev) {
         return ERR_INVALID_ARGS;
+    }
 
     return 1500;
 }
@@ -536,11 +535,13 @@ static ssize_t pcnet_get_mtu(struct device *dev) {
 static status_t pcnet_output(struct device *dev, struct pbuf *p) {
     LTRACE_ENTRY;
 
-    if (!dev || !p)
+    if (!dev || !p) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (!dev->state)
+    if (!dev->state) {
         return ERR_NOT_CONFIGURED;
+    }
 
     status_t res = NO_ERROR;
     struct pcnet_state *state = dev->state;
@@ -566,7 +567,7 @@ static status_t pcnet_output(struct device *dev, struct pbuf *p) {
     /* clear flags */
     memset(td, 0, sizeof(*td));
 
-    td->tbadr = (uint32_t) p->payload;
+    td->tbadr = (uint32_t)p->payload;
     td->bcnt = -p->tot_len;
     td->stp = 1;
     td->enp = 1;
@@ -589,21 +590,34 @@ done:
     return res;
 }
 
-static const struct platform_pcnet_config pcnet0_config = {
-    .vendor_id = 0x1022,
-    .device_id = 0x2000,
-    .index = 0,
-};
-
-DEVICE_INSTANCE(netif, pcnet0, &pcnet0_config, 0);
-
 static void pcnet_init_hook(uint level) {
-    status_t err = device_init(device_get_by_name(netif, pcnet0));
-    if (err < 0)
-        return;
+    for (size_t i = 0;; i++) {
+        pci_location_t loc;
+        status_t err = pci_bus_mgr_find_device(&loc, 0x2000, 0x1022, i);
+        if (err != NO_ERROR) {
+            break;
+        }
 
-    class_netif_add(device_get_by_name(netif, pcnet0));
+        struct device *dev = calloc(1, sizeof(struct device));
+        if (!dev) {
+            break;
+        }
+
+        dev->name = "pcnet";
+        dev->driver = &pcnet_driver;
+
+        err = pcnet_init_device(dev, loc);
+        if (err != NO_ERROR) {
+            free(dev);
+            continue;
+        }
+
+        err = class_netif_add(dev);
+        if (err != NO_ERROR) {
+            free(dev);
+            continue;
+        }
+    }
 }
 
 LK_INIT_HOOK(pcnet, &pcnet_init_hook, LK_INIT_LEVEL_PLATFORM);
-
