@@ -13,11 +13,11 @@
 #include <lk/err.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
+#include <limits.h>
 #include <malloc.h>
 #include <platform.h>
-#include <platform/ide.h>
 #include <platform/interrupts.h>
-#include <platform/pc.h>
+#include <platform/ide.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -59,8 +59,10 @@
 #define ATA_ATAPIIDENTIFY  0xA1
 #define ATA_ATAPISERVICE   0xA2
 #define ATA_READ_DMA       0xC8
+#define ATA_READ_SECTORS_EXT 0x24
 #define ATA_READ_DMA_EXT   0x25
 #define ATA_WRITE_DMA      0xCA
+#define ATA_WRITE_SECTORS_EXT 0x34
 #define ATA_WRITE_DMA_EXT  0x35
 #define ATA_GETDEVINFO     0xEC
 #define ATA_ATAPISETFEAT   0xEF
@@ -138,6 +140,7 @@ struct ide_driver_state {
     struct {
         int sectors;
         int sector_size;
+        bool lba48;
     } drive[2];
 };
 
@@ -188,6 +191,7 @@ static void ide_detect_drives(struct device *dev);
 static int ide_wait_for_completion(struct device *dev);
 static int ide_detect_ata(struct device *dev, int index);
 static void ide_lba_setup(struct device *dev, uint32_t addr, int drive);
+static void ide_lba48_setup(struct device *dev, uint64_t addr, uint16_t count, int drive);
 
 status_t platform_ide_init(const struct platform_ide_config *config) {
     if (!config) {
@@ -340,7 +344,7 @@ static ssize_t ide_write(struct device *dev, off_t offset, const void *buf, size
     DEBUG_ASSERT(dev);
     DEBUG_ASSERT(dev->state);
 
-    __UNUSED struct ide_driver_state *state = dev->state;
+    struct ide_driver_state *state = dev->state;
 
     size_t sectors, do_sectors, i;
     const uint16_t *ubuf = buf;
@@ -374,12 +378,16 @@ static ssize_t ide_write(struct device *dev, off_t offset, const void *buf, size
             goto done;
         }
 
-        ide_lba_setup(dev, offset, index);
-
-        if (do_sectors == 256) {
-            ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, 0);
+        if (state->drive[index].lba48) {
+            ide_lba48_setup(dev, (uint64_t)offset, (uint16_t)do_sectors, index);
         } else {
-            ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, do_sectors);
+            ide_lba_setup(dev, offset, index);
+
+            if (do_sectors == 256) {
+                ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, 0);
+            } else {
+                ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, do_sectors);
+            }
         }
 
         err = ide_poll_status(dev, IDE_DRV_RDY, 0);
@@ -389,7 +397,8 @@ static ssize_t ide_write(struct device *dev, off_t offset, const void *buf, size
             goto done;
         }
 
-        ide_write_reg8(dev, IDE_REG_COMMAND, ATA_WRITEMULT_RET);
+        ide_write_reg8(dev, IDE_REG_COMMAND,
+                   state->drive[index].lba48 ? ATA_WRITE_SECTORS_EXT : ATA_WRITEMULT_RET);
         ide_delay_400ns(dev);
 
         for (i = 0; i < do_sectors; i++) {
@@ -426,7 +435,7 @@ static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t coun
     DEBUG_ASSERT(dev);
     DEBUG_ASSERT(dev->state);
 
-    __UNUSED struct ide_driver_state *state = dev->state;
+    struct ide_driver_state *state = dev->state;
 
     size_t sectors, do_sectors, i;
     uint16_t *ubuf = buf;
@@ -460,12 +469,16 @@ static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t coun
             goto done;
         }
 
-        ide_lba_setup(dev, offset, index);
-
-        if (do_sectors == 256) {
-            ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, 0);
+        if (state->drive[index].lba48) {
+            ide_lba48_setup(dev, (uint64_t)offset, (uint16_t)do_sectors, index);
         } else {
-            ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, do_sectors);
+            ide_lba_setup(dev, offset, index);
+
+            if (do_sectors == 256) {
+                ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, 0);
+            } else {
+                ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, do_sectors);
+            }
         }
 
         err = ide_poll_status(dev, IDE_DRV_RDY, 0);
@@ -475,7 +488,8 @@ static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t coun
             goto done;
         }
 
-        ide_write_reg8(dev, IDE_REG_COMMAND, ATA_READMULT_RET);
+        ide_write_reg8(dev, IDE_REG_COMMAND,
+                   state->drive[index].lba48 ? ATA_READ_SECTORS_EXT : ATA_READMULT_RET);
         ide_delay_400ns(dev);
 
         for (i = 0; i < do_sectors; i++) {
@@ -896,29 +910,58 @@ static status_t ide_detect_ata(struct device *dev, int index) {
 
     ide_read_reg16_array(dev, IDE_REG_DATA, info, 256);
 
-    uint32_t lba28_sectors = *((uint32_t *)(&info[60]));
-    if (lba28_sectors > 0) {
-        state->drive[index].sectors = lba28_sectors;
-        state->drive[index].sector_size = 512;
-    } else {
-        // detect ancient devices pre lba28
-        uint16_t cyls, heads, sectors;
-        cyls = info[1];
-        heads = info[3];
-        sectors = info[6];
-
-        if (!cyls || !heads || !sectors) {
-            res = ERR_NOT_CONFIGURED;
-            goto error;
-        }
-
-        LTRACEF("pre LBA CHS %hu:%hu:%hu\n", cyls, heads, sectors);
-
-        state->drive[index].sectors = cyls * heads * sectors;
-        state->drive[index].sector_size = 512;
+    bool supports_lba48 = (info[83] & (1u << 10)) != 0;
+    uint64_t lba48_sectors = 0;
+    if (supports_lba48) {
+        lba48_sectors = ((uint64_t)info[100]) |
+                        ((uint64_t)info[101] << 16) |
+                        ((uint64_t)info[102] << 32) |
+                        ((uint64_t)info[103] << 48);
     }
 
-    dprintf(INFO, "ide: Disk %d supports %u sectors for a total of %u bytes\n", index, state->drive[index].sectors,
+    if (lba48_sectors > 0) {
+        state->drive[index].lba48 = true;
+        if (lba48_sectors > INT_MAX) {
+            state->drive[index].sectors = INT_MAX;
+            dprintf(INFO, "ide: Disk %d capacity exceeds 32-bit sector tracking, clamping at %d sectors\n",
+                    index, INT_MAX);
+        } else {
+            state->drive[index].sectors = (int)lba48_sectors;
+        }
+        state->drive[index].sector_size = 512;
+    } else {
+        uint32_t lba28_sectors = *((uint32_t *)(&info[60]));
+
+        state->drive[index].lba48 = false;
+
+        if (lba28_sectors > 0) {
+            if (lba28_sectors > INT_MAX) {
+                state->drive[index].sectors = INT_MAX;
+            } else {
+                state->drive[index].sectors = (int)lba28_sectors;
+            }
+            state->drive[index].sector_size = 512;
+        } else {
+        // detect ancient devices pre lba28
+            uint16_t cyls, heads, sectors;
+            cyls = info[1];
+            heads = info[3];
+            sectors = info[6];
+
+            if (!cyls || !heads || !sectors) {
+                res = ERR_NOT_CONFIGURED;
+                goto error;
+            }
+
+            LTRACEF("pre LBA CHS %hu:%hu:%hu\n", cyls, heads, sectors);
+
+            state->drive[index].sectors = cyls * heads * sectors;
+            state->drive[index].sector_size = 512;
+        }
+    }
+
+    dprintf(INFO, "ide: Disk %d (%s) supports %u sectors for a total of %u bytes\n", index,
+            state->drive[index].lba48 ? "LBA48" : "LBA28/CHS", state->drive[index].sectors,
             state->drive[index].sectors * 512);
 
     res = NO_ERROR;
@@ -926,6 +969,22 @@ static status_t ide_detect_ata(struct device *dev, int index) {
 error:
     free(info);
     return res;
+}
+
+static void ide_lba48_setup(struct device *dev, uint64_t addr, uint16_t count, int drive) {
+    ide_write_reg8(dev, IDE_REG_DRIVE_HEAD, 0x40 | ((drive & 0x00000001) << 4));
+
+    ide_write_reg8(dev, IDE_REG_PRECOMP, 0x00);
+    ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, (count >> 8) & 0xff);
+    ide_write_reg8(dev, IDE_REG_SECTOR_NUM, (addr >> 24) & 0xff);
+    ide_write_reg8(dev, IDE_REG_CYLINDER_LOW, (addr >> 32) & 0xff);
+    ide_write_reg8(dev, IDE_REG_CYLINDER_HIGH, (addr >> 40) & 0xff);
+
+    ide_write_reg8(dev, IDE_REG_PRECOMP, 0x00);
+    ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, count & 0xff);
+    ide_write_reg8(dev, IDE_REG_SECTOR_NUM, addr & 0xff);
+    ide_write_reg8(dev, IDE_REG_CYLINDER_LOW, (addr >> 8) & 0xff);
+    ide_write_reg8(dev, IDE_REG_CYLINDER_HIGH, (addr >> 16) & 0xff);
 }
 
 static void ide_lba_setup(struct device *dev, uint32_t addr, int drive) {
