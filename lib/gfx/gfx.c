@@ -17,26 +17,48 @@
  * @brief  Graphics drawing library
  */
 
+#include <arch/ops.h>
+#include <assert.h>
+#include <dev/display.h>
+#include <lib/gfx.h>
+#include <lk/console_cmd.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include <string.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <arch/ops.h>
+#include <string.h>
 #include <sys/types.h>
-#include <lib/gfx.h>
-#include <dev/display.h>
-#include <lk/console_cmd.h>
 
 #define LOCAL_TRACE 0
+
+/*
+ * Support different bit orders for 1bpp.
+ *
+ * Some formats treat the leftmost pixel of a byte as the MSB (Amiga planar bitplane, etc).
+ * Other (chunky?) formats see LSB as first pixel. We need to construct valid bitmasks for
+ * a run of pixels according to whichever convention applies.
+ *
+ * [START|END]_MASK allows us to index in to a byte, ensuring we manipulate only our target pixels.
+ *
+ */
+#ifdef GFX_MONO1_LSB_FIRST
+// LSB-first. Pixel 0 is bit 0
+#define SPAN_MASK_FROM(start_bit) (0xFF << (start_bit))
+#define SPAN_MASK_TO(end_bit)     (((end_bit) == 0) ? 0xFF : (0xFF >> (8 - (end_bit))))
+#else
+// MSB-first. Pixel 0 is bit 7
+#define SPAN_MASK_FROM(start_bit) (0xFF >> (start_bit))
+#define SPAN_MASK_TO(end_bit)     (((end_bit) == 0) ? 0xFF : (0xFF << (8 - (end_bit))))
+#endif
+
+#define MONO1_BIT_INDEX(x) ((x) & 7)
 
 // Convert a 32bit ARGB image to its respective gamma corrected grayscale value.
 static uint32_t ARGB8888_to_Luma(uint32_t in) {
     uint8_t out;
 
-    uint32_t blue  = (in & 0xFF) * 74;
+    uint32_t blue = (in & 0xFF) * 74;
     uint32_t green = ((in >> 8) & 0xFF) * 732;
-    uint32_t red   = ((in >> 16) & 0xFF) * 218;
+    uint32_t red = ((in >> 16) & 0xFF) * 218;
 
     uint32_t intensity = red + blue + green;
 
@@ -45,12 +67,16 @@ static uint32_t ARGB8888_to_Luma(uint32_t in) {
     return out;
 }
 
+static uint32_t ARGB8888_to_Mono1(uint32_t in) {
+    return (in & 0x00ffffff) ? 1 : 0;
+}
+
 static uint32_t ARGB8888_to_RGB565(uint32_t in) {
     uint16_t out;
 
-    out = (in >> 3) & 0x1f;  // b
+    out = (in >> 3) & 0x1f;           // b
     out |= ((in >> 10) & 0x3f) << 5;  // g
-    out |= ((in >> 19) & 0x1f) << 11;  // r
+    out |= ((in >> 19) & 0x1f) << 11; // r
 
     return out;
 }
@@ -58,9 +84,9 @@ static uint32_t ARGB8888_to_RGB565(uint32_t in) {
 static uint32_t ARGB8888_to_RGB332(uint32_t in) {
     uint8_t out = 0;
 
-    out = (in >> 6) & 0x3;  // b
-    out |= ((in >> 13) & 0x7) << 2;  // g
-    out |= ((in >> 21) & 0x7) << 5;  // r
+    out = (in >> 6) & 0x3;          // b
+    out |= ((in >> 13) & 0x7) << 2; // g
+    out |= ((in >> 21) & 0x7) << 5; // r
 
     return out;
 }
@@ -68,11 +94,20 @@ static uint32_t ARGB8888_to_RGB332(uint32_t in) {
 static uint32_t ARGB8888_to_RGB2220(uint32_t in) {
     uint8_t out = 0;
 
-    out =  ((in >> 6) & 0x3) << 2;
+    out = ((in >> 6) & 0x3) << 2;
     out |= ((in >> 14) & 0x3) << 4;
-    out |= ((in >> 22)  & 0x3) << 6;
+    out |= ((in >> 22) & 0x3) << 6;
 
     return out;
+}
+
+// For per-pixel paths. Selects a target pixel within a byte.
+static inline uint8_t mono1_bitmask(uint x) {
+#ifdef GFX_MONO1_LSB_FIRST
+    return (1 << MONO1_BIT_INDEX(x)); // LSB is first pixel
+#else
+    return (0x80 >> MONO1_BIT_INDEX(x)); // MSB is first pixel
+#endif
 }
 
 /**
@@ -80,28 +115,37 @@ static uint32_t ARGB8888_to_RGB2220(uint32_t in) {
  */
 void gfx_copyrect(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2) {
     // trim
-    if (x >= surface->width)
+    if (x >= surface->width) {
         return;
-    if (x2 >= surface->width)
+    }
+    if (x2 >= surface->width) {
         return;
-    if (y >= surface->height)
+    }
+    if (y >= surface->height) {
         return;
-    if (y2 >= surface->height)
+    }
+    if (y2 >= surface->height) {
         return;
-    if (width == 0 || height == 0)
+    }
+    if (width == 0 || height == 0) {
         return;
+    }
 
     // clip the width to src or dest
-    if (x + width > surface->width)
+    if (x + width > surface->width) {
         width = surface->width - x;
-    if (x2 + width > surface->width)
+    }
+    if (x2 + width > surface->width) {
         width = surface->width - x2;
+    }
 
     // clip the height to src or dest
-    if (y + height > surface->height)
+    if (y + height > surface->height) {
         height = surface->height - y;
-    if (y2 + height > surface->height)
+    }
+    if (y2 + height > surface->height) {
         height = surface->height - y2;
+    }
 
     surface->copyrect(surface, x, y, width, height, x2, y2);
 }
@@ -112,20 +156,25 @@ void gfx_copyrect(gfx_surface *surface, uint x, uint y, uint width, uint height,
 void gfx_fillrect(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color) {
     LTRACEF("surface %p, x %u y %u w %u h %u c %u\n", surface, x, y, width, height, color);
     // trim
-    if (unlikely(x >= surface->width))
+    if (unlikely(x >= surface->width)) {
         return;
-    if (y >= surface->height)
+    }
+    if (y >= surface->height) {
         return;
-    if (width == 0 || height == 0)
+    }
+    if (width == 0 || height == 0) {
         return;
+    }
 
     // clip the width
-    if (x + width > surface->width)
+    if (x + width > surface->width) {
         width = surface->width - x;
+    }
 
     // clip the height
-    if (y + height > surface->height)
+    if (y + height > surface->height) {
         height = surface->height - y;
+    }
 
     surface->fillrect(surface, x, y, width, height, color);
 }
@@ -134,12 +183,120 @@ void gfx_fillrect(gfx_surface *surface, uint x, uint y, uint width, uint height,
  * @brief  Write a single pixel to the screen.
  */
 void gfx_putpixel(gfx_surface *surface, uint x, uint y, uint color) {
-    if (unlikely(x >= surface->width))
+    if (unlikely(x >= surface->width)) {
         return;
-    if (y >= surface->height)
+    }
+    if (y >= surface->height) {
         return;
+    }
 
     surface->putpixel(surface, x, y, color);
+}
+
+/**
+ * @brief Draw a horizontal span of pixels on a 1bpp mono surface.
+ *
+ *        Calculate masks for partial bytes, handle full bytes without masking.
+ */
+static void spanmono1(gfx_surface *surface, uint x, uint y, uint width, gfx_span_op op) {
+    // Our span is x -> x+width
+    if (width == 0) {
+        return;
+    }
+
+    // Landed outside our target surface
+    if (y >= surface->height || x >= surface->width) {
+        return;
+    }
+
+    // Clip
+    if ((x + width) > surface->width) {
+        width = surface->width - x;
+    }
+
+    // First byte of scanline
+    uint8_t *row = surface->ptr + y * surface->stride;
+
+    uint x0 = x;
+    uint x1 = x + width;
+
+    uint b0 = x0 >> 3;       // Byte that contains first pixel of our span
+    uint b1 = (x1 - 1) >> 3; // Byte that contains last pixel
+
+    uint start_bit = x0 & 7; // Start of span within first byte
+    uint end_bit = x1 & 7;   // End of span within last byte
+
+    // Whole span is contained within a single byte.
+    if (b0 == b1) {
+        uint8_t mask = (SPAN_MASK_FROM(start_bit) & SPAN_MASK_TO(end_bit));
+        switch (op) {
+            case GFX_SPAN_SET:
+                row[b0] |= mask;
+                break;
+            case GFX_SPAN_CLR:
+                row[b0] &= ~mask;
+                break;
+            case GFX_SPAN_TOGGLE:
+                row[b0] ^= mask;
+                break;
+        }
+        return;
+    }
+
+    // Partial. Span crosses multiple bytes
+    {
+        uint8_t mask = SPAN_MASK_FROM(start_bit);
+        switch (op) {
+            case GFX_SPAN_SET:
+                row[b0] |= mask;
+                break;
+            case GFX_SPAN_CLR:
+                row[b0] &= ~mask;
+                break;
+            case GFX_SPAN_TOGGLE:
+                row[b0] ^= mask;
+                break;
+        }
+    }
+
+    // Non-partial bytes, don't need to mask
+    if (b1 > b0 + 1) {
+        uint8_t *p = &row[b0 + 1];
+        uint count = b1 - b0 - 1;
+        switch (op) {
+            case GFX_SPAN_SET:
+                for (uint i = 0; i < count; i++) {
+                    p[i] = 0xFF;
+                }
+                break;
+            case GFX_SPAN_CLR:
+                for (uint i = 0; i < count; i++) {
+                    p[i] = 0x00;
+                }
+                break;
+            case GFX_SPAN_TOGGLE:
+                for (uint i = 0; i < count; i++) {
+                    p[i] ^= 0xFF;
+                }
+                break;
+        }
+    }
+
+    // Span crosses multiple bytes, flows in to first bits of next byte
+    {
+        uint8_t mask = SPAN_MASK_TO(end_bit);
+        switch (op) {
+            case GFX_SPAN_SET:
+                row[b1] |= mask;
+                break;
+            case GFX_SPAN_CLR:
+                row[b1] &= ~mask;
+                break;
+            case GFX_SPAN_TOGGLE:
+                row[b1] ^= mask;
+                break;
+        }
+    }
 }
 
 static void putpixel16(gfx_surface *surface, uint x, uint y, uint color) {
@@ -162,6 +319,132 @@ static void putpixel8(gfx_surface *surface, uint x, uint y, uint color) {
     *dest = (uint8_t)(surface->translate_color(color));
 }
 
+static void putpixel1(gfx_surface *surface, uint x, uint y, uint color) {
+    uint8_t *dest = surface->ptr + y * surface->stride + (x >> 3);
+    uint8_t mask = mono1_bitmask(x);
+
+    if (color) {
+        *dest |= mask;
+    } else {
+        *dest &= ~mask;
+    }
+}
+
+static void copyrect1(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2) {
+    // Use faster path if we're byte-aligned
+    if (MONO1_BIT_INDEX(x | x2 | width) == 0) {
+        uint byte_x = x >> 3;
+        uint byte_x2 = x2 >> 3;
+        uint bytes = width >> 3;
+
+        if (y2 < y) {
+            for (uint i = 0; i < height; i++) {
+                uint8_t *src = surface->ptr + (y + i) * (surface->stride + byte_x);
+                uint8_t *dest = surface->ptr + (y2 + i) * (surface->stride + byte_x2);
+                memmove(dest, src, bytes);
+            }
+        } else if (y2 > y) {
+            for (int i = height - 1; i >= 0; i--) {
+                uint8_t *src = surface->ptr + (y + i) * (surface->stride + byte_x);
+                uint8_t *dest = surface->ptr + (y2 + i) * (surface->stride + byte_x2);
+                memmove(dest, src, bytes);
+            }
+        } else {
+            for (uint i = 0; i < height; i++) {
+                uint8_t *src = surface->ptr + (y + i) * (surface->stride + byte_x);
+                uint8_t *dst = surface->ptr + (y2 + i) * (surface->stride + byte_x2);
+                memmove(dst, src, bytes);
+            }
+        }
+        return;
+    }
+
+    // Fallback for per-pixel
+    const uint8_t *src = surface->ptr + y * surface->stride + (x >> 3);
+    uint8_t *dest = surface->ptr + y2 * surface->stride + (x2 >> 3);
+
+    uint src_bit = (7 - MONO1_BIT_INDEX(x));
+    uint dest_bit = (7 - MONO1_BIT_INDEX(x2));
+
+    if ((dest < src) || (dest == src && dest_bit < src_bit)) {
+        uint i, j;
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
+                uint src_x = x + j, src_y = y + i;
+                uint dest_x = x2 + j, dest_y = y2 + i;
+
+                const uint8_t *src_ptr = surface->ptr + src_y * surface->stride + (src_x >> 3);
+                uint8_t src_mask = (1 << (7 - MONO1_BIT_INDEX(src_x)));
+                uint pixel = (*src_ptr & src_mask) ? 1 : 0;
+
+                uint8_t *dest_ptr = surface->ptr + dest_y * surface->stride + (dest_x >> 3);
+                uint8_t dest_mask = (1 << (7 - MONO1_BIT_INDEX(dest_x)));
+
+                if (pixel) {
+                    *dest_ptr |= dest_mask;
+                } else {
+                    *dest_ptr &= ~dest_mask;
+                }
+            }
+        }
+    } else {
+        for (int i = height - 1; i >= 0; i--) {
+            for (int j = width - 1; j >= 0; j--) {
+                uint src_x = x + j, src_y = y + i;
+                uint dest_x = x2 + j, dest_y = y2 + i;
+
+                const uint8_t *src_ptr = surface->ptr + src_y * surface->stride + (src_x >> 3);
+                uint8_t src_mask = (1 << (7 - MONO1_BIT_INDEX(src_x)));
+                uint pixel = (*src_ptr & src_mask) ? 1 : 0;
+
+                uint8_t *dest_ptr = surface->ptr + dest_y * surface->stride + (dest_x >> 3);
+                uint8_t dest_mask = (1 << (7 - MONO1_BIT_INDEX(dest_x)));
+
+                if (pixel) {
+                    *dest_ptr |= dest_mask;
+                } else {
+                    *dest_ptr &= ~dest_mask;
+                }
+            }
+        }
+    }
+}
+
+static void fillrect1(gfx_surface *surface, uint x, uint y, uint width, uint height, uint color) {
+    uint8_t v = surface->translate_color(color) ? 0xFF : 0x00;
+
+    // Fast path for when we're byte-aligned
+    if (MONO1_BIT_INDEX(x | width) == 0) {
+        uint byte_x = x >> 3;
+        uint bytes = width >> 3;
+
+        for (uint i = 0; i < height; i++) {
+            uint8_t *row = surface->ptr + (y + i) * surface->stride + byte_x;
+            memset(row, v, bytes);
+        }
+        return;
+    }
+
+    // Fallback for per-pixel
+    uint8_t color1 = v ? 1 : 0;
+
+    for (uint i = 0; i < height; i++) {
+        for (uint j = 0; j < width; j++) {
+            uint pixel_x = x + j;
+            uint pixel_y = y + i;
+
+            uint8_t *pixel = surface->ptr + pixel_y * surface->stride + (pixel_x >> 3);
+            uint8_t mask = mono1_bitmask(pixel_x);
+
+            if (color1) {
+                *pixel |= mask;
+            } else {
+                *pixel &= ~mask;
+            }
+        }
+    }
+}
+
 static void copyrect8(gfx_surface *surface, uint x, uint y, uint width, uint height, uint x2, uint y2) {
     // copy
     const uint8_t *src = &((const uint8_t *)surface->ptr)[x + y * surface->stride];
@@ -170,8 +453,8 @@ static void copyrect8(gfx_surface *surface, uint x, uint y, uint width, uint hei
 
     if (dest < src) {
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 *dest = *src;
                 dest++;
                 src++;
@@ -185,8 +468,8 @@ static void copyrect8(gfx_surface *surface, uint x, uint y, uint width, uint hei
         dest += height * surface->stride + width;
 
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 *dest = *src;
                 dest--;
                 src--;
@@ -204,8 +487,8 @@ static void fillrect8(gfx_surface *surface, uint x, uint y, uint width, uint hei
     uint8_t color8 = (uint8_t)(surface->translate_color(color));
 
     uint i, j;
-    for (i=0; i < height; i++) {
-        for (j=0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++) {
             *dest = color8;
             dest++;
         }
@@ -221,8 +504,8 @@ static void copyrect16(gfx_surface *surface, uint x, uint y, uint width, uint he
 
     if (dest < src) {
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 *dest = *src;
                 dest++;
                 src++;
@@ -236,8 +519,8 @@ static void copyrect16(gfx_surface *surface, uint x, uint y, uint width, uint he
         dest += height * surface->stride + width;
 
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 *dest = *src;
                 dest--;
                 src--;
@@ -255,8 +538,8 @@ static void fillrect16(gfx_surface *surface, uint x, uint y, uint width, uint he
     uint16_t color16 = (uint16_t)(surface->translate_color(color));
 
     uint i, j;
-    for (i=0; i < height; i++) {
-        for (j=0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++) {
             *dest = color16;
             dest++;
         }
@@ -272,8 +555,8 @@ static void copyrect32(gfx_surface *surface, uint x, uint y, uint width, uint he
 
     if (dest < src) {
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 *dest = *src;
                 dest++;
                 src++;
@@ -287,8 +570,8 @@ static void copyrect32(gfx_surface *surface, uint x, uint y, uint width, uint he
         dest += height * surface->stride + width;
 
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 *dest = *src;
                 dest--;
                 src--;
@@ -304,8 +587,8 @@ static void fillrect32(gfx_surface *surface, uint x, uint y, uint width, uint he
     uint stride_diff = surface->stride - width;
 
     uint i, j;
-    for (i=0; i < height; i++) {
-        for (j=0; j < width; j++) {
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++) {
             *dest = color;
             dest++;
         }
@@ -314,15 +597,19 @@ static void fillrect32(gfx_surface *surface, uint x, uint y, uint width, uint he
 }
 
 void gfx_line(gfx_surface *surface, uint x1, uint y1, uint x2, uint y2, uint color) {
-    if (unlikely(x1 >= surface->width))
+    if (unlikely(x1 >= surface->width)) {
         return;
-    if (unlikely(x2 >= surface->width))
+    }
+    if (unlikely(x2 >= surface->width)) {
         return;
+    }
 
-    if (y1 >= surface->height)
+    if (y1 >= surface->height) {
         return;
-    if (y2 >= surface->height)
+    }
+    if (y2 >= surface->height) {
         return;
+    }
 
     int dx = x2 - x1;
     int dy = y2 - y1;
@@ -388,8 +675,8 @@ static uint32_t alpha32_add_ignore_destalpha(uint32_t dest, uint32_t src) {
     csrc[1] = (src >> 8) & 0xff;
     csrc[2] = (src >> 0) & 0xff;
 
-//    if (srca > 0)
-//        printf("s %d %d %d d %d %d %d a %d ai %d\n", csrc[0], csrc[1], csrc[2], cdest[0], cdest[1], cdest[2], srca, srcainv);
+    //    if (srca > 0)
+    //        printf("s %d %d %d d %d %d %d a %d ai %d\n", csrc[0], csrc[1], csrc[2], cdest[0], cdest[1], cdest[2], srca, srcainv);
 
     uint32_t cres[3];
 
@@ -410,18 +697,22 @@ void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, u
 
     LTRACEF("target %p, source %p, destx %u, desty %u\n", target, source, destx, desty);
 
-    if (destx >= target->width)
+    if (destx >= target->width) {
         return;
-    if (desty >= target->height)
+    }
+    if (desty >= target->height) {
         return;
+    }
 
     uint width = source->width;
-    if (destx + width > target->width)
+    if (destx + width > target->width) {
         width = target->width - destx;
+    }
 
     uint height = source->height;
-    if (desty + height > target->height)
+    if (desty + height > target->height) {
         height = target->height - desty;
+    }
 
     // XXX total hack to deal with various blends
     if (source->format == GFX_FORMAT_RGB_565 && target->format == GFX_FORMAT_RGB_565) {
@@ -434,8 +725,8 @@ void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, u
         LTRACEF("w %u h %u dstride %u sstride %u\n", width, height, dest_stride_diff, source_stride_diff);
 
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 *dest = *src;
                 dest++;
                 src++;
@@ -453,8 +744,8 @@ void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, u
         LTRACEF("w %u h %u dstride %u sstride %u\n", width, height, dest_stride_diff, source_stride_diff);
 
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 // XXX ignores destination alpha
                 *dest = alpha32_add_ignore_destalpha(*dest, *src);
                 dest++;
@@ -473,8 +764,8 @@ void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, u
         LTRACEF("w %u h %u dstride %u sstride %u\n", width, height, dest_stride_diff, source_stride_diff);
 
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 *dest = *src;
                 dest++;
                 src++;
@@ -492,8 +783,8 @@ void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, u
         LTRACEF("w %u h %u dstride %u sstride %u\n", width, height, dest_stride_diff, source_stride_diff);
 
         uint i, j;
-        for (i=0; i < height; i++) {
-            for (j=0; j < width; j++) {
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 *dest = *src;
                 dest++;
                 src++;
@@ -512,8 +803,9 @@ void gfx_surface_blend(struct gfx_surface *target, struct gfx_surface *source, u
 void gfx_flush(gfx_surface *surface) {
     arch_clean_cache_range((addr_t)surface->ptr, surface->len);
 
-    if (surface->flush)
-        surface->flush(0, surface->height-1);
+    if (surface->flush) {
+        surface->flush(0, surface->height - 1);
+    }
 }
 
 /**
@@ -526,18 +818,20 @@ void gfx_flush_rows(struct gfx_surface *surface, uint start, uint end) {
         end = temp;
     }
 
-    if (start >= surface->height)
+    if (start >= surface->height) {
         return;
-    if (end >= surface->height)
+    }
+    if (end >= surface->height) {
         end = surface->height - 1;
+    }
 
     uint32_t runlen = surface->stride * surface->pixelsize;
     arch_clean_cache_range((addr_t)surface->ptr + start * runlen, (end - start + 1) * runlen);
 
-    if (surface->flush)
+    if (surface->flush) {
         surface->flush(start, end);
+    }
 }
-
 
 /**
  * @brief  Create a new graphics surface object
@@ -545,7 +839,12 @@ void gfx_flush_rows(struct gfx_surface *surface, uint start, uint end) {
 gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride, gfx_format format) {
     DEBUG_ASSERT(width > 0);
     DEBUG_ASSERT(height > 0);
-    DEBUG_ASSERT(stride >= width);
+    if (format == GFX_FORMAT_MONO_1) {
+        DEBUG_ASSERT(stride >= ((width + 7) >> 3)); // 8 pixels per byte. Stride is ceil(width / 8) bytes
+    } else {
+        DEBUG_ASSERT(stride >= width);
+    }
+
     DEBUG_ASSERT(format < GFX_FORMAT_MAX);
 
     gfx_surface *surface = malloc(sizeof(gfx_surface));
@@ -581,6 +880,15 @@ gfx_surface *gfx_create_surface(void *ptr, uint width, uint height, uint stride,
             surface->copyrect = &copyrect8;
             surface->fillrect = &fillrect8;
             surface->putpixel = &putpixel8;
+            surface->pixelsize = 1;
+            surface->len = (surface->height * surface->stride * surface->pixelsize);
+            break;
+        case GFX_FORMAT_MONO_1:
+            surface->translate_color = &ARGB8888_to_Mono1;
+            surface->copyrect = &copyrect1;
+            surface->fillrect = &fillrect1;
+            surface->spanmono1 = &spanmono1;
+            surface->putpixel = &putpixel1;
             surface->pixelsize = 1;
             surface->len = (surface->height * surface->stride * surface->pixelsize);
             break;
@@ -645,6 +953,9 @@ gfx_surface *gfx_create_surface_from_display(struct display_framebuffer *fb) {
         case IMAGE_FORMAT_MONO_8:
             format = GFX_FORMAT_MONO;
             break;
+        case IMAGE_FORMAT_MONO_1:
+            format = GFX_FORMAT_MONO_1;
+            break;
         default:
             dprintf(INFO, "invalid graphics format)");
             DEBUG_ASSERT(0);
@@ -665,8 +976,9 @@ gfx_surface *gfx_create_surface_from_display(struct display_framebuffer *fb) {
  *    this call.
  */
 void gfx_surface_destroy(struct gfx_surface *surface) {
-    if (surface->free_on_destroy)
+    if (surface->free_on_destroy) {
         free(surface->ptr);
+    }
     free(surface);
 }
 
@@ -675,8 +987,9 @@ void gfx_surface_destroy(struct gfx_surface *surface) {
  */
 void gfx_draw_pattern(void) {
     struct display_framebuffer fb;
-    if (display_get_framebuffer(&fb) < 0)
+    if (display_get_framebuffer(&fb) < 0) {
         return;
+    }
 
     gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
@@ -703,8 +1016,9 @@ void gfx_draw_pattern(void) {
  */
 void gfx_draw_pattern_white(void) {
     struct display_framebuffer fb;
-    if (display_get_framebuffer(&fb) < 0)
+    if (display_get_framebuffer(&fb) < 0) {
         return;
+    }
 
     gfx_surface *surface = gfx_create_surface_from_display(&fb);
 
@@ -729,26 +1043,26 @@ STATIC_COMMAND("gfx", "gfx commands", &cmd_gfx)
 STATIC_COMMAND_END(gfx);
 
 static int gfx_draw_mandelbrot(gfx_surface *surface) {
-    float a,b, dx, dy, mag, c, ci;
-    uint32_t color,iter,x,y;
+    float a, b, dx, dy, mag, c, ci;
+    uint32_t color, iter, x, y;
 
-    dx= 3.0f/((float)surface->width);
-    dy= 3.0f/((float)surface->height);
+    dx = 3.0f / ((float)surface->width);
+    dy = 3.0f / ((float)surface->height);
     c = -2.0;
     ci = -1.5;
     for (y = 0; y < surface->height; y++) {
         c = -2.0;
         for (x = 0; x < surface->width; x++) {
-            a=0;
-            b=0;
-            mag=0;
+            a = 0;
+            b = 0;
+            mag = 0;
             iter = 0;
-            while ((mag < 4.0f) && (iter < 200) ) {
+            while ((mag < 4.0f) && (iter < 200)) {
                 float a1;
-                a1 = a*a - b*b + c;
+                a1 = a * a - b * b + c;
                 b = 2.0f * a * b + ci;
-                a=a1;
-                mag = a*a + b*b;
+                a = a1;
+                mag = a * a + b * b;
                 iter++;
             }
             c = c + dx;
@@ -768,27 +1082,26 @@ static int gfx_draw_mandelbrot(gfx_surface *surface) {
     return 0;
 }
 
-
 static int gfx_draw_rgb_bars(gfx_surface *surface) {
     uint x, y;
 
-    uint step = surface->height*100 / 256;
+    uint step = surface->height * 100 / 256;
     uint color;
 
     for (y = 0; y < surface->height; y++) {
-        //R
-        for (x = 0; x < surface->width/3; x++) {
-            color = y*100 / step;
+        // R
+        for (x = 0; x < surface->width / 3; x++) {
+            color = y * 100 / step;
             gfx_putpixel(surface, x, y, 0xff << 24 | color << 16);
         }
-        //G
-        for (; x < 2*(surface->width/3); x++) {
-            color = y*100 / step;
+        // G
+        for (; x < 2 * (surface->width / 3); x++) {
+            color = y * 100 / step;
             gfx_putpixel(surface, x, y, 0xff << 24 | color << 8);
         }
-        //B
+        // B
         for (; x < surface->width; x++) {
-            color = y*100 / step;
+            color = y * 100 / step;
             gfx_putpixel(surface, x, y, 0xff << 24 | color);
         }
     }
