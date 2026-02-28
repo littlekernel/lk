@@ -6,21 +6,20 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <lk/reg.h>
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <assert.h>
-#include <lk/err.h>
-#include <malloc.h>
 #include <arch/x86.h>
-#include <sys/types.h>
-#include <platform/interrupts.h>
-#include <platform/ide.h>
-#include <platform/pc.h>
-#include <platform.h>
-#include <dev/driver.h>
-#include <dev/class/block.h>
+#include <assert.h>
 #include <kernel/event.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
+#include <malloc.h>
+#include <platform.h>
+#include <platform/ide.h>
+#include <platform/interrupts.h>
+#include <platform/pc.h>
+#include <string.h>
+#include <sys/types.h>
 
 #if WITH_DEV_BUS_PCI
 #include <dev/bus/pci.h>
@@ -59,39 +58,39 @@
 #define ATA_ATAPIPACKET    0xA0
 #define ATA_ATAPIIDENTIFY  0xA1
 #define ATA_ATAPISERVICE   0xA2
-#define ATA_READ_DMA        0xC8
-#define ATA_READ_DMA_EXT    0x25
-#define ATA_WRITE_DMA       0xCA
-#define ATA_WRITE_DMA_EXT   0x35
+#define ATA_READ_DMA       0xC8
+#define ATA_READ_DMA_EXT   0x25
+#define ATA_WRITE_DMA      0xCA
+#define ATA_WRITE_DMA_EXT  0x35
 #define ATA_GETDEVINFO     0xEC
 #define ATA_ATAPISETFEAT   0xEF
 
 // error codes
-#define IDE_NOERROR         0
-#define IDE_ADDRESSMARK     1
-#define IDE_CYLINDER0       2
-#define IDE_INVALIDCOMMAND  3
-#define IDE_MEDIAREQ        4
-#define IDE_SECTNOTFOUND    5
-#define IDE_MEDIACHANGED    6
-#define IDE_BADDATA         7
-#define IDE_BADSECTOR       8
-#define IDE_TIMEOUT         9
-#define IDE_DMAERROR        10
+#define IDE_NOERROR        0
+#define IDE_ADDRESSMARK    1
+#define IDE_CYLINDER0      2
+#define IDE_INVALIDCOMMAND 3
+#define IDE_MEDIAREQ       4
+#define IDE_SECTNOTFOUND   5
+#define IDE_MEDIACHANGED   6
+#define IDE_BADDATA        7
+#define IDE_BADSECTOR      8
+#define IDE_TIMEOUT        9
+#define IDE_DMAERROR       10
 
 enum {
-    IDE_REG_DATA            = 0,
-    IDE_REG_ERROR           = 1,
-    IDE_REG_PRECOMP         = 1,
-    IDE_REG_SECTOR_COUNT    = 2,
-    IDE_REG_SECTOR_NUM      = 3,
-    IDE_REG_CYLINDER_LOW    = 4,
-    IDE_REG_CYLINDER_HIGH   = 5,
-    IDE_REG_DRIVE_HEAD      = 6,
-    IDE_REG_STATUS          = 7,
-    IDE_REG_COMMAND         = 7,
-    IDE_REG_ALT_STATUS      = 8,
-    IDE_REG_DEVICE_CONTROL  = 8,
+    IDE_REG_DATA = 0,
+    IDE_REG_ERROR = 1,
+    IDE_REG_PRECOMP = 1,
+    IDE_REG_SECTOR_COUNT = 2,
+    IDE_REG_SECTOR_NUM = 3,
+    IDE_REG_CYLINDER_LOW = 4,
+    IDE_REG_CYLINDER_HIGH = 5,
+    IDE_REG_DRIVE_HEAD = 6,
+    IDE_REG_STATUS = 7,
+    IDE_REG_COMMAND = 7,
+    IDE_REG_ALT_STATUS = 8,
+    IDE_REG_DEVICE_CONTROL = 8,
 
     IDE_REG_NUM,
 };
@@ -127,12 +126,11 @@ static const char *ide_error_str[] = {
     "Uncorrectable data error",
     "Bad sector detected",
     "Command timed out",
-    "DMA error"
-};
+    "DMA error"};
 
 struct ide_driver_state {
     int irq;
-    const uint16_t *regs;
+    uint16_t regs[IDE_REG_NUM];
 
     event_t completion;
 
@@ -143,17 +141,19 @@ struct ide_driver_state {
     } drive[2];
 };
 
-static const uint16_t ide_device_regs[][IDE_REG_NUM] = {
-    { 0x01F0, 0x01F1, 0x01F2, 0x01F3, 0x01F4, 0x01F5, 0x01F6, 0x01F7, 0x03F6 },
-    { 0x0170, 0x0171, 0x0172, 0x0173, 0x0174, 0x0175, 0x0176, 0x0177, 0x0376 },
+struct device {
+    const struct platform_ide_config *config;
+    struct ide_driver_state *state;
 };
 
-static const int ide_device_irqs[] = {
-    INT_IDE0,
-    INT_IDE1,
+struct ide_channel_state {
+    bool initialized;
+    struct platform_ide_config config;
+    struct ide_driver_state driver_state;
+    struct device dev;
 };
 
-static status_t ide_init(struct device *dev);
+static struct ide_channel_state g_ide_channels[2];
 
 static enum handler_return ide_irq_handler(void *arg);
 
@@ -162,18 +162,6 @@ static ssize_t ide_get_block_size(struct device *dev);
 static ssize_t ide_get_block_count(struct device *dev);
 static ssize_t ide_write(struct device *dev, off_t offset, const void *buf, size_t count);
 static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t count);
-
-static struct block_ops the_ops = {
-    .std = {
-        .init = ide_init,
-    },
-    .get_block_size = ide_get_block_size,
-    .get_block_count = ide_get_block_count,
-    .write = ide_write,
-    .read = ide_read,
-};
-
-DRIVER_EXPORT(ide, &the_ops.std);
 
 static uint8_t ide_read_reg8(struct device *dev, int index);
 static uint16_t ide_read_reg16(struct device *dev, int index);
@@ -199,29 +187,73 @@ static int ide_eval_error(struct device *dev);
 static void ide_detect_drives(struct device *dev);
 static int ide_wait_for_completion(struct device *dev);
 static int ide_detect_ata(struct device *dev, int index);
-static void ide_lba_setup(struct device *dev, uint32_t addr, int index);
+static void ide_lba_setup(struct device *dev, uint32_t addr, int drive);
+
+status_t platform_ide_init(const struct platform_ide_config *config) {
+    if (!config) {
+        return ERR_INVALID_ARGS;
+    }
+
+    uint32_t channel = config->channel;
+    if (channel >= countof(g_ide_channels)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    struct ide_channel_state *chan = &g_ide_channels[channel];
+    if (chan->initialized) {
+        return ERR_ALREADY_EXISTS;
+    }
+
+    chan->config = *config;
+    chan->dev.config = &chan->config;
+    chan->dev.state = &chan->driver_state;
+
+    status_t err = ide_init(&chan->dev);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    chan->initialized = true;
+    return NO_ERROR;
+}
 
 static status_t ide_init(struct device *dev) {
     status_t res = NO_ERROR;
 
-    if (!dev)
+    if (!dev) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (!dev->config)
+    if (!dev->config) {
         return ERR_NOT_CONFIGURED;
+    }
 
     __UNUSED const struct platform_ide_config *config = dev->config;
 
     LTRACEF("entry: dev %p, config %p\n", dev, config);
 
-    struct ide_driver_state *state = calloc(1, sizeof(struct ide_driver_state));
+    struct ide_driver_state *state = dev->state;
     if (!state) {
-        res = ERR_NO_MEMORY;
-        goto err;
+        return ERR_INVALID_ARGS;
     }
 
+    memset(state, 0, sizeof(*state));
+
+    state->irq = config->irq;
+    state->regs[IDE_REG_DATA] = config->io_base + 0;
+    state->regs[IDE_REG_ERROR] = config->io_base + 1;
+    state->regs[IDE_REG_SECTOR_COUNT] = config->io_base + 2;
+    state->regs[IDE_REG_SECTOR_NUM] = config->io_base + 3;
+    state->regs[IDE_REG_CYLINDER_LOW] = config->io_base + 4;
+    state->regs[IDE_REG_CYLINDER_HIGH] = config->io_base + 5;
+    state->regs[IDE_REG_DRIVE_HEAD] = config->io_base + 6;
+    state->regs[IDE_REG_STATUS] = config->io_base + 7;
+    state->regs[IDE_REG_ALT_STATUS] = config->ctrl_base;
+
+    state->type[0] = state->type[1] = TYPE_NONE;
+
     // attempt pci detection
-    if (config->legacy_index == 0x80 || config->legacy_index == 0x81) {
+    if (!config->isa) {
 #if WITH_DEV_BUS_PCI
         pci_location_t loc;
         pci_config_t pci_config;
@@ -235,10 +267,10 @@ static status_t ide_init(struct device *dev) {
 
         LTRACEF("Found PCI IDE device at %04x:%02x:%02x.%02x\n", loc.segment, loc.bus, loc.dev, loc.fn);
 
-        for (size_t i=0; i < sizeof(pci_config) / sizeof(uint32_t); i++) {
+        for (size_t i = 0; i < sizeof(pci_config) / sizeof(uint32_t); i++) {
             uint32_t reg = sizeof(uint32_t) * i;
 
-            err = pci_read_config_word(loc, reg, ((uint32_t *) &pci_config) + i);
+            err = pci_read_config_word(loc, reg, ((uint32_t *)&pci_config) + i);
             if (err != NO_ERROR) {
                 LTRACEF("Failed to read config reg %d: 0x%02x\n", reg, err);
                 res = ERR_NOT_CONFIGURED;
@@ -246,29 +278,14 @@ static status_t ide_init(struct device *dev) {
             }
         }
 
-        for (int i=0; i < 6; i++) {
+        for (int i = 0; i < 6; i++) {
             LTRACEF("BAR[%d]: 0x%08x\n", i, pci_config.type0.base_addresses[i]);
         }
-
-        // TODO: fill this in from the bars
-        state->irq = ide_device_irqs[config->legacy_index & 0x7f];
-        state->regs = ide_device_regs[config->legacy_index & 0x7f];
-        state->type[0] = state->type[1] = TYPE_NONE;
 #else
         res = ERR_NOT_CONFIGURED;
         goto err;
-#endif// PCI
-    } else {
-        // legacy isa
-        DEBUG_ASSERT(config->legacy_index < 2);
-
-        /* select io regs and irq based on device index */
-        state->irq = ide_device_irqs[config->legacy_index];
-        state->regs = ide_device_regs[config->legacy_index];
-        state->type[0] = state->type[1] = TYPE_NONE;
+#endif // PCI
     }
-
-    dev->state = state;
 
     event_init(&state->completion, false, EVENT_FLAG_AUTOUNSIGNAL);
 
@@ -284,7 +301,6 @@ static status_t ide_init(struct device *dev) {
     return NO_ERROR;
 
 err:
-    free(state);
     return res;
 }
 
@@ -347,8 +363,9 @@ static ssize_t ide_write(struct device *dev, off_t offset, const void *buf, size
     while (sectors > 0) {
         do_sectors = sectors;
 
-        if (do_sectors > 256)
+        if (do_sectors > 256) {
             do_sectors = 256;
+        }
 
         err = ide_poll_status(dev, 0, IDE_CTRL_BSY);
         if (err) {
@@ -359,10 +376,11 @@ static ssize_t ide_write(struct device *dev, off_t offset, const void *buf, size
 
         ide_lba_setup(dev, offset, index);
 
-        if (do_sectors == 256)
+        if (do_sectors == 256) {
             ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, 0);
-        else
+        } else {
             ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, do_sectors);
+        }
 
         err = ide_poll_status(dev, IDE_DRV_RDY, 0);
         if (err) {
@@ -374,7 +392,7 @@ static ssize_t ide_write(struct device *dev, off_t offset, const void *buf, size
         ide_write_reg8(dev, IDE_REG_COMMAND, ATA_WRITEMULT_RET);
         ide_delay_400ns(dev);
 
-        for (i=0; i < do_sectors; i++) {
+        for (i = 0; i < do_sectors; i++) {
             err = ide_poll_status(dev, IDE_DRV_DRQ, 0);
             if (err) {
                 LTRACEF("Error while waiting for drive: %s\n", ide_error_str[err]);
@@ -431,8 +449,9 @@ static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t coun
     while (sectors > 0) {
         do_sectors = sectors;
 
-        if (do_sectors > 256)
+        if (do_sectors > 256) {
             do_sectors = 256;
+        }
 
         err = ide_poll_status(dev, 0, IDE_CTRL_BSY);
         if (err) {
@@ -443,10 +462,11 @@ static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t coun
 
         ide_lba_setup(dev, offset, index);
 
-        if (do_sectors == 256)
+        if (do_sectors == 256) {
             ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, 0);
-        else
+        } else {
             ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, do_sectors);
+        }
 
         err = ide_poll_status(dev, IDE_DRV_RDY, 0);
         if (err) {
@@ -458,7 +478,7 @@ static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t coun
         ide_write_reg8(dev, IDE_REG_COMMAND, ATA_READMULT_RET);
         ide_delay_400ns(dev);
 
-        for (i=0; i < do_sectors; i++) {
+        for (i = 0; i < do_sectors; i++) {
             err = ide_poll_status(dev, IDE_DRV_DRQ, 0);
             if (err) {
                 LTRACEF("Error while waiting for drive: %s\n", ide_error_str[err]);
@@ -517,7 +537,7 @@ static void ide_read_reg8_array(struct device *dev, int index, void *buf, size_t
 
     struct ide_driver_state *state = dev->state;
 
-    inprep(state->regs[index], (uint8_t *) buf, count);
+    inprep(state->regs[index], (uint8_t *)buf, count);
 }
 
 static void ide_read_reg16_array(struct device *dev, int index, void *buf, size_t count) {
@@ -525,7 +545,7 @@ static void ide_read_reg16_array(struct device *dev, int index, void *buf, size_
 
     struct ide_driver_state *state = dev->state;
 
-    inpwrep(state->regs[index], (uint16_t *) buf, count);
+    inpwrep(state->regs[index], (uint16_t *)buf, count);
 }
 
 static void ide_read_reg32_array(struct device *dev, int index, void *buf, size_t count) {
@@ -533,7 +553,7 @@ static void ide_read_reg32_array(struct device *dev, int index, void *buf, size_
 
     struct ide_driver_state *state = dev->state;
 
-    inpdrep(state->regs[index], (uint32_t *) buf, count);
+    inpdrep(state->regs[index], (uint32_t *)buf, count);
 }
 
 static void ide_write_reg8_array(struct device *dev, int index, const void *buf, size_t count) {
@@ -541,7 +561,7 @@ static void ide_write_reg8_array(struct device *dev, int index, const void *buf,
 
     struct ide_driver_state *state = dev->state;
 
-    outprep(state->regs[index], (uint8_t *) buf, count);
+    outprep(state->regs[index], (uint8_t *)buf, count);
 }
 
 static void ide_write_reg16_array(struct device *dev, int index, const void *buf, size_t count) {
@@ -549,7 +569,7 @@ static void ide_write_reg16_array(struct device *dev, int index, const void *buf
 
     struct ide_driver_state *state = dev->state;
 
-    outpwrep(state->regs[index], (uint16_t *) buf, count);
+    outpwrep(state->regs[index], (uint16_t *)buf, count);
 }
 
 static void ide_write_reg32_array(struct device *dev, int index, const void *buf, size_t count) {
@@ -557,7 +577,7 @@ static void ide_write_reg32_array(struct device *dev, int index, const void *buf
 
     struct ide_driver_state *state = dev->state;
 
-    outpdrep(state->regs[index], (uint32_t *) buf, count);
+    outpdrep(state->regs[index], (uint32_t *)buf, count);
 }
 
 static void ide_write_reg8(struct device *dev, int index, uint8_t value) {
@@ -606,7 +626,7 @@ static void ide_device_reset(struct device *dev) {
     ide_delay_400ns(dev);
 
     // set bit 2 for at least 4.8us
-    ide_write_reg8(dev, IDE_REG_DEVICE_CONTROL, 1<<2);
+    ide_write_reg8(dev, IDE_REG_DEVICE_CONTROL, 1 << 2);
 
     // delay 5us
     spin(5);
@@ -693,8 +713,9 @@ static int ide_poll_status(struct device *dev, uint8_t on_mask, uint8_t off_mask
             return err;
         }
 
-        if ((value & on_mask) == on_mask && (value & off_mask) == 0)
+        if ((value & on_mask) == on_mask && (value & off_mask) == 0) {
             return IDE_NOERROR;
+        }
     } while (TIME_LTE(current_time(), start + 20000));
 
     return IDE_TIMEOUT;
@@ -817,8 +838,9 @@ static int ide_wait_for_completion(struct device *dev) {
     status_t err;
 
     err = event_wait_timeout(&state->completion, 20000);
-    if (err)
+    if (err) {
         return IDE_TIMEOUT;
+    }
 
     return IDE_NOERROR;
 }
@@ -874,7 +896,7 @@ static status_t ide_detect_ata(struct device *dev, int index) {
 
     ide_read_reg16_array(dev, IDE_REG_DATA, info, 256);
 
-    uint32_t lba28_sectors = *((uint32_t *) (&info[60]));
+    uint32_t lba28_sectors = *((uint32_t *)(&info[60]));
     if (lba28_sectors > 0) {
         state->drive[index].sectors = lba28_sectors;
         state->drive[index].sector_size = 512;
@@ -913,4 +935,3 @@ static void ide_lba_setup(struct device *dev, uint32_t addr, int drive) {
     ide_write_reg8(dev, IDE_REG_SECTOR_NUM, addr & 0xff);
     ide_write_reg8(dev, IDE_REG_PRECOMP, 0xff);
 }
-

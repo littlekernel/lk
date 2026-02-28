@@ -7,7 +7,16 @@
  */
 #pragma once
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <lk/err.h>
+
 struct platform_ide_config {
-    int legacy_index; // 0x80, 0x81 for pci detection channel 0 and 1, 0 or 1 for legacy ISA IDE
+    bool isa;
+    uint32_t channel;
+    uint16_t io_base;
+    uint16_t ctrl_base;
+    int irq;
 };
 
+status_t platform_ide_init(const struct platform_ide_config *config);

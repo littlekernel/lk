@@ -22,10 +22,11 @@
 #include <lk/trace.h>
 #include <malloc.h>
 #include <platform.h>
-#include <platform/keyboard.h>
-#include <platform/pc.h>
 #include <platform/console.h>
 #include <platform/display.h>
+#include <platform/ide.h>
+#include <platform/keyboard.h>
+#include <platform/pc.h>
 
 #include "platform_p.h"
 
@@ -389,6 +390,52 @@ void platform_init(void) {
         }
     }
 #endif
+
+    const struct platform_ide_config pci_ide0 = {
+        .isa = false,
+        .channel = 0,
+        .io_base = 0x1f0,
+        .ctrl_base = 0x3f6,
+        .irq = INT_IDE0,
+    };
+    const struct platform_ide_config isa_ide0 = {
+        .isa = true,
+        .channel = 0,
+        .io_base = 0x1f0,
+        .ctrl_base = 0x3f6,
+        .irq = INT_IDE0,
+    };
+    const struct platform_ide_config pci_ide1 = {
+        .isa = false,
+        .channel = 1,
+        .io_base = 0x170,
+        .ctrl_base = 0x376,
+        .irq = INT_IDE1,
+    };
+    const struct platform_ide_config isa_ide1 = {
+        .isa = true,
+        .channel = 1,
+        .io_base = 0x170,
+        .ctrl_base = 0x376,
+        .irq = INT_IDE1,
+    };
+
+    // try PCI IDE first, then fall back to ISA channel-by-channel.
+    status_t ide_err = platform_ide_init(&pci_ide0);
+    if (ide_err != NO_ERROR && ide_err != ERR_ALREADY_EXISTS) {
+        ide_err = platform_ide_init(&isa_ide0);
+        if (ide_err == ERR_ALREADY_EXISTS) {
+            ide_err = NO_ERROR;
+        }
+    }
+
+    ide_err = platform_ide_init(&pci_ide1);
+    if (ide_err != NO_ERROR && ide_err != ERR_ALREADY_EXISTS) {
+        ide_err = platform_ide_init(&isa_ide1);
+        if (ide_err == ERR_ALREADY_EXISTS) {
+            ide_err = NO_ERROR;
+        }
+    }
 
     platform_init_mmu_mappings();
 }
