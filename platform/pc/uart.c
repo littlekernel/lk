@@ -6,6 +6,11 @@
  * https://opensource.org/licenses/MIT
  */
 
+// Still useful but disabled 8250 driver that was written against the driver/device interface
+// which has been removed.
+// TODO: rewrite this driver against the regular uart interface and move to dev/uart/8250/...
+
+#if 0
 #include <dev/driver.h>
 #include <dev/class/uart.h>
 #include <lk/debug.h>
@@ -155,3 +160,4 @@ static ssize_t uart_write(struct device *dev, const void *buf, size_t len) {
     return cbuf_write(&state->tx_buf, buf, len, true);
 }
 
+#endif
