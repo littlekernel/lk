@@ -9,6 +9,7 @@ CPU ?= modern
 MODULE_DEPS += lib/bio
 MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/fixed_point
+MODULE_DEPS += dev/block/ide
 
 ifneq ($(CPU),legacy)
 MODULE_DEPS += dev/bus/pci/drivers
@@ -20,7 +21,6 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/console.c \
     $(LOCAL_DIR)/debug.c \
     $(LOCAL_DIR)/display.c \
-    $(LOCAL_DIR)/ide.c \
     $(LOCAL_DIR)/interrupts.c \
     $(LOCAL_DIR)/keyboard.c \
     $(LOCAL_DIR)/mp.c \

@@ -8,16 +8,16 @@
 
 #include <arch/x86.h>
 #include <assert.h>
+#include <dev/block/ide.h>
 #include <kernel/event.h>
+#include <limits.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <limits.h>
 #include <malloc.h>
 #include <platform.h>
 #include <platform/interrupts.h>
-#include <platform/ide.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -38,34 +38,34 @@
 #define IDE_DRV_ERR    0x01
 
 // ATA commands
-#define ATA_NOP            0x00
-#define ATA_ATAPIRESET     0x08
-#define ATA_RECALIBRATE    0x10
-#define ATA_READMULT_RET   0x20
-#define ATA_READMULT       0x21
-#define ATA_READECC_RET    0x22
-#define ATA_READECC        0x23
-#define ATA_WRITEMULT_RET  0x30
-#define ATA_WRITEMULT      0x31
-#define ATA_WRITEECC_RET   0x32
-#define ATA_WRITEECC       0x33
-#define ATA_VERIFYMULT_RET 0x40
-#define ATA_VERIFYMULT     0x41
-#define ATA_FORMATTRACK    0x50
-#define ATA_SEEK           0x70
-#define ATA_DIAG           0x90
-#define ATA_INITPARAMS     0x91
-#define ATA_ATAPIPACKET    0xA0
-#define ATA_ATAPIIDENTIFY  0xA1
-#define ATA_ATAPISERVICE   0xA2
-#define ATA_READ_DMA       0xC8
-#define ATA_READ_SECTORS_EXT 0x24
-#define ATA_READ_DMA_EXT   0x25
-#define ATA_WRITE_DMA      0xCA
+#define ATA_NOP               0x00
+#define ATA_ATAPIRESET        0x08
+#define ATA_RECALIBRATE       0x10
+#define ATA_READMULT_RET      0x20
+#define ATA_READMULT          0x21
+#define ATA_READECC_RET       0x22
+#define ATA_READECC           0x23
+#define ATA_WRITEMULT_RET     0x30
+#define ATA_WRITEMULT         0x31
+#define ATA_WRITEECC_RET      0x32
+#define ATA_WRITEECC          0x33
+#define ATA_VERIFYMULT_RET    0x40
+#define ATA_VERIFYMULT        0x41
+#define ATA_FORMATTRACK       0x50
+#define ATA_SEEK              0x70
+#define ATA_DIAG              0x90
+#define ATA_INITPARAMS        0x91
+#define ATA_ATAPIPACKET       0xA0
+#define ATA_ATAPIIDENTIFY     0xA1
+#define ATA_ATAPISERVICE      0xA2
+#define ATA_READ_DMA          0xC8
+#define ATA_READ_SECTORS_EXT  0x24
+#define ATA_READ_DMA_EXT      0x25
+#define ATA_WRITE_DMA         0xCA
 #define ATA_WRITE_SECTORS_EXT 0x34
-#define ATA_WRITE_DMA_EXT  0x35
-#define ATA_GETDEVINFO     0xEC
-#define ATA_ATAPISETFEAT   0xEF
+#define ATA_WRITE_DMA_EXT     0x35
+#define ATA_GETDEVINFO        0xEC
+#define ATA_ATAPISETFEAT      0xEF
 
 // error codes
 #define IDE_NOERROR        0
@@ -398,7 +398,7 @@ static ssize_t ide_write(struct device *dev, off_t offset, const void *buf, size
         }
 
         ide_write_reg8(dev, IDE_REG_COMMAND,
-                   state->drive[index].lba48 ? ATA_WRITE_SECTORS_EXT : ATA_WRITEMULT_RET);
+                       state->drive[index].lba48 ? ATA_WRITE_SECTORS_EXT : ATA_WRITEMULT_RET);
         ide_delay_400ns(dev);
 
         for (i = 0; i < do_sectors; i++) {
@@ -489,7 +489,7 @@ static ssize_t ide_read(struct device *dev, off_t offset, void *buf, size_t coun
         }
 
         ide_write_reg8(dev, IDE_REG_COMMAND,
-                   state->drive[index].lba48 ? ATA_READ_SECTORS_EXT : ATA_READMULT_RET);
+                       state->drive[index].lba48 ? ATA_READ_SECTORS_EXT : ATA_READMULT_RET);
         ide_delay_400ns(dev);
 
         for (i = 0; i < do_sectors; i++) {
@@ -942,7 +942,7 @@ static status_t ide_detect_ata(struct device *dev, int index) {
             }
             state->drive[index].sector_size = 512;
         } else {
-        // detect ancient devices pre lba28
+            // detect ancient devices pre lba28
             uint16_t cyls, heads, sectors;
             cyls = info[1];
             heads = info[3];

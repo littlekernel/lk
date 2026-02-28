@@ -21,10 +21,10 @@
 #include <lk/init.h>
 #include <lk/trace.h>
 #include <malloc.h>
+#include <dev/block/ide.h>
 #include <platform.h>
 #include <platform/console.h>
 #include <platform/display.h>
-#include <platform/ide.h>
 #include <platform/keyboard.h>
 #include <platform/pc.h>
 
