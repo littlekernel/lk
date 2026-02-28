@@ -141,6 +141,12 @@ The do-qemu* scripts auto-build before launching QEMU.
 
 ### Common Patterns
 
+#### Error codes
+- Functions return `status_t` (int) with 0 for success, negative for errors
+- If a function needs to return data, it takes an output pointer and returns status: `status_t foo(int arg, int *out)`
+- If a function needs to return a positive value on success, it returns that directly and uses negative for errors: `int count = count_items(); if (count < 0) { /* handle error */ }`
+- Error codes are defined in `include/lk/err.h` (e.g. `ERR_NOT_FOUND`, `ERR_NO_MEMORY`, etc.) and are negative integers.
+
 #### Registering Console Commands
 Commands appear in shell when `app/shell` module is included:
 
