@@ -197,7 +197,7 @@ Select heap implementation in project or via make:
 # In project.mk or command line
 LK_HEAP_IMPLEMENTATION ?= dlmalloc  # default
 # LK_HEAP_IMPLEMENTATION ?= cmpctmalloc  # compact allocator
-# LK_HEAP_IMPLEMENTATION ?= miniheap     # simple bump allocator
+# LK_HEAP_IMPLEMENTATION ?= miniheap     # simple very memory efficient but slow allocator
 
 # Controlled in lib/heap/rules.mk
 ```
@@ -254,6 +254,10 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
 - `lib/unittest` contains a unit test framework that other libraries can use to define tests.
   - Tests are auto-discovered and run with `ut all` on the command line shell, or automatically
     at boot time if `RUN_UNITTESTS_AT_BOOT` is defined at build time.
+- When a library adds its own unit tests, it should add a `tests/` subdirectory with test source
+  files and a `rules.mk` that defines a module for the tests. The module should have `MODULE_DEPS`
+  on the library being tested. MODULE_OPTIONS of the parent module should have 'tests' to ensure the
+  tests module is only built when testing is enabled.
 
 ## Key Files Reference
 
