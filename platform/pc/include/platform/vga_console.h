@@ -13,9 +13,8 @@
 
 __BEGIN_CDECLS
 
-void platform_init_console(void);
-
-void cputc(char c);
+void vga_console_init(void);
+void vga_console_putc(char c);
 
 __END_CDECLS
 

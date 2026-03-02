@@ -8,7 +8,7 @@
  */
 #include <arch/x86.h>
 #include <lib/io.h>
-#include <platform/console.h>
+#include <platform/vga_console.h>
 #include <platform/pc.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -64,7 +64,7 @@ static void putc_xy(int x, int y, char attr, char c);
 static void puts_xy(int x, int y, char attr, char *s);
 static int printf_xy(int x, int y, char attr, char *fmt, ...) __PRINTFLIKE(4, 5);
 
-void platform_init_console(void) {
+void vga_console_init(void) {
     curr_save();
     window(0, 0, 79, 24);
     clear();
@@ -194,7 +194,7 @@ static void scroll(void) {
             view_window.y2);
 }
 
-void cputc(char c) {
+void vga_console_putc(char c) {
     static unsigned short scan_x, x, y;
     unsigned char *v = (unsigned char *)(uintptr_t)(FB + active_page * (2 * VPAGE_SIZE));
     x = curr_x;
@@ -253,44 +253,4 @@ void cputc(char c) {
     }
 
     place(x, y);
-}
-
-static void cputs(char *s) {
-    char c;
-    while (*s != '\0') {
-        c = *s++;
-        cputc(c);
-    }
-}
-
-static void puts_xy(int x, int y, char attr, char *s) {
-    unsigned char *v = (unsigned char *)(uintptr_t)(FB + (80 * y + x) * 2 + active_page * (2 * VPAGE_SIZE));
-    while (*s != 0) {
-        *v = *s;
-        s++;
-        v++;
-        *v = attr;
-        v++;
-    }
-}
-
-static void putc_xy(int x, int y, char attr, char c) {
-    unsigned char *v = (unsigned char *)(uintptr_t)(FB + (80 * y + x) * 2 + active_page * (2 * VPAGE_SIZE));
-    *v = c;
-    v++;
-    *v = attr;
-}
-
-static int printf_xy(int x, int y, char attr, char *fmt, ...) {
-    char cbuf[200];
-    va_list parms;
-    int result;
-
-    va_start(parms, fmt);
-    result = vsprintf(cbuf, fmt, parms);
-    va_end(parms);
-
-    puts_xy(x, y, attr, cbuf);
-
-    return result;
 }

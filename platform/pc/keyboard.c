@@ -16,7 +16,7 @@
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <platform.h>
-#include <platform/console.h>
+#include <platform/vga_console.h>
 #include <platform/interrupts.h>
 #include <platform/pc.h>
 #include <platform/timer.h>

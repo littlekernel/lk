@@ -11,7 +11,7 @@
 #include <lib/cbuf.h>
 #include <lk/reg.h>
 #include <platform.h>
-#include <platform/console.h>
+#include <platform/vga_console.h>
 #include <platform/debug.h>
 #include <platform/interrupts.h>
 #include <platform/keyboard.h>
@@ -93,7 +93,7 @@ void platform_dputc(char c) {
     if (fb_console_present()) {
         fb_console_dputc(c);
     } else {
-        cputc(c);
+        vga_console_putc(c);
     }
     debug_uart_putc(c);
 }

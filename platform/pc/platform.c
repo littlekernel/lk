@@ -23,7 +23,7 @@
 #include <malloc.h>
 #include <dev/block/ide.h>
 #include <platform.h>
-#include <platform/console.h>
+#include <platform/vga_console.h>
 #include <platform/fb_console.h>
 #include <platform/keyboard.h>
 #include <platform/pc.h>
@@ -296,7 +296,7 @@ void platform_early_init(void) {
     platform_init_debug_early();
 
     /* get the text console working */
-    platform_init_console();
+    vga_console_init();
 
     /* initialize the interrupt controller */
     platform_init_interrupts();

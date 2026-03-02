@@ -15,7 +15,7 @@
 #include <kernel/spinlock.h>
 #include <platform.h>
 #include <platform/interrupts.h>
-#include <platform/console.h>
+#include <platform/vga_console.h>
 #include <platform/timer.h>
 #include <platform/pc.h>
 #include <platform/pc/timer.h>
