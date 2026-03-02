@@ -133,7 +133,7 @@ EfiStatus flush_blocks_ex(EfiBlockIo2Protocol* self, EfiBlockIo2Token* token) {
 
 }  // namespace
 
-__WEAK EfiStatus open_async_block_device(EfiHandle handle, void** intf) {
+__WEAK EfiStatus open_async_block_device(EfiHandle handle, const void** intf) {
   auto dev = bio_open(reinterpret_cast<const char*>(handle));
   printf("%s(%s)\n", __FUNCTION__, dev->name);
   auto interface = reinterpret_cast<EfiBlockIo2Interface*>(

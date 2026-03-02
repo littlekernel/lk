@@ -3,7 +3,7 @@
 
 #include <uefi/types.h>
 
-EfiStatus open_block_device(EfiHandle handle, void **intf);
+EfiStatus open_block_device(EfiHandle handle, const void **intf);
 
 EfiStatus list_block_devices(size_t *num_handles, EfiHandle **buf);
 

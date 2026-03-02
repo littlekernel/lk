@@ -30,7 +30,7 @@
 
 typedef struct EfiInputKey {
   uint16_t scan_code;
-  uint16_t unicode_char;
+  EfiChar16 unicode_char;
 } EfiInputKey;
 
 typedef struct EfiSimpleTextInputProtocol {

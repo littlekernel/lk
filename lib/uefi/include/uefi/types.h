@@ -31,12 +31,15 @@
 
 #include "gbl_protocol_utils.h"
 
-struct EfiEventImpl;
-
-typedef void* EfiHandle;
-typedef EfiEventImpl* EfiEvent;
+typedef const void* EfiHandle;
+typedef void* EfiEvent;
 typedef uint64_t EfiPhysicalAddr;
 typedef uint64_t EfiVirtualAddr;
+// We define custom fixed-width character types to guarantee cross-toolchain ABI
+// stability. Built-in types (char, char8_t, char16_t) are avoided as their
+// width and signedness are toolchain-defined.
+typedef uint8_t EfiChar8;
+typedef uint16_t EfiChar16;
 
 typedef struct EfiTableHeader {
   uint64_t signature;

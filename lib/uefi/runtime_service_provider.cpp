@@ -28,8 +28,8 @@ namespace {
 
 constexpr auto &&kSecureBoot = "SecureBoot";
 
-EfiStatus GetVariable(const uint16_t* VariableName, const EfiGuid* VendorGuid,
-                      uint32_t* Attributes, size_t* DataSize, void* Data) {
+EfiStatus GetVariable(const uint16_t *VariableName, const EfiGuid *VendorGuid,
+                       uint32_t *Attributes, size_t *DataSize, void *Data) {
   if (!VariableName || !VendorGuid || !DataSize) {
     return EFI_STATUS_INVALID_PARAMETER;
   }
@@ -102,8 +102,8 @@ EfiStatus SetVariable(const uint16_t* VariableName, const EfiGuid* VendorGuid,
   return EFI_STATUS_UNSUPPORTED;
 }
 
-void ResetSystem(EfiResetType ResetType, EfiStatus ResetStatus, size_t DataSize,
-                 void* ResetData) {
+void ResetSystem(EfiResetType ResetType, EfiStatus ResetStatus,
+                 size_t DataSize, void *ResetData) {
   platform_halt(HALT_ACTION_REBOOT, HALT_REASON_SW_RESET);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,33 +23,23 @@
  * terms apply by default.
  */
 
-#ifndef __LOADED_IMAGE_PROTOCOL_H__
-#define __LOADED_IMAGE_PROTOCOL_H__
+#ifndef __GBL_EFI_COMMON_H__
+#define __GBL_EFI_COMMON_H__
 
-#include <uefi/gbl_protocol_utils.h>
-#include <uefi/system_table.h>
-#include <uefi/types.h>
+#include "types.h"
 
-#include "device_path_protocol.h"
+// clang-format off
+#define GBL_EFI_VENDOR_GUID                                   \
+  EfiGuid {                                                   \
+    .data1=0x5a6d92f3,                                        \
+    .data2=0xa2d0,                                            \
+    .data3=0x4083,                                            \
+    .data4=[0x91, 0xa1, 0xa5, 0x0f, 0x6c, 0x3d, 0x98, 0x30]   \
+  }
+// clang-format on
 
-static const uint32_t EFI_LOADED_IMAGE_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(1, 0);
+#define GBL_EFI_OS_BOOT_TARGET_VARNAME "gbl_os_boot_fuchsia"
 
-typedef struct {
-  uint32_t revision;
-  EfiHandle parent_handle;
-  EfiSystemTable* system_table;
-  EfiHandle device_handle;
-  EfiDevicePathProtocol* file_path;
-  void* reserved;
-  uint32_t load_options_size;
-  void* load_options;
-  const void* image_base;
-  uint64_t image_size;
-  EfiMemoryType image_code_type;
-  EfiMemoryType image_data_type;
+#define PARTITION_NAME_LEN_U16 36
 
-  EfiStatus (*unload)(EfiHandle img);
-} EfiLoadedImageProtocol;
-
-#endif
+#endif /* __GBL_EFI_COMMON_H__ */

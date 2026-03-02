@@ -34,12 +34,17 @@ EfiStatus efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
                        size_t* buffer_size, uint32_t flags);
 
 EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
-                           const uint8_t* bootconfig, size_t size,
-                           uint8_t* fixup, size_t* fixup_buffer_size);
+                           size_t bootconfig_size, const uint8_t* bootconfig,
+                           size_t* fixup_buffer_size, uint8_t* fixup);
 
-EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol *self,
-                              GblEfiVerifiedDeviceTree *device_trees,
-                              size_t num_device_trees);
+EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol* self,
+                              size_t num_device_trees,
+                              GblEfiVerifiedDeviceTree* device_trees);
+
+EfiStatus select_fit_configuration(
+    struct GblEfiOsConfigurationProtocol* self, size_t fit_size, const uint8_t* fit,
+    size_t metadata_size, const uint8_t* metadata, size_t* selected_configuration_offset);
+
 EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key);
 
 EfiStatus platform_setup_system_table(EfiSystemTable *table);
@@ -76,7 +81,7 @@ void setup_heap();
 // Caled by LK once after executing UEFI application to tear down the heap
 void reset_heap();
 
-EfiStatus open_efi_erase_block_protocol(EfiHandle handle, void** intf);
+EfiStatus open_efi_erase_block_protocol(EfiHandle handle, const void** intf);
 
 GblEfiBootMemoryProtocol* open_boot_memory_protocol();
 

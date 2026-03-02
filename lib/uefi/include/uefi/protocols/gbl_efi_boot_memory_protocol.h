@@ -27,11 +27,10 @@
 #define __GBL_EFI_BOOT_MEMORY_PROTOCOL_H__
 
 #include <stddef.h>
-
 #include <uefi/types.h>
 
 static const uint64_t GBL_EFI_BOOT_MEMORY_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(0, 1);
+    GBL_PROTOCOL_REVISION(0, 256);
 
 EFI_ENUM(GblEfiBootBufferType, uint32_t, GBL_EFI_BOOT_BUFFER_TYPE_GENERAL_LOAD,
          GBL_EFI_BOOT_BUFFER_TYPE_KERNEL, GBL_EFI_BOOT_BUFFER_TYPE_RAMDISK,
@@ -44,7 +43,7 @@ EFI_ENUM(GblEfiPartitionBufferFlag, uint32_t,
 typedef struct GblEfiBootMemoryProtocol {
   uint64_t revision;
   EfiStatus (*get_partition_buffer)(struct GblEfiBootMemoryProtocol* self,
-                                    /* in */ const uint8_t* base_name,
+                                    /* in */ const EfiChar8* base_name,
                                     /* out */ size_t* size,
                                     /* out */ void** addr,
                                     /* out */ GblEfiPartitionBufferFlag* flag);

@@ -41,9 +41,9 @@ typedef struct EfiSimpleTextOutputProtocol {
   EfiStatus (*reset)(struct EfiSimpleTextOutputProtocol* self,
                      bool extended_verification);
   EfiStatus (*output_string)(struct EfiSimpleTextOutputProtocol* self,
-                             uint16_t* string);
+                             EfiChar16* string);
   EfiStatus (*test_string)(struct EfiSimpleTextOutputProtocol* self,
-                           uint16_t* string);
+                           EfiChar16* string);
   EfiStatus (*query_mode)(struct EfiSimpleTextOutputProtocol* self,
                           size_t mode_num, size_t* cols, size_t* rows);
   EfiStatus (*set_mode)(struct EfiSimpleTextOutputProtocol* self,

@@ -70,26 +70,30 @@ typedef struct {
 } GblEfiVerifiedDeviceTree;
 
 static const uint64_t GBL_EFI_OS_CONFIGURATION_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(0, 1);
+    GBL_PROTOCOL_REVISION(0, 256);
 
 typedef struct GblEfiOsConfigurationProtocol {
   uint64_t revision;
 
   // Generates fixups for the bootconfig built by GBL.
   EfiStatus (*fixup_bootconfig)(struct GblEfiOsConfigurationProtocol* self,
-                                const uint8_t* bootconfig, size_t size,
-                                uint8_t* fixup, size_t* fixup_buffer_size);
+                                /* in */ size_t bootconfig_size,
+                                /* in */ const EfiChar8* bootconfig,
+                                /* in-out */ size_t* fixup_buffer_size,
+                                /* out */ EfiChar8* fixup);
 
   // Selects which device trees and overlays to use from those loaded by GBL.
-  EfiStatus (*select_device_trees)(struct GblEfiOsConfigurationProtocol* self,
-                                   GblEfiVerifiedDeviceTree* device_trees,
-                                   size_t num_device_trees);
+  EfiStatus (*select_device_trees)(
+      struct GblEfiOsConfigurationProtocol* self,
+      /* in */ size_t num_device_trees,
+      /* in-out */ GblEfiVerifiedDeviceTree* device_trees);
 
   // Selects FIT configuration to be used.
   EfiStatus (*select_fit_configuration)(
-      struct GblEfiOsConfigurationProtocol* self, size_t fit_size,
-      const uint8_t* fit, size_t metadata_size, const uint8_t* metadata,
-      size_t* selected_configuration_offset);
+      struct GblEfiOsConfigurationProtocol* self, /* in */ size_t fit_size,
+      /* in */ const uint8_t* fit, /* in */ size_t metadata_size,
+      /* in */ const uint8_t* metadata,
+      /* out */ size_t* selected_configuration_offset);
 
 } GblEfiOsConfigurationProtocol;
 
