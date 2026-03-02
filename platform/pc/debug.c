@@ -18,7 +18,7 @@
 #include <platform/pc.h>
 #include <stdarg.h>
 
-#include <platform/display.h>
+#include <platform/fb_console.h>
 
 #include "platform_p.h"
 
@@ -90,8 +90,8 @@ void platform_dputc(char c) {
         platform_dputc('\r');
     }
 
-    if (has_display()) {
-        dputc(c);
+    if (fb_console_present()) {
+        fb_console_dputc(c);
     } else {
         cputc(c);
     }

@@ -14,7 +14,7 @@
 #include <lk/init.h>
 #include <lk/trace.h>
 #include <malloc.h>
-#include <platform/display.h>
+#include <platform/fb_console.h>
 #include <platform/pc/font9x16.h>
 #include <string.h>
 
@@ -86,8 +86,8 @@ static void flush_backbuffer_full(void) {
  * This hook is called after virtual memory is available,
  * allowing us to allocate large buffers via the VM system.
  */
-static void display_init_backbuffer(uint level) {
-    if (!has_display()) {
+static void fb_console_init_backbuffer(uint level) {
+    if (!fb_console_present()) {
         return;
     }
 
@@ -114,7 +114,7 @@ static void display_init_backbuffer(uint level) {
     TRACEF("Display backbuffer allocated via VM: %p (%zu bytes)\n", display_backbuffer, buffer_size);
 }
 
-void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
+void fb_console_init(struct multiboot2_tag_framebuffer *framebuffer) {
     // Check if we have multiboot framebuffer info
     if (!framebuffer) {
         TRACEF("No multiboot framebuffer info available\n");
@@ -179,13 +179,13 @@ void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer) {
 #endif
 }
 
-bool has_display(void) {
+bool fb_console_present(void) {
     return display_initialized;
 }
 
 status_t display_get_framebuffer(struct display_framebuffer *fb) {
     // DEBUG_ASSERT(fb);
-    if (!has_display()) {
+    if (!fb_console_present()) {
         return ERR_NOT_FOUND;
     }
 
@@ -203,7 +203,7 @@ status_t display_get_framebuffer(struct display_framebuffer *fb) {
 
 status_t display_get_info(struct display_info *info) {
     DEBUG_ASSERT(info);
-    if (!has_display()) {
+    if (!fb_console_present()) {
         return ERR_NOT_FOUND;
     }
 
@@ -335,8 +335,8 @@ static void scroll(void) {
     curr_y = view_window.y2;
 }
 
-void dputc(char c) {
-    if (!has_display()) {
+void fb_console_dputc(char c) {
+    if (!fb_console_present()) {
         return;
     }
     switch (c) {
@@ -389,4 +389,4 @@ void dputc(char c) {
 }
 
 /* Register post-VM initialization to allocate backbuffer */
-LK_INIT_HOOK(display_init_backbuffer, display_init_backbuffer, LK_INIT_LEVEL_VM + 1);
+LK_INIT_HOOK(fb_console_init_backbuffer, fb_console_init_backbuffer, LK_INIT_LEVEL_VM + 1);

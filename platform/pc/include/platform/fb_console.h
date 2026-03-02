@@ -12,8 +12,8 @@
 
 __BEGIN_CDECLS
 
-void platform_init_display(struct multiboot2_tag_framebuffer *framebuffer);
-bool has_display(void);
-void dputc(char c);
+void fb_console_init(struct multiboot2_tag_framebuffer *framebuffer);
+bool fb_console_present(void);
+void fb_console_dputc(char c);
 
 __END_CDECLS

@@ -24,7 +24,7 @@
 #include <dev/block/ide.h>
 #include <platform.h>
 #include <platform/console.h>
-#include <platform/display.h>
+#include <platform/fb_console.h>
 #include <platform/keyboard.h>
 #include <platform/pc.h>
 
@@ -188,7 +188,7 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
                 case MULTIBOOT2_TAG_TYPE_FRAMEBUFFER: {
                     struct multiboot2_tag_framebuffer *framebuffer_tag = (struct multiboot2_tag_framebuffer *)tag;
 
-                    platform_init_display(framebuffer_tag);
+                    fb_console_init(framebuffer_tag);
 
                     dprintf(SPEW, "PC: multiboot framebuffer info present:\n");
                     dprintf(SPEW, "\taddress %#" PRIx64 " pitch %u, width %u height %u bpp %hhu ",

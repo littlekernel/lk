@@ -20,7 +20,7 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/cmos.c \
     $(LOCAL_DIR)/console.c \
     $(LOCAL_DIR)/debug.c \
-    $(LOCAL_DIR)/display.c \
+    $(LOCAL_DIR)/fb_console.c \
     $(LOCAL_DIR)/interrupts.c \
     $(LOCAL_DIR)/keyboard.c \
     $(LOCAL_DIR)/mp.c \
