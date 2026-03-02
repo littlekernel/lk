@@ -183,43 +183,6 @@ bool fb_console_present(void) {
     return display_initialized;
 }
 
-status_t display_get_framebuffer(struct display_framebuffer *fb) {
-    // DEBUG_ASSERT(fb);
-    if (!fb_console_present()) {
-        return ERR_NOT_FOUND;
-    }
-
-    fb->image.format = IMAGE_FORMAT_RGB_x888;
-    fb->image.pixels = display_fb;
-    fb->image.width = display_w;
-    fb->image.height = display_h;
-    fb->image.stride = display_w;
-    fb->image.rowbytes = display_w * 4;
-    fb->flush = NULL;
-    fb->format = DISPLAY_FORMAT_RGB_x888;
-
-    return NO_ERROR;
-}
-
-status_t display_get_info(struct display_info *info) {
-    DEBUG_ASSERT(info);
-    if (!fb_console_present()) {
-        return ERR_NOT_FOUND;
-    }
-
-    info->format = DISPLAY_FORMAT_RGB_x888;
-    info->width = display_w;
-    info->height = display_h;
-
-    return NO_ERROR;
-}
-
-status_t display_present(struct display_image *image, uint starty, uint endy) {
-    TRACEF("display_present - not implemented");
-    DEBUG_ASSERT(false);
-    return NO_ERROR;
-}
-
 void draw_char(int x, int y, char c, uint32_t fg_color, uint32_t bg_color) {
     const uint16_t *bitmap = &font_9x16[(unsigned char)c * FONT_HEIGHT];
     void *fb = get_framebuffer_ptr();

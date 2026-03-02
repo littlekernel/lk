@@ -7,54 +7,29 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
 #include <stdint.h>
 
-// V1 config
-struct virtio_mmio_config {
-    /* 0x00 */
-    uint32_t magic;
-    uint32_t version;
-    uint32_t device_id;
-    uint32_t vendor_id;
-    /* 0x10 */
-    uint32_t host_features;
-    uint32_t host_features_sel;
-    uint32_t __reserved0[2];
-    /* 0x20 */
-    uint32_t guest_features;
-    uint32_t guest_features_sel;
-    uint32_t guest_page_size;
-    uint32_t __reserved1[1];
-    /* 0x30 */
-    uint32_t queue_sel;
-    uint32_t queue_num_max;
-    uint32_t queue_num;
-    uint32_t queue_align;
-    /* 0x40 */
-    uint32_t queue_pfn;
-    uint32_t __reserved2[3];
-    /* 0x50 */
-    uint32_t queue_notify;
-    uint32_t __reserved3[3];
-    /* 0x60 */
-    uint32_t interrupt_status;
-    uint32_t interrupt_ack;
-    uint32_t __reserved4[2];
-    /* 0x70 */
-    uint32_t status;
-    uint8_t __reserved5[0x8c];
-    /* 0x100 */
-    uint32_t config[0];
-};
-
-STATIC_ASSERT(sizeof(struct virtio_mmio_config) == 0x100);
-
-#define VIRTIO_MMIO_MAGIC 0x74726976 // 'virt'
-
+// status bits used by multiple transport busses
 #define VIRTIO_STATUS_ACKNOWLEDGE (1<<0)
 #define VIRTIO_STATUS_DRIVER      (1<<1)
 #define VIRTIO_STATUS_DRIVER_OK   (1<<2)
 #define VIRTIO_STATUS_FEATURES_OK (1<<3)
 #define VIRTIO_STATUS_DEVICE_NEEDS_RESET (1<<6)
 #define VIRTIO_STATUS_FAILED      (1<<7)
+
+// device independent feature bits
+#define VIRTIO_F_INDIRECT_DESC    (1<<28)
+#define VIRTIO_F_EVENT_IDX        (1<<29)
+#define VIRTIO_F_VERSION_1        (1ULL<<32)
+#define VIRTIO_F_ACCESS_PLATFORM  (1ULL<<33)
+#define VIRTIO_F_RING_PACKED      (1ULL<<34)
+#define VIRTIO_F_IN_ORDER         (1ULL<<35)
+#define VIRTIO_F_ORDER_PLATFORM   (1ULL<<36)
+#define VIRTIO_F_SR_IOV           (1ULL<<37)
+#define VIRTIO_F_NOTIFICATION_DATA (1ULL<<38)
+#define VIRTIO_F_NOTIF_CONFIG_DATA (1ULL<<39)
+#define VIRTIO_F_RING_RESET       (1ULL<<40)
+#define VIRTIO_F_ADMIN_VQ         (1ULL<<41)
+
+void virtio_dump_device_independent_features_bits(uint64_t feature);
+

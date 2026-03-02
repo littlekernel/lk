@@ -23,6 +23,7 @@
  */
 #include <assert.h>
 #include <dev/virtio/9p.h>
+#include <dev/virtio/virtio-device.h>
 #include <kernel/event.h>
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -43,7 +44,7 @@ struct virtio_9p_config {
 #define VIRTIO_9P_MOUNT_TAG                   (1<<0)
 
 static enum handler_return virtio_9p_irq_driver_callback(
-    struct virtio_device *dev, uint ring, const struct vring_used_elem *e);
+    virtio_device *dev, uint ring, const struct vring_used_elem *e);
 
 static struct list_node p9_devices = LIST_INITIAL_VALUE(p9_devices);
 
@@ -54,17 +55,17 @@ static void dump_feature_bits(uint32_t feature)
     LTRACEF("\n");
 }
 
-status_t virtio_9p_init(struct virtio_device *dev, uint32_t host_features)
+status_t virtio_9p_init(virtio_device *dev, uint32_t host_features)
 {
     dump_feature_bits(host_features);
 
     /* allocate a new 9p device */
-    struct virtio_9p_dev *p9dev = calloc(1, sizeof(struct virtio_9p_dev));
+    auto *p9dev = (virtio_9p_dev *)calloc(1, sizeof(struct virtio_9p_dev));
     if (!p9dev)
         return ERR_NO_MEMORY;
 
     p9dev->dev = dev;
-    dev->priv = p9dev;
+    dev->set_priv(p9dev);
     p9dev->lock = SPIN_LOCK_INITIAL_VALUE;
     // Assuming there can be only one outstanding request.
     p9dev->req.status = P9_REQ_S_UNKNOWN;
@@ -75,28 +76,29 @@ status_t virtio_9p_init(struct virtio_device *dev, uint32_t host_features)
     list_add_tail(&p9_devices, &p9dev->list);
 
     /* make sure the device is reset */
-    virtio_reset_device(dev);
+    dev->bus()->virtio_reset_device();
 
-    p9dev->config = (struct virtio_9p_config *)dev->config_ptr;
-#if LOCAL_TRACE
-    LTRACEF("tag_len: %u\n", p9dev->config->tag_len);
-    LTRACEF("tag: ");
-    for (int i = 0; i < p9dev->config->tag_len; ++i) {
-        printf("%c", p9dev->config->tag[i]);
+    p9dev->config = (const virtio_9p_config *)dev->get_config_ptr();
+    if (LOCAL_TRACE) {
+        LTRACEF("tag_len: %u\n", p9dev->config->tag_len);
+        LTRACEF("tag: ");
+        for (int i = 0; i < p9dev->config->tag_len; ++i) {
+            printf("%c", p9dev->config->tag[i]);
+        }
+        printf("\n");
     }
-    printf("\n");
-#endif
 
     /* ack and set the driver status bit */
-    virtio_status_acknowledge_driver(dev);
+    dev->bus()->virtio_status_acknowledge_driver();
 
-    virtio_alloc_ring(dev, VIRTIO_9P_RING_IDX, VIRTIO_9P_RING_SIZE);
+    dev->virtio_alloc_ring(VIRTIO_9P_RING_IDX, VIRTIO_9P_RING_SIZE);
 
     /* set our irq handler */
-    dev->irq_driver_callback = &virtio_9p_irq_driver_callback;
+    dev->set_irq_callbacks(&virtio_9p_irq_driver_callback, nullptr);
+    dev->bus()->unmask_interrupt();
 
     /* set DRIVER_OK */
-    virtio_status_driver_ok(dev);
+    dev->bus()->virtio_status_driver_ok();
 
     // register a fake block device
     static uint8_t found_index = 0;
@@ -114,16 +116,18 @@ status_t virtio_9p_init(struct virtio_device *dev, uint32_t host_features)
     return NO_ERROR;
 }
 
-status_t virtio_9p_start(struct virtio_device *dev)
+status_t virtio_9p_start(virtio_device *dev)
 {
-    struct virtio_9p_dev *p9dev = (struct virtio_9p_dev *)dev->priv;
+    auto *p9dev = (virtio_9p_dev *)dev->priv();
     status_t ret;
 
     // connect to the 9p server with 9P2000.L
     virtio_9p_msg_t tver = {
         .msg_type = P9_TVERSION,
         .tag = P9_TAG_NOTAG,
-        .msg.tversion = {.msize = p9dev->msize, .version = "9P2000.L"}
+        .msg = {
+            .tversion = { .msize = p9dev->msize, .version = "9P2000.L"}
+        }
     };
     virtio_9p_msg_t rver = {};
 
@@ -140,12 +144,12 @@ status_t virtio_9p_start(struct virtio_device *dev)
 }
 
 static enum handler_return virtio_9p_irq_driver_callback(
-    struct virtio_device *dev, uint ring, const struct vring_used_elem *e)
+    virtio_device *dev, uint ring, const vring_used_elem *e)
 {
-    struct virtio_9p_dev *p9dev = (struct virtio_9p_dev *)dev->priv;
+    auto *p9dev = (virtio_9p_dev *)dev->priv();
     uint16_t id = e->id;
     uint16_t id_next;
-    struct vring_desc *desc = virtio_desc_index_to_desc(dev, ring, id);
+    vring_desc *desc = dev->virtio_desc_index_to_desc(ring, id);
     struct p9_req *req = &p9dev->req;
 
     LTRACEF("dev %p, ring %u, e %p, id %u, len %u\n", dev, ring, e, e->id, e->len);
@@ -161,7 +165,7 @@ static enum handler_return virtio_9p_irq_driver_callback(
 
     // drop the T-message desc
     id_next = desc->next;
-    desc = virtio_desc_index_to_desc(dev, VIRTIO_9P_RING_IDX, id_next);
+    desc = dev->virtio_desc_index_to_desc(VIRTIO_9P_RING_IDX, id_next);
 #if LOCAL_TRACE
     virtio_dump_desc(desc);
 #endif
@@ -169,8 +173,8 @@ static enum handler_return virtio_9p_irq_driver_callback(
     req->status = P9_REQ_S_RECEIVED;
 
     // free the desc
-    virtio_free_desc(dev, ring, id);
-    virtio_free_desc(dev, ring, id_next);
+    dev->virtio_free_desc(ring, id);
+    dev->virtio_free_desc(ring, id_next);
 
     spin_unlock(&p9dev->lock);
 

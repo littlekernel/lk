@@ -292,6 +292,30 @@ status_t pci_bus_mgr_read_bars(const pci_location_t loc, pci_bar_t bar[6]) {
     return d->read_bars(bar);
 }
 
+bool pci_bus_mgr_has_msi(const pci_location_t loc) {
+    char str[14];
+    LTRACEF("%s\n", pci_loc_string(loc, str));
+
+    device *d = lookup_device_by_loc(loc);
+    if (!d) {
+        return false;
+    }
+
+    return d->has_msi();
+}
+
+bool pci_bus_mgr_has_msix(const pci_location_t loc) {
+    char str[14];
+    LTRACEF("%s\n", pci_loc_string(loc, str));
+
+    device *d = lookup_device_by_loc(loc);
+    if (!d) {
+        return false;
+    }
+
+    return d->has_msix();
+}
+
 status_t pci_bus_mgr_allocate_msi(const pci_location_t loc, size_t num_requested, uint *irqbase) {
     char str[14];
     LTRACEF("%s num_request %zu\n", pci_loc_string(loc, str), num_requested);
@@ -310,6 +334,24 @@ status_t pci_bus_mgr_allocate_msi(const pci_location_t loc, size_t num_requested
     return d->allocate_msi(num_requested, irqbase);
 }
 
+status_t pci_bus_mgr_allocate_msix(const pci_location_t loc, size_t num_requested, uint *irqbase) {
+    char str[14];
+    LTRACEF("%s num_request %zu\n", pci_loc_string(loc, str), num_requested);
+
+    *irqbase = 0;
+
+    device *d = lookup_device_by_loc(loc);
+    if (!d) {
+        return ERR_NOT_FOUND;
+    }
+
+    if (!d->has_msix()) {
+        return ERR_NO_RESOURCES;
+    }
+
+    return d->allocate_msix(num_requested, irqbase);
+}
+
 status_t pci_bus_mgr_allocate_irq(const pci_location_t loc, uint *irqbase) {
     char str[14];
     LTRACEF("%s\n", pci_loc_string(loc, str));
@@ -322,6 +364,18 @@ status_t pci_bus_mgr_allocate_irq(const pci_location_t loc, uint *irqbase) {
     }
 
     return d->allocate_irq(irqbase);
+}
+
+ssize_t pci_read_vendor_capability(const pci_location_t loc, size_t index, void *buf, size_t buflen) {
+    char str[14];
+    LTRACEF("%s\n", pci_loc_string(loc, str));
+
+    device *d = lookup_device_by_loc(loc);
+    if (!d) {
+        return ERR_NOT_FOUND;
+    }
+
+    return d->read_vendor_capability(index, buf, buflen);
 }
 
 void pci_dump_bar(const pci_bar_t *bar, int index) {

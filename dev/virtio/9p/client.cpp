@@ -22,6 +22,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <dev/virtio.h>
+#include <dev/virtio/virtio-device.h>
 #include <dev/virtio/9p.h>
 #include <kernel/event.h>
 #include <kernel/vm.h>
@@ -36,7 +37,7 @@
 static status_t pdu_init(struct p9_fcall *pdu, size_t size)
 {
     vmm_alloc_contiguous(vmm_get_kernel_aspace(), "virtio_9p_pdu", size,
-                         (void *)&pdu->sdata, 0, 0,
+                         (void **)&pdu->sdata, 0, 0,
                          ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (!pdu->sdata)
         return ERR_NO_MEMORY;
@@ -128,7 +129,7 @@ static void p9_req_receive(struct p9_req *req,
                            virtio_9p_msg_t *rmsg)
 {
     pdu_readd(&req->rc);
-    rmsg->msg_type = pdu_readb(&req->rc);
+    rmsg->msg_type = (virtio_9p_msg_type_t)pdu_readb(&req->rc);
     rmsg->tag = pdu_readw(&req->rc);
 #if LOCAL_TRACE >= 2
     LTRACEF("req->rc.sdata (%p) req->rc.size (%u)\n", req->rc.sdata,
@@ -146,7 +147,7 @@ static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
 
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&p9dev->lock);
 
-    desc = virtio_alloc_desc_chain(dev, VIRTIO_9P_RING_IDX, 2, &idx);
+    desc = dev->virtio_alloc_desc_chain(VIRTIO_9P_RING_IDX, 2, &idx);
 
     desc->len = req->tc.size;
     desc->addr = vaddr_to_paddr(req->tc.sdata);
@@ -156,7 +157,7 @@ static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
     virtio_dump_desc(desc);
 #endif
 
-    desc = virtio_desc_index_to_desc(dev, VIRTIO_9P_RING_IDX, desc->next);
+    desc = dev->virtio_desc_index_to_desc(VIRTIO_9P_RING_IDX, desc->next);
     desc->len = req->rc.capacity;
     desc->addr = vaddr_to_paddr(req->rc.sdata);
     desc->flags |= VRING_DESC_F_WRITE;
@@ -168,10 +169,10 @@ static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
     req->status = P9_REQ_S_SENT;
 
     /* submit the transfer */
-    virtio_submit_chain(dev, VIRTIO_9P_RING_IDX, idx);
+    dev->virtio_submit_chain(VIRTIO_9P_RING_IDX, idx);
 
     /* kick it off */
-    virtio_kick(dev, VIRTIO_9P_RING_IDX);
+    dev->bus()->virtio_kick(VIRTIO_9P_RING_IDX);
 
     spin_unlock_irqrestore(&p9dev->lock, state);
 }
@@ -181,7 +182,7 @@ status_t virtio_9p_rpc(struct virtio_device *dev, const virtio_9p_msg_t *tmsg,
 {
     LTRACEF("dev (%p) tmsg (%p) rmsg (%p)\n", dev, tmsg, rmsg);
 
-    struct virtio_9p_dev *p9dev = dev->priv;
+    auto *p9dev = (virtio_9p_dev *)dev->priv();
     struct p9_req *req = &p9dev->req;
     status_t ret;
 

@@ -84,6 +84,9 @@ void platform_init(void) {
 
         // assign resources to all devices in case they need it
         pci_bus_mgr_assign_resources();
+
+        // scan for an initialize any virtio devices
+        virtio_pci_init();
     }
 
     /* detect any virtio devices */
@@ -140,17 +143,30 @@ void platform_halt(platform_halt_action suggested_action, platform_halt_reason r
     platform_halt_default(suggested_action, reason, &reboot_, &shutdown_);
 }
 
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector) {
-    // at the moment there's no translation between PCI IRQs and native irqs
-    *vector = pci_int;
+status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
+        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
+    (void)pci_bus;
+    (void)pci_func;
+
+    // QEMU virt machine maps PCI INTx to PLIC lines 32..35 with slot swizzling:
+    // irq = 32 + ((pin - 1 + slot) % 4), where pin is 1..4 for INTA..INTD.
+    static const unsigned int PCIE_IRQ_BASE = 0x20;
+
+    if (pci_int < 1 || pci_int > 4) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    *vector = PCIE_IRQ_BASE + ((pci_int - 1 + pci_dev) % 4);
     return NO_ERROR;
 }
 
 status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
+    TRACEF("count %zu, align_log2 %u, msi %d\n", count, align_log2, msi);
     return ERR_NOT_SUPPORTED;
 }
 
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
         uint64_t *msi_address_out, uint16_t *msi_data_out) {
+    TRACEF("vector %u, cpu %u, edge %d\n", vector, cpu, edge);
     return ERR_NOT_SUPPORTED;
 }

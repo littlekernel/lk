@@ -34,6 +34,7 @@ public:
 
     status_t allocate_irq(uint *irq);
     status_t allocate_msi(size_t num_requested, uint *msi_base);
+    status_t allocate_msix(size_t num_requested, uint *msi_base);
     status_t load_config();
     status_t load_bars();
 
@@ -90,6 +91,7 @@ public:
     uint8_t header_type() const { return config_.header_type & PCI_HEADER_TYPE_MASK; }
 
     status_t read_bars(pci_bar_t bar[6]);
+    ssize_t read_vendor_capability(size_t index, void *buf, size_t buflen);
 
     bool has_msi() const { return msi_cap_; }
     bool has_msix() const { return msix_cap_; }
@@ -119,6 +121,13 @@ private:
     list_node capability_list_ = LIST_INITIAL_VALUE(capability_list_);
     capability *msi_cap_ = nullptr;
     capability *msix_cap_ = nullptr;
+
+    // MSI-X saved details
+    uint32_t msix_table_size = {};
+    void *msix_table_map = nullptr;
+    void *msix_pba_map = nullptr;
+    volatile uint32_t *msix_table_ptr = nullptr;
+    volatile uint32_t *msix_pba_ptr = nullptr;
 };
 
 struct capability {

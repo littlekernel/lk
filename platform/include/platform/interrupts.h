@@ -36,8 +36,12 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
 
 /* Map the incoming interrupt line number from the pci bus config to raw
  * vector number, usable in the above apis.
+ *
+ * Full PCI BDF context is provided so platform code can implement routing
+ * policy however needed.
  */
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int *vector);
+status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
+        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector);
 
 /* Ask the platform to compute for us the value to stuff in the MSI address and data fields. */
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
