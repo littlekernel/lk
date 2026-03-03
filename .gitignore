@@ -3,11 +3,15 @@
 *.swp
 *~
 .cache
+.cache
 .clangd
-.vscode
 .mypy_cache
+.rsync-filter
+.vscode
+TAGS
 blk*.bin
 build-*
+buildall.log
 compile_commands.json
 cscope.*
 doit*
@@ -15,12 +19,7 @@ local.mk
 scripts/toolpaths.local
 t
 tagit
-TAGS
 tags
 toolchain
-.cache
-vmlinux
-
-buildall.log
 trace.txt
-.rsync-filter
+vmlinux
