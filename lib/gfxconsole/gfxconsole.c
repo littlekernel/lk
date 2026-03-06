@@ -15,14 +15,14 @@
  * @ingroup graphics
  */
 
-#include <lk/debug.h>
 #include <assert.h>
-#include <lib/io.h>
-#include <lk/init.h>
+#include <dev/display.h>
+#include <lib/font.h>
 #include <lib/gfx.h>
 #include <lib/gfxconsole.h>
-#include <lib/font.h>
-#include <dev/display.h>
+#include <lib/io.h>
+#include <lk/debug.h>
+#include <lk/init.h>
 
 /** @addtogroup graphics
  * @{
@@ -43,7 +43,8 @@ static struct {
 } gfxconsole;
 
 static void gfxconsole_putc(char c) {
-    static enum { NORMAL, ESCAPE } state = NORMAL;
+    static enum { NORMAL,
+                  ESCAPE } state = NORMAL;
     static uint32_t p_num = 0;
 
     switch (state) {
@@ -51,6 +52,16 @@ static void gfxconsole_putc(char c) {
             if (c == '\n' || c == '\r') {
                 gfxconsole.x = 0;
                 gfxconsole.y++;
+            } else if (c == '\b') {
+                if (gfxconsole.x > 0) {
+                    gfxconsole.x--;
+                }
+
+                gfx_fillrect(gfxconsole.surface, gfxconsole.x * FONT_X, gfxconsole.y * FONT_Y,
+                             FONT_X, FONT_Y, gfxconsole.back_color);
+
+                gfx_flush_rows(gfxconsole.surface, gfxconsole.y * FONT_Y,
+                               (gfxconsole.y * FONT_Y) + FONT_Y);
             } else if (c == 0x1b) {
                 p_num = 0;
                 state = ESCAPE;
@@ -65,8 +76,9 @@ static void gfxconsole_putc(char c) {
             if (c >= '0' && c <= '9') {
                 p_num = (p_num * 10) + (c - '0');
             } else if (c == 'D') {
-                if (p_num <= gfxconsole.x)
+                if (p_num <= gfxconsole.x) {
                     gfxconsole.x -= p_num;
+                }
                 state = NORMAL;
             } else if (c == '[') {
                 // eat this character
@@ -99,10 +111,9 @@ void gfxconsole_print_callback(print_callback_t *cb, const char *str, size_t len
 }
 
 static print_callback_t cb = {
-    .entry = { 0 },
+    .entry = {0},
     .print = gfxconsole_print_callback,
-    .context = NULL
-};
+    .context = NULL};
 
 /**
  * @brief  Initialize graphics console on given drawing surface.
@@ -141,13 +152,15 @@ void gfxconsole_start(gfx_surface *surface) {
 void gfxconsole_start_on_display(void) {
     static bool started = false;
 
-    if (started)
+    if (started) {
         return;
+    }
 
     /* pop up the console */
     struct display_framebuffer fb;
-    if (display_get_framebuffer(&fb) < 0)
+    if (display_get_framebuffer(&fb) < 0) {
         return;
+    }
 
     gfx_surface *s = gfx_create_surface_from_display(&fb);
     gfxconsole_start(s);
