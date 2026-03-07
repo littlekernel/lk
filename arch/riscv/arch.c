@@ -5,18 +5,18 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <assert.h>
-#include <lk/trace.h>
-#include <lk/debug.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <arch/riscv.h>
-#include <arch/ops.h>
+#include <arch.h>
 #include <arch/mp.h>
+#include <arch/ops.h>
+#include <arch/riscv.h>
+#include <assert.h>
+#include <lk/debug.h>
 #include <lk/init.h>
 #include <lk/main.h>
+#include <lk/trace.h>
 #include <platform.h>
-#include <arch.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #include "arch/riscv/feature.h"
 #include "riscv_priv.h"
@@ -65,7 +65,7 @@ void riscv_early_init_percpu(void) {
 #endif
 
     // enable cycle counter (disabled for now, unimplemented on sifive-e)
-    //riscv_csr_set(mcounteren, 1);
+    // riscv_csr_set(mcounteren, 1);
 }
 
 // called very early just after entering C code on boot processor
@@ -147,18 +147,26 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
 
     thread_t *ct = get_current_thread();
 
+    // Compute the top of the current thread's kernel stack, aligned to 16 bytes.
     vaddr_t kernel_stack_top = (uintptr_t)ct->stack + ct->stack_size;
     kernel_stack_top = ROUNDDOWN(kernel_stack_top, 16);
 
-    printf("kernel sstatus %#lx\n", riscv_csr_read(sstatus));
-
-    // build a user status register
+    // build the user space sstatus state
     ulong status;
-    status = RISCV_CSR_XSTATUS_PIE |
-             RISCV_CSR_XSTATUS_SUM;
+    status = RISCV_CSR_XSTATUS_PIE | // interrupts enabled
+             RISCV_CSR_XSTATUS_SUM;  // keep SUM set for now so we dont have to
+                                     // set it when coming from user space.
 
-    printf("user sstatus %#lx\n", status);
+    LTRACEF("kernel sstatus %#lx\n", riscv_csr_read(sstatus));
+    LTRACEF("user sstatus %#lx\n", status);
 
+#if RISCV_FPU
+    // Enable FP access before zeroing registers; riscv_fpu_zero() will leave FS in INITIAL.
+    status |= RISCV_CSR_XSTATUS_FS_CLEAN;
+#endif
+
+    // Disable interrupts, now we're committed and cannot tolerate any exceptions
+    // or interrupts until we get to user space.
     arch_disable_ints();
 
     riscv_csr_write(sstatus, status);
@@ -166,13 +174,14 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     riscv_csr_write(sscratch, kernel_stack_top);
 
 #if RISCV_FPU
-    status |= RISCV_CSR_XSTATUS_FS_INITIAL; // mark fpu state 'initial'
     riscv_fpu_zero();
 #endif
 
     // put the current tp (percpu pointer) just below the top of the stack
     // the exception code will recover it when coming from user space
     ((uintptr_t *)kernel_stack_top)[-1] = (uintptr_t)riscv_get_percpu();
+
+    // jump to user space
     asm volatile(
         // set the user stack pointer
         "mv  sp, %0\n"
@@ -207,9 +216,8 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
         "li  ra, 0\n"
         "li  gp, 0\n"
         "li  tp, 0\n"
-        "sret"
-        :: "r" (user_stack_top)
-    );
+        "sret" ::"r"(user_stack_top)
+        : "memory");
 
     __UNREACHABLE;
 }
@@ -217,19 +225,31 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
 
 /* unimplemented cache operations */
 #if RISCV_NO_CACHE_OPS
-void arch_disable_cache(uint flags) { }
-void arch_enable_cache(uint flags) { }
+void arch_disable_cache(uint flags) {}
+void arch_enable_cache(uint flags) {}
 
-void arch_clean_cache_range(addr_t start, size_t len) { }
-void arch_clean_invalidate_cache_range(addr_t start, size_t len) { }
-void arch_invalidate_cache_range(addr_t start, size_t len) { }
-void arch_sync_cache_range(addr_t start, size_t len) { }
+void arch_clean_cache_range(addr_t start, size_t len) {}
+void arch_clean_invalidate_cache_range(addr_t start, size_t len) {}
+void arch_invalidate_cache_range(addr_t start, size_t len) {}
+void arch_sync_cache_range(addr_t start, size_t len) {}
 #else
-void arch_disable_cache(uint flags) { PANIC_UNIMPLEMENTED; }
-void arch_enable_cache(uint flags) { PANIC_UNIMPLEMENTED; }
+void arch_disable_cache(uint flags) {
+    PANIC_UNIMPLEMENTED;
+}
+void arch_enable_cache(uint flags) {
+    PANIC_UNIMPLEMENTED;
+}
 
-void arch_clean_cache_range(addr_t start, size_t len) { PANIC_UNIMPLEMENTED; }
-void arch_clean_invalidate_cache_range(addr_t start, size_t len) { PANIC_UNIMPLEMENTED; }
-void arch_invalidate_cache_range(addr_t start, size_t len) { PANIC_UNIMPLEMENTED; }
-void arch_sync_cache_range(addr_t start, size_t len) { PANIC_UNIMPLEMENTED; }
+void arch_clean_cache_range(addr_t start, size_t len) {
+    PANIC_UNIMPLEMENTED;
+}
+void arch_clean_invalidate_cache_range(addr_t start, size_t len) {
+    PANIC_UNIMPLEMENTED;
+}
+void arch_invalidate_cache_range(addr_t start, size_t len) {
+    PANIC_UNIMPLEMENTED;
+}
+void arch_sync_cache_range(addr_t start, size_t len) {
+    PANIC_UNIMPLEMENTED;
+}
 #endif

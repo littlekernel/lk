@@ -79,7 +79,16 @@ static void dump_iframe(struct riscv_short_iframe *frame, bool kernel) {
     printf("t0 %#16lx t1 %#16lx t2 %#16lx t3 %#16lx\n", frame->t0, frame->t1, frame->t2, frame->t3);
     printf("t5 %#16lx t6 %#16lx\n", frame->t5, frame->t6);
     if (!kernel) {
+        // Old gp/tp/sp are saved when coming from user space in the iframe
         printf("gp %#16lx tp %#16lx sp %#lx\n", frame->gp, frame->tp, frame->sp);
+    } else {
+        ulong gp, tp;
+
+        asm volatile("mv %0, gp" : "=r"(gp));
+        asm volatile("mv %0, tp" : "=r"(tp));
+
+        // gp/tp/sp are not modified when taking a kernel to kernel exception
+        printf("gp %#16lx tp %#16lx (from registers)\n", gp, tp);
     }
 }
 
