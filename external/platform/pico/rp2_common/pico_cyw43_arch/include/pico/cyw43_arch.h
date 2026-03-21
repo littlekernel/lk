@@ -46,7 +46,7 @@ extern "C" {
 /** \file pico/cyw43_arch.h
  *  \defgroup pico_cyw43_arch pico_cyw43_arch
  *
- * Architecture for integrating the CYW43 driver (for the wireless on Pico W) and lwIP (for TCP/IP stack) into the SDK. It is also necessary for accessing the on-board LED on Pico W
+ * \brief Architecture for integrating the CYW43 driver (for the wireless on Pico W) and lwIP (for TCP/IP stack) into the SDK. It is also necessary for accessing the on-board LED on Pico W
  *
  * Both the low level \c cyw43_driver and the lwIP stack require periodic servicing, and have limitations
  * on whether they can be called from multiple cores/threads.
@@ -59,7 +59,7 @@ extern "C" {
  *
  * As of right now, lwIP is the only supported TCP/IP stack, however the use of \c pico_cyw43_arch is intended to be independent of
  * the particular TCP/IP stack used (and possibly Bluetooth stack used) in the future. For this reason, the integration of lwIP
- * is handled in the base (\c pico_cyw43_arch) library based on the #define \ref CYW43_LWIP used by the \c cyw43_driver.
+ * is handled in the base (\c pico_cyw43_arch) library based on the \#define \ref CYW43_LWIP used by the \c cyw43_driver.
  *
  * \note As of version 1.5.0 of the Raspberry Pi Pico SDK, the \c pico_cyw43_arch library no longer directly implements
  * the distinct behavioral abstractions. This is now handled by the more general \ref pico_async_context library. The
@@ -130,9 +130,13 @@ extern "C" {
  *    - Sets \c CYW43_LWIP=0 to disable lwIP support in \c pico_cyw43_arch and \c cyw43_driver
  */
 
-// PICO_CONFIG: PARAM_ASSERTIONS_ENABLED_CYW43_ARCH, Enable/disable assertions in the pico_cyw43_arch module, type=bool, default=0, group=pico_cyw43_arch
-#ifndef PARAM_ASSERTIONS_ENABLED_CYW43_ARCH
-#define PARAM_ASSERTIONS_ENABLED_CYW43_ARCH 0
+// PICO_CONFIG: PARAM_ASSERTIONS_ENABLED_PICO_CYW43_ARCH, Enable/disable assertions in the pico_cyw43_arch module, type=bool, default=0, group=pico_cyw43_arch
+#ifndef PARAM_ASSERTIONS_ENABLED_PICO_CYW43_ARCH
+#ifdef PARAM_ASSERTIONS_ENABLED_CYW43_ARCH // backwards compatibility with SDK < 2.0.0
+#define PARAM_ASSERTIONS_ENABLED_PICO_CYW43_ARCH PARAM_ASSERTIONS_ENABLED_CYW43_ARCH
+#else
+#define PARAM_ASSERTIONS_ENABLED_PICO_CYW43_ARCH 0
+#endif
 #endif
 
 // PICO_CONFIG: PICO_CYW43_ARCH_DEBUG_ENABLED, Enable/disable some debugging output in the pico_cyw43_arch module, type=bool, default=1 in debug builds, group=pico_cyw43_arch
@@ -165,7 +169,7 @@ extern "C" {
  * \ref cyw43_arch_init_default_async_context, however the user can specify use of their own async_context
  * by calling \ref cyw43_arch_set_async_context() before calling this method
  *
- * \return 0 if the initialization is successful, an error code otherwise \see pico_error_codes
+ * \return 0 if the initialization is successful, an error code otherwise see \ref pico_error_codes
  */
 int cyw43_arch_init(void);
 
@@ -182,7 +186,7 @@ int cyw43_arch_init(void);
  * by calling \ref cyw43_arch_set_async_context() before calling this method
  *
  * \param country the country code to use (see \ref CYW43_COUNTRY_)
- * \return 0 if the initialization is successful, an error code otherwise \see pico_error_codes
+ * \return 0 if the initialization is successful, an error code otherwise see \ref pico_error_codes
  */
 int cyw43_arch_init_with_country(uint32_t country);
 
@@ -395,7 +399,9 @@ void cyw43_arch_disable_ap_mode(void);
  * \param auth the authorization type to use when the password is enabled. Values are \ref CYW43_AUTH_WPA_TKIP_PSK,
  *             \ref CYW43_AUTH_WPA2_AES_PSK, or \ref CYW43_AUTH_WPA2_MIXED_PSK (see \ref CYW43_AUTH_)
  *
- * \return 0 if the initialization is successful, an error code otherwise \see pico_error_codes
+ * \return 0 if the connection is successful.
+ * PICO_ERROR_BADAUTH is returned if the WiFi password is wrong.
+ * PICO_ERROR_CONNECT_FAILED is returned if the connection failed for some other reason.
  */
 int cyw43_arch_wifi_connect_blocking(const char *ssid, const char *pw, uint32_t auth);
 
@@ -409,7 +415,9 @@ int cyw43_arch_wifi_connect_blocking(const char *ssid, const char *pw, uint32_t 
  * \param auth the authorization type to use when the password is enabled. Values are \ref CYW43_AUTH_WPA_TKIP_PSK,
  *             \ref CYW43_AUTH_WPA2_AES_PSK, or \ref CYW43_AUTH_WPA2_MIXED_PSK (see \ref CYW43_AUTH_)
  *
- * \return 0 if the initialization is successful, an error code otherwise \see pico_error_codes
+ * \return 0 if the connection is successful.
+ * PICO_ERROR_BADAUTH is returned if the WiFi password is wrong.
+ * PICO_ERROR_CONNECT_FAILED is returned if the connection failed for some other reason.
  */
 int cyw43_arch_wifi_connect_bssid_blocking(const char *ssid, const uint8_t *bssid, const char *pw, uint32_t auth);
 
@@ -423,7 +431,10 @@ int cyw43_arch_wifi_connect_bssid_blocking(const char *ssid, const uint8_t *bssi
  *             \ref CYW43_AUTH_WPA2_AES_PSK, or \ref CYW43_AUTH_WPA2_MIXED_PSK (see \ref CYW43_AUTH_)
  * \param timeout how long to wait in milliseconds for a connection to succeed before giving up
  *
- * \return 0 if the initialization is successful, an error code otherwise \see pico_error_codes
+ * \return 0 if the connection is successful.
+ * PICO_ERROR_TIMEOUT is returned if the timeout is reached before a successful connection.
+ * PICO_ERROR_BADAUTH is returned if the WiFi password is wrong.
+ * PICO_ERROR_CONNECT_FAILED is returned if the connection failed for some other reason.
  */
 int cyw43_arch_wifi_connect_timeout_ms(const char *ssid, const char *pw, uint32_t auth, uint32_t timeout);
 
@@ -438,7 +449,10 @@ int cyw43_arch_wifi_connect_timeout_ms(const char *ssid, const char *pw, uint32_
  *             \ref CYW43_AUTH_WPA2_AES_PSK, or \ref CYW43_AUTH_WPA2_MIXED_PSK (see \ref CYW43_AUTH_)
  * \param timeout how long to wait in milliseconds for a connection to succeed before giving up
  *
- * \return 0 if the initialization is successful, an error code otherwise \see pico_error_codes
+ * \return 0 if the connection is successful.
+ * PICO_ERROR_TIMEOUT is returned if the timeout is reached before a successful connection.
+ * PICO_ERROR_BADAUTH is returned if the WiFi password is wrong.
+ * PICO_ERROR_CONNECT_FAILED is returned if the connection failed for some other reason.
  */
 int cyw43_arch_wifi_connect_bssid_timeout_ms(const char *ssid, const uint8_t *bssid, const char *pw, uint32_t auth, uint32_t timeout);
 
@@ -454,7 +468,7 @@ int cyw43_arch_wifi_connect_bssid_timeout_ms(const char *ssid, const uint8_t *bs
  * \param auth the authorization type to use when the password is enabled. Values are \ref CYW43_AUTH_WPA_TKIP_PSK,
  *             \ref CYW43_AUTH_WPA2_AES_PSK, or \ref CYW43_AUTH_WPA2_MIXED_PSK (see \ref CYW43_AUTH_)
  *
- * \return 0 if the scan was started successfully, an error code otherwise \see pico_error_codes
+ * \return 0 if the scan was started successfully, an error code otherwise see \ref pico_error_codes
  */
 int cyw43_arch_wifi_connect_async(const char *ssid, const char *pw, uint32_t auth);
 
@@ -471,7 +485,7 @@ int cyw43_arch_wifi_connect_async(const char *ssid, const char *pw, uint32_t aut
  * \param auth the authorization type to use when the password is enabled. Values are \ref CYW43_AUTH_WPA_TKIP_PSK,
  *             \ref CYW43_AUTH_WPA2_AES_PSK, or \ref CYW43_AUTH_WPA2_MIXED_PSK (see \ref CYW43_AUTH_)
  *
- * \return 0 if the scan was started successfully, an error code otherwise \see pico_error_codes
+ * \return 0 if the scan was started successfully, an error code otherwise see \ref pico_error_codes
  */
 int cyw43_arch_wifi_connect_bssid_async(const char *ssid, const uint8_t *bssid, const char *pw, uint32_t auth);
 

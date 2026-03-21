@@ -63,10 +63,14 @@ extern "C" {
 #endif
 
 #ifndef CYW43_CHIPSET_FIRMWARE_INCLUDE_FILE
+#if CYW43_USE_FIRMWARE_PARTITION
+#define CYW43_CHIPSET_FIRMWARE_INCLUDE_FILE "cyw43_partition_firmware.h"
+#else
 #if CYW43_ENABLE_BLUETOOTH
 #define CYW43_CHIPSET_FIRMWARE_INCLUDE_FILE "wb43439A0_7_95_49_00_combined.h"
 #else
 #define CYW43_CHIPSET_FIRMWARE_INCLUDE_FILE "w43439A0_7_95_49_00_combined.h"
+#endif
 #endif
 #endif
 
@@ -79,6 +83,10 @@ extern "C" {
 #define CYW43_EIO              (-PICO_ERROR_IO) // I/O error
 #define CYW43_EINVAL           (-PICO_ERROR_INVALID_ARG) // Invalid argument
 #define CYW43_ETIMEDOUT        (-PICO_ERROR_TIMEOUT) // Connection timed out
+
+#ifndef CYW43_WL_GPIO_COUNT
+#define CYW43_WL_GPIO_COUNT 3
+#endif
 
 #define CYW43_NUM_GPIOS        CYW43_WL_GPIO_COUNT
 
@@ -95,16 +103,45 @@ static inline uint32_t cyw43_hal_ticks_ms(void) {
     return to_ms_since_boot(get_absolute_time());
 }
 
+#if CYW43_PIN_WL_DYNAMIC
+// these are just an index into an array
+typedef enum cyw43_pin_index_t {
+    CYW43_PIN_INDEX_WL_REG_ON,
+    CYW43_PIN_INDEX_WL_DATA_OUT,
+    CYW43_PIN_INDEX_WL_DATA_IN,
+    CYW43_PIN_INDEX_WL_HOST_WAKE,
+    CYW43_PIN_INDEX_WL_CLOCK,
+    CYW43_PIN_INDEX_WL_CS,
+    CYW43_PIN_INDEX_WL_COUNT // last
+} cyw43_pin_index_t;
+#define CYW43_PIN_WL_REG_ON cyw43_get_pin_wl(CYW43_PIN_INDEX_WL_REG_ON)
+#define CYW43_PIN_WL_DATA_OUT cyw43_get_pin_wl(CYW43_PIN_INDEX_WL_DATA_OUT)
+#define CYW43_PIN_WL_DATA_IN cyw43_get_pin_wl(CYW43_PIN_INDEX_WL_DATA_IN)
+#define CYW43_PIN_WL_HOST_WAKE cyw43_get_pin_wl(CYW43_PIN_INDEX_WL_HOST_WAKE)
+#define CYW43_PIN_WL_CLOCK cyw43_get_pin_wl(CYW43_PIN_INDEX_WL_CLOCK)
+#define CYW43_PIN_WL_CS cyw43_get_pin_wl(CYW43_PIN_INDEX_WL_CS)
+// Lookup the gpio value in an array
+uint cyw43_get_pin_wl(cyw43_pin_index_t pin_id);
+#else
+// Just return the gpio number configured at build time
+#define CYW43_PIN_WL_REG_ON CYW43_DEFAULT_PIN_WL_REG_ON
+#define CYW43_PIN_WL_DATA_OUT CYW43_DEFAULT_PIN_WL_DATA_OUT
+#define CYW43_PIN_WL_DATA_IN CYW43_DEFAULT_PIN_WL_DATA_IN
+#define CYW43_PIN_WL_HOST_WAKE CYW43_DEFAULT_PIN_WL_HOST_WAKE
+#define CYW43_PIN_WL_CLOCK CYW43_DEFAULT_PIN_WL_CLOCK
+#define CYW43_PIN_WL_CS CYW43_DEFAULT_PIN_WL_CS
+#endif // !CYW43_PIN_WL_DYNAMIC
+
 static inline int cyw43_hal_pin_read(cyw43_hal_pin_obj_t pin) {
     return gpio_get(pin);
 }
 
 static inline void cyw43_hal_pin_low(cyw43_hal_pin_obj_t pin) {
-    gpio_clr_mask(1 << pin);
+    gpio_put(pin, false);
 }
 
 static inline void cyw43_hal_pin_high(cyw43_hal_pin_obj_t pin) {
-    gpio_set_mask(1 << pin);
+    gpio_put(pin, true);
 }
 
 #define CYW43_HAL_PIN_MODE_INPUT           (GPIO_IN)
@@ -163,6 +200,20 @@ void cyw43_post_poll_hook(void);
 #endif
 #ifndef cyw43_free
 #define cyw43_free free
+#endif
+
+// PICO_CONFIG: PICO_CYW43_LOGGING_ENABLED, Enable/disable CYW43_PRINTF used for logging in cyw43 components. Has no effect if CYW43_PRINTF is defined by the user, default=1, type=bool, group=pico_cyw43_driver
+#ifndef PICO_CYW43_LOGGING_ENABLED
+#define PICO_CYW43_LOGGING_ENABLED 1
+#endif
+
+#if !defined(CYW43_PRINTF) && !PICO_CYW43_LOGGING_ENABLED
+#define CYW43_PRINTF(...) (void)0
+#endif
+
+// PICO_CONFIG: CYW43_LWIP_DEFAULT, Sets the default value of CYW43_LWIP if it's undefined. CYW43_LWIP defines if cyw43-driver uses LwIP. The default behavior - if it's not defined anywhere - is to set it to 1 and cyw43-driver will use lwIP requiring you to provide an lwipopts.h header file. You can set CYW43_LWIP_DEFAULT to change the default to 0 and avoid using lwIP if CYW43_LWIP is undefined, type=bool, group=pico_cyw43_driver
+#if !defined CYW43_LWIP && defined CYW43_LWIP_DEFAULT
+#define CYW43_LWIP CYW43_LWIP_DEFAULT
 #endif
 
 #ifdef __cplusplus

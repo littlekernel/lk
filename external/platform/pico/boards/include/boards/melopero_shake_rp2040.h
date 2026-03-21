@@ -12,6 +12,8 @@
 #ifndef _BOARDS_MELOPERO_SHAKE_RP2040_H
 #define _BOARDS_MELOPERO_SHAKE_RP2040_H
 
+pico_board_cmake_set(PICO_PLATFORM, rp2040)
+
 // For board detection
 #define MELOPERO_SHAKE_RP2040
 
@@ -80,10 +82,10 @@
 #define PICO_FLASH_SPI_CLKDIV 2
 #endif
 
+pico_board_cmake_set_default(PICO_FLASH_SIZE_BYTES, (16 * 1024 * 1024))
 #ifndef PICO_FLASH_SIZE_BYTES
 #define PICO_FLASH_SIZE_BYTES (16 * 1024 * 1024)
 #endif
-
 #ifndef PICO_RP2040_B0_SUPPORTED
 #define PICO_RP2040_B0_SUPPORTED 0
 #endif

@@ -79,6 +79,10 @@ static inline uint _pio_major_instr_bits(uint instr) {
     return instr & 0xe000u;
 }
 
+static inline uint _pio_arg1(uint instr) {
+    return (instr >> 5) & 0x7u;
+}
+
 static inline uint _pio_encode_instr_and_args(enum pio_instr_bits instr_bits, uint arg1, uint arg2) {
     valid_params_if(PIO_INSTRUCTIONS, arg1 <= 0x7);
 #if PARAM_ASSERTIONS_ENABLED(PIO_INSTRUCTIONS)
@@ -144,7 +148,7 @@ static inline uint pio_encode_sideset(uint sideset_bit_count, uint value) {
  * \return the side set bits to be ORed with an instruction encoding
  */
 static inline uint pio_encode_sideset_opt(uint sideset_bit_count, uint value) {
-    valid_params_if(PIO_INSTRUCTIONS, sideset_bit_count >= 1 && sideset_bit_count <= 4);
+    valid_params_if(PIO_INSTRUCTIONS, sideset_bit_count >= 0 && sideset_bit_count <= 4);
     valid_params_if(PIO_INSTRUCTIONS, value <= ((1u << sideset_bit_count) - 1));
     return 0x1000u | value << (12u - sideset_bit_count);
 }
@@ -263,8 +267,12 @@ static inline uint _pio_encode_irq(bool relative, uint irq) {
  *
  * This is the equivalent of `WAIT <polarity> GPIO <gpio>`
  *
+ * \note gpio here refers to the raw instruction encoding, which only supports 32 GPIOs. So, if you had a PIO
+ * program with `WAIT <polarity> GPIO 42` and a GPIO_BASE (see \ref pio_set_gpio_base) of 16, then you'd want to do
+ * `pio_encode_wait_gpio(polarity, 42-16)` assuming you are using this function to craft instructions for \ref pio_sm_exec.
+ *
  * \param polarity true for `WAIT 1`, false for `WAIT 0`
- * \param gpio The real GPIO number 0-31
+ * \param gpio The GPIO number 0-31 relative to the state machine's GPIO_BASE (see \ref pio_set_gpio_base)
  * \return The instruction encoding with 0 delay and no side set value
  * \see pio_encode_delay, pio_encode_sideset, pio_encode_sideset_opt
  */
