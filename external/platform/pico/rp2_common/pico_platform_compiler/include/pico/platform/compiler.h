@@ -119,7 +119,9 @@ extern "C" {
  *
  */
 
-#if PICO_C_COMPILER_IS_GNU && (__GNUC__ <= 6 || (__GNUC__ == 7 && (__GNUC_MINOR__ < 3 || !defined(__cplusplus))))
+// #if PICO_C_COMPILER_IS_GNU && (__GNUC__ <= 6 || (__GNUC__ == 7 && (__GNUC_MINOR__ < 3 || !defined(__cplusplus))))
+// TG: this seems to still be necessary for modern GCC
+#if PICO_C_COMPILER_IS_GNU
 #define __force_inline inline __always_inline
 #else
 #define __force_inline __always_inline
