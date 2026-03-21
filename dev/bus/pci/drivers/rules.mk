@@ -3,6 +3,7 @@
 MODULES += dev/bus/pci
 MODULES += dev/block/ahci
 MODULES += dev/net/e1000
+MODULES += dev/usb/xhci
 MODULES += dev/virtio/block
 MODULES += dev/virtio/net
 MODULES += dev/virtio/gpu
