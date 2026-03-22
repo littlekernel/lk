@@ -25,6 +25,15 @@
 #include <core_cm3.h>
 #elif ARM_CPU_CORTEX_M4
 #include <core_cm4.h>
+#elif ARM_CPU_CORTEX_M33
+#if defined(__GNUC__) && !defined(__cplusplus)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#endif
+#include <core_cm33.h>
+#if defined(__GNUC__) && !defined(__cplusplus)
+#pragma GCC diagnostic pop
+#endif
 #elif ARM_CPU_CORTEX_M55
 #include <core_cm55.h>
 #elif ARM_CPU_CORTEX_M7

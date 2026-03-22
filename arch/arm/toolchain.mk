@@ -65,6 +65,9 @@ endif
 ifeq ($(ARM_CPU),cortex-m4)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 endif
+ifeq ($(ARM_CPU),cortex-m33)
+ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
+endif
 ifeq ($(ARM_CPU),cortex-m55)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 endif
