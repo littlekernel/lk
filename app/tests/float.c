@@ -52,7 +52,7 @@ static int float_thread(void *arg) {
     return 1;
 }
 
-#if ARCH_ARM && !ARM_ISA_ARMV7M
+#if ARCH_ARM && !ARM_ISA_ARMV7M && !ARM_ISA_ARMV8M
 extern void float_vfp_arm_instruction_test(void);
 extern void float_vfp_thumb_instruction_test(void);
 extern void float_neon_arm_instruction_test(void);
@@ -141,7 +141,7 @@ static int float_tests(int argc, const console_cmd_args *argv) {
 
     float_test();
 
-#if ARCH_ARM && !ARM_ISA_ARMV7M
+#if ARCH_ARM && !ARM_ISA_ARMV7M && !ARM_ISA_ARMV8M
     /* test all the instruction traps */
     arm_float_instruction_trap_test();
 #endif

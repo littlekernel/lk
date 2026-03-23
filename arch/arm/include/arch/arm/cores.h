@@ -19,26 +19,51 @@
 
 /* echo | gcc -E -dM - to dump builtin defines */
 
+#if defined(__ARM_ARCH_8_1M_MAIN__)
+#define ARM_ARCH_8_1M_MAIN 1
+#endif
+#if defined(__ARM_ARCH_8M_MAIN__) || defined(ARM_ARCH_8_1M_MAIN)
+#define ARM_ARCH_8M_MAIN 1
+#endif
+#if defined(__ARM_ARCH_8M_BASE__)
+#define ARM_ARCH_8M_BASE 1
+#endif
+#if defined(ARM_ARCH_8M_MAIN) || defined(ARM_ARCH_8M_BASE)
+#define ARM_ARCH_8M 1
+#endif
+#if defined(__ARM_ARCH_8R__)
+#define ARM_ARCH_8R 1
+#endif
+#if defined(__ARM_ARCH_8A__) || defined(ARM_ARCH_8R)
+#define ARM_ARCH_8A 1
+#endif
+#if defined(__ARM_ARCH_8__) || defined(ARM_ARCH_8A) || defined(ARM_ARCH_8M)
+#define ARM_ARCH_8 1
+#ifndef ARM_ARCH_LEVEL
+#define ARM_ARCH_LEVEL 8
+#endif
+#endif
+
 #if defined(__ARM_ARCH_7EM__)
 #define ARM_ARCH_7EM 1
 #endif
-#if defined(__ARM_ARCH_7M__) || defined(ARM_ARCH_7EM)
+#if defined(__ARM_ARCH_7M__) || defined(ARM_ARCH_7EM) || defined(ARM_ARCH_8M_MAIN)
 #define ARM_ARCH_7M 1
 #endif
 #if defined(__ARM_ARCH_7R__)
 #define ARM_ARCH_7R 1
 #endif
-#if defined(__ARM_ARCH_7A__) || defined(ARM_ARCH_7R)
+#if defined(__ARM_ARCH_7A__) || defined(ARM_ARCH_7R) || defined(ARM_ARCH_8A)
 #define ARM_ARCH_7A 1
 #endif
-#if defined(__ARM_ARCH_7__) || defined(ARM_ARCH_7A) || defined(ARM_ARCH_7M)
+#if defined(__ARM_ARCH_7__) || defined(ARM_ARCH_7A) || defined(ARM_ARCH_7M) || defined(ARM_ARCH_8)
 #define ARM_ARCH_7 1
 #ifndef ARM_ARCH_LEVEL
 #define ARM_ARCH_LEVEL 7
 #endif
 #endif
 
-#if defined(__ARM_ARCH_6M__)
+#if defined(__ARM_ARCH_6M__) || defined(ARM_ARCH_8M_BASE)
 #define ARM_ARCH_6M 1
 #endif
 #if defined(__ARM_ARCH_6T2__) || defined(ARM_ARCH_7)

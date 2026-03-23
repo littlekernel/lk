@@ -22,7 +22,7 @@
 */
 __BEGIN_CDECLS
 
-#if ARM_ISA_ARMV7
+#if ARM_ISA_ARMV7 || ARM_ISA_ARMV8
 #define DSB __asm__ volatile("dsb" ::: "memory")
 #define DMB __asm__ volatile("dmb" ::: "memory")
 #define ISB __asm__ volatile("isb" ::: "memory")
