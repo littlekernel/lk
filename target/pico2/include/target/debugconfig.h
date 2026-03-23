@@ -6,10 +6,8 @@
 
 #pragma once
 
-#include <hardware/uart.h>
-
 // define how this target will map the debug uart to hardware and pins
-#define DEBUG_UART uart0
+#define DEBUG_UART 0
 #define DEBUG_UART_GPIOA 0
 #define DEBUG_UART_GPIOB 1
 #define DEBUG_LED_GPIO 25

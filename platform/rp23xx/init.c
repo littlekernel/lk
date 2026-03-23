@@ -4,13 +4,13 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT
 
-#include <platform.h>
 #include <arch/arm/cm.h>
+#include <dev/uart.h>
+#include <platform.h>
 #include <target/debugconfig.h>
 
 #include <hardware/clocks.h>
 #include <hardware/gpio.h>
-#include <hardware/uart.h>
 #include <hardware/resets.h>
 #include <pico/runtime_init.h>
 
@@ -26,11 +26,10 @@ void platform_early_init(void) {
     // unreset everything
     unreset_block_wait(RESETS_RESET_BITS);
 
-    // target defines drive how we configure the debug uart
-    uart_init(DEBUG_UART, 115200);
+    // Mux the debug UART pins — target-defined GPIO assignments.
     gpio_set_function(DEBUG_UART_GPIOA, GPIO_FUNC_UART);
     gpio_set_function(DEBUG_UART_GPIOB, GPIO_FUNC_UART);
-    uart_puts(DEBUG_UART, "Hello World!\n");
+
+    // Initialize the debug UART peripheral.
+    uart_init_port(DEBUG_UART, 115200);
 }
-
-

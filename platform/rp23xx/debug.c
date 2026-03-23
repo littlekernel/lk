@@ -6,24 +6,22 @@
 
 #include <platform/debug.h>
 
-#include <target/debugconfig.h>
+#include <dev/uart.h>
 
-#include <hardware/uart.h>
-
-#include <stdio.h>
+#define RP23XX_DEBUG_UART_PORT 0
 
 void platform_dputc(char c) {
-    if (c == '\n')
-        uart_putc(DEBUG_UART, '\r');
-    uart_putc(DEBUG_UART, c);
+    if (c == '\n') {
+        uart_putc(RP23XX_DEBUG_UART_PORT, '\r');
+    }
+    uart_putc(RP23XX_DEBUG_UART_PORT, c);
 }
 
 int platform_dgetc(char *c, bool wait) {
-    if (!wait && !uart_is_readable(DEBUG_UART))
+    int ret = uart_getc(RP23XX_DEBUG_UART_PORT, wait);
+    if (ret < 0) {
         return -1;
-    uint8_t ch;
-    uart_read_blocking(DEBUG_UART, &ch, 1);
-    *c = (char)ch;
+    }
+    *c = (char)ret;
     return 0;
 }
-
