@@ -31,6 +31,8 @@ function HELP {
     echo "-u        : also build with UBSAN=1"
     echo "-q        : hide output of build"
     echo "-h        : for help"
+    echo
+    echo "All build output written to buildall.log"
     exit 1
 }
 
