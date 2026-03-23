@@ -60,6 +60,16 @@ bss_clear:
     bne     0b
 1:
 
+#if M68K_CPU == 68000
+// Copy vector table to 0x0, no VBR here
+    lea %pc@(exc_vectors),%a0
+    move.l #0,%a1
+    move.w #255,%d0
+copy_vectab:
+    move.l %a0@+,%a1@+
+    dbra %d0,copy_vectab
+#endif
+
 #if M68K_MMU == 68040
 init_mmu_68040:
     // Set up DTTR0 and ITTR0 to map 0x00000000 - 0x3FFFFFFF (1GB) to 0x00000000
