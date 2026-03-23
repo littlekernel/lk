@@ -5,14 +5,14 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/debug.h>
 #include <arch.h>
-#include <arch/ops.h>
 #include <arch/arm.h>
-#include <kernel/thread.h>
-#include <kernel/debug.h>
-#include <platform.h>
 #include <arch/arm/cm.h>
+#include <arch/ops.h>
+#include <kernel/debug.h>
+#include <kernel/thread.h>
+#include <lk/debug.h>
+#include <platform.h>
 #include <target.h>
 
 extern void *vectab;
@@ -26,7 +26,7 @@ unsigned int arm_cm_irq_pri_mask;
  * dynamic VTOR setting is optional on armv6m cores.
  */
 #ifndef ARM_CM_SET_VTOR
-#if (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
 #define ARM_CM_SET_VTOR 1
 #else
 #define ARM_CM_SET_VTOR 0
@@ -42,14 +42,15 @@ void arch_early_init(void) {
     SCB->VTOR = (uint32_t)&vectab;
 #endif
 
-#if (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
     uint i;
 #if ARM_CM_DYNAMIC_PRIORITY_SIZE
     /* number of priorities */
-    for (i=0; i < 7; i++) {
+    for (i = 0; i < 7; i++) {
         __set_BASEPRI(1 << i);
-        if (__get_BASEPRI() != 0)
+        if (__get_BASEPRI() != 0) {
             break;
+        }
     }
     arm_cm_num_irq_pri_bits = 8 - i;
     arm_cm_irq_pri_mask = ~((1 << i) - 1) & 0xff;
@@ -61,7 +62,7 @@ void arch_early_init(void) {
         NVIC->ICER[i] = 0xffffffff;
         NVIC->ICPR[i] = 0xffffffff;
         for (uint j = 0; j < 32; j++) {
-            NVIC_SetPriority(i*32 + j, arm_cm_medium_priority());
+            NVIC_SetPriority(i * 32 + j, arm_cm_medium_priority());
         }
     }
 
@@ -71,8 +72,12 @@ void arch_early_init(void) {
     /* set priority grouping to 0 */
     NVIC_SetPriorityGrouping(0);
 
-    /* enable certain faults */
-    SCB->SHCSR |= (SCB_SHCSR_USGFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_MEMFAULTENA_Msk);
+    /* enable configurable fault handlers supported by the core */
+    SCB->SHCSR |= SCB_SHCSR_USGFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_MEMFAULTENA_Msk
+#if defined(__ARM_FEATURE_CMSE) && (__ARM_FEATURE_CMSE == 3U)
+                  | SCB_SHCSR_SECUREFAULTENA_Msk
+#endif
+        ;
 #endif
 
     /* set the svc and pendsv priority level to pretty low */
@@ -82,13 +87,13 @@ void arch_early_init(void) {
     /* set systick and debugmonitor to medium priority */
     NVIC_SetPriority(SysTick_IRQn, arm_cm_medium_priority());
 
-#if (__CORTEX_M >= 0x03)
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
     NVIC_SetPriority(DebugMonitor_IRQn, arm_cm_medium_priority());
 #endif
 
     /* FPU settings ------------------------------------------------------------*/
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-    SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
+    SCB->CPACR |= ((3UL << 10 * 2) | (3UL << 11 * 2)); /* set CP10 and CP11 Full Access */
 #endif
 
 #if ARM_WITH_CACHE
@@ -114,28 +119,6 @@ void arch_idle(void) {
     __asm__ volatile("wfi");
 }
 
-#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
-
-void _arm_cm_set_irqpri(uint32_t pri) {
-    if (pri == 0) {
-        __disable_irq(); // cpsid i
-        __set_BASEPRI(0);
-    } else if (pri >= 256) {
-        __set_BASEPRI(0);
-        __enable_irq();
-    } else {
-        uint32_t _pri = pri & arm_cm_irq_pri_mask;
-
-        if (_pri == 0)
-            __set_BASEPRI(1 << (8 - arm_cm_num_irq_pri_bits));
-        else
-            __set_BASEPRI(_pri);
-        __enable_irq(); // cpsie i
-    }
-}
-#endif
-
-
 void arm_cm_irq_entry(void) {
     // Set PRIMASK to 1
     // This is so that later calls to arch_ints_disabled() returns true while we're inside the int handler
@@ -152,8 +135,9 @@ void arm_cm_irq_entry(void) {
 void arm_cm_irq_exit(bool reschedule) {
     target_set_debug_led(1, false);
 
-    if (reschedule)
+    if (reschedule) {
         thread_preempt();
+    }
 
     KEVLOG_IRQ_EXIT(__get_IPSR());
 
@@ -161,7 +145,7 @@ void arm_cm_irq_exit(bool reschedule) {
 }
 
 void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3) {
-#if (__CORTEX_M >= 0x03)
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
 
     uint32_t *entry_vector = (uint32_t *)entry;
 
@@ -173,14 +157,13 @@ void arch_chain_load(void *entry, ulong arg0, ulong arg1, ulong arg2, ulong arg3
         "mov sp,  %[SP]; "
         "bx  %[entry]; "
         :
-        : [arg0]"r"(arg0),
-        [arg1]"r"(arg1),
-        [arg2]"r"(arg2),
-        [arg3]"r"(arg3),
-        [SP]"r"(entry_vector[0]),
-        [entry]"r"(entry_vector[1])
-        : "r0", "r1", "r2", "r3"
-    );
+        : [arg0] "r"(arg0),
+          [arg1] "r"(arg1),
+          [arg2] "r"(arg2),
+          [arg3] "r"(arg3),
+          [SP] "r"(entry_vector[0]),
+          [entry] "r"(entry_vector[1])
+        : "r0", "r1", "r2", "r3");
 
     __UNREACHABLE;
 #else

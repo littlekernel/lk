@@ -12,10 +12,10 @@
 
 #include <assert.h>
 #include <lk/compiler.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <sys/types.h>
 #include <platform/platform_cm.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 #if ARM_CPU_CORTEX_M0
 #include <core_cm0.h>
@@ -43,12 +43,12 @@
 #endif
 
 /* registers dealing with the cycle counter */
-#define DWT_CTRL (0xE0001000)
+#define DWT_CTRL   (0xE0001000)
 #define DWT_CYCCNT (0xE0001004)
-#define SCB_DEMCR (0xE000EDFC)
+#define SCB_DEMCR  (0xE000EDFC)
 
 struct arm_cm_exception_frame {
-#if (__CORTEX_M >= 0x03)
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
     uint32_t r4;
     uint32_t r5;
     uint32_t r6;
@@ -110,7 +110,7 @@ struct arm_cm_exception_frame_fpu {
     uint32_t psr;
 
     /* additional state the cpu pushes when using an extended frame */
-    float    s0_15[16];
+    float s0_15[16];
     uint32_t fpscr;
     uint32_t reserved;
 };
@@ -133,29 +133,24 @@ static const unsigned int arm_cm_num_irq_pri_bits = __NVIC_PRIO_BITS;
 static const unsigned int arm_cm_irq_pri_mask = ~((1 << __NVIC_PRIO_BITS) - 1) & 0xff;
 #endif
 
-#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
 
-void _arm_cm_set_irqpri(uint32_t pri);
-
-static void arm_cm_set_irqpri(uint32_t pri) {
-    if (__ISCONSTANT(pri)) {
-        if (pri == 0) {
-            __disable_irq(); // cpsid i
-            __set_BASEPRI(0);
-        } else if (pri >= 256) {
-            __set_BASEPRI(0);
-            __enable_irq();
-        } else {
-            uint32_t _pri = pri & arm_cm_irq_pri_mask;
-
-            if (_pri == 0)
-                __set_BASEPRI(1 << (8 - arm_cm_num_irq_pri_bits));
-            else
-                __set_BASEPRI(_pri);
-            __enable_irq(); // cpsie i
-        }
+static inline void arm_cm_set_irqpri(uint32_t pri) {
+    if (pri == 0) {
+        __disable_irq(); // cpsid i
+        __set_BASEPRI(0);
+    } else if (pri >= 256) {
+        __set_BASEPRI(0);
+        __enable_irq();
     } else {
-        _arm_cm_set_irqpri(pri);
+        uint32_t _pri = pri & arm_cm_irq_pri_mask;
+
+        if (_pri == 0) {
+            __set_BASEPRI(1 << (8 - arm_cm_num_irq_pri_bits));
+        } else {
+            __set_BASEPRI(_pri);
+        }
+        __enable_irq(); // cpsie i
     }
 }
 #endif
@@ -172,7 +167,7 @@ static inline uint32_t arm_cm_medium_priority(void) {
     return (1 << (arm_cm_num_irq_pri_bits - 1));
 }
 
-#if     (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
 static inline void arm_cm_trigger_interrupt(int vector) {
     NVIC->STIR = vector;
 }
@@ -202,13 +197,17 @@ void arm_cm_irq_exit(bool reschedule);
 /* built in exception vectors */
 void _nmi(void);
 void _hardfault(void);
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
 void _memmanage(void);
 void _busfault(void);
 void _usagefault(void);
-void _svc(void);
 void _debugmonitor(void);
+#endif
+#if defined(__ARM_FEATURE_CMSE) && (__ARM_FEATURE_CMSE == 3U)
+void _securefault(void);
+#endif
+void _svc(void);
 void _pendsv(void);
 void _systick(void);
 
 #endif
-
