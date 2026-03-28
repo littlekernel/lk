@@ -16,6 +16,10 @@ GLOBAL_DEFINES += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/boot.stage2.S \
 	$(LOCAL_DIR)/image_def.S \
-	$(LOCAL_DIR)/target.c
+	$(LOCAL_DIR)/target.c \
+	$(LOCAL_DIR)/usb.c
+
+MODULE_DEPS += \
+	dev/usb
 
 include make/module.mk

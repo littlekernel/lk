@@ -7,6 +7,7 @@
 #include <target.h>
 #include <target/debugconfig.h>
 #include <hardware/gpio.h>
+#include "target_p.h"
 
 static void raw_led_delay(volatile unsigned int count) {
 	while (count-- > 0)
@@ -39,5 +40,6 @@ void target_set_debug_led(unsigned int led, bool on) {
 }
 
 void target_init(void) {
+	target_usb_setup();
 }
 
