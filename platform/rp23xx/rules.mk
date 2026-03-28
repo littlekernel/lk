@@ -28,7 +28,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gpio.c \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/uart.c \
-	$(LOCAL_DIR)/vectab.c
+	$(LOCAL_DIR)/vectab.c \
+	$(LOCAL_DIR)/usb/usbc.c
 
 MODULE_SRCS += \
 	external/platform/pico/common/hardware_claim/claim.c \
@@ -86,6 +87,7 @@ LINKER_SCRIPT += \
 	$(BUILDDIR)/system-twosegment.ld
 
 MODULE_DEPS += \
+	dev/usb \
 	arch/arm/arm-m/systick \
 	lib/cbuf
 

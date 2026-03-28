@@ -7,7 +7,10 @@
 #include <arch/arm/cm.h>
 #include <dev/uart.h>
 #include <platform.h>
+#include <platform/rp23xx.h>
 #include <target/debugconfig.h>
+
+#include "usb/usbc.h"
 
 #include <hardware/clocks.h>
 #include <hardware/gpio.h>
@@ -32,4 +35,12 @@ void platform_early_init(void) {
 
     // Initialize the debug UART peripheral.
     uart_init_port(DEBUG_UART, 115200);
+
+    // Early USB initialization (clock setup, etc.)
+    rp23xx_usbc_early_init();
+}
+
+void platform_init(void) {
+    // Initialize USB device controller
+    rp23xx_usbc_init();
 }
