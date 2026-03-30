@@ -9,7 +9,6 @@
 
 #include <lk/trace.h>
 #include <lk/debug.h>
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <lk/err.h>
@@ -28,8 +27,8 @@ static bool heap_trace = false;
 #endif
 
 /* delayed free list */
-struct list_node delayed_free_list = LIST_INITIAL_VALUE(delayed_free_list);
-spin_lock_t delayed_free_lock = SPIN_LOCK_INITIAL_VALUE;
+static struct list_node delayed_free_list = LIST_INITIAL_VALUE(delayed_free_list);
+static spin_lock_t delayed_free_lock = SPIN_LOCK_INITIAL_VALUE;
 
 #if WITH_LIB_HEAP_MINIHEAP
 /* miniheap implementation */
@@ -238,61 +237,6 @@ static void heap_dump(void) {
     spin_unlock_irqrestore(&delayed_free_lock, state);
 }
 
-static void heap_test(void) {
-#if WITH_LIB_HEAP_CMPCTMALLOC
-    cmpct_test();
-#else
-    void *ptr[16];
-
-    ptr[0] = HEAP_MALLOC(8);
-    ptr[1] = HEAP_MALLOC(32);
-    ptr[2] = HEAP_MALLOC(7);
-    ptr[3] = HEAP_MALLOC(0);
-    ptr[4] = HEAP_MALLOC(98713);
-    ptr[5] = HEAP_MALLOC(16);
-
-    HEAP_FREE(ptr[5]);
-    HEAP_FREE(ptr[1]);
-    HEAP_FREE(ptr[3]);
-    HEAP_FREE(ptr[0]);
-    HEAP_FREE(ptr[4]);
-    HEAP_FREE(ptr[2]);
-
-    HEAP_DUMP();
-
-    int i;
-    for (i=0; i < 16; i++)
-        ptr[i] = 0;
-
-    for (i=0; i < 32768; i++) {
-        unsigned int index = (unsigned int)rand() % 16;
-
-        if ((i % (16*1024)) == 0)
-            printf("pass %d\n", i);
-
-//      printf("index 0x%x\n", index);
-        if (ptr[index]) {
-//          printf("freeing ptr[0x%x] = %p\n", index, ptr[index]);
-            HEAP_FREE(ptr[index]);
-            ptr[index] = 0;
-        }
-        unsigned int align = 1 << ((unsigned int)rand() % 8);
-        ptr[index] = HEAP_MEMALIGN(align, (unsigned int)rand() % 32768);
-//      printf("ptr[0x%x] = %p, align 0x%x\n", index, ptr[index], align);
-
-        DEBUG_ASSERT(((addr_t)ptr[index] % align) == 0);
-//      heap_dump();
-    }
-
-    for (i=0; i < 16; i++) {
-        if (ptr[i])
-            HEAP_FREE(ptr[i]);
-    }
-
-    HEAP_DUMP();
-#endif
-}
-
 
 #if LK_DEBUGLEVEL > 1
 
@@ -319,8 +263,6 @@ usage:
 
     if (strcmp(argv[1].str, "info") == 0) {
         heap_dump();
-    } else if (strcmp(argv[1].str, "test") == 0) {
-        heap_test();
     } else if (strcmp(argv[1].str, "trace") == 0) {
         heap_trace = !heap_trace;
         printf("heap trace is now %s\n", heap_trace ? "on" : "off");

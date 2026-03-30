@@ -3,6 +3,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 GLOBAL_INCLUDES += $(LOCAL_DIR)/include
 
 MODULE := $(LOCAL_DIR)
+MODULE_OPTIONS += test
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/heap_wrapper.c \
