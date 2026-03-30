@@ -53,6 +53,45 @@ static bool test_path_normalize(void) {
     EXPECT_TRUE(test_normalize("/bleh/bar/../../foo/..", ""), "");
     EXPECT_TRUE(test_normalize("/bleh/bar/../../foo/../meh", "/meh"), "");
 
+    // edge cases: empty, standalone dots
+    EXPECT_TRUE(test_normalize("", ""), "");
+    EXPECT_TRUE(test_normalize(".", ""), "");
+    EXPECT_TRUE(test_normalize("..", ""), "");
+    EXPECT_TRUE(test_normalize("/.", ""), "");
+    EXPECT_TRUE(test_normalize("/..", ""), "");
+
+    // three dots is a regular filename
+    EXPECT_TRUE(test_normalize("...", "..."), "");
+    EXPECT_TRUE(test_normalize("/a/.../b", "/a/.../b"), "");
+
+    // dot-prefixed filenames preserved
+    EXPECT_TRUE(test_normalize(".hidden", ".hidden"), "");
+    EXPECT_TRUE(test_normalize("/a/.hidden", "/a/.hidden"), "");
+    EXPECT_TRUE(test_normalize("..hidden", "..hidden"), "");
+
+    // dotdot at end of path
+    EXPECT_TRUE(test_normalize("a/..", ""), "");
+    EXPECT_TRUE(test_normalize("/a/..", ""), "");
+    EXPECT_TRUE(test_normalize("/a/b/..", "/a"), "");
+
+    // multiple dotdots chained
+    EXPECT_TRUE(test_normalize("a/b/../../c", "c"), "");
+    EXPECT_TRUE(test_normalize("/a/b/../../c", "/c"), "");
+    EXPECT_TRUE(test_normalize("a/b/c/../../d", "a/d"), "");
+
+    // dotdot past root clamped
+    EXPECT_TRUE(test_normalize("a/../../b", "b"), "");
+    EXPECT_TRUE(test_normalize("/a/b/../../../c", "c"), "");
+
+    // mixed dots and dotdots
+    EXPECT_TRUE(test_normalize("/a/./b/../c", "/a/c"), "");
+    EXPECT_TRUE(test_normalize("a/./b/./c", "a/b/c"), "");
+    EXPECT_TRUE(test_normalize("/a/b/./../c", "/a/c"), "");
+
+    // consecutive separators in various positions
+    EXPECT_TRUE(test_normalize("///", ""), "");
+    EXPECT_TRUE(test_normalize("a///b", "a/b"), "");
+
     END_TEST;
 }
 

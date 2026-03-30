@@ -621,10 +621,12 @@ void fs_normalize_path(char *path) {
                             outpos--;
                         }
                     }
-                    pos++;
-                    state = SEEN_SEP;
-                    if (c == 0)
+                    if (c == 0) {
                         done = true;
+                    } else {
+                        pos++;
+                        state = SEEN_SEP;
+                    }
                 } else {
                     // a field prefixed with ..
                     // emit the .. and move directly to the IN_FIELD state
