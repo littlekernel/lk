@@ -8,6 +8,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/mem.c \
 	$(LOCAL_DIR)/subdev.c
 
-MOUDLE_OPTIONS := test
+MODULE_OPTIONS := test
 
 include make/module.mk
