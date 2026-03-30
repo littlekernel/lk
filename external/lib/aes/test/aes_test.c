@@ -3,14 +3,10 @@
  */
 
 #include <lib/aes.h>
+#include <lib/unittest.h>
 
 #include <stdint.h>
 #include <string.h>
-#include <platform.h>
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <arch/ops.h>
-#include <lk/console_cmd.h>
 
 /*
  * These sample values come from publication "FIPS-197", Appendix C.1
@@ -32,65 +28,37 @@ static const uint8_t expected_ciphertext[] = {
     0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a
 };
 
-static int aes_command(int argc, const console_cmd_args *argv)
-{
+static bool aes_encrypt(void) {
+    BEGIN_TEST;
+
     AES_KEY aes_key;
     uint8_t ciphertext[AES_BLOCK_SIZE];
 
-    TRACEF("Testing AES encryption.\n");
     memset(ciphertext, 0, sizeof(ciphertext));
     AES_set_encrypt_key(key, 128, &aes_key);
-    lk_bigtime_t start = current_time_hires();
     AES_encrypt(plaintext, ciphertext, &aes_key);
-    lk_bigtime_t end = current_time_hires();
-    int elapsed = end - start;
-    TRACEF("Elapsed time: %d us for 16 bytes (%d.%03d us per byte)\n",
-           elapsed, elapsed / AES_BLOCK_SIZE,
-           ((elapsed * 1000) / AES_BLOCK_SIZE) % 1000);
-    int not_equal = memcmp(expected_ciphertext, ciphertext, AES_BLOCK_SIZE);
-    if (not_equal) {
-        TRACEF("Encryption failed.  Expected:\n");
-        hexdump8(expected_ciphertext, sizeof(expected_ciphertext));
-        TRACEF("Actual:\n");
-        hexdump8(ciphertext, sizeof(ciphertext));
-        TRACEF("FAILED AES encryption\n");
-    } else {
-        TRACEF("PASSED AES encryption\n");
-    }
-    return 0;
+
+    EXPECT_BYTES_EQ(expected_ciphertext, ciphertext, AES_BLOCK_SIZE, "AES-128 encryption");
+
+    END_TEST;
 }
 
-static int aes_bench(int argc, const console_cmd_args *argv)
-{
-    uint32_t c;
-    int i;
+static bool aes_decrypt(void) {
+    BEGIN_TEST;
+
     AES_KEY aes_key;
-    uint8_t ciphertext[AES_BLOCK_SIZE];
-#define ITER 1000
+    uint8_t decrypted[AES_BLOCK_SIZE];
 
-    memset(ciphertext, 0, sizeof(ciphertext));
+    memset(decrypted, 0, sizeof(decrypted));
+    AES_set_decrypt_key(key, 128, &aes_key);
+    AES_decrypt(expected_ciphertext, decrypted, &aes_key);
 
-    c = arch_cycle_count();
+    EXPECT_BYTES_EQ(plaintext, decrypted, AES_BLOCK_SIZE, "AES-128 decryption");
 
-    for (i = 0; i < ITER; i++) {
-        AES_set_encrypt_key(key, 128, &aes_key);
-    }
-
-    c = arch_cycle_count() - c;
-    printf("%u cycles to set encryption key\n", c / ITER);
-
-    c = arch_cycle_count();
-    for (i = 0; i < ITER; i++) {
-        AES_encrypt(plaintext, ciphertext, &aes_key);
-    }
-    c = arch_cycle_count() - c;
-
-    printf("%u cycles to encrypt block of 16 bytes\n", c / ITER);
-
-    return 0;
+    END_TEST;
 }
 
-STATIC_COMMAND_START
-STATIC_COMMAND("aes_test", "test AES encryption", &aes_command)
-STATIC_COMMAND("aes_bench", "bench AES encryption", &aes_bench)
-STATIC_COMMAND_END(aes_test);
+BEGIN_TEST_CASE(aes_tests)
+RUN_TEST(aes_encrypt)
+RUN_TEST(aes_decrypt)
+END_TEST_CASE(aes_tests)
