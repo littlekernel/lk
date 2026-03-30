@@ -194,6 +194,13 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
         spin_unlock(&thread_lock);
         arch_enable_ints();
 
+        /*
+         * Ensure the newly-enabled interrupt state is observed before we
+         * continue. On some Cortex-M profiles (including v8-M), this helps
+         * guarantee a pending PendSV is taken before execution proceeds.
+         */
+        __ISB();
+
         /* should jump to PendSV here */
 
         arch_disable_ints();

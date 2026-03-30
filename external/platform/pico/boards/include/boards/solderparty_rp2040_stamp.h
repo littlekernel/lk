@@ -17,6 +17,8 @@
 #ifndef _BOARDS_SOLDERPARTY_RP2040_STAMP_H
 #define _BOARDS_SOLDERPARTY_RP2040_STAMP_H
 
+pico_board_cmake_set(PICO_PLATFORM, rp2040)
+
 // For board detection
 #define SOLDERPARTY_RP2040_STAMP
 
@@ -71,10 +73,10 @@
 #define PICO_FLASH_SPI_CLKDIV 2
 #endif
 
+pico_board_cmake_set_default(PICO_FLASH_SIZE_BYTES, (8 * 1024 * 1024))
 #ifndef PICO_FLASH_SIZE_BYTES
 #define PICO_FLASH_SIZE_BYTES (8 * 1024 * 1024)
 #endif
-
 // All production boards have B1 RP2040
 #ifndef PICO_RP2040_B0_SUPPORTED
 #define PICO_RP2040_B0_SUPPORTED 0

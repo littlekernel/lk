@@ -15,6 +15,8 @@
 // For board detection
 #define ADAFRUIT_MACROPAD_RP2040
 
+pico_board_cmake_set(PICO_PLATFORM, rp2040)
+
 // On some samples, the xosc can take longer to stabilize than is usual
 #ifndef PICO_XOSC_STARTUP_DELAY_MULTIPLIER
 #define PICO_XOSC_STARTUP_DELAY_MULTIPLIER 64
@@ -171,10 +173,10 @@
 #define PICO_FLASH_SPI_CLKDIV 4
 #endif
 
+pico_board_cmake_set_default(PICO_FLASH_SIZE_BYTES, (8 * 1024 * 1024))
 #ifndef PICO_FLASH_SIZE_BYTES
 #define PICO_FLASH_SIZE_BYTES (8 * 1024 * 1024)
 #endif
-
 // All boards have B1 RP2040
 #ifndef PICO_FLOAT_SUPPORT_ROM_V1
 #define PICO_FLOAT_SUPPORT_ROM_V1 0

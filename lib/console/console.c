@@ -296,9 +296,15 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
                     break;
 
                 default:
-                    buffer[pos++] = c;
-                    if (con->echo)
-                        putchar(c);
+                    if (pos < (LINE_LEN - 1)) {
+                        buffer[pos++] = c;
+                        if (con->echo)
+                            putchar(c);
+                    } else {
+                        fputs("\nerror: line too long\n", stdout);
+                        pos = 0;
+                        goto done;
+                    }
             }
         } else if (escape_level == 1) {
             // inside an escape, look for '['
@@ -311,9 +317,15 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
         } else { // escape_level > 1
             switch (c) {
                 case 67: // right arrow
-                    buffer[pos++] = ' ';
-                    if (con->echo)
-                        putchar(' ');
+                    if (pos < (LINE_LEN - 1)) {
+                        buffer[pos++] = ' ';
+                        if (con->echo)
+                            putchar(' ');
+                    } else {
+                        fputs("\nerror: line too long\n", stdout);
+                        pos = 0;
+                        goto done;
+                    }
                     break;
                 case 68: // left arrow
                     if (pos > 0) {

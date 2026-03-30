@@ -12,6 +12,7 @@
 #include <hardware/gpio.h>
 #include <hardware/uart.h>
 #include <hardware/resets.h>
+#include <pico/runtime_init.h>
 
 void platform_early_init(void) {
     // initialize the clock tree.

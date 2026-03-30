@@ -15,13 +15,13 @@
 #include <lk/reg.h>
 #include <arch/arm.h>
 
-#if ARM_ISA_ARMV7M || ARM_ISA_ARMV6M
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M || ARM_ISA_ARMV6M
 #include <arch/arm/cm.h>
 #endif
 
 __BEGIN_CDECLS
 
-#if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
+#if ARM_ISA_ARMV7 || ARM_ISA_ARMV8 || (ARM_ISA_ARMV6 && !__thumb__)
 #define ENABLE_CYCLE_COUNTER 1
 
 
@@ -46,7 +46,7 @@ static inline bool arch_fiqs_disabled(void) {
 
 
 static inline ulong arch_cycle_count(void) {
-#if ARM_ISA_ARMV7M
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
 #if ENABLE_CYCLE_COUNTER
 #define DWT_CYCCNT (0xE0001004)
     return *REG32(DWT_CYCCNT);
@@ -78,7 +78,7 @@ static inline uint arch_curr_cpu_num(void) {
 
 /* defined in kernel/thread.h */
 
-#if !ARM_ISA_ARMV7M
+#if !(ARM_ISA_ARMV7M || ARM_ISA_ARMV8M)
 /* use the cpu local thread context pointer to store current_thread */
 static inline struct thread *arch_get_current_thread(void) {
     return (struct thread *)arm_read_tpidrprw();
@@ -87,7 +87,7 @@ static inline struct thread *arch_get_current_thread(void) {
 static inline void arch_set_current_thread(struct thread *t) {
     arm_write_tpidrprw((uint32_t)t);
 }
-#else // ARM_ISA_ARM7M
+#else // ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
 
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;
@@ -100,7 +100,7 @@ static inline void arch_set_current_thread(struct thread *t) {
     _current_thread = t;
 }
 
-#endif // !ARM_ISA_ARMV7M
+#endif // !(ARM_ISA_ARMV7M || ARM_ISA_ARMV8M)
 
 #elif ARM_ISA_ARMV6M // cortex-m0 cortex-m0+
 

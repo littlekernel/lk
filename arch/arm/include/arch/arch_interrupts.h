@@ -15,13 +15,13 @@
 #include <lk/reg.h>
 #include <arch/arm.h>
 
-#if ARM_ISA_ARMV7M || ARM_ISA_ARMV6M
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M || ARM_ISA_ARMV6M
 #include <arch/arm/cm.h>
 #endif
 
 __BEGIN_CDECLS
 
-#if ARM_ISA_ARMV7 || (ARM_ISA_ARMV6 && !__thumb__)
+#if ARM_ISA_ARMV7 || ARM_ISA_ARMV8 || (ARM_ISA_ARMV6 && !__thumb__)
 
 static inline void arch_enable_ints(void) {
     CF;
@@ -36,7 +36,7 @@ static inline void arch_disable_ints(void) {
 static inline bool arch_ints_disabled(void) {
     unsigned int state;
 
-#if ARM_ISA_ARMV7M
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
     __asm__ volatile("mrs %0, primask" : "=r"(state));
     state &= 0x1;
 #else
@@ -48,7 +48,7 @@ static inline bool arch_ints_disabled(void) {
 }
 
 static inline bool arch_in_int_handler(void) {
-#if ARM_ISA_ARMV7M
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
     uint32_t ipsr;
     __asm volatile ("MRS %0, ipsr" : "=r" (ipsr) );
     return (ipsr & IPSR_ISR_Msk);
@@ -96,7 +96,7 @@ struct arch_interrupt_saved_state {
     unsigned int state;
 };
 
-#if !(ARM_ISA_ARMV7M || ARM_ISA_ARMV6M)
+#if !(ARM_ISA_ARMV7M || ARM_ISA_ARMV8M || ARM_ISA_ARMV6M)
 
 static inline struct arch_interrupt_saved_state
 arch_interrupt_save(void) {

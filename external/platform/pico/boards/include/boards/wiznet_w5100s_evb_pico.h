@@ -9,10 +9,10 @@
 //       SHOULD ONLY CONSIST OF PREPROCESSOR DIRECTIVES
 // -----------------------------------------------------
 
-
-
 #ifndef _BOARDS_WIZNET_W5100S_EVB_PICO_H
 #define _BOARDS_WIZNET_W5100S_EVB_PICO_H
+
+pico_board_cmake_set(PICO_PLATFORM, rp2040)
 
 // For board detection
 #define WIZNET_W5100S_EVB_PICO
@@ -89,10 +89,10 @@
 #define PICO_FLASH_SPI_CLKDIV 2
 #endif
 
+pico_board_cmake_set_default(PICO_FLASH_SIZE_BYTES, (2 * 1024 * 1024))
 #ifndef PICO_FLASH_SIZE_BYTES
 #define PICO_FLASH_SIZE_BYTES (2 * 1024 * 1024)
 #endif
-
 // Drive high to force power supply into PWM mode (lower ripple on 3V3 at light loads)
 #define PICO_SMPS_MODE_PIN 23
 

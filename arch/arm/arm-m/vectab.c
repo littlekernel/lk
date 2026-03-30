@@ -18,15 +18,6 @@
 static uint8_t initial_stack[1024] __SECTION(".bss.prebss.initial_stack") __ALIGNED(8);
 
 extern void _start(void);
-extern void _nmi(void);
-extern void _hardfault(void);
-extern void _memmanage(void);
-extern void _busfault(void);
-extern void _usagefault(void);
-extern void _svc(void);
-extern void _debugmonitor(void);
-extern void _pendsv(void);
-extern void _systick(void);
 
 #if defined(WITH_DEBUGGER_INFO)
 // Contains sufficient information for a remote debugger to walk
@@ -54,35 +45,40 @@ static const struct __debugger_info__ {
 #endif
 
 // ARMv7m+ have more vectors than armv6m
-#if (__CORTEX_M >= 0x03) || (CORTEX_SC >= 300)
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
 #define ARMV7M_VECTOR(v) (v)
 #else
 #define ARMV7M_VECTOR(v) 0
+#endif
+
+#if defined(__ARM_FEATURE_CMSE) && (__ARM_FEATURE_CMSE == 3U)
+#define ARMV8M_SECURE_VECTOR(v) (v)
+#else
+#define ARMV8M_SECURE_VECTOR(v) 0
 #endif
 
 const void *const __SECTION(".text.boot.vectab1") vectab[] = {
     /* arm exceptions */
     initial_stack + sizeof(initial_stack),
     _start,
-    _nmi, // nmi
-    _hardfault, // hard fault
-    ARMV7M_VECTOR(_memmanage), // mem manage
-    ARMV7M_VECTOR(_busfault), // bus fault
-    ARMV7M_VECTOR(_usagefault), // usage fault
-    0, // reserved
+    _nmi,                               // nmi
+    _hardfault,                         // hard fault
+    ARMV7M_VECTOR(_memmanage),          // mem manage
+    ARMV7M_VECTOR(_busfault),           // bus fault
+    ARMV7M_VECTOR(_usagefault),         // usage fault
+    ARMV8M_SECURE_VECTOR(_securefault), // secure fault
 #if defined(WITH_DEBUGGER_INFO)
     // stick a pointer to the debugger info structure in unused vectors
-    (void *) 0x52474244,
+    (void *)0x52474244,
     &_debugger_info,
 #else
     0, // reserved
     0, // reserved
 #endif
-    0, // reserved
-    _svc, // svcall
+    0,                            // reserved
+    _svc,                         // svcall
     ARMV7M_VECTOR(_debugmonitor), // debug monitor
-    0, // reserved
-    _pendsv, // pendsv
-    _systick, // systick
+    0,                            // reserved
+    _pendsv,                      // pendsv
+    _systick,                     // systick
 };
-

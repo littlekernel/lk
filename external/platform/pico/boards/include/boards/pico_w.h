@@ -9,10 +9,13 @@
 //       SHOULD ONLY CONSIST OF PREPROCESSOR DIRECTIVES
 // -----------------------------------------------------
 
-// This header may be included by other board headers as "boards/pico.h"
+// This header may be included by other board headers as "boards/pico_w.h"
 
 #ifndef _BOARDS_PICO_W_H
 #define _BOARDS_PICO_W_H
+
+pico_board_cmake_set(PICO_PLATFORM, rp2040)
+pico_board_cmake_set(PICO_CYW43_SUPPORTED, 1)
 
 // For board detection
 #define RASPBERRYPI_PICO_W
@@ -68,10 +71,10 @@
 #define PICO_FLASH_SPI_CLKDIV 2
 #endif
 
+pico_board_cmake_set_default(PICO_FLASH_SIZE_BYTES, (2 * 1024 * 1024))
 #ifndef PICO_FLASH_SIZE_BYTES
 #define PICO_FLASH_SIZE_BYTES (2 * 1024 * 1024)
 #endif
-
 // note the SMSP mode pin is on WL_GPIO1
 // #define PICO_SMPS_MODE_PIN
 
@@ -83,20 +86,18 @@
 #define PICO_RP2040_B1_SUPPORTED 0
 #endif
 
-#ifndef CYW43_PIN_WL_HOST_WAKE
-#define CYW43_PIN_WL_HOST_WAKE 24
-#endif
-
-#ifndef CYW43_PIN_WL_REG_ON
-#define CYW43_PIN_WL_REG_ON 23
-#endif
-
 #ifndef CYW43_WL_GPIO_COUNT
 #define CYW43_WL_GPIO_COUNT 3
 #endif
 
 #ifndef CYW43_WL_GPIO_LED_PIN
 #define CYW43_WL_GPIO_LED_PIN 0
+#endif
+
+// Drive high to force power supply into PWM mode (lower ripple on 3V3 at light loads)
+// As this is a CYW43 pin you can do this by calling cyw43_gpio_set
+#ifndef CYW43_WL_GPIO_SMPS_PIN
+#define CYW43_WL_GPIO_SMPS_PIN 1
 #endif
 
 // If CYW43_WL_GPIO_VBUS_PIN is defined then a CYW43 GPIO has to be used to read VBUS.
@@ -117,6 +118,41 @@
 // There is an example in adc/read_vsys in pico-examples.
 #ifndef PICO_VSYS_PIN
 #define PICO_VSYS_PIN 29
+#endif
+
+// cyw43 SPI pins can't be changed at runtime
+#ifndef CYW43_PIN_WL_DYNAMIC
+#define CYW43_PIN_WL_DYNAMIC 0
+#endif
+
+// gpio pin to power up the cyw43 chip
+#ifndef CYW43_DEFAULT_PIN_WL_REG_ON
+#define CYW43_DEFAULT_PIN_WL_REG_ON 23u
+#endif
+
+// gpio pin for spi data out to the cyw43 chip
+#ifndef CYW43_DEFAULT_PIN_WL_DATA_OUT
+#define CYW43_DEFAULT_PIN_WL_DATA_OUT 24u
+#endif
+
+// gpio pin for spi data in from the cyw43 chip
+#ifndef CYW43_DEFAULT_PIN_WL_DATA_IN
+#define CYW43_DEFAULT_PIN_WL_DATA_IN 24u
+#endif
+
+// gpio (irq) pin for the irq line from the cyw43 chip
+#ifndef CYW43_DEFAULT_PIN_WL_HOST_WAKE
+#define CYW43_DEFAULT_PIN_WL_HOST_WAKE 24u
+#endif
+
+// gpio pin for the spi clock line to the cyw43 chip
+#ifndef CYW43_DEFAULT_PIN_WL_CLOCK
+#define CYW43_DEFAULT_PIN_WL_CLOCK 29u
+#endif
+
+// gpio pin for the spi chip select to the cyw43 chip
+#ifndef CYW43_DEFAULT_PIN_WL_CS
+#define CYW43_DEFAULT_PIN_WL_CS 25u
 #endif
 
 #endif
