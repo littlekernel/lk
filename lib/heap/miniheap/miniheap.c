@@ -67,6 +67,29 @@ struct alloc_struct_begin {
 
 static ssize_t heap_grow(size_t len);
 
+static bool heap_range_contains(uintptr_t addr, size_t len) {
+    const uintptr_t heap_start = (uintptr_t)theheap.base;
+    const uintptr_t heap_end = heap_start + theheap.len;
+
+    // Is the heap range valid?
+    if (unlikely(heap_end < heap_start))
+        return false;
+
+    // Is the start of the range within the heap?
+    if (unlikely(addr < heap_start || addr > heap_end))
+        return false;
+
+    // Is the end of the range within the heap?
+    if (unlikely(addr + len > heap_end))
+        return false;
+
+    return true;
+}
+
+static bool heap_validate_allocation(const struct alloc_struct_begin *as) {
+    return heap_range_contains((uintptr_t)as->ptr, as->size);
+}
+
 static void dump_free_chunk(struct free_heap_chunk *chunk) {
     dprintf(INFO, "\t\tbase %p, end 0x%lx, len 0x%zx\n", chunk, (vaddr_t)chunk + chunk->len, chunk->len);
 }
@@ -296,12 +319,25 @@ void *miniheap_realloc(void *ptr, size_t size) {
         return NULL;
     }
 
-    // XXX better implementation
+    // determine how many bytes the old allocation holds so we don't read past it
+    struct alloc_struct_begin *as = (struct alloc_struct_begin *)ptr;
+    as--;
+
+    DEBUG_ASSERT(heap_range_contains((uintptr_t)as, sizeof(struct alloc_struct_begin)));
+    DEBUG_ASSERT_COND(as->magic == HEAP_MAGIC);
+    DEBUG_ASSERT(heap_validate_allocation(as));
+
+    DEBUG_ASSERT((addr_t)ptr >= (addr_t)as->ptr);
+    size_t ptr_offset = (addr_t)ptr - (addr_t)as->ptr;
+    DEBUG_ASSERT(as->size >= ptr_offset);
+    size_t old_usable = as->size - ptr_offset;
+    size_t copy_size = (size < old_usable) ? size : old_usable;
+
     void *p = miniheap_alloc(size, 0);
     if (!p)
         return NULL;
 
-    memcpy(p, ptr, size); // XXX wrong
+    memcpy(p, ptr, copy_size);
     miniheap_free(ptr);
 
     return p;
@@ -317,7 +353,9 @@ void miniheap_free(void *ptr) {
     struct alloc_struct_begin *as = (struct alloc_struct_begin *)ptr;
     as--;
 
+    DEBUG_ASSERT(heap_range_contains((uintptr_t)as, sizeof(struct alloc_struct_begin)));
     DEBUG_ASSERT_COND(as->magic == HEAP_MAGIC);
+    DEBUG_ASSERT(heap_validate_allocation(as));
 
 #if DEBUG_HEAP
     {
