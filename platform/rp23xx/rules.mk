@@ -93,12 +93,15 @@ MODULE_DEPS += \
 
 # take the result of the build and generate a uf2 file
 UF2BIN := $(basename $(OUTBIN)).uf2
-PICOTOOL_TOOL := ./picotool
+UF2CONV_TOOL := $(LOCAL_DIR)/../rp20xx/tools/uf2conv.py
 FAMILY_ID := 0xe48bff59 # UF2 family id (RP2350 ARM Secure)
-$(UF2BIN): $(OUTELF) $(PICOTOOL_TOOL)
+$(UF2BIN): $(OUTBIN) $(UF2CONV_TOOL)
 	@$(MKDIR)
 	$(NOECHO)echo generating $@; \
-	$(PICOTOOL_TOOL) uf2 convert $< $@ --platform rp2350 --family $(FAMILY_ID) --abs-block
+	$(UF2CONV_TOOL) -b $(ROMBASE) -f $(FAMILY_ID) -c --abs-block -o $@ $<
+
+# Alternatively, if picotool is available on the host:
+#   picotool uf2 convert $(OUTELF) $(UF2BIN) --platform rp2350 --family $(FAMILY_ID) --abs-block
 
 EXTRA_BUILDDEPS += $(UF2BIN)
 GENERATED += $(UF2BIN)

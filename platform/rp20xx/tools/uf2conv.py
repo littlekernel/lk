@@ -23,6 +23,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# Updated 2026-03-29: add RP2350-E10 errata fix absolute block generation.
+
 # taken from https://github.com/microsoft/uf2/blob/master/utils/uf2conv.py
 import sys
 import struct
@@ -42,14 +44,24 @@ families = {
     'SAML21': 0x1851780a,
     'SAMD51': 0x55114460,
     'NRF52': 0x1b57745f,
+    'NRF52820': 0x820d9a5f,
+    'NRF52832-AA': 0x72721d4e,
+    'NRF52832-AB': 0x6f752678,
+    'NRF52833': 0x621e937a,
+    'NRF52840': 0xada52840,
     'STM32F0': 0x647824b6,
     'STM32F1': 0x5ee21072,
     'STM32F2': 0x5d1a0a2e,
     'STM32F3': 0x6b846188,
     'STM32F4': 0x57755a57,
+    'STM32F407': 0x6d0922fa,
+    'STM32F407VG': 0x8fb060fe,
+    'STM32F411xC': 0x06d1097b,
+    'STM32F411xE': 0x2dc309c5,
     'STM32F7': 0x53b80f00,
     'STM32G0': 0x300f5633,
     'STM32G4': 0x4c71240a,
+    'STM32H5': 0x4e8f1c5d,
     'STM32H7': 0x6db66082,
     'STM32L0': 0x202e3a91,
     'STM32L1': 0x1e1f432d,
@@ -58,12 +70,48 @@ families = {
     'STM32WB': 0x70d16653,
     'STM32WL': 0x21460ff0,
     'ATMEGA32': 0x16573617,
-    'MIMXRT10XX': 0x4FB2D5BD,
+    'MIMXRT10XX': 0x4fb2d5bd,
     'LPC55': 0x2abc77ec,
-    'GD32F350': 0x31D228C6,
+    'GD32F350': 0x31d228c6,
+    'GD32VF103': 0x9af03e33,
+    'CH32V': 0x699b62ec,
+    'ESP8266': 0x7eab61ed,
+    'ESP32': 0x1c5f21b0,
     'ESP32S2': 0xbfdd4eee,
-    'RP2040': 0xe48bff56
+    'ESP32S3': 0xc47e5767,
+    'ESP32C2': 0x2b88d29c,
+    'ESP32C3': 0xd42ba06c,
+    'ESP32C6': 0x540ddf62,
+    'ESP32H2': 0x332726f6,
+    'RP2040': 0xe48bff56,
+    'RP2XXX_DATA': 0xe48bff58,
+    'RP2350-ARM-S': 0xe48bff59,
+    'RP2350-RISCV': 0xe48bff5a,
+    'RP2350-ARM-NS': 0xe48bff5b,
 }
+
+# RP2350-E10 errata fix: absolute block constants
+ABSOLUTE_FAMILY_ID               = 0xe48bff57
+UF2_FLAG_EXTENSION_FLAGS_PRESENT = 0x00008000
+UF2_EXTENSION_RP2_IGNORE_BLOCK   = 0x9957e304
+
+def gen_abs_block(abs_block_loc):
+    """Generate RP2350-E10 errata workaround absolute block.
+
+    This block is prepended to UF2 files targeting RP2350 flash.
+    See: https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf errata E10
+    """
+    flags = 0x2000 | UF2_FLAG_EXTENSION_FLAGS_PRESENT  # FAMILY_ID_PRESENT | EXTENSION_FLAGS_PRESENT
+    hd = struct.pack("<IIIIIIII",
+        UF2_MAGIC_START0, UF2_MAGIC_START1,
+        flags, abs_block_loc, 256, 0, 2, ABSOLUTE_FAMILY_ID)
+    # data field (476 bytes): 256 bytes payload (0xef), 4-byte extension tag, 216 bytes padding
+    data = bytes([0xef] * 256)
+    data += struct.pack("<I", UF2_EXTENSION_RP2_IGNORE_BLOCK)
+    data += bytes(476 - 256 - 4)
+    block = hd + data + struct.pack("<I", UF2_MAGIC_END)
+    assert len(block) == 512
+    return block
 
 INFO_FILE = "/INFO_UF2.TXT"
 
@@ -289,6 +337,11 @@ def main():
                         help='specify familyID - number or name (default: 0x0)')
     parser.add_argument('-C' , '--carray', action='store_true',
                         help='convert binary file to a C array, not UF2')
+    parser.add_argument('--abs-block', action='store_true',
+                        help='prepend RP2350-E10 errata fix absolute block to UF2 output')
+    parser.add_argument('--abs-block-loc', dest='abs_block_loc', type=str,
+                        default="0x10ffff00",
+                        help='absolute block location (default: 0x10ffff00)')
     args = parser.parse_args()
     appstartaddr = int(args.base, 0)
 
@@ -321,6 +374,8 @@ def main():
             ext = "h"
         else:
             outbuf = convert_to_uf2(inpbuf)
+            if args.abs_block:
+                outbuf = gen_abs_block(int(args.abs_block_loc, 0)) + outbuf
         print("Converting to %s, output size: %d, start address: 0x%x" %
               (ext, len(outbuf), appstartaddr))
         if args.convert or ext != "uf2":
