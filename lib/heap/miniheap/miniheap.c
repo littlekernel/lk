@@ -164,9 +164,7 @@ static struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len, boo
 
 void *miniheap_alloc(size_t size, unsigned int alignment) {
     void *ptr;
-#if DEBUG_HEAP
     size_t original_size = size;
-#endif
 
     LTRACEF("size %zd, align %d\n", size, alignment);
 
@@ -197,6 +195,10 @@ void *miniheap_alloc(size_t size, unsigned int alignment) {
         // add alignment for worst case fit
         size += alignment;
     }
+
+    // check that the size additions above didn't wrap around
+    if (size < original_size)
+        return NULL;
 
     int retry_count = 0;
 retry:
