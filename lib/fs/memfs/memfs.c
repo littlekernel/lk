@@ -129,17 +129,27 @@ static status_t memfs_create(fscookie *cookie, const char *name, filecookie **fc
         goto out;
     }
 
-    // allocate the space for it
-    file->ptr = calloc(1, len);
-    if (!file->ptr) {
+    // copy the name
+    file->name = strdup(name);
+    if (!file->name) {
         free(file);
         err = ERR_NO_MEMORY;
         goto out;
     }
+
+    file->ptr = NULL;
+    if (len > 0) {
+        file->ptr = calloc(1, len);
+        if (!file->ptr) {
+            free(file->name);
+            free(file);
+            err = ERR_NO_MEMORY;
+            goto out;
+        }
+    }
     file->len = len;
 
     // fill in some metadata and stuff it in the file list
-    file->name = strdup(name);
     file->fs = mem;
 
     list_add_tail(&mem->files, &file->node);
@@ -222,7 +232,9 @@ static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
     }
 
     // copy that floppy
-    memcpy(buf, file->ptr + off, len);
+    if (len > 0) {
+        memcpy(buf, file->ptr + off, len);
+    }
 
     mutex_release(&file->fs->lock);
 
@@ -244,17 +256,19 @@ static status_t memfs_truncate(filecookie *fcookie, uint64_t len) {
         goto finish;
     }
 
-    // NOTE: Don't allow allocations smaller than 1b. Although realloc(..., 0)
-    // is okay, it may yield an invalid pointer (likely NULL) which might be
-    // dereferenced elsewhere.
-    void *ptr = realloc(file->ptr, len == 0 ? 1 : len);
-    if (unlikely(ptr == NULL)) {
-        rc = ERR_NO_MEMORY;
-        goto finish;
+    if (len == 0) {
+        free(file->ptr);
+        file->ptr = NULL;
+    } else {
+        void *ptr = realloc(file->ptr, len);
+        if (unlikely(ptr == NULL)) {
+            rc = ERR_NO_MEMORY;
+            goto finish;
+        }
+        file->ptr = ptr;
     }
 
     file->len = len;
-    file->ptr = ptr;
 
 finish:
     mutex_release(&file->fs->lock);
@@ -268,6 +282,9 @@ static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size
 
     if (off < 0)
         return ERR_INVALID_ARGS;
+
+    if (len == 0)
+        return 0;
 
     mutex_acquire(&file->fs->lock);
 
