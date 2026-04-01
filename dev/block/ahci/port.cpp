@@ -145,7 +145,11 @@ status_t ahci_port::probe(ahci_disk **found_disk) {
 
     // unmask some irqs on this port
     // TODO: unmask more if needed
-    uint32_t ie = (1U << 5) | // Descriptor Processed (DPS)
+    uint32_t ie = (1U << 30) | // Task File Error Status (TFES)
+                  (1U << 29) | // Host Bus Fatal Error Status (HBFS)
+                  (1U << 28) | // Host Bus Data Error Status (HBDS)
+                  (1U << 27) | // Interface Fatal Error Status (IFS)
+                  (1U << 5) | // Descriptor Processed (DPS)
                   (1U << 3) | // Set device bits interrupt (SDBS)
                   (1U << 2) | // DMA setup FIS (DSS)
                   (1U << 1) | // PIO setup FIS (PSS)
@@ -243,8 +247,8 @@ status_t virtual_to_pa_runs(const void *buf, const size_t len,
 
 // Queue a command to the AHCI port, finding a slot, setting up the PRDT entries, and kicking the command engine.
 // Returns the slot number used in slot_out.
-status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, size_t buf_len, bool write, int *slot_out) {
-    LTRACEF("fis %p len %zu buf %p len %zu write %d\n", fis, fis_len, buf, buf_len, write);
+status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, size_t buf_len, bool write, bool ncq, uint8_t tag, int *slot_out) {
+    LTRACEF("fis %p len %zu buf %p len %zu write %d ncq %d tag %u\n", fis, fis_len, buf, buf_len, write, ncq, tag);
 
     DEBUG_ASSERT(fis);
     DEBUG_ASSERT(fis_len > 0 && fis_len <= 64 && IS_ALIGNED(fis_len, 4));
@@ -318,6 +322,10 @@ status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, si
     LTRACEF("IS %#x (before kick)\n", read_port_reg(ahci_port_reg::PxIS));
 
     cmd_pending_ |= (1U << slot);
+    if (ncq) {
+        ncq_active_ |= (1U << slot);
+        write_port_reg(ahci_port_reg::PxSACT, (1U << slot));
+    }
 
     // kick the command
     write_port_reg(ahci_port_reg::PxCI, (1U << slot));
@@ -345,6 +353,7 @@ status_t ahci_port::wait_for_completion(uint slot, uint32_t *error_status) {
 
     // mark the command as not pending anymore
     cmd_pending_ &= ~(1u << slot);
+    ncq_active_ &= ~(1u << slot);
 
     return err;
 }
@@ -352,37 +361,143 @@ status_t ahci_port::wait_for_completion(uint slot, uint32_t *error_status) {
 handler_return ahci_port::irq_handler() {
     LTRACE_ENTRY;
 
-    AutoSpinLockNoIrqSave guard(&lock_);
+    // List of completed commands to invoke callbacks for (outside spinlock)
+    struct {
+        size_t slot;
+        bio_async_callback_t callback;
+        bdev_t *bdev;
+        void *callback_context;
+        ssize_t result;
+    } completed_async[MAX_CMD_COUNT];
+    size_t completed_async_count = 0;
+    int sync_waiters_woken = 0;
 
-    const auto raw_is = read_port_reg(ahci_port_reg::PxIS);
-    const auto is = raw_is & read_port_reg(ahci_port_reg::PxIE); // filter by things we're masking
+    {
+        AutoSpinLockNoIrqSave guard(&lock_);
 
-    LTRACEF("raw is %#x is %#x\n", raw_is, is);
+        const auto raw_is = read_port_reg(ahci_port_reg::PxIS);
+        const auto is = raw_is & read_port_reg(ahci_port_reg::PxIE); // filter by things we're masking
 
-    // see if any commands completed
-    const auto ci = read_port_reg(ahci_port_reg::PxCI);
-    auto cmd_complete_bitmap = cmd_pending_ & ~ci;
+        LTRACEF("raw is %#x is %#x\n", raw_is, is);
 
-    LTRACEF("command complete bitmap %#x\n", cmd_complete_bitmap);
+        if (is & ((1U << 30) | (1U << 29) | (1U << 28) | (1U << 27))) {
+            printf("ahci port %u error: IS %#x\n", index_, is);
+            // TODO: handle error recovery
+        }
 
-    handler_return ret = INT_NO_RESCHEDULE;
-    while (cmd_complete_bitmap != 0) {
-        const size_t cmd_slot = __builtin_ctz(cmd_complete_bitmap);
+        // see if any commands completed
+        const auto ci = read_port_reg(ahci_port_reg::PxCI);
+        const auto sact = read_port_reg(ahci_port_reg::PxSACT);
 
-        DEBUG_ASSERT(cmd_slot < command_slots_);
+        // non-NCQ commands are complete when their bit in CI is cleared
+        auto non_ncq_complete = (cmd_pending_ & ~ncq_active_) & ~ci;
 
-        LTRACEF("slot %zu completed\n", cmd_slot);
+        // NCQ commands are complete when their bit in SACT is cleared
+        auto ncq_complete = (cmd_pending_ & ncq_active_) & ~sact;
 
-        // this slot completed
-        event_signal(&cmd_complete_event_[cmd_slot], false);
-        ret = INT_RESCHEDULE;
+        auto cmd_complete_bitmap = non_ncq_complete | ncq_complete;
 
-        // move to the next pending slot (if any)
-        cmd_complete_bitmap &= ~(1U << cmd_slot);
+        LTRACEF("command complete bitmap %#x\n", cmd_complete_bitmap);
+
+        while (cmd_complete_bitmap != 0) {
+            const size_t cmd_slot = __builtin_ctz(cmd_complete_bitmap);
+
+            DEBUG_ASSERT(cmd_slot < command_slots_);
+
+            LTRACEF("slot %zu completed\n", cmd_slot);
+
+            // Get error status for this command
+            const auto error_status = read_port_reg(ahci_port_reg::PxTFD);
+            LTRACEF("error_status %#x\n", error_status);
+
+            // Compute result for async callbacks
+            ssize_t result;
+            if (error_status & (1U << 0)) {  // check ERR bit
+                result = ERR_IO;  // Return error code
+            } else {
+                result = async_cmds_[cmd_slot].bytes_to_read_write;  // Return bytes on success
+            }
+            cmd_results_[cmd_slot] = result;
+
+            // Collect async callbacks to invoke later (outside spinlock)
+            if (async_cmds_[cmd_slot].callback) {
+                completed_async[completed_async_count].slot = cmd_slot;
+                completed_async[completed_async_count].callback = async_cmds_[cmd_slot].callback;
+                completed_async[completed_async_count].bdev = async_cmds_[cmd_slot].bdev;
+                completed_async[completed_async_count].callback_context = async_cmds_[cmd_slot].callback_context;
+                completed_async[completed_async_count].result = result;
+                completed_async_count++;
+                async_cmds_[cmd_slot].callback = nullptr;
+            }
+
+            // Signal the sync completion event
+            sync_waiters_woken += event_signal(&cmd_complete_event_[cmd_slot], false);
+
+            // move to the next pending slot (if any)
+            cmd_complete_bitmap &= ~(1U << cmd_slot);
+        }
+
+        // ack everything for now
+        write_port_reg(ahci_port_reg::PxIS, is);
     }
 
-    // ack everything for now
-    write_port_reg(ahci_port_reg::PxIS, is);
+    // Invoke async callbacks outside the spinlock to avoid deadlocks
+    for (size_t i = 0; i < completed_async_count; i++) {
+        LTRACEF("invoking async callback for slot %zu\n", completed_async[i].slot);
+        completed_async[i].callback(completed_async[i].callback_context, completed_async[i].bdev,
+                                    completed_async[i].result);
+    }
 
-    return ret;
+    return (sync_waiters_woken > 0 || completed_async_count > 0) ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
+}
+
+// Allocate an NCQ tag for use by a new queued command.
+// Returns tag number (0-31) on success, or negative error code if no tags available.
+int ahci_port::allocate_ncq_tag() {
+    AutoSpinLock guard(&lock_);
+
+    if (free_ncq_tags_ == 0) {
+        // no free tags available
+        return ERR_BUSY;
+    }
+
+    // find the first set bit (first free tag)
+    int tag = __builtin_ctz(free_ncq_tags_);
+    DEBUG_ASSERT(tag >= 0 && tag < 32);
+
+    // mark this tag as in use
+    free_ncq_tags_ &= ~(1U << tag);
+
+    LTRACEF("allocated tag %d (free_ncq_tags_ now %#x)\n", tag, free_ncq_tags_);
+
+    return tag;
+}
+
+// Release a previously allocated NCQ tag back to the pool.
+void ahci_port::release_ncq_tag(uint8_t tag) {
+    DEBUG_ASSERT(tag < 32);
+
+    AutoSpinLock guard(&lock_);
+
+    DEBUG_ASSERT((free_ncq_tags_ & (1U << tag)) == 0); // tag should be in use
+
+    // mark this tag as free
+    free_ncq_tags_ |= (1U << tag);
+
+    LTRACEF("released tag %u (free_ncq_tags_ now %#x)\n", tag, free_ncq_tags_);
+}
+
+// Register an async completion callback for a command slot.
+void ahci_port::register_async_callback(uint slot, bio_async_callback_t callback, bdev_t *bdev,
+                                        void *callback_context, ssize_t bytes_to_transfer) {
+    DEBUG_ASSERT(slot < command_slots_);
+
+    AutoSpinLock guard(&lock_);
+
+    async_cmds_[slot].callback = callback;
+    async_cmds_[slot].bdev = bdev;
+    async_cmds_[slot].callback_context = callback_context;
+    async_cmds_[slot].bytes_to_read_write = bytes_to_transfer;
+
+    LTRACEF("registered async callback for slot %u, %ld bytes\n", slot, bytes_to_transfer);
 }

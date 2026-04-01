@@ -16,6 +16,13 @@
 
 struct ahci_disk_bio_handler;
 
+// Tracks a pending async I/O operation
+struct async_io_op {
+    bio_async_callback_t callback;
+    void *callback_context;
+    ssize_t result; // set by completion handler
+};
+
 class ahci_disk final {
   public:
     explicit ahci_disk(ahci_port &p) : port_(p) {}
@@ -41,6 +48,10 @@ class ahci_disk final {
 
     status_t do_rw_sectors_sync(uint64_t lba, void *buf, size_t buf_len, bool write);
 
+    // Async I/O helper
+    status_t do_rw_sectors_async(bdev_t *bdev, uint64_t lba, void *buf, size_t buf_len, bool write,
+                                 bio_async_callback_t callback, void *callback_context);
+
     ahci_port &port_;
 
     // wrapper class around the bio block device to translate bio
@@ -64,9 +75,16 @@ class ahci_disk final {
         ahci_disk *disk_;
         bool registered_ = false;
 
+        // Track pending async operations: indexed by command slot
+        async_io_op pending_async_[ahci_port::MAX_CMD_COUNT] = {};
+
       private:
         static ssize_t bdev_read_block_hook(struct bdev *dev, void *buf, bnum_t block, uint count);
         static ssize_t bdev_write_block_hook(struct bdev *dev, const void *buf, bnum_t block, uint count);
+        static status_t bdev_read_async_hook(struct bdev *dev, void *buf, off_t offset, size_t len,
+                                             bio_async_callback_t callback, void *callback_context);
+        static status_t bdev_write_async_hook(struct bdev *dev, const void *buf, off_t offset, size_t len,
+                                              bio_async_callback_t callback, void *callback_context);
         static void bdev_close_hook(struct bdev *dev);
     } bio_handler_{this};
 

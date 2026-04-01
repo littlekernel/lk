@@ -92,3 +92,60 @@ inline FIS_REG_H2D ata_cmd_flush_cache() {
 
     return fis;
 }
+
+#define ATA_CMD_READ_FPDMA_QUEUED 0x60
+#define ATA_CMD_WRITE_FPDMA_QUEUED 0x61
+
+inline FIS_REG_H2D ata_cmd_read_fpdma_queued(uint64_t lba, uint16_t sector_count, uint8_t tag) {
+    FIS_REG_H2D fis = {};
+    fis.fis_type = FIS_TYPE_REG_H2D;
+    fis.command = ATA_CMD_READ_FPDMA_QUEUED;
+    fis.device = 1 << 6; // LBA mode
+    fis.c = 1;           // command
+
+    // set LBA
+    fis.lba0 = (lba >> 0) & 0xff;
+    fis.lba1 = (lba >> 8) & 0xff;
+    fis.lba2 = (lba >> 16) & 0xff;
+    fis.lba3 = (lba >> 24) & 0xff;
+    fis.lba4 = (lba >> 32) & 0xff;
+    fis.lba5 = (lba >> 40) & 0xff;
+
+    // For FPDMA QUEUED commands, sector count goes in the Feature register
+    // (not the Count register like DMA EXT), per SATA 3.0 spec
+    fis.featurel = sector_count & 0xff;
+    fis.featureh = (sector_count >> 8) & 0xff;
+
+    // Tag goes in the Count register (lower 8 bits), shifted left by 3.
+    // Upper 5 bits of Count register (14:10) hold the tag bits (4:0).
+    fis.countl = (tag & 0x1f) << 3;
+    fis.counth = 0;
+
+    return fis;
+}
+
+inline FIS_REG_H2D ata_cmd_write_fpdma_queued(uint64_t lba, uint16_t sector_count, uint8_t tag) {
+    FIS_REG_H2D fis = {};
+    fis.fis_type = FIS_TYPE_REG_H2D;
+    fis.command = ATA_CMD_WRITE_FPDMA_QUEUED;
+    fis.device = 1 << 6; // LBA mode
+    fis.c = 1;           // command
+
+    // set LBA
+    fis.lba0 = (lba >> 0) & 0xff;
+    fis.lba1 = (lba >> 8) & 0xff;
+    fis.lba2 = (lba >> 16) & 0xff;
+    fis.lba3 = (lba >> 24) & 0xff;
+    fis.lba4 = (lba >> 32) & 0xff;
+    fis.lba5 = (lba >> 40) & 0xff;
+
+    // For FPDMA QUEUED commands, sector count goes in the Feature register
+    fis.featurel = sector_count & 0xff;
+    fis.featureh = (sector_count >> 8) & 0xff;
+
+    // Tag goes in the Count register (lower 8 bits), shifted left by 3
+    fis.countl = (tag & 0x1f) << 3;
+    fis.counth = 0;
+
+    return fis;
+}

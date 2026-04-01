@@ -9,6 +9,7 @@
 #include <kernel/event.h>
 #include <kernel/spinlock.h>
 #include <lk/cpp.h>
+#include <lib/bio.h>
 #include <sys/types.h>
 
 #include "ahci.h"
@@ -28,17 +29,36 @@ class ahci_port final {
 
     status_t probe(ahci_disk **found_disk);
 
-    status_t queue_command(const void *fis, size_t fis_len, void *buf, size_t buf_len, bool write, int *slot_out);
+    status_t queue_command(const void *fis, size_t fis_len, void *buf, size_t buf_len, bool write, bool ncq, uint8_t tag, int *slot_out);
     status_t wait_for_completion(uint slot, uint32_t *error_status);
+
+    // Register async callback for a pending command. Called after queue_command
+    // returns a slot. bytes_to_transfer is the number of bytes to transfer
+    // (returned as result on success).
+    void register_async_callback(uint slot, bio_async_callback_t callback, bdev_t *bdev,
+                                 void *callback_context, ssize_t bytes_to_transfer);
+
+    // Tag allocation for NCQ
+    int allocate_ncq_tag();
+    void release_ncq_tag(uint8_t tag);
 
     auto index() const { return index_; }
     auto controller_unit() const { return ahci_.unit_num(); }
+    bool supports_ncq() const { return (ahci_.get_capabilities() & (1U << 30)) != 0; }
 
     // constants
     static const size_t MAX_CMD_COUNT = 32;   // number of active command slots
     static const size_t PRD_PER_CMD = 16; // physical descriptors per command slot
     static const size_t CMD_TABLE_ENTRY_SIZE = sizeof(ahci_cmd_table) + sizeof(ahci_prd) * PRD_PER_CMD;
     static const size_t MAX_PRDT_RUN_LENGTH = 0x400000;  // 4MB AHCI PRDT limit
+
+  private:
+    struct async_cmd_info {
+        bio_async_callback_t callback = nullptr;
+        bdev_t *bdev = nullptr;
+        void *callback_context = nullptr;
+        ssize_t bytes_to_read_write = 0;  // bytes to transfer (for result on success)
+    };
 
   private:
     uint32_t read_port_reg(ahci_port_reg reg);
@@ -64,6 +84,14 @@ class ahci_port final {
 
     // pending command bitmap
     uint32_t cmd_pending_ = 0;
+    uint32_t ncq_active_ = 0;
+    // bitmap of free NCQ tags (32 tags total)
+    uint32_t free_ncq_tags_ = 0xffffffff;
+
+    // async command tracking: indexed by command slot
+    async_cmd_info async_cmds_[MAX_CMD_COUNT] = {};
+    ssize_t cmd_results_[MAX_CMD_COUNT] = {};  // result (bytes read/written) for each slot
+
     event cmd_complete_event_[MAX_CMD_COUNT];
 
     volatile uint8_t *mem_region_ = nullptr;

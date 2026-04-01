@@ -54,9 +54,9 @@ status_t ahci_disk::identify() {
     uint16_t identify_data[256];
     FIS_REG_H2D fis = ata_cmd_identify();
 
-    // issue the identify command
+    // issue the identify command (not using NCQ, so tag is irrelevant)
     int slot;
-    auto err = port_.queue_command(&fis, sizeof(fis), identify_data, sizeof(identify_data), false, &slot);
+    auto err = port_.queue_command(&fis, sizeof(fis), identify_data, sizeof(identify_data), false, false, 0, &slot);
     if (err != NO_ERROR) {
         printf("ahci_disk::identify: queue_command failed: %d\n", err);
         return err;
@@ -83,7 +83,7 @@ status_t ahci_disk::identify() {
     LTRACEF("firmware '%s'\n", firmware_);
 
     // assumes LBA48
-    bool lba48 = identify_data[83] & (1 << 10);
+    const bool lba48 = identify_data[83] & (1 << 10);
     if (!lba48) {
         printf("AHCI: LBA48 required, aborting\n");
         return ERR_NOT_SUPPORTED;
@@ -101,7 +101,7 @@ status_t ahci_disk::identify() {
     logical_sector_size_ = 512;
     physical_sector_size_ = 512;
 
-    auto phys_to_logical_sector = identify_data[ATA_IDENTIFY_PHYS_TO_LOGICAL_SECTOR];
+    const uint16_t phys_to_logical_sector = identify_data[ATA_IDENTIFY_PHYS_TO_LOGICAL_SECTOR];
     // LTRACEF("phys size / logical size %#hx\n", identify_data[ATA_IDENTIFY_PHYS_TO_LOGICAL_SECTOR]);
     if (BITS(phys_to_logical_sector, 15, 14) == (1 << 14)) { // word 106 has valid info
         if (BIT(phys_to_logical_sector, 12)) {
@@ -122,12 +122,24 @@ status_t ahci_disk::identify() {
             port_.controller_unit(), model_, serial_, total_size());
 
     // detect if the drive supports NCQ
-    uint ncq_queue_depth = (identify_data[75] & 0xff) + 1;
-    if (ncq_queue_depth >= 1) {
+    // Word 76: Commands and feature sets supported
+    // Bit 8: NCQ command queuing supported
+    const bool controller_supports_ncq = port_.supports_ncq();
+    const bool device_supports_ncq = (identify_data[76] & 0x0100) != 0;
+    const uint ncq_queue_depth = (identify_data[75] & 0x1f) + 1;
+    if (device_supports_ncq && ncq_queue_depth >= 1 && controller_supports_ncq) {
         LTRACEF("drive supports NCQ with queue depth %u\n", ncq_queue_depth);
         supports_ncq_ = true;
         ncq_queue_depth_ = ncq_queue_depth;
     }
+
+    dprintf(INFO,
+            "ahci%d: NCQ capability: controller %s device %s depth %u %s\n",
+            port_.controller_unit(),
+            controller_supports_ncq ? "yes" : "no",
+            device_supports_ncq ? "yes" : "no",
+            ncq_queue_depth,
+            supports_ncq_ ? "enabled (using FPDMA queued commands)" : "disabled (using DMA commands)");
 
     // char test_data[512];
     // status_t error = read_sectors(0, test_data, 512);
@@ -159,18 +171,42 @@ status_t ahci_disk::do_rw_sectors_sync(uint64_t lba, void *buf, size_t buf_len, 
         return ERR_INVALID_ARGS;
     }
 
-    FIS_REG_H2D fis = write ? ata_cmd_write_dma_ext(lba, sector_count)
-                            : ata_cmd_read_dma_ext(lba, sector_count);
+    // Allocate an NCQ tag if using NCQ, otherwise use tag 0 (unused for non-NCQ)
+    uint8_t tag = 0;
+    bool use_ncq = false;
+    if (supports_ncq_) {
+        int tag_result = port_.allocate_ncq_tag();
+        if (tag_result < 0) {
+            LTRACEF("failed to allocate NCQ tag, falling back to DMA: %d\n", tag_result);
+            // Fall back to DMA if we can't allocate a tag
+        } else {
+            tag = tag_result;
+            use_ncq = true;
+        }
+    }
+
+    // Select appropriate command based on NCQ support
+    FIS_REG_H2D fis = use_ncq
+                          ? (write ? ata_cmd_write_fpdma_queued(lba, sector_count, tag)
+                                   : ata_cmd_read_fpdma_queued(lba, sector_count, tag))
+                          : (write ? ata_cmd_write_dma_ext(lba, sector_count)
+                                   : ata_cmd_read_dma_ext(lba, sector_count));
 
     int slot;
-    auto err = port_.queue_command(&fis, sizeof(fis), buf, buf_len, write, &slot);
+    auto err = port_.queue_command(&fis, sizeof(fis), buf, buf_len, write, use_ncq, tag, &slot);
     if (err != NO_ERROR) {
+        if (use_ncq) {
+            port_.release_ncq_tag(tag);
+        }
         return err;
     }
 
     // wait for it to complete
     uint32_t error_status;
     err = port_.wait_for_completion(slot, &error_status);
+    if (use_ncq) {
+        port_.release_ncq_tag(tag);
+    }
     if (err != NO_ERROR) {
         return err;
     }
@@ -244,8 +280,9 @@ status_t ahci_disk::bio_handler::initialize_bdev() {
     // register some block device hooks
     bdev_.read_block = &bdev_read_block_hook;
     bdev_.write_block = &bdev_write_block_hook;
+    bdev_.read_async = &bdev_read_async_hook;
+    bdev_.write_async = &bdev_write_async_hook;
     bdev_.close = &bdev_close_hook;
-    // TODO: handle async read/write
 
     dprintf(INFO, "ahci%d: registering block device '%s'\n",
             disk_->port_.controller_unit(), bdev_name);
@@ -254,5 +291,71 @@ status_t ahci_disk::bio_handler::initialize_bdev() {
     bio_register_device(&bdev_);
     registered_ = true;
 
+    return NO_ERROR;
+}
+
+status_t ahci_disk::bio_handler::bdev_read_async_hook(struct bdev *dev, void *buf, off_t offset, size_t len,
+                                                       bio_async_callback_t callback, void *callback_context) {
+    ahci_disk *disk = bdev_to_disk(dev);
+    return disk->do_rw_sectors_async(dev, offset / disk->logical_sector_size_, buf,
+                                     len, false, callback, callback_context);
+}
+
+status_t ahci_disk::bio_handler::bdev_write_async_hook(struct bdev *dev, const void *buf, off_t offset, size_t len,
+                                                        bio_async_callback_t callback, void *callback_context) {
+    ahci_disk *disk = bdev_to_disk(dev);
+    return disk->do_rw_sectors_async(dev, offset / disk->logical_sector_size_, (void *)buf,
+                                     len, true, callback, callback_context);
+}
+
+status_t ahci_disk::do_rw_sectors_async(bdev_t *bdev, uint64_t lba, void *buf, size_t buf_len, bool write,
+                                        bio_async_callback_t callback, void *callback_context) {
+    LTRACEF("lba %#llx buf %p len %zu write %d\n", lba, buf, buf_len, write);
+
+    if (buf_len % logical_sector_size_ != 0) {
+        return ERR_INVALID_ARGS;
+    }
+
+    size_t sector_count = buf_len / logical_sector_size_;
+    if (sector_count == 0 || sector_count > 0xffff) {
+        return ERR_INVALID_ARGS;
+    }
+
+    // Allocate an NCQ tag if using NCQ, otherwise use tag 0 (unused for non-NCQ)
+    uint8_t tag = 0;
+    bool use_ncq = false;
+    if (supports_ncq_) {
+        int tag_result = port_.allocate_ncq_tag();
+        if (tag_result < 0) {
+            LTRACEF("failed to allocate NCQ tag, falling back to DMA: %d\n", tag_result);
+            // Fall back to DMA if we can't allocate a tag
+        } else {
+            tag = tag_result;
+            use_ncq = true;
+        }
+    }
+
+    // Select appropriate command based on NCQ support
+    FIS_REG_H2D fis = use_ncq
+                          ? (write ? ata_cmd_write_fpdma_queued(lba, sector_count, tag)
+                                   : ata_cmd_read_fpdma_queued(lba, sector_count, tag))
+                          : (write ? ata_cmd_write_dma_ext(lba, sector_count)
+                                   : ata_cmd_read_dma_ext(lba, sector_count));
+
+    int slot;
+    auto err = port_.queue_command(&fis, sizeof(fis), buf, buf_len, write, use_ncq, tag, &slot);
+    if (err != NO_ERROR) {
+        if (use_ncq) {
+            port_.release_ncq_tag(tag);
+        }
+        // Invoke callback with error immediately
+        callback(callback_context, bdev, (ssize_t)err);
+        return NO_ERROR;  // Return NO_ERROR since we handled the error via callback
+    }
+
+    // Register async callback with port - will be invoked when command completes
+    port_.register_async_callback(slot, callback, bdev, callback_context, (ssize_t)buf_len);
+
+    // Return NO_ERROR immediately (async operation is queued)
     return NO_ERROR;
 }
