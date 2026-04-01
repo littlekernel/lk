@@ -9,7 +9,7 @@
 .rsync-filter
 .vscode
 TAGS
-blk*.bin
+blk*.bin*
 build-*
 buildall.log
 compile_commands.json
@@ -23,3 +23,6 @@ tags
 toolchain
 trace.txt
 vmlinux
+
+# place to put local stuff that isn't picked up by git
+local
