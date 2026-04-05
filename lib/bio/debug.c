@@ -11,6 +11,7 @@
 #include <lk/console_cmd.h>
 #include <lk/debug.h>
 #include <lk/err.h>
+#include <lk/trace.h>
 #include <platform.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,8 @@
 #if WITH_LIB_PARTITION
 #include <lib/partition.h>
 #endif
+
+#define LOCAL_TRACE 0
 
 #define DMA_ALIGNMENT            (CACHE_LINE)
 #define THREE_BYTE_ADDR_BOUNDARY (16777216)
@@ -49,7 +52,8 @@ usage:
         printf("%s erase <device> <offset> <len>\n", argv[0].str);
         printf("%s ioctl <device> <request> <arg>\n", argv[0].str);
         printf("%s remove <device>\n", argv[0].str);
-        printf("%s test <device>\n", argv[0].str);
+        printf("%s create_memdev <device> <blocks>\n", argv[0].str);
+        printf("%s test <device> *destructive*\n", argv[0].str);
 #if WITH_LIB_PARTITION
         printf("%s partscan <device> [offset]\n", argv[0].str);
 #endif
@@ -191,6 +195,27 @@ usage:
         bio_close(dev);
 
         rc = err;
+    } else if (!strcmp(argv[1].str, "create_memdev")) {
+        if (argc < 4) {
+            goto notenoughargs;
+        }
+
+        size_t blocks = argv[3].u;
+        size_t mem_size = blocks * 512;
+
+        void *mem = memalign(CACHE_LINE, mem_size);
+        if (!mem) {
+            printf("error allocating memory for memdev\n");
+            return -1;
+        }
+        memset(mem, 0, mem_size);
+
+        int err = create_membdev(argv[2].str, mem, mem_size);
+        if (err < 0) {
+            printf("error creating memdev: %d\n", err);
+            free(mem);
+            return -1;
+        }
     } else if (!strcmp(argv[1].str, "remove")) {
         if (argc < 3) {
             goto notenoughargs;
@@ -293,14 +318,16 @@ static bool is_valid_block(bdev_t *device, bnum_t block_num, uint8_t *pattern,
                            size_t pattern_length) {
     uint8_t *block_contents = memalign(DMA_ALIGNMENT, device->block_size);
 
-    ssize_t n_bytes = device->read_block(device, block_contents, block_num, 1);
+    ssize_t n_bytes = bio_read_block(device, block_contents, block_num, 1);
     if (n_bytes < 0 || n_bytes != (ssize_t)device->block_size) {
+        LTRACEF("error reading block %u\n", block_num);
         free(block_contents);
         return false;
     }
 
     for (size_t i = 0; i < device->block_size; i++) {
         if (block_contents[i] != pattern[i % pattern_length]) {
+            LTRACEF("block %u did not match pattern\n", block_num);
             free(block_contents);
             block_contents = NULL;
             return false;
@@ -334,7 +361,7 @@ static ssize_t erase_test(bdev_t *device) {
 }
 
 static bool test_erase_block(bdev_t *device, uint32_t block_addr) {
-    bool success = false;
+    bool success = true;
     uint8_t valid_byte[1];
 
     uint8_t *block_contents = memalign(DMA_ALIGNMENT, device->block_size);
@@ -342,22 +369,26 @@ static bool test_erase_block(bdev_t *device, uint32_t block_addr) {
 
     ssize_t err = bio_write_block(device, block_contents, block_addr, 1);
     if (err != (ssize_t)device->block_size) {
+        LTRACEF("error writing block %u\n", block_addr);
         goto finish;
     }
 
     valid_byte[0] = ~(device->erase_byte);
     if (!is_valid_block(device, block_addr, valid_byte, 1)) {
+        LTRACEF("block %u did not verify after write\n", block_addr);
         goto finish;
     }
 
-    err = bio_erase(device, block_addr * device->block_size, 1);
+    err = bio_erase(device, block_addr * device->block_size, device->block_size);
     if (err <= 0) {
+        LTRACEF("error erasing block %u\n", block_addr);
         goto finish;
     }
 
     valid_byte[0] = device->erase_byte;
-    if (is_valid_block(device, block_addr, valid_byte, 1)) {
-        success = true;
+    if (!is_valid_block(device, block_addr, valid_byte, 1)) {
+        LTRACEF("block %u did not verify as erased\n", block_addr);
+        success = false;
     }
 
 finish:
@@ -370,6 +401,7 @@ static bool sub_erase_test(bdev_t *device, uint32_t n_samples) {
     printf("Sampling the device %d times.\n", n_samples);
     for (uint32_t i = 0; i < n_samples; i++) {
         bnum_t block_addr = rand() % device->block_count;
+        LTRACEF("Erasing block %u\n", block_addr);
         if (!test_erase_block(device, block_addr)) {
             return false;
         }

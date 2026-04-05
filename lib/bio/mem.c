@@ -108,6 +108,37 @@ static status_t mem_bdev_write_async(struct bdev *bdev, const void *buf, off_t o
     return NO_ERROR;
 }
 
+static int mem_bdev_ioctl(struct bdev *bdev, int request, void *argp) {
+    mem_bdev_t *mem = (mem_bdev_t *)bdev;
+
+    switch (request) {
+    case BIO_IOCTL_GET_MEM_MAP:
+    case BIO_IOCTL_GET_MAP_ADDR: {
+        // For a memory-backed device, return a pointer to the backing memory.
+        if (argp == NULL) {
+            return ERR_INVALID_ARGS;
+        }
+        void **out = (void **)argp;
+        *out = mem->ptr;
+        return NO_ERROR;
+    }
+    case BIO_IOCTL_PUT_MEM_MAP:
+        // No cleanup needed for RAM-backed device.
+        return NO_ERROR;
+    case BIO_IOCTL_IS_MAPPED: {
+        // Memory-backed devices are always mapped.
+        if (argp == NULL) {
+            return ERR_INVALID_ARGS;
+        }
+        bool *out = (bool *)argp;
+        *out = true;
+        return NO_ERROR;
+    }
+    default:
+        return ERR_NOT_SUPPORTED;
+    }
+}
+
 int create_membdev(const char *name, void *ptr, size_t len) {
     if (name == NULL || ptr == NULL) {
         return ERR_INVALID_ARGS;
@@ -130,6 +161,7 @@ int create_membdev(const char *name, void *ptr, size_t len) {
     mem->dev.write = mem_bdev_write;
     mem->dev.write_async = mem_bdev_write_async;
     mem->dev.write_block = mem_bdev_write_block;
+    mem->dev.ioctl = mem_bdev_ioctl;
 
     /* register it */
     bio_register_device(&mem->dev);

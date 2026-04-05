@@ -734,6 +734,59 @@ static bool memdev_create_rejects_null_args(void) {
     END_TEST;
 }
 
+static bool memdev_ioctl_memory_map(void) {
+    BEGIN_TEST;
+
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+
+    // Create memory block device
+    EXPECT_EQ(0, create_membdev("test_bdev_ioctl", mem, TEST_DEVICE_SIZE), "");
+
+    // Open the device
+    bdev_t *dev = bio_open("test_bdev_ioctl");
+    ASSERT_NONNULL(dev, "failed to open bio device");
+
+    // Test BIO_IOCTL_GET_MEM_MAP
+    void *map_addr = NULL;
+    int err = bio_ioctl(dev, BIO_IOCTL_GET_MEM_MAP, (void *)&map_addr);
+    EXPECT_EQ(NO_ERROR, err, "");
+    EXPECT_EQ((uintptr_t)mem, (uintptr_t)map_addr, "");
+
+    // Test BIO_IOCTL_GET_MAP_ADDR
+    void *map_addr2 = NULL;
+    err = bio_ioctl(dev, BIO_IOCTL_GET_MAP_ADDR, (void *)&map_addr2);
+    EXPECT_EQ(NO_ERROR, err, "");
+    EXPECT_EQ((uintptr_t)mem, (uintptr_t)map_addr2, "");
+
+    // Test BIO_IOCTL_IS_MAPPED
+    bool is_mapped = false;
+    err = bio_ioctl(dev, BIO_IOCTL_IS_MAPPED, (void *)&is_mapped);
+    EXPECT_EQ(NO_ERROR, err, "");
+    EXPECT_TRUE(is_mapped, "");
+
+    // Test BIO_IOCTL_PUT_MEM_MAP (should be a no-op)
+    err = bio_ioctl(dev, BIO_IOCTL_PUT_MEM_MAP, NULL);
+    EXPECT_EQ(NO_ERROR, err, "");
+
+    // Test null argp handling
+    err = bio_ioctl(dev, BIO_IOCTL_GET_MEM_MAP, NULL);
+    EXPECT_EQ(ERR_INVALID_ARGS, err, "");
+
+    err = bio_ioctl(dev, BIO_IOCTL_IS_MAPPED, NULL);
+    EXPECT_EQ(ERR_INVALID_ARGS, err, "");
+
+    // Test unsupported ioctl
+    err = bio_ioctl(dev, 999, NULL);
+    EXPECT_EQ(ERR_NOT_SUPPORTED, err, "");
+
+    bio_close(dev);
+    bio_unregister_device(dev);
+    free(mem);
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(bio_tests)
 RUN_TEST(basic_read_write)
 RUN_TEST(block_read_write)
@@ -748,4 +801,5 @@ RUN_TEST(subdev_async)
 RUN_TEST(subdev_nested)
 RUN_TEST(memdev_direct_ops_clamp)
 RUN_TEST(memdev_create_rejects_null_args)
+RUN_TEST(memdev_ioctl_memory_map)
 END_TEST_CASE(bio_tests)
