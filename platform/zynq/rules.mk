@@ -30,6 +30,11 @@ MODULE_SRCS += \
 # default to no sdram unless the target calls it out
 ZYNQ_SDRAM_SIZE ?= 0
 
+ifeq ($(WITH_SMP),1)
+GLOBAL_DEFINES += \
+	ARM_ARCH_WAIT_FOR_SECONDARIES=1
+endif
+
 # default to having the gem ethernet controller
 ZYNQ_WITH_GEM_ETH ?= 1
 
@@ -38,8 +43,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/gem.c \
 
 GLOBAL_DEFINES += \
-	ZYNQ_WITH_GEM_ETH=1 \
-	ARM_ARCH_WAIT_FOR_SECONDARIES=1
+	ZYNQ_WITH_GEM_ETH=1
 
 # gem driver depends on minip interface
 MODULE_DEPS += \
@@ -49,6 +53,7 @@ endif
 ifeq ($(ZYNQ_USE_SRAM),1)
 MEMBASE := 0x0
 MEMSIZE := 0x40000 # 4 * 64K
+ARCH_OPTFLAGS ?= -Os
 
 GLOBAL_DEFINES += \
 	ZYNQ_CODE_IN_SRAM=1
