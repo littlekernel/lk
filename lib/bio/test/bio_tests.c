@@ -643,6 +643,97 @@ static bool subdev_nested(void) {
     END_TEST;
 }
 
+static bool memdev_direct_ops_clamp(void) {
+    BEGIN_TEST;
+
+    const size_t guard_size = 256;
+    const size_t alloc_size = TEST_DEVICE_SIZE + guard_size * 2;
+    uint8_t *raw = memalign(CACHE_LINE, alloc_size);
+    ASSERT_NONNULL(raw, "failed to allocate guarded backing memory");
+
+    memset(raw, 0xEE, alloc_size);
+    uint8_t *mem = raw + guard_size;
+    memset(mem, 0, TEST_DEVICE_SIZE);
+
+    EXPECT_EQ(0, create_membdev("test_bdev_memdev_clamp", mem, TEST_DEVICE_SIZE), "");
+    bdev_t *dev = bio_open("test_bdev_memdev_clamp");
+    ASSERT_NONNULL(dev, "failed to open bio device");
+
+    uint8_t write_buf[512];
+    for (size_t i = 0; i < sizeof(write_buf); i++) {
+        write_buf[i] = (uint8_t)(0x80 + (i & 0x7F));
+    }
+
+    // Direct-write over end-of-device should clamp to the remaining byte count.
+    ssize_t result = dev->write(dev, write_buf, TEST_DEVICE_SIZE - 128, 300);
+    EXPECT_EQ((ssize_t)128, result, "");
+    for (size_t i = 0; i < 128; i++) {
+        EXPECT_EQ(write_buf[i], mem[TEST_DEVICE_SIZE - 128 + i], "");
+    }
+
+    // Out-of-range direct read should return 0 and not modify destination.
+    uint8_t read_buf[64];
+    memset(read_buf, 0x5A, sizeof(read_buf));
+    result = dev->read(dev, read_buf, TEST_DEVICE_SIZE, sizeof(read_buf));
+    EXPECT_EQ((ssize_t)0, result, "");
+    for (size_t i = 0; i < sizeof(read_buf); i++) {
+        EXPECT_EQ(0x5A, read_buf[i], "");
+    }
+
+    const bnum_t last_block = dev->block_count - 1;
+    uint8_t block_write[BLOCK_SIZE * 2];
+    for (size_t i = 0; i < sizeof(block_write); i++) {
+        block_write[i] = (uint8_t)(i & 0xFF);
+    }
+
+    // Direct block write past end should clamp to one block.
+    result = dev->write_block(dev, block_write, last_block, 2);
+    EXPECT_EQ((ssize_t)BLOCK_SIZE, result, "");
+
+    size_t last_block_offset = (size_t)last_block * BLOCK_SIZE;
+    for (size_t i = 0; i < BLOCK_SIZE; i++) {
+        EXPECT_EQ(block_write[i], mem[last_block_offset + i], "");
+    }
+
+    // Block access starting at block_count should be out-of-range.
+    uint8_t block_read[BLOCK_SIZE];
+    memset(block_read, 0xA5, sizeof(block_read));
+    result = dev->read_block(dev, block_read, dev->block_count, 1);
+    EXPECT_EQ((ssize_t)0, result, "");
+    for (size_t i = 0; i < sizeof(block_read); i++) {
+        EXPECT_EQ(0xA5, block_read[i], "");
+    }
+
+    // Guard regions around the backing memory must stay untouched.
+    for (size_t i = 0; i < guard_size; i++) {
+        EXPECT_EQ(0xEE, raw[i], "");
+        EXPECT_EQ(0xEE, raw[guard_size + TEST_DEVICE_SIZE + i], "");
+    }
+
+    bio_close(dev);
+    bio_unregister_device(dev);
+    free(raw);
+
+    END_TEST;
+}
+
+static bool memdev_create_rejects_null_args(void) {
+    BEGIN_TEST;
+
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+
+    EXPECT_EQ(ERR_INVALID_ARGS, create_membdev(NULL, mem, TEST_DEVICE_SIZE), "");
+    EXPECT_EQ(ERR_INVALID_ARGS, create_membdev("test_bdev_null_ptr", NULL, TEST_DEVICE_SIZE), "");
+
+    bdev_t *dev = bio_open("test_bdev_null_ptr");
+    EXPECT_EQ(NULL, dev, "device with invalid args should not be registered");
+
+    free(mem);
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(bio_tests)
 RUN_TEST(basic_read_write)
 RUN_TEST(block_read_write)
@@ -655,4 +746,6 @@ RUN_TEST(subdev_write_propagates)
 RUN_TEST(subdev_block_ops)
 RUN_TEST(subdev_async)
 RUN_TEST(subdev_nested)
+RUN_TEST(memdev_direct_ops_clamp)
+RUN_TEST(memdev_create_rejects_null_args)
 END_TEST_CASE(bio_tests)

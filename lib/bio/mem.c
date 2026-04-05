@@ -27,9 +27,14 @@ static ssize_t mem_bdev_read(bdev_t *bdev, void *buf, off_t offset, size_t len) 
 
     LTRACEF("bdev %s, buf %p, offset %lld, len %zu\n", bdev->name, buf, offset, len);
 
-    memcpy(buf, (uint8_t *)mem->ptr + offset, len);
+    len = bio_trim_range(bdev, offset, len);
+    if (len == 0) {
+        return 0;
+    }
 
-    return len;
+    memcpy(buf, (uint8_t *)mem->ptr + (size_t)offset, len);
+
+    return (ssize_t)len;
 }
 
 static ssize_t mem_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, uint count) {
@@ -37,9 +42,17 @@ static ssize_t mem_bdev_read_block(struct bdev *bdev, void *buf, bnum_t block, u
 
     LTRACEF("bdev %s, buf %p, block %u, count %u\n", bdev->name, buf, block, count);
 
-    memcpy(buf, (uint8_t *)mem->ptr + block * BLOCKSIZE, count * BLOCKSIZE);
+    count = bio_trim_block_range(bdev, block, count);
+    if (count == 0) {
+        return 0;
+    }
 
-    return count * BLOCKSIZE;
+    size_t offset = (size_t)block * BLOCKSIZE;
+    size_t bytes = (size_t)count * BLOCKSIZE;
+
+    memcpy(buf, (uint8_t *)mem->ptr + offset, bytes);
+
+    return (ssize_t)bytes;
 }
 
 static status_t mem_bdev_read_async(struct bdev *bdev, void *buf, off_t offset, size_t len,
@@ -57,9 +70,14 @@ static ssize_t mem_bdev_write(bdev_t *bdev, const void *buf, off_t offset, size_
 
     LTRACEF("bdev %s, buf %p, offset %lld, len %zu\n", bdev->name, buf, offset, len);
 
-    memcpy((uint8_t *)mem->ptr + offset, buf, len);
+    len = bio_trim_range(bdev, offset, len);
+    if (len == 0) {
+        return 0;
+    }
 
-    return len;
+    memcpy((uint8_t *)mem->ptr + (size_t)offset, buf, len);
+
+    return (ssize_t)len;
 }
 
 static ssize_t mem_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t block, uint count) {
@@ -67,9 +85,17 @@ static ssize_t mem_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t b
 
     LTRACEF("bdev %s, buf %p, block %u, count %u\n", bdev->name, buf, block, count);
 
-    memcpy((uint8_t *)mem->ptr + block * BLOCKSIZE, buf, count * BLOCKSIZE);
+    count = bio_trim_block_range(bdev, block, count);
+    if (count == 0) {
+        return 0;
+    }
 
-    return count * BLOCKSIZE;
+    size_t offset = (size_t)block * BLOCKSIZE;
+    size_t bytes = (size_t)count * BLOCKSIZE;
+
+    memcpy((uint8_t *)mem->ptr + offset, buf, bytes);
+
+    return (ssize_t)bytes;
 }
 
 static status_t mem_bdev_write_async(struct bdev *bdev, const void *buf, off_t offset, size_t len,
@@ -83,7 +109,14 @@ static status_t mem_bdev_write_async(struct bdev *bdev, const void *buf, off_t o
 }
 
 int create_membdev(const char *name, void *ptr, size_t len) {
+    if (name == NULL || ptr == NULL) {
+        return ERR_INVALID_ARGS;
+    }
+
     mem_bdev_t *mem = malloc(sizeof(mem_bdev_t));
+    if (mem == NULL) {
+        return ERR_NO_MEMORY;
+    }
 
     /* set up the base device */
     bio_initialize_bdev(&mem->dev, name, BLOCKSIZE, len / BLOCKSIZE, 0, NULL,
