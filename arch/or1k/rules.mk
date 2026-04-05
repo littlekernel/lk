@@ -27,7 +27,7 @@ endif
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \
 	then echo "$(2)"; else echo "$(3)"; fi ;)
 
-ARCH_OPTFLAGS := -O2
+ARCH_OPTFLAGS ?= -O2
 
 ARCH_LDFLAGS += -relax
 

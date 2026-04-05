@@ -137,15 +137,15 @@ ARCH_COMPILEFLAGS_NOFLOAT += -mgeneral-regs-only
 ifeq ($(CPU),legacy)
 # compile for 386 when selecting 'legacy' cpu support
 ARCH_COMPILEFLAGS += -march=i386
-ARCH_OPTFLAGS := -Os
+ARCH_OPTFLAGS ?= -Os
 GLOBAL_DEFINES += X86_LEGACY=1
 else ifeq ($(SUBARCH),x86-32)
 ARCH_COMPILEFLAGS += -march=i686
-ARCH_OPTFLAGS := -O2
+ARCH_OPTFLAGS ?= -O2
 GLOBAL_DEFINES += X86_LEGACY=0
 else ifeq ($(SUBARCH),x86-64)
 ARCH_COMPILEFLAGS += -march=x86-64
-ARCH_OPTFLAGS := -O2
+ARCH_OPTFLAGS ?= -O2
 GLOBAL_DEFINES += X86_LEGACY=0
 endif
 

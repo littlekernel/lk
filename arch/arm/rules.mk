@@ -277,7 +277,7 @@ MODULE_FLOAT_SRCS += \
 MODULE_ARM_OVERRIDE_SRCS := \
 	$(LOCAL_DIR)/arm/arch.c
 
-ARCH_OPTFLAGS := -O2
+ARCH_OPTFLAGS ?= -O2
 WITH_LINKER_GC ?= 1
 
 # use the numeric registers when disassembling code
@@ -344,7 +344,7 @@ GLOBAL_DEFINES += \
 MODULE_DEPS += \
 	arch/arm/arm-m/CMSIS
 
-ARCH_OPTFLAGS := -Os
+ARCH_OPTFLAGS ?= -Os
 WITH_LINKER_GC ?= 1
 endif
 

@@ -31,7 +31,7 @@ GLOBAL_DEFINES += \
     SMP_MAX_CPUS=1
 endif
 
-ARCH_OPTFLAGS := -O2
+ARCH_OPTFLAGS ?= -O2
 
 # we have a mmu and want the vmm/pmm
 WITH_KERNEL_VM ?= 1
