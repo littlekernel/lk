@@ -4,7 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS := $(LOCAL_DIR)/arch.c
 
-MODULE_OPTIONS := extra_warnings
+MODULE_OPTIONS := extra_warnings test
 
 include make/module.mk
 

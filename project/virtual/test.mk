@@ -4,7 +4,6 @@ MODULES += \
   app/shell \
   app/stringtests \
   app/tests \
-  arch/test \
   lib/aes \
   lib/cksum \
   lib/debugcommands \
