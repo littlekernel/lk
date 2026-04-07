@@ -83,7 +83,11 @@ MODULE_ASMFLAGS := $(EXTRA_MODULE_ASMFLAGS) $(MODULE_ASMFLAGS)
 MODULE_OPTIONS_COPY := $(filter-out extra_warnings,$(MODULE_OPTIONS_COPY))
 endif
 ifneq (,$(findstring test,$(MODULE_OPTIONS)))
+# if this module has the test option, add a submodule for the tests
+# that will be added if WITH_TESTS is true
+ifeq (true, $(call TOBOOL,$(WITH_TESTS)))
 MODULES += $(MODULE)/test
+endif
 MODULE_OPTIONS_COPY := $(filter-out test,$(MODULE_OPTIONS_COPY))
 endif
 
