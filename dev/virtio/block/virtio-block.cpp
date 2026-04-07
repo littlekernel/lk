@@ -106,6 +106,7 @@ struct virtio_block_txn {
 #define VIRTIO_BLK_F_FLUSH    (1<<9)
 #define VIRTIO_BLK_F_TOPOLOGY (1<<10)
 #define VIRTIO_BLK_F_CONFIG_WCE (1<<11)
+#define VIRTIO_BLK_F_MQ       (1<<12)
 #define VIRTIO_BLK_F_DISCARD  (1<<13)
 #define VIRTIO_BLK_F_WRITE_ZEROES (1<<14)
 #define VIRTIO_BLK_F_LIFETIME (1<<15)
@@ -161,6 +162,7 @@ static void dump_feature_bits(const char *name, uint32_t feature) {
     if (feature & VIRTIO_BLK_F_FLUSH) printf(" FLUSH");
     if (feature & VIRTIO_BLK_F_TOPOLOGY) printf(" TOPOLOGY");
     if (feature & VIRTIO_BLK_F_CONFIG_WCE) printf(" CONFIG_WCE");
+    if (feature & VIRTIO_BLK_F_MQ) printf(" MQ");
     if (feature & VIRTIO_BLK_F_DISCARD) printf(" DISCARD");
     if (feature & VIRTIO_BLK_F_WRITE_ZEROES) printf(" WRITE_ZEROES");
     if (feature & VIRTIO_BLK_F_LIFETIME) printf(" LIFETIME");
