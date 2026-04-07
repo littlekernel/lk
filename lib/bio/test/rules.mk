@@ -6,6 +6,7 @@ MODULE_SRCS += $(LOCAL_DIR)/bio_tests.c
 
 MODULE_DEPS += \
 	lib/bio \
+	lib/bio/disktest \
 	lib/unittest
 
 include make/module.mk
