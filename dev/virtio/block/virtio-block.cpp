@@ -146,6 +146,7 @@ struct virtio_block_dev {
 
     /* our negotiated guest features */
     uint32_t guest_features;
+    bool readonly;
 
     virtio_block_txn *txns;
 };
@@ -186,6 +187,7 @@ status_t virtio_block_init(virtio_device *dev) {
     dev->bus()->virtio_reset_device();
 
     uint32_t host_features = dev->bus()->virtio_read_host_feature_word(0);
+    bdev->readonly = (host_features & VIRTIO_BLK_F_RO) != 0;
 
     volatile auto *config = (virtio_blk_config *)dev->get_config_ptr();
 
@@ -202,6 +204,7 @@ status_t virtio_block_init(virtio_device *dev) {
 
     /* keep the features we understand or can tolerate */
     bdev->guest_features &= (VIRTIO_BLK_F_SIZE_MAX |
+                             VIRTIO_BLK_F_RO |
                              VIRTIO_BLK_F_FLUSH |
                              VIRTIO_BLK_F_BLK_SIZE |
                              VIRTIO_BLK_F_GEOMETRY |
@@ -213,8 +216,6 @@ status_t virtio_block_init(virtio_device *dev) {
     if (bdev->guest_features & VIRTIO_BLK_F_CONFIG_WCE) {
         config->writeback = 1;
     }
-
-    /* TODO: handle a RO feature */
 
     /* allocate a virtio ring */
     dev->virtio_alloc_ring(0, VIRTIO_BLK_RING_LEN);
@@ -254,6 +255,9 @@ status_t virtio_block_init(virtio_device *dev) {
     /* dump feature bits */
     dump_feature_bits("host", host_features);
     dump_feature_bits("guest", bdev->guest_features);
+    if (bdev->readonly) {
+        printf("\tdevice mode: read-only\n");
+    }
     if (host_features & VIRTIO_BLK_F_CONFIG_WCE) {
         printf("\twriteback mode: %s\n", config->writeback ? "enabled" : "disabled");
     }
@@ -507,6 +511,10 @@ static status_t virtio_bdev_write_async(bdev *bdev, const void *buf,
     struct virtio_block_dev *dev =
         containerof(bdev, struct virtio_block_dev, bdev);
 
+    if (dev->readonly) {
+        return ERR_NOT_SUPPORTED;
+    }
+
     return virtio_block_do_txn(dev->dev, (void *)buf, offset, len, true,
                                callback, cookie, NULL);
 }
@@ -515,6 +523,10 @@ static ssize_t virtio_bdev_write_block(bdev *bdev, const void *buf, bnum_t block
     struct virtio_block_dev *dev = containerof(bdev, struct virtio_block_dev, bdev);
 
     LTRACEF("dev %p, buf %p, block 0x%x, count %u\n", bdev, buf, block, count);
+
+    if (dev->readonly) {
+        return ERR_NOT_SUPPORTED;
+    }
 
     ssize_t result = virtio_block_read_write(dev->dev, (void *)buf, (off_t)block * dev->bdev.block_size,
                      count * dev->bdev.block_size, true);
