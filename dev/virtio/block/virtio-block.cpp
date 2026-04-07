@@ -185,7 +185,7 @@ status_t virtio_block_init(virtio_device *dev) {
 
     uint32_t host_features = dev->bus()->virtio_read_host_feature_word(0);
 
-    volatile const auto *config = (const virtio_blk_config *)dev->get_config_ptr();
+    volatile auto *config = (virtio_blk_config *)dev->get_config_ptr();
 
     LTRACEF("capacity %" PRIx64 "\n", config->capacity);
     LTRACEF("size_max %#x\n", config->size_max);
@@ -200,12 +200,19 @@ status_t virtio_block_init(virtio_device *dev) {
 
     /* keep the features we understand or can tolerate */
     bdev->guest_features &= (VIRTIO_BLK_F_SIZE_MAX |
+                             VIRTIO_BLK_F_FLUSH |
                              VIRTIO_BLK_F_BLK_SIZE |
                              VIRTIO_BLK_F_GEOMETRY |
                              VIRTIO_BLK_F_TOPOLOGY |
+                             VIRTIO_BLK_F_CONFIG_WCE |
                              VIRTIO_BLK_F_DISCARD |
                              VIRTIO_BLK_F_WRITE_ZEROES);
     dev->bus()->virtio_set_guest_features(0, bdev->guest_features);
+
+    // If supported, prefer writeback mode for better throughput.
+    if (bdev->guest_features & VIRTIO_BLK_F_CONFIG_WCE) {
+        config->writeback = 1;
+    }
 
     /* TODO: handle a RO feature */
 
@@ -247,6 +254,9 @@ status_t virtio_block_init(virtio_device *dev) {
     /* dump feature bits */
     dump_feature_bits("host", host_features);
     dump_feature_bits("guest", bdev->guest_features);
+    if (host_features & VIRTIO_BLK_F_CONFIG_WCE) {
+        printf("\twriteback mode: %s\n", config->writeback ? "enabled" : "disabled");
+    }
     printf("\tsize_max %u seg_max %u\n", config->size_max, config->seg_max);
     if (host_features & VIRTIO_BLK_F_GEOMETRY) {
         printf("\tgeometry: cyl %u head %u sector %u\n", config->geometry.cylinders, config->geometry.heads, config->geometry.sectors);
@@ -439,13 +449,14 @@ static status_t virtio_block_do_txn(virtio_device *dev, void *buf,
     return NO_ERROR;
 }
 
+// TODO: handle partial block transfers
 static void sync_completion_cb(void *cookie, struct bdev *dev, ssize_t bytes) {
     DEBUG_ASSERT(cookie);
     event_t *event = (event_t *)cookie;
     event_signal(event, false);
 }
 
-ssize_t virtio_block_read_write(virtio_device *dev, void *buf,
+static ssize_t virtio_block_read_write(virtio_device *dev, void *buf,
                                 const off_t offset, const size_t len,
                                 const bool write) {
     struct virtio_block_txn *txn;
