@@ -206,9 +206,7 @@ status_t virtio_block_init(virtio_device *dev) {
                              VIRTIO_BLK_F_BLK_SIZE |
                              VIRTIO_BLK_F_GEOMETRY |
                              VIRTIO_BLK_F_TOPOLOGY |
-                             VIRTIO_BLK_F_CONFIG_WCE |
-                             VIRTIO_BLK_F_DISCARD |
-                             VIRTIO_BLK_F_WRITE_ZEROES);
+                             VIRTIO_BLK_F_CONFIG_WCE);
     dev->bus()->virtio_set_guest_features(0, bdev->guest_features);
 
     // If supported, prefer writeback mode for better throughput.
