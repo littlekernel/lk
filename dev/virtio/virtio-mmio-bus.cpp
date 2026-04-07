@@ -107,8 +107,9 @@ void virtio_mmio_bus::virtio_kick(uint16_t ring_index) {
 
     DEBUG_ASSERT(ring_index < virtio_device::MAX_VIRTIO_RINGS);
 
-    mmio_config_->queue_notify = ring_index;
+    // Ensure descriptors and avail index writes are globally visible before notifying.
     mb();
+    mmio_config_->queue_notify = ring_index;
 }
 
 void virtio_mmio_bus::register_ring(uint32_t page_size, uint32_t queue_sel, uint32_t queue_num, uint32_t queue_align, uint32_t queue_pfn) {

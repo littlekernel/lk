@@ -165,8 +165,9 @@ void virtio_pci_bus::virtio_kick(uint16_t ring_index) {
 
     LTRACEF("notify ring %u ptr %p\n", ring_index, notify);
 
-    *notify = ring_index;
+    // Ensure descriptors and avail index writes are globally visible before notifying.
     mb();
+    *notify = ring_index;
 }
 
 void virtio_pci_bus::register_ring(uint32_t page_size, uint32_t queue_sel, uint32_t queue_num, uint32_t queue_align, uint32_t queue_pfn) {
