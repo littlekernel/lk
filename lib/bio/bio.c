@@ -341,6 +341,10 @@ uint bio_trim_block_range(const bdev_t *dev, bnum_t block, uint count) {
 bdev_t *bio_open(const char *name) {
     bdev_t *bdev = NULL;
 
+    if (name == NULL) {
+        return NULL;
+    }
+
     LTRACEF(" '%s'\n", name);
 
     /* see if it's in our list */
@@ -572,6 +576,11 @@ void bio_initialize_bdev(bdev_t *dev,
 void bio_register_device(bdev_t *dev) {
     DEBUG_ASSERT(dev);
 
+    if (dev->name == NULL) {
+        dprintf(ALWAYS, "bio_register_device: refusing to register nameless device %p\n", dev);
+        return;
+    }
+
     LTRACEF(" '%s'\n", dev->name);
 
     bdev_inc_ref(dev);
@@ -610,6 +619,7 @@ void bio_dump_devices(void) {
     bdev_t *entry;
     mutex_acquire(&bdevs.lock);
     list_for_every_entry(&bdevs.list, entry, bdev_t, node) {
+        DEBUG_ASSERT(entry->name);
 
         printf("\t%s, size %lld, bsize %zd, ref %d",
                entry->name, entry->total_size, entry->block_size, entry->ref);
