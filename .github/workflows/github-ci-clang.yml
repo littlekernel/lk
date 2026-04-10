@@ -46,7 +46,7 @@ jobs:
         echo UBSAN = $UBSAN
 
     - name: checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     # Install LLVM and set up the required environment variables
     - name: compute toolchain
