@@ -35,18 +35,17 @@ void dt_backend_perror(const char *msg) {
 }
 
 int dt_backend_open(const char *path, bool need_write, void **out_context) {
-    int fd = open(path, need_write ? O_RDWR : O_RDONLY);
-
     if (out_context == NULL) {
         dt_backend_set_error(EINVAL);
         return -1;
     }
 
+    const int fd = open(path, need_write ? O_RDWR : O_RDONLY);
     if (fd < 0) {
         return -1;
     }
 
-    DtPosixBackendContext *ctx = malloc(sizeof(*ctx));
+    DtPosixBackendContext *const ctx = malloc(sizeof(*ctx));
     if (ctx == NULL) {
         close(fd);
         errno = ENOMEM;
@@ -66,45 +65,66 @@ int dt_backend_close(void *context) {
         return -1;
     }
 
-    int rc = close(ctx->fd);
+    const int rc = close(ctx->fd);
     free(ctx);
     return rc;
 }
 
-int64_t dt_backend_read_block(void *context, uint64_t block_idx, uint64_t block_size, uint8_t *buf) {
+int64_t dt_backend_read_blocks(void *context,
+                               uint64_t block_idx,
+                               uint64_t block_size,
+                               uint64_t block_count,
+                               uint8_t *buf) {
     DtPosixBackendContext *ctx = (DtPosixBackendContext *)context;
-    off_t byte_offset = (off_t)(block_idx * block_size);
 
-    if (ctx == NULL) {
+    if (ctx == NULL || buf == NULL || block_count == 0) {
         dt_backend_set_error(EINVAL);
         return -1;
     }
 
-    return (int64_t)pread(ctx->fd, buf, (size_t)block_size, byte_offset);
+    if (block_size > (UINT64_MAX / block_count) || block_size * block_count > SIZE_MAX) {
+        dt_backend_set_error(EOVERFLOW);
+        return -1;
+    }
+
+    const size_t transfer_size = (size_t)(block_size * block_count);
+    const off_t byte_offset = (off_t)(block_idx * block_size);
+
+    return (int64_t)pread(ctx->fd, buf, transfer_size, byte_offset);
 }
 
-int64_t dt_backend_write_block(void *context, uint64_t block_idx, uint64_t block_size, const uint8_t *buf) {
+int64_t dt_backend_write_blocks(void *context,
+                                uint64_t block_idx,
+                                uint64_t block_size,
+                                uint64_t block_count,
+                                const uint8_t *buf) {
     DtPosixBackendContext *ctx = (DtPosixBackendContext *)context;
-    off_t byte_offset = (off_t)(block_idx * block_size);
 
-    if (ctx == NULL) {
+    if (ctx == NULL || buf == NULL || block_count == 0) {
         dt_backend_set_error(EINVAL);
         return -1;
     }
 
-    return (int64_t)pwrite(ctx->fd, buf, (size_t)block_size, byte_offset);
+    if (block_size > (UINT64_MAX / block_count) || block_size * block_count > SIZE_MAX) {
+        dt_backend_set_error(EOVERFLOW);
+        return -1;
+    }
+
+    const size_t transfer_size = (size_t)(block_size * block_count);
+    const off_t byte_offset = (off_t)(block_idx * block_size);
+
+    return (int64_t)pwrite(ctx->fd, buf, transfer_size, byte_offset);
 }
 
 int dt_backend_get_target_size(void *context, uint64_t block_size, uint64_t *total_bytes, uint64_t *blocks) {
     DtPosixBackendContext *ctx = (DtPosixBackendContext *)context;
-    off_t end;
 
     if (ctx == NULL) {
         dt_backend_set_error(EINVAL);
         return -1;
     }
 
-    end = lseek(ctx->fd, 0, SEEK_END);
+    const off_t end = lseek(ctx->fd, 0, SEEK_END);
     if (end < 0) {
         dt_backend_perror("lseek(SEEK_END)");
         return -1;

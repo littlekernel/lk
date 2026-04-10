@@ -57,7 +57,7 @@ int dt_backend_open(const char *path, bool need_write, void **out_context) {
         return -1;
     }
 
-    bdev_t *dev = bio_open(path);
+    bdev_t *const dev = bio_open(path);
     if (dev == NULL) {
         dt_backend_set_error(ENOENT);
         return -1;
@@ -69,7 +69,7 @@ int dt_backend_open(const char *path, bool need_write, void **out_context) {
         return -1;
     }
 
-    DtLkBackendContext *ctx = malloc(sizeof(*ctx));
+    DtLkBackendContext *const ctx = malloc(sizeof(*ctx));
     if (ctx == NULL) {
         bio_close(dev);
         dt_backend_set_error(ENOMEM);
@@ -94,16 +94,26 @@ int dt_backend_close(void *context) {
     return 0;
 }
 
-int64_t dt_backend_read_block(void *context, uint64_t block_idx, uint64_t block_size, uint8_t *buf) {
+int64_t dt_backend_read_blocks(void *context,
+                               uint64_t block_idx,
+                               uint64_t block_size,
+                               uint64_t block_count,
+                               uint8_t *buf) {
     DtLkBackendContext *ctx = (DtLkBackendContext *)context;
 
-    if (ctx == NULL || buf == NULL) {
+    if (ctx == NULL || buf == NULL || block_count == 0) {
         dt_backend_set_error(EINVAL);
         return -1;
     }
 
-    off_t byte_offset = (off_t)(block_idx * block_size);
-    ssize_t rc = bio_read(ctx->dev, buf, byte_offset, (size_t)block_size);
+    if (block_size > (UINT64_MAX / block_count) || block_size * block_count > SIZE_MAX) {
+        dt_backend_set_error(EOVERFLOW);
+        return -1;
+    }
+
+    const size_t transfer_size = (size_t)(block_size * block_count);
+    const off_t byte_offset = (off_t)(block_idx * block_size);
+    const ssize_t rc = bio_read(ctx->dev, buf, byte_offset, transfer_size);
     if (rc < 0) {
         dt_backend_set_error(map_status_to_errno((int)rc));
         return -1;
@@ -112,17 +122,26 @@ int64_t dt_backend_read_block(void *context, uint64_t block_idx, uint64_t block_
     return (int64_t)rc;
 }
 
-int64_t dt_backend_write_block(void *context, uint64_t block_idx, uint64_t block_size,
-                               const uint8_t *buf) {
+int64_t dt_backend_write_blocks(void *context,
+                                uint64_t block_idx,
+                                uint64_t block_size,
+                                uint64_t block_count,
+                                const uint8_t *buf) {
     DtLkBackendContext *ctx = (DtLkBackendContext *)context;
 
-    if (ctx == NULL || buf == NULL) {
+    if (ctx == NULL || buf == NULL || block_count == 0) {
         dt_backend_set_error(EINVAL);
         return -1;
     }
 
-    off_t byte_offset = (off_t)(block_idx * block_size);
-    ssize_t rc = bio_write(ctx->dev, buf, byte_offset, (size_t)block_size);
+    if (block_size > (UINT64_MAX / block_count) || block_size * block_count > SIZE_MAX) {
+        dt_backend_set_error(EOVERFLOW);
+        return -1;
+    }
+
+    const size_t transfer_size = (size_t)(block_size * block_count);
+    const off_t byte_offset = (off_t)(block_idx * block_size);
+    const ssize_t rc = bio_write(ctx->dev, buf, byte_offset, transfer_size);
     if (rc < 0) {
         dt_backend_set_error(map_status_to_errno((int)rc));
         return -1;
@@ -150,7 +169,7 @@ int dt_backend_get_target_size(void *context, uint64_t block_size, uint64_t *tot
                 "Target size (%" PRIu64 ") is not a multiple of block size (%" PRIu64 ")\n",
                 (uint64_t)ctx->dev->total_size,
                 block_size);
-            dt_backend_set_error(EINVAL);
+        dt_backend_set_error(EINVAL);
         return -1;
     }
 
