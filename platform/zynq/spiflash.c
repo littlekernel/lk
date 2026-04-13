@@ -207,6 +207,10 @@ status_t spiflash_detect(void) {
 
     /* read and parse the cfi */
     uint8_t *buf = calloc(1, 512);
+    if (!buf) {
+        flash.detected = false;
+        return ERR_NO_MEMORY;
+    }
     ssize_t len = spiflash_read_cfi(buf, 512);
     if (len < 4)
         goto nodetect;
