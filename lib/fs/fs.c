@@ -266,6 +266,11 @@ status_t fs_open_file(const char *path, filehandle **handle) {
     }
 
     filehandle *f = malloc(sizeof(*f));
+    if (!f) {
+        mount->api->close(cookie);
+        put_mount(mount);
+        return ERR_NO_MEMORY;
+    }
     f->cookie = cookie;
     f->mount = mount;
     *handle = f;
@@ -309,8 +314,9 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len) {
 
     filehandle *f = malloc(sizeof(*f));
     if (!f) {
+        mount->api->close(cookie);
         put_mount(mount);
-        return err;
+        return ERR_NO_MEMORY;
     }
     f->cookie = cookie;
     f->mount = mount;
@@ -425,6 +431,7 @@ status_t fs_open_dir(const char *path, dirhandle **handle) {
 
     dirhandle *d = malloc(sizeof(*d));
     if (!d) {
+        mount->api->closedir(cookie);
         put_mount(mount);
         return ERR_NO_MEMORY;
     }
