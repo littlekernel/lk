@@ -73,7 +73,7 @@ FILE *fopen(const char *filename, const char *mode) {
 
 int fclose(FILE *stream) {
 #if defined(WITH_LIB_FS)
-    if (stream && !stream->use_fs) {
+    if (stream && stream->use_fs) {
         fs_close_file(stream->fs_handle.handle);
         free(stream);
     }
