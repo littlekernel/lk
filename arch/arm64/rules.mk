@@ -104,7 +104,7 @@ ARCH_COMPILEFLAGS += -fno-omit-frame-pointer
 ARCH_COMPILEFLAGS_NOFLOAT := -mgeneral-regs-only
 ARCH_COMPILEFLAGS_FLOAT :=
 
-ARCH_LDFLAGS += -z max-page-size=$(ARM64_PAGE_SIZE)
+ARCH_LDFLAGS += -Wl,-z,max-page-size=$(ARM64_PAGE_SIZE)
 
 # Note: assumes the use of gcc and the user is not overriding CC which is set later in engine.mk
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)

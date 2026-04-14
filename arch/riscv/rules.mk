@@ -233,7 +233,7 @@ LINKER_SCRIPT += $(BUILDDIR)/linker-twosegment.ld
 # a paged sytem would.
 # NOTE: 8 seems to be about as far as you can go. experienced some extra stuffed words
 # when using 4.
-ARCH_LDFLAGS += -z max-page-size=8
+ARCH_LDFLAGS += -Wl,-z,max-page-size=8
 else
 GLOBAL_DEFINES += ARCH_RISCV_TWOSEGMENT=0
 LINKER_SCRIPT += $(BUILDDIR)/linker-onesegment.ld

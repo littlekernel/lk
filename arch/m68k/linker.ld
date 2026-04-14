@@ -29,6 +29,26 @@ SECTIONS
     .rodata : {
         __rodata_start = .;
         *(.rodata .rodata.* .gnu.linkonce.r.*)
+
+        . = ALIGN(4);
+        __start_lk_init = .;
+        KEEP(*(lk_init))
+        __stop_lk_init = .;
+
+        . = ALIGN(4);
+        __start_commands = .;
+        KEEP(*(commands))
+        __stop_commands = .;
+
+        . = ALIGN(4);
+        __start_apps = .;
+        KEEP(*(apps))
+        __stop_apps = .;
+
+        . = ALIGN(4);
+        __start_fs_impl = .;
+        KEEP(*(fs_impl))
+        __stop_fs_impl = .;
     } :rodata
 
     /* trick to force any extra sections to be emitted here */

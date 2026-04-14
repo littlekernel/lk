@@ -74,6 +74,11 @@ GLOBAL_CPPFLAGS := --std=c++14 -fno-exceptions -fno-rtti -fno-threadsafe-statics
 GLOBAL_ASMFLAGS := -DASSEMBLY
 GLOBAL_LDFLAGS :=
 
+# Optional link-time optimization flags.
+WITH_LTO ?= true
+GLOBAL_LTO_COMPILEFLAGS :=
+GLOBAL_LTO_LDFLAGS :=
+
 ifeq ($(UBSAN), 1)
 # Inject lib/ubsan directly into MODULE_DEPS
 # lib/ubsan will itself add the needed CFLAGS
@@ -234,6 +239,15 @@ $(info LINKER_TYPE=$(LINKER_TYPE))
 COMPILER_TYPE := $(shell $(CC) -v 2>&1 | grep -q "clang version" && echo clang || echo gcc)
 $(info COMPILER_TYPE=$(COMPILER_TYPE))
 
+ifeq (true,$(call TOBOOL,$(WITH_LTO)))
+ifeq ($(COMPILER_TYPE),gcc)
+# Build fat LTO objects so module-level ld -r can preserve codegen + IL.
+GLOBAL_LTO_COMPILEFLAGS += -flto -ffat-lto-objects
+else
+$(warning WITH_LTO=1 currently only configures GCC defaults; set GLOBAL_LTO_* flags explicitly for clang)
+endif
+endif
+
 # Now that CC is defined we can check if warning flags are supported and add
 # them to GLOBAL_COMPILEFLAGS if they are.
 ifeq ($(call is_warning_flag_supported,-Wnonnull-compare),yes)
@@ -333,6 +347,8 @@ GLOBAL_DEFINES += GLOBAL_OPTFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_OPTFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_CFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_CPPFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CPPFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_ASMFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_ASMFLAGS))\"
+GLOBAL_DEFINES += GLOBAL_LTO_COMPILEFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LTO_COMPILEFLAGS))\"
+GLOBAL_DEFINES += GLOBAL_LTO_LDFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LTO_LDFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_LDFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LDFLAGS))\"
 GLOBAL_DEFINES += ARCH_COMPILEFLAGS=\"$(subst $(SPACE),_,$(ARCH_COMPILEFLAGS))\"
 GLOBAL_DEFINES += ARCH_COMPILEFLAGS_FLOAT=\"$(subst $(SPACE),_,$(ARCH_COMPILEFLAGS_FLOAT))\"

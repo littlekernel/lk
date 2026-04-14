@@ -1,4 +1,4 @@
-/*
+]/*
  * Copyright (c) 2015 Travis Geiselbrecht
  *
  * Use of this source code is governed by a MIT-style
@@ -177,7 +177,7 @@ static ssize_t stm32_flash_bdev_erase(struct bdev *bdev, off_t offset, size_t le
         LTRACEF("erase params: sector %u, num_sectors %u, next_offset 0x%llx\n", erase.Sector, erase.NbSectors, next_offset);
 
         if (1) {
-            uint32_t sector_error;
+            uint32_t sector_error = 0;
             HAL_StatusTypeDef err = HAL_FLASHEx_Erase(&erase, &sector_error);
             if (err != HAL_OK) {
                 TRACEF("error starting erase operation, sector error %u\n", sector_error);

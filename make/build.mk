@@ -4,8 +4,23 @@
 WITH_LINKER_GC ?= false
 ifeq (true,$(call TOBOOL,$(WITH_LINKER_GC)))
 GLOBAL_COMPILEFLAGS += -ffunction-sections -fdata-sections
-GLOBAL_LDFLAGS += --gc-sections
+GLOBAL_LDFLAGS += -Wl,--gc-sections
 GLOBAL_DEFINES += LINKER_GC=1
+endif
+
+# Use the compiler driver for linking to ensure LTO and other compiler-managed
+# features work correctly. All ARCH_LDFLAGS and GLOBAL_LDFLAGS use -Wl, syntax.
+ifeq ($(COMPILER_TYPE),gcc)
+FINAL_LINK_CMD := $(CC)
+FINAL_LINK_FLAGS := $(GLOBAL_LDFLAGS) $(ARCH_LDFLAGS) -nostdlib $(GLOBAL_LTO_COMPILEFLAGS) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(ARCH_COMPILEFLAGS_FLOAT) -Wl,-d
+FINAL_LINK_MAPFLAG := -Wl,-Map=$(OUTELF).map
+ifeq (true,$(call TOBOOL,$(WITH_LTO)))
+FINAL_LINK_FLAGS += -Wl,--require-defined=memcpy -Wl,--require-defined=memmove -Wl,--require-defined=memset
+endif
+else
+FINAL_LINK_CMD := $(LD)
+FINAL_LINK_FLAGS := $(GLOBAL_LDFLAGS) $(GLOBAL_LTO_LDFLAGS) $(ARCH_LDFLAGS) -d
+FINAL_LINK_MAPFLAG := -Map=$(OUTELF).map
 endif
 
 ifneq (,$(EXTRA_BUILDRULES))
@@ -26,9 +41,9 @@ $(OUTELF).hex: $(OUTELF)
 $(OUTELF): $(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LINKER_SCRIPT) $(EXTRA_LINKER_SCRIPTS)
 	$(info linking $@)
 	$(NOECHO)$(SIZE) -t --common $(sort $(ALLMODULE_OBJS)) $(EXTRA_OBJS)
-	$(NOECHO)$(LD) $(GLOBAL_LDFLAGS) $(ARCH_LDFLAGS) -d -T $(LINKER_SCRIPT) \
+	$(NOECHO)$(FINAL_LINK_CMD) $(FINAL_LINK_FLAGS) -T $(LINKER_SCRIPT) \
 		$(addprefix -T,$(EXTRA_LINKER_SCRIPTS)) \
-		$(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LIBGCC) -Map=$(OUTELF).map -o $@
+		$(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LIBGCC) $(FINAL_LINK_MAPFLAG) -o $@
 
 $(OUTELF).sym: $(OUTELF)
 	$(info generating symbols: $@)

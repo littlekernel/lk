@@ -59,6 +59,26 @@ SECTIONS
         KEEP(*(.rodata.fault_handler_table))
         __fault_handler_table_end = .;
         *(.rodata .rodata.* .gnu.linkonce.r.*)
+
+        . = ALIGN(8);
+        __start_lk_init = .;
+        KEEP(*(lk_init))
+        __stop_lk_init = .;
+
+        . = ALIGN(8);
+        __start_commands = .;
+        KEEP(*(commands))
+        __stop_commands = .;
+
+        . = ALIGN(8);
+        __start_apps = .;
+        KEEP(*(apps))
+        __stop_apps = .;
+
+        . = ALIGN(8);
+        __start_fs_impl = .;
+        KEEP(*(fs_impl))
+        __stop_fs_impl = .;
     }
 
     /*

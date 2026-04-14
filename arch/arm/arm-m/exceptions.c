@@ -235,7 +235,7 @@ __NAKED void _hardfault(void) {
         PUSH_REGS
         "mov    r0, sp;"
         "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
-        "b      hardfault;");
+        "b      hardfault;" :: "i" (hardfault));
 }
 
 #if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
@@ -244,7 +244,7 @@ __NAKED void _memmanage(void) {
         PUSH_REGS
         "mov    r0, sp;"
         "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
-        "b      memmanage;");
+        "b      memmanage;" :: "i" (memmanage));
 }
 
 __NAKED void _busfault(void) {
@@ -252,7 +252,7 @@ __NAKED void _busfault(void) {
         PUSH_REGS
         "mov    r0, sp;"
         "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
-        "b      busfault;");
+        "b      busfault;" :: "i" (busfault));
 }
 
 __NAKED void _usagefault(void) {
@@ -260,7 +260,7 @@ __NAKED void _usagefault(void) {
         PUSH_REGS
         "mov    r0, sp;"
         "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
-        "b      usagefault;");
+        "b      usagefault;" :: "i" (usagefault));
 }
 #endif
 
@@ -270,7 +270,7 @@ __NAKED void _securefault(void) {
         PUSH_REGS
         "mov    r0, sp;"
         "sub    sp, #4;" /* adjust the stack to be 8 byte aligned */
-        "b      securefault;");
+        "b      securefault;" :: "i" (securefault));
 }
 #endif
 

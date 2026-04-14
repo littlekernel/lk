@@ -359,7 +359,7 @@ ARCH_COMPILEFLAGS_FLOAT := $(ARCH_$(ARCH)_COMPILEFLAGS_FLOAT)
 GLOBAL_COMPILEFLAGS += $(THUMBINTERWORK)
 
 # set the max page size to something more reasonable (defaults to 64K or above)
-ARCH_LDFLAGS += -z max-page-size=4096
+ARCH_LDFLAGS += -Wl,-z,max-page-size=4096
 
 # find the direct path to libgcc.a for our particular multilib variant
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)

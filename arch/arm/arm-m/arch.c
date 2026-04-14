@@ -15,7 +15,7 @@
 #include <platform.h>
 #include <target.h>
 
-extern void *vectab;
+extern void *const vectab[];
 
 #if ARM_CM_DYNAMIC_PRIORITY_SIZE
 unsigned int arm_cm_num_irq_pri_bits;

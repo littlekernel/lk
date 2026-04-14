@@ -9,6 +9,7 @@
 #include <lk/reg.h>
 #include <stdio.h>
 #include <kernel/thread.h>
+#include <platform.h>
 #include <platform/armemu/memmap.h>
 #include <platform/debug.h>
 
@@ -36,7 +37,7 @@ void debug_dump_regs(void) {
     *REG32(DEBUG_REGDUMP) = 1;
 }
 
-void platform_halt(void) {
+void platform_halt(platform_halt_action action, platform_halt_reason reason) {
     *REG32(DEBUG_HALT) = 1;
     for (;;);
 }

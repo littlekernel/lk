@@ -141,7 +141,7 @@ static bool is_full_edge_cases(void) {
     EXPECT_TRUE(cbuf_is_full(&cbuf), "");
 
     // Read one byte - should no longer be full
-    char c;
+    char c = 0;
     EXPECT_EQ(1UL, cbuf_read_char(&cbuf, &c, false), "");
     EXPECT_EQ('A', c, "");
     EXPECT_FALSE(cbuf_is_full(&cbuf), "");
