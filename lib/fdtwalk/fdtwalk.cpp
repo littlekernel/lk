@@ -20,10 +20,11 @@
 namespace {
 
 const int MAX_DEPTH = 16;
+const uint32_t DEFAULT_ADDRESS_CELLS = 2;
+const uint32_t DEFAULT_SIZE_CELLS = 1;
 
-/* read the #address-cells and #size-cells properties at the current node to
- * see if there are any overriding sizes at this level. It's okay to not
- * find the properties.
+/* Read this node's effective #address-cells and #size-cells using libfdt.
+ * These APIs already apply DT defaults (2/1) if properties are not present.
  */
 void read_address_size_cells(const void *fdt, int offset, int depth,
                              uint32_t *address_cells, uint32_t *size_cells) {
@@ -31,17 +32,18 @@ void read_address_size_cells(const void *fdt, int offset, int depth,
 
     DEBUG_ASSERT(depth >= 0 && depth < MAX_DEPTH);
 
-    int len;
-    const void *prop_ptr = fdt_getprop(fdt, offset, "#address-cells", &len);
-    LTRACEF_LEVEL(3, "%p, len %d\n", prop_ptr, len);
-    if (prop_ptr && len == 4) {
-        address_cells[depth] = fdt32_ld((const fdt32_t *)prop_ptr);
+    int ac = fdt_address_cells(fdt, offset);
+    if (ac >= 0) {
+        address_cells[depth] = static_cast<uint32_t>(ac);
+    } else {
+        LTRACEF("fdt_address_cells failed at offset %d: %d\n", offset, ac);
     }
 
-    prop_ptr = fdt_getprop(fdt, offset, "#size-cells", &len);
-    LTRACEF_LEVEL(3, "%p, len %d\n", prop_ptr, len);
-    if (prop_ptr && len == 4) {
-        size_cells[depth] = fdt32_ld((const fdt32_t *)prop_ptr);
+    int sc = fdt_size_cells(fdt, offset);
+    if (sc >= 0) {
+        size_cells[depth] = static_cast<uint32_t>(sc);
+    } else {
+        LTRACEF("fdt_size_cells failed at offset %d: %d\n", offset, sc);
     }
 
     LTRACEF_LEVEL(3, "address-cells %u size-cells %u\n", address_cells[depth], size_cells[depth]);
@@ -120,8 +122,13 @@ struct fdt_walk_state {
     uint32_t address_cells[MAX_DEPTH];
     uint32_t size_cells[MAX_DEPTH];
 
-    uint32_t curr_address_cell() const { return address_cells[depth]; }
-    uint32_t curr_size_cell() const { return size_cells[depth]; }
+    // Cell widths that describe how this node's children encode addresses/sizes.
+    uint32_t node_address_cell() const { return address_cells[depth]; }
+    uint32_t node_size_cell() const { return size_cells[depth]; }
+
+    // Cell widths used to decode this node's reg-style tuples.
+    uint32_t parent_address_cell() const { return depth > 0 ? address_cells[depth - 1] : DEFAULT_ADDRESS_CELLS; }
+    uint32_t parent_size_cell() const { return depth > 0 ? size_cells[depth - 1] : DEFAULT_SIZE_CELLS; }
 };
 
 // Inner page table walker routine. Takes a callback in the form of a function or lambda
@@ -138,8 +145,8 @@ status_t _fdt_walk(const void *fdt, callback cb) {
     state.fdt = fdt;
 
     /* read the address/size cells properties at the root, if present */
-    state.address_cells[0] = 2;
-    state.size_cells[0] = 1;
+    state.address_cells[0] = DEFAULT_ADDRESS_CELLS;
+    state.size_cells[0] = DEFAULT_SIZE_CELLS;
     read_address_size_cells(fdt, state.offset, 0, state.address_cells, state.size_cells);
 
     for (;;) {
@@ -155,15 +162,12 @@ status_t _fdt_walk(const void *fdt, callback cb) {
             return ERR_NO_MEMORY;
         }
 
-        // TODO: fix the way address and size cells are inherited, they're not exactly correct
-        // here.
-
-        /* copy the address/size cells from the parent depth and then see if we
-         * have local properties to override it. */
-        if (state.depth > 0) {
-            state.address_cells[state.depth] = state.address_cells[state.depth - 1];
-            state.size_cells[state.depth] = state.size_cells[state.depth - 1];
-        }
+        /* #address-cells/#size-cells are parent-scoped in DT. Each node's own
+         * effective child encoding widths come from local override, else defaults.
+         * We intentionally do not inherit ancestor overrides through the tree.
+         */
+        state.address_cells[state.depth] = DEFAULT_ADDRESS_CELLS;
+        state.size_cells[state.depth] = DEFAULT_SIZE_CELLS;
         read_address_size_cells(fdt, state.offset, state.depth, state.address_cells, state.size_cells);
 
         /* get the name */
@@ -172,8 +176,10 @@ status_t _fdt_walk(const void *fdt, callback cb) {
             continue;
         }
 
-        LTRACEF_LEVEL(2, "name '%s', depth %d, address cells %u, size cells %u\n",
-                      name, state.depth, state.address_cells[state.depth], state.size_cells[state.depth]);
+        LTRACEF_LEVEL(2, "name '%s', depth %d, node ac/sc %u/%u parent ac/sc %u/%u\n",
+                      name, state.depth,
+                      state.node_address_cell(), state.node_size_cell(),
+                      state.parent_address_cell(), state.parent_size_cell());
 
         // Callback
         cb(state, name);
@@ -189,8 +195,8 @@ status_t fdt_walk_dump(const void *fdt) {
         for (auto i = 0; i < state.depth; i++) {
             printf("  ");
         }
-        printf("offset %d depth %d acells %u scells %u name '%s'\n", state.offset, state.depth,
-               state.curr_address_cell(), state.curr_size_cell(), name);
+        printf("offset %d depth %d node ac/sc %u/%u parent ac/sc %u/%u name '%s'\n", state.offset, state.depth,
+               state.node_address_cell(), state.node_size_cell(), state.parent_address_cell(), state.parent_size_cell(), name);
     };
 
     printf("FDT dump: address %p total size %#x\n", fdt, fdt_totalsize(fdt));
@@ -210,9 +216,9 @@ status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
-                              state.curr_address_cell(), state.curr_size_cell());
+                              state.parent_address_cell(), state.parent_size_cell());
                 uint32_t id = 0;
-                if (state.curr_address_cell() == 1 && lenp >= 4) {
+                if (state.parent_address_cell() == 1 && lenp >= 4) {
                     id = fdt32_ld((const fdt32_t *)prop_ptr);
                     prop_ptr += 4;
                     lenp -= 4;
@@ -271,11 +277,11 @@ status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *me
                 const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
                 if (prop_ptr) {
                     LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
-                                  state.curr_address_cell(), state.curr_size_cell());
+                                  state.parent_address_cell(), state.parent_size_cell());
                     /* we're looking at a memory descriptor */
                     uint64_t base;
                     uint64_t len;
-                    err = read_base_len_pair(prop_ptr, lenp, state.curr_address_cell(), state.curr_size_cell(), &base, &len);
+                    err = read_base_len_pair(prop_ptr, lenp, state.parent_address_cell(), state.parent_size_cell(), &base, &len);
                     if (err != NO_ERROR) {
                         TRACEF("error reading base/length from memory@ node\n");
                         /* continue on */
@@ -310,11 +316,11 @@ status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *me
                     const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
                     if (prop_ptr) {
                         LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
-                                      state.curr_address_cell(), state.curr_size_cell());
+                                      state.parent_address_cell(), state.parent_size_cell());
                         /* we're looking at a memory descriptor */
                         uint64_t base;
                         uint64_t len;
-                        err = read_base_len_pair(prop_ptr, lenp, state.curr_address_cell(), state.curr_size_cell(), &base, &len);
+                        err = read_base_len_pair(prop_ptr, lenp, state.parent_address_cell(), state.parent_size_cell(), &base, &len);
                         if (err != NO_ERROR) {
                             TRACEF("error reading base/length from reserved-memory node\n");
                             /* continue on */
@@ -355,7 +361,7 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' prop 'reg' len %d, ac %u, sc %u\n", name, lenp,
-                              state.curr_address_cell(), state.curr_size_cell());
+                              state.parent_address_cell(), state.parent_size_cell());
 
                 /* seems to always be full address cells 2, size cells 2, despite it being 3/2 */
                 info[*count].ecam_base = fdt64_ld((const fdt64_t *)prop_ptr);
@@ -368,7 +374,7 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' prop 'bus-range' len %d, ac %u, sc %u\n", name, lenp,
-                              state.curr_address_cell(), state.curr_size_cell());
+                              state.parent_address_cell(), state.parent_size_cell());
 
                 if (lenp == 8) {
                     info[*count].bus_start = fdt32_ld((const fdt32_t *)prop_ptr);
@@ -381,7 +387,7 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' prop 'ranges' len %d, ac %u, sc %u\n", name, lenp,
-                              state.curr_address_cell(), state.curr_size_cell());
+                              state.node_address_cell(), state.node_size_cell());
 
                 /* iterate this packed property */
                 const uint8_t *prop_end = prop_ptr + lenp;
@@ -508,11 +514,11 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
                 LTRACEF_LEVEL(2, "found '%s' prop 'reg' len %d, ac %u, sc %u\n", name, lenp,
-                              state.curr_address_cell(), state.curr_size_cell());
+                              state.parent_address_cell(), state.parent_size_cell());
             }
 
-            if (state.curr_address_cell() != 2 || state.curr_size_cell() != 2) {
-                printf("unsupported address/size cell count %u/%u\n", state.curr_address_cell(), state.curr_size_cell());
+            if (state.parent_address_cell() != 2 || state.parent_size_cell() != 2) {
+                printf("unsupported address/size cell count %u/%u\n", state.parent_address_cell(), state.parent_size_cell());
                 return;
             }
 
