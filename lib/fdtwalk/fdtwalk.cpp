@@ -49,38 +49,109 @@ void read_address_size_cells(const void *fdt, int offset, int depth,
     LTRACEF_LEVEL(3, "address-cells %u size-cells %u\n", address_cells[depth], size_cells[depth]);
 }
 
-status_t read_base_len_pair(const uint8_t *prop_ptr, size_t prop_len,
-                            size_t address_cell_size, size_t size_cell_size,
-                            uint64_t *base, uint64_t *len) {
-    *base = 0;
-    *len = 0;
-
-    /* we're looking at a memory descriptor */
-    if (address_cell_size == 2 && prop_len >= 8) {
-        *base = fdt64_ld((const fdt64_t *)prop_ptr);
-        prop_ptr += 8;
-        prop_len -= 8;
-    } else if (address_cell_size == 1 && prop_len >= 4) {
-        *base = fdt32_ld((const fdt32_t *)prop_ptr);
-        prop_ptr += 4;
-        prop_len -= 4;
-    } else {
-        return ERR_NOT_IMPLEMENTED;
+status_t consume_cells_u64(const uint8_t **ptr, size_t *remaining_len, size_t cells,
+                           uint64_t *out, bool require_fit) {
+    if (cells > FDT_MAX_NCELLS) {
+        return ERR_OUT_OF_RANGE;
     }
 
-    if (size_cell_size == 2 && prop_len >= 8) {
-        *len = fdt64_ld(((const fdt64_t *)prop_ptr));
-        prop_ptr += 8;
-        prop_len -= 8;
-    } else if (size_cell_size == 1 && prop_len >= 4) {
-        *len = fdt32_ld((const fdt32_t *)prop_ptr);
-        prop_ptr += 4;
-        prop_len -= 4;
-    } else {
-        return ERR_NOT_IMPLEMENTED;
+    if (cells == 0) {
+        *out = 0;
+        return NO_ERROR;
     }
 
+    if (*remaining_len < cells * sizeof(fdt32_t)) {
+        return ERR_BAD_LEN;
+    }
+
+    uint64_t value = 0;
+    for (size_t i = 0; i < cells; ++i) {
+        uint32_t cell = fdt32_ld(reinterpret_cast<const fdt32_t *>(*ptr));
+
+        if (require_fit && i + 2 < cells && cell != 0) {
+            return ERR_OUT_OF_RANGE;
+        }
+
+        value = (value << 32) | cell;
+        *ptr += sizeof(fdt32_t);
+        *remaining_len -= sizeof(fdt32_t);
+    }
+
+    *out = value;
     return NO_ERROR;
+}
+
+struct pci_ranges_entry {
+    uint32_t type;
+    uint64_t child_addr;
+    uint64_t parent_addr;
+    uint64_t size;
+};
+
+struct pci_ranges_entry_result {
+    status_t status;
+    pci_ranges_entry entry;
+};
+
+pci_ranges_entry_result read_pci_ranges_entry(const uint8_t **ptr, size_t *remaining_len,
+                                              size_t child_addr_cells, size_t parent_addr_cells,
+                                              size_t size_cells) {
+    pci_ranges_entry_result result = {};
+
+    if (child_addr_cells == 0) {
+        result.status = ERR_OUT_OF_RANGE;
+        return result;
+    }
+
+    uint64_t child_hi = 0;
+    status_t err = consume_cells_u64(ptr, remaining_len, 1, &child_hi, true);
+    if (err != NO_ERROR) {
+        result.status = err;
+        return result;
+    }
+    result.entry.type = static_cast<uint32_t>(child_hi) & 0x03000000;
+
+    err = consume_cells_u64(ptr, remaining_len, child_addr_cells - 1, &result.entry.child_addr, true);
+    if (err != NO_ERROR) {
+        result.status = err;
+        return result;
+    }
+
+    err = consume_cells_u64(ptr, remaining_len, parent_addr_cells, &result.entry.parent_addr, true);
+    if (err != NO_ERROR) {
+        result.status = err;
+        return result;
+    }
+
+    err = consume_cells_u64(ptr, remaining_len, size_cells, &result.entry.size, true);
+    if (err != NO_ERROR) {
+        result.status = err;
+        return result;
+    }
+
+    result.status = NO_ERROR;
+    return result;
+}
+
+struct base_len_pair {
+    uint64_t base;
+    uint64_t len;
+};
+
+struct base_len_pair_result {
+    status_t status;
+    base_len_pair entry;
+};
+
+base_len_pair_result read_base_len_pair(const uint8_t *prop_ptr, size_t prop_len,
+                                        size_t address_cell_size, size_t size_cell_size) {
+    base_len_pair_result result = {};
+    result.status = consume_cells_u64(&prop_ptr, &prop_len, address_cell_size, &result.entry.base, true);
+    if (result.status != NO_ERROR) {
+        return result;
+    }
+    result.status = consume_cells_u64(&prop_ptr, &prop_len, size_cell_size, &result.entry.len, true);
+    return result;
 }
 
 // returns true or false if a particular property is a particular value
@@ -218,12 +289,16 @@ status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size
                 LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
                               state.parent_address_cell(), state.parent_size_cell());
                 uint32_t id = 0;
-                if (state.parent_address_cell() == 1 && lenp >= 4) {
-                    id = fdt32_ld((const fdt32_t *)prop_ptr);
-                    prop_ptr += 4;
-                    lenp -= 4;
-                } else {
-                    PANIC_UNIMPLEMENTED;
+                {
+                    size_t remaining = static_cast<size_t>(lenp);
+                    uint64_t id64 = 0;
+                    status_t err = consume_cells_u64(&prop_ptr, &remaining, state.parent_address_cell(), &id64, false);
+                    if (err != NO_ERROR) {
+                        LTRACEF("error reading cpu reg (%d)\n", err);
+                        return;
+                    }
+                    id = static_cast<uint32_t>(id64);
+                    lenp = static_cast<int>(remaining);
                 }
 
                 // is it disabled?
@@ -268,8 +343,6 @@ status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *me
     *mem_count = *reserved_mem_count = 0;
 
     auto walker = [&](const fdt_walk_state &state, const char *name) {
-        int err;
-
         /* look for the 'memory@*' property */
         if (memory && *mem_count < max_memory_index) {
             if (strncmp(name, "memory@", 7) == 0 && state.depth == 1) {
@@ -279,16 +352,14 @@ status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *me
                     LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
                                   state.parent_address_cell(), state.parent_size_cell());
                     /* we're looking at a memory descriptor */
-                    uint64_t base;
-                    uint64_t len;
-                    err = read_base_len_pair(prop_ptr, lenp, state.parent_address_cell(), state.parent_size_cell(), &base, &len);
-                    if (err != NO_ERROR) {
+                    auto result = read_base_len_pair(prop_ptr, lenp, state.parent_address_cell(), state.parent_size_cell());
+                    if (result.status != NO_ERROR) {
                         TRACEF("error reading base/length from memory@ node\n");
                         /* continue on */
                     } else {
-                        LTRACEF("mem base %#llx len %#llx\n", base, len);
-                        memory[*mem_count].base = base;
-                        memory[*mem_count].len = len;
+                        LTRACEF("mem base %#llx len %#llx\n", result.entry.base, result.entry.len);
+                        memory[*mem_count].base = result.entry.base;
+                        memory[*mem_count].len = result.entry.len;
                         (*mem_count)++;
                     }
                 }
@@ -318,16 +389,14 @@ status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *me
                         LTRACEF_LEVEL(2, "found '%s' reg prop len %d, ac %u, sc %u\n", name, lenp,
                                       state.parent_address_cell(), state.parent_size_cell());
                         /* we're looking at a memory descriptor */
-                        uint64_t base;
-                        uint64_t len;
-                        err = read_base_len_pair(prop_ptr, lenp, state.parent_address_cell(), state.parent_size_cell(), &base, &len);
-                        if (err != NO_ERROR) {
+                        auto result = read_base_len_pair(prop_ptr, lenp, state.parent_address_cell(), state.parent_size_cell());
+                        if (result.status != NO_ERROR) {
                             TRACEF("error reading base/length from reserved-memory node\n");
                             /* continue on */
                         } else {
-                            LTRACEF("reserved memory base %#llx len %#llx\n", base, len);
-                            reserved_memory[*reserved_mem_count].base = base;
-                            reserved_memory[*reserved_mem_count].len = len;
+                            LTRACEF("reserved memory base %#llx len %#llx\n", result.entry.base, result.entry.len);
+                            reserved_memory[*reserved_mem_count].base = result.entry.base;
+                            reserved_memory[*reserved_mem_count].len = result.entry.len;
                             (*reserved_mem_count)++;
                         }
                     }
@@ -363,10 +432,14 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                 LTRACEF_LEVEL(2, "found '%s' prop 'reg' len %d, ac %u, sc %u\n", name, lenp,
                               state.parent_address_cell(), state.parent_size_cell());
 
-                /* seems to always be full address cells 2, size cells 2, despite it being 3/2 */
-                info[*count].ecam_base = fdt64_ld((const fdt64_t *)prop_ptr);
-                prop_ptr += 8;
-                info[*count].ecam_len = fdt64_ld((const fdt64_t *)prop_ptr);
+                auto result = read_base_len_pair(prop_ptr, static_cast<size_t>(lenp),
+                                                  state.parent_address_cell(), state.parent_size_cell());
+                if (result.status != NO_ERROR) {
+                    TRACEF("error reading base/length from pcie@ node\n");
+                } else {
+                    info[*count].ecam_base = result.entry.base;
+                    info[*count].ecam_len = result.entry.len;
+                }
             }
 
             /* find which bus range the ecam covers */
@@ -390,42 +463,41 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                               state.node_address_cell(), state.node_size_cell());
 
                 /* iterate this packed property */
-                const uint8_t *prop_end = prop_ptr + lenp;
-                while (prop_ptr < prop_end) {
-                    uint32_t type = fdt32_ld((const fdt32_t *)prop_ptr);
-                    prop_ptr += 4;
+                size_t remaining_len = static_cast<size_t>(lenp);
+                while (remaining_len > 0) {
+                    auto entry_result = read_pci_ranges_entry(&prop_ptr, &remaining_len,
+                                                              state.node_address_cell(),
+                                                              state.parent_address_cell(),
+                                                              state.node_size_cell());
+                    if (entry_result.status != NO_ERROR) {
+                        TRACEF("error reading pcie ranges entry (%d)\n", entry_result.status);
+                        break;
+                    }
+                    auto &entry = entry_result.entry;
 
-                    /* read 3 64bit values */
-                    uint64_t base1, base2, size;
-                    base1 = fdt64_ld((const fdt64_t *)prop_ptr);
-                    prop_ptr += 8;
-                    base2 = fdt64_ld((const fdt64_t *)prop_ptr);
-                    prop_ptr += 8;
-                    size = fdt64_ld((const fdt64_t *)prop_ptr);
-                    prop_ptr += 8;
-
-                    switch (type) {
+                    switch (entry.type) {
                         case 0x1000000: // io range
                             LTRACEF_LEVEL(2, "io range\n");
-                            info[*count].io_base = base1;
-                            info[*count].io_base_mmio = base2;
-                            info[*count].io_len = size;
+                            info[*count].io_base = entry.child_addr;
+                            info[*count].io_base_mmio = entry.parent_addr;
+                            info[*count].io_len = entry.size;
                             break;
                         case 0x2000000: // mmio range
                             LTRACEF_LEVEL(2, "mmio range\n");
-                            info[*count].mmio_base = base1;
-                            info[*count].mmio_len = size;
+                            info[*count].mmio_base = entry.child_addr;
+                            info[*count].mmio_len = entry.size;
                             break;
                         case 0x3000000: // mmio range (64bit)
                             LTRACEF_LEVEL(2, "mmio range (64bit)\n");
-                            info[*count].mmio64_base = base1;
-                            info[*count].mmio64_len = size;
+                            info[*count].mmio64_base = entry.child_addr;
+                            info[*count].mmio64_len = entry.size;
                             break;
                         default:
-                            LTRACEF_LEVEL(2, "unhandled type %#x\n", type);
+                            LTRACEF_LEVEL(2, "unhandled type %#x\n", entry.type);
                     }
 
-                    LTRACEF_LEVEL(2, "base %#llx base2 %#llx size %#llx\n", base1, base2, size);
+                    LTRACEF_LEVEL(2, "base %#llx base2 %#llx size %#llx\n",
+                                  entry.child_addr, entry.parent_addr, entry.size);
                 }
             }
 
@@ -499,6 +571,9 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
             // match found
             LTRACEF("found gic node '%s'\n", name);
 
+            // zero out the info struct, we're about to fill it in with what we find in the dt
+            *infop = {};
+
             // at this point, we have a gic node either v2 or v3, so read out relevant properties
             const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "#interrupt-cells", &lenp);
             LTRACEF_LEVEL(3, "%p, len %d\n", prop_ptr, lenp);
@@ -517,65 +592,51 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                               state.parent_address_cell(), state.parent_size_cell());
             }
 
-            if (state.parent_address_cell() != 2 || state.parent_size_cell() != 2) {
-                printf("unsupported address/size cell count %u/%u\n", state.parent_address_cell(), state.parent_size_cell());
-                return;
-            }
+            const size_t gic_ac = state.parent_address_cell();
+            const size_t gic_sc = state.parent_size_cell();
+            const size_t gic_pair_size = (gic_ac + gic_sc) * sizeof(fdt32_t);
+            size_t gic_remaining = static_cast<size_t>(lenp);
 
             if (found_version == GIC_V2) {
-                if (lenp < 8 * 4) {
-                    printf("gic v2 reg property too small, len %d\n", lenp);
+                if (gic_remaining < gic_pair_size * 2) {
+                    printf("gic v2 reg property too small, len %zu\n", gic_remaining);
                     return;
                 }
 
                 infop->gic_version = 2;
 
                 // read the v2 specific mmio range
-                infop->v2.distributor_base = fdt64_ld((const fdt64_t *)prop_ptr);
-                prop_ptr += 8;
-                infop->v2.distributor_len = fdt64_ld((const fdt64_t *)prop_ptr);
-                prop_ptr += 8;
-                infop->v2.cpu_interface_base = fdt64_ld((const fdt64_t *)prop_ptr);
-                prop_ptr += 8;
-                infop->v2.cpu_interface_len = fdt64_ld((const fdt64_t *)prop_ptr);
-                prop_ptr += 8;
+                consume_cells_u64(&prop_ptr, &gic_remaining, gic_ac, &infop->v2.distributor_base, true);
+                consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v2.distributor_len, true);
+                consume_cells_u64(&prop_ptr, &gic_remaining, gic_ac, &infop->v2.cpu_interface_base, true);
+                consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v2.cpu_interface_len, true);
 
                 // TODO: read "arm,gic-v2m-frame" if present
             } else if (found_version == GIC_V3) {
-                if (lenp < 8 * 4) {
-                    printf("gic v3 reg property too small, len %d\n", lenp);
+                if (gic_remaining < gic_pair_size * 2) {
+                    printf("gic v3 reg property too small, len %zu\n", gic_remaining);
                     return;
                 }
 
                 infop->gic_version = 3;
 
                 // read v3 specific properties here
-                infop->v3.distributor_base = fdt64_ld((const fdt64_t *)prop_ptr);
-                prop_ptr += 8;
-                infop->v3.distributor_len = fdt64_ld((const fdt64_t *)prop_ptr);
-                prop_ptr += 8;
-                infop->v3.redistributor_base = fdt64_ld((const fdt64_t *)prop_ptr);
-                prop_ptr += 8;
-                infop->v3.redistributor_len = fdt64_ld((const fdt64_t *)prop_ptr);
-                prop_ptr += 8;
+                consume_cells_u64(&prop_ptr, &gic_remaining, gic_ac, &infop->v3.distributor_base, true);
+                consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v3.distributor_len, true);
+                consume_cells_u64(&prop_ptr, &gic_remaining, gic_ac, &infop->v3.redistributor_base, true);
+                consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v3.redistributor_len, true);
                 // the rest of these are optional
-                if (lenp >= 8 * 4 + 16) {
-                    infop->v3.cpu_interface_base = fdt64_ld((const fdt64_t *)prop_ptr);
-                    prop_ptr += 8;
-                    infop->v3.cpu_interface_len = fdt64_ld((const fdt64_t *)prop_ptr);
-                    prop_ptr += 8;
+                if (gic_remaining >= gic_pair_size) {
+                    consume_cells_u64(&prop_ptr, &gic_remaining, gic_ac, &infop->v3.cpu_interface_base, true);
+                    consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v3.cpu_interface_len, true);
                 }
-                if (lenp >= 8 * 4 + 32) {
-                    infop->v3.hypervisor_interface_base = fdt64_ld((const fdt64_t *)prop_ptr);
-                    prop_ptr += 8;
-                    infop->v3.hypervisor_interface_len = fdt64_ld((const fdt64_t *)prop_ptr);
-                    prop_ptr += 8;
+                if (gic_remaining >= gic_pair_size) {
+                    consume_cells_u64(&prop_ptr, &gic_remaining, gic_ac, &infop->v3.hypervisor_interface_base, true);
+                    consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v3.hypervisor_interface_len, true);
                 }
-                if (lenp >= 8 * 4 + 48) {
-                    infop->v3.virtual_interface_base = fdt64_ld((const fdt64_t *)prop_ptr);
-                    prop_ptr += 8;
-                    infop->v3.virtual_interface_len = fdt64_ld((const fdt64_t *)prop_ptr);
-                    prop_ptr += 8;
+                if (gic_remaining >= gic_pair_size) {
+                    consume_cells_u64(&prop_ptr, &gic_remaining, gic_ac, &infop->v3.virtual_interface_base, true);
+                    consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v3.virtual_interface_len, true);
                 }
 
                 // TODO: read "arm,gic-v3-its" if present
