@@ -47,6 +47,9 @@ struct fdt_walk_cpu_info {
 #endif
 };
 
+#define FDT_WALK_MAX_GIC_ITS 4
+#define FDT_WALK_MAX_GIC_V2M 4
+
 struct fdt_walk_gic_info {
     uint8_t gic_version;
 
@@ -59,6 +62,13 @@ struct fdt_walk_gic_info {
             uint64_t distributor_len;
             uint64_t cpu_interface_base;
             uint64_t cpu_interface_len;
+
+            // GICv2m (MSI) frame subnodes
+            size_t v2m_count;
+            struct {
+                uint64_t base;
+                uint64_t len;
+            } v2m_frame[FDT_WALK_MAX_GIC_V2M];
         } v2;
         struct {
             uint64_t distributor_base;
@@ -71,6 +81,13 @@ struct fdt_walk_gic_info {
             uint64_t hypervisor_interface_len;
             uint64_t virtual_interface_base;
             uint64_t virtual_interface_len;
+
+            // ITS (Interrupt Translation Service) subnodes
+            size_t its_count;
+            struct {
+                uint64_t base;
+                uint64_t len;
+            } its[FDT_WALK_MAX_GIC_ITS];
         } v3;
     };
 };

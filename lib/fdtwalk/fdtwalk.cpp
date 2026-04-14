@@ -511,7 +511,61 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
 status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info, size_t *count) {
     const size_t info_len = *count;
     *count = 0;
-    auto walker = [info, info_len, &count](const fdt_walk_state &state, const char *name) {
+    int gic_node_depth = -1;
+    fdt_walk_gic_info *gic_infop = nullptr;
+    auto walker = [info, info_len, &count, &gic_node_depth, &gic_infop](const fdt_walk_state &state, const char *name) {
+        // Track ITS/v2m subnodes within a GIC node
+        if (gic_node_depth >= 0) {
+            if (state.depth <= gic_node_depth) {
+                // Exited the GIC subtree
+                gic_node_depth = -1;
+                gic_infop = nullptr;
+            } else {
+                // Inside the GIC subtree — look for child nodes at the direct child level
+                if (state.depth == gic_node_depth + 1) {
+                    const char *child_compat = get_prop_string(state.fdt, state.offset, "compatible");
+                    if (child_compat) {
+                        if (strstr(child_compat, "arm,gic-v3-its") != nullptr) {
+                            size_t idx = gic_infop->v3.its_count;
+                            if (idx < FDT_WALK_MAX_GIC_ITS) {
+                                int lenp;
+                                const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
+                                if (prop_ptr) {
+                                    auto result = read_base_len_pair(prop_ptr, static_cast<size_t>(lenp),
+                                                                     state.parent_address_cell(), state.parent_size_cell());
+                                    if (result.status == NO_ERROR) {
+                                        LTRACEF("found ITS subnode, base %#llx len %#llx\n",
+                                                result.entry.base, result.entry.len);
+                                        gic_infop->v3.its[idx].base = result.entry.base;
+                                        gic_infop->v3.its[idx].len = result.entry.len;
+                                        gic_infop->v3.its_count++;
+                                    }
+                                }
+                            }
+                        } else if (strstr(child_compat, "arm,gic-v2m-frame") != nullptr) {
+                            size_t idx = gic_infop->v2.v2m_count;
+                            if (idx < FDT_WALK_MAX_GIC_V2M) {
+                                int lenp;
+                                const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
+                                if (prop_ptr) {
+                                    auto result = read_base_len_pair(prop_ptr, static_cast<size_t>(lenp),
+                                                                     state.parent_address_cell(), state.parent_size_cell());
+                                    if (result.status == NO_ERROR) {
+                                        LTRACEF("found GICv2m frame subnode, base %#llx len %#llx\n",
+                                                result.entry.base, result.entry.len);
+                                        gic_infop->v2.v2m_frame[idx].base = result.entry.base;
+                                        gic_infop->v2.v2m_frame[idx].len = result.entry.len;
+                                        gic_infop->v2.v2m_count++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+        }
+
         /* look for a gic node and pass the address of the ecam and other info to the callback */
         fdt_walk_gic_info *infop = &info[*count];
         if (*count < info_len) {
@@ -610,8 +664,6 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                 consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v2.distributor_len, true);
                 consume_cells_u64(&prop_ptr, &gic_remaining, gic_ac, &infop->v2.cpu_interface_base, true);
                 consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v2.cpu_interface_len, true);
-
-                // TODO: read "arm,gic-v2m-frame" if present
             } else if (found_version == GIC_V3) {
                 if (gic_remaining < gic_pair_size * 2) {
                     printf("gic v3 reg property too small, len %zu\n", gic_remaining);
@@ -639,10 +691,15 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                     consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v3.virtual_interface_len, true);
                 }
 
-                // TODO: read "arm,gic-v3-its" if present
             }
 
             (*count)++;
+
+            // Track GIC subtree so we can detect child subnodes on subsequent nodes
+            if (found_version == GIC_V2 || found_version == GIC_V3) {
+                gic_node_depth = state.depth;
+                gic_infop = infop;
+            }
         }
     };
 
