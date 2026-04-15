@@ -51,11 +51,11 @@ status_t fdtwalk_reserve_fdt_memory(const void *fdt, paddr_t fdt_phys) {
         return ERR_NOT_FOUND;
     }
 
-    uint32_t length = fdt_totalsize(fdt);
+    size_t length = fdt_totalsize(fdt);
 
-    paddr_t base = fdt_phys;
-    base = PAGE_ALIGN(base);
-    length = ROUNDUP(length, PAGE_SIZE);
+    paddr_t base = ROUNDDOWN(fdt_phys, PAGE_SIZE);
+    size_t offset = fdt_phys - base;
+    length = ROUNDUP(length + offset, PAGE_SIZE);
 
     dprintf(INFO, "FDT: reserving physical range for FDT: [%#lx, %#lx]\n", base, base + length - 1);
 
