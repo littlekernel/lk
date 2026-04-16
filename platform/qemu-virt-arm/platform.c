@@ -227,12 +227,24 @@ status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
     if (route_err == NO_ERROR) {
         if (route.parent_interrupt_cells >= 2) {
             // GIC interrupts are encoded as <type, irq, flags>.
-            *vector = route.parent_interrupt[1];
+            // For SPIs (type 0), DT irq is relative to 32; for PPIs (type 1), relative to 16.
+            uint32_t int_type = route.parent_interrupt[0];
+            uint32_t hwirq = route.parent_interrupt[1];
+            if (int_type == 0) {
+                *vector = 32 + hwirq;
+            } else if (int_type == 1) {
+                *vector = 16 + hwirq;
+            } else {
+                dprintf(SPEW,
+                        "PCIE/INTx ARM: unsupported GIC int type %u for bdf %u:%u.%u pin %u, falling back\n",
+                        int_type, pci_bus, pci_dev, pci_func, pci_int);
+                goto fallback_swizzle;
+            }
             dprintf(SPEW,
-                    "PCIE/INTx ARM: DT route bdf %u:%u.%u pin %u -> phandle %#x irq %u"
+                    "PCIE/INTx ARM: DT route bdf %u:%u.%u pin %u -> phandle %#x hwirq %u vector %u"
                     " (spec cells %u, type %u, flags %u)\n",
                     pci_bus, pci_dev, pci_func, pci_int,
-                    route.parent_phandle, *vector,
+                    route.parent_phandle, hwirq, *vector,
                     route.parent_interrupt_cells,
                     route.parent_interrupt[0],
                     route.parent_interrupt_cells >= 3 ? route.parent_interrupt[2] : 0);
@@ -253,6 +265,8 @@ status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
                 ", falling back\n",
                 pci_bus, pci_dev, pci_func, pci_int, route.parent_interrupt_cells);
     }
+
+fallback_swizzle:
 
     // QEMU arm virt machine uses standard PCI swizzle on 4 legacy IRQs:
     // irq = first_irq + ((pin - 1 + slot) % 4), where pin is 1..4.
