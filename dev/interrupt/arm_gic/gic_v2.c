@@ -29,15 +29,19 @@
 #include <kernel/debug.h>
 #include <kernel/thread.h>
 #include <lk/bits.h>
+#include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <lk/debug.h>
 #include <stdint.h>
 
 #define LOCAL_TRACE 0
 
 #include "arm_gic_common.h"
 #include "gic_v2.h"
+
+/* GICv2m frame registers */
+#define GICV2M_MSI_TYPER     (0x0008)
+#define GICV2M_MSI_SETSPI_NS (0x0040)
 
 /* main cpu regs */
 #define GICC_CTLR     (0x0000)
@@ -71,8 +75,104 @@
     mmio_write32((volatile uint32_t *)(arm_gics[(gic)].gicc_vaddr + (reg)), (val)); \
 })
 
+static uint32_t gicv2m_read(uint frame, uint32_t reg) {
+    ASSERT(frame < countof(arm_gics[0].gicv2m));
+    return mmio_read32((volatile uint32_t *)(arm_gics[0].gicv2m[frame].vaddr + reg));
+}
+
+status_t arm_gicv2_get_msi_vector_ranges(struct arm_gic_msi_vector_range *ranges, size_t *count) {
+    if (!count) {
+        return ERR_INVALID_ARGS;
+    }
+
+    size_t cap = *count;
+    *count = 0;
+
+    if (!ranges && cap != 0) {
+        return ERR_INVALID_ARGS;
+    }
+
+    bool overflow = false;
+
+    for (size_t i = 0; i < arm_gics[0].gicv2m_count; ++i) {
+        if (arm_gics[0].gicv2m[i].vaddr == 0 || arm_gics[0].gicv2m[i].size < GICV2M_MSI_SETSPI_NS + 4) {
+            continue;
+        }
+
+        uint32_t typer = gicv2m_read((uint)i, GICV2M_MSI_TYPER);
+        uint32_t base_spi = typer & 0x3ff;
+        size_t num_spis = ((typer >> 16) & 0x3ff) + 1;
+
+        if (*count < cap) {
+            ranges[*count].base_vector = GIC_BASE_SPI + base_spi;
+            ranges[*count].count = num_spis;
+        } else {
+            overflow = true;
+        }
+
+        (*count)++;
+    }
+
+    if (*count == 0) {
+        return ERR_NOT_FOUND;
+    }
+
+    if (overflow) {
+        return ERR_NOT_ENOUGH_BUFFER;
+    }
+
+    return NO_ERROR;
+}
+
+status_t arm_gicv2_get_msi_vector_range(unsigned int *base_vector, size_t *count) {
+    if (!base_vector || !count) {
+        return ERR_INVALID_ARGS;
+    }
+
+    struct arm_gic_msi_vector_range ranges[ARM_GIC_MAX_MSI_RANGES] = {};
+    size_t range_count = countof(ranges);
+    status_t err = arm_gicv2_get_msi_vector_ranges(ranges, &range_count);
+    if (err != NO_ERROR && err != ERR_NOT_ENOUGH_BUFFER) {
+        return err;
+    }
+
+    *base_vector = ranges[0].base_vector;
+    *count = ranges[0].count;
+
+    if (range_count > 1) {
+        dprintf(INFO,
+                "GICv2m: %zu MSI windows present; single-range API returning first base %u count %zu\n",
+                range_count, *base_vector, *count);
+    }
+
+    return NO_ERROR;
+}
+
+static void gicv2m_dump_msi_typer(void) {
+    for (size_t i = 0; i < arm_gics[0].gicv2m_count; ++i) {
+        if (arm_gics[0].gicv2m[i].vaddr == 0 || arm_gics[0].gicv2m[i].size < GICV2M_MSI_SETSPI_NS + 4) {
+            dprintf(INFO,
+                    "GICv2m[%zu]: frame unavailable or too small (vaddr %#" PRIxPTR ", size %#zx)\n",
+                    i, arm_gics[0].gicv2m[i].vaddr, arm_gics[0].gicv2m[i].size);
+            continue;
+        }
+
+        uint32_t typer = gicv2m_read((uint)i, GICV2M_MSI_TYPER);
+        uint32_t base_spi = typer & 0x3ff;
+        uint32_t num_spis = ((typer >> 16) & 0x3ff) + 1;
+
+        dprintf(INFO,
+                "GICv2m[%zu]: MSI_TYPER %#x base_spi %u num_spis %u (vector range %u..%u)"
+                " doorbell %#" PRIxPTR "\n",
+                i, typer, base_spi, num_spis,
+                GIC_BASE_SPI + base_spi,
+                GIC_BASE_SPI + base_spi + num_spis - 1,
+                arm_gics[0].gicv2m[i].vaddr + GICV2M_MSI_SETSPI_NS);
+    }
+}
+
 void arm_gicv2_init_percpu(void) {
-    GICCREG_WRITE(0, GICC_CTLR, 1); // enable GIC0
+    GICCREG_WRITE(0, GICC_CTLR, 1);   // enable GIC0
     GICCREG_WRITE(0, GICC_PMR, 0xFF); // unmask interrupts at all priority levels
 }
 
@@ -98,6 +198,11 @@ void arm_gicv2_init(void) {
         max_int = MAX_INT;
     }
     dprintf(INFO, "GICv2: GICD_TYPER 0x%x, cpu_count %u, max_int %u\n", type, cpu_count + 1, max_int);
+    if (arm_gics[0].gicv2m_count > 0) {
+        gicv2m_dump_msi_typer();
+    } else {
+        dprintf(INFO, "GICv2: no GICv2m frame mappings provided\n");
+    }
 
     for (int i = 0; i < max_int; i += 32) {
         gicd_write(0, GICD_ICENABLER(i / 32), ~0U);

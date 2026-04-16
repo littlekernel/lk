@@ -24,6 +24,8 @@
 #include <platform.h>
 #include <platform/gic.h>
 #include <platform/interrupts.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
@@ -66,6 +68,72 @@ static bool g_pci_msi_from_dt;
 static bool g_pci_msi_uses_its;
 static uint32_t g_pci_msi_parent_phandle;
 static uint64_t g_pci_msi_address;
+
+struct pci_msi_allocator_state {
+    bool initialized;
+    size_t range_count;
+    struct arm_gic_msi_vector_range ranges[ARM_GIC_MAX_MSI_RANGES + 1];
+    size_t total_count;
+    size_t bitmap_words;
+    uint64_t *bitmap;
+};
+
+static struct pci_msi_allocator_state g_pci_msi_alloc;
+
+static status_t platform_init_pci_msi_allocator(void) {
+    struct arm_gic_msi_vector_range discovered[ARM_GIC_MAX_MSI_RANGES] = {};
+    size_t discovered_count = countof(discovered);
+    status_t err = arm_gic_get_msi_vector_ranges(discovered, &discovered_count);
+
+    memset(&g_pci_msi_alloc, 0, sizeof(g_pci_msi_alloc));
+
+    if ((err == NO_ERROR || err == ERR_NOT_ENOUGH_BUFFER) && discovered_count > 0) {
+        size_t copy_count = discovered_count;
+        if (copy_count > countof(g_pci_msi_alloc.ranges)) {
+            copy_count = countof(g_pci_msi_alloc.ranges);
+        }
+
+        for (size_t i = 0; i < copy_count; ++i) {
+            g_pci_msi_alloc.ranges[i] = discovered[i];
+            g_pci_msi_alloc.total_count += discovered[i].count;
+        }
+        g_pci_msi_alloc.range_count = copy_count;
+
+        dprintf(SPEW,
+                "PCIE/MSI ARM: discovered %zu GIC MSI ranges (%zu vectors total)\n",
+                g_pci_msi_alloc.range_count, g_pci_msi_alloc.total_count);
+    } else {
+        // Fallback for platforms without GIC MSI range query support.
+        g_pci_msi_alloc.range_count = 1;
+        g_pci_msi_alloc.ranges[0].base_vector = MSI_INT_BASE;
+        g_pci_msi_alloc.ranges[0].count = 64;
+        g_pci_msi_alloc.total_count = g_pci_msi_alloc.ranges[0].count;
+
+        dprintf(SPEW,
+                "PCIE/MSI ARM: GIC MSI range query unavailable (%d), falling back to base %u count %zu\n",
+                err, g_pci_msi_alloc.ranges[0].base_vector, g_pci_msi_alloc.ranges[0].count);
+    }
+
+    g_pci_msi_alloc.bitmap_words = (g_pci_msi_alloc.total_count + 63) / 64;
+    g_pci_msi_alloc.bitmap = calloc(g_pci_msi_alloc.bitmap_words, sizeof(uint64_t));
+    if (!g_pci_msi_alloc.bitmap) {
+        return ERR_NO_MEMORY;
+    }
+
+    g_pci_msi_alloc.initialized = true;
+    return NO_ERROR;
+}
+
+static unsigned int platform_msi_index_to_vector(size_t index) {
+    for (size_t i = 0; i < g_pci_msi_alloc.range_count; ++i) {
+        if (index < g_pci_msi_alloc.ranges[i].count) {
+            return g_pci_msi_alloc.ranges[i].base_vector + (unsigned int)index;
+        }
+        index -= g_pci_msi_alloc.ranges[i].count;
+    }
+
+    return 0;
+}
 
 static void platform_configure_pci_msi_from_fdt(void) {
     g_pci_msi_from_dt = false;
@@ -174,6 +242,12 @@ void platform_init(void) {
     status_t err = fdtwalk_setup_pci(fdt, pcie_info, &pcie_count);
     if (err >= NO_ERROR) {
         platform_configure_pci_msi_from_fdt();
+        status_t msi_alloc_err = platform_init_pci_msi_allocator();
+        if (msi_alloc_err != NO_ERROR) {
+            dprintf(INFO,
+                    "PCIE/MSI ARM: failed to initialize MSI allocator (%d), MSI may be unavailable\n",
+                    msi_alloc_err);
+        }
 
         // start the bus manager
         pci_bus_mgr_init();
@@ -290,9 +364,6 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
 
     // TODO: handle nonzero alignment, count > 0, and add locking
 
-    // list of allocated msi interrupts
-    static uint64_t msi_bitmap = 0;
-
     // cannot handle allocating for anything but MSI interrupts
     if (!msi) {
         return ERR_NOT_SUPPORTED;
@@ -302,24 +373,26 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
     DEBUG_ASSERT(align_log2 == 0);
     DEBUG_ASSERT(count == 1);
 
-    // make a copy of the bitmap
-    int allocated = -1;
-    for (size_t i = 0; i < sizeof(msi_bitmap) * 8; i++) {
-        if ((msi_bitmap & (1UL << i)) == 0) {
-            msi_bitmap |= (1UL << i);
-            allocated = i;
-            break;
+    if (!g_pci_msi_alloc.initialized) {
+        status_t init_err = platform_init_pci_msi_allocator();
+        if (init_err != NO_ERROR) {
+            return init_err;
         }
     }
-    if (allocated < 0) {
-        return ERR_NOT_FOUND;
+
+    for (size_t i = 0; i < g_pci_msi_alloc.total_count; ++i) {
+        size_t word = i / 64;
+        uint64_t bit = (1ULL << (i % 64));
+        if ((g_pci_msi_alloc.bitmap[word] & bit) == 0) {
+            g_pci_msi_alloc.bitmap[word] |= bit;
+            *vector = platform_msi_index_to_vector(i);
+            TRACEF("allocated msi at %u (index %zu of %zu total)\n",
+                   *vector, i, g_pci_msi_alloc.total_count);
+            return NO_ERROR;
+        }
     }
 
-    allocated += MSI_INT_BASE;
-
-    TRACEF("allocated msi at %u\n", allocated);
-    *vector = allocated;
-    return NO_ERROR;
+    return ERR_NOT_FOUND;
 }
 
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,

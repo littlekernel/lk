@@ -32,6 +32,8 @@ struct iframe;
 
 void arm_gicv2_init(void);
 void arm_gicv2_init_percpu(void);
+status_t arm_gicv2_get_msi_vector_ranges(struct arm_gic_msi_vector_range *ranges, size_t *count);
+status_t arm_gicv2_get_msi_vector_range(unsigned int *base_vector, size_t *count);
 status_t arm_gicv2_sgi(u_int irq, u_int flags, u_int cpu_mask);
 enum handler_return arm_gicv2_platform_irq(struct iframe *frame);
 void arm_gicv2_platform_fiq(struct iframe *frame);

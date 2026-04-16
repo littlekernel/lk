@@ -335,6 +335,7 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
     ASSERT(!arm_gic_is_initialized());
 
     arm_gics[0].gic_revision = init_info->gic_revision;
+    arm_gics[0].gicv2m_count = 0;
 
     if (init_info->gicd_size < GICD_MIN_SIZE) {
         panic("%s: gicd mapping too small %zu\n", __func__,
@@ -355,6 +356,18 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
                      init_info->gicc_size);
         arm_gics[0].gicc_size = init_info->gicc_size;
         TRACEF("GICC mapped to vaddr %#" PRIxPTR "\n", arm_gics[0].gicc_vaddr);
+
+        arm_gics[0].gicv2m_count = MIN(init_info->gicv2m_count, countof(arm_gics[0].gicv2m));
+        for (size_t i = 0; i < arm_gics[0].gicv2m_count; ++i) {
+            if (init_info->gicv2m[i].paddr == 0 || init_info->gicv2m[i].size == 0) {
+                continue;
+            }
+
+            arm_map_regs("gicv2m", &arm_gics[0].gicv2m[i].vaddr,
+                         init_info->gicv2m[i].paddr, init_info->gicv2m[i].size);
+            arm_gics[0].gicv2m[i].size = init_info->gicv2m[i].size;
+            TRACEF("GICv2m[%zu] mapped to vaddr %#" PRIxPTR "\n", i, arm_gics[0].gicv2m[i].vaddr);
+        }
     }
 
     arm_gic_init_hw();
@@ -437,6 +450,36 @@ status_t unmask_interrupt(unsigned int vector) {
         gic_set_enable(vector, true);
     }
 
+    return NO_ERROR;
+}
+
+status_t arm_gic_get_msi_vector_ranges(struct arm_gic_msi_vector_range *ranges, size_t *count) {
+    if (!count) {
+        return ERR_INVALID_ARGS;
+    }
+
+    if (arm_gics[0].gic_revision > 2) {
+        // GICv3 ITS uses dynamic LPI allocation rather than fixed vector ranges.
+        return ERR_NOT_SUPPORTED;
+    }
+
+    return arm_gicv2_get_msi_vector_ranges(ranges, count);
+}
+
+status_t arm_gic_get_msi_vector_range(unsigned int *base_vector, size_t *count) {
+    if (!base_vector || !count) {
+        return ERR_INVALID_ARGS;
+    }
+
+    struct arm_gic_msi_vector_range range = {};
+    size_t range_count = 1;
+    status_t err = arm_gic_get_msi_vector_ranges(&range, &range_count);
+    if (err != NO_ERROR && err != ERR_NOT_ENOUGH_BUFFER) {
+        return err;
+    }
+
+    *base_vector = range.base_vector;
+    *count = range.count;
     return NO_ERROR;
 }
 

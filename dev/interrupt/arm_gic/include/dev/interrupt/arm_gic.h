@@ -57,6 +57,13 @@ struct arm_gic_init_info {
     size_t gicd_size;
     paddr_t gicr_paddr;
     size_t gicr_size;
+
+    // Optional GICv2m MSI frame information.
+    size_t gicv2m_count;
+    struct {
+        paddr_t paddr;
+        size_t size;
+    } gicv2m[4];
 };
 
 /**
@@ -71,6 +78,27 @@ struct arm_gic_init_info {
  *
  */
 void arm_gic_init_map(const struct arm_gic_init_info *init_info);
+
+struct arm_gic_msi_vector_range {
+    unsigned int base_vector;
+    size_t count;
+};
+
+#define ARM_GIC_MAX_MSI_RANGES 4
+
+/* Query all MSI vector ranges discovered by the active GIC backend.
+ * On GICv2 this is sourced from one or more GICv2m MSI_TYPER windows.
+ *
+ * Callers pass an array and capacity via *count; on return *count is the
+ * number of discovered ranges. Returns ERR_NOT_ENOUGH_BUFFER if more ranges
+ * exist than fit in the supplied buffer.
+ */
+status_t arm_gic_get_msi_vector_ranges(struct arm_gic_msi_vector_range *ranges, size_t *count);
+
+/* Query MSI vector range discovered by the active GIC backend.
+ * For GICv2 this is typically sourced from GICv2m MSI_TYPER.
+ */
+status_t arm_gic_get_msi_vector_range(unsigned int *base_vector, size_t *count);
 
 enum {
     /* Ignore cpu_mask and forward interrupt to all CPUs other than the current cpu */

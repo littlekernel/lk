@@ -69,6 +69,12 @@ struct arm_gic {
     vaddr_t gicr_vaddr;
     size_t gicr_size;
     size_t gicr_cpu_stride;
+
+    size_t gicv2m_count;
+    struct {
+        vaddr_t vaddr;
+        size_t size;
+    } gicv2m[4];
 };
 
 // TODO: support multiple GICs, which only really makes sense for GICv3

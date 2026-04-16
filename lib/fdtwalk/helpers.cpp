@@ -475,6 +475,11 @@ status_t fdtwalk_setup_gic(const void *fdt) {
                 init_info.gicd_size = gic_info[i].v2.distributor_len;
                 init_info.gicc_paddr = gic_info[i].v2.cpu_interface_base;
                 init_info.gicc_size = gic_info[i].v2.cpu_interface_len;
+                init_info.gicv2m_count = MIN(gic_info[i].v2.v2m_count, countof(init_info.gicv2m));
+                for (size_t j = 0; j < init_info.gicv2m_count; ++j) {
+                    init_info.gicv2m[j].paddr = gic_info[i].v2.v2m_frame[j].base;
+                    init_info.gicv2m[j].size = gic_info[i].v2.v2m_frame[j].len;
+                }
             } else if (gic_info[i].gic_version == 3) {
                 dprintf(INFO, "FDT: GICv3 distributor base %#" PRIx64 ", len %#" PRIx64 "\n",
                         gic_info[i].v3.distributor_base, gic_info[i].v3.distributor_len);
