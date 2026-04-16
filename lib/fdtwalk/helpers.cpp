@@ -266,8 +266,19 @@ status_t fdtwalk_setup_pci(const void *fdt) {
     LTRACEF("fdt_walk_find_pcie_info returns %d, count %zu\n", err, count);
     if (err == NO_ERROR) {
         for (size_t i = 0; i < count; i++) {
-            LTRACEF("ecam base %#" PRIx64 ", len %#" PRIx64 ", bus_start %hhu, bus_end %hhu\n", pcie_info[i].ecam_base,
-                    pcie_info[i].ecam_len, pcie_info[i].bus_start, pcie_info[i].bus_end);
+            dprintf(INFO, "FDT: PCIe segment[%zu] ECAM base %#" PRIx64 ", len %#" PRIx64 ", bus range [%hhu..%hhu]\n",
+                    i, pcie_info[i].ecam_base, pcie_info[i].ecam_len,
+                    pcie_info[i].bus_start, pcie_info[i].bus_end);
+            dprintf(INFO, "FDT: PCIe segment[%zu] IO base %#" PRIx64 ", mmio base %#" PRIx64 ", len %#" PRIx64 "\n",
+                    i, pcie_info[i].io_base, pcie_info[i].io_base_mmio, pcie_info[i].io_len);
+            dprintf(INFO, "FDT: PCIe segment[%zu] MMIO32 base %#" PRIx64 ", len %#" PRIx64 "\n",
+                    i, pcie_info[i].mmio_base, pcie_info[i].mmio_len);
+            dprintf(INFO, "FDT: PCIe segment[%zu] MMIO64 base %#" PRIx64 ", len %#" PRIx64 "\n",
+                    i, pcie_info[i].mmio64_base, pcie_info[i].mmio64_len);
+                dprintf(INFO, "FDT: PCIe segment[%zu] MMIO32 prefetch base %#" PRIx64 ", len %#" PRIx64 "\n",
+                    i, pcie_info[i].mmio_prefetch_base, pcie_info[i].mmio_prefetch_len);
+                dprintf(INFO, "FDT: PCIe segment[%zu] MMIO64 prefetch base %#" PRIx64 ", len %#" PRIx64 "\n",
+                    i, pcie_info[i].mmio64_prefetch_base, pcie_info[i].mmio64_prefetch_len);
 
             // currently can only handle the first segment
             if (i > 0) {
@@ -283,16 +294,33 @@ status_t fdtwalk_setup_pci(const void *fdt) {
                     if (pcie_info[i].io_len > 0) {
                         // we can only deal with a mapping of io base 0 to the mmio base
                         DEBUG_ASSERT(pcie_info[i].io_base == 0);
-                        pci_bus_mgr_add_resource(PCI_RESOURCE_IO_RANGE, pcie_info[i].io_base, pcie_info[i].io_len);
+                        pci_bus_mgr_add_resource(PCI_RESOURCE_IO_RANGE, pcie_info[i].io_base,
+                                                 pcie_info[i].io_len, false);
 
                         // TODO: set the mmio base somehow so pci knows what to do with it
                     }
                     if (pcie_info[i].mmio_len > 0) {
-                        pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_info[i].mmio_base, pcie_info[i].mmio_len);
+                        pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_info[i].mmio_base,
+                                                 pcie_info[i].mmio_len, false);
+                    }
+                    if (pcie_info[i].mmio_prefetch_len > 0) {
+                        pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE,
+                                                 pcie_info[i].mmio_prefetch_base,
+                                                 pcie_info[i].mmio_prefetch_len,
+                                                 true);
                     }
                     if (sizeof(void *) >= 8) {
                         if (pcie_info[i].mmio64_len > 0) {
-                            pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_info[i].mmio64_base, pcie_info[i].mmio64_len);
+                            pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE,
+                                                     pcie_info[i].mmio64_base,
+                                                     pcie_info[i].mmio64_len,
+                                                     false);
+                        }
+                        if (pcie_info[i].mmio64_prefetch_len > 0) {
+                            pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE,
+                                                     pcie_info[i].mmio64_prefetch_base,
+                                                     pcie_info[i].mmio64_prefetch_len,
+                                                     true);
                         }
                     }
                 }
@@ -321,9 +349,9 @@ status_t fdtwalk_setup_gic(const void *fdt) {
 
             if (gic_info[i].gic_version == 2) {
                 dprintf(INFO, "FDT: GICv2 distributor base %#" PRIx64 ", len %#" PRIx64 "\n",
-                       gic_info[i].v2.distributor_base, gic_info[i].v2.distributor_len);
+                        gic_info[i].v2.distributor_base, gic_info[i].v2.distributor_len);
                 dprintf(INFO, "FDT: GICv2 cpu interface base %#" PRIx64 ", len %#" PRIx64 "\n",
-                       gic_info[i].v2.cpu_interface_base, gic_info[i].v2.cpu_interface_len);
+                        gic_info[i].v2.cpu_interface_base, gic_info[i].v2.cpu_interface_len);
                 for (size_t j = 0; j < gic_info[i].v2.v2m_count; j++) {
                     dprintf(INFO, "FDT: GICv2m frame[%zu] base %#" PRIx64 ", len %#" PRIx64 "\n",
                             j, gic_info[i].v2.v2m_frame[j].base, gic_info[i].v2.v2m_frame[j].len);
@@ -335,15 +363,15 @@ status_t fdtwalk_setup_gic(const void *fdt) {
                 init_info.gicc_size = gic_info[i].v2.cpu_interface_len;
             } else if (gic_info[i].gic_version == 3) {
                 dprintf(INFO, "FDT: GICv3 distributor base %#" PRIx64 ", len %#" PRIx64 "\n",
-                       gic_info[i].v3.distributor_base, gic_info[i].v3.distributor_len);
+                        gic_info[i].v3.distributor_base, gic_info[i].v3.distributor_len);
                 dprintf(INFO, "FDT: GICv3 redistributor base %#" PRIx64 ", len %#" PRIx64 "\n",
-                       gic_info[i].v3.redistributor_base, gic_info[i].v3.redistributor_len);
+                        gic_info[i].v3.redistributor_base, gic_info[i].v3.redistributor_len);
                 dprintf(INFO, "FDT: GICv3 cpu interface base %#" PRIx64 ", len %#" PRIx64 "\n",
-                       gic_info[i].v3.cpu_interface_base, gic_info[i].v3.cpu_interface_len);
+                        gic_info[i].v3.cpu_interface_base, gic_info[i].v3.cpu_interface_len);
                 dprintf(INFO, "FDT: GICv3 hypervisor interface base %#" PRIx64 ", len %#" PRIx64 "\n",
-                       gic_info[i].v3.hypervisor_interface_base, gic_info[i].v3.hypervisor_interface_len);
+                        gic_info[i].v3.hypervisor_interface_base, gic_info[i].v3.hypervisor_interface_len);
                 dprintf(INFO, "FDT: GICv3 virtual interface base %#" PRIx64 ", len %#" PRIx64 "\n",
-                       gic_info[i].v3.virtual_interface_base, gic_info[i].v3.virtual_interface_len);
+                        gic_info[i].v3.virtual_interface_base, gic_info[i].v3.virtual_interface_len);
                 for (size_t j = 0; j < gic_info[i].v3.its_count; j++) {
                     dprintf(INFO, "FDT: GICv3 ITS[%zu] base %#" PRIx64 ", len %#" PRIx64 "\n",
                             j, gic_info[i].v3.its[j].base, gic_info[i].v3.its[j].len);

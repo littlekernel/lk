@@ -69,7 +69,8 @@ enum pci_resource_type {
     PCI_RESOURCE_MMIO_RANGE,
     PCI_RESOURCE_MMIO64_RANGE,
 };
-status_t pci_bus_mgr_add_resource(enum pci_resource_type, uint64_t mmio_base, uint64_t len);
+status_t pci_bus_mgr_add_resource(enum pci_resource_type, uint64_t mmio_base, uint64_t len,
+                                  bool prefetchable);
 
 status_t pci_bus_mgr_assign_resources(void);
 

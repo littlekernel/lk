@@ -168,14 +168,16 @@ status_t pci_bus_mgr_init() {
     return NO_ERROR;
 }
 
-status_t pci_bus_mgr_add_resource(enum pci_resource_type type, uint64_t mmio_base, uint64_t len) {
-    LTRACEF("type %d: mmio base %#llx len %#llx\n", type, mmio_base, len);
+status_t pci_bus_mgr_add_resource(enum pci_resource_type type, uint64_t mmio_base, uint64_t len,
+                  bool prefetchable) {
+    LTRACEF("type %d: mmio base %#llx len %#llx prefetchable %u\n",
+            type, mmio_base, len, prefetchable);
 
     resource_range r = {};
     r.type = type;
     r.base = mmio_base;
     r.size = len;
-    return resources.set_range(r);
+    return resources.set_range(r, prefetchable);
 }
 
 status_t pci_bus_mgr_assign_resources() {

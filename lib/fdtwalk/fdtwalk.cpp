@@ -83,6 +83,7 @@ status_t consume_cells_u64(const uint8_t **ptr, size_t *remaining_len, size_t ce
 
 struct pci_ranges_entry {
     uint32_t type;
+    bool prefetchable;
     uint64_t child_addr;
     uint64_t parent_addr;
     uint64_t size;
@@ -109,7 +110,11 @@ pci_ranges_entry_result read_pci_ranges_entry(const uint8_t **ptr, size_t *remai
         result.status = err;
         return result;
     }
-    result.entry.type = static_cast<uint32_t>(child_hi) & 0x03000000;
+    static constexpr uint32_t PCI_RANGE_SPACE_CODE_MASK = 0x03000000;
+    static constexpr uint32_t PCI_RANGE_PREFETCHABLE_MASK = 0x40000000;
+    uint32_t child_hi_32 = static_cast<uint32_t>(child_hi);
+    result.entry.type = child_hi_32 & PCI_RANGE_SPACE_CODE_MASK;
+    result.entry.prefetchable = (child_hi_32 & PCI_RANGE_PREFETCHABLE_MASK) != 0;
 
     err = consume_cells_u64(ptr, remaining_len, child_addr_cells - 1, &result.entry.child_addr, true);
     if (err != NO_ERROR) {
@@ -446,14 +451,30 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
             prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "bus-range", &lenp);
             LTRACEF("%p, lenp %u\n", prop_ptr, lenp);
             if (prop_ptr) {
-                LTRACEF_LEVEL(2, "found '%s' prop 'bus-range' len %d, ac %u, sc %u\n", name, lenp,
-                              state.parent_address_cell(), state.parent_size_cell());
-
-                if (lenp == 8) {
-                    info[*count].bus_start = fdt32_ld((const fdt32_t *)prop_ptr);
-                    prop_ptr += 4;
-                    info[*count].bus_end = fdt32_ld((const fdt32_t *)prop_ptr);
+                if (lenp != 2 * static_cast<int>(sizeof(fdt32_t))) {
+                    TRACEF("invalid '%s' bus-range length %d (expected 8)\n", name, lenp);
+                    return;
                 }
+
+                uint32_t bus_start = fdt32_ld(reinterpret_cast<const fdt32_t *>(prop_ptr));
+                prop_ptr += sizeof(fdt32_t);
+                uint32_t bus_end = fdt32_ld(reinterpret_cast<const fdt32_t *>(prop_ptr));
+
+                if (bus_start > UINT8_MAX || bus_end > UINT8_MAX) {
+                    TRACEF("invalid '%s' bus-range values %#x..%#x (> 0xff)\n",
+                           name, bus_start, bus_end);
+                    return;
+                }
+                if (bus_start > bus_end) {
+                    TRACEF("invalid '%s' bus-range order %#x..%#x (start > end)\n",
+                           name, bus_start, bus_end);
+                    return;
+                }
+
+                info[*count].bus_start = static_cast<uint8_t>(bus_start);
+                info[*count].bus_end = static_cast<uint8_t>(bus_end);
+                LTRACEF_LEVEL(2, "parsed '%s' prop 'bus-range' [%u..%u]\n",
+                              name, info[*count].bus_start, info[*count].bus_end);
             }
 
             prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "ranges", &lenp);
@@ -476,6 +497,9 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                     auto &entry = entry_result.entry;
 
                     switch (entry.type) {
+                        case 0x00000000: // config space
+                            LTRACEF_LEVEL(2, "config range (ignored) prefetchable %u\n", entry.prefetchable);
+                            break;
                         case 0x1000000: // io range
                             LTRACEF_LEVEL(2, "io range\n");
                             info[*count].io_base = entry.child_addr;
@@ -483,17 +507,28 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                             info[*count].io_len = entry.size;
                             break;
                         case 0x2000000: // mmio range
-                            LTRACEF_LEVEL(2, "mmio range\n");
-                            info[*count].mmio_base = entry.child_addr;
-                            info[*count].mmio_len = entry.size;
+                            LTRACEF_LEVEL(2, "mmio range prefetchable %u\n", entry.prefetchable);
+                            if (entry.prefetchable) {
+                                info[*count].mmio_prefetch_base = entry.child_addr;
+                                info[*count].mmio_prefetch_len = entry.size;
+                            } else {
+                                info[*count].mmio_base = entry.child_addr;
+                                info[*count].mmio_len = entry.size;
+                            }
                             break;
                         case 0x3000000: // mmio range (64bit)
-                            LTRACEF_LEVEL(2, "mmio range (64bit)\n");
-                            info[*count].mmio64_base = entry.child_addr;
-                            info[*count].mmio64_len = entry.size;
+                            LTRACEF_LEVEL(2, "mmio range (64bit) prefetchable %u\n", entry.prefetchable);
+                            if (entry.prefetchable) {
+                                info[*count].mmio64_prefetch_base = entry.child_addr;
+                                info[*count].mmio64_prefetch_len = entry.size;
+                            } else {
+                                info[*count].mmio64_base = entry.child_addr;
+                                info[*count].mmio64_len = entry.size;
+                            }
                             break;
                         default:
-                            LTRACEF_LEVEL(2, "unhandled type %#x\n", entry.type);
+                            TRACEF("unhandled pcie ranges type %#x (prefetchable %u)\n",
+                                   entry.type, entry.prefetchable);
                     }
 
                     LTRACEF_LEVEL(2, "base %#llx base2 %#llx size %#llx\n",
