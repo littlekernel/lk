@@ -33,6 +33,9 @@
         },
         "markdownlint.config": {
             "MD024": { "siblings_only": true },
+        },
+        "chat.tools.terminal.autoApprove": {
+            "clang-format": true
         }
     },
     "extensions": {

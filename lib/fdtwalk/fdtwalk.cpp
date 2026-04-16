@@ -121,6 +121,23 @@ status_t read_interrupt_cells_property(const void *fdt, int offset, uint32_t def
     return NO_ERROR;
 }
 
+status_t read_msi_cells_property(const void *fdt, int offset, uint32_t default_cells,
+                                 uint32_t *msi_cells) {
+    int lenp = 0;
+    const uint8_t *prop_ptr = static_cast<const uint8_t *>(fdt_getprop(fdt, offset, "#msi-cells", &lenp));
+    if (!prop_ptr) {
+        *msi_cells = default_cells;
+        return NO_ERROR;
+    }
+
+    if (lenp != static_cast<int>(sizeof(fdt32_t))) {
+        return ERR_BAD_LEN;
+    }
+
+    *msi_cells = fdt32_ld(reinterpret_cast<const fdt32_t *>(prop_ptr));
+    return NO_ERROR;
+}
+
 struct pci_ranges_entry {
     uint32_t type;
     bool prefetchable;
@@ -367,6 +384,76 @@ status_t parse_pcie_interrupt_map(const fdt_walk_state &state, const char *name,
         }
 
         pcie_info->interrupt_map_entry_count++;
+    }
+
+    return NO_ERROR;
+}
+
+status_t parse_pcie_msi_map(const fdt_walk_state &state, const char *name,
+                            struct fdt_walk_pcie_info *pcie_info) {
+    int lenp = 0;
+    const uint8_t *prop_ptr = static_cast<const uint8_t *>(
+        fdt_getprop(state.fdt, state.offset, "msi-map", &lenp));
+    if (!prop_ptr) {
+        return NO_ERROR;
+    }
+
+    pcie_info->has_msi_map = true;
+
+    size_t remaining_len = static_cast<size_t>(lenp);
+    while (remaining_len > 0) {
+        if (pcie_info->msi_map_entry_count >= FDT_WALK_PCIE_MAX_MSI_MAP_ENTRIES) {
+            pcie_info->msi_map_truncated = true;
+            break;
+        }
+
+        auto &entry = pcie_info->msi_map_entry[pcie_info->msi_map_entry_count];
+
+        uint64_t rid_base = 0;
+        status_t err = consume_cells_u64(&prop_ptr, &remaining_len, 1, &rid_base, true);
+        if (err != NO_ERROR) {
+            return err;
+        }
+        entry.rid_base = static_cast<uint32_t>(rid_base);
+
+        uint64_t parent_phandle = 0;
+        err = consume_cells_u64(&prop_ptr, &remaining_len, 1, &parent_phandle, true);
+        if (err != NO_ERROR) {
+            return err;
+        }
+        entry.parent_phandle = static_cast<uint32_t>(parent_phandle);
+
+        int parent_offset = fdt_node_offset_by_phandle(state.fdt, entry.parent_phandle);
+        if (parent_offset < 0) {
+            TRACEF("invalid '%s' msi-map parent phandle %#x\n", name, entry.parent_phandle);
+            return ERR_NOT_FOUND;
+        }
+
+        err = read_msi_cells_property(state.fdt, parent_offset, 1, &entry.parent_msi_cells);
+        if (err != NO_ERROR) {
+            TRACEF("failed to read parent #msi-cells for '%s' msi-map\n", name);
+            return err;
+        }
+
+        if (entry.parent_msi_cells == 0 || entry.parent_msi_cells > FDT_WALK_PCIE_MAX_MSI_CELLS) {
+            TRACEF("unsupported parent #msi-cells %u for '%s'\n", entry.parent_msi_cells, name);
+            return ERR_OUT_OF_RANGE;
+        }
+
+        err = consume_cells_u32(&prop_ptr, &remaining_len, entry.parent_msi_cells,
+                                entry.parent_msi_base, FDT_WALK_PCIE_MAX_MSI_CELLS);
+        if (err != NO_ERROR) {
+            return err;
+        }
+
+        uint64_t rid_length = 0;
+        err = consume_cells_u64(&prop_ptr, &remaining_len, 1, &rid_length, true);
+        if (err != NO_ERROR) {
+            return err;
+        }
+        entry.rid_length = static_cast<uint32_t>(rid_length);
+
+        pcie_info->msi_map_entry_count++;
     }
 
     return NO_ERROR;
@@ -706,6 +793,11 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                 TRACEF("failed to parse '%s' interrupt-map data (%d)\n", name, map_err);
             }
 
+            status_t msi_map_err = parse_pcie_msi_map(state, name, &info[*count]);
+            if (msi_map_err != NO_ERROR) {
+                TRACEF("failed to parse '%s' msi-map data (%d)\n", name, msi_map_err);
+            }
+
             (*count)++;
         }
     };
@@ -798,6 +890,57 @@ status_t fdt_walk_pcie_lookup_intx(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t
     return ERR_NOT_FOUND;
 }
 
+status_t fdt_walk_pcie_lookup_msi(uint16_t requester_id, struct fdt_walk_pci_msi_route *route) {
+    if (!route) {
+        return ERR_INVALID_ARGS;
+    }
+
+    const uint8_t bus = static_cast<uint8_t>(requester_id >> 8);
+
+    for (size_t seg = 0; seg < g_registered_pcie_info_count; ++seg) {
+        const auto &pcie = g_registered_pcie_info[seg];
+        if (!pcie.has_msi_map || pcie.msi_map_entry_count == 0) {
+            continue;
+        }
+        if (bus < pcie.bus_start || bus > pcie.bus_end) {
+            continue;
+        }
+
+        for (size_t entry_i = 0; entry_i < pcie.msi_map_entry_count; ++entry_i) {
+            const auto &entry = pcie.msi_map_entry[entry_i];
+            const uint64_t rid_base = entry.rid_base;
+            const uint64_t rid_end = rid_base + entry.rid_length;
+            const uint64_t rid = requester_id;
+            if (rid < rid_base || rid >= rid_end) {
+                continue;
+            }
+
+            if (entry.parent_msi_cells == 0 || entry.parent_msi_cells > FDT_WALK_PCIE_MAX_MSI_CELLS) {
+                return ERR_OUT_OF_RANGE;
+            }
+
+            route->parent_phandle = entry.parent_phandle;
+            route->parent_msi_cells = entry.parent_msi_cells;
+
+            const uint32_t rid_delta = requester_id - entry.rid_base;
+            if (entry.parent_msi_cells == 1) {
+                route->parent_msi[0] = entry.parent_msi_base[0] + rid_delta;
+            } else {
+                for (uint32_t c = 0; c < entry.parent_msi_cells; ++c) {
+                    route->parent_msi[c] = entry.parent_msi_base[c];
+                }
+                if (rid_delta != 0) {
+                    return ERR_NOT_SUPPORTED;
+                }
+            }
+
+            return NO_ERROR;
+        }
+    }
+
+    return ERR_NOT_FOUND;
+}
+
 status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info, size_t *count) {
     const size_t info_len = *count;
     *count = 0;
@@ -818,6 +961,7 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                         if (strstr(child_compat, "arm,gic-v3-its") != nullptr) {
                             size_t idx = gic_infop->v3.its_count;
                             if (idx < FDT_WALK_MAX_GIC_ITS) {
+                                int phandle = fdt_get_phandle(state.fdt, state.offset);
                                 int lenp;
                                 const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
                                 if (prop_ptr) {
@@ -826,6 +970,7 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                                     if (result.status == NO_ERROR) {
                                         LTRACEF("found ITS subnode, base %#llx len %#llx\n",
                                                 result.entry.base, result.entry.len);
+                                        gic_infop->v3.its[idx].phandle = phandle > 0 ? static_cast<uint32_t>(phandle) : 0;
                                         gic_infop->v3.its[idx].base = result.entry.base;
                                         gic_infop->v3.its[idx].len = result.entry.len;
                                         gic_infop->v3.its_count++;
@@ -835,6 +980,7 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                         } else if (strstr(child_compat, "arm,gic-v2m-frame") != nullptr) {
                             size_t idx = gic_infop->v2.v2m_count;
                             if (idx < FDT_WALK_MAX_GIC_V2M) {
+                                int phandle = fdt_get_phandle(state.fdt, state.offset);
                                 int lenp;
                                 const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
                                 if (prop_ptr) {
@@ -843,6 +989,7 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                                     if (result.status == NO_ERROR) {
                                         LTRACEF("found GICv2m frame subnode, base %#llx len %#llx\n",
                                                 result.entry.base, result.entry.len);
+                                        gic_infop->v2.v2m_frame[idx].phandle = phandle > 0 ? static_cast<uint32_t>(phandle) : 0;
                                         gic_infop->v2.v2m_frame[idx].base = result.entry.base;
                                         gic_infop->v2.v2m_frame[idx].len = result.entry.len;
                                         gic_infop->v2.v2m_count++;

@@ -38,6 +38,26 @@
 
 static const void *fdt;
 static volatile uint32_t *power_reset_reg;
+static bool g_pci_msi_route_found;
+static uint32_t g_pci_msi_parent_phandle;
+
+static void platform_discover_pci_msi_route(void) {
+    g_pci_msi_route_found = false;
+    g_pci_msi_parent_phandle = 0;
+
+    struct fdt_walk_pci_msi_route route = {};
+    status_t err = fdt_walk_pcie_lookup_msi(0, &route);
+    if (err != NO_ERROR) {
+        dprintf(SPEW, "PCIE/MSI RISCV: no DT msi-map route for requester-id 0 (%d)\n", err);
+        return;
+    }
+
+    g_pci_msi_route_found = true;
+    g_pci_msi_parent_phandle = route.parent_phandle;
+    dprintf(SPEW,
+            "PCIE/MSI RISCV: found DT msi-map route requester-id 0 -> parent %#x (msi cells %u)\n",
+            route.parent_phandle, route.parent_msi_cells);
+}
 
 void platform_early_init(void) {
     plic_early_init(PLIC_BASE_VIRT, NUM_IRQS, false);
@@ -81,6 +101,8 @@ void platform_init(void) {
     size_t pcie_count = 1;
     status_t err = fdtwalk_setup_pci(fdt, pcie_info, &pcie_count);
     if (err >= NO_ERROR) {
+        platform_discover_pci_msi_route();
+
         // start the bus manager
         pci_bus_mgr_init();
 
@@ -189,11 +211,21 @@ status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
 
 status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
     TRACEF("count %zu, align_log2 %u, msi %d\n", count, align_log2, msi);
+    if (msi && g_pci_msi_route_found) {
+        dprintf(SPEW,
+                "PCIE/MSI RISCV: DT route exists (parent %#x) but platform MSI allocator is not implemented\n",
+                g_pci_msi_parent_phandle);
+    }
     return ERR_NOT_SUPPORTED;
 }
 
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
                                      uint64_t *msi_address_out, uint16_t *msi_data_out) {
     TRACEF("vector %u, cpu %u, edge %d\n", vector, cpu, edge);
+    if (g_pci_msi_route_found) {
+        dprintf(SPEW,
+                "PCIE/MSI RISCV: DT route exists (parent %#x) but MSI message computation is not implemented\n",
+                g_pci_msi_parent_phandle);
+    }
     return ERR_NOT_SUPPORTED;
 }

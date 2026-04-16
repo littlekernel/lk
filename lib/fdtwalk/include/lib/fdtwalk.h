@@ -15,6 +15,8 @@ __BEGIN_CDECLS
 #define FDT_WALK_PCIE_MAX_INTERRUPT_MAP_ENTRIES  64
 #define FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS    8
 #define FDT_WALK_PCIE_MAX_INTERRUPT_PARENT_CELLS 4
+#define FDT_WALK_PCIE_MAX_MSI_MAP_ENTRIES        64
+#define FDT_WALK_PCIE_MAX_MSI_CELLS              4
 
 /*
  * A set of routines to assist with walking a Flattened Device Tree in memory
@@ -61,6 +63,18 @@ struct fdt_walk_pcie_info {
         uint32_t parent_addr[FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS];
         uint32_t parent_interrupt[FDT_WALK_PCIE_MAX_INTERRUPT_PARENT_CELLS];
     } interrupt_map_entry[FDT_WALK_PCIE_MAX_INTERRUPT_MAP_ENTRIES];
+
+    // msi-map decode (MSI routing)
+    bool has_msi_map;
+    bool msi_map_truncated;
+    size_t msi_map_entry_count;
+    struct msi_map_entry {
+        uint32_t rid_base;
+        uint32_t parent_phandle;
+        uint32_t parent_msi_cells;
+        uint32_t parent_msi_base[FDT_WALK_PCIE_MAX_MSI_CELLS];
+        uint32_t rid_length;
+    } msi_map_entry[FDT_WALK_PCIE_MAX_MSI_MAP_ENTRIES];
 };
 
 struct fdt_walk_memory_region {
@@ -82,6 +96,12 @@ struct fdt_walk_pci_int_route {
     uint32_t parent_interrupt[FDT_WALK_PCIE_MAX_INTERRUPT_PARENT_CELLS];
 };
 
+struct fdt_walk_pci_msi_route {
+    uint32_t parent_phandle;
+    uint32_t parent_msi_cells;
+    uint32_t parent_msi[FDT_WALK_PCIE_MAX_MSI_CELLS];
+};
+
 #define FDT_WALK_MAX_GIC_ITS 4
 #define FDT_WALK_MAX_GIC_V2M 4
 
@@ -101,6 +121,7 @@ struct fdt_walk_gic_info {
             // GICv2m (MSI) frame subnodes
             size_t v2m_count;
             struct {
+                uint32_t phandle;
                 uint64_t base;
                 uint64_t len;
             } v2m_frame[FDT_WALK_MAX_GIC_V2M];
@@ -120,6 +141,7 @@ struct fdt_walk_gic_info {
             // ITS (Interrupt Translation Service) subnodes
             size_t its_count;
             struct {
+                uint32_t phandle;
                 uint64_t base;
                 uint64_t len;
             } its[FDT_WALK_MAX_GIC_ITS];
@@ -136,6 +158,7 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *, s
 status_t fdt_walk_register_pcie_info(const struct fdt_walk_pcie_info *info, size_t count);
 status_t fdt_walk_pcie_lookup_intx(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t int_pin,
                                    struct fdt_walk_pci_int_route *route);
+status_t fdt_walk_pcie_lookup_msi(uint16_t requester_id, struct fdt_walk_pci_msi_route *route);
 status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *, size_t *count);
 status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *memory, size_t *mem_count,
                               struct fdt_walk_memory_region *reserved_memory, size_t *reserved_mem_count);

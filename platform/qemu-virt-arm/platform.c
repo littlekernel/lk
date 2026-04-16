@@ -62,6 +62,72 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 
 const void *fdt = (void *)KERNEL_BASE;
 
+static bool g_pci_msi_from_dt;
+static bool g_pci_msi_uses_its;
+static uint32_t g_pci_msi_parent_phandle;
+static uint64_t g_pci_msi_address;
+
+static void platform_configure_pci_msi_from_fdt(void) {
+    g_pci_msi_from_dt = false;
+    g_pci_msi_uses_its = false;
+    g_pci_msi_parent_phandle = 0;
+    g_pci_msi_address = 0;
+
+    struct fdt_walk_pci_msi_route msi_route = {};
+    status_t route_err = fdt_walk_pcie_lookup_msi(0, &msi_route);
+    if (route_err != NO_ERROR) {
+        dprintf(SPEW, "PCIE/MSI ARM: no DT msi-map route for requester-id 0 (%d)\n", route_err);
+        return;
+    }
+
+    g_pci_msi_parent_phandle = msi_route.parent_phandle;
+
+    struct fdt_walk_gic_info gic_info[4] = {};
+    size_t gic_count = countof(gic_info);
+    status_t gic_err = fdt_walk_find_gic_info(fdt, gic_info, &gic_count);
+    if (gic_err != NO_ERROR) {
+        dprintf(SPEW,
+                "PCIE/MSI ARM: unable to parse GIC info for msi-map parent %#x (%d)\n",
+                g_pci_msi_parent_phandle, gic_err);
+        return;
+    }
+
+    for (size_t i = 0; i < gic_count; ++i) {
+        if (gic_info[i].gic_version == 2) {
+            for (size_t j = 0; j < gic_info[i].v2.v2m_count; ++j) {
+                if (gic_info[i].v2.v2m_frame[j].phandle == g_pci_msi_parent_phandle) {
+                    // V2M MSI frames use TRANSLATOR at offset 0x40.
+                    g_pci_msi_address = gic_info[i].v2.v2m_frame[j].base + 0x40;
+                    g_pci_msi_from_dt = true;
+                    dprintf(SPEW,
+                            "PCIE/MSI ARM: DT route parent %#x -> GICv2m frame[%zu] base %#llx"
+                            " translator %#llx\n",
+                            g_pci_msi_parent_phandle, j,
+                            (unsigned long long)gic_info[i].v2.v2m_frame[j].base,
+                            (unsigned long long)g_pci_msi_address);
+                    return;
+                }
+            }
+        } else if (gic_info[i].gic_version == 3) {
+            for (size_t j = 0; j < gic_info[i].v3.its_count; ++j) {
+                if (gic_info[i].v3.its[j].phandle == g_pci_msi_parent_phandle) {
+                    g_pci_msi_uses_its = true;
+                    dprintf(SPEW,
+                            "PCIE/MSI ARM: DT route parent %#x is GICv3 ITS[%zu] base %#llx;"
+                            " MSI programming via ITS is not yet implemented\n",
+                            g_pci_msi_parent_phandle, j,
+                            (unsigned long long)gic_info[i].v3.its[j].base);
+                    return;
+                }
+            }
+        }
+    }
+
+    dprintf(SPEW,
+            "PCIE/MSI ARM: DT msi-map parent %#x did not match known GIC MSI controllers\n",
+            g_pci_msi_parent_phandle);
+}
+
 const void *get_fdt(void) {
     return fdt;
 }
@@ -107,6 +173,8 @@ void platform_init(void) {
     size_t pcie_count = 1;
     status_t err = fdtwalk_setup_pci(fdt, pcie_info, &pcie_count);
     if (err >= NO_ERROR) {
+        platform_configure_pci_msi_from_fdt();
+
         // start the bus manager
         pci_bus_mgr_init();
 
@@ -248,10 +316,27 @@ status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool
     // only handle cpu 0
     DEBUG_ASSERT(cpu == 0);
 
-    // TODO: call through to the appropriate gic driver to deal with GICv2 vs v3
+    if (g_pci_msi_uses_its) {
+        dprintf(SPEW,
+                "PCIE/MSI ARM: parent %#x resolves to ITS; MSI message computation is not supported yet\n",
+                g_pci_msi_parent_phandle);
+        return ERR_NOT_SUPPORTED;
+    }
 
     *msi_data_out = vector;
-    *msi_address_out = 0x08020040; // address of the GICv2 MSI port
+    if (g_pci_msi_from_dt) {
+        *msi_address_out = g_pci_msi_address;
+        dprintf(SPEW,
+                "PCIE/MSI ARM: vector %u -> addr %#llx data %#x (from DT msi-map parent %#x)\n",
+                vector, (unsigned long long)*msi_address_out, *msi_data_out,
+                g_pci_msi_parent_phandle);
+    } else {
+        // Fallback for older DTs/configurations that do not expose a usable msi-map path.
+        *msi_address_out = 0x08020040;
+        dprintf(SPEW,
+                "PCIE/MSI ARM: vector %u -> addr %#llx data %#x (fallback GICv2m default)\n",
+                vector, (unsigned long long)*msi_address_out, *msi_data_out);
+    }
 
     return NO_ERROR;
 }

@@ -368,6 +368,30 @@ status_t fdtwalk_setup_pci(const void *fdt, struct fdt_walk_pcie_info *pcie_info
                 } else {
                     dprintf(INFO, "FDT: PCIe segment[%zu] interrupt-map not present\n", i);
                 }
+
+                if (pcie_info[i].has_msi_map) {
+                    dprintf(INFO, "FDT: PCIe segment[%zu] msi-map entries %zu%s\n",
+                            i, pcie_info[i].msi_map_entry_count,
+                            pcie_info[i].msi_map_truncated ? " (truncated)" : "");
+
+                    for (size_t e = 0; e < pcie_info[i].msi_map_entry_count; ++e) {
+                        char parent_msi_buf[160];
+                        format_cells(parent_msi_buf, sizeof(parent_msi_buf),
+                                     pcie_info[i].msi_map_entry[e].parent_msi_base,
+                                     pcie_info[i].msi_map_entry[e].parent_msi_cells);
+
+                        dprintf(INFO,
+                                "FDT: PCIe segment[%zu] MSIMAP[%zu] rid-base %#" PRIx32 " -> parent %#" PRIx32
+                                " msi-base %s length %#" PRIx32 "\n",
+                                i, e,
+                                pcie_info[i].msi_map_entry[e].rid_base,
+                                pcie_info[i].msi_map_entry[e].parent_phandle,
+                                parent_msi_buf,
+                                pcie_info[i].msi_map_entry[e].rid_length);
+                    }
+                } else {
+                    dprintf(INFO, "FDT: PCIe segment[%zu] msi-map not present\n", i);
+                }
             }
 
             // currently can only handle the first segment
