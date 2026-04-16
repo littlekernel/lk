@@ -5,24 +5,24 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <arch/riscv.h>
+#include <dev/bus/pci.h>
+#include <dev/interrupt/riscv_plic.h>
+#include <dev/virtio.h>
+#include <dev/virtio/net.h>
 #include <inttypes.h>
+#include <kernel/thread.h>
+#include <lib/fdtwalk.h>
 #include <lk/err.h>
 #include <lk/main.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <arch/riscv.h>
-#include <kernel/thread.h>
 #include <platform.h>
-#include <platform/interrupts.h>
 #include <platform/debug.h>
+#include <platform/interrupts.h>
 #include <platform/timer.h>
 #include <platform/virt.h>
 #include <sys/types.h>
-#include <lib/fdtwalk.h>
-#include <dev/bus/pci.h>
-#include <dev/virtio.h>
-#include <dev/virtio/net.h>
-#include <dev/interrupt/riscv_plic.h>
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
@@ -77,7 +77,9 @@ void platform_init(void) {
     uart_init();
 
     /* configure and start pci from device tree */
-    status_t err = fdtwalk_setup_pci(fdt);
+    static struct fdt_walk_pcie_info pcie_info[1];
+    size_t pcie_count = 1;
+    status_t err = fdtwalk_setup_pci(fdt, pcie_info, &pcie_count);
     if (err >= NO_ERROR) {
         // start the bus manager
         pci_bus_mgr_init();
@@ -144,19 +146,44 @@ void platform_halt(platform_halt_action suggested_action, platform_halt_reason r
 }
 
 status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
-        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
-    (void)pci_bus;
-    (void)pci_func;
+                                    unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
+    struct fdt_walk_pci_int_route route = {};
+    status_t route_err = fdt_walk_pcie_lookup_intx((uint8_t)pci_bus,
+                                                   (uint8_t)pci_dev,
+                                                   (uint8_t)pci_func,
+                                                   (uint8_t)pci_int,
+                                                   &route);
+    if (route_err == NO_ERROR && route.parent_interrupt_cells >= 1) {
+        *vector = route.parent_interrupt[0];
+        dprintf(SPEW,
+                "PCIE/INTx RISCV: DT route bdf %u:%u.%u pin %u -> phandle %#x irq %u (cells %u)\n",
+                pci_bus, pci_dev, pci_func, pci_int,
+                route.parent_phandle, *vector, route.parent_interrupt_cells);
+        return NO_ERROR;
+    }
+
+    if (route_err == NO_ERROR) {
+        dprintf(SPEW,
+                "PCIE/INTx RISCV: DT route bdf %u:%u.%u pin %u had invalid parent cell count %u"
+                ", falling back\n",
+                pci_bus, pci_dev, pci_func, pci_int, route.parent_interrupt_cells);
+    }
 
     // QEMU virt machine maps PCI INTx to PLIC lines 32..35 with slot swizzling:
     // irq = 32 + ((pin - 1 + slot) % 4), where pin is 1..4 for INTA..INTD.
     static const unsigned int PCIE_IRQ_BASE = 0x20;
 
     if (pci_int < 1 || pci_int > 4) {
+        dprintf(SPEW,
+                "PCIE/INTx RISCV: invalid pin %u for bdf %u:%u.%u\n",
+                pci_int, pci_bus, pci_dev, pci_func);
         return ERR_OUT_OF_RANGE;
     }
 
     *vector = PCIE_IRQ_BASE + ((pci_int - 1 + pci_dev) % 4);
+    dprintf(SPEW,
+            "PCIE/INTx RISCV: fallback swizzle bdf %u:%u.%u pin %u -> irq %u\n",
+            pci_bus, pci_dev, pci_func, pci_int, *vector);
     return NO_ERROR;
 }
 
@@ -166,7 +193,7 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
 }
 
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
-        uint64_t *msi_address_out, uint16_t *msi_data_out) {
+                                     uint64_t *msi_address_out, uint16_t *msi_data_out) {
     TRACEF("vector %u, cpu %u, edge %d\n", vector, cpu, edge);
     return ERR_NOT_SUPPORTED;
 }

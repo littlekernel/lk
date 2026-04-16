@@ -12,6 +12,10 @@
 
 __BEGIN_CDECLS
 
+#define FDT_WALK_PCIE_MAX_INTERRUPT_MAP_ENTRIES  64
+#define FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS    8
+#define FDT_WALK_PCIE_MAX_INTERRUPT_PARENT_CELLS 4
+
 /*
  * A set of routines to assist with walking a Flattened Device Tree in memory
  * for interesting nodes. Uses libfdt internally.
@@ -36,6 +40,27 @@ struct fdt_walk_pcie_info {
     uint64_t mmio_prefetch_len;
     uint64_t mmio64_prefetch_base;
     uint64_t mmio64_prefetch_len;
+
+    // interrupt-map-mask and interrupt-map decode (INTx routing)
+    bool has_interrupt_map_mask;
+    uint32_t interrupt_map_mask_cells;
+    uint32_t interrupt_map_mask[FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS];
+
+    bool has_interrupt_map;
+    bool interrupt_map_truncated;
+    uint32_t interrupt_map_child_addr_cells;
+    uint32_t interrupt_map_child_interrupt_cells;
+    size_t interrupt_map_entry_count;
+    struct interrupt_map_entry {
+        uint32_t child_addr[FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS];
+        uint32_t child_interrupt[FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS];
+
+        uint32_t parent_phandle;
+        uint32_t parent_addr_cells;
+        uint32_t parent_interrupt_cells;
+        uint32_t parent_addr[FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS];
+        uint32_t parent_interrupt[FDT_WALK_PCIE_MAX_INTERRUPT_PARENT_CELLS];
+    } interrupt_map_entry[FDT_WALK_PCIE_MAX_INTERRUPT_MAP_ENTRIES];
 };
 
 struct fdt_walk_memory_region {
@@ -46,9 +71,15 @@ struct fdt_walk_memory_region {
 struct fdt_walk_cpu_info {
     uint32_t id;
 #if ARCH_RISCV
-    const char *isa_string; // pointer to riscv,isa inside device tree
+    const char *isa_string;            // pointer to riscv,isa inside device tree
     const char *isa_extensions_string; // pointer to riscv,isa-etensions inside device tree
 #endif
+};
+
+struct fdt_walk_pci_int_route {
+    uint32_t parent_phandle;
+    uint32_t parent_interrupt_cells;
+    uint32_t parent_interrupt[FDT_WALK_PCIE_MAX_INTERRUPT_PARENT_CELLS];
 };
 
 #define FDT_WALK_MAX_GIC_ITS 4
@@ -100,6 +131,11 @@ status_t fdt_walk_dump(const void *fdt);
 
 // New style walkers, finds a single topic at a time
 status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *, size_t *count);
+// Register caller-owned PCIe info storage used by fdt_walk_pcie_lookup_intx().
+// The pointer must remain valid for as long as lookups may occur.
+status_t fdt_walk_register_pcie_info(const struct fdt_walk_pcie_info *info, size_t count);
+status_t fdt_walk_pcie_lookup_intx(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t int_pin,
+                                   struct fdt_walk_pci_int_route *route);
 status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *, size_t *count);
 status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *memory, size_t *mem_count,
                               struct fdt_walk_memory_region *reserved_memory, size_t *reserved_mem_count);
@@ -115,7 +151,7 @@ status_t fdtwalk_setup_cpus_riscv(const void *fdt);
 status_t fdtwalk_setup_cpus_arm(const void *fdt);
 #endif
 #if WITH_DEV_BUS_PCI
-status_t fdtwalk_setup_pci(const void *fdt);
+status_t fdtwalk_setup_pci(const void *fdt, struct fdt_walk_pcie_info *pcie_info, size_t *count);
 #endif
 #if WITH_DEV_INTERRUPT_ARM_GIC
 status_t fdtwalk_setup_gic(const void *fdt);

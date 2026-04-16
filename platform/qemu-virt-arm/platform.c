@@ -8,19 +8,19 @@
 #include <platform/qemu-virt.h>
 
 #include <arch.h>
-#include <lk/err.h>
-#include <lk/debug.h>
-#include <lk/trace.h>
 #include <dev/bus/pci.h>
 #include <dev/interrupt/arm_gic.h>
 #include <dev/power/psci.h>
 #include <dev/timer/arm_generic.h>
 #include <dev/virtio.h>
 #include <dev/virtio/net.h>
-#include <lib/fdtwalk.h>
-#include <lk/init.h>
-#include <kernel/vm.h>
 #include <kernel/spinlock.h>
+#include <kernel/vm.h>
+#include <lib/fdtwalk.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/init.h>
+#include <lk/trace.h>
 #include <platform.h>
 #include <platform/gic.h>
 #include <platform/interrupts.h>
@@ -47,8 +47,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
         .virt = KERNEL_BASE,
         .size = MEMORY_APERTURE_SIZE,
         .flags = 0,
-        .name = "memory"
-    },
+        .name = "memory"},
 
     /* 1GB of peripherals */
     {
@@ -56,12 +55,10 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
         .virt = PERIPHERAL_BASE_VIRT,
         .size = PERIPHERAL_BASE_SIZE,
         .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
-        .name = "peripherals"
-    },
+        .name = "peripherals"},
 
     /* null entry to terminate the list */
-    { 0 }
-};
+    {0}};
 
 const void *fdt = (void *)KERNEL_BASE;
 
@@ -106,7 +103,9 @@ void platform_init(void) {
     fdtwalk_setup_cpus_arm(fdt);
 
     /* configure and start pci from device tree */
-    status_t err = fdtwalk_setup_pci(fdt);
+    static struct fdt_walk_pcie_info pcie_info[1];
+    size_t pcie_count = 1;
+    status_t err = fdtwalk_setup_pci(fdt, pcie_info, &pcie_count);
     if (err >= NO_ERROR) {
         // start the bus manager
         pci_bus_mgr_init();
@@ -143,25 +142,64 @@ void platform_init(void) {
 
         virtio_net_start();
 
-        //minip_start_static(ip_addr, ip_mask, ip_gateway);
+        // minip_start_static(ip_addr, ip_mask, ip_gateway);
         minip_start_dhcp();
     }
 #endif
 }
 
 status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
-        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
-    (void)pci_bus;
-    (void)pci_func;
+                                    unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
+    struct fdt_walk_pci_int_route route = {};
+    status_t route_err = fdt_walk_pcie_lookup_intx((uint8_t)pci_bus,
+                                                   (uint8_t)pci_dev,
+                                                   (uint8_t)pci_func,
+                                                   (uint8_t)pci_int,
+                                                   &route);
+    if (route_err == NO_ERROR) {
+        if (route.parent_interrupt_cells >= 2) {
+            // GIC interrupts are encoded as <type, irq, flags>.
+            *vector = route.parent_interrupt[1];
+            dprintf(SPEW,
+                    "PCIE/INTx ARM: DT route bdf %u:%u.%u pin %u -> phandle %#x irq %u"
+                    " (spec cells %u, type %u, flags %u)\n",
+                    pci_bus, pci_dev, pci_func, pci_int,
+                    route.parent_phandle, *vector,
+                    route.parent_interrupt_cells,
+                    route.parent_interrupt[0],
+                    route.parent_interrupt_cells >= 3 ? route.parent_interrupt[2] : 0);
+            return NO_ERROR;
+        }
+        if (route.parent_interrupt_cells == 1) {
+            *vector = route.parent_interrupt[0];
+            dprintf(SPEW,
+                    "PCIE/INTx ARM: DT route bdf %u:%u.%u pin %u -> phandle %#x irq %u"
+                    " (single-cell parent spec)\n",
+                    pci_bus, pci_dev, pci_func, pci_int,
+                    route.parent_phandle, *vector);
+            return NO_ERROR;
+        }
+
+        dprintf(SPEW,
+                "PCIE/INTx ARM: DT route bdf %u:%u.%u pin %u had invalid parent cell count %u"
+                ", falling back\n",
+                pci_bus, pci_dev, pci_func, pci_int, route.parent_interrupt_cells);
+    }
 
     // QEMU arm virt machine uses standard PCI swizzle on 4 legacy IRQs:
     // irq = first_irq + ((pin - 1 + slot) % 4), where pin is 1..4.
     // first_irq here is PCIE_INT_BASE.
     if (pci_int < 1 || pci_int > 4) {
+        dprintf(SPEW,
+                "PCIE/INTx ARM: invalid pin %u for bdf %u:%u.%u\n",
+                pci_int, pci_bus, pci_dev, pci_func);
         return ERR_OUT_OF_RANGE;
     }
 
     *vector = PCIE_INT_BASE + ((pci_int - 1 + pci_dev) % 4);
+    dprintf(SPEW,
+            "PCIE/INTx ARM: fallback swizzle bdf %u:%u.%u pin %u -> irq %u\n",
+            pci_bus, pci_dev, pci_func, pci_int, *vector);
     return NO_ERROR;
 }
 

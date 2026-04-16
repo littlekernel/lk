@@ -12,6 +12,7 @@
 #include <lk/cpp.h>
 #include <lk/err.h>
 #include <lk/trace.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/types.h>
 
@@ -22,6 +23,9 @@ namespace {
 const int MAX_DEPTH = 16;
 const uint32_t DEFAULT_ADDRESS_CELLS = 2;
 const uint32_t DEFAULT_SIZE_CELLS = 1;
+
+const struct fdt_walk_pcie_info *g_registered_pcie_info;
+size_t g_registered_pcie_info_count;
 
 /* Read this node's effective #address-cells and #size-cells using libfdt.
  * These APIs already apply DT defaults (2/1) if properties are not present.
@@ -78,6 +82,42 @@ status_t consume_cells_u64(const uint8_t **ptr, size_t *remaining_len, size_t ce
     }
 
     *out = value;
+    return NO_ERROR;
+}
+
+status_t consume_cells_u32(const uint8_t **ptr, size_t *remaining_len, size_t cells,
+                           uint32_t *out, size_t out_cells) {
+    if (cells > out_cells) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    if (*remaining_len < cells * sizeof(fdt32_t)) {
+        return ERR_BAD_LEN;
+    }
+
+    for (size_t i = 0; i < cells; ++i) {
+        out[i] = fdt32_ld(reinterpret_cast<const fdt32_t *>(*ptr));
+        *ptr += sizeof(fdt32_t);
+        *remaining_len -= sizeof(fdt32_t);
+    }
+
+    return NO_ERROR;
+}
+
+status_t read_interrupt_cells_property(const void *fdt, int offset, uint32_t default_cells,
+                                       uint32_t *interrupt_cells) {
+    int lenp = 0;
+    const uint8_t *prop_ptr = static_cast<const uint8_t *>(fdt_getprop(fdt, offset, "#interrupt-cells", &lenp));
+    if (!prop_ptr) {
+        *interrupt_cells = default_cells;
+        return NO_ERROR;
+    }
+
+    if (lenp != static_cast<int>(sizeof(fdt32_t))) {
+        return ERR_BAD_LEN;
+    }
+
+    *interrupt_cells = fdt32_ld(reinterpret_cast<const fdt32_t *>(prop_ptr));
     return NO_ERROR;
 }
 
@@ -206,6 +246,131 @@ struct fdt_walk_state {
     uint32_t parent_address_cell() const { return depth > 0 ? address_cells[depth - 1] : DEFAULT_ADDRESS_CELLS; }
     uint32_t parent_size_cell() const { return depth > 0 ? size_cells[depth - 1] : DEFAULT_SIZE_CELLS; }
 };
+
+status_t parse_pcie_interrupt_map(const fdt_walk_state &state, const char *name,
+                                  struct fdt_walk_pcie_info *pcie_info) {
+    uint32_t child_addr_cells = state.node_address_cell();
+    uint32_t child_interrupt_cells = 1;
+    status_t err = read_interrupt_cells_property(state.fdt, state.offset, 1, &child_interrupt_cells);
+    if (err != NO_ERROR) {
+        TRACEF("invalid '%s' #interrupt-cells property (%d)\n", name, err);
+        return err;
+    }
+
+    if (child_addr_cells > FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS ||
+        child_interrupt_cells > FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS) {
+        TRACEF("unsupported '%s' child interrupt-map cell widths ac %u ic %u\n",
+               name, child_addr_cells, child_interrupt_cells);
+        return ERR_OUT_OF_RANGE;
+    }
+
+    pcie_info->interrupt_map_child_addr_cells = child_addr_cells;
+    pcie_info->interrupt_map_child_interrupt_cells = child_interrupt_cells;
+
+    int lenp = 0;
+    const uint8_t *prop_ptr = static_cast<const uint8_t *>(
+        fdt_getprop(state.fdt, state.offset, "interrupt-map-mask", &lenp));
+    if (prop_ptr) {
+        const uint32_t expected_mask_cells = child_addr_cells + child_interrupt_cells;
+        const int expected_mask_len = static_cast<int>(expected_mask_cells * sizeof(fdt32_t));
+        if (lenp != expected_mask_len) {
+            TRACEF("invalid '%s' interrupt-map-mask length %d (expected %d)\n",
+                   name, lenp, expected_mask_len);
+            return ERR_BAD_LEN;
+        }
+
+        pcie_info->has_interrupt_map_mask = true;
+        pcie_info->interrupt_map_mask_cells = expected_mask_cells;
+        for (uint32_t i = 0; i < expected_mask_cells; ++i) {
+            pcie_info->interrupt_map_mask[i] =
+                fdt32_ld(reinterpret_cast<const fdt32_t *>(prop_ptr + i * sizeof(fdt32_t)));
+        }
+    }
+
+    prop_ptr = static_cast<const uint8_t *>(fdt_getprop(state.fdt, state.offset, "interrupt-map", &lenp));
+    if (!prop_ptr) {
+        return NO_ERROR;
+    }
+
+    pcie_info->has_interrupt_map = true;
+    size_t remaining_len = static_cast<size_t>(lenp);
+    while (remaining_len > 0) {
+        if (pcie_info->interrupt_map_entry_count >= FDT_WALK_PCIE_MAX_INTERRUPT_MAP_ENTRIES) {
+            pcie_info->interrupt_map_truncated = true;
+            break;
+        }
+
+        auto &entry = pcie_info->interrupt_map_entry[pcie_info->interrupt_map_entry_count];
+        err = consume_cells_u32(&prop_ptr, &remaining_len, child_addr_cells,
+                                entry.child_addr, FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS);
+        if (err != NO_ERROR) {
+            return err;
+        }
+
+        err = consume_cells_u32(&prop_ptr, &remaining_len, child_interrupt_cells,
+                                entry.child_interrupt, FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS);
+        if (err != NO_ERROR) {
+            return err;
+        }
+
+        uint64_t parent_phandle = 0;
+        err = consume_cells_u64(&prop_ptr, &remaining_len, 1, &parent_phandle, true);
+        if (err != NO_ERROR) {
+            return err;
+        }
+        entry.parent_phandle = static_cast<uint32_t>(parent_phandle);
+
+        int parent_offset = fdt_node_offset_by_phandle(state.fdt, entry.parent_phandle);
+        if (parent_offset < 0) {
+            TRACEF("invalid '%s' interrupt-map parent phandle %#x\n", name, entry.parent_phandle);
+            return ERR_NOT_FOUND;
+        }
+
+        int parent_addr_cells = fdt_address_cells(state.fdt, parent_offset);
+        if (parent_addr_cells < 0) {
+            int prop_len = 0;
+            const void *ic_prop = fdt_getprop(state.fdt, parent_offset, "interrupt-controller", &prop_len);
+            if (ic_prop) {
+                // Interrupt controllers commonly use zero parent address cells.
+                parent_addr_cells = 0;
+            } else {
+                parent_addr_cells = DEFAULT_ADDRESS_CELLS;
+            }
+            LTRACEF("using fallback parent #address-cells %d for '%s' interrupt-map\n",
+                    parent_addr_cells, name);
+        }
+        entry.parent_addr_cells = static_cast<uint32_t>(parent_addr_cells);
+
+        err = read_interrupt_cells_property(state.fdt, parent_offset, 1, &entry.parent_interrupt_cells);
+        if (err != NO_ERROR) {
+            TRACEF("failed to read parent #interrupt-cells for '%s' interrupt-map\n", name);
+            return err;
+        }
+
+        if (entry.parent_addr_cells > FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS ||
+            entry.parent_interrupt_cells > FDT_WALK_PCIE_MAX_INTERRUPT_PARENT_CELLS) {
+            TRACEF("unsupported parent interrupt-map cell widths ac %u ic %u for '%s'\n",
+                   entry.parent_addr_cells, entry.parent_interrupt_cells, name);
+            return ERR_OUT_OF_RANGE;
+        }
+
+        err = consume_cells_u32(&prop_ptr, &remaining_len, entry.parent_addr_cells,
+                                entry.parent_addr, FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS);
+        if (err != NO_ERROR) {
+            return err;
+        }
+
+        err = consume_cells_u32(&prop_ptr, &remaining_len, entry.parent_interrupt_cells,
+                                entry.parent_interrupt, FDT_WALK_PCIE_MAX_INTERRUPT_PARENT_CELLS);
+        if (err != NO_ERROR) {
+            return err;
+        }
+
+        pcie_info->interrupt_map_entry_count++;
+    }
+
+    return NO_ERROR;
+}
 
 // Inner page table walker routine. Takes a callback in the form of a function or lambda
 // and calls on every node in the tree.
@@ -438,7 +603,7 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                               state.parent_address_cell(), state.parent_size_cell());
 
                 auto result = read_base_len_pair(prop_ptr, static_cast<size_t>(lenp),
-                                                  state.parent_address_cell(), state.parent_size_cell());
+                                                 state.parent_address_cell(), state.parent_size_cell());
                 if (result.status != NO_ERROR) {
                     TRACEF("error reading base/length from pcie@ node\n");
                 } else {
@@ -536,11 +701,101 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                 }
             }
 
+            status_t map_err = parse_pcie_interrupt_map(state, name, &info[*count]);
+            if (map_err != NO_ERROR) {
+                TRACEF("failed to parse '%s' interrupt-map data (%d)\n", name, map_err);
+            }
+
             (*count)++;
         }
     };
 
     return _fdt_walk(fdt, walker);
+}
+
+status_t fdt_walk_register_pcie_info(const struct fdt_walk_pcie_info *info, size_t count) {
+    if (!info && count != 0) {
+        return ERR_INVALID_ARGS;
+    }
+
+    g_registered_pcie_info = info;
+    g_registered_pcie_info_count = count;
+
+    return NO_ERROR;
+}
+
+status_t fdt_walk_pcie_lookup_intx(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t int_pin,
+                                   struct fdt_walk_pci_int_route *route) {
+    if (!route) {
+        return ERR_INVALID_ARGS;
+    }
+    if (int_pin == 0) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    for (size_t seg = 0; seg < g_registered_pcie_info_count; ++seg) {
+        const auto &pcie = g_registered_pcie_info[seg];
+        if (!pcie.has_interrupt_map || pcie.interrupt_map_entry_count == 0) {
+            continue;
+        }
+        if (bus < pcie.bus_start || bus > pcie.bus_end) {
+            continue;
+        }
+
+        uint32_t child_addr[FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS] = {};
+        uint32_t child_interrupt[FDT_WALK_PCIE_MAX_INTERRUPT_MAP_CELLS] = {};
+
+        if (pcie.interrupt_map_child_addr_cells > 0) {
+            child_addr[0] = (static_cast<uint32_t>(bus) << 16) |
+                            (static_cast<uint32_t>(dev) << 11) |
+                            (static_cast<uint32_t>(fn) << 8);
+        }
+        if (pcie.interrupt_map_child_interrupt_cells > 0) {
+            child_interrupt[0] = int_pin;
+        }
+
+        for (size_t entry_i = 0; entry_i < pcie.interrupt_map_entry_count; ++entry_i) {
+            const auto &entry = pcie.interrupt_map_entry[entry_i];
+            bool match = true;
+
+            for (uint32_t c = 0; c < pcie.interrupt_map_child_addr_cells; ++c) {
+                uint32_t mask = pcie.has_interrupt_map_mask ? pcie.interrupt_map_mask[c] : UINT32_MAX;
+                if (((entry.child_addr[c] ^ child_addr[c]) & mask) != 0) {
+                    match = false;
+                    break;
+                }
+            }
+            if (!match) {
+                continue;
+            }
+
+            for (uint32_t c = 0; c < pcie.interrupt_map_child_interrupt_cells; ++c) {
+                uint32_t mask_index = pcie.interrupt_map_child_addr_cells + c;
+                uint32_t mask = pcie.has_interrupt_map_mask ? pcie.interrupt_map_mask[mask_index] : UINT32_MAX;
+                if (((entry.child_interrupt[c] ^ child_interrupt[c]) & mask) != 0) {
+                    match = false;
+                    break;
+                }
+            }
+            if (!match) {
+                continue;
+            }
+
+            if (entry.parent_interrupt_cells == 0 ||
+                entry.parent_interrupt_cells > FDT_WALK_PCIE_MAX_INTERRUPT_PARENT_CELLS) {
+                return ERR_OUT_OF_RANGE;
+            }
+
+            route->parent_phandle = entry.parent_phandle;
+            route->parent_interrupt_cells = entry.parent_interrupt_cells;
+            for (uint32_t c = 0; c < entry.parent_interrupt_cells; ++c) {
+                route->parent_interrupt[c] = entry.parent_interrupt[c];
+            }
+            return NO_ERROR;
+        }
+    }
+
+    return ERR_NOT_FOUND;
 }
 
 status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info, size_t *count) {
@@ -725,7 +980,6 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                     consume_cells_u64(&prop_ptr, &gic_remaining, gic_ac, &infop->v3.virtual_interface_base, true);
                     consume_cells_u64(&prop_ptr, &gic_remaining, gic_sc, &infop->v3.virtual_interface_len, true);
                 }
-
             }
 
             (*count)++;

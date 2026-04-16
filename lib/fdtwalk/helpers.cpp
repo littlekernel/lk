@@ -257,28 +257,118 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
 #endif
 
 #if WITH_DEV_BUS_PCI
-status_t fdtwalk_setup_pci(const void *fdt) {
-    /* detect pci */
-    struct fdt_walk_pcie_info pcie_info[4] = {};
+status_t fdtwalk_setup_pci(const void *fdt, struct fdt_walk_pcie_info *pcie_info, size_t *count) {
+    if (!pcie_info || !count || *count == 0) {
+        return ERR_INVALID_ARGS;
+    }
 
-    size_t count = countof(pcie_info);
-    status_t err = fdt_walk_find_pcie_info(fdt, pcie_info, &count);
-    LTRACEF("fdt_walk_find_pcie_info returns %d, count %zu\n", err, count);
+    /* detect pci */
+    for (size_t i = 0; i < *count; ++i) {
+        auto &entry = pcie_info[i];
+        entry = {};
+    }
+
+    size_t found_count = *count;
+    status_t err = fdt_walk_find_pcie_info(fdt, pcie_info, &found_count);
+    *count = found_count;
+
+    LTRACEF("fdt_walk_find_pcie_info returns %d, count %zu\n", err, found_count);
     if (err == NO_ERROR) {
-        for (size_t i = 0; i < count; i++) {
-            dprintf(INFO, "FDT: PCIe segment[%zu] ECAM base %#" PRIx64 ", len %#" PRIx64 ", bus range [%hhu..%hhu]\n",
-                    i, pcie_info[i].ecam_base, pcie_info[i].ecam_len,
-                    pcie_info[i].bus_start, pcie_info[i].bus_end);
-            dprintf(INFO, "FDT: PCIe segment[%zu] IO base %#" PRIx64 ", mmio base %#" PRIx64 ", len %#" PRIx64 "\n",
-                    i, pcie_info[i].io_base, pcie_info[i].io_base_mmio, pcie_info[i].io_len);
-            dprintf(INFO, "FDT: PCIe segment[%zu] MMIO32 base %#" PRIx64 ", len %#" PRIx64 "\n",
-                    i, pcie_info[i].mmio_base, pcie_info[i].mmio_len);
-            dprintf(INFO, "FDT: PCIe segment[%zu] MMIO64 base %#" PRIx64 ", len %#" PRIx64 "\n",
-                    i, pcie_info[i].mmio64_base, pcie_info[i].mmio64_len);
+        status_t reg_err = fdt_walk_register_pcie_info(pcie_info, found_count);
+        if (reg_err != NO_ERROR) {
+            TRACEF("failed to register PCIe info for INTx routing lookup (%d)\n", reg_err);
+        }
+
+        for (size_t i = 0; i < found_count; i++) {
+            if (LK_DEBUGLEVEL >= INFO) {
+                auto format_cells = [](char *buf, size_t buflen, const uint32_t *cells, uint32_t cell_count) {
+                    if (buflen == 0) {
+                        return;
+                    }
+
+                    size_t pos = 0;
+                    buf[pos++] = '[';
+                    buf[pos] = '\0';
+
+                    for (uint32_t c = 0; c < cell_count; ++c) {
+                        int n = snprintf(buf + pos, buflen - pos, "%s%#" PRIx32,
+                                         c == 0 ? "" : ", ", cells[c]);
+                        if (n < 0 || static_cast<size_t>(n) >= buflen - pos) {
+                            buf[buflen - 1] = '\0';
+                            return;
+                        }
+                        pos += static_cast<size_t>(n);
+                    }
+
+                    if (pos + 1 >= buflen) {
+                        buf[buflen - 1] = '\0';
+                        return;
+                    }
+
+                    buf[pos++] = ']';
+                    buf[pos] = '\0';
+                };
+
+                dprintf(INFO, "FDT: PCIe segment[%zu] ECAM base %#" PRIx64 ", len %#" PRIx64 ", bus range [%hhu..%hhu]\n",
+                        i, pcie_info[i].ecam_base, pcie_info[i].ecam_len,
+                        pcie_info[i].bus_start, pcie_info[i].bus_end);
+                dprintf(INFO, "FDT: PCIe segment[%zu] IO base %#" PRIx64 ", mmio base %#" PRIx64 ", len %#" PRIx64 "\n",
+                        i, pcie_info[i].io_base, pcie_info[i].io_base_mmio, pcie_info[i].io_len);
+                dprintf(INFO, "FDT: PCIe segment[%zu] MMIO32 base %#" PRIx64 ", len %#" PRIx64 "\n",
+                        i, pcie_info[i].mmio_base, pcie_info[i].mmio_len);
+                dprintf(INFO, "FDT: PCIe segment[%zu] MMIO64 base %#" PRIx64 ", len %#" PRIx64 "\n",
+                        i, pcie_info[i].mmio64_base, pcie_info[i].mmio64_len);
                 dprintf(INFO, "FDT: PCIe segment[%zu] MMIO32 prefetch base %#" PRIx64 ", len %#" PRIx64 "\n",
-                    i, pcie_info[i].mmio_prefetch_base, pcie_info[i].mmio_prefetch_len);
+                        i, pcie_info[i].mmio_prefetch_base, pcie_info[i].mmio_prefetch_len);
                 dprintf(INFO, "FDT: PCIe segment[%zu] MMIO64 prefetch base %#" PRIx64 ", len %#" PRIx64 "\n",
-                    i, pcie_info[i].mmio64_prefetch_base, pcie_info[i].mmio64_prefetch_len);
+                        i, pcie_info[i].mmio64_prefetch_base, pcie_info[i].mmio64_prefetch_len);
+
+                if (pcie_info[i].has_interrupt_map_mask) {
+                    char mask_buf[160];
+                    format_cells(mask_buf, sizeof(mask_buf), pcie_info[i].interrupt_map_mask,
+                                 pcie_info[i].interrupt_map_mask_cells);
+                    dprintf(INFO, "FDT: PCIe segment[%zu] interrupt-map-mask child ac %u ic %u %s\n",
+                            i, pcie_info[i].interrupt_map_child_addr_cells,
+                            pcie_info[i].interrupt_map_child_interrupt_cells, mask_buf);
+                } else {
+                    dprintf(INFO, "FDT: PCIe segment[%zu] interrupt-map-mask not present\n", i);
+                }
+
+                if (pcie_info[i].has_interrupt_map) {
+                    dprintf(INFO, "FDT: PCIe segment[%zu] interrupt-map entries %zu%s\n",
+                            i, pcie_info[i].interrupt_map_entry_count,
+                            pcie_info[i].interrupt_map_truncated ? " (truncated)" : "");
+
+                    for (size_t e = 0; e < pcie_info[i].interrupt_map_entry_count; ++e) {
+                        char child_addr_buf[160];
+                        char child_int_buf[160];
+                        char parent_addr_buf[160];
+                        char parent_int_buf[160];
+
+                        format_cells(child_addr_buf, sizeof(child_addr_buf),
+                                     pcie_info[i].interrupt_map_entry[e].child_addr,
+                                     pcie_info[i].interrupt_map_child_addr_cells);
+                        format_cells(child_int_buf, sizeof(child_int_buf),
+                                     pcie_info[i].interrupt_map_entry[e].child_interrupt,
+                                     pcie_info[i].interrupt_map_child_interrupt_cells);
+                        format_cells(parent_addr_buf, sizeof(parent_addr_buf),
+                                     pcie_info[i].interrupt_map_entry[e].parent_addr,
+                                     pcie_info[i].interrupt_map_entry[e].parent_addr_cells);
+                        format_cells(parent_int_buf, sizeof(parent_int_buf),
+                                     pcie_info[i].interrupt_map_entry[e].parent_interrupt,
+                                     pcie_info[i].interrupt_map_entry[e].parent_interrupt_cells);
+
+                        dprintf(INFO,
+                                "FDT: PCIe segment[%zu] INTMAP[%zu] child-addr %s child-int %s -> parent %#" PRIx32
+                                " parent-addr %s parent-int %s\n",
+                                i, e, child_addr_buf, child_int_buf,
+                                pcie_info[i].interrupt_map_entry[e].parent_phandle,
+                                parent_addr_buf, parent_int_buf);
+                    }
+                } else {
+                    dprintf(INFO, "FDT: PCIe segment[%zu] interrupt-map not present\n", i);
+                }
+            }
 
             // currently can only handle the first segment
             if (i > 0) {

@@ -5,21 +5,21 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <dev/bus/pci.h>
+#include <dev/interrupt/riscv_plic.h>
 #include <inttypes.h>
+#include <kernel/thread.h>
+#include <lib/fdtwalk.h>
 #include <lk/err.h>
 #include <lk/main.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <kernel/thread.h>
 #include <platform.h>
-#include <platform/interrupts.h>
 #include <platform/debug.h>
-#include <platform/timer.h>
+#include <platform/interrupts.h>
 #include <platform/jh7110.h>
+#include <platform/timer.h>
 #include <sys/types.h>
-#include <lib/fdtwalk.h>
-#include <dev/bus/pci.h>
-#include <dev/interrupt/riscv_plic.h>
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
@@ -67,7 +67,9 @@ void platform_init(void) {
     // TODO: fix this, seems to read all zeros from the ecam
 #if 0
     /* configure and start pci from device tree */
-    status_t err = fdtwalk_setup_pci(fdt);
+    static struct fdt_walk_pcie_info pcie_info[1];
+    size_t pcie_count = 1;
+    status_t err = fdtwalk_setup_pci(fdt, pcie_info, &pcie_count);
     if (err >= NO_ERROR) {
         // start the bus manager
         pci_bus_mgr_init();
@@ -76,7 +78,6 @@ void platform_init(void) {
         pci_bus_mgr_assign_resources();
     }
 #endif
-
 }
 
 static void reboot_(void) {
@@ -96,7 +97,7 @@ void platform_halt(platform_halt_action suggested_action, platform_halt_reason r
 }
 
 status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
-        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
+                                    unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
     (void)pci_bus;
     (void)pci_dev;
     (void)pci_func;
@@ -111,6 +112,6 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
 }
 
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
-        uint64_t *msi_address_out, uint16_t *msi_data_out) {
+                                     uint64_t *msi_address_out, uint16_t *msi_data_out) {
     return ERR_NOT_SUPPORTED;
 }
