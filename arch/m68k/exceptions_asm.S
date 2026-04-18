@@ -9,9 +9,6 @@
 
 .text
 
-.weak _060_isp_unimp
-_060_isp_unimp:
-
 #if M68K_CPU >= 68010
 // For 68010s and above the exception frame already has a code pushed on the stack,
 // so it's easy to just vector most of the handlers into one of a few classes of handlers
@@ -78,7 +75,13 @@ DATA(exc_vectors)
     .long _m68k_general_exception
     .endr
 .org (61 * 4)
+#if M68K_CPU >= 68020
+    // 060 soft emulation code uses instructions not available on <= 010.
+    // ISP emulation code is linked at build time when target is >= 020.
     .long _060_isp_unimp
+#else
+    .long _m68k_general_exception
+#endif
 .org (62 * 4)
     .rept (64 - 62)
     .long _m68k_general_exception
@@ -203,11 +206,11 @@ DATA(exc_vectors)
     .set stub, stub + STUB_SIZE
     .endr
 .org (15 * 4)
-    .set stub, _m68k_irq_stub_gen
+    .set stub, _m68k_irq15_stub_gen
     .long stub
     .set stub, stub + STUB_SIZE
 .org (16 * 4)
-    .set stub, _m68k_general_stub_gen
+    .set stub, _m68k_general_stub_gen + ((16 - 2) * STUB_SIZE)
     .rept (24 - 16)
     .long stub
     .set stub, stub + STUB_SIZE
@@ -229,15 +232,7 @@ DATA(exc_vectors)
 .org (48 * 4)
     // FPU, MMU, reserved
     .set stub, _m68k_reserved_stub_gen
-    .rept (61 - 48)
-    .long stub
-    .set stub, stub + STUB_SIZE
-    .endr
-.org (61 * 4)
-    .long _060_isp_unimp
-.org (62 * 4)
-    .set stub, _m68k_general_stub_gen
-    .rept (64 - 62)
+    .rept (64 - 48)
     .long stub
     .set stub, stub + STUB_SIZE
     .endr
