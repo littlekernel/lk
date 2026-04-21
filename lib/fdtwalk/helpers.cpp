@@ -502,6 +502,11 @@ status_t fdtwalk_setup_gic(const void *fdt) {
                 init_info.gicr_size = gic_info[i].v3.redistributor_len;
                 init_info.gicc_paddr = gic_info[i].v3.cpu_interface_base;
                 init_info.gicc_size = gic_info[i].v3.cpu_interface_len;
+                init_info.its_count = MIN(gic_info[i].v3.its_count, countof(init_info.its));
+                for (size_t j = 0; j < init_info.its_count; ++j) {
+                    init_info.its[j].paddr = gic_info[i].v3.its[j].base;
+                    init_info.its[j].size = gic_info[i].v3.its[j].len;
+                }
             }
 
             arm_gic_init_map(&init_info);

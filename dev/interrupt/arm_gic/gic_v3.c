@@ -38,6 +38,9 @@
 
 #include "arm_gic_common.h"
 #include "gic_v3.h"
+#ifdef ARCH_ARM64
+#include "gic_v3_its.h"
+#endif
 
 #define WAKER_QSC_BIT (0x1u << 31)
 #define WAKER_CA_BIT  (0x1u << 2)
@@ -344,6 +347,13 @@ void arm_gicv3_init(void) {
     for (uint32_t i = 32; i < gic_max_int; i++) {
         gicd_write64(0, GICD_IROUTER(i), 0);
     }
+
+#ifdef ARCH_ARM64
+    status_t its_ret = arm_gicv3_its_init();
+    if (its_ret != NO_ERROR) {
+        dprintf(INFO, "GICv3 ITS: initialization skipped/failed (%d)\n", its_ret);
+    }
+#endif
 }
 
 void arm_gicv3_init_percpu(void) {

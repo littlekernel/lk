@@ -70,6 +70,12 @@ struct arm_gic {
     size_t gicr_size;
     size_t gicr_cpu_stride;
 
+    size_t its_count;
+    struct {
+        vaddr_t vaddr;
+        size_t size;
+    } its[ARM_GIC_MAX_ITS];
+
     size_t gicv2m_count;
     struct {
         vaddr_t vaddr;

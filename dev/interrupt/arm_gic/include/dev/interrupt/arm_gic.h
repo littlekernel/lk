@@ -28,6 +28,8 @@
 
 __BEGIN_CDECLS
 
+#define ARM_GIC_MAX_ITS 4
+
 /**
  * arm_gic_init() - Legacy GIC initialization routine.
  *
@@ -57,6 +59,13 @@ struct arm_gic_init_info {
     size_t gicd_size;
     paddr_t gicr_paddr;
     size_t gicr_size;
+
+    // Optional GICv3 ITS frame information.
+    size_t its_count;
+    struct {
+        paddr_t paddr;
+        size_t size;
+    } its[ARM_GIC_MAX_ITS];
 
     // Optional GICv2m MSI frame information.
     size_t gicv2m_count;

@@ -335,6 +335,7 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
     ASSERT(!arm_gic_is_initialized());
 
     arm_gics[0].gic_revision = init_info->gic_revision;
+    arm_gics[0].its_count = 0;
     arm_gics[0].gicv2m_count = 0;
 
     if (init_info->gicd_size < GICD_MIN_SIZE) {
@@ -351,6 +352,19 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
                      init_info->gicr_size);
         arm_gics[0].gicr_size = init_info->gicr_size;
         TRACEF("GICR mapped to vaddr %#" PRIxPTR "\n", arm_gics[0].gicr_vaddr);
+
+        arm_gics[0].its_count = MIN(init_info->its_count, countof(arm_gics[0].its));
+        for (size_t i = 0; i < arm_gics[0].its_count; ++i) {
+            if (init_info->its[i].paddr == 0 || init_info->its[i].size == 0) {
+                continue;
+            }
+
+            arm_map_regs("gicits", &arm_gics[0].its[i].vaddr,
+                         init_info->its[i].paddr, init_info->its[i].size);
+            arm_gics[0].its[i].size = init_info->its[i].size;
+            TRACEF("GICITS[%zu] mapped to vaddr %#" PRIxPTR "\n", i,
+                   arm_gics[0].its[i].vaddr);
+        }
     } else {
         arm_map_regs("gicc", &arm_gics[0].gicc_vaddr, init_info->gicc_paddr,
                      init_info->gicc_size);
