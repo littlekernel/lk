@@ -19,12 +19,13 @@
 
 #define LOCAL_TRACE FAT_GLOBAL_TRACE(1)
 
-// given a cluster number, compute the sector and the offset within the sector where
-// the fat entry exists.
-static void compute_fat_entry_address(fat_fs *fat, const uint32_t cluster, uint32_t *sector, uint32_t *offset_within_sector) {
+// given a cluster number and fat table index, compute the sector and the offset within
+// the sector where the fat entry exists.
+static void compute_fat_entry_address_for_table(fat_fs *fat, const uint32_t cluster,
+                                                uint32_t fat_index, uint32_t *sector,
+                                                uint32_t *offset_within_sector) {
     DEBUG_ASSERT(cluster < fat->info().total_clusters);
-
-    // TODO: take into account active fat
+    DEBUG_ASSERT(fat_index < fat->info().fat_count);
 
     // offset in bytes into the FAT for this entry
     uint32_t fat_offset;
@@ -38,8 +39,18 @@ static void compute_fat_entry_address(fat_fs *fat, const uint32_t cluster, uint3
     LTRACEF_LEVEL(2, "cluster %#x, fat_offset %u\n", cluster, fat_offset);
 
     const uint32_t fat_sector = fat_offset / fat->info().bytes_per_sector;
-    *sector = fat->info().reserved_sectors + fat_sector;
+    const uint32_t fat_base_sector = fat->info().reserved_sectors +
+                                     fat_index * fat->info().sectors_per_fat;
+    *sector = fat_base_sector + fat_sector;
     *offset_within_sector = fat_offset % fat->info().bytes_per_sector;
+}
+
+// given a cluster number, compute the sector and the offset within the sector where
+// the fat entry exists in the currently active FAT.
+static void compute_fat_entry_address(fat_fs *fat, const uint32_t cluster,
+                                      uint32_t *sector, uint32_t *offset_within_sector) {
+    compute_fat_entry_address_for_table(fat, cluster, fat->info().active_fat,
+                                        sector, offset_within_sector);
 }
 
 // return the next cluster # in a chain, given a starting cluster
@@ -141,32 +152,86 @@ uint32_t fat_find_last_cluster_in_chain(fat_fs *fat, uint32_t starting_cluster) 
 static status_t fat_mark_entry(fat_fs *fat, uint32_t cluster, uint32_t val) {
     LTRACEF("fat %p, cluster %u, val %#x\n", fat, cluster, val);
 
-    // compute the starting address
-    uint32_t sector;
-    uint32_t fat_offset_in_sector;
-    compute_fat_entry_address(fat, cluster, &sector, &fat_offset_in_sector);
-
-    // grab a pointer to the sector holding the fat entry
-    bcache_block_ref bref(fat->bcache());
-    int err = bref.get_block(sector);
-    if (err < 0) {
-        printf("bcache_get_block returned: %i\n", err);
-        return EOF_CLUSTER;
-    }
-
+    // keep the value within the representable fat entry size.
+    uint32_t entry_value = val;
     if (fat->info().fat_bits == 32) {
-        auto *table = (uint32_t *)bref.ptr();
-        const auto index = fat_offset_in_sector / 4;
-        table[index] = LE32(val);
+        entry_value &= 0x0fffffff;
     } else if (fat->info().fat_bits == 16) {
-        auto *table = (uint16_t *)bref.ptr();
-        const auto index = fat_offset_in_sector / 2;
-        table[index] = LE16(val);
-    } else { // fat12
-        PANIC_UNIMPLEMENTED;
+        entry_value &= 0xffff;
+    } else {
+        entry_value &= 0x0fff;
     }
 
-    bref.mark_dirty();
+    // keep all FAT copies in sync.
+    for (uint32_t fat_index = 0; fat_index < fat->info().fat_count; fat_index++) {
+        uint32_t sector;
+        uint32_t fat_offset_in_sector;
+        compute_fat_entry_address_for_table(fat, cluster, fat_index, &sector,
+                                            &fat_offset_in_sector);
+
+        bcache_block_ref bref(fat->bcache());
+        int err = bref.get_block(sector);
+        if (err < 0) {
+            printf("bcache_get_block returned: %i\n", err);
+            return err;
+        }
+
+        if (fat->info().fat_bits == 32) {
+            auto *table = (uint32_t *)bref.ptr();
+            const auto index = fat_offset_in_sector / 4;
+
+            // preserve the reserved high nibble in FAT32 entries.
+            uint32_t old_entry = table[index];
+            LE32SWAP(old_entry);
+            uint32_t new_entry = (old_entry & 0xf0000000) | entry_value;
+            table[index] = LE32(new_entry);
+            bref.mark_dirty();
+        } else if (fat->info().fat_bits == 16) {
+            auto *table = (uint16_t *)bref.ptr();
+            const auto index = fat_offset_in_sector / 2;
+            table[index] = LE16((uint16_t)entry_value);
+            bref.mark_dirty();
+        } else { // fat12
+            DEBUG_ASSERT(fat_offset_in_sector < fat->info().bytes_per_sector);
+            auto *block = (uint8_t *)bref.ptr();
+
+            if (fat_offset_in_sector != (fat->info().bytes_per_sector - 1)) {
+                uint16_t old_entry = fat_read16(block, fat_offset_in_sector);
+                uint16_t new_entry;
+                if (cluster & 1) {
+                    new_entry = (uint16_t)((old_entry & 0x000f) | (entry_value << 4));
+                } else {
+                    new_entry = (uint16_t)((old_entry & 0xf000) | entry_value);
+                }
+                fat_write16(block, fat_offset_in_sector, new_entry);
+                bref.mark_dirty();
+            } else {
+                // The 12-bit entry straddles two FAT sectors.
+                uint8_t first_byte = block[fat_offset_in_sector];
+                if (cluster & 1) {
+                    block[fat_offset_in_sector] =
+                        (uint8_t)((first_byte & 0x0f) | ((entry_value & 0x000f) << 4));
+                } else {
+                    block[fat_offset_in_sector] = (uint8_t)(entry_value & 0xff);
+                }
+                bref.mark_dirty();
+
+                err = bref.get_block(++sector);
+                if (err < 0) {
+                    printf("bcache_get_block returned: %i\n", err);
+                    return err;
+                }
+
+                block = (uint8_t *)bref.ptr();
+                if (cluster & 1) {
+                    block[0] = (uint8_t)((entry_value >> 4) & 0xff);
+                } else {
+                    block[0] = (uint8_t)((block[0] & 0xf0) | ((entry_value >> 8) & 0x0f));
+                }
+                bref.mark_dirty();
+            }
+        }
+    }
 
     return NO_ERROR;
 }
@@ -204,6 +269,12 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
     // start walking forward until we have found up to count clusters or we run out of clusters
     const auto total_clusters = fat->info().total_clusters;
     while (count > 0) {
+        if (fat->info().fat_bits == 12) {
+            // FAT12 entries do not advance linearly by whole bytes, so recompute from
+            // the current cluster each iteration.
+            compute_fat_entry_address(fat, search_cluster, &sector, &fat_offset_in_sector);
+        }
+
         uint32_t entry;
         if (fat->info().fat_bits == 32) {
             const auto *table = (const uint32_t *)bref.ptr();
@@ -216,9 +287,9 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
         } else if (fat->info().fat_bits == 16) {
             const auto *table = (const uint16_t *)bref.ptr();
             const auto index = fat_offset_in_sector / 2;
-            entry = table[index];
+            entry = LE16(table[index]);
         } else { // fat12
-            PANIC_UNIMPLEMENTED;
+            entry = fat_next_cluster_in_chain(fat, search_cluster);
         }
 
         LTRACEF_LEVEL(2, "search_cluster %u, sector %u, offset %u: entry %#x\n", search_cluster, sector, fat_offset_in_sector, entry);
@@ -289,7 +360,7 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
                 }
             }
         } else { // fat12
-            PANIC_UNIMPLEMENTED;
+            // address is recomputed from the cluster number at top of loop
         }
     }
 
