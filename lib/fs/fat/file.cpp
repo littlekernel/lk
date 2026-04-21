@@ -27,6 +27,59 @@
 fat_file::fat_file(fat_fs *f) : fs_(f) {}
 fat_file::~fat_file() = default;
 
+status_t fat_file::zero_range_locked(uint32_t offset, uint32_t len) {
+    DEBUG_ASSERT(fs_->lock.is_held());
+
+    if (len == 0) {
+        return NO_ERROR;
+    }
+
+    if (start_cluster_ < 2 || start_cluster_ >= fs_->info().total_clusters) {
+        return ERR_IO;
+    }
+
+    uint32_t logical_cluster = offset / fs_->info().bytes_per_cluster;
+    uint32_t sector_within_cluster =
+        (offset % fs_->info().bytes_per_cluster) / fs_->info().bytes_per_sector;
+    uint32_t offset_within_sector = offset % fs_->info().bytes_per_sector;
+
+    file_block_iterator fbi(fs_, start_cluster_);
+    status_t err = fbi.next_sectors(logical_cluster * fs_->info().sectors_per_cluster +
+                                    sector_within_cluster);
+    if (err < 0) {
+        return err;
+    }
+
+    uint32_t remaining = len;
+    while (remaining > 0) {
+        uint32_t to_zero =
+            MIN(fs_->info().bytes_per_sector - offset_within_sector, remaining);
+
+        uint8_t *ptr = fbi.get_bcache_ptr(offset_within_sector);
+        if (!ptr) {
+            return ERR_IO;
+        }
+
+        memset(ptr, 0, to_zero);
+        err = fbi.mark_bcache_dirty();
+        if (err < 0) {
+            return err;
+        }
+
+        remaining -= to_zero;
+        offset_within_sector += to_zero;
+        if (offset_within_sector == fs_->info().bytes_per_sector && remaining > 0) {
+            offset_within_sector = 0;
+            err = fbi.next_sector();
+            if (err < 0) {
+                return err;
+            }
+        }
+    }
+
+    return NO_ERROR;
+}
+
 void fat_file::inc_ref() {
     ref_++;
     LTRACEF_LEVEL(2, "file %p (%u:%u): ref now %i\n", this, dir_loc_.starting_dir_cluster, dir_loc_.dir_offset, ref_);
@@ -333,9 +386,9 @@ status_t fat_file::truncate_file_priv(uint64_t _len) {
             // expanding the file
             LTRACEF("expanding the file: start_cluster_ %u\n", start_cluster_);
 
-            // TODO: compartmentalize this cluster extension/shrinking so DIR code can reuse it
+            const uint32_t old_length = length_;
 
-            // TODO: write zeros to any partial blocks we're extending
+            // TODO: compartmentalize this cluster extension/shrinking so DIR code can reuse it
 
             // walk to the end of the existing cluster chain
             const uint32_t existing_chain_end = fat_find_last_cluster_in_chain(fs_, start_cluster_);
@@ -362,6 +415,19 @@ status_t fat_file::truncate_file_priv(uint64_t _len) {
             // if we just created the first cluster, remember it here
             if (start_cluster_ == 0) {
                 start_cluster_ = first_cluster;
+            }
+
+            // Zero-fill any newly exposed bytes in the old tail cluster.
+            if (old_length < len32) {
+                const uint32_t old_tail = old_length % bpc;
+                if (old_tail != 0) {
+                    const uint32_t bytes_to_cluster_end = bpc - old_tail;
+                    const uint32_t bytes_to_zero = MIN(bytes_to_cluster_end, len32 - old_length);
+                    err = zero_range_locked(old_length, bytes_to_zero);
+                    if (err != NO_ERROR) {
+                        return err;
+                    }
+                }
             }
         } else {
             // shrinking the file
@@ -411,6 +477,87 @@ status_t fat_file::truncate_file_priv(uint64_t _len) {
     bcache_flush(fs_->bcache());
 
     return NO_ERROR;
+}
+
+ssize_t fat_file::write_file_priv(const void *_buf, const off_t offset, size_t len) {
+    const uint8_t *buf = (const uint8_t *)_buf;
+
+    LTRACEF("file %p buf %p offset %lld len %zu\n", this, _buf, offset, len);
+
+    if (is_dir()) {
+        return ERR_NOT_FILE;
+    }
+
+    if (offset < 0) {
+        return ERR_INVALID_ARGS;
+    }
+
+    if (len == 0) {
+        return 0;
+    }
+
+    const uint64_t end = (uint64_t)offset + len;
+    if (end >= 2UL * 1024 * 1024 * 1024) {
+        return ERR_TOO_BIG;
+    }
+
+    if (end > length_) {
+        status_t err = truncate_file_priv(end);
+        if (err != NO_ERROR) {
+            return err;
+        }
+    }
+
+    AutoLock guard(fs_->lock);
+
+    uint32_t logical_cluster = offset / fs_->info().bytes_per_cluster;
+    uint32_t sector_within_cluster =
+        (offset % fs_->info().bytes_per_cluster) / fs_->info().bytes_per_sector;
+    uint32_t offset_within_sector = offset % fs_->info().bytes_per_sector;
+
+    file_block_iterator fbi(fs_, start_cluster_);
+    status_t err = fbi.next_sectors(logical_cluster * fs_->info().sectors_per_cluster +
+                                    sector_within_cluster);
+    if (err < 0) {
+        return err;
+    }
+
+    size_t written = 0;
+    while (written < len) {
+        size_t to_write = MIN(fs_->info().bytes_per_sector - offset_within_sector, len - written);
+
+        uint8_t *ptr = fbi.get_bcache_ptr(offset_within_sector);
+        if (!ptr) {
+            return ERR_IO;
+        }
+
+        memcpy(ptr, buf + written, to_write);
+        err = fbi.mark_bcache_dirty();
+        if (err < 0) {
+            return err;
+        }
+
+        written += to_write;
+        offset_within_sector += to_write;
+        if (offset_within_sector == fs_->info().bytes_per_sector && written < len) {
+            offset_within_sector = 0;
+            err = fbi.next_sector();
+            if (err < 0) {
+                return err;
+            }
+        }
+    }
+
+    bcache_flush(fs_->bcache());
+
+    return written;
+}
+
+// static
+ssize_t fat_file::write_file(filecookie *fcookie, const void *buf, const off_t offset, size_t len) {
+    fat_file *file = (fat_file *)fcookie;
+
+    return file->write_file_priv(buf, offset, len);
 }
 
 // static

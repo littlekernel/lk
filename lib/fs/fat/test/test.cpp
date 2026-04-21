@@ -302,6 +302,50 @@ bool test_fat_resize_file() {
     });
 }
 
+bool test_fat_write_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        filehandle *handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/wrfile", &handle, 0));
+        ASSERT_NONNULL(handle);
+        auto closefile_cleanup = lk::make_auto_call([&]() { fs_close_file(handle); });
+
+        const uint8_t head[] = { 'a', 'b', 'c', 'd', 'e' };
+        ASSERT_EQ((ssize_t)sizeof(head), fs_write_file(handle, head, 0, sizeof(head)));
+
+        uint8_t readback[sizeof(head)] = {};
+        ASSERT_EQ((ssize_t)sizeof(readback), fs_read_file(handle, readback, 0, sizeof(readback)));
+        EXPECT_EQ(0, memcmp(head, readback, sizeof(head)));
+
+        const uint8_t tail[] = { 'L', 'K' };
+        ASSERT_EQ((ssize_t)sizeof(tail), fs_write_file(handle, tail, 8192, sizeof(tail)));
+
+        struct file_stat st = {};
+        ASSERT_EQ(NO_ERROR, fs_stat_file(handle, &st));
+        EXPECT_EQ(8194u, st.size);
+
+        uint8_t gap[32];
+        memset(gap, 0xaa, sizeof(gap));
+        ASSERT_EQ((ssize_t)sizeof(gap), fs_read_file(handle, gap, 5, sizeof(gap)));
+        for (size_t i = 0; i < sizeof(gap); i++) {
+            EXPECT_EQ(0u, gap[i]);
+        }
+
+        uint8_t tail_read[6];
+        memset(tail_read, 0xaa, sizeof(tail_read));
+        ASSERT_EQ((ssize_t)sizeof(tail_read), fs_read_file(handle, tail_read, 8188, sizeof(tail_read)));
+        EXPECT_EQ(0u, tail_read[0]);
+        EXPECT_EQ(0u, tail_read[1]);
+        EXPECT_EQ(0u, tail_read[2]);
+        EXPECT_EQ(0u, tail_read[3]);
+        EXPECT_EQ('L', tail_read[4]);
+        EXPECT_EQ('K', tail_read[5]);
+
+        END_TEST;
+    });
+}
+
 BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_mount)
     RUN_TEST(test_fat_dir_root)
@@ -309,6 +353,7 @@ BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_multi_open)
     RUN_TEST(test_fat_create_file)
     RUN_TEST(test_fat_resize_file)
+    RUN_TEST(test_fat_write_file)
 END_TEST_CASE(fat)
 
 } // namespace

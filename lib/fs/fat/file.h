@@ -24,6 +24,7 @@ public:
     // top level fs hooks
     static status_t open_file(fscookie *cookie, const char *path, filecookie **fcookie);
     static ssize_t read_file(filecookie *fcookie, void *_buf, const off_t offset, size_t len);
+    static ssize_t write_file(filecookie *fcookie, const void *buf, const off_t offset, size_t len);
     static status_t stat_file(filecookie *fcookie, struct file_stat *stat);
     static status_t close_file(filecookie *fcookie);
     static status_t create_file(fscookie *cookie, const char *path, filecookie **fcookie, uint64_t len);
@@ -37,9 +38,11 @@ private:
     // private versions of the above
     status_t open_file_priv(const dir_entry &entry, const dir_entry_location &loc);
     ssize_t read_file_priv(void *_buf, const off_t offset, size_t len);
+    ssize_t write_file_priv(const void *buf, const off_t offset, size_t len);
     status_t stat_file_priv(struct file_stat *stat);
     status_t close_file_priv(bool *last_ref);
     status_t truncate_file_priv(uint64_t len);
+    status_t zero_range_locked(uint32_t offset, uint32_t len);
 
 protected:
     // increment the ref and add/remove the file from the fs list

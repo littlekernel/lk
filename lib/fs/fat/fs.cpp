@@ -376,7 +376,7 @@ static const struct fs_api fat_api = {
     .truncate = fat_file::truncate_file,
     .stat = fat_file::stat_file,
     .read = fat_file::read_file,
-    .write = nullptr,
+    .write = fat_file::write_file,
     .close = fat_file::close_file,
 
     .mkdir = nullptr,
