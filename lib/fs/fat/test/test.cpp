@@ -346,6 +346,32 @@ bool test_fat_write_file() {
     });
 }
 
+bool test_fat_mkdir() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/newdir"));
+        ASSERT_EQ(ERR_ALREADY_EXISTS, fs_make_dir(test_path "/newdir"));
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/parent"));
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/parent/child"));
+
+        dirhandle *dh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/newdir", &dh));
+        ASSERT_NONNULL(dh);
+        ASSERT_EQ(NO_ERROR, fs_close_dir(dh));
+
+        filehandle *fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/newdir/file", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+        ASSERT_EQ(ERR_NOT_FOUND, fs_make_dir(test_path "/does_not_exist/child"));
+
+        END_TEST;
+    });
+}
+
 BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_mount)
     RUN_TEST(test_fat_dir_root)
@@ -354,6 +380,7 @@ BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_create_file)
     RUN_TEST(test_fat_resize_file)
     RUN_TEST(test_fat_write_file)
+    RUN_TEST(test_fat_mkdir)
 END_TEST_CASE(fat)
 
 } // namespace

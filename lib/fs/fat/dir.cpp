@@ -416,6 +416,103 @@ static status_t name_to_short_file_name(char sfn[8 + 3 + 1], const char *name) {
     return NO_ERROR;
 }
 
+static void fill_short_dirent(uint8_t *ent, const char short_name[11], fat_attribute attr,
+                              uint32_t starting_cluster, uint32_t size) {
+    memcpy(&ent[0], short_name, 11); // name
+    ent[11] = (uint8_t)attr; // attribute
+    ent[12] = 0; // reserved
+    ent[13] = 0; // creation time tenth of second
+    fat_write16(ent, 14, 0); // creation time seconds / 2
+    fat_write16(ent, 16, 0); // creation date
+    fat_write16(ent, 18, 0); // last accessed date
+    fat_write16(ent, 20, starting_cluster >> 16); // fat cluster high
+    fat_write16(ent, 22, 0); // modification time
+    fat_write16(ent, 24, 0); // modification date
+    fat_write16(ent, 26, starting_cluster); // fat cluster low
+    fat_write32(ent, 28, size); // file size
+}
+
+// static
+status_t fat_dir::mkdir(fscookie *cookie, const char *path) {
+    auto *fat = (fat_fs *)cookie;
+
+    LTRACEF("cookie %p path '%s'\n", cookie, path);
+
+    AutoLock guard(fat->lock);
+
+    char local_path[FS_MAX_FILE_LEN + 1];
+    strlcpy(local_path, path, sizeof(local_path));
+
+    const char *leading_path;
+    const char *last_element;
+    split_path(local_path, &leading_path, &last_element);
+
+    if (!last_element || last_element[0] == 0) {
+        return ERR_INVALID_ARGS;
+    }
+
+    uint32_t parent_cluster;
+    uint32_t parent_cluster_for_dotdot;
+    if (strcmp(leading_path, "/") == 0) {
+        parent_cluster = fat->info().root_cluster ? fat->info().root_cluster : 0;
+        parent_cluster_for_dotdot = 0;
+    } else {
+        dir_entry parent_entry;
+        status_t err = fat_dir_walk(fat, leading_path, &parent_entry, nullptr);
+        if (err < 0) {
+            return err;
+        }
+        if (parent_entry.attributes != fat_attribute::directory) {
+            return ERR_BAD_PATH;
+        }
+        parent_cluster = parent_entry.start_cluster;
+        parent_cluster_for_dotdot = parent_cluster;
+        if (parent_cluster < 2 || parent_cluster >= fat->info().total_clusters) {
+            return ERR_BAD_STATE;
+        }
+    }
+
+    uint32_t first_cluster = 0;
+    uint32_t last_cluster = 0;
+    status_t err = fat_allocate_cluster_chain(fat, 0, 1, &first_cluster, &last_cluster, true);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    dir_entry_location loc;
+    err = fat_dir_allocate(fat, path, fat_attribute::directory, first_cluster, 0, &loc);
+    if (err != NO_ERROR) {
+        fat_free_cluster_chain(fat, first_cluster);
+        return err;
+    }
+
+    bcache_block_ref bref(fat->bcache());
+    err = bref.get_block(fat_sector_for_cluster(fat, first_cluster));
+    if (err < 0) {
+        return err;
+    }
+
+    char dot_name[11];
+    memset(dot_name, ' ', sizeof(dot_name));
+    dot_name[0] = '.';
+
+    char dotdot_name[11];
+    memset(dotdot_name, ' ', sizeof(dotdot_name));
+    dotdot_name[0] = '.';
+    dotdot_name[1] = '.';
+
+    uint8_t *block = (uint8_t *)bref.ptr();
+    fill_short_dirent(block + 0 * DIR_ENTRY_LENGTH, dot_name, fat_attribute::directory,
+                      first_cluster, 0);
+    fill_short_dirent(block + 1 * DIR_ENTRY_LENGTH, dotdot_name, fat_attribute::directory,
+                      parent_cluster_for_dotdot, 0);
+    bref.mark_dirty();
+
+    bcache_flush(fat->bcache());
+
+    return NO_ERROR;
+}
+
 status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute attr, const uint32_t starting_cluster, const uint32_t size, dir_entry_location *loc) {
     LTRACEF("path %s\n", path);
 

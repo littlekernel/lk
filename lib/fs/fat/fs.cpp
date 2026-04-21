@@ -379,7 +379,7 @@ static const struct fs_api fat_api = {
     .write = fat_file::write_file,
     .close = fat_file::close_file,
 
-    .mkdir = nullptr,
+    .mkdir = fat_dir::mkdir,
     .opendir = fat_dir::opendir,
     .readdir = fat_dir::readdir,
     .closedir = fat_dir::closedir,
