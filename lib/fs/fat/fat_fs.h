@@ -30,6 +30,12 @@ struct fat_info {
     uint32_t root_entries = 0;
     uint32_t root_start_sector = 0;
     uint32_t root_dir_sectors = 0;
+
+    // FAT32 FSInfo metadata
+    uint32_t fsinfo_sector = 0;
+    bool fsinfo_valid = false;
+    uint32_t fsinfo_free_clusters = UINT32_MAX;
+    uint32_t fsinfo_next_free = UINT32_MAX;
 };
 
 class fat_file;
@@ -45,6 +51,11 @@ public:
     bdev_t *dev() { return dev_; }
     bcache_t bcache() { return bcache_; }
     const fat_info &info() const { return info_; }
+
+    // FAT32 FSInfo helpers (no-op on FAT12/16 or invalid FSInfo)
+    status_t adjust_fsinfo_free_clusters(int32_t delta);
+    status_t set_fsinfo_next_free(uint32_t next_free);
+    status_t write_fsinfo_locked();
 
     // file list apis
     // must be called with lock held

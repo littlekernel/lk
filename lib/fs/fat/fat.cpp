@@ -314,6 +314,11 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
             }
             *last_cluster = search_cluster;
             prev_cluster = search_cluster;
+
+            // Keep FAT32 FSInfo metadata up to date for allocated clusters.
+            fat->adjust_fsinfo_free_clusters(-1);
+            fat->set_fsinfo_next_free(search_cluster + 1);
+
             count--;
             if (count == 0) {
                 // we're at the end of this chain, mark it as EOF

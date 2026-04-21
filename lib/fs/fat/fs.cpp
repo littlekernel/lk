@@ -17,6 +17,7 @@
 #include <string.h>
 #include <endian.h>
 #include <stdlib.h>
+#include <lib/bcache/bcache_block_ref.h>
 
 #include "fat_priv.h"
 #include "fat_fs.h"
@@ -24,6 +25,14 @@
 #include "dir.h"
 
 #define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
+
+namespace {
+
+constexpr uint32_t kFsInfoLeadSig = 0x41615252;
+constexpr uint32_t kFsInfoStructSig = 0x61417272;
+constexpr uint32_t kFsInfoTrailSig = 0xaa550000;
+
+} // anonymous namespace
 
 __NO_INLINE static void fat_dump(fat_fs *fat) {
     const auto info = fat->info();
@@ -67,6 +76,68 @@ fat_file *fat_fs::lookup_file(const dir_entry_location &loc) {
     }
 
     return nullptr;
+}
+
+status_t fat_fs::write_fsinfo_locked() {
+    DEBUG_ASSERT(lock.is_held());
+
+    if (info_.fat_bits != 32 || !info_.fsinfo_valid) {
+        return NO_ERROR;
+    }
+
+    bcache_block_ref bref(bcache_);
+    status_t err = bref.get_block(info_.fsinfo_sector);
+    if (err < 0) {
+        return err;
+    }
+
+    auto *buf = static_cast<uint8_t *>(bref.ptr());
+    fat_write32(buf, 0x000, kFsInfoLeadSig);
+    fat_write32(buf, 0x1e4, kFsInfoStructSig);
+    fat_write32(buf, 0x1e8, info_.fsinfo_free_clusters);
+    fat_write32(buf, 0x1ec, info_.fsinfo_next_free);
+    fat_write32(buf, 0x1fc, kFsInfoTrailSig);
+    bref.mark_dirty();
+
+    return NO_ERROR;
+}
+
+status_t fat_fs::adjust_fsinfo_free_clusters(int32_t delta) {
+    DEBUG_ASSERT(lock.is_held());
+
+    if (info_.fat_bits != 32 || !info_.fsinfo_valid ||
+        info_.fsinfo_free_clusters == UINT32_MAX) {
+        return NO_ERROR;
+    }
+
+    if (delta < 0) {
+        uint32_t dec = static_cast<uint32_t>(-delta);
+        info_.fsinfo_free_clusters = (dec > info_.fsinfo_free_clusters)
+                                         ? 0
+                                         : (info_.fsinfo_free_clusters - dec);
+    } else {
+        uint32_t inc = static_cast<uint32_t>(delta);
+        uint32_t new_count = info_.fsinfo_free_clusters + inc;
+        info_.fsinfo_free_clusters = MIN(new_count, info_.total_clusters);
+    }
+
+    return write_fsinfo_locked();
+}
+
+status_t fat_fs::set_fsinfo_next_free(uint32_t next_free) {
+    DEBUG_ASSERT(lock.is_held());
+
+    if (info_.fat_bits != 32 || !info_.fsinfo_valid) {
+        return NO_ERROR;
+    }
+
+    if (next_free < 2 || next_free >= info_.total_clusters) {
+        info_.fsinfo_next_free = UINT32_MAX;
+    } else {
+        info_.fsinfo_next_free = next_free;
+    }
+
+    return write_fsinfo_locked();
 }
 
 // static fs hooks
@@ -211,8 +282,39 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
 
         // read the active fat
         info->active_fat = (bs[0x28] & 0x80) ? 0 : (bs[0x28] & 0xf);
+        if (info->active_fat >= info->fat_count) {
+            info->active_fat = 0;
+        }
 
-        // TODO: read in fsinfo structure
+        // read FSInfo metadata if available and valid.
+        info->fsinfo_sector = fat_read16(bs, 0x30);
+        if (info->fsinfo_sector < info->reserved_sectors) {
+            uint8_t *fsi = static_cast<uint8_t *>(malloc(info->bytes_per_sector));
+            if (fsi) {
+                auto ac3 = lk::make_auto_call([&]() { free(fsi); });
+                ssize_t fsi_err = bio_read(dev, fsi,
+                                           static_cast<off_t>(info->fsinfo_sector) * info->bytes_per_sector,
+                                           info->bytes_per_sector);
+                if (fsi_err >= 0) {
+                    uint32_t lead_sig = fat_read32(fsi, 0x000);
+                    uint32_t struct_sig = fat_read32(fsi, 0x1e4);
+                    uint32_t trail_sig = fat_read32(fsi, 0x1fc);
+                    if (lead_sig == kFsInfoLeadSig && struct_sig == kFsInfoStructSig &&
+                        trail_sig == kFsInfoTrailSig) {
+                        info->fsinfo_valid = true;
+
+                        uint32_t free_clusters = fat_read32(fsi, 0x1e8);
+                        info->fsinfo_free_clusters =
+                            (free_clusters <= info->total_clusters) ? free_clusters : UINT32_MAX;
+
+                        uint32_t next_free = fat_read32(fsi, 0x1ec);
+                        info->fsinfo_next_free =
+                            (next_free >= 2 && next_free < info->total_clusters) ? next_free
+                                                                                  : UINT32_MAX;
+                    }
+                }
+            }
+        }
     } else {
         // On a FAT 12 or FAT 16 volumes the root directory is at a fixed position immediately after the File Allocation Tables
         info->root_start_sector = info->reserved_sectors + info->fat_count * info->sectors_per_fat;
@@ -252,6 +354,7 @@ status_t fat_fs::unmount(fscookie *cookie) {
         if (LK_DEBUGLEVEL > INFO) {
             bcache_dump(fat->bcache(), "FAT bcache ");
         }
+        fat->write_fsinfo_locked();
         bcache_flush(fat->bcache());
         bcache_destroy(fat->bcache());
     }
