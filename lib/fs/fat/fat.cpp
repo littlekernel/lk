@@ -376,6 +376,61 @@ status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_
     }
 }
 
+status_t fat_free_cluster_chain(fat_fs *fat, uint32_t start_cluster) {
+    DEBUG_ASSERT(fat->lock.is_held());
+
+    if (start_cluster < 2 || start_cluster >= fat->info().total_clusters) {
+        return NO_ERROR;
+    }
+
+    fat->set_fsinfo_next_free(start_cluster);
+
+    uint32_t cluster = start_cluster;
+    while (cluster >= 2 && cluster < fat->info().total_clusters) {
+        uint32_t next = fat_next_cluster_in_chain(fat, cluster);
+
+        status_t err = fat_mark_entry(fat, cluster, 0);
+        if (err != NO_ERROR) {
+            return err;
+        }
+
+        fat->adjust_fsinfo_free_clusters(1);
+
+        if (is_eof_cluster(next) || next < 2 || next >= fat->info().total_clusters) {
+            break;
+        }
+
+        cluster = next;
+    }
+
+    return NO_ERROR;
+}
+
+status_t fat_truncate_cluster_chain(fat_fs *fat, uint32_t keep_last_cluster) {
+    DEBUG_ASSERT(fat->lock.is_held());
+
+    if (keep_last_cluster < 2 || keep_last_cluster >= fat->info().total_clusters) {
+        return ERR_INVALID_ARGS;
+    }
+
+    uint32_t first_free = fat_next_cluster_in_chain(fat, keep_last_cluster);
+
+    status_t err = fat_mark_entry(fat, keep_last_cluster, EOF_CLUSTER);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    if (!is_eof_cluster(first_free) && first_free >= 2 &&
+        first_free < fat->info().total_clusters) {
+        err = fat_free_cluster_chain(fat, first_free);
+        if (err != NO_ERROR) {
+            return err;
+        }
+    }
+
+    return NO_ERROR;
+}
+
 // return the disk sector that corresponds to a cluster number, with
 // appropriate offsets applied
 uint32_t fat_sector_for_cluster(fat_fs *fat, uint32_t cluster) {

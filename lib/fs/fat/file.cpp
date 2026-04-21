@@ -365,8 +365,46 @@ status_t fat_file::truncate_file_priv(uint64_t _len) {
             }
         } else {
             // shrinking the file
-            PANIC_UNIMPLEMENTED;
-            return ERR_NOT_IMPLEMENTED;
+            uint32_t new_start_cluster = start_cluster_;
+
+            if (new_cluster_count == 0) {
+                // File shrunk to zero length: free the entire chain and clear start cluster.
+                status_t err = fat_free_cluster_chain(fs_, start_cluster_);
+                if (err != NO_ERROR) {
+                    return err;
+                }
+                new_start_cluster = 0;
+            } else {
+                if (start_cluster_ < 2 || start_cluster_ >= fs_->info().total_clusters) {
+                    return ERR_IO;
+                }
+
+                // Find the last cluster that remains part of the truncated file.
+                uint32_t keep_last = start_cluster_;
+                for (uint32_t i = 1; i < new_cluster_count; i++) {
+                    uint32_t next = fat_next_cluster_in_chain(fs_, keep_last);
+                    if (is_eof_cluster(next) || next < 2 || next >= fs_->info().total_clusters) {
+                        return ERR_IO;
+                    }
+                    keep_last = next;
+                }
+
+                uint32_t first_free = fat_next_cluster_in_chain(fs_, keep_last);
+                if (!is_eof_cluster(first_free)) {
+                    status_t err = fat_truncate_cluster_chain(fs_, keep_last);
+                    if (err != NO_ERROR) {
+                        return err;
+                    }
+                }
+            }
+
+            status_t err = fat_dir_update_entry(fs_, dir_loc_, new_start_cluster, len32);
+            if (err != NO_ERROR) {
+                return err;
+            }
+
+            start_cluster_ = new_start_cluster;
+            length_ = len32;
         }
     }
 

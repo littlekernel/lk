@@ -27,6 +27,8 @@ uint32_t fat_find_last_cluster_in_chain(fat_fs *fat, uint32_t starting_cluster);
 status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_t count,
                                     uint32_t *first_cluster, uint32_t *last_cluster,
                                     bool zero_new_blocks);
+status_t fat_free_cluster_chain(fat_fs *fat, uint32_t start_cluster);
+status_t fat_truncate_cluster_chain(fat_fs *fat, uint32_t keep_last_cluster);
 
 /* general io routines */
 uint32_t fat_sector_for_cluster(fat_fs *fat, uint32_t cluster);

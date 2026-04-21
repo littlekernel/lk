@@ -291,6 +291,12 @@ bool test_fat_resize_file() {
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4097));
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 12345));
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1002345));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 65536));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4097));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4096));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 8192));
 
         END_TEST;
     });
