@@ -19,7 +19,7 @@
 // can override here for all fat files
 #define FAT_GLOBAL_TRACE(local) (local | 0)
 
-typedef void *fsfilecookie;
+using fsfilecookie = void *;
 
 /* file allocation table parsing */
 uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster);

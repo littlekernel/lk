@@ -24,6 +24,7 @@ public:
     explicit fat_dir(fat_fs *f);
     virtual ~fat_dir();
 
+    static status_t remove(fscookie *cookie, const char *path);
     static status_t mkdir(fscookie *cookie, const char *path);
     static status_t opendir(fscookie *cookie, const char *name, dircookie **dcookie);
     static status_t readdir(dircookie *dcookie, struct dirent *ent);

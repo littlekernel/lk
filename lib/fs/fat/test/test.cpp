@@ -372,6 +372,37 @@ bool test_fat_mkdir() {
     });
 }
 
+bool test_fat_remove_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        filehandle *fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/rmfile", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/rmfile"));
+
+        fh = nullptr;
+        ASSERT_EQ(ERR_NOT_FOUND, fs_open_file(test_path "/rmfile", &fh));
+        ASSERT_EQ(ERR_NOT_FOUND, fs_remove_file(test_path "/rmfile"));
+
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/long_filename_hello.txt"));
+        ASSERT_EQ(ERR_NOT_FOUND, fs_open_file(test_path "/long_filename_hello.txt", &fh));
+
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/busyfile", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(ERR_BUSY, fs_remove_file(test_path "/busyfile"));
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/busyfile"));
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/rmdirtgt"));
+        ASSERT_EQ(ERR_NOT_FILE, fs_remove_file(test_path "/rmdirtgt"));
+
+        END_TEST;
+    });
+}
+
 BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_mount)
     RUN_TEST(test_fat_dir_root)
@@ -381,6 +412,7 @@ BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_resize_file)
     RUN_TEST(test_fat_write_file)
     RUN_TEST(test_fat_mkdir)
+    RUN_TEST(test_fat_remove_file)
 END_TEST_CASE(fat)
 
 } // namespace
