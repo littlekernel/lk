@@ -5,15 +5,20 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
 ## Current branch state
 
 - Branch: `wip/fat`
-- Current HEAD: pending commit (ClnShutBit + rmdir + trace cleanup)
+- Current HEAD: `ea876b49` - `[AGENTS.md] add note about commit message style`
 - Recent WIP commits in this series:
-  - `f70c1fe0` - `scripts: add --disk/-d switch to run-qemu-boot-tests.py; add run-fat-tests.sh wrapper`
-  - `a46be0e0` - `WIP fat: add file remove`
-  - `52a147a6` - `WIP fat: add mkdir support and tests`
-  - `b51bad28` - `WIP fat: add file write support and zero-fill extend semantics`
-  - `8069ecf8` - `WIP fat: implement truncate shrink and cluster chain free`
-  - `5d3a8dff` - `WIP fat: update FAT32 FSInfo during allocation`
-  - `6a18d3a0` - `WIP fat: implement FAT12 entry writes and mirror FAT updates`
+  - `65f32f15` - `WIP [fs][fat] intrinsic rootfs live iterator; live-iter unit test`
+  - `b500c13d` - `WIP [fs][fat] fix memory leaks in shell.c (tmppath, cmd_rm, cmd_rmdir)`
+  - `c711e581` - `WIP [fs][fat] add intrinsic rootfs to enumerate mount points via ls and opendir`
+  - `65a3321a` - `WIP [fs][fat] quiet LOCAL_TRACE; implement ClnShutBit on mount/unmount`
+  - `b4a187a4` - `WIP [fs][fat] add rmdir support and tests`
+  - `1fa87d9b` - `[scripts] add --disk/-d switch to run-qemu-boot-tests.py; add run-fat-tests.sh wrapper`
+  - `2654d18b` - `WIP [fs][fat] add file remove`
+  - `3ebc8db6` - `WIP [fs][fat] add mkdir support and tests`
+  - `87309bf7` - `WIP [fs][fat] add file write support and zero-fill extend semantics`
+  - `524a8962` - `WIP [fs][fat] implement truncate shrink and cluster chain free`
+  - `a57f3b93` - `WIP [fs][fat] update FAT32 FSInfo during allocation`
+  - `2e80c806` - `WIP [fs][fat] implement FAT12 entry writes and mirror FAT updates`
 
 ## What was completed
 
