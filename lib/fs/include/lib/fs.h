@@ -54,6 +54,7 @@ status_t fs_file_ioctl(filehandle *handle, int request, void *argp) __NONNULL((1
 status_t fs_create_file(const char *path, filehandle **handle, uint64_t len) __NONNULL();
 status_t fs_open_file(const char *path, filehandle **handle) __NONNULL();
 status_t fs_remove_file(const char *path) __NONNULL();
+status_t fs_remove_dir(const char *path) __NONNULL();
 ssize_t fs_read_file(filehandle *handle, void *buf, off_t offset, size_t len) __NONNULL();
 ssize_t fs_write_file(filehandle *handle, const void *buf, off_t offset, size_t len) __NONNULL();
 status_t fs_close_file(filehandle *handle) __NONNULL();
@@ -92,6 +93,7 @@ struct fs_api {
     status_t (*open)(fscookie *, const char *, filecookie **);
     status_t (*create)(fscookie *, const char *, filecookie **, uint64_t);
     status_t (*remove)(fscookie *, const char *);
+    status_t (*rmdir)(fscookie *, const char *);
     status_t (*truncate)(filecookie *, uint64_t);
     status_t (*stat)(filecookie *, struct file_stat *);
     ssize_t (*read)(filecookie *, void *, off_t, size_t);

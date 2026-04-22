@@ -197,6 +197,25 @@ static int cmd_rm(int argc, const console_cmd_args *argv) {
     return 0;
 }
 
+static int cmd_rmdir(int argc, const console_cmd_args *argv) {
+    if (argc < 2) {
+        printf("not enough arguments\n");
+        printf("usage: %s <path>\n", argv[0].str);
+        return -1;
+    }
+
+    char *path = malloc(FS_MAX_PATH_LEN);
+    prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
+
+    status_t err = fs_remove_dir(path);
+    if (err < 0) {
+        printf("error %d removing directory '%s'\n", err, path);
+        return err;
+    }
+
+    return 0;
+}
+
 static int cmd_stat(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
         printf("not enough arguments\n");
@@ -285,6 +304,7 @@ STATIC_COMMAND("pwd", "print working dir", &cmd_pwd)
 STATIC_COMMAND("mkdir", "make dir", &cmd_mkdir)
 STATIC_COMMAND("mkfile", "make file", &cmd_mkfile)
 STATIC_COMMAND("rm", "remove file", &cmd_rm)
+STATIC_COMMAND("rmdir", "remove directory", &cmd_rmdir)
 STATIC_COMMAND("stat", "stat file", &cmd_stat)
 STATIC_COMMAND("cat", "cat file", &cmd_cat)
 STATIC_COMMAND("df", "list mounts", &cmd_df)

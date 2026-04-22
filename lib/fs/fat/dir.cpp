@@ -349,6 +349,41 @@ static status_t fat_find_short_file_in_dir_with_offsets(fat_fs *fat, uint32_t st
     }
 }
 
+static status_t fat_dir_is_empty(fat_fs *fat, uint32_t starting_cluster) {
+    DEBUG_ASSERT(fat->lock.is_held());
+
+    if (starting_cluster < 2 || starting_cluster >= fat->info().total_clusters) {
+        return ERR_BAD_STATE;
+    }
+
+    file_block_iterator dbi(fat, starting_cluster);
+    status_t err = dbi.next_sectors(0);
+    if (err < 0) {
+        return err;
+    }
+
+    uint32_t offset = 0;
+    for (;;) {
+        char filename_buffer[MAX_FILE_NAME_LEN];
+        char *filename;
+        dir_entry entry;
+
+        err = fat_find_next_entry(fat, dbi, offset, &entry, filename_buffer, &filename);
+        if (err == ERR_NOT_FOUND) {
+            return NO_ERROR;
+        }
+        if (err < 0) {
+            return err;
+        }
+
+        if (!strcmp(filename, ".") || !strcmp(filename, "..")) {
+            continue;
+        }
+
+        return ERR_NOT_ALLOWED;
+    }
+}
+
 status_t fat_dir_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_entry_location *loc) {
     LTRACEF("path %s\n", path);
 
@@ -700,6 +735,114 @@ status_t fat_dir::remove(fscookie *cookie, const char *path) {
     }
 
     // Mark all dir entries in this file's record (LFN entries plus SFN entry) as deleted.
+    for (uint32_t offset = entry_start_offset; offset < entry_end_offset; offset += DIR_ENTRY_LENGTH) {
+        dir_entry_location loc = {
+            .starting_dir_cluster = parent_cluster,
+            .dir_offset = offset,
+        };
+        bcache_block_ref bref = open_dirent_block(fat, loc);
+        if (!bref.is_valid()) {
+            return ERR_IO;
+        }
+
+        uint8_t *ent = (uint8_t *)bref.ptr();
+        ent += loc.dir_offset % fat->info().bytes_per_sector;
+        ent[0] = 0xE5;
+        bref.mark_dirty();
+    }
+
+    bcache_flush(fat->bcache());
+
+    return NO_ERROR;
+}
+
+// static
+status_t fat_dir::rmdir(fscookie *cookie, const char *path) {
+    auto *fat = (fat_fs *)cookie;
+
+    LTRACEF("cookie %p path '%s'\n", cookie, path);
+
+    AutoLock guard(fat->lock);
+
+    char local_path[FS_MAX_FILE_LEN + 1];
+    strlcpy(local_path, path, sizeof(local_path));
+
+    const char *leading_path;
+    const char *last_element;
+    split_path(local_path, &leading_path, &last_element);
+
+    if (!last_element || last_element[0] == 0) {
+        return ERR_INVALID_ARGS;
+    }
+
+    uint32_t parent_cluster;
+    if (strcmp(leading_path, "/") == 0) {
+        parent_cluster = fat->info().root_cluster ? fat->info().root_cluster : 0;
+    } else {
+        dir_entry parent_entry;
+        status_t err = fat_dir_walk(fat, leading_path, &parent_entry, nullptr);
+        if (err < 0) {
+            return err;
+        }
+        if (parent_entry.attributes != fat_attribute::directory) {
+            return ERR_BAD_PATH;
+        }
+
+        parent_cluster = parent_entry.start_cluster;
+        if (parent_cluster < 2 || parent_cluster >= fat->info().total_clusters) {
+            return ERR_BAD_STATE;
+        }
+    }
+
+    dir_entry entry;
+    uint32_t entry_start_offset = 0;
+    uint32_t entry_end_offset = 0;
+    char short_name[8 + 3 + 1];
+    status_t err = name_to_short_file_name(short_name, last_element);
+    if (err == NO_ERROR) {
+        err = fat_find_short_file_in_dir_with_offsets(fat, parent_cluster, short_name, &entry,
+                                                      &entry_start_offset, &entry_end_offset);
+    } else {
+        err = fat_find_file_in_dir_with_offsets(fat, parent_cluster, last_element, &entry,
+                                                &entry_start_offset, &entry_end_offset);
+    }
+    if (err < 0) {
+        return err;
+    }
+
+    if (entry.attributes != fat_attribute::directory) {
+        return ERR_NOT_DIR;
+    }
+
+    if (entry.start_cluster < 2 || entry.start_cluster >= fat->info().total_clusters) {
+        return ERR_BAD_STATE;
+    }
+
+    DEBUG_ASSERT(entry_end_offset >= DIR_ENTRY_LENGTH);
+    dir_entry_location sfn_loc = {
+        .starting_dir_cluster = parent_cluster,
+        .dir_offset = entry_end_offset - DIR_ENTRY_LENGTH,
+    };
+    dir_entry_location walk_loc = {
+        .starting_dir_cluster = parent_cluster,
+        .dir_offset = entry_end_offset,
+    };
+
+    if (fat->lookup_file(sfn_loc) || fat->lookup_file(walk_loc)) {
+        return ERR_BUSY;
+    }
+
+    err = fat_dir_is_empty(fat, entry.start_cluster);
+    if (err < 0) {
+        return err;
+    }
+
+    err = fat_free_cluster_chain(fat, entry.start_cluster);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    // Mark all dir entries in this directory record (LFN entries plus SFN entry) as deleted.
     for (uint32_t offset = entry_start_offset; offset < entry_end_offset; offset += DIR_ENTRY_LENGTH) {
         dir_entry_location loc = {
             .starting_dir_cluster = parent_cluster,
