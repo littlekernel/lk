@@ -425,6 +425,105 @@ status_t fs_make_dir(const char *path) {
     return err;
 }
 
+// ---------------------------------------------------------------------------
+// Intrinsic rootfs: enumerates the first path-component of every active mount
+// so that "ls /" works without any explicit filesystem mounted at "/".
+// ---------------------------------------------------------------------------
+
+// Maximum distinct top-level directory entries the rootfs will enumerate.
+#define ROOTFS_MAX_ENTRIES 32
+
+struct rootfs_dircookie {
+    char *names[ROOTFS_MAX_ENTRIES]; // snapshot taken at opendir time
+    int   count;
+    int   index;                     // current read cursor
+};
+
+// Snapshot unique first path-components of all current mounts into |*out|.
+// Open a virtual rootfs directory at |prefix| (normalised path, e.g. "" for
+// "/" or "/mnt" for "/mnt").  Returns the direct children of that prefix
+// by scanning the mount list.  Returns ERR_NOT_FOUND when |prefix| is
+// non-empty and no mount has it as a strict path prefix.
+static status_t rootfs_opendir(const char *prefix, struct rootfs_dircookie **out) {
+    struct rootfs_dircookie *dc = calloc(1, sizeof(*dc));
+    if (!dc)
+        return ERR_NO_MEMORY;
+
+    size_t plen = strlen(prefix);
+    // The root virtual dir is always valid; non-root requires at least one match.
+    bool matched = (plen == 0);
+
+    mutex_acquire(&mount_lock);
+    struct fs_mount *m;
+    list_for_every_entry(&mounts, m, struct fs_mount, node) {
+        if (dc->count >= ROOTFS_MAX_ENTRIES)
+            break;
+
+        // Determine the suffix of m->path relative to |prefix|.
+        const char *p = m->path;
+        if (plen == 0) {
+            // root: mount path must start with '/'
+            if (p[0] != '/') continue;
+            p++;
+        } else {
+            // non-root: mount path must start with prefix + '/'
+            if (strncmp(p, prefix, plen) != 0 || p[plen] != '/') continue;
+            p += plen + 1;
+            matched = true;
+        }
+        if (p[0] == '\0') continue;
+
+        // Extract the first path component of the remaining suffix.
+        const char *slash = strchr(p, '/');
+        size_t len = slash ? (size_t)(slash - p) : strlen(p);
+        if (len == 0 || len >= FS_MAX_FILE_LEN)
+            continue;
+
+        // Deduplicate.
+        bool dup = false;
+        for (int i = 0; i < dc->count; i++) {
+            if (strlen(dc->names[i]) == len && memcmp(dc->names[i], p, len) == 0) {
+                dup = true;
+                break;
+            }
+        }
+        if (dup) continue;
+
+        dc->names[dc->count] = malloc(len + 1);
+        if (!dc->names[dc->count])
+            continue; // best-effort: skip on allocation failure
+        memcpy(dc->names[dc->count], p, len);
+        dc->names[dc->count][len] = '\0';
+        dc->count++;
+    }
+    mutex_release(&mount_lock);
+
+    if (!matched) {
+        free(dc);
+        return ERR_NOT_FOUND;
+    }
+
+    *out = dc;
+    return NO_ERROR;
+}
+
+static status_t rootfs_readdir(struct rootfs_dircookie *dc, struct dirent *ent) {
+    if (dc->index >= dc->count)
+        return ERR_NOT_FOUND;
+
+    strlcpy(ent->name, dc->names[dc->index], sizeof(ent->name));
+    dc->index++;
+    return NO_ERROR;
+}
+
+static void rootfs_closedir(struct rootfs_dircookie *dc) {
+    for (int i = 0; i < dc->count; i++)
+        free(dc->names[i]);
+    free(dc);
+}
+
+// ---------------------------------------------------------------------------
+
 status_t fs_open_dir(const char *path, dirhandle **handle) {
     char temppath[FS_MAX_PATH_LEN];
 
@@ -435,8 +534,28 @@ status_t fs_open_dir(const char *path, dirhandle **handle) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
+        // temppath[0] == '\0'  → caller asked for "/" (root virtual dir)
+        // temppath[0] == '/'   → might be a virtual prefix of some mount
+        // rootfs_opendir returns ERR_NOT_FOUND for non-root paths with no match
+        if (temppath[0] == '\0' || temppath[0] == '/') {
+            struct rootfs_dircookie *dc;
+            status_t err = rootfs_opendir(temppath, &dc);
+            if (err < 0)
+                return err;
+
+            dirhandle *d = malloc(sizeof(*d));
+            if (!d) {
+                rootfs_closedir(dc);
+                return ERR_NO_MEMORY;
+            }
+            d->cookie = (dircookie *)dc;
+            d->mount = NULL; // sentinel: rootfs handle
+            *handle = d;
+            return NO_ERROR;
+        }
         return ERR_NOT_FOUND;
+    }
 
     LTRACEF("path %s temppath %s newpath %s\n", path, temppath, newpath);
 
@@ -466,6 +585,9 @@ status_t fs_open_dir(const char *path, dirhandle **handle) {
 }
 
 status_t fs_read_dir(dirhandle *handle, struct dirent *ent) {
+    if (!handle->mount)
+        return rootfs_readdir((struct rootfs_dircookie *)handle->cookie, ent);
+
     if (!handle->mount->api->readdir)
         return ERR_NOT_SUPPORTED;
 
@@ -473,6 +595,12 @@ status_t fs_read_dir(dirhandle *handle, struct dirent *ent) {
 }
 
 status_t fs_close_dir(dirhandle *handle) {
+    if (!handle->mount) {
+        rootfs_closedir((struct rootfs_dircookie *)handle->cookie);
+        free(handle);
+        return NO_ERROR;
+    }
+
     if (!handle->mount->api->closedir)
         return ERR_NOT_SUPPORTED;
 

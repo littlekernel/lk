@@ -80,15 +80,23 @@ static int cmd_ls(int argc, const console_cmd_args *argv) {
         struct file_stat stat;
         filehandle *handle;
 
-        // append our filename to the path
+        // append our filename to the path (avoid double-slash when path is "/")
         tmppath[pathlen] = '\0';
-        strlcat(tmppath, "/", FS_MAX_PATH_LEN);
+        if (pathlen == 0 || tmppath[pathlen - 1] != '/')
+            strlcat(tmppath, "/", FS_MAX_PATH_LEN);
         strlcat(tmppath, ent.name, FS_MAX_PATH_LEN);
 
         err = fs_open_file(tmppath, &handle);
 
         if (err < 0) {
-            printf("error %d opening file '%s'\n", err, tmppath);
+            // could be a mount-point directory rather than a file; try as dir
+            dirhandle *dh;
+            if (fs_open_dir(tmppath, &dh) == NO_ERROR) {
+                fs_close_dir(dh);
+                printf("%c %-16llu %s\n", 'D', (uint64_t)0, ent.name);
+            } else {
+                printf("error %d opening file '%s'\n", err, tmppath);
+            }
             continue;
         }
 

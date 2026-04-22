@@ -142,7 +142,41 @@ static bool test_stdio_fs(void) {
     END_TEST;
 }
 
+static void test_rootfs_teardown(void *ptr) {
+    fs_unmount("/tmp");
+    fs_unmount("/data");
+}
+
+static bool test_rootfs(void) {
+    __attribute__((cleanup(test_rootfs_teardown))) BEGIN_TEST;
+
+    // root listing must work even before we add any filesystems
+    dirhandle *dh;
+    ASSERT_EQ(NO_ERROR, fs_open_dir("/", &dh), "open root with no mounts");
+    struct dirent ent;
+    // drain any pre-existing entries (other tests may have left mounts)
+    while (fs_read_dir(dh, &ent) == NO_ERROR) {}
+    fs_close_dir(dh);
+
+    // mount two filesystems; both must appear as directories in root listing
+    ASSERT_EQ(NO_ERROR, fs_mount("/tmp",  "memfs", NULL), "mount /tmp");
+    ASSERT_EQ(NO_ERROR, fs_mount("/data", "memfs", NULL), "mount /data");
+
+    ASSERT_EQ(NO_ERROR, fs_open_dir("/", &dh), "open root dir with mounts");
+    bool found_tmp = false, found_data = false;
+    while (fs_read_dir(dh, &ent) == NO_ERROR) {
+        if (strcmp(ent.name, "tmp")  == 0) found_tmp  = true;
+        if (strcmp(ent.name, "data") == 0) found_data = true;
+    }
+    fs_close_dir(dh);
+    EXPECT_TRUE(found_tmp,  "tmp in root listing");
+    EXPECT_TRUE(found_data, "data in root listing");
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(fs_tests);
 RUN_TEST(test_path_normalize);
 RUN_TEST(test_stdio_fs);
+RUN_TEST(test_rootfs);
 END_TEST_CASE(fs_tests);
