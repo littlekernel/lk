@@ -112,10 +112,11 @@ static int cmd_ls(int argc, const console_cmd_args *argv) {
     }
 
     fs_close_dir(dhandle);
+    free(tmppath);
 
 err:
     free(path);
-    return status;;
+    return status;
 }
 
 static int cmd_cd(int argc, const console_cmd_args *argv) {
@@ -197,12 +198,11 @@ static int cmd_rm(int argc, const console_cmd_args *argv) {
     prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
 
     status_t err = fs_remove_file(path);
-    if (err < 0) {
+    if (err < 0)
         printf("error %d removing file '%s'\n", err, path);
-        return err;
-    }
 
-    return 0;
+    free(path);
+    return err;
 }
 
 static int cmd_rmdir(int argc, const console_cmd_args *argv) {
@@ -216,12 +216,11 @@ static int cmd_rmdir(int argc, const console_cmd_args *argv) {
     prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
 
     status_t err = fs_remove_dir(path);
-    if (err < 0) {
+    if (err < 0)
         printf("error %d removing directory '%s'\n", err, path);
-        return err;
-    }
 
-    return 0;
+    free(path);
+    return err;
 }
 
 static int cmd_stat(int argc, const console_cmd_args *argv) {
