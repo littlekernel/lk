@@ -124,6 +124,24 @@ The do-qemu* scripts auto-build before launching QEMU.
 
 ## Code Conventions
 
+### Commit Message Style
+Commit messages follow Linux kernel style using square-bracket prefixes to identify the affected subsystem(s):
+
+```
+[module][submodule] short description
+
+Optional longer body.
+```
+
+Examples from the repository:
+- `[lib][fdtwalk] fix unaligned FDT memory reservation`
+- `[arch][test] make arch/test follow the unit test pattern`
+- `[bio][disktest] extend the test to use multiple blocks`
+- `[platform][zynq] Check for CFI buffer allocation failure`
+
+For in-progress (WIP) work on a branch that is intended to be collapsed or merged eventually, a `WIP` prefix is acceptable:
+- `WIP [fs][fat]: add mkdir support and tests`
+
 ### Style (enforced by `.clang-format`)
 - **4 space indentation**, no tabs, no trailing whitespace
 - **Pointer alignment right**: `void *ptr` not `void* ptr`
