@@ -22,7 +22,7 @@
 
 #include "file_iterator.h"
 
-#define LOCAL_TRACE FAT_GLOBAL_TRACE(1)
+#define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
 fat_file::fat_file(fat_fs *f) : fs_(f) {}
 fat_file::~fat_file() = default;

@@ -32,6 +32,11 @@ constexpr uint32_t kFsInfoLeadSig = 0x41615252;
 constexpr uint32_t kFsInfoStructSig = 0x61417272;
 constexpr uint32_t kFsInfoTrailSig = 0xaa550000;
 
+// FAT entry 1 dirty/clean bits (FAT16 bit 15, FAT32 bit 27).
+// When set the volume was cleanly unmounted; cleared on mount to mark it dirty.
+constexpr uint16_t kFat16ClnShutBit = 0x8000u;
+constexpr uint32_t kFat32ClnShutBit = 0x08000000u;
+
 } // anonymous namespace
 
 __NO_INLINE static void fat_dump(fat_fs *fat) {
@@ -138,6 +143,63 @@ status_t fat_fs::set_fsinfo_next_free(uint32_t next_free) {
     }
 
     return write_fsinfo_locked();
+}
+
+// Update FAT entry 1 across all FAT copies: clear ClnShutBit (mark dirty) or set it (mark clean).
+// FAT12 has no such bit, so this is a no-op for FAT12.
+status_t fat_fs::mark_volume_dirty_locked() {
+    return set_volume_clean_bit_locked(false);
+}
+
+status_t fat_fs::mark_volume_clean_locked() {
+    return set_volume_clean_bit_locked(true);
+}
+
+status_t fat_fs::set_volume_clean_bit_locked(bool clean) {
+    DEBUG_ASSERT(lock.is_held());
+
+    if (info_.fat_bits != 16 && info_.fat_bits != 32) {
+        return NO_ERROR;
+    }
+
+    // FAT entry 1 is always in the first FAT sector of each copy.
+    // offset in bytes: FAT16 → 1*2 = 2, FAT32 → 1*4 = 4.
+    const uint32_t fat1_byte_offset = (info_.fat_bits == 32) ? 4u : 2u;
+
+    for (uint32_t fat_index = 0; fat_index < info_.fat_count; fat_index++) {
+        const uint32_t fat_base_sector = info_.reserved_sectors + fat_index * info_.sectors_per_fat;
+
+        bcache_block_ref bref(bcache_);
+        status_t err = bref.get_block(fat_base_sector);
+        if (err < 0) {
+            return err;
+        }
+
+        if (info_.fat_bits == 32) {
+            auto *table = static_cast<uint32_t *>(bref.ptr());
+            const uint32_t index = fat1_byte_offset / 4;
+            uint32_t entry = LE32(table[index]);
+            if (clean) {
+                entry |= kFat32ClnShutBit;
+            } else {
+                entry &= ~kFat32ClnShutBit;
+            }
+            table[index] = LE32(entry);
+        } else { // FAT16
+            auto *table = static_cast<uint16_t *>(bref.ptr());
+            const uint32_t index = fat1_byte_offset / 2;
+            uint16_t entry = LE16(table[index]);
+            if (clean) {
+                entry |= kFat16ClnShutBit;
+            } else {
+                entry &= ~kFat16ClnShutBit;
+            }
+            table[index] = LE16(entry);
+        }
+        bref.mark_dirty();
+    }
+
+    return NO_ERROR;
 }
 
 // static fs hooks
@@ -336,6 +398,14 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
     fat_dump(fat);
 #endif
 
+    // Mark the volume as dirty (in-use). Flush so the bit reaches disk promptly
+    // and fsck will see it as unclean if we crash before unmounting.
+    {
+        AutoLock guard(fat->lock);
+        fat->mark_volume_dirty_locked();
+    }
+    bcache_flush(fat->bcache_);
+
     *cookie = (fscookie *)fat;
 
     return result;
@@ -354,6 +424,7 @@ status_t fat_fs::unmount(fscookie *cookie) {
         if (LK_DEBUGLEVEL > INFO) {
             bcache_dump(fat->bcache(), "FAT bcache ");
         }
+        fat->mark_volume_clean_locked();
         fat->write_fsinfo_locked();
         bcache_flush(fat->bcache());
         bcache_destroy(fat->bcache());
@@ -373,6 +444,7 @@ static const struct fs_api fat_api = {
     .open = fat_file::open_file,
     .create = fat_file::create_file,
     .remove = fat_dir::remove,
+    .rmdir = fat_dir::rmdir,
     .truncate = fat_file::truncate_file,
     .stat = fat_file::stat_file,
     .read = fat_file::read_file,

@@ -17,7 +17,7 @@
 #include "fat_fs.h"
 #include "fat_priv.h"
 
-#define LOCAL_TRACE FAT_GLOBAL_TRACE(1)
+#define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
 // given a cluster number and fat table index, compute the sector and the offset within
 // the sector where the fat entry exists.

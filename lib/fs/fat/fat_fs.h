@@ -57,6 +57,10 @@ public:
     status_t set_fsinfo_next_free(uint32_t next_free);
     status_t write_fsinfo_locked();
 
+    // FAT16/32 volume dirty/clean bit in FAT entry 1 (no-op on FAT12)
+    status_t mark_volume_dirty_locked();
+    status_t mark_volume_clean_locked();
+
     // file list apis
     // must be called with lock held
     void add_to_file_list(fat_file *file);
@@ -77,6 +81,9 @@ private:
 
     // data computed from BPB
     fat_info info_ {};
+
+    // shared implementation for mark_volume_dirty/clean_locked
+    status_t set_volume_clean_bit_locked(bool clean);
 };
 
 enum class fat_attribute : uint8_t {

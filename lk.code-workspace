@@ -33,6 +33,10 @@
         },
         "markdownlint.config": {
             "MD024": { "siblings_only": true },
+        },
+        "chat.tools.terminal.autoApprove": {
+            "make": true,
+            "./scripts/run-qemu-boot-tests.py": true
         }
     },
     "extensions": {
