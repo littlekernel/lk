@@ -286,6 +286,27 @@ EfiStatus get_boot_buffer(struct GblEfiBootMemoryProtocol* self,
       return EFI_STATUS_OUT_OF_RESOURCES;
     }
     return EFI_STATUS_SUCCESS;
+  } else if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_KERNEL) {
+    *size = 64ul * 1024 * 1024;
+    *addr = alloc_page(*size, 21);
+    if (*addr == nullptr) {
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
+    return EFI_STATUS_SUCCESS;
+  } else if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_RAMDISK) {
+    *size = 64ul * 1024 * 1024;
+    *addr = alloc_page(*size, PAGE_SIZE_SHIFT);
+    if (*addr == nullptr) {
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
+    return EFI_STATUS_SUCCESS;
+  } else if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_FDT) {
+    *size = 2ul * 1024 * 1024;
+    *addr = alloc_page(*size, PAGE_SIZE_SHIFT);
+    if (*addr == nullptr) {
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
+    return EFI_STATUS_SUCCESS;
   } else if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_PVMFW_DATA) {
     *size = 1024ul * 1024;
     *addr = alloc_page(*size, PAGE_SIZE_SHIFT);
