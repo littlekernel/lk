@@ -78,7 +78,7 @@ status_t file_block_iterator::load_current_bcache_block() {
         // we're in a linear root dir, the sector_offset variable represents the raw sector number
         return load_bcache_block(sector_offset);
     } else { // cluster != 0
-        DEBUG_ASSERT(sector_offset < fat->info().bytes_per_sector);
+        DEBUG_ASSERT(sector_offset < fat->info().sectors_per_cluster);
 
         // compute the sector we should be on given the cluster and sector_offset
         auto sector = fat_sector_for_cluster(fat, cluster) + sector_offset;

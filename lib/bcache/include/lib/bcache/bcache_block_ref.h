@@ -93,5 +93,5 @@ public:
 private:
     bcache_t cache_ {};
     void *ptr_ {};
-    uint block_num_;
+    uint block_num_ {};
 };

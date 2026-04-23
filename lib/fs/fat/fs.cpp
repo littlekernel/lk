@@ -123,7 +123,9 @@ status_t fat_fs::adjust_fsinfo_free_clusters(int32_t delta) {
     } else {
         uint32_t inc = static_cast<uint32_t>(delta);
         uint32_t new_count = info_.fsinfo_free_clusters + inc;
-        info_.fsinfo_free_clusters = MIN(new_count, info_.total_clusters);
+        // info_.total_clusters is the upper bound of valid clusters (inclusive of 2 clusters for overhead).
+        // The count of data clusters is total_clusters - 2.
+        info_.fsinfo_free_clusters = MIN(new_count, info_.total_clusters - 2);
     }
 
     return write_fsinfo_locked();
@@ -311,7 +313,9 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
     auto data_sectors = info->total_sectors - info->data_start_sector;
     LTRACEF("data sectors %u\n", data_sectors);
 
-    info->total_clusters = data_sectors / info->sectors_per_cluster;
+    // info->total_clusters is calculated as the upper bound for cluster numbers (exclusive).
+    // Valid data clusters start at 2, so the last valid cluster is (count + 2) - 1.
+    info->total_clusters = (data_sectors / info->sectors_per_cluster) + 2;
     LTRACEF("total clusters %u\n", info->total_clusters);
 
     // table according to FAT spec
@@ -367,7 +371,7 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
 
                         uint32_t free_clusters = fat_read32(fsi, 0x1e8);
                         info->fsinfo_free_clusters =
-                            (free_clusters <= info->total_clusters) ? free_clusters : UINT32_MAX;
+                            (free_clusters <= info->total_clusters - 2) ? free_clusters : UINT32_MAX;
 
                         uint32_t next_free = fat_read32(fsi, 0x1ec);
                         info->fsinfo_next_free =

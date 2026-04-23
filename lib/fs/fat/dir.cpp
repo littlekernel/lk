@@ -961,18 +961,7 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
                 if (LOCAL_TRACE > 1) hexdump8_ex(ent, DIR_ENTRY_LENGTH, 0);
 
                 // fill in an entry here
-                memcpy(&ent[0], sfn, 11); // name
-                ent[11] = (uint8_t)attr; // attribute
-                ent[12] = 0; // reserved
-                ent[13] = 0; // creation time tenth of second
-                fat_write16(ent, 14, 0); // creation time seconds / 2
-                fat_write16(ent, 16, 0); // creation date
-                fat_write16(ent, 18, 0); // last accessed date
-                fat_write16(ent, 20, starting_cluster >> 16); // fat cluster high
-                fat_write16(ent, 22, 0); // modification time
-                fat_write16(ent, 24, 0); // modification date
-                fat_write16(ent, 26, starting_cluster); // fat cluster low
-                fat_write32(ent, 28, size); // file size
+                fill_short_dirent(ent, sfn, attr, starting_cluster, size);
 
                 LTRACEF_LEVEL(2, "filled in entry\n");
                 if (LOCAL_TRACE > 1) hexdump8_ex(ent, DIR_ENTRY_LENGTH, 0);
@@ -999,15 +988,51 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
         // move to the next sector
         err = dbi.next_sector();
         if (err < 0) {
+            if (err == ERR_OUT_OF_RANGE) {
+                // We've reached the end of the current cluster chain. 
+                // Break out of the loop and proceed to allocate a new cluster.
+                break;
+            }
             return err;
         }
         // starting over at offset 0 in the new sector
         sector_offset = 0;
     }
 
-    // TODO: we probably ran out of space, add another cluster to the dir and start over
+    // We ran out of space in the current cluster chain.
+    if (starting_dir_cluster == 0) {
+        // Root directory on FAT12/16 is fixed size and cannot grow.
+        return ERR_NO_MEMORY;
+    }
 
-    return ERR_NOT_IMPLEMENTED;
+    // Grow the directory by one cluster.
+    uint32_t last_cluster = fat_find_last_cluster_in_chain(fat, starting_dir_cluster);
+    uint32_t new_cluster;
+    uint32_t last_allocated;
+    err = fat_allocate_cluster_chain(fat, last_cluster, 1, &new_cluster, &last_allocated, true);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    // The new cluster is zeroed, so the first entry is free.
+    // Use it to fill in the new directory entry.
+    bcache_block_ref bref(fat->bcache());
+    err = bref.get_block(fat_sector_for_cluster(fat, new_cluster));
+    if (err < 0) {
+        return err;
+    }
+
+    fill_short_dirent((uint8_t *)bref.ptr(), sfn, attr, starting_cluster, size);
+
+    bref.mark_dirty();
+    bcache_flush(fat->bcache());
+
+    if (loc) {
+        loc->starting_dir_cluster = starting_dir_cluster;
+        loc->dir_offset = dir_offset;
+    }
+
+    return NO_ERROR;
 }
 
 // given a dir entry location, open the corresponding sector and pass back a open pointer
@@ -1017,18 +1042,30 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
 static bcache_block_ref open_dirent_block(fat_fs *fat, const dir_entry_location &loc) {
     LTRACEF("fat %p, loc %u:%u\n", fat, loc.starting_dir_cluster, loc.dir_offset);
 
-    // find the dir entry and open the block
+    uint32_t cluster = loc.starting_dir_cluster;
+    uint32_t offset = loc.dir_offset;
     uint32_t sector;
-    if (loc.starting_dir_cluster == 0) {
+
+    if (cluster == 0) {
         DEBUG_ASSERT(fat->info().fat_bits == 12 || fat->info().fat_bits == 16);
-        // special case on fat12/16 to represent the root dir.
-        // load 0 into cluster and use sector_offset as relative to the
-        // start of the volume.
-        sector = fat->info().root_start_sector;
+        // Special case on FAT12/16 to represent the root dir.
+        DEBUG_ASSERT(offset < fat->info().root_entries * DIR_ENTRY_LENGTH);
+        sector = fat->info().root_start_sector + offset / fat->info().bytes_per_sector;
     } else {
-        sector = fat_sector_for_cluster(fat, loc.starting_dir_cluster);
+        // Walk the cluster chain if the offset exceeds the current cluster.
+        const uint32_t bytes_per_cluster = fat->info().bytes_per_sector * fat->info().sectors_per_cluster;
+        while (offset >= bytes_per_cluster) {
+            if (is_eof_cluster(cluster)) {
+                return bcache_block_ref(fat->bcache());
+            }
+            cluster = fat_next_cluster_in_chain(fat, cluster);
+            if (is_eof_cluster(cluster)) {
+                return bcache_block_ref(fat->bcache());
+            }
+            offset -= bytes_per_cluster;
+        }
+        sector = fat_sector_for_cluster(fat, cluster) + offset / fat->info().bytes_per_sector;
     }
-    sector += loc.dir_offset / fat->info().bytes_per_sector;
 
     bcache_block_ref bref(fat->bcache());
     bref.get_block(sector);

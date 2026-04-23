@@ -57,6 +57,10 @@ static void compute_fat_entry_address(fat_fs *fat, const uint32_t cluster,
 uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
     DEBUG_ASSERT(fat->lock.is_held());
 
+    if (is_eof_cluster(cluster)) {
+        return cluster;
+    }
+
     // compute the starting address
     uint32_t sector;
     uint32_t fat_offset_in_sector;
@@ -86,7 +90,7 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
         LE16SWAP(next_cluster);
 
         // if it's a EOF 16 bit entry, extend it so that it looks to be 32bit
-        if (next_cluster > 0xfff0) {
+        if (next_cluster >= 0xfff8) {
             next_cluster |= 0x0fff0000;
         }
     } else { // fat12
@@ -121,7 +125,7 @@ uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster) {
         }
 
         // if it's a EOF 12 bit entry, extend it so that it looks to be 32bit
-        if (next_cluster > 0xff0) {
+        if (next_cluster >= 0xff8) {
             next_cluster |= 0x0ffff000;
         }
     }
@@ -141,7 +145,7 @@ uint32_t fat_find_last_cluster_in_chain(fat_fs *fat, uint32_t starting_cluster) 
     uint32_t last_cluster = starting_cluster;
     for (;;) {
         uint32_t next = fat_next_cluster_in_chain(fat, last_cluster);
-        if (next == EOF_CLUSTER) {
+        if (is_eof_cluster(next)) {
             return last_cluster;
         }
         last_cluster = next;

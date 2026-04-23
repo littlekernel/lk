@@ -440,6 +440,61 @@ bool test_fat_remove_dir() {
     });
 }
 
+bool test_fat_dir_growth() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        const char *dirname = test_path "/growdir";
+        ASSERT_EQ(NO_ERROR, fs_make_dir(dirname));
+
+        // Create enough files to force directory growth beyond one cluster.
+        // Assuming 4KB clusters and 32-byte entries, one cluster holds 128 entries.
+        // Creating 1000 files should force growth.
+        for (int i = 0; i < 1000; i++) {
+            char filename[256];
+            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            filehandle *fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_create_file(filename, &fh, 0));
+            ASSERT_NONNULL(fh);
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        }
+
+        // Verify all 1000 files exist.
+        for (int i = 0; i < 1000; i++) {
+            char filename[256];
+            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            filehandle *fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(filename, &fh));
+            ASSERT_NONNULL(fh);
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        }
+
+        // List the directory and count the entries (should be 1002: 1000 files + . + ..).
+        dirhandle *dh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_dir(dirname, &dh));
+        ASSERT_NONNULL(dh);
+        int count = 0;
+        dirent ent;
+        while (fs_read_dir(dh, &ent) == NO_ERROR) {
+            count++;
+        }
+        ASSERT_EQ(NO_ERROR, fs_close_dir(dh));
+        EXPECT_EQ(1002, count);
+
+        // Remove all files.
+        for (int i = 0; i < 1000; i++) {
+            char filename[256];
+            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            ASSERT_EQ(NO_ERROR, fs_remove_file(filename));
+        }
+
+        // Finally remove the directory.
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(dirname));
+
+        END_TEST;
+    });
+}
+
 BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_mount)
     RUN_TEST(test_fat_dir_root)
@@ -451,6 +506,7 @@ BEGIN_TEST_CASE(fat)
     RUN_TEST(test_fat_mkdir)
     RUN_TEST(test_fat_remove_file)
     RUN_TEST(test_fat_remove_dir)
+    RUN_TEST(test_fat_dir_growth)
 END_TEST_CASE(fat)
 
 } // namespace
