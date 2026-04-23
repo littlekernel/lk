@@ -48,12 +48,12 @@ bool is_test_device_present() {
     return present;
 }
 
-#define SKIP_TEST_IF_NO_DEVICE() \
-    do { \
-        if (!is_test_device_present()) { \
+#define SKIP_TEST_IF_NO_DEVICE()                                                          \
+    do {                                                                                  \
+        if (!is_test_device_present()) {                                                  \
             unittest_printf(" no device '%s' present, skipping test ", test_device_name); \
-            return true; \
-        } \
+            return true;                                                                  \
+        }                                                                                 \
     } while (0)
 
 // helper routine that mounts the above in the /fat path and then cleans up on
@@ -281,10 +281,10 @@ bool test_fat_resize_file() {
         auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle); });
 
         // resize the file
-        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0)); // same size
-        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 2UL*1024*1024*1024)); // too big for FAT
-        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 8UL*1024*1024*1024)); // >32bit too big for FAT
-        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, -1)); // negative should produce way out of range
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));                           // same size
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 2UL * 1024 * 1024 * 1024)); // too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 8UL * 1024 * 1024 * 1024)); // >32bit too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, -1));                       // negative should produce way out of range
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1));
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4095)); // assumes cluster size 4k
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4096));
@@ -311,14 +311,14 @@ bool test_fat_write_file() {
         ASSERT_NONNULL(handle);
         auto closefile_cleanup = lk::make_auto_call([&]() { fs_close_file(handle); });
 
-        const uint8_t head[] = { 'a', 'b', 'c', 'd', 'e' };
+        const uint8_t head[] = {'a', 'b', 'c', 'd', 'e'};
         ASSERT_EQ((ssize_t)sizeof(head), fs_write_file(handle, head, 0, sizeof(head)));
 
         uint8_t readback[sizeof(head)] = {};
         ASSERT_EQ((ssize_t)sizeof(readback), fs_read_file(handle, readback, 0, sizeof(readback)));
         EXPECT_EQ(0, memcmp(head, readback, sizeof(head)));
 
-        const uint8_t tail[] = { 'L', 'K' };
+        const uint8_t tail[] = {'L', 'K'};
         ASSERT_EQ((ssize_t)sizeof(tail), fs_write_file(handle, tail, 8192, sizeof(tail)));
 
         struct file_stat st = {};
@@ -496,18 +496,17 @@ bool test_fat_dir_growth() {
 }
 
 BEGIN_TEST_CASE(fat)
-    RUN_TEST(test_fat_mount)
-    RUN_TEST(test_fat_dir_root)
-    RUN_TEST(test_fat_read_file)
-    RUN_TEST(test_fat_multi_open)
-    RUN_TEST(test_fat_create_file)
-    RUN_TEST(test_fat_resize_file)
-    RUN_TEST(test_fat_write_file)
-    RUN_TEST(test_fat_mkdir)
-    RUN_TEST(test_fat_remove_file)
-    RUN_TEST(test_fat_remove_dir)
-    RUN_TEST(test_fat_dir_growth)
+RUN_TEST(test_fat_mount)
+RUN_TEST(test_fat_dir_root)
+RUN_TEST(test_fat_read_file)
+RUN_TEST(test_fat_multi_open)
+RUN_TEST(test_fat_create_file)
+RUN_TEST(test_fat_resize_file)
+RUN_TEST(test_fat_write_file)
+RUN_TEST(test_fat_mkdir)
+RUN_TEST(test_fat_remove_file)
+RUN_TEST(test_fat_remove_dir)
+RUN_TEST(test_fat_dir_growth)
 END_TEST_CASE(fat)
 
 } // namespace
-

@@ -8,10 +8,10 @@
  */
 #pragma once
 
-#include <lib/bio.h>
-#include <lib/bcache.h>
-#include <lib/fs.h>
 #include <kernel/mutex.h>
+#include <lib/bcache.h>
+#include <lib/bio.h>
+#include <lib/fs.h>
 
 // computed constants about a particular mount
 struct fat_info {
@@ -43,7 +43,7 @@ struct dir_entry_location;
 
 // main fs object representing a mount
 class fat_fs {
-public:
+  public:
     // mount hook, creates a new fs instance and passes it back in fscookie
     static status_t mount(bdev_t *dev, fscookie **cookie);
     static status_t unmount(fscookie *cookie);
@@ -69,7 +69,7 @@ public:
     // for now keep the lock public
     Mutex lock;
 
-private:
+  private:
     fat_fs();
     ~fat_fs();
 
@@ -80,7 +80,7 @@ private:
     list_node file_list_ = LIST_INITIAL_VALUE(file_list_);
 
     // data computed from BPB
-    fat_info info_ {};
+    fat_info info_{};
 
     // shared implementation for mark_volume_dirty/clean_locked
     status_t set_volume_clean_bit_locked(bool clean);
@@ -101,9 +101,9 @@ inline uint32_t fat_read32(const void *_buffer, size_t offset) {
     auto *buffer = (const uint8_t *)_buffer;
 
     return buffer[offset] +
-          (buffer[offset + 1] << 8) +
-          (buffer[offset + 2] << 16) +
-          (buffer[offset + 3] << 24);
+           (buffer[offset + 1] << 8) +
+           (buffer[offset + 2] << 16) +
+           (buffer[offset + 3] << 24);
 }
 
 inline void fat_write32(void *_buffer, size_t offset, uint32_t val) {
@@ -119,7 +119,7 @@ inline uint16_t fat_read16(const void *_buffer, size_t offset) {
     auto *buffer = (const uint8_t *)_buffer;
 
     return buffer[offset] +
-          (buffer[offset + 1] << 8);
+           (buffer[offset + 1] << 8);
 }
 
 inline void fat_write16(void *_buffer, size_t offset, uint16_t val) {
@@ -140,4 +140,3 @@ inline bool is_eof_cluster(uint32_t cluster) {
 
 const int DIR_ENTRY_LENGTH = 32;
 const size_t MAX_FILE_NAME_LEN = 256;
-

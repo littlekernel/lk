@@ -8,16 +8,16 @@
  */
 #include "dir.h"
 
+#include <ctype.h>
+#include <endian.h>
+#include <lib/bcache/bcache_block_ref.h>
 #include <lk/cpp.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <ctype.h>
-#include <endian.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <lib/bcache/bcache_block_ref.h>
 
 #include "fat_fs.h"
 #include "fat_priv.h"
@@ -25,7 +25,8 @@
 
 #define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
-fat_dir::fat_dir(fat_fs *f) : fat_file(f) {}
+fat_dir::fat_dir(fat_fs *f)
+    : fat_file(f) {}
 
 fat_dir::~fat_dir() = default;
 
@@ -46,14 +47,14 @@ struct fat_dir_cookie {
 // filles out the entry and returns a pointer into the passed in buffer in out_filename.
 // NOTE: *must* pass at least a MAX_FILE_NAME_LEN byte char pointer in the filename_buffer slot.
 static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint32_t &offset, dir_entry *entry,
-        char filename_buffer[MAX_FILE_NAME_LEN], char **out_filename) {
+                                    char filename_buffer[MAX_FILE_NAME_LEN], char **out_filename) {
 
     DEBUG_ASSERT(entry && filename_buffer && out_filename);
     DEBUG_ASSERT(offset <= fat->info().bytes_per_sector); // passing offset == bytes_per_sector is okay
 
     // lfn parsing state
     struct lfn_parse_state {
-        size_t  pos = 0;
+        size_t pos = 0;
         uint8_t last_sequence = 0xff; // 0xff means we haven't seen anything
                                       // since last reset
         uint8_t checksum = 0;
@@ -118,7 +119,7 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
 
                 // walk backwards through the entry, picking out unicode characters
                 // table of unicode character offsets:
-                const size_t table[] = { 30, 28, 24, 22, 20, 18, 16, 14, 9, 7, 5, 3, 1 };
+                const size_t table[] = {30, 28, 24, 22, 20, 18, 16, 14, 9, 7, 5, 3, 1};
                 for (auto off : table) {
                     uint16_t c = fat_read16(ent, off);
                     if (c != 0xffff && c != 0x0) {
@@ -159,7 +160,7 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
                 }
                 if (ext_len > 0) {
                     short_filename[fname_pos++] = '.';
-                    for (int i=0; i < ext_len; i++) {
+                    for (int i = 0; i < ext_len; i++) {
                         short_filename[fname_pos++] = ent[8 + i];
                     }
                 }
@@ -429,7 +430,7 @@ status_t fat_dir_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_e
     }
 
     // output entry
-    dir_entry entry {};
+    dir_entry entry{};
 
     // walk the directory structure
     for (;;) {
@@ -554,18 +555,18 @@ static status_t name_to_short_file_name(char sfn[8 + 3 + 1], const char *name) {
 
 static void fill_short_dirent(uint8_t *ent, const char short_name[11], fat_attribute attr,
                               uint32_t starting_cluster, uint32_t size) {
-    memcpy(&ent[0], short_name, 11); // name
-    ent[11] = (uint8_t)attr; // attribute
-    ent[12] = 0; // reserved
-    ent[13] = 0; // creation time tenth of second
-    fat_write16(ent, 14, 0); // creation time seconds / 2
-    fat_write16(ent, 16, 0); // creation date
-    fat_write16(ent, 18, 0); // last accessed date
+    memcpy(&ent[0], short_name, 11);              // name
+    ent[11] = (uint8_t)attr;                      // attribute
+    ent[12] = 0;                                  // reserved
+    ent[13] = 0;                                  // creation time tenth of second
+    fat_write16(ent, 14, 0);                      // creation time seconds / 2
+    fat_write16(ent, 16, 0);                      // creation date
+    fat_write16(ent, 18, 0);                      // last accessed date
     fat_write16(ent, 20, starting_cluster >> 16); // fat cluster high
-    fat_write16(ent, 22, 0); // modification time
-    fat_write16(ent, 24, 0); // modification date
-    fat_write16(ent, 26, starting_cluster); // fat cluster low
-    fat_write32(ent, 28, size); // file size
+    fat_write16(ent, 22, 0);                      // modification time
+    fat_write16(ent, 24, 0);                      // modification date
+    fat_write16(ent, 26, starting_cluster);       // fat cluster low
+    fat_write32(ent, 28, size);                   // file size
 }
 
 static bcache_block_ref open_dirent_block(fat_fs *fat, const dir_entry_location &loc);
@@ -962,13 +963,17 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
             if (ent[0] == 0xe5 || ent[0] == 0) {
                 // deleted or last entry in the list
                 LTRACEF("found usable at offset %#x\n", sector_offset);
-                if (LOCAL_TRACE > 1) hexdump8_ex(ent, DIR_ENTRY_LENGTH, 0);
+                if (LOCAL_TRACE > 1) {
+                    hexdump8_ex(ent, DIR_ENTRY_LENGTH, 0);
+                }
 
                 // fill in an entry here
                 fill_short_dirent(ent, sfn, attr, starting_cluster, size);
 
                 LTRACEF_LEVEL(2, "filled in entry\n");
-                if (LOCAL_TRACE > 1) hexdump8_ex(ent, DIR_ENTRY_LENGTH, 0);
+                if (LOCAL_TRACE > 1) {
+                    hexdump8_ex(ent, DIR_ENTRY_LENGTH, 0);
+                }
 
                 // flush the data and exit
                 dbi.mark_bcache_dirty();
@@ -993,7 +998,7 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
         err = dbi.next_sector();
         if (err < 0) {
             if (err == ERR_OUT_OF_RANGE) {
-                // We've reached the end of the current cluster chain. 
+                // We've reached the end of the current cluster chain.
                 // Break out of the loop and proceed to allocate a new cluster.
                 break;
             }
@@ -1096,9 +1101,9 @@ status_t fat_dir_update_entry(fat_fs *fat, const dir_entry_location &loc, uint32
     uint8_t *ent = (uint8_t *)bref.ptr();
     ent += loc.dir_offset % fat->info().bytes_per_sector;
 
-    fat_write32(ent, 28, size); // file size
+    fat_write32(ent, 28, size);                   // file size
     fat_write16(ent, 20, starting_cluster >> 16); // fat cluster high
-    fat_write16(ent, 26, starting_cluster); // fat cluster low
+    fat_write16(ent, 26, starting_cluster);       // fat cluster low
 
     bref.mark_dirty();
 
@@ -1194,8 +1199,9 @@ status_t fat_dir::opendir(fscookie *cookie, const char *name, dircookie **dcooki
 status_t fat_dir::readdir_priv(fat_dir_cookie *cookie, struct dirent *ent) {
     LTRACEF("dircookie %p ent %p, current index %u\n", cookie, ent, cookie->index);
 
-    if (!ent)
+    if (!ent) {
         return ERR_INVALID_ARGS;
+    }
 
     // make sure the cookie makes sense
     DEBUG_ASSERT((cookie->index % DIR_ENTRY_LENGTH) == 0);
@@ -1287,4 +1293,3 @@ status_t fat_dir::closedir(dircookie *dcookie) {
 
     return NO_ERROR;
 }
-

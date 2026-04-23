@@ -18,7 +18,9 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
   - `87309bf7` - `WIP [fs][fat] add file write support and zero-fill extend semantics`
   - `524a8962` - `WIP [fs][fat] implement truncate shrink and cluster chain free`
   - `a57f3b93` - `WIP [fs][fat] update FAT32 FSInfo during allocation`
-  - `2e80c806` - `WIP [fs][fat] implement FAT12 entry writes and mirror FAT updates`
+  - `2e80c806` — `WIP [fs][fat] implement FAT12 entry writes and mirror FAT updates`
+  - `d36dc022` — `WIP [fs][fat]: refactor fat_sector_for_cluster to use 0xffffffff as error`
+  - `c43ce9b7` — `WIP [fs][fat]: implement directory growth and fix cluster boundary issues`
 
 ## What was completed
 
@@ -82,6 +84,15 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
 - FAT12 has no such bit; the methods are a no-op for FAT12.
 - FAT16: bit 15 of FAT entry 1 (`0x8000`). FAT32: bit 27 of FAT entry 1 (`0x08000000`).
 - Validated: `fsck.fat -vn` remains clean for all three image types after implementing this.
+- FAT12 has no such bit; the methods are a no-op for FAT12.
+
+### Directory Growth and Robustness
+
+- **Implemented Directory Growth**: Directories now automatically expand beyond their initial allocation by allocating new clusters when no free slots are found in the existing chain.
+- **Corrected Cluster Count Logic**: Fixed `total_clusters` to be an upper bound (exclusive) and updated all cluster boundary checks to prevent off-by-one errors and assertions at the filesystem edge.
+- **Unified EOF Handling**: Standardized EOF marker extension for FAT12/16/32 so that `is_eof_cluster()` works consistently across all formats.
+- **Improved Sector Addressing**: Refactored `fat_sector_for_cluster` to return `0xffffffff` on error and added safety checks to prevent accidental reads from sector 0 on invalid metadata.
+- **Deduplicated entry generation**: Refactored SFN entry creation into a shared `fill_short_dirent` helper.
 
 ### Test coverage added/updated
 
@@ -99,6 +110,10 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
   - removing long-name file
   - busy file rejection
   - removing a directory returns `ERR_NOT_FILE`
+- **Directory growth stress test**:
+  - Added `test_fat_dir_growth` which creates 1000 files in a single directory.
+  - Verifies multi-cluster traversal and correct entry allocation after growth.
+  - Confirmed content integrity and clean `fsck` across FAT12, FAT16, and FAT32.
 
 ## Files changed for the mkdir/remove/rmdir phase
 
@@ -129,6 +144,7 @@ Validation is now fully automated via `scripts/run-fat-tests.sh`:
 ```
 
 The script:
+
 1. Calls `lib/fs/fat/test/mkblk` to regenerate fresh disk images.
 2. For each image type, runs `scripts/run-qemu-boot-tests.py --arch arm64 -d <image>`
    (uses `RUN_UNITTESTS_AT_BOOT=1`; FAT tests run automatically at boot).
@@ -151,16 +167,13 @@ FAT subtests are skipped cleanly when no `virtio0` device is present.
 - FAT create/mkdir still effectively assumes simple 8.3-style creatable names for new entry creation.
 - Long filename creation is still not implemented as part of this work.
 - Remove supports file deletion only; there is no directory-delete behavior in this path — `rmdir` is now a separate API (see above).
-- `fat_dir_allocate` still has a TODO when a directory has no free entry slots and needs growth.
 
 ## What may still need to be done
 
 ### Likely next FAT work
 
 - Implement long filename creation support for create/mkdir if full LFN write support is a goal.
-- Implement directory growth in `fat_dir_allocate` when no free slots exist.
 - Add more targeted mkdir/remove/rmdir tests if desired:
-  - creating enough entries to force directory expansion
   - mkdir/remove in non-root FAT12/16 and FAT32 directories with more edge cases
   - invalid-name cases
   - dot/dotdot content verification through direct directory reads if needed
@@ -169,6 +182,7 @@ FAT subtests are skipped cleanly when no `virtio0` device is present.
 
 - If these WIP commits are going to be turned into a final series, they will probably need squashing/rewording into a cleaner history.
 - If desired, update FAT documentation or test notes to reflect write/mkdir/remove coverage.
+- **Code Style**: Ensure `clang-format -i lib/fs/fat/*` is run after making changes to maintain consistency.
 
 ## Recommended resume point
 

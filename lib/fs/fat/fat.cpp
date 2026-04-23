@@ -7,12 +7,12 @@
  * https://opensource.org/licenses/MIT
  */
 
+#include <endian.h>
+#include <lib/bcache/bcache_block_ref.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <endian.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <lib/bcache/bcache_block_ref.h>
 
 #include "fat_fs.h"
 #include "fat_priv.h"
@@ -501,4 +501,3 @@ ssize_t fat_zero_cluster(fat_fs *fat, uint32_t cluster) {
 
     return NO_ERROR;
 }
-

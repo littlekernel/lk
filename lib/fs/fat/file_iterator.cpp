@@ -7,13 +7,13 @@
  */
 #include "file_iterator.h"
 
+#include <endian.h>
 #include <lk/cpp.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <endian.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "fat_fs.h"
@@ -21,7 +21,8 @@
 
 #define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
-file_block_iterator::file_block_iterator(fat_fs *_fat, uint32_t starting_cluster) : fat(_fat) {
+file_block_iterator::file_block_iterator(fat_fs *_fat, uint32_t starting_cluster)
+    : fat(_fat) {
     if (starting_cluster == 0) {
         // special case on fat12/16 to represent the root dir.
         // load 0 into cluster and use sector_offset as relative to the
@@ -118,4 +119,3 @@ status_t file_block_iterator::mark_bcache_dirty() {
         return ERR_NO_RESOURCES;
     }
 }
-

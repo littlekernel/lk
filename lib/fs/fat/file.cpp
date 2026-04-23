@@ -8,23 +8,24 @@
  */
 #include "file.h"
 
-#include <lk/err.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
+#include <lk/debug.h>
+#include <lk/err.h>
 #include <lk/trace.h>
 #include <stdlib.h>
 #include <string.h>
-#include <lk/debug.h>
 
+#include "dir.h"
 #include "fat_fs.h"
 #include "fat_priv.h"
-#include "dir.h"
 
 #include "file_iterator.h"
 
 #define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
-fat_file::fat_file(fat_fs *f) : fs_(f) {}
+fat_file::fat_file(fat_fs *f)
+    : fs_(f) {}
 fat_file::~fat_file() = default;
 
 status_t fat_file::zero_range_locked(uint32_t offset, uint32_t len) {
@@ -345,14 +346,14 @@ status_t fat_file::create_file(fscookie *cookie, const char *path, filecookie **
 }
 
 status_t fat_file::truncate_file_priv(uint64_t _len) {
-    LTRACEF("file %p, len %" PRIu64" \n", this, _len);
+    LTRACEF("file %p, len %" PRIu64 " \n", this, _len);
 
     if (_len == length_) {
         return NO_ERROR;
     }
 
     // test some boundary conditions
-    if (_len >= 2UL*1024*1024*1024) {
+    if (_len >= 2UL * 1024 * 1024 * 1024) {
         // 2GB limit on the fs
         return ERR_TOO_BIG;
     }

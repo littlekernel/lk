@@ -7,22 +7,22 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <lk/err.h>
+#include <endian.h>
+#include <lib/bcache/bcache_block_ref.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
-#include <lk/trace.h>
-#include <lk/debug.h>
 #include <lk/cpp.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <malloc.h>
-#include <string.h>
-#include <endian.h>
 #include <stdlib.h>
-#include <lib/bcache/bcache_block_ref.h>
+#include <string.h>
 
-#include "fat_priv.h"
-#include "fat_fs.h"
-#include "file.h"
 #include "dir.h"
+#include "fat_fs.h"
+#include "fat_priv.h"
+#include "file.h"
 
 #define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
@@ -208,8 +208,9 @@ status_t fat_fs::set_volume_clean_bit_locked(bool clean) {
 status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
     status_t result = NO_ERROR;
 
-    if (!dev)
+    if (!dev) {
         return ERR_NOT_VALID;
+    }
 
     uint8_t *bs = (uint8_t *)malloc(512);
     if (!bs) {
@@ -237,11 +238,11 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
     fat->dev_ = dev;
 
     // if we early terminate, free the fat structure
-    auto ac2 = lk::make_auto_call([&]() { delete(fat); });
+    auto ac2 = lk::make_auto_call([&]() { delete (fat); });
 
     auto *info = &fat->info_;
 
-    info->bytes_per_sector = fat_read16(bs,0xb);
+    info->bytes_per_sector = fat_read16(bs, 0xb);
     if ((info->bytes_per_sector != 0x200) && (info->bytes_per_sector != 0x400) && (info->bytes_per_sector != 0x800)) {
         printf("unsupported sector size (%x)\n", info->bytes_per_sector);
         return ERR_NOT_VALID;
@@ -289,7 +290,7 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
     // sectors per fat
     info->sectors_per_fat = fat_read16(bs, 0x16); // read FAT size 16 bit
     if (info->sectors_per_fat == 0) {
-        info->sectors_per_fat = fat_read32(bs,0x24); // read FAT size 32 bit
+        info->sectors_per_fat = fat_read32(bs, 0x24); // read FAT size 32 bit
         if (info->sectors_per_fat == 0) {
             printf("invalid sectors per fat 0\n");
             return ERR_NOT_VALID;
@@ -297,9 +298,9 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
     }
 
     // total sectors
-    info->total_sectors = fat_read16(bs,0x13); // total sectors 16
+    info->total_sectors = fat_read16(bs, 0x13); // total sectors 16
     if (info->total_sectors == 0) {
-        info->total_sectors = fat_read32(bs,0x20); // total sectors 32
+        info->total_sectors = fat_read32(bs, 0x20); // total sectors 32
     }
     if (info->total_sectors == 0) {
         // TODO: test that total sectors <= bio device size
@@ -376,7 +377,7 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
                         uint32_t next_free = fat_read32(fsi, 0x1ec);
                         info->fsinfo_next_free =
                             (next_free >= 2 && next_free < info->total_clusters) ? next_free
-                                                                                  : UINT32_MAX;
+                                                                                 : UINT32_MAX;
                     }
                 }
             }

@@ -7,14 +7,14 @@
  */
 #pragma once
 
-#include <inttypes.h>
 #include "fat_fs.h"
 #include "fat_priv.h"
+#include <inttypes.h>
 
 class fat_fs;
 
 class fat_file {
-public:
+  public:
     explicit fat_file(fat_fs *f);
     virtual ~fat_file();
 
@@ -34,7 +34,7 @@ public:
     // node in the fs's list of open files and dirs
     list_node node_ = LIST_INITIAL_CLEARED_VALUE;
 
-private:
+  private:
     // private versions of the above
     status_t open_file_priv(const dir_entry &entry, const dir_entry_location &loc);
     ssize_t read_file_priv(void *_buf, const off_t offset, size_t len);
@@ -44,7 +44,7 @@ private:
     status_t truncate_file_priv(uint64_t len);
     status_t zero_range_locked(uint32_t offset, uint32_t len);
 
-protected:
+  protected:
     // increment the ref and add/remove the file from the fs list
     void inc_ref();
     bool dec_ref(); // returns true when ref reaches zero
@@ -55,7 +55,7 @@ protected:
     fat_fs *fs_ = nullptr; // pointer back to the fs instance we're in
 
     // pointer to our dir entry, acts as our unique key in the fs list
-    dir_entry_location dir_loc_ {};
+    dir_entry_location dir_loc_{};
 
     // our start cluster and length
     uint32_t start_cluster_ = 0;
@@ -64,4 +64,3 @@ protected:
     // saved attributes from our dir entry
     fat_attribute attributes_ = fat_attribute(0);
 };
-

@@ -8,9 +8,9 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
+#include <lk/compiler.h>
 
 #include "fat_fs.h"
 
