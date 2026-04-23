@@ -81,7 +81,11 @@ status_t file_block_iterator::load_current_bcache_block() {
         DEBUG_ASSERT(sector_offset < fat->info().sectors_per_cluster);
 
         // compute the sector we should be on given the cluster and sector_offset
-        auto sector = fat_sector_for_cluster(fat, cluster) + sector_offset;
+        uint32_t cluster_sector = fat_sector_for_cluster(fat, cluster);
+        if (cluster_sector == 0xffffffff) {
+            return ERR_INVALID_ARGS;
+        }
+        auto sector = cluster_sector + sector_offset;
 
         return load_bcache_block(sector);
     }

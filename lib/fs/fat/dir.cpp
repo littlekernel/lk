@@ -625,7 +625,11 @@ status_t fat_dir::mkdir(fscookie *cookie, const char *path) {
     }
 
     bcache_block_ref bref(fat->bcache());
-    err = bref.get_block(fat_sector_for_cluster(fat, first_cluster));
+    uint32_t sector = fat_sector_for_cluster(fat, first_cluster);
+    if (sector == 0xffffffff) {
+        return ERR_INVALID_ARGS;
+    }
+    err = bref.get_block(sector);
     if (err < 0) {
         return err;
     }
@@ -1017,7 +1021,11 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
     // The new cluster is zeroed, so the first entry is free.
     // Use it to fill in the new directory entry.
     bcache_block_ref bref(fat->bcache());
-    err = bref.get_block(fat_sector_for_cluster(fat, new_cluster));
+    uint32_t sector = fat_sector_for_cluster(fat, new_cluster);
+    if (sector == 0xffffffff) {
+        return ERR_INVALID_ARGS;
+    }
+    err = bref.get_block(sector);
     if (err < 0) {
         return err;
     }
@@ -1064,7 +1072,11 @@ static bcache_block_ref open_dirent_block(fat_fs *fat, const dir_entry_location 
             }
             offset -= bytes_per_cluster;
         }
-        sector = fat_sector_for_cluster(fat, cluster) + offset / fat->info().bytes_per_sector;
+        uint32_t cluster_sector = fat_sector_for_cluster(fat, cluster);
+        if (cluster_sector == 0xffffffff) {
+            return bcache_block_ref(fat->bcache());
+        }
+        sector = cluster_sector + offset / fat->info().bytes_per_sector;
     }
 
     bcache_block_ref bref(fat->bcache());

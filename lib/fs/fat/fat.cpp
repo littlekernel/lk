@@ -444,7 +444,7 @@ uint32_t fat_sector_for_cluster(fat_fs *fat, uint32_t cluster) {
     DEBUG_ASSERT(cluster >= 2);
     DEBUG_ASSERT(cluster < fat->info().total_clusters);
     if (cluster >= fat->info().total_clusters) {
-        return 0;
+        return 0xffffffff;
     }
 
     uint32_t sector = fat->info().data_start_sector + (cluster - 2) * fat->info().sectors_per_cluster;
@@ -461,6 +461,9 @@ ssize_t fat_read_cluster(fat_fs *fat, void *buf, uint32_t cluster) {
     LTRACEF("buf %p, cluster %u\n", buf, cluster);
 
     auto sector = fat_sector_for_cluster(fat, cluster);
+    if (sector == 0xffffffff) {
+        return ERR_INVALID_ARGS;
+    }
 
     uint8_t *buf8 = (uint8_t *)buf;
     for (size_t i = 0; i < fat->info().sectors_per_cluster; i++) {
@@ -483,6 +486,9 @@ ssize_t fat_zero_cluster(fat_fs *fat, uint32_t cluster) {
     LTRACEF("cluster %u\n", cluster);
 
     auto sector = fat_sector_for_cluster(fat, cluster);
+    if (sector == 0xffffffff) {
+        return ERR_INVALID_ARGS;
+    }
 
     for (size_t i = 0; i < fat->info().sectors_per_cluster; i++) {
         status_t err = bcache_zero_block(fat->bcache(), sector);
