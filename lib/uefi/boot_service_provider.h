@@ -98,6 +98,12 @@ static constexpr auto EFI_GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID =
             0x11f0,
             {0x84, 0xc7, 0x04, 0x7b, 0xcb, 0xa9, 0x60, 0x19}};
 
+static constexpr auto EFI_GBL_EFI_AVB_PROTOCOL_GUID =
+    EfiGuid{0x6bc66b9a,
+            0xd5c9,
+            0x4c02,
+            {0x9d, 0xa9, 0x50, 0xaf, 0x19, 0x8d, 0x91, 0x2c}};
+
 static constexpr auto EFI_GBL_EFI_FASTBOOT_PROTOCOL_GUID =
     EfiGuid{0xc67e48a0,
             0x5eb8,

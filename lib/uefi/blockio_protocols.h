@@ -5,6 +5,6 @@
 
 EfiStatus open_block_device(EfiHandle handle, const void **intf);
 
-EfiStatus list_block_devices(size_t *num_handles, EfiHandle **buf);
+EfiStatus list_block_devices(size_t *num_handles, EfiHandle *buf);
 
 #endif
