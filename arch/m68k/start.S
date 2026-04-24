@@ -91,8 +91,7 @@ init_mmu_68040:
     lea    %pc@(_l1_tables),%a1   // get pointer to L1 tables
     addl   #0x00000003,%a1        // mark it valid
 .Ll0_loop:
-    movl   %a1,%a0@               // store it in the L0 table
-    addl   #4,%a0                 // advance to next L0 entry
+    movel  %a1,%a0@+              // store it in the L0 table and advance
     addl   #L1_PGTABLE_ENTRIES * 4,%a1 // advance to next L1 table
     subl   #1,%d0
     bne    .Ll0_loop
@@ -104,8 +103,7 @@ init_mmu_68040:
     addl   #0x00000003,%a1        // mark it valid
 
 .Ll1_loop:
-    movl   %a1,%a0@
-    addl   #4,%a0
+    movel  %a1,%a0@+              // store it in the L1 table and advance
     addl   #L2_PGTABLE_ENTRIES * 4,%a1 // advance to next L1 table
     subl   #1,%d0
     bne    .Ll1_loop
@@ -115,8 +113,7 @@ init_mmu_68040:
     movl   #L2_ENTRIES,%d0
     movl   #0x000000083,%d1       // address 0, supervisor, writable, present
 .L2_loop:
-    movl   %d1,%a0@               // read the current entry
-    addl   #4,%a0                 // advance to next L2 entry
+    movel  %d1,%a0@+              // store it in the L2 table and advance
     addl   #PAGE_SIZE,%d1         // advance to next page
     subl   #1,%d0
     bne    .L2_loop
